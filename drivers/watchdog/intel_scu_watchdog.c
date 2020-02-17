@@ -463,7 +463,7 @@ static int __init intel_scu_watchdog_init(void)
 		return -ENODEV;
 	}
 
-	tmp_addr = ioremap_nocache(watchdog_device.timer_tbl_ptr->phys_addr,
+	tmp_addr = ioremap(watchdog_device.timer_tbl_ptr->phys_addr,
 			20);
 
 	if (tmp_addr == NULL) {

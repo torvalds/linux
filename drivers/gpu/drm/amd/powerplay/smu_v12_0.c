@@ -159,7 +159,7 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 
 int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
 {
-	if (!(smu->adev->flags & AMD_IS_APU))
+	if (!smu->is_apu)
 		return 0;
 
 	if (gate)
@@ -170,7 +170,7 @@ int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
 
 int smu_v12_0_powergate_vcn(struct smu_context *smu, bool gate)
 {
-	if (!(smu->adev->flags & AMD_IS_APU))
+	if (!smu->is_apu)
 		return 0;
 
 	if (gate)
@@ -181,7 +181,7 @@ int smu_v12_0_powergate_vcn(struct smu_context *smu, bool gate)
 
 int smu_v12_0_powergate_jpeg(struct smu_context *smu, bool gate)
 {
-	if (!(smu->adev->flags & AMD_IS_APU))
+	if (!smu->is_apu)
 		return 0;
 
 	if (gate)
@@ -318,14 +318,6 @@ int smu_v12_0_fini_smc_tables(struct smu_context *smu)
 int smu_v12_0_populate_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *table = NULL;
-
-	table = &smu_table->tables[SMU_TABLE_DPMCLOCKS];
-	if (!table)
-		return -EINVAL;
-
-	if (!table->cpu_addr)
-		return -EINVAL;
 
 	return smu_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
 }
@@ -510,6 +502,24 @@ int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 	break;
 	default:
 		return -EINVAL;
+	}
+
+	return ret;
+}
+
+int smu_v12_0_set_driver_table_location(struct smu_context *smu)
+{
+	struct smu_table *driver_table = &smu->smu_table.driver_table;
+	int ret = 0;
+
+	if (driver_table->mc_address) {
+		ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetDriverDramAddrHigh,
+				upper_32_bits(driver_table->mc_address));
+		if (!ret)
+			ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetDriverDramAddrLow,
+				lower_32_bits(driver_table->mc_address));
 	}
 
 	return ret;

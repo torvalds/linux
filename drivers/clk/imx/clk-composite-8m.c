@@ -123,7 +123,7 @@ static const struct clk_ops imx8m_clk_composite_divider_ops = {
 	.set_rate = imx8m_clk_composite_divider_set_rate,
 };
 
-struct clk *imx8m_clk_composite_flags(const char *name,
+struct clk_hw *imx8m_clk_hw_composite_flags(const char *name,
 					const char * const *parent_names,
 					int num_parents, void __iomem *reg,
 					unsigned long flags)
@@ -142,6 +142,7 @@ struct clk *imx8m_clk_composite_flags(const char *name,
 	mux->reg = reg;
 	mux->shift = PCG_PCS_SHIFT;
 	mux->mask = PCG_PCS_MASK;
+	mux->lock = &imx_ccm_lock;
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
@@ -161,6 +162,7 @@ struct clk *imx8m_clk_composite_flags(const char *name,
 	gate_hw = &gate->hw;
 	gate->reg = reg;
 	gate->bit_idx = PCG_CGC_SHIFT;
+	gate->lock = &imx_ccm_lock;
 
 	hw = clk_hw_register_composite(NULL, name, parent_names, num_parents,
 			mux_hw, &clk_mux_ops, div_hw,
@@ -169,7 +171,7 @@ struct clk *imx8m_clk_composite_flags(const char *name,
 	if (IS_ERR(hw))
 		goto fail;
 
-	return hw->clk;
+	return hw;
 
 fail:
 	kfree(gate);

@@ -25,7 +25,8 @@
 #define		PMC_PLL_CTRL1_MUL_MSK		GENMASK(30, 24)
 
 #define PMC_PLL_ACR	0x18
-#define		PMC_PLL_ACR_DEFAULT		0x1b040010UL
+#define		PMC_PLL_ACR_DEFAULT_UPLL	0x12020010UL
+#define		PMC_PLL_ACR_DEFAULT_PLLA	0x00020010UL
 #define		PMC_PLL_ACR_UTMIVR		BIT(12)
 #define		PMC_PLL_ACR_UTMIBG		BIT(13)
 #define		PMC_PLL_ACR_LOOP_FILTER_MSK	GENMASK(31, 24)
@@ -88,7 +89,10 @@ static int sam9x60_pll_prepare(struct clk_hw *hw)
 	}
 
 	/* Recommended value for PMC_PLL_ACR */
-	val = PMC_PLL_ACR_DEFAULT;
+	if (pll->characteristics->upll)
+		val = PMC_PLL_ACR_DEFAULT_UPLL;
+	else
+		val = PMC_PLL_ACR_DEFAULT_PLLA;
 	regmap_write(regmap, PMC_PLL_ACR, val);
 
 	regmap_write(regmap, PMC_PLL_CTRL1,

@@ -53,7 +53,7 @@ static ssize_t nsim_dev_take_snapshot_write(struct file *file,
 
 	get_random_bytes(dummy_data, NSIM_DEV_DUMMY_REGION_SIZE);
 
-	id = devlink_region_shapshot_id_get(priv_to_devlink(nsim_dev));
+	id = devlink_region_snapshot_id_get(priv_to_devlink(nsim_dev));
 	err = devlink_region_snapshot_create(nsim_dev->dummy_region,
 					     dummy_data, id, kfree);
 	if (err) {
@@ -73,23 +73,26 @@ static const struct file_operations nsim_dev_take_snapshot_fops = {
 
 static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 {
-	char dev_ddir_name[16];
+	char dev_ddir_name[sizeof(DRV_NAME) + 10];
 
 	sprintf(dev_ddir_name, DRV_NAME "%u", nsim_dev->nsim_bus_dev->dev.id);
 	nsim_dev->ddir = debugfs_create_dir(dev_ddir_name, nsim_dev_ddir);
-	if (IS_ERR_OR_NULL(nsim_dev->ddir))
-		return PTR_ERR_OR_ZERO(nsim_dev->ddir) ?: -EINVAL;
+	if (IS_ERR(nsim_dev->ddir))
+		return PTR_ERR(nsim_dev->ddir);
 	nsim_dev->ports_ddir = debugfs_create_dir("ports", nsim_dev->ddir);
-	if (IS_ERR_OR_NULL(nsim_dev->ports_ddir))
-		return PTR_ERR_OR_ZERO(nsim_dev->ports_ddir) ?: -EINVAL;
+	if (IS_ERR(nsim_dev->ports_ddir))
+		return PTR_ERR(nsim_dev->ports_ddir);
 	debugfs_create_bool("fw_update_status", 0600, nsim_dev->ddir,
 			    &nsim_dev->fw_update_status);
 	debugfs_create_u32("max_macs", 0600, nsim_dev->ddir,
 			   &nsim_dev->max_macs);
 	debugfs_create_bool("test1", 0600, nsim_dev->ddir,
 			    &nsim_dev->test1);
-	debugfs_create_file("take_snapshot", 0200, nsim_dev->ddir, nsim_dev,
-			    &nsim_dev_take_snapshot_fops);
+	nsim_dev->take_snapshot = debugfs_create_file("take_snapshot",
+						      0200,
+						      nsim_dev->ddir,
+						      nsim_dev,
+						&nsim_dev_take_snapshot_fops);
 	debugfs_create_bool("dont_allow_reload", 0600, nsim_dev->ddir,
 			    &nsim_dev->dont_allow_reload);
 	debugfs_create_bool("fail_reload", 0600, nsim_dev->ddir,
@@ -112,8 +115,8 @@ static int nsim_dev_port_debugfs_init(struct nsim_dev *nsim_dev,
 	sprintf(port_ddir_name, "%u", nsim_dev_port->port_index);
 	nsim_dev_port->ddir = debugfs_create_dir(port_ddir_name,
 						 nsim_dev->ports_ddir);
-	if (IS_ERR_OR_NULL(nsim_dev_port->ddir))
-		return -ENOMEM;
+	if (IS_ERR(nsim_dev_port->ddir))
+		return PTR_ERR(nsim_dev_port->ddir);
 
 	sprintf(dev_link_name, "../../../" DRV_NAME "%u",
 		nsim_dev->nsim_bus_dev->dev.id);
@@ -270,7 +273,7 @@ struct nsim_trap_data {
 };
 
 /* All driver-specific traps must be documented in
- * Documentation/networking/devlink-trap-netdevsim.rst
+ * Documentation/networking/devlink/netdevsim.rst
  */
 enum {
 	NSIM_TRAP_ID_BASE = DEVLINK_TRAP_GENERIC_ID_MAX,
@@ -740,6 +743,11 @@ static int nsim_dev_reload_create(struct nsim_dev *nsim_dev,
 	if (err)
 		goto err_health_exit;
 
+	nsim_dev->take_snapshot = debugfs_create_file("take_snapshot",
+						      0200,
+						      nsim_dev->ddir,
+						      nsim_dev,
+						&nsim_dev_take_snapshot_fops);
 	return 0;
 
 err_health_exit:
@@ -853,6 +861,7 @@ static void nsim_dev_reload_destroy(struct nsim_dev *nsim_dev)
 
 	if (devlink_is_reload_failed(devlink))
 		return;
+	debugfs_remove(nsim_dev->take_snapshot);
 	nsim_dev_port_del_all(nsim_dev);
 	nsim_dev_health_exit(nsim_dev);
 	nsim_dev_traps_exit(devlink);
@@ -925,9 +934,7 @@ int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
 int nsim_dev_init(void)
 {
 	nsim_dev_ddir = debugfs_create_dir(DRV_NAME, NULL);
-	if (IS_ERR_OR_NULL(nsim_dev_ddir))
-		return -ENOMEM;
-	return 0;
+	return PTR_ERR_OR_ZERO(nsim_dev_ddir);
 }
 
 void nsim_dev_exit(void)

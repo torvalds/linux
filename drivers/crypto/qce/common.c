@@ -45,52 +45,56 @@ qce_clear_array(struct qce_device *qce, u32 offset, unsigned int len)
 		qce_write(qce, offset + i * sizeof(u32), 0);
 }
 
-static u32 qce_encr_cfg(unsigned long flags, u32 aes_key_size)
+static u32 qce_config_reg(struct qce_device *qce, int little)
 {
-	u32 cfg = 0;
+	u32 beats = (qce->burst_size >> 3) - 1;
+	u32 pipe_pair = qce->pipe_pair_id;
+	u32 config;
 
-	if (IS_AES(flags)) {
-		if (aes_key_size == AES_KEYSIZE_128)
-			cfg |= ENCR_KEY_SZ_AES128 << ENCR_KEY_SZ_SHIFT;
-		else if (aes_key_size == AES_KEYSIZE_256)
-			cfg |= ENCR_KEY_SZ_AES256 << ENCR_KEY_SZ_SHIFT;
-	}
+	config = (beats << REQ_SIZE_SHIFT) & REQ_SIZE_MASK;
+	config |= BIT(MASK_DOUT_INTR_SHIFT) | BIT(MASK_DIN_INTR_SHIFT) |
+		  BIT(MASK_OP_DONE_INTR_SHIFT) | BIT(MASK_ERR_INTR_SHIFT);
+	config |= (pipe_pair << PIPE_SET_SELECT_SHIFT) & PIPE_SET_SELECT_MASK;
+	config &= ~HIGH_SPD_EN_N_SHIFT;
 
-	if (IS_AES(flags))
-		cfg |= ENCR_ALG_AES << ENCR_ALG_SHIFT;
-	else if (IS_DES(flags) || IS_3DES(flags))
-		cfg |= ENCR_ALG_DES << ENCR_ALG_SHIFT;
+	if (little)
+		config |= BIT(LITTLE_ENDIAN_MODE_SHIFT);
 
-	if (IS_DES(flags))
-		cfg |= ENCR_KEY_SZ_DES << ENCR_KEY_SZ_SHIFT;
-
-	if (IS_3DES(flags))
-		cfg |= ENCR_KEY_SZ_3DES << ENCR_KEY_SZ_SHIFT;
-
-	switch (flags & QCE_MODE_MASK) {
-	case QCE_MODE_ECB:
-		cfg |= ENCR_MODE_ECB << ENCR_MODE_SHIFT;
-		break;
-	case QCE_MODE_CBC:
-		cfg |= ENCR_MODE_CBC << ENCR_MODE_SHIFT;
-		break;
-	case QCE_MODE_CTR:
-		cfg |= ENCR_MODE_CTR << ENCR_MODE_SHIFT;
-		break;
-	case QCE_MODE_XTS:
-		cfg |= ENCR_MODE_XTS << ENCR_MODE_SHIFT;
-		break;
-	case QCE_MODE_CCM:
-		cfg |= ENCR_MODE_CCM << ENCR_MODE_SHIFT;
-		cfg |= LAST_CCM_XFR << LAST_CCM_SHIFT;
-		break;
-	default:
-		return ~0;
-	}
-
-	return cfg;
+	return config;
 }
 
+void qce_cpu_to_be32p_array(__be32 *dst, const u8 *src, unsigned int len)
+{
+	__be32 *d = dst;
+	const u8 *s = src;
+	unsigned int n;
+
+	n = len / sizeof(u32);
+	for (; n > 0; n--) {
+		*d = cpu_to_be32p((const __u32 *) s);
+		s += sizeof(__u32);
+		d++;
+	}
+}
+
+static void qce_setup_config(struct qce_device *qce)
+{
+	u32 config;
+
+	/* get big endianness */
+	config = qce_config_reg(qce, 0);
+
+	/* clear status */
+	qce_write(qce, REG_STATUS, 0);
+	qce_write(qce, REG_CONFIG, config);
+}
+
+static inline void qce_crypto_go(struct qce_device *qce)
+{
+	qce_write(qce, REG_GOPROC, BIT(GO_SHIFT) | BIT(RESULTS_DUMP_SHIFT));
+}
+
+#ifdef CONFIG_CRYPTO_DEV_QCE_SHA
 static u32 qce_auth_cfg(unsigned long flags, u32 key_size)
 {
 	u32 cfg = 0;
@@ -135,88 +139,6 @@ static u32 qce_auth_cfg(unsigned long flags, u32 key_size)
 		cfg |= BIT(AUTH_LAST_SHIFT) | BIT(AUTH_FIRST_SHIFT);
 
 	return cfg;
-}
-
-static u32 qce_config_reg(struct qce_device *qce, int little)
-{
-	u32 beats = (qce->burst_size >> 3) - 1;
-	u32 pipe_pair = qce->pipe_pair_id;
-	u32 config;
-
-	config = (beats << REQ_SIZE_SHIFT) & REQ_SIZE_MASK;
-	config |= BIT(MASK_DOUT_INTR_SHIFT) | BIT(MASK_DIN_INTR_SHIFT) |
-		  BIT(MASK_OP_DONE_INTR_SHIFT) | BIT(MASK_ERR_INTR_SHIFT);
-	config |= (pipe_pair << PIPE_SET_SELECT_SHIFT) & PIPE_SET_SELECT_MASK;
-	config &= ~HIGH_SPD_EN_N_SHIFT;
-
-	if (little)
-		config |= BIT(LITTLE_ENDIAN_MODE_SHIFT);
-
-	return config;
-}
-
-void qce_cpu_to_be32p_array(__be32 *dst, const u8 *src, unsigned int len)
-{
-	__be32 *d = dst;
-	const u8 *s = src;
-	unsigned int n;
-
-	n = len / sizeof(u32);
-	for (; n > 0; n--) {
-		*d = cpu_to_be32p((const __u32 *) s);
-		s += sizeof(__u32);
-		d++;
-	}
-}
-
-static void qce_xts_swapiv(__be32 *dst, const u8 *src, unsigned int ivsize)
-{
-	u8 swap[QCE_AES_IV_LENGTH];
-	u32 i, j;
-
-	if (ivsize > QCE_AES_IV_LENGTH)
-		return;
-
-	memset(swap, 0, QCE_AES_IV_LENGTH);
-
-	for (i = (QCE_AES_IV_LENGTH - ivsize), j = ivsize - 1;
-	     i < QCE_AES_IV_LENGTH; i++, j--)
-		swap[i] = src[j];
-
-	qce_cpu_to_be32p_array(dst, swap, QCE_AES_IV_LENGTH);
-}
-
-static void qce_xtskey(struct qce_device *qce, const u8 *enckey,
-		       unsigned int enckeylen, unsigned int cryptlen)
-{
-	u32 xtskey[QCE_MAX_CIPHER_KEY_SIZE / sizeof(u32)] = {0};
-	unsigned int xtsklen = enckeylen / (2 * sizeof(u32));
-	unsigned int xtsdusize;
-
-	qce_cpu_to_be32p_array((__be32 *)xtskey, enckey + enckeylen / 2,
-			       enckeylen / 2);
-	qce_write_array(qce, REG_ENCR_XTS_KEY0, xtskey, xtsklen);
-
-	/* xts du size 512B */
-	xtsdusize = min_t(u32, QCE_SECTOR_SIZE, cryptlen);
-	qce_write(qce, REG_ENCR_XTS_DU_SIZE, xtsdusize);
-}
-
-static void qce_setup_config(struct qce_device *qce)
-{
-	u32 config;
-
-	/* get big endianness */
-	config = qce_config_reg(qce, 0);
-
-	/* clear status */
-	qce_write(qce, REG_STATUS, 0);
-	qce_write(qce, REG_CONFIG, config);
-}
-
-static inline void qce_crypto_go(struct qce_device *qce)
-{
-	qce_write(qce, REG_GOPROC, BIT(GO_SHIFT) | BIT(RESULTS_DUMP_SHIFT));
 }
 
 static int qce_setup_regs_ahash(struct crypto_async_request *async_req,
@@ -303,6 +225,87 @@ go_proc:
 
 	return 0;
 }
+#endif
+
+#ifdef CONFIG_CRYPTO_DEV_QCE_SKCIPHER
+static u32 qce_encr_cfg(unsigned long flags, u32 aes_key_size)
+{
+	u32 cfg = 0;
+
+	if (IS_AES(flags)) {
+		if (aes_key_size == AES_KEYSIZE_128)
+			cfg |= ENCR_KEY_SZ_AES128 << ENCR_KEY_SZ_SHIFT;
+		else if (aes_key_size == AES_KEYSIZE_256)
+			cfg |= ENCR_KEY_SZ_AES256 << ENCR_KEY_SZ_SHIFT;
+	}
+
+	if (IS_AES(flags))
+		cfg |= ENCR_ALG_AES << ENCR_ALG_SHIFT;
+	else if (IS_DES(flags) || IS_3DES(flags))
+		cfg |= ENCR_ALG_DES << ENCR_ALG_SHIFT;
+
+	if (IS_DES(flags))
+		cfg |= ENCR_KEY_SZ_DES << ENCR_KEY_SZ_SHIFT;
+
+	if (IS_3DES(flags))
+		cfg |= ENCR_KEY_SZ_3DES << ENCR_KEY_SZ_SHIFT;
+
+	switch (flags & QCE_MODE_MASK) {
+	case QCE_MODE_ECB:
+		cfg |= ENCR_MODE_ECB << ENCR_MODE_SHIFT;
+		break;
+	case QCE_MODE_CBC:
+		cfg |= ENCR_MODE_CBC << ENCR_MODE_SHIFT;
+		break;
+	case QCE_MODE_CTR:
+		cfg |= ENCR_MODE_CTR << ENCR_MODE_SHIFT;
+		break;
+	case QCE_MODE_XTS:
+		cfg |= ENCR_MODE_XTS << ENCR_MODE_SHIFT;
+		break;
+	case QCE_MODE_CCM:
+		cfg |= ENCR_MODE_CCM << ENCR_MODE_SHIFT;
+		cfg |= LAST_CCM_XFR << LAST_CCM_SHIFT;
+		break;
+	default:
+		return ~0;
+	}
+
+	return cfg;
+}
+
+static void qce_xts_swapiv(__be32 *dst, const u8 *src, unsigned int ivsize)
+{
+	u8 swap[QCE_AES_IV_LENGTH];
+	u32 i, j;
+
+	if (ivsize > QCE_AES_IV_LENGTH)
+		return;
+
+	memset(swap, 0, QCE_AES_IV_LENGTH);
+
+	for (i = (QCE_AES_IV_LENGTH - ivsize), j = ivsize - 1;
+	     i < QCE_AES_IV_LENGTH; i++, j--)
+		swap[i] = src[j];
+
+	qce_cpu_to_be32p_array(dst, swap, QCE_AES_IV_LENGTH);
+}
+
+static void qce_xtskey(struct qce_device *qce, const u8 *enckey,
+		       unsigned int enckeylen, unsigned int cryptlen)
+{
+	u32 xtskey[QCE_MAX_CIPHER_KEY_SIZE / sizeof(u32)] = {0};
+	unsigned int xtsklen = enckeylen / (2 * sizeof(u32));
+	unsigned int xtsdusize;
+
+	qce_cpu_to_be32p_array((__be32 *)xtskey, enckey + enckeylen / 2,
+			       enckeylen / 2);
+	qce_write_array(qce, REG_ENCR_XTS_KEY0, xtskey, xtsklen);
+
+	/* xts du size 512B */
+	xtsdusize = min_t(u32, QCE_SECTOR_SIZE, cryptlen);
+	qce_write(qce, REG_ENCR_XTS_DU_SIZE, xtsdusize);
+}
 
 static int qce_setup_regs_skcipher(struct crypto_async_request *async_req,
 				     u32 totallen, u32 offset)
@@ -384,15 +387,20 @@ static int qce_setup_regs_skcipher(struct crypto_async_request *async_req,
 
 	return 0;
 }
+#endif
 
 int qce_start(struct crypto_async_request *async_req, u32 type, u32 totallen,
 	      u32 offset)
 {
 	switch (type) {
+#ifdef CONFIG_CRYPTO_DEV_QCE_SKCIPHER
 	case CRYPTO_ALG_TYPE_SKCIPHER:
 		return qce_setup_regs_skcipher(async_req, totallen, offset);
+#endif
+#ifdef CONFIG_CRYPTO_DEV_QCE_SHA
 	case CRYPTO_ALG_TYPE_AHASH:
 		return qce_setup_regs_ahash(async_req, totallen, offset);
+#endif
 	default:
 		return -EINVAL;
 	}

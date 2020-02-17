@@ -386,7 +386,7 @@ static struct phy *ltq_vrx200_pcie_phy_xlate(struct device *dev,
 	default:
 		dev_err(dev, "invalid PHY mode %u\n", mode);
 		return ERR_PTR(-EINVAL);
-	};
+	}
 
 	return priv->phy;
 }

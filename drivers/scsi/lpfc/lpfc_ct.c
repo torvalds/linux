@@ -1493,33 +1493,35 @@ int
 lpfc_vport_symbolic_node_name(struct lpfc_vport *vport, char *symbol,
 	size_t size)
 {
-	char fwrev[FW_REV_STR_SIZE];
-	int n;
+	char fwrev[FW_REV_STR_SIZE] = {0};
+	char tmp[MAXHOSTNAMELEN] = {0};
+
+	memset(symbol, 0, size);
+
+	scnprintf(tmp, sizeof(tmp), "Emulex %s", vport->phba->ModelName);
+	if (strlcat(symbol, tmp, size) >= size)
+		goto buffer_done;
 
 	lpfc_decode_firmware_rev(vport->phba, fwrev, 0);
+	scnprintf(tmp, sizeof(tmp), " FV%s", fwrev);
+	if (strlcat(symbol, tmp, size) >= size)
+		goto buffer_done;
 
-	n = scnprintf(symbol, size, "Emulex %s", vport->phba->ModelName);
-	if (size < n)
-		return n;
+	scnprintf(tmp, sizeof(tmp), " DV%s", lpfc_release_version);
+	if (strlcat(symbol, tmp, size) >= size)
+		goto buffer_done;
 
-	n += scnprintf(symbol + n, size - n, " FV%s", fwrev);
-	if (size < n)
-		return n;
-
-	n += scnprintf(symbol + n, size - n, " DV%s.",
-		      lpfc_release_version);
-	if (size < n)
-		return n;
-
-	n += scnprintf(symbol + n, size - n, " HN:%s.",
-		      init_utsname()->nodename);
-	if (size < n)
-		return n;
+	scnprintf(tmp, sizeof(tmp), " HN:%s", vport->phba->os_host_name);
+	if (strlcat(symbol, tmp, size) >= size)
+		goto buffer_done;
 
 	/* Note :- OS name is "Linux" */
-	n += scnprintf(symbol + n, size - n, " OS:%s",
-		      init_utsname()->sysname);
-	return n;
+	scnprintf(tmp, sizeof(tmp), " OS:%s", init_utsname()->sysname);
+	strlcat(symbol, tmp, size);
+
+buffer_done:
+	return strnlen(symbol, size);
+
 }
 
 static uint32_t
@@ -1998,14 +2000,16 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 
 /**
- * lpfc_fdmi_num_disc_check - Check how many mapped NPorts we are connected to
+ * lpfc_fdmi_change_check - Check for changed FDMI parameters
  * @vport: pointer to a host virtual N_Port data structure.
  *
- * Called from hbeat timeout routine to check if the number of discovered
- * ports has changed. If so, re-register thar port Attribute.
+ * Check how many mapped NPorts we are connected to
+ * Check if our hostname changed
+ * Called from hbeat timeout routine to check if any FDMI parameters
+ * changed. If so, re-register those Attributes.
  */
 void
-lpfc_fdmi_num_disc_check(struct lpfc_vport *vport)
+lpfc_fdmi_change_check(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_nodelist *ndlp;
@@ -2018,15 +2022,39 @@ lpfc_fdmi_num_disc_check(struct lpfc_vport *vport)
 	if (!(vport->fc_flag & FC_FABRIC))
 		return;
 
+	ndlp = lpfc_findnode_did(vport, FDMI_DID);
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+		return;
+
+	/* Check if system hostname changed */
+	if (strcmp(phba->os_host_name, init_utsname()->nodename)) {
+		memset(phba->os_host_name, 0, sizeof(phba->os_host_name));
+		scnprintf(phba->os_host_name, sizeof(phba->os_host_name), "%s",
+			  init_utsname()->nodename);
+		lpfc_ns_cmd(vport, SLI_CTNS_RSNN_NN, 0, 0);
+
+		/* Since this effects multiple HBA and PORT attributes, we need
+		 * de-register and go thru the whole FDMI registration cycle.
+		 * DHBA -> DPRT -> RHBA -> RPA  (physical port)
+		 * DPRT -> RPRT (vports)
+		 */
+		if (vport->port_type == LPFC_PHYSICAL_PORT)
+			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA, 0);
+		else
+			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DPRT, 0);
+
+		/* Since this code path registers all the port attributes
+		 * we can just return without further checking.
+		 */
+		return;
+	}
+
 	if (!(vport->fdmi_port_mask & LPFC_FDMI_PORT_ATTR_num_disc))
 		return;
 
+	/* Check if the number of mapped NPorts changed */
 	cnt = lpfc_find_map_node(vport);
 	if (cnt == vport->fdmi_num_disc)
-		return;
-
-	ndlp = lpfc_findnode_did(vport, FDMI_DID);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
 		return;
 
 	if (vport->port_type == LPFC_PHYSICAL_PORT) {
@@ -2616,8 +2644,8 @@ lpfc_fdmi_port_attr_host_name(struct lpfc_vport *vport,
 	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
 	memset(ae, 0, 256);
 
-	snprintf(ae->un.AttrString, sizeof(ae->un.AttrString), "%s",
-		 init_utsname()->nodename);
+	scnprintf(ae->un.AttrString, sizeof(ae->un.AttrString), "%s",
+		  vport->phba->os_host_name);
 
 	len = strnlen(ae->un.AttrString, sizeof(ae->un.AttrString));
 	len += (len & 3) ? (4 - (len & 3)) : 4;

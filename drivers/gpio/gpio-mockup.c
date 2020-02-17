@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GPIO Testing Device Driver
  *
@@ -7,18 +7,18 @@
  * Copyright (C) 2017 Bartosz Golaszewski <brgl@bgdev.pl>
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/gpio/driver.h>
+#include <linux/debugfs.h>
 #include <linux/gpio/consumer.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
+#include <linux/gpio/driver.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irq_sim.h>
-#include <linux/debugfs.h>
-#include <linux/uaccess.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #include "gpiolib.h"
 
@@ -156,7 +156,7 @@ static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 	mutex_lock(&chip->lock);
 
 	if (test_bit(FLAG_REQUESTED, &desc->flags) &&
-		!test_bit(FLAG_IS_OUT, &desc->flags)) {
+	    !test_bit(FLAG_IS_OUT, &desc->flags)) {
 		curr = __gpio_mockup_get(chip, offset);
 		if (curr == value)
 			goto out;
@@ -165,7 +165,7 @@ static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 		irq_type = irq_get_trigger_type(irq);
 
 		if ((value == 1 && (irq_type & IRQ_TYPE_EDGE_RISING)) ||
-			(value == 0 && (irq_type & IRQ_TYPE_EDGE_FALLING)))
+		    (value == 0 && (irq_type & IRQ_TYPE_EDGE_FALLING)))
 			irq_sim_fire(sim, offset);
 	}
 
@@ -226,7 +226,7 @@ static int gpio_mockup_get_direction(struct gpio_chip *gc, unsigned int offset)
 	int direction;
 
 	mutex_lock(&chip->lock);
-	direction = !chip->lines[offset].dir;
+	direction = chip->lines[offset].dir;
 	mutex_unlock(&chip->lock);
 
 	return direction;
@@ -395,7 +395,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	struct device *dev;
 	const char *name;
-	int rv, base;
+	int rv, base, i;
 	u16 ngpio;
 
 	dev = &pdev->dev;
@@ -446,6 +446,9 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 				   sizeof(*chip->lines), GFP_KERNEL);
 	if (!chip->lines)
 		return -ENOMEM;
+
+	for (i = 0; i < gc->ngpio; i++)
+		chip->lines[i].dir = GPIO_LINE_DIRECTION_IN;
 
 	if (device_property_read_bool(dev, "named-gpio-lines")) {
 		rv = gpio_mockup_name_lines(dev, chip);

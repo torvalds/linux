@@ -255,28 +255,28 @@ static int options_open(struct inode *inode, struct file *file)
 }
 
 /* *INDENT-OFF* */
-static const struct file_operations statistics_fops = {
-	.open 		= statistics_open,
-	.read 		= seq_read,
-	.write 		= statistics_write,
-	.llseek 	= seq_lseek,
-	.release 	= single_release,
+static const struct proc_ops statistics_proc_ops = {
+	.proc_open	= statistics_open,
+	.proc_read	= seq_read,
+	.proc_write	= statistics_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
-static const struct file_operations mcs_statistics_fops = {
-	.open 		= mcs_statistics_open,
-	.read 		= seq_read,
-	.write 		= mcs_statistics_write,
-	.llseek 	= seq_lseek,
-	.release 	= single_release,
+static const struct proc_ops mcs_statistics_proc_ops = {
+	.proc_open	= mcs_statistics_open,
+	.proc_read	= seq_read,
+	.proc_write	= mcs_statistics_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
-static const struct file_operations options_fops = {
-	.open 		= options_open,
-	.read 		= seq_read,
-	.write 		= options_write,
-	.llseek 	= seq_lseek,
-	.release 	= single_release,
+static const struct proc_ops options_proc_ops = {
+	.proc_open	= options_open,
+	.proc_read	= seq_read,
+	.proc_write	= options_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static struct proc_dir_entry *proc_gru __read_mostly;
@@ -286,11 +286,11 @@ int gru_proc_init(void)
 	proc_gru = proc_mkdir("sgi_uv/gru", NULL);
 	if (!proc_gru)
 		return -1;
-	if (!proc_create("statistics", 0644, proc_gru, &statistics_fops))
+	if (!proc_create("statistics", 0644, proc_gru, &statistics_proc_ops))
 		goto err;
-	if (!proc_create("mcs_statistics", 0644, proc_gru, &mcs_statistics_fops))
+	if (!proc_create("mcs_statistics", 0644, proc_gru, &mcs_statistics_proc_ops))
 		goto err;
-	if (!proc_create("debug_options", 0644, proc_gru, &options_fops))
+	if (!proc_create("debug_options", 0644, proc_gru, &options_proc_ops))
 		goto err;
 	if (!proc_create_seq("cch_status", 0444, proc_gru, &cch_seq_ops))
 		goto err;

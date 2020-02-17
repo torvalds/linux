@@ -671,6 +671,7 @@ void
 intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
 {
 	INIT_LIST_HEAD(&engine->active.requests);
+	INIT_LIST_HEAD(&engine->active.hold);
 
 	spin_lock_init(&engine->active.lock);
 	lockdep_set_subclass(&engine->active.lock, subclass);
@@ -914,8 +915,8 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 }
 
 static u32
-read_subslice_reg(struct intel_engine_cs *engine, int slice, int subslice,
-		  i915_reg_t reg)
+read_subslice_reg(const struct intel_engine_cs *engine,
+		  int slice, int subslice, i915_reg_t reg)
 {
 	struct drm_i915_private *i915 = engine->i915;
 	struct intel_uncore *uncore = engine->uncore;
@@ -959,7 +960,7 @@ read_subslice_reg(struct intel_engine_cs *engine, int slice, int subslice,
 }
 
 /* NB: please notice the memset */
-void intel_engine_get_instdone(struct intel_engine_cs *engine,
+void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone)
 {
 	struct drm_i915_private *i915 = engine->i915;
@@ -1047,10 +1048,9 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	return idle;
 }
 
-bool intel_engine_flush_submission(struct intel_engine_cs *engine)
+void intel_engine_flush_submission(struct intel_engine_cs *engine)
 {
 	struct tasklet_struct *t = &engine->execlists.tasklet;
-	bool active = tasklet_is_locked(t);
 
 	if (__tasklet_is_scheduled(t)) {
 		local_bh_disable();
@@ -1061,13 +1061,10 @@ bool intel_engine_flush_submission(struct intel_engine_cs *engine)
 			tasklet_unlock(t);
 		}
 		local_bh_enable();
-		active = true;
 	}
 
 	/* Otherwise flush the tasklet if it was running on another cpu */
 	tasklet_unlock_wait(t);
-
-	return active;
 }
 
 /**
@@ -1426,6 +1423,17 @@ static void print_request_ring(struct drm_printer *m, struct i915_request *rq)
 	}
 }
 
+static unsigned long list_count(struct list_head *list)
+{
+	struct list_head *pos;
+	unsigned long count = 0;
+
+	list_for_each(pos, list)
+		count++;
+
+	return count;
+}
+
 void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...)
@@ -1495,6 +1503,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			hexdump(m, rq->context->lrc_reg_state, PAGE_SIZE);
 		}
 	}
+	drm_printf(m, "\tOn hold?: %lu\n", list_count(&engine->active.hold));
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	drm_printf(m, "\tMMIO base:  0x%08x\n", engine->mmio_base);

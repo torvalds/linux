@@ -8,6 +8,7 @@ Required properties for the ADIS16480:
 	* "adi,adis16480"
 	* "adi,adis16485"
 	* "adi,adis16488"
+	* "adi,adis16490"
 	* "adi,adis16495-1"
 	* "adi,adis16495-2"
 	* "adi,adis16495-3"

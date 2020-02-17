@@ -299,164 +299,24 @@ static int acpi_processor_get_power_info_default(struct acpi_processor *pr)
 
 static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 {
-	acpi_status status;
-	u64 count;
-	int current_count;
-	int i, ret = 0;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *cst;
+	int ret;
 
 	if (nocst)
 		return -ENODEV;
 
-	current_count = 0;
+	ret = acpi_processor_evaluate_cst(pr->handle, pr->id, &pr->power);
+	if (ret)
+		return ret;
 
-	status = acpi_evaluate_object(pr->handle, "_CST", NULL, &buffer);
-	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No _CST, giving up\n"));
-		return -ENODEV;
-	}
+	/*
+	 * It is expected that there will be at least 2 states, C1 and
+	 * something else (C2 or C3), so fail if that is not the case.
+	 */
+	if (pr->power.count < 2)
+		return -EFAULT;
 
-	cst = buffer.pointer;
-
-	/* There must be at least 2 elements */
-	if (!cst || (cst->type != ACPI_TYPE_PACKAGE) || cst->package.count < 2) {
-		pr_err("not enough elements in _CST\n");
-		ret = -EFAULT;
-		goto end;
-	}
-
-	count = cst->package.elements[0].integer.value;
-
-	/* Validate number of power states. */
-	if (count < 1 || count != cst->package.count - 1) {
-		pr_err("count given by _CST is not valid\n");
-		ret = -EFAULT;
-		goto end;
-	}
-
-	/* Tell driver that at least _CST is supported. */
 	pr->flags.has_cst = 1;
-
-	for (i = 1; i <= count; i++) {
-		union acpi_object *element;
-		union acpi_object *obj;
-		struct acpi_power_register *reg;
-		struct acpi_processor_cx cx;
-
-		memset(&cx, 0, sizeof(cx));
-
-		element = &(cst->package.elements[i]);
-		if (element->type != ACPI_TYPE_PACKAGE)
-			continue;
-
-		if (element->package.count != 4)
-			continue;
-
-		obj = &(element->package.elements[0]);
-
-		if (obj->type != ACPI_TYPE_BUFFER)
-			continue;
-
-		reg = (struct acpi_power_register *)obj->buffer.pointer;
-
-		if (reg->space_id != ACPI_ADR_SPACE_SYSTEM_IO &&
-		    (reg->space_id != ACPI_ADR_SPACE_FIXED_HARDWARE))
-			continue;
-
-		/* There should be an easy way to extract an integer... */
-		obj = &(element->package.elements[1]);
-		if (obj->type != ACPI_TYPE_INTEGER)
-			continue;
-
-		cx.type = obj->integer.value;
-		/*
-		 * Some buggy BIOSes won't list C1 in _CST -
-		 * Let acpi_processor_get_power_info_default() handle them later
-		 */
-		if (i == 1 && cx.type != ACPI_STATE_C1)
-			current_count++;
-
-		cx.address = reg->address;
-		cx.index = current_count + 1;
-
-		cx.entry_method = ACPI_CSTATE_SYSTEMIO;
-		if (reg->space_id == ACPI_ADR_SPACE_FIXED_HARDWARE) {
-			if (acpi_processor_ffh_cstate_probe
-					(pr->id, &cx, reg) == 0) {
-				cx.entry_method = ACPI_CSTATE_FFH;
-			} else if (cx.type == ACPI_STATE_C1) {
-				/*
-				 * C1 is a special case where FIXED_HARDWARE
-				 * can be handled in non-MWAIT way as well.
-				 * In that case, save this _CST entry info.
-				 * Otherwise, ignore this info and continue.
-				 */
-				cx.entry_method = ACPI_CSTATE_HALT;
-				snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI HLT");
-			} else {
-				continue;
-			}
-			if (cx.type == ACPI_STATE_C1 &&
-			    (boot_option_idle_override == IDLE_NOMWAIT)) {
-				/*
-				 * In most cases the C1 space_id obtained from
-				 * _CST object is FIXED_HARDWARE access mode.
-				 * But when the option of idle=halt is added,
-				 * the entry_method type should be changed from
-				 * CSTATE_FFH to CSTATE_HALT.
-				 * When the option of idle=nomwait is added,
-				 * the C1 entry_method type should be
-				 * CSTATE_HALT.
-				 */
-				cx.entry_method = ACPI_CSTATE_HALT;
-				snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI HLT");
-			}
-		} else {
-			snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI IOPORT 0x%x",
-				 cx.address);
-		}
-
-		if (cx.type == ACPI_STATE_C1) {
-			cx.valid = 1;
-		}
-
-		obj = &(element->package.elements[2]);
-		if (obj->type != ACPI_TYPE_INTEGER)
-			continue;
-
-		cx.latency = obj->integer.value;
-
-		obj = &(element->package.elements[3]);
-		if (obj->type != ACPI_TYPE_INTEGER)
-			continue;
-
-		current_count++;
-		memcpy(&(pr->power.states[current_count]), &cx, sizeof(cx));
-
-		/*
-		 * We support total ACPI_PROCESSOR_MAX_POWER - 1
-		 * (From 1 through ACPI_PROCESSOR_MAX_POWER - 1)
-		 */
-		if (current_count >= (ACPI_PROCESSOR_MAX_POWER - 1)) {
-			pr_warn("Limiting number of power states to max (%d)\n",
-				ACPI_PROCESSOR_MAX_POWER);
-			pr_warn("Please increase ACPI_PROCESSOR_MAX_POWER if needed.\n");
-			break;
-		}
-	}
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %d power states\n",
-			  current_count));
-
-	/* Validate number of power states discovered */
-	if (current_count < 2)
-		ret = -EFAULT;
-
-      end:
-	kfree(buffer.pointer);
-
-	return ret;
+	return 0;
 }
 
 static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
@@ -909,7 +769,6 @@ static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 
 static inline void acpi_processor_cstate_first_run_checks(void)
 {
-	acpi_status status;
 	static int first_run;
 
 	if (first_run)
@@ -921,13 +780,10 @@ static inline void acpi_processor_cstate_first_run_checks(void)
 			  max_cstate);
 	first_run++;
 
-	if (acpi_gbl_FADT.cst_control && !nocst) {
-		status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
-					    acpi_gbl_FADT.cst_control, 8);
-		if (ACPI_FAILURE(status))
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Notifying BIOS of _CST ability failed"));
-	}
+	if (nocst)
+		return;
+
+	acpi_processor_claim_cst_control();
 }
 #else
 

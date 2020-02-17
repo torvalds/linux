@@ -715,7 +715,6 @@ fail_nvkm:
 void
 nouveau_drm_device_remove(struct drm_device *dev)
 {
-	struct pci_dev *pdev = dev->pdev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_client *client;
 	struct nvkm_device *device;
@@ -727,7 +726,6 @@ nouveau_drm_device_remove(struct drm_device *dev)
 	device = nvkm_device_find(client->device);
 
 	nouveau_drm_device_fini(dev);
-	pci_disable_device(pdev);
 	drm_dev_put(dev);
 	nvkm_device_del(&device);
 }
@@ -738,6 +736,7 @@ nouveau_drm_remove(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
 	nouveau_drm_device_remove(dev);
+	pci_disable_device(pdev);
 }
 
 static int

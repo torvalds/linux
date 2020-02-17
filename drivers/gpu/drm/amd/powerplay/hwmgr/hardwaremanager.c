@@ -99,6 +99,9 @@ int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 
 	PHM_FUNC_CHECK(hwmgr);
 
+	if (!hwmgr->not_vf)
+		return 0;
+
 	if (!smum_is_dpm_running(hwmgr)) {
 		pr_info("dpm has been disabled\n");
 		return 0;

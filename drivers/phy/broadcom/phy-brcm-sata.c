@@ -33,6 +33,7 @@
 #define SATA_PHY_CTRL_REG_28NM_SPACE_SIZE		0x8
 
 enum brcm_sata_phy_version {
+	BRCM_SATA_PHY_STB_16NM,
 	BRCM_SATA_PHY_STB_28NM,
 	BRCM_SATA_PHY_STB_40NM,
 	BRCM_SATA_PHY_IPROC_NS2,
@@ -104,10 +105,13 @@ enum sata_phy_regs {
 	PLL1_ACTRL5				= 0x85,
 	PLL1_ACTRL6				= 0x86,
 	PLL1_ACTRL7				= 0x87,
+	PLL1_ACTRL8				= 0x88,
 
 	TX_REG_BANK				= 0x070,
 	TX_ACTRL0				= 0x80,
 	TX_ACTRL0_TXPOL_FLIP			= BIT(6),
+	TX_ACTRL5				= 0x85,
+	TX_ACTRL5_SSC_EN			= BIT(11),
 
 	AEQRX_REG_BANK_0			= 0xd0,
 	AEQ_CONTROL1				= 0x81,
@@ -116,6 +120,7 @@ enum sata_phy_regs {
 	AEQ_FRC_EQ				= 0x83,
 	AEQ_FRC_EQ_FORCE			= BIT(0),
 	AEQ_FRC_EQ_FORCE_VAL			= BIT(1),
+	AEQ_RFZ_FRC_VAL				= BIT(8),
 	AEQRX_REG_BANK_1			= 0xe0,
 	AEQRX_SLCAL0_CTRL0			= 0x82,
 	AEQRX_SLCAL1_CTRL0			= 0x86,
@@ -152,7 +157,28 @@ enum sata_phy_regs {
 	TXPMD_TX_FREQ_CTRL_CONTROL3_FMAX_MASK	= 0x3ff,
 
 	RXPMD_REG_BANK				= 0x1c0,
+	RXPMD_RX_CDR_CONTROL1			= 0x81,
+	RXPMD_RX_PPM_VAL_MASK			= 0x1ff,
+	RXPMD_RXPMD_EN_FRC			= BIT(12),
+	RXPMD_RXPMD_EN_FRC_VAL			= BIT(13),
+	RXPMD_RX_CDR_CDR_PROP_BW		= 0x82,
+	RXPMD_G_CDR_PROP_BW_MASK		= 0x7,
+	RXPMD_G1_CDR_PROP_BW_SHIFT		= 0,
+	RXPMD_G2_CDR_PROP_BW_SHIFT		= 3,
+	RXPMD_G3_CDR_PROB_BW_SHIFT		= 6,
+	RXPMD_RX_CDR_CDR_ACQ_INTEG_BW		= 0x83,
+	RXPMD_G_CDR_ACQ_INT_BW_MASK		= 0x7,
+	RXPMD_G1_CDR_ACQ_INT_BW_SHIFT		= 0,
+	RXPMD_G2_CDR_ACQ_INT_BW_SHIFT		= 3,
+	RXPMD_G3_CDR_ACQ_INT_BW_SHIFT		= 6,
+	RXPMD_RX_CDR_CDR_LOCK_INTEG_BW		= 0x84,
+	RXPMD_G_CDR_LOCK_INT_BW_MASK		= 0x7,
+	RXPMD_G1_CDR_LOCK_INT_BW_SHIFT		= 0,
+	RXPMD_G2_CDR_LOCK_INT_BW_SHIFT		= 3,
+	RXPMD_G3_CDR_LOCK_INT_BW_SHIFT		= 6,
 	RXPMD_RX_FREQ_MON_CONTROL1		= 0x87,
+	RXPMD_MON_CORRECT_EN			= BIT(8),
+	RXPMD_MON_MARGIN_VAL_MASK		= 0xff,
 };
 
 enum sata_phy_ctrl_regs {
@@ -166,6 +192,7 @@ static inline void __iomem *brcm_sata_pcb_base(struct brcm_sata_port *port)
 	u32 size = 0;
 
 	switch (priv->version) {
+	case BRCM_SATA_PHY_STB_16NM:
 	case BRCM_SATA_PHY_STB_28NM:
 	case BRCM_SATA_PHY_IPROC_NS2:
 	case BRCM_SATA_PHY_DSL_28NM:
@@ -285,6 +312,94 @@ static int brcm_stb_sata_init(struct brcm_sata_port *port)
 	brcm_stb_sata_ssc_init(port);
 
 	return brcm_stb_sata_rxaeq_init(port);
+}
+
+static int brcm_stb_sata_16nm_ssc_init(struct brcm_sata_port *port)
+{
+	void __iomem *base = brcm_sata_pcb_base(port);
+	u32 tmp, value;
+
+	/* Reduce CP tail current to 1/16th of its default value */
+	brcm_sata_phy_wr(base, PLL1_REG_BANK, PLL1_ACTRL6, 0, 0x141);
+
+	/* Turn off CP tail current boost */
+	brcm_sata_phy_wr(base, PLL1_REG_BANK, PLL1_ACTRL8, 0, 0xc006);
+
+	/* Set a specific AEQ equalizer value */
+	tmp = AEQ_FRC_EQ_FORCE_VAL | AEQ_FRC_EQ_FORCE;
+	brcm_sata_phy_wr(base, AEQRX_REG_BANK_0, AEQ_FRC_EQ,
+			 ~(tmp | AEQ_RFZ_FRC_VAL |
+			   AEQ_FRC_EQ_VAL_MASK << AEQ_FRC_EQ_VAL_SHIFT),
+			 tmp | 32 << AEQ_FRC_EQ_VAL_SHIFT);
+
+	/* Set RX PPM val center frequency */
+	if (port->ssc_en)
+		value = 0x52;
+	else
+		value = 0;
+	brcm_sata_phy_wr(base, RXPMD_REG_BANK, RXPMD_RX_CDR_CONTROL1,
+			 ~RXPMD_RX_PPM_VAL_MASK, value);
+
+	/* Set proportional loop bandwith Gen1/2/3 */
+	tmp = RXPMD_G_CDR_PROP_BW_MASK << RXPMD_G1_CDR_PROP_BW_SHIFT |
+	      RXPMD_G_CDR_PROP_BW_MASK << RXPMD_G2_CDR_PROP_BW_SHIFT |
+	      RXPMD_G_CDR_PROP_BW_MASK << RXPMD_G3_CDR_PROB_BW_SHIFT;
+	if (port->ssc_en)
+		value = 2 << RXPMD_G1_CDR_PROP_BW_SHIFT |
+			2 << RXPMD_G2_CDR_PROP_BW_SHIFT |
+			2 << RXPMD_G3_CDR_PROB_BW_SHIFT;
+	else
+		value = 1 << RXPMD_G1_CDR_PROP_BW_SHIFT |
+			1 << RXPMD_G2_CDR_PROP_BW_SHIFT |
+			1 << RXPMD_G3_CDR_PROB_BW_SHIFT;
+	brcm_sata_phy_wr(base, RXPMD_REG_BANK, RXPMD_RX_CDR_CDR_PROP_BW, ~tmp,
+			 value);
+
+	/* Set CDR integral loop acquisition bandwidth for Gen1/2/3 */
+	tmp = RXPMD_G_CDR_ACQ_INT_BW_MASK << RXPMD_G1_CDR_ACQ_INT_BW_SHIFT |
+	      RXPMD_G_CDR_ACQ_INT_BW_MASK << RXPMD_G2_CDR_ACQ_INT_BW_SHIFT |
+	      RXPMD_G_CDR_ACQ_INT_BW_MASK << RXPMD_G3_CDR_ACQ_INT_BW_SHIFT;
+	if (port->ssc_en)
+		value = 1 << RXPMD_G1_CDR_ACQ_INT_BW_SHIFT |
+			1 << RXPMD_G2_CDR_ACQ_INT_BW_SHIFT |
+			1 << RXPMD_G3_CDR_ACQ_INT_BW_SHIFT;
+	else
+		value = 0;
+	brcm_sata_phy_wr(base, RXPMD_REG_BANK, RXPMD_RX_CDR_CDR_ACQ_INTEG_BW,
+			 ~tmp, value);
+
+	/* Set CDR integral loop locking bandwidth to 1 for Gen 1/2/3 */
+	tmp = RXPMD_G_CDR_LOCK_INT_BW_MASK << RXPMD_G1_CDR_LOCK_INT_BW_SHIFT |
+	      RXPMD_G_CDR_LOCK_INT_BW_MASK << RXPMD_G2_CDR_LOCK_INT_BW_SHIFT |
+	      RXPMD_G_CDR_LOCK_INT_BW_MASK << RXPMD_G3_CDR_LOCK_INT_BW_SHIFT;
+	if (port->ssc_en)
+		value = 1 << RXPMD_G1_CDR_LOCK_INT_BW_SHIFT |
+			1 << RXPMD_G2_CDR_LOCK_INT_BW_SHIFT |
+			1 << RXPMD_G3_CDR_LOCK_INT_BW_SHIFT;
+	else
+		value = 0;
+	brcm_sata_phy_wr(base, RXPMD_REG_BANK, RXPMD_RX_CDR_CDR_LOCK_INTEG_BW,
+			 ~tmp, value);
+
+	/* Set no guard band and clamp CDR */
+	tmp = RXPMD_MON_CORRECT_EN | RXPMD_MON_MARGIN_VAL_MASK;
+	if (port->ssc_en)
+		value = 0x51;
+	else
+		value = 0;
+	brcm_sata_phy_wr(base, RXPMD_REG_BANK, RXPMD_RX_FREQ_MON_CONTROL1,
+			 ~tmp, RXPMD_MON_CORRECT_EN | value);
+
+	/* Turn on/off SSC */
+	brcm_sata_phy_wr(base, TX_REG_BANK, TX_ACTRL5, ~TX_ACTRL5_SSC_EN,
+			 port->ssc_en ? TX_ACTRL5_SSC_EN : 0);
+
+	return 0;
+}
+
+static int brcm_stb_sata_16nm_init(struct brcm_sata_port *port)
+{
+	return brcm_stb_sata_16nm_ssc_init(port);
 }
 
 /* NS2 SATA PLL1 defaults were characterized by H/W group */
@@ -544,6 +659,9 @@ static int brcm_sata_phy_init(struct phy *phy)
 	struct brcm_sata_port *port = phy_get_drvdata(phy);
 
 	switch (port->phy_priv->version) {
+	case BRCM_SATA_PHY_STB_16NM:
+		rc = brcm_stb_sata_16nm_init(port);
+		break;
 	case BRCM_SATA_PHY_STB_28NM:
 	case BRCM_SATA_PHY_STB_40NM:
 		rc = brcm_stb_sata_init(port);
@@ -601,6 +719,8 @@ static const struct phy_ops phy_ops = {
 };
 
 static const struct of_device_id brcm_sata_phy_of_match[] = {
+	{ .compatible	= "brcm,bcm7216-sata-phy",
+	  .data = (void *)BRCM_SATA_PHY_STB_16NM },
 	{ .compatible	= "brcm,bcm7445-sata-phy",
 	  .data = (void *)BRCM_SATA_PHY_STB_28NM },
 	{ .compatible	= "brcm,bcm7425-sata-phy",

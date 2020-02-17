@@ -648,7 +648,7 @@ static int si_dma_set_clockgating_state(void *handle,
 	bool enable;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	enable = (state == AMD_CG_STATE_GATE);
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG)) {
 		for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -834,16 +834,14 @@ static const struct amdgpu_vm_pte_funcs si_dma_vm_pte_funcs = {
 
 static void si_dma_set_vm_pte_funcs(struct amdgpu_device *adev)
 {
-	struct drm_gpu_scheduler *sched;
 	unsigned i;
 
 	adev->vm_manager.vm_pte_funcs = &si_dma_vm_pte_funcs;
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		sched = &adev->sdma.instance[i].ring.sched;
-		adev->vm_manager.vm_pte_rqs[i] =
-			&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
+		adev->vm_manager.vm_pte_scheds[i] =
+			&adev->sdma.instance[i].ring.sched;
 	}
-	adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
+	adev->vm_manager.vm_pte_num_scheds = adev->sdma.num_instances;
 }
 
 const struct amdgpu_ip_block_version si_dma_ip_block =

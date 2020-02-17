@@ -570,7 +570,6 @@ static int qat_alg_aead_init_sessions(struct crypto_aead *tfm, const u8 *key,
 	memzero_explicit(&keys, sizeof(keys));
 	return 0;
 bad_key:
-	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 error:
@@ -586,14 +585,11 @@ static int qat_alg_skcipher_init_sessions(struct qat_alg_skcipher_ctx *ctx,
 	int alg;
 
 	if (qat_alg_validate_key(keylen, &alg, mode))
-		goto bad_key;
+		return -EINVAL;
 
 	qat_alg_skcipher_init_enc(ctx, alg, key, keylen, mode);
 	qat_alg_skcipher_init_dec(ctx, alg, key, keylen, mode);
 	return 0;
-bad_key:
-	crypto_skcipher_set_flags(ctx->tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	return -EINVAL;
 }
 
 static int qat_alg_aead_rekey(struct crypto_aead *tfm, const uint8_t *key,

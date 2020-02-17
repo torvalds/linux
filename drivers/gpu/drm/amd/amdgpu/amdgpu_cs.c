@@ -909,6 +909,11 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		if (parser->entity && parser->entity != entity)
 			return -EINVAL;
 
+		/* Return if there is no run queue associated with this entity.
+		 * Possibly because of disabled HW IP*/
+		if (entity->rq == NULL)
+			return -EINVAL;
+
 		parser->entity = entity;
 
 		ring = to_amdgpu_ring(entity->rq->sched);
@@ -1229,7 +1234,6 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 		goto error_abort;
 	}
 
-	job->owner = p->filp;
 	p->fence = dma_fence_get(&job->base.s_fence->finished);
 
 	amdgpu_ctx_add_fence(p->ctx, entity, p->fence, &seq);

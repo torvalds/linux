@@ -244,7 +244,7 @@ static void set_buffers(struct hantro_ctx *ctx)
 	vdpu_write_relaxed(vpu, src_dma, G1_REG_ADDR_STR);
 
 	/* Destination (decoded frame) buffer. */
-	dst_dma = vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0);
+	dst_dma = hantro_get_dec_buf_addr(ctx, &dst_buf->vb2_buf);
 	/* Adjust dma addr to start at second line for bottom field */
 	if (ctrls->slices[0].flags & V4L2_H264_SLICE_FLAG_BOTTOM_FIELD)
 		offset = ALIGN(ctx->src_fmt.width, MB_DIM);
@@ -288,7 +288,7 @@ void hantro_g1_h264_dec_run(struct hantro_ctx *ctx)
 	set_ref(ctx);
 	set_buffers(ctx);
 
-	hantro_finish_run(ctx);
+	hantro_end_prepare_run(ctx);
 
 	/* Start decoding! */
 	vdpu_write_relaxed(vpu,

@@ -37,7 +37,7 @@ enum st_press_type {
  * struct st_sensors_platform_data - default press platform data
  * @drdy_int_pin: default press DRDY is available on INT1 pin.
  */
-static const struct st_sensors_platform_data default_press_pdata = {
+static __maybe_unused const struct st_sensors_platform_data default_press_pdata = {
 	.drdy_int_pin = 1,
 };
 

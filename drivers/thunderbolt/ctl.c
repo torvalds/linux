@@ -708,19 +708,26 @@ void tb_ctl_stop(struct tb_ctl *ctl)
 /* public interface, commands */
 
 /**
- * tb_cfg_error() - send error packet
+ * tb_cfg_ack_plug() - Ack hot plug/unplug event
+ * @ctl: Control channel to use
+ * @route: Router that originated the event
+ * @port: Port where the hot plug/unplug happened
+ * @unplug: Ack hot plug or unplug
  *
- * Return: Returns 0 on success or an error code on failure.
+ * Call this as response for hot plug/unplug event to ack it.
+ * Returns %0 on success or an error code on failure.
  */
-int tb_cfg_error(struct tb_ctl *ctl, u64 route, u32 port,
-		 enum tb_cfg_error error)
+int tb_cfg_ack_plug(struct tb_ctl *ctl, u64 route, u32 port, bool unplug)
 {
 	struct cfg_error_pkg pkg = {
 		.header = tb_cfg_make_header(route),
 		.port = port,
-		.error = error,
+		.error = TB_CFG_ERROR_ACK_PLUG_EVENT,
+		.pg = unplug ? TB_CFG_ERROR_PG_HOT_UNPLUG
+			     : TB_CFG_ERROR_PG_HOT_PLUG,
 	};
-	tb_ctl_dbg(ctl, "resetting error on %llx:%x.\n", route, port);
+	tb_ctl_dbg(ctl, "acking hot %splug event on %llx:%x\n",
+		   unplug ? "un" : "", route, port);
 	return tb_ctl_tx(ctl, &pkg, sizeof(pkg), TB_CFG_PKG_ERROR);
 }
 

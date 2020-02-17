@@ -665,7 +665,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	/*
 	 * Map LCD controller registers.
 	 */
-	fbi->reg_base = devm_ioremap_nocache(&pdev->dev, res->start,
+	fbi->reg_base = devm_ioremap(&pdev->dev, res->start,
 					     resource_size(res));
 	if (fbi->reg_base == NULL) {
 		ret = -ENOMEM;

@@ -10,6 +10,9 @@ Required properties:
       "fsl,imx6q-sdma"
       "fsl,imx7d-sdma"
       "fsl,imx8mq-sdma"
+      "fsl,imx8mm-sdma"
+      "fsl,imx8mn-sdma"
+      "fsl,imx8mp-sdma"
   The -to variants should be preferred since they allow to determine the
   correct ROM script addresses needed for the driver to work without additional
   firmware.

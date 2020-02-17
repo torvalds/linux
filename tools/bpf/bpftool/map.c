@@ -15,9 +15,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <bpf.h>
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
 
-#include "btf.h"
 #include "json_writer.h"
 #include "main.h"
 
@@ -48,6 +48,7 @@ const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_QUEUE]			= "queue",
 	[BPF_MAP_TYPE_STACK]			= "stack",
 	[BPF_MAP_TYPE_SK_STORAGE]		= "sk_storage",
+	[BPF_MAP_TYPE_STRUCT_OPS]		= "struct_ops",
 };
 
 const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
@@ -91,10 +92,66 @@ static void *alloc_value(struct bpf_map_info *info)
 		return malloc(info->value_size);
 }
 
-int map_parse_fd(int *argc, char ***argv)
+static int map_fd_by_name(char *name, int **fds)
 {
-	int fd;
+	unsigned int id = 0;
+	int fd, nb_fds = 0;
+	void *tmp;
+	int err;
 
+	while (true) {
+		struct bpf_map_info info = {};
+		__u32 len = sizeof(info);
+
+		err = bpf_map_get_next_id(id, &id);
+		if (err) {
+			if (errno != ENOENT) {
+				p_err("%s", strerror(errno));
+				goto err_close_fds;
+			}
+			return nb_fds;
+		}
+
+		fd = bpf_map_get_fd_by_id(id);
+		if (fd < 0) {
+			p_err("can't get map by id (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fds;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			p_err("can't get map info (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fd;
+		}
+
+		if (strncmp(name, info.name, BPF_OBJ_NAME_LEN)) {
+			close(fd);
+			continue;
+		}
+
+		if (nb_fds > 0) {
+			tmp = realloc(*fds, (nb_fds + 1) * sizeof(int));
+			if (!tmp) {
+				p_err("failed to realloc");
+				goto err_close_fd;
+			}
+			*fds = tmp;
+		}
+		(*fds)[nb_fds++] = fd;
+	}
+
+err_close_fd:
+	close(fd);
+err_close_fds:
+	while (--nb_fds >= 0)
+		close((*fds)[nb_fds]);
+	return -1;
+}
+
+static int map_parse_fds(int *argc, char ***argv, int **fds)
+{
 	if (is_prefix(**argv, "id")) {
 		unsigned int id;
 		char *endptr;
@@ -108,10 +165,25 @@ int map_parse_fd(int *argc, char ***argv)
 		}
 		NEXT_ARGP();
 
-		fd = bpf_map_get_fd_by_id(id);
-		if (fd < 0)
+		(*fds)[0] = bpf_map_get_fd_by_id(id);
+		if ((*fds)[0] < 0) {
 			p_err("get map by id (%u): %s", id, strerror(errno));
-		return fd;
+			return -1;
+		}
+		return 1;
+	} else if (is_prefix(**argv, "name")) {
+		char *name;
+
+		NEXT_ARGP();
+
+		name = **argv;
+		if (strlen(name) > BPF_OBJ_NAME_LEN - 1) {
+			p_err("can't parse name");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return map_fd_by_name(name, fds);
 	} else if (is_prefix(**argv, "pinned")) {
 		char *path;
 
@@ -120,11 +192,41 @@ int map_parse_fd(int *argc, char ***argv)
 		path = **argv;
 		NEXT_ARGP();
 
-		return open_obj_pinned_any(path, BPF_OBJ_MAP);
+		(*fds)[0] = open_obj_pinned_any(path, BPF_OBJ_MAP);
+		if ((*fds)[0] < 0)
+			return -1;
+		return 1;
 	}
 
-	p_err("expected 'id' or 'pinned', got: '%s'?", **argv);
+	p_err("expected 'id', 'name' or 'pinned', got: '%s'?", **argv);
 	return -1;
+}
+
+int map_parse_fd(int *argc, char ***argv)
+{
+	int *fds = NULL;
+	int nb_fds, fd;
+
+	fds = malloc(sizeof(int));
+	if (!fds) {
+		p_err("mem alloc failed");
+		return -1;
+	}
+	nb_fds = map_parse_fds(argc, argv, &fds);
+	if (nb_fds != 1) {
+		if (nb_fds > 1) {
+			p_err("several maps match this handle");
+			while (nb_fds--)
+				close(fds[nb_fds]);
+		}
+		fd = -1;
+		goto exit_free;
+	}
+
+	fd = fds[0];
+exit_free:
+	free(fds);
+	return fd;
 }
 
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
@@ -150,6 +252,7 @@ static int do_dump_btf(const struct btf_dumper *d,
 		       struct bpf_map_info *map_info, void *key,
 		       void *value)
 {
+	__u32 value_id;
 	int ret;
 
 	/* start of key-value pair */
@@ -163,9 +266,12 @@ static int do_dump_btf(const struct btf_dumper *d,
 			goto err_end_obj;
 	}
 
+	value_id = map_info->btf_vmlinux_value_type_id ?
+		: map_info->btf_value_type_id;
+
 	if (!map_is_per_cpu(map_info->type)) {
 		jsonw_name(d->jw, "value");
-		ret = btf_dumper_type(d, map_info->btf_value_type_id, value);
+		ret = btf_dumper_type(d, value_id, value);
 	} else {
 		unsigned int i, n, step;
 
@@ -177,8 +283,7 @@ static int do_dump_btf(const struct btf_dumper *d,
 			jsonw_start_object(d->jw);
 			jsonw_int_field(d->jw, "cpu", i);
 			jsonw_name(d->jw, "value");
-			ret = btf_dumper_type(d, map_info->btf_value_type_id,
-					      value + i * step);
+			ret = btf_dumper_type(d, value_id, value + i * step);
 			jsonw_end_object(d->jw);
 			if (ret)
 				break;
@@ -479,6 +584,21 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 	return -1;
 }
 
+static void show_map_header_json(struct bpf_map_info *info, json_writer_t *wtr)
+{
+	jsonw_uint_field(wtr, "id", info->id);
+	if (info->type < ARRAY_SIZE(map_type_name))
+		jsonw_string_field(wtr, "type", map_type_name[info->type]);
+	else
+		jsonw_uint_field(wtr, "type", info->type);
+
+	if (*info->name)
+		jsonw_string_field(wtr, "name", info->name);
+
+	jsonw_name(wtr, "flags");
+	jsonw_printf(wtr, "%d", info->map_flags);
+}
+
 static int show_map_close_json(int fd, struct bpf_map_info *info)
 {
 	char *memlock, *frozen_str;
@@ -489,18 +609,7 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 
 	jsonw_start_object(json_wtr);
 
-	jsonw_uint_field(json_wtr, "id", info->id);
-	if (info->type < ARRAY_SIZE(map_type_name))
-		jsonw_string_field(json_wtr, "type",
-				   map_type_name[info->type]);
-	else
-		jsonw_uint_field(json_wtr, "type", info->type);
-
-	if (*info->name)
-		jsonw_string_field(json_wtr, "name", info->name);
-
-	jsonw_name(json_wtr, "flags");
-	jsonw_printf(json_wtr, "%d", info->map_flags);
+	show_map_header_json(info, json_wtr);
 
 	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
 
@@ -561,14 +670,8 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 	return 0;
 }
 
-static int show_map_close_plain(int fd, struct bpf_map_info *info)
+static void show_map_header_plain(struct bpf_map_info *info)
 {
-	char *memlock, *frozen_str;
-	int frozen = 0;
-
-	memlock = get_fdinfo(fd, "memlock");
-	frozen_str = get_fdinfo(fd, "frozen");
-
 	printf("%u: ", info->id);
 	if (info->type < ARRAY_SIZE(map_type_name))
 		printf("%s  ", map_type_name[info->type]);
@@ -581,6 +684,17 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	printf("flags 0x%x", info->map_flags);
 	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
 	printf("\n");
+}
+
+static int show_map_close_plain(int fd, struct bpf_map_info *info)
+{
+	char *memlock, *frozen_str;
+	int frozen = 0;
+
+	memlock = get_fdinfo(fd, "memlock");
+	frozen_str = get_fdinfo(fd, "frozen");
+
+	show_map_header_plain(info);
 	printf("\tkey %uB  value %uB  max_entries %u",
 	       info->key_size, info->value_size, info->max_entries);
 
@@ -642,6 +756,50 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	return 0;
 }
 
+static int do_show_subset(int argc, char **argv)
+{
+	struct bpf_map_info info = {};
+	__u32 len = sizeof(info);
+	int *fds = NULL;
+	int nb_fds, i;
+	int err = -1;
+
+	fds = malloc(sizeof(int));
+	if (!fds) {
+		p_err("mem alloc failed");
+		return -1;
+	}
+	nb_fds = map_parse_fds(&argc, &argv, &fds);
+	if (nb_fds < 1)
+		goto exit_free;
+
+	if (json_output && nb_fds > 1)
+		jsonw_start_array(json_wtr);	/* root array */
+	for (i = 0; i < nb_fds; i++) {
+		err = bpf_obj_get_info_by_fd(fds[i], &info, &len);
+		if (err) {
+			p_err("can't get map info: %s",
+			      strerror(errno));
+			for (; i < nb_fds; i++)
+				close(fds[i]);
+			break;
+		}
+
+		if (json_output)
+			show_map_close_json(fds[i], &info);
+		else
+			show_map_close_plain(fds[i], &info);
+
+		close(fds[i]);
+	}
+	if (json_output && nb_fds > 1)
+		jsonw_end_array(json_wtr);	/* root array */
+
+exit_free:
+	free(fds);
+	return err;
+}
+
 static int do_show(int argc, char **argv)
 {
 	struct bpf_map_info info = {};
@@ -653,16 +811,8 @@ static int do_show(int argc, char **argv)
 	if (show_pinned)
 		build_pinned_obj_table(&map_table, BPF_OBJ_MAP);
 
-	if (argc == 2) {
-		fd = map_parse_fd_and_info(&argc, &argv, &info, &len);
-		if (fd < 0)
-			return -1;
-
-		if (json_output)
-			return show_map_close_json(fd, &info);
-		else
-			return show_map_close_plain(fd, &info);
-	}
+	if (argc == 2)
+		return do_show_subset(argc, argv);
 
 	if (argc)
 		return BAD_ARG();
@@ -765,26 +915,75 @@ static int dump_map_elem(int fd, void *key, void *value,
 	return 0;
 }
 
-static int do_dump(int argc, char **argv)
+static int maps_have_btf(int *fds, int nb_fds)
 {
 	struct bpf_map_info info = {};
+	__u32 len = sizeof(info);
+	int err, i;
+
+	for (i = 0; i < nb_fds; i++) {
+		err = bpf_obj_get_info_by_fd(fds[i], &info, &len);
+		if (err) {
+			p_err("can't get map info: %s", strerror(errno));
+			return -1;
+		}
+
+		if (!info.btf_id)
+			return 0;
+	}
+
+	return 1;
+}
+
+static struct btf *btf_vmlinux;
+
+static struct btf *get_map_kv_btf(const struct bpf_map_info *info)
+{
+	struct btf *btf = NULL;
+
+	if (info->btf_vmlinux_value_type_id) {
+		if (!btf_vmlinux) {
+			btf_vmlinux = libbpf_find_kernel_btf();
+			if (IS_ERR(btf_vmlinux))
+				p_err("failed to get kernel btf");
+		}
+		return btf_vmlinux;
+	} else if (info->btf_value_type_id) {
+		int err;
+
+		err = btf__get_from_id(info->btf_id, &btf);
+		if (err || !btf) {
+			p_err("failed to get btf");
+			btf = err ? ERR_PTR(err) : ERR_PTR(-ESRCH);
+		}
+	}
+
+	return btf;
+}
+
+static void free_map_kv_btf(struct btf *btf)
+{
+	if (!IS_ERR(btf) && btf != btf_vmlinux)
+		btf__free(btf);
+}
+
+static void free_btf_vmlinux(void)
+{
+	if (!IS_ERR(btf_vmlinux))
+		btf__free(btf_vmlinux);
+}
+
+static int
+map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
+	 bool show_header)
+{
 	void *key, *value, *prev_key;
 	unsigned int num_elems = 0;
-	__u32 len = sizeof(info);
-	json_writer_t *btf_wtr;
 	struct btf *btf = NULL;
 	int err;
-	int fd;
 
-	if (argc != 2)
-		usage();
-
-	fd = map_parse_fd_and_info(&argc, &argv, &info, &len);
-	if (fd < 0)
-		return -1;
-
-	key = malloc(info.key_size);
-	value = alloc_value(&info);
+	key = malloc(info->key_size);
+	value = alloc_value(info);
 	if (!key || !value) {
 		p_err("mem alloc failed");
 		err = -1;
@@ -793,30 +992,27 @@ static int do_dump(int argc, char **argv)
 
 	prev_key = NULL;
 
-	err = btf__get_from_id(info.btf_id, &btf);
-	if (err) {
-		p_err("failed to get btf");
-		goto exit_free;
-	}
-
-	if (json_output)
-		jsonw_start_array(json_wtr);
-	else
-		if (btf) {
-			btf_wtr = get_btf_writer();
-			if (!btf_wtr) {
-				p_info("failed to create json writer for btf. falling back to plain output");
-				btf__free(btf);
-				btf = NULL;
-			} else {
-				jsonw_start_array(btf_wtr);
-			}
+	if (wtr) {
+		btf = get_map_kv_btf(info);
+		if (IS_ERR(btf)) {
+			err = PTR_ERR(btf);
+			goto exit_free;
 		}
 
-	if (info.type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY &&
-	    info.value_size != 8)
+		if (show_header) {
+			jsonw_start_object(wtr);	/* map object */
+			show_map_header_json(info, wtr);
+			jsonw_name(wtr, "elements");
+		}
+		jsonw_start_array(wtr);		/* elements */
+	} else if (show_header) {
+		show_map_header_plain(info);
+	}
+
+	if (info->type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY &&
+	    info->value_size != 8)
 		p_info("Warning: cannot read values from %s map with value_size != 8",
-		       map_type_name[info.type]);
+		       map_type_name[info->type]);
 	while (true) {
 		err = bpf_map_get_next_key(fd, prev_key, key);
 		if (err) {
@@ -824,15 +1020,14 @@ static int do_dump(int argc, char **argv)
 				err = 0;
 			break;
 		}
-		num_elems += dump_map_elem(fd, key, value, &info, btf, btf_wtr);
+		num_elems += dump_map_elem(fd, key, value, info, btf, wtr);
 		prev_key = key;
 	}
 
-	if (json_output)
-		jsonw_end_array(json_wtr);
-	else if (btf) {
-		jsonw_end_array(btf_wtr);
-		jsonw_destroy(&btf_wtr);
+	if (wtr) {
+		jsonw_end_array(wtr);	/* elements */
+		if (show_header)
+			jsonw_end_object(wtr);	/* map object */
 	} else {
 		printf("Found %u element%s\n", num_elems,
 		       num_elems != 1 ? "s" : "");
@@ -842,8 +1037,75 @@ exit_free:
 	free(key);
 	free(value);
 	close(fd);
-	btf__free(btf);
+	free_map_kv_btf(btf);
 
+	return err;
+}
+
+static int do_dump(int argc, char **argv)
+{
+	json_writer_t *wtr = NULL, *btf_wtr = NULL;
+	struct bpf_map_info info = {};
+	int nb_fds, i = 0;
+	__u32 len = sizeof(info);
+	int *fds = NULL;
+	int err = -1;
+
+	if (argc != 2)
+		usage();
+
+	fds = malloc(sizeof(int));
+	if (!fds) {
+		p_err("mem alloc failed");
+		return -1;
+	}
+	nb_fds = map_parse_fds(&argc, &argv, &fds);
+	if (nb_fds < 1)
+		goto exit_free;
+
+	if (json_output) {
+		wtr = json_wtr;
+	} else {
+		int do_plain_btf;
+
+		do_plain_btf = maps_have_btf(fds, nb_fds);
+		if (do_plain_btf < 0)
+			goto exit_close;
+
+		if (do_plain_btf) {
+			btf_wtr = get_btf_writer();
+			wtr = btf_wtr;
+			if (!btf_wtr)
+				p_info("failed to create json writer for btf. falling back to plain output");
+		}
+	}
+
+	if (wtr && nb_fds > 1)
+		jsonw_start_array(wtr);	/* root array */
+	for (i = 0; i < nb_fds; i++) {
+		if (bpf_obj_get_info_by_fd(fds[i], &info, &len)) {
+			p_err("can't get map info: %s", strerror(errno));
+			break;
+		}
+		err = map_dump(fds[i], &info, wtr, nb_fds > 1);
+		if (!wtr && i != nb_fds - 1)
+			printf("\n");
+
+		if (err)
+			break;
+		close(fds[i]);
+	}
+	if (wtr && nb_fds > 1)
+		jsonw_end_array(wtr);	/* root array */
+
+	if (btf_wtr)
+		jsonw_destroy(&btf_wtr);
+exit_close:
+	for (; i < nb_fds; i++)
+		close(fds[i]);
+exit_free:
+	free(fds);
+	free_btf_vmlinux();
 	return err;
 }
 

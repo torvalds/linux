@@ -14,7 +14,7 @@
 static int fdt_cells(const void *fdt, int nodeoffset, const char *name)
 {
 	const fdt32_t *c;
-	int val;
+	uint32_t val;
 	int len;
 
 	c = fdt_getprop(fdt, nodeoffset, name, &len);
@@ -25,10 +25,10 @@ static int fdt_cells(const void *fdt, int nodeoffset, const char *name)
 		return -FDT_ERR_BADNCELLS;
 
 	val = fdt32_to_cpu(*c);
-	if ((val <= 0) || (val > FDT_MAX_NCELLS))
+	if (val > FDT_MAX_NCELLS)
 		return -FDT_ERR_BADNCELLS;
 
-	return val;
+	return (int)val;
 }
 
 int fdt_address_cells(const void *fdt, int nodeoffset)
@@ -36,6 +36,8 @@ int fdt_address_cells(const void *fdt, int nodeoffset)
 	int val;
 
 	val = fdt_cells(fdt, nodeoffset, "#address-cells");
+	if (val == 0)
+		return -FDT_ERR_BADNCELLS;
 	if (val == -FDT_ERR_NOTFOUND)
 		return 2;
 	return val;

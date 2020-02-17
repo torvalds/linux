@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
-menuconfig THUNDERBOLT
-	tristate "Thunderbolt support"
+menuconfig USB4
+	tristate "Unified support for USB4 and Thunderbolt"
 	depends on PCI
 	depends on X86 || COMPILE_TEST
 	select APPLE_PROPERTIES if EFI_STUB && X86
@@ -9,9 +9,10 @@ menuconfig THUNDERBOLT
 	select CRYPTO_HASH
 	select NVMEM
 	help
-	  Thunderbolt Controller driver. This driver is required if you
-	  want to hotplug Thunderbolt devices on Apple hardware or on PCs
-	  with Intel Falcon Ridge or newer.
+	  USB4 and Thunderbolt driver. USB4 is the public speficiation
+	  based on Thunderbolt 3 protocol. This driver is required if
+	  you want to hotplug Thunderbolt and USB4 compliant devices on
+	  Apple hardware or on PCs with Intel Falcon Ridge or newer.
 
 	  To compile this driver a module, choose M here. The module will be
 	  called thunderbolt.

@@ -62,8 +62,6 @@
 	})
 
 /* hash bits for specific function selection */
-#define FTRACE_HASH_BITS 7
-#define FTRACE_FUNC_HASHSIZE (1 << FTRACE_HASH_BITS)
 #define FTRACE_HASH_DEFAULT_BITS 10
 #define FTRACE_HASH_MAX_BITS 12
 
@@ -146,7 +144,7 @@ static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip,
 {
 	struct trace_array *tr = op->private;
 
-	if (tr && this_cpu_read(tr->trace_buffer.data->ftrace_ignore_pid))
+	if (tr && this_cpu_read(tr->array_buffer.data->ftrace_ignore_pid))
 		return;
 
 	op->saved_func(ip, parent_ip, op, regs);
@@ -526,8 +524,7 @@ static int function_stat_show(struct seq_file *m, void *v)
 	}
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	avg = rec->time;
-	do_div(avg, rec->counter);
+	avg = div64_ul(rec->time, rec->counter);
 	if (tracing_thresh && (avg < tracing_thresh))
 		goto out;
 #endif
@@ -553,7 +550,8 @@ static int function_stat_show(struct seq_file *m, void *v)
 		 * Divide only 1000 for ns^2 -> us^2 conversion.
 		 * trace_print_graph_duration will divide 1000 again.
 		 */
-		do_div(stddev, rec->counter * (rec->counter - 1) * 1000);
+		stddev = div64_ul(stddev,
+				  rec->counter * (rec->counter - 1) * 1000);
 	}
 
 	trace_seq_init(&s);
@@ -1102,9 +1100,6 @@ struct ftrace_page {
 
 #define ENTRY_SIZE sizeof(struct dyn_ftrace)
 #define ENTRIES_PER_PAGE (PAGE_SIZE / ENTRY_SIZE)
-
-/* estimate from running different kernels */
-#define NR_TO_INIT		10000
 
 static struct ftrace_page	*ftrace_pages_start;
 static struct ftrace_page	*ftrace_pages;
@@ -5464,7 +5459,7 @@ static void __init set_ftrace_early_graph(char *buf, int enable)
 	struct ftrace_hash *hash;
 
 	hash = alloc_ftrace_hash(FTRACE_HASH_DEFAULT_BITS);
-	if (WARN_ON(!hash))
+	if (MEM_FAIL(!hash, "Failed to allocate hash\n"))
 		return;
 
 	while (buf) {
@@ -5596,8 +5591,8 @@ static const struct file_operations ftrace_notrace_fops = {
 
 static DEFINE_MUTEX(graph_lock);
 
-struct ftrace_hash *ftrace_graph_hash = EMPTY_HASH;
-struct ftrace_hash *ftrace_graph_notrace_hash = EMPTY_HASH;
+struct ftrace_hash __rcu *ftrace_graph_hash = EMPTY_HASH;
+struct ftrace_hash __rcu *ftrace_graph_notrace_hash = EMPTY_HASH;
 
 enum graph_filter_type {
 	GRAPH_FILTER_NOTRACE	= 0,
@@ -5872,8 +5867,15 @@ ftrace_graph_release(struct inode *inode, struct file *file)
 
 		mutex_unlock(&graph_lock);
 
-		/* Wait till all users are no longer using the old hash */
-		synchronize_rcu();
+		/*
+		 * We need to do a hard force of sched synchronization.
+		 * This is because we use preempt_disable() to do RCU, but
+		 * the function tracers can be called where RCU is not watching
+		 * (like before user_exit()). We can not rely on the RCU
+		 * infrastructure to do the synchronization, thus we must do it
+		 * ourselves.
+		 */
+		schedule_on_each_cpu(ftrace_sync);
 
 		free_ftrace_hash(old_hash);
 	}
@@ -6596,7 +6598,7 @@ static void add_to_clear_hash_list(struct list_head *clear_list,
 
 	func = kmalloc(sizeof(*func), GFP_KERNEL);
 	if (!func) {
-		WARN_ONCE(1, "alloc failure, ftrace filter could be stale\n");
+		MEM_FAIL(1, "alloc failure, ftrace filter could be stale\n");
 		return;
 	}
 
@@ -6922,7 +6924,7 @@ ftrace_filter_pid_sched_switch_probe(void *data, bool preempt,
 
 	pid_list = rcu_dereference_sched(tr->function_pids);
 
-	this_cpu_write(tr->trace_buffer.data->ftrace_ignore_pid,
+	this_cpu_write(tr->array_buffer.data->ftrace_ignore_pid,
 		       trace_ignore_this_task(pid_list, next));
 }
 
@@ -6976,7 +6978,7 @@ static void clear_ftrace_pids(struct trace_array *tr)
 	unregister_trace_sched_switch(ftrace_filter_pid_sched_switch_probe, tr);
 
 	for_each_possible_cpu(cpu)
-		per_cpu_ptr(tr->trace_buffer.data, cpu)->ftrace_ignore_pid = false;
+		per_cpu_ptr(tr->array_buffer.data, cpu)->ftrace_ignore_pid = false;
 
 	rcu_assign_pointer(tr->function_pids, NULL);
 
@@ -7031,9 +7033,10 @@ static void *fpid_next(struct seq_file *m, void *v, loff_t *pos)
 	struct trace_array *tr = m->private;
 	struct trace_pid_list *pid_list = rcu_dereference_sched(tr->function_pids);
 
-	if (v == FTRACE_NO_PIDS)
+	if (v == FTRACE_NO_PIDS) {
+		(*pos)++;
 		return NULL;
-
+	}
 	return trace_pid_next(pid_list, v, pos);
 }
 
@@ -7100,7 +7103,7 @@ static void ignore_task_cpu(void *data)
 	pid_list = rcu_dereference_protected(tr->function_pids,
 					     mutex_is_locked(&ftrace_lock));
 
-	this_cpu_write(tr->trace_buffer.data->ftrace_ignore_pid,
+	this_cpu_write(tr->array_buffer.data->ftrace_ignore_pid,
 		       trace_ignore_this_task(pid_list, current));
 }
 

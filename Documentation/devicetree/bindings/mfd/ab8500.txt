@@ -1,7 +1,7 @@
 * AB8500 Multi-Functional Device (MFD)
 
 Required parent device properties:
-- compatible             : contains "stericsson,ab8500";
+- compatible             : contains "stericsson,ab8500" or "stericsson,ab8505";
 - interrupts             : contains the IRQ line for the AB8500
 - interrupt-controller   : describes the AB8500 as an Interrupt Controller (has its own domain)
 - #interrupt-cells       : should be 2, for 2-cell format
@@ -49,11 +49,13 @@ ab8500-charger		 :			: vddadc       : Charger interface
 			 : CH_WD_EXP		:	       : Charger watchdog detected
 ab8500-gpadc             : HW_CONV_END          : vddadc       : Analogue to Digital Converter
                            SW_CONV_END          :              :
-ab8500-gpio              :                      :              : GPIO Controller
+ab8500-gpio              :                      :              : GPIO Controller (AB8500)
+ab8505-gpio              :                      :              : GPIO Controller (AB8505)
 ab8500-ponkey            : ONKEY_DBF            :              : Power-on Key
                            ONKEY_DBR            :              :
 ab8500-pwm               :                      :              : Pulse Width Modulator
-ab8500-regulator         :                      :              : Regulators
+ab8500-regulator         :                      :              : Regulators (AB8500)
+ab8505-regulator         :                      :              : Regulators (AB8505)
 ab8500-rtc               : 60S                  :              : Real Time Clock
                          : ALARM                :              :
 ab8500-sysctrl           :                      :              : System Control

@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/types.h>
 
+#include "../../pci.h"
 #include "pcie-designware.h"
 
 /*
@@ -473,6 +474,61 @@ int dw_pcie_link_up(struct dw_pcie *pci)
 	return ((val & PCIE_PORT_DEBUG1_LINK_UP) &&
 		(!(val & PCIE_PORT_DEBUG1_LINK_IN_TRAINING)));
 }
+
+void dw_pcie_upconfig_setup(struct dw_pcie *pci)
+{
+	u32 val;
+
+	val = dw_pcie_readl_dbi(pci, PCIE_PORT_MULTI_LANE_CTRL);
+	val |= PORT_MLTI_UPCFG_SUPPORT;
+	dw_pcie_writel_dbi(pci, PCIE_PORT_MULTI_LANE_CTRL, val);
+}
+EXPORT_SYMBOL_GPL(dw_pcie_upconfig_setup);
+
+void dw_pcie_link_set_max_speed(struct dw_pcie *pci, u32 link_gen)
+{
+	u32 reg, val;
+	u8 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+
+	reg = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCTL2);
+	reg &= ~PCI_EXP_LNKCTL2_TLS;
+
+	switch (pcie_link_speed[link_gen]) {
+	case PCIE_SPEED_2_5GT:
+		reg |= PCI_EXP_LNKCTL2_TLS_2_5GT;
+		break;
+	case PCIE_SPEED_5_0GT:
+		reg |= PCI_EXP_LNKCTL2_TLS_5_0GT;
+		break;
+	case PCIE_SPEED_8_0GT:
+		reg |= PCI_EXP_LNKCTL2_TLS_8_0GT;
+		break;
+	case PCIE_SPEED_16_0GT:
+		reg |= PCI_EXP_LNKCTL2_TLS_16_0GT;
+		break;
+	default:
+		/* Use hardware capability */
+		val = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
+		val = FIELD_GET(PCI_EXP_LNKCAP_SLS, val);
+		reg &= ~PCI_EXP_LNKCTL2_HASD;
+		reg |= FIELD_PREP(PCI_EXP_LNKCTL2_TLS, val);
+		break;
+	}
+
+	dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCTL2, reg);
+}
+EXPORT_SYMBOL_GPL(dw_pcie_link_set_max_speed);
+
+void dw_pcie_link_set_n_fts(struct dw_pcie *pci, u32 n_fts)
+{
+	u32 val;
+
+	val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
+	val &= ~PORT_LOGIC_N_FTS_MASK;
+	val |= n_fts & PORT_LOGIC_N_FTS_MASK;
+	dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
+}
+EXPORT_SYMBOL_GPL(dw_pcie_link_set_n_fts);
 
 static u8 dw_pcie_iatu_unroll_enabled(struct dw_pcie *pci)
 {

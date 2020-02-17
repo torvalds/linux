@@ -1093,7 +1093,7 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 	int ret;
 
 	if (desc && desc->sig_protected) {
-		desc->sig_protected = 0;
+		desc->sig_protected = false;
 		ret = ib_check_mr_status(desc->rsc.sig_mr,
 					 IB_MR_CHECK_SIG_STATUS, &mr_status);
 		if (ret) {

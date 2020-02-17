@@ -115,7 +115,7 @@ static int pmbus_identify(struct i2c_client *client,
 	}
 
 	if (pmbus_check_byte_register(client, 0, PMBUS_VOUT_MODE)) {
-		int vout_mode;
+		int vout_mode, i;
 
 		vout_mode = pmbus_read_byte_data(client, 0, PMBUS_VOUT_MODE);
 		if (vout_mode >= 0 && vout_mode != 0xff) {
@@ -124,7 +124,8 @@ static int pmbus_identify(struct i2c_client *client,
 				break;
 			case 1:
 				info->format[PSC_VOLTAGE_OUT] = vid;
-				info->vrm_version = vr11;
+				for (i = 0; i < info->pages; i++)
+					info->vrm_version[i] = vr11;
 				break;
 			case 2:
 				info->format[PSC_VOLTAGE_OUT] = direct;
@@ -210,6 +211,7 @@ static const struct i2c_device_id pmbus_id[] = {
 	{"dps460", (kernel_ulong_t)&pmbus_info_one_skip},
 	{"dps650ab", (kernel_ulong_t)&pmbus_info_one_skip},
 	{"dps800", (kernel_ulong_t)&pmbus_info_one_skip},
+	{"max20796", (kernel_ulong_t)&pmbus_info_one},
 	{"mdt040", (kernel_ulong_t)&pmbus_info_one},
 	{"ncp4200", (kernel_ulong_t)&pmbus_info_one},
 	{"ncp4208", (kernel_ulong_t)&pmbus_info_one},

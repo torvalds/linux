@@ -2972,8 +2972,8 @@ static void icl_update_active_dpll(struct intel_atomic_state *state,
 	enum icl_port_dpll_id port_dpll_id = ICL_PORT_DPLL_DEFAULT;
 
 	primary_port = encoder->type == INTEL_OUTPUT_DP_MST ?
-		enc_to_mst(&encoder->base)->primary :
-		enc_to_dig_port(&encoder->base);
+		enc_to_mst(encoder)->primary :
+		enc_to_dig_port(encoder);
 
 	if (primary_port &&
 	    (primary_port->tc_mode == TC_PORT_DP_ALT ||

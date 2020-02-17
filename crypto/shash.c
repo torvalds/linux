@@ -50,8 +50,7 @@ static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 
 static void shash_set_needkey(struct crypto_shash *tfm, struct shash_alg *alg)
 {
-	if (crypto_shash_alg_has_setkey(alg) &&
-	    !(alg->base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY))
+	if (crypto_shash_alg_needs_key(alg))
 		crypto_shash_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
 }
 
@@ -386,16 +385,49 @@ int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 	return 0;
 }
 
+static void crypto_shash_exit_tfm(struct crypto_tfm *tfm)
+{
+	struct crypto_shash *hash = __crypto_shash_cast(tfm);
+	struct shash_alg *alg = crypto_shash_alg(hash);
+
+	alg->exit_tfm(hash);
+}
+
 static int crypto_shash_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_shash *hash = __crypto_shash_cast(tfm);
 	struct shash_alg *alg = crypto_shash_alg(hash);
+	int err;
 
 	hash->descsize = alg->descsize;
 
 	shash_set_needkey(hash, alg);
 
+	if (alg->exit_tfm)
+		tfm->exit = crypto_shash_exit_tfm;
+
+	if (!alg->init_tfm)
+		return 0;
+
+	err = alg->init_tfm(hash);
+	if (err)
+		return err;
+
+	/* ->init_tfm() may have increased the descsize. */
+	if (WARN_ON_ONCE(hash->descsize > HASH_MAX_DESCSIZE)) {
+		if (alg->exit_tfm)
+			alg->exit_tfm(hash);
+		return -EINVAL;
+	}
+
 	return 0;
+}
+
+static void crypto_shash_free_instance(struct crypto_instance *inst)
+{
+	struct shash_instance *shash = shash_instance(inst);
+
+	shash->free(shash);
 }
 
 #ifdef CONFIG_NET
@@ -434,6 +466,7 @@ static void crypto_shash_show(struct seq_file *m, struct crypto_alg *alg)
 static const struct crypto_type crypto_shash_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_shash_init_tfm,
+	.free = crypto_shash_free_instance,
 #ifdef CONFIG_PROC_FS
 	.show = crypto_shash_show,
 #endif
@@ -443,6 +476,15 @@ static const struct crypto_type crypto_shash_type = {
 	.type = CRYPTO_ALG_TYPE_SHASH,
 	.tfmsize = offsetof(struct crypto_shash, base),
 };
+
+int crypto_grab_shash(struct crypto_shash_spawn *spawn,
+		      struct crypto_instance *inst,
+		      const char *name, u32 type, u32 mask)
+{
+	spawn->base.frontend = &crypto_shash_type;
+	return crypto_grab_spawn(&spawn->base, inst, name, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_grab_shash);
 
 struct crypto_shash *crypto_alloc_shash(const char *alg_name, u32 type,
 					u32 mask)
@@ -495,9 +537,9 @@ int crypto_register_shash(struct shash_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_register_shash);
 
-int crypto_unregister_shash(struct shash_alg *alg)
+void crypto_unregister_shash(struct shash_alg *alg)
 {
-	return crypto_unregister_alg(&alg->base);
+	crypto_unregister_alg(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_shash);
 
@@ -521,19 +563,12 @@ err:
 }
 EXPORT_SYMBOL_GPL(crypto_register_shashes);
 
-int crypto_unregister_shashes(struct shash_alg *algs, int count)
+void crypto_unregister_shashes(struct shash_alg *algs, int count)
 {
-	int i, ret;
+	int i;
 
-	for (i = count - 1; i >= 0; --i) {
-		ret = crypto_unregister_shash(&algs[i]);
-		if (ret)
-			pr_err("Failed to unregister %s %s: %d\n",
-			       algs[i].base.cra_driver_name,
-			       algs[i].base.cra_name, ret);
-	}
-
-	return 0;
+	for (i = count - 1; i >= 0; --i)
+		crypto_unregister_shash(&algs[i]);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_shashes);
 
@@ -541,6 +576,9 @@ int shash_register_instance(struct crypto_template *tmpl,
 			    struct shash_instance *inst)
 {
 	int err;
+
+	if (WARN_ON(!inst->free))
+		return -EINVAL;
 
 	err = shash_prepare_alg(&inst->alg);
 	if (err)
@@ -550,31 +588,12 @@ int shash_register_instance(struct crypto_template *tmpl,
 }
 EXPORT_SYMBOL_GPL(shash_register_instance);
 
-void shash_free_instance(struct crypto_instance *inst)
+void shash_free_singlespawn_instance(struct shash_instance *inst)
 {
-	crypto_drop_spawn(crypto_instance_ctx(inst));
-	kfree(shash_instance(inst));
+	crypto_drop_spawn(shash_instance_ctx(inst));
+	kfree(inst);
 }
-EXPORT_SYMBOL_GPL(shash_free_instance);
-
-int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
-			    struct shash_alg *alg,
-			    struct crypto_instance *inst)
-{
-	return crypto_init_spawn2(&spawn->base, &alg->base, inst,
-				  &crypto_shash_type);
-}
-EXPORT_SYMBOL_GPL(crypto_init_shash_spawn);
-
-struct shash_alg *shash_attr_alg(struct rtattr *rta, u32 type, u32 mask)
-{
-	struct crypto_alg *alg;
-
-	alg = crypto_attr_alg2(rta, &crypto_shash_type, type, mask);
-	return IS_ERR(alg) ? ERR_CAST(alg) :
-	       container_of(alg, struct shash_alg, base);
-}
-EXPORT_SYMBOL_GPL(shash_attr_alg);
+EXPORT_SYMBOL_GPL(shash_free_singlespawn_instance);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Synchronous cryptographic hash type");

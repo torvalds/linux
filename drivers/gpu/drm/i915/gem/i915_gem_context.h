@@ -13,7 +13,6 @@
 
 #include "i915_drv.h"
 #include "i915_gem.h"
-#include "i915_gem_gtt.h"
 #include "i915_scheduler.h"
 #include "intel_device_info.h"
 

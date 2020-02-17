@@ -10,9 +10,9 @@
 #include <linux/version.h>
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/in6.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include "bpf_legacy.h"
-#include "bpf_tracing.h"
+#include <bpf/bpf_tracing.h>
 
 #define MAX_NR_PORTS 65536
 

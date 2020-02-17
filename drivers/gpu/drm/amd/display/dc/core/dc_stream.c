@@ -406,25 +406,30 @@ bool dc_stream_add_writeback(struct dc *dc,
 		stream->writeback_info[stream->num_wb_info++] = *wb_info;
 	}
 
-	if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {
-		dm_error("DC: update_bandwidth failed!\n");
-		return false;
-	}
-
-	/* enable writeback */
 	if (dc->hwss.enable_writeback) {
 		struct dc_stream_status *stream_status = dc_stream_get_status(stream);
 		struct dwbc *dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
+		dwb->otg_inst = stream_status->primary_otg_inst;
+	}
+	if (IS_DIAG_DC(dc->ctx->dce_environment)) {
+		if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {
+			dm_error("DC: update_bandwidth failed!\n");
+			return false;
+		}
 
-		if (dwb->funcs->is_enabled(dwb)) {
-			/* writeback pipe already enabled, only need to update */
-			dc->hwss.update_writeback(dc, stream_status, wb_info, dc->current_state);
-		} else {
-			/* Enable writeback pipe from scratch*/
-			dc->hwss.enable_writeback(dc, stream_status, wb_info, dc->current_state);
+		/* enable writeback */
+		if (dc->hwss.enable_writeback) {
+			struct dwbc *dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
+
+			if (dwb->funcs->is_enabled(dwb)) {
+				/* writeback pipe already enabled, only need to update */
+				dc->hwss.update_writeback(dc, wb_info, dc->current_state);
+			} else {
+				/* Enable writeback pipe from scratch*/
+				dc->hwss.enable_writeback(dc, wb_info, dc->current_state);
+			}
 		}
 	}
-
 	return true;
 }
 
@@ -463,19 +468,29 @@ bool dc_stream_remove_writeback(struct dc *dc,
 	}
 	stream->num_wb_info = j;
 
-	/* recalculate and apply DML parameters */
-	if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {
-		dm_error("DC: update_bandwidth failed!\n");
-		return false;
+	if (IS_DIAG_DC(dc->ctx->dce_environment)) {
+		/* recalculate and apply DML parameters */
+		if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {
+			dm_error("DC: update_bandwidth failed!\n");
+			return false;
+		}
+
+		/* disable writeback */
+		if (dc->hwss.disable_writeback)
+			dc->hwss.disable_writeback(dc, dwb_pipe_inst);
 	}
-
-	/* disable writeback */
-	if (dc->hwss.disable_writeback)
-		dc->hwss.disable_writeback(dc, dwb_pipe_inst);
-
 	return true;
 }
 
+bool dc_stream_warmup_writeback(struct dc *dc,
+		int num_dwb,
+		struct dc_writeback_info *wb_info)
+{
+	if (dc->hwss.mmhubbub_warmup)
+		return dc->hwss.mmhubbub_warmup(dc, num_dwb, wb_info);
+	else
+		return false;
+}
 uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 {
 	uint8_t i;

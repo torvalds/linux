@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,7 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,12 +62,72 @@
 #include "mvm.h"
 #include "constants.h"
 
+static int iwl_mvm_ftm_responder_set_bw_v1(struct cfg80211_chan_def *chandef,
+					   u8 *bw, u8 *ctrl_ch_position)
+{
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		*bw = IWL_TOF_BW_20_LEGACY;
+		break;
+	case NL80211_CHAN_WIDTH_20:
+		*bw = IWL_TOF_BW_20_HT;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		*bw = IWL_TOF_BW_40;
+		*ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		*bw = IWL_TOF_BW_80;
+		*ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
+					   u8 *format_bw,
+					   u8 *ctrl_ch_position)
+{
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		*format_bw = IWL_LOCATION_FRAME_FORMAT_LEGACY;
+		*format_bw |= IWL_LOCATION_BW_20MHZ << LOCATION_BW_POS;
+		break;
+	case NL80211_CHAN_WIDTH_20:
+		*format_bw = IWL_LOCATION_FRAME_FORMAT_HT;
+		*format_bw |= IWL_LOCATION_BW_20MHZ << LOCATION_BW_POS;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		*format_bw = IWL_LOCATION_FRAME_FORMAT_HT;
+		*format_bw |= IWL_LOCATION_BW_40MHZ << LOCATION_BW_POS;
+		*ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		*format_bw = IWL_LOCATION_FRAME_FORMAT_VHT;
+		*format_bw |= IWL_LOCATION_BW_80MHZ << LOCATION_BW_POS;
+		*ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
 static int
 iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 			  struct ieee80211_vif *vif,
 			  struct cfg80211_chan_def *chandef)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	/*
+	 * The command structure is the same for versions 6 and 7, (only the
+	 * field interpretation is different), so the same struct can be use
+	 * for all cases.
+	 */
 	struct iwl_tof_responder_config_cmd cmd = {
 		.channel_num = chandef->chan->hw_value,
 		.cmd_valid_fields =
@@ -76,27 +136,22 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 				    IWL_TOF_RESPONDER_CMD_VALID_STA_ID),
 		.sta_id = mvmvif->bcast_sta.sta_id,
 	};
+	u8 cmd_ver = iwl_mvm_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
+					    TOF_RESPONDER_CONFIG_CMD);
+	int err;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
-		cmd.bandwidth = IWL_TOF_BW_20_LEGACY;
-		break;
-	case NL80211_CHAN_WIDTH_20:
-		cmd.bandwidth = IWL_TOF_BW_20_HT;
-		break;
-	case NL80211_CHAN_WIDTH_40:
-		cmd.bandwidth = IWL_TOF_BW_40;
-		cmd.ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
-		break;
-	case NL80211_CHAN_WIDTH_80:
-		cmd.bandwidth = IWL_TOF_BW_80;
-		cmd.ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
-		break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
+	if (cmd_ver == 7)
+		err = iwl_mvm_ftm_responder_set_bw_v2(chandef, &cmd.format_bw,
+						      &cmd.ctrl_ch_position);
+	else
+		err = iwl_mvm_ftm_responder_set_bw_v1(chandef, &cmd.format_bw,
+						      &cmd.ctrl_ch_position);
+
+	if (err) {
+		IWL_ERR(mvm, "Failed to set responder bandwidth\n");
+		return err;
 	}
 
 	memcpy(cmd.bssid, vif->addr, ETH_ALEN);

@@ -38,7 +38,7 @@ static DEFINE_MUTEX(tunnel_mutex);
 
 int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
 {
-	struct device_node *parent = np;
+	struct device_node *node = np;
 	u32 bdfn;
 	u64 phbid;
 	int ret;
@@ -48,25 +48,29 @@ int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
 		return -ENXIO;
 
 	bdfn = ((bdfn & 0x00ffff00) >> 8);
-	while ((parent = of_get_parent(parent))) {
-		if (!PCI_DN(parent)) {
-			of_node_put(parent);
+	for (node = np; node; node = of_get_parent(node)) {
+		if (!PCI_DN(node)) {
+			of_node_put(node);
 			break;
 		}
 
-		if (!of_device_is_compatible(parent, "ibm,ioda2-phb") &&
-		    !of_device_is_compatible(parent, "ibm,ioda3-phb")) {
-			of_node_put(parent);
+		if (!of_device_is_compatible(node, "ibm,ioda2-phb") &&
+		    !of_device_is_compatible(node, "ibm,ioda3-phb") &&
+		    !of_device_is_compatible(node, "ibm,ioda2-npu2-opencapi-phb")) {
+			of_node_put(node);
 			continue;
 		}
 
-		ret = of_property_read_u64(parent, "ibm,opal-phbid", &phbid);
+		ret = of_property_read_u64(node, "ibm,opal-phbid", &phbid);
 		if (ret) {
-			of_node_put(parent);
+			of_node_put(node);
 			return -ENXIO;
 		}
 
-		*id = PCI_SLOT_ID(phbid, bdfn);
+		if (of_device_is_compatible(node, "ibm,ioda2-npu2-opencapi-phb"))
+			*id = PCI_PHB_SLOT_ID(phbid);
+		else
+			*id = PCI_SLOT_ID(phbid, bdfn);
 		return 0;
 	}
 
@@ -808,53 +812,6 @@ struct iommu_table *pnv_pci_table_alloc(int nid)
 	kref_init(&tbl->it_kref);
 
 	return tbl;
-}
-
-void pnv_pci_dma_dev_setup(struct pci_dev *pdev)
-{
-	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
-	struct pnv_phb *phb = hose->private_data;
-#ifdef CONFIG_PCI_IOV
-	struct pnv_ioda_pe *pe;
-	struct pci_dn *pdn;
-
-	/* Fix the VF pdn PE number */
-	if (pdev->is_virtfn) {
-		pdn = pci_get_pdn(pdev);
-		WARN_ON(pdn->pe_number != IODA_INVALID_PE);
-		list_for_each_entry(pe, &phb->ioda.pe_list, list) {
-			if (pe->rid == ((pdev->bus->number << 8) |
-			    (pdev->devfn & 0xff))) {
-				pdn->pe_number = pe->pe_number;
-				pe->pdev = pdev;
-				break;
-			}
-		}
-	}
-#endif /* CONFIG_PCI_IOV */
-
-	if (phb && phb->dma_dev_setup)
-		phb->dma_dev_setup(phb, pdev);
-}
-
-void pnv_pci_dma_bus_setup(struct pci_bus *bus)
-{
-	struct pci_controller *hose = bus->sysdata;
-	struct pnv_phb *phb = hose->private_data;
-	struct pnv_ioda_pe *pe;
-
-	list_for_each_entry(pe, &phb->ioda.pe_list, list) {
-		if (!(pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)))
-			continue;
-
-		if (!pe->pbus)
-			continue;
-
-		if (bus->number == ((pe->rid >> 8) & 0xFF)) {
-			pe->pbus = bus;
-			break;
-		}
-	}
 }
 
 struct device_node *pnv_pci_get_phb_node(struct pci_dev *dev)

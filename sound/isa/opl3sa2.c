@@ -457,7 +457,7 @@ static int snd_opl3sa2_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_
 static const DECLARE_TLV_DB_SCALE(db_scale_master, -3000, 200, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
 
-static struct snd_kcontrol_new snd_opl3sa2_controls[] = {
+static const struct snd_kcontrol_new snd_opl3sa2_controls[] = {
 OPL3SA2_DOUBLE("Master Playback Switch", 0, 0x07, 0x08, 7, 7, 1, 1),
 OPL3SA2_DOUBLE_TLV("Master Playback Volume", 0, 0x07, 0x08, 0, 0, 15, 1,
 		   db_scale_master),
@@ -467,7 +467,7 @@ OPL3SA2_SINGLE_TLV("Mic Playback Volume", 0, 0x09, 0, 31, 1,
 OPL3SA2_SINGLE("ZV Port Switch", 0, 0x02, 0, 1, 0),
 };
 
-static struct snd_kcontrol_new snd_opl3sa2_tone_controls[] = {
+static const struct snd_kcontrol_new snd_opl3sa2_tone_controls[] = {
 OPL3SA2_DOUBLE("3D Control - Wide", 0, 0x14, 0x14, 4, 0, 7, 0),
 OPL3SA2_DOUBLE("Tone Control - Bass", 0, 0x15, 0x15, 4, 0, 7, 0),
 OPL3SA2_DOUBLE("Tone Control - Treble", 0, 0x16, 0x16, 4, 0, 7, 0)
@@ -659,6 +659,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 		return -ENODEV;
 	}
 	chip->irq = xirq;
+	card->sync_irq = chip->irq;
 	err = snd_wss_create(card,
 			     wss_port[dev] + 4, -1,
 			     xirq, xdma1, xdma2,

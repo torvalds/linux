@@ -69,6 +69,7 @@
 #include <linux/blkdev.h>
 #include <linux/gfp.h>
 #include <linux/blk-mq.h>
+#include <linux/lockdep.h>
 
 #include "blk.h"
 #include "blk-mq.h"
@@ -505,6 +506,9 @@ struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
 	INIT_LIST_HEAD(&fq->flush_queue[1]);
 	INIT_LIST_HEAD(&fq->flush_data_in_flight);
 
+	lockdep_register_key(&fq->key);
+	lockdep_set_class(&fq->mq_flush_lock, &fq->key);
+
 	return fq;
 
  fail_rq:
@@ -519,6 +523,7 @@ void blk_free_flush_queue(struct blk_flush_queue *fq)
 	if (!fq)
 		return;
 
+	lockdep_unregister_key(&fq->key);
 	kfree(fq->flush_rq);
 	kfree(fq);
 }

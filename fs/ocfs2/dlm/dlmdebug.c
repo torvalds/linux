@@ -17,9 +17,9 @@
 #include <linux/debugfs.h>
 #include <linux/export.h>
 
-#include "cluster/heartbeat.h"
-#include "cluster/nodemanager.h"
-#include "cluster/tcp.h"
+#include "../cluster/heartbeat.h"
+#include "../cluster/nodemanager.h"
+#include "../cluster/tcp.h"
 
 #include "dlmapi.h"
 #include "dlmcommon.h"
@@ -27,7 +27,7 @@
 #include "dlmdebug.h"
 
 #define MLOG_MASK_PREFIX ML_DLM
-#include "cluster/masklog.h"
+#include "../cluster/masklog.h"
 
 static int stringify_lockname(const char *lockname, int locklen, char *buf,
 			      int len);

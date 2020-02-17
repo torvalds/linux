@@ -239,15 +239,6 @@ static inline int arch_within_stack_frames(const void * const stack,
 			   current_thread_info()->status & TS_COMPAT)
 #endif
 
-/*
- * Force syscall return via IRET by making it look as if there was
- * some work pending. IRET is our most capable (but slowest) syscall
- * return path, which is able to restore modified SS, CS and certain
- * EFLAGS values that other (fast) syscall return instructions
- * are not able to restore properly.
- */
-#define force_iret() set_thread_flag(TIF_NOTIFY_RESUME)
-
 extern void arch_task_cache_init(void);
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 extern void arch_release_task_struct(struct task_struct *tsk);

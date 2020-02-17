@@ -104,7 +104,7 @@ static void lpit_update_residency(struct lpit_residency_info *info,
 
 	info->gaddr = lpit_native->residency_counter;
 	if (info->gaddr.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
-		info->iomem_addr = ioremap_nocache(info->gaddr.address,
+		info->iomem_addr = ioremap(info->gaddr.address,
 						   info->gaddr.bit_width / 8);
 		if (!info->iomem_addr)
 			return;

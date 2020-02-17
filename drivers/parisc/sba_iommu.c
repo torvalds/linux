@@ -1513,7 +1513,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 static void __iomem *ioc_remap(struct sba_device *sba_dev, unsigned int offset)
 {
-	return ioremap_nocache(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
+	return ioremap(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
 }
 
 static void sba_hw_init(struct sba_device *sba_dev)
@@ -1883,7 +1883,7 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 	u32 func_class;
 	int i;
 	char *version;
-	void __iomem *sba_addr = ioremap_nocache(dev->hpa.start, SBA_FUNC_SIZE);
+	void __iomem *sba_addr = ioremap(dev->hpa.start, SBA_FUNC_SIZE);
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *root;
 #endif

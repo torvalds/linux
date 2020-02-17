@@ -32,6 +32,7 @@
 #include "block-rsv.h"
 #include "delalloc-space.h"
 #include "block-group.h"
+#include "discard.h"
 
 #undef SCRAMBLE_DELAYED_REFS
 
@@ -1869,8 +1870,8 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 		btrfs_pin_extent(fs_info, head->bytenr,
 				 head->num_bytes, 1);
 		if (head->is_data) {
-			ret = btrfs_del_csums(trans, fs_info, head->bytenr,
-					      head->num_bytes);
+			ret = btrfs_del_csums(trans, fs_info->csum_root,
+					      head->bytenr, head->num_bytes);
 		}
 	}
 
@@ -2923,7 +2924,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 			break;
 		}
 
-		if (btrfs_test_opt(fs_info, DISCARD))
+		if (btrfs_test_opt(fs_info, DISCARD_SYNC))
 			ret = btrfs_discard_extent(fs_info, start,
 						   end + 1 - start, NULL);
 
@@ -2932,6 +2933,11 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 		free_extent_state(cached_state);
 		cond_resched();
+	}
+
+	if (btrfs_test_opt(fs_info, DISCARD_ASYNC)) {
+		btrfs_discard_calc_delay(&fs_info->discard_ctl);
+		btrfs_discard_schedule_work(&fs_info->discard_ctl, true);
 	}
 
 	/*
@@ -3175,7 +3181,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		btrfs_release_path(path);
 
 		if (is_data) {
-			ret = btrfs_del_csums(trans, info, bytenr, num_bytes);
+			ret = btrfs_del_csums(trans, info->csum_root, bytenr,
+					      num_bytes);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				goto out;
@@ -3437,7 +3444,6 @@ btrfs_release_block_group(struct btrfs_block_group *cache,
  */
 struct find_free_extent_ctl {
 	/* Basic allocation info */
-	u64 ram_bytes;
 	u64 num_bytes;
 	u64 empty_size;
 	u64 flags;
@@ -3799,6 +3805,7 @@ static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 				u64 flags, int delalloc)
 {
 	int ret = 0;
+	int cache_block_group_error = 0;
 	struct btrfs_free_cluster *last_ptr = NULL;
 	struct btrfs_block_group *block_group = NULL;
 	struct find_free_extent_ctl ffe_ctl = {0};
@@ -3808,7 +3815,6 @@ static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 
 	WARN_ON(num_bytes < fs_info->sectorsize);
 
-	ffe_ctl.ram_bytes = ram_bytes;
 	ffe_ctl.num_bytes = num_bytes;
 	ffe_ctl.empty_size = empty_size;
 	ffe_ctl.flags = flags;
@@ -3958,7 +3964,20 @@ have_block_group:
 		if (unlikely(!ffe_ctl.cached)) {
 			ffe_ctl.have_caching_bg = true;
 			ret = btrfs_cache_block_group(block_group, 0);
-			BUG_ON(ret < 0);
+
+			/*
+			 * If we get ENOMEM here or something else we want to
+			 * try other block groups, because it may not be fatal.
+			 * However if we can't find anything else we need to
+			 * save our return here so that we return the actual
+			 * error that caused problems, not ENOSPC.
+			 */
+			if (ret < 0) {
+				if (!cache_block_group_error)
+					cache_block_group_error = ret;
+				ret = 0;
+				goto loop;
+			}
 			ret = 0;
 		}
 
@@ -4045,7 +4064,7 @@ loop:
 	if (ret > 0)
 		goto search;
 
-	if (ret == -ENOSPC) {
+	if (ret == -ENOSPC && !cache_block_group_error) {
 		/*
 		 * Use ffe_ctl->total_free_space as fallback if we can't find
 		 * any contiguous hole.
@@ -4056,6 +4075,8 @@ loop:
 		space_info->max_extent_size = ffe_ctl.max_extent_size;
 		spin_unlock(&space_info->lock);
 		ins->offset = ffe_ctl.max_extent_size;
+	} else if (ret == -ENOSPC) {
+		ret = cache_block_group_error;
 	}
 	return ret;
 }
@@ -4148,12 +4169,10 @@ again:
 	return ret;
 }
 
-static int __btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
-					u64 start, u64 len,
-					int pin, int delalloc)
+int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
+			       u64 start, u64 len, int delalloc)
 {
 	struct btrfs_block_group *cache;
-	int ret = 0;
 
 	cache = btrfs_lookup_block_group(fs_info, start);
 	if (!cache) {
@@ -4162,30 +4181,28 @@ static int __btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 		return -ENOSPC;
 	}
 
-	if (pin)
-		pin_down_extent(cache, start, len, 1);
-	else {
-		if (btrfs_test_opt(fs_info, DISCARD))
-			ret = btrfs_discard_extent(fs_info, start, len, NULL);
-		btrfs_add_free_space(cache, start, len);
-		btrfs_free_reserved_bytes(cache, len, delalloc);
-		trace_btrfs_reserved_extent_free(fs_info, start, len);
-	}
+	btrfs_add_free_space(cache, start, len);
+	btrfs_free_reserved_bytes(cache, len, delalloc);
+	trace_btrfs_reserved_extent_free(fs_info, start, len);
 
 	btrfs_put_block_group(cache);
+	return 0;
+}
+
+int btrfs_pin_reserved_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len)
+{
+	struct btrfs_block_group *cache;
+	int ret = 0;
+
+	cache = btrfs_lookup_block_group(fs_info, start);
+	if (!cache) {
+		btrfs_err(fs_info, "unable to find block group for %llu", start);
+		return -ENOSPC;
+	}
+
+	ret = pin_down_extent(cache, start, len, 1);
+	btrfs_put_block_group(cache);
 	return ret;
-}
-
-int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
-			       u64 start, u64 len, int delalloc)
-{
-	return __btrfs_free_reserved_extent(fs_info, start, len, 0, delalloc);
-}
-
-int btrfs_free_and_pin_reserved_extent(struct btrfs_fs_info *fs_info,
-				       u64 start, u64 len)
-{
-	return __btrfs_free_reserved_extent(fs_info, start, len, 1, 0);
 }
 
 static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,

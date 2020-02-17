@@ -23,6 +23,29 @@
 #include "gpiolib.h"
 #include "gpiolib-of.h"
 
+/**
+ * of_gpio_spi_cs_get_count() - special GPIO counting for SPI
+ * Some elder GPIO controllers need special quirks. Currently we handle
+ * the Freescale GPIO controller with bindings that doesn't use the
+ * established "cs-gpios" for chip selects but instead rely on
+ * "gpios" for the chip select lines. If we detect this, we redirect
+ * the counting of "cs-gpios" to count "gpios" transparent to the
+ * driver.
+ */
+static int of_gpio_spi_cs_get_count(struct device *dev, const char *con_id)
+{
+	struct device_node *np = dev->of_node;
+
+	if (!IS_ENABLED(CONFIG_SPI_MASTER))
+		return 0;
+	if (!con_id || strcmp(con_id, "cs"))
+		return 0;
+	if (!of_device_is_compatible(np, "fsl,spi") &&
+	    !of_device_is_compatible(np, "aeroflexgaisler,spictrl"))
+		return 0;
+	return of_gpio_named_count(np, "gpios");
+}
+
 /*
  * This is used by external users of of_gpio_count() from <linux/of_gpio.h>
  *
@@ -34,6 +57,10 @@ int of_gpio_get_count(struct device *dev, const char *con_id)
 	int ret;
 	char propname[32];
 	unsigned int i;
+
+	ret = of_gpio_spi_cs_get_count(dev, con_id);
+	if (ret > 0)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
 		if (con_id)
@@ -104,27 +131,6 @@ static void of_gpio_flags_quirks(struct device_node *np,
 				 enum of_gpio_flags *flags,
 				 int index)
 {
-	/*
-	 * Handle MMC "cd-inverted" and "wp-inverted" semantics.
-	 */
-	if (IS_ENABLED(CONFIG_MMC)) {
-		/*
-		 * Active low is the default according to the
-		 * SDHCI specification and the device tree
-		 * bindings. However the code in the current
-		 * kernel was written such that the phandle
-		 * flags were always respected, and "cd-inverted"
-		 * would invert the flag from the device phandle.
-		 */
-		if (!strcmp(propname, "cd-gpios")) {
-			if (of_property_read_bool(np, "cd-inverted"))
-				*flags ^= OF_GPIO_ACTIVE_LOW;
-		}
-		if (!strcmp(propname, "wp-gpios")) {
-			if (of_property_read_bool(np, "wp-inverted"))
-				*flags ^= OF_GPIO_ACTIVE_LOW;
-		}
-	}
 	/*
 	 * Some GPIO fixed regulator quirks.
 	 * Note that active low is the default.
@@ -478,24 +484,24 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 			break;
 	}
 
-	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT) {
+	if (PTR_ERR(desc) == -ENOENT) {
 		/* Special handling for SPI GPIOs if used */
 		desc = of_find_spi_gpio(dev, con_id, &of_flags);
 	}
 
-	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT) {
+	if (PTR_ERR(desc) == -ENOENT) {
 		/* This quirk looks up flags and all */
 		desc = of_find_spi_cs_gpio(dev, con_id, idx, flags);
 		if (!IS_ERR(desc))
 			return desc;
 	}
 
-	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT) {
+	if (PTR_ERR(desc) == -ENOENT) {
 		/* Special handling for regulator GPIOs if used */
 		desc = of_find_regulator_gpio(dev, con_id, &of_flags);
 	}
 
-	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT)
+	if (PTR_ERR(desc) == -ENOENT)
 		desc = of_find_arizona_gpio(dev, con_id, &of_flags);
 
 	if (IS_ERR(desc))

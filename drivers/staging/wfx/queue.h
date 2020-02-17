@@ -13,9 +13,10 @@
 #include "hif_api_cmd.h"
 
 #define WFX_MAX_STA_IN_AP_MODE    14
-#define WFX_LINK_ID_AFTER_DTIM    (WFX_MAX_STA_IN_AP_MODE + 1)
-#define WFX_LINK_ID_UAPSD         (WFX_MAX_STA_IN_AP_MODE + 2)
-#define WFX_LINK_ID_MAX           (WFX_MAX_STA_IN_AP_MODE + 3)
+#define WFX_LINK_ID_NO_ASSOC      15
+#define WFX_LINK_ID_AFTER_DTIM    (WFX_LINK_ID_NO_ASSOC + 1)
+#define WFX_LINK_ID_UAPSD         (WFX_LINK_ID_NO_ASSOC + 2)
+#define WFX_LINK_ID_MAX           (WFX_LINK_ID_NO_ASSOC + 3)
 
 struct wfx_dev;
 struct wfx_vif;
@@ -46,10 +47,11 @@ void wfx_tx_queues_clear(struct wfx_dev *wdev);
 bool wfx_tx_queues_is_empty(struct wfx_dev *wdev);
 void wfx_tx_queues_wait_empty_vif(struct wfx_vif *wvif);
 struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev);
+struct hif_msg *wfx_tx_queues_get_after_dtim(struct wfx_vif *wvif);
 
 void wfx_tx_queue_put(struct wfx_dev *wdev, struct wfx_queue *queue,
 		      struct sk_buff *skb);
-size_t wfx_tx_queue_get_num_queued(struct wfx_queue *queue, u32 link_id_map);
+int wfx_tx_queue_get_num_queued(struct wfx_queue *queue, u32 link_id_map);
 
 struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id);
 int wfx_pending_remove(struct wfx_dev *wdev, struct sk_buff *skb);

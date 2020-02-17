@@ -310,7 +310,17 @@ static ssize_t timeouts_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(timeouts);
 
-static struct attribute *tpm_dev_attrs[] = {
+static ssize_t tpm_version_major_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct tpm_chip *chip = to_tpm_chip(dev);
+
+	return sprintf(buf, "%s\n", chip->flags & TPM_CHIP_FLAG_TPM2
+		       ? "2" : "1");
+}
+static DEVICE_ATTR_RO(tpm_version_major);
+
+static struct attribute *tpm1_dev_attrs[] = {
 	&dev_attr_pubek.attr,
 	&dev_attr_pcrs.attr,
 	&dev_attr_enabled.attr,
@@ -321,18 +331,28 @@ static struct attribute *tpm_dev_attrs[] = {
 	&dev_attr_cancel.attr,
 	&dev_attr_durations.attr,
 	&dev_attr_timeouts.attr,
+	&dev_attr_tpm_version_major.attr,
 	NULL,
 };
 
-static const struct attribute_group tpm_dev_group = {
-	.attrs = tpm_dev_attrs,
+static struct attribute *tpm2_dev_attrs[] = {
+	&dev_attr_tpm_version_major.attr,
+	NULL
+};
+
+static const struct attribute_group tpm1_dev_group = {
+	.attrs = tpm1_dev_attrs,
+};
+
+static const struct attribute_group tpm2_dev_group = {
+	.attrs = tpm2_dev_attrs,
 };
 
 void tpm_sysfs_add_device(struct tpm_chip *chip)
 {
-	if (chip->flags & TPM_CHIP_FLAG_TPM2)
-		return;
-
 	WARN_ON(chip->groups_cnt != 0);
-	chip->groups[chip->groups_cnt++] = &tpm_dev_group;
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		chip->groups[chip->groups_cnt++] = &tpm2_dev_group;
+	else
+		chip->groups[chip->groups_cnt++] = &tpm1_dev_group;
 }

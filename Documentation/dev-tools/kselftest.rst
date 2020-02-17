@@ -203,12 +203,12 @@ Test Module
 Kselftest tests the kernel from userspace.  Sometimes things need
 testing from within the kernel, one method of doing this is to create a
 test module.  We can tie the module into the kselftest framework by
-using a shell script test runner.  ``kselftest_module.sh`` is designed
+using a shell script test runner.  ``kselftest/module.sh`` is designed
 to facilitate this process.  There is also a header file provided to
 assist writing kernel modules that are for use with kselftest:
 
 - ``tools/testing/kselftest/kselftest_module.h``
-- ``tools/testing/kselftest/kselftest_module.sh``
+- ``tools/testing/kselftest/kselftest/module.sh``
 
 How to use
 ----------
@@ -247,7 +247,7 @@ A bare bones test module might look like this:
 
    #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-   #include "../tools/testing/selftests/kselftest_module.h"
+   #include "../tools/testing/selftests/kselftest/module.h"
 
    KSTM_MODULE_GLOBALS();
 
@@ -276,7 +276,7 @@ Example test script
 
     #!/bin/bash
     # SPDX-License-Identifier: GPL-2.0+
-    $(dirname $0)/../kselftest_module.sh "foo" test_foo
+    $(dirname $0)/../kselftest/module.sh "foo" test_foo
 
 
 Test Harness

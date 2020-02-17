@@ -55,7 +55,7 @@ properties:
     type: boolean
 
 patternProperties:
-  "^([a-z]*-)?sram@[a-f0-9]+$":
+  "^([a-z]*-)?sram(-section)?@[a-f0-9]+$":
     type: object
     description:
       Each child of the sram node specifies a region of reserved memory.
@@ -64,15 +64,20 @@ patternProperties:
         description:
           Should contain a vendor specific string in the form
           <vendor>,[<device>-]<usage>
-        enum:
-          - allwinner,sun9i-a80-smp-sram
-          - amlogic,meson8-smp-sram
-          - amlogic,meson8b-smp-sram
-          - renesas,smp-sram
-          - rockchip,rk3066-smp-sram
-          - samsung,exynos4210-sysram
-          - samsung,exynos4210-sysram-ns
-          - socionext,milbeaut-smp-sram
+        contains:
+          enum:
+            - allwinner,sun4i-a10-sram-a3-a4
+            - allwinner,sun4i-a10-sram-c1
+            - allwinner,sun4i-a10-sram-d
+            - allwinner,sun9i-a80-smp-sram
+            - allwinner,sun50i-a64-sram-c
+            - amlogic,meson8-smp-sram
+            - amlogic,meson8b-smp-sram
+            - renesas,smp-sram
+            - rockchip,rk3066-smp-sram
+            - samsung,exynos4210-sysram
+            - samsung,exynos4210-sysram-ns
+            - socionext,milbeaut-smp-sram
 
       reg:
         description:

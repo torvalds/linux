@@ -83,12 +83,12 @@ static int proc_scsi_host_open(struct inode *inode, struct file *file)
 				4 * PAGE_SIZE);
 }
 
-static const struct file_operations proc_scsi_fops = {
-	.open = proc_scsi_host_open,
-	.release = single_release,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.write = proc_scsi_host_write
+static const struct proc_ops proc_scsi_ops = {
+	.proc_open	= proc_scsi_host_open,
+	.proc_release	= single_release,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= proc_scsi_host_write
 };
 
 /**
@@ -146,7 +146,7 @@ void scsi_proc_host_add(struct Scsi_Host *shost)
 
 	sprintf(name,"%d", shost->host_no);
 	p = proc_create_data(name, S_IRUGO | S_IWUSR,
-		sht->proc_dir, &proc_scsi_fops, shost);
+		sht->proc_dir, &proc_scsi_ops, shost);
 	if (!p)
 		printk(KERN_ERR "%s: Failed to register host %d in"
 		       "%s\n", __func__, shost->host_no,
@@ -436,13 +436,12 @@ static int proc_scsi_open(struct inode *inode, struct file *file)
 	return seq_open(file, &scsi_seq_ops);
 }
 
-static const struct file_operations proc_scsi_operations = {
-	.owner		= THIS_MODULE,
-	.open		= proc_scsi_open,
-	.read		= seq_read,
-	.write		= proc_scsi_write,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops scsi_scsi_proc_ops = {
+	.proc_open	= proc_scsi_open,
+	.proc_read	= seq_read,
+	.proc_write	= proc_scsi_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 /**
@@ -456,7 +455,7 @@ int __init scsi_init_procfs(void)
 	if (!proc_scsi)
 		goto err1;
 
-	pde = proc_create("scsi/scsi", 0, NULL, &proc_scsi_operations);
+	pde = proc_create("scsi/scsi", 0, NULL, &scsi_scsi_proc_ops);
 	if (!pde)
 		goto err2;
 

@@ -59,9 +59,24 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	ring->vaddr = (void *)(ring + 1);
 	atomic_set(&ring->pin_count, 1);
 
+	ring->vma = i915_vma_alloc();
+	if (!ring->vma) {
+		kfree(ring);
+		return NULL;
+	}
+	i915_active_init(&ring->vma->active, NULL, NULL);
+
 	intel_ring_update_space(ring);
 
 	return ring;
+}
+
+static void mock_ring_free(struct intel_ring *ring)
+{
+	i915_active_fini(&ring->vma->active);
+	i915_vma_free(ring->vma);
+
+	kfree(ring);
 }
 
 static struct i915_request *first_request(struct mock_engine *engine)
@@ -121,7 +136,7 @@ static void mock_context_destroy(struct kref *ref)
 	GEM_BUG_ON(intel_context_is_pinned(ce));
 
 	if (test_bit(CONTEXT_ALLOC_BIT, &ce->flags)) {
-		kfree(ce->ring);
+		mock_ring_free(ce->ring);
 		mock_timeline_unpin(ce->timeline);
 	}
 
@@ -149,7 +164,11 @@ static int mock_context_alloc(struct intel_context *ce)
 
 static int mock_context_pin(struct intel_context *ce)
 {
-	return intel_context_active_acquire(ce);
+	return 0;
+}
+
+static void mock_context_reset(struct intel_context *ce)
+{
 }
 
 static const struct intel_context_ops mock_context_ops = {
@@ -161,6 +180,7 @@ static const struct intel_context_ops mock_context_ops = {
 	.enter = intel_context_enter_engine,
 	.exit = intel_context_exit_engine,
 
+	.reset = mock_context_reset,
 	.destroy = mock_context_destroy,
 };
 

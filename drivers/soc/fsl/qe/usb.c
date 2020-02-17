@@ -43,7 +43,7 @@ int qe_usb_clock_set(enum qe_clock clk, int rate)
 
 	spin_lock_irqsave(&cmxgcr_lock, flags);
 
-	clrsetbits_be32(&mux->cmxgcr, QE_CMXGCR_USBCS, val);
+	qe_clrsetbits_be32(&mux->cmxgcr, QE_CMXGCR_USBCS, val);
 
 	spin_unlock_irqrestore(&cmxgcr_lock, flags);
 

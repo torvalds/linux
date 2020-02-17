@@ -33,6 +33,7 @@
 
 #include "gem/i915_gem_context.h"
 
+#include "gen6_ppgtt.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_context.h"
@@ -1328,26 +1329,12 @@ static int ring_context_alloc(struct intel_context *ce)
 
 static int ring_context_pin(struct intel_context *ce)
 {
-	int err;
-
-	err = intel_context_active_acquire(ce);
-	if (err)
-		return err;
-
-	err = __context_pin_ppgtt(ce);
-	if (err)
-		goto err_active;
-
-	return 0;
-
-err_active:
-	intel_context_active_release(ce);
-	return err;
+	return __context_pin_ppgtt(ce);
 }
 
 static void ring_context_reset(struct intel_context *ce)
 {
-	intel_ring_reset(ce->ring, 0);
+	intel_ring_reset(ce->ring, ce->ring->emit);
 }
 
 static const struct intel_context_ops ring_context_ops = {
@@ -1394,7 +1381,7 @@ static int load_pd_dir(struct i915_request *rq,
 
 	intel_ring_advance(rq, cs);
 
-	return 0;
+	return rq->engine->emit_flush(rq, EMIT_FLUSH);
 }
 
 static inline int mi_set_context(struct i915_request *rq, u32 flags)
@@ -1407,14 +1394,6 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 	bool force_restore = false;
 	int len;
 	u32 *cs;
-
-	flags |= MI_MM_SPACE_GTT;
-	if (IS_HASWELL(i915))
-		/* These flags are for resource streamer on HSW+ */
-		flags |= HSW_MI_RS_SAVE_STATE_EN | HSW_MI_RS_RESTORE_STATE_EN;
-	else
-		/* We need to save the extended state for powersaving modes */
-		flags |= MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN;
 
 	len = 4;
 	if (IS_GEN(i915, 7))
@@ -1592,7 +1571,7 @@ static int switch_mm(struct i915_request *rq, struct i915_address_space *vm)
 	if (ret)
 		return ret;
 
-	return rq->engine->emit_flush(rq, EMIT_FLUSH);
+	return rq->engine->emit_flush(rq, EMIT_INVALIDATE);
 }
 
 static int switch_context(struct i915_request *rq)
@@ -1607,15 +1586,21 @@ static int switch_context(struct i915_request *rq)
 		return ret;
 
 	if (ce->state) {
-		u32 hw_flags;
+		u32 flags;
 
 		GEM_BUG_ON(rq->engine->id != RCS0);
 
-		hw_flags = 0;
-		if (!test_bit(CONTEXT_VALID_BIT, &ce->flags))
-			hw_flags = MI_RESTORE_INHIBIT;
+		/* For resource streamer on HSW+ and power context elsewhere */
+		BUILD_BUG_ON(HSW_MI_RS_SAVE_STATE_EN != MI_SAVE_EXT_STATE_EN);
+		BUILD_BUG_ON(HSW_MI_RS_RESTORE_STATE_EN != MI_RESTORE_EXT_STATE_EN);
 
-		ret = mi_set_context(rq, hw_flags);
+		flags = MI_SAVE_EXT_STATE_EN | MI_MM_SPACE_GTT;
+		if (test_bit(CONTEXT_VALID_BIT, &ce->flags))
+			flags |= MI_RESTORE_EXT_STATE_EN;
+		else
+			flags |= MI_RESTORE_INHIBIT;
+
+		ret = mi_set_context(rq, flags);
 		if (ret)
 			return ret;
 	}
@@ -1842,8 +1827,6 @@ static void setup_common(struct intel_engine_cs *engine)
 
 	setup_irq(engine);
 
-	engine->release = ring_release;
-
 	engine->resume = xcs_resume;
 	engine->reset.prepare = reset_prepare;
 	engine->reset.rewind = reset_rewind;
@@ -2008,6 +1991,9 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 	engine->legacy.timeline = timeline;
 
 	GEM_BUG_ON(timeline->hwsp_ggtt != engine->status_page.vma);
+
+	/* Finally, take ownership and responsibility for cleanup! */
+	engine->release = ring_release;
 
 	return 0;
 

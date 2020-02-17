@@ -2914,7 +2914,7 @@ static int allegro_probe(struct platform_device *pdev)
 			"regs resource missing from device tree\n");
 		return -EINVAL;
 	}
-	regs = devm_ioremap_nocache(&pdev->dev, res->start, resource_size(res));
+	regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (IS_ERR(regs)) {
 		dev_err(&pdev->dev, "failed to map registers\n");
 		return PTR_ERR(regs);
@@ -2932,7 +2932,7 @@ static int allegro_probe(struct platform_device *pdev)
 			"sram resource missing from device tree\n");
 		return -EINVAL;
 	}
-	sram_regs = devm_ioremap_nocache(&pdev->dev,
+	sram_regs = devm_ioremap(&pdev->dev,
 					 sram_res->start,
 					 resource_size(sram_res));
 	if (IS_ERR(sram_regs)) {

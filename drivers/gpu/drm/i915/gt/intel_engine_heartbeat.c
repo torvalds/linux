@@ -199,7 +199,7 @@ int intel_engine_pulse(struct intel_engine_cs *engine)
 		goto out_unlock;
 	}
 
-	rq->flags |= I915_REQUEST_SENTINEL;
+	__set_bit(I915_FENCE_FLAG_SENTINEL, &rq->fence.flags);
 	idle_pulse(engine, rq);
 
 	__i915_request_commit(rq);

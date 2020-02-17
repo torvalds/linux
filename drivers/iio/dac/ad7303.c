@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -202,7 +201,6 @@ static int ad7303_probe(struct spi_device *spi)
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct iio_dev *indio_dev;
 	struct ad7303_state *st;
-	bool ext_ref;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -224,24 +222,15 @@ static int ad7303_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	if (spi->dev.of_node) {
-		ext_ref = of_property_read_bool(spi->dev.of_node,
-				"REF-supply");
-	} else {
-		struct ad7303_platform_data *pdata = spi->dev.platform_data;
-		if (pdata && pdata->use_external_ref)
-			ext_ref = true;
-		else
-		    ext_ref = false;
+	st->vref_reg = devm_regulator_get_optional(&spi->dev, "REF");
+	if (IS_ERR(st->vref_reg)) {
+		ret = PTR_ERR(st->vref_reg);
+		if (ret != -ENODEV)
+			goto err_disable_vdd_reg;
+		st->vref_reg = NULL;
 	}
 
-	if (ext_ref) {
-		st->vref_reg = devm_regulator_get(&spi->dev, "REF");
-		if (IS_ERR(st->vref_reg)) {
-			ret = PTR_ERR(st->vref_reg);
-			goto err_disable_vdd_reg;
-		}
-
+	if (st->vref_reg) {
 		ret = regulator_enable(st->vref_reg);
 		if (ret)
 			goto err_disable_vdd_reg;

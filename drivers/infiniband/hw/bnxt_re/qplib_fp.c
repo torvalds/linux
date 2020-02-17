@@ -442,7 +442,7 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 		goto fail;
 	}
 	/* Unconditionally map 8 bytes to support 57500 series */
-	nq->bar_reg_iomem = ioremap_nocache(nq_base + nq->bar_reg_off, 8);
+	nq->bar_reg_iomem = ioremap(nq_base + nq->bar_reg_off, 8);
 	if (!nq->bar_reg_iomem) {
 		rc = -ENOMEM;
 		goto fail;
@@ -2283,13 +2283,13 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 			/* Add qp to flush list of the CQ */
 			bnxt_qplib_add_flush_qp(qp);
 		} else {
+			/* Before we complete, do WA 9060 */
+			if (do_wa9060(qp, cq, cq_cons, sw_sq_cons,
+				      cqe_sq_cons)) {
+				*lib_qp = qp;
+				goto out;
+			}
 			if (swq->flags & SQ_SEND_FLAGS_SIGNAL_COMP) {
-				/* Before we complete, do WA 9060 */
-				if (do_wa9060(qp, cq, cq_cons, sw_sq_cons,
-					      cqe_sq_cons)) {
-					*lib_qp = qp;
-					goto out;
-				}
 				cqe->status = CQ_REQ_STATUS_OK;
 				cqe++;
 				(*budget)--;

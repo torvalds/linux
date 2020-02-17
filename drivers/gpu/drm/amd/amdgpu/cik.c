@@ -1312,19 +1312,13 @@ static int cik_asic_pci_config_reset(struct amdgpu_device *adev)
 
 static bool cik_asic_supports_baco(struct amdgpu_device *adev)
 {
-	bool baco_support;
-
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
-		smu7_asic_get_baco_capability(adev, &baco_support);
-		break;
+		return amdgpu_dpm_is_baco_supported(adev);
 	default:
-		baco_support = false;
-		break;
+		return false;
 	}
-
-	return baco_support;
 }
 
 static enum amd_reset_method
@@ -1366,7 +1360,7 @@ static int cik_asic_reset(struct amdgpu_device *adev)
 	if (cik_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
 		if (!adev->in_suspend)
 			amdgpu_inc_vram_lost(adev);
-		r = smu7_asic_baco_reset(adev);
+		r = amdgpu_dpm_baco_reset(adev);
 	} else {
 		r = cik_asic_pci_config_reset(adev);
 	}

@@ -330,12 +330,13 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 int amdgpu_uvd_entity_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	struct drm_sched_rq *rq;
+	struct drm_gpu_scheduler *sched;
 	int r;
 
 	ring = &adev->uvd.inst[0].ring;
-	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-	r = drm_sched_entity_init(&adev->uvd.entity, &rq, 1, NULL);
+	sched = &ring->sched;
+	r = drm_sched_entity_init(&adev->uvd.entity, DRM_SCHED_PRIORITY_NORMAL,
+				  &sched, 1, NULL);
 	if (r) {
 		DRM_ERROR("Failed setting up UVD kernel entity.\n");
 		return r;

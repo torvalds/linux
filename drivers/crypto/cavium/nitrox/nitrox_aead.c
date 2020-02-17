@@ -40,10 +40,8 @@ static int nitrox_aes_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	union fc_ctx_flags flags;
 
 	aes_keylen = flexi_aes_keylen(keylen);
-	if (aes_keylen < 0) {
-		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (aes_keylen < 0)
 		return -EINVAL;
-	}
 
 	/* fill crypto context */
 	fctx = nctx->u.fctx;

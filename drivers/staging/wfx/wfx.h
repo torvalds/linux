@@ -26,6 +26,9 @@
 #include "hif_tx.h"
 #include "hif_api_general.h"
 
+#define USEC_PER_TXOP 32 // see struct ieee80211_tx_queue_params
+#define USEC_PER_TU 1024
+
 struct hwbus_ops;
 
 struct wfx_dev {
@@ -51,14 +54,12 @@ struct wfx_dev {
 	int			tx_burst_idx;
 	atomic_t		tx_lock;
 
+	atomic_t		packet_id;
 	u32			key_map;
 	struct hif_req_add_key	keys[MAX_KEY_ENTRIES];
 
 	struct hif_rx_stats	rx_stats;
 	struct mutex		rx_stats_lock;
-
-	int			output_power;
-	atomic_t		scan_in_progress;
 };
 
 struct wfx_vif {
@@ -68,24 +69,15 @@ struct wfx_vif {
 	int			id;
 	enum wfx_state		state;
 
-	int			delayed_link_loss;
 	int			bss_loss_state;
 	u32			bss_loss_confirm_id;
 	struct mutex		bss_loss_lock;
 	struct delayed_work	bss_loss_work;
 
 	u32			link_id_map;
-	struct wfx_link_entry	link_id_db[WFX_MAX_STA_IN_AP_MODE];
-	struct delayed_work	link_id_gc_work;
-	struct work_struct	link_id_work;
 
-	bool			aid0_bit_set;
-	bool			mcast_tx;
-	bool			mcast_buffered;
+	bool			after_dtim_tx_allowed;
 	struct wfx_grp_addr_table mcast_filter;
-	struct timer_list	mcast_timeout;
-	struct work_struct	mcast_start_work;
-	struct work_struct	mcast_stop_work;
 
 	s8			wep_default_key_id;
 	struct sk_buff		*wep_pending_skb;
@@ -95,37 +87,30 @@ struct wfx_vif {
 	struct work_struct	tx_policy_upload_work;
 
 	u32			sta_asleep_mask;
-	u32			pspoll_mask;
 	spinlock_t		ps_state_lock;
-	struct work_struct	set_tim_work;
+	struct work_struct	update_tim_work;
 
-	int			dtim_period;
 	int			beacon_int;
-	bool			enable_beacon;
-	struct work_struct	set_beacon_wakeup_period_work;
-
 	bool			filter_bssid;
 	bool			fwd_probe_req;
 	bool			disable_beacon_filter;
 	struct work_struct	update_filtering_work;
 
-	u32			erp_info;
-	int			cqm_rssi_thold;
-	bool			setbssparams_done;
-	struct wfx_ht_info	ht_info;
-	struct wfx_edca_params	edca;
-	struct hif_mib_set_uapsd_information uapsd_info;
+	unsigned long		uapsd_mask;
+	struct ieee80211_tx_queue_params edca_params[IEEE80211_NUM_ACS];
 	struct hif_req_set_bss_params bss_params;
 	struct work_struct	bss_params_work;
-	struct work_struct	set_cts_work;
 
 	int			join_complete_status;
-	bool			delayed_unjoin;
 	struct work_struct	unjoin_work;
 
-	struct wfx_scan		scan;
+	/* avoid some operations in parallel with scan */
+	struct mutex		scan_lock;
+	struct work_struct	scan_work;
+	struct completion	scan_complete;
+	bool			scan_abort;
+	struct ieee80211_scan_request *scan_req;
 
-	struct hif_req_set_pm_mode powersave_mode;
 	struct completion	set_pm_mode_complete;
 
 	struct list_head	event_queue;

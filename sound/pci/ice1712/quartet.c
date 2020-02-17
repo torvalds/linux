@@ -657,7 +657,7 @@ static int qtet_php_put(struct snd_kcontrol *kcontrol,
 	.get_register = get_##xreg,\
 	.texts = {xtext1, xtext2} }
 
-static struct qtet_kcontrol_private qtet_privates[] = {
+static const struct qtet_kcontrol_private qtet_privates[] = {
 	PRIV_ENUM2(IN12_SEL, CPLD_IN12_SEL, cpld, "An In 1/2", "An In 3/4"),
 	PRIV_ENUM2(IN34_SEL, CPLD_IN34_SEL, cpld, "An In 3/4", "IEC958 In"),
 	PRIV_ENUM2(AIN34_SEL, SCR_AIN34_SEL, scr, "Line In 3/4", "Hi-Z"),
@@ -720,7 +720,7 @@ static int qtet_sw_put(struct snd_kcontrol *kcontrol,
 	.put = qtet_sw_put,\
 	.private_value = xpriv }
 
-static struct snd_kcontrol_new qtet_controls[] = {
+static const struct snd_kcontrol_new qtet_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -757,7 +757,7 @@ static struct snd_kcontrol_new qtet_controls[] = {
 	QTET_CONTROL("Output 3/4 to Monitor 1/2", sw, OUT34_MON12),
 };
 
-static char *slave_vols[] = {
+static const char * const slave_vols[] = {
 	PCM_12_PLAYBACK_VOLUME,
 	PCM_34_PLAYBACK_VOLUME,
 	NULL
@@ -777,7 +777,7 @@ static struct snd_kcontrol *ctl_find(struct snd_card *card,
 }
 
 static void add_slaves(struct snd_card *card,
-		       struct snd_kcontrol *master, char * const *list)
+		       struct snd_kcontrol *master, const char * const *list)
 {
 	for (; *list; list++) {
 		struct snd_kcontrol *slave = ctl_find(card, *list);
@@ -1053,7 +1053,7 @@ static int qtet_init(struct snd_ice1712 *ice)
 	return 0;
 }
 
-static unsigned char qtet_eeprom[] = {
+static const unsigned char qtet_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x28,	/* clock 256(24MHz), mpu401, 1xADC,
 					   1xDACs, SPDIF in */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */

@@ -212,6 +212,7 @@ struct resource_pool {
 
 	struct abm *abm;
 	struct dmcu *dmcu;
+	struct dmub_psr *psr;
 
 	const struct resource_funcs *funcs;
 	const struct resource_caps *res_cap;

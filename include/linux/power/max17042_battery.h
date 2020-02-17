@@ -105,9 +105,54 @@ enum max17042_register {
 
 	MAX17042_OCV		= 0xEE,
 
-	MAX17042_OCVInternal	= 0xFB,
+	MAX17042_OCVInternal	= 0xFB,  /* MAX17055 VFOCV */
 
 	MAX17042_VFSOC		= 0xFF,
+};
+
+enum max17055_register {
+	MAX17055_QRes		= 0x0C,
+	MAX17055_TTF		= 0x20,
+	MAX17055_V_empty	= 0x3A,
+	MAX17055_TIMER		= 0x3E,
+	MAX17055_USER_MEM	= 0x40,
+	MAX17055_RGAIN		= 0x42,
+
+	MAX17055_ConvgCfg	= 0x49,
+	MAX17055_VFRemCap	= 0x4A,
+
+	MAX17055_STATUS2	= 0xB0,
+	MAX17055_POWER		= 0xB1,
+	MAX17055_ID		= 0xB2,
+	MAX17055_AvgPower	= 0xB3,
+	MAX17055_IAlrtTh	= 0xB4,
+	MAX17055_TTFCfg		= 0xB5,
+	MAX17055_CVMixCap	= 0xB6,
+	MAX17055_CVHalfTime	= 0xB7,
+	MAX17055_CGTempCo	= 0xB8,
+	MAX17055_Curve		= 0xB9,
+	MAX17055_HibCfg		= 0xBA,
+	MAX17055_Config2	= 0xBB,
+	MAX17055_VRipple	= 0xBC,
+	MAX17055_RippleCfg	= 0xBD,
+	MAX17055_TimerH		= 0xBE,
+
+	MAX17055_RSense		= 0xD0,
+	MAX17055_ScOcvLim	= 0xD1,
+
+	MAX17055_SOCHold	= 0xD3,
+	MAX17055_MaxPeakPwr	= 0xD4,
+	MAX17055_SusPeakPwr	= 0xD5,
+	MAX17055_PackResistance	= 0xD6,
+	MAX17055_SysResistance	= 0xD7,
+	MAX17055_MinSysV	= 0xD8,
+	MAX17055_MPPCurrent	= 0xD9,
+	MAX17055_SPPCurrent	= 0xDA,
+	MAX17055_ModelCfg	= 0xDB,
+	MAX17055_AtQResidual	= 0xDC,
+	MAX17055_AtTTE		= 0xDD,
+	MAX17055_AtAvSOC	= 0xDE,
+	MAX17055_AtAvCap	= 0xDF,
 };
 
 /* Registers specific to max17047/50 */
@@ -125,6 +170,7 @@ enum max170xx_chip_type {
 	MAXIM_DEVICE_TYPE_MAX17042,
 	MAXIM_DEVICE_TYPE_MAX17047,
 	MAXIM_DEVICE_TYPE_MAX17050,
+	MAXIM_DEVICE_TYPE_MAX17055,
 
 	MAXIM_DEVICE_TYPE_NUM
 };

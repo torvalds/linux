@@ -15,6 +15,11 @@
 #define OCOTP_UID_H	0x420
 #define OCOTP_UID_L	0x410
 
+#define OCOTP_ULP_UID_1		0x4b0
+#define OCOTP_ULP_UID_2		0x4c0
+#define OCOTP_ULP_UID_3		0x4d0
+#define OCOTP_ULP_UID_4		0x4e0
+
 unsigned int __mxc_cpu_type;
 static unsigned int imx_soc_revision;
 
@@ -84,7 +89,7 @@ struct device * __init imx_soc_device_init(void)
 	const char *ocotp_compat = NULL;
 	struct soc_device *soc_dev;
 	struct device_node *root;
-	struct regmap *ocotp;
+	struct regmap *ocotp = NULL;
 	const char *soc_id;
 	u64 soc_uid = 0;
 	u32 val;
@@ -148,11 +153,11 @@ struct device * __init imx_soc_device_init(void)
 		soc_id = "i.MX6UL";
 		break;
 	case MXC_CPU_IMX6ULL:
-		ocotp_compat = "fsl,imx6ul-ocotp";
+		ocotp_compat = "fsl,imx6ull-ocotp";
 		soc_id = "i.MX6ULL";
 		break;
 	case MXC_CPU_IMX6ULZ:
-		ocotp_compat = "fsl,imx6ul-ocotp";
+		ocotp_compat = "fsl,imx6ull-ocotp";
 		soc_id = "i.MX6ULZ";
 		break;
 	case MXC_CPU_IMX6SLL:
@@ -164,6 +169,7 @@ struct device * __init imx_soc_device_init(void)
 		soc_id = "i.MX7D";
 		break;
 	case MXC_CPU_IMX7ULP:
+		ocotp_compat = "fsl,imx7ulp-ocotp";
 		soc_id = "i.MX7ULP";
 		break;
 	default:
@@ -175,12 +181,28 @@ struct device * __init imx_soc_device_init(void)
 		ocotp = syscon_regmap_lookup_by_compatible(ocotp_compat);
 		if (IS_ERR(ocotp))
 			pr_err("%s: failed to find %s regmap!\n", __func__, ocotp_compat);
+	}
 
-		regmap_read(ocotp, OCOTP_UID_H, &val);
-		soc_uid = val;
-		regmap_read(ocotp, OCOTP_UID_L, &val);
-		soc_uid <<= 32;
-		soc_uid |= val;
+	if (!IS_ERR_OR_NULL(ocotp)) {
+		if (__mxc_cpu_type == MXC_CPU_IMX7ULP) {
+			regmap_read(ocotp, OCOTP_ULP_UID_4, &val);
+			soc_uid = val & 0xffff;
+			regmap_read(ocotp, OCOTP_ULP_UID_3, &val);
+			soc_uid <<= 16;
+			soc_uid |= val & 0xffff;
+			regmap_read(ocotp, OCOTP_ULP_UID_2, &val);
+			soc_uid <<= 16;
+			soc_uid |= val & 0xffff;
+			regmap_read(ocotp, OCOTP_ULP_UID_1, &val);
+			soc_uid <<= 16;
+			soc_uid |= val & 0xffff;
+		} else {
+			regmap_read(ocotp, OCOTP_UID_H, &val);
+			soc_uid = val;
+			regmap_read(ocotp, OCOTP_UID_L, &val);
+			soc_uid <<= 32;
+			soc_uid |= val;
+		}
 	}
 
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%d.%d",

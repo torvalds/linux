@@ -809,8 +809,8 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 	default_par = info->par;
-	default_par->regs = ioremap_nocache(pdev->resource[1].start,
-					    resource_size(&pdev->resource[1]));
+	default_par->regs = ioremap(pdev->resource[1].start,
+				    resource_size(&pdev->resource[1]));
 	if (!default_par->regs) {
 		printk(KERN_ERR PFX "unable to map registers\n");
 		ret = -ENOMEM;
@@ -818,8 +818,9 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 	}
 	info->pseudo_palette = default_par->pseudo_palette;
 
-	info->screen_base = ioremap_nocache(pdev->resource[0].start,
-					    resource_size(&pdev->resource[0]));
+	info->screen_base = ioremap(pdev->resource[0].start,
+				    resource_size(&pdev->resource[0]));
+
 	if (!info->screen_base) {
 		printk(KERN_ERR PFX "unable to map framebuffer\n");
 		ret = -ENOMEM;

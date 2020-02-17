@@ -562,7 +562,7 @@ int hantro_h264_dec_prepare_run(struct hantro_ctx *ctx)
 	struct hantro_h264_dec_ctrls *ctrls = &h264_ctx->ctrls;
 	struct hantro_h264_reflist_builder reflist_builder;
 
-	hantro_prepare_run(ctx);
+	hantro_start_prepare_run(ctx);
 
 	ctrls->scaling =
 		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX);

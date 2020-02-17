@@ -142,10 +142,10 @@ static int ql_get_serdes_regs(struct ql_adapter *qdev,
 	u32 *direct_ptr, temp;
 	u32 *indirect_ptr;
 
-
 	/* The XAUI needs to be read out per port */
 	status = ql_read_other_func_serdes_reg(qdev,
-			XG_SERDES_XAUI_HSS_PCS_START, &temp);
+					       XG_SERDES_XAUI_HSS_PCS_START,
+					       &temp);
 	if (status)
 		temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
 
@@ -296,7 +296,6 @@ static int ql_get_serdes_regs(struct ql_adapter *qdev,
 	for (i = 0x1c40; i <= 0x1c5f; i++, direct_ptr++, indirect_ptr++)
 		ql_get_both_serdes(qdev, i, direct_ptr, indirect_ptr,
 				   xfi_direct_valid, xfi_indirect_valid);
-
 
 	/* Get XAUI_XFI_HSS_PLL register block. */
 	if (qdev->func & 1) {
@@ -482,7 +481,8 @@ static int ql_get_mpi_shadow_regs(struct ql_adapter *qdev, u32 *buf)
 	int status;
 
 	for (i = 0; i < MPI_CORE_SH_REGS_CNT; i++, buf++) {
-		status = ql_write_mpi_reg(qdev, RISC_124,
+		status = ql_write_mpi_reg(qdev,
+					  RISC_124,
 				(SHADOW_OFFSET | i << SHADOW_REG_SHIFT));
 		if (status)
 			goto end;
@@ -702,8 +702,8 @@ static void ql_build_coredump_seg_header(
 {
 	memset(seg_hdr, 0, sizeof(struct mpi_coredump_segment_header));
 	seg_hdr->cookie = MPI_COREDUMP_COOKIE;
-	seg_hdr->segNum = seg_number;
-	seg_hdr->segSize = seg_size;
+	seg_hdr->seg_num = seg_number;
+	seg_hdr->seg_size = seg_size;
 	strncpy(seg_hdr->description, desc, (sizeof(seg_hdr->description)) - 1);
 }
 
@@ -741,12 +741,12 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 	memset(&(mpi_coredump->mpi_global_header), 0,
 	       sizeof(struct mpi_coredump_global_header));
 	mpi_coredump->mpi_global_header.cookie = MPI_COREDUMP_COOKIE;
-	mpi_coredump->mpi_global_header.headerSize =
+	mpi_coredump->mpi_global_header.header_size =
 		sizeof(struct mpi_coredump_global_header);
-	mpi_coredump->mpi_global_header.imageSize =
+	mpi_coredump->mpi_global_header.image_size =
 		sizeof(struct ql_mpi_coredump);
-	strncpy(mpi_coredump->mpi_global_header.idString, "MPI Coredump",
-		sizeof(mpi_coredump->mpi_global_header.idString));
+	strncpy(mpi_coredump->mpi_global_header.id_string, "MPI Coredump",
+		sizeof(mpi_coredump->mpi_global_header.id_string));
 
 	/* Get generic NIC reg dump */
 	ql_build_coredump_seg_header(&mpi_coredump->nic_regs_seg_hdr,
@@ -1108,7 +1108,7 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 				+ sizeof(mpi_coredump->nic_routing_words),
 				"Routing Words");
 	status = ql_get_routing_entries(qdev,
-			&mpi_coredump->nic_routing_words[0]);
+					&mpi_coredump->nic_routing_words[0]);
 	if (status)
 		goto err;
 
@@ -1227,17 +1227,15 @@ static void ql_gen_reg_dump(struct ql_adapter *qdev,
 {
 	int i, status;
 
-
 	memset(&(mpi_coredump->mpi_global_header), 0,
 	       sizeof(struct mpi_coredump_global_header));
 	mpi_coredump->mpi_global_header.cookie = MPI_COREDUMP_COOKIE;
-	mpi_coredump->mpi_global_header.headerSize =
+	mpi_coredump->mpi_global_header.header_size =
 		sizeof(struct mpi_coredump_global_header);
-	mpi_coredump->mpi_global_header.imageSize =
+	mpi_coredump->mpi_global_header.image_size =
 		sizeof(struct ql_reg_dump);
-	strncpy(mpi_coredump->mpi_global_header.idString, "MPI Coredump",
-		sizeof(mpi_coredump->mpi_global_header.idString));
-
+	strncpy(mpi_coredump->mpi_global_header.id_string, "MPI Coredump",
+		sizeof(mpi_coredump->mpi_global_header.id_string));
 
 	/* segment 16 */
 	ql_build_coredump_seg_header(&mpi_coredump->misc_nic_seg_hdr,

@@ -129,9 +129,11 @@ static int crypto_ctr_create(struct crypto_template *tmpl, struct rtattr **tb)
 	struct crypto_alg *alg;
 	int err;
 
-	inst = skcipher_alloc_instance_simple(tmpl, tb, &alg);
+	inst = skcipher_alloc_instance_simple(tmpl, tb);
 	if (IS_ERR(inst))
 		return PTR_ERR(inst);
+
+	alg = skcipher_ialg_simple(inst);
 
 	/* Block size must be >= 4 bytes. */
 	err = -EINVAL;
@@ -155,14 +157,11 @@ static int crypto_ctr_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.decrypt = crypto_ctr_crypt;
 
 	err = skcipher_register_instance(tmpl, inst);
-	if (err)
-		goto out_free_inst;
-	goto out_put_alg;
-
+	if (err) {
 out_free_inst:
-	inst->free(inst);
-out_put_alg:
-	crypto_mod_put(alg);
+		inst->free(inst);
+	}
+
 	return err;
 }
 
@@ -171,7 +170,6 @@ static int crypto_rfc3686_setkey(struct crypto_skcipher *parent,
 {
 	struct crypto_rfc3686_ctx *ctx = crypto_skcipher_ctx(parent);
 	struct crypto_skcipher *child = ctx->child;
-	int err;
 
 	/* the nonce is stored in bytes at end of key */
 	if (keylen < CTR_RFC3686_NONCE_SIZE)
@@ -185,11 +183,7 @@ static int crypto_rfc3686_setkey(struct crypto_skcipher *parent,
 	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(child, crypto_skcipher_get_flags(parent) &
 					 CRYPTO_TFM_REQ_MASK);
-	err = crypto_skcipher_setkey(child, key, keylen);
-	crypto_skcipher_set_flags(parent, crypto_skcipher_get_flags(child) &
-					  CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_skcipher_setkey(child, key, keylen);
 }
 
 static int crypto_rfc3686_crypt(struct skcipher_request *req)
@@ -292,8 +286,8 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 
 	spawn = skcipher_instance_ctx(inst);
 
-	crypto_set_skcipher_spawn(spawn, skcipher_crypto_instance(inst));
-	err = crypto_grab_skcipher(spawn, cipher_name, 0, mask);
+	err = crypto_grab_skcipher(spawn, skcipher_crypto_instance(inst),
+				   cipher_name, 0, mask);
 	if (err)
 		goto err_free_inst;
 

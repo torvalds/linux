@@ -346,9 +346,61 @@ int hv_fcopy_init(struct hv_util_service *srv)
 	return 0;
 }
 
+static void hv_fcopy_cancel_work(void)
+{
+	cancel_delayed_work_sync(&fcopy_timeout_work);
+	cancel_work_sync(&fcopy_send_work);
+}
+
+int hv_fcopy_pre_suspend(void)
+{
+	struct vmbus_channel *channel = fcopy_transaction.recv_channel;
+	struct hv_fcopy_hdr *fcopy_msg;
+
+	/*
+	 * Fake a CANCEL_FCOPY message for the user space daemon in case the
+	 * daemon is in the middle of copying some file. It doesn't matter if
+	 * there is already a message pending to be delivered to the user
+	 * space since we force fcopy_transaction.state to be HVUTIL_READY, so
+	 * the user space daemon's write() will fail with EINVAL (see
+	 * fcopy_on_msg()), and the daemon will reset the device by closing
+	 * and re-opening it.
+	 */
+	fcopy_msg = kzalloc(sizeof(*fcopy_msg), GFP_KERNEL);
+	if (!fcopy_msg)
+		return -ENOMEM;
+
+	tasklet_disable(&channel->callback_event);
+
+	fcopy_msg->operation = CANCEL_FCOPY;
+
+	hv_fcopy_cancel_work();
+
+	/* We don't care about the return value. */
+	hvutil_transport_send(hvt, fcopy_msg, sizeof(*fcopy_msg), NULL);
+
+	kfree(fcopy_msg);
+
+	fcopy_transaction.state = HVUTIL_READY;
+
+	/* tasklet_enable() will be called in hv_fcopy_pre_resume(). */
+	return 0;
+}
+
+int hv_fcopy_pre_resume(void)
+{
+	struct vmbus_channel *channel = fcopy_transaction.recv_channel;
+
+	tasklet_enable(&channel->callback_event);
+
+	return 0;
+}
+
 void hv_fcopy_deinit(void)
 {
 	fcopy_transaction.state = HVUTIL_DEVICE_DYING;
-	cancel_delayed_work_sync(&fcopy_timeout_work);
+
+	hv_fcopy_cancel_work();
+
 	hvutil_transport_destroy(hvt);
 }

@@ -46,7 +46,7 @@ static int wil_fw_get_crash_dump_bounds(struct wil6210_priv *wil,
 
 int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size)
 {
-	int i, rc;
+	int i;
 	const struct fw_map *map;
 	void *data;
 	u32 host_min, dump_size, offset, len;
@@ -62,9 +62,15 @@ int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size)
 		return -EINVAL;
 	}
 
-	rc = wil_mem_access_lock(wil);
-	if (rc)
-		return rc;
+	down_write(&wil->mem_lock);
+
+	if (test_bit(wil_status_suspending, wil->status) ||
+	    test_bit(wil_status_suspended, wil->status)) {
+		wil_err(wil,
+			"suspend/resume in progress. cannot copy crash dump\n");
+		up_write(&wil->mem_lock);
+		return -EBUSY;
+	}
 
 	/* copy to crash dump area */
 	for (i = 0; i < ARRAY_SIZE(fw_mapping); i++) {
@@ -84,7 +90,8 @@ int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size)
 		wil_memcpy_fromio_32((void * __force)(dest + offset),
 				     (const void __iomem * __force)data, len);
 	}
-	wil_mem_access_unlock(wil);
+
+	up_write(&wil->mem_lock);
 
 	return 0;
 }

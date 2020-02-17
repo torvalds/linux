@@ -10,7 +10,7 @@
 #include <asm/sn/addrs.h>
 #include <asm/sn/types.h>
 #include <asm/sn/klconfig.h>
-#include <asm/sn/hub.h>
+#include <asm/sn/agent.h>
 #include <asm/sn/ioc3.h>
 #include <asm/pci/bridge.h>
 

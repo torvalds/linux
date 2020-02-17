@@ -12,6 +12,7 @@
  */
 
 #define _GNU_SOURCE
+#include <elf.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -729,12 +730,6 @@ static void handle_symbol(struct module *mod, struct elf_info *info,
 			break;
 		if (ignore_undef_symbol(info, symname))
 			break;
-/* cope with newer glibc (2.3.4 or higher) STT_ definition in elf.h */
-#if defined(STT_REGISTER) || defined(STT_SPARC_REGISTER)
-/* add compatibility with older glibc */
-#ifndef STT_SPARC_REGISTER
-#define STT_SPARC_REGISTER STT_REGISTER
-#endif
 		if (info->hdr->e_machine == EM_SPARC ||
 		    info->hdr->e_machine == EM_SPARCV9) {
 			/* Ignore register directives. */
@@ -747,7 +742,6 @@ static void handle_symbol(struct module *mod, struct elf_info *info,
 				symname = munged;
 			}
 		}
-#endif
 
 		mod->unres = alloc_symbol(symname,
 					  ELF_ST_BIND(sym->st_info) == STB_WEAK,

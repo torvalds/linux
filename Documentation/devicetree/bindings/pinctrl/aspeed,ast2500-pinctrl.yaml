@@ -23,6 +23,9 @@ description: |+
 properties:
   compatible:
     const: aspeed,ast2500-pinctrl
+  reg:
+    description: |
+      A hint for the memory regions associated with the pin-controller
   aspeed,external-nodes:
     minItems: 2
     maxItems: 2

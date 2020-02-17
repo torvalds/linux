@@ -205,24 +205,33 @@ static inline void *kasan_reset_tag(const void *addr)
 #endif /* CONFIG_KASAN_SW_TAGS */
 
 #ifdef CONFIG_KASAN_VMALLOC
-int kasan_populate_vmalloc(unsigned long requested_size,
-			   struct vm_struct *area);
-void kasan_poison_vmalloc(void *start, unsigned long size);
+int kasan_populate_vmalloc(unsigned long addr, unsigned long size);
+void kasan_poison_vmalloc(const void *start, unsigned long size);
+void kasan_unpoison_vmalloc(const void *start, unsigned long size);
 void kasan_release_vmalloc(unsigned long start, unsigned long end,
 			   unsigned long free_region_start,
 			   unsigned long free_region_end);
 #else
-static inline int kasan_populate_vmalloc(unsigned long requested_size,
-					 struct vm_struct *area)
+static inline int kasan_populate_vmalloc(unsigned long start,
+					unsigned long size)
 {
 	return 0;
 }
 
-static inline void kasan_poison_vmalloc(void *start, unsigned long size) {}
+static inline void kasan_poison_vmalloc(const void *start, unsigned long size)
+{ }
+static inline void kasan_unpoison_vmalloc(const void *start, unsigned long size)
+{ }
 static inline void kasan_release_vmalloc(unsigned long start,
 					 unsigned long end,
 					 unsigned long free_region_start,
 					 unsigned long free_region_end) {}
 #endif
+
+#ifdef CONFIG_KASAN_INLINE
+void kasan_non_canonical_hook(unsigned long addr);
+#else /* CONFIG_KASAN_INLINE */
+static inline void kasan_non_canonical_hook(unsigned long addr) { }
+#endif /* CONFIG_KASAN_INLINE */
 
 #endif /* LINUX_KASAN_H */

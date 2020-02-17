@@ -625,7 +625,8 @@ void optc1_set_drr(
 
 void optc1_set_static_screen_control(
 	struct timing_generator *optc,
-	uint32_t value);
+	uint32_t event_triggers,
+	uint32_t num_frames);
 
 void optc1_program_stereo(struct timing_generator *optc,
 	const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags);

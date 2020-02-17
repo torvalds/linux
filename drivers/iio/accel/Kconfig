@@ -89,13 +89,13 @@ config ADXL372_I2C
 	  module will be called adxl372_i2c.
 
 config BMA180
-	tristate "Bosch BMA180/BMA250 3-Axis Accelerometer Driver"
+	tristate "Bosch BMA180/BMA25x 3-Axis Accelerometer Driver"
 	depends on I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
 	  Say Y here if you want to build a driver for the Bosch BMA180 or
-	  BMA250 triaxial acceleration sensor.
+	  BMA25x triaxial acceleration sensor.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bma180.
@@ -111,6 +111,22 @@ config BMA220
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bma220_spi.
+
+config BMA400
+	tristate "Bosch BMA400 3-Axis Accelerometer Driver"
+	select REGMAP
+	select BMA400_I2C if I2C
+	help
+	  Say Y here if you want to build a driver for the Bosch BMA400
+	  triaxial acceleration sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bma400_core and you will also get
+	  bma400_i2c if I2C is enabled.
+
+config BMA400_I2C
+	tristate
+	depends on BMA400
 
 config BMC150_ACCEL
 	tristate "Bosch BMC150 Accelerometer Driver"

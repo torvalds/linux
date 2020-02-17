@@ -324,8 +324,7 @@
 	      ETH_HLEN + ETH_FCS_LEN,			     \
 	      cache_line_size())
 
-#define MVNETA_SKB_HEADROOM	(max(XDP_PACKET_HEADROOM, NET_SKB_PAD) + \
-				 NET_IP_ALIGN)
+#define MVNETA_SKB_HEADROOM	max(XDP_PACKET_HEADROOM, NET_SKB_PAD)
 #define MVNETA_SKB_PAD	(SKB_DATA_ALIGN(sizeof(struct skb_shared_info) + \
 			 MVNETA_SKB_HEADROOM))
 #define MVNETA_SKB_SIZE(len)	(SKB_DATA_ALIGN(len) + MVNETA_SKB_PAD)
@@ -402,6 +401,8 @@ struct mvneta_pcpu_stats {
 	struct	u64_stats_sync syncp;
 	u64	rx_packets;
 	u64	rx_bytes;
+	u64	rx_dropped;
+	u64	rx_errors;
 	u64	tx_packets;
 	u64	tx_bytes;
 };
@@ -739,6 +740,8 @@ mvneta_get_stats64(struct net_device *dev,
 		struct mvneta_pcpu_stats *cpu_stats;
 		u64 rx_packets;
 		u64 rx_bytes;
+		u64 rx_dropped;
+		u64 rx_errors;
 		u64 tx_packets;
 		u64 tx_bytes;
 
@@ -747,18 +750,19 @@ mvneta_get_stats64(struct net_device *dev,
 			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
 			rx_packets = cpu_stats->rx_packets;
 			rx_bytes   = cpu_stats->rx_bytes;
+			rx_dropped = cpu_stats->rx_dropped;
+			rx_errors  = cpu_stats->rx_errors;
 			tx_packets = cpu_stats->tx_packets;
 			tx_bytes   = cpu_stats->tx_bytes;
 		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
 		stats->rx_packets += rx_packets;
 		stats->rx_bytes   += rx_bytes;
+		stats->rx_dropped += rx_dropped;
+		stats->rx_errors  += rx_errors;
 		stats->tx_packets += tx_packets;
 		stats->tx_bytes   += tx_bytes;
 	}
-
-	stats->rx_errors	= dev->stats.rx_errors;
-	stats->rx_dropped	= dev->stats.rx_dropped;
 
 	stats->tx_dropped	= dev->stats.tx_dropped;
 }
@@ -1167,6 +1171,7 @@ bm_mtu_err:
 	mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_short, 1 << pp->id);
 
 	pp->bm_priv = NULL;
+	pp->rx_offset_correction = MVNETA_SKB_HEADROOM;
 	mvreg_write(pp, MVNETA_ACC_MODE, MVNETA_ACC_MODE_EXT1);
 	netdev_info(pp->dev, "fail to update MTU, fall back to software BM\n");
 }
@@ -1736,7 +1741,13 @@ static u32 mvneta_txq_desc_csum(int l3_offs, int l3_proto,
 static void mvneta_rx_error(struct mvneta_port *pp,
 			    struct mvneta_rx_desc *rx_desc)
 {
+	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 	u32 status = rx_desc->status;
+
+	/* update per-cpu counter */
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_errors++;
+	u64_stats_update_end(&stats->syncp);
 
 	switch (status & MVNETA_RXD_ERR_CODE_MASK) {
 	case MVNETA_RXD_ERR_CRC:
@@ -2081,7 +2092,11 @@ static int
 mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 	       struct bpf_prog *prog, struct xdp_buff *xdp)
 {
-	u32 ret, act = bpf_prog_run_xdp(prog, xdp);
+	unsigned int len;
+	u32 ret, act;
+
+	len = xdp->data_end - xdp->data_hard_start - pp->rx_offset_correction;
+	act = bpf_prog_run_xdp(prog, xdp);
 
 	switch (act) {
 	case XDP_PASS:
@@ -2094,9 +2109,8 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 		if (err) {
 			ret = MVNETA_XDP_DROPPED;
 			__page_pool_put_page(rxq->page_pool,
-					virt_to_head_page(xdp->data),
-					xdp->data_end - xdp->data_hard_start,
-					true);
+					     virt_to_head_page(xdp->data),
+					     len, true);
 		} else {
 			ret = MVNETA_XDP_REDIR;
 		}
@@ -2106,9 +2120,8 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 		ret = mvneta_xdp_xmit_back(pp, xdp);
 		if (ret != MVNETA_XDP_TX)
 			__page_pool_put_page(rxq->page_pool,
-					virt_to_head_page(xdp->data),
-					xdp->data_end - xdp->data_hard_start,
-					true);
+					     virt_to_head_page(xdp->data),
+					     len, true);
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
@@ -2119,8 +2132,7 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 	case XDP_DROP:
 		__page_pool_put_page(rxq->page_pool,
 				     virt_to_head_page(xdp->data),
-				     xdp->data_end - xdp->data_hard_start,
-				     true);
+				     len, true);
 		ret = MVNETA_XDP_DROPPED;
 		break;
 	}
@@ -2178,11 +2190,15 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 
 	rxq->skb = build_skb(xdp->data_hard_start, PAGE_SIZE);
 	if (unlikely(!rxq->skb)) {
-		netdev_err(dev,
-			   "Can't allocate skb on queue %d\n",
-			   rxq->id);
-		dev->stats.rx_dropped++;
+		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
+
+		netdev_err(dev, "Can't allocate skb on queue %d\n", rxq->id);
 		rxq->skb_alloc_err++;
+
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_dropped++;
+		u64_stats_update_end(&stats->syncp);
+
 		return -ENOMEM;
 	}
 	page_pool_release_page(rxq->page_pool, page);
@@ -2269,7 +2285,6 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 			/* Check errors only for FIRST descriptor */
 			if (rx_status & MVNETA_RXD_ERR_SUMMARY) {
 				mvneta_rx_error(pp, rx_desc);
-				dev->stats.rx_errors++;
 				/* leave the descriptor untouched */
 				continue;
 			}
@@ -2371,7 +2386,6 @@ err_drop_frame_ret_pool:
 			mvneta_bm_pool_put_bp(pp->bm_priv, bm_pool,
 					      rx_desc->buf_phys_addr);
 err_drop_frame:
-			dev->stats.rx_errors++;
 			mvneta_rx_error(pp, rx_desc);
 			/* leave the descriptor untouched */
 			continue;
@@ -3071,7 +3085,7 @@ static int mvneta_create_page_pool(struct mvneta_port *pp,
 		.order = 0,
 		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
 		.pool_size = size,
-		.nid = cpu_to_node(0),
+		.nid = NUMA_NO_NODE,
 		.dev = pp->dev->dev.parent,
 		.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE,
 		.offset = pp->rx_offset_correction,
@@ -4225,6 +4239,12 @@ static int mvneta_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
 		return -EOPNOTSUPP;
 	}
 
+	if (pp->bm_priv) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Hardware Buffer Management not supported on XDP");
+		return -EOPNOTSUPP;
+	}
+
 	need_update = !!pp->xdp_prog != !!prog;
 	if (running && need_update)
 		mvneta_stop(dev);
@@ -4941,7 +4961,6 @@ static int mvneta_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	pp->id = global_port_id++;
-	pp->rx_offset_correction = MVNETA_SKB_HEADROOM;
 
 	/* Obtain access to BM resources if enabled and already initialized */
 	bm_node = of_parse_phandle(dn, "buffer-manager", 0);
@@ -4965,6 +4984,10 @@ static int mvneta_probe(struct platform_device *pdev)
 					       MVNETA_RX_PKT_OFFSET_CORRECTION);
 	}
 	of_node_put(bm_node);
+
+	/* sw buffer management */
+	if (!pp->bm_priv)
+		pp->rx_offset_correction = MVNETA_SKB_HEADROOM;
 
 	err = mvneta_init(&pdev->dev, pp);
 	if (err < 0)
@@ -5123,6 +5146,7 @@ static int mvneta_resume(struct device *device)
 		err = mvneta_bm_port_init(pdev, pp);
 		if (err < 0) {
 			dev_info(&pdev->dev, "use SW buffer management\n");
+			pp->rx_offset_correction = MVNETA_SKB_HEADROOM;
 			pp->bm_priv = NULL;
 		}
 	}

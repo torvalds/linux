@@ -73,12 +73,17 @@ static inline bool dmub_rb_full(struct dmub_rb *rb)
 static inline bool dmub_rb_push_front(struct dmub_rb *rb,
 				      const struct dmub_cmd_header *cmd)
 {
-	uint8_t *wt_ptr = (uint8_t *)(rb->base_address) + rb->wrpt;
+	uint64_t volatile *dst = (uint64_t volatile *)(rb->base_address) + rb->wrpt / sizeof(uint64_t);
+	const uint64_t *src = (const uint64_t *)cmd;
+	int i;
 
 	if (dmub_rb_full(rb))
 		return false;
 
-	dmub_memcpy(wt_ptr, cmd, DMUB_RB_CMD_SIZE);
+	// copying data
+	for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
+		*dst++ = *src++;
+
 	rb->wrpt += DMUB_RB_CMD_SIZE;
 
 	if (rb->wrpt >= rb->capacity)
@@ -111,6 +116,26 @@ static inline bool dmub_rb_pop_front(struct dmub_rb *rb)
 		rb->rptr %= rb->capacity;
 
 	return true;
+}
+
+static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
+{
+	uint32_t rptr = rb->rptr;
+	uint32_t wptr = rb->wrpt;
+
+	while (rptr != wptr) {
+		uint64_t volatile *data = (uint64_t volatile *)rb->base_address + rptr / sizeof(uint64_t);
+		//uint64_t volatile *p = (uint64_t volatile *)data;
+		uint64_t temp;
+		int i;
+
+		for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
+			temp = *data++;
+
+		rptr += DMUB_RB_CMD_SIZE;
+		if (rptr >= rb->capacity)
+			rptr %= rb->capacity;
+	}
 }
 
 static inline void dmub_rb_init(struct dmub_rb *rb,

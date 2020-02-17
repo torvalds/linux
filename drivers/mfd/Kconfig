@@ -758,6 +758,7 @@ config MFD_MAX77650
 	depends on OF || COMPILE_TEST
 	select MFD_CORE
 	select REGMAP_I2C
+	select REGMAP_IRQ
 	help
 	  Say Y here to add support for Maxim Semiconductor MAX77650 and
 	  MAX77651 Power Management ICs. This is the core multifunction
@@ -1065,7 +1066,7 @@ config MFD_RN5T618
 	  functionality of the device.
 
 config MFD_SEC_CORE
-	tristate "SAMSUNG Electronics PMIC Series Support"
+	tristate "Samsung Electronics PMIC Series Support"
 	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
@@ -1906,6 +1907,21 @@ config MFD_ROHM_BD70528
 	  10 bits SAR ADC for battery temperature monitor and 1S battery
 	  charger.
 
+config MFD_ROHM_BD71828
+	tristate "ROHM BD71828 Power Management IC"
+	depends on I2C=y
+	depends on OF
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  Select this option to get support for the ROHM BD71828 Power
+	  Management IC. BD71828GW is a single-chip power management IC for
+	  battery-powered portable devices. The IC integrates 7 buck
+	  converters, 7 LDOs, and a 1500 mA single-cell linear charger.
+	  Also included is a Coulomb counter, a real-time clock (RTC), and
+	  a 32.768 kHz clock gate.
+
 config MFD_STM32_LPTIMER
 	tristate "Support for STM32 Low-Power Timer"
 	depends on (ARCH_STM32 && OF) || COMPILE_TEST
@@ -1960,6 +1976,18 @@ config MFD_STMFX
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_WCD934X
+	tristate "Support for WCD9340/WCD9341 Codec"
+	depends on SLIMBUS
+	select REGMAP
+	select REGMAP_SLIMBUS
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  Support for the Qualcomm WCD9340/WCD9341 Codec.
+	  This driver provides common support WCD934x audio codec and its
+	  associated Pin Controller, Soundwire Controller and Audio codec.
+
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
 
@@ -2003,6 +2031,19 @@ config RAVE_SP_CORE
 	help
 	  Select this to get support for the Supervisory Processor
 	  device found on several devices in RAVE line of hardware.
+
+config SGI_MFD_IOC3
+	tristate "SGI IOC3 core driver"
+	depends on PCI && MIPS && 64BIT
+	select MFD_CORE
+	help
+	  This option enables basic support for the SGI IOC3-based
+	  controller cards.  This option does not enable any specific
+	  functions on such a card, but provides necessary infrastructure
+	  for other drivers to utilize.
+
+	  If you have an SGI Origin, Octane, or a PCI IOC3 card,
+	  then say Y. Otherwise say N.
 
 endmenu
 endif

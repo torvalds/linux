@@ -592,13 +592,6 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 		return ret;
 	}
 
-	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (ret < 0) {
-		dev_err(rtd->dev, "error: could not allocate %d bytes for PCM %d\n",
-			params_buffer_bytes(params), ret);
-		return ret;
-	}
-
 	dmab = snd_pcm_get_dma_buf(substream);
 
 	ret = create_adsp_page_table(substream, pdata, rtd, runtime->dma_area,
@@ -653,13 +646,6 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 	if (ret < 0)
 		dev_err(rtd->dev, "error: failed to pause %d\n", ret);
 
-	return 0;
-}
-
-static int hsw_pcm_hw_free(struct snd_soc_component *component,
-			   struct snd_pcm_substream *substream)
-{
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -930,7 +916,7 @@ static int hsw_pcm_new(struct snd_soc_component *component,
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream ||
 			pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		snd_pcm_lib_preallocate_pages_for_all(pcm,
+		snd_pcm_set_managed_buffer_all(pcm,
 			SNDRV_DMA_TYPE_DEV_SG,
 			dev,
 			hsw_pcm_hardware.buffer_bytes_max,
@@ -1114,10 +1100,8 @@ static const struct snd_soc_component_driver hsw_dai_component = {
 	.open		= hsw_pcm_open,
 	.close		= hsw_pcm_close,
 	.hw_params	= hsw_pcm_hw_params,
-	.hw_free	= hsw_pcm_hw_free,
 	.trigger	= hsw_pcm_trigger,
 	.pointer	= hsw_pcm_pointer,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.pcm_construct	= hsw_pcm_new,
 	.controls	= hsw_volume_controls,
 	.num_controls	= ARRAY_SIZE(hsw_volume_controls),

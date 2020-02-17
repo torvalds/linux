@@ -875,18 +875,14 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	}
 
 	/* Sanity check that a device has an endpoint */
-	if (usbinterface->altsetting[0].desc.bNumEndpoints < 1) {
+	if (usbinterface->cur_altsetting->desc.bNumEndpoints < 1) {
 		dev_err(&usbinterface->dev,
 			"Invalid number of endpoints\n");
 		error = -EINVAL;
 		goto err_free_urb;
 	}
 
-	/*
-	 * The endpoint is always altsetting 0, we know this since we know
-	 * this device only has one interrupt endpoint
-	 */
-	endpoint = &usbinterface->altsetting[0].endpoint[0].desc;
+	endpoint = &usbinterface->cur_altsetting->endpoint[0].desc;
 
 	/* Some debug */
 	dev_dbg(&usbinterface->dev, "gtco # interfaces: %d\n", usbinterface->num_altsetting);
@@ -896,7 +892,8 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	if (usb_endpoint_xfer_int(endpoint))
 		dev_dbg(&usbinterface->dev, "endpoint: we have interrupt endpoint\n");
 
-	dev_dbg(&usbinterface->dev, "endpoint extra len:%d\n", usbinterface->altsetting[0].extralen);
+	dev_dbg(&usbinterface->dev, "interface extra len:%d\n",
+		usbinterface->cur_altsetting->extralen);
 
 	/*
 	 * Find the HID descriptor so we can find out the size of the
@@ -973,8 +970,6 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	input_dev->dev.parent = &usbinterface->dev;
 
 	/* Setup the URB, it will be posted later on open of input device */
-	endpoint = &usbinterface->altsetting[0].endpoint[0].desc;
-
 	usb_fill_int_urb(gtco->urbinfo,
 			 udev,
 			 usb_rcvintpipe(udev,

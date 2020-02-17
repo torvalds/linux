@@ -69,11 +69,12 @@ Protocol 2.13	(Kernel 3.14) Support 32- and 64-bit flags being set in
 		xloadflags to support booting a 64-bit kernel from 32-bit
 		EFI
 
-Protocol 2.14:	BURNT BY INCORRECT COMMIT ae7e1238e68f2a472a125673ab506d49158c1889
+Protocol 2.14	BURNT BY INCORRECT COMMIT
+                ae7e1238e68f2a472a125673ab506d49158c1889
 		(x86/boot: Add ACPI RSDP address to setup_header)
 		DO NOT USE!!! ASSUME SAME AS 2.13.
 
-Protocol 2.15:	(Kernel 5.5) Added the kernel_info and kernel_info.setup_type_max.
+Protocol 2.15	(Kernel 5.5) Added the kernel_info and kernel_info.setup_type_max.
 =============	============================================================
 
 .. note::
@@ -251,7 +252,7 @@ setting fields in the header, you must make sure only to set fields
 supported by the protocol version in use.
 
 
-Details of Harder Fileds
+Details of Header Fields
 ========================
 
 For each field, some are information from the kernel to the bootloader
@@ -834,14 +835,14 @@ Protocol:	2.09+
   chunks of memory are occupied by kernel data.
 
   Thus setup_indirect struct and SETUP_INDIRECT type were introduced in
-  protocol 2.15.
+  protocol 2.15::
 
-  struct setup_indirect {
-    __u32 type;
-    __u32 reserved;  /* Reserved, must be set to zero. */
-    __u64 len;
-    __u64 addr;
-  };
+    struct setup_indirect {
+      __u32 type;
+      __u32 reserved;  /* Reserved, must be set to zero. */
+      __u64 len;
+      __u64 addr;
+    };
 
   The type member is a SETUP_INDIRECT | SETUP_* type. However, it cannot be
   SETUP_INDIRECT itself since making the setup_indirect a tree structure
@@ -849,19 +850,19 @@ Protocol:	2.09+
   and stack space can be limited in boot contexts.
 
   Let's give an example how to point to SETUP_E820_EXT data using setup_indirect.
-  In this case setup_data and setup_indirect will look like this:
+  In this case setup_data and setup_indirect will look like this::
 
-  struct setup_data {
-    __u64 next = 0 or <addr_of_next_setup_data_struct>;
-    __u32 type = SETUP_INDIRECT;
-    __u32 len = sizeof(setup_data);
-    __u8 data[sizeof(setup_indirect)] = struct setup_indirect {
-      __u32 type = SETUP_INDIRECT | SETUP_E820_EXT;
-      __u32 reserved = 0;
-      __u64 len = <len_of_SETUP_E820_EXT_data>;
-      __u64 addr = <addr_of_SETUP_E820_EXT_data>;
+    struct setup_data {
+      __u64 next = 0 or <addr_of_next_setup_data_struct>;
+      __u32 type = SETUP_INDIRECT;
+      __u32 len = sizeof(setup_data);
+      __u8 data[sizeof(setup_indirect)] = struct setup_indirect {
+        __u32 type = SETUP_INDIRECT | SETUP_E820_EXT;
+        __u32 reserved = 0;
+        __u64 len = <len_of_SETUP_E820_EXT_data>;
+        __u64 addr = <addr_of_SETUP_E820_EXT_data>;
+      }
     }
-  }
 
 .. note::
      SETUP_INDIRECT | SETUP_NONE objects cannot be properly distinguished
@@ -964,7 +965,7 @@ expected to copy into a setup_data chunk.
 All kernel_info data should be part of this structure. Fixed size data have to
 be put before kernel_info_var_len_data label. Variable size data have to be put
 after kernel_info_var_len_data label. Each chunk of variable size data has to
-be prefixed with header/magic and its size, e.g.:
+be prefixed with header/magic and its size, e.g.::
 
   kernel_info:
           .ascii  "LToP"          /* Header, Linux top (structure). */

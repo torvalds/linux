@@ -115,6 +115,33 @@ drm_client_find_modeset(struct drm_client_dev *client, struct drm_crtc *crtc)
 }
 
 static struct drm_display_mode *
+drm_connector_get_tiled_mode(struct drm_connector *connector)
+{
+	struct drm_display_mode *mode;
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (mode->hdisplay == connector->tile_h_size &&
+		    mode->vdisplay == connector->tile_v_size)
+			return mode;
+	}
+	return NULL;
+}
+
+static struct drm_display_mode *
+drm_connector_fallback_non_tiled_mode(struct drm_connector *connector)
+{
+	struct drm_display_mode *mode;
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (mode->hdisplay == connector->tile_h_size &&
+		    mode->vdisplay == connector->tile_v_size)
+			continue;
+		return mode;
+	}
+	return NULL;
+}
+
+static struct drm_display_mode *
 drm_connector_has_preferred_mode(struct drm_connector *connector, int width, int height)
 {
 	struct drm_display_mode *mode;
@@ -348,7 +375,14 @@ static bool drm_client_target_preferred(struct drm_connector **connectors,
 	struct drm_connector *connector;
 	u64 conn_configured = 0;
 	int tile_pass = 0;
+	int num_tiled_conns = 0;
 	int i;
+
+	for (i = 0; i < connector_count; i++) {
+		if (connectors[i]->has_tile &&
+		    connectors[i]->status == connector_status_connected)
+			num_tiled_conns++;
+	}
 
 retry:
 	for (i = 0; i < connector_count; i++) {
@@ -399,6 +433,28 @@ retry:
 			list_for_each_entry(modes[i], &connector->modes, head)
 				break;
 		}
+		/*
+		 * In case of tiled mode if all tiles not present fallback to
+		 * first available non tiled mode.
+		 * After all tiles are present, try to find the tiled mode
+		 * for all and if tiled mode not present due to fbcon size
+		 * limitations, use first non tiled mode only for
+		 * tile 0,0 and set to no mode for all other tiles.
+		 */
+		if (connector->has_tile) {
+			if (num_tiled_conns <
+			    connector->num_h_tile * connector->num_v_tile ||
+			    (connector->tile_h_loc == 0 &&
+			     connector->tile_v_loc == 0 &&
+			     !drm_connector_get_tiled_mode(connector))) {
+				DRM_DEBUG_KMS("Falling back to non tiled mode on Connector %d\n",
+					      connector->base.id);
+				modes[i] = drm_connector_fallback_non_tiled_mode(connector);
+			} else {
+				modes[i] = drm_connector_get_tiled_mode(connector);
+			}
+		}
+
 		DRM_DEBUG_KMS("found mode %s\n", modes[i] ? modes[i]->name :
 			  "none");
 		conn_configured |= BIT_ULL(i);
@@ -515,6 +571,7 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 	bool fallback = true, ret = true;
 	int num_connectors_enabled = 0;
 	int num_connectors_detected = 0;
+	int num_tiled_conns = 0;
 	struct drm_modeset_acquire_ctx ctx;
 
 	if (!drm_drv_uses_atomic_modeset(dev))
@@ -532,6 +589,11 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 	memcpy(save_enabled, enabled, count);
 	mask = GENMASK(count - 1, 0);
 	conn_configured = 0;
+	for (i = 0; i < count; i++) {
+		if (connectors[i]->has_tile &&
+		    connectors[i]->status == connector_status_connected)
+			num_tiled_conns++;
+	}
 retry:
 	conn_seq = conn_configured;
 	for (i = 0; i < count; i++) {
@@ -630,6 +692,16 @@ retry:
 			DRM_DEBUG_KMS("looking for current mode on connector %s\n",
 				      connector->name);
 			modes[i] = &connector->state->crtc->mode;
+		}
+		/*
+		 * In case of tiled modes, if all tiles are not present
+		 * then fallback to a non tiled mode.
+		 */
+		if (connector->has_tile &&
+		    num_tiled_conns < connector->num_h_tile * connector->num_v_tile) {
+			DRM_DEBUG_KMS("Falling back to non tiled mode on Connector %d\n",
+				      connector->base.id);
+			modes[i] = drm_connector_fallback_non_tiled_mode(connector);
 		}
 		crtcs[i] = new_crtc;
 

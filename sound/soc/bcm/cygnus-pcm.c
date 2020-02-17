@@ -818,7 +818,6 @@ static int cygnus_dma_new(struct snd_soc_component *component,
 static struct snd_soc_component_driver cygnus_soc_platform = {
 	.open		= cygnus_pcm_open,
 	.close		= cygnus_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= cygnus_pcm_hw_params,
 	.hw_free	= cygnus_pcm_hw_free,
 	.prepare	= cygnus_pcm_prepare,

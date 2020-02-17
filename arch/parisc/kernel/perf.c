@@ -792,7 +792,7 @@ static int perf_write_image(uint64_t *memaddr)
 		return -1;
 	}
 
-	runway = ioremap_nocache(cpu_device->hpa.start, 4096);
+	runway = ioremap(cpu_device->hpa.start, 4096);
 	if (!runway) {
 		pr_err("perf_write_image: ioremap failed!\n");
 		return -ENOMEM;

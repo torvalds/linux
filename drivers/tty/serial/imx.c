@@ -8,10 +8,6 @@
  * Copyright (C) 2004 Pengutronix
  */
 
-#if defined(CONFIG_SERIAL_IMX_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -700,20 +696,31 @@ static void imx_uart_start_tx(struct uart_port *port)
 	}
 }
 
-static irqreturn_t imx_uart_rtsint(int irq, void *dev_id)
+static irqreturn_t __imx_uart_rtsint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
 	u32 usr1;
-
-	spin_lock(&sport->port.lock);
 
 	imx_uart_writel(sport, USR1_RTSD, USR1);
 	usr1 = imx_uart_readl(sport, USR1) & USR1_RTSS;
 	uart_handle_cts_change(&sport->port, !!usr1);
 	wake_up_interruptible(&sport->port.state->port.delta_msr_wait);
 
-	spin_unlock(&sport->port.lock);
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t imx_uart_rtsint(int irq, void *dev_id)
+{
+	struct imx_port *sport = dev_id;
+	irqreturn_t ret;
+
+	spin_lock(&sport->port.lock);
+
+	ret = __imx_uart_rtsint(irq, dev_id);
+
+	spin_unlock(&sport->port.lock);
+
+	return ret;
 }
 
 static irqreturn_t imx_uart_txint(int irq, void *dev_id)
@@ -726,13 +733,11 @@ static irqreturn_t imx_uart_txint(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t imx_uart_rxint(int irq, void *dev_id)
+static irqreturn_t __imx_uart_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
 	unsigned int rx, flg, ignored = 0;
 	struct tty_port *port = &sport->port.state->port;
-
-	spin_lock(&sport->port.lock);
 
 	while (imx_uart_readl(sport, USR2) & USR2_RDR) {
 		u32 usr2;
@@ -779,9 +784,7 @@ static irqreturn_t imx_uart_rxint(int irq, void *dev_id)
 			if (rx & URXD_OVRRUN)
 				flg = TTY_OVERRUN;
 
-#ifdef SUPPORT_SYSRQ
 			sport->port.sysrq = 0;
-#endif
 		}
 
 		if (sport->port.ignore_status_mask & URXD_DUMMY_READ)
@@ -792,9 +795,23 @@ static irqreturn_t imx_uart_rxint(int irq, void *dev_id)
 	}
 
 out:
-	spin_unlock(&sport->port.lock);
 	tty_flip_buffer_push(port);
+
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t imx_uart_rxint(int irq, void *dev_id)
+{
+	struct imx_port *sport = dev_id;
+	irqreturn_t ret;
+
+	spin_lock(&sport->port.lock);
+
+	ret = __imx_uart_rxint(irq, dev_id);
+
+	spin_unlock(&sport->port.lock);
+
+	return ret;
 }
 
 static void imx_uart_clear_rx_errors(struct imx_port *sport);
@@ -855,6 +872,8 @@ static irqreturn_t imx_uart_int(int irq, void *dev_id)
 	unsigned int usr1, usr2, ucr1, ucr2, ucr3, ucr4;
 	irqreturn_t ret = IRQ_NONE;
 
+	spin_lock(&sport->port.lock);
+
 	usr1 = imx_uart_readl(sport, USR1);
 	usr2 = imx_uart_readl(sport, USR2);
 	ucr1 = imx_uart_readl(sport, UCR1);
@@ -888,27 +907,25 @@ static irqreturn_t imx_uart_int(int irq, void *dev_id)
 		usr2 &= ~USR2_ORE;
 
 	if (usr1 & (USR1_RRDY | USR1_AGTIM)) {
-		imx_uart_rxint(irq, dev_id);
+		__imx_uart_rxint(irq, dev_id);
 		ret = IRQ_HANDLED;
 	}
 
 	if ((usr1 & USR1_TRDY) || (usr2 & USR2_TXDC)) {
-		imx_uart_txint(irq, dev_id);
+		imx_uart_transmit_buffer(sport);
 		ret = IRQ_HANDLED;
 	}
 
 	if (usr1 & USR1_DTRD) {
 		imx_uart_writel(sport, USR1_DTRD, USR1);
 
-		spin_lock(&sport->port.lock);
 		imx_uart_mctrl_check(sport);
-		spin_unlock(&sport->port.lock);
 
 		ret = IRQ_HANDLED;
 	}
 
 	if (usr1 & USR1_RTSD) {
-		imx_uart_rtsint(irq, dev_id);
+		__imx_uart_rtsint(irq, dev_id);
 		ret = IRQ_HANDLED;
 	}
 
@@ -922,6 +939,8 @@ static irqreturn_t imx_uart_int(int irq, void *dev_id)
 		imx_uart_writel(sport, USR2_ORE, USR2);
 		ret = IRQ_HANDLED;
 	}
+
+	spin_unlock(&sport->port.lock);
 
 	return ret;
 }
@@ -2231,6 +2250,7 @@ static int imx_uart_probe(struct platform_device *pdev)
 	sport->port.iotype = UPIO_MEM;
 	sport->port.irq = rxirq;
 	sport->port.fifosize = 32;
+	sport->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_IMX_CONSOLE);
 	sport->port.ops = &imx_uart_pops;
 	sport->port.rs485_config = imx_uart_rs485_config;
 	sport->port.flags = UPF_BOOT_AUTOCONF;

@@ -1269,7 +1269,8 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 		 * destination of the stream.
 		 */
 		if (ino == bctx->cur_objectid &&
-		    offset >= bctx->sctx->cur_inode_next_write_offset)
+		    offset + bctx->extent_len >
+		    bctx->sctx->cur_inode_next_write_offset)
 			return 0;
 	}
 
@@ -7082,12 +7083,6 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	}
 	send_root->send_in_progress++;
 	spin_unlock(&send_root->root_item_lock);
-
-	/*
-	 * This is done when we lookup the root, it should already be complete
-	 * by the time we get here.
-	 */
-	WARN_ON(send_root->orphan_cleanup_state != ORPHAN_CLEANUP_DONE);
 
 	/*
 	 * Userspace tools do the checks and warn the user if it's

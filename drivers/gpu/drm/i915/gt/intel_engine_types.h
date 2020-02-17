@@ -278,8 +278,8 @@ struct intel_engine_cs {
 	u8 class;
 	u8 instance;
 
-	u8 uabi_class;
-	u8 uabi_instance;
+	u16 uabi_class;
+	u16 uabi_instance;
 
 	u32 uabi_capabilities;
 	u32 context_size;
@@ -295,6 +295,7 @@ struct intel_engine_cs {
 	struct {
 		spinlock_t lock;
 		struct list_head requests;
+		struct list_head hold; /* ready requests, but on hold */
 	} active;
 
 	struct llist_head barrier_tasks;

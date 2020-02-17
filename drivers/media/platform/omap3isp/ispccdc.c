@@ -1607,6 +1607,11 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 		return 0;
 	}
 
+	/* Don't restart CCDC if we're just about to stop streaming. */
+	if (ccdc->state == ISP_PIPELINE_STREAM_CONTINUOUS &&
+	    ccdc->stopping & CCDC_STOP_REQUEST)
+		return 0;
+
 	if (!ccdc_has_all_fields(ccdc))
 		return 1;
 
@@ -1661,15 +1666,14 @@ static void ccdc_vd0_isr(struct isp_ccdc_device *ccdc)
 		spin_unlock_irqrestore(&ccdc->lock, flags);
 	}
 
-	if (ccdc->output & CCDC_OUTPUT_MEMORY)
-		restart = ccdc_isr_buffer(ccdc);
-
 	spin_lock_irqsave(&ccdc->lock, flags);
-
 	if (ccdc_handle_stopping(ccdc, CCDC_EVENT_VD0)) {
 		spin_unlock_irqrestore(&ccdc->lock, flags);
 		return;
 	}
+
+	if (ccdc->output & CCDC_OUTPUT_MEMORY)
+		restart = ccdc_isr_buffer(ccdc);
 
 	if (!ccdc->shadow_update)
 		ccdc_apply_controls(ccdc);

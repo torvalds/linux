@@ -385,6 +385,7 @@ static void h5_complete_rx_pkt(struct hci_uart *hu)
 	case HCI_EVENT_PKT:
 	case HCI_ACLDATA_PKT:
 	case HCI_SCODATA_PKT:
+	case HCI_ISODATA_PKT:
 		hci_skb_pkt_type(h5->rx_skb) = H5_HDR_PKT_TYPE(hdr);
 
 		/* Remove Three-wire header */
@@ -594,6 +595,7 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		break;
 
 	case HCI_SCODATA_PKT:
+	case HCI_ISODATA_PKT:
 		skb_queue_tail(&h5->unrel, skb);
 		break;
 
@@ -636,6 +638,7 @@ static bool valid_packet_type(u8 type)
 	case HCI_ACLDATA_PKT:
 	case HCI_COMMAND_PKT:
 	case HCI_SCODATA_PKT:
+	case HCI_ISODATA_PKT:
 	case HCI_3WIRE_LINK_PKT:
 	case HCI_3WIRE_ACK_PKT:
 		return true;

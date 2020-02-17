@@ -250,3 +250,19 @@ void tegra_output_find_possible_crtcs(struct tegra_output *output,
 
 	output->encoder.possible_crtcs = mask;
 }
+
+int tegra_output_suspend(struct tegra_output *output)
+{
+	if (output->hpd_irq)
+		disable_irq(output->hpd_irq);
+
+	return 0;
+}
+
+int tegra_output_resume(struct tegra_output *output)
+{
+	if (output->hpd_irq)
+		enable_irq(output->hpd_irq);
+
+	return 0;
+}

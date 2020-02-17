@@ -2159,8 +2159,6 @@ static int gen8_modify_context(struct intel_context *ce,
 	struct i915_request *rq;
 	int err;
 
-	lockdep_assert_held(&ce->pin_mutex);
-
 	rq = intel_engine_create_kernel_request(ce->engine);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
@@ -2203,17 +2201,14 @@ static int gen8_configure_context(struct i915_gem_context *ctx,
 		if (ce->engine->class != RENDER_CLASS)
 			continue;
 
-		err = intel_context_lock_pinned(ce);
-		if (err)
-			break;
+		/* Otherwise OA settings will be set upon first use */
+		if (!intel_context_pin_if_active(ce))
+			continue;
 
 		flex->value = intel_sseu_make_rpcs(ctx->i915, &ce->sseu);
+		err = gen8_modify_context(ce, flex, count);
 
-		/* Otherwise OA settings will be set upon first use */
-		if (intel_context_is_pinned(ce))
-			err = gen8_modify_context(ce, flex, count);
-
-		intel_context_unlock_pinned(ce);
+		intel_context_unpin(ce);
 		if (err)
 			break;
 	}

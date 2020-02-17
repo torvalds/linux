@@ -420,7 +420,7 @@ static void psc724_exit(struct snd_ice1712 *ice)
 }
 
 /* PSC724 has buggy EEPROM (no 96&192kHz, all FFh GPIOs), so override it here */
-static unsigned char psc724_eeprom[] = {
+static const unsigned char psc724_eeprom[] = {
 	[ICE_EEP2_SYSCONF]	= 0x42,	/* 49.152MHz, 1 ADC, 3 DACs */
 	[ICE_EEP2_ACLINK]	= 0x80,	/* I2S */
 	[ICE_EEP2_I2S]		= 0xf0,	/* I2S volume, 96kHz, 24bit */

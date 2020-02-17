@@ -720,7 +720,7 @@ static int smu7_setup_dpm_tables_v0(struct pp_hwmgr *hwmgr)
 		data->dpm_table.vddc_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].v;
 		data->dpm_table.vddc_table.dpm_levels[i].param1 = std_voltage_table->entries[i].Leakage;
 		/* param1 is for corresponding std voltage */
-		data->dpm_table.vddc_table.dpm_levels[i].enabled = 1;
+		data->dpm_table.vddc_table.dpm_levels[i].enabled = true;
 	}
 
 	data->dpm_table.vddc_table.count = allowed_vdd_sclk_table->count;
@@ -730,7 +730,7 @@ static int smu7_setup_dpm_tables_v0(struct pp_hwmgr *hwmgr)
 		/* Initialize Vddci DPM table based on allow Mclk values */
 		for (i = 0; i < allowed_vdd_mclk_table->count; i++) {
 			data->dpm_table.vddci_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].v;
-			data->dpm_table.vddci_table.dpm_levels[i].enabled = 1;
+			data->dpm_table.vddci_table.dpm_levels[i].enabled = true;
 		}
 		data->dpm_table.vddci_table.count = allowed_vdd_mclk_table->count;
 	}
@@ -744,7 +744,7 @@ static int smu7_setup_dpm_tables_v0(struct pp_hwmgr *hwmgr)
 		 */
 		for (i = 0; i < allowed_vdd_mclk_table->count; i++) {
 			data->dpm_table.mvdd_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].v;
-			data->dpm_table.mvdd_table.dpm_levels[i].enabled = 1;
+			data->dpm_table.mvdd_table.dpm_levels[i].enabled = true;
 		}
 		data->dpm_table.mvdd_table.count = allowed_vdd_mclk_table->count;
 	}

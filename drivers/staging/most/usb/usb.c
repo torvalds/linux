@@ -23,7 +23,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
 #include <linux/uaccess.h>
-#include "most/core.h"
+
+#include "../most.h"
 
 #define USB_MTU			512
 #define NO_ISOCHRONOUS_URB	0
@@ -101,6 +102,7 @@ struct clear_hold_work {
  * @poll_work_obj: work for polling link status
  */
 struct most_dev {
+	struct device dev;
 	struct usb_device *usb_device;
 	struct most_interface iface;
 	struct most_channel_capability *cap;
@@ -122,6 +124,7 @@ struct most_dev {
 };
 
 #define to_mdev(d) container_of(d, struct most_dev, iface)
+#define to_mdev_from_dev(d) container_of(d, struct most_dev, dev)
 #define to_mdev_from_work(w) container_of(w, struct most_dev, poll_work_obj)
 
 static void wq_clear_halt(struct work_struct *wq_obj);
@@ -1022,6 +1025,12 @@ static void release_dci(struct device *dev)
 	kfree(dci);
 }
 
+static void release_mdev(struct device *dev)
+{
+	struct most_dev *mdev = to_mdev_from_dev(dev);
+
+	kfree(mdev);
+}
 /**
  * hdm_probe - probe function of USB device driver
  * @interface: Interface of the attached USB device
@@ -1060,6 +1069,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);
 
 	mdev->iface.mod = hdm_usb_fops.owner;
+	mdev->iface.dev = &mdev->dev;
 	mdev->iface.driver_dev = &interface->dev;
 	mdev->iface.interface = ITYPE_USB;
 	mdev->iface.configure = hdm_configure_channel;
@@ -1078,6 +1088,9 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		 usb_dev->config->desc.bConfigurationValue,
 		 usb_iface_desc->desc.bInterfaceNumber);
 
+	mdev->dev.init_name = mdev->description;
+	mdev->dev.parent = &interface->dev;
+	mdev->dev.release = release_mdev;
 	mdev->conf = kcalloc(num_endpoints, sizeof(*mdev->conf), GFP_KERNEL);
 	if (!mdev->conf)
 		goto err_free_mdev;
@@ -1151,7 +1164,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		}
 
 		mdev->dci->dev.init_name = "dci";
-		mdev->dci->dev.parent = &mdev->iface.dev;
+		mdev->dci->dev.parent = get_device(mdev->iface.dev);
 		mdev->dci->dev.groups = dci_attr_groups;
 		mdev->dci->dev.release = release_dci;
 		if (device_register(&mdev->dci->dev)) {
@@ -1165,7 +1178,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	mutex_unlock(&mdev->io_mutex);
 	return 0;
 err_free_dci:
-	kfree(mdev->dci);
+	put_device(&mdev->dci->dev);
 err_free_busy_urbs:
 	kfree(mdev->busy_urbs);
 err_free_ep_address:
@@ -1175,7 +1188,7 @@ err_free_cap:
 err_free_conf:
 	kfree(mdev->conf);
 err_free_mdev:
-	kfree(mdev);
+	put_device(&mdev->dev);
 err_out_of_memory:
 	if (ret == 0 || ret == -ENOMEM) {
 		ret = -ENOMEM;
@@ -1205,14 +1218,15 @@ static void hdm_disconnect(struct usb_interface *interface)
 	del_timer_sync(&mdev->link_stat_timer);
 	cancel_work_sync(&mdev->poll_work_obj);
 
-	device_unregister(&mdev->dci->dev);
+	if (mdev->dci)
+		device_unregister(&mdev->dci->dev);
 	most_deregister_interface(&mdev->iface);
 
 	kfree(mdev->busy_urbs);
 	kfree(mdev->cap);
 	kfree(mdev->conf);
 	kfree(mdev->ep_address);
-	kfree(mdev);
+	put_device(&mdev->dev);
 }
 
 static struct usb_driver hdm_usb = {

@@ -543,9 +543,9 @@ hip04_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	skb_tx_timestamp(skb);
 
 	hip04_set_xmit_desc(priv, phys);
-	priv->tx_head = TX_NEXT(tx_head);
 	count++;
 	netdev_sent_queue(ndev, skb->len);
+	priv->tx_head = TX_NEXT(tx_head);
 
 	stats->tx_bytes += skb->len;
 	stats->tx_packets++;
@@ -779,7 +779,7 @@ static int hip04_mac_stop(struct net_device *ndev)
 	return 0;
 }
 
-static void hip04_timeout(struct net_device *ndev)
+static void hip04_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct hip04_priv *priv = netdev_priv(ndev);
 

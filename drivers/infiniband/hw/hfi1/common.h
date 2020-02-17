@@ -323,6 +323,9 @@ struct diag_pkt {
 /* RHF receive type error - bypass packet errors */
 #define RHF_RTE_BYPASS_NO_ERR		0x0
 
+/* MAX RcvSEQ */
+#define RHF_MAX_SEQ 13
+
 /* IB - LRH header constants */
 #define HFI1_LRH_GRH 0x0003      /* 1. word of IB LRH - next header: GRH */
 #define HFI1_LRH_BTH 0x0002      /* 1. word of IB LRH - next header: BTH */

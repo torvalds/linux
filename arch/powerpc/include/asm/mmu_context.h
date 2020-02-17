@@ -238,11 +238,6 @@ static inline void arch_unmap(struct mm_struct *mm,
 		mm->context.vdso_base = 0;
 }
 
-static inline void arch_bprm_mm_init(struct mm_struct *mm,
-				     struct vm_area_struct *vma)
-{
-}
-
 #ifdef CONFIG_PPC_MEM_KEYS
 bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write,
 			       bool execute, bool foreign);

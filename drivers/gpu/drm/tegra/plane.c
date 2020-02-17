@@ -3,6 +3,8 @@
  * Copyright (C) 2017 NVIDIA CORPORATION.  All rights reserved.
  */
 
+#include <linux/iommu.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
@@ -107,21 +109,27 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 
 static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
 {
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dc->dev);
 	unsigned int i;
 	int err;
 
 	for (i = 0; i < state->base.fb->format->num_planes; i++) {
 		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
+		dma_addr_t phys_addr, *phys;
+		struct sg_table *sgt;
 
-		if (!dc->client.group) {
-			struct sg_table *sgt;
+		if (!domain || dc->client.group)
+			phys = &phys_addr;
+		else
+			phys = NULL;
 
-			sgt = host1x_bo_pin(dc->dev, &bo->base, NULL);
-			if (IS_ERR(sgt)) {
-				err = PTR_ERR(sgt);
-				goto unpin;
-			}
+		sgt = host1x_bo_pin(dc->dev, &bo->base, phys);
+		if (IS_ERR(sgt)) {
+			err = PTR_ERR(sgt);
+			goto unpin;
+		}
 
+		if (sgt) {
 			err = dma_map_sg(dc->dev, sgt->sgl, sgt->nents,
 					 DMA_TO_DEVICE);
 			if (err == 0) {
@@ -143,7 +151,7 @@ static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
 			state->iova[i] = sg_dma_address(sgt->sgl);
 			state->sgt[i] = sgt;
 		} else {
-			state->iova[i] = bo->iova;
+			state->iova[i] = phys_addr;
 		}
 	}
 
@@ -156,9 +164,11 @@ unpin:
 		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
 		struct sg_table *sgt = state->sgt[i];
 
-		dma_unmap_sg(dc->dev, sgt->sgl, sgt->nents, DMA_TO_DEVICE);
-		host1x_bo_unpin(dc->dev, &bo->base, sgt);
+		if (sgt)
+			dma_unmap_sg(dc->dev, sgt->sgl, sgt->nents,
+				     DMA_TO_DEVICE);
 
+		host1x_bo_unpin(dc->dev, &bo->base, sgt);
 		state->iova[i] = DMA_MAPPING_ERROR;
 		state->sgt[i] = NULL;
 	}
@@ -172,17 +182,13 @@ static void tegra_dc_unpin(struct tegra_dc *dc, struct tegra_plane_state *state)
 
 	for (i = 0; i < state->base.fb->format->num_planes; i++) {
 		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
+		struct sg_table *sgt = state->sgt[i];
 
-		if (!dc->client.group) {
-			struct sg_table *sgt = state->sgt[i];
+		if (sgt)
+			dma_unmap_sg(dc->dev, sgt->sgl, sgt->nents,
+				     DMA_TO_DEVICE);
 
-			if (sgt) {
-				dma_unmap_sg(dc->dev, sgt->sgl, sgt->nents,
-					     DMA_TO_DEVICE);
-				host1x_bo_unpin(dc->dev, &bo->base, sgt);
-			}
-		}
-
+		host1x_bo_unpin(dc->dev, &bo->base, sgt);
 		state->iova[i] = DMA_MAPPING_ERROR;
 		state->sgt[i] = NULL;
 	}

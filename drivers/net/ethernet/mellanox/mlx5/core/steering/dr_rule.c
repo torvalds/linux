@@ -209,7 +209,7 @@ static void dr_rule_rehash_copy_ste_ctrl(struct mlx5dr_matcher *matcher,
 	/* We need to copy the refcount since this ste
 	 * may have been traversed several times
 	 */
-	refcount_set(&new_ste->refcount, refcount_read(&cur_ste->refcount));
+	new_ste->refcount = cur_ste->refcount;
 
 	/* Link old STEs rule_mem list to the new ste */
 	mlx5dr_rule_update_rule_member(cur_ste, new_ste);
@@ -637,6 +637,9 @@ static int dr_rule_add_member(struct mlx5dr_rule_rx_tx *nic_rule,
 	rule_mem = kvzalloc(sizeof(*rule_mem), GFP_KERNEL);
 	if (!rule_mem)
 		return -ENOMEM;
+
+	INIT_LIST_HEAD(&rule_mem->list);
+	INIT_LIST_HEAD(&rule_mem->use_ste_list);
 
 	rule_mem->ste = ste;
 	list_add_tail(&rule_mem->list, &nic_rule->rule_members_list);

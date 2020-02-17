@@ -179,6 +179,7 @@ EXPORT_SYMBOL(first_ec);
 
 static struct acpi_ec *boot_ec;
 static bool boot_ec_is_ecdt = false;
+static struct workqueue_struct *ec_wq;
 static struct workqueue_struct *ec_query_wq;
 
 static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
@@ -469,7 +470,7 @@ static void acpi_ec_submit_query(struct acpi_ec *ec)
 		ec_dbg_evt("Command(%s) submitted/blocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 		ec->nr_pending_queries++;
-		schedule_work(&ec->work);
+		queue_work(ec_wq, &ec->work);
 	}
 }
 
@@ -535,7 +536,7 @@ static void acpi_ec_enable_event(struct acpi_ec *ec)
 #ifdef CONFIG_PM_SLEEP
 static void __acpi_ec_flush_work(void)
 {
-	flush_scheduled_work(); /* flush ec->work */
+	drain_workqueue(ec_wq); /* flush ec->work */
 	flush_workqueue(ec_query_wq); /* flush queries */
 }
 
@@ -556,8 +557,8 @@ static void acpi_ec_disable_event(struct acpi_ec *ec)
 
 void acpi_ec_flush_work(void)
 {
-	/* Without ec_query_wq there is nothing to flush. */
-	if (!ec_query_wq)
+	/* Without ec_wq there is nothing to flush. */
+	if (!ec_wq)
 		return;
 
 	__acpi_ec_flush_work();
@@ -1053,28 +1054,20 @@ void acpi_ec_unblock_transactions(void)
                                 Event Management
    -------------------------------------------------------------------------- */
 static struct acpi_ec_query_handler *
-acpi_ec_get_query_handler(struct acpi_ec_query_handler *handler)
-{
-	if (handler)
-		kref_get(&handler->kref);
-	return handler;
-}
-
-static struct acpi_ec_query_handler *
 acpi_ec_get_query_handler_by_value(struct acpi_ec *ec, u8 value)
 {
 	struct acpi_ec_query_handler *handler;
-	bool found = false;
 
 	mutex_lock(&ec->mutex);
 	list_for_each_entry(handler, &ec->list, node) {
 		if (value == handler->query_bit) {
-			found = true;
-			break;
+			kref_get(&handler->kref);
+			mutex_unlock(&ec->mutex);
+			return handler;
 		}
 	}
 	mutex_unlock(&ec->mutex);
-	return found ? acpi_ec_get_query_handler(handler) : NULL;
+	return NULL;
 }
 
 static void acpi_ec_query_handler_release(struct kref *kref)
@@ -2115,23 +2108,31 @@ static struct acpi_driver acpi_ec_driver = {
 	.drv.pm = &acpi_ec_pm,
 };
 
-static inline int acpi_ec_query_init(void)
+static void acpi_ec_destroy_workqueues(void)
 {
-	if (!ec_query_wq) {
-		ec_query_wq = alloc_workqueue("kec_query", 0,
-					      ec_max_queries);
-		if (!ec_query_wq)
-			return -ENODEV;
+	if (ec_wq) {
+		destroy_workqueue(ec_wq);
+		ec_wq = NULL;
 	}
-	return 0;
-}
-
-static inline void acpi_ec_query_exit(void)
-{
 	if (ec_query_wq) {
 		destroy_workqueue(ec_query_wq);
 		ec_query_wq = NULL;
 	}
+}
+
+static int acpi_ec_init_workqueues(void)
+{
+	if (!ec_wq)
+		ec_wq = alloc_ordered_workqueue("kec", 0);
+
+	if (!ec_query_wq)
+		ec_query_wq = alloc_workqueue("kec_query", 0, ec_max_queries);
+
+	if (!ec_wq || !ec_query_wq) {
+		acpi_ec_destroy_workqueues();
+		return -ENODEV;
+	}
+	return 0;
 }
 
 static const struct dmi_system_id acpi_ec_no_wakeup[] = {
@@ -2164,8 +2165,7 @@ int __init acpi_ec_init(void)
 	int result;
 	int ecdt_fail, dsdt_fail;
 
-	/* register workqueue for _Qxx evaluations */
-	result = acpi_ec_query_init();
+	result = acpi_ec_init_workqueues();
 	if (result)
 		return result;
 
@@ -2196,6 +2196,6 @@ static void __exit acpi_ec_exit(void)
 {
 
 	acpi_bus_unregister_driver(&acpi_ec_driver);
-	acpi_ec_query_exit();
+	acpi_ec_destroy_workqueues();
 }
 #endif	/* 0 */

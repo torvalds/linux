@@ -859,7 +859,7 @@ static int xgene_enet_napi(struct napi_struct *napi, const int budget)
 	return processed;
 }
 
-static void xgene_enet_timeout(struct net_device *ndev)
+static void xgene_enet_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct netdev_queue *txq;
@@ -2020,7 +2020,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	int ret;
 
 	ndev = alloc_etherdev_mqs(sizeof(struct xgene_enet_pdata),
-				  XGENE_NUM_RX_RING, XGENE_NUM_TX_RING);
+				  XGENE_NUM_TX_RING, XGENE_NUM_RX_RING);
 	if (!ndev)
 		return -ENOMEM;
 

@@ -27,5 +27,10 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_machines[] = {
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_cnl_machines);
 
+struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_sdw_machines[] = {
+	{},
+};
+EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_cnl_sdw_machines);
+
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel Common ACPI Match module");

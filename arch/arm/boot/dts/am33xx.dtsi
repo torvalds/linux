@@ -439,23 +439,87 @@
 			status = "disabled";
 		};
 
-		sham: sham@53100000 {
-			compatible = "ti,omap4-sham";
-			ti,hwmods = "sham";
-			reg = <0x53100000 0x200>;
-			interrupts = <109>;
-			dmas = <&edma 36 0>;
-			dma-names = "rx";
+		sham_target: target-module@53100000 {
+			compatible = "ti,sysc-omap3-sham", "ti,sysc";
+			reg = <0x53100100 0x4>,
+			      <0x53100110 0x4>,
+			      <0x53100114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): per_pwrdm, l3_clkdm */
+			clocks = <&l3_clkctrl AM3_L3_SHAM_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x53100000 0x1000>;
+
+			sham: sham@0 {
+				compatible = "ti,omap4-sham";
+				reg = <0 0x200>;
+				interrupts = <109>;
+				dmas = <&edma 36 0>;
+				dma-names = "rx";
+			};
 		};
 
-		aes: aes@53500000 {
-			compatible = "ti,omap4-aes";
-			ti,hwmods = "aes";
-			reg = <0x53500000 0xa0>;
-			interrupts = <103>;
-			dmas = <&edma 6 0>,
-			       <&edma 5 0>;
-			dma-names = "tx", "rx";
+		aes_target: target-module@53500000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x53500080 0x4>,
+			      <0x53500084 0x4>,
+			      <0x53500088 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): per_pwrdm, l3_clkdm */
+			clocks = <&l3_clkctrl AM3_L3_AES_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x53500000 0x1000>;
+
+			aes: aes@0 {
+				compatible = "ti,omap4-aes";
+				reg = <0 0xa0>;
+				interrupts = <103>;
+				dmas = <&edma 6 0>,
+				       <&edma 5 0>;
+				dma-names = "tx", "rx";
+			};
+		};
+
+		target-module@56000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x5600fe00 0x4>,
+			      <0x5600fe10 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&gfx_l3_clkctrl AM3_GFX_L3_GFX_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_gfx 0>;
+			reset-names = "rstctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x56000000 0x1000000>;
+
+			/*
+			 * Closed source PowerVR driver, no child device
+			 * binding or driver in mainline
+			 */
 		};
 	};
 };

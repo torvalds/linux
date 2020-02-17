@@ -1103,7 +1103,7 @@ static void ks8842_tx_timeout_work(struct work_struct *work)
 		__ks8842_start_new_rx_dma(netdev);
 }
 
-static void ks8842_tx_timeout(struct net_device *netdev)
+static void ks8842_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct ks8842_adapter *adapter = netdev_priv(netdev);
 

@@ -283,8 +283,8 @@ static enum mod_hdcp_status wait_for_ready(struct mod_hdcp *hdcp,
 				hdcp, "bstatus_read"))
 			goto out;
 		if (!mod_hdcp_execute_and_set(check_link_integrity_dp,
-				&input->link_integiry_check, &status,
-				hdcp, "link_integiry_check"))
+				&input->link_integrity_check, &status,
+				hdcp, "link_integrity_check"))
 			goto out;
 		if (!mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
 				&input->reauth_request_check, &status,
@@ -431,8 +431,8 @@ static enum mod_hdcp_status authenticated_dp(struct mod_hdcp *hdcp,
 			hdcp, "bstatus_read"))
 		goto out;
 	if (!mod_hdcp_execute_and_set(check_link_integrity_dp,
-			&input->link_integiry_check, &status,
-			hdcp, "link_integiry_check"))
+			&input->link_integrity_check, &status,
+			hdcp, "link_integrity_check"))
 		goto out;
 	if (!mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
 			&input->reauth_request_check, &status,

@@ -1141,7 +1141,7 @@ fec_stop(struct net_device *ndev)
 
 
 static void
-fec_timeout(struct net_device *ndev)
+fec_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
@@ -2199,8 +2199,14 @@ static void fec_enet_get_regs(struct net_device *ndev,
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	u32 __iomem *theregs = (u32 __iomem *)fep->hwp;
+	struct device *dev = &fep->pdev->dev;
 	u32 *buf = (u32 *)regbuf;
 	u32 i, off;
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		return;
 
 	regs->version = fec_enet_register_version;
 
@@ -2216,6 +2222,9 @@ static void fec_enet_get_regs(struct net_device *ndev,
 		off >>= 2;
 		buf[off] = readl(&theregs[off]);
 	}
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 }
 
 static int fec_enet_get_ts_info(struct net_device *ndev,

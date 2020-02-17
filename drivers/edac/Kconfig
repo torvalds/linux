@@ -462,7 +462,7 @@ config EDAC_ALTERA_SDMMC
 
 config EDAC_SIFIVE
 	bool "Sifive platform EDAC driver"
-	depends on EDAC=y && RISCV
+	depends on EDAC=y && SIFIVE_L2
 	help
 	  Support for error detection and correction on the SiFive SoCs.
 
@@ -491,8 +491,7 @@ config EDAC_TI
 	tristate "Texas Instruments DDR3 ECC Controller"
 	depends on ARCH_KEYSTONE || SOC_DRA7XX
 	help
-	  Support for error detection and correction on the
-          TI SoCs.
+	  Support for error detection and correction on the TI SoCs.
 
 config EDAC_QCOM
 	tristate "QCOM EDAC Controller"

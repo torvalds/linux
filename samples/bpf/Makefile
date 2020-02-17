@@ -38,6 +38,8 @@ tprogs-y += tc_l2_redirect
 tprogs-y += lwt_len_hist
 tprogs-y += xdp_tx_iptunnel
 tprogs-y += test_map_in_map
+tprogs-y += per_socket_stats_example
+tprogs-y += xdp_redirect
 tprogs-y += xdp_redirect_map
 tprogs-y += xdp_redirect_cpu
 tprogs-y += xdp_monitor
@@ -109,65 +111,65 @@ ibumad-objs := bpf_load.o ibumad_user.o $(TRACE_HELPERS)
 hbm-objs := bpf_load.o hbm.o $(CGROUP_HELPERS)
 
 # Tell kbuild to always build the programs
-always := $(tprogs-y)
-always += sockex1_kern.o
-always += sockex2_kern.o
-always += sockex3_kern.o
-always += tracex1_kern.o
-always += tracex2_kern.o
-always += tracex3_kern.o
-always += tracex4_kern.o
-always += tracex5_kern.o
-always += tracex6_kern.o
-always += tracex7_kern.o
-always += sock_flags_kern.o
-always += test_probe_write_user_kern.o
-always += trace_output_kern.o
-always += tcbpf1_kern.o
-always += tc_l2_redirect_kern.o
-always += lathist_kern.o
-always += offwaketime_kern.o
-always += spintest_kern.o
-always += map_perf_test_kern.o
-always += test_overhead_tp_kern.o
-always += test_overhead_raw_tp_kern.o
-always += test_overhead_kprobe_kern.o
-always += parse_varlen.o parse_simple.o parse_ldabs.o
-always += test_cgrp2_tc_kern.o
-always += xdp1_kern.o
-always += xdp2_kern.o
-always += xdp_router_ipv4_kern.o
-always += test_current_task_under_cgroup_kern.o
-always += trace_event_kern.o
-always += sampleip_kern.o
-always += lwt_len_hist_kern.o
-always += xdp_tx_iptunnel_kern.o
-always += test_map_in_map_kern.o
-always += tcp_synrto_kern.o
-always += tcp_rwnd_kern.o
-always += tcp_bufs_kern.o
-always += tcp_cong_kern.o
-always += tcp_iw_kern.o
-always += tcp_clamp_kern.o
-always += tcp_basertt_kern.o
-always += tcp_tos_reflect_kern.o
-always += tcp_dumpstats_kern.o
-always += xdp_redirect_kern.o
-always += xdp_redirect_map_kern.o
-always += xdp_redirect_cpu_kern.o
-always += xdp_monitor_kern.o
-always += xdp_rxq_info_kern.o
-always += xdp2skb_meta_kern.o
-always += syscall_tp_kern.o
-always += cpustat_kern.o
-always += xdp_adjust_tail_kern.o
-always += xdp_fwd_kern.o
-always += task_fd_query_kern.o
-always += xdp_sample_pkts_kern.o
-always += ibumad_kern.o
-always += hbm_out_kern.o
-always += hbm_edt_kern.o
-always += xdpsock_kern.o
+always-y := $(tprogs-y)
+always-y += sockex1_kern.o
+always-y += sockex2_kern.o
+always-y += sockex3_kern.o
+always-y += tracex1_kern.o
+always-y += tracex2_kern.o
+always-y += tracex3_kern.o
+always-y += tracex4_kern.o
+always-y += tracex5_kern.o
+always-y += tracex6_kern.o
+always-y += tracex7_kern.o
+always-y += sock_flags_kern.o
+always-y += test_probe_write_user_kern.o
+always-y += trace_output_kern.o
+always-y += tcbpf1_kern.o
+always-y += tc_l2_redirect_kern.o
+always-y += lathist_kern.o
+always-y += offwaketime_kern.o
+always-y += spintest_kern.o
+always-y += map_perf_test_kern.o
+always-y += test_overhead_tp_kern.o
+always-y += test_overhead_raw_tp_kern.o
+always-y += test_overhead_kprobe_kern.o
+always-y += parse_varlen.o parse_simple.o parse_ldabs.o
+always-y += test_cgrp2_tc_kern.o
+always-y += xdp1_kern.o
+always-y += xdp2_kern.o
+always-y += xdp_router_ipv4_kern.o
+always-y += test_current_task_under_cgroup_kern.o
+always-y += trace_event_kern.o
+always-y += sampleip_kern.o
+always-y += lwt_len_hist_kern.o
+always-y += xdp_tx_iptunnel_kern.o
+always-y += test_map_in_map_kern.o
+always-y += tcp_synrto_kern.o
+always-y += tcp_rwnd_kern.o
+always-y += tcp_bufs_kern.o
+always-y += tcp_cong_kern.o
+always-y += tcp_iw_kern.o
+always-y += tcp_clamp_kern.o
+always-y += tcp_basertt_kern.o
+always-y += tcp_tos_reflect_kern.o
+always-y += tcp_dumpstats_kern.o
+always-y += xdp_redirect_kern.o
+always-y += xdp_redirect_map_kern.o
+always-y += xdp_redirect_cpu_kern.o
+always-y += xdp_monitor_kern.o
+always-y += xdp_rxq_info_kern.o
+always-y += xdp2skb_meta_kern.o
+always-y += syscall_tp_kern.o
+always-y += cpustat_kern.o
+always-y += xdp_adjust_tail_kern.o
+always-y += xdp_fwd_kern.o
+always-y += task_fd_query_kern.o
+always-y += xdp_sample_pkts_kern.o
+always-y += ibumad_kern.o
+always-y += hbm_out_kern.o
+always-y += hbm_edt_kern.o
+always-y += xdpsock_kern.o
 
 ifeq ($(ARCH), arm)
 # Strip all except -D__LINUX_ARM_ARCH__ option needed to handle linux
@@ -182,7 +184,6 @@ TPROGS_CFLAGS += -Wmissing-prototypes
 TPROGS_CFLAGS += -Wstrict-prototypes
 
 TPROGS_CFLAGS += -I$(objtree)/usr/include
-TPROGS_CFLAGS += -I$(srctree)/tools/lib/bpf/
 TPROGS_CFLAGS += -I$(srctree)/tools/testing/selftests/bpf/
 TPROGS_CFLAGS += -I$(srctree)/tools/lib/
 TPROGS_CFLAGS += -I$(srctree)/tools/include
@@ -196,7 +197,7 @@ endif
 
 TPROGCFLAGS_bpf_load.o += -Wno-unused-variable
 
-TPROGS_LDLIBS			+= $(LIBBPF) -lelf
+TPROGS_LDLIBS			+= $(LIBBPF) -lelf -lz
 TPROGLDLIBS_tracex4		+= -lrt
 TPROGLDLIBS_trace_output	+= -lrt
 TPROGLDLIBS_map_perf_test	+= -lrt
@@ -234,6 +235,7 @@ BTF_LLVM_PROBE := $(shell echo "int main() { return 0; }" | \
 			  readelf -S ./llvm_btf_verify.o | grep BTF; \
 			  /bin/rm -f ./llvm_btf_verify.o)
 
+BPF_EXTRA_CFLAGS += -fno-stack-protector
 ifneq ($(BTF_LLVM_PROBE),)
 	BPF_EXTRA_CFLAGS += -g
 else
@@ -251,7 +253,7 @@ all:
 
 clean:
 	$(MAKE) -C ../../ M=$(CURDIR) clean
-	@rm -f *~
+	@find $(CURDIR) -type f -name '*~' -delete
 
 $(LIBBPF): FORCE
 # Fix up variables inherited from Kbuild that tools/ build system won't like
@@ -302,7 +304,7 @@ $(obj)/%.o: $(src)/%.c
 	@echo "  CLANG-bpf " $@
 	$(Q)$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(BPF_EXTRA_CFLAGS) \
 		-I$(obj) -I$(srctree)/tools/testing/selftests/bpf/ \
-		-I$(srctree)/tools/lib/bpf/ \
+		-I$(srctree)/tools/lib/ \
 		-D__KERNEL__ -D__BPF_TRACING__ -Wno-unused-value -Wno-pointer-sign \
 		-D__TARGET_ARCH_$(SRCARCH) -Wno-compare-distinct-pointer-types \
 		-Wno-gnu-variable-sized-type-not-at-end \

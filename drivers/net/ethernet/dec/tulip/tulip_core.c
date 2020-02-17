@@ -255,7 +255,7 @@ MODULE_DEVICE_TABLE(pci, tulip_pci_tbl);
 const char tulip_media_cap[32] =
 {0,0,0,16,  3,19,16,24,  27,4,7,5, 0,20,23,20,  28,31,0,0, };
 
-static void tulip_tx_timeout(struct net_device *dev);
+static void tulip_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void tulip_init_ring(struct net_device *dev);
 static void tulip_free_ring(struct net_device *dev);
 static netdev_tx_t tulip_start_xmit(struct sk_buff *skb,
@@ -534,7 +534,7 @@ free_ring:
 }
 
 
-static void tulip_tx_timeout(struct net_device *dev)
+static void tulip_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct tulip_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->base_addr;

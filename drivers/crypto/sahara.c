@@ -601,7 +601,6 @@ static int sahara_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			     unsigned int keylen)
 {
 	struct sahara_ctx *ctx = crypto_skcipher_ctx(tfm);
-	int ret;
 
 	ctx->keylen = keylen;
 
@@ -621,13 +620,7 @@ static int sahara_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	crypto_sync_skcipher_clear_flags(ctx->fallback, CRYPTO_TFM_REQ_MASK);
 	crypto_sync_skcipher_set_flags(ctx->fallback, tfm->base.crt_flags &
 						 CRYPTO_TFM_REQ_MASK);
-
-	ret = crypto_sync_skcipher_setkey(ctx->fallback, key, keylen);
-
-	tfm->base.crt_flags &= ~CRYPTO_TFM_RES_MASK;
-	tfm->base.crt_flags |= crypto_sync_skcipher_get_flags(ctx->fallback) &
-			       CRYPTO_TFM_RES_MASK;
-	return ret;
+	return crypto_sync_skcipher_setkey(ctx->fallback, key, keylen);
 }
 
 static int sahara_aes_crypt(struct skcipher_request *req, unsigned long mode)

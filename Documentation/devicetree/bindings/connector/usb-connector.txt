@@ -1,8 +1,8 @@
 USB Connector
 =============
 
-USB connector node represents physical USB connector. It should be
-a child of USB interface controller.
+A USB connector node represents a physical USB connector. It should be
+a child of a USB interface controller.
 
 Required properties:
 - compatible: describes type of the connector, must be one of:

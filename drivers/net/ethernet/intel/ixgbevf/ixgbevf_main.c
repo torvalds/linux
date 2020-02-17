@@ -250,7 +250,7 @@ static void ixgbevf_tx_timeout_reset(struct ixgbevf_adapter *adapter)
  * ixgbevf_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  **/
-static void ixgbevf_tx_timeout(struct net_device *netdev)
+static void ixgbevf_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 
@@ -2080,11 +2080,6 @@ static int ixgbevf_write_uc_addr_list(struct net_device *netdev)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	int count = 0;
-
-	if ((netdev_uc_count(netdev)) > 10) {
-		pr_err("Too many unicast filters - No Space\n");
-		return -ENOSPC;
-	}
 
 	if (!netdev_uc_empty(netdev)) {
 		struct netdev_hw_addr *ha;

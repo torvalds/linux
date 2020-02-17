@@ -22,6 +22,7 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
@@ -43,10 +44,13 @@ MODULE_FIRMWARE("amdgpu/vega20_asd.bin");
 MODULE_FIRMWARE("amdgpu/vega20_ta.bin");
 MODULE_FIRMWARE("amdgpu/navi10_sos.bin");
 MODULE_FIRMWARE("amdgpu/navi10_asd.bin");
+MODULE_FIRMWARE("amdgpu/navi10_ta.bin");
 MODULE_FIRMWARE("amdgpu/navi14_sos.bin");
 MODULE_FIRMWARE("amdgpu/navi14_asd.bin");
+MODULE_FIRMWARE("amdgpu/navi14_ta.bin");
 MODULE_FIRMWARE("amdgpu/navi12_sos.bin");
 MODULE_FIRMWARE("amdgpu/navi12_asd.bin");
+MODULE_FIRMWARE("amdgpu/navi12_ta.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_sos.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_asd.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_ta.bin");
@@ -233,6 +237,29 @@ out:
 	return err;
 }
 
+int psp_v11_0_wait_for_bootloader(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	int ret;
+	int retry_loop;
+
+	for (retry_loop = 0; retry_loop < 10; retry_loop++) {
+		/* Wait for bootloader to signify that is
+		    ready having bit 31 of C2PMSG_35 set to 1 */
+		ret = psp_wait_for(psp,
+				   SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+				   0x80000000,
+				   0x80000000,
+				   false);
+
+		if (ret == 0)
+			return 0;
+	}
+
+	return ret;
+}
+
 static bool psp_v11_0_is_sos_alive(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -258,9 +285,7 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 		return 0;
 	}
 
-	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
 		return ret;
 
@@ -276,9 +301,7 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35,
 	       psp_gfxdrv_command_reg);
 
-	/* Wait for bootloader to signify that is ready having  bit 31 of C2PMSG_35 set to 1*/
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 
 	return ret;
 }
@@ -298,9 +321,7 @@ static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
 		return 0;
 	}
 
-	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
 		return ret;
 
@@ -319,8 +340,7 @@ static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
 	/* there might be handshake issue with hardware which needs delay */
 	mdelay(20);
 
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 
 	return ret;
 }
@@ -337,9 +357,7 @@ static int psp_v11_0_bootloader_load_sos(struct psp_context *psp)
 	if (psp_v11_0_is_sos_alive(psp))
 		return 0;
 
-	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
 		return ret;
 
@@ -954,10 +972,13 @@ Err_out:
  */
 static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 {
-	int ret;
-	uint32_t p2c_header[4];
 	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
 	uint32_t *pcache = (uint32_t*)ctx->sys_cache;
+	struct amdgpu_device *adev = psp->adev;
+	uint32_t p2c_header[4];
+	uint32_t sz;
+	void *buf;
+	int ret;
 
 	if (ctx->init == PSP_MEM_TRAIN_NOT_SUPPORT) {
 		DRM_DEBUG("Memory training is not supported.\n");
@@ -972,7 +993,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 		return 0;
 	}
 
-	amdgpu_device_vram_access(psp->adev, ctx->p2c_train_data_offset, p2c_header, sizeof(p2c_header), false);
+	amdgpu_device_vram_access(adev, ctx->p2c_train_data_offset, p2c_header, sizeof(p2c_header), false);
 	DRM_DEBUG("sys_cache[%08x,%08x,%08x,%08x] p2c_header[%08x,%08x,%08x,%08x]\n",
 		  pcache[0], pcache[1], pcache[2], pcache[3],
 		  p2c_header[0], p2c_header[1], p2c_header[2], p2c_header[3]);
@@ -1009,11 +1030,38 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 	DRM_DEBUG("Memory training ops:%x.\n", ops);
 
 	if (ops & PSP_MEM_TRAIN_SEND_LONG_MSG) {
+		/*
+		 * Long traing will encroach certain mount of bottom VRAM,
+		 * saving the content of this bottom VRAM to system memory
+		 * before training, and restoring it after training to avoid
+		 * VRAM corruption.
+		 */
+		sz = GDDR6_MEM_TRAINING_ENCROACHED_SIZE;
+
+		if (adev->gmc.visible_vram_size < sz || !adev->mman.aper_base_kaddr) {
+			DRM_ERROR("visible_vram_size %llx or aper_base_kaddr %p is not initialized.\n",
+				  adev->gmc.visible_vram_size,
+				  adev->mman.aper_base_kaddr);
+			return -EINVAL;
+		}
+
+		buf = vmalloc(sz);
+		if (!buf) {
+			DRM_ERROR("failed to allocate system memory.\n");
+			return -ENOMEM;
+		}
+
+		memcpy_fromio(buf, adev->mman.aper_base_kaddr, sz);
 		ret = psp_v11_0_memory_training_send_msg(psp, PSP_BL__DRAM_LONG_TRAIN);
 		if (ret) {
 			DRM_ERROR("Send long training msg failed.\n");
+			vfree(buf);
 			return ret;
 		}
+
+		memcpy_toio(adev->mman.aper_base_kaddr, buf, sz);
+		adev->nbio.funcs->hdp_flush(adev, NULL);
+		vfree(buf);
 	}
 
 	if (ops & PSP_MEM_TRAIN_SAVE) {

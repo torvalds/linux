@@ -299,7 +299,7 @@ snd_nm256_writel(struct nm256 *chip, int offset, u32 val)
 }
 
 static inline void
-snd_nm256_write_buffer(struct nm256 *chip, void *src, int offset, int size)
+snd_nm256_write_buffer(struct nm256 *chip, const void *src, int offset, int size)
 {
 	offset -= chip->buffer_start;
 #ifdef CONFIG_SND_DEBUG
@@ -460,6 +460,7 @@ static int snd_nm256_acquire_irq(struct nm256 *chip)
 			return -EBUSY;
 		}
 		chip->irq = chip->pci->irq;
+		chip->card->sync_irq = chip->irq;
 	}
 	chip->irq_acks++;
 	mutex_unlock(&chip->irq_mutex);
@@ -475,6 +476,7 @@ static void snd_nm256_release_irq(struct nm256 *chip)
 	if (chip->irq_acks == 0 && chip->irq >= 0) {
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
+		chip->card->sync_irq = -1;
 	}
 	mutex_unlock(&chip->irq_mutex);
 }
@@ -783,7 +785,7 @@ snd_nm256_capture_update(struct nm256 *chip)
 /*
  * hardware info
  */
-static struct snd_pcm_hardware snd_nm256_playback =
+static const struct snd_pcm_hardware snd_nm256_playback =
 {
 	.info =			SNDRV_PCM_INFO_MMAP_IOMEM |SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_INTERLEAVED |
@@ -802,7 +804,7 @@ static struct snd_pcm_hardware snd_nm256_playback =
 	.period_bytes_max =	128 * 1024,
 };
 
-static struct snd_pcm_hardware snd_nm256_capture =
+static const struct snd_pcm_hardware snd_nm256_capture =
 {
 	.info =			SNDRV_PCM_INFO_MMAP_IOMEM | SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_INTERLEAVED |
@@ -836,7 +838,7 @@ static int snd_nm256_pcm_hw_params(struct snd_pcm_substream *substream,
  */
 static void snd_nm256_setup_stream(struct nm256 *chip, struct nm256_stream *s,
 				   struct snd_pcm_substream *substream,
-				   struct snd_pcm_hardware *hw_ptr)
+				   const struct snd_pcm_hardware *hw_ptr)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -906,7 +908,6 @@ snd_nm256_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_nm256_playback_ops = {
 	.open =		snd_nm256_playback_open,
 	.close =	snd_nm256_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_nm256_pcm_hw_params,
 	.prepare =	snd_nm256_pcm_prepare,
 	.trigger =	snd_nm256_playback_trigger,
@@ -922,7 +923,6 @@ static const struct snd_pcm_ops snd_nm256_playback_ops = {
 static const struct snd_pcm_ops snd_nm256_capture_ops = {
 	.open =		snd_nm256_capture_open,
 	.close =	snd_nm256_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_nm256_pcm_hw_params,
 	.prepare =	snd_nm256_pcm_prepare,
 	.trigger =	snd_nm256_capture_trigger,
@@ -1179,7 +1179,7 @@ struct initialValues {
 	unsigned short value;
 };
 
-static struct initialValues nm256_ac97_init_val[] =
+static const struct initialValues nm256_ac97_init_val[] =
 {
 	{ AC97_MASTER, 		0x8000 },
 	{ AC97_HEADPHONE,	0x8000 },
@@ -1309,7 +1309,7 @@ snd_nm256_mixer(struct nm256 *chip)
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.reset = snd_nm256_ac97_reset,
 		.write = snd_nm256_ac97_write,
 		.read = snd_nm256_ac97_read,
@@ -1353,7 +1353,7 @@ snd_nm256_peek_for_sig(struct nm256 *chip)
 	unsigned long pointer_found = chip->buffer_end - 0x1400;
 	u32 sig;
 
-	temp = ioremap_nocache(chip->buffer_addr + chip->buffer_end - 0x400, 16);
+	temp = ioremap(chip->buffer_addr + chip->buffer_end - 0x400, 16);
 	if (temp == NULL) {
 		dev_err(chip->card->dev,
 			"Unable to scan for card signature in video RAM\n");
@@ -1471,7 +1471,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 {
 	struct nm256 *chip;
 	int err, pval;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_nm256_dev_free,
 	};
 	u32 addr;
@@ -1518,7 +1518,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		err = -EBUSY;
 		goto __error;
 	}
-	chip->cport = ioremap_nocache(chip->cport_addr, NM_PORT2_SIZE);
+	chip->cport = ioremap(chip->cport_addr, NM_PORT2_SIZE);
 	if (chip->cport == NULL) {
 		dev_err(card->dev, "unable to map control port %lx\n",
 			chip->cport_addr);
@@ -1589,7 +1589,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		err = -EBUSY;
 		goto __error;
 	}
-	chip->buffer = ioremap_nocache(chip->buffer_addr, chip->buffer_size);
+	chip->buffer = ioremap(chip->buffer_addr, chip->buffer_size);
 	if (chip->buffer == NULL) {
 		err = -ENOMEM;
 		dev_err(card->dev, "unable to map ring buffer at %lx\n",
@@ -1634,7 +1634,7 @@ __error:
 
 enum { NM_BLACKLISTED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
 
-static struct snd_pci_quirk nm256_quirks[] = {
+static const struct snd_pci_quirk nm256_quirks[] = {
 	/* HP omnibook 4150 has cs4232 codec internally */
 	SND_PCI_QUIRK(0x103c, 0x0007, "HP omnibook 4150", NM_BLACKLISTED),
 	/* Reset workarounds to avoid lock-ups */

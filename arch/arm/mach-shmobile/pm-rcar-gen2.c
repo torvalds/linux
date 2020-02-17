@@ -103,7 +103,7 @@ map:
 	iounmap(p);
 
 	/* setup reset vectors */
-	p = ioremap_nocache(RST, 0x63);
+	p = ioremap(RST, 0x63);
 	bar = phys_to_sbar(res.start);
 	if (has_a15) {
 		writel_relaxed(bar, p + CA15BAR);

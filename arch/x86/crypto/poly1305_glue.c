@@ -1,8 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Poly1305 authenticator algorithm, RFC7539, SIMD glue code
- *
- * Copyright (C) 2015 Martin Willi
+ * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
 #include <crypto/algapi.h>
@@ -13,108 +11,166 @@
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <asm/intel-family.h>
 #include <asm/simd.h>
 
-asmlinkage void poly1305_block_sse2(u32 *h, const u8 *src,
-				    const u32 *r, unsigned int blocks);
-asmlinkage void poly1305_2block_sse2(u32 *h, const u8 *src, const u32 *r,
-				     unsigned int blocks, const u32 *u);
-asmlinkage void poly1305_4block_avx2(u32 *h, const u8 *src, const u32 *r,
-				     unsigned int blocks, const u32 *u);
+asmlinkage void poly1305_init_x86_64(void *ctx,
+				     const u8 key[POLY1305_KEY_SIZE]);
+asmlinkage void poly1305_blocks_x86_64(void *ctx, const u8 *inp,
+				       const size_t len, const u32 padbit);
+asmlinkage void poly1305_emit_x86_64(void *ctx, u8 mac[POLY1305_DIGEST_SIZE],
+				     const u32 nonce[4]);
+asmlinkage void poly1305_emit_avx(void *ctx, u8 mac[POLY1305_DIGEST_SIZE],
+				  const u32 nonce[4]);
+asmlinkage void poly1305_blocks_avx(void *ctx, const u8 *inp, const size_t len,
+				    const u32 padbit);
+asmlinkage void poly1305_blocks_avx2(void *ctx, const u8 *inp, const size_t len,
+				     const u32 padbit);
+asmlinkage void poly1305_blocks_avx512(void *ctx, const u8 *inp,
+				       const size_t len, const u32 padbit);
 
-static __ro_after_init DEFINE_STATIC_KEY_FALSE(poly1305_use_simd);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(poly1305_use_avx);
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(poly1305_use_avx2);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(poly1305_use_avx512);
 
-static void poly1305_simd_mult(u32 *a, const u32 *b)
+struct poly1305_arch_internal {
+	union {
+		struct {
+			u32 h[5];
+			u32 is_base2_26;
+		};
+		u64 hs[3];
+	};
+	u64 r[2];
+	u64 pad;
+	struct { u32 r2, r1, r4, r3; } rn[9];
+};
+
+/* The AVX code uses base 2^26, while the scalar code uses base 2^64. If we hit
+ * the unfortunate situation of using AVX and then having to go back to scalar
+ * -- because the user is silly and has called the update function from two
+ * separate contexts -- then we need to convert back to the original base before
+ * proceeding. It is possible to reason that the initial reduction below is
+ * sufficient given the implementation invariants. However, for an avoidance of
+ * doubt and because this is not performance critical, we do the full reduction
+ * anyway. Z3 proof of below function: https://xn--4db.cc/ltPtHCKN/py
+ */
+static void convert_to_base2_64(void *ctx)
 {
-	u8 m[POLY1305_BLOCK_SIZE];
+	struct poly1305_arch_internal *state = ctx;
+	u32 cy;
 
-	memset(m, 0, sizeof(m));
-	/* The poly1305 block function adds a hi-bit to the accumulator which
-	 * we don't need for key multiplication; compensate for it. */
-	a[4] -= 1 << 24;
-	poly1305_block_sse2(a, m, b, 1);
+	if (!state->is_base2_26)
+		return;
+
+	cy = state->h[0] >> 26; state->h[0] &= 0x3ffffff; state->h[1] += cy;
+	cy = state->h[1] >> 26; state->h[1] &= 0x3ffffff; state->h[2] += cy;
+	cy = state->h[2] >> 26; state->h[2] &= 0x3ffffff; state->h[3] += cy;
+	cy = state->h[3] >> 26; state->h[3] &= 0x3ffffff; state->h[4] += cy;
+	state->hs[0] = ((u64)state->h[2] << 52) | ((u64)state->h[1] << 26) | state->h[0];
+	state->hs[1] = ((u64)state->h[4] << 40) | ((u64)state->h[3] << 14) | (state->h[2] >> 12);
+	state->hs[2] = state->h[4] >> 24;
+#define ULT(a, b) ((a ^ ((a ^ b) | ((a - b) ^ b))) >> (sizeof(a) * 8 - 1))
+	cy = (state->hs[2] >> 2) + (state->hs[2] & ~3ULL);
+	state->hs[2] &= 3;
+	state->hs[0] += cy;
+	state->hs[1] += (cy = ULT(state->hs[0], cy));
+	state->hs[2] += ULT(state->hs[1], cy);
+#undef ULT
+	state->is_base2_26 = 0;
 }
 
-static unsigned int poly1305_scalar_blocks(struct poly1305_desc_ctx *dctx,
-					   const u8 *src, unsigned int srclen)
+static void poly1305_simd_init(void *ctx, const u8 key[POLY1305_KEY_SIZE])
 {
-	unsigned int datalen;
-
-	if (unlikely(!dctx->sset)) {
-		datalen = crypto_poly1305_setdesckey(dctx, src, srclen);
-		src += srclen - datalen;
-		srclen = datalen;
-	}
-	if (srclen >= POLY1305_BLOCK_SIZE) {
-		poly1305_core_blocks(&dctx->h, dctx->r, src,
-				     srclen / POLY1305_BLOCK_SIZE, 1);
-		srclen %= POLY1305_BLOCK_SIZE;
-	}
-	return srclen;
+	poly1305_init_x86_64(ctx, key);
 }
 
-static unsigned int poly1305_simd_blocks(struct poly1305_desc_ctx *dctx,
-					 const u8 *src, unsigned int srclen)
+static void poly1305_simd_blocks(void *ctx, const u8 *inp, size_t len,
+				 const u32 padbit)
 {
-	unsigned int blocks, datalen;
+	struct poly1305_arch_internal *state = ctx;
 
-	if (unlikely(!dctx->sset)) {
-		datalen = crypto_poly1305_setdesckey(dctx, src, srclen);
-		src += srclen - datalen;
-		srclen = datalen;
-	}
+	/* SIMD disables preemption, so relax after processing each page. */
+	BUILD_BUG_ON(PAGE_SIZE < POLY1305_BLOCK_SIZE ||
+		     PAGE_SIZE % POLY1305_BLOCK_SIZE);
 
-	if (IS_ENABLED(CONFIG_AS_AVX2) &&
-	    static_branch_likely(&poly1305_use_avx2) &&
-	    srclen >= POLY1305_BLOCK_SIZE * 4) {
-		if (unlikely(dctx->rset < 4)) {
-			if (dctx->rset < 2) {
-				dctx->r[1] = dctx->r[0];
-				poly1305_simd_mult(dctx->r[1].r, dctx->r[0].r);
-			}
-			dctx->r[2] = dctx->r[1];
-			poly1305_simd_mult(dctx->r[2].r, dctx->r[0].r);
-			dctx->r[3] = dctx->r[2];
-			poly1305_simd_mult(dctx->r[3].r, dctx->r[0].r);
-			dctx->rset = 4;
-		}
-		blocks = srclen / (POLY1305_BLOCK_SIZE * 4);
-		poly1305_4block_avx2(dctx->h.h, src, dctx->r[0].r, blocks,
-				     dctx->r[1].r);
-		src += POLY1305_BLOCK_SIZE * 4 * blocks;
-		srclen -= POLY1305_BLOCK_SIZE * 4 * blocks;
+	if (!IS_ENABLED(CONFIG_AS_AVX) || !static_branch_likely(&poly1305_use_avx) ||
+	    (len < (POLY1305_BLOCK_SIZE * 18) && !state->is_base2_26) ||
+	    !crypto_simd_usable()) {
+		convert_to_base2_64(ctx);
+		poly1305_blocks_x86_64(ctx, inp, len, padbit);
+		return;
 	}
 
-	if (likely(srclen >= POLY1305_BLOCK_SIZE * 2)) {
-		if (unlikely(dctx->rset < 2)) {
-			dctx->r[1] = dctx->r[0];
-			poly1305_simd_mult(dctx->r[1].r, dctx->r[0].r);
-			dctx->rset = 2;
-		}
-		blocks = srclen / (POLY1305_BLOCK_SIZE * 2);
-		poly1305_2block_sse2(dctx->h.h, src, dctx->r[0].r,
-				     blocks, dctx->r[1].r);
-		src += POLY1305_BLOCK_SIZE * 2 * blocks;
-		srclen -= POLY1305_BLOCK_SIZE * 2 * blocks;
+	for (;;) {
+		const size_t bytes = min_t(size_t, len, PAGE_SIZE);
+
+		kernel_fpu_begin();
+		if (IS_ENABLED(CONFIG_AS_AVX512) && static_branch_likely(&poly1305_use_avx512))
+			poly1305_blocks_avx512(ctx, inp, bytes, padbit);
+		else if (IS_ENABLED(CONFIG_AS_AVX2) && static_branch_likely(&poly1305_use_avx2))
+			poly1305_blocks_avx2(ctx, inp, bytes, padbit);
+		else
+			poly1305_blocks_avx(ctx, inp, bytes, padbit);
+		kernel_fpu_end();
+		len -= bytes;
+		if (!len)
+			break;
+		inp += bytes;
 	}
-	if (srclen >= POLY1305_BLOCK_SIZE) {
-		poly1305_block_sse2(dctx->h.h, src, dctx->r[0].r, 1);
-		srclen -= POLY1305_BLOCK_SIZE;
-	}
-	return srclen;
 }
 
-void poly1305_init_arch(struct poly1305_desc_ctx *desc, const u8 *key)
+static void poly1305_simd_emit(void *ctx, u8 mac[POLY1305_DIGEST_SIZE],
+			       const u32 nonce[4])
 {
-	poly1305_init_generic(desc, key);
+	if (!IS_ENABLED(CONFIG_AS_AVX) || !static_branch_likely(&poly1305_use_avx))
+		poly1305_emit_x86_64(ctx, mac, nonce);
+	else
+		poly1305_emit_avx(ctx, mac, nonce);
+}
+
+void poly1305_init_arch(struct poly1305_desc_ctx *dctx, const u8 *key)
+{
+	poly1305_simd_init(&dctx->h, key);
+	dctx->s[0] = get_unaligned_le32(&key[16]);
+	dctx->s[1] = get_unaligned_le32(&key[20]);
+	dctx->s[2] = get_unaligned_le32(&key[24]);
+	dctx->s[3] = get_unaligned_le32(&key[28]);
+	dctx->buflen = 0;
+	dctx->sset = true;
 }
 EXPORT_SYMBOL(poly1305_init_arch);
+
+static unsigned int crypto_poly1305_setdctxkey(struct poly1305_desc_ctx *dctx,
+					       const u8 *inp, unsigned int len)
+{
+	unsigned int acc = 0;
+	if (unlikely(!dctx->sset)) {
+		if (!dctx->rset && len >= POLY1305_BLOCK_SIZE) {
+			poly1305_simd_init(&dctx->h, inp);
+			inp += POLY1305_BLOCK_SIZE;
+			len -= POLY1305_BLOCK_SIZE;
+			acc += POLY1305_BLOCK_SIZE;
+			dctx->rset = 1;
+		}
+		if (len >= POLY1305_BLOCK_SIZE) {
+			dctx->s[0] = get_unaligned_le32(&inp[0]);
+			dctx->s[1] = get_unaligned_le32(&inp[4]);
+			dctx->s[2] = get_unaligned_le32(&inp[8]);
+			dctx->s[3] = get_unaligned_le32(&inp[12]);
+			inp += POLY1305_BLOCK_SIZE;
+			len -= POLY1305_BLOCK_SIZE;
+			acc += POLY1305_BLOCK_SIZE;
+			dctx->sset = true;
+		}
+	}
+	return acc;
+}
 
 void poly1305_update_arch(struct poly1305_desc_ctx *dctx, const u8 *src,
 			  unsigned int srclen)
 {
-	unsigned int bytes;
+	unsigned int bytes, used;
 
 	if (unlikely(dctx->buflen)) {
 		bytes = min(srclen, POLY1305_BLOCK_SIZE - dctx->buflen);
@@ -124,31 +180,19 @@ void poly1305_update_arch(struct poly1305_desc_ctx *dctx, const u8 *src,
 		dctx->buflen += bytes;
 
 		if (dctx->buflen == POLY1305_BLOCK_SIZE) {
-			if (static_branch_likely(&poly1305_use_simd) &&
-			    likely(crypto_simd_usable())) {
-				kernel_fpu_begin();
-				poly1305_simd_blocks(dctx, dctx->buf,
-						     POLY1305_BLOCK_SIZE);
-				kernel_fpu_end();
-			} else {
-				poly1305_scalar_blocks(dctx, dctx->buf,
-						       POLY1305_BLOCK_SIZE);
-			}
+			if (likely(!crypto_poly1305_setdctxkey(dctx, dctx->buf, POLY1305_BLOCK_SIZE)))
+				poly1305_simd_blocks(&dctx->h, dctx->buf, POLY1305_BLOCK_SIZE, 1);
 			dctx->buflen = 0;
 		}
 	}
 
 	if (likely(srclen >= POLY1305_BLOCK_SIZE)) {
-		if (static_branch_likely(&poly1305_use_simd) &&
-		    likely(crypto_simd_usable())) {
-			kernel_fpu_begin();
-			bytes = poly1305_simd_blocks(dctx, src, srclen);
-			kernel_fpu_end();
-		} else {
-			bytes = poly1305_scalar_blocks(dctx, src, srclen);
-		}
-		src += srclen - bytes;
-		srclen = bytes;
+		bytes = round_down(srclen, POLY1305_BLOCK_SIZE);
+		srclen -= bytes;
+		used = crypto_poly1305_setdctxkey(dctx, src, bytes);
+		if (likely(bytes - used))
+			poly1305_simd_blocks(&dctx->h, src + used, bytes - used, 1);
+		src += bytes;
 	}
 
 	if (unlikely(srclen)) {
@@ -158,9 +202,17 @@ void poly1305_update_arch(struct poly1305_desc_ctx *dctx, const u8 *src,
 }
 EXPORT_SYMBOL(poly1305_update_arch);
 
-void poly1305_final_arch(struct poly1305_desc_ctx *desc, u8 *digest)
+void poly1305_final_arch(struct poly1305_desc_ctx *dctx, u8 *dst)
 {
-	poly1305_final_generic(desc, digest);
+	if (unlikely(dctx->buflen)) {
+		dctx->buf[dctx->buflen++] = 1;
+		memset(dctx->buf + dctx->buflen, 0,
+		       POLY1305_BLOCK_SIZE - dctx->buflen);
+		poly1305_simd_blocks(&dctx->h, dctx->buf, POLY1305_BLOCK_SIZE, 0);
+	}
+
+	poly1305_simd_emit(&dctx->h, dst, dctx->s);
+	*dctx = (struct poly1305_desc_ctx){};
 }
 EXPORT_SYMBOL(poly1305_final_arch);
 
@@ -168,11 +220,16 @@ static int crypto_poly1305_init(struct shash_desc *desc)
 {
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 
-	poly1305_core_init(&dctx->h);
-	dctx->buflen = 0;
-	dctx->rset = 0;
-	dctx->sset = false;
+	*dctx = (struct poly1305_desc_ctx){};
+	return 0;
+}
 
+static int crypto_poly1305_update(struct shash_desc *desc,
+				  const u8 *src, unsigned int srclen)
+{
+	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
+
+	poly1305_update_arch(dctx, src, srclen);
 	return 0;
 }
 
@@ -183,23 +240,14 @@ static int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
 	if (unlikely(!dctx->sset))
 		return -ENOKEY;
 
-	poly1305_final_generic(dctx, dst);
-	return 0;
-}
-
-static int poly1305_simd_update(struct shash_desc *desc,
-				const u8 *src, unsigned int srclen)
-{
-	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
-
-	poly1305_update_arch(dctx, src, srclen);
+	poly1305_final_arch(dctx, dst);
 	return 0;
 }
 
 static struct shash_alg alg = {
 	.digestsize	= POLY1305_DIGEST_SIZE,
 	.init		= crypto_poly1305_init,
-	.update		= poly1305_simd_update,
+	.update		= crypto_poly1305_update,
 	.final		= crypto_poly1305_final,
 	.descsize	= sizeof(struct poly1305_desc_ctx),
 	.base		= {
@@ -213,17 +261,19 @@ static struct shash_alg alg = {
 
 static int __init poly1305_simd_mod_init(void)
 {
-	if (!boot_cpu_has(X86_FEATURE_XMM2))
-		return 0;
-
-	static_branch_enable(&poly1305_use_simd);
-
-	if (IS_ENABLED(CONFIG_AS_AVX2) &&
-	    boot_cpu_has(X86_FEATURE_AVX) &&
+	if (IS_ENABLED(CONFIG_AS_AVX) && boot_cpu_has(X86_FEATURE_AVX) &&
+	    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL))
+		static_branch_enable(&poly1305_use_avx);
+	if (IS_ENABLED(CONFIG_AS_AVX2) && boot_cpu_has(X86_FEATURE_AVX) &&
 	    boot_cpu_has(X86_FEATURE_AVX2) &&
 	    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL))
 		static_branch_enable(&poly1305_use_avx2);
-
+	if (IS_ENABLED(CONFIG_AS_AVX512) && boot_cpu_has(X86_FEATURE_AVX) &&
+	    boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX512F) &&
+	    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM | XFEATURE_MASK_AVX512, NULL) &&
+	    /* Skylake downclocks unacceptably much when using zmm, but later generations are fast. */
+	    boot_cpu_data.x86_model != INTEL_FAM6_SKYLAKE_X)
+		static_branch_enable(&poly1305_use_avx512);
 	return IS_REACHABLE(CONFIG_CRYPTO_HASH) ? crypto_register_shash(&alg) : 0;
 }
 
@@ -237,7 +287,7 @@ module_init(poly1305_simd_mod_init);
 module_exit(poly1305_simd_mod_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Martin Willi <martin@strongswan.org>");
+MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 MODULE_DESCRIPTION("Poly1305 authenticator");
 MODULE_ALIAS_CRYPTO("poly1305");
 MODULE_ALIAS_CRYPTO("poly1305-simd");

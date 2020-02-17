@@ -19,7 +19,6 @@
 struct mmc_gpio {
 	struct gpio_desc *ro_gpio;
 	struct gpio_desc *cd_gpio;
-	bool override_cd_active_level;
 	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
 	char *ro_label;
 	char *cd_label;
@@ -80,13 +79,6 @@ int mmc_gpio_get_cd(struct mmc_host *host)
 		return -ENOSYS;
 
 	cansleep = gpiod_cansleep(ctx->cd_gpio);
-	if (ctx->override_cd_active_level) {
-		int value = cansleep ?
-				gpiod_get_raw_value_cansleep(ctx->cd_gpio) :
-				gpiod_get_raw_value(ctx->cd_gpio);
-		return !value ^ !!(host->caps2 & MMC_CAP2_CD_ACTIVE_HIGH);
-	}
-
 	return cansleep ?
 		gpiod_get_value_cansleep(ctx->cd_gpio) :
 		gpiod_get_value(ctx->cd_gpio);
@@ -168,8 +160,6 @@ EXPORT_SYMBOL(mmc_gpio_set_cd_isr);
  * @idx: index of the GPIO to obtain in the consumer
  * @override_active_level: ignore %GPIO_ACTIVE_LOW flag
  * @debounce: debounce time in microseconds
- * @gpio_invert: will return whether the GPIO line is inverted or not, set
- * to NULL to ignore
  *
  * Note that this must be called prior to mmc_add_host()
  * otherwise the caller must also call mmc_gpiod_request_cd_irq().
@@ -178,7 +168,7 @@ EXPORT_SYMBOL(mmc_gpio_set_cd_isr);
  */
 int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 			 unsigned int idx, bool override_active_level,
-			 unsigned int debounce, bool *gpio_invert)
+			 unsigned int debounce)
 {
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 	struct gpio_desc *desc;
@@ -194,10 +184,14 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 			ctx->cd_debounce_delay_ms = debounce / 1000;
 	}
 
-	if (gpio_invert)
-		*gpio_invert = !gpiod_is_active_low(desc);
+	/* override forces default (active-low) polarity ... */
+	if (override_active_level && !gpiod_is_active_low(desc))
+		gpiod_toggle_active_low(desc);
 
-	ctx->override_cd_active_level = override_active_level;
+	/* ... or active-high */
+	if (host->caps2 & MMC_CAP2_CD_ACTIVE_HIGH)
+		gpiod_toggle_active_low(desc);
+
 	ctx->cd_gpio = desc;
 
 	return 0;
@@ -218,14 +212,11 @@ EXPORT_SYMBOL(mmc_can_gpio_cd);
  * @con_id: function within the GPIO consumer
  * @idx: index of the GPIO to obtain in the consumer
  * @debounce: debounce time in microseconds
- * @gpio_invert: will return whether the GPIO line is inverted or not,
- * set to NULL to ignore
  *
  * Returns zero on success, else an error.
  */
 int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
-			 unsigned int idx,
-			 unsigned int debounce, bool *gpio_invert)
+			 unsigned int idx, unsigned int debounce)
 {
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 	struct gpio_desc *desc;
@@ -241,8 +232,8 @@ int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 			return ret;
 	}
 
-	if (gpio_invert)
-		*gpio_invert = !gpiod_is_active_low(desc);
+	if (host->caps2 & MMC_CAP2_RO_ACTIVE_HIGH)
+		gpiod_toggle_active_low(desc);
 
 	ctx->ro_gpio = desc;
 

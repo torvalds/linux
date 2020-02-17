@@ -341,6 +341,10 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			gvt_dbg_mmio("vgpu%d: request VCS2 Reset\n", vgpu->id);
 			engine_mask |= BIT(VCS1);
 		}
+		if (data & GEN9_GRDOM_GUC) {
+			gvt_dbg_mmio("vgpu%d: request GUC Reset\n", vgpu->id);
+			vgpu_vreg_t(vgpu, GUC_STATUS) |= GS_MIA_IN_RESET;
+		}
 		engine_mask &= INTEL_INFO(vgpu->gvt->dev_priv)->engine_mask;
 	}
 
@@ -1636,6 +1640,16 @@ static int edp_psr_imr_iir_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
+static int guc_status_read(struct intel_vgpu *vgpu,
+			   unsigned int offset, void *p_data,
+			   unsigned int bytes)
+{
+	/* keep MIA_IN_RESET before clearing */
+	read_vreg(vgpu, offset, p_data, bytes);
+	vgpu_vreg(vgpu, offset) &= ~GS_MIA_IN_RESET;
+	return 0;
+}
+
 static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
@@ -2672,10 +2686,12 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_DH(EDP_PSR_IMR, D_BDW_PLUS, NULL, edp_psr_imr_iir_write);
 	MMIO_DH(EDP_PSR_IIR, D_BDW_PLUS, NULL, edp_psr_imr_iir_write);
+	MMIO_DH(GUC_STATUS, D_ALL, guc_status_read, NULL);
+
 	return 0;
 }
 
-static int init_broadwell_mmio_info(struct intel_gvt *gvt)
+static int init_bdw_mmio_info(struct intel_gvt *gvt)
 {
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
 	int ret;
@@ -3364,20 +3380,20 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 		goto err;
 
 	if (IS_BROADWELL(dev_priv)) {
-		ret = init_broadwell_mmio_info(gvt);
+		ret = init_bdw_mmio_info(gvt);
 		if (ret)
 			goto err;
 	} else if (IS_SKYLAKE(dev_priv)
 		|| IS_KABYLAKE(dev_priv)
 		|| IS_COFFEELAKE(dev_priv)) {
-		ret = init_broadwell_mmio_info(gvt);
+		ret = init_bdw_mmio_info(gvt);
 		if (ret)
 			goto err;
 		ret = init_skl_mmio_info(gvt);
 		if (ret)
 			goto err;
 	} else if (IS_BROXTON(dev_priv)) {
-		ret = init_broadwell_mmio_info(gvt);
+		ret = init_bdw_mmio_info(gvt);
 		if (ret)
 			goto err;
 		ret = init_skl_mmio_info(gvt);

@@ -222,8 +222,6 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 	u32 pages, delta;
 	int ret;
 
-	BUG_ON(fp_old == NULL);
-
 	size = round_up(size, PAGE_SIZE);
 	pages = size / PAGE_SIZE;
 	if (pages <= fp_old->pages)
@@ -520,9 +518,9 @@ void bpf_prog_kallsyms_del_all(struct bpf_prog *fp)
 
 #ifdef CONFIG_BPF_JIT
 /* All BPF JIT sysctl knobs here. */
-int bpf_jit_enable   __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_ALWAYS_ON);
+int bpf_jit_enable   __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_DEFAULT_ON);
+int bpf_jit_kallsyms __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_DEFAULT_ON);
 int bpf_jit_harden   __read_mostly;
-int bpf_jit_kallsyms __read_mostly;
 long bpf_jit_limit   __read_mostly;
 
 static __always_inline void
@@ -2043,23 +2041,28 @@ static void bpf_free_cgroup_storage(struct bpf_prog_aux *aux)
 	for_each_cgroup_storage_type(stype) {
 		if (!aux->cgroup_storage[stype])
 			continue;
-		bpf_cgroup_storage_release(aux->prog,
-					   aux->cgroup_storage[stype]);
+		bpf_cgroup_storage_release(aux, aux->cgroup_storage[stype]);
+	}
+}
+
+void __bpf_free_used_maps(struct bpf_prog_aux *aux,
+			  struct bpf_map **used_maps, u32 len)
+{
+	struct bpf_map *map;
+	u32 i;
+
+	bpf_free_cgroup_storage(aux);
+	for (i = 0; i < len; i++) {
+		map = used_maps[i];
+		if (map->ops->map_poke_untrack)
+			map->ops->map_poke_untrack(map, aux);
+		bpf_map_put(map);
 	}
 }
 
 static void bpf_free_used_maps(struct bpf_prog_aux *aux)
 {
-	struct bpf_map *map;
-	int i;
-
-	bpf_free_cgroup_storage(aux);
-	for (i = 0; i < aux->used_map_cnt; i++) {
-		map = aux->used_maps[i];
-		if (map->ops->map_poke_untrack)
-			map->ops->map_poke_untrack(map, aux);
-		bpf_map_put(map);
-	}
+	__bpf_free_used_maps(aux, aux->used_maps, aux->used_map_cnt);
 	kfree(aux->used_maps);
 }
 
@@ -2134,6 +2137,7 @@ const struct bpf_func_proto bpf_map_pop_elem_proto __weak;
 const struct bpf_func_proto bpf_map_peek_elem_proto __weak;
 const struct bpf_func_proto bpf_spin_lock_proto __weak;
 const struct bpf_func_proto bpf_spin_unlock_proto __weak;
+const struct bpf_func_proto bpf_jiffies64_proto __weak;
 
 const struct bpf_func_proto bpf_get_prandom_u32_proto __weak;
 const struct bpf_func_proto bpf_get_smp_processor_id_proto __weak;

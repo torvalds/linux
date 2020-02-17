@@ -83,12 +83,6 @@
 	status = "okay";
 };
 
-&uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
-	status = "okay";
-};
-
 &usb_otg {
 	dr_mode = "otg";
 	status = "okay";

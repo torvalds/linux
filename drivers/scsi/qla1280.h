@@ -277,6 +277,8 @@ struct device_reg {
 #define MBC_MAILBOX_REGISTER_TEST	6	/* Wrap incoming mailboxes */
 #define MBC_VERIFY_CHECKSUM		7	/* Verify checksum */
 #define MBC_ABOUT_FIRMWARE		8	/* Get firmware revision */
+#define MBC_LOAD_RAM_A64_ROM		9	/* Load RAM 64bit ROM version */
+#define MBC_DUMP_RAM_A64_ROM		0x0a	/* Dump RAM 64bit ROM version */
 #define MBC_INIT_REQUEST_QUEUE		0x10	/* Initialize request queue */
 #define MBC_INIT_RESPONSE_QUEUE		0x11	/* Initialize response queue */
 #define MBC_EXECUTE_IOCB		0x12	/* Execute IOCB command */

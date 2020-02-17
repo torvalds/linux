@@ -1,4 +1,4 @@
-Samsung S5P/EXYNOS SoC series MIPI CSIS/DSIM DPHY
+Samsung S5P/Exynos SoC series MIPI CSIS/DSIM DPHY
 -------------------------------------------------
 
 Required properties:
@@ -27,7 +27,7 @@ the PHY specifier identifies the PHY and its meaning is as follows:
 supports additional fifth PHY:
   4 - MIPI CSIS 2.
 
-Samsung EXYNOS SoC series Display Port PHY
+Samsung Exynos SoC series Display Port PHY
 -------------------------------------------------
 
 Required properties:
@@ -38,7 +38,7 @@ Required properties:
 		      control pmu registers for power isolation.
 - #phy-cells : from the generic PHY bindings, must be 0;
 
-Samsung S5P/EXYNOS SoC series USB PHY
+Samsung S5P/Exynos SoC series USB PHY
 -------------------------------------------------
 
 Required properties:

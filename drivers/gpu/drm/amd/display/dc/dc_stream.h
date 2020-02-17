@@ -344,10 +344,17 @@ bool dc_add_all_planes_for_stream(
 bool dc_stream_add_writeback(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_writeback_info *wb_info);
+
 bool dc_stream_remove_writeback(struct dc *dc,
 		struct dc_stream_state *stream,
 		uint32_t dwb_pipe_inst);
+
+bool dc_stream_warmup_writeback(struct dc *dc,
+		int num_dwb,
+		struct dc_writeback_info *wb_info);
+
 bool dc_stream_dmdata_status_done(struct dc *dc, struct dc_stream_state *stream);
+
 bool dc_stream_set_dynamic_metadata(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_dmdata_attributes *dmdata_attr);
@@ -432,10 +439,10 @@ bool dc_stream_get_crc(struct dc *dc,
 		       uint32_t *g_y,
 		       uint32_t *b_cb);
 
-void dc_stream_set_static_screen_events(struct dc *dc,
+void dc_stream_set_static_screen_params(struct dc *dc,
 					struct dc_stream_state **stream,
 					int num_streams,
-					const struct dc_static_screen_events *events);
+					const struct dc_static_screen_params *params);
 
 void dc_stream_set_dyn_expansion(struct dc *dc, struct dc_stream_state *stream,
 		enum dc_dynamic_expansion option);

@@ -493,7 +493,7 @@ static int mmphw_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
-	ctrl->reg_base = devm_ioremap_nocache(ctrl->dev,
+	ctrl->reg_base = devm_ioremap(ctrl->dev,
 			res->start, resource_size(res));
 	if (ctrl->reg_base == NULL) {
 		dev_err(ctrl->dev, "%s: res %pR map failed\n", __func__, res);

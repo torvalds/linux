@@ -938,7 +938,7 @@ static int mbxfb_probe(struct platform_device *dev)
 	}
 	mfbi->reg_phys_addr = mfbi->reg_res->start;
 
-	mfbi->reg_virt_addr = devm_ioremap_nocache(&dev->dev,
+	mfbi->reg_virt_addr = devm_ioremap(&dev->dev,
 						   mfbi->reg_phys_addr,
 						   res_size(mfbi->reg_req));
 	if (!mfbi->reg_virt_addr) {
@@ -948,7 +948,7 @@ static int mbxfb_probe(struct platform_device *dev)
 	}
 	virt_base_2700 = mfbi->reg_virt_addr;
 
-	mfbi->fb_virt_addr = devm_ioremap_nocache(&dev->dev, mfbi->fb_phys_addr,
+	mfbi->fb_virt_addr = devm_ioremap(&dev->dev, mfbi->fb_phys_addr,
 						  res_size(mfbi->fb_req));
 	if (!mfbi->fb_virt_addr) {
 		dev_err(&dev->dev, "failed to ioremap frame buffer\n");

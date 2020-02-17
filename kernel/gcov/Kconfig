@@ -4,7 +4,7 @@ menu "GCOV-based kernel profiling"
 config GCOV_KERNEL
 	bool "Enable gcov-based kernel profiling"
 	depends on DEBUG_FS
-	select CONSTRUCTORS
+	select CONSTRUCTORS if !UML
 	default n
 	---help---
 	This option enables gcov-based code profiling (e.g. for code coverage

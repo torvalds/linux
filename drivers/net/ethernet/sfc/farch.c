@@ -15,6 +15,7 @@
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
+#include "rx_common.h"
 #include "nic.h"
 #include "farch_regs.h"
 #include "sriov.h"

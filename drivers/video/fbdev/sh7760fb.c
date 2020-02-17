@@ -463,7 +463,7 @@ static int sh7760fb_probe(struct platform_device *pdev)
 		goto out_fb;
 	}
 
-	par->base = ioremap_nocache(res->start, resource_size(res));
+	par->base = ioremap(res->start, resource_size(res));
 	if (!par->base) {
 		dev_err(&pdev->dev, "cannot remap\n");
 		ret = -ENODEV;

@@ -33,7 +33,6 @@ enum flow_dissect_ret {
 
 /**
  * struct flow_dissector_key_basic:
- * @thoff: Transport header offset
  * @n_proto: Network header protocol (eg. IPv4/IPv6)
  * @ip_proto: Transport header protocol (eg. TCP/UDP)
  */

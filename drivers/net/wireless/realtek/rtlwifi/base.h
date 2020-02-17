@@ -61,9 +61,9 @@ enum ap_peer {
 	CP_MACADDR((u8 *)(_hdr)+FRAME_OFFSET_ADDRESS3, (u8 *)(_val))
 
 #define SET_TX_DESC_SPE_RPT(__pdesc, __val)			\
-	SET_BITS_TO_LE_4BYTE((__pdesc) + 8, 19, 1, __val)
+	le32p_replace_bits((__le32 *)(__pdesc + 8), __val, BIT(19))
 #define SET_TX_DESC_SW_DEFINE(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 0, 12, __val)
+	le32p_replace_bits((__le32 *)(__pdesc + 24), __val, GENMASK(11, 0))
 
 int rtl_init_core(struct ieee80211_hw *hw);
 void rtl_deinit_core(struct ieee80211_hw *hw);

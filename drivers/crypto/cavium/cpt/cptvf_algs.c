@@ -295,8 +295,6 @@ static int cvm_setkey(struct crypto_skcipher *cipher, const u8 *key,
 		memcpy(ctx->enc_key, key, keylen);
 		return 0;
 	} else {
-		crypto_skcipher_set_flags(cipher,
-					    CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 }

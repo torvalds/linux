@@ -513,13 +513,23 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 	 * will not allow USWC mappings.
 	 * Also, don't allow GTT domain if the BO doens't have USWC falg set.
 	 */
-	if (adev->asic_type >= CHIP_CARRIZO &&
-	    adev->asic_type < CHIP_RAVEN &&
-	    (adev->flags & AMD_IS_APU) &&
-	    (bo_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) &&
+	if ((bo_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) &&
 	    amdgpu_bo_support_uswc(bo_flags) &&
-	    amdgpu_device_asic_has_dc_support(adev->asic_type))
-		domain |= AMDGPU_GEM_DOMAIN_GTT;
+	    amdgpu_device_asic_has_dc_support(adev->asic_type)) {
+		switch (adev->asic_type) {
+		case CHIP_CARRIZO:
+		case CHIP_STONEY:
+			domain |= AMDGPU_GEM_DOMAIN_GTT;
+			break;
+		case CHIP_RAVEN:
+			/* enable S/G on PCO and RV2 */
+			if (adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
+				domain |= AMDGPU_GEM_DOMAIN_GTT;
+			break;
+		default:
+			break;
+		}
+	}
 #endif
 
 	return domain;

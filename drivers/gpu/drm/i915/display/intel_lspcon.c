@@ -434,8 +434,8 @@ void lspcon_write_infoframe(struct intel_encoder *encoder,
 			    const void *frame, ssize_t len)
 {
 	bool ret;
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct intel_lspcon *lspcon = enc_to_intel_lspcon(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_lspcon *lspcon = enc_to_intel_lspcon(encoder);
 
 	/* LSPCON only needs AVI IF */
 	if (type != HDMI_INFOFRAME_TYPE_AVI)
@@ -472,7 +472,7 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 	ssize_t ret;
 	union hdmi_infoframe frame;
 	u8 buf[VIDEO_DIP_DATA_SIZE];
-	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct intel_lspcon *lspcon = &dig_port->lspcon;
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
@@ -522,7 +522,7 @@ u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
 {
 	/* FIXME actually read this from the hw */
-	return enc_to_intel_lspcon(&encoder->base)->active;
+	return enc_to_intel_lspcon(encoder)->active;
 }
 
 void lspcon_resume(struct intel_lspcon *lspcon)

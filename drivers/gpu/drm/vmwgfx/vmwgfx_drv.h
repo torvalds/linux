@@ -56,9 +56,9 @@
 
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
-#define VMWGFX_DRIVER_DATE "20190328"
+#define VMWGFX_DRIVER_DATE "20200114"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 16
+#define VMWGFX_DRIVER_MINOR 17
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
@@ -1403,6 +1403,8 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 int vmw_host_get_guestinfo(const char *guest_info_param,
 			   char *buffer, size_t *length);
 int vmw_host_log(const char *log);
+int vmw_msg_ioctl(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv);
 
 /* VMW logging */
 

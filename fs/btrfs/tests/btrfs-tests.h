@@ -46,6 +46,7 @@ btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info, unsigned long lengt
 void btrfs_free_dummy_block_group(struct btrfs_block_group *cache);
 void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info);
+struct btrfs_device *btrfs_alloc_dummy_device(struct btrfs_fs_info *fs_info);
 #else
 static inline int btrfs_run_sanity_tests(void)
 {

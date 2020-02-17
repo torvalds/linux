@@ -583,15 +583,16 @@ skl_program_plane(struct intel_plane *plane,
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 surf_addr = plane_state->color_plane[color_plane].offset;
 	u32 stride = skl_plane_stride(plane_state, color_plane);
-	u32 aux_dist = plane_state->color_plane[1].offset - surf_addr;
-	u32 aux_stride = skl_plane_stride(plane_state, 1);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	int aux_plane = intel_main_to_aux_plane(fb, color_plane);
+	u32 aux_dist = plane_state->color_plane[aux_plane].offset - surf_addr;
+	u32 aux_stride = skl_plane_stride(plane_state, aux_plane);
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
 	u32 x = plane_state->color_plane[color_plane].x;
 	u32 y = plane_state->color_plane[color_plane].y;
 	u32 src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	u32 src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	u8 alpha = plane_state->hw.alpha >> 8;
 	u32 plane_color_ctl = 0;
 	unsigned long irqflags;
@@ -2106,7 +2107,8 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	     fb->modifier == I915_FORMAT_MOD_Yf_TILED ||
 	     fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
 	     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS ||
-	     fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS)) {
+	     fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
+	     fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS)) {
 		DRM_DEBUG_KMS("Y/Yf tiling not supported in IF-ID mode\n");
 		return -EINVAL;
 	}
@@ -2578,7 +2580,16 @@ static const u64 skl_plane_format_modifiers_ccs[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
-static const u64 gen12_plane_format_modifiers_ccs[] = {
+static const u64 gen12_plane_format_modifiers_mc_ccs[] = {
+	I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS,
+	I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS,
+	I915_FORMAT_MOD_Y_TILED,
+	I915_FORMAT_MOD_X_TILED,
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
+static const u64 gen12_plane_format_modifiers_rc_ccs[] = {
 	I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS,
 	I915_FORMAT_MOD_Y_TILED,
 	I915_FORMAT_MOD_X_TILED,
@@ -2743,10 +2754,21 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	}
 }
 
+static bool gen12_plane_supports_mc_ccs(enum plane_id plane_id)
+{
+	return plane_id < PLANE_SPRITE4;
+}
+
 static bool gen12_plane_format_mod_supported(struct drm_plane *_plane,
 					     u32 format, u64 modifier)
 {
+	struct intel_plane *plane = to_intel_plane(_plane);
+
 	switch (modifier) {
+	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
+		if (!gen12_plane_supports_mc_ccs(plane->id))
+			return false;
+		/* fall through */
 	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_X_TILED:
 	case I915_FORMAT_MOD_Y_TILED:
@@ -2764,11 +2786,6 @@ static bool gen12_plane_format_mod_supported(struct drm_plane *_plane,
 		if (is_ccs_modifier(modifier))
 			return true;
 		/* fall through */
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_ABGR2101010:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
@@ -2777,6 +2794,14 @@ static bool gen12_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_P010:
 	case DRM_FORMAT_P012:
 	case DRM_FORMAT_P016:
+		if (modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS)
+			return true;
+		/* fall through */
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_ABGR2101010:
 	case DRM_FORMAT_XVYU2101010:
 	case DRM_FORMAT_C8:
 	case DRM_FORMAT_XBGR16161616F:
@@ -2910,6 +2935,14 @@ static const u32 *icl_get_plane_formats(struct drm_i915_private *dev_priv,
 	}
 }
 
+static const u64 *gen12_get_plane_modifiers(enum plane_id plane_id)
+{
+	if (gen12_plane_supports_mc_ccs(plane_id))
+		return gen12_plane_format_modifiers_mc_ccs;
+	else
+		return gen12_plane_format_modifiers_rc_ccs;
+}
+
 static bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
 			      enum pipe pipe, enum plane_id plane_id)
 {
@@ -2975,7 +3008,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 
 	plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe, plane_id);
 	if (INTEL_GEN(dev_priv) >= 12) {
-		modifiers = gen12_plane_format_modifiers_ccs;
+		modifiers = gen12_get_plane_modifiers(plane_id);
 		plane_funcs = &gen12_plane_funcs;
 	} else {
 		if (plane->has_ccs)

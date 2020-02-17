@@ -1732,20 +1732,6 @@ static int fsi_pcm_open(struct snd_soc_component *component,
 	return ret;
 }
 
-static int fsi_hw_params(struct snd_soc_component *component,
-			 struct snd_pcm_substream *substream,
-			 struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
-static int fsi_hw_free(struct snd_soc_component *component,
-		       struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static snd_pcm_uframes_t fsi_pointer(struct snd_soc_component *component,
 				     struct snd_pcm_substream *substream)
 {
@@ -1765,7 +1751,7 @@ static snd_pcm_uframes_t fsi_pointer(struct snd_soc_component *component,
 static int fsi_pcm_new(struct snd_soc_component *component,
 		       struct snd_soc_pcm_runtime *rtd)
 {
-	snd_pcm_lib_preallocate_pages_for_all(
+	snd_pcm_set_managed_buffer_all(
 		rtd->pcm,
 		SNDRV_DMA_TYPE_DEV,
 		rtd->card->snd_card->dev,
@@ -1815,9 +1801,6 @@ static struct snd_soc_dai_driver fsi_soc_dai[] = {
 static const struct snd_soc_component_driver fsi_soc_component = {
 	.name		= "fsi",
 	.open		= fsi_pcm_open,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
-	.hw_params	= fsi_hw_params,
-	.hw_free	= fsi_hw_free,
 	.pointer	= fsi_pointer,
 	.pcm_construct	= fsi_pcm_new,
 };
@@ -1955,7 +1938,7 @@ static int fsi_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
-	master->base = devm_ioremap_nocache(&pdev->dev,
+	master->base = devm_ioremap(&pdev->dev,
 					    res->start, resource_size(res));
 	if (!master->base) {
 		dev_err(&pdev->dev, "Unable to ioremap FSI registers.\n");

@@ -1020,7 +1020,7 @@ static void mwifiex_set_multicast_list(struct net_device *dev)
  * CFG802.11 network device handler for transmission timeout.
  */
 static void
-mwifiex_tx_timeout(struct net_device *dev)
+mwifiex_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 

@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/of.h>
 #include <linux/platform_data/mv_usb.h>
 #include <linux/io.h>
 
@@ -67,6 +68,8 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 {
 	struct device *dev = hcd->self.controller;
 	struct ehci_hcd_mv *ehci_mv = hcd_to_ehci_hcd_mv(hcd);
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	u32 status;
 	int retval;
 
 	if (ehci_mv == NULL) {
@@ -79,6 +82,14 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 	retval = ehci_setup(hcd);
 	if (retval)
 		dev_err(dev, "ehci_setup failed %d\n", retval);
+
+	if (of_usb_get_phy_mode(dev->of_node) == USBPHY_INTERFACE_MODE_HSIC) {
+		status = ehci_readl(ehci, &ehci->regs->port_status[0]);
+		status |= PORT_TEST_FORCE;
+		ehci_writel(ehci, status, &ehci->regs->port_status[0]);
+		status &= ~PORT_TEST_FORCE;
+		ehci_writel(ehci, status, &ehci->regs->port_status[0]);
+	}
 
 	return retval;
 }
@@ -116,7 +127,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		ehci_mv->set_vbus = pdata->set_vbus;
 	}
 
-	ehci_mv->phy = devm_phy_get(&pdev->dev, "usb");
+	ehci_mv->phy = devm_phy_optional_get(&pdev->dev, "usb");
 	if (IS_ERR(ehci_mv->phy)) {
 		retval = PTR_ERR(ehci_mv->phy);
 		if (retval != -EPROBE_DEFER)
@@ -164,7 +175,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	}
 
 	ehci = hcd_to_ehci(hcd);
-	ehci->caps = (struct ehci_caps *) ehci_mv->cap_regs;
+	ehci->caps = (struct ehci_caps __iomem *) ehci_mv->cap_regs;
 
 	if (ehci_mv->mode == MV_USB_MODE_OTG) {
 		ehci_mv->otg = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
@@ -246,10 +257,8 @@ static int mv_ehci_remove(struct platform_device *pdev)
 MODULE_ALIAS("mv-ehci");
 
 static const struct platform_device_id ehci_id_table[] = {
-	{"pxa-u2oehci", PXA_U2OEHCI},
-	{"pxa-sph", PXA_SPH},
-	{"mmp3-hsic", MMP3_HSIC},
-	{"mmp3-fsic", MMP3_FSIC},
+	{"pxa-u2oehci", 0},
+	{"pxa-sph", 0},
 	{},
 };
 

@@ -1483,6 +1483,7 @@ struct velocity_info {
 	struct velocity_context context;
 
 	u32 ticks;
+	u32 ethtool_ops_nesting;
 
 	u8 rev_id;
 

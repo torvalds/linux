@@ -440,7 +440,7 @@ radeon_connector_analog_encoder_conflict_solve(struct drm_connector *connector,
 				if (radeon_conflict->use_digital)
 					continue;
 
-				if (priority == true) {
+				if (priority) {
 					DRM_DEBUG_KMS("1: conflicting encoders switching off %s\n",
 						      conflict->name);
 					DRM_DEBUG_KMS("in favor of %s\n",
@@ -700,9 +700,9 @@ static int radeon_connector_set_property(struct drm_connector *connector, struct
 			else
 				ret = radeon_legacy_get_tmds_info_from_combios(radeon_encoder, tmds);
 		}
-		if (val == 1 || ret == false) {
+		if (val == 1 || !ret)
 			radeon_legacy_get_tmds_info_from_table(radeon_encoder, tmds);
-		}
+
 		radeon_property_change_mode(&radeon_encoder->base);
 	}
 

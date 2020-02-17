@@ -37,6 +37,7 @@ extern void vcn_v2_0_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
 				unsigned vmid, uint64_t pd_addr);
 extern void vcn_v2_0_dec_ring_emit_wreg(struct amdgpu_ring *ring,
 				uint32_t reg, uint32_t val);
+extern int vcn_v2_0_dec_ring_test_ring(struct amdgpu_ring *ring);
 
 extern void vcn_v2_0_enc_ring_insert_end(struct amdgpu_ring *ring);
 extern void vcn_v2_0_enc_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,

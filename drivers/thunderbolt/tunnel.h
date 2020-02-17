@@ -15,6 +15,7 @@ enum tb_tunnel_type {
 	TB_TUNNEL_PCI,
 	TB_TUNNEL_DP,
 	TB_TUNNEL_DMA,
+	TB_TUNNEL_USB3,
 };
 
 /**
@@ -57,6 +58,9 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 				      struct tb_port *dst, int transmit_ring,
 				      int transmit_path, int receive_ring,
 				      int receive_path);
+struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down);
+struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
+				       struct tb_port *down);
 
 void tb_tunnel_free(struct tb_tunnel *tunnel);
 int tb_tunnel_activate(struct tb_tunnel *tunnel);
@@ -80,6 +84,11 @@ static inline bool tb_tunnel_is_dp(const struct tb_tunnel *tunnel)
 static inline bool tb_tunnel_is_dma(const struct tb_tunnel *tunnel)
 {
 	return tunnel->type == TB_TUNNEL_DMA;
+}
+
+static inline bool tb_tunnel_is_usb3(const struct tb_tunnel *tunnel)
+{
+	return tunnel->type == TB_TUNNEL_USB3;
 }
 
 #endif

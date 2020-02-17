@@ -12,7 +12,6 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/paravirt.h>
-#include <asm/mpx.h>
 #include <asm/debugreg.h>
 
 extern atomic64_t last_mm_ctx_id;
@@ -69,14 +68,6 @@ struct ldt_struct {
 	int			slot;
 };
 
-/* This is a multiple of PAGE_SIZE. */
-#define LDT_SLOT_STRIDE (LDT_ENTRIES * LDT_ENTRY_SIZE)
-
-static inline void *ldt_slot_va(int slot)
-{
-	return (void *)(LDT_BASE_ADDR + LDT_SLOT_STRIDE * slot);
-}
-
 /*
  * Used for LDT copy/destruction.
  */
@@ -99,87 +90,21 @@ static inline void destroy_context_ldt(struct mm_struct *mm) { }
 static inline void ldt_arch_exit_mmap(struct mm_struct *mm) { }
 #endif
 
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+extern void load_mm_ldt(struct mm_struct *mm);
+extern void switch_ldt(struct mm_struct *prev, struct mm_struct *next);
+#else
 static inline void load_mm_ldt(struct mm_struct *mm)
 {
-#ifdef CONFIG_MODIFY_LDT_SYSCALL
-	struct ldt_struct *ldt;
-
-	/* READ_ONCE synchronizes with smp_store_release */
-	ldt = READ_ONCE(mm->context.ldt);
-
-	/*
-	 * Any change to mm->context.ldt is followed by an IPI to all
-	 * CPUs with the mm active.  The LDT will not be freed until
-	 * after the IPI is handled by all such CPUs.  This means that,
-	 * if the ldt_struct changes before we return, the values we see
-	 * will be safe, and the new values will be loaded before we run
-	 * any user code.
-	 *
-	 * NB: don't try to convert this to use RCU without extreme care.
-	 * We would still need IRQs off, because we don't want to change
-	 * the local LDT after an IPI loaded a newer value than the one
-	 * that we can see.
-	 */
-
-	if (unlikely(ldt)) {
-		if (static_cpu_has(X86_FEATURE_PTI)) {
-			if (WARN_ON_ONCE((unsigned long)ldt->slot > 1)) {
-				/*
-				 * Whoops -- either the new LDT isn't mapped
-				 * (if slot == -1) or is mapped into a bogus
-				 * slot (if slot > 1).
-				 */
-				clear_LDT();
-				return;
-			}
-
-			/*
-			 * If page table isolation is enabled, ldt->entries
-			 * will not be mapped in the userspace pagetables.
-			 * Tell the CPU to access the LDT through the alias
-			 * at ldt_slot_va(ldt->slot).
-			 */
-			set_ldt(ldt_slot_va(ldt->slot), ldt->nr_entries);
-		} else {
-			set_ldt(ldt->entries, ldt->nr_entries);
-		}
-	} else {
-		clear_LDT();
-	}
-#else
 	clear_LDT();
-#endif
 }
-
 static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
 {
-#ifdef CONFIG_MODIFY_LDT_SYSCALL
-	/*
-	 * Load the LDT if either the old or new mm had an LDT.
-	 *
-	 * An mm will never go from having an LDT to not having an LDT.  Two
-	 * mms never share an LDT, so we don't gain anything by checking to
-	 * see whether the LDT changed.  There's also no guarantee that
-	 * prev->context.ldt actually matches LDTR, but, if LDTR is non-NULL,
-	 * then prev->context.ldt will also be non-NULL.
-	 *
-	 * If we really cared, we could optimize the case where prev == next
-	 * and we're exiting lazy mode.  Most of the time, if this happens,
-	 * we don't actually need to reload LDTR, but modify_ldt() is mostly
-	 * used by legacy code and emulators where we don't need this level of
-	 * performance.
-	 *
-	 * This uses | instead of || because it generates better code.
-	 */
-	if (unlikely((unsigned long)prev->context.ldt |
-		     (unsigned long)next->context.ldt))
-		load_mm_ldt(next);
-#endif
-
 	DEBUG_LOCKS_WARN_ON(preemptible());
 }
+#endif
 
-void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);
+extern void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);
 
 /*
  * Init a new mm.  Used on mm copies, like at fork()
@@ -274,34 +199,9 @@ static inline bool is_64bit_mm(struct mm_struct *mm)
 }
 #endif
 
-static inline void arch_bprm_mm_init(struct mm_struct *mm,
-		struct vm_area_struct *vma)
-{
-	mpx_mm_init(mm);
-}
-
 static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
 			      unsigned long end)
 {
-	/*
-	 * mpx_notify_unmap() goes and reads a rarely-hot
-	 * cacheline in the mm_struct.  That can be expensive
-	 * enough to be seen in profiles.
-	 *
-	 * The mpx_notify_unmap() call and its contents have been
-	 * observed to affect munmap() performance on hardware
-	 * where MPX is not present.
-	 *
-	 * The unlikely() optimizes for the fast case: no MPX
-	 * in the CPU, or no MPX use in the process.  Even if
-	 * we get this wrong (in the unlikely event that MPX
-	 * is widely enabled on some system) the overhead of
-	 * MPX itself (reading bounds tables) is expected to
-	 * overwhelm the overhead of getting this unlikely()
-	 * consistently wrong.
-	 */
-	if (unlikely(cpu_feature_enabled(X86_FEATURE_MPX)))
-		mpx_notify_unmap(mm, start, end);
 }
 
 /*

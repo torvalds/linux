@@ -1223,7 +1223,8 @@ mt7530_port_vlan_del(struct dsa_switch *ds, int port,
 }
 
 static enum dsa_tag_protocol
-mtk_get_tag_protocol(struct dsa_switch *ds, int port)
+mtk_get_tag_protocol(struct dsa_switch *ds, int port,
+		     enum dsa_tag_protocol mp)
 {
 	struct mt7530_priv *priv = ds->priv;
 

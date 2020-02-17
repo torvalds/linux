@@ -275,9 +275,6 @@ static int pp_dpm_load_fw(void *handle)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
-	if (!hwmgr->not_vf)
-		return 0;
-
 	if (!hwmgr || !hwmgr->smumgr_funcs || !hwmgr->smumgr_funcs->start_smu)
 		return -EINVAL;
 
@@ -930,8 +927,11 @@ static int pp_dpm_set_mp1_state(void *handle, enum pp_mp1_state mp1_state)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
-	if (!hwmgr || !hwmgr->pm_en)
+	if (!hwmgr)
 		return -EINVAL;
+
+	if (!hwmgr->pm_en)
+		return 0;
 
 	if (hwmgr->hwmgr_func->set_mp1_state)
 		return hwmgr->hwmgr_func->set_mp1_state(hwmgr, mp1_state);

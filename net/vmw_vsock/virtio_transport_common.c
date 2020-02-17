@@ -11,9 +11,6 @@
 #include <linux/sched/signal.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
-#include <linux/virtio.h>
-#include <linux/virtio_ids.h>
-#include <linux/virtio_config.h>
 #include <linux/virtio_vsock.h>
 #include <uapi/linux/vsockmon.h>
 
@@ -33,6 +30,9 @@ static const struct virtio_transport *
 virtio_transport_get_ops(struct vsock_sock *vsk)
 {
 	const struct vsock_transport *t = vsock_core_get_transport(vsk);
+
+	if (WARN_ON(!t))
+		return NULL;
 
 	return container_of(t, struct virtio_transport, transport);
 }
@@ -161,15 +161,25 @@ void virtio_transport_deliver_tap_pkt(struct virtio_vsock_pkt *pkt)
 }
 EXPORT_SYMBOL_GPL(virtio_transport_deliver_tap_pkt);
 
+/* This function can only be used on connecting/connected sockets,
+ * since a socket assigned to a transport is required.
+ *
+ * Do not use on listener sockets!
+ */
 static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 					  struct virtio_vsock_pkt_info *info)
 {
 	u32 src_cid, src_port, dst_cid, dst_port;
+	const struct virtio_transport *t_ops;
 	struct virtio_vsock_sock *vvs;
 	struct virtio_vsock_pkt *pkt;
 	u32 pkt_len = info->pkt_len;
 
-	src_cid = virtio_transport_get_ops(vsk)->transport.get_local_cid();
+	t_ops = virtio_transport_get_ops(vsk);
+	if (unlikely(!t_ops))
+		return -EFAULT;
+
+	src_cid = t_ops->transport.get_local_cid();
 	src_port = vsk->local_addr.svm_port;
 	if (!info->remote_cid) {
 		dst_cid	= vsk->remote_addr.svm_cid;
@@ -202,7 +212,7 @@ static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 
 	virtio_transport_inc_tx_pkt(vvs, pkt);
 
-	return virtio_transport_get_ops(vsk)->send_pkt(pkt);
+	return t_ops->send_pkt(pkt);
 }
 
 static bool virtio_transport_inc_rx_pkt(struct virtio_vsock_sock *vvs,
@@ -1021,18 +1031,18 @@ virtio_transport_recv_listen(struct sock *sk, struct virtio_vsock_pkt *pkt,
 	int ret;
 
 	if (le16_to_cpu(pkt->hdr.op) != VIRTIO_VSOCK_OP_REQUEST) {
-		virtio_transport_reset(vsk, pkt);
+		virtio_transport_reset_no_sock(t, pkt);
 		return -EINVAL;
 	}
 
 	if (sk_acceptq_is_full(sk)) {
-		virtio_transport_reset(vsk, pkt);
+		virtio_transport_reset_no_sock(t, pkt);
 		return -ENOMEM;
 	}
 
 	child = vsock_create_connected(sk);
 	if (!child) {
-		virtio_transport_reset(vsk, pkt);
+		virtio_transport_reset_no_sock(t, pkt);
 		return -ENOMEM;
 	}
 
@@ -1054,7 +1064,7 @@ virtio_transport_recv_listen(struct sock *sk, struct virtio_vsock_pkt *pkt,
 	 */
 	if (ret || vchild->transport != &t->transport) {
 		release_sock(child);
-		virtio_transport_reset(vsk, pkt);
+		virtio_transport_reset_no_sock(t, pkt);
 		sock_put(child);
 		return ret;
 	}

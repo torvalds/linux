@@ -78,7 +78,7 @@ meson_clk_triphase_data(struct clk_regmap *clk)
 	return (struct meson_clk_triphase_data *)clk->data;
 }
 
-static void meson_clk_triphase_sync(struct clk_hw *hw)
+static int meson_clk_triphase_sync(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_triphase_data *tph = meson_clk_triphase_data(clk);
@@ -88,6 +88,8 @@ static void meson_clk_triphase_sync(struct clk_hw *hw)
 	val = meson_parm_read(clk->map, &tph->ph0);
 	meson_parm_write(clk->map, &tph->ph1, val);
 	meson_parm_write(clk->map, &tph->ph2, val);
+
+	return 0;
 }
 
 static int meson_clk_triphase_get_phase(struct clk_hw *hw)

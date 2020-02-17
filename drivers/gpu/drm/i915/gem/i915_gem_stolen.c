@@ -645,6 +645,8 @@ i915_gem_object_create_stolen(struct drm_i915_private *i915,
 
 static int init_stolen(struct intel_memory_region *mem)
 {
+	intel_memory_region_set_name(mem, "stolen");
+
 	/*
 	 * Initialise stolen early so that we may reserve preallocated
 	 * objects for the BIOS to KMS transition.

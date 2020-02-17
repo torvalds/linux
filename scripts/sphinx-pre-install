@@ -272,7 +272,7 @@ sub check_sphinx()
 
 	open IN, "$sphinx --version 2>&1 |" or die "$sphinx returned an error";
 	while (<IN>) {
-		if (m/^\s*sphinx-build\s+([\d\.]+)$/) {
+		if (m/^\s*sphinx-build\s+([\d\.]+)(\+\/[\da-f]+)?$/) {
 			$cur_version=$1;
 			last;
 		}

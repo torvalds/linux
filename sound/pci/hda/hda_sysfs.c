@@ -611,7 +611,7 @@ struct hda_patch_item {
 	void (*parser)(char *buf, struct hda_bus *bus, struct hda_codec **retc);
 };
 
-static struct hda_patch_item patch_items[NUM_LINE_MODES] = {
+static const struct hda_patch_item patch_items[NUM_LINE_MODES] = {
 	[LINE_MODE_CODEC] = {
 		.tag = "[codec]",
 		.parser = parse_codec_mode,

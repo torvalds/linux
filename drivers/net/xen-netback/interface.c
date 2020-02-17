@@ -585,6 +585,7 @@ int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
 	struct net_device *dev = vif->dev;
 	void *addr;
 	struct xen_netif_ctrl_sring *shared;
+	RING_IDX rsp_prod, req_prod;
 	int err;
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(vif),
@@ -593,7 +594,14 @@ int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
 		goto err;
 
 	shared = (struct xen_netif_ctrl_sring *)addr;
-	BACK_RING_INIT(&vif->ctrl, shared, XEN_PAGE_SIZE);
+	rsp_prod = READ_ONCE(shared->rsp_prod);
+	req_prod = READ_ONCE(shared->req_prod);
+
+	BACK_RING_ATTACH(&vif->ctrl, shared, rsp_prod, XEN_PAGE_SIZE);
+
+	err = -EIO;
+	if (req_prod - rsp_prod > RING_SIZE(&vif->ctrl))
+		goto err_unmap;
 
 	err = bind_interdomain_evtchn_to_irq(vif->domid, evtchn);
 	if (err < 0)
@@ -628,18 +636,6 @@ err:
 
 static void xenvif_disconnect_queue(struct xenvif_queue *queue)
 {
-	if (queue->tx_irq) {
-		unbind_from_irqhandler(queue->tx_irq, queue);
-		if (queue->tx_irq == queue->rx_irq)
-			queue->rx_irq = 0;
-		queue->tx_irq = 0;
-	}
-
-	if (queue->rx_irq) {
-		unbind_from_irqhandler(queue->rx_irq, queue);
-		queue->rx_irq = 0;
-	}
-
 	if (queue->task) {
 		kthread_stop(queue->task);
 		queue->task = NULL;
@@ -653,6 +649,18 @@ static void xenvif_disconnect_queue(struct xenvif_queue *queue)
 	if (queue->napi.poll) {
 		netif_napi_del(&queue->napi);
 		queue->napi.poll = NULL;
+	}
+
+	if (queue->tx_irq) {
+		unbind_from_irqhandler(queue->tx_irq, queue);
+		if (queue->tx_irq == queue->rx_irq)
+			queue->rx_irq = 0;
+		queue->tx_irq = 0;
+	}
+
+	if (queue->rx_irq) {
+		unbind_from_irqhandler(queue->rx_irq, queue);
+		queue->rx_irq = 0;
 	}
 
 	xenvif_unmap_frontend_data_rings(queue);

@@ -1417,7 +1417,7 @@ drop:
 	return NETDEV_TX_OK;
 }
 
-static void be_tx_timeout(struct net_device *netdev)
+static void be_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct device *dev = &adapter->pdev->dev;

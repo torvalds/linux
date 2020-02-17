@@ -1236,7 +1236,7 @@ static unsigned long pm3fb_size_memory(struct pm3_par *par)
 		return 0;
 	}
 	screen_mem =
-		ioremap_nocache(pm3fb_fix.smem_start, pm3fb_fix.smem_len);
+		ioremap(pm3fb_fix.smem_start, pm3fb_fix.smem_len);
 	if (!screen_mem) {
 		printk(KERN_WARNING "pm3fb: Can't ioremap smem area.\n");
 		release_mem_region(pm3fb_fix.smem_start, pm3fb_fix.smem_len);
@@ -1347,7 +1347,7 @@ static int pm3fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		goto err_exit_neither;
 	}
 	par->v_regs =
-		ioremap_nocache(pm3fb_fix.mmio_start, pm3fb_fix.mmio_len);
+		ioremap(pm3fb_fix.mmio_start, pm3fb_fix.mmio_len);
 	if (!par->v_regs) {
 		printk(KERN_WARNING "pm3fb: Can't remap %s register area.\n",
 			pm3fb_fix.id);

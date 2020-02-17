@@ -4,6 +4,8 @@
 
 #include "nouveau_display.h"
 
+struct nv50_msto;
+
 struct nv50_disp {
 	struct nvif_disp *disp;
 	struct nv50_core *core;

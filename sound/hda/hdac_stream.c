@@ -120,10 +120,8 @@ void snd_hdac_stream_clear(struct hdac_stream *azx_dev)
 	snd_hdac_stream_updateb(azx_dev, SD_CTL,
 				SD_CTL_DMA_START | SD_INT_MASK, 0);
 	snd_hdac_stream_writeb(azx_dev, SD_STS, SD_INT_MASK); /* to be sure */
-	if (azx_dev->stripe) {
+	if (azx_dev->stripe)
 		snd_hdac_stream_updateb(azx_dev, SD_CTL_3B, SD_CTL_STRIPE_MASK, 0);
-		azx_dev->stripe = 0;
-	}
 	azx_dev->running = false;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_clear);
@@ -592,7 +590,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_stream_timecounter_init);
 /**
  * snd_hdac_stream_sync_trigger - turn on/off stream sync register
  * @azx_dev: HD-audio core stream (master stream)
+ * @set: true = set, false = clear
  * @streams: bit flags of streams to sync
+ * @reg: the stream sync register address
  */
 void snd_hdac_stream_sync_trigger(struct hdac_stream *azx_dev, bool set,
 				  unsigned int streams, unsigned int reg)
@@ -631,20 +631,27 @@ void snd_hdac_stream_sync(struct hdac_stream *azx_dev, bool start,
 		nwait = 0;
 		i = 0;
 		list_for_each_entry(s, &bus->stream_list, list) {
-			if (streams & (1 << i)) {
-				if (start) {
-					/* check FIFO gets ready */
-					if (!(snd_hdac_stream_readb(s, SD_STS) &
-					      SD_STS_FIFO_READY))
-						nwait++;
-				} else {
-					/* check RUN bit is cleared */
-					if (snd_hdac_stream_readb(s, SD_CTL) &
-					    SD_CTL_DMA_START)
-						nwait++;
+			if (!(streams & (1 << i++)))
+				continue;
+
+			if (start) {
+				/* check FIFO gets ready */
+				if (!(snd_hdac_stream_readb(s, SD_STS) &
+				      SD_STS_FIFO_READY))
+					nwait++;
+			} else {
+				/* check RUN bit is cleared */
+				if (snd_hdac_stream_readb(s, SD_CTL) &
+				    SD_CTL_DMA_START) {
+					nwait++;
+					/*
+					 * Perform stream reset if DMA RUN
+					 * bit not cleared within given timeout
+					 */
+					if (timeout == 1)
+						snd_hdac_stream_reset(s);
 				}
 			}
-			i++;
 		}
 		if (!nwait)
 			break;

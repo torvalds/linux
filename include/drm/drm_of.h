@@ -92,8 +92,9 @@ static inline int drm_of_find_panel_or_bridge(const struct device_node *np,
 	return -EINVAL;
 }
 
-int drm_of_lvds_get_dual_link_pixel_order(const struct device_node *port1,
-					  const struct device_node *port2)
+static inline int
+drm_of_lvds_get_dual_link_pixel_order(const struct device_node *port1,
+				      const struct device_node *port2)
 {
 	return -EINVAL;
 }

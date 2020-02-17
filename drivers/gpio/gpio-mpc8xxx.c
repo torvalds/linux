@@ -296,6 +296,7 @@ static const struct mpc8xxx_gpio_devtype mpc512x_gpio_devtype = {
 
 static const struct mpc8xxx_gpio_devtype ls1028a_gpio_devtype = {
 	.gpio_dir_in_init = ls1028a_gpio_dir_in_init,
+	.irq_set_type = mpc8xxx_irq_set_type,
 };
 
 static const struct mpc8xxx_gpio_devtype mpc5125_gpio_devtype = {
@@ -346,6 +347,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gc = &mpc8xxx_gc->gc;
+	gc->parent = &pdev->dev;
 
 	if (of_property_read_bool(np, "little-endian")) {
 		ret = bgpio_init(gc, &pdev->dev, 4,

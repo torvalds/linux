@@ -19,26 +19,30 @@
 static int pxe1610_identify(struct i2c_client *client,
 			     struct pmbus_driver_info *info)
 {
-	if (pmbus_check_byte_register(client, 0, PMBUS_VOUT_MODE)) {
-		u8 vout_mode;
-		int ret;
+	int i;
 
-		/* Read the register with VOUT scaling value.*/
-		ret = pmbus_read_byte_data(client, 0, PMBUS_VOUT_MODE);
-		if (ret < 0)
-			return ret;
+	for (i = 0; i < PXE1610_NUM_PAGES; i++) {
+		if (pmbus_check_byte_register(client, i, PMBUS_VOUT_MODE)) {
+			u8 vout_mode;
+			int ret;
 
-		vout_mode = ret & GENMASK(4, 0);
+			/* Read the register with VOUT scaling value.*/
+			ret = pmbus_read_byte_data(client, i, PMBUS_VOUT_MODE);
+			if (ret < 0)
+				return ret;
 
-		switch (vout_mode) {
-		case 1:
-			info->vrm_version = vr12;
-			break;
-		case 2:
-			info->vrm_version = vr13;
-			break;
-		default:
-			return -ENODEV;
+			vout_mode = ret & GENMASK(4, 0);
+
+			switch (vout_mode) {
+			case 1:
+				info->vrm_version[i] = vr12;
+				break;
+			case 2:
+				info->vrm_version[i] = vr13;
+				break;
+			default:
+				return -ENODEV;
+			}
 		}
 	}
 

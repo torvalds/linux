@@ -78,7 +78,7 @@ void ucc_slow_enable(struct ucc_slow_private * uccs, enum comm_dir mode)
 	us_regs = uccs->us_regs;
 
 	/* Enable reception and/or transmission on this UCC. */
-	gumr_l = in_be32(&us_regs->gumr_l);
+	gumr_l = qe_ioread32be(&us_regs->gumr_l);
 	if (mode & COMM_DIR_TX) {
 		gumr_l |= UCC_SLOW_GUMR_L_ENT;
 		uccs->enabled_tx = 1;
@@ -87,7 +87,7 @@ void ucc_slow_enable(struct ucc_slow_private * uccs, enum comm_dir mode)
 		gumr_l |= UCC_SLOW_GUMR_L_ENR;
 		uccs->enabled_rx = 1;
 	}
-	out_be32(&us_regs->gumr_l, gumr_l);
+	qe_iowrite32be(gumr_l, &us_regs->gumr_l);
 }
 EXPORT_SYMBOL(ucc_slow_enable);
 
@@ -99,7 +99,7 @@ void ucc_slow_disable(struct ucc_slow_private * uccs, enum comm_dir mode)
 	us_regs = uccs->us_regs;
 
 	/* Disable reception and/or transmission on this UCC. */
-	gumr_l = in_be32(&us_regs->gumr_l);
+	gumr_l = qe_ioread32be(&us_regs->gumr_l);
 	if (mode & COMM_DIR_TX) {
 		gumr_l &= ~UCC_SLOW_GUMR_L_ENT;
 		uccs->enabled_tx = 0;
@@ -108,7 +108,7 @@ void ucc_slow_disable(struct ucc_slow_private * uccs, enum comm_dir mode)
 		gumr_l &= ~UCC_SLOW_GUMR_L_ENR;
 		uccs->enabled_rx = 0;
 	}
-	out_be32(&us_regs->gumr_l, gumr_l);
+	qe_iowrite32be(gumr_l, &us_regs->gumr_l);
 }
 EXPORT_SYMBOL(ucc_slow_disable);
 
@@ -154,6 +154,9 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 			__func__);
 		return -ENOMEM;
 	}
+	uccs->rx_base_offset = -1;
+	uccs->tx_base_offset = -1;
+	uccs->us_pram_offset = -1;
 
 	/* Fill slow UCC structure */
 	uccs->us_info = us_info;
@@ -179,7 +182,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	/* Get PRAM base */
 	uccs->us_pram_offset =
 		qe_muram_alloc(UCC_SLOW_PRAM_SIZE, ALIGNMENT_OF_UCC_SLOW_PRAM);
-	if (IS_ERR_VALUE(uccs->us_pram_offset)) {
+	if (uccs->us_pram_offset < 0) {
 		printk(KERN_ERR "%s: cannot allocate MURAM for PRAM", __func__);
 		ucc_slow_free(uccs);
 		return -ENOMEM;
@@ -198,7 +201,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		return ret;
 	}
 
-	out_be16(&uccs->us_pram->mrblr, us_info->max_rx_buf_length);
+	qe_iowrite16be(us_info->max_rx_buf_length, &uccs->us_pram->mrblr);
 
 	INIT_LIST_HEAD(&uccs->confQ);
 
@@ -206,10 +209,9 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	uccs->rx_base_offset =
 		qe_muram_alloc(us_info->rx_bd_ring_len * sizeof(struct qe_bd),
 				QE_ALIGNMENT_OF_BD);
-	if (IS_ERR_VALUE(uccs->rx_base_offset)) {
+	if (uccs->rx_base_offset < 0) {
 		printk(KERN_ERR "%s: cannot allocate %u RX BDs\n", __func__,
 			us_info->rx_bd_ring_len);
-		uccs->rx_base_offset = 0;
 		ucc_slow_free(uccs);
 		return -ENOMEM;
 	}
@@ -217,9 +219,8 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	uccs->tx_base_offset =
 		qe_muram_alloc(us_info->tx_bd_ring_len * sizeof(struct qe_bd),
 			QE_ALIGNMENT_OF_BD);
-	if (IS_ERR_VALUE(uccs->tx_base_offset)) {
+	if (uccs->tx_base_offset < 0) {
 		printk(KERN_ERR "%s: cannot allocate TX BDs", __func__);
-		uccs->tx_base_offset = 0;
 		ucc_slow_free(uccs);
 		return -ENOMEM;
 	}
@@ -228,27 +229,27 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	bd = uccs->confBd = uccs->tx_bd = qe_muram_addr(uccs->tx_base_offset);
 	for (i = 0; i < us_info->tx_bd_ring_len - 1; i++) {
 		/* clear bd buffer */
-		out_be32(&bd->buf, 0);
+		qe_iowrite32be(0, &bd->buf);
 		/* set bd status and length */
-		out_be32((u32 *) bd, 0);
+		qe_iowrite32be(0, (u32 *)bd);
 		bd++;
 	}
 	/* for last BD set Wrap bit */
-	out_be32(&bd->buf, 0);
-	out_be32((u32 *) bd, cpu_to_be32(T_W));
+	qe_iowrite32be(0, &bd->buf);
+	qe_iowrite32be(cpu_to_be32(T_W), (u32 *)bd);
 
 	/* Init Rx bds */
 	bd = uccs->rx_bd = qe_muram_addr(uccs->rx_base_offset);
 	for (i = 0; i < us_info->rx_bd_ring_len - 1; i++) {
 		/* set bd status and length */
-		out_be32((u32*)bd, 0);
+		qe_iowrite32be(0, (u32 *)bd);
 		/* clear bd buffer */
-		out_be32(&bd->buf, 0);
+		qe_iowrite32be(0, &bd->buf);
 		bd++;
 	}
 	/* for last BD set Wrap bit */
-	out_be32((u32*)bd, cpu_to_be32(R_W));
-	out_be32(&bd->buf, 0);
+	qe_iowrite32be(cpu_to_be32(R_W), (u32 *)bd);
+	qe_iowrite32be(0, &bd->buf);
 
 	/* Set GUMR (For more details see the hardware spec.). */
 	/* gumr_h */
@@ -269,7 +270,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		gumr |= UCC_SLOW_GUMR_H_TXSY;
 	if (us_info->rtsm)
 		gumr |= UCC_SLOW_GUMR_H_RTSM;
-	out_be32(&us_regs->gumr_h, gumr);
+	qe_iowrite32be(gumr, &us_regs->gumr_h);
 
 	/* gumr_l */
 	gumr = us_info->tdcr | us_info->rdcr | us_info->tenc | us_info->renc |
@@ -282,7 +283,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		gumr |= UCC_SLOW_GUMR_L_TINV;
 	if (us_info->tend)
 		gumr |= UCC_SLOW_GUMR_L_TEND;
-	out_be32(&us_regs->gumr_l, gumr);
+	qe_iowrite32be(gumr, &us_regs->gumr_l);
 
 	/* Function code registers */
 
@@ -292,8 +293,8 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	uccs->us_pram->rbmr = UCC_BMR_BO_BE;
 
 	/* rbase, tbase are offsets from MURAM base */
-	out_be16(&uccs->us_pram->rbase, uccs->rx_base_offset);
-	out_be16(&uccs->us_pram->tbase, uccs->tx_base_offset);
+	qe_iowrite16be(uccs->rx_base_offset, &uccs->us_pram->rbase);
+	qe_iowrite16be(uccs->tx_base_offset, &uccs->us_pram->tbase);
 
 	/* Mux clocking */
 	/* Grant Support */
@@ -323,14 +324,14 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	}
 
 	/* Set interrupt mask register at UCC level. */
-	out_be16(&us_regs->uccm, us_info->uccm_mask);
+	qe_iowrite16be(us_info->uccm_mask, &us_regs->uccm);
 
 	/* First, clear anything pending at UCC level,
 	 * otherwise, old garbage may come through
 	 * as soon as the dam is opened. */
 
 	/* Writing '1' clears */
-	out_be16(&us_regs->ucce, 0xffff);
+	qe_iowrite16be(0xffff, &us_regs->ucce);
 
 	/* Issue QE Init command */
 	if (us_info->init_tx && us_info->init_rx)
@@ -352,14 +353,9 @@ void ucc_slow_free(struct ucc_slow_private * uccs)
 	if (!uccs)
 		return;
 
-	if (uccs->rx_base_offset)
-		qe_muram_free(uccs->rx_base_offset);
-
-	if (uccs->tx_base_offset)
-		qe_muram_free(uccs->tx_base_offset);
-
-	if (uccs->us_pram)
-		qe_muram_free(uccs->us_pram_offset);
+	qe_muram_free(uccs->rx_base_offset);
+	qe_muram_free(uccs->tx_base_offset);
+	qe_muram_free(uccs->us_pram_offset);
 
 	if (uccs->us_regs)
 		iounmap(uccs->us_regs);

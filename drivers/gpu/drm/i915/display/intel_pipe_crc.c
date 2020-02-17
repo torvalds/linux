@@ -98,7 +98,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 			break;
 		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_EDP:
-			dig_port = enc_to_dig_port(&encoder->base);
+			dig_port = enc_to_dig_port(encoder);
 			switch (dig_port->base.port) {
 			case PORT_B:
 				*source = INTEL_PIPE_CRC_SOURCE_DP_B;

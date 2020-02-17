@@ -45,7 +45,7 @@ struct ucsi_dp {
  * -EOPNOTSUPP.
  */
 
-static int ucsi_displayport_enter(struct typec_altmode *alt)
+static int ucsi_displayport_enter(struct typec_altmode *alt, u32 *vdo)
 {
 	struct ucsi_dp *dp = typec_altmode_get_drvdata(alt);
 	struct ucsi *ucsi = dp->con->ucsi;

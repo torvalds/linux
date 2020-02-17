@@ -34,11 +34,15 @@ struct dmub_srv;
 
 #define BASE(seg) BASE_INNER(seg)
 
-#define REG_OFFSET(base_index, addr) (BASE(base_index) + addr)
+#define REG_OFFSET(reg_name) (BASE(mm##reg_name##_BASE_IDX) + mm##reg_name)
 
-#define REG(reg_name) REG_OFFSET(mm ## reg_name ## _BASE_IDX, mm ## reg_name)
+#define FD_SHIFT(reg_name, field) reg_name##__##field##__SHIFT
 
-#define FD(reg_field) reg_field ## __SHIFT,  reg_field ## _MASK
+#define FD_MASK(reg_name, field) reg_name##__##field##_MASK
+
+#define REG(reg) (REGS)->offset.reg
+
+#define FD(reg_field) (REGS)->shift.reg_field, (REGS)->mask.reg_field
 
 #define FN(reg_name, field) FD(reg_name##__##field)
 

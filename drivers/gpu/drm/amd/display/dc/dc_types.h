@@ -60,7 +60,12 @@ enum dce_environment {
 	DCE_ENV_FPGA_MAXIMUS,
 	/* Emulation on real HW or on FPGA. Used by Diagnostics, enforces
 	 * requirements of Diagnostics team. */
-	DCE_ENV_DIAG
+	DCE_ENV_DIAG,
+	/*
+	 * Guest VM system, DC HW may exist but is not virtualized and
+	 * should not be used.  SW support for VDI only.
+	 */
+	DCE_ENV_VIRTUAL_HW
 };
 
 /* Note: use these macro definitions instead of direct comparison! */
@@ -224,6 +229,7 @@ struct dc_panel_patch {
 	unsigned int extra_t12_ms;
 	unsigned int extra_delay_backlight_off;
 	unsigned int extra_t7_ms;
+	unsigned int manage_secondary_link;
 };
 
 struct dc_edid_caps {
@@ -598,7 +604,11 @@ struct audio_info {
 	/* this field must be last in this struct */
 	struct audio_mode modes[DC_MAX_AUDIO_DESC_COUNT];
 };
-
+struct audio_check {
+	unsigned int audio_packet_type;
+	unsigned int max_audiosample_rate;
+	unsigned int acat;
+};
 enum dc_infoframe_type {
 	DC_HDMI_INFOFRAME_TYPE_VENDOR = 0x81,
 	DC_HDMI_INFOFRAME_TYPE_AVI = 0x82,
@@ -719,7 +729,7 @@ struct psr_context {
 	/* The VSync rate in Hz used to calculate the
 	 * step size for smooth brightness feature
 	 */
-	unsigned int vsyncRateHz;
+	unsigned int vsync_rate_hz;
 	unsigned int skipPsrWaitForPllLock;
 	unsigned int numberOfControllers;
 	/* Unused, for future use. To indicate that first changed frame from

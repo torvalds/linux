@@ -951,7 +951,6 @@ static int aes_skcipher_setkey(struct crypto_skcipher *cipher,
 				 const u8 *key, unsigned int keylen)
 {
 	struct cryp_ctx *ctx = crypto_skcipher_ctx(cipher);
-	u32 *flags = &cipher->base.crt_flags;
 
 	pr_debug(DEV_DBG_NAME " [%s]", __func__);
 
@@ -970,7 +969,6 @@ static int aes_skcipher_setkey(struct crypto_skcipher *cipher,
 
 	default:
 		pr_err(DEV_DBG_NAME "[%s]: Unknown keylen!", __func__);
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	}
 

@@ -27,7 +27,7 @@ config COMMON_CLK_WM831X
 	tristate "Clock driver for WM831x/2x PMICs"
 	depends on MFD_WM831X
 	---help---
-          Supports the clocking subsystem of the WM831x/2x series of
+	  Supports the clocking subsystem of the WM831x/2x series of
 	  PMICs from Wolfson Microelectronics.
 
 source "drivers/clk/versatile/Kconfig"
@@ -174,6 +174,18 @@ config COMMON_CLK_CS2000_CP
 	help
 	  If you say yes here you get support for the CS2000 clock multiplier.
 
+config COMMON_CLK_FSL_SAI
+	bool "Clock driver for BCLK of Freescale SAI cores"
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	help
+	  This driver supports the Freescale SAI (Synchronous Audio Interface)
+	  to be used as a generic clock output. Some SoCs have restrictions
+	  regarding the possible pin multiplexer settings. Eg. on some SoCs
+	  two SAI interfaces can only be enabled together. If just one is
+	  needed, the BCLK pin of the second one can be used as general
+	  purpose clock output. Ideally, it can be used to drive an audio
+	  codec (sometimes known as MCLK).
+
 config COMMON_CLK_GEMINI
 	bool "Clock driver for Cortina Systems Gemini SoC"
 	depends on ARCH_GEMINI || COMPILE_TEST
@@ -224,6 +236,16 @@ config CLK_QORIQ
 	---help---
 	  This adds the clock driver support for Freescale QorIQ platforms
 	  using common clock framework.
+
+config CLK_LS1028A_PLLDIG
+        tristate "Clock driver for LS1028A Display output"
+        depends on ARCH_LAYERSCAPE || COMPILE_TEST
+        default ARCH_LAYERSCAPE
+        help
+          This driver support the Display output interfaces(LCD, DPHY) pixel clocks
+          of the QorIQ Layerscape LS1028A, as implemented TSMC CLN28HPM PLL. Not all
+          features of the PLL are currently supported by the driver. By default,
+          configured bypass mode with this PLL.
 
 config COMMON_CLK_XGENE
 	bool "Clock driver for APM XGene SoC"
@@ -305,10 +327,10 @@ config COMMON_CLK_MMP2
 	  Support for Marvell MMP2 and MMP3 SoC clocks
 
 config COMMON_CLK_BD718XX
-	tristate "Clock driver for ROHM BD718x7 PMIC"
-	depends on MFD_ROHM_BD718XX || MFD_ROHM_BD70528
+	tristate "Clock driver for 32K clk gates on ROHM PMICs"
+	depends on MFD_ROHM_BD718XX || MFD_ROHM_BD70528 || MFD_ROHM_BD71828
 	help
-	  This driver supports ROHM BD71837, ROHM BD71847 and
+	  This driver supports ROHM BD71837, ROHM BD71847, ROHM BD71828 and
 	  ROHM BD70528 PMICs clock gates.
 
 config COMMON_CLK_FIXED_MMIO

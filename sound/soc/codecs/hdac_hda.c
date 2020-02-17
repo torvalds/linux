@@ -164,6 +164,19 @@ static struct snd_soc_dai_driver hdac_hda_dais[] = {
 		.sig_bits = 24,
 	},
 },
+{
+	.id = HDAC_HDMI_3_DAI_ID,
+	.name = "intel-hdmi-hifi4",
+	.ops = &hdac_hda_dai_ops,
+	.playback = {
+		.stream_name    = "hifi4",
+		.channels_min   = 1,
+		.channels_max   = 32,
+		.rates          = STUB_HDMI_RATES,
+		.formats        = STUB_FORMATS,
+		.sig_bits = 24,
+	},
+},
 
 };
 
@@ -345,6 +358,9 @@ static struct hda_pcm *snd_soc_find_pcm_from_dai(struct hdac_hda_priv *hda_pvt,
 		break;
 	case HDAC_HDMI_2_DAI_ID:
 		pcm_name = "HDMI 2";
+		break;
+	case HDAC_HDMI_3_DAI_ID:
+		pcm_name = "HDMI 3";
 		break;
 	default:
 		dev_err(&hcodec->core.dev, "invalid dai id %d\n", dai->id);
@@ -588,7 +604,9 @@ static int hdac_hda_dev_remove(struct hdac_device *hdev)
 	struct hdac_hda_priv *hda_pvt;
 
 	hda_pvt = dev_get_drvdata(&hdev->dev);
-	cancel_delayed_work_sync(&hda_pvt->codec.jackpoll_work);
+	if (hda_pvt && hda_pvt->codec.registered)
+		cancel_delayed_work_sync(&hda_pvt->codec.jackpoll_work);
+
 	return 0;
 }
 

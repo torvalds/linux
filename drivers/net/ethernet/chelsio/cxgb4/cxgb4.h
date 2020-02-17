@@ -56,6 +56,7 @@
 #include <asm/io.h>
 #include "t4_chip_type.h"
 #include "cxgb4_uld.h"
+#include "t4fw_api.h"
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
 extern struct list_head adapter_list;
@@ -67,6 +68,16 @@ extern struct mutex uld_mutex;
  */
 #define ETHTXQ_STOP_THRES \
 	(1 + DIV_ROUND_UP((3 * MAX_SKB_FRAGS) / 2 + (MAX_SKB_FRAGS & 1), 8))
+
+#define FW_PARAM_DEV(param) \
+	(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) | \
+	 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_##param))
+
+#define FW_PARAM_PFVF(param) \
+	(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) | \
+	 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_##param) |  \
+	 FW_PARAMS_PARAM_Y_V(0) | \
+	 FW_PARAMS_PARAM_Z_V(0))
 
 enum {
 	MAX_NPORTS	= 4,     /* max # of ports */
@@ -504,6 +515,7 @@ struct link_config {
 
 	enum cc_pause  requested_fc;     /* flow control user has requested */
 	enum cc_pause  fc;               /* actual link flow control */
+	enum cc_pause  advertised_fc;    /* actual advertised flow control */
 
 	enum cc_fec    requested_fec;	 /* Forward Error Correction: */
 	enum cc_fec    fec;		 /* requested and actual in use */

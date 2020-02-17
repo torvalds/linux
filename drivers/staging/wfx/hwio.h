@@ -37,16 +37,11 @@ int ahb_reg_write(struct wfx_dev *wdev, u32 addr, u32 val);
 #define CFG_ERR_HOST_NO_IN_QUEUE   0x00000040
 #define CFG_ERR_HOST_CRC_MISS      0x00000080 // only with SDIO
 #define CFG_SPI_IGNORE_CS          0x00000080 // only with SPI
-/* Bytes ordering (only writable in SPI): */
-#define CFG_WORD_MODE_MASK         0x00000300
-/*
- * B1,B0,B3,B2 (In SPI, register address and
- * CONFIG data always use this mode)
- */
-#define     CFG_WORD_MODE0         0x00000000
-#define     CFG_WORD_MODE1         0x00000100 //   B3,B2,B1,B0
-#define     CFG_WORD_MODE2         0x00000200 //   B0,B1,B2,B3 (SDIO)
-#define CFG_DIRECT_ACCESS_MODE     0x00000400 // Direct or queue access mode
+#define CFG_BYTE_ORDER_MASK        0x00000300 // only writable with SPI
+#define     CFG_BYTE_ORDER_BADC    0x00000000
+#define     CFG_BYTE_ORDER_DCBA    0x00000100
+#define     CFG_BYTE_ORDER_ABCD    0x00000200 // SDIO always use this value
+#define CFG_DIRECT_ACCESS_MODE     0x00000400
 #define CFG_PREFETCH_AHB           0x00000800
 #define CFG_DISABLE_CPU_CLK        0x00001000
 #define CFG_PREFETCH_SRAM          0x00002000

@@ -36,7 +36,6 @@ void enetc_sched_speed_set(struct net_device *ndev)
 	case SPEED_10:
 	default:
 		pspeed = ENETC_PMR_PSPEED_10M;
-		netdev_err(ndev, "Qbv PSPEED set speed link down.\n");
 	}
 
 	priv->speed = speed;
@@ -156,6 +155,11 @@ int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data)
 	int err;
 	int i;
 
+	/* TSD and Qbv are mutually exclusive in hardware */
+	for (i = 0; i < priv->num_tx_rings; i++)
+		if (priv->tx_ring[i]->tsd_enable)
+			return -EBUSY;
+
 	for (i = 0; i < priv->num_tx_rings; i++)
 		enetc_set_bdr_prio(&priv->si->hw,
 				   priv->tx_ring[i]->index,
@@ -192,7 +196,6 @@ int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data)
 	u32 hi_credit_bit, hi_credit_reg;
 	u32 max_interference_size;
 	u32 port_frame_max_size;
-	u32 tc_max_sized_frame;
 	u8 tc = cbs->queue;
 	u8 prio_top, prio_next;
 	int bw_sum = 0;
@@ -250,7 +253,7 @@ int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data)
 		return -EINVAL;
 	}
 
-	tc_max_sized_frame = enetc_port_rd(&si->hw, ENETC_PTCMSDUR(tc));
+	enetc_port_rd(&si->hw, ENETC_PTCMSDUR(tc));
 
 	/* For top prio TC, the max_interfrence_size is maxSizedFrame.
 	 *
@@ -295,6 +298,36 @@ int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data)
 
 	/* Set bw register and enable this traffic class */
 	enetc_port_wr(&si->hw, ENETC_PTCCBSR0(tc), bw | ENETC_CBSE);
+
+	return 0;
+}
+
+int enetc_setup_tc_txtime(struct net_device *ndev, void *type_data)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct tc_etf_qopt_offload *qopt = type_data;
+	u8 tc_nums = netdev_get_num_tc(ndev);
+	int tc;
+
+	if (!tc_nums)
+		return -EOPNOTSUPP;
+
+	tc = qopt->queue;
+
+	if (tc < 0 || tc >= priv->num_tx_rings)
+		return -EINVAL;
+
+	/* Do not support TXSTART and TX CSUM offload simutaniously */
+	if (ndev->features & NETIF_F_CSUM_MASK)
+		return -EBUSY;
+
+	/* TSD and Qbv are mutually exclusive in hardware */
+	if (enetc_rd(&priv->si->hw, ENETC_QBV_PTGCR_OFFSET) & ENETC_QBV_TGE)
+		return -EBUSY;
+
+	priv->tx_ring[tc]->tsd_enable = qopt->enable;
+	enetc_port_wr(&priv->si->hw, ENETC_PTCTSDR(tc),
+		      qopt->enable ? ENETC_TSDE : 0);
 
 	return 0;
 }

@@ -24,7 +24,7 @@
 #define _ASM_X86_MTRR_H
 
 #include <uapi/asm/mtrr.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 
 
 /*
@@ -86,7 +86,7 @@ static inline void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi)
 }
 static inline void mtrr_bp_init(void)
 {
-	pat_disable("MTRRs disabled, skipping PAT initialization too.");
+	pat_disable("PAT support disabled because CONFIG_MTRR is disabled in the kernel.");
 }
 
 #define mtrr_ap_init() do {} while (0)

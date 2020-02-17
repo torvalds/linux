@@ -24,7 +24,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/pgalloc.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/setup.h>
 
 #include "physaddr.h"
@@ -196,10 +196,10 @@ __ioremap_caller(resource_size_t phys_addr, unsigned long size,
 	phys_addr &= PHYSICAL_PAGE_MASK;
 	size = PAGE_ALIGN(last_addr+1) - phys_addr;
 
-	retval = reserve_memtype(phys_addr, (u64)phys_addr + size,
+	retval = memtype_reserve(phys_addr, (u64)phys_addr + size,
 						pcm, &new_pcm);
 	if (retval) {
-		printk(KERN_ERR "ioremap reserve_memtype failed %d\n", retval);
+		printk(KERN_ERR "ioremap memtype_reserve failed %d\n", retval);
 		return NULL;
 	}
 
@@ -255,7 +255,7 @@ __ioremap_caller(resource_size_t phys_addr, unsigned long size,
 	area->phys_addr = phys_addr;
 	vaddr = (unsigned long) area->addr;
 
-	if (kernel_map_sync_memtype(phys_addr, size, pcm))
+	if (memtype_kernel_map_sync(phys_addr, size, pcm))
 		goto err_free_area;
 
 	if (ioremap_page_range(vaddr, vaddr + size, phys_addr, prot))
@@ -275,7 +275,7 @@ __ioremap_caller(resource_size_t phys_addr, unsigned long size,
 err_free_area:
 	free_vm_area(area);
 err_free_memtype:
-	free_memtype(phys_addr, phys_addr + size);
+	memtype_free(phys_addr, phys_addr + size);
 	return NULL;
 }
 
@@ -451,7 +451,7 @@ void iounmap(volatile void __iomem *addr)
 		return;
 	}
 
-	free_memtype(p->phys_addr, p->phys_addr + get_vm_area_size(p));
+	memtype_free(p->phys_addr, p->phys_addr + get_vm_area_size(p));
 
 	/* Finally remove it */
 	o = remove_vm_area((void __force *)addr);

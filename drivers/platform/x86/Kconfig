@@ -997,7 +997,6 @@ config INTEL_SCU_IPC
 config INTEL_SCU_IPC_UTIL
 	tristate "Intel SCU IPC utility driver"
 	depends on INTEL_SCU_IPC
-	default y
 	---help---
 	  The IPC Util driver provides an interface with the SCU enabling
 	  low level access for debug work and updating the firmware. Say
@@ -1299,9 +1298,9 @@ config INTEL_ATOMISP2_PM
 	depends on PCI && IOSF_MBI && PM
 	help
 	  Power-management driver for Intel's Image Signal Processor found on
-	  Bay and Cherry Trail devices. This dummy driver's sole purpose is to
-	  turn the ISP off (put it in D3) to save power and to allow entering
-	  of S0ix modes.
+	  Bay Trail and Cherry Trail devices. This dummy driver's sole purpose
+	  is to turn the ISP off (put it in D3) to save power and to allow
+	  entering of S0ix modes.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_atomisp2_pm.
@@ -1336,6 +1335,17 @@ config PCENGINES_APU2
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pcengines-apuv2.
+
+config INTEL_UNCORE_FREQ_CONTROL
+	tristate "Intel Uncore frequency control driver"
+	depends on X86_64
+	help
+	  This driver allows control of uncore frequency limits on
+	  supported server platforms.
+	  Uncore frequency controls RING/LLC (last-level cache) clocks.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel-uncore-frequency.
 
 source "drivers/platform/x86/intel_speed_select_if/Kconfig"
 

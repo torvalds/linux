@@ -1417,7 +1417,7 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	default_par->regbase_virt =
-		ioremap_nocache(info->fix.mmio_start, info->fix.mmio_len);
+		ioremap(info->fix.mmio_start, info->fix.mmio_len);
 	if (!default_par->regbase_virt) {
 		printk(KERN_ERR "fb: Can't remap %s register area.\n",
 				info->fix.id);

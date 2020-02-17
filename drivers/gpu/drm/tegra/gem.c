@@ -60,8 +60,16 @@ static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 	/*
 	 * If we've manually mapped the buffer object through the IOMMU, make
 	 * sure to return the IOVA address of our mapping.
+	 *
+	 * Similarly, for buffers that have been allocated by the DMA API the
+	 * physical address can be used for devices that are not attached to
+	 * an IOMMU. For these devices, callers must pass a valid pointer via
+	 * the @phys argument.
+	 *
+	 * Imported buffers were also already mapped at import time, so the
+	 * existing mapping can be reused.
 	 */
-	if (phys && obj->mm) {
+	if (phys) {
 		*phys = obj->iova;
 		return NULL;
 	}

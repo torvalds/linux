@@ -1408,8 +1408,8 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi *umidi,
 		/*
 		 * Some devices only work with 9 bytes packet size:
 		 */
-	case USB_ID(0x0644, 0x800E): /* Tascam US-122L */
-	case USB_ID(0x0644, 0x800F): /* Tascam US-144 */
+	case USB_ID(0x0644, 0x800e): /* Tascam US-122L */
+	case USB_ID(0x0644, 0x800f): /* Tascam US-144 */
 		ep->max_transfer = 9;
 		break;
 	}

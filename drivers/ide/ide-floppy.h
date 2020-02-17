@@ -26,6 +26,8 @@ void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *);
 /* ide-floppy_ioctl.c */
 int ide_floppy_ioctl(ide_drive_t *, struct block_device *, fmode_t,
 		     unsigned int, unsigned long);
+int ide_floppy_compat_ioctl(ide_drive_t *, struct block_device *, fmode_t,
+			    unsigned int, unsigned long);
 
 #ifdef CONFIG_IDE_PROC_FS
 /* ide-floppy_proc.c */

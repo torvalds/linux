@@ -104,7 +104,7 @@ module_param(dbri_debug, int, 0644);
 MODULE_PARM_DESC(dbri_debug, "Debug value for Sun DBRI soundcard.");
 
 #ifdef DBRI_DEBUG
-static char *cmds[] = {
+static const char * const cmds[] = {
 	"WAIT", "PAUSE", "JUMP", "IIQ", "REX", "SDP", "CDP", "DTS",
 	"SSP", "CHI", "NT", "TE", "CDEC", "TEST", "CDM", "RESRV"
 };
@@ -2099,12 +2099,6 @@ static int snd_dbri_hw_params(struct snd_pcm_substream *substream,
 	if (ret != 0)
 		return ret;
 
-	if ((ret = snd_pcm_lib_malloc_pages(substream,
-				params_buffer_bytes(hw_params))) < 0) {
-		printk(KERN_ERR "malloc_pages failed with %d\n", ret);
-		return ret;
-	}
-
 	/* hw_params can get called multiple times. Only map the DMA once.
 	 */
 	if (info->dvma_buffer == 0) {
@@ -2151,7 +2145,7 @@ static int snd_dbri_hw_free(struct snd_pcm_substream *substream)
 		info->pipe = -1;
 	}
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int snd_dbri_prepare(struct snd_pcm_substream *substream)
@@ -2221,7 +2215,6 @@ static snd_pcm_uframes_t snd_dbri_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_dbri_ops = {
 	.open = snd_dbri_open,
 	.close = snd_dbri_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_dbri_hw_params,
 	.hw_free = snd_dbri_hw_free,
 	.prepare = snd_dbri_prepare,
@@ -2248,9 +2241,8 @@ static int snd_dbri_pcm(struct snd_card *card)
 	pcm->info_flags = 0;
 	strcpy(pcm->name, card->shortname);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					      NULL,
-					      64 * 1024, 64 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL, 64 * 1024, 64 * 1024);
 	return 0;
 }
 
@@ -2418,7 +2410,7 @@ static int snd_cs4215_put_single(struct snd_kcontrol *kcontrol,
   .private_value = (entry) | ((shift) << 8) | ((mask) << 16) |	\
 			((invert) << 24) },
 
-static struct snd_kcontrol_new dbri_controls[] = {
+static const struct snd_kcontrol_new dbri_controls[] = {
 	{
 	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	 .name  = "Playback Volume",

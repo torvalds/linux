@@ -552,6 +552,36 @@ uint32_t generic_read_indirect_reg(const struct dc_context *ctx,
 	return value;
 }
 
+uint32_t generic_indirect_reg_get(const struct dc_context *ctx,
+		uint32_t addr_index, uint32_t addr_data,
+		uint32_t index, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t *field_value1,
+		...)
+{
+	uint32_t shift, mask, *field_value;
+	uint32_t value = 0;
+	int i = 1;
+
+	va_list ap;
+
+	va_start(ap, field_value1);
+
+	value = generic_read_indirect_reg(ctx, addr_index, addr_data, index);
+	*field_value1 = get_reg_field_value_ex(value, mask1, shift1);
+
+	while (i < n) {
+		shift = va_arg(ap, uint32_t);
+		mask = va_arg(ap, uint32_t);
+		field_value = va_arg(ap, uint32_t *);
+
+		*field_value = get_reg_field_value_ex(value, mask, shift);
+		i++;
+	}
+
+	va_end(ap);
+
+	return value;
+}
 
 uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
 		uint32_t addr_index, uint32_t addr_data,

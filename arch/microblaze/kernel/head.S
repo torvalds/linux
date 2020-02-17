@@ -121,10 +121,10 @@ no_fdt_arg:
 	tophys(r4,r4)			/* convert to phys address */
 	ori	r3, r0, COMMAND_LINE_SIZE - 1 /* number of loops */
 _copy_command_line:
-	/* r2=r5+r6 - r5 contain pointer to command line */
+	/* r2=r5+r11 - r5 contain pointer to command line */
 	lbu	r2, r5, r11
 	beqid	r2, skip		/* Skip if no data */
-	sb	r2, r4, r11		/* addr[r4+r6]= r2 */
+	sb	r2, r4, r11		/* addr[r4+r11]= r2 */
 	addik	r11, r11, 1		/* increment counting */
 	bgtid	r3, _copy_command_line	/* loop for all entries       */
 	addik	r3, r3, -1		/* decrement loop */
@@ -139,8 +139,8 @@ skip:
 	ori	r4, r0, TOPHYS(_bram_load_start)	/* save bram context */
 	ori	r3, r0, (LMB_SIZE - 4)
 _copy_bram:
-	lw	r7, r0, r11		/* r7 = r0 + r6 */
-	sw	r7, r4, r11		/* addr[r4 + r6] = r7 */
+	lw	r7, r0, r11		/* r7 = r0 + r11 */
+	sw	r7, r4, r11		/* addr[r4 + r11] = r7 */
 	addik	r11, r11, 4		/* increment counting */
 	bgtid	r3, _copy_bram		/* loop for all entries */
 	addik	r3, r3, -4		/* descrement loop */

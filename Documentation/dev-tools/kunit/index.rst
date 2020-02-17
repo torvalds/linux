@@ -9,6 +9,7 @@ KUnit - Unit Testing for the Linux Kernel
 
 	start
 	usage
+	kunit-tool
 	api/index
 	faq
 
@@ -47,6 +48,9 @@ architecture, like ARM or x86; however, unlike other architectures it compiles
 to a standalone program that can be run like any other program directly inside
 of a host operating system; to be clear, it does not require any virtualization
 support; it is just a regular program.
+
+Alternatively, kunit and kunit tests can be built as modules and tests will
+run when the test module is loaded.
 
 KUnit is fast. Excluding build time, from invocation to completion KUnit can run
 several dozen tests in only 10 to 20 seconds; this might not sound like a big

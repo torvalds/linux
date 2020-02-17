@@ -29,27 +29,21 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_supported_band *sband;
 	struct sk_buff *skb;
-	struct ieee80211_rx_status rx_status = { 0 };
-	struct ieee80211_hdr *hdr;
-	__le16 fc;
-	u8 *rsr, *new_rsr, *rssi;
-	__le64 *tsf_time;
+	struct ieee80211_rx_status *rx_status;
+	struct vnt_rx_header *head;
+	struct vnt_rx_tail *tail;
 	u32 frame_size;
-	int ii, r;
-	u8 *rx_rate, *sq, *sq_3;
-	u32 wbk_status;
-	u8 *skb_data;
-	u16 *pay_load_len;
-	u16 pay_load_with_padding;
+	int ii;
+	u16 rx_bitrate, pay_load_with_padding;
 	u8 rate_idx = 0;
-	u8 rate[MAX_RATE] = {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
 	long rx_dbm;
 
 	skb = ptr_rcb->skb;
+	rx_status = IEEE80211_SKB_RXCB(skb);
 
 	/* [31:16]RcvByteCount ( not include 4-byte Status ) */
-	wbk_status = *((u32 *)(skb->data));
-	frame_size = wbk_status >> 16;
+	head = (struct vnt_rx_header *)skb->data;
+	frame_size = head->wbk_status >> 16;
 	frame_size += 4;
 
 	if (bytes_received != frame_size) {
@@ -63,106 +57,66 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 		return false;
 	}
 
-	skb_data = (u8 *)skb->data;
-
-	rx_rate = skb_data + 5;
-
 	/* real Frame Size = USBframe_size -4WbkStatus - 4RxStatus */
 	/* -8TSF - 4RSR - 4SQ3 - ?Padding */
 
 	/* if SQ3 the range is 24~27, if no SQ3 the range is 20~23 */
 
-	pay_load_len = (u16 *)(skb_data + 6);
-
 	/*Fix hardware bug => PLCP_Length error */
-	if (((bytes_received - (*pay_load_len)) > 27) ||
-	    ((bytes_received - (*pay_load_len)) < 24) ||
-	    (bytes_received < (*pay_load_len))) {
+	if (((bytes_received - head->pay_load_len) > 27) ||
+	    ((bytes_received - head->pay_load_len) < 24) ||
+	    (bytes_received < head->pay_load_len)) {
 		dev_dbg(&priv->usb->dev, "Wrong PLCP Length %x\n",
-			*pay_load_len);
+			head->pay_load_len);
 		return false;
 	}
 
 	sband = hw->wiphy->bands[hw->conf.chandef.chan->band];
-
-	for (r = RATE_1M; r < MAX_RATE; r++) {
-		if (*rx_rate == rate[r])
-			break;
-	}
-
-	priv->rx_rate = r;
+	rx_bitrate = head->rx_rate * 5; /* rx_rate * 5 */
 
 	for (ii = 0; ii < sband->n_bitrates; ii++) {
-		if (sband->bitrates[ii].hw_value == r) {
+		if (sband->bitrates[ii].bitrate == rx_bitrate) {
 			rate_idx = ii;
 				break;
 		}
 	}
 
 	if (ii == sband->n_bitrates) {
-		dev_dbg(&priv->usb->dev, "Wrong RxRate %x\n", *rx_rate);
+		dev_dbg(&priv->usb->dev, "Wrong Rx Bit Rate %d\n", rx_bitrate);
 		return false;
 	}
 
-	pay_load_with_padding = ((*pay_load_len / 4) +
-		((*pay_load_len % 4) ? 1 : 0)) * 4;
+	pay_load_with_padding = ((head->pay_load_len / 4) +
+		((head->pay_load_len % 4) ? 1 : 0)) * 4;
 
-	tsf_time = (__le64 *)(skb_data + 8 + pay_load_with_padding);
+	tail = (struct vnt_rx_tail *)(skb->data +
+				      sizeof(*head) + pay_load_with_padding);
+	priv->tsf_time = le64_to_cpu(tail->tsf_time);
 
-	priv->tsf_time = le64_to_cpu(*tsf_time);
-
-	if (priv->bb_type == BB_TYPE_11G) {
-		sq_3 = skb_data + 8 + pay_load_with_padding + 12;
-		sq = sq_3;
-	} else {
-		sq = skb_data + 8 + pay_load_with_padding + 8;
-		sq_3 = sq;
-	}
-
-	new_rsr = skb_data + 8 + pay_load_with_padding + 9;
-	rssi = skb_data + 8 + pay_load_with_padding + 10;
-
-	rsr = skb_data + 8 + pay_load_with_padding + 11;
-	if (*rsr & (RSR_IVLDTYP | RSR_IVLDLEN))
+	if (tail->rsr & (RSR_IVLDTYP | RSR_IVLDLEN))
 		return false;
 
-	frame_size = *pay_load_len;
-
-	vnt_rf_rssi_to_dbm(priv, *rssi, &rx_dbm);
+	vnt_rf_rssi_to_dbm(priv, tail->rssi, &rx_dbm);
 
 	priv->bb_pre_ed_rssi = (u8)rx_dbm + 1;
 	priv->current_rssi = priv->bb_pre_ed_rssi;
 
-	skb_pull(skb, 8);
-	skb_trim(skb, frame_size);
+	skb_pull(skb, sizeof(*head));
+	skb_trim(skb, head->pay_load_len);
 
-	rx_status.mactime = priv->tsf_time;
-	rx_status.band = hw->conf.chandef.chan->band;
-	rx_status.signal = rx_dbm;
-	rx_status.flag = 0;
-	rx_status.freq = hw->conf.chandef.chan->center_freq;
+	rx_status->mactime = priv->tsf_time;
+	rx_status->band = hw->conf.chandef.chan->band;
+	rx_status->signal = rx_dbm;
+	rx_status->flag = 0;
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
 
-	if (!(*rsr & RSR_CRCOK))
-		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
+	if (!(tail->rsr & RSR_CRCOK))
+		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	hdr = (struct ieee80211_hdr *)(skb->data);
-	fc = hdr->frame_control;
+	rx_status->rate_idx = rate_idx;
 
-	rx_status.rate_idx = rate_idx;
-
-	if (ieee80211_has_protected(fc)) {
-		if (priv->local_id > REV_ID_VT3253_A1) {
-			rx_status.flag |= RX_FLAG_DECRYPTED;
-
-			/* Drop packet */
-			if (!(*new_rsr & NEWRSR_DECRYPTOK)) {
-				dev_kfree_skb(skb);
-				return true;
-			}
-		}
-	}
-
-	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
+	if (tail->new_rsr & NEWRSR_DECRYPTOK)
+		rx_status->flag |= RX_FLAG_DECRYPTED;
 
 	ieee80211_rx_irqsafe(priv->hw, skb);
 

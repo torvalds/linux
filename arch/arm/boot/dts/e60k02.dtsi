@@ -48,7 +48,8 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x20000000>;
 	};
 
@@ -263,11 +264,6 @@
 
 			ldortc1_reg: LDORTC1  {
 				regulator-name = "LDORTC1";
-				regulator-boot-on;
-			};
-
-			ldortc2_reg: LDORTC2 {
-				regulator-name = "LDORTC2";
 				regulator-boot-on;
 			};
 		};

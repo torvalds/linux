@@ -299,6 +299,7 @@ static void flush_signal_insns(unsigned long address)
 	unsigned long pstate, paddr;
 	pte_t *ptep, pte;
 	pgd_t *pgdp;
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 
@@ -318,7 +319,10 @@ static void flush_signal_insns(unsigned long address)
 	pgdp = pgd_offset(current->mm, address);
 	if (pgd_none(*pgdp))
 		goto out_irqs_on;
-	pudp = pud_offset(pgdp, address);
+	p4dp = p4d_offset(pgdp, address);
+	if (p4d_none(*p4dp))
+		goto out_irqs_on;
+	pudp = pud_offset(p4dp, address);
 	if (pud_none(*pudp))
 		goto out_irqs_on;
 	pmdp = pmd_offset(pudp, address);

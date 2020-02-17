@@ -49,7 +49,3 @@ struct enetc_pf {
 int enetc_msg_psi_init(struct enetc_pf *pf);
 void enetc_msg_psi_free(struct enetc_pf *pf);
 void enetc_msg_handle_rxmsg(struct enetc_pf *pf, int mbox_id, u16 *status);
-
-/* MDIO */
-int enetc_mdio_probe(struct enetc_pf *pf);
-void enetc_mdio_remove(struct enetc_pf *pf);

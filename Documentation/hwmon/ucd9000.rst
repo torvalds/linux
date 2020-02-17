@@ -3,9 +3,10 @@ Kernel driver ucd9000
 
 Supported chips:
 
-  * TI UCD90120, UCD90124, UCD90160, UCD9090, and UCD90910
+  * TI UCD90120, UCD90124, UCD90160, UCD90320, UCD9090, and UCD90910
 
-    Prefixes: 'ucd90120', 'ucd90124', 'ucd90160', 'ucd9090', 'ucd90910'
+    Prefixes: 'ucd90120', 'ucd90124', 'ucd90160', 'ucd90320', 'ucd9090',
+              'ucd90910'
 
     Addresses scanned: -
 
@@ -14,6 +15,7 @@ Supported chips:
 	- http://focus.ti.com/lit/ds/symlink/ucd90120.pdf
 	- http://focus.ti.com/lit/ds/symlink/ucd90124.pdf
 	- http://focus.ti.com/lit/ds/symlink/ucd90160.pdf
+	- http://focus.ti.com/lit/ds/symlink/ucd90320.pdf
 	- http://focus.ti.com/lit/ds/symlink/ucd9090.pdf
 	- http://focus.ti.com/lit/ds/symlink/ucd90910.pdf
 
@@ -44,6 +46,12 @@ voltage inputs. Twenty-six GPIO pins can be used for power supply enables,
 power-on reset signals, external interrupts, cascading, or other system
 functions. Twelve of these pins offer PWM functionality. Using these pins, the
 UCD90160 offers support for margining, and general-purpose PWM functions.
+
+The UCD90320 is a 32-rail PMBus/I2C addressable power-supply sequencer and
+monitor. The 24 integrated ADC channels (AMONx) monitor the power supply
+voltage, current, and temperature. Of the 84 GPIO pins, 8 can be used as
+digital monitors (DMONx), 32 to enable the power supply (ENx), 24 for margining
+(MARx), 16 for logical GPO, and 32 GPIs for cascading, and system function.
 
 The UCD9090 is a 10-rail PMBus/I2C addressable power-supply sequencer and
 monitor. The device integrates a 12-bit ADC for monitoring up to 10 power-supply

@@ -404,7 +404,7 @@ static int au1550nd_probe(struct platform_device *pdev)
 		goto out1;
 	}
 
-	ctx->base = ioremap_nocache(r->start, 0x1000);
+	ctx->base = ioremap(r->start, 0x1000);
 	if (!ctx->base) {
 		dev_err(&pdev->dev, "cannot remap NAND memory area\n");
 		ret = -ENODEV;

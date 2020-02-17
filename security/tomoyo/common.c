@@ -951,7 +951,8 @@ static bool tomoyo_manager(void)
 	exe = tomoyo_get_exe();
 	if (!exe)
 		return false;
-	list_for_each_entry_rcu(ptr, &tomoyo_kernel_namespace.policy_list[TOMOYO_ID_MANAGER], head.list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_kernel_namespace.policy_list[TOMOYO_ID_MANAGER], head.list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (!ptr->head.is_deleted &&
 		    (!tomoyo_pathcmp(domainname, ptr->manager) ||
 		     !strcmp(exe, ptr->manager->name))) {
@@ -1095,7 +1096,8 @@ static int tomoyo_delete_domain(char *domainname)
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return -EINTR;
 	/* Is there an active domain? */
-	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
+	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		/* Never delete tomoyo_kernel_domain */
 		if (domain == &tomoyo_kernel_domain)
 			continue;
@@ -2320,9 +2322,9 @@ static const char * const tomoyo_memory_headers[TOMOYO_MAX_MEMORY_STAT] = {
 	[TOMOYO_MEMORY_QUERY]  = "query message:",
 };
 
-/* Timestamp counter for last updated. */
-static unsigned int tomoyo_stat_updated[TOMOYO_MAX_POLICY_STAT];
 /* Counter for number of updates. */
+static atomic_t tomoyo_stat_updated[TOMOYO_MAX_POLICY_STAT];
+/* Timestamp counter for last updated. */
 static time64_t tomoyo_stat_modified[TOMOYO_MAX_POLICY_STAT];
 
 /**
@@ -2334,10 +2336,7 @@ static time64_t tomoyo_stat_modified[TOMOYO_MAX_POLICY_STAT];
  */
 void tomoyo_update_stat(const u8 index)
 {
-	/*
-	 * I don't use atomic operations because race condition is not fatal.
-	 */
-	tomoyo_stat_updated[index]++;
+	atomic_inc(&tomoyo_stat_updated[index]);
 	tomoyo_stat_modified[index] = ktime_get_real_seconds();
 }
 
@@ -2358,7 +2357,7 @@ static void tomoyo_read_stat(struct tomoyo_io_buffer *head)
 	for (i = 0; i < TOMOYO_MAX_POLICY_STAT; i++) {
 		tomoyo_io_printf(head, "Policy %-30s %10u",
 				 tomoyo_policy_headers[i],
-				 tomoyo_stat_updated[i]);
+				 atomic_read(&tomoyo_stat_updated[i]));
 		if (tomoyo_stat_modified[i]) {
 			struct tomoyo_time stamp;
 
@@ -2778,7 +2777,8 @@ void tomoyo_check_profile(void)
 
 	tomoyo_policy_loaded = true;
 	pr_info("TOMOYO: 2.6.0\n");
-	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
+	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		const u8 profile = domain->profile;
 		struct tomoyo_policy_namespace *ns = domain->ns;
 

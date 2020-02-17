@@ -10,10 +10,12 @@
 #include <linux/if_vlan.h>
 #include <linux/bpf.h>
 #include <linux/memory.h>
+#include <linux/sort.h>
 #include <asm/extable.h>
 #include <asm/set_memory.h>
 #include <asm/nospec-branch.h>
 #include <asm/text-patching.h>
+#include <asm/asm-prototypes.h>
 
 static u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 {
@@ -1326,7 +1328,7 @@ emit_jmp:
 	return proglen;
 }
 
-static void save_regs(struct btf_func_model *m, u8 **prog, int nr_args,
+static void save_regs(const struct btf_func_model *m, u8 **prog, int nr_args,
 		      int stack_size)
 {
 	int i;
@@ -1342,7 +1344,7 @@ static void save_regs(struct btf_func_model *m, u8 **prog, int nr_args,
 			 -(stack_size - i * 8));
 }
 
-static void restore_regs(struct btf_func_model *m, u8 **prog, int nr_args,
+static void restore_regs(const struct btf_func_model *m, u8 **prog, int nr_args,
 			 int stack_size)
 {
 	int i;
@@ -1359,7 +1361,7 @@ static void restore_regs(struct btf_func_model *m, u8 **prog, int nr_args,
 			 -(stack_size - i * 8));
 }
 
-static int invoke_bpf(struct btf_func_model *m, u8 **pprog,
+static int invoke_bpf(const struct btf_func_model *m, u8 **pprog,
 		      struct bpf_prog **progs, int prog_cnt, int stack_size)
 {
 	u8 *prog = *pprog;
@@ -1454,7 +1456,8 @@ static int invoke_bpf(struct btf_func_model *m, u8 **pprog,
  * add rsp, 8                      // skip eth_type_trans's frame
  * ret                             // return to its caller
  */
-int arch_prepare_bpf_trampoline(void *image, struct btf_func_model *m, u32 flags,
+int arch_prepare_bpf_trampoline(void *image, void *image_end,
+				const struct btf_func_model *m, u32 flags,
 				struct bpf_prog **fentry_progs, int fentry_cnt,
 				struct bpf_prog **fexit_progs, int fexit_cnt,
 				void *orig_call)
@@ -1521,13 +1524,158 @@ int arch_prepare_bpf_trampoline(void *image, struct btf_func_model *m, u32 flags
 		/* skip our return address and return to parent */
 		EMIT4(0x48, 0x83, 0xC4, 8); /* add rsp, 8 */
 	EMIT1(0xC3); /* ret */
-	/* One half of the page has active running trampoline.
-	 * Another half is an area for next trampoline.
-	 * Make sure the trampoline generation logic doesn't overflow.
-	 */
-	if (WARN_ON_ONCE(prog - (u8 *)image > PAGE_SIZE / 2 - BPF_INSN_SAFETY))
+	/* Make sure the trampoline generation logic doesn't overflow */
+	if (WARN_ON_ONCE(prog > (u8 *)image_end - BPF_INSN_SAFETY))
 		return -EFAULT;
+	return prog - (u8 *)image;
+}
+
+static int emit_cond_near_jump(u8 **pprog, void *func, void *ip, u8 jmp_cond)
+{
+	u8 *prog = *pprog;
+	int cnt = 0;
+	s64 offset;
+
+	offset = func - (ip + 2 + 4);
+	if (!is_simm32(offset)) {
+		pr_err("Target %p is out of range\n", func);
+		return -EINVAL;
+	}
+	EMIT2_off32(0x0F, jmp_cond + 0x10, offset);
+	*pprog = prog;
 	return 0;
+}
+
+static void emit_nops(u8 **pprog, unsigned int len)
+{
+	unsigned int i, noplen;
+	u8 *prog = *pprog;
+	int cnt = 0;
+
+	while (len > 0) {
+		noplen = len;
+
+		if (noplen > ASM_NOP_MAX)
+			noplen = ASM_NOP_MAX;
+
+		for (i = 0; i < noplen; i++)
+			EMIT1(ideal_nops[noplen][i]);
+		len -= noplen;
+	}
+
+	*pprog = prog;
+}
+
+static int emit_fallback_jump(u8 **pprog)
+{
+	u8 *prog = *pprog;
+	int err = 0;
+
+#ifdef CONFIG_RETPOLINE
+	/* Note that this assumes the the compiler uses external
+	 * thunks for indirect calls. Both clang and GCC use the same
+	 * naming convention for external thunks.
+	 */
+	err = emit_jump(&prog, __x86_indirect_thunk_rdx, prog);
+#else
+	int cnt = 0;
+
+	EMIT2(0xFF, 0xE2);	/* jmp rdx */
+#endif
+	*pprog = prog;
+	return err;
+}
+
+static int emit_bpf_dispatcher(u8 **pprog, int a, int b, s64 *progs)
+{
+	u8 *jg_reloc, *jg_target, *prog = *pprog;
+	int pivot, err, jg_bytes = 1, cnt = 0;
+	s64 jg_offset;
+
+	if (a == b) {
+		/* Leaf node of recursion, i.e. not a range of indices
+		 * anymore.
+		 */
+		EMIT1(add_1mod(0x48, BPF_REG_3));	/* cmp rdx,func */
+		if (!is_simm32(progs[a]))
+			return -1;
+		EMIT2_off32(0x81, add_1reg(0xF8, BPF_REG_3),
+			    progs[a]);
+		err = emit_cond_near_jump(&prog,	/* je func */
+					  (void *)progs[a], prog,
+					  X86_JE);
+		if (err)
+			return err;
+
+		err = emit_fallback_jump(&prog);	/* jmp thunk/indirect */
+		if (err)
+			return err;
+
+		*pprog = prog;
+		return 0;
+	}
+
+	/* Not a leaf node, so we pivot, and recursively descend into
+	 * the lower and upper ranges.
+	 */
+	pivot = (b - a) / 2;
+	EMIT1(add_1mod(0x48, BPF_REG_3));		/* cmp rdx,func */
+	if (!is_simm32(progs[a + pivot]))
+		return -1;
+	EMIT2_off32(0x81, add_1reg(0xF8, BPF_REG_3), progs[a + pivot]);
+
+	if (pivot > 2) {				/* jg upper_part */
+		/* Require near jump. */
+		jg_bytes = 4;
+		EMIT2_off32(0x0F, X86_JG + 0x10, 0);
+	} else {
+		EMIT2(X86_JG, 0);
+	}
+	jg_reloc = prog;
+
+	err = emit_bpf_dispatcher(&prog, a, a + pivot,	/* emit lower_part */
+				  progs);
+	if (err)
+		return err;
+
+	/* From Intel 64 and IA-32 Architectures Optimization
+	 * Reference Manual, 3.4.1.4 Code Alignment, Assembly/Compiler
+	 * Coding Rule 11: All branch targets should be 16-byte
+	 * aligned.
+	 */
+	jg_target = PTR_ALIGN(prog, 16);
+	if (jg_target != prog)
+		emit_nops(&prog, jg_target - prog);
+	jg_offset = prog - jg_reloc;
+	emit_code(jg_reloc - jg_bytes, jg_offset, jg_bytes);
+
+	err = emit_bpf_dispatcher(&prog, a + pivot + 1,	/* emit upper_part */
+				  b, progs);
+	if (err)
+		return err;
+
+	*pprog = prog;
+	return 0;
+}
+
+static int cmp_ips(const void *a, const void *b)
+{
+	const s64 *ipa = a;
+	const s64 *ipb = b;
+
+	if (*ipa > *ipb)
+		return 1;
+	if (*ipa < *ipb)
+		return -1;
+	return 0;
+}
+
+int arch_prepare_bpf_dispatcher(void *image, s64 *funcs, int num_funcs)
+{
+	u8 *prog = image;
+
+	sort(funcs, num_funcs, sizeof(funcs[0]), cmp_ips, NULL);
+	return emit_bpf_dispatcher(&prog, 0, num_funcs - 1, funcs);
 }
 
 struct x64_jit_data {

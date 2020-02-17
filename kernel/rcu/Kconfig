@@ -7,7 +7,7 @@ menu "RCU Subsystem"
 
 config TREE_RCU
 	bool
-	default y if !PREEMPTION && SMP
+	default y if SMP
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP system with hundreds or
@@ -17,6 +17,7 @@ config TREE_RCU
 config PREEMPT_RCU
 	bool
 	default y if PREEMPTION
+	select TREE_RCU
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP systems with hundreds or
@@ -78,7 +79,7 @@ config TASKS_RCU
 	  user-mode execution as quiescent states.
 
 config RCU_STALL_COMMON
-	def_bool ( TREE_RCU || PREEMPT_RCU )
+	def_bool TREE_RCU
 	help
 	  This option enables RCU CPU stall code that is common between
 	  the TINY and TREE variants of RCU.  The purpose is to allow
@@ -86,13 +87,13 @@ config RCU_STALL_COMMON
 	  making these warnings mandatory for the tree variants.
 
 config RCU_NEED_SEGCBLIST
-	def_bool ( TREE_RCU || PREEMPT_RCU || TREE_SRCU )
+	def_bool ( TREE_RCU || TREE_SRCU )
 
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
 	range 2 64 if 64BIT
 	range 2 32 if !64BIT
-	depends on (TREE_RCU || PREEMPT_RCU) && RCU_EXPERT
+	depends on TREE_RCU && RCU_EXPERT
 	default 64 if 64BIT
 	default 32 if !64BIT
 	help
@@ -112,7 +113,7 @@ config RCU_FANOUT_LEAF
 	int "Tree-based hierarchical RCU leaf-level fanout value"
 	range 2 64 if 64BIT
 	range 2 32 if !64BIT
-	depends on (TREE_RCU || PREEMPT_RCU) && RCU_EXPERT
+	depends on TREE_RCU && RCU_EXPERT
 	default 16
 	help
 	  This option controls the leaf-level fanout of hierarchical
@@ -187,7 +188,7 @@ config RCU_BOOST_DELAY
 
 config RCU_NOCB_CPU
 	bool "Offload RCU callback processing from boot-selected CPUs"
-	depends on TREE_RCU || PREEMPT_RCU
+	depends on TREE_RCU
 	depends on RCU_EXPERT || NO_HZ_FULL
 	default n
 	help
@@ -200,8 +201,8 @@ config RCU_NOCB_CPU
 	  specified at boot time by the rcu_nocbs parameter.  For each
 	  such CPU, a kthread ("rcuox/N") will be created to invoke
 	  callbacks, where the "N" is the CPU being offloaded, and where
-	  the "p" for RCU-preempt (PREEMPT kernels) and "s" for RCU-sched
-	  (!PREEMPT kernels).  Nothing prevents this kthread from running
+	  the "p" for RCU-preempt (PREEMPTION kernels) and "s" for RCU-sched
+	  (!PREEMPTION kernels).  Nothing prevents this kthread from running
 	  on the specified CPUs, but (1) the kthreads may be preempted
 	  between each callback, and (2) affinity or cgroups can be used
 	  to force the kthreads to run on whatever set of CPUs is desired.

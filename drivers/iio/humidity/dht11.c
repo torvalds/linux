@@ -174,7 +174,6 @@ static irqreturn_t dht11_handle_irq(int irq, void *data)
 	struct iio_dev *iio = data;
 	struct dht11 *dht11 = iio_priv(iio);
 
-	/* TODO: Consider making the handler safe for IRQ sharing */
 	if (dht11->num_edges < DHT11_EDGES_PER_READ && dht11->num_edges >= 0) {
 		dht11->edges[dht11->num_edges].ts = ktime_get_boottime_ns();
 		dht11->edges[dht11->num_edges++].value =

@@ -26,13 +26,6 @@ This standard is freely available from https://www.capi.org.
 2. Driver and Device Registration
 =================================
 
-CAPI drivers optionally register themselves with Kernel CAPI by calling the
-Kernel CAPI function register_capi_driver() with a pointer to a struct
-capi_driver. This structure must be filled with the name and revision of the
-driver, and optionally a pointer to a callback function, add_card(). The
-registration can be revoked by calling the function unregister_capi_driver()
-with a pointer to the same struct capi_driver.
-
 CAPI drivers must register each of the ISDN devices they control with Kernel
 CAPI by calling the Kernel CAPI function attach_capi_ctr() with a pointer to a
 struct capi_ctr before they can be used. This structure must be filled with
@@ -89,9 +82,6 @@ register_capi_driver():
 	the name of the driver, as a zero-terminated ASCII string
 ``char revision[32]``
 	the revision number of the driver, as a zero-terminated ASCII string
-``int (*add_card)(struct capi_driver *driver, capicardparams *data)``
-	a callback function pointer (may be NULL)
-
 
 4.2 struct capi_ctr
 -------------------
@@ -178,12 +168,6 @@ to be set by the driver before calling attach_capi_ctr():
 	pointer to a callback function returning the entry for the device in
 	the CAPI controller info table, /proc/capi/controller
 
-``const struct file_operations *proc_fops``
-	pointers to callback functions for the device's proc file
-	system entry, /proc/capi/controllers/<n>; pointer to the device's
-	capi_ctr structure is available from struct proc_dir_entry::data
-	which is available from struct inode.
-
 Note:
   Callback functions except send_message() are never called in interrupt
   context.
@@ -267,24 +251,9 @@ _cmstruct   alternative representation for CAPI parameters of type 'struct'
 	    _cmsg structure members.
 =========== =================================================================
 
-Functions capi_cmsg2message() and capi_message2cmsg() are provided to convert
-messages between their transport encoding described in the CAPI 2.0 standard
-and their _cmsg structure representation. Note that capi_cmsg2message() does
-not know or check the size of its destination buffer. The caller must make
-sure it is big enough to accommodate the resulting CAPI message.
-
 
 5. Lower Layer Interface Functions
 ==================================
-
-(declared in <linux/isdn/capilli.h>)
-
-::
-
-  void register_capi_driver(struct capi_driver *drvr)
-  void unregister_capi_driver(struct capi_driver *drvr)
-
-register/unregister a driver with Kernel CAPI
 
 ::
 
@@ -302,13 +271,6 @@ signal controller ready/not ready
 
 ::
 
-  void capi_ctr_suspend_output(struct capi_ctr *ctrlr)
-  void capi_ctr_resume_output(struct capi_ctr *ctrlr)
-
-signal suspend/resume
-
-::
-
   void capi_ctr_handle_message(struct capi_ctr * ctrlr, u16 applid,
 			       struct sk_buff *skb)
 
@@ -318,21 +280,6 @@ for forwarding to the specified application
 
 6. Helper Functions and Macros
 ==============================
-
-Library functions (from <linux/isdn/capilli.h>):
-
-::
-
-  void capilib_new_ncci(struct list_head *head, u16 applid,
-			u32 ncci, u32 winsize)
-  void capilib_free_ncci(struct list_head *head, u16 applid, u32 ncci)
-  void capilib_release_appl(struct list_head *head, u16 applid)
-  void capilib_release(struct list_head *head)
-  void capilib_data_b3_conf(struct list_head *head, u16 applid,
-			u32 ncci, u16 msgid)
-  u16  capilib_data_b3_req(struct list_head *head, u16 applid,
-			u32 ncci, u16 msgid)
-
 
 Macros to extract/set element values from/in a CAPI message header
 (from <linux/isdn/capiutil.h>):
@@ -356,24 +303,6 @@ CAPIMSG_DATALEN(m)	CAPIMSG_SETDATALEN(m, len)	Data Length (u16)
 
 Library functions for working with _cmsg structures
 (from <linux/isdn/capiutil.h>):
-
-``unsigned capi_cmsg2message(_cmsg *cmsg, u8 *msg)``
-	Assembles a CAPI 2.0 message from the parameters in ``*cmsg``,
-	storing the result in ``*msg``.
-
-``unsigned capi_message2cmsg(_cmsg *cmsg, u8 *msg)``
-	Disassembles the CAPI 2.0 message in ``*msg``, storing the parameters
-	in ``*cmsg``.
-
-``unsigned capi_cmsg_header(_cmsg *cmsg, u16 ApplId, u8 Command, u8 Subcommand, u16 Messagenumber, u32 Controller)``
-	Fills the header part and address field of the _cmsg structure ``*cmsg``
-	with the given values, zeroing the remainder of the structure so only
-	parameters with non-default values need to be changed before sending
-	the message.
-
-``void capi_cmsg_answer(_cmsg *cmsg)``
-	Sets the low bit of the Subcommand field in ``*cmsg``, thereby
-	converting ``_REQ`` to ``_CONF`` and ``_IND`` to ``_RESP``.
 
 ``char *capi_cmd2str(u8 Command, u8 Subcommand)``
 	Returns the CAPI 2.0 message name corresponding to the given command

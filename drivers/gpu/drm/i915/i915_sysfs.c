@@ -498,15 +498,15 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 
 	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct i915_gpu_state *gpu;
+	struct i915_gpu_coredump *gpu;
 	ssize_t ret;
 
 	gpu = i915_first_error_state(i915);
 	if (IS_ERR(gpu)) {
 		ret = PTR_ERR(gpu);
 	} else if (gpu) {
-		ret = i915_gpu_state_copy_to_buffer(gpu, buf, off, count);
-		i915_gpu_state_put(gpu);
+		ret = i915_gpu_coredump_copy_to_buffer(gpu, buf, off, count);
+		i915_gpu_coredump_put(gpu);
 	} else {
 		const char *str = "No error state collected\n";
 		size_t len = strlen(str);
