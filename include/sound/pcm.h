@@ -644,6 +644,11 @@ void snd_pcm_stream_unlock_irqrestore(struct snd_pcm_substream *substream,
 #define snd_pcm_group_for_each_entry(s, substream) \
 	list_for_each_entry(s, &substream->group->substreams, link_list)
 
+#define for_each_pcm_streams(stream)			\
+	for (stream  = SNDRV_PCM_STREAM_PLAYBACK;	\
+	     stream <= SNDRV_PCM_STREAM_LAST;		\
+	     stream++)
+
 /**
  * snd_pcm_running - Check whether the substream is in a running state
  * @substream: substream to check
