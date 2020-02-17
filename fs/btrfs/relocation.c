@@ -9,6 +9,7 @@
 #include <linux/blkdev.h>
 #include <linux/rbtree.h>
 #include <linux/slab.h>
+#include <linux/error-injection.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -3313,6 +3314,15 @@ int setup_extent_mapping(struct inode *inode, u64 start, u64 end,
 	unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
 	return ret;
 }
+
+/*
+ * Allow error injection to test balance cancellation
+ */
+int btrfs_should_cancel_balance(struct btrfs_fs_info *fs_info)
+{
+	return atomic_read(&fs_info->balance_cancel_req);
+}
+ALLOW_ERROR_INJECTION(btrfs_should_cancel_balance, TRUE);
 
 static int relocate_file_extent_cluster(struct inode *inode,
 					struct file_extent_cluster *cluster)

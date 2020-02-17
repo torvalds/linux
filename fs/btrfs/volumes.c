@@ -3994,7 +3994,7 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 
 	if (btrfs_fs_closing(fs_info) ||
 	    atomic_read(&fs_info->balance_pause_req) ||
-	    atomic_read(&fs_info->balance_cancel_req)) {
+	    btrfs_should_cancel_balance(fs_info)) {
 		ret = -EINVAL;
 		goto out;
 	}
