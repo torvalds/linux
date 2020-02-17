@@ -85,5 +85,6 @@ Documentation for filesystem implementations.
    qnx6
    ramfs-rootfs-initramfs
    relay
+   romfs
    virtiofs
    vfat
