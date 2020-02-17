@@ -74,7 +74,8 @@ Documentation for filesystem implementations.
    inotify
    isofs
    nilfs2
+   nfs/index
+   ntfs
    overlayfs
    virtiofs
    vfat
-   nfs/index
