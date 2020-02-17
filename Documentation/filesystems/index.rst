@@ -53,6 +53,7 @@ Documentation for filesystem implementations.
    autofs
    autofs-mount-control
    befs
+   bfs
    fuse
    overlayfs
    virtiofs
