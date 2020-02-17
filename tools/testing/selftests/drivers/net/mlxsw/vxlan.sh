@@ -1049,11 +1049,9 @@ offload_indication_vlan_aware_l3vni_test()
 	ip link set dev vxlan0 master br0
 	bridge vlan add dev vxlan0 vid 10 pvid untagged
 
-	# No local port or router port is member in the VLAN, so tunnel should
-	# not be offloaded
 	bridge fdb show brport vxlan0 | grep $zmac | grep self \
 		| grep -q offload
-	check_fail $? "vxlan tunnel offloaded when should not"
+	check_err $? "vxlan tunnel not offloaded when should"
 
 	# Configure a VLAN interface and make sure tunnel is offloaded
 	ip link add link br0 name br10 up type vlan id 10
