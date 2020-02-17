@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===================
 The QNX6 Filesystem
 ===================
 
@@ -14,10 +17,12 @@ Specification
 
 qnx6fs shares many properties with traditional Unix filesystems. It has the
 concepts of blocks, inodes and directories.
+
 On QNX it is possible to create little endian and big endian qnx6 filesystems.
 This feature makes it possible to create and use a different endianness fs
 for the target (QNX is used on quite a range of embedded systems) platform
 running on a different endianness.
+
 The Linux driver handles endianness transparently. (LE and BE)
 
 Blocks
@@ -26,6 +31,7 @@ Blocks
 The space in the device or file is split up into blocks. These are a fixed
 size of 512, 1024, 2048 or 4096, which is decided when the filesystem is
 created.
+
 Blockpointers are 32bit, so the maximum space that can be addressed is
 2^32 * 4096 bytes or 16TB
 
@@ -50,6 +56,7 @@ Each of these root nodes holds information like total size of the stored
 data and the addressing levels in that specific tree.
 If the level value is 0, up to 16 direct blocks can be addressed by each
 node.
+
 Level 1 adds an additional indirect addressing level where each indirect
 addressing block holds up to blocksize / 4 bytes pointers to data blocks.
 Level 2 adds an additional indirect addressing block level (so, already up
@@ -57,11 +64,13 @@ to 16 * 256 * 256 = 1048576 blocks that can be addressed by such a tree).
 
 Unused block pointers are always set to ~0 - regardless of root node,
 indirect addressing blocks or inodes.
+
 Data leaves are always on the lowest level. So no data is stored on upper
 tree levels.
 
 The first Superblock is located at 0x2000. (0x2000 is the bootblock size)
 The Audi MMI 3G first superblock directly starts at byte 0.
+
 Second superblock position can either be calculated from the superblock
 information (total number of filesystem blocks) or by taking the highest
 device address, zeroing the last 3 bytes and then subtracting 0x1000 from
@@ -84,6 +93,7 @@ Object mode field is POSIX format. (which makes things easier)
 
 There are also pointers to the first 16 blocks, if the object data can be
 addressed with 16 direct blocks.
+
 For more than 16 blocks an indirect addressing in form of another tree is
 used. (scheme is the same as the one used for the superblock root nodes)
 
@@ -96,13 +106,18 @@ Directories
 A directory is a filesystem object and has an inode just like a file.
 It is a specially formatted file containing records which associate each
 name with an inode number.
+
 '.' inode number points to the directory inode
+
 '..' inode number points to the parent directory inode
+
 Eeach filename record additionally got a filename length field.
 
 One special case are long filenames or subdirectory names.
+
 These got set a filename length field of 0xff in the corresponding directory
 record plus the longfile inode number also stored in that record.
+
 With that longfilename inode number, the longfilename tree can be walked
 starting with the superblock longfilename root node pointers.
 
@@ -111,6 +126,7 @@ Special files
 
 Symbolic links are also filesystem objects with inodes. They got a specific
 bit in the inode mode field identifying them as symbolic link.
+
 The directory entry file inode pointer points to the target file inode.
 
 Hard links got an inode, a directory entry, but a specific mode bit set,
@@ -126,9 +142,11 @@ Long filenames
 
 Long filenames are stored in a separate addressing tree. The staring point
 is the longfilename root node in the active superblock.
+
 Each data block (tree leaves) holds one long filename. That filename is
 limited to 510 bytes. The first two starting bytes are used as length field
 for the actual filename.
+
 If that structure shall fit for all allowed blocksizes, it is clear why there
 is a limit of 510 bytes for the actual filename stored.
 
@@ -138,6 +156,7 @@ Bitmap
 The qnx6fs filesystem allocation bitmap is stored in a tree under bitmap
 root node in the superblock and each bit in the bitmap represents one
 filesystem block.
+
 The first block is block 0, which starts 0x1000 after superblock start.
 So for a normal qnx6fs 0x3000 (bootblock + superblock) is the physical
 address at which block 0 is located.
@@ -149,11 +168,14 @@ Bitmap system area
 ------------------
 
 The bitmap itself is divided into three parts.
+
 First the system area, that is split into two halves.
+
 Then userspace.
 
 The requirement for a static, fixed preallocated system area comes from how
 qnx6fs deals with writes.
+
 Each superblock got it's own half of the system area. So superblock #1
 always uses blocks from the lower half while superblock #2 just writes to
 blocks represented by the upper half bitmap system area bits.
