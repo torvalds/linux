@@ -89,5 +89,6 @@ Documentation for filesystem implementations.
    squashfs
    sysfs
    sysv-fs
+   tmpfs
    virtiofs
    vfat

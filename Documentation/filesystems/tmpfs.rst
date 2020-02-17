@@ -1,3 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=====
+Tmpfs
+=====
+
 Tmpfs is a file system which keeps all files in virtual memory.
 
 
@@ -14,7 +20,7 @@ If you compare it to ramfs (which was the template to create tmpfs)
 you gain swapping and limit checking. Another similar thing is the RAM
 disk (/dev/ram*), which simulates a fixed size hard disk in physical
 RAM, where you have to create an ordinary filesystem on top. Ramdisks
-cannot swap and you do not have the possibility to resize them. 
+cannot swap and you do not have the possibility to resize them.
 
 Since tmpfs lives completely in the page cache and on swap, all tmpfs
 pages will be shown as "Shmem" in /proc/meminfo and "Shared" in
@@ -26,7 +32,7 @@ tmpfs has the following uses:
 
 1) There is always a kernel internal mount which you will not see at
    all. This is used for shared anonymous mappings and SYSV shared
-   memory. 
+   memory.
 
    This mount does not depend on CONFIG_TMPFS. If CONFIG_TMPFS is not
    set, the user visible part of tmpfs is not build. But the internal
@@ -34,7 +40,7 @@ tmpfs has the following uses:
 
 2) glibc 2.2 and above expects tmpfs to be mounted at /dev/shm for
    POSIX shared memory (shm_open, shm_unlink). Adding the following
-   line to /etc/fstab should take care of this:
+   line to /etc/fstab should take care of this::
 
 	tmpfs	/dev/shm	tmpfs	defaults	0 0
 
@@ -56,15 +62,17 @@ tmpfs has the following uses:
 
 tmpfs has three mount options for sizing:
 
-size:      The limit of allocated bytes for this tmpfs instance. The 
+=========  ============================================================
+size       The limit of allocated bytes for this tmpfs instance. The
            default is half of your physical RAM without swap. If you
            oversize your tmpfs instances the machine will deadlock
            since the OOM handler will not be able to free that memory.
-nr_blocks: The same as size, but in blocks of PAGE_SIZE.
-nr_inodes: The maximum number of inodes for this instance. The default
+nr_blocks  The same as size, but in blocks of PAGE_SIZE.
+nr_inodes  The maximum number of inodes for this instance. The default
            is half of the number of your physical RAM pages, or (on a
            machine with highmem) the number of lowmem RAM pages,
            whichever is the lower.
+=========  ============================================================
 
 These parameters accept a suffix k, m or g for kilo, mega and giga and
 can be changed on remount.  The size parameter also accepts a suffix %
@@ -82,6 +90,7 @@ tmpfs has a mount option to set the NUMA memory allocation policy for
 all files in that instance (if CONFIG_NUMA is enabled) - which can be
 adjusted on the fly via 'mount -o remount ...'
 
+======================== ==============================================
 mpol=default             use the process allocation policy
                          (see set_mempolicy(2))
 mpol=prefer:Node         prefers to allocate memory from the given Node
@@ -89,6 +98,7 @@ mpol=bind:NodeList       allocates memory only from nodes in NodeList
 mpol=interleave          prefers to allocate from each node in turn
 mpol=interleave:NodeList allocates from each node of NodeList in turn
 mpol=local		 prefers to allocate memory from the local node
+======================== ==============================================
 
 NodeList format is a comma-separated list of decimal numbers and ranges,
 a range being two hyphen-separated decimal numbers, the smallest and
@@ -98,9 +108,9 @@ A memory policy with a valid NodeList will be saved, as specified, for
 use at file creation time.  When a task allocates a file in the file
 system, the mount option memory policy will be applied with a NodeList,
 if any, modified by the calling task's cpuset constraints
-[See Documentation/admin-guide/cgroup-v1/cpusets.rst] and any optional flags, listed
-below.  If the resulting NodeLists is the empty set, the effective memory
-policy for the file will revert to "default" policy.
+[See Documentation/admin-guide/cgroup-v1/cpusets.rst] and any optional flags,
+listed below.  If the resulting NodeLists is the empty set, the effective
+memory policy for the file will revert to "default" policy.
 
 NUMA memory allocation policies have optional flags that can be used in
 conjunction with their modes.  These optional flags can be specified
@@ -108,6 +118,8 @@ when tmpfs is mounted by appending them to the mode before the NodeList.
 See Documentation/admin-guide/mm/numa_memory_policy.rst for a list of
 all available memory allocation policy mode flags and their effect on
 memory policy.
+
+::
 
 	=static		is equivalent to	MPOL_F_STATIC_NODES
 	=relative	is equivalent to	MPOL_F_RELATIVE_NODES
@@ -128,9 +140,11 @@ on MountPoint, by 'mount -o remount,mpol=Policy:NodeList MountPoint'.
 To specify the initial root directory you can use the following mount
 options:
 
-mode:	The permissions as an octal number
-uid:	The user id 
-gid:	The group id
+====	==================================
+mode	The permissions as an octal number
+uid	The user id
+gid	The group id
+====	==================================
 
 These options do not have any effect on remount. You can change these
 parameters with chmod(1), chown(1) and chgrp(1) on a mounted filesystem.
@@ -141,9 +155,9 @@ will give you tmpfs instance on /mytmpfs which can allocate 10GB
 RAM/SWAP in 10240 inodes and it is only accessible by root.
 
 
-Author:
+:Author:
    Christoph Rohland <cr@sap.com>, 1.12.01
-Updated:
+:Updated:
    Hugh Dickins, 4 June 2007
-Updated:
+:Updated:
    KOSAKI Motohiro, 16 Mar 2010
