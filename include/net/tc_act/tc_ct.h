@@ -33,8 +33,10 @@ struct tcf_ct {
 };
 
 #define to_ct(a) ((struct tcf_ct *)a)
-#define to_ct_params(a) ((struct tcf_ct_params *) \
-			 rtnl_dereference((to_ct(a)->params)))
+#define to_ct_params(a)							\
+	((struct tcf_ct_params *)					\
+	 rcu_dereference_protected(to_ct(a)->params,			\
+				   lockdep_is_held(&a->tcfa_lock)))
 
 static inline uint16_t tcf_ct_zone(const struct tc_action *a)
 {
