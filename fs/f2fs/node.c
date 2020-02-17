@@ -3190,22 +3190,22 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
 
 int __init f2fs_create_node_manager_caches(void)
 {
-	nat_entry_slab = f2fs_kmem_cache_create("nat_entry",
+	nat_entry_slab = f2fs_kmem_cache_create("f2fs_nat_entry",
 			sizeof(struct nat_entry));
 	if (!nat_entry_slab)
 		goto fail;
 
-	free_nid_slab = f2fs_kmem_cache_create("free_nid",
+	free_nid_slab = f2fs_kmem_cache_create("f2fs_free_nid",
 			sizeof(struct free_nid));
 	if (!free_nid_slab)
 		goto destroy_nat_entry;
 
-	nat_entry_set_slab = f2fs_kmem_cache_create("nat_entry_set",
+	nat_entry_set_slab = f2fs_kmem_cache_create("f2fs_nat_entry_set",
 			sizeof(struct nat_entry_set));
 	if (!nat_entry_set_slab)
 		goto destroy_free_nid;
 
-	fsync_node_entry_slab = f2fs_kmem_cache_create("fsync_node_entry",
+	fsync_node_entry_slab = f2fs_kmem_cache_create("f2fs_fsync_node_entry",
 			sizeof(struct fsync_node_entry));
 	if (!fsync_node_entry_slab)
 		goto destroy_nat_entry_set;
