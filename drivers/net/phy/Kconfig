@@ -326,8 +326,8 @@ config BROADCOM_PHY
 	  BCM5481, BCM54810 and BCM5482 PHYs.
 
 config BCM84881_PHY
-	bool "Broadcom BCM84881 PHY"
-	depends on PHYLIB=y
+	tristate "Broadcom BCM84881 PHY"
+	depends on PHYLIB
 	---help---
 	  Support the Broadcom BCM84881 PHY.
 
