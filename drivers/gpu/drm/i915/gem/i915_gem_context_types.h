@@ -181,7 +181,7 @@ struct i915_gem_context {
 	char name[TASK_COMM_LEN + 8];
 
 	struct {
-		struct spinlock lock;
+		spinlock_t lock;
 		struct list_head engines;
 	} stale;
 };
