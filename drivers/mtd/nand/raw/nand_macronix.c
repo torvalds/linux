@@ -11,6 +11,19 @@
 #define MACRONIX_READ_RETRY_BIT BIT(0)
 #define MACRONIX_NUM_READ_RETRY_MODES 6
 
+#define ONFI_FEATURE_ADDR_MXIC_RANDOMIZER 0xB0
+#define MACRONIX_RANDOMIZER_BIT BIT(1)
+#define MACRONIX_RANDOMIZER_ENPGM BIT(0)
+#define MACRONIX_RANDOMIZER_RANDEN BIT(1)
+#define MACRONIX_RANDOMIZER_RANDOPT BIT(2)
+#define MACRONIX_RANDOMIZER_MODE_ENTER	\
+	(MACRONIX_RANDOMIZER_ENPGM |	\
+	 MACRONIX_RANDOMIZER_RANDEN |	\
+	 MACRONIX_RANDOMIZER_RANDOPT)
+#define MACRONIX_RANDOMIZER_MODE_EXIT	\
+	(MACRONIX_RANDOMIZER_RANDEN |	\
+	 MACRONIX_RANDOMIZER_RANDOPT)
+
 struct nand_onfi_vendor_macronix {
 	u8 reserved;
 	u8 reliability_func;
@@ -29,15 +42,83 @@ static int macronix_nand_setup_read_retry(struct nand_chip *chip, int mode)
 	return nand_set_features(chip, ONFI_FEATURE_ADDR_READ_RETRY, feature);
 }
 
+static int macronix_nand_randomizer_check_enable(struct nand_chip *chip)
+{
+	u8 feature[ONFI_SUBFEATURE_PARAM_LEN];
+	int ret;
+
+	ret = nand_get_features(chip, ONFI_FEATURE_ADDR_MXIC_RANDOMIZER,
+				feature);
+	if (ret < 0)
+		return ret;
+
+	if (feature[0])
+		return feature[0];
+
+	feature[0] = MACRONIX_RANDOMIZER_MODE_ENTER;
+	ret = nand_set_features(chip, ONFI_FEATURE_ADDR_MXIC_RANDOMIZER,
+				feature);
+	if (ret < 0)
+		return ret;
+
+	/* RANDEN and RANDOPT OTP bits are programmed */
+	feature[0] = 0x0;
+	ret = nand_prog_page_op(chip, 0, 0, feature, 1);
+	if (ret < 0)
+		return ret;
+
+	ret = nand_get_features(chip, ONFI_FEATURE_ADDR_MXIC_RANDOMIZER,
+				feature);
+	if (ret < 0)
+		return ret;
+
+	feature[0] &= MACRONIX_RANDOMIZER_MODE_EXIT;
+	ret = nand_set_features(chip, ONFI_FEATURE_ADDR_MXIC_RANDOMIZER,
+				feature);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static void macronix_nand_onfi_init(struct nand_chip *chip)
 {
 	struct nand_parameters *p = &chip->parameters;
 	struct nand_onfi_vendor_macronix *mxic;
+	struct device_node *dn = nand_get_flash_node(chip);
+	int rand_otp = 0;
+	int ret;
 
 	if (!p->onfi)
 		return;
 
+	if (of_find_property(dn, "mxic,enable-randomizer-otp", NULL))
+		rand_otp = 1;
+
 	mxic = (struct nand_onfi_vendor_macronix *)p->onfi->vendor;
+	/* Subpage write is prohibited in randomizer operatoin */
+	if (rand_otp && chip->options & NAND_NO_SUBPAGE_WRITE &&
+	    mxic->reliability_func & MACRONIX_RANDOMIZER_BIT) {
+		if (p->supports_set_get_features) {
+			bitmap_set(p->set_feature_list,
+				   ONFI_FEATURE_ADDR_MXIC_RANDOMIZER, 1);
+			bitmap_set(p->get_feature_list,
+				   ONFI_FEATURE_ADDR_MXIC_RANDOMIZER, 1);
+			ret = macronix_nand_randomizer_check_enable(chip);
+			if (ret < 0) {
+				bitmap_clear(p->set_feature_list,
+					     ONFI_FEATURE_ADDR_MXIC_RANDOMIZER,
+					     1);
+				bitmap_clear(p->get_feature_list,
+					     ONFI_FEATURE_ADDR_MXIC_RANDOMIZER,
+					     1);
+				pr_info("Macronix NAND randomizer failed\n");
+			} else {
+				pr_info("Macronix NAND randomizer enabled\n");
+			}
+		}
+	}
+
 	if ((mxic->reliability_func & MACRONIX_READ_RETRY_BIT) == 0)
 		return;
 
