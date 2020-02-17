@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+==================================
 relay interface (formerly relayfs)
 ==================================
 
@@ -108,6 +111,7 @@ The relay interface implements basic file operations for user space
 access to relay channel buffer data.  Here are the file operations
 that are available and some comments regarding their behavior:
 
+=========== ============================================================
 open()	    enables user to open an _existing_ channel buffer.
 
 mmap()      results in channel buffer being mapped into the caller's
@@ -136,13 +140,16 @@ poll()      POLLIN/POLLRDNORM/POLLERR supported.  User applications are
 close()     decrements the channel buffer's refcount.  When the refcount
 	    reaches 0, i.e. when no process or kernel client has the
 	    buffer open, the channel buffer is freed.
+=========== ============================================================
 
 In order for a user application to make use of relay files, the
-host filesystem must be mounted.  For example,
+host filesystem must be mounted.  For example::
 
 	mount -t debugfs debugfs /sys/kernel/debug
 
-NOTE:   the host filesystem doesn't need to be mounted for kernel
+.. Note::
+
+	the host filesystem doesn't need to be mounted for kernel
 	clients to create or use channels - it only needs to be
 	mounted when user space applications need access to the buffer
 	data.
@@ -154,7 +161,7 @@ The relay interface kernel API
 Here's a summary of the API the relay interface provides to in-kernel clients:
 
 TBD(curr. line MT:/API/)
-  channel management functions:
+  channel management functions::
 
     relay_open(base_filename, parent, subbuf_size, n_subbufs,
                callbacks, private_data)
@@ -162,17 +169,17 @@ TBD(curr. line MT:/API/)
     relay_flush(chan)
     relay_reset(chan)
 
-  channel management typically called on instigation of userspace:
+  channel management typically called on instigation of userspace::
 
     relay_subbufs_consumed(chan, cpu, subbufs_consumed)
 
-  write functions:
+  write functions::
 
     relay_write(chan, data, length)
     __relay_write(chan, data, length)
     relay_reserve(chan, length)
 
-  callbacks:
+  callbacks::
 
     subbuf_start(buf, subbuf, prev_subbuf, prev_padding)
     buf_mapped(buf, filp)
@@ -180,7 +187,7 @@ TBD(curr. line MT:/API/)
     create_buf_file(filename, parent, mode, buf, is_global)
     remove_buf_file(dentry)
 
-  helper functions:
+  helper functions::
 
     relay_buf_full(buf)
     subbuf_start_reserve(buf, length)
@@ -215,41 +222,41 @@ the file(s) created in create_buf_file() and is called during
 relay_close().
 
 Here are some typical definitions for these callbacks, in this case
-using debugfs:
+using debugfs::
 
-/*
- * create_buf_file() callback.  Creates relay file in debugfs.
- */
-static struct dentry *create_buf_file_handler(const char *filename,
-                                              struct dentry *parent,
-                                              umode_t mode,
-                                              struct rchan_buf *buf,
-                                              int *is_global)
-{
-        return debugfs_create_file(filename, mode, parent, buf,
-	                           &relay_file_operations);
-}
+    /*
+    * create_buf_file() callback.  Creates relay file in debugfs.
+    */
+    static struct dentry *create_buf_file_handler(const char *filename,
+						struct dentry *parent,
+						umode_t mode,
+						struct rchan_buf *buf,
+						int *is_global)
+    {
+	    return debugfs_create_file(filename, mode, parent, buf,
+				    &relay_file_operations);
+    }
 
-/*
- * remove_buf_file() callback.  Removes relay file from debugfs.
- */
-static int remove_buf_file_handler(struct dentry *dentry)
-{
-        debugfs_remove(dentry);
+    /*
+    * remove_buf_file() callback.  Removes relay file from debugfs.
+    */
+    static int remove_buf_file_handler(struct dentry *dentry)
+    {
+	    debugfs_remove(dentry);
 
-        return 0;
-}
+	    return 0;
+    }
 
-/*
- * relay interface callbacks
- */
-static struct rchan_callbacks relay_callbacks =
-{
-        .create_buf_file = create_buf_file_handler,
-        .remove_buf_file = remove_buf_file_handler,
-};
+    /*
+    * relay interface callbacks
+    */
+    static struct rchan_callbacks relay_callbacks =
+    {
+	    .create_buf_file = create_buf_file_handler,
+	    .remove_buf_file = remove_buf_file_handler,
+    };
 
-And an example relay_open() invocation using them:
+And an example relay_open() invocation using them::
 
   chan = relay_open("cpu", NULL, SUBBUF_SIZE, N_SUBBUFS, &relay_callbacks, NULL);
 
@@ -339,23 +346,23 @@ whether or not to actually move on to the next sub-buffer.
 
 To implement 'no-overwrite' mode, the userspace client would provide
 an implementation of the subbuf_start() callback something like the
-following:
+following::
 
-static int subbuf_start(struct rchan_buf *buf,
-                        void *subbuf,
-			void *prev_subbuf,
-			unsigned int prev_padding)
-{
-	if (prev_subbuf)
-		*((unsigned *)prev_subbuf) = prev_padding;
+    static int subbuf_start(struct rchan_buf *buf,
+			    void *subbuf,
+			    void *prev_subbuf,
+			    unsigned int prev_padding)
+    {
+	    if (prev_subbuf)
+		    *((unsigned *)prev_subbuf) = prev_padding;
 
-	if (relay_buf_full(buf))
-		return 0;
+	    if (relay_buf_full(buf))
+		    return 0;
 
-	subbuf_start_reserve(buf, sizeof(unsigned int));
+	    subbuf_start_reserve(buf, sizeof(unsigned int));
 
-	return 1;
-}
+	    return 1;
+    }
 
 If the current buffer is full, i.e. all sub-buffers remain unconsumed,
 the callback returns 0 to indicate that the buffer switch should not
@@ -370,20 +377,20 @@ ready sub-buffers will relay_buf_full() return 0, in which case the
 buffer switch can continue.
 
 The implementation of the subbuf_start() callback for 'overwrite' mode
-would be very similar:
+would be very similar::
 
-static int subbuf_start(struct rchan_buf *buf,
-                        void *subbuf,
-			void *prev_subbuf,
-			size_t prev_padding)
-{
-	if (prev_subbuf)
-		*((unsigned *)prev_subbuf) = prev_padding;
+    static int subbuf_start(struct rchan_buf *buf,
+			    void *subbuf,
+			    void *prev_subbuf,
+			    size_t prev_padding)
+    {
+	    if (prev_subbuf)
+		    *((unsigned *)prev_subbuf) = prev_padding;
 
-	subbuf_start_reserve(buf, sizeof(unsigned int));
+	    subbuf_start_reserve(buf, sizeof(unsigned int));
 
-	return 1;
-}
+	    return 1;
+    }
 
 In this case, the relay_buf_full() check is meaningless and the
 callback always returns 1, causing the buffer switch to occur

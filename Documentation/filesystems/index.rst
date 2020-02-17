@@ -84,5 +84,6 @@ Documentation for filesystem implementations.
    proc
    qnx6
    ramfs-rootfs-initramfs
+   relay
    virtiofs
    vfat
