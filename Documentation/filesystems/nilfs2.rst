@@ -1,5 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+======
 NILFS2
-------
+======
 
 NILFS2 is a log-structured file system (LFS) supporting continuous
 snapshotting.  In addition to versioning capability of the entire file
@@ -25,9 +28,9 @@ available from the following download page.  At least "mkfs.nilfs2",
 cleaner or garbage collector) are required.  Details on the tools are
 described in the man pages included in the package.
 
-Project web page:    https://nilfs.sourceforge.io/
-Download page:       https://nilfs.sourceforge.io/en/download.html
-List info:           http://vger.kernel.org/vger-lists.html#linux-nilfs
+:Project web page:    https://nilfs.sourceforge.io/
+:Download page:       https://nilfs.sourceforge.io/en/download.html
+:List info:           http://vger.kernel.org/vger-lists.html#linux-nilfs
 
 Caveats
 =======
@@ -47,6 +50,7 @@ Mount options
 NILFS2 supports the following mount options:
 (*) == default
 
+======================= =======================================================
 barrier(*)		This enables/disables the use of write barriers.  This
 nobarrier		requires an IO stack which can support barriers, and
 			if nilfs gets an error on a barrier write, it will
@@ -79,6 +83,7 @@ discard			This enables/disables the use of discard/TRIM commands.
 nodiscard(*)		The discard/TRIM commands are sent to the underlying
 			block device when blocks are freed.  This is useful
 			for SSD devices and sparse/thinly-provisioned LUNs.
+======================= =======================================================
 
 Ioctls
 ======
@@ -87,9 +92,11 @@ There is some NILFS2 specific functionality which can be accessed by application
 through the system call interfaces. The list of all NILFS2 specific ioctls are
 shown in the table below.
 
-Table of NILFS2 specific ioctls
-..............................................................................
+Table of NILFS2 specific ioctls:
+
+ ============================== ===============================================
  Ioctl			        Description
+ ============================== ===============================================
  NILFS_IOCTL_CHANGE_CPMODE      Change mode of given checkpoint between
 			        checkpoint and snapshot state. This ioctl is
 			        used in chcp and mkcp utilities.
@@ -142,11 +149,12 @@ Table of NILFS2 specific ioctls
  NILFS_IOCTL_SET_ALLOC_RANGE    Define lower limit of segments in bytes and
 			        upper limit of segments in bytes. This ioctl
 			        is used by nilfs_resize utility.
+ ============================== ===============================================
 
 NILFS2 usage
 ============
 
-To use nilfs2 as a local file system, simply:
+To use nilfs2 as a local file system, simply::
 
  # mkfs -t nilfs2 /dev/block_device
  # mount -t nilfs2 /dev/block_device /dir
@@ -157,18 +165,20 @@ This will also invoke the cleaner through the mount helper program
 Checkpoints and snapshots are managed by the following commands.
 Their manpages are included in the nilfs-utils package above.
 
+  ====     ===========================================================
   lscp     list checkpoints or snapshots.
   mkcp     make a checkpoint or a snapshot.
   chcp     change an existing checkpoint to a snapshot or vice versa.
   rmcp     invalidate specified checkpoint(s).
+  ====     ===========================================================
 
-To mount a snapshot,
+To mount a snapshot::
 
  # mount -t nilfs2 -r -o cp=<cno> /dev/block_device /snap_dir
 
 where <cno> is the checkpoint number of the snapshot.
 
-To unmount the NILFS2 mount point or snapshot, simply:
+To unmount the NILFS2 mount point or snapshot, simply::
 
  # umount /dir
 
@@ -181,7 +191,7 @@ Disk format
 A nilfs2 volume is equally divided into a number of segments except
 for the super block (SB) and segment #0.  A segment is the container
 of logs.  Each log is composed of summary information blocks, payload
-blocks, and an optional super root block (SR):
+blocks, and an optional super root block (SR)::
 
    ______________________________________________________
   | |SB| | Segment | Segment | Segment | ... | Segment | |
@@ -200,7 +210,7 @@ blocks, and an optional super root block (SR):
   |_blocks__|_________________|__|
 
 The payload blocks are organized per file, and each file consists of
-data blocks and B-tree node blocks:
+data blocks and B-tree node blocks::
 
     |<---       File-A        --->|<---       File-B        --->|
    _______________________________________________________________
@@ -213,7 +223,7 @@ files without data blocks or B-tree node blocks.
 
 The organization of the blocks is recorded in the summary information
 blocks, which contains a header structure (nilfs_segment_summary), per
-file structures (nilfs_finfo), and per block structures (nilfs_binfo):
+file structures (nilfs_finfo), and per block structures (nilfs_binfo)::
 
   _________________________________________________________________________
  | Summary | finfo | binfo | ... | binfo | finfo | binfo | ... | binfo |...
@@ -223,7 +233,7 @@ file structures (nilfs_finfo), and per block structures (nilfs_binfo):
 The logs include regular files, directory files, symbolic link files
 and several meta data files.  The mata data files are the files used
 to maintain file system meta data.  The current version of NILFS2 uses
-the following meta data files:
+the following meta data files::
 
  1) Inode file (ifile)             -- Stores on-disk inodes
  2) Checkpoint file (cpfile)       -- Stores checkpoints
@@ -232,7 +242,7 @@ the following meta data files:
     (DAT)                             block numbers.  This file serves to
                                       make on-disk blocks relocatable.
 
-The following figure shows a typical organization of the logs:
+The following figure shows a typical organization of the logs::
 
   _________________________________________________________________________
  | Summary | regular file | file  | ... | ifile | cpfile | sufile | DAT |SR|
@@ -250,7 +260,7 @@ three special inodes, inodes for the DAT, cpfile, and sufile.  Inodes
 of regular files, directories, symlinks and other special files, are
 included in the ifile.  The inode of ifile itself is included in the
 corresponding checkpoint entry in the cpfile.  Thus, the hierarchy
-among NILFS2 files can be depicted as follows:
+among NILFS2 files can be depicted as follows::
 
   Super block (SB)
        |
