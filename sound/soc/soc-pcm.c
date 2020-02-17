@@ -2954,22 +2954,6 @@ struct snd_pcm_substream *
 }
 EXPORT_SYMBOL_GPL(snd_soc_dpcm_get_substream);
 
-/* get the BE runtime state */
-enum snd_soc_dpcm_state
-	snd_soc_dpcm_be_get_state(struct snd_soc_pcm_runtime *be, int stream)
-{
-	return be->dpcm[stream].state;
-}
-EXPORT_SYMBOL_GPL(snd_soc_dpcm_be_get_state);
-
-/* set the BE runtime state */
-void snd_soc_dpcm_be_set_state(struct snd_soc_pcm_runtime *be,
-		int stream, enum snd_soc_dpcm_state state)
-{
-	be->dpcm[stream].state = state;
-}
-EXPORT_SYMBOL_GPL(snd_soc_dpcm_be_set_state);
-
 /*
  * We can only hw_free, stop, pause or suspend a BE DAI if any of it's FE
  * are not running, paused or suspended for the specified stream direction.
