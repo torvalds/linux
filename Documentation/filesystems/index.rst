@@ -66,6 +66,7 @@ Documentation for filesystem implementations.
    ext3
    f2fs
    gfs2
+   gfs2-uevents
    fuse
    overlayfs
    virtiofs
