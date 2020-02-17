@@ -529,7 +529,7 @@ static void lpass_platform_pcm_free(struct snd_soc_component *component,
 	struct snd_pcm_substream *substream;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(pcm->streams); i++) {
+	for_each_pcm_streams(i) {
 		substream = pcm->streams[i].substream;
 		if (substream) {
 			snd_dma_free_pages(&substream->dma_buffer);
