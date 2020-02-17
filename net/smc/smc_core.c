@@ -229,7 +229,7 @@ static void smc_lgr_terminate_work(struct work_struct *work)
 	struct smc_link_group *lgr = container_of(work, struct smc_link_group,
 						  terminate_work);
 
-	smc_lgr_terminate(lgr, true);
+	smc_lgr_terminate(lgr);
 }
 
 /* create a new SMC link group */
@@ -581,7 +581,10 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 	}
 }
 
-/* terminate link group */
+/* terminate link group
+ * @soft: true if link group shutdown can take its time
+ *	  false if immediate link group shutdown is required
+ */
 static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 {
 	struct smc_connection *conn;
@@ -619,11 +622,8 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 		smc_lgr_free(lgr);
 }
 
-/* unlink and terminate link group
- * @soft: true if link group shutdown can take its time
- *	  false if immediate link group shutdown is required
- */
-void smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
+/* unlink and terminate link group */
+void smc_lgr_terminate(struct smc_link_group *lgr)
 {
 	spinlock_t *lgr_lock;
 
@@ -633,11 +633,9 @@ void smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 		spin_unlock_bh(lgr_lock);
 		return;	/* lgr already terminating */
 	}
-	if (!soft)
-		lgr->freeing = 1;
 	list_del_init(&lgr->list);
 	spin_unlock_bh(lgr_lock);
-	__smc_lgr_terminate(lgr, soft);
+	__smc_lgr_terminate(lgr, true);
 }
 
 /* Called when IB port is terminated */
