@@ -1,5 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+================
 OCFS2 filesystem
-==================
+================
+
 OCFS2 is a general purpose extent based shared disk cluster file
 system with many similarities to ext3. It supports 64 bit inode
 numbers, and has automatically extending metadata groups which may
@@ -14,22 +18,26 @@ OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
 
 All code copyright 2005 Oracle except when otherwise noted.
 
-CREDITS:
+Credits
+=======
+
 Lots of code taken from ext3 and other projects.
 
 Authors in alphabetical order:
-Joel Becker   <joel.becker@oracle.com>
-Zach Brown    <zach.brown@oracle.com>
-Mark Fasheh   <mfasheh@suse.com>
-Kurt Hackel   <kurt.hackel@oracle.com>
-Tao Ma        <tao.ma@oracle.com>
-Sunil Mushran <sunil.mushran@oracle.com>
-Manish Singh  <manish.singh@oracle.com>
-Tiger Yang    <tiger.yang@oracle.com>
+
+- Joel Becker   <joel.becker@oracle.com>
+- Zach Brown    <zach.brown@oracle.com>
+- Mark Fasheh   <mfasheh@suse.com>
+- Kurt Hackel   <kurt.hackel@oracle.com>
+- Tao Ma        <tao.ma@oracle.com>
+- Sunil Mushran <sunil.mushran@oracle.com>
+- Manish Singh  <manish.singh@oracle.com>
+- Tiger Yang    <tiger.yang@oracle.com>
 
 Caveats
 =======
 Features which OCFS2 does not support yet:
+
 	- Directory change notification (F_NOTIFY)
 	- Distributed Caching (F_SETLEASE/F_GETLEASE/break_lease)
 
@@ -37,8 +45,10 @@ Mount options
 =============
 
 OCFS2 supports the following mount options:
+
 (*) == default
 
+======================= ========================================================
 barrier=1		This enables/disables barriers. barrier=0 disables it,
 			barrier=1 enables it.
 errors=remount-ro(*)	Remount the filesystem read-only on an error.
@@ -104,3 +114,4 @@ journal_async_commit	Commit block can be written to disk without waiting
 			for descriptor blocks. If enabled older kernels cannot
 			mount the device. This will enable 'journal_checksum'
 			internally.
+======================= ========================================================
