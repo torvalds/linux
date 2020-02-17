@@ -1,3 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===============================
+Acorn Disc Filing System - ADFS
+===============================
+
 Filesystems supported by ADFS
 -----------------------------
 
@@ -25,6 +31,7 @@ directory updates, specifically updating the access mode and timestamp.
 Mount options for ADFS
 ----------------------
 
+  ============  ======================================================
   uid=nnn	All files in the partition will be owned by
 		user id nnn.  Default 0 (root).
   gid=nnn	All files in the partition will be in group
@@ -36,22 +43,23 @@ Mount options for ADFS
   ftsuffix=n	When ftsuffix=0, no file type suffix will be applied.
 		When ftsuffix=1, a hexadecimal suffix corresponding to
 		the RISC OS file type will be added.  Default 0.
+  ============  ======================================================
 
 Mapping of ADFS permissions to Linux permissions
 ------------------------------------------------
 
   ADFS permissions consist of the following:
 
-	Owner read
-	Owner write
-	Other read
-	Other write
+	- Owner read
+	- Owner write
+	- Other read
+	- Other write
 
   (In older versions, an 'execute' permission did exist, but this
-   does not hold the same meaning as the Linux 'execute' permission
-   and is now obsolete).
+  does not hold the same meaning as the Linux 'execute' permission
+  and is now obsolete).
 
-  The mapping is performed as follows:
+  The mapping is performed as follows::
 
 	Owner read				-> -r--r--r--
 	Owner write				-> --w--w---w
@@ -66,17 +74,18 @@ Mapping of ADFS permissions to Linux permissions
 	Possible other mode permissions		-> ----rwxrwx
 
   Hence, with the default masks, if a file is owner read/write, and
-  not a UnixExec filetype, then the permissions will be:
+  not a UnixExec filetype, then the permissions will be::
 
 			-rw-------
 
   However, if the masks were ownmask=0770,othmask=0007, then this would
-  be modified to:
+  be modified to::
+
 			-rw-rw----
 
   There is no restriction on what you can do with these masks.  You may
   wish that either read bits give read access to the file for all, but
-  keep the default write protection (ownmask=0755,othmask=0577):
+  keep the default write protection (ownmask=0755,othmask=0577)::
 
 			-rw-r--r--
 

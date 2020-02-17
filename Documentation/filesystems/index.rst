@@ -47,6 +47,7 @@ Documentation for filesystem implementations.
    :maxdepth: 2
 
    9p
+   adfs
    autofs
    fuse
    overlayfs
