@@ -576,11 +576,8 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 	} else {
 		struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
 
-		wake_up(&lnk->wr_reg_wait);
-		if (lnk->state != SMC_LNK_INACTIVE) {
-			smc_link_send_delete(lnk, false);
+		if (lnk->state != SMC_LNK_INACTIVE)
 			smc_llc_link_inactive(lnk);
-		}
 	}
 }
 
