@@ -63,6 +63,7 @@ Documentation for filesystem implementations.
    efivarfs
    erofs
    ext2
+   ext3
    fuse
    overlayfs
    virtiofs
