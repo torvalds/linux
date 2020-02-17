@@ -1297,34 +1297,29 @@ static bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget,
 {
 	struct snd_soc_card *card = widget->dapm->card;
 	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dapm_widget *w;
 	struct snd_soc_dai *dai;
+	int stream;
 	int i;
 
-	if (dir == SND_SOC_DAPM_DIR_OUT) {
-		for_each_card_rtds(card, rtd) {
-			if (!rtd->dai_link->no_pcm)
-				continue;
+	/* adjust dir to stream */
+	if (dir == SND_SOC_DAPM_DIR_OUT)
+		stream = SNDRV_PCM_STREAM_PLAYBACK;
+	else
+		stream = SNDRV_PCM_STREAM_CAPTURE;
 
-			if (rtd->cpu_dai->playback_widget == widget)
+	for_each_card_rtds(card, rtd) {
+		if (!rtd->dai_link->no_pcm)
+			continue;
+
+		w = dai_get_widget(rtd->cpu_dai, stream);
+		if (w == widget)
+			return true;
+
+		for_each_rtd_codec_dai(rtd, i, dai) {
+			w = dai_get_widget(dai, stream);
+			if (w == widget)
 				return true;
-
-			for_each_rtd_codec_dai(rtd, i, dai) {
-				if (dai->playback_widget == widget)
-					return true;
-			}
-		}
-	} else { /* SND_SOC_DAPM_DIR_IN */
-		for_each_card_rtds(card, rtd) {
-			if (!rtd->dai_link->no_pcm)
-				continue;
-
-			if (rtd->cpu_dai->capture_widget == widget)
-				return true;
-
-			for_each_rtd_codec_dai(rtd, i, dai) {
-				if (dai->capture_widget == widget)
-					return true;
-			}
 		}
 	}
 
