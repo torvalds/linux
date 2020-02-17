@@ -1246,47 +1246,30 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 		struct snd_soc_dapm_widget *widget, int stream)
 {
 	struct snd_soc_pcm_runtime *be;
+	struct snd_soc_dapm_widget *w;
 	struct snd_soc_dai *dai;
 	int i;
 
 	dev_dbg(card->dev, "ASoC: find BE for widget %s\n", widget->name);
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		for_each_card_rtds(card, be) {
+	for_each_card_rtds(card, be) {
 
-			if (!be->dai_link->no_pcm)
-				continue;
+		if (!be->dai_link->no_pcm)
+			continue;
 
-			dev_dbg(card->dev, "ASoC: try BE : %s\n",
-				be->cpu_dai->playback_widget ?
-				be->cpu_dai->playback_widget->name : "(not set)");
+		w = dai_get_widget(be->cpu_dai, stream);
 
-			if (be->cpu_dai->playback_widget == widget)
+		dev_dbg(card->dev, "ASoC: try BE : %s\n",
+			w ? w->name : "(not set)");
+
+		if (w == widget)
+			return be;
+
+		for_each_rtd_codec_dai(be, i, dai) {
+			w = dai_get_widget(dai, stream);
+
+			if (w == widget)
 				return be;
-
-			for_each_rtd_codec_dai(be, i, dai) {
-				if (dai->playback_widget == widget)
-					return be;
-			}
-		}
-	} else {
-
-		for_each_card_rtds(card, be) {
-
-			if (!be->dai_link->no_pcm)
-				continue;
-
-			dev_dbg(card->dev, "ASoC: try BE %s\n",
-				be->cpu_dai->capture_widget ?
-				be->cpu_dai->capture_widget->name : "(not set)");
-
-			if (be->cpu_dai->capture_widget == widget)
-				return be;
-
-			for_each_rtd_codec_dai(be, i, dai) {
-				if (dai->capture_widget == widget)
-					return be;
-			}
 		}
 	}
 
