@@ -1262,8 +1262,9 @@ static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 
 	regmap_write(dsi->regmap, DSI_DPI_COLOR_CODING, val);
 
+	val = 0;
 	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		val = VSYNC_ACTIVE_LOW;
+		val |= VSYNC_ACTIVE_LOW;
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		val |= HSYNC_ACTIVE_LOW;
 	regmap_write(dsi->regmap, DSI_DPI_CFG_POL, val);
