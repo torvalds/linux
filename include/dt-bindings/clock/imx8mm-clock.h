@@ -270,6 +270,8 @@
 #define IMX8MM_CLK_GPU3D_CORE			248
 #define IMX8MM_CLK_GPU2D_CORE			249
 
-#define IMX8MM_CLK_END				250
+#define IMX8MM_CLK_CLKO2			250
+
+#define IMX8MM_CLK_END				251
 
 #endif
