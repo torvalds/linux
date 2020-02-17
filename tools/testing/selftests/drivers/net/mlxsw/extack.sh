@@ -9,6 +9,7 @@ ALL_TESTS="
 	netdev_pre_up_test
 	vxlan_vlan_add_test
 	vxlan_bridge_create_test
+	bridge_create_test
 "
 NUM_NETIFS=2
 source $lib_dir/lib.sh
@@ -135,6 +136,28 @@ vxlan_bridge_create_test()
 
 	ip link del dev br1
 	ip link del dev vx1
+}
+
+bridge_create_test()
+{
+	RET=0
+
+	ip link add name br1 up type bridge vlan_filtering 1
+	ip link add name br2 up type bridge vlan_filtering 1
+
+	ip link set dev $swp1 master br1
+	check_err $?
+
+	# Only one VLAN-aware bridge is supported, so this should fail with
+	# an extack.
+	ip link set dev $swp2 master br2 2>&1 > /dev/null \
+		| grep -q mlxsw_spectrum
+	check_err $?
+
+	log_test "extack - multiple VLAN-aware bridges creation"
+
+	ip link del dev br2
+	ip link del dev br1
 }
 
 trap cleanup EXIT
