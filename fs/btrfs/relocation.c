@@ -4232,6 +4232,10 @@ restart:
 				break;
 			}
 		}
+		if (btrfs_should_cancel_balance(fs_info)) {
+			err = -ECANCELED;
+			break;
+		}
 	}
 	if (trans && progress && err == -ENOSPC) {
 		ret = btrfs_force_chunk_alloc(trans, rc->block_group->flags);
