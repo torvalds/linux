@@ -1,5 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+==================
 Global File System
-------------------
+==================
 
 https://fedorahosted.org/cluster/wiki/HomePage
 
@@ -14,16 +17,18 @@ on one machine show up immediately on all other machines in the cluster.
 GFS uses interchangeable inter-node locking mechanisms, the currently
 supported mechanisms are:
 
-  lock_nolock -- allows gfs to be used as a local file system
+  lock_nolock
+    - allows gfs to be used as a local file system
 
-  lock_dlm -- uses a distributed lock manager (dlm) for inter-node locking
-  The dlm is found at linux/fs/dlm/
+  lock_dlm
+    - uses a distributed lock manager (dlm) for inter-node locking.
+      The dlm is found at linux/fs/dlm/
 
 Lock_dlm depends on user space cluster management systems found
 at the URL above.
 
 To use gfs as a local file system, no external clustering systems are
-needed, simply:
+needed, simply::
 
   $ mkfs -t gfs2 -p lock_nolock -j 1 /dev/block_device
   $ mount -t gfs2 /dev/block_device /dir
@@ -37,9 +42,12 @@ GFS2 is not on-disk compatible with previous versions of GFS, but it
 is pretty close.
 
 The following man pages can be found at the URL above:
+
+  ============		=============================================
   fsck.gfs2		to repair a filesystem
   gfs2_grow		to expand a filesystem online
   gfs2_jadd		to add journals to a filesystem online
   tunegfs2		to manipulate, examine and tune a filesystem
-  gfs2_convert	to convert a gfs filesystem to gfs2 in-place
+  gfs2_convert		to convert a gfs filesystem to gfs2 in-place
   mkfs.gfs2		to make a filesystem
+  ============		=============================================
