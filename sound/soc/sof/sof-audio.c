@@ -23,7 +23,7 @@ bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev)
 	int dir;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		for (dir = 0; dir <= SNDRV_PCM_STREAM_CAPTURE; dir++) {
+		for_each_pcm_streams(dir) {
 			substream = spcm->stream[dir].substream;
 			if (!substream || !substream->runtime)
 				continue;
@@ -71,7 +71,7 @@ int sof_set_hw_params_upon_resume(struct device *dev)
 	 * have been suspended.
 	 */
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		for (dir = 0; dir <= SNDRV_PCM_STREAM_CAPTURE; dir++) {
+		for_each_pcm_streams(dir) {
 			/*
 			 * do not reset hw_params upon resume for streams that
 			 * were kept running during suspend
@@ -319,16 +319,11 @@ struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_soc_component *scomp,
 	int dir;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		dir = SNDRV_PCM_STREAM_PLAYBACK;
-		if (spcm->stream[dir].comp_id == comp_id) {
-			*direction = dir;
-			return spcm;
-		}
-
-		dir = SNDRV_PCM_STREAM_CAPTURE;
-		if (spcm->stream[dir].comp_id == comp_id) {
-			*direction = dir;
-			return spcm;
+		for_each_pcm_streams(dir) {
+			if (spcm->stream[dir].comp_id == comp_id) {
+				*direction = dir;
+				return spcm;
+			}
 		}
 	}
 
