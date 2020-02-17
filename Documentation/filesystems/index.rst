@@ -87,5 +87,6 @@ Documentation for filesystem implementations.
    relay
    romfs
    squashfs
+   sysfs
    virtiofs
    vfat
