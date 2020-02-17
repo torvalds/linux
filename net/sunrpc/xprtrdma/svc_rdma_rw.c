@@ -41,7 +41,7 @@ struct svc_rdma_rw_ctxt {
 	struct rdma_rw_ctx	rw_ctx;
 	int			rw_nents;
 	struct sg_table		rw_sg_table;
-	struct scatterlist	rw_first_sgl[0];
+	struct scatterlist	rw_first_sgl[];
 };
 
 static inline struct svc_rdma_rw_ctxt *
