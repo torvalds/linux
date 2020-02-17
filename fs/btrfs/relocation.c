@@ -3445,6 +3445,10 @@ static int relocate_file_extent_cluster(struct inode *inode,
 		btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE);
 		balance_dirty_pages_ratelimited(inode->i_mapping);
 		btrfs_throttle(fs_info);
+		if (btrfs_should_cancel_balance(fs_info)) {
+			ret = -ECANCELED;
+			goto out;
+		}
 	}
 	WARN_ON(nr != cluster->nr);
 out:
@@ -4259,6 +4263,14 @@ restart:
 	backref_cache_cleanup(&rc->backref_cache);
 	btrfs_block_rsv_release(fs_info, rc->block_rsv, (u64)-1);
 
+	/*
+	 * Even in the case when the relocation is cancelled, we should all go
+	 * through prepare_to_merge() and merge_reloc_roots().
+	 *
+	 * For error (including cancelled balance), prepare_to_merge() will
+	 * mark all reloc trees orphan, then queue them for cleanup in
+	 * merge_reloc_roots()
+	 */
 	err = prepare_to_merge(rc, err);
 
 	merge_reloc_roots(rc);
