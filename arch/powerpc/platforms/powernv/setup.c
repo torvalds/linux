@@ -237,6 +237,8 @@ static void  __noreturn pnv_restart(char *cmd)
 			rc = opal_cec_reboot2(OPAL_REBOOT_MPIPL, NULL);
 		else if (strcmp(cmd, "error") == 0)
 			rc = opal_cec_reboot2(OPAL_REBOOT_PLATFORM_ERROR, NULL);
+		else if (strcmp(cmd, "fast") == 0)
+			rc = opal_cec_reboot2(OPAL_REBOOT_FAST, NULL);
 		else
 			rc = OPAL_UNSUPPORTED;
 
