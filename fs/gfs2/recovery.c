@@ -398,6 +398,10 @@ void gfs2_recover_func(struct work_struct *work)
 		fs_info(sdp, "jid=%u: Replaying journal...0x%x to 0x%x\n",
 			jd->jd_jid, head.lh_tail, head.lh_blkno);
 
+		/* We take the sd_log_flush_lock here primarily to prevent log
+		 * flushes and simultaneous journal replays from stomping on
+		 * each other wrt sd_log_bio. */
+		down_write(&sdp->sd_log_flush_lock);
 		for (pass = 0; pass < 2; pass++) {
 			lops_before_scan(jd, &head, pass);
 			error = foreach_descriptor(jd, head.lh_tail,
@@ -408,6 +412,7 @@ void gfs2_recover_func(struct work_struct *work)
 		}
 
 		clean_journal(jd, &head);
+		up_write(&sdp->sd_log_flush_lock);
 
 		gfs2_glock_dq_uninit(&thaw_gh);
 		t_rep = ktime_get();
