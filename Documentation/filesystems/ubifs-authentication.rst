@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 :orphan:
 
 .. UBIFS Authentication
@@ -92,11 +94,11 @@ UBIFS Index & Tree Node Cache
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Basic on-flash UBIFS entities are called *nodes*. UBIFS knows different types
-of nodes. Eg. data nodes (`struct ubifs_data_node`) which store chunks of file
-contents or inode nodes (`struct ubifs_ino_node`) which represent VFS inodes.
-Almost all types of nodes share a common header (`ubifs_ch`) containing basic
+of nodes. Eg. data nodes (``struct ubifs_data_node``) which store chunks of file
+contents or inode nodes (``struct ubifs_ino_node``) which represent VFS inodes.
+Almost all types of nodes share a common header (``ubifs_ch``) containing basic
 information like node type, node length, a sequence number, etc. (see
-`fs/ubifs/ubifs-media.h`in kernel source). Exceptions are entries of the LPT
+``fs/ubifs/ubifs-media.h`` in kernel source). Exceptions are entries of the LPT
 and some less important node types like padding nodes which are used to pad
 unusable content at the end of LEBs.
 
