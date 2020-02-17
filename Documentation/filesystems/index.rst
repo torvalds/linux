@@ -59,6 +59,7 @@ Documentation for filesystem implementations.
    cramfs
    debugfs
    dlmfs
+   ecryptfs
    fuse
    overlayfs
    virtiofs
