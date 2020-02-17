@@ -140,7 +140,7 @@ static int mlx5_cmd_dr_create_flow_group(struct mlx5_flow_root_namespace *ns,
 					 struct mlx5_flow_group *fg)
 {
 	struct mlx5dr_matcher *matcher;
-	u16 priority = MLX5_GET(create_flow_group_in, in,
+	u32 priority = MLX5_GET(create_flow_group_in, in,
 				start_flow_index);
 	u8 match_criteria_enable = MLX5_GET(create_flow_group_in,
 					    in,

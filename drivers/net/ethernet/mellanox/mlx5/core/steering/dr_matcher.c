@@ -671,7 +671,7 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 
 struct mlx5dr_matcher *
 mlx5dr_matcher_create(struct mlx5dr_table *tbl,
-		      u16 priority,
+		      u32 priority,
 		      u8 match_criteria_enable,
 		      struct mlx5dr_match_parameters *mask)
 {

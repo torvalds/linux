@@ -59,7 +59,7 @@ u32 mlx5dr_table_get_id(struct mlx5dr_table *table);
 
 struct mlx5dr_matcher *
 mlx5dr_matcher_create(struct mlx5dr_table *table,
-		      u16 priority,
+		      u32 priority,
 		      u8 match_criteria_enable,
 		      struct mlx5dr_match_parameters *mask);
 
@@ -151,7 +151,7 @@ mlx5dr_table_get_id(struct mlx5dr_table *table) { return 0; }
 
 static inline struct mlx5dr_matcher *
 mlx5dr_matcher_create(struct mlx5dr_table *table,
-		      u16 priority,
+		      u32 priority,
 		      u8 match_criteria_enable,
 		      struct mlx5dr_match_parameters *mask) { return NULL; }
 
