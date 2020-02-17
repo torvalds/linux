@@ -90,6 +90,7 @@ Documentation for filesystem implementations.
    sysfs
    sysv-fs
    tmpfs
+   ubifs
    ubifs-authentication.rst
    virtiofs
    vfat

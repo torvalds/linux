@@ -1,5 +1,11 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===============
+UBI File System
+===============
+
 Introduction
-=============
+============
 
 UBIFS file-system stands for UBI File System. UBI stands for "Unsorted
 Block Images". UBIFS is a flash file system, which means it is designed
@@ -79,6 +85,7 @@ Mount options
 
 (*) == default.
 
+====================	=======================================================
 bulk_read		read more in one go to take advantage of flash
 			media that read faster sequentially
 no_bulk_read (*)	do not bulk-read
@@ -98,6 +105,7 @@ auth_key=		specify the key used for authenticating the filesystem.
 auth_hash_name=		The hash algorithm used for authentication. Used for
 			both hashing and for creating HMACs. Typical values
 			include "sha256" or "sha512"
+====================	=======================================================
 
 
 Quick usage instructions
@@ -107,12 +115,14 @@ The UBI volume to mount is specified using "ubiX_Y" or "ubiX:NAME" syntax,
 where "X" is UBI device number, "Y" is UBI volume number, and "NAME" is
 UBI volume name.
 
-Mount volume 0 on UBI device 0 to /mnt/ubifs:
-$ mount -t ubifs ubi0_0 /mnt/ubifs
+Mount volume 0 on UBI device 0 to /mnt/ubifs::
+
+    $ mount -t ubifs ubi0_0 /mnt/ubifs
 
 Mount "rootfs" volume of UBI device 0 to /mnt/ubifs ("rootfs" is volume
-name):
-$ mount -t ubifs ubi0:rootfs /mnt/ubifs
+name)::
+
+    $ mount -t ubifs ubi0:rootfs /mnt/ubifs
 
 The following is an example of the kernel boot arguments to attach mtd0
 to UBI and mount volume "rootfs":
@@ -122,5 +132,6 @@ References
 ==========
 
 UBIFS documentation and FAQ/HOWTO at the MTD web site:
-http://www.linux-mtd.infradead.org/doc/ubifs.html
-http://www.linux-mtd.infradead.org/faq/ubifs.html
+
+- http://www.linux-mtd.infradead.org/doc/ubifs.html
+- http://www.linux-mtd.infradead.org/faq/ubifs.html
