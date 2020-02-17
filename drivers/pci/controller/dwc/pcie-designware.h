@@ -411,6 +411,7 @@ static inline int dw_pcie_allocate_domains(struct pcie_port *pp)
 #ifdef CONFIG_PCIE_DW_EP
 void dw_pcie_ep_linkup(struct dw_pcie_ep *ep);
 int dw_pcie_ep_init(struct dw_pcie_ep *ep);
+int dw_pcie_ep_init_complete(struct dw_pcie_ep *ep);
 void dw_pcie_ep_exit(struct dw_pcie_ep *ep);
 int dw_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep, u8 func_no);
 int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
@@ -424,6 +425,11 @@ static inline void dw_pcie_ep_linkup(struct dw_pcie_ep *ep)
 }
 
 static inline int dw_pcie_ep_init(struct dw_pcie_ep *ep)
+{
+	return 0;
+}
+
+static inline int dw_pcie_ep_init_complete(struct dw_pcie_ep *ep)
 {
 	return 0;
 }
