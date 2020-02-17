@@ -6220,15 +6220,13 @@ static void handle_exception_nmi_irqoff(struct vcpu_vmx *vmx)
 	vmx->exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 
 	/* if exit due to PF check for async PF */
-	if (is_page_fault(vmx->exit_intr_info))
+	if (is_page_fault(vmx->exit_intr_info)) {
 		vmx->vcpu.arch.apf.host_apf_reason = kvm_read_and_reset_pf_reason();
-
 	/* Handle machine checks before interrupts are enabled */
-	if (is_machine_check(vmx->exit_intr_info))
+	} else if (is_machine_check(vmx->exit_intr_info)) {
 		kvm_machine_check();
-
 	/* We need to handle NMIs before interrupts are enabled */
-	if (is_nmi(vmx->exit_intr_info)) {
+	} else if (is_nmi(vmx->exit_intr_info)) {
 		kvm_before_interrupt(&vmx->vcpu);
 		asm("int $2");
 		kvm_after_interrupt(&vmx->vcpu);
