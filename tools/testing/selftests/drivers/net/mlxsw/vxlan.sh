@@ -854,20 +854,25 @@ sanitization_vlan_aware_test()
 	bridge vlan del vid 10 dev vxlan20
 	bridge vlan add vid 20 dev vxlan20 pvid untagged
 
-	# Test that offloading of an unsupported tunnel fails when it is
-	# triggered by addition of VLAN to a local port
-	RET=0
+	# Test that when two VXLAN tunnels with conflicting configurations
+	# (i.e., different TTL) are enslaved to the same VLAN-aware bridge,
+	# then the enslavement of a port to the bridge is denied.
 
-	# TOS must be set to inherit
-	ip link set dev vxlan10 type vxlan tos 42
+	# Use the offload indication of the local route to ensure the VXLAN
+	# configuration was correctly rollbacked.
+	ip address add 198.51.100.1/32 dev lo
 
-	ip link set dev $swp1 master br0
-	bridge vlan add vid 10 dev $swp1 &> /dev/null
+	ip link set dev vxlan10 type vxlan ttl 10
+	ip link set dev $swp1 master br0 &> /dev/null
 	check_fail $?
 
-	log_test "vlan-aware - failed vlan addition to a local port"
+	ip route show table local | grep 198.51.100.1 | grep -q offload
+	check_fail $?
 
-	ip link set dev vxlan10 type vxlan tos inherit
+	log_test "vlan-aware - failed enslavement to bridge due to conflict"
+
+	ip link set dev vxlan10 type vxlan ttl 20
+	ip address del 198.51.100.1/32 dev lo
 
 	ip link del dev vxlan20
 	ip link del dev vxlan10
@@ -1064,11 +1069,9 @@ offload_indication_vlan_aware_l3vni_test()
 	ip link set dev vxlan0 master br0
 	bridge vlan add dev vxlan0 vid 10 pvid untagged
 
-	# No local port or router port is member in the VLAN, so tunnel should
-	# not be offloaded
 	bridge fdb show brport vxlan0 | grep $zmac | grep self \
 		| grep -q offload
-	check_fail $? "vxlan tunnel offloaded when should not"
+	check_err $? "vxlan tunnel not offloaded when should"
 
 	# Configure a VLAN interface and make sure tunnel is offloaded
 	ip link add link br0 name br10 up type vlan id 10

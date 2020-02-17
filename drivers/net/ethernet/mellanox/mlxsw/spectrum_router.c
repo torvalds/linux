@@ -7428,7 +7428,7 @@ mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
 		}
 	}
 
-	return mlxsw_sp_bridge_fid_get(rif->mlxsw_sp, br_dev, vid, extack);
+	return mlxsw_sp_fid_8021q_get(rif->mlxsw_sp, vid);
 }
 
 static void mlxsw_sp_rif_vlan_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
@@ -7519,7 +7519,7 @@ static struct mlxsw_sp_fid *
 mlxsw_sp_rif_fid_fid_get(struct mlxsw_sp_rif *rif,
 			 struct netlink_ext_ack *extack)
 {
-	return mlxsw_sp_bridge_fid_get(rif->mlxsw_sp, rif->dev, 0, extack);
+	return mlxsw_sp_fid_8021d_get(rif->mlxsw_sp, rif->dev->ifindex);
 }
 
 static void mlxsw_sp_rif_fid_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)

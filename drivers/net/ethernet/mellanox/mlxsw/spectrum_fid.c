@@ -8,6 +8,7 @@
 #include <linux/netdevice.h>
 #include <linux/rhashtable.h>
 #include <linux/rtnetlink.h>
+#include <linux/refcount.h>
 
 #include "spectrum.h"
 #include "reg.h"
@@ -24,7 +25,7 @@ struct mlxsw_sp_fid_core {
 struct mlxsw_sp_fid {
 	struct list_head list;
 	struct mlxsw_sp_rif *rif;
-	unsigned int ref_count;
+	refcount_t ref_count;
 	u16 fid_index;
 	struct mlxsw_sp_fid_family *fid_family;
 	struct rhash_head ht_node;
@@ -149,7 +150,7 @@ struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_index(struct mlxsw_sp *mlxsw_sp,
 	fid = rhashtable_lookup_fast(&mlxsw_sp->fid_core->fid_ht, &fid_index,
 				     mlxsw_sp_fid_ht_params);
 	if (fid)
-		fid->ref_count++;
+		refcount_inc(&fid->ref_count);
 
 	return fid;
 }
@@ -183,7 +184,7 @@ struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_vni(struct mlxsw_sp *mlxsw_sp,
 	fid = rhashtable_lookup_fast(&mlxsw_sp->fid_core->vni_ht, &vni,
 				     mlxsw_sp_fid_vni_ht_params);
 	if (fid)
-		fid->ref_count++;
+		refcount_inc(&fid->ref_count);
 
 	return fid;
 }
@@ -1030,7 +1031,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_lookup(struct mlxsw_sp *mlxsw_sp,
 	list_for_each_entry(fid, &fid_family->fids_list, list) {
 		if (!fid->fid_family->ops->compare(fid, arg))
 			continue;
-		fid->ref_count++;
+		refcount_inc(&fid->ref_count);
 		return fid;
 	}
 
@@ -1075,7 +1076,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
 		goto err_rhashtable_insert;
 
 	list_add(&fid->list, &fid_family->fids_list);
-	fid->ref_count++;
+	refcount_set(&fid->ref_count, 1);
 	return fid;
 
 err_rhashtable_insert:
@@ -1093,7 +1094,7 @@ void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid)
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
 
-	if (--fid->ref_count != 0)
+	if (!refcount_dec_and_test(&fid->ref_count))
 		return;
 
 	list_del(&fid->list);

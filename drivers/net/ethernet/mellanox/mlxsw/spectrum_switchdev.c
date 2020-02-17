@@ -153,16 +153,64 @@ static void mlxsw_sp_bridge_device_rifs_destroy(struct mlxsw_sp *mlxsw_sp,
 				      mlxsw_sp);
 }
 
+static int mlxsw_sp_bridge_device_vxlan_init(struct mlxsw_sp_bridge *bridge,
+					     struct net_device *br_dev,
+					     struct netlink_ext_ack *extack)
+{
+	struct net_device *dev, *stop_dev;
+	struct list_head *iter;
+	int err;
+
+	netdev_for_each_lower_dev(br_dev, dev, iter) {
+		if (netif_is_vxlan(dev) && netif_running(dev)) {
+			err = mlxsw_sp_bridge_vxlan_join(bridge->mlxsw_sp,
+							 br_dev, dev, 0,
+							 extack);
+			if (err) {
+				stop_dev = dev;
+				goto err_vxlan_join;
+			}
+		}
+	}
+
+	return 0;
+
+err_vxlan_join:
+	netdev_for_each_lower_dev(br_dev, dev, iter) {
+		if (netif_is_vxlan(dev) && netif_running(dev)) {
+			if (stop_dev == dev)
+				break;
+			mlxsw_sp_bridge_vxlan_leave(bridge->mlxsw_sp, dev);
+		}
+	}
+	return err;
+}
+
+static void mlxsw_sp_bridge_device_vxlan_fini(struct mlxsw_sp_bridge *bridge,
+					      struct net_device *br_dev)
+{
+	struct net_device *dev;
+	struct list_head *iter;
+
+	netdev_for_each_lower_dev(br_dev, dev, iter) {
+		if (netif_is_vxlan(dev) && netif_running(dev))
+			mlxsw_sp_bridge_vxlan_leave(bridge->mlxsw_sp, dev);
+	}
+}
+
 static struct mlxsw_sp_bridge_device *
 mlxsw_sp_bridge_device_create(struct mlxsw_sp_bridge *bridge,
-			      struct net_device *br_dev)
+			      struct net_device *br_dev,
+			      struct netlink_ext_ack *extack)
 {
 	struct device *dev = bridge->mlxsw_sp->bus_info->dev;
 	struct mlxsw_sp_bridge_device *bridge_device;
 	bool vlan_enabled = br_vlan_enabled(br_dev);
+	int err;
 
 	if (vlan_enabled && bridge->vlan_enabled_exists) {
 		dev_err(dev, "Only one VLAN-aware bridge is supported\n");
+		NL_SET_ERR_MSG_MOD(extack, "Only one VLAN-aware bridge is supported");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -184,13 +232,29 @@ mlxsw_sp_bridge_device_create(struct mlxsw_sp_bridge *bridge,
 	INIT_LIST_HEAD(&bridge_device->mids_list);
 	list_add(&bridge_device->list, &bridge->bridges_list);
 
+	/* It is possible we already have VXLAN devices enslaved to the bridge.
+	 * In which case, we need to replay their configuration as if they were
+	 * just now enslaved to the bridge.
+	 */
+	err = mlxsw_sp_bridge_device_vxlan_init(bridge, br_dev, extack);
+	if (err)
+		goto err_vxlan_init;
+
 	return bridge_device;
+
+err_vxlan_init:
+	list_del(&bridge_device->list);
+	if (bridge_device->vlan_enabled)
+		bridge->vlan_enabled_exists = false;
+	kfree(bridge_device);
+	return ERR_PTR(err);
 }
 
 static void
 mlxsw_sp_bridge_device_destroy(struct mlxsw_sp_bridge *bridge,
 			       struct mlxsw_sp_bridge_device *bridge_device)
 {
+	mlxsw_sp_bridge_device_vxlan_fini(bridge, bridge_device->dev);
 	mlxsw_sp_bridge_device_rifs_destroy(bridge->mlxsw_sp,
 					    bridge_device->dev);
 	list_del(&bridge_device->list);
@@ -203,7 +267,8 @@ mlxsw_sp_bridge_device_destroy(struct mlxsw_sp_bridge *bridge,
 
 static struct mlxsw_sp_bridge_device *
 mlxsw_sp_bridge_device_get(struct mlxsw_sp_bridge *bridge,
-			   struct net_device *br_dev)
+			   struct net_device *br_dev,
+			   struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_bridge_device *bridge_device;
 
@@ -211,7 +276,7 @@ mlxsw_sp_bridge_device_get(struct mlxsw_sp_bridge *bridge,
 	if (bridge_device)
 		return bridge_device;
 
-	return mlxsw_sp_bridge_device_create(bridge, br_dev);
+	return mlxsw_sp_bridge_device_create(bridge, br_dev, extack);
 }
 
 static void
@@ -292,7 +357,8 @@ mlxsw_sp_bridge_port_destroy(struct mlxsw_sp_bridge_port *bridge_port)
 
 static struct mlxsw_sp_bridge_port *
 mlxsw_sp_bridge_port_get(struct mlxsw_sp_bridge *bridge,
-			 struct net_device *brport_dev)
+			 struct net_device *brport_dev,
+			 struct netlink_ext_ack *extack)
 {
 	struct net_device *br_dev = netdev_master_upper_dev_get(brport_dev);
 	struct mlxsw_sp_bridge_device *bridge_device;
@@ -305,7 +371,7 @@ mlxsw_sp_bridge_port_get(struct mlxsw_sp_bridge *bridge,
 		return bridge_port;
 	}
 
-	bridge_device = mlxsw_sp_bridge_device_get(bridge, br_dev);
+	bridge_device = mlxsw_sp_bridge_device_get(bridge, br_dev, extack);
 	if (IS_ERR(bridge_device))
 		return ERR_CAST(bridge_device);
 
@@ -1000,7 +1066,7 @@ mlxsw_sp_port_vlan_bridge_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 		 &bridge_vlan->port_vlan_list);
 
 	mlxsw_sp_bridge_port_get(mlxsw_sp_port->mlxsw_sp->bridge,
-				 bridge_port->dev);
+				 bridge_port->dev, extack);
 	mlxsw_sp_port_vlan->bridge_port = bridge_port;
 
 	return 0;
@@ -1990,12 +2056,11 @@ mlxsw_sp_bridge_8021q_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 			return err;
 	}
 
-	/* If no other port is member in the VLAN, then the FID does not exist.
-	 * NVE will be enabled on the FID once a port joins the VLAN
-	 */
-	fid = mlxsw_sp_fid_8021q_lookup(mlxsw_sp, vid);
-	if (!fid)
-		return 0;
+	fid = mlxsw_sp_fid_8021q_get(mlxsw_sp, vid);
+	if (IS_ERR(fid)) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to create 802.1Q FID");
+		return PTR_ERR(fid);
+	}
 
 	if (mlxsw_sp_fid_vni_is_set(fid)) {
 		NL_SET_ERR_MSG_MOD(extack, "VNI is already set on FID");
@@ -2006,11 +2071,6 @@ mlxsw_sp_bridge_8021q_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 	err = mlxsw_sp_nve_fid_enable(mlxsw_sp, fid, &params, extack);
 	if (err)
 		goto err_nve_fid_enable;
-
-	/* The tunnel port does not hold a reference on the FID. Only
-	 * local ports and the router port
-	 */
-	mlxsw_sp_fid_put(fid);
 
 	return 0;
 
@@ -2048,38 +2108,8 @@ mlxsw_sp_bridge_8021q_fid_get(struct mlxsw_sp_bridge_device *bridge_device,
 			      u16 vid, struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_device->dev);
-	struct net_device *vxlan_dev;
-	struct mlxsw_sp_fid *fid;
-	int err;
 
-	fid = mlxsw_sp_fid_8021q_get(mlxsw_sp, vid);
-	if (IS_ERR(fid))
-		return fid;
-
-	if (mlxsw_sp_fid_vni_is_set(fid))
-		return fid;
-
-	/* Find the VxLAN device that has the specified VLAN configured as
-	 * PVID and egress untagged. There can be at most one such device
-	 */
-	vxlan_dev = mlxsw_sp_bridge_8021q_vxlan_dev_find(bridge_device->dev,
-							 vid);
-	if (!vxlan_dev)
-		return fid;
-
-	if (!netif_running(vxlan_dev))
-		return fid;
-
-	err = mlxsw_sp_bridge_8021q_vxlan_join(bridge_device, vxlan_dev, vid,
-					       extack);
-	if (err)
-		goto err_vxlan_join;
-
-	return fid;
-
-err_vxlan_join:
-	mlxsw_sp_fid_put(fid);
-	return ERR_PTR(err);
+	return mlxsw_sp_fid_8021q_get(mlxsw_sp, vid);
 }
 
 static struct mlxsw_sp_fid *
@@ -2184,9 +2214,9 @@ mlxsw_sp_bridge_8021d_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 	struct mlxsw_sp_fid *fid;
 	int err;
 
-	fid = mlxsw_sp_fid_8021d_lookup(mlxsw_sp, bridge_device->dev->ifindex);
-	if (!fid) {
-		NL_SET_ERR_MSG_MOD(extack, "Did not find a corresponding FID");
+	fid = mlxsw_sp_fid_8021d_get(mlxsw_sp, bridge_device->dev->ifindex);
+	if (IS_ERR(fid)) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to create 802.1D FID");
 		return -EINVAL;
 	}
 
@@ -2199,11 +2229,6 @@ mlxsw_sp_bridge_8021d_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 	err = mlxsw_sp_nve_fid_enable(mlxsw_sp, fid, &params, extack);
 	if (err)
 		goto err_nve_fid_enable;
-
-	/* The tunnel port does not hold a reference on the FID. Only
-	 * local ports and the router port
-	 */
-	mlxsw_sp_fid_put(fid);
 
 	return 0;
 
@@ -2218,34 +2243,8 @@ mlxsw_sp_bridge_8021d_fid_get(struct mlxsw_sp_bridge_device *bridge_device,
 			      u16 vid, struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_device->dev);
-	struct net_device *vxlan_dev;
-	struct mlxsw_sp_fid *fid;
-	int err;
 
-	fid = mlxsw_sp_fid_8021d_get(mlxsw_sp, bridge_device->dev->ifindex);
-	if (IS_ERR(fid))
-		return fid;
-
-	if (mlxsw_sp_fid_vni_is_set(fid))
-		return fid;
-
-	vxlan_dev = mlxsw_sp_bridge_vxlan_dev_find(bridge_device->dev);
-	if (!vxlan_dev)
-		return fid;
-
-	if (!netif_running(vxlan_dev))
-		return fid;
-
-	err = mlxsw_sp_bridge_8021d_vxlan_join(bridge_device, vxlan_dev, 0,
-					       extack);
-	if (err)
-		goto err_vxlan_join;
-
-	return fid;
-
-err_vxlan_join:
-	mlxsw_sp_fid_put(fid);
-	return ERR_PTR(err);
+	return mlxsw_sp_fid_8021d_get(mlxsw_sp, bridge_device->dev->ifindex);
 }
 
 static struct mlxsw_sp_fid *
@@ -2287,7 +2286,8 @@ int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp_bridge_port *bridge_port;
 	int err;
 
-	bridge_port = mlxsw_sp_bridge_port_get(mlxsw_sp->bridge, brport_dev);
+	bridge_port = mlxsw_sp_bridge_port_get(mlxsw_sp->bridge, brport_dev,
+					       extack);
 	if (IS_ERR(bridge_port))
 		return PTR_ERR(bridge_port);
 	bridge_device = bridge_port->bridge_device;
@@ -2351,21 +2351,11 @@ void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
 		return;
 
 	mlxsw_sp_nve_fid_disable(mlxsw_sp, fid);
+	/* Drop both the reference we just took during lookup and the reference
+	 * the VXLAN device took.
+	 */
 	mlxsw_sp_fid_put(fid);
-}
-
-struct mlxsw_sp_fid *mlxsw_sp_bridge_fid_get(struct mlxsw_sp *mlxsw_sp,
-					     const struct net_device *br_dev,
-					     u16 vid,
-					     struct netlink_ext_ack *extack)
-{
-	struct mlxsw_sp_bridge_device *bridge_device;
-
-	bridge_device = mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, br_dev);
-	if (WARN_ON(!bridge_device))
-		return ERR_PTR(-EINVAL);
-
-	return bridge_device->ops->fid_get(bridge_device, vid, extack);
+	mlxsw_sp_fid_put(fid);
 }
 
 static void
