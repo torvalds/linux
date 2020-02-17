@@ -451,11 +451,9 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer *layer;
-	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
-	unsigned int idx, size, tot_dimms = 1, count = 1;
-	unsigned int tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
+	unsigned int idx, size, tot_dimms = 1;
+	unsigned int tot_csrows = 1, tot_channels = 1;
 	void *pvt, *ptr = NULL;
-	int i;
 	bool per_rank = false;
 
 	if (WARN_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0))
@@ -482,19 +480,10 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 	 * stringent as what the compiler would provide if we could simply
 	 * hardcode everything into a single struct.
 	 */
-	mci = edac_align_ptr(&ptr, sizeof(*mci), 1);
-	layer = edac_align_ptr(&ptr, sizeof(*layer), n_layers);
-	for (i = 0; i < n_layers; i++) {
-		count *= layers[i].size;
-		edac_dbg(4, "errcount layer %d size %d\n", i, count);
-		ce_per_layer[i] = edac_align_ptr(&ptr, sizeof(u32), count);
-		ue_per_layer[i] = edac_align_ptr(&ptr, sizeof(u32), count);
-		tot_errcount += 2 * count;
-	}
-
-	edac_dbg(4, "allocating %d error counters\n", tot_errcount);
-	pvt = edac_align_ptr(&ptr, sz_pvt, 1);
-	size = ((unsigned long)pvt) + sz_pvt;
+	mci	= edac_align_ptr(&ptr, sizeof(*mci), 1);
+	layer	= edac_align_ptr(&ptr, sizeof(*layer), n_layers);
+	pvt	= edac_align_ptr(&ptr, sz_pvt, 1);
+	size	= ((unsigned long)pvt) + sz_pvt;
 
 	edac_dbg(1, "allocating %u bytes for mci data (%d %s, %d csrows/channels)\n",
 		 size,
@@ -513,10 +502,6 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 	 * rather than an imaginary chunk of memory located at address 0.
 	 */
 	layer = (struct edac_mc_layer *)(((char *)mci) + ((unsigned long)layer));
-	for (i = 0; i < n_layers; i++) {
-		mci->ce_per_layer[i] = (u32 *)((char *)mci + ((unsigned long)ce_per_layer[i]));
-		mci->ue_per_layer[i] = (u32 *)((char *)mci + ((unsigned long)ue_per_layer[i]));
-	}
 	pvt = sz_pvt ? (((char *)mci) + ((unsigned long)pvt)) : NULL;
 
 	/* setup index and various internal pointers */
@@ -949,48 +934,28 @@ static void edac_inc_ce_error(struct edac_raw_error_desc *e)
 {
 	int pos[EDAC_MAX_LAYERS] = { e->top_layer, e->mid_layer, e->low_layer };
 	struct mem_ctl_info *mci = error_desc_to_mci(e);
-	int i, index = 0;
+	struct dimm_info *dimm = edac_get_dimm(mci, pos[0], pos[1], pos[2]);
 
 	mci->ce_mc += e->error_count;
 
-	if (pos[0] < 0) {
+	if (dimm)
+		dimm->ce_count += e->error_count;
+	else
 		mci->ce_noinfo_count += e->error_count;
-		return;
-	}
-
-	for (i = 0; i < mci->n_layers; i++) {
-		if (pos[i] < 0)
-			break;
-		index += pos[i];
-		mci->ce_per_layer[i][index] += e->error_count;
-
-		if (i < mci->n_layers - 1)
-			index *= mci->layers[i + 1].size;
-	}
 }
 
 static void edac_inc_ue_error(struct edac_raw_error_desc *e)
 {
 	int pos[EDAC_MAX_LAYERS] = { e->top_layer, e->mid_layer, e->low_layer };
 	struct mem_ctl_info *mci = error_desc_to_mci(e);
-	int i, index = 0;
+	struct dimm_info *dimm = edac_get_dimm(mci, pos[0], pos[1], pos[2]);
 
 	mci->ue_mc += e->error_count;
 
-	if (pos[0] < 0) {
+	if (dimm)
+		dimm->ue_count += e->error_count;
+	else
 		mci->ue_noinfo_count += e->error_count;
-		return;
-	}
-
-	for (i = 0; i < mci->n_layers; i++) {
-		if (pos[i] < 0)
-			break;
-		index += pos[i];
-		mci->ue_per_layer[i][index] += e->error_count;
-
-		if (i < mci->n_layers - 1)
-			index *= mci->layers[i + 1].size;
-	}
 }
 
 static void edac_ce_error(struct edac_raw_error_desc *e)
@@ -1143,8 +1108,8 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 
 	/*
 	 * Check if the event report is consistent and if the memory location is
-	 * known. If it is, the DIMM(s) label info will be filled and the
-	 * per-layer error counters will be incremented.
+	 * known. If it is, the DIMM(s) label info will be filled and the DIMM's
+	 * error counters will be incremented.
 	 */
 	for (i = 0; i < mci->n_layers; i++) {
 		if (pos[i] >= (int)mci->layers[i].size) {
