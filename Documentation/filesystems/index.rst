@@ -69,6 +69,7 @@ Documentation for filesystem implementations.
    gfs2-uevents
    hfs
    hfsplus
+   hpfs
    fuse
    overlayfs
    virtiofs
