@@ -3405,6 +3405,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 				struct net_device *uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
 				struct net_device *uplink_upper;
+				struct mlx5e_rep_priv *rep_priv;
 
 				if (is_duplicated_output_device(priv->netdev,
 								out_dev,
@@ -3438,6 +3439,22 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 								  &action);
 					if (err)
 						return err;
+				}
+
+				/* Don't allow forwarding between uplink.
+				 *
+				 * Input vport was stored esw_attr->in_rep.
+				 * In LAG case, *priv* is the private data of
+				 * uplink which may be not the input vport.
+				 */
+				rep_priv = mlx5e_rep_to_rep_priv(attr->in_rep);
+				if (mlx5e_eswitch_uplink_rep(rep_priv->netdev) &&
+				    mlx5e_eswitch_uplink_rep(out_dev)) {
+					NL_SET_ERR_MSG_MOD(extack,
+							   "devices are both uplink, can't offload forwarding");
+					pr_err("devices %s %s are both uplink, can't offload forwarding\n",
+					       priv->netdev->name, out_dev->name);
+					return -EOPNOTSUPP;
 				}
 
 				if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
