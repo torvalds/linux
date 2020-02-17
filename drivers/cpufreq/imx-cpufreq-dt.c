@@ -31,6 +31,9 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 	int speed_grade, mkt_segment;
 	int ret;
 
+	if (!of_find_property(cpu_dev->of_node, "cpu-supply", NULL))
+		return -ENODEV;
+
 	ret = nvmem_cell_read_u32(cpu_dev, "speed_grade", &cell_value);
 	if (ret)
 		return ret;
