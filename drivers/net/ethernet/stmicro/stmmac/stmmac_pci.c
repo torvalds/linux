@@ -579,28 +579,23 @@ static int __maybe_unused stmmac_pci_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(stmmac_pm_ops, stmmac_pci_suspend, stmmac_pci_resume);
 
 /* synthetic ID, no official vendor */
-#define PCI_VENDOR_ID_STMMAC 0x700
+#define PCI_VENDOR_ID_STMMAC		0x0700
 
-#define STMMAC_QUARK_ID  0x0937
-#define STMMAC_DEVICE_ID 0x1108
-#define STMMAC_EHL_RGMII1G_ID	0x4b30
-#define STMMAC_EHL_SGMII1G_ID	0x4b31
-#define STMMAC_TGL_SGMII1G_ID	0xa0ac
-#define STMMAC_GMAC5_ID		0x7102
-
-#define STMMAC_DEVICE(vendor_id, dev_id, info)	{	\
-	PCI_VDEVICE(vendor_id, dev_id),			\
-	.driver_data = (kernel_ulong_t)&info		\
-	}
+#define PCI_DEVICE_ID_STMMAC_STMMAC		0x1108
+#define PCI_DEVICE_ID_INTEL_QUARK_ID		0x0937
+#define PCI_DEVICE_ID_INTEL_EHL_RGMII1G_ID	0x4b30
+#define PCI_DEVICE_ID_INTEL_EHL_SGMII1G_ID	0x4b31
+#define PCI_DEVICE_ID_INTEL_TGL_SGMII1G_ID	0xa0ac
+#define PCI_DEVICE_ID_SYNOPSYS_GMAC5_ID		0x7102
 
 static const struct pci_device_id stmmac_id_table[] = {
-	STMMAC_DEVICE(STMMAC, STMMAC_DEVICE_ID, stmmac_pci_info),
-	STMMAC_DEVICE(STMICRO, PCI_DEVICE_ID_STMICRO_MAC, stmmac_pci_info),
-	STMMAC_DEVICE(INTEL, STMMAC_QUARK_ID, quark_pci_info),
-	STMMAC_DEVICE(INTEL, STMMAC_EHL_RGMII1G_ID, ehl_rgmii1g_pci_info),
-	STMMAC_DEVICE(INTEL, STMMAC_EHL_SGMII1G_ID, ehl_sgmii1g_pci_info),
-	STMMAC_DEVICE(INTEL, STMMAC_TGL_SGMII1G_ID, tgl_sgmii1g_pci_info),
-	STMMAC_DEVICE(SYNOPSYS, STMMAC_GMAC5_ID, snps_gmac5_pci_info),
+	{ PCI_DEVICE_DATA(STMMAC, STMMAC, &stmmac_pci_info) },
+	{ PCI_DEVICE_DATA(STMICRO, MAC, &stmmac_pci_info) },
+	{ PCI_DEVICE_DATA(INTEL, QUARK_ID, &quark_pci_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_RGMII1G_ID, &ehl_rgmii1g_pci_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_SGMII1G_ID, &ehl_sgmii1g_pci_info) },
+	{ PCI_DEVICE_DATA(INTEL, TGL_SGMII1G_ID, &tgl_sgmii1g_pci_info) },
+	{ PCI_DEVICE_DATA(SYNOPSYS, GMAC5_ID, &snps_gmac5_pci_info) },
 	{}
 };
 
