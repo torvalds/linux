@@ -854,6 +854,26 @@ sanitization_vlan_aware_test()
 	bridge vlan del vid 10 dev vxlan20
 	bridge vlan add vid 20 dev vxlan20 pvid untagged
 
+	# Test that when two VXLAN tunnels with conflicting configurations
+	# (i.e., different TTL) are enslaved to the same VLAN-aware bridge,
+	# then the enslavement of a port to the bridge is denied.
+
+	# Use the offload indication of the local route to ensure the VXLAN
+	# configuration was correctly rollbacked.
+	ip address add 198.51.100.1/32 dev lo
+
+	ip link set dev vxlan10 type vxlan ttl 10
+	ip link set dev $swp1 master br0 &> /dev/null
+	check_fail $?
+
+	ip route show table local | grep 198.51.100.1 | grep -q offload
+	check_fail $?
+
+	log_test "vlan-aware - failed enslavement to bridge due to conflict"
+
+	ip link set dev vxlan10 type vxlan ttl 20
+	ip address del 198.51.100.1/32 dev lo
+
 	ip link del dev vxlan20
 	ip link del dev vxlan10
 	ip link del dev br0
