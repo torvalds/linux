@@ -227,6 +227,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	 * Relocate the zImage, so that it appears in the lowest 128 MB
 	 * memory window.
 	 */
+	*image_addr = (unsigned long)image->image_base;
 	*image_size = image->image_size;
 	status = efi_relocate_kernel(image_addr, *image_size, *image_size,
 				     kernel_base + MAX_UNCOMP_KERNEL_SIZE, 0, 0);

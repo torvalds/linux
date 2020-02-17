@@ -12,7 +12,8 @@
 
 #ifdef CONFIG_EFI
 
-__efistub_stext_offset = stext - _text;
+__efistub_kernel_size		= _edata - _text;
+
 
 /*
  * The EFI stub has its own symbol namespace prefixed by __efistub_, to
@@ -42,6 +43,7 @@ __efistub___memset		= __pi_memset;
 #endif
 
 __efistub__text			= _text;
+__efistub_stext			= stext;
 __efistub__end			= _end;
 __efistub__edata		= _edata;
 __efistub_screen_info		= screen_info;

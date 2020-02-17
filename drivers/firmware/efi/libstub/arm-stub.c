@@ -10,6 +10,7 @@
  */
 
 #include <linux/efi.h>
+#include <linux/libfdt.h>
 #include <linux/sort.h>
 #include <asm/efi.h>
 
@@ -100,17 +101,22 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *reserve_size,
 				 unsigned long dram_base,
 				 efi_loaded_image_t *image);
+
+asmlinkage void __noreturn efi_enter_kernel(unsigned long entrypoint,
+					    unsigned long fdt_addr,
+					    unsigned long fdt_size);
+
 /*
  * EFI entry point for the arm/arm64 EFI stubs.  This is the entrypoint
  * that is described in the PE/COFF header.  Most of the code is the same
  * for both archictectures, with the arch-specific code provided in the
  * handle_kernel_image() function.
  */
-unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
-			       unsigned long *image_addr)
+efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 {
 	efi_loaded_image_t *image;
 	efi_status_t status;
+	unsigned long image_addr;
 	unsigned long image_size = 0;
 	unsigned long dram_base;
 	/* addr/point and size pairs for memory management*/
@@ -120,7 +126,6 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	unsigned long fdt_size = 0;
 	char *cmdline_ptr = NULL;
 	int cmdline_size = 0;
-	unsigned long new_fdt_addr;
 	efi_guid_t loaded_image_proto = LOADED_IMAGE_PROTOCOL_GUID;
 	unsigned long reserve_addr = 0;
 	unsigned long reserve_size = 0;
@@ -130,8 +135,10 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	sys_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
-	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
+	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
+		status = EFI_INVALID_PARAMETER;
 		goto fail;
+	}
 
 	status = check_platform_features();
 	if (status != EFI_SUCCESS)
@@ -152,6 +159,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	dram_base = get_dram_base();
 	if (dram_base == EFI_ERROR) {
 		pr_efi_err("Failed to find DRAM base\n");
+		status = EFI_LOAD_ERROR;
 		goto fail;
 	}
 
@@ -163,6 +171,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	cmdline_ptr = efi_convert_cmdline(image, &cmdline_size);
 	if (!cmdline_ptr) {
 		pr_efi_err("getting command line via LOADED_IMAGE_PROTOCOL\n");
+		status = EFI_OUT_OF_RESOURCES;
 		goto fail;
 	}
 
@@ -178,7 +187,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 
 	si = setup_graphics();
 
-	status = handle_kernel_image(image_addr, &image_size,
+	status = handle_kernel_image(&image_addr, &image_size,
 				     &reserve_addr,
 				     &reserve_size,
 				     dram_base, image);
@@ -227,7 +236,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 
 	status = handle_cmdline_files(image, cmdline_ptr, "initrd=",
 				      efi_get_max_initrd_addr(dram_base,
-							      *image_addr),
+							      image_addr),
 				      (unsigned long *)&initrd_addr,
 				      (unsigned long *)&initrd_size);
 	if (status != EFI_SUCCESS)
@@ -257,33 +266,30 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 
 	install_memreserve_table();
 
-	new_fdt_addr = fdt_addr;
-	status = allocate_new_fdt_and_exit_boot(handle,
-				&new_fdt_addr, efi_get_max_fdt_addr(dram_base),
-				initrd_addr, initrd_size, cmdline_ptr,
-				fdt_addr, fdt_size);
+	status = allocate_new_fdt_and_exit_boot(handle, &fdt_addr,
+						efi_get_max_fdt_addr(dram_base),
+						initrd_addr, initrd_size,
+						cmdline_ptr, fdt_addr, fdt_size);
+	if (status != EFI_SUCCESS)
+		goto fail_free_initrd;
 
-	/*
-	 * If all went well, we need to return the FDT address to the
-	 * calling function so it can be passed to kernel as part of
-	 * the kernel boot protocol.
-	 */
-	if (status == EFI_SUCCESS)
-		return new_fdt_addr;
+	efi_enter_kernel(image_addr, fdt_addr, fdt_totalsize((void *)fdt_addr));
+	/* not reached */
 
+fail_free_initrd:
 	pr_efi_err("Failed to update FDT and exit boot services\n");
 
 	efi_free(initrd_size, initrd_addr);
 	efi_free(fdt_size, fdt_addr);
 
 fail_free_image:
-	efi_free(image_size, *image_addr);
+	efi_free(image_size, image_addr);
 	efi_free(reserve_size, reserve_addr);
 fail_free_cmdline:
 	free_screen_info(si);
 	efi_free(cmdline_size, (unsigned long)cmdline_ptr);
 fail:
-	return EFI_ERROR;
+	return status;
 }
 
 static int cmp_mem_desc(const void *l, const void *r)
