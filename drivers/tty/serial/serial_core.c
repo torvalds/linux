@@ -2614,7 +2614,7 @@ struct tty_driver *uart_console_device(struct console *co, int *index)
 }
 EXPORT_SYMBOL_GPL(uart_console_device);
 
-static ssize_t uart_get_attr_uartclk(struct device *dev,
+static ssize_t uartclk_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2624,7 +2624,7 @@ static ssize_t uart_get_attr_uartclk(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.baud_base * 16);
 }
 
-static ssize_t uart_get_attr_type(struct device *dev,
+static ssize_t type_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2633,7 +2633,8 @@ static ssize_t uart_get_attr_type(struct device *dev,
 	uart_get_info(port, &tmp);
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.type);
 }
-static ssize_t uart_get_attr_line(struct device *dev,
+
+static ssize_t line_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2643,7 +2644,7 @@ static ssize_t uart_get_attr_line(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.line);
 }
 
-static ssize_t uart_get_attr_port(struct device *dev,
+static ssize_t port_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2657,7 +2658,7 @@ static ssize_t uart_get_attr_port(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%lX\n", ioaddr);
 }
 
-static ssize_t uart_get_attr_irq(struct device *dev,
+static ssize_t irq_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2667,7 +2668,7 @@ static ssize_t uart_get_attr_irq(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.irq);
 }
 
-static ssize_t uart_get_attr_flags(struct device *dev,
+static ssize_t flags_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2677,7 +2678,7 @@ static ssize_t uart_get_attr_flags(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%X\n", tmp.flags);
 }
 
-static ssize_t uart_get_attr_xmit_fifo_size(struct device *dev,
+static ssize_t xmit_fifo_size_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2687,8 +2688,7 @@ static ssize_t uart_get_attr_xmit_fifo_size(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.xmit_fifo_size);
 }
 
-
-static ssize_t uart_get_attr_close_delay(struct device *dev,
+static ssize_t close_delay_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2698,8 +2698,7 @@ static ssize_t uart_get_attr_close_delay(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.close_delay);
 }
 
-
-static ssize_t uart_get_attr_closing_wait(struct device *dev,
+static ssize_t closing_wait_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2709,7 +2708,7 @@ static ssize_t uart_get_attr_closing_wait(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.closing_wait);
 }
 
-static ssize_t uart_get_attr_custom_divisor(struct device *dev,
+static ssize_t custom_divisor_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2719,7 +2718,7 @@ static ssize_t uart_get_attr_custom_divisor(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.custom_divisor);
 }
 
-static ssize_t uart_get_attr_io_type(struct device *dev,
+static ssize_t io_type_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2729,7 +2728,7 @@ static ssize_t uart_get_attr_io_type(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.io_type);
 }
 
-static ssize_t uart_get_attr_iomem_base(struct device *dev,
+static ssize_t iomem_base_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2739,7 +2738,7 @@ static ssize_t uart_get_attr_iomem_base(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%lX\n", (unsigned long)tmp.iomem_base);
 }
 
-static ssize_t uart_get_attr_iomem_reg_shift(struct device *dev,
+static ssize_t iomem_reg_shift_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct serial_struct tmp;
@@ -2749,28 +2748,28 @@ static ssize_t uart_get_attr_iomem_reg_shift(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.iomem_reg_shift);
 }
 
-static DEVICE_ATTR(type, 0440, uart_get_attr_type, NULL);
-static DEVICE_ATTR(line, 0440, uart_get_attr_line, NULL);
-static DEVICE_ATTR(port, 0440, uart_get_attr_port, NULL);
-static DEVICE_ATTR(irq, 0440, uart_get_attr_irq, NULL);
-static DEVICE_ATTR(flags, 0440, uart_get_attr_flags, NULL);
-static DEVICE_ATTR(xmit_fifo_size, 0440, uart_get_attr_xmit_fifo_size, NULL);
-static DEVICE_ATTR(uartclk, 0440, uart_get_attr_uartclk, NULL);
-static DEVICE_ATTR(close_delay, 0440, uart_get_attr_close_delay, NULL);
-static DEVICE_ATTR(closing_wait, 0440, uart_get_attr_closing_wait, NULL);
-static DEVICE_ATTR(custom_divisor, 0440, uart_get_attr_custom_divisor, NULL);
-static DEVICE_ATTR(io_type, 0440, uart_get_attr_io_type, NULL);
-static DEVICE_ATTR(iomem_base, 0440, uart_get_attr_iomem_base, NULL);
-static DEVICE_ATTR(iomem_reg_shift, 0440, uart_get_attr_iomem_reg_shift, NULL);
+static DEVICE_ATTR_RO(uartclk);
+static DEVICE_ATTR_RO(type);
+static DEVICE_ATTR_RO(line);
+static DEVICE_ATTR_RO(port);
+static DEVICE_ATTR_RO(irq);
+static DEVICE_ATTR_RO(flags);
+static DEVICE_ATTR_RO(xmit_fifo_size);
+static DEVICE_ATTR_RO(close_delay);
+static DEVICE_ATTR_RO(closing_wait);
+static DEVICE_ATTR_RO(custom_divisor);
+static DEVICE_ATTR_RO(io_type);
+static DEVICE_ATTR_RO(iomem_base);
+static DEVICE_ATTR_RO(iomem_reg_shift);
 
 static struct attribute *tty_dev_attrs[] = {
+	&dev_attr_uartclk.attr,
 	&dev_attr_type.attr,
 	&dev_attr_line.attr,
 	&dev_attr_port.attr,
 	&dev_attr_irq.attr,
 	&dev_attr_flags.attr,
 	&dev_attr_xmit_fifo_size.attr,
-	&dev_attr_uartclk.attr,
 	&dev_attr_close_delay.attr,
 	&dev_attr_closing_wait.attr,
 	&dev_attr_custom_divisor.attr,
