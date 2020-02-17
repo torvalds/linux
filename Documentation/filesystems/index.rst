@@ -49,6 +49,7 @@ Documentation for filesystem implementations.
    9p
    adfs
    affs
+   afs
    autofs
    fuse
    overlayfs
