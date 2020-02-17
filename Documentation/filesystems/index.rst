@@ -61,6 +61,7 @@ Documentation for filesystem implementations.
    dlmfs
    ecryptfs
    efivarfs
+   erofs
    fuse
    overlayfs
    virtiofs
