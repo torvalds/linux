@@ -57,6 +57,7 @@ Documentation for filesystem implementations.
    btrfs
    ceph
    cramfs
+   debugfs
    fuse
    overlayfs
    virtiofs
