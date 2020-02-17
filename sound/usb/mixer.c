@@ -901,6 +901,12 @@ static int parse_term_effect_unit(struct mixer_build *state,
 				  struct usb_audio_term *term,
 				  void *p1, int id)
 {
+	struct uac2_effect_unit_descriptor *d = p1;
+	int err;
+
+	err = __check_input_term(state, d->bSourceID, term);
+	if (err < 0)
+		return err;
 	term->type = UAC3_EFFECT_UNIT << 16; /* virtual type */
 	term->id = id;
 	return 0;
