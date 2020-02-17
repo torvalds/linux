@@ -1,5 +1,11 @@
-ramfs, rootfs and initramfs
+.. SPDX-License-Identifier: GPL-2.0
+
+===========================
+Ramfs, rootfs and initramfs
+===========================
+
 October 17, 2005
+
 Rob Landley <rob@landley.net>
 =============================
 
@@ -99,14 +105,14 @@ out of that.
 All this differs from the old initrd in several ways:
 
   - The old initrd was always a separate file, while the initramfs archive is
-    linked into the linux kernel image.  (The directory linux-*/usr is devoted
-    to generating this archive during the build.)
+    linked into the linux kernel image.  (The directory ``linux-*/usr`` is
+    devoted to generating this archive during the build.)
 
   - The old initrd file was a gzipped filesystem image (in some file format,
     such as ext2, that needed a driver built into the kernel), while the new
     initramfs archive is a gzipped cpio archive (like tar only simpler,
-    see cpio(1) and Documentation/driver-api/early-userspace/buffer-format.rst).  The
-    kernel's cpio extraction code is not only extremely small, it's also
+    see cpio(1) and Documentation/driver-api/early-userspace/buffer-format.rst).
+    The kernel's cpio extraction code is not only extremely small, it's also
     __init text and data that can be discarded during the boot process.
 
   - The program run by the old initrd (which was called /initrd, not /init) did
@@ -139,7 +145,7 @@ and living in usr/Kconfig) can be used to specify a source for the
 initramfs archive, which will automatically be incorporated into the
 resulting binary.  This option can point to an existing gzipped cpio
 archive, a directory containing files to be archived, or a text file
-specification such as the following example:
+specification such as the following example::
 
   dir /dev 755 0 0
   nod /dev/console 644 0 0 c 5 1
@@ -175,12 +181,12 @@ or extracting your own preprepared cpio files to feed to the kernel build
 (instead of a config file or directory).
 
 The following command line can extract a cpio image (either by the above script
-or by the kernel build) back into its component files:
+or by the kernel build) back into its component files::
 
   cpio -i -d -H newc -F initramfs_data.cpio --no-absolute-filenames
 
 The following shell script can create a prebuilt cpio archive you can
-use in place of the above config file:
+use in place of the above config file::
 
   #!/bin/sh
 
@@ -202,14 +208,17 @@ use in place of the above config file:
     exit 1
   fi
 
-Note: The cpio man page contains some bad advice that will break your initramfs
-archive if you follow it.  It says "A typical way to generate the list
-of filenames is with the find command; you should give find the -depth option
-to minimize problems with permissions on directories that are unwritable or not
-searchable."  Don't do this when creating initramfs.cpio.gz images, it won't
-work.  The Linux kernel cpio extractor won't create files in a directory that
-doesn't exist, so the directory entries must go before the files that go in
-those directories.  The above script gets them in the right order.
+.. Note::
+
+   The cpio man page contains some bad advice that will break your initramfs
+   archive if you follow it.  It says "A typical way to generate the list
+   of filenames is with the find command; you should give find the -depth
+   option to minimize problems with permissions on directories that are
+   unwritable or not searchable."  Don't do this when creating
+   initramfs.cpio.gz images, it won't work.  The Linux kernel cpio extractor
+   won't create files in a directory that doesn't exist, so the directory
+   entries must go before the files that go in those directories.
+   The above script gets them in the right order.
 
 External initramfs images:
 --------------------------
@@ -236,9 +245,10 @@ An initramfs archive is a complete self-contained root filesystem for Linux.
 If you don't already understand what shared libraries, devices, and paths
 you need to get a minimal root filesystem up and running, here are some
 references:
-http://www.tldp.org/HOWTO/Bootdisk-HOWTO/
-http://www.tldp.org/HOWTO/From-PowerUp-To-Bash-Prompt-HOWTO.html
-http://www.linuxfromscratch.org/lfs/view/stable/
+
+- http://www.tldp.org/HOWTO/Bootdisk-HOWTO/
+- http://www.tldp.org/HOWTO/From-PowerUp-To-Bash-Prompt-HOWTO.html
+- http://www.linuxfromscratch.org/lfs/view/stable/
 
 The "klibc" package (http://www.kernel.org/pub/linux/libs/klibc) is
 designed to be a tiny C library to statically link early userspace
@@ -255,7 +265,7 @@ name lookups, even when otherwise statically linked.)
 
 A good first step is to get initramfs to run a statically linked "hello world"
 program as init, and test it under an emulator like qemu (www.qemu.org) or
-User Mode Linux, like so:
+User Mode Linux, like so::
 
   cat > hello.c << EOF
   #include <stdio.h>
@@ -326,8 +336,8 @@ the above threads) is:
 
    explained his reasoning:
 
-      http://www.uwsg.iu.edu/hypermail/linux/kernel/0112.2/1550.html
-      http://www.uwsg.iu.edu/hypermail/linux/kernel/0112.2/1638.html
+     - http://www.uwsg.iu.edu/hypermail/linux/kernel/0112.2/1550.html
+     - http://www.uwsg.iu.edu/hypermail/linux/kernel/0112.2/1638.html
 
    and, most importantly, designed and implemented the initramfs code.
 

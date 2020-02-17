@@ -83,5 +83,6 @@ Documentation for filesystem implementations.
    overlayfs
    proc
    qnx6
+   ramfs-rootfs-initramfs
    virtiofs
    vfat
