@@ -1,0 +1,32 @@
+Rockchip CAN controller Device Tree Bindings
+---------------------------------------------------------
+
+Required properties:
+- compatible		: Should be:
+			  - "rockchip,can-1.0" for CAN controllers 1.0
+- reg			: Physical base address and size of the controller
+			  registers map.
+- interrupts		: Property with a value describing the interrupt
+			  number.
+- clock-names		: List of input clock names
+			  - "can_clk", "pclk",
+			  (See clock bindings for details).
+- clocks		: Clock phandles (see clock bindings for details).
+- resets : Must contain an entry for each entry in reset-names.
+	   See ../reset/reset.txt for details.
+- reset-names : List of input reset names
+			  - "can", "can-apb".
+
+Example:
+
+For Dts file:
+	can: can@ff250000 {
+		compatible = "rockchip,can-1.0";
+		reg = <0x0 0xff610000 0x0 0x1000>;
+		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_CAN>, <&cru PCLK_CAN>;
+		clock-names = "baudclk", "apb_pclk";
+		resets = <&cru SRST_CAN>, &cru SRST_CAN_P>;
+		reset-names = "can", "can-apb";
+		status = "okay";
+	};
