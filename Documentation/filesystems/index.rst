@@ -81,5 +81,6 @@ Documentation for filesystem implementations.
    omfs
    orangefs
    overlayfs
+   proc
    virtiofs
    vfat
