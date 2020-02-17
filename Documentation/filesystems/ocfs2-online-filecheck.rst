@@ -1,5 +1,8 @@
-		    OCFS2 online file check
-		    -----------------------
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================================
+OCFS2 file system - online file check
+=====================================
 
 This document will describe OCFS2 online file check feature.
 
@@ -40,7 +43,7 @@ When there are errors in the OCFS2 filesystem, they are usually accompanied
 by the inode number which caused the error. This inode number would be the
 input to check/fix the file.
 
-There is a sysfs directory for each OCFS2 file system mounting:
+There is a sysfs directory for each OCFS2 file system mounting::
 
   /sys/fs/ocfs2/<devname>/filecheck
 
@@ -50,34 +53,36 @@ communicate with kernel space, tell which file(inode number) will be checked or
 fixed. Currently, three operations are supported, which includes checking
 inode, fixing inode and setting the size of result record history.
 
-1. If you want to know what error exactly happened to <inode> before fixing, do
+1. If you want to know what error exactly happened to <inode> before fixing, do::
 
-  # echo "<inode>" > /sys/fs/ocfs2/<devname>/filecheck/check
-  # cat /sys/fs/ocfs2/<devname>/filecheck/check
+    # echo "<inode>" > /sys/fs/ocfs2/<devname>/filecheck/check
+    # cat /sys/fs/ocfs2/<devname>/filecheck/check
 
-The output is like this:
-  INO		DONE	ERROR
-39502		1	GENERATION
+The output is like this::
 
-<INO> lists the inode numbers.
-<DONE> indicates whether the operation has been finished.
-<ERROR> says what kind of errors was found. For the detailed error numbers,
-please refer to the file linux/fs/ocfs2/filecheck.h.
+    INO		DONE	ERROR
+    39502		1	GENERATION
 
-2. If you determine to fix this inode, do
+    <INO> lists the inode numbers.
+    <DONE> indicates whether the operation has been finished.
+    <ERROR> says what kind of errors was found. For the detailed error numbers,
+    please refer to the file linux/fs/ocfs2/filecheck.h.
 
-  # echo "<inode>" > /sys/fs/ocfs2/<devname>/filecheck/fix
-  # cat /sys/fs/ocfs2/<devname>/filecheck/fix
+2. If you determine to fix this inode, do::
 
-The output is like this:
-  INO		DONE	ERROR
-39502		1	SUCCESS
+    # echo "<inode>" > /sys/fs/ocfs2/<devname>/filecheck/fix
+    # cat /sys/fs/ocfs2/<devname>/filecheck/fix
+
+The output is like this:::
+
+    INO		DONE	ERROR
+    39502		1	SUCCESS
 
 This time, the <ERROR> column indicates whether this fix is successful or not.
 
 3. The record cache is used to store the history of check/fix results. It's
 default size is 10, and can be adjust between the range of 10 ~ 100. You can
-adjust the size like this:
+adjust the size like this::
 
   # echo "<size>" > /sys/fs/ocfs2/<devname>/filecheck/set
 
