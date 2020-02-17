@@ -1,20 +1,25 @@
-dlmfs
-==================
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
+=====
+DLMFS
+=====
+
 A minimal DLM userspace interface implemented via a virtual file
 system.
 
 dlmfs is built with OCFS2 as it requires most of its infrastructure.
 
-Project web page:    http://ocfs2.wiki.kernel.org
-Tools web page:      https://github.com/markfasheh/ocfs2-tools
-OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
+:Project web page:    http://ocfs2.wiki.kernel.org
+:Tools web page:      https://github.com/markfasheh/ocfs2-tools
+:OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
 
 All code copyright 2005 Oracle except when otherwise noted.
 
-CREDITS
+Credits
 =======
 
-Some code taken from ramfs which is Copyright (C) 2000 Linus Torvalds
+Some code taken from ramfs which is Copyright |copy| 2000 Linus Torvalds
 and Transmeta Corp.
 
 Mark Fasheh <mark.fasheh@oracle.com>
@@ -96,14 +101,19 @@ operation. If the lock succeeds, you'll get an fd.
 open(2) with O_CREAT to ensure the resource inode is created - dlmfs does
 not automatically create inodes for existing lock resources.
 
+============  ===========================
 Open Flag     Lock Request Type
----------     -----------------
+============  ===========================
 O_RDONLY      Shared Read
 O_RDWR        Exclusive
+============  ===========================
 
+
+============  ===========================
 Open Flag     Resulting Locking Behavior
----------     --------------------------
+============  ===========================
 O_NONBLOCK    Trylock operation
+============  ===========================
 
 You must provide exactly one of O_RDONLY or O_RDWR.
 

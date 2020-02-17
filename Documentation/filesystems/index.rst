@@ -58,6 +58,7 @@ Documentation for filesystem implementations.
    ceph
    cramfs
    debugfs
+   dlmfs
    fuse
    overlayfs
    virtiofs
