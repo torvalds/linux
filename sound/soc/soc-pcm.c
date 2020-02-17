@@ -1297,10 +1297,7 @@ static bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget,
 {
 	struct snd_soc_card *card = widget->dapm->card;
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_dapm_widget *w;
-	struct snd_soc_dai *dai;
 	int stream;
-	int i;
 
 	/* adjust dir to stream */
 	if (dir == SND_SOC_DAPM_DIR_OUT)
@@ -1308,20 +1305,9 @@ static bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget,
 	else
 		stream = SNDRV_PCM_STREAM_CAPTURE;
 
-	for_each_card_rtds(card, rtd) {
-		if (!rtd->dai_link->no_pcm)
-			continue;
-
-		w = dai_get_widget(rtd->cpu_dai, stream);
-		if (w == widget)
-			return true;
-
-		for_each_rtd_codec_dai(rtd, i, dai) {
-			w = dai_get_widget(dai, stream);
-			if (w == widget)
-				return true;
-		}
-	}
+	rtd = dpcm_get_be(card, widget, stream);
+	if (rtd)
+		return true;
 
 	return false;
 }
