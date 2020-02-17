@@ -69,7 +69,7 @@ tcf_tunnel_info_copy(const struct tc_action *a)
 	if (tun) {
 		size_t tun_size = sizeof(*tun) + tun->options_len;
 		struct ip_tunnel_info *tun_copy = kmemdup(tun, tun_size,
-							  GFP_KERNEL);
+							  GFP_ATOMIC);
 
 		return tun_copy;
 	}
