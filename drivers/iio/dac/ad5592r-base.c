@@ -15,7 +15,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
-#include <linux/gpio.h>
 #include <linux/property.h>
 
 #include <dt-bindings/iio/adi,ad5592r.h>

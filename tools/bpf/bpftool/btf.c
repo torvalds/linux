@@ -8,12 +8,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <bpf.h>
-#include <libbpf.h>
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
+#include <bpf/libbpf.h>
 #include <linux/btf.h>
 #include <linux/hashtable.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#include "btf.h"
 #include "json_writer.h"
 #include "main.h"
 
@@ -69,6 +72,20 @@ static const char *btf_var_linkage_str(__u32 linkage)
 		return "static";
 	case BTF_VAR_GLOBAL_ALLOCATED:
 		return "global-alloc";
+	default:
+		return "(unknown)";
+	}
+}
+
+static const char *btf_func_linkage_str(const struct btf_type *t)
+{
+	switch (btf_vlen(t)) {
+	case BTF_FUNC_STATIC:
+		return "static";
+	case BTF_FUNC_GLOBAL:
+		return "global";
+	case BTF_FUNC_EXTERN:
+		return "extern";
 	default:
 		return "(unknown)";
 	}
@@ -228,12 +245,17 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 			printf(" fwd_kind=%s", fwd_kind);
 		break;
 	}
-	case BTF_KIND_FUNC:
-		if (json_output)
+	case BTF_KIND_FUNC: {
+		const char *linkage = btf_func_linkage_str(t);
+
+		if (json_output) {
 			jsonw_uint_field(w, "type_id", t->type);
-		else
-			printf(" type_id=%u", t->type);
+			jsonw_string_field(w, "linkage", linkage);
+		} else {
+			printf(" type_id=%u linkage=%s", t->type, linkage);
+		}
 		break;
+	}
 	case BTF_KIND_FUNC_PROTO: {
 		const struct btf_param *p = (const void *)(t + 1);
 		__u16 vlen = BTF_INFO_VLEN(t->info);
@@ -367,6 +389,10 @@ static int dump_btf_c(const struct btf *btf,
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 
+	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
+	printf("#pragma clang attribute push (__attribute__((preserve_access_index)), apply_to = record)\n");
+	printf("#endif\n\n");
+
 	if (root_type_cnt) {
 		for (i = 0; i < root_type_cnt; i++) {
 			err = btf_dump__dump_type(d, root_type_ids[i]);
@@ -383,9 +409,61 @@ static int dump_btf_c(const struct btf *btf,
 		}
 	}
 
+	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
+	printf("#pragma clang attribute pop\n");
+	printf("#endif\n");
+
 done:
 	btf_dump__free(d);
 	return err;
+}
+
+static struct btf *btf__parse_raw(const char *file)
+{
+	struct btf *btf;
+	struct stat st;
+	__u8 *buf;
+	FILE *f;
+
+	if (stat(file, &st))
+		return NULL;
+
+	f = fopen(file, "rb");
+	if (!f)
+		return NULL;
+
+	buf = malloc(st.st_size);
+	if (!buf) {
+		btf = ERR_PTR(-ENOMEM);
+		goto exit_close;
+	}
+
+	if ((size_t) st.st_size != fread(buf, 1, st.st_size, f)) {
+		btf = ERR_PTR(-EINVAL);
+		goto exit_free;
+	}
+
+	btf = btf__new(buf, st.st_size);
+
+exit_free:
+	free(buf);
+exit_close:
+	fclose(f);
+	return btf;
+}
+
+static bool is_btf_raw(const char *file)
+{
+	__u16 magic = 0;
+	int fd, nb_read;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0)
+		return false;
+
+	nb_read = read(fd, &magic, sizeof(magic));
+	close(fd);
+	return nb_read == sizeof(magic) && magic == BTF_MAGIC;
 }
 
 static int do_dump(int argc, char **argv)
@@ -465,11 +543,15 @@ static int do_dump(int argc, char **argv)
 		}
 		NEXT_ARG();
 	} else if (is_prefix(src, "file")) {
-		btf = btf__parse_elf(*argv, NULL);
+		if (is_btf_raw(*argv))
+			btf = btf__parse_raw(*argv);
+		else
+			btf = btf__parse_elf(*argv, NULL);
+
 		if (IS_ERR(btf)) {
 			err = PTR_ERR(btf);
 			btf = NULL;
-			p_err("failed to load BTF from %s: %s", 
+			p_err("failed to load BTF from %s: %s",
 			      *argv, strerror(err));
 			goto done;
 		}

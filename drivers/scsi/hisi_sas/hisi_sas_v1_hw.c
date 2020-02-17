@@ -531,8 +531,8 @@ static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
 				(0xff00ULL << ITCT_HDR_REJ_OPEN_TL_OFF));
 }
 
-static void clear_itct_v1_hw(struct hisi_hba *hisi_hba,
-			      struct hisi_sas_device *sas_dev)
+static int clear_itct_v1_hw(struct hisi_hba *hisi_hba,
+			    struct hisi_sas_device *sas_dev)
 {
 	u64 dev_id = sas_dev->device_id;
 	struct hisi_sas_itct *itct = &hisi_hba->itct[dev_id];
@@ -551,6 +551,8 @@ static void clear_itct_v1_hw(struct hisi_hba *hisi_hba,
 	qw0 = le64_to_cpu(itct->qw0);
 	qw0 &= ~ITCT_HDR_VALID_MSK;
 	itct->qw0 = cpu_to_le64(qw0);
+
+	return 0;
 }
 
 static int reset_hw_v1_hw(struct hisi_hba *hisi_hba)
@@ -1770,6 +1772,9 @@ static struct scsi_host_template sht_v1_hw = {
 	.eh_target_reset_handler = sas_eh_target_reset_handler,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl		= sas_ioctl,
+#endif
 	.shost_attrs		= host_attrs_v1_hw,
 	.host_reset             = hisi_sas_host_reset,
 };

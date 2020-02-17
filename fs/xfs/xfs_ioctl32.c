@@ -107,7 +107,7 @@ xfs_ioctl32_bstime_copyin(
 	xfs_bstime_t		*bstime,
 	compat_xfs_bstime_t	__user *bstime32)
 {
-	compat_time_t		sec32;	/* tv_sec differs on 64 vs. 32 */
+	old_time32_t		sec32;	/* tv_sec differs on 64 vs. 32 */
 
 	if (get_user(sec32,		&bstime32->tv_sec)	||
 	    get_user(bstime->tv_nsec,	&bstime32->tv_nsec))
@@ -450,6 +450,13 @@ xfs_compat_attrmulti_by_handle(
 
 	error = 0;
 	for (i = 0; i < am_hreq.opcount; i++) {
+		if ((ops[i].am_flags & ATTR_ROOT) &&
+		    (ops[i].am_flags & ATTR_SECURE)) {
+			ops[i].am_error = -EINVAL;
+			continue;
+		}
+		ops[i].am_flags &= ~ATTR_KERNEL_FLAGS;
+
 		ops[i].am_error = strncpy_from_user((char *)attr_name,
 				compat_ptr(ops[i].am_attrname),
 				MAXNAMELEN);
@@ -500,44 +507,6 @@ xfs_compat_attrmulti_by_handle(
 	return error;
 }
 
-STATIC int
-xfs_compat_fssetdm_by_handle(
-	struct file		*parfilp,
-	void			__user *arg)
-{
-	int			error;
-	struct fsdmidata	fsd;
-	compat_xfs_fsop_setdm_handlereq_t dmhreq;
-	struct dentry		*dentry;
-
-	if (!capable(CAP_MKNOD))
-		return -EPERM;
-	if (copy_from_user(&dmhreq, arg,
-			   sizeof(compat_xfs_fsop_setdm_handlereq_t)))
-		return -EFAULT;
-
-	dentry = xfs_compat_handlereq_to_dentry(parfilp, &dmhreq.hreq);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-
-	if (IS_IMMUTABLE(d_inode(dentry)) || IS_APPEND(d_inode(dentry))) {
-		error = -EPERM;
-		goto out;
-	}
-
-	if (copy_from_user(&fsd, compat_ptr(dmhreq.data), sizeof(fsd))) {
-		error = -EFAULT;
-		goto out;
-	}
-
-	error = xfs_set_dmattrs(XFS_I(d_inode(dentry)), fsd.fsd_dmevmask,
-				 fsd.fsd_dmstate);
-
-out:
-	dput(dentry);
-	return error;
-}
-
 long
 xfs_file_compat_ioctl(
 	struct file		*filp,
@@ -557,18 +526,13 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_ALLOCSP_32:
 	case XFS_IOC_FREESP_32:
 	case XFS_IOC_ALLOCSP64_32:
-	case XFS_IOC_FREESP64_32:
-	case XFS_IOC_RESVSP_32:
-	case XFS_IOC_UNRESVSP_32:
-	case XFS_IOC_RESVSP64_32:
-	case XFS_IOC_UNRESVSP64_32:
-	case XFS_IOC_ZERO_RANGE_32: {
+	case XFS_IOC_FREESP64_32: {
 		struct xfs_flock64	bf;
 
 		if (xfs_compat_flock64_copyin(&bf, arg))
 			return -EFAULT;
 		cmd = _NATIVE_IOC(cmd, struct xfs_flock64);
-		return xfs_ioc_space(filp, cmd, &bf);
+		return xfs_ioc_space(filp, &bf);
 	}
 	case XFS_IOC_FSGEOMETRY_V1_32:
 		return xfs_compat_ioc_fsgeometry_v1(mp, arg);
@@ -651,8 +615,6 @@ xfs_file_compat_ioctl(
 		return xfs_compat_attrlist_by_handle(filp, arg);
 	case XFS_IOC_ATTRMULTI_BY_HANDLE_32:
 		return xfs_compat_attrmulti_by_handle(filp, arg);
-	case XFS_IOC_FSSETDM_BY_HANDLE_32:
-		return xfs_compat_fssetdm_by_handle(filp, arg);
 	default:
 		/* try the native version */
 		return xfs_file_ioctl(filp, cmd, (unsigned long)arg);

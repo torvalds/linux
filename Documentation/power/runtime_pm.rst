@@ -268,8 +268,8 @@ defined in include/linux/pm.h:
   `unsigned int runtime_auto;`
     - if set, indicates that the user space has allowed the device driver to
       power manage the device at run time via the /sys/devices/.../power/control
-      `interface;` it may only be modified with the help of the pm_runtime_allow()
-      and pm_runtime_forbid() helper functions
+      `interface;` it may only be modified with the help of the
+      pm_runtime_allow() and pm_runtime_forbid() helper functions
 
   `unsigned int no_callbacks;`
     - indicates that the device does not use the runtime PM callbacks (see

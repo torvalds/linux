@@ -21,15 +21,8 @@ struct gntdev_dmabuf_priv;
 struct gntdev_priv {
 	/* Maps with visible offsets in the file descriptor. */
 	struct list_head maps;
-	/*
-	 * Maps that are not visible; will be freed on munmap.
-	 * Only populated if populate_freeable_maps == 1
-	 */
-	struct list_head freeable_maps;
 	/* lock protects maps and freeable_maps. */
 	struct mutex lock;
-	struct mm_struct *mm;
-	struct mmu_notifier mn;
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
 	/* Device for which DMA memory is allocated. */
@@ -49,6 +42,7 @@ struct gntdev_unmap_notify {
 };
 
 struct gntdev_grant_map {
+	struct mmu_interval_notifier notifier;
 	struct list_head next;
 	struct vm_area_struct *vma;
 	int index;
@@ -87,7 +81,7 @@ void gntdev_add_map(struct gntdev_priv *priv, struct gntdev_grant_map *add);
 
 void gntdev_put_map(struct gntdev_priv *priv, struct gntdev_grant_map *map);
 
-bool gntdev_account_mapped_pages(int count);
+bool gntdev_test_page_count(unsigned int count);
 
 int gntdev_map_grant_pages(struct gntdev_grant_map *map);
 

@@ -370,6 +370,10 @@ config MVEBU_PIC
 config MVEBU_SEI
         bool
 
+config LS_EXTIRQ
+	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
+	select MFD_SYSCON
+
 config LS_SCFG_MSI
 	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
 	depends on PCI && PCI_MSI
@@ -434,7 +438,7 @@ config CSKY_MPINTC
 	help
 	  Say yes here to enable C-SKY SMP interrupt controller driver used
 	  for C-SKY SMP system.
-	  In fact it's not mmio map in hw and it use ld/st to visit the
+	  In fact it's not mmio map in hardware and it uses ld/st to visit the
 	  controller's register inside CPU.
 
 config CSKY_APB_INTC
@@ -442,7 +446,7 @@ config CSKY_APB_INTC
 	depends on CSKY
 	help
 	  Say yes here to enable C-SKY APB interrupt controller driver used
-	  by C-SKY single core SOC system. It use mmio map apb-bus to visit
+	  by C-SKY single core SOC system. It uses mmio map apb-bus to visit
 	  the controller's register.
 
 config IMX_IRQSTEER
@@ -452,6 +456,12 @@ config IMX_IRQSTEER
 	select IRQ_DOMAIN
 	help
 	  Support for the i.MX IRQSTEER interrupt multiplexer/remapper.
+
+config IMX_INTMUX
+	def_bool y if ARCH_MXC
+	select IRQ_DOMAIN
+	help
+	  Support for the i.MX INTMUX interrupt multiplexer.
 
 config LS1X_IRQ
 	bool "Loongson-1 Interrupt Controller"
@@ -483,11 +493,10 @@ config TI_SCI_INTA_IRQCHIP
 	  If you wish to use interrupt aggregator irq resources managed by the
 	  TI System Controller, say Y here. Otherwise, say N.
 
-endmenu
-
 config SIFIVE_PLIC
 	bool "SiFive Platform-Level Interrupt Controller"
 	depends on RISCV
+	select IRQ_DOMAIN_HIERARCHY
 	help
 	   This enables support for the PLIC chip found in SiFive (and
 	   potentially other) RISC-V systems.  The PLIC controls devices
@@ -496,3 +505,12 @@ config SIFIVE_PLIC
 	   interrupt sources are subordinate to the PLIC.
 
 	   If you don't know what to do here, say Y.
+
+config EXYNOS_IRQ_COMBINER
+	bool "Samsung Exynos IRQ combiner support" if COMPILE_TEST
+	depends on (ARCH_EXYNOS && ARM) || COMPILE_TEST
+	help
+	  Say yes here to add support for the IRQ combiner devices embedded
+	  in Samsung Exynos chips.
+
+endmenu

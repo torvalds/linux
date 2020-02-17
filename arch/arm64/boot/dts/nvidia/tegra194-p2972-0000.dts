@@ -10,8 +10,8 @@
 	model = "NVIDIA Jetson AGX Xavier Developer Kit";
 	compatible = "nvidia,p2972-0000", "nvidia,tegra194";
 
-	cbb {
-		aconnect {
+	cbb@0 {
+		aconnect@2900000 {
 			status = "okay";
 
 			dma-controller@2930000 {
@@ -46,10 +46,39 @@
 				status = "okay";
 			};
 
+			dpaux@155c0000 {
+				status = "okay";
+			};
+
+			dpaux@155d0000 {
+				status = "okay";
+			};
+
 			dpaux@155e0000 {
 				status = "okay";
 			};
 
+			/* DP0 */
+			sor@15b00000 {
+				status = "okay";
+
+				avdd-io-hdmi-dp-supply = <&vdd_1v0>;
+				vdd-hdmi-dp-pll-supply = <&vdd_1v8hs>;
+
+				nvidia,dpaux = <&dpaux0>;
+			};
+
+			/* DP1 */
+			sor@15b40000 {
+				status = "okay";
+
+				avdd-io-hdmi-dp-supply = <&vdd_1v0>;
+				vdd-hdmi-dp-pll-supply = <&vdd_1v8hs>;
+
+				nvidia,dpaux = <&dpaux1>;
+			};
+
+			/* HDMI */
 			sor@15b80000 {
 				status = "okay";
 
@@ -123,7 +152,7 @@
 			gpios = <&gpio TEGRA194_MAIN_GPIO(G, 0)
 				       GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
-			linux,code = <BTN_1>;
+			linux,code = <KEY_SLEEP>;
 			debounce-interval = <10>;
 		};
 

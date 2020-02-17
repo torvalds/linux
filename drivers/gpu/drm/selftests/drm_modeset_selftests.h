@@ -6,6 +6,10 @@
  *
  * Tests are executed in order by igt/drm_selftests_helper
  */
+selftest(drm_rect_clip_scaled_div_by_zero, igt_drm_rect_clip_scaled_div_by_zero)
+selftest(drm_rect_clip_scaled_not_clipped, igt_drm_rect_clip_scaled_not_clipped)
+selftest(drm_rect_clip_scaled_clipped, igt_drm_rect_clip_scaled_clipped)
+selftest(drm_rect_clip_scaled_signed_vs_unsigned, igt_drm_rect_clip_scaled_signed_vs_unsigned)
 selftest(check_plane_state, igt_check_plane_state)
 selftest(check_drm_format_block_width, igt_check_drm_format_block_width)
 selftest(check_drm_format_block_height, igt_check_drm_format_block_height)
@@ -32,3 +36,5 @@ selftest(damage_iter_damage_one_intersect, igt_damage_iter_damage_one_intersect)
 selftest(damage_iter_damage_one_outside, igt_damage_iter_damage_one_outside)
 selftest(damage_iter_damage_src_moved, igt_damage_iter_damage_src_moved)
 selftest(damage_iter_damage_not_visible, igt_damage_iter_damage_not_visible)
+selftest(dp_mst_calc_pbn_mode, igt_dp_mst_calc_pbn_mode)
+selftest(dp_mst_sideband_msg_req_decode, igt_dp_mst_sideband_msg_req_decode)

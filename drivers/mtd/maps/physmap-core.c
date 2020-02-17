@@ -38,9 +38,11 @@
 #include <linux/mtd/cfi_endian.h>
 #include <linux/io.h>
 #include <linux/of_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/gpio/consumer.h>
 
 #include "physmap-gemini.h"
+#include "physmap-ixp4xx.h"
 #include "physmap-versatile.h"
 
 struct physmap_flash_info {
@@ -63,16 +65,16 @@ static int physmap_flash_remove(struct platform_device *dev)
 {
 	struct physmap_flash_info *info;
 	struct physmap_flash_data *physmap_data;
-	int i, err;
+	int i, err = 0;
 
 	info = platform_get_drvdata(dev);
 	if (!info)
-		return 0;
+		goto out;
 
 	if (info->cmtd) {
 		err = mtd_device_unregister(info->cmtd);
 		if (err)
-			return err;
+			goto out;
 
 		if (info->cmtd != info->mtds[0])
 			mtd_concat_destroy(info->cmtd);
@@ -87,7 +89,10 @@ static int physmap_flash_remove(struct platform_device *dev)
 	if (physmap_data && physmap_data->exit)
 		physmap_data->exit(dev);
 
-	return 0;
+out:
+	pm_runtime_put(&dev->dev);
+	pm_runtime_disable(&dev->dev);
+	return err;
 }
 
 static void physmap_set_vpp(struct map_info *map, int state)
@@ -370,6 +375,10 @@ static int physmap_flash_of_init(struct platform_device *dev)
 		if (err)
 			return err;
 
+		err = of_flash_probe_ixp4xx(dev, dp, &info->maps[i]);
+		if (err)
+			return err;
+
 		err = of_flash_probe_versatile(dev, dp, &info->maps[i]);
 		if (err)
 			return err;
@@ -479,13 +488,19 @@ static int physmap_flash_probe(struct platform_device *dev)
 		return -EINVAL;
 	}
 
+	pm_runtime_enable(&dev->dev);
+	pm_runtime_get_sync(&dev->dev);
+
 	if (dev->dev.of_node)
 		err = physmap_flash_of_init(dev);
 	else
 		err = physmap_flash_pdata_init(dev);
 
-	if (err)
+	if (err) {
+		pm_runtime_put(&dev->dev);
+		pm_runtime_disable(&dev->dev);
 		return err;
+	}
 
 	for (i = 0; i < info->nmaps; i++) {
 		struct resource *res;

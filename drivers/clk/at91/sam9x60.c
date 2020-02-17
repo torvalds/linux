@@ -43,9 +43,11 @@ static const struct clk_pll_characteristics upll_characteristics = {
 };
 
 static const struct clk_programmable_layout sam9x60_programmable_layout = {
+	.pres_mask = 0xff,
 	.pres_shift = 8,
 	.css_mask = 0x1f,
 	.have_slck_mck = 0,
+	.is_pres_direct = 1,
 };
 
 static const struct clk_pcr_layout sam9x60_pcr_layout = {

@@ -110,7 +110,7 @@ static void ich_force_enable_hpet(struct pci_dev *dev)
 	}
 
 	/* use bits 31:14, 16 kB aligned */
-	rcba_base = ioremap_nocache(rcba, 0x4000);
+	rcba_base = ioremap(rcba, 0x4000);
 	if (rcba_base == NULL) {
 		dev_printk(KERN_DEBUG, &dev->dev, "ioremap failed; "
 			"cannot force enable HPET\n");

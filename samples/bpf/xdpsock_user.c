@@ -10,6 +10,9 @@
 #include <linux/if_link.h>
 #include <linux/if_xdp.h>
 #include <linux/if_ether.h>
+#include <linux/ip.h>
+#include <linux/udp.h>
+#include <arpa/inet.h>
 #include <locale.h>
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -27,9 +30,10 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "libbpf.h"
-#include "xsk.h"
+#include <bpf/libbpf.h>
+#include <bpf/xsk.h>
 #include <bpf/bpf.h>
+#include "xdpsock.h"
 
 #ifndef SOL_XDP
 #define SOL_XDP 283
@@ -44,13 +48,14 @@
 #endif
 
 #define NUM_FRAMES (4 * 1024)
-#define BATCH_SIZE 64
+#define MIN_PKT_SIZE 64
 
 #define DEBUG_HEXDUMP 0
-#define MAX_SOCKS 8
 
 typedef __u64 u64;
 typedef __u32 u32;
+typedef __u16 u16;
+typedef __u8  u8;
 
 static unsigned long prev_time;
 
@@ -65,17 +70,24 @@ static u32 opt_xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static const char *opt_if = "";
 static int opt_ifindex;
 static int opt_queue;
+static unsigned long opt_duration;
+static unsigned long start_time;
+static bool benchmark_done;
+static u32 opt_batch_size = 64;
+static int opt_pkt_count;
+static u16 opt_pkt_size = MIN_PKT_SIZE;
+static u32 opt_pkt_fill_pattern = 0x12345678;
 static int opt_poll;
 static int opt_interval = 1;
 static u32 opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
 static u32 opt_umem_flags;
 static int opt_unaligned_chunks;
 static int opt_mmap_flags;
-static u32 opt_xdp_bind_flags;
 static int opt_xsk_frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
 static int opt_timeout = 1000;
 static bool opt_need_wakeup = true;
-static __u32 prog_id;
+static u32 opt_num_xsks = 1;
+static u32 prog_id;
 
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;
@@ -166,10 +178,21 @@ static void dump_stats(void)
 	}
 }
 
+static bool is_benchmark_done(void)
+{
+	if (opt_duration > 0) {
+		unsigned long dt = (get_nsecs() - start_time);
+
+		if (dt >= opt_duration)
+			benchmark_done = true;
+	}
+	return benchmark_done;
+}
+
 static void *poller(void *arg)
 {
 	(void)arg;
-	for (;;) {
+	while (!is_benchmark_done()) {
 		sleep(opt_interval);
 		dump_stats();
 	}
@@ -179,7 +202,7 @@ static void *poller(void *arg)
 
 static void remove_xdp_program(void)
 {
-	__u32 curr_prog_id = 0;
+	u32 curr_prog_id = 0;
 
 	if (bpf_get_link_xdp_id(opt_ifindex, &curr_prog_id, opt_xdp_flags)) {
 		printf("bpf_get_link_xdp_id failed\n");
@@ -195,16 +218,19 @@ static void remove_xdp_program(void)
 
 static void int_exit(int sig)
 {
-	struct xsk_umem *umem = xsks[0]->umem->umem;
+	benchmark_done = true;
+}
 
-	(void)sig;
+static void xdpsock_cleanup(void)
+{
+	struct xsk_umem *umem = xsks[0]->umem->umem;
+	int i;
 
 	dump_stats();
-	xsk_socket__delete(xsks[0]->xsk);
+	for (i = 0; i < num_socks; i++)
+		xsk_socket__delete(xsks[i]->xsk);
 	(void)xsk_umem__delete(umem);
 	remove_xdp_program();
-
-	exit(EXIT_SUCCESS);
 }
 
 static void __exit_with_error(int error, const char *file, const char *func,
@@ -219,13 +245,6 @@ static void __exit_with_error(int error, const char *file, const char *func,
 
 #define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, \
 						 __LINE__)
-
-static const char pkt_data[] =
-	"\x3c\xfd\xfe\x9e\x7f\x71\xec\xb1\xd7\x98\x3a\xc0\x08\x00\x45\x00"
-	"\x00\x2e\x00\x00\x00\x00\x40\x11\x88\x97\x05\x08\x07\x08\xc8\x14"
-	"\x1e\x04\x10\x92\x10\x92\x00\x1a\x6d\xa3\x34\x33\x1f\x69\x40\x6b"
-	"\x54\x59\xb6\x14\x2d\x11\x44\xbf\xaf\xd9\xbe\xaa";
-
 static void swap_mac_addresses(void *data)
 {
 	struct ether_header *eth = (struct ether_header *)data;
@@ -273,11 +292,243 @@ static void hex_dump(void *pkt, size_t length, u64 addr)
 	printf("\n");
 }
 
-static size_t gen_eth_frame(struct xsk_umem_info *umem, u64 addr)
+static void *memset32_htonl(void *dest, u32 val, u32 size)
+{
+	u32 *ptr = (u32 *)dest;
+	int i;
+
+	val = htonl(val);
+
+	for (i = 0; i < (size & (~0x3)); i += 4)
+		ptr[i >> 2] = val;
+
+	for (; i < size; i++)
+		((char *)dest)[i] = ((char *)&val)[i & 3];
+
+	return dest;
+}
+
+/*
+ * This function code has been taken from
+ * Linux kernel lib/checksum.c
+ */
+static inline unsigned short from32to16(unsigned int x)
+{
+	/* add up 16-bit and 16-bit for 16+c bit */
+	x = (x & 0xffff) + (x >> 16);
+	/* add up carry.. */
+	x = (x & 0xffff) + (x >> 16);
+	return x;
+}
+
+/*
+ * This function code has been taken from
+ * Linux kernel lib/checksum.c
+ */
+static unsigned int do_csum(const unsigned char *buff, int len)
+{
+	unsigned int result = 0;
+	int odd;
+
+	if (len <= 0)
+		goto out;
+	odd = 1 & (unsigned long)buff;
+	if (odd) {
+#ifdef __LITTLE_ENDIAN
+		result += (*buff << 8);
+#else
+		result = *buff;
+#endif
+		len--;
+		buff++;
+	}
+	if (len >= 2) {
+		if (2 & (unsigned long)buff) {
+			result += *(unsigned short *)buff;
+			len -= 2;
+			buff += 2;
+		}
+		if (len >= 4) {
+			const unsigned char *end = buff +
+						   ((unsigned int)len & ~3);
+			unsigned int carry = 0;
+
+			do {
+				unsigned int w = *(unsigned int *)buff;
+
+				buff += 4;
+				result += carry;
+				result += w;
+				carry = (w > result);
+			} while (buff < end);
+			result += carry;
+			result = (result & 0xffff) + (result >> 16);
+		}
+		if (len & 2) {
+			result += *(unsigned short *)buff;
+			buff += 2;
+		}
+	}
+	if (len & 1)
+#ifdef __LITTLE_ENDIAN
+		result += *buff;
+#else
+		result += (*buff << 8);
+#endif
+	result = from32to16(result);
+	if (odd)
+		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
+out:
+	return result;
+}
+
+__sum16 ip_fast_csum(const void *iph, unsigned int ihl);
+
+/*
+ *	This is a version of ip_compute_csum() optimized for IP headers,
+ *	which always checksum on 4 octet boundaries.
+ *	This function code has been taken from
+ *	Linux kernel lib/checksum.c
+ */
+__sum16 ip_fast_csum(const void *iph, unsigned int ihl)
+{
+	return (__force __sum16)~do_csum(iph, ihl * 4);
+}
+
+/*
+ * Fold a partial checksum
+ * This function code has been taken from
+ * Linux kernel include/asm-generic/checksum.h
+ */
+static inline __sum16 csum_fold(__wsum csum)
+{
+	u32 sum = (__force u32)csum;
+
+	sum = (sum & 0xffff) + (sum >> 16);
+	sum = (sum & 0xffff) + (sum >> 16);
+	return (__force __sum16)~sum;
+}
+
+/*
+ * This function code has been taken from
+ * Linux kernel lib/checksum.c
+ */
+static inline u32 from64to32(u64 x)
+{
+	/* add up 32-bit and 32-bit for 32+c bit */
+	x = (x & 0xffffffff) + (x >> 32);
+	/* add up carry.. */
+	x = (x & 0xffffffff) + (x >> 32);
+	return (u32)x;
+}
+
+__wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+			  __u32 len, __u8 proto, __wsum sum);
+
+/*
+ * This function code has been taken from
+ * Linux kernel lib/checksum.c
+ */
+__wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+			  __u32 len, __u8 proto, __wsum sum)
+{
+	unsigned long long s = (__force u32)sum;
+
+	s += (__force u32)saddr;
+	s += (__force u32)daddr;
+#ifdef __BIG_ENDIAN__
+	s += proto + len;
+#else
+	s += (proto + len) << 8;
+#endif
+	return (__force __wsum)from64to32(s);
+}
+
+/*
+ * This function has been taken from
+ * Linux kernel include/asm-generic/checksum.h
+ */
+static inline __sum16
+csum_tcpudp_magic(__be32 saddr, __be32 daddr, __u32 len,
+		  __u8 proto, __wsum sum)
+{
+	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
+}
+
+static inline u16 udp_csum(u32 saddr, u32 daddr, u32 len,
+			   u8 proto, u16 *udp_pkt)
+{
+	u32 csum = 0;
+	u32 cnt = 0;
+
+	/* udp hdr and data */
+	for (; cnt < len; cnt += 2)
+		csum += udp_pkt[cnt >> 1];
+
+	return csum_tcpudp_magic(saddr, daddr, len, proto, csum);
+}
+
+#define ETH_FCS_SIZE 4
+
+#define PKT_HDR_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) + \
+		      sizeof(struct udphdr))
+
+#define PKT_SIZE		(opt_pkt_size - ETH_FCS_SIZE)
+#define IP_PKT_SIZE		(PKT_SIZE - sizeof(struct ethhdr))
+#define UDP_PKT_SIZE		(IP_PKT_SIZE - sizeof(struct iphdr))
+#define UDP_PKT_DATA_SIZE	(UDP_PKT_SIZE - sizeof(struct udphdr))
+
+static u8 pkt_data[XSK_UMEM__DEFAULT_FRAME_SIZE];
+
+static void gen_eth_hdr_data(void)
+{
+	struct udphdr *udp_hdr = (struct udphdr *)(pkt_data +
+						   sizeof(struct ethhdr) +
+						   sizeof(struct iphdr));
+	struct iphdr *ip_hdr = (struct iphdr *)(pkt_data +
+						sizeof(struct ethhdr));
+	struct ethhdr *eth_hdr = (struct ethhdr *)pkt_data;
+
+	/* ethernet header */
+	memcpy(eth_hdr->h_dest, "\x3c\xfd\xfe\x9e\x7f\x71", ETH_ALEN);
+	memcpy(eth_hdr->h_source, "\xec\xb1\xd7\x98\x3a\xc0", ETH_ALEN);
+	eth_hdr->h_proto = htons(ETH_P_IP);
+
+	/* IP header */
+	ip_hdr->version = IPVERSION;
+	ip_hdr->ihl = 0x5; /* 20 byte header */
+	ip_hdr->tos = 0x0;
+	ip_hdr->tot_len = htons(IP_PKT_SIZE);
+	ip_hdr->id = 0;
+	ip_hdr->frag_off = 0;
+	ip_hdr->ttl = IPDEFTTL;
+	ip_hdr->protocol = IPPROTO_UDP;
+	ip_hdr->saddr = htonl(0x0a0a0a10);
+	ip_hdr->daddr = htonl(0x0a0a0a20);
+
+	/* IP header checksum */
+	ip_hdr->check = 0;
+	ip_hdr->check = ip_fast_csum((const void *)ip_hdr, ip_hdr->ihl);
+
+	/* UDP header */
+	udp_hdr->source = htons(0x1000);
+	udp_hdr->dest = htons(0x1000);
+	udp_hdr->len = htons(UDP_PKT_SIZE);
+
+	/* UDP data */
+	memset32_htonl(pkt_data + PKT_HDR_SIZE, opt_pkt_fill_pattern,
+		       UDP_PKT_DATA_SIZE);
+
+	/* UDP header checksum */
+	udp_hdr->check = 0;
+	udp_hdr->check = udp_csum(ip_hdr->saddr, ip_hdr->daddr, UDP_PKT_SIZE,
+				  IPPROTO_UDP, (u16 *)udp_hdr);
+}
+
+static void gen_eth_frame(struct xsk_umem_info *umem, u64 addr)
 {
 	memcpy(xsk_umem__get_data(umem->buffer, addr), pkt_data,
-	       sizeof(pkt_data) - 1);
-	return sizeof(pkt_data) - 1;
+	       PKT_SIZE);
 }
 
 static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
@@ -290,7 +541,6 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 		.frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM,
 		.flags = opt_umem_flags
 	};
-
 	int ret;
 
 	umem = calloc(1, sizeof(*umem));
@@ -299,7 +549,6 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 
 	ret = xsk_umem__create(&umem->umem, buffer, size, &umem->fq, &umem->cq,
 			       &cfg);
-
 	if (ret)
 		exit_with_error(-ret);
 
@@ -307,13 +556,29 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 	return umem;
 }
 
-static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem)
+static void xsk_populate_fill_ring(struct xsk_umem_info *umem)
+{
+	int ret, i;
+	u32 idx;
+
+	ret = xsk_ring_prod__reserve(&umem->fq,
+				     XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
+	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS)
+		exit_with_error(-ret);
+	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i++)
+		*xsk_ring_prod__fill_addr(&umem->fq, idx++) =
+			i * opt_xsk_frame_size;
+	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
+}
+
+static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
+						    bool rx, bool tx)
 {
 	struct xsk_socket_config cfg;
 	struct xsk_socket_info *xsk;
+	struct xsk_ring_cons *rxr;
+	struct xsk_ring_prod *txr;
 	int ret;
-	u32 idx;
-	int i;
 
 	xsk = calloc(1, sizeof(*xsk));
 	if (!xsk)
@@ -322,28 +587,23 @@ static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem)
 	xsk->umem = umem;
 	cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 	cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
-	cfg.libbpf_flags = 0;
+	if (opt_num_xsks > 1)
+		cfg.libbpf_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD;
+	else
+		cfg.libbpf_flags = 0;
 	cfg.xdp_flags = opt_xdp_flags;
 	cfg.bind_flags = opt_xdp_bind_flags;
+
+	rxr = rx ? &xsk->rx : NULL;
+	txr = tx ? &xsk->tx : NULL;
 	ret = xsk_socket__create(&xsk->xsk, opt_if, opt_queue, umem->umem,
-				 &xsk->rx, &xsk->tx, &cfg);
+				 rxr, txr, &cfg);
 	if (ret)
 		exit_with_error(-ret);
 
 	ret = bpf_get_link_xdp_id(opt_ifindex, &prog_id, opt_xdp_flags);
 	if (ret)
 		exit_with_error(-ret);
-
-	ret = xsk_ring_prod__reserve(&xsk->umem->fq,
-				     XSK_RING_PROD__DEFAULT_NUM_DESCS,
-				     &idx);
-	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS)
-		exit_with_error(-ret);
-	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i++)
-		*xsk_ring_prod__fill_addr(&xsk->umem->fq, idx++) =
-			i * opt_xsk_frame_size;
-	xsk_ring_prod__submit(&xsk->umem->fq,
-			      XSK_RING_PROD__DEFAULT_NUM_DESCS);
 
 	return xsk;
 }
@@ -363,6 +623,13 @@ static struct option long_options[] = {
 	{"frame-size", required_argument, 0, 'f'},
 	{"no-need-wakeup", no_argument, 0, 'm'},
 	{"unaligned", no_argument, 0, 'u'},
+	{"shared-umem", no_argument, 0, 'M'},
+	{"force", no_argument, 0, 'F'},
+	{"duration", required_argument, 0, 'd'},
+	{"batch-size", required_argument, 0, 'b'},
+	{"tx-pkt-count", required_argument, 0, 'C'},
+	{"tx-pkt-size", required_argument, 0, 's'},
+	{"tx-pkt-pattern", required_argument, 0, 'P'},
 	{0, 0, 0, 0}
 };
 
@@ -378,16 +645,30 @@ static void usage(const char *prog)
 		"  -q, --queue=n	Use queue n (default 0)\n"
 		"  -p, --poll		Use poll syscall\n"
 		"  -S, --xdp-skb=n	Use XDP skb-mod\n"
-		"  -N, --xdp-native=n	Enfore XDP native mode\n"
+		"  -N, --xdp-native=n	Enforce XDP native mode\n"
 		"  -n, --interval=n	Specify statistics update interval (default 1 sec).\n"
 		"  -z, --zero-copy      Force zero-copy mode.\n"
 		"  -c, --copy           Force copy mode.\n"
-		"  -f, --frame-size=n   Set the frame size (must be a power of two, default is %d).\n"
 		"  -m, --no-need-wakeup Turn off use of driver need wakeup flag.\n"
 		"  -f, --frame-size=n   Set the frame size (must be a power of two in aligned mode, default is %d).\n"
 		"  -u, --unaligned	Enable unaligned chunk placement\n"
+		"  -M, --shared-umem	Enable XDP_SHARED_UMEM\n"
+		"  -F, --force		Force loading the XDP prog\n"
+		"  -d, --duration=n	Duration in secs to run command.\n"
+		"			Default: forever.\n"
+		"  -b, --batch-size=n	Batch size for sending or receiving\n"
+		"			packets. Default: %d\n"
+		"  -C, --tx-pkt-count=n	Number of packets to send.\n"
+		"			Default: Continuous packets.\n"
+		"  -s, --tx-pkt-size=n	Transmit packet size.\n"
+		"			(Default: %d bytes)\n"
+		"			Min size: %d, Max size %d.\n"
+		"  -P, --tx-pkt-pattern=nPacket fill pattern. Default: 0x%x\n"
 		"\n";
-	fprintf(stderr, str, prog, XSK_UMEM__DEFAULT_FRAME_SIZE);
+	fprintf(stderr, str, prog, XSK_UMEM__DEFAULT_FRAME_SIZE,
+		opt_batch_size, MIN_PKT_SIZE, MIN_PKT_SIZE,
+		XSK_UMEM__DEFAULT_FRAME_SIZE, opt_pkt_fill_pattern);
+
 	exit(EXIT_FAILURE);
 }
 
@@ -398,7 +679,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "Frtli:q:psSNn:czf:mu",
+		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -427,7 +708,7 @@ static void parse_command_line(int argc, char **argv)
 			opt_xdp_bind_flags |= XDP_COPY;
 			break;
 		case 'N':
-			opt_xdp_flags |= XDP_FLAGS_DRV_MODE;
+			/* default, set below */
 			break;
 		case 'n':
 			opt_interval = atoi(optarg);
@@ -448,15 +729,44 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'f':
 			opt_xsk_frame_size = atoi(optarg);
+			break;
 		case 'm':
 			opt_need_wakeup = false;
 			opt_xdp_bind_flags &= ~XDP_USE_NEED_WAKEUP;
 			break;
-
+		case 'M':
+			opt_num_xsks = MAX_SOCKS;
+			break;
+		case 'd':
+			opt_duration = atoi(optarg);
+			opt_duration *= 1000000000;
+			break;
+		case 'b':
+			opt_batch_size = atoi(optarg);
+			break;
+		case 'C':
+			opt_pkt_count = atoi(optarg);
+			break;
+		case 's':
+			opt_pkt_size = atoi(optarg);
+			if (opt_pkt_size > (XSK_UMEM__DEFAULT_FRAME_SIZE) ||
+			    opt_pkt_size < MIN_PKT_SIZE) {
+				fprintf(stderr,
+					"ERROR: Invalid frame size %d\n",
+					opt_pkt_size);
+				usage(basename(argv[0]));
+			}
+			break;
+		case 'P':
+			opt_pkt_fill_pattern = strtol(optarg, NULL, 16);
+			break;
 		default:
 			usage(basename(argv[0]));
 		}
 	}
+
+	if (!(opt_xdp_flags & XDP_FLAGS_SKB_MODE))
+		opt_xdp_flags |= XDP_FLAGS_DRV_MODE;
 
 	opt_ifindex = if_nametoindex(opt_if);
 	if (!opt_ifindex) {
@@ -478,7 +788,8 @@ static void kick_tx(struct xsk_socket_info *xsk)
 	int ret;
 
 	ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
-	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN || errno == EBUSY)
+	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN ||
+	    errno == EBUSY || errno == ENETDOWN)
 		return;
 	exit_with_error(errno);
 }
@@ -497,7 +808,7 @@ static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
 	if (!opt_need_wakeup || xsk_ring_prod__needs_wakeup(&xsk->tx))
 		kick_tx(xsk);
 
-	ndescs = (xsk->outstanding_tx > BATCH_SIZE) ? BATCH_SIZE :
+	ndescs = (xsk->outstanding_tx > opt_batch_size) ? opt_batch_size :
 		xsk->outstanding_tx;
 
 	/* re-add completed Tx buffers */
@@ -526,7 +837,8 @@ static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
 	}
 }
 
-static inline void complete_tx_only(struct xsk_socket_info *xsk)
+static inline void complete_tx_only(struct xsk_socket_info *xsk,
+				    int batch_size)
 {
 	unsigned int rcvd;
 	u32 idx;
@@ -537,7 +849,7 @@ static inline void complete_tx_only(struct xsk_socket_info *xsk)
 	if (!opt_need_wakeup || xsk_ring_prod__needs_wakeup(&xsk->tx))
 		kick_tx(xsk);
 
-	rcvd = xsk_ring_cons__peek(&xsk->umem->cq, BATCH_SIZE, &idx);
+	rcvd = xsk_ring_cons__peek(&xsk->umem->cq, batch_size, &idx);
 	if (rcvd > 0) {
 		xsk_ring_cons__release(&xsk->umem->cq, rcvd);
 		xsk->outstanding_tx -= rcvd;
@@ -551,7 +863,7 @@ static void rx_drop(struct xsk_socket_info *xsk, struct pollfd *fds)
 	u32 idx_rx = 0, idx_fq = 0;
 	int ret;
 
-	rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
+	rcvd = xsk_ring_cons__peek(&xsk->rx, opt_batch_size, &idx_rx);
 	if (!rcvd) {
 		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq))
 			ret = poll(fds, num_socks, opt_timeout);
@@ -586,10 +898,8 @@ static void rx_drop(struct xsk_socket_info *xsk, struct pollfd *fds)
 
 static void rx_drop_all(void)
 {
-	struct pollfd fds[MAX_SOCKS + 1];
+	struct pollfd fds[MAX_SOCKS] = {};
 	int i, ret;
-
-	memset(fds, 0, sizeof(fds));
 
 	for (i = 0; i < num_socks; i++) {
 		fds[i].fd = xsk_socket__fd(xsks[i]->xsk);
@@ -605,45 +915,78 @@ static void rx_drop_all(void)
 
 		for (i = 0; i < num_socks; i++)
 			rx_drop(xsks[i], fds);
+
+		if (benchmark_done)
+			break;
 	}
 }
 
-static void tx_only(struct xsk_socket_info *xsk, u32 frame_nb)
+static void tx_only(struct xsk_socket_info *xsk, u32 frame_nb, int batch_size)
 {
 	u32 idx;
+	unsigned int i;
 
-	if (xsk_ring_prod__reserve(&xsk->tx, BATCH_SIZE, &idx) == BATCH_SIZE) {
-		unsigned int i;
-
-		for (i = 0; i < BATCH_SIZE; i++) {
-			xsk_ring_prod__tx_desc(&xsk->tx, idx + i)->addr	=
-				(frame_nb + i) << XSK_UMEM__DEFAULT_FRAME_SHIFT;
-			xsk_ring_prod__tx_desc(&xsk->tx, idx + i)->len =
-				sizeof(pkt_data) - 1;
-		}
-
-		xsk_ring_prod__submit(&xsk->tx, BATCH_SIZE);
-		xsk->outstanding_tx += BATCH_SIZE;
-		frame_nb += BATCH_SIZE;
-		frame_nb %= NUM_FRAMES;
+	while (xsk_ring_prod__reserve(&xsk->tx, batch_size, &idx) <
+				      batch_size) {
+		complete_tx_only(xsk, batch_size);
 	}
 
-	complete_tx_only(xsk);
+	for (i = 0; i < batch_size; i++) {
+		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx,
+								  idx + i);
+		tx_desc->addr = (frame_nb + i) << XSK_UMEM__DEFAULT_FRAME_SHIFT;
+		tx_desc->len = PKT_SIZE;
+	}
+
+	xsk_ring_prod__submit(&xsk->tx, batch_size);
+	xsk->outstanding_tx += batch_size;
+	frame_nb += batch_size;
+	frame_nb %= NUM_FRAMES;
+	complete_tx_only(xsk, batch_size);
+}
+
+static inline int get_batch_size(int pkt_cnt)
+{
+	if (!opt_pkt_count)
+		return opt_batch_size;
+
+	if (pkt_cnt + opt_batch_size <= opt_pkt_count)
+		return opt_batch_size;
+
+	return opt_pkt_count - pkt_cnt;
+}
+
+static void complete_tx_only_all(void)
+{
+	bool pending;
+	int i;
+
+	do {
+		pending = false;
+		for (i = 0; i < num_socks; i++) {
+			if (xsks[i]->outstanding_tx) {
+				complete_tx_only(xsks[i], opt_batch_size);
+				pending = !!xsks[i]->outstanding_tx;
+			}
+		}
+	} while (pending);
 }
 
 static void tx_only_all(void)
 {
-	struct pollfd fds[MAX_SOCKS];
+	struct pollfd fds[MAX_SOCKS] = {};
 	u32 frame_nb[MAX_SOCKS] = {};
+	int pkt_cnt = 0;
 	int i, ret;
 
-	memset(fds, 0, sizeof(fds));
 	for (i = 0; i < num_socks; i++) {
 		fds[0].fd = xsk_socket__fd(xsks[i]->xsk);
 		fds[0].events = POLLOUT;
 	}
 
-	for (;;) {
+	while ((opt_pkt_count && pkt_cnt < opt_pkt_count) || !opt_pkt_count) {
+		int batch_size = get_batch_size(pkt_cnt);
+
 		if (opt_poll) {
 			ret = poll(fds, num_socks, opt_timeout);
 			if (ret <= 0)
@@ -654,8 +997,16 @@ static void tx_only_all(void)
 		}
 
 		for (i = 0; i < num_socks; i++)
-			tx_only(xsks[i], frame_nb[i]);
+			tx_only(xsks[i], frame_nb[i], batch_size);
+
+		pkt_cnt += batch_size;
+
+		if (benchmark_done)
+			break;
 	}
+
+	if (opt_pkt_count)
+		complete_tx_only_all();
 }
 
 static void l2fwd(struct xsk_socket_info *xsk, struct pollfd *fds)
@@ -666,7 +1017,7 @@ static void l2fwd(struct xsk_socket_info *xsk, struct pollfd *fds)
 
 	complete_tx_l2fwd(xsk, fds);
 
-	rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
+	rcvd = xsk_ring_cons__peek(&xsk->rx, opt_batch_size, &idx_rx);
 	if (!rcvd) {
 		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq))
 			ret = poll(fds, num_socks, opt_timeout);
@@ -706,10 +1057,8 @@ static void l2fwd(struct xsk_socket_info *xsk, struct pollfd *fds)
 
 static void l2fwd_all(void)
 {
-	struct pollfd fds[MAX_SOCKS];
+	struct pollfd fds[MAX_SOCKS] = {};
 	int i, ret;
-
-	memset(fds, 0, sizeof(fds));
 
 	for (i = 0; i < num_socks; i++) {
 		fds[i].fd = xsk_socket__fd(xsks[i]->xsk);
@@ -725,16 +1074,72 @@ static void l2fwd_all(void)
 
 		for (i = 0; i < num_socks; i++)
 			l2fwd(xsks[i], fds);
+
+		if (benchmark_done)
+			break;
+	}
+}
+
+static void load_xdp_program(char **argv, struct bpf_object **obj)
+{
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type      = BPF_PROG_TYPE_XDP,
+	};
+	char xdp_filename[256];
+	int prog_fd;
+
+	snprintf(xdp_filename, sizeof(xdp_filename), "%s_kern.o", argv[0]);
+	prog_load_attr.file = xdp_filename;
+
+	if (bpf_prog_load_xattr(&prog_load_attr, obj, &prog_fd))
+		exit(EXIT_FAILURE);
+	if (prog_fd < 0) {
+		fprintf(stderr, "ERROR: no program found: %s\n",
+			strerror(prog_fd));
+		exit(EXIT_FAILURE);
+	}
+
+	if (bpf_set_link_xdp_fd(opt_ifindex, prog_fd, opt_xdp_flags) < 0) {
+		fprintf(stderr, "ERROR: link set xdp fd failed\n");
+		exit(EXIT_FAILURE);
+	}
+}
+
+static void enter_xsks_into_map(struct bpf_object *obj)
+{
+	struct bpf_map *map;
+	int i, xsks_map;
+
+	map = bpf_object__find_map_by_name(obj, "xsks_map");
+	xsks_map = bpf_map__fd(map);
+	if (xsks_map < 0) {
+		fprintf(stderr, "ERROR: no xsks map found: %s\n",
+			strerror(xsks_map));
+			exit(EXIT_FAILURE);
+	}
+
+	for (i = 0; i < num_socks; i++) {
+		int fd = xsk_socket__fd(xsks[i]->xsk);
+		int key, ret;
+
+		key = i;
+		ret = bpf_map_update_elem(xsks_map, &key, &fd, 0);
+		if (ret) {
+			fprintf(stderr, "ERROR: bpf_map_update_elem %d\n", i);
+			exit(EXIT_FAILURE);
+		}
 	}
 }
 
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	bool rx = false, tx = false;
 	struct xsk_umem_info *umem;
+	struct bpf_object *obj;
 	pthread_t pt;
+	int i, ret;
 	void *bufs;
-	int ret;
 
 	parse_command_line(argc, argv);
 
@@ -744,6 +1149,9 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	if (opt_num_xsks > 1)
+		load_xdp_program(argv, &obj);
+
 	/* Reserve memory for the umem. Use hugepages if unaligned chunk mode */
 	bufs = mmap(NULL, NUM_FRAMES * opt_xsk_frame_size,
 		    PROT_READ | PROT_WRITE,
@@ -752,16 +1160,27 @@ int main(int argc, char **argv)
 		printf("ERROR: mmap failed\n");
 		exit(EXIT_FAILURE);
 	}
-       /* Create sockets... */
+
+	/* Create sockets... */
 	umem = xsk_configure_umem(bufs, NUM_FRAMES * opt_xsk_frame_size);
-	xsks[num_socks++] = xsk_configure_socket(umem);
+	if (opt_bench == BENCH_RXDROP || opt_bench == BENCH_L2FWD) {
+		rx = true;
+		xsk_populate_fill_ring(umem);
+	}
+	if (opt_bench == BENCH_L2FWD || opt_bench == BENCH_TXONLY)
+		tx = true;
+	for (i = 0; i < opt_num_xsks; i++)
+		xsks[num_socks++] = xsk_configure_socket(umem, rx, tx);
 
 	if (opt_bench == BENCH_TXONLY) {
-		int i;
+		gen_eth_hdr_data();
 
 		for (i = 0; i < NUM_FRAMES; i++)
-			(void)gen_eth_frame(umem, i * opt_xsk_frame_size);
+			gen_eth_frame(umem, i * opt_xsk_frame_size);
 	}
+
+	if (opt_num_xsks > 1 && opt_bench != BENCH_TXONLY)
+		enter_xsks_into_map(obj);
 
 	signal(SIGINT, int_exit);
 	signal(SIGTERM, int_exit);
@@ -774,6 +1193,7 @@ int main(int argc, char **argv)
 		exit_with_error(ret);
 
 	prev_time = get_nsecs();
+	start_time = prev_time;
 
 	if (opt_bench == BENCH_RXDROP)
 		rx_drop_all();
@@ -781,6 +1201,12 @@ int main(int argc, char **argv)
 		tx_only_all();
 	else
 		l2fwd_all();
+
+	benchmark_done = true;
+
+	pthread_join(pt, NULL);
+
+	xdpsock_cleanup();
 
 	return 0;
 }

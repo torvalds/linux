@@ -125,18 +125,6 @@ static int snd_sh_dac_pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_sh_dac_pcm_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream,
-			params_buffer_bytes(hw_params));
-}
-
-static int snd_sh_dac_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static int snd_sh_dac_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_sh_dac *chip = snd_pcm_substream_chip(substream);
@@ -175,7 +163,6 @@ static int snd_sh_dac_pcm_copy(struct snd_pcm_substream *substream,
 {
 	/* channel is not used (interleaved data) */
 	struct snd_sh_dac *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	if (copy_from_user_toio(chip->data_buffer + pos, src, count))
 		return -EFAULT;
@@ -195,7 +182,6 @@ static int snd_sh_dac_pcm_copy_kernel(struct snd_pcm_substream *substream,
 {
 	/* channel is not used (interleaved data) */
 	struct snd_sh_dac *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	memcpy_toio(chip->data_buffer + pos, src, count);
 	chip->buffer_end = chip->data_buffer + pos + count;
@@ -214,7 +200,6 @@ static int snd_sh_dac_pcm_silence(struct snd_pcm_substream *substream,
 {
 	/* channel is not used (interleaved data) */
 	struct snd_sh_dac *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	memset_io(chip->data_buffer + pos, 0, count);
 	chip->buffer_end = chip->data_buffer + pos + count;
@@ -240,9 +225,6 @@ snd_pcm_uframes_t snd_sh_dac_pcm_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_sh_dac_pcm_ops = {
 	.open		= snd_sh_dac_pcm_open,
 	.close		= snd_sh_dac_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= snd_sh_dac_pcm_hw_params,
-	.hw_free	= snd_sh_dac_pcm_hw_free,
 	.prepare	= snd_sh_dac_pcm_prepare,
 	.trigger	= snd_sh_dac_pcm_trigger,
 	.pointer	= snd_sh_dac_pcm_pointer,
@@ -267,10 +249,8 @@ static int snd_sh_dac_pcm(struct snd_sh_dac *chip, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_sh_dac_pcm_ops);
 
 	/* buffer size=48K */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					  snd_dma_continuous_data(GFP_KERNEL),
-							48 * 1024,
-							48 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL, 48 * 1024, 48 * 1024);
 
 	return 0;
 }
@@ -342,7 +322,7 @@ static int snd_sh_dac_create(struct snd_card *card,
 	struct snd_sh_dac *chip;
 	int err;
 
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		   .dev_free = snd_sh_dac_dev_free,
 	};
 

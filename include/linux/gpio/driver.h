@@ -22,6 +22,9 @@ enum gpio_lookup_flags;
 
 struct gpio_chip;
 
+#define GPIO_LINE_DIRECTION_IN	1
+#define GPIO_LINE_DIRECTION_OUT	0
+
 /**
  * struct gpio_irq_chip - GPIO interrupt controller
  */
@@ -91,16 +94,15 @@ struct gpio_irq_chip {
 				     unsigned int *parent_type);
 
 	/**
-	 * @populate_parent_fwspec:
+	 * @populate_parent_alloc_arg :
 	 *
-	 * This optional callback populates the &struct irq_fwspec for the
-	 * parent's IRQ domain. If this is not specified, then
+	 * This optional callback allocates and populates the specific struct
+	 * for the parent's IRQ domain. If this is not specified, then
 	 * &gpiochip_populate_parent_fwspec_twocell will be used. A four-cell
 	 * variant named &gpiochip_populate_parent_fwspec_fourcell is also
 	 * available.
 	 */
-	void (*populate_parent_fwspec)(struct gpio_chip *chip,
-				       struct irq_fwspec *fwspec,
+	void *(*populate_parent_alloc_arg)(struct gpio_chip *chip,
 				       unsigned int parent_hwirq,
 				       unsigned int parent_type);
 
@@ -202,6 +204,14 @@ struct gpio_irq_chip {
 	bool threaded;
 
 	/**
+	 * @init_hw: optional routine to initialize hardware before
+	 * an IRQ chip will be added. This is quite useful when
+	 * a particular driver wants to clear IRQ related registers
+	 * in order to avoid undesired events.
+	 */
+	int (*init_hw)(struct gpio_chip *chip);
+
+	/**
 	 * @init_valid_mask: optional routine to initialize @valid_mask, to be
 	 * used if not all GPIO lines are valid interrupts. Sometimes some
 	 * lines just cannot fire interrupts, and this routine, when defined,
@@ -278,6 +288,9 @@ struct gpio_irq_chip {
  *	state (such as pullup/pulldown configuration).
  * @init_valid_mask: optional routine to initialize @valid_mask, to be used if
  *	not all GPIOs are valid.
+ * @add_pin_ranges: optional routine to initialize pin ranges, to be used when
+ *	requires special mapping of the pins that provides GPIO functionality.
+ *	It is called after adding GPIO chip and before adding IRQ chip.
  * @base: identifies the first GPIO number handled by this chip;
  *	or, if negative during registration, requests dynamic ID allocation.
  *	DEPRECATION: providing anything non-negative and nailing the base
@@ -367,6 +380,8 @@ struct gpio_chip {
 	int			(*init_valid_mask)(struct gpio_chip *chip,
 						   unsigned long *valid_mask,
 						   unsigned int ngpios);
+
+	int			(*add_pin_ranges)(struct gpio_chip *chip);
 
 	int			base;
 	u16			ngpio;
@@ -521,29 +536,27 @@ struct bgpio_pdata {
 
 #ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
 
-void gpiochip_populate_parent_fwspec_twocell(struct gpio_chip *chip,
-					     struct irq_fwspec *fwspec,
+void *gpiochip_populate_parent_fwspec_twocell(struct gpio_chip *chip,
 					     unsigned int parent_hwirq,
 					     unsigned int parent_type);
-void gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *chip,
-					      struct irq_fwspec *fwspec,
+void *gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *chip,
 					      unsigned int parent_hwirq,
 					      unsigned int parent_type);
 
 #else
 
-static inline void gpiochip_populate_parent_fwspec_twocell(struct gpio_chip *chip,
-						    struct irq_fwspec *fwspec,
+static inline void *gpiochip_populate_parent_fwspec_twocell(struct gpio_chip *chip,
 						    unsigned int parent_hwirq,
 						    unsigned int parent_type)
 {
+	return NULL;
 }
 
-static inline void gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *chip,
-						     struct irq_fwspec *fwspec,
+static inline void *gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *chip,
 						     unsigned int parent_hwirq,
 						     unsigned int parent_type)
 {
+	return NULL;
 }
 
 #endif /* CONFIG_IRQ_DOMAIN_HIERARCHY */
@@ -568,11 +581,6 @@ int gpiochip_irq_domain_activate(struct irq_domain *domain,
 				 struct irq_data *data, bool reserve);
 void gpiochip_irq_domain_deactivate(struct irq_domain *domain,
 				    struct irq_data *data);
-
-void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
-		struct irq_chip *irqchip,
-		unsigned int parent_irq,
-		irq_flow_handler_t parent_handler);
 
 void gpiochip_set_nested_irqchip(struct gpio_chip *gpiochip,
 		struct irq_chip *irqchip,
@@ -699,7 +707,8 @@ gpiochip_remove_pin_ranges(struct gpio_chip *chip)
 
 #endif /* CONFIG_PINCTRL */
 
-struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
+struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip,
+					    unsigned int hwnum,
 					    const char *label,
 					    enum gpio_lookup_flags lflags,
 					    enum gpiod_flags dflags);

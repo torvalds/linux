@@ -13,8 +13,9 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <linux/perf_event.h>
 
-#include "libbpf.h"
+#include <bpf/libbpf.h>
 #include "bpf_load.h"
 #include "bpf_util.h"
 #include "perf-sys.h"

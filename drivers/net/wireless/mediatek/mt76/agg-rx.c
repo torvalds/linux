@@ -130,8 +130,10 @@ mt76_rx_aggr_check_ctl(struct sk_buff *skb, struct sk_buff_head *frames)
 		return;
 
 	spin_lock_bh(&tid->lock);
-	mt76_rx_aggr_release_frames(tid, frames, seqno);
-	mt76_rx_aggr_release_head(tid, frames);
+	if (!tid->stopped) {
+		mt76_rx_aggr_release_frames(tid, frames, seqno);
+		mt76_rx_aggr_release_head(tid, frames);
+	}
 	spin_unlock_bh(&tid->lock);
 }
 
@@ -257,8 +259,6 @@ static void mt76_rx_aggr_shutdown(struct mt76_dev *dev, struct mt76_rx_tid *tid)
 	u8 size = tid->size;
 	int i;
 
-	cancel_delayed_work(&tid->reorder_work);
-
 	spin_lock_bh(&tid->lock);
 
 	tid->stopped = true;
@@ -273,21 +273,19 @@ static void mt76_rx_aggr_shutdown(struct mt76_dev *dev, struct mt76_rx_tid *tid)
 	}
 
 	spin_unlock_bh(&tid->lock);
+
+	cancel_delayed_work_sync(&tid->reorder_work);
 }
 
 void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidno)
 {
-	struct mt76_rx_tid *tid;
+	struct mt76_rx_tid *tid = NULL;
 
-	rcu_read_lock();
-
-	tid = rcu_dereference(wcid->aggr[tidno]);
+	tid = rcu_replace_pointer(wcid->aggr[tidno], tid,
+				  lockdep_is_held(&dev->mutex));
 	if (tid) {
-		rcu_assign_pointer(wcid->aggr[tidno], NULL);
 		mt76_rx_aggr_shutdown(dev, tid);
 		kfree_rcu(tid, rcu_head);
 	}
-
-	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(mt76_rx_aggr_stop);

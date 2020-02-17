@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/samsung/pmu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos SoC series Power Management Unit (PMU)
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+# Custom select to avoid matching all nodes with 'syscon'
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - samsung,exynos3250-pmu
+          - samsung,exynos4210-pmu
+          - samsung,exynos4412-pmu
+          - samsung,exynos5250-pmu
+          - samsung,exynos5260-pmu
+          - samsung,exynos5410-pmu
+          - samsung,exynos5420-pmu
+          - samsung,exynos5433-pmu
+          - samsung,exynos7-pmu
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - samsung,exynos3250-pmu
+          - samsung,exynos4210-pmu
+          - samsung,exynos4412-pmu
+          - samsung,exynos5250-pmu
+          - samsung,exynos5260-pmu
+          - samsung,exynos5410-pmu
+          - samsung,exynos5420-pmu
+          - samsung,exynos5433-pmu
+          - samsung,exynos7-pmu
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clock-names:
+    description:
+      List of clock names for particular CLKOUT mux inputs
+    minItems: 1
+    maxItems: 32
+    items:
+      pattern: '^clkout([0-9]|[12][0-9]|3[0-1])$'
+
+  clocks:
+    minItems: 1
+    maxItems: 32
+
+  interrupt-controller:
+    description:
+      Some PMUs are capable of behaving as an interrupt controller (mostly
+      to wake up a suspended PMU).
+
+  '#interrupt-cells':
+    description:
+      Must be identical to the that of the parent interrupt controller.
+    const: 3
+
+  syscon-poweroff:
+    $ref: "../../power/reset/syscon-poweroff.yaml#"
+    type: object
+    description:
+      Node for power off method
+
+  syscon-reboot:
+    $ref: "../../power/reset/syscon-reboot.yaml#"
+    type: object
+    description:
+      Node for reboot method
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+  - clock-names
+  - clocks
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos5250.h>
+
+    pmu_system_controller: system-controller@10040000 {
+        compatible = "samsung,exynos5250-pmu", "syscon";
+        reg = <0x10040000 0x5000>;
+        interrupt-controller;
+        #interrupt-cells = <3>;
+        interrupt-parent = <&gic>;
+        #clock-cells = <1>;
+        clock-names = "clkout16";
+        clocks = <&clock CLK_FIN_PLL>;
+    };

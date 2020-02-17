@@ -134,16 +134,15 @@ static void au_write_buf16(struct nand_chip *this, const u_char *buf, int len)
 
 /**
  * au_read_buf16 -  read chip data into buffer
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  * @buf:	buffer to store date
  * @len:	number of bytes to read
  *
  * read function for 16bit buswidth
  */
-static void au_read_buf16(struct mtd_info *mtd, u_char *buf, int len)
+static void au_read_buf16(struct nand_chip *this, u_char *buf, int len)
 {
 	int i;
-	struct nand_chip *this = mtd_to_nand(mtd);
 	u16 *p = (u16 *) buf;
 	len >>= 1;
 
@@ -405,7 +404,7 @@ static int au1550nd_probe(struct platform_device *pdev)
 		goto out1;
 	}
 
-	ctx->base = ioremap_nocache(r->start, 0x1000);
+	ctx->base = ioremap(r->start, 0x1000);
 	if (!ctx->base) {
 		dev_err(&pdev->dev, "cannot remap NAND memory area\n");
 		ret = -ENODEV;

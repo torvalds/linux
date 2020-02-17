@@ -22,9 +22,8 @@
  */
 
 #include <linux/math64.h>
+#include <linux/pci.h>
 #include <linux/seq_file.h>
-
-#include <drm/drm_pci.h>
 
 #include "atom.h"
 #include "r600_dpm.h"
@@ -1958,6 +1957,7 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 		case 0x682C:
 			si_pi->cac_weights = cac_weights_cape_verde_pro;
 			si_pi->dte_data = dte_data_sun_xt;
+			update_dte_from_pl2 = true;
 			break;
 		case 0x6825:
 		case 0x6827:
@@ -3639,14 +3639,13 @@ static int si_notify_smc_display_change(struct radeon_device *rdev,
 
 static void si_program_response_times(struct radeon_device *rdev)
 {
-	u32 voltage_response_time, backbias_response_time, acpi_delay_time, vbi_time_out;
+	u32 voltage_response_time, acpi_delay_time, vbi_time_out;
 	u32 vddc_dly, acpi_dly, vbi_dly;
 	u32 reference_clock;
 
 	si_write_smc_soft_register(rdev, SI_SMC_SOFT_REGISTER_mvdd_chg_time, 1);
 
 	voltage_response_time = (u32)rdev->pm.dpm.voltage_response_time;
-	backbias_response_time = (u32)rdev->pm.dpm.backbias_response_time;
 
 	if (voltage_response_time == 0)
 		voltage_response_time = 1000;
@@ -5899,7 +5898,7 @@ static int si_patch_single_dependency_table_based_on_leakage(struct radeon_devic
 
 static int si_patch_dependency_tables_based_on_leakage(struct radeon_device *rdev)
 {
-	int ret = 0;
+	int ret;
 
 	ret = si_patch_single_dependency_table_based_on_leakage(rdev,
 								&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk);

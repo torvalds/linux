@@ -261,34 +261,34 @@ static const struct scarlett2_device_info s6i6_gen2_info = {
 	},
 
 	.ports = {
-		{
+		[SCARLETT2_PORT_TYPE_NONE] = {
 			.id = 0x000,
 			.num = { 1, 0, 8, 8, 8 },
 			.src_descr = "Off",
 			.src_num_offset = 0,
 		},
-		{
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = {
 			.id = 0x080,
 			.num = { 4, 4, 4, 4, 4 },
 			.src_descr = "Analogue %d",
 			.src_num_offset = 1,
 			.dst_descr = "Analogue Output %02d Playback"
 		},
-		{
+		[SCARLETT2_PORT_TYPE_SPDIF] = {
 			.id = 0x180,
 			.num = { 2, 2, 2, 2, 2 },
 			.src_descr = "S/PDIF %d",
 			.src_num_offset = 1,
 			.dst_descr = "S/PDIF Output %d Playback"
 		},
-		{
+		[SCARLETT2_PORT_TYPE_MIX] = {
 			.id = 0x300,
 			.num = { 10, 18, 18, 18, 18 },
 			.src_descr = "Mix %c",
 			.src_num_offset = 65,
 			.dst_descr = "Mixer Input %02d Capture"
 		},
-		{
+		[SCARLETT2_PORT_TYPE_PCM] = {
 			.id = 0x600,
 			.num = { 6, 6, 6, 6, 6 },
 			.src_descr = "PCM %d",
@@ -317,44 +317,44 @@ static const struct scarlett2_device_info s18i8_gen2_info = {
 	},
 
 	.ports = {
-		{
+		[SCARLETT2_PORT_TYPE_NONE] = {
 			.id = 0x000,
 			.num = { 1, 0, 8, 8, 4 },
 			.src_descr = "Off",
 			.src_num_offset = 0,
 		},
-		{
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = {
 			.id = 0x080,
 			.num = { 8, 6, 6, 6, 6 },
 			.src_descr = "Analogue %d",
 			.src_num_offset = 1,
 			.dst_descr = "Analogue Output %02d Playback"
 		},
-		{
+		[SCARLETT2_PORT_TYPE_SPDIF] = {
+			.id = 0x180,
 			/* S/PDIF outputs aren't available at 192KHz
 			 * but are included in the USB mux I/O
 			 * assignment message anyway
 			 */
-			.id = 0x180,
 			.num = { 2, 2, 2, 2, 2 },
 			.src_descr = "S/PDIF %d",
 			.src_num_offset = 1,
 			.dst_descr = "S/PDIF Output %d Playback"
 		},
-		{
+		[SCARLETT2_PORT_TYPE_ADAT] = {
 			.id = 0x200,
 			.num = { 8, 0, 0, 0, 0 },
 			.src_descr = "ADAT %d",
 			.src_num_offset = 1,
 		},
-		{
+		[SCARLETT2_PORT_TYPE_MIX] = {
 			.id = 0x300,
 			.num = { 10, 18, 18, 18, 18 },
 			.src_descr = "Mix %c",
 			.src_num_offset = 65,
 			.dst_descr = "Mixer Input %02d Capture"
 		},
-		{
+		[SCARLETT2_PORT_TYPE_PCM] = {
 			.id = 0x600,
 			.num = { 20, 18, 18, 14, 10 },
 			.src_descr = "PCM %d",
@@ -387,20 +387,20 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 	},
 
 	.ports = {
-		{
+		[SCARLETT2_PORT_TYPE_NONE] = {
 			.id = 0x000,
 			.num = { 1, 0, 8, 8, 6 },
 			.src_descr = "Off",
 			.src_num_offset = 0,
 		},
-		{
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = {
 			.id = 0x080,
 			.num = { 8, 10, 10, 10, 10 },
 			.src_descr = "Analogue %d",
 			.src_num_offset = 1,
 			.dst_descr = "Analogue Output %02d Playback"
 		},
-		{
+		[SCARLETT2_PORT_TYPE_SPDIF] = {
 			/* S/PDIF outputs aren't available at 192KHz
 			 * but are included in the USB mux I/O
 			 * assignment message anyway
@@ -411,21 +411,21 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 			.src_num_offset = 1,
 			.dst_descr = "S/PDIF Output %d Playback"
 		},
-		{
+		[SCARLETT2_PORT_TYPE_ADAT] = {
 			.id = 0x200,
 			.num = { 8, 8, 8, 4, 0 },
 			.src_descr = "ADAT %d",
 			.src_num_offset = 1,
 			.dst_descr = "ADAT Output %d Playback"
 		},
-		{
+		[SCARLETT2_PORT_TYPE_MIX] = {
 			.id = 0x300,
 			.num = { 10, 18, 18, 18, 18 },
 			.src_descr = "Mix %c",
 			.src_num_offset = 65,
 			.dst_descr = "Mixer Input %02d Capture"
 		},
-		{
+		[SCARLETT2_PORT_TYPE_PCM] = {
 			.id = 0x600,
 			.num = { 20, 18, 18, 14, 10 },
 			.src_descr = "PCM %d",
@@ -558,11 +558,11 @@ static const struct scarlett2_config
 
 /* proprietary request/response format */
 struct scarlett2_usb_packet {
-	u32 cmd;
-	u16 size;
-	u16 seq;
-	u32 error;
-	u32 pad;
+	__le32 cmd;
+	__le16 size;
+	__le16 seq;
+	__le32 error;
+	__le32 pad;
 	u8 data[];
 };
 
@@ -664,11 +664,11 @@ static int scarlett2_usb(
 			"Scarlett Gen 2 USB invalid response; "
 			   "cmd tx/rx %d/%d seq %d/%d size %d/%d "
 			   "error %d pad %d\n",
-			le16_to_cpu(req->cmd), le16_to_cpu(resp->cmd),
+			le32_to_cpu(req->cmd), le32_to_cpu(resp->cmd),
 			le16_to_cpu(req->seq), le16_to_cpu(resp->seq),
 			resp_size, le16_to_cpu(resp->size),
-			le16_to_cpu(resp->error),
-			le16_to_cpu(resp->pad));
+			le32_to_cpu(resp->error),
+			le32_to_cpu(resp->pad));
 		err = -EINVAL;
 		goto unlock;
 	}
@@ -687,7 +687,7 @@ error:
 /* Send SCARLETT2_USB_DATA_CMD SCARLETT2_USB_CONFIG_SAVE */
 static void scarlett2_config_save(struct usb_mixer_interface *mixer)
 {
-	u32 req = cpu_to_le32(SCARLETT2_USB_CONFIG_SAVE);
+	__le32 req = cpu_to_le32(SCARLETT2_USB_CONFIG_SAVE);
 
 	scarlett2_usb(mixer, SCARLETT2_USB_DATA_CMD,
 		      &req, sizeof(u32),
@@ -713,11 +713,11 @@ static int scarlett2_usb_set_config(
 	const struct scarlett2_config config_item =
 	       scarlett2_config_items[config_item_num];
 	struct {
-		u32 offset;
-		u32 bytes;
-		s32 value;
+		__le32 offset;
+		__le32 bytes;
+		__le32 value;
 	} __packed req;
-	u32 req2;
+	__le32 req2;
 	int err;
 	struct scarlett2_mixer_data *private = mixer->private_data;
 
@@ -753,8 +753,8 @@ static int scarlett2_usb_get(
 	int offset, void *buf, int size)
 {
 	struct {
-		u32 offset;
-		u32 size;
+		__le32 offset;
+		__le32 size;
 	} __packed req;
 
 	req.offset = cpu_to_le32(offset);
@@ -794,8 +794,8 @@ static int scarlett2_usb_set_mix(struct usb_mixer_interface *mixer,
 	const struct scarlett2_device_info *info = private->info;
 
 	struct {
-		u16 mix_num;
-		u16 data[SCARLETT2_INPUT_MIX_MAX];
+		__le16 mix_num;
+		__le16 data[SCARLETT2_INPUT_MIX_MAX];
 	} __packed req;
 
 	int i, j;
@@ -850,9 +850,9 @@ static int scarlett2_usb_set_mux(struct usb_mixer_interface *mixer)
 	};
 
 	struct {
-		u16 pad;
-		u16 num;
-		u32 data[SCARLETT2_MUX_MAX];
+		__le16 pad;
+		__le16 num;
+		__le32 data[SCARLETT2_MUX_MAX];
 	} __packed req;
 
 	req.pad = 0;
@@ -911,9 +911,9 @@ static int scarlett2_usb_get_meter_levels(struct usb_mixer_interface *mixer,
 					  u16 *levels)
 {
 	struct {
-		u16 pad;
-		u16 num_meters;
-		u32 magic;
+		__le16 pad;
+		__le16 num_meters;
+		__le32 magic;
 	} __packed req;
 	u32 resp[SCARLETT2_NUM_METERS];
 	int i, err;

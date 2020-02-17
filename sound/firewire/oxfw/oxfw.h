@@ -45,6 +45,7 @@ struct snd_oxfw {
 
 	bool wrong_dbs;
 	bool has_output;
+	bool has_input;
 	u8 *tx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
 	u8 *rx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
 	bool assumed;
@@ -103,7 +104,9 @@ int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
 int snd_oxfw_stream_init_duplex(struct snd_oxfw *oxfw);
 int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
 				   struct amdtp_stream *stream,
-				   unsigned int rate, unsigned int pcm_channels);
+				   unsigned int rate, unsigned int pcm_channels,
+				   unsigned int frames_per_period,
+				   unsigned int frames_per_buffer);
 int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_stop_duplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_destroy_duplex(struct snd_oxfw *oxfw);

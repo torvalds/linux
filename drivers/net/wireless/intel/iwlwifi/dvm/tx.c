@@ -267,7 +267,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_station_priv *sta_priv = NULL;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-	struct iwl_device_cmd *dev_cmd;
+	struct iwl_device_tx_cmd *dev_cmd;
 	struct iwl_tx_cmd *tx_cmd;
 	__le16 fc;
 	u8 hdr_len;
@@ -348,7 +348,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	if (unlikely(!dev_cmd))
 		goto drop_unlock_priv;
 
-	memset(dev_cmd, 0, sizeof(*dev_cmd));
 	dev_cmd->hdr.cmd = REPLY_TX;
 	tx_cmd = (struct iwl_tx_cmd *) dev_cmd->payload;
 
@@ -621,7 +620,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		IWL_DEBUG_TX_QUEUES(priv, "Can proceed: ssn = next_recl = %d\n",
 				    tid_data->agg.ssn);
 		tid_data->agg.state = IWL_AGG_STARTING;
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		ret = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 	} else {
 		IWL_DEBUG_TX_QUEUES(priv, "Can't proceed: ssn %d, "
 				    "next_reclaimed = %d\n",

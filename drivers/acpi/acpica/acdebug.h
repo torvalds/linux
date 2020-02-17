@@ -3,7 +3,7 @@
  *
  * Name: acdebug.h - ACPI/AML debugger
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -147,6 +147,8 @@ void acpi_db_check_integrity(void);
 void acpi_db_find_references(char *object_arg);
 
 void acpi_db_get_bus_info(void);
+
+acpi_status acpi_db_display_fields(u32 address_space_id);
 
 /*
  * dbdisply - debug display commands

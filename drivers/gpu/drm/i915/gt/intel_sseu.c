@@ -8,6 +8,19 @@
 #include "intel_lrc_reg.h"
 #include "intel_sseu.h"
 
+void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
+			 u8 max_subslices, u8 max_eus_per_subslice)
+{
+	sseu->max_slices = max_slices;
+	sseu->max_subslices = max_subslices;
+	sseu->max_eus_per_subslice = max_eus_per_subslice;
+
+	sseu->ss_stride = GEN_SSEU_STRIDE(sseu->max_subslices);
+	GEM_BUG_ON(sseu->ss_stride > GEN_MAX_SUBSLICE_STRIDE);
+	sseu->eu_stride = GEN_SSEU_STRIDE(sseu->max_eus_per_subslice);
+	GEM_BUG_ON(sseu->eu_stride > GEN_MAX_EU_STRIDE);
+}
+
 unsigned int
 intel_sseu_subslice_total(const struct sseu_dev_info *sseu)
 {
@@ -19,10 +32,32 @@ intel_sseu_subslice_total(const struct sseu_dev_info *sseu)
 	return total;
 }
 
+u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice)
+{
+	int i, offset = slice * sseu->ss_stride;
+	u32 mask = 0;
+
+	GEM_BUG_ON(slice >= sseu->max_slices);
+
+	for (i = 0; i < sseu->ss_stride; i++)
+		mask |= (u32)sseu->subslice_mask[offset + i] <<
+			i * BITS_PER_BYTE;
+
+	return mask;
+}
+
+void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
+			      u32 ss_mask)
+{
+	int offset = slice * sseu->ss_stride;
+
+	memcpy(&sseu->subslice_mask[offset], &ss_mask, sseu->ss_stride);
+}
+
 unsigned int
 intel_sseu_subslices_per_slice(const struct sseu_dev_info *sseu, u8 slice)
 {
-	return hweight8(sseu->subslice_mask[slice]);
+	return hweight32(intel_sseu_get_subslices(sseu, slice));
 }
 
 u32 intel_sseu_make_rpcs(struct drm_i915_private *i915,

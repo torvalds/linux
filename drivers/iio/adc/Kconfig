@@ -6,10 +6,27 @@
 
 menu "Analog to digital converters"
 
+config AB8500_GPADC
+	bool "ST-Ericsson AB8500 GPADC driver"
+	depends on AB8500_CORE && REGULATOR_AB8500
+	default y
+	help
+	  AB8500 Analog Baseband, mixed signal integrated circuit GPADC
+	  (General Purpose Analog to Digital Converter) driver used to monitor
+	  internal voltages, convert accessory and battery, AC (charger, mains)
+	  and USB voltages integral to the U8500 platform.
+
 config AD_SIGMA_DELTA
 	tristate
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+
+config AD7091R5
+	tristate "Analog Devices AD7091R5 ADC Driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for Analog Devices AD7091R-5 ADC.
 
 config AD7124
 	tristate "Analog Devices AD7124 and similar sigma-delta ADCs driver"
@@ -44,6 +61,16 @@ config AD7291
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7291.
+
+config AD7292
+	tristate "Analog Devices AD7292 ADC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD7292
+	  8 Channel ADC with temperature sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7292.
 
 config AD7298
 	tristate "Analog Devices AD7298 ADC driver"
@@ -432,6 +459,17 @@ config INGENIC_ADC
 	  This driver can also be built as a module. If so, the module will be
 	  called ingenic_adc.
 
+config INTEL_MRFLD_ADC
+	tristate "Intel Merrifield Basin Cove ADC driver"
+	depends on INTEL_SOC_PMIC_MRFLD
+	help
+	  Say yes here to have support for Basin Cove power management IC (PMIC) ADC
+	  device. Depending on platform configuration, this general purpose ADC can
+	  be used for sampling sensors such as thermal resistors.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called intel_mrfld_adc.
+
 config IMX7D_ADC
 	tristate "Freescale IMX7D ADC driver"
 	depends on ARCH_MXC || COMPILE_TEST
@@ -492,6 +530,16 @@ config LTC2485
 	  To compile this driver as a module, choose M here: the module will be
 	  called ltc2485.
 
+config LTC2496
+	tristate "Linear Technology LTC2496 ADC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Linear Technology LTC2496
+	  16-Bit 8-/16-Channel Delta Sigma ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ltc2496.
+
 config LTC2497
 	tristate "Linear Technology LTC2497 ADC driver"
 	depends on I2C
@@ -508,8 +556,8 @@ config MAX1027
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for Maxim SPI ADC models
-	  max1027, max1029 and max1031.
+	  Say yes here to build support for Maxim SPI {10,12}-bit ADC models:
+	  max1027, max1029, max1031, max1227, max1229 and max1231.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called max1027.

@@ -549,7 +549,7 @@ static int snd_usX2Y_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
  * if sg buffer is supported on the later version of alsa, we'll follow
  * that.
  */
-static struct s_c2
+static const struct s_c2
 {
 	char c1, c2;
 }
@@ -589,7 +589,7 @@ static struct s_c2
 	{ 0x18, 0x7C},
 	{ 0x18, 0x7E}
 };
-static struct s_c2 SetRate48000[] =
+static const struct s_c2 SetRate48000[] =
 {
 	{ 0x14, 0x09},	// this line sets 48000, well actually a little less
 	{ 0x18, 0x40},	// only tascam / frontier design knows the further lines .......
@@ -642,7 +642,7 @@ static int usX2Y_rate_set(struct usX2Ydev *usX2Y, int rate)
 	int			err = 0, i;
 	struct snd_usX2Y_urbSeq	*us = NULL;
 	int			*usbdata = NULL;
-	struct s_c2		*ra = rate == 48000 ? SetRate48000 : SetRate44100;
+	const struct s_c2	*ra = rate == 48000 ? SetRate48000 : SetRate44100;
 
 	if (usX2Y->rate != rate) {
 		us = kzalloc(sizeof(*us) + sizeof(struct urb*) * NOOF_SETRATE_URBS, GFP_KERNEL);
@@ -764,14 +764,6 @@ static int snd_usX2Y_pcm_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	err = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (err < 0) {
-		snd_printk(KERN_ERR "snd_pcm_lib_malloc_pages(%p, %i) returned %i\n",
-			   substream, params_buffer_bytes(hw_params), err);
-		goto error;
-	}
-
  error:
 	mutex_unlock(&usX2Y(card)->pcm_mutex);
 	return err;
@@ -806,7 +798,7 @@ static int snd_usX2Y_pcm_hw_free(struct snd_pcm_substream *substream)
 		}
 	}
 	mutex_unlock(&subs->usX2Y->pcm_mutex);
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 /*
  * prepare callback
@@ -846,7 +838,7 @@ static int snd_usX2Y_pcm_prepare(struct snd_pcm_substream *substream)
 	return err;
 }
 
-static struct snd_pcm_hardware snd_usX2Y_2c =
+static const struct snd_pcm_hardware snd_usX2Y_2c =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -901,7 +893,6 @@ static const struct snd_pcm_ops snd_usX2Y_pcm_ops =
 {
 	.open =		snd_usX2Y_pcm_open,
 	.close =	snd_usX2Y_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_usX2Y_pcm_hw_params,
 	.hw_free =	snd_usX2Y_pcm_hw_free,
 	.prepare =	snd_usX2Y_pcm_prepare,
@@ -968,16 +959,16 @@ static int usX2Y_audio_stream_new(struct snd_card *card, int playback_endpoint, 
 	sprintf(pcm->name, NAME_ALLCAPS" Audio #%d", usX2Y(card)->pcm_devs);
 
 	if (playback_endpoint) {
-		snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
-					      SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data(GFP_KERNEL),
-					      64*1024, 128*1024);
+		snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
+					   SNDRV_DMA_TYPE_CONTINUOUS,
+					   NULL,
+					   64*1024, 128*1024);
 	}
 
-	snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
-				      SNDRV_DMA_TYPE_CONTINUOUS,
-				      snd_dma_continuous_data(GFP_KERNEL),
-				      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
+				   SNDRV_DMA_TYPE_CONTINUOUS,
+				   NULL,
+				   64*1024, 128*1024);
 	usX2Y(card)->pcm_devs++;
 
 	return 0;

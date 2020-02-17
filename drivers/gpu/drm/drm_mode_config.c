@@ -27,6 +27,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_mode_config.h>
 #include <drm/drm_print.h>
+#include <linux/dma-resv.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -415,6 +416,33 @@ void drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.num_crtc = 0;
 	dev->mode_config.num_encoder = 0;
 	dev->mode_config.num_total_plane = 0;
+
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		struct drm_modeset_acquire_ctx modeset_ctx;
+		struct ww_acquire_ctx resv_ctx;
+		struct dma_resv resv;
+		int ret;
+
+		dma_resv_init(&resv);
+
+		drm_modeset_acquire_init(&modeset_ctx, 0);
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+				       &modeset_ctx);
+		if (ret == -EDEADLK)
+			ret = drm_modeset_backoff(&modeset_ctx);
+
+		ww_acquire_init(&resv_ctx, &reservation_ww_class);
+		ret = dma_resv_lock(&resv, &resv_ctx);
+		if (ret == -EDEADLK)
+			dma_resv_lock_slow(&resv, &resv_ctx);
+
+		dma_resv_unlock(&resv);
+		ww_acquire_fini(&resv_ctx);
+
+		drm_modeset_drop_locks(&modeset_ctx);
+		drm_modeset_acquire_fini(&modeset_ctx);
+		dma_resv_fini(&resv);
+	}
 }
 EXPORT_SYMBOL(drm_mode_config_init);
 
@@ -428,8 +456,6 @@ EXPORT_SYMBOL(drm_mode_config_init);
  * Note that since this /should/ happen single-threaded at driver/device
  * teardown time, no locking is required. It's the driver's job to ensure that
  * this guarantee actually holds true.
- *
- * FIXME: cleanup any dangling user buffer objects too
  */
 void drm_mode_config_cleanup(struct drm_device *dev)
 {

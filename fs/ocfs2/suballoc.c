@@ -696,7 +696,7 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 
 	bg_bh = ocfs2_block_group_alloc_contig(osb, handle, alloc_inode,
 					       ac, cl);
-	if (IS_ERR(bg_bh) && (PTR_ERR(bg_bh) == -ENOSPC))
+	if (PTR_ERR(bg_bh) == -ENOSPC)
 		bg_bh = ocfs2_block_group_alloc_discontig(handle,
 							  alloc_inode,
 							  ac, cl);
@@ -1252,6 +1252,7 @@ static int ocfs2_test_bg_bit_allocatable(struct buffer_head *bg_bh,
 					 int nr)
 {
 	struct ocfs2_group_desc *bg = (struct ocfs2_group_desc *) bg_bh->b_data;
+	struct journal_head *jh;
 	int ret;
 
 	if (ocfs2_test_bit(nr, (unsigned long *)bg->bg_bitmap))
@@ -1260,13 +1261,14 @@ static int ocfs2_test_bg_bit_allocatable(struct buffer_head *bg_bh,
 	if (!buffer_jbd(bg_bh))
 		return 1;
 
-	jbd_lock_bh_state(bg_bh);
-	bg = (struct ocfs2_group_desc *) bh2jh(bg_bh)->b_committed_data;
+	jh = bh2jh(bg_bh);
+	spin_lock(&jh->b_state_lock);
+	bg = (struct ocfs2_group_desc *) jh->b_committed_data;
 	if (bg)
 		ret = !ocfs2_test_bit(nr, (unsigned long *)bg->bg_bitmap);
 	else
 		ret = 1;
-	jbd_unlock_bh_state(bg_bh);
+	spin_unlock(&jh->b_state_lock);
 
 	return ret;
 }
@@ -2387,6 +2389,7 @@ static int ocfs2_block_group_clear_bits(handle_t *handle,
 	int status;
 	unsigned int tmp;
 	struct ocfs2_group_desc *undo_bg = NULL;
+	struct journal_head *jh;
 
 	/* The caller got this descriptor from
 	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
@@ -2405,10 +2408,10 @@ static int ocfs2_block_group_clear_bits(handle_t *handle,
 		goto bail;
 	}
 
+	jh = bh2jh(group_bh);
 	if (undo_fn) {
-		jbd_lock_bh_state(group_bh);
-		undo_bg = (struct ocfs2_group_desc *)
-					bh2jh(group_bh)->b_committed_data;
+		spin_lock(&jh->b_state_lock);
+		undo_bg = (struct ocfs2_group_desc *) jh->b_committed_data;
 		BUG_ON(!undo_bg);
 	}
 
@@ -2423,7 +2426,7 @@ static int ocfs2_block_group_clear_bits(handle_t *handle,
 	le16_add_cpu(&bg->bg_free_bits_count, num_bits);
 	if (le16_to_cpu(bg->bg_free_bits_count) > le16_to_cpu(bg->bg_bits)) {
 		if (undo_fn)
-			jbd_unlock_bh_state(group_bh);
+			spin_unlock(&jh->b_state_lock);
 		return ocfs2_error(alloc_inode->i_sb, "Group descriptor # %llu has bit count %u but claims %u are freed. num_bits %d\n",
 				   (unsigned long long)le64_to_cpu(bg->bg_blkno),
 				   le16_to_cpu(bg->bg_bits),
@@ -2432,7 +2435,7 @@ static int ocfs2_block_group_clear_bits(handle_t *handle,
 	}
 
 	if (undo_fn)
-		jbd_unlock_bh_state(group_bh);
+		spin_unlock(&jh->b_state_lock);
 
 	ocfs2_journal_dirty(handle, group_bh);
 bail:

@@ -301,6 +301,7 @@ struct cached_dev {
 	struct block_device	*bdev;
 
 	struct cache_sb		sb;
+	struct cache_sb_disk	*sb_disk;
 	struct bio		sb_bio;
 	struct bio_vec		sb_bv[1];
 	struct closure		sb_write;
@@ -329,6 +330,9 @@ struct cached_dev {
 	 */
 	atomic_t		has_dirty;
 
+#define BCH_CACHE_READA_ALL		0
+#define BCH_CACHE_READA_META_ONLY	1
+	unsigned int		cache_readahead_policy;
 	struct bch_ratelimit	writeback_rate;
 	struct delayed_work	writeback_rate_update;
 
@@ -403,6 +407,7 @@ enum alloc_reserve {
 struct cache {
 	struct cache_set	*set;
 	struct cache_sb		sb;
+	struct cache_sb_disk	*sb_disk;
 	struct bio		sb_bio;
 	struct bio_vec		sb_bv[1];
 
@@ -582,6 +587,7 @@ struct cache_set {
 	 */
 	wait_queue_head_t	btree_cache_wait;
 	struct task_struct	*btree_cache_alloc_lock;
+	spinlock_t		btree_cannibalize_lock;
 
 	/*
 	 * When we free a btree node, we increment the gen of the bucket the
@@ -723,6 +729,7 @@ struct cache_set {
 	unsigned int		gc_always_rewrite:1;
 	unsigned int		shrinker_disabled:1;
 	unsigned int		copy_gc_enabled:1;
+	unsigned int		idle_max_writeback_rate_enabled:1;
 
 #define BUCKET_HASH_BITS	12
 	struct hlist_head	bucket_hash[1 << BUCKET_HASH_BITS];
@@ -977,7 +984,7 @@ bool bch_cached_dev_error(struct cached_dev *dc);
 __printf(2, 3)
 bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...);
 
-void bch_prio_write(struct cache *ca);
+int bch_prio_write(struct cache *ca, bool wait);
 void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent);
 
 extern struct workqueue_struct *bcache_wq;

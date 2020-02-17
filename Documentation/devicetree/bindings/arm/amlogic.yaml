@@ -59,6 +59,7 @@ properties:
               - friendlyarm,nanopi-k2
               - hardkernel,odroid-c2
               - nexbox,a95x
+              - videostrong,kii-pro
               - wetek,hub
               - wetek,play2
           - const: amlogic,meson-gxbb
@@ -94,7 +95,7 @@ properties:
               - amlogic,p212
               - hwacom,amazetv
               - khadas,vim
-              - libretech,cc
+              - libretech,aml-s905x-cc
               - nexbox,a95x
           - const: amlogic,s905x
           - const: amlogic,meson-gxl
@@ -104,6 +105,7 @@ properties:
           - enum:
               - amlogic,p230
               - amlogic,p231
+              - libretech,aml-s905d-pc
               - phicomm,n1
           - const: amlogic,s905d
           - const: amlogic,meson-gxl
@@ -115,6 +117,7 @@ properties:
               - amlogic,q201
               - khadas,vim2
               - kingnovel,r-box-pro
+              - libretech,aml-s912-pc
               - nexbox,a1
               - tronsmart,vega-s96
           - const: amlogic,s912
@@ -147,6 +150,7 @@ properties:
           - enum:
               - hardkernel,odroid-n2
               - khadas,vim3
+              - ugoos,am6
           - const: amlogic,s922x
           - const: amlogic,g12b
 
@@ -156,4 +160,10 @@ properties:
               - seirobotics,sei610
               - khadas,vim3l
           - const: amlogic,sm1
+
+      - description: Boards with the Amlogic Meson A1 A113L SoC
+        items:
+          - enum:
+              - amlogic,ad401
+          - const: amlogic,a1
 ...

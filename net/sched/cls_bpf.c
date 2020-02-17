@@ -162,16 +162,20 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	cls_bpf.name = obj->bpf_name;
 	cls_bpf.exts_integrated = obj->exts_integrated;
 
-	if (oldprog)
+	if (oldprog && prog)
 		err = tc_setup_cb_replace(block, tp, TC_SETUP_CLSBPF, &cls_bpf,
 					  skip_sw, &oldprog->gen_flags,
 					  &oldprog->in_hw_count,
 					  &prog->gen_flags, &prog->in_hw_count,
 					  true);
-	else
+	else if (prog)
 		err = tc_setup_cb_add(block, tp, TC_SETUP_CLSBPF, &cls_bpf,
 				      skip_sw, &prog->gen_flags,
 				      &prog->in_hw_count, true);
+	else
+		err = tc_setup_cb_destroy(block, tp, TC_SETUP_CLSBPF, &cls_bpf,
+					  skip_sw, &oldprog->gen_flags,
+					  &oldprog->in_hw_count, true);
 
 	if (prog && err) {
 		cls_bpf_offload_cmd(tp, oldprog, prog, extack);
@@ -627,12 +631,17 @@ nla_put_failure:
 	return -1;
 }
 
-static void cls_bpf_bind_class(void *fh, u32 classid, unsigned long cl)
+static void cls_bpf_bind_class(void *fh, u32 classid, unsigned long cl,
+			       void *q, unsigned long base)
 {
 	struct cls_bpf_prog *prog = fh;
 
-	if (prog && prog->res.classid == classid)
-		prog->res.class = cl;
+	if (prog && prog->res.classid == classid) {
+		if (cl)
+			__tcf_bind_filter(q, &prog->res, base);
+		else
+			__tcf_unbind_filter(q, &prog->res);
+	}
 }
 
 static void cls_bpf_walk(struct tcf_proto *tp, struct tcf_walker *arg,

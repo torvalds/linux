@@ -78,7 +78,7 @@ static const struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 	BRCMF_FW_ENTRY(BRCM_CC_4371_CHIP_ID, 0xFFFFFFFF, 4371),
 };
 
-#define BRCMF_PCIE_FW_UP_TIMEOUT		2000 /* msec */
+#define BRCMF_PCIE_FW_UP_TIMEOUT		5000 /* msec */
 
 #define BRCMF_PCIE_REG_MAP_SIZE			(32 * 1024)
 
@@ -1024,8 +1024,6 @@ brcmf_pcie_init_dmabuffer_for_device(struct brcmf_pciedev_info *devinfo,
 			       address & 0xffffffff);
 	brcmf_pcie_write_tcm32(devinfo, tcm_dma_phys_addr + 4, address >> 32);
 
-	memset(ring, 0, size);
-
 	return (ring);
 }
 
@@ -1427,6 +1425,8 @@ static int brcmf_pcie_reset(struct device *dev)
 	struct brcmf_fw_request *fwreq;
 	int err;
 
+	brcmf_pcie_intr_disable(devinfo);
+
 	brcmf_pcie_bus_console_read(devinfo, true);
 
 	brcmf_detach(dev);
@@ -1643,8 +1643,8 @@ static int brcmf_pcie_get_resource(struct brcmf_pciedev_info *devinfo)
 		return -EINVAL;
 	}
 
-	devinfo->regs = ioremap_nocache(bar0_addr, BRCMF_PCIE_REG_MAP_SIZE);
-	devinfo->tcm = ioremap_nocache(bar1_addr, bar1_size);
+	devinfo->regs = ioremap(bar0_addr, BRCMF_PCIE_REG_MAP_SIZE);
+	devinfo->tcm = ioremap(bar1_addr, bar1_size);
 
 	if (!devinfo->regs || !devinfo->tcm) {
 		brcmf_err(bus, "ioremap() failed (%p,%p)\n", devinfo->regs,

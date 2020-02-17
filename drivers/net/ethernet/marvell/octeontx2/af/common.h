@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- * Marvell OcteonTx2 RVU Admin Function driver
+/* SPDX-License-Identifier: GPL-2.0 */
+/*  Marvell OcteonTx2 RVU Admin Function driver
  *
  * Copyright (C) 2018 Marvell International Ltd.
  *
@@ -143,8 +143,13 @@ enum nix_scheduler {
 	NIX_TXSCH_LVL_CNT = 0x5,
 };
 
-#define TXSCH_TL1_DFLT_RR_QTM      ((1 << 24) - 1)
-#define TXSCH_TL1_DFLT_RR_PRIO     (0x1ull)
+#define TXSCH_RR_QTM_MAX		((1 << 24) - 1)
+#define TXSCH_TL1_DFLT_RR_QTM		TXSCH_RR_QTM_MAX
+#define TXSCH_TL1_DFLT_RR_PRIO		(0x1ull)
+#define MAX_SCHED_WEIGHT		0xFF
+#define DFLT_RR_WEIGHT			71
+#define DFLT_RR_QTM	((DFLT_RR_WEIGHT * TXSCH_RR_QTM_MAX) \
+			 / MAX_SCHED_WEIGHT)
 
 /* Min/Max packet sizes, excluding FCS */
 #define	NIC_HW_MIN_FRS			40
@@ -195,5 +200,21 @@ enum nix_scheduler {
  */
 #define DEFAULT_RSS_CONTEXT_GROUP	0
 #define MAX_RSS_INDIR_TBL_SIZE		256 /* 1 << Max adder bits */
+
+/* NDC info */
+enum ndc_idx_e {
+	NIX0_RX = 0x0,
+	NIX0_TX = 0x1,
+	NPA0_U  = 0x2,
+};
+
+enum ndc_ctype_e {
+	CACHING = 0x0,
+	BYPASS = 0x1,
+};
+
+#define NDC_MAX_PORT 6
+#define NDC_READ_TRANS 0
+#define NDC_WRITE_TRANS 1
 
 #endif /* COMMON_H */

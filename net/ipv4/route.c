@@ -139,7 +139,8 @@ static unsigned int	 ipv4_mtu(const struct dst_entry *dst);
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
 static void		 ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
-					   struct sk_buff *skb, u32 mtu);
+					   struct sk_buff *skb, u32 mtu,
+					   bool confirm_neigh);
 static void		 ip_do_redirect(struct dst_entry *dst, struct sock *sk,
 					struct sk_buff *skb);
 static void		ipv4_dst_destroy(struct dst_entry *dst);
@@ -236,11 +237,11 @@ static int rt_cache_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &rt_cache_seq_ops);
 }
 
-static const struct file_operations rt_cache_seq_fops = {
-	.open	 = rt_cache_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release,
+static const struct proc_ops rt_cache_proc_ops = {
+	.proc_open	= rt_cache_seq_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 
@@ -270,6 +271,7 @@ static void *rt_cpu_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		*pos = cpu+1;
 		return &per_cpu(rt_cache_stat, cpu);
 	}
+	(*pos)++;
 	return NULL;
 
 }
@@ -326,11 +328,11 @@ static int rt_cpu_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &rt_cpu_seq_ops);
 }
 
-static const struct file_operations rt_cpu_seq_fops = {
-	.open	 = rt_cpu_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release,
+static const struct proc_ops rt_cpu_proc_ops = {
+	.proc_open	= rt_cpu_seq_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
@@ -364,12 +366,12 @@ static int __net_init ip_rt_do_proc_init(struct net *net)
 	struct proc_dir_entry *pde;
 
 	pde = proc_create("rt_cache", 0444, net->proc_net,
-			  &rt_cache_seq_fops);
+			  &rt_cache_proc_ops);
 	if (!pde)
 		goto err1;
 
 	pde = proc_create("rt_cache", 0444,
-			  net->proc_net_stat, &rt_cpu_seq_fops);
+			  net->proc_net_stat, &rt_cpu_proc_ops);
 	if (!pde)
 		goto err2;
 
@@ -1043,7 +1045,8 @@ static void __ip_rt_update_pmtu(struct rtable *rt, struct flowi4 *fl4, u32 mtu)
 }
 
 static void ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
-			      struct sk_buff *skb, u32 mtu)
+			      struct sk_buff *skb, u32 mtu,
+			      bool confirm_neigh)
 {
 	struct rtable *rt = (struct rtable *) dst;
 	struct flowi4 fl4;
@@ -1482,7 +1485,7 @@ static bool rt_cache_route(struct fib_nh_common *nhc, struct rtable *rt)
 	prev = cmpxchg(p, orig, rt);
 	if (prev == orig) {
 		if (orig) {
-			dst_dev_put(&orig->dst);
+			rt_add_uncached_list(orig);
 			dst_release(&orig->dst);
 		}
 	} else {
@@ -1894,10 +1897,7 @@ static void ip_multipath_l3_keys(const struct sk_buff *skb,
 	if (!icmph)
 		goto out;
 
-	if (icmph->type != ICMP_DEST_UNREACH &&
-	    icmph->type != ICMP_REDIRECT &&
-	    icmph->type != ICMP_TIME_EXCEEDED &&
-	    icmph->type != ICMP_PARAMETERPROB)
+	if (!icmp_is_err(icmph->type))
 		goto out;
 
 	inner_iph = skb_header_pointer(skb,
@@ -2022,10 +2022,52 @@ static int ip_mkroute_input(struct sk_buff *skb,
 	return __mkroute_input(skb, res, in_dev, daddr, saddr, tos);
 }
 
+/* Implements all the saddr-related checks as ip_route_input_slow(),
+ * assuming daddr is valid and the destination is not a local broadcast one.
+ * Uses the provided hint instead of performing a route lookup.
+ */
+int ip_route_use_hint(struct sk_buff *skb, __be32 daddr, __be32 saddr,
+		      u8 tos, struct net_device *dev,
+		      const struct sk_buff *hint)
+{
+	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	struct rtable *rt = (struct rtable *)hint;
+	struct net *net = dev_net(dev);
+	int err = -EINVAL;
+	u32 tag = 0;
+
+	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr))
+		goto martian_source;
+
+	if (ipv4_is_zeronet(saddr))
+		goto martian_source;
+
+	if (ipv4_is_loopback(saddr) && !IN_DEV_NET_ROUTE_LOCALNET(in_dev, net))
+		goto martian_source;
+
+	if (rt->rt_type != RTN_LOCAL)
+		goto skip_validate_source;
+
+	tos &= IPTOS_RT_MASK;
+	err = fib_validate_source(skb, saddr, daddr, tos, 0, dev, in_dev, &tag);
+	if (err < 0)
+		goto martian_source;
+
+skip_validate_source:
+	skb_dst_copy(skb, hint);
+	return 0;
+
+martian_source:
+	ip_handle_martian_source(dev, in_dev, skb, daddr, saddr);
+	return err;
+}
+
 /*
  *	NOTE. We drop all the packets that has local source
  *	addresses, because every properly looped back packet
  *	must have correct destination already attached by output routine.
+ *	Changes in the enforced policies must be applied also to
+ *	ip_route_use_hint().
  *
  *	Such approach solves two big problems:
  *	1. Not simplex devices are handled properly.
@@ -2470,14 +2512,17 @@ struct rtable *ip_route_output_key_hash_rcu(struct net *net, struct flowi4 *fl4,
 	int orig_oif = fl4->flowi4_oif;
 	unsigned int flags = 0;
 	struct rtable *rth;
-	int err = -ENETUNREACH;
+	int err;
 
 	if (fl4->saddr) {
-		rth = ERR_PTR(-EINVAL);
 		if (ipv4_is_multicast(fl4->saddr) ||
 		    ipv4_is_lbcast(fl4->saddr) ||
-		    ipv4_is_zeronet(fl4->saddr))
+		    ipv4_is_zeronet(fl4->saddr)) {
+			rth = ERR_PTR(-EINVAL);
 			goto out;
+		}
+
+		rth = ERR_PTR(-ENETUNREACH);
 
 		/* I removed check for oif == dev_out->oif here.
 		   It was wrong for two reasons:
@@ -2645,7 +2690,8 @@ static unsigned int ipv4_blackhole_mtu(const struct dst_entry *dst)
 }
 
 static void ipv4_rt_blackhole_update_pmtu(struct dst_entry *dst, struct sock *sk,
-					  struct sk_buff *skb, u32 mtu)
+					  struct sk_buff *skb, u32 mtu,
+					  bool confirm_neigh)
 {
 }
 
@@ -3178,16 +3224,41 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	skb_reset_mac_header(skb);
 
 	if (rtm->rtm_flags & RTM_F_FIB_MATCH) {
+		struct fib_rt_info fri;
+
 		if (!res.fi) {
 			err = fib_props[res.type].error;
 			if (!err)
 				err = -EHOSTUNREACH;
 			goto errout_rcu;
 		}
+		fri.fi = res.fi;
+		fri.tb_id = table_id;
+		fri.dst = res.prefix;
+		fri.dst_len = res.prefixlen;
+		fri.tos = fl4.flowi4_tos;
+		fri.type = rt->rt_type;
+		fri.offload = 0;
+		fri.trap = 0;
+		if (res.fa_head) {
+			struct fib_alias *fa;
+
+			hlist_for_each_entry_rcu(fa, res.fa_head, fa_list) {
+				u8 slen = 32 - fri.dst_len;
+
+				if (fa->fa_slen == slen &&
+				    fa->tb_id == fri.tb_id &&
+				    fa->fa_tos == fri.tos &&
+				    fa->fa_info == res.fi &&
+				    fa->fa_type == fri.type) {
+					fri.offload = fa->offload;
+					fri.trap = fa->trap;
+					break;
+				}
+			}
+		}
 		err = fib_dump_info(skb, NETLINK_CB(in_skb).portid,
-				    nlh->nlmsg_seq, RTM_NEWROUTE, table_id,
-				    rt->rt_type, res.prefix, res.prefixlen,
-				    fl4.flowi4_tos, res.fi, 0);
+				    nlh->nlmsg_seq, RTM_NEWROUTE, &fri, 0);
 	} else {
 		err = rt_fill_info(net, dst, src, rt, table_id, &fl4, skb,
 				   NETLINK_CB(in_skb).portid,

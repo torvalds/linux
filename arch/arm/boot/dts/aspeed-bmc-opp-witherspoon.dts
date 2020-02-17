@@ -77,8 +77,6 @@
 
 	gpio-keys-polled {
 		compatible = "gpio-keys-polled";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		poll-interval = <1000>;
 
 		fan0-presence {
@@ -200,6 +198,7 @@
 		status = "okay";
 		label = "bmc";
 		m25p,fast-read;
+		spi-max-frequency = <50000000>;
 
 		partitions {
 			#address-cells = < 1 >;
@@ -224,6 +223,7 @@
 		status = "okay";
 		label = "alt-bmc";
 		m25p,fast-read;
+		spi-max-frequency = <50000000>;
 
 		partitions {
 			#address-cells = < 1 >;
@@ -242,7 +242,6 @@
 				label = "alt-obmc-ubi";
 			};
 		};
-
 	};
 };
 
@@ -255,6 +254,7 @@
 		status = "okay";
 		label = "pnor";
 		m25p,fast-read;
+		spi-max-frequency = <100000000>;
 	};
 };
 
@@ -293,6 +293,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rmii1_default>;
+	clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>,
+		 <&syscon ASPEED_CLK_MAC1RCLK>;
+	clock-names = "MACCLK", "RCLK";
 	use-ncsi;
 };
 

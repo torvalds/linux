@@ -74,6 +74,10 @@
 #define MV88E6390_SGMII_PHY_STATUS_SPD_DPL_VALID BIT(11)
 #define MV88E6390_SGMII_PHY_STATUS_LINK		BIT(10)
 
+/* Packet generator pad packet checker */
+#define MV88E6390_PG_CONTROL		0xf010
+#define MV88E6390_PG_CONTROL_ENABLE_PC		BIT(0)
+
 u8 mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 u8 mv88e6352_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 u8 mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
@@ -98,6 +102,11 @@ int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port);
 int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
 				 int port, uint8_t *data);
 int mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
+			       uint64_t *data);
+int mv88e6390_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port);
+int mv88e6390_serdes_get_strings(struct mv88e6xxx_chip *chip,
+				 int port, uint8_t *data);
+int mv88e6390_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
 			       uint64_t *data);
 
 /* Return the (first) SERDES lane address a port is using, 0 otherwise. */

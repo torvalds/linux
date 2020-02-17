@@ -109,7 +109,7 @@ static struct arm_smmu_device *cavium_smmu_impl_init(struct arm_smmu_device *smm
 #define ARM_MMU500_ACR_S2CRB_TLBEN	(1 << 10)
 #define ARM_MMU500_ACR_SMTNMB_TLBEN	(1 << 8)
 
-static int arm_mmu500_reset(struct arm_smmu_device *smmu)
+int arm_mmu500_reset(struct arm_smmu_device *smmu)
 {
 	u32 reg, major;
 	int i;
@@ -119,7 +119,7 @@ static int arm_mmu500_reset(struct arm_smmu_device *smmu)
 	 * Secure has also cleared SACR.CACHE_LOCK for this to take effect...
 	 */
 	reg = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_ID7);
-	major = FIELD_GET(ID7_MAJOR, reg);
+	major = FIELD_GET(ARM_SMMU_ID7_MAJOR, reg);
 	reg = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_sACR);
 	if (major >= 2)
 		reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
@@ -169,6 +169,9 @@ struct arm_smmu_device *arm_smmu_impl_init(struct arm_smmu_device *smmu)
 	if (of_property_read_bool(smmu->dev->of_node,
 				  "calxeda,smmu-secure-config-access"))
 		smmu->impl = &calxeda_impl;
+
+	if (of_device_is_compatible(smmu->dev->of_node, "qcom,sdm845-smmu-500"))
+		return qcom_smmu_impl_init(smmu);
 
 	return smmu;
 }

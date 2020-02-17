@@ -150,8 +150,7 @@
 
 		gpios = <&gpio5 29 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi2: regulator-vcc-sdhi2 {
@@ -174,8 +173,7 @@
 
 		gpios = <&gpio5 30 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	audio_clock: audio_clock {
@@ -325,10 +323,10 @@
 		#size-cells = <0>;
 	};
 
-        /*
-         * IIC2 and I2C2 may be switched using pinmux.
-         * A fallback to GPIO is also provided.
-         */
+	/*
+	 * IIC2 and I2C2 may be switched using pinmux.
+	 * A fallback to GPIO is also provided.
+	 */
 	i2chdmi: i2c-12 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&iic2>, <&i2c2>, <&gpioi2c2>;

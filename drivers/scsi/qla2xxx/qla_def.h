@@ -591,19 +591,23 @@ typedef struct srb {
 	 */
 	uint8_t cmd_type;
 	uint8_t pad[3];
-	atomic_t ref_count;
 	struct kref cmd_kref;	/* need to migrate ref_count over to this */
 	void *priv;
 	wait_queue_head_t nvme_ls_waitq;
 	struct fc_port *fcport;
 	struct scsi_qla_host *vha;
 	unsigned int start_timer:1;
+	unsigned int abort:1;
+	unsigned int aborted:1;
+	unsigned int completed:1;
+
 	uint32_t handle;
 	uint16_t flags;
 	uint16_t type;
 	const char *name;
 	int iocbs;
 	struct qla_qpair *qpair;
+	struct srb *cmd_sp;
 	struct list_head elem;
 	u32 gen1;	/* scratch */
 	u32 gen2;	/* scratch */
@@ -2277,7 +2281,7 @@ typedef struct {
 	uint8_t fabric_port_name[WWN_SIZE];
 	uint16_t fp_speed;
 	uint8_t fc4_type;
-	uint8_t fc4f_nvme;	/* nvme fc4 feature bits */
+	uint8_t fc4_features;
 } sw_info_t;
 
 /* FCP-4 types */
@@ -2397,6 +2401,8 @@ typedef struct fc_port {
 	unsigned int id_changed:1;
 	unsigned int scan_needed:1;
 	unsigned int n2n_flag:1;
+	unsigned int explicit_logout:1;
+	unsigned int prli_pend_timer:1;
 
 	struct completion nvme_del_done;
 	uint32_t nvme_prli_service_param;
@@ -2423,6 +2429,7 @@ typedef struct fc_port {
 	struct work_struct free_work;
 	struct work_struct reg_work;
 	uint64_t jiffies_at_registration;
+	unsigned long prli_expired;
 	struct qlt_plogi_ack_t *plogi_link[QLT_PLOGI_LINK_MAX];
 
 	uint16_t tgt_id;
@@ -2445,7 +2452,7 @@ typedef struct fc_port {
 	u32 supported_classes;
 
 	uint8_t fc4_type;
-	uint8_t	fc4f_nvme;
+	uint8_t fc4_features;
 	uint8_t scan_state;
 
 	unsigned long last_queue_full;
@@ -2459,6 +2466,7 @@ typedef struct fc_port {
 	struct qla_tgt_sess *tgt_session;
 	struct ct_sns_desc ct_desc;
 	enum discovery_state disc_state;
+	atomic_t shadow_disc_state;
 	enum discovery_state next_disc_state;
 	enum login_state fw_login_state;
 	unsigned long dm_login_expire;
@@ -2475,6 +2483,11 @@ typedef struct fc_port {
 	u16 n2n_link_reset_cnt;
 	u16 n2n_chip_reset;
 } fc_port_t;
+
+enum {
+	FC4_PRIORITY_NVME = 1,
+	FC4_PRIORITY_FCP  = 2,
+};
 
 #define QLA_FCPORT_SCAN		1
 #define QLA_FCPORT_FOUND	2
@@ -2499,6 +2512,19 @@ struct event_arg {
 #define FCS_ONLINE		4
 
 extern const char *const port_state_str[5];
+
+static const char * const port_dstate_str[] = {
+	"DELETED",
+	"GNN_ID",
+	"GNL",
+	"LOGIN_PEND",
+	"LOGIN_FAILED",
+	"GPDB",
+	"UPD_FCPORT",
+	"LOGIN_COMPLETE",
+	"ADISC",
+	"DELETE_PEND"
+};
 
 /*
  * FC port flags.
@@ -3253,7 +3279,6 @@ enum qla_work_type {
 	QLA_EVT_IDC_ACK,
 	QLA_EVT_ASYNC_LOGIN,
 	QLA_EVT_ASYNC_LOGOUT,
-	QLA_EVT_ASYNC_LOGOUT_DONE,
 	QLA_EVT_ASYNC_ADISC,
 	QLA_EVT_UEVENT,
 	QLA_EVT_AENFX,
@@ -3943,7 +3968,7 @@ struct qla_hw_data {
 	void		*sfp_data;
 	dma_addr_t	sfp_data_dma;
 
-	void		*flt;
+	struct qla_flt_header *flt;
 	dma_addr_t	flt_dma;
 
 #define XGMAC_DATA_SIZE	4096
@@ -4290,6 +4315,8 @@ struct qla_hw_data {
 
 	atomic_t        nvme_active_aen_cnt;
 	uint16_t        nvme_last_rptd_aen;             /* Last recorded aen count */
+
+	uint8_t fc4_type_priority;
 
 	atomic_t zio_threshold;
 	uint16_t last_zio_threshold;
@@ -4815,6 +4842,26 @@ struct sff_8247_a0 {
 	((ha->prev_topology == ISP_CFG_N && !ha->current_topology) || \
 	 ha->current_topology == ISP_CFG_N || \
 	 !ha->current_topology)
+
+#define NVME_TYPE(fcport) \
+	(fcport->fc4_type & FS_FC4TYPE_NVME) \
+
+#define FCP_TYPE(fcport) \
+	(fcport->fc4_type & FS_FC4TYPE_FCP) \
+
+#define NVME_ONLY_TARGET(fcport) \
+	(NVME_TYPE(fcport) && !FCP_TYPE(fcport))  \
+
+#define NVME_FCP_TARGET(fcport) \
+	(FCP_TYPE(fcport) && NVME_TYPE(fcport)) \
+
+#define NVME_TARGET(ha, fcport) \
+	((NVME_FCP_TARGET(fcport) && \
+	(ha->fc4_type_priority == FC4_PRIORITY_NVME)) || \
+	NVME_ONLY_TARGET(fcport)) \
+
+#define PRLI_PHASE(_cls) \
+	((_cls == DSC_LS_PRLI_PEND) || (_cls == DSC_LS_PRLI_COMP))
 
 #include "qla_target.h"
 #include "qla_gbl.h"

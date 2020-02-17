@@ -126,6 +126,9 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 	case DRM_V3D_PARAM_SUPPORTS_CSD:
 		args->value = v3d_has_csd(v3d);
 		return 0;
+	case DRM_V3D_PARAM_SUPPORTS_CACHE_FLUSH:
+		args->value = 1;
+		return 0;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", args->param);
 		return -EINVAL;
@@ -137,7 +140,7 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv;
-	struct drm_sched_rq *rq;
+	struct drm_gpu_scheduler *sched;
 	int i;
 
 	v3d_priv = kzalloc(sizeof(*v3d_priv), GFP_KERNEL);
@@ -147,8 +150,10 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 	v3d_priv->v3d = v3d;
 
 	for (i = 0; i < V3D_MAX_QUEUES; i++) {
-		rq = &v3d->queue[i].sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-		drm_sched_entity_init(&v3d_priv->sched_entity[i], &rq, 1, NULL);
+		sched = &v3d->queue[i].sched;
+		drm_sched_entity_init(&v3d_priv->sched_entity[i],
+				      DRM_SCHED_PRIORITY_NORMAL, &sched,
+				      1, NULL);
 	}
 
 	file->driver_priv = v3d_priv;
@@ -169,7 +174,7 @@ v3d_postclose(struct drm_device *dev, struct drm_file *file)
 	kfree(v3d_priv);
 }
 
-DEFINE_DRM_GEM_SHMEM_FOPS(v3d_drm_fops);
+DEFINE_DRM_GEM_FOPS(v3d_drm_fops);
 
 /* DRM_AUTH is required on SUBMIT_CL for now, while we don't have GMP
  * protection between clients.  Note that render nodes would be be

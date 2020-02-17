@@ -39,6 +39,7 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -1108,12 +1109,10 @@ struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev,
 {
 	struct tmio_mmc_host *host;
 	struct mmc_host *mmc;
-	struct resource *res;
 	void __iomem *ctl;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctl = devm_ioremap_resource(&pdev->dev, res);
+	ctl = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctl))
 		return ERR_CAST(ctl);
 
@@ -1180,11 +1179,11 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	 * Look for a card detect GPIO, if it fails with anything
 	 * else than a probe deferral, just live without it.
 	 */
-	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0);
 	if (ret == -EPROBE_DEFER)
 		return ret;
 
-	mmc->caps |= MMC_CAP_4_BIT_DATA | pdata->capabilities;
+	mmc->caps |= MMC_CAP_ERASE | MMC_CAP_4_BIT_DATA | pdata->capabilities;
 	mmc->caps2 |= pdata->capabilities2;
 	mmc->max_segs = pdata->max_segs ? : 32;
 	mmc->max_blk_size = TMIO_MAX_BLK_SIZE;
@@ -1248,10 +1247,12 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	/* See if we also get DMA */
 	tmio_mmc_request_dma(_host, pdata);
 
+	dev_pm_domain_start(&pdev->dev);
+	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
 
 	ret = mmc_add_host(mmc);
 	if (ret)
@@ -1332,11 +1333,6 @@ static bool tmio_mmc_can_retune(struct tmio_mmc_host *host)
 int tmio_mmc_host_runtime_resume(struct device *dev)
 {
 	struct tmio_mmc_host *host = dev_get_drvdata(dev);
-
-	if (!host->runtime_synced) {
-		host->runtime_synced = true;
-		return 0;
-	}
 
 	tmio_mmc_clk_enable(host);
 	tmio_mmc_hw_reset(host->mmc);

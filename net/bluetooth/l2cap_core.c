@@ -1289,6 +1289,9 @@ static void l2cap_le_connect(struct l2cap_chan *chan)
 	if (test_and_set_bit(FLAG_LE_CONN_REQ_SENT, &chan->flags))
 		return;
 
+	if (!chan->imtu)
+		chan->imtu = chan->conn->mtu;
+
 	l2cap_le_flowctl_init(chan, 0);
 
 	req.psm     = chan->psm;
@@ -3226,6 +3229,49 @@ static inline void l2cap_txwin_setup(struct l2cap_chan *chan)
 	chan->ack_win = chan->tx_win;
 }
 
+static void l2cap_mtu_auto(struct l2cap_chan *chan)
+{
+	struct hci_conn *conn = chan->conn->hcon;
+
+	chan->imtu = L2CAP_DEFAULT_MIN_MTU;
+
+	/* The 2-DH1 packet has between 2 and 56 information bytes
+	 * (including the 2-byte payload header)
+	 */
+	if (!(conn->pkt_type & HCI_2DH1))
+		chan->imtu = 54;
+
+	/* The 3-DH1 packet has between 2 and 85 information bytes
+	 * (including the 2-byte payload header)
+	 */
+	if (!(conn->pkt_type & HCI_3DH1))
+		chan->imtu = 83;
+
+	/* The 2-DH3 packet has between 2 and 369 information bytes
+	 * (including the 2-byte payload header)
+	 */
+	if (!(conn->pkt_type & HCI_2DH3))
+		chan->imtu = 367;
+
+	/* The 3-DH3 packet has between 2 and 554 information bytes
+	 * (including the 2-byte payload header)
+	 */
+	if (!(conn->pkt_type & HCI_3DH3))
+		chan->imtu = 552;
+
+	/* The 2-DH5 packet has between 2 and 681 information bytes
+	 * (including the 2-byte payload header)
+	 */
+	if (!(conn->pkt_type & HCI_2DH5))
+		chan->imtu = 679;
+
+	/* The 3-DH5 packet has between 2 and 1023 information bytes
+	 * (including the 2-byte payload header)
+	 */
+	if (!(conn->pkt_type & HCI_3DH5))
+		chan->imtu = 1021;
+}
+
 static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data, size_t data_size)
 {
 	struct l2cap_conf_req *req = data;
@@ -3255,8 +3301,12 @@ static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data, size_t data
 	}
 
 done:
-	if (chan->imtu != L2CAP_DEFAULT_MTU)
-		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, chan->imtu, endptr - ptr);
+	if (chan->imtu != L2CAP_DEFAULT_MTU) {
+		if (!chan->imtu)
+			l2cap_mtu_auto(chan);
+		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, chan->imtu,
+				   endptr - ptr);
+	}
 
 	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
@@ -4936,10 +4986,8 @@ void __l2cap_physical_cfm(struct l2cap_chan *chan, int result)
 	BT_DBG("chan %p, result %d, local_amp_id %d, remote_amp_id %d",
 	       chan, result, local_amp_id, remote_amp_id);
 
-	if (chan->state == BT_DISCONN || chan->state == BT_CLOSED) {
-		l2cap_chan_unlock(chan);
+	if (chan->state == BT_DISCONN || chan->state == BT_CLOSED)
 		return;
-	}
 
 	if (chan->state != BT_CONNECTED) {
 		l2cap_do_create(chan, result, local_amp_id, remote_amp_id);
@@ -5033,7 +5081,6 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 	chan->move_role = L2CAP_MOVE_ROLE_RESPONDER;
 	l2cap_move_setup(chan);
 	chan->move_id = req->dest_amp_id;
-	icid = chan->dcid;
 
 	if (req->dest_amp_id == AMP_ID_BREDR) {
 		/* Moving to BR/EDR */

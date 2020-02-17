@@ -132,7 +132,6 @@
 
 		target-module@7000 {			/* 0x44e07000, ap 14 20.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio1";
 			reg = <0x7000 0x4>,
 			      <0x7010 0x4>,
 			      <0x7114 0x4>;
@@ -167,7 +166,6 @@
 
 		target-module@9000 {			/* 0x44e09000, ap 16 04.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart1";
 			reg = <0x9050 0x4>,
 			      <0x9054 0x4>,
 			      <0x9058 0x4>;
@@ -195,7 +193,6 @@
 
 		target-module@b000 {			/* 0x44e0b000, ap 18 48.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "i2c1";
 			reg = <0xb000 0x8>,
 			      <0xb010 0x8>,
 			      <0xb090 0x8>;
@@ -228,7 +225,6 @@
 
 		target-module@d000 {			/* 0x44e0d000, ap 20 38.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "adc_tsc";
 			reg = <0xd000 0x4>,
 			      <0xd010 0x4>;
 			reg-names = "rev", "sysc";
@@ -373,7 +369,6 @@
 
 		target-module@35000 {			/* 0x44e35000, ap 28 50.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "wd_timer2";
 			reg = <0x35000 0x4>,
 			      <0x35010 0x4>,
 			      <0x35014 0x4>;
@@ -679,7 +674,6 @@
 
 		target-module@22000 {			/* 0x48022000, ap 8 0a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart2";
 			reg = <0x22050 0x4>,
 			      <0x22054 0x4>,
 			      <0x22058 0x4>;
@@ -708,7 +702,6 @@
 
 		target-module@24000 {			/* 0x48024000, ap 10 1c.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart3";
 			reg = <0x24050 0x4>,
 			      <0x24054 0x4>,
 			      <0x24058 0x4>;
@@ -737,7 +730,6 @@
 
 		target-module@2a000 {			/* 0x4802a000, ap 12 22.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "i2c2";
 			reg = <0x2a000 0x8>,
 			      <0x2a010 0x8>,
 			      <0x2a090 0x8>;
@@ -770,7 +762,6 @@
 
 		target-module@30000 {			/* 0x48030000, ap 65 08.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spi0";
 			reg = <0x30000 0x4>,
 			      <0x30110 0x4>,
 			      <0x30114 0x4>;
@@ -817,7 +808,6 @@
 
 		target-module@38000 {			/* 0x48038000, ap 14 04.0 */
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "mcasp0";
 			reg = <0x38000 0x4>,
 			      <0x38004 0x4>;
 			reg-names = "rev", "sysc";
@@ -849,7 +839,6 @@
 
 		target-module@3c000 {			/* 0x4803c000, ap 16 2a.0 */
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "mcasp1";
 			reg = <0x3c000 0x4>,
 			      <0x3c004 0x4>;
 			reg-names = "rev", "sysc";
@@ -909,7 +898,6 @@
 
 		target-module@42000 {			/* 0x48042000, ap 20 24.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer3";
 			reg = <0x42000 0x4>,
 			      <0x42010 0x4>,
 			      <0x42014 0x4>;
@@ -936,7 +924,6 @@
 
 		target-module@44000 {			/* 0x48044000, ap 22 26.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer4";
 			reg = <0x44000 0x4>,
 			      <0x44010 0x4>,
 			      <0x44014 0x4>;
@@ -964,7 +951,6 @@
 
 		target-module@46000 {			/* 0x48046000, ap 24 28.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer5";
 			reg = <0x46000 0x4>,
 			      <0x46010 0x4>,
 			      <0x46014 0x4>;
@@ -992,7 +978,6 @@
 
 		target-module@48000 {			/* 0x48048000, ap 26 1a.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer6";
 			reg = <0x48000 0x4>,
 			      <0x48010 0x4>,
 			      <0x48014 0x4>;
@@ -1020,7 +1005,6 @@
 
 		target-module@4a000 {			/* 0x4804a000, ap 71 48.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer7";
 			reg = <0x4a000 0x4>,
 			      <0x4a010 0x4>,
 			      <0x4a014 0x4>;
@@ -1048,7 +1032,6 @@
 
 		target-module@4c000 {			/* 0x4804c000, ap 28 36.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio2";
 			reg = <0x4c000 0x4>,
 			      <0x4c010 0x4>,
 			      <0x4c114 0x4>;
@@ -1083,7 +1066,6 @@
 
 		target-module@60000 {			/* 0x48060000, ap 30 14.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mmc1";
 			reg = <0x602fc 0x4>,
 			      <0x60110 0x4>,
 			      <0x60114 0x4>;
@@ -1118,7 +1100,6 @@
 
 		target-module@80000 {			/* 0x48080000, ap 32 18.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "elm";
 			reg = <0x80000 0x4>,
 			      <0x80010 0x4>,
 			      <0x80014 0x4>;
@@ -1149,7 +1130,6 @@
 
 		target-module@c8000 {			/* 0x480c8000, ap 73 06.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox";
 			reg = <0xc8000 0x4>,
 			      <0xc8010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1181,7 +1161,6 @@
 
 		target-module@ca000 {			/* 0x480ca000, ap 77 38.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spinlock";
 			reg = <0xca000 0x4>,
 			      <0xca010 0x4>,
 			      <0xca014 0x4>;
@@ -1262,7 +1241,6 @@
 
 		target-module@9c000 {			/* 0x4819c000, ap 38 52.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "i2c3";
 			reg = <0x9c000 0x8>,
 			      <0x9c010 0x8>,
 			      <0x9c090 0x8>;
@@ -1295,7 +1273,6 @@
 
 		target-module@a0000 {			/* 0x481a0000, ap 67 2c.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spi1";
 			reg = <0xa0000 0x4>,
 			      <0xa0110 0x4>,
 			      <0xa0114 0x4>;
@@ -1326,7 +1303,6 @@
 
 		target-module@a2000 {			/* 0x481a2000, ap 69 2e.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spi2";
 			reg = <0xa2000 0x4>,
 			      <0xa2110 0x4>,
 			      <0xa2114 0x4>;
@@ -1357,7 +1333,6 @@
 
 		target-module@a4000 {			/* 0x481a4000, ap 92 62.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spi3";
 			reg = <0xa4000 0x4>,
 			      <0xa4110 0x4>,
 			      <0xa4114 0x4>;
@@ -1388,7 +1363,6 @@
 
 		target-module@a6000 {			/* 0x481a6000, ap 40 16.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart4";
 			reg = <0xa6050 0x4>,
 			      <0xa6054 0x4>,
 			      <0xa6058 0x4>;
@@ -1417,7 +1391,6 @@
 
 		target-module@a8000 {			/* 0x481a8000, ap 42 20.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart5";
 			reg = <0xa8050 0x4>,
 			      <0xa8054 0x4>,
 			      <0xa8058 0x4>;
@@ -1446,7 +1419,6 @@
 
 		target-module@aa000 {			/* 0x481aa000, ap 44 12.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart6";
 			reg = <0xaa050 0x4>,
 			      <0xaa054 0x4>,
 			      <0xaa058 0x4>;
@@ -1475,7 +1447,6 @@
 
 		target-module@ac000 {			/* 0x481ac000, ap 46 30.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio3";
 			reg = <0xac000 0x4>,
 			      <0xac010 0x4>,
 			      <0xac114 0x4>;
@@ -1510,7 +1481,6 @@
 
 		target-module@ae000 {			/* 0x481ae000, ap 48 32.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio4";
 			reg = <0xae000 0x4>,
 			      <0xae010 0x4>,
 			      <0xae114 0x4>;
@@ -1545,7 +1515,6 @@
 
 		target-module@c1000 {			/* 0x481c1000, ap 94 68.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer8";
 			reg = <0xc1000 0x4>,
 			      <0xc1010 0x4>,
 			      <0xc1014 0x4>;
@@ -1574,7 +1543,6 @@
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			reg = <0xcc020 0x4>;
 			reg-names = "rev";
-			ti,hwmods = "d_can0";
 			/* Domains (P, C): per_pwrdm, l4ls_clkdm */
 			clocks = <&l4ls_clkctrl AM4_L4LS_D_CAN0_CLKCTRL 0>;
 			clock-names = "fck";
@@ -1595,7 +1563,6 @@
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			reg = <0xd0020 0x4>;
 			reg-names = "rev";
-			ti,hwmods = "d_can1";
 			/* Domains (P, C): per_pwrdm, l4ls_clkdm */
 			clocks = <&l4ls_clkctrl AM4_L4LS_D_CAN1_CLKCTRL 0>;
 			clock-names = "fck";
@@ -1614,7 +1581,6 @@
 
 		target-module@d8000 {			/* 0x481d8000, ap 54 5e.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mmc2";
 			reg = <0xd82fc 0x4>,
 			      <0xd8110 0x4>,
 			      <0xd8114 0x4>;
@@ -1714,7 +1680,6 @@
 
 		target-module@0 {			/* 0x48300000, ap 56 40.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss0";
 			reg = <0x0 0x4>,
 			      <0x4 0x4>;
 			reg-names = "rev", "sysc";
@@ -1767,7 +1732,6 @@
 
 		target-module@2000 {			/* 0x48302000, ap 58 4a.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss1";
 			reg = <0x2000 0x4>,
 			      <0x2004 0x4>;
 			reg-names = "rev", "sysc";
@@ -1820,7 +1784,6 @@
 
 		target-module@4000 {			/* 0x48304000, ap 60 44.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss2";
 			reg = <0x4000 0x4>,
 			      <0x4004 0x4>;
 			reg-names = "rev", "sysc";
@@ -1873,7 +1836,6 @@
 
 		target-module@6000 {			/* 0x48306000, ap 96 58.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss3";
 			reg = <0x6000 0x4>,
 			      <0x6004 0x4>;
 			reg-names = "rev", "sysc";
@@ -1915,7 +1877,6 @@
 
 		target-module@8000 {			/* 0x48308000, ap 98 54.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss4";
 			reg = <0x8000 0x4>,
 			      <0x8004 0x4>;
 			reg-names = "rev", "sysc";
@@ -1957,7 +1918,6 @@
 
 		target-module@a000 {			/* 0x4830a000, ap 100 60.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss5";
 			reg = <0xa000 0x4>,
 			      <0xa004 0x4>;
 			reg-names = "rev", "sysc";
@@ -1999,7 +1959,6 @@
 
 		target-module@10000 {			/* 0x48310000, ap 64 4e.1 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "rng";
 			reg = <0x11fe0 0x4>,
 			      <0x11fe4 0x4>;
 			reg-names = "rev", "sysc";
@@ -2038,7 +1997,6 @@
 
 		target-module@20000 {			/* 0x48320000, ap 82 34.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio5";
 			reg = <0x20000 0x4>,
 			      <0x20010 0x4>,
 			      <0x20114 0x4>;
@@ -2073,7 +2031,6 @@
 
 		target-module@22000 {			/* 0x48322000, ap 116 64.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio6";
 			reg = <0x22000 0x4>,
 			      <0x22010 0x4>,
 			      <0x22114 0x4>;
@@ -2108,7 +2065,6 @@
 
 		target-module@26000 {			/* 0x48326000, ap 86 66.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "vpfe0";
 			reg = <0x26000 0x4>,
 			      <0x26104 0x4>;
 			reg-names = "rev", "sysc";
@@ -2135,7 +2091,6 @@
 
 		target-module@28000 {			/* 0x48328000, ap 75 0e.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "vpfe1";
 			reg = <0x28000 0x4>,
 			      <0x28104 0x4>;
 			reg-names = "rev", "sysc";
@@ -2184,7 +2139,6 @@
 
 		target-module@3d000 {			/* 0x4833d000, ap 102 6e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer9";
 			reg = <0x3d000 0x4>,
 			      <0x3d010 0x4>,
 			      <0x3d014 0x4>;
@@ -2211,7 +2165,6 @@
 
 		target-module@3f000 {			/* 0x4833f000, ap 104 5c.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer10";
 			reg = <0x3f000 0x4>,
 			      <0x3f010 0x4>,
 			      <0x3f014 0x4>;
@@ -2238,7 +2191,6 @@
 
 		target-module@41000 {			/* 0x48341000, ap 106 76.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer11";
 			reg = <0x41000 0x4>,
 			      <0x41010 0x4>,
 			      <0x41014 0x4>;
@@ -2265,7 +2217,6 @@
 
 		target-module@45000 {			/* 0x48345000, ap 108 6a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spi4";
 			reg = <0x45000 0x4>,
 			      <0x45110 0x4>,
 			      <0x45114 0x4>;
@@ -2296,7 +2247,6 @@
 
 		target-module@47000 {			/* 0x48347000, ap 110 70.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "hdq1w";
 			reg = <0x47000 0x4>,
 			      <0x47014 0x4>,
 			      <0x47018 0x4>;
@@ -2381,7 +2331,6 @@
 
 		target-module@a8000 {			/* 0x483a8000, ap 125 6c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "ocp2scp0";
 			reg = <0xa8000 0x4>;
 			reg-names = "rev";
 			/* Domains (P, C): per_pwrdm, l4ls_clkdm */
@@ -2463,7 +2412,6 @@
 
 		target-module@e8000 {			/* 0x483e8000, ap 129 78.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "ocp2scp1";
 			reg = <0xe8000 0x4>;
 			reg-names = "rev";
 			/* Domains (P, C): per_pwrdm, l4ls_clkdm */

@@ -423,9 +423,6 @@ static int mlx5_poll_one(struct mlx5_ib_cq *cq,
 	struct mlx5_cqe64 *cqe64;
 	struct mlx5_core_qp *mqp;
 	struct mlx5_ib_wq *wq;
-	struct mlx5_sig_err_cqe *sig_err_cqe;
-	struct mlx5_core_mkey *mmkey;
-	struct mlx5_ib_mr *mr;
 	uint8_t opcode;
 	uint32_t qpn;
 	u16 wqe_ctr;
@@ -519,26 +516,28 @@ repoll:
 			}
 		}
 		break;
-	case MLX5_CQE_SIG_ERR:
-		sig_err_cqe = (struct mlx5_sig_err_cqe *)cqe64;
+	case MLX5_CQE_SIG_ERR: {
+		struct mlx5_sig_err_cqe *sig_err_cqe =
+			(struct mlx5_sig_err_cqe *)cqe64;
+		struct mlx5_core_sig_ctx *sig;
 
-		xa_lock(&dev->mdev->priv.mkey_table);
-		mmkey = xa_load(&dev->mdev->priv.mkey_table,
+		xa_lock(&dev->sig_mrs);
+		sig = xa_load(&dev->sig_mrs,
 				mlx5_base_mkey(be32_to_cpu(sig_err_cqe->mkey)));
-		mr = to_mibmr(mmkey);
-		get_sig_err_item(sig_err_cqe, &mr->sig->err_item);
-		mr->sig->sig_err_exists = true;
-		mr->sig->sigerr_count++;
+		get_sig_err_item(sig_err_cqe, &sig->err_item);
+		sig->sig_err_exists = true;
+		sig->sigerr_count++;
 
 		mlx5_ib_warn(dev, "CQN: 0x%x Got SIGERR on key: 0x%x err_type %x err_offset %llx expected %x actual %x\n",
-			     cq->mcq.cqn, mr->sig->err_item.key,
-			     mr->sig->err_item.err_type,
-			     mr->sig->err_item.sig_err_offset,
-			     mr->sig->err_item.expected,
-			     mr->sig->err_item.actual);
+			     cq->mcq.cqn, sig->err_item.key,
+			     sig->err_item.err_type,
+			     sig->err_item.sig_err_offset,
+			     sig->err_item.expected,
+			     sig->err_item.actual);
 
-		xa_unlock(&dev->mdev->priv.mkey_table);
+		xa_unlock(&dev->sig_mrs);
 		goto repoll;
+	}
 	}
 
 	return 0;
@@ -709,8 +708,8 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	*cqe_size = ucmd.cqe_size;
 
 	cq->buf.umem =
-		ib_umem_get(udata, ucmd.buf_addr, entries * ucmd.cqe_size,
-			    IB_ACCESS_LOCAL_WRITE, 1);
+		ib_umem_get(&dev->ib_dev, ucmd.buf_addr,
+			    entries * ucmd.cqe_size, IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(cq->buf.umem)) {
 		err = PTR_ERR(cq->buf.umem);
 		return err;
@@ -1109,9 +1108,9 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	if (ucmd.cqe_size && SIZE_MAX / ucmd.cqe_size <= entries - 1)
 		return -EINVAL;
 
-	umem = ib_umem_get(udata, ucmd.buf_addr,
+	umem = ib_umem_get(&dev->ib_dev, ucmd.buf_addr,
 			   (size_t)ucmd.cqe_size * entries,
-			   IB_ACCESS_LOCAL_WRITE, 1);
+			   IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(umem)) {
 		err = PTR_ERR(umem);
 		return err;

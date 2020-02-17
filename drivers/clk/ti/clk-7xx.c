@@ -25,7 +25,7 @@ static const struct omap_clkctrl_reg_data dra7_mpu_clkctrl_regs[] __initconst = 
 };
 
 static const struct omap_clkctrl_reg_data dra7_dsp1_clkctrl_regs[] __initconst = {
-	{ DRA7_DSP1_MMU0_DSP1_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_dsp_m2_ck" },
+	{ DRA7_DSP1_MMU0_DSP1_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_dsp_m2_ck" },
 	{ 0 },
 };
 
@@ -41,7 +41,7 @@ static const struct omap_clkctrl_bit_data dra7_mmu_ipu1_bit_data[] __initconst =
 };
 
 static const struct omap_clkctrl_reg_data dra7_ipu1_clkctrl_regs[] __initconst = {
-	{ DRA7_IPU1_MMU_IPU1_CLKCTRL, dra7_mmu_ipu1_bit_data, CLKF_HW_SUP, "ipu1-clkctrl:0000:24" },
+	{ DRA7_IPU1_MMU_IPU1_CLKCTRL, dra7_mmu_ipu1_bit_data, CLKF_HW_SUP | CLKF_NO_IDLEST, "ipu1-clkctrl:0000:24" },
 	{ 0 },
 };
 
@@ -137,12 +137,35 @@ static const struct omap_clkctrl_reg_data dra7_ipu_clkctrl_regs[] __initconst = 
 };
 
 static const struct omap_clkctrl_reg_data dra7_dsp2_clkctrl_regs[] __initconst = {
-	{ DRA7_DSP2_MMU0_DSP2_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_dsp_m2_ck" },
+	{ DRA7_DSP2_MMU0_DSP2_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_dsp_m2_ck" },
 	{ 0 },
 };
 
 static const struct omap_clkctrl_reg_data dra7_rtc_clkctrl_regs[] __initconst = {
 	{ DRA7_RTC_RTCSS_CLKCTRL, NULL, CLKF_SW_SUP, "sys_32k_ck" },
+	{ 0 },
+};
+
+static const char * const dra7_cam_gfclk_mux_parents[] __initconst = {
+	"l3_iclk_div",
+	"core_iss_main_clk",
+	NULL,
+};
+
+static const struct omap_clkctrl_bit_data dra7_cam_bit_data[] __initconst = {
+	{ 24, TI_CLK_MUX, dra7_cam_gfclk_mux_parents, NULL },
+	{ 0 },
+};
+
+static const struct omap_clkctrl_reg_data dra7_cam_clkctrl_regs[] __initconst = {
+	{ DRA7_CAM_VIP1_CLKCTRL, dra7_cam_bit_data, CLKF_HW_SUP, "l3_iclk_div" },
+	{ DRA7_CAM_VIP2_CLKCTRL, dra7_cam_bit_data, CLKF_HW_SUP, "l3_iclk_div" },
+	{ DRA7_CAM_VIP3_CLKCTRL, dra7_cam_bit_data, CLKF_HW_SUP, "l3_iclk_div" },
+	{ 0 },
+};
+
+static const struct omap_clkctrl_reg_data dra7_vpe_clkctrl_regs[] __initconst = {
+	{ DRA7_VPE_VPE_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_core_h23x2_ck" },
 	{ 0 },
 };
 
@@ -164,7 +187,7 @@ static const struct omap_clkctrl_reg_data dra7_l3main1_clkctrl_regs[] __initcons
 };
 
 static const struct omap_clkctrl_reg_data dra7_ipu2_clkctrl_regs[] __initconst = {
-	{ DRA7_IPU2_MMU_IPU2_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_core_h22x2_ck" },
+	{ DRA7_IPU2_MMU_IPU2_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_core_h22x2_ck" },
 	{ 0 },
 };
 
@@ -272,6 +295,40 @@ static const struct omap_clkctrl_bit_data dra7_dss_core_bit_data[] __initconst =
 static const struct omap_clkctrl_reg_data dra7_dss_clkctrl_regs[] __initconst = {
 	{ DRA7_DSS_DSS_CORE_CLKCTRL, dra7_dss_core_bit_data, CLKF_SW_SUP, "dss-clkctrl:0000:8" },
 	{ DRA7_DSS_BB2D_CLKCTRL, NULL, CLKF_SW_SUP, "dpll_core_h24x2_ck" },
+	{ 0 },
+};
+
+static const char * const dra7_gpu_core_mux_parents[] __initconst = {
+	"dpll_core_h14x2_ck",
+	"dpll_per_h14x2_ck",
+	"dpll_gpu_m2_ck",
+	NULL,
+};
+
+static const char * const dra7_gpu_hyd_mux_parents[] __initconst = {
+	"dpll_core_h14x2_ck",
+	"dpll_per_h14x2_ck",
+	"dpll_gpu_m2_ck",
+	NULL,
+};
+
+static const char * const dra7_gpu_sys_clk_parents[] __initconst = {
+	"sys_clkin",
+	NULL,
+};
+
+static const struct omap_clkctrl_div_data dra7_gpu_sys_clk_data __initconst = {
+	.max_div = 2,
+};
+
+static const struct omap_clkctrl_bit_data dra7_gpu_core_bit_data[] __initconst = {
+	{ 24, TI_CLK_MUX, dra7_gpu_core_mux_parents, NULL, },
+	{ 26, TI_CLK_MUX, dra7_gpu_hyd_mux_parents, NULL, },
+	{ 0 },
+};
+
+static const struct omap_clkctrl_reg_data dra7_gpu_clkctrl_regs[] __initconst = {
+	{ DRA7_GPU_CLKCTRL, dra7_gpu_core_bit_data, CLKF_SW_SUP, "gpu_cm:clk:0000:24", },
 	{ 0 },
 };
 
@@ -405,7 +462,7 @@ static const struct omap_clkctrl_bit_data dra7_gmac_bit_data[] __initconst = {
 };
 
 static const struct omap_clkctrl_reg_data dra7_gmac_clkctrl_regs[] __initconst = {
-	{ DRA7_GMAC_GMAC_CLKCTRL, dra7_gmac_bit_data, CLKF_SW_SUP, "dpll_gmac_ck" },
+	{ DRA7_GMAC_GMAC_CLKCTRL, dra7_gmac_bit_data, CLKF_SW_SUP, "gmac_main_clk" },
 	{ 0 },
 };
 
@@ -769,6 +826,7 @@ const struct omap_clkctrl_data dra7_clkctrl_data[] __initconst = {
 	{ 0x4a005550, dra7_ipu_clkctrl_regs },
 	{ 0x4a005620, dra7_dsp2_clkctrl_regs },
 	{ 0x4a005720, dra7_rtc_clkctrl_regs },
+	{ 0x4a005760, dra7_vpe_clkctrl_regs },
 	{ 0x4a008620, dra7_coreaon_clkctrl_regs },
 	{ 0x4a008720, dra7_l3main1_clkctrl_regs },
 	{ 0x4a008920, dra7_ipu2_clkctrl_regs },
@@ -777,7 +835,9 @@ const struct omap_clkctrl_data dra7_clkctrl_data[] __initconst = {
 	{ 0x4a008c00, dra7_atl_clkctrl_regs },
 	{ 0x4a008d20, dra7_l4cfg_clkctrl_regs },
 	{ 0x4a008e20, dra7_l3instr_clkctrl_regs },
+	{ 0x4a009020, dra7_cam_clkctrl_regs },
 	{ 0x4a009120, dra7_dss_clkctrl_regs },
+	{ 0x4a009220, dra7_gpu_clkctrl_regs },
 	{ 0x4a009320, dra7_l3init_clkctrl_regs },
 	{ 0x4a0093b0, dra7_pcie_clkctrl_regs },
 	{ 0x4a0093d0, dra7_gmac_clkctrl_regs },

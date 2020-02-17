@@ -1741,7 +1741,7 @@ static void nicvf_get_stats64(struct net_device *netdev,
 
 }
 
-static void nicvf_tx_timeout(struct net_device *dev)
+static void nicvf_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct nicvf *nic = netdev_priv(dev);
 
@@ -1876,13 +1876,8 @@ static int nicvf_xdp_setup(struct nicvf *nic, struct bpf_prog *prog)
 
 	if (nic->xdp_prog) {
 		/* Attach BPF program */
-		nic->xdp_prog = bpf_prog_add(nic->xdp_prog, nic->rx_queues - 1);
-		if (!IS_ERR(nic->xdp_prog)) {
-			bpf_attached = true;
-		} else {
-			ret = PTR_ERR(nic->xdp_prog);
-			nic->xdp_prog = NULL;
-		}
+		bpf_prog_add(nic->xdp_prog, nic->rx_queues - 1);
+		bpf_attached = true;
 	}
 
 	/* Calculate Tx queues needed for XDP and network stack */

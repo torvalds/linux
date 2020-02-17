@@ -36,6 +36,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/nospec.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/current.h>
@@ -47,6 +48,11 @@
 
 static int ioapic_service(struct kvm_ioapic *vioapic, int irq,
 		bool line_status);
+
+static void kvm_ioapic_update_eoi_one(struct kvm_vcpu *vcpu,
+				      struct kvm_ioapic *ioapic,
+				      int trigger_mode,
+				      int pin);
 
 static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
 					  unsigned long addr,
@@ -68,13 +74,14 @@ static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
 	default:
 		{
 			u32 redir_index = (ioapic->ioregsel - 0x10) >> 1;
-			u64 redir_content;
+			u64 redir_content = ~0ULL;
 
-			if (redir_index < IOAPIC_NUM_PINS)
-				redir_content =
-					ioapic->redirtbl[redir_index].bits;
-			else
-				redir_content = ~0ULL;
+			if (redir_index < IOAPIC_NUM_PINS) {
+				u32 index = array_index_nospec(
+					redir_index, IOAPIC_NUM_PINS);
+
+				redir_content = ioapic->redirtbl[index].bits;
+			}
 
 			result = (ioapic->ioregsel & 0x1) ?
 			    (redir_content >> 32) & 0xffffffff :
@@ -108,8 +115,9 @@ static void __rtc_irq_eoi_tracking_restore_one(struct kvm_vcpu *vcpu)
 	union kvm_ioapic_redirect_entry *e;
 
 	e = &ioapic->redirtbl[RTC_GSI];
-	if (!kvm_apic_match_dest(vcpu, NULL, 0,	e->fields.dest_id,
-				e->fields.dest_mode))
+	if (!kvm_apic_match_dest(vcpu, NULL, APIC_DEST_NOSHORT,
+				 e->fields.dest_id,
+				 kvm_lapic_irq_dest_mode(!!e->fields.dest_mode)))
 		return;
 
 	new_val = kvm_apic_pending_eoi(vcpu, e->fields.vector);
@@ -151,10 +159,16 @@ static void kvm_rtc_eoi_tracking_restore_all(struct kvm_ioapic *ioapic)
 	    __rtc_irq_eoi_tracking_restore_one(vcpu);
 }
 
-static void rtc_irq_eoi(struct kvm_ioapic *ioapic, struct kvm_vcpu *vcpu)
+static void rtc_irq_eoi(struct kvm_ioapic *ioapic, struct kvm_vcpu *vcpu,
+			int vector)
 {
-	if (test_and_clear_bit(vcpu->vcpu_id,
-			       ioapic->rtc_status.dest_map.map)) {
+	struct dest_map *dest_map = &ioapic->rtc_status.dest_map;
+
+	/* RTC special handling */
+	if (test_bit(vcpu->vcpu_id, dest_map->map) &&
+	    (vector == dest_map->vectors[vcpu->vcpu_id]) &&
+	    (test_and_clear_bit(vcpu->vcpu_id,
+				ioapic->rtc_status.dest_map.map))) {
 		--ioapic->rtc_status.pending_eoi;
 		rtc_status_pending_eoi_check_valid(ioapic);
 	}
@@ -166,6 +180,31 @@ static bool rtc_irq_check_coalesced(struct kvm_ioapic *ioapic)
 		return true; /* coalesced */
 
 	return false;
+}
+
+static void ioapic_lazy_update_eoi(struct kvm_ioapic *ioapic, int irq)
+{
+	int i;
+	struct kvm_vcpu *vcpu;
+	union kvm_ioapic_redirect_entry *entry = &ioapic->redirtbl[irq];
+
+	kvm_for_each_vcpu(i, vcpu, ioapic->kvm) {
+		if (!kvm_apic_match_dest(vcpu, NULL, APIC_DEST_NOSHORT,
+					 entry->fields.dest_id,
+					 entry->fields.dest_mode) ||
+		    kvm_apic_pending_eoi(vcpu, entry->fields.vector))
+			continue;
+
+		/*
+		 * If no longer has pending EOI in LAPICs, update
+		 * EOI for this vetor.
+		 */
+		rtc_irq_eoi(ioapic, vcpu, entry->fields.vector);
+		kvm_ioapic_update_eoi_one(vcpu, ioapic,
+					  entry->fields.trig_mode,
+					  irq);
+		break;
+	}
 }
 
 static int ioapic_set_irq(struct kvm_ioapic *ioapic, unsigned int irq,
@@ -186,9 +225,18 @@ static int ioapic_set_irq(struct kvm_ioapic *ioapic, unsigned int irq,
 	}
 
 	/*
+	 * AMD SVM AVIC accelerate EOI write and do not trap,
+	 * in-kernel IOAPIC will not be able to receive the EOI.
+	 * In this case, we do lazy update of the pending EOI when
+	 * trying to set IOAPIC irq.
+	 */
+	if (kvm_apicv_activated(ioapic->kvm))
+		ioapic_lazy_update_eoi(ioapic, irq);
+
+	/*
 	 * Return 0 for coalesced interrupts; for edge-triggered interrupts,
 	 * this only happens if a previous edge has not been delivered due
-	 * do masking.  For level interrupts, the remote_irr field tells
+	 * to masking.  For level interrupts, the remote_irr field tells
 	 * us if the interrupt is waiting for an EOI.
 	 *
 	 * RTC is special: it is edge-triggered, but userspace likes to know
@@ -250,8 +298,10 @@ void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, ulong *ioapic_handled_vectors)
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG ||
 		    kvm_irq_has_notifier(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index) ||
 		    index == RTC_GSI) {
-			if (kvm_apic_match_dest(vcpu, NULL, 0,
-			             e->fields.dest_id, e->fields.dest_mode) ||
+			u16 dm = kvm_lapic_irq_dest_mode(!!e->fields.dest_mode);
+
+			if (kvm_apic_match_dest(vcpu, NULL, APIC_DEST_NOSHORT,
+						e->fields.dest_id, dm) ||
 			    kvm_apic_pending_eoi(vcpu, e->fields.vector))
 				__set_bit(e->fields.vector,
 					  ioapic_handled_vectors);
@@ -271,8 +321,9 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 {
 	unsigned index;
 	bool mask_before, mask_after;
-	int old_remote_irr, old_delivery_status;
 	union kvm_ioapic_redirect_entry *e;
+	unsigned long vcpu_bitmap;
+	int old_remote_irr, old_delivery_status, old_dest_id, old_dest_mode;
 
 	switch (ioapic->ioregsel) {
 	case IOAPIC_REG_VERSION:
@@ -291,11 +342,14 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 
 		if (index >= IOAPIC_NUM_PINS)
 			return;
+		index = array_index_nospec(index, IOAPIC_NUM_PINS);
 		e = &ioapic->redirtbl[index];
 		mask_before = e->fields.mask;
 		/* Preserve read-only fields */
 		old_remote_irr = e->fields.remote_irr;
 		old_delivery_status = e->fields.delivery_status;
+		old_dest_id = e->fields.dest_id;
+		old_dest_mode = e->fields.dest_mode;
 		if (ioapic->ioregsel & 1) {
 			e->bits &= 0xffffffff;
 			e->bits |= (u64) val << 32;
@@ -321,7 +375,37 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG
 		    && ioapic->irr & (1 << index))
 			ioapic_service(ioapic, index, false);
-		kvm_make_scan_ioapic_request(ioapic->kvm);
+		if (e->fields.delivery_mode == APIC_DM_FIXED) {
+			struct kvm_lapic_irq irq;
+
+			irq.shorthand = APIC_DEST_NOSHORT;
+			irq.vector = e->fields.vector;
+			irq.delivery_mode = e->fields.delivery_mode << 8;
+			irq.dest_id = e->fields.dest_id;
+			irq.dest_mode =
+			    kvm_lapic_irq_dest_mode(!!e->fields.dest_mode);
+			bitmap_zero(&vcpu_bitmap, 16);
+			kvm_bitmap_or_dest_vcpus(ioapic->kvm, &irq,
+						 &vcpu_bitmap);
+			if (old_dest_mode != e->fields.dest_mode ||
+			    old_dest_id != e->fields.dest_id) {
+				/*
+				 * Update vcpu_bitmap with vcpus specified in
+				 * the previous request as well. This is done to
+				 * keep ioapic_handled_vectors synchronized.
+				 */
+				irq.dest_id = old_dest_id;
+				irq.dest_mode =
+				    kvm_lapic_irq_dest_mode(
+					!!e->fields.dest_mode);
+				kvm_bitmap_or_dest_vcpus(ioapic->kvm, &irq,
+							 &vcpu_bitmap);
+			}
+			kvm_make_scan_ioapic_request_mask(ioapic->kvm,
+							  &vcpu_bitmap);
+		} else {
+			kvm_make_scan_ioapic_request(ioapic->kvm);
+		}
 		break;
 	}
 }
@@ -339,11 +423,11 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 
 	irqe.dest_id = entry->fields.dest_id;
 	irqe.vector = entry->fields.vector;
-	irqe.dest_mode = entry->fields.dest_mode;
+	irqe.dest_mode = kvm_lapic_irq_dest_mode(!!entry->fields.dest_mode);
 	irqe.trig_mode = entry->fields.trig_mode;
 	irqe.delivery_mode = entry->fields.delivery_mode << 8;
 	irqe.level = 1;
-	irqe.shorthand = 0;
+	irqe.shorthand = APIC_DEST_NOSHORT;
 	irqe.msi_redir_hint = false;
 
 	if (irqe.trig_mode == IOAPIC_EDGE_TRIG)
@@ -415,72 +499,68 @@ static void kvm_ioapic_eoi_inject_work(struct work_struct *work)
 }
 
 #define IOAPIC_SUCCESSIVE_IRQ_MAX_COUNT 10000
-
-static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
-			struct kvm_ioapic *ioapic, int vector, int trigger_mode)
+static void kvm_ioapic_update_eoi_one(struct kvm_vcpu *vcpu,
+				      struct kvm_ioapic *ioapic,
+				      int trigger_mode,
+				      int pin)
 {
-	struct dest_map *dest_map = &ioapic->rtc_status.dest_map;
 	struct kvm_lapic *apic = vcpu->arch.apic;
-	int i;
+	union kvm_ioapic_redirect_entry *ent = &ioapic->redirtbl[pin];
 
-	/* RTC special handling */
-	if (test_bit(vcpu->vcpu_id, dest_map->map) &&
-	    vector == dest_map->vectors[vcpu->vcpu_id])
-		rtc_irq_eoi(ioapic, vcpu);
+	/*
+	 * We are dropping lock while calling ack notifiers because ack
+	 * notifier callbacks for assigned devices call into IOAPIC
+	 * recursively. Since remote_irr is cleared only after call
+	 * to notifiers if the same vector will be delivered while lock
+	 * is dropped it will be put into irr and will be delivered
+	 * after ack notifier returns.
+	 */
+	spin_unlock(&ioapic->lock);
+	kvm_notify_acked_irq(ioapic->kvm, KVM_IRQCHIP_IOAPIC, pin);
+	spin_lock(&ioapic->lock);
 
-	for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-		union kvm_ioapic_redirect_entry *ent = &ioapic->redirtbl[i];
+	if (trigger_mode != IOAPIC_LEVEL_TRIG ||
+	    kvm_lapic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI)
+		return;
 
-		if (ent->fields.vector != vector)
-			continue;
-
-		/*
-		 * We are dropping lock while calling ack notifiers because ack
-		 * notifier callbacks for assigned devices call into IOAPIC
-		 * recursively. Since remote_irr is cleared only after call
-		 * to notifiers if the same vector will be delivered while lock
-		 * is dropped it will be put into irr and will be delivered
-		 * after ack notifier returns.
-		 */
-		spin_unlock(&ioapic->lock);
-		kvm_notify_acked_irq(ioapic->kvm, KVM_IRQCHIP_IOAPIC, i);
-		spin_lock(&ioapic->lock);
-
-		if (trigger_mode != IOAPIC_LEVEL_TRIG ||
-		    kvm_lapic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI)
-			continue;
-
-		ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
-		ent->fields.remote_irr = 0;
-		if (!ent->fields.mask && (ioapic->irr & (1 << i))) {
-			++ioapic->irq_eoi[i];
-			if (ioapic->irq_eoi[i] == IOAPIC_SUCCESSIVE_IRQ_MAX_COUNT) {
-				/*
-				 * Real hardware does not deliver the interrupt
-				 * immediately during eoi broadcast, and this
-				 * lets a buggy guest make slow progress
-				 * even if it does not correctly handle a
-				 * level-triggered interrupt.  Emulate this
-				 * behavior if we detect an interrupt storm.
-				 */
-				schedule_delayed_work(&ioapic->eoi_inject, HZ / 100);
-				ioapic->irq_eoi[i] = 0;
-				trace_kvm_ioapic_delayed_eoi_inj(ent->bits);
-			} else {
-				ioapic_service(ioapic, i, false);
-			}
+	ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
+	ent->fields.remote_irr = 0;
+	if (!ent->fields.mask && (ioapic->irr & (1 << pin))) {
+		++ioapic->irq_eoi[pin];
+		if (ioapic->irq_eoi[pin] == IOAPIC_SUCCESSIVE_IRQ_MAX_COUNT) {
+			/*
+			 * Real hardware does not deliver the interrupt
+			 * immediately during eoi broadcast, and this
+			 * lets a buggy guest make slow progress
+			 * even if it does not correctly handle a
+			 * level-triggered interrupt.  Emulate this
+			 * behavior if we detect an interrupt storm.
+			 */
+			schedule_delayed_work(&ioapic->eoi_inject, HZ / 100);
+			ioapic->irq_eoi[pin] = 0;
+			trace_kvm_ioapic_delayed_eoi_inj(ent->bits);
 		} else {
-			ioapic->irq_eoi[i] = 0;
+			ioapic_service(ioapic, pin, false);
 		}
+	} else {
+		ioapic->irq_eoi[pin] = 0;
 	}
 }
 
 void kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu, int vector, int trigger_mode)
 {
+	int i;
 	struct kvm_ioapic *ioapic = vcpu->kvm->arch.vioapic;
 
 	spin_lock(&ioapic->lock);
-	__kvm_ioapic_update_eoi(vcpu, ioapic, vector, trigger_mode);
+	rtc_irq_eoi(ioapic, vcpu, vector);
+	for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+		union kvm_ioapic_redirect_entry *ent = &ioapic->redirtbl[i];
+
+		if (ent->fields.vector != vector)
+			continue;
+		kvm_ioapic_update_eoi_one(vcpu, ioapic, trigger_mode, i);
+	}
 	spin_unlock(&ioapic->lock);
 }
 

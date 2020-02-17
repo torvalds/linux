@@ -51,6 +51,7 @@
 #include "en_rep.h"
 #include "en_tc.h"
 #include "eswitch.h"
+#include "eswitch_offloads_chains.h"
 #include "fs_core.h"
 #include "en/port.h"
 #include "en/tc_tun.h"
@@ -74,6 +75,7 @@ enum {
 	MLX5E_TC_FLOW_FLAG_INGRESS	= MLX5E_TC_FLAG_INGRESS_BIT,
 	MLX5E_TC_FLOW_FLAG_EGRESS	= MLX5E_TC_FLAG_EGRESS_BIT,
 	MLX5E_TC_FLOW_FLAG_ESWITCH	= MLX5E_TC_FLAG_ESW_OFFLOAD_BIT,
+	MLX5E_TC_FLOW_FLAG_FT		= MLX5E_TC_FLAG_FT_OFFLOAD_BIT,
 	MLX5E_TC_FLOW_FLAG_NIC		= MLX5E_TC_FLAG_NIC_OFFLOAD_BIT,
 	MLX5E_TC_FLOW_FLAG_OFFLOADED	= MLX5E_TC_FLOW_BASE,
 	MLX5E_TC_FLOW_FLAG_HAIRPIN	= MLX5E_TC_FLOW_BASE + 1,
@@ -274,6 +276,11 @@ static bool __flow_flag_test(struct mlx5e_tc_flow *flow, unsigned long flag)
 static bool mlx5e_is_eswitch_flow(struct mlx5e_tc_flow *flow)
 {
 	return flow_flag_test(flow, ESWITCH);
+}
+
+static bool mlx5e_is_ft_flow(struct mlx5e_tc_flow *flow)
+{
+	return flow_flag_test(flow, FT);
 }
 
 static bool mlx5e_is_offloaded_flow(struct mlx5e_tc_flow *flow)
@@ -586,7 +593,7 @@ static void mlx5e_hairpin_set_ttc_params(struct mlx5e_hairpin *hp,
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
 		ttc_params->indir_tirn[tt] = hp->indir_tirn[tt];
 
-	ft_attr->max_fte = MLX5E_NUM_TT;
+	ft_attr->max_fte = MLX5E_TTC_TABLE_SIZE;
 	ft_attr->level = MLX5E_TC_TTC_FT_LEVEL;
 	ft_attr->prio = MLX5E_TC_PRIO;
 }
@@ -954,7 +961,8 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 
 	mutex_lock(&priv->fs.tc.t_lock);
 	if (IS_ERR_OR_NULL(priv->fs.tc.t)) {
-		int tc_grp_size, tc_tbl_size;
+		struct mlx5_flow_table_attr ft_attr = {};
+		int tc_grp_size, tc_tbl_size, tc_num_grps;
 		u32 max_flow_counter;
 
 		max_flow_counter = (MLX5_CAP_GEN(dev, max_flow_counter_31_16) << 16) |
@@ -964,13 +972,15 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 
 		tc_tbl_size = min_t(int, tc_grp_size * MLX5E_TC_TABLE_NUM_GROUPS,
 				    BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev, log_max_ft_size)));
+		tc_num_grps = MLX5E_TC_TABLE_NUM_GROUPS;
 
+		ft_attr.prio = MLX5E_TC_PRIO;
+		ft_attr.max_fte = tc_tbl_size;
+		ft_attr.level = MLX5E_TC_FT_LEVEL;
+		ft_attr.autogroup.max_num_groups = tc_num_grps;
 		priv->fs.tc.t =
 			mlx5_create_auto_grouped_flow_table(priv->fs.ns,
-							    MLX5E_TC_PRIO,
-							    tc_tbl_size,
-							    MLX5E_TC_TABLE_NUM_GROUPS,
-							    MLX5E_TC_FT_LEVEL, 0);
+							    &ft_attr);
 		if (IS_ERR(priv->fs.tc.t)) {
 			mutex_unlock(&priv->fs.tc.t_lock);
 			NL_SET_ERR_MSG_MOD(extack,
@@ -1074,7 +1084,7 @@ mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	slow_attr->split_count = 0;
-	slow_attr->dest_chain = FDB_SLOW_PATH_CHAIN;
+	slow_attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
 
 	rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, slow_attr);
 	if (!IS_ERR(rule))
@@ -1091,7 +1101,7 @@ mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	slow_attr->split_count = 0;
-	slow_attr->dest_chain = FDB_SLOW_PATH_CHAIN;
+	slow_attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
 	mlx5e_tc_unoffload_fdb_rules(esw, flow, slow_attr);
 	flow_flag_clear(flow, SLOW);
 }
@@ -1151,28 +1161,34 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	u32 max_chain = mlx5_eswitch_get_chain_range(esw);
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr = attr->parse_attr;
-	u16 max_prio = mlx5_eswitch_get_prio_range(esw);
 	struct net_device *out_dev, *encap_dev = NULL;
 	struct mlx5_fc *counter = NULL;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *out_priv;
 	bool encap_valid = true;
+	u32 max_prio, max_chain;
 	int err = 0;
 	int out_index;
 
-	if (!mlx5_eswitch_prios_supported(esw) && attr->prio != 1) {
+	if (!mlx5_esw_chains_prios_supported(esw) && attr->prio != 1) {
 		NL_SET_ERR_MSG(extack, "E-switch priorities unsupported, upgrade FW");
 		return -EOPNOTSUPP;
 	}
 
-	if (attr->chain > max_chain) {
+	/* We check chain range only for tc flows.
+	 * For ft flows, we checked attr->chain was originally 0 and set it to
+	 * FDB_FT_CHAIN which is outside tc range.
+	 * See mlx5e_rep_setup_ft_cb().
+	 */
+	max_chain = mlx5_esw_chains_get_chain_range(esw);
+	if (!mlx5e_is_ft_flow(flow) && attr->chain > max_chain) {
 		NL_SET_ERR_MSG(extack, "Requested chain is out of supported range");
 		return -EOPNOTSUPP;
 	}
 
+	max_prio = mlx5_esw_chains_get_prio_range(esw);
 	if (attr->prio > max_prio) {
 		NL_SET_ERR_MSG(extack, "Requested priority is out of supported range");
 		return -EOPNOTSUPP;
@@ -1278,8 +1294,10 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	mlx5_eswitch_del_vlan_action(esw, attr);
 
 	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++)
-		if (attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP)
+		if (attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP) {
 			mlx5e_detach_encap(priv, flow, out_index);
+			kfree(attr->parse_attr->tun_info[out_index]);
+		}
 	kvfree(attr->parse_attr);
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
@@ -1559,6 +1577,7 @@ static void mlx5e_encap_dealloc(struct mlx5e_priv *priv, struct mlx5e_encap_entr
 			mlx5_packet_reformat_dealloc(priv->mdev, e->pkt_reformat);
 	}
 
+	kfree(e->tun_info);
 	kfree(e->encap_header);
 	kfree_rcu(e, rcu);
 }
@@ -1612,8 +1631,11 @@ static void __mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow)
 
 	flow_flag_clear(flow, DUP);
 
-	mlx5e_tc_del_fdb_flow(flow->peer_flow->priv, flow->peer_flow);
-	kvfree(flow->peer_flow);
+	if (refcount_dec_and_test(&flow->peer_flow->refcnt)) {
+		mlx5e_tc_del_fdb_flow(flow->peer_flow->priv, flow->peer_flow);
+		kfree(flow->peer_flow);
+	}
+
 	flow->peer_flow = NULL;
 }
 
@@ -1788,6 +1810,40 @@ static void *get_match_headers_value(u32 flags,
 			     outer_headers);
 }
 
+static int mlx5e_flower_parse_meta(struct net_device *filter_dev,
+				   struct flow_cls_offload *f)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
+	struct netlink_ext_ack *extack = f->common.extack;
+	struct net_device *ingress_dev;
+	struct flow_match_meta match;
+
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_META))
+		return 0;
+
+	flow_rule_match_meta(rule, &match);
+	if (match.mask->ingress_ifindex != 0xFFFFFFFF) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported ingress ifindex mask");
+		return -EINVAL;
+	}
+
+	ingress_dev = __dev_get_by_index(dev_net(filter_dev),
+					 match.key->ingress_ifindex);
+	if (!ingress_dev) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Can't find the ingress port to match on");
+		return -EINVAL;
+	}
+
+	if (ingress_dev != filter_dev) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Can't match on the ingress filter port");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int __parse_cls_flower(struct mlx5e_priv *priv,
 			      struct mlx5_flow_spec *spec,
 			      struct flow_cls_offload *f,
@@ -1808,6 +1864,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	u16 addr_type = 0;
 	u8 ip_proto = 0;
 	u8 *match_level;
+	int err;
 
 	match_level = outer_match_level;
 
@@ -1850,6 +1907,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		headers_v = get_match_headers_value(MLX5_FLOW_CONTEXT_ACTION_DECAP,
 						    spec);
 	}
+
+	err = mlx5e_flower_parse_meta(filter_dev, f);
+	if (err)
+		return err;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
 		struct flow_match_basic match;
@@ -2238,13 +2299,14 @@ out_err:
 
 struct mlx5_fields {
 	u8  field;
-	u8  size;
+	u8  field_bsize;
+	u32 field_mask;
 	u32 offset;
 	u32 match_offset;
 };
 
-#define OFFLOAD(fw_field, size, field, off, match_field) \
-		{MLX5_ACTION_IN_FIELD_OUT_ ## fw_field, size, \
+#define OFFLOAD(fw_field, field_bsize, field_mask, field, off, match_field) \
+		{MLX5_ACTION_IN_FIELD_OUT_ ## fw_field, field_bsize, field_mask, \
 		 offsetof(struct pedit_headers, field) + (off), \
 		 MLX5_BYTE_OFF(fte_match_set_lyr_2_4, match_field)}
 
@@ -2262,18 +2324,18 @@ struct mlx5_fields {
 })
 
 static bool cmp_val_mask(void *valp, void *maskp, void *matchvalp,
-			 void *matchmaskp, int size)
+			 void *matchmaskp, u8 bsize)
 {
 	bool same = false;
 
-	switch (size) {
-	case sizeof(u8):
+	switch (bsize) {
+	case 8:
 		same = SAME_VAL_MASK(u8, valp, maskp, matchvalp, matchmaskp);
 		break;
-	case sizeof(u16):
+	case 16:
 		same = SAME_VAL_MASK(u16, valp, maskp, matchvalp, matchmaskp);
 		break;
-	case sizeof(u32):
+	case 32:
 		same = SAME_VAL_MASK(u32, valp, maskp, matchvalp, matchmaskp);
 		break;
 	}
@@ -2282,41 +2344,43 @@ static bool cmp_val_mask(void *valp, void *maskp, void *matchvalp,
 }
 
 static struct mlx5_fields fields[] = {
-	OFFLOAD(DMAC_47_16, 4, eth.h_dest[0], 0, dmac_47_16),
-	OFFLOAD(DMAC_15_0,  2, eth.h_dest[4], 0, dmac_15_0),
-	OFFLOAD(SMAC_47_16, 4, eth.h_source[0], 0, smac_47_16),
-	OFFLOAD(SMAC_15_0,  2, eth.h_source[4], 0, smac_15_0),
-	OFFLOAD(ETHERTYPE,  2, eth.h_proto, 0, ethertype),
-	OFFLOAD(FIRST_VID,  2, vlan.h_vlan_TCI, 0, first_vid),
+	OFFLOAD(DMAC_47_16, 32, U32_MAX, eth.h_dest[0], 0, dmac_47_16),
+	OFFLOAD(DMAC_15_0,  16, U16_MAX, eth.h_dest[4], 0, dmac_15_0),
+	OFFLOAD(SMAC_47_16, 32, U32_MAX, eth.h_source[0], 0, smac_47_16),
+	OFFLOAD(SMAC_15_0,  16, U16_MAX, eth.h_source[4], 0, smac_15_0),
+	OFFLOAD(ETHERTYPE,  16, U16_MAX, eth.h_proto, 0, ethertype),
+	OFFLOAD(FIRST_VID,  16, U16_MAX, vlan.h_vlan_TCI, 0, first_vid),
 
-	OFFLOAD(IP_TTL, 1, ip4.ttl,   0, ttl_hoplimit),
-	OFFLOAD(SIPV4,  4, ip4.saddr, 0, src_ipv4_src_ipv6.ipv4_layout.ipv4),
-	OFFLOAD(DIPV4,  4, ip4.daddr, 0, dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
+	OFFLOAD(IP_DSCP, 8,    0xfc, ip4.tos,   0, ip_dscp),
+	OFFLOAD(IP_TTL,  8,  U8_MAX, ip4.ttl,   0, ttl_hoplimit),
+	OFFLOAD(SIPV4,  32, U32_MAX, ip4.saddr, 0, src_ipv4_src_ipv6.ipv4_layout.ipv4),
+	OFFLOAD(DIPV4,  32, U32_MAX, ip4.daddr, 0, dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
 
-	OFFLOAD(SIPV6_127_96, 4, ip6.saddr.s6_addr32[0], 0,
+	OFFLOAD(SIPV6_127_96, 32, U32_MAX, ip6.saddr.s6_addr32[0], 0,
 		src_ipv4_src_ipv6.ipv6_layout.ipv6[0]),
-	OFFLOAD(SIPV6_95_64,  4, ip6.saddr.s6_addr32[1], 0,
+	OFFLOAD(SIPV6_95_64,  32, U32_MAX, ip6.saddr.s6_addr32[1], 0,
 		src_ipv4_src_ipv6.ipv6_layout.ipv6[4]),
-	OFFLOAD(SIPV6_63_32,  4, ip6.saddr.s6_addr32[2], 0,
+	OFFLOAD(SIPV6_63_32,  32, U32_MAX, ip6.saddr.s6_addr32[2], 0,
 		src_ipv4_src_ipv6.ipv6_layout.ipv6[8]),
-	OFFLOAD(SIPV6_31_0,   4, ip6.saddr.s6_addr32[3], 0,
+	OFFLOAD(SIPV6_31_0,   32, U32_MAX, ip6.saddr.s6_addr32[3], 0,
 		src_ipv4_src_ipv6.ipv6_layout.ipv6[12]),
-	OFFLOAD(DIPV6_127_96, 4, ip6.daddr.s6_addr32[0], 0,
+	OFFLOAD(DIPV6_127_96, 32, U32_MAX, ip6.daddr.s6_addr32[0], 0,
 		dst_ipv4_dst_ipv6.ipv6_layout.ipv6[0]),
-	OFFLOAD(DIPV6_95_64,  4, ip6.daddr.s6_addr32[1], 0,
+	OFFLOAD(DIPV6_95_64,  32, U32_MAX, ip6.daddr.s6_addr32[1], 0,
 		dst_ipv4_dst_ipv6.ipv6_layout.ipv6[4]),
-	OFFLOAD(DIPV6_63_32,  4, ip6.daddr.s6_addr32[2], 0,
+	OFFLOAD(DIPV6_63_32,  32, U32_MAX, ip6.daddr.s6_addr32[2], 0,
 		dst_ipv4_dst_ipv6.ipv6_layout.ipv6[8]),
-	OFFLOAD(DIPV6_31_0,   4, ip6.daddr.s6_addr32[3], 0,
+	OFFLOAD(DIPV6_31_0,   32, U32_MAX, ip6.daddr.s6_addr32[3], 0,
 		dst_ipv4_dst_ipv6.ipv6_layout.ipv6[12]),
-	OFFLOAD(IPV6_HOPLIMIT, 1, ip6.hop_limit, 0, ttl_hoplimit),
+	OFFLOAD(IPV6_HOPLIMIT, 8,  U8_MAX, ip6.hop_limit, 0, ttl_hoplimit),
 
-	OFFLOAD(TCP_SPORT, 2, tcp.source,  0, tcp_sport),
-	OFFLOAD(TCP_DPORT, 2, tcp.dest,    0, tcp_dport),
-	OFFLOAD(TCP_FLAGS, 1, tcp.ack_seq, 5, tcp_flags),
+	OFFLOAD(TCP_SPORT, 16, U16_MAX, tcp.source,  0, tcp_sport),
+	OFFLOAD(TCP_DPORT, 16, U16_MAX, tcp.dest,    0, tcp_dport),
+	/* in linux iphdr tcp_flags is 8 bits long */
+	OFFLOAD(TCP_FLAGS,  8,  U8_MAX, tcp.ack_seq, 5, tcp_flags),
 
-	OFFLOAD(UDP_SPORT, 2, udp.source, 0, udp_sport),
-	OFFLOAD(UDP_DPORT, 2, udp.dest,   0, udp_dport),
+	OFFLOAD(UDP_SPORT, 16, U16_MAX, udp.source, 0, udp_sport),
+	OFFLOAD(UDP_DPORT, 16, U16_MAX, udp.dest,   0, udp_dport),
 };
 
 /* On input attr->max_mod_hdr_actions tells how many HW actions can be parsed at
@@ -2329,19 +2393,17 @@ static int offload_pedit_fields(struct pedit_headers_action *hdrs,
 				struct netlink_ext_ack *extack)
 {
 	struct pedit_headers *set_masks, *add_masks, *set_vals, *add_vals;
-	void *headers_c = get_match_headers_criteria(*action_flags,
-						     &parse_attr->spec);
-	void *headers_v = get_match_headers_value(*action_flags,
-						  &parse_attr->spec);
 	int i, action_size, nactions, max_actions, first, last, next_z;
-	void *s_masks_p, *a_masks_p, *vals_p;
+	void *headers_c, *headers_v, *action, *vals_p;
+	u32 *s_masks_p, *a_masks_p, s_mask, a_mask;
 	struct mlx5_fields *f;
-	u8 cmd, field_bsize;
-	u32 s_mask, a_mask;
 	unsigned long mask;
 	__be32 mask_be32;
 	__be16 mask_be16;
-	void *action;
+	u8 cmd;
+
+	headers_c = get_match_headers_criteria(*action_flags, &parse_attr->spec);
+	headers_v = get_match_headers_value(*action_flags, &parse_attr->spec);
 
 	set_masks = &hdrs[0].masks;
 	add_masks = &hdrs[1].masks;
@@ -2366,8 +2428,8 @@ static int offload_pedit_fields(struct pedit_headers_action *hdrs,
 		s_masks_p = (void *)set_masks + f->offset;
 		a_masks_p = (void *)add_masks + f->offset;
 
-		memcpy(&s_mask, s_masks_p, f->size);
-		memcpy(&a_mask, a_masks_p, f->size);
+		s_mask = *s_masks_p & f->field_mask;
+		a_mask = *a_masks_p & f->field_mask;
 
 		if (!s_mask && !a_mask) /* nothing to offload here */
 			continue;
@@ -2396,38 +2458,34 @@ static int offload_pedit_fields(struct pedit_headers_action *hdrs,
 			vals_p = (void *)set_vals + f->offset;
 			/* don't rewrite if we have a match on the same value */
 			if (cmp_val_mask(vals_p, s_masks_p, match_val,
-					 match_mask, f->size))
+					 match_mask, f->field_bsize))
 				skip = true;
 			/* clear to denote we consumed this field */
-			memset(s_masks_p, 0, f->size);
+			*s_masks_p &= ~f->field_mask;
 		} else {
-			u32 zero = 0;
-
 			cmd  = MLX5_ACTION_TYPE_ADD;
 			mask = a_mask;
 			vals_p = (void *)add_vals + f->offset;
 			/* add 0 is no change */
-			if (!memcmp(vals_p, &zero, f->size))
+			if ((*(u32 *)vals_p & f->field_mask) == 0)
 				skip = true;
 			/* clear to denote we consumed this field */
-			memset(a_masks_p, 0, f->size);
+			*a_masks_p &= ~f->field_mask;
 		}
 		if (skip)
 			continue;
 
-		field_bsize = f->size * BITS_PER_BYTE;
-
-		if (field_bsize == 32) {
+		if (f->field_bsize == 32) {
 			mask_be32 = *(__be32 *)&mask;
 			mask = (__force unsigned long)cpu_to_le32(be32_to_cpu(mask_be32));
-		} else if (field_bsize == 16) {
+		} else if (f->field_bsize == 16) {
 			mask_be16 = *(__be16 *)&mask;
 			mask = (__force unsigned long)cpu_to_le16(be16_to_cpu(mask_be16));
 		}
 
-		first = find_first_bit(&mask, field_bsize);
-		next_z = find_next_zero_bit(&mask, field_bsize, first);
-		last  = find_last_bit(&mask, field_bsize);
+		first = find_first_bit(&mask, f->field_bsize);
+		next_z = find_next_zero_bit(&mask, f->field_bsize, first);
+		last  = find_last_bit(&mask, f->field_bsize);
 		if (first < next_z && next_z < last) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "rewrite of few sub-fields isn't supported");
@@ -2440,16 +2498,22 @@ static int offload_pedit_fields(struct pedit_headers_action *hdrs,
 		MLX5_SET(set_action_in, action, field, f->field);
 
 		if (cmd == MLX5_ACTION_TYPE_SET) {
-			MLX5_SET(set_action_in, action, offset, first);
+			int start;
+
+			/* if field is bit sized it can start not from first bit */
+			start = find_first_bit((unsigned long *)&f->field_mask,
+					       f->field_bsize);
+
+			MLX5_SET(set_action_in, action, offset, first - start);
 			/* length is num of bits to be written, zero means length of 32 */
 			MLX5_SET(set_action_in, action, length, (last - first + 1));
 		}
 
-		if (field_bsize == 32)
+		if (f->field_bsize == 32)
 			MLX5_SET(set_action_in, action, data, ntohl(*(__be32 *)vals_p) >> first);
-		else if (field_bsize == 16)
+		else if (f->field_bsize == 16)
 			MLX5_SET(set_action_in, action, data, ntohs(*(__be16 *)vals_p) >> first);
-		else if (field_bsize == 8)
+		else if (f->field_bsize == 8)
 			MLX5_SET(set_action_in, action, data, *(u8 *)vals_p >> first);
 
 		action += action_size;
@@ -2822,6 +2886,10 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
+		case FLOW_ACTION_ACCEPT:
+			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			break;
 		case FLOW_ACTION_DROP:
 			action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
 			if (MLX5_CAP_FLOWTABLE(priv->mdev,
@@ -2972,6 +3040,32 @@ mlx5e_encap_get(struct mlx5e_priv *priv, struct encap_key *key,
 	return NULL;
 }
 
+static struct ip_tunnel_info *dup_tun_info(const struct ip_tunnel_info *tun_info)
+{
+	size_t tun_size = sizeof(*tun_info) + tun_info->options_len;
+
+	return kmemdup(tun_info, tun_size, GFP_KERNEL);
+}
+
+static bool is_duplicated_encap_entry(struct mlx5e_priv *priv,
+				      struct mlx5e_tc_flow *flow,
+				      int out_index,
+				      struct mlx5e_encap_entry *e,
+				      struct netlink_ext_ack *extack)
+{
+	int i;
+
+	for (i = 0; i < out_index; i++) {
+		if (flow->encaps[i].e != e)
+			continue;
+		NL_SET_ERR_MSG_MOD(extack, "can't duplicate encap action");
+		netdev_err(priv->netdev, "can't duplicate encap action\n");
+		return true;
+	}
+
+	return false;
+}
+
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow,
 			      struct net_device *mirred_dev,
@@ -3007,6 +3101,12 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 
 	/* must verify if encap is valid or not */
 	if (e) {
+		/* Check that entry was not already attached to this flow */
+		if (is_duplicated_encap_entry(priv, flow, out_index, e, extack)) {
+			err = -EOPNOTSUPP;
+			goto out_err;
+		}
+
 		mutex_unlock(&esw->offloads.encap_tbl_lock);
 		wait_for_completion(&e->res_ready);
 
@@ -3028,13 +3128,15 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	refcount_set(&e->refcnt, 1);
 	init_completion(&e->res_ready);
 
+	tun_info = dup_tun_info(tun_info);
+	if (!tun_info) {
+		err = -ENOMEM;
+		goto out_err_init;
+	}
 	e->tun_info = tun_info;
 	err = mlx5e_tc_tun_init_encap_attr(mirred_dev, priv, e, extack);
-	if (err) {
-		kfree(e);
-		e = NULL;
-		goto out_err;
-	}
+	if (err)
+		goto out_err_init;
 
 	INIT_LIST_HEAD(&e->flows);
 	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
@@ -3074,6 +3176,12 @@ out_err:
 	mutex_unlock(&esw->offloads.encap_tbl_lock);
 	if (e)
 		mlx5e_encap_put(priv, e);
+	return err;
+
+out_err_init:
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
+	kfree(tun_info);
+	kfree(e);
 	return err;
 }
 
@@ -3160,7 +3268,7 @@ static int add_vlan_pop_action(struct mlx5e_priv *priv,
 			       struct mlx5_esw_flow_attr *attr,
 			       u32 *action)
 {
-	int nest_level = vlan_get_encap_level(attr->parse_attr->filter_dev);
+	int nest_level = attr->parse_attr->filter_dev->lower_level;
 	struct flow_action_entry vlan_act = {
 		.id = FLOW_ACTION_VLAN_POP,
 	};
@@ -3185,6 +3293,26 @@ bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 	       same_hw_devs(priv, netdev_priv(out_dev));
 }
 
+static bool is_duplicated_output_device(struct net_device *dev,
+					struct net_device *out_dev,
+					int *ifindexes, int if_count,
+					struct netlink_ext_ack *extack)
+{
+	int i;
+
+	for (i = 0; i < if_count; i++) {
+		if (ifindexes[i] == out_dev->ifindex) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "can't duplicate output to same device");
+			netdev_err(dev, "can't duplicate output to same device: %s\n",
+				   out_dev->name);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct flow_action *flow_action,
 				struct mlx5e_tc_flow *flow,
@@ -3196,10 +3324,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow_parse_attr *parse_attr = attr->parse_attr;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	const struct ip_tunnel_info *info = NULL;
+	int ifindexes[MLX5_MAX_FLOW_FWD_VPORTS];
+	bool ft_flow = mlx5e_is_ft_flow(flow);
 	const struct flow_action_entry *act;
+	int err, i, if_count = 0;
 	bool encap = false;
 	u32 action = 0;
-	int err, i;
 
 	if (!flow_action_has_entries(flow_action))
 		return -EINVAL;
@@ -3240,6 +3370,14 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				return -EINVAL;
 			}
 
+			if (ft_flow && out_dev == priv->netdev) {
+				/* Ignore forward to self rules generated
+				 * by adding both mlx5 devs to the flow table
+				 * block on a normal nft offload setup.
+				 */
+				return -EOPNOTSUPP;
+			}
+
 			if (attr->out_count >= MLX5_MAX_FLOW_FWD_VPORTS) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "can't support more output ports, can't offload forwarding");
@@ -3250,10 +3388,33 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			if (netdev_port_same_parent_id(priv->netdev, out_dev)) {
+			if (encap) {
+				parse_attr->mirred_ifindex[attr->out_count] =
+					out_dev->ifindex;
+				parse_attr->tun_info[attr->out_count] = dup_tun_info(info);
+				if (!parse_attr->tun_info[attr->out_count])
+					return -ENOMEM;
+				encap = false;
+				attr->dests[attr->out_count].flags |=
+					MLX5_ESW_DEST_ENCAP;
+				attr->out_count++;
+				/* attr->dests[].rep is resolved when we
+				 * handle encap
+				 */
+			} else if (netdev_port_same_parent_id(priv->netdev, out_dev)) {
 				struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 				struct net_device *uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
 				struct net_device *uplink_upper;
+
+				if (is_duplicated_output_device(priv->netdev,
+								out_dev,
+								ifindexes,
+								if_count,
+								extack))
+					return -EOPNOTSUPP;
+
+				ifindexes[if_count] = out_dev->ifindex;
+				if_count++;
 
 				rcu_read_lock();
 				uplink_upper =
@@ -3292,17 +3453,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				attr->dests[attr->out_count].rep = rpriv->rep;
 				attr->dests[attr->out_count].mdev = out_priv->mdev;
 				attr->out_count++;
-			} else if (encap) {
-				parse_attr->mirred_ifindex[attr->out_count] =
-					out_dev->ifindex;
-				parse_attr->tun_info[attr->out_count] = info;
-				encap = false;
-				attr->dests[attr->out_count].flags |=
-					MLX5_ESW_DEST_ENCAP;
-				attr->out_count++;
-				/* attr->dests[].rep is resolved when we
-				 * handle encap
-				 */
 			} else if (parse_attr->filter_dev != priv->netdev) {
 				/* All mlx5 devices are called to configure
 				 * high level device filters. Therefore, the
@@ -3360,8 +3510,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			break;
 		case FLOW_ACTION_GOTO: {
 			u32 dest_chain = act->chain_index;
-			u32 max_chain = mlx5_eswitch_get_chain_range(esw);
+			u32 max_chain = mlx5_esw_chains_get_chain_range(esw);
 
+			if (ft_flow) {
+				NL_SET_ERR_MSG_MOD(extack, "Goto action is not supported");
+				return -EOPNOTSUPP;
+			}
 			if (dest_chain <= attr->chain) {
 				NL_SET_ERR_MSG(extack, "Goto earlier chain isn't supported");
 				return -EOPNOTSUPP;
@@ -3423,6 +3577,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	}
 
+	if (!(attr->action &
+	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
+		NL_SET_ERR_MSG(extack, "Rule must have at least one forward/drop action");
+		return -EOPNOTSUPP;
+	}
+
 	if (attr->split_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "current firmware doesn't support split rule for port mirroring");
@@ -3446,6 +3606,8 @@ static void get_flags(int flags, unsigned long *flow_flags)
 		__flow_flags |= BIT(MLX5E_TC_FLOW_FLAG_ESWITCH);
 	if (flags & MLX5_TC_FLAG(NIC_OFFLOAD))
 		__flow_flags |= BIT(MLX5E_TC_FLOW_FLAG_NIC);
+	if (flags & MLX5_TC_FLAG(FT_OFFLOAD))
+		__flow_flags |= BIT(MLX5E_TC_FLOW_FLAG_FT);
 
 	*flow_flags = __flow_flags;
 }
@@ -3821,7 +3983,7 @@ int mlx5e_delete_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	int err;
 
 	rcu_read_lock();
-	flow = rhashtable_lookup_fast(tc_ht, &f->cookie, tc_ht_params);
+	flow = rhashtable_lookup(tc_ht, &f->cookie, tc_ht_params);
 	if (!flow || !same_flow_direction(flow, flags)) {
 		err = -EINVAL;
 		goto errout;
@@ -3922,6 +4084,13 @@ static int apply_police_params(struct mlx5e_priv *priv, u32 rate,
 	u32 rate_mbps;
 	int err;
 
+	vport_num = rpriv->rep->vport;
+	if (vport_num >= MLX5_VPORT_ECPF) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Ingress rate limit is supported only for Eswitch ports connected to VFs");
+		return -EOPNOTSUPP;
+	}
+
 	esw = priv->mdev->priv.eswitch;
 	/* rate is given in bytes/sec.
 	 * First convert to bits/sec and then round to the nearest mbit/secs.
@@ -3930,8 +4099,6 @@ static int apply_police_params(struct mlx5e_priv *priv, u32 rate,
 	 * 1 mbit/sec.
 	 */
 	rate_mbps = rate ? max_t(u32, (rate * 8 + 500000) / 1000000, 1) : 0;
-	vport_num = rpriv->rep->vport;
-
 	err = mlx5_esw_modify_vport_rate(esw, vport_num, rate_mbps);
 	if (err)
 		NL_SET_ERR_MSG_MOD(extack, "failed applying action to hardware");
@@ -3980,9 +4147,8 @@ int mlx5e_tc_configure_matchall(struct mlx5e_priv *priv,
 				struct tc_cls_matchall_offload *ma)
 {
 	struct netlink_ext_ack *extack = ma->common.extack;
-	int prio = TC_H_MAJ(ma->common.prio) >> 16;
 
-	if (prio != 1) {
+	if (ma->common.prio != 1) {
 		NL_SET_ERR_MSG_MOD(extack, "only priority 1 is supported");
 		return -EINVAL;
 	}
@@ -4085,7 +4251,10 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 		return err;
 
 	tc->netdevice_nb.notifier_call = mlx5e_tc_netdev_event;
-	if (register_netdevice_notifier(&tc->netdevice_nb)) {
+	err = register_netdevice_notifier_dev_net(priv->netdev,
+						  &tc->netdevice_nb,
+						  &tc->netdevice_nn);
+	if (err) {
 		tc->netdevice_nb.notifier_call = NULL;
 		mlx5_core_warn(priv->mdev, "Failed to register netdev notifier\n");
 	}
@@ -4107,7 +4276,9 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 
 	if (tc->netdevice_nb.notifier_call)
-		unregister_netdevice_notifier(&tc->netdevice_nb);
+		unregister_netdevice_notifier_dev_net(priv->netdev,
+						      &tc->netdevice_nb,
+						      &tc->netdevice_nn);
 
 	mutex_destroy(&tc->mod_hdr.lock);
 	mutex_destroy(&tc->hairpin_tbl_lock);

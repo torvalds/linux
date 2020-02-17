@@ -689,6 +689,9 @@
 #define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
 #define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
 
+/* Ingenic HPTLB off bits */
+#define XBURST_PAGECTRL_HPTLB_DIS 0xa9000000
+
 /* Ingenic Config7 bits */
 #define MIPS_CONF7_BTB_LOOP_EN	(_ULCAST_(1) << 4)
 
@@ -1098,9 +1101,12 @@
 /*
  * Bits 22:20 of the FPU Status Register will be read as 0,
  * and should be written as zero.
+ * MAC2008 was removed in Release 5 so we still treat it as
+ * reserved.
  */
 #define FPU_CSR_RSVD	(_ULCAST_(7) << 20)
 
+#define FPU_CSR_MAC2008	(_ULCAST_(1) << 20)
 #define FPU_CSR_ABS2008	(_ULCAST_(1) << 19)
 #define FPU_CSR_NAN2008	(_ULCAST_(1) << 18)
 
@@ -1970,6 +1976,9 @@ do {									\
 
 #define read_c0_brcm_sleepcount()	__read_32bit_c0_register($22, 7)
 #define write_c0_brcm_sleepcount(val)	__write_32bit_c0_register($22, 7, val)
+
+/* Ingenic page ctrl register */
+#define write_c0_page_ctrl(val)	__write_32bit_c0_register($5, 4, val)
 
 /*
  * Macros to access the guest system control coprocessor

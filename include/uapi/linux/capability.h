@@ -301,6 +301,7 @@ struct vfs_ns_cap_data {
 /* Allow more than 64hz interrupts from the real-time clock */
 /* Override max number of consoles on console allocation */
 /* Override max number of keymaps */
+/* Control memory reclaim behavior */
 
 #define CAP_SYS_RESOURCE     24
 

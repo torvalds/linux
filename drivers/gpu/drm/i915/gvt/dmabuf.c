@@ -36,19 +36,42 @@
 
 #define GEN8_DECODE_PTE(pte) (pte & GENMASK_ULL(63, 12))
 
+static int vgpu_pin_dma_address(struct intel_vgpu *vgpu,
+				unsigned long size,
+				dma_addr_t dma_addr)
+{
+	int ret = 0;
+
+	if (intel_gvt_hypervisor_dma_pin_guest_page(vgpu, dma_addr))
+		ret = -EINVAL;
+
+	return ret;
+}
+
+static void vgpu_unpin_dma_address(struct intel_vgpu *vgpu,
+				   dma_addr_t dma_addr)
+{
+	intel_gvt_hypervisor_dma_unmap_guest_page(vgpu, dma_addr);
+}
+
 static int vgpu_gem_get_pages(
 		struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct intel_vgpu *vgpu;
 	struct sg_table *st;
 	struct scatterlist *sg;
-	int i, ret;
+	int i, j, ret;
 	gen8_pte_t __iomem *gtt_entries;
 	struct intel_vgpu_fb_info *fb_info;
 	u32 page_num;
 
 	fb_info = (struct intel_vgpu_fb_info *)obj->gvt_info;
 	if (WARN_ON(!fb_info))
+		return -ENODEV;
+
+	vgpu = fb_info->obj->vgpu;
+	if (WARN_ON(!vgpu))
 		return -ENODEV;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
@@ -64,21 +87,53 @@ static int vgpu_gem_get_pages(
 	gtt_entries = (gen8_pte_t __iomem *)dev_priv->ggtt.gsm +
 		(fb_info->start >> PAGE_SHIFT);
 	for_each_sg(st->sgl, sg, page_num, i) {
+		dma_addr_t dma_addr =
+			GEN8_DECODE_PTE(readq(&gtt_entries[i]));
+		if (vgpu_pin_dma_address(vgpu, PAGE_SIZE, dma_addr)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
 		sg->offset = 0;
 		sg->length = PAGE_SIZE;
-		sg_dma_address(sg) =
-			GEN8_DECODE_PTE(readq(&gtt_entries[i]));
 		sg_dma_len(sg) = PAGE_SIZE;
+		sg_dma_address(sg) = dma_addr;
 	}
 
 	__i915_gem_object_set_pages(obj, st, PAGE_SIZE);
+out:
+	if (ret) {
+		dma_addr_t dma_addr;
 
-	return 0;
+		for_each_sg(st->sgl, sg, i, j) {
+			dma_addr = sg_dma_address(sg);
+			if (dma_addr)
+				vgpu_unpin_dma_address(vgpu, dma_addr);
+		}
+		sg_free_table(st);
+		kfree(st);
+	}
+
+	return ret;
+
 }
 
 static void vgpu_gem_put_pages(struct drm_i915_gem_object *obj,
 		struct sg_table *pages)
 {
+	struct scatterlist *sg;
+
+	if (obj->base.dma_buf) {
+		struct intel_vgpu_fb_info *fb_info = obj->gvt_info;
+		struct intel_vgpu_dmabuf_obj *obj = fb_info->obj;
+		struct intel_vgpu *vgpu = obj->vgpu;
+		int i;
+
+		for_each_sg(pages->sgl, sg, fb_info->size, i)
+			vgpu_unpin_dma_address(vgpu,
+					       sg_dma_address(sg));
+	}
+
 	sg_free_table(pages);
 	kfree(pages);
 }
@@ -152,6 +207,7 @@ static const struct drm_i915_gem_object_ops intel_vgpu_gem_ops = {
 static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 		struct intel_vgpu_fb_info *info)
 {
+	static struct lock_class_key lock_class;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 
@@ -161,7 +217,8 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 
 	drm_gem_private_object_init(dev, &obj->base,
 		roundup(info->size, PAGE_SIZE));
-	i915_gem_object_init(obj, &intel_vgpu_gem_ops);
+	i915_gem_object_init(obj, &intel_vgpu_gem_ops, &lock_class);
+	i915_gem_object_set_readonly(obj);
 
 	obj->read_domains = I915_GEM_DOMAIN_GTT;
 	obj->write_domain = 0;
@@ -498,8 +555,6 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 		goto out_free_gem;
 	}
 
-	i915_gem_object_put(obj);
-
 	ret = dma_buf_fd(dmabuf, DRM_CLOEXEC | DRM_RDWR);
 	if (ret < 0) {
 		gvt_vgpu_err("create dma-buf fd failed ret:%d\n", ret);
@@ -523,6 +578,8 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 		    dmabuf_fd,
 		    file_count(dmabuf->file),
 		    kref_read(&obj->base.refcount));
+
+	i915_gem_object_put(obj);
 
 	return dmabuf_fd;
 

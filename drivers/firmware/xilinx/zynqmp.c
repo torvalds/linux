@@ -26,6 +26,9 @@
 
 static const struct zynqmp_eemi_ops *eemi_ops_tbl;
 
+static bool feature_check_enabled;
+static u32 zynqmp_pm_features[PM_API_MAX];
+
 static const struct mfd_cell firmware_devs[] = {
 	{
 		.name = "zynqmp_power_controller",
@@ -44,10 +47,14 @@ static int zynqmp_pm_ret_code(u32 ret_status)
 	case XST_PM_SUCCESS:
 	case XST_PM_DOUBLE_REQ:
 		return 0;
+	case XST_PM_NO_FEATURE:
+		return -ENOTSUPP;
 	case XST_PM_NO_ACCESS:
 		return -EACCES;
 	case XST_PM_ABORT_SUSPEND:
 		return -ECANCELED;
+	case XST_PM_MULT_USER:
+		return -EUSERS;
 	case XST_PM_INTERNAL:
 	case XST_PM_CONFLICT:
 	case XST_PM_INVALID_NODE:
@@ -127,6 +134,39 @@ static noinline int do_fw_call_hvc(u64 arg0, u64 arg1, u64 arg2,
 }
 
 /**
+ * zynqmp_pm_feature() - Check weather given feature is supported or not
+ * @api_id:		API ID to check
+ *
+ * Return: Returns status, either success or error+reason
+ */
+static int zynqmp_pm_feature(u32 api_id)
+{
+	int ret;
+	u32 ret_payload[PAYLOAD_ARG_CNT];
+	u64 smc_arg[2];
+
+	if (!feature_check_enabled)
+		return 0;
+
+	/* Return value if feature is already checked */
+	if (zynqmp_pm_features[api_id] != PM_FEATURE_UNCHECKED)
+		return zynqmp_pm_features[api_id];
+
+	smc_arg[0] = PM_SIP_SVC | PM_FEATURE_CHECK;
+	smc_arg[1] = api_id;
+
+	ret = do_fw_call(smc_arg[0], smc_arg[1], 0, ret_payload);
+	if (ret) {
+		zynqmp_pm_features[api_id] = PM_FEATURE_INVALID;
+		return PM_FEATURE_INVALID;
+	}
+
+	zynqmp_pm_features[api_id] = ret_payload[1];
+
+	return zynqmp_pm_features[api_id];
+}
+
+/**
  * zynqmp_pm_invoke_fn() - Invoke the system-level platform management layer
  *			   caller function depending on the configuration
  * @pm_api_id:		Requested PM-API call
@@ -159,6 +199,9 @@ int zynqmp_pm_invoke_fn(u32 pm_api_id, u32 arg0, u32 arg1,
 	 * Make sure to stay in x0 register
 	 */
 	u64 smc_arg[4];
+
+	if (zynqmp_pm_feature(pm_api_id) == PM_FEATURE_INVALID)
+		return -ENOTSUPP;
 
 	smc_arg[0] = PM_SIP_SVC | pm_api_id;
 	smc_arg[1] = ((u64)arg1 << 32) | arg0;
@@ -711,8 +754,13 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 	int ret;
 
 	np = of_find_compatible_node(NULL, NULL, "xlnx,zynqmp");
-	if (!np)
-		return 0;
+	if (!np) {
+		np = of_find_compatible_node(NULL, NULL, "xlnx,versal");
+		if (!np)
+			return 0;
+
+		feature_check_enabled = true;
+	}
 	of_node_put(np);
 
 	ret = get_set_conduit_method(dev->of_node);
@@ -770,6 +818,7 @@ static int zynqmp_firmware_remove(struct platform_device *pdev)
 
 static const struct of_device_id zynqmp_firmware_of_match[] = {
 	{.compatible = "xlnx,zynqmp-firmware"},
+	{.compatible = "xlnx,versal-firmware"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, zynqmp_firmware_of_match);

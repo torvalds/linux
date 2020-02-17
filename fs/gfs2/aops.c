@@ -133,7 +133,7 @@ static int gfs2_write_full_page(struct page *page, get_block_t *get_block,
 	 * the  page size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."
 	 */
-	offset = i_size & (PAGE_SIZE-1);
+	offset = i_size & (PAGE_SIZE - 1);
 	if (page->index == end_index && offset)
 		zero_user_segment(page, offset, PAGE_SIZE);
 
@@ -183,14 +183,12 @@ static int gfs2_jdata_writepage(struct page *page, struct writeback_control *wbc
 	struct inode *inode = page->mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	int ret;
 
 	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl)))
 		goto out;
 	if (PageChecked(page) || current->journal_info)
 		goto out_ignore;
-	ret = __gfs2_jdata_writepage(page, wbc);
-	return ret;
+	return __gfs2_jdata_writepage(page, wbc);
 
 out_ignore:
 	redirty_page_for_writepage(wbc, page);
@@ -497,7 +495,7 @@ static int __gfs2_readpage(void *file, struct page *page)
 		error = mpage_readpage(page, gfs2_block_map);
 	}
 
-	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags)))
+	if (unlikely(gfs2_withdrawn(sdp)))
 		return -EIO;
 
 	return error;
@@ -614,7 +612,7 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 	gfs2_glock_dq(&gh);
 out_uninit:
 	gfs2_holder_uninit(&gh);
-	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags)))
+	if (unlikely(gfs2_withdrawn(sdp)))
 		ret = -EIO;
 	return ret;
 }

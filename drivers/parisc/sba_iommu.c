@@ -678,14 +678,6 @@ static int sba_dma_supported( struct device *dev, u64 mask)
 		return(0);
 	}
 
-	/* Documentation/DMA-API-HOWTO.txt tells drivers to try 64-bit
-	 * first, then fall back to 32-bit if that fails.
-	 * We are just "encouraging" 32-bit DMA masks here since we can
-	 * never allow IOMMU bypass unless we add special support for ZX1.
-	 */
-	if (mask > ~0U)
-		return 0;
-
 	ioc = GET_IOC(dev);
 	if (!ioc)
 		return 0;
@@ -1521,7 +1513,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 static void __iomem *ioc_remap(struct sba_device *sba_dev, unsigned int offset)
 {
-	return ioremap_nocache(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
+	return ioremap(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
 }
 
 static void sba_hw_init(struct sba_device *sba_dev)
@@ -1891,7 +1883,7 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 	u32 func_class;
 	int i;
 	char *version;
-	void __iomem *sba_addr = ioremap_nocache(dev->hpa.start, SBA_FUNC_SIZE);
+	void __iomem *sba_addr = ioremap(dev->hpa.start, SBA_FUNC_SIZE);
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *root;
 #endif

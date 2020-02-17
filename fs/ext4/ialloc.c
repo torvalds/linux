@@ -94,7 +94,8 @@ static int ext4_validate_inode_bitmap(struct super_block *sb,
 		goto verified;
 	blk = ext4_inode_bitmap(sb, desc);
 	if (!ext4_inode_bitmap_csum_verify(sb, block_group, desc, bh,
-					   EXT4_INODES_PER_GROUP(sb) / 8)) {
+					   EXT4_INODES_PER_GROUP(sb) / 8) ||
+	    ext4_simulate_fail(sb, EXT4_SIM_IBITMAP_CRC)) {
 		ext4_unlock_group(sb, block_group);
 		ext4_error(sb, "Corrupt inode bitmap - block_group = %u, "
 			   "inode_bitmap = %llu", block_group, blk);
@@ -192,8 +193,10 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 	get_bh(bh);
 	submit_bh(REQ_OP_READ, REQ_META | REQ_PRIO, bh);
 	wait_on_buffer(bh);
+	ext4_simulate_fail_bh(sb, bh, EXT4_SIM_IBITMAP_EIO);
 	if (!buffer_uptodate(bh)) {
 		put_bh(bh);
+		ext4_set_errno(sb, EIO);
 		ext4_error(sb, "Cannot read inode bitmap - "
 			   "block_group = %u, inode_bitmap = %llu",
 			   block_group, bitmap_blk);
@@ -265,13 +268,8 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	ext4_debug("freeing inode %lu\n", ino);
 	trace_ext4_free_inode(inode);
 
-	/*
-	 * Note: we must free any quota before locking the superblock,
-	 * as writing the quota to disk may need the lock as well.
-	 */
 	dquot_initialize(inode);
 	dquot_free_inode(inode);
-	dquot_drop(inode);
 
 	is_directory = S_ISDIR(inode->i_mode);
 
@@ -926,8 +924,8 @@ repeat_in_this_group:
 		if (!handle) {
 			BUG_ON(nblocks <= 0);
 			handle = __ext4_journal_start_sb(dir->i_sb, line_no,
-							 handle_type, nblocks,
-							 0);
+				 handle_type, nblocks, 0,
+				 ext4_trans_default_revoke_credits(sb));
 			if (IS_ERR(handle)) {
 				err = PTR_ERR(handle);
 				ext4_std_error(sb, err);
@@ -1228,6 +1226,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 	inode = ext4_iget(sb, ino, EXT4_IGET_NORMAL);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
+		ext4_set_errno(sb, -err);
 		ext4_error(sb, "couldn't read orphan inode %lu (err %d)",
 			   ino, err);
 		return inode;

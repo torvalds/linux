@@ -145,15 +145,18 @@ static void edac_mc_dump_channel(struct rank_info *chan)
 	edac_dbg(4, "    channel->dimm = %p\n", chan->dimm);
 }
 
-static void edac_mc_dump_dimm(struct dimm_info *dimm, int number)
+static void edac_mc_dump_dimm(struct dimm_info *dimm)
 {
 	char location[80];
+
+	if (!dimm->nr_pages)
+		return;
 
 	edac_dimm_info_location(dimm, location, sizeof(location));
 
 	edac_dbg(4, "%s%i: %smapped as virtual row %d, chan %d\n",
 		 dimm->mci->csbased ? "rank" : "dimm",
-		 number, location, dimm->csrow, dimm->cschannel);
+		 dimm->idx, location, dimm->csrow, dimm->cschannel);
 	edac_dbg(4, "  dimm = %p\n", dimm);
 	edac_dbg(4, "  dimm->label = '%s'\n", dimm->label);
 	edac_dbg(4, "  dimm->nr_pages = 0x%x\n", dimm->nr_pages);
@@ -314,25 +317,28 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 	struct dimm_info *dimm;
 	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
 	unsigned int pos[EDAC_MAX_LAYERS];
-	unsigned int size, tot_dimms = 1, count = 1;
+	unsigned int idx, size, tot_dimms = 1, count = 1;
 	unsigned int tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
 	void *pvt, *p, *ptr = NULL;
-	int i, j, row, chn, n, len, off;
+	int i, j, row, chn, n, len;
 	bool per_rank = false;
 
-	BUG_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0);
+	if (WARN_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0))
+		return NULL;
+
 	/*
 	 * Calculate the total amount of dimms and csrows/cschannels while
 	 * in the old API emulation mode
 	 */
-	for (i = 0; i < n_layers; i++) {
-		tot_dimms *= layers[i].size;
-		if (layers[i].is_virt_csrow)
-			tot_csrows *= layers[i].size;
-		else
-			tot_channels *= layers[i].size;
+	for (idx = 0; idx < n_layers; idx++) {
+		tot_dimms *= layers[idx].size;
 
-		if (layers[i].type == EDAC_MC_LAYER_CHIP_SELECT)
+		if (layers[idx].is_virt_csrow)
+			tot_csrows *= layers[idx].size;
+		else
+			tot_channels *= layers[idx].size;
+
+		if (layers[idx].type == EDAC_MC_LAYER_CHIP_SELECT)
 			per_rank = true;
 	}
 
@@ -425,19 +431,15 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 	memset(&pos, 0, sizeof(pos));
 	row = 0;
 	chn = 0;
-	for (i = 0; i < tot_dimms; i++) {
+	for (idx = 0; idx < tot_dimms; idx++) {
 		chan = mci->csrows[row]->channels[chn];
-		off = EDAC_DIMM_OFF(layer, n_layers, pos[0], pos[1], pos[2]);
-		if (off < 0 || off >= tot_dimms) {
-			edac_mc_printk(mci, KERN_ERR, "EDAC core bug: EDAC_DIMM_OFF is trying to do an illegal data access\n");
-			goto error;
-		}
 
 		dimm = kzalloc(sizeof(**mci->dimms), GFP_KERNEL);
 		if (!dimm)
 			goto error;
-		mci->dimms[off] = dimm;
+		mci->dimms[idx] = dimm;
 		dimm->mci = mci;
+		dimm->idx = idx;
 
 		/*
 		 * Copy DIMM location and initialize it.
@@ -503,16 +505,10 @@ void edac_mc_free(struct mem_ctl_info *mci)
 {
 	edac_dbg(1, "\n");
 
-	/* If we're not yet registered with sysfs free only what was allocated
-	 * in edac_mc_alloc().
-	 */
-	if (!device_is_registered(&mci->dev)) {
-		_edac_mc_free(mci);
-		return;
-	}
+	if (device_is_registered(&mci->dev))
+		edac_unregister_sysfs(mci);
 
-	/* the mci instance is freed here, when the sysfs object is dropped */
-	edac_unregister_sysfs(mci);
+	_edac_mc_free(mci);
 }
 EXPORT_SYMBOL_GPL(edac_mc_free);
 
@@ -714,6 +710,7 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 		edac_mc_dump_mci(mci);
 
 	if (edac_debug_level >= 4) {
+		struct dimm_info *dimm;
 		int i;
 
 		for (i = 0; i < mci->nr_csrows; i++) {
@@ -730,9 +727,9 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 				if (csrow->channels[j]->dimm->nr_pages)
 					edac_mc_dump_channel(csrow->channels[j]);
 		}
-		for (i = 0; i < mci->tot_dimms; i++)
-			if (mci->dimms[i]->nr_pages)
-				edac_mc_dump_dimm(mci->dimms[i], i);
+
+		mci_for_each_dimm(mci, dimm)
+			edac_mc_dump_dimm(dimm);
 	}
 #endif
 	mutex_lock(&mem_ctls_mutex);
@@ -1055,6 +1052,21 @@ void edac_raw_mc_handle_error(const enum hw_event_mc_err_type type,
 {
 	char detail[80];
 	int pos[EDAC_MAX_LAYERS] = { e->top_layer, e->mid_layer, e->low_layer };
+	u8 grain_bits;
+
+	/* Sanity-check driver-supplied grain value. */
+	if (WARN_ON_ONCE(!e->grain))
+		e->grain = 1;
+
+	grain_bits = fls_long(e->grain - 1);
+
+	/* Report the error via the trace interface */
+	if (IS_ENABLED(CONFIG_RAS))
+		trace_mc_event(type, e->msg, e->label, e->error_count,
+			       mci->mc_idx, e->top_layer, e->mid_layer,
+			       e->low_layer,
+			       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
+			       grain_bits, e->syndrome, e->other_detail);
 
 	/* Memory type dependent details about the error */
 	if (type == HW_EVENT_ERR_CORRECTED) {
@@ -1090,11 +1102,11 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  const char *msg,
 			  const char *other_detail)
 {
+	struct dimm_info *dimm;
 	char *p;
 	int row = -1, chan = -1;
 	int pos[EDAC_MAX_LAYERS] = { top_layer, mid_layer, low_layer };
 	int i, n_labels = 0;
-	u8 grain_bits;
 	struct edac_raw_error_desc *e = &mci->error_desc;
 
 	edac_dbg(3, "MC%d\n", mci->mc_idx);
@@ -1150,9 +1162,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	p = e->label;
 	*p = '\0';
 
-	for (i = 0; i < mci->tot_dimms; i++) {
-		struct dimm_info *dimm = mci->dimms[i];
-
+	mci_for_each_dimm(mci, dimm) {
 		if (top_layer >= 0 && top_layer != dimm->location[0])
 			continue;
 		if (mid_layer >= 0 && mid_layer != dimm->location[1])
@@ -1170,37 +1180,37 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 		 * channel/memory controller/...  may be affected.
 		 * Also, don't show errors for empty DIMM slots.
 		 */
-		if (e->enable_per_layer_report && dimm->nr_pages) {
-			if (n_labels >= EDAC_MAX_LABELS) {
-				e->enable_per_layer_report = false;
-				break;
-			}
-			n_labels++;
-			if (p != e->label) {
-				strcpy(p, OTHER_LABEL);
-				p += strlen(OTHER_LABEL);
-			}
-			strcpy(p, dimm->label);
-			p += strlen(p);
-			*p = '\0';
+		if (!e->enable_per_layer_report || !dimm->nr_pages)
+			continue;
 
-			/*
-			 * get csrow/channel of the DIMM, in order to allow
-			 * incrementing the compat API counters
-			 */
-			edac_dbg(4, "%s csrows map: (%d,%d)\n",
-				 mci->csbased ? "rank" : "dimm",
-				 dimm->csrow, dimm->cschannel);
-			if (row == -1)
-				row = dimm->csrow;
-			else if (row >= 0 && row != dimm->csrow)
-				row = -2;
-
-			if (chan == -1)
-				chan = dimm->cschannel;
-			else if (chan >= 0 && chan != dimm->cschannel)
-				chan = -2;
+		if (n_labels >= EDAC_MAX_LABELS) {
+			e->enable_per_layer_report = false;
+			break;
 		}
+		n_labels++;
+		if (p != e->label) {
+			strcpy(p, OTHER_LABEL);
+			p += strlen(OTHER_LABEL);
+		}
+		strcpy(p, dimm->label);
+		p += strlen(p);
+
+		/*
+		 * get csrow/channel of the DIMM, in order to allow
+		 * incrementing the compat API counters
+		 */
+		edac_dbg(4, "%s csrows map: (%d,%d)\n",
+			mci->csbased ? "rank" : "dimm",
+			dimm->csrow, dimm->cschannel);
+		if (row == -1)
+			row = dimm->csrow;
+		else if (row >= 0 && row != dimm->csrow)
+			row = -2;
+
+		if (chan == -1)
+			chan = dimm->cschannel;
+		else if (chan >= 0 && chan != dimm->cschannel)
+			chan = -2;
 	}
 
 	if (!e->enable_per_layer_report) {
@@ -1233,20 +1243,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	}
 	if (p > e->location)
 		*(p - 1) = '\0';
-
-	/* Sanity-check driver-supplied grain value. */
-	if (WARN_ON_ONCE(!e->grain))
-		e->grain = 1;
-
-	grain_bits = fls_long(e->grain - 1);
-
-	/* Report the error via the trace interface */
-	if (IS_ENABLED(CONFIG_RAS))
-		trace_mc_event(type, e->msg, e->label, e->error_count,
-			       mci->mc_idx, e->top_layer, e->mid_layer,
-			       e->low_layer,
-			       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
-			       grain_bits, e->syndrome, e->other_detail);
 
 	edac_raw_mc_handle_error(type, mci, e);
 }

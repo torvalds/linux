@@ -14,6 +14,8 @@ rtw88-y += main.o \
 	   fw.o \
 	   ps.o \
 	   sec.o \
+	   bf.o \
+	   wow.o \
 	   regd.o
 
 rtw88-$(CONFIG_RTW88_8822BE)	+= rtw8822b.o rtw8822b_table.o

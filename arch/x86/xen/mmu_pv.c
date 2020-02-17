@@ -67,7 +67,7 @@
 #include <asm/linkage.h>
 #include <asm/page.h>
 #include <asm/init.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/smp.h>
 #include <asm/tlb.h>
 

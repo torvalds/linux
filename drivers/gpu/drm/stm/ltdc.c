@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
@@ -436,9 +437,6 @@ static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
 	/* Commit shadow registers = update planes at next vblank */
 	reg_set(ldev->regs, LTDC_SRCR, SRCR_VBR);
 
-	/* Enable LTDC */
-	reg_set(ldev->regs, LTDC_GCR, GCR_LTDCEN);
-
 	drm_crtc_vblank_on(crtc);
 }
 
@@ -451,9 +449,6 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 	DRM_DEBUG_DRIVER("\n");
 
 	drm_crtc_vblank_off(crtc);
-
-	/* disable LTDC */
-	reg_clear(ldev->regs, LTDC_GCR, GCR_LTDCEN);
 
 	/* disable IRQ */
 	reg_clear(ldev->regs, LTDC_IER, IER_RRIE | IER_FUIE | IER_TERRIE);
@@ -1040,6 +1035,54 @@ static const struct drm_encoder_funcs ltdc_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static void ltdc_encoder_disable(struct drm_encoder *encoder)
+{
+	struct drm_device *ddev = encoder->dev;
+	struct ltdc_device *ldev = ddev->dev_private;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	/* Disable LTDC */
+	reg_clear(ldev->regs, LTDC_GCR, GCR_LTDCEN);
+
+	/* Set to sleep state the pinctrl whatever type of encoder */
+	pinctrl_pm_select_sleep_state(ddev->dev);
+}
+
+static void ltdc_encoder_enable(struct drm_encoder *encoder)
+{
+	struct drm_device *ddev = encoder->dev;
+	struct ltdc_device *ldev = ddev->dev_private;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	/* Enable LTDC */
+	reg_set(ldev->regs, LTDC_GCR, GCR_LTDCEN);
+}
+
+static void ltdc_encoder_mode_set(struct drm_encoder *encoder,
+				  struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
+{
+	struct drm_device *ddev = encoder->dev;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	/*
+	 * Set to default state the pinctrl only with DPI type.
+	 * Others types like DSI, don't need pinctrl due to
+	 * internal bridge (the signals do not come out of the chipset).
+	 */
+	if (encoder->encoder_type == DRM_MODE_ENCODER_DPI)
+		pinctrl_pm_select_default_state(ddev->dev);
+}
+
+static const struct drm_encoder_helper_funcs ltdc_encoder_helper_funcs = {
+	.disable = ltdc_encoder_disable,
+	.enable = ltdc_encoder_enable,
+	.mode_set = ltdc_encoder_mode_set,
+};
+
 static int ltdc_encoder_init(struct drm_device *ddev, struct drm_bridge *bridge)
 {
 	struct drm_encoder *encoder;
@@ -1054,6 +1097,8 @@ static int ltdc_encoder_init(struct drm_device *ddev, struct drm_bridge *bridge)
 
 	drm_encoder_init(ddev, encoder, &ltdc_encoder_funcs,
 			 DRM_MODE_ENCODER_DPI, NULL);
+
+	drm_encoder_helper_add(encoder, &ltdc_encoder_helper_funcs);
 
 	ret = drm_bridge_attach(encoder, bridge, NULL);
 	if (ret) {
@@ -1236,8 +1281,8 @@ int ltdc_load(struct drm_device *ddev)
 	/* Add endpoints panels or bridges if any */
 	for (i = 0; i < MAX_ENDPOINTS; i++) {
 		if (panel[i]) {
-			bridge[i] = drm_panel_bridge_add(panel[i],
-							DRM_MODE_CONNECTOR_DPI);
+			bridge[i] = drm_panel_bridge_add_typed(panel[i],
+							       DRM_MODE_CONNECTOR_DPI);
 			if (IS_ERR(bridge[i])) {
 				DRM_ERROR("panel-bridge endpoint %d\n", i);
 				ret = PTR_ERR(bridge[i]);
@@ -1279,6 +1324,8 @@ int ltdc_load(struct drm_device *ddev)
 	ddev->irq_enabled = 1;
 
 	clk_disable_unprepare(ldev->pixel_clk);
+
+	pinctrl_pm_select_sleep_state(ddev->dev);
 
 	pm_runtime_enable(ddev->dev);
 

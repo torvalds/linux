@@ -33,7 +33,6 @@
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/platform_data/i2c-pxa.h>
-#include <linux/usb/gpio_vbus.h>
 #include <linux/reboot.h>
 #include <linux/memblock.h>
 
@@ -240,18 +239,20 @@ static struct scoop_pcmcia_config tosa_pcmcia_config = {
 /*
  * USB Device Controller
  */
-static struct gpio_vbus_mach_info tosa_udc_info = {
-	.gpio_pullup		= TOSA_GPIO_USB_PULLUP,
-	.gpio_vbus		= TOSA_GPIO_USB_IN,
-	.gpio_vbus_inverted	= 1,
+static struct gpiod_lookup_table tosa_udc_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_USB_IN,
+			    "vbus", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_USB_PULLUP,
+			    "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device tosa_gpio_vbus = {
 	.name	= "gpio-vbus",
 	.id	= -1,
-	.dev	= {
-		.platform_data	= &tosa_udc_info,
-	},
 };
 
 /*
@@ -813,6 +814,26 @@ static struct pxa2xx_spi_controller pxa_ssp_master_info = {
 	.num_chipselect	= 1,
 };
 
+static struct gpiod_lookup_table tosa_lcd_gpio_table = {
+	.dev_id = "spi2.0",
+	.table = {
+		GPIO_LOOKUP("tc6393xb",
+			    TOSA_GPIO_TG_ON - TOSA_TC6393XB_GPIO_BASE,
+			    "tg #pwr", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table tosa_lcd_bl_gpio_table = {
+	.dev_id = "i2c-tosa-bl",
+	.table = {
+		GPIO_LOOKUP("tc6393xb",
+			    TOSA_GPIO_BL_C20MA - TOSA_TC6393XB_GPIO_BASE,
+			    "backlight", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct spi_board_info spi_board_info[] __initdata = {
 	{
 		.modalias	= "tosa-lcd",
@@ -923,10 +944,13 @@ static void __init tosa_init(void)
 	platform_scoop_config = &tosa_pcmcia_config;
 
 	pxa2xx_set_spi_info(2, &pxa_ssp_master_info);
+	gpiod_add_lookup_table(&tosa_lcd_gpio_table);
+	gpiod_add_lookup_table(&tosa_lcd_bl_gpio_table);
 	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 
 	clk_add_alias("CLK_CK3P6MI", tc6393xb_device.name, "GPIO11_CLK", NULL);
 
+	gpiod_add_lookup_table(&tosa_udc_gpiod_table);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

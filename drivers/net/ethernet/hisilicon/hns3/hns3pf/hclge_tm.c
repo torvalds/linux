@@ -46,7 +46,7 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 #define DIVISOR_CLK		(1000 * 8)
 #define DIVISOR_IR_B_126	(126 * DIVISOR_CLK)
 
-	const u16 tick_array[HCLGE_SHAPER_LVL_CNT] = {
+	static const u16 tick_array[HCLGE_SHAPER_LVL_CNT] = {
 		6 * 256,        /* Prioriy level */
 		6 * 32,         /* Prioriy group level */
 		6 * 8,          /* Port level */
@@ -511,6 +511,49 @@ static int hclge_tm_qs_bp_cfg(struct hclge_dev *hdev, u8 tc, u8 grp_id,
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
+int hclge_tm_qs_shaper_cfg(struct hclge_vport *vport, int max_tx_rate)
+{
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hclge_qs_shapping_cmd *shap_cfg_cmd;
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_desc desc;
+	u8 ir_b, ir_u, ir_s;
+	u32 shaper_para;
+	int ret, i;
+
+	if (!max_tx_rate)
+		max_tx_rate = HCLGE_ETHER_MAX_RATE;
+
+	ret = hclge_shaper_para_calc(max_tx_rate, HCLGE_SHAPER_LVL_QSET,
+				     &ir_b, &ir_u, &ir_s);
+	if (ret)
+		return ret;
+
+	shaper_para = hclge_tm_get_shapping_para(ir_b, ir_u, ir_s,
+						 HCLGE_SHAPER_BS_U_DEF,
+						 HCLGE_SHAPER_BS_S_DEF);
+
+	for (i = 0; i < kinfo->num_tc; i++) {
+		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QCN_SHAPPING_CFG,
+					   false);
+
+		shap_cfg_cmd = (struct hclge_qs_shapping_cmd *)desc.data;
+		shap_cfg_cmd->qs_id = cpu_to_le16(vport->qs_offset + i);
+		shap_cfg_cmd->qs_shapping_para = cpu_to_le32(shaper_para);
+
+		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"vf%u, qs%u failed to set tx_rate:%d, ret=%d\n",
+				vport->vport_id, shap_cfg_cmd->qs_id,
+				max_tx_rate, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
@@ -523,7 +566,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	 */
 	kinfo->num_tc = vport->vport_id ? 1 :
 			min_t(u16, vport->alloc_tqps, hdev->tm_info.num_tc);
-	vport->qs_offset = (vport->vport_id ? hdev->tm_info.num_tc : 0) +
+	vport->qs_offset = (vport->vport_id ? HNAE3_MAX_TC : 0) +
 				(vport->vport_id ? (vport->vport_id - 1) : 0);
 
 	max_rss_size = min_t(u16, hdev->rss_size_max,
@@ -532,14 +575,21 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	/* Set to user value, no larger than max_rss_size. */
 	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
 	    kinfo->req_rss_size <= max_rss_size) {
-		dev_info(&hdev->pdev->dev, "rss changes from %d to %d\n",
+		dev_info(&hdev->pdev->dev, "rss changes from %u to %u\n",
 			 kinfo->rss_size, kinfo->req_rss_size);
 		kinfo->rss_size = kinfo->req_rss_size;
 	} else if (kinfo->rss_size > max_rss_size ||
 		   (!kinfo->req_rss_size && kinfo->rss_size < max_rss_size)) {
+		/* if user not set rss, the rss_size should compare with the
+		 * valid msi numbers to ensure one to one map between tqp and
+		 * irq as default.
+		 */
+		if (!kinfo->req_rss_size)
+			max_rss_size = min_t(u16, max_rss_size,
+					     (hdev->num_nic_msi - 1) /
+					     kinfo->num_tc);
+
 		/* Set to the maximum specification value (max_rss_size). */
-		dev_info(&hdev->pdev->dev, "rss changes from %d to %d\n",
-			 kinfo->rss_size, max_rss_size);
 		kinfo->rss_size = max_rss_size;
 	}
 
@@ -564,7 +614,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	}
 
 	memcpy(kinfo->prio_tc, hdev->tm_info.prio_tc,
-	       FIELD_SIZEOF(struct hnae3_knic_private_info, prio_tc));
+	       sizeof_field(struct hnae3_knic_private_info, prio_tc));
 }
 
 static void hclge_tm_vport_info_update(struct hclge_dev *hdev)

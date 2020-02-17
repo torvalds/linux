@@ -155,6 +155,7 @@ static const struct coda_codec coda7_codecs[] = {
 static const struct coda_codec coda9_codecs[] = {
 	CODA_CODEC(CODA9_MODE_ENCODE_H264, V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_H264,   1920, 1088),
 	CODA_CODEC(CODA9_MODE_ENCODE_MP4,  V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_MPEG4,  1920, 1088),
+	CODA_CODEC(CODA9_MODE_ENCODE_MJPG, V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_JPEG,   8192, 8192),
 	CODA_CODEC(CODA9_MODE_DECODE_H264, V4L2_PIX_FMT_H264,   V4L2_PIX_FMT_YUV420, 1920, 1088),
 	CODA_CODEC(CODA9_MODE_DECODE_MP2,  V4L2_PIX_FMT_MPEG2,  V4L2_PIX_FMT_YUV420, 1920, 1088),
 	CODA_CODEC(CODA9_MODE_DECODE_MP4,  V4L2_PIX_FMT_MPEG4,  V4L2_PIX_FMT_YUV420, 1920, 1088),
@@ -235,6 +236,22 @@ static const struct coda_video_device coda_bit_jpeg_decoder = {
 	},
 };
 
+static const struct coda_video_device coda9_jpeg_encoder = {
+	.name = "coda-jpeg-encoder",
+	.type = CODA_INST_ENCODER,
+	.ops = &coda9_jpeg_encode_ops,
+	.direct = true,
+	.src_formats = {
+		V4L2_PIX_FMT_NV12,
+		V4L2_PIX_FMT_YUV420,
+		V4L2_PIX_FMT_YVU420,
+		V4L2_PIX_FMT_YUV422P,
+	},
+	.dst_formats = {
+		V4L2_PIX_FMT_JPEG,
+	},
+};
+
 static const struct coda_video_device *codadx6_video_devices[] = {
 	&coda_bit_encoder,
 };
@@ -252,6 +269,7 @@ static const struct coda_video_device *coda7_video_devices[] = {
 };
 
 static const struct coda_video_device *coda9_video_devices[] = {
+	&coda9_jpeg_encoder,
 	&coda_bit_encoder,
 	&coda_bit_decoder,
 };
@@ -721,7 +739,8 @@ static int coda_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f,
 		ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
 		break;
 	case V4L2_PIX_FMT_NV12:
-		if (!disable_tiling && ctx->dev->devtype->product == CODA_960) {
+		if (!disable_tiling && ctx->use_bit &&
+		    ctx->dev->devtype->product == CODA_960) {
 			ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
 			break;
 		}
@@ -933,7 +952,8 @@ static int coda_g_selection(struct file *file, void *fh,
 		rsel = &r;
 		/* fallthrough */
 	case V4L2_SEL_TGT_CROP:
-		if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT ||
+		    ctx->inst_type == CODA_INST_DECODER)
 			return -EINVAL;
 		break;
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
@@ -942,7 +962,8 @@ static int coda_g_selection(struct file *file, void *fh,
 		/* fallthrough */
 	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
-		if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+		    ctx->inst_type == CODA_INST_ENCODER)
 			return -EINVAL;
 		break;
 	default:
@@ -1084,16 +1105,16 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 
 	switch (dc->cmd) {
 	case V4L2_DEC_CMD_START:
-		mutex_lock(&ctx->bitstream_mutex);
 		mutex_lock(&dev->coda_mutex);
+		mutex_lock(&ctx->bitstream_mutex);
 		coda_bitstream_flush(ctx);
-		mutex_unlock(&dev->coda_mutex);
 		dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
 					 V4L2_BUF_TYPE_VIDEO_CAPTURE);
 		vb2_clear_last_buffer_dequeued(dst_vq);
 		ctx->bit_stream_param &= ~CODA_BIT_STREAM_END_FLAG;
 		coda_fill_bitstream(ctx, NULL);
 		mutex_unlock(&ctx->bitstream_mutex);
+		mutex_unlock(&dev->coda_mutex);
 		break;
 	case V4L2_DEC_CMD_STOP:
 		stream_end = false;
@@ -1419,7 +1440,7 @@ static void coda_pic_run_work(struct work_struct *work)
 
 		if (ctx->ops->run_timeout)
 			ctx->ops->run_timeout(ctx);
-	} else if (!ctx->aborting) {
+	} else {
 		ctx->ops->finish_run(ctx);
 	}
 
@@ -1785,7 +1806,7 @@ static void coda_buf_queue(struct vb2_buffer *vb)
 				coda_queue_source_change_event(ctx);
 		}
 	} else {
-		if (ctx->inst_type == CODA_INST_ENCODER &&
+		if ((ctx->inst_type == CODA_INST_ENCODER || !ctx->use_bit) &&
 		    vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
 			vbuf->sequence = ctx->qsequence++;
 		v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
@@ -2387,6 +2408,7 @@ int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
 
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	dst_vq->io_modes = VB2_DMABUF | VB2_MMAP;
+	dst_vq->dma_attrs = DMA_ATTR_NO_KERNEL_MAPPING;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 
 	return coda_queue_init(priv, dst_vq);
@@ -2959,8 +2981,6 @@ static int coda_probe(struct platform_device *pdev)
 	else
 		return -EINVAL;
 
-	spin_lock_init(&dev->irqlock);
-
 	dev->dev = &pdev->dev;
 	dev->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(dev->clk_per)) {
@@ -2983,16 +3003,30 @@ static int coda_probe(struct platform_device *pdev)
 	irq = platform_get_irq_byname(pdev, "bit");
 	if (irq < 0)
 		irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, irq, coda_irq_handler, 0,
 			       dev_name(&pdev->dev), dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request irq: %d\n", ret);
 		return ret;
+	}
+
+	/* JPEG IRQ */
+	if (dev->devtype->product == CODA_960) {
+		irq = platform_get_irq_byname(pdev, "jpeg");
+		if (irq < 0)
+			return irq;
+
+		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+						coda9_jpeg_irq_handler,
+						IRQF_ONESHOT, CODA_NAME " jpeg",
+						dev);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "failed to request jpeg irq\n");
+			return ret;
+		}
 	}
 
 	dev->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev,

@@ -8,6 +8,7 @@
 #include <linux/of_graph.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_of.h>
 
 #include "tilcdc_drv.h"
@@ -139,8 +140,8 @@ int tilcdc_attach_external_device(struct drm_device *ddev)
 	}
 
 	if (panel) {
-		bridge = devm_drm_panel_bridge_add(ddev->dev, panel,
-						   DRM_MODE_CONNECTOR_DPI);
+		bridge = devm_drm_panel_bridge_add_typed(ddev->dev, panel,
+							 DRM_MODE_CONNECTOR_DPI);
 		if (IS_ERR(bridge)) {
 			ret = PTR_ERR(bridge);
 			goto err_encoder_cleanup;

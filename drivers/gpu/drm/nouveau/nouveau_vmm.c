@@ -69,8 +69,8 @@ nouveau_vma_del(struct nouveau_vma **pvma)
 		}
 		list_del(&vma->head);
 		kfree(*pvma);
-		*pvma = NULL;
 	}
+	*pvma = NULL;
 }
 
 int

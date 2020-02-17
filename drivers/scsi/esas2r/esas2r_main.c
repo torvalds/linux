@@ -613,8 +613,15 @@ static int __init esas2r_init(void)
 
 /* Handle ioctl calls to "/proc/scsi/esas2r/ATTOnode" */
 static const struct file_operations esas2r_proc_fops = {
-	.compat_ioctl	= esas2r_proc_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.unlocked_ioctl = esas2r_proc_ioctl,
+};
+
+static const struct proc_ops esas2r_proc_ops = {
+	.proc_ioctl		= esas2r_proc_ioctl,
+#ifdef CONFIG_COMPAT
+	.proc_compat_ioctl	= compat_ptr_ioctl,
+#endif
 };
 
 static struct Scsi_Host *esas2r_proc_host;
@@ -728,7 +735,7 @@ const char *esas2r_info(struct Scsi_Host *sh)
 
 			pde = proc_create(ATTONODE_NAME, 0,
 					  sh->hostt->proc_dir,
-					  &esas2r_proc_fops);
+					  &esas2r_proc_ops);
 
 			if (!pde) {
 				esas2r_log_dev(ESAS2R_LOG_WARN,

@@ -18,6 +18,17 @@ config DRM_PANEL_ARM_VERSATILE
 	  reference designs. The panel is detected using special registers
 	  in the Versatile family syscon registers.
 
+config DRM_PANEL_BOE_HIMAX8279D
+	tristate "Boe Himax8279d panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Boe Himax8279d
+	  TFT-LCD modules. The panel has a 1200x1920 resolution and uses
+	  24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host and has a built-in LED backlight.
+
 config DRM_PANEL_LVDS
 	tristate "Generic LVDS panel driver"
 	depends on OF
@@ -89,6 +100,17 @@ config DRM_PANEL_JDI_LT070ME05000
 
 config DRM_PANEL_KINGDISPLAY_KD097D04
 	tristate "Kingdisplay kd097d04 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Kingdisplay kd097d04
+	  TFT-LCD modules. The panel has a 1536x2048 resolution and uses
+	  24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host and has a built-in LED backlight.
+
+config DRM_PANEL_LEADTEK_LTK500HD1829
+	tristate "Leadtek LTK500HD1829 panel"
 	depends on OF
 	depends on DRM_MIPI_DSI
 	depends on BACKLIGHT_CLASS_DEVICE
@@ -316,6 +338,17 @@ config DRM_PANEL_SITRONIX_ST7789V
 	  Say Y here if you want to enable support for the Sitronix
 	  ST7789V controller for 240x320 LCD panels
 
+config DRM_PANEL_SONY_ACX424AKP
+	tristate "Sony ACX424AKP DSI command mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  Say Y here if you want to enable the Sony ACX424 display
+	  panel. This panel supports DSI in both command and video
+	  mode.
+
 config DRM_PANEL_SONY_ACX565AKM
 	tristate "Sony ACX565AKM panel"
 	depends on GPIOLIB && OF && SPI
@@ -355,4 +388,14 @@ config DRM_PANEL_TRULY_NT35597_WQXGA
 	help
 	  Say Y here if you want to enable support for Truly NT35597 WQXGA Dual DSI
 	  Video Mode panel
+
+config DRM_PANEL_XINPENG_XPP055C272
+	tristate "Xinpeng XPP055C272 panel driver"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Xinpeng
+	  XPP055C272 controller for 720x1280 LCD panels with MIPI/RGB/SPI
+	  system interfaces.
 endmenu

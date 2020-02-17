@@ -142,6 +142,8 @@ struct netvsc_device_info {
 	u32  send_section_size;
 	u32  recv_section_size;
 
+	struct bpf_prog *bprog;
+
 	u8 rss_key[NETVSC_HASH_KEYLEN];
 };
 
@@ -169,7 +171,6 @@ struct rndis_device {
 
 	u8 hw_mac_adr[ETH_ALEN];
 	u8 rss_key[NETVSC_HASH_KEYLEN];
-	u16 rx_table[ITAB_NUM];
 };
 
 
@@ -190,7 +191,8 @@ int netvsc_send(struct net_device *net,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer *page_buffer,
-		struct sk_buff *skb);
+		struct sk_buff *skb,
+		bool xdp_tx);
 void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp);
 int netvsc_recv_callback(struct net_device *net,
@@ -198,6 +200,16 @@ int netvsc_recv_callback(struct net_device *net,
 			 struct netvsc_channel *nvchan);
 void netvsc_channel_cb(void *context);
 int netvsc_poll(struct napi_struct *napi, int budget);
+
+u32 netvsc_run_xdp(struct net_device *ndev, struct netvsc_channel *nvchan,
+		   struct xdp_buff *xdp);
+unsigned int netvsc_xdp_fraglen(unsigned int len);
+struct bpf_prog *netvsc_xdp_get(struct netvsc_device *nvdev);
+int netvsc_xdp_set(struct net_device *dev, struct bpf_prog *prog,
+		   struct netlink_ext_ack *extack,
+		   struct netvsc_device *nvdev);
+int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog);
+int netvsc_bpf(struct net_device *dev, struct netdev_bpf *bpf);
 
 int rndis_set_subchannel(struct net_device *ndev,
 			 struct netvsc_device *nvdev,
@@ -609,7 +621,8 @@ struct nvsp_5_send_indirect_table {
 	/* The number of entries in the send indirection table */
 	u32 count;
 
-	/* The offset of the send indirection table from top of this struct.
+	/* The offset of the send indirection table from the beginning of
+	 * struct nvsp_message.
 	 * The send indirection table tells which channel to put the send
 	 * traffic on. Each entry is a channel number.
 	 */
@@ -822,7 +835,8 @@ struct nvsp_message {
 
 #define NETVSC_SUPPORTED_HW_FEATURES (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | \
 				      NETIF_F_TSO | NETIF_F_IPV6_CSUM | \
-				      NETIF_F_TSO6 | NETIF_F_LRO | NETIF_F_SG)
+				      NETIF_F_TSO6 | NETIF_F_LRO | \
+				      NETIF_F_SG | NETIF_F_RXHASH)
 
 #define VRSS_SEND_TAB_SIZE 16  /* must be power of 2 */
 #define VRSS_CHANNEL_MAX 64
@@ -830,6 +844,8 @@ struct nvsp_message {
 
 #define RNDIS_MAX_PKT_DEFAULT 8
 #define RNDIS_PKT_ALIGN_DEFAULT 8
+
+#define NETVSC_XDP_HDRM 256
 
 struct multi_send_data {
 	struct sk_buff *skb; /* skb containing the pkt */
@@ -853,6 +869,7 @@ struct multi_recv_comp {
 struct nvsc_rsc {
 	const struct ndis_pkt_8021q_info *vlan;
 	const struct ndis_tcp_ip_checksum_info *csum_info;
+	const u32 *hash_info;
 	u8 is_last; /* last RNDIS msg in a vmtransfer_page */
 	u32 cnt; /* #fragments in an RSC packet */
 	u32 pktlen; /* Full packet length */
@@ -865,6 +882,7 @@ struct netvsc_stats {
 	u64 bytes;
 	u64 broadcast;
 	u64 multicast;
+	u64 xdp_drop;
 	struct u64_stats_sync syncp;
 };
 
@@ -937,6 +955,8 @@ struct net_device_context {
 
 	u32 tx_table[VRSS_SEND_TAB_SIZE];
 
+	u16 rx_table[ITAB_NUM];
+
 	/* Ethtool settings */
 	u8 duplex;
 	u32 speed;
@@ -952,6 +972,9 @@ struct net_device_context {
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
+
+	/* Used to temporarily save the config info across hibernation */
+	struct netvsc_device_info *saved_netvsc_dev_info;
 };
 
 /* Per channel data */
@@ -964,6 +987,9 @@ struct netvsc_channel {
 	struct multi_recv_comp mrc;
 	atomic_t queue_sends;
 	struct nvsc_rsc rsc;
+
+	struct bpf_prog __rcu *bpf_prog;
+	struct xdp_rxq_info xdp_rxq;
 
 	struct netvsc_stats tx_stats;
 	struct netvsc_stats rx_stats;

@@ -6,6 +6,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/compat.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/pagemap.h>
@@ -354,6 +355,31 @@ static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return -ENOTTY;
 }
 
+#ifdef CONFIG_COMPAT
+static long gfs2_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	switch(cmd) {
+	/* These are just misnamed, they actually get/put from/to user an int */
+	case FS_IOC32_GETFLAGS:
+		cmd = FS_IOC_GETFLAGS;
+		break;
+	case FS_IOC32_SETFLAGS:
+		cmd = FS_IOC_SETFLAGS;
+		break;
+	/* Keep this list in sync with gfs2_ioctl */
+	case FITRIM:
+	case FS_IOC_GETFSLABEL:
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return gfs2_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
+}
+#else
+#define gfs2_compat_ioctl NULL
+#endif
+
 /**
  * gfs2_size_hint - Give a hint to the size of a write request
  * @filep: The struct file
@@ -381,27 +407,28 @@ static void gfs2_size_hint(struct file *filep, loff_t offset, size_t size)
 /**
  * gfs2_allocate_page_backing - Allocate blocks for a write fault
  * @page: The (locked) page to allocate backing for
+ * @length: Size of the allocation
  *
  * We try to allocate all the blocks required for the page in one go.  This
  * might fail for various reasons, so we keep trying until all the blocks to
  * back this page are allocated.  If some of the blocks are already allocated,
  * that is ok too.
  */
-static int gfs2_allocate_page_backing(struct page *page)
+static int gfs2_allocate_page_backing(struct page *page, unsigned int length)
 {
 	u64 pos = page_offset(page);
-	u64 size = PAGE_SIZE;
 
 	do {
 		struct iomap iomap = { };
 
-		if (gfs2_iomap_get_alloc(page->mapping->host, pos, 1, &iomap))
+		if (gfs2_iomap_get_alloc(page->mapping->host, pos, length, &iomap))
 			return -EIO;
 
-		iomap.length = min(iomap.length, size);
-		size -= iomap.length;
+		if (length < iomap.length)
+			iomap.length = length;
+		length -= iomap.length;
 		pos += iomap.length;
-	} while (size > 0);
+	} while (length > 0);
 
 	return 0;
 }
@@ -422,10 +449,10 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_alloc_parms ap = { .aflags = 0, };
-	unsigned long last_index;
-	u64 pos = page_offset(page);
+	u64 offset = page_offset(page);
 	unsigned int data_blocks, ind_blocks, rblocks;
 	struct gfs2_holder gh;
+	unsigned int length;
 	loff_t size;
 	int ret;
 
@@ -435,20 +462,39 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	if (ret)
 		goto out;
 
-	gfs2_size_hint(vmf->vma->vm_file, pos, PAGE_SIZE);
-
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	ret = gfs2_glock_nq(&gh);
 	if (ret)
 		goto out_uninit;
 
+	/* Check page index against inode size */
+	size = i_size_read(inode);
+	if (offset >= size) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
 	/* Update file times before taking page lock */
 	file_update_time(vmf->vma->vm_file);
+
+	/* page is wholly or partially inside EOF */
+	if (offset > size - PAGE_SIZE)
+		length = offset_in_page(size);
+	else
+		length = PAGE_SIZE;
+
+	gfs2_size_hint(vmf->vma->vm_file, offset, length);
 
 	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
-	if (!gfs2_write_alloc_required(ip, pos, PAGE_SIZE)) {
+	/*
+	 * iomap_writepage / iomap_writepages currently don't support inline
+	 * files, so always unstuff here.
+	 */
+
+	if (!gfs2_is_stuffed(ip) &&
+	    !gfs2_write_alloc_required(ip, offset, length)) {
 		lock_page(page);
 		if (!PageUptodate(page) || page->mapping != inode->i_mapping) {
 			ret = -EAGAIN;
@@ -461,7 +507,7 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	if (ret)
 		goto out_unlock;
 
-	gfs2_write_calc_reserv(ip, PAGE_SIZE, &data_blocks, &ind_blocks);
+	gfs2_write_calc_reserv(ip, length, &data_blocks, &ind_blocks);
 	ap.target = data_blocks + ind_blocks;
 	ret = gfs2_quota_lock_check(ip, &ap);
 	if (ret)
@@ -482,13 +528,6 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 		goto out_trans_fail;
 
 	lock_page(page);
-	ret = -EINVAL;
-	size = i_size_read(inode);
-	last_index = (size - 1) >> PAGE_SHIFT;
-	/* Check page index against inode size */
-	if (size == 0 || (page->index > last_index))
-		goto out_trans_end;
-
 	ret = -EAGAIN;
 	/* If truncated, we must retry the operation, we may have raced
 	 * with the glock demotion code.
@@ -501,7 +540,7 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	if (gfs2_is_stuffed(ip))
 		ret = gfs2_unstuff_dinode(ip, page);
 	if (ret == 0)
-		ret = gfs2_allocate_page_backing(page);
+		ret = gfs2_allocate_page_backing(page, length);
 
 out_trans_end:
 	if (ret)
@@ -732,7 +771,8 @@ static ssize_t gfs2_file_direct_read(struct kiocb *iocb, struct iov_iter *to)
 	if (ret)
 		goto out_uninit;
 
-	ret = iomap_dio_rw(iocb, to, &gfs2_iomap_ops, NULL);
+	ret = iomap_dio_rw(iocb, to, &gfs2_iomap_ops, NULL,
+			   is_sync_kiocb(iocb));
 
 	gfs2_glock_dq(&gh);
 out_uninit:
@@ -767,7 +807,8 @@ static ssize_t gfs2_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	if (offset + len > i_size_read(&ip->i_inode))
 		goto out;
 
-	ret = iomap_dio_rw(iocb, from, &gfs2_iomap_ops, NULL);
+	ret = iomap_dio_rw(iocb, from, &gfs2_iomap_ops, NULL,
+			   is_sync_kiocb(iocb));
 
 out:
 	gfs2_glock_dq(&gh);
@@ -806,7 +847,7 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct gfs2_inode *ip = GFS2_I(inode);
-	ssize_t written = 0, ret;
+	ssize_t ret;
 
 	ret = gfs2_rsqa_alloc(ip);
 	if (ret)
@@ -826,68 +867,58 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	inode_lock(inode);
 	ret = generic_write_checks(iocb, from);
 	if (ret <= 0)
-		goto out;
-
-	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = inode_to_bdi(inode);
+		goto out_unlock;
 
 	ret = file_remove_privs(file);
 	if (ret)
-		goto out2;
+		goto out_unlock;
 
 	ret = file_update_time(file);
 	if (ret)
-		goto out2;
+		goto out_unlock;
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
-		loff_t pos, endbyte;
-		ssize_t buffered;
+		ssize_t buffered, ret2;
 
-		written = gfs2_file_direct_write(iocb, from);
-		if (written < 0 || !iov_iter_count(from))
-			goto out2;
+		ret = gfs2_file_direct_write(iocb, from);
+		if (ret < 0 || !iov_iter_count(from))
+			goto out_unlock;
 
-		ret = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
-		if (unlikely(ret < 0))
-			goto out2;
-		buffered = ret;
+		iocb->ki_flags |= IOCB_DSYNC;
+		current->backing_dev_info = inode_to_bdi(inode);
+		buffered = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
+		current->backing_dev_info = NULL;
+		if (unlikely(buffered <= 0))
+			goto out_unlock;
 
 		/*
 		 * We need to ensure that the page cache pages are written to
 		 * disk and invalidated to preserve the expected O_DIRECT
-		 * semantics.
+		 * semantics.  If the writeback or invalidate fails, only report
+		 * the direct I/O range as we don't know if the buffered pages
+		 * made it to disk.
 		 */
-		pos = iocb->ki_pos;
-		endbyte = pos + buffered - 1;
-		ret = filemap_write_and_wait_range(mapping, pos, endbyte);
-		if (!ret) {
-			iocb->ki_pos += buffered;
-			written += buffered;
-			invalidate_mapping_pages(mapping,
-						 pos >> PAGE_SHIFT,
-						 endbyte >> PAGE_SHIFT);
-		} else {
-			/*
-			 * We don't know how much we wrote, so just return
-			 * the number of bytes which were direct-written
-			 */
-		}
+		iocb->ki_pos += buffered;
+		ret2 = generic_write_sync(iocb, buffered);
+		invalidate_mapping_pages(mapping,
+				(iocb->ki_pos - buffered) >> PAGE_SHIFT,
+				(iocb->ki_pos - 1) >> PAGE_SHIFT);
+		if (!ret || ret2 > 0)
+			ret += ret2;
 	} else {
+		current->backing_dev_info = inode_to_bdi(inode);
 		ret = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
-		if (likely(ret > 0))
+		current->backing_dev_info = NULL;
+		if (likely(ret > 0)) {
 			iocb->ki_pos += ret;
+			ret = generic_write_sync(iocb, ret);
+		}
 	}
 
-out2:
-	current->backing_dev_info = NULL;
-out:
+out_unlock:
 	inode_unlock(inode);
-	if (likely(ret > 0)) {
-		/* Handle various SYNC-type writes */
-		ret = generic_write_sync(iocb, ret);
-	}
-	return written ? written : ret;
+	return ret;
 }
 
 static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
@@ -933,6 +964,7 @@ out:
 	brelse(dibh);
 	return error;
 }
+
 /**
  * calc_max_reserv() - Reverse of write_calc_reserv. Given a number of
  *                     blocks, determine how many bytes can be written.
@@ -1180,7 +1212,7 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 		cmd = F_SETLK;
 		fl->fl_type = F_UNLCK;
 	}
-	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags))) {
+	if (unlikely(gfs2_withdrawn(sdp))) {
 		if (fl->fl_type == F_UNLCK)
 			locks_lock_file_wait(file, fl);
 		return -EIO;
@@ -1293,6 +1325,7 @@ const struct file_operations gfs2_file_fops = {
 	.write_iter	= gfs2_file_write_iter,
 	.iopoll		= iomap_dio_iopoll,
 	.unlocked_ioctl	= gfs2_ioctl,
+	.compat_ioctl	= gfs2_compat_ioctl,
 	.mmap		= gfs2_mmap,
 	.open		= gfs2_open,
 	.release	= gfs2_release,
@@ -1308,6 +1341,7 @@ const struct file_operations gfs2_file_fops = {
 const struct file_operations gfs2_dir_fops = {
 	.iterate_shared	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
+	.compat_ioctl	= gfs2_compat_ioctl,
 	.open		= gfs2_open,
 	.release	= gfs2_release,
 	.fsync		= gfs2_fsync,
@@ -1324,6 +1358,7 @@ const struct file_operations gfs2_file_fops_nolock = {
 	.write_iter	= gfs2_file_write_iter,
 	.iopoll		= iomap_dio_iopoll,
 	.unlocked_ioctl	= gfs2_ioctl,
+	.compat_ioctl	= gfs2_compat_ioctl,
 	.mmap		= gfs2_mmap,
 	.open		= gfs2_open,
 	.release	= gfs2_release,
@@ -1337,6 +1372,7 @@ const struct file_operations gfs2_file_fops_nolock = {
 const struct file_operations gfs2_dir_fops_nolock = {
 	.iterate_shared	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
+	.compat_ioctl	= gfs2_compat_ioctl,
 	.open		= gfs2_open,
 	.release	= gfs2_release,
 	.fsync		= gfs2_fsync,

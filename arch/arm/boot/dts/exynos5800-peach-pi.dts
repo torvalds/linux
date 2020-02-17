@@ -156,6 +156,15 @@
 	assigned-clock-parents = <&clock CLK_MAU_EPLL>;
 };
 
+/*
+ * Peach Pi board uses SoC revision with lower maximum frequency for A7 cores
+ * (1.3 GHz instead of 1.4 GHz) than Odroid XU3/XU4 boards.  Thus we need to
+ * update A7 OPPs table accordingly.
+ */
+&cluster_a7_opp_table {
+	/delete-node/opp-1400000000;
+};
+
 &cpu0 {
 	cpu-supply = <&buck2_reg>;
 };
@@ -257,6 +266,8 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12500>;
+				regulator-coupled-with = <&buck3_reg>;
+				regulator-coupled-max-spread = <300000>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -269,6 +280,8 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12500>;
+				regulator-coupled-with = <&buck2_reg>;
+				regulator-coupled-max-spread = <300000>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -1032,6 +1045,10 @@
 
 &serial_3 {
 	status = "okay";
+};
+
+&timer {
+	arm,cpu-registers-not-fw-configured;
 };
 
 &tmu_cpu0 {

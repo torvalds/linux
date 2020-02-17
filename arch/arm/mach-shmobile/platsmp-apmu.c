@@ -189,7 +189,7 @@ static void apmu_init_cpu(struct resource *res, int cpu, int bit)
 	if ((cpu >= ARRAY_SIZE(apmu_cpus)) || apmu_cpus[cpu].iomem)
 		return;
 
-	apmu_cpus[cpu].iomem = ioremap_nocache(res->start, resource_size(res));
+	apmu_cpus[cpu].iomem = ioremap(res->start, resource_size(res));
 	apmu_cpus[cpu].bit = bit;
 
 	pr_debug("apmu ioremap %d %d %pr\n", cpu, bit, res);

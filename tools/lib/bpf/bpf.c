@@ -32,6 +32,9 @@
 #include "libbpf.h"
 #include "libbpf_internal.h"
 
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
 /*
  * When building perf, unistd.h is overridden. __NR_bpf is
  * required to be defined explicitly.
@@ -95,7 +98,11 @@ int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 	attr.btf_key_type_id = create_attr->btf_key_type_id;
 	attr.btf_value_type_id = create_attr->btf_value_type_id;
 	attr.map_ifindex = create_attr->map_ifindex;
-	attr.inner_map_fd = create_attr->inner_map_fd;
+	if (attr.map_type == BPF_MAP_TYPE_STRUCT_OPS)
+		attr.btf_vmlinux_value_type_id =
+			create_attr->btf_vmlinux_value_type_id;
+	else
+		attr.inner_map_fd = create_attr->inner_map_fd;
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }
@@ -189,7 +196,7 @@ static void *
 alloc_zero_tailing_info(const void *orecord, __u32 cnt,
 			__u32 actual_rec_size, __u32 expected_rec_size)
 {
-	__u64 info_len = actual_rec_size * cnt;
+	__u64 info_len = (__u64)actual_rec_size * cnt;
 	void *info, *nrecord;
 	int i;
 
@@ -228,6 +235,16 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	memset(&attr, 0, sizeof(attr));
 	attr.prog_type = load_attr->prog_type;
 	attr.expected_attach_type = load_attr->expected_attach_type;
+	if (attr.prog_type == BPF_PROG_TYPE_STRUCT_OPS) {
+		attr.attach_btf_id = load_attr->attach_btf_id;
+	} else if (attr.prog_type == BPF_PROG_TYPE_TRACING ||
+		   attr.prog_type == BPF_PROG_TYPE_EXT) {
+		attr.attach_btf_id = load_attr->attach_btf_id;
+		attr.attach_prog_fd = load_attr->attach_prog_fd;
+	} else {
+		attr.prog_ifindex = load_attr->prog_ifindex;
+		attr.kern_version = load_attr->kern_version;
+	}
 	attr.insn_cnt = (__u32)load_attr->insns_cnt;
 	attr.insns = ptr_to_u64(load_attr->insns);
 	attr.license = ptr_to_u64(load_attr->license);
@@ -241,8 +258,6 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 		attr.log_size = 0;
 	}
 
-	attr.kern_version = load_attr->kern_version;
-	attr.prog_ifindex = load_attr->prog_ifindex;
 	attr.prog_btf_fd = load_attr->prog_btf_fd;
 	attr.func_info_rec_size = load_attr->func_info_rec_size;
 	attr.func_info_cnt = load_attr->func_info_cnt;
@@ -438,6 +453,64 @@ int bpf_map_freeze(int fd)
 	return sys_bpf(BPF_MAP_FREEZE, &attr, sizeof(attr));
 }
 
+static int bpf_map_batch_common(int cmd, int fd, void  *in_batch,
+				void *out_batch, void *keys, void *values,
+				__u32 *count,
+				const struct bpf_map_batch_opts *opts)
+{
+	union bpf_attr attr;
+	int ret;
+
+	if (!OPTS_VALID(opts, bpf_map_batch_opts))
+		return -EINVAL;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.batch.map_fd = fd;
+	attr.batch.in_batch = ptr_to_u64(in_batch);
+	attr.batch.out_batch = ptr_to_u64(out_batch);
+	attr.batch.keys = ptr_to_u64(keys);
+	attr.batch.values = ptr_to_u64(values);
+	attr.batch.count = *count;
+	attr.batch.elem_flags  = OPTS_GET(opts, elem_flags, 0);
+	attr.batch.flags = OPTS_GET(opts, flags, 0);
+
+	ret = sys_bpf(cmd, &attr, sizeof(attr));
+	*count = attr.batch.count;
+
+	return ret;
+}
+
+int bpf_map_delete_batch(int fd, void *keys, __u32 *count,
+			 const struct bpf_map_batch_opts *opts)
+{
+	return bpf_map_batch_common(BPF_MAP_DELETE_BATCH, fd, NULL,
+				    NULL, keys, NULL, count, opts);
+}
+
+int bpf_map_lookup_batch(int fd, void *in_batch, void *out_batch, void *keys,
+			 void *values, __u32 *count,
+			 const struct bpf_map_batch_opts *opts)
+{
+	return bpf_map_batch_common(BPF_MAP_LOOKUP_BATCH, fd, in_batch,
+				    out_batch, keys, values, count, opts);
+}
+
+int bpf_map_lookup_and_delete_batch(int fd, void *in_batch, void *out_batch,
+				    void *keys, void *values, __u32 *count,
+				    const struct bpf_map_batch_opts *opts)
+{
+	return bpf_map_batch_common(BPF_MAP_LOOKUP_AND_DELETE_BATCH,
+				    fd, in_batch, out_batch, keys, values,
+				    count, opts);
+}
+
+int bpf_map_update_batch(int fd, void *keys, void *values, __u32 *count,
+			 const struct bpf_map_batch_opts *opts)
+{
+	return bpf_map_batch_common(BPF_MAP_UPDATE_BATCH, fd, NULL, NULL,
+				    keys, values, count, opts);
+}
+
 int bpf_obj_pin(int fd, const char *pathname)
 {
 	union bpf_attr attr;
@@ -462,13 +535,28 @@ int bpf_obj_get(const char *pathname)
 int bpf_prog_attach(int prog_fd, int target_fd, enum bpf_attach_type type,
 		    unsigned int flags)
 {
+	DECLARE_LIBBPF_OPTS(bpf_prog_attach_opts, opts,
+		.flags = flags,
+	);
+
+	return bpf_prog_attach_xattr(prog_fd, target_fd, type, &opts);
+}
+
+int bpf_prog_attach_xattr(int prog_fd, int target_fd,
+			  enum bpf_attach_type type,
+			  const struct bpf_prog_attach_opts *opts)
+{
 	union bpf_attr attr;
+
+	if (!OPTS_VALID(opts, bpf_prog_attach_opts))
+		return -EINVAL;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.target_fd	   = target_fd;
 	attr.attach_bpf_fd = prog_fd;
 	attr.attach_type   = type;
-	attr.attach_flags  = flags;
+	attr.attach_flags  = OPTS_GET(opts, flags, 0);
+	attr.replace_bpf_fd = OPTS_GET(opts, replace_prog_fd, 0);
 
 	return sys_bpf(BPF_PROG_ATTACH, &attr, sizeof(attr));
 }

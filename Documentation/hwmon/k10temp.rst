@@ -21,9 +21,16 @@ Supported chips:
 
 * AMD Family 14h processors: "Brazos" (C/E/G/Z-Series)
 
-* AMD Family 15h processors: "Bulldozer" (FX-Series), "Trinity", "Kaveri", "Carrizo"
+* AMD Family 15h processors: "Bulldozer" (FX-Series), "Trinity", "Kaveri",
+  "Carrizo", "Stoney Ridge", "Bristol Ridge"
 
 * AMD Family 16h processors: "Kabini", "Mullins"
+
+* AMD Family 17h processors: "Zen", "Zen 2"
+
+* AMD Family 18h processors: "Hygon Dhyana"
+
+* AMD Family 19h processors: "Zen 3"
 
   Prefix: 'k10temp'
 
@@ -110,3 +117,12 @@ The maximum value for Tctl is available in the file temp1_max.
 If the BIOS has enabled hardware temperature control, the threshold at
 which the processor will throttle itself to avoid damage is available in
 temp1_crit and temp1_crit_hyst.
+
+On some AMD CPUs, there is a difference between the die temperature (Tdie) and
+the reported temperature (Tctl). Tdie is the real measured temperature, and
+Tctl is used for fan control. While Tctl is always available as temp1_input,
+the driver exports Tdie temperature as temp2_input for those CPUs which support
+it.
+
+Models from 17h family report relative temperature, the driver aims to
+compensate and report the real temperature.

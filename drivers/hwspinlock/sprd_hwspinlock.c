@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 #include "hwspinlock_internal.h"
@@ -79,11 +78,17 @@ static const struct hwspinlock_ops sprd_hwspinlock_ops = {
 	.relax = sprd_hwspinlock_relax,
 };
 
+static void sprd_hwspinlock_disable(void *data)
+{
+	struct sprd_hwspinlock_dev *sprd_hwlock = data;
+
+	clk_disable_unprepare(sprd_hwlock->clk);
+}
+
 static int sprd_hwspinlock_probe(struct platform_device *pdev)
 {
 	struct sprd_hwspinlock_dev *sprd_hwlock;
 	struct hwspinlock *lock;
-	struct resource *res;
 	int i, ret;
 
 	if (!pdev->dev.of_node)
@@ -96,8 +101,7 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 	if (!sprd_hwlock)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sprd_hwlock->base = devm_ioremap_resource(&pdev->dev, res);
+	sprd_hwlock->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sprd_hwlock->base))
 		return PTR_ERR(sprd_hwlock->base);
 
@@ -107,7 +111,17 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 		return PTR_ERR(sprd_hwlock->clk);
 	}
 
-	clk_prepare_enable(sprd_hwlock->clk);
+	ret = clk_prepare_enable(sprd_hwlock->clk);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev, sprd_hwspinlock_disable,
+				       sprd_hwlock);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"Failed to add hwspinlock disable action\n");
+		return ret;
+	}
 
 	/* set the hwspinlock to record user id to identify subsystems */
 	writel(HWSPINLOCK_USER_BITS, sprd_hwlock->base + HWSPINLOCK_RECCTRL);
@@ -118,27 +132,10 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, sprd_hwlock);
-	pm_runtime_enable(&pdev->dev);
 
-	ret = hwspin_lock_register(&sprd_hwlock->bank, &pdev->dev,
-				   &sprd_hwspinlock_ops, 0, SPRD_HWLOCKS_NUM);
-	if (ret) {
-		pm_runtime_disable(&pdev->dev);
-		clk_disable_unprepare(sprd_hwlock->clk);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int sprd_hwspinlock_remove(struct platform_device *pdev)
-{
-	struct sprd_hwspinlock_dev *sprd_hwlock = platform_get_drvdata(pdev);
-
-	hwspin_lock_unregister(&sprd_hwlock->bank);
-	pm_runtime_disable(&pdev->dev);
-	clk_disable_unprepare(sprd_hwlock->clk);
-	return 0;
+	return devm_hwspin_lock_register(&pdev->dev, &sprd_hwlock->bank,
+					 &sprd_hwspinlock_ops, 0,
+					 SPRD_HWLOCKS_NUM);
 }
 
 static const struct of_device_id sprd_hwspinlock_of_match[] = {
@@ -149,7 +146,6 @@ MODULE_DEVICE_TABLE(of, sprd_hwspinlock_of_match);
 
 static struct platform_driver sprd_hwspinlock_driver = {
 	.probe = sprd_hwspinlock_probe,
-	.remove = sprd_hwspinlock_remove,
 	.driver = {
 		.name = "sprd_hwspinlock",
 		.of_match_table = of_match_ptr(sprd_hwspinlock_of_match),

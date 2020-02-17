@@ -127,7 +127,8 @@ ssize_t part_stat_show(struct device *dev,
 		"%8lu %8lu %8llu %8u "
 		"%8lu %8lu %8llu %8u "
 		"%8u %8u %8u "
-		"%8lu %8lu %8llu %8u"
+		"%8lu %8lu %8llu %8u "
+		"%8lu %8u"
 		"\n",
 		part_stat_read(p, ios[STAT_READ]),
 		part_stat_read(p, merges[STAT_READ]),
@@ -143,7 +144,9 @@ ssize_t part_stat_show(struct device *dev,
 		part_stat_read(p, ios[STAT_DISCARD]),
 		part_stat_read(p, merges[STAT_DISCARD]),
 		(unsigned long long)part_stat_read(p, sectors[STAT_DISCARD]),
-		(unsigned int)part_stat_read_msecs(p, STAT_DISCARD));
+		(unsigned int)part_stat_read_msecs(p, STAT_DISCARD),
+		part_stat_read(p, ios[STAT_FLUSH]),
+		(unsigned int)part_stat_read_msecs(p, STAT_FLUSH));
 }
 
 ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
@@ -318,6 +321,24 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	const char *dname;
 	int err;
 
+	/*
+	 * Partitions are not supported on zoned block devices that are used as
+	 * such.
+	 */
+	switch (disk->queue->limits.zoned) {
+	case BLK_ZONED_HM:
+		pr_warn("%s: partitions not supported on host managed zoned block device\n",
+			disk->disk_name);
+		return ERR_PTR(-ENXIO);
+	case BLK_ZONED_HA:
+		pr_info("%s: disabling host aware zoned block device support due to partitions\n",
+			disk->disk_name);
+		disk->queue->limits.zoned = BLK_ZONED_NONE;
+		break;
+	case BLK_ZONED_NONE:
+		break;
+	}
+
 	err = disk_expand_part_tbl(disk, partno);
 	if (err)
 		return ERR_PTR(err);
@@ -439,12 +460,14 @@ static bool disk_unlock_native_capacity(struct gendisk *disk)
 	}
 }
 
-static int drop_partitions(struct gendisk *disk, struct block_device *bdev)
+int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev)
 {
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 	int res;
 
+	if (!disk_part_scan_enabled(disk))
+		return 0;
 	if (bdev->bd_part_count || bdev->bd_super)
 		return -EBUSY;
 	res = invalidate_partition(disk, 0);
@@ -459,204 +482,124 @@ static int drop_partitions(struct gendisk *disk, struct block_device *bdev)
 	return 0;
 }
 
-static bool part_zone_aligned(struct gendisk *disk,
-			      struct block_device *bdev,
-			      sector_t from, sector_t size)
+static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
+		struct parsed_partitions *state, int p)
 {
-	unsigned int zone_sectors = bdev_zone_sectors(bdev);
+	sector_t size = state->parts[p].size;
+	sector_t from = state->parts[p].from;
+	struct hd_struct *part;
 
-	/*
-	 * If this function is called, then the disk is a zoned block device
-	 * (host-aware or host-managed). This can be detected even if the
-	 * zoned block device support is disabled (CONFIG_BLK_DEV_ZONED not
-	 * set). In this case, however, only host-aware devices will be seen
-	 * as a block device is not created for host-managed devices. Without
-	 * zoned block device support, host-aware drives can still be used as
-	 * regular block devices (no zone operation) and their zone size will
-	 * be reported as 0. Allow this case.
-	 */
-	if (!zone_sectors)
+	if (!size)
 		return true;
 
-	/*
-	 * Check partition start and size alignement. If the drive has a
-	 * smaller last runt zone, ignore it and allow the partition to
-	 * use it. Check the zone size too: it should be a power of 2 number
-	 * of sectors.
-	 */
-	if (WARN_ON_ONCE(!is_power_of_2(zone_sectors))) {
-		u32 rem;
-
-		div_u64_rem(from, zone_sectors, &rem);
-		if (rem)
+	if (from >= get_capacity(disk)) {
+		printk(KERN_WARNING
+		       "%s: p%d start %llu is beyond EOD, ",
+		       disk->disk_name, p, (unsigned long long) from);
+		if (disk_unlock_native_capacity(disk))
 			return false;
-		if ((from + size) < get_capacity(disk)) {
-			div_u64_rem(size, zone_sectors, &rem);
-			if (rem)
-				return false;
-		}
-
-	} else {
-
-		if (from & (zone_sectors - 1))
-			return false;
-		if ((from + size) < get_capacity(disk) &&
-		    (size & (zone_sectors - 1)))
-			return false;
-
+		return true;
 	}
 
+	if (from + size > get_capacity(disk)) {
+		printk(KERN_WARNING
+		       "%s: p%d size %llu extends beyond EOD, ",
+		       disk->disk_name, p, (unsigned long long) size);
+
+		if (disk_unlock_native_capacity(disk))
+			return false;
+
+		/*
+		 * We can not ignore partitions of broken tables created by for
+		 * example camera firmware, but we limit them to the end of the
+		 * disk to avoid creating invalid block devices.
+		 */
+		size = get_capacity(disk) - from;
+	}
+
+	part = add_partition(disk, p, from, size, state->parts[p].flags,
+			     &state->parts[p].info);
+	if (IS_ERR(part) && PTR_ERR(part) != -ENXIO) {
+		printk(KERN_ERR " %s: p%d could not be added: %ld\n",
+		       disk->disk_name, p, -PTR_ERR(part));
+		return true;
+	}
+
+#ifdef CONFIG_BLK_DEV_MD
+	if (state->parts[p].flags & ADDPART_FLAG_RAID)
+		md_autodetect_dev(part_to_dev(part)->devt);
+#endif
 	return true;
 }
 
-int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
+int blk_add_partitions(struct gendisk *disk, struct block_device *bdev)
 {
-	struct parsed_partitions *state = NULL;
-	struct hd_struct *part;
-	int p, highest, res;
-rescan:
-	if (state && !IS_ERR(state)) {
-		free_partitions(state);
-		state = NULL;
-	}
+	struct parsed_partitions *state;
+	int ret = -EAGAIN, p, highest;
 
-	res = drop_partitions(disk, bdev);
-	if (res)
-		return res;
+	if (!disk_part_scan_enabled(disk))
+		return 0;
 
-	if (disk->fops->revalidate_disk)
-		disk->fops->revalidate_disk(disk);
-	check_disk_size_change(disk, bdev, true);
-	bdev->bd_invalidated = 0;
-	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
+	state = check_partition(disk, bdev);
+	if (!state)
 		return 0;
 	if (IS_ERR(state)) {
 		/*
-		 * I/O error reading the partition table.  If any
-		 * partition code tried to read beyond EOD, retry
-		 * after unlocking native capacity.
+		 * I/O error reading the partition table.  If we tried to read
+		 * beyond EOD, retry after unlocking the native capacity.
 		 */
 		if (PTR_ERR(state) == -ENOSPC) {
 			printk(KERN_WARNING "%s: partition table beyond EOD, ",
 			       disk->disk_name);
 			if (disk_unlock_native_capacity(disk))
-				goto rescan;
+				return -EAGAIN;
 		}
 		return -EIO;
 	}
+
 	/*
-	 * If any partition code tried to read beyond EOD, try
-	 * unlocking native capacity even if partition table is
-	 * successfully read as we could be missing some partitions.
+	 * Partitions are not supported on host managed zoned block devices.
+	 */
+	if (disk->queue->limits.zoned == BLK_ZONED_HM) {
+		pr_warn("%s: ignoring partition table on host managed zoned block device\n",
+			disk->disk_name);
+		ret = 0;
+		goto out_free_state;
+	}
+
+	/*
+	 * If we read beyond EOD, try unlocking native capacity even if the
+	 * partition table was successfully read as we could be missing some
+	 * partitions.
 	 */
 	if (state->access_beyond_eod) {
 		printk(KERN_WARNING
 		       "%s: partition table partially beyond EOD, ",
 		       disk->disk_name);
 		if (disk_unlock_native_capacity(disk))
-			goto rescan;
+			goto out_free_state;
 	}
 
 	/* tell userspace that the media / partition table may have changed */
 	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
 
-	/* Detect the highest partition number and preallocate
-	 * disk->part_tbl.  This is an optimization and not strictly
-	 * necessary.
+	/*
+	 * Detect the highest partition number and preallocate disk->part_tbl.
+	 * This is an optimization and not strictly necessary.
 	 */
 	for (p = 1, highest = 0; p < state->limit; p++)
 		if (state->parts[p].size)
 			highest = p;
-
 	disk_expand_part_tbl(disk, highest);
 
-	/* add partitions */
-	for (p = 1; p < state->limit; p++) {
-		sector_t size, from;
+	for (p = 1; p < state->limit; p++)
+		if (!blk_add_partition(disk, bdev, state, p))
+			goto out_free_state;
 
-		size = state->parts[p].size;
-		if (!size)
-			continue;
-
-		from = state->parts[p].from;
-		if (from >= get_capacity(disk)) {
-			printk(KERN_WARNING
-			       "%s: p%d start %llu is beyond EOD, ",
-			       disk->disk_name, p, (unsigned long long) from);
-			if (disk_unlock_native_capacity(disk))
-				goto rescan;
-			continue;
-		}
-
-		if (from + size > get_capacity(disk)) {
-			printk(KERN_WARNING
-			       "%s: p%d size %llu extends beyond EOD, ",
-			       disk->disk_name, p, (unsigned long long) size);
-
-			if (disk_unlock_native_capacity(disk)) {
-				/* free state and restart */
-				goto rescan;
-			} else {
-				/*
-				 * we can not ignore partitions of broken tables
-				 * created by for example camera firmware, but
-				 * we limit them to the end of the disk to avoid
-				 * creating invalid block devices
-				 */
-				size = get_capacity(disk) - from;
-			}
-		}
-
-		/*
-		 * On a zoned block device, partitions should be aligned on the
-		 * device zone size (i.e. zone boundary crossing not allowed).
-		 * Otherwise, resetting the write pointer of the last zone of
-		 * one partition may impact the following partition.
-		 */
-		if (bdev_is_zoned(bdev) &&
-		    !part_zone_aligned(disk, bdev, from, size)) {
-			printk(KERN_WARNING
-			       "%s: p%d start %llu+%llu is not zone aligned\n",
-			       disk->disk_name, p, (unsigned long long) from,
-			       (unsigned long long) size);
-			continue;
-		}
-
-		part = add_partition(disk, p, from, size,
-				     state->parts[p].flags,
-				     &state->parts[p].info);
-		if (IS_ERR(part)) {
-			printk(KERN_ERR " %s: p%d could not be added: %ld\n",
-			       disk->disk_name, p, -PTR_ERR(part));
-			continue;
-		}
-#ifdef CONFIG_BLK_DEV_MD
-		if (state->parts[p].flags & ADDPART_FLAG_RAID)
-			md_autodetect_dev(part_to_dev(part)->devt);
-#endif
-	}
+	ret = 0;
+out_free_state:
 	free_partitions(state);
-	return 0;
-}
-
-int invalidate_partitions(struct gendisk *disk, struct block_device *bdev)
-{
-	int res;
-
-	if (!bdev->bd_invalidated)
-		return 0;
-
-	res = drop_partitions(disk, bdev);
-	if (res)
-		return res;
-
-	set_capacity(disk, 0);
-	check_disk_size_change(disk, bdev, false);
-	bdev->bd_invalidated = 0;
-	/* tell userspace that the media / partition table may have changed */
-	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
-
-	return 0;
+	return ret;
 }
 
 unsigned char *read_dev_sector(struct block_device *bdev, sector_t n, Sector *p)

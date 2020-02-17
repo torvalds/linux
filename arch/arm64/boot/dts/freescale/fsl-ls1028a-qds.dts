@@ -123,11 +123,26 @@
 	status = "okay";
 };
 
+&fspi {
+	status = "okay";
+
+	mt35xu02g0: flash@0 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+		/* The following setting enables 1-1-8 (CMD-ADDR-DATA) mode */
+		spi-rx-bus-width = <8>; /* 8 SPI Rx lines */
+		spi-tx-bus-width = <1>; /* 1 SPI Tx line */
+		reg = <0>;
+	};
+};
+
 &i2c0 {
 	status = "okay";
 
 	i2c-mux@77 {
-		compatible = "nxp,pca9847";
+		compatible = "nxp,pca9547";
 		reg = <0x77>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -194,8 +209,6 @@
 	};
 
 	fpga@66 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "fsl,ls1028aqds-fpga", "fsl,fpga-qixis-i2c",
 			     "simple-mfd";
 		reg = <0x66>;

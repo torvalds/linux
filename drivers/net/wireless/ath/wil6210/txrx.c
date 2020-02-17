@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/etherdevice.h>
@@ -21,6 +10,7 @@
 #include <linux/moduleparam.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/if_vlan.h>
 #include <net/ipv6.h>
 #include <linux/prefetch.h>
 
@@ -1150,7 +1140,7 @@ static int wil_tx_desc_map(union wil_tx_desc *desc, dma_addr_t pa,
 void wil_tx_data_init(struct wil_ring_tx_data *txdata)
 {
 	spin_lock_bh(&txdata->lock);
-	txdata->dot1x_open = 0;
+	txdata->dot1x_open = false;
 	txdata->enabled = 0;
 	txdata->idle = 0;
 	txdata->last_idle = 0;
@@ -1538,6 +1528,35 @@ static struct wil_ring *wil_find_tx_bcast_1(struct wil6210_priv *wil,
 		return NULL;
 
 	return v;
+}
+
+/* apply multicast to unicast only for ARP and IP packets
+ * (see NL80211_CMD_SET_MULTICAST_TO_UNICAST for more info)
+ */
+static bool wil_check_multicast_to_unicast(struct wil6210_priv *wil,
+					   struct sk_buff *skb)
+{
+	const struct ethhdr *eth = (void *)skb->data;
+	const struct vlan_ethhdr *ethvlan = (void *)skb->data;
+	__be16 ethertype;
+
+	if (!wil->multicast_to_unicast)
+		return false;
+
+	/* multicast to unicast conversion only for some payload */
+	ethertype = eth->h_proto;
+	if (ethertype == htons(ETH_P_8021Q) && skb->len >= VLAN_ETH_HLEN)
+		ethertype = ethvlan->h_vlan_encapsulated_proto;
+	switch (ethertype) {
+	case htons(ETH_P_ARP):
+	case htons(ETH_P_IP):
+	case htons(ETH_P_IPV6):
+		break;
+	default:
+		return false;
+	}
+
+	return true;
 }
 
 static void wil_set_da_for_vring(struct wil6210_priv *wil,
@@ -2347,7 +2366,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		/* in STA mode (ESS), all to same VRING (to AP) */
 		ring = wil_find_tx_ring_sta(wil, vif, skb);
 	} else if (bcast) {
-		if (vif->pbss)
+		if (vif->pbss || wil_check_multicast_to_unicast(wil, skb))
 			/* in pbss, no bcast VRING - duplicate skb in
 			 * all stations VRINGs
 			 */

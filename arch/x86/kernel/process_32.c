@@ -112,74 +112,6 @@ void release_thread(struct task_struct *dead_task)
 	release_vm86_irqs(dead_task);
 }
 
-int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
-	unsigned long arg, struct task_struct *p, unsigned long tls)
-{
-	struct pt_regs *childregs = task_pt_regs(p);
-	struct fork_frame *fork_frame = container_of(childregs, struct fork_frame, regs);
-	struct inactive_task_frame *frame = &fork_frame->frame;
-	struct task_struct *tsk;
-	int err;
-
-	/*
-	 * For a new task use the RESET flags value since there is no before.
-	 * All the status flags are zero; DF and all the system flags must also
-	 * be 0, specifically IF must be 0 because we context switch to the new
-	 * task with interrupts disabled.
-	 */
-	frame->flags = X86_EFLAGS_FIXED;
-	frame->bp = 0;
-	frame->ret_addr = (unsigned long) ret_from_fork;
-	p->thread.sp = (unsigned long) fork_frame;
-	p->thread.sp0 = (unsigned long) (childregs+1);
-	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
-
-	if (unlikely(p->flags & PF_KTHREAD)) {
-		/* kernel thread */
-		memset(childregs, 0, sizeof(struct pt_regs));
-		frame->bx = sp;		/* function */
-		frame->di = arg;
-		p->thread.io_bitmap_ptr = NULL;
-		return 0;
-	}
-	frame->bx = 0;
-	*childregs = *current_pt_regs();
-	childregs->ax = 0;
-	if (sp)
-		childregs->sp = sp;
-
-	task_user_gs(p) = get_user_gs(current_pt_regs());
-
-	p->thread.io_bitmap_ptr = NULL;
-	tsk = current;
-	err = -ENOMEM;
-
-	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
-		p->thread.io_bitmap_ptr = kmemdup(tsk->thread.io_bitmap_ptr,
-						IO_BITMAP_BYTES, GFP_KERNEL);
-		if (!p->thread.io_bitmap_ptr) {
-			p->thread.io_bitmap_max = 0;
-			return -ENOMEM;
-		}
-		set_tsk_thread_flag(p, TIF_IO_BITMAP);
-	}
-
-	err = 0;
-
-	/*
-	 * Set a new TLS for the child thread?
-	 */
-	if (clone_flags & CLONE_SETTLS)
-		err = do_set_thread_area(p, -1,
-			(struct user_desc __user *)tls, 0);
-
-	if (err && p->thread.io_bitmap_ptr) {
-		kfree(p->thread.io_bitmap_ptr);
-		p->thread.io_bitmap_max = 0;
-	}
-	return err;
-}
-
 void
 start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 {
@@ -192,7 +124,6 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
 	regs->flags		= X86_EFLAGS_IF;
-	force_iret();
 }
 EXPORT_SYMBOL_GPL(start_thread);
 
@@ -254,15 +185,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * Load the per-thread Thread-Local Storage descriptor.
 	 */
 	load_TLS(next, cpu);
-
-	/*
-	 * Restore IOPL if needed.  In normal use, the flags restore
-	 * in the switch assembly will handle this.  But if the kernel
-	 * is running virtualized at a non-zero CPL, the popf will
-	 * not restore flags, so it must be done in a separate step.
-	 */
-	if (get_kernel_rpl() && unlikely(prev->iopl != next->iopl))
-		set_iopl_mask(next->iopl);
 
 	switch_to_extra(prev_p, next_p);
 

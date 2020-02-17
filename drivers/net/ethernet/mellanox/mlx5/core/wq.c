@@ -34,26 +34,6 @@
 #include "wq.h"
 #include "mlx5_core.h"
 
-u32 mlx5_wq_cyc_get_size(struct mlx5_wq_cyc *wq)
-{
-	return (u32)wq->fbc.sz_m1 + 1;
-}
-
-u32 mlx5_cqwq_get_size(struct mlx5_cqwq *wq)
-{
-	return wq->fbc.sz_m1 + 1;
-}
-
-u8 mlx5_cqwq_get_log_stride_size(struct mlx5_cqwq *wq)
-{
-	return wq->fbc.log_stride;
-}
-
-u32 mlx5_wq_ll_get_size(struct mlx5_wq_ll *wq)
-{
-	return (u32)wq->fbc.sz_m1 + 1;
-}
-
 static u32 wq_get_byte_sz(u8 log_sz, u8 log_stride)
 {
 	return ((u32)1 << log_sz) << log_stride;
@@ -94,6 +74,24 @@ err_db_free:
 	mlx5_db_free(mdev, &wq_ctrl->db);
 
 	return err;
+}
+
+void mlx5_wq_cyc_wqe_dump(struct mlx5_wq_cyc *wq, u16 ix, u8 nstrides)
+{
+	size_t len;
+	void *wqe;
+
+	if (!net_ratelimit())
+		return;
+
+	nstrides = max_t(u8, nstrides, 1);
+
+	len = nstrides << wq->fbc.log_stride;
+	wqe = mlx5_wq_cyc_get_wqe(wq, ix);
+
+	pr_info("WQE DUMP: WQ size %d WQ cur size %d, WQE index 0x%x, len: %zu\n",
+		mlx5_wq_cyc_get_size(wq), wq->cur_sz, ix, len);
+	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 16, 1, wqe, len, false);
 }
 
 int mlx5_wq_qp_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,

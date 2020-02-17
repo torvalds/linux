@@ -70,8 +70,7 @@ static void *seq_tab_start(struct seq_file *seq, loff_t *pos)
 static void *seq_tab_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	v = seq_tab_get_idx(seq->private, *pos + 1);
-	if (v)
-		++*pos;
+	++(*pos);
 	return v;
 }
 
@@ -2658,6 +2657,7 @@ static int sge_qinfo_uld_ciq_entries(const struct adapter *adap, int uld)
 
 static int sge_qinfo_show(struct seq_file *seq, void *v)
 {
+	int eth_entries, ctrl_entries, eo_entries = 0;
 	int uld_rxq_entries[CXGB4_ULD_MAX] = { 0 };
 	int uld_ciq_entries[CXGB4_ULD_MAX] = { 0 };
 	int uld_txq_entries[CXGB4_TX_MAX] = { 0 };
@@ -2665,11 +2665,12 @@ static int sge_qinfo_show(struct seq_file *seq, void *v)
 	const struct sge_uld_rxq_info *urxq_info;
 	struct adapter *adap = seq->private;
 	int i, n, r = (uintptr_t)v - 1;
-	int eth_entries, ctrl_entries;
 	struct sge *s = &adap->sge;
 
 	eth_entries = DIV_ROUND_UP(adap->sge.ethqsets, 4);
 	ctrl_entries = DIV_ROUND_UP(MAX_CTRL_QUEUES, 4);
+	if (adap->sge.eohw_txq)
+		eo_entries = DIV_ROUND_UP(adap->sge.eoqsets, 4);
 
 	mutex_lock(&uld_mutex);
 	if (s->uld_txq_info)
@@ -2746,6 +2747,7 @@ do { \
 		RL("RxDrops:", stats.rx_drops);
 		RL("RxBadPkts:", stats.bad_rx_pkts);
 		TL("TSO:", tso);
+		TL("USO:", uso);
 		TL("TxCSO:", tx_cso);
 		TL("VLANins:", vlan_ins);
 		TL("TxQFull:", q.stops);
@@ -2761,6 +2763,55 @@ do { \
 	}
 
 	r -= eth_entries;
+	if (r < eo_entries) {
+		int base_qset = r * 4;
+		const struct sge_ofld_rxq *rx = &s->eohw_rxq[base_qset];
+		const struct sge_eohw_txq *tx = &s->eohw_txq[base_qset];
+
+		n = min(4, s->eoqsets - 4 * r);
+
+		S("QType:", "ETHOFLD");
+		S("Interface:",
+		  rx[i].rspq.netdev ? rx[i].rspq.netdev->name : "N/A");
+		T("TxQ ID:", q.cntxt_id);
+		T("TxQ size:", q.size);
+		T("TxQ inuse:", q.in_use);
+		T("TxQ CIDX:", q.cidx);
+		T("TxQ PIDX:", q.pidx);
+		R("RspQ ID:", rspq.abs_id);
+		R("RspQ size:", rspq.size);
+		R("RspQE size:", rspq.iqe_len);
+		R("RspQ CIDX:", rspq.cidx);
+		R("RspQ Gen:", rspq.gen);
+		S3("u", "Intr delay:", qtimer_val(adap, &rx[i].rspq));
+		S3("u", "Intr pktcnt:", s->counter_val[rx[i].rspq.pktcnt_idx]);
+		R("FL ID:", fl.cntxt_id);
+		S3("u", "FL size:", rx->fl.size ? rx->fl.size - 8 : 0);
+		R("FL pend:", fl.pend_cred);
+		R("FL avail:", fl.avail);
+		R("FL PIDX:", fl.pidx);
+		R("FL CIDX:", fl.cidx);
+		RL("RxPackets:", stats.pkts);
+		RL("RxImm:", stats.imm);
+		RL("RxAN", stats.an);
+		RL("RxNoMem", stats.nomem);
+		TL("TSO:", tso);
+		TL("USO:", uso);
+		TL("TxCSO:", tx_cso);
+		TL("VLANins:", vlan_ins);
+		TL("TxQFull:", q.stops);
+		TL("TxQRestarts:", q.restarts);
+		TL("TxMapErr:", mapping_err);
+		RL("FLAllocErr:", fl.alloc_failed);
+		RL("FLLrgAlcErr:", fl.large_alloc_failed);
+		RL("FLMapErr:", fl.mapping_err);
+		RL("FLLow:", fl.low);
+		RL("FLStarving:", fl.starving);
+
+		goto unlock;
+	}
+
+	r -= eo_entries;
 	if (r < uld_txq_entries[CXGB4_TX_OFLD]) {
 		const struct sge_uld_txq *tx;
 
@@ -2996,6 +3047,9 @@ static int sge_queue_entries(const struct adapter *adap)
 	int tot_uld_entries = 0;
 	int i;
 
+	if (!is_uld(adap))
+		goto lld_only;
+
 	mutex_lock(&uld_mutex);
 	for (i = 0; i < CXGB4_TX_MAX; i++)
 		tot_uld_entries += sge_qinfo_uld_txq_entries(adap, i);
@@ -3006,7 +3060,9 @@ static int sge_queue_entries(const struct adapter *adap)
 	}
 	mutex_unlock(&uld_mutex);
 
+lld_only:
 	return DIV_ROUND_UP(adap->sge.ethqsets, 4) +
+	       (adap->sge.eohw_txq ? DIV_ROUND_UP(adap->sge.eoqsets, 4) : 0) +
 	       tot_uld_entries +
 	       DIV_ROUND_UP(MAX_CTRL_QUEUES, 4) + 1;
 }
@@ -3118,14 +3174,12 @@ static const struct file_operations mem_debugfs_fops = {
 
 static int tid_info_show(struct seq_file *seq, void *v)
 {
-	unsigned int tid_start = 0;
 	struct adapter *adap = seq->private;
-	const struct tid_info *t = &adap->tids;
-	enum chip_type chip = CHELSIO_CHIP_VERSION(adap->params.chip);
+	const struct tid_info *t;
+	enum chip_type chip;
 
-	if (chip > CHELSIO_T5)
-		tid_start = t4_read_reg(adap, LE_DB_ACTIVE_TABLE_START_INDEX_A);
-
+	t = &adap->tids;
+	chip = CHELSIO_CHIP_VERSION(adap->params.chip);
 	if (t4_read_reg(adap, LE_DB_CONFIG_A) & HASHEN_F) {
 		unsigned int sb;
 		seq_printf(seq, "Connections in use: %u\n",
@@ -3137,9 +3191,9 @@ static int tid_info_show(struct seq_file *seq, void *v)
 			sb = t4_read_reg(adap, LE_DB_SRVR_START_INDEX_A);
 
 		if (sb) {
-			seq_printf(seq, "TID range: %u..%u/%u..%u", tid_start,
+			seq_printf(seq, "TID range: %u..%u/%u..%u", t->tid_base,
 				   sb - 1, adap->tids.hash_base,
-				   t->ntids - 1);
+				   t->tid_base + t->ntids - 1);
 			seq_printf(seq, ", in use: %u/%u\n",
 				   atomic_read(&t->tids_in_use),
 				   atomic_read(&t->hash_tids_in_use));
@@ -3148,14 +3202,14 @@ static int tid_info_show(struct seq_file *seq, void *v)
 				   t->aftid_base,
 				   t->aftid_end,
 				   adap->tids.hash_base,
-				   t->ntids - 1);
+				   t->tid_base + t->ntids - 1);
 			seq_printf(seq, ", in use: %u/%u\n",
 				   atomic_read(&t->tids_in_use),
 				   atomic_read(&t->hash_tids_in_use));
 		} else {
 			seq_printf(seq, "TID range: %u..%u",
 				   adap->tids.hash_base,
-				   t->ntids - 1);
+				   t->tid_base + t->ntids - 1);
 			seq_printf(seq, ", in use: %u\n",
 				   atomic_read(&t->hash_tids_in_use));
 		}
@@ -3163,8 +3217,8 @@ static int tid_info_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "Connections in use: %u\n",
 			   atomic_read(&t->conns_in_use));
 
-		seq_printf(seq, "TID range: %u..%u", tid_start,
-			   tid_start + t->ntids - 1);
+		seq_printf(seq, "TID range: %u..%u", t->tid_base,
+			   t->tid_base + t->ntids - 1);
 		seq_printf(seq, ", in use: %u\n",
 			   atomic_read(&t->tids_in_use));
 	}
@@ -3187,6 +3241,9 @@ static int tid_info_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "SFTID range: %u..%u in use: %u\n",
 			   t->sftid_base, t->sftid_base + t->nsftids - 2,
 			   t->sftids_in_use);
+	if (t->nhpftids)
+		seq_printf(seq, "HPFTID range: %u..%u\n", t->hpftid_base,
+			   t->hpftid_base + t->nhpftids - 1);
 	if (t->ntids)
 		seq_printf(seq, "HW TID usage: %u IP users, %u IPv6 users\n",
 			   t4_read_reg(adap, LE_DB_ACT_CNT_IPV4_A),
@@ -3346,6 +3403,13 @@ static int chcr_stats_show(struct seq_file *seq, void *v)
 		   atomic_read(&adap->chcr_stats.fallback));
 	seq_printf(seq, "IPSec PDU: %10u\n",
 		   atomic_read(&adap->chcr_stats.ipsec_cnt));
+	seq_printf(seq, "TLS PDU Tx: %10u\n",
+		   atomic_read(&adap->chcr_stats.tls_pdu_tx));
+	seq_printf(seq, "TLS PDU Rx: %10u\n",
+		   atomic_read(&adap->chcr_stats.tls_pdu_rx));
+	seq_printf(seq, "TLS Keys (DDR) Count: %10u\n",
+		   atomic_read(&adap->chcr_stats.tls_key));
+
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(chcr_stats);

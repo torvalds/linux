@@ -319,6 +319,7 @@ struct xen_blkif {
 	/* All rings for this device. */
 	struct xen_blkif_ring	*rings;
 	unsigned int		nr_rings;
+	unsigned long		buffer_squeeze_end;
 };
 
 struct seg_buf {
@@ -375,9 +376,12 @@ struct phys_req {
 	struct block_device	*bdev;
 	blkif_sector_t		sector_number;
 };
+
 int xen_blkif_interface_init(void);
+void xen_blkif_interface_fini(void);
 
 int xen_blkif_xenbus_init(void);
+void xen_blkif_xenbus_fini(void);
 
 irqreturn_t xen_blkif_be_int(int irq, void *dev_id);
 int xen_blkif_schedule(void *arg);

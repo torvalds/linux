@@ -92,9 +92,10 @@ struct cdn_dp_device {
 	struct reset_control *core_rst;
 	struct audio_info audio_info;
 	struct video_info video_info;
-	struct drm_dp_link link;
 	struct cdn_dp_port *port[MAX_PHY];
 	u8 ports;
+	u8 max_lanes;
+	unsigned int max_rate;
 	u8 lanes;
 	int active_port;
 

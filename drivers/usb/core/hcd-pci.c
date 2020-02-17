@@ -222,7 +222,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			retval = -EBUSY;
 			goto put_hcd;
 		}
-		hcd->regs = devm_ioremap_nocache(&dev->dev, hcd->rsrc_start,
+		hcd->regs = devm_ioremap(&dev->dev, hcd->rsrc_start,
 				hcd->rsrc_len);
 		if (hcd->regs == NULL) {
 			dev_dbg(&dev->dev, "error mapping memory\n");
@@ -234,7 +234,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		/* UHCI */
 		int	region;
 
-		for (region = 0; region < PCI_ROM_RESOURCE; region++) {
+		for (region = 0; region < PCI_STD_NUM_BARS; region++) {
 			if (!(pci_resource_flags(dev, region) &
 					IORESOURCE_IO))
 				continue;

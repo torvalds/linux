@@ -28,7 +28,6 @@
 #include "pmem.h"
 #include "pfn.h"
 #include "nd.h"
-#include "nd-core.h"
 
 static struct device *to_dev(struct pmem_device *pmem)
 {
@@ -338,13 +337,7 @@ static void pmem_release_disk(void *__pmem)
 	put_disk(pmem->disk);
 }
 
-static void pmem_pagemap_page_free(struct page *page)
-{
-	wake_up_var(&page->_refcount);
-}
-
 static const struct dev_pagemap_ops fsdax_pagemap_ops = {
-	.page_free		= pmem_pagemap_page_free,
 	.kill			= pmem_pagemap_kill,
 	.cleanup		= pmem_pagemap_cleanup,
 };
@@ -372,6 +365,10 @@ static int pmem_attach_disk(struct device *dev,
 	if (!pmem)
 		return -ENOMEM;
 
+	rc = devm_namespace_enable(dev, ndns, nd_info_block_reserve());
+	if (rc)
+		return rc;
+
 	/* while nsio_rw_bytes is active, parse a pfn info block if present */
 	if (is_nd_pfn(dev)) {
 		nd_pfn = to_nd_pfn(dev);
@@ -381,7 +378,7 @@ static int pmem_attach_disk(struct device *dev,
 	}
 
 	/* we're attaching a block device, disable raw namespace access */
-	devm_nsio_disable(dev, nsio);
+	devm_namespace_disable(dev, ndns);
 
 	dev_set_drvdata(dev, pmem);
 	pmem->phys_addr = res->start;
@@ -497,14 +494,15 @@ static int nd_pmem_probe(struct device *dev)
 	if (IS_ERR(ndns))
 		return PTR_ERR(ndns);
 
-	if (devm_nsio_enable(dev, to_nd_namespace_io(&ndns->dev)))
-		return -ENXIO;
-
 	if (is_nd_btt(dev))
 		return nvdimm_namespace_attach_btt(ndns);
 
 	if (is_nd_pfn(dev))
 		return pmem_attach_disk(dev, ndns);
+
+	ret = devm_namespace_enable(dev, ndns, nd_info_block_reserve());
+	if (ret)
+		return ret;
 
 	ret = nd_btt_probe(dev, ndns);
 	if (ret == 0)
@@ -532,6 +530,10 @@ static int nd_pmem_probe(struct device *dev)
 		return -ENXIO;
 	else if (ret == -EOPNOTSUPP)
 		return ret;
+
+	/* probe complete, attach handles namespace enabling */
+	devm_namespace_disable(dev, ndns);
+
 	return pmem_attach_disk(dev, ndns);
 }
 

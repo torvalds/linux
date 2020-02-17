@@ -12,10 +12,12 @@ obj-$(CONFIG_HW_CONSOLE)		+= vt.o defkeymap.o
 # Files generated that shall be removed upon make clean
 clean-files := consolemap_deftbl.c defkeymap.c
 
-quiet_cmd_conmk = CONMK   $@
-      cmd_conmk = scripts/conmakehash $< > $@
+hostprogs += conmakehash
 
-$(obj)/consolemap_deftbl.c: $(src)/$(FONTMAPFILE)
+quiet_cmd_conmk = CONMK   $@
+      cmd_conmk = $(obj)/conmakehash $< > $@
+
+$(obj)/consolemap_deftbl.c: $(src)/$(FONTMAPFILE) $(obj)/conmakehash
 	$(call cmd,conmk)
 
 $(obj)/defkeymap.o:  $(obj)/defkeymap.c

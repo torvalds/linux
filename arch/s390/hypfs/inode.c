@@ -209,15 +209,10 @@ static int hypfs_release(struct inode *inode, struct file *filp)
 
 enum { Opt_uid, Opt_gid, };
 
-static const struct fs_parameter_spec hypfs_param_specs[] = {
+static const struct fs_parameter_spec hypfs_fs_parameters[] = {
 	fsparam_u32("gid", Opt_gid),
 	fsparam_u32("uid", Opt_uid),
 	{}
-};
-
-static const struct fs_parameter_description hypfs_fs_parameters = {
-	.name		= "hypfs",
-	.specs		= hypfs_param_specs,
 };
 
 static int hypfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
@@ -228,7 +223,7 @@ static int hypfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	kgid_t gid;
 	int opt;
 
-	opt = fs_parse(fc, &hypfs_fs_parameters, param, &result);
+	opt = fs_parse(fc, hypfs_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -455,7 +450,7 @@ static struct file_system_type hypfs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "s390_hypfs",
 	.init_fs_context = hypfs_init_fs_context,
-	.parameters	= &hypfs_fs_parameters,
+	.parameters	= hypfs_fs_parameters,
 	.kill_sb	= hypfs_kill_super
 };
 

@@ -31,14 +31,14 @@ struct ixgbe_stats {
 #define IXGBEVF_STAT(_name, _stat) { \
 	.stat_string = _name, \
 	.type = IXGBEVF_STATS, \
-	.sizeof_stat = FIELD_SIZEOF(struct ixgbevf_adapter, _stat), \
+	.sizeof_stat = sizeof_field(struct ixgbevf_adapter, _stat), \
 	.stat_offset = offsetof(struct ixgbevf_adapter, _stat) \
 }
 
 #define IXGBEVF_NETDEV_STAT(_net_stat) { \
 	.stat_string = #_net_stat, \
 	.type = NETDEV_STATS, \
-	.sizeof_stat = FIELD_SIZEOF(struct net_device_stats, _net_stat), \
+	.sizeof_stat = sizeof_field(struct net_device_stats, _net_stat), \
 	.stat_offset = offsetof(struct net_device_stats, _net_stat) \
 }
 

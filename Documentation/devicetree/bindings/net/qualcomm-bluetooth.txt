@@ -11,6 +11,7 @@ Required properties:
  - compatible: should contain one of the following:
    * "qcom,qca6174-bt"
    * "qcom,wcn3990-bt"
+   * "qcom,wcn3991-bt"
    * "qcom,wcn3998-bt"
 
 Optional properties for compatible string qcom,qca6174-bt:

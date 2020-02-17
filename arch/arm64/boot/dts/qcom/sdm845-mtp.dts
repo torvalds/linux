@@ -360,6 +360,13 @@
 			   <GCC_LPASS_SWAY_CLK>;
 };
 
+&gpu {
+	zap-shader {
+		memory-region = <&gpu_mem>;
+		firmware-name = "qcom/sdm845/a630_zap.mbn";
+	};
+};
+
 &i2c10 {
 	status = "okay";
 	clock-frequency = <400000>;

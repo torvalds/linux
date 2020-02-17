@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SAMSUNG SMDK5250 board device tree source
+ * Samsung SMDK5250 board device tree source
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -12,7 +12,7 @@
 #include "exynos5250.dtsi"
 
 / {
-	model = "SAMSUNG SMDK5250 board based on EXYNOS5250";
+	model = "Samsung SMDK5250 board based on Exynos5250";
 	compatible = "samsung,smdk5250", "samsung,exynos5250", "samsung,exynos5";
 
 	aliases {

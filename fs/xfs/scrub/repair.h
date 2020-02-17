@@ -75,7 +75,6 @@ static inline xfs_extlen_t
 xrep_calc_ag_resblks(
 	struct xfs_scrub	*sc)
 {
-	ASSERT(!(sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR));
 	return 0;
 }
 

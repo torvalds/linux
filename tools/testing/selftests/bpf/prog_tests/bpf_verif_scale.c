@@ -15,6 +15,8 @@ static int libbpf_debug_print(enum libbpf_print_level level,
 	return 0;
 }
 
+extern int extra_prog_load_log_flags;
+
 static int check_load(const char *file, enum bpf_prog_type type)
 {
 	struct bpf_prog_load_attr attr;
@@ -24,7 +26,7 @@ static int check_load(const char *file, enum bpf_prog_type type)
 	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
 	attr.file = file;
 	attr.prog_type = type;
-	attr.log_level = 4;
+	attr.log_level = 4 | extra_prog_load_log_flags;
 	attr.prog_flags = BPF_F_TEST_RND_HI32;
 	err = bpf_prog_load_xattr(&attr, &obj, &prog_fd);
 	bpf_object__close(obj);
@@ -45,6 +47,8 @@ void test_bpf_verif_scale(void)
 		{ "test_verif_scale1.o", BPF_PROG_TYPE_SCHED_CLS },
 		{ "test_verif_scale2.o", BPF_PROG_TYPE_SCHED_CLS },
 		{ "test_verif_scale3.o", BPF_PROG_TYPE_SCHED_CLS },
+
+		{ "pyperf_global.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 
 		/* full unroll by llvm */
 		{ "pyperf50.o", BPF_PROG_TYPE_RAW_TRACEPOINT },

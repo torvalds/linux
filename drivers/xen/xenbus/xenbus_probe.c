@@ -232,9 +232,18 @@ int xenbus_dev_probe(struct device *_dev)
 		return err;
 	}
 
-	err = drv->probe(dev, id);
-	if (err)
+	if (!try_module_get(drv->driver.owner)) {
+		dev_warn(&dev->dev, "failed to acquire module reference on '%s'\n",
+			 drv->driver.name);
+		err = -ESRCH;
 		goto fail;
+	}
+
+	spin_lock(&dev->reclaim_lock);
+	err = drv->probe(dev, id);
+	spin_unlock(&dev->reclaim_lock);
+	if (err)
+		goto fail_put;
 
 	err = watch_otherend(dev);
 	if (err) {
@@ -244,9 +253,10 @@ int xenbus_dev_probe(struct device *_dev)
 	}
 
 	return 0;
+fail_put:
+	module_put(drv->driver.owner);
 fail:
 	xenbus_dev_error(dev, err, "xenbus_dev_probe on %s", dev->nodename);
-	xenbus_switch_state(dev, XenbusStateClosed);
 	return err;
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_probe);
@@ -260,38 +270,29 @@ int xenbus_dev_remove(struct device *_dev)
 
 	free_otherend_watch(dev);
 
-	if (drv->remove)
+	if (drv->remove) {
+		spin_lock(&dev->reclaim_lock);
 		drv->remove(dev);
+		spin_unlock(&dev->reclaim_lock);
+	}
+
+	module_put(drv->driver.owner);
 
 	free_otherend_details(dev);
 
-	xenbus_switch_state(dev, XenbusStateClosed);
+	/*
+	 * If the toolstack has forced the device state to closing then set
+	 * the state to closed now to allow it to be cleaned up.
+	 * Similarly, if the driver does not support re-bind, set the
+	 * closed.
+	 */
+	if (!drv->allow_rebind ||
+	    xenbus_read_driver_state(dev->nodename) == XenbusStateClosing)
+		xenbus_switch_state(dev, XenbusStateClosed);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_remove);
-
-void xenbus_dev_shutdown(struct device *_dev)
-{
-	struct xenbus_device *dev = to_xenbus_device(_dev);
-	unsigned long timeout = 5*HZ;
-
-	DPRINTK("%s", dev->nodename);
-
-	get_device(&dev->dev);
-	if (dev->state != XenbusStateConnected) {
-		pr_info("%s: %s: %s != Connected, skipping\n",
-			__func__, dev->nodename, xenbus_strstate(dev->state));
-		goto out;
-	}
-	xenbus_switch_state(dev, XenbusStateClosing);
-	timeout = wait_for_completion_timeout(&dev->down, timeout);
-	if (!timeout)
-		pr_info("%s: %s timeout closing device\n",
-			__func__, dev->nodename);
- out:
-	put_device(&dev->dev);
-}
-EXPORT_SYMBOL_GPL(xenbus_dev_shutdown);
 
 int xenbus_register_driver_common(struct xenbus_driver *drv,
 				  struct xen_bus_type *bus,
@@ -472,6 +473,7 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 		goto fail;
 
 	dev_set_name(&xendev->dev, "%s", devname);
+	spin_lock_init(&xendev->reclaim_lock);
 
 	/* Register with generic device framework. */
 	err = device_register(&xendev->dev);

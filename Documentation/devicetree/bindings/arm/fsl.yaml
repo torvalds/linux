@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/bindings/arm/fsl.yaml#
+$id: http://devicetree.org/schemas/arm/fsl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Freescale i.MX Platforms Device Tree Bindings
@@ -38,12 +38,16 @@ properties:
       - description: i.MX27 Product Development Kit
         items:
           - enum:
+              - armadeus,imx27-apf27      # APF27 SoM
+              - armadeus,imx27-apf27dev   # APF27 SoM on APF27Dev board
               - fsl,imx27-pdk
           - const: fsl,imx27
 
       - description: i.MX28 based Boards
         items:
           - enum:
+              - armadeus,imx28-apf28      # APF28 SoM
+              - armadeus,imx28-apf28dev   # APF28 SoM on APF28Dev board
               - fsl,imx28-evk
               - i2se,duckbill
               - i2se,duckbill-2
@@ -87,7 +91,8 @@ properties:
       - description: i.MX51 Babbage Board
         items:
           - enum:
-              - armadeus,imx51-apf51
+              - armadeus,imx51-apf51    # APF51 SoM
+              - armadeus,imx51-apf51dev # APF51 SoM on APF51Dev board
               - fsl,imx51-babbage
               - technologic,imx51-ts4800
           - const: fsl,imx51
@@ -106,6 +111,8 @@ properties:
       - description: i.MX6Q based Boards
         items:
           - enum:
+              - armadeus,imx6q-apf6       # APF6 (Quad/Dual) SoM
+              - armadeus,imx6q-apf6dev    # APF6 (Quad/Dual) SoM on APF6Dev board
               - emtrion,emcon-mx6         # emCON-MX6D or emCON-MX6Q SoM
               - emtrion,emcon-mx6-avari   # emCON-MX6D or emCON-MX6Q SoM on Avari Base
               - fsl,imx6q-arm2
@@ -114,6 +121,32 @@ properties:
               - fsl,imx6q-sabresd
               - technologic,imx6q-ts4900
               - technologic,imx6q-ts7970
+              - toradex,apalis_imx6q            # Apalis iMX6 Module
+              - toradex,apalis_imx6q-eval       # Apalis iMX6 Module on Apalis Evaluation Board
+              - toradex,apalis_imx6q-ixora      # Apalis iMX6 Module on Ixora
+              - toradex,apalis_imx6q-ixora-v1.1 # Apalis iMX6 Module on Ixora V1.1
+              - variscite,dt6customboard
+          - const: fsl,imx6q
+
+      - description: i.MX6Q Gateworks Ventana Boards
+        items:
+          - enum:
+              - gw,imx6q-gw51xx
+              - gw,imx6q-gw52xx
+              - gw,imx6q-gw53xx
+              - gw,imx6q-gw5400-a
+              - gw,imx6q-gw54xx
+              - gw,imx6q-gw551x
+              - gw,imx6q-gw552x
+              - gw,imx6q-gw553x
+              - gw,imx6q-gw560x
+              - gw,imx6q-gw5903
+              - gw,imx6q-gw5904
+              - gw,imx6q-gw5907
+              - gw,imx6q-gw5910
+              - gw,imx6q-gw5912
+              - gw,imx6q-gw5913
+          - const: gw,ventana
           - const: fsl,imx6q
 
       - description: i.MX6QP based Boards
@@ -126,6 +159,8 @@ properties:
       - description: i.MX6DL based Boards
         items:
           - enum:
+              - armadeus,imx6dl-apf6      # APF6 (Solo) SoM
+              - armadeus,imx6dl-apf6dldev # APF6 (Solo) SoM on APF6Dev board
               - eckelmann,imx6dl-ci4x10
               - emtrion,emcon-mx6         # emCON-MX6S or emCON-MX6DL SoM
               - emtrion,emcon-mx6-avari   # emCON-MX6S or emCON-MX6DL SoM on Avari Base
@@ -133,21 +168,45 @@ properties:
               - fsl,imx6dl-sabresd        # i.MX6 DualLite SABRE Smart Device Board
               - technologic,imx6dl-ts4900
               - technologic,imx6dl-ts7970
+              - toradex,colibri_imx6dl          # Colibri iMX6 Module
+              - toradex,colibri_imx6dl-eval-v3  # Colibri iMX6 Module on Colibri Evaluation Board V3
               - ysoft,imx6dl-yapp4-draco  # i.MX6 DualLite Y Soft IOTA Draco board
               - ysoft,imx6dl-yapp4-hydra  # i.MX6 DualLite Y Soft IOTA Hydra board
               - ysoft,imx6dl-yapp4-ursa   # i.MX6 Solo Y Soft IOTA Ursa board
+          - const: fsl,imx6dl
+
+      - description: i.MX6DL Gateworks Ventana Boards
+        items:
+          - enum:
+              - gw,imx6dl-gw51xx
+              - gw,imx6dl-gw52xx
+              - gw,imx6dl-gw53xx
+              - gw,imx6dl-gw54xx
+              - gw,imx6dl-gw551x
+              - gw,imx6dl-gw552x
+              - gw,imx6dl-gw553x
+              - gw,imx6dl-gw560x
+              - gw,imx6dl-gw5903
+              - gw,imx6dl-gw5904
+              - gw,imx6dl-gw5907
+              - gw,imx6dl-gw5910
+              - gw,imx6dl-gw5912
+              - gw,imx6dl-gw5913
+          - const: gw,ventana
           - const: fsl,imx6dl
 
       - description: i.MX6SL based Boards
         items:
           - enum:
               - fsl,imx6sl-evk            # i.MX6 SoloLite EVK Board
+              - kobo,tolino-shine3
           - const: fsl,imx6sl
 
       - description: i.MX6SLL based Boards
         items:
           - enum:
               - fsl,imx6sll-evk
+              - kobo,clarahd
           - const: fsl,imx6sll
 
       - description: i.MX6SX based Boards
@@ -155,19 +214,29 @@ properties:
           - enum:
               - fsl,imx6sx-sabreauto      # i.MX6 SoloX Sabre Auto Board
               - fsl,imx6sx-sdb            # i.MX6 SoloX SDB Board
+              - fsl,imx6sx-sdb-reva       # i.MX6 SoloX SDB Rev-A Board
           - const: fsl,imx6sx
 
       - description: i.MX6UL based Boards
         items:
           - enum:
+              - armadeus,imx6ul-opos6ul    # OPOS6UL (i.MX6UL) SoM
+              - armadeus,imx6ul-opos6uldev # OPOS6UL (i.MX6UL) SoM on OPOS6ULDev board
               - fsl,imx6ul-14x14-evk      # i.MX6 UltraLite 14x14 EVK Board
               - kontron,imx6ul-n6310-som  # Kontron N6310 SOM
+              - kontron,imx6ul-n6311-som  # Kontron N6311 SOM
           - const: fsl,imx6ul
 
       - description: Kontron N6310 S Board
         items:
           - const: kontron,imx6ul-n6310-s
           - const: kontron,imx6ul-n6310-som
+          - const: fsl,imx6ul
+
+      - description: Kontron N6311 S Board
+        items:
+          - const: kontron,imx6ul-n6311-s
+          - const: kontron,imx6ul-n6311-som
           - const: fsl,imx6ul
 
       - description: Kontron N6310 S 43 Board
@@ -180,7 +249,18 @@ properties:
       - description: i.MX6ULL based Boards
         items:
           - enum:
+              - armadeus,imx6ull-opos6ul    # OPOS6UL (i.MX6ULL) SoM
+              - armadeus,imx6ull-opos6uldev # OPOS6UL (i.MX6ULL) SoM on OPOS6ULDev board
               - fsl,imx6ull-14x14-evk     # i.MX6 UltraLiteLite 14x14 EVK Board
+              - kontron,imx6ull-n6411-som # Kontron N6411 SOM
+              - toradex,colibri-imx6ull-eval            # Colibri iMX6ULL Module on Colibri Evaluation Board
+              - toradex,colibri-imx6ull-wifi-eval       # Colibri iMX6ULL Wi-Fi / Bluetooth Module on Colibri Evaluation Board
+          - const: fsl,imx6ull
+
+      - description: Kontron N6411 S Board
+        items:
+          - const: kontron,imx6ull-n6411-s
+          - const: kontron,imx6ull-n6411-som
           - const: fsl,imx6ull
 
       - description: i.MX6ULZ based Boards
@@ -193,6 +273,8 @@ properties:
       - description: i.MX7S based Boards
         items:
           - enum:
+              - toradex,colibri-imx7s           # Colibri iMX7 Solo Module
+              - toradex,colibri-imx7s-eval-v3   # Colibri iMX7 Solo Module on Colibri Evaluation Board V3
               - tq,imx7s-mba7             # i.MX7S TQ MBa7 with TQMa7S SoM
           - const: fsl,imx7s
 
@@ -200,7 +282,12 @@ properties:
         items:
           - enum:
               - fsl,imx7d-sdb             # i.MX7 SabreSD Board
+              - fsl,imx7d-sdb-reva        # i.MX7 SabreSD Rev-A Board
               - novtech,imx7d-meerkat96   # i.MX7 Meerkat96 Board
+              - toradex,colibri-imx7d                   # Colibri iMX7 Dual Module
+              - toradex,colibri-imx7d-emmc              # Colibri iMX7 Dual 1GB (eMMC) Module
+              - toradex,colibri-imx7d-emmc-eval-v3      # Colibri iMX7 Dual 1GB (eMMC) Module on Colibri Evaluation Board V3
+              - toradex,colibri-imx7d-eval-v3           # Colibri iMX7 Dual Module on Colibri Evaluation Board V3
               - tq,imx7d-mba7             # i.MX7D TQ MBa7 with TQMa7D SoM
               - zii,imx7d-rmu2            # ZII RMU2 Board
               - zii,imx7d-rpu2            # ZII RPU2 Board
@@ -220,6 +307,7 @@ properties:
       - description: i.MX7ULP based Boards
         items:
           - enum:
+              - ea,imx7ulp-com           # i.MX7ULP Embedded Artists COM Board
               - fsl,imx7ulp-evk           # i.MX7ULP Evaluation Kit
           - const: fsl,imx7ulp
 
@@ -233,13 +321,16 @@ properties:
         items:
           - enum:
               - fsl,imx8mn-ddr4-evk       # i.MX8MN DDR4 EVK Board
+              - fsl,imx8mn-evk            # i.MX8MN LPDDR4 EVK Board
           - const: fsl,imx8mn
 
       - description: i.MX8MQ based Boards
         items:
           - enum:
               - boundary,imx8mq-nitrogen8m # i.MX8MQ NITROGEN Board
+              - einfochips,imx8mq-thor96  # i.MX8MQ Thor96 Board
               - fsl,imx8mq-evk            # i.MX8MQ EVK Board
+              - google,imx8mq-phanbell    # Google Coral Edge TPU
               - purism,librem5-devkit     # Purism Librem5 devkit
               - solidrun,hummingboard-pulse # SolidRun Hummingboard Pulse
               - technexion,pico-pi-imx8m  # TechNexion PICO-PI-8M evk
@@ -250,6 +341,8 @@ properties:
           - enum:
               - einfochips,imx8qxp-ai_ml  # i.MX8QXP AI_ML Board
               - fsl,imx8qxp-mek           # i.MX8QXP MEK Board
+              - toradex,colibri-imx8x         # Colibri iMX8X Module
+              - toradex,colibri-imx8x-eval-v3 # Colibri iMX8X Module on Colibri Evaluation Board V3
           - const: fsl,imx8qxp
 
       - description:
@@ -267,6 +360,10 @@ properties:
               - fsl,vf600
               - fsl,vf610
               - fsl,vf610m4
+              - toradex,vf500-colibri_vf50              # Colibri VF50 Module
+              - toradex,vf500-colibri_vf50-on-eval      # Colibri VF50 Module on Colibri Evaluation Board
+              - toradex,vf610-colibri_vf61              # Colibri VF61 Module
+              - toradex,vf610-colibri_vf61-on-eval      # Colibri VF61 Module on Colibri Evaluation Board
 
       - description: ZII's VF610 based Boards
         items:
@@ -334,5 +431,18 @@ properties:
               - fsl,ls2088a-qds
               - fsl,ls2088a-rdb
           - const: fsl,ls2088a
+
+      - description: LX2160A based Boards
+        items:
+          - enum:
+              - fsl,lx2160a-qds
+              - fsl,lx2160a-rdb
+          - const: fsl,lx2160a
+
+      - description: S32V234 based Boards
+        items:
+          - enum:
+              - fsl,s32v234-evb           # S32V234-EVB2 Customer Evaluation Board
+          - const: fsl,s32v234
 
 ...

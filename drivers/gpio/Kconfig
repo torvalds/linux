@@ -120,6 +120,14 @@ config GPIO_ASPEED
 	help
 	  Say Y here to support Aspeed AST2400 and AST2500 GPIO controllers.
 
+config GPIO_ASPEED_SGPIO
+	bool "Aspeed SGPIO support"
+	depends on (ARCH_ASPEED || COMPILE_TEST) && OF_GPIO
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to support Aspeed AST2500 SGPIO functionality.
+
 config GPIO_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X GPIO support"
 	default y if ATH79
@@ -146,6 +154,15 @@ config GPIO_BCM_KONA
 	depends on OF_GPIO && (ARCH_BCM_MOBILE || COMPILE_TEST)
 	help
 	  Turn on GPIO support for Broadcom "Kona" chips.
+
+config GPIO_BCM_XGS_IPROC
+	tristate "BRCM XGS iProc GPIO support"
+	depends on OF_GPIO && (ARCH_BCM_IPROC || COMPILE_TEST)
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	default ARCH_BCM_IPROC
+	help
+	  Say yes here to enable GPIO support for Broadcom XGS iProc SoCs.
 
 config GPIO_BRCMSTB
 	tristate "BRCMSTB GPIO support"
@@ -295,10 +312,16 @@ config GPIO_IXP4XX
 	  IXP4xx series of chips.
 
 	  If unsure, say N.
+config GPIO_LOGICVC
+	tristate "Xylon LogiCVC GPIO support"
+	depends on MFD_SYSCON && OF
+	help
+	  Say yes here to support GPIO functionality of the Xylon LogiCVC
+	  programmable logic block.
 
 config GPIO_LOONGSON
 	bool "Loongson-2/3 GPIO support"
-	depends on CPU_LOONGSON2 || CPU_LOONGSON3
+	depends on CPU_LOONGSON2EF || CPU_LOONGSON64
 	help
 	  driver for GPIO functionality on Loongson-2F/3A/3B processors.
 
@@ -317,14 +340,6 @@ config GPIO_LPC32XX
 	help
 	  Select this option to enable GPIO driver for
 	  NXP LPC32XX devices.
-
-config GPIO_LYNXPOINT
-	tristate "Intel Lynxpoint GPIO support"
-	depends on ACPI && X86
-	select GPIOLIB_IRQCHIP
-	help
-	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
-	  Requires ACPI device enumeration code to set up a platform device.
 
 config GPIO_MB86S7X
 	tristate "GPIO support for Fujitsu MB86S7x Platforms"
@@ -435,6 +450,15 @@ config GPIO_RCAR
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
 
+config GPIO_RDA
+	bool "RDA Micro GPIO controller support"
+	depends on ARCH_RDA || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to support RDA Micro GPIO controller.
+
 config GPIO_REG
 	bool
 	help
@@ -452,6 +476,15 @@ config GPIO_SAMA5D2_PIOBU
 	  PIOBU pins on the SAMA5D2 can be used as GPIOs.
 	  The difference from regular GPIOs is that they
 	  maintain their value during backup/self-refresh.
+
+config GPIO_SIFIVE
+	bool "SiFive GPIO support"
+	depends on OF_GPIO && IRQ_DOMAIN_HIERARCHY
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	select REGMAP_MMIO
+	help
+	  Say yes here to support the GPIO device on SiFive SoCs.
 
 config GPIO_SIOX
 	tristate "SIOX GPIO support"
@@ -527,10 +560,11 @@ config GPIO_TEGRA
 
 config GPIO_TEGRA186
 	tristate "NVIDIA Tegra186 GPIO support"
-	default ARCH_TEGRA_186_SOC
-	depends on ARCH_TEGRA_186_SOC || COMPILE_TEST
+	default ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC
+	depends on ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC || COMPILE_TEST
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Say yes here to support GPIO pins on NVIDIA Tegra186 SoCs.
 
@@ -585,6 +619,13 @@ config GPIO_VX855
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
+
+config GPIO_WCD934X
+	tristate "Qualcomm Technologies Inc WCD9340/WCD9341 gpio controller driver"
+	depends on MFD_WCD934X && OF_GPIO
+	help
+         This driver is to supprot GPIO block found on the Qualcomm Technologies
+	 Inc WCD9340/WCD9341 Audio Codec.
 
 config GPIO_XGENE
 	bool "APM X-Gene GPIO controller support"
@@ -994,6 +1035,18 @@ config GPIO_BD70528
 	  This driver can also be built as a module. If so, the module
 	  will be called gpio-bd70528.
 
+config GPIO_BD71828
+	tristate "ROHM BD71828 GPIO support"
+	depends on MFD_ROHM_BD71828
+	help
+	  Support for GPIOs on ROHM BD71828 PMIC. There are three GPIOs
+	  available on the ROHM PMIC in total. The GPIOs are limited to
+	  outputs only and pins must be configured to GPIO outputs by
+	  OTP. Enable this only if you want to use these pins as outputs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio-bd71828.
+
 config GPIO_BD9571MWV
 	tristate "ROHM BD9571 GPIO support"
 	depends on MFD_BD9571MWV
@@ -1121,6 +1174,7 @@ config GPIO_MADERA
 config GPIO_MAX77620
 	tristate "GPIO support for PMIC MAX77620 and MAX20024"
 	depends on MFD_MAX77620
+	select GPIOLIB_IRQCHIP
 	help
 	  GPIO driver for MAX77620 and MAX20024 PMIC from Maxim Semiconductor.
 	  MAX77620 PMIC has 8 pins that can be configured as GPIOs. The
@@ -1320,7 +1374,7 @@ config GPIO_BT8XX
 	  The card needs to be physically altered for using it as a
 	  GPIO card. For more information on how to build a GPIO card
 	  from a BT8xx TV card, see the documentation file at
-	  Documentation/driver-api/bt8xxgpio.rst
+	  Documentation/driver-api/gpio/bt8xxgpio.rst
 
 	  If unsure, say N.
 

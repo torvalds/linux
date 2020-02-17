@@ -542,7 +542,8 @@ static int vsc73xx_phy_write(struct dsa_switch *ds, int phy, int regnum,
 }
 
 static enum dsa_tag_protocol vsc73xx_get_tag_protocol(struct dsa_switch *ds,
-						      int port)
+						      int port,
+						      enum dsa_tag_protocol mp)
 {
 	/* The switch internally uses a 8 byte header with length,
 	 * source port, tag, LPA and priority. This is supposedly
@@ -1111,7 +1112,9 @@ static int vsc73xx_gpio_probe(struct vsc73xx *vsc)
 	vsc->gc.ngpio = 4;
 	vsc->gc.owner = THIS_MODULE;
 	vsc->gc.parent = vsc->dev;
+#if IS_ENABLED(CONFIG_OF_GPIO)
 	vsc->gc.of_node = vsc->dev->of_node;
+#endif
 	vsc->gc.base = -1;
 	vsc->gc.get = vsc73xx_gpio_get;
 	vsc->gc.set = vsc73xx_gpio_set;
@@ -1178,9 +1181,12 @@ int vsc73xx_probe(struct vsc73xx *vsc)
 	 * We allocate 8 ports and avoid access to the nonexistant
 	 * ports.
 	 */
-	vsc->ds = dsa_switch_alloc(dev, 8);
+	vsc->ds = devm_kzalloc(dev, sizeof(*vsc->ds), GFP_KERNEL);
 	if (!vsc->ds)
 		return -ENOMEM;
+
+	vsc->ds->dev = dev;
+	vsc->ds->num_ports = 8;
 	vsc->ds->priv = vsc;
 
 	vsc->ds->ops = &vsc73xx_ds_ops;

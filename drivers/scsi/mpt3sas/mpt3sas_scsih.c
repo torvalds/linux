@@ -1050,6 +1050,34 @@ mpt3sas_get_pdev_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 }
 
 /**
+ * _scsih_set_nvme_max_shutdown_latency - Update max_shutdown_latency.
+ * @ioc: per adapter object
+ * Context: This function will acquire ioc->pcie_device_lock
+ *
+ * Update ioc->max_shutdown_latency to that NVMe drives RTD3 Entry Latency
+ * which has reported maximum among all available NVMe drives.
+ * Minimum max_shutdown_latency will be six seconds.
+ */
+static void
+_scsih_set_nvme_max_shutdown_latency(struct MPT3SAS_ADAPTER *ioc)
+{
+	struct _pcie_device *pcie_device;
+	unsigned long flags;
+	u16 shutdown_latency = IO_UNIT_CONTROL_SHUTDOWN_TIMEOUT;
+
+	spin_lock_irqsave(&ioc->pcie_device_lock, flags);
+	list_for_each_entry(pcie_device, &ioc->pcie_device_list, list) {
+		if (pcie_device->shutdown_latency) {
+			if (shutdown_latency < pcie_device->shutdown_latency)
+				shutdown_latency =
+					pcie_device->shutdown_latency;
+		}
+	}
+	ioc->max_shutdown_latency = shutdown_latency;
+	spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
+}
+
+/**
  * _scsih_pcie_device_remove - remove pcie_device from list.
  * @ioc: per adapter object
  * @pcie_device: the pcie_device object
@@ -1063,6 +1091,7 @@ _scsih_pcie_device_remove(struct MPT3SAS_ADAPTER *ioc,
 {
 	unsigned long flags;
 	int was_on_pcie_device_list = 0;
+	u8 update_latency = 0;
 
 	if (!pcie_device)
 		return;
@@ -1082,11 +1111,21 @@ _scsih_pcie_device_remove(struct MPT3SAS_ADAPTER *ioc,
 		list_del_init(&pcie_device->list);
 		was_on_pcie_device_list = 1;
 	}
+	if (pcie_device->shutdown_latency == ioc->max_shutdown_latency)
+		update_latency = 1;
 	spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
 	if (was_on_pcie_device_list) {
 		kfree(pcie_device->serial_number);
 		pcie_device_put(pcie_device);
 	}
+
+	/*
+	 * This device's RTD3 Entry Latency matches IOC's
+	 * max_shutdown_latency. Recalculate IOC's max_shutdown_latency
+	 * from the available drives as current drive is getting removed.
+	 */
+	if (update_latency)
+		_scsih_set_nvme_max_shutdown_latency(ioc);
 }
 
 
@@ -1101,6 +1140,7 @@ _scsih_pcie_device_remove_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	struct _pcie_device *pcie_device;
 	unsigned long flags;
 	int was_on_pcie_device_list = 0;
+	u8 update_latency = 0;
 
 	if (ioc->shost_recovery)
 		return;
@@ -1113,12 +1153,22 @@ _scsih_pcie_device_remove_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 			was_on_pcie_device_list = 1;
 			pcie_device_put(pcie_device);
 		}
+		if (pcie_device->shutdown_latency == ioc->max_shutdown_latency)
+			update_latency = 1;
 	}
 	spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
 	if (was_on_pcie_device_list) {
 		_scsih_pcie_device_remove_from_sml(ioc, pcie_device);
 		pcie_device_put(pcie_device);
 	}
+
+	/*
+	 * This device's RTD3 Entry Latency matches IOC's
+	 * max_shutdown_latency. Recalculate IOC's max_shutdown_latency
+	 * from the available drives as current drive is getting removed.
+	 */
+	if (update_latency)
+		_scsih_set_nvme_max_shutdown_latency(ioc);
 }
 
 /**
@@ -1554,7 +1604,12 @@ scsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 		max_depth = 1;
 	if (qdepth > max_depth)
 		qdepth = max_depth;
-	return scsi_change_queue_depth(sdev, qdepth);
+	scsi_change_queue_depth(sdev, qdepth);
+	sdev_printk(KERN_INFO, sdev,
+	    "qdepth(%d), tagged(%d), scsi_level(%d), cmd_que(%d)\n",
+	    sdev->queue_depth, sdev->tagged_supported,
+	    sdev->scsi_level, ((sdev->inquiry[7] & 2) >> 1));
+	return sdev->queue_depth;
 }
 
 /**
@@ -2673,6 +2728,7 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, u64 lun,
 	u16 smid = 0;
 	u32 ioc_state;
 	int rc;
+	u8 issue_reset = 0;
 
 	lockdep_assert_held(&ioc->tm_cmds.mutex);
 
@@ -2695,7 +2751,13 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, u64 lun,
 	}
 
 	if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
-		mpt3sas_base_fault_info(ioc, ioc_state &
+		mpt3sas_print_fault_code(ioc, ioc_state &
+		    MPI2_DOORBELL_DATA_MASK);
+		rc = mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
+		return (!rc) ? SUCCESS : FAILED;
+	} else if ((ioc_state & MPI2_IOC_STATE_MASK) ==
+	    MPI2_IOC_STATE_COREDUMP) {
+		mpt3sas_print_coredump_info(ioc, ioc_state &
 		    MPI2_DOORBELL_DATA_MASK);
 		rc = mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
 		return (!rc) ? SUCCESS : FAILED;
@@ -2726,9 +2788,10 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, u64 lun,
 	ioc->put_smid_hi_priority(ioc, smid, msix_task);
 	wait_for_completion_timeout(&ioc->tm_cmds.done, timeout*HZ);
 	if (!(ioc->tm_cmds.status & MPT3_CMD_COMPLETE)) {
-		if (mpt3sas_base_check_cmd_timeout(ioc,
-			ioc->tm_cmds.status, mpi_request,
-			sizeof(Mpi2SCSITaskManagementRequest_t)/4)) {
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->tm_cmds.status, mpi_request,
+		    sizeof(Mpi2SCSITaskManagementRequest_t)/4, issue_reset);
+		if (issue_reset) {
 			rc = mpt3sas_base_hard_reset_handler(ioc,
 					FORCE_BIG_HAMMER);
 			rc = (!rc) ? SUCCESS : FAILED;
@@ -2875,15 +2938,17 @@ scsih_abort(struct scsi_cmnd *scmd)
 
 	u8 timeout = 30;
 	struct _pcie_device *pcie_device = NULL;
-	sdev_printk(KERN_INFO, scmd->device,
-		"attempting task abort! scmd(%p)\n", scmd);
+	sdev_printk(KERN_INFO, scmd->device, "attempting task abort!"
+	    "scmd(0x%p), outstanding for %u ms & timeout %u ms\n",
+	    scmd, jiffies_to_msecs(jiffies - scmd->jiffies_at_alloc),
+	    (scmd->request->timeout / HZ) * 1000);
 	_scsih_tm_display_info(ioc, scmd);
 
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target ||
 	    ioc->remove_host) {
 		sdev_printk(KERN_INFO, scmd->device,
-			"device been deleted! scmd(%p)\n", scmd);
+		    "device been deleted! scmd(0x%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		r = SUCCESS;
@@ -2892,6 +2957,8 @@ scsih_abort(struct scsi_cmnd *scmd)
 
 	/* check for completed command */
 	if (st == NULL || st->cb_idx == 0xFF) {
+		sdev_printk(KERN_INFO, scmd->device, "No reference found at "
+		    "driver, assuming scmd(0x%p) might have completed\n", scmd);
 		scmd->result = DID_RESET << 16;
 		r = SUCCESS;
 		goto out;
@@ -2920,7 +2987,7 @@ scsih_abort(struct scsi_cmnd *scmd)
 	if (r == SUCCESS && st->cb_idx != 0xFF)
 		r = FAILED;
  out:
-	sdev_printk(KERN_INFO, scmd->device, "task abort: %s scmd(%p)\n",
+	sdev_printk(KERN_INFO, scmd->device, "task abort: %s scmd(0x%p)\n",
 	    ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
 	if (pcie_device)
 		pcie_device_put(pcie_device);
@@ -2949,14 +3016,14 @@ scsih_dev_reset(struct scsi_cmnd *scmd)
 	struct MPT3SAS_TARGET *target_priv_data = starget->hostdata;
 
 	sdev_printk(KERN_INFO, scmd->device,
-		"attempting device reset! scmd(%p)\n", scmd);
+	    "attempting device reset! scmd(0x%p)\n", scmd);
 	_scsih_tm_display_info(ioc, scmd);
 
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target ||
 	    ioc->remove_host) {
 		sdev_printk(KERN_INFO, scmd->device,
-			"device been deleted! scmd(%p)\n", scmd);
+		    "device been deleted! scmd(0x%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		r = SUCCESS;
@@ -2996,7 +3063,7 @@ scsih_dev_reset(struct scsi_cmnd *scmd)
 	if (r == SUCCESS && atomic_read(&scmd->device->device_busy))
 		r = FAILED;
  out:
-	sdev_printk(KERN_INFO, scmd->device, "device reset: %s scmd(%p)\n",
+	sdev_printk(KERN_INFO, scmd->device, "device reset: %s scmd(0x%p)\n",
 	    ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
 
 	if (sas_device)
@@ -3027,15 +3094,15 @@ scsih_target_reset(struct scsi_cmnd *scmd)
 	struct scsi_target *starget = scmd->device->sdev_target;
 	struct MPT3SAS_TARGET *target_priv_data = starget->hostdata;
 
-	starget_printk(KERN_INFO, starget, "attempting target reset! scmd(%p)\n",
-		scmd);
+	starget_printk(KERN_INFO, starget,
+	    "attempting target reset! scmd(0x%p)\n", scmd);
 	_scsih_tm_display_info(ioc, scmd);
 
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target ||
 	    ioc->remove_host) {
-		starget_printk(KERN_INFO, starget, "target been deleted! scmd(%p)\n",
-			scmd);
+		starget_printk(KERN_INFO, starget,
+		    "target been deleted! scmd(0x%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		r = SUCCESS;
@@ -3074,7 +3141,7 @@ scsih_target_reset(struct scsi_cmnd *scmd)
 	if (r == SUCCESS && atomic_read(&starget->target_busy))
 		r = FAILED;
  out:
-	starget_printk(KERN_INFO, starget, "target reset: %s scmd(%p)\n",
+	starget_printk(KERN_INFO, starget, "target reset: %s scmd(0x%p)\n",
 	    ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
 
 	if (sas_device)
@@ -3097,7 +3164,7 @@ scsih_host_reset(struct scsi_cmnd *scmd)
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(scmd->device->host);
 	int r, retval;
 
-	ioc_info(ioc, "attempting host reset! scmd(%p)\n", scmd);
+	ioc_info(ioc, "attempting host reset! scmd(0x%p)\n", scmd);
 	scsi_print_command(scmd);
 
 	if (ioc->is_driver_loading || ioc->remove_host) {
@@ -3109,7 +3176,7 @@ scsih_host_reset(struct scsi_cmnd *scmd)
 	retval = mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
 	r = (retval < 0) ? FAILED : SUCCESS;
 out:
-	ioc_info(ioc, "host reset: %s scmd(%p)\n",
+	ioc_info(ioc, "host reset: %s scmd(0x%p)\n",
 		 r == SUCCESS ? "SUCCESS" : "FAILED", scmd);
 
 	return r;
@@ -4475,6 +4542,7 @@ static void
 _scsih_temp_threshold_events(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2EventDataTemperature_t *event_data)
 {
+	u32 doorbell;
 	if (ioc->temp_sensors_count >= event_data->SensorNum) {
 		ioc_err(ioc, "Temperature Threshold flags %s%s%s%s exceeded for Sensor: %d !!!\n",
 			le16_to_cpu(event_data->Status) & 0x1 ? "0 " : " ",
@@ -4484,6 +4552,18 @@ _scsih_temp_threshold_events(struct MPT3SAS_ADAPTER *ioc,
 			event_data->SensorNum);
 		ioc_err(ioc, "Current Temp In Celsius: %d\n",
 			event_data->CurrentTemperature);
+		if (ioc->hba_mpi_version_belonged != MPI2_VERSION) {
+			doorbell = mpt3sas_base_get_iocstate(ioc, 0);
+			if ((doorbell & MPI2_IOC_STATE_MASK) ==
+			    MPI2_IOC_STATE_FAULT) {
+				mpt3sas_print_fault_code(ioc,
+				    doorbell & MPI2_DOORBELL_DATA_MASK);
+			} else if ((doorbell & MPI2_IOC_STATE_MASK) ==
+			    MPI2_IOC_STATE_COREDUMP) {
+				mpt3sas_print_coredump_info(ioc,
+				    doorbell & MPI2_DOORBELL_DATA_MASK);
+			}
+		}
 	}
 }
 
@@ -5161,7 +5241,7 @@ _scsih_smart_predicted_fault(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	/* insert into event log */
 	sz = offsetof(Mpi2EventNotificationReply_t, EventData) +
 	     sizeof(Mpi2EventDataSasDeviceStatusChange_t);
-	event_reply = kzalloc(sz, GFP_KERNEL);
+	event_reply = kzalloc(sz, GFP_ATOMIC);
 	if (!event_reply) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -6933,6 +7013,16 @@ _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	    le32_to_cpu(pcie_device_pg0.DeviceInfo)))) {
 		pcie_device->nvme_mdts =
 		    le32_to_cpu(pcie_device_pg2.MaximumDataTransferSize);
+		pcie_device->shutdown_latency =
+			le16_to_cpu(pcie_device_pg2.ShutdownLatency);
+		/*
+		 * Set IOC's max_shutdown_latency to drive's RTD3 Entry Latency
+		 * if drive's RTD3 Entry Latency is greater then IOC's
+		 * max_shutdown_latency.
+		 */
+		if (pcie_device->shutdown_latency > ioc->max_shutdown_latency)
+			ioc->max_shutdown_latency =
+				pcie_device->shutdown_latency;
 		if (pcie_device_pg2.ControllerResetTO)
 			pcie_device->reset_timeout =
 			    pcie_device_pg2.ControllerResetTO;
@@ -7669,10 +7759,9 @@ _scsih_ir_fastpath(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phys_disk_num)
 	wait_for_completion_timeout(&ioc->scsih_cmds.done, 10*HZ);
 
 	if (!(ioc->scsih_cmds.status & MPT3_CMD_COMPLETE)) {
-		issue_reset =
-			mpt3sas_base_check_cmd_timeout(ioc,
-				ioc->scsih_cmds.status, mpi_request,
-				sizeof(Mpi2RaidActionRequest_t)/4);
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->scsih_cmds.status, mpi_request,
+		    sizeof(Mpi2RaidActionRequest_t)/4, issue_reset);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -9272,15 +9361,17 @@ void mpt3sas_scsih_pre_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * mpt3sas_scsih_after_reset_handler - reset callback handler (for scsih)
+ * mpt3sas_scsih_clear_outstanding_scsi_tm_commands - clears outstanding
+ *							scsi & tm cmds.
  * @ioc: per adapter object
  *
  * The handler for doing any required cleanup or initialization.
  */
 void
-mpt3sas_scsih_after_reset_handler(struct MPT3SAS_ADAPTER *ioc)
+mpt3sas_scsih_clear_outstanding_scsi_tm_commands(struct MPT3SAS_ADAPTER *ioc)
 {
-	dtmprintk(ioc, ioc_info(ioc, "%s: MPT3_IOC_AFTER_RESET\n", __func__));
+	dtmprintk(ioc,
+	    ioc_info(ioc, "%s: clear outstanding scsi & tm cmds\n", __func__));
 	if (ioc->scsih_cmds.status & MPT3_CMD_PENDING) {
 		ioc->scsih_cmds.status |= MPT3_CMD_RESET;
 		mpt3sas_base_free_smid(ioc, ioc->scsih_cmds.smid);
@@ -9357,6 +9448,7 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 		}
 		_scsih_remove_unresponding_devices(ioc);
 		_scsih_scan_for_devices_after_reset(ioc);
+		_scsih_set_nvme_max_shutdown_latency(ioc);
 		break;
 	case MPT3SAS_PORT_ENABLE_COMPLETE:
 		ioc->start_scan = 0;
@@ -9660,6 +9752,75 @@ _scsih_expander_node_remove(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
+ * _scsih_nvme_shutdown - NVMe shutdown notification
+ * @ioc: per adapter object
+ *
+ * Sending IoUnitControl request with shutdown operation code to alert IOC that
+ * the host system is shutting down so that IOC can issue NVMe shutdown to
+ * NVMe drives attached to it.
+ */
+static void
+_scsih_nvme_shutdown(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26IoUnitControlRequest_t *mpi_request;
+	Mpi26IoUnitControlReply_t *mpi_reply;
+	u16 smid;
+
+	/* are there any NVMe devices ? */
+	if (list_empty(&ioc->pcie_device_list))
+		return;
+
+	mutex_lock(&ioc->scsih_cmds.mutex);
+
+	if (ioc->scsih_cmds.status != MPT3_CMD_NOT_USED) {
+		ioc_err(ioc, "%s: scsih_cmd in use\n", __func__);
+		goto out;
+	}
+
+	ioc->scsih_cmds.status = MPT3_CMD_PENDING;
+
+	smid = mpt3sas_base_get_smid(ioc, ioc->scsih_cb_idx);
+	if (!smid) {
+		ioc_err(ioc,
+		    "%s: failed obtaining a smid\n", __func__);
+		ioc->scsih_cmds.status = MPT3_CMD_NOT_USED;
+		goto out;
+	}
+
+	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
+	ioc->scsih_cmds.smid = smid;
+	memset(mpi_request, 0, sizeof(Mpi26IoUnitControlRequest_t));
+	mpi_request->Function = MPI2_FUNCTION_IO_UNIT_CONTROL;
+	mpi_request->Operation = MPI26_CTRL_OP_SHUTDOWN;
+
+	init_completion(&ioc->scsih_cmds.done);
+	ioc->put_smid_default(ioc, smid);
+	/* Wait for max_shutdown_latency seconds */
+	ioc_info(ioc,
+		"Io Unit Control shutdown (sending), Shutdown latency %d sec\n",
+		ioc->max_shutdown_latency);
+	wait_for_completion_timeout(&ioc->scsih_cmds.done,
+			ioc->max_shutdown_latency*HZ);
+
+	if (!(ioc->scsih_cmds.status & MPT3_CMD_COMPLETE)) {
+		ioc_err(ioc, "%s: timeout\n", __func__);
+		goto out;
+	}
+
+	if (ioc->scsih_cmds.status & MPT3_CMD_REPLY_VALID) {
+		mpi_reply = ioc->scsih_cmds.reply;
+		ioc_info(ioc, "Io Unit Control shutdown (complete):"
+			"ioc_status(0x%04x), loginfo(0x%08x)\n",
+			le16_to_cpu(mpi_reply->IOCStatus),
+			le32_to_cpu(mpi_reply->IOCLogInfo));
+	}
+ out:
+	ioc->scsih_cmds.status = MPT3_CMD_NOT_USED;
+	mutex_unlock(&ioc->scsih_cmds.mutex);
+}
+
+
+/**
  * _scsih_ir_shutdown - IR shutdown notification
  * @ioc: per adapter object
  *
@@ -9851,6 +10012,7 @@ scsih_shutdown(struct pci_dev *pdev)
 				&ioc->ioc_pg1_copy);
 
 	_scsih_ir_shutdown(ioc);
+	_scsih_nvme_shutdown(ioc);
 	mpt3sas_base_detach(ioc);
 }
 
@@ -10193,6 +10355,8 @@ scsih_scan_start(struct Scsi_Host *shost)
 	int rc;
 	if (diag_buffer_enable != -1 && diag_buffer_enable != 0)
 		mpt3sas_enable_diag_buffer(ioc, diag_buffer_enable);
+	else if (ioc->manu_pg11.HostTraceBufferMaxSizeKB != 0)
+		mpt3sas_enable_diag_buffer(ioc, 1);
 
 	if (disable_discovery > 0)
 		return;
@@ -10531,6 +10695,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->tm_sas_control_cb_idx = tm_sas_control_cb_idx;
 	ioc->logging_level = logging_level;
 	ioc->schedule_dead_ioc_flush_running_cmds = &_scsih_flush_running_cmds;
+	/* Host waits for minimum of six seconds */
+	ioc->max_shutdown_latency = IO_UNIT_CONTROL_SHUTDOWN_TIMEOUT;
 	/*
 	 * Enable MEMORY MOVE support flag.
 	 */
@@ -10679,6 +10845,7 @@ scsih_suspend(struct pci_dev *pdev, pm_message_t state)
 	mpt3sas_base_stop_watchdog(ioc);
 	flush_scheduled_work();
 	scsi_block_requests(shost);
+	_scsih_nvme_shutdown(ioc);
 	device_state = pci_choose_state(pdev, state);
 	ioc_info(ioc, "pdev=0x%p, slot=%s, entering operating state [D%d]\n",
 		 pdev, pci_name(pdev), device_state);
@@ -10713,7 +10880,7 @@ scsih_resume(struct pci_dev *pdev)
 	r = mpt3sas_base_map_resources(ioc);
 	if (r)
 		return r;
-
+	ioc_info(ioc, "Issuing Hard Reset as part of OS Resume\n");
 	mpt3sas_base_hard_reset_handler(ioc, SOFT_RESET);
 	scsi_unblock_requests(shost);
 	mpt3sas_base_start_watchdog(ioc);
@@ -10782,6 +10949,7 @@ scsih_pci_slot_reset(struct pci_dev *pdev)
 	if (rc)
 		return PCI_ERS_RESULT_DISCONNECT;
 
+	ioc_info(ioc, "Issuing Hard Reset as part of PCI Slot Reset\n");
 	rc = mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
 
 	ioc_warn(ioc, "hard reset: %s\n",

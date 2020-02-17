@@ -2159,7 +2159,7 @@ static void rocker_router_fib_event_work(struct work_struct *work)
 	/* Protect internal structures from changes */
 	rtnl_lock();
 	switch (fib_work->event) {
-	case FIB_EVENT_ENTRY_ADD:
+	case FIB_EVENT_ENTRY_REPLACE:
 		err = rocker_world_fib4_add(rocker, &fib_work->fen_info);
 		if (err)
 			rocker_world_fib4_abort(rocker);
@@ -2189,9 +2189,6 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 	struct rocker_fib_event_work *fib_work;
 	struct fib_notifier_info *info = ptr;
 
-	if (!net_eq(info->net, &init_net))
-		return NOTIFY_DONE;
-
 	if (info->family != AF_INET)
 		return NOTIFY_DONE;
 
@@ -2204,7 +2201,7 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 	fib_work->event = event;
 
 	switch (event) {
-	case FIB_EVENT_ENTRY_ADD: /* fall through */
+	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
 	case FIB_EVENT_ENTRY_DEL:
 		if (info->family == AF_INET) {
 			struct fib_entry_notifier_info *fen_info = ptr;
@@ -2994,7 +2991,7 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * the device, so no need to pass a callback.
 	 */
 	rocker->fib_nb.notifier_call = rocker_router_fib_event;
-	err = register_fib_notifier(&rocker->fib_nb, NULL);
+	err = register_fib_notifier(&init_net, &rocker->fib_nb, NULL, NULL);
 	if (err)
 		goto err_register_fib_notifier;
 
@@ -3021,7 +3018,7 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err_register_switchdev_blocking_notifier:
 	unregister_switchdev_notifier(&rocker_switchdev_notifier);
 err_register_switchdev_notifier:
-	unregister_fib_notifier(&rocker->fib_nb);
+	unregister_fib_notifier(&init_net, &rocker->fib_nb);
 err_register_fib_notifier:
 	rocker_remove_ports(rocker);
 err_probe_ports:
@@ -3057,7 +3054,7 @@ static void rocker_remove(struct pci_dev *pdev)
 	unregister_switchdev_blocking_notifier(nb);
 
 	unregister_switchdev_notifier(&rocker_switchdev_notifier);
-	unregister_fib_notifier(&rocker->fib_nb);
+	unregister_fib_notifier(&init_net, &rocker->fib_nb);
 	rocker_remove_ports(rocker);
 	rocker_write32(rocker, CONTROL, ROCKER_CONTROL_RESET);
 	destroy_workqueue(rocker->rocker_owq);

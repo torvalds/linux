@@ -71,26 +71,29 @@ extern int __put_user_bad(void);
 #define get_user(x, ptr)					\
 ({								\
     int __gu_err = 0;						\
-    typeof(x) __gu_val = 0;					\
     switch (sizeof(*(ptr))) {					\
     case 1:							\
-	__get_user_asm(__gu_err, __gu_val, ptr, b, "=d");	\
+	__get_user_asm(__gu_err, x, ptr, b, "=d");		\
 	break;							\
     case 2:							\
-	__get_user_asm(__gu_err, __gu_val, ptr, w, "=r");	\
+	__get_user_asm(__gu_err, x, ptr, w, "=r");		\
 	break;							\
     case 4:							\
-	__get_user_asm(__gu_err, __gu_val, ptr, l, "=r");	\
+	__get_user_asm(__gu_err, x, ptr, l, "=r");		\
 	break;							\
-    case 8:							\
-	memcpy((void *) &__gu_val, ptr, sizeof (*(ptr)));	\
+    case 8: {							\
+	union {							\
+	    u64 l;						\
+	    __typeof__(*(ptr)) t;				\
+	} __gu_val;						\
+	memcpy(&__gu_val.l, ptr, sizeof(__gu_val.l));		\
+	(x) = __gu_val.t;					\
 	break;							\
+    }								\
     default:							\
-	__gu_val = 0;						\
 	__gu_err = __get_user_bad();				\
 	break;							\
     }								\
-    (x) = (typeof(*(ptr))) __gu_val;				\
     __gu_err;							\
 })
 #define __get_user(x, ptr) get_user(x, ptr)

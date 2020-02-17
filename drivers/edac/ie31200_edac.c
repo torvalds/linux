@@ -357,7 +357,7 @@ static void __iomem *ie31200_map_mchbar(struct pci_dev *pdev)
 		return NULL;
 	}
 
-	window = ioremap_nocache(u.mchbar, IE31200_MMR_WINDOW_SIZE);
+	window = ioremap(u.mchbar, IE31200_MMR_WINDOW_SIZE);
 	if (!window)
 		ie31200_printk(KERN_ERR, "Cannot map mmio space at 0x%llx\n",
 			       (unsigned long long)u.mchbar);
@@ -490,9 +490,7 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 
 			if (dimm_info[j][i].dual_rank) {
 				nr_pages = nr_pages / 2;
-				dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-						     mci->n_layers, (i * 2) + 1,
-						     j, 0);
+				dimm = edac_get_dimm(mci, (i * 2) + 1, j, 0);
 				dimm->nr_pages = nr_pages;
 				edac_dbg(0, "set nr pages: 0x%lx\n", nr_pages);
 				dimm->grain = 8; /* just a guess */
@@ -503,8 +501,7 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 				dimm->dtype = DEV_UNKNOWN;
 				dimm->edac_mode = EDAC_UNKNOWN;
 			}
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-					     mci->n_layers, i * 2, j, 0);
+			dimm = edac_get_dimm(mci, i * 2, j, 0);
 			dimm->nr_pages = nr_pages;
 			edac_dbg(0, "set nr pages: 0x%lx\n", nr_pages);
 			dimm->grain = 8; /* same guess */

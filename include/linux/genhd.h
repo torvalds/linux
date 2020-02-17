@@ -245,6 +245,18 @@ static inline bool disk_part_scan_enabled(struct gendisk *disk)
 		!(disk->flags & GENHD_FL_NO_PART_SCAN);
 }
 
+static inline bool disk_has_partitions(struct gendisk *disk)
+{
+	bool ret = false;
+
+	rcu_read_lock();
+	if (rcu_dereference(disk->part_tbl)->len > 1)
+		ret = true;
+	rcu_read_unlock();
+
+	return ret;
+}
+
 static inline dev_t disk_devt(struct gendisk *disk)
 {
 	return MKDEV(disk->major, disk->first_minor);
@@ -621,9 +633,10 @@ extern void blk_invalidate_devt(dev_t devt);
 extern dev_t blk_lookup_devt(const char *name, int partno);
 extern char *disk_name (struct gendisk *hd, int partno, char *buf);
 
+int bdev_disk_changed(struct block_device *bdev, bool invalidate);
+int blk_add_partitions(struct gendisk *disk, struct block_device *bdev);
+int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev);
 extern int disk_expand_part_tbl(struct gendisk *disk, int target);
-extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
-extern int invalidate_partitions(struct gendisk *disk, struct block_device *bdev);
 extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
 						     int partno, sector_t start,
 						     sector_t len, int flags,
@@ -717,7 +730,7 @@ static inline void hd_free_part(struct hd_struct *part)
  * accessor function.
  *
  * Code written along the lines of i_size_read() and i_size_write().
- * CONFIG_PREEMPT case optimizes the case of UP kernel with preemption
+ * CONFIG_PREEMPTION case optimizes the case of UP kernel with preemption
  * on.
  */
 static inline sector_t part_nr_sects_read(struct hd_struct *part)
@@ -730,7 +743,7 @@ static inline sector_t part_nr_sects_read(struct hd_struct *part)
 		nr_sects = part->nr_sects;
 	} while (read_seqcount_retry(&part->nr_sects_seq, seq));
 	return nr_sects;
-#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPT)
+#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
 	sector_t nr_sects;
 
 	preempt_disable();
@@ -753,7 +766,7 @@ static inline void part_nr_sects_write(struct hd_struct *part, sector_t size)
 	write_seqcount_begin(&part->nr_sects_seq);
 	part->nr_sects = size;
 	write_seqcount_end(&part->nr_sects_seq);
-#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPT)
+#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
 	preempt_disable();
 	part->nr_sects = size;
 	preempt_enable();

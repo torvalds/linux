@@ -212,7 +212,8 @@ rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp, gfp_t gfp)
 	rxrpc_get_local(conn->params.local);
 	key_get(conn->params.key);
 
-	trace_rxrpc_conn(conn, rxrpc_conn_new_client, atomic_read(&conn->usage),
+	trace_rxrpc_conn(conn->debug_id, rxrpc_conn_new_client,
+			 atomic_read(&conn->usage),
 			 __builtin_return_address(0));
 	trace_rxrpc_client(conn, -1, rxrpc_client_alloc);
 	_leave(" = %p", conn);
@@ -352,6 +353,7 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 
 	if (cp->exclusive) {
 		call->conn = candidate;
+		call->security = candidate->security;
 		call->security_ix = candidate->security_ix;
 		call->service_id = candidate->service_id;
 		_leave(" = 0 [exclusive %d]", candidate->debug_id);
@@ -403,6 +405,7 @@ static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
 candidate_published:
 	set_bit(RXRPC_CONN_IN_CLIENT_CONNS, &candidate->flags);
 	call->conn = candidate;
+	call->security = candidate->security;
 	call->security_ix = candidate->security_ix;
 	call->service_id = candidate->service_id;
 	spin_unlock(&local->client_conns_lock);
@@ -425,6 +428,7 @@ found_extant_conn:
 
 	spin_lock(&conn->channel_lock);
 	call->conn = conn;
+	call->security = conn->security;
 	call->security_ix = conn->security_ix;
 	call->service_id = conn->service_id;
 	list_add_tail(&call->chan_wait_link, &conn->waiting_calls);
@@ -781,6 +785,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	u32 cid;
 
 	spin_lock(&conn->channel_lock);
+	set_bit(RXRPC_CALL_DISCONNECTED, &call->flags);
 
 	cid = call->cid;
 	if (cid) {
@@ -788,7 +793,6 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 		chan = &conn->channels[channel];
 	}
 	trace_rxrpc_client(conn, channel, rxrpc_client_chan_disconnect);
-	call->conn = NULL;
 
 	/* Calls that have never actually been assigned a channel can simply be
 	 * discarded.  If the conn didn't get used either, it will follow
@@ -904,7 +908,6 @@ out:
 	spin_unlock(&rxnet->client_conn_cache_lock);
 out_2:
 	spin_unlock(&conn->channel_lock);
-	rxrpc_put_connection(conn);
 	_leave("");
 	return;
 
@@ -985,11 +988,12 @@ rxrpc_put_one_client_conn(struct rxrpc_connection *conn)
 void rxrpc_put_client_conn(struct rxrpc_connection *conn)
 {
 	const void *here = __builtin_return_address(0);
+	unsigned int debug_id = conn->debug_id;
 	int n;
 
 	do {
 		n = atomic_dec_return(&conn->usage);
-		trace_rxrpc_conn(conn, rxrpc_conn_put_client, n, here);
+		trace_rxrpc_conn(debug_id, rxrpc_conn_put_client, n, here);
 		if (n > 0)
 			return;
 		ASSERTCMP(n, >=, 0);

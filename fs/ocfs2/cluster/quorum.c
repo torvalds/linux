@@ -73,7 +73,7 @@ static void o2quo_fence_self(void)
 		       "system by restarting ***\n");
 		emergency_restart();
 		break;
-	};
+	}
 }
 
 /* Indicate that a timeout occurred on a heartbeat region write. The

@@ -730,12 +730,12 @@ static int altera_tse_phy_get_addr_mdio_create(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 	struct device_node *np = priv->device->of_node;
-	int ret = 0;
+	int ret;
 
-	priv->phy_iface = of_get_phy_mode(np);
+	ret = of_get_phy_mode(np, &priv->phy_iface);
 
 	/* Avoid get phy addr and create mdio if no phy is present */
-	if (!priv->phy_iface)
+	if (ret)
 		return 0;
 
 	/* try to get PHY address from device tree, use PHY autodetection if
@@ -1332,10 +1332,10 @@ static int request_and_map(struct platform_device *pdev, const char *name,
 		return -EBUSY;
 	}
 
-	*ptr = devm_ioremap_nocache(device, region->start,
+	*ptr = devm_ioremap(device, region->start,
 				    resource_size(region));
 	if (*ptr == NULL) {
-		dev_err(device, "ioremap_nocache of %s failed!", name);
+		dev_err(device, "ioremap of %s failed!", name);
 		return -ENOMEM;
 	}
 

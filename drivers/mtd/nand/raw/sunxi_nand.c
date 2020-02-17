@@ -2071,10 +2071,8 @@ static int sunxi_nfc_probe(struct platform_device *pdev)
 		return PTR_ERR(nfc->regs);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "failed to retrieve irq\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	nfc->ahb_clk = devm_clk_get(dev, "ahb");
 	if (IS_ERR(nfc->ahb_clk)) {

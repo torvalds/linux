@@ -648,7 +648,7 @@ static int tegra_pinctrl_suspend(struct device *dev)
 {
 	struct tegra_pmx *pmx = dev_get_drvdata(dev);
 	u32 *backup_regs = pmx->backup_regs;
-	u32 *regs;
+	u32 __iomem *regs;
 	size_t bank_size;
 	unsigned int i, k;
 
@@ -666,7 +666,7 @@ static int tegra_pinctrl_resume(struct device *dev)
 {
 	struct tegra_pmx *pmx = dev_get_drvdata(dev);
 	u32 *backup_regs = pmx->backup_regs;
-	u32 *regs;
+	u32 __iomem *regs;
 	size_t bank_size;
 	unsigned int i, k;
 
@@ -781,8 +781,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 		return -ENOMEM;
 
 	for (i = 0; i < pmx->nbanks; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		pmx->regs[i] = devm_ioremap_resource(&pdev->dev, res);
+		pmx->regs[i] = devm_platform_ioremap_resource(pdev, i);
 		if (IS_ERR(pmx->regs[i]))
 			return PTR_ERR(pmx->regs[i]);
 	}

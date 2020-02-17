@@ -27,17 +27,106 @@ static void tegra_bo_put(struct host1x_bo *bo)
 	drm_gem_object_put_unlocked(&obj->gem);
 }
 
-static dma_addr_t tegra_bo_pin(struct host1x_bo *bo, struct sg_table **sgt)
+/* XXX move this into lib/scatterlist.c? */
+static int sg_alloc_table_from_sg(struct sg_table *sgt, struct scatterlist *sg,
+				  unsigned int nents, gfp_t gfp_mask)
 {
-	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+	struct scatterlist *dst;
+	unsigned int i;
+	int err;
 
-	*sgt = obj->sgt;
+	err = sg_alloc_table(sgt, nents, gfp_mask);
+	if (err < 0)
+		return err;
 
-	return obj->paddr;
+	dst = sgt->sgl;
+
+	for (i = 0; i < nents; i++) {
+		sg_set_page(dst, sg_page(sg), sg->length, 0);
+		dst = sg_next(dst);
+		sg = sg_next(sg);
+	}
+
+	return 0;
 }
 
-static void tegra_bo_unpin(struct host1x_bo *bo, struct sg_table *sgt)
+static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
+				     dma_addr_t *phys)
 {
+	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+	struct sg_table *sgt;
+	int err;
+
+	/*
+	 * If we've manually mapped the buffer object through the IOMMU, make
+	 * sure to return the IOVA address of our mapping.
+	 *
+	 * Similarly, for buffers that have been allocated by the DMA API the
+	 * physical address can be used for devices that are not attached to
+	 * an IOMMU. For these devices, callers must pass a valid pointer via
+	 * the @phys argument.
+	 *
+	 * Imported buffers were also already mapped at import time, so the
+	 * existing mapping can be reused.
+	 */
+	if (phys) {
+		*phys = obj->iova;
+		return NULL;
+	}
+
+	/*
+	 * If we don't have a mapping for this buffer yet, return an SG table
+	 * so that host1x can do the mapping for us via the DMA API.
+	 */
+	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	if (!sgt)
+		return ERR_PTR(-ENOMEM);
+
+	if (obj->pages) {
+		/*
+		 * If the buffer object was allocated from the explicit IOMMU
+		 * API code paths, construct an SG table from the pages.
+		 */
+		err = sg_alloc_table_from_pages(sgt, obj->pages, obj->num_pages,
+						0, obj->gem.size, GFP_KERNEL);
+		if (err < 0)
+			goto free;
+	} else if (obj->sgt) {
+		/*
+		 * If the buffer object already has an SG table but no pages
+		 * were allocated for it, it means the buffer was imported and
+		 * the SG table needs to be copied to avoid overwriting any
+		 * other potential users of the original SG table.
+		 */
+		err = sg_alloc_table_from_sg(sgt, obj->sgt->sgl, obj->sgt->nents,
+					     GFP_KERNEL);
+		if (err < 0)
+			goto free;
+	} else {
+		/*
+		 * If the buffer object had no pages allocated and if it was
+		 * not imported, it had to be allocated with the DMA API, so
+		 * the DMA API helper can be used.
+		 */
+		err = dma_get_sgtable(dev, sgt, obj->vaddr, obj->iova,
+				      obj->gem.size);
+		if (err < 0)
+			goto free;
+	}
+
+	return sgt;
+
+free:
+	kfree(sgt);
+	return ERR_PTR(err);
+}
+
+static void tegra_bo_unpin(struct device *dev, struct sg_table *sgt)
+{
+	if (sgt) {
+		sg_free_table(sgt);
+		kfree(sgt);
+	}
 }
 
 static void *tegra_bo_mmap(struct host1x_bo *bo)
@@ -65,32 +154,6 @@ static void tegra_bo_munmap(struct host1x_bo *bo, void *addr)
 		vunmap(addr);
 }
 
-static void *tegra_bo_kmap(struct host1x_bo *bo, unsigned int page)
-{
-	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-
-	if (obj->vaddr)
-		return obj->vaddr + page * PAGE_SIZE;
-	else if (obj->gem.import_attach)
-		return dma_buf_kmap(obj->gem.import_attach->dmabuf, page);
-	else
-		return vmap(obj->pages + page, 1, VM_MAP,
-			    pgprot_writecombine(PAGE_KERNEL));
-}
-
-static void tegra_bo_kunmap(struct host1x_bo *bo, unsigned int page,
-			    void *addr)
-{
-	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-
-	if (obj->vaddr)
-		return;
-	else if (obj->gem.import_attach)
-		dma_buf_kunmap(obj->gem.import_attach->dmabuf, page, addr);
-	else
-		vunmap(addr);
-}
-
 static struct host1x_bo *tegra_bo_get(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
@@ -107,8 +170,6 @@ static const struct host1x_bo_ops tegra_bo_ops = {
 	.unpin = tegra_bo_unpin,
 	.mmap = tegra_bo_mmap,
 	.munmap = tegra_bo_munmap,
-	.kmap = tegra_bo_kmap,
-	.kunmap = tegra_bo_kunmap,
 };
 
 static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
@@ -133,9 +194,9 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 		goto unlock;
 	}
 
-	bo->paddr = bo->mm->start;
+	bo->iova = bo->mm->start;
 
-	bo->size = iommu_map_sg(tegra->domain, bo->paddr, bo->sgt->sgl,
+	bo->size = iommu_map_sg(tegra->domain, bo->iova, bo->sgt->sgl,
 				bo->sgt->nents, prot);
 	if (!bo->size) {
 		dev_err(tegra->drm->dev, "failed to map buffer\n");
@@ -161,7 +222,7 @@ static int tegra_bo_iommu_unmap(struct tegra_drm *tegra, struct tegra_bo *bo)
 		return 0;
 
 	mutex_lock(&tegra->mm_lock);
-	iommu_unmap(tegra->domain, bo->paddr, bo->size);
+	iommu_unmap(tegra->domain, bo->iova, bo->size);
 	drm_mm_remove_node(bo->mm);
 	mutex_unlock(&tegra->mm_lock);
 
@@ -209,7 +270,7 @@ static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 		sg_free_table(bo->sgt);
 		kfree(bo->sgt);
 	} else if (bo->vaddr) {
-		dma_free_wc(drm->dev, bo->gem.size, bo->vaddr, bo->paddr);
+		dma_free_wc(drm->dev, bo->gem.size, bo->vaddr, bo->iova);
 	}
 }
 
@@ -264,7 +325,7 @@ static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
 	} else {
 		size_t size = bo->gem.size;
 
-		bo->vaddr = dma_alloc_wc(drm->dev, size, &bo->paddr,
+		bo->vaddr = dma_alloc_wc(drm->dev, size, &bo->iova,
 					 GFP_KERNEL | __GFP_NOWARN);
 		if (!bo->vaddr) {
 			dev_err(drm->dev,
@@ -359,13 +420,6 @@ static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
 		err = tegra_bo_iommu_map(tegra, bo);
 		if (err < 0)
 			goto detach;
-	} else {
-		if (bo->sgt->nents > 1) {
-			err = -EINVAL;
-			goto detach;
-		}
-
-		bo->paddr = sg_dma_address(bo->sgt->sgl);
 	}
 
 	bo->gem.import_attach = attach;
@@ -461,7 +515,7 @@ int __tegra_gem_mmap(struct drm_gem_object *gem, struct vm_area_struct *vma)
 		vma->vm_flags &= ~VM_PFNMAP;
 		vma->vm_pgoff = 0;
 
-		err = dma_mmap_wc(gem->dev->dev, vma, bo->vaddr, bo->paddr,
+		err = dma_mmap_wc(gem->dev->dev, vma, bo->vaddr, bo->iova,
 				  gem->size);
 		if (err < 0) {
 			drm_gem_vm_close(vma);
@@ -508,24 +562,17 @@ tegra_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 		return NULL;
 
 	if (bo->pages) {
-		struct scatterlist *sg;
-		unsigned int i;
-
-		if (sg_alloc_table(sgt, bo->num_pages, GFP_KERNEL))
-			goto free;
-
-		for_each_sg(sgt->sgl, sg, bo->num_pages, i)
-			sg_set_page(sg, bo->pages[i], PAGE_SIZE, 0);
-
-		if (dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir) == 0)
+		if (sg_alloc_table_from_pages(sgt, bo->pages, bo->num_pages,
+					      0, gem->size, GFP_KERNEL) < 0)
 			goto free;
 	} else {
-		if (sg_alloc_table(sgt, 1, GFP_KERNEL))
+		if (dma_get_sgtable(attach->dev, sgt, bo->vaddr, bo->iova,
+				    gem->size) < 0)
 			goto free;
-
-		sg_dma_address(sgt->sgl) = bo->paddr;
-		sg_dma_len(sgt->sgl) = gem->size;
 	}
+
+	if (dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir) == 0)
+		goto free;
 
 	return sgt;
 
@@ -582,16 +629,6 @@ static int tegra_gem_prime_end_cpu_access(struct dma_buf *buf,
 	return 0;
 }
 
-static void *tegra_gem_prime_kmap(struct dma_buf *buf, unsigned long page)
-{
-	return NULL;
-}
-
-static void tegra_gem_prime_kunmap(struct dma_buf *buf, unsigned long page,
-				   void *addr)
-{
-}
-
 static int tegra_gem_prime_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
 {
 	struct drm_gem_object *gem = buf->priv;
@@ -622,8 +659,6 @@ static const struct dma_buf_ops tegra_gem_prime_dmabuf_ops = {
 	.release = tegra_gem_prime_release,
 	.begin_cpu_access = tegra_gem_prime_begin_cpu_access,
 	.end_cpu_access = tegra_gem_prime_end_cpu_access,
-	.map = tegra_gem_prime_kmap,
-	.unmap = tegra_gem_prime_kunmap,
 	.mmap = tegra_gem_prime_mmap,
 	.vmap = tegra_gem_prime_vmap,
 	.vunmap = tegra_gem_prime_vunmap,

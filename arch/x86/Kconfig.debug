@@ -62,26 +62,10 @@ config EARLY_PRINTK_USB_XDBC
 config MCSAFE_TEST
 	def_bool n
 
-config X86_PTDUMP_CORE
-	def_bool n
-
-config X86_PTDUMP
-	tristate "Export kernel pagetable layout to userspace via debugfs"
-	depends on DEBUG_KERNEL
-	select DEBUG_FS
-	select X86_PTDUMP_CORE
-	---help---
-	  Say Y here if you want to show the kernel pagetable layout in a
-	  debugfs file. This information is only useful for kernel developers
-	  who are working in architecture specific areas of the kernel.
-	  It is probably not a good idea to enable this feature in a production
-	  kernel.
-	  If in doubt, say "N"
-
 config EFI_PGT_DUMP
 	bool "Dump the EFI pagetable"
 	depends on EFI
-	select X86_PTDUMP_CORE
+	select PTDUMP_CORE
 	---help---
 	  Enable this if you want to dump the EFI page table before
 	  enabling virtual mode. This can be used to debug miscellaneous
@@ -90,7 +74,7 @@ config EFI_PGT_DUMP
 
 config DEBUG_WX
 	bool "Warn on W+X mappings at boot"
-	select X86_PTDUMP_CORE
+	select PTDUMP_CORE
 	---help---
 	  Generate a warning if any W+X mappings are found at boot.
 
@@ -117,7 +101,7 @@ config DEBUG_WX
 
 config DOUBLEFAULT
 	default y
-	bool "Enable doublefault exception handler" if EXPERT
+	bool "Enable doublefault exception handler" if EXPERT && X86_32
 	---help---
 	  This option allows trapping of rare doublefault exceptions that
 	  would otherwise cause a system to silently reboot. Disabling this
@@ -315,10 +299,6 @@ config UNWINDER_FRAME_POINTER
 	  The unwinder itself is fast and it uses less RAM than the ORC
 	  unwinder, but the kernel text size will grow by ~3% and the kernel's
 	  overall performance will degrade by roughly 5-10%.
-
-	  This option is recommended if you want to use the livepatch
-	  consistency model, as this is currently the only way to get a
-	  reliable stack trace (CONFIG_HAVE_RELIABLE_STACKTRACE).
 
 config UNWINDER_GUESS
 	bool "Guess unwinder"

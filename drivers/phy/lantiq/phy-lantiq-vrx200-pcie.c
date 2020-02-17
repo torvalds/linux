@@ -323,7 +323,8 @@ static int ltq_vrx200_pcie_phy_power_on(struct phy *phy)
 		goto err_disable_pdi_clk;
 
 	/* Check if we are in "startup ready" status */
-	if (ltq_vrx200_pcie_phy_wait_for_pll(phy) != 0)
+	ret = ltq_vrx200_pcie_phy_wait_for_pll(phy);
+	if (ret)
 		goto err_disable_phy_clk;
 
 	ltq_vrx200_pcie_phy_apply_workarounds(phy);
@@ -385,7 +386,7 @@ static struct phy *ltq_vrx200_pcie_phy_xlate(struct device *dev,
 	default:
 		dev_err(dev, "invalid PHY mode %u\n", mode);
 		return ERR_PTR(-EINVAL);
-	};
+	}
 
 	return priv->phy;
 }

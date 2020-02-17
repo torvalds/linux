@@ -7,6 +7,7 @@
 #ifndef __INTEL_ENGINE_TYPES__
 #define __INTEL_ENGINE_TYPES__
 
+#include <linux/average.h>
 #include <linux/hashtable.h>
 #include <linux/irq_work.h>
 #include <linux/kref.h>
@@ -15,6 +16,7 @@
 #include <linux/rbtree.h>
 #include <linux/timer.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 #include "i915_gem.h"
 #include "i915_pmu.h"
@@ -58,6 +60,7 @@ struct i915_gem_context;
 struct i915_request;
 struct i915_sched_attr;
 struct intel_gt;
+struct intel_ring;
 struct intel_uncore;
 
 typedef u8 intel_engine_mask_t;
@@ -74,40 +77,6 @@ struct intel_instdone {
 	u32 slice_common;
 	u32 sampler[I915_MAX_SLICES][I915_MAX_SUBSLICES];
 	u32 row[I915_MAX_SLICES][I915_MAX_SUBSLICES];
-};
-
-struct intel_engine_hangcheck {
-	u64 acthd;
-	u32 last_ring;
-	u32 last_head;
-	unsigned long action_timestamp;
-	struct intel_instdone instdone;
-};
-
-struct intel_ring {
-	struct kref ref;
-	struct i915_vma *vma;
-	void *vaddr;
-
-	/*
-	 * As we have two types of rings, one global to the engine used
-	 * by ringbuffer submission and those that are exclusive to a
-	 * context used by execlists, we have to play safe and allow
-	 * atomic updates to the pin_count. However, the actual pinning
-	 * of the context is either done during initialisation for
-	 * ringbuffer submission or serialised as part of the context
-	 * pinning for execlists, and so we do not need a mutex ourselves
-	 * to serialise intel_ring_pin/intel_ring_unpin.
-	 */
-	atomic_t pin_count;
-
-	u32 head;
-	u32 tail;
-	u32 emit;
-
-	u32 space;
-	u32 size;
-	u32 effective_size;
 };
 
 /*
@@ -148,7 +117,11 @@ enum intel_engine_id {
 	VECS1,
 #define _VECS(n) (VECS0 + (n))
 	I915_NUM_ENGINES
+#define INVALID_ENGINE ((enum intel_engine_id)-1)
 };
+
+/* A simple estimator for the round-trip latency of an engine */
+DECLARE_EWMA(_engine_latency, 6, 4)
 
 struct st_preempt_hang {
 	struct completion completion;
@@ -172,6 +145,11 @@ struct intel_engine_execlists {
 	 * @timer: kick the current context if its timeslice expires
 	 */
 	struct timer_list timer;
+
+	/**
+	 * @preempt: reset the current context if it fails to give way
+	 */
+	struct timer_list preempt;
 
 	/**
 	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
@@ -300,13 +278,15 @@ struct intel_engine_cs {
 	u8 class;
 	u8 instance;
 
-	u8 uabi_class;
-	u8 uabi_instance;
+	u16 uabi_class;
+	u16 uabi_instance;
 
+	u32 uabi_capabilities;
 	u32 context_size;
 	u32 mmio_base;
 
-	u32 uabi_capabilities;
+	unsigned int context_tag;
+#define NUM_CONTEXT_TAG roundup_pow_of_two(2 * EXECLIST_MAX_PORTS)
 
 	struct rb_node uabi_node;
 
@@ -315,6 +295,7 @@ struct intel_engine_cs {
 	struct {
 		spinlock_t lock;
 		struct list_head requests;
+		struct list_head hold; /* ready requests, but on hold */
 	} active;
 
 	struct llist_head barrier_tasks;
@@ -322,6 +303,11 @@ struct intel_engine_cs {
 	struct intel_context *kernel_context; /* pinned */
 
 	intel_engine_mask_t saturated; /* submitting semaphores too late? */
+
+	struct {
+		struct delayed_work work;
+		struct i915_request *systole;
+	} heartbeat;
 
 	unsigned long serial;
 
@@ -334,6 +320,13 @@ struct intel_engine_cs {
 		struct intel_ring *ring;
 		struct intel_timeline *timeline;
 	} legacy;
+
+	/*
+	 * We track the average duration of the idle pulse on parking the
+	 * engine to keep an estimate of the how the fast the engine is
+	 * under ideal conditions.
+	 */
+	struct ewma__engine_latency latency;
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the
@@ -408,7 +401,10 @@ struct intel_engine_cs {
 
 	struct {
 		void (*prepare)(struct intel_engine_cs *engine);
-		void (*reset)(struct intel_engine_cs *engine, bool stalled);
+
+		void (*rewind)(struct intel_engine_cs *engine, bool stalled);
+		void (*cancel)(struct intel_engine_cs *engine);
+
 		void (*finish)(struct intel_engine_cs *engine);
 	} reset;
 
@@ -458,29 +454,29 @@ struct intel_engine_cs {
 	void		(*schedule)(struct i915_request *request,
 				    const struct i915_sched_attr *attr);
 
-	/*
-	 * Cancel all requests on the hardware, or queued for execution.
-	 * This should only cancel the ready requests that have been
-	 * submitted to the engine (via the engine->submit_request callback).
-	 * This is called when marking the device as wedged.
-	 */
-	void		(*cancel_requests)(struct intel_engine_cs *engine);
-
-	void		(*destroy)(struct intel_engine_cs *engine);
+	void		(*release)(struct intel_engine_cs *engine);
 
 	struct intel_engine_execlists execlists;
+
+	/*
+	 * Keep track of completed timelines on this engine for early
+	 * retirement with the goal of quickly enabling powersaving as
+	 * soon as the engine is idle.
+	 */
+	struct intel_timeline *retire;
+	struct work_struct retire_work;
 
 	/* status_notifier: list of callbacks for context-switch changes */
 	struct atomic_notifier_head context_status_notifier;
 
-	struct intel_engine_hangcheck hangcheck;
-
-#define I915_ENGINE_NEEDS_CMD_PARSER BIT(0)
+#define I915_ENGINE_USING_CMD_PARSER BIT(0)
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
 #define I915_ENGINE_HAS_PREEMPTION   BIT(2)
 #define I915_ENGINE_HAS_SEMAPHORES   BIT(3)
 #define I915_ENGINE_NEEDS_BREADCRUMB_TASKLET BIT(4)
 #define I915_ENGINE_IS_VIRTUAL       BIT(5)
+#define I915_ENGINE_HAS_RELATIVE_MMIO BIT(6)
+#define I915_ENGINE_REQUIRES_CMD_PARSER BIT(7)
 	unsigned int flags;
 
 	/*
@@ -538,12 +534,25 @@ struct intel_engine_cs {
 		 */
 		ktime_t total;
 	} stats;
+
+	struct {
+		unsigned long heartbeat_interval_ms;
+		unsigned long preempt_timeout_ms;
+		unsigned long stop_timeout_ms;
+		unsigned long timeslice_duration_ms;
+	} props;
 };
 
 static inline bool
-intel_engine_needs_cmd_parser(const struct intel_engine_cs *engine)
+intel_engine_using_cmd_parser(const struct intel_engine_cs *engine)
 {
-	return engine->flags & I915_ENGINE_NEEDS_CMD_PARSER;
+	return engine->flags & I915_ENGINE_USING_CMD_PARSER;
+}
+
+static inline bool
+intel_engine_requires_cmd_parser(const struct intel_engine_cs *engine)
+{
+	return engine->flags & I915_ENGINE_REQUIRES_CMD_PARSER;
 }
 
 static inline bool
@@ -576,20 +585,24 @@ intel_engine_is_virtual(const struct intel_engine_cs *engine)
 	return engine->flags & I915_ENGINE_IS_VIRTUAL;
 }
 
-#define instdone_slice_mask(dev_priv__) \
-	(IS_GEN(dev_priv__, 7) ? \
-	 1 : RUNTIME_INFO(dev_priv__)->sseu.slice_mask)
+static inline bool
+intel_engine_has_relative_mmio(const struct intel_engine_cs * const engine)
+{
+	return engine->flags & I915_ENGINE_HAS_RELATIVE_MMIO;
+}
 
-#define instdone_subslice_mask(dev_priv__) \
-	(IS_GEN(dev_priv__, 7) ? \
-	 1 : RUNTIME_INFO(dev_priv__)->sseu.subslice_mask[0])
+#define instdone_has_slice(dev_priv___, sseu___, slice___) \
+	((IS_GEN(dev_priv___, 7) ? 1 : ((sseu___)->slice_mask)) & BIT(slice___))
 
-#define for_each_instdone_slice_subslice(dev_priv__, slice__, subslice__) \
-	for ((slice__) = 0, (subslice__) = 0; \
-	     (slice__) < I915_MAX_SLICES; \
-	     (subslice__) = ((subslice__) + 1) < I915_MAX_SUBSLICES ? (subslice__) + 1 : 0, \
-	       (slice__) += ((subslice__) == 0)) \
-		for_each_if((BIT(slice__) & instdone_slice_mask(dev_priv__)) && \
-			    (BIT(subslice__) & instdone_subslice_mask(dev_priv__)))
+#define instdone_has_subslice(dev_priv__, sseu__, slice__, subslice__) \
+	(IS_GEN(dev_priv__, 7) ? (1 & BIT(subslice__)) : \
+	 intel_sseu_has_subslice(sseu__, 0, subslice__))
 
+#define for_each_instdone_slice_subslice(dev_priv_, sseu_, slice_, subslice_) \
+	for ((slice_) = 0, (subslice_) = 0; (slice_) < I915_MAX_SLICES; \
+	     (subslice_) = ((subslice_) + 1) % I915_MAX_SUBSLICES, \
+	     (slice_) += ((subslice_) == 0)) \
+		for_each_if((instdone_has_slice(dev_priv_, sseu_, slice_)) && \
+			    (instdone_has_subslice(dev_priv_, sseu_, slice_, \
+						    subslice_)))
 #endif /* __INTEL_ENGINE_TYPES_H__ */

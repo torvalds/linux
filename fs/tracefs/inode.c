@@ -16,36 +16,17 @@
 #include <linux/namei.h>
 #include <linux/tracefs.h>
 #include <linux/fsnotify.h>
+#include <linux/security.h>
 #include <linux/seq_file.h>
 #include <linux/parser.h>
 #include <linux/magic.h>
 #include <linux/slab.h>
-#include <linux/security.h>
 
 #define TRACEFS_DEFAULT_MODE	0700
 
 static struct vfsmount *tracefs_mount;
 static int tracefs_mount_count;
 static bool tracefs_registered;
-
-static int default_open_file(struct inode *inode, struct file *filp)
-{
-	struct dentry *dentry = filp->f_path.dentry;
-	struct file_operations *real_fops;
-	int ret;
-
-	if (!dentry)
-		return -EINVAL;
-
-	ret = security_locked_down(LOCKDOWN_TRACEFS);
-	if (ret)
-		return ret;
-
-	real_fops = dentry->d_fsdata;
-	if (!real_fops->open)
-		return 0;
-	return real_fops->open(inode, filp);
-}
 
 static ssize_t default_read_file(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
@@ -241,12 +222,6 @@ static int tracefs_apply_options(struct super_block *sb)
 	return 0;
 }
 
-static void tracefs_destroy_inode(struct inode *inode)
-{
-	if (S_ISREG(inode->i_mode))
-		kfree(inode->i_fop);
-}
-
 static int tracefs_remount(struct super_block *sb, int *flags, char *data)
 {
 	int err;
@@ -283,7 +258,6 @@ static int tracefs_show_options(struct seq_file *m, struct dentry *root)
 static const struct super_operations tracefs_super_operations = {
 	.statfs		= simple_statfs,
 	.remount_fs	= tracefs_remount,
-	.destroy_inode  = tracefs_destroy_inode,
 	.show_options	= tracefs_show_options,
 };
 
@@ -356,7 +330,10 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 		parent = tracefs_mount->mnt_root;
 
 	inode_lock(parent->d_inode);
-	dentry = lookup_one_len(name, parent, strlen(name));
+	if (unlikely(IS_DEADDIR(parent->d_inode)))
+		dentry = ERR_PTR(-ENOENT);
+	else
+		dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(dentry) && dentry->d_inode) {
 		dput(dentry);
 		dentry = ERR_PTR(-EEXIST);
@@ -414,9 +391,11 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops)
 {
-	struct file_operations *proxy_fops;
 	struct dentry *dentry;
 	struct inode *inode;
+
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return NULL;
 
 	if (!(mode & S_IFMT))
 		mode |= S_IFREG;
@@ -430,20 +409,8 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 	if (unlikely(!inode))
 		return failed_creating(dentry);
 
-	proxy_fops = kzalloc(sizeof(struct file_operations), GFP_KERNEL);
-	if (unlikely(!proxy_fops)) {
-		iput(inode);
-		return failed_creating(dentry);
-	}
-
-	if (!fops)
-		fops = &tracefs_file_operations;
-
-	dentry->d_fsdata = (void *)fops;
-	memcpy(proxy_fops, fops, sizeof(*proxy_fops));
-	proxy_fops->open = default_open_file;
 	inode->i_mode = mode;
-	inode->i_fop = proxy_fops;
+	inode->i_fop = fops ? fops : &tracefs_file_operations;
 	inode->i_private = data;
 	d_instantiate(dentry, inode);
 	fsnotify_create(dentry->d_parent->d_inode, dentry);
@@ -535,122 +502,27 @@ __init struct dentry *tracefs_create_instance_dir(const char *name,
 	return dentry;
 }
 
-static int __tracefs_remove(struct dentry *dentry, struct dentry *parent)
+static void remove_one(struct dentry *victim)
 {
-	int ret = 0;
-
-	if (simple_positive(dentry)) {
-		if (dentry->d_inode) {
-			dget(dentry);
-			switch (dentry->d_inode->i_mode & S_IFMT) {
-			case S_IFDIR:
-				ret = simple_rmdir(parent->d_inode, dentry);
-				if (!ret)
-					fsnotify_rmdir(parent->d_inode, dentry);
-				break;
-			default:
-				simple_unlink(parent->d_inode, dentry);
-				fsnotify_unlink(parent->d_inode, dentry);
-				break;
-			}
-			if (!ret)
-				d_delete(dentry);
-			dput(dentry);
-		}
-	}
-	return ret;
+	simple_release_fs(&tracefs_mount, &tracefs_mount_count);
 }
 
 /**
- * tracefs_remove - removes a file or directory from the tracefs filesystem
- * @dentry: a pointer to a the dentry of the file or directory to be
- *          removed.
- *
- * This function removes a file or directory in tracefs that was previously
- * created with a call to another tracefs function (like
- * tracefs_create_file() or variants thereof.)
- */
-void tracefs_remove(struct dentry *dentry)
-{
-	struct dentry *parent;
-	int ret;
-
-	if (IS_ERR_OR_NULL(dentry))
-		return;
-
-	parent = dentry->d_parent;
-	inode_lock(parent->d_inode);
-	ret = __tracefs_remove(dentry, parent);
-	inode_unlock(parent->d_inode);
-	if (!ret)
-		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
-}
-
-/**
- * tracefs_remove_recursive - recursively removes a directory
+ * tracefs_remove - recursively removes a directory
  * @dentry: a pointer to a the dentry of the directory to be removed.
  *
  * This function recursively removes a directory tree in tracefs that
  * was previously created with a call to another tracefs function
  * (like tracefs_create_file() or variants thereof.)
  */
-void tracefs_remove_recursive(struct dentry *dentry)
+void tracefs_remove(struct dentry *dentry)
 {
-	struct dentry *child, *parent;
-
 	if (IS_ERR_OR_NULL(dentry))
 		return;
 
-	parent = dentry;
- down:
-	inode_lock(parent->d_inode);
- loop:
-	/*
-	 * The parent->d_subdirs is protected by the d_lock. Outside that
-	 * lock, the child can be unlinked and set to be freed which can
-	 * use the d_u.d_child as the rcu head and corrupt this list.
-	 */
-	spin_lock(&parent->d_lock);
-	list_for_each_entry(child, &parent->d_subdirs, d_child) {
-		if (!simple_positive(child))
-			continue;
-
-		/* perhaps simple_empty(child) makes more sense */
-		if (!list_empty(&child->d_subdirs)) {
-			spin_unlock(&parent->d_lock);
-			inode_unlock(parent->d_inode);
-			parent = child;
-			goto down;
-		}
-
-		spin_unlock(&parent->d_lock);
-
-		if (!__tracefs_remove(child, parent))
-			simple_release_fs(&tracefs_mount, &tracefs_mount_count);
-
-		/*
-		 * The parent->d_lock protects agaist child from unlinking
-		 * from d_subdirs. When releasing the parent->d_lock we can
-		 * no longer trust that the next pointer is valid.
-		 * Restart the loop. We'll skip this one with the
-		 * simple_positive() check.
-		 */
-		goto loop;
-	}
-	spin_unlock(&parent->d_lock);
-
-	inode_unlock(parent->d_inode);
-	child = parent;
-	parent = parent->d_parent;
-	inode_lock(parent->d_inode);
-
-	if (child != dentry)
-		/* go up */
-		goto loop;
-
-	if (!__tracefs_remove(child, parent))
-		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
-	inode_unlock(parent->d_inode);
+	simple_pin_fs(&trace_fs_type, &tracefs_mount, &tracefs_mount_count);
+	simple_recursive_removal(dentry, remove_one);
+	simple_release_fs(&tracefs_mount, &tracefs_mount_count);
 }
 
 /**

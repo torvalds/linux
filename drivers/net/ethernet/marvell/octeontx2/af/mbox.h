@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- * Marvell OcteonTx2 RVU Admin Function driver
+/* SPDX-License-Identifier: GPL-2.0 */
+/*  Marvell OcteonTx2 RVU Admin Function driver
  *
  * Copyright (C) 2018 Marvell International Ltd.
  *
@@ -36,7 +36,7 @@
 
 #define INTR_MASK(pfvfs) ((pfvfs < 64) ? (BIT_ULL(pfvfs) - 1) : (~0ull))
 
-#define MBOX_RSP_TIMEOUT	1000 /* in ms, Time to wait for mbox response */
+#define MBOX_RSP_TIMEOUT	2000 /* Time(ms) to wait for mbox response */
 
 #define MBOX_MSG_ALIGN		16  /* Align mbox msg start to 16bytes */
 
@@ -75,6 +75,7 @@ struct otx2_mbox {
 
 /* Header which preceeds all mbox messages */
 struct mbox_hdr {
+	u64 msg_size;	/* Total msgs size embedded */
 	u16  num_msgs;   /* No of msgs embedded */
 };
 
@@ -103,6 +104,7 @@ struct mbox_msghdr *otx2_mbox_alloc_msg_rsp(struct otx2_mbox *mbox, int devid,
 					    int size, int size_rsp);
 struct mbox_msghdr *otx2_mbox_get_rsp(struct otx2_mbox *mbox, int devid,
 				      struct mbox_msghdr *msg);
+int otx2_mbox_check_rsp_msgs(struct otx2_mbox *mbox, int devid);
 int otx2_reply_invalid_msg(struct otx2_mbox *mbox, int devid,
 			   u16 pcifunc, u16 id);
 bool otx2_mbox_nonempty(struct otx2_mbox *mbox, int devid);
@@ -125,6 +127,7 @@ M(ATTACH_RESOURCES,	0x002, attach_resources, rsrc_attach, msg_rsp)	\
 M(DETACH_RESOURCES,	0x003, detach_resources, rsrc_detach, msg_rsp)	\
 M(MSIX_OFFSET,		0x004, msix_offset, msg_req, msix_offset_rsp)	\
 M(VF_FLR,		0x006, vf_flr, msg_req, msg_rsp)		\
+M(GET_HW_CAP,		0x008, get_hw_cap, msg_req, get_hw_cap_rsp)	\
 /* CGX mbox IDs (range 0x200 - 0x3FF) */				\
 M(CGX_START_RXTX,	0x200, cgx_start_rxtx, msg_req, msg_rsp)	\
 M(CGX_STOP_RXTX,	0x201, cgx_stop_rxtx, msg_req, msg_rsp)		\
@@ -207,7 +210,8 @@ M(NIX_SET_RX_CFG,	0x8010, nix_set_rx_cfg, nix_rx_cfg, msg_rsp)	\
 M(NIX_LSO_FORMAT_CFG,	0x8011, nix_lso_format_cfg,			\
 				 nix_lso_format_cfg,			\
 				 nix_lso_format_cfg_rsp)		\
-M(NIX_RXVLAN_ALLOC,	0x8012, nix_rxvlan_alloc, msg_req, msg_rsp)
+M(NIX_RXVLAN_ALLOC,	0x8012, nix_rxvlan_alloc, msg_req, msg_rsp)	\
+M(NIX_GET_MAC_ADDR, 0x8018, nix_get_mac_addr, msg_req, nix_get_mac_addr_rsp) \
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -300,6 +304,12 @@ struct msix_offset_rsp {
 	u16  cptlf_msixoff[MAX_RVU_BLKLF_CNT];
 };
 
+struct get_hw_cap_rsp {
+	struct mbox_msghdr hdr;
+	u8 nix_fixed_txschq_mapping; /* Schq mapping fixed or flexible */
+	u8 nix_shaping;		     /* Is shaping and coloring supported */
+};
+
 /* CGX mbox message formats */
 
 struct cgx_stats_rsp {
@@ -352,6 +362,7 @@ struct npa_lf_alloc_req {
 	int node;
 	int aura_sz;  /* No of auras */
 	u32 nr_pools; /* No of pools */
+	u64 way_mask;
 };
 
 struct npa_lf_alloc_rsp {
@@ -442,6 +453,7 @@ struct nix_lf_alloc_req {
 	u16 npa_func;
 	u16 sso_func;
 	u64 rx_cfg;   /* See NIX_AF_LF(0..127)_RX_CFG */
+	u64 way_mask;
 };
 
 struct nix_lf_alloc_rsp {
@@ -512,6 +524,9 @@ struct nix_txsch_alloc_rsp {
 	/* Scheduler queue list allocated at each level */
 	u16 schq_contig_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
 	u16 schq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
+	u8  aggr_level; /* Traffic aggregation scheduler level */
+	u8  aggr_lvl_rr_prio; /* Aggregation lvl's RR_PRIO config */
+	u8  link_cfg_lvl; /* LINKX_CFG CSRs mapped to TL3 or TL2's index ? */
 };
 
 struct nix_txsch_free_req {
@@ -578,6 +593,18 @@ struct nix_rss_flowkey_cfg {
 #define NIX_FLOW_KEY_TYPE_TCP	BIT(3)
 #define NIX_FLOW_KEY_TYPE_UDP	BIT(4)
 #define NIX_FLOW_KEY_TYPE_SCTP	BIT(5)
+#define NIX_FLOW_KEY_TYPE_NVGRE    BIT(6)
+#define NIX_FLOW_KEY_TYPE_VXLAN    BIT(7)
+#define NIX_FLOW_KEY_TYPE_GENEVE   BIT(8)
+#define NIX_FLOW_KEY_TYPE_ETH_DMAC BIT(9)
+#define NIX_FLOW_KEY_TYPE_IPV6_EXT BIT(10)
+#define NIX_FLOW_KEY_TYPE_GTPU       BIT(11)
+#define NIX_FLOW_KEY_TYPE_INNR_IPV4     BIT(12)
+#define NIX_FLOW_KEY_TYPE_INNR_IPV6     BIT(13)
+#define NIX_FLOW_KEY_TYPE_INNR_TCP      BIT(14)
+#define NIX_FLOW_KEY_TYPE_INNR_UDP      BIT(15)
+#define NIX_FLOW_KEY_TYPE_INNR_SCTP     BIT(16)
+#define NIX_FLOW_KEY_TYPE_INNR_ETH_DMAC BIT(17)
 	u32	flowkey_cfg; /* Flowkey types selected */
 	u8	group;       /* RSS context or group */
 };
@@ -590,6 +617,11 @@ struct nix_rss_flowkey_cfg_rsp {
 struct nix_set_mac_addr {
 	struct mbox_msghdr hdr;
 	u8 mac_addr[ETH_ALEN]; /* MAC address to be set for this pcifunc */
+};
+
+struct nix_get_mac_addr_rsp {
+	struct mbox_msghdr hdr;
+	u8 mac_addr[ETH_ALEN];
 };
 
 struct nix_mark_format_cfg {

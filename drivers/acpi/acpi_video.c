@@ -699,9 +699,13 @@ acpi_video_device_EDID(struct acpi_video_device *device,
  *			event notify code.
  *	lcd_flag	:
  *		0.	The system BIOS should automatically control the brightness level
- *			of the LCD when the power changes from AC to DC
+ *			of the LCD when:
+ *			- the power changes from AC to DC (ACPI appendix B)
+ *			- a brightness hotkey gets pressed (implied by Win7/8 backlight docs)
  *		1.	The system BIOS should NOT automatically control the brightness
- *			level of the LCD when the power changes from AC to DC.
+ *			level of the LCD when:
+ *			- the power changes from AC to DC (ACPI appendix B)
+ *			- a brightness hotkey gets pressed (implied by Win7/8 backlight docs)
  *  Return Value:
  *		-EINVAL	wrong arg.
  */
@@ -2183,7 +2187,7 @@ int acpi_video_register(void)
 	if (register_count) {
 		/*
 		 * if the function of acpi_video_register is already called,
-		 * don't register the acpi_vide_bus again and return no error.
+		 * don't register the acpi_video_bus again and return no error.
 		 */
 		goto leave;
 	}

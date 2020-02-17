@@ -436,6 +436,10 @@ by the driver:
    encryption.
  * ``tx_tls_ooo`` - number of TX packets which were part of a TLS stream
    but did not arrive in the expected order.
+ * ``tx_tls_skip_no_sync_data`` - number of TX packets which were part of
+   a TLS stream and arrived out-of-order, but skipped the HW offload routine
+   and went to the regular transmit flow as they were retransmissions of the
+   connection handshake.
  * ``tx_tls_drop_no_sync_data`` - number of TX packets which were part of
    a TLS stream dropped, because they arrived out of order and associated
    record could not be found.

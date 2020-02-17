@@ -1405,8 +1405,8 @@ static void axienet_validate(struct phylink_config *config,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static int axienet_mac_link_state(struct phylink_config *config,
-				  struct phylink_link_state *state)
+static void axienet_mac_pcs_get_state(struct phylink_config *config,
+				      struct phylink_link_state *state)
 {
 	struct net_device *ndev = to_net_dev(config->dev);
 	struct axienet_local *lp = netdev_priv(ndev);
@@ -1431,8 +1431,6 @@ static int axienet_mac_link_state(struct phylink_config *config,
 
 	state->an_complete = 0;
 	state->duplex = 1;
-
-	return 1;
 }
 
 static void axienet_mac_an_restart(struct phylink_config *config)
@@ -1497,7 +1495,7 @@ static void axienet_mac_link_up(struct phylink_config *config,
 
 static const struct phylink_mac_ops axienet_phylink_ops = {
 	.validate = axienet_validate,
-	.mac_link_state = axienet_mac_link_state,
+	.mac_pcs_get_state = axienet_mac_pcs_get_state,
 	.mac_an_restart = axienet_mac_an_restart,
 	.mac_config = axienet_mac_config,
 	.mac_link_down = axienet_mac_link_down,
@@ -1761,11 +1759,9 @@ static int axienet_probe(struct platform_device *pdev)
 			goto free_netdev;
 		}
 	} else {
-		lp->phy_mode = of_get_phy_mode(pdev->dev.of_node);
-		if ((int)lp->phy_mode < 0) {
-			ret = -EINVAL;
+		ret = of_get_phy_mode(pdev->dev.of_node, &lp->phy_mode);
+		if (ret)
 			goto free_netdev;
-		}
 	}
 
 	/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */
@@ -1790,10 +1786,6 @@ static int axienet_probe(struct platform_device *pdev)
 		/* Check for these resources directly on the Ethernet node. */
 		struct resource *res = platform_get_resource(pdev,
 							     IORESOURCE_MEM, 1);
-		if (!res) {
-			dev_err(&pdev->dev, "unable to get DMA memory resource\n");
-			goto free_netdev;
-		}
 		lp->dma_regs = devm_ioremap_resource(&pdev->dev, res);
 		lp->rx_irq = platform_get_irq(pdev, 1);
 		lp->tx_irq = platform_get_irq(pdev, 0);

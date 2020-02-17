@@ -1251,7 +1251,7 @@ static int xgmac_poll(struct napi_struct *napi, int budget)
  *   netdev structure and arrange for the device to be reset to a sane state
  *   in order to transmit a new packet.
  */
-static void xgmac_tx_timeout(struct net_device *dev)
+static void xgmac_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct xgmac_priv *priv = netdev_priv(dev);
 	schedule_work(&priv->tx_timeout_work);
@@ -1914,10 +1914,10 @@ static struct platform_driver xgmac_driver = {
 	.driver = {
 		.name = "calxedaxgmac",
 		.of_match_table = xgmac_of_match,
+		.pm = &xgmac_pm_ops,
 	},
 	.probe = xgmac_probe,
 	.remove = xgmac_remove,
-	.driver.pm = &xgmac_pm_ops,
 };
 
 module_platform_driver(xgmac_driver);

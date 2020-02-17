@@ -119,10 +119,6 @@ HWCAP_LRCPC
 HWCAP_DCPOP
     Functionality implied by ID_AA64ISAR1_EL1.DPB == 0b0001.
 
-HWCAP2_DCPODP
-
-    Functionality implied by ID_AA64ISAR1_EL1.DPB == 0b0010.
-
 HWCAP_SHA3
     Functionality implied by ID_AA64ISAR0_EL1.SHA3 == 0b0001.
 
@@ -140,6 +136,41 @@ HWCAP_SHA512
 
 HWCAP_SVE
     Functionality implied by ID_AA64PFR0_EL1.SVE == 0b0001.
+
+HWCAP_ASIMDFHM
+   Functionality implied by ID_AA64ISAR0_EL1.FHM == 0b0001.
+
+HWCAP_DIT
+    Functionality implied by ID_AA64PFR0_EL1.DIT == 0b0001.
+
+HWCAP_USCAT
+    Functionality implied by ID_AA64MMFR2_EL1.AT == 0b0001.
+
+HWCAP_ILRCPC
+    Functionality implied by ID_AA64ISAR1_EL1.LRCPC == 0b0010.
+
+HWCAP_FLAGM
+    Functionality implied by ID_AA64ISAR0_EL1.TS == 0b0001.
+
+HWCAP_SSBS
+    Functionality implied by ID_AA64PFR1_EL1.SSBS == 0b0010.
+
+HWCAP_SB
+    Functionality implied by ID_AA64ISAR1_EL1.SB == 0b0001.
+
+HWCAP_PACA
+    Functionality implied by ID_AA64ISAR1_EL1.APA == 0b0001 or
+    ID_AA64ISAR1_EL1.API == 0b0001, as described by
+    Documentation/arm64/pointer-authentication.rst.
+
+HWCAP_PACG
+    Functionality implied by ID_AA64ISAR1_EL1.GPA == 0b0001 or
+    ID_AA64ISAR1_EL1.GPI == 0b0001, as described by
+    Documentation/arm64/pointer-authentication.rst.
+
+HWCAP2_DCPODP
+
+    Functionality implied by ID_AA64ISAR1_EL1.DPB == 0b0010.
 
 HWCAP2_SVE2
 
@@ -165,42 +196,45 @@ HWCAP2_SVESM4
 
     Functionality implied by ID_AA64ZFR0_EL1.SM4 == 0b0001.
 
-HWCAP_ASIMDFHM
-   Functionality implied by ID_AA64ISAR0_EL1.FHM == 0b0001.
-
-HWCAP_DIT
-    Functionality implied by ID_AA64PFR0_EL1.DIT == 0b0001.
-
-HWCAP_USCAT
-    Functionality implied by ID_AA64MMFR2_EL1.AT == 0b0001.
-
-HWCAP_ILRCPC
-    Functionality implied by ID_AA64ISAR1_EL1.LRCPC == 0b0010.
-
-HWCAP_FLAGM
-    Functionality implied by ID_AA64ISAR0_EL1.TS == 0b0001.
-
 HWCAP2_FLAGM2
 
     Functionality implied by ID_AA64ISAR0_EL1.TS == 0b0010.
-
-HWCAP_SSBS
-    Functionality implied by ID_AA64PFR1_EL1.SSBS == 0b0010.
-
-HWCAP_PACA
-    Functionality implied by ID_AA64ISAR1_EL1.APA == 0b0001 or
-    ID_AA64ISAR1_EL1.API == 0b0001, as described by
-    Documentation/arm64/pointer-authentication.rst.
-
-HWCAP_PACG
-    Functionality implied by ID_AA64ISAR1_EL1.GPA == 0b0001 or
-    ID_AA64ISAR1_EL1.GPI == 0b0001, as described by
-    Documentation/arm64/pointer-authentication.rst.
 
 HWCAP2_FRINT
 
     Functionality implied by ID_AA64ISAR1_EL1.FRINTTS == 0b0001.
 
+HWCAP2_SVEI8MM
+
+    Functionality implied by ID_AA64ZFR0_EL1.I8MM == 0b0001.
+
+HWCAP2_SVEF32MM
+
+    Functionality implied by ID_AA64ZFR0_EL1.F32MM == 0b0001.
+
+HWCAP2_SVEF64MM
+
+    Functionality implied by ID_AA64ZFR0_EL1.F64MM == 0b0001.
+
+HWCAP2_SVEBF16
+
+    Functionality implied by ID_AA64ZFR0_EL1.BF16 == 0b0001.
+
+HWCAP2_I8MM
+
+    Functionality implied by ID_AA64ISAR1_EL1.I8MM == 0b0001.
+
+HWCAP2_BF16
+
+    Functionality implied by ID_AA64ISAR1_EL1.BF16 == 0b0001.
+
+HWCAP2_DGH
+
+    Functionality implied by ID_AA64ISAR1_EL1.DGH == 0b0001.
+
+HWCAP2_RNG
+
+    Functionality implied by ID_AA64ISAR0_EL1.RNDR == 0b0001.
 
 4. Unused AT_HWCAP bits
 -----------------------

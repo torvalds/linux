@@ -266,9 +266,9 @@ void btrfs_print_leaf(struct extent_buffer *l)
 					    struct btrfs_block_group_item);
 			pr_info(
 		   "\t\tblock group used %llu chunk_objectid %llu flags %llu\n",
-				btrfs_disk_block_group_used(l, bi),
-				btrfs_disk_block_group_chunk_objectid(l, bi),
-				btrfs_disk_block_group_flags(l, bi));
+				btrfs_block_group_used(l, bi),
+				btrfs_block_group_chunk_objectid(l, bi),
+				btrfs_block_group_flags(l, bi));
 			break;
 		case BTRFS_CHUNK_ITEM_KEY:
 			print_chunk(l, btrfs_item_ptr(l, i,
@@ -317,7 +317,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 			print_uuid_item(l, btrfs_item_ptr_offset(l, i),
 					btrfs_item_size_nr(l, i));
 			break;
-		};
+		}
 	}
 }
 

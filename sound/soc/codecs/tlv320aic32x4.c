@@ -573,6 +573,9 @@ static int aic32x4_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct clk *pll;
 
 	pll = devm_clk_get(component->dev, "pll");
+	if (IS_ERR(pll))
+		return PTR_ERR(pll);
+
 	mclk = clk_get_parent(pll);
 
 	return clk_set_rate(mclk, freq);
@@ -1095,11 +1098,9 @@ static int aic32x4_setup_regulators(struct device *dev,
 			return PTR_ERR(aic32x4->supply_av);
 		}
 	} else {
-		if (IS_ERR(aic32x4->supply_dv) &&
-				PTR_ERR(aic32x4->supply_dv) == -EPROBE_DEFER)
+		if (PTR_ERR(aic32x4->supply_dv) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		if (IS_ERR(aic32x4->supply_av) &&
-				PTR_ERR(aic32x4->supply_av) == -EPROBE_DEFER)
+		if (PTR_ERR(aic32x4->supply_av) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 	}
 

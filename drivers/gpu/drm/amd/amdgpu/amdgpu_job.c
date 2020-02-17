@@ -153,7 +153,6 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 	if (r)
 		return r;
 
-	job->owner = owner;
 	*f = dma_fence_get(&job->base.s_fence->finished);
 	amdgpu_job_free_resources(job);
 	priority = job->base.s_priority;
@@ -193,8 +192,7 @@ static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 	fence = amdgpu_sync_get_fence(&job->sync, &explicit);
 	if (fence && explicit) {
 		if (drm_sched_dependency_optimized(fence, s_entity)) {
-			r = amdgpu_sync_fence(ring->adev, &job->sched_sync,
-					      fence, false);
+			r = amdgpu_sync_fence(&job->sched_sync, fence, false);
 			if (r)
 				DRM_ERROR("Error adding fence (%d)\n", r);
 		}
@@ -218,7 +216,7 @@ static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 	struct amdgpu_ring *ring = to_amdgpu_ring(sched_job->sched);
 	struct dma_fence *fence = NULL, *finished;
 	struct amdgpu_job *job;
-	int r;
+	int r = 0;
 
 	job = to_amdgpu_job(sched_job);
 	finished = &job->base.s_fence->finished;
@@ -243,7 +241,47 @@ static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 	job->fence = dma_fence_get(fence);
 
 	amdgpu_job_free_resources(job);
+
+	fence = r ? ERR_PTR(r) : fence;
 	return fence;
+}
+
+#define to_drm_sched_job(sched_job)		\
+		container_of((sched_job), struct drm_sched_job, queue_node)
+
+void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched)
+{
+	struct drm_sched_job *s_job;
+	struct drm_sched_entity *s_entity = NULL;
+	int i;
+
+	/* Signal all jobs not yet scheduled */
+	for (i = DRM_SCHED_PRIORITY_MAX - 1; i >= DRM_SCHED_PRIORITY_MIN; i--) {
+		struct drm_sched_rq *rq = &sched->sched_rq[i];
+
+		if (!rq)
+			continue;
+
+		spin_lock(&rq->lock);
+		list_for_each_entry(s_entity, &rq->entities, list) {
+			while ((s_job = to_drm_sched_job(spsc_queue_pop(&s_entity->job_queue)))) {
+				struct drm_sched_fence *s_fence = s_job->s_fence;
+
+				dma_fence_signal(&s_fence->scheduled);
+				dma_fence_set_error(&s_fence->finished, -EHWPOISON);
+				dma_fence_signal(&s_fence->finished);
+			}
+		}
+		spin_unlock(&rq->lock);
+	}
+
+	/* Signal all jobs already scheduled to HW */
+	list_for_each_entry(s_job, &sched->ring_mirror_list, node) {
+		struct drm_sched_fence *s_fence = s_job->s_fence;
+
+		dma_fence_set_error(&s_fence->finished, -EHWPOISON);
+		dma_fence_signal(&s_fence->finished);
+	}
 }
 
 const struct drm_sched_backend_ops amdgpu_sched_ops = {

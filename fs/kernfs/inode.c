@@ -160,9 +160,9 @@ static inline void set_inode_attr(struct inode *inode,
 {
 	inode->i_uid = attrs->ia_uid;
 	inode->i_gid = attrs->ia_gid;
-	inode->i_atime = timestamp_truncate(attrs->ia_atime, inode);
-	inode->i_mtime = timestamp_truncate(attrs->ia_mtime, inode);
-	inode->i_ctime = timestamp_truncate(attrs->ia_ctime, inode);
+	inode->i_atime = attrs->ia_atime;
+	inode->i_mtime = attrs->ia_mtime;
+	inode->i_ctime = attrs->ia_ctime;
 }
 
 static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
@@ -201,7 +201,7 @@ static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	inode->i_private = kn;
 	inode->i_mapping->a_ops = &kernfs_aops;
 	inode->i_op = &kernfs_iops;
-	inode->i_generation = kn->id.generation;
+	inode->i_generation = kernfs_gen(kn);
 
 	set_default_inode_attr(inode, kn->mode);
 	kernfs_refresh_inode(kn, inode);
@@ -247,7 +247,7 @@ struct inode *kernfs_get_inode(struct super_block *sb, struct kernfs_node *kn)
 {
 	struct inode *inode;
 
-	inode = iget_locked(sb, kn->id.ino);
+	inode = iget_locked(sb, kernfs_ino(kn));
 	if (inode && (inode->i_state & I_NEW))
 		kernfs_init_inode(kn, inode);
 

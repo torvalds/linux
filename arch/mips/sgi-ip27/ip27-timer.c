@@ -25,18 +25,17 @@
 #include <asm/sn/klconfig.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/addrs.h>
-#include <asm/sn/sn_private.h>
-#include <asm/sn/sn0/ip27.h>
-#include <asm/sn/sn0/hub.h>
+#include <asm/sn/agent.h>
+
+#include "ip27-common.h"
 
 #define TICK_SIZE (tick_nsec / 1000)
 
 /* Includes for ioc3_init().  */
 #include <asm/sn/types.h>
-#include <asm/sn/sn0/addrs.h>
-#include <asm/sn/sn0/hubni.h>
-#include <asm/sn/sn0/hubio.h>
 #include <asm/pci/bridge.h>
+
+#include "ip27-common.h"
 
 static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
 {
@@ -151,26 +150,7 @@ void __init plat_time_init(void)
 	hub_rt_clock_event_init();
 }
 
-void cpu_time_init(void)
-{
-	lboard_t *board;
-	klcpu_t *cpu;
-	int cpuid;
-
-	/* Don't use ARCS.  ARCS is fragile.  Klconfig is simple and sane.  */
-	board = find_lboard(KL_CONFIG_INFO(get_nasid()), KLTYPE_IP27);
-	if (!board)
-		panic("Can't find board info for myself.");
-
-	cpuid = LOCAL_HUB_L(PI_CPU_NUM) ? IP27_CPU0_INDEX : IP27_CPU1_INDEX;
-	cpu = (klcpu_t *) KLCF_COMP(board, cpuid);
-	if (!cpu)
-		panic("No information about myself?");
-
-	printk("CPU %d clock is %dMHz.\n", smp_processor_id(), cpu->cpu_speed);
-}
-
-void hub_rtc_init(cnodeid_t cnode)
+void hub_rtc_init(nasid_t nasid)
 {
 
 	/*
@@ -178,7 +158,7 @@ void hub_rtc_init(cnodeid_t cnode)
 	 * If this is not the current node then it is a cpuless
 	 * node and timeouts will not happen there.
 	 */
-	if (get_compact_nodeid() == cnode) {
+	if (get_nasid() == nasid) {
 		LOCAL_HUB_S(PI_RT_EN_A, 1);
 		LOCAL_HUB_S(PI_RT_EN_B, 1);
 		LOCAL_HUB_S(PI_PROF_EN_A, 0);
@@ -188,23 +168,3 @@ void hub_rtc_init(cnodeid_t cnode)
 		LOCAL_HUB_S(PI_RT_PEND_B, 0);
 	}
 }
-
-static int __init sgi_ip27_rtc_devinit(void)
-{
-	struct resource res;
-
-	memset(&res, 0, sizeof(res));
-	res.start = XPHYSADDR(KL_CONFIG_CH_CONS_INFO(master_nasid)->memory_base +
-			      IOC3_BYTEBUS_DEV0);
-	res.end = res.start + 32767;
-	res.flags = IORESOURCE_MEM;
-
-	return IS_ERR(platform_device_register_simple("rtc-m48t35", -1,
-						      &res, 1));
-}
-
-/*
- * kludge make this a device_initcall after ioc3 resource conflicts
- * are resolved
- */
-late_initcall(sgi_ip27_rtc_devinit);

@@ -534,7 +534,7 @@ static int cramfs_read_super(struct super_block *sb, struct fs_context *fc,
 		/* check for wrong endianness */
 		if (super->magic == CRAMFS_MAGIC_WEND) {
 			if (!silent)
-				errorf(fc, "cramfs: wrong endianness");
+				errorfc(fc, "wrong endianness");
 			return -EINVAL;
 		}
 
@@ -546,22 +546,22 @@ static int cramfs_read_super(struct super_block *sb, struct fs_context *fc,
 		mutex_unlock(&read_mutex);
 		if (super->magic != CRAMFS_MAGIC) {
 			if (super->magic == CRAMFS_MAGIC_WEND && !silent)
-				errorf(fc, "cramfs: wrong endianness");
+				errorfc(fc, "wrong endianness");
 			else if (!silent)
-				errorf(fc, "cramfs: wrong magic");
+				errorfc(fc, "wrong magic");
 			return -EINVAL;
 		}
 	}
 
 	/* get feature flags first */
 	if (super->flags & ~CRAMFS_SUPPORTED_FLAGS) {
-		errorf(fc, "cramfs: unsupported filesystem features");
+		errorfc(fc, "unsupported filesystem features");
 		return -EINVAL;
 	}
 
 	/* Check that the root inode is in a sane state */
 	if (!S_ISDIR(super->root.mode)) {
-		errorf(fc, "cramfs: root is not a directory");
+		errorfc(fc, "root is not a directory");
 		return -EINVAL;
 	}
 	/* correct strange, hard-coded permissions of mkcramfs */
@@ -580,12 +580,12 @@ static int cramfs_read_super(struct super_block *sb, struct fs_context *fc,
 	sbi->magic = super->magic;
 	sbi->flags = super->flags;
 	if (root_offset == 0)
-		infof(fc, "cramfs: empty filesystem");
+		infofc(fc, "empty filesystem");
 	else if (!(super->flags & CRAMFS_FLAG_SHIFTED_ROOT_OFFSET) &&
 		 ((root_offset != sizeof(struct cramfs_super)) &&
 		  (root_offset != 512 + sizeof(struct cramfs_super))))
 	{
-		errorf(fc, "cramfs: bad root offset %lu", root_offset);
+		errorfc(fc, "bad root offset %lu", root_offset);
 		return -EINVAL;
 	}
 
@@ -958,8 +958,8 @@ static int cramfs_get_tree(struct fs_context *fc)
 
 	if (IS_ENABLED(CONFIG_CRAMFS_MTD)) {
 		ret = get_tree_mtd(fc, cramfs_mtd_fill_super);
-		if (ret < 0)
-			return ret;
+		if (!ret)
+			return 0;
 	}
 	if (IS_ENABLED(CONFIG_CRAMFS_BLOCKDEV))
 		ret = get_tree_bdev(fc, cramfs_blkdev_fill_super);

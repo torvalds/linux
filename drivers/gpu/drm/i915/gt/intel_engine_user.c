@@ -11,6 +11,7 @@
 #include "i915_drv.h"
 #include "intel_engine.h"
 #include "intel_engine_user.h"
+#include "intel_gt.h"
 
 struct intel_engine_cs *
 intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
@@ -160,10 +161,10 @@ static int legacy_ring_idx(const struct legacy_ring *ring)
 	};
 
 	if (GEM_DEBUG_WARN_ON(ring->class >= ARRAY_SIZE(map)))
-		return -1;
+		return INVALID_ENGINE;
 
 	if (GEM_DEBUG_WARN_ON(ring->instance >= map[ring->class].max))
-		return -1;
+		return INVALID_ENGINE;
 
 	return map[ring->class].base + ring->instance;
 }
@@ -171,23 +172,15 @@ static int legacy_ring_idx(const struct legacy_ring *ring)
 static void add_legacy_ring(struct legacy_ring *ring,
 			    struct intel_engine_cs *engine)
 {
-	int idx;
-
 	if (engine->gt != ring->gt || engine->class != ring->class) {
 		ring->gt = engine->gt;
 		ring->class = engine->class;
 		ring->instance = 0;
 	}
 
-	idx = legacy_ring_idx(ring);
-	if (unlikely(idx == -1))
-		return;
-
-	GEM_BUG_ON(idx >= ARRAY_SIZE(ring->gt->engine));
-	ring->gt->engine[idx] = engine;
-	ring->instance++;
-
-	engine->legacy_idx = idx;
+	engine->legacy_idx = legacy_ring_idx(ring);
+	if (engine->legacy_idx != INVALID_ENGINE)
+		ring->instance++;
 }
 
 void intel_engines_driver_register(struct drm_i915_private *i915)
@@ -207,6 +200,9 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 			container_of((struct rb_node *)it, typeof(*engine),
 				     uabi_node);
 		char old[sizeof(engine->name)];
+
+		if (intel_gt_has_init_error(engine->gt))
+			continue; /* ignore incomplete engines */
 
 		GEM_BUG_ON(engine->class >= ARRAY_SIZE(uabi_classes));
 		engine->uabi_class = uabi_classes[engine->class];

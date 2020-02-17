@@ -183,6 +183,9 @@ static int vega20_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_TablelessHardwareInterface);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_BACO);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_EnableSMU7ThermalManagement);
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_UVD)
@@ -490,8 +493,8 @@ static int vega20_setup_asic_task(struct pp_hwmgr *hwmgr)
 			"Failed to init sclk threshold!",
 			return ret);
 
-	if (adev->in_baco_reset) {
-		adev->in_baco_reset = 0;
+	if (adev->in_gpu_reset &&
+	    (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) {
 
 		ret = vega20_baco_apply_vdci_flush_workaround(hwmgr);
 		if (ret)
@@ -869,7 +872,7 @@ static int vega20_override_pcie_parameters(struct pp_hwmgr *hwmgr)
 		"[OverridePcieParameters] Attempt to override pcie params failed!",
 		return ret);
 
-	data->pcie_parameters_override = 1;
+	data->pcie_parameters_override = true;
 	data->pcie_gen_level1 = pcie_gen;
 	data->pcie_width_level1 = pcie_width;
 
@@ -4155,6 +4158,38 @@ static int vega20_smu_i2c_bus_access(struct pp_hwmgr *hwmgr, bool acquire)
 	return res;
 }
 
+static int vega20_set_df_cstate(struct pp_hwmgr *hwmgr,
+				enum pp_df_cstate state)
+{
+	int ret;
+
+	/* PPSMC_MSG_DFCstateControl is supported with 40.50 and later fws */
+	if (hwmgr->smu_version < 0x283200) {
+		pr_err("Df cstate control is supported with 40.50 and later SMC fw!\n");
+		return -EINVAL;
+	}
+
+	ret = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DFCstateControl, state);
+	if (ret)
+		pr_err("SetDfCstate failed!\n");
+
+	return ret;
+}
+
+static int vega20_set_xgmi_pstate(struct pp_hwmgr *hwmgr,
+				  uint32_t pstate)
+{
+	int ret;
+
+	ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+						  PPSMC_MSG_SetXgmiMode,
+						  pstate ? XGMI_MODE_PSTATE_D0 : XGMI_MODE_PSTATE_D3);
+	if (ret)
+		pr_err("SetXgmiPstate failed!\n");
+
+	return ret;
+}
+
 static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	/* init/fini related */
 	.backend_init = vega20_hwmgr_backend_init,
@@ -4223,6 +4258,8 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	.set_asic_baco_state = vega20_baco_set_state,
 	.set_mp1_state = vega20_set_mp1_state,
 	.smu_i2c_bus_access = vega20_smu_i2c_bus_access,
+	.set_df_cstate = vega20_set_df_cstate,
+	.set_xgmi_pstate = vega20_set_xgmi_pstate,
 };
 
 int vega20_hwmgr_init(struct pp_hwmgr *hwmgr)

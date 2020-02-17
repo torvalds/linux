@@ -30,10 +30,13 @@ Required properties:
 Optional properties:
  - reset-gpios: GPIO specification for the RESET input
  - wake-gpios:  GPIO specification for the WAKE input
+ - vcc-supply:  Regulator that supplies the touchscreen
 
  - pinctrl-names: should be "default"
  - pinctrl-0:   a phandle pointing to the pin settings for the
                 control gpios
+
+ - wakeup-source: If present the device will act as wakeup-source
 
  - threshold:   allows setting the "click"-threshold in the range
                 from 0 to 80.

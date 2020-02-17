@@ -126,7 +126,7 @@ static void prism2_check_sta_fw_version(local_info_t *local);
 
 #ifdef PRISM2_DOWNLOAD_SUPPORT
 /* hostap_download.c */
-static const struct file_operations prism2_download_aux_dump_proc_fops;
+static const struct proc_ops prism2_download_aux_dump_proc_ops;
 static u8 * prism2_read_pda(struct net_device *dev);
 static int prism2_download(local_info_t *local,
 			   struct prism2_download_param *param);
@@ -3041,30 +3041,6 @@ static void prism2_clear_set_tim_queue(local_info_t *local)
 	}
 }
 
-
-/*
- * HostAP uses two layers of net devices, where the inner
- * layer gets called all the time from the outer layer.
- * This is a natural nesting, which needs a split lock type.
- */
-static struct lock_class_key hostap_netdev_xmit_lock_key;
-static struct lock_class_key hostap_netdev_addr_lock_key;
-
-static void prism2_set_lockdep_class_one(struct net_device *dev,
-					 struct netdev_queue *txq,
-					 void *_unused)
-{
-	lockdep_set_class(&txq->_xmit_lock,
-			  &hostap_netdev_xmit_lock_key);
-}
-
-static void prism2_set_lockdep_class(struct net_device *dev)
-{
-	lockdep_set_class(&dev->addr_list_lock,
-			  &hostap_netdev_addr_lock_key);
-	netdev_for_each_tx_queue(dev, prism2_set_lockdep_class_one, NULL);
-}
-
 static struct net_device *
 prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 		       struct device *sdev)
@@ -3118,7 +3094,7 @@ prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 	local->func->reset_port = prism2_reset_port;
 	local->func->schedule_reset = prism2_schedule_reset;
 #ifdef PRISM2_DOWNLOAD_SUPPORT
-	local->func->read_aux_fops = &prism2_download_aux_dump_proc_fops;
+	local->func->read_aux_proc_ops = &prism2_download_aux_dump_proc_ops;
 	local->func->download = prism2_download;
 #endif /* PRISM2_DOWNLOAD_SUPPORT */
 	local->func->tx = prism2_tx_80211;
@@ -3223,7 +3199,6 @@ while (0)
 	if (ret >= 0)
 		ret = register_netdevice(dev);
 
-	prism2_set_lockdep_class(dev);
 	rtnl_unlock();
 	if (ret < 0) {
 		printk(KERN_WARNING "%s: register netdevice failed!\n",

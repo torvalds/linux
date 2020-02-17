@@ -18,7 +18,9 @@
 #include "../../util/evlist.h"
 #include "../../util/header.h"
 #include "../../util/hist.h"
+#include "../../util/machine.h"
 #include "../../util/map.h"
+#include "../../util/maps.h"
 #include "../../util/symbol.h"
 #include "../../util/map_symbol.h"
 #include "../../util/branch.h"
@@ -26,6 +28,7 @@
 #include "../../util/sort.h"
 #include "../../util/top.h"
 #include "../../util/thread.h"
+#include "../../util/block-info.h"
 #include "../../arch/common.h"
 #include "../../perf.h"
 
@@ -390,6 +393,57 @@ static void hist_entry__init_have_children(struct hist_entry *he)
 	he->init_have_children = true;
 }
 
+static bool hist_browser__selection_has_children(struct hist_browser *browser)
+{
+	struct hist_entry *he = browser->he_selection;
+	struct map_symbol *ms = browser->selection;
+
+	if (!he || !ms)
+		return false;
+
+	if (ms == &he->ms)
+	       return he->has_children;
+
+	return container_of(ms, struct callchain_list, ms)->has_children;
+}
+
+static bool hist_browser__he_selection_unfolded(struct hist_browser *browser)
+{
+	return browser->he_selection ? browser->he_selection->unfolded : false;
+}
+
+static bool hist_browser__selection_unfolded(struct hist_browser *browser)
+{
+	struct hist_entry *he = browser->he_selection;
+	struct map_symbol *ms = browser->selection;
+
+	if (!he || !ms)
+		return false;
+
+	if (ms == &he->ms)
+	       return he->unfolded;
+
+	return container_of(ms, struct callchain_list, ms)->unfolded;
+}
+
+static char *hist_browser__selection_sym_name(struct hist_browser *browser, char *bf, size_t size)
+{
+	struct hist_entry *he = browser->he_selection;
+	struct map_symbol *ms = browser->selection;
+	struct callchain_list *callchain_entry;
+
+	if (!he || !ms)
+		return NULL;
+
+	if (ms == &he->ms) {
+	       hist_entry__sym_snprintf(he, bf, size, 0);
+	       return bf + 4; // skip the level, e.g. '[k] '
+	}
+
+	callchain_entry = container_of(ms, struct callchain_list, ms);
+	return callchain_list__sym_name(callchain_entry, bf, size, browser->show_dso);
+}
+
 static bool hist_browser__toggle_fold(struct hist_browser *browser)
 {
 	struct hist_entry *he = browser->he_selection;
@@ -623,10 +677,81 @@ static int hist_browser__title(struct hist_browser *browser, char *bf, size_t si
 	return browser->title ? browser->title(browser, bf, size) : 0;
 }
 
-int hist_browser__run(struct hist_browser *browser, const char *help,
-		      bool warn_lost_event)
+static int hist_browser__handle_hotkey(struct hist_browser *browser, bool warn_lost_event, char *title, int key)
 {
-	int key;
+	switch (key) {
+	case K_TIMER: {
+		struct hist_browser_timer *hbt = browser->hbt;
+		u64 nr_entries;
+
+		WARN_ON_ONCE(!hbt);
+
+		if (hbt)
+			hbt->timer(hbt->arg);
+
+		if (hist_browser__has_filter(browser) || symbol_conf.report_hierarchy)
+			hist_browser__update_nr_entries(browser);
+
+		nr_entries = hist_browser__nr_entries(browser);
+		ui_browser__update_nr_entries(&browser->b, nr_entries);
+
+		if (warn_lost_event &&
+		    (browser->hists->stats.nr_lost_warned !=
+		    browser->hists->stats.nr_events[PERF_RECORD_LOST])) {
+			browser->hists->stats.nr_lost_warned =
+				browser->hists->stats.nr_events[PERF_RECORD_LOST];
+			ui_browser__warn_lost_events(&browser->b);
+		}
+
+		hist_browser__title(browser, title, sizeof(title));
+		ui_browser__show_title(&browser->b, title);
+		break;
+	}
+	case 'D': { /* Debug */
+		struct hist_entry *h = rb_entry(browser->b.top, struct hist_entry, rb_node);
+		static int seq;
+
+		ui_helpline__pop();
+		ui_helpline__fpush("%d: nr_ent=(%d,%d), etl: %d, rows=%d, idx=%d, fve: idx=%d, row_off=%d, nrows=%d",
+				   seq++, browser->b.nr_entries, browser->hists->nr_entries,
+				   browser->b.extra_title_lines, browser->b.rows,
+				   browser->b.index, browser->b.top_idx, h->row_offset, h->nr_rows);
+	}
+		break;
+	case 'C':
+		/* Collapse the whole world. */
+		hist_browser__set_folding(browser, false);
+		break;
+	case 'c':
+		/* Collapse the selected entry. */
+		hist_browser__set_folding_selected(browser, false);
+		break;
+	case 'E':
+		/* Expand the whole world. */
+		hist_browser__set_folding(browser, true);
+		break;
+	case 'e':
+		/* Expand the selected entry. */
+		hist_browser__set_folding_selected(browser, !hist_browser__he_selection_unfolded(browser));
+		break;
+	case 'H':
+		browser->show_headers = !browser->show_headers;
+		hist_browser__update_rows(browser);
+		break;
+	case '+':
+		if (hist_browser__toggle_fold(browser))
+			break;
+		/* fall thru */
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
+int hist_browser__run(struct hist_browser *browser, const char *help,
+		      bool warn_lost_event, int key)
+{
 	char title[160];
 	struct hist_browser_timer *hbt = browser->hbt;
 	int delay_secs = hbt ? hbt->refresh : 0;
@@ -639,79 +764,14 @@ int hist_browser__run(struct hist_browser *browser, const char *help,
 	if (ui_browser__show(&browser->b, title, "%s", help) < 0)
 		return -1;
 
+	if (key && hist_browser__handle_hotkey(browser, warn_lost_event, title, key))
+		goto out;
+
 	while (1) {
 		key = ui_browser__run(&browser->b, delay_secs);
 
-		switch (key) {
-		case K_TIMER: {
-			u64 nr_entries;
-
-			WARN_ON_ONCE(!hbt);
-
-			if (hbt)
-				hbt->timer(hbt->arg);
-
-			if (hist_browser__has_filter(browser) ||
-			    symbol_conf.report_hierarchy)
-				hist_browser__update_nr_entries(browser);
-
-			nr_entries = hist_browser__nr_entries(browser);
-			ui_browser__update_nr_entries(&browser->b, nr_entries);
-
-			if (warn_lost_event &&
-			    (browser->hists->stats.nr_lost_warned !=
-			    browser->hists->stats.nr_events[PERF_RECORD_LOST])) {
-				browser->hists->stats.nr_lost_warned =
-					browser->hists->stats.nr_events[PERF_RECORD_LOST];
-				ui_browser__warn_lost_events(&browser->b);
-			}
-
-			hist_browser__title(browser, title, sizeof(title));
-			ui_browser__show_title(&browser->b, title);
-			continue;
-		}
-		case 'D': { /* Debug */
-			static int seq;
-			struct hist_entry *h = rb_entry(browser->b.top,
-							struct hist_entry, rb_node);
-			ui_helpline__pop();
-			ui_helpline__fpush("%d: nr_ent=(%d,%d), etl: %d, rows=%d, idx=%d, fve: idx=%d, row_off=%d, nrows=%d",
-					   seq++, browser->b.nr_entries,
-					   browser->hists->nr_entries,
-					   browser->b.extra_title_lines,
-					   browser->b.rows,
-					   browser->b.index,
-					   browser->b.top_idx,
-					   h->row_offset, h->nr_rows);
-		}
+		if (hist_browser__handle_hotkey(browser, warn_lost_event, title, key))
 			break;
-		case 'C':
-			/* Collapse the whole world. */
-			hist_browser__set_folding(browser, false);
-			break;
-		case 'c':
-			/* Collapse the selected entry. */
-			hist_browser__set_folding_selected(browser, false);
-			break;
-		case 'E':
-			/* Expand the whole world. */
-			hist_browser__set_folding(browser, true);
-			break;
-		case 'e':
-			/* Expand the selected entry. */
-			hist_browser__set_folding_selected(browser, true);
-			break;
-		case 'H':
-			browser->show_headers = !browser->show_headers;
-			hist_browser__update_rows(browser);
-			break;
-		case K_ENTER:
-			if (hist_browser__toggle_fold(browser))
-				break;
-			/* fall thru */
-		default:
-			goto out;
-		}
 	}
 out:
 	ui_browser__hide(&browser->b);
@@ -1783,7 +1843,11 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 			continue;
 		}
 
-		percent = hist_entry__get_percent_limit(h);
+		if (symbol_conf.report_individual_block)
+			percent = block_info__total_cycles_percent(h);
+		else
+			percent = hist_entry__get_percent_limit(h);
+
 		if (percent < hb->min_pcnt)
 			continue;
 
@@ -2334,7 +2398,7 @@ close_file_and_continue:
 	closedir(pwd_dir);
 
 	if (nr_options) {
-		choice = ui__popup_menu(nr_options, options);
+		choice = ui__popup_menu(nr_options, options, NULL);
 		if (choice < nr_options && choice >= 0) {
 			tmp = strdup(abs_path[choice]);
 			if (tmp) {
@@ -2380,7 +2444,11 @@ do_annotate(struct hist_browser *browser, struct popup_action *act)
 	if (!notes->src)
 		return 0;
 
-	evsel = hists_to_evsel(browser->hists);
+	if (browser->block_evsel)
+		evsel = browser->block_evsel;
+	else
+		evsel = hists_to_evsel(browser->hists);
+
 	err = map_symbol__tui_annotate(&act->ms, evsel, browser->hbt,
 				       browser->annotation_opts);
 	he = hist_browser__selected_entry(browser);
@@ -2400,16 +2468,16 @@ do_annotate(struct hist_browser *browser, struct popup_action *act)
 static int
 add_annotate_opt(struct hist_browser *browser __maybe_unused,
 		 struct popup_action *act, char **optstr,
-		 struct map *map, struct symbol *sym)
+		 struct map_symbol *ms)
 {
-	if (sym == NULL || map->dso->annotate_warned)
+	if (ms->sym == NULL || ms->map->dso->annotate_warned ||
+	    symbol__annotation(ms->sym)->src == NULL)
 		return 0;
 
-	if (asprintf(optstr, "Annotate %s", sym->name) < 0)
+	if (asprintf(optstr, "Annotate %s", ms->sym->name) < 0)
 		return 0;
 
-	act->ms.map = map;
-	act->ms.sym = sym;
+	act->ms = *ms;
 	act->fn = do_annotate;
 	return 1;
 }
@@ -2476,11 +2544,8 @@ add_thread_opt(struct hist_browser *browser, struct popup_action *act,
 	return 1;
 }
 
-static int
-do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
+static int hists_browser__zoom_map(struct hist_browser *browser, struct map *map)
 {
-	struct map *map = act->ms.map;
-
 	if (!hists__has(browser->hists, dso) || map == NULL)
 		return 0;
 
@@ -2503,19 +2568,47 @@ do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
 }
 
 static int
+do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
+{
+	return hists_browser__zoom_map(browser, act->ms.map);
+}
+
+static int
 add_dso_opt(struct hist_browser *browser, struct popup_action *act,
 	    char **optstr, struct map *map)
 {
 	if (!hists__has(browser->hists, dso) || map == NULL)
 		return 0;
 
-	if (asprintf(optstr, "Zoom %s %s DSO",
+	if (asprintf(optstr, "Zoom %s %s DSO (use the 'k' hotkey to zoom directly into the kernel)",
 		     browser->hists->dso_filter ? "out of" : "into",
 		     __map__is_kernel(map) ? "the Kernel" : map->dso->short_name) < 0)
 		return 0;
 
 	act->ms.map = map;
 	act->fn = do_zoom_dso;
+	return 1;
+}
+
+static int do_toggle_callchain(struct hist_browser *browser, struct popup_action *act __maybe_unused)
+{
+	hist_browser__toggle_fold(browser);
+	return 0;
+}
+
+static int add_callchain_toggle_opt(struct hist_browser *browser, struct popup_action *act, char **optstr)
+{
+	char sym_name[512];
+
+        if (!hist_browser__selection_has_children(browser))
+                return 0;
+
+	if (asprintf(optstr, "%s [%s] callchain (one level, same as '+' hotkey, use 'e'/'c' for the whole main level entry)",
+		     hist_browser__selection_unfolded(browser) ? "Collapse" : "Expand",
+		     hist_browser__selection_sym_name(browser, sym_name, sizeof(sym_name))) < 0)
+		return 0;
+
+	act->fn = do_toggle_callchain;
 	return 1;
 }
 
@@ -2850,12 +2943,15 @@ static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 	"For symbolic views (--sort has sym):\n\n"			\
 	"ENTER         Zoom into DSO/Threads & Annotate current symbol\n" \
 	"ESC           Zoom out\n"					\
+	"+             Expand/Collapse one callchain level\n"		\
 	"a             Annotate current symbol\n"			\
 	"C             Collapse all callchains\n"			\
 	"d             Zoom into current DSO\n"				\
+	"e             Expand/Collapse main entry callchains\n"	\
 	"E             Expand all callchains\n"				\
 	"F             Toggle percentage of filtered entries\n"		\
 	"H             Display column headers\n"			\
+	"k             Zoom into the kernel map\n"			\
 	"L             Change percent limit\n"				\
 	"m             Display context menu\n"				\
 	"S             Zoom into current Processor Socket\n"		\
@@ -2906,13 +3002,13 @@ static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 	while (1) {
 		struct thread *thread = NULL;
 		struct map *map = NULL;
-		int choice = 0;
+		int choice;
 		int socked_id = -1;
 
-		nr_options = 0;
-
-		key = hist_browser__run(browser, helpline,
-					warn_lost_event);
+		key = 0; // reset key
+do_hotkey:		 // key came straight from options ui__popup_menu()
+		choice = nr_options = 0;
+		key = hist_browser__run(browser, helpline, warn_lost_event, key);
 
 		if (browser->he_selection != NULL) {
 			thread = hist_browser__selected_thread(browser);
@@ -2942,6 +3038,14 @@ static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 			    browser->selection->map->dso->annotate_warned)
 				continue;
 
+			if (symbol__annotation(browser->selection->sym)->src == NULL) {
+				ui_browser__warning(&browser->b, delay_secs * 2,
+						    "No samples for the \"%s\" symbol.\n\n"
+						    "Probably appeared just in a callchain",
+						    browser->selection->sym->name);
+				continue;
+			}
+
 			actions->ms.map = browser->selection->map;
 			actions->ms.sym = browser->selection->sym;
 			do_annotate(browser, actions);
@@ -2952,6 +3056,10 @@ static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 		case 'd':
 			actions->ms.map = map;
 			do_zoom_dso(browser, actions);
+			continue;
+		case 'k':
+			if (browser->selection != NULL)
+				hists_browser__zoom_map(browser, browser->selection->maps->machine->vmlinux_map);
 			continue;
 		case 'V':
 			verbose = (verbose + 1) % 4;
@@ -3054,6 +3162,7 @@ static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 
 				continue;
 			}
+			actions->ms.map = map;
 			top = pstack__peek(browser->pstack);
 			if (top == &browser->hists->dso_filter) {
 				/*
@@ -3110,26 +3219,24 @@ static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 			nr_options += add_annotate_opt(browser,
 						       &actions[nr_options],
 						       &options[nr_options],
-						       bi->from.map,
-						       bi->from.sym);
-			if (bi->to.sym != bi->from.sym)
+						       &bi->from.ms);
+			if (bi->to.ms.sym != bi->from.ms.sym)
 				nr_options += add_annotate_opt(browser,
 							&actions[nr_options],
 							&options[nr_options],
-							bi->to.map,
-							bi->to.sym);
+							&bi->to.ms);
 		} else {
 			nr_options += add_annotate_opt(browser,
 						       &actions[nr_options],
 						       &options[nr_options],
-						       browser->selection->map,
-						       browser->selection->sym);
+						       browser->selection);
 		}
 skip_annotation:
 		nr_options += add_thread_opt(browser, &actions[nr_options],
 					     &options[nr_options], thread);
 		nr_options += add_dso_opt(browser, &actions[nr_options],
 					  &options[nr_options], map);
+		nr_options += add_callchain_toggle_opt(browser, &actions[nr_options], &options[nr_options]);
 		nr_options += add_map_opt(browser, &actions[nr_options],
 					  &options[nr_options],
 					  browser->selection ?
@@ -3188,9 +3295,12 @@ skip_scripting:
 		do {
 			struct popup_action *act;
 
-			choice = ui__popup_menu(nr_options, options);
-			if (choice == -1 || choice >= nr_options)
+			choice = ui__popup_menu(nr_options, options, &key);
+			if (choice == -1)
 				break;
+
+			if (choice == nr_options)
+				goto do_hotkey;
 
 			act = &actions[choice];
 			key = act->fn(browser, act);
@@ -3442,4 +3552,76 @@ single_entry:
 					       hbt, min_pcnt, env,
 					       warn_lost_event,
 					       annotation_opts);
+}
+
+static int block_hists_browser__title(struct hist_browser *browser, char *bf,
+				      size_t size)
+{
+	struct hists *hists = evsel__hists(browser->block_evsel);
+	const char *evname = perf_evsel__name(browser->block_evsel);
+	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
+	int ret;
+
+	ret = scnprintf(bf, size, "# Samples: %lu", nr_samples);
+	if (evname)
+		scnprintf(bf + ret, size -  ret, " of event '%s'", evname);
+
+	return 0;
+}
+
+int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
+			   float min_percent, struct perf_env *env,
+			   struct annotation_options *annotation_opts)
+{
+	struct hists *hists = &bh->block_hists;
+	struct hist_browser *browser;
+	int key = -1;
+	struct popup_action action;
+	static const char help[] =
+	" q             Quit \n";
+
+	browser = hist_browser__new(hists);
+	if (!browser)
+		return -1;
+
+	browser->block_evsel = evsel;
+	browser->title = block_hists_browser__title;
+	browser->min_pcnt = min_percent;
+	browser->env = env;
+	browser->annotation_opts = annotation_opts;
+
+	/* reset abort key so that it can get Ctrl-C as a key */
+	SLang_reset_tty();
+	SLang_init_tty(0, 0, 0);
+
+	memset(&action, 0, sizeof(action));
+
+	while (1) {
+		key = hist_browser__run(browser, "? - help", true, 0);
+
+		switch (key) {
+		case 'q':
+			goto out;
+		case '?':
+			ui_browser__help_window(&browser->b, help);
+			break;
+		case 'a':
+		case K_ENTER:
+			if (!browser->selection ||
+			    !browser->selection->sym) {
+				continue;
+			}
+
+			action.ms.map = browser->selection->map;
+			action.ms.sym = browser->selection->sym;
+			do_annotate(browser, &action);
+			continue;
+		default:
+			break;
+		}
+	}
+
+out:
+	hist_browser__delete(browser);
+	return 0;
 }

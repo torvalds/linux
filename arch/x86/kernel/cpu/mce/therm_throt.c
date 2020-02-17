@@ -40,15 +40,58 @@
 #define THERMAL_THROTTLING_EVENT	0
 #define POWER_LIMIT_EVENT		1
 
-/*
- * Current thermal event state:
+/**
+ * struct _thermal_state - Represent the current thermal event state
+ * @next_check:			Stores the next timestamp, when it is allowed
+ *				to log the next warning message.
+ * @last_interrupt_time:	Stores the timestamp for the last threshold
+ *				high event.
+ * @therm_work:			Delayed workqueue structure
+ * @count:			Stores the current running count for thermal
+ *				or power threshold interrupts.
+ * @last_count:			Stores the previous running count for thermal
+ *				or power threshold interrupts.
+ * @max_time_ms:		This shows the maximum amount of time CPU was
+ *				in throttled state for a single thermal
+ *				threshold high to low state.
+ * @total_time_ms:		This is a cumulative time during which CPU was
+ *				in the throttled state.
+ * @rate_control_active:	Set when a throttling message is logged.
+ *				This is used for the purpose of rate-control.
+ * @new_event:			Stores the last high/low status of the
+ *				THERM_STATUS_PROCHOT or
+ *				THERM_STATUS_POWER_LIMIT.
+ * @level:			Stores whether this _thermal_state instance is
+ *				for a CORE level or for PACKAGE level.
+ * @sample_index:		Index for storing the next sample in the buffer
+ *				temp_samples[].
+ * @sample_count:		Total number of samples collected in the buffer
+ *				temp_samples[].
+ * @average:			The last moving average of temperature samples
+ * @baseline_temp:		Temperature at which thermal threshold high
+ *				interrupt was generated.
+ * @temp_samples:		Storage for temperature samples to calculate
+ *				moving average.
+ *
+ * This structure is used to represent data related to thermal state for a CPU.
+ * There is a separate storage for core and package level for each CPU.
  */
 struct _thermal_state {
-	bool			new_event;
-	int			event;
 	u64			next_check;
+	u64			last_interrupt_time;
+	struct delayed_work	therm_work;
 	unsigned long		count;
 	unsigned long		last_count;
+	unsigned long		max_time_ms;
+	unsigned long		total_time_ms;
+	bool			rate_control_active;
+	bool			new_event;
+	u8			level;
+	u8			sample_index;
+	u8			sample_count;
+	u8			average;
+	u8			baseline_temp;
+	u8			temp_samples[3];
 };
 
 struct thermal_state {
@@ -121,8 +164,22 @@ define_therm_throt_device_one_ro(package_throttle_count);
 define_therm_throt_device_show_func(package_power_limit, count);
 define_therm_throt_device_one_ro(package_power_limit_count);
 
+define_therm_throt_device_show_func(core_throttle, max_time_ms);
+define_therm_throt_device_one_ro(core_throttle_max_time_ms);
+
+define_therm_throt_device_show_func(package_throttle, max_time_ms);
+define_therm_throt_device_one_ro(package_throttle_max_time_ms);
+
+define_therm_throt_device_show_func(core_throttle, total_time_ms);
+define_therm_throt_device_one_ro(core_throttle_total_time_ms);
+
+define_therm_throt_device_show_func(package_throttle, total_time_ms);
+define_therm_throt_device_one_ro(package_throttle_total_time_ms);
+
 static struct attribute *thermal_throttle_attrs[] = {
 	&dev_attr_core_throttle_count.attr,
+	&dev_attr_core_throttle_max_time_ms.attr,
+	&dev_attr_core_throttle_total_time_ms.attr,
 	NULL
 };
 
@@ -134,6 +191,112 @@ static const struct attribute_group thermal_attr_group = {
 
 #define CORE_LEVEL	0
 #define PACKAGE_LEVEL	1
+
+#define THERM_THROT_POLL_INTERVAL	HZ
+#define THERM_STATUS_PROCHOT_LOG	BIT(1)
+
+#define THERM_STATUS_CLEAR_CORE_MASK (BIT(1) | BIT(3) | BIT(5) | BIT(7) | BIT(9) | BIT(11) | BIT(13) | BIT(15))
+#define THERM_STATUS_CLEAR_PKG_MASK  (BIT(1) | BIT(3) | BIT(5) | BIT(7) | BIT(9) | BIT(11))
+
+static void clear_therm_status_log(int level)
+{
+	int msr;
+	u64 mask, msr_val;
+
+	if (level == CORE_LEVEL) {
+		msr  = MSR_IA32_THERM_STATUS;
+		mask = THERM_STATUS_CLEAR_CORE_MASK;
+	} else {
+		msr  = MSR_IA32_PACKAGE_THERM_STATUS;
+		mask = THERM_STATUS_CLEAR_PKG_MASK;
+	}
+
+	rdmsrl(msr, msr_val);
+	msr_val &= mask;
+	wrmsrl(msr, msr_val & ~THERM_STATUS_PROCHOT_LOG);
+}
+
+static void get_therm_status(int level, bool *proc_hot, u8 *temp)
+{
+	int msr;
+	u64 msr_val;
+
+	if (level == CORE_LEVEL)
+		msr = MSR_IA32_THERM_STATUS;
+	else
+		msr = MSR_IA32_PACKAGE_THERM_STATUS;
+
+	rdmsrl(msr, msr_val);
+	if (msr_val & THERM_STATUS_PROCHOT_LOG)
+		*proc_hot = true;
+	else
+		*proc_hot = false;
+
+	*temp = (msr_val >> 16) & 0x7F;
+}
+
+static void __maybe_unused throttle_active_work(struct work_struct *work)
+{
+	struct _thermal_state *state = container_of(to_delayed_work(work),
+						struct _thermal_state, therm_work);
+	unsigned int i, avg, this_cpu = smp_processor_id();
+	u64 now = get_jiffies_64();
+	bool hot;
+	u8 temp;
+
+	get_therm_status(state->level, &hot, &temp);
+	/* temperature value is offset from the max so lesser means hotter */
+	if (!hot && temp > state->baseline_temp) {
+		if (state->rate_control_active)
+			pr_info("CPU%d: %s temperature/speed normal (total events = %lu)\n",
+				this_cpu,
+				state->level == CORE_LEVEL ? "Core" : "Package",
+				state->count);
+
+		state->rate_control_active = false;
+		return;
+	}
+
+	if (time_before64(now, state->next_check) &&
+			  state->rate_control_active)
+		goto re_arm;
+
+	state->next_check = now + CHECK_INTERVAL;
+
+	if (state->count != state->last_count) {
+		/* There was one new thermal interrupt */
+		state->last_count = state->count;
+		state->average = 0;
+		state->sample_count = 0;
+		state->sample_index = 0;
+	}
+
+	state->temp_samples[state->sample_index] = temp;
+	state->sample_count++;
+	state->sample_index = (state->sample_index + 1) % ARRAY_SIZE(state->temp_samples);
+	if (state->sample_count < ARRAY_SIZE(state->temp_samples))
+		goto re_arm;
+
+	avg = 0;
+	for (i = 0; i < ARRAY_SIZE(state->temp_samples); ++i)
+		avg += state->temp_samples[i];
+
+	avg /= ARRAY_SIZE(state->temp_samples);
+
+	if (state->average > avg) {
+		pr_warn("CPU%d: %s temperature is above threshold, cpu clock is throttled (total events = %lu)\n",
+			this_cpu,
+			state->level == CORE_LEVEL ? "Core" : "Package",
+			state->count);
+		state->rate_control_active = true;
+	}
+
+	state->average = avg;
+
+re_arm:
+	clear_therm_status_log(state->level);
+	schedule_delayed_work_on(this_cpu, &state->therm_work, THERM_THROT_POLL_INTERVAL);
+}
 
 /***
  * therm_throt_process - Process thermal throttling event from interrupt
@@ -178,27 +341,33 @@ static void therm_throt_process(bool new_event, int event, int level)
 	if (new_event)
 		state->count++;
 
-	if (time_before64(now, state->next_check) &&
-			state->count != state->last_count)
+	if (event != THERMAL_THROTTLING_EVENT)
 		return;
 
-	state->next_check = now + CHECK_INTERVAL;
-	state->last_count = state->count;
+	if (new_event && !state->last_interrupt_time) {
+		bool hot;
+		u8 temp;
 
-	/* if we just entered the thermal event */
-	if (new_event) {
-		if (event == THERMAL_THROTTLING_EVENT)
-			pr_crit("CPU%d: %s temperature above threshold, cpu clock throttled (total events = %lu)\n",
-				this_cpu,
-				level == CORE_LEVEL ? "Core" : "Package",
-				state->count);
-		return;
-	}
-	if (old_event) {
-		if (event == THERMAL_THROTTLING_EVENT)
-			pr_info("CPU%d: %s temperature/speed normal\n", this_cpu,
-				level == CORE_LEVEL ? "Core" : "Package");
-		return;
+		get_therm_status(state->level, &hot, &temp);
+		/*
+		 * Ignore short temperature spike as the system is not close
+		 * to PROCHOT. 10C offset is large enough to ignore. It is
+		 * already dropped from the high threshold temperature.
+		 */
+		if (temp > 10)
+			return;
+
+		state->baseline_temp = temp;
+		state->last_interrupt_time = now;
+		schedule_delayed_work_on(this_cpu, &state->therm_work, THERM_THROT_POLL_INTERVAL);
+	} else if (old_event && state->last_interrupt_time) {
+		unsigned long throttle_time;
+
+		throttle_time = jiffies_delta_to_msecs(now - state->last_interrupt_time);
+		if (throttle_time > state->max_time_ms)
+			state->max_time_ms = throttle_time;
+		state->total_time_ms += throttle_time;
+		state->last_interrupt_time = 0;
 	}
 }
 
@@ -244,19 +413,46 @@ static int thermal_throttle_add_dev(struct device *dev, unsigned int cpu)
 	if (err)
 		return err;
 
-	if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable)
+	if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable) {
 		err = sysfs_add_file_to_group(&dev->kobj,
 					      &dev_attr_core_power_limit_count.attr,
 					      thermal_attr_group.name);
+		if (err)
+			goto del_group;
+	}
+
 	if (cpu_has(c, X86_FEATURE_PTS)) {
 		err = sysfs_add_file_to_group(&dev->kobj,
 					      &dev_attr_package_throttle_count.attr,
 					      thermal_attr_group.name);
-		if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable)
+		if (err)
+			goto del_group;
+
+		err = sysfs_add_file_to_group(&dev->kobj,
+					      &dev_attr_package_throttle_max_time_ms.attr,
+					      thermal_attr_group.name);
+		if (err)
+			goto del_group;
+
+		err = sysfs_add_file_to_group(&dev->kobj,
+					      &dev_attr_package_throttle_total_time_ms.attr,
+					      thermal_attr_group.name);
+		if (err)
+			goto del_group;
+
+		if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable) {
 			err = sysfs_add_file_to_group(&dev->kobj,
 					&dev_attr_package_power_limit_count.attr,
 					thermal_attr_group.name);
+			if (err)
+				goto del_group;
+		}
 	}
+
+	return 0;
+
+del_group:
+	sysfs_remove_group(&dev->kobj, &thermal_attr_group);
 
 	return err;
 }
@@ -269,14 +465,33 @@ static void thermal_throttle_remove_dev(struct device *dev)
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
 static int thermal_throttle_online(unsigned int cpu)
 {
+	struct thermal_state *state = &per_cpu(thermal_state, cpu);
 	struct device *dev = get_cpu_device(cpu);
+	u32 l;
+
+	state->package_throttle.level = PACKAGE_LEVEL;
+	state->core_throttle.level = CORE_LEVEL;
+
+	INIT_DELAYED_WORK(&state->package_throttle.therm_work, throttle_active_work);
+	INIT_DELAYED_WORK(&state->core_throttle.therm_work, throttle_active_work);
+
+	/* Unmask the thermal vector after the above workqueues are initialized. */
+	l = apic_read(APIC_LVTTHMR);
+	apic_write(APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
 
 	return thermal_throttle_add_dev(dev, cpu);
 }
 
 static int thermal_throttle_offline(unsigned int cpu)
 {
+	struct thermal_state *state = &per_cpu(thermal_state, cpu);
 	struct device *dev = get_cpu_device(cpu);
+
+	cancel_delayed_work(&state->package_throttle.therm_work);
+	cancel_delayed_work(&state->core_throttle.therm_work);
+
+	state->package_throttle.rate_control_active = false;
+	state->core_throttle.rate_control_active = false;
 
 	thermal_throttle_remove_dev(dev);
 	return 0;
@@ -511,10 +726,6 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 
 	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
 	wrmsr(MSR_IA32_MISC_ENABLE, l | MSR_IA32_MISC_ENABLE_TM1, h);
-
-	/* Unmask the thermal vector: */
-	l = apic_read(APIC_LVTTHMR);
-	apic_write(APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
 
 	pr_info_once("CPU0: Thermal monitoring enabled (%s)\n",
 		      tm2 ? "TM2" : "TM1");

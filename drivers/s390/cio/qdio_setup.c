@@ -150,7 +150,6 @@ static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 			return -ENOMEM;
 		}
 		irq_ptr_qs[i] = q;
-		INIT_LIST_HEAD(&q->entry);
 	}
 	return 0;
 }
@@ -179,7 +178,6 @@ static void setup_queues_misc(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	q->mask = 1 << (31 - i);
 	q->nr = i;
 	q->handler = handler;
-	INIT_LIST_HEAD(&q->entry);
 }
 
 static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
@@ -538,7 +536,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 int qdio_enable_async_operation(struct qdio_output_q *outq)
 {
 	outq->aobs = kcalloc(QDIO_MAX_BUFFERS_PER_Q, sizeof(struct qaob *),
-			     GFP_ATOMIC);
+			     GFP_KERNEL);
 	if (!outq->aobs) {
 		outq->use_cq = 0;
 		return -ENOMEM;

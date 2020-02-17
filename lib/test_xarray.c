@@ -2,6 +2,7 @@
 /*
  * test_xarray.c: Test the XArray API
  * Copyright (c) 2017-2018 Microsoft Corporation
+ * Copyright (c) 2019-2020 Oracle
  * Author: Matthew Wilcox <willy@infradead.org>
  */
 
@@ -902,28 +903,34 @@ static noinline void check_store_iter(struct xarray *xa)
 	XA_BUG_ON(xa, !xa_empty(xa));
 }
 
-static noinline void check_multi_find(struct xarray *xa)
+static noinline void check_multi_find_1(struct xarray *xa, unsigned order)
 {
 #ifdef CONFIG_XARRAY_MULTI
+	unsigned long multi = 3 << order;
+	unsigned long next = 4 << order;
 	unsigned long index;
 
-	xa_store_order(xa, 12, 2, xa_mk_value(12), GFP_KERNEL);
-	XA_BUG_ON(xa, xa_store_index(xa, 16, GFP_KERNEL) != NULL);
+	xa_store_order(xa, multi, order, xa_mk_value(multi), GFP_KERNEL);
+	XA_BUG_ON(xa, xa_store_index(xa, next, GFP_KERNEL) != NULL);
+	XA_BUG_ON(xa, xa_store_index(xa, next + 1, GFP_KERNEL) != NULL);
 
 	index = 0;
 	XA_BUG_ON(xa, xa_find(xa, &index, ULONG_MAX, XA_PRESENT) !=
-			xa_mk_value(12));
-	XA_BUG_ON(xa, index != 12);
-	index = 13;
+			xa_mk_value(multi));
+	XA_BUG_ON(xa, index != multi);
+	index = multi + 1;
 	XA_BUG_ON(xa, xa_find(xa, &index, ULONG_MAX, XA_PRESENT) !=
-			xa_mk_value(12));
-	XA_BUG_ON(xa, (index < 12) || (index >= 16));
+			xa_mk_value(multi));
+	XA_BUG_ON(xa, (index < multi) || (index >= next));
 	XA_BUG_ON(xa, xa_find_after(xa, &index, ULONG_MAX, XA_PRESENT) !=
-			xa_mk_value(16));
-	XA_BUG_ON(xa, index != 16);
+			xa_mk_value(next));
+	XA_BUG_ON(xa, index != next);
+	XA_BUG_ON(xa, xa_find_after(xa, &index, next, XA_PRESENT) != NULL);
+	XA_BUG_ON(xa, index != next);
 
-	xa_erase_index(xa, 12);
-	xa_erase_index(xa, 16);
+	xa_erase_index(xa, multi);
+	xa_erase_index(xa, next);
+	xa_erase_index(xa, next + 1);
 	XA_BUG_ON(xa, !xa_empty(xa));
 #endif
 }
@@ -1046,12 +1053,33 @@ static noinline void check_find_3(struct xarray *xa)
 	xa_destroy(xa);
 }
 
+static noinline void check_find_4(struct xarray *xa)
+{
+	unsigned long index = 0;
+	void *entry;
+
+	xa_store_index(xa, ULONG_MAX, GFP_KERNEL);
+
+	entry = xa_find_after(xa, &index, ULONG_MAX, XA_PRESENT);
+	XA_BUG_ON(xa, entry != xa_mk_index(ULONG_MAX));
+
+	entry = xa_find_after(xa, &index, ULONG_MAX, XA_PRESENT);
+	XA_BUG_ON(xa, entry);
+
+	xa_erase_index(xa, ULONG_MAX);
+}
+
 static noinline void check_find(struct xarray *xa)
 {
+	unsigned i;
+
 	check_find_1(xa);
 	check_find_2(xa);
 	check_find_3(xa);
-	check_multi_find(xa);
+	check_find_4(xa);
+
+	for (i = 2; i < 10; i++)
+		check_multi_find_1(xa, i);
 	check_multi_find_2(xa);
 }
 
@@ -1106,6 +1134,49 @@ static noinline void check_find_entry(struct xarray *xa)
 	xa_store_index(xa, ULONG_MAX, GFP_KERNEL);
 	XA_BUG_ON(xa, xa_find_entry(xa, xa) != -1);
 	XA_BUG_ON(xa, xa_find_entry(xa, xa_mk_index(ULONG_MAX)) != -1);
+	xa_erase_index(xa, ULONG_MAX);
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
+static noinline void check_move_tiny(struct xarray *xa)
+{
+	XA_STATE(xas, xa, 0);
+
+	XA_BUG_ON(xa, !xa_empty(xa));
+	rcu_read_lock();
+	XA_BUG_ON(xa, xas_next(&xas) != NULL);
+	XA_BUG_ON(xa, xas_next(&xas) != NULL);
+	rcu_read_unlock();
+	xa_store_index(xa, 0, GFP_KERNEL);
+	rcu_read_lock();
+	xas_set(&xas, 0);
+	XA_BUG_ON(xa, xas_next(&xas) != xa_mk_index(0));
+	XA_BUG_ON(xa, xas_next(&xas) != NULL);
+	xas_set(&xas, 0);
+	XA_BUG_ON(xa, xas_prev(&xas) != xa_mk_index(0));
+	XA_BUG_ON(xa, xas_prev(&xas) != NULL);
+	rcu_read_unlock();
+	xa_erase_index(xa, 0);
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
+static noinline void check_move_max(struct xarray *xa)
+{
+	XA_STATE(xas, xa, 0);
+
+	xa_store_index(xa, ULONG_MAX, GFP_KERNEL);
+	rcu_read_lock();
+	XA_BUG_ON(xa, xas_find(&xas, ULONG_MAX) != xa_mk_index(ULONG_MAX));
+	XA_BUG_ON(xa, xas_find(&xas, ULONG_MAX) != NULL);
+	rcu_read_unlock();
+
+	xas_set(&xas, 0);
+	rcu_read_lock();
+	XA_BUG_ON(xa, xas_find(&xas, ULONG_MAX) != xa_mk_index(ULONG_MAX));
+	xas_pause(&xas);
+	XA_BUG_ON(xa, xas_find(&xas, ULONG_MAX) != NULL);
+	rcu_read_unlock();
+
 	xa_erase_index(xa, ULONG_MAX);
 	XA_BUG_ON(xa, !xa_empty(xa));
 }
@@ -1216,6 +1287,9 @@ static noinline void check_move(struct xarray *xa)
 	rcu_read_unlock();
 
 	xa_destroy(xa);
+
+	check_move_tiny(xa);
+	check_move_max(xa);
 
 	for (i = 0; i < 16; i++)
 		check_move_small(xa, 1UL << i);

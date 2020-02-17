@@ -136,7 +136,6 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 
 	if (inode->i_state & I_NEW) {
 		struct gfs2_sbd *sdp = GFS2_SB(inode);
-		ip->i_no_formal_ino = no_formal_ino;
 
 		error = gfs2_glock_get(sdp, no_addr, &gfs2_inode_glops, CREATE, &ip->i_gl);
 		if (unlikely(error))
@@ -175,20 +174,21 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		gfs2_glock_put(io_gl);
 		io_gl = NULL;
 
+		/* Lowest possible timestamp; will be overwritten in gfs2_dinode_in. */
+		inode->i_atime.tv_sec = 1LL << (8 * sizeof(inode->i_atime.tv_sec) - 1);
+		inode->i_atime.tv_nsec = 0;
+
 		if (type == DT_UNKNOWN) {
 			/* Inode glock must be locked already */
 			error = gfs2_inode_refresh(GFS2_I(inode));
 			if (error)
 				goto fail_refresh;
 		} else {
+			ip->i_no_formal_ino = no_formal_ino;
 			inode->i_mode = DT2IF(type);
 		}
 
 		gfs2_set_iop(inode);
-
-		/* Lowest possible timestamp; will be overwritten in gfs2_dinode_in. */
-		inode->i_atime.tv_sec = 1LL << (8 * sizeof(inode->i_atime.tv_sec) - 1);
-		inode->i_atime.tv_nsec = 0;
 
 		unlock_new_inode(inode);
 	}
@@ -656,7 +656,6 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	inode->i_rdev = dev;
 	inode->i_size = size;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-	gfs2_set_inode_blocks(inode, 1);
 	munge_mode_uid_gid(dip, inode);
 	check_and_update_goal(dip);
 	ip->i_goal = dip->i_goal;
@@ -712,7 +711,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 
 	error = gfs2_trans_begin(sdp, blocks, 0);
 	if (error)
-		goto fail_gunlock2;
+		goto fail_free_inode;
 
 	if (blocks > 1) {
 		ip->i_eattr = ip->i_no_addr + 1;
@@ -723,7 +722,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 
 	error = gfs2_glock_get(sdp, ip->i_no_addr, &gfs2_iopen_glops, CREATE, &io_gl);
 	if (error)
-		goto fail_gunlock2;
+		goto fail_free_inode;
 
 	BUG_ON(test_and_set_bit(GLF_INODE_CREATING, &io_gl->gl_flags));
 
@@ -732,7 +731,6 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		goto fail_gunlock2;
 
 	glock_set_object(ip->i_iopen_gh.gh_gl, ip);
-	gfs2_glock_put(io_gl);
 	gfs2_set_iop(inode);
 	insert_inode_hash(inode);
 
@@ -765,6 +763,8 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 
 	mark_inode_dirty(inode);
 	d_instantiate(dentry, inode);
+	/* After instantiate, errors should result in evict which will destroy
+	 * both inode and iopen glocks properly. */
 	if (file) {
 		file->f_mode |= FMODE_CREATED;
 		error = finish_open(file, dentry, gfs2_open_common);
@@ -772,15 +772,15 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	gfs2_glock_dq_uninit(ghs);
 	gfs2_glock_dq_uninit(ghs + 1);
 	clear_bit(GLF_INODE_CREATING, &io_gl->gl_flags);
+	gfs2_glock_put(io_gl);
 	return error;
 
 fail_gunlock3:
 	glock_clear_object(io_gl, ip);
 	gfs2_glock_dq_uninit(&ip->i_iopen_gh);
-	gfs2_glock_put(io_gl);
 fail_gunlock2:
-	if (io_gl)
-		clear_bit(GLF_INODE_CREATING, &io_gl->gl_flags);
+	clear_bit(GLF_INODE_CREATING, &io_gl->gl_flags);
+	gfs2_glock_put(io_gl);
 fail_free_inode:
 	if (ip->i_gl) {
 		glock_clear_object(ip->i_gl, ip);
@@ -1475,7 +1475,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			error = -EEXIST;
 		default:
 			goto out_gunlock;
-		};
+		}
 
 		if (odip != ndip) {
 			if (!ndip->i_inode.i_nlink) {

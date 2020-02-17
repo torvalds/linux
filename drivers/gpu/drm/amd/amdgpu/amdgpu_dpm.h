@@ -298,12 +298,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_get_current_power_state(adev) \
 		((adev)->powerplay.pp_funcs->get_current_power_state((adev)->powerplay.pp_handle))
 
-#define amdgpu_smu_get_current_power_state(adev) \
-		((adev)->smu.ppt_funcs->get_current_power_state(&((adev)->smu)))
-
-#define amdgpu_smu_set_power_state(adev) \
-		((adev)->smu.ppt_funcs->set_power_state(&((adev)->smu)))
-
 #define amdgpu_dpm_get_pp_num_states(adev, data) \
 		((adev)->powerplay.pp_funcs->get_pp_num_states((adev)->powerplay.pp_handle, data))
 
@@ -346,10 +340,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_reset_power_profile_state(adev, request) \
 		((adev)->powerplay.pp_funcs->reset_power_profile_state(\
 			(adev)->powerplay.pp_handle, request))
-
-#define amdgpu_dpm_switch_power_profile(adev, type, en) \
-		((adev)->powerplay.pp_funcs->switch_power_profile(\
-			(adev)->powerplay.pp_handle, type, en))
 
 #define amdgpu_dpm_set_clockgating_by_smu(adev, msg_id) \
 		((adev)->powerplay.pp_funcs->set_clockgating_by_smu(\
@@ -522,5 +512,25 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
 extern int amdgpu_dpm_get_sclk(struct amdgpu_device *adev, bool low);
 
 extern int amdgpu_dpm_get_mclk(struct amdgpu_device *adev, bool low);
+
+int amdgpu_dpm_set_xgmi_pstate(struct amdgpu_device *adev,
+			       uint32_t pstate);
+
+int amdgpu_dpm_switch_power_profile(struct amdgpu_device *adev,
+				    enum PP_SMC_POWER_PROFILE type,
+				    bool en);
+
+int amdgpu_dpm_baco_reset(struct amdgpu_device *adev);
+
+int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev);
+
+bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev);
+
+int amdgpu_dpm_set_mp1_state(struct amdgpu_device *adev,
+			     enum pp_mp1_state mp1_state);
+
+int amdgpu_dpm_baco_exit(struct amdgpu_device *adev);
+
+int amdgpu_dpm_baco_enter(struct amdgpu_device *adev);
 
 #endif

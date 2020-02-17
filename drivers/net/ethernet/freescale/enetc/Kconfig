@@ -2,6 +2,7 @@
 config FSL_ENETC
 	tristate "ENETC PF driver"
 	depends on PCI && PCI_MSI && (ARCH_LAYERSCAPE || COMPILE_TEST)
+	select FSL_ENETC_MDIO
 	select PHYLIB
 	help
 	  This driver supports NXP ENETC gigabit ethernet controller PCIe
@@ -50,3 +51,13 @@ config FSL_ENETC_HW_TIMESTAMPING
 	  allocation has not been supported and it is too expensive to use
 	  extended RX BDs if timestamping is not used, this option enables
 	  extended RX BDs in order to support hardware timestamping.
+
+config FSL_ENETC_QOS
+	bool "ENETC hardware Time-sensitive Network support"
+	depends on (FSL_ENETC || FSL_ENETC_VF) && (NET_SCH_TAPRIO || NET_SCH_CBS)
+	help
+	  There are Time-Sensitive Network(TSN) capabilities(802.1Qbv/802.1Qci
+	  /802.1Qbu etc.) supported by ENETC. These TSN capabilities can be set
+	  enable/disable from user space via Qos commands(tc). In the kernel
+	  side, it can be loaded by Qos driver. Currently, it is only support
+	  taprio(802.1Qbv) and Credit Based Shaper(802.1Qbu).

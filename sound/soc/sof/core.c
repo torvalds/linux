@@ -10,122 +10,19 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <asm/unaligned.h>
 #include <sound/soc.h>
 #include <sound/sof.h>
 #include "sof-priv.h"
 #include "ops.h"
 
+/* see SOF_DBG_ flags */
+int sof_core_debug;
+module_param_named(sof_debug, sof_core_debug, int, 0444);
+MODULE_PARM_DESC(sof_debug, "SOF core debug options (0x0 all off)");
+
 /* SOF defaults if not provided by the platform in ms */
 #define TIMEOUT_DEFAULT_IPC_MS  500
 #define TIMEOUT_DEFAULT_BOOT_MS 2000
-
-/*
- * Generic object lookup APIs.
- */
-
-struct snd_sof_pcm *snd_sof_find_spcm_name(struct snd_sof_dev *sdev,
-					   const char *name)
-{
-	struct snd_sof_pcm *spcm;
-
-	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		/* match with PCM dai name */
-		if (strcmp(spcm->pcm.dai_name, name) == 0)
-			return spcm;
-
-		/* match with playback caps name if set */
-		if (*spcm->pcm.caps[0].name &&
-		    !strcmp(spcm->pcm.caps[0].name, name))
-			return spcm;
-
-		/* match with capture caps name if set */
-		if (*spcm->pcm.caps[1].name &&
-		    !strcmp(spcm->pcm.caps[1].name, name))
-			return spcm;
-	}
-
-	return NULL;
-}
-
-struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_sof_dev *sdev,
-					   unsigned int comp_id,
-					   int *direction)
-{
-	struct snd_sof_pcm *spcm;
-
-	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		if (spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].comp_id == comp_id) {
-			*direction = SNDRV_PCM_STREAM_PLAYBACK;
-			return spcm;
-		}
-		if (spcm->stream[SNDRV_PCM_STREAM_CAPTURE].comp_id == comp_id) {
-			*direction = SNDRV_PCM_STREAM_CAPTURE;
-			return spcm;
-		}
-	}
-
-	return NULL;
-}
-
-struct snd_sof_pcm *snd_sof_find_spcm_pcm_id(struct snd_sof_dev *sdev,
-					     unsigned int pcm_id)
-{
-	struct snd_sof_pcm *spcm;
-
-	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		if (le32_to_cpu(spcm->pcm.pcm_id) == pcm_id)
-			return spcm;
-	}
-
-	return NULL;
-}
-
-struct snd_sof_widget *snd_sof_find_swidget(struct snd_sof_dev *sdev,
-					    const char *name)
-{
-	struct snd_sof_widget *swidget;
-
-	list_for_each_entry(swidget, &sdev->widget_list, list) {
-		if (strcmp(name, swidget->widget->name) == 0)
-			return swidget;
-	}
-
-	return NULL;
-}
-
-/* find widget by stream name and direction */
-struct snd_sof_widget *snd_sof_find_swidget_sname(struct snd_sof_dev *sdev,
-						  const char *pcm_name, int dir)
-{
-	struct snd_sof_widget *swidget;
-	enum snd_soc_dapm_type type;
-
-	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
-		type = snd_soc_dapm_aif_in;
-	else
-		type = snd_soc_dapm_aif_out;
-
-	list_for_each_entry(swidget, &sdev->widget_list, list) {
-		if (!strcmp(pcm_name, swidget->widget->sname) && swidget->id == type)
-			return swidget;
-	}
-
-	return NULL;
-}
-
-struct snd_sof_dai *snd_sof_find_dai(struct snd_sof_dev *sdev,
-				     const char *name)
-{
-	struct snd_sof_dai *dai;
-
-	list_for_each_entry(dai, &sdev->dai_list, list) {
-		if (dai->name && (strcmp(name, dai->name) == 0))
-			return dai;
-	}
-
-	return NULL;
-}
 
 /*
  * FW Panic/fault handling.
@@ -196,104 +93,48 @@ out:
 EXPORT_SYMBOL(snd_sof_get_status);
 
 /*
- * Generic buffer page table creation.
- * Take the each physical page address and drop the least significant unused
- * bits from each (based on PAGE_SIZE). Then pack valid page address bits
- * into compressed page table.
+ *			FW Boot State Transition Diagram
+ *
+ *    +-----------------------------------------------------------------------+
+ *    |									      |
+ * ------------------	     ------------------				      |
+ * |		    |	     |		      |				      |
+ * |   BOOT_FAILED  |	     |  READY_FAILED  |-------------------------+     |
+ * |		    |	     |	              |				|     |
+ * ------------------	     ------------------				|     |
+ *	^			    ^					|     |
+ *	|			    |					|     |
+ * (FW Boot Timeout)		(FW_READY FAIL)				|     |
+ *	|			    |					|     |
+ *	|			    |					|     |
+ * ------------------		    |		   ------------------	|     |
+ * |		    |		    |		   |		    |	|     |
+ * |   IN_PROGRESS  |---------------+------------->|    COMPLETE    |	|     |
+ * |		    | (FW Boot OK)   (FW_READY OK) |		    |	|     |
+ * ------------------				   ------------------	|     |
+ *	^						|		|     |
+ *	|						|		|     |
+ * (FW Loading OK)			       (System Suspend/Runtime Suspend)
+ *	|						|		|     |
+ *	|						|		|     |
+ * ------------------		------------------	|		|     |
+ * |		    |		|		 |<-----+		|     |
+ * |   PREPARE	    |		|   NOT_STARTED  |<---------------------+     |
+ * |		    |		|		 |<---------------------------+
+ * ------------------		------------------
+ *    |	    ^			    |	   ^
+ *    |	    |			    |	   |
+ *    |	    +-----------------------+	   |
+ *    |		(DSP Probe OK)		   |
+ *    |					   |
+ *    |					   |
+ *    +------------------------------------+
+ *	(System Suspend/Runtime Suspend)
  */
-
-int snd_sof_create_page_table(struct snd_sof_dev *sdev,
-			      struct snd_dma_buffer *dmab,
-			      unsigned char *page_table, size_t size)
-{
-	int i, pages;
-
-	pages = snd_sgbuf_aligned_pages(size);
-
-	dev_dbg(sdev->dev, "generating page table for %p size 0x%zx pages %d\n",
-		dmab->area, size, pages);
-
-	for (i = 0; i < pages; i++) {
-		/*
-		 * The number of valid address bits for each page is 20.
-		 * idx determines the byte position within page_table
-		 * where the current page's address is stored
-		 * in the compressed page_table.
-		 * This can be calculated by multiplying the page number by 2.5.
-		 */
-		u32 idx = (5 * i) >> 1;
-		u32 pfn = snd_sgbuf_get_addr(dmab, i * PAGE_SIZE) >> PAGE_SHIFT;
-		u8 *pg_table;
-
-		dev_vdbg(sdev->dev, "pfn i %i idx %d pfn %x\n", i, idx, pfn);
-
-		pg_table = (u8 *)(page_table + idx);
-
-		/*
-		 * pagetable compression:
-		 * byte 0     byte 1     byte 2     byte 3     byte 4     byte 5
-		 * ___________pfn 0__________ __________pfn 1___________  _pfn 2...
-		 * .... ....  .... ....  .... ....  .... ....  .... ....  ....
-		 * It is created by:
-		 * 1. set current location to 0, PFN index i to 0
-		 * 2. put pfn[i] at current location in Little Endian byte order
-		 * 3. calculate an intermediate value as
-		 *    x = (pfn[i+1] << 4) | (pfn[i] & 0xf)
-		 * 4. put x at offset (current location + 2) in LE byte order
-		 * 5. increment current location by 5 bytes, increment i by 2
-		 * 6. continue to (2)
-		 */
-		if (i & 1)
-			put_unaligned_le32((pg_table[0] & 0xf) | pfn << 4,
-					   pg_table);
-		else
-			put_unaligned_le32(pfn, pg_table);
-	}
-
-	return pages;
-}
-
-/*
- * SOF Driver enumeration.
- */
-static int sof_machine_check(struct snd_sof_dev *sdev)
-{
-	struct snd_sof_pdata *plat_data = sdev->pdata;
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
-	struct snd_soc_acpi_mach *machine;
-	int ret;
-#endif
-
-	if (plat_data->machine)
-		return 0;
-
-#if !IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
-	dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
-	return -ENODEV;
-#else
-	/* fallback to nocodec mode */
-	dev_warn(sdev->dev, "No ASoC machine driver found - using nocodec\n");
-	machine = devm_kzalloc(sdev->dev, sizeof(*machine), GFP_KERNEL);
-	if (!machine)
-		return -ENOMEM;
-
-	ret = sof_nocodec_setup(sdev->dev, plat_data, machine,
-				plat_data->desc, plat_data->desc->ops);
-	if (ret < 0)
-		return ret;
-
-	plat_data->machine = machine;
-
-	return 0;
-#endif
-}
 
 static int sof_probe_continue(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
-	const char *drv_name;
-	const void *mach;
-	int size;
 	int ret;
 
 	/* probe the DSP hardware */
@@ -302,6 +143,8 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "error: failed to probe DSP %d\n", ret);
 		return ret;
 	}
+
+	sdev->fw_state = SOF_FW_BOOT_PREPARE;
 
 	/* check machine info */
 	ret = sof_machine_check(sdev);
@@ -342,7 +185,12 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		goto fw_load_err;
 	}
 
-	/* boot the firmware */
+	sdev->fw_state = SOF_FW_BOOT_IN_PROGRESS;
+
+	/*
+	 * Boot the firmware. The FW boot status will be modified
+	 * in snd_sof_run_firmware() depending on the outcome.
+	 */
 	ret = snd_sof_run_firmware(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to boot DSP firmware %d\n",
@@ -350,12 +198,20 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		goto fw_run_err;
 	}
 
-	/* init DMA trace */
-	ret = snd_sof_init_trace(sdev);
-	if (ret < 0) {
-		/* non fatal */
-		dev_warn(sdev->dev,
-			 "warning: failed to initialize trace %d\n", ret);
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE) ||
+	    (sof_core_debug & SOF_DBG_ENABLE_TRACE)) {
+		sdev->dtrace_is_supported = true;
+
+		/* init DMA trace */
+		ret = snd_sof_init_trace(sdev);
+		if (ret < 0) {
+			/* non fatal */
+			dev_warn(sdev->dev,
+				 "warning: failed to initialize trace %d\n",
+				 ret);
+		}
+	} else {
+		dev_dbg(sdev->dev, "SOF firmware trace disabled\n");
 	}
 
 	/* hereafter all FW boot flows are for PM reasons */
@@ -368,32 +224,28 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to register DSP DAI driver %d\n", ret);
-		goto fw_run_err;
+		goto fw_trace_err;
 	}
 
-	drv_name = plat_data->machine->drv_name;
-	mach = (const void *)plat_data->machine;
-	size = sizeof(*plat_data->machine);
+	ret = snd_sof_machine_register(sdev, plat_data);
+	if (ret < 0)
+		goto fw_trace_err;
 
-	/* register machine driver, pass machine info as pdata */
-	plat_data->pdev_mach =
-		platform_device_register_data(sdev->dev, drv_name,
-					      PLATFORM_DEVID_NONE, mach, size);
-
-	if (IS_ERR(plat_data->pdev_mach)) {
-		ret = PTR_ERR(plat_data->pdev_mach);
-		goto fw_run_err;
-	}
-
-	dev_dbg(sdev->dev, "created machine %s\n",
-		dev_name(&plat_data->pdev_mach->dev));
+	/*
+	 * Some platforms in SOF, ex: BYT, may not have their platform PM
+	 * callbacks set. Increment the usage count so as to
+	 * prevent the device from entering runtime suspend.
+	 */
+	if (!sof_ops(sdev)->runtime_suspend || !sof_ops(sdev)->runtime_resume)
+		pm_runtime_get_noresume(sdev->dev);
 
 	if (plat_data->sof_probe_complete)
 		plat_data->sof_probe_complete(sdev->dev);
 
 	return 0;
 
-#if !IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)
+fw_trace_err:
+	snd_sof_free_trace(sdev);
 fw_run_err:
 	snd_sof_fw_unload(sdev);
 fw_load_err:
@@ -402,21 +254,10 @@ ipc_err:
 	snd_sof_free_debug(sdev);
 dbg_err:
 	snd_sof_remove(sdev);
-#else
 
-	/*
-	 * when the probe_continue is handled in a work queue, the
-	 * probe does not fail so we don't release resources here.
-	 * They will be released with an explicit call to
-	 * snd_sof_device_remove() when the PCI/ACPI device is removed
-	 */
-
-fw_run_err:
-fw_load_err:
-ipc_err:
-dbg_err:
-
-#endif
+	/* all resources freed, update state to match */
+	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
+	sdev->first_boot = true;
 
 	return ret;
 }
@@ -445,15 +286,20 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	/* initialize sof device */
 	sdev->dev = dev;
 
+	/* initialize default D0 sub-state */
+	sdev->d0_substate = SOF_DSP_D0I0;
+
 	sdev->pdata = plat_data;
 	sdev->first_boot = true;
+	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
 	dev_set_drvdata(dev, sdev);
 
 	/* check all mandatory ops */
 	if (!sof_ops(sdev) || !sof_ops(sdev)->probe || !sof_ops(sdev)->run ||
 	    !sof_ops(sdev)->block_read || !sof_ops(sdev)->block_write ||
 	    !sof_ops(sdev)->send_msg || !sof_ops(sdev)->load_firmware ||
-	    !sof_ops(sdev)->ipc_msg_data || !sof_ops(sdev)->ipc_pcm_params)
+	    !sof_ops(sdev)->ipc_msg_data || !sof_ops(sdev)->ipc_pcm_params ||
+	    !sof_ops(sdev)->fw_ready)
 		return -EINVAL;
 
 	INIT_LIST_HEAD(&sdev->pcm_list);
@@ -494,18 +340,19 @@ int snd_sof_device_remove(struct device *dev)
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE))
 		cancel_work_sync(&sdev->probe_work);
 
-	snd_sof_fw_unload(sdev);
-	snd_sof_ipc_free(sdev);
-	snd_sof_free_debug(sdev);
-	snd_sof_free_trace(sdev);
+	if (sdev->fw_state > SOF_FW_BOOT_NOT_STARTED) {
+		snd_sof_fw_unload(sdev);
+		snd_sof_ipc_free(sdev);
+		snd_sof_free_debug(sdev);
+		snd_sof_free_trace(sdev);
+	}
 
 	/*
 	 * Unregister machine driver. This will unbind the snd_card which
 	 * will remove the component driver and unload the topology
 	 * before freeing the snd_card.
 	 */
-	if (!IS_ERR_OR_NULL(pdata->pdev_mach))
-		platform_device_unregister(pdata->pdev_mach);
+	snd_sof_machine_unregister(sdev, pdata);
 
 	/*
 	 * Unregistering the machine driver results in unloading the topology.
@@ -513,7 +360,8 @@ int snd_sof_device_remove(struct device *dev)
 	 * scheduled on, when they are unloaded. Therefore, the DSP must be
 	 * removed only after the topology has been unloaded.
 	 */
-	snd_sof_remove(sdev);
+	if (sdev->fw_state > SOF_FW_BOOT_NOT_STARTED)
+		snd_sof_remove(sdev);
 
 	/* release firmware */
 	release_firmware(pdata->fw);

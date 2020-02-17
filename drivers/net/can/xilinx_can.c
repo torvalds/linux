@@ -60,6 +60,8 @@ enum xcan_reg {
 	XCAN_TXMSG_BASE_OFFSET	= 0x0100, /* TX Message Space */
 	XCAN_RXMSG_BASE_OFFSET	= 0x1100, /* RX Message Space */
 	XCAN_RXMSG_2_BASE_OFFSET	= 0x2100, /* RX Message Space */
+	XCAN_AFR_2_MASK_OFFSET	= 0x0A00, /* Acceptance Filter MASK */
+	XCAN_AFR_2_ID_OFFSET	= 0x0A04, /* Acceptance Filter ID */
 };
 
 #define XCAN_FRAME_ID_OFFSET(frame_base)	((frame_base) + 0x00)
@@ -194,7 +196,7 @@ struct xcan_devtype_data {
  */
 struct xcan_priv {
 	struct can_priv can;
-	spinlock_t tx_lock;
+	spinlock_t tx_lock; /* Lock for synchronizing TX interrupt handling */
 	unsigned int tx_head;
 	unsigned int tx_tail;
 	unsigned int tx_max;
@@ -400,7 +402,7 @@ static int xcan_set_bittiming(struct net_device *ndev)
 				XCAN_SR_CONFIG_MASK;
 	if (!is_config_mode) {
 		netdev_alert(ndev,
-		     "BUG! Cannot set bittiming - CAN is not in config mode\n");
+			     "BUG! Cannot set bittiming - CAN is not in config mode\n");
 		return -EPERM;
 	}
 
@@ -470,7 +472,13 @@ static int xcan_chip_start(struct net_device *ndev)
 	if (err < 0)
 		return err;
 
-	/* Enable interrupts */
+	/* Enable interrupts
+	 *
+	 * We enable the ERROR interrupt even with
+	 * CAN_CTRLMODE_BERR_REPORTING disabled as there is no
+	 * dedicated interrupt for a state change to
+	 * ERROR_WARNING/ERROR_PASSIVE.
+	 */
 	ier = XCAN_IXR_TXOK_MASK | XCAN_IXR_BSOFF_MASK |
 		XCAN_IXR_WKUP_MASK | XCAN_IXR_SLP_MASK |
 		XCAN_IXR_ERROR_MASK | XCAN_IXR_RXOFLW_MASK |
@@ -482,11 +490,10 @@ static int xcan_chip_start(struct net_device *ndev)
 	priv->write_reg(priv, XCAN_IER_OFFSET, ier);
 
 	/* Check whether it is loopback mode or normal mode  */
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK) {
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		reg_msr = XCAN_MSR_LBACK_MASK;
-	} else {
+	else
 		reg_msr = 0x0;
-	}
 
 	/* enable the first extended filter, if any, as cores with extended
 	 * filtering default to non-receipt if all filters are disabled
@@ -537,16 +544,17 @@ static int xcan_do_set_mode(struct net_device *ndev, enum can_mode mode)
 
 /**
  * xcan_write_frame - Write a frame to HW
- * @priv:		Driver private data structure
+ * @ndev:		Pointer to net_device structure
  * @skb:		sk_buff pointer that contains data to be Txed
  * @frame_offset:	Register offset to write the frame to
  */
-static void xcan_write_frame(struct xcan_priv *priv, struct sk_buff *skb,
+static void xcan_write_frame(struct net_device *ndev, struct sk_buff *skb,
 			     int frame_offset)
 {
 	u32 id, dlc, data[2] = {0, 0};
 	struct canfd_frame *cf = (struct canfd_frame *)skb->data;
 	u32 ramoff, dwindex = 0, i;
+	struct xcan_priv *priv = netdev_priv(ndev);
 
 	/* Watch carefully on the bit sequence */
 	if (cf->can_id & CAN_EFF_FLAG) {
@@ -581,6 +589,14 @@ static void xcan_write_frame(struct xcan_priv *priv, struct sk_buff *skb,
 			dlc |= XCAN_DLCR_BRS_MASK;
 		dlc |= XCAN_DLCR_EDL_MASK;
 	}
+
+	if (!(priv->devtype.flags & XCAN_FLAG_TX_MAILBOXES) &&
+	    (priv->devtype.flags & XCAN_FLAG_TXFEMP))
+		can_put_echo_skb(skb, ndev, priv->tx_head % priv->tx_max);
+	else
+		can_put_echo_skb(skb, ndev, 0);
+
+	priv->tx_head++;
 
 	priv->write_reg(priv, XCAN_FRAME_ID_OFFSET(frame_offset), id);
 	/* If the CAN frame is RTR frame this write triggers transmission
@@ -633,13 +649,9 @@ static int xcan_start_xmit_fifo(struct sk_buff *skb, struct net_device *ndev)
 			XCAN_SR_TXFLL_MASK))
 		return -ENOSPC;
 
-	can_put_echo_skb(skb, ndev, priv->tx_head % priv->tx_max);
-
 	spin_lock_irqsave(&priv->tx_lock, flags);
 
-	priv->tx_head++;
-
-	xcan_write_frame(priv, skb, XCAN_TXFIFO_OFFSET);
+	xcan_write_frame(ndev, skb, XCAN_TXFIFO_OFFSET);
 
 	/* Clear TX-FIFO-empty interrupt for xcan_tx_interrupt() */
 	if (priv->tx_max > 1)
@@ -670,13 +682,9 @@ static int xcan_start_xmit_mailbox(struct sk_buff *skb, struct net_device *ndev)
 		     BIT(XCAN_TX_MAILBOX_IDX)))
 		return -ENOSPC;
 
-	can_put_echo_skb(skb, ndev, 0);
-
 	spin_lock_irqsave(&priv->tx_lock, flags);
 
-	priv->tx_head++;
-
-	xcan_write_frame(priv, skb,
+	xcan_write_frame(ndev, skb,
 			 XCAN_TXMSG_FRAME_OFFSET(XCAN_TX_MAILBOX_IDX));
 
 	/* Mark buffer as ready for transmit */
@@ -981,11 +989,8 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 {
 	struct xcan_priv *priv = netdev_priv(ndev);
 	struct net_device_stats *stats = &ndev->stats;
-	struct can_frame *cf;
-	struct sk_buff *skb;
+	struct can_frame cf = { };
 	u32 err_status;
-
-	skb = alloc_can_err_skb(ndev, &cf);
 
 	err_status = priv->read_reg(priv, XCAN_ESR_OFFSET);
 	priv->write_reg(priv, XCAN_ESR_OFFSET, err_status);
@@ -996,32 +1001,27 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 		/* Leave device in Config Mode in bus-off state */
 		priv->write_reg(priv, XCAN_SRR_OFFSET, XCAN_SRR_RESET_MASK);
 		can_bus_off(ndev);
-		if (skb)
-			cf->can_id |= CAN_ERR_BUSOFF;
+		cf.can_id |= CAN_ERR_BUSOFF;
 	} else {
 		enum can_state new_state = xcan_current_error_state(ndev);
 
 		if (new_state != priv->can.state)
-			xcan_set_error_state(ndev, new_state, skb ? cf : NULL);
+			xcan_set_error_state(ndev, new_state, &cf);
 	}
 
 	/* Check for Arbitration lost interrupt */
 	if (isr & XCAN_IXR_ARBLST_MASK) {
 		priv->can.can_stats.arbitration_lost++;
-		if (skb) {
-			cf->can_id |= CAN_ERR_LOSTARB;
-			cf->data[0] = CAN_ERR_LOSTARB_UNSPEC;
-		}
+		cf.can_id |= CAN_ERR_LOSTARB;
+		cf.data[0] = CAN_ERR_LOSTARB_UNSPEC;
 	}
 
 	/* Check for RX FIFO Overflow interrupt */
 	if (isr & XCAN_IXR_RXOFLW_MASK) {
 		stats->rx_over_errors++;
 		stats->rx_errors++;
-		if (skb) {
-			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] |= CAN_ERR_CRTL_RX_OVERFLOW;
-		}
+		cf.can_id |= CAN_ERR_CRTL;
+		cf.data[1] |= CAN_ERR_CRTL_RX_OVERFLOW;
 	}
 
 	/* Check for RX Match Not Finished interrupt */
@@ -1029,68 +1029,77 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 		stats->rx_dropped++;
 		stats->rx_errors++;
 		netdev_err(ndev, "RX match not finished, frame discarded\n");
-		if (skb) {
-			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] |= CAN_ERR_CRTL_UNSPEC;
-		}
+		cf.can_id |= CAN_ERR_CRTL;
+		cf.data[1] |= CAN_ERR_CRTL_UNSPEC;
 	}
 
 	/* Check for error interrupt */
 	if (isr & XCAN_IXR_ERROR_MASK) {
-		if (skb)
-			cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
+		bool berr_reporting = false;
+
+		if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) {
+			berr_reporting = true;
+			cf.can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
+		}
 
 		/* Check for Ack error interrupt */
 		if (err_status & XCAN_ESR_ACKER_MASK) {
 			stats->tx_errors++;
-			if (skb) {
-				cf->can_id |= CAN_ERR_ACK;
-				cf->data[3] = CAN_ERR_PROT_LOC_ACK;
+			if (berr_reporting) {
+				cf.can_id |= CAN_ERR_ACK;
+				cf.data[3] = CAN_ERR_PROT_LOC_ACK;
 			}
 		}
 
 		/* Check for Bit error interrupt */
 		if (err_status & XCAN_ESR_BERR_MASK) {
 			stats->tx_errors++;
-			if (skb) {
-				cf->can_id |= CAN_ERR_PROT;
-				cf->data[2] = CAN_ERR_PROT_BIT;
+			if (berr_reporting) {
+				cf.can_id |= CAN_ERR_PROT;
+				cf.data[2] = CAN_ERR_PROT_BIT;
 			}
 		}
 
 		/* Check for Stuff error interrupt */
 		if (err_status & XCAN_ESR_STER_MASK) {
 			stats->rx_errors++;
-			if (skb) {
-				cf->can_id |= CAN_ERR_PROT;
-				cf->data[2] = CAN_ERR_PROT_STUFF;
+			if (berr_reporting) {
+				cf.can_id |= CAN_ERR_PROT;
+				cf.data[2] = CAN_ERR_PROT_STUFF;
 			}
 		}
 
 		/* Check for Form error interrupt */
 		if (err_status & XCAN_ESR_FMER_MASK) {
 			stats->rx_errors++;
-			if (skb) {
-				cf->can_id |= CAN_ERR_PROT;
-				cf->data[2] = CAN_ERR_PROT_FORM;
+			if (berr_reporting) {
+				cf.can_id |= CAN_ERR_PROT;
+				cf.data[2] = CAN_ERR_PROT_FORM;
 			}
 		}
 
 		/* Check for CRC error interrupt */
 		if (err_status & XCAN_ESR_CRCER_MASK) {
 			stats->rx_errors++;
-			if (skb) {
-				cf->can_id |= CAN_ERR_PROT;
-				cf->data[3] = CAN_ERR_PROT_LOC_CRC_SEQ;
+			if (berr_reporting) {
+				cf.can_id |= CAN_ERR_PROT;
+				cf.data[3] = CAN_ERR_PROT_LOC_CRC_SEQ;
 			}
 		}
 		priv->can.can_stats.bus_error++;
 	}
 
-	if (skb) {
-		stats->rx_packets++;
-		stats->rx_bytes += cf->can_dlc;
-		netif_rx(skb);
+	if (cf.can_id) {
+		struct can_frame *skb_cf;
+		struct sk_buff *skb = alloc_can_err_skb(ndev, &skb_cf);
+
+		if (skb) {
+			skb_cf->can_id |= cf.can_id;
+			memcpy(skb_cf->data, cf.data, CAN_ERR_DLC);
+			stats->rx_packets++;
+			stats->rx_bytes += CAN_ERR_DLC;
+			netif_rx(skb);
+		}
 	}
 
 	netdev_dbg(ndev, "%s: error status register:0x%x\n",
@@ -1599,7 +1608,6 @@ static const struct xcan_devtype_data xcan_zynq_data = {
 
 static const struct xcan_devtype_data xcan_axi_data = {
 	.cantype = XAXI_CAN,
-	.flags = XCAN_FLAG_TXFEMP,
 	.bittiming_const = &xcan_bittiming_const,
 	.btr_ts2_shift = XCAN_BTR_TS2_SHIFT,
 	.btr_sjw_shift = XCAN_BTR_SJW_SHIFT,
@@ -1652,7 +1660,6 @@ MODULE_DEVICE_TABLE(of, xcan_of_match);
  */
 static int xcan_probe(struct platform_device *pdev)
 {
-	struct resource *res; /* IO mem resources */
 	struct net_device *ndev;
 	struct xcan_priv *priv;
 	const struct of_device_id *of_id;
@@ -1664,8 +1671,7 @@ static int xcan_probe(struct platform_device *pdev)
 	const char *hw_tx_max_property;
 
 	/* Get the virtual base address for the device */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	addr = devm_ioremap_resource(&pdev->dev, res);
+	addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(addr)) {
 		ret = PTR_ERR(addr);
 		goto err;
@@ -1769,7 +1775,8 @@ static int xcan_probe(struct platform_device *pdev)
 
 	priv->bus_clk = devm_clk_get(&pdev->dev, devtype->bus_clk_name);
 	if (IS_ERR(priv->bus_clk)) {
-		dev_err(&pdev->dev, "bus clock not found\n");
+		if (PTR_ERR(priv->bus_clk) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "bus clock not found\n");
 		ret = PTR_ERR(priv->bus_clk);
 		goto err_free;
 	}
@@ -1803,6 +1810,11 @@ static int xcan_probe(struct platform_device *pdev)
 	devm_can_led_init(ndev);
 
 	pm_runtime_put(&pdev->dev);
+
+	if (priv->devtype.flags & XCAN_FLAG_CANFD_2) {
+		priv->write_reg(priv, XCAN_AFR_2_ID_OFFSET, 0x00000000);
+		priv->write_reg(priv, XCAN_AFR_2_MASK_OFFSET, 0x00000000);
+	}
 
 	netdev_dbg(ndev, "reg_base=0x%p irq=%d clock=%d, tx buffers: actual %d, using %d\n",
 		   priv->reg_base, ndev->irq, priv->can.clock.freq,

@@ -837,8 +837,6 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 
 	mlx5_init_qp_table(dev);
 
-	mlx5_init_mkey_table(dev);
-
 	mlx5_init_reserved_gids(dev);
 
 	mlx5_init_clock(dev);
@@ -896,7 +894,6 @@ err_rl_cleanup:
 err_tables_cleanup:
 	mlx5_geneve_destroy(dev->geneve);
 	mlx5_vxlan_destroy(dev->vxlan);
-	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_qp_table(dev);
 	mlx5_cq_debugfs_cleanup(dev);
 	mlx5_events_cleanup(dev);
@@ -924,7 +921,6 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_vxlan_destroy(dev->vxlan);
 	mlx5_cleanup_clock(dev);
 	mlx5_cleanup_reserved_gids(dev);
-	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_qp_table(dev);
 	mlx5_cq_debugfs_cleanup(dev);
 	mlx5_events_cleanup(dev);
@@ -1168,7 +1164,7 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 	mlx5_put_uars_page(dev, dev->priv.uar);
 }
 
-static int mlx5_load_one(struct mlx5_core_dev *dev, bool boot)
+int mlx5_load_one(struct mlx5_core_dev *dev, bool boot)
 {
 	int err = 0;
 
@@ -1197,6 +1193,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, bool boot)
 	if (err)
 		goto err_load;
 
+	if (boot) {
+		err = mlx5_devlink_register(priv_to_devlink(dev), dev->device);
+		if (err)
+			goto err_devlink_reg;
+	}
+
 	if (mlx5_device_registered(dev)) {
 		mlx5_attach_device(dev);
 	} else {
@@ -1214,6 +1216,9 @@ out:
 	return err;
 
 err_reg_dev:
+	if (boot)
+		mlx5_devlink_unregister(priv_to_devlink(dev));
+err_devlink_reg:
 	mlx5_unload(dev);
 err_load:
 	if (boot)
@@ -1226,10 +1231,8 @@ function_teardown:
 	return err;
 }
 
-static int mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
+int mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
 {
-	int err = 0;
-
 	if (cleanup) {
 		mlx5_unregister_device(dev);
 		mlx5_drain_health_wq(dev);
@@ -1257,7 +1260,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
 	mlx5_function_teardown(dev, cleanup);
 out:
 	mutex_unlock(&dev->intf_state_mutex);
-	return err;
+	return 0;
 }
 
 static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
@@ -1353,19 +1356,12 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	request_module_nowait(MLX5_IB_MOD);
 
-	err = mlx5_devlink_register(devlink, &pdev->dev);
-	if (err)
-		goto clean_load;
-
 	err = mlx5_crdump_enable(dev);
 	if (err)
 		dev_err(&pdev->dev, "mlx5_crdump_enable failed with error code %d\n", err);
 
 	pci_save_state(pdev);
 	return 0;
-
-clean_load:
-	mlx5_unload_one(dev, true);
 
 err_load_one:
 	mlx5_pci_close(dev);
@@ -1566,6 +1562,8 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x101c), MLX5_PCI_DEV_IS_VF},	/* ConnectX-6 VF */
 	{ PCI_VDEVICE(MELLANOX, 0x101d) },			/* ConnectX-6 Dx */
 	{ PCI_VDEVICE(MELLANOX, 0x101e), MLX5_PCI_DEV_IS_VF},	/* ConnectX Family mlx5Gen Virtual Function */
+	{ PCI_VDEVICE(MELLANOX, 0x101f) },			/* ConnectX-6 LX */
+	{ PCI_VDEVICE(MELLANOX, 0x1021) },			/* ConnectX-7 */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d2) },			/* BlueField integrated ConnectX-5 network controller */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d3), MLX5_PCI_DEV_IS_VF},	/* BlueField integrated ConnectX-5 network controller VF */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d6) },			/* BlueField-2 integrated ConnectX-6 Dx network controller */

@@ -32,6 +32,7 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
+#include <drm/drm_dp_mst_helper.h>
 
 #include "drm_crtc_helper_internal.h"
 
@@ -120,33 +121,49 @@ u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SI
 }
 EXPORT_SYMBOL(drm_dp_get_adjust_request_pre_emphasis);
 
-void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
-	int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-			  DP_TRAINING_AUX_RD_MASK;
+u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZE],
+					 unsigned int lane)
+{
+	unsigned int offset = DP_ADJUST_REQUEST_POST_CURSOR2;
+	u8 value = dp_link_status(link_status, offset);
+
+	return (value >> (lane << 1)) & 0x3;
+}
+EXPORT_SYMBOL(drm_dp_get_adjust_request_post_cursor);
+
+void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	unsigned long rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+					 DP_TRAINING_AUX_RD_MASK;
 
 	if (rd_interval > 4)
-		DRM_DEBUG_KMS("AUX interval %d, out of range (max 4)\n",
+		DRM_DEBUG_KMS("AUX interval %lu, out of range (max 4)\n",
 			      rd_interval);
 
 	if (rd_interval == 0 || dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
-		udelay(100);
+		rd_interval = 100;
 	else
-		mdelay(rd_interval * 4);
+		rd_interval *= 4 * USEC_PER_MSEC;
+
+	usleep_range(rd_interval, rd_interval * 2);
 }
 EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
-void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
-	int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-			  DP_TRAINING_AUX_RD_MASK;
+void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	unsigned long rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+					 DP_TRAINING_AUX_RD_MASK;
 
 	if (rd_interval > 4)
-		DRM_DEBUG_KMS("AUX interval %d, out of range (max 4)\n",
+		DRM_DEBUG_KMS("AUX interval %lu, out of range (max 4)\n",
 			      rd_interval);
 
 	if (rd_interval == 0)
-		udelay(400);
+		rd_interval = 400;
 	else
-		mdelay(rd_interval * 4);
+		rd_interval *= 4 * USEC_PER_MSEC;
+
+	usleep_range(rd_interval, rd_interval * 2);
 }
 EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
 
@@ -220,7 +237,6 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 		}
 
 		ret = aux->transfer(aux, &msg);
-
 		if (ret >= 0) {
 			native_reply = msg.reply & DP_AUX_NATIVE_REPLY_MASK;
 			if (native_reply == DP_AUX_NATIVE_REPLY_ACK) {
@@ -251,7 +267,7 @@ unlock:
 
 /**
  * drm_dp_dpcd_read() - read a series of bytes from the DPCD
- * @aux: DisplayPort AUX channel
+ * @aux: DisplayPort AUX channel (SST or MST)
  * @offset: address of the (first) register to read
  * @buffer: buffer to store the register values
  * @size: number of bytes in @buffer
@@ -280,13 +296,18 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 	 * We just have to do it before any DPCD access and hope that the
 	 * monitor doesn't power down exactly after the throw away read.
 	 */
-	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV, buffer,
-				 1);
-	if (ret != 1)
-		goto out;
+	if (!aux->is_remote) {
+		ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV,
+					 buffer, 1);
+		if (ret != 1)
+			goto out;
+	}
 
-	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
-				 size);
+	if (aux->is_remote)
+		ret = drm_dp_mst_dpcd_read(aux, offset, buffer, size);
+	else
+		ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset,
+					 buffer, size);
 
 out:
 	drm_dp_dump_access(aux, DP_AUX_NATIVE_READ, offset, buffer, ret);
@@ -296,7 +317,7 @@ EXPORT_SYMBOL(drm_dp_dpcd_read);
 
 /**
  * drm_dp_dpcd_write() - write a series of bytes to the DPCD
- * @aux: DisplayPort AUX channel
+ * @aux: DisplayPort AUX channel (SST or MST)
  * @offset: address of the (first) register to write
  * @buffer: buffer containing the values to write
  * @size: number of bytes in @buffer
@@ -313,8 +334,12 @@ ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
 {
 	int ret;
 
-	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
-				 size);
+	if (aux->is_remote)
+		ret = drm_dp_mst_dpcd_write(aux, offset, buffer, size);
+	else
+		ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset,
+					 buffer, size);
+
 	drm_dp_dump_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer, ret);
 	return ret;
 }
@@ -335,134 +360,6 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 				DP_LINK_STATUS_SIZE);
 }
 EXPORT_SYMBOL(drm_dp_dpcd_read_link_status);
-
-/**
- * drm_dp_link_probe() - probe a DisplayPort link for capabilities
- * @aux: DisplayPort AUX channel
- * @link: pointer to structure in which to return link capabilities
- *
- * The structure filled in by this function can usually be passed directly
- * into drm_dp_link_power_up() and drm_dp_link_configure() to power up and
- * configure the link based on the link's capabilities.
- *
- * Returns 0 on success or a negative error code on failure.
- */
-int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
-{
-	u8 values[3];
-	int err;
-
-	memset(link, 0, sizeof(*link));
-
-	err = drm_dp_dpcd_read(aux, DP_DPCD_REV, values, sizeof(values));
-	if (err < 0)
-		return err;
-
-	link->revision = values[0];
-	link->rate = drm_dp_bw_code_to_link_rate(values[1]);
-	link->num_lanes = values[2] & DP_MAX_LANE_COUNT_MASK;
-
-	if (values[2] & DP_ENHANCED_FRAME_CAP)
-		link->capabilities |= DP_LINK_CAP_ENHANCED_FRAMING;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_dp_link_probe);
-
-/**
- * drm_dp_link_power_up() - power up a DisplayPort link
- * @aux: DisplayPort AUX channel
- * @link: pointer to a structure containing the link configuration
- *
- * Returns 0 on success or a negative error code on failure.
- */
-int drm_dp_link_power_up(struct drm_dp_aux *aux, struct drm_dp_link *link)
-{
-	u8 value;
-	int err;
-
-	/* DP_SET_POWER register is only available on DPCD v1.1 and later */
-	if (link->revision < 0x11)
-		return 0;
-
-	err = drm_dp_dpcd_readb(aux, DP_SET_POWER, &value);
-	if (err < 0)
-		return err;
-
-	value &= ~DP_SET_POWER_MASK;
-	value |= DP_SET_POWER_D0;
-
-	err = drm_dp_dpcd_writeb(aux, DP_SET_POWER, value);
-	if (err < 0)
-		return err;
-
-	/*
-	 * According to the DP 1.1 specification, a "Sink Device must exit the
-	 * power saving state within 1 ms" (Section 2.5.3.1, Table 5-52, "Sink
-	 * Control Field" (register 0x600).
-	 */
-	usleep_range(1000, 2000);
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_dp_link_power_up);
-
-/**
- * drm_dp_link_power_down() - power down a DisplayPort link
- * @aux: DisplayPort AUX channel
- * @link: pointer to a structure containing the link configuration
- *
- * Returns 0 on success or a negative error code on failure.
- */
-int drm_dp_link_power_down(struct drm_dp_aux *aux, struct drm_dp_link *link)
-{
-	u8 value;
-	int err;
-
-	/* DP_SET_POWER register is only available on DPCD v1.1 and later */
-	if (link->revision < 0x11)
-		return 0;
-
-	err = drm_dp_dpcd_readb(aux, DP_SET_POWER, &value);
-	if (err < 0)
-		return err;
-
-	value &= ~DP_SET_POWER_MASK;
-	value |= DP_SET_POWER_D3;
-
-	err = drm_dp_dpcd_writeb(aux, DP_SET_POWER, value);
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_dp_link_power_down);
-
-/**
- * drm_dp_link_configure() - configure a DisplayPort link
- * @aux: DisplayPort AUX channel
- * @link: pointer to a structure containing the link configuration
- *
- * Returns 0 on success or a negative error code on failure.
- */
-int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
-{
-	u8 values[2];
-	int err;
-
-	values[0] = drm_dp_link_rate_to_bw_code(link->rate);
-	values[1] = link->num_lanes;
-
-	if (link->capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
-		values[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
-
-	err = drm_dp_dpcd_write(aux, DP_LINK_BW_SET, values, sizeof(values));
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_dp_link_configure);
 
 /**
  * drm_dp_downstream_max_clock() - extract branch device max
@@ -1082,6 +979,19 @@ static void drm_dp_aux_crc_work(struct work_struct *work)
 }
 
 /**
+ * drm_dp_remote_aux_init() - minimally initialise a remote aux channel
+ * @aux: DisplayPort AUX channel
+ *
+ * Used for remote aux channel in general. Merely initialize the crc work
+ * struct.
+ */
+void drm_dp_remote_aux_init(struct drm_dp_aux *aux)
+{
+	INIT_WORK(&aux->crc_work, drm_dp_aux_crc_work);
+}
+EXPORT_SYMBOL(drm_dp_remote_aux_init);
+
+/**
  * drm_dp_aux_init() - minimally initialise an aux channel
  * @aux: DisplayPort AUX channel
  *
@@ -1109,6 +1019,14 @@ EXPORT_SYMBOL(drm_dp_aux_init);
  * @aux: DisplayPort AUX channel
  *
  * Automatically calls drm_dp_aux_init() if this hasn't been done yet.
+ * This should only be called when the underlying &struct drm_connector is
+ * initialiazed already. Therefore the best place to call this is from
+ * &drm_connector_funcs.late_register. Not that drivers which don't follow this
+ * will Oops when CONFIG_DRM_DP_AUX_CHARDEV is enabled.
+ *
+ * Drivers which need to use the aux channel before that point (e.g. at driver
+ * load time, before drm_dev_register() has been called) need to call
+ * drm_dp_aux_init().
  *
  * Returns 0 on success or a negative error code on failure.
  */
@@ -1260,6 +1178,8 @@ static const struct dpcd_quirk dpcd_quirk_list[] = {
 	{ OUI(0x00, 0x10, 0xfa), DEVICE_ID_ANY, false, BIT(DP_DPCD_QUIRK_NO_PSR) },
 	/* CH7511 seems to leave SINK_COUNT zeroed */
 	{ OUI(0x00, 0x00, 0x00), DEVICE_ID('C', 'H', '7', '5', '1', '1'), false, BIT(DP_DPCD_QUIRK_NO_SINK_COUNT) },
+	/* Synaptics DP1.4 MST hubs can support DSC without virtual DPCD */
+	{ OUI(0x90, 0xCC, 0x24), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) },
 };
 
 #undef OUI

@@ -148,8 +148,19 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static blk_status_t __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
-				   u64 logical_offset, u8 *dst, int dio)
+/**
+ * btrfs_lookup_bio_sums - Look up checksums for a bio.
+ * @inode: inode that the bio is for.
+ * @bio: bio embedded in btrfs_io_bio.
+ * @offset: Unless (u64)-1, look up checksums for this offset in the file.
+ *          If (u64)-1, use the page offsets from the bio instead.
+ * @dst: Buffer of size btrfs_super_csum_size() used to return checksum. If
+ *       NULL, the checksum is returned in btrfs_io_bio(bio)->csum instead.
+ *
+ * Return: BLK_STS_RESOURCE if allocating memory fails, BLK_STS_OK otherwise.
+ */
+blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
+				   u64 offset, u8 *dst)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct bio_vec bvec;
@@ -158,8 +169,8 @@ static blk_status_t __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio
 	struct btrfs_csum_item *item = NULL;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_path *path;
+	const bool page_offsets = (offset == (u64)-1);
 	u8 *csum;
-	u64 offset = 0;
 	u64 item_start_offset = 0;
 	u64 item_last_offset = 0;
 	u64 disk_bytenr;
@@ -205,15 +216,13 @@ static blk_status_t __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio
 	}
 
 	disk_bytenr = (u64)bio->bi_iter.bi_sector << 9;
-	if (dio)
-		offset = logical_offset;
 
 	bio_for_each_segment(bvec, bio, iter) {
 		page_bytes_left = bvec.bv_len;
 		if (count)
 			goto next;
 
-		if (!dio)
+		if (page_offsets)
 			offset = page_offset(bvec.bv_page) + bvec.bv_offset;
 		count = btrfs_find_ordered_sum(inode, offset, disk_bytenr,
 					       csum, nblocks);
@@ -274,7 +283,8 @@ found:
 		csum += count * csum_size;
 		nblocks -= count;
 next:
-		while (count--) {
+		while (count > 0) {
+			count--;
 			disk_bytenr += fs_info->sectorsize;
 			offset += fs_info->sectorsize;
 			page_bytes_left -= fs_info->sectorsize;
@@ -285,18 +295,7 @@ next:
 
 	WARN_ON_ONCE(count);
 	btrfs_free_path(path);
-	return 0;
-}
-
-blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
-				   u8 *dst)
-{
-	return __btrfs_lookup_bio_sums(inode, bio, 0, dst, 0);
-}
-
-blk_status_t btrfs_lookup_bio_sums_dio(struct inode *inode, struct bio *bio, u64 offset)
-{
-	return __btrfs_lookup_bio_sums(inode, bio, offset, NULL, 1);
+	return BLK_STS_OK;
 }
 
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
@@ -483,8 +482,8 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 						 - 1);
 
 		for (i = 0; i < nr_sectors; i++) {
-			if (offset >= ordered->file_offset + ordered->len ||
-				offset < ordered->file_offset) {
+			if (offset >= ordered->file_offset + ordered->num_bytes ||
+			    offset < ordered->file_offset) {
 				unsigned long bytes_left;
 
 				sums->len = this_sum_bytes;
@@ -590,9 +589,9 @@ static noinline void truncate_one_csum(struct btrfs_fs_info *fs_info,
  * range of bytes.
  */
 int btrfs_del_csums(struct btrfs_trans_handle *trans,
-		    struct btrfs_fs_info *fs_info, u64 bytenr, u64 len)
+		    struct btrfs_root *root, u64 bytenr, u64 len)
 {
-	struct btrfs_root *root = fs_info->csum_root;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	u64 end_byte = bytenr + len;
@@ -601,6 +600,9 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 	int ret;
 	u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	int blocksize_bits = fs_info->sb->s_blocksize_bits;
+
+	ASSERT(root == fs_info->csum_root ||
+	       root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -945,7 +947,6 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 	u8 type = btrfs_file_extent_type(leaf, fi);
 	int compress_type = btrfs_file_extent_compression(leaf, fi);
 
-	em->bdev = fs_info->fs_devices->latest_bdev;
 	btrfs_item_key_to_cpu(leaf, &key, slot);
 	extent_start = key.offset;
 

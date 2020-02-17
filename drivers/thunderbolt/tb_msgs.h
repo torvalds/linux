@@ -67,8 +67,12 @@ struct cfg_error_pkg {
 	u32 zero1:4;
 	u32 port:6;
 	u32 zero2:2; /* Both should be zero, still they are different fields. */
-	u32 zero3:16;
+	u32 zero3:14;
+	u32 pg:2;
 } __packed;
+
+#define TB_CFG_ERROR_PG_HOT_PLUG	0x2
+#define TB_CFG_ERROR_PG_HOT_UNPLUG	0x3
 
 /* TB_CFG_PKG_EVENT */
 struct cfg_event_pkg {
@@ -122,6 +126,8 @@ struct icm_pkg_header {
 #define ICM_FLAGS_NO_KEY		BIT(1)
 #define ICM_FLAGS_SLEVEL_SHIFT		3
 #define ICM_FLAGS_SLEVEL_MASK		GENMASK(4, 3)
+#define ICM_FLAGS_DUAL_LANE		BIT(5)
+#define ICM_FLAGS_SPEED_GEN3		BIT(7)
 #define ICM_FLAGS_WRITE			BIT(7)
 
 struct icm_pkg_driver_ready {

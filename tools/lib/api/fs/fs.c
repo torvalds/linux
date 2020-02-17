@@ -210,6 +210,7 @@ static bool fs__env_override(struct fs *fs)
 	size_t name_len = strlen(fs->name);
 	/* name + "_PATH" + '\0' */
 	char upper_name[name_len + 5 + 1];
+
 	memcpy(upper_name, fs->name, name_len);
 	mem_toupper(upper_name, name_len);
 	strcpy(&upper_name[name_len], "_PATH");
@@ -219,7 +220,8 @@ static bool fs__env_override(struct fs *fs)
 		return false;
 
 	fs->found = true;
-	strncpy(fs->path, override_path, sizeof(fs->path));
+	strncpy(fs->path, override_path, sizeof(fs->path) - 1);
+	fs->path[sizeof(fs->path) - 1] = '\0';
 	return true;
 }
 
@@ -381,8 +383,8 @@ int filename__read_str(const char *filename, char **buf, size_t *sizep)
 		n = read(fd, bf + size, alloc_size - size);
 		if (n < 0) {
 			if (size) {
-				pr_warning("read failed %d: %s\n", errno,
-					 strerror_r(errno, sbuf, sizeof(sbuf)));
+				pr_warn("read failed %d: %s\n", errno,
+					strerror_r(errno, sbuf, sizeof(sbuf)));
 				err = 0;
 			} else
 				err = -errno;

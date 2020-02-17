@@ -139,6 +139,28 @@ retry:
 	dput(dentry);
 }
 
+static bool reparse_file_needs_reval(const struct cifs_fattr *fattr)
+{
+	if (!(fattr->cf_cifsattrs & ATTR_REPARSE))
+		return false;
+	/*
+	 * The DFS tags should be only intepreted by server side as per
+	 * MS-FSCC 2.1.2.1, but let's include them anyway.
+	 *
+	 * Besides, if cf_cifstag is unset (0), then we still need it to be
+	 * revalidated to know exactly what reparse point it is.
+	 */
+	switch (fattr->cf_cifstag) {
+	case IO_REPARSE_TAG_DFS:
+	case IO_REPARSE_TAG_DFSR:
+	case IO_REPARSE_TAG_SYMLINK:
+	case IO_REPARSE_TAG_NFS:
+	case 0:
+		return true;
+	}
+	return false;
+}
+
 static void
 cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 {
@@ -158,7 +180,7 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	 * is a symbolic link, DFS referral or a reparse point with a direct
 	 * access like junctions, deduplicated files, NFS symlinks.
 	 */
-	if (fattr->cf_cifsattrs & ATTR_REPARSE)
+	if (reparse_file_needs_reval(fattr))
 		fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
 
 	/* non-unix readdir doesn't provide nlink */
@@ -174,7 +196,8 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	 * may look wrong since the inodes may not have timed out by the time
 	 * "ls" does a stat() call on them.
 	 */
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) ||
+	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID))
 		fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL &&
@@ -194,19 +217,37 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	}
 }
 
+static void __dir_info_to_fattr(struct cifs_fattr *fattr, const void *info)
+{
+	const FILE_DIRECTORY_INFO *fi = info;
+
+	memset(fattr, 0, sizeof(*fattr));
+	fattr->cf_cifsattrs = le32_to_cpu(fi->ExtFileAttributes);
+	fattr->cf_eof = le64_to_cpu(fi->EndOfFile);
+	fattr->cf_bytes = le64_to_cpu(fi->AllocationSize);
+	fattr->cf_createtime = le64_to_cpu(fi->CreationTime);
+	fattr->cf_atime = cifs_NTtimeToUnix(fi->LastAccessTime);
+	fattr->cf_ctime = cifs_NTtimeToUnix(fi->ChangeTime);
+	fattr->cf_mtime = cifs_NTtimeToUnix(fi->LastWriteTime);
+}
+
 void
 cifs_dir_info_to_fattr(struct cifs_fattr *fattr, FILE_DIRECTORY_INFO *info,
 		       struct cifs_sb_info *cifs_sb)
 {
-	memset(fattr, 0, sizeof(*fattr));
-	fattr->cf_cifsattrs = le32_to_cpu(info->ExtFileAttributes);
-	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
-	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
-	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
-	fattr->cf_atime = cifs_NTtimeToUnix(info->LastAccessTime);
-	fattr->cf_ctime = cifs_NTtimeToUnix(info->ChangeTime);
-	fattr->cf_mtime = cifs_NTtimeToUnix(info->LastWriteTime);
+	__dir_info_to_fattr(fattr, info);
+	cifs_fill_common_info(fattr, cifs_sb);
+}
 
+static void cifs_fulldir_info_to_fattr(struct cifs_fattr *fattr,
+				       SEARCH_ID_FULL_DIR_INFO *info,
+				       struct cifs_sb_info *cifs_sb)
+{
+	__dir_info_to_fattr(fattr, info);
+
+	/* See MS-FSCC 2.4.18 FileIdFullDirectoryInformation */
+	if (fattr->cf_cifsattrs & ATTR_REPARSE)
+		fattr->cf_cifstag = le32_to_cpu(info->EaSize);
 	cifs_fill_common_info(fattr, cifs_sb);
 }
 
@@ -754,6 +795,11 @@ static int cifs_filldir(char *find_entry, struct file *file,
 		cifs_std_info_to_fattr(&fattr,
 				       (FIND_FILE_STANDARD_INFO *)find_entry,
 				       cifs_sb);
+		break;
+	case SMB_FIND_FILE_ID_FULL_DIR_INFO:
+		cifs_fulldir_info_to_fattr(&fattr,
+					   (SEARCH_ID_FULL_DIR_INFO *)find_entry,
+					   cifs_sb);
 		break;
 	default:
 		cifs_dir_info_to_fattr(&fattr,

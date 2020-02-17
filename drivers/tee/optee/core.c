@@ -534,13 +534,13 @@ static void optee_smccc_hvc(unsigned long a0, unsigned long a1,
 	arm_smccc_hvc(a0, a1, a2, a3, a4, a5, a6, a7, res);
 }
 
-static optee_invoke_fn *get_invoke_func(struct device_node *np)
+static optee_invoke_fn *get_invoke_func(struct device *dev)
 {
 	const char *method;
 
-	pr_info("probing for conduit method from DT.\n");
+	pr_info("probing for conduit method.\n");
 
-	if (of_property_read_string(np, "method", &method)) {
+	if (device_property_read_string(dev, "method", &method)) {
 		pr_warn("missing \"method\" property\n");
 		return ERR_PTR(-ENXIO);
 	}
@@ -554,7 +554,37 @@ static optee_invoke_fn *get_invoke_func(struct device_node *np)
 	return ERR_PTR(-EINVAL);
 }
 
-static struct optee *optee_probe(struct device_node *np)
+static int optee_remove(struct platform_device *pdev)
+{
+	struct optee *optee = platform_get_drvdata(pdev);
+
+	/*
+	 * Ask OP-TEE to free all cached shared memory objects to decrease
+	 * reference counters and also avoid wild pointers in secure world
+	 * into the old shared memory range.
+	 */
+	optee_disable_shm_cache(optee);
+
+	/*
+	 * The two devices have to be unregistered before we can free the
+	 * other resources.
+	 */
+	tee_device_unregister(optee->supp_teedev);
+	tee_device_unregister(optee->teedev);
+
+	tee_shm_pool_free(optee->pool);
+	if (optee->memremaped_shm)
+		memunmap(optee->memremaped_shm);
+	optee_wait_queue_exit(&optee->wait_queue);
+	optee_supp_uninit(&optee->supp);
+	mutex_destroy(&optee->call_queue.mutex);
+
+	kfree(optee);
+
+	return 0;
+}
+
+static int optee_probe(struct platform_device *pdev)
 {
 	optee_invoke_fn *invoke_fn;
 	struct tee_shm_pool *pool = ERR_PTR(-EINVAL);
@@ -564,25 +594,25 @@ static struct optee *optee_probe(struct device_node *np)
 	u32 sec_caps;
 	int rc;
 
-	invoke_fn = get_invoke_func(np);
+	invoke_fn = get_invoke_func(&pdev->dev);
 	if (IS_ERR(invoke_fn))
-		return (void *)invoke_fn;
+		return PTR_ERR(invoke_fn);
 
 	if (!optee_msg_api_uid_is_optee_api(invoke_fn)) {
 		pr_warn("api uid mismatch\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	optee_msg_get_os_revision(invoke_fn);
 
 	if (!optee_msg_api_revision_is_compatible(invoke_fn)) {
 		pr_warn("api revision mismatch\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (!optee_msg_exchange_capabilities(invoke_fn, &sec_caps)) {
 		pr_warn("capabilities mismatch\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	/*
@@ -598,7 +628,7 @@ static struct optee *optee_probe(struct device_node *np)
 		pool = optee_config_shm_memremap(invoke_fn, &memremaped_shm);
 
 	if (IS_ERR(pool))
-		return (void *)pool;
+		return PTR_ERR(pool);
 
 	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
 	if (!optee) {
@@ -643,12 +673,16 @@ static struct optee *optee_probe(struct device_node *np)
 	if (optee->sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
 		pr_info("dynamic shared memory is enabled\n");
 
+	platform_set_drvdata(pdev, optee);
+
 	rc = optee_enumerate_devices();
-	if (rc)
-		goto err;
+	if (rc) {
+		optee_remove(pdev);
+		return rc;
+	}
 
 	pr_info("initialized driver\n");
-	return optee;
+	return 0;
 err:
 	if (optee) {
 		/*
@@ -664,83 +698,28 @@ err:
 		tee_shm_pool_free(pool);
 	if (memremaped_shm)
 		memunmap(memremaped_shm);
-	return ERR_PTR(rc);
+	return rc;
 }
 
-static void optee_remove(struct optee *optee)
-{
-	/*
-	 * Ask OP-TEE to free all cached shared memory objects to decrease
-	 * reference counters and also avoid wild pointers in secure world
-	 * into the old shared memory range.
-	 */
-	optee_disable_shm_cache(optee);
-
-	/*
-	 * The two devices has to be unregistered before we can free the
-	 * other resources.
-	 */
-	tee_device_unregister(optee->supp_teedev);
-	tee_device_unregister(optee->teedev);
-
-	tee_shm_pool_free(optee->pool);
-	if (optee->memremaped_shm)
-		memunmap(optee->memremaped_shm);
-	optee_wait_queue_exit(&optee->wait_queue);
-	optee_supp_uninit(&optee->supp);
-	mutex_destroy(&optee->call_queue.mutex);
-
-	kfree(optee);
-}
-
-static const struct of_device_id optee_match[] = {
+static const struct of_device_id optee_dt_match[] = {
 	{ .compatible = "linaro,optee-tz" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, optee_dt_match);
 
-static struct optee *optee_svc;
-
-static int __init optee_driver_init(void)
-{
-	struct device_node *fw_np;
-	struct device_node *np;
-	struct optee *optee;
-
-	/* Node is supposed to be below /firmware */
-	fw_np = of_find_node_by_name(NULL, "firmware");
-	if (!fw_np)
-		return -ENODEV;
-
-	np = of_find_matching_node(fw_np, optee_match);
-	if (!np || !of_device_is_available(np)) {
-		of_node_put(np);
-		return -ENODEV;
-	}
-
-	optee = optee_probe(np);
-	of_node_put(np);
-
-	if (IS_ERR(optee))
-		return PTR_ERR(optee);
-
-	optee_svc = optee;
-
-	return 0;
-}
-module_init(optee_driver_init);
-
-static void __exit optee_driver_exit(void)
-{
-	struct optee *optee = optee_svc;
-
-	optee_svc = NULL;
-	if (optee)
-		optee_remove(optee);
-}
-module_exit(optee_driver_exit);
+static struct platform_driver optee_driver = {
+	.probe  = optee_probe,
+	.remove = optee_remove,
+	.driver = {
+		.name = "optee",
+		.of_match_table = optee_dt_match,
+	},
+};
+module_platform_driver(optee_driver);
 
 MODULE_AUTHOR("Linaro");
 MODULE_DESCRIPTION("OP-TEE driver");
 MODULE_SUPPORTED_DEVICE("");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:optee");

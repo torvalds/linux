@@ -46,10 +46,10 @@ static inline void nfs_init_server_aclclient(struct nfs_server *server)
 }
 #endif
 
-struct nfs_server *nfs3_create_server(struct nfs_mount_info *mount_info,
-				      struct nfs_subversion *nfs_mod)
+struct nfs_server *nfs3_create_server(struct fs_context *fc)
 {
-	struct nfs_server *server = nfs_create_server(mount_info, nfs_mod);
+	struct nfs_server *server = nfs_create_server(fc);
+
 	/* Create a client RPC handle for the NFS v3 ACL management interface */
 	if (!IS_ERR(server))
 		nfs_init_server_aclclient(server);
@@ -106,7 +106,10 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 		cl_init.nconnect = mds_clp->cl_nconnect;
 
 	if (mds_srv->flags & NFS_MOUNT_NORESVPORT)
-		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+		__set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+
+	__set_bit(NFS_CS_NOPING, &cl_init.init_flags);
+	__set_bit(NFS_CS_DS, &cl_init.init_flags);
 
 	/* Use the MDS nfs_client cl_ipaddr. */
 	nfs_init_timeout_values(&ds_timeout, ds_proto, ds_timeo, ds_retrans);

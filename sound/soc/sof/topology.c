@@ -13,6 +13,7 @@
 #include <sound/pcm_params.h>
 #include <uapi/sound/sof/tokens.h>
 #include "sof-priv.h"
+#include "sof-audio.h"
 #include "ops.h"
 
 #define COMP_ID_UNASSIGNED		0xffffffff
@@ -53,7 +54,8 @@ struct sof_widget_data {
 static int ipc_pcm_params(struct snd_sof_widget *swidget, int dir)
 {
 	struct sof_ipc_pcm_params_reply ipc_params_reply;
-	struct snd_sof_dev *sdev = swidget->sdev;
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc_pcm_params pcm;
 	struct snd_pcm_hw_params *params;
 	struct snd_sof_pcm *spcm;
@@ -62,9 +64,9 @@ static int ipc_pcm_params(struct snd_sof_widget *swidget, int dir)
 	memset(&pcm, 0, sizeof(pcm));
 
 	/* get runtime PCM params using widget's stream name */
-	spcm = snd_sof_find_spcm_name(sdev, swidget->widget->sname);
+	spcm = snd_sof_find_spcm_name(scomp, swidget->widget->sname);
 	if (!spcm) {
-		dev_err(sdev->dev, "error: cannot find PCM for %s\n",
+		dev_err(scomp->dev, "error: cannot find PCM for %s\n",
 			swidget->widget->name);
 		return -EINVAL;
 	}
@@ -102,7 +104,7 @@ static int ipc_pcm_params(struct snd_sof_widget *swidget, int dir)
 	ret = sof_ipc_tx_message(sdev->ipc, pcm.hdr.cmd, &pcm, sizeof(pcm),
 				 &ipc_params_reply, sizeof(ipc_params_reply));
 	if (ret < 0)
-		dev_err(sdev->dev, "error: pcm params failed for %s\n",
+		dev_err(scomp->dev, "error: pcm params failed for %s\n",
 			swidget->widget->name);
 
 	return ret;
@@ -111,7 +113,8 @@ static int ipc_pcm_params(struct snd_sof_widget *swidget, int dir)
  /* send stream trigger ipc */
 static int ipc_trigger(struct snd_sof_widget *swidget, int cmd)
 {
-	struct snd_sof_dev *sdev = swidget->sdev;
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
 	int ret = 0;
@@ -125,7 +128,7 @@ static int ipc_trigger(struct snd_sof_widget *swidget, int cmd)
 	ret = sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd, &stream,
 				 sizeof(stream), &reply, sizeof(reply));
 	if (ret < 0)
-		dev_err(sdev->dev, "error: failed to trigger %s\n",
+		dev_err(scomp->dev, "error: failed to trigger %s\n",
 			swidget->widget->name);
 
 	return ret;
@@ -135,24 +138,39 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *k, int event)
 {
 	struct snd_sof_widget *swidget = w->dobj.private;
-	struct snd_sof_dev *sdev;
+	struct snd_soc_component *scomp;
+	int stream = SNDRV_PCM_STREAM_CAPTURE;
+	struct snd_sof_pcm *spcm;
 	int ret = 0;
 
 	if (!swidget)
 		return 0;
 
-	sdev = swidget->sdev;
+	scomp = swidget->scomp;
 
-	dev_dbg(sdev->dev, "received event %d for widget %s\n",
+	dev_dbg(scomp->dev, "received event %d for widget %s\n",
 		event, w->name);
+
+	/* get runtime PCM params using widget's stream name */
+	spcm = snd_sof_find_spcm_name(scomp, swidget->widget->sname);
+	if (!spcm) {
+		dev_err(scomp->dev, "error: cannot find PCM for %s\n",
+			swidget->widget->name);
+		return -EINVAL;
+	}
 
 	/* process events */
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		if (spcm->stream[stream].suspend_ignored) {
+			dev_dbg(scomp->dev, "PRE_PMU event ignored, KWD pipeline is already RUNNING\n");
+			return 0;
+		}
+
 		/* set pcm params */
-		ret = ipc_pcm_params(swidget, SOF_IPC_STREAM_CAPTURE);
+		ret = ipc_pcm_params(swidget, stream);
 		if (ret < 0) {
-			dev_err(sdev->dev,
+			dev_err(scomp->dev,
 				"error: failed to set pcm params for widget %s\n",
 				swidget->widget->name);
 			break;
@@ -161,22 +179,27 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 		/* start trigger */
 		ret = ipc_trigger(swidget, SOF_IPC_STREAM_TRIG_START);
 		if (ret < 0)
-			dev_err(sdev->dev,
+			dev_err(scomp->dev,
 				"error: failed to trigger widget %s\n",
 				swidget->widget->name);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
+		if (spcm->stream[stream].suspend_ignored) {
+			dev_dbg(scomp->dev, "POST_PMD even ignored, KWD pipeline will remain RUNNING\n");
+			return 0;
+		}
+
 		/* stop trigger */
 		ret = ipc_trigger(swidget, SOF_IPC_STREAM_TRIG_STOP);
 		if (ret < 0)
-			dev_err(sdev->dev,
+			dev_err(scomp->dev,
 				"error: failed to trigger widget %s\n",
 				swidget->widget->name);
 
 		/* pcm free */
 		ret = ipc_trigger(swidget, SOF_IPC_STREAM_PCM_FREE);
 		if (ret < 0)
-			dev_err(sdev->dev,
+			dev_err(scomp->dev,
 				"error: failed to trigger widget %s\n",
 				swidget->widget->name);
 		break;
@@ -433,163 +456,6 @@ static enum sof_comp_type find_process_comp_type(enum sof_ipc_process_type type)
 }
 
 /*
- * Standard Kcontrols.
- */
-
-static int sof_control_load_volume(struct snd_soc_component *scomp,
-				   struct snd_sof_control *scontrol,
-				   struct snd_kcontrol_new *kc,
-				   struct snd_soc_tplg_ctl_hdr *hdr)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_mixer_control *mc =
-		container_of(hdr, struct snd_soc_tplg_mixer_control, hdr);
-	struct sof_ipc_ctrl_data *cdata;
-	int tlv[TLV_ITEMS];
-	unsigned int i;
-	int ret;
-
-	/* validate topology data */
-	if (le32_to_cpu(mc->num_channels) > SND_SOC_TPLG_MAX_CHAN)
-		return -EINVAL;
-
-	/* init the volume get/put data */
-	scontrol->size = struct_size(scontrol->control_data, chanv,
-				     le32_to_cpu(mc->num_channels));
-	scontrol->control_data = kzalloc(scontrol->size, GFP_KERNEL);
-	if (!scontrol->control_data)
-		return -ENOMEM;
-
-	scontrol->comp_id = sdev->next_comp_id;
-	scontrol->min_volume_step = le32_to_cpu(mc->min);
-	scontrol->max_volume_step = le32_to_cpu(mc->max);
-	scontrol->num_channels = le32_to_cpu(mc->num_channels);
-
-	/* set cmd for mixer control */
-	if (le32_to_cpu(mc->max) == 1) {
-		scontrol->cmd = SOF_CTRL_CMD_SWITCH;
-		goto out;
-	}
-
-	scontrol->cmd = SOF_CTRL_CMD_VOLUME;
-
-	/* extract tlv data */
-	if (get_tlv_data(kc->tlv.p, tlv) < 0) {
-		dev_err(sdev->dev, "error: invalid TLV data\n");
-		return -EINVAL;
-	}
-
-	/* set up volume table */
-	ret = set_up_volume_table(scontrol, tlv, le32_to_cpu(mc->max) + 1);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: setting up volume table\n");
-		return ret;
-	}
-
-	/* set default volume values to 0dB in control */
-	cdata = scontrol->control_data;
-	for (i = 0; i < scontrol->num_channels; i++) {
-		cdata->chanv[i].channel = i;
-		cdata->chanv[i].value = VOL_ZERO_DB;
-	}
-
-out:
-	dev_dbg(sdev->dev, "tplg: load kcontrol index %d chans %d\n",
-		scontrol->comp_id, scontrol->num_channels);
-
-	return 0;
-}
-
-static int sof_control_load_enum(struct snd_soc_component *scomp,
-				 struct snd_sof_control *scontrol,
-				 struct snd_kcontrol_new *kc,
-				 struct snd_soc_tplg_ctl_hdr *hdr)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_enum_control *ec =
-		container_of(hdr, struct snd_soc_tplg_enum_control, hdr);
-
-	/* validate topology data */
-	if (le32_to_cpu(ec->num_channels) > SND_SOC_TPLG_MAX_CHAN)
-		return -EINVAL;
-
-	/* init the enum get/put data */
-	scontrol->size = struct_size(scontrol->control_data, chanv,
-				     le32_to_cpu(ec->num_channels));
-	scontrol->control_data = kzalloc(scontrol->size, GFP_KERNEL);
-	if (!scontrol->control_data)
-		return -ENOMEM;
-
-	scontrol->comp_id = sdev->next_comp_id;
-	scontrol->num_channels = le32_to_cpu(ec->num_channels);
-
-	scontrol->cmd = SOF_CTRL_CMD_ENUM;
-
-	dev_dbg(sdev->dev, "tplg: load kcontrol index %d chans %d comp_id %d\n",
-		scontrol->comp_id, scontrol->num_channels, scontrol->comp_id);
-
-	return 0;
-}
-
-static int sof_control_load_bytes(struct snd_soc_component *scomp,
-				  struct snd_sof_control *scontrol,
-				  struct snd_kcontrol_new *kc,
-				  struct snd_soc_tplg_ctl_hdr *hdr)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct sof_ipc_ctrl_data *cdata;
-	struct snd_soc_tplg_bytes_control *control =
-		container_of(hdr, struct snd_soc_tplg_bytes_control, hdr);
-	struct soc_bytes_ext *sbe = (struct soc_bytes_ext *)kc->private_value;
-	int max_size = sbe->max;
-
-	if (le32_to_cpu(control->priv.size) > max_size) {
-		dev_err(sdev->dev, "err: bytes data size %d exceeds max %d.\n",
-			control->priv.size, max_size);
-		return -EINVAL;
-	}
-
-	/* init the get/put bytes data */
-	scontrol->size = sizeof(struct sof_ipc_ctrl_data) +
-		le32_to_cpu(control->priv.size);
-	scontrol->control_data = kzalloc(max_size, GFP_KERNEL);
-	cdata = scontrol->control_data;
-	if (!scontrol->control_data)
-		return -ENOMEM;
-
-	scontrol->comp_id = sdev->next_comp_id;
-	scontrol->cmd = SOF_CTRL_CMD_BINARY;
-
-	dev_dbg(sdev->dev, "tplg: load kcontrol index %d chans %d\n",
-		scontrol->comp_id, scontrol->num_channels);
-
-	if (le32_to_cpu(control->priv.size) > 0) {
-		memcpy(cdata->data, control->priv.data,
-		       le32_to_cpu(control->priv.size));
-
-		if (cdata->data->magic != SOF_ABI_MAGIC) {
-			dev_err(sdev->dev, "error: Wrong ABI magic 0x%08x.\n",
-				cdata->data->magic);
-			return -EINVAL;
-		}
-		if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION,
-						 cdata->data->abi)) {
-			dev_err(sdev->dev,
-				"error: Incompatible ABI version 0x%08x.\n",
-				cdata->data->abi);
-			return -EINVAL;
-		}
-		if (cdata->data->size + sizeof(const struct sof_abi_hdr) !=
-		    le32_to_cpu(control->priv.size)) {
-			dev_err(sdev->dev,
-				"error: Conflict in bytes vs. priv size.\n");
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
-
-/*
  * Topology Token Parsing.
  * New tokens should be added to headers and parsing tables below.
  */
@@ -707,6 +573,20 @@ static const struct sof_topology_token src_tokens[] = {
 		offsetof(struct sof_ipc_comp_src, sink_rate), 0},
 };
 
+/* ASRC */
+static const struct sof_topology_token asrc_tokens[] = {
+	{SOF_TKN_ASRC_RATE_IN, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_comp_asrc, source_rate), 0},
+	{SOF_TKN_ASRC_RATE_OUT, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_comp_asrc, sink_rate), 0},
+	{SOF_TKN_ASRC_ASYNCHRONOUS_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		get_token_u32,
+		offsetof(struct sof_ipc_comp_asrc, asynchronous_mode), 0},
+	{SOF_TKN_ASRC_OPERATION_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		get_token_u32,
+		offsetof(struct sof_ipc_comp_asrc, operation_mode), 0},
+};
+
 /* Tone */
 static const struct sof_topology_token tone_tokens[] = {
 };
@@ -722,6 +602,16 @@ static const struct sof_topology_token process_tokens[] = {
 static const struct sof_topology_token pcm_tokens[] = {
 	{SOF_TKN_PCM_DMAC_CONFIG, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc_comp_host, dmac_config), 0},
+};
+
+/* PCM */
+static const struct sof_topology_token stream_tokens[] = {
+	{SOF_TKN_STREAM_PLAYBACK_COMPATIBLE_D0I3,
+		SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
+		offsetof(struct snd_sof_pcm, stream[0].d0i3_compatible), 0},
+	{SOF_TKN_STREAM_CAPTURE_COMPATIBLE_D0I3,
+		SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
+		offsetof(struct snd_sof_pcm, stream[1].d0i3_compatible), 0},
 };
 
 /* Generic components */
@@ -798,6 +688,20 @@ static const struct sof_topology_token dmic_tokens[] = {
 
 };
 
+/* ESAI */
+static const struct sof_topology_token esai_tokens[] = {
+	{SOF_TKN_IMX_ESAI_MCLK_ID,
+		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
+		offsetof(struct sof_ipc_dai_esai_params, mclk_id), 0},
+};
+
+/* SAI */
+static const struct sof_topology_token sai_tokens[] = {
+	{SOF_TKN_IMX_SAI_MCLK_ID,
+		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
+		offsetof(struct sof_ipc_dai_sai_params, mclk_id), 0},
+};
+
 /*
  * DMIC PDM Tokens
  * SOF_TKN_INTEL_DMIC_PDM_CTRL_ID should be the first token
@@ -837,6 +741,14 @@ static const struct sof_topology_token dmic_pdm_tokens[] = {
 
 /* HDA */
 static const struct sof_topology_token hda_tokens[] = {
+};
+
+/* Leds */
+static const struct sof_topology_token led_tokens[] = {
+	{SOF_TKN_MUTE_LED_USE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+	 offsetof(struct snd_sof_led_control, use_led), 0},
+	{SOF_TKN_MUTE_LED_DIRECTION, SND_SOC_TPLG_TUPLE_TYPE_WORD,
+	 get_token_u32, offsetof(struct snd_sof_led_control, direction), 0},
 };
 
 static void sof_parse_uuid_tokens(struct snd_soc_component *scomp,
@@ -920,7 +832,9 @@ static void sof_parse_word_tokens(struct snd_soc_component *scomp,
 		for (j = 0; j < count; j++) {
 			/* match token type */
 			if (!(tokens[j].type == SND_SOC_TPLG_TUPLE_TYPE_WORD ||
-			      tokens[j].type == SND_SOC_TPLG_TUPLE_TYPE_SHORT))
+			      tokens[j].type == SND_SOC_TPLG_TUPLE_TYPE_SHORT ||
+			      tokens[j].type == SND_SOC_TPLG_TUPLE_TYPE_BYTE ||
+			      tokens[j].type == SND_SOC_TPLG_TUPLE_TYPE_BOOL))
 				continue;
 
 			/* match token id */
@@ -948,7 +862,7 @@ static void sof_parse_word_tokens(struct snd_soc_component *scomp,
 
 				/* check if array index is valid */
 				if (!index || *index == 0) {
-					dev_err(sdev->dev,
+					dev_err(scomp->dev,
 						"error: invalid array offset\n");
 					continue;
 				} else {
@@ -976,7 +890,6 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,
 			    struct snd_soc_tplg_vendor_array *array,
 			    int priv_size)
 {
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	int asize;
 
 	while (priv_size > 0) {
@@ -984,7 +897,7 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,
 
 		/* validate asize */
 		if (asize < 0) { /* FIXME: A zero-size array makes no sense */
-			dev_err(sdev->dev, "error: invalid array size 0x%x\n",
+			dev_err(scomp->dev, "error: invalid array size 0x%x\n",
 				asize);
 			return -EINVAL;
 		}
@@ -992,7 +905,7 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,
 		/* make sure there is enough data before parsing */
 		priv_size -= asize;
 		if (priv_size < 0) {
-			dev_err(sdev->dev, "error: invalid array size 0x%x\n",
+			dev_err(scomp->dev, "error: invalid array size 0x%x\n",
 				asize);
 			return -EINVAL;
 		}
@@ -1015,7 +928,7 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,
 					      array);
 			break;
 		default:
-			dev_err(sdev->dev, "error: unknown token type %d\n",
+			dev_err(scomp->dev, "error: unknown token type %d\n",
 				array->type);
 			return -EINVAL;
 		}
@@ -1030,11 +943,203 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,
 static void sof_dbg_comp_config(struct snd_soc_component *scomp,
 				struct sof_ipc_comp_config *config)
 {
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-
-	dev_dbg(sdev->dev, " config: periods snk %d src %d fmt %d\n",
+	dev_dbg(scomp->dev, " config: periods snk %d src %d fmt %d\n",
 		config->periods_sink, config->periods_source,
 		config->frame_fmt);
+}
+
+/*
+ * Standard Kcontrols.
+ */
+
+static int sof_control_load_volume(struct snd_soc_component *scomp,
+				   struct snd_sof_control *scontrol,
+				   struct snd_kcontrol_new *kc,
+				   struct snd_soc_tplg_ctl_hdr *hdr)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_mixer_control *mc =
+		container_of(hdr, struct snd_soc_tplg_mixer_control, hdr);
+	struct sof_ipc_ctrl_data *cdata;
+	int tlv[TLV_ITEMS];
+	unsigned int i;
+	int ret = 0;
+
+	/* validate topology data */
+	if (le32_to_cpu(mc->num_channels) > SND_SOC_TPLG_MAX_CHAN) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* init the volume get/put data */
+	scontrol->size = struct_size(scontrol->control_data, chanv,
+				     le32_to_cpu(mc->num_channels));
+	scontrol->control_data = kzalloc(scontrol->size, GFP_KERNEL);
+	if (!scontrol->control_data) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	scontrol->comp_id = sdev->next_comp_id;
+	scontrol->min_volume_step = le32_to_cpu(mc->min);
+	scontrol->max_volume_step = le32_to_cpu(mc->max);
+	scontrol->num_channels = le32_to_cpu(mc->num_channels);
+
+	/* set cmd for mixer control */
+	if (le32_to_cpu(mc->max) == 1) {
+		scontrol->cmd = SOF_CTRL_CMD_SWITCH;
+		goto skip;
+	}
+
+	scontrol->cmd = SOF_CTRL_CMD_VOLUME;
+
+	/* extract tlv data */
+	if (get_tlv_data(kc->tlv.p, tlv) < 0) {
+		dev_err(scomp->dev, "error: invalid TLV data\n");
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	/* set up volume table */
+	ret = set_up_volume_table(scontrol, tlv, le32_to_cpu(mc->max) + 1);
+	if (ret < 0) {
+		dev_err(scomp->dev, "error: setting up volume table\n");
+		goto out_free;
+	}
+
+	/* set default volume values to 0dB in control */
+	cdata = scontrol->control_data;
+	for (i = 0; i < scontrol->num_channels; i++) {
+		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = VOL_ZERO_DB;
+	}
+
+skip:
+	/* set up possible led control from mixer private data */
+	ret = sof_parse_tokens(scomp, &scontrol->led_ctl, led_tokens,
+			       ARRAY_SIZE(led_tokens), mc->priv.array,
+			       le32_to_cpu(mc->priv.size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "error: parse led tokens failed %d\n",
+			le32_to_cpu(mc->priv.size));
+		goto out_free_table;
+	}
+
+	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d\n",
+		scontrol->comp_id, scontrol->num_channels);
+
+	return ret;
+
+out_free_table:
+	if (le32_to_cpu(mc->max) > 1)
+		kfree(scontrol->volume_table);
+out_free:
+	kfree(scontrol->control_data);
+out:
+	return ret;
+}
+
+static int sof_control_load_enum(struct snd_soc_component *scomp,
+				 struct snd_sof_control *scontrol,
+				 struct snd_kcontrol_new *kc,
+				 struct snd_soc_tplg_ctl_hdr *hdr)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_enum_control *ec =
+		container_of(hdr, struct snd_soc_tplg_enum_control, hdr);
+
+	/* validate topology data */
+	if (le32_to_cpu(ec->num_channels) > SND_SOC_TPLG_MAX_CHAN)
+		return -EINVAL;
+
+	/* init the enum get/put data */
+	scontrol->size = struct_size(scontrol->control_data, chanv,
+				     le32_to_cpu(ec->num_channels));
+	scontrol->control_data = kzalloc(scontrol->size, GFP_KERNEL);
+	if (!scontrol->control_data)
+		return -ENOMEM;
+
+	scontrol->comp_id = sdev->next_comp_id;
+	scontrol->num_channels = le32_to_cpu(ec->num_channels);
+
+	scontrol->cmd = SOF_CTRL_CMD_ENUM;
+
+	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d comp_id %d\n",
+		scontrol->comp_id, scontrol->num_channels, scontrol->comp_id);
+
+	return 0;
+}
+
+static int sof_control_load_bytes(struct snd_soc_component *scomp,
+				  struct snd_sof_control *scontrol,
+				  struct snd_kcontrol_new *kc,
+				  struct snd_soc_tplg_ctl_hdr *hdr)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct sof_ipc_ctrl_data *cdata;
+	struct snd_soc_tplg_bytes_control *control =
+		container_of(hdr, struct snd_soc_tplg_bytes_control, hdr);
+	struct soc_bytes_ext *sbe = (struct soc_bytes_ext *)kc->private_value;
+	int max_size = sbe->max;
+	int ret = 0;
+
+	/* init the get/put bytes data */
+	scontrol->size = sizeof(struct sof_ipc_ctrl_data) +
+		le32_to_cpu(control->priv.size);
+
+	if (scontrol->size > max_size) {
+		dev_err(scomp->dev, "err: bytes data size %d exceeds max %d.\n",
+			scontrol->size, max_size);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	scontrol->control_data = kzalloc(max_size, GFP_KERNEL);
+	cdata = scontrol->control_data;
+	if (!scontrol->control_data) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	scontrol->comp_id = sdev->next_comp_id;
+	scontrol->cmd = SOF_CTRL_CMD_BINARY;
+
+	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d\n",
+		scontrol->comp_id, scontrol->num_channels);
+
+	if (le32_to_cpu(control->priv.size) > 0) {
+		memcpy(cdata->data, control->priv.data,
+		       le32_to_cpu(control->priv.size));
+
+		if (cdata->data->magic != SOF_ABI_MAGIC) {
+			dev_err(scomp->dev, "error: Wrong ABI magic 0x%08x.\n",
+				cdata->data->magic);
+			ret = -EINVAL;
+			goto out_free;
+		}
+		if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION,
+						 cdata->data->abi)) {
+			dev_err(scomp->dev,
+				"error: Incompatible ABI version 0x%08x.\n",
+				cdata->data->abi);
+			ret = -EINVAL;
+			goto out_free;
+		}
+		if (cdata->data->size + sizeof(const struct sof_abi_hdr) !=
+		    le32_to_cpu(control->priv.size)) {
+			dev_err(scomp->dev,
+				"error: Conflict in bytes vs. priv size.\n");
+			ret = -EINVAL;
+			goto out_free;
+		}
+	}
+
+	return ret;
+
+out_free:
+	kfree(scontrol->control_data);
+out:
+	return ret;
 }
 
 /* external kcontrol init - used for any driver specific init */
@@ -1050,14 +1155,14 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	struct snd_sof_control *scontrol;
 	int ret = -EINVAL;
 
-	dev_dbg(sdev->dev, "tplg: load control type %d name : %s\n",
+	dev_dbg(scomp->dev, "tplg: load control type %d name : %s\n",
 		hdr->type, hdr->name);
 
 	scontrol = kzalloc(sizeof(*scontrol), GFP_KERNEL);
 	if (!scontrol)
 		return -ENOMEM;
 
-	scontrol->sdev = sdev;
+	scontrol->scomp = scomp;
 
 	switch (le32_to_cpu(hdr->ops.info)) {
 	case SND_SOC_TPLG_CTL_VOLSW:
@@ -1086,10 +1191,15 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
 	case SND_SOC_TPLG_DAPM_CTL_PIN:
 	default:
-		dev_warn(sdev->dev, "control type not supported %d:%d:%d\n",
+		dev_warn(scomp->dev, "control type not supported %d:%d:%d\n",
 			 hdr->ops.get, hdr->ops.put, hdr->ops.info);
 		kfree(scontrol);
 		return 0;
+	}
+
+	if (ret < 0) {
+		kfree(scontrol);
+		return ret;
 	}
 
 	dobj->private = scontrol;
@@ -1104,7 +1214,7 @@ static int sof_control_unload(struct snd_soc_component *scomp,
 	struct sof_ipc_free fcomp;
 	struct snd_sof_control *scontrol = dobj->private;
 
-	dev_dbg(sdev->dev, "tplg: unload control name : %s\n", scomp->name);
+	dev_dbg(scomp->dev, "tplg: unload control name : %s\n", scomp->name);
 
 	fcomp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_FREE;
 	fcomp.hdr.size = sizeof(fcomp);
@@ -1128,12 +1238,11 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 				  struct snd_soc_tplg_dapm_widget *tw,
 				  struct snd_sof_dai *dai)
 {
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_card *card = scomp->card;
 	struct snd_soc_pcm_runtime *rtd;
 
 	list_for_each_entry(rtd, &card->rtd_list, list) {
-		dev_vdbg(sdev->dev, "tplg: check widget: %s stream: %s dai stream: %s\n",
+		dev_vdbg(scomp->dev, "tplg: check widget: %s stream: %s dai stream: %s\n",
 			 w->name,  w->sname, rtd->dai_link->stream_name);
 
 		if (!w->sname || !rtd->dai_link->stream_name)
@@ -1147,13 +1256,13 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 		case snd_soc_dapm_dai_out:
 			rtd->cpu_dai->capture_widget = w;
 			dai->name = rtd->dai_link->name;
-			dev_dbg(sdev->dev, "tplg: connected widget %s -> DAI link %s\n",
+			dev_dbg(scomp->dev, "tplg: connected widget %s -> DAI link %s\n",
 				w->name, rtd->dai_link->name);
 			break;
 		case snd_soc_dapm_dai_in:
 			rtd->cpu_dai->playback_widget = w;
 			dai->name = rtd->dai_link->name;
-			dev_dbg(sdev->dev, "tplg: connected widget %s -> DAI link %s\n",
+			dev_dbg(scomp->dev, "tplg: connected widget %s -> DAI link %s\n",
 				w->name, rtd->dai_link->name);
 			break;
 		default:
@@ -1163,7 +1272,7 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 
 	/* check we have a connection */
 	if (!dai->name) {
-		dev_err(sdev->dev, "error: can't connect DAI %s stream %s\n",
+		dev_err(scomp->dev, "error: can't connect DAI %s stream %s\n",
 			w->name, w->sname);
 		return -EINVAL;
 	}
@@ -1195,7 +1304,7 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(dai_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse dai tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse dai tokens failed %d\n",
 			le32_to_cpu(private->size));
 		return ret;
 	}
@@ -1204,12 +1313,12 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse dai.cfg tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse dai.cfg tokens failed %d\n",
 			private->size);
 		return ret;
 	}
 
-	dev_dbg(sdev->dev, "dai %s: type %d index %d\n",
+	dev_dbg(scomp->dev, "dai %s: type %d index %d\n",
 		swidget->widget->name, comp_dai.type, comp_dai.dai_index);
 	sof_dbg_comp_config(scomp, &comp_dai.config);
 
@@ -1217,7 +1326,7 @@ static int sof_widget_load_dai(struct snd_soc_component *scomp, int index,
 				 &comp_dai, sizeof(comp_dai), r, sizeof(*r));
 
 	if (ret == 0 && dai) {
-		dai->sdev = sdev;
+		dai->scomp = scomp;
 		memcpy(&dai->comp_dai, &comp_dai, sizeof(comp_dai));
 	}
 
@@ -1253,13 +1362,13 @@ static int sof_widget_load_buffer(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(buffer_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse buffer tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse buffer tokens failed %d\n",
 			private->size);
 		kfree(buffer);
 		return ret;
 	}
 
-	dev_dbg(sdev->dev, "buffer %s: size %d caps 0x%x\n",
+	dev_dbg(scomp->dev, "buffer %s: size %d caps 0x%x\n",
 		swidget->widget->name, buffer->size, buffer->caps);
 
 	swidget->private = buffer;
@@ -1267,7 +1376,7 @@ static int sof_widget_load_buffer(struct snd_soc_component *scomp, int index,
 	ret = sof_ipc_tx_message(sdev->ipc, buffer->comp.hdr.cmd, buffer,
 				 sizeof(*buffer), r, sizeof(*r));
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: buffer %s load failed\n",
+		dev_err(scomp->dev, "error: buffer %s load failed\n",
 			swidget->widget->name);
 		kfree(buffer);
 	}
@@ -1276,16 +1385,16 @@ static int sof_widget_load_buffer(struct snd_soc_component *scomp, int index,
 }
 
 /* bind PCM ID to host component ID */
-static int spcm_bind(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
+static int spcm_bind(struct snd_soc_component *scomp, struct snd_sof_pcm *spcm,
 		     int dir)
 {
 	struct snd_sof_widget *host_widget;
 
-	host_widget = snd_sof_find_swidget_sname(sdev,
+	host_widget = snd_sof_find_swidget_sname(scomp,
 						 spcm->pcm.caps[dir].name,
 						 dir);
 	if (!host_widget) {
-		dev_err(sdev->dev, "can't find host comp to bind pcm\n");
+		dev_err(scomp->dev, "can't find host comp to bind pcm\n");
 		return -EINVAL;
 	}
 
@@ -1326,7 +1435,7 @@ static int sof_widget_load_pcm(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(pcm_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse host tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse host tokens failed %d\n",
 			private->size);
 		goto err;
 	}
@@ -1335,12 +1444,12 @@ static int sof_widget_load_pcm(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse host.cfg tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse host.cfg tokens failed %d\n",
 			le32_to_cpu(private->size));
 		goto err;
 	}
 
-	dev_dbg(sdev->dev, "loaded host %s\n", swidget->widget->name);
+	dev_dbg(scomp->dev, "loaded host %s\n", swidget->widget->name);
 	sof_dbg_comp_config(scomp, &host->config);
 
 	swidget->private = host;
@@ -1357,24 +1466,25 @@ err:
 /*
  * Pipeline Topology
  */
-int sof_load_pipeline_ipc(struct snd_sof_dev *sdev,
+int sof_load_pipeline_ipc(struct device *dev,
 			  struct sof_ipc_pipe_new *pipeline,
 			  struct sof_ipc_comp_reply *r)
 {
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct sof_ipc_pm_core_config pm_core_config;
 	int ret;
 
 	ret = sof_ipc_tx_message(sdev->ipc, pipeline->hdr.cmd, pipeline,
 				 sizeof(*pipeline), r, sizeof(*r));
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: load pipeline ipc failure\n");
+		dev_err(dev, "error: load pipeline ipc failure\n");
 		return ret;
 	}
 
 	/* power up the core that this pipeline is scheduled on */
 	ret = snd_sof_dsp_core_power_up(sdev, 1 << pipeline->core);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: powering up pipeline schedule core %d\n",
+		dev_err(dev, "error: powering up pipeline schedule core %d\n",
 			pipeline->core);
 		return ret;
 	}
@@ -1398,7 +1508,7 @@ int sof_load_pipeline_ipc(struct snd_sof_dev *sdev,
 				 &pm_core_config, sizeof(pm_core_config),
 				 &pm_core_config, sizeof(pm_core_config));
 	if (ret < 0)
-		dev_err(sdev->dev, "error: core enable ipc failure\n");
+		dev_err(dev, "error: core enable ipc failure\n");
 
 	return ret;
 }
@@ -1408,7 +1518,6 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp,
 				    struct snd_soc_tplg_dapm_widget *tw,
 				    struct sof_ipc_comp_reply *r)
 {
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_pipe_new *pipeline;
 	struct snd_sof_widget *comp_swidget;
@@ -1425,9 +1534,9 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp,
 	pipeline->comp_id = swidget->comp_id;
 
 	/* component at start of pipeline is our stream id */
-	comp_swidget = snd_sof_find_swidget(sdev, tw->sname);
+	comp_swidget = snd_sof_find_swidget(scomp, tw->sname);
 	if (!comp_swidget) {
-		dev_err(sdev->dev, "error: widget %s refers to non existent widget %s\n",
+		dev_err(scomp->dev, "error: widget %s refers to non existent widget %s\n",
 			tw->name, tw->sname);
 		ret = -EINVAL;
 		goto err;
@@ -1435,26 +1544,26 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp,
 
 	pipeline->sched_id = comp_swidget->comp_id;
 
-	dev_dbg(sdev->dev, "tplg: pipeline id %d comp %d scheduling comp id %d\n",
+	dev_dbg(scomp->dev, "tplg: pipeline id %d comp %d scheduling comp id %d\n",
 		pipeline->pipeline_id, pipeline->comp_id, pipeline->sched_id);
 
 	ret = sof_parse_tokens(scomp, pipeline, sched_tokens,
 			       ARRAY_SIZE(sched_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse pipeline tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse pipeline tokens failed %d\n",
 			private->size);
 		goto err;
 	}
 
-	dev_dbg(sdev->dev, "pipeline %s: period %d pri %d mips %d core %d frames %d\n",
+	dev_dbg(scomp->dev, "pipeline %s: period %d pri %d mips %d core %d frames %d\n",
 		swidget->widget->name, pipeline->period, pipeline->priority,
 		pipeline->period_mips, pipeline->core, pipeline->frames_per_sched);
 
 	swidget->private = pipeline;
 
 	/* send ipc's to create pipeline comp and power up schedule core */
-	ret = sof_load_pipeline_ipc(sdev, pipeline, r);
+	ret = sof_load_pipeline_ipc(scomp->dev, pipeline, r);
 	if (ret >= 0)
 		return ret;
 err:
@@ -1492,7 +1601,7 @@ static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse mixer.cfg tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse mixer.cfg tokens failed %d\n",
 			private->size);
 		kfree(mixer);
 		return ret;
@@ -1539,7 +1648,7 @@ static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse mux.cfg tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse mux.cfg tokens failed %d\n",
 			private->size);
 		kfree(mux);
 		return ret;
@@ -1578,8 +1687,8 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 	if (!volume)
 		return -ENOMEM;
 
-	if (le32_to_cpu(tw->num_kcontrols) != 1) {
-		dev_err(sdev->dev, "error: invalid kcontrol count %d for volume\n",
+	if (!le32_to_cpu(tw->num_kcontrols)) {
+		dev_err(scomp->dev, "error: invalid kcontrol count %d for volume\n",
 			tw->num_kcontrols);
 		ret = -EINVAL;
 		goto err;
@@ -1597,7 +1706,7 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(volume_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse volume tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse volume tokens failed %d\n",
 			private->size);
 		goto err;
 	}
@@ -1605,7 +1714,7 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse volume.cfg tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse volume.cfg tokens failed %d\n",
 			le32_to_cpu(private->size));
 		goto err;
 	}
@@ -1615,7 +1724,8 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 	swidget->private = volume;
 
 	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
-		if (scontrol->comp_id == swidget->comp_id) {
+		if (scontrol->comp_id == swidget->comp_id &&
+		    scontrol->volume_table) {
 			min_step = scontrol->min_volume_step;
 			max_step = scontrol->max_volume_step;
 			volume->min_value = scontrol->volume_table[min_step];
@@ -1664,7 +1774,7 @@ static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(src_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse src tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse src tokens failed %d\n",
 			private->size);
 		goto err;
 	}
@@ -1673,12 +1783,12 @@ static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse src.cfg tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse src.cfg tokens failed %d\n",
 			le32_to_cpu(private->size));
 		goto err;
 	}
 
-	dev_dbg(sdev->dev, "src %s: source rate %d sink rate %d\n",
+	dev_dbg(scomp->dev, "src %s: source rate %d sink rate %d\n",
 		swidget->widget->name, src->source_rate, src->sink_rate);
 	sof_dbg_comp_config(scomp, &src->config);
 
@@ -1690,6 +1800,67 @@ static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
 		return ret;
 err:
 	kfree(src);
+	return ret;
+}
+
+/*
+ * ASRC Topology
+ */
+
+static int sof_widget_load_asrc(struct snd_soc_component *scomp, int index,
+				struct snd_sof_widget *swidget,
+				struct snd_soc_tplg_dapm_widget *tw,
+				struct sof_ipc_comp_reply *r)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &tw->priv;
+	struct sof_ipc_comp_asrc *asrc;
+	int ret;
+
+	asrc = kzalloc(sizeof(*asrc), GFP_KERNEL);
+	if (!asrc)
+		return -ENOMEM;
+
+	/* configure ASRC IPC message */
+	asrc->comp.hdr.size = sizeof(*asrc);
+	asrc->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
+	asrc->comp.id = swidget->comp_id;
+	asrc->comp.type = SOF_COMP_ASRC;
+	asrc->comp.pipeline_id = index;
+	asrc->config.hdr.size = sizeof(asrc->config);
+
+	ret = sof_parse_tokens(scomp, asrc, asrc_tokens,
+			       ARRAY_SIZE(asrc_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "error: parse asrc tokens failed %d\n",
+			private->size);
+		goto err;
+	}
+
+	ret = sof_parse_tokens(scomp, &asrc->config, comp_tokens,
+			       ARRAY_SIZE(comp_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "error: parse asrc.cfg tokens failed %d\n",
+			le32_to_cpu(private->size));
+		goto err;
+	}
+
+	dev_dbg(scomp->dev, "asrc %s: source rate %d sink rate %d "
+		"asynch %d operation %d\n",
+		swidget->widget->name, asrc->source_rate, asrc->sink_rate,
+		asrc->asynchronous_mode, asrc->operation_mode);
+	sof_dbg_comp_config(scomp, &asrc->config);
+
+	swidget->private = asrc;
+
+	ret = sof_ipc_tx_message(sdev->ipc, asrc->comp.hdr.cmd, asrc,
+				 sizeof(*asrc), r, sizeof(*r));
+	if (ret >= 0)
+		return ret;
+err:
+	kfree(asrc);
 	return ret;
 }
 
@@ -1723,7 +1894,7 @@ static int sof_widget_load_siggen(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(tone_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse tone tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse tone tokens failed %d\n",
 			le32_to_cpu(private->size));
 		goto err;
 	}
@@ -1732,12 +1903,12 @@ static int sof_widget_load_siggen(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse tone.cfg tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse tone.cfg tokens failed %d\n",
 			le32_to_cpu(private->size));
 		goto err;
 	}
 
-	dev_dbg(sdev->dev, "tone %s: frequency %d amplitude %d\n",
+	dev_dbg(scomp->dev, "tone %s: frequency %d amplitude %d\n",
 		swidget->widget->name, tone->frequency, tone->amplitude);
 	sof_dbg_comp_config(scomp, &tone->config);
 
@@ -1752,7 +1923,7 @@ err:
 	return ret;
 }
 
-static int sof_get_control_data(struct snd_sof_dev *sdev,
+static int sof_get_control_data(struct snd_soc_component *scomp,
 				struct snd_soc_dapm_widget *widget,
 				struct sof_widget_data *wdata,
 				size_t *size)
@@ -1782,14 +1953,14 @@ static int sof_get_control_data(struct snd_sof_dev *sdev,
 			wdata[i].control = se->dobj.private;
 			break;
 		default:
-			dev_err(sdev->dev, "error: unknown kcontrol type %d in widget %s\n",
+			dev_err(scomp->dev, "error: unknown kcontrol type %d in widget %s\n",
 				widget->dobj.widget.kcontrol_type,
 				widget->name);
 			return -EINVAL;
 		}
 
 		if (!wdata[i].control) {
-			dev_err(sdev->dev, "error: no scontrol for widget %s\n",
+			dev_err(scomp->dev, "error: no scontrol for widget %s\n",
 				widget->name);
 			return -EINVAL;
 		}
@@ -1842,7 +2013,7 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	int i;
 
 	if (type == SOF_COMP_NONE) {
-		dev_err(sdev->dev, "error: invalid process comp type %d\n",
+		dev_err(scomp->dev, "error: invalid process comp type %d\n",
 			type);
 		return -EINVAL;
 	}
@@ -1857,7 +2028,7 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 			return -ENOMEM;
 
 		/* get possible component controls and get size of all pdata */
-		ret = sof_get_control_data(sdev, widget, wdata,
+		ret = sof_get_control_data(scomp, widget, wdata,
 					   &ipc_data_size);
 
 		if (ret < 0)
@@ -1892,7 +2063,7 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse process.cfg tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse process.cfg tokens failed %d\n",
 			le32_to_cpu(private->size));
 		goto err;
 	}
@@ -1920,7 +2091,7 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 				 ipc_size, r, sizeof(*r));
 
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: create process failed\n");
+		dev_err(scomp->dev, "error: create process failed\n");
 		goto err;
 	}
 
@@ -1931,13 +2102,13 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	/* send control data with large message supported method */
 	for (i = 0; i < widget->num_kcontrols; i++) {
 		wdata[i].control->readback_offset = 0;
-		ret = snd_sof_ipc_set_get_comp_data(sdev->ipc, wdata[i].control,
+		ret = snd_sof_ipc_set_get_comp_data(wdata[i].control,
 						    wdata[i].ipc_cmd,
 						    wdata[i].ctrl_type,
 						    wdata[i].control->cmd,
 						    true);
 		if (ret != 0) {
-			dev_err(sdev->dev, "error: send control failed\n");
+			dev_err(scomp->dev, "error: send control failed\n");
 			break;
 		}
 	}
@@ -1960,14 +2131,13 @@ static int sof_widget_load_process(struct snd_soc_component *scomp, int index,
 				   struct snd_soc_tplg_dapm_widget *tw,
 				   struct sof_ipc_comp_reply *r)
 {
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_process config;
 	int ret;
 
 	/* check we have some tokens - we need at least process type */
 	if (le32_to_cpu(private->size) == 0) {
-		dev_err(sdev->dev, "error: process tokens not found\n");
+		dev_err(scomp->dev, "error: process tokens not found\n");
 		return -EINVAL;
 	}
 
@@ -1978,7 +2148,7 @@ static int sof_widget_load_process(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(process_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse process tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse process tokens failed %d\n",
 			le32_to_cpu(private->size));
 		return ret;
 	}
@@ -1987,14 +2157,14 @@ static int sof_widget_load_process(struct snd_soc_component *scomp, int index,
 	ret = sof_process_load(scomp, index, swidget, tw, r,
 			       find_process_comp_type(config.type));
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: process loading failed\n");
+		dev_err(scomp->dev, "error: process loading failed\n");
 		return ret;
 	}
 
 	return 0;
 }
 
-static int sof_widget_bind_event(struct snd_sof_dev *sdev,
+static int sof_widget_bind_event(struct snd_soc_component *scomp,
 				 struct snd_sof_widget *swidget,
 				 u16 event_type)
 {
@@ -2020,7 +2190,7 @@ static int sof_widget_bind_event(struct snd_sof_dev *sdev,
 		break;
 	}
 
-	dev_err(sdev->dev,
+	dev_err(scomp->dev,
 		"error: invalid event type %d for widget %s\n",
 		event_type, swidget->widget->name);
 	return -EINVAL;
@@ -2042,7 +2212,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	if (!swidget)
 		return -ENOMEM;
 
-	swidget->sdev = sdev;
+	swidget->scomp = scomp;
 	swidget->widget = w;
 	swidget->comp_id = sdev->next_comp_id++;
 	swidget->complete = 0;
@@ -2051,7 +2221,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	swidget->private = NULL;
 	memset(&reply, 0, sizeof(reply));
 
-	dev_dbg(sdev->dev, "tplg: ready widget id %d pipe %d type %d name : %s stream %s\n",
+	dev_dbg(scomp->dev, "tplg: ready widget id %d pipe %d type %d name : %s stream %s\n",
 		swidget->comp_id, index, swidget->id, tw->name,
 		strnlen(tw->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0
 			? tw->sname : "none");
@@ -2107,6 +2277,9 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_src:
 		ret = sof_widget_load_src(scomp, index, swidget, tw, &reply);
 		break;
+	case snd_soc_dapm_asrc:
+		ret = sof_widget_load_asrc(scomp, index, swidget, tw, &reply);
+		break;
 	case snd_soc_dapm_siggen:
 		ret = sof_widget_load_siggen(scomp, index, swidget, tw, &reply);
 		break;
@@ -2122,14 +2295,14 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_dai_link:
 	case snd_soc_dapm_kcontrol:
 	default:
-		dev_warn(sdev->dev, "warning: widget type %d name %s not handled\n",
+		dev_warn(scomp->dev, "warning: widget type %d name %s not handled\n",
 			 swidget->id, tw->name);
 		break;
 	}
 
 	/* check IPC reply */
 	if (ret < 0 || reply.rhdr.error < 0) {
-		dev_err(sdev->dev,
+		dev_err(scomp->dev,
 			"error: DSP failed to add widget id %d type %d name : %s stream %s reply %d\n",
 			tw->shift, swidget->id, tw->name,
 			strnlen(tw->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0
@@ -2140,10 +2313,10 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 
 	/* bind widget to external event */
 	if (tw->event_type) {
-		ret = sof_widget_bind_event(sdev, swidget,
+		ret = sof_widget_bind_event(scomp, swidget,
 					    le16_to_cpu(tw->event_type));
 		if (ret) {
-			dev_err(sdev->dev, "error: widget event binding failed\n");
+			dev_err(scomp->dev, "error: widget event binding failed\n");
 			kfree(swidget->private);
 			kfree(swidget);
 			return ret;
@@ -2211,7 +2384,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 		pipeline = swidget->private;
 		ret = snd_sof_dsp_core_power_down(sdev, 1 << pipeline->core);
 		if (ret < 0)
-			dev_err(sdev->dev, "error: powering down pipeline schedule core %d\n",
+			dev_err(scomp->dev, "error: powering down pipeline schedule core %d\n",
 				pipeline->core);
 
 		/* update enabled cores mask */
@@ -2239,7 +2412,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 			scontrol = sbe->dobj.private;
 			break;
 		default:
-			dev_warn(sdev->dev, "unsupported kcontrol_type\n");
+			dev_warn(scomp->dev, "unsupported kcontrol_type\n");
 			goto out;
 		}
 		kfree(scontrol->control_data);
@@ -2269,6 +2442,7 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_stream_caps *caps;
+	struct snd_soc_tplg_private *private = &pcm->priv;
 	struct snd_sof_pcm *spcm;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 	int ret = 0;
@@ -2281,20 +2455,31 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 	if (!spcm)
 		return -ENOMEM;
 
-	spcm->sdev = sdev;
+	spcm->scomp = scomp;
 	spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].comp_id = COMP_ID_UNASSIGNED;
 	spcm->stream[SNDRV_PCM_STREAM_CAPTURE].comp_id = COMP_ID_UNASSIGNED;
 
-	if (pcm) {
-		spcm->pcm = *pcm;
-		dev_dbg(sdev->dev, "tplg: load pcm %s\n", pcm->dai_name);
-	}
+	spcm->pcm = *pcm;
+	dev_dbg(scomp->dev, "tplg: load pcm %s\n", pcm->dai_name);
+
 	dai_drv->dobj.private = spcm;
 	list_add(&spcm->list, &sdev->pcm_list);
+
+	ret = sof_parse_tokens(scomp, spcm, stream_tokens,
+			       ARRAY_SIZE(stream_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret) {
+		dev_err(scomp->dev, "error: parse stream tokens failed %d\n",
+			le32_to_cpu(private->size));
+		return ret;
+	}
 
 	/* do we need to allocate playback PCM DMA pages */
 	if (!spcm->pcm.playback)
 		goto capture;
+
+	dev_vdbg(scomp->dev, "tplg: pcm %s stream tokens: playback d0i3:%d\n",
+		 spcm->pcm.pcm_name, spcm->stream[0].d0i3_compatible);
 
 	caps = &spcm->pcm.caps[stream];
 
@@ -2302,16 +2487,16 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, sdev->dev,
 				  PAGE_SIZE, &spcm->stream[stream].page_table);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: can't alloc page table for %s %d\n",
+		dev_err(scomp->dev, "error: can't alloc page table for %s %d\n",
 			caps->name, ret);
 
 		return ret;
 	}
 
 	/* bind pcm to host comp */
-	ret = spcm_bind(sdev, spcm, stream);
+	ret = spcm_bind(scomp, spcm, stream);
 	if (ret) {
-		dev_err(sdev->dev,
+		dev_err(scomp->dev,
 			"error: can't bind pcm to host\n");
 		goto free_playback_tables;
 	}
@@ -2323,21 +2508,24 @@ capture:
 	if (!spcm->pcm.capture)
 		return ret;
 
+	dev_vdbg(scomp->dev, "tplg: pcm %s stream tokens: capture d0i3:%d\n",
+		 spcm->pcm.pcm_name, spcm->stream[1].d0i3_compatible);
+
 	caps = &spcm->pcm.caps[stream];
 
 	/* allocate capture page table buffer */
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, sdev->dev,
 				  PAGE_SIZE, &spcm->stream[stream].page_table);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: can't alloc page table for %s %d\n",
+		dev_err(scomp->dev, "error: can't alloc page table for %s %d\n",
 			caps->name, ret);
 		goto free_playback_tables;
 	}
 
 	/* bind pcm to host comp */
-	ret = spcm_bind(sdev, spcm, stream);
+	ret = spcm_bind(scomp, spcm, stream);
 	if (ret) {
-		dev_err(sdev->dev,
+		dev_err(scomp->dev,
 			"error: can't bind pcm to host\n");
 		snd_dma_free_pages(&spcm->stream[stream].page_table);
 		goto free_playback_tables;
@@ -2463,7 +2651,7 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(ssp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse ssp tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse ssp tokens failed %d\n",
 			le32_to_cpu(private->size));
 		return ret;
 	}
@@ -2477,7 +2665,7 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 	config->ssp.rx_slots = le32_to_cpu(hw_config->rx_slots);
 	config->ssp.tx_slots = le32_to_cpu(hw_config->tx_slots);
 
-	dev_dbg(sdev->dev, "tplg: config SSP%d fmt 0x%x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d quirks %d\n",
+	dev_dbg(scomp->dev, "tplg: config SSP%d fmt 0x%x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d quirks %d\n",
 		config->dai_index, config->format,
 		config->ssp.mclk_rate, config->ssp.bclk_rate,
 		config->ssp.fsync_rate, config->ssp.sample_valid_bits,
@@ -2486,13 +2674,13 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 
 	/* validate SSP fsync rate and channel count */
 	if (config->ssp.fsync_rate < 8000 || config->ssp.fsync_rate > 192000) {
-		dev_err(sdev->dev, "error: invalid fsync rate for SSP%d\n",
+		dev_err(scomp->dev, "error: invalid fsync rate for SSP%d\n",
 			config->dai_index);
 		return -EINVAL;
 	}
 
 	if (config->ssp.tdm_slots < 1 || config->ssp.tdm_slots > 8) {
-		dev_err(sdev->dev, "error: invalid channel count for SSP%d\n",
+		dev_err(scomp->dev, "error: invalid channel count for SSP%d\n",
 			config->dai_index);
 		return -EINVAL;
 	}
@@ -2503,7 +2691,7 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 				 sizeof(reply));
 
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to set DAI config for SSP%d\n",
+		dev_err(scomp->dev, "error: failed to set DAI config for SSP%d\n",
 			config->dai_index);
 		return ret;
 	}
@@ -2511,7 +2699,7 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 	/* set config for all DAI's with name matching the link name */
 	ret = sof_set_dai_config(sdev, size, link, config);
 	if (ret < 0)
-		dev_err(sdev->dev, "error: failed to save DAI config for SSP%d\n",
+		dev_err(scomp->dev, "error: failed to save DAI config for SSP%d\n",
 			config->dai_index);
 
 	return ret;
@@ -2523,8 +2711,66 @@ static int sof_link_sai_load(struct snd_soc_component *scomp, int index,
 			     struct snd_soc_tplg_hw_config *hw_config,
 			     struct sof_ipc_dai_config *config)
 {
-	/*TODO: Add implementation */
-	return 0;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &cfg->priv;
+	struct sof_ipc_reply reply;
+	u32 size = sizeof(*config);
+	int ret;
+
+	/* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	/* init IPC */
+	memset(&config->sai, 0, sizeof(struct sof_ipc_dai_sai_params));
+	config->hdr.size = size;
+
+	ret = sof_parse_tokens(scomp, &config->sai, sai_tokens,
+			       ARRAY_SIZE(sai_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "error: parse sai tokens failed %d\n",
+			le32_to_cpu(private->size));
+		return ret;
+	}
+
+	config->sai.mclk_rate = le32_to_cpu(hw_config->mclk_rate);
+	config->sai.mclk_direction = hw_config->mclk_direction;
+
+	config->sai.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+	config->sai.tdm_slot_width = le32_to_cpu(hw_config->tdm_slot_width);
+	config->sai.rx_slots = le32_to_cpu(hw_config->rx_slots);
+	config->sai.tx_slots = le32_to_cpu(hw_config->tx_slots);
+
+	dev_info(scomp->dev,
+		 "tplg: config SAI%d fmt 0x%x mclk %d width %d slots %d mclk id %d\n",
+		config->dai_index, config->format,
+		config->sai.mclk_rate, config->sai.tdm_slot_width,
+		config->sai.tdm_slots, config->sai.mclk_id);
+
+	if (config->sai.tdm_slots < 1 || config->sai.tdm_slots > 8) {
+		dev_err(scomp->dev, "error: invalid channel count for SAI%d\n",
+			config->dai_index);
+		return -EINVAL;
+	}
+
+	/* send message to DSP */
+	ret = sof_ipc_tx_message(sdev->ipc,
+				 config->hdr.cmd, config, size, &reply,
+				 sizeof(reply));
+
+	if (ret < 0) {
+		dev_err(scomp->dev, "error: failed to set DAI config for SAI%d\n",
+			config->dai_index);
+		return ret;
+	}
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(scomp->dev, "error: failed to save DAI config for SAI%d\n",
+			config->dai_index);
+
+	return ret;
 }
 
 static int sof_link_esai_load(struct snd_soc_component *scomp, int index,
@@ -2533,8 +2779,66 @@ static int sof_link_esai_load(struct snd_soc_component *scomp, int index,
 			      struct snd_soc_tplg_hw_config *hw_config,
 			      struct sof_ipc_dai_config *config)
 {
-	/*TODO: Add implementation */
-	return 0;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &cfg->priv;
+	struct sof_ipc_reply reply;
+	u32 size = sizeof(*config);
+	int ret;
+
+	/* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	/* init IPC */
+	memset(&config->esai, 0, sizeof(struct sof_ipc_dai_esai_params));
+	config->hdr.size = size;
+
+	ret = sof_parse_tokens(scomp, &config->esai, esai_tokens,
+			       ARRAY_SIZE(esai_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "error: parse esai tokens failed %d\n",
+			le32_to_cpu(private->size));
+		return ret;
+	}
+
+	config->esai.mclk_rate = le32_to_cpu(hw_config->mclk_rate);
+	config->esai.bclk_rate = le32_to_cpu(hw_config->bclk_rate);
+	config->esai.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
+	config->esai.mclk_direction = hw_config->mclk_direction;
+	config->esai.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+	config->esai.tdm_slot_width = le32_to_cpu(hw_config->tdm_slot_width);
+	config->esai.rx_slots = le32_to_cpu(hw_config->rx_slots);
+	config->esai.tx_slots = le32_to_cpu(hw_config->tx_slots);
+
+	dev_info(scomp->dev,
+		 "tplg: config ESAI%d fmt 0x%x mclk %d width %d slots %d mclk id %d\n",
+		config->dai_index, config->format,
+		config->esai.mclk_rate, config->esai.tdm_slot_width,
+		config->esai.tdm_slots, config->esai.mclk_id);
+
+	if (config->esai.tdm_slots < 1 || config->esai.tdm_slots > 8) {
+		dev_err(scomp->dev, "error: invalid channel count for ESAI%d\n",
+			config->dai_index);
+		return -EINVAL;
+	}
+
+	/* send message to DSP */
+	ret = sof_ipc_tx_message(sdev->ipc,
+				 config->hdr.cmd, config, size, &reply,
+				 sizeof(reply));
+	if (ret < 0) {
+		dev_err(scomp->dev, "error: failed to set DAI config for ESAI%d\n",
+			config->dai_index);
+		return ret;
+	}
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(scomp->dev, "error: failed to save DAI config for ESAI%d\n",
+			config->dai_index);
+
+	return ret;
 }
 
 static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
@@ -2564,7 +2868,7 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(dmic_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse dmic tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse dmic tokens failed %d\n",
 			le32_to_cpu(private->size));
 		return ret;
 	}
@@ -2599,7 +2903,7 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(dmic_pdm_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse dmic pdm tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse dmic pdm tokens failed %d\n",
 			le32_to_cpu(private->size));
 		goto err;
 	}
@@ -2608,27 +2912,27 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	ipc_config->hdr.size = size;
 
 	/* debug messages */
-	dev_dbg(sdev->dev, "tplg: config DMIC%d driver version %d\n",
+	dev_dbg(scomp->dev, "tplg: config DMIC%d driver version %d\n",
 		ipc_config->dai_index, ipc_config->dmic.driver_ipc_version);
-	dev_dbg(sdev->dev, "pdmclk_min %d pdm_clkmax %d duty_min %hd\n",
+	dev_dbg(scomp->dev, "pdmclk_min %d pdm_clkmax %d duty_min %hd\n",
 		ipc_config->dmic.pdmclk_min, ipc_config->dmic.pdmclk_max,
 		ipc_config->dmic.duty_min);
-	dev_dbg(sdev->dev, "duty_max %hd fifo_fs %d num_pdms active %d\n",
+	dev_dbg(scomp->dev, "duty_max %hd fifo_fs %d num_pdms active %d\n",
 		ipc_config->dmic.duty_max, ipc_config->dmic.fifo_fs,
 		ipc_config->dmic.num_pdm_active);
-	dev_dbg(sdev->dev, "fifo word length %hd\n",
+	dev_dbg(scomp->dev, "fifo word length %hd\n",
 		ipc_config->dmic.fifo_bits);
 
 	for (j = 0; j < ipc_config->dmic.num_pdm_active; j++) {
-		dev_dbg(sdev->dev, "pdm %hd mic a %hd mic b %hd\n",
+		dev_dbg(scomp->dev, "pdm %hd mic a %hd mic b %hd\n",
 			ipc_config->dmic.pdm[j].id,
 			ipc_config->dmic.pdm[j].enable_mic_a,
 			ipc_config->dmic.pdm[j].enable_mic_b);
-		dev_dbg(sdev->dev, "pdm %hd polarity a %hd polarity b %hd\n",
+		dev_dbg(scomp->dev, "pdm %hd polarity a %hd polarity b %hd\n",
 			ipc_config->dmic.pdm[j].id,
 			ipc_config->dmic.pdm[j].polarity_mic_a,
 			ipc_config->dmic.pdm[j].polarity_mic_b);
-		dev_dbg(sdev->dev, "pdm %hd clk_edge %hd skew %hd\n",
+		dev_dbg(scomp->dev, "pdm %hd clk_edge %hd skew %hd\n",
 			ipc_config->dmic.pdm[j].id,
 			ipc_config->dmic.pdm[j].clk_edge,
 			ipc_config->dmic.pdm[j].skew);
@@ -2645,7 +2949,7 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 				 sizeof(reply));
 
 	if (ret < 0) {
-		dev_err(sdev->dev,
+		dev_err(scomp->dev,
 			"error: failed to set DAI config for DMIC%d\n",
 			config->dai_index);
 		goto err;
@@ -2654,7 +2958,7 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	/* set config for all DAI's with name matching the link name */
 	ret = sof_set_dai_config(sdev, size, link, ipc_config);
 	if (ret < 0)
-		dev_err(sdev->dev, "error: failed to save DAI config for DMIC%d\n",
+		dev_err(scomp->dev, "error: failed to save DAI config for DMIC%d\n",
 			config->dai_index);
 
 err:
@@ -2745,21 +3049,21 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(hda_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse hda tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse hda tokens failed %d\n",
 			le32_to_cpu(private->size));
 		return ret;
 	}
 
 	dai = snd_soc_find_dai(link->cpus);
 	if (!dai) {
-		dev_err(sdev->dev, "error: failed to find dai %s in %s",
+		dev_err(scomp->dev, "error: failed to find dai %s in %s",
 			link->cpus->dai_name, __func__);
 		return -EINVAL;
 	}
 
 	ret = sof_link_hda_process(sdev, link, config);
 	if (ret < 0)
-		dev_err(sdev->dev, "error: failed to process hda dai link %s",
+		dev_err(scomp->dev, "error: failed to process hda dai link %s",
 			link->name);
 
 	return ret;
@@ -2785,7 +3089,7 @@ static int sof_link_alh_load(struct snd_soc_component *scomp, int index,
 				 sizeof(reply));
 
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to set DAI config for ALH %d\n",
+		dev_err(scomp->dev, "error: failed to set DAI config for ALH %d\n",
 			config->dai_index);
 		return ret;
 	}
@@ -2793,7 +3097,7 @@ static int sof_link_alh_load(struct snd_soc_component *scomp, int index,
 	/* set config for all DAI's with name matching the link name */
 	ret = sof_set_dai_config(sdev, size, link, config);
 	if (ret < 0)
-		dev_err(sdev->dev, "error: failed to save DAI config for ALH %d\n",
+		dev_err(scomp->dev, "error: failed to save DAI config for ALH %d\n",
 			config->dai_index);
 
 	return ret;
@@ -2804,7 +3108,6 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 			 struct snd_soc_dai_link *link,
 			 struct snd_soc_tplg_link_config *cfg)
 {
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &cfg->priv;
 	struct sof_ipc_dai_config config;
 	struct snd_soc_tplg_hw_config *hw_config;
@@ -2813,10 +3116,10 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	int i = 0;
 
 	if (!link->platforms) {
-		dev_err(sdev->dev, "error: no platforms\n");
+		dev_err(scomp->dev, "error: no platforms\n");
 		return -EINVAL;
 	}
-	link->platforms->name = dev_name(sdev->dev);
+	link->platforms->name = dev_name(scomp->dev);
 
 	/*
 	 * Set nonatomic property for FE dai links as their trigger action
@@ -2825,13 +3128,17 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	if (!link->no_pcm) {
 		link->nonatomic = true;
 
+		/* set trigger order */
+		link->trigger[0] = SND_SOC_DPCM_TRIGGER_POST;
+		link->trigger[1] = SND_SOC_DPCM_TRIGGER_POST;
+
 		/* nothing more to do for FE dai links */
 		return 0;
 	}
 
 	/* check we have some tokens - we need at least DAI type */
 	if (le32_to_cpu(private->size) == 0) {
-		dev_err(sdev->dev, "error: expected tokens for DAI, none found\n");
+		dev_err(scomp->dev, "error: expected tokens for DAI, none found\n");
 		return -EINVAL;
 	}
 
@@ -2843,7 +3150,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(dai_link_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse link tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse link tokens failed %d\n",
 			le32_to_cpu(private->size));
 		return ret;
 	}
@@ -2855,12 +3162,12 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	num_hw_configs = le32_to_cpu(cfg->num_hw_configs);
 	if (!num_hw_configs) {
 		if (config.type != SOF_DAI_INTEL_HDA) {
-			dev_err(sdev->dev, "error: unexpected DAI config count %d!\n",
+			dev_err(scomp->dev, "error: unexpected DAI config count %d!\n",
 				le32_to_cpu(cfg->num_hw_configs));
 			return -EINVAL;
 		}
 	} else {
-		dev_dbg(sdev->dev, "tplg: %d hw_configs found, default id: %d!\n",
+		dev_dbg(scomp->dev, "tplg: %d hw_configs found, default id: %d!\n",
 			cfg->num_hw_configs, le32_to_cpu(cfg->default_hw_config_id));
 
 		for (i = 0; i < num_hw_configs; i++) {
@@ -2869,7 +3176,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 		}
 
 		if (i == num_hw_configs) {
-			dev_err(sdev->dev, "error: default hw_config id: %d not found!\n",
+			dev_err(scomp->dev, "error: default hw_config id: %d not found!\n",
 				le32_to_cpu(cfg->default_hw_config_id));
 			return -EINVAL;
 		}
@@ -2908,7 +3215,8 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 					 &config);
 		break;
 	default:
-		dev_err(sdev->dev, "error: invalid DAI type %d\n", config.type);
+		dev_err(scomp->dev, "error: invalid DAI type %d\n",
+			config.type);
 		ret = -EINVAL;
 		break;
 	}
@@ -2956,7 +3264,7 @@ static int sof_link_unload(struct snd_soc_component *scomp,
 			goto found;
 	}
 
-	dev_err(sdev->dev, "error: failed to find dai %s in %s",
+	dev_err(scomp->dev, "error: failed to find dai %s in %s",
 		link->name, __func__);
 	return -EINVAL;
 found:
@@ -2965,13 +3273,15 @@ found:
 	case SOF_DAI_INTEL_SSP:
 	case SOF_DAI_INTEL_DMIC:
 	case SOF_DAI_INTEL_ALH:
-		/* no resource needs to be released for SSP, DMIC and ALH */
+	case SOF_DAI_IMX_SAI:
+	case SOF_DAI_IMX_ESAI:
+		/* no resource needs to be released for all cases above */
 		break;
 	case SOF_DAI_INTEL_HDA:
 		ret = sof_link_hda_unload(sdev, link);
 		break;
 	default:
-		dev_err(sdev->dev, "error: invalid DAI type %d\n",
+		dev_err(scomp->dev, "error: invalid DAI type %d\n",
 			sof_dai->dai_config->type);
 		ret = -EINVAL;
 		break;
@@ -2997,7 +3307,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	if (!sroute)
 		return -ENOMEM;
 
-	sroute->sdev = sdev;
+	sroute->scomp = scomp;
 
 	connect = kzalloc(sizeof(*connect), GFP_KERNEL);
 	if (!connect) {
@@ -3008,14 +3318,14 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	connect->hdr.size = sizeof(*connect);
 	connect->hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_CONNECT;
 
-	dev_dbg(sdev->dev, "sink %s control %s source %s\n",
+	dev_dbg(scomp->dev, "sink %s control %s source %s\n",
 		route->sink, route->control ? route->control : "none",
 		route->source);
 
 	/* source component */
-	source_swidget = snd_sof_find_swidget(sdev, (char *)route->source);
+	source_swidget = snd_sof_find_swidget(scomp, (char *)route->source);
 	if (!source_swidget) {
-		dev_err(sdev->dev, "error: source %s not found\n",
+		dev_err(scomp->dev, "error: source %s not found\n",
 			route->source);
 		ret = -EINVAL;
 		goto err;
@@ -3034,9 +3344,9 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	connect->source_id = source_swidget->comp_id;
 
 	/* sink component */
-	sink_swidget = snd_sof_find_swidget(sdev, (char *)route->sink);
+	sink_swidget = snd_sof_find_swidget(scomp, (char *)route->sink);
 	if (!sink_swidget) {
-		dev_err(sdev->dev, "error: sink %s not found\n",
+		dev_err(scomp->dev, "error: sink %s not found\n",
 			route->sink);
 		ret = -EINVAL;
 		goto err;
@@ -3060,7 +3370,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	 */
 	if (source_swidget->id != snd_soc_dapm_buffer &&
 	    sink_swidget->id != snd_soc_dapm_buffer) {
-		dev_dbg(sdev->dev, "warning: neither Linked source component %s nor sink component %s is of buffer type, ignoring link\n",
+		dev_dbg(scomp->dev, "warning: neither Linked source component %s nor sink component %s is of buffer type, ignoring link\n",
 			route->source, route->sink);
 		ret = 0;
 		goto err;
@@ -3072,7 +3382,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 
 		/* check IPC return value */
 		if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to add route sink %s control %s source %s\n",
+			dev_err(scomp->dev, "error: failed to add route sink %s control %s source %s\n",
 				route->sink,
 				route->control ? route->control : "none",
 				route->source);
@@ -3081,7 +3391,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 
 		/* check IPC reply */
 		if (reply.error < 0) {
-			dev_err(sdev->dev, "error: DSP failed to add route sink %s control %s source %s result %d\n",
+			dev_err(scomp->dev, "error: DSP failed to add route sink %s control %s source %s result %d\n",
 				route->sink,
 				route->control ? route->control : "none",
 				route->source, reply.error);
@@ -3108,8 +3418,9 @@ err:
 /* Function to set the initial value of SOF kcontrols.
  * The value will be stored in scontrol->control_data
  */
-static int snd_sof_cache_kcontrol_val(struct snd_sof_dev *sdev)
+static int snd_sof_cache_kcontrol_val(struct snd_soc_component *scomp)
 {
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_sof_control *scontrol = NULL;
 	int ipc_cmd, ctrl_type;
 	int ret = 0;
@@ -3129,33 +3440,34 @@ static int snd_sof_cache_kcontrol_val(struct snd_sof_dev *sdev)
 			ctrl_type = SOF_CTRL_TYPE_DATA_GET;
 			break;
 		default:
-			dev_err(sdev->dev,
+			dev_err(scomp->dev,
 				"error: Invalid scontrol->cmd: %d\n",
 				scontrol->cmd);
 			return -EINVAL;
 		}
-		ret = snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
+		ret = snd_sof_ipc_set_get_comp_data(scontrol,
 						    ipc_cmd, ctrl_type,
 						    scontrol->cmd,
 						    false);
 		if (ret < 0) {
-			dev_warn(sdev->dev,
-				"error: kcontrol value get for widget: %d\n",
-				scontrol->comp_id);
+			dev_warn(scomp->dev,
+				 "error: kcontrol value get for widget: %d\n",
+				 scontrol->comp_id);
 		}
 	}
 
 	return ret;
 }
 
-int snd_sof_complete_pipeline(struct snd_sof_dev *sdev,
+int snd_sof_complete_pipeline(struct device *dev,
 			      struct snd_sof_widget *swidget)
 {
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct sof_ipc_pipe_ready ready;
 	struct sof_ipc_reply reply;
 	int ret;
 
-	dev_dbg(sdev->dev, "tplg: complete pipeline %s id %d\n",
+	dev_dbg(dev, "tplg: complete pipeline %s id %d\n",
 		swidget->widget->name, swidget->comp_id);
 
 	memset(&ready, 0, sizeof(ready));
@@ -3185,7 +3497,7 @@ static void sof_complete(struct snd_soc_component *scomp)
 		switch (swidget->id) {
 		case snd_soc_dapm_scheduler:
 			swidget->complete =
-				snd_sof_complete_pipeline(sdev, swidget);
+				snd_sof_complete_pipeline(scomp->dev, swidget);
 			break;
 		default:
 			break;
@@ -3195,14 +3507,13 @@ static void sof_complete(struct snd_soc_component *scomp)
 	 * cache initial values of SOF kcontrols by reading DSP value over
 	 * IPC. It may be overwritten by alsa-mixer after booting up
 	 */
-	snd_sof_cache_kcontrol_val(sdev);
+	snd_sof_cache_kcontrol_val(scomp);
 }
 
 /* manifest - optional to inform component of manifest */
 static int sof_manifest(struct snd_soc_component *scomp, int index,
 			struct snd_soc_tplg_manifest *man)
 {
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	u32 size;
 	u32 abi_version;
 
@@ -3210,16 +3521,16 @@ static int sof_manifest(struct snd_soc_component *scomp, int index,
 
 	/* backward compatible with tplg without ABI info */
 	if (!size) {
-		dev_dbg(sdev->dev, "No topology ABI info\n");
+		dev_dbg(scomp->dev, "No topology ABI info\n");
 		return 0;
 	}
 
 	if (size != SOF_TPLG_ABI_SIZE) {
-		dev_err(sdev->dev, "error: invalid topology ABI size\n");
+		dev_err(scomp->dev, "error: invalid topology ABI size\n");
 		return -EINVAL;
 	}
 
-	dev_info(sdev->dev,
+	dev_info(scomp->dev,
 		 "Topology: ABI %d:%d:%d Kernel ABI %d:%d:%d\n",
 		 man->priv.data[0], man->priv.data[1],
 		 man->priv.data[2], SOF_ABI_MAJOR, SOF_ABI_MINOR,
@@ -3230,15 +3541,15 @@ static int sof_manifest(struct snd_soc_component *scomp, int index,
 				  man->priv.data[2]);
 
 	if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION, abi_version)) {
-		dev_err(sdev->dev, "error: incompatible topology ABI version\n");
+		dev_err(scomp->dev, "error: incompatible topology ABI version\n");
 		return -EINVAL;
 	}
 
 	if (abi_version > SOF_ABI_VERSION) {
 		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
-			dev_warn(sdev->dev, "warn: topology ABI is more recent than kernel\n");
+			dev_warn(scomp->dev, "warn: topology ABI is more recent than kernel\n");
 		} else {
-			dev_err(sdev->dev, "error: topology ABI is more recent than kernel\n");
+			dev_err(scomp->dev, "error: topology ABI is more recent than kernel\n");
 			return -EINVAL;
 		}
 	}
@@ -3296,34 +3607,25 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 	.bytes_ext_ops_count	= ARRAY_SIZE(sof_bytes_ext_ops),
 };
 
-int snd_sof_init_topology(struct snd_sof_dev *sdev,
-			  struct snd_soc_tplg_ops *ops)
-{
-	/* TODO: support linked list of topologies */
-	sdev->tplg_ops = ops;
-	return 0;
-}
-EXPORT_SYMBOL(snd_sof_init_topology);
-
-int snd_sof_load_topology(struct snd_sof_dev *sdev, const char *file)
+int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 {
 	const struct firmware *fw;
 	int ret;
 
-	dev_dbg(sdev->dev, "loading topology:%s\n", file);
+	dev_dbg(scomp->dev, "loading topology:%s\n", file);
 
-	ret = request_firmware(&fw, file, sdev->dev);
+	ret = request_firmware(&fw, file, scomp->dev);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: tplg request firmware %s failed err: %d\n",
+		dev_err(scomp->dev, "error: tplg request firmware %s failed err: %d\n",
 			file, ret);
 		return ret;
 	}
 
-	ret = snd_soc_tplg_component_load(sdev->component,
+	ret = snd_soc_tplg_component_load(scomp,
 					  &sof_tplg_ops, fw,
 					  SND_SOC_TPLG_INDEX_ALL);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: tplg component load failed %d\n",
+		dev_err(scomp->dev, "error: tplg component load failed %d\n",
 			ret);
 		ret = -EINVAL;
 	}

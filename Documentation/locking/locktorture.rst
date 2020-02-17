@@ -103,8 +103,7 @@ stat_interval
 		  Number of seconds between statistics-related printk()s.
 		  By default, locktorture will report stats every 60 seconds.
 		  Setting the interval to zero causes the statistics to
-		  be printed -only- when the module is unloaded, and this
-		  is the default.
+		  be printed -only- when the module is unloaded.
 
 stutter
 		  The length of time to run the test before pausing for this

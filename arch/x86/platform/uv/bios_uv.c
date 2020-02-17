@@ -31,13 +31,16 @@ static s64 __uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 		return BIOS_STATUS_UNIMPLEMENTED;
 
 	/*
-	 * If EFI_OLD_MEMMAP is set, we need to fall back to using our old EFI
+	 * If EFI_UV1_MEMMAP is set, we need to fall back to using our old EFI
 	 * callback method, which uses efi_call() directly, with the kernel page tables:
 	 */
-	if (unlikely(efi_enabled(EFI_OLD_MEMMAP)))
+	if (unlikely(efi_enabled(EFI_UV1_MEMMAP))) {
+		kernel_fpu_begin();
 		ret = efi_call((void *)__va(tab->function), (u64)which, a1, a2, a3, a4, a5);
-	else
+		kernel_fpu_end();
+	} else {
 		ret = efi_call_virt_pointer(tab, function, (u64)which, a1, a2, a3, a4, a5);
+	}
 
 	return ret;
 }
@@ -184,20 +187,20 @@ int uv_bios_set_legacy_vga_target(bool decode, int domain, int bus)
 }
 EXPORT_SYMBOL_GPL(uv_bios_set_legacy_vga_target);
 
-void uv_bios_init(void)
+int uv_bios_init(void)
 {
 	uv_systab = NULL;
 	if ((uv_systab_phys == EFI_INVALID_TABLE_ADDR) ||
 	    !uv_systab_phys || efi_runtime_disabled()) {
 		pr_crit("UV: UVsystab: missing\n");
-		return;
+		return -EEXIST;
 	}
 
 	uv_systab = ioremap(uv_systab_phys, sizeof(struct uv_systab));
 	if (!uv_systab || strncmp(uv_systab->signature, UV_SYSTAB_SIG, 4)) {
 		pr_err("UV: UVsystab: bad signature!\n");
 		iounmap(uv_systab);
-		return;
+		return -EINVAL;
 	}
 
 	/* Starting with UV4 the UV systab size is variable */
@@ -208,8 +211,169 @@ void uv_bios_init(void)
 		uv_systab = ioremap(uv_systab_phys, size);
 		if (!uv_systab) {
 			pr_err("UV: UVsystab: ioremap(%d) failed!\n", size);
-			return;
+			return -EFAULT;
 		}
 	}
 	pr_info("UV: UVsystab: Revision:%x\n", uv_systab->revision);
+	return 0;
 }
+
+static void __init early_code_mapping_set_exec(int executable)
+{
+	efi_memory_desc_t *md;
+
+	if (!(__supported_pte_mask & _PAGE_NX))
+		return;
+
+	/* Make EFI service code area executable */
+	for_each_efi_memory_desc(md) {
+		if (md->type == EFI_RUNTIME_SERVICES_CODE ||
+		    md->type == EFI_BOOT_SERVICES_CODE)
+			efi_set_executable(md, executable);
+	}
+}
+
+void __init efi_uv1_memmap_phys_epilog(pgd_t *save_pgd)
+{
+	/*
+	 * After the lock is released, the original page table is restored.
+	 */
+	int pgd_idx, i;
+	int nr_pgds;
+	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
+
+	nr_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT) , PGDIR_SIZE);
+
+	for (pgd_idx = 0; pgd_idx < nr_pgds; pgd_idx++) {
+		pgd = pgd_offset_k(pgd_idx * PGDIR_SIZE);
+		set_pgd(pgd_offset_k(pgd_idx * PGDIR_SIZE), save_pgd[pgd_idx]);
+
+		if (!pgd_present(*pgd))
+			continue;
+
+		for (i = 0; i < PTRS_PER_P4D; i++) {
+			p4d = p4d_offset(pgd,
+					 pgd_idx * PGDIR_SIZE + i * P4D_SIZE);
+
+			if (!p4d_present(*p4d))
+				continue;
+
+			pud = (pud_t *)p4d_page_vaddr(*p4d);
+			pud_free(&init_mm, pud);
+		}
+
+		p4d = (p4d_t *)pgd_page_vaddr(*pgd);
+		p4d_free(&init_mm, p4d);
+	}
+
+	kfree(save_pgd);
+
+	__flush_tlb_all();
+	early_code_mapping_set_exec(0);
+}
+
+pgd_t * __init efi_uv1_memmap_phys_prolog(void)
+{
+	unsigned long vaddr, addr_pgd, addr_p4d, addr_pud;
+	pgd_t *save_pgd, *pgd_k, *pgd_efi;
+	p4d_t *p4d, *p4d_k, *p4d_efi;
+	pud_t *pud;
+
+	int pgd;
+	int n_pgds, i, j;
+
+	early_code_mapping_set_exec(1);
+
+	n_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT), PGDIR_SIZE);
+	save_pgd = kmalloc_array(n_pgds, sizeof(*save_pgd), GFP_KERNEL);
+	if (!save_pgd)
+		return NULL;
+
+	/*
+	 * Build 1:1 identity mapping for UV1 memmap usage. Note that
+	 * PAGE_OFFSET is PGDIR_SIZE aligned when KASLR is disabled, while
+	 * it is PUD_SIZE ALIGNED with KASLR enabled. So for a given physical
+	 * address X, the pud_index(X) != pud_index(__va(X)), we can only copy
+	 * PUD entry of __va(X) to fill in pud entry of X to build 1:1 mapping.
+	 * This means here we can only reuse the PMD tables of the direct mapping.
+	 */
+	for (pgd = 0; pgd < n_pgds; pgd++) {
+		addr_pgd = (unsigned long)(pgd * PGDIR_SIZE);
+		vaddr = (unsigned long)__va(pgd * PGDIR_SIZE);
+		pgd_efi = pgd_offset_k(addr_pgd);
+		save_pgd[pgd] = *pgd_efi;
+
+		p4d = p4d_alloc(&init_mm, pgd_efi, addr_pgd);
+		if (!p4d) {
+			pr_err("Failed to allocate p4d table!\n");
+			goto out;
+		}
+
+		for (i = 0; i < PTRS_PER_P4D; i++) {
+			addr_p4d = addr_pgd + i * P4D_SIZE;
+			p4d_efi = p4d + p4d_index(addr_p4d);
+
+			pud = pud_alloc(&init_mm, p4d_efi, addr_p4d);
+			if (!pud) {
+				pr_err("Failed to allocate pud table!\n");
+				goto out;
+			}
+
+			for (j = 0; j < PTRS_PER_PUD; j++) {
+				addr_pud = addr_p4d + j * PUD_SIZE;
+
+				if (addr_pud > (max_pfn << PAGE_SHIFT))
+					break;
+
+				vaddr = (unsigned long)__va(addr_pud);
+
+				pgd_k = pgd_offset_k(vaddr);
+				p4d_k = p4d_offset(pgd_k, vaddr);
+				pud[j] = *pud_offset(p4d_k, vaddr);
+			}
+		}
+		pgd_offset_k(pgd * PGDIR_SIZE)->pgd &= ~_PAGE_NX;
+	}
+
+	__flush_tlb_all();
+	return save_pgd;
+out:
+	efi_uv1_memmap_phys_epilog(save_pgd);
+	return NULL;
+}
+
+void __iomem *__init efi_ioremap(unsigned long phys_addr, unsigned long size,
+				 u32 type, u64 attribute)
+{
+	unsigned long last_map_pfn;
+
+	if (type == EFI_MEMORY_MAPPED_IO)
+		return ioremap(phys_addr, size);
+
+	last_map_pfn = init_memory_mapping(phys_addr, phys_addr + size);
+	if ((last_map_pfn << PAGE_SHIFT) < phys_addr + size) {
+		unsigned long top = last_map_pfn << PAGE_SHIFT;
+		efi_ioremap(top, size - (top - phys_addr), type, attribute);
+	}
+
+	if (!(attribute & EFI_MEMORY_WB))
+		efi_memory_uc((u64)(unsigned long)__va(phys_addr), size);
+
+	return (void __iomem *)__va(phys_addr);
+}
+
+static int __init arch_parse_efi_cmdline(char *str)
+{
+	if (!str) {
+		pr_warn("need at least one option\n");
+		return -EINVAL;
+	}
+
+	if (!efi_is_mixed() && parse_option_str(str, "old_map"))
+		set_bit(EFI_UV1_MEMMAP, &efi.flags);
+
+	return 0;
+}
+early_param("efi", arch_parse_efi_cmdline);

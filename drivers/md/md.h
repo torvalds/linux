@@ -32,6 +32,16 @@
  * be retried.
  */
 #define	MD_FAILFAST	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT)
+
+/*
+ * The struct embedded in rdev is used to serialize IO.
+ */
+struct serial_in_rdev {
+	struct rb_root_cached serial_rb;
+	spinlock_t serial_lock;
+	wait_queue_head_t serial_io_wait;
+};
+
 /*
  * MD's 'extended' device
  */
@@ -110,12 +120,7 @@ struct md_rdev {
 					   * in superblock.
 					   */
 
-	/*
-	 * The members for check collision of write behind IOs.
-	 */
-	struct list_head wb_list;
-	spinlock_t wb_list_lock;
-	wait_queue_head_t wb_io_wait;
+	struct serial_in_rdev *serial;  /* used for raid1 io serialization */
 
 	struct work_struct del_work;	/* used for delayed sysfs removal */
 
@@ -201,9 +206,9 @@ enum flag_bits {
 				 * it didn't fail, so don't use FailFast
 				 * any more for metadata
 				 */
-	WBCollisionCheck,	/*
-				 * multiqueue device should check if there
-				 * is collision between write behind bios.
+	CollisionCheck,		/*
+				 * check if there is collision between raid1
+				 * serial bios.
 				 */
 };
 
@@ -263,12 +268,13 @@ enum mddev_sb_flags {
 	MD_SB_NEED_REWRITE,	/* metadata write needs to be repeated */
 };
 
-#define NR_WB_INFOS	8
-/* record current range of write behind IOs */
-struct wb_info {
-	sector_t lo;
-	sector_t hi;
-	struct list_head list;
+#define NR_SERIAL_INFOS		8
+/* record current range of serialize IOs */
+struct serial_info {
+	struct rb_node node;
+	sector_t start;		/* start sector of rb node */
+	sector_t last;		/* end sector of rb node */
+	sector_t _subtree_last; /* highest sector in subtree of rb node */
 };
 
 struct mddev {
@@ -487,13 +493,14 @@ struct mddev {
 					  */
 	struct work_struct flush_work;
 	struct work_struct event_work;	/* used by dm to report failure event */
-	mempool_t *wb_info_pool;
+	mempool_t *serial_info_pool;
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
 
 	bool	has_superblocks:1;
 	bool	fail_last_dev:1;
+	bool	serialize_policy:1;
 };
 
 enum recovery_flags {
@@ -550,7 +557,7 @@ struct md_personality
 	int level;
 	struct list_head list;
 	struct module *owner;
-	bool (*make_request)(struct mddev *mddev, struct bio *bio);
+	bool __must_check (*make_request)(struct mddev *mddev, struct bio *bio);
 	/*
 	 * start up works that do NOT require md_thread. tasks that
 	 * requires md_thread should go into start()
@@ -703,7 +710,7 @@ extern void md_error(struct mddev *mddev, struct md_rdev *rdev);
 extern void md_finish_reshape(struct mddev *mddev);
 
 extern int mddev_congested(struct mddev *mddev, int bits);
-extern void md_flush_request(struct mddev *mddev, struct bio *bio);
+extern bool __must_check md_flush_request(struct mddev *mddev, struct bio *bio);
 extern void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 			   sector_t sector, int size, struct page *page);
 extern int md_super_wait(struct mddev *mddev);
@@ -737,8 +744,10 @@ extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 extern void md_update_sb(struct mddev *mddev, int force);
 extern void md_kick_rdev_from_array(struct md_rdev * rdev);
-extern void mddev_create_wb_pool(struct mddev *mddev, struct md_rdev *rdev,
-				 bool is_suspend);
+extern void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
+				     bool is_suspend);
+extern void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
+				      bool is_suspend);
 struct md_rdev *md_find_rdev_nr_rcu(struct mddev *mddev, int nr);
 struct md_rdev *md_find_rdev_rcu(struct mddev *mddev, dev_t dev);
 

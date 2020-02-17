@@ -40,9 +40,6 @@ struct sdw_slave;
 
 #define SDW_VALID_PORT_RANGE(n)		((n) <= 14 && (n) >= 1)
 
-#define SDW_DAI_ID_RANGE_START		100
-#define SDW_DAI_ID_RANGE_END		200
-
 enum {
 	SDW_PORT_DIRN_SINK = 0,
 	SDW_PORT_DIRN_SOURCE,
@@ -406,6 +403,8 @@ int sdw_slave_read_prop(struct sdw_slave *slave);
  * SDW Slave Structures and APIs
  */
 
+#define SDW_IGNORED_UNIQUE_ID 0xFF
+
 /**
  * struct sdw_slave_id - Slave ID
  * @mfg_id: MIPI Manufacturer ID
@@ -421,7 +420,7 @@ struct sdw_slave_id {
 	__u16 mfg_id;
 	__u16 part_id;
 	__u8 class_id;
-	__u8 unique_id:4;
+	__u8 unique_id;
 	__u8 sdw_version:4;
 };
 
@@ -547,7 +546,22 @@ struct sdw_slave_ops {
  * @debugfs: Slave debugfs
  * @node: node for bus list
  * @port_ready: Port ready completion flag for each Slave port
- * @dev_num: Device Number assigned by Bus
+ * @dev_num: Current Device Number, values can be 0 or dev_num_sticky
+ * @dev_num_sticky: one-time static Device Number assigned by Bus
+ * @probed: boolean tracking driver state
+ * @probe_complete: completion utility to control potential races
+ * on startup between driver probe/initialization and SoundWire
+ * Slave state changes/implementation-defined interrupts
+ * @enumeration_complete: completion utility to control potential races
+ * on startup between device enumeration and read/write access to the
+ * Slave device
+ * @initialization_complete: completion utility to control potential races
+ * on startup between device enumeration and settings being restored
+ * @unattach_request: mask field to keep track why the Slave re-attached and
+ * was re-initialized. This is useful to deal with potential race conditions
+ * between the Master suspending and the codec resuming, and make sure that
+ * when the Master triggered a reset the Slave is properly enumerated and
+ * initialized
  */
 struct sdw_slave {
 	struct sdw_slave_id id;
@@ -562,6 +576,12 @@ struct sdw_slave {
 	struct list_head node;
 	struct completion *port_ready;
 	u16 dev_num;
+	u16 dev_num_sticky;
+	bool probed;
+	struct completion probe_complete;
+	struct completion enumeration_complete;
+	struct completion initialization_complete;
+	u32 unattach_request;
 };
 
 #define dev_to_sdw_dev(_dev) container_of(_dev, struct sdw_slave, dev)

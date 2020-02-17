@@ -74,6 +74,7 @@ static bool autoclock = true;
 static char *quirk_alias[SNDRV_CARDS];
 
 bool snd_usb_use_vmalloc = true;
+bool snd_usb_skip_validation;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the USB audio adapter.");
@@ -96,6 +97,8 @@ module_param_array(quirk_alias, charp, NULL, 0444);
 MODULE_PARM_DESC(quirk_alias, "Quirk aliases, e.g. 0123abcd:5678beef.");
 module_param_named(use_vmalloc, snd_usb_use_vmalloc, bool, 0444);
 MODULE_PARM_DESC(use_vmalloc, "Use vmalloc for PCM intermediate buffers (default: yes).");
+module_param_named(skip_validation, snd_usb_skip_validation, bool, 0444);
+MODULE_PARM_DESC(skip_validation, "Skip unit descriptor validation (default: no).");
 
 /*
  * we keep the snd_usb_audio_t instances by ourselves for merging
@@ -597,6 +600,10 @@ static int usb_audio_probe(struct usb_interface *intf,
 		}
 	}
 	if (! chip) {
+		err = snd_usb_apply_boot_quirk_once(dev, intf, quirk, id);
+		if (err < 0)
+			goto __error;
+
 		/* it's a fresh one.
 		 * now look for an empty slot and create a new card instance
 		 */

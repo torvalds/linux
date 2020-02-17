@@ -575,7 +575,7 @@ static void xge_free_pending_skb(struct net_device *ndev)
 	}
 }
 
-static void xge_timeout(struct net_device *ndev)
+static void xge_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct xge_pdata *pdata = netdev_priv(ndev);
 

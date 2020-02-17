@@ -242,6 +242,7 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_SDMA5                           = 55,   /* SDMA5                    MI      */
 	GFX_FW_TYPE_SDMA6                           = 56,   /* SDMA6                    MI      */
 	GFX_FW_TYPE_SDMA7                           = 57,   /* SDMA7                    MI      */
+	GFX_FW_TYPE_VCN1                            = 58,   /* VCN1                     MI      */
 	GFX_FW_TYPE_MAX
 };
 

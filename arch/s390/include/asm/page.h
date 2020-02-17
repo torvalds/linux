@@ -33,6 +33,8 @@
 #define ARCH_HAS_PREPARE_HUGEPAGE
 #define ARCH_HAS_HUGEPAGE_CLEAR_FLUSH
 
+#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
@@ -176,8 +178,6 @@ static inline int devmem_is_allowed(unsigned long pfn)
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
-
-#define ARCH_ZONE_DMA_BITS	31
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

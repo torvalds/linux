@@ -8,7 +8,7 @@
 
 const char *phy_speed_to_str(int speed)
 {
-	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 69,
+	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 74,
 		"Enum ethtool_link_mode_bit_indices and phylib are out of sync. "
 		"If a speed or mode has been added please update phy_speed_to_str "
 		"and the PHY settings array.\n");
@@ -42,6 +42,8 @@ const char *phy_speed_to_str(int speed)
 		return "100Gbps";
 	case SPEED_200000:
 		return "200Gbps";
+	case SPEED_400000:
+		return "400Gbps";
 	case SPEED_UNKNOWN:
 		return "Unknown";
 	default:
@@ -70,6 +72,12 @@ EXPORT_SYMBOL_GPL(phy_duplex_to_str);
 			       .bit = ETHTOOL_LINK_MODE_ ## b ## _BIT}
 
 static const struct phy_setting settings[] = {
+	/* 400G */
+	PHY_SETTING( 400000, FULL, 400000baseCR8_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseKR8_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseLR8_ER8_FR8_Full	),
+	PHY_SETTING( 400000, FULL, 400000baseDR8_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseSR8_Full		),
 	/* 200G */
 	PHY_SETTING( 200000, FULL, 200000baseCR4_Full		),
 	PHY_SETTING( 200000, FULL, 200000baseKR4_Full		),
@@ -379,7 +387,7 @@ int __phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 	if (regnum > (u16)~0 || devad > 32)
 		return -EINVAL;
 
-	if (phydev->drv->read_mmd) {
+	if (phydev->drv && phydev->drv->read_mmd) {
 		val = phydev->drv->read_mmd(phydev, devad, regnum);
 	} else if (phydev->is_c45) {
 		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
@@ -411,9 +419,9 @@ int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_read_mmd(phydev, devad, regnum);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -436,7 +444,7 @@ int __phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
 	if (regnum > (u16)~0 || devad > 32)
 		return -EINVAL;
 
-	if (phydev->drv->write_mmd) {
+	if (phydev->drv && phydev->drv->write_mmd) {
 		ret = phydev->drv->write_mmd(phydev, devad, regnum, val);
 	} else if (phydev->is_c45) {
 		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
@@ -472,9 +480,9 @@ int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_write_mmd(phydev, devad, regnum, val);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -528,9 +536,9 @@ int phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_modify_changed(phydev, regnum, mask, set);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -572,9 +580,9 @@ int phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_modify(phydev, regnum, mask, set);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -631,9 +639,9 @@ int phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_modify_mmd_changed(phydev, devad, regnum, mask, set);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -679,9 +687,9 @@ int phy_modify_mmd(struct phy_device *phydev, int devad, u32 regnum,
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_modify_mmd(phydev, devad, regnum, mask, set);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -689,11 +697,17 @@ EXPORT_SYMBOL_GPL(phy_modify_mmd);
 
 static int __phy_read_page(struct phy_device *phydev)
 {
+	if (WARN_ONCE(!phydev->drv->read_page, "read_page callback not available, PHY driver not loaded?\n"))
+		return -EOPNOTSUPP;
+
 	return phydev->drv->read_page(phydev);
 }
 
 static int __phy_write_page(struct phy_device *phydev, int page)
 {
+	if (WARN_ONCE(!phydev->drv->write_page, "write_page callback not available, PHY driver not loaded?\n"))
+		return -EOPNOTSUPP;
+
 	return phydev->drv->write_page(phydev, page);
 }
 
@@ -707,7 +721,7 @@ static int __phy_write_page(struct phy_device *phydev, int page)
  */
 int phy_save_page(struct phy_device *phydev)
 {
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	return __phy_read_page(phydev);
 }
 EXPORT_SYMBOL_GPL(phy_save_page);
@@ -774,7 +788,7 @@ int phy_restore_page(struct phy_device *phydev, int oldpage, int ret)
 		ret = oldpage;
 	}
 
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }

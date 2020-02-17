@@ -48,11 +48,18 @@ static const struct hantro_fmt rk3288_vpu_enc_fmts[] = {
 		.frmsize = {
 			.min_width = 96,
 			.max_width = 8192,
-			.step_width = JPEG_MB_DIM,
+			.step_width = MB_DIM,
 			.min_height = 32,
 			.max_height = 8192,
-			.step_height = JPEG_MB_DIM,
+			.step_height = MB_DIM,
 		},
+	},
+};
+
+static const struct hantro_fmt rk3288_vpu_postproc_fmts[] = {
+	{
+		.fourcc = V4L2_PIX_FMT_YUYV,
+		.codec_mode = HANTRO_MODE_NONE,
 	},
 };
 
@@ -67,11 +74,11 @@ static const struct hantro_fmt rk3288_vpu_dec_fmts[] = {
 		.max_depth = 2,
 		.frmsize = {
 			.min_width = 48,
-			.max_width = 3840,
-			.step_width = H264_MB_DIM,
+			.max_width = 4096,
+			.step_width = MB_DIM,
 			.min_height = 48,
-			.max_height = 2160,
-			.step_height = H264_MB_DIM,
+			.max_height = 2304,
+			.step_height = MB_DIM,
 		},
 	},
 	{
@@ -81,10 +88,10 @@ static const struct hantro_fmt rk3288_vpu_dec_fmts[] = {
 		.frmsize = {
 			.min_width = 48,
 			.max_width = 1920,
-			.step_width = MPEG2_MB_DIM,
+			.step_width = MB_DIM,
 			.min_height = 48,
 			.max_height = 1088,
-			.step_height = MPEG2_MB_DIM,
+			.step_height = MB_DIM,
 		},
 	},
 	{
@@ -94,10 +101,10 @@ static const struct hantro_fmt rk3288_vpu_dec_fmts[] = {
 		.frmsize = {
 			.min_width = 48,
 			.max_width = 3840,
-			.step_width = VP8_MB_DIM,
+			.step_width = MB_DIM,
 			.min_height = 48,
 			.max_height = 2160,
-			.step_height = VP8_MB_DIM,
+			.step_height = MB_DIM,
 		},
 	},
 };
@@ -215,6 +222,9 @@ const struct hantro_variant rk3288_vpu_variant = {
 	.dec_offset = 0x400,
 	.dec_fmts = rk3288_vpu_dec_fmts,
 	.num_dec_fmts = ARRAY_SIZE(rk3288_vpu_dec_fmts),
+	.postproc_fmts = rk3288_vpu_postproc_fmts,
+	.num_postproc_fmts = ARRAY_SIZE(rk3288_vpu_postproc_fmts),
+	.postproc_regs = &hantro_g1_postproc_regs,
 	.codec = HANTRO_JPEG_ENCODER | HANTRO_MPEG2_DECODER |
 		 HANTRO_VP8_DECODER | HANTRO_H264_DECODER,
 	.codec_ops = rk3288_vpu_codec_ops,

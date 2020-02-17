@@ -54,11 +54,12 @@ config CC_DISABLE_WARN_MAYBE_UNINITIALIZED
 
 config CONSTRUCTORS
 	bool
+	depends on !UML
 
 config IRQ_WORK
 	bool
 
-config BUILDTIME_EXTABLE_SORT
+config BUILDTIME_TABLE_SORT
 	bool
 
 config THREAD_INFO_IN_TASK
@@ -104,29 +105,9 @@ config COMPILE_TEST
 	  here. If you are a user/distributor, say N here to exclude useless
 	  drivers to be distributed.
 
-config HEADER_TEST
-	bool "Compile test headers that should be standalone compilable"
-	help
-	  Compile test headers listed in header-test-y target to ensure they are
-	  self-contained, i.e. compilable as standalone units.
-
-	  If you are a developer or tester and want to ensure the requested
-	  headers are self-contained, say Y here. Otherwise, choose N.
-
-config KERNEL_HEADER_TEST
-	bool "Compile test kernel headers"
-	depends on HEADER_TEST
-	help
-	  Headers in include/ are used to build external moduls.
-	  Compile test them to ensure they are self-contained, i.e.
-	  compilable as standalone units.
-
-	  If you are a developer or tester and want to ensure the headers
-	  in include/ are self-contained, say Y here. Otherwise, choose N.
-
 config UAPI_HEADER_TEST
 	bool "Compile test UAPI headers"
-	depends on HEADER_TEST && HEADERS_INSTALL && CC_CAN_LINK
+	depends on HEADERS_INSTALL && CC_CAN_LINK
 	help
 	  Compile test headers exported to user-space to ensure they are
 	  self-contained, i.e. compilable as standalone units.
@@ -166,13 +147,13 @@ config LOCALVERSION_AUTO
 	  which is done within the script "scripts/setlocalversion".)
 
 config BUILD_SALT
-       string "Build ID Salt"
-       default ""
-       help
-          The build ID is used to link binaries and their debug info. Setting
-          this option will use the value in the calculation of the build id.
-          This is mostly useful for distributions which want to ensure the
-          build is unique between builds. It's safe to leave the default.
+	string "Build ID Salt"
+	default ""
+	help
+	  The build ID is used to link binaries and their debug info. Setting
+	  this option will use the value in the calculation of the build id.
+	  This is mostly useful for distributions which want to ensure the
+	  build is unique between builds. It's safe to leave the default.
 
 config HAVE_KERNEL_GZIP
 	bool
@@ -785,6 +766,10 @@ config ARCH_SUPPORTS_NUMA_BALANCING
 config ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
 	bool
 
+config CC_HAS_INT128
+	def_bool y
+	depends on !$(cc-option,-D__SIZEOF_INT128__=0)
+
 #
 # For architectures that know their GCC __int128 support is sound
 #
@@ -834,7 +819,7 @@ menuconfig CGROUPS
 if CGROUPS
 
 config PAGE_COUNTER
-       bool
+	bool
 
 config MEMCG
 	bool "Memory controller"
@@ -1096,6 +1081,14 @@ config UTS_NS
 	  In this namespace tasks see different info provided with the
 	  uname() system call
 
+config TIME_NS
+	bool "TIME namespace"
+	depends on GENERIC_VDSO_TIME_NS
+	default y
+	help
+	  In this namespace boottime and monotonic clocks can be set.
+	  The time will keep going with the same pace.
+
 config IPC_NS
 	bool "IPC namespace"
 	depends on (SYSVIPC || POSIX_MQUEUE)
@@ -1231,6 +1224,19 @@ source "usr/Kconfig"
 
 endif
 
+config BOOT_CONFIG
+	bool "Boot config support"
+	depends on BLK_DEV_INITRD
+	default y
+	help
+	  Extra boot config allows system admin to pass a config file as
+	  complemental extension of kernel cmdline when booting.
+	  The boot config file must be attached at the end of initramfs
+	  with checksum and size.
+	  See <file:Documentation/admin-guide/bootconfig.rst> for details.
+
+	  If unsure, say Y.
+
 choice
 	prompt "Compiler optimization level"
 	default CC_OPTIMIZE_FOR_PERFORMANCE
@@ -1327,9 +1333,9 @@ menuconfig EXPERT
 	select DEBUG_KERNEL
 	help
 	  This option allows certain base kernel options and settings
-          to be disabled or tweaked. This is for specialized
-          environments which can tolerate a "non-standard" kernel.
-          Only use this if you really know what you are doing.
+	  to be disabled or tweaked. This is for specialized
+	  environments which can tolerate a "non-standard" kernel.
+	  Only use this if you really know what you are doing.
 
 config UID16
 	bool "Enable 16-bit UID system calls" if EXPERT
@@ -1371,23 +1377,6 @@ config SYSFS_SYSCALL
 	  compatibility with some systems.
 
 	  If unsure say Y here.
-
-config SYSCTL_SYSCALL
-	bool "Sysctl syscall support" if EXPERT
-	depends on PROC_SYSCTL
-	default n
-	select SYSCTL
-	---help---
-	  sys_sysctl uses binary paths that have been found challenging
-	  to properly maintain and use.  The interface in /proc/sys
-	  using paths with ascii names is now the primary path to this
-	  information.
-
-	  Almost nothing using the binary sysctl interface so if you are
-	  trying to save some space it is probably safe to disable this,
-	  making your kernel marginally smaller.
-
-	  If unsure say N here.
 
 config FHANDLE
 	bool "open by fhandle syscalls" if EXPERT
@@ -1439,11 +1428,11 @@ config BUG
 	bool "BUG() support" if EXPERT
 	default y
 	help
-          Disabling this option eliminates support for BUG and WARN, reducing
-          the size of your kernel image and potentially quietly ignoring
-          numerous fatal conditions. You should only consider disabling this
-          option for embedded systems with no facilities for reporting errors.
-          Just say Y.
+	  Disabling this option eliminates support for BUG and WARN, reducing
+	  the size of your kernel image and potentially quietly ignoring
+	  numerous fatal conditions. You should only consider disabling this
+	  option for embedded systems with no facilities for reporting errors.
+	  Just say Y.
 
 config ELF_CORE
 	depends on COREDUMP
@@ -1459,8 +1448,8 @@ config PCSPKR_PLATFORM
 	select I8253_LOCK
 	default y
 	help
-          This option allows to disable the internal PC-Speaker
-          support, saving some memory.
+	  This option allows to disable the internal PC-Speaker
+	  support, saving some memory.
 
 config BASE_FULL
 	default y
@@ -1548,6 +1537,7 @@ config AIO
 config IO_URING
 	bool "Enable IO uring support" if EXPERT
 	select ANON_INODES
+	select IO_WQ
 	default y
 	help
 	  This option enables support for the io_uring interface, enabling
@@ -1577,29 +1567,29 @@ config MEMBARRIER
 	  If unsure, say Y.
 
 config KALLSYMS
-	 bool "Load all symbols for debugging/ksymoops" if EXPERT
-	 default y
-	 help
-	   Say Y here to let the kernel print out symbolic crash information and
-	   symbolic stack backtraces. This increases the size of the kernel
-	   somewhat, as all symbols have to be loaded into the kernel image.
+	bool "Load all symbols for debugging/ksymoops" if EXPERT
+	default y
+	help
+	  Say Y here to let the kernel print out symbolic crash information and
+	  symbolic stack backtraces. This increases the size of the kernel
+	  somewhat, as all symbols have to be loaded into the kernel image.
 
 config KALLSYMS_ALL
 	bool "Include all symbols in kallsyms"
 	depends on DEBUG_KERNEL && KALLSYMS
 	help
-	   Normally kallsyms only contains the symbols of functions for nicer
-	   OOPS messages and backtraces (i.e., symbols from the text and inittext
-	   sections). This is sufficient for most cases. And only in very rare
-	   cases (e.g., when a debugger is used) all symbols are required (e.g.,
-	   names of variables from the data sections, etc).
+	  Normally kallsyms only contains the symbols of functions for nicer
+	  OOPS messages and backtraces (i.e., symbols from the text and inittext
+	  sections). This is sufficient for most cases. And only in very rare
+	  cases (e.g., when a debugger is used) all symbols are required (e.g.,
+	  names of variables from the data sections, etc).
 
-	   This option makes sure that all symbols are loaded into the kernel
-	   image (i.e., symbols from all sections) in cost of increased kernel
-	   size (depending on the kernel configuration, it may be 300KiB or
-	   something like this).
+	  This option makes sure that all symbols are loaded into the kernel
+	  image (i.e., symbols from all sections) in cost of increased kernel
+	  size (depending on the kernel configuration, it may be 300KiB or
+	  something like this).
 
-	   Say N unless you really need all symbols.
+	  Say N unless you really need all symbols.
 
 config KALLSYMS_ABSOLUTE_PERCPU
 	bool
@@ -1636,12 +1626,19 @@ config BPF_SYSCALL
 	  Enable the bpf() system call that allows to manipulate eBPF
 	  programs and maps via file descriptors.
 
+config ARCH_WANT_DEFAULT_BPF_JIT
+	bool
+
 config BPF_JIT_ALWAYS_ON
 	bool "Permanently enable BPF JIT and remove BPF interpreter"
 	depends on BPF_SYSCALL && HAVE_EBPF_JIT && BPF_JIT
 	help
 	  Enables BPF JIT and removes BPF interpreter to avoid
 	  speculative execution of BPF instructions by the interpreter
+
+config BPF_JIT_DEFAULT_ON
+	def_bool ARCH_WANT_DEFAULT_BPF_JIT || BPF_JIT_ALWAYS_ON
+	depends on HAVE_EBPF_JIT && BPF_JIT
 
 config USERFAULTFD
 	bool "Enable userfaultfd() system call"
@@ -1742,12 +1739,12 @@ config DEBUG_PERF_USE_VMALLOC
 	depends on PERF_EVENTS && DEBUG_KERNEL && !PPC
 	select PERF_USE_VMALLOC
 	help
-	 Use vmalloc memory to back perf mmap() buffers.
+	  Use vmalloc memory to back perf mmap() buffers.
 
-	 Mostly useful for debugging the vmalloc code on platforms
-	 that don't require it.
+	  Mostly useful for debugging the vmalloc code on platforms
+	  that don't require it.
 
-	 Say N if unsure.
+	  Say N if unsure.
 
 endmenu
 

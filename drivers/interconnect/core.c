@@ -19,45 +19,22 @@
 #include <linux/of.h>
 #include <linux/overflow.h>
 
+#include "internal.h"
+
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 static DEFINE_IDR(icc_idr);
 static LIST_HEAD(icc_providers);
 static DEFINE_MUTEX(icc_lock);
 static struct dentry *icc_debugfs_dir;
-
-/**
- * struct icc_req - constraints that are attached to each node
- * @req_node: entry in list of requests for the particular @node
- * @node: the interconnect node to which this constraint applies
- * @dev: reference to the device that sets the constraints
- * @tag: path tag (optional)
- * @avg_bw: an integer describing the average bandwidth in kBps
- * @peak_bw: an integer describing the peak bandwidth in kBps
- */
-struct icc_req {
-	struct hlist_node req_node;
-	struct icc_node *node;
-	struct device *dev;
-	u32 tag;
-	u32 avg_bw;
-	u32 peak_bw;
-};
-
-/**
- * struct icc_path - interconnect path structure
- * @num_nodes: number of hops (nodes)
- * @reqs: array of the requests applicable to this path of nodes
- */
-struct icc_path {
-	size_t num_nodes;
-	struct icc_req reqs[];
-};
 
 static void icc_summary_show_one(struct seq_file *s, struct icc_node *n)
 {
 	if (!n)
 		return;
 
-	seq_printf(s, "%-30s %12u %12u\n",
+	seq_printf(s, "%-42s %12u %12u\n",
 		   n->name, n->avg_bw, n->peak_bw);
 }
 
@@ -65,8 +42,8 @@ static int icc_summary_show(struct seq_file *s, void *data)
 {
 	struct icc_provider *provider;
 
-	seq_puts(s, " node                                   avg         peak\n");
-	seq_puts(s, "--------------------------------------------------------\n");
+	seq_puts(s, " node                                  tag          avg         peak\n");
+	seq_puts(s, "--------------------------------------------------------------------\n");
 
 	mutex_lock(&icc_lock);
 
@@ -81,8 +58,8 @@ static int icc_summary_show(struct seq_file *s, void *data)
 				if (!r->dev)
 					continue;
 
-				seq_printf(s, "    %-26s %12u %12u\n",
-					   dev_name(r->dev), r->avg_bw,
+				seq_printf(s, "  %-27s %12u %12u %12u\n",
+					   dev_name(r->dev), r->tag, r->avg_bw,
 					   r->peak_bw);
 			}
 		}
@@ -93,6 +70,70 @@ static int icc_summary_show(struct seq_file *s, void *data)
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(icc_summary);
+
+static void icc_graph_show_link(struct seq_file *s, int level,
+				struct icc_node *n, struct icc_node *m)
+{
+	seq_printf(s, "%s\"%d:%s\" -> \"%d:%s\"\n",
+		   level == 2 ? "\t\t" : "\t",
+		   n->id, n->name, m->id, m->name);
+}
+
+static void icc_graph_show_node(struct seq_file *s, struct icc_node *n)
+{
+	seq_printf(s, "\t\t\"%d:%s\" [label=\"%d:%s",
+		   n->id, n->name, n->id, n->name);
+	seq_printf(s, "\n\t\t\t|avg_bw=%ukBps", n->avg_bw);
+	seq_printf(s, "\n\t\t\t|peak_bw=%ukBps", n->peak_bw);
+	seq_puts(s, "\"]\n");
+}
+
+static int icc_graph_show(struct seq_file *s, void *data)
+{
+	struct icc_provider *provider;
+	struct icc_node *n;
+	int cluster_index = 0;
+	int i;
+
+	seq_puts(s, "digraph {\n\trankdir = LR\n\tnode [shape = record]\n");
+	mutex_lock(&icc_lock);
+
+	/* draw providers as cluster subgraphs */
+	cluster_index = 0;
+	list_for_each_entry(provider, &icc_providers, provider_list) {
+		seq_printf(s, "\tsubgraph cluster_%d {\n", ++cluster_index);
+		if (provider->dev)
+			seq_printf(s, "\t\tlabel = \"%s\"\n",
+				   dev_name(provider->dev));
+
+		/* draw nodes */
+		list_for_each_entry(n, &provider->nodes, node_list)
+			icc_graph_show_node(s, n);
+
+		/* draw internal links */
+		list_for_each_entry(n, &provider->nodes, node_list)
+			for (i = 0; i < n->num_links; ++i)
+				if (n->provider == n->links[i]->provider)
+					icc_graph_show_link(s, 2, n,
+							    n->links[i]);
+
+		seq_puts(s, "\t}\n");
+	}
+
+	/* draw external links */
+	list_for_each_entry(provider, &icc_providers, provider_list)
+		list_for_each_entry(n, &provider->nodes, node_list)
+			for (i = 0; i < n->num_links; ++i)
+				if (n->provider != n->links[i]->provider)
+					icc_graph_show_link(s, 1, n,
+							    n->links[i]);
+
+	mutex_unlock(&icc_lock);
+	seq_puts(s, "}");
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(icc_graph);
 
 static struct icc_node *node_find(const int id)
 {
@@ -244,6 +285,16 @@ out:
 	return ret;
 }
 
+int icc_std_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
+		      u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
+{
+	*agg_avg += avg_bw;
+	*agg_peak = max(*agg_peak, peak_bw);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(icc_std_aggregate);
+
 /* of_icc_xlate_onecell() - Translate function using a single index.
  * @spec: OF phandle args to map into an interconnect node.
  * @data: private data (pointer to struct icc_onecell_data)
@@ -382,9 +433,17 @@ struct icc_path *of_icc_get(struct device *dev, const char *name)
 
 	mutex_lock(&icc_lock);
 	path = path_find(dev, src_node, dst_node);
-	if (IS_ERR(path))
-		dev_err(dev, "%s: invalid path=%ld\n", __func__, PTR_ERR(path));
 	mutex_unlock(&icc_lock);
+	if (IS_ERR(path)) {
+		dev_err(dev, "%s: invalid path=%ld\n", __func__, PTR_ERR(path));
+		return path;
+	}
+
+	if (name)
+		path->name = kstrdup_const(name, GFP_KERNEL);
+	else
+		path->name = kasprintf(GFP_KERNEL, "%s-%s",
+				       src_node->name, dst_node->name);
 
 	return path;
 }
@@ -405,8 +464,12 @@ void icc_set_tag(struct icc_path *path, u32 tag)
 	if (!path)
 		return;
 
+	mutex_lock(&icc_lock);
+
 	for (i = 0; i < path->num_nodes; i++)
 		path->reqs[i].tag = tag;
+
+	mutex_unlock(&icc_lock);
 }
 EXPORT_SYMBOL_GPL(icc_set_tag);
 
@@ -432,8 +495,11 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 	size_t i;
 	int ret;
 
-	if (!path || !path->num_nodes)
+	if (!path)
 		return 0;
+
+	if (WARN_ON(IS_ERR(path) || !path->num_nodes))
+		return -EINVAL;
 
 	mutex_lock(&icc_lock);
 
@@ -449,6 +515,8 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 
 		/* aggregate requests for this node */
 		aggregate_requests(node);
+
+		trace_icc_set_bw(path, node, i, avg_bw, peak_bw);
 	}
 
 	ret = apply_constraints(path);
@@ -466,6 +534,8 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 	}
 
 	mutex_unlock(&icc_lock);
+
+	trace_icc_set_bw_end(path, ret);
 
 	return ret;
 }
@@ -503,9 +573,12 @@ struct icc_path *icc_get(struct device *dev, const int src_id, const int dst_id)
 		goto out;
 
 	path = path_find(dev, src, dst);
-	if (IS_ERR(path))
+	if (IS_ERR(path)) {
 		dev_err(dev, "%s: invalid path=%ld\n", __func__, PTR_ERR(path));
+		goto out;
+	}
 
+	path->name = kasprintf(GFP_KERNEL, "%s-%s", src->name, dst->name);
 out:
 	mutex_unlock(&icc_lock);
 	return path;
@@ -541,6 +614,7 @@ void icc_put(struct icc_path *path)
 	}
 	mutex_unlock(&icc_lock);
 
+	kfree_const(path->name);
 	kfree(path);
 }
 EXPORT_SYMBOL_GPL(icc_put);
@@ -739,6 +813,28 @@ void icc_node_del(struct icc_node *node)
 EXPORT_SYMBOL_GPL(icc_node_del);
 
 /**
+ * icc_nodes_remove() - remove all previously added nodes from provider
+ * @provider: the interconnect provider we are removing nodes from
+ *
+ * Return: 0 on success, or an error code otherwise
+ */
+int icc_nodes_remove(struct icc_provider *provider)
+{
+	struct icc_node *n, *tmp;
+
+	if (WARN_ON(IS_ERR_OR_NULL(provider)))
+		return -EINVAL;
+
+	list_for_each_entry_safe_reverse(n, tmp, &provider->nodes, node_list) {
+		icc_node_del(n);
+		icc_node_destroy(n->id);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(icc_nodes_remove);
+
+/**
  * icc_provider_add() - add a new interconnect provider
  * @provider: the interconnect provider that will be added into topology
  *
@@ -798,6 +894,8 @@ static int __init icc_init(void)
 	icc_debugfs_dir = debugfs_create_dir("interconnect", NULL);
 	debugfs_create_file("interconnect_summary", 0444,
 			    icc_debugfs_dir, NULL, &icc_summary_fops);
+	debugfs_create_file("interconnect_graph", 0444,
+			    icc_debugfs_dir, NULL, &icc_graph_fops);
 	return 0;
 }
 

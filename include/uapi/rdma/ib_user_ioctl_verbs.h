@@ -41,6 +41,13 @@
 #define RDMA_UAPI_PTR(_type, _name)	__aligned_u64 _name
 #endif
 
+#define IB_UVERBS_ACCESS_OPTIONAL_FIRST (1 << 20)
+#define IB_UVERBS_ACCESS_OPTIONAL_LAST (1 << 29)
+
+enum ib_uverbs_core_support {
+	IB_UVERBS_CORE_SUPPORT_OPTIONAL_MR_ACCESS = 1 << 0,
+};
+
 enum ib_uverbs_access_flags {
 	IB_UVERBS_ACCESS_LOCAL_WRITE = 1 << 0,
 	IB_UVERBS_ACCESS_REMOTE_WRITE = 1 << 1,
@@ -50,6 +57,11 @@ enum ib_uverbs_access_flags {
 	IB_UVERBS_ACCESS_ZERO_BASED = 1 << 5,
 	IB_UVERBS_ACCESS_ON_DEMAND = 1 << 6,
 	IB_UVERBS_ACCESS_HUGETLB = 1 << 7,
+
+	IB_UVERBS_ACCESS_RELAXED_ORDERING = IB_UVERBS_ACCESS_OPTIONAL_FIRST,
+	IB_UVERBS_ACCESS_OPTIONAL_RANGE =
+		((IB_UVERBS_ACCESS_OPTIONAL_LAST << 1) - 1) &
+		~(IB_UVERBS_ACCESS_OPTIONAL_FIRST - 1)
 };
 
 enum ib_uverbs_query_port_cap_flags {
@@ -171,6 +183,28 @@ struct ib_uverbs_query_port_resp_ex {
 	struct ib_uverbs_query_port_resp legacy_resp;
 	__u16 port_cap_flags2;
 	__u8  reserved[6];
+};
+
+enum rdma_driver_id {
+	RDMA_DRIVER_UNKNOWN,
+	RDMA_DRIVER_MLX5,
+	RDMA_DRIVER_MLX4,
+	RDMA_DRIVER_CXGB3,
+	RDMA_DRIVER_CXGB4,
+	RDMA_DRIVER_MTHCA,
+	RDMA_DRIVER_BNXT_RE,
+	RDMA_DRIVER_OCRDMA,
+	RDMA_DRIVER_NES,
+	RDMA_DRIVER_I40IW,
+	RDMA_DRIVER_VMW_PVRDMA,
+	RDMA_DRIVER_QEDR,
+	RDMA_DRIVER_HNS,
+	RDMA_DRIVER_USNIC,
+	RDMA_DRIVER_RXE,
+	RDMA_DRIVER_HFI1,
+	RDMA_DRIVER_QIB,
+	RDMA_DRIVER_EFA,
+	RDMA_DRIVER_SIW,
 };
 
 #endif

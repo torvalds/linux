@@ -280,17 +280,23 @@ out:
  * Commit metadata changes to stable storage.
  */
 static int
-commit_metadata(struct svc_fh *fhp)
+commit_inode_metadata(struct inode *inode)
 {
-	struct inode *inode = d_inode(fhp->fh_dentry);
 	const struct export_operations *export_ops = inode->i_sb->s_export_op;
-
-	if (!EX_ISSYNC(fhp->fh_export))
-		return 0;
 
 	if (export_ops->commit_metadata)
 		return export_ops->commit_metadata(inode);
 	return sync_inode_metadata(inode, 1);
+}
+
+static int
+commit_metadata(struct svc_fh *fhp)
+{
+	struct inode *inode = d_inode(fhp->fh_dentry);
+
+	if (!EX_ISSYNC(fhp->fh_export))
+		return 0;
+	return commit_inode_metadata(inode);
 }
 
 /*
@@ -358,7 +364,7 @@ out_nfserrno:
  */
 __be32
 nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
-	     int check_guard, time_t guardtime)
+	     int check_guard, time64_t guardtime)
 {
 	struct dentry	*dentry;
 	struct inode	*inode;
@@ -524,17 +530,39 @@ __be32 nfsd4_set_nfs4_label(struct svc_rqst *rqstp, struct svc_fh *fhp,
 }
 #endif
 
-__be32 nfsd4_clone_file_range(struct file *src, u64 src_pos, struct file *dst,
-		u64 dst_pos, u64 count)
+__be32 nfsd4_clone_file_range(struct nfsd_file *nf_src, u64 src_pos,
+		struct nfsd_file *nf_dst, u64 dst_pos, u64 count, bool sync)
 {
+	struct file *src = nf_src->nf_file;
+	struct file *dst = nf_dst->nf_file;
 	loff_t cloned;
+	__be32 ret = 0;
 
+	down_write(&nf_dst->nf_rwsem);
 	cloned = vfs_clone_file_range(src, src_pos, dst, dst_pos, count, 0);
-	if (cloned < 0)
-		return nfserrno(cloned);
-	if (count && cloned != count)
-		return nfserrno(-EINVAL);
-	return 0;
+	if (cloned < 0) {
+		ret = nfserrno(cloned);
+		goto out_err;
+	}
+	if (count && cloned != count) {
+		ret = nfserrno(-EINVAL);
+		goto out_err;
+	}
+	if (sync) {
+		loff_t dst_end = count ? dst_pos + count - 1 : LLONG_MAX;
+		int status = vfs_fsync_range(dst, dst_pos, dst_end, 0);
+
+		if (!status)
+			status = commit_inode_metadata(file_inode(src));
+		if (status < 0) {
+			nfsd_reset_boot_verifier(net_generic(nf_dst->nf_net,
+						 nfsd_net_id));
+			ret = nfserrno(status);
+		}
+	}
+out_err:
+	up_write(&nf_dst->nf_rwsem);
+	return ret;
 }
 
 ssize_t nfsd_copy_file_range(struct file *src, u64 src_pos, struct file *dst,
@@ -932,10 +960,12 @@ static int wait_for_concurrent_writes(struct file *file)
 }
 
 __be32
-nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
+nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct nfsd_file *nf,
 				loff_t offset, struct kvec *vec, int vlen,
-				unsigned long *cnt, int stable)
+				unsigned long *cnt, int stable,
+				__be32 *verf)
 {
+	struct file		*file = nf->nf_file;
 	struct svc_export	*exp;
 	struct iov_iter		iter;
 	__be32			nfserr;
@@ -966,9 +996,28 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		flags |= RWF_SYNC;
 
 	iov_iter_kvec(&iter, WRITE, vec, vlen, *cnt);
-	host_err = vfs_iter_write(file, &iter, &pos, flags);
-	if (host_err < 0)
+	if (flags & RWF_SYNC) {
+		down_write(&nf->nf_rwsem);
+		host_err = vfs_iter_write(file, &iter, &pos, flags);
+		if (host_err < 0)
+			nfsd_reset_boot_verifier(net_generic(SVC_NET(rqstp),
+						 nfsd_net_id));
+		up_write(&nf->nf_rwsem);
+	} else {
+		down_read(&nf->nf_rwsem);
+		if (verf)
+			nfsd_copy_boot_verifier(verf,
+					net_generic(SVC_NET(rqstp),
+					nfsd_net_id));
+		host_err = vfs_iter_write(file, &iter, &pos, flags);
+		up_read(&nf->nf_rwsem);
+	}
+	if (host_err < 0) {
+		nfsd_reset_boot_verifier(net_generic(SVC_NET(rqstp),
+					 nfsd_net_id));
 		goto out_nfserr;
+	}
+	*cnt = host_err;
 	nfsdstats.io_write += *cnt;
 	fsnotify_modify(file);
 
@@ -1030,7 +1079,8 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
  */
 __be32
 nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t offset,
-	   struct kvec *vec, int vlen, unsigned long *cnt, int stable)
+	   struct kvec *vec, int vlen, unsigned long *cnt, int stable,
+	   __be32 *verf)
 {
 	struct nfsd_file *nf;
 	__be32 err;
@@ -1041,8 +1091,8 @@ nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t offset,
 	if (err)
 		goto out;
 
-	err = nfsd_vfs_write(rqstp, fhp, nf->nf_file, offset, vec,
-			vlen, cnt, stable);
+	err = nfsd_vfs_write(rqstp, fhp, nf, offset, vec,
+			vlen, cnt, stable, verf);
 	nfsd_file_put(nf);
 out:
 	trace_nfsd_write_done(rqstp, fhp, offset, *cnt);
@@ -1061,7 +1111,7 @@ out:
  */
 __be32
 nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
-               loff_t offset, unsigned long count)
+               loff_t offset, unsigned long count, __be32 *verf)
 {
 	struct nfsd_file	*nf;
 	loff_t			end = LLONG_MAX;
@@ -1080,10 +1130,14 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (err)
 		goto out;
 	if (EX_ISSYNC(fhp->fh_export)) {
-		int err2 = vfs_fsync_range(nf->nf_file, offset, end, 0);
+		int err2;
 
+		down_write(&nf->nf_rwsem);
+		err2 = vfs_fsync_range(nf->nf_file, offset, end, 0);
 		switch (err2) {
 		case 0:
+			nfsd_copy_boot_verifier(verf, net_generic(nf->nf_net,
+						nfsd_net_id));
 			break;
 		case -EINVAL:
 			err = nfserr_notsupp;
@@ -1093,7 +1147,10 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			nfsd_reset_boot_verifier(net_generic(nf->nf_net,
 						 nfsd_net_id));
 		}
-	}
+		up_write(&nf->nf_rwsem);
+	} else
+		nfsd_copy_boot_verifier(verf, net_generic(nf->nf_net,
+					nfsd_net_id));
 
 	nfsd_file_put(nf);
 out:
@@ -1117,7 +1174,7 @@ nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *resfhp,
 	if (!uid_eq(current_fsuid(), GLOBAL_ROOT_UID))
 		iap->ia_valid &= ~(ATTR_UID|ATTR_GID);
 	if (iap->ia_valid)
-		return nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+		return nfsd_setattr(rqstp, resfhp, iap, 0, (time64_t)0);
 	/* Callers expect file metadata to be committed here */
 	return nfserrno(commit_metadata(resfhp));
 }
@@ -1380,7 +1437,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			    && d_inode(dchild)->i_atime.tv_sec == v_atime
 			    && d_inode(dchild)->i_size  == 0 ) {
 				if (created)
-					*created = 1;
+					*created = true;
 				break;
 			}
 			/* fall through */
@@ -1389,7 +1446,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			    && d_inode(dchild)->i_atime.tv_sec == v_atime
 			    && d_inode(dchild)->i_size  == 0 ) {
 				if (created)
-					*created = 1;
+					*created = true;
 				goto set_attr;
 			}
 			/* fall through */
@@ -1406,7 +1463,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 	}
 	if (created)
-		*created = 1;
+		*created = true;
 
 	nfsd_check_ignore_resizing(iap);
 
@@ -1809,7 +1866,17 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 out_drop_write:
 	fh_drop_write(fhp);
 out_nfserr:
-	err = nfserrno(host_err);
+	if (host_err == -EBUSY) {
+		/* name is mounted-on. There is no perfect
+		 * error status.
+		 */
+		if (nfsd_v4client(rqstp))
+			err = nfserr_file_open;
+		else
+			err = nfserr_acces;
+	} else {
+		err = nfserrno(host_err);
+	}
 out:
 	return err;
 }

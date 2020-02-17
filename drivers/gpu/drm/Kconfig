@@ -54,6 +54,9 @@ config DRM_DEBUG_MM
 
 	  If in doubt, say "N".
 
+config DRM_EXPORT_FOR_TESTS
+	bool
+
 config DRM_DEBUG_SELFTEST
 	tristate "kselftests for DRM"
 	depends on DRM
@@ -61,6 +64,7 @@ config DRM_DEBUG_SELFTEST
 	select PRIME_NUMBERS
 	select DRM_LIB_RANDOM
 	select DRM_KMS_HELPER
+	select DRM_EXPORT_FOR_TESTS if m
 	default n
 	help
 	  This option provides kernel modules that can be used to run
@@ -92,6 +96,21 @@ config DRM_KMS_FB_HELPER
 	select FB_DEFERRED_IO
 	help
 	  FBDEV helpers for KMS drivers.
+
+config DRM_DEBUG_DP_MST_TOPOLOGY_REFS
+        bool "Enable refcount backtrace history in the DP MST helpers"
+	depends on STACKTRACE_SUPPORT
+        select STACKDEPOT
+        depends on DRM_KMS_HELPER
+        depends on DEBUG_KERNEL
+        depends on EXPERT
+        help
+          Enables debug tracing for topology refs in DRM's DP MST helpers. A
+          history of each topology reference/dereference will be printed to the
+          kernel log once a port or branch device's topology refcount reaches 0.
+
+          This has the potential to use a lot of memory and print some very
+          large kernel messages. If in doubt, say "N".
 
 config DRM_FBDEV_EMULATION
 	bool "Enable legacy fbdev support for your modesetting driver"
@@ -149,6 +168,7 @@ config DRM_LOAD_EDID_FIRMWARE
 
 config DRM_DP_CEC
 	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
+	depends on DRM
 	select CEC_CORE
 	help
 	  Choose this option if you want to enable HDMI CEC support for
@@ -165,12 +185,25 @@ config DRM_TTM
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
 
+config DRM_TTM_DMA_PAGE_POOL
+	bool
+	depends on DRM_TTM && (SWIOTLB || INTEL_IOMMU)
+	default y
+	help
+	  Choose this if you need the TTM dma page pool
+
 config DRM_VRAM_HELPER
+	tristate
+	depends on DRM
+	help
+	  Helpers for VRAM memory management
+
+config DRM_TTM_HELPER
 	tristate
 	depends on DRM
 	select DRM_TTM
 	help
-	  Helpers for VRAM memory management
+	  Helpers for ttm-based gem objects
 
 config DRM_GEM_CMA_HELPER
 	bool
@@ -226,9 +259,9 @@ config DRM_AMDGPU
 	tristate "AMD GPU"
 	depends on DRM && PCI && MMU
 	select FW_LOADER
-        select DRM_KMS_HELPER
+	select DRM_KMS_HELPER
 	select DRM_SCHED
-        select DRM_TTM
+	select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
@@ -257,6 +290,7 @@ config DRM_VKMS
 	tristate "Virtual KMS (EXPERIMENTAL)"
 	depends on DRM
 	select DRM_KMS_HELPER
+	select CRC32
 	default n
 	help
 	  Virtual Kernel Mode-Setting (VKMS) is used for testing or for
@@ -264,9 +298,6 @@ config DRM_VKMS
 	  a VKMS.
 
 	  If M is selected the module will be called vkms.
-
-config DRM_ATI_PCIGART
-        bool
 
 source "drivers/gpu/drm/exynos/Kconfig"
 
@@ -364,7 +395,6 @@ menuconfig DRM_LEGACY
 	bool "Enable legacy drivers (DANGEROUS)"
 	depends on DRM && MMU
 	select DRM_VM
-	select DRM_ATI_PCIGART if PCI
 	help
 	  Enable legacy DRI1 drivers. Those drivers expose unsafe and dangerous
 	  APIs to user-space, which can be used to circumvent access
@@ -397,7 +427,7 @@ config DRM_R128
 
 config DRM_I810
 	tristate "Intel I810"
-	# !PREEMPT because of missing ioctl locking
+	# !PREEMPTION because of missing ioctl locking
 	depends on DRM && AGP && AGP_INTEL && (!PREEMPTION || BROKEN)
 	help
 	  Choose this option if you have an Intel I810 graphics card.  If M is

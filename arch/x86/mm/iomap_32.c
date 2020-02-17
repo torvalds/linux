@@ -4,7 +4,7 @@
  */
 
 #include <asm/iomap.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <linux/export.h>
 #include <linux/highmem.h>
 
@@ -26,7 +26,7 @@ int iomap_create_wc(resource_size_t base, unsigned long size, pgprot_t *prot)
 	if (!is_io_mapping_possible(base, size))
 		return -EINVAL;
 
-	ret = io_reserve_memtype(base, base + size, &pcm);
+	ret = memtype_reserve_io(base, base + size, &pcm);
 	if (ret)
 		return ret;
 
@@ -40,7 +40,7 @@ EXPORT_SYMBOL_GPL(iomap_create_wc);
 
 void iomap_free(resource_size_t base, unsigned long size)
 {
-	io_free_memtype(base, base + size);
+	memtype_free_io(base, base + size);
 }
 EXPORT_SYMBOL_GPL(iomap_free);
 

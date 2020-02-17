@@ -17,6 +17,7 @@
 #include <sound/sof/xtensa.h>
 #include "../ops.h"
 #include "shim.h"
+#include "../sof-audio.h"
 
 /* BARs */
 #define BDW_DSP_BAR 0
@@ -37,6 +38,7 @@
 #define MBOX_SIZE       0x1000
 #define MBOX_DUMP_SIZE 0x30
 #define EXCEPT_OFFSET	0x800
+#define EXCEPT_MAX_HDR_SIZE	0x400
 
 /* DSP peripherals */
 #define DMAC0_OFFSET    0xFE000
@@ -228,6 +230,11 @@ static void bdw_get_registers(struct snd_sof_dev *sdev,
 	/* note: variable AR register array is not read */
 
 	/* then get panic info */
+	if (xoops->arch_hdr.totalsize > EXCEPT_MAX_HDR_SIZE) {
+		dev_err(sdev->dev, "invalid header size 0x%x. FW oops is bogus\n",
+			xoops->arch_hdr.totalsize);
+		return;
+	}
 	offset += xoops->arch_hdr.totalsize;
 	sof_mailbox_read(sdev, offset, panic_info, sizeof(*panic_info));
 
@@ -241,7 +248,7 @@ static void bdw_dump(struct snd_sof_dev *sdev, u32 flags)
 	struct sof_ipc_dsp_oops_xtensa xoops;
 	struct sof_ipc_panic_info panic_info;
 	u32 stack[BDW_STACK_DUMP_SIZE];
-	u32 status, panic;
+	u32 status, panic, imrx, imrd;
 
 	/* now try generic SOF status messages */
 	status = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCD);
@@ -250,6 +257,26 @@ static void bdw_dump(struct snd_sof_dev *sdev, u32 flags)
 			  BDW_STACK_DUMP_SIZE);
 	snd_sof_get_status(sdev, status, panic, &xoops, &panic_info, stack,
 			   BDW_STACK_DUMP_SIZE);
+
+	/* provide some context for firmware debug */
+	imrx = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IMRX);
+	imrd = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IMRD);
+	dev_err(sdev->dev,
+		"error: ipc host -> DSP: pending %s complete %s raw 0x%8.8x\n",
+		(panic & SHIM_IPCX_BUSY) ? "yes" : "no",
+		(panic & SHIM_IPCX_DONE) ? "yes" : "no", panic);
+	dev_err(sdev->dev,
+		"error: mask host: pending %s complete %s raw 0x%8.8x\n",
+		(imrx & SHIM_IMRX_BUSY) ? "yes" : "no",
+		(imrx & SHIM_IMRX_DONE) ? "yes" : "no", imrx);
+	dev_err(sdev->dev,
+		"error: ipc DSP -> host: pending %s complete %s raw 0x%8.8x\n",
+		(status & SHIM_IPCD_BUSY) ? "yes" : "no",
+		(status & SHIM_IPCD_DONE) ? "yes" : "no", status);
+	dev_err(sdev->dev,
+		"error: mask DSP: pending %s complete %s raw 0x%8.8x\n",
+		(imrd & SHIM_IMRD_BUSY) ? "yes" : "no",
+		(imrd & SHIM_IMRD_DONE) ? "yes" : "no", imrd);
 }
 
 /*
@@ -451,6 +478,7 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	/* TODO: add offsets */
 	sdev->mmio_bar = BDW_DSP_BAR;
 	sdev->mailbox_bar = BDW_DSP_BAR;
+	sdev->dsp_oops_offset = MBOX_OFFSET;
 
 	/* PCI base */
 	mmio = platform_get_resource(pdev, IORESOURCE_MEM,
@@ -509,6 +537,32 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	return ret;
 }
 
+static void bdw_machine_select(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *sof_pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = sof_pdata->desc;
+	struct snd_soc_acpi_mach *mach;
+
+	mach = snd_soc_acpi_find_machine(desc->machines);
+	if (!mach) {
+		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
+		return;
+	}
+
+	sof_pdata->tplg_filename = mach->sof_tplg_filename;
+	mach->mach_params.acpi_ipc_irq_index = desc->irqindex_host_ipc;
+	sof_pdata->machine = mach;
+}
+
+static void bdw_set_mach_params(const struct snd_soc_acpi_mach *mach,
+				struct device *dev)
+{
+	struct snd_soc_acpi_mach_params *mach_params;
+
+	mach_params = (struct snd_soc_acpi_mach_params *)&mach->mach_params;
+	mach_params->platform = dev_name(dev);
+}
+
 /* Broadwell DAIs */
 static struct snd_soc_dai_driver bdw_dai[] = {
 {
@@ -547,6 +601,12 @@ const struct snd_sof_dsp_ops sof_bdw_ops = {
 	.ipc_msg_data	= intel_ipc_msg_data,
 	.ipc_pcm_params	= intel_ipc_pcm_params,
 
+	/* machine driver */
+	.machine_select = bdw_machine_select,
+	.machine_register = sof_machine_register,
+	.machine_unregister = sof_machine_unregister,
+	.set_mach_params = bdw_set_mach_params,
+
 	/* debug */
 	.debug_map  = bdw_debugfs,
 	.debug_map_count    = ARRAY_SIZE(bdw_debugfs),
@@ -564,14 +624,25 @@ const struct snd_sof_dsp_ops sof_bdw_ops = {
 
 	/* DAI drivers */
 	.drv = bdw_dai,
-	.num_drv = ARRAY_SIZE(bdw_dai)
+	.num_drv = ARRAY_SIZE(bdw_dai),
+
+	/* ALSA HW info flags */
+	.hw_info =	SNDRV_PCM_INFO_MMAP |
+			SNDRV_PCM_INFO_MMAP_VALID |
+			SNDRV_PCM_INFO_INTERLEAVED |
+			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_BATCH,
+
+	.arch_ops = &sof_xtensa_arch_ops,
 };
-EXPORT_SYMBOL(sof_bdw_ops);
+EXPORT_SYMBOL_NS(sof_bdw_ops, SND_SOC_SOF_BROADWELL);
 
 const struct sof_intel_dsp_desc bdw_chip_info = {
 	.cores_num = 1,
 	.cores_mask = 1,
 };
-EXPORT_SYMBOL(bdw_chip_info);
+EXPORT_SYMBOL_NS(bdw_chip_info, SND_SOC_SOF_BROADWELL);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HIFI_EP_IPC);
+MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);

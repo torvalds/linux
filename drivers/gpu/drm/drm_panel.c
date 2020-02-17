@@ -21,11 +21,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/backlight.h>
 #include <linux/err.h>
 #include <linux/module.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 static DEFINE_MUTEX(panel_lock);
 static LIST_HEAD(panel_list);
@@ -44,13 +46,21 @@ static LIST_HEAD(panel_list);
 /**
  * drm_panel_init - initialize a panel
  * @panel: DRM panel
+ * @dev: parent device of the panel
+ * @funcs: panel operations
+ * @connector_type: the connector type (DRM_MODE_CONNECTOR_*) corresponding to
+ *	the panel interface
  *
- * Sets up internal fields of the panel so that it can subsequently be added
- * to the registry.
+ * Initialize the panel structure for subsequent registration with
+ * drm_panel_add().
  */
-void drm_panel_init(struct drm_panel *panel)
+void drm_panel_init(struct drm_panel *panel, struct device *dev,
+		    const struct drm_panel_funcs *funcs, int connector_type)
 {
 	INIT_LIST_HEAD(&panel->list);
+	panel->dev = dev;
+	panel->funcs = funcs;
+	panel->connector_type = connector_type;
 }
 EXPORT_SYMBOL(drm_panel_init);
 
@@ -104,12 +114,6 @@ EXPORT_SYMBOL(drm_panel_remove);
  */
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
 {
-	if (panel->connector)
-		return -EBUSY;
-
-	panel->connector = connector;
-	panel->drm = connector->dev;
-
 	return 0;
 }
 EXPORT_SYMBOL(drm_panel_attach);
@@ -126,8 +130,6 @@ EXPORT_SYMBOL(drm_panel_attach);
  */
 void drm_panel_detach(struct drm_panel *panel)
 {
-	panel->connector = NULL;
-	panel->drm = NULL;
 }
 EXPORT_SYMBOL(drm_panel_detach);
 
@@ -143,10 +145,13 @@ EXPORT_SYMBOL(drm_panel_detach);
  */
 int drm_panel_prepare(struct drm_panel *panel)
 {
-	if (panel && panel->funcs && panel->funcs->prepare)
+	if (!panel)
+		return -EINVAL;
+
+	if (panel->funcs && panel->funcs->prepare)
 		return panel->funcs->prepare(panel);
 
-	return panel ? -ENOSYS : -EINVAL;
+	return 0;
 }
 EXPORT_SYMBOL(drm_panel_prepare);
 
@@ -163,10 +168,13 @@ EXPORT_SYMBOL(drm_panel_prepare);
  */
 int drm_panel_unprepare(struct drm_panel *panel)
 {
-	if (panel && panel->funcs && panel->funcs->unprepare)
+	if (!panel)
+		return -EINVAL;
+
+	if (panel->funcs && panel->funcs->unprepare)
 		return panel->funcs->unprepare(panel);
 
-	return panel ? -ENOSYS : -EINVAL;
+	return 0;
 }
 EXPORT_SYMBOL(drm_panel_unprepare);
 
@@ -182,10 +190,23 @@ EXPORT_SYMBOL(drm_panel_unprepare);
  */
 int drm_panel_enable(struct drm_panel *panel)
 {
-	if (panel && panel->funcs && panel->funcs->enable)
-		return panel->funcs->enable(panel);
+	int ret;
 
-	return panel ? -ENOSYS : -EINVAL;
+	if (!panel)
+		return -EINVAL;
+
+	if (panel->funcs && panel->funcs->enable) {
+		ret = panel->funcs->enable(panel);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = backlight_enable(panel->backlight);
+	if (ret < 0)
+		DRM_DEV_INFO(panel->dev, "failed to enable backlight: %d\n",
+			     ret);
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_panel_enable);
 
@@ -201,16 +222,27 @@ EXPORT_SYMBOL(drm_panel_enable);
  */
 int drm_panel_disable(struct drm_panel *panel)
 {
-	if (panel && panel->funcs && panel->funcs->disable)
+	int ret;
+
+	if (!panel)
+		return -EINVAL;
+
+	ret = backlight_disable(panel->backlight);
+	if (ret < 0)
+		DRM_DEV_INFO(panel->dev, "failed to disable backlight: %d\n",
+			     ret);
+
+	if (panel->funcs && panel->funcs->disable)
 		return panel->funcs->disable(panel);
 
-	return panel ? -ENOSYS : -EINVAL;
+	return 0;
 }
 EXPORT_SYMBOL(drm_panel_disable);
 
 /**
  * drm_panel_get_modes - probe the available display modes of a panel
  * @panel: DRM panel
+ * @connector: DRM connector
  *
  * The modes probed from the panel are automatically added to the connector
  * that the panel is attached to.
@@ -218,12 +250,16 @@ EXPORT_SYMBOL(drm_panel_disable);
  * Return: The number of modes available from the panel on success or a
  * negative error code on failure.
  */
-int drm_panel_get_modes(struct drm_panel *panel)
+int drm_panel_get_modes(struct drm_panel *panel,
+			struct drm_connector *connector)
 {
-	if (panel && panel->funcs && panel->funcs->get_modes)
-		return panel->funcs->get_modes(panel);
+	if (!panel)
+		return -EINVAL;
 
-	return panel ? -ENOSYS : -EINVAL;
+	if (panel->funcs && panel->funcs->get_modes)
+		return panel->funcs->get_modes(panel, connector);
+
+	return -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(drm_panel_get_modes);
 
@@ -264,6 +300,45 @@ struct drm_panel *of_drm_find_panel(const struct device_node *np)
 	return ERR_PTR(-EPROBE_DEFER);
 }
 EXPORT_SYMBOL(of_drm_find_panel);
+#endif
+
+#if IS_REACHABLE(CONFIG_BACKLIGHT_CLASS_DEVICE)
+/**
+ * drm_panel_of_backlight - use backlight device node for backlight
+ * @panel: DRM panel
+ *
+ * Use this function to enable backlight handling if your panel
+ * uses device tree and has a backlight phandle.
+ *
+ * When the panel is enabled backlight will be enabled after a
+ * successful call to &drm_panel_funcs.enable()
+ *
+ * When the panel is disabled backlight will be disabled before the
+ * call to &drm_panel_funcs.disable().
+ *
+ * A typical implementation for a panel driver supporting device tree
+ * will call this function at probe time. Backlight will then be handled
+ * transparently without requiring any intervention from the driver.
+ * drm_panel_of_backlight() must be called after the call to drm_panel_init().
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int drm_panel_of_backlight(struct drm_panel *panel)
+{
+	struct backlight_device *backlight;
+
+	if (!panel || !panel->dev)
+		return -EINVAL;
+
+	backlight = devm_of_find_backlight(panel->dev);
+
+	if (IS_ERR(backlight))
+		return PTR_ERR(backlight);
+
+	panel->backlight = backlight;
+	return 0;
+}
+EXPORT_SYMBOL(drm_panel_of_backlight);
 #endif
 
 MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");

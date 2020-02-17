@@ -40,6 +40,7 @@ struct iio_dev;
  * @read_mask: Mask for the communications register having the read bit set.
  * @data_reg: Address of the data register, if 0 the default address of 0x3 will
  *   be used.
+ * @irq_flags: flags for the interrupt used by the triggered buffer
  */
 struct ad_sigma_delta_info {
 	int (*set_channel)(struct ad_sigma_delta *, unsigned int channel);
@@ -49,6 +50,7 @@ struct ad_sigma_delta_info {
 	unsigned int addr_shift;
 	unsigned int read_mask;
 	unsigned int data_reg;
+	unsigned long irq_flags;
 };
 
 /**
@@ -119,6 +121,8 @@ int ad_sd_reset(struct ad_sigma_delta *sigma_delta,
 
 int ad_sigma_delta_single_conversion(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, int *val);
+int ad_sd_calibrate(struct ad_sigma_delta *sigma_delta,
+	unsigned int mode, unsigned int channel);
 int ad_sd_calibrate_all(struct ad_sigma_delta *sigma_delta,
 	const struct ad_sd_calib_data *cd, unsigned int n);
 int ad_sd_init(struct ad_sigma_delta *sigma_delta, struct iio_dev *indio_dev,

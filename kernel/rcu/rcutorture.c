@@ -44,6 +44,7 @@
 #include <linux/sched/debug.h>
 #include <linux/sched/sysctl.h>
 #include <linux/oom.h>
+#include <linux/tick.h>
 
 #include "rcu.h"
 
@@ -1363,15 +1364,15 @@ rcu_torture_reader(void *arg)
 	set_user_nice(current, MAX_NICE);
 	if (irqreader && cur_ops->irq_capable)
 		timer_setup_on_stack(&t, rcu_torture_timer, 0);
-
+	tick_dep_set_task(current, TICK_DEP_BIT_RCU);
 	do {
 		if (irqreader && cur_ops->irq_capable) {
 			if (!timer_pending(&t))
 				mod_timer(&t, jiffies + 1);
 		}
-		if (!rcu_torture_one_read(&rand))
+		if (!rcu_torture_one_read(&rand) && !torture_must_stop())
 			schedule_timeout_interruptible(HZ);
-		if (time_after(jiffies, lastsleep)) {
+		if (time_after(jiffies, lastsleep) && !torture_must_stop()) {
 			schedule_timeout_interruptible(1);
 			lastsleep = jiffies + 10;
 		}
@@ -1383,6 +1384,7 @@ rcu_torture_reader(void *arg)
 		del_timer_sync(&t);
 		destroy_timer_on_stack(&t);
 	}
+	tick_dep_clear_task(current, TICK_DEP_BIT_RCU);
 	torture_kthread_stopping("rcu_torture_reader");
 	return 0;
 }
@@ -1442,15 +1444,18 @@ rcu_torture_stats_print(void)
 		n_rcu_torture_barrier_error);
 
 	pr_alert("%s%s ", torture_type, TORTURE_FLAG);
-	if (atomic_read(&n_rcu_torture_mberror) != 0 ||
-	    n_rcu_torture_barrier_error != 0 ||
-	    n_rcu_torture_boost_ktrerror != 0 ||
-	    n_rcu_torture_boost_rterror != 0 ||
-	    n_rcu_torture_boost_failure != 0 ||
+	if (atomic_read(&n_rcu_torture_mberror) ||
+	    n_rcu_torture_barrier_error || n_rcu_torture_boost_ktrerror ||
+	    n_rcu_torture_boost_rterror || n_rcu_torture_boost_failure ||
 	    i > 1) {
 		pr_cont("%s", "!!! ");
 		atomic_inc(&n_rcu_torture_error);
-		WARN_ON_ONCE(1);
+		WARN_ON_ONCE(atomic_read(&n_rcu_torture_mberror));
+		WARN_ON_ONCE(n_rcu_torture_barrier_error);  // rcu_barrier()
+		WARN_ON_ONCE(n_rcu_torture_boost_ktrerror); // no boost kthread
+		WARN_ON_ONCE(n_rcu_torture_boost_rterror); // can't set RT prio
+		WARN_ON_ONCE(n_rcu_torture_boost_failure); // RCU boost failed
+		WARN_ON_ONCE(i > 1); // Too-short grace period
 	}
 	pr_cont("Reader Pipe: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
@@ -1656,43 +1661,52 @@ static void rcu_torture_fwd_prog_cb(struct rcu_head *rhp)
 struct rcu_fwd_cb {
 	struct rcu_head rh;
 	struct rcu_fwd_cb *rfc_next;
+	struct rcu_fwd *rfc_rfp;
 	int rfc_gps;
 };
-static DEFINE_SPINLOCK(rcu_fwd_lock);
-static struct rcu_fwd_cb *rcu_fwd_cb_head;
-static struct rcu_fwd_cb **rcu_fwd_cb_tail = &rcu_fwd_cb_head;
-static long n_launders_cb;
-static unsigned long rcu_fwd_startat;
-static bool rcu_fwd_emergency_stop;
+
 #define MAX_FWD_CB_JIFFIES	(8 * HZ) /* Maximum CB test duration. */
 #define MIN_FWD_CB_LAUNDERS	3	/* This many CB invocations to count. */
 #define MIN_FWD_CBS_LAUNDERED	100	/* Number of counted CBs. */
 #define FWD_CBS_HIST_DIV	10	/* Histogram buckets/second. */
+#define N_LAUNDERS_HIST (2 * MAX_FWD_CB_JIFFIES / (HZ / FWD_CBS_HIST_DIV))
+
 struct rcu_launder_hist {
 	long n_launders;
 	unsigned long launder_gp_seq;
 };
-#define N_LAUNDERS_HIST (2 * MAX_FWD_CB_JIFFIES / (HZ / FWD_CBS_HIST_DIV))
-static struct rcu_launder_hist n_launders_hist[N_LAUNDERS_HIST];
-static unsigned long rcu_launder_gp_seq_start;
 
-static void rcu_torture_fwd_cb_hist(void)
+struct rcu_fwd {
+	spinlock_t rcu_fwd_lock;
+	struct rcu_fwd_cb *rcu_fwd_cb_head;
+	struct rcu_fwd_cb **rcu_fwd_cb_tail;
+	long n_launders_cb;
+	unsigned long rcu_fwd_startat;
+	struct rcu_launder_hist n_launders_hist[N_LAUNDERS_HIST];
+	unsigned long rcu_launder_gp_seq_start;
+};
+
+struct rcu_fwd *rcu_fwds;
+bool rcu_fwd_emergency_stop;
+
+static void rcu_torture_fwd_cb_hist(struct rcu_fwd *rfp)
 {
 	unsigned long gps;
 	unsigned long gps_old;
 	int i;
 	int j;
 
-	for (i = ARRAY_SIZE(n_launders_hist) - 1; i > 0; i--)
-		if (n_launders_hist[i].n_launders > 0)
+	for (i = ARRAY_SIZE(rfp->n_launders_hist) - 1; i > 0; i--)
+		if (rfp->n_launders_hist[i].n_launders > 0)
 			break;
 	pr_alert("%s: Callback-invocation histogram (duration %lu jiffies):",
-		 __func__, jiffies - rcu_fwd_startat);
-	gps_old = rcu_launder_gp_seq_start;
+		 __func__, jiffies - rfp->rcu_fwd_startat);
+	gps_old = rfp->rcu_launder_gp_seq_start;
 	for (j = 0; j <= i; j++) {
-		gps = n_launders_hist[j].launder_gp_seq;
+		gps = rfp->n_launders_hist[j].launder_gp_seq;
 		pr_cont(" %ds/%d: %ld:%ld",
-			j + 1, FWD_CBS_HIST_DIV, n_launders_hist[j].n_launders,
+			j + 1, FWD_CBS_HIST_DIV,
+			rfp->n_launders_hist[j].n_launders,
 			rcutorture_seq_diff(gps, gps_old));
 		gps_old = gps;
 	}
@@ -1706,65 +1720,72 @@ static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
 	int i;
 	struct rcu_fwd_cb *rfcp = container_of(rhp, struct rcu_fwd_cb, rh);
 	struct rcu_fwd_cb **rfcpp;
+	struct rcu_fwd *rfp = rfcp->rfc_rfp;
 
 	rfcp->rfc_next = NULL;
 	rfcp->rfc_gps++;
-	spin_lock_irqsave(&rcu_fwd_lock, flags);
-	rfcpp = rcu_fwd_cb_tail;
-	rcu_fwd_cb_tail = &rfcp->rfc_next;
+	spin_lock_irqsave(&rfp->rcu_fwd_lock, flags);
+	rfcpp = rfp->rcu_fwd_cb_tail;
+	rfp->rcu_fwd_cb_tail = &rfcp->rfc_next;
 	WRITE_ONCE(*rfcpp, rfcp);
-	WRITE_ONCE(n_launders_cb, n_launders_cb + 1);
-	i = ((jiffies - rcu_fwd_startat) / (HZ / FWD_CBS_HIST_DIV));
-	if (i >= ARRAY_SIZE(n_launders_hist))
-		i = ARRAY_SIZE(n_launders_hist) - 1;
-	n_launders_hist[i].n_launders++;
-	n_launders_hist[i].launder_gp_seq = cur_ops->get_gp_seq();
-	spin_unlock_irqrestore(&rcu_fwd_lock, flags);
+	WRITE_ONCE(rfp->n_launders_cb, rfp->n_launders_cb + 1);
+	i = ((jiffies - rfp->rcu_fwd_startat) / (HZ / FWD_CBS_HIST_DIV));
+	if (i >= ARRAY_SIZE(rfp->n_launders_hist))
+		i = ARRAY_SIZE(rfp->n_launders_hist) - 1;
+	rfp->n_launders_hist[i].n_launders++;
+	rfp->n_launders_hist[i].launder_gp_seq = cur_ops->get_gp_seq();
+	spin_unlock_irqrestore(&rfp->rcu_fwd_lock, flags);
 }
 
 // Give the scheduler a chance, even on nohz_full CPUs.
 static void rcu_torture_fwd_prog_cond_resched(unsigned long iter)
 {
-	if (IS_ENABLED(CONFIG_PREEMPT) && IS_ENABLED(CONFIG_NO_HZ_FULL)) {
+	if (IS_ENABLED(CONFIG_PREEMPTION) && IS_ENABLED(CONFIG_NO_HZ_FULL)) {
 		// Real call_rcu() floods hit userspace, so emulate that.
 		if (need_resched() || (iter & 0xfff))
 			schedule();
-	} else {
-		// No userspace emulation: CB invocation throttles call_rcu()
-		cond_resched();
+		return;
 	}
+	// No userspace emulation: CB invocation throttles call_rcu()
+	cond_resched();
 }
 
 /*
  * Free all callbacks on the rcu_fwd_cb_head list, either because the
  * test is over or because we hit an OOM event.
  */
-static unsigned long rcu_torture_fwd_prog_cbfree(void)
+static unsigned long rcu_torture_fwd_prog_cbfree(struct rcu_fwd *rfp)
 {
 	unsigned long flags;
 	unsigned long freed = 0;
 	struct rcu_fwd_cb *rfcp;
 
 	for (;;) {
-		spin_lock_irqsave(&rcu_fwd_lock, flags);
-		rfcp = rcu_fwd_cb_head;
+		spin_lock_irqsave(&rfp->rcu_fwd_lock, flags);
+		rfcp = rfp->rcu_fwd_cb_head;
 		if (!rfcp) {
-			spin_unlock_irqrestore(&rcu_fwd_lock, flags);
+			spin_unlock_irqrestore(&rfp->rcu_fwd_lock, flags);
 			break;
 		}
-		rcu_fwd_cb_head = rfcp->rfc_next;
-		if (!rcu_fwd_cb_head)
-			rcu_fwd_cb_tail = &rcu_fwd_cb_head;
-		spin_unlock_irqrestore(&rcu_fwd_lock, flags);
+		rfp->rcu_fwd_cb_head = rfcp->rfc_next;
+		if (!rfp->rcu_fwd_cb_head)
+			rfp->rcu_fwd_cb_tail = &rfp->rcu_fwd_cb_head;
+		spin_unlock_irqrestore(&rfp->rcu_fwd_lock, flags);
 		kfree(rfcp);
 		freed++;
 		rcu_torture_fwd_prog_cond_resched(freed);
+		if (tick_nohz_full_enabled()) {
+			local_irq_save(flags);
+			rcu_momentary_dyntick_idle();
+			local_irq_restore(flags);
+		}
 	}
 	return freed;
 }
 
 /* Carry out need_resched()/cond_resched() forward-progress testing. */
-static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
+static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
+				    int *tested, int *tested_tries)
 {
 	unsigned long cver;
 	unsigned long dur;
@@ -1794,8 +1815,8 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 	sd = cur_ops->stall_dur() + 1;
 	sd4 = (sd + fwd_progress_div - 1) / fwd_progress_div;
 	dur = sd4 + torture_random(&trs) % (sd - sd4);
-	WRITE_ONCE(rcu_fwd_startat, jiffies);
-	stopat = rcu_fwd_startat + dur;
+	WRITE_ONCE(rfp->rcu_fwd_startat, jiffies);
+	stopat = rfp->rcu_fwd_startat + dur;
 	while (time_before(jiffies, stopat) &&
 	       !shutdown_time_arrived() &&
 	       !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
@@ -1803,7 +1824,7 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 		udelay(10);
 		cur_ops->readunlock(idx);
 		if (!fwd_progress_need_resched || need_resched())
-			rcu_torture_fwd_prog_cond_resched(1);
+			cond_resched();
 	}
 	(*tested_tries)++;
 	if (!time_before(jiffies, stopat) &&
@@ -1830,9 +1851,10 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 }
 
 /* Carry out call_rcu() forward-progress testing. */
-static void rcu_torture_fwd_prog_cr(void)
+static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 {
 	unsigned long cver;
+	unsigned long flags;
 	unsigned long gps;
 	int i;
 	long n_launders;
@@ -1853,22 +1875,23 @@ static void rcu_torture_fwd_prog_cr(void)
 	/* Loop continuously posting RCU callbacks. */
 	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
 	cur_ops->sync(); /* Later readers see above write. */
-	WRITE_ONCE(rcu_fwd_startat, jiffies);
-	stopat = rcu_fwd_startat + MAX_FWD_CB_JIFFIES;
+	WRITE_ONCE(rfp->rcu_fwd_startat, jiffies);
+	stopat = rfp->rcu_fwd_startat + MAX_FWD_CB_JIFFIES;
 	n_launders = 0;
-	n_launders_cb = 0;
+	rfp->n_launders_cb = 0; // Hoist initialization for multi-kthread
 	n_launders_sa = 0;
 	n_max_cbs = 0;
 	n_max_gps = 0;
-	for (i = 0; i < ARRAY_SIZE(n_launders_hist); i++)
-		n_launders_hist[i].n_launders = 0;
+	for (i = 0; i < ARRAY_SIZE(rfp->n_launders_hist); i++)
+		rfp->n_launders_hist[i].n_launders = 0;
 	cver = READ_ONCE(rcu_torture_current_version);
 	gps = cur_ops->get_gp_seq();
-	rcu_launder_gp_seq_start = gps;
+	rfp->rcu_launder_gp_seq_start = gps;
+	tick_dep_set_task(current, TICK_DEP_BIT_RCU);
 	while (time_before(jiffies, stopat) &&
 	       !shutdown_time_arrived() &&
 	       !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
-		rfcp = READ_ONCE(rcu_fwd_cb_head);
+		rfcp = READ_ONCE(rfp->rcu_fwd_cb_head);
 		rfcpn = NULL;
 		if (rfcp)
 			rfcpn = READ_ONCE(rfcp->rfc_next);
@@ -1876,7 +1899,7 @@ static void rcu_torture_fwd_prog_cr(void)
 			if (rfcp->rfc_gps >= MIN_FWD_CB_LAUNDERS &&
 			    ++n_max_gps >= MIN_FWD_CBS_LAUNDERED)
 				break;
-			rcu_fwd_cb_head = rfcpn;
+			rfp->rcu_fwd_cb_head = rfcpn;
 			n_launders++;
 			n_launders_sa++;
 		} else {
@@ -1888,29 +1911,36 @@ static void rcu_torture_fwd_prog_cr(void)
 			n_max_cbs++;
 			n_launders_sa = 0;
 			rfcp->rfc_gps = 0;
+			rfcp->rfc_rfp = rfp;
 		}
 		cur_ops->call(&rfcp->rh, rcu_torture_fwd_cb_cr);
 		rcu_torture_fwd_prog_cond_resched(n_launders + n_max_cbs);
+		if (tick_nohz_full_enabled()) {
+			local_irq_save(flags);
+			rcu_momentary_dyntick_idle();
+			local_irq_restore(flags);
+		}
 	}
 	stoppedat = jiffies;
-	n_launders_cb_snap = READ_ONCE(n_launders_cb);
+	n_launders_cb_snap = READ_ONCE(rfp->n_launders_cb);
 	cver = READ_ONCE(rcu_torture_current_version) - cver;
 	gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
 	cur_ops->cb_barrier(); /* Wait for callbacks to be invoked. */
-	(void)rcu_torture_fwd_prog_cbfree();
+	(void)rcu_torture_fwd_prog_cbfree(rfp);
 
 	if (!torture_must_stop() && !READ_ONCE(rcu_fwd_emergency_stop) &&
 	    !shutdown_time_arrived()) {
 		WARN_ON(n_max_gps < MIN_FWD_CBS_LAUNDERED);
 		pr_alert("%s Duration %lu barrier: %lu pending %ld n_launders: %ld n_launders_sa: %ld n_max_gps: %ld n_max_cbs: %ld cver %ld gps %ld\n",
 			 __func__,
-			 stoppedat - rcu_fwd_startat, jiffies - stoppedat,
+			 stoppedat - rfp->rcu_fwd_startat, jiffies - stoppedat,
 			 n_launders + n_max_cbs - n_launders_cb_snap,
 			 n_launders, n_launders_sa,
 			 n_max_gps, n_max_cbs, cver, gps);
-		rcu_torture_fwd_cb_hist();
+		rcu_torture_fwd_cb_hist(rfp);
 	}
 	schedule_timeout_uninterruptible(HZ); /* Let CBs drain. */
+	tick_dep_clear_task(current, TICK_DEP_BIT_RCU);
 	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
 }
 
@@ -1922,20 +1952,22 @@ static void rcu_torture_fwd_prog_cr(void)
 static int rcutorture_oom_notify(struct notifier_block *self,
 				 unsigned long notused, void *nfreed)
 {
+	struct rcu_fwd *rfp = rcu_fwds;
+
 	WARN(1, "%s invoked upon OOM during forward-progress testing.\n",
 	     __func__);
-	rcu_torture_fwd_cb_hist();
-	rcu_fwd_progress_check(1 + (jiffies - READ_ONCE(rcu_fwd_startat)) / 2);
+	rcu_torture_fwd_cb_hist(rfp);
+	rcu_fwd_progress_check(1 + (jiffies - READ_ONCE(rfp->rcu_fwd_startat)) / 2);
 	WRITE_ONCE(rcu_fwd_emergency_stop, true);
 	smp_mb(); /* Emergency stop before free and wait to avoid hangs. */
 	pr_info("%s: Freed %lu RCU callbacks.\n",
-		__func__, rcu_torture_fwd_prog_cbfree());
+		__func__, rcu_torture_fwd_prog_cbfree(rfp));
 	rcu_barrier();
 	pr_info("%s: Freed %lu RCU callbacks.\n",
-		__func__, rcu_torture_fwd_prog_cbfree());
+		__func__, rcu_torture_fwd_prog_cbfree(rfp));
 	rcu_barrier();
 	pr_info("%s: Freed %lu RCU callbacks.\n",
-		__func__, rcu_torture_fwd_prog_cbfree());
+		__func__, rcu_torture_fwd_prog_cbfree(rfp));
 	smp_mb(); /* Frees before return to avoid redoing OOM. */
 	(*(unsigned long *)nfreed)++; /* Forward progress CBs freed! */
 	pr_info("%s returning after OOM processing.\n", __func__);
@@ -1949,6 +1981,7 @@ static struct notifier_block rcutorture_oom_nb = {
 /* Carry out grace-period forward-progress testing. */
 static int rcu_torture_fwd_prog(void *args)
 {
+	struct rcu_fwd *rfp = args;
 	int tested = 0;
 	int tested_tries = 0;
 
@@ -1960,8 +1993,8 @@ static int rcu_torture_fwd_prog(void *args)
 		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
 		WRITE_ONCE(rcu_fwd_emergency_stop, false);
 		register_oom_notifier(&rcutorture_oom_nb);
-		rcu_torture_fwd_prog_nr(&tested, &tested_tries);
-		rcu_torture_fwd_prog_cr();
+		rcu_torture_fwd_prog_nr(rfp, &tested, &tested_tries);
+		rcu_torture_fwd_prog_cr(rfp);
 		unregister_oom_notifier(&rcutorture_oom_nb);
 
 		/* Avoid slow periods, better to test when busy. */
@@ -1977,6 +2010,8 @@ static int rcu_torture_fwd_prog(void *args)
 /* If forward-progress checking is requested and feasible, spawn the thread. */
 static int __init rcu_torture_fwd_prog_init(void)
 {
+	struct rcu_fwd *rfp;
+
 	if (!fwd_progress)
 		return 0; /* Not requested, so don't do it. */
 	if (!cur_ops->stall_dur || cur_ops->stall_dur() <= 0 ||
@@ -1995,8 +2030,12 @@ static int __init rcu_torture_fwd_prog_init(void)
 		fwd_progress_holdoff = 1;
 	if (fwd_progress_div <= 0)
 		fwd_progress_div = 4;
-	return torture_create_kthread(rcu_torture_fwd_prog,
-				      NULL, fwd_prog_task);
+	rfp = kzalloc(sizeof(*rfp), GFP_KERNEL);
+	if (!rfp)
+		return -ENOMEM;
+	spin_lock_init(&rfp->rcu_fwd_lock);
+	rfp->rcu_fwd_cb_tail = &rfp->rcu_fwd_cb_head;
+	return torture_create_kthread(rcu_torture_fwd_prog, rfp, fwd_prog_task);
 }
 
 /* Callback function for RCU barrier testing. */

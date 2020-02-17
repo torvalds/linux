@@ -7,7 +7,7 @@
 
 #include "opl3_voice.h"
 
-static char snd_opl3_drum_table[47] =
+static const char snd_opl3_drum_table[47] =
 {
 	OPL3_BASSDRUM_ON,  OPL3_BASSDRUM_ON,  OPL3_HIHAT_ON,	/* 35 - 37 */
 	OPL3_SNAREDRUM_ON, OPL3_HIHAT_ON,     OPL3_SNAREDRUM_ON, /* 38 - 40 */
@@ -47,25 +47,25 @@ struct snd_opl3_drum_note {
 	unsigned char feedback_connection;
 };
 
-static struct snd_opl3_drum_voice bass_op0 = {6, 0, 0x00, 0x32, 0xf8, 0x66, 0x30, 0x00};
-static struct snd_opl3_drum_voice bass_op1 = {6, 1, 0x00, 0x03, 0xf6, 0x57, 0x30, 0x00};
-static struct snd_opl3_drum_note bass_note = {6, 0x90, 0x09};
+static const struct snd_opl3_drum_voice bass_op0 = {6, 0, 0x00, 0x32, 0xf8, 0x66, 0x30, 0x00};
+static const struct snd_opl3_drum_voice bass_op1 = {6, 1, 0x00, 0x03, 0xf6, 0x57, 0x30, 0x00};
+static const struct snd_opl3_drum_note bass_note = {6, 0x90, 0x09};
 
-static struct snd_opl3_drum_voice hihat = {7, 0, 0x00, 0x03, 0xf0, 0x06, 0x20, 0x00};
+static const struct snd_opl3_drum_voice hihat = {7, 0, 0x00, 0x03, 0xf0, 0x06, 0x20, 0x00};
 
-static struct snd_opl3_drum_voice snare = {7, 1, 0x00, 0x03, 0xf0, 0x07, 0x20, 0x02};
-static struct snd_opl3_drum_note snare_note = {7, 0xf4, 0x0d};
+static const struct snd_opl3_drum_voice snare = {7, 1, 0x00, 0x03, 0xf0, 0x07, 0x20, 0x02};
+static const struct snd_opl3_drum_note snare_note = {7, 0xf4, 0x0d};
 
-static struct snd_opl3_drum_voice tomtom = {8, 0, 0x02, 0x03, 0xf0, 0x06, 0x10, 0x00};
-static struct snd_opl3_drum_note tomtom_note = {8, 0xf4, 0x09};
+static const struct snd_opl3_drum_voice tomtom = {8, 0, 0x02, 0x03, 0xf0, 0x06, 0x10, 0x00};
+static const struct snd_opl3_drum_note tomtom_note = {8, 0xf4, 0x09};
 
-static struct snd_opl3_drum_voice cymbal = {8, 1, 0x04, 0x03, 0xf0, 0x06, 0x10, 0x00};
+static const struct snd_opl3_drum_voice cymbal = {8, 1, 0x04, 0x03, 0xf0, 0x06, 0x10, 0x00};
 
 /*
  * set drum voice characteristics
  */
 static void snd_opl3_drum_voice_set(struct snd_opl3 *opl3,
-				    struct snd_opl3_drum_voice *data)
+				    const struct snd_opl3_drum_voice *data)
 {
 	unsigned char op_offset = snd_opl3_regmap[data->voice][data->op];
 	unsigned char voice_offset = data->voice;
@@ -100,7 +100,7 @@ static void snd_opl3_drum_voice_set(struct snd_opl3 *opl3,
  * Set drum voice pitch
  */
 static void snd_opl3_drum_note_set(struct snd_opl3 *opl3,
-				   struct snd_opl3_drum_note *data)
+				   const struct snd_opl3_drum_note *data)
 {
 	unsigned char voice_offset = data->voice;
 	unsigned short opl3_reg;
@@ -118,7 +118,7 @@ static void snd_opl3_drum_note_set(struct snd_opl3 *opl3,
  * Set drum voice volume and position
  */
 static void snd_opl3_drum_vol_set(struct snd_opl3 *opl3,
-				  struct snd_opl3_drum_voice *data,
+				  const struct snd_opl3_drum_voice *data,
 				  int vel, struct snd_midi_channel *chan)
 {
 	unsigned char op_offset = snd_opl3_regmap[data->voice][data->op];
@@ -170,7 +170,7 @@ void snd_opl3_drum_switch(struct snd_opl3 *opl3, int note, int vel, int on_off,
 			  struct snd_midi_channel *chan)
 {
 	unsigned char drum_mask;
-	struct snd_opl3_drum_voice *drum_voice;
+	const struct snd_opl3_drum_voice *drum_voice;
 
 	if (!(opl3->drum_reg & OPL3_PERCUSSION_ENABLE))
 		return;

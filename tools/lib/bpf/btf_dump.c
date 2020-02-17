@@ -18,6 +18,9 @@
 #include "libbpf.h"
 #include "libbpf_internal.h"
 
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
 static const char PREFIXES[] = "\t\t\t\t\t\t\t\t\t\t\t\t\t";
 static const size_t PREFIX_CNT = sizeof(PREFIXES) - 1;
 
@@ -116,6 +119,8 @@ static void btf_dump_printf(const struct btf_dump *d, const char *fmt, ...)
 	va_end(args);
 }
 
+static int btf_dump_mark_referenced(struct btf_dump *d);
+
 struct btf_dump *btf_dump__new(const struct btf *btf,
 			       const struct btf_ext *btf_ext,
 			       const struct btf_dump_opts *opts,
@@ -137,18 +142,40 @@ struct btf_dump *btf_dump__new(const struct btf *btf,
 	if (IS_ERR(d->type_names)) {
 		err = PTR_ERR(d->type_names);
 		d->type_names = NULL;
-		btf_dump__free(d);
-		return ERR_PTR(err);
+		goto err;
 	}
 	d->ident_names = hashmap__new(str_hash_fn, str_equal_fn, NULL);
 	if (IS_ERR(d->ident_names)) {
 		err = PTR_ERR(d->ident_names);
 		d->ident_names = NULL;
-		btf_dump__free(d);
-		return ERR_PTR(err);
+		goto err;
+	}
+	d->type_states = calloc(1 + btf__get_nr_types(d->btf),
+				sizeof(d->type_states[0]));
+	if (!d->type_states) {
+		err = -ENOMEM;
+		goto err;
+	}
+	d->cached_names = calloc(1 + btf__get_nr_types(d->btf),
+				 sizeof(d->cached_names[0]));
+	if (!d->cached_names) {
+		err = -ENOMEM;
+		goto err;
 	}
 
+	/* VOID is special */
+	d->type_states[0].order_state = ORDERED;
+	d->type_states[0].emit_state = EMITTED;
+
+	/* eagerly determine referenced types for anon enums */
+	err = btf_dump_mark_referenced(d);
+	if (err)
+		goto err;
+
 	return d;
+err:
+	btf_dump__free(d);
+	return ERR_PTR(err);
 }
 
 void btf_dump__free(struct btf_dump *d)
@@ -175,7 +202,6 @@ void btf_dump__free(struct btf_dump *d)
 	free(d);
 }
 
-static int btf_dump_mark_referenced(struct btf_dump *d);
 static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr);
 static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id);
 
@@ -201,27 +227,6 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
 
 	if (id > btf__get_nr_types(d->btf))
 		return -EINVAL;
-
-	/* type states are lazily allocated, as they might not be needed */
-	if (!d->type_states) {
-		d->type_states = calloc(1 + btf__get_nr_types(d->btf),
-					sizeof(d->type_states[0]));
-		if (!d->type_states)
-			return -ENOMEM;
-		d->cached_names = calloc(1 + btf__get_nr_types(d->btf),
-					 sizeof(d->cached_names[0]));
-		if (!d->cached_names)
-			return -ENOMEM;
-
-		/* VOID is special */
-		d->type_states[0].order_state = ORDERED;
-		d->type_states[0].emit_state = EMITTED;
-
-		/* eagerly determine referenced types for anon enums */
-		err = btf_dump_mark_referenced(d);
-		if (err)
-			return err;
-	}
 
 	d->emit_queue_cnt = 0;
 	err = btf_dump_order_type(d, id, false);
@@ -428,7 +433,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 		/* type loop, but resolvable through fwd declaration */
 		if (btf_is_composite(t) && through_ptr && t->name_off != 0)
 			return 0;
-		pr_warning("unsatisfiable type cycle, id:[%u]\n", id);
+		pr_warn("unsatisfiable type cycle, id:[%u]\n", id);
 		return -ELOOP;
 	}
 
@@ -636,8 +641,8 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 			if (id == cont_id)
 				return;
 			if (t->name_off == 0) {
-				pr_warning("anonymous struct/union loop, id:[%u]\n",
-					   id);
+				pr_warn("anonymous struct/union loop, id:[%u]\n",
+					id);
 				return;
 			}
 			btf_dump_emit_struct_fwd(d, id, t);
@@ -752,41 +757,6 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 	}
 }
 
-static int btf_align_of(const struct btf *btf, __u32 id)
-{
-	const struct btf_type *t = btf__type_by_id(btf, id);
-	__u16 kind = btf_kind(t);
-
-	switch (kind) {
-	case BTF_KIND_INT:
-	case BTF_KIND_ENUM:
-		return min(sizeof(void *), t->size);
-	case BTF_KIND_PTR:
-		return sizeof(void *);
-	case BTF_KIND_TYPEDEF:
-	case BTF_KIND_VOLATILE:
-	case BTF_KIND_CONST:
-	case BTF_KIND_RESTRICT:
-		return btf_align_of(btf, t->type);
-	case BTF_KIND_ARRAY:
-		return btf_align_of(btf, btf_array(t)->type);
-	case BTF_KIND_STRUCT:
-	case BTF_KIND_UNION: {
-		const struct btf_member *m = btf_members(t);
-		__u16 vlen = btf_vlen(t);
-		int i, align = 1;
-
-		for (i = 0; i < vlen; i++, m++)
-			align = max(align, btf_align_of(btf, m->type));
-
-		return align;
-	}
-	default:
-		pr_warning("unsupported BTF_KIND:%u\n", btf_kind(t));
-		return 1;
-	}
-}
-
 static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 				 const struct btf_type *t)
 {
@@ -794,18 +764,18 @@ static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 	int align, i, bit_sz;
 	__u16 vlen;
 
-	align = btf_align_of(btf, id);
+	align = btf__align_of(btf, id);
 	/* size of a non-packed struct has to be a multiple of its alignment*/
-	if (t->size % align)
+	if (align && t->size % align)
 		return true;
 
 	m = btf_members(t);
 	vlen = btf_vlen(t);
 	/* all non-bitfield fields have to be naturally aligned */
 	for (i = 0; i < vlen; i++, m++) {
-		align = btf_align_of(btf, m->type);
+		align = btf__align_of(btf, m->type);
 		bit_sz = btf_member_bitfield_size(t, i);
-		if (bit_sz == 0 && m->offset % (8 * align) != 0)
+		if (align && bit_sz == 0 && m->offset % (8 * align) != 0)
 			return true;
 	}
 
@@ -876,7 +846,6 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 	__u16 vlen = btf_vlen(t);
 
 	packed = is_struct ? btf_is_struct_packed(d->btf, id, t) : 0;
-	align = packed ? 1 : btf_align_of(d->btf, id);
 
 	btf_dump_printf(d, "%s%s%s {",
 			is_struct ? "struct" : "union",
@@ -890,7 +859,7 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 		fname = btf_name_of(d, m->name_off);
 		m_sz = btf_member_bitfield_size(t, i);
 		m_off = btf_member_bit_offset(t, i);
-		align = packed ? 1 : btf_align_of(d->btf, m->type);
+		align = packed ? 1 : btf__align_of(d->btf, m->type);
 
 		btf_dump_emit_bit_padding(d, off, m_off, m_sz, align, lvl + 1);
 		btf_dump_printf(d, "\n%s", pfx(lvl + 1));
@@ -904,6 +873,13 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 			off = m_off + m_sz * 8;
 		}
 		btf_dump_printf(d, ";");
+	}
+
+	/* pad at the end, if necessary */
+	if (is_struct) {
+		align = packed ? 1 : btf__align_of(d->btf, id);
+		btf_dump_emit_bit_padding(d, off, t->size * 8, 0, align,
+					  lvl + 1);
 	}
 
 	if (vlen)
@@ -968,6 +944,17 @@ static void btf_dump_emit_typedef_def(struct btf_dump *d, __u32 id,
 				     const struct btf_type *t, int lvl)
 {
 	const char *name = btf_dump_ident_name(d, id);
+
+	/*
+	 * Old GCC versions are emitting invalid typedef for __gnuc_va_list
+	 * pointing to VOID. This generates warnings from btf_dump() and
+	 * results in uncompilable header file, so we are fixing it up here
+	 * with valid typedef into __builtin_va_list.
+	 */
+	if (t->type == 0 && strcmp(name, "__gnuc_va_list") == 0) {
+		btf_dump_printf(d, "typedef __builtin_va_list __gnuc_va_list");
+		return;
+	}
 
 	btf_dump_printf(d, "typedef ");
 	btf_dump_emit_type_decl(d, t->type, name, lvl);
@@ -1034,6 +1021,21 @@ static int btf_dump_push_decl_stack_id(struct btf_dump *d, __u32 id)
  * of a stack frame. Some care is required to "pop" stack frames after
  * processing type declaration chain.
  */
+int btf_dump__emit_type_decl(struct btf_dump *d, __u32 id,
+			     const struct btf_dump_emit_type_decl_opts *opts)
+{
+	const char *fname;
+	int lvl;
+
+	if (!OPTS_VALID(opts, btf_dump_emit_type_decl_opts))
+		return -EINVAL;
+
+	fname = OPTS_GET(opts, field_name, NULL);
+	lvl = OPTS_GET(opts, indent_level, 0);
+	btf_dump_emit_type_decl(d, id, fname, lvl);
+	return 0;
+}
+
 static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 				    const char *fname, int lvl)
 {
@@ -1050,7 +1052,7 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 			 * chain, restore stack, emit warning, and try to
 			 * proceed nevertheless
 			 */
-			pr_warning("not enough memory for decl stack:%d", err);
+			pr_warn("not enough memory for decl stack:%d", err);
 			d->decl_stack_cnt = stack_start;
 			return;
 		}
@@ -1079,8 +1081,8 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 		case BTF_KIND_TYPEDEF:
 			goto done;
 		default:
-			pr_warning("unexpected type in decl chain, kind:%u, id:[%u]\n",
-				   btf_kind(t), id);
+			pr_warn("unexpected type in decl chain, kind:%u, id:[%u]\n",
+				btf_kind(t), id);
 			goto done;
 		}
 	}
@@ -1306,8 +1308,8 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			return;
 		}
 		default:
-			pr_warning("unexpected type in decl chain, kind:%u, id:[%u]\n",
-				   kind, id);
+			pr_warn("unexpected type in decl chain, kind:%u, id:[%u]\n",
+				kind, id);
 			return;
 		}
 

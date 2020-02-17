@@ -1,5 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* List each unit test as selftest(name, function)
+
+#ifndef selftest
+#define selftest(x, y)
+#endif
+
+/*
+ * List each unit test as selftest(name, function)
  *
  * The name is used as both an enum and expanded as subtest__name to create
  * a module parameter. It must be unique and legal for a C identifier.
@@ -15,6 +21,10 @@ selftest(workarounds, intel_workarounds_live_selftests)
 selftest(gt_engines, intel_engine_live_selftests)
 selftest(gt_timelines, intel_timeline_live_selftests)
 selftest(gt_contexts, intel_context_live_selftests)
+selftest(gt_lrc, intel_lrc_live_selftests)
+selftest(gt_mocs, intel_mocs_live_selftests)
+selftest(gt_pm, intel_gt_pm_live_selftests)
+selftest(gt_heartbeat, intel_heartbeat_live_selftests)
 selftest(requests, i915_request_live_selftests)
 selftest(active, i915_active_live_selftests)
 selftest(objects, i915_gem_object_live_selftests)
@@ -30,6 +40,9 @@ selftest(gem_contexts, i915_gem_context_live_selftests)
 selftest(blt, i915_gem_object_blt_live_selftests)
 selftest(client, i915_gem_client_blt_live_selftests)
 selftest(reset, intel_reset_live_selftests)
+selftest(memory_region, intel_memory_region_live_selftests)
 selftest(hangcheck, intel_hangcheck_live_selftests)
 selftest(execlists, intel_execlists_live_selftests)
-selftest(guc, intel_guc_live_selftest)
+selftest(perf, i915_perf_live_selftests)
+/* Here be dragons: keep last to run last! */
+selftest(late_gt_pm, intel_gt_pm_late_selftests)

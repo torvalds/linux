@@ -148,7 +148,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  *
  * Bits 3:0:
  * Define the maximum number of pending read requests.
- * Maximum configration value allowed is 0xC
+ * Maximum configuration value allowed is 0xC
  * Bits 9:8:
  * Define the maximum transfer size. (64 / 128 / 256)
  * Bit 10:
@@ -611,10 +611,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  */
 #define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
 
-#define MQ_RX_TABLE_SIZE	512
-#define MQ_RX_TABLE_MASK	(MQ_RX_TABLE_SIZE - 1)
-#define MQ_RX_NUM_RBDS		(MQ_RX_TABLE_SIZE - 1)
-#define RX_POOL_SIZE		(MQ_RX_NUM_RBDS +	\
+#define RX_POOL_SIZE(rbds)	((rbds) - 1 +	\
 				 IWL_MAX_RX_HW_QUEUES *	\
 				 (RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC))
 /* cb size is the exponent */
@@ -768,7 +765,7 @@ struct iwlagn_scd_bc_tbl {
 
 /**
  * struct iwl_gen3_bc_tbl scheduler byte count table gen3
- * For 22560 and on:
+ * For AX210 and on:
  * @tfd_offset: 0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved

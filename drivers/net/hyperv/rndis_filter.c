@@ -235,7 +235,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	trace_rndis_send(dev->ndev, 0, &req->request_msg);
 
 	rcu_read_lock_bh();
-	ret = netvsc_send(dev->ndev, packet, NULL, pb, NULL);
+	ret = netvsc_send(dev->ndev, packet, NULL, pb, NULL, false);
 	rcu_read_unlock_bh();
 
 	return ret;
@@ -358,6 +358,7 @@ static inline
 void rsc_add_data(struct netvsc_channel *nvchan,
 		  const struct ndis_pkt_8021q_info *vlan,
 		  const struct ndis_tcp_ip_checksum_info *csum_info,
+		  const u32 *hash_info,
 		  void *data, u32 len)
 {
 	u32 cnt = nvchan->rsc.cnt;
@@ -368,6 +369,7 @@ void rsc_add_data(struct netvsc_channel *nvchan,
 		nvchan->rsc.vlan = vlan;
 		nvchan->rsc.csum_info = csum_info;
 		nvchan->rsc.pktlen = len;
+		nvchan->rsc.hash_info = hash_info;
 	}
 
 	nvchan->rsc.data[cnt] = data;
@@ -385,6 +387,7 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	const struct ndis_tcp_ip_checksum_info *csum_info;
 	const struct ndis_pkt_8021q_info *vlan;
 	const struct rndis_pktinfo_id *pktinfo_id;
+	const u32 *hash_info;
 	u32 data_offset;
 	void *data;
 	bool rsc_more = false;
@@ -410,6 +413,8 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO, 0);
 
 	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO, 0);
+
+	hash_info = rndis_get_ppi(rndis_pkt, NBL_HASH_VALUE, 0);
 
 	pktinfo_id = rndis_get_ppi(rndis_pkt, RNDIS_PKTINFO_ID, 1);
 
@@ -441,7 +446,8 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	 * rndis_pkt->data_len tell us the real data length, we only copy
 	 * the data packet to the stack, without the rndis trailer padding
 	 */
-	rsc_add_data(nvchan, vlan, csum_info, data, rndis_pkt->data_len);
+	rsc_add_data(nvchan, vlan, csum_info, hash_info,
+		     data, rndis_pkt->data_len);
 
 	if (rsc_more)
 		return NVSP_STAT_SUCCESS;
@@ -767,6 +773,7 @@ static int rndis_set_rss_param_msg(struct rndis_device *rdev,
 				   const u8 *rss_key, u16 flag)
 {
 	struct net_device *ndev = rdev->ndev;
+	struct net_device_context *ndc = netdev_priv(ndev);
 	struct rndis_request *request;
 	struct rndis_set_request *set;
 	struct rndis_set_complete *set_complete;
@@ -806,7 +813,7 @@ static int rndis_set_rss_param_msg(struct rndis_device *rdev,
 	/* Set indirection table entries */
 	itab = (u32 *)(rssp + 1);
 	for (i = 0; i < ITAB_NUM; i++)
-		itab[i] = rdev->rx_table[i];
+		itab[i] = ndc->rx_table[i];
 
 	/* Set hask key values */
 	keyp = (u8 *)((unsigned long)rssp + rssp->hashkey_offset);
@@ -1165,6 +1172,9 @@ int rndis_set_subchannel(struct net_device *ndev,
 	wait_event(nvdev->subchan_open,
 		   atomic_read(&nvdev->open_chn) == nvdev->num_chn);
 
+	for (i = 0; i < VRSS_SEND_TAB_SIZE; i++)
+		ndev_ctx->tx_table[i] = i % nvdev->num_chn;
+
 	/* ignore failures from setting rss parameters, still have channels */
 	if (dev_info)
 		rndis_filter_set_rss_param(rdev, dev_info->rss_key);
@@ -1173,9 +1183,6 @@ int rndis_set_subchannel(struct net_device *ndev,
 
 	netif_set_real_num_tx_queues(ndev, nvdev->num_chn);
 	netif_set_real_num_rx_queues(ndev, nvdev->num_chn);
-
-	for (i = 0; i < VRSS_SEND_TAB_SIZE; i++)
-		ndev_ctx->tx_table[i] = i % nvdev->num_chn;
 
 	return 0;
 }
@@ -1208,6 +1215,7 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 	/* Compute tx offload settings based on hw capabilities */
 	net->hw_features |= NETIF_F_RXCSUM;
 	net->hw_features |= NETIF_F_SG;
+	net->hw_features |= NETIF_F_RXHASH;
 
 	if ((hwcaps.csum.ip4_txcsum & NDIS_TXCSUM_ALL_TCP4) == NDIS_TXCSUM_ALL_TCP4) {
 		/* Can checksum TCP */
@@ -1305,6 +1313,7 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 				      struct netvsc_device_info *device_info)
 {
 	struct net_device *net = hv_get_drvdata(dev);
+	struct net_device_context *ndc = netdev_priv(net);
 	struct netvsc_device *net_device;
 	struct rndis_device *rndis_device;
 	struct ndis_recv_scale_cap rsscap;
@@ -1391,9 +1400,11 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 	/* We will use the given number of channels if available. */
 	net_device->num_chn = min(net_device->max_chn, device_info->num_chn);
 
-	for (i = 0; i < ITAB_NUM; i++)
-		rndis_device->rx_table[i] = ethtool_rxfh_indir_default(
+	if (!netif_is_rxfh_configured(net)) {
+		for (i = 0; i < ITAB_NUM; i++)
+			ndc->rx_table[i] = ethtool_rxfh_indir_default(
 						i, net_device->num_chn);
+	}
 
 	atomic_set(&net_device->open_chn, 1);
 	vmbus_set_sc_create_callback(dev->channel, netvsc_sc_open);
@@ -1431,8 +1442,6 @@ void rndis_filter_device_remove(struct hv_device *dev,
 
 	/* Halt and release the rndis device */
 	rndis_filter_halt_device(net_dev, rndis_dev);
-
-	net_dev->extension = NULL;
 
 	netvsc_device_remove(dev);
 }

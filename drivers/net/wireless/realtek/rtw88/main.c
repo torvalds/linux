@@ -12,16 +12,22 @@
 #include "phy.h"
 #include "reg.h"
 #include "efuse.h"
+#include "tx.h"
 #include "debug.h"
+#include "bf.h"
 
-static bool rtw_fw_support_lps;
+unsigned int rtw_fw_lps_deep_mode;
+EXPORT_SYMBOL(rtw_fw_lps_deep_mode);
+bool rtw_bf_support = true;
 unsigned int rtw_debug_mask;
 EXPORT_SYMBOL(rtw_debug_mask);
 
-module_param_named(support_lps, rtw_fw_support_lps, bool, 0644);
+module_param_named(lps_deep_mode, rtw_fw_lps_deep_mode, uint, 0644);
+module_param_named(support_bf, rtw_bf_support, bool, 0644);
 module_param_named(debug_mask, rtw_debug_mask, uint, 0644);
 
-MODULE_PARM_DESC(support_lps, "Set Y to enable Leisure Power Save support, to turn radio off between beacons");
+MODULE_PARM_DESC(lps_deep_mode, "Deeper PS mode. If 0, deep PS is disabled");
+MODULE_PARM_DESC(support_bf, "Set Y to enable beamformee support");
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
 static struct ieee80211_channel rtw_channeltable_2g[] = {
@@ -84,6 +90,18 @@ static struct ieee80211_rate rtw_ratetable[] = {
 	{.bitrate = 540, .hw_value = 0x0b,},
 };
 
+u16 rtw_desc_to_bitrate(u8 desc_rate)
+{
+	struct ieee80211_rate rate;
+
+	if (WARN(desc_rate >= ARRAY_SIZE(rtw_ratetable), "invalid desc rate\n"))
+		return 0;
+
+	rate = rtw_ratetable[desc_rate];
+
+	return rate.bitrate;
+}
+
 static struct ieee80211_supported_band rtw_band_2ghz = {
 	.band = NL80211_BAND_2GHZ,
 
@@ -112,10 +130,28 @@ static struct ieee80211_supported_band rtw_band_5ghz = {
 };
 
 struct rtw_watch_dog_iter_data {
+	struct rtw_dev *rtwdev;
 	struct rtw_vif *rtwvif;
-	bool active;
-	u8 assoc_cnt;
 };
+
+static void rtw_dynamic_csi_rate(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif)
+{
+	struct rtw_bf_info *bf_info = &rtwdev->bf_info;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	u8 fix_rate_enable = 0;
+	u8 new_csi_rate_idx;
+
+	if (rtwvif->bfee.role != RTW_BFEE_SU &&
+	    rtwvif->bfee.role != RTW_BFEE_MU)
+		return;
+
+	chip->ops->cfg_csi_rate(rtwdev, rtwdev->dm_info.min_rssi,
+				bf_info->cur_csi_rpt_rate,
+				fix_rate_enable, &new_csi_rate_idx);
+
+	if (new_csi_rate_idx != bf_info->cur_csi_rpt_rate)
+		bf_info->cur_csi_rpt_rate = new_csi_rate_idx;
+}
 
 static void rtw_vif_watch_dog_iter(void *data, u8 *mac,
 				   struct ieee80211_vif *vif)
@@ -123,18 +159,11 @@ static void rtw_vif_watch_dog_iter(void *data, u8 *mac,
 	struct rtw_watch_dog_iter_data *iter_data = data;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 
-	if (vif->type == NL80211_IFTYPE_STATION) {
-		if (vif->bss_conf.assoc) {
-			iter_data->assoc_cnt++;
+	if (vif->type == NL80211_IFTYPE_STATION)
+		if (vif->bss_conf.assoc)
 			iter_data->rtwvif = rtwvif;
-		}
-		if (rtwvif->stats.tx_cnt > RTW_LPS_THRESHOLD ||
-		    rtwvif->stats.rx_cnt > RTW_LPS_THRESHOLD)
-			iter_data->active = true;
-	} else {
-		/* only STATION mode can enter lps */
-		iter_data->active = true;
-	}
+
+	rtw_dynamic_csi_rate(iter_data->rtwdev, rtwvif);
 
 	rtwvif->stats.tx_unicast = 0;
 	rtwvif->stats.rx_unicast = 0;
@@ -149,46 +178,74 @@ static void rtw_watch_dog_work(struct work_struct *work)
 {
 	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
 					      watch_dog_work.work);
+	struct rtw_traffic_stats *stats = &rtwdev->stats;
 	struct rtw_watch_dog_iter_data data = {};
-	bool busy_traffic = rtw_flag_check(rtwdev, RTW_FLAG_BUSY_TRAFFIC);
+	bool busy_traffic = test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
+	bool ps_active;
 
-	if (!rtw_flag_check(rtwdev, RTW_FLAG_RUNNING))
-		return;
+	mutex_lock(&rtwdev->mutex);
+
+	if (!test_bit(RTW_FLAG_RUNNING, rtwdev->flags))
+		goto unlock;
 
 	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->watch_dog_work,
 				     RTW_WATCH_DOG_DELAY_TIME);
 
 	if (rtwdev->stats.tx_cnt > 100 || rtwdev->stats.rx_cnt > 100)
-		rtw_flag_set(rtwdev, RTW_FLAG_BUSY_TRAFFIC);
+		set_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 	else
-		rtw_flag_clear(rtwdev, RTW_FLAG_BUSY_TRAFFIC);
+		clear_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 
-	if (busy_traffic != rtw_flag_check(rtwdev, RTW_FLAG_BUSY_TRAFFIC))
+	if (busy_traffic != test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags))
 		rtw_coex_wl_status_change_notify(rtwdev);
 
-	/* reset tx/rx statictics */
-	rtwdev->stats.tx_unicast = 0;
-	rtwdev->stats.rx_unicast = 0;
-	rtwdev->stats.tx_cnt = 0;
-	rtwdev->stats.rx_cnt = 0;
+	if (stats->tx_cnt > RTW_LPS_THRESHOLD ||
+	    stats->rx_cnt > RTW_LPS_THRESHOLD)
+		ps_active = true;
+	else
+		ps_active = false;
 
+	ewma_tp_add(&stats->tx_ewma_tp,
+		    (u32)(stats->tx_unicast >> RTW_TP_SHIFT));
+	ewma_tp_add(&stats->rx_ewma_tp,
+		    (u32)(stats->rx_unicast >> RTW_TP_SHIFT));
+	stats->tx_throughput = ewma_tp_read(&stats->tx_ewma_tp);
+	stats->rx_throughput = ewma_tp_read(&stats->rx_ewma_tp);
+
+	/* reset tx/rx statictics */
+	stats->tx_unicast = 0;
+	stats->rx_unicast = 0;
+	stats->tx_cnt = 0;
+	stats->rx_cnt = 0;
+
+	if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
+		goto unlock;
+
+	/* make sure BB/RF is working for dynamic mech */
+	rtw_leave_lps(rtwdev);
+
+	rtw_phy_dynamic_mechanism(rtwdev);
+
+	data.rtwdev = rtwdev;
 	/* use atomic version to avoid taking local->iflist_mtx mutex */
 	rtw_iterate_vifs_atomic(rtwdev, rtw_vif_watch_dog_iter, &data);
 
 	/* fw supports only one station associated to enter lps, if there are
 	 * more than two stations associated to the AP, then we can not enter
 	 * lps, because fw does not handle the overlapped beacon interval
+	 *
+	 * mac80211 should iterate vifs and determine if driver can enter
+	 * ps by passing IEEE80211_CONF_PS to us, all we need to do is to
+	 * get that vif and check if device is having traffic more than the
+	 * threshold.
 	 */
-	if (rtw_fw_support_lps &&
-	    data.rtwvif && !data.active && data.assoc_cnt == 1)
-		rtw_enter_lps(rtwdev, data.rtwvif);
-
-	if (rtw_flag_check(rtwdev, RTW_FLAG_SCANNING))
-		return;
-
-	rtw_phy_dynamic_mechanism(rtwdev);
+	if (rtwdev->ps_enabled && data.rtwvif && !ps_active)
+		rtw_enter_lps(rtwdev, data.rtwvif->port);
 
 	rtwdev->watch_dog_cnt++;
+
+unlock:
+	mutex_unlock(&rtwdev->mutex);
 }
 
 static void rtw_c2h_work(struct work_struct *work)
@@ -201,6 +258,40 @@ static void rtw_c2h_work(struct work_struct *work)
 		rtw_fw_c2h_cmd_handle(rtwdev, skb);
 		dev_kfree_skb_any(skb);
 	}
+}
+
+struct rtw_txq_ba_iter_data {
+};
+
+static void rtw_txq_ba_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+	int ret;
+	u8 tid;
+
+	tid = find_first_bit(si->tid_ba, IEEE80211_NUM_TIDS);
+	while (tid != IEEE80211_NUM_TIDS) {
+		clear_bit(tid, si->tid_ba);
+		ret = ieee80211_start_tx_ba_session(sta, tid, 0);
+		if (ret == -EINVAL) {
+			struct ieee80211_txq *txq;
+			struct rtw_txq *rtwtxq;
+
+			txq = sta->txq[tid];
+			rtwtxq = (struct rtw_txq *)txq->drv_priv;
+			set_bit(RTW_TXQ_BLOCK_BA, &rtwtxq->flags);
+		}
+
+		tid = find_first_bit(si->tid_ba, IEEE80211_NUM_TIDS);
+	}
+}
+
+static void rtw_txq_ba_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev, ba_work);
+	struct rtw_txq_ba_iter_data data;
+
+	rtw_iterate_stas_atomic(rtwdev, rtw_txq_ba_iter, &data);
 }
 
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
@@ -311,7 +402,7 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 	if (hal->current_band_type == RTW_BAND_5G) {
 		rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_5G);
 	} else {
-		if (rtw_flag_check(rtwdev, RTW_FLAG_SCANNING))
+		if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
 			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_24G);
 		else
 			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_24G_NOFORSCAN);
@@ -529,12 +620,71 @@ static u8 get_rate_id(u8 wireless_set, enum rtw_bandwidth bw_mode, u8 tx_num)
 #define RA_MASK_OFDM_IN_HT_2G	0x00010
 #define RA_MASK_OFDM_IN_HT_5G	0x00030
 
+static u64 rtw_update_rate_mask(struct rtw_dev *rtwdev,
+				struct rtw_sta_info *si,
+				u64 ra_mask, bool is_vht_enable,
+				u8 wireless_set)
+{
+	struct rtw_hal *hal = &rtwdev->hal;
+	const struct cfg80211_bitrate_mask *mask = si->mask;
+	u64 cfg_mask = GENMASK_ULL(63, 0);
+	u8 rssi_level, band;
+
+	if (wireless_set != WIRELESS_CCK) {
+		rssi_level = si->rssi_level;
+		if (rssi_level == 0)
+			ra_mask &= 0xffffffffffffffffULL;
+		else if (rssi_level == 1)
+			ra_mask &= 0xfffffffffffffff0ULL;
+		else if (rssi_level == 2)
+			ra_mask &= 0xffffffffffffefe0ULL;
+		else if (rssi_level == 3)
+			ra_mask &= 0xffffffffffffcfc0ULL;
+		else if (rssi_level == 4)
+			ra_mask &= 0xffffffffffff8f80ULL;
+		else if (rssi_level >= 5)
+			ra_mask &= 0xffffffffffff0f00ULL;
+	}
+
+	if (!si->use_cfg_mask)
+		return ra_mask;
+
+	band = hal->current_band_type;
+	if (band == RTW_BAND_2G) {
+		band = NL80211_BAND_2GHZ;
+		cfg_mask = mask->control[band].legacy;
+	} else if (band == RTW_BAND_5G) {
+		band = NL80211_BAND_5GHZ;
+		cfg_mask = u64_encode_bits(mask->control[band].legacy,
+					   RA_MASK_OFDM_RATES);
+	}
+
+	if (!is_vht_enable) {
+		if (ra_mask & RA_MASK_HT_RATES_1SS)
+			cfg_mask |= u64_encode_bits(mask->control[band].ht_mcs[0],
+						    RA_MASK_HT_RATES_1SS);
+		if (ra_mask & RA_MASK_HT_RATES_2SS)
+			cfg_mask |= u64_encode_bits(mask->control[band].ht_mcs[1],
+						    RA_MASK_HT_RATES_2SS);
+	} else {
+		if (ra_mask & RA_MASK_VHT_RATES_1SS)
+			cfg_mask |= u64_encode_bits(mask->control[band].vht_mcs[0],
+						    RA_MASK_VHT_RATES_1SS);
+		if (ra_mask & RA_MASK_VHT_RATES_2SS)
+			cfg_mask |= u64_encode_bits(mask->control[band].vht_mcs[1],
+						    RA_MASK_VHT_RATES_2SS);
+	}
+
+	ra_mask &= cfg_mask;
+
+	return ra_mask;
+}
+
 void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 {
 	struct ieee80211_sta *sta = si->sta;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_hal *hal = &rtwdev->hal;
-	u8 rssi_level;
 	u8 wireless_set;
 	u8 bw_mode;
 	u8 rate_id;
@@ -556,8 +706,8 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80)
 			is_support_sgi = true;
 	} else if (sta->ht_cap.ht_supported) {
-		ra_mask |= (sta->ht_cap.mcs.rx_mask[NL80211_BAND_5GHZ] << 20) |
-			   (sta->ht_cap.mcs.rx_mask[NL80211_BAND_2GHZ] << 12);
+		ra_mask |= (sta->ht_cap.mcs.rx_mask[1] << 20) |
+			   (sta->ht_cap.mcs.rx_mask[0] << 12);
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			stbc_en = HT_STBC_EN;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING)
@@ -566,6 +716,9 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 		    sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40)
 			is_support_sgi = true;
 	}
+
+	if (efuse->hw_cap.nss == 1)
+		ra_mask &= RA_MASK_VHT_RATES_1SS | RA_MASK_HT_RATES_1SS;
 
 	if (hal->current_band_type == RTW_BAND_5G) {
 		ra_mask |= (u64)sta->supp_rates[NL80211_BAND_5GHZ] << 4;
@@ -600,11 +753,6 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 		wireless_set = 0;
 	}
 
-	if (efuse->hw_cap.nss == 1) {
-		ra_mask &= RA_MASK_VHT_RATES_1SS;
-		ra_mask &= RA_MASK_HT_RATES_1SS;
-	}
-
 	switch (sta->bandwidth) {
 	case IEEE80211_STA_RX_BW_80:
 		bw_mode = RTW_CHANNEL_WIDTH_80;
@@ -627,21 +775,8 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 
 	rate_id = get_rate_id(wireless_set, bw_mode, tx_num);
 
-	if (wireless_set != WIRELESS_CCK) {
-		rssi_level = si->rssi_level;
-		if (rssi_level == 0)
-			ra_mask &= 0xffffffffffffffffULL;
-		else if (rssi_level == 1)
-			ra_mask &= 0xfffffffffffffff0ULL;
-		else if (rssi_level == 2)
-			ra_mask &= 0xffffffffffffefe0ULL;
-		else if (rssi_level == 3)
-			ra_mask &= 0xffffffffffffcfc0ULL;
-		else if (rssi_level == 4)
-			ra_mask &= 0xffffffffffff8f80ULL;
-		else if (rssi_level >= 5)
-			ra_mask &= 0xffffffffffff0f00ULL;
-	}
+	ra_mask = rtw_update_rate_mask(rtwdev, si, ra_mask, is_vht_enable,
+				       wireless_set);
 
 	si->bw_mode = bw_mode;
 	si->stbc_en = stbc_en;
@@ -654,6 +789,26 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 	si->rate_id = rate_id;
 
 	rtw_fw_send_ra_info(rtwdev, si);
+}
+
+static int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_fw_state *fw;
+
+	fw = &rtwdev->fw;
+	wait_for_completion(&fw->completion);
+	if (!fw->firmware)
+		return -EINVAL;
+
+	if (chip->wow_fw_name) {
+		fw = &rtwdev->wow_fw;
+		wait_for_completion(&fw->completion);
+		if (!fw->firmware)
+			return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int rtw_power_on(struct rtw_dev *rtwdev)
@@ -676,11 +831,10 @@ static int rtw_power_on(struct rtw_dev *rtwdev)
 		goto err;
 	}
 
-	wait_for_completion(&fw->completion);
-	if (!fw->firmware) {
-		ret = -EINVAL;
-		rtw_err(rtwdev, "failed to load firmware\n");
-		goto err;
+	ret = rtw_wait_firmware_completion(rtwdev);
+	if (ret) {
+		rtw_err(rtwdev, "failed to wait firmware completion\n");
+		goto err_off;
 	}
 
 	ret = rtw_download_firmware(rtwdev, fw);
@@ -737,14 +891,14 @@ int rtw_core_start(struct rtw_dev *rtwdev)
 	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->watch_dog_work,
 				     RTW_WATCH_DOG_DELAY_TIME);
 
-	rtw_flag_set(rtwdev, RTW_FLAG_RUNNING);
+	set_bit(RTW_FLAG_RUNNING, rtwdev->flags);
 
 	return 0;
 }
 
 static void rtw_power_off(struct rtw_dev *rtwdev)
 {
-	rtwdev->hci.ops->stop(rtwdev);
+	rtw_hci_stop(rtwdev);
 	rtw_mac_power_off(rtwdev);
 }
 
@@ -752,8 +906,8 @@ void rtw_core_stop(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 
-	rtw_flag_clear(rtwdev, RTW_FLAG_RUNNING);
-	rtw_flag_clear(rtwdev, RTW_FLAG_FW_RUNNING);
+	clear_bit(RTW_FLAG_RUNNING, rtwdev->flags);
+	clear_bit(RTW_FLAG_FW_RUNNING, rtwdev->flags);
 
 	cancel_delayed_work_sync(&rtwdev->watch_dog_work);
 	cancel_delayed_work_sync(&coex->bt_relink_work);
@@ -814,6 +968,12 @@ static void rtw_init_vht_cap(struct rtw_dev *rtwdev,
 		       IEEE80211_VHT_CAP_HTC_VHT |
 		       IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK |
 		       0;
+
+	vht_cap->cap |= IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE |
+			IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
+	vht_cap->cap |= (rtwdev->hal.bfee_sts_cap <<
+			IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT);
+
 	mcs_map = IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
 		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 4 |
 		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 6 |
@@ -877,27 +1037,58 @@ static void rtw_unset_supported_band(struct ieee80211_hw *hw,
 
 static void rtw_load_firmware_cb(const struct firmware *firmware, void *context)
 {
-	struct rtw_dev *rtwdev = context;
-	struct rtw_fw_state *fw = &rtwdev->fw;
+	struct rtw_fw_state *fw = context;
+	struct rtw_dev *rtwdev = fw->rtwdev;
+	const struct rtw_fw_hdr *fw_hdr;
 
-	if (!firmware)
+	if (!firmware || !firmware->data) {
 		rtw_err(rtwdev, "failed to request firmware\n");
+		complete_all(&fw->completion);
+		return;
+	}
+
+	fw_hdr = (const struct rtw_fw_hdr *)firmware->data;
+	fw->h2c_version = le16_to_cpu(fw_hdr->h2c_fmt_ver);
+	fw->version = le16_to_cpu(fw_hdr->version);
+	fw->sub_version = fw_hdr->subversion;
+	fw->sub_index = fw_hdr->subindex;
 
 	fw->firmware = firmware;
 	complete_all(&fw->completion);
+
+	rtw_info(rtwdev, "Firmware version %u.%u.%u, H2C version %u\n",
+		 fw->version, fw->sub_version, fw->sub_index, fw->h2c_version);
 }
 
-static int rtw_load_firmware(struct rtw_dev *rtwdev, const char *fw_name)
+static int rtw_load_firmware(struct rtw_dev *rtwdev, enum rtw_fw_type type)
 {
-	struct rtw_fw_state *fw = &rtwdev->fw;
+	const char *fw_name;
+	struct rtw_fw_state *fw;
 	int ret;
 
+	switch (type) {
+	case RTW_WOWLAN_FW:
+		fw = &rtwdev->wow_fw;
+		fw_name = rtwdev->chip->wow_fw_name;
+		break;
+
+	case RTW_NORMAL_FW:
+		fw = &rtwdev->fw;
+		fw_name = rtwdev->chip->fw_name;
+		break;
+
+	default:
+		rtw_warn(rtwdev, "unsupported firmware type\n");
+		return -ENOENT;
+	}
+
+	fw->rtwdev = rtwdev;
 	init_completion(&fw->completion);
 
 	ret = request_firmware_nowait(THIS_MODULE, true, fw_name, rtwdev->dev,
-				      GFP_KERNEL, rtwdev, rtw_load_firmware_cb);
+				      GFP_KERNEL, fw, rtw_load_firmware_cb);
 	if (ret) {
-		rtw_err(rtwdev, "async firmware request failed\n");
+		rtw_err(rtwdev, "failed to async firmware request\n");
 		return ret;
 	}
 
@@ -914,6 +1105,7 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 	switch (rtw_hci_type(rtwdev)) {
 	case RTW_HCI_TYPE_PCIE:
 		rtwdev->hci.rpwm_addr = 0x03d9;
+		rtwdev->hci.cpwm_addr = 0x03da;
 		break;
 	default:
 		rtw_err(rtwdev, "unsupported hci type\n");
@@ -947,6 +1139,8 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 
 	/* default use ack */
 	rtwdev->hal.rcr |= BIT_VHT_DACK;
+
+	hal->bfee_sts_cap = 3;
 
 	return ret;
 }
@@ -1020,7 +1214,8 @@ static int rtw_dump_hw_feature(struct rtw_dev *rtwdev)
 
 	rtw_hw_config_rf_ant_num(rtwdev, efuse->hw_cap.ant_num);
 
-	if (efuse->hw_cap.nss == EFUSE_HW_CAP_IGNORE)
+	if (efuse->hw_cap.nss == EFUSE_HW_CAP_IGNORE ||
+	    efuse->hw_cap.nss > rtwdev->hal.rf_path_num)
 		efuse->hw_cap.nss = rtwdev->hal.rf_path_num;
 
 	rtw_dbg(rtwdev, RTW_DBG_EFUSE,
@@ -1047,19 +1242,19 @@ static int rtw_chip_efuse_info_setup(struct rtw_dev *rtwdev)
 	/* power on mac to read efuse */
 	ret = rtw_chip_efuse_enable(rtwdev);
 	if (ret)
-		goto out;
+		goto out_unlock;
 
 	ret = rtw_parse_efuse_map(rtwdev);
 	if (ret)
-		goto out;
+		goto out_disable;
 
 	ret = rtw_dump_hw_feature(rtwdev);
 	if (ret)
-		goto out;
+		goto out_disable;
 
 	ret = rtw_check_supported_rfe(rtwdev);
 	if (ret)
-		goto out;
+		goto out_disable;
 
 	if (efuse->crystal_cap == 0xff)
 		efuse->crystal_cap = 0;
@@ -1086,9 +1281,10 @@ static int rtw_chip_efuse_info_setup(struct rtw_dev *rtwdev)
 	efuse->ext_pa_5g = efuse->pa_type_5g & BIT(0) ? 1 : 0;
 	efuse->ext_lna_2g = efuse->lna_type_5g & BIT(3) ? 1 : 0;
 
+out_disable:
 	rtw_chip_efuse_disable(rtwdev);
 
-out:
+out_unlock:
 	mutex_unlock(&rtwdev->mutex);
 	return ret;
 }
@@ -1141,29 +1337,48 @@ err_out:
 }
 EXPORT_SYMBOL(rtw_chip_info_setup);
 
+static void rtw_stats_init(struct rtw_dev *rtwdev)
+{
+	struct rtw_traffic_stats *stats = &rtwdev->stats;
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	int i;
+
+	ewma_tp_init(&stats->tx_ewma_tp);
+	ewma_tp_init(&stats->rx_ewma_tp);
+
+	for (i = 0; i < RTW_EVM_NUM; i++)
+		ewma_evm_init(&dm_info->ewma_evm[i]);
+	for (i = 0; i < RTW_SNR_NUM; i++)
+		ewma_snr_init(&dm_info->ewma_snr[i]);
+}
+
 int rtw_core_init(struct rtw_dev *rtwdev)
 {
+	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_coex *coex = &rtwdev->coex;
 	int ret;
 
 	INIT_LIST_HEAD(&rtwdev->rsvd_page_list);
+	INIT_LIST_HEAD(&rtwdev->txqs);
 
 	timer_setup(&rtwdev->tx_report.purge_timer,
 		    rtw_tx_report_purge_timer, 0);
+	tasklet_init(&rtwdev->tx_tasklet, rtw_tx_tasklet,
+		     (unsigned long)rtwdev);
 
 	INIT_DELAYED_WORK(&rtwdev->watch_dog_work, rtw_watch_dog_work);
-	INIT_DELAYED_WORK(&rtwdev->lps_work, rtw_lps_work);
 	INIT_DELAYED_WORK(&coex->bt_relink_work, rtw_coex_bt_relink_work);
 	INIT_DELAYED_WORK(&coex->bt_reenable_work, rtw_coex_bt_reenable_work);
 	INIT_DELAYED_WORK(&coex->defreeze_work, rtw_coex_defreeze_work);
 	INIT_WORK(&rtwdev->c2h_work, rtw_c2h_work);
+	INIT_WORK(&rtwdev->ba_work, rtw_txq_ba_work);
 	skb_queue_head_init(&rtwdev->c2h_queue);
 	skb_queue_head_init(&rtwdev->coex.queue);
 	skb_queue_head_init(&rtwdev->tx_report.queue);
 
-	spin_lock_init(&rtwdev->dm_lock);
 	spin_lock_init(&rtwdev->rf_lock);
 	spin_lock_init(&rtwdev->h2c.lock);
+	spin_lock_init(&rtwdev->txq_lock);
 	spin_lock_init(&rtwdev->tx_report.q_lock);
 
 	mutex_init(&rtwdev->mutex);
@@ -1175,22 +1390,35 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	rtwdev->sec.total_cam_num = 32;
 	rtwdev->hal.current_channel = 1;
 	set_bit(RTW_BC_MC_MACID, rtwdev->mac_id_map);
+	if (!(BIT(rtw_fw_lps_deep_mode) & chip->lps_deep_mode_supported))
+		rtwdev->lps_conf.deep_mode = LPS_DEEP_MODE_NONE;
+	else
+		rtwdev->lps_conf.deep_mode = rtw_fw_lps_deep_mode;
 
 	mutex_lock(&rtwdev->mutex);
 	rtw_add_rsvd_page(rtwdev, RSVD_BEACON, false);
 	mutex_unlock(&rtwdev->mutex);
+
+	rtw_stats_init(rtwdev);
 
 	/* default rx filter setting */
 	rtwdev->hal.rcr = BIT_APP_FCS | BIT_APP_MIC | BIT_APP_ICV |
 			  BIT_HTC_LOC_CTRL | BIT_APP_PHYSTS |
 			  BIT_AB | BIT_AM | BIT_APM;
 
-	ret = rtw_load_firmware(rtwdev, rtwdev->chip->fw_name);
+	ret = rtw_load_firmware(rtwdev, RTW_NORMAL_FW);
 	if (ret) {
 		rtw_warn(rtwdev, "no firmware loaded\n");
 		return ret;
 	}
 
+	if (chip->wow_fw_name) {
+		ret = rtw_load_firmware(rtwdev, RTW_WOWLAN_FW);
+		if (ret) {
+			rtw_warn(rtwdev, "no wow firmware loaded\n");
+			return ret;
+		}
+	}
 	return 0;
 }
 EXPORT_SYMBOL(rtw_core_init);
@@ -1198,12 +1426,17 @@ EXPORT_SYMBOL(rtw_core_init);
 void rtw_core_deinit(struct rtw_dev *rtwdev)
 {
 	struct rtw_fw_state *fw = &rtwdev->fw;
+	struct rtw_fw_state *wow_fw = &rtwdev->wow_fw;
 	struct rtw_rsvd_page *rsvd_pkt, *tmp;
 	unsigned long flags;
 
 	if (fw->firmware)
 		release_firmware(fw->firmware);
 
+	if (wow_fw->firmware)
+		release_firmware(wow_fw->firmware);
+
+	tasklet_kill(&rtwdev->tx_tasklet);
 	spin_lock_irqsave(&rtwdev->tx_report.q_lock, flags);
 	skb_queue_purge(&rtwdev->tx_report.queue);
 	spin_unlock_irqrestore(&rtwdev->tx_report.q_lock, flags);
@@ -1229,6 +1462,7 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 
 	hw->extra_tx_headroom = max_tx_headroom;
 	hw->queues = IEEE80211_NUM_ACS;
+	hw->txq_data_size = sizeof(struct rtw_txq);
 	hw->sta_data_size = sizeof(struct rtw_sta_info);
 	hw->vif_data_size = sizeof(struct rtw_vif);
 
@@ -1241,6 +1475,8 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
+	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
+	ieee80211_hw_set(hw, TX_AMSDU);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				     BIT(NL80211_IFTYPE_AP) |
@@ -1252,6 +1488,12 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 
 	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
+
+#ifdef CONFIG_PM
+	hw->wiphy->wowlan = rtwdev->chip->wowlan_stub;
+	hw->wiphy->max_sched_scan_ssids = rtwdev->chip->max_sched_scan_ssids;
+#endif
 	rtw_set_supported_band(hw, rtwdev->chip);
 	SET_IEEE80211_PERM_ADDR(hw, rtwdev->efuse.addr);
 
@@ -1267,6 +1509,9 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 		rtw_err(rtwdev, "regulatory_hint fail\n");
 
 	rtw_debugfs_init(rtwdev);
+
+	rtwdev->bf_info.bfer_mu_cnt = 0;
+	rtwdev->bf_info.bfer_su_cnt = 0;
 
 	return 0;
 }

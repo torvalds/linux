@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2013-2016 Freescale Semiconductor Inc.
  * Copyright 2016-2018 NXP
@@ -20,6 +20,8 @@ struct fsl_mc_io;
 #define DPRTC_IRQ_INDEX		0
 
 #define DPRTC_EVENT_PPS		0x08000000
+#define DPRTC_EVENT_ETS1	0x00800000
+#define DPRTC_EVENT_ETS2	0x00400000
 
 int dprtc_open(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,

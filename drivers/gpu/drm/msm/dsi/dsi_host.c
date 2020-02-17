@@ -26,6 +26,8 @@
 #include "dsi_cfg.h"
 #include "msm_kms.h"
 
+#define DSI_RESET_TOGGLE_DELAY_MS 20
+
 static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 {
 	u32 ver;
@@ -503,7 +505,7 @@ int msm_dsi_runtime_resume(struct device *dev)
 	return dsi_bus_clk_enable(msm_host);
 }
 
-int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host)
+int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 {
 	int ret;
 
@@ -513,13 +515,13 @@ int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host)
 	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
 	if (ret) {
 		pr_err("%s: Failed to set rate byte clk, %d\n", __func__, ret);
-		goto error;
+		return ret;
 	}
 
 	ret = clk_set_rate(msm_host->pixel_clk, msm_host->pixel_clk_rate);
 	if (ret) {
 		pr_err("%s: Failed to set rate pixel clk, %d\n", __func__, ret);
-		goto error;
+		return ret;
 	}
 
 	if (msm_host->byte_intf_clk) {
@@ -528,9 +530,17 @@ int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host)
 		if (ret) {
 			pr_err("%s: Failed to set rate byte intf clk, %d\n",
 			       __func__, ret);
-			goto error;
+			return ret;
 		}
 	}
+
+	return 0;
+}
+
+
+int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host)
+{
+	int ret;
 
 	ret = clk_prepare_enable(msm_host->esc_clk);
 	if (ret) {
@@ -571,7 +581,7 @@ error:
 	return ret;
 }
 
-int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
+int dsi_link_clk_set_rate_v2(struct msm_dsi_host *msm_host)
 {
 	int ret;
 
@@ -582,26 +592,33 @@ int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
 	if (ret) {
 		pr_err("%s: Failed to set rate byte clk, %d\n", __func__, ret);
-		goto error;
+		return ret;
 	}
 
 	ret = clk_set_rate(msm_host->esc_clk, msm_host->esc_clk_rate);
 	if (ret) {
 		pr_err("%s: Failed to set rate esc clk, %d\n", __func__, ret);
-		goto error;
+		return ret;
 	}
 
 	ret = clk_set_rate(msm_host->src_clk, msm_host->src_clk_rate);
 	if (ret) {
 		pr_err("%s: Failed to set rate src clk, %d\n", __func__, ret);
-		goto error;
+		return ret;
 	}
 
 	ret = clk_set_rate(msm_host->pixel_clk, msm_host->pixel_clk_rate);
 	if (ret) {
 		pr_err("%s: Failed to set rate pixel clk, %d\n", __func__, ret);
-		goto error;
+		return ret;
 	}
+
+	return 0;
+}
+
+int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
+{
+	int ret;
 
 	ret = clk_prepare_enable(msm_host->byte_clk);
 	if (ret) {
@@ -816,7 +833,7 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	u32 flags = msm_host->mode_flags;
 	enum mipi_dsi_pixel_format mipi_fmt = msm_host->format;
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
-	u32 data = 0;
+	u32 data = 0, lane_ctrl = 0;
 
 	if (!enable) {
 		dsi_write(msm_host, REG_DSI_CTRL, 0);
@@ -904,9 +921,11 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
 		  DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(msm_host->dlane_swap));
 
-	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)) {
+		lane_ctrl = dsi_read(msm_host, REG_DSI_LANE_CTRL);
 		dsi_write(msm_host, REG_DSI_LANE_CTRL,
-			DSI_LANE_CTRL_CLKLN_HS_FORCE_REQUEST);
+			lane_ctrl | DSI_LANE_CTRL_CLKLN_HS_FORCE_REQUEST);
+	}
 
 	data |= DSI_CTRL_ENABLE;
 
@@ -986,7 +1005,7 @@ static void dsi_sw_reset(struct msm_dsi_host *msm_host)
 	wmb(); /* clocks need to be enabled before reset */
 
 	dsi_write(msm_host, REG_DSI_RESET, 1);
-	wmb(); /* make sure reset happen */
+	msleep(DSI_RESET_TOGGLE_DELAY_MS); /* make sure reset happen */
 	dsi_write(msm_host, REG_DSI_RESET, 0);
 }
 
@@ -1291,14 +1310,13 @@ static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 static int dsi_cmd_dma_rx(struct msm_dsi_host *msm_host,
 			u8 *buf, int rx_byte, int pkt_size)
 {
-	u32 *lp, *temp, data;
+	u32 *temp, data;
 	int i, j = 0, cnt;
 	u32 read_cnt;
 	u8 reg[16];
 	int repeated_bytes = 0;
 	int buf_offset = buf - msm_host->rx_buf;
 
-	lp = (u32 *)buf;
 	temp = (u32 *)reg;
 	cnt = (rx_byte + 3) >> 2;
 	if (cnt > 4)
@@ -1396,7 +1414,7 @@ static void dsi_sw_reset_restore(struct msm_dsi_host *msm_host)
 
 	/* dsi controller can only be reset while clocks are running */
 	dsi_write(msm_host, REG_DSI_RESET, 1);
-	wmb();	/* make sure reset happen */
+	msleep(DSI_RESET_TOGGLE_DELAY_MS); /* make sure reset happen */
 	dsi_write(msm_host, REG_DSI_RESET, 0);
 	wmb();	/* controller out of reset */
 	dsi_write(msm_host, REG_DSI_CTRL, data0);
@@ -1995,6 +2013,7 @@ int msm_dsi_host_xfer_prepare(struct mipi_dsi_host *host,
 	 * mdp clock need to be enabled to receive dsi interrupt
 	 */
 	pm_runtime_get_sync(&msm_host->pdev->dev);
+	cfg_hnd->ops->link_clk_set_rate(msm_host);
 	cfg_hnd->ops->link_clk_enable(msm_host);
 
 	/* TODO: vote for bus bandwidth */
@@ -2343,7 +2362,9 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 	}
 
 	pm_runtime_get_sync(&msm_host->pdev->dev);
-	ret = cfg_hnd->ops->link_clk_enable(msm_host);
+	ret = cfg_hnd->ops->link_clk_set_rate(msm_host);
+	if (!ret)
+		ret = cfg_hnd->ops->link_clk_enable(msm_host);
 	if (ret) {
 		pr_err("%s: failed to enable link clocks. ret=%d\n",
 		       __func__, ret);

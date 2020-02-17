@@ -20,7 +20,10 @@ struct mtk_plane_pending_state {
 	unsigned int			y;
 	unsigned int			width;
 	unsigned int			height;
+	unsigned int			rotation;
 	bool				dirty;
+	bool				async_dirty;
+	bool				async_config;
 };
 
 struct mtk_plane_state {
@@ -35,6 +38,7 @@ to_mtk_plane_state(struct drm_plane_state *state)
 }
 
 int mtk_plane_init(struct drm_device *dev, struct drm_plane *plane,
-		   unsigned long possible_crtcs, enum drm_plane_type type);
+		   unsigned long possible_crtcs, enum drm_plane_type type,
+		   unsigned int supported_rotations);
 
 #endif

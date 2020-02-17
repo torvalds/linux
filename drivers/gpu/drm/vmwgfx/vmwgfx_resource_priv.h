@@ -71,6 +71,13 @@ struct vmw_user_resource_conv {
  * @commit_notify:     If the resource is a command buffer managed resource,
  *                     callback to notify that a define or remove command
  *                     has been committed to the device.
+ * @dirty_alloc:       Allocate a dirty tracker. NULL if dirty-tracking is not
+ *                     supported.
+ * @dirty_free:        Free the dirty tracker.
+ * @dirty_sync:        Upload the dirty mob contents to the resource.
+ * @dirty_add_range:   Add a sequential dirty range to the resource
+ *                     dirty tracker.
+ * @clean:             Clean the resource.
  */
 struct vmw_res_func {
 	enum vmw_res_type res_type;
@@ -90,6 +97,12 @@ struct vmw_res_func {
 		       struct ttm_validate_buffer *val_buf);
 	void (*commit_notify)(struct vmw_resource *res,
 			      enum vmw_cmdbuf_res_state state);
+	int (*dirty_alloc)(struct vmw_resource *res);
+	void (*dirty_free)(struct vmw_resource *res);
+	int (*dirty_sync)(struct vmw_resource *res);
+	void (*dirty_range_add)(struct vmw_resource *res, size_t start,
+				 size_t end);
+	int (*clean)(struct vmw_resource *res);
 };
 
 /**

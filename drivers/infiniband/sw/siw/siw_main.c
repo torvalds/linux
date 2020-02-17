@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 
+#include <net/addrconf.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/rdma_netlink.h>
@@ -243,27 +244,9 @@ static struct ib_qp *siw_get_base_qp(struct ib_device *base_dev, int id)
 		 * siw_qp_id2obj() increments object reference count
 		 */
 		siw_qp_put(qp);
-		return qp->ib_qp;
+		return &qp->base_qp;
 	}
 	return NULL;
-}
-
-static void siw_verbs_sq_flush(struct ib_qp *base_qp)
-{
-	struct siw_qp *qp = to_siw_qp(base_qp);
-
-	down_write(&qp->state_lock);
-	siw_sq_flush(qp);
-	up_write(&qp->state_lock);
-}
-
-static void siw_verbs_rq_flush(struct ib_qp *base_qp)
-{
-	struct siw_qp *qp = to_siw_qp(base_qp);
-
-	down_write(&qp->state_lock);
-	siw_rq_flush(qp);
-	up_write(&qp->state_lock);
 }
 
 static const struct ib_device_ops siw_device_ops = {
@@ -284,8 +267,6 @@ static const struct ib_device_ops siw_device_ops = {
 	.destroy_cq = siw_destroy_cq,
 	.destroy_qp = siw_destroy_qp,
 	.destroy_srq = siw_destroy_srq,
-	.drain_rq = siw_verbs_rq_flush,
-	.drain_sq = siw_verbs_sq_flush,
 	.get_dma_mr = siw_get_dma_mr,
 	.get_port_immutable = siw_get_port_immutable,
 	.iw_accept = siw_accept,
@@ -298,6 +279,7 @@ static const struct ib_device_ops siw_device_ops = {
 	.iw_rem_ref = siw_qp_put_ref,
 	.map_mr_sg = siw_map_mr_sg,
 	.mmap = siw_mmap,
+	.mmap_free = siw_mmap_free,
 	.modify_qp = siw_verbs_modify_qp,
 	.modify_srq = siw_modify_srq,
 	.poll_cq = siw_poll_cq,
@@ -350,15 +332,19 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 	sdev->netdev = netdev;
 
 	if (netdev->type != ARPHRD_LOOPBACK) {
-		memcpy(&base_dev->node_guid, netdev->dev_addr, 6);
+		addrconf_addr_eui48((unsigned char *)&base_dev->node_guid,
+				    netdev->dev_addr);
 	} else {
 		/*
 		 * The loopback device does not have a HW address,
 		 * but connection mangagement lib expects gid != 0
 		 */
-		size_t gidlen = min_t(size_t, strlen(base_dev->name), 6);
+		size_t len = min_t(size_t, strlen(base_dev->name), 6);
+		char addr[6] = { };
 
-		memcpy(&base_dev->node_guid, base_dev->name, gidlen);
+		memcpy(addr, base_dev->name, len);
+		addrconf_addr_eui48((unsigned char *)&base_dev->node_guid,
+				    addr);
 	}
 	base_dev->uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE) |
@@ -397,6 +383,9 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 	base_dev->phys_port_cnt = 1;
 	base_dev->dev.parent = parent;
 	base_dev->dev.dma_ops = &dma_virt_ops;
+	base_dev->dev.dma_parms = &sdev->dma_parms;
+	sdev->dma_parms = (struct device_dma_parameters)
+		{ .max_segment_size = SZ_2G };
 	base_dev->num_comp_vectors = num_possible_cpus();
 
 	ib_set_device_ops(base_dev, &siw_device_ops);

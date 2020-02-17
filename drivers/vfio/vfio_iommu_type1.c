@@ -294,31 +294,13 @@ static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
  * Some mappings aren't backed by a struct page, for example an mmap'd
  * MMIO range for our own or another device.  These use a different
  * pfn conversion and shouldn't be tracked as locked pages.
+ * For compound pages, any driver that sets the reserved bit in head
+ * page needs to set the reserved bit in all subpages to be safe.
  */
 static bool is_invalid_reserved_pfn(unsigned long pfn)
 {
-	if (pfn_valid(pfn)) {
-		bool reserved;
-		struct page *tail = pfn_to_page(pfn);
-		struct page *head = compound_head(tail);
-		reserved = !!(PageReserved(head));
-		if (head != tail) {
-			/*
-			 * "head" is not a dangling pointer
-			 * (compound_head takes care of that)
-			 * but the hugepage may have been split
-			 * from under us (and we may not hold a
-			 * reference count on the head page so it can
-			 * be reused before we run PageReferenced), so
-			 * we've to check PageTail before returning
-			 * what we just read.
-			 */
-			smp_rmb();
-			if (PageTail(tail))
-				return reserved;
-		}
-		return PageReserved(tail);
-	}
+	if (pfn_valid(pfn))
+		return PageReserved(pfn_to_page(pfn));
 
 	return true;
 }
@@ -327,9 +309,8 @@ static int put_pfn(unsigned long pfn, int prot)
 {
 	if (!is_invalid_reserved_pfn(pfn)) {
 		struct page *page = pfn_to_page(pfn);
-		if (prot & IOMMU_WRITE)
-			SetPageDirty(page);
-		put_page(page);
+
+		unpin_user_pages_dirty_lock(&page, 1, prot & IOMMU_WRITE);
 		return 1;
 	}
 	return 0;
@@ -340,7 +321,6 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 {
 	struct page *page[1];
 	struct vm_area_struct *vma;
-	struct vm_area_struct *vmas[1];
 	unsigned int flags = 0;
 	int ret;
 
@@ -348,32 +328,13 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 		flags |= FOLL_WRITE;
 
 	down_read(&mm->mmap_sem);
-	if (mm == current->mm) {
-		ret = get_user_pages(vaddr, 1, flags | FOLL_LONGTERM, page,
-				     vmas);
-	} else {
-		ret = get_user_pages_remote(NULL, mm, vaddr, 1, flags, page,
-					    vmas, NULL);
-		/*
-		 * The lifetime of a vaddr_get_pfn() page pin is
-		 * userspace-controlled. In the fs-dax case this could
-		 * lead to indefinite stalls in filesystem operations.
-		 * Disallow attempts to pin fs-dax pages via this
-		 * interface.
-		 */
-		if (ret > 0 && vma_is_fsdax(vmas[0])) {
-			ret = -EOPNOTSUPP;
-			put_page(page[0]);
-		}
-	}
-	up_read(&mm->mmap_sem);
-
+	ret = pin_user_pages_remote(NULL, mm, vaddr, 1, flags | FOLL_LONGTERM,
+				    page, NULL, NULL);
 	if (ret == 1) {
 		*pfn = page_to_pfn(page[0]);
-		return 0;
+		ret = 0;
+		goto done;
 	}
-
-	down_read(&mm->mmap_sem);
 
 	vaddr = untagged_addr(vaddr);
 
@@ -384,7 +345,7 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 		if (is_invalid_reserved_pfn(*pfn))
 			ret = 0;
 	}
-
+done:
 	up_read(&mm->mmap_sem);
 	return ret;
 }
@@ -1658,7 +1619,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	struct bus_type *bus = NULL;
 	int ret;
 	bool resv_msi, msi_remap;
-	phys_addr_t resv_msi_base;
+	phys_addr_t resv_msi_base = 0;
 	struct iommu_domain_geometry geo;
 	LIST_HEAD(iova_copy);
 	LIST_HEAD(group_resv_regions);

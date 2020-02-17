@@ -15,15 +15,14 @@
 #else
 /* TLS offload requires additional stop_room for:
  *  - a resync SKB.
- * kTLS offload requires additional stop_room for:
- * - static params WQE,
- * - progress params WQE, and
- * - resync DUMP per frag.
+ * kTLS offload requires fixed additional stop_room for:
+ * - a static params WQE, and a progress params WQE.
+ * The additional MTU-depending room for the resync DUMP WQEs
+ * will be calculated and added in runtime.
  */
 #define MLX5E_SQ_TLS_ROOM  \
 	(MLX5_SEND_WQE_MAX_WQEBBS + \
-	 MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS + \
-	 MAX_SKB_FRAGS * MLX5E_KTLS_MAX_DUMP_WQEBBS)
+	 MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS)
 #endif
 
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
@@ -92,7 +91,7 @@ mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq, struct mlx5_wq_cyc *wq,
 
 	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
 	for (; wi < edge_wi; wi++) {
-		wi->skb        = NULL;
+		memset(wi, 0, sizeof(*wi));
 		wi->num_wqebbs = 1;
 		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
 	}

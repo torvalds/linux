@@ -27,6 +27,8 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 
 #include "amdgpu.h"
+#include "amdgpu_ras.h"
+#include "amdgpu_xgmi.h"
 
 /**
  * amdgpu_gmc_get_pde_for_bo - get the PDE for a BO
@@ -221,7 +223,7 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	u64 size_af, size_bf;
 
 	if (amdgpu_sriov_vf(adev)) {
-		mc->agp_start = 0xffffffff;
+		mc->agp_start = 0xffffffffffff;
 		mc->agp_end = 0x0;
 		mc->agp_size = 0;
 
@@ -304,4 +306,70 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 	fault->next = gmc->fault_hash[hash].idx;
 	gmc->fault_hash[hash].idx = gmc->last_fault++;
 	return false;
+}
+
+int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	if (adev->umc.funcs && adev->umc.funcs->ras_late_init) {
+		r = adev->umc.funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
+	if (adev->mmhub.funcs && adev->mmhub.funcs->ras_late_init) {
+		r = adev->mmhub.funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
+	return amdgpu_xgmi_ras_late_init(adev);
+}
+
+void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
+{
+	amdgpu_umc_ras_fini(adev);
+	amdgpu_mmhub_ras_fini(adev);
+	amdgpu_xgmi_ras_fini(adev);
+}
+
+	/*
+	 * The latest engine allocation on gfx9/10 is:
+	 * Engine 2, 3: firmware
+	 * Engine 0, 1, 4~16: amdgpu ring,
+	 *                    subject to change when ring number changes
+	 * Engine 17: Gart flushes
+	 */
+#define GFXHUB_FREE_VM_INV_ENGS_BITMAP		0x1FFF3
+#define MMHUB_FREE_VM_INV_ENGS_BITMAP		0x1FFF3
+
+int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	unsigned vm_inv_engs[AMDGPU_MAX_VMHUBS] =
+		{GFXHUB_FREE_VM_INV_ENGS_BITMAP, MMHUB_FREE_VM_INV_ENGS_BITMAP,
+		GFXHUB_FREE_VM_INV_ENGS_BITMAP};
+	unsigned i;
+	unsigned vmhub, inv_eng;
+
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+		vmhub = ring->funcs->vmhub;
+
+		inv_eng = ffs(vm_inv_engs[vmhub]);
+		if (!inv_eng) {
+			dev_err(adev->dev, "no VM inv eng for ring %s\n",
+				ring->name);
+			return -EINVAL;
+		}
+
+		ring->vm_inv_eng = inv_eng - 1;
+		vm_inv_engs[vmhub] &= ~(1 << ring->vm_inv_eng);
+
+		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
+			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
+	}
+
+	return 0;
 }

@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/msm/qcom,llcc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Last Level Cache Controller
+
+maintainers:
+  - Rishabh Bhatnagar <rishabhb@codeaurora.org>
+  - Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
+
+description: |
+  LLCC (Last Level Cache Controller) provides last level of cache memory in SoC,
+  that can be shared by multiple clients. Clients here are different cores in the
+  SoC, the idea is to minimize the local caches at the clients and migrate to
+  common pool of memory. Cache memory is divided into partitions called slices
+  which are assigned to clients. Clients can query the slice details, activate
+  and deactivate them.
+
+properties:
+  compatible:
+    enum:
+      - qcom,sc7180-llcc
+      - qcom,sdm845-llcc
+
+  reg:
+    items:
+      - description: LLCC base register region
+      - description: LLCC broadcast base register region
+
+  reg-names:
+    items:
+      - const: llcc_base
+      - const: llcc_broadcast_base
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    system-cache-controller@1100000 {
+      compatible = "qcom,sdm845-llcc";
+      reg = <0x1100000 0x200000>, <0x1300000 0x50000> ;
+      reg-names = "llcc_base", "llcc_broadcast_base";
+      interrupts = <GIC_SPI 582 IRQ_TYPE_LEVEL_HIGH>;
+    };

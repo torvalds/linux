@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include <asm/io.h>
 
-/* This must match data at realmode.S */
+/* This must match data at realmode/rm/header.S */
 struct real_mode_header {
 	u32	text_start;
 	u32	ro_end;
@@ -36,7 +36,7 @@ struct real_mode_header {
 #endif
 };
 
-/* This must match data at trampoline_32/64.S */
+/* This must match data at realmode/rm/trampoline_{32,64}.S */
 struct trampoline_header {
 #ifdef CONFIG_X86_32
 	u32 start;

@@ -503,19 +503,40 @@ static void uif_close(struct ubi_device *ubi)
 }
 
 /**
+ * ubi_free_volumes_from - free volumes from specific index.
+ * @ubi: UBI device description object
+ * @from: the start index used for volume free.
+ */
+static void ubi_free_volumes_from(struct ubi_device *ubi, int from)
+{
+	int i;
+
+	for (i = from; i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
+		if (!ubi->volumes[i])
+			continue;
+		ubi_eba_replace_table(ubi->volumes[i], NULL);
+		ubi_fastmap_destroy_checkmap(ubi->volumes[i]);
+		kfree(ubi->volumes[i]);
+		ubi->volumes[i] = NULL;
+	}
+}
+
+/**
+ * ubi_free_all_volumes - free all volumes.
+ * @ubi: UBI device description object
+ */
+void ubi_free_all_volumes(struct ubi_device *ubi)
+{
+	ubi_free_volumes_from(ubi, 0);
+}
+
+/**
  * ubi_free_internal_volumes - free internal volumes.
  * @ubi: UBI device description object
  */
 void ubi_free_internal_volumes(struct ubi_device *ubi)
 {
-	int i;
-
-	for (i = ubi->vtbl_slots;
-	     i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
-		ubi_eba_replace_table(ubi->volumes[i], NULL);
-		ubi_fastmap_destroy_checkmap(ubi->volumes[i]);
-		kfree(ubi->volumes[i]);
-	}
+	ubi_free_volumes_from(ubi, ubi->vtbl_slots);
 }
 
 static int get_bad_peb_limit(const struct ubi_device *ubi, int max_beb_per1024)
@@ -1013,7 +1034,7 @@ out_uif:
 out_detach:
 	ubi_devices[ubi_num] = NULL;
 	ubi_wl_close(ubi);
-	ubi_free_internal_volumes(ubi);
+	ubi_free_all_volumes(ubi);
 	vfree(ubi->vtbl);
 out_free:
 	vfree(ubi->peb_buf);
@@ -1159,7 +1180,7 @@ static struct mtd_info * __init open_mtd_device(const char *mtd_dev)
 		 * MTD device name.
 		 */
 		mtd = get_mtd_device_nm(mtd_dev);
-		if (IS_ERR(mtd) && PTR_ERR(mtd) == -ENODEV)
+		if (PTR_ERR(mtd) == -ENODEV)
 			/* Probably this is an MTD character device node path */
 			mtd = open_mtd_by_chdev(mtd_dev);
 	} else

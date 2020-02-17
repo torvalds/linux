@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2018 Facebook */
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 int _version SEC("version") = 1;
 
@@ -23,7 +23,7 @@ struct dummy_tracepoint_args {
 };
 
 __attribute__((noinline))
-static int test_long_fname_2(struct dummy_tracepoint_args *arg)
+int test_long_fname_2(struct dummy_tracepoint_args *arg)
 {
 	struct ipv_counts *counts;
 	int key = 0;
@@ -41,7 +41,7 @@ static int test_long_fname_2(struct dummy_tracepoint_args *arg)
 }
 
 __attribute__((noinline))
-static int test_long_fname_1(struct dummy_tracepoint_args *arg)
+int test_long_fname_1(struct dummy_tracepoint_args *arg)
 {
 	return test_long_fname_2(arg);
 }

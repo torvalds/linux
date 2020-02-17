@@ -367,6 +367,12 @@ OPTIONS
 --objdump=<path>::
         Path to objdump binary.
 
+--prefix=PREFIX::
+--prefix-strip=N::
+	Remove first N entries from source file path names in executables
+	and add PREFIX. This allows to display source code compiled on systems
+	with different file system layout.
+
 --group::
 	Show event group information together. It forces group output also
 	if there are no groups defined in data file.
@@ -524,6 +530,17 @@ include::itrace.txt[]
 --time-quantum::
 	Configure time quantum for time sort key. Default 100ms.
 	Accepts s, us, ms, ns units.
+
+--total-cycles::
+	When --total-cycles is specified, it supports sorting for all blocks by
+	'Sampled Cycles%'. This is useful to concentrate on the globally hottest
+	blocks. In output, there are some new columns:
+
+	'Sampled Cycles%' - block sampled cycles aggregation / total sampled cycles
+	'Sampled Cycles'  - block sampled cycles aggregation
+	'Avg Cycles%'     - block average sampled cycles / sum of total block average
+			    sampled cycles
+	'Avg Cycles'      - block average sampled cycles
 
 include::callchain-overhead-calculation.txt[]
 

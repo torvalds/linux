@@ -135,7 +135,8 @@ void dw_pcm_pop_rx(struct dw_i2s_dev *dev)
 	dw_pcm_transfer(dev, false);
 }
 
-static int dw_pcm_open(struct snd_pcm_substream *substream)
+static int dw_pcm_open(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -148,18 +149,19 @@ static int dw_pcm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int dw_pcm_close(struct snd_pcm_substream *substream)
+static int dw_pcm_close(struct snd_soc_component *component,
+			struct snd_pcm_substream *substream)
 {
 	synchronize_rcu();
 	return 0;
 }
 
-static int dw_pcm_hw_params(struct snd_pcm_substream *substream,
-		struct snd_pcm_hw_params *hw_params)
+static int dw_pcm_hw_params(struct snd_soc_component *component,
+			    struct snd_pcm_substream *substream,
+			    struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct dw_i2s_dev *dev = runtime->private_data;
-	int ret;
 
 	switch (params_channels(hw_params)) {
 	case 2:
@@ -184,20 +186,11 @@ static int dw_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	ret = snd_pcm_lib_malloc_pages(substream,
-			params_buffer_bytes(hw_params));
-	if (ret < 0)
-		return ret;
-	else
-		return 0;
+	return 0;
 }
 
-static int dw_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
-static int dw_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
+static int dw_pcm_trigger(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct dw_i2s_dev *dev = runtime->private_data;
@@ -231,7 +224,8 @@ static int dw_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static snd_pcm_uframes_t dw_pcm_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t dw_pcm_pointer(struct snd_soc_component *component,
+					struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct dw_i2s_dev *dev = runtime->private_data;
@@ -245,35 +239,24 @@ static snd_pcm_uframes_t dw_pcm_pointer(struct snd_pcm_substream *substream)
 	return pos < runtime->buffer_size ? pos : 0;
 }
 
-static int dw_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int dw_pcm_new(struct snd_soc_component *component,
+		      struct snd_soc_pcm_runtime *rtd)
 {
 	size_t size = dw_pcm_hardware.buffer_bytes_max;
 
-	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
+	snd_pcm_set_managed_buffer_all(rtd->pcm,
 			SNDRV_DMA_TYPE_CONTINUOUS,
-			snd_dma_continuous_data(GFP_KERNEL), size, size);
+			NULL, size, size);
 	return 0;
 }
 
-static void dw_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-static const struct snd_pcm_ops dw_pcm_ops = {
-	.open = dw_pcm_open,
-	.close = dw_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = dw_pcm_hw_params,
-	.hw_free = dw_pcm_hw_free,
-	.trigger = dw_pcm_trigger,
-	.pointer = dw_pcm_pointer,
-};
-
 static const struct snd_soc_component_driver dw_pcm_component = {
-	.pcm_new = dw_pcm_new,
-	.pcm_free = dw_pcm_free,
-	.ops = &dw_pcm_ops,
+	.open		= dw_pcm_open,
+	.close		= dw_pcm_close,
+	.hw_params	= dw_pcm_hw_params,
+	.trigger	= dw_pcm_trigger,
+	.pointer	= dw_pcm_pointer,
+	.pcm_construct	= dw_pcm_new,
 };
 
 int dw_pcm_register(struct platform_device *pdev)

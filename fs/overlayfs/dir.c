@@ -35,7 +35,7 @@ int ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
 	dput(wdentry);
 
 	if (err) {
-		pr_err("overlayfs: cleanup of '%pd2' failed (%i)\n",
+		pr_err("cleanup of '%pd2' failed (%i)\n",
 		       wdentry, err);
 	}
 
@@ -53,7 +53,7 @@ static struct dentry *ovl_lookup_temp(struct dentry *workdir)
 
 	temp = lookup_one_len(name, workdir, strlen(name));
 	if (!IS_ERR(temp) && temp->d_inode) {
-		pr_err("overlayfs: workdir/%s already exists\n", name);
+		pr_err("workdir/%s already exists\n", name);
 		dput(temp);
 		temp = ERR_PTR(-EIO);
 	}
@@ -134,7 +134,7 @@ static int ovl_mkdir_real(struct inode *dir, struct dentry **newdentry,
 	d = lookup_one_len(dentry->d_name.name, dentry->d_parent,
 			   dentry->d_name.len);
 	if (IS_ERR(d)) {
-		pr_warn("overlayfs: failed lookup after mkdir (%pd2, err=%i).\n",
+		pr_warn("failed lookup after mkdir (%pd2, err=%i).\n",
 			dentry, err);
 		return PTR_ERR(d);
 	}
@@ -267,7 +267,7 @@ static int ovl_instantiate(struct dentry *dentry, struct inode *inode,
 
 	d_instantiate(dentry, inode);
 	if (inode != oip.newinode) {
-		pr_warn_ratelimited("overlayfs: newly created inode found in cache (%pd2)\n",
+		pr_warn_ratelimited("newly created inode found in cache (%pd2)\n",
 				    dentry);
 	}
 
@@ -1009,7 +1009,7 @@ static int ovl_set_redirect(struct dentry *dentry, bool samedir)
 		spin_unlock(&dentry->d_lock);
 	} else {
 		kfree(redirect);
-		pr_warn_ratelimited("overlayfs: failed to set redirect (%i)\n",
+		pr_warn_ratelimited("failed to set redirect (%i)\n",
 				    err);
 		/* Fall back to userspace copy-up */
 		err = -EXDEV;
@@ -1170,7 +1170,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	if (newdentry == trap)
 		goto out_dput;
 
-	if (WARN_ON(olddentry->d_inode == newdentry->d_inode))
+	if (olddentry->d_inode == newdentry->d_inode)
 		goto out_dput;
 
 	err = 0;

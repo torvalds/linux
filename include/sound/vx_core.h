@@ -147,8 +147,8 @@ struct vx_core {
 	/* ports are defined externally */
 
 	/* low-level functions */
-	struct snd_vx_hardware *hw;
-	struct snd_vx_ops *ops;
+	const struct snd_vx_hardware *hw;
+	const struct snd_vx_ops *ops;
 
 	struct mutex lock;
 
@@ -193,8 +193,9 @@ struct vx_core {
 /*
  * constructor
  */
-struct vx_core *snd_vx_create(struct snd_card *card, struct snd_vx_hardware *hw,
-			      struct snd_vx_ops *ops, int extra_size);
+struct vx_core *snd_vx_create(struct snd_card *card,
+			      const struct snd_vx_hardware *hw,
+			      const struct snd_vx_ops *ops, int extra_size);
 int snd_vx_setup_firmware(struct vx_core *chip);
 int snd_vx_load_boot_image(struct vx_core *chip, const struct firmware *dsp);
 int snd_vx_dsp_boot(struct vx_core *chip, const struct firmware *dsp);

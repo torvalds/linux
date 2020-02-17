@@ -285,6 +285,7 @@ komeda_layer_check_cfg(struct komeda_layer *layer,
 		       struct komeda_data_flow_cfg *dflow)
 {
 	u32 src_x, src_y, src_w, src_h;
+	u32 line_sz, max_line_sz;
 
 	if (!komeda_fb_is_layer_supported(kfb, layer->layer_type, dflow->rot))
 		return -EINVAL;
@@ -311,6 +312,22 @@ komeda_layer_check_cfg(struct komeda_layer *layer,
 
 	if (!in_range(&layer->vsize_in, src_h)) {
 		DRM_DEBUG_ATOMIC("invalidate src_h %d.\n", src_h);
+		return -EINVAL;
+	}
+
+	if (drm_rotation_90_or_270(dflow->rot))
+		line_sz = dflow->in_h;
+	else
+		line_sz = dflow->in_w;
+
+	if (kfb->base.format->hsub > 1)
+		max_line_sz = layer->yuv_line_sz;
+	else
+		max_line_sz = layer->line_sz;
+
+	if (line_sz > max_line_sz) {
+		DRM_DEBUG_ATOMIC("Required line_sz: %d exceeds the max size %d\n",
+				 line_sz, max_line_sz);
 		return -EINVAL;
 	}
 
@@ -564,8 +581,8 @@ komeda_splitter_validate(struct komeda_splitter *splitter,
 	}
 
 	if (!in_range(&splitter->vsize, dflow->in_h)) {
-		DRM_DEBUG_ATOMIC("split in_in: %d exceed the acceptable range.\n",
-				 dflow->in_w);
+		DRM_DEBUG_ATOMIC("split in_h: %d exceeds the acceptable range.\n",
+				 dflow->in_h);
 		return -EINVAL;
 	}
 
@@ -743,6 +760,7 @@ komeda_improc_validate(struct komeda_improc *improc,
 		       struct komeda_data_flow_cfg *dflow)
 {
 	struct drm_crtc *crtc = kcrtc_st->base.crtc;
+	struct drm_crtc_state *crtc_st = &kcrtc_st->base;
 	struct komeda_component_state *c_st;
 	struct komeda_improc_state *st;
 
@@ -755,6 +773,40 @@ komeda_improc_validate(struct komeda_improc *improc,
 
 	st->hsize = dflow->in_w;
 	st->vsize = dflow->in_h;
+
+	if (drm_atomic_crtc_needs_modeset(crtc_st)) {
+		u32 output_depths, output_formats;
+		u32 avail_depths, avail_formats;
+
+		komeda_crtc_get_color_config(crtc_st, &output_depths,
+					     &output_formats);
+
+		avail_depths = output_depths & improc->supported_color_depths;
+		if (avail_depths == 0) {
+			DRM_DEBUG_ATOMIC("No available color depths, conn depths: 0x%x & display: 0x%x\n",
+					 output_depths,
+					 improc->supported_color_depths);
+			return -EINVAL;
+		}
+
+		avail_formats = output_formats &
+				improc->supported_color_formats;
+		if (!avail_formats) {
+			DRM_DEBUG_ATOMIC("No available color_formats, conn formats 0x%x & display: 0x%x\n",
+					 output_formats,
+					 improc->supported_color_formats);
+			return -EINVAL;
+		}
+
+		st->color_depth = __fls(avail_depths);
+		st->color_format = BIT(__ffs(avail_formats));
+	}
+
+	if (kcrtc_st->base.color_mgmt_changed) {
+		drm_lut_to_fgamma_coeffs(kcrtc_st->base.gamma_lut,
+					 st->fgamma_coeffs);
+		drm_ctm_to_coeffs(kcrtc_st->base.ctm, st->ctm_coeffs);
+	}
 
 	komeda_component_add_input(&st->base, &dflow->input, 0);
 	komeda_component_set_output(&dflow->input, &improc->base, 0);
@@ -1218,7 +1270,17 @@ int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
 	return 0;
 }
 
-void komeda_pipeline_disable(struct komeda_pipeline *pipe,
+/* Since standalong disabled components must be disabled separately and in the
+ * last, So a complete disable operation may needs to call pipeline_disable
+ * twice (two phase disabling).
+ * Phase 1: disable the common components, flush it.
+ * Phase 2: disable the standalone disabled components, flush it.
+ *
+ * RETURNS:
+ * true: disable is not complete, needs a phase 2 disable.
+ * false: disable is complete.
+ */
+bool komeda_pipeline_disable(struct komeda_pipeline *pipe,
 			     struct drm_atomic_state *old_state)
 {
 	struct komeda_pipeline_state *old;
@@ -1228,9 +1290,14 @@ void komeda_pipeline_disable(struct komeda_pipeline *pipe,
 
 	old = komeda_pipeline_get_old_state(pipe, old_state);
 
-	disabling_comps = old->active_comps;
-	DRM_DEBUG_ATOMIC("PIPE%d: disabling_comps: 0x%x.\n",
-			 pipe->id, disabling_comps);
+	disabling_comps = old->active_comps &
+			  (~pipe->standalone_disabled_comps);
+	if (!disabling_comps)
+		disabling_comps = old->active_comps &
+				  pipe->standalone_disabled_comps;
+
+	DRM_DEBUG_ATOMIC("PIPE%d: active_comps: 0x%x, disabling_comps: 0x%x.\n",
+			 pipe->id, old->active_comps, disabling_comps);
 
 	dp_for_each_set_bit(id, disabling_comps) {
 		c = komeda_pipeline_get_component(pipe, id);
@@ -1248,6 +1315,13 @@ void komeda_pipeline_disable(struct komeda_pipeline *pipe,
 
 		c->funcs->disable(c);
 	}
+
+	/* Update the pipeline state, if there are components that are still
+	 * active, return true for calling the phase 2 disable.
+	 */
+	old->active_comps &= ~disabling_comps;
+
+	return old->active_comps ? true : false;
 }
 
 void komeda_pipeline_update(struct komeda_pipeline *pipe,

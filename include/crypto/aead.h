@@ -227,6 +227,16 @@ static inline unsigned int crypto_aead_authsize(struct crypto_aead *tfm)
 	return tfm->authsize;
 }
 
+static inline unsigned int crypto_aead_alg_maxauthsize(struct aead_alg *alg)
+{
+	return alg->maxauthsize;
+}
+
+static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
+{
+	return crypto_aead_alg_maxauthsize(crypto_aead_alg(aead));
+}
+
 /**
  * crypto_aead_blocksize() - obtain block size of cipher
  * @tfm: cipher handle
@@ -321,7 +331,7 @@ int crypto_aead_encrypt(struct aead_request *req);
 
 /**
  * crypto_aead_decrypt() - decrypt ciphertext
- * @req: reference to the ablkcipher_request handle that holds all information
+ * @req: reference to the aead_request handle that holds all information
  *	 needed to perform the cipher operation
  *
  * Decrypt ciphertext data using the aead_request handle. That data structure

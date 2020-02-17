@@ -124,6 +124,7 @@ struct ath10k_skb_cb {
 struct ath10k_skb_rxcb {
 	dma_addr_t paddr;
 	struct hlist_node hlist;
+	u8 eid;
 };
 
 static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
@@ -169,6 +170,7 @@ struct ath10k_wmi {
 	struct wmi_cmd_map *cmd;
 	struct wmi_vdev_param_map *vdev_param;
 	struct wmi_pdev_param_map *pdev_param;
+	struct wmi_peer_param_map *peer_param;
 	const struct wmi_ops *ops;
 	const struct wmi_peer_flags_map *peer_flags;
 
@@ -963,12 +965,20 @@ struct ath10k {
 	u32 hw_eeprom_rd;
 	u32 ht_cap_info;
 	u32 vht_cap_info;
+	u32 vht_supp_mcs;
 	u32 num_rf_chains;
 	u32 max_spatial_stream;
 	/* protected by conf_mutex */
+	u32 low_2ghz_chan;
+	u32 high_2ghz_chan;
 	u32 low_5ghz_chan;
 	u32 high_5ghz_chan;
 	bool ani_enabled;
+	u32 sys_cap_info;
+
+	/* protected by data_lock */
+	bool hw_rfkill_on;
+
 	/* protected by conf_mutex */
 	u8 ps_state_enable;
 
@@ -1171,6 +1181,7 @@ struct ath10k {
 
 	struct {
 		/* protected by data_lock */
+		u32 rx_crc_err_drop;
 		u32 fw_crash_counter;
 		u32 fw_warm_reset_counter;
 		u32 fw_cold_reset_counter;

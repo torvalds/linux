@@ -8,7 +8,7 @@ title: Allwinner platforms device tree bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   $nodename:
@@ -211,6 +211,11 @@ properties:
           - const: friendlyarm,nanopi-a64
           - const: allwinner,sun50i-a64
 
+      - description: FriendlyARM NanoPi Duo2
+        items:
+          - const: friendlyarm,nanopi-duo2
+          - const: allwinner,sun8i-h3
+
       - description: FriendlyARM NanoPi M1
         items:
           - const: friendlyarm,nanopi-m1
@@ -335,6 +340,16 @@ properties:
       - description: Libre Computer Board ALL-H3-CC H5
         items:
           - const: libretech,all-h3-cc-h5
+          - const: allwinner,sun50i-h5
+
+      - description: Libre Computer Board ALL-H3-IT H5
+        items:
+          - const: libretech,all-h3-it-h5
+          - const: allwinner,sun50i-h5
+
+      - description: Libre Computer Board ALL-H5-CC H5
+        items:
+          - const: libretech,all-h5-cc-h5
           - const: allwinner,sun50i-h5
 
       - description: Lichee Pi One
@@ -465,6 +480,12 @@ properties:
           - const: emlid,neutis-n5
           - const: allwinner,sun50i-h5
 
+      - description: Emlid Neutis N5H3 Developper Board
+        items:
+          - const: emlid,neutis-n5h3-devboard
+          - const: emlid,neutis-n5h3
+          - const: allwinner,sun8i-h3
+
       - description: NextThing Co. CHIP
         items:
           - const: nextthing,chip
@@ -594,9 +615,14 @@ properties:
           - const: pine64,pine64-plus
           - const: allwinner,sun50i-a64
 
-      - description: Pine64 PineH64
+      - description: Pine64 PineH64 model A
         items:
           - const: pine64,pine-h64
+          - const: allwinner,sun50i-h6
+
+      - description: Pine64 PineH64 model B
+        items:
+          - const: pine64,pine-h64-model-b
           - const: allwinner,sun50i-h6
 
       - description: Pine64 LTS

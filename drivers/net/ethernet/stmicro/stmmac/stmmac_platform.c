@@ -320,7 +320,7 @@ out:
 static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 			 struct device_node *np, struct device *dev)
 {
-	bool mdio = true;
+	bool mdio = !of_phy_is_fixed_link(np);
 	static const struct of_device_id need_mdio_ids[] = {
 		{ .compatible = "snps,dwc-qos-ethernet-4.10" },
 		{},
@@ -412,7 +412,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		*mac = NULL;
 	}
 
-	plat->phy_interface = of_get_phy_mode(np);
+	plat->phy_interface = device_get_phy_mode(&pdev->dev);
 	if (plat->phy_interface < 0)
 		return ERR_PTR(plat->phy_interface);
 

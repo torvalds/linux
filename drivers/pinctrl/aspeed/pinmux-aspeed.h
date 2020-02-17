@@ -508,7 +508,7 @@ struct aspeed_pin_desc {
  * @idx: The bit index in the register
  */
 #define SIG_DESC_SET(reg, idx) SIG_DESC_IP_BIT(ASPEED_IP_SCU, reg, idx, 1)
-#define SIG_DESC_CLEAR(reg, idx) SIG_DESC_IP_BIT(ASPEED_IP_SCU, reg, idx, 0)
+#define SIG_DESC_CLEAR(reg, idx) { ASPEED_IP_SCU, reg, BIT_MASK(idx), 0, 0 }
 
 #define SIG_DESC_LIST_SYM(sig, group) sig_descs_ ## sig ## _ ## group
 #define SIG_DESC_LIST_DECL(sig, group, ...) \
@@ -737,7 +737,9 @@ struct aspeed_pin_desc {
 #define FUNC_DECL_(func, ...) \
 	static const char *FUNC_SYM(func)[] = { __VA_ARGS__ }
 
+#define FUNC_DECL_1(func, group) FUNC_DECL_(func, #group)
 #define FUNC_DECL_2(func, one, two) FUNC_DECL_(func, #one, #two)
+#define FUNC_DECL_3(func, one, two, three) FUNC_DECL_(func, #one, #two, #three)
 
 #define FUNC_GROUP_DECL(func, ...) \
 	GROUP_DECL(func, __VA_ARGS__); \

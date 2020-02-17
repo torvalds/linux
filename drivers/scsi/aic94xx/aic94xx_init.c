@@ -54,6 +54,9 @@ static struct scsi_host_template aic94xx_sht = {
 	.eh_target_reset_handler	= sas_eh_target_reset_handler,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl		= sas_ioctl,
+#endif
 	.track_queue_depth	= 1,
 };
 

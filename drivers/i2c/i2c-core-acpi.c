@@ -39,6 +39,7 @@ struct i2c_acpi_lookup {
 	int index;
 	u32 speed;
 	u32 min_speed;
+	u32 force_speed;
 };
 
 /**
@@ -224,7 +225,7 @@ static void i2c_acpi_register_device(struct i2c_adapter *adapter,
 	adev->power.flags.ignore_parent = true;
 	acpi_device_set_enumerated(adev);
 
-	if (!i2c_new_device(adapter, info)) {
+	if (IS_ERR(i2c_new_client_device(adapter, info))) {
 		adev->power.flags.ignore_parent = false;
 		dev_err(&adapter->dev,
 			"failed to add I2C device %s from ACPI\n",
@@ -285,6 +286,19 @@ i2c_acpi_match_device(const struct acpi_device_id *matches,
 	return acpi_match_device(matches, &client->dev);
 }
 
+static const struct acpi_device_id i2c_acpi_force_400khz_device_ids[] = {
+	/*
+	 * These Silead touchscreen controllers only work at 400KHz, for
+	 * some reason they do not work at 100KHz. On some devices the ACPI
+	 * tables list another device at their bus as only being capable
+	 * of 100KHz, testing has shown that these other devices work fine
+	 * at 400KHz (as can be expected of any recent i2c hw) so we force
+	 * the speed of the bus to 400 KHz if a Silead device is present.
+	 */
+	{ "MSSL1680", 0 },
+	{}
+};
+
 static acpi_status i2c_acpi_lookup_speed(acpi_handle handle, u32 level,
 					   void *data, void **return_value)
 {
@@ -302,6 +316,9 @@ static acpi_status i2c_acpi_lookup_speed(acpi_handle handle, u32 level,
 
 	if (lookup->speed <= lookup->min_speed)
 		lookup->min_speed = lookup->speed;
+
+	if (acpi_match_device_ids(adev, i2c_acpi_force_400khz_device_ids) == 0)
+		lookup->force_speed = 400000;
 
 	return AE_OK;
 }
@@ -340,7 +357,16 @@ u32 i2c_acpi_find_bus_speed(struct device *dev)
 		return 0;
 	}
 
-	return lookup.min_speed != UINT_MAX ? lookup.min_speed : 0;
+	if (lookup.force_speed) {
+		if (lookup.force_speed != lookup.min_speed)
+			dev_warn(dev, FW_BUG "DSDT uses known not-working I2C bus speed %d, forcing it to %d\n",
+				 lookup.min_speed, lookup.force_speed);
+		return lookup.force_speed;
+	} else if (lookup.min_speed != UINT_MAX) {
+		return lookup.min_speed;
+	} else {
+		return 0;
+	}
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_find_bus_speed);
 
@@ -425,7 +451,8 @@ struct notifier_block i2c_acpi_notifier = {
  * resources, in that case this function can be used to create an i2c-client
  * for other I2cSerialBus resources in the Current Resource Settings table.
  *
- * Also see i2c_new_device, which this function calls to create the i2c-client.
+ * Also see i2c_new_client_device, which this function calls to create the
+ * i2c-client.
  *
  * Returns a pointer to the new i2c-client, or error pointer in case of failure.
  * Specifically, -EPROBE_DEFER is returned if the adapter is not found.
@@ -435,7 +462,6 @@ struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 {
 	struct i2c_acpi_lookup lookup;
 	struct i2c_adapter *adapter;
-	struct i2c_client *client;
 	struct acpi_device *adev;
 	LIST_HEAD(resource_list);
 	int ret;
@@ -463,11 +489,7 @@ struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 	if (!adapter)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	client = i2c_new_device(adapter, info);
-	if (!client)
-		return ERR_PTR(-ENODEV);
-
-	return client;
+	return i2c_new_client_device(adapter, info);
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_new_device);
 

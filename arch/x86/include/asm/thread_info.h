@@ -143,8 +143,8 @@ struct thread_info {
 	 _TIF_NOHZ)
 
 /* flags to check in __switch_to() */
-#define _TIF_WORK_CTXSW_BASE						\
-	(_TIF_IO_BITMAP|_TIF_NOCPUID|_TIF_NOTSC|_TIF_BLOCKSTEP|		\
+#define _TIF_WORK_CTXSW_BASE					\
+	(_TIF_NOCPUID | _TIF_NOTSC | _TIF_BLOCKSTEP |		\
 	 _TIF_SSBD | _TIF_SPEC_FORCE_UPDATE)
 
 /*
@@ -156,8 +156,14 @@ struct thread_info {
 # define _TIF_WORK_CTXSW	(_TIF_WORK_CTXSW_BASE)
 #endif
 
-#define _TIF_WORK_CTXSW_PREV (_TIF_WORK_CTXSW|_TIF_USER_RETURN_NOTIFY)
-#define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW)
+#ifdef CONFIG_X86_IOPL_IOPERM
+# define _TIF_WORK_CTXSW_PREV	(_TIF_WORK_CTXSW| _TIF_USER_RETURN_NOTIFY | \
+				 _TIF_IO_BITMAP)
+#else
+# define _TIF_WORK_CTXSW_PREV	(_TIF_WORK_CTXSW| _TIF_USER_RETURN_NOTIFY)
+#endif
+
+#define _TIF_WORK_CTXSW_NEXT	(_TIF_WORK_CTXSW)
 
 #define STACK_WARN		(THREAD_SIZE/8)
 
@@ -232,15 +238,6 @@ static inline int arch_within_stack_frames(const void * const stack,
 #define in_ia32_syscall() (IS_ENABLED(CONFIG_IA32_EMULATION) && \
 			   current_thread_info()->status & TS_COMPAT)
 #endif
-
-/*
- * Force syscall return via IRET by making it look as if there was
- * some work pending. IRET is our most capable (but slowest) syscall
- * return path, which is able to restore modified SS, CS and certain
- * EFLAGS values that other (fast) syscall return instructions
- * are not able to restore properly.
- */
-#define force_iret() set_thread_flag(TIF_NOTIFY_RESUME)
 
 extern void arch_task_cache_init(void);
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);

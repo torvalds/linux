@@ -31,6 +31,8 @@
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_context.h"
+#include "gt/intel_ring.h"
+#include "gt/intel_rps.h"
 
 #include "i915_active.h"
 #include "i915_drv.h"
@@ -55,11 +57,13 @@ static struct i915_global_request {
 
 static const char *i915_fence_get_driver_name(struct dma_fence *fence)
 {
-	return "i915";
+	return dev_name(to_request(fence)->i915->drm.dev);
 }
 
 static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
 {
+	const struct i915_gem_context *ctx;
+
 	/*
 	 * The timeline struct (as part of the ppgtt underneath a context)
 	 * may be freed when the request is no longer in use by the GPU.
@@ -72,7 +76,11 @@ static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return "signaled";
 
-	return to_request(fence)->gem_context->name ?: "[i915]";
+	ctx = i915_request_gem_context(to_request(fence));
+	if (!ctx)
+		return "[" DRIVER_NAME "]";
+
+	return ctx->name;
 }
 
 static bool i915_fence_signaled(struct dma_fence *fence)
@@ -169,23 +177,24 @@ remove_from_client(struct i915_request *request)
 {
 	struct drm_i915_file_private *file_priv;
 
-	file_priv = READ_ONCE(request->file_priv);
-	if (!file_priv)
+	if (!READ_ONCE(request->file_priv))
 		return;
 
-	spin_lock(&file_priv->mm.lock);
-	if (request->file_priv) {
+	rcu_read_lock();
+	file_priv = xchg(&request->file_priv, NULL);
+	if (file_priv) {
+		spin_lock(&file_priv->mm.lock);
 		list_del(&request->client_link);
-		request->file_priv = NULL;
+		spin_unlock(&file_priv->mm.lock);
 	}
-	spin_unlock(&file_priv->mm.lock);
+	rcu_read_unlock();
 }
 
 static void free_capture_list(struct i915_request *request)
 {
 	struct i915_capture_list *capture;
 
-	capture = request->capture_list;
+	capture = fetch_and_zero(&request->capture_list);
 	while (capture) {
 		struct i915_capture_list *next = capture->next;
 
@@ -194,18 +203,35 @@ static void free_capture_list(struct i915_request *request)
 	}
 }
 
-static bool i915_request_retire(struct i915_request *rq)
+static void remove_from_engine(struct i915_request *rq)
 {
-	struct i915_active_request *active, *next;
+	struct intel_engine_cs *engine, *locked;
 
-	lockdep_assert_held(&rq->timeline->mutex);
+	/*
+	 * Virtual engines complicate acquiring the engine timeline lock,
+	 * as their rq->engine pointer is not stable until under that
+	 * engine lock. The simple ploy we use is to take the lock then
+	 * check that the rq still belongs to the newly locked engine.
+	 */
+	locked = READ_ONCE(rq->engine);
+	spin_lock_irq(&locked->active.lock);
+	while (unlikely(locked != (engine = READ_ONCE(rq->engine)))) {
+		spin_unlock(&locked->active.lock);
+		spin_lock(&engine->active.lock);
+		locked = engine;
+	}
+	list_del_init(&rq->sched.link);
+	clear_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
+	clear_bit(I915_FENCE_FLAG_HOLD, &rq->fence.flags);
+	spin_unlock_irq(&locked->active.lock);
+}
+
+bool i915_request_retire(struct i915_request *rq)
+{
 	if (!i915_request_completed(rq))
 		return false;
 
-	GEM_TRACE("%s fence %llx:%lld, current %d\n",
-		  rq->engine->name,
-		  rq->fence.context, rq->fence.seqno,
-		  hwsp_seqno(rq));
+	RQ_TRACE(rq, "\n");
 
 	GEM_BUG_ON(!i915_sw_fence_signaled(&rq->submit));
 	trace_i915_request_retire(rq);
@@ -219,39 +245,9 @@ static bool i915_request_retire(struct i915_request *rq)
 	 * Note this requires that we are always called in request
 	 * completion order.
 	 */
-	GEM_BUG_ON(!list_is_first(&rq->link, &rq->timeline->requests));
+	GEM_BUG_ON(!list_is_first(&rq->link,
+				  &i915_request_timeline(rq)->requests));
 	rq->ring->head = rq->postfix;
-
-	/*
-	 * Walk through the active list, calling retire on each. This allows
-	 * objects to track their GPU activity and mark themselves as idle
-	 * when their *last* active request is completed (updating state
-	 * tracking lists for eviction, active references for GEM, etc).
-	 *
-	 * As the ->retire() may free the node, we decouple it first and
-	 * pass along the auxiliary information (to avoid dereferencing
-	 * the node after the callback).
-	 */
-	list_for_each_entry_safe(active, next, &rq->active_list, link) {
-		/*
-		 * In microbenchmarks or focusing upon time inside the kernel,
-		 * we may spend an inordinate amount of time simply handling
-		 * the retirement of requests and processing their callbacks.
-		 * Of which, this loop itself is particularly hot due to the
-		 * cache misses when jumping around the list of
-		 * i915_active_request.  So we try to keep this loop as
-		 * streamlined as possible and also prefetch the next
-		 * i915_active_request to try and hide the likely cache miss.
-		 */
-		prefetchw(next);
-
-		INIT_LIST_HEAD(&active->link);
-		RCU_INIT_POINTER(active->request, NULL);
-
-		active->retire(active, rq);
-	}
-
-	local_irq_disable();
 
 	/*
 	 * We only loosely track inflight requests across preemption,
@@ -259,34 +255,30 @@ static bool i915_request_retire(struct i915_request *rq)
 	 * request that we have removed from the HW and put back on a run
 	 * queue.
 	 */
-	spin_lock(&rq->engine->active.lock);
-	list_del(&rq->sched.link);
-	spin_unlock(&rq->engine->active.lock);
+	remove_from_engine(rq);
 
-	spin_lock(&rq->lock);
+	spin_lock_irq(&rq->lock);
 	i915_request_mark_complete(rq);
 	if (!i915_request_signaled(rq))
 		dma_fence_signal_locked(&rq->fence);
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
 		i915_request_cancel_breadcrumb(rq);
 	if (i915_request_has_waitboost(rq)) {
-		GEM_BUG_ON(!atomic_read(&rq->i915->gt_pm.rps.num_waiters));
-		atomic_dec(&rq->i915->gt_pm.rps.num_waiters);
+		GEM_BUG_ON(!atomic_read(&rq->engine->gt->rps.num_waiters));
+		atomic_dec(&rq->engine->gt->rps.num_waiters);
 	}
 	if (!test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags)) {
 		set_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
 		__notify_execute_cb(rq);
 	}
 	GEM_BUG_ON(!list_empty(&rq->execute_cb));
-	spin_unlock(&rq->lock);
-
-	local_irq_enable();
+	spin_unlock_irq(&rq->lock);
 
 	remove_from_client(rq);
 	list_del(&rq->link);
 
-	intel_context_exit(rq->hw_context);
-	intel_context_unpin(rq->hw_context);
+	intel_context_exit(rq->context);
+	intel_context_unpin(rq->context);
 
 	free_capture_list(rq);
 	i915_sched_node_fini(&rq->sched);
@@ -297,15 +289,11 @@ static bool i915_request_retire(struct i915_request *rq)
 
 void i915_request_retire_upto(struct i915_request *rq)
 {
-	struct intel_timeline * const tl = rq->timeline;
+	struct intel_timeline * const tl = i915_request_timeline(rq);
 	struct i915_request *tmp;
 
-	GEM_TRACE("%s fence %llx:%lld, current %d\n",
-		  rq->engine->name,
-		  rq->fence.context, rq->fence.seqno,
-		  hwsp_seqno(rq));
+	RQ_TRACE(rq, "\n");
 
-	lockdep_assert_held(&tl->mutex);
 	GEM_BUG_ON(!i915_request_completed(rq));
 
 	do {
@@ -314,11 +302,11 @@ void i915_request_retire_upto(struct i915_request *rq)
 }
 
 static int
-__i915_request_await_execution(struct i915_request *rq,
-			       struct i915_request *signal,
-			       void (*hook)(struct i915_request *rq,
-					    struct dma_fence *signal),
-			       gfp_t gfp)
+__await_execution(struct i915_request *rq,
+		  struct i915_request *signal,
+		  void (*hook)(struct i915_request *rq,
+			       struct dma_fence *signal),
+		  gfp_t gfp)
 {
 	struct execute_cb *cb;
 
@@ -355,22 +343,41 @@ __i915_request_await_execution(struct i915_request *rq,
 	}
 	spin_unlock_irq(&signal->lock);
 
+	/* Copy across semaphore status as we need the same behaviour */
+	rq->sched.flags |= signal->sched.flags;
 	return 0;
 }
 
-void __i915_request_submit(struct i915_request *request)
+bool __i915_request_submit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
+	bool result = false;
 
-	GEM_TRACE("%s fence %llx:%lld, current %d\n",
-		  engine->name,
-		  request->fence.context, request->fence.seqno,
-		  hwsp_seqno(request));
+	RQ_TRACE(request, "\n");
 
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->active.lock);
 
-	if (i915_gem_context_is_banned(request->gem_context))
+	/*
+	 * With the advent of preempt-to-busy, we frequently encounter
+	 * requests that we have unsubmitted from HW, but left running
+	 * until the next ack and so have completed in the meantime. On
+	 * resubmission of that completed request, we can skip
+	 * updating the payload, and execlists can even skip submitting
+	 * the request.
+	 *
+	 * We must remove the request from the caller's priority queue,
+	 * and the caller must only call us when the request is in their
+	 * priority queue, under the active.lock. This ensures that the
+	 * request has *not* yet been retired and we can safely move
+	 * the request into the engine->active.list where it will be
+	 * dropped upon retiring. (Otherwise if resubmit a *retired*
+	 * request, this would be a horrible use-after-free.)
+	 */
+	if (i915_request_completed(request))
+		goto xfer;
+
+	if (intel_context_is_banned(request->context))
 		i915_request_skip(request, -EIO);
 
 	/*
@@ -393,29 +400,31 @@ void __i915_request_submit(struct i915_request *request)
 	    i915_sw_fence_signaled(&request->semaphore))
 		engine->saturated |= request->sched.semaphores;
 
-	/* We may be recursing from the signal callback of another i915 fence */
+	engine->emit_fini_breadcrumb(request,
+				     request->ring->vaddr + request->postfix);
+
+	trace_i915_request_execute(request);
+	engine->serial++;
+	result = true;
+
+xfer:	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
 
-	list_move_tail(&request->sched.link, &engine->active.requests);
-
-	GEM_BUG_ON(test_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags));
-	set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags);
+	if (!test_and_set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags)) {
+		list_move_tail(&request->sched.link, &engine->active.requests);
+		clear_bit(I915_FENCE_FLAG_PQUEUE, &request->fence.flags);
+	}
 
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags) &&
 	    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &request->fence.flags) &&
 	    !i915_request_enable_breadcrumb(request))
-		intel_engine_queue_breadcrumbs(engine);
+		intel_engine_signal_breadcrumbs(engine);
 
 	__notify_execute_cb(request);
 
 	spin_unlock(&request->lock);
 
-	engine->emit_fini_breadcrumb(request,
-				     request->ring->vaddr + request->postfix);
-
-	engine->serial++;
-
-	trace_i915_request_execute(request);
+	return result;
 }
 
 void i915_request_submit(struct i915_request *request)
@@ -435,10 +444,7 @@ void __i915_request_unsubmit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 
-	GEM_TRACE("%s fence %llx:%lld, current %d\n",
-		  engine->name,
-		  request->fence.context, request->fence.seqno,
-		  hwsp_seqno(request));
+	RQ_TRACE(request, "\n");
 
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->active.lock);
@@ -580,6 +586,21 @@ out:
 	return kmem_cache_alloc(global.slab_requests, gfp);
 }
 
+static void __i915_request_ctor(void *arg)
+{
+	struct i915_request *rq = arg;
+
+	spin_lock_init(&rq->lock);
+	i915_sched_node_init(&rq->sched);
+	i915_sw_fence_init(&rq->submit, submit_notify);
+	i915_sw_fence_init(&rq->semaphore, semaphore_notify);
+
+	rq->file_priv = NULL;
+	rq->capture_list = NULL;
+
+	INIT_LIST_HEAD(&rq->execute_cb);
+}
+
 struct i915_request *
 __i915_request_create(struct intel_context *ce, gfp_t gfp)
 {
@@ -637,34 +658,31 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 		goto err_free;
 
 	rq->i915 = ce->engine->i915;
-	rq->hw_context = ce;
-	rq->gem_context = ce->gem_context;
+	rq->context = ce;
 	rq->engine = ce->engine;
 	rq->ring = ce->ring;
-	rq->timeline = tl;
+	rq->execution_mask = ce->engine->mask;
+
+	RCU_INIT_POINTER(rq->timeline, tl);
+	RCU_INIT_POINTER(rq->hwsp_cacheline, tl->hwsp_cacheline);
 	rq->hwsp_seqno = tl->hwsp_seqno;
-	rq->hwsp_cacheline = tl->hwsp_cacheline;
+
 	rq->rcustate = get_state_synchronize_rcu(); /* acts as smp_mb() */
 
-	spin_lock_init(&rq->lock);
 	dma_fence_init(&rq->fence, &i915_fence_ops, &rq->lock,
 		       tl->fence_context, seqno);
 
 	/* We bump the ref for the fence chain */
-	i915_sw_fence_init(&i915_request_get(rq)->submit, submit_notify);
-	i915_sw_fence_init(&i915_request_get(rq)->semaphore, semaphore_notify);
+	i915_sw_fence_reinit(&i915_request_get(rq)->submit);
+	i915_sw_fence_reinit(&i915_request_get(rq)->semaphore);
 
-	i915_sched_node_init(&rq->sched);
+	i915_sched_node_reinit(&rq->sched);
 
-	/* No zalloc, must clear what we need by hand */
-	rq->file_priv = NULL;
+	/* No zalloc, everything must be cleared after use */
 	rq->batch = NULL;
-	rq->capture_list = NULL;
-	rq->flags = 0;
-	rq->execution_mask = ALL_ENGINES;
-
-	INIT_LIST_HEAD(&rq->active_list);
-	INIT_LIST_HEAD(&rq->execute_cb);
+	GEM_BUG_ON(rq->file_priv);
+	GEM_BUG_ON(rq->capture_list);
+	GEM_BUG_ON(!list_empty(&rq->execute_cb));
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
@@ -702,7 +720,6 @@ err_unwind:
 	ce->ring->emit = rq->head;
 
 	/* Make sure we didn't add ourselves to external state before freeing */
-	GEM_BUG_ON(!list_empty(&rq->active_list));
 	GEM_BUG_ON(!list_empty(&rq->sched.signalers_list));
 	GEM_BUG_ON(!list_empty(&rq->sched.waiters_list));
 
@@ -747,16 +764,46 @@ err_unlock:
 static int
 i915_request_await_start(struct i915_request *rq, struct i915_request *signal)
 {
-	if (list_is_first(&signal->link, &signal->timeline->requests))
+	struct dma_fence *fence;
+	int err;
+
+	GEM_BUG_ON(i915_request_timeline(rq) ==
+		   rcu_access_pointer(signal->timeline));
+
+	fence = NULL;
+	rcu_read_lock();
+	spin_lock_irq(&signal->lock);
+	if (!i915_request_started(signal) &&
+	    !list_is_first(&signal->link,
+			   &rcu_dereference(signal->timeline)->requests)) {
+		struct i915_request *prev = list_prev_entry(signal, link);
+
+		/*
+		 * Peek at the request before us in the timeline. That
+		 * request will only be valid before it is retired, so
+		 * after acquiring a reference to it, confirm that it is
+		 * still part of the signaler's timeline.
+		 */
+		if (i915_request_get_rcu(prev)) {
+			if (list_next_entry(prev, link) == signal)
+				fence = &prev->fence;
+			else
+				i915_request_put(prev);
+		}
+	}
+	spin_unlock_irq(&signal->lock);
+	rcu_read_unlock();
+	if (!fence)
 		return 0;
 
-	signal = list_prev_entry(signal, link);
-	if (intel_timeline_sync_is_later(rq->timeline, &signal->fence))
-		return 0;
+	err = 0;
+	if (intel_timeline_sync_is_later(i915_request_timeline(rq), fence))
+		err = i915_sw_fence_await_dma_fence(&rq->submit,
+						    fence, 0,
+						    I915_FENCE_GFP);
+	dma_fence_put(fence);
 
-	return i915_sw_fence_await_dma_fence(&rq->submit,
-					     &signal->fence, 0,
-					     I915_FENCE_GFP);
+	return err;
 }
 
 static intel_engine_mask_t
@@ -778,38 +825,27 @@ already_busywaiting(struct i915_request *rq)
 }
 
 static int
-emit_semaphore_wait(struct i915_request *to,
-		    struct i915_request *from,
-		    gfp_t gfp)
+__emit_semaphore_wait(struct i915_request *to,
+		      struct i915_request *from,
+		      u32 seqno)
 {
+	const int has_token = INTEL_GEN(to->i915) >= 12;
 	u32 hwsp_offset;
+	int len, err;
 	u32 *cs;
-	int err;
 
-	GEM_BUG_ON(!from->timeline->has_initial_breadcrumb);
 	GEM_BUG_ON(INTEL_GEN(to->i915) < 8);
-
-	/* Just emit the first semaphore we see as request space is limited. */
-	if (already_busywaiting(to) & from->engine->mask)
-		return i915_sw_fence_await_dma_fence(&to->submit,
-						     &from->fence, 0,
-						     I915_FENCE_GFP);
-
-	err = i915_request_await_start(to, from);
-	if (err < 0)
-		return err;
-
-	/* Only submit our spinner after the signaler is running! */
-	err = __i915_request_await_execution(to, from, NULL, gfp);
-	if (err)
-		return err;
 
 	/* We need to pin the signaler's HWSP until we are finished reading. */
 	err = intel_timeline_read_hwsp(from, to, &hwsp_offset);
 	if (err)
 		return err;
 
-	cs = intel_ring_begin(to, 4);
+	len = 4;
+	if (has_token)
+		len += 2;
+
+	cs = intel_ring_begin(to, len);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -821,18 +857,50 @@ emit_semaphore_wait(struct i915_request *to,
 	 * (post-wrap) values than they were expecting (and so wait
 	 * forever).
 	 */
-	*cs++ = MI_SEMAPHORE_WAIT |
-		MI_SEMAPHORE_GLOBAL_GTT |
-		MI_SEMAPHORE_POLL |
-		MI_SEMAPHORE_SAD_GTE_SDD;
-	*cs++ = from->fence.seqno;
+	*cs++ = (MI_SEMAPHORE_WAIT |
+		 MI_SEMAPHORE_GLOBAL_GTT |
+		 MI_SEMAPHORE_POLL |
+		 MI_SEMAPHORE_SAD_GTE_SDD) +
+		has_token;
+	*cs++ = seqno;
 	*cs++ = hwsp_offset;
 	*cs++ = 0;
+	if (has_token) {
+		*cs++ = 0;
+		*cs++ = MI_NOOP;
+	}
 
 	intel_ring_advance(to, cs);
+	return 0;
+}
+
+static int
+emit_semaphore_wait(struct i915_request *to,
+		    struct i915_request *from,
+		    gfp_t gfp)
+{
+	/* Just emit the first semaphore we see as request space is limited. */
+	if (already_busywaiting(to) & from->engine->mask)
+		goto await_fence;
+
+	if (i915_request_await_start(to, from) < 0)
+		goto await_fence;
+
+	/* Only submit our spinner after the signaler is running! */
+	if (__await_execution(to, from, NULL, gfp))
+		goto await_fence;
+
+	if (__emit_semaphore_wait(to, from, from->fence.seqno))
+		goto await_fence;
+
 	to->sched.semaphores |= from->engine->mask;
 	to->sched.flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
 	return 0;
+
+await_fence:
+	return i915_sw_fence_await_dma_fence(&to->submit,
+					     &from->fence, 0,
+					     I915_FENCE_GFP);
 }
 
 static int
@@ -852,18 +920,16 @@ i915_request_await_request(struct i915_request *to, struct i915_request *from)
 			return ret;
 	}
 
-	if (to->engine == from->engine) {
+	if (to->engine == from->engine)
 		ret = i915_sw_fence_await_sw_fence_gfp(&to->submit,
 						       &from->submit,
 						       I915_FENCE_GFP);
-	} else if (intel_engine_has_semaphores(to->engine) &&
-		   to->gem_context->sched.priority >= I915_PRIORITY_NORMAL) {
+	else if (intel_context_use_semaphores(to->context))
 		ret = emit_semaphore_wait(to, from, I915_FENCE_GFP);
-	} else {
+	else
 		ret = i915_sw_fence_await_dma_fence(&to->submit,
 						    &from->fence, 0,
 						    I915_FENCE_GFP);
-	}
 	if (ret < 0)
 		return ret;
 
@@ -903,8 +969,10 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 
 	do {
 		fence = *child++;
-		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+			i915_sw_fence_set_error_once(&rq->submit, fence->error);
 			continue;
+		}
 
 		/*
 		 * Requests on the same timeline are explicitly ordered, along
@@ -916,24 +984,77 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 
 		/* Squash repeated waits to the same timelines */
 		if (fence->context &&
-		    intel_timeline_sync_is_later(rq->timeline, fence))
+		    intel_timeline_sync_is_later(i915_request_timeline(rq),
+						 fence))
 			continue;
 
 		if (dma_fence_is_i915(fence))
 			ret = i915_request_await_request(rq, to_request(fence));
 		else
 			ret = i915_sw_fence_await_dma_fence(&rq->submit, fence,
-							    I915_FENCE_TIMEOUT,
+							    fence->context ? I915_FENCE_TIMEOUT : 0,
 							    I915_FENCE_GFP);
 		if (ret < 0)
 			return ret;
 
 		/* Record the latest fence used against each timeline */
 		if (fence->context)
-			intel_timeline_sync_set(rq->timeline, fence);
+			intel_timeline_sync_set(i915_request_timeline(rq),
+						fence);
 	} while (--nchild);
 
 	return 0;
+}
+
+static bool intel_timeline_sync_has_start(struct intel_timeline *tl,
+					  struct dma_fence *fence)
+{
+	return __intel_timeline_sync_is_later(tl,
+					      fence->context,
+					      fence->seqno - 1);
+}
+
+static int intel_timeline_sync_set_start(struct intel_timeline *tl,
+					 const struct dma_fence *fence)
+{
+	return __intel_timeline_sync_set(tl, fence->context, fence->seqno - 1);
+}
+
+static int
+__i915_request_await_execution(struct i915_request *to,
+			       struct i915_request *from,
+			       void (*hook)(struct i915_request *rq,
+					    struct dma_fence *signal))
+{
+	int err;
+
+	/* Submit both requests at the same time */
+	err = __await_execution(to, from, hook, I915_FENCE_GFP);
+	if (err)
+		return err;
+
+	/* Squash repeated depenendices to the same timelines */
+	if (intel_timeline_sync_has_start(i915_request_timeline(to),
+					  &from->fence))
+		return 0;
+
+	/* Ensure both start together [after all semaphores in signal] */
+	if (intel_engine_has_semaphores(to->engine))
+		err = __emit_semaphore_wait(to, from, from->fence.seqno - 1);
+	else
+		err = i915_request_await_start(to, from);
+	if (err < 0)
+		return err;
+
+	/* Couple the dependency tree for PI on this exposed to->fence */
+	if (to->engine->schedule) {
+		err = i915_sched_node_add_dependency(&to->sched, &from->sched);
+		if (err < 0)
+			return err;
+	}
+
+	return intel_timeline_sync_set_start(i915_request_timeline(to),
+					     &from->fence);
 }
 
 int
@@ -958,8 +1079,10 @@ i915_request_await_execution(struct i915_request *rq,
 
 	do {
 		fence = *child++;
-		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+			i915_sw_fence_set_error_once(&rq->submit, fence->error);
 			continue;
+		}
 
 		/*
 		 * We don't squash repeated fence dependencies here as we
@@ -969,8 +1092,7 @@ i915_request_await_execution(struct i915_request *rq,
 		if (dma_fence_is_i915(fence))
 			ret = __i915_request_await_execution(rq,
 							     to_request(fence),
-							     hook,
-							     I915_FENCE_GFP);
+							     hook);
 		else
 			ret = i915_sw_fence_await_dma_fence(&rq->submit, fence,
 							    I915_FENCE_TIMEOUT,
@@ -1072,7 +1194,7 @@ void i915_request_skip(struct i915_request *rq, int error)
 static struct i915_request *
 __i915_request_add_to_timeline(struct i915_request *rq)
 {
-	struct intel_timeline *timeline = rq->timeline;
+	struct intel_timeline *timeline = i915_request_timeline(rq);
 	struct i915_request *prev;
 
 	/*
@@ -1095,8 +1217,8 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 	 * precludes optimising to use semaphores serialisation of a single
 	 * timeline across engines.
 	 */
-	prev = rcu_dereference_protected(timeline->last_request.request,
-					 lockdep_is_held(&timeline->mutex));
+	prev = to_request(__i915_active_fence_set(&timeline->last_request,
+						  &rq->fence));
 	if (prev && !i915_request_completed(prev)) {
 		if (is_power_of_2(prev->engine->mask | rq->engine->mask))
 			i915_sw_fence_await_sw_fence(&rq->submit,
@@ -1121,7 +1243,6 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 	 * us, the timeline will hold its seqno which is later than ours.
 	 */
 	GEM_BUG_ON(timeline->seqno != rq->fence.seqno);
-	__i915_active_request_set(&timeline->last_request, rq);
 
 	return prev;
 }
@@ -1137,8 +1258,7 @@ struct i915_request *__i915_request_commit(struct i915_request *rq)
 	struct intel_ring *ring = rq->ring;
 	u32 *cs;
 
-	GEM_TRACE("%s fence %llx:%lld\n",
-		  engine->name, rq->fence.context, rq->fence.seqno);
+	RQ_TRACE(rq, "\n");
 
 	/*
 	 * To ensure that this call will not fail, space for its emissions
@@ -1184,8 +1304,8 @@ void __i915_request_queue(struct i915_request *rq,
 
 void i915_request_add(struct i915_request *rq)
 {
-	struct i915_sched_attr attr = rq->gem_context->sched;
-	struct intel_timeline * const tl = rq->timeline;
+	struct intel_timeline * const tl = i915_request_timeline(rq);
+	struct i915_sched_attr attr = {};
 	struct i915_request *prev;
 
 	lockdep_assert_held(&tl->mutex);
@@ -1194,6 +1314,9 @@ void i915_request_add(struct i915_request *rq)
 	trace_i915_request_add(rq);
 
 	prev = __i915_request_commit(rq);
+
+	if (rcu_access_pointer(rq->context->gem_context))
+		attr = i915_request_gem_context(rq)->sched;
 
 	/*
 	 * Boost actual workloads past semaphores!
@@ -1240,7 +1363,9 @@ void i915_request_add(struct i915_request *rq)
 	 * work on behalf of others -- but instead we should benefit from
 	 * improved resource management. (Well, that's the theory at least.)
 	 */
-	if (prev && i915_request_completed(prev) && prev->timeline == tl)
+	if (prev &&
+	    i915_request_completed(prev) &&
+	    rcu_access_pointer(prev->timeline) == tl)
 		i915_request_retire_upto(prev);
 
 	mutex_unlock(&tl->mutex);
@@ -1403,7 +1528,7 @@ long i915_request_wait(struct i915_request *rq,
 	 * completion. That requires having a good predictor for the request
 	 * duration, which we currently lack.
 	 */
-	if (CONFIG_DRM_I915_SPIN_REQUEST &&
+	if (IS_ACTIVE(CONFIG_DRM_I915_SPIN_REQUEST) &&
 	    __i915_spin_request(rq, state, CONFIG_DRM_I915_SPIN_REQUEST)) {
 		dma_fence_signal(&rq->fence);
 		goto out;
@@ -1423,7 +1548,7 @@ long i915_request_wait(struct i915_request *rq,
 	 */
 	if (flags & I915_WAIT_PRIORITY) {
 		if (!i915_request_started(rq) && INTEL_GEN(rq->i915) >= 6)
-			gen6_rps_boost(rq);
+			intel_rps_boost(rq);
 		i915_schedule_bump_priority(rq, I915_PRIORITY_WAIT);
 	}
 
@@ -1449,6 +1574,7 @@ long i915_request_wait(struct i915_request *rq,
 			break;
 		}
 
+		intel_engine_flush_submission(rq->engine);
 		timeout = io_schedule_timeout(timeout);
 	}
 	__set_current_state(TASK_RUNNING);
@@ -1456,51 +1582,9 @@ long i915_request_wait(struct i915_request *rq,
 	dma_fence_remove_callback(&rq->fence, &wait.cb);
 
 out:
-	mutex_release(&rq->engine->gt->reset.mutex.dep_map, 0, _THIS_IP_);
+	mutex_release(&rq->engine->gt->reset.mutex.dep_map, _THIS_IP_);
 	trace_i915_request_wait_end(rq);
 	return timeout;
-}
-
-bool i915_retire_requests(struct drm_i915_private *i915)
-{
-	struct intel_gt_timelines *timelines = &i915->gt.timelines;
-	struct intel_timeline *tl, *tn;
-	unsigned long flags;
-	LIST_HEAD(free);
-
-	spin_lock_irqsave(&timelines->lock, flags);
-	list_for_each_entry_safe(tl, tn, &timelines->active_list, link) {
-		if (!mutex_trylock(&tl->mutex))
-			continue;
-
-		intel_timeline_get(tl);
-		GEM_BUG_ON(!tl->active_count);
-		tl->active_count++; /* pin the list element */
-		spin_unlock_irqrestore(&timelines->lock, flags);
-
-		retire_requests(tl);
-
-		spin_lock_irqsave(&timelines->lock, flags);
-
-		/* Resume iteration after dropping lock */
-		list_safe_reset_next(tl, tn, link);
-		if (!--tl->active_count)
-			list_del(&tl->link);
-
-		mutex_unlock(&tl->mutex);
-
-		/* Defer the final release to after the spinlock */
-		if (refcount_dec_and_test(&tl->kref.refcount)) {
-			GEM_BUG_ON(tl->active_count);
-			list_add(&tl->link, &free);
-		}
-	}
-	spin_unlock_irqrestore(&timelines->lock, flags);
-
-	list_for_each_entry_safe(tl, tn, &free, link)
-		__intel_timeline_free(&tl->kref);
-
-	return !list_empty(&timelines->active_list);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
@@ -1529,10 +1613,14 @@ static struct i915_global_request global = { {
 
 int __init i915_global_request_init(void)
 {
-	global.slab_requests = KMEM_CACHE(i915_request,
-					  SLAB_HWCACHE_ALIGN |
-					  SLAB_RECLAIM_ACCOUNT |
-					  SLAB_TYPESAFE_BY_RCU);
+	global.slab_requests =
+		kmem_cache_create("i915_request",
+				  sizeof(struct i915_request),
+				  __alignof__(struct i915_request),
+				  SLAB_HWCACHE_ALIGN |
+				  SLAB_RECLAIM_ACCOUNT |
+				  SLAB_TYPESAFE_BY_RCU,
+				  __i915_request_ctor);
 	if (!global.slab_requests)
 		return -ENOMEM;
 

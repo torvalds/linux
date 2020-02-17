@@ -8,17 +8,18 @@
 	compatible = "nvidia,p2888", "nvidia,tegra194";
 
 	aliases {
-		sdhci0 = "/cbb/sdhci@3460000";
-		sdhci1 = "/cbb/sdhci@3400000";
+		ethernet0 = "/cbb@0/ethernet@2490000";
+		sdhci0 = "/cbb@0/sdhci@3460000";
+		sdhci1 = "/cbb@0/sdhci@3400000";
 		serial0 = &tcu;
 		i2c0 = "/bpmp/i2c";
-		i2c1 = "/cbb/i2c@3160000";
-		i2c2 = "/cbb/i2c@c240000";
-		i2c3 = "/cbb/i2c@3180000";
-		i2c4 = "/cbb/i2c@3190000";
-		i2c5 = "/cbb/i2c@31c0000";
-		i2c6 = "/cbb/i2c@c250000";
-		i2c7 = "/cbb/i2c@31e0000";
+		i2c1 = "/cbb@0/i2c@3160000";
+		i2c2 = "/cbb@0/i2c@c240000";
+		i2c3 = "/cbb@0/i2c@3180000";
+		i2c4 = "/cbb@0/i2c@3190000";
+		i2c5 = "/cbb@0/i2c@31c0000";
+		i2c6 = "/cbb@0/i2c@c250000";
+		i2c7 = "/cbb@0/i2c@31e0000";
 	};
 
 	chosen {
@@ -26,7 +27,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	cbb {
+	cbb@0 {
 		ethernet@2490000 {
 			status = "okay";
 
@@ -45,6 +46,10 @@
 					interrupts = <TEGRA194_MAIN_GPIO(G, 4) IRQ_TYPE_LEVEL_LOW>;
 				};
 			};
+		};
+
+		memory-controller@2c00000 {
+			status = "okay";
 		};
 
 		serial@3110000 {
@@ -168,7 +173,7 @@
 					in-ldo7-8-supply = <&vdd_1v8ls>;
 
 					vdd_1v0: sd0 {
-						regulator-name = "VDD_1V0";
+						regulator-name = "VDDIO_SYS_1V0";
 						regulator-min-microvolt = <1000000>;
 						regulator-max-microvolt = <1000000>;
 						regulator-always-on;
@@ -176,7 +181,7 @@
 					};
 
 					vdd_1v8hs: sd1 {
-						regulator-name = "VDD_1V8HS";
+						regulator-name = "VDDIO_SYS_1V8HS";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 						regulator-always-on;
@@ -184,7 +189,7 @@
 					};
 
 					vdd_1v8ls: sd2 {
-						regulator-name = "VDD_1V8LS";
+						regulator-name = "VDDIO_SYS_1V8LS";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 						regulator-always-on;
@@ -192,7 +197,7 @@
 					};
 
 					vdd_1v8ao: sd3 {
-						regulator-name = "VDD_1V8AO";
+						regulator-name = "VDDIO_AO_1V8";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 						regulator-always-on;
@@ -216,7 +221,7 @@
 					};
 
 					ldo2 {
-						regulator-name = "VDD_AO_3V3";
+						regulator-name = "VDDIO_AO_3V3";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
 						regulator-always-on;
@@ -242,7 +247,7 @@
 					};
 
 					ldo7 {
-						regulator-name = "VDD_CSI_1V2";
+						regulator-name = "AVDD_CSI_1V2";
 						regulator-min-microvolt = <1200000>;
 						regulator-max-microvolt = <1200000>;
 					};
@@ -309,9 +314,8 @@
 			regulator-name = "VDD_12V";
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
-			gpio = <&gpio TEGRA194_MAIN_GPIO(A, 1) GPIO_ACTIVE_LOW>;
+			gpio = <&gpio TEGRA194_MAIN_GPIO(A, 1) GPIO_ACTIVE_HIGH>;
 			regulator-boot-on;
-			enable-active-low;
 		};
 	};
 };

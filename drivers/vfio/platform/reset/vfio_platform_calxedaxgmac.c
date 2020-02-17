@@ -52,7 +52,7 @@ static int vfio_platform_calxedaxgmac_reset(struct vfio_platform_device *vdev)
 
 	if (!reg->ioaddr) {
 		reg->ioaddr =
-			ioremap_nocache(reg->addr, reg->size);
+			ioremap(reg->addr, reg->size);
 		if (!reg->ioaddr)
 			return -ENOMEM;
 	}

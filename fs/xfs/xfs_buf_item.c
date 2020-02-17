@@ -27,6 +27,23 @@ static inline struct xfs_buf_log_item *BUF_ITEM(struct xfs_log_item *lip)
 
 STATIC void	xfs_buf_do_callbacks(struct xfs_buf *bp);
 
+/* Is this log iovec plausibly large enough to contain the buffer log format? */
+bool
+xfs_buf_log_check_iovec(
+	struct xfs_log_iovec		*iovec)
+{
+	struct xfs_buf_log_format	*blfp = iovec->i_addr;
+	char				*bmp_end;
+	char				*item_end;
+
+	if (offsetof(struct xfs_buf_log_format, blf_data_map) > iovec->i_len)
+		return false;
+
+	item_end = (char *)iovec->i_addr + iovec->i_len;
+	bmp_end = (char *)&blfp->blf_data_map[blfp->blf_map_size];
+	return bmp_end <= item_end;
+}
+
 static inline int
 xfs_buf_log_format_size(
 	struct xfs_buf_log_format *blfp)
@@ -688,7 +705,7 @@ static const struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_push	= xfs_buf_item_push,
 };
 
-STATIC int
+STATIC void
 xfs_buf_item_get_format(
 	struct xfs_buf_log_item	*bip,
 	int			count)
@@ -698,14 +715,11 @@ xfs_buf_item_get_format(
 
 	if (count == 1) {
 		bip->bli_formats = &bip->__bli_format;
-		return 0;
+		return;
 	}
 
 	bip->bli_formats = kmem_zalloc(count * sizeof(struct xfs_buf_log_format),
 				0);
-	if (!bip->bli_formats)
-		return -ENOMEM;
-	return 0;
 }
 
 STATIC void
@@ -731,7 +745,6 @@ xfs_buf_item_init(
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	int			chunks;
 	int			map_size;
-	int			error;
 	int			i;
 
 	/*
@@ -760,18 +773,21 @@ xfs_buf_item_init(
 	 * Discontiguous buffer support follows the layout of the underlying
 	 * buffer. This makes the implementation as simple as possible.
 	 */
-	error = xfs_buf_item_get_format(bip, bp->b_map_count);
-	ASSERT(error == 0);
-	if (error) {	/* to stop gcc throwing set-but-unused warnings */
-		kmem_zone_free(xfs_buf_item_zone, bip);
-		return error;
-	}
-
+	xfs_buf_item_get_format(bip, bp->b_map_count);
 
 	for (i = 0; i < bip->bli_format_count; i++) {
 		chunks = DIV_ROUND_UP(BBTOB(bp->b_maps[i].bm_len),
 				      XFS_BLF_CHUNK);
 		map_size = DIV_ROUND_UP(chunks, NBWORD);
+
+		if (map_size > XFS_BLF_DATAMAP_SIZE) {
+			kmem_cache_free(xfs_buf_item_zone, bip);
+			xfs_err(mp,
+	"buffer item dirty bitmap (%u uints) too small to reflect %u bytes!",
+					map_size,
+					BBTOB(bp->b_maps[i].bm_len));
+			return -EFSCORRUPTED;
+		}
 
 		bip->bli_formats[i].blf_type = XFS_LI_BUF;
 		bip->bli_formats[i].blf_blkno = bp->b_maps[i].bm_bn;
@@ -804,6 +820,9 @@ xfs_buf_item_log_segment(
 	uint		bit;
 	uint		end_bit;
 	uint		mask;
+
+	ASSERT(first < XFS_BLF_DATAMAP_SIZE * XFS_BLF_CHUNK * NBWORD);
+	ASSERT(last < XFS_BLF_DATAMAP_SIZE * XFS_BLF_CHUNK * NBWORD);
 
 	/*
 	 * Convert byte offsets to bit numbers.
@@ -851,7 +870,7 @@ xfs_buf_item_log_segment(
 	 * first_bit and last_bit.
 	 */
 	while ((bits_to_set - bits_set) >= NBWORD) {
-		*wordp |= 0xffffffff;
+		*wordp = 0xffffffff;
 		bits_set += NBWORD;
 		wordp++;
 	}
@@ -939,7 +958,7 @@ xfs_buf_item_free(
 {
 	xfs_buf_item_free_format(bip);
 	kmem_free(bip->bli_item.li_lv_shadow);
-	kmem_zone_free(xfs_buf_item_zone, bip);
+	kmem_cache_free(xfs_buf_item_zone, bip);
 }
 
 /*
@@ -956,7 +975,7 @@ xfs_buf_item_relse(
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 
 	trace_xfs_buf_item_relse(bp, _RET_IP_);
-	ASSERT(!(bip->bli_item.li_flags & XFS_LI_IN_AIL));
+	ASSERT(!test_bit(XFS_LI_IN_AIL, &bip->bli_item.li_flags));
 
 	bp->b_log_item = NULL;
 	if (list_empty(&bp->b_li_list))
@@ -1094,7 +1113,7 @@ xfs_buf_iodone_callback_error(
 	if (bp->b_target != lasttarg ||
 	    time_after(jiffies, (lasttime + 5*HZ))) {
 		lasttime = jiffies;
-		xfs_buf_ioerror_alert(bp, __func__);
+		xfs_buf_ioerror_alert(bp, __this_address);
 	}
 	lasttarg = bp->b_target;
 

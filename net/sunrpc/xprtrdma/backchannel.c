@@ -79,7 +79,7 @@ static int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
 	*p = xdr_zero;
 
 	if (rpcrdma_prepare_send_sges(r_xprt, req, RPCRDMA_HDRLEN_MIN,
-				      &rqst->rq_snd_buf, rpcrdma_noch))
+				      &rqst->rq_snd_buf, rpcrdma_noch_pullup))
 		return -EIO;
 
 	trace_xprtrdma_cb_reply(rqst);
@@ -163,6 +163,7 @@ void xprt_rdma_bc_free_rqst(struct rpc_rqst *rqst)
 	spin_lock(&xprt->bc_pa_lock);
 	list_add_tail(&rqst->rq_bc_pa_list, &xprt->bc_pa_list);
 	spin_unlock(&xprt->bc_pa_lock);
+	xprt_put(xprt);
 }
 
 static struct rpc_rqst *rpcrdma_bc_rqst_get(struct rpcrdma_xprt *r_xprt)
@@ -193,6 +194,10 @@ create_req:
 	req = rpcrdma_req_create(r_xprt, size, GFP_KERNEL);
 	if (!req)
 		return NULL;
+	if (rpcrdma_req_setup(r_xprt, req)) {
+		rpcrdma_req_destroy(req);
+		return NULL;
+	}
 
 	xprt->bc_alloc_count++;
 	rqst = &req->rl_slot;
@@ -259,6 +264,7 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 
 	/* Queue rqst for ULP's callback service */
 	bc_serv = xprt->bc_serv;
+	xprt_get(xprt);
 	spin_lock(&bc_serv->sv_cb_lock);
 	list_add(&rqst->rq_bc_list, &bc_serv->sv_cb_list);
 	spin_unlock(&bc_serv->sv_cb_lock);

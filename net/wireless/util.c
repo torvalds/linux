@@ -564,7 +564,7 @@ __frame_add_frag(struct sk_buff *skb, struct page *page,
 	struct skb_shared_info *sh = skb_shinfo(skb);
 	int page_offset;
 
-	page_ref_inc(page);
+	get_page(page);
 	page_offset = ptr - page_address(page);
 	skb_add_rx_frag(skb, sh->nr_frags, page, page_offset, len, size);
 }
@@ -1559,7 +1559,8 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 	}
 
 	if (freq == 2484) {
-		if (chandef->width > NL80211_CHAN_WIDTH_40)
+		/* channel 14 is only for IEEE 802.11b */
+		if (chandef->width != NL80211_CHAN_WIDTH_20_NOHT)
 			return false;
 
 		*op_class = 82; /* channel 14 */

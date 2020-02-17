@@ -728,7 +728,7 @@ no_intr_resched:
 	bri	6f;
 /* MS: Return to kernel state. */
 2:
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;
 	/* MS: get preempt_count from thread info */
 	lwi	r5, r11, TI_PREEMPT_COUNT;
@@ -738,14 +738,9 @@ no_intr_resched:
 	andi	r5, r5, _TIF_NEED_RESCHED;
 	beqi	r5, restore /* if zero jump over */
 
-preempt:
 	/* interrupts are off that's why I am calling preempt_chedule_irq */
 	bralid	r15, preempt_schedule_irq
 	nop
-	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
-	lwi	r5, r11, TI_FLAGS;		/* get flags in thread info */
-	andi	r5, r5, _TIF_NEED_RESCHED;
-	bnei	r5, preempt /* if non zero jump to resched */
 restore:
 #endif
 	VM_OFF /* MS: turn off MMU */

@@ -4,7 +4,7 @@
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -425,8 +425,8 @@ acpi_get_object_info(acpi_handle handle,
 	}
 
 	if (cls) {
-		next_id_string = acpi_ns_copy_device_id(&info->class_code,
-							cls, next_id_string);
+		(void)acpi_ns_copy_device_id(&info->class_code,
+					     cls, next_id_string);
 	}
 
 	/* Copy the fixed-length data */

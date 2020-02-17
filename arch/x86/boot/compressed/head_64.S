@@ -45,7 +45,7 @@
 
 	__HEAD
 	.code32
-ENTRY(startup_32)
+SYM_FUNC_START(startup_32)
 	/*
 	 * 32bit entry is 0 and it is ABI so immutable!
 	 * If we come here directly from a bootloader,
@@ -208,10 +208,12 @@ ENTRY(startup_32)
 	pushl	$__KERNEL_CS
 	leal	startup_64(%ebp), %eax
 #ifdef CONFIG_EFI_MIXED
-	movl	efi32_config(%ebp), %ebx
-	cmp	$0, %ebx
+	movl	efi32_boot_args(%ebp), %edi
+	cmp	$0, %edi
 	jz	1f
-	leal	handover_entry(%ebp), %eax
+	leal	efi64_stub_entry(%ebp), %eax
+	movl	%esi, %edx
+	movl	efi32_boot_args+4(%ebp), %esi
 1:
 #endif
 	pushl	%eax
@@ -222,35 +224,37 @@ ENTRY(startup_32)
 
 	/* Jump from 32bit compatibility mode into 64bit mode. */
 	lret
-ENDPROC(startup_32)
+SYM_FUNC_END(startup_32)
 
 #ifdef CONFIG_EFI_MIXED
 	.org 0x190
-ENTRY(efi32_stub_entry)
+SYM_FUNC_START(efi32_stub_entry)
 	add	$0x4, %esp		/* Discard return address */
 	popl	%ecx
 	popl	%edx
 	popl	%esi
 
-	leal	(BP_scratch+4)(%esi), %esp
 	call	1f
 1:	pop	%ebp
 	subl	$1b, %ebp
 
-	movl	%ecx, efi32_config(%ebp)
-	movl	%edx, efi32_config+8(%ebp)
+	movl	%ecx, efi32_boot_args(%ebp)
+	movl	%edx, efi32_boot_args+4(%ebp)
 	sgdtl	efi32_boot_gdt(%ebp)
+	movb	$0, efi_is64(%ebp)
 
-	leal	efi32_config(%ebp), %eax
-	movl	%eax, efi_config(%ebp)
+	/* Disable paging */
+	movl	%cr0, %eax
+	btrl	$X86_CR0_PG_BIT, %eax
+	movl	%eax, %cr0
 
 	jmp	startup_32
-ENDPROC(efi32_stub_entry)
+SYM_FUNC_END(efi32_stub_entry)
 #endif
 
 	.code64
 	.org 0x200
-ENTRY(startup_64)
+SYM_CODE_START(startup_64)
 	/*
 	 * 64bit entry is 0x200 and it is ABI so immutable!
 	 * We come here either from startup_32 or directly from a
@@ -442,76 +446,24 @@ trampoline_return:
  */
 	leaq	.Lrelocated(%rbx), %rax
 	jmp	*%rax
+SYM_CODE_END(startup_64)
 
 #ifdef CONFIG_EFI_STUB
-
-/* The entry point for the PE/COFF executable is efi_pe_entry. */
-ENTRY(efi_pe_entry)
-	movq	%rcx, efi64_config(%rip)	/* Handle */
-	movq	%rdx, efi64_config+8(%rip) /* EFI System table pointer */
-
-	leaq	efi64_config(%rip), %rax
-	movq	%rax, efi_config(%rip)
-
-	call	1f
-1:	popq	%rbp
-	subq	$1b, %rbp
-
-	/*
-	 * Relocate efi_config->call().
-	 */
-	addq	%rbp, efi64_config+40(%rip)
-
-	movq	%rax, %rdi
-	call	make_boot_params
-	cmpq	$0,%rax
-	je	fail
-	mov	%rax, %rsi
-	leaq	startup_32(%rip), %rax
-	movl	%eax, BP_code32_start(%rsi)
-	jmp	2f		/* Skip the relocation */
-
-handover_entry:
-	call	1f
-1:	popq	%rbp
-	subq	$1b, %rbp
-
-	/*
-	 * Relocate efi_config->call().
-	 */
-	movq	efi_config(%rip), %rax
-	addq	%rbp, 40(%rax)
-2:
-	movq	efi_config(%rip), %rdi
+	.org 0x390
+SYM_FUNC_START(efi64_stub_entry)
+SYM_FUNC_START_ALIAS(efi_stub_entry)
+	and	$~0xf, %rsp			/* realign the stack */
 	call	efi_main
 	movq	%rax,%rsi
-	cmpq	$0,%rax
-	jne	2f
-fail:
-	/* EFI init failed, so hang. */
-	hlt
-	jmp	fail
-2:
 	movl	BP_code32_start(%esi), %eax
 	leaq	startup_64(%rax), %rax
 	jmp	*%rax
-ENDPROC(efi_pe_entry)
-
-	.org 0x390
-ENTRY(efi64_stub_entry)
-	movq	%rdi, efi64_config(%rip)	/* Handle */
-	movq	%rsi, efi64_config+8(%rip) /* EFI System table pointer */
-
-	leaq	efi64_config(%rip), %rax
-	movq	%rax, efi_config(%rip)
-
-	movq	%rdx, %rsi
-	jmp	handover_entry
-ENDPROC(efi64_stub_entry)
+SYM_FUNC_END(efi64_stub_entry)
+SYM_FUNC_END_ALIAS(efi_stub_entry)
 #endif
 
 	.text
-.Lrelocated:
+SYM_FUNC_START_LOCAL_NOALIGN(.Lrelocated)
 
 /*
  * Clear BSS (stack is currently empty)
@@ -540,6 +492,7 @@ ENDPROC(efi64_stub_entry)
  * Jump to the decompressed kernel.
  */
 	jmp	*%rax
+SYM_FUNC_END(.Lrelocated)
 
 /*
  * Adjust the global offset table
@@ -570,7 +523,7 @@ ENDPROC(efi64_stub_entry)
  * ECX contains the base address of the trampoline memory.
  * Non zero RDX means trampoline needs to enable 5-level paging.
  */
-ENTRY(trampoline_32bit_src)
+SYM_CODE_START(trampoline_32bit_src)
 	/* Set up data and stack segments */
 	movl	$__KERNEL_DS, %eax
 	movl	%eax, %ds
@@ -633,11 +586,13 @@ ENTRY(trampoline_32bit_src)
 	movl	%eax, %cr0
 
 	lret
+SYM_CODE_END(trampoline_32bit_src)
 
 	.code64
-.Lpaging_enabled:
+SYM_FUNC_START_LOCAL_NOALIGN(.Lpaging_enabled)
 	/* Return from the trampoline */
 	jmp	*%rdi
+SYM_FUNC_END(.Lpaging_enabled)
 
 	/*
          * The trampoline code has a size limit.
@@ -647,20 +602,22 @@ ENTRY(trampoline_32bit_src)
 	.org	trampoline_32bit_src + TRAMPOLINE_32BIT_CODE_SIZE
 
 	.code32
-.Lno_longmode:
+SYM_FUNC_START_LOCAL_NOALIGN(.Lno_longmode)
 	/* This isn't an x86-64 CPU, so hang intentionally, we cannot continue */
 1:
 	hlt
 	jmp     1b
+SYM_FUNC_END(.Lno_longmode)
 
 #include "../../kernel/verify_cpu.S"
 
 	.data
-gdt64:
+SYM_DATA_START_LOCAL(gdt64)
 	.word	gdt_end - gdt
 	.quad   0
+SYM_DATA_END(gdt64)
 	.balign	8
-gdt:
+SYM_DATA_START_LOCAL(gdt)
 	.word	gdt_end - gdt
 	.long	gdt
 	.word	0
@@ -669,49 +626,33 @@ gdt:
 	.quad	0x00cf92000000ffff	/* __KERNEL_DS */
 	.quad	0x0080890000000000	/* TS descriptor */
 	.quad   0x0000000000000000	/* TS continued */
-gdt_end:
-
-#ifdef CONFIG_EFI_STUB
-efi_config:
-	.quad	0
+SYM_DATA_END_LABEL(gdt, SYM_L_LOCAL, gdt_end)
 
 #ifdef CONFIG_EFI_MIXED
-	.global efi32_config
-efi32_config:
-	.fill	5,8,0
-	.quad	efi64_thunk
-	.byte	0
+SYM_DATA_LOCAL(efi32_boot_args, .long 0, 0)
+SYM_DATA(efi_is64, .byte 1)
 #endif
-
-	.global efi64_config
-efi64_config:
-	.fill	5,8,0
-	.quad	efi_call
-	.byte	1
-#endif /* CONFIG_EFI_STUB */
 
 /*
  * Stack and heap for uncompression
  */
 	.bss
 	.balign 4
-boot_heap:
-	.fill BOOT_HEAP_SIZE, 1, 0
-boot_stack:
+SYM_DATA_LOCAL(boot_heap,	.fill BOOT_HEAP_SIZE, 1, 0)
+
+SYM_DATA_START_LOCAL(boot_stack)
 	.fill BOOT_STACK_SIZE, 1, 0
-boot_stack_end:
+SYM_DATA_END_LABEL(boot_stack, SYM_L_LOCAL, boot_stack_end)
 
 /*
  * Space for page tables (not in .bss so not zeroed)
  */
 	.section ".pgtable","a",@nobits
 	.balign 4096
-pgtable:
-	.fill BOOT_PGT_SIZE, 1, 0
+SYM_DATA_LOCAL(pgtable,		.fill BOOT_PGT_SIZE, 1, 0)
 
 /*
  * The page table is going to be used instead of page table in the trampoline
  * memory.
  */
-top_pgtable:
-	.fill PAGE_SIZE, 1, 0
+SYM_DATA_LOCAL(top_pgtable,	.fill PAGE_SIZE, 1, 0)

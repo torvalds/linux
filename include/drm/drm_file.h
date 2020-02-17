@@ -42,6 +42,7 @@ struct dma_fence;
 struct drm_file;
 struct drm_device;
 struct device;
+struct file;
 
 /*
  * FIXME: Not sure we want to have drm_minor here in the end, but to avoid
@@ -386,5 +387,7 @@ void drm_event_cancel_free(struct drm_device *dev,
 			   struct drm_pending_event *p);
 void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e);
 void drm_send_event(struct drm_device *dev, struct drm_pending_event *e);
+
+struct file *mock_drm_getfile(struct drm_minor *minor, unsigned int flags);
 
 #endif /* _DRM_FILE_H_ */

@@ -352,14 +352,20 @@ void vmbus_on_msg_dpc(unsigned long data);
 
 int hv_kvp_init(struct hv_util_service *srv);
 void hv_kvp_deinit(void);
+int hv_kvp_pre_suspend(void);
+int hv_kvp_pre_resume(void);
 void hv_kvp_onchannelcallback(void *context);
 
 int hv_vss_init(struct hv_util_service *srv);
 void hv_vss_deinit(void);
+int hv_vss_pre_suspend(void);
+int hv_vss_pre_resume(void);
 void hv_vss_onchannelcallback(void *context);
 
 int hv_fcopy_init(struct hv_util_service *srv);
 void hv_fcopy_deinit(void);
+int hv_fcopy_pre_suspend(void);
+int hv_fcopy_pre_resume(void);
 void hv_fcopy_onchannelcallback(void *context);
 void vmbus_initiate_unload(bool crash);
 
@@ -384,5 +390,36 @@ enum hvutil_device_state {
 	HVUTIL_USERSPACE_RECV,   /* reply from userspace was received */
 	HVUTIL_DEVICE_DYING,     /* driver unload is in progress */
 };
+
+enum delay {
+	INTERRUPT_DELAY = 0,
+	MESSAGE_DELAY   = 1,
+};
+
+#ifdef CONFIG_HYPERV_TESTING
+
+int hv_debug_add_dev_dir(struct hv_device *dev);
+void hv_debug_rm_dev_dir(struct hv_device *dev);
+void hv_debug_rm_all_dir(void);
+int hv_debug_init(void);
+void hv_debug_delay_test(struct vmbus_channel *channel, enum delay delay_type);
+
+#else /* CONFIG_HYPERV_TESTING */
+
+static inline void hv_debug_rm_dev_dir(struct hv_device *dev) {};
+static inline void hv_debug_rm_all_dir(void) {};
+static inline void hv_debug_delay_test(struct vmbus_channel *channel,
+				       enum delay delay_type) {};
+static inline int hv_debug_init(void)
+{
+	return -1;
+}
+
+static inline int hv_debug_add_dev_dir(struct hv_device *dev)
+{
+	return -1;
+}
+
+#endif /* CONFIG_HYPERV_TESTING */
 
 #endif /* _HYPERV_VMBUS_H */

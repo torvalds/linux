@@ -261,9 +261,9 @@ static int ld9040_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int ld9040_get_modes(struct drm_panel *panel)
+static int ld9040_get_modes(struct drm_panel *panel,
+			    struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct ld9040 *ctx = panel_to_ld9040(panel);
 	struct drm_display_mode *mode;
 
@@ -351,9 +351,8 @@ static int ld9040_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &ld9040_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &ld9040_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&ctx->panel);
 }

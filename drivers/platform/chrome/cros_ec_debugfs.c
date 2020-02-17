@@ -7,7 +7,6 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
-#include <linux/mfd/cros_ec.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_data/cros_ec_commands.h>

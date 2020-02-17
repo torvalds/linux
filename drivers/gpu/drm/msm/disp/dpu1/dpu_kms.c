@@ -30,10 +30,6 @@
 #define CREATE_TRACE_POINTS
 #include "dpu_trace.h"
 
-static const char * const iommu_ports[] = {
-		"mdp_0",
-};
-
 /*
  * To enable overall DRM driver logging
  * # echo 0x2 > /sys/module/drm/parameters/debug
@@ -68,16 +64,14 @@ static int _dpu_danger_signal_status(struct seq_file *s,
 		bool danger_status)
 {
 	struct dpu_kms *kms = (struct dpu_kms *)s->private;
-	struct msm_drm_private *priv;
 	struct dpu_danger_safe_status status;
 	int i;
 
-	if (!kms->dev || !kms->dev->dev_private || !kms->hw_mdp) {
+	if (!kms->hw_mdp) {
 		DPU_ERROR("invalid arg(s)\n");
 		return 0;
 	}
 
-	priv = kms->dev->dev_private;
 	memset(&status, 0, sizeof(struct dpu_danger_safe_status));
 
 	pm_runtime_get_sync(&kms->pdev->dev);
@@ -153,13 +147,7 @@ static int _dpu_debugfs_show_regset32(struct seq_file *s, void *data)
 		return 0;
 
 	dev = dpu_kms->dev;
-	if (!dev)
-		return 0;
-
 	priv = dev->dev_private;
-	if (!priv)
-		return 0;
-
 	base = dpu_kms->mmio + regset->offset;
 
 	/* insert padding spaces, if needed */
@@ -280,7 +268,6 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 		struct drm_atomic_state *state)
 {
 	struct dpu_kms *dpu_kms;
-	struct msm_drm_private *priv;
 	struct drm_device *dev;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -291,10 +278,6 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 		return;
 	dpu_kms = to_dpu_kms(kms);
 	dev = dpu_kms->dev;
-
-	if (!dev || !dev->dev_private)
-		return;
-	priv = dev->dev_private;
 
 	/* Call prepare_commit for all affected encoders */
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
@@ -333,7 +316,6 @@ void dpu_kms_encoder_enable(struct drm_encoder *encoder)
 	if (funcs && funcs->commit)
 		funcs->commit(encoder);
 
-	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 	drm_for_each_crtc(crtc, dev) {
 		if (!(crtc->state->encoder_mask & drm_encoder_mask(encoder)))
 			continue;
@@ -464,16 +446,6 @@ static void _dpu_kms_drm_obj_destroy(struct dpu_kms *dpu_kms)
 	struct msm_drm_private *priv;
 	int i;
 
-	if (!dpu_kms) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return;
-	} else if (!dpu_kms->dev) {
-		DPU_ERROR("invalid dev\n");
-		return;
-	} else if (!dpu_kms->dev->dev_private) {
-		DPU_ERROR("invalid dev_private\n");
-		return;
-	}
 	priv = dpu_kms->dev->dev_private;
 
 	for (i = 0; i < priv->num_crtcs; i++)
@@ -505,7 +477,6 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 
 	int primary_planes_idx = 0, cursor_planes_idx = 0, i, ret;
 	int max_crtc_count;
-
 	dev = dpu_kms->dev;
 	priv = dev->dev_private;
 	catalog = dpu_kms->catalog;
@@ -585,8 +556,6 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 	int i;
 
 	dev = dpu_kms->dev;
-	if (!dev)
-		return;
 
 	if (dpu_kms->hw_intr)
 		dpu_hw_intr_destroy(dpu_kms->hw_intr);
@@ -725,8 +694,7 @@ static void _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 
 	mmu = dpu_kms->base.aspace->mmu;
 
-	mmu->funcs->detach(mmu, (const char **)iommu_ports,
-			ARRAY_SIZE(iommu_ports));
+	mmu->funcs->detach(mmu);
 	msm_gem_address_space_put(dpu_kms->base.aspace);
 
 	dpu_kms->base.aspace = NULL;
@@ -752,8 +720,7 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 		return PTR_ERR(aspace);
 	}
 
-	ret = aspace->mmu->funcs->attach(aspace->mmu, iommu_ports,
-			ARRAY_SIZE(iommu_ports));
+	ret = aspace->mmu->funcs->attach(aspace->mmu);
 	if (ret) {
 		DPU_ERROR("failed to attach iommu %d\n", ret);
 		msm_gem_address_space_put(aspace);
@@ -803,16 +770,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 
 	dpu_kms = to_dpu_kms(kms);
 	dev = dpu_kms->dev;
-	if (!dev) {
-		DPU_ERROR("invalid device\n");
-		return rc;
-	}
-
 	priv = dev->dev_private;
-	if (!priv) {
-		DPU_ERROR("invalid private data\n");
-		return rc;
-	}
 
 	atomic_set(&dpu_kms->bandwidth_ref, 0);
 
@@ -974,7 +932,7 @@ struct msm_kms *dpu_kms_init(struct drm_device *dev)
 	struct dpu_kms *dpu_kms;
 	int irq;
 
-	if (!dev || !dev->dev_private) {
+	if (!dev) {
 		DPU_ERROR("drm device node invalid\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -1064,11 +1022,6 @@ static int __maybe_unused dpu_runtime_suspend(struct device *dev)
 	struct dss_module_power *mp = &dpu_kms->mp;
 
 	ddev = dpu_kms->dev;
-	if (!ddev) {
-		DPU_ERROR("invalid drm_device\n");
-		return rc;
-	}
-
 	rc = msm_dss_enable_clk(mp->clk_config, mp->num_clk, false);
 	if (rc)
 		DPU_ERROR("clock disable failed rc:%d\n", rc);
@@ -1086,11 +1039,6 @@ static int __maybe_unused dpu_runtime_resume(struct device *dev)
 	struct dss_module_power *mp = &dpu_kms->mp;
 
 	ddev = dpu_kms->dev;
-	if (!ddev) {
-		DPU_ERROR("invalid drm_device\n");
-		return rc;
-	}
-
 	rc = msm_dss_enable_clk(mp->clk_config, mp->num_clk, true);
 	if (rc) {
 		DPU_ERROR("clock enable failed rc:%d\n", rc);
@@ -1111,6 +1059,7 @@ static const struct dev_pm_ops dpu_pm_ops = {
 
 static const struct of_device_id dpu_dt_match[] = {
 	{ .compatible = "qcom,sdm845-dpu", },
+	{ .compatible = "qcom,sc7180-dpu", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dpu_dt_match);

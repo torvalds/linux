@@ -63,12 +63,18 @@ enum max1027_id {
 	max1027,
 	max1029,
 	max1031,
+	max1227,
+	max1229,
+	max1231,
 };
 
 static const struct spi_device_id max1027_id[] = {
 	{"max1027", max1027},
 	{"max1029", max1029},
 	{"max1031", max1031},
+	{"max1227", max1227},
+	{"max1229", max1229},
+	{"max1231", max1231},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, max1027_id);
@@ -78,12 +84,15 @@ static const struct of_device_id max1027_adc_dt_ids[] = {
 	{ .compatible = "maxim,max1027" },
 	{ .compatible = "maxim,max1029" },
 	{ .compatible = "maxim,max1031" },
+	{ .compatible = "maxim,max1227" },
+	{ .compatible = "maxim,max1229" },
+	{ .compatible = "maxim,max1231" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, max1027_adc_dt_ids);
 #endif
 
-#define MAX1027_V_CHAN(index)						\
+#define MAX1027_V_CHAN(index, depth)					\
 	{								\
 		.type = IIO_VOLTAGE,					\
 		.indexed = 1,						\
@@ -93,7 +102,7 @@ MODULE_DEVICE_TABLE(of, max1027_adc_dt_ids);
 		.scan_index = index + 1,				\
 		.scan_type = {						\
 			.sign = 'u',					\
-			.realbits = 10,					\
+			.realbits = depth,				\
 			.storagebits = 16,				\
 			.shift = 2,					\
 			.endianness = IIO_BE,				\
@@ -115,52 +124,54 @@ MODULE_DEVICE_TABLE(of, max1027_adc_dt_ids);
 		},							\
 	}
 
+#define MAX1X27_CHANNELS(depth)			\
+	MAX1027_T_CHAN,				\
+	MAX1027_V_CHAN(0, depth),		\
+	MAX1027_V_CHAN(1, depth),		\
+	MAX1027_V_CHAN(2, depth),		\
+	MAX1027_V_CHAN(3, depth),		\
+	MAX1027_V_CHAN(4, depth),		\
+	MAX1027_V_CHAN(5, depth),		\
+	MAX1027_V_CHAN(6, depth),		\
+	MAX1027_V_CHAN(7, depth)
+
+#define MAX1X29_CHANNELS(depth)			\
+	MAX1X27_CHANNELS(depth),		\
+	MAX1027_V_CHAN(8, depth),		\
+	MAX1027_V_CHAN(9, depth),		\
+	MAX1027_V_CHAN(10, depth),		\
+	MAX1027_V_CHAN(11, depth)
+
+#define MAX1X31_CHANNELS(depth)			\
+	MAX1X27_CHANNELS(depth),		\
+	MAX1X29_CHANNELS(depth),		\
+	MAX1027_V_CHAN(12, depth),		\
+	MAX1027_V_CHAN(13, depth),		\
+	MAX1027_V_CHAN(14, depth),		\
+	MAX1027_V_CHAN(15, depth)
+
 static const struct iio_chan_spec max1027_channels[] = {
-	MAX1027_T_CHAN,
-	MAX1027_V_CHAN(0),
-	MAX1027_V_CHAN(1),
-	MAX1027_V_CHAN(2),
-	MAX1027_V_CHAN(3),
-	MAX1027_V_CHAN(4),
-	MAX1027_V_CHAN(5),
-	MAX1027_V_CHAN(6),
-	MAX1027_V_CHAN(7)
+	MAX1X27_CHANNELS(10),
 };
 
 static const struct iio_chan_spec max1029_channels[] = {
-	MAX1027_T_CHAN,
-	MAX1027_V_CHAN(0),
-	MAX1027_V_CHAN(1),
-	MAX1027_V_CHAN(2),
-	MAX1027_V_CHAN(3),
-	MAX1027_V_CHAN(4),
-	MAX1027_V_CHAN(5),
-	MAX1027_V_CHAN(6),
-	MAX1027_V_CHAN(7),
-	MAX1027_V_CHAN(8),
-	MAX1027_V_CHAN(9),
-	MAX1027_V_CHAN(10),
-	MAX1027_V_CHAN(11)
+	MAX1X29_CHANNELS(10),
 };
 
 static const struct iio_chan_spec max1031_channels[] = {
-	MAX1027_T_CHAN,
-	MAX1027_V_CHAN(0),
-	MAX1027_V_CHAN(1),
-	MAX1027_V_CHAN(2),
-	MAX1027_V_CHAN(3),
-	MAX1027_V_CHAN(4),
-	MAX1027_V_CHAN(5),
-	MAX1027_V_CHAN(6),
-	MAX1027_V_CHAN(7),
-	MAX1027_V_CHAN(8),
-	MAX1027_V_CHAN(9),
-	MAX1027_V_CHAN(10),
-	MAX1027_V_CHAN(11),
-	MAX1027_V_CHAN(12),
-	MAX1027_V_CHAN(13),
-	MAX1027_V_CHAN(14),
-	MAX1027_V_CHAN(15)
+	MAX1X31_CHANNELS(10),
+};
+
+static const struct iio_chan_spec max1227_channels[] = {
+	MAX1X27_CHANNELS(12),
+};
+
+static const struct iio_chan_spec max1229_channels[] = {
+	MAX1X29_CHANNELS(12),
+};
+
+static const struct iio_chan_spec max1231_channels[] = {
+	MAX1X31_CHANNELS(12),
 };
 
 static const unsigned long max1027_available_scan_masks[] = {
@@ -198,6 +209,21 @@ static const struct max1027_chip_info max1027_chip_info_tbl[] = {
 	[max1031] = {
 		.channels = max1031_channels,
 		.num_channels = ARRAY_SIZE(max1031_channels),
+		.available_scan_masks = max1031_available_scan_masks,
+	},
+	[max1227] = {
+		.channels = max1227_channels,
+		.num_channels = ARRAY_SIZE(max1227_channels),
+		.available_scan_masks = max1027_available_scan_masks,
+	},
+	[max1229] = {
+		.channels = max1229_channels,
+		.num_channels = ARRAY_SIZE(max1229_channels),
+		.available_scan_masks = max1029_available_scan_masks,
+	},
+	[max1231] = {
+		.channels = max1231_channels,
+		.num_channels = ARRAY_SIZE(max1231_channels),
 		.available_scan_masks = max1031_available_scan_masks,
 	},
 };
@@ -284,7 +310,7 @@ static int max1027_read_raw(struct iio_dev *indio_dev,
 			break;
 		case IIO_VOLTAGE:
 			*val = 2500;
-			*val2 = 10;
+			*val2 = chan->scan_type.realbits;
 			ret = IIO_VAL_FRACTIONAL_LOG2;
 			break;
 		default:
@@ -309,8 +335,11 @@ static int max1027_debugfs_reg_access(struct iio_dev *indio_dev,
 	struct max1027_state *st = iio_priv(indio_dev);
 	u8 *val = (u8 *)st->buffer;
 
-	if (readval != NULL)
-		return -EINVAL;
+	if (readval) {
+		int ret = spi_read(st->spi, val, 2);
+		*readval = be16_to_cpu(st->buffer[0]);
+		return ret;
+	}
 
 	*val = (u8)writeval;
 	return spi_write(st->spi, val, 1);
@@ -427,34 +456,53 @@ static int max1027_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
-	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
-					&iio_pollfunc_store_time,
-					&max1027_trigger_handler, NULL);
-	if (ret < 0) {
-		dev_err(&indio_dev->dev, "Failed to setup buffer\n");
-		return ret;
+	if (spi->irq) {
+		ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+						      &iio_pollfunc_store_time,
+						      &max1027_trigger_handler,
+						      NULL);
+		if (ret < 0) {
+			dev_err(&indio_dev->dev, "Failed to setup buffer\n");
+			return ret;
+		}
+
+		st->trig = devm_iio_trigger_alloc(&spi->dev, "%s-trigger",
+						  indio_dev->name);
+		if (st->trig == NULL) {
+			ret = -ENOMEM;
+			dev_err(&indio_dev->dev,
+				"Failed to allocate iio trigger\n");
+			return ret;
+		}
+
+		st->trig->ops = &max1027_trigger_ops;
+		st->trig->dev.parent = &spi->dev;
+		iio_trigger_set_drvdata(st->trig, indio_dev);
+		ret = devm_iio_trigger_register(&indio_dev->dev,
+						st->trig);
+		if (ret < 0) {
+			dev_err(&indio_dev->dev,
+				"Failed to register iio trigger\n");
+			return ret;
+		}
+
+		ret = devm_request_threaded_irq(&spi->dev, spi->irq,
+						iio_trigger_generic_data_rdy_poll,
+						NULL,
+						IRQF_TRIGGER_FALLING,
+						spi->dev.driver->name,
+						st->trig);
+		if (ret < 0) {
+			dev_err(&indio_dev->dev, "Failed to allocate IRQ.\n");
+			return ret;
+		}
 	}
 
-	st->trig = devm_iio_trigger_alloc(&spi->dev, "%s-trigger",
-							indio_dev->name);
-	if (st->trig == NULL) {
-		ret = -ENOMEM;
-		dev_err(&indio_dev->dev, "Failed to allocate iio trigger\n");
-		return ret;
-	}
-
-	st->trig->ops = &max1027_trigger_ops;
-	st->trig->dev.parent = &spi->dev;
-	iio_trigger_set_drvdata(st->trig, indio_dev);
-	iio_trigger_register(st->trig);
-
-	ret = devm_request_threaded_irq(&spi->dev, spi->irq,
-					iio_trigger_generic_data_rdy_poll,
-					NULL,
-					IRQF_TRIGGER_FALLING,
-					spi->dev.driver->name, st->trig);
+	/* Internal reset */
+	st->reg = MAX1027_RST_REG;
+	ret = spi_write(st->spi, &st->reg, 1);
 	if (ret < 0) {
-		dev_err(&indio_dev->dev, "Failed to allocate IRQ.\n");
+		dev_err(&indio_dev->dev, "Failed to reset the ADC\n");
 		return ret;
 	}
 
@@ -480,5 +528,5 @@ static struct spi_driver max1027_driver = {
 module_spi_driver(max1027_driver);
 
 MODULE_AUTHOR("Philippe Reynes <tremyfr@yahoo.fr>");
-MODULE_DESCRIPTION("MAX1027/MAX1029/MAX1031 ADC");
+MODULE_DESCRIPTION("MAX1X27/MAX1X29/MAX1X31 ADC");
 MODULE_LICENSE("GPL v2");

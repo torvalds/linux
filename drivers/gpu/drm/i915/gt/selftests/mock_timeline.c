@@ -15,7 +15,7 @@ void mock_timeline_init(struct intel_timeline *timeline, u64 context)
 
 	mutex_init(&timeline->mutex);
 
-	INIT_ACTIVE_REQUEST(&timeline->last_request, &timeline->mutex);
+	INIT_ACTIVE_FENCE(&timeline->last_request);
 	INIT_LIST_HEAD(&timeline->requests);
 
 	i915_syncmap_init(&timeline->sync);

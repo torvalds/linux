@@ -1,11 +1,14 @@
 Binding for TI bq25890 Li-Ion Charger
 
-This driver will support the bq25896 and the bq25890. There are other ICs
-in the same family but those have not been tested.
+This driver will support the bq25892, the bq25896 and the bq25890. There are
+other ICs in the same family but those have not been tested.
 
 Required properties:
 - compatible: Should contain one of the following:
     * "ti,bq25890"
+    * "ti,bq25892"
+    * "ti,bq25895"
+    * "ti,bq25896"
 - reg: integer, i2c address of the device.
 - ti,battery-regulation-voltage: integer, maximum charging voltage (in uV);
 - ti,charge-current: integer, maximum charging current (in uA);

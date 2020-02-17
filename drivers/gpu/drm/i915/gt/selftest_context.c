@@ -5,6 +5,7 @@
  */
 
 #include "i915_selftest.h"
+#include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
 
@@ -14,22 +15,28 @@
 
 static int request_sync(struct i915_request *rq)
 {
+	struct intel_timeline *tl = i915_request_timeline(rq);
 	long timeout;
 	int err = 0;
 
+	intel_timeline_get(tl);
 	i915_request_get(rq);
 
-	i915_request_add(rq);
+	/* Opencode i915_request_add() so we can keep the timeline locked. */
+	__i915_request_commit(rq);
+	__i915_request_queue(rq, NULL);
+
 	timeout = i915_request_wait(rq, 0, HZ / 10);
-	if (timeout < 0) {
+	if (timeout < 0)
 		err = timeout;
-	} else {
-		mutex_lock(&rq->timeline->mutex);
+	else
 		i915_request_retire_upto(rq);
-		mutex_unlock(&rq->timeline->mutex);
-	}
+
+	lockdep_unpin_lock(&tl->mutex, rq->cookie);
+	mutex_unlock(&tl->mutex);
 
 	i915_request_put(rq);
+	intel_timeline_put(tl);
 
 	return err;
 }
@@ -44,13 +51,11 @@ static int context_sync(struct intel_context *ce)
 		struct i915_request *rq;
 		long timeout;
 
-		rcu_read_lock();
-		rq = rcu_dereference(tl->last_request.request);
-		if (rq)
-			rq = i915_request_get_rcu(rq);
-		rcu_read_unlock();
-		if (!rq)
+		if (list_empty(&tl->requests))
 			break;
+
+		rq = list_last_entry(&tl->requests, typeof(*rq), link);
+		i915_request_get(rq);
 
 		timeout = i915_request_wait(rq, 0, HZ / 10);
 		if (timeout < 0)
@@ -65,15 +70,14 @@ static int context_sync(struct intel_context *ce)
 	return err;
 }
 
-static int __live_context_size(struct intel_engine_cs *engine,
-			       struct i915_gem_context *fixme)
+static int __live_context_size(struct intel_engine_cs *engine)
 {
 	struct intel_context *ce;
 	struct i915_request *rq;
 	void *vaddr;
 	int err;
 
-	ce = intel_context_create(fixme, engine);
+	ce = intel_context_create(engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
@@ -101,9 +105,6 @@ static int __live_context_size(struct intel_engine_cs *engine,
 	 *
 	 * TLDR; this overlaps with the execlists redzone.
 	 */
-	if (HAS_EXECLISTS(engine->i915))
-		vaddr += LRC_HEADER_PAGES * PAGE_SIZE;
-
 	vaddr += engine->context_size - I915_GTT_PAGE_SIZE;
 	memset(vaddr, POISON_INUSE, I915_GTT_PAGE_SIZE);
 
@@ -119,7 +120,7 @@ static int __live_context_size(struct intel_engine_cs *engine,
 		goto err_unpin;
 
 	/* Force the context switch */
-	rq = i915_request_create(engine->kernel_context);
+	rq = intel_engine_create_kernel_request(engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;
@@ -144,7 +145,6 @@ static int live_context_size(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *fixme;
 	enum intel_engine_id id;
 	int err = 0;
 
@@ -153,15 +153,7 @@ static int live_context_size(void *arg)
 	 * HW tries to write past the end of one.
 	 */
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
-
-	fixme = kernel_context(gt->i915);
-	if (IS_ERR(fixme)) {
-		err = PTR_ERR(fixme);
-		goto unlock;
-	}
-
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct {
 			struct drm_i915_gem_object *state;
 			void *pinned;
@@ -185,7 +177,7 @@ static int live_context_size(void *arg)
 		/* Overlaps with the execlists redzone */
 		engine->context_size += I915_GTT_PAGE_SIZE;
 
-		err = __live_context_size(engine, fixme);
+		err = __live_context_size(engine);
 
 		engine->context_size -= I915_GTT_PAGE_SIZE;
 
@@ -198,15 +190,12 @@ static int live_context_size(void *arg)
 			break;
 	}
 
-	kernel_context_close(fixme);
-unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	return err;
 }
 
-static int __live_active_context(struct intel_engine_cs *engine,
-				 struct i915_gem_context *fixme)
+static int __live_active_context(struct intel_engine_cs *engine)
 {
+	unsigned long saved_heartbeat;
 	struct intel_context *ce;
 	int pass;
 	int err;
@@ -230,40 +219,55 @@ static int __live_active_context(struct intel_engine_cs *engine,
 		return -EINVAL;
 	}
 
-	ce = intel_context_create(fixme, engine);
+	ce = intel_context_create(engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
+
+	saved_heartbeat = engine->props.heartbeat_interval_ms;
+	engine->props.heartbeat_interval_ms = 0;
 
 	for (pass = 0; pass <= 2; pass++) {
 		struct i915_request *rq;
 
+		intel_engine_pm_get(engine);
+
 		rq = intel_context_create_request(ce);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			goto err;
+			goto out_engine;
 		}
 
 		err = request_sync(rq);
 		if (err)
-			goto err;
+			goto out_engine;
 
 		/* Context will be kept active until after an idle-barrier. */
 		if (i915_active_is_idle(&ce->active)) {
 			pr_err("context is not active; expected idle-barrier (%s pass %d)\n",
 			       engine->name, pass);
 			err = -EINVAL;
-			goto err;
+			goto out_engine;
 		}
 
 		if (!intel_engine_pm_is_awake(engine)) {
 			pr_err("%s is asleep before idle-barrier\n",
 			       engine->name);
 			err = -EINVAL;
-			goto err;
+			goto out_engine;
 		}
+
+out_engine:
+		intel_engine_pm_put(engine);
+		if (err)
+			goto err;
 	}
 
 	/* Now make sure our idle-barriers are flushed */
+	err = intel_engine_flush_barriers(engine);
+	if (err)
+		goto err;
+
+	/* Wait for the barrier and in the process wait for engine to park */
 	err = context_sync(engine->kernel_context);
 	if (err)
 		goto err;
@@ -273,12 +277,15 @@ static int __live_active_context(struct intel_engine_cs *engine,
 		err = -EINVAL;
 	}
 
+	intel_engine_pm_flush(engine);
+
 	if (intel_engine_pm_is_awake(engine)) {
 		struct drm_printer p = drm_debug_printer(__func__);
 
 		intel_engine_dump(engine, &p,
-				  "%s is still awake after idle-barriers\n",
-				  engine->name);
+				  "%s is still awake:%d after idle-barriers\n",
+				  engine->name,
+				  atomic_read(&engine->wakeref.count));
 		GEM_TRACE_DUMP();
 
 		err = -EINVAL;
@@ -286,6 +293,7 @@ static int __live_active_context(struct intel_engine_cs *engine,
 	}
 
 err:
+	engine->props.heartbeat_interval_ms = saved_heartbeat;
 	intel_context_put(ce);
 	return err;
 }
@@ -294,36 +302,19 @@ static int live_active_context(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *fixme;
 	enum intel_engine_id id;
-	struct drm_file *file;
 	int err = 0;
 
-	file = mock_file(gt->i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-
-	mutex_lock(&gt->i915->drm.struct_mutex);
-
-	fixme = live_context(gt->i915, file);
-	if (IS_ERR(fixme)) {
-		err = PTR_ERR(fixme);
-		goto unlock;
-	}
-
-	for_each_engine(engine, gt->i915, id) {
-		err = __live_active_context(engine, fixme);
+	for_each_engine(engine, gt, id) {
+		err = __live_active_context(engine);
 		if (err)
 			break;
 
-		err = igt_flush_test(gt->i915, I915_WAIT_LOCKED);
+		err = igt_flush_test(gt->i915);
 		if (err)
 			break;
 	}
 
-unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
-	mock_file_free(gt->i915, file);
 	return err;
 }
 
@@ -355,10 +346,10 @@ unpin:
 	return err;
 }
 
-static int __live_remote_context(struct intel_engine_cs *engine,
-				 struct i915_gem_context *fixme)
+static int __live_remote_context(struct intel_engine_cs *engine)
 {
 	struct intel_context *local, *remote;
+	unsigned long saved_heartbeat;
 	int pass;
 	int err;
 
@@ -370,15 +361,25 @@ static int __live_remote_context(struct intel_engine_cs *engine,
 	 * clobber the idle-barrier.
 	 */
 
-	remote = intel_context_create(fixme, engine);
+	if (intel_engine_pm_is_awake(engine)) {
+		pr_err("%s is awake before starting %s!\n",
+		       engine->name, __func__);
+		return -EINVAL;
+	}
+
+	remote = intel_context_create(engine);
 	if (IS_ERR(remote))
 		return PTR_ERR(remote);
 
-	local = intel_context_create(fixme, engine);
+	local = intel_context_create(engine);
 	if (IS_ERR(local)) {
 		err = PTR_ERR(local);
 		goto err_remote;
 	}
+
+	saved_heartbeat = engine->props.heartbeat_interval_ms;
+	engine->props.heartbeat_interval_ms = 0;
+	intel_engine_pm_get(engine);
 
 	for (pass = 0; pass <= 2; pass++) {
 		err = __remote_sync(local, remote);
@@ -397,6 +398,9 @@ static int __live_remote_context(struct intel_engine_cs *engine,
 		}
 	}
 
+	intel_engine_pm_put(engine);
+	engine->props.heartbeat_interval_ms = saved_heartbeat;
+
 	intel_context_put(local);
 err_remote:
 	intel_context_put(remote);
@@ -407,36 +411,19 @@ static int live_remote_context(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *fixme;
 	enum intel_engine_id id;
-	struct drm_file *file;
 	int err = 0;
 
-	file = mock_file(gt->i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-
-	mutex_lock(&gt->i915->drm.struct_mutex);
-
-	fixme = live_context(gt->i915, file);
-	if (IS_ERR(fixme)) {
-		err = PTR_ERR(fixme);
-		goto unlock;
-	}
-
-	for_each_engine(engine, gt->i915, id) {
-		err = __live_remote_context(engine, fixme);
+	for_each_engine(engine, gt, id) {
+		err = __live_remote_context(engine);
 		if (err)
 			break;
 
-		err = igt_flush_test(gt->i915, I915_WAIT_LOCKED);
+		err = igt_flush_test(gt->i915);
 		if (err)
 			break;
 	}
 
-unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
-	mock_file_free(gt->i915, file);
 	return err;
 }
 

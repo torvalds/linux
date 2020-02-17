@@ -629,7 +629,7 @@ out:
 /*
  * Returns true if the server major ids match
  */
-static bool
+bool
 nfs4_check_serverowner_major_id(struct nfs41_server_owner *o1,
 				struct nfs41_server_owner *o2)
 {
@@ -879,14 +879,17 @@ static int nfs4_set_client(struct nfs_server *server,
 	};
 	struct nfs_client *clp;
 
-	if (minorversion > 0 && proto == XPRT_TRANSPORT_TCP)
+	if (minorversion == 0)
+		__set_bit(NFS_CS_REUSEPORT, &cl_init.init_flags);
+	else if (proto == XPRT_TRANSPORT_TCP)
 		cl_init.nconnect = nconnect;
+
 	if (server->flags & NFS_MOUNT_NORESVPORT)
-		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+		__set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
 	if (server->options & NFS_OPTION_MIGRATION)
-		set_bit(NFS_CS_MIGRATION, &cl_init.init_flags);
+		__set_bit(NFS_CS_MIGRATION, &cl_init.init_flags);
 	if (test_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status))
-		set_bit(NFS_CS_TSM_POSSIBLE, &cl_init.init_flags);
+		__set_bit(NFS_CS_TSM_POSSIBLE, &cl_init.init_flags);
 	server->port = rpc_get_port(addr);
 
 	/* Allocate or find a client reference we can use */
@@ -1052,66 +1055,64 @@ out:
 /*
  * Create a version 4 volume record
  */
-static int nfs4_init_server(struct nfs_server *server,
-		struct nfs_parsed_mount_data *data)
+static int nfs4_init_server(struct nfs_server *server, struct fs_context *fc)
 {
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	struct rpc_timeout timeparms;
 	int error;
 
-	nfs_init_timeout_values(&timeparms, data->nfs_server.protocol,
-			data->timeo, data->retrans);
+	nfs_init_timeout_values(&timeparms, ctx->nfs_server.protocol,
+				ctx->timeo, ctx->retrans);
 
 	/* Initialise the client representation from the mount data */
-	server->flags = data->flags;
-	server->options = data->options;
-	server->auth_info = data->auth_info;
+	server->flags = ctx->flags;
+	server->options = ctx->options;
+	server->auth_info = ctx->auth_info;
 
 	/* Use the first specified auth flavor. If this flavor isn't
 	 * allowed by the server, use the SECINFO path to try the
 	 * other specified flavors */
-	if (data->auth_info.flavor_len >= 1)
-		data->selected_flavor = data->auth_info.flavors[0];
+	if (ctx->auth_info.flavor_len >= 1)
+		ctx->selected_flavor = ctx->auth_info.flavors[0];
 	else
-		data->selected_flavor = RPC_AUTH_UNIX;
+		ctx->selected_flavor = RPC_AUTH_UNIX;
 
 	/* Get a client record */
 	error = nfs4_set_client(server,
-			data->nfs_server.hostname,
-			(const struct sockaddr *)&data->nfs_server.address,
-			data->nfs_server.addrlen,
-			data->client_address,
-			data->nfs_server.protocol,
-			&timeparms,
-			data->minorversion,
-			data->nfs_server.nconnect,
-			data->net);
+				ctx->nfs_server.hostname,
+				&ctx->nfs_server.address,
+				ctx->nfs_server.addrlen,
+				ctx->client_address,
+				ctx->nfs_server.protocol,
+				&timeparms,
+				ctx->minorversion,
+				ctx->nfs_server.nconnect,
+				fc->net_ns);
 	if (error < 0)
 		return error;
 
-	if (data->rsize)
-		server->rsize = nfs_block_size(data->rsize, NULL);
-	if (data->wsize)
-		server->wsize = nfs_block_size(data->wsize, NULL);
+	if (ctx->rsize)
+		server->rsize = nfs_block_size(ctx->rsize, NULL);
+	if (ctx->wsize)
+		server->wsize = nfs_block_size(ctx->wsize, NULL);
 
-	server->acregmin = data->acregmin * HZ;
-	server->acregmax = data->acregmax * HZ;
-	server->acdirmin = data->acdirmin * HZ;
-	server->acdirmax = data->acdirmax * HZ;
-	server->port     = data->nfs_server.port;
+	server->acregmin = ctx->acregmin * HZ;
+	server->acregmax = ctx->acregmax * HZ;
+	server->acdirmin = ctx->acdirmin * HZ;
+	server->acdirmax = ctx->acdirmax * HZ;
+	server->port     = ctx->nfs_server.port;
 
 	return nfs_init_server_rpcclient(server, &timeparms,
-					 data->selected_flavor);
+					 ctx->selected_flavor);
 }
 
 /*
  * Create a version 4 volume record
  * - keyed on server and FSID
  */
-/*struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
-				      struct nfs_fh *mntfh)*/
-struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
-				      struct nfs_subversion *nfs_mod)
+struct nfs_server *nfs4_create_server(struct fs_context *fc)
 {
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	struct nfs_server *server;
 	bool auth_probe;
 	int error;
@@ -1122,14 +1123,14 @@ struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
 
 	server->cred = get_cred(current_cred());
 
-	auth_probe = mount_info->parsed->auth_info.flavor_len < 1;
+	auth_probe = ctx->auth_info.flavor_len < 1;
 
 	/* set up the general RPC client */
-	error = nfs4_init_server(server, mount_info->parsed);
+	error = nfs4_init_server(server, fc);
 	if (error < 0)
 		goto error;
 
-	error = nfs4_server_common_setup(server, mount_info->mntfh, auth_probe);
+	error = nfs4_server_common_setup(server, ctx->mntfh, auth_probe);
 	if (error < 0)
 		goto error;
 
@@ -1143,9 +1144,9 @@ error:
 /*
  * Create an NFS4 referral server record
  */
-struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
-					       struct nfs_fh *mntfh)
+struct nfs_server *nfs4_create_referral_server(struct fs_context *fc)
 {
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	struct nfs_client *parent_client;
 	struct nfs_server *server, *parent_server;
 	bool auth_probe;
@@ -1155,7 +1156,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	if (!server)
 		return ERR_PTR(-ENOMEM);
 
-	parent_server = NFS_SB(data->sb);
+	parent_server = NFS_SB(ctx->clone_data.sb);
 	parent_client = parent_server->nfs_client;
 
 	server->cred = get_cred(parent_server->cred);
@@ -1165,10 +1166,11 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 
 	/* Get a client representation */
 #if IS_ENABLED(CONFIG_SUNRPC_XPRT_RDMA)
-	rpc_set_port(data->addr, NFS_RDMA_PORT);
-	error = nfs4_set_client(server, data->hostname,
-				data->addr,
-				data->addrlen,
+	rpc_set_port(&ctx->nfs_server.address, NFS_RDMA_PORT);
+	error = nfs4_set_client(server,
+				ctx->nfs_server.hostname,
+				&ctx->nfs_server.address,
+				ctx->nfs_server.addrlen,
 				parent_client->cl_ipaddr,
 				XPRT_TRANSPORT_RDMA,
 				parent_server->client->cl_timeout,
@@ -1179,10 +1181,11 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 		goto init_server;
 #endif	/* IS_ENABLED(CONFIG_SUNRPC_XPRT_RDMA) */
 
-	rpc_set_port(data->addr, NFS_PORT);
-	error = nfs4_set_client(server, data->hostname,
-				data->addr,
-				data->addrlen,
+	rpc_set_port(&ctx->nfs_server.address, NFS_PORT);
+	error = nfs4_set_client(server,
+				ctx->nfs_server.hostname,
+				&ctx->nfs_server.address,
+				ctx->nfs_server.addrlen,
 				parent_client->cl_ipaddr,
 				XPRT_TRANSPORT_TCP,
 				parent_server->client->cl_timeout,
@@ -1195,13 +1198,14 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 #if IS_ENABLED(CONFIG_SUNRPC_XPRT_RDMA)
 init_server:
 #endif
-	error = nfs_init_server_rpcclient(server, parent_server->client->cl_timeout, data->authflavor);
+	error = nfs_init_server_rpcclient(server, parent_server->client->cl_timeout,
+					  ctx->selected_flavor);
 	if (error < 0)
 		goto error;
 
 	auth_probe = parent_server->auth_info.flavor_len < 1;
 
-	error = nfs4_server_common_setup(server, mntfh, auth_probe);
+	error = nfs4_server_common_setup(server, ctx->mntfh, auth_probe);
 	if (error < 0)
 		goto error;
 

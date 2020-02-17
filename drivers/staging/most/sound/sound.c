@@ -17,12 +17,13 @@
 #include <sound/pcm_params.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
-#include <most/core.h>
+
+#include "../most.h"
 
 #define DRIVER_NAME "sound"
 #define STRING_SIZE	80
 
-static struct core_component comp;
+static struct most_component comp;
 
 /**
  * struct channel - private structure to keep channel specific data
@@ -323,46 +324,6 @@ static int pcm_close(struct snd_pcm_substream *substream)
 }
 
 /**
- * pcm_hw_params - implements hw_params callback function for PCM middle layer
- * @substream: sub-stream pointer
- * @hw_params: contains the hardware parameters set by the application
- *
- * This is called when the hardware parameters is set by the application, that
- * is, once when the buffer size, the period size, the format, etc. are defined
- * for the PCM substream. Many hardware setups should be done is this callback,
- * including the allocation of buffers.
- *
- * Returns 0 on success or error code otherwise.
- */
-static int pcm_hw_params(struct snd_pcm_substream *substream,
-			 struct snd_pcm_hw_params *hw_params)
-{
-	struct channel *channel = substream->private_data;
-
-	if ((params_channels(hw_params) > channel->pcm_hardware.channels_max) ||
-	    (params_channels(hw_params) < channel->pcm_hardware.channels_min)) {
-		pr_err("Requested number of channels not supported.\n");
-		return -EINVAL;
-	}
-	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
-						params_buffer_bytes(hw_params));
-}
-
-/**
- * pcm_hw_free - implements hw_free callback function for PCM middle layer
- * @substream: substream pointer
- *
- * This is called to release the resources allocated via hw_params.
- * This function will be always called before the close callback is called.
- *
- * Returns 0 on success or error code otherwise.
- */
-static int pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
-}
-
-/**
  * pcm_prepare - implements prepare callback function for PCM middle layer
  * @substream: substream pointer
  *
@@ -463,13 +424,9 @@ static snd_pcm_uframes_t pcm_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops pcm_ops = {
 	.open       = pcm_open,
 	.close      = pcm_close,
-	.ioctl      = snd_pcm_lib_ioctl,
-	.hw_params  = pcm_hw_params,
-	.hw_free    = pcm_hw_free,
 	.prepare    = pcm_prepare,
 	.trigger    = pcm_trigger,
 	.pointer    = pcm_pointer,
-	.page       = snd_pcm_lib_get_vmalloc_page,
 };
 
 static int split_arg_list(char *buf, u16 *ch_num, char **sample_res)
@@ -663,6 +620,7 @@ skip_adpt_alloc:
 	pcm->private_data = channel;
 	strscpy(pcm->name, device_name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, direction, &pcm_ops);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
 
 	return 0;
 
@@ -779,9 +737,10 @@ static int audio_tx_completion(struct most_interface *iface, int channel_id)
 }
 
 /**
- * Initialization of the struct core_component
+ * Initialization of the struct most_component
  */
-static struct core_component comp = {
+static struct most_component comp = {
+	.mod = THIS_MODULE,
 	.name = DRIVER_NAME,
 	.probe_channel = audio_probe_channel,
 	.disconnect_channel = audio_disconnect_channel,

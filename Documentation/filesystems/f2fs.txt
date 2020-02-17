@@ -235,6 +235,17 @@ checkpoint=%s[:%u[%]]     Set to "disable" to turn off checkpointing. Set to "en
                        hide up to all remaining free space. The actual space that
                        would be unusable can be viewed at /sys/fs/f2fs/<disk>/unusable
                        This space is reclaimed once checkpoint=enable.
+compress_algorithm=%s  Control compress algorithm, currently f2fs supports "lzo"
+                       and "lz4" algorithm.
+compress_log_size=%u   Support configuring compress cluster size, the size will
+                       be 4KB * (1 << %u), 16KB is minimum size, also it's
+                       default size.
+compress_extension=%s  Support adding specified extension, so that f2fs can enable
+                       compression on those corresponding files, e.g. if all files
+                       with '.ext' has high compression rate, we can set the '.ext'
+                       on compression extension list and enable compression on
+                       these file by default rather than to enable it via ioctl.
+                       For other files, we can still enable compression via ioctl.
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -259,167 +270,6 @@ The files in each per-device directory are shown in table below.
 
 Files in /sys/fs/f2fs/<devname>
 (see also Documentation/ABI/testing/sysfs-fs-f2fs)
-..............................................................................
- File                         Content
-
- gc_urgent_sleep_time         This parameter controls sleep time for gc_urgent.
-                              500 ms is set by default. See above gc_urgent.
-
- gc_min_sleep_time            This tuning parameter controls the minimum sleep
-                              time for the garbage collection thread. Time is
-                              in milliseconds.
-
- gc_max_sleep_time            This tuning parameter controls the maximum sleep
-                              time for the garbage collection thread. Time is
-                              in milliseconds.
-
- gc_no_gc_sleep_time          This tuning parameter controls the default sleep
-                              time for the garbage collection thread. Time is
-                              in milliseconds.
-
- gc_idle                      This parameter controls the selection of victim
-                              policy for garbage collection. Setting gc_idle = 0
-                              (default) will disable this option. Setting
-                              gc_idle = 1 will select the Cost Benefit approach
-                              & setting gc_idle = 2 will select the greedy approach.
-
- gc_urgent                    This parameter controls triggering background GCs
-                              urgently or not. Setting gc_urgent = 0 [default]
-                              makes back to default behavior, while if it is set
-                              to 1, background thread starts to do GC by given
-                              gc_urgent_sleep_time interval.
-
- reclaim_segments             This parameter controls the number of prefree
-                              segments to be reclaimed. If the number of prefree
-			      segments is larger than the number of segments
-			      in the proportion to the percentage over total
-			      volume size, f2fs tries to conduct checkpoint to
-			      reclaim the prefree segments to free segments.
-			      By default, 5% over total # of segments.
-
- max_small_discards	      This parameter controls the number of discard
-			      commands that consist small blocks less than 2MB.
-			      The candidates to be discarded are cached until
-			      checkpoint is triggered, and issued during the
-			      checkpoint. By default, it is disabled with 0.
-
- discard_granularity	      This parameter controls the granularity of discard
-			      command size. It will issue discard commands iif
-			      the size is larger than given granularity. Its
-			      unit size is 4KB, and 4 (=16KB) is set by default.
-			      The maximum value is 128 (=512KB).
-
- reserved_blocks	      This parameter indicates the number of blocks that
-			      f2fs reserves internally for root.
-
- batched_trim_sections	      This parameter controls the number of sections
-                              to be trimmed out in batch mode when FITRIM
-                              conducts. 32 sections is set by default.
-
- ipu_policy                   This parameter controls the policy of in-place
-                              updates in f2fs. There are five policies:
-                               0x01: F2FS_IPU_FORCE, 0x02: F2FS_IPU_SSR,
-                               0x04: F2FS_IPU_UTIL,  0x08: F2FS_IPU_SSR_UTIL,
-                               0x10: F2FS_IPU_FSYNC.
-
- min_ipu_util                 This parameter controls the threshold to trigger
-                              in-place-updates. The number indicates percentage
-                              of the filesystem utilization, and used by
-                              F2FS_IPU_UTIL and F2FS_IPU_SSR_UTIL policies.
-
- min_fsync_blocks             This parameter controls the threshold to trigger
-                              in-place-updates when F2FS_IPU_FSYNC mode is set.
-			      The number indicates the number of dirty pages
-			      when fsync needs to flush on its call path. If
-			      the number is less than this value, it triggers
-			      in-place-updates.
-
- min_seq_blocks		      This parameter controls the threshold to serialize
-			      write IOs issued by multiple threads in parallel.
-
- min_hot_blocks		      This parameter controls the threshold to allocate
-			      a hot data log for pending data blocks to write.
-
- min_ssr_sections	      This parameter adds the threshold when deciding
-			      SSR block allocation. If this is large, SSR mode
-			      will be enabled early.
-
- ram_thresh                   This parameter controls the memory footprint used
-			      by free nids and cached nat entries. By default,
-			      10 is set, which indicates 10 MB / 1 GB RAM.
-
- ra_nid_pages		      When building free nids, F2FS reads NAT blocks
-			      ahead for speed up. Default is 0.
-
- dirty_nats_ratio	      Given dirty ratio of cached nat entries, F2FS
-			      determines flushing them in background.
-
- max_victim_search	      This parameter controls the number of trials to
-			      find a victim segment when conducting SSR and
-			      cleaning operations. The default value is 4096
-			      which covers 8GB block address range.
-
- migration_granularity	      For large-sized sections, F2FS can stop GC given
-			      this granularity instead of reclaiming entire
-			      section.
-
- dir_level                    This parameter controls the directory level to
-			      support large directory. If a directory has a
-			      number of files, it can reduce the file lookup
-			      latency by increasing this dir_level value.
-			      Otherwise, it needs to decrease this value to
-			      reduce the space overhead. The default value is 0.
-
- cp_interval		      F2FS tries to do checkpoint periodically, 60 secs
-			      by default.
-
- idle_interval		      F2FS detects system is idle, if there's no F2FS
-			      operations during given interval, 5 secs by
-			      default.
-
- discard_idle_interval	      F2FS detects the discard thread is idle, given
-			      time interval. Default is 5 secs.
-
- gc_idle_interval	      F2FS detects the GC thread is idle, given time
-			      interval. Default is 5 secs.
-
- umount_discard_timeout       When unmounting the disk, F2FS waits for finishing
-			      queued discard commands which can take huge time.
-			      This gives time out for it, 5 secs by default.
-
- iostat_enable		      This controls to enable/disable iostat in F2FS.
-
- readdir_ra		      This enables/disabled readahead of inode blocks
-			      in readdir, and default is enabled.
-
- gc_pin_file_thresh	      This indicates how many GC can be failed for the
-			      pinned file. If it exceeds this, F2FS doesn't
-			      guarantee its pinning state. 2048 trials is set
-			      by default.
-
- extension_list		      This enables to change extension_list for hot/cold
-			      files in runtime.
-
- inject_rate		      This controls injection rate of arbitrary faults.
-
- inject_type		      This controls injection type of arbitrary faults.
-
- dirty_segments 	      This shows # of dirty segments.
-
- lifetime_write_kbytes	      This shows # of data written to the disk.
-
- features		      This shows current features enabled on F2FS.
-
- current_reserved_blocks      This shows # of blocks currently reserved.
-
- unusable                     If checkpoint=disable, this shows the number of
-                              blocks that are unusable.
-                              If checkpoint=enable it shows the number of blocks
-                              that would be unusable if checkpoint=disable were
-                              to be set.
-
-encoding 	              This shows the encoding used for casefolding.
-                              If casefolding is not enabled, returns (none)
 
 ================================================================================
 USAGE
@@ -837,3 +687,44 @@ zero or random data, which is useful to the below scenario where:
  4. address = fibmap(fd, offset)
  5. open(blkdev)
  6. write(blkdev, address)
+
+Compression implementation
+--------------------------
+
+- New term named cluster is defined as basic unit of compression, file can
+be divided into multiple clusters logically. One cluster includes 4 << n
+(n >= 0) logical pages, compression size is also cluster size, each of
+cluster can be compressed or not.
+
+- In cluster metadata layout, one special block address is used to indicate
+cluster is compressed one or normal one, for compressed cluster, following
+metadata maps cluster to [1, 4 << n - 1] physical blocks, in where f2fs
+stores data including compress header and compressed data.
+
+- In order to eliminate write amplification during overwrite, F2FS only
+support compression on write-once file, data can be compressed only when
+all logical blocks in file are valid and cluster compress ratio is lower
+than specified threshold.
+
+- To enable compression on regular inode, there are three ways:
+* chattr +c file
+* chattr +c dir; touch dir/file
+* mount w/ -o compress_extension=ext; touch file.ext
+
+Compress metadata layout:
+                             [Dnode Structure]
+             +-----------------------------------------------+
+             | cluster 1 | cluster 2 | ......... | cluster N |
+             +-----------------------------------------------+
+             .           .                       .           .
+       .                       .                .                      .
+  .         Compressed Cluster       .        .        Normal Cluster            .
++----------+---------+---------+---------+  +---------+---------+---------+---------+
+|compr flag| block 1 | block 2 | block 3 |  | block 1 | block 2 | block 3 | block 4 |
++----------+---------+---------+---------+  +---------+---------+---------+---------+
+           .                             .
+         .                                           .
+       .                                                           .
+      +-------------+-------------+----------+----------------------------+
+      | data length | data chksum | reserved |      compressed data       |
+      +-------------+-------------+----------+----------------------------+

@@ -3,6 +3,7 @@
 #define _ASM_POWERPC_KUP_8XX_H_
 
 #include <asm/bug.h>
+#include <asm/mmu.h>
 
 #ifdef CONFIG_PPC_KUAP
 
@@ -34,18 +35,33 @@
 #include <asm/reg.h>
 
 static inline void allow_user_access(void __user *to, const void __user *from,
-				     unsigned long size)
+				     unsigned long size, unsigned long dir)
 {
 	mtspr(SPRN_MD_AP, MD_APG_INIT);
 }
 
 static inline void prevent_user_access(void __user *to, const void __user *from,
-				       unsigned long size)
+				       unsigned long size, unsigned long dir)
 {
 	mtspr(SPRN_MD_AP, MD_APG_KUAP);
 }
 
-static inline bool bad_kuap_fault(struct pt_regs *regs, bool is_write)
+static inline unsigned long prevent_user_access_return(void)
+{
+	unsigned long flags = mfspr(SPRN_MD_AP);
+
+	mtspr(SPRN_MD_AP, MD_APG_KUAP);
+
+	return flags;
+}
+
+static inline void restore_user_access(unsigned long flags)
+{
+	mtspr(SPRN_MD_AP, flags);
+}
+
+static inline bool
+bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 {
 	return WARN(!((regs->kuap ^ MD_APG_KUAP) & 0xf0000000),
 		    "Bug: fault blocked by AP register !");

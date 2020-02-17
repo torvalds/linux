@@ -7,7 +7,7 @@ static int s390_call__parse(struct arch *arch, struct ins_operands *ops,
 	char *endptr, *tok, *name;
 	struct map *map = ms->map;
 	struct addr_map_symbol target = {
-		.map = map,
+		.ms = { .map = map, },
 	};
 
 	tok = strchr(ops->raw, ',');
@@ -38,9 +38,9 @@ static int s390_call__parse(struct arch *arch, struct ins_operands *ops,
 		return -1;
 	target.addr = map__objdump_2mem(map, ops->target.addr);
 
-	if (map_groups__find_ams(&target) == 0 &&
-	    map__rip_2objdump(target.map, map->map_ip(target.map, target.addr)) == ops->target.addr)
-		ops->target.sym = target.sym;
+	if (maps__find_ams(ms->maps, &target) == 0 &&
+	    map__rip_2objdump(target.ms.map, map->map_ip(target.ms.map, target.addr)) == ops->target.addr)
+		ops->target.sym = target.ms.sym;
 
 	return 0;
 }
@@ -164,8 +164,10 @@ static int s390__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 	if (!arch->initialized) {
 		arch->initialized = true;
 		arch->associate_instruction_ops = s390__associate_ins_ops;
-		if (cpuid)
-			err = s390__cpuid_parse(arch, cpuid);
+		if (cpuid) {
+			if (s390__cpuid_parse(arch, cpuid))
+				err = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING;
+		}
 	}
 
 	return err;

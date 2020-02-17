@@ -111,7 +111,7 @@ extern void fscache_enqueue_object(struct fscache_object *);
  * object-list.c
  */
 #ifdef CONFIG_FSCACHE_OBJECT_LIST
-extern const struct file_operations fscache_objlist_fops;
+extern const struct proc_ops fscache_objlist_proc_ops;
 
 extern void fscache_objlist_add(struct fscache_object *);
 extern void fscache_objlist_remove(struct fscache_object *);

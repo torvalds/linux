@@ -26,6 +26,7 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 	unsigned long i, nr_pages, addr, next;
 	int nr;
 	struct page **pages;
+	int ret = 0;
 
 	if (gup->size > ULONG_MAX)
 		return -EINVAL;
@@ -48,22 +49,27 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 			nr = (next - addr) / PAGE_SIZE;
 		}
 
+		/* Filter out most gup flags: only allow a tiny subset here: */
+		gup->flags &= FOLL_WRITE;
+
 		switch (cmd) {
 		case GUP_FAST_BENCHMARK:
-			nr = get_user_pages_fast(addr, nr, gup->flags & 1,
+			nr = get_user_pages_fast(addr, nr, gup->flags,
 						 pages + i);
 			break;
 		case GUP_LONGTERM_BENCHMARK:
 			nr = get_user_pages(addr, nr,
-					    (gup->flags & 1) | FOLL_LONGTERM,
+					    gup->flags | FOLL_LONGTERM,
 					    pages + i, NULL);
 			break;
 		case GUP_BENCHMARK:
-			nr = get_user_pages(addr, nr, gup->flags & 1, pages + i,
+			nr = get_user_pages(addr, nr, gup->flags, pages + i,
 					    NULL);
 			break;
 		default:
-			return -1;
+			kvfree(pages);
+			ret = -EINVAL;
+			goto out;
 		}
 
 		if (nr <= 0)
@@ -85,7 +91,8 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 	gup->put_delta_usec = ktime_us_delta(end_time, start_time);
 
 	kvfree(pages);
-	return 0;
+out:
+	return ret;
 }
 
 static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,

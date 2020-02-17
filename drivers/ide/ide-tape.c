@@ -19,6 +19,7 @@
 
 #define IDETAPE_VERSION "1.20"
 
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -1407,14 +1408,10 @@ static long do_idetape_chrdev_ioctl(struct file *file,
 		if (tape->drv_write_prot)
 			mtget.mt_gstat |= GMT_WR_PROT(0xffffffff);
 
-		if (copy_to_user(argp, &mtget, sizeof(struct mtget)))
-			return -EFAULT;
-		return 0;
+		return put_user_mtget(argp, &mtget);
 	case MTIOCPOS:
 		mtpos.mt_blkno = position / tape->user_bs_factor - block_offset;
-		if (copy_to_user(argp, &mtpos, sizeof(struct mtpos)))
-			return -EFAULT;
-		return 0;
+		return put_user_mtpos(argp, &mtpos);
 	default:
 		if (tape->chrdev_dir == IDETAPE_DIR_READ)
 			ide_tape_discard_merge_buffer(drive, 1);
@@ -1426,6 +1423,22 @@ static long idetape_chrdev_ioctl(struct file *file,
 				unsigned int cmd, unsigned long arg)
 {
 	long ret;
+	mutex_lock(&ide_tape_mutex);
+	ret = do_idetape_chrdev_ioctl(file, cmd, arg);
+	mutex_unlock(&ide_tape_mutex);
+	return ret;
+}
+
+static long idetape_chrdev_compat_ioctl(struct file *file,
+				unsigned int cmd, unsigned long arg)
+{
+	long ret;
+
+	if (cmd == MTIOCPOS32)
+		cmd = MTIOCPOS;
+	else if (cmd == MTIOCGET32)
+		cmd = MTIOCGET;
+
 	mutex_lock(&ide_tape_mutex);
 	ret = do_idetape_chrdev_ioctl(file, cmd, arg);
 	mutex_unlock(&ide_tape_mutex);
@@ -1886,6 +1899,8 @@ static const struct file_operations idetape_fops = {
 	.read		= idetape_chrdev_read,
 	.write		= idetape_chrdev_write,
 	.unlocked_ioctl	= idetape_chrdev_ioctl,
+	.compat_ioctl	= IS_ENABLED(CONFIG_COMPAT) ?
+			  idetape_chrdev_compat_ioctl : NULL,
 	.open		= idetape_chrdev_open,
 	.release	= idetape_chrdev_release,
 	.llseek		= noop_llseek,
@@ -1930,11 +1945,22 @@ static int idetape_ioctl(struct block_device *bdev, fmode_t mode,
 	return err;
 }
 
+static int idetape_compat_ioctl(struct block_device *bdev, fmode_t mode,
+				unsigned int cmd, unsigned long arg)
+{
+        if (cmd == 0x0340 || cmd == 0x350)
+		arg = (unsigned long)compat_ptr(arg);
+
+	return idetape_ioctl(bdev, mode, cmd, arg);
+}
+
 static const struct block_device_operations idetape_block_ops = {
 	.owner		= THIS_MODULE,
 	.open		= idetape_open,
 	.release	= idetape_release,
 	.ioctl		= idetape_ioctl,
+	.compat_ioctl	= IS_ENABLED(CONFIG_COMPAT) ?
+				idetape_compat_ioctl : NULL,
 };
 
 static int ide_tape_probe(ide_drive_t *drive)

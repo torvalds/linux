@@ -1262,6 +1262,7 @@ struct rtsx_pcr {
 #define PID_5250	0x5250
 #define PID_525A	0x525A
 #define PID_5260	0x5260
+#define PID_5261	0x5261
 
 #define CHK_PCI_PID(pcr, pid)		((pcr)->pci->device == (pid))
 #define PCI_VID(pcr)			((pcr)->pci->vendor)

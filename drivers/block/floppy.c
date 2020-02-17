@@ -3879,6 +3879,9 @@ static int fd_compat_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
 {
 	int drive = (long)bdev->bd_disk->private_data;
 	switch (cmd) {
+	case CDROMEJECT: /* CD-ROM eject */
+	case 0x6470:	 /* SunOS floppy eject */
+
 	case FDMSGON:
 	case FDMSGOFF:
 	case FDSETEMSGTRESH:

@@ -28,6 +28,8 @@
 
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include "intel_gt_pm.h"
+#include "intel_gt_requests.h"
 
 static void irq_enable(struct intel_engine_cs *engine)
 {
@@ -53,15 +55,17 @@ static void irq_disable(struct intel_engine_cs *engine)
 
 static void __intel_breadcrumbs_disarm_irq(struct intel_breadcrumbs *b)
 {
+	struct intel_engine_cs *engine =
+		container_of(b, struct intel_engine_cs, breadcrumbs);
+
 	lockdep_assert_held(&b->irq_lock);
 
 	GEM_BUG_ON(!b->irq_enabled);
 	if (!--b->irq_enabled)
-		irq_disable(container_of(b,
-					 struct intel_engine_cs,
-					 breadcrumbs));
+		irq_disable(engine);
 
 	b->irq_armed = false;
+	intel_gt_pm_put_async(engine->gt);
 }
 
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
@@ -120,7 +124,6 @@ __dma_fence_signal__notify(struct dma_fence *fence,
 	struct dma_fence_cb *cur, *tmp;
 
 	lockdep_assert_held(fence->lock);
-	lockdep_assert_irqs_disabled();
 
 	list_for_each_entry_safe(cur, tmp, list, node) {
 		INIT_LIST_HEAD(&cur->node);
@@ -128,9 +131,17 @@ __dma_fence_signal__notify(struct dma_fence *fence,
 	}
 }
 
-void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
+static void add_retire(struct intel_breadcrumbs *b, struct intel_timeline *tl)
 {
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct intel_engine_cs *engine =
+		container_of(b, struct intel_engine_cs, breadcrumbs);
+
+	intel_engine_add_retire(engine, tl);
+}
+
+static void signal_irq_work(struct irq_work *work)
+{
+	struct intel_breadcrumbs *b = container_of(work, typeof(*b), irq_work);
 	const ktime_t timestamp = ktime_get();
 	struct intel_context *ce, *cn;
 	struct list_head *pos, *next;
@@ -177,8 +188,10 @@ void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
 		if (!list_is_first(pos, &ce->signals)) {
 			/* Advance the list to the first incomplete request */
 			__list_del_many(&ce->signals, pos);
-			if (&ce->signals == pos) /* now empty */
+			if (&ce->signals == pos) { /* now empty */
 				list_del_init(&ce->signal_link);
+				add_retire(b, ce->timeline);
+			}
 		}
 	}
 
@@ -199,29 +212,17 @@ void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
 	}
 }
 
-void intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine)
-{
-	local_irq_disable();
-	intel_engine_breadcrumbs_irq(engine);
-	local_irq_enable();
-}
-
-static void signal_irq_work(struct irq_work *work)
-{
-	struct intel_engine_cs *engine =
-		container_of(work, typeof(*engine), breadcrumbs.irq_work);
-
-	intel_engine_breadcrumbs_irq(engine);
-}
-
-static void __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
+static bool __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
 {
 	struct intel_engine_cs *engine =
 		container_of(b, struct intel_engine_cs, breadcrumbs);
 
 	lockdep_assert_held(&b->irq_lock);
 	if (b->irq_armed)
-		return;
+		return true;
+
+	if (!intel_gt_pm_get_if_awake(engine->gt))
+		return false;
 
 	/*
 	 * The breadcrumb irq will be disarmed on the interrupt after the
@@ -241,6 +242,8 @@ static void __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
 
 	if (!b->irq_enabled++)
 		irq_enable(engine);
+
+	return true;
 }
 
 void intel_engine_init_breadcrumbs(struct intel_engine_cs *engine)
@@ -275,23 +278,23 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 bool i915_request_enable_breadcrumb(struct i915_request *rq)
 {
 	lockdep_assert_held(&rq->lock);
-	lockdep_assert_irqs_disabled();
 
 	if (test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags)) {
 		struct intel_breadcrumbs *b = &rq->engine->breadcrumbs;
-		struct intel_context *ce = rq->hw_context;
+		struct intel_context *ce = rq->context;
 		struct list_head *pos;
 
 		spin_lock(&b->irq_lock);
 		GEM_BUG_ON(test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags));
 
-		__intel_breadcrumbs_arm_irq(b);
+		if (!__intel_breadcrumbs_arm_irq(b))
+			goto unlock;
 
 		/*
 		 * We keep the seqno in retirement order, so we can break
-		 * inside intel_engine_breadcrumbs_irq as soon as we've passed
-		 * the last completed request (or seen a request that hasn't
-		 * event started). We could iterate the timeline->requests list,
+		 * inside intel_engine_signal_breadcrumbs as soon as we've
+		 * passed the last completed request (or seen a request that
+		 * hasn't event started). We could walk the timeline->requests,
 		 * but keeping a separate signalers_list has the advantage of
 		 * hopefully being much smaller than the full list and so
 		 * provides faster iteration and detection when there are no
@@ -314,6 +317,7 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 		GEM_BUG_ON(!check_signal_order(ce, rq));
 
 		set_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags);
+unlock:
 		spin_unlock(&b->irq_lock);
 	}
 
@@ -325,7 +329,6 @@ void i915_request_cancel_breadcrumb(struct i915_request *rq)
 	struct intel_breadcrumbs *b = &rq->engine->breadcrumbs;
 
 	lockdep_assert_held(&rq->lock);
-	lockdep_assert_irqs_disabled();
 
 	/*
 	 * We must wait for b->irq_lock so that we know the interrupt handler
@@ -335,7 +338,7 @@ void i915_request_cancel_breadcrumb(struct i915_request *rq)
 	 */
 	spin_lock(&b->irq_lock);
 	if (test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags)) {
-		struct intel_context *ce = rq->hw_context;
+		struct intel_context *ce = rq->context;
 
 		list_del(&rq->signal_link);
 		if (list_empty(&ce->signals))

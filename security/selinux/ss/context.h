@@ -31,6 +31,7 @@ struct context {
 	u32 len;        /* length of string in bytes */
 	struct mls_range range;
 	char *str;	/* string representation if context cannot be mapped. */
+	u32 hash;	/* a hash of the string representation */
 };
 
 static inline void mls_context_init(struct context *c)
@@ -95,6 +96,38 @@ out:
 	return rc;
 }
 
+
+static inline int mls_context_glblub(struct context *dst,
+				     struct context *c1, struct context *c2)
+{
+	struct mls_range *dr = &dst->range, *r1 = &c1->range, *r2 = &c2->range;
+	int rc = 0;
+
+	if (r1->level[1].sens < r2->level[0].sens ||
+	    r2->level[1].sens < r1->level[0].sens)
+		/* These ranges have no common sensitivities */
+		return -EINVAL;
+
+	/* Take the greatest of the low */
+	dr->level[0].sens = max(r1->level[0].sens, r2->level[0].sens);
+
+	/* Take the least of the high */
+	dr->level[1].sens = min(r1->level[1].sens, r2->level[1].sens);
+
+	rc = ebitmap_and(&dr->level[0].cat,
+			 &r1->level[0].cat, &r2->level[0].cat);
+	if (rc)
+		goto out;
+
+	rc = ebitmap_and(&dr->level[1].cat,
+			 &r1->level[1].cat, &r2->level[1].cat);
+	if (rc)
+		goto out;
+
+out:
+	return rc;
+}
+
 static inline int mls_context_cmp(struct context *c1, struct context *c2)
 {
 	return ((c1->range.level[0].sens == c2->range.level[0].sens) &&
@@ -136,12 +169,13 @@ static inline int context_cpy(struct context *dst, struct context *src)
 		kfree(dst->str);
 		return rc;
 	}
+	dst->hash = src->hash;
 	return 0;
 }
 
 static inline void context_destroy(struct context *c)
 {
-	c->user = c->role = c->type = 0;
+	c->user = c->role = c->type = c->hash = 0;
 	kfree(c->str);
 	c->str = NULL;
 	c->len = 0;
@@ -150,6 +184,8 @@ static inline void context_destroy(struct context *c)
 
 static inline int context_cmp(struct context *c1, struct context *c2)
 {
+	if (c1->hash && c2->hash && (c1->hash != c2->hash))
+		return 0;
 	if (c1->len && c2->len)
 		return (c1->len == c2->len && !strcmp(c1->str, c2->str));
 	if (c1->len || c2->len)
@@ -158,6 +194,11 @@ static inline int context_cmp(struct context *c1, struct context *c2)
 		(c1->role == c2->role) &&
 		(c1->type == c2->type) &&
 		mls_context_cmp(c1, c2));
+}
+
+static inline unsigned int context_compute_hash(const char *s)
+{
+	return full_name_hash(NULL, s, strlen(s));
 }
 
 #endif	/* _SS_CONTEXT_H_ */

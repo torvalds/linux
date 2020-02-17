@@ -2737,10 +2737,10 @@ static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
 	else
 		type = si->type + 1;
 
+	++(*pos);
 	for (; (si = swap_type_to_swap_info(type)); type++) {
 		if (!(si->flags & SWP_USED) || !si->swap_map)
 			continue;
-		++*pos;
 		return si;
 	}
 
@@ -2796,17 +2796,17 @@ static int swaps_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations proc_swaps_operations = {
-	.open		= swaps_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-	.poll		= swaps_poll,
+static const struct proc_ops swaps_proc_ops = {
+	.proc_open	= swaps_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
+	.proc_poll	= swaps_poll,
 };
 
 static int __init procswaps_init(void)
 {
-	proc_create("swaps", 0, NULL, &proc_swaps_operations);
+	proc_create("swaps", 0, NULL, &swaps_proc_ops);
 	return 0;
 }
 __initcall(procswaps_init);
@@ -2887,6 +2887,13 @@ static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
 		error = set_blocksize(p->bdev, PAGE_SIZE);
 		if (error < 0)
 			return error;
+		/*
+		 * Zoned block devices contain zones that have a sequential
+		 * write only restriction.  Hence zoned block devices are not
+		 * suitable for swapping.  Disallow them here.
+		 */
+		if (blk_queue_is_zoned(p->bdev->bd_queue))
+			return -EINVAL;
 		p->flags |= SWP_BLKDEV;
 	} else if (S_ISREG(inode->i_mode)) {
 		p->bdev = inode->i_sb->s_bdev;

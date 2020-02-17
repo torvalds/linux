@@ -87,7 +87,7 @@ static int hclge_dcb_common_validate(struct hclge_dev *hdev, u8 num_tc,
 	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++) {
 		if (prio_tc[i] >= num_tc) {
 			dev_err(&hdev->pdev->dev,
-				"prio_tc[%u] checking failed, %u >= num_tc(%u)\n",
+				"prio_tc[%d] checking failed, %u >= num_tc(%u)\n",
 				i, prio_tc[i], num_tc);
 			return -EINVAL;
 		}
@@ -124,7 +124,7 @@ static int hclge_ets_validate(struct hclge_dev *hdev, struct ieee_ets *ets,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < HNAE3_MAX_TC; i++) {
+	for (i = 0; i < hdev->tc_max; i++) {
 		switch (ets->tc_tsa[i]) {
 		case IEEE_8021QAZ_TSA_STRICT:
 			if (hdev->tm_info.tc_info[i].tc_sch_mode !=
@@ -318,6 +318,7 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 	struct net_device *netdev = h->kinfo.netdev;
 	struct hclge_dev *hdev = vport->back;
 	u8 i, j, pfc_map, *prio_tc;
+	int ret;
 
 	if (!(hdev->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) ||
 	    hdev->flag & HCLGE_FLAG_MQPRIO_ENABLE)
@@ -347,7 +348,21 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 
 	hclge_tm_pfc_info_update(hdev);
 
-	return hclge_pause_setup_hw(hdev, false);
+	ret = hclge_pause_setup_hw(hdev, false);
+	if (ret)
+		return ret;
+
+	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret)
+		return ret;
+
+	ret = hclge_buffer_alloc(hdev);
+	if (ret) {
+		hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+		return ret;
+	}
+
+	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 }
 
 /* DCBX configuration */

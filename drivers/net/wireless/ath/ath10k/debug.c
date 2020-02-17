@@ -1094,6 +1094,7 @@ static const char ath10k_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"d_rts_good",
 	"d_tx_power", /* in .5 dbM I think */
 	"d_rx_crc_err", /* fcs_bad */
+	"d_rx_crc_err_drop", /* frame with FCS error, dropped late in kernel */
 	"d_no_beacon",
 	"d_tx_mpdus_queued",
 	"d_tx_msdu_queued",
@@ -1193,6 +1194,7 @@ void ath10k_debug_get_et_stats(struct ieee80211_hw *hw,
 	data[i++] = pdev_stats->rts_good;
 	data[i++] = pdev_stats->chan_tx_power;
 	data[i++] = pdev_stats->fcs_bad;
+	data[i++] = ar->stats.rx_crc_err_drop;
 	data[i++] = pdev_stats->no_beacons;
 	data[i++] = pdev_stats->mpdu_enqued;
 	data[i++] = pdev_stats->msdu_enqued;
@@ -1516,7 +1518,7 @@ static void ath10k_tpc_stats_print(struct ath10k_tpc_stats *tpc_stats,
 	*len += scnprintf(buf + *len, buf_len - *len,
 			  "No.  Preamble Rate_code ");
 
-	for (i = 0; i < WMI_TPC_TX_N_CHAIN; i++)
+	for (i = 0; i < tpc_stats->num_tx_chain; i++)
 		*len += scnprintf(buf + *len, buf_len - *len,
 				  "tpc_value%d ", i);
 
@@ -2532,6 +2534,7 @@ void ath10k_debug_destroy(struct ath10k *ar)
 	ath10k_debug_fw_stats_reset(ar);
 
 	kfree(ar->debug.tpc_stats);
+	kfree(ar->debug.tpc_stats_final);
 }
 
 int ath10k_debug_register(struct ath10k *ar)

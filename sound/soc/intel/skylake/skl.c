@@ -27,6 +27,7 @@
 #include <sound/hda_i915.h>
 #include <sound/hda_codec.h>
 #include <sound/intel-nhlt.h>
+#include <sound/intel-dsp-config.h>
 #include "skl.h"
 #include "skl-sst-dsp.h"
 #include "skl-sst-ipc.h"
@@ -772,11 +773,6 @@ static void skl_codec_create(struct hdac_bus *bus)
 	}
 }
 
-static const struct hdac_bus_ops bus_core_ops = {
-	.command = snd_hdac_bus_send_cmd,
-	.get_response = snd_hdac_bus_get_response,
-};
-
 static int skl_i915_init(struct hdac_bus *bus)
 {
 	int err;
@@ -887,7 +883,7 @@ static int skl_create(struct pci_dev *pci,
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC)
 	ext_ops = snd_soc_hdac_hda_get_ops();
 #endif
-	snd_hdac_ext_bus_init(bus, &pci->dev, &bus_core_ops, ext_ops);
+	snd_hdac_ext_bus_init(bus, &pci->dev, NULL, ext_ops);
 	bus->use_posbuf = 1;
 	skl->pci = pci;
 	INIT_WORK(&skl->probe_work, skl_probe_work);
@@ -987,22 +983,10 @@ static int skl_probe(struct pci_dev *pci,
 
 	switch (skl_pci_binding) {
 	case SND_SKL_PCI_BIND_AUTO:
-		/*
-		 * detect DSP by checking class/subclass/prog-id information
-		 * class=04 subclass 03 prog-if 00: no DSP, use legacy driver
-		 * class=04 subclass 01 prog-if 00: DSP is present
-		 *   (and may be required e.g. for DMIC or SSP support)
-		 * class=04 subclass 03 prog-if 80: use DSP or legacy mode
-		 */
-		if (pci->class == 0x040300) {
-			dev_info(&pci->dev, "The DSP is not enabled on this platform, aborting probe\n");
+		err = snd_intel_dsp_driver_probe(pci);
+		if (err != SND_INTEL_DSP_DRIVER_ANY &&
+		    err != SND_INTEL_DSP_DRIVER_SST)
 			return -ENODEV;
-		}
-		if (pci->class != 0x040100 && pci->class != 0x040380) {
-			dev_err(&pci->dev, "Unknown PCI class/subclass/prog-if information (0x%06x) found, aborting probe\n", pci->class);
-			return -ENODEV;
-		}
-		dev_info(&pci->dev, "DSP detected with PCI class/subclass/prog-if info 0x%06x\n", pci->class);
 		break;
 	case SND_SKL_PCI_BIND_LEGACY:
 		dev_info(&pci->dev, "Module parameter forced binding with HDaudio legacy, aborting probe\n");

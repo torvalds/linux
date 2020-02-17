@@ -549,7 +549,7 @@ __acquires(&gl->gl_lockref.lock)
 	unsigned int lck_flags = (unsigned int)(gh ? gh->gh_flags : 0);
 	int ret;
 
-	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) &&
+	if (unlikely(gfs2_withdrawn(sdp)) &&
 	    target != LM_ST_UNLOCKED)
 		return;
 	lck_flags &= (LM_FLAG_TRY | LM_FLAG_TRY_1CB | LM_FLAG_NOEXP |
@@ -558,7 +558,14 @@ __acquires(&gl->gl_lockref.lock)
 	GLOCK_BUG_ON(gl, gl->gl_state == gl->gl_target);
 	if ((target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED) &&
 	    glops->go_inval) {
-		set_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);
+		/*
+		 * If another process is already doing the invalidate, let that
+		 * finish first.  The glock state machine will get back to this
+		 * holder again later.
+		 */
+		if (test_and_set_bit(GLF_INVALIDATE_IN_PROGRESS,
+				     &gl->gl_flags))
+			return;
 		do_error(gl, 0); /* Fail queued try locks */
 	}
 	gl->gl_req = target;
@@ -586,8 +593,7 @@ __acquires(&gl->gl_lockref.lock)
 		}
 		else if (ret) {
 			fs_err(sdp, "lm_lock ret %d\n", ret);
-			GLOCK_BUG_ON(gl, !test_bit(SDF_WITHDRAWN,
-						   &sdp->sd_flags));
+			GLOCK_BUG_ON(gl, !gfs2_withdrawn(sdp));
 		}
 	} else { /* lock_nolock */
 		finish_xmote(gl, target);
@@ -820,7 +826,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	memset(&gl->gl_lksb, 0, sizeof(struct dlm_lksb));
 
 	if (glops->go_flags & GLOF_LVB) {
-		gl->gl_lksb.sb_lvbptr = kzalloc(GFS2_MIN_LVB_SIZE, GFP_NOFS);
+		gl->gl_lksb.sb_lvbptr = kzalloc(GDLM_LVB_SIZE, GFP_NOFS);
 		if (!gl->gl_lksb.sb_lvbptr) {
 			kmem_cache_free(cachep, gl);
 			return -ENOMEM;
@@ -1191,7 +1197,7 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	int error = 0;
 
-	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags)))
+	if (unlikely(gfs2_withdrawn(sdp)))
 		return -EIO;
 
 	if (test_bit(GLF_LRU, &gl->gl_flags))

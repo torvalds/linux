@@ -637,7 +637,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_SPEED_QUAD   2
 
 /* names for speed modes */
-static char *hdspm_speed_names[] = { "single", "double", "quad" };
+static const char * const hdspm_speed_names[] = { "single", "double", "quad" };
 
 static const char *const texts_autosync_aes_tco[] = { "Word Clock",
 					  "AES1", "AES2", "AES3", "AES4",
@@ -684,7 +684,7 @@ static const char *const texts_freq[] = {
 	"192 kHz"
 };
 
-static char *texts_ports_madi[] = {
+static const char * const texts_ports_madi[] = {
 	"MADI.1", "MADI.2", "MADI.3", "MADI.4", "MADI.5", "MADI.6",
 	"MADI.7", "MADI.8", "MADI.9", "MADI.10", "MADI.11", "MADI.12",
 	"MADI.13", "MADI.14", "MADI.15", "MADI.16", "MADI.17", "MADI.18",
@@ -699,7 +699,7 @@ static char *texts_ports_madi[] = {
 };
 
 
-static char *texts_ports_raydat_ss[] = {
+static const char * const texts_ports_raydat_ss[] = {
 	"ADAT1.1", "ADAT1.2", "ADAT1.3", "ADAT1.4", "ADAT1.5", "ADAT1.6",
 	"ADAT1.7", "ADAT1.8", "ADAT2.1", "ADAT2.2", "ADAT2.3", "ADAT2.4",
 	"ADAT2.5", "ADAT2.6", "ADAT2.7", "ADAT2.8", "ADAT3.1", "ADAT3.2",
@@ -710,7 +710,7 @@ static char *texts_ports_raydat_ss[] = {
 	"SPDIF.L", "SPDIF.R"
 };
 
-static char *texts_ports_raydat_ds[] = {
+static const char * const texts_ports_raydat_ds[] = {
 	"ADAT1.1", "ADAT1.2", "ADAT1.3", "ADAT1.4",
 	"ADAT2.1", "ADAT2.2", "ADAT2.3", "ADAT2.4",
 	"ADAT3.1", "ADAT3.2", "ADAT3.3", "ADAT3.4",
@@ -719,7 +719,7 @@ static char *texts_ports_raydat_ds[] = {
 	"SPDIF.L", "SPDIF.R"
 };
 
-static char *texts_ports_raydat_qs[] = {
+static const char * const texts_ports_raydat_qs[] = {
 	"ADAT1.1", "ADAT1.2",
 	"ADAT2.1", "ADAT2.2",
 	"ADAT3.1", "ADAT3.2",
@@ -729,7 +729,7 @@ static char *texts_ports_raydat_qs[] = {
 };
 
 
-static char *texts_ports_aio_in_ss[] = {
+static const char * const texts_ports_aio_in_ss[] = {
 	"Analogue.L", "Analogue.R",
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
@@ -738,7 +738,7 @@ static char *texts_ports_aio_in_ss[] = {
 	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
-static char *texts_ports_aio_out_ss[] = {
+static const char * const texts_ports_aio_out_ss[] = {
 	"Analogue.L", "Analogue.R",
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
@@ -748,7 +748,7 @@ static char *texts_ports_aio_out_ss[] = {
 	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
-static char *texts_ports_aio_in_ds[] = {
+static const char * const texts_ports_aio_in_ds[] = {
 	"Analogue.L", "Analogue.R",
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
@@ -756,24 +756,7 @@ static char *texts_ports_aio_in_ds[] = {
 	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
-static char *texts_ports_aio_out_ds[] = {
-	"Analogue.L", "Analogue.R",
-	"AES.L", "AES.R",
-	"SPDIF.L", "SPDIF.R",
-	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
-	"Phone.L", "Phone.R",
-	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
-};
-
-static char *texts_ports_aio_in_qs[] = {
-	"Analogue.L", "Analogue.R",
-	"AES.L", "AES.R",
-	"SPDIF.L", "SPDIF.R",
-	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
-	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
-};
-
-static char *texts_ports_aio_out_qs[] = {
+static const char * const texts_ports_aio_out_ds[] = {
 	"Analogue.L", "Analogue.R",
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
@@ -782,7 +765,24 @@ static char *texts_ports_aio_out_qs[] = {
 	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
-static char *texts_ports_aes32[] = {
+static const char * const texts_ports_aio_in_qs[] = {
+	"Analogue.L", "Analogue.R",
+	"AES.L", "AES.R",
+	"SPDIF.L", "SPDIF.R",
+	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
+};
+
+static const char * const texts_ports_aio_out_qs[] = {
+	"Analogue.L", "Analogue.R",
+	"AES.L", "AES.R",
+	"SPDIF.L", "SPDIF.R",
+	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
+	"Phone.L", "Phone.R",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
+};
+
+static const char * const texts_ports_aes32[] = {
 	"AES.1", "AES.2", "AES.3", "AES.4", "AES.5", "AES.6", "AES.7",
 	"AES.8", "AES.9.", "AES.10", "AES.11", "AES.12", "AES.13", "AES.14",
 	"AES.15", "AES.16"
@@ -796,7 +796,7 @@ static char *texts_ports_aes32[] = {
    where the data for that channel can be read/written from/to.
 */
 
-static char channel_map_unity_ss[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_unity_ss[HDSPM_MAX_CHANNELS] = {
 	0, 1, 2, 3, 4, 5, 6, 7,
 	8, 9, 10, 11, 12, 13, 14, 15,
 	16, 17, 18, 19, 20, 21, 22, 23,
@@ -807,7 +807,7 @@ static char channel_map_unity_ss[HDSPM_MAX_CHANNELS] = {
 	56, 57, 58, 59, 60, 61, 62, 63
 };
 
-static char channel_map_raydat_ss[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_raydat_ss[HDSPM_MAX_CHANNELS] = {
 	4, 5, 6, 7, 8, 9, 10, 11,	/* ADAT 1 */
 	12, 13, 14, 15, 16, 17, 18, 19,	/* ADAT 2 */
 	20, 21, 22, 23, 24, 25, 26, 27,	/* ADAT 3 */
@@ -820,7 +820,7 @@ static char channel_map_raydat_ss[HDSPM_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1, -1, -1,
 };
 
-static char channel_map_raydat_ds[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_raydat_ds[HDSPM_MAX_CHANNELS] = {
 	4, 5, 6, 7,		/* ADAT 1 */
 	8, 9, 10, 11,		/* ADAT 2 */
 	12, 13, 14, 15,		/* ADAT 3 */
@@ -835,7 +835,7 @@ static char channel_map_raydat_ds[HDSPM_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1, -1, -1,
 };
 
-static char channel_map_raydat_qs[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_raydat_qs[HDSPM_MAX_CHANNELS] = {
 	4, 5,			/* ADAT 1 */
 	6, 7,			/* ADAT 2 */
 	8, 9,			/* ADAT 3 */
@@ -851,7 +851,7 @@ static char channel_map_raydat_qs[HDSPM_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1, -1, -1,
 };
 
-static char channel_map_aio_in_ss[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_aio_in_ss[HDSPM_MAX_CHANNELS] = {
 	0, 1,			/* line in */
 	8, 9,			/* aes in, */
 	10, 11,			/* spdif in */
@@ -865,7 +865,7 @@ static char channel_map_aio_in_ss[HDSPM_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1, -1, -1,
 };
 
-static char channel_map_aio_out_ss[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_aio_out_ss[HDSPM_MAX_CHANNELS] = {
 	0, 1,			/* line out */
 	8, 9,			/* aes out */
 	10, 11,			/* spdif out */
@@ -880,7 +880,7 @@ static char channel_map_aio_out_ss[HDSPM_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1, -1, -1,
 };
 
-static char channel_map_aio_in_ds[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_aio_in_ds[HDSPM_MAX_CHANNELS] = {
 	0, 1,			/* line in */
 	8, 9,			/* aes in */
 	10, 11,			/* spdif in */
@@ -895,7 +895,7 @@ static char channel_map_aio_in_ds[HDSPM_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static char channel_map_aio_out_ds[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_aio_out_ds[HDSPM_MAX_CHANNELS] = {
 	0, 1,			/* line out */
 	8, 9,			/* aes out */
 	10, 11,			/* spdif out */
@@ -910,7 +910,7 @@ static char channel_map_aio_out_ds[HDSPM_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static char channel_map_aio_in_qs[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_aio_in_qs[HDSPM_MAX_CHANNELS] = {
 	0, 1,			/* line in */
 	8, 9,			/* aes in */
 	10, 11,			/* spdif in */
@@ -925,7 +925,7 @@ static char channel_map_aio_in_qs[HDSPM_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static char channel_map_aio_out_qs[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_aio_out_qs[HDSPM_MAX_CHANNELS] = {
 	0, 1,			/* line out */
 	8, 9,			/* aes out */
 	10, 11,			/* spdif out */
@@ -941,7 +941,7 @@ static char channel_map_aio_out_qs[HDSPM_MAX_CHANNELS] = {
 	-1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static char channel_map_aes32[HDSPM_MAX_CHANNELS] = {
+static const char channel_map_aes32[HDSPM_MAX_CHANNELS] = {
 	0, 1, 2, 3, 4, 5, 6, 7,
 	8, 9, 10, 11, 12, 13, 14, 15,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -1010,17 +1010,21 @@ struct hdspm {
 	unsigned char max_channels_in;
 	unsigned char max_channels_out;
 
-	signed char *channel_map_in;
-	signed char *channel_map_out;
+	const signed char *channel_map_in;
+	const signed char *channel_map_out;
 
-	signed char *channel_map_in_ss, *channel_map_in_ds, *channel_map_in_qs;
-	signed char *channel_map_out_ss, *channel_map_out_ds, *channel_map_out_qs;
+	const signed char *channel_map_in_ss, *channel_map_in_ds, *channel_map_in_qs;
+	const signed char *channel_map_out_ss, *channel_map_out_ds, *channel_map_out_qs;
 
-	char **port_names_in;
-	char **port_names_out;
+	const char * const *port_names_in;
+	const char * const *port_names_out;
 
-	char **port_names_in_ss, **port_names_in_ds, **port_names_in_qs;
-	char **port_names_out_ss, **port_names_out_ds, **port_names_out_qs;
+	const char * const *port_names_in_ss;
+	const char * const *port_names_in_ds;
+	const char * const *port_names_in_qs;
+	const char * const *port_names_out_ss;
+	const char * const *port_names_out_ds;
+	const char * const *port_names_out_qs;
 
 	unsigned char *playback_buffer;	/* suitably aligned address */
 	unsigned char *capture_buffer;	/* suitably aligned address */
@@ -4478,7 +4482,7 @@ static int snd_hdspm_put_tco_word_term(struct snd_kcontrol *kcontrol,
 
 
 
-static struct snd_kcontrol_new snd_hdspm_controls_madi[] = {
+static const struct snd_kcontrol_new snd_hdspm_controls_madi[] = {
 	HDSPM_MIXER("Mixer", 0),
 	HDSPM_INTERNAL_CLOCK("Internal Clock", 0),
 	HDSPM_SYSTEM_CLOCK_MODE("System Clock Mode", 0),
@@ -4500,7 +4504,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_madi[] = {
 };
 
 
-static struct snd_kcontrol_new snd_hdspm_controls_madiface[] = {
+static const struct snd_kcontrol_new snd_hdspm_controls_madiface[] = {
 	HDSPM_MIXER("Mixer", 0),
 	HDSPM_INTERNAL_CLOCK("Internal Clock", 0),
 	HDSPM_SYSTEM_CLOCK_MODE("System Clock Mode", 0),
@@ -4513,7 +4517,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_madiface[] = {
 	HDSPM_MADI_SPEEDMODE("MADI Speed Mode", 0)
 };
 
-static struct snd_kcontrol_new snd_hdspm_controls_aio[] = {
+static const struct snd_kcontrol_new snd_hdspm_controls_aio[] = {
 	HDSPM_MIXER("Mixer", 0),
 	HDSPM_INTERNAL_CLOCK("Internal Clock", 0),
 	HDSPM_SYSTEM_CLOCK_MODE("System Clock Mode", 0),
@@ -4554,7 +4558,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_aio[] = {
 		   */
 };
 
-static struct snd_kcontrol_new snd_hdspm_controls_raydat[] = {
+static const struct snd_kcontrol_new snd_hdspm_controls_raydat[] = {
 	HDSPM_MIXER("Mixer", 0),
 	HDSPM_INTERNAL_CLOCK("Internal Clock", 0),
 	HDSPM_SYSTEM_CLOCK_MODE("Clock Mode", 0),
@@ -4582,7 +4586,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_raydat[] = {
 	HDSPM_TOGGLE_SETTING("Single Speed WordClock Out", HDSPM_c0_Wck48)
 };
 
-static struct snd_kcontrol_new snd_hdspm_controls_aes32[] = {
+static const struct snd_kcontrol_new snd_hdspm_controls_aes32[] = {
 	HDSPM_MIXER("Mixer", 0),
 	HDSPM_INTERNAL_CLOCK("Internal Clock", 0),
 	HDSPM_SYSTEM_CLOCK_MODE("System Clock Mode", 0),
@@ -4624,7 +4628,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_aes32[] = {
 
 
 /* Control elements for the optional TCO module */
-static struct snd_kcontrol_new snd_hdspm_controls_tco[] = {
+static const struct snd_kcontrol_new snd_hdspm_controls_tco[] = {
 	HDSPM_TCO_SAMPLE_RATE("TCO Sample Rate", 0),
 	HDSPM_TCO_PULL("TCO Pull", 0),
 	HDSPM_TCO_WCK_CONVERSION("TCO WCK Conversion", 0),
@@ -4671,7 +4675,7 @@ static int snd_hdspm_create_controls(struct snd_card *card,
 	unsigned int idx, limit;
 	int err;
 	struct snd_kcontrol *kctl;
-	struct snd_kcontrol_new *list = NULL;
+	const struct snd_kcontrol_new *list = NULL;
 
 	switch (hdspm->io_type) {
 	case MADI:
@@ -5820,7 +5824,7 @@ static int snd_hdspm_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_hardware snd_hdspm_playback_subinfo = {
+static const struct snd_pcm_hardware snd_hdspm_playback_subinfo = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_NONINTERLEAVED |
@@ -5845,7 +5849,7 @@ static struct snd_pcm_hardware snd_hdspm_playback_subinfo = {
 	.fifo_size = 0
 };
 
-static struct snd_pcm_hardware snd_hdspm_capture_subinfo = {
+static const struct snd_pcm_hardware snd_hdspm_capture_subinfo = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_NONINTERLEAVED |
@@ -6368,7 +6372,6 @@ static const struct snd_pcm_ops snd_hdspm_ops = {
 	.prepare = snd_hdspm_prepare,
 	.trigger = snd_hdspm_trigger,
 	.pointer = snd_hdspm_hw_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 
 static int snd_hdspm_create_hwdep(struct snd_card *card,
@@ -6407,7 +6410,7 @@ static int snd_hdspm_preallocate_memory(struct hdspm *hdspm)
 	wanted = HDSPM_DMA_AREA_BYTES;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-					      snd_dma_pci_data(hdspm->pci),
+					      &hdspm->pci->dev,
 					      wanted, wanted);
 	dev_dbg(hdspm->card->dev, " Preallocated %zd Bytes\n", wanted);
 	return 0;
@@ -6595,7 +6598,7 @@ static int snd_hdspm_create(struct snd_card *card,
 	dev_dbg(card->dev, "grabbed memory region 0x%lx-0x%lx\n",
 			hdspm->port, hdspm->port + io_extent - 1);
 
-	hdspm->iobase = ioremap_nocache(hdspm->port, io_extent);
+	hdspm->iobase = ioremap(hdspm->port, io_extent);
 	if (!hdspm->iobase) {
 		dev_err(card->dev, "unable to remap region 0x%lx-0x%lx\n",
 				hdspm->port, hdspm->port + io_extent - 1);
@@ -6614,6 +6617,7 @@ static int snd_hdspm_create(struct snd_card *card,
 	dev_dbg(card->dev, "use IRQ %d\n", pci->irq);
 
 	hdspm->irq = pci->irq;
+	card->sync_irq = hdspm->irq;
 
 	dev_dbg(card->dev, "kmalloc Mixer memory of %zd Bytes\n",
 		sizeof(*hdspm->mixer));

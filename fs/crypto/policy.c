@@ -29,13 +29,153 @@ bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
 	return !memcmp(policy1, policy2, fscrypt_policy_size(policy1));
 }
 
+static bool fscrypt_valid_enc_modes(u32 contents_mode, u32 filenames_mode)
+{
+	if (contents_mode == FSCRYPT_MODE_AES_256_XTS &&
+	    filenames_mode == FSCRYPT_MODE_AES_256_CTS)
+		return true;
+
+	if (contents_mode == FSCRYPT_MODE_AES_128_CBC &&
+	    filenames_mode == FSCRYPT_MODE_AES_128_CTS)
+		return true;
+
+	if (contents_mode == FSCRYPT_MODE_ADIANTUM &&
+	    filenames_mode == FSCRYPT_MODE_ADIANTUM)
+		return true;
+
+	return false;
+}
+
+static bool supported_direct_key_modes(const struct inode *inode,
+				       u32 contents_mode, u32 filenames_mode)
+{
+	const struct fscrypt_mode *mode;
+
+	if (contents_mode != filenames_mode) {
+		fscrypt_warn(inode,
+			     "Direct key flag not allowed with different contents and filenames modes");
+		return false;
+	}
+	mode = &fscrypt_modes[contents_mode];
+
+	if (mode->ivsize < offsetofend(union fscrypt_iv, nonce)) {
+		fscrypt_warn(inode, "Direct key flag not allowed with %s",
+			     mode->friendly_name);
+		return false;
+	}
+	return true;
+}
+
+static bool supported_iv_ino_lblk_64_policy(
+					const struct fscrypt_policy_v2 *policy,
+					const struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+	int ino_bits = 64, lblk_bits = 64;
+
+	if (policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
+		fscrypt_warn(inode,
+			     "The DIRECT_KEY and IV_INO_LBLK_64 flags are mutually exclusive");
+		return false;
+	}
+	/*
+	 * It's unsafe to include inode numbers in the IVs if the filesystem can
+	 * potentially renumber inodes, e.g. via filesystem shrinking.
+	 */
+	if (!sb->s_cop->has_stable_inodes ||
+	    !sb->s_cop->has_stable_inodes(sb)) {
+		fscrypt_warn(inode,
+			     "Can't use IV_INO_LBLK_64 policy on filesystem '%s' because it doesn't have stable inode numbers",
+			     sb->s_id);
+		return false;
+	}
+	if (sb->s_cop->get_ino_and_lblk_bits)
+		sb->s_cop->get_ino_and_lblk_bits(sb, &ino_bits, &lblk_bits);
+	if (ino_bits > 32 || lblk_bits > 32) {
+		fscrypt_warn(inode,
+			     "Can't use IV_INO_LBLK_64 policy on filesystem '%s' because it doesn't use 32-bit inode and block numbers",
+			     sb->s_id);
+		return false;
+	}
+	return true;
+}
+
+static bool fscrypt_supported_v1_policy(const struct fscrypt_policy_v1 *policy,
+					const struct inode *inode)
+{
+	if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
+				     policy->filenames_encryption_mode)) {
+		fscrypt_warn(inode,
+			     "Unsupported encryption modes (contents %d, filenames %d)",
+			     policy->contents_encryption_mode,
+			     policy->filenames_encryption_mode);
+		return false;
+	}
+
+	if (policy->flags & ~(FSCRYPT_POLICY_FLAGS_PAD_MASK |
+			      FSCRYPT_POLICY_FLAG_DIRECT_KEY)) {
+		fscrypt_warn(inode, "Unsupported encryption flags (0x%02x)",
+			     policy->flags);
+		return false;
+	}
+
+	if ((policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) &&
+	    !supported_direct_key_modes(inode, policy->contents_encryption_mode,
+					policy->filenames_encryption_mode))
+		return false;
+
+	if (IS_CASEFOLDED(inode)) {
+		/* With v1, there's no way to derive dirhash keys. */
+		fscrypt_warn(inode,
+			     "v1 policies can't be used on casefolded directories");
+		return false;
+	}
+
+	return true;
+}
+
+static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
+					const struct inode *inode)
+{
+	if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
+				     policy->filenames_encryption_mode)) {
+		fscrypt_warn(inode,
+			     "Unsupported encryption modes (contents %d, filenames %d)",
+			     policy->contents_encryption_mode,
+			     policy->filenames_encryption_mode);
+		return false;
+	}
+
+	if (policy->flags & ~FSCRYPT_POLICY_FLAGS_VALID) {
+		fscrypt_warn(inode, "Unsupported encryption flags (0x%02x)",
+			     policy->flags);
+		return false;
+	}
+
+	if ((policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) &&
+	    !supported_direct_key_modes(inode, policy->contents_encryption_mode,
+					policy->filenames_encryption_mode))
+		return false;
+
+	if ((policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) &&
+	    !supported_iv_ino_lblk_64_policy(policy, inode))
+		return false;
+
+	if (memchr_inv(policy->__reserved, 0, sizeof(policy->__reserved))) {
+		fscrypt_warn(inode, "Reserved bits set in encryption policy");
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * fscrypt_supported_policy - check whether an encryption policy is supported
  *
  * Given an encryption policy, check whether all its encryption modes and other
- * settings are supported by this kernel.  (But we don't currently don't check
- * for crypto API support here, so attempting to use an algorithm not configured
- * into the crypto API will still fail later.)
+ * settings are supported by this kernel on the given inode.  (But we don't
+ * currently don't check for crypto API support here, so attempting to use an
+ * algorithm not configured into the crypto API will still fail later.)
  *
  * Return: %true if supported, else %false
  */
@@ -43,55 +183,10 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 			      const struct inode *inode)
 {
 	switch (policy_u->version) {
-	case FSCRYPT_POLICY_V1: {
-		const struct fscrypt_policy_v1 *policy = &policy_u->v1;
-
-		if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
-					     policy->filenames_encryption_mode)) {
-			fscrypt_warn(inode,
-				     "Unsupported encryption modes (contents %d, filenames %d)",
-				     policy->contents_encryption_mode,
-				     policy->filenames_encryption_mode);
-			return false;
-		}
-
-		if (policy->flags & ~FSCRYPT_POLICY_FLAGS_VALID) {
-			fscrypt_warn(inode,
-				     "Unsupported encryption flags (0x%02x)",
-				     policy->flags);
-			return false;
-		}
-
-		return true;
-	}
-	case FSCRYPT_POLICY_V2: {
-		const struct fscrypt_policy_v2 *policy = &policy_u->v2;
-
-		if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
-					     policy->filenames_encryption_mode)) {
-			fscrypt_warn(inode,
-				     "Unsupported encryption modes (contents %d, filenames %d)",
-				     policy->contents_encryption_mode,
-				     policy->filenames_encryption_mode);
-			return false;
-		}
-
-		if (policy->flags & ~FSCRYPT_POLICY_FLAGS_VALID) {
-			fscrypt_warn(inode,
-				     "Unsupported encryption flags (0x%02x)",
-				     policy->flags);
-			return false;
-		}
-
-		if (memchr_inv(policy->__reserved, 0,
-			       sizeof(policy->__reserved))) {
-			fscrypt_warn(inode,
-				     "Reserved bits set in encryption policy");
-			return false;
-		}
-
-		return true;
-	}
+	case FSCRYPT_POLICY_V1:
+		return fscrypt_supported_v1_policy(&policy_u->v1, inode);
+	case FSCRYPT_POLICY_V2:
+		return fscrypt_supported_v2_policy(&policy_u->v2, inode);
 	}
 	return false;
 }

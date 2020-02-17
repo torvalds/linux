@@ -708,7 +708,6 @@ EXPORT_SYMBOL_GPL(st_unregister);
  */
 static int st_tty_open(struct tty_struct *tty)
 {
-	int err = 0;
 	struct st_data_s *st_gdata;
 	pr_info("%s ", __func__);
 
@@ -731,13 +730,14 @@ static int st_tty_open(struct tty_struct *tty)
 	 */
 	st_kim_complete(st_gdata->kim_data);
 	pr_debug("done %s", __func__);
-	return err;
+
+	return 0;
 }
 
 static void st_tty_close(struct tty_struct *tty)
 {
-	unsigned char i = ST_MAX_CHANNELS;
-	unsigned long flags = 0;
+	unsigned char i;
+	unsigned long flags;
 	struct	st_data_s *st_gdata = tty->disc_data;
 
 	pr_info("%s ", __func__);

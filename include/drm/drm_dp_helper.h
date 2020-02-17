@@ -23,9 +23,9 @@
 #ifndef _DRM_DP_HELPER_H_
 #define _DRM_DP_HELPER_H_
 
-#include <linux/types.h>
-#include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/i2c.h>
+#include <linux/types.h>
 
 /*
  * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
@@ -41,6 +41,48 @@
  *
  * 1.2 formally includes both eDP and DPI definitions.
  */
+
+/* MSA (Main Stream Attribute) MISC bits (as MISC1<<8|MISC0) */
+#define DP_MSA_MISC_SYNC_CLOCK			(1 << 0)
+#define DP_MSA_MISC_INTERLACE_VTOTAL_EVEN	(1 << 8)
+#define DP_MSA_MISC_STEREO_NO_3D		(0 << 9)
+#define DP_MSA_MISC_STEREO_PROG_RIGHT_EYE	(1 << 9)
+#define DP_MSA_MISC_STEREO_PROG_LEFT_EYE	(3 << 9)
+/* bits per component for non-RAW */
+#define DP_MSA_MISC_6_BPC			(0 << 5)
+#define DP_MSA_MISC_8_BPC			(1 << 5)
+#define DP_MSA_MISC_10_BPC			(2 << 5)
+#define DP_MSA_MISC_12_BPC			(3 << 5)
+#define DP_MSA_MISC_16_BPC			(4 << 5)
+/* bits per component for RAW */
+#define DP_MSA_MISC_RAW_6_BPC			(1 << 5)
+#define DP_MSA_MISC_RAW_7_BPC			(2 << 5)
+#define DP_MSA_MISC_RAW_8_BPC			(3 << 5)
+#define DP_MSA_MISC_RAW_10_BPC			(4 << 5)
+#define DP_MSA_MISC_RAW_12_BPC			(5 << 5)
+#define DP_MSA_MISC_RAW_14_BPC			(6 << 5)
+#define DP_MSA_MISC_RAW_16_BPC			(7 << 5)
+/* pixel encoding/colorimetry format */
+#define _DP_MSA_MISC_COLOR(misc1_7, misc0_21, misc0_3, misc0_4) \
+	((misc1_7) << 15 | (misc0_4) << 4 | (misc0_3) << 3 | ((misc0_21) << 1))
+#define DP_MSA_MISC_COLOR_RGB			_DP_MSA_MISC_COLOR(0, 0, 0, 0)
+#define DP_MSA_MISC_COLOR_CEA_RGB		_DP_MSA_MISC_COLOR(0, 0, 1, 0)
+#define DP_MSA_MISC_COLOR_RGB_WIDE_FIXED	_DP_MSA_MISC_COLOR(0, 3, 0, 0)
+#define DP_MSA_MISC_COLOR_RGB_WIDE_FLOAT	_DP_MSA_MISC_COLOR(0, 3, 0, 1)
+#define DP_MSA_MISC_COLOR_Y_ONLY		_DP_MSA_MISC_COLOR(1, 0, 0, 0)
+#define DP_MSA_MISC_COLOR_RAW			_DP_MSA_MISC_COLOR(1, 1, 0, 0)
+#define DP_MSA_MISC_COLOR_YCBCR_422_BT601	_DP_MSA_MISC_COLOR(0, 1, 1, 0)
+#define DP_MSA_MISC_COLOR_YCBCR_422_BT709	_DP_MSA_MISC_COLOR(0, 1, 1, 1)
+#define DP_MSA_MISC_COLOR_YCBCR_444_BT601	_DP_MSA_MISC_COLOR(0, 2, 1, 0)
+#define DP_MSA_MISC_COLOR_YCBCR_444_BT709	_DP_MSA_MISC_COLOR(0, 2, 1, 1)
+#define DP_MSA_MISC_COLOR_XVYCC_422_BT601	_DP_MSA_MISC_COLOR(0, 1, 0, 0)
+#define DP_MSA_MISC_COLOR_XVYCC_422_BT709	_DP_MSA_MISC_COLOR(0, 1, 0, 1)
+#define DP_MSA_MISC_COLOR_XVYCC_444_BT601	_DP_MSA_MISC_COLOR(0, 2, 0, 0)
+#define DP_MSA_MISC_COLOR_XVYCC_444_BT709	_DP_MSA_MISC_COLOR(0, 2, 0, 1)
+#define DP_MSA_MISC_COLOR_OPRGB			_DP_MSA_MISC_COLOR(0, 0, 1, 1)
+#define DP_MSA_MISC_COLOR_DCI_P3		_DP_MSA_MISC_COLOR(0, 3, 1, 0)
+#define DP_MSA_MISC_COLOR_COLOR_PROFILE		_DP_MSA_MISC_COLOR(0, 3, 1, 1)
+#define DP_MSA_MISC_COLOR_VSC_SDP		(1 << 14)
 
 #define DP_AUX_MAX_PAYLOAD_BYTES	16
 
@@ -95,6 +137,7 @@
 # define DP_DETAILED_CAP_INFO_AVAILABLE	    (1 << 4) /* DPI */
 
 #define DP_MAIN_LINK_CHANNEL_CODING         0x006
+# define DP_CAP_ANSI_8B10B		    (1 << 0)
 
 #define DP_DOWN_STREAM_PORT_COUNT	    0x007
 # define DP_PORT_COUNT_MASK		    0x0f
@@ -264,7 +307,7 @@
 # define DP_DSC_THROUGHPUT_MODE_0_900       (12 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_950       (13 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_1000      (14 << 0)
-# define DP_DSC_THROUGHPUT_MODE_0_170       (15 << 4)
+# define DP_DSC_THROUGHPUT_MODE_0_170       (15 << 0) /* 1.4a */
 # define DP_DSC_THROUGHPUT_MODE_1_MASK      (0xf << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_SHIFT     4
 # define DP_DSC_THROUGHPUT_MODE_1_UPSUPPORTED 0
@@ -562,6 +605,14 @@
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
 
 #define DP_ADJUST_REQUEST_POST_CURSOR2      0x20c
+# define DP_ADJUST_POST_CURSOR2_LANE0_MASK  0x03
+# define DP_ADJUST_POST_CURSOR2_LANE0_SHIFT 0
+# define DP_ADJUST_POST_CURSOR2_LANE1_MASK  0x0c
+# define DP_ADJUST_POST_CURSOR2_LANE1_SHIFT 2
+# define DP_ADJUST_POST_CURSOR2_LANE2_MASK  0x30
+# define DP_ADJUST_POST_CURSOR2_LANE2_SHIFT 4
+# define DP_ADJUST_POST_CURSOR2_LANE3_MASK  0xc0
+# define DP_ADJUST_POST_CURSOR2_LANE3_SHIFT 6
 
 #define DP_TEST_REQUEST			    0x218
 # define DP_TEST_LINK_TRAINING		    (1 << 0)
@@ -966,6 +1017,38 @@
 #define DP_HDCP_2_2_REG_STREAM_TYPE_OFFSET	0x69494
 #define DP_HDCP_2_2_REG_DBG_OFFSET		0x69518
 
+/* Link Training (LT)-tunable PHY Repeaters */
+#define DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV 0xf0000 /* 1.3 */
+#define DP_MAX_LINK_RATE_PHY_REPEATER			    0xf0001 /* 1.4a */
+#define DP_PHY_REPEATER_CNT				    0xf0002 /* 1.3 */
+#define DP_PHY_REPEATER_MODE				    0xf0003 /* 1.3 */
+#define DP_MAX_LANE_COUNT_PHY_REPEATER			    0xf0004 /* 1.4a */
+#define DP_Repeater_FEC_CAPABILITY			    0xf0004 /* 1.4 */
+#define DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT		    0xf0005 /* 1.4a */
+#define DP_TRAINING_PATTERN_SET_PHY_REPEATER1		    0xf0010 /* 1.3 */
+#define DP_TRAINING_LANE0_SET_PHY_REPEATER1		    0xf0011 /* 1.3 */
+#define DP_TRAINING_LANE1_SET_PHY_REPEATER1		    0xf0012 /* 1.3 */
+#define DP_TRAINING_LANE2_SET_PHY_REPEATER1		    0xf0013 /* 1.3 */
+#define DP_TRAINING_LANE3_SET_PHY_REPEATER1		    0xf0014 /* 1.3 */
+#define DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1	    0xf0020 /* 1.4a */
+#define DP_TRANSMITTER_CAPABILITY_PHY_REPEATER1		    0xf0021 /* 1.4a */
+#define DP_LANE0_1_STATUS_PHY_REPEATER1			    0xf0030 /* 1.3 */
+#define DP_LANE2_3_STATUS_PHY_REPEATER1			    0xf0031 /* 1.3 */
+#define DP_LANE_ALIGN_STATUS_UPDATED_PHY_REPEATER1	    0xf0032 /* 1.3 */
+#define DP_ADJUST_REQUEST_LANE0_1_PHY_REPEATER1		    0xf0033 /* 1.3 */
+#define DP_ADJUST_REQUEST_LANE2_3_PHY_REPEATER1		    0xf0034 /* 1.3 */
+#define DP_SYMBOL_ERROR_COUNT_LANE0_PHY_REPEATER1	    0xf0035 /* 1.3 */
+#define DP_SYMBOL_ERROR_COUNT_LANE1_PHY_REPEATER1	    0xf0037 /* 1.3 */
+#define DP_SYMBOL_ERROR_COUNT_LANE2_PHY_REPEATER1	    0xf0039 /* 1.3 */
+#define DP_SYMBOL_ERROR_COUNT_LANE3_PHY_REPEATER1	    0xf003b /* 1.3 */
+#define DP_FEC_STATUS_PHY_REPEATER1			    0xf0290 /* 1.4 */
+#define DP_FEC_ERROR_COUNT_PHY_REPEATER1                    0xf0291 /* 1.4 */
+#define DP_FEC_CAPABILITY_PHY_REPEATER1                     0xf0294 /* 1.4a */
+
+/* Repeater modes */
+#define DP_PHY_REPEATER_MODE_TRANSPARENT		    0x55    /* 1.3 */
+#define DP_PHY_REPEATER_MODE_NON_TRANSPARENT		    0xaa    /* 1.3 */
+
 /* DP HDCP message start offsets in DPCD address space */
 #define DP_HDCP_2_2_AKE_INIT_OFFSET		DP_HDCP_2_2_REG_RTX_OFFSET
 #define DP_HDCP_2_2_AKE_SEND_CERT_OFFSET	DP_HDCP_2_2_REG_CERT_RX_OFFSET
@@ -1049,6 +1132,8 @@ u8 drm_dp_get_adjust_request_voltage(const u8 link_status[DP_LINK_STATUS_SIZE],
 				     int lane);
 u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SIZE],
 					  int lane);
+u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZE],
+					 unsigned int lane);
 
 #define DP_BRANCH_OUI_HEADER_SIZE	0xc
 #define DP_RECEIVER_CAP_SIZE		0xf
@@ -1144,6 +1229,13 @@ drm_dp_enhanced_frame_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 }
 
 static inline bool
+drm_dp_fast_training_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DPCD_REV] >= 0x11 &&
+		(dpcd[DP_MAX_DOWNSPREAD] & DP_NO_AUX_HANDSHAKE_LINK_TRAINING);
+}
+
+static inline bool
 drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DPCD_REV] >= 0x12 &&
@@ -1208,6 +1300,19 @@ drm_dp_sink_supports_fec(const u8 fec_capable)
 	return fec_capable & DP_FEC_CAPABLE;
 }
 
+static inline bool
+drm_dp_channel_coding_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_MAIN_LINK_CHANNEL_CODING] & DP_CAP_ANSI_8B10B;
+}
+
+static inline bool
+drm_dp_alternate_scrambler_reset_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_EDP_CONFIGURATION_CAP] &
+			DP_ALTERNATE_SCRAMBLER_RESET_CAP;
+}
+
 /*
  * DisplayPort AUX channel
  */
@@ -1230,20 +1335,19 @@ struct drm_dp_aux_msg {
 
 struct cec_adapter;
 struct edid;
+struct drm_connector;
 
 /**
  * struct drm_dp_aux_cec - DisplayPort CEC-Tunneling-over-AUX
  * @lock: mutex protecting this struct
  * @adap: the CEC adapter for CEC-Tunneling-over-AUX support.
- * @name: name of the CEC adapter
- * @parent: parent device of the CEC adapter
+ * @connector: the connector this CEC adapter is associated with
  * @unregister_work: unregister the CEC adapter
  */
 struct drm_dp_aux_cec {
 	struct mutex lock;
 	struct cec_adapter *adap;
-	const char *name;
-	struct device *parent;
+	struct drm_connector *connector;
 	struct delayed_work unregister_work;
 };
 
@@ -1353,22 +1457,6 @@ static inline ssize_t drm_dp_dpcd_writeb(struct drm_dp_aux *aux,
 int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 				 u8 status[DP_LINK_STATUS_SIZE]);
 
-/*
- * DisplayPort link
- */
-#define DP_LINK_CAP_ENHANCED_FRAMING (1 << 0)
-
-struct drm_dp_link {
-	unsigned char revision;
-	unsigned int rate;
-	unsigned int num_lanes;
-	unsigned long capabilities;
-};
-
-int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link);
-int drm_dp_link_power_up(struct drm_dp_aux *aux, struct drm_dp_link *link);
-int drm_dp_link_power_down(struct drm_dp_aux *aux, struct drm_dp_link *link);
-int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				const u8 port_cap[4]);
 int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
@@ -1377,6 +1465,7 @@ int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6]);
 void drm_dp_downstream_debug(struct seq_file *m, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			     const u8 port_cap[4], struct drm_dp_aux *aux);
 
+void drm_dp_remote_aux_init(struct drm_dp_aux *aux);
 void drm_dp_aux_init(struct drm_dp_aux *aux);
 int drm_dp_aux_register(struct drm_dp_aux *aux);
 void drm_dp_aux_unregister(struct drm_dp_aux *aux);
@@ -1434,6 +1523,13 @@ enum drm_dp_quirk {
 	 * The driver should ignore SINK_COUNT during detection.
 	 */
 	DP_DPCD_QUIRK_NO_SINK_COUNT,
+	/**
+	 * @DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD:
+	 *
+	 * The device supports MST DSC despite not supporting Virtual DPCD.
+	 * The DSC caps can be read from the physical aux instead.
+	 */
+	DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD,
 };
 
 /**
@@ -1451,8 +1547,8 @@ drm_dp_has_quirk(const struct drm_dp_desc *desc, enum drm_dp_quirk quirk)
 
 #ifdef CONFIG_DRM_DP_CEC
 void drm_dp_cec_irq(struct drm_dp_aux *aux);
-void drm_dp_cec_register_connector(struct drm_dp_aux *aux, const char *name,
-				   struct device *parent);
+void drm_dp_cec_register_connector(struct drm_dp_aux *aux,
+				   struct drm_connector *connector);
 void drm_dp_cec_unregister_connector(struct drm_dp_aux *aux);
 void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid);
 void drm_dp_cec_unset_edid(struct drm_dp_aux *aux);
@@ -1461,9 +1557,9 @@ static inline void drm_dp_cec_irq(struct drm_dp_aux *aux)
 {
 }
 
-static inline void drm_dp_cec_register_connector(struct drm_dp_aux *aux,
-						 const char *name,
-						 struct device *parent)
+static inline void
+drm_dp_cec_register_connector(struct drm_dp_aux *aux,
+			      struct drm_connector *connector)
 {
 }
 

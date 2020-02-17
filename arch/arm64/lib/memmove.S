@@ -46,8 +46,8 @@ D_l	.req	x13
 D_h	.req	x14
 
 	.weak memmove
-ENTRY(__memmove)
-ENTRY(memmove)
+SYM_FUNC_START_ALIAS(__memmove)
+SYM_FUNC_START_PI(memmove)
 	cmp	dstin, src
 	b.lo	__memcpy
 	add	tmp1, src, count
@@ -184,7 +184,7 @@ ENTRY(memmove)
 	tst	count, #0x3f
 	b.ne	.Ltail63
 	ret
-ENDPIPROC(memmove)
+SYM_FUNC_END_PI(memmove)
 EXPORT_SYMBOL(memmove)
-ENDPROC(__memmove)
+SYM_FUNC_END_ALIAS(__memmove)
 EXPORT_SYMBOL(__memmove)

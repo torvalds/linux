@@ -177,21 +177,51 @@ static inline int rq_prio(const struct i915_request *rq)
 	return rq->sched.attr.priority | __NO_PREEMPTION;
 }
 
-static void kick_submission(struct intel_engine_cs *engine, int prio)
+static inline bool need_preempt(int prio, int active)
 {
-	const struct i915_request *inflight = *engine->execlists.active;
+	/*
+	 * Allow preemption of low -> normal -> high, but we do
+	 * not allow low priority tasks to preempt other low priority
+	 * tasks under the impression that latency for low priority
+	 * tasks does not matter (as much as background throughput),
+	 * so kiss.
+	 */
+	return prio >= max(I915_PRIORITY_NORMAL, active);
+}
+
+static void kick_submission(struct intel_engine_cs *engine,
+			    const struct i915_request *rq,
+			    int prio)
+{
+	const struct i915_request *inflight;
+
+	/*
+	 * We only need to kick the tasklet once for the high priority
+	 * new context we add into the queue.
+	 */
+	if (prio <= engine->execlists.queue_priority_hint)
+		return;
+
+	rcu_read_lock();
+
+	/* Nothing currently active? We're overdue for a submission! */
+	inflight = execlists_active(&engine->execlists);
+	if (!inflight)
+		goto unlock;
 
 	/*
 	 * If we are already the currently executing context, don't
-	 * bother evaluating if we should preempt ourselves, or if
-	 * we expect nothing to change as a result of running the
-	 * tasklet, i.e. we have not change the priority queue
-	 * sufficiently to oust the running context.
+	 * bother evaluating if we should preempt ourselves.
 	 */
-	if (!inflight || !i915_scheduler_need_preempt(prio, rq_prio(inflight)))
-		return;
+	if (inflight->context == rq->context)
+		goto unlock;
 
-	tasklet_hi_schedule(&engine->execlists.tasklet);
+	engine->execlists.queue_priority_hint = prio;
+	if (need_preempt(prio, rq_prio(inflight)))
+		tasklet_hi_schedule(&engine->execlists.tasklet);
+
+unlock:
+	rcu_read_unlock();
 }
 
 static void __i915_schedule(struct i915_sched_node *node,
@@ -296,20 +326,18 @@ static void __i915_schedule(struct i915_sched_node *node,
 
 		node->attr.priority = prio;
 
-		if (list_empty(&node->link)) {
-			/*
-			 * If the request is not in the priolist queue because
-			 * it is not yet runnable, then it doesn't contribute
-			 * to our preemption decisions. On the other hand,
-			 * if the request is on the HW, it too is not in the
-			 * queue; but in that case we may still need to reorder
-			 * the inflight requests.
-			 */
+		/*
+		 * Once the request is ready, it will be placed into the
+		 * priority lists and then onto the HW runlist. Before the
+		 * request is ready, it does not contribute to our preemption
+		 * decisions and we can safely ignore it, as it will, and
+		 * any preemption required, be dealt with upon submission.
+		 * See engine->submit_request()
+		 */
+		if (list_empty(&node->link))
 			continue;
-		}
 
-		if (!intel_engine_is_virtual(engine) &&
-		    !i915_request_is_active(node_to_request(node))) {
+		if (i915_request_in_priority_queue(node_to_request(node))) {
 			if (!cache.priolist)
 				cache.priolist =
 					i915_sched_lookup_priolist(engine,
@@ -317,13 +345,8 @@ static void __i915_schedule(struct i915_sched_node *node,
 			list_move_tail(&node->link, cache.priolist);
 		}
 
-		if (prio <= engine->execlists.queue_priority_hint)
-			continue;
-
-		engine->execlists.queue_priority_hint = prio;
-
 		/* Defer (tasklet) submission until after all of our updates. */
-		kick_submission(engine, prio);
+		kick_submission(engine, node_to_request(node), prio);
 	}
 
 	spin_unlock(&engine->active.lock);
@@ -362,9 +385,19 @@ void i915_sched_node_init(struct i915_sched_node *node)
 	INIT_LIST_HEAD(&node->signalers_list);
 	INIT_LIST_HEAD(&node->waiters_list);
 	INIT_LIST_HEAD(&node->link);
+
+	i915_sched_node_reinit(node);
+}
+
+void i915_sched_node_reinit(struct i915_sched_node *node)
+{
 	node->attr.priority = I915_PRIORITY_INVALID;
 	node->semaphores = 0;
 	node->flags = 0;
+
+	GEM_BUG_ON(!list_empty(&node->signalers_list));
+	GEM_BUG_ON(!list_empty(&node->waiters_list));
+	GEM_BUG_ON(!list_empty(&node->link));
 }
 
 static struct i915_dependency *
@@ -449,13 +482,13 @@ void i915_sched_node_fini(struct i915_sched_node *node)
 	 * so we may be called out-of-order.
 	 */
 	list_for_each_entry_safe(dep, tmp, &node->signalers_list, signal_link) {
-		GEM_BUG_ON(!node_signaled(dep->signaler));
 		GEM_BUG_ON(!list_empty(&dep->dfs_link));
 
 		list_del(&dep->wait_link);
 		if (dep->flags & I915_DEPENDENCY_ALLOC)
 			i915_dependency_free(dep);
 	}
+	INIT_LIST_HEAD(&node->signalers_list);
 
 	/* Remove ourselves from everyone who depends upon us */
 	list_for_each_entry_safe(dep, tmp, &node->waiters_list, wait_link) {
@@ -466,6 +499,7 @@ void i915_sched_node_fini(struct i915_sched_node *node)
 		if (dep->flags & I915_DEPENDENCY_ALLOC)
 			i915_dependency_free(dep);
 	}
+	INIT_LIST_HEAD(&node->waiters_list);
 
 	spin_unlock_irq(&schedule_lock);
 }

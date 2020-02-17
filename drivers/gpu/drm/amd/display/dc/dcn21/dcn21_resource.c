@@ -1,5 +1,6 @@
 /*
 * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2019 Raptor Engineering, LLC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,6 +29,8 @@
 #include "dm_services.h"
 #include "dc.h"
 
+#include "dcn21_init.h"
+
 #include "resource.h"
 #include "include/irq_service_interface.h"
 #include "dcn20/dcn20_resource.h"
@@ -42,11 +45,11 @@
 #include "irq/dcn21/irq_service_dcn21.h"
 #include "dcn20/dcn20_dpp.h"
 #include "dcn20/dcn20_optc.h"
-#include "dcn20/dcn20_hwseq.h"
+#include "dcn21/dcn21_hwseq.h"
 #include "dce110/dce110_hw_sequencer.h"
 #include "dcn20/dcn20_opp.h"
 #include "dcn20/dcn20_dsc.h"
-#include "dcn20/dcn20_link_encoder.h"
+#include "dcn21/dcn21_link_encoder.h"
 #include "dcn20/dcn20_stream_encoder.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
@@ -57,9 +60,12 @@
 #include "dcn20/dcn20_dccg.h"
 #include "dcn21_hubbub.h"
 #include "dcn10/dcn10_resource.h"
+#include "dce110/dce110_resource.h"
 
 #include "dcn20/dcn20_dwb.h"
 #include "dcn20/dcn20_mmhubbub.h"
+#include "dpcs/dpcs_2_1_0_offset.h"
+#include "dpcs/dpcs_2_1_0_sh_mask.h"
 
 #include "renoir_ip_offset.h"
 #include "dcn/dcn_2_1_0_offset.h"
@@ -78,22 +84,20 @@
 #include "dcn21_resource.h"
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
+#include "../dce/dmub_psr.h"
 
 #define SOC_BOUNDING_BOX_VALID false
 #define DC_LOGGER_INIT(logger)
 
 
 struct _vcs_dpi_ip_params_st dcn2_1_ip = {
-	.gpuvm_enable = 0,
-	.hostvm_enable = 0,
+	.odm_capable = 1,
+	.gpuvm_enable = 1,
+	.hostvm_enable = 1,
 	.gpuvm_max_page_table_levels = 1,
 	.hostvm_max_page_table_levels = 4,
 	.hostvm_cached_page_table_levels = 2,
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	.num_dsc = 3,
-#else
-	.num_dsc = 0,
-#endif
 	.rob_buffer_size_kbytes = 168,
 	.det_buffer_size_kbytes = 164,
 	.dpte_buffer_size_in_pte_reqs_luma = 44,
@@ -205,11 +209,11 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 				.state = 4,
 				.dcfclk_mhz = 810.0,
 				.fabricclk_mhz = 1600.0,
-				.dispclk_mhz = 1015.0,
-				.dppclk_mhz = 1015.0,
-				.phyclk_mhz = 810.0,
+				.dispclk_mhz = 1395.0,
+				.dppclk_mhz = 1285.0,
+				.phyclk_mhz = 1325.0,
 				.socclk_mhz = 953.0,
-				.dscclk_mhz = 318.334,
+				.dscclk_mhz = 489.0,
 				.dram_speed_mts = 4266.0,
 			},
 			/*Extra state, no dispclk ramping*/
@@ -217,18 +221,18 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 				.state = 5,
 				.dcfclk_mhz = 810.0,
 				.fabricclk_mhz = 1600.0,
-				.dispclk_mhz = 1015.0,
-				.dppclk_mhz = 1015.0,
-				.phyclk_mhz = 810.0,
+				.dispclk_mhz = 1395.0,
+				.dppclk_mhz = 1285.0,
+				.phyclk_mhz = 1325.0,
 				.socclk_mhz = 953.0,
-				.dscclk_mhz = 318.334,
+				.dscclk_mhz = 489.0,
 				.dram_speed_mts = 4266.0,
 			},
 
 		},
 
-	.sr_exit_time_us = 9.0,
-	.sr_enter_plus_exit_time_us = 11.0,
+	.sr_exit_time_us = 12.5,
+	.sr_enter_plus_exit_time_us = 17.0,
 	.urgent_latency_us = 4.0,
 	.urgent_latency_pixel_data_only_us = 4.0,
 	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
@@ -258,7 +262,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.vmm_page_size_bytes = 4096,
 	.dram_clock_change_latency_us = 23.84,
 	.return_bus_width_bytes = 64,
-	.dispclk_dppclk_vco_speed_mhz = 3550,
+	.dispclk_dppclk_vco_speed_mhz = 3600,
 	.xfc_bus_transport_time_us = 4,
 	.xfc_xbuf_latency_tolerance_us = 4,
 	.use_urgent_burst_bw = 1,
@@ -350,19 +354,29 @@ static const struct bios_registers bios_regs = {
 		NBIO_SR(BIOS_SCRATCH_6)
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
-static const struct dcn21_dmcub_registers dmcub_regs = {
-		DMCUB_REG_LIST_DCN()
+static const struct dce_dmcu_registers dmcu_regs = {
+		DMCU_DCN20_REG_LIST()
 };
 
-static const struct dcn21_dmcub_shift dmcub_shift = {
-		DMCUB_COMMON_MASK_SH_LIST_BASE(__SHIFT)
+static const struct dce_dmcu_shift dmcu_shift = {
+		DMCU_MASK_SH_LIST_DCN10(__SHIFT)
 };
 
-static const struct dcn21_dmcub_mask dmcub_mask = {
-		DMCUB_COMMON_MASK_SH_LIST_BASE(_MASK)
+static const struct dce_dmcu_mask dmcu_mask = {
+		DMCU_MASK_SH_LIST_DCN10(_MASK)
 };
-#endif
+
+static const struct dce_abm_registers abm_regs = {
+		ABM_DCN20_REG_LIST()
+};
+
+static const struct dce_abm_shift abm_shift = {
+		ABM_MASK_SH_LIST_DCN20(__SHIFT)
+};
+
+static const struct dce_abm_mask abm_mask = {
+		ABM_MASK_SH_LIST_DCN20(_MASK)
+};
 
 #define audio_regs(id)\
 [id] = {\
@@ -453,15 +467,18 @@ static const struct dcn20_mpc_registers mpc_regs = {
 		MPC_OUT_MUX_REG_LIST_DCN2_0(0),
 		MPC_OUT_MUX_REG_LIST_DCN2_0(1),
 		MPC_OUT_MUX_REG_LIST_DCN2_0(2),
-		MPC_OUT_MUX_REG_LIST_DCN2_0(3)
+		MPC_OUT_MUX_REG_LIST_DCN2_0(3),
+		MPC_DBG_REG_LIST_DCN2_0()
 };
 
 static const struct dcn20_mpc_shift mpc_shift = {
-	MPC_COMMON_MASK_SH_LIST_DCN2_0(__SHIFT)
+	MPC_COMMON_MASK_SH_LIST_DCN2_0(__SHIFT),
+	MPC_DEBUG_REG_LIST_SH_DCN20
 };
 
 static const struct dcn20_mpc_mask mpc_mask = {
-	MPC_COMMON_MASK_SH_LIST_DCN2_0(_MASK)
+	MPC_COMMON_MASK_SH_LIST_DCN2_0(_MASK),
+	MPC_DEBUG_REG_LIST_MASK_DCN20
 };
 
 #define hubp_regs(id)\
@@ -529,7 +546,6 @@ static const struct dcn20_vmid_mask vmid_masks = {
 		DCN20_VMID_MASK_SH_LIST(_MASK)
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #define dsc_regsDCN20(id)\
 [id] = {\
 	DSC_REG_LIST_DCN20(id)\
@@ -551,7 +567,6 @@ static const struct dcn20_dsc_shift dsc_shift = {
 static const struct dcn20_dsc_mask dsc_mask = {
 	DSC_REG_LIST_SH_MASK_DCN20(_MASK)
 };
-#endif
 
 #define ipp_regs(id)\
 [id] = {\
@@ -598,6 +613,7 @@ static const struct dce110_aux_registers aux_engine_regs[] = {
 #define tf_regs(id)\
 [id] = {\
 	TF_REG_LIST_DCN20(id),\
+	TF_REG_LIST_DCN20_COMMON_APPEND(id),\
 }
 
 static const struct dcn2_dpp_registers tf_regs[] = {
@@ -608,11 +624,13 @@ static const struct dcn2_dpp_registers tf_regs[] = {
 };
 
 static const struct dcn2_dpp_shift tf_shift = {
-		TF_REG_LIST_SH_MASK_DCN20(__SHIFT)
+		TF_REG_LIST_SH_MASK_DCN20(__SHIFT),
+		TF_DEBUG_REG_LIST_SH_DCN20
 };
 
 static const struct dcn2_dpp_mask tf_mask = {
-		TF_REG_LIST_SH_MASK_DCN20(_MASK)
+		TF_REG_LIST_SH_MASK_DCN20(_MASK),
+		TF_DEBUG_REG_LIST_MASK_DCN20
 };
 
 #define stream_enc_regs(id)\
@@ -628,6 +646,14 @@ static const struct dcn10_stream_enc_registers stream_enc_regs[] = {
 	stream_enc_regs(4),
 };
 
+static const struct dce110_aux_registers_shift aux_shift = {
+	DCN_AUX_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce110_aux_registers_mask aux_mask = {
+	DCN_AUX_MASK_SH_LIST(_MASK)
+};
+
 static const struct dcn10_stream_encoder_shift se_shift = {
 		SE_COMMON_MASK_SH_LIST_DCN20(__SHIFT)
 };
@@ -635,6 +661,11 @@ static const struct dcn10_stream_encoder_shift se_shift = {
 static const struct dcn10_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCN20(_MASK)
 };
+
+static void dcn21_pp_smu_destroy(struct pp_smu_funcs **pp_smu);
+
+static int dcn21_populate_dml_pipes_from_context(
+		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes);
 
 static struct input_pixel_processor *dcn21_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
@@ -683,7 +714,10 @@ static struct dce_aux *dcn21_aux_engine_create(
 
 	dce110_aux_engine_construct(aux_engine, ctx, inst,
 				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
-				    &aux_engine_regs[inst]);
+				    &aux_engine_regs[inst],
+					&aux_mask,
+					&aux_shift,
+					ctx->dc->caps.extended_aux_timeout_support);
 
 	return &aux_engine->base;
 }
@@ -726,14 +760,13 @@ static const struct resource_caps res_cap_rn = {
 		.num_timing_generator = 4,
 		.num_opp = 4,
 		.num_video_plane = 4,
-		.num_audio = 6, // 6 audio endpoints.  4 audio streams
+		.num_audio = 4, // 4 audio endpoints.  4 audio streams
 		.num_stream_encoder = 5,
 		.num_pll = 5,  // maybe 3 because the last two used for USB-c
 		.num_dwb = 1,
 		.num_ddc = 5,
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		.num_vmid = 1,
 		.num_dsc = 3,
-#endif
 };
 
 #ifdef DIAGS_BUILD
@@ -758,9 +791,7 @@ static const struct resource_caps res_cap_rn_FPGA_2pipe_dsc = {
 		.num_pll = 4,
 		.num_dwb = 1,
 		.num_ddc = 4,
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 		.num_dsc = 2,
-#endif
 };
 #endif
 
@@ -796,15 +827,17 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
-		.force_single_disp_pipe_split = true,
+		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
 		.vsr_support = true,
 		.performance_trace = false,
-		.max_downscale_src_width = 5120,/*upto 5K*/
+		.max_downscale_src_width = 4096,
 		.disable_pplib_wm_range = false,
 		.scl_reset_length10 = true,
 		.sanity_checks = true,
-		.disable_48mhz_pwrdwn = true,
+		.disable_48mhz_pwrdwn = false,
+		.nv12_iflip_vm_wa = true,
+		.usbc_combo_phy_reset_wa = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -824,10 +857,11 @@ static const struct dc_debug_options debug_defaults_diags = {
 enum dcn20_clk_src_array_id {
 	DCN20_CLK_SRC_PLL0,
 	DCN20_CLK_SRC_PLL1,
+	DCN20_CLK_SRC_PLL2,
 	DCN20_CLK_SRC_TOTAL_DCN21
 };
 
-static void destruct(struct dcn21_resource_pool *pool)
+static void dcn21_resource_destruct(struct dcn21_resource_pool *pool)
 {
 	unsigned int i;
 
@@ -838,12 +872,10 @@ static void destruct(struct dcn21_resource_pool *pool)
 		}
 	}
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	for (i = 0; i < pool->base.res_cap->num_dsc; i++) {
 		if (pool->base.dscs[i] != NULL)
 			dcn20_dsc_destroy(&pool->base.dscs[i]);
 	}
-#endif
 
 	if (pool->base.mpc != NULL) {
 		kfree(TO_DCN20_MPC(pool->base.mpc));
@@ -930,16 +962,11 @@ static void destruct(struct dcn21_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
-	if (pool->base.dmcub != NULL)
-		dcn21_dmcub_destroy(&pool->base.dmcub);
-#endif
-
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
 
 	if (pool->base.pp_smu != NULL)
-		dcn20_pp_smu_destroy(&pool->base.pp_smu);
+		dcn21_pp_smu_destroy(&pool->base.pp_smu);
 }
 
 
@@ -960,18 +987,53 @@ static void calculate_wm_set_for_vlevel(
 	pipes[0].clks_cfg.socclk_mhz = dml->soc.clock_limits[vlevel].socclk_mhz;
 
 	dml->soc.dram_clock_change_latency_us = table_entry->pstate_latency_us;
+	dml->soc.sr_exit_time_us = table_entry->sr_exit_time_us;
+	dml->soc.sr_enter_plus_exit_time_us = table_entry->sr_enter_plus_exit_time_us;
 
 	wm_set->urgent_ns = get_wm_urgent(dml, pipes, pipe_cnt) * 1000;
 	wm_set->cstate_pstate.cstate_enter_plus_exit_ns = get_wm_stutter_enter_exit(dml, pipes, pipe_cnt) * 1000;
 	wm_set->cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(dml, pipes, pipe_cnt) * 1000;
 	wm_set->cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(dml, pipes, pipe_cnt) * 1000;
 	wm_set->pte_meta_urgent_ns = get_wm_memory_trip(dml, pipes, pipe_cnt) * 1000;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	wm_set->frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(dml, pipes, pipe_cnt) * 1000;
 	wm_set->frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(dml, pipes, pipe_cnt) * 1000;
-#endif
+	wm_set->urgent_latency_ns = get_urgent_latency(dml, pipes, pipe_cnt) * 1000;
 	dml->soc.dram_clock_change_latency_us = dram_clock_change_latency_cached;
 
+}
+
+static void patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb)
+{
+	int i;
+
+	DC_FP_START();
+
+	if (dc->bb_overrides.sr_exit_time_ns) {
+		for (i = 0; i < WM_SET_COUNT; i++) {
+			  dc->clk_mgr->bw_params->wm_table.entries[i].sr_exit_time_us =
+					  dc->bb_overrides.sr_exit_time_ns / 1000.0;
+		}
+	}
+
+	if (dc->bb_overrides.sr_enter_plus_exit_time_ns) {
+		for (i = 0; i < WM_SET_COUNT; i++) {
+			  dc->clk_mgr->bw_params->wm_table.entries[i].sr_enter_plus_exit_time_us =
+					  dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
+		}
+	}
+
+	if (dc->bb_overrides.urgent_latency_ns) {
+		bb->urgent_latency_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
+	}
+
+	if (dc->bb_overrides.dram_clock_change_latency_ns) {
+		for (i = 0; i < WM_SET_COUNT; i++) {
+			dc->clk_mgr->bw_params->wm_table.entries[i].pstate_latency_us =
+				dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
+		}
+	}
+
+	DC_FP_END();
 }
 
 void dcn21_calculate_wm(
@@ -987,6 +1049,8 @@ void dcn21_calculate_wm(
 	struct clk_bw_params *bw_params = dc->clk_mgr->bw_params;
 
 	ASSERT(bw_params);
+
+	patch_bounding_box(dc, &context->bw_ctx.dml.soc);
 
 	for (i = 0, pipe_idx = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 			if (!context->res_ctx.pipe_ctx[i].stream)
@@ -1019,10 +1083,10 @@ void dcn21_calculate_wm(
 	if (pipe_cnt != pipe_idx) {
 		if (dc->res_pool->funcs->populate_dml_pipes)
 			pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc,
-				&context->res_ctx, pipes);
+				context, pipes);
 		else
-			pipe_cnt = dcn20_populate_dml_pipes_from_context(dc,
-				&context->res_ctx, pipes);
+			pipe_cnt = dcn21_populate_dml_pipes_from_context(dc,
+				context, pipes);
 	}
 
 	*out_pipe_cnt = pipe_cnt;
@@ -1112,7 +1176,7 @@ static void dcn21_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dcn21_resource_pool *dcn21_pool = TO_DCN21_RES_POOL(*pool);
 
-	destruct(dcn21_pool);
+	dcn21_resource_destruct(dcn21_pool);
 	kfree(dcn21_pool);
 	*pool = NULL;
 }
@@ -1251,7 +1315,6 @@ static void read_dce_straps(
 
 }
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 
 struct display_stream_compressor *dcn21_dsc_create(
 	struct dc_context *ctx, uint32_t inst)
@@ -1267,7 +1330,6 @@ struct display_stream_compressor *dcn21_dsc_create(
 	dsc2_construct(dsc, ctx, inst, &dsc_regs[inst], &dsc_shift, &dsc_mask);
 	return &dsc->base;
 }
-#endif
 
 static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
@@ -1278,7 +1340,6 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 	dcn2_1_ip.max_num_otg = pool->base.res_cap->num_timing_generator;
 	dcn2_1_ip.max_num_dpp = pool->base.pipe_count;
 	dcn2_1_soc.num_chans = bw_params->num_channels;
-	dcn2_1_soc.num_states = 0;
 
 	for (i = 0; i < clk_table->num_entries; i++) {
 
@@ -1286,10 +1347,14 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 		dcn2_1_soc.clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
 		dcn2_1_soc.clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
 		dcn2_1_soc.clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-		/* This is probably wrong, TODO: find correct calculation */
-		dcn2_1_soc.clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 16 / 1000;
-		dcn2_1_soc.num_states++;
+		dcn2_1_soc.clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2;
 	}
+	dcn2_1_soc.clock_limits[i] = dcn2_1_soc.clock_limits[i - 1];
+	dcn2_1_soc.num_states = i;
+
+	// diags does not retrieve proper values from SMU, do not update DML instance for diags
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) && !IS_DIAG_DC(dc->ctx->dce_environment))
+		dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
 }
 
 /* Temporary Place holder until we can get them from fuse */
@@ -1317,32 +1382,42 @@ static struct dpm_clocks dummy_clocks = {
 
 };
 
-enum pp_smu_status dummy_set_wm_ranges(struct pp_smu *pp,
+static enum pp_smu_status dummy_set_wm_ranges(struct pp_smu *pp,
 		struct pp_smu_wm_range_sets *ranges)
 {
 	return PP_SMU_RESULT_OK;
 }
 
-enum pp_smu_status dummy_get_dpm_clock_table(struct pp_smu *pp,
+static enum pp_smu_status dummy_get_dpm_clock_table(struct pp_smu *pp,
 		struct dpm_clocks *clock_table)
 {
 	*clock_table = dummy_clocks;
 	return PP_SMU_RESULT_OK;
 }
 
-struct pp_smu_funcs *dcn21_pp_smu_create(struct dc_context *ctx)
+static struct pp_smu_funcs *dcn21_pp_smu_create(struct dc_context *ctx)
 {
 	struct pp_smu_funcs *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
 
-	pp_smu->ctx.ver = PP_SMU_VER_RN;
+	if (!pp_smu)
+		return pp_smu;
 
-	pp_smu->rn_funcs.get_dpm_clock_table = dummy_get_dpm_clock_table;
-	pp_smu->rn_funcs.set_wm_ranges = dummy_set_wm_ranges;
+	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment) || IS_DIAG_DC(ctx->dce_environment)) {
+		pp_smu->ctx.ver = PP_SMU_VER_RN;
+		pp_smu->rn_funcs.get_dpm_clock_table = dummy_get_dpm_clock_table;
+		pp_smu->rn_funcs.set_wm_ranges = dummy_set_wm_ranges;
+	} else {
+
+		dm_pp_get_funcs(ctx, pp_smu);
+
+		if (pp_smu->ctx.ver != PP_SMU_VER_RN)
+			pp_smu = memset(pp_smu, 0, sizeof(struct pp_smu_funcs));
+	}
 
 	return pp_smu;
 }
 
-void dcn21_pp_smu_destroy(struct pp_smu_funcs **pp_smu)
+static void dcn21_pp_smu_destroy(struct pp_smu_funcs **pp_smu)
 {
 	if (pp_smu && *pp_smu) {
 		kfree(*pp_smu);
@@ -1400,6 +1475,7 @@ static struct dce_hwseq *dcn21_hwseq_create(
 		hws->regs = &hwseq_reg;
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
+		hws->wa.DEGVIDCN21 = true;
 	}
 	return hws;
 }
@@ -1418,10 +1494,156 @@ static const struct resource_create_funcs res_create_maximus_funcs = {
 	.create_hwseq = dcn21_hwseq_create,
 };
 
+static const struct encoder_feature_support link_enc_feature = {
+		.max_hdmi_deep_color = COLOR_DEPTH_121212,
+		.max_hdmi_pixel_clock = 600000,
+		.hdmi_ycbcr420_supported = true,
+		.dp_ycbcr420_supported = true,
+		.flags.bits.IS_HBR2_CAPABLE = true,
+		.flags.bits.IS_HBR3_CAPABLE = true,
+		.flags.bits.IS_TPS3_CAPABLE = true,
+		.flags.bits.IS_TPS4_CAPABLE = true
+};
+
+
+#define link_regs(id, phyid)\
+[id] = {\
+	LE_DCN2_REG_LIST(id), \
+	UNIPHY_DCN2_REG_LIST(phyid), \
+	DPCS_DCN21_REG_LIST(id), \
+	SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
+}
+
+static const struct dcn10_link_enc_registers link_enc_regs[] = {
+	link_regs(0, A),
+	link_regs(1, B),
+	link_regs(2, C),
+	link_regs(3, D),
+	link_regs(4, E),
+};
+
+#define aux_regs(id)\
+[id] = {\
+	DCN2_AUX_REG_LIST(id)\
+}
+
+static const struct dcn10_link_enc_aux_registers link_enc_aux_regs[] = {
+		aux_regs(0),
+		aux_regs(1),
+		aux_regs(2),
+		aux_regs(3),
+		aux_regs(4)
+};
+
+#define hpd_regs(id)\
+[id] = {\
+	HPD_REG_LIST(id)\
+}
+
+static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
+		hpd_regs(0),
+		hpd_regs(1),
+		hpd_regs(2),
+		hpd_regs(3),
+		hpd_regs(4)
+};
+
+static const struct dcn10_link_enc_shift le_shift = {
+	LINK_ENCODER_MASK_SH_LIST_DCN20(__SHIFT),\
+	DPCS_DCN21_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dcn10_link_enc_mask le_mask = {
+	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK),\
+	DPCS_DCN21_MASK_SH_LIST(_MASK)
+};
+
+static int map_transmitter_id_to_phy_instance(
+	enum transmitter transmitter)
+{
+	switch (transmitter) {
+	case TRANSMITTER_UNIPHY_A:
+		return 0;
+	break;
+	case TRANSMITTER_UNIPHY_B:
+		return 1;
+	break;
+	case TRANSMITTER_UNIPHY_C:
+		return 2;
+	break;
+	case TRANSMITTER_UNIPHY_D:
+		return 3;
+	break;
+	case TRANSMITTER_UNIPHY_E:
+		return 4;
+	break;
+	default:
+		ASSERT(0);
+		return 0;
+	}
+}
+
+static struct link_encoder *dcn21_link_encoder_create(
+	const struct encoder_init_data *enc_init_data)
+{
+	struct dcn21_link_encoder *enc21 =
+		kzalloc(sizeof(struct dcn21_link_encoder), GFP_KERNEL);
+	int link_regs_id;
+
+	if (!enc21)
+		return NULL;
+
+	link_regs_id =
+		map_transmitter_id_to_phy_instance(enc_init_data->transmitter);
+
+	dcn21_link_encoder_construct(enc21,
+				      enc_init_data,
+				      &link_enc_feature,
+				      &link_enc_regs[link_regs_id],
+				      &link_enc_aux_regs[enc_init_data->channel - 1],
+				      &link_enc_hpd_regs[enc_init_data->hpd_source],
+				      &le_shift,
+				      &le_mask);
+
+	return &enc21->enc10.base;
+}
+#define CTX ctx
+
+#define REG(reg_name) \
+	(DCN_BASE.instance[0].segment[mm ## reg_name ## _BASE_IDX] + mm ## reg_name)
+
+static uint32_t read_pipe_fuses(struct dc_context *ctx)
+{
+	uint32_t value = REG_READ(CC_DC_PIPE_DIS);
+	/* RV1 support max 4 pipes */
+	value = value & 0xf;
+	return value;
+}
+
+static int dcn21_populate_dml_pipes_from_context(
+		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes)
+{
+	uint32_t pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, context, pipes);
+	int i;
+	struct resource_context *res_ctx = &context->res_ctx;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+
+		if (!res_ctx->pipe_ctx[i].stream)
+			continue;
+
+		pipes[i].pipe.src.hostvm = 1;
+		pipes[i].pipe.src.gpuvm = 1;
+	}
+
+	return pipe_cnt;
+}
+
 static struct resource_funcs dcn21_res_pool_funcs = {
 	.destroy = dcn21_destroy_resource_pool,
-	.link_enc_create = dcn20_link_encoder_create,
+	.link_enc_create = dcn21_link_encoder_create,
 	.validate_bandwidth = dcn21_validate_bandwidth,
+	.populate_dml_pipes = dcn21_populate_dml_pipes_from_context,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
@@ -1432,14 +1654,16 @@ static struct resource_funcs dcn21_res_pool_funcs = {
 	.update_bw_bounding_box = update_bw_bounding_box
 };
 
-static bool construct(
+static bool dcn21_resource_construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
 	struct dcn21_resource_pool *pool)
 {
-	int i;
+	int i, j;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
+	uint32_t pipe_fuses = read_pipe_fuses(ctx);
+	uint32_t num_pipes;
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -1457,7 +1681,9 @@ static bool construct(
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 
-	pool->base.pipe_count = 4;
+	/* max pipe num for ASIC before check pipe fuses */
+	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
+
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 256;
@@ -1467,6 +1693,8 @@ static bool construct(
 	dc->caps.max_slave_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
+	dc->caps.extended_aux_timeout_support = true;
+	dc->caps.dmcub_support = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
@@ -1492,6 +1720,10 @@ static bool construct(
 			dcn21_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_COMBO_PHY_PLL1,
 				&clk_src_regs[1], false);
+	pool->base.clock_sources[DCN20_CLK_SRC_PLL2] =
+			dcn21_clock_source_create(ctx, ctx->dc_bios,
+				CLOCK_SOURCE_COMBO_PHY_PLL2,
+				&clk_src_regs[2], false);
 
 	pool->base.clk_src_count = DCN20_CLK_SRC_TOTAL_DCN21;
 
@@ -1516,19 +1748,39 @@ static bool construct(
 		goto create_fail;
 	}
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
-	pool->base.dmcub = dcn21_dmcub_create(ctx,
-			&dmcub_regs,
-			&dmcub_shift,
-			&dmcub_mask);
-	if (pool->base.dmcub == NULL) {
-		dm_error("DC: failed to create dmcub!\n");
+	pool->base.dmcu = dcn21_dmcu_create(ctx,
+			&dmcu_regs,
+			&dmcu_shift,
+			&dmcu_mask);
+	if (pool->base.dmcu == NULL) {
+		dm_error("DC: failed to create dmcu!\n");
 		BREAK_TO_DEBUGGER();
 		goto create_fail;
 	}
-#endif
+
+	// Leave as NULL to not affect current dmcu psr programming sequence
+	// Will be uncommented when functionality is confirmed to be working
+	pool->base.psr = NULL;
+
+	pool->base.abm = dce_abm_create(ctx,
+			&abm_regs,
+			&abm_shift,
+			&abm_mask);
+	if (pool->base.abm == NULL) {
+		dm_error("DC: failed to create abm!\n");
+		BREAK_TO_DEBUGGER();
+		goto create_fail;
+	}
 
 	pool->base.pp_smu = dcn21_pp_smu_create(ctx);
+
+	num_pipes = dcn2_1_ip.max_num_dpp;
+
+	for (i = 0; i < dcn2_1_ip.max_num_dpp; i++)
+		if (pipe_fuses & 1 << i)
+			num_pipes--;
+	dcn2_1_ip.max_num_dpp = num_pipes;
+	dcn2_1_ip.max_num_otg = num_pipes;
 
 	dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
 
@@ -1537,31 +1789,55 @@ static bool construct(
 	if (!pool->base.irqs)
 		goto create_fail;
 
+	j = 0;
 	/* mem input -> ipp -> dpp -> opp -> TG */
 	for (i = 0; i < pool->base.pipe_count; i++) {
-		pool->base.hubps[i] = dcn21_hubp_create(ctx, i);
-		if (pool->base.hubps[i] == NULL) {
+		/* if pipe is disabled, skip instance of HW pipe,
+		 * i.e, skip ASIC register instance
+		 */
+		if ((pipe_fuses & (1 << i)) != 0)
+			continue;
+
+		pool->base.hubps[j] = dcn21_hubp_create(ctx, i);
+		if (pool->base.hubps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create memory input!\n");
 			goto create_fail;
 		}
 
-		pool->base.ipps[i] = dcn21_ipp_create(ctx, i);
-		if (pool->base.ipps[i] == NULL) {
+		pool->base.ipps[j] = dcn21_ipp_create(ctx, i);
+		if (pool->base.ipps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create input pixel processor!\n");
 			goto create_fail;
 		}
 
-		pool->base.dpps[i] = dcn21_dpp_create(ctx, i);
-		if (pool->base.dpps[i] == NULL) {
+		pool->base.dpps[j] = dcn21_dpp_create(ctx, i);
+		if (pool->base.dpps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create dpps!\n");
 			goto create_fail;
 		}
+
+		pool->base.opps[j] = dcn21_opp_create(ctx, i);
+		if (pool->base.opps[j] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC: failed to create output pixel processor!\n");
+			goto create_fail;
+		}
+
+		pool->base.timing_generators[j] = dcn21_timing_generator_create(
+				ctx, i);
+		if (pool->base.timing_generators[j] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create tg!\n");
+			goto create_fail;
+		}
+		j++;
 	}
 
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
@@ -1582,27 +1858,9 @@ static bool construct(
 		pool->base.sw_i2cs[i] = NULL;
 	}
 
-	for (i = 0; i < pool->base.res_cap->num_opp; i++) {
-		pool->base.opps[i] = dcn21_opp_create(ctx, i);
-		if (pool->base.opps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
-			dm_error(
-				"DC: failed to create output pixel processor!\n");
-			goto create_fail;
-		}
-	}
-
-	for (i = 0; i < pool->base.res_cap->num_timing_generator; i++) {
-		pool->base.timing_generators[i] = dcn21_timing_generator_create(
-				ctx, i);
-		if (pool->base.timing_generators[i] == NULL) {
-			BREAK_TO_DEBUGGER();
-			dm_error("DC: failed to create tg!\n");
-			goto create_fail;
-		}
-	}
-
-	pool->base.timing_generator_count = i;
+	pool->base.timing_generator_count = j;
+	pool->base.pipe_count = j;
+	pool->base.mpcc_count = j;
 
 	pool->base.mpc = dcn21_mpc_create(ctx);
 	if (pool->base.mpc == NULL) {
@@ -1618,7 +1876,6 @@ static bool construct(
 		goto create_fail;
 	}
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	for (i = 0; i < pool->base.res_cap->num_dsc; i++) {
 		pool->base.dscs[i] = dcn21_dsc_create(ctx, i);
 		if (pool->base.dscs[i] == NULL) {
@@ -1627,7 +1884,6 @@ static bool construct(
 			goto create_fail;
 		}
 	}
-#endif
 
 	if (!dcn20_dwbc_create(ctx, &pool->base)) {
 		BREAK_TO_DEBUGGER();
@@ -1645,7 +1901,7 @@ static bool construct(
 			&res_create_funcs : &res_create_maximus_funcs)))
 			goto create_fail;
 
-	dcn20_hw_sequencer_construct(dc);
+	dcn21_hw_sequencer_construct(dc);
 
 	dc->caps.max_planes =  pool->base.pipe_count;
 
@@ -1658,7 +1914,7 @@ static bool construct(
 
 create_fail:
 
-	destruct(pool);
+	dcn21_resource_destruct(pool);
 
 	return false;
 }
@@ -1673,7 +1929,7 @@ struct resource_pool *dcn21_create_resource_pool(
 	if (!pool)
 		return NULL;
 
-	if (construct(init_data->num_virtual_links, dc, pool))
+	if (dcn21_resource_construct(init_data->num_virtual_links, dc, pool))
 		return &pool->base;
 
 	BREAK_TO_DEBUGGER();

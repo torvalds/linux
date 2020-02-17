@@ -576,6 +576,8 @@ static int gmac_setup_txqs(struct net_device *netdev)
 
 	if (port->txq_dma_base & ~DMA_Q_BASE_MASK) {
 		dev_warn(geth->dev, "TX queue base is not aligned\n");
+		dma_free_coherent(geth->dev, len * sizeof(*desc_ring),
+				  desc_ring, port->txq_dma_base);
 		kfree(skb_tab);
 		return -ENOMEM;
 	}
@@ -1296,7 +1298,7 @@ out_drop:
 	return NETDEV_TX_OK;
 }
 
-static void gmac_tx_timeout(struct net_device *netdev)
+static void gmac_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	netdev_err(netdev, "Tx timeout\n");
 	gmac_dump_dma_state(netdev);
@@ -2524,6 +2526,7 @@ static int gemini_ethernet_port_remove(struct platform_device *pdev)
 	struct gemini_ethernet_port *port = platform_get_drvdata(pdev);
 
 	gemini_port_remove(port);
+	free_netdev(port->netdev);
 	return 0;
 }
 

@@ -79,7 +79,7 @@ static int uvc_queue_setup(struct vb2_queue *vq,
 
 	switch (vq->type) {
 	case V4L2_BUF_TYPE_META_CAPTURE:
-		size = UVC_METATADA_BUF_SIZE;
+		size = UVC_METADATA_BUF_SIZE;
 		break;
 
 	default:

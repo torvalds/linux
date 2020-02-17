@@ -5,7 +5,7 @@ GPIO Driver Interface
 This document serves as a guide for writers of GPIO chip drivers.
 
 Each GPIO controller driver needs to include the following header, which defines
-the structures used to define a GPIO driver:
+the structures used to define a GPIO driver::
 
 	#include <linux/gpio/driver.h>
 
@@ -398,12 +398,15 @@ provided. A big portion of overhead code will be managed by gpiolib,
 under the assumption that your interrupts are 1-to-1-mapped to the
 GPIO line index:
 
-  GPIO line offset   Hardware IRQ
-  0                  0
-  1                  1
-  2                  2
-  ...                ...
-  ngpio-1            ngpio-1
+.. csv-table::
+    :header: GPIO line offset, Hardware IRQ
+
+    0,0
+    1,1
+    2,2
+    ...,...
+    ngpio-1, ngpio-1
+
 
 If some GPIO lines do not have corresponding IRQs, the bitmask valid_mask
 and the flag need_valid_mask in gpio_irq_chip can be used to mask off some
@@ -413,7 +416,9 @@ The preferred way to set up the helpers is to fill in the
 struct gpio_irq_chip inside struct gpio_chip before adding the gpio_chip.
 If you do this, the additional irq_chip will be set up by gpiolib at the
 same time as setting up the rest of the GPIO functionality. The following
-is a typical example of a cascaded interrupt handler using gpio_irq_chip:
+is a typical example of a cascaded interrupt handler using gpio_irq_chip::
+
+.. code-block:: c
 
   /* Typical state container with dynamic irqchip */
   struct my_gpio {
@@ -448,7 +453,9 @@ is a typical example of a cascaded interrupt handler using gpio_irq_chip:
   return devm_gpiochip_add_data(dev, &g->gc, g);
 
 The helper support using hierarchical interrupt controllers as well.
-In this case the typical set-up will look like this:
+In this case the typical set-up will look like this::
+
+.. code-block:: c
 
   /* Typical state container with dynamic irqchip */
   struct my_gpio {
@@ -493,17 +500,12 @@ available but we try to move away from this:
   gpiochip. It will pass the struct gpio_chip* for the chip to all IRQ
   callbacks, so the callbacks need to embed the gpio_chip in its state
   container and obtain a pointer to the container using container_of().
-  (See Documentation/driver-model/design-patterns.txt)
+  (See Documentation/driver-api/driver-model/design-patterns.rst)
 
 - gpiochip_irqchip_add_nested(): adds a nested cascaded irqchip to a gpiochip,
   as discussed above regarding different types of cascaded irqchips. The
   cascaded irq has to be handled by a threaded interrupt handler.
   Apart from that it works exactly like the chained irqchip.
-
-- DEPRECATED: gpiochip_set_chained_irqchip(): sets up a chained cascaded irq
-  handler for a gpio_chip from a parent IRQ and passes the struct gpio_chip*
-  as handler data. Notice that we pass is as the handler data, since the
-  irqchip data is likely used by the parent irqchip.
 
 - gpiochip_set_nested_irqchip(): sets up a nested cascaded irq handler for a
   gpio_chip from a parent IRQ. As the parent IRQ has usually been

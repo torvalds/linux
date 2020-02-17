@@ -129,7 +129,9 @@ struct raid_dev {
 				  CTR_FLAG_RAID10_COPIES | \
 				  CTR_FLAG_RAID10_FORMAT | \
 				  CTR_FLAG_DELTA_DISKS | \
-				  CTR_FLAG_DATA_OFFSET)
+				  CTR_FLAG_DATA_OFFSET | \
+				  CTR_FLAG_JOURNAL_DEV | \
+				  CTR_FLAG_JOURNAL_MODE)
 
 /* Valid options definitions per raid level... */
 
@@ -209,6 +211,7 @@ struct raid_dev {
 #define RT_FLAG_RS_SUSPENDED		5
 #define RT_FLAG_RS_IN_SYNC		6
 #define RT_FLAG_RS_RESYNCING		7
+#define RT_FLAG_RS_GROW			8
 
 /* Array elements of 64 bit needed for rebuild/failed disk bits */
 #define DISKS_ARRAY_ELEMS ((MAX_RAID_DEVICES + (sizeof(uint64_t) * 8 - 1)) / sizeof(uint64_t) / 8)
@@ -240,6 +243,9 @@ struct raid_set {
 	struct mddev md;
 	struct raid_type *raid_type;
 	struct dm_target_callbacks callbacks;
+
+	sector_t array_sectors;
+	sector_t dev_sectors;
 
 	/* Optional raid4/5/6 journal device */
 	struct journal_dev {
@@ -616,7 +622,6 @@ static int raid10_format_to_md_layout(struct raid_set *rs,
 
 	} else if (algorithm == ALGORITHM_RAID10_FAR) {
 		f = copies;
-		r = !RAID10_OFFSET;
 		if (!test_bit(__CTR_FLAG_RAID10_USE_NEAR_SETS, &rs->ctr_flags))
 			r |= RAID10_USE_FAR_SETS;
 
@@ -1615,13 +1620,12 @@ static int _check_data_dev_sectors(struct raid_set *rs)
 }
 
 /* Calculate the sectors per device and per array used for @rs */
-static int rs_set_dev_and_array_sectors(struct raid_set *rs, bool use_mddev)
+static int rs_set_dev_and_array_sectors(struct raid_set *rs, sector_t sectors, bool use_mddev)
 {
 	int delta_disks;
 	unsigned int data_stripes;
+	sector_t array_sectors = sectors, dev_sectors = sectors;
 	struct mddev *mddev = &rs->md;
-	struct md_rdev *rdev;
-	sector_t array_sectors = rs->ti->len, dev_sectors = rs->ti->len;
 
 	if (use_mddev) {
 		delta_disks = mddev->delta_disks;
@@ -1656,12 +1660,9 @@ static int rs_set_dev_and_array_sectors(struct raid_set *rs, bool use_mddev)
 		/* Striped layouts */
 		array_sectors = (data_stripes + delta_disks) * dev_sectors;
 
-	rdev_for_each(rdev, mddev)
-		if (!test_bit(Journal, &rdev->flags))
-			rdev->sectors = dev_sectors;
-
 	mddev->array_sectors = array_sectors;
 	mddev->dev_sectors = dev_sectors;
+	rs_set_rdev_sectors(rs);
 
 	return _check_data_dev_sectors(rs);
 bad:
@@ -1670,7 +1671,7 @@ bad:
 }
 
 /* Setup recovery on @rs */
-static void __rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
+static void rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
 {
 	/* raid0 does not recover */
 	if (rs_is_raid0(rs))
@@ -1689,22 +1690,6 @@ static void __rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
 	else
 		rs->md.recovery_cp = test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags)
 				     ? MaxSector : dev_sectors;
-}
-
-/* Setup recovery on @rs based on raid type, device size and 'nosync' flag */
-static void rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
-{
-	if (!dev_sectors)
-		/* New raid set or 'sync' flag provided */
-		__rs_setup_recovery(rs, 0);
-	else if (dev_sectors == MaxSector)
-		/* Prevent recovery */
-		__rs_setup_recovery(rs, MaxSector);
-	else if (__rdev_sectors(rs) < dev_sectors)
-		/* Grown raid set */
-		__rs_setup_recovery(rs, __rdev_sectors(rs));
-	else
-		__rs_setup_recovery(rs, MaxSector);
 }
 
 static void do_table_event(struct work_struct *ws)
@@ -2474,7 +2459,7 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 		return -EINVAL;
 	}
 
-	/* Enable bitmap creation for RAID levels != 0 */
+	/* Enable bitmap creation on @rs unless no metadevs or raid0 or journaled raid4/5/6 set. */
 	mddev->bitmap_info.offset = (rt_is_raid0(rs->raid_type) || rs->journal_dev.dev) ? 0 : to_sector(4096);
 	mddev->bitmap_info.default_offset = mddev->bitmap_info.offset;
 
@@ -2911,7 +2896,7 @@ static int rs_setup_reshape(struct raid_set *rs)
 
 	/* Remove disk(s) */
 	} else if (rs->delta_disks < 0) {
-		r = rs_set_dev_and_array_sectors(rs, true);
+		r = rs_set_dev_and_array_sectors(rs, rs->ti->len, true);
 		mddev->reshape_backwards = 1; /* removing disk(s) -> backward reshape */
 
 	/* Change layout and/or chunk size */
@@ -3008,7 +2993,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	bool resize = false;
 	struct raid_type *rt;
 	unsigned int num_raid_params, num_raid_devs;
-	sector_t calculated_dev_sectors, rdev_sectors, reshape_sectors;
+	sector_t sb_array_sectors, rdev_sectors, reshape_sectors;
 	struct raid_set *rs = NULL;
 	const char *arg;
 	struct rs_layout rs_layout;
@@ -3018,7 +3003,6 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		{ 1, 254, "Cannot understand number of raid devices parameters" }
 	};
 
-	/* Must have <raid_type> */
 	arg = dm_shift_arg(&as);
 	if (!arg) {
 		ti->error = "No arguments";
@@ -3067,11 +3051,13 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 *
 	 * Any existing superblock will overwrite the array and device sizes
 	 */
-	r = rs_set_dev_and_array_sectors(rs, false);
+	r = rs_set_dev_and_array_sectors(rs, rs->ti->len, false);
 	if (r)
 		goto bad;
 
-	calculated_dev_sectors = rs->md.dev_sectors;
+	/* Memorize just calculated, potentially larger sizes to grow the raid set in preresume */
+	rs->array_sectors = rs->md.array_sectors;
+	rs->dev_sectors = rs->md.dev_sectors;
 
 	/*
 	 * Backup any new raid set level, layout, ...
@@ -3084,6 +3070,8 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad;
 
+	/* All in-core metadata now as of current superblocks after calling analyse_superblocks() */
+	sb_array_sectors = rs->md.array_sectors;
 	rdev_sectors = __rdev_sectors(rs);
 	if (!rdev_sectors) {
 		ti->error = "Invalid rdev size";
@@ -3093,8 +3081,11 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 
 	reshape_sectors = _get_reshape_sectors(rs);
-	if (calculated_dev_sectors != rdev_sectors)
-		resize = calculated_dev_sectors != (reshape_sectors ? rdev_sectors - reshape_sectors : rdev_sectors);
+	if (rs->dev_sectors != rdev_sectors) {
+		resize = (rs->dev_sectors != rdev_sectors - reshape_sectors);
+		if (rs->dev_sectors > rdev_sectors - reshape_sectors)
+			set_bit(RT_FLAG_RS_GROW, &rs->runtime_flags);
+	}
 
 	INIT_WORK(&rs->md.event_work, do_table_event);
 	ti->private = rs;
@@ -3121,13 +3112,8 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
 		rs_set_new(rs);
 	} else if (rs_is_recovering(rs)) {
-		/* Rebuild particular devices */
-		if (test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags)) {
-			set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
-			rs_setup_recovery(rs, MaxSector);
-		}
 		/* A recovering raid set may be resized */
-		; /* skip setup rs */
+		goto size_check;
 	} else if (rs_is_reshaping(rs)) {
 		/* Have to reject size change request during reshape */
 		if (resize) {
@@ -3171,6 +3157,9 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		rs_setup_recovery(rs, MaxSector);
 		rs_set_new(rs);
 	} else if (rs_reshape_requested(rs)) {
+		/* Only request grow on raid set size extensions, not on reshapes. */
+		clear_bit(RT_FLAG_RS_GROW, &rs->runtime_flags);
+
 		/*
 		 * No need to check for 'ongoing' takeover here, because takeover
 		 * is an instant operation as oposed to an ongoing reshape.
@@ -3201,13 +3190,31 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		}
 		rs_set_cur(rs);
 	} else {
+size_check:
 		/* May not set recovery when a device rebuild is requested */
 		if (test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags)) {
-			rs_setup_recovery(rs, MaxSector);
+			clear_bit(RT_FLAG_RS_GROW, &rs->runtime_flags);
 			set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
-		} else
-			rs_setup_recovery(rs, test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags) ?
-					      0 : (resize ? calculated_dev_sectors : MaxSector));
+			rs_setup_recovery(rs, MaxSector);
+		} else if (test_bit(RT_FLAG_RS_GROW, &rs->runtime_flags)) {
+			/*
+			 * Set raid set to current size, i.e. size as of
+			 * superblocks to grow to larger size in preresume.
+			 */
+			r = rs_set_dev_and_array_sectors(rs, sb_array_sectors, false);
+			if (r)
+				goto bad;
+
+			rs_setup_recovery(rs, rs->md.recovery_cp < rs->md.dev_sectors ? rs->md.recovery_cp : rs->md.dev_sectors);
+		} else {
+			/* This is no size change or it is shrinking, update size and record in superblocks */
+			r = rs_set_dev_and_array_sectors(rs, rs->ti->len, false);
+			if (r)
+				goto bad;
+
+			if (sb_array_sectors > rs->array_sectors)
+				set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
+		}
 		rs_set_cur(rs);
 	}
 
@@ -3406,10 +3413,9 @@ static const char *__raid_dev_status(struct raid_set *rs, struct md_rdev *rdev)
 
 /* Helper to return resync/reshape progress for @rs and runtime flags for raid set in sync / resynching */
 static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
-				sector_t resync_max_sectors)
+				enum sync_state state, sector_t resync_max_sectors)
 {
 	sector_t r;
-	enum sync_state state;
 	struct mddev *mddev = &rs->md;
 
 	clear_bit(RT_FLAG_RS_IN_SYNC, &rs->runtime_flags);
@@ -3420,8 +3426,6 @@ static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
 		set_bit(RT_FLAG_RS_IN_SYNC, &rs->runtime_flags);
 
 	} else {
-		state = decipher_sync_action(mddev, recovery);
-
 		if (state == st_idle && !test_bit(MD_RECOVERY_INTR, &recovery))
 			r = mddev->recovery_cp;
 		else
@@ -3439,18 +3443,14 @@ static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
 			/*
 			 * In case we are recovering, the array is not in sync
 			 * and health chars should show the recovering legs.
+			 *
+			 * Already retrieved recovery offset from curr_resync_completed above.
 			 */
 			;
-		else if (state == st_resync)
+
+		else if (state == st_resync || state == st_reshape)
 			/*
-			 * If "resync" is occurring, the raid set
-			 * is or may be out of sync hence the health
-			 * characters shall be 'a'.
-			 */
-			set_bit(RT_FLAG_RS_RESYNCING, &rs->runtime_flags);
-		else if (state == st_reshape)
-			/*
-			 * If "reshape" is occurring, the raid set
+			 * If "resync/reshape" is occurring, the raid set
 			 * is or may be out of sync hence the health
 			 * characters shall be 'a'.
 			 */
@@ -3464,22 +3464,22 @@ static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
 			 */
 			set_bit(RT_FLAG_RS_IN_SYNC, &rs->runtime_flags);
 
-		else {
-			struct md_rdev *rdev;
-
+		else if (test_bit(MD_RECOVERY_NEEDED, &recovery))
 			/*
 			 * We are idle and recovery is needed, prevent 'A' chars race
 			 * caused by components still set to in-sync by constructor.
 			 */
-			if (test_bit(MD_RECOVERY_NEEDED, &recovery))
-				set_bit(RT_FLAG_RS_RESYNCING, &rs->runtime_flags);
+			set_bit(RT_FLAG_RS_RESYNCING, &rs->runtime_flags);
 
+		else {
 			/*
-			 * The raid set may be doing an initial sync, or it may
-			 * be rebuilding individual components.	 If all the
-			 * devices are In_sync, then it is the raid set that is
-			 * being initialized.
+			 * We are idle and the raid set may be doing an initial
+			 * sync, or it may be rebuilding individual components.
+			 * If all the devices are In_sync, then it is the raid set
+			 * that is being initialized.
 			 */
+			struct md_rdev *rdev;
+
 			set_bit(RT_FLAG_RS_IN_SYNC, &rs->runtime_flags);
 			rdev_for_each(rdev, mddev)
 				if (!test_bit(Journal, &rdev->flags) &&
@@ -3509,10 +3509,9 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 	unsigned long recovery;
 	unsigned int raid_param_cnt = 1; /* at least 1 for chunksize */
 	unsigned int sz = 0;
-	unsigned int rebuild_disks;
-	unsigned int write_mostly_params = 0;
+	unsigned int rebuild_writemostly_count = 0;
 	sector_t progress, resync_max_sectors, resync_mismatches;
-	const char *sync_action;
+	enum sync_state state;
 	struct raid_type *rt;
 
 	switch (type) {
@@ -3526,14 +3525,14 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 
 		/* Access most recent mddev properties for status output */
 		smp_rmb();
-		recovery = rs->md.recovery;
 		/* Get sensible max sectors even if raid set not yet started */
 		resync_max_sectors = test_bit(RT_FLAG_RS_PRERESUMED, &rs->runtime_flags) ?
 				      mddev->resync_max_sectors : mddev->dev_sectors;
-		progress = rs_get_progress(rs, recovery, resync_max_sectors);
+		recovery = rs->md.recovery;
+		state = decipher_sync_action(mddev, recovery);
+		progress = rs_get_progress(rs, recovery, state, resync_max_sectors);
 		resync_mismatches = (mddev->last_sync_action && !strcasecmp(mddev->last_sync_action, "check")) ?
 				    atomic64_read(&mddev->resync_mismatches) : 0;
-		sync_action = sync_str(decipher_sync_action(&rs->md, recovery));
 
 		/* HM FIXME: do we want another state char for raid0? It shows 'D'/'A'/'-' now */
 		for (i = 0; i < rs->raid_disks; i++)
@@ -3561,7 +3560,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		 *   See Documentation/admin-guide/device-mapper/dm-raid.rst for
 		 *   information on each of these states.
 		 */
-		DMEMIT(" %s", sync_action);
+		DMEMIT(" %s", sync_str(state));
 
 		/*
 		 * v1.5.0+:
@@ -3594,18 +3593,20 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 	case STATUSTYPE_TABLE:
 		/* Report the table line string you would use to construct this raid set */
 
-		/* Calculate raid parameter count */
-		for (i = 0; i < rs->raid_disks; i++)
-			if (test_bit(WriteMostly, &rs->dev[i].rdev.flags))
-				write_mostly_params += 2;
-		rebuild_disks = memweight(rs->rebuild_disks, DISKS_ARRAY_ELEMS * sizeof(*rs->rebuild_disks));
-		raid_param_cnt += rebuild_disks * 2 +
-				  write_mostly_params +
+		/*
+		 * Count any rebuild or writemostly argument pairs and subtract the
+		 * hweight count being added below of any rebuild and writemostly ctr flags.
+		 */
+		for (i = 0; i < rs->raid_disks; i++) {
+			rebuild_writemostly_count += (test_bit(i, (void *) rs->rebuild_disks) ? 2 : 0) +
+						     (test_bit(WriteMostly, &rs->dev[i].rdev.flags) ? 2 : 0);
+		}
+		rebuild_writemostly_count -= (test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags) ? 2 : 0) +
+					     (test_bit(__CTR_FLAG_WRITE_MOSTLY, &rs->ctr_flags) ? 2 : 0);
+		/* Calculate raid parameter count based on ^ rebuild/writemostly argument counts and ctr flags set. */
+		raid_param_cnt += rebuild_writemostly_count +
 				  hweight32(rs->ctr_flags & CTR_FLAG_OPTIONS_NO_ARGS) +
-				  hweight32(rs->ctr_flags & CTR_FLAG_OPTIONS_ONE_ARG) * 2 +
-				  (test_bit(__CTR_FLAG_JOURNAL_DEV, &rs->ctr_flags) ? 2 : 0) +
-				  (test_bit(__CTR_FLAG_JOURNAL_MODE, &rs->ctr_flags) ? 2 : 0);
-
+				  hweight32(rs->ctr_flags & CTR_FLAG_OPTIONS_ONE_ARG) * 2;
 		/* Emit table line */
 		/* This has to be in the documented order for userspace! */
 		DMEMIT("%s %u %u", rs->raid_type->name, raid_param_cnt, mddev->new_chunk_sectors);
@@ -3613,11 +3614,10 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" %s", dm_raid_arg_name_by_flag(CTR_FLAG_SYNC));
 		if (test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags))
 			DMEMIT(" %s", dm_raid_arg_name_by_flag(CTR_FLAG_NOSYNC));
-		if (rebuild_disks)
+		if (test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags))
 			for (i = 0; i < rs->raid_disks; i++)
-				if (test_bit(rs->dev[i].rdev.raid_disk, (void *) rs->rebuild_disks))
-					DMEMIT(" %s %u", dm_raid_arg_name_by_flag(CTR_FLAG_REBUILD),
-							 rs->dev[i].rdev.raid_disk);
+				if (test_bit(i, (void *) rs->rebuild_disks))
+					DMEMIT(" %s %u", dm_raid_arg_name_by_flag(CTR_FLAG_REBUILD), i);
 		if (test_bit(__CTR_FLAG_DAEMON_SLEEP, &rs->ctr_flags))
 			DMEMIT(" %s %lu", dm_raid_arg_name_by_flag(CTR_FLAG_DAEMON_SLEEP),
 					  mddev->bitmap_info.daemon_sleep);
@@ -3627,7 +3627,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		if (test_bit(__CTR_FLAG_MAX_RECOVERY_RATE, &rs->ctr_flags))
 			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_MAX_RECOVERY_RATE),
 					 mddev->sync_speed_max);
-		if (write_mostly_params)
+		if (test_bit(__CTR_FLAG_WRITE_MOSTLY, &rs->ctr_flags))
 			for (i = 0; i < rs->raid_disks; i++)
 				if (test_bit(WriteMostly, &rs->dev[i].rdev.flags))
 					DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_WRITE_MOSTLY),
@@ -3955,11 +3955,22 @@ static int raid_preresume(struct dm_target *ti)
 	if (r)
 		return r;
 
-	/* Resize bitmap to adjust to changed region size (aka MD bitmap chunksize) */
-	if (test_bit(RT_FLAG_RS_BITMAP_LOADED, &rs->runtime_flags) && mddev->bitmap &&
-	    mddev->bitmap_info.chunksize != to_bytes(rs->requested_bitmap_chunk_sectors)) {
-		r = md_bitmap_resize(mddev->bitmap, mddev->dev_sectors,
-				     to_bytes(rs->requested_bitmap_chunk_sectors), 0);
+	/* We are extending the raid set size, adjust mddev/md_rdev sizes and set capacity. */
+	if (test_bit(RT_FLAG_RS_GROW, &rs->runtime_flags)) {
+		mddev->array_sectors = rs->array_sectors;
+		mddev->dev_sectors = rs->dev_sectors;
+		rs_set_rdev_sectors(rs);
+		rs_set_capacity(rs);
+	}
+
+	/* Resize bitmap to adjust to changed region size (aka MD bitmap chunksize) or grown device size */
+        if (test_bit(RT_FLAG_RS_BITMAP_LOADED, &rs->runtime_flags) && mddev->bitmap &&
+	    (test_bit(RT_FLAG_RS_GROW, &rs->runtime_flags) ||
+	     (rs->requested_bitmap_chunk_sectors &&
+	       mddev->bitmap_info.chunksize != to_bytes(rs->requested_bitmap_chunk_sectors)))) {
+		int chunksize = to_bytes(rs->requested_bitmap_chunk_sectors) ?: mddev->bitmap_info.chunksize;
+
+		r = md_bitmap_resize(mddev->bitmap, mddev->dev_sectors, chunksize, 0);
 		if (r)
 			DMERR("Failed to resize bitmap");
 	}
@@ -3968,8 +3979,10 @@ static int raid_preresume(struct dm_target *ti)
 	/* Be prepared for mddev_resume() in raid_resume() */
 	set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 	if (mddev->recovery_cp && mddev->recovery_cp < MaxSector) {
-		set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+		set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
 		mddev->resync_min = mddev->recovery_cp;
+		if (test_bit(RT_FLAG_RS_GROW, &rs->runtime_flags))
+			mddev->resync_max_sectors = mddev->dev_sectors;
 	}
 
 	/* Check for any reshape request unless new raid set */
@@ -4017,7 +4030,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 14, 0},
+	.version = {1, 15, 1},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,

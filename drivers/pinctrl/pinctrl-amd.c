@@ -540,7 +540,8 @@ static irqreturn_t amd_gpio_irq_handler(int irq, void *dev_id)
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int i, irqnr;
 	unsigned long flags;
-	u32 *regs, regval;
+	u32 __iomem *regs;
+	u32  regval;
 	u64 status, mask;
 
 	/* Read the wake status */
@@ -865,7 +866,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	gpio_dev->base = devm_ioremap_nocache(&pdev->dev, res->start,
+	gpio_dev->base = devm_ioremap(&pdev->dev, res->start,
 						resource_size(res));
 	if (!gpio_dev->base)
 		return -ENOMEM;

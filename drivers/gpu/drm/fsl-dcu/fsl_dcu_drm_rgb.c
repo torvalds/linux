@@ -9,6 +9,7 @@
 #include <linux/of_graph.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
@@ -67,7 +68,7 @@ static int fsl_dcu_drm_connector_get_modes(struct drm_connector *connector)
 	struct fsl_dcu_drm_connector *fsl_connector;
 
 	fsl_connector = to_fsl_dcu_connector(connector);
-	return drm_panel_get_modes(fsl_connector->panel);
+	return drm_panel_get_modes(fsl_connector->panel, connector);
 }
 
 static int fsl_dcu_drm_connector_mode_valid(struct drm_connector *connector,

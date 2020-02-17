@@ -29,10 +29,10 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500-bm.h>
-#include <linux/mfd/abx500/ab8500-gpadc.h>
 #include <linux/mfd/abx500/ux500_chargalg.h>
 #include <linux/usb/otg.h>
 #include <linux/mutex.h>
+#include <linux/iio/consumer.h>
 
 /* Charger constants */
 #define NO_PW_CONN			0
@@ -233,7 +233,10 @@ struct ab8500_charger_max_usb_in_curr {
  * @current_stepping_sessions:
  *			Counter for current stepping sessions
  * @parent:		Pointer to the struct ab8500
- * @gpadc:		Pointer to the struct gpadc
+ * @adc_main_charger_v	ADC channel for main charger voltage
+ * @adc_main_charger_c	ADC channel for main charger current
+ * @adc_vbus_v		ADC channel for USB charger voltage
+ * @adc_usb_charger_c	ADC channel for USB charger current
  * @bm:           	Platform specific battery management information
  * @flags:		Structure for information about events triggered
  * @usb_state:		Structure for usb stack information
@@ -283,7 +286,10 @@ struct ab8500_charger {
 	int is_aca_rid;
 	atomic_t current_stepping_sessions;
 	struct ab8500 *parent;
-	struct ab8500_gpadc *gpadc;
+	struct iio_channel *adc_main_charger_v;
+	struct iio_channel *adc_main_charger_c;
+	struct iio_channel *adc_vbus_v;
+	struct iio_channel *adc_usb_charger_c;
 	struct abx500_bm_data *bm;
 	struct ab8500_charger_event_flags flags;
 	struct ab8500_charger_usb_state usb_state;
@@ -459,13 +465,13 @@ static void ab8500_charger_set_usb_connected(struct ab8500_charger *di,
  */
 static int ab8500_charger_get_ac_voltage(struct ab8500_charger *di)
 {
-	int vch;
+	int vch, ret;
 
 	/* Only measure voltage if the charger is connected */
 	if (di->ac.charger_connected) {
-		vch = ab8500_gpadc_convert(di->gpadc, MAIN_CHARGER_V);
-		if (vch < 0)
-			dev_err(di->dev, "%s gpadc conv failed,\n", __func__);
+		ret = iio_read_channel_processed(di->adc_main_charger_v, &vch);
+		if (ret < 0)
+			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 	} else {
 		vch = 0;
 	}
@@ -510,13 +516,13 @@ static int ab8500_charger_ac_cv(struct ab8500_charger *di)
  */
 static int ab8500_charger_get_vbus_voltage(struct ab8500_charger *di)
 {
-	int vch;
+	int vch, ret;
 
 	/* Only measure voltage if the charger is connected */
 	if (di->usb.charger_connected) {
-		vch = ab8500_gpadc_convert(di->gpadc, VBUS_V);
-		if (vch < 0)
-			dev_err(di->dev, "%s gpadc conv failed\n", __func__);
+		ret = iio_read_channel_processed(di->adc_vbus_v, &vch);
+		if (ret < 0)
+			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 	} else {
 		vch = 0;
 	}
@@ -532,13 +538,13 @@ static int ab8500_charger_get_vbus_voltage(struct ab8500_charger *di)
  */
 static int ab8500_charger_get_usb_current(struct ab8500_charger *di)
 {
-	int ich;
+	int ich, ret;
 
 	/* Only measure current if the charger is online */
 	if (di->usb.charger_online) {
-		ich = ab8500_gpadc_convert(di->gpadc, USB_CHARGER_C);
-		if (ich < 0)
-			dev_err(di->dev, "%s gpadc conv failed\n", __func__);
+		ret = iio_read_channel_processed(di->adc_usb_charger_c, &ich);
+		if (ret < 0)
+			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 	} else {
 		ich = 0;
 	}
@@ -554,13 +560,13 @@ static int ab8500_charger_get_usb_current(struct ab8500_charger *di)
  */
 static int ab8500_charger_get_ac_current(struct ab8500_charger *di)
 {
-	int ich;
+	int ich, ret;
 
 	/* Only measure current if the charger is online */
 	if (di->ac.charger_online) {
-		ich = ab8500_gpadc_convert(di->gpadc, MAIN_CHARGER_C);
-		if (ich < 0)
-			dev_err(di->dev, "%s gpadc conv failed\n", __func__);
+		ret = iio_read_channel_processed(di->adc_main_charger_c, &ich);
+		if (ret < 0)
+			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 	} else {
 		ich = 0;
 	}
@@ -783,7 +789,7 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
 		ret = -ENXIO;
 		break;
-	};
+	}
 
 	di->max_usb_in_curr.set_max = di->max_usb_in_curr.usb_type_max;
 	dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d",
@@ -1073,7 +1079,7 @@ static int ab8500_charger_get_usb_cur(struct ab8500_charger *di)
 		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
 		ret = -EPERM;
 		break;
-	};
+	}
 	di->max_usb_in_curr.set_max = di->max_usb_in_curr.usb_type_max;
 	return ret;
 }
@@ -2421,7 +2427,7 @@ static void ab8500_charger_usb_state_changed_work(struct work_struct *work)
 
 	default:
 		break;
-	};
+	}
 }
 
 /**
@@ -3371,7 +3377,39 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	/* get parent data */
 	di->dev = &pdev->dev;
 	di->parent = dev_get_drvdata(pdev->dev.parent);
-	di->gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
+
+	/* Get ADC channels */
+	di->adc_main_charger_v = devm_iio_channel_get(&pdev->dev,
+						      "main_charger_v");
+	if (IS_ERR(di->adc_main_charger_v)) {
+		if (PTR_ERR(di->adc_main_charger_v) == -ENODEV)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "failed to get ADC main charger voltage\n");
+		return PTR_ERR(di->adc_main_charger_v);
+	}
+	di->adc_main_charger_c = devm_iio_channel_get(&pdev->dev,
+						      "main_charger_c");
+	if (IS_ERR(di->adc_main_charger_c)) {
+		if (PTR_ERR(di->adc_main_charger_c) == -ENODEV)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "failed to get ADC main charger current\n");
+		return PTR_ERR(di->adc_main_charger_c);
+	}
+	di->adc_vbus_v = devm_iio_channel_get(&pdev->dev, "vbus_v");
+	if (IS_ERR(di->adc_vbus_v)) {
+		if (PTR_ERR(di->adc_vbus_v) == -ENODEV)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "failed to get ADC USB charger voltage\n");
+		return PTR_ERR(di->adc_vbus_v);
+	}
+	di->adc_usb_charger_c = devm_iio_channel_get(&pdev->dev,
+						     "usb_charger_c");
+	if (IS_ERR(di->adc_usb_charger_c)) {
+		if (PTR_ERR(di->adc_usb_charger_c) == -ENODEV)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "failed to get ADC USB charger current\n");
+		return PTR_ERR(di->adc_usb_charger_c);
+	}
 
 	/* initialize lock */
 	spin_lock_init(&di->usb_state.usb_lock);
@@ -3556,6 +3594,11 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	/* Register interrupts */
 	for (i = 0; i < ARRAY_SIZE(ab8500_charger_irq); i++) {
 		irq = platform_get_irq_byname(pdev, ab8500_charger_irq[i].name);
+		if (irq < 0) {
+			ret = irq;
+			goto free_irq;
+		}
+
 		ret = request_threaded_irq(irq, NULL, ab8500_charger_irq[i].isr,
 			IRQF_SHARED | IRQF_NO_SUSPEND,
 			ab8500_charger_irq[i].name, di);

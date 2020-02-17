@@ -429,6 +429,14 @@ static const struct dmi_system_id critclk_systems[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "6AV7882-0"),
 		},
 	},
+	{
+		.ident = "CONNECT X300",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "SIEMENS AG"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "A5E45074588"),
+		},
+	},
+
 	{ /*sentinel*/ }
 };
 
@@ -481,7 +489,7 @@ static int pmc_setup_dev(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_read_config_dword(pdev, PMC_BASE_ADDR_OFFSET, &pmc->base_addr);
 	pmc->base_addr &= PMC_BASE_ADDR_MASK;
 
-	pmc->regmap = ioremap_nocache(pmc->base_addr, PMC_MMIO_REG_LEN);
+	pmc->regmap = ioremap(pmc->base_addr, PMC_MMIO_REG_LEN);
 	if (!pmc->regmap) {
 		dev_err(&pdev->dev, "error: ioremap failed\n");
 		return -ENOMEM;

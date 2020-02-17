@@ -317,8 +317,6 @@ struct amdgpu_ras {
 	struct list_head head;
 	/* debugfs */
 	struct dentry *dir;
-	/* debugfs ctrl */
-	struct dentry *ent;
 	/* sysfs */
 	struct device_attribute features_attr;
 	struct bin_attribute badpages_attr;
@@ -334,7 +332,7 @@ struct amdgpu_ras {
 	struct mutex recovery_lock;
 
 	uint32_t flags;
-
+	bool reboot;
 	struct amdgpu_ras_eeprom_control eeprom_control;
 };
 
@@ -347,15 +345,14 @@ struct ras_err_data {
 	unsigned long ue_count;
 	unsigned long ce_count;
 	unsigned long err_addr_cnt;
-	uint64_t *err_addr;
+	struct eeprom_table_record *err_addr;
 };
 
 struct ras_err_handler_data {
-	/* point to bad pages array */
-	struct {
-		unsigned long bp;
-		struct amdgpu_bo *bo;
-	} *bps;
+	/* point to bad page records array */
+	struct eeprom_table_record *bps;
+	/* point to reserved bo array */
+	struct amdgpu_bo **bps_bo;
 	/* the count of entries */
 	int count;
 	/* the space can place new entries */
@@ -365,7 +362,7 @@ struct ras_err_handler_data {
 };
 
 typedef int (*ras_ih_cb)(struct amdgpu_device *adev,
-		struct ras_err_data *err_data,
+		void *err_data,
 		struct amdgpu_iv_entry *entry);
 
 struct ras_ih_data {
@@ -481,6 +478,7 @@ static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 	return ras && (ras->supported & (1 << block));
 }
 
+int amdgpu_ras_recovery_init(struct amdgpu_device *adev);
 int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
 		unsigned int block);
 
@@ -492,14 +490,19 @@ unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 
 /* error handling functions */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
-		unsigned long *bps, int pages);
+		struct eeprom_table_record *bps, int pages);
 
 int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev);
 
-static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev,
-		bool is_baco)
+static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	/* save bad page to eeprom before gpu reset,
+	 * i2c may be unstable in gpu reset
+	 */
+	if (in_task())
+		amdgpu_ras_reserve_bad_pages(adev);
 
 	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
 		schedule_work(&ras->recovery_work);
@@ -566,6 +569,13 @@ amdgpu_ras_error_to_ta(enum amdgpu_ras_error_type error) {
 int amdgpu_ras_init(struct amdgpu_device *adev);
 int amdgpu_ras_fini(struct amdgpu_device *adev);
 int amdgpu_ras_pre_fini(struct amdgpu_device *adev);
+int amdgpu_ras_late_init(struct amdgpu_device *adev,
+			 struct ras_common_if *ras_block,
+			 struct ras_fs_if *fs_info,
+			 struct ras_ih_if *ih_info);
+void amdgpu_ras_late_fini(struct amdgpu_device *adev,
+			  struct ras_common_if *ras_block,
+			  struct ras_ih_if *ih_info);
 
 int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 		struct ras_common_if *head, bool enable);
@@ -599,4 +609,22 @@ int amdgpu_ras_interrupt_remove_handler(struct amdgpu_device *adev,
 
 int amdgpu_ras_interrupt_dispatch(struct amdgpu_device *adev,
 		struct ras_dispatch_if *info);
+
+struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
+		struct ras_common_if *head);
+
+extern atomic_t amdgpu_ras_in_intr;
+
+static inline bool amdgpu_ras_intr_triggered(void)
+{
+	return !!atomic_read(&amdgpu_ras_in_intr);
+}
+
+static inline void amdgpu_ras_intr_cleared(void)
+{
+	atomic_set(&amdgpu_ras_in_intr, 0);
+}
+
+void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev);
+
 #endif

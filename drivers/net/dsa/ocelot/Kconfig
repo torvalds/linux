@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config NET_DSA_MSCC_FELIX
+	tristate "Ocelot / Felix Ethernet switch support"
+	depends on NET_DSA && PCI
+	depends on NET_VENDOR_MICROSEMI
+	depends on NET_VENDOR_FREESCALE
+	select MSCC_OCELOT_SWITCH
+	select NET_DSA_TAG_OCELOT
+	select FSL_ENETC_MDIO
+	help
+	  This driver supports the VSC9959 network switch, which is a member of
+	  the Vitesse / Microsemi / Microchip Ocelot family of switching cores.
+	  It is embedded as a PCIe function of the NXP LS1028A ENETC integrated
+	  endpoint.

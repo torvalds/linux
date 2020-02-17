@@ -26,7 +26,14 @@
 #define ADIS_MSC_CTRL_DATA_RDY_DIO2	BIT(0)
 #define ADIS_GLOB_CMD_SW_RESET		BIT(7)
 
-int adis_write_reg(struct adis *adis, unsigned int reg,
+/**
+ * __adis_write_reg() - write N bytes to register (unlocked version)
+ * @adis: The adis device
+ * @reg: The address of the lower of the two registers
+ * @value: The value to write to device (up to 4 bytes)
+ * @size: The size of the @value (in bytes)
+ */
+int __adis_write_reg(struct adis *adis, unsigned int reg,
 	unsigned int value, unsigned int size)
 {
 	unsigned int page = reg / ADIS_PAGE_SIZE;
@@ -38,39 +45,42 @@ int adis_write_reg(struct adis *adis, unsigned int reg,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = adis->data->write_delay,
-			.cs_change_delay = adis->data->cs_change_delay,
-			.cs_change_delay_unit = SPI_DELAY_UNIT_USECS,
+			.delay.value = adis->data->write_delay,
+			.delay.unit = SPI_DELAY_UNIT_USECS,
+			.cs_change_delay.value = adis->data->cs_change_delay,
+			.cs_change_delay.unit = SPI_DELAY_UNIT_USECS,
 		}, {
 			.tx_buf = adis->tx + 2,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = adis->data->write_delay,
-			.cs_change_delay = adis->data->cs_change_delay,
-			.cs_change_delay_unit = SPI_DELAY_UNIT_USECS,
+			.delay.value = adis->data->write_delay,
+			.delay.unit = SPI_DELAY_UNIT_USECS,
+			.cs_change_delay.value = adis->data->cs_change_delay,
+			.cs_change_delay.unit = SPI_DELAY_UNIT_USECS,
 		}, {
 			.tx_buf = adis->tx + 4,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = adis->data->write_delay,
-			.cs_change_delay = adis->data->cs_change_delay,
-			.cs_change_delay_unit = SPI_DELAY_UNIT_USECS,
+			.delay.value = adis->data->write_delay,
+			.delay.unit = SPI_DELAY_UNIT_USECS,
+			.cs_change_delay.value = adis->data->cs_change_delay,
+			.cs_change_delay.unit = SPI_DELAY_UNIT_USECS,
 		}, {
 			.tx_buf = adis->tx + 6,
 			.bits_per_word = 8,
 			.len = 2,
-			.delay_usecs = adis->data->write_delay,
+			.delay.value = adis->data->write_delay,
+			.delay.unit = SPI_DELAY_UNIT_USECS,
 		}, {
 			.tx_buf = adis->tx + 8,
 			.bits_per_word = 8,
 			.len = 2,
-			.delay_usecs = adis->data->write_delay,
+			.delay.value = adis->data->write_delay,
+			.delay.unit = SPI_DELAY_UNIT_USECS,
 		},
 	};
-
-	mutex_lock(&adis->txrx_lock);
 
 	spi_message_init(&msg);
 
@@ -96,8 +106,7 @@ int adis_write_reg(struct adis *adis, unsigned int reg,
 		adis->tx[3] = value & 0xff;
 		break;
 	default:
-		ret = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	xfers[size].cs_change = 0;
@@ -113,20 +122,18 @@ int adis_write_reg(struct adis *adis, unsigned int reg,
 		adis->current_page = page;
 	}
 
-out_unlock:
-	mutex_unlock(&adis->txrx_lock);
-
 	return ret;
 }
-EXPORT_SYMBOL_GPL(adis_write_reg);
+EXPORT_SYMBOL_GPL(__adis_write_reg);
 
 /**
- * adis_read_reg() - read 2 bytes from a 16-bit register
+ * __adis_read_reg() - read N bytes from register (unlocked version)
  * @adis: The adis device
  * @reg: The address of the lower of the two registers
  * @val: The value read back from the device
+ * @size: The size of the @val buffer
  */
-int adis_read_reg(struct adis *adis, unsigned int reg,
+int __adis_read_reg(struct adis *adis, unsigned int reg,
 	unsigned int *val, unsigned int size)
 {
 	unsigned int page = reg / ADIS_PAGE_SIZE;
@@ -138,35 +145,38 @@ int adis_read_reg(struct adis *adis, unsigned int reg,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = adis->data->write_delay,
-			.cs_change_delay = adis->data->cs_change_delay,
-			.cs_change_delay_unit = SPI_DELAY_UNIT_USECS,
+			.delay.value = adis->data->write_delay,
+			.delay.unit = SPI_DELAY_UNIT_USECS,
+			.cs_change_delay.value = adis->data->cs_change_delay,
+			.cs_change_delay.unit = SPI_DELAY_UNIT_USECS,
 		}, {
 			.tx_buf = adis->tx + 2,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = adis->data->read_delay,
-			.cs_change_delay = adis->data->cs_change_delay,
-			.cs_change_delay_unit = SPI_DELAY_UNIT_USECS,
+			.delay.value = adis->data->read_delay,
+			.delay.unit = SPI_DELAY_UNIT_USECS,
+			.cs_change_delay.value = adis->data->cs_change_delay,
+			.cs_change_delay.unit = SPI_DELAY_UNIT_USECS,
 		}, {
 			.tx_buf = adis->tx + 4,
 			.rx_buf = adis->rx,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = adis->data->read_delay,
-			.cs_change_delay = adis->data->cs_change_delay,
-			.cs_change_delay_unit = SPI_DELAY_UNIT_USECS,
+			.delay.value = adis->data->read_delay,
+			.delay.unit = SPI_DELAY_UNIT_USECS,
+			.cs_change_delay.value = adis->data->cs_change_delay,
+			.cs_change_delay.unit = SPI_DELAY_UNIT_USECS,
 		}, {
 			.rx_buf = adis->rx + 2,
 			.bits_per_word = 8,
 			.len = 2,
-			.delay_usecs = adis->data->read_delay,
+			.delay.value = adis->data->read_delay,
+			.delay.unit = SPI_DELAY_UNIT_USECS,
 		},
 	};
 
-	mutex_lock(&adis->txrx_lock);
 	spi_message_init(&msg);
 
 	if (adis->current_page != page) {
@@ -188,15 +198,14 @@ int adis_read_reg(struct adis *adis, unsigned int reg,
 		spi_message_add_tail(&xfers[3], &msg);
 		break;
 	default:
-		ret = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	ret = spi_sync(adis->spi, &msg);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Failed to read register 0x%02X: %d\n",
 				reg, ret);
-		goto out_unlock;
+		return ret;
 	} else {
 		adis->current_page = page;
 	}
@@ -210,12 +219,9 @@ int adis_read_reg(struct adis *adis, unsigned int reg,
 		break;
 	}
 
-out_unlock:
-	mutex_unlock(&adis->txrx_lock);
-
 	return ret;
 }
-EXPORT_SYMBOL_GPL(adis_read_reg);
+EXPORT_SYMBOL_GPL(__adis_read_reg);
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -229,7 +235,8 @@ int adis_debugfs_reg_access(struct iio_dev *indio_dev,
 		int ret;
 
 		ret = adis_read_reg_16(adis, reg, &val16);
-		*readval = val16;
+		if (ret == 0)
+			*readval = val16;
 
 		return ret;
 	} else {
@@ -252,12 +259,16 @@ int adis_enable_irq(struct adis *adis, bool enable)
 	int ret = 0;
 	uint16_t msc;
 
-	if (adis->data->enable_irq)
-		return adis->data->enable_irq(adis, enable);
+	mutex_lock(&adis->state_lock);
 
-	ret = adis_read_reg_16(adis, adis->data->msc_ctrl_reg, &msc);
+	if (adis->data->enable_irq) {
+		ret = adis->data->enable_irq(adis, enable);
+		goto out_unlock;
+	}
+
+	ret = __adis_read_reg_16(adis, adis->data->msc_ctrl_reg, &msc);
 	if (ret)
-		goto error_ret;
+		goto out_unlock;
 
 	msc |= ADIS_MSC_CTRL_DATA_RDY_POL_HIGH;
 	msc &= ~ADIS_MSC_CTRL_DATA_RDY_DIO2;
@@ -266,27 +277,28 @@ int adis_enable_irq(struct adis *adis, bool enable)
 	else
 		msc &= ~ADIS_MSC_CTRL_DATA_RDY_EN;
 
-	ret = adis_write_reg_16(adis, adis->data->msc_ctrl_reg, msc);
+	ret = __adis_write_reg_16(adis, adis->data->msc_ctrl_reg, msc);
 
-error_ret:
+out_unlock:
+	mutex_unlock(&adis->state_lock);
 	return ret;
 }
 EXPORT_SYMBOL(adis_enable_irq);
 
 /**
- * adis_check_status() - Check the device for error conditions
+ * __adis_check_status() - Check the device for error conditions (unlocked)
  * @adis: The adis device
  *
  * Returns 0 on success, a negative error code otherwise
  */
-int adis_check_status(struct adis *adis)
+int __adis_check_status(struct adis *adis)
 {
 	uint16_t status;
 	int ret;
 	int i;
 
-	ret = adis_read_reg_16(adis, adis->data->diag_stat_reg, &status);
-	if (ret < 0)
+	ret = __adis_read_reg_16(adis, adis->data->diag_stat_reg, &status);
+	if (ret)
 		return ret;
 
 	status &= adis->data->status_error_mask;
@@ -303,32 +315,38 @@ int adis_check_status(struct adis *adis)
 
 	return -EIO;
 }
-EXPORT_SYMBOL_GPL(adis_check_status);
+EXPORT_SYMBOL_GPL(__adis_check_status);
 
 /**
- * adis_reset() - Reset the device
+ * __adis_reset() - Reset the device (unlocked version)
  * @adis: The adis device
  *
  * Returns 0 on success, a negative error code otherwise
  */
-int adis_reset(struct adis *adis)
+int __adis_reset(struct adis *adis)
 {
 	int ret;
+	const struct adis_timeout *timeouts = adis->data->timeouts;
 
-	ret = adis_write_reg_8(adis, adis->data->glob_cmd_reg,
+	ret = __adis_write_reg_8(adis, adis->data->glob_cmd_reg,
 			ADIS_GLOB_CMD_SW_RESET);
-	if (ret)
+	if (ret) {
 		dev_err(&adis->spi->dev, "Failed to reset device: %d\n", ret);
+		return ret;
+	}
 
-	return ret;
+	msleep(timeouts->sw_reset_ms);
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(adis_reset);
+EXPORT_SYMBOL_GPL(__adis_reset);
 
 static int adis_self_test(struct adis *adis)
 {
 	int ret;
+	const struct adis_timeout *timeouts = adis->data->timeouts;
 
-	ret = adis_write_reg_16(adis, adis->data->msc_ctrl_reg,
+	ret = __adis_write_reg_16(adis, adis->data->msc_ctrl_reg,
 			adis->data->self_test_mask);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Failed to initiate self test: %d\n",
@@ -336,12 +354,12 @@ static int adis_self_test(struct adis *adis)
 		return ret;
 	}
 
-	msleep(adis->data->startup_delay);
+	msleep(timeouts->self_test_ms);
 
-	ret = adis_check_status(adis);
+	ret = __adis_check_status(adis);
 
 	if (adis->data->self_test_no_autoclear)
-		adis_write_reg_16(adis, adis->data->msc_ctrl_reg, 0x00);
+		__adis_write_reg_16(adis, adis->data->msc_ctrl_reg, 0x00);
 
 	return ret;
 }
@@ -359,19 +377,22 @@ int adis_initial_startup(struct adis *adis)
 {
 	int ret;
 
+	mutex_lock(&adis->state_lock);
+
 	ret = adis_self_test(adis);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Self-test failed, trying reset.\n");
-		adis_reset(adis);
-		msleep(adis->data->startup_delay);
+		__adis_reset(adis);
 		ret = adis_self_test(adis);
 		if (ret) {
 			dev_err(&adis->spi->dev, "Second self-test failed, giving up.\n");
-			return ret;
+			goto out_unlock;
 		}
 	}
 
-	return 0;
+out_unlock:
+	mutex_unlock(&adis->state_lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(adis_initial_startup);
 
@@ -397,15 +418,15 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 	unsigned int uval;
 	int ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&adis->state_lock);
 
-	ret = adis_read_reg(adis, chan->address, &uval,
+	ret = __adis_read_reg(adis, chan->address, &uval,
 			chan->scan_type.storagebits / 8);
 	if (ret)
 		goto err_unlock;
 
 	if (uval & error_mask) {
-		ret = adis_check_status(adis);
+		ret = __adis_check_status(adis);
 		if (ret)
 			goto err_unlock;
 	}
@@ -417,7 +438,7 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 
 	ret = IIO_VAL_INT;
 err_unlock:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&adis->state_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(adis_single_conversion);
@@ -437,7 +458,12 @@ EXPORT_SYMBOL_GPL(adis_single_conversion);
 int adis_init(struct adis *adis, struct iio_dev *indio_dev,
 	struct spi_device *spi, const struct adis_data *data)
 {
-	mutex_init(&adis->txrx_lock);
+	if (!data || !data->timeouts) {
+		dev_err(&spi->dev, "No config data or timeouts not defined!\n");
+		return -EINVAL;
+	}
+
+	mutex_init(&adis->state_lock);
 	adis->spi = spi;
 	adis->data = data;
 	iio_device_set_drvdata(indio_dev, adis);

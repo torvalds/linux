@@ -1685,6 +1685,14 @@ static u64 access_sw_pio_drain(const struct cntr_entry *entry,
 	return dd->verbs_dev.n_piodrain;
 }
 
+static u64 access_sw_ctx0_seq_drop(const struct cntr_entry *entry,
+				   void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = context;
+
+	return dd->ctx0_seq_drop;
+}
+
 static u64 access_sw_vtx_wait(const struct cntr_entry *entry,
 			      void *context, int vl, int mode, u64 data)
 {
@@ -4106,6 +4114,7 @@ def_access_ibp_counter(rc_crwaits);
 static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 [C_RCV_OVF] = RXE32_DEV_CNTR_ELEM(RcvOverflow, RCV_BUF_OVFL_CNT, CNTR_SYNTH),
 [C_RX_LEN_ERR] = RXE32_DEV_CNTR_ELEM(RxLenErr, RCV_LENGTH_ERR_CNT, CNTR_SYNTH),
+[C_RX_SHORT_ERR] = RXE32_DEV_CNTR_ELEM(RxShrErr, RCV_SHORT_ERR_CNT, CNTR_SYNTH),
 [C_RX_ICRC_ERR] = RXE32_DEV_CNTR_ELEM(RxICrcErr, RCV_ICRC_ERR_CNT, CNTR_SYNTH),
 [C_RX_EBP] = RXE32_DEV_CNTR_ELEM(RxEbpCnt, RCV_EBP_CNT, CNTR_SYNTH),
 [C_RX_TID_FULL] = RXE32_DEV_CNTR_ELEM(RxTIDFullEr, RCV_TID_FULL_ERR_CNT,
@@ -4249,6 +4258,8 @@ static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 			    access_sw_cpu_intr),
 [C_SW_CPU_RCV_LIM] = CNTR_ELEM("RcvLimit", 0, 0, CNTR_NORMAL,
 			    access_sw_cpu_rcv_limit),
+[C_SW_CTX0_SEQ_DROP] = CNTR_ELEM("SeqDrop0", 0, 0, CNTR_NORMAL,
+			    access_sw_ctx0_seq_drop),
 [C_SW_VTX_WAIT] = CNTR_ELEM("vTxWait", 0, 0, CNTR_NORMAL,
 			    access_sw_vtx_wait),
 [C_SW_PIO_WAIT] = CNTR_ELEM("PioWait", 0, 0, CNTR_NORMAL,
@@ -6862,7 +6873,7 @@ static void rxe_kernel_unfreeze(struct hfi1_devdata *dd)
 		}
 		rcvmask = HFI1_RCVCTRL_CTXT_ENB;
 		/* HFI1_RCVCTRL_TAILUPD_[ENB|DIS] needs to be set explicitly */
-		rcvmask |= rcd->rcvhdrtail_kvaddr ?
+		rcvmask |= hfi1_rcvhdrtail_kvaddr(rcd) ?
 			HFI1_RCVCTRL_TAILUPD_ENB : HFI1_RCVCTRL_TAILUPD_DIS;
 		hfi1_rcvctrl(dd, rcvmask, rcd);
 		hfi1_rcd_put(rcd);
@@ -8394,20 +8405,62 @@ void force_recv_intr(struct hfi1_ctxtdata *rcd)
 static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
 {
 	u32 tail;
-	int present;
 
-	if (!rcd->rcvhdrtail_kvaddr)
-		present = (rcd->seq_cnt ==
-				rhf_rcv_seq(rhf_to_cpu(get_rhf_addr(rcd))));
-	else /* is RDMA rtail */
-		present = (rcd->head != get_rcvhdrtail(rcd));
-
-	if (present)
+	if (hfi1_packet_present(rcd))
 		return 1;
 
 	/* fall back to a CSR read, correct indpendent of DMA_RTAIL */
 	tail = (u32)read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL);
-	return rcd->head != tail;
+	return hfi1_rcd_head(rcd) != tail;
+}
+
+/**
+ * Common code for receive contexts interrupt handlers.
+ * Update traces, increment kernel IRQ counter and
+ * setup ASPM when needed.
+ */
+static void receive_interrupt_common(struct hfi1_ctxtdata *rcd)
+{
+	struct hfi1_devdata *dd = rcd->dd;
+
+	trace_hfi1_receive_interrupt(dd, rcd);
+	this_cpu_inc(*dd->int_counter);
+	aspm_ctx_disable(rcd);
+}
+
+/**
+ * __hfi1_rcd_eoi_intr() - Make HW issue receive interrupt
+ * when there are packets present in the queue. When calling
+ * with interrupts enabled please use hfi1_rcd_eoi_intr.
+ *
+ * @rcd: valid receive context
+ */
+static void __hfi1_rcd_eoi_intr(struct hfi1_ctxtdata *rcd)
+{
+	clear_recv_intr(rcd);
+	if (check_packet_present(rcd))
+		force_recv_intr(rcd);
+}
+
+/**
+ * hfi1_rcd_eoi_intr() - End of Interrupt processing action
+ *
+ * @rcd: Ptr to hfi1_ctxtdata of receive context
+ *
+ *  Hold IRQs so we can safely clear the interrupt and
+ *  recheck for a packet that may have arrived after the previous
+ *  check and the interrupt clear.  If a packet arrived, force another
+ *  interrupt. This routine can be called at the end of receive packet
+ *  processing in interrupt service routines, interrupt service thread
+ *  and softirqs
+ */
+static void hfi1_rcd_eoi_intr(struct hfi1_ctxtdata *rcd)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__hfi1_rcd_eoi_intr(rcd);
+	local_irq_restore(flags);
 }
 
 /*
@@ -8421,13 +8474,9 @@ static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
 irqreturn_t receive_context_interrupt(int irq, void *data)
 {
 	struct hfi1_ctxtdata *rcd = data;
-	struct hfi1_devdata *dd = rcd->dd;
 	int disposition;
-	int present;
 
-	trace_hfi1_receive_interrupt(dd, rcd);
-	this_cpu_inc(*dd->int_counter);
-	aspm_ctx_disable(rcd);
+	receive_interrupt_common(rcd);
 
 	/* receive interrupt remains blocked while processing packets */
 	disposition = rcd->do_interrupt(rcd, 0);
@@ -8440,17 +8489,7 @@ irqreturn_t receive_context_interrupt(int irq, void *data)
 	if (disposition == RCV_PKT_LIMIT)
 		return IRQ_WAKE_THREAD;
 
-	/*
-	 * The packet processor detected no more packets.  Clear the receive
-	 * interrupt and recheck for a packet packet that may have arrived
-	 * after the previous check and interrupt clear.  If a packet arrived,
-	 * force another interrupt.
-	 */
-	clear_recv_intr(rcd);
-	present = check_packet_present(rcd);
-	if (present)
-		force_recv_intr(rcd);
-
+	__hfi1_rcd_eoi_intr(rcd);
 	return IRQ_HANDLED;
 }
 
@@ -8461,24 +8500,11 @@ irqreturn_t receive_context_interrupt(int irq, void *data)
 irqreturn_t receive_context_thread(int irq, void *data)
 {
 	struct hfi1_ctxtdata *rcd = data;
-	int present;
 
 	/* receive interrupt is still blocked from the IRQ handler */
 	(void)rcd->do_interrupt(rcd, 1);
 
-	/*
-	 * The packet processor will only return if it detected no more
-	 * packets.  Hold IRQs here so we can safely clear the interrupt and
-	 * recheck for a packet that may have arrived after the previous
-	 * check and the interrupt clear.  If a packet arrived, force another
-	 * interrupt.
-	 */
-	local_irq_disable();
-	clear_recv_intr(rcd);
-	present = check_packet_present(rcd);
-	if (present)
-		force_recv_intr(rcd);
-	local_irq_enable();
+	hfi1_rcd_eoi_intr(rcd);
 
 	return IRQ_HANDLED;
 }
@@ -10049,7 +10075,7 @@ u32 lrh_max_header_bytes(struct hfi1_devdata *dd)
 	 * the first kernel context would have been allocated by now so
 	 * we are guaranteed a valid value.
 	 */
-	return (dd->rcd[0]->rcvhdrqentsize - 2/*PBC/RHF*/ + 1/*ICRC*/) << 2;
+	return (get_hdrqentsize(dd->rcd[0]) - 2/*PBC/RHF*/ + 1/*ICRC*/) << 2;
 }
 
 /*
@@ -10094,7 +10120,7 @@ static void set_send_length(struct hfi1_pportdata *ppd)
 		thres = min(sc_percent_to_threshold(dd->vld[i].sc, 50),
 			    sc_mtu_to_threshold(dd->vld[i].sc,
 						dd->vld[i].mtu,
-						dd->rcd[0]->rcvhdrqentsize));
+						get_hdrqentsize(dd->rcd[0])));
 		for (j = 0; j < INIT_SC_PER_VL; j++)
 			sc_set_cr_threshold(
 					pio_select_send_context_vl(dd, j, i),
@@ -11821,7 +11847,7 @@ u32 hdrqempty(struct hfi1_ctxtdata *rcd)
 	head = (read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_HEAD)
 		& RCV_HDR_HEAD_HEAD_SMASK) >> RCV_HDR_HEAD_HEAD_SHIFT;
 
-	if (rcd->rcvhdrtail_kvaddr)
+	if (hfi1_rcvhdrtail_kvaddr(rcd))
 		tail = get_rcvhdrtail(rcd);
 	else
 		tail = read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL);
@@ -11865,6 +11891,84 @@ static u32 encoded_size(u32 size)
 	return 0x1;	/* if invalid, go with the minimum size */
 }
 
+/**
+ * encode_rcv_header_entry_size - return chip specific encoding for size
+ * @size: size in dwords
+ *
+ * Convert a receive header entry size that to the encoding used in the CSR.
+ *
+ * Return a zero if the given size is invalid, otherwise the encoding.
+ */
+u8 encode_rcv_header_entry_size(u8 size)
+{
+	/* there are only 3 valid receive header entry sizes */
+	if (size == 2)
+		return 1;
+	if (size == 16)
+		return 2;
+	if (size == 32)
+		return 4;
+	return 0; /* invalid */
+}
+
+/**
+ * hfi1_validate_rcvhdrcnt - validate hdrcnt
+ * @dd: the device data
+ * @thecnt: the header count
+ */
+int hfi1_validate_rcvhdrcnt(struct hfi1_devdata *dd, uint thecnt)
+{
+	if (thecnt <= HFI1_MIN_HDRQ_EGRBUF_CNT) {
+		dd_dev_err(dd, "Receive header queue count too small\n");
+		return -EINVAL;
+	}
+
+	if (thecnt > HFI1_MAX_HDRQ_EGRBUF_CNT) {
+		dd_dev_err(dd,
+			   "Receive header queue count cannot be greater than %u\n",
+			   HFI1_MAX_HDRQ_EGRBUF_CNT);
+		return -EINVAL;
+	}
+
+	if (thecnt % HDRQ_INCREMENT) {
+		dd_dev_err(dd, "Receive header queue count %d must be divisible by %lu\n",
+			   thecnt, HDRQ_INCREMENT);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * set_hdrq_regs - set header queue registers for context
+ * @dd: the device data
+ * @ctxt: the context
+ * @entsize: the dword entry size
+ * @hdrcnt: the number of header entries
+ */
+void set_hdrq_regs(struct hfi1_devdata *dd, u8 ctxt, u8 entsize, u16 hdrcnt)
+{
+	u64 reg;
+
+	reg = (((u64)hdrcnt >> HDRQ_SIZE_SHIFT) & RCV_HDR_CNT_CNT_MASK) <<
+	      RCV_HDR_CNT_CNT_SHIFT;
+	write_kctxt_csr(dd, ctxt, RCV_HDR_CNT, reg);
+	reg = ((u64)encode_rcv_header_entry_size(entsize) &
+	       RCV_HDR_ENT_SIZE_ENT_SIZE_MASK) <<
+	      RCV_HDR_ENT_SIZE_ENT_SIZE_SHIFT;
+	write_kctxt_csr(dd, ctxt, RCV_HDR_ENT_SIZE, reg);
+	reg = ((u64)DEFAULT_RCVHDRSIZE & RCV_HDR_SIZE_HDR_SIZE_MASK) <<
+	      RCV_HDR_SIZE_HDR_SIZE_SHIFT;
+	write_kctxt_csr(dd, ctxt, RCV_HDR_SIZE, reg);
+
+	/*
+	 * Program dummy tail address for every receive context
+	 * before enabling any receive context
+	 */
+	write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
+			dd->rcvhdrtail_dummy_dma);
+}
+
 void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		  struct hfi1_ctxtdata *rcd)
 {
@@ -11886,13 +11990,13 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		/* reset the tail and hdr addresses, and sequence count */
 		write_kctxt_csr(dd, ctxt, RCV_HDR_ADDR,
 				rcd->rcvhdrq_dma);
-		if (rcd->rcvhdrtail_kvaddr)
+		if (hfi1_rcvhdrtail_kvaddr(rcd))
 			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
 					rcd->rcvhdrqtailaddr_dma);
-		rcd->seq_cnt = 1;
+		hfi1_set_seq_cnt(rcd, 1);
 
 		/* reset the cached receive header queue head value */
-		rcd->head = 0;
+		hfi1_set_rcd_head(rcd, 0);
 
 		/*
 		 * Zero the receive header queue so we don't get false
@@ -11972,7 +12076,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 			      IS_RCVAVAIL_START + rcd->ctxt, false);
 		rcvctrl &= ~RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
 	}
-	if ((op & HFI1_RCVCTRL_TAILUPD_ENB) && rcd->rcvhdrtail_kvaddr)
+	if ((op & HFI1_RCVCTRL_TAILUPD_ENB) && hfi1_rcvhdrtail_kvaddr(rcd))
 		rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 	if (op & HFI1_RCVCTRL_TAILUPD_DIS) {
 		/* See comment on RcvCtxtCtrl.TailUpd above */

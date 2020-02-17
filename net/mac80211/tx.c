@@ -1617,7 +1617,7 @@ static bool ieee80211_queue_skb(struct ieee80211_local *local,
 
 static bool ieee80211_tx_frags(struct ieee80211_local *local,
 			       struct ieee80211_vif *vif,
-			       struct ieee80211_sta *sta,
+			       struct sta_info *sta,
 			       struct sk_buff_head *skbs,
 			       bool txpending)
 {
@@ -1679,7 +1679,7 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
 		info->control.vif = vif;
-		control.sta = sta;
+		control.sta = sta ? &sta->sta : NULL;
 
 		__skb_unlink(skb, skbs);
 		drv_tx(local, &control, skb);
@@ -1698,7 +1698,6 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_vif *vif;
-	struct ieee80211_sta *pubsta;
 	struct sk_buff *skb;
 	bool result = true;
 	__le16 fc;
@@ -1712,11 +1711,6 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	sdata = vif_to_sdata(info->control.vif);
 	if (sta && !sta->uploaded)
 		sta = NULL;
-
-	if (sta)
-		pubsta = &sta->sta;
-	else
-		pubsta = NULL;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_MONITOR:
@@ -1744,8 +1738,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		break;
 	}
 
-	result = ieee80211_tx_frags(local, vif, pubsta, skbs,
-				    txpending);
+	result = ieee80211_tx_frags(local, vif, sta, skbs, txpending);
 
 	ieee80211_tpt_led_trig_tx(local, fc, led_len);
 
@@ -2263,6 +2256,15 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 						    payload[7]);
 	}
 
+	/*
+	 * Initialize skb->priority for QoS frames. This is put in the TID field
+	 * of the frame before passing it to the driver.
+	 */
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		u8 *p = ieee80211_get_qos_ctl(hdr);
+		skb->priority = *p & IEEE80211_QOS_CTL_TAG1D_MASK;
+	}
+
 	memset(info, 0, sizeof(*info));
 
 	info->flags = IEEE80211_TX_CTL_REQ_TX_STATUS |
@@ -2277,6 +2279,9 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	 * isn't always enough to find the interface to use; for proper
 	 * VLAN/WDS support we will need a different mechanism (which
 	 * likely isn't going to be monitor interfaces).
+	 *
+	 * This is necessary, for example, for old hostapd versions that
+	 * don't use nl80211-based management TX/RX.
 	 */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -2422,6 +2427,33 @@ static int ieee80211_lookup_ra_sta(struct ieee80211_sub_if_data *sdata,
 
 	*sta_out = sta ?: ERR_PTR(-ENOENT);
 	return 0;
+}
+
+static int ieee80211_store_ack_skb(struct ieee80211_local *local,
+				   struct sk_buff *skb,
+				   u32 *info_flags)
+{
+	struct sk_buff *ack_skb = skb_clone_sk(skb);
+	u16 info_id = 0;
+
+	if (ack_skb) {
+		unsigned long flags;
+		int id;
+
+		spin_lock_irqsave(&local->ack_status_lock, flags);
+		id = idr_alloc(&local->ack_status_frames, ack_skb,
+			       1, 0x2000, GFP_ATOMIC);
+		spin_unlock_irqrestore(&local->ack_status_lock, flags);
+
+		if (id >= 0) {
+			info_id = id;
+			*info_flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
+		} else {
+			kfree_skb(ack_skb);
+		}
+	}
+
+	return info_id;
 }
 
 /**
@@ -2717,26 +2749,8 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (unlikely(!multicast && skb->sk &&
-		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)) {
-		struct sk_buff *ack_skb = skb_clone_sk(skb);
-
-		if (ack_skb) {
-			unsigned long flags;
-			int id;
-
-			spin_lock_irqsave(&local->ack_status_lock, flags);
-			id = idr_alloc(&local->ack_status_frames, ack_skb,
-				       1, 0x10000, GFP_ATOMIC);
-			spin_unlock_irqrestore(&local->ack_status_lock, flags);
-
-			if (id >= 0) {
-				info_id = id;
-				info_flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
-			} else {
-				kfree_skb(ack_skb);
-			}
-		}
-	}
+		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS))
+		info_id = ieee80211_store_ack_skb(local, skb, &info_flags);
 
 	/*
 	 * If the skb is shared we need to obtain our own copy.
@@ -3529,7 +3543,7 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_sub_if_data, u.ap);
 
 	__skb_queue_tail(&tx.skbs, skb);
-	ieee80211_tx_frags(local, &sdata->vif, &sta->sta, &tx.skbs, false);
+	ieee80211_tx_frags(local, &sdata->vif, sta, &tx.skbs, false);
 	return true;
 }
 
@@ -3548,6 +3562,9 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 	struct ieee80211_vif *vif = txq->vif;
 
 	WARN_ON_ONCE(softirq_count() == 0);
+
+	if (!ieee80211_txq_airtime_check(hw, txq))
+		return NULL;
 
 begin:
 	spin_lock_bh(&fq->lock);
@@ -3659,6 +3676,21 @@ begin:
 	}
 
 	IEEE80211_SKB_CB(skb)->control.vif = vif;
+
+	if (wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL)) {
+		u32 airtime;
+
+		airtime = ieee80211_calc_expected_tx_airtime(hw, vif, txq->sta,
+							     skb->len);
+		if (airtime) {
+			airtime = ieee80211_info_set_tx_time_est(info, airtime);
+			ieee80211_sta_update_pending_airtime(local, tx.sta,
+							     txq->ac,
+							     airtime,
+							     false);
+		}
+	}
+
 	return skb;
 
 out:
@@ -3672,7 +3704,8 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_txq *ret = NULL;
-	struct txq_info *txqi = NULL;
+	struct txq_info *txqi = NULL, *head = NULL;
+	bool found_eligible_txq = false;
 
 	spin_lock_bh(&local->active_txq_lock[ac]);
 
@@ -3683,13 +3716,30 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 	if (!txqi)
 		goto out;
 
+	if (txqi == head) {
+		if (!found_eligible_txq)
+			goto out;
+		else
+			found_eligible_txq = false;
+	}
+
+	if (!head)
+		head = txqi;
+
 	if (txqi->txq.sta) {
 		struct sta_info *sta = container_of(txqi->txq.sta,
-						struct sta_info, sta);
+						    struct sta_info, sta);
+		bool aql_check = ieee80211_txq_airtime_check(hw, &txqi->txq);
+		s64 deficit = sta->airtime[txqi->txq.ac].deficit;
 
-		if (sta->airtime[txqi->txq.ac].deficit < 0) {
+		if (aql_check)
+			found_eligible_txq = true;
+
+		if (deficit < 0)
 			sta->airtime[txqi->txq.ac].deficit +=
 				sta->airtime_weight;
+
+		if (deficit < 0 || !aql_check) {
 			list_move_tail(&txqi->schedule_order,
 				       &local->active_txqs[txqi->txq.ac]);
 			goto begin;
@@ -3742,6 +3792,33 @@ void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
 	spin_unlock_bh(&local->active_txq_lock[txq->ac]);
 }
 EXPORT_SYMBOL(__ieee80211_schedule_txq);
+
+bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
+				 struct ieee80211_txq *txq)
+{
+	struct sta_info *sta;
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	if (!wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL))
+		return true;
+
+	if (!txq->sta)
+		return true;
+
+	sta = container_of(txq->sta, struct sta_info, sta);
+	if (atomic_read(&sta->airtime[txq->ac].aql_tx_pending) <
+	    sta->airtime[txq->ac].aql_limit_low)
+		return true;
+
+	if (atomic_read(&local->aql_total_pending_airtime) <
+	    local->aql_threshold &&
+	    atomic_read(&sta->airtime[txq->ac].aql_tx_pending) <
+	    sta->airtime[txq->ac].aql_limit_high)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(ieee80211_txq_airtime_check);
 
 bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
 				struct ieee80211_txq *txq)
@@ -3872,18 +3949,15 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 		}
 	}
 
-	next = skb;
-	while (next) {
-		skb = next;
-		next = skb->next;
-
-		skb->prev = NULL;
-		skb->next = NULL;
+	skb_list_walk_safe(skb, skb, next) {
+		skb_mark_not_on_list(skb);
 
 		skb = ieee80211_build_hdr(sdata, skb, info_flags,
 					  sta, ctrl_flags);
-		if (IS_ERR(skb))
+		if (IS_ERR(skb)) {
+			kfree_skb_list(next);
 			goto out;
+		}
 
 		ieee80211_tx_stats(dev, skb->len);
 

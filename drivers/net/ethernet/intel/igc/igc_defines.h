@@ -10,6 +10,37 @@
 
 #define IGC_CTRL_EXT_DRV_LOAD	0x10000000 /* Drv loaded bit for FW */
 
+/* Definitions for power management and wakeup registers */
+/* Wake Up Control */
+#define IGC_WUC_PME_EN	0x00000002 /* PME Enable */
+
+/* Wake Up Filter Control */
+#define IGC_WUFC_LNKC	0x00000001 /* Link Status Change Wakeup Enable */
+#define IGC_WUFC_MC	0x00000008 /* Directed Multicast Wakeup Enable */
+
+#define IGC_CTRL_ADVD3WUC	0x00100000  /* D3 WUC */
+
+/* Wake Up Status */
+#define IGC_WUS_EX	0x00000004 /* Directed Exact */
+#define IGC_WUS_ARPD	0x00000020 /* Directed ARP Request */
+#define IGC_WUS_IPV4	0x00000040 /* Directed IPv4 */
+#define IGC_WUS_IPV6	0x00000080 /* Directed IPv6 */
+#define IGC_WUS_NSD	0x00000400 /* Directed IPv6 Neighbor Solicitation */
+
+/* Packet types that are enabled for wake packet delivery */
+#define WAKE_PKT_WUS ( \
+	IGC_WUS_EX   | \
+	IGC_WUS_ARPD | \
+	IGC_WUS_IPV4 | \
+	IGC_WUS_IPV6 | \
+	IGC_WUS_NSD)
+
+/* Wake Up Packet Length */
+#define IGC_WUPL_MASK	0x00000FFF
+
+/* Wake Up Packet Memory stores the first 128 bytes of the wake up packet */
+#define IGC_WUPM_BYTES	128
+
 /* Physical Func Reset Done Indication */
 #define IGC_CTRL_EXT_LINK_MODE_MASK	0x00C00000
 
@@ -187,6 +218,7 @@
 #define IGC_ICR_RXDMT0		BIT(4)	/* Rx desc min. threshold (0) */
 #define IGC_ICR_RXO		BIT(6)	/* Rx overrun */
 #define IGC_ICR_RXT0		BIT(7)	/* Rx timer intr (ring 0) */
+#define IGC_ICR_TS		BIT(19)	/* Time Sync Interrupt */
 #define IGC_ICR_DRSTA		BIT(30)	/* Device Reset Asserted */
 
 /* If this bit asserted, the driver should claim the interrupt */
@@ -209,6 +241,7 @@
 #define IGC_IMS_DRSTA		IGC_ICR_DRSTA	/* Device Reset Asserted */
 #define IGC_IMS_RXT0		IGC_ICR_RXT0	/* Rx timer intr */
 #define IGC_IMS_RXDMT0		IGC_ICR_RXDMT0	/* Rx desc min. threshold */
+#define IGC_IMS_TS		IGC_ICR_TS	/* Time Sync Interrupt */
 
 #define IGC_QVECTOR_MASK	0x7FFC		/* Q-vector mask */
 #define IGC_ITR_VAL_MASK	0x04		/* ITR value mask */
@@ -249,6 +282,10 @@
 #define IGC_TXD_STAT_TC		0x00000004 /* Tx Underrun */
 #define IGC_TXD_EXTCMD_TSTAMP	0x00000010 /* IEEE1588 Timestamp packet */
 
+/* IPSec Encrypt Enable */
+#define IGC_ADVTXD_L4LEN_SHIFT	8  /* Adv ctxt L4LEN shift */
+#define IGC_ADVTXD_MSS_SHIFT	16 /* Adv ctxt MSS shift */
+
 /* Transmit Control */
 #define IGC_TCTL_EN		0x00000002 /* enable Tx */
 #define IGC_TCTL_PSP		0x00000008 /* pad short packets */
@@ -281,8 +318,20 @@
 #define IGC_RCTL_RDMTS_HALF	0x00000000 /* Rx desc min thresh size */
 #define IGC_RCTL_BAM		0x00008000 /* broadcast enable */
 
+/* Split Replication Receive Control */
+#define IGC_SRRCTL_TIMESTAMP		0x40000000
+#define IGC_SRRCTL_TIMER1SEL(timer)	(((timer) & 0x3) << 14)
+#define IGC_SRRCTL_TIMER0SEL(timer)	(((timer) & 0x3) << 17)
+
 /* Receive Descriptor bit definitions */
-#define IGC_RXD_STAT_EOP	0x02    /* End of Packet */
+#define IGC_RXD_STAT_EOP	0x02	/* End of Packet */
+#define IGC_RXD_STAT_IXSM	0x04	/* Ignore checksum */
+#define IGC_RXD_STAT_UDPCS	0x10	/* UDP xsum calculated */
+#define IGC_RXD_STAT_TCPCS	0x20	/* TCP xsum calculated */
+
+/* Advanced Receive Descriptor bit definitions */
+#define IGC_RXDADV_STAT_TSIP	0x08000 /* timestamp in packet */
+#define IGC_RXDADV_STAT_TS	0x10000 /* Pkt was time stamped */
 
 #define IGC_RXDEXT_STATERR_CE		0x01000000
 #define IGC_RXDEXT_STATERR_SE		0x02000000
@@ -320,6 +369,61 @@
 
 #define I225_RXPBSIZE_DEFAULT	0x000000A2 /* RXPBSIZE default */
 #define I225_TXPBSIZE_DEFAULT	0x04000014 /* TXPBSIZE default */
+#define IGC_RXPBS_CFG_TS_EN	0x80000000 /* Timestamp in Rx buffer */
+
+/* Time Sync Interrupt Causes */
+#define IGC_TSICR_SYS_WRAP	BIT(0) /* SYSTIM Wrap around. */
+#define IGC_TSICR_TXTS		BIT(1) /* Transmit Timestamp. */
+#define IGC_TSICR_TT0		BIT(3) /* Target Time 0 Trigger. */
+#define IGC_TSICR_TT1		BIT(4) /* Target Time 1 Trigger. */
+#define IGC_TSICR_AUTT0		BIT(5) /* Auxiliary Timestamp 0 Taken. */
+#define IGC_TSICR_AUTT1		BIT(6) /* Auxiliary Timestamp 1 Taken. */
+
+#define IGC_TSICR_INTERRUPTS	IGC_TSICR_TXTS
+
+/* PTP Queue Filter */
+#define IGC_ETQF_1588		BIT(30)
+
+#define IGC_FTQF_VF_BP		0x00008000
+#define IGC_FTQF_1588_TIME_STAMP	0x08000000
+#define IGC_FTQF_MASK			0xF0000000
+#define IGC_FTQF_MASK_PROTO_BP	0x10000000
+
+/* Time Sync Receive Control bit definitions */
+#define IGC_TSYNCRXCTL_VALID		0x00000001  /* Rx timestamp valid */
+#define IGC_TSYNCRXCTL_TYPE_MASK	0x0000000E  /* Rx type mask */
+#define IGC_TSYNCRXCTL_TYPE_L2_V2	0x00
+#define IGC_TSYNCRXCTL_TYPE_L4_V1	0x02
+#define IGC_TSYNCRXCTL_TYPE_L2_L4_V2	0x04
+#define IGC_TSYNCRXCTL_TYPE_ALL		0x08
+#define IGC_TSYNCRXCTL_TYPE_EVENT_V2	0x0A
+#define IGC_TSYNCRXCTL_ENABLED		0x00000010  /* enable Rx timestamping */
+#define IGC_TSYNCRXCTL_SYSCFI		0x00000020  /* Sys clock frequency */
+#define IGC_TSYNCRXCTL_RXSYNSIG		0x00000400  /* Sample RX tstamp in PHY sop */
+
+/* Time Sync Receive Configuration */
+#define IGC_TSYNCRXCFG_PTP_V1_CTRLT_MASK	0x000000FF
+#define IGC_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE	0x00
+#define IGC_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE	0x01
+
+/* Immediate Interrupt Receive */
+#define IGC_IMIR_CLEAR_MASK	0xF001FFFF /* IMIR Reg Clear Mask */
+#define IGC_IMIR_PORT_BYPASS	0x20000 /* IMIR Port Bypass Bit */
+#define IGC_IMIR_PRIORITY_SHIFT	29 /* IMIR Priority Shift */
+#define IGC_IMIREXT_CLEAR_MASK	0x7FFFF /* IMIREXT Reg Clear Mask */
+
+/* Immediate Interrupt Receive Extended */
+#define IGC_IMIREXT_CTRL_BP	0x00080000  /* Bypass check of ctrl bits */
+#define IGC_IMIREXT_SIZE_BP	0x00001000  /* Packet size bypass */
+
+/* Time Sync Transmit Control bit definitions */
+#define IGC_TSYNCTXCTL_VALID			0x00000001  /* Tx timestamp valid */
+#define IGC_TSYNCTXCTL_ENABLED			0x00000010  /* enable Tx timestamping */
+#define IGC_TSYNCTXCTL_MAX_ALLOWED_DLY_MASK	0x0000F000  /* max delay */
+#define IGC_TSYNCTXCTL_SYNC_COMP_ERR		0x20000000  /* sync err */
+#define IGC_TSYNCTXCTL_SYNC_COMP		0x40000000  /* sync complete */
+#define IGC_TSYNCTXCTL_START_SYNC		0x80000000  /* initiate sync */
+#define IGC_TSYNCTXCTL_TXSYNSIG			0x00000020  /* Sample TX tstamp in PHY sop */
 
 /* Receive Checksum Control */
 #define IGC_RXCSUM_CRCOFL	0x00000800   /* CRC32 offload enable */
@@ -360,6 +464,7 @@
 /* PHY Status Register */
 #define MII_SR_LINK_STATUS	0x0004 /* Link Status 1 = link */
 #define MII_SR_AUTONEG_COMPLETE	0x0020 /* Auto Neg Complete */
+#define IGC_PHY_RST_COMP	0x0100 /* Internal PHY reset completion */
 
 /* PHY 1000 MII Register/Bit Definitions */
 /* PHY Registers defined by IEEE */
@@ -401,5 +506,8 @@
 #define IGC_ADVTXD_TUCMD_IPV4		0x00000400  /* IP Packet Type:1=IPv4 */
 #define IGC_ADVTXD_TUCMD_L4T_TCP	0x00000800  /* L4 Packet Type of TCP */
 #define IGC_ADVTXD_TUCMD_L4T_SCTP	0x00001000 /* L4 packet TYPE of SCTP */
+
+/* Maximum size of the MTA register table in all supported adapters */
+#define MAX_MTA_REG			128
 
 #endif /* _IGC_DEFINES_H_ */

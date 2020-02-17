@@ -72,14 +72,13 @@ extern int qla2x00_async_adisc(struct scsi_qla_host *, fc_port_t *,
 extern int qla2x00_async_tm_cmd(fc_port_t *, uint32_t, uint32_t, uint32_t);
 extern void qla2x00_async_login_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
-extern void qla2x00_async_logout_done(struct scsi_qla_host *, fc_port_t *,
-    uint16_t *);
 struct qla_work_evt *qla2x00_alloc_work(struct scsi_qla_host *,
     enum qla_work_type);
 extern int qla24xx_async_gnl(struct scsi_qla_host *, fc_port_t *);
 int qla2x00_post_work(struct scsi_qla_host *vha, struct qla_work_evt *e);
 extern void *qla2x00_alloc_iocbs_ready(struct qla_qpair *, srb_t *);
 extern int qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *, fc_port_t *);
+extern int qla24xx_async_abort_cmd(srb_t *, bool);
 
 extern void qla2x00_set_fcport_state(fc_port_t *fcport, int state);
 extern fc_port_t *
@@ -182,8 +181,6 @@ extern int qla2x00_post_async_login_work(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_post_async_logout_work(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
-extern int qla2x00_post_async_logout_done_work(struct scsi_qla_host *,
-    fc_port_t *, uint16_t *);
 extern int qla2x00_post_async_adisc_work(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_post_async_adisc_done_work(struct scsi_qla_host *,
@@ -201,6 +198,7 @@ extern void qla2x00_free_host(struct scsi_qla_host *);
 extern void qla2x00_relogin(struct scsi_qla_host *);
 extern void qla2x00_do_work(struct scsi_qla_host *);
 extern void qla2x00_free_fcports(struct scsi_qla_host *);
+extern void qla2x00_free_fcport(fc_port_t *);
 
 extern void qla83xx_schedule_work(scsi_qla_host_t *, int);
 extern void qla83xx_service_idc_aen(struct work_struct *);
@@ -253,8 +251,9 @@ extern scsi_qla_host_t *qla24xx_create_vhost(struct fc_vport *);
 extern void qla2x00_sp_free_dma(srb_t *sp);
 extern char *qla2x00_get_fw_version_str(struct scsi_qla_host *, char *);
 
-extern void qla2x00_mark_device_lost(scsi_qla_host_t *, fc_port_t *, int, int);
-extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *, int);
+extern void qla2x00_mark_device_lost(scsi_qla_host_t *, fc_port_t *, int);
+extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *);
+extern int qla24xx_async_abort_cmd(srb_t *, bool);
 
 extern struct fw_blob *qla2x00_request_firmware(scsi_qla_host_t *);
 
@@ -917,4 +916,5 @@ int qla2x00_set_data_rate(scsi_qla_host_t *vha, uint16_t mode);
 
 /* nvme.c */
 void qla_nvme_unregister_remote_port(struct fc_port *fcport);
+void qla_handle_els_plogi_done(scsi_qla_host_t *vha, struct event_arg *ea);
 #endif /* _QLA_GBL_H */

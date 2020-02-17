@@ -116,14 +116,7 @@ typedef __compat_gid32_t	compat_gid_t;
 struct compat_sel_arg_struct;
 struct rusage;
 
-struct compat_itimerval {
-	struct old_timeval32	it_interval;
-	struct old_timeval32	it_value;
-};
-
-struct itimerval;
-int get_compat_itimerval(struct itimerval *, const struct compat_itimerval __user *);
-int put_compat_itimerval(struct compat_itimerval __user *, const struct itimerval *);
+struct old_itimerval32;
 
 struct compat_tms {
 	compat_clock_t		tms_utime;
@@ -410,8 +403,6 @@ struct compat_kexec_segment;
 struct compat_mq_attr;
 struct compat_msgbuf;
 
-extern void compat_exit_robust_list(struct task_struct *curr);
-
 #define BITS_PER_COMPAT_LONG    (8*sizeof(compat_long_t))
 
 #define BITS_TO_COMPAT_LONGS(bits) DIV_ROUND_UP(bits, BITS_PER_COMPAT_LONG)
@@ -668,10 +659,10 @@ compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 
 /* kernel/itimer.c */
 asmlinkage long compat_sys_getitimer(int which,
-				     struct compat_itimerval __user *it);
+				     struct old_itimerval32 __user *it);
 asmlinkage long compat_sys_setitimer(int which,
-				     struct compat_itimerval __user *in,
-				     struct compat_itimerval __user *out);
+				     struct old_itimerval32 __user *in,
+				     struct old_itimerval32 __user *out);
 
 /* kernel/kexec.c */
 asmlinkage long compat_sys_kexec_load(compat_ulong_t entry,
@@ -937,10 +928,10 @@ static inline bool in_compat_syscall(void) { return is_compat_task(); }
  */
 static inline struct old_timeval32 ns_to_old_timeval32(s64 nsec)
 {
-	struct timeval tv;
+	struct __kernel_old_timeval tv;
 	struct old_timeval32 ctv;
 
-	tv = ns_to_timeval(nsec);
+	tv = ns_to_kernel_old_timeval(nsec);
 	ctv.tv_sec = tv.tv_sec;
 	ctv.tv_usec = tv.tv_usec;
 
@@ -966,5 +957,23 @@ int kcompat_sys_fstatfs64(unsigned int fd, compat_size_t sz,
 static inline bool in_compat_syscall(void) { return false; }
 
 #endif /* CONFIG_COMPAT */
+
+/*
+ * A pointer passed in from user mode. This should not
+ * be used for syscall parameters, just declare them
+ * as pointers because the syscall entry code will have
+ * appropriately converted them already.
+ */
+#ifndef compat_ptr
+static inline void __user *compat_ptr(compat_uptr_t uptr)
+{
+	return (void __user *)(unsigned long)uptr;
+}
+#endif
+
+static inline compat_uptr_t ptr_to_compat(void __user *uptr)
+{
+	return (u32)(unsigned long)uptr;
+}
 
 #endif /* _LINUX_COMPAT_H */

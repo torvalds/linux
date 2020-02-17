@@ -6,7 +6,6 @@
  *   Author: Stefan Mavrodiev <stefan@olimex.com>
  */
 
-#include <linux/backlight.h>
 #include <linux/crc32.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -68,7 +67,6 @@ struct lcd_olinuxino {
 	bool prepared;
 	bool enabled;
 
-	struct backlight_device *backlight;
 	struct regulator *supply;
 	struct gpio_desc *enable_gpio;
 
@@ -86,8 +84,6 @@ static int lcd_olinuxino_disable(struct drm_panel *panel)
 
 	if (!lcd->enabled)
 		return 0;
-
-	backlight_disable(lcd->backlight);
 
 	lcd->enabled = false;
 
@@ -134,19 +130,16 @@ static int lcd_olinuxino_enable(struct drm_panel *panel)
 	if (lcd->enabled)
 		return 0;
 
-	backlight_enable(lcd->backlight);
-
 	lcd->enabled = true;
 
 	return 0;
 }
 
-static int lcd_olinuxino_get_modes(struct drm_panel *panel)
+static int lcd_olinuxino_get_modes(struct drm_panel *panel,
+				   struct drm_connector *connector)
 {
 	struct lcd_olinuxino *lcd = to_lcd_olinuxino(panel);
-	struct drm_connector *connector = lcd->panel.connector;
 	struct lcd_olinuxino_info *lcd_info = &lcd->eeprom.info;
-	struct drm_device *drm = lcd->panel.drm;
 	struct lcd_olinuxino_mode *lcd_mode;
 	struct drm_display_mode *mode;
 	u32 i, num = 0;
@@ -155,13 +148,13 @@ static int lcd_olinuxino_get_modes(struct drm_panel *panel)
 		lcd_mode = (struct lcd_olinuxino_mode *)
 			   &lcd->eeprom.reserved[i * sizeof(*lcd_mode)];
 
-		mode = drm_mode_create(drm);
+		mode = drm_mode_create(connector->dev);
 		if (!mode) {
-			dev_err(drm->dev, "failed to add mode %ux%u@%u\n",
+			dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 				lcd_mode->hactive,
 				lcd_mode->vactive,
 				lcd_mode->refresh);
-				continue;
+			continue;
 		}
 
 		mode->clock = lcd_mode->pixelclock;
@@ -284,13 +277,12 @@ static int lcd_olinuxino_probe(struct i2c_client *client,
 	if (IS_ERR(lcd->enable_gpio))
 		return PTR_ERR(lcd->enable_gpio);
 
-	lcd->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(lcd->backlight))
-		return PTR_ERR(lcd->backlight);
+	drm_panel_init(&lcd->panel, dev, &lcd_olinuxino_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = dev;
-	lcd->panel.funcs = &lcd_olinuxino_funcs;
+	ret = drm_panel_of_backlight(&lcd->panel);
+	if (ret)
+		return ret;
 
 	return drm_panel_add(&lcd->panel);
 }
@@ -301,8 +293,8 @@ static int lcd_olinuxino_remove(struct i2c_client *client)
 
 	drm_panel_remove(&panel->panel);
 
-	lcd_olinuxino_disable(&panel->panel);
-	lcd_olinuxino_unprepare(&panel->panel);
+	drm_panel_disable(&panel->panel);
+	drm_panel_unprepare(&panel->panel);
 
 	return 0;
 }

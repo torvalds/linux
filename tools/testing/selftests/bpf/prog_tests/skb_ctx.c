@@ -10,6 +10,10 @@ void test_skb_ctx(void)
 		.cb[3] = 4,
 		.cb[4] = 5,
 		.priority = 6,
+		.tstamp = 7,
+		.wire_len = 100,
+		.gso_segs = 8,
+		.mark = 9,
 	};
 	struct bpf_prog_test_run_attr tattr = {
 		.data_in = &pkt_v4,
@@ -86,4 +90,12 @@ void test_skb_ctx(void)
 		   "ctx_out_priority",
 		   "skb->priority == %d, expected %d\n",
 		   skb.priority, 7);
+	CHECK_ATTR(skb.tstamp != 8,
+		   "ctx_out_tstamp",
+		   "skb->tstamp == %lld, expected %d\n",
+		   skb.tstamp, 8);
+	CHECK_ATTR(skb.mark != 10,
+		   "ctx_out_mark",
+		   "skb->mark == %u, expected %d\n",
+		   skb.mark, 10);
 }

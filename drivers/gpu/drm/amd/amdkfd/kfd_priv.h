@@ -36,6 +36,10 @@
 #include <linux/seq_file.h>
 #include <linux/kref.h>
 #include <linux/sysfs.h>
+#include <linux/device_cgroup.h>
+#include <drm/drm_file.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_device.h>
 #include <kgd_kfd_interface.h>
 
 #include "amd_shared.h"
@@ -55,23 +59,20 @@
  * NOTE: struct vm_area_struct.vm_pgoff uses offset in pages. Hence, these
  *  defines are w.r.t to PAGE_SIZE
  */
-#define KFD_MMAP_TYPE_SHIFT	(62 - PAGE_SHIFT)
+#define KFD_MMAP_TYPE_SHIFT	62
 #define KFD_MMAP_TYPE_MASK	(0x3ULL << KFD_MMAP_TYPE_SHIFT)
 #define KFD_MMAP_TYPE_DOORBELL	(0x3ULL << KFD_MMAP_TYPE_SHIFT)
 #define KFD_MMAP_TYPE_EVENTS	(0x2ULL << KFD_MMAP_TYPE_SHIFT)
 #define KFD_MMAP_TYPE_RESERVED_MEM	(0x1ULL << KFD_MMAP_TYPE_SHIFT)
 #define KFD_MMAP_TYPE_MMIO	(0x0ULL << KFD_MMAP_TYPE_SHIFT)
 
-#define KFD_MMAP_GPU_ID_SHIFT (46 - PAGE_SHIFT)
+#define KFD_MMAP_GPU_ID_SHIFT 46
 #define KFD_MMAP_GPU_ID_MASK (((1ULL << KFD_GPU_ID_HASH_WIDTH) - 1) \
 				<< KFD_MMAP_GPU_ID_SHIFT)
 #define KFD_MMAP_GPU_ID(gpu_id) ((((uint64_t)gpu_id) << KFD_MMAP_GPU_ID_SHIFT)\
 				& KFD_MMAP_GPU_ID_MASK)
-#define KFD_MMAP_GPU_ID_GET(offset)    ((offset & KFD_MMAP_GPU_ID_MASK) \
+#define KFD_MMAP_GET_GPU_ID(offset)    ((offset & KFD_MMAP_GPU_ID_MASK) \
 				>> KFD_MMAP_GPU_ID_SHIFT)
-
-#define KFD_MMAP_OFFSET_VALUE_MASK	(0x3FFFFFFFFFFFULL >> PAGE_SHIFT)
-#define KFD_MMAP_OFFSET_VALUE_GET(offset) (offset & KFD_MMAP_OFFSET_VALUE_MASK)
 
 /*
  * When working with cp scheduler we should assign the HIQ manually or via
@@ -179,10 +180,6 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
-#define KFD_IS_VI(chip) ((chip) >= CHIP_CARRIZO && (chip) <= CHIP_POLARIS11)
-#define KFD_IS_DGPU(chip) (((chip) >= CHIP_TONGA && \
-			   (chip) <= CHIP_NAVI10) || \
-			   (chip) == CHIP_HAWAII)
 #define KFD_IS_SOC15(chip) ((chip) >= CHIP_VEGA10)
 
 struct kfd_event_interrupt_class {
@@ -230,6 +227,7 @@ struct kfd_dev {
 
 	const struct kfd_device_info *device_info;
 	struct pci_dev *pdev;
+	struct drm_device *ddev;
 
 	unsigned int id;		/* topology stub index */
 
@@ -237,9 +235,10 @@ struct kfd_dev {
 					 * KFD. It is aligned for mapping
 					 * into user mode
 					 */
-	size_t doorbell_id_offset;	/* Doorbell offset (from KFD doorbell
-					 * to HW doorbell, GFX reserved some
-					 * at the start)
+	size_t doorbell_base_dw_offset;	/* Offset from the start of the PCI
+					 * doorbell BAR to the first KFD
+					 * doorbell in dwords. GFX reserves
+					 * the segment before this offset.
 					 */
 	u32 __iomem *doorbell_kernel_ptr; /* This is a pointer for a doorbells
 					   * page used by kernel queue
@@ -509,8 +508,7 @@ struct queue {
  * Please read the kfd_mqd_manager.h description.
  */
 enum KFD_MQD_TYPE {
-	KFD_MQD_TYPE_COMPUTE = 0,	/* for no cp scheduling */
-	KFD_MQD_TYPE_HIQ,		/* for hiq */
+	KFD_MQD_TYPE_HIQ = 0,		/* for hiq */
 	KFD_MQD_TYPE_CP,		/* for cp queues and diq */
 	KFD_MQD_TYPE_SDMA,		/* for sdma queues */
 	KFD_MQD_TYPE_DIQ,		/* for diq */
@@ -687,7 +685,7 @@ struct kfd_process {
 	/* We want to receive a notification when the mm_struct is destroyed */
 	struct mmu_notifier mmu_notifier;
 
-	unsigned int pasid;
+	uint16_t pasid;
 	unsigned int doorbell_index;
 
 	/*
@@ -817,7 +815,7 @@ void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr);
 u32 read_kernel_doorbell(u32 __iomem *db);
 void write_kernel_doorbell(void __iomem *db, u32 value);
 void write_kernel_doorbell64(void __iomem *db, u64 value);
-unsigned int kfd_doorbell_id_to_offset(struct kfd_dev *kfd,
+unsigned int kfd_get_doorbell_dw_offset_in_bar(struct kfd_dev *kfd,
 					struct kfd_process *process,
 					unsigned int doorbell_id);
 phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
@@ -885,7 +883,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 					enum kfd_queue_type type);
-void kernel_queue_uninit(struct kernel_queue *kq);
+void kernel_queue_uninit(struct kernel_queue *kq, bool hanging);
 int kfd_process_vm_fault(struct device_queue_manager *dqm, unsigned int pasid);
 
 /* Process Queue Manager */
@@ -903,7 +901,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct kfd_dev *dev,
 			    struct file *f,
 			    struct queue_properties *properties,
-			    unsigned int *qid);
+			    unsigned int *qid,
+			    uint32_t *p_doorbell_offset_in_process);
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid);
 int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
@@ -971,10 +970,9 @@ struct packet_manager_funcs {
 
 extern const struct packet_manager_funcs kfd_vi_pm_funcs;
 extern const struct packet_manager_funcs kfd_v9_pm_funcs;
-extern const struct packet_manager_funcs kfd_v10_pm_funcs;
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm);
-void pm_uninit(struct packet_manager *pm);
+void pm_uninit(struct packet_manager *pm, bool hanging);
 int pm_send_set_resources(struct packet_manager *pm,
 				struct scheduling_resources *res);
 int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues);
@@ -990,9 +988,6 @@ void pm_release_ib(struct packet_manager *pm);
 
 /* Following PM funcs can be shared among VI and AI */
 unsigned int pm_build_pm4_header(unsigned int opcode, size_t packet_size);
-int pm_set_resources_vi(struct packet_manager *pm, uint32_t *buffer,
-			struct scheduling_resources *res);
-
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 
@@ -1039,6 +1034,21 @@ bool kfd_is_locked(void);
 /* Compute profile */
 void kfd_inc_compute_active(struct kfd_dev *dev);
 void kfd_dec_compute_active(struct kfd_dev *dev);
+
+/* Cgroup Support */
+/* Check with device cgroup if @kfd device is accessible */
+static inline int kfd_devcgroup_check_permission(struct kfd_dev *kfd)
+{
+#if defined(CONFIG_CGROUP_DEVICE)
+	struct drm_device *ddev = kfd->ddev;
+
+	return devcgroup_check_permission(DEVCG_DEV_CHAR, ddev->driver->major,
+					  ddev->render->index,
+					  DEVCG_ACC_WRITE | DEVCG_ACC_READ);
+#else
+	return 0;
+#endif
+}
 
 /* Debugfs */
 #if defined(CONFIG_DEBUG_FS)

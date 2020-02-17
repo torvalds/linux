@@ -302,6 +302,16 @@ static inline enum usb_role ci_role_to_usb_role(struct ci_hdrc *ci)
 		return USB_ROLE_NONE;
 }
 
+static inline enum ci_role usb_role_to_ci_role(enum usb_role role)
+{
+	if (role == USB_ROLE_HOST)
+		return CI_ROLE_HOST;
+	else if (role == USB_ROLE_DEVICE)
+		return CI_ROLE_GADGET;
+	else
+		return CI_ROLE_END;
+}
+
 /**
  * hw_read_id_reg: reads from a identification register
  * @ci: the controller

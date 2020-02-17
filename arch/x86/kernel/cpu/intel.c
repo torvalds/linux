@@ -32,41 +32,6 @@
 #endif
 
 /*
- * Just in case our CPU detection goes bad, or you have a weird system,
- * allow a way to override the automatic disabling of MPX.
- */
-static int forcempx;
-
-static int __init forcempx_setup(char *__unused)
-{
-	forcempx = 1;
-
-	return 1;
-}
-__setup("intel-skd-046-workaround=disable", forcempx_setup);
-
-void check_mpx_erratum(struct cpuinfo_x86 *c)
-{
-	if (forcempx)
-		return;
-	/*
-	 * Turn off the MPX feature on CPUs where SMEP is not
-	 * available or disabled.
-	 *
-	 * Works around Intel Erratum SKD046: "Branch Instructions
-	 * May Initialize MPX Bound Registers Incorrectly".
-	 *
-	 * This might falsely disable MPX on systems without
-	 * SMEP, like Atom processors without SMEP.  But there
-	 * is no such hardware known at the moment.
-	 */
-	if (cpu_has(c, X86_FEATURE_MPX) && !cpu_has(c, X86_FEATURE_SMEP)) {
-		setup_clear_cpu_cap(X86_FEATURE_MPX);
-		pr_warn("x86/mpx: Disabling MPX since SMEP not present\n");
-	}
-}
-
-/*
  * Processors which have self-snooping capability can handle conflicting
  * memory type across CPUs by snooping its own cache. However, there exists
  * CPU models in which having conflicting memory types still leads to
@@ -330,7 +295,6 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 			c->x86_coreid_bits = get_count_order((ebx >> 16) & 0xff);
 	}
 
-	check_mpx_erratum(c);
 	check_memory_type_self_snoop_errata(c);
 
 	/*
@@ -492,52 +456,6 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 	}
 	numa_set_node(cpu, node);
 #endif
-}
-
-static void detect_vmx_virtcap(struct cpuinfo_x86 *c)
-{
-	/* Intel VMX MSR indicated features */
-#define X86_VMX_FEATURE_PROC_CTLS_TPR_SHADOW	0x00200000
-#define X86_VMX_FEATURE_PROC_CTLS_VNMI		0x00400000
-#define X86_VMX_FEATURE_PROC_CTLS_2ND_CTLS	0x80000000
-#define X86_VMX_FEATURE_PROC_CTLS2_VIRT_APIC	0x00000001
-#define X86_VMX_FEATURE_PROC_CTLS2_EPT		0x00000002
-#define X86_VMX_FEATURE_PROC_CTLS2_VPID		0x00000020
-#define x86_VMX_FEATURE_EPT_CAP_AD		0x00200000
-
-	u32 vmx_msr_low, vmx_msr_high, msr_ctl, msr_ctl2;
-	u32 msr_vpid_cap, msr_ept_cap;
-
-	clear_cpu_cap(c, X86_FEATURE_TPR_SHADOW);
-	clear_cpu_cap(c, X86_FEATURE_VNMI);
-	clear_cpu_cap(c, X86_FEATURE_FLEXPRIORITY);
-	clear_cpu_cap(c, X86_FEATURE_EPT);
-	clear_cpu_cap(c, X86_FEATURE_VPID);
-	clear_cpu_cap(c, X86_FEATURE_EPT_AD);
-
-	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS, vmx_msr_low, vmx_msr_high);
-	msr_ctl = vmx_msr_high | vmx_msr_low;
-	if (msr_ctl & X86_VMX_FEATURE_PROC_CTLS_TPR_SHADOW)
-		set_cpu_cap(c, X86_FEATURE_TPR_SHADOW);
-	if (msr_ctl & X86_VMX_FEATURE_PROC_CTLS_VNMI)
-		set_cpu_cap(c, X86_FEATURE_VNMI);
-	if (msr_ctl & X86_VMX_FEATURE_PROC_CTLS_2ND_CTLS) {
-		rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
-		      vmx_msr_low, vmx_msr_high);
-		msr_ctl2 = vmx_msr_high | vmx_msr_low;
-		if ((msr_ctl2 & X86_VMX_FEATURE_PROC_CTLS2_VIRT_APIC) &&
-		    (msr_ctl & X86_VMX_FEATURE_PROC_CTLS_TPR_SHADOW))
-			set_cpu_cap(c, X86_FEATURE_FLEXPRIORITY);
-		if (msr_ctl2 & X86_VMX_FEATURE_PROC_CTLS2_EPT) {
-			set_cpu_cap(c, X86_FEATURE_EPT);
-			rdmsr(MSR_IA32_VMX_EPT_VPID_CAP,
-			      msr_ept_cap, msr_vpid_cap);
-			if (msr_ept_cap & x86_VMX_FEATURE_EPT_CAP_AD)
-				set_cpu_cap(c, X86_FEATURE_EPT_AD);
-		}
-		if (msr_ctl2 & X86_VMX_FEATURE_PROC_CTLS2_VPID)
-			set_cpu_cap(c, X86_FEATURE_VPID);
-	}
 }
 
 #define MSR_IA32_TME_ACTIVATE		0x982
@@ -755,13 +673,17 @@ static void init_intel(struct cpuinfo_x86 *c)
 	/* Work around errata */
 	srat_detect_node(c);
 
-	if (cpu_has(c, X86_FEATURE_VMX))
-		detect_vmx_virtcap(c);
+	init_ia32_feat_ctl(c);
 
 	if (cpu_has(c, X86_FEATURE_TME))
 		detect_tme(c);
 
 	init_intel_misc_features(c);
+
+	if (tsx_ctrl_state == TSX_CTRL_ENABLE)
+		tsx_enable();
+	if (tsx_ctrl_state == TSX_CTRL_DISABLE)
+		tsx_disable();
 }
 
 #ifdef CONFIG_X86_32
@@ -814,7 +736,7 @@ static const struct _tlb_table intel_tlb_table[] = {
 	{ 0x04, TLB_DATA_4M,		8,	" TLB_DATA 4 MByte pages, 4-way set associative" },
 	{ 0x05, TLB_DATA_4M,		32,	" TLB_DATA 4 MByte pages, 4-way set associative" },
 	{ 0x0b, TLB_INST_4M,		4,	" TLB_INST 4 MByte pages, 4-way set associative" },
-	{ 0x4f, TLB_INST_4K,		32,	" TLB_INST 4 KByte pages */" },
+	{ 0x4f, TLB_INST_4K,		32,	" TLB_INST 4 KByte pages" },
 	{ 0x50, TLB_INST_ALL,		64,	" TLB_INST 4 KByte and 2-MByte or 4-MByte pages" },
 	{ 0x51, TLB_INST_ALL,		128,	" TLB_INST 4 KByte and 2-MByte or 4-MByte pages" },
 	{ 0x52, TLB_INST_ALL,		256,	" TLB_INST 4 KByte and 2-MByte or 4-MByte pages" },
@@ -842,7 +764,7 @@ static const struct _tlb_table intel_tlb_table[] = {
 	{ 0xba, TLB_DATA_4K,		64,	" TLB_DATA 4 KByte pages, 4-way associative" },
 	{ 0xc0, TLB_DATA_4K_4M,		8,	" TLB_DATA 4 KByte and 4 MByte pages, 4-way associative" },
 	{ 0xc1, STLB_4K_2M,		1024,	" STLB 4 KByte and 2 MByte pages, 8-way associative" },
-	{ 0xc2, TLB_DATA_2M_4M,		16,	" DTLB 2 MByte/4MByte pages, 4-way associative" },
+	{ 0xc2, TLB_DATA_2M_4M,		16,	" TLB_DATA 2 MByte/4MByte pages, 4-way associative" },
 	{ 0xca, STLB_4K,		512,	" STLB 4 KByte pages, 4-way associative" },
 	{ 0x00, 0, 0 }
 };
@@ -854,8 +776,8 @@ static void intel_tlb_lookup(const unsigned char desc)
 		return;
 
 	/* look up this descriptor in the table */
-	for (k = 0; intel_tlb_table[k].descriptor != desc && \
-			intel_tlb_table[k].descriptor != 0; k++)
+	for (k = 0; intel_tlb_table[k].descriptor != desc &&
+	     intel_tlb_table[k].descriptor != 0; k++)
 		;
 
 	if (intel_tlb_table[k].tlb_type == 0)

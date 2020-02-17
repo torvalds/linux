@@ -60,7 +60,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@00000000 {
 		device_type = "memory";
 		reg = <0x00000000 0x2000000>;
 	};
@@ -91,6 +91,13 @@
 	vref: regulator-vref {
 		compatible = "regulator-fixed";
 		regulator-name = "vref";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vdd_panel: vdd-panel {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_panel";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
@@ -138,6 +145,7 @@
 
 	panel_rgb: panel-rgb {
 		compatible = "ampire,am-480272h3tmqw-t01h";
+		power-supply = <&vdd_panel>;
 		status = "okay";
 		port {
 			panel_in_rgb: endpoint {
@@ -234,7 +242,6 @@
 	status = "okay";
 	pinctrl-0 = <&ltdc_pins>;
 	pinctrl-names = "default";
-	dma-ranges;
 
 	port {
 		ltdc_out_rgb: endpoint {

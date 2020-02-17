@@ -883,7 +883,8 @@ static int lan9303_check_device(struct lan9303 *chip)
 /* ---------------------------- DSA -----------------------------------*/
 
 static enum dsa_tag_protocol lan9303_get_tag_protocol(struct dsa_switch *ds,
-						      int port)
+						      int port,
+						      enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_LAN9303;
 }
@@ -1283,10 +1284,12 @@ static int lan9303_register_switch(struct lan9303 *chip)
 {
 	int base;
 
-	chip->ds = dsa_switch_alloc(chip->dev, LAN9303_NUM_PORTS);
+	chip->ds = devm_kzalloc(chip->dev, sizeof(*chip->ds), GFP_KERNEL);
 	if (!chip->ds)
 		return -ENOMEM;
 
+	chip->ds->dev = chip->dev;
+	chip->ds->num_ports = LAN9303_NUM_PORTS;
 	chip->ds->priv = chip;
 	chip->ds->ops = &lan9303_switch_ops;
 	base = chip->phy_addr_base;

@@ -161,6 +161,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_DEBOUNCE_TIME] = "debounce_time",
 	[IIO_CHAN_INFO_CALIBEMISSIVITY] = "calibemissivity",
 	[IIO_CHAN_INFO_OVERSAMPLING_RATIO] = "oversampling_ratio",
+	[IIO_CHAN_INFO_THERMOCOUPLE_TYPE] = "thermocouple_type",
 };
 
 /**
@@ -596,6 +597,8 @@ static ssize_t __iio_format_value(char *buf, size_t len, unsigned int type,
 		}
 		return l;
 	}
+	case IIO_VAL_CHAR:
+		return snprintf(buf, len, "%c", (char)vals[0]);
 	default:
 		return 0;
 	}
@@ -837,7 +840,8 @@ static ssize_t iio_write_channel_info(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret, fract_mult = 100000;
-	int integer, fract;
+	int integer, fract = 0;
+	bool is_char = false;
 
 	/* Assumes decimal - precision based on number of digits */
 	if (!indio_dev->info->write_raw)
@@ -855,13 +859,24 @@ static ssize_t iio_write_channel_info(struct device *dev,
 		case IIO_VAL_INT_PLUS_NANO:
 			fract_mult = 100000000;
 			break;
+		case IIO_VAL_CHAR:
+			is_char = true;
+			break;
 		default:
 			return -EINVAL;
 		}
 
-	ret = iio_str_to_fixpoint(buf, fract_mult, &integer, &fract);
-	if (ret)
-		return ret;
+	if (is_char) {
+		char ch;
+
+		if (sscanf(buf, "%c", &ch) != 1)
+			return -EINVAL;
+		integer = ch;
+	} else {
+		ret = iio_str_to_fixpoint(buf, fract_mult, &integer, &fract);
+		if (ret)
+			return ret;
+	}
 
 	ret = indio_dev->info->write_raw(indio_dev, this_attr->c,
 					 integer, fract, this_attr->address);
@@ -1238,6 +1253,16 @@ static ssize_t iio_show_dev_name(struct device *dev,
 
 static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);
 
+static ssize_t iio_show_dev_label(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	return snprintf(buf, PAGE_SIZE, "%s\n", indio_dev->label);
+}
+
+static DEVICE_ATTR(label, S_IRUGO, iio_show_dev_label, NULL);
+
 static ssize_t iio_show_timestamp_clock(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -1354,6 +1379,8 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 
 	if (indio_dev->name)
 		attrcount++;
+	if (indio_dev->label)
+		attrcount++;
 	if (clk)
 		attrcount++;
 
@@ -1376,6 +1403,8 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 		indio_dev->chan_attr_group.attrs[attrn++] = &p->dev_attr.attr;
 	if (indio_dev->name)
 		indio_dev->chan_attr_group.attrs[attrn++] = &dev_attr_name.attr;
+	if (indio_dev->label)
+		indio_dev->chan_attr_group.attrs[attrn++] = &dev_attr_label.attr;
 	if (clk)
 		indio_dev->chan_attr_group.attrs[attrn++] = clk;
 
@@ -1603,14 +1632,14 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations iio_buffer_fileops = {
-	.read = iio_buffer_read_first_n_outer_addr,
+	.read = iio_buffer_read_outer_addr,
 	.release = iio_chrdev_release,
 	.open = iio_chrdev_open,
 	.poll = iio_buffer_poll_addr,
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 	.unlocked_ioctl = iio_ioctl,
-	.compat_ioctl = iio_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 static int iio_check_unique_scan_index(struct iio_dev *indio_dev)
@@ -1646,6 +1675,9 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 	/* If the calling driver did not initialize of_node, do it here */
 	if (!indio_dev->dev.of_node && indio_dev->dev.parent)
 		indio_dev->dev.of_node = indio_dev->dev.parent->of_node;
+
+	indio_dev->label = of_get_property(indio_dev->dev.of_node, "label",
+					   NULL);
 
 	ret = iio_check_unique_scan_index(indio_dev);
 	if (ret < 0)

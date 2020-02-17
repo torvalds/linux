@@ -863,7 +863,7 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 	/* Set Tx DMA */
 	param = &dma->param_tx;
 	param->dma_dev = &dma_dev->dev;
-	param->chan_id = data->ch * 2; /* Tx = 0, 2 */;
+	param->chan_id = data->ch * 2; /* Tx = 0, 2 */
 	param->tx_reg = data->io_base_addr + PCH_SPDWR;
 	param->width = width;
 	chan = dma_request_channel(mask, pch_spi_filter, param);
@@ -878,7 +878,7 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 	/* Set Rx DMA */
 	param = &dma->param_rx;
 	param->dma_dev = &dma_dev->dev;
-	param->chan_id = data->ch * 2 + 1; /* Rx = Tx + 1 */;
+	param->chan_id = data->ch * 2 + 1; /* Rx = Tx + 1 */
 	param->rx_reg = data->io_base_addr + PCH_SPDRR;
 	param->width = width;
 	chan = dma_request_channel(mask, pch_spi_filter, param);
@@ -1229,12 +1229,7 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 			"%s:data->current_msg->actual_length=%d\n",
 			__func__, data->current_msg->actual_length);
 
-		/* check for delay */
-		if (data->cur_trans->delay_usecs) {
-			dev_dbg(&data->master->dev, "%s:delay in usec=%d\n",
-				__func__, data->cur_trans->delay_usecs);
-			udelay(data->cur_trans->delay_usecs);
-		}
+		spi_transfer_delay_exec(data->cur_trans);
 
 		spin_lock(&data->lock);
 

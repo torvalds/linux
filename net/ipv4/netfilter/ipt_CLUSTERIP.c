@@ -58,7 +58,7 @@ struct clusterip_config {
 };
 
 #ifdef CONFIG_PROC_FS
-static const struct file_operations clusterip_proc_fops;
+static const struct proc_ops clusterip_proc_ops;
 #endif
 
 struct clusterip_net {
@@ -280,7 +280,7 @@ clusterip_config_init(struct net *net, const struct ipt_clusterip_tgt_info *i,
 		mutex_lock(&cn->mutex);
 		c->pde = proc_create_data(buffer, 0600,
 					  cn->procdir,
-					  &clusterip_proc_fops, c);
+					  &clusterip_proc_ops, c);
 		mutex_unlock(&cn->mutex);
 		if (!c->pde) {
 			err = -ENOMEM;
@@ -804,12 +804,12 @@ static ssize_t clusterip_proc_write(struct file *file, const char __user *input,
 	return size;
 }
 
-static const struct file_operations clusterip_proc_fops = {
-	.open	 = clusterip_proc_open,
-	.read	 = seq_read,
-	.write	 = clusterip_proc_write,
-	.llseek	 = seq_lseek,
-	.release = clusterip_proc_release,
+static const struct proc_ops clusterip_proc_ops = {
+	.proc_open	= clusterip_proc_open,
+	.proc_read	= seq_read,
+	.proc_write	= clusterip_proc_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= clusterip_proc_release,
 };
 
 #endif /* CONFIG_PROC_FS */

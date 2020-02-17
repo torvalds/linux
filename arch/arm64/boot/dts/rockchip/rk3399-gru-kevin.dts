@@ -39,12 +39,12 @@
 	};
 
 	edp_panel: edp-panel {
-		compatible = "sharp,lq123p1jx31", "simple-panel";
+		compatible = "sharp,lq123p1jx31";
 		backlight = <&backlight>;
 		power-supply = <&pp3300_disp>;
 
 		panel-timing {
-			clock-frequency = <266604720>;
+			clock-frequency = <266666667>;
 			hactive = <2400>;
 			hfront-porch = <48>;
 			hback-porch = <84>;

@@ -20,6 +20,8 @@
 
 /* API version 1.7 implements additional link and PHY-specific APIs  */
 #define I40E_MINOR_VER_GET_LINK_INFO_XL710 0x0007
+/* API version 1.9 for X722 implements additional link and PHY-specific APIs */
+#define I40E_MINOR_VER_GET_LINK_INFO_X722 0x0009
 /* API version 1.6 for X722 devices adds ability to stop FW LLDP agent */
 #define I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722 0x0006
 
@@ -2249,7 +2251,13 @@ struct i40e_aqc_phy_register_access {
 #define I40E_AQ_PHY_REG_ACCESS_EXTERNAL	1
 #define I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE	2
 	u8	dev_address;
-	u8	reserved1[2];
+	u8	cmd_flags;
+#define I40E_AQ_PHY_REG_ACCESS_DONT_CHANGE_QSFP_PAGE	0x01
+#define I40E_AQ_PHY_REG_ACCESS_SET_MDIO_IF_NUMBER	0x02
+#define I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_SHIFT	2
+#define I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_MASK	(0x3 << \
+		I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_SHIFT)
+	u8	reserved1;
 	__le32	reg_address;
 	__le32	reg_value;
 	u8	reserved2[4];

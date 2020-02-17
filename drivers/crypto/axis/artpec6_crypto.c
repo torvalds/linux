@@ -1249,10 +1249,8 @@ static int artpec6_crypto_aead_set_key(struct crypto_aead *tfm, const u8 *key,
 {
 	struct artpec6_cryptotfm_context *ctx = crypto_tfm_ctx(&tfm->base);
 
-	if (len != 16 && len != 24 && len != 32) {
-		crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -1;
-	}
+	if (len != 16 && len != 24 && len != 32)
+		return -EINVAL;
 
 	ctx->key_length = len;
 
@@ -1606,8 +1604,6 @@ artpec6_crypto_cipher_set_key(struct crypto_skcipher *cipher, const u8 *key,
 	case 32:
 		break;
 	default:
-		crypto_skcipher_set_flags(cipher,
-					  CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
@@ -1634,8 +1630,6 @@ artpec6_crypto_xts_set_key(struct crypto_skcipher *cipher, const u8 *key,
 	case 64:
 		break;
 	default:
-		crypto_skcipher_set_flags(cipher,
-					  CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 

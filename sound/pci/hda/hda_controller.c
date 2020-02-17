@@ -107,7 +107,7 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
-	int ret;
+	int ret = 0;
 
 	trace_azx_pcm_hw_params(chip, azx_dev);
 	dsp_lock(azx_dev);
@@ -119,8 +119,6 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 	azx_dev->core.bufsize = 0;
 	azx_dev->core.period_bytes = 0;
 	azx_dev->core.format_val = 0;
-	ret = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
 
 unlock:
 	dsp_unlock(azx_dev);
@@ -132,7 +130,6 @@ static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
-	int err;
 
 	/* reset BDL address */
 	dsp_lock(azx_dev);
@@ -141,10 +138,9 @@ static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	snd_hda_codec_cleanup(apcm->codec, hinfo, substream);
 
-	err = snd_pcm_lib_free_pages(substream);
 	azx_stream(azx_dev)->prepared = 0;
 	dsp_unlock(azx_dev);
-	return err;
+	return 0;
 }
 
 static int azx_pcm_prepare(struct snd_pcm_substream *substream)
@@ -491,7 +487,7 @@ static inline bool is_link_time_supported(struct snd_pcm_runtime *runtime,
 }
 
 static int azx_get_time_info(struct snd_pcm_substream *substream,
-			struct timespec *system_ts, struct timespec *audio_ts,
+			struct timespec64 *system_ts, struct timespec64 *audio_ts,
 			struct snd_pcm_audio_tstamp_config *audio_tstamp_config,
 			struct snd_pcm_audio_tstamp_report *audio_tstamp_report)
 {
@@ -511,7 +507,7 @@ static int azx_get_time_info(struct snd_pcm_substream *substream,
 		if (audio_tstamp_config->report_delay)
 			nsec = azx_adjust_codec_delay(substream, nsec);
 
-		*audio_ts = ns_to_timespec(nsec);
+		*audio_ts = ns_to_timespec64(nsec);
 
 		audio_tstamp_report->actual_type = SNDRV_PCM_AUDIO_TSTAMP_TYPE_LINK;
 		audio_tstamp_report->accuracy_report = 1; /* rest of structure is valid */
@@ -528,16 +524,16 @@ static int azx_get_time_info(struct snd_pcm_substream *substream,
 			return -EINVAL;
 
 		case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC_RAW:
-			*system_ts = ktime_to_timespec(xtstamp.sys_monoraw);
+			*system_ts = ktime_to_timespec64(xtstamp.sys_monoraw);
 			break;
 
 		default:
-			*system_ts = ktime_to_timespec(xtstamp.sys_realtime);
+			*system_ts = ktime_to_timespec64(xtstamp.sys_realtime);
 			break;
 
 		}
 
-		*audio_ts = ktime_to_timespec(xtstamp.device);
+		*audio_ts = ktime_to_timespec64(xtstamp.device);
 
 		audio_tstamp_report->actual_type =
 			SNDRV_PCM_AUDIO_TSTAMP_TYPE_LINK_SYNCHRONIZED;
@@ -552,7 +548,7 @@ static int azx_get_time_info(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_pcm_hardware azx_pcm_hw = {
+static const struct snd_pcm_hardware azx_pcm_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -693,7 +689,6 @@ static int azx_pcm_mmap(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops azx_pcm_ops = {
 	.open = azx_pcm_open,
 	.close = azx_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = azx_pcm_hw_params,
 	.hw_free = azx_pcm_hw_free,
 	.prepare = azx_pcm_prepare,
@@ -701,7 +696,6 @@ static const struct snd_pcm_ops azx_pcm_ops = {
 	.pointer = azx_pcm_pointer,
 	.get_time_info =  azx_get_time_info,
 	.mmap = azx_pcm_mmap,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 
 static void azx_pcm_free(struct snd_pcm *pcm)
@@ -767,9 +761,8 @@ int snd_hda_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
 		size = MAX_PREALLOC_SIZE;
 	if (chip->uc_buffer)
 		type = SNDRV_DMA_TYPE_DEV_UC_SG;
-	snd_pcm_lib_preallocate_pages_for_all(pcm, type,
-					      chip->card->dev,
-					      size, MAX_PREALLOC_SIZE);
+	snd_pcm_set_managed_buffer_all(pcm, type, chip->card->dev,
+				       size, MAX_PREALLOC_SIZE);
 	return 0;
 }
 
@@ -791,57 +784,15 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 {
 	struct azx *chip = bus_to_azx(bus);
 	struct hda_bus *hbus = &chip->bus;
-	unsigned long timeout;
-	unsigned long loopcounter;
-	int do_poll = 0;
-	bool warned = false;
+	int err;
 
  again:
-	timeout = jiffies + msecs_to_jiffies(1000);
-
-	for (loopcounter = 0;; loopcounter++) {
-		spin_lock_irq(&bus->reg_lock);
-		if (bus->polling_mode || do_poll)
-			snd_hdac_bus_update_rirb(bus);
-		if (!bus->rirb.cmds[addr]) {
-			if (!do_poll)
-				bus->poll_count = 0;
-			if (res)
-				*res = bus->rirb.res[addr]; /* the last value */
-			spin_unlock_irq(&bus->reg_lock);
-			return 0;
-		}
-		spin_unlock_irq(&bus->reg_lock);
-		if (time_after(jiffies, timeout))
-			break;
-#define LOOP_COUNT_MAX	3000
-		if (hbus->needs_damn_long_delay ||
-		    loopcounter > LOOP_COUNT_MAX) {
-			if (loopcounter > LOOP_COUNT_MAX && !warned) {
-				dev_dbg_ratelimited(chip->card->dev,
-						    "too slow response, last cmd=%#08x\n",
-						    bus->last_cmd[addr]);
-				warned = true;
-			}
-			msleep(2); /* temporary workaround */
-		} else {
-			udelay(10);
-			cond_resched();
-		}
-	}
+	err = snd_hdac_bus_get_response(bus, addr, res);
+	if (!err)
+		return 0;
 
 	if (hbus->no_response_fallback)
 		return -EIO;
-
-	if (!bus->polling_mode && bus->poll_count < 2) {
-		dev_dbg(chip->card->dev,
-			"azx_get_response timeout, polling the codec once: last cmd=0x%08x\n",
-			bus->last_cmd[addr]);
-		do_poll = 1;
-		bus->poll_count++;
-		goto again;
-	}
-
 
 	if (!bus->polling_mode) {
 		dev_warn(chip->card->dev,
@@ -884,7 +835,7 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 		return -EAGAIN; /* give a chance to retry */
 	}
 
-	dev_WARN(chip->card->dev,
+	dev_err(chip->card->dev,
 		"azx_get_response timeout, switching to single_cmd mode: last cmd=0x%08x\n",
 		bus->last_cmd[addr]);
 	chip->single_cmd = 1;
@@ -1159,16 +1110,23 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 		if (snd_hdac_bus_handle_stream_irq(bus, status, stream_update))
 			active = true;
 
-		/* clear rirb int */
 		status = azx_readb(chip, RIRBSTS);
 		if (status & RIRB_INT_MASK) {
+			/*
+			 * Clearing the interrupt status here ensures that no
+			 * interrupt gets masked after the RIRB wp is read in
+			 * snd_hdac_bus_update_rirb. This avoids a possible
+			 * race condition where codec response in RIRB may
+			 * remain unserviced by IRQ, eventually falling back
+			 * to polling mode in azx_rirb_get_response.
+			 */
+			azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
 			active = true;
 			if (status & RIRB_INT_RESPONSE) {
 				if (chip->driver_caps & AZX_DCAPS_CTX_WORKAROUND)
 					udelay(80);
 				snd_hdac_bus_update_rirb(bus);
 			}
-			azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
 		}
 	} while (active && ++repeat < 10);
 

@@ -136,7 +136,6 @@
 
 		target-module@56000 {			/* 0x4a056000, ap 7 0a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dma_system";
 			reg = <0x56000 0x4>,
 			      <0x5602c 0x4>,
 			      <0x56028 0x4>;
@@ -160,7 +159,7 @@
 			ranges = <0x0 0x56000 0x1000>;
 
 			sdma: dma-controller@0 {
-				compatible = "ti,omap4430-sdma";
+				compatible = "ti,omap4430-sdma", "ti,omap-sdma";
 				reg = <0x0 0x1000>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
@@ -174,7 +173,6 @@
 
 		target-module@58000 {			/* 0x4a058000, ap 10 0e.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "hsi";
 			reg = <0x58000 0x4>,
 			      <0x58010 0x4>,
 			      <0x58014 0x4>;
@@ -321,7 +319,6 @@
 
 		target-module@66000 {			/* 0x4a066000, ap 25 26.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mmu_dsp";
 			reg = <0x66000 0x4>,
 			      <0x66010 0x4>,
 			      <0x66014 0x4>;
@@ -335,12 +332,18 @@
 			/* Domains (V, P, C): iva, tesla_pwrdm, tesla_clkdm */
 			clocks = <&tesla_clkctrl OMAP4_DSP_CLKCTRL 0>;
 			clock-names = "fck";
+			resets = <&prm_tesla 1>;
+			reset-names = "rstctrl";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x66000 0x1000>;
 
-			/* mmu_dsp cannot be moved before reset driver */
-			status = "disabled";
+			mmu_dsp: mmu@0 {
+				compatible = "ti,omap4-iommu";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+				#iommu-cells = <0>;
+			};
 		};
 	};
 
@@ -381,7 +384,6 @@
 
 		target-module@2b000 {			/* 0x4a0ab000, ap 84 12.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "usb_otg_hs";
 			reg = <0x2b400 0x4>,
 			      <0x2b404 0x4>,
 			      <0x2b408 0x4>;
@@ -421,7 +423,6 @@
 
 		target-module@2d000 {			/* 0x4a0ad000, ap 88 0c.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "ocp2scp_usb_phy";
 			reg = <0x2d000 0x4>,
 			      <0x2d010 0x4>,
 			      <0x2d014 0x4>;
@@ -500,7 +501,6 @@
 
 		target-module@59000 {			/* 0x4a0d9000, ap 13 1a.0 */
 			compatible = "ti,sysc-omap4-sr", "ti,sysc";
-			ti,hwmods = "smartreflex_mpu";
 			reg = <0x59038 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
@@ -524,7 +524,6 @@
 
 		target-module@5b000 {			/* 0x4a0db000, ap 15 08.0 */
 			compatible = "ti,sysc-omap4-sr", "ti,sysc";
-			ti,hwmods = "smartreflex_iva";
 			reg = <0x5b038 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
@@ -548,7 +547,6 @@
 
 		target-module@5d000 {			/* 0x4a0dd000, ap 17 22.0 */
 			compatible = "ti,sysc-omap4-sr", "ti,sysc";
-			ti,hwmods = "smartreflex_core";
 			reg = <0x5d038 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
@@ -580,7 +578,6 @@
 
 		target-module@74000 {			/* 0x4a0f4000, ap 27 24.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox";
 			reg = <0x74000 0x4>,
 			      <0x74010 0x4>;
 			reg-names = "rev", "sysc";
@@ -615,7 +612,6 @@
 
 		target-module@76000 {			/* 0x4a0f6000, ap 29 3a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spinlock";
 			reg = <0x76000 0x4>,
 			      <0x76010 0x4>,
 			      <0x76014 0x4>;
@@ -723,7 +719,6 @@
 
 		target-module@a000 {			/* 0x4a10a000, ap 65 50.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "fdif";
 			reg = <0xa000 0x4>,
 			      <0xa010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1007,7 +1002,7 @@
 			ranges = <0x0 0x6000 0x2000>;
 
 			prm: prm@0 {
-				compatible = "ti,omap4-prm";
+				compatible = "ti,omap4-prm", "simple-bus";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
@@ -1085,7 +1080,6 @@
 
 		gpio1_target: target-module@0 {			/* 0x4a310000, ap 5 14.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio1";
 			reg = <0x0 0x4>,
 			      <0x10 0x4>,
 			      <0x114 0x4>;
@@ -1180,7 +1174,6 @@
 
 		target-module@c000 {			/* 0x4a31c000, ap 11 20.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "kbd";
 			reg = <0xc000 0x4>,
 			      <0xc010 0x4>,
 			      <0xc014 0x4>;
@@ -1425,7 +1418,6 @@
 
 		target-module@32000 {			/* 0x48032000, ap 5 02.0 */
 			compatible = "ti,sysc-omap2-timer", "ti,sysc";
-			ti,hwmods = "timer2";
 			reg = <0x32000 0x4>,
 			      <0x32010 0x4>,
 			      <0x32014 0x4>;
@@ -1457,7 +1449,6 @@
 
 		target-module@34000 {			/* 0x48034000, ap 7 04.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer3";
 			reg = <0x34000 0x4>,
 			      <0x34010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1485,7 +1476,6 @@
 
 		target-module@36000 {			/* 0x48036000, ap 9 0e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer4";
 			reg = <0x36000 0x4>,
 			      <0x36010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1513,7 +1503,6 @@
 
 		target-module@3e000 {			/* 0x4803e000, ap 11 08.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer9";
 			reg = <0x3e000 0x4>,
 			      <0x3e010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1550,7 +1539,6 @@
 
 		target-module@55000 {			/* 0x48055000, ap 15 0c.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio2";
 			reg = <0x55000 0x4>,
 			      <0x55010 0x4>,
 			      <0x55114 0x4>;
@@ -1584,7 +1572,6 @@
 
 		target-module@57000 {			/* 0x48057000, ap 17 16.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio3";
 			reg = <0x57000 0x4>,
 			      <0x57010 0x4>,
 			      <0x57114 0x4>;
@@ -1618,7 +1605,6 @@
 
 		target-module@59000 {			/* 0x48059000, ap 19 10.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio4";
 			reg = <0x59000 0x4>,
 			      <0x59010 0x4>,
 			      <0x59114 0x4>;
@@ -1652,7 +1638,6 @@
 
 		target-module@5b000 {			/* 0x4805b000, ap 21 12.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio5";
 			reg = <0x5b000 0x4>,
 			      <0x5b010 0x4>,
 			      <0x5b114 0x4>;
@@ -1686,7 +1671,6 @@
 
 		target-module@5d000 {			/* 0x4805d000, ap 23 14.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio6";
 			reg = <0x5d000 0x4>,
 			      <0x5d010 0x4>,
 			      <0x5d114 0x4>;
@@ -1900,7 +1884,6 @@
 
 		target-module@76000 {			/* 0x48076000, ap 39 38.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "slimbus2";
 			reg = <0x76000 0x4>,
 			      <0x76010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1921,7 +1904,6 @@
 
 		target-module@78000 {			/* 0x48078000, ap 41 1a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "elm";
 			reg = <0x78000 0x4>,
 			      <0x78010 0x4>,
 			      <0x78014 0x4>;
@@ -1950,7 +1932,6 @@
 
 		target-module@86000 {			/* 0x48086000, ap 43 24.0 */
 			compatible = "ti,sysc-omap2-timer", "ti,sysc";
-			ti,hwmods = "timer10";
 			reg = <0x86000 0x4>,
 			      <0x86010 0x4>,
 			      <0x86014 0x4>;
@@ -1983,7 +1964,6 @@
 
 		target-module@88000 {			/* 0x48088000, ap 45 2e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer11";
 			reg = <0x88000 0x4>,
 			      <0x88010 0x4>;
 			reg-names = "rev", "sysc";
@@ -2010,17 +1990,30 @@
 			};
 		};
 
-		target-module@90000 {			/* 0x48090000, ap 57 2a.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+		rng_target: target-module@90000 {	/* 0x48090000, ap 57 2a.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x91fe0 0x4>,
+			      <0x91fe4 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>;
+			/* Domains (P, C): l4per_pwrdm, l4_secure_clkdm */
+			clocks = <&l4_secure_clkctrl OMAP4_RNG_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x90000 0x2000>;
+
+			rng: rng@0 {
+				compatible = "ti,omap4-rng";
+				reg = <0x0 0x2000>;
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		target-module@96000 {			/* 0x48096000, ap 37 26.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp4";
 			reg = <0x9608c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
@@ -2052,7 +2045,6 @@
 
 		target-module@98000 {			/* 0x48098000, ap 49 22.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mcspi1";
 			reg = <0x98000 0x4>,
 			      <0x98010 0x4>;
 			reg-names = "rev", "sysc";
@@ -2091,7 +2083,6 @@
 
 		target-module@9a000 {			/* 0x4809a000, ap 51 2c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mcspi2";
 			reg = <0x9a000 0x4>,
 			      <0x9a010 0x4>;
 			reg-names = "rev", "sysc";
@@ -2182,6 +2173,35 @@
 				 <0x00001000 0x000a5000 0x00001000>;
 		};
 
+		des_target: target-module@a5000 {	/* 0x480a5000 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0xa5030 0x4>,
+			      <0xa5034 0x4>,
+			      <0xa5038 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): l4per_pwrdm, l4_secure_clkdm */
+			clocks = <&l4_secure_clkctrl OMAP4_DES3DES_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xa5000 0x00001000>;
+
+			des: des@0 {
+				compatible = "ti,omap4-des";
+				reg = <0 0xa0>;
+				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&sdma 117>, <&sdma 116>;
+				dma-names = "tx", "rx";
+			};
+		};
+
 		target-module@a8000 {			/* 0x480a8000, ap 61 3e.0 */
 			compatible = "ti,sysc";
 			status = "disabled";
@@ -2232,7 +2252,6 @@
 
 		target-module@b2000 {			/* 0x480b2000, ap 65 3c.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "hdq1w";
 			reg = <0xb2000 0x4>,
 			      <0xb2014 0x4>,
 			      <0xb2018 0x4>;
@@ -2289,7 +2308,6 @@
 
 		target-module@b8000 {			/* 0x480b8000, ap 69 58.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mcspi3";
 			reg = <0xb8000 0x4>,
 			      <0xb8010 0x4>;
 			reg-names = "rev", "sysc";
@@ -2320,7 +2338,6 @@
 
 		target-module@ba000 {			/* 0x480ba000, ap 71 32.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mcspi4";
 			reg = <0xba000 0x4>,
 			      <0xba010 0x4>;
 			reg-names = "rev", "sysc";

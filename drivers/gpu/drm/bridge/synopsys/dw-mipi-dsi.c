@@ -316,7 +316,8 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 		return ret;
 
 	if (panel) {
-		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_DSI);
+		bridge = drm_panel_bridge_add_typed(panel,
+						    DRM_MODE_CONNECTOR_DSI);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
 	}
@@ -718,7 +719,15 @@ static void dw_mipi_dsi_vertical_timing_config(struct dw_mipi_dsi *dsi,
 
 static void dw_mipi_dsi_dphy_timing_config(struct dw_mipi_dsi *dsi)
 {
+	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
+	struct dw_mipi_dsi_dphy_timing timing;
 	u32 hw_version;
+	int ret;
+
+	ret = phy_ops->get_timing(dsi->plat_data->priv_data,
+				  dsi->lane_mbps, &timing);
+	if (ret)
+		DRM_DEV_ERROR(dsi->dev, "Retrieving phy timings failed\n");
 
 	/*
 	 * TODO dw drv improvements
@@ -731,16 +740,20 @@ static void dw_mipi_dsi_dphy_timing_config(struct dw_mipi_dsi *dsi)
 	hw_version = dsi_read(dsi, DSI_VERSION) & VERSION;
 
 	if (hw_version >= HWVER_131) {
-		dsi_write(dsi, DSI_PHY_TMR_CFG, PHY_HS2LP_TIME_V131(0x40) |
-			  PHY_LP2HS_TIME_V131(0x40));
+		dsi_write(dsi, DSI_PHY_TMR_CFG,
+			  PHY_HS2LP_TIME_V131(timing.data_hs2lp) |
+			  PHY_LP2HS_TIME_V131(timing.data_lp2hs));
 		dsi_write(dsi, DSI_PHY_TMR_RD_CFG, MAX_RD_TIME_V131(10000));
 	} else {
-		dsi_write(dsi, DSI_PHY_TMR_CFG, PHY_HS2LP_TIME(0x40) |
-			  PHY_LP2HS_TIME(0x40) | MAX_RD_TIME(10000));
+		dsi_write(dsi, DSI_PHY_TMR_CFG,
+			  PHY_HS2LP_TIME(timing.data_hs2lp) |
+			  PHY_LP2HS_TIME(timing.data_lp2hs) |
+			  MAX_RD_TIME(10000));
 	}
 
-	dsi_write(dsi, DSI_PHY_TMR_LPCLK_CFG, PHY_CLKHS2LP_TIME(0x40)
-		  | PHY_CLKLP2HS_TIME(0x40));
+	dsi_write(dsi, DSI_PHY_TMR_LPCLK_CFG,
+		  PHY_CLKHS2LP_TIME(timing.clk_hs2lp) |
+		  PHY_CLKLP2HS_TIME(timing.clk_lp2hs));
 }
 
 static void dw_mipi_dsi_dphy_interface_config(struct dw_mipi_dsi *dsi)
@@ -797,9 +810,6 @@ static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
 
-	if (phy_ops->power_off)
-		phy_ops->power_off(dsi->plat_data->priv_data);
-
 	/*
 	 * Switch to command mode before panel-bridge post_disable &
 	 * panel unprepare.
@@ -815,6 +825,9 @@ static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
 	 * needs to be updated to manage our own call chains...
 	 */
 	dsi->panel_bridge->funcs->post_disable(dsi->panel_bridge);
+
+	if (phy_ops->power_off)
+		phy_ops->power_off(dsi->plat_data->priv_data);
 
 	if (dsi->slave) {
 		dw_mipi_dsi_disable(dsi->slave);
@@ -882,6 +895,9 @@ static void dw_mipi_dsi_mode_set(struct dw_mipi_dsi *dsi,
 
 	/* Switch to cmd mode for panel-bridge pre_enable & panel prepare */
 	dw_mipi_dsi_set_mode(dsi, 0);
+
+	if (phy_ops->power_on)
+		phy_ops->power_on(dsi->plat_data->priv_data);
 }
 
 static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
@@ -898,15 +914,11 @@ static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
 static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
-	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
 
 	/* Switch to video mode for panel-bridge enable & panel enable */
 	dw_mipi_dsi_set_mode(dsi, MIPI_DSI_MODE_VIDEO);
 	if (dsi->slave)
 		dw_mipi_dsi_set_mode(dsi->slave, MIPI_DSI_MODE_VIDEO);
-
-	if (phy_ops->power_on)
-		phy_ops->power_on(dsi->plat_data->priv_data);
 }
 
 static enum drm_mode_status
@@ -981,7 +993,6 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct reset_control *apb_rst;
 	struct dw_mipi_dsi *dsi;
-	struct resource *res;
 	int ret;
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
@@ -991,17 +1002,14 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	dsi->dev = dev;
 	dsi->plat_data = plat_data;
 
-	if (!plat_data->phy_ops->init || !plat_data->phy_ops->get_lane_mbps) {
+	if (!plat_data->phy_ops->init || !plat_data->phy_ops->get_lane_mbps ||
+	    !plat_data->phy_ops->get_timing) {
 		DRM_ERROR("Phy not properly configured\n");
 		return ERR_PTR(-ENODEV);
 	}
 
 	if (!plat_data->base) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
-			return ERR_PTR(-ENODEV);
-
-		dsi->base = devm_ioremap_resource(dev, res);
+		dsi->base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(dsi->base))
 			return ERR_PTR(-ENODEV);
 

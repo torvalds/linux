@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * trace_hwlatdetect.c - A simple Hardware Latency detector.
+ * trace_hwlat.c - A simple Hardware Latency detector.
  *
  * Use this tracer to detect large system latencies induced by the behavior of
  * certain underlying system hardware or firmware, independent of Linux itself.
@@ -104,7 +104,7 @@ static void trace_hwlat_sample(struct hwlat_sample *sample)
 {
 	struct trace_array *tr = hwlat_trace;
 	struct trace_event_call *call = &event_hwlat;
-	struct ring_buffer *buffer = tr->trace_buffer.buffer;
+	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct hwlat_entry *entry;
 	unsigned long flags;
@@ -150,7 +150,7 @@ void trace_hwlat_callback(bool enter)
 		if (enter)
 			nmi_ts_start = time_get();
 		else
-			nmi_total_ts = time_get() - nmi_ts_start;
+			nmi_total_ts += time_get() - nmi_ts_start;
 	}
 
 	if (enter)
@@ -237,6 +237,7 @@ static int get_sample(void)
 	/* If we exceed the threshold value, we have found a hardware latency */
 	if (sample > thresh || outer_sample > thresh) {
 		struct hwlat_sample s;
+		u64 latency;
 
 		ret = 1;
 
@@ -253,9 +254,13 @@ static int get_sample(void)
 		s.nmi_count = nmi_count;
 		trace_hwlat_sample(&s);
 
+		latency = max(sample, outer_sample);
+
 		/* Keep a running maximum ever recorded hardware latency */
-		if (sample > tr->max_latency)
-			tr->max_latency = sample;
+		if (latency > tr->max_latency) {
+			tr->max_latency = latency;
+			latency_fsnotify(tr);
+		}
 	}
 
 out:
@@ -274,7 +279,7 @@ static void move_to_next_cpu(void)
 		return;
 	/*
 	 * If for some reason the user modifies the CPU affinity
-	 * of this thread, than stop migrating for the duration
+	 * of this thread, then stop migrating for the duration
 	 * of the current test.
 	 */
 	if (!cpumask_equal(current_mask, current->cpus_ptr))
@@ -551,7 +556,7 @@ static int init_tracefs(void)
 	return 0;
 
  err:
-	tracefs_remove_recursive(top_dir);
+	tracefs_remove(top_dir);
 	return -ENOMEM;
 }
 

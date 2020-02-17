@@ -1062,6 +1062,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			req->num_sgs = io_data->sgt.nents;
 		} else {
 			req->buf = data;
+			req->num_sgs = 0;
 		}
 		req->length = data_len;
 
@@ -1105,6 +1106,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			req->num_sgs = io_data->sgt.nents;
 		} else {
 			req->buf = data;
+			req->num_sgs = 0;
 		}
 		req->length = data_len;
 
@@ -1352,14 +1354,6 @@ static long ffs_epfile_ioctl(struct file *file, unsigned code,
 	return ret;
 }
 
-#ifdef CONFIG_COMPAT
-static long ffs_epfile_compat_ioctl(struct file *file, unsigned code,
-		unsigned long value)
-{
-	return ffs_epfile_ioctl(file, code, value);
-}
-#endif
-
 static const struct file_operations ffs_epfile_operations = {
 	.llseek =	no_llseek,
 
@@ -1368,9 +1362,7 @@ static const struct file_operations ffs_epfile_operations = {
 	.read_iter =	ffs_epfile_read_iter,
 	.release =	ffs_epfile_release,
 	.unlocked_ioctl =	ffs_epfile_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = ffs_epfile_compat_ioctl,
-#endif
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 
@@ -1496,7 +1488,7 @@ enum {
 	Opt_gid,
 };
 
-static const struct fs_parameter_spec ffs_fs_param_specs[] = {
+static const struct fs_parameter_spec ffs_fs_fs_parameters[] = {
 	fsparam_bool	("no_disconnect",	Opt_no_disconnect),
 	fsparam_u32	("rmode",		Opt_rmode),
 	fsparam_u32	("fmode",		Opt_fmode),
@@ -1504,11 +1496,6 @@ static const struct fs_parameter_spec ffs_fs_param_specs[] = {
 	fsparam_u32	("uid",			Opt_uid),
 	fsparam_u32	("gid",			Opt_gid),
 	{}
-};
-
-static const struct fs_parameter_description ffs_fs_fs_parameters = {
-	.name		= "kAFS",
-	.specs		= ffs_fs_param_specs,
 };
 
 static int ffs_fs_parse_param(struct fs_context *fc, struct fs_parameter *param)
@@ -1519,7 +1506,7 @@ static int ffs_fs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	ENTER();
 
-	opt = fs_parse(fc, &ffs_fs_fs_parameters, param, &result);
+	opt = fs_parse(fc, ffs_fs_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -1651,7 +1638,7 @@ static struct file_system_type ffs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "functionfs",
 	.init_fs_context = ffs_fs_init_fs_context,
-	.parameters	= &ffs_fs_fs_parameters,
+	.parameters	= ffs_fs_fs_parameters,
 	.kill_sb	= ffs_fs_kill_sb,
 };
 MODULE_ALIAS_FS("functionfs");
@@ -3519,7 +3506,7 @@ static void ffs_free_inst(struct usb_function_instance *f)
 
 static int ffs_set_inst_name(struct usb_function_instance *fi, const char *name)
 {
-	if (strlen(name) >= FIELD_SIZEOF(struct ffs_dev, name))
+	if (strlen(name) >= sizeof_field(struct ffs_dev, name))
 		return -ENAMETOOLONG;
 	return ffs_name_dev(to_f_fs_opts(fi)->dev, name);
 }

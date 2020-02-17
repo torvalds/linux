@@ -159,6 +159,7 @@ config MMC_SDHCI_OF_ASPEED
 	tristate "SDHCI OF support for the ASPEED SDHCI controller"
 	depends on MMC_SDHCI_PLTFM
 	depends on OF && OF_ADDRESS
+	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the ASPEED Secure Digital Host Controller Interface.
 
@@ -368,6 +369,17 @@ config MMC_SDHCI_F_SDH30
 
 	  If unsure, say N.
 
+config MMC_SDHCI_MILBEAUT
+	tristate "SDHCI support for Socionext Milbeaut Serieas using F_SDH30"
+	depends on MMC_SDHCI_PLTFM
+	depends on OF
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  Needed by Milbeaut SoC for MMC / SD / SDIO support.
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_IPROC
 	tristate "SDHCI support for the BCM2835 & iProc SD/MMC Controller"
 	depends on ARCH_BCM2835 || ARCH_BCM_IPROC || COMPILE_TEST
@@ -489,6 +501,7 @@ config MMC_SDHCI_MSM
 	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
+	select MMC_CQHCI
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in Qualcomm SOCs. The controller supports
@@ -978,6 +991,7 @@ config MMC_SDHCI_BRCMSTB
 	tristate "Broadcom SDIO/SD/MMC support"
 	depends on ARCH_BRCMSTB || BMIPS_GENERIC
 	depends on MMC_SDHCI_PLTFM
+	select MMC_CQHCI
 	default y
 	help
 	  This selects support for the SDIO/SD/MMC Host Controller on
@@ -998,6 +1012,7 @@ config MMC_SDHCI_OMAP
 	depends on MMC_SDHCI_PLTFM && OF
 	select THERMAL
 	imply TI_SOC_THERMAL
+	select MMC_SDHCI_EXTERNAL_DMA if DMA_ENGINE
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in TI's DRA7 SOCs. The controller supports
@@ -1011,6 +1026,7 @@ config MMC_SDHCI_AM654
 	tristate "Support for the SDHCI Controller in TI's AM654 SOCs"
 	depends on MMC_SDHCI_PLTFM && OF && REGMAP_MMIO
 	select MMC_SDHCI_IO_ACCESSORS
+	select MMC_CQHCI
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in TI's AM654 SOCs. The controller supports
@@ -1019,3 +1035,14 @@ config MMC_SDHCI_AM654
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
+
+config MMC_OWL
+	tristate "Actions Semi Owl SD/MMC Host Controller support"
+	depends on HAS_DMA
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	help
+	  This selects support for the SD/MMC Host Controller on
+	  Actions Semi Owl SoCs.
+
+config MMC_SDHCI_EXTERNAL_DMA
+	bool

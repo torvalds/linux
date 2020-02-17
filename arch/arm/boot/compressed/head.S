@@ -140,7 +140,18 @@
 #endif
 		.endm
 
-		.section ".start", #alloc, #execinstr
+		.macro	enable_cp15_barriers, reg
+		mrc	p15, 0, \reg, c1, c0, 0	@ read SCTLR
+		tst	\reg, #(1 << 5)		@ CP15BEN bit set?
+		bne	.L_\@
+		orr	\reg, \reg, #(1 << 5)	@ CP15 barrier instructions
+		mcr	p15, 0, \reg, c1, c0, 0	@ write SCTLR
+ ARM(		.inst   0xf57ff06f		@ v7+ isb	)
+ THUMB(		isb						)
+.L_\@:
+		.endm
+
+		.section ".start", "ax"
 /*
  * sort out different calling conventions
  */
@@ -820,6 +831,7 @@ __armv4_mmu_cache_on:
 		mov	pc, r12
 
 __armv7_mmu_cache_on:
+		enable_cp15_barriers	r11
 		mov	r12, lr
 #ifdef CONFIG_MMU
 		mrc	p15, 0, r11, c0, c1, 4	@ read ID_MMFR0
@@ -1209,6 +1221,7 @@ __armv6_mmu_cache_flush:
 		mov	pc, lr
 
 __armv7_mmu_cache_flush:
+		enable_cp15_barriers	r10
 		tst	r4, #1
 		bne	iflush
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
@@ -1273,7 +1286,7 @@ iflush:
 __armv5tej_mmu_cache_flush:
 		tst	r4, #1
 		movne	pc, lr
-1:		mrc	p15, 0, r15, c7, c14, 3	@ test,clean,invalidate D cache
+1:		mrc	p15, 0, APSR_nzcv, c7, c14, 3	@ test,clean,invalidate D cache
 		bne	1b
 		mcr	p15, 0, r0, c7, c5, 0	@ flush I cache
 		mcr	p15, 0, r0, c7, c10, 4	@ drain WB
@@ -1447,21 +1460,7 @@ ENTRY(efi_stub_entry)
 
 		@ Preserve return value of efi_entry() in r4
 		mov	r4, r0
-
-		@ our cache maintenance code relies on CP15 barrier instructions
-		@ but since we arrived here with the MMU and caches configured
-		@ by UEFI, we must check that the CP15BEN bit is set in SCTLR.
-		@ Note that this bit is RAO/WI on v6 and earlier, so the ISB in
-		@ the enable path will be executed on v7+ only.
-		mrc	p15, 0, r1, c1, c0, 0	@ read SCTLR
-		tst	r1, #(1 << 5)		@ CP15BEN bit set?
-		bne	0f
-		orr	r1, r1, #(1 << 5)	@ CP15 barrier instructions
-		mcr	p15, 0, r1, c1, c0, 0	@ write SCTLR
- ARM(		.inst	0xf57ff06f		@ v7+ isb	)
- THUMB(		isb						)
-
-0:		bl	cache_clean_flush
+		bl	cache_clean_flush
 		bl	cache_off
 
 		@ Set parameters for booting zImage according to boot protocol

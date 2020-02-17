@@ -48,7 +48,7 @@ tmp3		.req	x9
 zeroones	.req	x10
 pos		.req	x11
 
-WEAK(strcmp)
+SYM_FUNC_START_WEAK_PI(strcmp)
 	eor	tmp1, src1, src2
 	mov	zeroones, #REP8_01
 	tst	tmp1, #7
@@ -219,5 +219,5 @@ CPU_BE(	orr	syndrome, diff, has_nul )
 	lsr	data1, data1, #56
 	sub	result, data1, data2, lsr #56
 	ret
-ENDPIPROC(strcmp)
+SYM_FUNC_END_PI(strcmp)
 EXPORT_SYMBOL_NOKASAN(strcmp)

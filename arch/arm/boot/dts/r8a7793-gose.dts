@@ -65,81 +65,81 @@
 		compatible = "gpio-keys";
 
 		key-1 {
-		        gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_1>;
-		        label = "SW2-1";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+			label = "SW2-1";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-2 {
-		        gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_2>;
-		        label = "SW2-2";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_2>;
+			label = "SW2-2";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-3 {
-		        gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_3>;
-		        label = "SW2-3";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_3>;
+			label = "SW2-3";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-4 {
-		        gpios = <&gpio5 3 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_4>;
-		        label = "SW2-4";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio5 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_4>;
+			label = "SW2-4";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-a {
-		        gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_A>;
-		        label = "SW30";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_A>;
+			label = "SW30";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-b {
-		        gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_B>;
-		        label = "SW31";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_B>;
+			label = "SW31";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-c {
-		        gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_C>;
-		        label = "SW32";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_C>;
+			label = "SW32";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-d {
-		        gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_D>;
-		        label = "SW33";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_D>;
+			label = "SW33";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-e {
-		        gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_E>;
-		        label = "SW34";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_E>;
+			label = "SW34";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-f {
-		        gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_F>;
-		        label = "SW35";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_F>;
+			label = "SW35";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 		key-g {
-		        gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
-		        linux,code = <KEY_G>;
-		        label = "SW36";
-		        wakeup-source;
-		        debounce-interval = <20>;
+			gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_G>;
+			label = "SW36";
+			wakeup-source;
+			debounce-interval = <20>;
 		};
 	};
 
@@ -179,8 +179,7 @@
 
 		gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi1: regulator-vcc-sdhi1 {
@@ -203,8 +202,7 @@
 
 		gpios = <&gpio2 13 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi2: regulator-vcc-sdhi2 {
@@ -227,8 +225,7 @@
 
 		gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	audio_clock: audio_clock {

@@ -14,7 +14,6 @@
  *  o Use prefetching for large packets.  What is a good lower limit for
  *    prefetching?
  *  o Use hardware checksums.
- *  o Convert to using a IOC3 meta driver.
  *  o Which PHYs might possibly be attached to the IOC3 in real live,
  *    which workarounds are required for them?  Do we ever have Lucent's?
  *  o For the 2.5 branch kill the mii-tool ioctls.
@@ -28,7 +27,8 @@
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/module.h>
-#include <linux/pci.h>
+#include <linux/init.h>
+#include <linux/crc16.h>
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/in.h>
@@ -37,27 +37,21 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/gfp.h>
-
-#ifdef CONFIG_SERIAL_8250
-#include <linux/serial_core.h>
-#include <linux/serial_8250.h>
-#include <linux/serial_reg.h>
-#endif
-
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
-#include <linux/dma-direct.h>
+#include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
+#include <linux/nvmem-consumer.h>
 
 #include <net/ip.h>
 
-#include <asm/byteorder.h>
-#include <asm/pgtable.h>
-#include <linux/uaccess.h>
-#include <asm/sn/types.h>
 #include <asm/sn/ioc3.h>
 #include <asm/pci/bridge.h>
+
+#define CRC16_INIT	0
+#define CRC16_VALID	0xb001
 
 /* Number of RX buffers.  This is tunable in the range of 16 <= x < 512.
  * The value must be a power of two.
@@ -85,10 +79,10 @@
 /* Private per NIC data of the driver.  */
 struct ioc3_private {
 	struct ioc3_ethregs *regs;
-	struct ioc3 *all_regs;
 	struct device *dma_dev;
 	u32 *ssram;
 	unsigned long *rxr;		/* pointer to receiver ring */
+	void *tx_ring;
 	struct ioc3_etxd *txr;
 	dma_addr_t rxr_dma;
 	dma_addr_t txr_dma;
@@ -103,9 +97,6 @@ struct ioc3_private {
 	spinlock_t ioc3_lock;
 	struct mii_if_info mii;
 
-	struct net_device *dev;
-	struct pci_dev *pdev;
-
 	/* Members used by autonegotiation  */
 	struct timer_list ioc3_timer;
 };
@@ -113,7 +104,7 @@ struct ioc3_private {
 static int ioc3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void ioc3_set_multicast_list(struct net_device *dev);
 static netdev_tx_t ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static void ioc3_timeout(struct net_device *dev);
+static void ioc3_timeout(struct net_device *dev, unsigned int txqueue);
 static inline unsigned int ioc3_hash(const unsigned char *addr);
 static void ioc3_start(struct ioc3_private *ip);
 static inline void ioc3_stop(struct ioc3_private *ip);
@@ -122,9 +113,7 @@ static int ioc3_alloc_rx_bufs(struct net_device *dev);
 static void ioc3_free_rx_bufs(struct ioc3_private *ip);
 static inline void ioc3_clean_tx_ring(struct ioc3_private *ip);
 
-static const char ioc3_str[] = "IOC3 Ethernet";
 static const struct ethtool_ops ioc3_ethtool_ops;
-
 
 static inline unsigned long aligned_rx_skb_addr(unsigned long addr)
 {
@@ -178,225 +167,61 @@ static inline unsigned long ioc3_map(dma_addr_t addr, unsigned long attr)
 #define ERBAR_VAL	0
 #endif
 
-#define IOC3_SIZE 0x100000
-
-static inline u32 mcr_pack(u32 pulse, u32 sample)
+static int ioc3eth_nvmem_match(struct device *dev, const void *data)
 {
-	return (pulse << 10) | (sample << 2);
-}
+	const char *name = dev_name(dev);
+	const char *prefix = data;
+	int prefix_len;
 
-static int nic_wait(u32 __iomem *mcr)
-{
-	u32 m;
+	prefix_len = strlen(prefix);
+	if (strlen(name) < (prefix_len + 3))
+		return 0;
 
-	do {
-		m = readl(mcr);
-	} while (!(m & 2));
+	if (memcmp(prefix, name, prefix_len) != 0)
+		return 0;
 
-	return m & 1;
-}
-
-static int nic_reset(u32 __iomem *mcr)
-{
-	int presence;
-
-	writel(mcr_pack(500, 65), mcr);
-	presence = nic_wait(mcr);
-
-	writel(mcr_pack(0, 500), mcr);
-	nic_wait(mcr);
-
-	return presence;
-}
-
-static inline int nic_read_bit(u32 __iomem *mcr)
-{
-	int result;
-
-	writel(mcr_pack(6, 13), mcr);
-	result = nic_wait(mcr);
-	writel(mcr_pack(0, 100), mcr);
-	nic_wait(mcr);
-
-	return result;
-}
-
-static inline void nic_write_bit(u32 __iomem *mcr, int bit)
-{
-	if (bit)
-		writel(mcr_pack(6, 110), mcr);
-	else
-		writel(mcr_pack(80, 30), mcr);
-
-	nic_wait(mcr);
-}
-
-/* Read a byte from an iButton device
- */
-static u32 nic_read_byte(u32 __iomem *mcr)
-{
-	u32 result = 0;
-	int i;
-
-	for (i = 0; i < 8; i++)
-		result = (result >> 1) | (nic_read_bit(mcr) << 7);
-
-	return result;
-}
-
-/* Write a byte to an iButton device
- */
-static void nic_write_byte(u32 __iomem *mcr, int byte)
-{
-	int i, bit;
-
-	for (i = 8; i; i--) {
-		bit = byte & 1;
-		byte >>= 1;
-
-		nic_write_bit(mcr, bit);
-	}
-}
-
-static u64 nic_find(u32 __iomem *mcr, int *last)
-{
-	int a, b, index, disc;
-	u64 address = 0;
-
-	nic_reset(mcr);
-	/* Search ROM.  */
-	nic_write_byte(mcr, 0xf0);
-
-	/* Algorithm from ``Book of iButton Standards''.  */
-	for (index = 0, disc = 0; index < 64; index++) {
-		a = nic_read_bit(mcr);
-		b = nic_read_bit(mcr);
-
-		if (a && b) {
-			pr_warn("NIC search failed (not fatal).\n");
-			*last = 0;
-			return 0;
-		}
-
-		if (!a && !b) {
-			if (index == *last) {
-				address |= 1UL << index;
-			} else if (index > *last) {
-				address &= ~(1UL << index);
-				disc = index;
-			} else if ((address & (1UL << index)) == 0) {
-				disc = index;
-			}
-			nic_write_bit(mcr, address & (1UL << index));
-			continue;
-		} else {
-			if (a)
-				address |= 1UL << index;
-			else
-				address &= ~(1UL << index);
-			nic_write_bit(mcr, a);
-			continue;
-		}
-	}
-
-	*last = disc;
-
-	return address;
-}
-
-static int nic_init(u32 __iomem *mcr)
-{
-	const char *unknown = "unknown";
-	const char *type = unknown;
-	u8 crc;
-	u8 serial[6];
-	int save = 0, i;
-
-	while (1) {
-		u64 reg;
-
-		reg = nic_find(mcr, &save);
-
-		switch (reg & 0xff) {
-		case 0x91:
-			type = "DS1981U";
-			break;
-		default:
-			if (save == 0) {
-				/* Let the caller try again.  */
-				return -1;
-			}
-			continue;
-		}
-
-		nic_reset(mcr);
-
-		/* Match ROM.  */
-		nic_write_byte(mcr, 0x55);
-		for (i = 0; i < 8; i++)
-			nic_write_byte(mcr, (reg >> (i << 3)) & 0xff);
-
-		reg >>= 8; /* Shift out type.  */
-		for (i = 0; i < 6; i++) {
-			serial[i] = reg & 0xff;
-			reg >>= 8;
-		}
-		crc = reg & 0xff;
-		break;
-	}
-
-	pr_info("Found %s NIC", type);
-	if (type != unknown)
-		pr_cont(" registration number %pM, CRC %02x", serial, crc);
-	pr_cont(".\n");
+	/* found nvmem device which is attached to our ioc3
+	 * now check for one wire family code 09, 89 and 91
+	 */
+	if (memcmp(name + prefix_len, "09-", 3) == 0)
+		return 1;
+	if (memcmp(name + prefix_len, "89-", 3) == 0)
+		return 1;
+	if (memcmp(name + prefix_len, "91-", 3) == 0)
+		return 1;
 
 	return 0;
 }
 
-/* Read the NIC (Number-In-a-Can) device used to store the MAC address on
- * SN0 / SN00 nodeboards and PCI cards.
- */
-static void ioc3_get_eaddr_nic(struct ioc3_private *ip)
+static int ioc3eth_get_mac_addr(struct resource *res, u8 mac_addr[6])
 {
-	u32 __iomem *mcr = &ip->all_regs->mcr;
-	int tries = 2; /* There may be some problem with the battery?  */
-	u8 nic[14];
+	struct nvmem_device *nvmem;
+	char prefix[24];
+	u8 prom[16];
+	int ret;
 	int i;
 
-	writel(1 << 21, &ip->all_regs->gpcr_s);
+	snprintf(prefix, sizeof(prefix), "ioc3-%012llx-",
+		 res->start & ~0xffff);
 
-	while (tries--) {
-		if (!nic_init(mcr))
-			break;
-		udelay(500);
-	}
+	nvmem = nvmem_device_find(prefix, ioc3eth_nvmem_match);
+	if (IS_ERR(nvmem))
+		return PTR_ERR(nvmem);
 
-	if (tries < 0) {
-		pr_err("Failed to read MAC address\n");
-		return;
-	}
+	ret = nvmem_device_read(nvmem, 0, 16, prom);
+	nvmem_device_put(nvmem);
+	if (ret < 0)
+		return ret;
 
-	/* Read Memory.  */
-	nic_write_byte(mcr, 0xf0);
-	nic_write_byte(mcr, 0x00);
-	nic_write_byte(mcr, 0x00);
+	/* check, if content is valid */
+	if (prom[0] != 0x0a ||
+	    crc16(CRC16_INIT, prom, 13) != CRC16_VALID)
+		return -EINVAL;
 
-	for (i = 13; i >= 0; i--)
-		nic[i] = nic_read_byte(mcr);
+	for (i = 0; i < 6; i++)
+		mac_addr[i] = prom[10 - i];
 
-	for (i = 2; i < 8; i++)
-		ip->dev->dev_addr[i - 2] = nic[i];
-}
-
-/* Ok, this is hosed by design.  It's necessary to know what machine the
- * NIC is in in order to know how to read the NIC address.  We also have
- * to know if it's a PCI card or a NIC in on the node board ...
- */
-static void ioc3_get_eaddr(struct ioc3_private *ip)
-{
-	ioc3_get_eaddr_nic(ip);
-
-	pr_info("Ethernet address is %pM.\n", ip->dev->dev_addr);
+	return 0;
 }
 
 static void __ioc3_set_mac_address(struct net_device *dev)
@@ -769,7 +594,7 @@ static int ioc3_mii_init(struct ioc3_private *ip)
 	u16 word;
 
 	for (i = 0; i < 32; i++) {
-		word = ioc3_mdio_read(ip->dev, i, MII_PHYSID1);
+		word = ioc3_mdio_read(ip->mii.dev, i, MII_PHYSID1);
 
 		if (word != 0xffff && word != 0x0000) {
 			found = 1;
@@ -974,12 +799,6 @@ static int ioc3_open(struct net_device *dev)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 
-	if (request_irq(dev->irq, ioc3_interrupt, IRQF_SHARED, ioc3_str, dev)) {
-		netdev_err(dev, "Can't get irq %d\n", dev->irq);
-
-		return -EAGAIN;
-	}
-
 	ip->ehar_h = 0;
 	ip->ehar_l = 0;
 
@@ -1004,154 +823,12 @@ static int ioc3_close(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	ioc3_stop(ip);
-	free_irq(dev->irq, dev);
 
 	ioc3_free_rx_bufs(ip);
 	ioc3_clean_tx_ring(ip);
 
 	return 0;
 }
-
-/* MENET cards have four IOC3 chips, which are attached to two sets of
- * PCI slot resources each: the primary connections are on slots
- * 0..3 and the secondaries are on 4..7
- *
- * All four ethernets are brought out to connectors; six serial ports
- * (a pair from each of the first three IOC3s) are brought out to
- * MiniDINs; all other subdevices are left swinging in the wind, leave
- * them disabled.
- */
-
-static int ioc3_adjacent_is_ioc3(struct pci_dev *pdev, int slot)
-{
-	struct pci_dev *dev = pci_get_slot(pdev->bus, PCI_DEVFN(slot, 0));
-	int ret = 0;
-
-	if (dev) {
-		if (dev->vendor == PCI_VENDOR_ID_SGI &&
-		    dev->device == PCI_DEVICE_ID_SGI_IOC3)
-			ret = 1;
-		pci_dev_put(dev);
-	}
-
-	return ret;
-}
-
-static int ioc3_is_menet(struct pci_dev *pdev)
-{
-	return !pdev->bus->parent &&
-	       ioc3_adjacent_is_ioc3(pdev, 0) &&
-	       ioc3_adjacent_is_ioc3(pdev, 1) &&
-	       ioc3_adjacent_is_ioc3(pdev, 2);
-}
-
-#ifdef CONFIG_SERIAL_8250
-/* Note about serial ports and consoles:
- * For console output, everyone uses the IOC3 UARTA (offset 0x178)
- * connected to the master node (look in ip27_setup_console() and
- * ip27prom_console_write()).
- *
- * For serial (/dev/ttyS0 etc), we can not have hardcoded serial port
- * addresses on a partitioned machine. Since we currently use the ioc3
- * serial ports, we use dynamic serial port discovery that the serial.c
- * driver uses for pci/pnp ports (there is an entry for the SGI ioc3
- * boards in pci_boards[]). Unfortunately, UARTA's pio address is greater
- * than UARTB's, although UARTA on o200s has traditionally been known as
- * port 0. So, we just use one serial port from each ioc3 (since the
- * serial driver adds addresses to get to higher ports).
- *
- * The first one to do a register_console becomes the preferred console
- * (if there is no kernel command line console= directive). /dev/console
- * (ie 5, 1) is then "aliased" into the device number returned by the
- * "device" routine referred to in this console structure
- * (ip27prom_console_dev).
- *
- * Also look in ip27-pci.c:pci_fixup_ioc3() for some comments on working
- * around ioc3 oddities in this respect.
- *
- * The IOC3 serials use a 22MHz clock rate with an additional divider which
- * can be programmed in the SCR register if the DLAB bit is set.
- *
- * Register to interrupt zero because we share the interrupt with
- * the serial driver which we don't properly support yet.
- *
- * Can't use UPF_IOREMAP as the whole of IOC3 resources have already been
- * registered.
- */
-static void ioc3_8250_register(struct ioc3_uartregs __iomem *uart)
-{
-#define COSMISC_CONSTANT 6
-
-	struct uart_8250_port port = {
-		.port = {
-			.irq		= 0,
-			.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-			.iotype		= UPIO_MEM,
-			.regshift	= 0,
-			.uartclk	= (22000000 << 1) / COSMISC_CONSTANT,
-
-			.membase	= (unsigned char __iomem *)uart,
-			.mapbase	= (unsigned long)uart,
-		}
-	};
-	unsigned char lcr;
-
-	lcr = readb(&uart->iu_lcr);
-	writeb(lcr | UART_LCR_DLAB, &uart->iu_lcr);
-	writeb(COSMISC_CONSTANT, &uart->iu_scr);
-	writeb(lcr, &uart->iu_lcr);
-	readb(&uart->iu_lcr);
-	serial8250_register_8250_port(&port);
-}
-
-static void ioc3_serial_probe(struct pci_dev *pdev, struct ioc3 *ioc3)
-{
-	u32 sio_iec;
-
-	/* We need to recognice and treat the fourth MENET serial as it
-	 * does not have an SuperIO chip attached to it, therefore attempting
-	 * to access it will result in bus errors.  We call something an
-	 * MENET if PCI slot 0, 1, 2 and 3 of a master PCI bus all have an IOC3
-	 * in it.  This is paranoid but we want to avoid blowing up on a
-	 * showhorn PCI box that happens to have 4 IOC3 cards in it so it's
-	 * not paranoid enough ...
-	 */
-	if (ioc3_is_menet(pdev) && PCI_SLOT(pdev->devfn) == 3)
-		return;
-
-	/* Switch IOC3 to PIO mode.  It probably already was but let's be
-	 * paranoid
-	 */
-	writel(GPCR_UARTA_MODESEL | GPCR_UARTB_MODESEL, &ioc3->gpcr_s);
-	readl(&ioc3->gpcr_s);
-	writel(0, &ioc3->gppr[6]);
-	readl(&ioc3->gppr[6]);
-	writel(0, &ioc3->gppr[7]);
-	readl(&ioc3->gppr[7]);
-	writel(readl(&ioc3->port_a.sscr) & ~SSCR_DMA_EN, &ioc3->port_a.sscr);
-	readl(&ioc3->port_a.sscr);
-	writel(readl(&ioc3->port_b.sscr) & ~SSCR_DMA_EN, &ioc3->port_b.sscr);
-	readl(&ioc3->port_b.sscr);
-	/* Disable all SA/B interrupts except for SA/B_INT in SIO_IEC. */
-	sio_iec = readl(&ioc3->sio_iec);
-	sio_iec &= ~(SIO_IR_SA_TX_MT | SIO_IR_SA_RX_FULL |
-		     SIO_IR_SA_RX_HIGH | SIO_IR_SA_RX_TIMER |
-		     SIO_IR_SA_DELTA_DCD | SIO_IR_SA_DELTA_CTS |
-		     SIO_IR_SA_TX_EXPLICIT | SIO_IR_SA_MEMERR);
-	sio_iec |= SIO_IR_SA_INT;
-	sio_iec &= ~(SIO_IR_SB_TX_MT | SIO_IR_SB_RX_FULL |
-		     SIO_IR_SB_RX_HIGH | SIO_IR_SB_RX_TIMER |
-		     SIO_IR_SB_DELTA_DCD | SIO_IR_SB_DELTA_CTS |
-		     SIO_IR_SB_TX_EXPLICIT | SIO_IR_SB_MEMERR);
-	sio_iec |= SIO_IR_SB_INT;
-	writel(sio_iec, &ioc3->sio_iec);
-	writel(0, &ioc3->port_a.sscr);
-	writel(0, &ioc3->port_b.sscr);
-
-	ioc3_8250_register(&ioc3->sregs.uarta);
-	ioc3_8250_register(&ioc3->sregs.uartb);
-}
-#endif
 
 static const struct net_device_ops ioc3_netdev_ops = {
 	.ndo_open		= ioc3_open,
@@ -1165,76 +842,52 @@ static const struct net_device_ops ioc3_netdev_ops = {
 	.ndo_set_mac_address	= ioc3_set_mac_address,
 };
 
-static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int ioc3eth_probe(struct platform_device *pdev)
 {
-	unsigned int sw_physid1, sw_physid2;
-	struct net_device *dev = NULL;
+	u32 sw_physid1, sw_physid2, vendor, model, rev;
 	struct ioc3_private *ip;
-	struct ioc3 *ioc3;
-	unsigned long ioc3_base, ioc3_size;
-	u32 vendor, model, rev;
-	int err, pci_using_dac;
+	struct net_device *dev;
+	struct resource *regs;
+	u8 mac_addr[6];
+	int err;
 
-	/* Configure DMA attributes. */
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (!err) {
-		pci_using_dac = 1;
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-		if (err < 0) {
-			pr_err("%s: Unable to obtain 64 bit DMA for consistent allocations\n",
-			       pci_name(pdev));
-			goto out;
-		}
-	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (err) {
-			pr_err("%s: No usable DMA configuration, aborting.\n",
-			       pci_name(pdev));
-			goto out;
-		}
-		pci_using_dac = 0;
-	}
-
-	if (pci_enable_device(pdev))
-		return -ENODEV;
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	/* get mac addr from one wire prom */
+	if (ioc3eth_get_mac_addr(regs, mac_addr))
+		return -EPROBE_DEFER; /* not available yet */
 
 	dev = alloc_etherdev(sizeof(struct ioc3_private));
-	if (!dev) {
-		err = -ENOMEM;
-		goto out_disable;
-	}
-
-	if (pci_using_dac)
-		dev->features |= NETIF_F_HIGHDMA;
-
-	err = pci_request_regions(pdev, "ioc3");
-	if (err)
-		goto out_free;
+	if (!dev)
+		return -ENOMEM;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	ip = netdev_priv(dev);
-	ip->dev = dev;
-	ip->dma_dev = &pdev->dev;
-
-	dev->irq = pdev->irq;
-
-	ioc3_base = pci_resource_start(pdev, 0);
-	ioc3_size = pci_resource_len(pdev, 0);
-	ioc3 = (struct ioc3 *)ioremap(ioc3_base, ioc3_size);
-	if (!ioc3) {
-		pr_err("ioc3eth(%s): ioremap failed, goodbye.\n",
-		       pci_name(pdev));
+	ip->dma_dev = pdev->dev.parent;
+	ip->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (!ip->regs) {
 		err = -ENOMEM;
-		goto out_res;
+		goto out_free;
 	}
-	ip->regs = &ioc3->eth;
-	ip->ssram = ioc3->ssram;
-	ip->all_regs = ioc3;
 
-#ifdef CONFIG_SERIAL_8250
-	ioc3_serial_probe(pdev, ioc3);
-#endif
+	ip->ssram = devm_platform_ioremap_resource(pdev, 1);
+	if (!ip->ssram) {
+		err = -ENOMEM;
+		goto out_free;
+	}
+
+	dev->irq = platform_get_irq(pdev, 0);
+	if (dev->irq < 0) {
+		err = dev->irq;
+		goto out_free;
+	}
+
+	if (devm_request_irq(&pdev->dev, dev->irq, ioc3_interrupt,
+			     IRQF_SHARED, "ioc3-eth", dev)) {
+		dev_err(&pdev->dev, "Can't get irq %d\n", dev->irq);
+		err = -ENODEV;
+		goto out_free;
+	}
 
 	spin_lock_init(&ip->ioc3_lock);
 	timer_setup(&ip->ioc3_timer, ioc3_timer, 0);
@@ -1242,8 +895,8 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ioc3_stop(ip);
 
 	/* Allocate rx ring.  4kb = 512 entries, must be 4kb aligned */
-	ip->rxr = dma_direct_alloc_pages(ip->dma_dev, RX_RING_SIZE,
-					 &ip->rxr_dma, GFP_ATOMIC, 0);
+	ip->rxr = dma_alloc_coherent(ip->dma_dev, RX_RING_SIZE, &ip->rxr_dma,
+				     GFP_KERNEL);
 	if (!ip->rxr) {
 		pr_err("ioc3-eth: rx ring allocation failed\n");
 		err = -ENOMEM;
@@ -1251,18 +904,18 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Allocate tx rings.  16kb = 128 bufs, must be 16kb aligned  */
-	ip->txr = dma_direct_alloc_pages(ip->dma_dev, TX_RING_SIZE,
-					 &ip->txr_dma,
-					 GFP_KERNEL | __GFP_ZERO, 0);
-	if (!ip->txr) {
+	ip->tx_ring = dma_alloc_coherent(ip->dma_dev, TX_RING_SIZE + SZ_16K - 1,
+					 &ip->txr_dma, GFP_KERNEL);
+	if (!ip->tx_ring) {
 		pr_err("ioc3-eth: tx ring allocation failed\n");
 		err = -ENOMEM;
 		goto out_stop;
 	}
+	/* Align TX ring */
+	ip->txr = PTR_ALIGN(ip->tx_ring, SZ_16K);
+	ip->txr_dma = ALIGN(ip->txr_dma, SZ_16K);
 
 	ioc3_init(dev);
-
-	ip->pdev = pdev;
 
 	ip->mii.phy_id_mask = 0x1f;
 	ip->mii.reg_num_mask = 0x1f;
@@ -1273,22 +926,21 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ioc3_mii_init(ip);
 
 	if (ip->mii.phy_id == -1) {
-		pr_err("ioc3-eth(%s): Didn't find a PHY, goodbye.\n",
-		       pci_name(pdev));
+		netdev_err(dev, "Didn't find a PHY, goodbye.\n");
 		err = -ENODEV;
 		goto out_stop;
 	}
 
 	ioc3_mii_start(ip);
 	ioc3_ssram_disc(ip);
-	ioc3_get_eaddr(ip);
+	memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
 
 	/* The IOC3-specific entries in the device structure. */
 	dev->watchdog_timeo	= 5 * HZ;
 	dev->netdev_ops		= &ioc3_netdev_ops;
 	dev->ethtool_ops	= &ioc3_ethtool_ops;
 	dev->hw_features	= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
-	dev->features		= NETIF_F_IP_CSUM;
+	dev->features		= NETIF_F_IP_CSUM | NETIF_F_HIGHDMA;
 
 	sw_physid1 = ioc3_mdio_read(dev, ip->mii.phy_id, MII_PHYSID1);
 	sw_physid2 = ioc3_mdio_read(dev, ip->mii.phy_id, MII_PHYSID2);
@@ -1313,56 +965,31 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 out_stop:
 	del_timer_sync(&ip->ioc3_timer);
 	if (ip->rxr)
-		dma_direct_free_pages(ip->dma_dev, RX_RING_SIZE, ip->rxr,
-				      ip->rxr_dma, 0);
-	if (ip->txr)
-		dma_direct_free_pages(ip->dma_dev, TX_RING_SIZE, ip->txr,
-				      ip->txr_dma, 0);
-out_res:
-	pci_release_regions(pdev);
+		dma_free_coherent(ip->dma_dev, RX_RING_SIZE, ip->rxr,
+				  ip->rxr_dma);
+	if (ip->tx_ring)
+		dma_free_coherent(ip->dma_dev, TX_RING_SIZE, ip->tx_ring,
+				  ip->txr_dma);
 out_free:
 	free_netdev(dev);
-out_disable:
-	/* We should call pci_disable_device(pdev); here if the IOC3 wasn't
-	 * such a weird device ...
-	 */
-out:
 	return err;
 }
 
-static void ioc3_remove_one(struct pci_dev *pdev)
+static int ioc3eth_remove(struct platform_device *pdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct ioc3_private *ip = netdev_priv(dev);
 
-	dma_direct_free_pages(ip->dma_dev, RX_RING_SIZE, ip->rxr,
-			      ip->rxr_dma, 0);
-	dma_direct_free_pages(ip->dma_dev, TX_RING_SIZE, ip->txr,
-			      ip->txr_dma, 0);
+	dma_free_coherent(ip->dma_dev, RX_RING_SIZE, ip->rxr, ip->rxr_dma);
+	dma_free_coherent(ip->dma_dev, TX_RING_SIZE, ip->tx_ring, ip->txr_dma);
 
 	unregister_netdev(dev);
 	del_timer_sync(&ip->ioc3_timer);
-
-	iounmap(ip->all_regs);
-	pci_release_regions(pdev);
 	free_netdev(dev);
-	/* We should call pci_disable_device(pdev); here if the IOC3 wasn't
-	 * such a weird device ...
-	 */
+
+	return 0;
 }
 
-static const struct pci_device_id ioc3_pci_tbl[] = {
-	{ PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC3, PCI_ANY_ID, PCI_ANY_ID },
-	{ 0 }
-};
-MODULE_DEVICE_TABLE(pci, ioc3_pci_tbl);
-
-static struct pci_driver ioc3_driver = {
-	.name		= "ioc3-eth",
-	.id_table	= ioc3_pci_tbl,
-	.probe		= ioc3_probe,
-	.remove		= ioc3_remove_one,
-};
 
 static netdev_tx_t ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -1493,7 +1120,7 @@ drop_packet:
 	return NETDEV_TX_OK;
 }
 
-static void ioc3_timeout(struct net_device *dev)
+static void ioc3_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 
@@ -1544,11 +1171,10 @@ static inline unsigned int ioc3_hash(const unsigned char *addr)
 static void ioc3_get_drvinfo(struct net_device *dev,
 			     struct ethtool_drvinfo *info)
 {
-	struct ioc3_private *ip = netdev_priv(dev);
-
 	strlcpy(info->driver, IOC3_NAME, sizeof(info->driver));
 	strlcpy(info->version, IOC3_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(ip->pdev), sizeof(info->bus_info));
+	strlcpy(info->bus_info, pci_name(to_pci_dev(dev->dev.parent)),
+		sizeof(info->bus_info));
 }
 
 static int ioc3_get_link_ksettings(struct net_device *dev,
@@ -1660,7 +1286,16 @@ static void ioc3_set_multicast_list(struct net_device *dev)
 	spin_unlock_irq(&ip->ioc3_lock);
 }
 
-module_pci_driver(ioc3_driver);
+static struct platform_driver ioc3eth_driver = {
+	.probe  = ioc3eth_probe,
+	.remove = ioc3eth_remove,
+	.driver = {
+		.name = "ioc3-eth",
+	}
+};
+
+module_platform_driver(ioc3eth_driver);
+
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
 MODULE_DESCRIPTION("SGI IOC3 Ethernet driver");
 MODULE_LICENSE("GPL");

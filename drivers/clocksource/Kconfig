@@ -88,7 +88,7 @@ config ROCKCHIP_TIMER
 	select TIMER_OF
 	select CLKSRC_MMIO
 	help
-	  Enables the support for the rockchip timer driver.
+	  Enables the support for the Rockchip timer driver.
 
 config ARMADA_370_XP_TIMER
 	bool "Armada 370 and XP timer driver" if COMPILE_TEST
@@ -162,13 +162,13 @@ config NPCM7XX_TIMER
 	select CLKSRC_MMIO
 	help
 	  Enable 24-bit TIMER0 and TIMER1 counters in the NPCM7xx architecture,
-	  While TIMER0 serves as clockevent and TIMER1 serves as clocksource.
+	  where TIMER0 serves as clockevent and TIMER1 serves as clocksource.
 
 config CADENCE_TTC_TIMER
 	bool "Cadence TTC timer driver" if COMPILE_TEST
 	depends on COMMON_CLK
 	help
-	  Enables support for the cadence ttc driver.
+	  Enables support for the Cadence TTC driver.
 
 config ASM9260_TIMER
 	bool "ASM9260 timer driver" if COMPILE_TEST
@@ -190,10 +190,10 @@ config CLKSRC_DBX500_PRCMU
 	bool "Clocksource PRCMU Timer" if COMPILE_TEST
 	depends on HAS_IOMEM
 	help
-	  Use the always on PRCMU Timer as clocksource
+	  Use the always on PRCMU Timer as clocksource.
 
 config CLPS711X_TIMER
-	bool "Cirrus logic timer driver" if COMPILE_TEST
+	bool "Cirrus Logic timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
 	help
 	  Enables support for the Cirrus Logic PS711 timer.
@@ -205,11 +205,11 @@ config ATLAS7_TIMER
 	  Enables support for the Atlas7 timer.
 
 config MXS_TIMER
-	bool "Mxs timer driver" if COMPILE_TEST
+	bool "MXS timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
 	select STMP_DEVICE
 	help
-	  Enables support for the Mxs timer.
+	  Enables support for the MXS timer.
 
 config PRIMA2_TIMER
 	bool "Prima2 timer driver" if COMPILE_TEST
@@ -238,10 +238,10 @@ config KEYSTONE_TIMER
 	  Enables support for the Keystone timer.
 
 config INTEGRATOR_AP_TIMER
-	bool "Integrator-ap timer driver" if COMPILE_TEST
+	bool "Integrator-AP timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
 	help
-	  Enables support for the Integrator-ap timer.
+	  Enables support for the Integrator-AP timer.
 
 config CLKSRC_EFM32
 	bool "Clocksource for Energy Micro's EFM32 SoCs" if !ARCH_EFM32
@@ -283,8 +283,8 @@ config CLKSRC_NPS
 	select TIMER_OF if OF
 	help
 	  NPS400 clocksource support.
-	  Got 64 bit counter with update rate up to 1000MHz.
-	  This counter is accessed via couple of 32 bit memory mapped registers.
+	  It has a 64-bit counter with update rate up to 1000MHz.
+	  This counter is accessed via couple of 32-bit memory-mapped registers.
 
 config CLKSRC_STM32
 	bool "Clocksource for STM32 SoCs" if !ARCH_STM32
@@ -305,14 +305,14 @@ config ARC_TIMERS
 	help
 	  These are legacy 32-bit TIMER0 and TIMER1 counters found on all ARC cores
 	  (ARC700 as well as ARC HS38).
-	  TIMER0 serves as clockevent while TIMER1 provides clocksource
+	  TIMER0 serves as clockevent while TIMER1 provides clocksource.
 
 config ARC_TIMERS_64BIT
 	bool "Support for 64-bit counters in ARC HS38 cores" if COMPILE_TEST
 	depends on ARC_TIMERS
 	select TIMER_OF
 	help
-	  This enables 2 different 64-bit timers: RTC (for UP) and GFRC (for SMP)
+	  This enables 2 different 64-bit timers: RTC (for UP) and GFRC (for SMP).
 	  RTC is implemented inside the core, while GFRC sits outside the core in
 	  ARConnect IP block. Driver automatically picks one of them for clocksource
 	  as appropriate.
@@ -390,7 +390,7 @@ config ARM_GLOBAL_TIMER
 	select TIMER_OF if OF
 	depends on ARM
 	help
-	  This options enables support for the ARM global timer unit
+	  This option enables support for the ARM global timer unit.
 
 config ARM_TIMER_SP804
 	bool "Support for Dual Timer SP804 module" if COMPILE_TEST
@@ -403,14 +403,14 @@ config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	depends on ARM_GLOBAL_TIMER
 	default y
 	help
-	 Use ARM global timer clock source as sched_clock
+	  Use ARM global timer clock source as sched_clock.
 
 config ARMV7M_SYSTICK
 	bool "Support for the ARMv7M system time" if COMPILE_TEST
 	select TIMER_OF if OF
 	select CLKSRC_MMIO
 	help
-	  This options enables support for the ARMv7M system timer unit
+	  This option enables support for the ARMv7M system timer unit.
 
 config ATMEL_PIT
 	bool "Atmel PIT support" if COMPILE_TEST
@@ -460,7 +460,7 @@ config VF_PIT_TIMER
 	bool
 	select CLKSRC_MMIO
 	help
-	  Support for Period Interrupt Timer on Freescale Vybrid Family SoCs.
+	  Support for Periodic Interrupt Timer on Freescale Vybrid Family SoCs.
 
 config OXNAS_RPS_TIMER
 	bool "Oxford Semiconductor OXNAS RPS Timers driver" if COMPILE_TEST
@@ -470,7 +470,7 @@ config OXNAS_RPS_TIMER
 	  This enables support for the Oxford Semiconductor OXNAS RPS timers.
 
 config SYS_SUPPORTS_SH_CMT
-        bool
+	bool
 
 config MTK_TIMER
 	bool "Mediatek timer driver" if COMPILE_TEST
@@ -490,13 +490,13 @@ config SPRD_TIMER
 	  Enables support for the Spreadtrum timer driver.
 
 config SYS_SUPPORTS_SH_MTU2
-        bool
+	bool
 
 config SYS_SUPPORTS_SH_TMU
-        bool
+	bool
 
 config SYS_SUPPORTS_EM_STI
-        bool
+	bool
 
 config CLKSRC_JCORE_PIT
 	bool "J-Core PIT timer driver" if COMPILE_TEST
@@ -523,11 +523,12 @@ config SH_TIMER_MTU2
 	help
 	  This enables build of a clockevent driver for the Multi-Function
 	  Timer Pulse Unit 2 (MTU2) hardware available on SoCs from Renesas.
-	  This hardware comes with 16 bit-timer registers.
+	  This hardware comes with 16-bit timer registers.
 
 config RENESAS_OSTM
 	bool "Renesas OSTM timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
+	select TIMER_OF
 	help
 	  Enables the support for the Renesas OSTM.
 
@@ -579,7 +580,7 @@ config CLKSRC_TANGO_XTAL
 	select TIMER_OF
 	select CLKSRC_MMIO
 	help
-	  This enables the clocksource for Tango SoC
+	  This enables the clocksource for Tango SoC.
 
 config CLKSRC_PXA
 	bool "Clocksource for PXA or SA-11x0 platform" if COMPILE_TEST
@@ -590,24 +591,24 @@ config CLKSRC_PXA
 	  platforms.
 
 config H8300_TMR8
-        bool "Clockevent timer for the H8300 platform" if COMPILE_TEST
-        depends on HAS_IOMEM
+	bool "Clockevent timer for the H8300 platform" if COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  This enables the 8 bits timer for the H8300 platform.
 
 config H8300_TMR16
-        bool "Clockevent timer for the H83069 platform" if COMPILE_TEST
-        depends on HAS_IOMEM
+	bool "Clockevent timer for the H83069 platform" if COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  This enables the 16 bits timer for the H8300 platform with the
-	  H83069 cpu.
+	  H83069 CPU.
 
 config H8300_TPU
-        bool "Clocksource for the H8300 platform" if COMPILE_TEST
-        depends on HAS_IOMEM
+	bool "Clocksource for the H8300 platform" if COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  This enables the clocksource for the H8300 platform with the
-	  H8S2678 cpu.
+	  H8S2678 CPU.
 
 config CLKSRC_IMX_GPT
 	bool "Clocksource using i.MX GPT" if COMPILE_TEST
@@ -665,8 +666,8 @@ config CSKY_MP_TIMER
 	help
 	  Say yes here to enable C-SKY SMP timer driver used for C-SKY SMP
 	  system.
-	  csky,mptimer is not only used in SMP system, it also could be used
-	  single core system. It's not a mmio reg and it use mtcr/mfcr instruction.
+	  csky,mptimer is not only used in SMP system, it also could be used in
+	  single core system. It's not a mmio reg and it uses mtcr/mfcr instruction.
 
 config GX6605S_TIMER
 	bool "Gx6605s SOC system timer driver" if COMPILE_TEST
@@ -695,5 +696,15 @@ config INGENIC_TIMER
 	select IRQ_DOMAIN
 	help
 	  Support for the timer/counter unit of the Ingenic JZ SoCs.
+
+config MICROCHIP_PIT64B
+	bool "Microchip PIT64B support"
+	depends on OF || COMPILE_TEST
+	select CLKSRC_MMIO
+	help
+	  This option enables Microchip PIT64B timer for Atmel
+	  based system. It supports the oneshot, the periodic
+	  modes and high resolution. It is used as a clocksource
+	  and a clockevent.
 
 endmenu

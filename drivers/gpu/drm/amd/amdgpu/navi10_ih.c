@@ -110,14 +110,13 @@ static uint32_t navi10_ih_rb_cntl(struct amdgpu_ih_ring *ih, uint32_t ih_rb_cntl
 static int navi10_ih_irq_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ih_ring *ih = &adev->irq.ih;
-	int ret = 0;
 	u32 ih_rb_cntl, ih_doorbell_rtpr, ih_chicken;
 	u32 tmp;
 
 	/* disable irqs */
 	navi10_ih_disable_interrupts(adev);
 
-	adev->nbio_funcs->ih_control(adev);
+	adev->nbio.funcs->ih_control(adev);
 
 	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE, ih->gpu_addr >> 8);
@@ -162,7 +161,7 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 	}
 	WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR, ih_doorbell_rtpr);
 
-	adev->nbio_funcs->ih_doorbell_range(adev, ih->use_doorbell,
+	adev->nbio.funcs->ih_doorbell_range(adev, ih->use_doorbell,
 					    ih->doorbell_index);
 
 	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL);
@@ -179,7 +178,7 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 	/* enable interrupts */
 	navi10_ih_enable_interrupts(adev);
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -427,7 +426,7 @@ static int navi10_ih_set_clockgating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	navi10_ih_update_clockgating_state(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 	return 0;
 }
 

@@ -1727,6 +1727,13 @@ static const struct hv_vmbus_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(vmbus, id_table);
 
+static const struct { guid_t guid; } fc_guid = { HV_SYNTHFC_GUID };
+
+static bool hv_dev_is_fc(struct hv_device *hv_dev)
+{
+	return guid_equal(&fc_guid.guid, &hv_dev->dev_type);
+}
+
 static int storvsc_probe(struct hv_device *device,
 			const struct hv_vmbus_device_id *dev_id)
 {
@@ -1835,9 +1842,11 @@ static int storvsc_probe(struct hv_device *device,
 	 */
 	host->sg_tablesize = (stor_device->max_transfer_bytes >> PAGE_SHIFT);
 	/*
+	 * For non-IDE disks, the host supports multiple channels.
 	 * Set the number of HW queues we are supporting.
 	 */
-	host->nr_hw_queues = num_present_cpus();
+	if (!dev_is_ide)
+		host->nr_hw_queues = num_present_cpus();
 
 	/*
 	 * Set the error handler work queue.
@@ -1934,11 +1943,45 @@ static int storvsc_remove(struct hv_device *dev)
 	return 0;
 }
 
+static int storvsc_suspend(struct hv_device *hv_dev)
+{
+	struct storvsc_device *stor_device = hv_get_drvdata(hv_dev);
+	struct Scsi_Host *host = stor_device->host;
+	struct hv_host_device *host_dev = shost_priv(host);
+
+	storvsc_wait_to_drain(stor_device);
+
+	drain_workqueue(host_dev->handle_error_wq);
+
+	vmbus_close(hv_dev->channel);
+
+	memset(stor_device->stor_chns, 0,
+	       num_possible_cpus() * sizeof(void *));
+
+	kfree(stor_device->stor_chns);
+	stor_device->stor_chns = NULL;
+
+	cpumask_clear(&stor_device->alloced_cpus);
+
+	return 0;
+}
+
+static int storvsc_resume(struct hv_device *hv_dev)
+{
+	int ret;
+
+	ret = storvsc_connect_to_vsp(hv_dev, storvsc_ringbuffer_size,
+				     hv_dev_is_fc(hv_dev));
+	return ret;
+}
+
 static struct hv_driver storvsc_drv = {
 	.name = KBUILD_MODNAME,
 	.id_table = id_table,
 	.probe = storvsc_probe,
 	.remove = storvsc_remove,
+	.suspend = storvsc_suspend,
+	.resume = storvsc_resume,
 	.driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},

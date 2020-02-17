@@ -97,7 +97,7 @@ static void crypto_larval_destroy(struct crypto_alg *alg)
 	struct crypto_larval *larval = (void *)alg;
 
 	BUG_ON(!crypto_is_larval(alg));
-	if (larval->adult)
+	if (!IS_ERR_OR_NULL(larval->adult))
 		crypto_mod_put(larval->adult);
 	kfree(larval);
 }
@@ -178,6 +178,8 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 		alg = ERR_PTR(-ETIMEDOUT);
 	else if (!alg)
 		alg = ERR_PTR(-ENOENT);
+	else if (IS_ERR(alg))
+		;
 	else if (crypto_is_test_larval(larval) &&
 		 !(alg->cra_flags & CRYPTO_ALG_TESTED))
 		alg = ERR_PTR(-EAGAIN);
@@ -295,20 +297,7 @@ static int crypto_init_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 
 	if (type_obj)
 		return type_obj->init(tfm, type, mask);
-
-	switch (crypto_tfm_alg_type(tfm)) {
-	case CRYPTO_ALG_TYPE_CIPHER:
-		return crypto_init_cipher_ops(tfm);
-
-	case CRYPTO_ALG_TYPE_COMPRESS:
-		return crypto_init_compress_ops(tfm);
-
-	default:
-		break;
-	}
-
-	BUG();
-	return -EINVAL;
+	return 0;
 }
 
 static void crypto_exit_ops(struct crypto_tfm *tfm)
@@ -344,13 +333,12 @@ static unsigned int crypto_ctxsize(struct crypto_alg *alg, u32 type, u32 mask)
 	return len;
 }
 
-void crypto_shoot_alg(struct crypto_alg *alg)
+static void crypto_shoot_alg(struct crypto_alg *alg)
 {
 	down_write(&crypto_alg_sem);
 	alg->cra_flags |= CRYPTO_ALG_DYING;
 	up_write(&crypto_alg_sem);
 }
-EXPORT_SYMBOL_GPL(crypto_shoot_alg);
 
 struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 				      u32 mask)
@@ -406,7 +394,7 @@ EXPORT_SYMBOL_GPL(__crypto_alloc_tfm);
  *
  *	The returned transform is of a non-determinate type.  Most people
  *	should use one of the more specific allocation functions such as
- *	crypto_alloc_blkcipher.
+ *	crypto_alloc_skcipher().
  *
  *	In case of error the return value is an error pointer.
  */
@@ -516,7 +504,7 @@ EXPORT_SYMBOL_GPL(crypto_find_alg);
  *
  *	The returned transform is of a non-determinate type.  Most people
  *	should use one of the more specific allocation functions such as
- *	crypto_alloc_blkcipher.
+ *	crypto_alloc_skcipher().
  *
  *	In case of error the return value is an error pointer.
  */
@@ -608,3 +596,4 @@ EXPORT_SYMBOL_GPL(crypto_req_done);
 
 MODULE_DESCRIPTION("Cryptographic core API");
 MODULE_LICENSE("GPL");
+MODULE_SOFTDEP("pre: cryptomgr");

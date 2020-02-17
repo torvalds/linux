@@ -194,6 +194,7 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 service_in_use:
 	write_unlock(&local->services_lock);
 	rxrpc_unuse_local(local);
+	rxrpc_put_local(local);
 	ret = -EADDRINUSE;
 error_unlock:
 	release_sock(&rx->sk);
@@ -899,6 +900,7 @@ static int rxrpc_release_sock(struct sock *sk)
 	rxrpc_purge_queue(&sk->sk_receive_queue);
 
 	rxrpc_unuse_local(rx->local);
+	rxrpc_put_local(rx->local);
 	rx->local = NULL;
 	key_put(rx->key);
 	rx->key = NULL;
@@ -972,7 +974,7 @@ static int __init af_rxrpc_init(void)
 	int ret = -1;
 	unsigned int tmp;
 
-	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
+	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > sizeof_field(struct sk_buff, cb));
 
 	get_random_bytes(&tmp, sizeof(tmp));
 	tmp &= 0x3fffffff;

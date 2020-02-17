@@ -9,26 +9,34 @@
 
 #include "efistub.h"
 
-struct efi_rng_protocol {
-	efi_status_t (*get_info)(struct efi_rng_protocol *,
-				 unsigned long *, efi_guid_t *);
-	efi_status_t (*get_rng)(struct efi_rng_protocol *,
-				efi_guid_t *, unsigned long, u8 *out);
+typedef union efi_rng_protocol efi_rng_protocol_t;
+
+union efi_rng_protocol {
+	struct {
+		efi_status_t (__efiapi *get_info)(efi_rng_protocol_t *,
+						  unsigned long *,
+						  efi_guid_t *);
+		efi_status_t (__efiapi *get_rng)(efi_rng_protocol_t *,
+						 efi_guid_t *, unsigned long,
+						 u8 *out);
+	};
+	struct {
+		u32 get_info;
+		u32 get_rng;
+	} mixed_mode;
 };
 
-efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table_arg,
-				  unsigned long size, u8 *out)
+efi_status_t efi_get_random_bytes(unsigned long size, u8 *out)
 {
 	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
 	efi_status_t status;
-	struct efi_rng_protocol *rng;
+	efi_rng_protocol_t *rng = NULL;
 
-	status = efi_call_early(locate_protocol, &rng_proto, NULL,
-				(void **)&rng);
+	status = efi_bs_call(locate_protocol, &rng_proto, NULL, (void **)&rng);
 	if (status != EFI_SUCCESS)
 		return status;
 
-	return rng->get_rng(rng, NULL, size, out);
+	return efi_call_proto(rng, get_rng, NULL, size, out);
 }
 
 /*
@@ -44,6 +52,10 @@ static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
 	u64 first_slot, last_slot, region_end;
 
 	if (md->type != EFI_CONVENTIONAL_MEMORY)
+		return 0;
+
+	if (efi_soft_reserve_enabled() &&
+	    (md->attribute & EFI_MEMORY_SP))
 		return 0;
 
 	region_end = min((u64)ULONG_MAX, md->phys_addr + md->num_pages*EFI_PAGE_SIZE - 1);
@@ -65,8 +77,7 @@ static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
  */
 #define MD_NUM_SLOTS(md)	((md)->virt_addr)
 
-efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
-			      unsigned long size,
+efi_status_t efi_random_alloc(unsigned long size,
 			      unsigned long align,
 			      unsigned long *addr,
 			      unsigned long random_seed)
@@ -85,7 +96,7 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 	map.key_ptr =	NULL;
 	map.buff_size =	&buff_size;
 
-	status = efi_get_memory_map(sys_table_arg, &map);
+	status = efi_get_memory_map(&map);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -129,60 +140,59 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 		target = round_up(md->phys_addr, align) + target_slot * align;
 		pages = round_up(size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
 
-		status = efi_call_early(allocate_pages, EFI_ALLOCATE_ADDRESS,
-					EFI_LOADER_DATA, pages, &target);
+		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
+				     EFI_LOADER_DATA, pages, &target);
 		if (status == EFI_SUCCESS)
 			*addr = target;
 		break;
 	}
 
-	efi_call_early(free_pool, memory_map);
+	efi_bs_call(free_pool, memory_map);
 
 	return status;
 }
 
-efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg)
+efi_status_t efi_random_get_seed(void)
 {
 	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
 	efi_guid_t rng_algo_raw = EFI_RNG_ALGORITHM_RAW;
 	efi_guid_t rng_table_guid = LINUX_EFI_RANDOM_SEED_TABLE_GUID;
-	struct efi_rng_protocol *rng;
-	struct linux_efi_random_seed *seed;
+	efi_rng_protocol_t *rng = NULL;
+	struct linux_efi_random_seed *seed = NULL;
 	efi_status_t status;
 
-	status = efi_call_early(locate_protocol, &rng_proto, NULL,
-				(void **)&rng);
+	status = efi_bs_call(locate_protocol, &rng_proto, NULL, (void **)&rng);
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = efi_call_early(allocate_pool, EFI_RUNTIME_SERVICES_DATA,
-				sizeof(*seed) + EFI_RANDOM_SEED_SIZE,
-				(void **)&seed);
+	status = efi_bs_call(allocate_pool, EFI_RUNTIME_SERVICES_DATA,
+			     sizeof(*seed) + EFI_RANDOM_SEED_SIZE,
+			     (void **)&seed);
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = rng->get_rng(rng, &rng_algo_raw, EFI_RANDOM_SEED_SIZE,
-			      seed->bits);
+	status = efi_call_proto(rng, get_rng, &rng_algo_raw,
+				 EFI_RANDOM_SEED_SIZE, seed->bits);
+
 	if (status == EFI_UNSUPPORTED)
 		/*
 		 * Use whatever algorithm we have available if the raw algorithm
 		 * is not implemented.
 		 */
-		status = rng->get_rng(rng, NULL, EFI_RANDOM_SEED_SIZE,
-				      seed->bits);
+		status = efi_call_proto(rng, get_rng, NULL,
+					EFI_RANDOM_SEED_SIZE, seed->bits);
 
 	if (status != EFI_SUCCESS)
 		goto err_freepool;
 
 	seed->size = EFI_RANDOM_SEED_SIZE;
-	status = efi_call_early(install_configuration_table, &rng_table_guid,
-				seed);
+	status = efi_bs_call(install_configuration_table, &rng_table_guid, seed);
 	if (status != EFI_SUCCESS)
 		goto err_freepool;
 
 	return EFI_SUCCESS;
 
 err_freepool:
-	efi_call_early(free_pool, seed);
+	efi_bs_call(free_pool, seed);
 	return status;
 }

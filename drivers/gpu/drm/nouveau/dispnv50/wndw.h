@@ -64,12 +64,13 @@ struct nv50_wndw_func {
 	void (*ntfy_clr)(struct nv50_wndw *);
 	int (*ntfy_wait_begun)(struct nouveau_bo *, u32 offset,
 			       struct nvif_device *);
-	void (*ilut)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	bool (*ilut)(struct nv50_wndw *, struct nv50_wndw_atom *, int);
 	void (*csc)(struct nv50_wndw *, struct nv50_wndw_atom *,
 		    const struct drm_color_ctm *);
 	void (*csc_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*csc_clr)(struct nv50_wndw *);
 	bool ilut_identity;
+	int  ilut_size;
 	bool olut_core;
 	void (*xlut_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*xlut_clr)(struct nv50_wndw *);

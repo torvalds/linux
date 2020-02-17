@@ -260,7 +260,7 @@ int qxl_release_reserve_list(struct qxl_release *release, bool no_intr)
 		return 0;
 
 	ret = ttm_eu_reserve_buffers(&release->ticket, &release->bos,
-				     !no_intr, NULL, true);
+				     !no_intr, NULL);
 	if (ret)
 		return ret;
 
@@ -429,7 +429,6 @@ void qxl_release_unmap(struct qxl_device *qdev,
 void qxl_release_fence_buffer_objects(struct qxl_release *release)
 {
 	struct ttm_buffer_object *bo;
-	struct ttm_bo_global *glob;
 	struct ttm_bo_device *bdev;
 	struct ttm_validate_buffer *entry;
 	struct qxl_device *qdev;
@@ -451,18 +450,16 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 		       release->id | 0xf0000000, release->base.seqno);
 	trace_dma_fence_emit(&release->base);
 
-	glob = bdev->glob;
-
-	spin_lock(&glob->lru_lock);
+	spin_lock(&ttm_bo_glob.lru_lock);
 
 	list_for_each_entry(entry, &release->bos, head) {
 		bo = entry->bo;
 
 		dma_resv_add_shared_fence(bo->base.resv, &release->base);
-		ttm_bo_add_to_lru(bo);
+		ttm_bo_move_to_lru_tail(bo, NULL);
 		dma_resv_unlock(bo->base.resv);
 	}
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&ttm_bo_glob.lru_lock);
 	ww_acquire_fini(&release->ticket);
 }
 

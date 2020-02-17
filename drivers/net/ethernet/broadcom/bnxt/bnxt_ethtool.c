@@ -173,6 +173,7 @@ static const char * const bnxt_ring_tpa2_stats_str[] = {
 
 static const char * const bnxt_ring_sw_stats_str[] = {
 	"rx_l4_csum_errors",
+	"rx_buf_errors",
 	"missed_irqs",
 };
 
@@ -552,6 +553,7 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		for (k = 0; k < stat_fields; j++, k++)
 			buf[j] = le64_to_cpu(hw_stats[k]);
 		buf[j++] = cpr->rx_l4_csum_errors;
+		buf[j++] = cpr->rx_buf_errors;
 		buf[j++] = cpr->missed_irqs;
 
 		bnxt_sw_func_stats[RX_TOTAL_DISCARDS].counter +=
@@ -1460,15 +1462,15 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 		ethtool_link_ksettings_add_link_mode(lk_ksettings,
 						     advertising, Autoneg);
 		base->autoneg = AUTONEG_ENABLE;
-		if (link_info->phy_link_status == BNXT_LINK_LINK)
+		base->duplex = DUPLEX_UNKNOWN;
+		if (link_info->phy_link_status == BNXT_LINK_LINK) {
 			bnxt_fw_to_ethtool_lp_adv(link_info, lk_ksettings);
+			if (link_info->duplex & BNXT_LINK_DUPLEX_FULL)
+				base->duplex = DUPLEX_FULL;
+			else
+				base->duplex = DUPLEX_HALF;
+		}
 		ethtool_speed = bnxt_fw_to_ethtool_speed(link_info->link_speed);
-		if (!netif_carrier_ok(dev))
-			base->duplex = DUPLEX_UNKNOWN;
-		else if (link_info->duplex & BNXT_LINK_DUPLEX_FULL)
-			base->duplex = DUPLEX_FULL;
-		else
-			base->duplex = DUPLEX_HALF;
 	} else {
 		base->autoneg = AUTONEG_DISABLE;
 		ethtool_speed =
@@ -1588,7 +1590,7 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 	u32 speed;
 	int rc = 0;
 
-	if (!BNXT_SINGLE_PF(bp))
+	if (!BNXT_PHY_CFG_ABLE(bp))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&bp->link_lock);
@@ -1660,7 +1662,7 @@ static int bnxt_set_pauseparam(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info = &bp->link_info;
 
-	if (!BNXT_SINGLE_PF(bp))
+	if (!BNXT_PHY_CFG_ABLE(bp))
 		return -EOPNOTSUPP;
 
 	if (epause->autoneg) {
@@ -1785,6 +1787,8 @@ static int bnxt_firmware_reset(struct net_device *dev,
 	case BNXT_FW_RESET_CHIP:
 		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP;
 		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
+		if (bp->fw_cap & BNXT_FW_CAP_HOT_RESET)
+			req.flags = FW_RESET_REQ_FLAGS_RESET_GRACEFUL;
 		break;
 	case BNXT_FW_RESET_AP:
 		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP;
@@ -1996,8 +2000,8 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 	return rc;
 }
 
-static int bnxt_flash_package_from_file(struct net_device *dev,
-					char *filename, u32 install_type)
+int bnxt_flash_package_from_file(struct net_device *dev, const char *filename,
+				 u32 install_type)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct hwrm_nvm_install_update_output *resp = bp->hwrm_cmd_resp_addr;
@@ -2395,7 +2399,7 @@ static int bnxt_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 		 _bnxt_fw_to_ethtool_adv_spds(link_info->advertising, 0);
 	int rc = 0;
 
-	if (!BNXT_SINGLE_PF(bp))
+	if (!BNXT_PHY_CFG_ABLE(bp))
 		return -EOPNOTSUPP;
 
 	if (!(bp->flags & BNXT_FLAG_EEE_CAP))
@@ -2582,7 +2586,7 @@ static int bnxt_nway_reset(struct net_device *dev)
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info = &bp->link_info;
 
-	if (!BNXT_SINGLE_PF(bp))
+	if (!BNXT_PHY_CFG_ABLE(bp))
 		return -EOPNOTSUPP;
 
 	if (!(link_info->autoneg & BNXT_AUTONEG_SPEED))
@@ -2694,7 +2698,8 @@ static int bnxt_disable_an_for_lpbk(struct bnxt *bp,
 	u16 fw_speed;
 	int rc;
 
-	if (!link_info->autoneg)
+	if (!link_info->autoneg ||
+	    (bp->test_info->flags & BNXT_TEST_FL_AN_PHY_LPBK))
 		return 0;
 
 	rc = bnxt_query_force_speeds(bp, &fw_advertising);
@@ -2702,7 +2707,7 @@ static int bnxt_disable_an_for_lpbk(struct bnxt *bp,
 		return rc;
 
 	fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_1GB;
-	if (netif_carrier_ok(bp->dev))
+	if (bp->link_info.link_up)
 		fw_speed = bp->link_info.link_speed;
 	else if (fw_advertising & BNXT_LINK_SPEED_MSK_10GB)
 		fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_10GB;
@@ -2981,7 +2986,8 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 		return -EOPNOTSUPP;
 	}
 
-	if (pci_vfs_assigned(bp->pdev)) {
+	if (pci_vfs_assigned(bp->pdev) &&
+	    !(bp->fw_cap & BNXT_FW_CAP_HOT_RESET)) {
 		netdev_err(dev,
 			   "Reset not allowed when VFs are assigned to VMs\n");
 		return -EBUSY;
@@ -2994,7 +3000,9 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 
 		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_CHIP);
 		if (!rc) {
-			netdev_info(dev, "Reset request successful. Reload driver to complete reset\n");
+			netdev_info(dev, "Reset request successful.\n");
+			if (!(bp->fw_cap & BNXT_FW_CAP_HOT_RESET))
+				netdev_info(dev, "Reload driver to complete reset\n");
 			*flags = 0;
 		}
 	} else if (*flags == ETH_RESET_AP) {
@@ -3038,7 +3046,8 @@ static int bnxt_hwrm_dbg_dma_data(struct bnxt *bp, void *msg, int msg_len,
 	mutex_lock(&bp->hwrm_cmd_lock);
 	while (1) {
 		*seq_ptr = cpu_to_le16(seq);
-		rc = _hwrm_send_message(bp, msg, msg_len, HWRM_CMD_TIMEOUT);
+		rc = _hwrm_send_message(bp, msg, msg_len,
+					HWRM_COREDUMP_TIMEOUT);
 		if (rc)
 			break;
 
@@ -3062,8 +3071,15 @@ static int bnxt_hwrm_dbg_dma_data(struct bnxt *bp, void *msg, int msg_len,
 			}
 		}
 
-		if (info->dest_buf)
-			memcpy(info->dest_buf + off, dma_buf, len);
+		if (info->dest_buf) {
+			if ((info->seg_start + off + len) <=
+			    BNXT_COREDUMP_BUF_LEN(info->buf_len)) {
+				memcpy(info->dest_buf + off, dma_buf, len);
+			} else {
+				rc = -ENOBUFS;
+				break;
+			}
+		}
 
 		if (cmn_req->req_type ==
 				cpu_to_le16(HWRM_DBG_COREDUMP_RETRIEVE))
@@ -3117,7 +3133,7 @@ static int bnxt_hwrm_dbg_coredump_initiate(struct bnxt *bp, u16 component_id,
 
 static int bnxt_hwrm_dbg_coredump_retrieve(struct bnxt *bp, u16 component_id,
 					   u16 segment_id, u32 *seg_len,
-					   void *buf, u32 offset)
+					   void *buf, u32 buf_len, u32 offset)
 {
 	struct hwrm_dbg_coredump_retrieve_input req = {0};
 	struct bnxt_hwrm_dbg_dma_info info = {NULL};
@@ -3132,8 +3148,11 @@ static int bnxt_hwrm_dbg_coredump_retrieve(struct bnxt *bp, u16 component_id,
 				seq_no);
 	info.data_len_off = offsetof(struct hwrm_dbg_coredump_retrieve_output,
 				     data_len);
-	if (buf)
+	if (buf) {
 		info.dest_buf = buf + offset;
+		info.buf_len = buf_len;
+		info.seg_start = offset;
+	}
 
 	rc = bnxt_hwrm_dbg_dma_data(bp, &req, sizeof(req), &info);
 	if (!rc)
@@ -3223,13 +3242,16 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 static int bnxt_get_coredump(struct bnxt *bp, void *buf, u32 *dump_len)
 {
 	u32 ver_get_resp_len = sizeof(struct hwrm_ver_get_output);
+	u32 offset = 0, seg_hdr_len, seg_record_len, buf_len = 0;
 	struct coredump_segment_record *seg_record = NULL;
-	u32 offset = 0, seg_hdr_len, seg_record_len;
 	struct bnxt_coredump_segment_hdr seg_hdr;
 	struct bnxt_coredump coredump = {NULL};
 	time64_t start_time;
 	u16 start_utc;
 	int rc = 0, i;
+
+	if (buf)
+		buf_len = *dump_len;
 
 	start_time = ktime_get_real_seconds();
 	start_utc = sys_tz.tz_minuteswest * 60;
@@ -3263,6 +3285,12 @@ static int bnxt_get_coredump(struct bnxt *bp, void *buf, u32 *dump_len)
 		u32 duration = 0, seg_len = 0;
 		unsigned long start, end;
 
+		if (buf && ((offset + seg_hdr_len) >
+			    BNXT_COREDUMP_BUF_LEN(buf_len))) {
+			rc = -ENOBUFS;
+			goto err;
+		}
+
 		start = jiffies;
 
 		rc = bnxt_hwrm_dbg_coredump_initiate(bp, comp_id, seg_id);
@@ -3275,9 +3303,11 @@ static int bnxt_get_coredump(struct bnxt *bp, void *buf, u32 *dump_len)
 
 		/* Write segment data into the buffer */
 		rc = bnxt_hwrm_dbg_coredump_retrieve(bp, comp_id, seg_id,
-						     &seg_len, buf,
+						     &seg_len, buf, buf_len,
 						     offset + seg_hdr_len);
-		if (rc)
+		if (rc && rc == -ENOBUFS)
+			goto err;
+		else if (rc)
 			netdev_err(bp->dev,
 				   "Failed to retrieve coredump for seg = %d\n",
 				   seg_record->segment_id);
@@ -3307,8 +3337,27 @@ err:
 					  rc);
 	kfree(coredump.data);
 	*dump_len += sizeof(struct bnxt_coredump_record);
-
+	if (rc == -ENOBUFS)
+		netdev_err(bp->dev, "Firmware returned large coredump buffer");
 	return rc;
+}
+
+static int bnxt_set_dump(struct net_device *dev, struct ethtool_dump *dump)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (dump->flag > BNXT_DUMP_CRASH) {
+		netdev_info(dev, "Supports only Live(0) and Crash(1) dumps.\n");
+		return -EINVAL;
+	}
+
+	if (!IS_ENABLED(CONFIG_TEE_BNXT_FW) && dump->flag == BNXT_DUMP_CRASH) {
+		netdev_info(dev, "Cannot collect crash dump as TEE_BNXT_FW config option is not enabled.\n");
+		return -EOPNOTSUPP;
+	}
+
+	bp->dump_flag = dump->flag;
+	return 0;
 }
 
 static int bnxt_get_dump_flag(struct net_device *dev, struct ethtool_dump *dump)
@@ -3323,7 +3372,12 @@ static int bnxt_get_dump_flag(struct net_device *dev, struct ethtool_dump *dump)
 			bp->ver_resp.hwrm_fw_bld_8b << 8 |
 			bp->ver_resp.hwrm_fw_rsvd_8b;
 
-	return bnxt_get_coredump(bp, NULL, &dump->len);
+	dump->flag = bp->dump_flag;
+	if (bp->dump_flag == BNXT_DUMP_CRASH)
+		dump->len = BNXT_CRASH_DUMP_LEN;
+	else
+		bnxt_get_coredump(bp, NULL, &dump->len);
+	return 0;
 }
 
 static int bnxt_get_dump_data(struct net_device *dev, struct ethtool_dump *dump,
@@ -3336,7 +3390,16 @@ static int bnxt_get_dump_data(struct net_device *dev, struct ethtool_dump *dump,
 
 	memset(buf, 0, dump->len);
 
-	return bnxt_get_coredump(bp, buf, &dump->len);
+	dump->flag = bp->dump_flag;
+	if (dump->flag == BNXT_DUMP_CRASH) {
+#ifdef CONFIG_TEE_BNXT_FW
+		return tee_bnxt_copy_coredump(buf, 0, dump->len);
+#endif
+	} else {
+		return bnxt_get_coredump(bp, buf, &dump->len);
+	}
+
+	return 0;
 }
 
 void bnxt_ethtool_init(struct bnxt *bp)
@@ -3446,6 +3509,7 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.set_phys_id		= bnxt_set_phys_id,
 	.self_test		= bnxt_self_test,
 	.reset			= bnxt_reset,
+	.set_dump		= bnxt_set_dump,
 	.get_dump_flag		= bnxt_get_dump_flag,
 	.get_dump_data		= bnxt_get_dump_data,
 };

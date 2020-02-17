@@ -496,7 +496,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * Deal with transmit timeouts coming from the network layer.
  */
 static void
-xpnet_dev_tx_timeout(struct net_device *dev)
+xpnet_dev_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	dev->stats.tx_errors++;
 }

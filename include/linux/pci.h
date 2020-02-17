@@ -82,7 +82,7 @@ enum pci_mmap_state {
 enum {
 	/* #0-5: standard PCI resources */
 	PCI_STD_RESOURCES,
-	PCI_STD_RESOURCE_END = 5,
+	PCI_STD_RESOURCE_END = PCI_STD_RESOURCES + PCI_STD_NUM_BARS - 1,
 
 	/* #6: expansion ROM resource */
 	PCI_ROM_RESOURCE,
@@ -284,7 +284,6 @@ struct irq_affinity;
 struct pcie_link_state;
 struct pci_vpd;
 struct pci_sriov;
-struct pci_ats;
 struct pci_p2pdma;
 
 /* The pci_dev structure describes PCI devices */
@@ -452,12 +451,14 @@ struct pci_dev {
 	};
 	u16		ats_cap;	/* ATS Capability offset */
 	u8		ats_stu;	/* ATS Smallest Translation Unit */
-	atomic_t	ats_ref_cnt;	/* Number of VFs with ATS enabled */
 #endif
 #ifdef CONFIG_PCI_PRI
+	u16		pri_cap;	/* PRI Capability offset */
 	u32		pri_reqs_alloc; /* Number of PRI requests allocated */
+	unsigned int	pasid_required:1; /* PRG Response PASID Required */
 #endif
 #ifdef CONFIG_PCI_PASID
+	u16		pasid_cap;	/* PASID Capability offset */
 	u16		pasid_features;
 #endif
 #ifdef CONFIG_PCI_P2PDMA
@@ -805,8 +806,6 @@ struct module;
  *		The remove function always gets called from process
  *		context, so it can sleep.
  * @suspend:	Put device into low power state.
- * @suspend_late: Put device into low power state.
- * @resume_early: Wake device from low power state.
  * @resume:	Wake device from low power state.
  *		(Please see Documentation/power/pci.rst for descriptions
  *		of PCI Power Management and the related functions.)
@@ -829,8 +828,6 @@ struct pci_driver {
 	int  (*probe)(struct pci_dev *dev, const struct pci_device_id *id);	/* New device inserted */
 	void (*remove)(struct pci_dev *dev);	/* Device removed (NULL if not a hot-plug capable driver) */
 	int  (*suspend)(struct pci_dev *dev, pm_message_t state);	/* Device suspended */
-	int  (*suspend_late)(struct pci_dev *dev, pm_message_t state);
-	int  (*resume_early)(struct pci_dev *dev);
 	int  (*resume)(struct pci_dev *dev);	/* Device woken up */
 	void (*shutdown)(struct pci_dev *dev);
 	int  (*sriov_configure)(struct pci_dev *dev, int num_vfs); /* On PF */
@@ -1205,6 +1202,7 @@ int __must_check pci_resize_resource(struct pci_dev *dev, int i, int size);
 int pci_select_bars(struct pci_dev *dev, unsigned long flags);
 bool pci_device_is_present(struct pci_dev *pdev);
 void pci_ignore_hotplug(struct pci_dev *dev);
+struct pci_dev *pci_real_dma_dev(struct pci_dev *dev);
 
 int __printf(6, 7) pci_request_irq(struct pci_dev *dev, unsigned int nr,
 		irq_handler_t handler, irq_handler_t thread_fn, void *dev_id,
@@ -1232,7 +1230,7 @@ struct pci_cap_saved_state *pci_find_saved_ext_cap(struct pci_dev *dev,
 int pci_add_cap_save_buffer(struct pci_dev *dev, char cap, unsigned int size);
 int pci_add_ext_cap_save_buffer(struct pci_dev *dev,
 				u16 cap, unsigned int size);
-int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state);
+int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state);
 int pci_set_power_state(struct pci_dev *dev, pci_power_t state);
 pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state);
 bool pci_pme_capable(struct pci_dev *dev, pci_power_t state);
@@ -1454,7 +1452,6 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 void pci_free_irq_vectors(struct pci_dev *dev);
 int pci_irq_vector(struct pci_dev *dev, unsigned int nr);
 const struct cpumask *pci_irq_get_affinity(struct pci_dev *pdev, int vec);
-int pci_irq_get_node(struct pci_dev *pdev, int vec);
 
 #else
 static inline int pci_msi_vec_count(struct pci_dev *dev) { return -ENOSYS; }
@@ -1496,11 +1493,6 @@ static inline const struct cpumask *pci_irq_get_affinity(struct pci_dev *pdev,
 		int vec)
 {
 	return cpu_possible_mask;
-}
-
-static inline int pci_irq_get_node(struct pci_dev *pdev, int vec)
-{
-	return first_online_node;
 }
 #endif
 
@@ -1544,9 +1536,13 @@ extern bool pcie_ports_native;
 #define pcie_ports_native	false
 #endif
 
-#define PCIE_LINK_STATE_L0S	1
-#define PCIE_LINK_STATE_L1	2
-#define PCIE_LINK_STATE_CLKPM	4
+#define PCIE_LINK_STATE_L0S		BIT(0)
+#define PCIE_LINK_STATE_L1		BIT(1)
+#define PCIE_LINK_STATE_CLKPM		BIT(2)
+#define PCIE_LINK_STATE_L1_1		BIT(3)
+#define PCIE_LINK_STATE_L1_2		BIT(4)
+#define PCIE_LINK_STATE_L1_1_PCIPM	BIT(5)
+#define PCIE_LINK_STATE_L1_2_PCIPM	BIT(6)
 
 #ifdef CONFIG_PCIEASPM
 int pci_disable_link_state(struct pci_dev *pdev, int state);
@@ -1686,6 +1682,7 @@ static inline struct pci_dev *pci_get_class(unsigned int class,
 static inline void pci_set_master(struct pci_dev *dev) { }
 static inline int pci_enable_device(struct pci_dev *dev) { return -EIO; }
 static inline void pci_disable_device(struct pci_dev *dev) { }
+static inline int pcim_enable_device(struct pci_dev *pdev) { return -EIO; }
 static inline int pci_assign_resource(struct pci_dev *dev, int i)
 { return -EBUSY; }
 static inline int __pci_register_driver(struct pci_driver *drv,
@@ -1775,19 +1772,6 @@ pci_alloc_irq_vectors(struct pci_dev *dev, unsigned int min_vecs,
 	return pci_alloc_irq_vectors_affinity(dev, min_vecs, max_vecs, flags,
 					      NULL);
 }
-
-#ifdef CONFIG_PCI_ATS
-/* Address Translation Service */
-int pci_enable_ats(struct pci_dev *dev, int ps);
-void pci_disable_ats(struct pci_dev *dev);
-int pci_ats_queue_depth(struct pci_dev *dev);
-int pci_ats_page_aligned(struct pci_dev *dev);
-#else
-static inline int pci_enable_ats(struct pci_dev *d, int ps) { return -ENODEV; }
-static inline void pci_disable_ats(struct pci_dev *d) { }
-static inline int pci_ats_queue_depth(struct pci_dev *d) { return -ENODEV; }
-static inline int pci_ats_page_aligned(struct pci_dev *dev) { return 0; }
-#endif
 
 /* Include architecture-dependent settings and functions */
 
@@ -2278,6 +2262,7 @@ struct irq_domain;
 struct irq_domain *pci_host_bridge_of_msi_domain(struct pci_bus *bus);
 int pci_parse_request_of_pci_ranges(struct device *dev,
 				    struct list_head *resources,
+				    struct list_head *ib_resources,
 				    struct resource **bus_range);
 
 /* Arch may override this (weak) */
@@ -2286,9 +2271,11 @@ struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus);
 #else	/* CONFIG_OF */
 static inline struct irq_domain *
 pci_host_bridge_of_msi_domain(struct pci_bus *bus) { return NULL; }
-static inline int pci_parse_request_of_pci_ranges(struct device *dev,
-						  struct list_head *resources,
-						  struct resource **bus_range)
+static inline int
+pci_parse_request_of_pci_ranges(struct device *dev,
+				struct list_head *resources,
+				struct list_head *ib_resources,
+				struct resource **bus_range)
 {
 	return -EINVAL;
 }
@@ -2310,9 +2297,11 @@ struct irq_domain *pci_host_bridge_acpi_msi_domain(struct pci_bus *bus);
 
 void
 pci_msi_register_fwnode_provider(struct fwnode_handle *(*fn)(struct device *));
+bool pci_pr3_present(struct pci_dev *pdev);
 #else
 static inline struct irq_domain *
 pci_host_bridge_acpi_msi_domain(struct pci_bus *bus) { return NULL; }
+static inline bool pci_pr3_present(struct pci_dev *pdev) { return false; }
 #endif
 
 #ifdef CONFIG_EEH
@@ -2322,7 +2311,7 @@ static inline struct eeh_dev *pci_dev_to_eeh_dev(struct pci_dev *pdev)
 }
 #endif
 
-void pci_add_dma_alias(struct pci_dev *dev, u8 devfn);
+void pci_add_dma_alias(struct pci_dev *dev, u8 devfn_from, unsigned nr_devfns);
 bool pci_devs_are_dma_aliases(struct pci_dev *dev1, struct pci_dev *dev2);
 int pci_for_each_dma_alias(struct pci_dev *pdev,
 			   int (*fn)(struct pci_dev *pdev,
@@ -2399,5 +2388,13 @@ void pci_uevent_ers(struct pci_dev *pdev, enum  pci_ers_result err_type);
 
 #define pci_info_ratelimited(pdev, fmt, arg...) \
 	dev_info_ratelimited(&(pdev)->dev, fmt, ##arg)
+
+#define pci_WARN(pdev, condition, fmt, arg...) \
+	WARN(condition, "%s %s: " fmt, \
+	     dev_driver_string(&(pdev)->dev), pci_name(pdev), ##arg)
+
+#define pci_WARN_ONCE(pdev, condition, fmt, arg...) \
+	WARN_ONCE(condition, "%s %s: " fmt, \
+		  dev_driver_string(&(pdev)->dev), pci_name(pdev), ##arg)
 
 #endif /* LINUX_PCI_H */

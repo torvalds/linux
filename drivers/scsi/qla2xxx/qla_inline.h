@@ -105,6 +105,30 @@ qla2x00_clean_dsd_pool(struct qla_hw_data *ha, struct crc_context *ctx)
 	INIT_LIST_HEAD(&ctx->dsd_list);
 }
 
+static inline void
+qla2x00_set_fcport_disc_state(fc_port_t *fcport, int state)
+{
+	int old_val;
+	uint8_t shiftbits, mask;
+
+	/* This will have to change when the max no. of states > 16 */
+	shiftbits = 4;
+	mask = (1 << shiftbits) - 1;
+
+	fcport->disc_state = state;
+	while (1) {
+		old_val = atomic_read(&fcport->shadow_disc_state);
+		if (old_val == atomic_cmpxchg(&fcport->shadow_disc_state,
+		    old_val, (old_val << shiftbits) | state)) {
+			ql_dbg(ql_dbg_disc, fcport->vha, 0x2134,
+			    "FCPort %8phC disc_state transition: %s to %s - portid=%06x.\n",
+			    fcport->port_name, port_dstate_str[old_val & mask],
+			    port_dstate_str[state], fcport->d_id.b24);
+			return;
+		}
+	}
+}
+
 static inline int
 qla2x00_hba_err_chk_enabled(srb_t *sp)
 {
@@ -306,4 +330,16 @@ qla_83xx_start_iocbs(struct qla_qpair *qpair)
 		req->ring_ptr++;
 
 	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+}
+
+static inline int
+qla2xxx_get_fc4_priority(struct scsi_qla_host *vha)
+{
+	uint32_t data;
+
+	data =
+	    ((uint8_t *)vha->hw->nvram)[NVRAM_DUAL_FCP_NVME_FLAG_OFFSET];
+
+
+	return (data >> 6) & BIT_0 ? FC4_PRIORITY_FCP : FC4_PRIORITY_NVME;
 }

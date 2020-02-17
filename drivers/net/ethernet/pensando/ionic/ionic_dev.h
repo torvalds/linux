@@ -16,6 +16,7 @@
 #define IONIC_MIN_TXRX_DESC		16
 #define IONIC_DEF_TXRX_DESC		4096
 #define IONIC_LIFS_MAX			1024
+#define IONIC_WATCHDOG_SECS		5
 #define IONIC_ITR_COAL_USEC_DEFAULT	64
 
 #define IONIC_DEV_CMD_REG_VERSION	1
@@ -112,6 +113,12 @@ static_assert(sizeof(struct ionic_rxq_desc) == 16);
 static_assert(sizeof(struct ionic_rxq_sg_desc) == 128);
 static_assert(sizeof(struct ionic_rxq_comp) == 16);
 
+/* SR/IOV */
+static_assert(sizeof(struct ionic_vf_setattr_cmd) == 64);
+static_assert(sizeof(struct ionic_vf_setattr_comp) == 16);
+static_assert(sizeof(struct ionic_vf_getattr_cmd) == 64);
+static_assert(sizeof(struct ionic_vf_getattr_comp) == 16);
+
 struct ionic_devinfo {
 	u8 asic_type;
 	u8 asic_rev;
@@ -122,6 +129,9 @@ struct ionic_devinfo {
 struct ionic_dev {
 	union ionic_dev_info_regs __iomem *dev_info_regs;
 	union ionic_dev_cmd_regs __iomem *dev_cmd_regs;
+
+	unsigned long last_hb_time;
+	u32 last_hb;
 
 	u64 __iomem *db_pages;
 	dma_addr_t phy_db_pages;
@@ -151,12 +161,19 @@ typedef void (*ionic_desc_cb)(struct ionic_queue *q,
 			      struct ionic_desc_info *desc_info,
 			      struct ionic_cq_info *cq_info, void *cb_arg);
 
+struct ionic_page_info {
+	struct page *page;
+	dma_addr_t dma_addr;
+};
+
 struct ionic_desc_info {
 	void *desc;
 	void *sg_desc;
 	struct ionic_desc_info *next;
 	unsigned int index;
 	unsigned int left;
+	unsigned int npages;
+	struct ionic_page_info pages[IONIC_RX_MAX_SG_ELEMS + 1];
 	ionic_desc_cb cb;
 	void *cb_arg;
 };
@@ -264,6 +281,7 @@ void ionic_dev_cmd_port_autoneg(struct ionic_dev *idev, u8 an_enable);
 void ionic_dev_cmd_port_fec(struct ionic_dev *idev, u8 fec_type);
 void ionic_dev_cmd_port_pause(struct ionic_dev *idev, u8 pause_type);
 
+int ionic_set_vf_config(struct ionic *ionic, int vf, u8 attr, u8 *data);
 void ionic_dev_cmd_lif_identify(struct ionic_dev *idev, u8 type, u8 ver);
 void ionic_dev_cmd_lif_init(struct ionic_dev *idev, u16 lif_index,
 			    dma_addr_t addr);
@@ -295,5 +313,6 @@ void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, ionic_desc_cb cb,
 void ionic_q_rewind(struct ionic_queue *q, struct ionic_desc_info *start);
 void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,
 		     unsigned int stop_index);
+int ionic_heartbeat_check(struct ionic *ionic);
 
 #endif /* _IONIC_DEV_H_ */

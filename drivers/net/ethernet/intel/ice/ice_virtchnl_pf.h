@@ -38,6 +38,10 @@
 #define ICE_MAX_POLICY_INTR_PER_VF	33
 #define ICE_MIN_INTR_PER_VF		(ICE_MIN_QS_PER_VF + 1)
 #define ICE_DFLT_INTR_PER_VF		(ICE_DFLT_QS_PER_VF + 1)
+#define ICE_MAX_VF_RESET_WAIT		15
+
+#define ice_for_each_vf(pf, i) \
+	for ((i) = 0; (i) < (pf)->num_alloc_vfs; (i)++)
 
 /* Specific VF states */
 enum ice_vf_states {
@@ -90,7 +94,6 @@ struct ice_vf {
 	unsigned long vf_caps;		/* VF's adv. capabilities */
 	u8 num_req_qs;			/* num of queue pairs requested by VF */
 	u16 num_mac;
-	u16 num_vlan;
 	u16 num_vf_qs;			/* num of queue configured per VF */
 	u16 num_qs_ena;			/* total num of Tx/Rx queue enabled */
 };
@@ -121,6 +124,9 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena);
 int ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector);
 
 void ice_set_vf_state_qs_dis(struct ice_vf *vf);
+int
+ice_get_vf_stats(struct net_device *netdev, int vf_id,
+		 struct ifla_vf_stats *vf_stats);
 #else /* CONFIG_PCI_IOV */
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
@@ -192,6 +198,14 @@ ice_calc_vf_reg_idx(struct ice_vf __always_unused *vf,
 		    struct ice_q_vector __always_unused *q_vector)
 {
 	return 0;
+}
+
+static inline int
+ice_get_vf_stats(struct net_device __always_unused *netdev,
+		 int __always_unused vf_id,
+		 struct ifla_vf_stats __always_unused *vf_stats)
+{
+	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_PCI_IOV */
 #endif /* _ICE_VIRTCHNL_PF_H_ */

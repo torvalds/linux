@@ -2180,7 +2180,7 @@ out:
  * called, if tx hangs. Schedules a task that resets the interface
  */
 static void
-spider_net_tx_timeout(struct net_device *netdev)
+spider_net_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct spider_net_card *card;
 

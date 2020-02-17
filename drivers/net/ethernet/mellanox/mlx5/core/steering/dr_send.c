@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2019 Mellanox Technologies. */
 
+#include <linux/smp.h>
 #include "dr_types.h"
 
 #define QUEUE_SIZE 128
@@ -700,6 +701,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	unsigned int irqn;
 	void *cqc, *in;
 	__be64 *pas;
+	int vector;
 	u32 i;
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
@@ -728,7 +730,8 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	if (!in)
 		goto err_cqwq;
 
-	err = mlx5_vector2eqn(mdev, smp_processor_id(), &eqn, &irqn);
+	vector = raw_smp_processor_id() % mlx5_comp_vectors_count(mdev);
+	err = mlx5_vector2eqn(mdev, vector, &eqn, &irqn);
 	if (err) {
 		kvfree(in);
 		goto err_cqwq;

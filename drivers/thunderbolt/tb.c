@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/platform_data/x86/apple.h>
 
 #include "tb.h"
 #include "tb_regs.h"
@@ -18,6 +17,7 @@
 /**
  * struct tb_cm - Simple Thunderbolt connection manager
  * @tunnel_list: List of active tunnels
+ * @dp_resources: List of available DP resources for DP tunneling
  * @hotplug_active: tb_handle_hotplug will stop progressing plug
  *		    events and exit if this is not set (it needs to
  *		    acquire the lock one more time). Used to drain wq
@@ -25,6 +25,7 @@
  */
 struct tb_cm {
 	struct list_head tunnel_list;
+	struct list_head dp_resources;
 	bool hotplug_active;
 };
 
@@ -56,17 +57,51 @@ static void tb_queue_hotplug(struct tb *tb, u64 route, u8 port, bool unplug)
 
 /* enumeration & hot plug handling */
 
+static void tb_add_dp_resources(struct tb_switch *sw)
+{
+	struct tb_cm *tcm = tb_priv(sw->tb);
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port) {
+		if (!tb_port_is_dpin(port))
+			continue;
+
+		if (!tb_switch_query_dp_resource(sw, port))
+			continue;
+
+		list_add_tail(&port->list, &tcm->dp_resources);
+		tb_port_dbg(port, "DP IN resource available\n");
+	}
+}
+
+static void tb_remove_dp_resources(struct tb_switch *sw)
+{
+	struct tb_cm *tcm = tb_priv(sw->tb);
+	struct tb_port *port, *tmp;
+
+	/* Clear children resources first */
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_has_remote(port))
+			tb_remove_dp_resources(port->remote->sw);
+	}
+
+	list_for_each_entry_safe(port, tmp, &tcm->dp_resources, list) {
+		if (port->sw == sw) {
+			tb_port_dbg(port, "DP OUT resource unavailable\n");
+			list_del_init(&port->list);
+		}
+	}
+}
+
 static void tb_discover_tunnels(struct tb_switch *sw)
 {
 	struct tb *tb = sw->tb;
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_port *port;
-	int i;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
+	tb_switch_for_each_port(sw, port) {
 		struct tb_tunnel *tunnel = NULL;
 
-		port = &sw->ports[i];
 		switch (port->config.type) {
 		case TB_TYPE_DP_HDMI_IN:
 			tunnel = tb_tunnel_discover_dp(tb, port);
@@ -74,6 +109,10 @@ static void tb_discover_tunnels(struct tb_switch *sw)
 
 		case TB_TYPE_PCIE_DOWN:
 			tunnel = tb_tunnel_discover_pci(tb, port);
+			break;
+
+		case TB_TYPE_USB3_DOWN:
+			tunnel = tb_tunnel_discover_usb3(tb, port);
 			break;
 
 		default:
@@ -95,9 +134,9 @@ static void tb_discover_tunnels(struct tb_switch *sw)
 		list_add_tail(&tunnel->list, &tcm->tunnel_list);
 	}
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (tb_port_has_remote(&sw->ports[i]))
-			tb_discover_tunnels(sw->ports[i].remote->sw);
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_has_remote(port))
+			tb_discover_tunnels(port->remote->sw);
 	}
 }
 
@@ -123,6 +162,137 @@ static void tb_scan_xdomain(struct tb_port *port)
 	}
 }
 
+static int tb_enable_tmu(struct tb_switch *sw)
+{
+	int ret;
+
+	/* If it is already enabled in correct mode, don't touch it */
+	if (tb_switch_tmu_is_enabled(sw))
+		return 0;
+
+	ret = tb_switch_tmu_disable(sw);
+	if (ret)
+		return ret;
+
+	ret = tb_switch_tmu_post_time(sw);
+	if (ret)
+		return ret;
+
+	return tb_switch_tmu_enable(sw);
+}
+
+/**
+ * tb_find_unused_port() - return the first inactive port on @sw
+ * @sw: Switch to find the port on
+ * @type: Port type to look for
+ */
+static struct tb_port *tb_find_unused_port(struct tb_switch *sw,
+					   enum tb_port_type type)
+{
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port) {
+		if (tb_is_upstream_port(port))
+			continue;
+		if (port->config.type != type)
+			continue;
+		if (!port->cap_adap)
+			continue;
+		if (tb_port_is_enabled(port))
+			continue;
+		return port;
+	}
+	return NULL;
+}
+
+static struct tb_port *tb_find_usb3_down(struct tb_switch *sw,
+					const struct tb_port *port)
+{
+	struct tb_port *down;
+
+	down = usb4_switch_map_usb3_down(sw, port);
+	if (down) {
+		if (WARN_ON(!tb_port_is_usb3_down(down)))
+			goto out;
+		if (WARN_ON(tb_usb3_port_is_enabled(down)))
+			goto out;
+
+		return down;
+	}
+
+out:
+	return tb_find_unused_port(sw, TB_TYPE_USB3_DOWN);
+}
+
+static int tb_tunnel_usb3(struct tb *tb, struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_switch_parent(sw);
+	struct tb_port *up, *down, *port;
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_tunnel *tunnel;
+
+	up = tb_switch_find_port(sw, TB_TYPE_USB3_UP);
+	if (!up)
+		return 0;
+
+	/*
+	 * Look up available down port. Since we are chaining it should
+	 * be found right above this switch.
+	 */
+	port = tb_port_at(tb_route(sw), parent);
+	down = tb_find_usb3_down(parent, port);
+	if (!down)
+		return 0;
+
+	if (tb_route(parent)) {
+		struct tb_port *parent_up;
+		/*
+		 * Check first that the parent switch has its upstream USB3
+		 * port enabled. Otherwise the chain is not complete and
+		 * there is no point setting up a new tunnel.
+		 */
+		parent_up = tb_switch_find_port(parent, TB_TYPE_USB3_UP);
+		if (!parent_up || !tb_port_is_enabled(parent_up))
+			return 0;
+	}
+
+	tunnel = tb_tunnel_alloc_usb3(tb, up, down);
+	if (!tunnel)
+		return -ENOMEM;
+
+	if (tb_tunnel_activate(tunnel)) {
+		tb_port_info(up,
+			     "USB3 tunnel activation failed, aborting\n");
+		tb_tunnel_free(tunnel);
+		return -EIO;
+	}
+
+	list_add_tail(&tunnel->list, &tcm->tunnel_list);
+	return 0;
+}
+
+static int tb_create_usb3_tunnels(struct tb_switch *sw)
+{
+	struct tb_port *port;
+	int ret;
+
+	if (tb_route(sw)) {
+		ret = tb_tunnel_usb3(sw->tb, sw);
+		if (ret)
+			return ret;
+	}
+
+	tb_switch_for_each_port(sw, port) {
+		if (!tb_port_has_remote(port))
+			continue;
+		ret = tb_create_usb3_tunnels(port->remote->sw);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static void tb_scan_port(struct tb_port *port);
 
 /**
@@ -130,9 +300,10 @@ static void tb_scan_port(struct tb_port *port);
  */
 static void tb_scan_switch(struct tb_switch *sw)
 {
-	int i;
-	for (i = 1; i <= sw->config.max_port_number; i++)
-		tb_scan_port(&sw->ports[i]);
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port)
+		tb_scan_port(port);
 }
 
 /**
@@ -217,11 +388,28 @@ static void tb_scan_port(struct tb_port *port)
 		upstream_port->dual_link_port->remote = port->dual_link_port;
 	}
 
+	/* Enable lane bonding if supported */
+	if (tb_switch_lane_bonding_enable(sw))
+		tb_sw_warn(sw, "failed to enable lane bonding\n");
+
+	if (tb_enable_tmu(sw))
+		tb_sw_warn(sw, "failed to enable TMU\n");
+
+	/*
+	 * Create USB 3.x tunnels only when the switch is plugged to the
+	 * domain. This is because we scan the domain also during discovery
+	 * and want to discover existing USB 3.x tunnels before we create
+	 * any new.
+	 */
+	if (tcm->hotplug_active && tb_tunnel_usb3(sw->tb, sw))
+		tb_sw_warn(sw, "USB3 tunnel creation failed\n");
+
 	tb_scan_switch(sw);
 }
 
-static int tb_free_tunnel(struct tb *tb, enum tb_tunnel_type type,
-			  struct tb_port *src_port, struct tb_port *dst_port)
+static struct tb_tunnel *tb_find_tunnel(struct tb *tb, enum tb_tunnel_type type,
+					struct tb_port *src_port,
+					struct tb_port *dst_port)
 {
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_tunnel *tunnel;
@@ -230,14 +418,32 @@ static int tb_free_tunnel(struct tb *tb, enum tb_tunnel_type type,
 		if (tunnel->type == type &&
 		    ((src_port && src_port == tunnel->src_port) ||
 		     (dst_port && dst_port == tunnel->dst_port))) {
-			tb_tunnel_deactivate(tunnel);
-			list_del(&tunnel->list);
-			tb_tunnel_free(tunnel);
-			return 0;
+			return tunnel;
 		}
 	}
 
-	return -ENODEV;
+	return NULL;
+}
+
+static void tb_deactivate_and_free_tunnel(struct tb_tunnel *tunnel)
+{
+	if (!tunnel)
+		return;
+
+	tb_tunnel_deactivate(tunnel);
+	list_del(&tunnel->list);
+
+	/*
+	 * In case of DP tunnel make sure the DP IN resource is deallocated
+	 * properly.
+	 */
+	if (tb_tunnel_is_dp(tunnel)) {
+		struct tb_port *in = tunnel->src_port;
+
+		tb_switch_dealloc_dp_resource(in->sw, in);
+	}
+
+	tb_tunnel_free(tunnel);
 }
 
 /**
@@ -250,11 +456,8 @@ static void tb_free_invalid_tunnels(struct tb *tb)
 	struct tb_tunnel *n;
 
 	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list) {
-		if (tb_tunnel_is_invalid(tunnel)) {
-			tb_tunnel_deactivate(tunnel);
-			list_del(&tunnel->list);
-			tb_tunnel_free(tunnel);
-		}
+		if (tb_tunnel_is_invalid(tunnel))
+			tb_deactivate_and_free_tunnel(tunnel);
 	}
 }
 
@@ -263,14 +466,15 @@ static void tb_free_invalid_tunnels(struct tb *tb)
  */
 static void tb_free_unplugged_children(struct tb_switch *sw)
 {
-	int i;
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		struct tb_port *port = &sw->ports[i];
+	struct tb_port *port;
 
+	tb_switch_for_each_port(sw, port) {
 		if (!tb_port_has_remote(port))
 			continue;
 
 		if (port->remote->sw->is_unplugged) {
+			tb_remove_dp_resources(port->remote->sw);
+			tb_switch_lane_bonding_disable(port->remote->sw);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
 			if (port->dual_link_port)
@@ -281,54 +485,18 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 	}
 }
 
-/**
- * tb_find_port() - return the first port of @type on @sw or NULL
- * @sw: Switch to find the port from
- * @type: Port type to look for
- */
-static struct tb_port *tb_find_port(struct tb_switch *sw,
-				    enum tb_port_type type)
-{
-	int i;
-	for (i = 1; i <= sw->config.max_port_number; i++)
-		if (sw->ports[i].config.type == type)
-			return &sw->ports[i];
-	return NULL;
-}
-
-/**
- * tb_find_unused_port() - return the first inactive port on @sw
- * @sw: Switch to find the port on
- * @type: Port type to look for
- */
-static struct tb_port *tb_find_unused_port(struct tb_switch *sw,
-					   enum tb_port_type type)
-{
-	int i;
-
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (tb_is_upstream_port(&sw->ports[i]))
-			continue;
-		if (sw->ports[i].config.type != type)
-			continue;
-		if (!sw->ports[i].cap_adap)
-			continue;
-		if (tb_port_is_enabled(&sw->ports[i]))
-			continue;
-		return &sw->ports[i];
-	}
-	return NULL;
-}
-
 static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
 					 const struct tb_port *port)
 {
+	struct tb_port *down = NULL;
+
 	/*
 	 * To keep plugging devices consistently in the same PCIe
-	 * hierarchy, do mapping here for root switch downstream PCIe
-	 * ports.
+	 * hierarchy, do mapping here for switch downstream PCIe ports.
 	 */
-	if (!tb_route(sw)) {
+	if (tb_switch_is_usb4(sw)) {
+		down = usb4_switch_map_pcie_down(sw, port);
+	} else if (!tb_route(sw)) {
 		int phy_port = tb_phy_port_from_link(port->port);
 		int index;
 
@@ -336,64 +504,192 @@ static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
 		 * Hard-coded Thunderbolt port to PCIe down port mapping
 		 * per controller.
 		 */
-		if (tb_switch_is_cr(sw))
+		if (tb_switch_is_cactus_ridge(sw) ||
+		    tb_switch_is_alpine_ridge(sw))
 			index = !phy_port ? 6 : 7;
-		else if (tb_switch_is_fr(sw))
+		else if (tb_switch_is_falcon_ridge(sw))
 			index = !phy_port ? 6 : 8;
+		else if (tb_switch_is_titan_ridge(sw))
+			index = !phy_port ? 8 : 9;
 		else
 			goto out;
 
 		/* Validate the hard-coding */
 		if (WARN_ON(index > sw->config.max_port_number))
 			goto out;
-		if (WARN_ON(!tb_port_is_pcie_down(&sw->ports[index])))
+
+		down = &sw->ports[index];
+	}
+
+	if (down) {
+		if (WARN_ON(!tb_port_is_pcie_down(down)))
 			goto out;
-		if (WARN_ON(tb_pci_port_is_enabled(&sw->ports[index])))
+		if (WARN_ON(tb_pci_port_is_enabled(down)))
 			goto out;
 
-		return &sw->ports[index];
+		return down;
 	}
 
 out:
 	return tb_find_unused_port(sw, TB_TYPE_PCIE_DOWN);
 }
 
-static int tb_tunnel_dp(struct tb *tb, struct tb_port *out)
+static int tb_available_bw(struct tb_cm *tcm, struct tb_port *in,
+			   struct tb_port *out)
 {
-	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_switch *sw = out->sw;
 	struct tb_tunnel *tunnel;
-	struct tb_port *in;
+	int bw, available_bw = 40000;
 
-	if (tb_port_is_enabled(out))
-		return 0;
+	while (sw && sw != in->sw) {
+		bw = sw->link_speed * sw->link_width * 1000; /* Mb/s */
+		/* Leave 10% guard band */
+		bw -= bw / 10;
 
-	do {
-		sw = tb_to_switch(sw->dev.parent);
-		if (!sw)
-			return 0;
-		in = tb_find_unused_port(sw, TB_TYPE_DP_HDMI_IN);
-	} while (!in);
+		/*
+		 * Check for any active DP tunnels that go through this
+		 * switch and reduce their consumed bandwidth from
+		 * available.
+		 */
+		list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
+			int consumed_bw;
 
-	tunnel = tb_tunnel_alloc_dp(tb, in, out);
+			if (!tb_tunnel_switch_on_path(tunnel, sw))
+				continue;
+
+			consumed_bw = tb_tunnel_consumed_bandwidth(tunnel);
+			if (consumed_bw < 0)
+				return consumed_bw;
+
+			bw -= consumed_bw;
+		}
+
+		if (bw < available_bw)
+			available_bw = bw;
+
+		sw = tb_switch_parent(sw);
+	}
+
+	return available_bw;
+}
+
+static void tb_tunnel_dp(struct tb *tb)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_port *port, *in, *out;
+	struct tb_tunnel *tunnel;
+	int available_bw;
+
+	/*
+	 * Find pair of inactive DP IN and DP OUT adapters and then
+	 * establish a DP tunnel between them.
+	 */
+	tb_dbg(tb, "looking for DP IN <-> DP OUT pairs:\n");
+
+	in = NULL;
+	out = NULL;
+	list_for_each_entry(port, &tcm->dp_resources, list) {
+		if (tb_port_is_enabled(port)) {
+			tb_port_dbg(port, "in use\n");
+			continue;
+		}
+
+		tb_port_dbg(port, "available\n");
+
+		if (!in && tb_port_is_dpin(port))
+			in = port;
+		else if (!out && tb_port_is_dpout(port))
+			out = port;
+	}
+
+	if (!in) {
+		tb_dbg(tb, "no suitable DP IN adapter available, not tunneling\n");
+		return;
+	}
+	if (!out) {
+		tb_dbg(tb, "no suitable DP OUT adapter available, not tunneling\n");
+		return;
+	}
+
+	if (tb_switch_alloc_dp_resource(in->sw, in)) {
+		tb_port_dbg(in, "no resource available for DP IN, not tunneling\n");
+		return;
+	}
+
+	/* Calculate available bandwidth between in and out */
+	available_bw = tb_available_bw(tcm, in, out);
+	if (available_bw < 0) {
+		tb_warn(tb, "failed to determine available bandwidth\n");
+		return;
+	}
+
+	tb_dbg(tb, "available bandwidth for new DP tunnel %u Mb/s\n",
+	       available_bw);
+
+	tunnel = tb_tunnel_alloc_dp(tb, in, out, available_bw);
 	if (!tunnel) {
-		tb_port_dbg(out, "DP tunnel allocation failed\n");
-		return -ENOMEM;
+		tb_port_dbg(out, "could not allocate DP tunnel\n");
+		goto dealloc_dp;
 	}
 
 	if (tb_tunnel_activate(tunnel)) {
 		tb_port_info(out, "DP tunnel activation failed, aborting\n");
 		tb_tunnel_free(tunnel);
-		return -EIO;
+		goto dealloc_dp;
 	}
 
 	list_add_tail(&tunnel->list, &tcm->tunnel_list);
-	return 0;
+	return;
+
+dealloc_dp:
+	tb_switch_dealloc_dp_resource(in->sw, in);
 }
 
-static void tb_teardown_dp(struct tb *tb, struct tb_port *out)
+static void tb_dp_resource_unavailable(struct tb *tb, struct tb_port *port)
 {
-	tb_free_tunnel(tb, TB_TUNNEL_DP, NULL, out);
+	struct tb_port *in, *out;
+	struct tb_tunnel *tunnel;
+
+	if (tb_port_is_dpin(port)) {
+		tb_port_dbg(port, "DP IN resource unavailable\n");
+		in = port;
+		out = NULL;
+	} else {
+		tb_port_dbg(port, "DP OUT resource unavailable\n");
+		in = NULL;
+		out = port;
+	}
+
+	tunnel = tb_find_tunnel(tb, TB_TUNNEL_DP, in, out);
+	tb_deactivate_and_free_tunnel(tunnel);
+	list_del_init(&port->list);
+
+	/*
+	 * See if there is another DP OUT port that can be used for
+	 * to create another tunnel.
+	 */
+	tb_tunnel_dp(tb);
+}
+
+static void tb_dp_resource_available(struct tb *tb, struct tb_port *port)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_port *p;
+
+	if (tb_port_is_enabled(port))
+		return;
+
+	list_for_each_entry(p, &tcm->dp_resources, list) {
+		if (p == port)
+			return;
+	}
+
+	tb_port_dbg(port, "DP %s resource available\n",
+		    tb_port_is_dpin(port) ? "IN" : "OUT");
+	list_add_tail(&port->list, &tcm->dp_resources);
+
+	/* Look for suitable DP IN <-> DP OUT pairs now */
+	tb_tunnel_dp(tb);
 }
 
 static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
@@ -403,7 +699,7 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 	struct tb_switch *parent_sw;
 	struct tb_tunnel *tunnel;
 
-	up = tb_find_port(sw, TB_TYPE_PCIE_UP);
+	up = tb_switch_find_port(sw, TB_TYPE_PCIE_UP);
 	if (!up)
 		return 0;
 
@@ -441,7 +737,7 @@ static int tb_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 
 	sw = tb_to_switch(xd->dev.parent);
 	dst_port = tb_port_at(xd->route, sw);
-	nhi_port = tb_find_port(tb->root_switch, TB_TYPE_NHI);
+	nhi_port = tb_switch_find_port(tb->root_switch, TB_TYPE_NHI);
 
 	mutex_lock(&tb->lock);
 	tunnel = tb_tunnel_alloc_dma(tb, nhi_port, dst_port, xd->transmit_ring,
@@ -468,6 +764,7 @@ static int tb_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 static void __tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 {
 	struct tb_port *dst_port;
+	struct tb_tunnel *tunnel;
 	struct tb_switch *sw;
 
 	sw = tb_to_switch(xd->dev.parent);
@@ -478,7 +775,8 @@ static void __tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 	 * case of cable disconnect) so it is fine if we cannot find it
 	 * here anymore.
 	 */
-	tb_free_tunnel(tb, TB_TUNNEL_DMA, NULL, dst_port);
+	tunnel = tb_find_tunnel(tb, TB_TUNNEL_DMA, NULL, dst_port);
+	tb_deactivate_and_free_tunnel(tunnel);
 }
 
 static int tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
@@ -533,10 +831,15 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_port_dbg(port, "switch unplugged\n");
 			tb_sw_set_unplugged(port->remote->sw);
 			tb_free_invalid_tunnels(tb);
+			tb_remove_dp_resources(port->remote->sw);
+			tb_switch_tmu_disable(port->remote->sw);
+			tb_switch_lane_bonding_disable(port->remote->sw);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
 			if (port->dual_link_port)
 				port->dual_link_port->remote = NULL;
+			/* Maybe we can create another DP tunnel */
+			tb_tunnel_dp(tb);
 		} else if (port->xdomain) {
 			struct tb_xdomain *xd = tb_xdomain_get(port->xdomain);
 
@@ -553,8 +856,8 @@ static void tb_handle_hotplug(struct work_struct *work)
 			port->xdomain = NULL;
 			__tb_disconnect_xdomain_paths(tb, xd);
 			tb_xdomain_put(xd);
-		} else if (tb_port_is_dpout(port)) {
-			tb_teardown_dp(tb, port);
+		} else if (tb_port_is_dpout(port) || tb_port_is_dpin(port)) {
+			tb_dp_resource_unavailable(tb, port);
 		} else {
 			tb_port_dbg(port,
 				   "got unplug event for disconnected port, ignoring\n");
@@ -567,8 +870,8 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_scan_port(port);
 			if (!port->remote)
 				tb_port_dbg(port, "hotplug: no switch found\n");
-		} else if (tb_port_is_dpout(port)) {
-			tb_tunnel_dp(tb, port);
+		} else if (tb_port_is_dpout(port) || tb_port_is_dpin(port)) {
+			tb_dp_resource_available(tb, port);
 		}
 	}
 
@@ -597,8 +900,7 @@ static void tb_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 
 	route = tb_cfg_get_route(&pkg->header);
 
-	if (tb_cfg_error(tb->ctl, route, pkg->port,
-			 TB_CFG_ERROR_ACK_PLUG_EVENT)) {
+	if (tb_cfg_ack_plug(tb->ctl, route, pkg->port, pkg->unplug)) {
 		tb_warn(tb, "could not ack plug event on %llx:%x\n", route,
 			pkg->port);
 	}
@@ -677,10 +979,19 @@ static int tb_start(struct tb *tb)
 		return ret;
 	}
 
+	/* Enable TMU if it is off */
+	tb_switch_tmu_enable(tb->root_switch);
 	/* Full scan to discover devices added before the driver was loaded. */
 	tb_scan_switch(tb->root_switch);
 	/* Find out tunnels created by the boot firmware */
 	tb_discover_tunnels(tb->root_switch);
+	/*
+	 * If the boot firmware did not create USB 3.x tunnels create them
+	 * now for the whole topology.
+	 */
+	tb_create_usb3_tunnels(tb->root_switch);
+	/* Add DP IN resources for the root switch */
+	tb_add_dp_resources(tb->root_switch);
 	/* Make the discovered switches available to the userspace */
 	device_for_each_child(&tb->root_switch->dev, NULL,
 			      tb_scan_finalize_switch);
@@ -702,6 +1013,24 @@ static int tb_suspend_noirq(struct tb *tb)
 	return 0;
 }
 
+static void tb_restore_children(struct tb_switch *sw)
+{
+	struct tb_port *port;
+
+	if (tb_enable_tmu(sw))
+		tb_sw_warn(sw, "failed to restore TMU configuration\n");
+
+	tb_switch_for_each_port(sw, port) {
+		if (!tb_port_has_remote(port))
+			continue;
+
+		if (tb_switch_lane_bonding_enable(port->remote->sw))
+			dev_warn(&sw->dev, "failed to restore lane bonding\n");
+
+		tb_restore_children(port->remote->sw);
+	}
+}
+
 static int tb_resume_noirq(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
@@ -715,6 +1044,7 @@ static int tb_resume_noirq(struct tb *tb)
 	tb_switch_resume(tb->root_switch);
 	tb_free_invalid_tunnels(tb);
 	tb_free_unplugged_children(tb->root_switch);
+	tb_restore_children(tb->root_switch);
 	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list)
 		tb_tunnel_restart(tunnel);
 	if (!list_empty(&tcm->tunnel_list)) {
@@ -734,11 +1064,10 @@ static int tb_resume_noirq(struct tb *tb)
 
 static int tb_free_unplugged_xdomains(struct tb_switch *sw)
 {
-	int i, ret = 0;
+	struct tb_port *port;
+	int ret = 0;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		struct tb_port *port = &sw->ports[i];
-
+	tb_switch_for_each_port(sw, port) {
 		if (tb_is_upstream_port(port))
 			continue;
 		if (port->xdomain && port->xdomain->is_unplugged) {
@@ -783,9 +1112,6 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 	struct tb_cm *tcm;
 	struct tb *tb;
 
-	if (!x86_apple_machine)
-		return NULL;
-
 	tb = tb_domain_alloc(nhi, sizeof(*tcm));
 	if (!tb)
 		return NULL;
@@ -795,6 +1121,7 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 
 	tcm = tb_priv(tb);
 	INIT_LIST_HEAD(&tcm->tunnel_list);
+	INIT_LIST_HEAD(&tcm->dp_resources);
 
 	return tb;
 }

@@ -20,9 +20,10 @@
 
 #define ENCODE_PGU_XY(x, y)	((((x) - 1) << 16) | ((y) - 1))
 
-static struct simplefb_format supported_formats[] = {
-	{ "r5g6b5", 16, {11, 5}, {5, 6}, {0, 5}, {0, 0}, DRM_FORMAT_RGB565 },
-	{ "r8g8b8", 24, {16, 8}, {8, 8}, {0, 8}, {0, 0}, DRM_FORMAT_RGB888 },
+static const u32 arc_pgu_supported_formats[] = {
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
 };
 
 static void arc_pgu_set_pxl_fmt(struct drm_crtc *crtc)
@@ -30,22 +31,24 @@ static void arc_pgu_set_pxl_fmt(struct drm_crtc *crtc)
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 	const struct drm_framebuffer *fb = crtc->primary->state->fb;
 	uint32_t pixel_format = fb->format->format;
-	struct simplefb_format *format = NULL;
+	u32 format = DRM_FORMAT_INVALID;
 	int i;
+	u32 reg_ctrl;
 
-	for (i = 0; i < ARRAY_SIZE(supported_formats); i++) {
-		if (supported_formats[i].fourcc == pixel_format)
-			format = &supported_formats[i];
+	for (i = 0; i < ARRAY_SIZE(arc_pgu_supported_formats); i++) {
+		if (arc_pgu_supported_formats[i] == pixel_format)
+			format = arc_pgu_supported_formats[i];
 	}
 
-	if (WARN_ON(!format))
+	if (WARN_ON(format == DRM_FORMAT_INVALID))
 		return;
 
-	if (format->fourcc == DRM_FORMAT_RGB888)
-		arc_pgu_write(arcpgu, ARCPGU_REG_CTRL,
-			      arc_pgu_read(arcpgu, ARCPGU_REG_CTRL) |
-					   ARCPGU_MODE_RGB888_MASK);
-
+	reg_ctrl = arc_pgu_read(arcpgu, ARCPGU_REG_CTRL);
+	if (format == DRM_FORMAT_RGB565)
+		reg_ctrl &= ~ARCPGU_MODE_XRGB8888;
+	else
+		reg_ctrl |= ARCPGU_MODE_XRGB8888;
+	arc_pgu_write(arcpgu, ARCPGU_REG_CTRL, reg_ctrl);
 }
 
 static const struct drm_crtc_funcs arc_pgu_crtc_funcs = {
@@ -193,18 +196,15 @@ static struct drm_plane *arc_pgu_plane_init(struct drm_device *drm)
 {
 	struct arcpgu_drm_private *arcpgu = drm->dev_private;
 	struct drm_plane *plane = NULL;
-	u32 formats[ARRAY_SIZE(supported_formats)], i;
 	int ret;
 
 	plane = devm_kzalloc(drm->dev, sizeof(*plane), GFP_KERNEL);
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < ARRAY_SIZE(supported_formats); i++)
-		formats[i] = supported_formats[i].fourcc;
-
 	ret = drm_universal_plane_init(drm, plane, 0xff, &arc_pgu_plane_funcs,
-				       formats, ARRAY_SIZE(formats),
+				       arc_pgu_supported_formats,
+				       ARRAY_SIZE(arc_pgu_supported_formats),
 				       NULL,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret)

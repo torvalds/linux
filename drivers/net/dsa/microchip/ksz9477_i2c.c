@@ -17,6 +17,7 @@ KSZ_REGMAP_TABLE(ksz9477, not_used, 16, 0, 0);
 static int ksz9477_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *i2c_id)
 {
+	struct regmap_config rc;
 	struct ksz_device *dev;
 	int i, ret;
 
@@ -25,8 +26,9 @@ static int ksz9477_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(ksz9477_regmap_config); i++) {
-		dev->regmap[i] = devm_regmap_init_i2c(i2c,
-					&ksz9477_regmap_config[i]);
+		rc = ksz9477_regmap_config[i];
+		rc.lock_arg = &dev->regmap_mutex;
+		dev->regmap[i] = devm_regmap_init_i2c(i2c, &rc);
 		if (IS_ERR(dev->regmap[i])) {
 			ret = PTR_ERR(dev->regmap[i]);
 			dev_err(&i2c->dev,
@@ -85,7 +87,6 @@ MODULE_DEVICE_TABLE(of, ksz9477_dt_ids);
 static struct i2c_driver ksz9477_i2c_driver = {
 	.driver = {
 		.name	= "ksz9477-switch",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(ksz9477_dt_ids),
 	},
 	.probe	= ksz9477_i2c_probe,

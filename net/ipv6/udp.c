@@ -135,7 +135,7 @@ static int compute_score(struct sock *sk, struct net *net,
 		return -1;
 	score++;
 
-	if (sk->sk_incoming_cpu == raw_smp_processor_id())
+	if (READ_ONCE(sk->sk_incoming_cpu) == raw_smp_processor_id())
 		score++;
 
 	return score;
@@ -690,8 +690,7 @@ static int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	__skb_push(skb, -skb_mac_offset(skb));
 	segs = udp_rcv_segment(sk, skb, false);
-	for (skb = segs; skb; skb = next) {
-		next = skb->next;
+	skb_list_walk_safe(segs, skb, next) {
 		__skb_pull(skb, skb_transport_offset(skb));
 
 		ret = udpv6_queue_rcv_one_skb(sk, skb);

@@ -18,10 +18,47 @@
 struct nft_bitwise {
 	enum nft_registers	sreg:8;
 	enum nft_registers	dreg:8;
+	enum nft_bitwise_ops	op:8;
 	u8			len;
 	struct nft_data		mask;
 	struct nft_data		xor;
+	struct nft_data		data;
 };
+
+static void nft_bitwise_eval_bool(u32 *dst, const u32 *src,
+				  const struct nft_bitwise *priv)
+{
+	unsigned int i;
+
+	for (i = 0; i < DIV_ROUND_UP(priv->len, 4); i++)
+		dst[i] = (src[i] & priv->mask.data[i]) ^ priv->xor.data[i];
+}
+
+static void nft_bitwise_eval_lshift(u32 *dst, const u32 *src,
+				    const struct nft_bitwise *priv)
+{
+	u32 shift = priv->data.data[0];
+	unsigned int i;
+	u32 carry = 0;
+
+	for (i = DIV_ROUND_UP(priv->len, sizeof(u32)); i > 0; i--) {
+		dst[i - 1] = (src[i - 1] << shift) | carry;
+		carry = src[i - 1] >> (BITS_PER_TYPE(u32) - shift);
+	}
+}
+
+static void nft_bitwise_eval_rshift(u32 *dst, const u32 *src,
+				    const struct nft_bitwise *priv)
+{
+	u32 shift = priv->data.data[0];
+	unsigned int i;
+	u32 carry = 0;
+
+	for (i = 0; i < DIV_ROUND_UP(priv->len, sizeof(u32)); i++) {
+		dst[i] = carry | (src[i] >> shift);
+		carry = src[i] << (BITS_PER_TYPE(u32) - shift);
+	}
+}
 
 void nft_bitwise_eval(const struct nft_expr *expr,
 		      struct nft_regs *regs, const struct nft_pktinfo *pkt)
@@ -29,10 +66,18 @@ void nft_bitwise_eval(const struct nft_expr *expr,
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
 	const u32 *src = &regs->data[priv->sreg];
 	u32 *dst = &regs->data[priv->dreg];
-	unsigned int i;
 
-	for (i = 0; i < DIV_ROUND_UP(priv->len, 4); i++)
-		dst[i] = (src[i] & priv->mask.data[i]) ^ priv->xor.data[i];
+	switch (priv->op) {
+	case NFT_BITWISE_BOOL:
+		nft_bitwise_eval_bool(dst, src, priv);
+		break;
+	case NFT_BITWISE_LSHIFT:
+		nft_bitwise_eval_lshift(dst, src, priv);
+		break;
+	case NFT_BITWISE_RSHIFT:
+		nft_bitwise_eval_rshift(dst, src, priv);
+		break;
+	}
 }
 
 static const struct nla_policy nft_bitwise_policy[NFTA_BITWISE_MAX + 1] = {
@@ -41,22 +86,86 @@ static const struct nla_policy nft_bitwise_policy[NFTA_BITWISE_MAX + 1] = {
 	[NFTA_BITWISE_LEN]	= { .type = NLA_U32 },
 	[NFTA_BITWISE_MASK]	= { .type = NLA_NESTED },
 	[NFTA_BITWISE_XOR]	= { .type = NLA_NESTED },
+	[NFTA_BITWISE_OP]	= { .type = NLA_U32 },
+	[NFTA_BITWISE_DATA]	= { .type = NLA_NESTED },
 };
+
+static int nft_bitwise_init_bool(struct nft_bitwise *priv,
+				 const struct nlattr *const tb[])
+{
+	struct nft_data_desc d1, d2;
+	int err;
+
+	if (tb[NFTA_BITWISE_DATA])
+		return -EINVAL;
+
+	if (!tb[NFTA_BITWISE_MASK] ||
+	    !tb[NFTA_BITWISE_XOR])
+		return -EINVAL;
+
+	err = nft_data_init(NULL, &priv->mask, sizeof(priv->mask), &d1,
+			    tb[NFTA_BITWISE_MASK]);
+	if (err < 0)
+		return err;
+	if (d1.type != NFT_DATA_VALUE || d1.len != priv->len) {
+		err = -EINVAL;
+		goto err1;
+	}
+
+	err = nft_data_init(NULL, &priv->xor, sizeof(priv->xor), &d2,
+			    tb[NFTA_BITWISE_XOR]);
+	if (err < 0)
+		goto err1;
+	if (d2.type != NFT_DATA_VALUE || d2.len != priv->len) {
+		err = -EINVAL;
+		goto err2;
+	}
+
+	return 0;
+err2:
+	nft_data_release(&priv->xor, d2.type);
+err1:
+	nft_data_release(&priv->mask, d1.type);
+	return err;
+}
+
+static int nft_bitwise_init_shift(struct nft_bitwise *priv,
+				  const struct nlattr *const tb[])
+{
+	struct nft_data_desc d;
+	int err;
+
+	if (tb[NFTA_BITWISE_MASK] ||
+	    tb[NFTA_BITWISE_XOR])
+		return -EINVAL;
+
+	if (!tb[NFTA_BITWISE_DATA])
+		return -EINVAL;
+
+	err = nft_data_init(NULL, &priv->data, sizeof(priv->data), &d,
+			    tb[NFTA_BITWISE_DATA]);
+	if (err < 0)
+		return err;
+	if (d.type != NFT_DATA_VALUE || d.len != sizeof(u32) ||
+	    priv->data.data[0] >= BITS_PER_TYPE(u32)) {
+		nft_data_release(&priv->data, d.type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static int nft_bitwise_init(const struct nft_ctx *ctx,
 			    const struct nft_expr *expr,
 			    const struct nlattr * const tb[])
 {
 	struct nft_bitwise *priv = nft_expr_priv(expr);
-	struct nft_data_desc d1, d2;
 	u32 len;
 	int err;
 
-	if (tb[NFTA_BITWISE_SREG] == NULL ||
-	    tb[NFTA_BITWISE_DREG] == NULL ||
-	    tb[NFTA_BITWISE_LEN] == NULL ||
-	    tb[NFTA_BITWISE_MASK] == NULL ||
-	    tb[NFTA_BITWISE_XOR] == NULL)
+	if (!tb[NFTA_BITWISE_SREG] ||
+	    !tb[NFTA_BITWISE_DREG] ||
+	    !tb[NFTA_BITWISE_LEN])
 		return -EINVAL;
 
 	err = nft_parse_u32_check(tb[NFTA_BITWISE_LEN], U8_MAX, &len);
@@ -76,70 +185,100 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	err = nft_data_init(NULL, &priv->mask, sizeof(priv->mask), &d1,
-			    tb[NFTA_BITWISE_MASK]);
-	if (err < 0)
-		return err;
-	if (d1.len != priv->len) {
-		err = -EINVAL;
-		goto err1;
+	if (tb[NFTA_BITWISE_OP]) {
+		priv->op = ntohl(nla_get_be32(tb[NFTA_BITWISE_OP]));
+		switch (priv->op) {
+		case NFT_BITWISE_BOOL:
+		case NFT_BITWISE_LSHIFT:
+		case NFT_BITWISE_RSHIFT:
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+	} else {
+		priv->op = NFT_BITWISE_BOOL;
 	}
 
-	err = nft_data_init(NULL, &priv->xor, sizeof(priv->xor), &d2,
-			    tb[NFTA_BITWISE_XOR]);
-	if (err < 0)
-		goto err1;
-	if (d2.len != priv->len) {
-		err = -EINVAL;
-		goto err2;
+	switch(priv->op) {
+	case NFT_BITWISE_BOOL:
+		err = nft_bitwise_init_bool(priv, tb);
+		break;
+	case NFT_BITWISE_LSHIFT:
+	case NFT_BITWISE_RSHIFT:
+		err = nft_bitwise_init_shift(priv, tb);
+		break;
 	}
+
+	return err;
+}
+
+static int nft_bitwise_dump_bool(struct sk_buff *skb,
+				 const struct nft_bitwise *priv)
+{
+	if (nft_data_dump(skb, NFTA_BITWISE_MASK, &priv->mask,
+			  NFT_DATA_VALUE, priv->len) < 0)
+		return -1;
+
+	if (nft_data_dump(skb, NFTA_BITWISE_XOR, &priv->xor,
+			  NFT_DATA_VALUE, priv->len) < 0)
+		return -1;
 
 	return 0;
-err2:
-	nft_data_release(&priv->xor, d2.type);
-err1:
-	nft_data_release(&priv->mask, d1.type);
-	return err;
+}
+
+static int nft_bitwise_dump_shift(struct sk_buff *skb,
+				  const struct nft_bitwise *priv)
+{
+	if (nft_data_dump(skb, NFTA_BITWISE_DATA, &priv->data,
+			  NFT_DATA_VALUE, sizeof(u32)) < 0)
+		return -1;
+	return 0;
 }
 
 static int nft_bitwise_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
+	int err = 0;
 
 	if (nft_dump_register(skb, NFTA_BITWISE_SREG, priv->sreg))
-		goto nla_put_failure;
+		return -1;
 	if (nft_dump_register(skb, NFTA_BITWISE_DREG, priv->dreg))
-		goto nla_put_failure;
+		return -1;
 	if (nla_put_be32(skb, NFTA_BITWISE_LEN, htonl(priv->len)))
-		goto nla_put_failure;
+		return -1;
+	if (nla_put_be32(skb, NFTA_BITWISE_OP, htonl(priv->op)))
+		return -1;
 
-	if (nft_data_dump(skb, NFTA_BITWISE_MASK, &priv->mask,
-			  NFT_DATA_VALUE, priv->len) < 0)
-		goto nla_put_failure;
+	switch (priv->op) {
+	case NFT_BITWISE_BOOL:
+		err = nft_bitwise_dump_bool(skb, priv);
+		break;
+	case NFT_BITWISE_LSHIFT:
+	case NFT_BITWISE_RSHIFT:
+		err = nft_bitwise_dump_shift(skb, priv);
+		break;
+	}
 
-	if (nft_data_dump(skb, NFTA_BITWISE_XOR, &priv->xor,
-			  NFT_DATA_VALUE, priv->len) < 0)
-		goto nla_put_failure;
-
-	return 0;
-
-nla_put_failure:
-	return -1;
+	return err;
 }
 
 static struct nft_data zero;
 
 static int nft_bitwise_offload(struct nft_offload_ctx *ctx,
-                               struct nft_flow_rule *flow,
-                               const struct nft_expr *expr)
+			       struct nft_flow_rule *flow,
+			       const struct nft_expr *expr)
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
+	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
 
-	if (memcmp(&priv->xor, &zero, sizeof(priv->xor)) ||
-	    priv->sreg != priv->dreg)
+	if (priv->op != NFT_BITWISE_BOOL)
 		return -EOPNOTSUPP;
 
-	memcpy(&ctx->regs[priv->dreg].mask, &priv->mask, sizeof(priv->mask));
+	if (memcmp(&priv->xor, &zero, sizeof(priv->xor)) ||
+	    priv->sreg != priv->dreg || priv->len != reg->len)
+		return -EOPNOTSUPP;
+
+	memcpy(&reg->mask, &priv->mask, sizeof(priv->mask));
 
 	return 0;
 }

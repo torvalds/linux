@@ -28,8 +28,8 @@
 #include "nbio_v7_0.h"
 #include "nbio_v7_4.h"
 
-#define SOC15_FLUSH_GPU_TLB_NUM_WREG		4
-#define SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT	1
+#define SOC15_FLUSH_GPU_TLB_NUM_WREG		6
+#define SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT	3
 
 extern const struct amd_ip_funcs soc15_common_ip_funcs;
 
@@ -60,12 +60,26 @@ struct soc15_allowed_register_entry {
 	bool grbm_indexed;
 };
 
+struct soc15_ras_field_entry {
+	const char *name;
+	uint32_t hwip;
+	uint32_t inst;
+	uint32_t seg;
+	uint32_t reg_offset;
+	uint32_t sec_count_mask;
+	uint32_t sec_count_shift;
+	uint32_t ded_count_mask;
+	uint32_t ded_count_shift;
+};
+
 #define SOC15_REG_ENTRY(ip, inst, reg)	ip##_HWIP, inst, reg##_BASE_IDX, reg
 
 #define SOC15_REG_ENTRY_OFFSET(entry)	(adev->reg_offset[entry.hwip][entry.inst][entry.seg] + entry.reg_offset)
 
 #define SOC15_REG_GOLDEN_VALUE(ip, inst, reg, and_mask, or_mask) \
 	{ ip##_HWIP, inst, reg##_BASE_IDX, reg, and_mask, or_mask }
+
+#define SOC15_REG_FIELD(reg, field) reg##__##field##_MASK, reg##__##field##__SHIFT
 
 void soc15_grbm_select(struct amdgpu_device *adev,
 		    u32 me, u32 pipe, u32 queue, u32 vmid);

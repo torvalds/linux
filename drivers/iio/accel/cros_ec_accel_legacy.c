@@ -18,7 +18,6 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/kernel.h>
-#include <linux/mfd/cros_ec.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/platform_data/cros_ec_commands.h>
@@ -163,15 +162,9 @@ static const struct iio_chan_spec cros_ec_accel_legacy_channels[] = {
 static int cros_ec_accel_legacy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct cros_ec_dev *ec = dev_get_drvdata(dev->parent);
 	struct iio_dev *indio_dev;
 	struct cros_ec_sensors_core_state *state;
 	int ret;
-
-	if (!ec || !ec->ec_dev) {
-		dev_warn(&pdev->dev, "No EC device found.\n");
-		return -EINVAL;
-	}
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*state));
 	if (!indio_dev)

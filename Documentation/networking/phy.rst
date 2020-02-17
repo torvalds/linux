@@ -73,7 +73,7 @@ The Reduced Gigabit Medium Independent Interface (RGMII) is a 12-pin
 electrical signal interface using a synchronous 125Mhz clock signal and several
 data lines. Due to this design decision, a 1.5ns to 2ns delay must be added
 between the clock line (RXC or TXC) and the data lines to let the PHY (clock
-sink) have enough setup and hold times to sample the data lines correctly. The
+sink) have a large enough setup and hold time to sample the data lines correctly. The
 PHY library offers different types of PHY_INTERFACE_MODE_RGMII* values to let
 the PHY driver and optionally the MAC driver, implement the required delay. The
 values of phy_interface_t must be understood from the perspective of the PHY
@@ -267,6 +267,24 @@ Some of the interface modes are described below:
     duplex, pause or other settings.  This is dependent on the MAC and/or
     PHY behaviour.
 
+``PHY_INTERFACE_MODE_10GBASER``
+    This is the IEEE 802.3 Clause 49 defined 10GBASE-R protocol used with
+    various different mediums. Please refer to the IEEE standard for a
+    definition of this.
+
+    Note: 10GBASE-R is just one protocol that can be used with XFI and SFI.
+    XFI and SFI permit multiple protocols over a single SERDES lane, and
+    also defines the electrical characteristics of the signals with a host
+    compliance board plugged into the host XFP/SFP connector. Therefore,
+    XFI and SFI are not PHY interface types in their own right.
+
+``PHY_INTERFACE_MODE_10GKR``
+    This is the IEEE 802.3 Clause 49 defined 10GBASE-R with Clause 73
+    autonegotiation. Please refer to the IEEE standard for further
+    information.
+
+    Note: due to legacy usage, some 10GBASE-R usage incorrectly makes
+    use of this definition.
 
 Pause frames / flow control
 ===========================
@@ -352,7 +370,8 @@ Fills the phydev structure with up-to-date information about the current
 settings in the PHY.
 ::
 
- int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
+ int phy_ethtool_ksettings_set(struct phy_device *phydev,
+                               const struct ethtool_link_ksettings *cmd);
 
 Ethtool convenience functions.
 ::

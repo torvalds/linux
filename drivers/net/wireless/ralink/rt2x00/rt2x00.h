@@ -23,7 +23,6 @@
 #include <linux/leds.h>
 #include <linux/mutex.h>
 #include <linux/etherdevice.h>
-#include <linux/input-polldev.h>
 #include <linux/kfifo.h>
 #include <linux/hrtimer.h>
 #include <linux/average.h>
@@ -1440,6 +1439,8 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 		  struct sk_buff *skb);
 int rt2x00mac_start(struct ieee80211_hw *hw);
 void rt2x00mac_stop(struct ieee80211_hw *hw);
+void rt2x00mac_reconfig_complete(struct ieee80211_hw *hw,
+				 enum ieee80211_reconfig_type reconfig_type);
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif);
 void rt2x00mac_remove_interface(struct ieee80211_hw *hw,

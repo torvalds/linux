@@ -34,8 +34,13 @@
 #define NUM_TX_RING_ENTRIES	256
 #define NUM_RX_RING_ENTRIES	256
 
-#define NUM_SMALL_BUFFERS   512
-#define NUM_LARGE_BUFFERS   512
+/* Use the same len for sbq and lbq. Note that it seems like the device might
+ * support different sizes.
+ */
+#define QLGE_BQ_SHIFT 9
+#define QLGE_BQ_LEN BIT(QLGE_BQ_SHIFT)
+#define QLGE_BQ_SIZE (QLGE_BQ_LEN * sizeof(__le64))
+
 #define DB_PAGE_SIZE 4096
 
 /* Calculate the number of (4k) pages required to
@@ -46,8 +51,8 @@
 		(((x * sizeof(u64)) % DB_PAGE_SIZE) ? 1 : 0))
 
 #define RX_RING_SHADOW_SPACE	(sizeof(u64) + \
-		MAX_DB_PAGES_PER_BQ(NUM_SMALL_BUFFERS) * sizeof(u64) + \
-		MAX_DB_PAGES_PER_BQ(NUM_LARGE_BUFFERS) * sizeof(u64))
+		MAX_DB_PAGES_PER_BQ(QLGE_BQ_LEN) * sizeof(u64) + \
+		MAX_DB_PAGES_PER_BQ(QLGE_BQ_LEN) * sizeof(u64))
 #define LARGE_BUFFER_MAX_SIZE 8192
 #define LARGE_BUFFER_MIN_SIZE 2048
 
@@ -57,7 +62,6 @@
 #define DFLT_INTER_FRAME_WAIT (MAX_INTER_FRAME_WAIT/2)
 #define UDELAY_COUNT 3
 #define UDELAY_DELAY 100
-
 
 #define TX_DESC_PER_IOCB 8
 
@@ -76,6 +80,11 @@
 #define MSW(x)  ((u16)((u32)(x) >> 16))
 #define LSD(x)  ((u32)((u64)(x)))
 #define MSD(x)  ((u32)((((u64)(x)) >> 32)))
+
+/* In some cases, the device interprets a value of 0x0000 as 65536. These
+ * cases are marked using the following macro.
+ */
+#define QLGE_FIT16(value) ((u16)(value))
 
 /* MPI test register definitions. This register
  * is used for determining alternate NIC function's
@@ -1358,25 +1367,6 @@ struct tx_ring_desc {
 	struct tx_ring_desc *next;
 };
 
-struct page_chunk {
-	struct page *page;	/* master page */
-	char *va;		/* virt addr for this chunk */
-	u64 map;		/* mapping for master */
-	unsigned int offset;	/* offset for this chunk */
-	unsigned int last_flag; /* flag set for last chunk in page */
-};
-
-struct bq_desc {
-	union {
-		struct page_chunk pg_chunk;
-		struct sk_buff *skb;
-	} p;
-	__le64 *addr;
-	u32 index;
-	DEFINE_DMA_UNMAP_ADDR(mapaddr);
-	DEFINE_DMA_UNMAP_LEN(maplen);
-};
-
 #define QL_TXQ_IDX(qdev, skb) (smp_processor_id()%(qdev->tx_ring_count))
 
 struct tx_ring {
@@ -1406,14 +1396,67 @@ struct tx_ring {
 	u64 tx_errors;
 };
 
-/*
- * Type of inbound queue.
- */
-enum {
-	DEFAULT_Q = 2,		/* Handles slow queue and chip/MPI events. */
-	TX_Q = 3,		/* Handles outbound completions. */
-	RX_Q = 4,		/* Handles inbound completions. */
+struct qlge_page_chunk {
+	struct page *page;
+	void *va; /* virt addr including offset */
+	unsigned int offset;
 };
+
+struct qlge_bq_desc {
+	union {
+		/* for large buffers */
+		struct qlge_page_chunk pg_chunk;
+		/* for small buffers */
+		struct sk_buff *skb;
+	} p;
+	dma_addr_t dma_addr;
+	/* address in ring where the buffer address is written for the device */
+	__le64 *buf_ptr;
+	u32 index;
+};
+
+/* buffer queue */
+struct qlge_bq {
+	__le64 *base;
+	dma_addr_t base_dma;
+	__le64 *base_indirect;
+	dma_addr_t base_indirect_dma;
+	struct qlge_bq_desc *queue;
+	/* prod_idx is the index of the first buffer that may NOT be used by
+	 * hw, ie. one after the last. Advanced by sw.
+	 */
+	void __iomem *prod_idx_db_reg;
+	/* next index where sw should refill a buffer for hw */
+	u16 next_to_use;
+	/* next index where sw expects to find a buffer filled by hw */
+	u16 next_to_clean;
+	enum {
+		QLGE_SB,		/* small buffer */
+		QLGE_LB,		/* large buffer */
+	} type;
+};
+
+#define QLGE_BQ_CONTAINER(bq) \
+({ \
+	typeof(bq) _bq = bq; \
+	(struct rx_ring *)((char *)_bq - (_bq->type == QLGE_SB ? \
+					  offsetof(struct rx_ring, sbq) : \
+					  offsetof(struct rx_ring, lbq))); \
+})
+
+/* Experience shows that the device ignores the low 4 bits of the tail index.
+ * Refill up to a x16 multiple.
+ */
+#define QLGE_BQ_ALIGN(index) ALIGN_DOWN(index, 16)
+
+#define QLGE_BQ_WRAP(index) ((index) & (QLGE_BQ_LEN - 1))
+
+#define QLGE_BQ_HW_OWNED(bq) \
+({ \
+	typeof(bq) _bq = bq; \
+	QLGE_BQ_WRAP(QLGE_BQ_ALIGN((_bq)->next_to_use) - \
+		     (_bq)->next_to_clean); \
+})
 
 struct rx_ring {
 	struct cqicb cqicb;	/* The chip's completion queue init control block. */
@@ -1432,40 +1475,17 @@ struct rx_ring {
 	void __iomem *valid_db_reg;	/* PCI doorbell mem area + 0x04 */
 
 	/* Large buffer queue elements. */
-	u32 lbq_len;		/* entry count */
-	u32 lbq_size;		/* size in bytes of queue */
-	u32 lbq_buf_size;
-	void *lbq_base;
-	dma_addr_t lbq_base_dma;
-	void *lbq_base_indirect;
-	dma_addr_t lbq_base_indirect_dma;
-	struct page_chunk pg_chunk; /* current page for chunks */
-	struct bq_desc *lbq;	/* array of control blocks */
-	void __iomem *lbq_prod_idx_db_reg;	/* PCI doorbell mem area + 0x18 */
-	u32 lbq_prod_idx;	/* current sw prod idx */
-	u32 lbq_curr_idx;	/* next entry we expect */
-	u32 lbq_clean_idx;	/* beginning of new descs */
-	u32 lbq_free_cnt;	/* free buffer desc cnt */
+	struct qlge_bq lbq;
+	struct qlge_page_chunk master_chunk;
+	dma_addr_t chunk_dma_addr;
 
 	/* Small buffer queue elements. */
-	u32 sbq_len;		/* entry count */
-	u32 sbq_size;		/* size in bytes of queue */
-	u32 sbq_buf_size;
-	void *sbq_base;
-	dma_addr_t sbq_base_dma;
-	void *sbq_base_indirect;
-	dma_addr_t sbq_base_indirect_dma;
-	struct bq_desc *sbq;	/* array of control blocks */
-	void __iomem *sbq_prod_idx_db_reg; /* PCI doorbell mem area + 0x1c */
-	u32 sbq_prod_idx;	/* current sw prod idx */
-	u32 sbq_curr_idx;	/* next entry we expect */
-	u32 sbq_clean_idx;	/* beginning of new descs */
-	u32 sbq_free_cnt;	/* free buffer desc cnt */
+	struct qlge_bq sbq;
 
 	/* Misc. handler elements. */
-	u32 type;		/* Type of queue, tx, rx. */
 	u32 irq;		/* Which vector this ring is assigned. */
 	u32 cpu;		/* Which CPU this should run on. */
+	struct delayed_work refill_work;
 	char name[IFNAMSIZ + 5];
 	struct napi_struct napi;
 	u8 reserved;
@@ -1606,18 +1626,18 @@ enum {
 #define MPI_COREDUMP_COOKIE 0x5555aaaa
 struct mpi_coredump_global_header {
 	u32	cookie;
-	u8	idString[16];
-	u32	timeLo;
-	u32	timeHi;
-	u32	imageSize;
-	u32	headerSize;
+	u8	id_string[16];
+	u32	time_lo;
+	u32	time_hi;
+	u32	image_size;
+	u32	header_size;
 	u8	info[220];
 };
 
 struct mpi_coredump_segment_header {
 	u32	cookie;
-	u32	segNum;
-	u32	segSize;
+	u32	seg_num;
+	u32	seg_size;
 	u32	extra;
 	u8	description[16];
 };
@@ -1982,11 +2002,6 @@ struct intr_context {
 	u32 intr_dis_mask;	/* value/mask used to disable this intr */
 	u32 intr_read_mask;	/* value/mask used to read this intr */
 	char name[IFNAMSIZ * 2];
-	atomic_t irq_cnt;	/* irq_cnt is used in single vector
-				 * environment.  It's incremented for each
-				 * irq handler that is scheduled.  When each
-				 * handler finishes it decrements irq_cnt and
-				 * enables interrupts if it's zero. */
 	irq_handler_t handler;
 };
 
@@ -2074,7 +2089,6 @@ struct ql_adapter {
 	u32 port;		/* Port number this adapter */
 
 	spinlock_t adapter_lock;
-	spinlock_t hw_lock;
 	spinlock_t stats_lock;
 
 	/* PCI Bus Relative Register Addresses */
@@ -2115,6 +2129,7 @@ struct ql_adapter {
 	struct rx_ring rx_ring[MAX_RX_RINGS];
 	struct tx_ring tx_ring[MAX_TX_RINGS];
 	unsigned int lbq_buf_order;
+	u32 lbq_buf_size;
 
 	int rx_csum;
 	u32 default_rx_queue;
@@ -2235,7 +2250,6 @@ void ql_mpi_reset_work(struct work_struct *work);
 void ql_mpi_core_to_log(struct work_struct *work);
 int ql_wait_reg_rdy(struct ql_adapter *qdev, u32 reg, u32 bit, u32 ebit);
 void ql_queue_asic_error(struct ql_adapter *qdev);
-u32 ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr);
 void ql_set_ethtool_ops(struct net_device *ndev);
 int ql_read_xgmac_reg64(struct ql_adapter *qdev, u32 reg, u64 *data);
 void ql_mpi_idc_work(struct work_struct *work);

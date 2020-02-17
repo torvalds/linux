@@ -63,6 +63,16 @@ Supported chips:
 
 	http://www.ti.com/lit/gpn/tps544c25
 
+  * Maxim MAX20796
+
+    Prefix: 'max20796'
+
+    Addresses scanned: -
+
+    Datasheet:
+
+	Not published
+
   * Generic PMBus devices
 
     Prefix: 'pmbus'

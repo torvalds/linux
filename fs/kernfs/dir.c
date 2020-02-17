@@ -438,7 +438,7 @@ void kernfs_put_active(struct kernfs_node *kn)
 		return;
 
 	if (kernfs_lockdep(kn))
-		rwsem_release(&kn->dep_map, 1, _RET_IP_);
+		rwsem_release(&kn->dep_map, _RET_IP_);
 	v = atomic_dec_return(&kn->active);
 	if (likely(v != KN_DEACTIVATED_BIAS))
 		return;
@@ -476,7 +476,7 @@ static void kernfs_drain(struct kernfs_node *kn)
 
 	if (kernfs_lockdep(kn)) {
 		lock_acquired(&kn->dep_map, _RET_IP_);
-		rwsem_release(&kn->dep_map, 1, _RET_IP_);
+		rwsem_release(&kn->dep_map, _RET_IP_);
 	}
 
 	kernfs_drain_open_files(kn);
@@ -508,10 +508,6 @@ void kernfs_put(struct kernfs_node *kn)
 	struct kernfs_node *parent;
 	struct kernfs_root *root;
 
-	/*
-	 * kernfs_node is freed with ->count 0, kernfs_find_and_get_node_by_ino
-	 * depends on this to filter reused stale node
-	 */
 	if (!kn || !atomic_dec_and_test(&kn->count))
 		return;
 	root = kernfs_root(kn);
@@ -536,7 +532,7 @@ void kernfs_put(struct kernfs_node *kn)
 		kmem_cache_free(kernfs_iattrs_cache, kn->iattr);
 	}
 	spin_lock(&kernfs_idr_lock);
-	idr_remove(&root->ino_idr, kn->id.ino);
+	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
 	spin_unlock(&kernfs_idr_lock);
 	kmem_cache_free(kernfs_node_cache, kn);
 
@@ -621,8 +617,7 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 					     unsigned flags)
 {
 	struct kernfs_node *kn;
-	u32 gen;
-	int cursor;
+	u32 id_highbits;
 	int ret;
 
 	name = kstrdup_const(name, GFP_KERNEL);
@@ -635,23 +630,19 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&kernfs_idr_lock);
-	cursor = idr_get_cursor(&root->ino_idr);
 	ret = idr_alloc_cyclic(&root->ino_idr, kn, 1, 0, GFP_ATOMIC);
-	if (ret >= 0 && ret < cursor)
-		root->next_generation++;
-	gen = root->next_generation;
+	if (ret >= 0 && ret < root->last_id_lowbits)
+		root->id_highbits++;
+	id_highbits = root->id_highbits;
+	root->last_id_lowbits = ret;
 	spin_unlock(&kernfs_idr_lock);
 	idr_preload_end();
 	if (ret < 0)
 		goto err_out2;
-	kn->id.ino = ret;
-	kn->id.generation = gen;
 
-	/*
-	 * set ino first. This RELEASE is paired with atomic_inc_not_zero in
-	 * kernfs_find_and_get_node_by_ino
-	 */
-	atomic_set_release(&kn->count, 1);
+	kn->id = (u64)id_highbits << 32 | ret;
+
+	atomic_set(&kn->count, 1);
 	atomic_set(&kn->active, KN_DEACTIVATED_BIAS);
 	RB_CLEAR_NODE(&kn->rb);
 
@@ -680,7 +671,7 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	return kn;
 
  err_out3:
-	idr_remove(&root->ino_idr, kn->id.ino);
+	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
  err_out2:
 	kmem_cache_free(kernfs_node_cache, kn);
  err_out1:
@@ -705,50 +696,52 @@ struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
 }
 
 /*
- * kernfs_find_and_get_node_by_ino - get kernfs_node from inode number
+ * kernfs_find_and_get_node_by_id - get kernfs_node from node id
  * @root: the kernfs root
- * @ino: inode number
+ * @id: the target node id
+ *
+ * @id's lower 32bits encode ino and upper gen.  If the gen portion is
+ * zero, all generations are matched.
  *
  * RETURNS:
  * NULL on failure. Return a kernfs node with reference counter incremented
  */
-struct kernfs_node *kernfs_find_and_get_node_by_ino(struct kernfs_root *root,
-						    unsigned int ino)
+struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
+						   u64 id)
 {
 	struct kernfs_node *kn;
+	ino_t ino = kernfs_id_ino(id);
+	u32 gen = kernfs_id_gen(id);
 
-	rcu_read_lock();
-	kn = idr_find(&root->ino_idr, ino);
+	spin_lock(&kernfs_idr_lock);
+
+	kn = idr_find(&root->ino_idr, (u32)ino);
 	if (!kn)
-		goto out;
+		goto err_unlock;
 
-	/*
-	 * Since kernfs_node is freed in RCU, it's possible an old node for ino
-	 * is freed, but reused before RCU grace period. But a freed node (see
-	 * kernfs_put) or an incompletedly initialized node (see
-	 * __kernfs_new_node) should have 'count' 0. We can use this fact to
-	 * filter out such node.
-	 */
-	if (!atomic_inc_not_zero(&kn->count)) {
-		kn = NULL;
-		goto out;
+	if (sizeof(ino_t) >= sizeof(u64)) {
+		/* we looked up with the low 32bits, compare the whole */
+		if (kernfs_ino(kn) != ino)
+			goto err_unlock;
+	} else {
+		/* 0 matches all generations */
+		if (unlikely(gen && kernfs_gen(kn) != gen))
+			goto err_unlock;
 	}
 
 	/*
-	 * The node could be a new node or a reused node. If it's a new node,
-	 * we are ok. If it's reused because of RCU (because of
-	 * SLAB_TYPESAFE_BY_RCU), the __kernfs_new_node always sets its 'ino'
-	 * before 'count'. So if 'count' is uptodate, 'ino' should be uptodate,
-	 * hence we can use 'ino' to filter stale node.
+	 * ACTIVATED is protected with kernfs_mutex but it was clear when
+	 * @kn was added to idr and we just wanna see it set.  No need to
+	 * grab kernfs_mutex.
 	 */
-	if (kn->id.ino != ino)
-		goto out;
-	rcu_read_unlock();
+	if (unlikely(!(kn->flags & KERNFS_ACTIVATED) ||
+		     !atomic_inc_not_zero(&kn->count)))
+		goto err_unlock;
 
+	spin_unlock(&kernfs_idr_lock);
 	return kn;
-out:
-	rcu_read_unlock();
-	kernfs_put(kn);
+err_unlock:
+	spin_unlock(&kernfs_idr_lock);
 	return NULL;
 }
 
@@ -962,7 +955,17 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 
 	idr_init(&root->ino_idr);
 	INIT_LIST_HEAD(&root->supers);
-	root->next_generation = 1;
+
+	/*
+	 * On 64bit ino setups, id is ino.  On 32bit, low 32bits are ino.
+	 * High bits generation.  The starting value for both ino and
+	 * genenration is 1.  Initialize upper 32bit allocation
+	 * accordingly.
+	 */
+	if (sizeof(ino_t) >= sizeof(u64))
+		root->id_highbits = 0;
+	else
+		root->id_highbits = 1;
 
 	kn = __kernfs_new_node(root, NULL, "", S_IFDIR | S_IRUGO | S_IXUGO,
 			       GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
@@ -1263,7 +1266,7 @@ void kernfs_activate(struct kernfs_node *kn)
 
 	pos = NULL;
 	while ((pos = kernfs_next_descendant_post(pos, kn))) {
-		if (!pos || (pos->flags & KERNFS_ACTIVATED))
+		if (pos->flags & KERNFS_ACTIVATED)
 			continue;
 
 		WARN_ON_ONCE(pos->parent && RB_EMPTY_NODE(&pos->rb));
@@ -1678,7 +1681,7 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 		const char *name = pos->name;
 		unsigned int type = dt_type(pos);
 		int len = strlen(name);
-		ino_t ino = pos->id.ino;
+		ino_t ino = kernfs_ino(pos);
 
 		ctx->pos = pos->hash;
 		file->private_data = pos;

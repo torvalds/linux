@@ -377,44 +377,120 @@
 			ti,hwmods = "dmm";
 		};
 
-		mmu0_dsp1: mmu@40d01000 {
-			compatible = "ti,dra7-dsp-iommu";
-			reg = <0x40d01000 0x100>;
-			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "mmu0_dsp1";
-			#iommu-cells = <0>;
-			ti,syscon-mmuconfig = <&dsp1_system 0x0>;
-			status = "disabled";
+		target-module@40d01000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x40d01000 0x4>,
+			      <0x40d01010 0x4>,
+			      <0x40d01014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			clocks = <&dsp1_clkctrl DRA7_DSP1_MMU0_DSP1_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_dsp1 1>;
+			reset-names = "rstctrl";
+			ranges = <0x0 0x40d01000 0x1000>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+
+			mmu0_dsp1: mmu@0 {
+				compatible = "ti,dra7-dsp-iommu";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+				#iommu-cells = <0>;
+				ti,syscon-mmuconfig = <&dsp1_system 0x0>;
+			};
 		};
 
-		mmu1_dsp1: mmu@40d02000 {
-			compatible = "ti,dra7-dsp-iommu";
-			reg = <0x40d02000 0x100>;
-			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "mmu1_dsp1";
-			#iommu-cells = <0>;
-			ti,syscon-mmuconfig = <&dsp1_system 0x1>;
-			status = "disabled";
+		target-module@40d02000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x40d02000 0x4>,
+			      <0x40d02010 0x4>,
+			      <0x40d02014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			clocks = <&dsp1_clkctrl DRA7_DSP1_MMU0_DSP1_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_dsp1 1>;
+			reset-names = "rstctrl";
+			ranges = <0x0 0x40d02000 0x1000>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+
+			mmu1_dsp1: mmu@0 {
+				compatible = "ti,dra7-dsp-iommu";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
+				#iommu-cells = <0>;
+				ti,syscon-mmuconfig = <&dsp1_system 0x1>;
+			};
 		};
 
-		mmu_ipu1: mmu@58882000 {
-			compatible = "ti,dra7-iommu";
-			reg = <0x58882000 0x100>;
-			interrupts = <GIC_SPI 395 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "mmu_ipu1";
-			#iommu-cells = <0>;
-			ti,iommu-bus-err-back;
-			status = "disabled";
+		target-module@58882000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x58882000 0x4>,
+			      <0x58882010 0x4>,
+			      <0x58882014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			clocks = <&ipu1_clkctrl DRA7_IPU1_MMU_IPU1_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_ipu 2>;
+			reset-names = "rstctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x58882000 0x100>;
+
+			mmu_ipu1: mmu@0 {
+				compatible = "ti,dra7-iommu";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 395 IRQ_TYPE_LEVEL_HIGH>;
+				#iommu-cells = <0>;
+				ti,iommu-bus-err-back;
+			};
 		};
 
-		mmu_ipu2: mmu@55082000 {
-			compatible = "ti,dra7-iommu";
-			reg = <0x55082000 0x100>;
-			interrupts = <GIC_SPI 396 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "mmu_ipu2";
-			#iommu-cells = <0>;
-			ti,iommu-bus-err-back;
-			status = "disabled";
+		target-module@55082000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x55082000 0x4>,
+			      <0x55082010 0x4>,
+			      <0x55082014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			clocks = <&ipu2_clkctrl DRA7_IPU2_MMU_IPU2_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_core 2>;
+			reset-names = "rstctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x55082000 0x100>;
+
+			mmu_ipu2: mmu@0 {
+				compatible = "ti,dra7-iommu";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 396 IRQ_TYPE_LEVEL_HIGH>;
+				#iommu-cells = <0>;
+				ti,iommu-bus-err-back;
+			};
 		};
 
 		abb_mpu: regulator-abb-mpu {
@@ -597,6 +673,24 @@
 			status = "disabled";
 		};
 
+		target-module@56000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x5600fe00 0x4>,
+			      <0x5600fe10 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&gpu_clkctrl DRA7_GPU_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x56000000 0x2000000>;
+		};
+
 		crossbar_mpu: crossbar@4a002a48 {
 			compatible = "ti,irq-crossbar";
 			reg = <0x4a002a48 0x130>;
@@ -652,48 +746,96 @@
 			};
 		};
 
-		aes1: aes@4b500000 {
-			compatible = "ti,omap4-aes";
-			ti,hwmods = "aes1";
-			reg = <0x4b500000 0xa0>;
-			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&edma_xbar 111 0>, <&edma_xbar 110 0>;
-			dma-names = "tx", "rx";
-			clocks = <&l3_iclk_div>;
+		aes1_target: target-module@4b500000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x4b500080 0x4>,
+			      <0x4b500084 0x4>,
+			      <0x4b500088 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): per_pwrdm, l4sec_clkdm */
+			clocks = <&l4sec_clkctrl DRA7_L4SEC_AES1_CLKCTRL 0>;
 			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4b500000 0x1000>;
+
+			aes1: aes@0 {
+				compatible = "ti,omap4-aes";
+				reg = <0 0xa0>;
+				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&edma_xbar 111 0>, <&edma_xbar 110 0>;
+				dma-names = "tx", "rx";
+				clocks = <&l3_iclk_div>;
+				clock-names = "fck";
+			};
 		};
 
-		aes2: aes@4b700000 {
-			compatible = "ti,omap4-aes";
-			ti,hwmods = "aes2";
-			reg = <0x4b700000 0xa0>;
-			interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&edma_xbar 114 0>, <&edma_xbar 113 0>;
-			dma-names = "tx", "rx";
-			clocks = <&l3_iclk_div>;
+		aes2_target: target-module@4b700000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x4b700080 0x4>,
+			      <0x4b700084 0x4>,
+			      <0x4b700088 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): per_pwrdm, l4sec_clkdm */
+			clocks = <&l4sec_clkctrl DRA7_L4SEC_AES2_CLKCTRL 0>;
 			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4b700000 0x1000>;
+
+			aes2: aes@0 {
+				compatible = "ti,omap4-aes";
+				reg = <0 0xa0>;
+				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&edma_xbar 114 0>, <&edma_xbar 113 0>;
+				dma-names = "tx", "rx";
+				clocks = <&l3_iclk_div>;
+				clock-names = "fck";
+			};
 		};
 
-		des: des@480a5000 {
-			compatible = "ti,omap4-des";
-			ti,hwmods = "des";
-			reg = <0x480a5000 0xa0>;
-			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&sdma_xbar 117>, <&sdma_xbar 116>;
-			dma-names = "tx", "rx";
-			clocks = <&l3_iclk_div>;
+		sham_target: target-module@4b101000 {
+			compatible = "ti,sysc-omap3-sham", "ti,sysc";
+			reg = <0x4b101100 0x4>,
+			      <0x4b101110 0x4>,
+			      <0x4b101114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): l4per_pwrdm, l4sec_clkdm */
+			clocks = <&l4sec_clkctrl DRA7_L4SEC_SHAM_CLKCTRL 0>;
 			clock-names = "fck";
-		};
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4b101000 0x1000>;
 
-		sham: sham@53100000 {
-			compatible = "ti,omap5-sham";
-			ti,hwmods = "sham";
-			reg = <0x4b101000 0x300>;
-			interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&edma_xbar 119 0>;
-			dma-names = "rx";
-			clocks = <&l3_iclk_div>;
-			clock-names = "fck";
+			sham: sham@0 {
+				compatible = "ti,omap5-sham";
+				reg = <0 0x300>;
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&edma_xbar 119 0>;
+				dma-names = "rx";
+				clocks = <&l3_iclk_div>;
+				clock-names = "fck";
+			};
 		};
 
 		opp_supply_mpu: opp-supply@4a003b20 {
@@ -763,3 +905,54 @@
 
 #include "dra7-l4.dtsi"
 #include "dra7xx-clocks.dtsi"
+
+&prm {
+	prm_dsp1: prm@400 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x400 0x100>;
+		#reset-cells = <1>;
+	};
+
+	prm_ipu: prm@500 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x500 0x100>;
+		#reset-cells = <1>;
+	};
+
+	prm_core: prm@700 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x700 0x100>;
+		#reset-cells = <1>;
+	};
+
+	prm_iva: prm@f00 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0xf00 0x100>;
+	};
+
+	prm_dsp2: prm@1b00 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1b00 0x40>;
+		#reset-cells = <1>;
+	};
+
+	prm_eve1: prm@1b40 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1b40 0x40>;
+	};
+
+	prm_eve2: prm@1b80 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1b80 0x40>;
+	};
+
+	prm_eve3: prm@1bc0 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1bc0 0x40>;
+	};
+
+	prm_eve4: prm@1c00 {
+		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1c00 0x60>;
+	};
+};

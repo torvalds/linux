@@ -248,7 +248,7 @@ struct workqueue_struct {
 	struct list_head	flusher_overflow; /* WQ: flush overflow list */
 
 	struct list_head	maydays;	/* MD: pwqs requesting rescue */
-	struct worker		*rescuer;	/* I: rescue worker */
+	struct worker		*rescuer;	/* MD: rescue worker */
 
 	int			nr_drainers;	/* WQ: drain in progress */
 	int			saved_max_active; /* WQ: saved pwq max_active */
@@ -355,6 +355,7 @@ EXPORT_SYMBOL_GPL(system_freezable_power_efficient_wq);
 
 static int worker_thread(void *__worker);
 static void workqueue_sysfs_unregister(struct workqueue_struct *wq);
+static void show_pwq(struct pool_workqueue *pwq);
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/workqueue.h>
@@ -363,11 +364,6 @@ static void workqueue_sysfs_unregister(struct workqueue_struct *wq);
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&			\
 			 !lockdep_is_held(&wq_pool_mutex),		\
 			 "RCU or wq_pool_mutex should be held")
-
-#define assert_rcu_or_wq_mutex(wq)					\
-	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&			\
-			 !lockdep_is_held(&wq->mutex),			\
-			 "RCU or wq->mutex should be held")
 
 #define assert_rcu_or_wq_mutex_or_pool_mutex(wq)			\
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&			\
@@ -425,9 +421,8 @@ static void workqueue_sysfs_unregister(struct workqueue_struct *wq);
  * ignored.
  */
 #define for_each_pwq(pwq, wq)						\
-	list_for_each_entry_rcu((pwq), &(wq)->pwqs, pwqs_node)		\
-		if (({ assert_rcu_or_wq_mutex(wq); false; })) { }	\
-		else
+	list_for_each_entry_rcu((pwq), &(wq)->pwqs, pwqs_node,		\
+				 lockdep_is_held(&(wq->mutex)))
 
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
 
@@ -2271,7 +2266,7 @@ __acquires(&pool->lock)
 	 * While we must be careful to not use "work" after this, the trace
 	 * point will only record its address.
 	 */
-	trace_workqueue_execute_end(work);
+	trace_workqueue_execute_end(work, worker->current_func);
 	lock_map_release(&lockdep_map);
 	lock_map_release(&pwq->wq->lockdep_map);
 
@@ -2285,7 +2280,7 @@ __acquires(&pool->lock)
 	}
 
 	/*
-	 * The following prevents a kworker from hogging CPU on !PREEMPT
+	 * The following prevents a kworker from hogging CPU on !PREEMPTION
 	 * kernels, where a requeueing work item waiting for something to
 	 * happen could deadlock with stop_machine as such work item could
 	 * indefinitely requeue itself while all other CPUs are trapped in
@@ -2532,8 +2527,14 @@ repeat:
 			 */
 			if (need_to_create_worker(pool)) {
 				spin_lock(&wq_mayday_lock);
-				get_pwq(pwq);
-				list_move_tail(&pwq->mayday_node, &wq->maydays);
+				/*
+				 * Queue iff we aren't racing destruction
+				 * and somebody else hasn't queued it already.
+				 */
+				if (wq->rescuer && list_empty(&pwq->mayday_node)) {
+					get_pwq(pwq);
+					list_add_tail(&pwq->mayday_node, &wq->maydays);
+				}
 				spin_unlock(&wq_mayday_lock);
 			}
 		}
@@ -4314,6 +4315,22 @@ err_destroy:
 }
 EXPORT_SYMBOL_GPL(alloc_workqueue);
 
+static bool pwq_busy(struct pool_workqueue *pwq)
+{
+	int i;
+
+	for (i = 0; i < WORK_NR_COLORS; i++)
+		if (pwq->nr_in_flight[i])
+			return true;
+
+	if ((pwq != pwq->wq->dfl_pwq) && (pwq->refcnt > 1))
+		return true;
+	if (pwq->nr_active || !list_empty(&pwq->delayed_works))
+		return true;
+
+	return false;
+}
+
 /**
  * destroy_workqueue - safely terminate a workqueue
  * @wq: target workqueue
@@ -4325,31 +4342,51 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	struct pool_workqueue *pwq;
 	int node;
 
+	/*
+	 * Remove it from sysfs first so that sanity check failure doesn't
+	 * lead to sysfs name conflicts.
+	 */
+	workqueue_sysfs_unregister(wq);
+
 	/* drain it before proceeding with destruction */
 	drain_workqueue(wq);
 
-	/* sanity checks */
+	/* kill rescuer, if sanity checks fail, leave it w/o rescuer */
+	if (wq->rescuer) {
+		struct worker *rescuer = wq->rescuer;
+
+		/* this prevents new queueing */
+		spin_lock_irq(&wq_mayday_lock);
+		wq->rescuer = NULL;
+		spin_unlock_irq(&wq_mayday_lock);
+
+		/* rescuer will empty maydays list before exiting */
+		kthread_stop(rescuer->task);
+		kfree(rescuer);
+	}
+
+	/*
+	 * Sanity checks - grab all the locks so that we wait for all
+	 * in-flight operations which may do put_pwq().
+	 */
+	mutex_lock(&wq_pool_mutex);
 	mutex_lock(&wq->mutex);
 	for_each_pwq(pwq, wq) {
-		int i;
-
-		for (i = 0; i < WORK_NR_COLORS; i++) {
-			if (WARN_ON(pwq->nr_in_flight[i])) {
-				mutex_unlock(&wq->mutex);
-				show_workqueue_state();
-				return;
-			}
-		}
-
-		if (WARN_ON((pwq != wq->dfl_pwq) && (pwq->refcnt > 1)) ||
-		    WARN_ON(pwq->nr_active) ||
-		    WARN_ON(!list_empty(&pwq->delayed_works))) {
+		spin_lock_irq(&pwq->pool->lock);
+		if (WARN_ON(pwq_busy(pwq))) {
+			pr_warn("%s: %s has the following busy pwq\n",
+				__func__, wq->name);
+			show_pwq(pwq);
+			spin_unlock_irq(&pwq->pool->lock);
 			mutex_unlock(&wq->mutex);
+			mutex_unlock(&wq_pool_mutex);
 			show_workqueue_state();
 			return;
 		}
+		spin_unlock_irq(&pwq->pool->lock);
 	}
 	mutex_unlock(&wq->mutex);
+	mutex_unlock(&wq_pool_mutex);
 
 	/*
 	 * wq list is used to freeze wq, remove from list after
@@ -4358,11 +4395,6 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	mutex_lock(&wq_pool_mutex);
 	list_del_rcu(&wq->list);
 	mutex_unlock(&wq_pool_mutex);
-
-	workqueue_sysfs_unregister(wq);
-
-	if (wq->rescuer)
-		kthread_stop(wq->rescuer->task);
 
 	if (!(wq->flags & WQ_UNBOUND)) {
 		wq_unregister_lockdep(wq);
@@ -4638,7 +4670,8 @@ static void show_pwq(struct pool_workqueue *pwq)
 	pr_info("  pwq %d:", pool->id);
 	pr_cont_pool_info(pool);
 
-	pr_cont(" active=%d/%d%s\n", pwq->nr_active, pwq->max_active,
+	pr_cont(" active=%d/%d refcnt=%d%s\n",
+		pwq->nr_active, pwq->max_active, pwq->refcnt,
 		!list_empty(&pwq->mayday_node) ? " MAYDAY" : "");
 
 	hash_for_each(pool->busy_hash, bkt, worker, hentry) {
@@ -4657,7 +4690,7 @@ static void show_pwq(struct pool_workqueue *pwq)
 
 			pr_cont("%s %d%s:%ps", comma ? "," : "",
 				task_pid_nr(worker->task),
-				worker == pwq->wq->rescuer ? "(RESCUER)" : "",
+				worker->rescue_wq ? "(RESCUER)" : "",
 				worker->current_func);
 			list_for_each_entry(work, &worker->scheduled, entry)
 				pr_cont_work(false, work);

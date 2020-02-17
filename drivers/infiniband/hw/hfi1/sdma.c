@@ -65,6 +65,7 @@
 #define SDMA_DESCQ_CNT 2048
 #define SDMA_DESC_INTR 64
 #define INVALID_TAIL 0xffff
+#define SDMA_PAD max_t(size_t, MAX_16B_PADDING, sizeof(u32))
 
 static uint sdma_descq_cnt = SDMA_DESCQ_CNT;
 module_param(sdma_descq_cnt, uint, S_IRUGO);
@@ -847,7 +848,7 @@ static const struct rhashtable_params sdma_rht_params = {
 	.nelem_hint = NR_CPUS_HINT,
 	.head_offset = offsetof(struct sdma_rht_node, node),
 	.key_offset = offsetof(struct sdma_rht_node, cpu_id),
-	.key_len = FIELD_SIZEOF(struct sdma_rht_node, cpu_id),
+	.key_len = sizeof_field(struct sdma_rht_node, cpu_id),
 	.max_size = NR_CPUS,
 	.min_size = 8,
 	.automatic_shrinking = true,
@@ -880,8 +881,8 @@ struct sdma_engine *sdma_select_user_engine(struct hfi1_devdata *dd,
 
 	cpu_id = smp_processor_id();
 	rcu_read_lock();
-	rht_node = rhashtable_lookup_fast(dd->sdma_rht, &cpu_id,
-					  sdma_rht_params);
+	rht_node = rhashtable_lookup(dd->sdma_rht, &cpu_id,
+				     sdma_rht_params);
 
 	if (rht_node && rht_node->map[vl]) {
 		struct sdma_rht_map_elem *map = rht_node->map[vl];
@@ -1296,7 +1297,7 @@ void sdma_clean(struct hfi1_devdata *dd, size_t num_engines)
 	struct sdma_engine *sde;
 
 	if (dd->sdma_pad_dma) {
-		dma_free_coherent(&dd->pcidev->dev, 4,
+		dma_free_coherent(&dd->pcidev->dev, SDMA_PAD,
 				  (void *)dd->sdma_pad_dma,
 				  dd->sdma_pad_phys);
 		dd->sdma_pad_dma = NULL;
@@ -1491,7 +1492,7 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 	}
 
 	/* Allocate memory for pad */
-	dd->sdma_pad_dma = dma_alloc_coherent(&dd->pcidev->dev, sizeof(u32),
+	dd->sdma_pad_dma = dma_alloc_coherent(&dd->pcidev->dev, SDMA_PAD,
 					      &dd->sdma_pad_phys, GFP_KERNEL);
 	if (!dd->sdma_pad_dma) {
 		dd_dev_err(dd, "failed to allocate SendDMA pad memory\n");

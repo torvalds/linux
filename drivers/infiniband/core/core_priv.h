@@ -149,6 +149,7 @@ unsigned long roce_gid_type_mask_support(struct ib_device *ib_dev, u8 port);
 int ib_cache_setup_one(struct ib_device *device);
 void ib_cache_cleanup_one(struct ib_device *device);
 void ib_cache_release_one(struct ib_device *device);
+void ib_dispatch_event_clients(struct ib_event *event);
 
 #ifdef CONFIG_CGROUP_RDMA
 void ib_device_register_rdmacg(struct ib_device *device);
@@ -199,6 +200,7 @@ void ib_mad_cleanup(void);
 int ib_sa_init(void);
 void ib_sa_cleanup(void);
 
+void rdma_nl_init(void);
 void rdma_nl_exit(void);
 
 int ib_nl_handle_resolve_resp(struct sk_buff *skb,
@@ -319,7 +321,7 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 					  struct ib_pd *pd,
 					  struct ib_qp_init_attr *attr,
 					  struct ib_udata *udata,
-					  struct ib_uobject *uobj)
+					  struct ib_uqp_object *uobj)
 {
 	enum ib_qp_type qp_type = attr->qp_type;
 	struct ib_qp *qp;
@@ -387,4 +389,15 @@ int ib_device_set_netns_put(struct sk_buff *skb,
 
 int rdma_nl_net_init(struct rdma_dev_net *rnet);
 void rdma_nl_net_exit(struct rdma_dev_net *rnet);
+
+struct rdma_umap_priv {
+	struct vm_area_struct *vma;
+	struct list_head list;
+	struct rdma_user_mmap_entry *entry;
+};
+
+void rdma_umap_priv_init(struct rdma_umap_priv *priv,
+			 struct vm_area_struct *vma,
+			 struct rdma_user_mmap_entry *entry);
+
 #endif /* _CORE_PRIV_H */

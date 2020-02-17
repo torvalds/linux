@@ -788,7 +788,7 @@ skip_rio:
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 			atomic_set(&vha->loop_state, LOOP_DOWN);
 			atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(vha, 1);
+			qla2x00_mark_all_devices_lost(vha);
 		}
 
 		if (vha->vp_idx) {
@@ -861,7 +861,7 @@ skip_rio:
 			}
 
 			vha->device_flags |= DFLG_NO_CABLE;
-			qla2x00_mark_all_devices_lost(vha, 1);
+			qla2x00_mark_all_devices_lost(vha);
 		}
 
 		if (vha->vp_idx) {
@@ -881,7 +881,7 @@ skip_rio:
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 			atomic_set(&vha->loop_state, LOOP_DOWN);
 			atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(vha, 1);
+			qla2x00_mark_all_devices_lost(vha);
 		}
 
 		if (vha->vp_idx) {
@@ -924,7 +924,7 @@ skip_rio:
 				atomic_set(&vha->loop_down_timer,
 				    LOOP_DOWN_TIME);
 			if (!N2N_TOPO(ha))
-				qla2x00_mark_all_devices_lost(vha, 1);
+				qla2x00_mark_all_devices_lost(vha);
 		}
 
 		if (vha->vp_idx) {
@@ -953,7 +953,7 @@ skip_rio:
 			if (!atomic_read(&vha->loop_down_timer))
 				atomic_set(&vha->loop_down_timer,
 				    LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(vha, 1);
+			qla2x00_mark_all_devices_lost(vha);
 		}
 
 		if (vha->vp_idx) {
@@ -1022,7 +1022,6 @@ skip_rio:
 			    "Marking port lost loopid=%04x portid=%06x.\n",
 			    fcport->loop_id, fcport->d_id.b24);
 			if (qla_ini_mode_enabled(vha)) {
-				qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
 				fcport->logout_on_delete = 0;
 				qlt_schedule_sess_for_deletion(fcport);
 			}
@@ -1034,14 +1033,14 @@ global_port_update:
 				atomic_set(&vha->loop_down_timer,
 				    LOOP_DOWN_TIME);
 				vha->device_flags |= DFLG_NO_CABLE;
-				qla2x00_mark_all_devices_lost(vha, 1);
+				qla2x00_mark_all_devices_lost(vha);
 			}
 
 			if (vha->vp_idx) {
 				atomic_set(&vha->vp_state, VP_FAILED);
 				fc_vport_set_state(vha->fc_vport,
 				    FC_VPORT_FAILED);
-				qla2x00_mark_all_devices_lost(vha, 1);
+				qla2x00_mark_all_devices_lost(vha);
 			}
 
 			vha->flags.management_server_logged_in = 0;
@@ -1061,8 +1060,6 @@ global_port_update:
 			ql_dbg(ql_dbg_async, vha, 0x5011,
 			    "Asynchronous PORT UPDATE ignored %04x/%04x/%04x.\n",
 			    mb[1], mb[2], mb[3]);
-
-			qlt_async_event(mb[0], vha, mb);
 			break;
 		}
 
@@ -1079,8 +1076,6 @@ global_port_update:
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 		set_bit(VP_CONFIG_OK, &vha->vp_flags);
-
-		qlt_async_event(mb[0], vha, mb);
 		break;
 
 	case MBA_RSCN_UPDATE:		/* State Change Registration */
@@ -1227,20 +1222,63 @@ global_port_update:
 		break;
 
 	case MBA_IDC_AEN:
-		mb[4] = RD_REG_WORD(&reg24->mailbox4);
-		mb[5] = RD_REG_WORD(&reg24->mailbox5);
-		mb[6] = RD_REG_WORD(&reg24->mailbox6);
-		mb[7] = RD_REG_WORD(&reg24->mailbox7);
-		qla83xx_handle_8200_aen(vha, mb);
+		if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+			ha->flags.fw_init_done = 0;
+			ql_log(ql_log_warn, vha, 0xffff,
+			    "MPI Heartbeat stop. Chip reset needed. MB0[%xh] MB1[%xh] MB2[%xh] MB3[%xh]\n",
+			    mb[0], mb[1], mb[2], mb[3]);
+
+			if ((mb[1] & BIT_8) ||
+			    (mb[2] & BIT_8)) {
+				ql_log(ql_log_warn, vha, 0xd013,
+				    "MPI Heartbeat stop. FW dump needed\n");
+				ha->fw_dump_mpi = 1;
+				ha->isp_ops->fw_dump(vha, 1);
+			}
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
+		} else if (IS_QLA83XX(ha)) {
+			mb[4] = RD_REG_WORD(&reg24->mailbox4);
+			mb[5] = RD_REG_WORD(&reg24->mailbox5);
+			mb[6] = RD_REG_WORD(&reg24->mailbox6);
+			mb[7] = RD_REG_WORD(&reg24->mailbox7);
+			qla83xx_handle_8200_aen(vha, mb);
+		} else {
+			ql_dbg(ql_dbg_async, vha, 0x5052,
+			    "skip Heartbeat processing mb0-3=[0x%04x] [0x%04x] [0x%04x] [0x%04x]\n",
+			    mb[0], mb[1], mb[2], mb[3]);
+		}
 		break;
 
 	case MBA_DPORT_DIAGNOSTICS:
 		ql_dbg(ql_dbg_async, vha, 0x5052,
-		    "D-Port Diagnostics: %04x result=%s\n",
-		    mb[0],
-		    mb[1] == 0 ? "start" :
-		    mb[1] == 1 ? "done (pass)" :
-		    mb[1] == 2 ? "done (error)" : "other");
+		    "D-Port Diagnostics: %04x %04x %04x %04x\n",
+		    mb[0], mb[1], mb[2], mb[3]);
+		if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+			static char *results[] = {
+			    "start", "done(pass)", "done(error)", "undefined" };
+			static char *types[] = {
+			    "none", "dynamic", "static", "other" };
+			uint result = mb[1] >> 0 & 0x3;
+			uint type = mb[1] >> 6 & 0x3;
+			uint sw = mb[1] >> 15 & 0x1;
+			ql_dbg(ql_dbg_async, vha, 0x5052,
+			    "D-Port Diagnostics: result=%s type=%s [sw=%u]\n",
+			    results[result], types[type], sw);
+			if (result == 2) {
+				static char *reasons[] = {
+				    "reserved", "unexpected reject",
+				    "unexpected phase", "retry exceeded",
+				    "timed out", "not supported",
+				    "user stopped" };
+				uint reason = mb[2] >> 0 & 0xf;
+				uint phase = mb[2] >> 12 & 0xf;
+				ql_dbg(ql_dbg_async, vha, 0x5052,
+				    "D-Port Diagnostics: reason=%s phase=%u \n",
+				    reason < 7 ? reasons[reason] : "other",
+				    phase >> 1);
+			}
+		}
 		break;
 
 	case MBA_TEMPERATURE_ALERT:
@@ -1901,6 +1939,18 @@ static void qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		inbuf = (uint32_t *)&sts->nvme_ersp_data;
 		outbuf = (uint32_t *)fd->rspaddr;
 		iocb->u.nvme.rsp_pyld_len = le16_to_cpu(sts->nvme_rsp_pyld_len);
+		if (unlikely(iocb->u.nvme.rsp_pyld_len >
+		    sizeof(struct nvme_fc_ersp_iu))) {
+			if (ql_mask_match(ql_dbg_io)) {
+				WARN_ONCE(1, "Unexpected response payload length %u.\n",
+				    iocb->u.nvme.rsp_pyld_len);
+				ql_log(ql_log_warn, fcport->vha, 0x5100,
+				    "Unexpected response payload length %u.\n",
+				    iocb->u.nvme.rsp_pyld_len);
+			}
+			iocb->u.nvme.rsp_pyld_len =
+			    sizeof(struct nvme_fc_ersp_iu);
+		}
 		iter = iocb->u.nvme.rsp_pyld_len >> 2;
 		for (; iter; iter--)
 			*outbuf++ = swab32(*inbuf++);
@@ -2135,12 +2185,12 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 	 * swab32 of the "data" field in the beginning of qla2x00_status_entry()
 	 * would make guard field appear at offset 2
 	 */
-	a_guard   = le16_to_cpu(*(uint16_t *)(ap + 2));
-	a_app_tag = le16_to_cpu(*(uint16_t *)(ap + 0));
-	a_ref_tag = le32_to_cpu(*(uint32_t *)(ap + 4));
-	e_guard   = le16_to_cpu(*(uint16_t *)(ep + 2));
-	e_app_tag = le16_to_cpu(*(uint16_t *)(ep + 0));
-	e_ref_tag = le32_to_cpu(*(uint32_t *)(ep + 4));
+	a_guard   = get_unaligned_le16(ap + 2);
+	a_app_tag = get_unaligned_le16(ap + 0);
+	a_ref_tag = get_unaligned_le32(ap + 4);
+	e_guard   = get_unaligned_le16(ep + 2);
+	e_app_tag = get_unaligned_le16(ep + 0);
+	e_ref_tag = get_unaligned_le32(ep + 4);
 
 	ql_dbg(ql_dbg_io, vha, 0x3023,
 	    "iocb(s) %p Returned STATUS.\n", sts24);
@@ -2466,6 +2516,11 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		return;
 	}
 
+	if (sp->abort)
+		sp->aborted = 1;
+	else
+		sp->completed = 1;
+
 	if (sp->cmd_type != TYPE_SRB) {
 		req->outstanding_cmds[handle] = NULL;
 		ql_dbg(ql_dbg_io, vha, 0x3015,
@@ -2723,7 +2778,6 @@ check_scsi_status:
 				port_state_str[FCS_ONLINE],
 				comp_status);
 
-			qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
 			qlt_schedule_sess_for_deletion(fcport);
 		}
 
@@ -2837,8 +2891,6 @@ qla2x00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
 	if (sense_len == 0) {
 		rsp->status_srb = NULL;
 		sp->done(sp, cp->result);
-	} else {
-		WARN_ON_ONCE(true);
 	}
 }
 
@@ -3626,7 +3678,7 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 skip_msix:
 
 	ql_log(ql_log_info, vha, 0x0037,
-	    "Falling back-to MSI mode -%d.\n", ret);
+	    "Falling back-to MSI mode -- ret=%d.\n", ret);
 
 	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha) &&
 	    !IS_QLA8001(ha) && !IS_P3P_TYPE(ha) && !IS_QLAFX00(ha) &&
@@ -3634,13 +3686,13 @@ skip_msix:
 		goto skip_msi;
 
 	ret = pci_alloc_irq_vectors(ha->pdev, 1, 1, PCI_IRQ_MSI);
-	if (!ret) {
+	if (ret > 0) {
 		ql_dbg(ql_dbg_init, vha, 0x0038,
 		    "MSI: Enabled.\n");
 		ha->flags.msi_enabled = 1;
 	} else
 		ql_log(ql_log_warn, vha, 0x0039,
-		    "Falling back-to INTa mode -- %d.\n", ret);
+		    "Falling back-to INTa mode -- ret=%d.\n", ret);
 skip_msi:
 
 	/* Skip INTx on ISP82xx. */

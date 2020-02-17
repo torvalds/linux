@@ -96,11 +96,10 @@ properties:
     description:
       When set, no physical write-protect line is present. This
       property should only be specified when the controller has a
-      dedicated write-protect detection logic. If a GPIO is always
-      used for the write-protect detection. If a GPIO is always used
+      dedicated write-protect detection logic. If a GPIO is always used
       for the write-protect detection logic, it is sufficient to not
       specify the wp-gpios property in the absence of a write-protect
-      line.
+      line. Not used in combination with eMMC or SDIO.
 
   wp-gpios:
     description:
@@ -333,6 +332,19 @@ patternProperties:
     required:
       - reg
 
+  "^clk-phase-(legacy|sd-hs|mmc-(hs|hs[24]00|ddr52)|uhs-(sdr(12|25|50|104)|ddr50))$":
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    items:
+      minimum: 0
+      maximum: 359
+      description:
+        Set the clock (phase) delays which are to be configured in the
+        controller while switching to particular speed mode. These values
+        are in pair of degrees.
+
 dependencies:
   cd-debounce-delay-ms: [ cd-gpios ]
   fixed-emmc-driver-type: [ non-removable ]
@@ -351,6 +363,7 @@ examples:
         keep-power-in-suspend;
         wakeup-source;
         mmc-pwrseq = <&sdhci0_pwrseq>;
+        clk-phase-sd-hs = <63>, <72>;
     };
 
   - |

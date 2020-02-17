@@ -1,38 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019, Mellanox Technologies inc.  All rights reserved.
  */
-#if !defined(IB_CM_H)
+#ifndef IB_CM_H
 #define IB_CM_H
 
 #include <rdma/ib_mad.h>
@@ -526,21 +500,6 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 		   u8 private_data_len);
 
 /**
- * ib_send_cm_lap - Sends a load alternate path request.
- * @cm_id: Connection identifier associated with the load alternate path
- *   message.
- * @alternate_path: A path record that identifies the alternate path to
- *   load.
- * @private_data: Optional user-defined private data sent with the
- *   load alternate path message.
- * @private_data_len: Size of the private data buffer, in bytes.
- */
-int ib_send_cm_lap(struct ib_cm_id *cm_id,
-		   struct sa_path_rec *alternate_path,
-		   const void *private_data,
-		   u8 private_data_len);
-
-/**
  * ib_cm_init_qp_attr - Initializes the QP attributes for use in transitioning
  *   to a specified QP state.
  * @cm_id: Communication identifier associated with the QP attributes to
@@ -559,25 +518,6 @@ int ib_send_cm_lap(struct ib_cm_id *cm_id,
 int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 		       struct ib_qp_attr *qp_attr,
 		       int *qp_attr_mask);
-
-/**
- * ib_send_cm_apr - Sends an alternate path response message in response to
- *   a load alternate path request.
- * @cm_id: Connection identifier associated with the alternate path response.
- * @status: Reply status sent with the alternate path response.
- * @info: Optional additional information sent with the alternate path
- *   response.
- * @info_length: Size of the additional information, in bytes.
- * @private_data: Optional user-defined private data sent with the
- *   alternate path response message.
- * @private_data_len: Size of the private data buffer, in bytes.
- */
-int ib_send_cm_apr(struct ib_cm_id *cm_id,
-		   enum ib_cm_apr_status status,
-		   void *info,
-		   u8 info_length,
-		   const void *private_data,
-		   u8 private_data_len);
 
 struct ib_cm_sidr_req_param {
 	struct sa_path_rec	*path;

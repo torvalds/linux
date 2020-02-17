@@ -1239,7 +1239,7 @@ static void ip_vs_process_message(struct netns_ipvs *ipvs, __u8 *buffer,
 
 			p = msg_end;
 			if (p + sizeof(s->v4) > buffer+buflen) {
-				IP_VS_ERR_RL("BACKUP, Dropping buffer, to small\n");
+				IP_VS_ERR_RL("BACKUP, Dropping buffer, too small\n");
 				return;
 			}
 			s = (union ip_vs_sync_conn *)p;
@@ -1762,6 +1762,10 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 	IP_VS_DBG(7, "Each ip_vs_sync_conn entry needs %zd bytes\n",
 		  sizeof(struct ip_vs_sync_conn_v0));
 
+	/* increase the module use count */
+	if (!ip_vs_use_count_inc())
+		return -ENOPROTOOPT;
+
 	/* Do not hold one mutex and then to block on another */
 	for (;;) {
 		rtnl_lock();
@@ -1892,9 +1896,6 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 	mutex_unlock(&ipvs->sync_mutex);
 	rtnl_unlock();
 
-	/* increase the module use count */
-	ip_vs_use_count_inc();
-
 	return 0;
 
 out:
@@ -1924,11 +1925,17 @@ out:
 		}
 		kfree(ti);
 	}
+
+	/* decrease the module use count */
+	ip_vs_use_count_dec();
 	return result;
 
 out_early:
 	mutex_unlock(&ipvs->sync_mutex);
 	rtnl_unlock();
+
+	/* decrease the module use count */
+	ip_vs_use_count_dec();
 	return result;
 }
 

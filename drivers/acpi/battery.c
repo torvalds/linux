@@ -38,6 +38,8 @@
 #define PREFIX "ACPI: "
 
 #define ACPI_BATTERY_VALUE_UNKNOWN 0xFFFFFFFF
+#define ACPI_BATTERY_CAPACITY_VALID(capacity) \
+	((capacity) != 0 && (capacity) != ACPI_BATTERY_VALUE_UNKNOWN)
 
 #define ACPI_BATTERY_DEVICE_NAME	"Battery"
 
@@ -192,7 +194,8 @@ static int acpi_battery_is_charged(struct acpi_battery *battery)
 
 static bool acpi_battery_is_degraded(struct acpi_battery *battery)
 {
-	return battery->full_charge_capacity && battery->design_capacity &&
+	return ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity) &&
+		ACPI_BATTERY_CAPACITY_VALID(battery->design_capacity) &&
 		battery->full_charge_capacity < battery->design_capacity;
 }
 
@@ -214,7 +217,7 @@ static int acpi_battery_get_property(struct power_supply *psy,
 				     enum power_supply_property psp,
 				     union power_supply_propval *val)
 {
-	int ret = 0;
+	int full_capacity = ACPI_BATTERY_VALUE_UNKNOWN, ret = 0;
 	struct acpi_battery *battery = to_acpi_battery(psy);
 
 	if (acpi_battery_present(battery)) {
@@ -263,14 +266,14 @@ static int acpi_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
-		if (battery->design_capacity == ACPI_BATTERY_VALUE_UNKNOWN)
+		if (!ACPI_BATTERY_CAPACITY_VALID(battery->design_capacity))
 			ret = -ENODEV;
 		else
 			val->intval = battery->design_capacity * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 	case POWER_SUPPLY_PROP_ENERGY_FULL:
-		if (battery->full_charge_capacity == ACPI_BATTERY_VALUE_UNKNOWN)
+		if (!ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity))
 			ret = -ENODEV;
 		else
 			val->intval = battery->full_charge_capacity * 1000;
@@ -283,11 +286,17 @@ static int acpi_battery_get_property(struct power_supply *psy,
 			val->intval = battery->capacity_now * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		if (battery->capacity_now && battery->full_charge_capacity)
-			val->intval = battery->capacity_now * 100/
-					battery->full_charge_capacity;
+		if (ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity))
+			full_capacity = battery->full_charge_capacity;
+		else if (ACPI_BATTERY_CAPACITY_VALID(battery->design_capacity))
+			full_capacity = battery->design_capacity;
+
+		if (battery->capacity_now == ACPI_BATTERY_VALUE_UNKNOWN ||
+		    full_capacity == ACPI_BATTERY_VALUE_UNKNOWN)
+			ret = -ENODEV;
 		else
-			val->intval = 0;
+			val->intval = battery->capacity_now * 100/
+					full_capacity;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
 		if (battery->state & ACPI_BATTERY_STATE_CRITICAL)
@@ -328,6 +337,20 @@ static enum power_supply_property charge_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+};
+
+static enum power_supply_property charge_battery_full_cap_broken_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_CYCLE_COUNT,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
@@ -794,20 +817,34 @@ static void __exit battery_hook_exit(void)
 static int sysfs_add_battery(struct acpi_battery *battery)
 {
 	struct power_supply_config psy_cfg = { .drv_data = battery, };
+	bool full_cap_broken = false;
+
+	if (!ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity) &&
+	    !ACPI_BATTERY_CAPACITY_VALID(battery->design_capacity))
+		full_cap_broken = true;
 
 	if (battery->power_unit == ACPI_BATTERY_POWER_UNIT_MA) {
-		battery->bat_desc.properties = charge_battery_props;
-		battery->bat_desc.num_properties =
-			ARRAY_SIZE(charge_battery_props);
-	} else if (battery->full_charge_capacity == 0) {
-		battery->bat_desc.properties =
-			energy_battery_full_cap_broken_props;
-		battery->bat_desc.num_properties =
-			ARRAY_SIZE(energy_battery_full_cap_broken_props);
+		if (full_cap_broken) {
+			battery->bat_desc.properties =
+			    charge_battery_full_cap_broken_props;
+			battery->bat_desc.num_properties =
+			    ARRAY_SIZE(charge_battery_full_cap_broken_props);
+		} else {
+			battery->bat_desc.properties = charge_battery_props;
+			battery->bat_desc.num_properties =
+			    ARRAY_SIZE(charge_battery_props);
+		}
 	} else {
-		battery->bat_desc.properties = energy_battery_props;
-		battery->bat_desc.num_properties =
-			ARRAY_SIZE(energy_battery_props);
+		if (full_cap_broken) {
+			battery->bat_desc.properties =
+			    energy_battery_full_cap_broken_props;
+			battery->bat_desc.num_properties =
+			    ARRAY_SIZE(energy_battery_full_cap_broken_props);
+		} else {
+			battery->bat_desc.properties = energy_battery_props;
+			battery->bat_desc.num_properties =
+			    ARRAY_SIZE(energy_battery_props);
+		}
 	}
 
 	battery->bat_desc.name = acpi_device_bid(battery->device);
@@ -1165,18 +1202,17 @@ static int acpi_battery_alarm_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, acpi_battery_alarm_proc_show, PDE_DATA(inode));
 }
 
-static const struct file_operations acpi_battery_alarm_fops = {
-	.owner		= THIS_MODULE,
-	.open		= acpi_battery_alarm_proc_open,
-	.read		= seq_read,
-	.write		= acpi_battery_write_alarm,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops acpi_battery_alarm_proc_ops = {
+	.proc_open	= acpi_battery_alarm_proc_open,
+	.proc_read	= seq_read,
+	.proc_write	= acpi_battery_write_alarm,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int acpi_battery_add_fs(struct acpi_device *device)
 {
-	pr_warning(PREFIX "Deprecated procfs I/F for battery is loaded, please retry with CONFIG_ACPI_PROCFS_POWER cleared\n");
+	pr_warn(PREFIX "Deprecated procfs I/F for battery is loaded, please retry with CONFIG_ACPI_PROCFS_POWER cleared\n");
 	if (!acpi_device_dir(device)) {
 		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
 						     acpi_battery_dir);
@@ -1191,7 +1227,7 @@ static int acpi_battery_add_fs(struct acpi_device *device)
 			acpi_battery_state_proc_show, acpi_driver_data(device)))
 		return -ENODEV;
 	if (!proc_create_data("alarm", S_IFREG | S_IRUGO | S_IWUSR,
-			acpi_device_dir(device), &acpi_battery_alarm_fops,
+			acpi_device_dir(device), &acpi_battery_alarm_proc_ops,
 			acpi_driver_data(device)))
 		return -ENODEV;
 	return 0;

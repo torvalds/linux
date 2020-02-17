@@ -28,7 +28,6 @@ This document describes the Linux kernel Makefiles.
 	   --- 4.3 Using C++ for host programs
 	   --- 4.4 Controlling compiler options for host programs
 	   --- 4.5 When host programs are actually built
-	   --- 4.6 Using hostprogs-$(CONFIG_FOO)
 
 	=== 5 Kbuild clean infrastructure
 
@@ -297,9 +296,19 @@ more details, with real examples.
 	If CONFIG_EXT2_FS is set to either 'y' (built-in) or 'm' (modular)
 	the corresponding obj- variable will be set, and kbuild will descend
 	down in the ext2 directory.
-	Kbuild only uses this information to decide that it needs to visit
-	the directory, it is the Makefile in the subdirectory that
-	specifies what is modular and what is built-in.
+
+	Kbuild uses this information not only to decide that it needs to visit
+	the directory, but also to decide whether or not to link objects from
+	the directory into vmlinux.
+
+	When Kbuild descends into the directory with 'y', all built-in objects
+	from that directory are combined into the built-in.a, which will be
+	eventually linked into vmlinux.
+
+	When Kbuild descends into the directory with 'm', in contrast, nothing
+	from that directory will be linked into vmlinux. If the Makefile in
+	that directory specifies obj-y, those objects will be left orphan.
+	It is very likely a bug of the Makefile or of dependencies in Kconfig.
 
 	It is good practice to use a `CONFIG_` variable when assigning directory
 	names. This allows kbuild to totally skip the directory if the
@@ -585,11 +594,11 @@ compilation stage.
 Two steps are required in order to use a host executable.
 
 The first step is to tell kbuild that a host program exists. This is
-done utilising the variable hostprogs-y.
+done utilising the variable "hostprogs".
 
 The second step is to add an explicit dependency to the executable.
 This can be done in two ways. Either add the dependency in a rule,
-or utilise the variable $(always).
+or utilise the variable "always-y".
 Both possibilities are described in the following.
 
 4.1 Simple Host Program
@@ -602,7 +611,7 @@ Both possibilities are described in the following.
 
 	Example::
 
-		hostprogs-y := bin2hex
+		hostprogs := bin2hex
 
 	Kbuild assumes in the above example that bin2hex is made from a single
 	c-source file named bin2hex.c located in the same directory as
@@ -620,7 +629,7 @@ Both possibilities are described in the following.
 	Example::
 
 		#scripts/lxdialog/Makefile
-		hostprogs-y   := lxdialog
+		hostprogs     := lxdialog
 		lxdialog-objs := checklist.o lxdialog.o
 
 	Objects with extension .o are compiled from the corresponding .c
@@ -640,7 +649,7 @@ Both possibilities are described in the following.
 	Example::
 
 		#scripts/kconfig/Makefile
-		hostprogs-y   := qconf
+		hostprogs     := qconf
 		qconf-cxxobjs := qconf.o
 
 	In the example above the executable is composed of the C++ file
@@ -652,7 +661,7 @@ Both possibilities are described in the following.
 	Example::
 
 		#scripts/kconfig/Makefile
-		hostprogs-y   := qconf
+		hostprogs     := qconf
 		qconf-cxxobjs := qconf.o
 		qconf-objs    := check.o
 
@@ -700,7 +709,7 @@ Both possibilities are described in the following.
 	Example::
 
 		#drivers/pci/Makefile
-		hostprogs-y := gen-devlist
+		hostprogs := gen-devlist
 		$(obj)/devlist.h: $(src)/pci.ids $(obj)/gen-devlist
 			( cd $(obj); ./gen-devlist ) < $<
 
@@ -708,47 +717,31 @@ Both possibilities are described in the following.
 	$(obj)/gen-devlist is updated. Note that references to
 	the host programs in special rules must be prefixed with $(obj).
 
-	(2) Use $(always)
+	(2) Use always-y
 
 	When there is no suitable special rule, and the host program
-	shall be built when a makefile is entered, the $(always)
+	shall be built when a makefile is entered, the always-y
 	variable shall be used.
 
 	Example::
 
 		#scripts/lxdialog/Makefile
-		hostprogs-y   := lxdialog
-		always        := $(hostprogs-y)
+		hostprogs     := lxdialog
+		always-y      := $(hostprogs)
 
 	This will tell kbuild to build lxdialog even if not referenced in
 	any rule.
-
-4.6 Using hostprogs-$(CONFIG_FOO)
----------------------------------
-
-	A typical pattern in a Kbuild file looks like this:
-
-	Example::
-
-		#scripts/Makefile
-		hostprogs-$(CONFIG_KALLSYMS) += kallsyms
-
-	Kbuild knows about both 'y' for built-in and 'm' for module.
-	So if a config symbol evaluates to 'm', kbuild will still build
-	the binary. In other words, Kbuild handles hostprogs-m exactly
-	like hostprogs-y. But only hostprogs-y is recommended to be used
-	when no CONFIG symbols are involved.
 
 5 Kbuild clean infrastructure
 =============================
 
 "make clean" deletes most generated files in the obj tree where the kernel
 is compiled. This includes generated files such as host programs.
-Kbuild knows targets listed in $(hostprogs-y), $(hostprogs-m), $(always),
-$(extra-y) and $(targets). They are all deleted during "make clean".
-Files matching the patterns "*.[oas]", "*.ko", plus some additional files
-generated by kbuild are deleted all over the kernel src tree when
-"make clean" is executed.
+Kbuild knows targets listed in $(hostprogs), $(always-y), $(always-m),
+$(always-), $(extra-y), $(extra-) and $(targets). They are all deleted
+during "make clean". Files matching the patterns "*.[oas]", "*.ko", plus
+some additional files generated by kbuild are deleted all over the kernel
+source tree when "make clean" is executed.
 
 Additional files or directories can be specified in kbuild makefiles by use of
 $(clean-files).
@@ -1115,23 +1108,6 @@ When kbuild executes, the following steps are followed (roughly):
 	In this example, extra-y is used to list object files that
 	shall be built, but shall not be linked as part of built-in.a.
 
-    header-test-y
-
-	header-test-y specifies headers (`*.h`) in the current directory that
-	should be compile tested to ensure they are self-contained,
-	i.e. compilable as standalone units. If CONFIG_HEADER_TEST is enabled,
-	this builds them as part of extra-y.
-
-    header-test-pattern-y
-
-	This works as a weaker version of header-test-y, and accepts wildcard
-	patterns. The typical usage is::
-
-		header-test-pattern-y += *.h
-
-	This specifies all the files that matches to `*.h` in the current
-	directory, but the files in 'header-test-' are excluded.
-
 6.7 Commands useful for building a boot image
 ---------------------------------------------
 
@@ -1276,12 +1252,12 @@ When kbuild executes, the following steps are followed (roughly):
 	Example::
 
 		#arch/x86/kernel/Makefile
-		always := vmlinux.lds
+		extra-y := vmlinux.lds
 
 		#Makefile
 		export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
 
-	The assignment to $(always) is used to tell kbuild to build the
+	The assignment to extra-y is used to tell kbuild to build the
 	target vmlinux.lds.
 	The assignment to $(CPPFLAGS_vmlinux.lds) tells kbuild to use the
 	specified options when building the target vmlinux.lds.

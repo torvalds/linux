@@ -28,3 +28,5 @@ extern unsigned int real_root_dev;
 
 extern char __initramfs_start[];
 extern unsigned long __initramfs_size;
+
+void console_on_rootfs(void);

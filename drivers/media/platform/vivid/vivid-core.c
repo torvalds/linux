@@ -37,6 +37,9 @@
 #include "vivid-osd.h"
 #include "vivid-cec.h"
 #include "vivid-ctrls.h"
+#include "vivid-meta-cap.h"
+#include "vivid-meta-out.h"
+#include "vivid-touch-cap.h"
 
 #define VIVID_MODULE_NAME "vivid"
 
@@ -79,6 +82,18 @@ static int radio_tx_nr[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = -1 };
 module_param_array(radio_tx_nr, int, NULL, 0444);
 MODULE_PARM_DESC(radio_tx_nr, " radioX start number, -1 is autodetect");
 
+static int meta_cap_nr[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = -1 };
+module_param_array(meta_cap_nr, int, NULL, 0444);
+MODULE_PARM_DESC(meta_cap_nr, " videoX start number, -1 is autodetect");
+
+static int meta_out_nr[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = -1 };
+module_param_array(meta_out_nr, int, NULL, 0444);
+MODULE_PARM_DESC(meta_out_nr, " videoX start number, -1 is autodetect");
+
+static int touch_cap_nr[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = -1 };
+module_param_array(touch_cap_nr, int, NULL, 0444);
+MODULE_PARM_DESC(touch_cap_nr, " v4l-touchX start number, -1 is autodetect");
+
 static int ccs_cap_mode[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = -1 };
 module_param_array(ccs_cap_mode, int, NULL, 0444);
 MODULE_PARM_DESC(ccs_cap_mode, " capture crop/compose/scale mode:\n"
@@ -95,10 +110,15 @@ static unsigned multiplanar[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 1
 module_param_array(multiplanar, uint, NULL, 0444);
 MODULE_PARM_DESC(multiplanar, " 1 (default) creates a single planar device, 2 creates a multiplanar device.");
 
-/* Default: video + vbi-cap (raw and sliced) + radio rx + radio tx + sdr + vbi-out + vid-out */
-static unsigned node_types[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 0x1d3d };
+/*
+ * Default: video + vbi-cap (raw and sliced) + radio rx + radio tx + sdr +
+ * vbi-out + vid-out + meta-cap
+ */
+static unsigned int node_types[VIVID_MAX_DEVS] = {
+	[0 ... (VIVID_MAX_DEVS - 1)] = 0xe1d3d
+};
 module_param_array(node_types, uint, NULL, 0444);
-MODULE_PARM_DESC(node_types, " node types, default is 0x1d3d. Bitmask with the following meaning:\n"
+MODULE_PARM_DESC(node_types, " node types, default is 0xe1d3d. Bitmask with the following meaning:\n"
 			     "\t\t    bit 0: Video Capture node\n"
 			     "\t\t    bit 2-3: VBI Capture node: 0 = none, 1 = raw vbi, 2 = sliced vbi, 3 = both\n"
 			     "\t\t    bit 4: Radio Receiver node\n"
@@ -106,7 +126,10 @@ MODULE_PARM_DESC(node_types, " node types, default is 0x1d3d. Bitmask with the f
 			     "\t\t    bit 8: Video Output node\n"
 			     "\t\t    bit 10-11: VBI Output node: 0 = none, 1 = raw vbi, 2 = sliced vbi, 3 = both\n"
 			     "\t\t    bit 12: Radio Transmitter node\n"
-			     "\t\t    bit 16: Framebuffer for testing overlays");
+			     "\t\t    bit 16: Framebuffer for testing overlays\n"
+			     "\t\t    bit 17: Metadata Capture node\n"
+			     "\t\t    bit 18: Metadata Output node\n"
+			     "\t\t    bit 19: Touch Capture node\n");
 
 /* Default: 4 inputs */
 static unsigned num_inputs[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 4 };
@@ -205,7 +228,9 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	cap->capabilities = dev->vid_cap_caps | dev->vid_out_caps |
 		dev->vbi_cap_caps | dev->vbi_out_caps |
 		dev->radio_rx_caps | dev->radio_tx_caps |
-		dev->sdr_cap_caps | V4L2_CAP_DEVICE_CAPS;
+		dev->sdr_cap_caps | dev->meta_cap_caps |
+		dev->meta_out_caps | dev->touch_cap_caps |
+		V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -359,6 +384,8 @@ static int vidioc_g_parm(struct file *file, void *fh,
 {
 	struct video_device *vdev = video_devdata(file);
 
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_parm_tch(file, fh, parm);
 	if (vdev->vfl_dir == VFL_DIR_RX)
 		return vivid_vid_cap_g_parm(file, fh, parm);
 	return vivid_vid_out_g_parm(file, fh, parm);
@@ -414,6 +441,104 @@ static __poll_t vivid_radio_poll(struct file *file, struct poll_table_struct *wa
 	return vivid_radio_tx_poll(file, wait);
 }
 
+static int vivid_enum_input(struct file *file, void *priv,
+			    struct v4l2_input *inp)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_enum_input_tch(file, priv, inp);
+	return vidioc_enum_input(file, priv, inp);
+}
+
+static int vivid_g_input(struct file *file, void *priv, unsigned int *i)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_input_tch(file, priv, i);
+	return vidioc_g_input(file, priv, i);
+}
+
+static int vivid_s_input(struct file *file, void *priv, unsigned int i)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_s_input_tch(file, priv, i);
+	return vidioc_s_input(file, priv, i);
+}
+
+static int vivid_enum_fmt_cap(struct file *file, void  *priv,
+			      struct v4l2_fmtdesc *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_enum_fmt_tch(file, priv, f);
+	return vivid_enum_fmt_vid(file, priv, f);
+}
+
+static int vivid_g_fmt_cap(struct file *file, void *priv,
+			   struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_fmt_tch(file, priv, f);
+	return vidioc_g_fmt_vid_cap(file, priv, f);
+}
+
+static int vivid_try_fmt_cap(struct file *file, void *priv,
+			     struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_fmt_tch(file, priv, f);
+	return vidioc_try_fmt_vid_cap(file, priv, f);
+}
+
+static int vivid_s_fmt_cap(struct file *file, void *priv,
+			   struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_fmt_tch(file, priv, f);
+	return vidioc_s_fmt_vid_cap(file, priv, f);
+}
+
+static int vivid_g_fmt_cap_mplane(struct file *file, void *priv,
+				  struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_fmt_tch_mplane(file, priv, f);
+	return vidioc_g_fmt_vid_cap_mplane(file, priv, f);
+}
+
+static int vivid_try_fmt_cap_mplane(struct file *file, void *priv,
+				    struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_fmt_tch_mplane(file, priv, f);
+	return vidioc_try_fmt_vid_cap_mplane(file, priv, f);
+}
+
+static int vivid_s_fmt_cap_mplane(struct file *file, void *priv,
+				  struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_fmt_tch_mplane(file, priv, f);
+	return vidioc_s_fmt_vid_cap_mplane(file, priv, f);
+}
+
 static bool vivid_is_in_use(struct video_device *vdev)
 {
 	unsigned long flags;
@@ -433,7 +558,10 @@ static bool vivid_is_last_user(struct vivid_dev *dev)
 			vivid_is_in_use(&dev->vbi_out_dev) +
 			vivid_is_in_use(&dev->sdr_cap_dev) +
 			vivid_is_in_use(&dev->radio_rx_dev) +
-			vivid_is_in_use(&dev->radio_tx_dev);
+			vivid_is_in_use(&dev->radio_tx_dev) +
+			vivid_is_in_use(&dev->meta_cap_dev) +
+			vivid_is_in_use(&dev->meta_out_dev) +
+			vivid_is_in_use(&dev->touch_cap_dev);
 
 	return uses == 1;
 }
@@ -459,6 +587,9 @@ static int vivid_fop_release(struct file *file)
 		set_bit(V4L2_FL_REGISTERED, &dev->sdr_cap_dev.flags);
 		set_bit(V4L2_FL_REGISTERED, &dev->radio_rx_dev.flags);
 		set_bit(V4L2_FL_REGISTERED, &dev->radio_tx_dev.flags);
+		set_bit(V4L2_FL_REGISTERED, &dev->meta_cap_dev.flags);
+		set_bit(V4L2_FL_REGISTERED, &dev->meta_out_dev.flags);
+		set_bit(V4L2_FL_REGISTERED, &dev->touch_cap_dev.flags);
 	}
 	mutex_unlock(&dev->mutex);
 	if (file->private_data == dev->overlay_cap_owner)
@@ -500,13 +631,13 @@ static const struct v4l2_file_operations vivid_radio_fops = {
 static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_querycap		= vidioc_querycap,
 
-	.vidioc_enum_fmt_vid_cap	= vivid_enum_fmt_vid,
-	.vidioc_g_fmt_vid_cap		= vidioc_g_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap		= vidioc_try_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap		= vidioc_s_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap_mplane	= vidioc_g_fmt_vid_cap_mplane,
-	.vidioc_try_fmt_vid_cap_mplane	= vidioc_try_fmt_vid_cap_mplane,
-	.vidioc_s_fmt_vid_cap_mplane	= vidioc_s_fmt_vid_cap_mplane,
+	.vidioc_enum_fmt_vid_cap	= vivid_enum_fmt_cap,
+	.vidioc_g_fmt_vid_cap		= vivid_g_fmt_cap,
+	.vidioc_try_fmt_vid_cap		= vivid_try_fmt_cap,
+	.vidioc_s_fmt_vid_cap		= vivid_s_fmt_cap,
+	.vidioc_g_fmt_vid_cap_mplane	= vivid_g_fmt_cap_mplane,
+	.vidioc_try_fmt_vid_cap_mplane	= vivid_try_fmt_cap_mplane,
+	.vidioc_s_fmt_vid_cap_mplane	= vivid_s_fmt_cap_mplane,
 
 	.vidioc_enum_fmt_vid_out	= vivid_enum_fmt_vid,
 	.vidioc_g_fmt_vid_out		= vidioc_g_fmt_vid_out,
@@ -568,9 +699,9 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
 
-	.vidioc_enum_input		= vidioc_enum_input,
-	.vidioc_g_input			= vidioc_g_input,
-	.vidioc_s_input			= vidioc_s_input,
+	.vidioc_enum_input		= vivid_enum_input,
+	.vidioc_g_input			= vivid_g_input,
+	.vidioc_s_input			= vivid_s_input,
 	.vidioc_s_audio			= vidioc_s_audio,
 	.vidioc_g_audio			= vidioc_g_audio,
 	.vidioc_enumaudio		= vidioc_enumaudio,
@@ -604,6 +735,16 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_log_status		= vidioc_log_status,
 	.vidioc_subscribe_event		= vidioc_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
+
+	.vidioc_enum_fmt_meta_cap	= vidioc_enum_fmt_meta_cap,
+	.vidioc_g_fmt_meta_cap		= vidioc_g_fmt_meta_cap,
+	.vidioc_s_fmt_meta_cap		= vidioc_g_fmt_meta_cap,
+	.vidioc_try_fmt_meta_cap	= vidioc_g_fmt_meta_cap,
+
+	.vidioc_enum_fmt_meta_out       = vidioc_enum_fmt_meta_out,
+	.vidioc_g_fmt_meta_out          = vidioc_g_fmt_meta_out,
+	.vidioc_s_fmt_meta_out          = vidioc_g_fmt_meta_out,
+	.vidioc_try_fmt_meta_out        = vidioc_g_fmt_meta_out,
 };
 
 /* -----------------------------------------------------------------
@@ -616,6 +757,9 @@ static void vivid_dev_release(struct v4l2_device *v4l2_dev)
 
 	vivid_free_controls(dev);
 	v4l2_device_unregister(&dev->v4l2_dev);
+#ifdef CONFIG_MEDIA_CONTROLLER
+	media_device_cleanup(&dev->mdev);
+#endif
 	vfree(dev->scaled_line);
 	vfree(dev->blended_line);
 	vfree(dev->edid);
@@ -645,14 +789,44 @@ static const struct media_device_ops vivid_media_ops = {
 };
 #endif
 
+static int vivid_create_queue(struct vivid_dev *dev,
+			      struct vb2_queue *q,
+			      u32 buf_type,
+			      unsigned int min_buffers_needed,
+			      const struct vb2_ops *ops)
+{
+	if (buf_type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->multiplanar)
+		buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	else if (buf_type == V4L2_BUF_TYPE_VIDEO_OUTPUT && dev->multiplanar)
+		buf_type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
+	else if (buf_type == V4L2_BUF_TYPE_VBI_CAPTURE && !dev->has_raw_vbi_cap)
+		buf_type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+	else if (buf_type == V4L2_BUF_TYPE_VBI_OUTPUT && !dev->has_raw_vbi_out)
+		buf_type = V4L2_BUF_TYPE_SLICED_VBI_OUTPUT;
+
+	q->type = buf_type;
+	q->io_modes = VB2_MMAP | VB2_DMABUF;
+	q->io_modes |= V4L2_TYPE_IS_OUTPUT(buf_type) ?  VB2_WRITE : VB2_READ;
+	if (allocators[dev->inst] != 1)
+		q->io_modes |= VB2_USERPTR;
+	q->drv_priv = dev;
+	q->buf_struct_size = sizeof(struct vivid_buffer);
+	q->ops = ops;
+	q->mem_ops = allocators[dev->inst] == 1 ? &vb2_dma_contig_memops :
+						  &vb2_vmalloc_memops;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->min_buffers_needed = min_buffers_needed;
+	q->lock = &dev->mutex;
+	q->dev = dev->v4l2_dev.dev;
+	q->supports_requests = true;
+
+	return vb2_queue_init(q);
+}
+
 static int vivid_create_instance(struct platform_device *pdev, int inst)
 {
 	static const struct v4l2_dv_timings def_dv_timings =
 					V4L2_DV_BT_CEA_1280X720P60;
-	static const struct vb2_mem_ops * const vivid_mem_ops[2] = {
-		&vb2_vmalloc_memops,
-		&vb2_dma_contig_memops,
-	};
 	unsigned in_type_counter[4] = { 0, 0, 0, 0 };
 	unsigned out_type_counter[4] = { 0, 0, 0, 0 };
 	int ccs_cap = ccs_cap_mode[inst];
@@ -661,9 +835,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	bool has_modulator;
 	struct vivid_dev *dev;
 	struct video_device *vfd;
-	struct vb2_queue *q;
 	unsigned node_type = node_types[inst];
-	unsigned int allocator = allocators[inst];
 	v4l2_std_id tvnorms_cap = 0, tvnorms_out = 0;
 	int ret;
 	int i;
@@ -758,6 +930,25 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		dev->has_vbi_cap = dev->has_raw_vbi_cap | dev->has_sliced_vbi_cap;
 	}
 
+	/* do we create a meta capture device */
+	dev->has_meta_cap = node_type & 0x20000;
+
+	/* sanity checks */
+	if ((in_type_counter[WEBCAM] || in_type_counter[HDMI]) &&
+	    !dev->has_vid_cap && !dev->has_meta_cap) {
+		v4l2_warn(&dev->v4l2_dev,
+			  "Webcam or HDMI input without video or metadata nodes\n");
+		kfree(dev);
+		return -EINVAL;
+	}
+	if ((in_type_counter[TV] || in_type_counter[SVID]) &&
+	    !dev->has_vid_cap && !dev->has_vbi_cap && !dev->has_meta_cap) {
+		v4l2_warn(&dev->v4l2_dev,
+			  "TV or S-Video input without video, VBI or metadata nodes\n");
+		kfree(dev);
+		return -EINVAL;
+	}
+
 	/* do we create a video output device? */
 	dev->has_vid_out = node_type & 0x0100;
 
@@ -768,6 +959,24 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		dev->has_vbi_out = dev->has_raw_vbi_out | dev->has_sliced_vbi_out;
 	}
 
+	/* do we create a metadata output device */
+	dev->has_meta_out = node_type & 0x40000;
+
+	/* sanity checks */
+	if (out_type_counter[SVID] &&
+	    !dev->has_vid_out && !dev->has_vbi_out && !dev->has_meta_out) {
+		v4l2_warn(&dev->v4l2_dev,
+			  "S-Video output without video, VBI or metadata nodes\n");
+		kfree(dev);
+		return -EINVAL;
+	}
+	if (out_type_counter[HDMI] && !dev->has_vid_out && !dev->has_meta_out) {
+		v4l2_warn(&dev->v4l2_dev,
+			  "HDMI output without video or metadata nodes\n");
+		kfree(dev);
+		return -EINVAL;
+	}
+
 	/* do we create a radio receiver device? */
 	dev->has_radio_rx = node_type & 0x0010;
 
@@ -776,6 +985,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 	/* do we create a software defined radio capture device? */
 	dev->has_sdr_cap = node_type & 0x0020;
+
+	/* do we have a TV tuner? */
+	dev->has_tv_tuner = in_type_counter[TV];
 
 	/* do we have a tuner? */
 	has_tuner = ((dev->has_vid_cap || dev->has_vbi_cap) && in_type_counter[TV]) ||
@@ -818,6 +1030,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 			dev->has_scaler_out ? 'Y' : 'N');
 	}
 
+	/* do we create a touch capture device */
+	dev->has_touch_cap = node_type & 0x80000;
+
 	/* end detecting feature set */
 
 	if (dev->has_vid_cap) {
@@ -828,7 +1043,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		dev->vid_cap_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
 		if (dev->has_audio_inputs)
 			dev->vid_cap_caps |= V4L2_CAP_AUDIO;
-		if (in_type_counter[TV])
+		if (dev->has_tv_tuner)
 			dev->vid_cap_caps |= V4L2_CAP_TUNER;
 	}
 	if (dev->has_vid_out) {
@@ -849,7 +1064,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		dev->vbi_cap_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
 		if (dev->has_audio_inputs)
 			dev->vbi_cap_caps |= V4L2_CAP_AUDIO;
-		if (in_type_counter[TV])
+		if (dev->has_tv_tuner)
 			dev->vbi_cap_caps |= V4L2_CAP_TUNER;
 	}
 	if (dev->has_vbi_out) {
@@ -874,6 +1089,30 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	if (dev->has_radio_tx)
 		dev->radio_tx_caps = V4L2_CAP_RDS_OUTPUT | V4L2_CAP_MODULATOR |
 				     V4L2_CAP_READWRITE;
+
+	/* set up the capabilities of meta capture device */
+	if (dev->has_meta_cap) {
+		dev->meta_cap_caps = V4L2_CAP_META_CAPTURE |
+				     V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+		if (dev->has_audio_inputs)
+			dev->meta_cap_caps |= V4L2_CAP_AUDIO;
+		if (dev->has_tv_tuner)
+			dev->meta_cap_caps |= V4L2_CAP_TUNER;
+	}
+	/* set up the capabilities of meta output device */
+	if (dev->has_meta_out) {
+		dev->meta_out_caps = V4L2_CAP_META_OUTPUT |
+				     V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+		if (dev->has_audio_outputs)
+			dev->meta_out_caps |= V4L2_CAP_AUDIO;
+	}
+	/* set up the capabilities of the touch capture device */
+	if (dev->has_touch_cap) {
+		dev->touch_cap_caps = V4L2_CAP_TOUCH | V4L2_CAP_STREAMING |
+				      V4L2_CAP_READWRITE;
+		dev->touch_cap_caps |= dev->multiplanar ?
+			V4L2_CAP_VIDEO_CAPTURE_MPLANE : V4L2_CAP_VIDEO_CAPTURE;
+	}
 
 	ret = -ENOMEM;
 	/* initialize the test pattern generator */
@@ -934,6 +1173,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_AUDIO);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_AUDIO);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_ENUMAUDIO);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_AUDIO);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_AUDIO);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_ENUMAUDIO);
 	}
 	if (!dev->has_audio_outputs) {
 		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_AUDOUT);
@@ -942,6 +1184,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_S_AUDOUT);
 		v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_G_AUDOUT);
 		v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_ENUMAUDOUT);
+		v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_S_AUDOUT);
+		v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_G_AUDOUT);
+		v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_ENUMAUDOUT);
 	}
 	if (!in_type_counter[TV] && !in_type_counter[SVID]) {
 		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_STD);
@@ -959,12 +1204,16 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_FREQUENCY);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_FREQUENCY);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_FREQUENCY);
 	}
 	if (!has_tuner) {
 		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_TUNER);
 		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_TUNER);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_TUNER);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_TUNER);
 	}
 	if (in_type_counter[HDMI] == 0) {
 		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_EDID);
@@ -990,12 +1239,18 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
 	v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
 	v4l2_disable_ioctl(&dev->sdr_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
+	v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
 	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_FREQUENCY);
 	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_FREQUENCY);
 	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUM_FRAMESIZES);
 	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUM_FRAMEINTERVALS);
 	v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_S_FREQUENCY);
 	v4l2_disable_ioctl(&dev->vbi_out_dev, VIDIOC_G_FREQUENCY);
+	v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_S_FREQUENCY);
+	v4l2_disable_ioctl(&dev->meta_out_dev, VIDIOC_G_FREQUENCY);
+	v4l2_disable_ioctl(&dev->touch_cap_dev, VIDIOC_S_PARM);
+	v4l2_disable_ioctl(&dev->touch_cap_dev, VIDIOC_ENUM_FRAMESIZES);
+	v4l2_disable_ioctl(&dev->touch_cap_dev, VIDIOC_ENUM_FRAMEINTERVALS);
 
 	/* configure internal data */
 	dev->fmt_cap = &vivid_formats[0];
@@ -1068,6 +1323,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	dev->fb_cap.fmt.bytesperline = dev->src_rect.width * tpg_g_twopixelsize(&dev->tpg, 0) / 2;
 	dev->fb_cap.fmt.sizeimage = dev->src_rect.height * dev->fb_cap.fmt.bytesperline;
 
+	/* update touch configuration */
+	dev->timeperframe_tch_cap.numerator = 1;
+	dev->timeperframe_tch_cap.denominator = 10;
+	vivid_set_touch(dev, 0);
+
 	/* initialize locks */
 	spin_lock_init(&dev->slock);
 	mutex_init(&dev->mutex);
@@ -1078,6 +1338,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	INIT_LIST_HEAD(&dev->vbi_cap_active);
 	INIT_LIST_HEAD(&dev->vbi_out_active);
 	INIT_LIST_HEAD(&dev->sdr_cap_active);
+	INIT_LIST_HEAD(&dev->meta_cap_active);
+	INIT_LIST_HEAD(&dev->meta_out_active);
+	INIT_LIST_HEAD(&dev->touch_cap_active);
 
 	INIT_LIST_HEAD(&dev->cec_work_list);
 	spin_lock_init(&dev->cec_slock);
@@ -1092,126 +1355,78 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		goto unreg_dev;
 	}
 
-	if (allocator == 1)
+	if (allocators[inst] == 1)
 		dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	else if (allocator >= ARRAY_SIZE(vivid_mem_ops))
-		allocator = 0;
 
 	/* start creating the vb2 queues */
 	if (dev->has_vid_cap) {
-		snprintf(dev->vid_cap_dev.name, sizeof(dev->vid_cap_dev.name),
-			 "vivid-%03d-vid-cap", inst);
 		/* initialize vid_cap queue */
-		q = &dev->vb_vid_cap_q;
-		q->type = dev->multiplanar ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE :
-			V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
-		if (!allocator)
-			q->io_modes |= VB2_USERPTR;
-		q->drv_priv = dev;
-		q->buf_struct_size = sizeof(struct vivid_buffer);
-		q->ops = &vivid_vid_cap_qops;
-		q->mem_ops = vivid_mem_ops[allocator];
-		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-		q->min_buffers_needed = 2;
-		q->lock = &dev->mutex;
-		q->dev = dev->v4l2_dev.dev;
-		q->supports_requests = true;
-
-		ret = vb2_queue_init(q);
+		ret = vivid_create_queue(dev, &dev->vb_vid_cap_q,
+					 V4L2_BUF_TYPE_VIDEO_CAPTURE, 2,
+					 &vivid_vid_cap_qops);
 		if (ret)
 			goto unreg_dev;
 	}
 
 	if (dev->has_vid_out) {
-		snprintf(dev->vid_out_dev.name, sizeof(dev->vid_out_dev.name),
-			 "vivid-%03d-vid-out", inst);
 		/* initialize vid_out queue */
-		q = &dev->vb_vid_out_q;
-		q->type = dev->multiplanar ? V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE :
-			V4L2_BUF_TYPE_VIDEO_OUTPUT;
-		q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_WRITE;
-		if (!allocator)
-			q->io_modes |= VB2_USERPTR;
-		q->drv_priv = dev;
-		q->buf_struct_size = sizeof(struct vivid_buffer);
-		q->ops = &vivid_vid_out_qops;
-		q->mem_ops = vivid_mem_ops[allocator];
-		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-		q->min_buffers_needed = 2;
-		q->lock = &dev->mutex;
-		q->dev = dev->v4l2_dev.dev;
-		q->supports_requests = true;
-
-		ret = vb2_queue_init(q);
+		ret = vivid_create_queue(dev, &dev->vb_vid_out_q,
+					 V4L2_BUF_TYPE_VIDEO_OUTPUT, 2,
+					 &vivid_vid_out_qops);
 		if (ret)
 			goto unreg_dev;
 	}
 
 	if (dev->has_vbi_cap) {
 		/* initialize vbi_cap queue */
-		q = &dev->vb_vbi_cap_q;
-		q->type = dev->has_raw_vbi_cap ? V4L2_BUF_TYPE_VBI_CAPTURE :
-					      V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
-		q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
-		if (!allocator)
-			q->io_modes |= VB2_USERPTR;
-		q->drv_priv = dev;
-		q->buf_struct_size = sizeof(struct vivid_buffer);
-		q->ops = &vivid_vbi_cap_qops;
-		q->mem_ops = vivid_mem_ops[allocator];
-		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-		q->min_buffers_needed = 2;
-		q->lock = &dev->mutex;
-		q->dev = dev->v4l2_dev.dev;
-		q->supports_requests = true;
-
-		ret = vb2_queue_init(q);
+		ret = vivid_create_queue(dev, &dev->vb_vbi_cap_q,
+					 V4L2_BUF_TYPE_VBI_CAPTURE, 2,
+					 &vivid_vbi_cap_qops);
 		if (ret)
 			goto unreg_dev;
 	}
 
 	if (dev->has_vbi_out) {
 		/* initialize vbi_out queue */
-		q = &dev->vb_vbi_out_q;
-		q->type = dev->has_raw_vbi_out ? V4L2_BUF_TYPE_VBI_OUTPUT :
-					      V4L2_BUF_TYPE_SLICED_VBI_OUTPUT;
-		q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_WRITE;
-		if (!allocator)
-			q->io_modes |= VB2_USERPTR;
-		q->drv_priv = dev;
-		q->buf_struct_size = sizeof(struct vivid_buffer);
-		q->ops = &vivid_vbi_out_qops;
-		q->mem_ops = vivid_mem_ops[allocator];
-		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-		q->min_buffers_needed = 2;
-		q->lock = &dev->mutex;
-		q->dev = dev->v4l2_dev.dev;
-		q->supports_requests = true;
-
-		ret = vb2_queue_init(q);
+		ret = vivid_create_queue(dev, &dev->vb_vbi_out_q,
+					 V4L2_BUF_TYPE_VBI_OUTPUT, 2,
+					 &vivid_vbi_out_qops);
 		if (ret)
 			goto unreg_dev;
 	}
 
 	if (dev->has_sdr_cap) {
 		/* initialize sdr_cap queue */
-		q = &dev->vb_sdr_cap_q;
-		q->type = V4L2_BUF_TYPE_SDR_CAPTURE;
-		q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
-		if (!allocator)
-			q->io_modes |= VB2_USERPTR;
-		q->drv_priv = dev;
-		q->buf_struct_size = sizeof(struct vivid_buffer);
-		q->ops = &vivid_sdr_cap_qops;
-		q->mem_ops = vivid_mem_ops[allocator];
-		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-		q->min_buffers_needed = 8;
-		q->lock = &dev->mutex;
-		q->dev = dev->v4l2_dev.dev;
-		q->supports_requests = true;
+		ret = vivid_create_queue(dev, &dev->vb_sdr_cap_q,
+					 V4L2_BUF_TYPE_SDR_CAPTURE, 8,
+					 &vivid_sdr_cap_qops);
+		if (ret)
+			goto unreg_dev;
+	}
 
-		ret = vb2_queue_init(q);
+	if (dev->has_meta_cap) {
+		/* initialize meta_cap queue */
+		ret = vivid_create_queue(dev, &dev->vb_meta_cap_q,
+					 V4L2_BUF_TYPE_META_CAPTURE, 2,
+					 &vivid_meta_cap_qops);
+		if (ret)
+			goto unreg_dev;
+	}
+
+	if (dev->has_meta_out) {
+		/* initialize meta_out queue */
+		ret = vivid_create_queue(dev, &dev->vb_meta_out_q,
+					 V4L2_BUF_TYPE_META_OUTPUT, 1,
+					 &vivid_meta_out_qops);
+		if (ret)
+			goto unreg_dev;
+	}
+
+	if (dev->has_touch_cap) {
+		/* initialize touch_cap queue */
+		ret = vivid_create_queue(dev, &dev->vb_touch_cap_q,
+					 V4L2_BUF_TYPE_VIDEO_CAPTURE, 1,
+					 &vivid_touch_cap_qops);
 		if (ret)
 			goto unreg_dev;
 	}
@@ -1222,7 +1437,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		if (ret)
 			goto unreg_dev;
 		v4l2_info(&dev->v4l2_dev, "Framebuffer device registered as fb%d\n",
-				dev->fb_info.node);
+			  dev->fb_info.node);
 	}
 
 #ifdef CONFIG_VIDEO_VIVID_CEC
@@ -1265,10 +1480,15 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_rx);
 	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_tx);
 	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_sdr_cap);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_meta_cap);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_meta_out);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_touch_cap);
 
 	/* finally start creating the device nodes */
 	if (dev->has_vid_cap) {
 		vfd = &dev->vid_cap_dev;
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-vid-cap", inst);
 		vfd->fops = &vivid_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;
 		vfd->device_caps = dev->vid_cap_caps;
@@ -1314,6 +1534,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 	if (dev->has_vid_out) {
 		vfd = &dev->vid_out_dev;
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-vid-out", inst);
 		vfd->vfl_dir = VFL_DIR_TX;
 		vfd->fops = &vivid_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;
@@ -1492,6 +1714,94 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 					  video_device_node_name(vfd));
 	}
 
+	if (dev->has_meta_cap) {
+		vfd = &dev->meta_cap_dev;
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-meta-cap", inst);
+		vfd->fops = &vivid_fops;
+		vfd->ioctl_ops = &vivid_ioctl_ops;
+		vfd->device_caps = dev->meta_cap_caps;
+		vfd->release = video_device_release_empty;
+		vfd->v4l2_dev = &dev->v4l2_dev;
+		vfd->queue = &dev->vb_meta_cap_q;
+		vfd->lock = &dev->mutex;
+		vfd->tvnorms = tvnorms_cap;
+		video_set_drvdata(vfd, dev);
+#ifdef CONFIG_MEDIA_CONTROLLER
+		dev->meta_cap_pad.flags = MEDIA_PAD_FL_SINK;
+		ret = media_entity_pads_init(&vfd->entity, 1,
+					     &dev->meta_cap_pad);
+		if (ret)
+			goto unreg_dev;
+#endif
+		ret = video_register_device(vfd, VFL_TYPE_GRABBER,
+					    meta_cap_nr[inst]);
+		if (ret < 0)
+			goto unreg_dev;
+		v4l2_info(&dev->v4l2_dev,
+			  "V4L2 metadata capture device registered as %s\n",
+			  video_device_node_name(vfd));
+	}
+
+	if (dev->has_meta_out) {
+		vfd = &dev->meta_out_dev;
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-meta-out", inst);
+		vfd->vfl_dir = VFL_DIR_TX;
+		vfd->fops = &vivid_fops;
+		vfd->ioctl_ops = &vivid_ioctl_ops;
+		vfd->device_caps = dev->meta_out_caps;
+		vfd->release = video_device_release_empty;
+		vfd->v4l2_dev = &dev->v4l2_dev;
+		vfd->queue = &dev->vb_meta_out_q;
+		vfd->lock = &dev->mutex;
+		vfd->tvnorms = tvnorms_out;
+		video_set_drvdata(vfd, dev);
+#ifdef CONFIG_MEDIA_CONTROLLER
+		dev->meta_out_pad.flags = MEDIA_PAD_FL_SOURCE;
+		ret = media_entity_pads_init(&vfd->entity, 1,
+					     &dev->meta_out_pad);
+		if (ret)
+			goto unreg_dev;
+#endif
+		ret = video_register_device(vfd, VFL_TYPE_GRABBER,
+					    meta_out_nr[inst]);
+		if (ret < 0)
+			goto unreg_dev;
+		v4l2_info(&dev->v4l2_dev,
+			  "V4L2 metadata output device registered as %s\n",
+			  video_device_node_name(vfd));
+	}
+
+	if (dev->has_touch_cap) {
+		vfd = &dev->touch_cap_dev;
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-touch-cap", inst);
+		vfd->fops = &vivid_fops;
+		vfd->ioctl_ops = &vivid_ioctl_ops;
+		vfd->device_caps = dev->touch_cap_caps;
+		vfd->release = video_device_release_empty;
+		vfd->v4l2_dev = &dev->v4l2_dev;
+		vfd->queue = &dev->vb_touch_cap_q;
+		vfd->tvnorms = tvnorms_cap;
+		vfd->lock = &dev->mutex;
+		video_set_drvdata(vfd, dev);
+#ifdef CONFIG_MEDIA_CONTROLLER
+		dev->touch_cap_pad.flags = MEDIA_PAD_FL_SINK;
+		ret = media_entity_pads_init(&vfd->entity, 1,
+					     &dev->touch_cap_pad);
+		if (ret)
+			goto unreg_dev;
+#endif
+		ret = video_register_device(vfd, VFL_TYPE_TOUCH,
+					    touch_cap_nr[inst]);
+		if (ret < 0)
+			goto unreg_dev;
+		v4l2_info(&dev->v4l2_dev,
+			  "V4L2 touch capture device registered as %s\n",
+			  video_device_node_name(vfd));
+	}
+
 #ifdef CONFIG_MEDIA_CONTROLLER
 	/* Register the media device */
 	ret = media_device_register(&dev->mdev);
@@ -1508,6 +1818,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	return 0;
 
 unreg_dev:
+	video_unregister_device(&dev->touch_cap_dev);
+	video_unregister_device(&dev->meta_out_dev);
+	video_unregister_device(&dev->meta_cap_dev);
 	video_unregister_device(&dev->radio_tx_dev);
 	video_unregister_device(&dev->radio_rx_dev);
 	video_unregister_device(&dev->sdr_cap_dev);
@@ -1580,7 +1893,6 @@ static int vivid_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_MEDIA_CONTROLLER
 		media_device_unregister(&dev->mdev);
-		media_device_cleanup(&dev->mdev);
 #endif
 
 		if (dev->has_vid_cap) {
@@ -1623,6 +1935,21 @@ static int vivid_remove(struct platform_device *pdev)
 				dev->fb_info.node);
 			unregister_framebuffer(&dev->fb_info);
 			vivid_fb_release_buffers(dev);
+		}
+		if (dev->has_meta_cap) {
+			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
+				  video_device_node_name(&dev->meta_cap_dev));
+			video_unregister_device(&dev->meta_cap_dev);
+		}
+		if (dev->has_meta_out) {
+			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
+				  video_device_node_name(&dev->meta_out_dev));
+			video_unregister_device(&dev->meta_out_dev);
+		}
+		if (dev->has_touch_cap) {
+			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
+				  video_device_node_name(&dev->touch_cap_dev));
+			video_unregister_device(&dev->touch_cap_dev);
 		}
 		cec_unregister_adapter(dev->cec_rx_adap);
 		for (j = 0; j < MAX_OUTPUTS; j++)

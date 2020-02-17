@@ -39,17 +39,6 @@ static int asix_mdio_bus_write(struct mii_bus *bus, int phy_id, int regnum,
 	return 0;
 }
 
-static int ax88172a_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
-{
-	if (!netif_running(net))
-		return -EINVAL;
-
-	if (!net->phydev)
-		return -ENODEV;
-
-	return phy_mii_ioctl(net->phydev, rq, cmd);
-}
-
 /* set MAC link settings according to information from phylib */
 static void ax88172a_adjust_link(struct net_device *netdev)
 {
@@ -134,7 +123,7 @@ static const struct net_device_ops ax88172a_netdev_ops = {
 	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= ax88172a_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_set_rx_mode        = asix_set_multicast,
 };
 
@@ -196,7 +185,7 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* Get the MAC address */
 	ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID, 0, 0, ETH_ALEN, buf, 0);
-	if (ret < 0) {
+	if (ret < ETH_ALEN) {
 		netdev_err(dev->net, "Failed to read MAC address: %d\n", ret);
 		goto free;
 	}

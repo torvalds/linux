@@ -10,7 +10,7 @@
 #include "mlx5_ib.h"
 
 #ifdef CONFIG_MLX5_ESWITCH
-extern const struct mlx5_ib_profile uplink_rep_profile;
+extern const struct mlx5_ib_profile raw_eth_profile;
 
 u8 mlx5_ib_eswitch_mode(struct mlx5_eswitch *esw);
 struct mlx5_ib_dev *mlx5_ib_get_rep_ibdev(struct mlx5_eswitch *esw,

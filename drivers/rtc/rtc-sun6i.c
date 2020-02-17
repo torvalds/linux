@@ -136,7 +136,6 @@ struct sun6i_rtc_clk_data {
 
 struct sun6i_rtc_dev {
 	struct rtc_device *rtc;
-	struct device *dev;
 	const struct sun6i_rtc_clk_data *data;
 	void __iomem *base;
 	int irq;
@@ -379,6 +378,22 @@ static void __init sun50i_h6_rtc_clk_init(struct device_node *node)
 }
 CLK_OF_DECLARE_DRIVER(sun50i_h6_rtc_clk, "allwinner,sun50i-h6-rtc",
 		      sun50i_h6_rtc_clk_init);
+
+/*
+ * The R40 user manual is self-conflicting on whether the prescaler is
+ * fixed or configurable. The clock diagram shows it as fixed, but there
+ * is also a configurable divider in the RTC block.
+ */
+static const struct sun6i_rtc_clk_data sun8i_r40_rtc_data = {
+	.rc_osc_rate = 16000000,
+	.fixed_prescaler = 512,
+};
+static void __init sun8i_r40_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun8i_r40_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun8i_r40_rtc_clk, "allwinner,sun8i-r40-rtc",
+		      sun8i_r40_rtc_clk_init);
 
 static const struct sun6i_rtc_clk_data sun8i_v3_rtc_data = {
 	.rc_osc_rate = 32000,
@@ -669,7 +684,6 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	platform_set_drvdata(pdev, chip);
-	chip->dev = &pdev->dev;
 
 	chip->irq = platform_get_irq(pdev, 0);
 	if (chip->irq < 0)

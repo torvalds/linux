@@ -124,7 +124,8 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 
 	/* enable interrupt */
 	if (st->chip_config.accl_fifo_enable ||
-	    st->chip_config.gyro_fifo_enable) {
+	    st->chip_config.gyro_fifo_enable ||
+	    st->chip_config.magn_fifo_enable) {
 		result = regmap_write(st->map, st->reg->int_enable,
 				      INV_MPU6050_BIT_DATA_RDY_EN);
 		if (result)
@@ -141,6 +142,10 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 		d |= INV_MPU6050_BITS_GYRO_OUT;
 	if (st->chip_config.accl_fifo_enable)
 		d |= INV_MPU6050_BIT_ACCEL_OUT;
+	if (st->chip_config.temp_fifo_enable)
+		d |= INV_MPU6050_BIT_TEMP_OUT;
+	if (st->chip_config.magn_fifo_enable)
+		d |= INV_MPU6050_BIT_SLAVE_0;
 	result = regmap_write(st->map, st->reg->fifo_en, d);
 	if (result)
 		goto reset_fifo_fail;
@@ -180,17 +185,12 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 			"failed to ack interrupt\n");
 		goto flush_fifo;
 	}
-	/* handle fifo overflow by reseting fifo */
-	if (int_status & INV_MPU6050_BIT_FIFO_OVERFLOW_INT)
-		goto flush_fifo;
-	if (!(int_status & INV_MPU6050_BIT_RAW_DATA_RDY_INT)) {
-		dev_warn(regmap_get_device(st->map),
-			"spurious interrupt with status 0x%x\n", int_status);
+	if (!(int_status & INV_MPU6050_BIT_RAW_DATA_RDY_INT))
 		goto end_session;
-	}
 
 	if (!(st->chip_config.accl_fifo_enable |
-		st->chip_config.gyro_fifo_enable))
+		st->chip_config.gyro_fifo_enable |
+		st->chip_config.magn_fifo_enable))
 		goto end_session;
 	bytes_per_datum = 0;
 	if (st->chip_config.accl_fifo_enable)
@@ -199,8 +199,11 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	if (st->chip_config.gyro_fifo_enable)
 		bytes_per_datum += INV_MPU6050_BYTES_PER_3AXIS_SENSOR;
 
-	if (st->chip_type == INV_ICM20602)
-		bytes_per_datum += INV_ICM20602_BYTES_PER_TEMP_SENSOR;
+	if (st->chip_config.temp_fifo_enable)
+		bytes_per_datum += INV_MPU6050_BYTES_PER_TEMP_SENSOR;
+
+	if (st->chip_config.magn_fifo_enable)
+		bytes_per_datum += INV_MPU9X50_BYTES_MAGN;
 
 	/*
 	 * read fifo_count register to know how many bytes are inside the FIFO
@@ -211,6 +214,18 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	if (result)
 		goto end_session;
 	fifo_count = get_unaligned_be16(&data[0]);
+
+	/*
+	 * Handle fifo overflow by resetting fifo.
+	 * Reset if there is only 3 data set free remaining to mitigate
+	 * possible delay between reading fifo count and fifo data.
+	 */
+	nb = 3 * bytes_per_datum;
+	if (fifo_count >= st->hw->fifo_size - nb) {
+		dev_warn(regmap_get_device(st->map), "fifo overflow reset\n");
+		goto flush_fifo;
+	}
+
 	/* compute and process all complete datum */
 	nb = fifo_count / bytes_per_datum;
 	inv_mpu6050_update_period(st, pf->timestamp, nb);

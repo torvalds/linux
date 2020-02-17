@@ -183,6 +183,7 @@ DEFINE_SHOW_ATTRIBUTE(state);
 static int fifo_show(struct seq_file *seq, void *v)
 {
 	struct dwc2_hsotg *hsotg = seq->private;
+	int fifo_count = dwc2_hsotg_tx_fifo_count(hsotg);
 	u32 val;
 	int idx;
 
@@ -196,7 +197,7 @@ static int fifo_show(struct seq_file *seq, void *v)
 
 	seq_puts(seq, "\nPeriodic TXFIFOs:\n");
 
-	for (idx = 1; idx < hsotg->num_of_eps; idx++) {
+	for (idx = 1; idx <= fifo_count; idx++) {
 		val = dwc2_readl(hsotg, DPTXFSIZN(idx));
 
 		seq_printf(seq, "\tDPTXFIFO%2d: Size %d, Start 0x%08x\n", idx,
@@ -770,7 +771,7 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 	int			ret;
 	struct dentry		*root;
 
-	root = debugfs_create_dir(dev_name(hsotg->dev), NULL);
+	root = debugfs_create_dir(dev_name(hsotg->dev), usb_debug_root);
 	hsotg->debug_root = root;
 
 	debugfs_create_file("params", 0444, root, hsotg, &params_fops);

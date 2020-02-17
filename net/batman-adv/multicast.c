@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2014-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2014-2020  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  */
@@ -1421,7 +1421,7 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		if (*orig)
 			return BATADV_FORW_SINGLE;
 
-		/* fall through */
+		fallthrough;
 	case 0:
 		return BATADV_FORW_NONE;
 	default:

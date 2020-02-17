@@ -303,7 +303,7 @@ static int gasket_map_pci_bar(struct gasket_dev *gasket_dev, int bar_num)
 	}
 
 	gasket_dev->bar_data[bar_num].virt_base =
-		ioremap_nocache(gasket_dev->bar_data[bar_num].phys_base,
+		ioremap(gasket_dev->bar_data[bar_num].phys_base,
 				gasket_dev->bar_data[bar_num].length_bytes);
 	if (!gasket_dev->bar_data[bar_num].virt_base) {
 		dev_err(gasket_dev->dev,
@@ -371,7 +371,7 @@ static int gasket_setup_pci(struct pci_dev *pci_dev,
 {
 	int i, mapped_bars, ret;
 
-	for (i = 0; i < GASKET_NUM_BARS; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		ret = gasket_map_pci_bar(gasket_dev, i);
 		if (ret) {
 			mapped_bars = i;
@@ -393,7 +393,7 @@ static void gasket_cleanup_pci(struct gasket_dev *gasket_dev)
 {
 	int i;
 
-	for (i = 0; i < GASKET_NUM_BARS; i++)
+	for (i = 0; i < PCI_STD_NUM_BARS; i++)
 		gasket_unmap_pci_bar(gasket_dev, i);
 }
 
@@ -493,7 +493,7 @@ static ssize_t gasket_sysfs_data_show(struct device *device,
 		(enum gasket_sysfs_attribute_type)gasket_attr->data.attr_type;
 	switch (sysfs_type) {
 	case ATTR_BAR_OFFSETS:
-		for (i = 0; i < GASKET_NUM_BARS; i++) {
+		for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 			bar_desc = &driver_desc->bar_descriptions[i];
 			if (bar_desc->size == 0)
 				continue;
@@ -505,7 +505,7 @@ static ssize_t gasket_sysfs_data_show(struct device *device,
 		}
 		break;
 	case ATTR_BAR_SIZES:
-		for (i = 0; i < GASKET_NUM_BARS; i++) {
+		for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 			bar_desc = &driver_desc->bar_descriptions[i];
 			if (bar_desc->size == 0)
 				continue;
@@ -556,7 +556,7 @@ static ssize_t gasket_sysfs_data_show(struct device *device,
 		ret = snprintf(buf, PAGE_SIZE, "%d\n", gasket_dev->reset_count);
 		break;
 	case ATTR_USER_MEM_RANGES:
-		for (i = 0; i < GASKET_NUM_BARS; ++i) {
+		for (i = 0; i < PCI_STD_NUM_BARS; ++i) {
 			current_written =
 				gasket_write_mappable_regions(buf, driver_desc,
 							      i);
@@ -736,7 +736,7 @@ static int gasket_get_bar_index(const struct gasket_dev *gasket_dev,
 	const struct gasket_driver_desc *driver_desc;
 
 	driver_desc = gasket_dev->internal_desc->driver_desc;
-	for (i = 0; i < GASKET_NUM_BARS; ++i) {
+	for (i = 0; i < PCI_STD_NUM_BARS; ++i) {
 		struct gasket_bar_desc bar_desc =
 			driver_desc->bar_descriptions[i];
 

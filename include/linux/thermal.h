@@ -32,17 +32,6 @@
 /* use value, which < 0K, to indicate an invalid/uninitialized temperature */
 #define THERMAL_TEMP_INVALID	-274000
 
-/* Unit conversion macros */
-#define DECI_KELVIN_TO_CELSIUS(t)	({			\
-	long _t = (t);						\
-	((_t-2732 >= 0) ? (_t-2732+5)/10 : (_t-2732-5)/10);	\
-})
-#define CELSIUS_TO_DECI_KELVIN(t)	((t)*10+2732)
-#define DECI_KELVIN_TO_MILLICELSIUS_WITH_OFFSET(t, off) (((t) - (off)) * 100)
-#define DECI_KELVIN_TO_MILLICELSIUS(t) DECI_KELVIN_TO_MILLICELSIUS_WITH_OFFSET(t, 2732)
-#define MILLICELSIUS_TO_DECI_KELVIN_WITH_OFFSET(t, off) (((t) / 100) + (off))
-#define MILLICELSIUS_TO_DECI_KELVIN(t) MILLICELSIUS_TO_DECI_KELVIN_WITH_OFFSET(t, 2732)
-
 /* Default Thermal Governor */
 #if defined(CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE)
 #define DEFAULT_THERMAL_GOVERNOR       "step_wise"
@@ -543,16 +532,5 @@ static inline void thermal_notify_framework(struct thermal_zone_device *tz,
 	int trip)
 { }
 #endif /* CONFIG_THERMAL */
-
-#if defined(CONFIG_NET) && IS_ENABLED(CONFIG_THERMAL)
-extern int thermal_generate_netlink_event(struct thermal_zone_device *tz,
-						enum events event);
-#else
-static inline int thermal_generate_netlink_event(struct thermal_zone_device *tz,
-						enum events event)
-{
-	return 0;
-}
-#endif
 
 #endif /* __THERMAL_H__ */

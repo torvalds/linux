@@ -967,55 +967,6 @@ int __ext4_xattr_set_credits(struct super_block *sb, struct inode *inode,
 	return credits;
 }
 
-static int ext4_xattr_ensure_credits(handle_t *handle, struct inode *inode,
-				     int credits, struct buffer_head *bh,
-				     bool dirty, bool block_csum)
-{
-	int error;
-
-	if (!ext4_handle_valid(handle))
-		return 0;
-
-	if (handle->h_buffer_credits >= credits)
-		return 0;
-
-	error = ext4_journal_extend(handle, credits - handle->h_buffer_credits);
-	if (!error)
-		return 0;
-	if (error < 0) {
-		ext4_warning(inode->i_sb, "Extend journal (error %d)", error);
-		return error;
-	}
-
-	if (bh && dirty) {
-		if (block_csum)
-			ext4_xattr_block_csum_set(inode, bh);
-		error = ext4_handle_dirty_metadata(handle, NULL, bh);
-		if (error) {
-			ext4_warning(inode->i_sb, "Handle metadata (error %d)",
-				     error);
-			return error;
-		}
-	}
-
-	error = ext4_journal_restart(handle, credits);
-	if (error) {
-		ext4_warning(inode->i_sb, "Restart journal (error %d)", error);
-		return error;
-	}
-
-	if (bh) {
-		error = ext4_journal_get_write_access(handle, bh);
-		if (error) {
-			ext4_warning(inode->i_sb,
-				     "Get write access failed (error %d)",
-				     error);
-			return error;
-		}
-	}
-	return 0;
-}
-
 static int ext4_xattr_inode_update_ref(handle_t *handle, struct inode *ea_inode,
 				       int ref_change)
 {
@@ -1149,6 +1100,24 @@ cleanup:
 	return saved_err;
 }
 
+static int ext4_xattr_restart_fn(handle_t *handle, struct inode *inode,
+			struct buffer_head *bh, bool block_csum, bool dirty)
+{
+	int error;
+
+	if (bh && dirty) {
+		if (block_csum)
+			ext4_xattr_block_csum_set(inode, bh);
+		error = ext4_handle_dirty_metadata(handle, NULL, bh);
+		if (error) {
+			ext4_warning(inode->i_sb, "Handle metadata (error %d)",
+				     error);
+			return error;
+		}
+	}
+	return 0;
+}
+
 static void
 ext4_xattr_inode_dec_ref_all(handle_t *handle, struct inode *parent,
 			     struct buffer_head *bh,
@@ -1185,12 +1154,23 @@ ext4_xattr_inode_dec_ref_all(handle_t *handle, struct inode *parent,
 			continue;
 		}
 
-		err = ext4_xattr_ensure_credits(handle, parent, credits, bh,
-						dirty, block_csum);
-		if (err) {
+		err = ext4_journal_ensure_credits_fn(handle, credits, credits,
+			ext4_free_metadata_revoke_credits(parent->i_sb, 1),
+			ext4_xattr_restart_fn(handle, parent, bh, block_csum,
+					      dirty));
+		if (err < 0) {
 			ext4_warning_inode(ea_inode, "Ensure credits err=%d",
 					   err);
 			continue;
+		}
+		if (err > 0) {
+			err = ext4_journal_get_write_access(handle, bh);
+			if (err) {
+				ext4_warning_inode(ea_inode,
+						"Re-get write access err=%d",
+						err);
+				continue;
+			}
 		}
 
 		err = ext4_xattr_inode_dec_ref(handle, ea_inode);
@@ -1476,7 +1456,7 @@ ext4_xattr_inode_cache_find(struct inode *inode, const void *value,
 	if (!ce)
 		return NULL;
 
-	ea_data = ext4_kvmalloc(value_len, GFP_NOFS);
+	ea_data = kvmalloc(value_len, GFP_KERNEL);
 	if (!ea_data) {
 		mb_cache_entry_put(ea_inode_cache, ce);
 		return NULL;
@@ -2335,7 +2315,7 @@ ext4_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 						   flags & XATTR_CREATE);
 		brelse(bh);
 
-		if (!ext4_handle_has_enough_credits(handle, credits)) {
+		if (jbd2_handle_buffer_credits(handle) < credits) {
 			error = -ENOSPC;
 			goto cleanup;
 		}
@@ -2862,11 +2842,9 @@ int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 	struct inode *ea_inode;
 	int error;
 
-	error = ext4_xattr_ensure_credits(handle, inode, extra_credits,
-					  NULL /* bh */,
-					  false /* dirty */,
-					  false /* block_csum */);
-	if (error) {
+	error = ext4_journal_ensure_credits(handle, extra_credits,
+			ext4_free_metadata_revoke_credits(inode->i_sb, 1));
+	if (error < 0) {
 		EXT4_ERROR_INODE(inode, "ensure credits (error %d)", error);
 		goto cleanup;
 	}
@@ -2901,9 +2879,11 @@ int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 		bh = ext4_sb_bread(inode->i_sb, EXT4_I(inode)->i_file_acl, REQ_PRIO);
 		if (IS_ERR(bh)) {
 			error = PTR_ERR(bh);
-			if (error == -EIO)
+			if (error == -EIO) {
+				ext4_set_errno(inode->i_sb, EIO);
 				EXT4_ERROR_INODE(inode, "block %llu read error",
 						 EXT4_I(inode)->i_file_acl);
+			}
 			bh = NULL;
 			goto cleanup;
 		}

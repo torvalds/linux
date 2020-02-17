@@ -142,6 +142,9 @@ static size_t sja1105et_general_params_entry_packing(void *buf, void *entry_ptr,
 	return size;
 }
 
+/* TPID and TPID2 are intentionally reversed so that semantic
+ * compatibility with E/T is kept.
+ */
 static size_t
 sja1105pqrs_general_params_entry_packing(void *buf, void *entry_ptr,
 					 enum packing_op op)
@@ -166,9 +169,9 @@ sja1105pqrs_general_params_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(buf, &entry->mirr_port,   141, 139, size, op);
 	sja1105_packing(buf, &entry->vlmarker,    138, 107, size, op);
 	sja1105_packing(buf, &entry->vlmask,      106,  75, size, op);
-	sja1105_packing(buf, &entry->tpid,         74,  59, size, op);
+	sja1105_packing(buf, &entry->tpid2,        74,  59, size, op);
 	sja1105_packing(buf, &entry->ignore2stf,   58,  58, size, op);
-	sja1105_packing(buf, &entry->tpid2,        57,  42, size, op);
+	sja1105_packing(buf, &entry->tpid,         57,  42, size, op);
 	sja1105_packing(buf, &entry->queue_ts,     41,  41, size, op);
 	sja1105_packing(buf, &entry->egrmirrvid,   40,  29, size, op);
 	sja1105_packing(buf, &entry->egrmirrpcp,   28,  26, size, op);

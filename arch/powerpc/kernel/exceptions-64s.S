@@ -514,7 +514,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
  * If stack=0, then the stack is already set in r1, and r1 is saved in r10.
  * PPR save and CPU accounting is not done for the !stack case (XXX why not?)
  */
-.macro INT_COMMON vec, area, stack, kaup, reconcile, dar, dsisr
+.macro INT_COMMON vec, area, stack, kuap, reconcile, dar, dsisr
 	.if \stack
 	andi.	r10,r12,MSR_PR		/* See if coming from user	*/
 	mr	r10,r1			/* Save r1			*/
@@ -533,7 +533,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	std	r10,GPR1(r1)		/* save r1 in stackframe	*/
 
 	.if \stack
-	.if \kaup
+	.if \kuap
 	kuap_save_amr_and_lock r9, r10, cr1, cr0
 	.endif
 	beq	101f			/* if from kernel mode		*/
@@ -541,7 +541,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	SAVE_PPR(\area, r9)
 101:
 	.else
-	.if \kaup
+	.if \kuap
 	kuap_save_amr_and_lock r9, r10, cr1
 	.endif
 	.endif
@@ -1408,22 +1408,9 @@ EXC_VIRT_NONE(0x4b00, 0x100)
  *
  * Call convention:
  *
- * syscall register convention is in Documentation/powerpc/syscall64-abi.rst
- *
- * For hypercalls, the register convention is as follows:
- * r0 volatile
- * r1-2 nonvolatile
- * r3 volatile parameter and return value for status
- * r4-r10 volatile input and output value
- * r11 volatile hypercall number and output value
- * r12 volatile input and output value
- * r13-r31 nonvolatile
- * LR nonvolatile
- * CTR volatile
- * XER volatile
- * CR0-1 CR5-7 volatile
- * CR2-4 nonvolatile
- * Other registers nonvolatile
+ * syscall and hypercalls register conventions are documented in
+ * Documentation/powerpc/syscall64-abi.rst and
+ * Documentation/powerpc/papr_hcalls.rst respectively.
  *
  * The intersection of volatile registers that don't contain possible
  * inputs is: cr0, xer, ctr. We may use these as scratch regs upon entry
@@ -2208,11 +2195,20 @@ __end_interrupts:
 DEFINE_FIXED_SYMBOL(__end_interrupts)
 
 #ifdef CONFIG_PPC_970_NAP
+	/*
+	 * Called by exception entry code if _TLF_NAPPING was set, this clears
+	 * the NAPPING flag, and redirects the exception exit to
+	 * power4_fixup_nap_return.
+	 */
+	.globl power4_fixup_nap
 EXC_COMMON_BEGIN(power4_fixup_nap)
 	andc	r9,r9,r10
 	std	r9,TI_LOCAL_FLAGS(r11)
-	ld	r10,_LINK(r1)		/* make idle task do the */
-	std	r10,_NIP(r1)		/* equivalent of a blr */
+	LOAD_REG_ADDR(r10, power4_idle_nap_return)
+	std	r10,_NIP(r1)
+	blr
+
+power4_idle_nap_return:
 	blr
 #endif
 

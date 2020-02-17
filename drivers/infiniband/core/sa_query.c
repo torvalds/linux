@@ -1068,7 +1068,7 @@ int ib_nl_handle_set_timeout(struct sk_buff *skb,
 	}
 
 settimeout_out:
-	return skb->len;
+	return 0;
 }
 
 static inline int ib_nl_is_good_resolve_resp(const struct nlmsghdr *nlh)
@@ -1139,7 +1139,7 @@ int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 	}
 
 resp_out:
-	return skb->len;
+	return 0;
 }
 
 static void free_sm_ah(struct kref *kref)
@@ -1246,7 +1246,7 @@ static int init_ah_attr_grh_fields(struct ib_device *device, u8 port_num,
  * @port_num: Port on the specified device.
  * @rec: path record entry to use for ah attributes initialization.
  * @ah_attr: address handle attributes to initialization from path record.
- * @sgid_attr: SGID attribute to consider during initialization.
+ * @gid_attr: SGID attribute to consider during initialization.
  *
  * When ib_init_ah_attr_from_path() returns success,
  * (a) for IB link layer it optionally contains a reference to SGID attribute

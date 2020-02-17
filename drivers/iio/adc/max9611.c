@@ -89,6 +89,12 @@
 #define MAX9611_TEMP_SCALE_NUM		1000000
 #define MAX9611_TEMP_SCALE_DIV		2083
 
+/*
+ * Conversion time is 2 ms (typically) at Ta=25 degreeC
+ * No maximum value is known, so play it safe.
+ */
+#define MAX9611_CONV_TIME_US_RANGE	3000, 3300
+
 struct max9611_dev {
 	struct device *dev;
 	struct i2c_client *i2c_client;
@@ -109,22 +115,17 @@ enum max9611_conf_ids {
  *		      where data shall be read from
  */
 static const unsigned int max9611_mux_conf[][2] = {
-	/* CONF_SENSE_1x */
-	{ MAX9611_MUX_SENSE_1x, MAX9611_REG_CSA_DATA },
-	/* CONF_SENSE_4x */
-	{ MAX9611_MUX_SENSE_4x, MAX9611_REG_CSA_DATA },
-	/* CONF_SENSE_8x */
-	{ MAX9611_MUX_SENSE_8x, MAX9611_REG_CSA_DATA },
-	/* CONF_IN_VOLT */
-	{ MAX9611_INPUT_VOLT, MAX9611_REG_RS_DATA },
-	/* CONF_TEMP */
-	{ MAX9611_MUX_TEMP, MAX9611_REG_TEMP_DATA },
+	[CONF_SENSE_1x]	= { MAX9611_MUX_SENSE_1x, MAX9611_REG_CSA_DATA },
+	[CONF_SENSE_4x]	= { MAX9611_MUX_SENSE_4x, MAX9611_REG_CSA_DATA },
+	[CONF_SENSE_8x]	= { MAX9611_MUX_SENSE_8x, MAX9611_REG_CSA_DATA },
+	[CONF_IN_VOLT]	= { MAX9611_INPUT_VOLT, MAX9611_REG_RS_DATA },
+	[CONF_TEMP]	= { MAX9611_MUX_TEMP, MAX9611_REG_TEMP_DATA },
 };
 
 enum max9611_csa_gain {
-	CSA_GAIN_1x,
-	CSA_GAIN_4x,
-	CSA_GAIN_8x,
+	CSA_GAIN_1x = CONF_SENSE_1x,
+	CSA_GAIN_4x = CONF_SENSE_4x,
+	CSA_GAIN_8x = CONF_SENSE_8x,
 };
 
 enum max9611_csa_gain_params {
@@ -142,18 +143,9 @@ enum max9611_csa_gain_params {
  * value; use this structure to retrieve the correct LSB and offset values.
  */
 static const unsigned int max9611_gain_conf[][2] = {
-	{ /* [0] CSA_GAIN_1x */
-		MAX9611_CSA_1X_LSB_nV,
-		MAX9611_CSA_1X_OFFS_RAW,
-	},
-	{ /* [1] CSA_GAIN_4x */
-		MAX9611_CSA_4X_LSB_nV,
-		MAX9611_CSA_4X_OFFS_RAW,
-	},
-	{ /* [2] CSA_GAIN_8x */
-		MAX9611_CSA_8X_LSB_nV,
-		MAX9611_CSA_8X_OFFS_RAW,
-	},
+	[CSA_GAIN_1x] = { MAX9611_CSA_1X_LSB_nV, MAX9611_CSA_1X_OFFS_RAW, },
+	[CSA_GAIN_4x] = { MAX9611_CSA_4X_LSB_nV, MAX9611_CSA_4X_OFFS_RAW, },
+	[CSA_GAIN_8x] = { MAX9611_CSA_8X_LSB_nV, MAX9611_CSA_8X_OFFS_RAW, },
 };
 
 enum max9611_chan_addrs {
@@ -236,11 +228,9 @@ static int max9611_read_single(struct max9611_dev *max9611,
 		return ret;
 	}
 
-	/*
-	 * need a delay here to make register configuration
-	 * stabilize. 1 msec at least, from empirical testing.
-	 */
-	usleep_range(1000, 2000);
+	/* need a delay here to make register configuration stabilize. */
+
+	usleep_range(MAX9611_CONV_TIME_US_RANGE);
 
 	ret = i2c_smbus_read_word_swapped(max9611->i2c_client, reg_addr);
 	if (ret < 0) {
@@ -507,7 +497,7 @@ static int max9611_init(struct max9611_dev *max9611)
 			MAX9611_REG_CTRL2, 0);
 		return ret;
 	}
-	usleep_range(1000, 2000);
+	usleep_range(MAX9611_CONV_TIME_US_RANGE);
 
 	return 0;
 }

@@ -31,10 +31,10 @@ static void *bpf_any_get(void *raw, enum bpf_type type)
 {
 	switch (type) {
 	case BPF_TYPE_PROG:
-		raw = bpf_prog_inc(raw);
+		bpf_prog_inc(raw);
 		break;
 	case BPF_TYPE_MAP:
-		raw = bpf_map_inc(raw, true);
+		bpf_map_inc_with_uref(raw);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -196,6 +196,7 @@ static void *map_seq_next(struct seq_file *m, void *v, loff_t *pos)
 	void *key = map_iter(m)->key;
 	void *prev_key;
 
+	(*pos)++;
 	if (map_iter(m)->done)
 		return NULL;
 
@@ -208,8 +209,6 @@ static void *map_seq_next(struct seq_file *m, void *v, loff_t *pos)
 		map_iter(m)->done = true;
 		return NULL;
 	}
-
-	++(*pos);
 	return key;
 }
 
@@ -380,7 +379,7 @@ static const struct inode_operations bpf_dir_iops = {
 	.unlink		= simple_unlink,
 };
 
-static int bpf_obj_do_pin(const struct filename *pathname, void *raw,
+static int bpf_obj_do_pin(const char __user *pathname, void *raw,
 			  enum bpf_type type)
 {
 	struct dentry *dentry;
@@ -389,7 +388,7 @@ static int bpf_obj_do_pin(const struct filename *pathname, void *raw,
 	umode_t mode;
 	int ret;
 
-	dentry = kern_path_create(AT_FDCWD, pathname->name, &path, 0);
+	dentry = user_path_create(AT_FDCWD, pathname, &path, 0);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -422,30 +421,22 @@ out:
 
 int bpf_obj_pin_user(u32 ufd, const char __user *pathname)
 {
-	struct filename *pname;
 	enum bpf_type type;
 	void *raw;
 	int ret;
 
-	pname = getname(pathname);
-	if (IS_ERR(pname))
-		return PTR_ERR(pname);
-
 	raw = bpf_fd_probe_obj(ufd, &type);
-	if (IS_ERR(raw)) {
-		ret = PTR_ERR(raw);
-		goto out;
-	}
+	if (IS_ERR(raw))
+		return PTR_ERR(raw);
 
-	ret = bpf_obj_do_pin(pname, raw, type);
+	ret = bpf_obj_do_pin(pathname, raw, type);
 	if (ret != 0)
 		bpf_any_put(raw, type);
-out:
-	putname(pname);
+
 	return ret;
 }
 
-static void *bpf_obj_do_get(const struct filename *pathname,
+static void *bpf_obj_do_get(const char __user *pathname,
 			    enum bpf_type *type, int flags)
 {
 	struct inode *inode;
@@ -453,7 +444,7 @@ static void *bpf_obj_do_get(const struct filename *pathname,
 	void *raw;
 	int ret;
 
-	ret = kern_path(pathname->name, LOOKUP_FOLLOW, &path);
+	ret = user_path_at(AT_FDCWD, pathname, LOOKUP_FOLLOW, &path);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -480,36 +471,27 @@ out:
 int bpf_obj_get_user(const char __user *pathname, int flags)
 {
 	enum bpf_type type = BPF_TYPE_UNSPEC;
-	struct filename *pname;
-	int ret = -ENOENT;
 	int f_flags;
 	void *raw;
+	int ret;
 
 	f_flags = bpf_get_file_flag(flags);
 	if (f_flags < 0)
 		return f_flags;
 
-	pname = getname(pathname);
-	if (IS_ERR(pname))
-		return PTR_ERR(pname);
-
-	raw = bpf_obj_do_get(pname, &type, f_flags);
-	if (IS_ERR(raw)) {
-		ret = PTR_ERR(raw);
-		goto out;
-	}
+	raw = bpf_obj_do_get(pathname, &type, f_flags);
+	if (IS_ERR(raw))
+		return PTR_ERR(raw);
 
 	if (type == BPF_TYPE_PROG)
 		ret = bpf_prog_new_fd(raw);
 	else if (type == BPF_TYPE_MAP)
 		ret = bpf_map_new_fd(raw, f_flags);
 	else
-		goto out;
+		return -ENOENT;
 
 	if (ret < 0)
 		bpf_any_put(raw, type);
-out:
-	putname(pname);
 	return ret;
 }
 
@@ -534,7 +516,8 @@ static struct bpf_prog *__get_prog_inode(struct inode *inode, enum bpf_prog_type
 	if (!bpf_prog_get_ok(prog, &type, false))
 		return ERR_PTR(-EINVAL);
 
-	return bpf_prog_inc(prog);
+	bpf_prog_inc(prog);
+	return prog;
 }
 
 struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type)
@@ -586,14 +569,9 @@ enum {
 	OPT_MODE,
 };
 
-static const struct fs_parameter_spec bpf_param_specs[] = {
+static const struct fs_parameter_spec bpf_fs_parameters[] = {
 	fsparam_u32oct	("mode",			OPT_MODE),
 	{}
-};
-
-static const struct fs_parameter_description bpf_fs_parameters = {
-	.name		= "bpf",
-	.specs		= bpf_param_specs,
 };
 
 struct bpf_mount_opts {
@@ -606,7 +584,7 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct fs_parse_result result;
 	int opt;
 
-	opt = fs_parse(fc, &bpf_fs_parameters, param, &result);
+	opt = fs_parse(fc, bpf_fs_parameters, param, &result);
 	if (opt < 0)
 		/* We might like to report bad mount options here, but
 		 * traditionally we've ignored all mount options, so we'd
@@ -682,7 +660,7 @@ static struct file_system_type bpf_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "bpf",
 	.init_fs_context = bpf_init_fs_context,
-	.parameters	= &bpf_fs_parameters,
+	.parameters	= bpf_fs_parameters,
 	.kill_sb	= kill_litter_super,
 };
 

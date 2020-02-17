@@ -14,6 +14,7 @@
 #include <linux/dcbnl.h>
 #include <linux/in6.h>
 #include <linux/notifier.h>
+#include <linux/net_namespace.h>
 #include <net/psample.h>
 #include <net/pkt_cls.h>
 #include <net/red.h>
@@ -31,8 +32,6 @@
 
 #define MLXSW_SP_MID_MAX 7000
 
-#define MLXSW_SP_PORTS_PER_CLUSTER_MAX 4
-
 #define MLXSW_SP_PORT_BASE_SPEED_25G 25000 /* Mb/s */
 #define MLXSW_SP_PORT_BASE_SPEED_50G 50000 /* Mb/s */
 
@@ -47,6 +46,8 @@
 #define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_CHUNKS "chunks"
 #define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_LARGE_CHUNKS "large_chunks"
 
+#define MLXSW_SP_RESOURCE_NAME_SPAN "span_agents"
+
 enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_KVD = 1,
 	MLXSW_SP_RESOURCE_KVD_LINEAR,
@@ -55,6 +56,7 @@ enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_KVD_LINEAR_SINGLE,
 	MLXSW_SP_RESOURCE_KVD_LINEAR_CHUNKS,
 	MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS,
+	MLXSW_SP_RESOURCE_SPAN,
 };
 
 struct mlxsw_sp_port;
@@ -138,6 +140,13 @@ struct mlxsw_sp_sb_vals;
 struct mlxsw_sp_port_type_speed_ops;
 struct mlxsw_sp_ptp_state;
 struct mlxsw_sp_ptp_ops;
+struct mlxsw_sp_span_ops;
+
+struct mlxsw_sp_port_mapping {
+	u8 module;
+	u8 width;
+	u8 lane;
+};
 
 struct mlxsw_sp {
 	struct mlxsw_sp_port **ports;
@@ -146,7 +155,7 @@ struct mlxsw_sp {
 	unsigned char base_mac[ETH_ALEN];
 	const unsigned char *mac_mask;
 	struct mlxsw_sp_upper *lags;
-	int *port_to_module;
+	struct mlxsw_sp_port_mapping **port_mapping;
 	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp_router *router;
@@ -177,8 +186,10 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_sb_vals *sb_vals;
 	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
 	const struct mlxsw_sp_ptp_ops *ptp_ops;
+	const struct mlxsw_sp_span_ops *span_ops;
 	const struct mlxsw_listener *listeners;
 	size_t listeners_count;
+	u32 lowest_shaper_bs;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -255,11 +266,11 @@ struct mlxsw_sp_port {
 		struct ieee_pfc *pfc;
 		enum mlxsw_reg_qpts_trust_state trust_state;
 	} dcb;
-	struct {
-		u8 module;
-		u8 width;
-		u8 lane;
-	} mapping;
+	struct mlxsw_sp_port_mapping mapping; /* mapping is constant during the
+					       * mlxsw_sp_port lifetime, however
+					       * the same localport can have
+					       * different mapping.
+					       */
 	/* TC handles */
 	struct list_head mall_tc_list;
 	struct {
@@ -283,6 +294,10 @@ struct mlxsw_sp_port {
 		u16 egr_types;
 		struct mlxsw_sp_ptp_port_stats stats;
 	} ptp;
+	u8 split_base_local_port;
+	struct {
+		struct delayed_work speed_update_dw;
+	} span;
 };
 
 struct mlxsw_sp_port_type_speed_ops {
@@ -462,6 +477,7 @@ extern struct notifier_block mlxsw_sp_switchdev_notifier;
 /* spectrum.c */
 void mlxsw_sp_rx_listener_no_mark_func(struct sk_buff *skb,
 				       u8 local_port, void *priv);
+int mlxsw_sp_port_speed_get(struct mlxsw_sp_port *mlxsw_sp_port, u32 *speed);
 int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			  enum mlxsw_reg_qeec_hr hr, u8 index, u8 next_index,
 			  bool dwrr, u8 dwrr_weight);
@@ -472,7 +488,7 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
 				 struct ieee_pfc *my_pfc);
 int mlxsw_sp_port_ets_maxrate_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				  enum mlxsw_reg_qeec_hr hr, u8 index,
-				  u8 next_index, u32 maxrate);
+				  u8 next_index, u32 maxrate, u8 burst_size);
 enum mlxsw_reg_spms_state mlxsw_sp_stp_spms_state(u8 stp_state);
 int mlxsw_sp_port_vid_stp_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
 			      u8 state);
@@ -492,6 +508,7 @@ int mlxsw_sp_flow_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				unsigned int *p_counter_index);
 void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,
 				unsigned int counter_index);
+u32 mlxsw_sp_span_buffsize_get(struct mlxsw_sp *mlxsw_sp, int mtu, u32 speed);
 bool mlxsw_sp_port_dev_check(const struct net_device *dev);
 struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev);
@@ -524,7 +541,8 @@ union mlxsw_sp_l3addr {
 	struct in6_addr addr6;
 };
 
-int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
+			 struct netlink_ext_ack *extack);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
 					 unsigned long event, void *ptr);
@@ -842,6 +860,10 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 			  struct tc_red_qopt_offload *p);
 int mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct tc_prio_qopt_offload *p);
+int mlxsw_sp_setup_tc_ets(struct mlxsw_sp_port *mlxsw_sp_port,
+			  struct tc_ets_qopt_offload *p);
+int mlxsw_sp_setup_tc_tbf(struct mlxsw_sp_port *mlxsw_sp_port,
+			  struct tc_tbf_qopt_offload *p);
 
 /* spectrum_fid.c */
 bool mlxsw_sp_fid_is_dummy(struct mlxsw_sp *mlxsw_sp, u16 fid_index);
@@ -981,5 +1003,10 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 			     enum devlink_trap_action action);
 int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 			     const struct devlink_trap_group *group);
+
+static inline struct net *mlxsw_sp_net(struct mlxsw_sp *mlxsw_sp)
+{
+	return mlxsw_core_net(mlxsw_sp->core);
+}
 
 #endif

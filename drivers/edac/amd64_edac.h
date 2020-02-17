@@ -122,6 +122,8 @@
 #define PCI_DEVICE_ID_AMD_17H_M30H_DF_F6 0x1496
 #define PCI_DEVICE_ID_AMD_17H_M70H_DF_F0 0x1440
 #define PCI_DEVICE_ID_AMD_17H_M70H_DF_F6 0x1446
+#define PCI_DEVICE_ID_AMD_19H_DF_F0	0x1650
+#define PCI_DEVICE_ID_AMD_19H_DF_F6	0x1656
 
 /*
  * Function 1 - Address Map
@@ -292,6 +294,7 @@ enum amd_families {
 	F17_M10H_CPUS,
 	F17_M30H_CPUS,
 	F17_M70H_CPUS,
+	F19_CPUS,
 	NUM_FAMILIES,
 };
 
@@ -479,6 +482,8 @@ struct low_ops {
 struct amd64_family_type {
 	const char *ctl_name;
 	u16 f0_id, f1_id, f2_id, f6_id;
+	/* Maximum number of memory controllers per die/node. */
+	u8 max_mcs;
 	struct low_ops ops;
 };
 

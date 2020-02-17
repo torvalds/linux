@@ -46,4 +46,8 @@ Documentation for filesystem implementations.
 .. toctree::
    :maxdepth: 2
 
+   autofs
+   fuse
+   overlayfs
    virtiofs
+   vfat

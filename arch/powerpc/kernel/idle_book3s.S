@@ -15,7 +15,9 @@
 #include <asm/asm-offsets.h>
 #include <asm/ppc-opcode.h>
 #include <asm/cpuidle.h>
+#include <asm/thread_info.h> /* TLF_NAPPING */
 
+#ifdef CONFIG_PPC_P7_NAP
 /*
  * Desired PSSCR in r3
  *
@@ -181,4 +183,22 @@ _GLOBAL(isa206_idle_insn_mayloss)
 	bne	2f
 	IDLE_STATE_ENTER_SEQ_NORET(PPC_SLEEP)
 2:	IDLE_STATE_ENTER_SEQ_NORET(PPC_WINKLE)
+#endif
 
+#ifdef CONFIG_PPC_970_NAP
+_GLOBAL(power4_idle_nap)
+	LOAD_REG_IMMEDIATE(r7, MSR_KERNEL|MSR_EE|MSR_POW)
+	ld	r9,PACA_THREAD_INFO(r13)
+	ld	r8,TI_LOCAL_FLAGS(r9)
+	ori	r8,r8,_TLF_NAPPING
+	std	r8,TI_LOCAL_FLAGS(r9)
+	/*
+	 * NAPPING bit is set, from this point onward power4_fixup_nap
+	 * will cause exceptions to return to power4_idle_nap_return.
+	 */
+1:	sync
+	isync
+	mtmsrd	r7
+	isync
+	b	1b
+#endif

@@ -169,6 +169,17 @@ struct shash_desc {
  * @export: see struct ahash_alg
  * @import: see struct ahash_alg
  * @setkey: see struct ahash_alg
+ * @init_tfm: Initialize the cryptographic transformation object.
+ *	      This function is called only once at the instantiation
+ *	      time, right after the transformation context was
+ *	      allocated. In case the cryptographic hardware has
+ *	      some special requirements which need to be handled
+ *	      by software, this function shall check for the precise
+ *	      requirement of the transformation and put any software
+ *	      fallbacks in place.
+ * @exit_tfm: Deinitialize the cryptographic transformation object.
+ *	      This is a counterpart to @init_tfm, used to remove
+ *	      various changes set in @init_tfm.
  * @digestsize: see struct ahash_alg
  * @statesize: see struct ahash_alg
  * @descsize: Size of the operational state for the message digest. This state
@@ -189,6 +200,8 @@ struct shash_alg {
 	int (*import)(struct shash_desc *desc, const void *in);
 	int (*setkey)(struct crypto_shash *tfm, const u8 *key,
 		      unsigned int keylen);
+	int (*init_tfm)(struct crypto_shash *tfm);
+	void (*exit_tfm)(struct crypto_shash *tfm);
 
 	unsigned int descsize;
 
@@ -227,7 +240,7 @@ struct crypto_shash {
  * CRYPTO_ALG_TYPE_AHASH (listed as type "ahash" in /proc/crypto)
  *
  * The asynchronous cipher operation discussion provided for the
- * CRYPTO_ALG_TYPE_ABLKCIPHER API applies here as well.
+ * CRYPTO_ALG_TYPE_SKCIPHER API applies here as well.
  */
 
 static inline struct crypto_ahash *__crypto_ahash_cast(struct crypto_tfm *tfm)

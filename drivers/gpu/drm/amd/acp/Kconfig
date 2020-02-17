@@ -1,12 +1,12 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: MIT
 menu "ACP (Audio CoProcessor) Configuration"
 
 config DRM_AMD_ACP
-       bool "Enable AMD Audio CoProcessor IP support"
-       depends on DRM_AMDGPU
-       select MFD_CORE
-       select PM_GENERIC_DOMAINS if PM
-       help
+	bool "Enable AMD Audio CoProcessor IP support"
+	depends on DRM_AMDGPU
+	select MFD_CORE
+	select PM_GENERIC_DOMAINS if PM
+	help
 	Choose this option to enable ACP IP support for AMD SOCs.
 	This adds the ACP (Audio CoProcessor) IP driver and wires
 	it up into the amdgpu driver.  The ACP block provides the DMA

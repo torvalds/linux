@@ -11,8 +11,8 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
-#include "bpf_endian.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_endian.h>
+#include <bpf/bpf_helpers.h>
 #include "test_select_reuseport_common.h"
 
 int _version SEC("version") = 1;
@@ -62,7 +62,7 @@ struct {
 	goto done;				\
 })
 
-SEC("select_by_skb_data")
+SEC("sk_reuseport")
 int _select_by_skb_data(struct sk_reuseport_md *reuse_md)
 {
 	__u32 linum, index = 0, flags = 0, index_zero = 0;
@@ -112,6 +112,12 @@ int _select_by_skb_data(struct sk_reuseport_md *reuse_md)
 
 		data_check.skb_ports[0] = th->source;
 		data_check.skb_ports[1] = th->dest;
+
+		if (th->fin)
+			/* The connection is being torn down at the end of a
+			 * test. It can't contain a cmd, so return early.
+			 */
+			return SK_PASS;
 
 		if ((th->doff << 2) + sizeof(*cmd) > data_check.len)
 			GOTO_DONE(DROP_ERR_SKB_DATA);

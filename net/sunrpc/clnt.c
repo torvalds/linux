@@ -591,6 +591,9 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	xprt->resvport = 1;
 	if (args->flags & RPC_CLNT_CREATE_NONPRIVPORT)
 		xprt->resvport = 0;
+	xprt->reuseport = 0;
+	if (args->flags & RPC_CLNT_CREATE_REUSEPORT)
+		xprt->reuseport = 1;
 
 	clnt = rpc_create_xprt(args, xprt);
 	if (IS_ERR(clnt) || args->nconnect <= 1)
@@ -1676,8 +1679,6 @@ call_reserveresult(struct rpc_task *task)
 			return;
 		}
 
-		printk(KERN_ERR "%s: status=%d, but no request slot, exiting\n",
-				__func__, status);
 		rpc_call_rpcerror(task, -EIO);
 		return;
 	}
@@ -1686,11 +1687,8 @@ call_reserveresult(struct rpc_task *task)
 	 * Even though there was an error, we may have acquired
 	 * a request slot somehow.  Make sure not to leak it.
 	 */
-	if (task->tk_rqstp) {
-		printk(KERN_ERR "%s: status=%d, request allocated anyway\n",
-				__func__, status);
+	if (task->tk_rqstp)
 		xprt_release(task);
-	}
 
 	switch (status) {
 	case -ENOMEM:
@@ -1699,14 +1697,9 @@ call_reserveresult(struct rpc_task *task)
 	case -EAGAIN:	/* woken up; retry */
 		task->tk_action = call_retry_reserve;
 		return;
-	case -EIO:	/* probably a shutdown */
-		break;
 	default:
-		printk(KERN_ERR "%s: unrecognized error %d, exiting\n",
-				__func__, status);
-		break;
+		rpc_call_rpcerror(task, status);
 	}
-	rpc_call_rpcerror(task, status);
 }
 
 /*
@@ -2137,6 +2130,7 @@ call_connect_status(struct rpc_task *task)
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
 	case -EPIPE:
+	case -EPROTO:
 		xprt_conditional_disconnect(task->tk_rqstp->rq_xprt,
 					    task->tk_rqstp->rq_connect_cookie);
 		if (RPC_IS_SOFTCONN(task))
@@ -2906,7 +2900,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 	struct rpc_xprt *xprt;
 	unsigned long connect_timeout;
 	unsigned long reconnect_timeout;
-	unsigned char resvport;
+	unsigned char resvport, reuseport;
 	int ret = 0;
 
 	rcu_read_lock();
@@ -2918,6 +2912,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 		return -EAGAIN;
 	}
 	resvport = xprt->resvport;
+	reuseport = xprt->reuseport;
 	connect_timeout = xprt->connect_timeout;
 	reconnect_timeout = xprt->max_reconnect_timeout;
 	rcu_read_unlock();
@@ -2928,6 +2923,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 		goto out_put_switch;
 	}
 	xprt->resvport = resvport;
+	xprt->reuseport = reuseport;
 	if (xprt->ops->set_connect_timeout != NULL)
 		xprt->ops->set_connect_timeout(xprt,
 				connect_timeout,

@@ -2,9 +2,6 @@
 #ifndef __ASM_S390_PCI_H
 #define __ASM_S390_PCI_H
 
-/* must be set before including pci_clp.h */
-#define PCI_BAR_COUNT	6
-
 #include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/iommu.h>
@@ -138,7 +135,7 @@ struct zpci_dev {
 
 	char res_name[16];
 	bool mio_capable;
-	struct zpci_bar_struct bars[PCI_BAR_COUNT];
+	struct zpci_bar_struct bars[PCI_STD_NUM_BARS];
 
 	u64		start_dma;	/* Start of available DMA addresses */
 	u64		end_dma;	/* End of available DMA addresses */
@@ -183,7 +180,7 @@ void zpci_remove_reserved_devices(void);
 /* CLP */
 int clp_scan_pci_devices(void);
 int clp_rescan_pci_devices(void);
-int clp_rescan_pci_devices_simple(void);
+int clp_rescan_pci_devices_simple(u32 *fid);
 int clp_add_pci_device(u32, u32, int);
 int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);

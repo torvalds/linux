@@ -59,15 +59,10 @@ static int mdiobus_register_gpiod(struct mdio_device *mdiodev)
 
 static int mdiobus_register_reset(struct mdio_device *mdiodev)
 {
-	struct reset_control *reset = NULL;
+	struct reset_control *reset;
 
-	if (mdiodev->dev.of_node)
-		reset = devm_reset_control_get_exclusive(&mdiodev->dev,
-							 "phy");
-	if (PTR_ERR(reset) == -ENOENT ||
-	    PTR_ERR(reset) == -ENOTSUPP)
-		reset = NULL;
-	else if (IS_ERR(reset))
+	reset = reset_control_get_optional_exclusive(&mdiodev->dev, "phy");
+	if (IS_ERR(reset))
 		return PTR_ERR(reset);
 
 	mdiodev->reset_ctrl = reset;
@@ -105,6 +100,8 @@ int mdiobus_unregister_device(struct mdio_device *mdiodev)
 {
 	if (mdiodev->bus->mdio_map[mdiodev->addr] != mdiodev)
 		return -EINVAL;
+
+	reset_control_put(mdiodev->reset_ctrl);
 
 	mdiodev->bus->mdio_map[mdiodev->addr] = NULL;
 
@@ -161,9 +158,11 @@ struct mii_bus *mdiobus_alloc_size(size_t size)
 	if (size)
 		bus->priv = (void *)bus + aligned_size;
 
-	/* Initialise the interrupts to polling */
-	for (i = 0; i < PHY_MAX_ADDR; i++)
+	/* Initialise the interrupts to polling and 64-bit seqcounts */
+	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		bus->irq[i] = PHY_POLL;
+		u64_stats_init(&bus->stats[i].syncp);
+	}
 
 	return bus;
 }
@@ -252,9 +251,215 @@ static void mdiobus_release(struct device *d)
 	kfree(bus);
 }
 
+struct mdio_bus_stat_attr {
+	int addr;
+	unsigned int field_offset;
+};
+
+static u64 mdio_bus_get_stat(struct mdio_bus_stats *s, unsigned int offset)
+{
+	const char *p = (const char *)s + offset;
+	unsigned int start;
+	u64 val = 0;
+
+	do {
+		start = u64_stats_fetch_begin(&s->syncp);
+		val = u64_stats_read((const u64_stats_t *)p);
+	} while (u64_stats_fetch_retry(&s->syncp, start));
+
+	return val;
+}
+
+static u64 mdio_bus_get_global_stat(struct mii_bus *bus, unsigned int offset)
+{
+	unsigned int i;
+	u64 val = 0;
+
+	for (i = 0; i < PHY_MAX_ADDR; i++)
+		val += mdio_bus_get_stat(&bus->stats[i], offset);
+
+	return val;
+}
+
+static ssize_t mdio_bus_stat_field_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct mii_bus *bus = to_mii_bus(dev);
+	struct mdio_bus_stat_attr *sattr;
+	struct dev_ext_attribute *eattr;
+	u64 val;
+
+	eattr = container_of(attr, struct dev_ext_attribute, attr);
+	sattr = eattr->var;
+
+	if (sattr->addr < 0)
+		val = mdio_bus_get_global_stat(bus, sattr->field_offset);
+	else
+		val = mdio_bus_get_stat(&bus->stats[sattr->addr],
+					sattr->field_offset);
+
+	return sprintf(buf, "%llu\n", val);
+}
+
+static ssize_t mdio_bus_device_stat_field_show(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct mdio_device *mdiodev = to_mdio_device(dev);
+	struct mii_bus *bus = mdiodev->bus;
+	struct mdio_bus_stat_attr *sattr;
+	struct dev_ext_attribute *eattr;
+	int addr = mdiodev->addr;
+	u64 val;
+
+	eattr = container_of(attr, struct dev_ext_attribute, attr);
+	sattr = eattr->var;
+
+	val = mdio_bus_get_stat(&bus->stats[addr], sattr->field_offset);
+
+	return sprintf(buf, "%llu\n", val);
+}
+
+#define MDIO_BUS_STATS_ATTR_DECL(field, file)				\
+static struct dev_ext_attribute dev_attr_mdio_bus_##field = {		\
+	.attr = { .attr = { .name = file, .mode = 0444 },		\
+		     .show = mdio_bus_stat_field_show,			\
+	},								\
+	.var = &((struct mdio_bus_stat_attr) {				\
+		-1, offsetof(struct mdio_bus_stats, field)		\
+	}),								\
+};									\
+static struct dev_ext_attribute dev_attr_mdio_bus_device_##field = {	\
+	.attr = { .attr = { .name = file, .mode = 0444 },		\
+		     .show = mdio_bus_device_stat_field_show,		\
+	},								\
+	.var = &((struct mdio_bus_stat_attr) {				\
+		-1, offsetof(struct mdio_bus_stats, field)		\
+	}),								\
+};
+
+#define MDIO_BUS_STATS_ATTR(field)					\
+	MDIO_BUS_STATS_ATTR_DECL(field, __stringify(field))
+
+MDIO_BUS_STATS_ATTR(transfers);
+MDIO_BUS_STATS_ATTR(errors);
+MDIO_BUS_STATS_ATTR(writes);
+MDIO_BUS_STATS_ATTR(reads);
+
+#define MDIO_BUS_STATS_ADDR_ATTR_DECL(field, addr, file)		\
+static struct dev_ext_attribute dev_attr_mdio_bus_addr_##field##_##addr = { \
+	.attr = { .attr = { .name = file, .mode = 0444 },		\
+		     .show = mdio_bus_stat_field_show,			\
+	},								\
+	.var = &((struct mdio_bus_stat_attr) {				\
+		addr, offsetof(struct mdio_bus_stats, field)		\
+	}),								\
+}
+
+#define MDIO_BUS_STATS_ADDR_ATTR(field, addr)				\
+	MDIO_BUS_STATS_ADDR_ATTR_DECL(field, addr,			\
+				 __stringify(field) "_" __stringify(addr))
+
+#define MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(addr)			\
+	MDIO_BUS_STATS_ADDR_ATTR(transfers, addr);			\
+	MDIO_BUS_STATS_ADDR_ATTR(errors, addr);				\
+	MDIO_BUS_STATS_ADDR_ATTR(writes, addr);				\
+	MDIO_BUS_STATS_ADDR_ATTR(reads, addr)				\
+
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(0);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(1);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(2);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(3);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(4);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(5);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(6);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(7);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(8);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(9);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(10);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(11);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(12);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(13);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(14);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(15);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(16);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(17);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(18);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(19);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(20);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(21);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(22);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(23);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(24);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(25);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(26);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(27);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(28);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(29);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(30);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(31);
+
+#define MDIO_BUS_STATS_ADDR_ATTR_GROUP(addr)				\
+	&dev_attr_mdio_bus_addr_transfers_##addr.attr.attr,		\
+	&dev_attr_mdio_bus_addr_errors_##addr.attr.attr,		\
+	&dev_attr_mdio_bus_addr_writes_##addr.attr.attr,		\
+	&dev_attr_mdio_bus_addr_reads_##addr.attr.attr			\
+
+static struct attribute *mdio_bus_statistics_attrs[] = {
+	&dev_attr_mdio_bus_transfers.attr.attr,
+	&dev_attr_mdio_bus_errors.attr.attr,
+	&dev_attr_mdio_bus_writes.attr.attr,
+	&dev_attr_mdio_bus_reads.attr.attr,
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(0),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(1),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(2),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(3),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(4),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(5),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(6),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(7),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(8),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(9),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(10),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(11),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(12),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(13),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(14),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(15),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(16),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(17),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(18),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(19),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(20),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(21),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(22),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(23),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(24),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(25),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(26),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(27),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(28),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(29),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(30),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(31),
+	NULL,
+};
+
+static const struct attribute_group mdio_bus_statistics_group = {
+	.name	= "statistics",
+	.attrs	= mdio_bus_statistics_attrs,
+};
+
+static const struct attribute_group *mdio_bus_groups[] = {
+	&mdio_bus_statistics_group,
+	NULL,
+};
+
 static struct class mdio_bus_class = {
 	.name		= "mdio_bus",
 	.dev_release	= mdiobus_release,
+	.dev_groups	= mdio_bus_groups,
 };
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
@@ -533,6 +738,24 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 }
 EXPORT_SYMBOL(mdiobus_scan);
 
+static void mdiobus_stats_acct(struct mdio_bus_stats *stats, bool op, int ret)
+{
+	u64_stats_update_begin(&stats->syncp);
+
+	u64_stats_inc(&stats->transfers);
+	if (ret < 0) {
+		u64_stats_inc(&stats->errors);
+		goto out;
+	}
+
+	if (op)
+		u64_stats_inc(&stats->reads);
+	else
+		u64_stats_inc(&stats->writes);
+out:
+	u64_stats_update_end(&stats->syncp);
+}
+
 /**
  * __mdiobus_read - Unlocked version of the mdiobus_read function
  * @bus: the mii_bus struct
@@ -552,6 +775,7 @@ int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum)
 	retval = bus->read(bus, addr, regnum);
 
 	trace_mdio_access(bus, 1, addr, regnum, retval, retval);
+	mdiobus_stats_acct(&bus->stats[addr], true, retval);
 
 	return retval;
 }
@@ -577,6 +801,7 @@ int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 	err = bus->write(bus, addr, regnum, val);
 
 	trace_mdio_access(bus, 0, addr, regnum, val, err);
+	mdiobus_stats_acct(&bus->stats[addr], false, err);
 
 	return err;
 }
@@ -722,8 +947,27 @@ static int mdio_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
+static struct attribute *mdio_bus_device_statistics_attrs[] = {
+	&dev_attr_mdio_bus_device_transfers.attr.attr,
+	&dev_attr_mdio_bus_device_errors.attr.attr,
+	&dev_attr_mdio_bus_device_writes.attr.attr,
+	&dev_attr_mdio_bus_device_reads.attr.attr,
+	NULL,
+};
+
+static const struct attribute_group mdio_bus_device_statistics_group = {
+	.name	= "statistics",
+	.attrs	= mdio_bus_device_statistics_attrs,
+};
+
+static const struct attribute_group *mdio_bus_dev_groups[] = {
+	&mdio_bus_device_statistics_group,
+	NULL,
+};
+
 struct bus_type mdio_bus_type = {
 	.name		= "mdio_bus",
+	.dev_groups	= mdio_bus_dev_groups,
 	.match		= mdio_bus_match,
 	.uevent		= mdio_uevent,
 };

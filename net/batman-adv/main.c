@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -548,7 +548,7 @@ static void batadv_recv_handler_init(void)
 	BUILD_BUG_ON(sizeof(struct batadv_tvlv_tt_change) != 12);
 	BUILD_BUG_ON(sizeof(struct batadv_tvlv_roam_adv) != 8);
 
-	i = FIELD_SIZEOF(struct sk_buff, cb);
+	i = sizeof_field(struct sk_buff, cb);
 	BUILD_BUG_ON(sizeof(struct batadv_skb_cb) > i);
 
 	/* broadcast packet */

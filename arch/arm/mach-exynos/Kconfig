@@ -3,16 +3,18 @@
 # Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
 #		http://www.samsung.com/
 
-# Configuration options for the EXYNOS
+# Configuration options for the Samsung Exynos
 
 menuconfig ARCH_EXYNOS
-	bool "Samsung EXYNOS"
+	bool "Samsung Exynos"
 	depends on ARCH_MULTI_V7
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_AMBA
 	select ARM_GIC
+	select EXYNOS_IRQ_COMBINER
 	select COMMON_CLK_SAMSUNG
+	select EXYNOS_ASV
 	select EXYNOS_CHIPID
 	select EXYNOS_THERMAL
 	select EXYNOS_PMU
@@ -40,7 +42,7 @@ menuconfig ARCH_EXYNOS
 	select POWER_RESET_SYSCON
 	select POWER_RESET_SYSCON_POWEROFF
 	help
-	  Support for SAMSUNG EXYNOS SoCs (EXYNOS4/5)
+	  Support for Samsung Exynos SoCs
 
 if ARCH_EXYNOS
 
@@ -50,63 +52,62 @@ config S5P_DEV_MFC
 	  Compile in setup memory (init) code for MFC
 
 config ARCH_EXYNOS3
-	bool "SAMSUNG EXYNOS3"
+	bool "Samsung Exynos3"
 	default y
 	select ARM_CPU_SUSPEND if PM
 	help
-	  Samsung EXYNOS3 (Cortex-A7) SoC based systems
+	  Samsung Exynos3 (Cortex-A7) SoC based systems
 
 config ARCH_EXYNOS4
-	bool "SAMSUNG EXYNOS4"
+	bool "Samsung Exynos4"
 	default y
 	select ARM_CPU_SUSPEND if PM_SLEEP
 	select CLKSRC_SAMSUNG_PWM if CPU_EXYNOS4210
 	select CPU_EXYNOS4210
 	select GIC_NON_BANKED
-	select MIGHT_HAVE_CACHE_L2X0
 	help
-	  Samsung EXYNOS4 (Cortex-A9) SoC based systems
+	  Samsung Exynos4 (Cortex-A9) SoC based systems
 
 config ARCH_EXYNOS5
-	bool "SAMSUNG EXYNOS5"
+	bool "Samsung Exynos5"
 	default y
 	help
-	  Samsung EXYNOS5 (Cortex-A15/A7) SoC based systems
+	  Samsung Exynos5 (Cortex-A15/A7) SoC based systems
 
-comment "EXYNOS SoCs"
+comment "Exynos SoCs"
 
 config SOC_EXYNOS3250
-	bool "SAMSUNG EXYNOS3250"
+	bool "Samsung Exynos3250"
 	default y
 	depends on ARCH_EXYNOS3
 
 config CPU_EXYNOS4210
-	bool "SAMSUNG EXYNOS4210"
+	bool "Samsung Exynos4210"
 	default y
 	depends on ARCH_EXYNOS4
 
 config SOC_EXYNOS4412
-	bool "SAMSUNG EXYNOS4412"
+	bool "Samsung Exynos4412"
 	default y
 	depends on ARCH_EXYNOS4
 
 config SOC_EXYNOS5250
-	bool "SAMSUNG EXYNOS5250"
+	bool "Samsung Exynos5250"
 	default y
 	depends on ARCH_EXYNOS5
 
 config SOC_EXYNOS5260
-	bool "SAMSUNG EXYNOS5260"
+	bool "Samsung Exynos5260"
 	default y
 	depends on ARCH_EXYNOS5
 
 config SOC_EXYNOS5410
-	bool "SAMSUNG EXYNOS5410"
+	bool "Samsung Exynos5410"
 	default y
 	depends on ARCH_EXYNOS5
 
 config SOC_EXYNOS5420
-	bool "SAMSUNG EXYNOS5420"
+	bool "Samsung Exynos5420"
 	default y
 	depends on ARCH_EXYNOS5
 	select EXYNOS_MCPM if SMP
@@ -114,7 +115,7 @@ config SOC_EXYNOS5420
 	select ARM_CPU_SUSPEND
 
 config SOC_EXYNOS5800
-	bool "SAMSUNG EXYNOS5800"
+	bool "Samsung EXYNOS5800"
 	default y
 	depends on SOC_EXYNOS5420
 

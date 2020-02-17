@@ -101,7 +101,6 @@ struct i40e_vf {
 	bool link_up;		/* only valid if VF link is forced */
 	bool queues_enabled;	/* true if the VF queues are enabled */
 	bool spoofchk;
-	u16 num_mac;
 	u16 num_vlan;
 
 	/* ADq related variables */
@@ -139,5 +138,7 @@ int i40e_ndo_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool enable);
 
 void i40e_vc_notify_link_state(struct i40e_pf *pf);
 void i40e_vc_notify_reset(struct i40e_pf *pf);
+int i40e_get_vf_stats(struct net_device *netdev, int vf_id,
+		      struct ifla_vf_stats *vf_stats);
 
 #endif /* _I40E_VIRTCHNL_PF_H_ */

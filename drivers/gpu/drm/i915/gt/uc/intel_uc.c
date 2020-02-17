@@ -12,6 +12,9 @@
 
 #include "i915_drv.h"
 
+static const struct intel_uc_ops uc_ops_off;
+static const struct intel_uc_ops uc_ops_on;
+
 /* Reset GuC providing us with fresh state for both GuC and HuC.
  */
 static int __intel_uc_reset_hw(struct intel_uc *uc)
@@ -20,7 +23,7 @@ static int __intel_uc_reset_hw(struct intel_uc *uc)
 	int ret;
 	u32 guc_status;
 
-	ret = i915_inject_load_error(gt->i915, -ENXIO);
+	ret = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (ret)
 		return ret;
 
@@ -89,6 +92,11 @@ void intel_uc_init_early(struct intel_uc *uc)
 	intel_huc_init_early(&uc->huc);
 
 	__confirm_options(uc);
+
+	if (intel_uc_uses_guc(uc))
+		uc->ops = &uc_ops_on;
+	else
+		uc->ops = &uc_ops_off;
 }
 
 void intel_uc_driver_late_release(struct intel_uc *uc)
@@ -121,6 +129,11 @@ static void __uc_free_load_err_log(struct intel_uc *uc)
 
 	if (log)
 		i915_gem_object_put(log);
+}
+
+static inline bool guc_communication_enabled(struct intel_guc *guc)
+{
+	return intel_guc_ct_enabled(&guc->ct);
 }
 
 /*
@@ -158,7 +171,7 @@ static void guc_handle_mmio_msg(struct intel_guc *guc)
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 
 	/* we need communication to be enabled to reply to GuC */
-	GEM_BUG_ON(guc->handler == intel_guc_to_host_event_handler_nop);
+	GEM_BUG_ON(!guc_communication_enabled(guc));
 
 	if (!guc->mmio_msg)
 		return;
@@ -185,11 +198,6 @@ static void guc_disable_interrupts(struct intel_guc *guc)
 	guc->interrupts.disable(guc);
 }
 
-static inline bool guc_communication_enabled(struct intel_guc *guc)
-{
-	return guc->send != intel_guc_send_nop;
-}
-
 static int guc_enable_communication(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
@@ -197,16 +205,13 @@ static int guc_enable_communication(struct intel_guc *guc)
 
 	GEM_BUG_ON(guc_communication_enabled(guc));
 
-	ret = i915_inject_load_error(i915, -ENXIO);
+	ret = i915_inject_probe_error(i915, -ENXIO);
 	if (ret)
 		return ret;
 
 	ret = intel_guc_ct_enable(&guc->ct);
 	if (ret)
 		return ret;
-
-	guc->send = intel_guc_send_ct;
-	guc->handler = intel_guc_to_host_event_handler_ct;
 
 	/* check for mmio messages received before/during the CT enable */
 	guc_get_mmio_msg(guc);
@@ -216,22 +221,12 @@ static int guc_enable_communication(struct intel_guc *guc)
 
 	/* check for CT messages received before we enabled interrupts */
 	spin_lock_irq(&i915->irq_lock);
-	intel_guc_to_host_event_handler_ct(guc);
+	intel_guc_ct_event_handler(&guc->ct);
 	spin_unlock_irq(&i915->irq_lock);
 
 	DRM_INFO("GuC communication enabled\n");
 
 	return 0;
-}
-
-static void guc_stop_communication(struct intel_guc *guc)
-{
-	intel_guc_ct_stop(&guc->ct);
-
-	guc->send = intel_guc_send_nop;
-	guc->handler = intel_guc_to_host_event_handler_nop;
-
-	guc_clear_mmio_msg(guc);
 }
 
 static void guc_disable_communication(struct intel_guc *guc)
@@ -244,9 +239,6 @@ static void guc_disable_communication(struct intel_guc *guc)
 	guc_clear_mmio_msg(guc);
 
 	guc_disable_interrupts(guc);
-
-	guc->send = intel_guc_send_nop;
-	guc->handler = intel_guc_to_host_event_handler_nop;
 
 	intel_guc_ct_disable(&guc->ct);
 
@@ -261,41 +253,33 @@ static void guc_disable_communication(struct intel_guc *guc)
 	DRM_INFO("GuC communication disabled\n");
 }
 
-void intel_uc_fetch_firmwares(struct intel_uc *uc)
+static void __uc_fetch_firmwares(struct intel_uc *uc)
 {
-	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
 	int err;
 
-	if (!intel_uc_uses_guc(uc))
-		return;
+	GEM_BUG_ON(!intel_uc_uses_guc(uc));
 
-	err = intel_uc_fw_fetch(&uc->guc.fw, i915);
+	err = intel_uc_fw_fetch(&uc->guc.fw);
 	if (err)
 		return;
 
 	if (intel_uc_uses_huc(uc))
-		intel_uc_fw_fetch(&uc->huc.fw, i915);
+		intel_uc_fw_fetch(&uc->huc.fw);
 }
 
-void intel_uc_cleanup_firmwares(struct intel_uc *uc)
+static void __uc_cleanup_firmwares(struct intel_uc *uc)
 {
-	if (!intel_uc_uses_guc(uc))
-		return;
-
-	if (intel_uc_uses_huc(uc))
-		intel_uc_fw_cleanup_fetch(&uc->huc.fw);
-
+	intel_uc_fw_cleanup_fetch(&uc->huc.fw);
 	intel_uc_fw_cleanup_fetch(&uc->guc.fw);
 }
 
-void intel_uc_init(struct intel_uc *uc)
+static void __uc_init(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 	struct intel_huc *huc = &uc->huc;
 	int ret;
 
-	if (!intel_uc_uses_guc(uc))
-		return;
+	GEM_BUG_ON(!intel_uc_uses_guc(uc));
 
 	/* XXX: GuC submission is unavailable for now */
 	GEM_BUG_ON(intel_uc_supports_guc_submission(uc));
@@ -310,17 +294,10 @@ void intel_uc_init(struct intel_uc *uc)
 		intel_huc_init(huc);
 }
 
-void intel_uc_fini(struct intel_uc *uc)
+static void __uc_fini(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &uc->guc;
-
-	if (!intel_uc_uses_guc(uc))
-		return;
-
-	if (intel_uc_uses_huc(uc))
-		intel_huc_fini(&uc->huc);
-
-	intel_guc_fini(guc);
+	intel_huc_fini(&uc->huc);
+	intel_guc_fini(&uc->guc);
 
 	__uc_free_load_err_log(uc);
 }
@@ -336,14 +313,6 @@ static int __uc_sanitize(struct intel_uc *uc)
 	intel_guc_sanitize(guc);
 
 	return __intel_uc_reset_hw(uc);
-}
-
-void intel_uc_sanitize(struct intel_uc *uc)
-{
-	if (!intel_uc_supports_guc(uc))
-		return;
-
-	__uc_sanitize(uc);
 }
 
 /* Initialize and verify the uC regs related to uC positioning in WOPCM */
@@ -368,7 +337,7 @@ static int uc_init_wopcm(struct intel_uc *uc)
 	GEM_BUG_ON(!(size & GUC_WOPCM_SIZE_MASK));
 	GEM_BUG_ON(size & ~GUC_WOPCM_SIZE_MASK);
 
-	err = i915_inject_load_error(gt->i915, -ENXIO);
+	err = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (err)
 		return err;
 
@@ -409,13 +378,8 @@ static bool uc_is_wopcm_locked(struct intel_uc *uc)
 	       (intel_uncore_read(uncore, DMA_GUC_WOPCM_OFFSET) & GUC_WOPCM_OFFSET_VALID);
 }
 
-int intel_uc_init_hw(struct intel_uc *uc)
+static int __uc_check_hw(struct intel_uc *uc)
 {
-	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
-	struct intel_guc *guc = &uc->guc;
-	struct intel_huc *huc = &uc->huc;
-	int ret, attempts;
-
 	if (!intel_uc_supports_guc(uc))
 		return 0;
 
@@ -424,11 +388,24 @@ int intel_uc_init_hw(struct intel_uc *uc)
 	 * before on this system after reboot, otherwise we risk GPU hangs.
 	 * To check if GuC was loaded before we look at WOPCM registers.
 	 */
-	if (!intel_uc_uses_guc(uc) && !uc_is_wopcm_locked(uc))
-		return 0;
+	if (uc_is_wopcm_locked(uc))
+		return -EIO;
+
+	return 0;
+}
+
+static int __uc_init_hw(struct intel_uc *uc)
+{
+	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
+	struct intel_guc *guc = &uc->guc;
+	struct intel_huc *huc = &uc->huc;
+	int ret, attempts;
+
+	GEM_BUG_ON(!intel_uc_supports_guc(uc));
+	GEM_BUG_ON(!intel_uc_uses_guc(uc));
 
 	if (!intel_uc_fw_is_available(&guc->fw)) {
-		ret = uc_is_wopcm_locked(uc) ||
+		ret = __uc_check_hw(uc) ||
 		      intel_uc_fw_is_overridden(&guc->fw) ||
 		      intel_uc_supports_guc_submission(uc) ?
 		      intel_uc_fw_status_to_error(guc->fw.status) : 0;
@@ -482,11 +459,8 @@ int intel_uc_init_hw(struct intel_uc *uc)
 	if (ret)
 		goto err_communication;
 
-	if (intel_uc_supports_guc_submission(uc)) {
-		ret = intel_guc_submission_enable(guc);
-		if (ret)
-			goto err_communication;
-	}
+	if (intel_uc_supports_guc_submission(uc))
+		intel_guc_submission_enable(guc);
 
 	dev_info(i915->drm.dev, "%s firmware %s version %u.%u %s:%s\n",
 		 intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_GUC), guc->fw.path,
@@ -527,7 +501,7 @@ err_out:
 	return -EIO;
 }
 
-void intel_uc_fini_hw(struct intel_uc *uc)
+static void __uc_fini_hw(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 
@@ -537,7 +511,9 @@ void intel_uc_fini_hw(struct intel_uc *uc)
 	if (intel_uc_supports_guc_submission(uc))
 		intel_guc_submission_disable(guc);
 
-	guc_disable_communication(guc);
+	if (guc_communication_enabled(guc))
+		guc_disable_communication(guc);
+
 	__uc_sanitize(uc);
 }
 
@@ -554,7 +530,7 @@ void intel_uc_reset_prepare(struct intel_uc *uc)
 	if (!intel_guc_is_running(guc))
 		return;
 
-	guc_stop_communication(guc);
+	guc_disable_communication(guc);
 	__uc_sanitize(uc);
 }
 
@@ -581,7 +557,7 @@ void intel_uc_suspend(struct intel_uc *uc)
 	if (!intel_guc_is_running(guc))
 		return;
 
-	with_intel_runtime_pm(&uc_to_gt(uc)->i915->runtime_pm, wakeref)
+	with_intel_runtime_pm(uc_to_gt(uc)->uncore->rpm, wakeref)
 		intel_uc_runtime_suspend(uc);
 }
 
@@ -625,3 +601,20 @@ int intel_uc_runtime_resume(struct intel_uc *uc)
 	 */
 	return __uc_resume(uc, true);
 }
+
+static const struct intel_uc_ops uc_ops_off = {
+	.init_hw = __uc_check_hw,
+};
+
+static const struct intel_uc_ops uc_ops_on = {
+	.sanitize = __uc_sanitize,
+
+	.init_fw = __uc_fetch_firmwares,
+	.fini_fw = __uc_cleanup_firmwares,
+
+	.init = __uc_init,
+	.fini = __uc_fini,
+
+	.init_hw = __uc_init_hw,
+	.fini_hw = __uc_fini_hw,
+};

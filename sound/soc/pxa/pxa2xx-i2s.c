@@ -261,7 +261,7 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream,
 }
 
 #ifdef CONFIG_PM
-static int pxa2xx_i2s_suspend(struct snd_soc_dai *dai)
+static int pxa2xx_soc_pcm_suspend(struct snd_soc_component *component)
 {
 	/* store registers */
 	pxa_i2s.sacr0 = SACR0;
@@ -275,7 +275,7 @@ static int pxa2xx_i2s_suspend(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static int pxa2xx_i2s_resume(struct snd_soc_dai *dai)
+static int pxa2xx_soc_pcm_resume(struct snd_soc_component *component)
 {
 	pxa_i2s_wait();
 
@@ -290,8 +290,8 @@ static int pxa2xx_i2s_resume(struct snd_soc_dai *dai)
 }
 
 #else
-#define pxa2xx_i2s_suspend	NULL
-#define pxa2xx_i2s_resume	NULL
+#define pxa2xx_soc_pcm_suspend	NULL
+#define pxa2xx_soc_pcm_resume	NULL
 #endif
 
 static int pxa2xx_i2s_probe(struct snd_soc_dai *dai)
@@ -342,8 +342,6 @@ static const struct snd_soc_dai_ops pxa_i2s_dai_ops = {
 static struct snd_soc_dai_driver pxa_i2s_dai = {
 	.probe = pxa2xx_i2s_probe,
 	.remove = pxa2xx_i2s_remove,
-	.suspend = pxa2xx_i2s_suspend,
-	.resume = pxa2xx_i2s_resume,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -360,9 +358,18 @@ static struct snd_soc_dai_driver pxa_i2s_dai = {
 
 static const struct snd_soc_component_driver pxa_i2s_component = {
 	.name		= "pxa-i2s",
-	.ops		= &pxa2xx_pcm_ops,
-	.pcm_new	= pxa2xx_soc_pcm_new,
-	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
+	.pcm_construct	= pxa2xx_soc_pcm_new,
+	.pcm_destruct	= pxa2xx_soc_pcm_free,
+	.open		= pxa2xx_soc_pcm_open,
+	.close		= pxa2xx_soc_pcm_close,
+	.hw_params	= pxa2xx_soc_pcm_hw_params,
+	.hw_free	= pxa2xx_soc_pcm_hw_free,
+	.prepare	= pxa2xx_soc_pcm_prepare,
+	.trigger	= pxa2xx_soc_pcm_trigger,
+	.pointer	= pxa2xx_soc_pcm_pointer,
+	.mmap		= pxa2xx_soc_pcm_mmap,
+	.suspend	= pxa2xx_soc_pcm_suspend,
+	.resume		= pxa2xx_soc_pcm_resume,
 };
 
 static int pxa2xx_i2s_drv_probe(struct platform_device *pdev)

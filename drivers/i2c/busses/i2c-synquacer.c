@@ -553,7 +553,7 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 				 &i2c->pclkrate);
 
 	i2c->pclk = devm_clk_get(&pdev->dev, "pclk");
-	if (IS_ERR(i2c->pclk) && PTR_ERR(i2c->pclk) == -EPROBE_DEFER)
+	if (PTR_ERR(i2c->pclk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 	if (!IS_ERR_OR_NULL(i2c->pclk)) {
 		dev_dbg(&pdev->dev, "clock source %p\n", i2c->pclk);

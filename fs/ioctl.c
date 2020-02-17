@@ -8,6 +8,7 @@
 #include <linux/syscalls.h>
 #include <linux/mm.h>
 #include <linux/capability.h>
+#include <linux/compat.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/security.h>
@@ -53,19 +54,32 @@ EXPORT_SYMBOL(vfs_ioctl);
 
 static int ioctl_fibmap(struct file *filp, int __user *p)
 {
-	struct address_space *mapping = filp->f_mapping;
-	int res, block;
+	struct inode *inode = file_inode(filp);
+	int error, ur_block;
+	sector_t block;
 
-	/* do we support this mess? */
-	if (!mapping->a_ops->bmap)
-		return -EINVAL;
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	res = get_user(block, p);
-	if (res)
-		return res;
-	res = mapping->a_ops->bmap(mapping, block);
-	return put_user(res, p);
+
+	error = get_user(ur_block, p);
+	if (error)
+		return error;
+
+	if (ur_block < 0)
+		return -EINVAL;
+
+	block = ur_block;
+	error = bmap(inode, &block);
+
+	if (error)
+		ur_block = 0;
+	else
+		ur_block = block;
+
+	if (put_user(ur_block, p))
+		error = -EFAULT;
+
+	return error;
 }
 
 /**
@@ -174,10 +188,9 @@ static int fiemap_check_ranges(struct super_block *sb,
 	return 0;
 }
 
-static int ioctl_fiemap(struct file *filp, unsigned long arg)
+static int ioctl_fiemap(struct file *filp, struct fiemap __user *ufiemap)
 {
 	struct fiemap fiemap;
-	struct fiemap __user *ufiemap = (struct fiemap __user *) arg;
 	struct fiemap_extent_info fieinfo = { 0, };
 	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
@@ -244,7 +257,8 @@ fdput:
 	return ret;
 }
 
-static long ioctl_file_clone_range(struct file *file, void __user *argp)
+static long ioctl_file_clone_range(struct file *file,
+				   struct file_clone_range __user *argp)
 {
 	struct file_clone_range args;
 
@@ -466,7 +480,7 @@ EXPORT_SYMBOL(generic_block_fiemap);
  * Only the l_start, l_len and l_whence fields of the 'struct space_resv'
  * are used here, rest are ignored.
  */
-int ioctl_preallocate(struct file *filp, void __user *argp)
+static int ioctl_preallocate(struct file *filp, int mode, void __user *argp)
 {
 	struct inode *inode = file_inode(filp);
 	struct space_resv sr;
@@ -487,26 +501,55 @@ int ioctl_preallocate(struct file *filp, void __user *argp)
 		return -EINVAL;
 	}
 
-	return vfs_fallocate(filp, FALLOC_FL_KEEP_SIZE, sr.l_start, sr.l_len);
+	return vfs_fallocate(filp, mode | FALLOC_FL_KEEP_SIZE, sr.l_start,
+			sr.l_len);
 }
 
-static int file_ioctl(struct file *filp, unsigned int cmd,
-		unsigned long arg)
+/* on ia32 l_start is on a 32-bit boundary */
+#if defined CONFIG_COMPAT && defined(CONFIG_X86_64)
+/* just account for different alignment */
+static int compat_ioctl_preallocate(struct file *file, int mode,
+				    struct space_resv_32 __user *argp)
 {
-	struct inode *inode = file_inode(filp);
-	int __user *p = (int __user *)arg;
+	struct inode *inode = file_inode(file);
+	struct space_resv_32 sr;
 
+	if (copy_from_user(&sr, argp, sizeof(sr)))
+		return -EFAULT;
+
+	switch (sr.l_whence) {
+	case SEEK_SET:
+		break;
+	case SEEK_CUR:
+		sr.l_start += file->f_pos;
+		break;
+	case SEEK_END:
+		sr.l_start += i_size_read(inode);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return vfs_fallocate(file, mode | FALLOC_FL_KEEP_SIZE, sr.l_start, sr.l_len);
+}
+#endif
+
+static int file_ioctl(struct file *filp, unsigned int cmd, int __user *p)
+{
 	switch (cmd) {
 	case FIBMAP:
 		return ioctl_fibmap(filp, p);
-	case FIONREAD:
-		return put_user(i_size_read(inode) - filp->f_pos, p);
 	case FS_IOC_RESVSP:
 	case FS_IOC_RESVSP64:
-		return ioctl_preallocate(filp, p);
+		return ioctl_preallocate(filp, 0, p);
+	case FS_IOC_UNRESVSP:
+	case FS_IOC_UNRESVSP64:
+		return ioctl_preallocate(filp, FALLOC_FL_PUNCH_HOLE, p);
+	case FS_IOC_ZERO_RANGE:
+		return ioctl_preallocate(filp, FALLOC_FL_ZERO_RANGE, p);
 	}
 
-	return vfs_ioctl(filp, cmd, arg);
+	return -ENOIOCTLCMD;
 }
 
 static int ioctl_fionbio(struct file *filp, int __user *argp)
@@ -584,9 +627,9 @@ static int ioctl_fsthaw(struct file *filp)
 	return thaw_super(sb);
 }
 
-static int ioctl_file_dedupe_range(struct file *file, void __user *arg)
+static int ioctl_file_dedupe_range(struct file *file,
+				   struct file_dedupe_range __user *argp)
 {
-	struct file_dedupe_range __user *argp = arg;
 	struct file_dedupe_range *same = NULL;
 	int ret;
 	unsigned long size;
@@ -625,62 +668,58 @@ out:
 }
 
 /*
- * When you add any new common ioctls to the switches above and below
- * please update compat_sys_ioctl() too.
- *
  * do_vfs_ioctl() is not for drivers and not intended to be EXPORT_SYMBOL()'d.
  * It's just a simple helper for sys_ioctl and compat_sys_ioctl.
+ *
+ * When you add any new common ioctls to the switches above and below,
+ * please ensure they have compatible arguments in compat mode.
  */
-int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
-	     unsigned long arg)
+static int do_vfs_ioctl(struct file *filp, unsigned int fd,
+			unsigned int cmd, unsigned long arg)
 {
-	int error = 0;
-	int __user *argp = (int __user *)arg;
+	void __user *argp = (void __user *)arg;
 	struct inode *inode = file_inode(filp);
 
 	switch (cmd) {
 	case FIOCLEX:
 		set_close_on_exec(fd, 1);
-		break;
+		return 0;
 
 	case FIONCLEX:
 		set_close_on_exec(fd, 0);
-		break;
+		return 0;
 
 	case FIONBIO:
-		error = ioctl_fionbio(filp, argp);
-		break;
+		return ioctl_fionbio(filp, argp);
 
 	case FIOASYNC:
-		error = ioctl_fioasync(fd, filp, argp);
-		break;
+		return ioctl_fioasync(fd, filp, argp);
 
 	case FIOQSIZE:
 		if (S_ISDIR(inode->i_mode) || S_ISREG(inode->i_mode) ||
 		    S_ISLNK(inode->i_mode)) {
 			loff_t res = inode_get_bytes(inode);
-			error = copy_to_user(argp, &res, sizeof(res)) ?
-					-EFAULT : 0;
-		} else
-			error = -ENOTTY;
-		break;
+			return copy_to_user(argp, &res, sizeof(res)) ?
+					    -EFAULT : 0;
+		}
+
+		return -ENOTTY;
 
 	case FIFREEZE:
-		error = ioctl_fsfreeze(filp);
-		break;
+		return ioctl_fsfreeze(filp);
 
 	case FITHAW:
-		error = ioctl_fsthaw(filp);
-		break;
+		return ioctl_fsthaw(filp);
 
 	case FS_IOC_FIEMAP:
-		return ioctl_fiemap(filp, arg);
+		return ioctl_fiemap(filp, argp);
 
 	case FIGETBSZ:
 		/* anon_bdev filesystems may not have a block size */
 		if (!inode->i_sb->s_blocksize)
 			return -EINVAL;
-		return put_user(inode->i_sb->s_blocksize, argp);
+
+		return put_user(inode->i_sb->s_blocksize, (int __user *)argp);
 
 	case FICLONE:
 		return ioctl_file_clone(filp, arg, 0, 0, 0);
@@ -691,26 +730,39 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 	case FIDEDUPERANGE:
 		return ioctl_file_dedupe_range(filp, argp);
 
+	case FIONREAD:
+		if (!S_ISREG(inode->i_mode))
+			return vfs_ioctl(filp, cmd, arg);
+
+		return put_user(i_size_read(inode) - filp->f_pos,
+				(int __user *)argp);
+
 	default:
 		if (S_ISREG(inode->i_mode))
-			error = file_ioctl(filp, cmd, arg);
-		else
-			error = vfs_ioctl(filp, cmd, arg);
+			return file_ioctl(filp, cmd, argp);
 		break;
 	}
-	return error;
+
+	return -ENOIOCTLCMD;
 }
 
 int ksys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
-	int error;
 	struct fd f = fdget(fd);
+	int error;
 
 	if (!f.file)
 		return -EBADF;
+
 	error = security_file_ioctl(f.file, cmd, arg);
-	if (!error)
-		error = do_vfs_ioctl(f.file, fd, cmd, arg);
+	if (error)
+		goto out;
+
+	error = do_vfs_ioctl(f.file, fd, cmd, arg);
+	if (error == -ENOIOCTLCMD)
+		error = vfs_ioctl(f.file, cmd, arg);
+
+out:
 	fdput(f);
 	return error;
 }
@@ -719,3 +771,98 @@ SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 {
 	return ksys_ioctl(fd, cmd, arg);
 }
+
+#ifdef CONFIG_COMPAT
+/**
+ * compat_ptr_ioctl - generic implementation of .compat_ioctl file operation
+ *
+ * This is not normally called as a function, but instead set in struct
+ * file_operations as
+ *
+ *     .compat_ioctl = compat_ptr_ioctl,
+ *
+ * On most architectures, the compat_ptr_ioctl() just passes all arguments
+ * to the corresponding ->ioctl handler. The exception is arch/s390, where
+ * compat_ptr() clears the top bit of a 32-bit pointer value, so user space
+ * pointers to the second 2GB alias the first 2GB, as is the case for
+ * native 32-bit s390 user space.
+ *
+ * The compat_ptr_ioctl() function must therefore be used only with ioctl
+ * functions that either ignore the argument or pass a pointer to a
+ * compatible data type.
+ *
+ * If any ioctl command handled by fops->unlocked_ioctl passes a plain
+ * integer instead of a pointer, or any of the passed data types
+ * is incompatible between 32-bit and 64-bit architectures, a proper
+ * handler is required instead of compat_ptr_ioctl.
+ */
+long compat_ptr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	if (!file->f_op->unlocked_ioctl)
+		return -ENOIOCTLCMD;
+
+	return file->f_op->unlocked_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
+}
+EXPORT_SYMBOL(compat_ptr_ioctl);
+
+COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
+		       compat_ulong_t, arg)
+{
+	struct fd f = fdget(fd);
+	int error;
+
+	if (!f.file)
+		return -EBADF;
+
+	/* RED-PEN how should LSM module know it's handling 32bit? */
+	error = security_file_ioctl(f.file, cmd, arg);
+	if (error)
+		goto out;
+
+	switch (cmd) {
+	/* FICLONE takes an int argument, so don't use compat_ptr() */
+	case FICLONE:
+		error = ioctl_file_clone(f.file, arg, 0, 0, 0);
+		break;
+
+#if defined(CONFIG_X86_64)
+	/* these get messy on amd64 due to alignment differences */
+	case FS_IOC_RESVSP_32:
+	case FS_IOC_RESVSP64_32:
+		error = compat_ioctl_preallocate(f.file, 0, compat_ptr(arg));
+		break;
+	case FS_IOC_UNRESVSP_32:
+	case FS_IOC_UNRESVSP64_32:
+		error = compat_ioctl_preallocate(f.file, FALLOC_FL_PUNCH_HOLE,
+				compat_ptr(arg));
+		break;
+	case FS_IOC_ZERO_RANGE_32:
+		error = compat_ioctl_preallocate(f.file, FALLOC_FL_ZERO_RANGE,
+				compat_ptr(arg));
+		break;
+#endif
+
+	/*
+	 * everything else in do_vfs_ioctl() takes either a compatible
+	 * pointer argument or no argument -- call it with a modified
+	 * argument.
+	 */
+	default:
+		error = do_vfs_ioctl(f.file, fd, cmd,
+				     (unsigned long)compat_ptr(arg));
+		if (error != -ENOIOCTLCMD)
+			break;
+
+		if (f.file->f_op->compat_ioctl)
+			error = f.file->f_op->compat_ioctl(f.file, cmd, arg);
+		if (error == -ENOIOCTLCMD)
+			error = -ENOTTY;
+		break;
+	}
+
+ out:
+	fdput(f);
+
+	return error;
+}
+#endif

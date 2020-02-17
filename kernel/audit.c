@@ -102,12 +102,13 @@ struct audit_net {
  * This struct is RCU protected; you must either hold the RCU lock for reading
  * or the associated spinlock for writing.
  */
-static struct auditd_connection {
+struct auditd_connection {
 	struct pid *pid;
 	u32 portid;
 	struct net *net;
 	struct rcu_head rcu;
-} *auditd_conn = NULL;
+};
+static struct auditd_connection __rcu *auditd_conn;
 static DEFINE_SPINLOCK(auditd_conn_lock);
 
 /* If audit_rate_limit is non-zero, limit the rate of sending audit records
@@ -830,7 +831,7 @@ static int kauditd_thread(void *dummy)
 		rc = kauditd_send_queue(sk, portid,
 					&audit_hold_queue, UNICAST_RETRIES,
 					NULL, kauditd_rehold_skb);
-		if (ac && rc < 0) {
+		if (rc < 0) {
 			sk = NULL;
 			auditd_reset(ac);
 			goto main_queue;
@@ -840,7 +841,7 @@ static int kauditd_thread(void *dummy)
 		rc = kauditd_send_queue(sk, portid,
 					&audit_retry_queue, UNICAST_RETRIES,
 					NULL, kauditd_hold_skb);
-		if (ac && rc < 0) {
+		if (rc < 0) {
 			sk = NULL;
 			auditd_reset(ac);
 			goto main_queue;
@@ -2155,18 +2156,19 @@ void audit_log_task_info(struct audit_buffer *ab)
 EXPORT_SYMBOL(audit_log_task_info);
 
 /**
- * audit_log_link_denied - report a link restriction denial
- * @operation: specific link operation
+ * audit_log_path_denied - report a path restriction denial
+ * @type: audit message type (AUDIT_ANOM_LINK, AUDIT_ANOM_CREAT, etc)
+ * @operation: specific operation name
  */
-void audit_log_link_denied(const char *operation)
+void audit_log_path_denied(int type, const char *operation)
 {
 	struct audit_buffer *ab;
 
 	if (!audit_enabled || audit_dummy_context())
 		return;
 
-	/* Generate AUDIT_ANOM_LINK with subject, operation, outcome. */
-	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_ANOM_LINK);
+	/* Generate log with subject, operation, outcome. */
+	ab = audit_log_start(audit_context(), GFP_KERNEL, type);
 	if (!ab)
 		return;
 	audit_log_format(ab, "op=%s", operation);

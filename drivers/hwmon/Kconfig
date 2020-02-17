@@ -40,7 +40,8 @@ comment "Native drivers"
 
 config SENSORS_AB8500
 	tristate "AB8500 thermal monitoring"
-	depends on AB8500_GPADC && AB8500_BM
+	depends on AB8500_GPADC && AB8500_BM && (IIO = y)
+	default n
 	help
 	  If you say yes here you get support for the thermal sensor part
 	  of the AB8500 chip. The driver includes thermal management for
@@ -162,6 +163,16 @@ config SENSORS_ADM1031
 
 	  This driver can also be built as a module. If so, the module
 	  will be called adm1031.
+
+config SENSORS_ADM1177
+	tristate "Analog Devices ADM1177 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for Analog Devices ADM1177
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called adm1177.
 
 config SENSORS_ADM9240
 	tristate "Analog Devices ADM9240 and compatibles"
@@ -309,7 +320,6 @@ config SENSORS_APPLESMC
 	depends on INPUT && X86
 	select NEW_LEDS
 	select LEDS_CLASS
-	select INPUT_POLLDEV
 	help
 	  This driver provides support for the Apple System Management
 	  Controller, which provides an accelerometer (Apple Sudden Motion
@@ -384,6 +394,16 @@ config SENSORS_ATXP1
 
 	  This driver can also be built as a module. If so, the module
 	  will be called atxp1.
+
+config SENSORS_DRIVETEMP
+	tristate "Hard disk drives with temperature sensors"
+	depends on SCSI && ATA
+	help
+	  If you say yes you get support for the temperature sensor on
+	  hard disk drives.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called satatemp.
 
 config SENSORS_DS620
 	tristate "Dallas Semiconductor DS620"
@@ -727,6 +747,33 @@ config SENSORS_LTC2945
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc2945.
 
+config SENSORS_LTC2947
+	tristate
+
+config SENSORS_LTC2947_I2C
+	tristate "Analog Devices LTC2947 High Precision Power and Energy Monitor over I2C"
+	depends on I2C
+	select REGMAP_I2C
+	select SENSORS_LTC2947
+	help
+	  If you say yes here you get support for Linear Technology LTC2947
+	  I2C High Precision Power and Energy Monitor
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2947-i2c.
+
+config SENSORS_LTC2947_SPI
+	tristate "Analog Devices LTC2947 High Precision Power and Energy Monitor over SPI"
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	select SENSORS_LTC2947
+	help
+	  If you say yes here you get support for Linear Technology LTC2947
+	  SPI High Precision Power and Energy Monitor
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2947-spi.
+
 config SENSORS_LTC2990
 	tristate "Linear Technology LTC2990"
 	depends on I2C
@@ -862,7 +909,7 @@ config SENSORS_MAX197
 	  will be called max197.
 
 config SENSORS_MAX31722
-tristate "MAX31722 temperature sensor"
+	tristate "MAX31722 temperature sensor"
 	depends on SPI
 	help
 	  Support for the Maxim Integrated MAX31722/MAX31723 digital
@@ -870,6 +917,16 @@ tristate "MAX31722 temperature sensor"
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max31722.
+
+config SENSORS_MAX31730
+	tristate "MAX31730 temperature sensor"
+	depends on I2C
+	help
+	  Support for the Maxim Integrated MAX31730 3-Channel Remote
+	  Temperature Sensor.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max31730.
 
 config SENSORS_MAX6621
 	tristate "Maxim MAX6621 sensor chip"
@@ -1709,6 +1766,16 @@ config SENSORS_TMP421
 	  This driver can also be built as a module. If so, the module
 	  will be called tmp421.
 
+config SENSORS_TMP513
+	tristate "Texas Instruments TMP513 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP512,
+	  and TMP513 temperature and power supply sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tmp513.
+
 config SENSORS_VEXPRESS
 	tristate "Versatile Express"
 	depends on VEXPRESS_CONFIG
@@ -1868,7 +1935,7 @@ config SENSORS_W83627HF
 	  will be called w83627hf.
 
 config SENSORS_W83627EHF
-	tristate "Winbond W83627EHF/EHG/DHG/UHG, W83667HG, NCT6775F, NCT6776F"
+	tristate "Winbond W83627EHF/EHG/DHG/UHG, W83667HG"
 	depends on !PPC
 	select HWMON_VID
 	help
@@ -1881,8 +1948,7 @@ config SENSORS_W83627EHF
 	  the Core 2 Duo. And also the W83627UHG, which is a stripped down
 	  version of the W83627DHG (as far as hardware monitoring goes.)
 
-	  This driver also supports Nuvoton W83667HG, W83667HG-B, NCT6775F
-	  (also known as W83667HG-I), and NCT6776F.
+	  This driver also supports Nuvoton W83667HG and W83667HG-B.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called w83627ehf.

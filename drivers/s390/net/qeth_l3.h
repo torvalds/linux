@@ -13,8 +13,6 @@
 #include "qeth_core.h"
 #include <linux/hashtable.h>
 
-#define QETH_SNIFF_AVAIL	0x0008
-
 enum qeth_ip_types {
 	QETH_IP_TYPE_NORMAL,
 	QETH_IP_TYPE_VIPA,
@@ -24,9 +22,7 @@ enum qeth_ip_types {
 struct qeth_ipaddr {
 	struct hlist_node hnode;
 	enum qeth_ip_types type;
-	unsigned char mac[ETH_ALEN];
 	u8 is_multicast:1;
-	u8 in_progress:1;
 	u8 disp_flag:2;
 	u8 ipato:1;			/* ucast only */
 
@@ -37,8 +33,8 @@ struct qeth_ipaddr {
 	enum qeth_prot_versions proto;
 	union {
 		struct {
-			unsigned int addr;
-			unsigned int mask;
+			__be32 addr;
+			__be32 mask;
 		} a4;
 		struct {
 			struct in6_addr addr;
@@ -55,6 +51,7 @@ static inline void qeth_l3_init_ipaddr(struct qeth_ipaddr *addr,
 	addr->type = type;
 	addr->proto = proto;
 	addr->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
+	addr->ref_counter = 1;
 }
 
 static inline bool qeth_l3_addr_match_ip(struct qeth_ipaddr *a1,
@@ -74,12 +71,10 @@ static inline bool qeth_l3_addr_match_all(struct qeth_ipaddr *a1,
 	 * so 'proto' and 'addr' match for sure.
 	 *
 	 * For ucast:
-	 * -	'mac' is always 0.
 	 * -	'mask'/'pfxlen' for RXIP/VIPA is always 0. For NORMAL, matching
 	 *	values are required to avoid mixups in takeover eligibility.
 	 *
 	 * For mcast,
-	 * -	'mac' is mapped from the IP, and thus always matches.
 	 * -	'mask'/'pfxlen' is always 0.
 	 */
 	if (a1->type != a2->type)
@@ -89,21 +84,12 @@ static inline bool qeth_l3_addr_match_all(struct qeth_ipaddr *a1,
 	return a1->u.a4.mask == a2->u.a4.mask;
 }
 
-static inline  u64 qeth_l3_ipaddr_hash(struct qeth_ipaddr *addr)
+static inline u32 qeth_l3_ipaddr_hash(struct qeth_ipaddr *addr)
 {
-	u64  ret = 0;
-	u8 *point;
-
-	if (addr->proto == QETH_PROT_IPV6) {
-		point = (u8 *) &addr->u.a6.addr;
-		ret = get_unaligned((u64 *)point) ^
-			get_unaligned((u64 *) (point + 8));
-	}
-	if (addr->proto == QETH_PROT_IPV4) {
-		point = (u8 *) &addr->u.a4.addr;
-		ret = get_unaligned((u32 *) point);
-	}
-	return ret;
+	if (addr->proto == QETH_PROT_IPV6)
+		return ipv6_addr_hash(&addr->u.a6.addr);
+	else
+		return ipv4_addr_hash(addr->u.a4.addr);
 }
 
 struct qeth_ipato_entry {
@@ -115,7 +101,8 @@ struct qeth_ipato_entry {
 
 extern const struct attribute_group *qeth_l3_attr_groups[];
 
-void qeth_l3_ipaddr_to_string(enum qeth_prot_versions, const __u8 *, char *);
+int qeth_l3_ipaddr_to_string(enum qeth_prot_versions proto, const u8 *addr,
+			     char *buf);
 int qeth_l3_create_device_attributes(struct device *);
 void qeth_l3_remove_device_attributes(struct device *);
 int qeth_l3_setrouting_v4(struct qeth_card *);

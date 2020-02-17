@@ -45,34 +45,36 @@ config QCOM_GLINK_SSR
 	  neighboring subsystems going up or down.
 
 config QCOM_GSBI
-        tristate "QCOM General Serial Bus Interface"
-        depends on ARCH_QCOM || COMPILE_TEST
-        select MFD_SYSCON
-        help
-          Say y here to enable GSBI support.  The GSBI provides control
-          functions for connecting the underlying serial UART, SPI, and I2C
-          devices to the output pins.
+	tristate "QCOM General Serial Bus Interface"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  Say y here to enable GSBI support.  The GSBI provides control
+	  functions for connecting the underlying serial UART, SPI, and I2C
+	  devices to the output pins.
 
 config QCOM_LLCC
 	tristate "Qualcomm Technologies, Inc. LLCC driver"
 	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  Qualcomm Technologies, Inc. platform specific
-	  Last Level Cache Controller(LLCC) driver. This provides interfaces
-	  to clients that use the LLCC. Say yes here to enable LLCC slice
-	  driver.
-
-config QCOM_SDM845_LLCC
-	tristate "Qualcomm Technologies, Inc. SDM845 LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say yes here to enable the LLCC driver for SDM845. This provides
-	  data required to configure LLCC so that clients can start using the
-	  LLCC slices.
+	  Last Level Cache Controller(LLCC) driver for platforms such as,
+	  SDM845. This provides interfaces to clients that use the LLCC.
+	  Say yes here to enable LLCC slice driver.
 
 config QCOM_MDT_LOADER
 	tristate
 	select QCOM_SCM
+
+config QCOM_OCMEM
+	tristate "Qualcomm On Chip Memory (OCMEM) driver"
+	depends on ARCH_QCOM
+	select QCOM_SCM
+	help
+	  The On Chip Memory (OCMEM) allocator allows various clients to
+	  allocate memory from OCMEM based on performance, latency and power
+	  requirements. This is typically used by the GPU, camera/video, and
+	  audio components on some Snapdragon SoCs.
 
 config QCOM_PM
 	bool "Qualcomm Power Management"
@@ -196,8 +198,8 @@ config QCOM_APR
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on RPMSG
 	help
-          Enable APR IPC protocol support between
-          application processor and QDSP6. APR is
-          used by audio driver to configure QDSP6
-          ASM, ADM and AFE modules.
+	  Enable APR IPC protocol support between
+	  application processor and QDSP6. APR is
+	  used by audio driver to configure QDSP6
+	  ASM, ADM and AFE modules.
 endmenu

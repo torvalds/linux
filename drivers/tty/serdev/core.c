@@ -115,8 +115,8 @@ int serdev_device_add(struct serdev_device *serdev)
 
 	err = device_add(&serdev->dev);
 	if (err < 0) {
-		dev_err(&serdev->dev, "Can't add %s, status %d\n",
-			dev_name(&serdev->dev), err);
+		dev_err(&serdev->dev, "Can't add %s, status %pe\n",
+			dev_name(&serdev->dev), ERR_PTR(err));
 		goto err_clear_serdev;
 	}
 
@@ -540,7 +540,8 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
 		err = serdev_device_add(serdev);
 		if (err) {
 			dev_err(&serdev->dev,
-				"failure adding device. status %d\n", err);
+				"failure adding device. status %pe\n",
+				ERR_PTR(err));
 			serdev_device_put(serdev);
 		} else
 			found = true;
@@ -552,15 +553,96 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
 }
 
 #ifdef CONFIG_ACPI
-static acpi_status acpi_serdev_register_device(struct serdev_controller *ctrl,
-					    struct acpi_device *adev)
-{
-	struct serdev_device *serdev = NULL;
-	int err;
 
-	if (acpi_bus_get_status(adev) || !adev->status.present ||
-	    acpi_device_enumerated(adev))
-		return AE_OK;
+#define SERDEV_ACPI_MAX_SCAN_DEPTH 32
+
+struct acpi_serdev_lookup {
+	acpi_handle device_handle;
+	acpi_handle controller_handle;
+	int n;
+	int index;
+};
+
+static int acpi_serdev_parse_resource(struct acpi_resource *ares, void *data)
+{
+	struct acpi_serdev_lookup *lookup = data;
+	struct acpi_resource_uart_serialbus *sb;
+	acpi_status status;
+
+	if (ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
+		return 1;
+
+	if (ares->data.common_serial_bus.type != ACPI_RESOURCE_SERIAL_TYPE_UART)
+		return 1;
+
+	if (lookup->index != -1 && lookup->n++ != lookup->index)
+		return 1;
+
+	sb = &ares->data.uart_serial_bus;
+
+	status = acpi_get_handle(lookup->device_handle,
+				 sb->resource_source.string_ptr,
+				 &lookup->controller_handle);
+	if (ACPI_FAILURE(status))
+		return 1;
+
+	/*
+	 * NOTE: Ideally, we would also want to retreive other properties here,
+	 * once setting them before opening the device is supported by serdev.
+	 */
+
+	return 1;
+}
+
+static int acpi_serdev_do_lookup(struct acpi_device *adev,
+                                 struct acpi_serdev_lookup *lookup)
+{
+	struct list_head resource_list;
+	int ret;
+
+	lookup->device_handle = acpi_device_handle(adev);
+	lookup->controller_handle = NULL;
+	lookup->n = 0;
+
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(adev, &resource_list,
+				     acpi_serdev_parse_resource, lookup);
+	acpi_dev_free_resource_list(&resource_list);
+
+	if (ret < 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int acpi_serdev_check_resources(struct serdev_controller *ctrl,
+				       struct acpi_device *adev)
+{
+	struct acpi_serdev_lookup lookup;
+	int ret;
+
+	if (acpi_bus_get_status(adev) || !adev->status.present)
+		return -EINVAL;
+
+	/* Look for UARTSerialBusV2 resource */
+	lookup.index = -1;	// we only care for the last device
+
+	ret = acpi_serdev_do_lookup(adev, &lookup);
+	if (ret)
+		return ret;
+
+	/* Make sure controller and ResourceSource handle match */
+	if (ACPI_HANDLE(ctrl->dev.parent) != lookup.controller_handle)
+		return -ENODEV;
+
+	return 0;
+}
+
+static acpi_status acpi_serdev_register_device(struct serdev_controller *ctrl,
+					       struct acpi_device *adev)
+{
+	struct serdev_device *serdev;
+	int err;
 
 	serdev = serdev_device_alloc(ctrl);
 	if (!serdev) {
@@ -575,15 +657,22 @@ static acpi_status acpi_serdev_register_device(struct serdev_controller *ctrl,
 	err = serdev_device_add(serdev);
 	if (err) {
 		dev_err(&serdev->dev,
-			"failure adding ACPI serdev device. status %d\n", err);
+			"failure adding ACPI serdev device. status %pe\n",
+			ERR_PTR(err));
 		serdev_device_put(serdev);
 	}
 
 	return AE_OK;
 }
 
+static const struct acpi_device_id serdev_acpi_devices_blacklist[] = {
+	{ "INT3511", 0 },
+	{ "INT3512", 0 },
+	{ },
+};
+
 static acpi_status acpi_serdev_add_device(acpi_handle handle, u32 level,
-				       void *data, void **return_value)
+					  void *data, void **return_value)
 {
 	struct serdev_controller *ctrl = data;
 	struct acpi_device *adev;
@@ -591,22 +680,32 @@ static acpi_status acpi_serdev_add_device(acpi_handle handle, u32 level,
 	if (acpi_bus_get_device(handle, &adev))
 		return AE_OK;
 
+	if (acpi_device_enumerated(adev))
+		return AE_OK;
+
+	/* Skip if black listed */
+	if (!acpi_match_device_ids(adev, serdev_acpi_devices_blacklist))
+		return AE_OK;
+
+	if (acpi_serdev_check_resources(ctrl, adev))
+		return AE_OK;
+
 	return acpi_serdev_register_device(ctrl, adev);
 }
+
 
 static int acpi_serdev_register_devices(struct serdev_controller *ctrl)
 {
 	acpi_status status;
-	acpi_handle handle;
 
-	handle = ACPI_HANDLE(ctrl->dev.parent);
-	if (!handle)
+	if (!has_acpi_companion(ctrl->dev.parent))
 		return -ENODEV;
 
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+				     SERDEV_ACPI_MAX_SCAN_DEPTH,
 				     acpi_serdev_add_device, NULL, ctrl, NULL);
 	if (ACPI_FAILURE(status))
-		dev_dbg(&ctrl->dev, "failed to enumerate serdev slaves\n");
+		dev_warn(&ctrl->dev, "failed to enumerate serdev slaves\n");
 
 	if (!ctrl->serdev)
 		return -ENODEV;
@@ -644,8 +743,8 @@ int serdev_controller_add(struct serdev_controller *ctrl)
 	ret_of = of_serdev_register_devices(ctrl);
 	ret_acpi = acpi_serdev_register_devices(ctrl);
 	if (ret_of && ret_acpi) {
-		dev_dbg(&ctrl->dev, "no devices registered: of:%d acpi:%d\n",
-			ret_of, ret_acpi);
+		dev_dbg(&ctrl->dev, "no devices registered: of:%pe acpi:%pe\n",
+			ERR_PTR(ret_of), ERR_PTR(ret_acpi));
 		ret = -ENODEV;
 		goto err_rpm_disable;
 	}

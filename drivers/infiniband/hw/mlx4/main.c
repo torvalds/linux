@@ -246,6 +246,13 @@ static int mlx4_ib_update_gids(struct gid_entry *gids,
 	return mlx4_ib_update_gids_v1(gids, ibdev, port_num);
 }
 
+static void free_gid_entry(struct gid_entry *entry)
+{
+	memset(&entry->gid, 0, sizeof(entry->gid));
+	kfree(entry->ctx);
+	entry->ctx = NULL;
+}
+
 static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 {
 	struct mlx4_ib_dev *ibdev = to_mdev(attr->device);
@@ -256,6 +263,8 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 	int hw_update = 0;
 	int i;
 	struct gid_entry *gids = NULL;
+	u16 vlan_id = 0xffff;
+	u8 mac[ETH_ALEN];
 
 	if (!rdma_cap_roce_gid_table(attr->device, attr->port_num))
 		return -EINVAL;
@@ -266,12 +275,16 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 	if (!context)
 		return -EINVAL;
 
+	ret = rdma_read_gid_l2_fields(attr, &vlan_id, &mac[0]);
+	if (ret)
+		return ret;
 	port_gid_table = &iboe->gids[attr->port_num - 1];
 	spin_lock_bh(&iboe->lock);
 	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i) {
 		if (!memcmp(&port_gid_table->gids[i].gid,
 			    &attr->gid, sizeof(attr->gid)) &&
-		    port_gid_table->gids[i].gid_type == attr->gid_type)  {
+		    port_gid_table->gids[i].gid_type == attr->gid_type &&
+		    port_gid_table->gids[i].vlan_id == vlan_id)  {
 			found = i;
 			break;
 		}
@@ -291,6 +304,7 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 				memcpy(&port_gid_table->gids[free].gid,
 				       &attr->gid, sizeof(attr->gid));
 				port_gid_table->gids[free].gid_type = attr->gid_type;
+				port_gid_table->gids[free].vlan_id = vlan_id;
 				port_gid_table->gids[free].ctx->real_index = free;
 				port_gid_table->gids[free].ctx->refcount = 1;
 				hw_update = 1;
@@ -306,6 +320,8 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 				     GFP_ATOMIC);
 		if (!gids) {
 			ret = -ENOMEM;
+			*context = NULL;
+			free_gid_entry(&port_gid_table->gids[free]);
 		} else {
 			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++) {
 				memcpy(&gids[i].gid, &port_gid_table->gids[i].gid, sizeof(union ib_gid));
@@ -317,6 +333,12 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 
 	if (!ret && hw_update) {
 		ret = mlx4_ib_update_gids(gids, ibdev, attr->port_num);
+		if (ret) {
+			spin_lock_bh(&iboe->lock);
+			*context = NULL;
+			free_gid_entry(&port_gid_table->gids[free]);
+			spin_unlock_bh(&iboe->lock);
+		}
 		kfree(gids);
 	}
 
@@ -346,10 +368,7 @@ static int mlx4_ib_del_gid(const struct ib_gid_attr *attr, void **context)
 		if (!ctx->refcount) {
 			unsigned int real_index = ctx->real_index;
 
-			memset(&port_gid_table->gids[real_index].gid, 0,
-			       sizeof(port_gid_table->gids[real_index].gid));
-			kfree(port_gid_table->gids[real_index].ctx);
-			port_gid_table->gids[real_index].ctx = NULL;
+			free_gid_entry(&port_gid_table->gids[real_index]);
 			hw_update = 1;
 		}
 	}
@@ -1146,7 +1165,8 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		return rdma_user_mmap_io(context, vma,
 					 to_mucontext(context)->uar.pfn,
 					 PAGE_SIZE,
-					 pgprot_noncached(vma->vm_page_prot));
+					 pgprot_noncached(vma->vm_page_prot),
+					 NULL);
 
 	case 1:
 		if (dev->dev->caps.bf_reg_size == 0)
@@ -1155,7 +1175,8 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 			context, vma,
 			to_mucontext(context)->uar.pfn +
 				dev->dev->caps.num_uars,
-			PAGE_SIZE, pgprot_writecombine(vma->vm_page_prot));
+			PAGE_SIZE, pgprot_writecombine(vma->vm_page_prot),
+			NULL);
 
 	case 3: {
 		struct mlx4_clock_params params;
@@ -1171,7 +1192,8 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 					    params.bar) +
 			 params.offset) >>
 				PAGE_SHIFT,
-			PAGE_SIZE, pgprot_noncached(vma->vm_page_prot));
+			PAGE_SIZE, pgprot_noncached(vma->vm_page_prot),
+			NULL);
 	}
 
 	default:
@@ -3008,15 +3030,16 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	ibdev->ib_active = false;
 	flush_workqueue(wq);
 
-	mlx4_ib_close_sriov(ibdev);
-	mlx4_ib_mad_cleanup(ibdev);
-	ib_unregister_device(&ibdev->ib_dev);
-	mlx4_ib_diag_cleanup(ibdev);
 	if (ibdev->iboe.nb.notifier_call) {
 		if (unregister_netdevice_notifier(&ibdev->iboe.nb))
 			pr_warn("failure unregistering notifier\n");
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
+
+	mlx4_ib_close_sriov(ibdev);
+	mlx4_ib_mad_cleanup(ibdev);
+	ib_unregister_device(&ibdev->ib_dev);
+	mlx4_ib_diag_cleanup(ibdev);
 
 	mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
 			      ibdev->steer_qpn_count);

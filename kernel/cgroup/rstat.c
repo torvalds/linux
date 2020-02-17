@@ -33,7 +33,7 @@ void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 		return;
 
 	/*
-	 * Paired with the one in cgroup_rstat_cpu_pop_upated().  Either we
+	 * Paired with the one in cgroup_rstat_cpu_pop_updated().  Either we
 	 * see NULL updated_next or they see our updated stat.
 	 */
 	smp_mb();
@@ -304,44 +304,48 @@ void __init cgroup_rstat_boot(void)
  * Functions for cgroup basic resource statistics implemented on top of
  * rstat.
  */
-static void cgroup_base_stat_accumulate(struct cgroup_base_stat *dst_bstat,
-					struct cgroup_base_stat *src_bstat)
+static void cgroup_base_stat_add(struct cgroup_base_stat *dst_bstat,
+				 struct cgroup_base_stat *src_bstat)
 {
 	dst_bstat->cputime.utime += src_bstat->cputime.utime;
 	dst_bstat->cputime.stime += src_bstat->cputime.stime;
 	dst_bstat->cputime.sum_exec_runtime += src_bstat->cputime.sum_exec_runtime;
 }
 
+static void cgroup_base_stat_sub(struct cgroup_base_stat *dst_bstat,
+				 struct cgroup_base_stat *src_bstat)
+{
+	dst_bstat->cputime.utime -= src_bstat->cputime.utime;
+	dst_bstat->cputime.stime -= src_bstat->cputime.stime;
+	dst_bstat->cputime.sum_exec_runtime -= src_bstat->cputime.sum_exec_runtime;
+}
+
 static void cgroup_base_stat_flush(struct cgroup *cgrp, int cpu)
 {
 	struct cgroup *parent = cgroup_parent(cgrp);
 	struct cgroup_rstat_cpu *rstatc = cgroup_rstat_cpu(cgrp, cpu);
-	struct task_cputime *last_cputime = &rstatc->last_bstat.cputime;
-	struct task_cputime cputime;
-	struct cgroup_base_stat delta;
+	struct cgroup_base_stat cur, delta;
 	unsigned seq;
 
 	/* fetch the current per-cpu values */
 	do {
 		seq = __u64_stats_fetch_begin(&rstatc->bsync);
-		cputime = rstatc->bstat.cputime;
+		cur.cputime = rstatc->bstat.cputime;
 	} while (__u64_stats_fetch_retry(&rstatc->bsync, seq));
 
-	/* calculate the delta to propgate */
-	delta.cputime.utime = cputime.utime - last_cputime->utime;
-	delta.cputime.stime = cputime.stime - last_cputime->stime;
-	delta.cputime.sum_exec_runtime = cputime.sum_exec_runtime -
-					 last_cputime->sum_exec_runtime;
-	*last_cputime = cputime;
+	/* propagate percpu delta to global */
+	delta = cur;
+	cgroup_base_stat_sub(&delta, &rstatc->last_bstat);
+	cgroup_base_stat_add(&cgrp->bstat, &delta);
+	cgroup_base_stat_add(&rstatc->last_bstat, &delta);
 
-	/* transfer the pending stat into delta */
-	cgroup_base_stat_accumulate(&delta, &cgrp->pending_bstat);
-	memset(&cgrp->pending_bstat, 0, sizeof(cgrp->pending_bstat));
-
-	/* propagate delta into the global stat and the parent's pending */
-	cgroup_base_stat_accumulate(&cgrp->bstat, &delta);
-	if (parent)
-		cgroup_base_stat_accumulate(&parent->pending_bstat, &delta);
+	/* propagate global delta to parent */
+	if (parent) {
+		delta = cgrp->bstat;
+		cgroup_base_stat_sub(&delta, &cgrp->last_bstat);
+		cgroup_base_stat_add(&parent->bstat, &delta);
+		cgroup_base_stat_add(&cgrp->last_bstat, &delta);
+	}
 }
 
 static struct cgroup_rstat_cpu *

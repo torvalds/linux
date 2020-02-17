@@ -144,11 +144,6 @@ static inline bool is_pae_paging(struct kvm_vcpu *vcpu)
 	return !is_long_mode(vcpu) && is_pae(vcpu) && is_paging(vcpu);
 }
 
-static inline u32 bit(int bitno)
-{
-	return 1 << (bitno & 31);
-}
-
 static inline u8 vcpu_virt_addr_bits(struct kvm_vcpu *vcpu)
 {
 	return kvm_read_cr4_bits(vcpu, X86_CR4_LA57) ? 57 : 48;
@@ -166,21 +161,13 @@ static inline u64 get_canonical(u64 la, u8 vaddr_bits)
 
 static inline bool is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu)
 {
-#ifdef CONFIG_X86_64
 	return get_canonical(la, vcpu_virt_addr_bits(vcpu)) != la;
-#else
-	return false;
-#endif
 }
 
 static inline bool emul_is_noncanonical_address(u64 la,
 						struct x86_emulate_ctxt *ctxt)
 {
-#ifdef CONFIG_X86_64
 	return get_canonical(la, ctxt_virt_addr_bits(ctxt)) != la;
-#else
-	return false;
-#endif
 }
 
 static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
@@ -238,8 +225,7 @@ static inline bool vcpu_match_mmio_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 	return false;
 }
 
-static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu,
-					       enum kvm_reg reg)
+static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu, int reg)
 {
 	unsigned long val = kvm_register_read(vcpu, reg);
 
@@ -247,8 +233,7 @@ static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu,
 }
 
 static inline void kvm_register_writel(struct kvm_vcpu *vcpu,
-				       enum kvm_reg reg,
-				       unsigned long val)
+				       int reg, unsigned long val)
 {
 	if (!is_64_bit_mode(vcpu))
 		val = (u32)val;
@@ -258,6 +243,11 @@ static inline void kvm_register_writel(struct kvm_vcpu *vcpu,
 static inline bool kvm_check_has_quirk(struct kvm *kvm, u64 quirk)
 {
 	return !(kvm->arch.disabled_quirks & quirk);
+}
+
+static inline bool kvm_vcpu_latch_init(struct kvm_vcpu *vcpu)
+{
+	return is_smm(vcpu) || kvm_x86_ops->apic_init_signal_blocked(vcpu);
 }
 
 void kvm_set_pending_timer(struct kvm_vcpu *vcpu);
@@ -286,8 +276,9 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
 bool kvm_mtrr_check_gfn_range_consistency(struct kvm_vcpu *vcpu, gfn_t gfn,
 					  int page_num);
 bool kvm_vector_hashing_enabled(void);
-int x86_emulate_instruction(struct kvm_vcpu *vcpu, unsigned long cr2,
+int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 			    int emulation_type, void *insn, int insn_len);
+enum exit_fastpath_completion handle_fastpath_set_msr_irqoff(struct kvm_vcpu *vcpu);
 
 #define KVM_SUPPORTED_XCR0     (XFEATURE_MASK_FP | XFEATURE_MASK_SSE \
 				| XFEATURE_MASK_YMM | XFEATURE_MASK_BNDREGS \
@@ -366,7 +357,14 @@ static inline bool kvm_pat_valid(u64 data)
 	return (data | ((data & 0x0202020202020202ull) << 1)) == data;
 }
 
-void kvm_load_guest_xcr0(struct kvm_vcpu *vcpu);
-void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu);
+static inline bool kvm_dr7_valid(u64 data)
+{
+	/* Bits [63:32] are reserved */
+	return !(data >> 32);
+}
+
+void kvm_load_guest_xsave_state(struct kvm_vcpu *vcpu);
+void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu);
+u64 kvm_spec_ctrl_valid_bits(struct kvm_vcpu *vcpu);
 
 #endif

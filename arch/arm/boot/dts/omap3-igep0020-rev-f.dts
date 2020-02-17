@@ -10,7 +10,7 @@
 
 / {
 	model = "IGEPv2 Rev. F (TI OMAP AM/DM37x)";
-	compatible = "isee,omap3-igep0020-rev-f", "ti,omap36xx", "ti,omap3";
+	compatible = "isee,omap3-igep0020-rev-f", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 
 	/* Regulator to trigger the WL_EN signal of the Wifi module */
 	lbep5clwmc_wlen: regulator-lbep5clwmc-wlen {
@@ -47,5 +47,13 @@
 		reg = <2>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <17 IRQ_TYPE_EDGE_RISING>; /* gpio 177 */
+	};
+};
+
+&uart2 {
+	bluetooth {
+		compatible = "ti,wl1835-st";
+		enable-gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>; /* gpio 137 */
+		max-speed = <300000>;
 	};
 };

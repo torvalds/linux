@@ -52,6 +52,10 @@ source "drivers/net/dsa/microchip/Kconfig"
 
 source "drivers/net/dsa/mv88e6xxx/Kconfig"
 
+source "drivers/net/dsa/ocelot/Kconfig"
+
+source "drivers/net/dsa/qca/Kconfig"
+
 source "drivers/net/dsa/sja1105/Kconfig"
 
 config NET_DSA_QCA8K
@@ -77,6 +81,7 @@ config NET_DSA_REALTEK_SMI
 config NET_DSA_SMSC_LAN9303
 	tristate
 	select NET_DSA_TAG_LAN9303
+	select REGMAP
 	---help---
 	  This enables support for the SMSC/Microchip LAN9303 3 port ethernet
 	  switch chips.
@@ -100,7 +105,6 @@ config NET_DSA_SMSC_LAN9303_MDIO
 
 config NET_DSA_VITESSE_VSC73XX
 	tristate
-	depends on OF
 	depends on NET_DSA
 	select FIXED_PHY
 	select VITESSE_PHY
@@ -111,7 +115,6 @@ config NET_DSA_VITESSE_VSC73XX
 
 config NET_DSA_VITESSE_VSC73XX_SPI
 	tristate "Vitesse VSC7385/7388/7395/7398 SPI mode support"
-	depends on OF
 	depends on NET_DSA
 	depends on SPI
 	select NET_DSA_VITESSE_VSC73XX
@@ -121,7 +124,6 @@ config NET_DSA_VITESSE_VSC73XX_SPI
 
 config NET_DSA_VITESSE_VSC73XX_PLATFORM
 	tristate "Vitesse VSC7385/7388/7395/7398 Platform mode support"
-	depends on OF
 	depends on NET_DSA
 	depends on HAS_IOMEM
 	select NET_DSA_VITESSE_VSC73XX

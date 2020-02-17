@@ -289,7 +289,7 @@ static void __init setup_crashkernel(unsigned long total, int *n)
 		}
 
 		if (!check_crashkernel_memory(base, size)) {
-			pr_warning("crashkernel: There would be kdump memory "
+			pr_warn("crashkernel: There would be kdump memory "
 				"at %ld GB but this is unusable because it "
 				"must\nbe below 4 GB. Change the memory "
 				"configuration of the machine.\n",
@@ -608,9 +608,6 @@ setup_arch (char **cmdline_p)
 
 #ifdef CONFIG_VT
 	if (!conswitchp) {
-# if defined(CONFIG_DUMMY_CONSOLE)
-		conswitchp = &dummy_con;
-# endif
 # if defined(CONFIG_VGA_CONSOLE)
 		/*
 		 * Non-legacy systems may route legacy VGA MMIO range to system

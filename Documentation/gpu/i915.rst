@@ -246,6 +246,15 @@ Display PLLs
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpll_mgr.h
    :internal:
 
+Display State Buffer
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dsb.c
+   :doc: DSB
+
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dsb.c
+   :internal:
+
 Memory Management and Command Submission
 ========================================
 
@@ -358,15 +367,6 @@ Batchbuffer Parsing
 .. kernel-doc:: drivers/gpu/drm/i915/i915_cmd_parser.c
    :internal:
 
-Batchbuffer Pools
------------------
-
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_batch_pool.c
-   :doc: batch pool
-
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_batch_pool.c
-   :internal:
-
 User Batchbuffer Execution
 --------------------------
 
@@ -415,44 +415,77 @@ Object Tiling IOCTLs
 .. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_tiling.c
    :doc: buffer object tiling
 
+Microcontrollers
+================
+
+Starting from gen9, three microcontrollers are available on the HW: the
+graphics microcontroller (GuC), the HEVC/H.265 microcontroller (HuC) and the
+display microcontroller (DMC). The driver is responsible for loading the
+firmwares on the microcontrollers; the GuC and HuC firmwares are transferred
+to WOPCM using the DMA engine, while the DMC firmware is written through MMIO.
+
 WOPCM
-=====
+-----
 
 WOPCM Layout
-------------
+~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/intel_wopcm.c
    :doc: WOPCM Layout
 
 GuC
-===
+---
 
-Firmware Layout
--------------------
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
+   :doc: GuC
+
+GuC Firmware Layout
+~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_uc_fw_abi.h
    :doc: Firmware Layout
 
+GuC Memory Management
+~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
+   :doc: GuC Memory Management
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
+   :functions: intel_guc_allocate_vma
+
+
 GuC-specific firmware loader
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_fw.c
    :internal:
 
 GuC-based command submission
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
    :doc: GuC-based command submission
 
-.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
-   :internal:
+HuC
+---
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_huc.c
+   :doc: HuC
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_huc.c
+   :functions: intel_huc_auth
 
-GuC Address Space
------------------
+HuC Memory Management
+~~~~~~~~~~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
-   :doc: GuC Address Space
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_huc.c
+   :doc: HuC Memory Management
+
+HuC Firmware Layout
+~~~~~~~~~~~~~~~~~~~
+The HuC FW layout is the same as the GuC one, see `GuC Firmware Layout`_
+
+DMC
+---
+See `CSR firmware support for DMC`_
 
 Tracing
 =======
@@ -514,9 +547,9 @@ i915 Perf Stream
 This section covers the stream-semantics-agnostic structures and functions
 for representing an i915 perf stream FD and associated file operations.
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf_types.h
    :functions: i915_perf_stream
-.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf_types.h
    :functions: i915_perf_stream_ops
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
@@ -541,7 +574,7 @@ for representing an i915 perf stream FD and associated file operations.
 i915 Perf Observation Architecture Stream
 -----------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf_types.h
    :functions: i915_oa_ops
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c

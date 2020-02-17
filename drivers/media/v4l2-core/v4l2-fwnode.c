@@ -422,7 +422,7 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 		       sizeof(*vep) - offsetof(typeof(*vep), bus));
 	}
 
-	pr_debug("===== begin V4L2 endpoint properties\n");
+	pr_debug("===== begin parsing endpoint %pfw\n", fwnode);
 
 	/*
 	 * Zero the fwnode graph endpoint memory in case we don't end up parsing
@@ -500,7 +500,7 @@ int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 
 	ret = __v4l2_fwnode_endpoint_parse(fwnode, vep);
 
-	pr_debug("===== end V4L2 endpoint properties\n");
+	pr_debug("===== end parsing endpoint %pfw\n", fwnode);
 
 	return ret;
 }
@@ -512,6 +512,7 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep)
 		return;
 
 	kfree(vep->link_frequencies);
+	vep->link_frequencies = NULL;
 }
 EXPORT_SYMBOL_GPL(v4l2_fwnode_endpoint_free);
 
@@ -550,7 +551,7 @@ int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
 				vep->link_frequencies[i]);
 	}
 
-	pr_debug("===== end V4L2 endpoint properties\n");
+	pr_debug("===== end parsing endpoint %pfw\n", fwnode);
 
 	return 0;
 }

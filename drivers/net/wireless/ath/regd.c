@@ -33,33 +33,33 @@ static int __ath_regd_init(struct ath_regulatory *reg);
  */
 
 /* Only these channels all allow active scan on all world regulatory domains */
-#define ATH9K_2GHZ_CH01_11	REG_RULE(2412-10, 2462+10, 40, 0, 20, 0)
+#define ATH_2GHZ_CH01_11	REG_RULE(2412-10, 2462+10, 40, 0, 20, 0)
 
 /* We enable active scan on these a case by case basis by regulatory domain */
-#define ATH9K_2GHZ_CH12_13	REG_RULE(2467-10, 2472+10, 40, 0, 20,\
+#define ATH_2GHZ_CH12_13	REG_RULE(2467-10, 2472+10, 40, 0, 20,\
 					 NL80211_RRF_NO_IR)
-#define ATH9K_2GHZ_CH14		REG_RULE(2484-10, 2484+10, 40, 0, 20,\
+#define ATH_2GHZ_CH14		REG_RULE(2484-10, 2484+10, 40, 0, 20,\
 					 NL80211_RRF_NO_IR | \
 					 NL80211_RRF_NO_OFDM)
 
 /* We allow IBSS on these on a case by case basis by regulatory domain */
-#define ATH9K_5GHZ_5150_5350	REG_RULE(5150-10, 5350+10, 80, 0, 30,\
+#define ATH_5GHZ_5150_5350	REG_RULE(5150-10, 5350+10, 80, 0, 30,\
 					 NL80211_RRF_NO_IR)
-#define ATH9K_5GHZ_5470_5850	REG_RULE(5470-10, 5850+10, 80, 0, 30,\
+#define ATH_5GHZ_5470_5850	REG_RULE(5470-10, 5850+10, 80, 0, 30,\
 					 NL80211_RRF_NO_IR)
-#define ATH9K_5GHZ_5725_5850	REG_RULE(5725-10, 5850+10, 80, 0, 30,\
+#define ATH_5GHZ_5725_5850	REG_RULE(5725-10, 5850+10, 80, 0, 30,\
 					 NL80211_RRF_NO_IR)
 
-#define ATH9K_2GHZ_ALL		ATH9K_2GHZ_CH01_11, \
-				ATH9K_2GHZ_CH12_13, \
-				ATH9K_2GHZ_CH14
+#define ATH_2GHZ_ALL		ATH_2GHZ_CH01_11, \
+				ATH_2GHZ_CH12_13, \
+				ATH_2GHZ_CH14
 
-#define ATH9K_5GHZ_ALL		ATH9K_5GHZ_5150_5350, \
-				ATH9K_5GHZ_5470_5850
+#define ATH_5GHZ_ALL		ATH_5GHZ_5150_5350, \
+				ATH_5GHZ_5470_5850
 
 /* This one skips what we call "mid band" */
-#define ATH9K_5GHZ_NO_MIDBAND	ATH9K_5GHZ_5150_5350, \
-				ATH9K_5GHZ_5725_5850
+#define ATH_5GHZ_NO_MIDBAND	ATH_5GHZ_5150_5350, \
+				ATH_5GHZ_5725_5850
 
 /* Can be used for:
  * 0x60, 0x61, 0x62 */
@@ -67,8 +67,8 @@ static const struct ieee80211_regdomain ath_world_regdom_60_61_62 = {
 	.n_reg_rules = 5,
 	.alpha2 =  "99",
 	.reg_rules = {
-		ATH9K_2GHZ_ALL,
-		ATH9K_5GHZ_ALL,
+		ATH_2GHZ_ALL,
+		ATH_5GHZ_ALL,
 	}
 };
 
@@ -77,9 +77,9 @@ static const struct ieee80211_regdomain ath_world_regdom_63_65 = {
 	.n_reg_rules = 4,
 	.alpha2 =  "99",
 	.reg_rules = {
-		ATH9K_2GHZ_CH01_11,
-		ATH9K_2GHZ_CH12_13,
-		ATH9K_5GHZ_NO_MIDBAND,
+		ATH_2GHZ_CH01_11,
+		ATH_2GHZ_CH12_13,
+		ATH_5GHZ_NO_MIDBAND,
 	}
 };
 
@@ -88,8 +88,8 @@ static const struct ieee80211_regdomain ath_world_regdom_64 = {
 	.n_reg_rules = 3,
 	.alpha2 =  "99",
 	.reg_rules = {
-		ATH9K_2GHZ_CH01_11,
-		ATH9K_5GHZ_NO_MIDBAND,
+		ATH_2GHZ_CH01_11,
+		ATH_5GHZ_NO_MIDBAND,
 	}
 };
 
@@ -98,8 +98,8 @@ static const struct ieee80211_regdomain ath_world_regdom_66_69 = {
 	.n_reg_rules = 3,
 	.alpha2 =  "99",
 	.reg_rules = {
-		ATH9K_2GHZ_CH01_11,
-		ATH9K_5GHZ_ALL,
+		ATH_2GHZ_CH01_11,
+		ATH_5GHZ_ALL,
 	}
 };
 
@@ -108,9 +108,9 @@ static const struct ieee80211_regdomain ath_world_regdom_67_68_6A_6C = {
 	.n_reg_rules = 4,
 	.alpha2 =  "99",
 	.reg_rules = {
-		ATH9K_2GHZ_CH01_11,
-		ATH9K_2GHZ_CH12_13,
-		ATH9K_5GHZ_ALL,
+		ATH_2GHZ_CH01_11,
+		ATH_2GHZ_CH12_13,
+		ATH_5GHZ_ALL,
 	}
 };
 
@@ -666,14 +666,14 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 
 /*
  * Some users have reported their EEPROM programmed with
- * 0x8000 set, this is not a supported regulatory domain
- * but since we have more than one user with it we need
- * a solution for them. We default to 0x64, which is the
- * default Atheros world regulatory domain.
+ * 0x8000 or 0x0 set, this is not a supported regulatory
+ * domain but since we have more than one user with it we
+ * need a solution for them. We default to 0x64, which is
+ * the default Atheros world regulatory domain.
  */
 static void ath_regd_sanitize(struct ath_regulatory *reg)
 {
-	if (reg->current_rd != COUNTRY_ERD_FLAG)
+	if (reg->current_rd != COUNTRY_ERD_FLAG && reg->current_rd != 0)
 		return;
 	printk(KERN_DEBUG "ath: EEPROM regdomain sanitized\n");
 	reg->current_rd = 0x64;

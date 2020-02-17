@@ -9,6 +9,9 @@
 #include <linux/fs.h>
 #include "ovl_entry.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt) "overlayfs: " fmt
+
 enum ovl_path_type {
 	__OVL_PATH_UPPER	= (1 << 0),
 	__OVL_PATH_MERGE	= (1 << 1),
@@ -71,19 +74,35 @@ enum ovl_entry_flag {
 #error Endianness not defined
 #endif
 
-/* The type returned by overlay exportfs ops when encoding an ovl_fh handle */
-#define OVL_FILEID	0xfb
+/* The type used to be returned by overlay exportfs for misaligned fid */
+#define OVL_FILEID_V0	0xfb
+/* The type returned by overlay exportfs for 32bit aligned fid */
+#define OVL_FILEID_V1	0xf8
 
-/* On-disk and in-memeory format for redirect by file handle */
-struct ovl_fh {
+/* On-disk format for "origin" file handle */
+struct ovl_fb {
 	u8 version;	/* 0 */
 	u8 magic;	/* 0xfb */
 	u8 len;		/* size of this header + size of fid */
 	u8 flags;	/* OVL_FH_FLAG_* */
 	u8 type;	/* fid_type of fid */
 	uuid_t uuid;	/* uuid of filesystem */
-	u8 fid[0];	/* file identifier */
+	u32 fid[0];	/* file identifier should be 32bit aligned in-memory */
 } __packed;
+
+/* In-memory and on-wire format for overlay file handle */
+struct ovl_fh {
+	u8 padding[3];	/* make sure fb.fid is 32bit aligned */
+	union {
+		struct ovl_fb fb;
+		u8 buf[0];
+	};
+} __packed;
+
+#define OVL_FH_WIRE_OFFSET	offsetof(struct ovl_fh, fb)
+#define OVL_FH_LEN(fh)		(OVL_FH_WIRE_OFFSET + (fh)->fb.len)
+#define OVL_FH_FID_OFFSET	(OVL_FH_WIRE_OFFSET + \
+				 offsetof(struct ovl_fb, fid))
 
 static inline int ovl_do_rmdir(struct inode *dir, struct dentry *dentry)
 {
@@ -205,7 +224,6 @@ int ovl_want_write(struct dentry *dentry);
 void ovl_drop_write(struct dentry *dentry);
 struct dentry *ovl_workdir(struct dentry *dentry);
 const struct cred *ovl_override_creds(struct super_block *sb);
-struct super_block *ovl_same_sb(struct super_block *sb);
 int ovl_can_decode_fh(struct super_block *sb);
 struct dentry *ovl_indexdir(struct super_block *sb);
 bool ovl_index_all(struct super_block *sb);
@@ -221,7 +239,7 @@ enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path);
 struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_lowerdata(struct dentry *dentry);
-struct ovl_layer *ovl_layer_lower(struct dentry *dentry);
+const struct ovl_layer *ovl_layer_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
 struct dentry *ovl_i_dentry_upper(struct inode *inode);
 struct inode *ovl_inode_upper(struct inode *inode);
@@ -283,11 +301,21 @@ static inline bool ovl_is_impuredir(struct dentry *dentry)
 	return ovl_check_dir_xattr(dentry, OVL_XATTR_IMPURE);
 }
 
+/* All layers on same fs? */
+static inline bool ovl_same_fs(struct super_block *sb)
+{
+	return OVL_FS(sb)->xino_mode == 0;
+}
+
+/* All overlay inodes have same st_dev? */
+static inline bool ovl_same_dev(struct super_block *sb)
+{
+	return OVL_FS(sb)->xino_mode >= 0;
+}
+
 static inline unsigned int ovl_xino_bits(struct super_block *sb)
 {
-	struct ovl_fs *ofs = sb->s_fs_info;
-
-	return ofs->xino_bits;
+	return ovl_same_dev(sb) ? OVL_FS(sb)->xino_mode : 0;
 }
 
 static inline int ovl_inode_lock(struct inode *inode)
@@ -302,7 +330,13 @@ static inline void ovl_inode_unlock(struct inode *inode)
 
 
 /* namei.c */
-int ovl_check_fh_len(struct ovl_fh *fh, int fh_len);
+int ovl_check_fb_len(struct ovl_fb *fb, int fb_len);
+
+static inline int ovl_check_fh_len(struct ovl_fh *fh, int fh_len)
+{
+	return ovl_check_fb_len(&fh->fb, fh_len - OVL_FH_WIRE_OFFSET);
+}
+
 struct dentry *ovl_decode_real_fh(struct ovl_fh *fh, struct vfsmount *mnt,
 				  bool connected);
 int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh, bool connected,
@@ -416,6 +450,8 @@ struct dentry *ovl_create_temp(struct dentry *workdir, struct ovl_cattr *attr);
 
 /* file.c */
 extern const struct file_operations ovl_file_operations;
+int __init ovl_aio_request_cache_init(void);
+void ovl_aio_request_cache_destroy(void);
 
 /* copy_up.c */
 int ovl_copy_up(struct dentry *dentry);

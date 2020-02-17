@@ -544,11 +544,6 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 	}
 
 	while (!done && loopcount--) {
-		/*
-		 * In order to avoid a race with the hardirq, clear the flag
-		 * before acknowledging the chip.
-		 */
-		clear_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
 		smp_mb__after_atomic();
 
 		ret = wlcore_fw_status(wl, wl->fw_status);
@@ -668,7 +663,7 @@ static irqreturn_t wlcore_irq(int irq, void *cookie)
 		disable_irq_nosync(wl->irq);
 		pm_wakeup_event(wl->dev, 0);
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
-		return IRQ_HANDLED;
+		goto out_handled;
 	}
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
@@ -691,6 +686,11 @@ static irqreturn_t wlcore_irq(int irq, void *cookie)
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	mutex_unlock(&wl->mutex);
+
+out_handled:
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	clear_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -1434,7 +1434,7 @@ int wl1271_rx_filter_alloc_field(struct wl12xx_rx_filter *filter,
 
 	field = &filter->fields[filter->num_fields];
 
-	field->pattern = kzalloc(len, GFP_KERNEL);
+	field->pattern = kmemdup(pattern, len, GFP_KERNEL);
 	if (!field->pattern) {
 		wl1271_warning("Failed to allocate RX filter pattern");
 		return -ENOMEM;
@@ -1445,7 +1445,6 @@ int wl1271_rx_filter_alloc_field(struct wl12xx_rx_filter *filter,
 	field->offset = cpu_to_le16(offset);
 	field->flags = flags;
 	field->len = len;
-	memcpy(field->pattern, pattern, len);
 
 	return 0;
 }
@@ -3274,7 +3273,7 @@ out:
 static int wl1271_record_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				u8 id, u8 key_type, u8 key_size,
 				const u8 *key, u8 hlid, u32 tx_seq_32,
-				u16 tx_seq_16)
+				u16 tx_seq_16, bool is_pairwise)
 {
 	struct wl1271_ap_key *ap_key;
 	int i;
@@ -3312,6 +3311,7 @@ static int wl1271_record_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	ap_key->hlid = hlid;
 	ap_key->tx_seq_32 = tx_seq_32;
 	ap_key->tx_seq_16 = tx_seq_16;
+	ap_key->is_pairwise = is_pairwise;
 
 	wlvif->ap.recorded_keys[i] = ap_key;
 	return 0;
@@ -3347,7 +3347,7 @@ static int wl1271_ap_init_hwenc(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 					    key->id, key->key_type,
 					    key->key_size, key->key,
 					    hlid, key->tx_seq_32,
-					    key->tx_seq_16);
+					    key->tx_seq_16, key->is_pairwise);
 		if (ret < 0)
 			goto out;
 
@@ -3370,7 +3370,8 @@ out:
 static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       u16 action, u8 id, u8 key_type,
 		       u8 key_size, const u8 *key, u32 tx_seq_32,
-		       u16 tx_seq_16, struct ieee80211_sta *sta)
+		       u16 tx_seq_16, struct ieee80211_sta *sta,
+		       bool is_pairwise)
 {
 	int ret;
 	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
@@ -3397,12 +3398,12 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			ret = wl1271_record_ap_key(wl, wlvif, id,
 					     key_type, key_size,
 					     key, hlid, tx_seq_32,
-					     tx_seq_16);
+					     tx_seq_16, is_pairwise);
 		} else {
 			ret = wl1271_cmd_set_ap_key(wl, wlvif, action,
 					     id, key_type, key_size,
 					     key, hlid, tx_seq_32,
-					     tx_seq_16);
+					     tx_seq_16, is_pairwise);
 		}
 
 		if (ret < 0)
@@ -3502,6 +3503,7 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	u16 tx_seq_16 = 0;
 	u8 key_type;
 	u8 hlid;
+	bool is_pairwise;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 set key");
 
@@ -3551,12 +3553,14 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		return -EOPNOTSUPP;
 	}
 
+	is_pairwise = key_conf->flags & IEEE80211_KEY_FLAG_PAIRWISE;
+
 	switch (cmd) {
 	case SET_KEY:
 		ret = wl1271_set_key(wl, wlvif, KEY_ADD_OR_REPLACE,
 				 key_conf->keyidx, key_type,
 				 key_conf->keylen, key_conf->key,
-				 tx_seq_32, tx_seq_16, sta);
+				 tx_seq_32, tx_seq_16, sta, is_pairwise);
 		if (ret < 0) {
 			wl1271_error("Could not add or replace key");
 			return ret;
@@ -3582,7 +3586,7 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		ret = wl1271_set_key(wl, wlvif, KEY_REMOVE,
 				     key_conf->keyidx, key_type,
 				     key_conf->keylen, key_conf->key,
-				     0, 0, sta);
+				     0, 0, sta, is_pairwise);
 		if (ret < 0) {
 			wl1271_error("Could not remove key");
 			return ret;
@@ -6224,6 +6228,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	ieee80211_hw_set(wl->hw, SUPPORT_FAST_XMIT);
 	ieee80211_hw_set(wl->hw, CHANCTX_STA_CSA);
+	ieee80211_hw_set(wl->hw, SUPPORTS_PER_STA_GTK);
 	ieee80211_hw_set(wl->hw, QUEUE_CONTROL);
 	ieee80211_hw_set(wl->hw, TX_AMPDU_SETUP_IN_HW);
 	ieee80211_hw_set(wl->hw, AMPDU_AGGREGATION);
@@ -6268,7 +6273,8 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	wl->hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD |
 				WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-				WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+				WIPHY_FLAG_HAS_CHANNEL_SWITCH |
++				WIPHY_FLAG_IBSS_RSN;
 
 	wl->hw->wiphy->features |= NL80211_FEATURE_AP_SCAN;
 

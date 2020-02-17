@@ -496,7 +496,7 @@ static int macfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-static struct fb_ops macfb_ops = {
+static const struct fb_ops macfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= macfb_setcolreg,
 	.fb_fillrect	= cfb_fillrect,

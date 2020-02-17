@@ -25,6 +25,7 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_mode_object.h>
 #include <drm/drm_modes.h>
 
@@ -42,7 +43,7 @@ struct drm_bridge_funcs {
 	 * This callback is invoked whenever our bridge is being attached to a
 	 * &drm_encoder.
 	 *
-	 * The attach callback is optional.
+	 * The @attach callback is optional.
 	 *
 	 * RETURNS:
 	 *
@@ -56,7 +57,7 @@ struct drm_bridge_funcs {
 	 * This callback is invoked whenever our bridge is being detached from a
 	 * &drm_encoder.
 	 *
-	 * The detach callback is optional.
+	 * The @detach callback is optional.
 	 */
 	void (*detach)(struct drm_bridge *bridge);
 
@@ -76,7 +77,7 @@ struct drm_bridge_funcs {
 	 * atomic helpers to validate modes supplied by userspace in
 	 * drm_atomic_helper_check_modeset().
 	 *
-	 * This function is optional.
+	 * The @mode_valid callback is optional.
 	 *
 	 * NOTE:
 	 *
@@ -108,7 +109,7 @@ struct drm_bridge_funcs {
 	 * this function passes all other callbacks must succeed for this
 	 * configuration.
 	 *
-	 * The mode_fixup callback is optional.
+	 * The @mode_fixup callback is optional.
 	 *
 	 * NOTE:
 	 *
@@ -146,7 +147,7 @@ struct drm_bridge_funcs {
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is still running when this callback is called.
 	 *
-	 * The disable callback is optional.
+	 * The @disable callback is optional.
 	 */
 	void (*disable)(struct drm_bridge *bridge);
 
@@ -165,7 +166,7 @@ struct drm_bridge_funcs {
 	 * singals) feeding it is no longer running when this callback is
 	 * called.
 	 *
-	 * The post_disable callback is optional.
+	 * The @post_disable callback is optional.
 	 */
 	void (*post_disable)(struct drm_bridge *bridge);
 
@@ -214,7 +215,7 @@ struct drm_bridge_funcs {
 	 * not enable the display link feeding the next bridge in the chain (if
 	 * there is one) when this callback is called.
 	 *
-	 * The pre_enable callback is optional.
+	 * The @pre_enable callback is optional.
 	 */
 	void (*pre_enable)(struct drm_bridge *bridge);
 
@@ -234,7 +235,7 @@ struct drm_bridge_funcs {
 	 * callback must enable the display link feeding the next bridge in the
 	 * chain if there is one.
 	 *
-	 * The enable callback is optional.
+	 * The @enable callback is optional.
 	 */
 	void (*enable)(struct drm_bridge *bridge);
 
@@ -254,14 +255,15 @@ struct drm_bridge_funcs {
 	 * there is one) when this callback is called.
 	 *
 	 * Note that this function will only be invoked in the context of an
-	 * atomic commit. It will not be invoked from &drm_bridge_pre_enable. It
-	 * would be prudent to also provide an implementation of @pre_enable if
-	 * you are expecting driver calls into &drm_bridge_pre_enable.
+	 * atomic commit. It will not be invoked from
+	 * &drm_bridge_chain_pre_enable. It would be prudent to also provide an
+	 * implementation of @pre_enable if you are expecting driver calls into
+	 * &drm_bridge_chain_pre_enable.
 	 *
 	 * The @atomic_pre_enable callback is optional.
 	 */
 	void (*atomic_pre_enable)(struct drm_bridge *bridge,
-				  struct drm_atomic_state *state);
+				  struct drm_atomic_state *old_state);
 
 	/**
 	 * @atomic_enable:
@@ -279,14 +281,14 @@ struct drm_bridge_funcs {
 	 * chain if there is one.
 	 *
 	 * Note that this function will only be invoked in the context of an
-	 * atomic commit. It will not be invoked from &drm_bridge_enable. It
-	 * would be prudent to also provide an implementation of @enable if
-	 * you are expecting driver calls into &drm_bridge_enable.
+	 * atomic commit. It will not be invoked from &drm_bridge_chain_enable.
+	 * It would be prudent to also provide an implementation of @enable if
+	 * you are expecting driver calls into &drm_bridge_chain_enable.
 	 *
-	 * The enable callback is optional.
+	 * The @atomic_enable callback is optional.
 	 */
 	void (*atomic_enable)(struct drm_bridge *bridge,
-			      struct drm_atomic_state *state);
+			      struct drm_atomic_state *old_state);
 	/**
 	 * @atomic_disable:
 	 *
@@ -301,14 +303,15 @@ struct drm_bridge_funcs {
 	 * signals) feeding it is still running when this callback is called.
 	 *
 	 * Note that this function will only be invoked in the context of an
-	 * atomic commit. It will not be invoked from &drm_bridge_disable. It
-	 * would be prudent to also provide an implementation of @disable if
-	 * you are expecting driver calls into &drm_bridge_disable.
+	 * atomic commit. It will not be invoked from
+	 * &drm_bridge_chain_disable. It would be prudent to also provide an
+	 * implementation of @disable if you are expecting driver calls into
+	 * &drm_bridge_chain_disable.
 	 *
-	 * The disable callback is optional.
+	 * The @atomic_disable callback is optional.
 	 */
 	void (*atomic_disable)(struct drm_bridge *bridge,
-			       struct drm_atomic_state *state);
+			       struct drm_atomic_state *old_state);
 
 	/**
 	 * @atomic_post_disable:
@@ -325,15 +328,16 @@ struct drm_bridge_funcs {
 	 * called.
 	 *
 	 * Note that this function will only be invoked in the context of an
-	 * atomic commit. It will not be invoked from &drm_bridge_post_disable.
+	 * atomic commit. It will not be invoked from
+	 * &drm_bridge_chain_post_disable.
 	 * It would be prudent to also provide an implementation of
 	 * @post_disable if you are expecting driver calls into
-	 * &drm_bridge_post_disable.
+	 * &drm_bridge_chain_post_disable.
 	 *
-	 * The post_disable callback is optional.
+	 * The @atomic_post_disable callback is optional.
 	 */
 	void (*atomic_post_disable)(struct drm_bridge *bridge,
-				    struct drm_atomic_state *state);
+				    struct drm_atomic_state *old_state);
 };
 
 /**
@@ -380,8 +384,8 @@ struct drm_bridge {
 	struct drm_device *dev;
 	/** @encoder: encoder to which this bridge is connected */
 	struct drm_encoder *encoder;
-	/** @next: the next bridge in the encoder chain */
-	struct drm_bridge *next;
+	/** @chain_node: used to form a bridge chain */
+	struct list_head chain_node;
 #ifdef CONFIG_OF
 	/** @of_node: device node pointer to the bridge */
 	struct device_node *of_node;
@@ -406,35 +410,98 @@ struct drm_bridge *of_drm_find_bridge(struct device_node *np);
 int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 		      struct drm_bridge *previous);
 
-bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
-			   const struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode);
-enum drm_mode_status drm_bridge_mode_valid(struct drm_bridge *bridge,
-					   const struct drm_display_mode *mode);
-void drm_bridge_disable(struct drm_bridge *bridge);
-void drm_bridge_post_disable(struct drm_bridge *bridge);
-void drm_bridge_mode_set(struct drm_bridge *bridge,
-			 const struct drm_display_mode *mode,
-			 const struct drm_display_mode *adjusted_mode);
-void drm_bridge_pre_enable(struct drm_bridge *bridge);
-void drm_bridge_enable(struct drm_bridge *bridge);
+/**
+ * drm_bridge_get_next_bridge() - Get the next bridge in the chain
+ * @bridge: bridge object
+ *
+ * RETURNS:
+ * the next bridge in the chain after @bridge, or NULL if @bridge is the last.
+ */
+static inline struct drm_bridge *
+drm_bridge_get_next_bridge(struct drm_bridge *bridge)
+{
+	if (list_is_last(&bridge->chain_node, &bridge->encoder->bridge_chain))
+		return NULL;
 
-void drm_atomic_bridge_disable(struct drm_bridge *bridge,
-			       struct drm_atomic_state *state);
-void drm_atomic_bridge_post_disable(struct drm_bridge *bridge,
+	return list_next_entry(bridge, chain_node);
+}
+
+/**
+ * drm_bridge_get_prev_bridge() - Get the previous bridge in the chain
+ * @bridge: bridge object
+ *
+ * RETURNS:
+ * the previous bridge in the chain, or NULL if @bridge is the first.
+ */
+static inline struct drm_bridge *
+drm_bridge_get_prev_bridge(struct drm_bridge *bridge)
+{
+	if (list_is_first(&bridge->chain_node, &bridge->encoder->bridge_chain))
+		return NULL;
+
+	return list_prev_entry(bridge, chain_node);
+}
+
+/**
+ * drm_bridge_chain_get_first_bridge() - Get the first bridge in the chain
+ * @encoder: encoder object
+ *
+ * RETURNS:
+ * the first bridge in the chain, or NULL if @encoder has no bridge attached
+ * to it.
+ */
+static inline struct drm_bridge *
+drm_bridge_chain_get_first_bridge(struct drm_encoder *encoder)
+{
+	return list_first_entry_or_null(&encoder->bridge_chain,
+					struct drm_bridge, chain_node);
+}
+
+/**
+ * drm_for_each_bridge_in_chain() - Iterate over all bridges present in a chain
+ * @encoder: the encoder to iterate bridges on
+ * @bridge: a bridge pointer updated to point to the current bridge at each
+ *	    iteration
+ *
+ * Iterate over all bridges present in the bridge chain attached to @encoder.
+ */
+#define drm_for_each_bridge_in_chain(encoder, bridge)			\
+	list_for_each_entry(bridge, &(encoder)->bridge_chain, chain_node)
+
+bool drm_bridge_chain_mode_fixup(struct drm_bridge *bridge,
+				 const struct drm_display_mode *mode,
+				 struct drm_display_mode *adjusted_mode);
+enum drm_mode_status
+drm_bridge_chain_mode_valid(struct drm_bridge *bridge,
+			    const struct drm_display_mode *mode);
+void drm_bridge_chain_disable(struct drm_bridge *bridge);
+void drm_bridge_chain_post_disable(struct drm_bridge *bridge);
+void drm_bridge_chain_mode_set(struct drm_bridge *bridge,
+			       const struct drm_display_mode *mode,
+			       const struct drm_display_mode *adjusted_mode);
+void drm_bridge_chain_pre_enable(struct drm_bridge *bridge);
+void drm_bridge_chain_enable(struct drm_bridge *bridge);
+
+void drm_atomic_bridge_chain_disable(struct drm_bridge *bridge,
+				     struct drm_atomic_state *state);
+void drm_atomic_bridge_chain_post_disable(struct drm_bridge *bridge,
+					  struct drm_atomic_state *state);
+void drm_atomic_bridge_chain_pre_enable(struct drm_bridge *bridge,
+					struct drm_atomic_state *state);
+void drm_atomic_bridge_chain_enable(struct drm_bridge *bridge,
 				    struct drm_atomic_state *state);
-void drm_atomic_bridge_pre_enable(struct drm_bridge *bridge,
-				  struct drm_atomic_state *state);
-void drm_atomic_bridge_enable(struct drm_bridge *bridge,
-			      struct drm_atomic_state *state);
 
 #ifdef CONFIG_DRM_PANEL_BRIDGE
-struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
-					u32 connector_type);
+struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel);
+struct drm_bridge *drm_panel_bridge_add_typed(struct drm_panel *panel,
+					      u32 connector_type);
 void drm_panel_bridge_remove(struct drm_bridge *bridge);
 struct drm_bridge *devm_drm_panel_bridge_add(struct device *dev,
-					     struct drm_panel *panel,
-					     u32 connector_type);
+					     struct drm_panel *panel);
+struct drm_bridge *devm_drm_panel_bridge_add_typed(struct device *dev,
+						   struct drm_panel *panel,
+						   u32 connector_type);
+struct drm_connector *drm_panel_bridge_connector(struct drm_bridge *bridge);
 #endif
 
 #endif

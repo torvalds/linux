@@ -71,8 +71,8 @@ static void *mlx5_dma_zalloc_coherent_node(struct mlx5_core_dev *dev,
 	return cpu_handle;
 }
 
-int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			struct mlx5_frag_buf *buf, int node)
+static int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
+			       struct mlx5_frag_buf *buf, int node)
 {
 	dma_addr_t t;
 

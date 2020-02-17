@@ -89,7 +89,7 @@ static void __usbhsf_pkt_del(struct usbhs_pkt *pkt)
 	list_del_init(&pkt->node);
 }
 
-static struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe)
+struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe)
 {
 	return list_first_entry_or_null(&pipe->list, struct usbhs_pkt, node);
 }
@@ -1273,11 +1273,11 @@ static void usbhsf_dma_init_dt(struct device *dev, struct usbhs_fifo *fifo,
 	 */
 	snprintf(name, sizeof(name), "ch%d", channel);
 	if (channel & 1) {
-		fifo->tx_chan = dma_request_slave_channel_reason(dev, name);
+		fifo->tx_chan = dma_request_chan(dev, name);
 		if (IS_ERR(fifo->tx_chan))
 			fifo->tx_chan = NULL;
 	} else {
-		fifo->rx_chan = dma_request_slave_channel_reason(dev, name);
+		fifo->rx_chan = dma_request_chan(dev, name);
 		if (IS_ERR(fifo->rx_chan))
 			fifo->rx_chan = NULL;
 	}

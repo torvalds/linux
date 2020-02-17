@@ -21,8 +21,10 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"07.710.50.00-rc1"
-#define MEGASAS_RELDATE				"June 28, 2019"
+#define MEGASAS_VERSION				"07.713.01.00-rc1"
+#define MEGASAS_RELDATE				"Dec 27, 2019"
+
+#define MEGASAS_MSIX_NAME_LEN			32
 
 /*
  * Device IDs
@@ -2203,6 +2205,7 @@ struct megasas_aen_event {
 };
 
 struct megasas_irq_context {
+	char name[MEGASAS_MSIX_NAME_LEN];
 	struct megasas_instance *instance;
 	u32 MSIxIndex;
 	u32 os_irq;
@@ -2230,9 +2233,9 @@ enum MR_PD_TYPE {
 
 /* JBOD Queue depth definitions */
 #define MEGASAS_SATA_QD	32
-#define MEGASAS_SAS_QD	64
+#define MEGASAS_SAS_QD 256
 #define MEGASAS_DEFAULT_PD_QD	64
-#define MEGASAS_NVME_QD		32
+#define MEGASAS_NVME_QD        64
 
 #define MR_DEFAULT_NVME_PAGE_SIZE	4096
 #define MR_DEFAULT_NVME_PAGE_SHIFT	12
@@ -2637,10 +2640,11 @@ enum MEGASAS_OCR_CAUSE {
 };
 
 enum DCMD_RETURN_STATUS {
-	DCMD_SUCCESS		= 0,
-	DCMD_TIMEOUT		= 1,
-	DCMD_FAILED		= 2,
-	DCMD_NOT_FIRED		= 3,
+	DCMD_SUCCESS    = 0x00,
+	DCMD_TIMEOUT    = 0x01,
+	DCMD_FAILED     = 0x02,
+	DCMD_BUSY       = 0x03,
+	DCMD_INIT       = 0xff,
 };
 
 u8

@@ -48,7 +48,7 @@
 	};
 
 	/* switched by pmic_sleep */
-	vcc1v8_s3: vcca1v8_s3: vcc1v8-s3 {
+	vcc1v8_s3: vcc1v8-s3 {
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-boot-on;
@@ -69,6 +69,27 @@
 		regulator-max-microvolt = <3000000>;
 		regulator-name = "vcc3v0_sd";
 		vin-supply = <&vcc3v3_sys>;
+	};
+
+	/*
+	 * Really, this is supplied by vcc_1v8, and vcc1v8_s3 only
+	 * drives the enable pin, but we can't quite model that.
+	 */
+	vcca0v9_s3: vcca0v9-s3 {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		regulator-name = "vcca0v9_s3";
+		vin-supply = <&vcc1v8_s3>;
+	};
+
+	/* As above, actually supplied by vcc3v3_sys */
+	vcca1v8_s3: vcca1v8-s3 {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-name = "vcca1v8_s3";
+		vin-supply = <&vcc1v8_s3>;
 	};
 
 	vbus_typec: vbus-typec {
@@ -152,9 +173,6 @@
 	phy-handle = <&rtl8211e>;
 	phy-mode = "rgmii";
 	phy-supply = <&vcc3v3_s3>;
-	snps,reset-active-low;
-	snps,reset-delays-us = <0 10000 30000>;
-	snps,reset-gpio = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
 	tx_delay = <0x28>;
 	rx_delay = <0x11>;
 	status = "okay";
@@ -168,6 +186,9 @@
 			reg = <1>;
 			interrupt-parent = <&gpio3>;
 			interrupts = <RK_PB2 IRQ_TYPE_LEVEL_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <30000>;
+			reset-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -181,6 +202,10 @@
 	ddc-i2c-bus = <&i2c7>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_cec>;
+	status = "okay";
+};
+
+&hdmi_sound {
 	status = "okay";
 };
 
@@ -459,6 +484,10 @@
 	status = "okay";
 };
 
+&i2s2 {
+	status = "okay";
+};
+
 &io_domains {
 	bt656-supply = <&vcc_1v8>;
 	audio-supply = <&vcca1v8_codec>;
@@ -477,7 +506,9 @@
 &pcie0 {
 	ep-gpios = <&gpio2 RK_PA4 GPIO_ACTIVE_HIGH>;
 	max-link-speed = <2>;
-	num-lanes = <4>;
+	num-lanes = <2>;
+	vpcie0v9-supply = <&vcca0v9_s3>;
+	vpcie1v8-supply = <&vcca1v8_s3>;
 	status = "okay";
 };
 

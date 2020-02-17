@@ -61,8 +61,11 @@ static struct notifier_block tts_notifier = {
 static int acpi_sleep_prepare(u32 acpi_state)
 {
 #ifdef CONFIG_ACPI_SLEEP
+	unsigned long acpi_wakeup_address;
+
 	/* do we have a wakeup address for S2 and S3? */
 	if (acpi_state == ACPI_STATE_S3) {
+		acpi_wakeup_address = acpi_get_wakeup_address();
 		if (!acpi_wakeup_address)
 			return -EFAULT;
 		acpi_set_waking_vector(acpi_wakeup_address);
@@ -359,19 +362,6 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "80E3"),
-		},
-	},
-	/*
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=196907
-	 * Some Dell XPS13 9360 cannot do suspend-to-idle using the Low Power
-	 * S0 Idle firmware interface.
-	 */
-	{
-	.callback = init_default_s3,
-	.ident = "Dell XPS13 9360",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "XPS 13 9360"),
 		},
 	},
 	/*
@@ -990,21 +980,44 @@ static int acpi_s2idle_prepare_late(void)
 	return 0;
 }
 
-static void acpi_s2idle_wake(void)
+static void acpi_s2idle_sync(void)
 {
 	/*
-	 * If IRQD_WAKEUP_ARMED is set for the SCI at this point, the SCI has
-	 * not triggered while suspended, so bail out.
+	 * The EC driver uses the system workqueue and an additional special
+	 * one, so those need to be flushed too.
 	 */
-	if (!acpi_sci_irq_valid() ||
-	    irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq)))
-		return;
+	acpi_ec_flush_work();
+	acpi_os_wait_events_complete(); /* synchronize Notify handling */
+}
 
-	/*
-	 * If there are EC events to process, the wakeup may be a spurious one
-	 * coming from the EC.
-	 */
-	if (acpi_ec_dispatch_gpe()) {
+static bool acpi_s2idle_wake(void)
+{
+	if (!acpi_sci_irq_valid())
+		return pm_wakeup_pending();
+
+	while (pm_wakeup_pending()) {
+		/*
+		 * If IRQD_WAKEUP_ARMED is set for the SCI at this point, the
+		 * SCI has not triggered while suspended, so bail out (the
+		 * wakeup is pending anyway and the SCI is not the source of
+		 * it).
+		 */
+		if (irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq)))
+			return true;
+
+		/*
+		 * If there are no EC events to process and at least one of the
+		 * other enabled GPEs is active, the wakeup is regarded as a
+		 * genuine one.
+		 *
+		 * Note that the checks below must be carried out in this order
+		 * to avoid returning prematurely due to a change of the EC GPE
+		 * status bit from unset to set between the checks with the
+		 * status bits of all the other GPEs unset.
+		 */
+		if (acpi_any_gpe_status_set() && !acpi_ec_dispatch_gpe())
+			return true;
+
 		/*
 		 * Cancel the wakeup and process all pending events in case
 		 * there are any wakeup ones in there.
@@ -1014,16 +1027,22 @@ static void acpi_s2idle_wake(void)
 		 * should be missed by canceling the wakeup here.
 		 */
 		pm_system_cancel_wakeup();
+
+		acpi_s2idle_sync();
+
 		/*
-		 * The EC driver uses the system workqueue and an additional
-		 * special one, so those need to be flushed too.
+		 * The SCI is in the "suspended" state now and it cannot produce
+		 * new wakeup events till the rearming below, so if any of them
+		 * are pending here, they must be resulting from the processing
+		 * of EC events above or coming from somewhere else.
 		 */
-		acpi_os_wait_events_complete(); /* synchronize EC GPE processing */
-		acpi_ec_flush_work();
-		acpi_os_wait_events_complete(); /* synchronize Notify handling */
+		if (pm_wakeup_pending())
+			return true;
 
 		rearm_wake_irq(acpi_sci_irq);
 	}
+
+	return false;
 }
 
 static void acpi_s2idle_restore_early(void)
@@ -1037,6 +1056,13 @@ static void acpi_s2idle_restore_early(void)
 
 static void acpi_s2idle_restore(void)
 {
+	/*
+	 * Drain pending events before restoring the working-state configuration
+	 * of GPEs.
+	 */
+	acpi_os_wait_events_complete(); /* synchronize GPE processing */
+	acpi_s2idle_sync();
+
 	s2idle_wakeup = false;
 
 	acpi_enable_all_runtime_gpes();

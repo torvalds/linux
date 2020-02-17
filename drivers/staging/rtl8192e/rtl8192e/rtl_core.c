@@ -267,7 +267,7 @@ static short _rtl92e_check_nic_enough_desc(struct net_device *dev, int prio)
 	return 0;
 }
 
-static void _rtl92e_tx_timeout(struct net_device *dev)
+static void _rtl92e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -715,8 +715,8 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 	if ((wireless_mode == WIRELESS_MODE_N_24G) ||
 	    (wireless_mode == WIRELESS_MODE_N_5G)) {
 		priv->rtllib->pHTInfo->bEnableHT = 1;
-	RT_TRACE(COMP_DBG, "%s(), wireless_mode:%x, bEnableHT = 1\n",
-		 __func__, wireless_mode);
+		RT_TRACE(COMP_DBG, "%s(), wireless_mode:%x, bEnableHT = 1\n",
+			 __func__, wireless_mode);
 	} else {
 		priv->rtllib->pHTInfo->bEnableHT = 0;
 		RT_TRACE(COMP_DBG, "%s(), wireless_mode:%x, bEnableHT = 0\n",
@@ -1616,14 +1616,15 @@ static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 	skb_push(skb, priv->rtllib->tx_headroom);
 	ret = _rtl92e_tx(dev, skb);
-	if (ret != 0)
-		kfree_skb(skb);
 
 	if (queue_index != MGNT_QUEUE) {
 		priv->rtllib->stats.tx_bytes += (skb->len -
 						 priv->rtllib->tx_headroom);
 		priv->rtllib->stats.tx_packets++;
 	}
+
+	if (ret != 0)
+		kfree_skb(skb);
 }
 
 static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1972,18 +1973,11 @@ u8 rtl92e_rx_db_to_percent(s8 antpower)
 
 u8 rtl92e_evm_db_to_percent(s8 value)
 {
-	s8 ret_val;
+	s8 ret_val = clamp(-value, 0, 33) * 3;
 
-	ret_val = value;
-
-	if (ret_val >= 0)
-		ret_val = 0;
-	if (ret_val <= -33)
-		ret_val = -33;
-	ret_val = 0 - ret_val;
-	ret_val *= 3;
 	if (ret_val == 99)
 		ret_val = 100;
+
 	return ret_val;
 }
 
@@ -2462,7 +2456,7 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 	}
 
 
-	ioaddr = (unsigned long)ioremap_nocache(pmem_start, pmem_len);
+	ioaddr = (unsigned long)ioremap(pmem_start, pmem_len);
 	if (ioaddr == (unsigned long)NULL) {
 		netdev_err(dev, "ioremap failed!");
 		goto err_rel_mem;

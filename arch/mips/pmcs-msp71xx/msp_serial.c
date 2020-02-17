@@ -105,7 +105,7 @@ void __init msp_serial_setup(void)
 
 	/* Initialize first serial port */
 	up.mapbase	= MSP_UART0_BASE;
-	up.membase	= ioremap_nocache(up.mapbase, MSP_UART_REG_LEN);
+	up.membase	= ioremap(up.mapbase, MSP_UART_REG_LEN);
 	up.irq		= MSP_INT_UART0;
 	up.uartclk	= uartclk;
 	up.regshift	= 2;
@@ -143,7 +143,7 @@ void __init msp_serial_setup(void)
 	}
 
 	up.mapbase	= MSP_UART1_BASE;
-	up.membase	= ioremap_nocache(up.mapbase, MSP_UART_REG_LEN);
+	up.membase	= ioremap(up.mapbase, MSP_UART_REG_LEN);
 	up.irq		= MSP_INT_UART1;
 	up.line		= 1;
 	up.private_data		= (void*)UART1_STATUS_REG;

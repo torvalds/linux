@@ -42,6 +42,7 @@ static inline bool is_sed_ioctl(unsigned int cmd)
 	case IOC_OPAL_PSID_REVERT_TPR:
 	case IOC_OPAL_MBR_DONE:
 	case IOC_OPAL_WRITE_SHADOW_MBR:
+	case IOC_OPAL_GENERIC_TABLE_RW:
 		return true;
 	}
 	return false;

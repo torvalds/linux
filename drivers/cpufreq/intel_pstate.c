@@ -172,7 +172,7 @@ struct vid_data {
 /**
  * struct global_params - Global parameters, mostly tunable via sysfs.
  * @no_turbo:		Whether or not to use turbo P-states.
- * @turbo_disabled:	Whethet or not turbo P-states are available at all,
+ * @turbo_disabled:	Whether or not turbo P-states are available at all,
  *			based on the MSR_IA32_MISC_ENABLE value and whether or
  *			not the maximum reported turbo P-state is different from
  *			the maximum reported non-turbo one.
@@ -847,11 +847,9 @@ static void intel_pstate_hwp_force_min_perf(int cpu)
 	value |= HWP_MAX_PERF(min_perf);
 	value |= HWP_MIN_PERF(min_perf);
 
-	/* Set EPP/EPB to min */
+	/* Set EPP to min */
 	if (boot_cpu_has(X86_FEATURE_HWP_EPP))
 		value |= HWP_ENERGY_PERF_PREFERENCE(HWP_EPP_POWERSAVE);
-	else
-		intel_pstate_set_epb(cpu, HWP_EPP_BALANCE_POWERSAVE);
 
 	wrmsrl_on_cpu(cpu, MSR_HWP_REQUEST, value);
 }
@@ -1088,10 +1086,10 @@ static ssize_t store_no_turbo(struct kobject *a, struct kobj_attribute *b,
 
 static struct cpufreq_driver intel_pstate;
 
-static void update_qos_request(enum dev_pm_qos_req_type type)
+static void update_qos_request(enum freq_qos_req_type type)
 {
 	int max_state, turbo_max, freq, i, perf_pct;
-	struct dev_pm_qos_request *req;
+	struct freq_qos_request *req;
 	struct cpufreq_policy *policy;
 
 	for_each_possible_cpu(i) {
@@ -1112,7 +1110,7 @@ static void update_qos_request(enum dev_pm_qos_req_type type)
 		else
 			turbo_max = cpu->pstate.turbo_pstate;
 
-		if (type == DEV_PM_QOS_MIN_FREQUENCY) {
+		if (type == FREQ_QOS_MIN) {
 			perf_pct = global.min_perf_pct;
 		} else {
 			req++;
@@ -1122,7 +1120,7 @@ static void update_qos_request(enum dev_pm_qos_req_type type)
 		freq = DIV_ROUND_UP(turbo_max * perf_pct, 100);
 		freq *= cpu->pstate.scaling;
 
-		if (dev_pm_qos_update_request(req, freq) < 0)
+		if (freq_qos_update_request(req, freq) < 0)
 			pr_warn("Failed to update freq constraint: CPU%d\n", i);
 	}
 }
@@ -1153,7 +1151,7 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct kobj_attribute *b,
 	if (intel_pstate_driver == &intel_pstate)
 		intel_pstate_update_policies();
 	else
-		update_qos_request(DEV_PM_QOS_MAX_FREQUENCY);
+		update_qos_request(FREQ_QOS_MAX);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -1187,7 +1185,7 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct kobj_attribute *b,
 	if (intel_pstate_driver == &intel_pstate)
 		intel_pstate_update_policies();
 	else
-		update_qos_request(DEV_PM_QOS_MIN_FREQUENCY);
+		update_qos_request(FREQ_QOS_MIN);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -2038,8 +2036,9 @@ static int intel_pstate_get_max_freq(struct cpudata *cpu)
 			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
 }
 
-static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
-					    struct cpudata *cpu)
+static void intel_pstate_update_perf_limits(struct cpudata *cpu,
+					    unsigned int policy_min,
+					    unsigned int policy_max)
 {
 	int max_freq = intel_pstate_get_max_freq(cpu);
 	int32_t max_policy_perf, min_policy_perf;
@@ -2058,18 +2057,17 @@ static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 		turbo_max = cpu->pstate.turbo_pstate;
 	}
 
-	max_policy_perf = max_state * policy->max / max_freq;
-	if (policy->max == policy->min) {
+	max_policy_perf = max_state * policy_max / max_freq;
+	if (policy_max == policy_min) {
 		min_policy_perf = max_policy_perf;
 	} else {
-		min_policy_perf = max_state * policy->min / max_freq;
+		min_policy_perf = max_state * policy_min / max_freq;
 		min_policy_perf = clamp_t(int32_t, min_policy_perf,
 					  0, max_policy_perf);
 	}
 
 	pr_debug("cpu:%d max_state %d min_policy_perf:%d max_policy_perf:%d\n",
-		 policy->cpu, max_state,
-		 min_policy_perf, max_policy_perf);
+		 cpu->cpu, max_state, min_policy_perf, max_policy_perf);
 
 	/* Normalize user input to [min_perf, max_perf] */
 	if (per_cpu_limits) {
@@ -2083,7 +2081,7 @@ static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 		global_min = DIV_ROUND_UP(turbo_max * global.min_perf_pct, 100);
 		global_min = clamp_t(int32_t, global_min, 0, global_max);
 
-		pr_debug("cpu:%d global_min:%d global_max:%d\n", policy->cpu,
+		pr_debug("cpu:%d global_min:%d global_max:%d\n", cpu->cpu,
 			 global_min, global_max);
 
 		cpu->min_perf_ratio = max(min_policy_perf, global_min);
@@ -2096,7 +2094,7 @@ static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 					  cpu->max_perf_ratio);
 
 	}
-	pr_debug("cpu:%d max_perf_ratio:%d min_perf_ratio:%d\n", policy->cpu,
+	pr_debug("cpu:%d max_perf_ratio:%d min_perf_ratio:%d\n", cpu->cpu,
 		 cpu->max_perf_ratio,
 		 cpu->min_perf_ratio);
 }
@@ -2116,7 +2114,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 
 	mutex_lock(&intel_pstate_limits_lock);
 
-	intel_pstate_update_perf_limits(policy, cpu);
+	intel_pstate_update_perf_limits(cpu, policy->min, policy->max);
 
 	if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		/*
@@ -2145,8 +2143,8 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static void intel_pstate_adjust_policy_max(struct cpufreq_policy *policy,
-					 struct cpudata *cpu)
+static void intel_pstate_adjust_policy_max(struct cpudata *cpu,
+					   struct cpufreq_policy_data *policy)
 {
 	if (!hwp_active &&
 	    cpu->pstate.max_pstate_physical > cpu->pstate.max_pstate &&
@@ -2157,7 +2155,7 @@ static void intel_pstate_adjust_policy_max(struct cpufreq_policy *policy,
 	}
 }
 
-static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
+static int intel_pstate_verify_policy(struct cpufreq_policy_data *policy)
 {
 	struct cpudata *cpu = all_cpu_data[policy->cpu];
 
@@ -2165,11 +2163,7 @@ static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
 	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
 				     intel_pstate_get_max_freq(cpu));
 
-	if (policy->policy != CPUFREQ_POLICY_POWERSAVE &&
-	    policy->policy != CPUFREQ_POLICY_PERFORMANCE)
-		return -EINVAL;
-
-	intel_pstate_adjust_policy_max(policy, cpu);
+	intel_pstate_adjust_policy_max(cpu, policy);
 
 	return 0;
 }
@@ -2270,7 +2264,7 @@ static struct cpufreq_driver intel_pstate = {
 	.name		= "intel_pstate",
 };
 
-static int intel_cpufreq_verify_policy(struct cpufreq_policy *policy)
+static int intel_cpufreq_verify_policy(struct cpufreq_policy_data *policy)
 {
 	struct cpudata *cpu = all_cpu_data[policy->cpu];
 
@@ -2278,9 +2272,9 @@ static int intel_cpufreq_verify_policy(struct cpufreq_policy *policy)
 	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
 				     intel_pstate_get_max_freq(cpu));
 
-	intel_pstate_adjust_policy_max(policy, cpu);
+	intel_pstate_adjust_policy_max(cpu, policy);
 
-	intel_pstate_update_perf_limits(policy, cpu);
+	intel_pstate_update_perf_limits(cpu, policy->min, policy->max);
 
 	return 0;
 }
@@ -2381,7 +2375,7 @@ static unsigned int intel_cpufreq_fast_switch(struct cpufreq_policy *policy,
 static int intel_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
 	int max_state, turbo_max, min_freq, max_freq, ret;
-	struct dev_pm_qos_request *req;
+	struct freq_qos_request *req;
 	struct cpudata *cpu;
 	struct device *dev;
 
@@ -2416,15 +2410,15 @@ static int intel_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	max_freq = DIV_ROUND_UP(turbo_max * global.max_perf_pct, 100);
 	max_freq *= cpu->pstate.scaling;
 
-	ret = dev_pm_qos_add_request(dev, req, DEV_PM_QOS_MIN_FREQUENCY,
-				     min_freq);
+	ret = freq_qos_add_request(&policy->constraints, req, FREQ_QOS_MIN,
+				   min_freq);
 	if (ret < 0) {
 		dev_err(dev, "Failed to add min-freq constraint (%d)\n", ret);
 		goto free_req;
 	}
 
-	ret = dev_pm_qos_add_request(dev, req + 1, DEV_PM_QOS_MAX_FREQUENCY,
-				     max_freq);
+	ret = freq_qos_add_request(&policy->constraints, req + 1, FREQ_QOS_MAX,
+				   max_freq);
 	if (ret < 0) {
 		dev_err(dev, "Failed to add max-freq constraint (%d)\n", ret);
 		goto remove_min_req;
@@ -2435,7 +2429,7 @@ static int intel_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 
 remove_min_req:
-	dev_pm_qos_remove_request(req);
+	freq_qos_remove_request(req);
 free_req:
 	kfree(req);
 pstate_exit:
@@ -2446,12 +2440,12 @@ pstate_exit:
 
 static int intel_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
-	struct dev_pm_qos_request *req;
+	struct freq_qos_request *req;
 
 	req = policy->driver_data;
 
-	dev_pm_qos_remove_request(req + 1);
-	dev_pm_qos_remove_request(req);
+	freq_qos_remove_request(req + 1);
+	freq_qos_remove_request(req);
 	kfree(req);
 
 	return intel_pstate_cpu_exit(policy);
@@ -2664,21 +2658,21 @@ enum {
 
 /* Hardware vendor-specific info that has its own power management modes */
 static struct acpi_platform_list plat_info[] __initdata = {
-	{"HP    ", "ProLiant", 0, ACPI_SIG_FADT, all_versions, 0, PSS},
-	{"ORACLE", "X4-2    ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X4-2L   ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X4-2B   ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X3-2    ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X3-2L   ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X3-2B   ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X4470M2 ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X4270M3 ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X4270M2 ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X4170M2 ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X4170 M3", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X4275 M3", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "X6-2    ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
-	{"ORACLE", "Sudbury ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"HP    ", "ProLiant", 0, ACPI_SIG_FADT, all_versions, NULL, PSS},
+	{"ORACLE", "X4-2    ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X4-2L   ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X4-2B   ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X3-2    ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X3-2L   ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X3-2B   ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X4470M2 ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X4270M3 ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X4270M2 ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X4170M2 ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X4170 M3", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X4275 M3", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "X6-2    ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
+	{"ORACLE", "Sudbury ", 0, ACPI_SIG_FADT, all_versions, NULL, PPC},
 	{ } /* End */
 };
 

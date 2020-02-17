@@ -20,6 +20,7 @@
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/clnt.h>
+#include <trace/events/rpcgss.h>
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
@@ -158,7 +159,6 @@ struct gss_api_mech *gss_mech_get_by_OID(struct rpcsec_gss_oid *obj)
 
 	if (sprint_oid(obj->data, obj->len, buf, sizeof(buf)) < 0)
 		return NULL;
-	dprintk("RPC:       %s(%s)\n", __func__, buf);
 	request_module("rpc-auth-gss-%s", buf);
 
 	rcu_read_lock();
@@ -172,6 +172,8 @@ struct gss_api_mech *gss_mech_get_by_OID(struct rpcsec_gss_oid *obj)
 		}
 	}
 	rcu_read_unlock();
+	if (!gm)
+		trace_rpcgss_oid_to_mech(buf);
 	return gm;
 }
 
@@ -215,35 +217,6 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 		gm = _gss_mech_get_by_pseudoflavor(pseudoflavor);
 	}
 	return gm;
-}
-
-/**
- * gss_mech_list_pseudoflavors - Discover registered GSS pseudoflavors
- * @array_ptr: array to fill in
- * @size: size of "array"
- *
- * Returns the number of array items filled in, or a negative errno.
- *
- * The returned array is not sorted by any policy.  Callers should not
- * rely on the order of the items in the returned array.
- */
-int gss_mech_list_pseudoflavors(rpc_authflavor_t *array_ptr, int size)
-{
-	struct gss_api_mech *pos = NULL;
-	int j, i = 0;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(pos, &registered_mechs, gm_list) {
-		for (j = 0; j < pos->gm_pf_num; j++) {
-			if (i >= size) {
-				spin_unlock(&registered_mechs_lock);
-				return -ENOMEM;
-			}
-			array_ptr[i++] = pos->gm_pfs[j].pseudoflavor;
-		}
-	}
-	rcu_read_unlock();
-	return i;
 }
 
 /**
@@ -374,7 +347,7 @@ int
 gss_import_sec_context(const void *input_token, size_t bufsize,
 		       struct gss_api_mech	*mech,
 		       struct gss_ctx		**ctx_id,
-		       time_t			*endtime,
+		       time64_t			*endtime,
 		       gfp_t gfp_mask)
 {
 	if (!(*ctx_id = kzalloc(sizeof(**ctx_id), gfp_mask)))

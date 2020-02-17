@@ -1,34 +1,33 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_I915_WERROR
-        bool "Force GCC to throw an error instead of a warning when compiling"
-        # As this may inadvertently break the build, only allow the user
-        # to shoot oneself in the foot iff they aim really hard
-        depends on EXPERT
-        # We use the dependency on !COMPILE_TEST to not be enabled in
-        # allmodconfig or allyesconfig configurations
-        depends on !COMPILE_TEST
-	select HEADER_TEST
-        default n
-        help
-          Add -Werror to the build flags for (and only for) i915.ko.
-          Do not enable this unless you are writing code for the i915.ko module.
+	bool "Force GCC to throw an error instead of a warning when compiling"
+	# As this may inadvertently break the build, only allow the user
+	# to shoot oneself in the foot iff they aim really hard
+	depends on EXPERT
+	# We use the dependency on !COMPILE_TEST to not be enabled in
+	# allmodconfig or allyesconfig configurations
+	depends on !COMPILE_TEST
+	default n
+	help
+	  Add -Werror to the build flags for (and only for) i915.ko.
+	  Do not enable this unless you are writing code for the i915.ko module.
 
-          Recommended for driver developers only.
+	  Recommended for driver developers only.
 
-          If in doubt, say "N".
+	  If in doubt, say "N".
 
 config DRM_I915_DEBUG
-        bool "Enable additional driver debugging"
-        depends on DRM_I915
-        select DEBUG_FS
-        select PREEMPT_COUNT
-        select REFCOUNT_FULL
-        select I2C_CHARDEV
-        select STACKDEPOT
-        select DRM_DP_AUX_CHARDEV
-        select X86_MSR # used by igt/pm_rpm
-        select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
-        select DRM_DEBUG_MM if DRM=y
+	bool "Enable additional driver debugging"
+	depends on DRM_I915
+	select DEBUG_FS
+	select PREEMPT_COUNT
+	select I2C_CHARDEV
+	select STACKDEPOT
+	select DRM_DP_AUX_CHARDEV
+	select X86_MSR # used by igt/pm_rpm
+	select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
+	select DRM_DEBUG_MM if DRM=y
+	select DRM_EXPORT_FOR_TESTS if m
 	select DRM_DEBUG_SELFTEST
 	select DMABUF_SELFTESTS
 	select SW_SYNC # signaling validation framework (igt/syncobj*)
@@ -36,14 +35,14 @@ config DRM_I915_DEBUG
 	select DRM_I915_SELFTEST
 	select DRM_I915_DEBUG_RUNTIME_PM
 	select DRM_I915_DEBUG_MMIO
-        default n
-        help
-          Choose this option to turn on extra driver debugging that may affect
-          performance but will catch some internal issues.
+	default n
+	help
+	  Choose this option to turn on extra driver debugging that may affect
+	  performance but will catch some internal issues.
 
-          Recommended for driver developers only.
+	  Recommended for driver developers only.
 
-          If in doubt, say "N".
+	  If in doubt, say "N".
 
 config DRM_I915_DEBUG_MMIO
 	bool "Always insert extra checks around mmio access by default"
@@ -59,16 +58,16 @@ config DRM_I915_DEBUG_MMIO
 	  If in doubt, say "N".
 
 config DRM_I915_DEBUG_GEM
-        bool "Insert extra checks into the GEM internals"
-        default n
-        depends on DRM_I915_WERROR
-        help
-          Enable extra sanity checks (including BUGs) along the GEM driver
-          paths that may slow the system down and if hit hang the machine.
+	bool "Insert extra checks into the GEM internals"
+	default n
+	depends on DRM_I915_WERROR
+	help
+	  Enable extra sanity checks (including BUGs) along the GEM driver
+	  paths that may slow the system down and if hit hang the machine.
 
-          Recommended for driver developers only.
+	  Recommended for driver developers only.
 
-          If in doubt, say "N".
+	  If in doubt, say "N".
 
 config DRM_I915_ERRLOG_GEM
 	bool "Insert extra logging (very verbose) for common GEM errors"
@@ -111,46 +110,47 @@ config DRM_I915_TRACE_GTT
 	  If in doubt, say "N".
 
 config DRM_I915_SW_FENCE_DEBUG_OBJECTS
-        bool "Enable additional driver debugging for fence objects"
-        depends on DRM_I915
-        select DEBUG_OBJECTS
-        default n
-        help
-          Choose this option to turn on extra driver debugging that may affect
-          performance but will catch some internal issues.
+	bool "Enable additional driver debugging for fence objects"
+	depends on DRM_I915
+	select DEBUG_OBJECTS
+	default n
+	help
+	  Choose this option to turn on extra driver debugging that may affect
+	  performance but will catch some internal issues.
 
-          Recommended for driver developers only.
+	  Recommended for driver developers only.
 
-          If in doubt, say "N".
+	  If in doubt, say "N".
 
 config DRM_I915_SW_FENCE_CHECK_DAG
-        bool "Enable additional driver debugging for detecting dependency cycles"
-        depends on DRM_I915
-        default n
-        help
-          Choose this option to turn on extra driver debugging that may affect
-          performance but will catch some internal issues.
+	bool "Enable additional driver debugging for detecting dependency cycles"
+	depends on DRM_I915
+	default n
+	help
+	  Choose this option to turn on extra driver debugging that may affect
+	  performance but will catch some internal issues.
 
-          Recommended for driver developers only.
+	  Recommended for driver developers only.
 
-          If in doubt, say "N".
+	  If in doubt, say "N".
 
 config DRM_I915_DEBUG_GUC
-        bool "Enable additional driver debugging for GuC"
-        depends on DRM_I915
-        default n
-        help
-          Choose this option to turn on extra driver debugging that may affect
-          performance but will help resolve GuC related issues.
+	bool "Enable additional driver debugging for GuC"
+	depends on DRM_I915
+	default n
+	help
+	  Choose this option to turn on extra driver debugging that may affect
+	  performance but will help resolve GuC related issues.
 
-          Recommended for driver developers only.
+	  Recommended for driver developers only.
 
-          If in doubt, say "N".
+	  If in doubt, say "N".
 
 config DRM_I915_SELFTEST
 	bool "Enable selftests upon driver load"
 	depends on DRM_I915
 	default n
+	select DRM_EXPORT_FOR_TESTS if m
 	select FAULT_INJECTION
 	select PRIME_NUMBERS
 	help
@@ -178,15 +178,15 @@ config DRM_I915_SELFTEST_BROKEN
 	  If in doubt, say "N".
 
 config DRM_I915_LOW_LEVEL_TRACEPOINTS
-        bool "Enable low level request tracing events"
-        depends on DRM_I915
-        default n
-        help
-          Choose this option to turn on low level request tracing events.
-          This provides the ability to precisely monitor engine utilisation
-          and also analyze the request dependency resolving timeline.
+	bool "Enable low level request tracing events"
+	depends on DRM_I915
+	default n
+	help
+	  Choose this option to turn on low level request tracing events.
+	  This provides the ability to precisely monitor engine utilisation
+	  and also analyze the request dependency resolving timeline.
 
-          If in doubt, say "N".
+	  If in doubt, say "N".
 
 config DRM_I915_DEBUG_VBLANK_EVADE
 	bool "Enable extra debug warnings for vblank evasion"

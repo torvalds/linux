@@ -11,17 +11,19 @@ struct nv50_head {
 	const struct nv50_head_func *func;
 	struct nouveau_crtc base;
 	struct nv50_lut olut;
+	struct nv50_msto *msto;
 };
 
-int nv50_head_create(struct drm_device *, int index);
+struct nv50_head *nv50_head_create(struct drm_device *, int index);
 void nv50_head_flush_set(struct nv50_head *, struct nv50_head_atom *);
 void nv50_head_flush_clr(struct nv50_head *, struct nv50_head_atom *, bool y);
 
 struct nv50_head_func {
 	void (*view)(struct nv50_head *, struct nv50_head_atom *);
 	void (*mode)(struct nv50_head *, struct nv50_head_atom *);
-	void (*olut)(struct nv50_head *, struct nv50_head_atom *);
+	bool (*olut)(struct nv50_head *, struct nv50_head_atom *, int);
 	bool olut_identity;
+	int  olut_size;
 	void (*olut_set)(struct nv50_head *, struct nv50_head_atom *);
 	void (*olut_clr)(struct nv50_head *);
 	void (*core_calc)(struct nv50_head *, struct nv50_head_atom *);
@@ -43,7 +45,7 @@ struct nv50_head_func {
 extern const struct nv50_head_func head507d;
 void head507d_view(struct nv50_head *, struct nv50_head_atom *);
 void head507d_mode(struct nv50_head *, struct nv50_head_atom *);
-void head507d_olut(struct nv50_head *, struct nv50_head_atom *);
+bool head507d_olut(struct nv50_head *, struct nv50_head_atom *, int);
 void head507d_core_calc(struct nv50_head *, struct nv50_head_atom *);
 void head507d_core_clr(struct nv50_head *);
 int head507d_curs_layout(struct nv50_head *, struct nv50_wndw_atom *,
@@ -60,7 +62,7 @@ extern const struct nv50_head_func head827d;
 extern const struct nv50_head_func head907d;
 void head907d_view(struct nv50_head *, struct nv50_head_atom *);
 void head907d_mode(struct nv50_head *, struct nv50_head_atom *);
-void head907d_olut(struct nv50_head *, struct nv50_head_atom *);
+bool head907d_olut(struct nv50_head *, struct nv50_head_atom *, int);
 void head907d_olut_set(struct nv50_head *, struct nv50_head_atom *);
 void head907d_olut_clr(struct nv50_head *);
 void head907d_core_set(struct nv50_head *, struct nv50_head_atom *);

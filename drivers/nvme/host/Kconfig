@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config NVME_CORE
 	tristate
+	select BLK_DEV_INTEGRITY_T10 if BLK_DEV_INTEGRITY
 
 config BLK_DEV_NVME
 	tristate "NVM Express block device"
@@ -22,6 +23,16 @@ config NVME_MULTIPATH
 	   subsystems.  If this option is enabled only a single
 	   /dev/nvmeXnY device will show up for each NVMe namespaces,
 	   even if it is accessible through multiple controllers.
+
+config NVME_HWMON
+	bool "NVMe hardware monitoring"
+	depends on (NVME_CORE=y && HWMON=y) || (NVME_CORE=m && HWMON)
+	help
+	  This provides support for NVMe hardware monitoring. If enabled,
+	  a hardware monitoring device will be created for each NVMe drive
+	  in the system.
+
+	  If unsure, say N.
 
 config NVME_FABRICS
 	tristate

@@ -693,15 +693,13 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 {
 	struct stm32_rtc *rtc;
 	const struct stm32_rtc_registers *regs;
-	struct resource *res;
 	int ret;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rtc->base = devm_ioremap_resource(&pdev->dev, res);
+	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base))
 		return PTR_ERR(rtc->base);
 
@@ -899,8 +897,11 @@ static int stm32_rtc_resume(struct device *dev)
 	}
 
 	ret = stm32_rtc_wait_sync(rtc);
-	if (ret < 0)
+	if (ret < 0) {
+		if (rtc->data->has_pclk)
+			clk_disable_unprepare(rtc->pclk);
 		return ret;
+	}
 
 	if (device_may_wakeup(dev))
 		return disable_irq_wake(rtc->irq_alarm);

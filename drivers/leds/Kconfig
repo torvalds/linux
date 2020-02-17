@@ -17,7 +17,7 @@ if NEW_LEDS
 config LEDS_CLASS
 	tristate "LED Class Support"
 	help
-	  This option enables the led sysfs class in /sys/class/leds.  You'll
+	  This option enables the LED sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
 
 config LEDS_CLASS_FLASH
@@ -35,7 +35,7 @@ config LEDS_BRIGHTNESS_HW_CHANGED
 	depends on LEDS_CLASS
 	help
 	  This option enables support for the brightness_hw_changed attribute
-	  for led sysfs class devices under /sys/class/leds.
+	  for LED sysfs class devices under /sys/class/leds.
 
 	  See Documentation/ABI/testing/sysfs-class-led for details.
 
@@ -131,6 +131,19 @@ config LEDS_CR0014114
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-cr0014114.
+
+config LEDS_EL15203000
+	tristate "LED Support for Crane EL15203000"
+	depends on LEDS_CLASS
+	depends on SPI
+	depends on OF
+	help
+	  This option enables support for EL15203000 LED Board
+	  (aka RED LED board) which is widely used in coffee vending
+	  machines produced by Crane Merchandising Systems.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-el15203000.
 
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
@@ -822,6 +835,16 @@ config LEDS_LM36274
 	help
 	  Say Y to enable the LM36274 LED driver for TI LMU devices.
 	  This supports the LED device LM36274.
+
+config LEDS_TPS6105X
+	tristate "LED support for TI TPS6105X"
+	depends on LEDS_CLASS
+	depends on TPS6105X
+	default y if TPS6105X
+	help
+	  This driver supports TPS61050/TPS61052 LED chips.
+	  It is a single boost converter primarily for white LEDs and
+	  audio amplifiers.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

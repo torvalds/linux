@@ -731,7 +731,7 @@ megaraid_init_mbox(adapter_t *adapter)
 		goto out_free_raid_dev;
 	}
 
-	raid_dev->baseaddr = ioremap_nocache(raid_dev->baseport, 128);
+	raid_dev->baseaddr = ioremap(raid_dev->baseport, 128);
 
 	if (!raid_dev->baseaddr) {
 

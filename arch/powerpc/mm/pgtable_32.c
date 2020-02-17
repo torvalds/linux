@@ -117,10 +117,7 @@ void __init mapin_ram(void)
 		if (base >= top)
 			continue;
 		base = mmu_mapin_ram(base, top);
-		if (IS_ENABLED(CONFIG_BDI_SWITCH))
-			__mapin_ram_chunk(reg->base, top);
-		else
-			__mapin_ram_chunk(base, top);
+		__mapin_ram_chunk(base, top);
 	}
 }
 
@@ -221,6 +218,7 @@ void mark_rodata_ro(void)
 
 	if (v_block_mapped((unsigned long)_sinittext)) {
 		mmu_mark_rodata_ro();
+		ptdump_check_wx();
 		return;
 	}
 

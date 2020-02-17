@@ -308,6 +308,29 @@ enum asrc_inclk {
 	INCLK_SSI3_TX = 0x0b,
 	INCLK_SPDIF_TX = 0x0c,
 	INCLK_ASRCK1_CLK = 0x0f,
+
+	/* clocks for imx8 */
+	INCLK_AUD_PLL_DIV_CLK0 = 0x10,
+	INCLK_AUD_PLL_DIV_CLK1 = 0x11,
+	INCLK_AUD_CLK0         = 0x12,
+	INCLK_AUD_CLK1         = 0x13,
+	INCLK_ESAI0_RX_CLK     = 0x14,
+	INCLK_ESAI0_TX_CLK     = 0x15,
+	INCLK_SPDIF0_RX        = 0x16,
+	INCLK_SPDIF1_RX        = 0x17,
+	INCLK_SAI0_RX_BCLK     = 0x18,
+	INCLK_SAI0_TX_BCLK     = 0x19,
+	INCLK_SAI1_RX_BCLK     = 0x1a,
+	INCLK_SAI1_TX_BCLK     = 0x1b,
+	INCLK_SAI2_RX_BCLK     = 0x1c,
+	INCLK_SAI3_RX_BCLK     = 0x1d,
+	INCLK_ASRC0_MUX_CLK    = 0x1e,
+
+	INCLK_ESAI1_RX_CLK     = 0x20,
+	INCLK_ESAI1_TX_CLK     = 0x21,
+	INCLK_SAI6_TX_BCLK     = 0x22,
+	INCLK_HDMI_RX_SAI0_RX_BCLK     = 0x24,
+	INCLK_HDMI_TX_SAI0_TX_BCLK     = 0x25,
 };
 
 enum asrc_outclk {
@@ -325,9 +348,33 @@ enum asrc_outclk {
 	OUTCLK_SSI3_RX = 0x0b,
 	OUTCLK_SPDIF_RX = 0x0c,
 	OUTCLK_ASRCK1_CLK = 0x0f,
+
+	/* clocks for imx8 */
+	OUTCLK_AUD_PLL_DIV_CLK0 = 0x10,
+	OUTCLK_AUD_PLL_DIV_CLK1 = 0x11,
+	OUTCLK_AUD_CLK0         = 0x12,
+	OUTCLK_AUD_CLK1         = 0x13,
+	OUTCLK_ESAI0_RX_CLK     = 0x14,
+	OUTCLK_ESAI0_TX_CLK     = 0x15,
+	OUTCLK_SPDIF0_RX        = 0x16,
+	OUTCLK_SPDIF1_RX        = 0x17,
+	OUTCLK_SAI0_RX_BCLK     = 0x18,
+	OUTCLK_SAI0_TX_BCLK     = 0x19,
+	OUTCLK_SAI1_RX_BCLK     = 0x1a,
+	OUTCLK_SAI1_TX_BCLK     = 0x1b,
+	OUTCLK_SAI2_RX_BCLK     = 0x1c,
+	OUTCLK_SAI3_RX_BCLK     = 0x1d,
+	OUTCLK_ASRCO_MUX_CLK    = 0x1e,
+
+	OUTCLK_ESAI1_RX_CLK     = 0x20,
+	OUTCLK_ESAI1_TX_CLK     = 0x21,
+	OUTCLK_SAI6_TX_BCLK     = 0x22,
+	OUTCLK_HDMI_RX_SAI0_RX_BCLK     = 0x24,
+	OUTCLK_HDMI_TX_SAI0_TX_BCLK     = 0x25,
 };
 
 #define ASRC_CLK_MAX_NUM	16
+#define ASRC_CLK_MAP_LEN	0x30
 
 enum asrc_word_width {
 	ASRC_WIDTH_24_BIT = 0,
@@ -342,8 +389,8 @@ struct asrc_config {
 	unsigned int dma_buffer_size;
 	unsigned int input_sample_rate;
 	unsigned int output_sample_rate;
-	enum asrc_word_width input_word_width;
-	enum asrc_word_width output_word_width;
+	snd_pcm_format_t input_format;
+	snd_pcm_format_t output_format;
 	enum asrc_inclk inclk;
 	enum asrc_outclk outclk;
 };
@@ -385,6 +432,17 @@ struct dma_block {
 	dma_addr_t dma_paddr;
 	void *dma_vaddr;
 	unsigned int length;
+};
+
+/**
+ * fsl_asrc_soc_data: soc specific data
+ *
+ * @use_edma: using edma as dma device or not
+ * @channel_bits: width of ASRCNCR register for each pair
+ */
+struct fsl_asrc_soc_data {
+	bool use_edma;
+	unsigned int channel_bits;
 };
 
 /**
@@ -431,8 +489,9 @@ struct fsl_asrc_pair {
  * @asrck_clk: clock sources to driver ASRC internal logic
  * @lock: spin lock for resource protection
  * @pair: pair pointers
- * @channel_bits: width of ASRCNCR register for each pair
+ * @soc: soc specific data
  * @channel_avail: non-occupied channel numbers
+ * @clk_map: clock map for input/output clock
  * @asrc_rate: default sample rate for ASoC Back-Ends
  * @asrc_width: default sample width for ASoC Back-Ends
  * @regcache_cfg: store register value of REG_ASRCFG
@@ -450,8 +509,9 @@ struct fsl_asrc {
 	spinlock_t lock;
 
 	struct fsl_asrc_pair *pair[ASRC_PAIR_MAX_NUM];
-	unsigned int channel_bits;
+	const struct fsl_asrc_soc_data *soc;
 	unsigned int channel_avail;
+	unsigned char *clk_map[2];
 
 	int asrc_rate;
 	int asrc_width;
@@ -462,4 +522,7 @@ struct fsl_asrc {
 #define DRV_NAME "fsl-asrc-dai"
 extern struct snd_soc_component_driver fsl_asrc_component;
 struct dma_chan *fsl_asrc_get_dma_channel(struct fsl_asrc_pair *pair, bool dir);
+int fsl_asrc_request_pair(int channels, struct fsl_asrc_pair *pair);
+void fsl_asrc_release_pair(struct fsl_asrc_pair *pair);
+
 #endif /* _FSL_ASRC_H */

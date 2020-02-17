@@ -430,8 +430,9 @@ static int mtk_uart_apdma_terminate_all(struct dma_chan *chan)
 
 	spin_lock_irqsave(&c->vc.lock, flags);
 	vchan_get_all_descriptors(&c->vc, &head);
-	vchan_dma_desc_free_list(&c->vc, &head);
 	spin_unlock_irqrestore(&c->vc.lock, flags);
+
+	vchan_dma_desc_free_list(&c->vc, &head);
 
 	return 0;
 }
@@ -475,7 +476,6 @@ static int mtk_uart_apdma_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct mtk_uart_apdmadev *mtkd;
 	int bit_mask = 32, rc;
-	struct resource *res;
 	struct mtk_chan *c;
 	unsigned int i;
 
@@ -532,13 +532,7 @@ static int mtk_uart_apdma_probe(struct platform_device *pdev)
 			goto err_no_dma;
 		}
 
-		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (!res) {
-			rc = -ENODEV;
-			goto err_no_dma;
-		}
-
-		c->base = devm_ioremap_resource(&pdev->dev, res);
+		c->base = devm_platform_ioremap_resource(pdev, i);
 		if (IS_ERR(c->base)) {
 			rc = PTR_ERR(c->base);
 			goto err_no_dma;

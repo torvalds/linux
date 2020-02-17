@@ -33,7 +33,7 @@ static int mdsmap_show(struct seq_file *s, void *p)
 	seq_printf(s, "max_mds %d\n", mdsmap->m_max_mds);
 	seq_printf(s, "session_timeout %d\n", mdsmap->m_session_timeout);
 	seq_printf(s, "session_autoclose %d\n", mdsmap->m_session_autoclose);
-	for (i = 0; i < mdsmap->m_num_mds; i++) {
+	for (i = 0; i < mdsmap->possible_max_rank; i++) {
 		struct ceph_entity_addr *addr = &mdsmap->m_info[i].addr;
 		int state = mdsmap->m_info[i].state;
 		seq_printf(s, "\tmds%d\t%s\t(%s)\n", i,
@@ -139,6 +139,7 @@ static int caps_show(struct seq_file *s, void *p)
 	struct ceph_fs_client *fsc = s->private;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	int total, avail, used, reserved, min, i;
+	struct cap_wait	*cw;
 
 	ceph_reservation_status(fsc, &total, &avail, &used, &reserved, &min);
 	seq_printf(s, "total\t\t%d\n"
@@ -165,6 +166,18 @@ static int caps_show(struct seq_file *s, void *p)
 		mutex_lock(&mdsc->mutex);
 	}
 	mutex_unlock(&mdsc->mutex);
+
+	seq_printf(s, "\n\nWaiters:\n--------\n");
+	seq_printf(s, "tgid         ino                need             want\n");
+	seq_printf(s, "-----------------------------------------------------\n");
+
+	spin_lock(&mdsc->caps_list_lock);
+	list_for_each_entry(cw, &mdsc->cap_wait_list, list) {
+		seq_printf(s, "%-13d0x%-17lx%-17s%-17s\n", cw->tgid, cw->ino,
+				ceph_cap_string(cw->need),
+				ceph_cap_string(cw->want));
+	}
+	spin_unlock(&mdsc->caps_list_lock);
 
 	return 0;
 }

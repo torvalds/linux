@@ -68,17 +68,19 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 	if (r)
 		return r;
 
-	r = amdgpu_sync_fence(p->adev, &p->job->sync, exclusive, false);
-	if (r)
-		return r;
-
-	r = amdgpu_sync_resv(p->adev, &p->job->sync, root->tbo.base.resv,
-			     owner, false);
-	if (r)
-		return r;
-
 	p->num_dw_left = ndw;
-	return 0;
+
+	/* Wait for moves to be completed */
+	r = amdgpu_sync_fence(&p->job->sync, exclusive, false);
+	if (r)
+		return r;
+
+	/* Don't wait for any submissions during page fault handling */
+	if (p->direct)
+		return 0;
+
+	return amdgpu_sync_resv(p->adev, &p->job->sync, root->tbo.base.resv,
+				owner, false);
 }
 
 /**
@@ -93,24 +95,30 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 				 struct dma_fence **fence)
 {
-	struct amdgpu_bo *root = p->vm->root.base.bo;
 	struct amdgpu_ib *ib = p->job->ibs;
+	struct drm_sched_entity *entity;
+	struct dma_fence *f, *tmp;
 	struct amdgpu_ring *ring;
-	struct dma_fence *f;
 	int r;
 
-	ring = container_of(p->vm->entity.rq->sched, struct amdgpu_ring, sched);
+	entity = p->direct ? &p->vm->direct : &p->vm->delayed;
+	ring = container_of(entity->rq->sched, struct amdgpu_ring, sched);
 
 	WARN_ON(ib->length_dw == 0);
 	amdgpu_ring_pad_ib(ring, ib);
 	WARN_ON(ib->length_dw > p->num_dw_left);
-	r = amdgpu_job_submit(p->job, &p->vm->entity,
-			      AMDGPU_FENCE_OWNER_VM, &f);
+	r = amdgpu_job_submit(p->job, entity, AMDGPU_FENCE_OWNER_VM, &f);
 	if (r)
 		goto error;
 
-	amdgpu_bo_fence(root, f, true);
-	if (fence)
+	tmp = dma_fence_get(f);
+	if (p->direct)
+		swap(p->vm->last_direct, tmp);
+	else
+		swap(p->vm->last_delayed, tmp);
+	dma_fence_put(tmp);
+
+	if (fence && !p->direct)
 		swap(*fence, f);
 	dma_fence_put(f);
 	return 0;
@@ -119,7 +127,6 @@ error:
 	amdgpu_job_free(p->job);
 	return r;
 }
-
 
 /**
  * amdgpu_vm_sdma_copy_ptes - copy the PTEs from mapping
@@ -141,7 +148,7 @@ static void amdgpu_vm_sdma_copy_ptes(struct amdgpu_vm_update_params *p,
 	src += p->num_dw_left * 4;
 
 	pe += amdgpu_bo_gpu_offset(bo);
-	trace_amdgpu_vm_copy_ptes(pe, src, count);
+	trace_amdgpu_vm_copy_ptes(pe, src, count, p->direct);
 
 	amdgpu_vm_copy_pte(p->adev, ib, pe, src, count);
 }
@@ -168,7 +175,7 @@ static void amdgpu_vm_sdma_set_ptes(struct amdgpu_vm_update_params *p,
 	struct amdgpu_ib *ib = p->job->ibs;
 
 	pe += amdgpu_bo_gpu_offset(bo);
-	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags);
+	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags, p->direct);
 	if (count < 3) {
 		amdgpu_vm_write_pte(p->adev, ib, pe, addr | flags,
 				    count, incr);

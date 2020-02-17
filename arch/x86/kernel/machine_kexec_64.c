@@ -298,48 +298,6 @@ static void load_segments(void)
 		);
 }
 
-#ifdef CONFIG_KEXEC_FILE
-/* Update purgatory as needed after various image segments have been prepared */
-static int arch_update_purgatory(struct kimage *image)
-{
-	int ret = 0;
-
-	if (!image->file_mode)
-		return 0;
-
-	/* Setup copying of backup region */
-	if (image->type == KEXEC_TYPE_CRASH) {
-		ret = kexec_purgatory_get_set_symbol(image,
-				"purgatory_backup_dest",
-				&image->arch.backup_load_addr,
-				sizeof(image->arch.backup_load_addr), 0);
-		if (ret)
-			return ret;
-
-		ret = kexec_purgatory_get_set_symbol(image,
-				"purgatory_backup_src",
-				&image->arch.backup_src_start,
-				sizeof(image->arch.backup_src_start), 0);
-		if (ret)
-			return ret;
-
-		ret = kexec_purgatory_get_set_symbol(image,
-				"purgatory_backup_sz",
-				&image->arch.backup_src_sz,
-				sizeof(image->arch.backup_src_sz), 0);
-		if (ret)
-			return ret;
-	}
-
-	return ret;
-}
-#else /* !CONFIG_KEXEC_FILE */
-static inline int arch_update_purgatory(struct kimage *image)
-{
-	return 0;
-}
-#endif /* CONFIG_KEXEC_FILE */
-
 int machine_kexec_prepare(struct kimage *image)
 {
 	unsigned long start_pgtable;
@@ -350,11 +308,6 @@ int machine_kexec_prepare(struct kimage *image)
 
 	/* Setup the identity mapped 64bit page table */
 	result = init_pgtable(image, start_pgtable);
-	if (result)
-		return result;
-
-	/* update purgatory as needed */
-	result = arch_update_purgatory(image);
 	if (result)
 		return result;
 
@@ -443,25 +396,6 @@ void machine_kexec(struct kimage *image)
 #endif
 
 	__ftrace_enabled_restore(save_ftrace_enabled);
-}
-
-void arch_crash_save_vmcoreinfo(void)
-{
-	u64 sme_mask = sme_me_mask;
-
-	VMCOREINFO_NUMBER(phys_base);
-	VMCOREINFO_SYMBOL(init_top_pgt);
-	vmcoreinfo_append_str("NUMBER(pgtable_l5_enabled)=%d\n",
-			pgtable_l5_enabled());
-
-#ifdef CONFIG_NUMA
-	VMCOREINFO_SYMBOL(node_data);
-	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
-#endif
-	vmcoreinfo_append_str("KERNELOFFSET=%lx\n",
-			      kaslr_offset());
-	VMCOREINFO_NUMBER(KERNEL_IMAGE_SIZE);
-	VMCOREINFO_NUMBER(sme_mask);
 }
 
 /* arch-dependent functionality related to kexec file-based syscall */

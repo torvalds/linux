@@ -8,12 +8,10 @@
 #include <linux/btf.h>
 #include <linux/types.h>
 
+#include "libbpf_common.h"
+
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifndef LIBBPF_API
-#define LIBBPF_API __attribute__((visibility("default")))
 #endif
 
 #define BTF_ELF_SEC ".BTF"
@@ -60,8 +58,8 @@ struct btf_ext_header {
 	__u32	line_info_len;
 
 	/* optional part of .BTF.ext header */
-	__u32	offset_reloc_off;
-	__u32	offset_reloc_len;
+	__u32	field_reloc_off;
+	__u32	field_reloc_len;
 };
 
 LIBBPF_API void btf__free(struct btf *btf);
@@ -72,11 +70,14 @@ LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
 LIBBPF_API int btf__load(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 				   const char *type_name);
+LIBBPF_API __s32 btf__find_by_name_kind(const struct btf *btf,
+					const char *type_name, __u32 kind);
 LIBBPF_API __u32 btf__get_nr_types(const struct btf *btf);
 LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 						  __u32 id);
 LIBBPF_API __s64 btf__resolve_size(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
+LIBBPF_API int btf__align_of(const struct btf *btf, __u32 id);
 LIBBPF_API int btf__fd(const struct btf *btf);
 LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
@@ -101,6 +102,8 @@ LIBBPF_API int btf_ext__reloc_line_info(const struct btf *btf,
 LIBBPF_API __u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
 LIBBPF_API __u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
 
+LIBBPF_API struct btf *libbpf_find_kernel_btf(void);
+
 struct btf_dedup_opts {
 	unsigned int dedup_table_size;
 	bool dont_resolve_fwds;
@@ -124,6 +127,28 @@ LIBBPF_API struct btf_dump *btf_dump__new(const struct btf *btf,
 LIBBPF_API void btf_dump__free(struct btf_dump *d);
 
 LIBBPF_API int btf_dump__dump_type(struct btf_dump *d, __u32 id);
+
+struct btf_dump_emit_type_decl_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* optional field name for type declaration, e.g.:
+	 * - struct my_struct <FNAME>
+	 * - void (*<FNAME>)(int)
+	 * - char (*<FNAME>)[123]
+	 */
+	const char *field_name;
+	/* extra indentation level (in number of tabs) to emit for multi-line
+	 * type declarations (e.g., anonymous struct); applies for lines
+	 * starting from the second one (first line is assumed to have
+	 * necessary indentation already
+	 */
+	int indent_level;
+};
+#define btf_dump_emit_type_decl_opts__last_field indent_level
+
+LIBBPF_API int
+btf_dump__emit_type_decl(struct btf_dump *d, __u32 id,
+			 const struct btf_dump_emit_type_decl_opts *opts);
 
 /*
  * A set of helpers for easier BTF types handling

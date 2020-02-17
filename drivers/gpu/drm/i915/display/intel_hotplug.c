@@ -302,7 +302,7 @@ intel_encoder_hotplug(struct intel_encoder *encoder,
 static bool intel_encoder_has_hpd_pulse(struct intel_encoder *encoder)
 {
 	return intel_encoder_is_dig_port(encoder) &&
-		enc_to_dig_port(&encoder->base)->hpd_pulse != NULL;
+		enc_to_dig_port(encoder)->hpd_pulse != NULL;
 }
 
 static void i915_digport_work_func(struct work_struct *work)
@@ -335,7 +335,7 @@ static void i915_digport_work_func(struct work_struct *work)
 		if (!long_hpd && !short_hpd)
 			continue;
 
-		dig_port = enc_to_dig_port(&encoder->base);
+		dig_port = enc_to_dig_port(encoder);
 
 		ret = dig_port->hpd_pulse(dig_port, long_hpd);
 		if (ret == IRQ_NONE) {
@@ -481,7 +481,8 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 		long_hpd = long_mask & BIT(pin);
 
-		DRM_DEBUG_DRIVER("digital hpd port %c - %s\n", port_name(port),
+		DRM_DEBUG_DRIVER("digital hpd on [ENCODER:%d:%s] - %s\n",
+				 encoder->base.base.id, encoder->base.name,
 				 long_hpd ? "long" : "short");
 		queue_dig = true;
 

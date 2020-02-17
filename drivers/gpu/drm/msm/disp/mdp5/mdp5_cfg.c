@@ -14,7 +14,7 @@ struct mdp5_cfg_handler {
 /* mdp5_cfg must be exposed (used in mdp5.xml.h) */
 const struct mdp5_cfg_hw *mdp5_cfg = NULL;
 
-const struct mdp5_cfg_hw msm8x74v1_config = {
+static const struct mdp5_cfg_hw msm8x74v1_config = {
 	.name = "msm8x74v1",
 	.mdp = {
 		.count = 1,
@@ -98,7 +98,7 @@ const struct mdp5_cfg_hw msm8x74v1_config = {
 	.max_clk = 200000000,
 };
 
-const struct mdp5_cfg_hw msm8x74v2_config = {
+static const struct mdp5_cfg_hw msm8x74v2_config = {
 	.name = "msm8x74",
 	.mdp = {
 		.count = 1,
@@ -180,7 +180,7 @@ const struct mdp5_cfg_hw msm8x74v2_config = {
 	.max_clk = 200000000,
 };
 
-const struct mdp5_cfg_hw apq8084_config = {
+static const struct mdp5_cfg_hw apq8084_config = {
 	.name = "apq8084",
 	.mdp = {
 		.count = 1,
@@ -275,7 +275,7 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.max_clk = 320000000,
 };
 
-const struct mdp5_cfg_hw msm8x16_config = {
+static const struct mdp5_cfg_hw msm8x16_config = {
 	.name = "msm8x16",
 	.mdp = {
 		.count = 1,
@@ -342,7 +342,7 @@ const struct mdp5_cfg_hw msm8x16_config = {
 	.max_clk = 320000000,
 };
 
-const struct mdp5_cfg_hw msm8x94_config = {
+static const struct mdp5_cfg_hw msm8x94_config = {
 	.name = "msm8x94",
 	.mdp = {
 		.count = 1,
@@ -437,7 +437,7 @@ const struct mdp5_cfg_hw msm8x94_config = {
 	.max_clk = 400000000,
 };
 
-const struct mdp5_cfg_hw msm8x96_config = {
+static const struct mdp5_cfg_hw msm8x96_config = {
 	.name = "msm8x96",
 	.mdp = {
 		.count = 1,
@@ -545,7 +545,104 @@ const struct mdp5_cfg_hw msm8x96_config = {
 	.max_clk = 412500000,
 };
 
-const struct mdp5_cfg_hw msm8917_config = {
+const struct mdp5_cfg_hw msm8x76_config = {
+	.name = "msm8x76",
+	.mdp = {
+		.count = 1,
+		.caps = MDP_CAP_SMP |
+			MDP_CAP_DSC |
+			MDP_CAP_SRC_SPLIT |
+			0,
+	},
+	.ctl = {
+		.count = 3,
+		.base = { 0x01000, 0x01200, 0x01400 },
+		.flush_hw_mask = 0xffffffff,
+	},
+	.smp = {
+		.mmb_count = 10,
+		.mmb_size = 10240,
+		.clients = {
+			[SSPP_VIG0] = 1, [SSPP_VIG1] = 9,
+			[SSPP_DMA0] = 4,
+			[SSPP_RGB0] = 7, [SSPP_RGB1] = 8,
+		},
+	},
+	.pipe_vig = {
+		.count = 2,
+		.base = { 0x04000, 0x06000 },
+		.caps = MDP_PIPE_CAP_HFLIP	|
+			MDP_PIPE_CAP_VFLIP	|
+			MDP_PIPE_CAP_SCALE	|
+			MDP_PIPE_CAP_CSC	|
+			MDP_PIPE_CAP_DECIMATION	|
+			MDP_PIPE_CAP_SW_PIX_EXT	|
+			0,
+	},
+	.pipe_rgb = {
+		.count = 2,
+		.base = { 0x14000, 0x16000 },
+		.caps = MDP_PIPE_CAP_HFLIP	|
+			MDP_PIPE_CAP_VFLIP	|
+			MDP_PIPE_CAP_DECIMATION	|
+			MDP_PIPE_CAP_SW_PIX_EXT	|
+			0,
+	},
+	.pipe_dma = {
+		.count = 1,
+		.base = { 0x24000 },
+		.caps = MDP_PIPE_CAP_HFLIP	|
+			MDP_PIPE_CAP_VFLIP	|
+			MDP_PIPE_CAP_SW_PIX_EXT	|
+			0,
+	},
+	.pipe_cursor = {
+		.count = 1,
+		.base = { 0x440DC },
+		.caps = MDP_PIPE_CAP_HFLIP	|
+			MDP_PIPE_CAP_VFLIP	|
+			MDP_PIPE_CAP_SW_PIX_EXT	|
+			MDP_PIPE_CAP_CURSOR	|
+			0,
+	},
+	.lm = {
+		.count = 2,
+		.base = { 0x44000, 0x45000 },
+		.instances = {
+				{ .id = 0, .pp = 0, .dspp = 0,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 1, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB },
+			     },
+		.nb_stages = 8,
+		.max_width = 2560,
+		.max_height = 0xFFFF,
+	},
+	.dspp = {
+		.count = 1,
+		.base = { 0x54000 },
+
+	},
+	.pp = {
+		.count = 3,
+		.base = { 0x70000, 0x70800, 0x72000 },
+	},
+	.dsc = {
+		.count = 2,
+		.base = { 0x80000, 0x80400 },
+	},
+	.intf = {
+		.base = { 0x6a000, 0x6a800, 0x6b000 },
+		.connect = {
+			[0] = INTF_DISABLED,
+			[1] = INTF_DSI,
+			[2] = INTF_DSI,
+		},
+	},
+	.max_clk = 360000000,
+};
+
+static const struct mdp5_cfg_hw msm8917_config = {
 	.name = "msm8917",
 	.mdp = {
 		.count = 1,
@@ -630,7 +727,7 @@ const struct mdp5_cfg_hw msm8917_config = {
 	.max_clk = 320000000,
 };
 
-const struct mdp5_cfg_hw msm8998_config = {
+static const struct mdp5_cfg_hw msm8998_config = {
 	.name = "msm8998",
 	.mdp = {
 		.count = 1,
@@ -745,6 +842,7 @@ static const struct mdp5_cfg_handler cfg_handlers_v1[] = {
 	{ .revision = 6, .config = { .hw = &msm8x16_config } },
 	{ .revision = 9, .config = { .hw = &msm8x94_config } },
 	{ .revision = 7, .config = { .hw = &msm8x96_config } },
+	{ .revision = 11, .config = { .hw = &msm8x76_config } },
 	{ .revision = 15, .config = { .hw = &msm8917_config } },
 };
 
@@ -804,7 +902,7 @@ struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 				major, minor);
 		ret = -ENXIO;
 		goto fail;
-	};
+	}
 
 	/* only after mdp5_cfg global pointer's init can we access the hw */
 	for (i = 0; i < num_handlers; i++) {

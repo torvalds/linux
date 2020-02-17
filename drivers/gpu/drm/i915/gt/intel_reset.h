@@ -14,7 +14,6 @@
 #include "intel_engine_types.h"
 #include "intel_reset_types.h"
 
-struct drm_i915_private;
 struct i915_request;
 struct intel_engine_cs;
 struct intel_gt;
@@ -38,12 +37,18 @@ int intel_engine_reset(struct intel_engine_cs *engine,
 
 void __i915_request_reset(struct i915_request *rq, bool guilty);
 
-int __must_check intel_gt_reset_trylock(struct intel_gt *gt);
+int __must_check intel_gt_reset_trylock(struct intel_gt *gt, int *srcu);
 void intel_gt_reset_unlock(struct intel_gt *gt, int tag);
 
 void intel_gt_set_wedged(struct intel_gt *gt);
 bool intel_gt_unset_wedged(struct intel_gt *gt);
 int intel_gt_terminally_wedged(struct intel_gt *gt);
+
+/*
+ * There's no unset_wedged_on_init paired with this one.
+ * Once we're wedged on init, there's no going back.
+ */
+void intel_gt_set_wedged_on_init(struct intel_gt *gt);
 
 int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask);
 
@@ -68,10 +73,13 @@ void __intel_fini_wedge(struct intel_wedge_me *w);
 
 static inline bool __intel_reset_failed(const struct intel_reset *reset)
 {
+	GEM_BUG_ON(test_bit(I915_WEDGED_ON_INIT, &reset->flags) ?
+		   !test_bit(I915_WEDGED, &reset->flags) : false);
+
 	return unlikely(test_bit(I915_WEDGED, &reset->flags));
 }
 
-bool intel_has_gpu_reset(struct drm_i915_private *i915);
-bool intel_has_reset_engine(struct drm_i915_private *i915);
+bool intel_has_gpu_reset(const struct intel_gt *gt);
+bool intel_has_reset_engine(const struct intel_gt *gt);
 
 #endif /* I915_RESET_H */

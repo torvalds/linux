@@ -61,7 +61,7 @@ struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
 {
 	if (!blk_queue_dax(bdev->bd_queue))
 		return NULL;
-	return fs_dax_get_by_host(bdev->bd_disk->disk_name);
+	return dax_get_by_host(bdev->bd_disk->disk_name);
 }
 EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
 #endif

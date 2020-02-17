@@ -22,6 +22,7 @@ config TI_DAVINCI_EMAC
 	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 ) || COMPILE_TEST
 	select TI_DAVINCI_MDIO
 	select PHYLIB
+	select GENERIC_ALLOCATOR
 	---help---
 	  This driver supports TI's DaVinci Ethernet .
 
@@ -58,9 +59,25 @@ config TI_CPSW
 	  To compile this driver as a module, choose M here: the module
 	  will be called cpsw.
 
+config TI_CPSW_SWITCHDEV
+	tristate "TI CPSW Switch Support with switchdev"
+	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || COMPILE_TEST
+	depends on NET_SWITCHDEV
+	select PAGE_POOL
+	select TI_DAVINCI_MDIO
+	select MFD_SYSCON
+	select REGMAP
+	select NET_DEVLINK
+	imply PHY_TI_GMII_SEL
+	help
+	  This driver supports TI's CPSW Ethernet Switch.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cpsw_new.
+
 config TI_CPTS
 	bool "TI Common Platform Time Sync (CPTS) Support"
-	depends on TI_CPSW || TI_KEYSTONE_NETCP || COMPILE_TEST
+	depends on TI_CPSW || TI_KEYSTONE_NETCP || TI_CPSW_SWITCHDEV || COMPILE_TEST
 	depends on COMMON_CLK
 	depends on POSIX_TIMERS
 	---help---
@@ -72,7 +89,7 @@ config TI_CPTS
 config TI_CPTS_MOD
 	tristate
 	depends on TI_CPTS
-	default y if TI_CPSW=y || TI_KEYSTONE_NETCP=y
+	default y if TI_CPSW=y || TI_KEYSTONE_NETCP=y || TI_CPSW_SWITCHDEV=y
 	select NET_PTP_CLASSIFY
 	imply PTP_1588_CLOCK
 	default m

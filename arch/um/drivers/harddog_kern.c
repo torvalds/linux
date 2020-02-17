@@ -165,6 +165,7 @@ static const struct file_operations harddog_fops = {
 	.owner		= THIS_MODULE,
 	.write		= harddog_write,
 	.unlocked_ioctl	= harddog_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= harddog_open,
 	.release	= harddog_release,
 	.llseek		= no_llseek,

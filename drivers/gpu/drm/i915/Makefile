@@ -31,9 +31,6 @@ CFLAGS_display/intel_fbdev.o = $(call cc-disable-warning, override-init)
 subdir-ccflags-y += \
 	$(call as-instr,movntdqa (%eax)$(comma)%xmm0,-DCONFIG_AS_MOVNTDQA)
 
-# Extra header tests
-header-test-pattern-$(CONFIG_DRM_I915_WERROR) := *.h
-
 subdir-ccflags-y += -I$(srctree)/$(src)
 
 # Please keep these build lists sorted!
@@ -46,10 +43,12 @@ i915-y += i915_drv.o \
 	  i915_pci.o \
 	  i915_scatterlist.o \
 	  i915_suspend.o \
+	  i915_switcheroo.o \
 	  i915_sysfs.o \
 	  i915_utils.o \
 	  intel_csr.o \
 	  intel_device_info.o \
+	  intel_memory_region.o \
 	  intel_pch.o \
 	  intel_pm.o \
 	  intel_runtime_pm.o \
@@ -71,24 +70,36 @@ i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o display/intel_pipe_crc.o
 i915-$(CONFIG_PERF_EVENTS) += i915_pmu.o
 
 # "Graphics Technology" (aka we talk to the gpu)
-obj-y += gt/
 gt-y += \
+	gt/debugfs_engines.o \
+	gt/debugfs_gt.o \
+	gt/debugfs_gt_pm.o \
+	gt/gen6_ppgtt.o \
+	gt/gen8_ppgtt.o \
 	gt/intel_breadcrumbs.o \
 	gt/intel_context.o \
 	gt/intel_engine_cs.o \
-	gt/intel_engine_pool.o \
+	gt/intel_engine_heartbeat.o \
 	gt/intel_engine_pm.o \
+	gt/intel_engine_pool.o \
 	gt/intel_engine_user.o \
+	gt/intel_ggtt.o \
 	gt/intel_gt.o \
 	gt/intel_gt_irq.o \
 	gt/intel_gt_pm.o \
 	gt/intel_gt_pm_irq.o \
-	gt/intel_hangcheck.o \
+	gt/intel_gt_requests.o \
+	gt/intel_gtt.o \
+	gt/intel_llc.o \
 	gt/intel_lrc.o \
+	gt/intel_mocs.o \
+	gt/intel_ppgtt.o \
+	gt/intel_rc6.o \
 	gt/intel_renderstate.o \
 	gt/intel_reset.o \
-	gt/intel_ringbuffer.o \
-	gt/intel_mocs.o \
+	gt/intel_ring.o \
+	gt/intel_ring_submission.o \
+	gt/intel_rps.o \
 	gt/intel_sseu.o \
 	gt/intel_timeline.o \
 	gt/intel_workarounds.o
@@ -101,7 +112,6 @@ gt-y += \
 i915-y += $(gt-y)
 
 # GEM (Graphics Execution Management) code
-obj-y += gem/
 gem-y += \
 	gem/i915_gem_busy.o \
 	gem/i915_gem_clflush.o \
@@ -114,10 +124,12 @@ gem-y += \
 	gem/i915_gem_internal.o \
 	gem/i915_gem_object.o \
 	gem/i915_gem_object_blt.o \
+	gem/i915_gem_lmem.o \
 	gem/i915_gem_mman.o \
 	gem/i915_gem_pages.o \
 	gem/i915_gem_phys.o \
 	gem/i915_gem_pm.o \
+	gem/i915_gem_region.o \
 	gem/i915_gem_shmem.o \
 	gem/i915_gem_shrinker.o \
 	gem/i915_gem_stolen.o \
@@ -141,10 +153,10 @@ i915-y += \
 	  i915_scheduler.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
+	  intel_region_lmem.o \
 	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support
-obj-y += gt/uc/
 i915-y += gt/uc/intel_uc.o \
 	  gt/uc/intel_uc_fw.o \
 	  gt/uc/intel_guc.o \
@@ -157,7 +169,6 @@ i915-y += gt/uc/intel_uc.o \
 	  gt/uc/intel_huc_fw.o
 
 # modesetting core code
-obj-y += display/
 i915-y += \
 	display/intel_atomic.o \
 	display/intel_atomic_plane.o \
@@ -172,6 +183,7 @@ i915-y += \
 	display/intel_display_power.o \
 	display/intel_dpio_phy.o \
 	display/intel_dpll_mgr.o \
+	display/intel_dsb.o \
 	display/intel_fbc.o \
 	display/intel_fifo_underrun.o \
 	display/intel_frontbuffer.o \
@@ -182,7 +194,8 @@ i915-y += \
 	display/intel_psr.o \
 	display/intel_quirks.o \
 	display/intel_sprite.o \
-	display/intel_tc.o
+	display/intel_tc.o \
+	display/intel_vga.o
 i915-$(CONFIG_ACPI) += \
 	display/intel_acpi.o \
 	display/intel_opregion.o
@@ -220,7 +233,6 @@ i915-y += \
 	display/vlv_dsi_pll.o
 
 # perf code
-obj-y += oa/
 i915-y += \
 	oa/i915_oa_hsw.o \
 	oa/i915_oa_bdw.o \
@@ -235,7 +247,8 @@ i915-y += \
 	oa/i915_oa_cflgt2.o \
 	oa/i915_oa_cflgt3.o \
 	oa/i915_oa_cnl.o \
-	oa/i915_oa_icl.o
+	oa/i915_oa_icl.o \
+	oa/i915_oa_tgl.o
 i915-y += i915_perf.o
 
 # Post-mortem debug and GPU hang state capture
@@ -244,8 +257,10 @@ i915-$(CONFIG_DRM_I915_SELFTEST) += \
 	gem/selftests/igt_gem_utils.o \
 	selftests/i915_random.o \
 	selftests/i915_selftest.o \
+	selftests/igt_atomic.o \
 	selftests/igt_flush_test.o \
 	selftests/igt_live_test.o \
+	selftests/igt_mmap.o \
 	selftests/igt_reset.o \
 	selftests/igt_spinner.o
 
@@ -259,3 +274,27 @@ endif
 
 obj-$(CONFIG_DRM_I915) += i915.o
 obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o
+
+# header test
+
+# exclude some broken headers from the test coverage
+no-header-test := \
+	display/intel_vbt_defs.h \
+	gvt/execlist.h \
+	gvt/fb_decoder.h \
+	gvt/gtt.h \
+	gvt/gvt.h \
+	gvt/interrupt.h \
+	gvt/mmio_context.h \
+	gvt/mpt.h \
+	gvt/scheduler.h
+
+extra-$(CONFIG_DRM_I915_WERROR) += \
+	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \
+		$(shell cd $(srctree)/$(src) && find * -name '*.h')))
+
+quiet_cmd_hdrtest = HDRTEST $(patsubst %.hdrtest,%.h,$@)
+      cmd_hdrtest = $(CC) $(c_flags) -S -o /dev/null -x c /dev/null -include $<; touch $@
+
+$(obj)/%.hdrtest: $(src)/%.h FORCE
+	$(call if_changed_dep,hdrtest)

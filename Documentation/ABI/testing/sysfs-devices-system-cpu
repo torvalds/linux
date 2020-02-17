@@ -196,6 +196,12 @@ Description:
 		does not reflect it. Likewise, if one enables a deep state but a
 		lighter state still is disabled, then this has no effect.
 
+What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/default_status
+Date:		December 2019
+KernelVersion:	v5.6
+Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Description:
+		(RO) The default status of this state, "enabled" or "disabled".
 
 What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/residency
 Date:		March 2014
@@ -486,6 +492,8 @@ What:		/sys/devices/system/cpu/vulnerabilities
 		/sys/devices/system/cpu/vulnerabilities/spec_store_bypass
 		/sys/devices/system/cpu/vulnerabilities/l1tf
 		/sys/devices/system/cpu/vulnerabilities/mds
+		/sys/devices/system/cpu/vulnerabilities/tsx_async_abort
+		/sys/devices/system/cpu/vulnerabilities/itlb_multihit
 Date:		January 2018
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Information about CPU vulnerabilities

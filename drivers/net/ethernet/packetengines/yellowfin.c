@@ -344,7 +344,7 @@ static void mdio_write(void __iomem *ioaddr, int phy_id, int location, int value
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int yellowfin_open(struct net_device *dev);
 static void yellowfin_timer(struct timer_list *t);
-static void yellowfin_tx_timeout(struct net_device *dev);
+static void yellowfin_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static int yellowfin_init_ring(struct net_device *dev);
 static netdev_tx_t yellowfin_start_xmit(struct sk_buff *skb,
 					struct net_device *dev);
@@ -677,7 +677,7 @@ static void yellowfin_timer(struct timer_list *t)
 	add_timer(&yp->timer);
 }
 
-static void yellowfin_tx_timeout(struct net_device *dev)
+static void yellowfin_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct yellowfin_private *yp = netdev_priv(dev);
 	void __iomem *ioaddr = yp->base;

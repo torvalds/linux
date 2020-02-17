@@ -1,8 +1,6 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
-/*
- * Copyright (C) 2018 Amarula Solutions
- * Author: Jagan Teki <jagan@amarulasolutions.com>
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2018 Amarula Solutions
+// Author: Jagan Teki <jagan@amarulasolutions.com>
 
 /dts-v1/;
 
@@ -52,6 +50,11 @@
 };
 
 &ehci3 {
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&reg_dcdcc>;
 	status = "okay";
 };
 
@@ -163,6 +166,7 @@
 			};
 
 			reg_dcdcc: dcdcc {
+				regulator-enable-ramp-delay = <32000>;
 				regulator-min-microvolt = <810000>;
 				regulator-max-microvolt = <1080000>;
 				regulator-name = "vdd-gpu";

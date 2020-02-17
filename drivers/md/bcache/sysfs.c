@@ -27,6 +27,12 @@ static const char * const bch_cache_modes[] = {
 	NULL
 };
 
+static const char * const bch_reada_cache_policies[] = {
+	"all",
+	"meta-only",
+	NULL
+};
+
 /* Default is 0 ("auto") */
 static const char * const bch_stop_on_failure_modes[] = {
 	"auto",
@@ -100,6 +106,7 @@ rw_attribute(congested_write_threshold_us);
 rw_attribute(sequential_cutoff);
 rw_attribute(data_csum);
 rw_attribute(cache_mode);
+rw_attribute(readahead_cache_policy);
 rw_attribute(stop_when_cache_set_failed);
 rw_attribute(writeback_metadata);
 rw_attribute(writeback_running);
@@ -134,6 +141,7 @@ rw_attribute(expensive_debug_checks);
 rw_attribute(cache_replacement_policy);
 rw_attribute(btree_shrinker_disabled);
 rw_attribute(copy_gc_enabled);
+rw_attribute(idle_max_writeback_rate);
 rw_attribute(gc_after_writeback);
 rw_attribute(size);
 
@@ -166,6 +174,11 @@ SHOW(__bch_cached_dev)
 		return bch_snprint_string_list(buf, PAGE_SIZE,
 					       bch_cache_modes,
 					       BDEV_CACHE_MODE(&dc->sb));
+
+	if (attr == &sysfs_readahead_cache_policy)
+		return bch_snprint_string_list(buf, PAGE_SIZE,
+					      bch_reada_cache_policies,
+					      dc->cache_readahead_policy);
 
 	if (attr == &sysfs_stop_when_cache_set_failed)
 		return bch_snprint_string_list(buf, PAGE_SIZE,
@@ -352,6 +365,15 @@ STORE(__cached_dev)
 		}
 	}
 
+	if (attr == &sysfs_readahead_cache_policy) {
+		v = __sysfs_match_string(bch_reada_cache_policies, -1, buf);
+		if (v < 0)
+			return v;
+
+		if ((unsigned int) v != dc->cache_readahead_policy)
+			dc->cache_readahead_policy = v;
+	}
+
 	if (attr == &sysfs_stop_when_cache_set_failed) {
 		v = __sysfs_match_string(bch_stop_on_failure_modes, -1, buf);
 		if (v < 0)
@@ -466,6 +488,7 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_data_csum,
 #endif
 	&sysfs_cache_mode,
+	&sysfs_readahead_cache_policy,
 	&sysfs_stop_when_cache_set_failed,
 	&sysfs_writeback_metadata,
 	&sysfs_writeback_running,
@@ -747,6 +770,8 @@ SHOW(__bch_cache_set)
 	sysfs_printf(gc_always_rewrite,		"%i", c->gc_always_rewrite);
 	sysfs_printf(btree_shrinker_disabled,	"%i", c->shrinker_disabled);
 	sysfs_printf(copy_gc_enabled,		"%i", c->copy_gc_enabled);
+	sysfs_printf(idle_max_writeback_rate,	"%i",
+		     c->idle_max_writeback_rate_enabled);
 	sysfs_printf(gc_after_writeback,	"%i", c->gc_after_writeback);
 	sysfs_printf(io_disable,		"%i",
 		     test_bit(CACHE_SET_IO_DISABLE, &c->flags));
@@ -864,6 +889,9 @@ STORE(__bch_cache_set)
 	sysfs_strtoul_bool(gc_always_rewrite,	c->gc_always_rewrite);
 	sysfs_strtoul_bool(btree_shrinker_disabled, c->shrinker_disabled);
 	sysfs_strtoul_bool(copy_gc_enabled,	c->copy_gc_enabled);
+	sysfs_strtoul_bool(idle_max_writeback_rate,
+			   c->idle_max_writeback_rate_enabled);
+
 	/*
 	 * write gc_after_writeback here may overwrite an already set
 	 * BCH_DO_AUTO_GC, it doesn't matter because this flag will be
@@ -954,6 +982,7 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_gc_always_rewrite,
 	&sysfs_btree_shrinker_disabled,
 	&sysfs_copy_gc_enabled,
+	&sysfs_idle_max_writeback_rate,
 	&sysfs_gc_after_writeback,
 	&sysfs_io_disable,
 	&sysfs_cutoff_writeback,

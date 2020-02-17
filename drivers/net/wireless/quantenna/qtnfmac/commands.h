@@ -58,7 +58,7 @@ int qtnf_cmd_send_disconnect(struct qtnf_vif *vif,
 int qtnf_cmd_send_updown_intf(struct qtnf_vif *vif,
 			      bool up);
 int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req,
-			bool slave_radar);
+			bool slave_radar, bool dfs_offload);
 int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u16 channel,
 			    struct qtnf_chan_stats *stats);
 int qtnf_cmd_send_chan_switch(struct qtnf_vif *vif,
@@ -70,7 +70,11 @@ int qtnf_cmd_start_cac(const struct qtnf_vif *vif,
 int qtnf_cmd_set_mac_acl(const struct qtnf_vif *vif,
 			 const struct cfg80211_acl_data *params);
 int qtnf_cmd_send_pm_set(const struct qtnf_vif *vif, u8 pm_mode, int timeout);
+int qtnf_cmd_get_tx_power(const struct qtnf_vif *vif, int *dbm);
+int qtnf_cmd_set_tx_power(const struct qtnf_vif *vif,
+			  enum nl80211_tx_power_setting type, int mbm);
 int qtnf_cmd_send_wowlan_set(const struct qtnf_vif *vif,
 			     const struct cfg80211_wowlan *wowl);
+int qtnf_cmd_netdev_changeupper(const struct qtnf_vif *vif, int br_domain);
 
 #endif /* QLINK_COMMANDS_H_ */

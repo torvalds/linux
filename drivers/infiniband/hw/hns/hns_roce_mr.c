@@ -48,21 +48,21 @@ unsigned long key_to_hw_index(u32 key)
 	return (key << 24) | (key >> 8);
 }
 
-static int hns_roce_sw2hw_mpt(struct hns_roce_dev *hr_dev,
-			      struct hns_roce_cmd_mailbox *mailbox,
-			      unsigned long mpt_index)
+static int hns_roce_hw_create_mpt(struct hns_roce_dev *hr_dev,
+				  struct hns_roce_cmd_mailbox *mailbox,
+				  unsigned long mpt_index)
 {
 	return hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, mpt_index, 0,
-				 HNS_ROCE_CMD_SW2HW_MPT,
+				 HNS_ROCE_CMD_CREATE_MPT,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
-int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
-			      struct hns_roce_cmd_mailbox *mailbox,
-			      unsigned long mpt_index)
+int hns_roce_hw_destroy_mpt(struct hns_roce_dev *hr_dev,
+			    struct hns_roce_cmd_mailbox *mailbox,
+			    unsigned long mpt_index)
 {
 	return hns_roce_cmd_mbox(hr_dev, 0, mailbox ? mailbox->dma : 0,
-				 mpt_index, !mailbox, HNS_ROCE_CMD_HW2SW_MPT,
+				 mpt_index, !mailbox, HNS_ROCE_CMD_DESTROY_MPT,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
@@ -83,7 +83,7 @@ static int hns_roce_buddy_alloc(struct hns_roce_buddy *buddy, int order,
 		}
 	}
 	spin_unlock(&buddy->lock);
-	return -1;
+	return -EINVAL;
 
  found:
 	clear_bit(*seg, buddy->bits[o]);
@@ -206,13 +206,14 @@ static int hns_roce_alloc_mtt_range(struct hns_roce_dev *hr_dev, int order,
 	}
 
 	ret = hns_roce_buddy_alloc(buddy, order, seg);
-	if (ret == -1)
-		return -1;
+	if (ret)
+		return ret;
 
-	if (hns_roce_table_get_range(hr_dev, table, *seg,
-				     *seg + (1 << order) - 1)) {
+	ret = hns_roce_table_get_range(hr_dev, table, *seg,
+				       *seg + (1 << order) - 1);
+	if (ret) {
 		hns_roce_buddy_free(buddy, *seg, order);
-		return -1;
+		return ret;
 	}
 
 	return 0;
@@ -578,7 +579,7 @@ static int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova,
 
 	/* Allocate a key for mr from mr_table */
 	ret = hns_roce_bitmap_alloc(&hr_dev->mr_table.mtpt_bitmap, &index);
-	if (ret == -1)
+	if (ret)
 		return -ENOMEM;
 
 	mr->iova = iova;			/* MR va starting addr */
@@ -707,10 +708,11 @@ static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
 	int ret;
 
 	if (mr->enabled) {
-		ret = hns_roce_hw2sw_mpt(hr_dev, NULL, key_to_hw_index(mr->key)
-					 & (hr_dev->caps.num_mtpts - 1));
+		ret = hns_roce_hw_destroy_mpt(hr_dev, NULL,
+					      key_to_hw_index(mr->key) &
+					      (hr_dev->caps.num_mtpts - 1));
 		if (ret)
-			dev_warn(dev, "HW2SW_MPT failed (%d)\n", ret);
+			dev_warn(dev, "DESTROY_MPT failed (%d)\n", ret);
 	}
 
 	if (mr->size != ~0ULL) {
@@ -763,10 +765,10 @@ static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
 		goto err_page;
 	}
 
-	ret = hns_roce_sw2hw_mpt(hr_dev, mailbox,
-				 mtpt_idx & (hr_dev->caps.num_mtpts - 1));
+	ret = hns_roce_hw_create_mpt(hr_dev, mailbox,
+				     mtpt_idx & (hr_dev->caps.num_mtpts - 1));
 	if (ret) {
-		dev_err(dev, "SW2HW_MPT failed (%d)\n", ret);
+		dev_err(dev, "CREATE_MPT failed (%d)\n", ret);
 		goto err_page;
 	}
 
@@ -1062,8 +1064,8 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 		if (!(npage % (1 << (mtt->page_shift - PAGE_SHIFT)))) {
 			if (page_addr & ((1 << mtt->page_shift) - 1)) {
 				dev_err(dev,
-					"page_addr 0x%llx is not page_shift %d alignment!\n",
-					page_addr, mtt->page_shift);
+					"page_addr is not page_shift %d alignment!\n",
+					mtt->page_shift);
 				ret = -EINVAL;
 				goto out;
 			}
@@ -1143,7 +1145,7 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
+	mr->umem = ib_umem_get(pd->device, start, length, access_flags);
 	if (IS_ERR(mr->umem)) {
 		ret = PTR_ERR(mr->umem);
 		goto err_free;
@@ -1228,7 +1230,7 @@ static int rereg_mr_trans(struct ib_mr *ibmr, int flags,
 	}
 	ib_umem_release(mr->umem);
 
-	mr->umem = ib_umem_get(udata, start, length, mr_access_flags, 0);
+	mr->umem = ib_umem_get(ibmr->device, start, length, mr_access_flags);
 	if (IS_ERR(mr->umem)) {
 		ret = PTR_ERR(mr->umem);
 		mr->umem = NULL;
@@ -1308,9 +1310,9 @@ int hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start, u64 length,
 	if (ret)
 		goto free_cmd_mbox;
 
-	ret = hns_roce_hw2sw_mpt(hr_dev, NULL, mtpt_idx);
+	ret = hns_roce_hw_destroy_mpt(hr_dev, NULL, mtpt_idx);
 	if (ret)
-		dev_warn(dev, "HW2SW_MPT failed (%d)\n", ret);
+		dev_warn(dev, "DESTROY_MPT failed (%d)\n", ret);
 
 	mr->enabled = 0;
 
@@ -1332,9 +1334,9 @@ int hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start, u64 length,
 			goto free_cmd_mbox;
 	}
 
-	ret = hns_roce_sw2hw_mpt(hr_dev, mailbox, mtpt_idx);
+	ret = hns_roce_hw_create_mpt(hr_dev, mailbox, mtpt_idx);
 	if (ret) {
-		dev_err(dev, "SW2HW_MPT failed (%d)\n", ret);
+		dev_err(dev, "CREATE_MPT failed (%d)\n", ret);
 		ib_umem_release(mr->umem);
 		goto free_cmd_mbox;
 	}
@@ -1448,10 +1450,11 @@ static void hns_roce_mw_free(struct hns_roce_dev *hr_dev,
 	int ret;
 
 	if (mw->enabled) {
-		ret = hns_roce_hw2sw_mpt(hr_dev, NULL, key_to_hw_index(mw->rkey)
-					 & (hr_dev->caps.num_mtpts - 1));
+		ret = hns_roce_hw_destroy_mpt(hr_dev, NULL,
+					      key_to_hw_index(mw->rkey) &
+					      (hr_dev->caps.num_mtpts - 1));
 		if (ret)
-			dev_warn(dev, "MW HW2SW_MPT failed (%d)\n", ret);
+			dev_warn(dev, "MW DESTROY_MPT failed (%d)\n", ret);
 
 		hns_roce_table_put(hr_dev, &hr_dev->mr_table.mtpt_table,
 				   key_to_hw_index(mw->rkey));
@@ -1487,10 +1490,10 @@ static int hns_roce_mw_enable(struct hns_roce_dev *hr_dev,
 		goto err_page;
 	}
 
-	ret = hns_roce_sw2hw_mpt(hr_dev, mailbox,
-				 mtpt_idx & (hr_dev->caps.num_mtpts - 1));
+	ret = hns_roce_hw_create_mpt(hr_dev, mailbox,
+				     mtpt_idx & (hr_dev->caps.num_mtpts - 1));
 	if (ret) {
-		dev_err(dev, "MW sw2hw_mpt failed (%d)\n", ret);
+		dev_err(dev, "MW CREATE_MPT failed (%d)\n", ret);
 		goto err_page;
 	}
 

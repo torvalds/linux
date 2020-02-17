@@ -1,7 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
-/*
- * Copyright (C) 2019 Clément Péron <peron.clem@gmail.com>
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2019 Clément Péron <peron.clem@gmail.com>
 
 /dts-v1/;
 
@@ -76,6 +74,10 @@
 	status = "okay";
 };
 
+&dwc3 {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
@@ -86,6 +88,11 @@
 	phy-mode = "rgmii";
 	phy-handle = <&ext_rgmii_phy>;
 	phy-supply = <&reg_aldo2>;
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&reg_dcdcc>;
 	status = "okay";
 };
 
@@ -225,6 +232,7 @@
 			};
 
 			reg_dcdcc: dcdcc {
+				regulator-enable-ramp-delay = <32000>;
 				regulator-min-microvolt = <810000>;
 				regulator-max-microvolt = <1080000>;
 				regulator-name = "vdd-gpu";
@@ -252,6 +260,7 @@
 };
 
 &r_ir {
+	linux,rc-map-name = "rc-beelink-gs1";
 	status = "okay";
 };
 
@@ -283,5 +292,9 @@
 
 &usb2phy {
 	usb0_vbus-supply = <&reg_vcc5v>;
+	status = "okay";
+};
+
+&usb3phy {
 	status = "okay";
 };

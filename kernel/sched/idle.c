@@ -104,7 +104,7 @@ static int call_cpuidle(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	 * update no idle residency and return.
 	 */
 	if (current_clr_polling_and_test()) {
-		dev->last_residency = 0;
+		dev->last_residency_ns = 0;
 		local_irq_enable();
 		return -EBUSY;
 	}
@@ -158,14 +158,16 @@ static void cpuidle_idle_call(void)
 	/*
 	 * Suspend-to-idle ("s2idle") is a system state in which all user space
 	 * has been frozen, all I/O devices have been suspended and the only
-	 * activity happens here and in iterrupts (if any).  In that case bypass
+	 * activity happens here and in interrupts (if any). In that case bypass
 	 * the cpuidle governor and go stratight for the deepest idle state
 	 * available.  Possibly also suspend the local tick and the entire
 	 * timekeeping to prevent timer interrupts from kicking us out of idle
 	 * until a proper wakeup interrupt happens.
 	 */
 
-	if (idle_should_enter_s2idle() || dev->use_deepest_state) {
+	if (idle_should_enter_s2idle() || dev->forced_idle_latency_limit_ns) {
+		u64 max_latency_ns;
+
 		if (idle_should_enter_s2idle()) {
 			rcu_idle_enter();
 
@@ -176,12 +178,16 @@ static void cpuidle_idle_call(void)
 			}
 
 			rcu_idle_exit();
+
+			max_latency_ns = U64_MAX;
+		} else {
+			max_latency_ns = dev->forced_idle_latency_limit_ns;
 		}
 
 		tick_nohz_idle_stop_tick();
 		rcu_idle_enter();
 
-		next_state = cpuidle_find_deepest_state(drv, dev);
+		next_state = cpuidle_find_deepest_state(drv, dev, max_latency_ns);
 		call_cpuidle(drv, dev, next_state);
 	} else {
 		bool stop_tick = true;
@@ -311,7 +317,7 @@ static enum hrtimer_restart idle_inject_timer_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-void play_idle(unsigned long duration_us)
+void play_idle_precise(u64 duration_ns, u64 latency_ns)
 {
 	struct idle_timer it;
 
@@ -323,29 +329,29 @@ void play_idle(unsigned long duration_us)
 	WARN_ON_ONCE(current->nr_cpus_allowed != 1);
 	WARN_ON_ONCE(!(current->flags & PF_KTHREAD));
 	WARN_ON_ONCE(!(current->flags & PF_NO_SETAFFINITY));
-	WARN_ON_ONCE(!duration_us);
+	WARN_ON_ONCE(!duration_ns);
 
 	rcu_sleep_check();
 	preempt_disable();
 	current->flags |= PF_IDLE;
-	cpuidle_use_deepest_state(true);
+	cpuidle_use_deepest_state(latency_ns);
 
 	it.done = 0;
 	hrtimer_init_on_stack(&it.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	it.timer.function = idle_inject_timer_fn;
-	hrtimer_start(&it.timer, ns_to_ktime(duration_us * NSEC_PER_USEC),
+	hrtimer_start(&it.timer, ns_to_ktime(duration_ns),
 		      HRTIMER_MODE_REL_PINNED);
 
 	while (!READ_ONCE(it.done))
 		do_idle();
 
-	cpuidle_use_deepest_state(false);
+	cpuidle_use_deepest_state(0);
 	current->flags &= ~PF_IDLE;
 
 	preempt_fold_need_resched();
 	preempt_enable();
 }
-EXPORT_SYMBOL_GPL(play_idle);
+EXPORT_SYMBOL_GPL(play_idle_precise);
 
 void cpu_startup_entry(enum cpuhp_state state)
 {
@@ -365,6 +371,12 @@ select_task_rq_idle(struct task_struct *p, int cpu, int sd_flag, int flags)
 {
 	return task_cpu(p); /* IDLE tasks as never migrated */
 }
+
+static int
+balance_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+{
+	return WARN_ON_ONCE(1);
+}
 #endif
 
 /*
@@ -375,25 +387,21 @@ static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int fl
 	resched_curr(rq);
 }
 
-static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
 {
 }
 
-static void set_next_task_idle(struct rq *rq, struct task_struct *next)
+static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool first)
 {
 	update_idle_core(rq);
 	schedstat_inc(rq->sched_goidle);
 }
 
-static struct task_struct *
-pick_next_task_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+struct task_struct *pick_next_task_idle(struct rq *rq)
 {
 	struct task_struct *next = rq->idle;
 
-	if (prev)
-		put_prev_task(rq, prev);
-
-	set_next_task_idle(rq, next);
+	set_next_task_idle(rq, next, true);
 
 	return next;
 }
@@ -460,6 +468,7 @@ const struct sched_class idle_sched_class = {
 	.set_next_task          = set_next_task_idle,
 
 #ifdef CONFIG_SMP
+	.balance		= balance_idle,
 	.select_task_rq		= select_task_rq_idle,
 	.set_cpus_allowed	= set_cpus_allowed_common,
 #endif

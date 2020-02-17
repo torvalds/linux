@@ -20,8 +20,8 @@ config SENSORS_PMBUS
 	help
 	  If you say yes here you get hardware monitoring support for generic
 	  PMBus devices, including but not limited to ADP4000, BMR453, BMR454,
-	  MDT040, NCP4200, NCP4208, PDT003, PDT006, PDT012, TPS40400, TPS544B20,
-	  TPS544B25, TPS544C20, TPS544C25, and UDT020.
+	  MAX20796, MDT040, NCP4200, NCP4208, PDT003, PDT006, PDT012, TPS40400,
+	  TPS544B20, TPS544B25, TPS544C20, TPS544C25, and UDT020.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called pmbus.
@@ -35,6 +35,15 @@ config SENSORS_ADM1275
 
 	  This driver can also be built as a module. If so, the module will
 	  be called adm1275.
+
+config SENSORS_BEL_PFE
+	tristate "Bel PFE Compatible Power Supplies"
+	help
+	  If you say yes here you get hardware monitoring support for BEL
+	  PFE1100 and PFE3000 Power Supplies.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called bel-pfe.
 
 config SENSORS_IBM_CFFPS
 	tristate "IBM Common Form Factor Power Supply"
@@ -136,6 +145,15 @@ config SENSORS_MAX16064
 	  This driver can also be built as a module. If so, the module will
 	  be called max16064.
 
+config SENSORS_MAX20730
+	tristate "Maxim MAX20730, MAX20734, MAX20743"
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX20730, MAX20734, and MAX20743.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max20730.
+
 config SENSORS_MAX20751
 	tristate "Maxim MAX20751"
 	help
@@ -191,20 +209,20 @@ config SENSORS_TPS40422
 	  be called tps40422.
 
 config SENSORS_TPS53679
-	tristate "TI TPS53679"
+	tristate "TI TPS53679, TPS53688"
 	help
 	  If you say yes here you get hardware monitoring support for TI
-	  TPS53679.
+	  TPS53679, TPS53688
 
 	  This driver can also be built as a module. If so, the module will
 	  be called tps53679.
 
 config SENSORS_UCD9000
-	tristate "TI UCD90120, UCD90124, UCD90160, UCD9090, UCD90910"
+	tristate "TI UCD90120, UCD90124, UCD90160, UCD90320, UCD9090, UCD90910"
 	help
 	  If you say yes here you get hardware monitoring support for TI
-	  UCD90120, UCD90124, UCD90160, UCD9090, UCD90910, Sequencer and System
-	  Health Controllers.
+	  UCD90120, UCD90124, UCD90160, UCD90320, UCD9090, UCD90910, Sequencer
+	  and System Health Controllers.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ucd9000.
@@ -218,6 +236,15 @@ config SENSORS_UCD9200
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ucd9200.
+
+config SENSORS_XDPE122
+	tristate "Infineon XDPE122 family"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  XDPE12254, XDPE12284, device.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called xdpe12284.
 
 config SENSORS_ZL6100
 	tristate "Intersil ZL6100 and compatibles"

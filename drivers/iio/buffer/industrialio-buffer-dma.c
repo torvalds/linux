@@ -476,7 +476,7 @@ static struct iio_dma_buffer_block *iio_dma_buffer_dequeue(
  * @n: Number of bytes to read
  * @user_buffer: Userspace buffer to copy the data to
  *
- * Should be used as the read_first_n callback for iio_buffer_access_ops
+ * Should be used as the read callback for iio_buffer_access_ops
  * struct for DMA buffers.
  */
 int iio_dma_buffer_read(struct iio_buffer *buffer, size_t n,

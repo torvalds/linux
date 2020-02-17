@@ -52,7 +52,6 @@ struct dcn_hubbub_wm {
 	struct dcn_hubbub_wm_set sets[4];
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 enum dcn_hubbub_page_table_depth {
 	DCN_PAGE_TABLE_DEPTH_1_LEVEL,
 	DCN_PAGE_TABLE_DEPTH_2_LEVEL,
@@ -101,13 +100,11 @@ struct hubbub_addr_config {
 	} default_addrs;
 };
 
-#endif
 struct hubbub_funcs {
 	void (*update_dchub)(
 			struct hubbub *hubbub,
 			struct dchub_init_data *dh_data);
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	int (*init_dchub_sys_ctx)(
 			struct hubbub *hubbub,
 			struct dcn_hubbub_phys_addr_config *pa_config);
@@ -116,7 +113,6 @@ struct hubbub_funcs {
 			struct dcn_hubbub_virt_addr_config *va_config,
 			int vmid);
 
-#endif
 	bool (*get_dcc_compression_cap)(struct hubbub *hubbub,
 			const struct dc_dcc_surface_param *input,
 			struct dc_surface_dcc_cap *output);
@@ -147,6 +143,7 @@ struct hubbub_funcs {
 	bool (*is_allow_self_refresh_enabled)(struct hubbub *hubbub);
 	void (*allow_self_refresh_control)(struct hubbub *hubbub, bool allow);
 
+	void (*apply_DEDCN21_147_wa)(struct hubbub *hubbub);
 };
 
 struct hubbub {

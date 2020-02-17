@@ -17,6 +17,7 @@
 #include <linux/regulator/consumer.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -460,7 +461,7 @@ static int ps8622_get_modes(struct drm_connector *connector)
 
 	ps8622 = connector_to_ps8622(connector);
 
-	return drm_panel_get_modes(ps8622->panel);
+	return drm_panel_get_modes(ps8622->panel, connector);
 }
 
 static const struct drm_connector_helper_funcs ps8622_connector_helper_funcs = {

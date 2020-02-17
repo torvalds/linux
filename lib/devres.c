@@ -8,7 +8,7 @@
 
 enum devm_ioremap_type {
 	DEVM_IOREMAP = 0,
-	DEVM_IOREMAP_NC,
+	DEVM_IOREMAP_UC,
 	DEVM_IOREMAP_WC,
 };
 
@@ -36,8 +36,8 @@ static void __iomem *__devm_ioremap(struct device *dev, resource_size_t offset,
 	case DEVM_IOREMAP:
 		addr = ioremap(offset, size);
 		break;
-	case DEVM_IOREMAP_NC:
-		addr = ioremap_nocache(offset, size);
+	case DEVM_IOREMAP_UC:
+		addr = ioremap_uc(offset, size);
 		break;
 	case DEVM_IOREMAP_WC:
 		addr = ioremap_wc(offset, size);
@@ -69,20 +69,19 @@ void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
 EXPORT_SYMBOL(devm_ioremap);
 
 /**
- * devm_ioremap_nocache - Managed ioremap_nocache()
+ * devm_ioremap_uc - Managed ioremap_uc()
  * @dev: Generic device to remap IO address for
  * @offset: Resource address to map
  * @size: Size of map
  *
- * Managed ioremap_nocache().  Map is automatically unmapped on driver
- * detach.
+ * Managed ioremap_uc().  Map is automatically unmapped on driver detach.
  */
-void __iomem *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
-				   resource_size_t size)
+void __iomem *devm_ioremap_uc(struct device *dev, resource_size_t offset,
+			      resource_size_t size)
 {
-	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_NC);
+	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_UC);
 }
-EXPORT_SYMBOL(devm_ioremap_nocache);
+EXPORT_SYMBOL_GPL(devm_ioremap_uc);
 
 /**
  * devm_ioremap_wc - Managed ioremap_wc()
@@ -114,6 +113,37 @@ void devm_iounmap(struct device *dev, void __iomem *addr)
 }
 EXPORT_SYMBOL(devm_iounmap);
 
+static void __iomem *
+__devm_ioremap_resource(struct device *dev, const struct resource *res,
+			enum devm_ioremap_type type)
+{
+	resource_size_t size;
+	void __iomem *dest_ptr;
+
+	BUG_ON(!dev);
+
+	if (!res || resource_type(res) != IORESOURCE_MEM) {
+		dev_err(dev, "invalid resource\n");
+		return IOMEM_ERR_PTR(-EINVAL);
+	}
+
+	size = resource_size(res);
+
+	if (!devm_request_mem_region(dev, res->start, size, dev_name(dev))) {
+		dev_err(dev, "can't request region for resource %pR\n", res);
+		return IOMEM_ERR_PTR(-EBUSY);
+	}
+
+	dest_ptr = __devm_ioremap(dev, res->start, size, type);
+	if (!dest_ptr) {
+		dev_err(dev, "ioremap failed for resource %pR\n", res);
+		devm_release_mem_region(dev, res->start, size);
+		dest_ptr = IOMEM_ERR_PTR(-ENOMEM);
+	}
+
+	return dest_ptr;
+}
+
 /**
  * devm_ioremap_resource() - check, request region, and ioremap resource
  * @dev: generic device to handle the resource for
@@ -134,33 +164,24 @@ EXPORT_SYMBOL(devm_iounmap);
 void __iomem *devm_ioremap_resource(struct device *dev,
 				    const struct resource *res)
 {
-	resource_size_t size;
-	void __iomem *dest_ptr;
-
-	BUG_ON(!dev);
-
-	if (!res || resource_type(res) != IORESOURCE_MEM) {
-		dev_err(dev, "invalid resource\n");
-		return IOMEM_ERR_PTR(-EINVAL);
-	}
-
-	size = resource_size(res);
-
-	if (!devm_request_mem_region(dev, res->start, size, dev_name(dev))) {
-		dev_err(dev, "can't request region for resource %pR\n", res);
-		return IOMEM_ERR_PTR(-EBUSY);
-	}
-
-	dest_ptr = devm_ioremap(dev, res->start, size);
-	if (!dest_ptr) {
-		dev_err(dev, "ioremap failed for resource %pR\n", res);
-		devm_release_mem_region(dev, res->start, size);
-		dest_ptr = IOMEM_ERR_PTR(-ENOMEM);
-	}
-
-	return dest_ptr;
+	return __devm_ioremap_resource(dev, res, DEVM_IOREMAP);
 }
 EXPORT_SYMBOL(devm_ioremap_resource);
+
+/**
+ * devm_ioremap_resource_wc() - write-combined variant of
+ *				devm_ioremap_resource()
+ * @dev: generic device to handle the resource for
+ * @res: resource to be handled
+ *
+ * Returns a pointer to the remapped memory or an ERR_PTR() encoded error code
+ * on failure. Usage example:
+ */
+void __iomem *devm_ioremap_resource_wc(struct device *dev,
+				       const struct resource *res)
+{
+	return __devm_ioremap_resource(dev, res, DEVM_IOREMAP_WC);
+}
 
 /*
  * devm_of_iomap - Requests a resource and maps the memory mapped IO
@@ -262,7 +283,7 @@ EXPORT_SYMBOL(devm_ioport_unmap);
 /*
  * PCI iomap devres
  */
-#define PCIM_IOMAP_MAX	PCI_ROM_RESOURCE
+#define PCIM_IOMAP_MAX	PCI_STD_NUM_BARS
 
 struct pcim_iomap_devres {
 	void __iomem *table[PCIM_IOMAP_MAX];

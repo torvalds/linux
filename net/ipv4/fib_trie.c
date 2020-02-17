@@ -74,11 +74,13 @@
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
 
-static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
+static int call_fib_entry_notifier(struct notifier_block *nb,
 				   enum fib_event_type event_type, u32 dst,
-				   int dst_len, struct fib_alias *fa)
+				   int dst_len, struct fib_alias *fa,
+				   struct netlink_ext_ack *extack)
 {
 	struct fib_entry_notifier_info info = {
+		.info.extack = extack,
 		.dst = dst,
 		.dst_len = dst_len,
 		.fi = fa->fa_info,
@@ -86,7 +88,7 @@ static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 		.type = fa->fa_type,
 		.tb_id = fa->tb_id,
 	};
-	return call_fib4_notifier(nb, net, event_type, &info.info);
+	return call_fib4_notifier(nb, event_type, &info.info);
 }
 
 static int call_fib_entry_notifiers(struct net *net,
@@ -978,9 +980,12 @@ static struct key_vector *fib_find_node(struct trie *t,
 
 /* Return the first fib alias matching TOS with
  * priority less than or equal to PRIO.
+ * If 'find_first' is set, return the first matching
+ * fib alias, regardless of TOS and priority.
  */
 static struct fib_alias *fib_find_alias(struct hlist_head *fah, u8 slen,
-					u8 tos, u32 prio, u32 tb_id)
+					u8 tos, u32 prio, u32 tb_id,
+					bool find_first)
 {
 	struct fib_alias *fa;
 
@@ -996,6 +1001,8 @@ static struct fib_alias *fib_find_alias(struct hlist_head *fah, u8 slen,
 			continue;
 		if (fa->tb_id != tb_id)
 			break;
+		if (find_first)
+			return fa;
 		if (fa->fa_tos > tos)
 			continue;
 		if (fa->fa_info->fib_priority >= prio || fa->fa_tos < tos)
@@ -1004,6 +1011,52 @@ static struct fib_alias *fib_find_alias(struct hlist_head *fah, u8 slen,
 
 	return NULL;
 }
+
+static struct fib_alias *
+fib_find_matching_alias(struct net *net, const struct fib_rt_info *fri)
+{
+	u8 slen = KEYLENGTH - fri->dst_len;
+	struct key_vector *l, *tp;
+	struct fib_table *tb;
+	struct fib_alias *fa;
+	struct trie *t;
+
+	tb = fib_get_table(net, fri->tb_id);
+	if (!tb)
+		return NULL;
+
+	t = (struct trie *)tb->tb_data;
+	l = fib_find_node(t, &tp, be32_to_cpu(fri->dst));
+	if (!l)
+		return NULL;
+
+	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
+		if (fa->fa_slen == slen && fa->tb_id == fri->tb_id &&
+		    fa->fa_tos == fri->tos && fa->fa_info == fri->fi &&
+		    fa->fa_type == fri->type)
+			return fa;
+	}
+
+	return NULL;
+}
+
+void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
+{
+	struct fib_alias *fa_match;
+
+	rcu_read_lock();
+
+	fa_match = fib_find_matching_alias(net, fri);
+	if (!fa_match)
+		goto out;
+
+	fa_match->offload = fri->offload;
+	fa_match->trap = fri->trap;
+
+out:
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(fib_alias_hw_flags_set);
 
 static void trie_rebalance(struct trie *t, struct key_vector *tn)
 {
@@ -1061,9 +1114,6 @@ noleaf:
 	return -ENOMEM;
 }
 
-/* fib notifier for ADD is sent before calling fib_insert_alias with
- * the expectation that the only possible failure ENOMEM
- */
 static int fib_insert_alias(struct trie *t, struct key_vector *tp,
 			    struct key_vector *l, struct fib_alias *new,
 			    struct fib_alias *fa, t_key key)
@@ -1116,11 +1166,13 @@ static bool fib_valid_key_len(u32 key, u8 plen, struct netlink_ext_ack *extack)
 	return true;
 }
 
+static void fib_remove_alias(struct trie *t, struct key_vector *tp,
+			     struct key_vector *l, struct fib_alias *old);
+
 /* Caller must hold RTNL. */
 int fib_table_insert(struct net *net, struct fib_table *tb,
 		     struct fib_config *cfg, struct netlink_ext_ack *extack)
 {
-	enum fib_event_type event = FIB_EVENT_ENTRY_ADD;
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct fib_alias *fa, *new_fa;
 	struct key_vector *l, *tp;
@@ -1147,7 +1199,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 
 	l = fib_find_node(t, &tp, key);
 	fa = l ? fib_find_alias(&l->leaf, slen, tos, fi->fib_priority,
-				tb->tb_id) : NULL;
+				tb->tb_id, false) : NULL;
 
 	/* Now fa, if non-NULL, points to the first fib alias
 	 * with the same keys [prefix,tos,priority], if such key already
@@ -1214,18 +1266,28 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			new_fa->fa_slen = fa->fa_slen;
 			new_fa->tb_id = tb->tb_id;
 			new_fa->fa_default = -1;
+			new_fa->offload = 0;
+			new_fa->trap = 0;
 
-			err = call_fib_entry_notifiers(net,
-						       FIB_EVENT_ENTRY_REPLACE,
-						       key, plen, new_fa,
-						       extack);
-			if (err)
-				goto out_free_new_fa;
+			hlist_replace_rcu(&fa->fa_list, &new_fa->fa_list);
+
+			if (fib_find_alias(&l->leaf, fa->fa_slen, 0, 0,
+					   tb->tb_id, true) == new_fa) {
+				enum fib_event_type fib_event;
+
+				fib_event = FIB_EVENT_ENTRY_REPLACE;
+				err = call_fib_entry_notifiers(net, fib_event,
+							       key, plen,
+							       new_fa, extack);
+				if (err) {
+					hlist_replace_rcu(&new_fa->fa_list,
+							  &fa->fa_list);
+					goto out_free_new_fa;
+				}
+			}
 
 			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
 				  tb->tb_id, &cfg->fc_nlinfo, nlflags);
-
-			hlist_replace_rcu(&fa->fa_list, &new_fa->fa_list);
 
 			alias_free_mem_rcu(fa);
 
@@ -1242,12 +1304,10 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		if (fa_match)
 			goto out;
 
-		if (cfg->fc_nlflags & NLM_F_APPEND) {
-			event = FIB_EVENT_ENTRY_APPEND;
+		if (cfg->fc_nlflags & NLM_F_APPEND)
 			nlflags |= NLM_F_APPEND;
-		} else {
+		else
 			fa = fa_first;
-		}
 	}
 	err = -ENOENT;
 	if (!(cfg->fc_nlflags & NLM_F_CREATE))
@@ -1266,15 +1326,29 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	new_fa->fa_slen = slen;
 	new_fa->tb_id = tb->tb_id;
 	new_fa->fa_default = -1;
-
-	err = call_fib_entry_notifiers(net, event, key, plen, new_fa, extack);
-	if (err)
-		goto out_free_new_fa;
+	new_fa->offload = 0;
+	new_fa->trap = 0;
 
 	/* Insert new entry to the list. */
 	err = fib_insert_alias(t, tp, l, new_fa, fa, key);
 	if (err)
-		goto out_fib_notif;
+		goto out_free_new_fa;
+
+	/* The alias was already inserted, so the node must exist. */
+	l = l ? l : fib_find_node(t, &tp, key);
+	if (WARN_ON_ONCE(!l))
+		goto out_free_new_fa;
+
+	if (fib_find_alias(&l->leaf, new_fa->fa_slen, 0, 0, tb->tb_id, true) ==
+	    new_fa) {
+		enum fib_event_type fib_event;
+
+		fib_event = FIB_EVENT_ENTRY_REPLACE;
+		err = call_fib_entry_notifiers(net, fib_event, key, plen,
+					       new_fa, extack);
+		if (err)
+			goto out_remove_new_fa;
+	}
 
 	if (!plen)
 		tb->tb_num_default++;
@@ -1285,14 +1359,8 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 succeeded:
 	return 0;
 
-out_fib_notif:
-	/* notifier was sent that entry would be added to trie, but
-	 * the add failed and need to recover. Only failure for
-	 * fib_insert_alias is ENOMEM.
-	 */
-	NL_SET_ERR_MSG(extack, "Failed to insert route into trie");
-	call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, key,
-				 plen, new_fa, NULL);
+out_remove_new_fa:
+	fib_remove_alias(t, tp, l, new_fa);
 out_free_new_fa:
 	kmem_cache_free(fn_alias_kmem, new_fa);
 out:
@@ -1543,6 +1611,36 @@ static void fib_remove_alias(struct trie *t, struct key_vector *tp,
 	node_pull_suffix(tp, fa->fa_slen);
 }
 
+static void fib_notify_alias_delete(struct net *net, u32 key,
+				    struct hlist_head *fah,
+				    struct fib_alias *fa_to_delete,
+				    struct netlink_ext_ack *extack)
+{
+	struct fib_alias *fa_next, *fa_to_notify;
+	u32 tb_id = fa_to_delete->tb_id;
+	u8 slen = fa_to_delete->fa_slen;
+	enum fib_event_type fib_event;
+
+	/* Do not notify if we do not care about the route. */
+	if (fib_find_alias(fah, slen, 0, 0, tb_id, true) != fa_to_delete)
+		return;
+
+	/* Determine if the route should be replaced by the next route in the
+	 * list.
+	 */
+	fa_next = hlist_entry_safe(fa_to_delete->fa_list.next,
+				   struct fib_alias, fa_list);
+	if (fa_next && fa_next->fa_slen == slen && fa_next->tb_id == tb_id) {
+		fib_event = FIB_EVENT_ENTRY_REPLACE;
+		fa_to_notify = fa_next;
+	} else {
+		fib_event = FIB_EVENT_ENTRY_DEL;
+		fa_to_notify = fa_to_delete;
+	}
+	call_fib_entry_notifiers(net, fib_event, key, KEYLENGTH - slen,
+				 fa_to_notify, extack);
+}
+
 /* Caller must hold RTNL. */
 int fib_table_delete(struct net *net, struct fib_table *tb,
 		     struct fib_config *cfg, struct netlink_ext_ack *extack)
@@ -1564,7 +1662,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	if (!l)
 		return -ESRCH;
 
-	fa = fib_find_alias(&l->leaf, slen, tos, 0, tb->tb_id);
+	fa = fib_find_alias(&l->leaf, slen, tos, 0, tb->tb_id, false);
 	if (!fa)
 		return -ESRCH;
 
@@ -1596,8 +1694,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	if (!fa_to_delete)
 		return -ESRCH;
 
-	call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, key, plen,
-				 fa_to_delete, extack);
+	fib_notify_alias_delete(net, key, &l->leaf, fa_to_delete, extack);
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa_to_delete, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 
@@ -1921,10 +2018,8 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 				continue;
 			}
 
-			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL,
-						 n->key,
-						 KEYLENGTH - fa->fa_slen, fa,
-						 NULL);
+			fib_notify_alias_delete(net, n->key, &n->leaf, fa,
+						NULL);
 			hlist_del_rcu(&fa->fa_list);
 			fib_release_info(fa->fa_info);
 			alias_free_mem_rcu(fa);
@@ -2015,10 +2110,13 @@ void fib_info_notify_update(struct net *net, struct nl_info *info)
 	}
 }
 
-static void fib_leaf_notify(struct net *net, struct key_vector *l,
-			    struct fib_table *tb, struct notifier_block *nb)
+static int fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
+			   struct notifier_block *nb,
+			   struct netlink_ext_ack *extack)
 {
 	struct fib_alias *fa;
+	int last_slen = -1;
+	int err;
 
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
 		struct fib_info *fi = fa->fa_info;
@@ -2032,39 +2130,57 @@ static void fib_leaf_notify(struct net *net, struct key_vector *l,
 		if (tb->tb_id != fa->tb_id)
 			continue;
 
-		call_fib_entry_notifier(nb, net, FIB_EVENT_ENTRY_ADD, l->key,
-					KEYLENGTH - fa->fa_slen, fa);
+		if (fa->fa_slen == last_slen)
+			continue;
+
+		last_slen = fa->fa_slen;
+		err = call_fib_entry_notifier(nb, FIB_EVENT_ENTRY_REPLACE,
+					      l->key, KEYLENGTH - fa->fa_slen,
+					      fa, extack);
+		if (err)
+			return err;
 	}
+	return 0;
 }
 
-static void fib_table_notify(struct net *net, struct fib_table *tb,
-			     struct notifier_block *nb)
+static int fib_table_notify(struct fib_table *tb, struct notifier_block *nb,
+			    struct netlink_ext_ack *extack)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *l, *tp = t->kv;
 	t_key key = 0;
+	int err;
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
-		fib_leaf_notify(net, l, tb, nb);
+		err = fib_leaf_notify(l, tb, nb, extack);
+		if (err)
+			return err;
 
 		key = l->key + 1;
 		/* stop in case of wrap around */
 		if (key < l->key)
 			break;
 	}
+	return 0;
 }
 
-void fib_notify(struct net *net, struct notifier_block *nb)
+int fib_notify(struct net *net, struct notifier_block *nb,
+	       struct netlink_ext_ack *extack)
 {
 	unsigned int h;
+	int err;
 
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
 		struct hlist_head *head = &net->ipv4.fib_table_hash[h];
 		struct fib_table *tb;
 
-		hlist_for_each_entry_rcu(tb, head, tb_hlist)
-			fib_table_notify(net, tb, nb);
+		hlist_for_each_entry_rcu(tb, head, tb_hlist) {
+			err = fib_table_notify(tb, nb, extack);
+			if (err)
+				return err;
+		}
 	}
+	return 0;
 }
 
 static void __trie_free_rcu(struct rcu_head *head)
@@ -2128,14 +2244,20 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 
 		if (filter->dump_routes) {
 			if (!s_fa) {
+				struct fib_rt_info fri;
+
+				fri.fi = fi;
+				fri.tb_id = tb->tb_id;
+				fri.dst = xkey;
+				fri.dst_len = KEYLENGTH - fa->fa_slen;
+				fri.tos = fa->fa_tos;
+				fri.type = fa->fa_type;
+				fri.offload = fa->offload;
+				fri.trap = fa->trap;
 				err = fib_dump_info(skb,
 						    NETLINK_CB(cb->skb).portid,
 						    cb->nlh->nlmsg_seq,
-						    RTM_NEWROUTE,
-						    tb->tb_id, fa->fa_type,
-						    xkey,
-						    KEYLENGTH - fa->fa_slen,
-						    fa->fa_tos, fi, flags);
+						    RTM_NEWROUTE, &fri, flags);
 				if (err < 0)
 					goto stop;
 			}
@@ -2174,6 +2296,12 @@ int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 	 */
 	int count = cb->args[2];
 	t_key key = cb->args[3];
+
+	/* First time here, count and key are both always 0. Count > 0
+	 * and key == 0 means the dump has wrapped around and we are done.
+	 */
+	if (count && !key)
+		return skb->len;
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
 		int err;

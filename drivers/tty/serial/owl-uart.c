@@ -427,7 +427,7 @@ static int owl_uart_request_port(struct uart_port *port)
 		return -EBUSY;
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+		port->membase = devm_ioremap(port->dev, port->mapbase,
 				resource_size(res));
 		if (!port->membase)
 			return -EBUSY;
@@ -740,7 +740,7 @@ static int __init owl_uart_init(void)
 	return ret;
 }
 
-static void __init owl_uart_exit(void)
+static void __exit owl_uart_exit(void)
 {
 	platform_driver_unregister(&owl_uart_platform_driver);
 	uart_unregister_driver(&owl_uart_driver);

@@ -15,8 +15,8 @@ The header file for this API is named ``dvb_frontend.h`` and located in
 Demodulator driver
 ^^^^^^^^^^^^^^^^^^
 
-The demodulator driver is responsible to talk with the decoding part of the
-hardware. Such driver should implement :c:type:`dvb_frontend_ops`, with
+The demodulator driver is responsible for talking with the decoding part of the
+hardware. Such driver should implement :c:type:`dvb_frontend_ops`, which
 tells what type of digital TV standards are supported, and points to a
 series of functions that allow the DVB core to command the hardware via
 the code under ``include/media/dvb_frontend.c``.
@@ -120,7 +120,7 @@ Satellite TV reception is::
 
 .. |delta|   unicode:: U+00394
 
-The ``include/media/dvb_frontend.c`` has a kernel thread with is
+The ``include/media/dvb_frontend.c`` has a kernel thread which is
 responsible for tuning the device. It supports multiple algorithms to
 detect a channel, as defined at enum :c:func:`dvbfe_algo`.
 
@@ -220,11 +220,11 @@ Signal strength (:ref:`DTV-STAT-SIGNAL-STRENGTH`)
   - As the gain is visible through the set of registers that adjust the gain,
     typically, this statistics is always available [#f3]_.
 
-  - Drivers should try to make it available all the times, as this statistics
+  - Drivers should try to make it available all the times, as these statistics
     can be used when adjusting an antenna position and to check for troubles
     at the cabling.
 
-  .. [#f3] On a few devices, the gain keeps floating if no carrier.
+  .. [#f3] On a few devices, the gain keeps floating if there is no carrier.
      On such devices, strength report should check first if carrier is
      detected at the tuner (``FE_HAS_CARRIER``, see :c:type:`fe_status`),
      and otherwise return the lowest possible value.
@@ -232,7 +232,7 @@ Signal strength (:ref:`DTV-STAT-SIGNAL-STRENGTH`)
 Carrier Signal to Noise ratio (:ref:`DTV-STAT-CNR`)
   - Signal to Noise ratio for the main carrier.
 
-  - Signal to Noise measurement depends on the device. On some hardware, is
+  - Signal to Noise measurement depends on the device. On some hardware, it is
     available when the main carrier is detected. On those hardware, CNR
     measurement usually comes from the tuner (e. g. after ``FE_HAS_CARRIER``,
     see :c:type:`fe_status`).
@@ -323,8 +323,8 @@ A typical example of the logic that handle status and statistics is::
 		.read_status = foo_get_status_and_stats,
 	};
 
-Statistics collect
-^^^^^^^^^^^^^^^^^^
+Statistics collection
+^^^^^^^^^^^^^^^^^^^^^
 
 On almost all frontend hardware, the bit and byte counts are stored by
 the hardware after a certain amount of time or after the total bit/block

@@ -447,7 +447,7 @@ static netdev_tx_t catc_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static void catc_tx_timeout(struct net_device *netdev)
+static void catc_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct catc *catc = netdev_priv(netdev);
 

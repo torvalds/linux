@@ -16,6 +16,7 @@
 #include <asm/unaligned.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
+#include <linux/zlib.h>
 
 #include "include/apparmor.h"
 #include "include/audit.h"
@@ -139,9 +140,11 @@ bool aa_rawdata_eq(struct aa_loaddata *l, struct aa_loaddata *r)
 {
 	if (l->size != r->size)
 		return false;
+	if (l->compressed_size != r->compressed_size)
+		return false;
 	if (aa_g_hash_policy && memcmp(l->hash, r->hash, aa_hash_size()) != 0)
 		return false;
-	return memcmp(l->data, r->data, r->size) == 0;
+	return memcmp(l->data, r->data, r->compressed_size ?: r->size) == 0;
 }
 
 /*
@@ -968,11 +971,14 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 				    e, error);
 			return error;
 		}
-		if (*ns && strcmp(*ns, name))
+		if (*ns && strcmp(*ns, name)) {
 			audit_iface(NULL, NULL, NULL, "invalid ns change", e,
 				    error);
-		else if (!*ns)
-			*ns = name;
+		} else if (!*ns) {
+			*ns = kstrdup(name, GFP_KERNEL);
+			if (!*ns)
+				return -ENOMEM;
+		}
 	}
 
 	return 0;
@@ -1037,6 +1043,105 @@ struct aa_load_ent *aa_load_ent_alloc(void)
 	if (ent)
 		INIT_LIST_HEAD(&ent->list);
 	return ent;
+}
+
+static int deflate_compress(const char *src, size_t slen, char **dst,
+			    size_t *dlen)
+{
+	int error;
+	struct z_stream_s strm;
+	void *stgbuf, *dstbuf;
+	size_t stglen = deflateBound(slen);
+
+	memset(&strm, 0, sizeof(strm));
+
+	if (stglen < slen)
+		return -EFBIG;
+
+	strm.workspace = kvzalloc(zlib_deflate_workspacesize(MAX_WBITS,
+							     MAX_MEM_LEVEL),
+				  GFP_KERNEL);
+	if (!strm.workspace)
+		return -ENOMEM;
+
+	error = zlib_deflateInit(&strm, aa_g_rawdata_compression_level);
+	if (error != Z_OK) {
+		error = -ENOMEM;
+		goto fail_deflate_init;
+	}
+
+	stgbuf = kvzalloc(stglen, GFP_KERNEL);
+	if (!stgbuf) {
+		error = -ENOMEM;
+		goto fail_stg_alloc;
+	}
+
+	strm.next_in = src;
+	strm.avail_in = slen;
+	strm.next_out = stgbuf;
+	strm.avail_out = stglen;
+
+	error = zlib_deflate(&strm, Z_FINISH);
+	if (error != Z_STREAM_END) {
+		error = -EINVAL;
+		goto fail_deflate;
+	}
+	error = 0;
+
+	if (is_vmalloc_addr(stgbuf)) {
+		dstbuf = kvzalloc(strm.total_out, GFP_KERNEL);
+		if (dstbuf) {
+			memcpy(dstbuf, stgbuf, strm.total_out);
+			kvfree(stgbuf);
+		}
+	} else
+		/*
+		 * If the staging buffer was kmalloc'd, then using krealloc is
+		 * probably going to be faster. The destination buffer will
+		 * always be smaller, so it's just shrunk, avoiding a memcpy
+		 */
+		dstbuf = krealloc(stgbuf, strm.total_out, GFP_KERNEL);
+
+	if (!dstbuf) {
+		error = -ENOMEM;
+		goto fail_deflate;
+	}
+
+	*dst = dstbuf;
+	*dlen = strm.total_out;
+
+fail_stg_alloc:
+	zlib_deflateEnd(&strm);
+fail_deflate_init:
+	kvfree(strm.workspace);
+	return error;
+
+fail_deflate:
+	kvfree(stgbuf);
+	goto fail_stg_alloc;
+}
+
+static int compress_loaddata(struct aa_loaddata *data)
+{
+
+	AA_BUG(data->compressed_size > 0);
+
+	/*
+	 * Shortcut the no compression case, else we increase the amount of
+	 * storage required by a small amount
+	 */
+	if (aa_g_rawdata_compression_level != 0) {
+		void *udata = data->data;
+		int error = deflate_compress(udata, data->size, &data->data,
+					     &data->compressed_size);
+		if (error)
+			return error;
+
+		kvfree(udata);
+	} else
+		data->compressed_size = data->size;
+
+	return 0;
 }
 
 /**
@@ -1107,6 +1212,9 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 			goto fail;
 		}
 	}
+	error = compress_loaddata(udata);
+	if (error)
+		goto fail;
 	return 0;
 
 fail_profile:
@@ -1120,3 +1228,7 @@ fail:
 
 	return error;
 }
+
+#ifdef CONFIG_SECURITY_APPARMOR_KUNIT_TEST
+#include "policy_unpack_test.c"
+#endif /* CONFIG_SECURITY_APPARMOR_KUNIT_TEST */

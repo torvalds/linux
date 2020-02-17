@@ -24,7 +24,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/pgalloc.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/setup.h>
 
 #include "physaddr.h"
@@ -196,10 +196,10 @@ __ioremap_caller(resource_size_t phys_addr, unsigned long size,
 	phys_addr &= PHYSICAL_PAGE_MASK;
 	size = PAGE_ALIGN(last_addr+1) - phys_addr;
 
-	retval = reserve_memtype(phys_addr, (u64)phys_addr + size,
+	retval = memtype_reserve(phys_addr, (u64)phys_addr + size,
 						pcm, &new_pcm);
 	if (retval) {
-		printk(KERN_ERR "ioremap reserve_memtype failed %d\n", retval);
+		printk(KERN_ERR "ioremap memtype_reserve failed %d\n", retval);
 		return NULL;
 	}
 
@@ -255,7 +255,7 @@ __ioremap_caller(resource_size_t phys_addr, unsigned long size,
 	area->phys_addr = phys_addr;
 	vaddr = (unsigned long) area->addr;
 
-	if (kernel_map_sync_memtype(phys_addr, size, pcm))
+	if (memtype_kernel_map_sync(phys_addr, size, pcm))
 		goto err_free_area;
 
 	if (ioremap_page_range(vaddr, vaddr + size, phys_addr, prot))
@@ -275,16 +275,16 @@ __ioremap_caller(resource_size_t phys_addr, unsigned long size,
 err_free_area:
 	free_vm_area(area);
 err_free_memtype:
-	free_memtype(phys_addr, phys_addr + size);
+	memtype_free(phys_addr, phys_addr + size);
 	return NULL;
 }
 
 /**
- * ioremap_nocache     -   map bus memory into CPU space
+ * ioremap     -   map bus memory into CPU space
  * @phys_addr:    bus address of the memory
  * @size:      size of the resource to map
  *
- * ioremap_nocache performs a platform specific sequence of operations to
+ * ioremap performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
  * address is not guaranteed to be usable directly as a virtual
@@ -300,7 +300,7 @@ err_free_memtype:
  *
  * Must be freed with iounmap.
  */
-void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
+void __iomem *ioremap(resource_size_t phys_addr, unsigned long size)
 {
 	/*
 	 * Ideally, this should be:
@@ -315,7 +315,7 @@ void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
 	return __ioremap_caller(phys_addr, size, pcm,
 				__builtin_return_address(0), false);
 }
-EXPORT_SYMBOL(ioremap_nocache);
+EXPORT_SYMBOL(ioremap);
 
 /**
  * ioremap_uc     -   map bus memory into CPU space as strongly uncachable
@@ -451,7 +451,7 @@ void iounmap(volatile void __iomem *addr)
 		return;
 	}
 
-	free_memtype(p->phys_addr, p->phys_addr + get_vm_area_size(p));
+	memtype_free(p->phys_addr, p->phys_addr + get_vm_area_size(p));
 
 	/* Finally remove it */
 	o = remove_vm_area((void __force *)addr);
@@ -625,6 +625,17 @@ static bool memremap_is_setup_data(resource_size_t phys_addr,
 
 		paddr_next = data->next;
 		len = data->len;
+
+		if ((phys_addr > paddr) && (phys_addr < (paddr + len))) {
+			memunmap(data);
+			return true;
+		}
+
+		if (data->type == SETUP_INDIRECT &&
+		    ((struct setup_indirect *)data->data)->type != SETUP_INDIRECT) {
+			paddr = ((struct setup_indirect *)data->data)->addr;
+			len = ((struct setup_indirect *)data->data)->len;
+		}
 
 		memunmap(data);
 

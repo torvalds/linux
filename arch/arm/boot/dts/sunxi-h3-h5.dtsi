@@ -109,6 +109,7 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
+		dma-ranges;
 		ranges;
 
 		display_clocks: clock@1000000 {
@@ -230,6 +231,12 @@
 		sid: eeprom@1c14000 {
 			/* compatible is in per SoC .dtsi file */
 			reg = <0x1c14000 0x400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			ths_calibration: thermal-sensor-calibration@34 {
+				reg = <0x34 4>;
+			};
 		};
 
 		usb_otg: usb@1c19000 {
@@ -304,6 +311,7 @@
 			clocks = <&ccu CLK_BUS_EHCI1>, <&ccu CLK_BUS_OHCI1>;
 			resets = <&ccu RST_BUS_EHCI1>, <&ccu RST_BUS_OHCI1>;
 			phys = <&usbphy 1>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -315,6 +323,7 @@
 				 <&ccu CLK_USB_OHCI1>;
 			resets = <&ccu RST_BUS_EHCI1>, <&ccu RST_BUS_OHCI1>;
 			phys = <&usbphy 1>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -325,6 +334,7 @@
 			clocks = <&ccu CLK_BUS_EHCI2>, <&ccu CLK_BUS_OHCI2>;
 			resets = <&ccu RST_BUS_EHCI2>, <&ccu RST_BUS_OHCI2>;
 			phys = <&usbphy 2>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -336,6 +346,7 @@
 				 <&ccu CLK_USB_OHCI2>;
 			resets = <&ccu RST_BUS_EHCI2>, <&ccu RST_BUS_OHCI2>;
 			phys = <&usbphy 2>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -346,6 +357,7 @@
 			clocks = <&ccu CLK_BUS_EHCI3>, <&ccu CLK_BUS_OHCI3>;
 			resets = <&ccu RST_BUS_EHCI3>, <&ccu RST_BUS_OHCI3>;
 			phys = <&usbphy 3>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -357,6 +369,7 @@
 				 <&ccu CLK_USB_OHCI3>;
 			resets = <&ccu RST_BUS_EHCI3>, <&ccu RST_BUS_OHCI3>;
 			phys = <&usbphy 3>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -472,6 +485,11 @@
 				function = "uart2";
 			};
 
+			uart2_rts_cts_pins: uart2-rts-cts-pins {
+				pins = "PA2", "PA3";
+				function = "uart2";
+			};
+
 			uart3_pins: uart3-pins {
 				pins = "PA13", "PA14";
 				function = "uart3";
@@ -536,6 +554,14 @@
 					#size-cells = <0>;
 				};
 			};
+		};
+
+		mbus: dram-controller@1c62000 {
+			compatible = "allwinner,sun8i-h3-mbus";
+			reg = <0x01c62000 0x1000>;
+			clocks = <&ccu CLK_MBUS>;
+			dma-ranges = <0x00000000 0x40000000 0xc0000000>;
+			#interconnect-cells = <1>;
 		};
 
 		spi0: spi@1c68000 {
@@ -791,7 +817,7 @@
 			compatible = "allwinner,sun8i-h3-hdmi-phy";
 			reg = <0x01ef0000 0x10000>;
 			clocks = <&ccu CLK_BUS_HDMI>, <&ccu CLK_HDMI_DDC>,
-				 <&ccu 6>;
+				 <&ccu CLK_PLL_VIDEO>;
 			clock-names = "bus", "mod", "pll-0";
 			resets = <&ccu RST_BUS_HDMI0>;
 			reset-names = "phy";
@@ -811,7 +837,8 @@
 		r_ccu: clock@1f01400 {
 			compatible = "allwinner,sun8i-h3-r-ccu";
 			reg = <0x01f01400 0x100>;
-			clocks = <&osc24M>, <&rtc 0>, <&rtc 2>, <&ccu 9>;
+			clocks = <&osc24M>, <&rtc 0>, <&rtc 2>,
+				 <&ccu CLK_PLL_PERIPH0>;
 			clock-names = "hosc", "losc", "iosc", "pll-periph";
 			#clock-cells = <1>;
 			#reset-cells = <1>;

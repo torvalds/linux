@@ -35,6 +35,15 @@ config PHY_ROCKCHIP_INNO_USB2
 	help
 	  Support for Rockchip USB2.0 PHY with Innosilicon IP block.
 
+config PHY_ROCKCHIP_INNO_DSIDPHY
+	tristate "Rockchip Innosilicon MIPI/LVDS/TTL PHY driver"
+	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  Enable this to support the Rockchip MIPI/LVDS/TTL PHY with
+	  Innosilicon IP block.
+
 config PHY_ROCKCHIP_PCIE
 	tristate "Rockchip PCIe PHY Driver"
 	depends on (ARCH_ROCKCHIP && OF) || COMPILE_TEST

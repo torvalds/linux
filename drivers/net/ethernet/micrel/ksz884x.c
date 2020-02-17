@@ -4896,7 +4896,7 @@ unlock:
  * triggered to free up resources so that the transmit routine can continue
  * sending out packets.  The hardware is reset to correct the problem.
  */
-static void netdev_tx_timeout(struct net_device *dev)
+static void netdev_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	static unsigned long last_reset;
 

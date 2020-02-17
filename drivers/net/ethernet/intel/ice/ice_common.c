@@ -4,27 +4,9 @@
 #include "ice_common.h"
 #include "ice_sched.h"
 #include "ice_adminq_cmd.h"
+#include "ice_flow.h"
 
 #define ICE_PF_RESET_WAIT_COUNT	200
-
-#define ICE_PROG_FLEX_ENTRY(hw, rxdid, mdid, idx) \
-	wr32((hw), GLFLXP_RXDID_FLX_WRD_##idx(rxdid), \
-	     ((ICE_RX_OPC_MDID << \
-	       GLFLXP_RXDID_FLX_WRD_##idx##_RXDID_OPCODE_S) & \
-	      GLFLXP_RXDID_FLX_WRD_##idx##_RXDID_OPCODE_M) | \
-	     (((mdid) << GLFLXP_RXDID_FLX_WRD_##idx##_PROT_MDID_S) & \
-	      GLFLXP_RXDID_FLX_WRD_##idx##_PROT_MDID_M))
-
-#define ICE_PROG_FLG_ENTRY(hw, rxdid, flg_0, flg_1, flg_2, flg_3, idx) \
-	wr32((hw), GLFLXP_RXDID_FLAGS(rxdid, idx), \
-	     (((flg_0) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_S) & \
-	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_M) | \
-	     (((flg_1) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_1_S) & \
-	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_1_M) | \
-	     (((flg_2) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_2_S) & \
-	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_2_M) | \
-	     (((flg_3) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_3_S) & \
-	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_3_M))
 
 /**
  * ice_set_mac_type - Sets MAC type
@@ -40,20 +22,6 @@ static enum ice_status ice_set_mac_type(struct ice_hw *hw)
 
 	hw->mac_type = ICE_MAC_GENERIC;
 	return 0;
-}
-
-/**
- * ice_dev_onetime_setup - Temporary HW/FW workarounds
- * @hw: pointer to the HW structure
- *
- * This function provides temporary workarounds for certain issues
- * that are expected to be fixed in the HW/FW.
- */
-void ice_dev_onetime_setup(struct ice_hw *hw)
-{
-#define MBX_PF_VT_PFALLOC	0x00231E80
-	/* set VFs per PF */
-	wr32(hw, MBX_PF_VT_PFALLOC, rd32(hw, PF_VT_PFALLOC_HIF));
 }
 
 /**
@@ -348,88 +316,6 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 }
 
 /**
- * ice_init_flex_flags
- * @hw: pointer to the hardware structure
- * @prof_id: Rx Descriptor Builder profile ID
- *
- * Function to initialize Rx flex flags
- */
-static void ice_init_flex_flags(struct ice_hw *hw, enum ice_rxdid prof_id)
-{
-	u8 idx = 0;
-
-	/* Flex-flag fields (0-2) are programmed with FLG64 bits with layout:
-	 * flexiflags0[5:0] - TCP flags, is_packet_fragmented, is_packet_UDP_GRE
-	 * flexiflags1[3:0] - Not used for flag programming
-	 * flexiflags2[7:0] - Tunnel and VLAN types
-	 * 2 invalid fields in last index
-	 */
-	switch (prof_id) {
-	/* Rx flex flags are currently programmed for the NIC profiles only.
-	 * Different flag bit programming configurations can be added per
-	 * profile as needed.
-	 */
-	case ICE_RXDID_FLEX_NIC:
-	case ICE_RXDID_FLEX_NIC_2:
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_PKT_FRG,
-				   ICE_FLG_UDP_GRE, ICE_FLG_PKT_DSI,
-				   ICE_FLG_FIN, idx++);
-		/* flex flag 1 is not used for flexi-flag programming, skipping
-		 * these four FLG64 bits.
-		 */
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_SYN, ICE_FLG_RST,
-				   ICE_FLG_PKT_DSI, ICE_FLG_PKT_DSI, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_PKT_DSI,
-				   ICE_FLG_PKT_DSI, ICE_FLG_EVLAN_x8100,
-				   ICE_FLG_EVLAN_x9100, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_VLAN_x8100,
-				   ICE_FLG_TNL_VLAN, ICE_FLG_TNL_MAC,
-				   ICE_FLG_TNL0, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_TNL1, ICE_FLG_TNL2,
-				   ICE_FLG_PKT_DSI, ICE_FLG_PKT_DSI, idx);
-		break;
-
-	default:
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Flag programming for profile ID %d not supported\n",
-			  prof_id);
-	}
-}
-
-/**
- * ice_init_flex_flds
- * @hw: pointer to the hardware structure
- * @prof_id: Rx Descriptor Builder profile ID
- *
- * Function to initialize flex descriptors
- */
-static void ice_init_flex_flds(struct ice_hw *hw, enum ice_rxdid prof_id)
-{
-	enum ice_flex_rx_mdid mdid;
-
-	switch (prof_id) {
-	case ICE_RXDID_FLEX_NIC:
-	case ICE_RXDID_FLEX_NIC_2:
-		ICE_PROG_FLEX_ENTRY(hw, prof_id, ICE_RX_MDID_HASH_LOW, 0);
-		ICE_PROG_FLEX_ENTRY(hw, prof_id, ICE_RX_MDID_HASH_HIGH, 1);
-		ICE_PROG_FLEX_ENTRY(hw, prof_id, ICE_RX_MDID_FLOW_ID_LOWER, 2);
-
-		mdid = (prof_id == ICE_RXDID_FLEX_NIC_2) ?
-			ICE_RX_MDID_SRC_VSI : ICE_RX_MDID_FLOW_ID_HIGH;
-
-		ICE_PROG_FLEX_ENTRY(hw, prof_id, mdid, 3);
-
-		ice_init_flex_flags(hw, prof_id);
-		break;
-
-	default:
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Field init for profile ID %d not supported\n",
-			  prof_id);
-	}
-}
-
-/**
  * ice_init_fltr_mgmt_struct - initializes filter management list and locks
  * @hw: pointer to the HW struct
  */
@@ -702,10 +588,10 @@ void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf)
 }
 
 /**
- * ice_get_itr_intrl_gran - determine int/intrl granularity
+ * ice_get_itr_intrl_gran
  * @hw: pointer to the HW struct
  *
- * Determines the ITR/intrl granularities based on the maximum aggregate
+ * Determines the ITR/INTRL granularities based on the maximum aggregate
  * bandwidth according to the device's configuration during power-on.
  */
 static void ice_get_itr_intrl_gran(struct ice_hw *hw)
@@ -855,12 +741,13 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 		goto err_unroll_sched;
 	}
 	INIT_LIST_HEAD(&hw->agg_list);
+	/* Initialize max burst size */
+	if (!hw->max_burst_size)
+		ice_cfg_rl_burst_size(hw, ICE_SCHED_DFLT_BURST_SIZE);
 
 	status = ice_init_fltr_mgmt_struct(hw);
 	if (status)
 		goto err_unroll_sched;
-
-	ice_dev_onetime_setup(hw);
 
 	/* Get MAC information */
 	/* A single port can report up to two (LAN and WoL) addresses */
@@ -879,9 +766,6 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
-
-	ice_init_flex_flds(hw, ICE_RXDID_FLEX_NIC);
-	ice_init_flex_flds(hw, ICE_RXDID_FLEX_NIC_2);
 	status = ice_init_hw_tbls(hw);
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
@@ -934,7 +818,7 @@ void ice_deinit_hw(struct ice_hw *hw)
  */
 enum ice_status ice_check_reset(struct ice_hw *hw)
 {
-	u32 cnt, reg = 0, grst_delay;
+	u32 cnt, reg = 0, grst_delay, uld_mask;
 
 	/* Poll for Device Active state in case a recent CORER, GLOBR,
 	 * or EMPR has occurred. The grst delay value is in 100ms units.
@@ -956,13 +840,20 @@ enum ice_status ice_check_reset(struct ice_hw *hw)
 		return ICE_ERR_RESET_FAILED;
 	}
 
-#define ICE_RESET_DONE_MASK	(GLNVM_ULD_CORER_DONE_M | \
-				 GLNVM_ULD_GLOBR_DONE_M)
+#define ICE_RESET_DONE_MASK	(GLNVM_ULD_PCIER_DONE_M |\
+				 GLNVM_ULD_PCIER_DONE_1_M |\
+				 GLNVM_ULD_CORER_DONE_M |\
+				 GLNVM_ULD_GLOBR_DONE_M |\
+				 GLNVM_ULD_POR_DONE_M |\
+				 GLNVM_ULD_POR_DONE_1_M |\
+				 GLNVM_ULD_PCIER_DONE_2_M)
+
+	uld_mask = ICE_RESET_DONE_MASK;
 
 	/* Device is Active; check Global Reset processes are done */
 	for (cnt = 0; cnt < ICE_PF_RESET_WAIT_COUNT; cnt++) {
-		reg = rd32(hw, GLNVM_ULD) & ICE_RESET_DONE_MASK;
-		if (reg == ICE_RESET_DONE_MASK) {
+		reg = rd32(hw, GLNVM_ULD) & uld_mask;
+		if (reg == uld_mask) {
 			ice_debug(hw, ICE_DBG_INIT,
 				  "Global reset processes done. %d\n", cnt);
 			break;
@@ -1064,6 +955,72 @@ enum ice_status ice_reset(struct ice_hw *hw, enum ice_reset_req req)
 
 	/* wait for the FW to be ready */
 	return ice_check_reset(hw);
+}
+
+/**
+ * ice_get_pfa_module_tlv - Reads sub module TLV from NVM PFA
+ * @hw: pointer to hardware structure
+ * @module_tlv: pointer to module TLV to return
+ * @module_tlv_len: pointer to module TLV length to return
+ * @module_type: module type requested
+ *
+ * Finds the requested sub module TLV type from the Preserved Field
+ * Area (PFA) and returns the TLV pointer and length. The caller can
+ * use these to read the variable length TLV value.
+ */
+enum ice_status
+ice_get_pfa_module_tlv(struct ice_hw *hw, u16 *module_tlv, u16 *module_tlv_len,
+		       u16 module_type)
+{
+	enum ice_status status;
+	u16 pfa_len, pfa_ptr;
+	u16 next_tlv;
+
+	status = ice_read_sr_word(hw, ICE_SR_PFA_PTR, &pfa_ptr);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Preserved Field Array pointer.\n");
+		return status;
+	}
+	status = ice_read_sr_word(hw, pfa_ptr, &pfa_len);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read PFA length.\n");
+		return status;
+	}
+	/* Starting with first TLV after PFA length, iterate through the list
+	 * of TLVs to find the requested one.
+	 */
+	next_tlv = pfa_ptr + 1;
+	while (next_tlv < pfa_ptr + pfa_len) {
+		u16 tlv_sub_module_type;
+		u16 tlv_len;
+
+		/* Read TLV type */
+		status = ice_read_sr_word(hw, next_tlv, &tlv_sub_module_type);
+		if (status) {
+			ice_debug(hw, ICE_DBG_INIT, "Failed to read TLV type.\n");
+			break;
+		}
+		/* Read TLV length */
+		status = ice_read_sr_word(hw, next_tlv + 1, &tlv_len);
+		if (status) {
+			ice_debug(hw, ICE_DBG_INIT, "Failed to read TLV length.\n");
+			break;
+		}
+		if (tlv_sub_module_type == module_type) {
+			if (tlv_len) {
+				*module_tlv = next_tlv;
+				*module_tlv_len = tlv_len;
+				return 0;
+			}
+			return ICE_ERR_INVAL_SIZE;
+		}
+		/* Check next TLV, i.e. current TLV pointer + length + 2 words
+		 * (for current TLV's type and length)
+		 */
+		next_tlv = next_tlv + tlv_len + 2;
+	}
+	/* Module does not exist */
+	return ICE_ERR_DOES_NOT_EXIST;
 }
 
 /**
@@ -1181,56 +1138,6 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 	ICE_CTX_STORE(ice_tlan_ctx, int_q_state,		122,	171),
 	{ 0 }
 };
-
-/**
- * ice_debug_cq
- * @hw: pointer to the hardware structure
- * @mask: debug mask
- * @desc: pointer to control queue descriptor
- * @buf: pointer to command buffer
- * @buf_len: max length of buf
- *
- * Dumps debug log about control command with descriptor contents.
- */
-void
-ice_debug_cq(struct ice_hw *hw, u32 __maybe_unused mask, void *desc, void *buf,
-	     u16 buf_len)
-{
-	struct ice_aq_desc *cq_desc = (struct ice_aq_desc *)desc;
-	u16 len;
-
-#ifndef CONFIG_DYNAMIC_DEBUG
-	if (!(mask & hw->debug_mask))
-		return;
-#endif
-
-	if (!desc)
-		return;
-
-	len = le16_to_cpu(cq_desc->datalen);
-
-	ice_debug(hw, mask,
-		  "CQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
-		  le16_to_cpu(cq_desc->opcode),
-		  le16_to_cpu(cq_desc->flags),
-		  le16_to_cpu(cq_desc->datalen), le16_to_cpu(cq_desc->retval));
-	ice_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
-		  le32_to_cpu(cq_desc->cookie_high),
-		  le32_to_cpu(cq_desc->cookie_low));
-	ice_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
-		  le32_to_cpu(cq_desc->params.generic.param0),
-		  le32_to_cpu(cq_desc->params.generic.param1));
-	ice_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
-		  le32_to_cpu(cq_desc->params.generic.addr_high),
-		  le32_to_cpu(cq_desc->params.generic.addr_low));
-	if (buf && cq_desc->datalen != 0) {
-		ice_debug(hw, mask, "Buffer:\n");
-		if (buf_len < len)
-			len = buf_len;
-
-		ice_debug_array(hw, mask, 16, 1, (u8 *)buf, len);
-	}
-}
 
 /* FW Admin Queue command wrappers */
 
@@ -1582,6 +1489,114 @@ void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res)
 }
 
 /**
+ * ice_aq_alloc_free_res - command to allocate/free resources
+ * @hw: pointer to the HW struct
+ * @num_entries: number of resource entries in buffer
+ * @buf: Indirect buffer to hold data parameters and response
+ * @buf_size: size of buffer for indirect commands
+ * @opc: pass in the command opcode
+ * @cd: pointer to command details structure or NULL
+ *
+ * Helper function to allocate/free resources using the admin queue commands
+ */
+enum ice_status
+ice_aq_alloc_free_res(struct ice_hw *hw, u16 num_entries,
+		      struct ice_aqc_alloc_free_res_elem *buf, u16 buf_size,
+		      enum ice_adminq_opc opc, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_alloc_free_res_cmd *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.sw_res_ctrl;
+
+	if (!buf)
+		return ICE_ERR_PARAM;
+
+	if (buf_size < (num_entries * sizeof(buf->elem[0])))
+		return ICE_ERR_PARAM;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, opc);
+
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	cmd->num_entries = cpu_to_le16(num_entries);
+
+	return ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
+}
+
+/**
+ * ice_alloc_hw_res - allocate resource
+ * @hw: pointer to the HW struct
+ * @type: type of resource
+ * @num: number of resources to allocate
+ * @btm: allocate from bottom
+ * @res: pointer to array that will receive the resources
+ */
+enum ice_status
+ice_alloc_hw_res(struct ice_hw *hw, u16 type, u16 num, bool btm, u16 *res)
+{
+	struct ice_aqc_alloc_free_res_elem *buf;
+	enum ice_status status;
+	u16 buf_len;
+
+	buf_len = struct_size(buf, elem, num - 1);
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return ICE_ERR_NO_MEMORY;
+
+	/* Prepare buffer to allocate resource. */
+	buf->num_elems = cpu_to_le16(num);
+	buf->res_type = cpu_to_le16(type | ICE_AQC_RES_TYPE_FLAG_DEDICATED |
+				    ICE_AQC_RES_TYPE_FLAG_IGNORE_INDEX);
+	if (btm)
+		buf->res_type |= cpu_to_le16(ICE_AQC_RES_TYPE_FLAG_SCAN_BOTTOM);
+
+	status = ice_aq_alloc_free_res(hw, 1, buf, buf_len,
+				       ice_aqc_opc_alloc_res, NULL);
+	if (status)
+		goto ice_alloc_res_exit;
+
+	memcpy(res, buf->elem, sizeof(buf->elem) * num);
+
+ice_alloc_res_exit:
+	kfree(buf);
+	return status;
+}
+
+/**
+ * ice_free_hw_res - free allocated HW resource
+ * @hw: pointer to the HW struct
+ * @type: type of resource to free
+ * @num: number of resources
+ * @res: pointer to array that contains the resources to free
+ */
+enum ice_status
+ice_free_hw_res(struct ice_hw *hw, u16 type, u16 num, u16 *res)
+{
+	struct ice_aqc_alloc_free_res_elem *buf;
+	enum ice_status status;
+	u16 buf_len;
+
+	buf_len = struct_size(buf, elem, num - 1);
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return ICE_ERR_NO_MEMORY;
+
+	/* Prepare buffer to free resource. */
+	buf->num_elems = cpu_to_le16(num);
+	buf->res_type = cpu_to_le16(type);
+	memcpy(buf->elem, res, sizeof(buf->elem) * num);
+
+	status = ice_aq_alloc_free_res(hw, num, buf, buf_len,
+				       ice_aqc_opc_free_res, NULL);
+	if (status)
+		ice_debug(hw, ICE_DBG_SW, "CQ CMD Buffer:\n");
+
+	kfree(buf);
+	return status;
+}
+
+/**
  * ice_get_num_per_func - determine number of resources per PF
  * @hw: pointer to the HW structure
  * @max: value to be evenly split between each PF
@@ -1654,6 +1669,10 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 			ice_debug(hw, ICE_DBG_INIT,
 				  "%s: valid_functions (bitmap) = %d\n", prefix,
 				  caps->valid_functions);
+
+			/* store func count for resource management purposes */
+			if (dev_p)
+				dev_p->num_funcs = hweight32(number);
 			break;
 		case ICE_AQC_CAPS_SRIOV:
 			caps->sr_iov_1_1 = (number == 1);
@@ -1760,6 +1779,18 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 			break;
 		}
 	}
+
+	/* Re-calculate capabilities that are dependent on the number of
+	 * physical ports; i.e. some features are not supported or function
+	 * differently on devices with more than 4 ports.
+	 */
+	if (hw->dev_caps.num_funcs > 4) {
+		/* Max 4 TCs per port */
+		caps->maxtc = 4;
+		ice_debug(hw, ICE_DBG_INIT,
+			  "%s: maxtc = %d (based on #ports)\n", prefix,
+			  caps->maxtc);
+	}
 }
 
 /**
@@ -1856,8 +1887,7 @@ void ice_set_safe_mode_caps(struct ice_hw *hw)
 	struct ice_hw_dev_caps *dev_caps = &hw->dev_caps;
 	u32 valid_func, rxq_first_id, txq_first_id;
 	u32 msix_vector_first_id, max_mtu;
-	u32 num_func = 0;
-	u8 i;
+	u32 num_funcs;
 
 	/* cache some func_caps values that should be restored after memset */
 	valid_func = func_caps->common_cap.valid_functions;
@@ -1890,6 +1920,7 @@ void ice_set_safe_mode_caps(struct ice_hw *hw)
 	rxq_first_id = dev_caps->common_cap.rxq_first_id;
 	msix_vector_first_id = dev_caps->common_cap.msix_vector_first_id;
 	max_mtu = dev_caps->common_cap.max_mtu;
+	num_funcs = dev_caps->num_funcs;
 
 	/* unset dev capabilities */
 	memset(dev_caps, 0, sizeof(*dev_caps));
@@ -1900,19 +1931,14 @@ void ice_set_safe_mode_caps(struct ice_hw *hw)
 	dev_caps->common_cap.rxq_first_id = rxq_first_id;
 	dev_caps->common_cap.msix_vector_first_id = msix_vector_first_id;
 	dev_caps->common_cap.max_mtu = max_mtu;
-
-	/* valid_func is a bitmap. get number of functions */
-#define ICE_MAX_FUNCS 8
-	for (i = 0; i < ICE_MAX_FUNCS; i++)
-		if (valid_func & BIT(i))
-			num_func++;
+	dev_caps->num_funcs = num_funcs;
 
 	/* one Tx and one Rx queue per function in safe mode */
-	dev_caps->common_cap.num_rxq = num_func;
-	dev_caps->common_cap.num_txq = num_func;
+	dev_caps->common_cap.num_rxq = num_funcs;
+	dev_caps->common_cap.num_txq = num_funcs;
 
 	/* two MSIX vectors per function */
-	dev_caps->common_cap.num_msix_vectors = 2 * num_func;
+	dev_caps->common_cap.num_msix_vectors = 2 * num_funcs;
 }
 
 /**
@@ -2556,6 +2582,52 @@ ice_aq_set_port_id_led(struct ice_port_info *pi, bool is_orig_mode,
 }
 
 /**
+ * ice_aq_sff_eeprom
+ * @hw: pointer to the HW struct
+ * @lport: bits [7:0] = logical port, bit [8] = logical port valid
+ * @bus_addr: I2C bus address of the eeprom (typically 0xA0, 0=topo default)
+ * @mem_addr: I2C offset. lower 8 bits for address, 8 upper bits zero padding.
+ * @page: QSFP page
+ * @set_page: set or ignore the page
+ * @data: pointer to data buffer to be read/written to the I2C device.
+ * @length: 1-16 for read, 1 for write.
+ * @write: 0 read, 1 for write.
+ * @cd: pointer to command details structure or NULL
+ *
+ * Read/Write SFF EEPROM (0x06EE)
+ */
+enum ice_status
+ice_aq_sff_eeprom(struct ice_hw *hw, u16 lport, u8 bus_addr,
+		  u16 mem_addr, u8 page, u8 set_page, u8 *data, u8 length,
+		  bool write, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_sff_eeprom *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	if (!data || (mem_addr & 0xff00))
+		return ICE_ERR_PARAM;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_sff_eeprom);
+	cmd = &desc.params.read_write_sff_param;
+	desc.flags = cpu_to_le16(ICE_AQ_FLAG_RD | ICE_AQ_FLAG_BUF);
+	cmd->lport_num = (u8)(lport & 0xff);
+	cmd->lport_num_valid = (u8)((lport >> 8) & 0x01);
+	cmd->i2c_bus_addr = cpu_to_le16(((bus_addr >> 1) &
+					 ICE_AQC_SFF_I2CBUS_7BIT_M) |
+					((set_page <<
+					  ICE_AQC_SFF_SET_EEPROM_PAGE_S) &
+					 ICE_AQC_SFF_SET_EEPROM_PAGE_M));
+	cmd->i2c_mem_addr = cpu_to_le16(mem_addr & 0xff);
+	cmd->eeprom_page = cpu_to_le16((u16)page << ICE_AQC_SFF_EEPROM_PAGE_S);
+	if (write)
+		cmd->i2c_bus_addr |= cpu_to_le16(ICE_AQC_SFF_IS_WRITE);
+
+	status = ice_aq_send_cmd(hw, &desc, data, length, cd);
+	return status;
+}
+
+/**
  * __ice_aq_get_set_rss_lut
  * @hw: pointer to the hardware structure
  * @vsi_id: VSI FW index
@@ -3148,7 +3220,7 @@ ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
  * @tc: TC number
  * @q_handle: software queue handle
  */
-static struct ice_q_ctx *
+struct ice_q_ctx *
 ice_get_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 q_handle)
 {
 	struct ice_vsi_ctx *vsi;
@@ -3245,9 +3317,12 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 	node.node_teid = buf->txqs[0].q_teid;
 	node.data.elem_type = ICE_AQC_ELEM_TYPE_LEAF;
 	q_ctx->q_handle = q_handle;
+	q_ctx->q_teid = le32_to_cpu(node.node_teid);
 
-	/* add a leaf node into schduler tree queue layer */
+	/* add a leaf node into scheduler tree queue layer */
 	status = ice_sched_add_node(pi, hw->num_tx_sched_layers - 1, &node);
+	if (!status)
+		status = ice_sched_replay_q_bw(pi, q_ctx);
 
 ena_txq_exit:
 	mutex_unlock(&pi->sched_lock);
@@ -3431,7 +3506,10 @@ enum ice_status ice_replay_vsi(struct ice_hw *hw, u16 vsi_handle)
 		if (status)
 			return status;
 	}
-
+	/* Replay per VSI all RSS configurations */
+	status = ice_replay_rss_cfg(hw, vsi_handle);
+	if (status)
+		return status;
 	/* Replay per VSI all filters */
 	status = ice_replay_vsi_all_fltr(hw, vsi_handle);
 	return status;

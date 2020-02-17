@@ -19,7 +19,6 @@
 #include <asm/sn/addrs.h>
 #include <asm/sn/agent.h>
 #include <asm/sn/arch.h>
-#include <asm/sn/hub.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/irq_alloc.h>
 
@@ -73,7 +72,10 @@ static void setup_hub_mask(struct hub_irq_data *hd, const struct cpumask *mask)
 	int cpu;
 
 	cpu = cpumask_first_and(mask, cpu_online_mask);
-	nasid = COMPACT_TO_NASID_NODEID(cpu_to_node(cpu));
+	if (cpu >= nr_cpu_ids)
+		cpu = cpumask_any(cpu_online_mask);
+
+	nasid = cpu_to_node(cpu);
 	hd->cpu = cpu;
 	if (!cputoslice(cpu)) {
 		hd->irq_mask[0] = REMOTE_HUB_PTR(nasid, PI_INT_MASK0_A);
@@ -137,8 +139,9 @@ static int hub_domain_alloc(struct irq_domain *domain, unsigned int virq,
 			    handle_level_irq, NULL, NULL);
 
 	/* use CPU connected to nearest hub */
-	hub = hub_data(NASID_TO_COMPACT_NODEID(info->nasid));
+	hub = hub_data(info->nasid);
 	setup_hub_mask(hd, &hub->h_cpus);
+	info->nasid = cpu_to_node(hd->cpu);
 
 	/* Make sure it's not already pending when we connect it. */
 	REMOTE_HUB_CLR_INTR(info->nasid, swlevel);
@@ -284,10 +287,8 @@ void __init arch_init_irq(void)
 	 * Mark these as reserved right away so they won't be used accidentally
 	 * later.
 	 */
-	for (i = 0; i <= BASE_PCI_IRQ; i++)
+	for (i = 0; i <= CPU_CALL_B_IRQ; i++)
 		set_bit(i, hub_irq_map);
-
-	set_bit(IP_PEND0_6_63, hub_irq_map);
 
 	for (i = NI_BRDCAST_ERR_A; i <= MSC_PANIC_INTR; i++)
 		set_bit(i, hub_irq_map);

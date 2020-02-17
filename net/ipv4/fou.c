@@ -662,8 +662,8 @@ static const struct nla_policy fou_nl_policy[FOU_ATTR_MAX + 1] = {
 	[FOU_ATTR_REMCSUM_NOPARTIAL]	= { .type = NLA_FLAG, },
 	[FOU_ATTR_LOCAL_V4]		= { .type = NLA_U32, },
 	[FOU_ATTR_PEER_V4]		= { .type = NLA_U32, },
-	[FOU_ATTR_LOCAL_V6]		= { .type = sizeof(struct in6_addr), },
-	[FOU_ATTR_PEER_V6]		= { .type = sizeof(struct in6_addr), },
+	[FOU_ATTR_LOCAL_V6]		= { .len = sizeof(struct in6_addr), },
+	[FOU_ATTR_PEER_V6]		= { .len = sizeof(struct in6_addr), },
 	[FOU_ATTR_PEER_PORT]		= { .type = NLA_U16, },
 	[FOU_ATTR_IFINDEX]		= { .type = NLA_S32, },
 };

@@ -174,9 +174,9 @@ static int srp_tmo_get(char *buffer, const struct kernel_param *kp)
 	int tmo = *(int *)kp->arg;
 
 	if (tmo >= 0)
-		return sprintf(buffer, "%d", tmo);
+		return sprintf(buffer, "%d\n", tmo);
 	else
-		return sprintf(buffer, "off");
+		return sprintf(buffer, "off\n");
 }
 
 static int srp_tmo_set(const char *val, const struct kernel_param *kp)
@@ -352,11 +352,11 @@ static int srp_new_rdma_cm_id(struct srp_rdma_ch *ch)
 
 	init_completion(&ch->done);
 	ret = rdma_resolve_addr(new_cm_id, target->rdma_cm.src_specified ?
-				(struct sockaddr *)&target->rdma_cm.src : NULL,
-				(struct sockaddr *)&target->rdma_cm.dst,
+				&target->rdma_cm.src.sa : NULL,
+				&target->rdma_cm.dst.sa,
 				SRP_PATH_REC_TIMEOUT_MS);
 	if (ret) {
-		pr_err("No route available from %pIS to %pIS (%d)\n",
+		pr_err("No route available from %pISpsc to %pISpsc (%d)\n",
 		       &target->rdma_cm.src, &target->rdma_cm.dst, ret);
 		goto out;
 	}
@@ -366,7 +366,7 @@ static int srp_new_rdma_cm_id(struct srp_rdma_ch *ch)
 
 	ret = ch->status;
 	if (ret) {
-		pr_err("Resolving address %pIS failed (%d)\n",
+		pr_err("Resolving address %pISpsc failed (%d)\n",
 		       &target->rdma_cm.dst, ret);
 		goto out;
 	}
@@ -552,6 +552,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
+	const struct ib_device_attr *attr = &dev->dev->attrs;
 	struct ib_qp_init_attr *init_attr;
 	struct ib_cq *recv_cq, *send_cq;
 	struct ib_qp *qp;
@@ -583,11 +584,13 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	init_attr->cap.max_send_wr     = m * target->queue_size;
 	init_attr->cap.max_recv_wr     = target->queue_size + 1;
 	init_attr->cap.max_recv_sge    = 1;
-	init_attr->cap.max_send_sge    = SRP_MAX_SGE;
+	init_attr->cap.max_send_sge    = min(SRP_MAX_SGE, attr->max_send_sge);
 	init_attr->sq_sig_type         = IB_SIGNAL_REQ_WR;
 	init_attr->qp_type             = IB_QPT_RC;
 	init_attr->send_cq             = send_cq;
 	init_attr->recv_cq             = recv_cq;
+
+	ch->max_imm_sge = min(init_attr->cap.max_send_sge - 1U, 255U);
 
 	if (target->using_rdma_cm) {
 		ret = rdma_create_qp(ch->rdma_cm.cm_id, dev->pd, init_attr);
@@ -1362,7 +1365,8 @@ static void srp_terminate_io(struct srp_rport *rport)
 }
 
 /* Calculate maximum initiator to target information unit length. */
-static uint32_t srp_max_it_iu_len(int cmd_sg_cnt, bool use_imm_data)
+static uint32_t srp_max_it_iu_len(int cmd_sg_cnt, bool use_imm_data,
+				  uint32_t max_it_iu_size)
 {
 	uint32_t max_iu_len = sizeof(struct srp_cmd) + SRP_MAX_ADD_CDB_LEN +
 		sizeof(struct srp_indirect_buf) +
@@ -1371,6 +1375,11 @@ static uint32_t srp_max_it_iu_len(int cmd_sg_cnt, bool use_imm_data)
 	if (use_imm_data)
 		max_iu_len = max(max_iu_len, SRP_IMM_DATA_OFFSET +
 				 srp_max_imm_data);
+
+	if (max_it_iu_size)
+		max_iu_len = min(max_iu_len, max_it_iu_size);
+
+	pr_debug("max_iu_len = %d\n", max_iu_len);
 
 	return max_iu_len;
 }
@@ -1389,7 +1398,8 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 	struct srp_target_port *target = rport->lld_data;
 	struct srp_rdma_ch *ch;
 	uint32_t max_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt,
-						srp_use_imm_data);
+						srp_use_imm_data,
+						target->max_it_iu_size);
 	int i, j, ret = 0;
 	bool multich = false;
 
@@ -1838,7 +1848,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 		return -EIO;
 
 	if (ch->use_imm_data &&
-	    count <= SRP_MAX_IMM_SGE &&
+	    count <= ch->max_imm_sge &&
 	    SRP_IMM_DATA_OFFSET + data_len <= ch->max_it_iu_len &&
 	    scmnd->sc_data_direction == DMA_TO_DEVICE) {
 		struct srp_imm_buf *buf;
@@ -2536,9 +2546,11 @@ static void srp_cm_rep_handler(struct ib_cm_id *cm_id,
 	if (lrsp->opcode == SRP_LOGIN_RSP) {
 		ch->max_ti_iu_len = be32_to_cpu(lrsp->max_ti_iu_len);
 		ch->req_lim       = be32_to_cpu(lrsp->req_lim_delta);
-		ch->use_imm_data  = lrsp->rsp_flags & SRP_LOGIN_RSP_IMMED_SUPP;
+		ch->use_imm_data  = srp_use_imm_data &&
+			(lrsp->rsp_flags & SRP_LOGIN_RSP_IMMED_SUPP);
 		ch->max_it_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt,
-						      ch->use_imm_data);
+						      ch->use_imm_data,
+						      target->max_it_iu_size);
 		WARN_ON_ONCE(ch->max_it_iu_len >
 			     be32_to_cpu(lrsp->max_it_iu_len));
 
@@ -3411,6 +3423,7 @@ enum {
 	SRP_OPT_IP_SRC		= 1 << 15,
 	SRP_OPT_IP_DEST		= 1 << 16,
 	SRP_OPT_TARGET_CAN_QUEUE= 1 << 17,
+	SRP_OPT_MAX_IT_IU_SIZE  = 1 << 18,
 };
 
 static unsigned int srp_opt_mandatory[] = {
@@ -3443,6 +3456,7 @@ static const match_table_t srp_opt_tokens = {
 	{ SRP_OPT_QUEUE_SIZE,		"queue_size=%d"		},
 	{ SRP_OPT_IP_SRC,		"src=%s"		},
 	{ SRP_OPT_IP_DEST,		"dest=%s"		},
+	{ SRP_OPT_MAX_IT_IU_SIZE,	"max_it_iu_size=%d"	},
 	{ SRP_OPT_ERR,			NULL 			}
 };
 
@@ -3736,6 +3750,14 @@ static int srp_parse_options(struct net *net, const char *buf,
 			target->tl_retry_count = token;
 			break;
 
+		case SRP_OPT_MAX_IT_IU_SIZE:
+			if (match_int(args, &token) || token < 0) {
+				pr_warn("bad maximum initiator to target IU size '%s'\n", p);
+				goto out;
+			}
+			target->max_it_iu_size = token;
+			break;
+
 		default:
 			pr_warn("unknown parameter or missing value '%s' in target creation request\n",
 				p);
@@ -3887,7 +3909,9 @@ static ssize_t srp_create_target(struct device *dev,
 	target->mr_per_cmd = mr_per_cmd;
 	target->indirect_size = target->sg_tablesize *
 				sizeof (struct srp_direct_buf);
-	max_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt, srp_use_imm_data);
+	max_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt,
+				       srp_use_imm_data,
+				       target->max_it_iu_size);
 
 	INIT_WORK(&target->tl_err_work, srp_tl_err_work);
 	INIT_WORK(&target->remove_work, srp_remove_work);

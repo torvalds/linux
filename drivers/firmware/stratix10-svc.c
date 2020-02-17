@@ -268,7 +268,7 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 		 */
 		msleep(1000);
 		count_in_sec--;
-	};
+	}
 
 	if (res.a0 == INTEL_SIP_SMC_STATUS_OK && count_in_sec)
 		cb_data->status = BIT(SVC_STATUS_RECONFIG_COMPLETED);
@@ -493,10 +493,26 @@ static int svc_normal_to_secure_thread(void *data)
 			pdata->chan->scl->receive_cb(pdata->chan->scl, cbdata);
 			break;
 		default:
-			pr_warn("it shouldn't happen\n");
+			pr_warn("Secure firmware doesn't support...\n");
+
+			/*
+			 * be compatible with older version firmware which
+			 * doesn't support RSU notify or retry
+			 */
+			if ((pdata->command == COMMAND_RSU_RETRY) ||
+				(pdata->command == COMMAND_RSU_NOTIFY)) {
+				cbdata->status =
+					BIT(SVC_STATUS_RSU_NO_SUPPORT);
+				cbdata->kaddr1 = NULL;
+				cbdata->kaddr2 = NULL;
+				cbdata->kaddr3 = NULL;
+				pdata->chan->scl->receive_cb(
+					pdata->chan->scl, cbdata);
+			}
 			break;
+
 		}
-	};
+	}
 
 	kfree(cbdata);
 	kfree(pdata);

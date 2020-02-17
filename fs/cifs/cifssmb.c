@@ -42,6 +42,7 @@
 #include "cifsproto.h"
 #include "cifs_unicode.h"
 #include "cifs_debug.h"
+#include "smb2proto.h"
 #include "fscache.h"
 #include "smbdirect.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL
@@ -112,6 +113,8 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 
 	mutex_lock(&tcon->crfid.fid_mutex);
 	tcon->crfid.is_valid = false;
+	/* cached handle is not valid, so SMB2_CLOSE won't be sent below */
+	close_shroot_lease_locked(&tcon->crfid);
 	memset(tcon->crfid.fid, 0, sizeof(struct cifs_fid));
 	mutex_unlock(&tcon->crfid.fid_mutex);
 
@@ -257,7 +260,7 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 		if (server->tcpStatus != CifsNeedReconnect)
 			break;
 
-		if (--retries)
+		if (retries && --retries)
 			continue;
 
 		/*
@@ -4616,7 +4619,7 @@ findFirstRetry:
 				psrch_inf->unicode = false;
 
 			psrch_inf->ntwrk_buf_start = (char *)pSMBr;
-			psrch_inf->smallBuf = 0;
+			psrch_inf->smallBuf = false;
 			psrch_inf->srch_entries_start =
 				(char *) &pSMBr->hdr.Protocol +
 					le16_to_cpu(pSMBr->t2.DataOffset);
@@ -4750,7 +4753,7 @@ int CIFSFindNext(const unsigned int xid, struct cifs_tcon *tcon,
 				cifs_buf_release(psrch_inf->ntwrk_buf_start);
 			psrch_inf->srch_entries_start = response_data;
 			psrch_inf->ntwrk_buf_start = (char *)pSMB;
-			psrch_inf->smallBuf = 0;
+			psrch_inf->smallBuf = false;
 			if (parms->EndofSearch)
 				psrch_inf->endOfSearch = true;
 			else

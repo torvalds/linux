@@ -54,7 +54,8 @@ void qla2x00_bsg_sp_free(srb_t *sp)
 	if (sp->type == SRB_CT_CMD ||
 	    sp->type == SRB_FXIOCB_BCMD ||
 	    sp->type == SRB_ELS_CMD_HST)
-		kfree(sp->fcport);
+		qla2x00_free_fcport(sp->fcport);
+
 	qla2x00_rel_sp(sp);
 }
 
@@ -253,7 +254,7 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	srb_t *sp;
 	const char *type;
 	int req_sg_cnt, rsp_sg_cnt;
-	int rval =  (DRIVER_ERROR << 16);
+	int rval =  (DID_ERROR << 16);
 	uint16_t nextlid = 0;
 
 	if (bsg_request->msgcode == FC_BSG_RPT_ELS) {
@@ -405,7 +406,7 @@ done_unmap_sg:
 
 done_free_fcport:
 	if (bsg_request->msgcode == FC_BSG_RPT_ELS)
-		kfree(fcport);
+		qla2x00_free_fcport(fcport);
 done:
 	return rval;
 }
@@ -432,7 +433,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
 	scsi_qla_host_t *vha = shost_priv(host);
 	struct qla_hw_data *ha = vha->hw;
-	int rval = (DRIVER_ERROR << 16);
+	int rval = (DID_ERROR << 16);
 	int req_sg_cnt, rsp_sg_cnt;
 	uint16_t loop_id;
 	struct fc_port *fcport;
@@ -545,7 +546,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 	return rval;
 
 done_free_fcport:
-	kfree(fcport);
+	qla2x00_free_fcport(fcport);
 done_unmap_sg:
 	dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
 		bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
@@ -796,7 +797,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 
 	if (atomic_read(&vha->loop_state) == LOOP_READY &&
 	    (ha->current_topology == ISP_CFG_F ||
-	    (le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE &&
+	    (get_unaligned_le32(req_data) == ELS_OPCODE_BYTE &&
 	     req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
 	    elreq.options == EXTERNAL_LOOPBACK) {
 		type = "FC_BSG_HST_VENDOR_ECHO_DIAG";
@@ -1950,7 +1951,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
 	scsi_qla_host_t *vha = shost_priv(host);
 	struct qla_hw_data *ha = vha->hw;
-	int rval = (DRIVER_ERROR << 16);
+	int rval = (DID_ERROR << 16);
 	struct qla_mt_iocb_rqst_fx00 *piocb_rqst;
 	srb_t *sp;
 	int req_sg_cnt = 0, rsp_sg_cnt = 0;
@@ -2049,7 +2050,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 	return rval;
 
 done_free_fcport:
-	kfree(fcport);
+	qla2x00_free_fcport(fcport);
 
 done_unmap_rsp_sg:
 	if (piocb_rqst->flags & SRB_FXDISC_RESP_DMA_VALID)
@@ -2399,7 +2400,7 @@ qla2x00_get_flash_image_status(struct bsg_job *bsg_job)
 	struct qla_active_regions regions = { };
 	struct active_regions active_regions = { };
 
-	qla28xx_get_aux_images(vha, &active_regions);
+	qla27xx_get_active_image(vha, &active_regions);
 	regions.global_image = active_regions.global;
 
 	if (IS_QLA28XX(ha)) {

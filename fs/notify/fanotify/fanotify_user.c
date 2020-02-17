@@ -523,7 +523,7 @@ static const struct file_operations fanotify_fops = {
 	.fasync		= NULL,
 	.release	= fanotify_release,
 	.unlocked_ioctl	= fanotify_ioctl,
-	.compat_ioctl	= fanotify_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.llseek		= noop_llseek,
 };
 

@@ -39,9 +39,7 @@
 #include <asm/udbg.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
-#include <sysdev/simple_gpio.h>
 #include <soc/fsl/qe/qe.h>
-#include <soc/fsl/qe/qe_ic.h>
 
 #include "mpc83xx.h"
 
@@ -181,12 +179,6 @@ static int __init mpc836x_usb_cfg(void)
 		qe_usb_clock_set(QE_CLK21, 48000000);
 	} else {
 		setbits8(&bcsr[13], BCSR13_USBMODE);
-		/*
-		 * The BCSR GPIOs are used to control power and
-		 * speed of the USB transceiver. This is needed for
-		 * the USB Host only.
-		 */
-		simple_gpiochip_init("fsl,mpc8360mds-bcsr-gpio");
 	}
 
 	of_node_put(np);
@@ -209,7 +201,7 @@ define_machine(mpc836x_mds) {
 	.name		= "MPC836x MDS",
 	.probe		= mpc836x_mds_probe,
 	.setup_arch	= mpc836x_mds_setup_arch,
-	.init_IRQ	= mpc83xx_ipic_and_qe_init_IRQ,
+	.init_IRQ	= mpc83xx_ipic_init_IRQ,
 	.get_irq	= ipic_get_irq,
 	.restart	= mpc83xx_restart,
 	.time_init	= mpc83xx_time_init,

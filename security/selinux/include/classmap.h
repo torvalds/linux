@@ -244,6 +244,10 @@ struct security_class_mapping secclass_map[] = {
 	  {"map_create", "map_read", "map_write", "prog_load", "prog_run"} },
 	{ "xdp_socket",
 	  { COMMON_SOCK_PERMS, NULL } },
+	{ "perf_event",
+	  {"open", "cpu", "kernel", "tracepoint", "read", "write"} },
+	{ "lockdown",
+	  { "integrity", "confidentiality", NULL } },
 	{ NULL }
   };
 

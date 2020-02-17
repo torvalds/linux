@@ -288,3 +288,16 @@ class SpaceTest(unittest.TestCase):
 
         self.assertEqual(rc, tpm2.TPM2_RC_COMMAND_CODE |
                          tpm2.TSS2_RESMGR_TPM_RC_LAYER)
+
+class AsyncTest(unittest.TestCase):
+    def setUp(self):
+        logging.basicConfig(filename='AsyncTest.log', level=logging.DEBUG)
+
+    def test_async(self):
+        log = logging.getLogger(__name__)
+        log.debug(sys._getframe().f_code.co_name)
+
+        async_client = tpm2.Client(tpm2.Client.FLAG_NONBLOCK)
+        log.debug("Calling get_cap in a NON_BLOCKING mode")
+        async_client.get_cap(tpm2.TPM2_CAP_HANDLES, tpm2.HR_LOADED_SESSION)
+        async_client.close()

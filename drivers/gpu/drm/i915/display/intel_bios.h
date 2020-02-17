@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Intel Corporation
+ * Copyright © 2016-2019 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,6 +35,9 @@
 #include <drm/i915_drm.h>
 
 struct drm_i915_private;
+struct intel_crtc_state;
+struct intel_encoder;
+enum port;
 
 enum intel_backlight_type {
 	INTEL_BACKLIGHT_PMIC,
@@ -241,5 +244,8 @@ bool intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 bool intel_bios_is_lspcon_present(const struct drm_i915_private *i915,
 				  enum port port);
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port port);
+bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
+			       struct intel_crtc_state *crtc_state,
+			       int dsc_max_bpc);
 
 #endif /* _INTEL_BIOS_H_ */

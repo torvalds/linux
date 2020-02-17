@@ -266,7 +266,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	altera_gc->mmchip.gc.owner		= THIS_MODULE;
 	altera_gc->mmchip.gc.parent		= &pdev->dev;
 
-	altera_gc->mapped_irq = platform_get_irq(pdev, 0);
+	altera_gc->mapped_irq = platform_get_irq_optional(pdev, 0);
 
 	if (altera_gc->mapped_irq < 0)
 		goto skip_irq;

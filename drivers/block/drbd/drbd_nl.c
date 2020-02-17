@@ -268,19 +268,18 @@ static int drbd_adm_prepare(struct drbd_config_context *adm_ctx,
 	/* some more paranoia, if the request was over-determined */
 	if (adm_ctx->device && adm_ctx->resource &&
 	    adm_ctx->device->resource != adm_ctx->resource) {
-		pr_warning("request: minor=%u, resource=%s; but that minor belongs to resource %s\n",
-				adm_ctx->minor, adm_ctx->resource->name,
-				adm_ctx->device->resource->name);
+		pr_warn("request: minor=%u, resource=%s; but that minor belongs to resource %s\n",
+			adm_ctx->minor, adm_ctx->resource->name,
+			adm_ctx->device->resource->name);
 		drbd_msg_put_info(adm_ctx->reply_skb, "minor exists in different resource");
 		return ERR_INVALID_REQUEST;
 	}
 	if (adm_ctx->device &&
 	    adm_ctx->volume != VOLUME_UNSPECIFIED &&
 	    adm_ctx->volume != adm_ctx->device->vnr) {
-		pr_warning("request: minor=%u, volume=%u; but that minor is volume %u in %s\n",
-				adm_ctx->minor, adm_ctx->volume,
-				adm_ctx->device->vnr,
-				adm_ctx->device->resource->name);
+		pr_warn("request: minor=%u, volume=%u; but that minor is volume %u in %s\n",
+			adm_ctx->minor, adm_ctx->volume,
+			adm_ctx->device->vnr, adm_ctx->device->resource->name);
 		drbd_msg_put_info(adm_ctx->reply_skb, "minor exists as different volume");
 		return ERR_INVALID_REQUEST;
 	}
@@ -1576,7 +1575,8 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	struct drbd_device *device;
 	struct disk_conf *new_disk_conf, *old_disk_conf;
 	struct fifo_buffer *old_plan = NULL, *new_plan = NULL;
-	int err, fifo_size;
+	int err;
+	unsigned int fifo_size;
 
 	retcode = drbd_adm_prepare(&adm_ctx, skb, info, DRBD_ADM_NEED_MINOR);
 	if (!adm_ctx.reply_skb)

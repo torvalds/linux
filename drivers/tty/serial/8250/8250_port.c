@@ -11,10 +11,6 @@
  *  membase is an 'ioremapped' cookie.
  */
 
-#if defined(CONFIG_SERIAL_8250_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/ioport.h>
@@ -1000,6 +996,9 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 
 	up->port.type = PORT_16550A;
 	up->capabilities |= UART_CAP_FIFO;
+
+	if (!IS_ENABLED(CONFIG_SERIAL_8250_16550A_VARIANTS))
+		return;
 
 	/*
 	 * Check for presence of the EFR when DLAB is set.
@@ -2114,20 +2113,6 @@ int serial8250_do_startup(struct uart_port *port)
 	enable_rsa(up);
 #endif
 
-	if (port->type == PORT_XR17V35X) {
-		/*
-		 * First enable access to IER [7:5], ISR [5:4], FCR [5:4],
-		 * MCR [7:5] and MSR [7:0]
-		 */
-		serial_port_out(port, UART_XR_EFR, UART_EFR_ECB);
-
-		/*
-		 * Make sure all interrups are masked until initialization is
-		 * complete and the FIFOs are cleared
-		 */
-		serial_port_out(port, UART_IER, 0);
-	}
-
 	/*
 	 * Clear the FIFO buffers and disable them.
 	 * (they will be reenabled in set_termios())
@@ -2780,7 +2765,7 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 		}
 
 		if (port->flags & UPF_IOREMAP) {
-			port->membase = ioremap_nocache(port->mapbase, size);
+			port->membase = ioremap(port->mapbase, size);
 			if (!port->membase) {
 				release_mem_region(port->mapbase, size);
 				ret = -ENOMEM;
@@ -3069,6 +3054,7 @@ void serial8250_init_port(struct uart_8250_port *up)
 
 	spin_lock_init(&port->lock);
 	port->ops = &serial8250_pops;
+	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
 
 	up->cur_iotype = 0xFF;
 }

@@ -16,6 +16,8 @@ obj-m :=
 lib-y :=
 lib-m :=
 always :=
+always-y :=
+always-m :=
 targets :=
 subdir-y :=
 subdir-m :=
@@ -44,7 +46,7 @@ include $(kbuild-file)
 include scripts/Makefile.lib
 
 # Do not include host rules unless needed
-ifneq ($(hostprogs-y)$(hostprogs-m)$(hostlibs-y)$(hostlibs-m)$(hostcxxlibs-y)$(hostcxxlibs-m),)
+ifneq ($(hostprogs)$(hostlibs-y)$(hostlibs-m)$(hostcxxlibs-y)$(hostcxxlibs-m),)
 include scripts/Makefile.host
 endif
 
@@ -66,7 +68,7 @@ lib-target := $(obj)/lib.a
 real-obj-y += $(obj)/lib-ksyms.o
 endif
 
-ifneq ($(strip $(real-obj-y) $(need-builtin)),)
+ifdef need-builtin
 builtin-target := $(obj)/built-in.a
 endif
 
@@ -283,15 +285,6 @@ quiet_cmd_cc_lst_c = MKLST   $@
 $(obj)/%.lst: $(src)/%.c FORCE
 	$(call if_changed_dep,cc_lst_c)
 
-# header test (header-test-y, header-test-m target)
-# ---------------------------------------------------------------------------
-
-quiet_cmd_cc_s_h = CC      $@
-      cmd_cc_s_h = $(CC) $(c_flags) -S -o $@ -x c /dev/null -include $<
-
-$(obj)/%.h.s: $(src)/%.h FORCE
-	$(call if_changed_dep,cc_s_h)
-
 # Compile assembler sources (.S)
 # ---------------------------------------------------------------------------
 
@@ -357,7 +350,7 @@ $(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
 	$(call if_changed_rule,as_o_S)
 
 targets += $(filter-out $(subdir-obj-y), $(real-obj-y)) $(real-obj-m) $(lib-y)
-targets += $(extra-y) $(MAKECMDGOALS) $(always)
+targets += $(extra-y) $(always-y) $(MAKECMDGOALS)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------
@@ -381,7 +374,7 @@ $(obj)/%.asn1.c $(obj)/%.asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
 # ---------------------------------------------------------------------------
 
 # To build objects in subdirs, we need to descend into the directories
-$(sort $(subdir-obj-y)): $(subdir-ym) ;
+$(obj)/%/built-in.a: $(obj)/% ;
 
 #
 # Rule to compile a set of .o files into one .a file (without symbol table)
@@ -469,17 +462,20 @@ targets += $(call intermediate_targets, .asn1.o, .asn1.c .asn1.h) \
 
 ifdef single-build
 
+KBUILD_SINGLE_TARGETS := $(filter $(obj)/%, $(KBUILD_SINGLE_TARGETS))
+
 curdir-single := $(sort $(foreach x, $(KBUILD_SINGLE_TARGETS), \
 			$(if $(filter $(x) $(basename $(x)).o, $(targets)), $(x))))
 
 # Handle single targets without any rule: show "Nothing to be done for ..." or
 # "No rule to make target ..." depending on whether the target exists.
 unknown-single := $(filter-out $(addsuffix /%, $(subdir-ym)), \
-			$(filter $(obj)/%, \
-				$(filter-out $(curdir-single), \
-					$(KBUILD_SINGLE_TARGETS))))
+			$(filter-out $(curdir-single), $(KBUILD_SINGLE_TARGETS)))
 
-__build: $(curdir-single) $(subdir-ym)
+single-subdirs := $(foreach d, $(subdir-ym), \
+			$(if $(filter $(d)/%, $(KBUILD_SINGLE_TARGETS)), $(d)))
+
+__build: $(curdir-single) $(single-subdirs)
 ifneq ($(unknown-single),)
 	$(Q)$(MAKE) -f /dev/null $(unknown-single)
 endif
@@ -496,7 +492,7 @@ else
 
 __build: $(if $(KBUILD_BUILTIN),$(builtin-target) $(lib-target) $(extra-y)) \
 	 $(if $(KBUILD_MODULES),$(obj-m) $(mod-targets) $(modorder-target)) \
-	 $(subdir-ym) $(always)
+	 $(subdir-ym) $(always-y)
 	@:
 
 endif

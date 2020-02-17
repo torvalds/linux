@@ -3477,10 +3477,10 @@ MLXSW_REG_DEFINE(qeec, MLXSW_REG_QEEC_ID, MLXSW_REG_QEEC_LEN);
 MLXSW_ITEM32(reg, qeec, local_port, 0x00, 16, 8);
 
 enum mlxsw_reg_qeec_hr {
-	MLXSW_REG_QEEC_HIERARCY_PORT,
-	MLXSW_REG_QEEC_HIERARCY_GROUP,
-	MLXSW_REG_QEEC_HIERARCY_SUBGROUP,
-	MLXSW_REG_QEEC_HIERARCY_TC,
+	MLXSW_REG_QEEC_HR_PORT,
+	MLXSW_REG_QEEC_HR_GROUP,
+	MLXSW_REG_QEEC_HR_SUBGROUP,
+	MLXSW_REG_QEEC_HR_TC,
 };
 
 /* reg_qeec_element_hierarchy
@@ -3563,8 +3563,8 @@ MLXSW_ITEM32(reg, qeec, min_shaper_rate, 0x0C, 0, 28);
  */
 MLXSW_ITEM32(reg, qeec, mase, 0x10, 31, 1);
 
-/* A large max rate will disable the max shaper. */
-#define MLXSW_REG_QEEC_MAS_DIS	200000000	/* Kbps */
+/* The largest max shaper value possible to disable the shaper. */
+#define MLXSW_REG_QEEC_MAS_DIS	((1u << 31) - 1)	/* Kbps */
 
 /* reg_qeec_max_shaper_rate
  * Max shaper information rate.
@@ -3602,6 +3602,21 @@ MLXSW_ITEM32(reg, qeec, dwrr, 0x18, 15, 1);
  */
 MLXSW_ITEM32(reg, qeec, dwrr_weight, 0x18, 0, 8);
 
+/* reg_qeec_max_shaper_bs
+ * Max shaper burst size
+ * Burst size is 2^max_shaper_bs * 512 bits
+ * For Spectrum-1: Range is: 5..25
+ * For Spectrum-2: Range is: 11..25
+ * Reserved when ptps = 1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qeec, max_shaper_bs, 0x1C, 0, 6);
+
+#define MLXSW_REG_QEEC_HIGHEST_SHAPER_BS	25
+#define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP1	5
+#define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP2	11
+#define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP3	5
+
 static inline void mlxsw_reg_qeec_pack(char *payload, u8 local_port,
 				       enum mlxsw_reg_qeec_hr hr, u8 index,
 				       u8 next_index)
@@ -3618,8 +3633,7 @@ static inline void mlxsw_reg_qeec_ptps_pack(char *payload, u8 local_port,
 {
 	MLXSW_REG_ZERO(qeec, payload);
 	mlxsw_reg_qeec_local_port_set(payload, local_port);
-	mlxsw_reg_qeec_element_hierarchy_set(payload,
-					     MLXSW_REG_QEEC_HIERARCY_PORT);
+	mlxsw_reg_qeec_element_hierarchy_set(payload, MLXSW_REG_QEEC_HR_PORT);
 	mlxsw_reg_qeec_ptps_set(payload, ptps);
 }
 
@@ -3747,6 +3761,38 @@ mlxsw_reg_qpdsm_prio_pack(char *payload, unsigned short prio, u8 dscp)
 	mlxsw_reg_qpdsm_prio_entry_color1_dscp_set(payload, prio, dscp);
 	mlxsw_reg_qpdsm_prio_entry_color2_e_set(payload, prio, 1);
 	mlxsw_reg_qpdsm_prio_entry_color2_dscp_set(payload, prio, dscp);
+}
+
+/* QPDP - QoS Port DSCP to Priority Mapping Register
+ * -------------------------------------------------
+ * This register controls the port default Switch Priority and Color. The
+ * default Switch Priority and Color are used for frames where the trust state
+ * uses default values. All member ports of a LAG should be configured with the
+ * same default values.
+ */
+#define MLXSW_REG_QPDP_ID 0x4007
+#define MLXSW_REG_QPDP_LEN 0x8
+
+MLXSW_REG_DEFINE(qpdp, MLXSW_REG_QPDP_ID, MLXSW_REG_QPDP_LEN);
+
+/* reg_qpdp_local_port
+ * Local Port. Supported for data packets from CPU port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, qpdp, local_port, 0x00, 16, 8);
+
+/* reg_qpdp_switch_prio
+ * Default port Switch Priority (default 0)
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qpdp, switch_prio, 0x04, 0, 4);
+
+static inline void mlxsw_reg_qpdp_pack(char *payload, u8 local_port,
+				       u8 switch_prio)
+{
+	MLXSW_REG_ZERO(qpdp, payload);
+	mlxsw_reg_qpdp_local_port_set(payload, local_port);
+	mlxsw_reg_qpdp_switch_prio_set(payload, switch_prio);
 }
 
 /* QPDPM - QoS Port DSCP to Priority Mapping Register
@@ -3969,6 +4015,7 @@ MLXSW_ITEM32(reg, pmlp, local_port, 0x00, 16, 8);
  * 1 - Lane 0 is used.
  * 2 - Lanes 0 and 1 are used.
  * 4 - Lanes 0, 1, 2 and 3 are used.
+ * 8 - Lanes 0-7 are used.
  * Access: RW
  */
 MLXSW_ITEM32(reg, pmlp, width, 0x00, 0, 8);
@@ -3983,14 +4030,14 @@ MLXSW_ITEM32_INDEXED(reg, pmlp, module, 0x04, 0, 8, 0x04, 0x00, false);
  * Tx Lane. When rxtx field is cleared, this field is used for Rx as well.
  * Access: RW
  */
-MLXSW_ITEM32_INDEXED(reg, pmlp, tx_lane, 0x04, 16, 2, 0x04, 0x00, false);
+MLXSW_ITEM32_INDEXED(reg, pmlp, tx_lane, 0x04, 16, 4, 0x04, 0x00, false);
 
 /* reg_pmlp_rx_lane
  * Rx Lane. When rxtx field is cleared, this field is ignored and Rx lane is
  * equal to Tx lane.
  * Access: RW
  */
-MLXSW_ITEM32_INDEXED(reg, pmlp, rx_lane, 0x04, 24, 2, 0x04, 0x00, false);
+MLXSW_ITEM32_INDEXED(reg, pmlp, rx_lane, 0x04, 24, 4, 0x04, 0x00, false);
 
 static inline void mlxsw_reg_pmlp_pack(char *payload, u8 local_port)
 {
@@ -4111,6 +4158,7 @@ MLXSW_ITEM32(reg, ptys, an_status, 0x04, 28, 4);
 #define MLXSW_REG_PTYS_EXT_ETH_SPEED_CAUI_4_100GBASE_CR4_KR4		BIT(9)
 #define MLXSW_REG_PTYS_EXT_ETH_SPEED_100GAUI_2_100GBASE_CR2_KR2		BIT(10)
 #define MLXSW_REG_PTYS_EXT_ETH_SPEED_200GAUI_4_200GBASE_CR4_KR4		BIT(12)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_400GAUI_8				BIT(15)
 
 /* reg_ptys_ext_eth_proto_cap
  * Extended Ethernet port supported speeds and protocols.
@@ -5373,6 +5421,55 @@ static inline void mlxsw_reg_pplr_pack(char *payload, u8 local_port,
 				 MLXSW_REG_PPLR_LB_TYPE_BIT_PHY_LOCAL : 0);
 }
 
+/* PMTM - Port Module Type Mapping Register
+ * ----------------------------------------
+ * The PMTM allows query or configuration of module types.
+ */
+#define MLXSW_REG_PMTM_ID 0x5067
+#define MLXSW_REG_PMTM_LEN 0x10
+
+MLXSW_REG_DEFINE(pmtm, MLXSW_REG_PMTM_ID, MLXSW_REG_PMTM_LEN);
+
+/* reg_pmtm_module
+ * Module number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtm, module, 0x00, 16, 8);
+
+enum mlxsw_reg_pmtm_module_type {
+	/* Backplane with 4 lanes */
+	MLXSW_REG_PMTM_MODULE_TYPE_BP_4X,
+	/* QSFP */
+	MLXSW_REG_PMTM_MODULE_TYPE_BP_QSFP,
+	/* SFP */
+	MLXSW_REG_PMTM_MODULE_TYPE_BP_SFP,
+	/* Backplane with single lane */
+	MLXSW_REG_PMTM_MODULE_TYPE_BP_1X = 4,
+	/* Backplane with two lane */
+	MLXSW_REG_PMTM_MODULE_TYPE_BP_2X = 8,
+	/* Chip2Chip */
+	MLXSW_REG_PMTM_MODULE_TYPE_C2C = 10,
+};
+
+/* reg_pmtm_module_type
+ * Module type.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pmtm, module_type, 0x04, 0, 4);
+
+static inline void mlxsw_reg_pmtm_pack(char *payload, u8 module)
+{
+	MLXSW_REG_ZERO(pmtm, payload);
+	mlxsw_reg_pmtm_module_set(payload, module);
+}
+
+static inline void
+mlxsw_reg_pmtm_unpack(char *payload,
+		      enum mlxsw_reg_pmtm_module_type *module_type)
+{
+	*module_type = mlxsw_reg_pmtm_module_type_get(payload);
+}
+
 /* HTGT - Host Trap Group Table
  * ----------------------------
  * Configures the properties for forwarding to CPU.
@@ -5421,6 +5518,7 @@ enum mlxsw_reg_htgt_trap_group {
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_LBERROR,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP0,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_VRRP,
 
 	__MLXSW_REG_HTGT_TRAP_GROUP_MAX,
 	MLXSW_REG_HTGT_TRAP_GROUP_MAX = __MLXSW_REG_HTGT_TRAP_GROUP_MAX - 1
@@ -5429,6 +5527,8 @@ enum mlxsw_reg_htgt_trap_group {
 enum mlxsw_reg_htgt_discard_trap_group {
 	MLXSW_REG_HTGT_DISCARD_TRAP_GROUP_BASE = MLXSW_REG_HTGT_TRAP_GROUP_MAX,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS,
 };
 
 /* reg_htgt_trap_group
@@ -8411,6 +8511,7 @@ MLXSW_ITEM32(reg, mcia, device_address, 0x04, 0, 16);
 MLXSW_ITEM32(reg, mcia, size, 0x08, 0, 16);
 
 #define MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH	256
+#define MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH	128
 #define MLXSW_REG_MCIA_EEPROM_SIZE		48
 #define MLXSW_REG_MCIA_I2C_ADDR_LOW		0x50
 #define MLXSW_REG_MCIA_I2C_ADDR_HIGH		0x51
@@ -8445,6 +8546,14 @@ enum mlxsw_reg_mcia_eeprom_module_info {
  * Access: RW
  */
 MLXSW_ITEM_BUF(reg, mcia, eeprom, 0x10, MLXSW_REG_MCIA_EEPROM_SIZE);
+
+/* This is used to access the optional upper pages (1-3) in the QSFP+
+ * memory map. Page 1 is available on offset 256 through 383, page 2 -
+ * on offset 384 through 511, page 3 - on offset 512 through 639.
+ */
+#define MLXSW_REG_MCIA_PAGE_GET(off) (((off) - \
+				MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH) / \
+				MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH + 1)
 
 static inline void mlxsw_reg_mcia_pack(char *payload, u8 module, u8 lock,
 				       u8 page_number, u16 device_addr,
@@ -8670,7 +8779,7 @@ mlxsw_reg_mpat_eth_rspan_l3_ipv6_pack(char *payload, u8 ttl,
  * properties.
  */
 #define MLXSW_REG_MPAR_ID 0x901B
-#define MLXSW_REG_MPAR_LEN 0x08
+#define MLXSW_REG_MPAR_LEN 0x0C
 
 MLXSW_REG_DEFINE(mpar, MLXSW_REG_MPAR_ID, MLXSW_REG_MPAR_LEN);
 
@@ -9531,6 +9640,12 @@ MLXSW_ITEM32(reg, mgpir, devices_per_flash, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, mgpir, num_of_devices, 0x00, 0, 8);
 
+/* num_of_modules
+ * Number of modules.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgpir, num_of_modules, 0x04, 0, 8);
+
 static inline void mlxsw_reg_mgpir_pack(char *payload)
 {
 	MLXSW_REG_ZERO(mgpir, payload);
@@ -9539,7 +9654,7 @@ static inline void mlxsw_reg_mgpir_pack(char *payload)
 static inline void
 mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
 		       enum mlxsw_reg_mgpir_device_type *device_type,
-		       u8 *devices_per_flash)
+		       u8 *devices_per_flash, u8 *num_of_modules)
 {
 	if (num_of_devices)
 		*num_of_devices = mlxsw_reg_mgpir_num_of_devices_get(payload);
@@ -9548,6 +9663,8 @@ mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
 	if (devices_per_flash)
 		*devices_per_flash =
 				mlxsw_reg_mgpir_devices_per_flash_get(payload);
+	if (num_of_modules)
+		*num_of_modules = mlxsw_reg_mgpir_num_of_modules_get(payload);
 }
 
 /* TNGCR - Tunneling NVE General Configuration Register
@@ -10039,6 +10156,92 @@ static inline void mlxsw_reg_tigcr_pack(char *payload, bool ttlc, u8 ttl_uc)
 	mlxsw_reg_tigcr_ttl_uc_set(payload, ttl_uc);
 }
 
+/* TIEEM - Tunneling IPinIP Encapsulation ECN Mapping Register
+ * -----------------------------------------------------------
+ * The TIEEM register maps ECN of the IP header at the ingress to the
+ * encapsulation to the ECN of the underlay network.
+ */
+#define MLXSW_REG_TIEEM_ID 0xA812
+#define MLXSW_REG_TIEEM_LEN 0x0C
+
+MLXSW_REG_DEFINE(tieem, MLXSW_REG_TIEEM_ID, MLXSW_REG_TIEEM_LEN);
+
+/* reg_tieem_overlay_ecn
+ * ECN of the IP header in the overlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tieem, overlay_ecn, 0x04, 24, 2);
+
+/* reg_tineem_underlay_ecn
+ * ECN of the IP header in the underlay network.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tieem, underlay_ecn, 0x04, 16, 2);
+
+static inline void mlxsw_reg_tieem_pack(char *payload, u8 overlay_ecn,
+					u8 underlay_ecn)
+{
+	MLXSW_REG_ZERO(tieem, payload);
+	mlxsw_reg_tieem_overlay_ecn_set(payload, overlay_ecn);
+	mlxsw_reg_tieem_underlay_ecn_set(payload, underlay_ecn);
+}
+
+/* TIDEM - Tunneling IPinIP Decapsulation ECN Mapping Register
+ * -----------------------------------------------------------
+ * The TIDEM register configures the actions that are done in the
+ * decapsulation.
+ */
+#define MLXSW_REG_TIDEM_ID 0xA813
+#define MLXSW_REG_TIDEM_LEN 0x0C
+
+MLXSW_REG_DEFINE(tidem, MLXSW_REG_TIDEM_ID, MLXSW_REG_TIDEM_LEN);
+
+/* reg_tidem_underlay_ecn
+ * ECN field of the IP header in the underlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tidem, underlay_ecn, 0x04, 24, 2);
+
+/* reg_tidem_overlay_ecn
+ * ECN field of the IP header in the overlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tidem, overlay_ecn, 0x04, 16, 2);
+
+/* reg_tidem_eip_ecn
+ * Egress IP ECN. ECN field of the IP header of the packet which goes out
+ * from the decapsulation.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tidem, eip_ecn, 0x04, 8, 2);
+
+/* reg_tidem_trap_en
+ * Trap enable:
+ * 0 - No trap due to decap ECN
+ * 1 - Trap enable with trap_id
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tidem, trap_en, 0x08, 28, 4);
+
+/* reg_tidem_trap_id
+ * Trap ID. Either DECAP_ECN0 or DECAP_ECN1.
+ * Reserved when trap_en is '0'.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tidem, trap_id, 0x08, 0, 9);
+
+static inline void mlxsw_reg_tidem_pack(char *payload, u8 underlay_ecn,
+					u8 overlay_ecn, u8 eip_ecn,
+					bool trap_en, u16 trap_id)
+{
+	MLXSW_REG_ZERO(tidem, payload);
+	mlxsw_reg_tidem_underlay_ecn_set(payload, underlay_ecn);
+	mlxsw_reg_tidem_overlay_ecn_set(payload, overlay_ecn);
+	mlxsw_reg_tidem_eip_ecn_set(payload, eip_ecn);
+	mlxsw_reg_tidem_trap_en_set(payload, trap_en);
+	mlxsw_reg_tidem_trap_id_set(payload, trap_id);
+}
+
 /* SBPR - Shared Buffer Pools Register
  * -----------------------------------
  * The SBPR configures and retrieves the shared buffer pools and configuration.
@@ -10511,6 +10714,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(qeec),
 	MLXSW_REG(qrwe),
 	MLXSW_REG(qpdsm),
+	MLXSW_REG(qpdp),
 	MLXSW_REG(qpdpm),
 	MLXSW_REG(qtctm),
 	MLXSW_REG(qpsc),
@@ -10526,6 +10730,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pbmc),
 	MLXSW_REG(pspa),
 	MLXSW_REG(pplr),
+	MLXSW_REG(pmtm),
 	MLXSW_REG(htgt),
 	MLXSW_REG(hpkt),
 	MLXSW_REG(rgcr),
@@ -10581,6 +10786,8 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(tndem),
 	MLXSW_REG(tnpc),
 	MLXSW_REG(tigcr),
+	MLXSW_REG(tieem),
+	MLXSW_REG(tidem),
 	MLXSW_REG(sbpr),
 	MLXSW_REG(sbcm),
 	MLXSW_REG(sbpm),

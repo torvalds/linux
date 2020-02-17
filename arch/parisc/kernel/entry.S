@@ -940,14 +940,14 @@ intr_restore:
 	rfi
 	nop
 
-#ifndef CONFIG_PREEMPT
+#ifndef CONFIG_PREEMPTION
 # define intr_do_preempt	intr_restore
-#endif /* !CONFIG_PREEMPT */
+#endif /* !CONFIG_PREEMPTION */
 
 	.import schedule,code
 intr_do_resched:
 	/* Only call schedule on return to userspace. If we're returning
-	 * to kernel space, we may schedule if CONFIG_PREEMPT, otherwise
+	 * to kernel space, we may schedule if CONFIG_PREEMPTION, otherwise
 	 * we jump back to intr_restore.
 	 */
 	LDREG	PT_IASQ0(%r16), %r20
@@ -979,7 +979,7 @@ intr_do_resched:
 	 * and preempt_count is 0. otherwise, we continue on
 	 * our merry way back to the current running task.
 	 */
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	.import preempt_schedule_irq,code
 intr_do_preempt:
 	rsm	PSW_SM_I, %r0		/* disable interrupts */
@@ -999,7 +999,7 @@ intr_do_preempt:
 	nop
 
 	b,n	intr_restore		/* ssm PSW_SM_I done by intr_restore */
-#endif /* CONFIG_PREEMPT */
+#endif /* CONFIG_PREEMPTION */
 
 	/*
 	 * External interrupts.
@@ -2125,7 +2125,7 @@ ftrace_regs_caller:
 	copy	%rp, %r26
 	LDREG	-FTRACE_FRAME_SIZE-PT_SZ_ALGN(%sp), %r25
 	ldo	-8(%r25), %r25
-	copy	%r3, %arg2
+	ldo	-FTRACE_FRAME_SIZE(%r1), %arg2
 	b,l	ftrace_function_trampoline, %rp
 	copy	%r1, %arg3 /* struct pt_regs */
 

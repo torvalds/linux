@@ -7,7 +7,7 @@
 #ifndef _MACB_H
 #define _MACB_H
 
-#include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
 #include <linux/interrupt.h>
@@ -630,10 +630,17 @@
 #define GEM_CLK_DIV96				5
 
 /* Constants for MAN register */
-#define MACB_MAN_SOF				1
-#define MACB_MAN_WRITE				1
-#define MACB_MAN_READ				2
-#define MACB_MAN_CODE				2
+#define MACB_MAN_C22_SOF			1
+#define MACB_MAN_C22_WRITE			1
+#define MACB_MAN_C22_READ			2
+#define MACB_MAN_C22_CODE			2
+
+#define MACB_MAN_C45_SOF			0
+#define MACB_MAN_C45_ADDR			0
+#define MACB_MAN_C45_WRITE			1
+#define MACB_MAN_C45_POST_READ_INCR		2
+#define MACB_MAN_C45_READ			3
+#define MACB_MAN_C45_CODE			2
 
 /* Capability mask bits */
 #define MACB_CAPS_ISR_CLEAR_ON_WRITE		0x00000001
@@ -1185,15 +1192,14 @@ struct macb {
 	struct macb_or_gem_ops	macbgem_ops;
 
 	struct mii_bus		*mii_bus;
-	struct device_node	*phy_node;
-	int 			link;
-	int 			speed;
-	int 			duplex;
+	struct phylink		*phylink;
+	struct phylink_config	phylink_config;
 
 	u32			caps;
 	unsigned int		dma_burst_length;
 
 	phy_interface_t		phy_interface;
+	int			speed;
 
 	/* AT91RM9200 transmit */
 	struct sk_buff *skb;			/* holds skb until xmit interrupt completes */

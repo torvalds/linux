@@ -11,10 +11,11 @@
 struct process_cmd_struct {
 	char *feature;
 	char *command;
-	void (*process_fn)(void);
+	void (*process_fn)(int arg);
+	int arg;
 };
 
-static const char *version_str = "v1.0";
+static const char *version_str = "v1.2";
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
@@ -22,6 +23,7 @@ static int debug_flag;
 static FILE *outf;
 
 static int cpu_model;
+static int cpu_stepping;
 
 #define MAX_CPUS_IN_ONE_REQ 64
 static short max_target_cpus;
@@ -39,6 +41,7 @@ static unsigned long long fact_trl;
 static int out_format_json;
 static int cmd_help;
 static int force_online_offline;
+static int auto_mode;
 
 /* clos related */
 static int current_clos = -1;
@@ -70,7 +73,16 @@ void debug_printf(const char *format, ...)
 	va_end(args);
 }
 
-static void update_cpu_model(void)
+
+int is_clx_n_platform(void)
+{
+	if (cpu_model == 0x55)
+		if (cpu_stepping == 0x6 || cpu_stepping == 0x7)
+			return 1;
+	return 0;
+}
+
+static int update_cpu_model(void)
 {
 	unsigned int ebx, ecx, edx;
 	unsigned int fms, family;
@@ -80,6 +92,33 @@ static void update_cpu_model(void)
 	cpu_model = (fms >> 4) & 0xf;
 	if (family == 6 || family == 0xf)
 		cpu_model += ((fms >> 16) & 0xf) << 4;
+
+	cpu_stepping = fms & 0xf;
+	/* only three CascadeLake-N models are supported */
+	if (is_clx_n_platform()) {
+		FILE *fp;
+		size_t n = 0;
+		char *line = NULL;
+		int ret = 1;
+
+		fp = fopen("/proc/cpuinfo", "r");
+		if (!fp)
+			err(-1, "cannot open /proc/cpuinfo\n");
+
+		while (getline(&line, &n, fp) > 0) {
+			if (strstr(line, "model name")) {
+				if (strstr(line, "6252N") ||
+				    strstr(line, "6230N") ||
+				    strstr(line, "5218N"))
+					ret = 0;
+				break;
+			}
+		}
+		free(line);
+		fclose(fp);
+		return ret;
+	}
+	return 0;
 }
 
 /* Open a file, and exit on failure */
@@ -161,6 +200,11 @@ int get_physical_die_id(int cpu)
 	return ret;
 }
 
+int get_cpufreq_base_freq(int cpu)
+{
+	return parse_int_file(0, "/sys/devices/system/cpu/cpu%d/cpufreq/base_frequency", cpu);
+}
+
 int get_topo_max_cpus(void)
 {
 	return topo_max_cpus;
@@ -169,7 +213,7 @@ int get_topo_max_cpus(void)
 static void set_cpu_online_offline(int cpu, int state)
 {
 	char buffer[128];
-	int fd;
+	int fd, ret;
 
 	snprintf(buffer, sizeof(buffer),
 		 "/sys/devices/system/cpu/cpu%d/online", cpu);
@@ -179,9 +223,12 @@ static void set_cpu_online_offline(int cpu, int state)
 		err(-1, "%s open failed", buffer);
 
 	if (state)
-		write(fd, "1\n", 2);
+		ret = write(fd, "1\n", 2);
 	else
-		write(fd, "0\n", 2);
+		ret = write(fd, "0\n", 2);
+
+	if (ret == -1)
+		perror("Online/Offline: Operation failed\n");
 
 	close(fd);
 }
@@ -291,6 +338,7 @@ void free_cpu_set(cpu_set_t *cpu_set)
 }
 
 static int cpu_cnt[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE];
+static long long core_mask[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE];
 static void set_cpu_present_cpu_mask(void)
 {
 	size_t size;
@@ -315,11 +363,31 @@ static void set_cpu_present_cpu_mask(void)
 
 			pkg_id = get_physical_package_id(i);
 			if (pkg_id < MAX_PACKAGE_COUNT &&
-			    die_id < MAX_DIE_PER_PACKAGE)
+			    die_id < MAX_DIE_PER_PACKAGE) {
+				int core_id = get_physical_core_id(i);
+
 				cpu_cnt[pkg_id][die_id]++;
+				core_mask[pkg_id][die_id] |= (1ULL << core_id);
+			}
 		}
 		closedir(dir);
 	}
+}
+
+int get_core_count(int pkg_id, int die_id)
+{
+	int cnt = 0;
+
+	if (pkg_id < MAX_PACKAGE_COUNT && die_id < MAX_DIE_PER_PACKAGE) {
+		int i;
+
+		for (i = 0; i < sizeof(long long) * 8; ++i) {
+			if (core_mask[pkg_id][die_id] & (1ULL << i))
+				cnt++;
+		}
+	}
+
+	return cnt;
 }
 
 int get_cpu_count(int pkg_id, int die_id)
@@ -532,12 +600,6 @@ int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 			if (!ret && !write)
 				*resp = value;
 			break;
-		case CLOS_PM_QOS_CONFIG:
-			ret = isst_send_mmio_command(cpu, PM_QOS_CONFIG_OFFSET,
-						     write, &value);
-			if (!ret && !write)
-				*resp = value;
-			break;
 		case CLOS_STATUS:
 			break;
 		default:
@@ -562,6 +624,7 @@ int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 		fprintf(outf,
 			"Error: mbox_cmd cpu:%d command:%x sub_command:%x parameter:%x req_data:%x\n",
 			cpu, command, sub_command, parameter, req_data);
+		return -1;
 	} else {
 		*resp = mbox_cmds.mbox_cmd[0].resp_data;
 		debug_printf(
@@ -678,7 +741,7 @@ static void exec_on_get_ctdp_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 }
 
 #define _get_tdp_level(desc, suffix, object, help)                                \
-	static void get_tdp_##object(void)                                        \
+	static void get_tdp_##object(int arg)                                    \
 	{                                                                         \
 		struct isst_pkg_ctdp ctdp;                                        \
 \
@@ -708,6 +771,152 @@ _get_tdp_level("get-config-current_level", levels, current_level,
 	       "Current TDP Level");
 _get_tdp_level("get-lock-status", levels, locked, "TDP lock status");
 
+struct isst_pkg_ctdp clx_n_pkg_dev;
+
+static int clx_n_get_base_ratio(void)
+{
+	FILE *fp;
+	char *begin, *end, *line = NULL;
+	char number[5];
+	float value = 0;
+	size_t n = 0;
+
+	fp = fopen("/proc/cpuinfo", "r");
+	if (!fp)
+		err(-1, "cannot open /proc/cpuinfo\n");
+
+	while (getline(&line, &n, fp) > 0) {
+		if (strstr(line, "model name")) {
+			/* this is true for CascadeLake-N */
+			begin = strstr(line, "@ ") + 2;
+			end = strstr(line, "GHz");
+			strncpy(number, begin, end - begin);
+			value = atof(number) * 10;
+			break;
+		}
+	}
+	free(line);
+	fclose(fp);
+
+	return (int)(value);
+}
+
+static int clx_n_config(int cpu)
+{
+	int i, ret, pkg_id, die_id;
+	unsigned long cpu_bf;
+	struct isst_pkg_ctdp_level_info *ctdp_level;
+	struct isst_pbf_info *pbf_info;
+
+	ctdp_level = &clx_n_pkg_dev.ctdp_level[0];
+	pbf_info = &ctdp_level->pbf_info;
+	ctdp_level->core_cpumask_size =
+			alloc_cpu_set(&ctdp_level->core_cpumask);
+
+	/* find the frequency base ratio */
+	ctdp_level->tdp_ratio = clx_n_get_base_ratio();
+	if (ctdp_level->tdp_ratio == 0) {
+		debug_printf("CLX: cn base ratio is zero\n");
+		ret = -1;
+		goto error_ret;
+	}
+
+	/* find the high and low priority frequencies */
+	pbf_info->p1_high = 0;
+	pbf_info->p1_low = ~0;
+
+	pkg_id = get_physical_package_id(cpu);
+	die_id = get_physical_die_id(cpu);
+
+	for (i = 0; i < topo_max_cpus; i++) {
+		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
+			continue;
+
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		CPU_SET_S(i, ctdp_level->core_cpumask_size,
+			  ctdp_level->core_cpumask);
+
+		cpu_bf = parse_int_file(1,
+			"/sys/devices/system/cpu/cpu%d/cpufreq/base_frequency",
+					i);
+		if (cpu_bf > pbf_info->p1_high)
+			pbf_info->p1_high = cpu_bf;
+		if (cpu_bf < pbf_info->p1_low)
+			pbf_info->p1_low = cpu_bf;
+	}
+
+	if (pbf_info->p1_high == ~0UL) {
+		debug_printf("CLX: maximum base frequency not set\n");
+		ret = -1;
+		goto error_ret;
+	}
+
+	if (pbf_info->p1_low == 0) {
+		debug_printf("CLX: minimum base frequency not set\n");
+		ret = -1;
+		goto error_ret;
+	}
+
+	/* convert frequencies back to ratios */
+	pbf_info->p1_high = pbf_info->p1_high / 100000;
+	pbf_info->p1_low = pbf_info->p1_low / 100000;
+
+	/* create high priority cpu mask */
+	pbf_info->core_cpumask_size = alloc_cpu_set(&pbf_info->core_cpumask);
+	for (i = 0; i < topo_max_cpus; i++) {
+		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
+			continue;
+
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		cpu_bf = parse_int_file(1,
+			"/sys/devices/system/cpu/cpu%d/cpufreq/base_frequency",
+					i);
+		cpu_bf = cpu_bf / 100000;
+		if (cpu_bf == pbf_info->p1_high)
+			CPU_SET_S(i, pbf_info->core_cpumask_size,
+				  pbf_info->core_cpumask);
+	}
+
+	/* extra ctdp & pbf struct parameters */
+	ctdp_level->processed = 1;
+	ctdp_level->pbf_support = 1; /* PBF is always supported and enabled */
+	ctdp_level->pbf_enabled = 1;
+	ctdp_level->fact_support = 0; /* FACT is never supported */
+	ctdp_level->fact_enabled = 0;
+
+	return 0;
+
+error_ret:
+	free_cpu_set(ctdp_level->core_cpumask);
+	return ret;
+}
+
+static void dump_clx_n_config_for_cpu(int cpu, void *arg1, void *arg2,
+				   void *arg3, void *arg4)
+{
+	int ret;
+
+	ret = clx_n_config(cpu);
+	if (ret) {
+		perror("isst_get_process_ctdp");
+	} else {
+		struct isst_pkg_ctdp_level_info *ctdp_level;
+		struct isst_pbf_info *pbf_info;
+
+		ctdp_level = &clx_n_pkg_dev.ctdp_level[0];
+		pbf_info = &ctdp_level->pbf_info;
+		isst_ctdp_display_information(cpu, outf, tdp_level, &clx_n_pkg_dev);
+		free_cpu_set(ctdp_level->core_cpumask);
+		free_cpu_set(pbf_info->core_cpumask);
+	}
+}
+
 static void dump_isst_config_for_cpu(int cpu, void *arg1, void *arg2,
 				     void *arg3, void *arg4)
 {
@@ -724,8 +933,10 @@ static void dump_isst_config_for_cpu(int cpu, void *arg1, void *arg2,
 	}
 }
 
-static void dump_isst_config(void)
+static void dump_isst_config(int arg)
 {
+	void *fn;
+
 	if (cmd_help) {
 		fprintf(stderr,
 			"Print Intel(R) Speed Select Technology Performance profile configuration\n");
@@ -737,14 +948,17 @@ static void dump_isst_config(void)
 		exit(0);
 	}
 
+	if (!is_clx_n_platform())
+		fn = dump_isst_config_for_cpu;
+	else
+		fn = dump_clx_n_config_for_cpu;
+
 	isst_ctdp_display_information_start(outf);
 
 	if (max_target_cpus)
-		for_each_online_target_cpu_in_set(dump_isst_config_for_cpu,
-						  NULL, NULL, NULL, NULL);
+		for_each_online_target_cpu_in_set(fn, NULL, NULL, NULL, NULL);
 	else
-		for_each_online_package_in_set(dump_isst_config_for_cpu, NULL,
-					       NULL, NULL, NULL);
+		for_each_online_package_in_set(fn, NULL, NULL, NULL, NULL);
 
 	isst_ctdp_display_information_end(outf);
 }
@@ -787,7 +1001,7 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	}
 }
 
-static void set_tdp_level(void)
+static void set_tdp_level(int arg)
 {
 	if (cmd_help) {
 		fprintf(stderr, "Set Config TDP level\n");
@@ -812,6 +1026,26 @@ static void set_tdp_level(void)
 	isst_ctdp_display_information_end(outf);
 }
 
+static void clx_n_dump_pbf_config_for_cpu(int cpu, void *arg1, void *arg2,
+				       void *arg3, void *arg4)
+{
+	int ret;
+
+	ret = clx_n_config(cpu);
+	if (ret) {
+		perror("isst_get_process_ctdp");
+	} else {
+		struct isst_pkg_ctdp_level_info *ctdp_level;
+		struct isst_pbf_info *pbf_info;
+
+		ctdp_level = &clx_n_pkg_dev.ctdp_level[0];
+		pbf_info = &ctdp_level->pbf_info;
+		isst_pbf_display_information(cpu, outf, tdp_level, pbf_info);
+		free_cpu_set(ctdp_level->core_cpumask);
+		free_cpu_set(pbf_info->core_cpumask);
+	}
+}
+
 static void dump_pbf_config_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 				    void *arg4)
 {
@@ -827,8 +1061,10 @@ static void dump_pbf_config_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	}
 }
 
-static void dump_pbf_config(void)
+static void dump_pbf_config(int arg)
 {
+	void *fn;
+
 	if (cmd_help) {
 		fprintf(stderr,
 			"Print Intel(R) Speed Select Technology base frequency configuration for a TDP level\n");
@@ -842,14 +1078,288 @@ static void dump_pbf_config(void)
 		exit(1);
 	}
 
-	isst_ctdp_display_information_start(outf);
-	if (max_target_cpus)
-		for_each_online_target_cpu_in_set(dump_pbf_config_for_cpu, NULL,
-						  NULL, NULL, NULL);
+	if (!is_clx_n_platform())
+		fn = dump_pbf_config_for_cpu;
 	else
-		for_each_online_package_in_set(dump_pbf_config_for_cpu, NULL,
-					       NULL, NULL, NULL);
+		fn = clx_n_dump_pbf_config_for_cpu;
+
+	isst_ctdp_display_information_start(outf);
+
+	if (max_target_cpus)
+		for_each_online_target_cpu_in_set(fn, NULL, NULL, NULL, NULL);
+	else
+		for_each_online_package_in_set(fn, NULL, NULL, NULL, NULL);
+
 	isst_ctdp_display_information_end(outf);
+}
+
+static int set_clos_param(int cpu, int clos, int epp, int wt, int min, int max)
+{
+	struct isst_clos_config clos_config;
+	int ret;
+
+	ret = isst_pm_get_clos(cpu, clos, &clos_config);
+	if (ret) {
+		perror("isst_pm_get_clos");
+		return ret;
+	}
+	clos_config.clos_min = min;
+	clos_config.clos_max = max;
+	clos_config.epp = epp;
+	clos_config.clos_prop_prio = wt;
+	ret = isst_set_clos(cpu, clos, &clos_config);
+	if (ret) {
+		perror("isst_pm_set_clos");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int set_cpufreq_scaling_min_max(int cpu, int max, int freq)
+{
+	char buffer[128], freq_str[16];
+	int fd, ret, len;
+
+	if (max)
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
+	else
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", cpu);
+
+	fd = open(buffer, O_WRONLY);
+	if (fd < 0)
+		return fd;
+
+	snprintf(freq_str, sizeof(freq_str), "%d", freq);
+	len = strlen(freq_str);
+	ret = write(fd, freq_str, len);
+	if (ret == -1) {
+		close(fd);
+		return ret;
+	}
+	close(fd);
+
+	return 0;
+}
+
+static int set_clx_pbf_cpufreq_scaling_min_max(int cpu)
+{
+	struct isst_pkg_ctdp_level_info *ctdp_level;
+	struct isst_pbf_info *pbf_info;
+	int i, pkg_id, die_id, freq, freq_high, freq_low;
+	int ret;
+
+	ret = clx_n_config(cpu);
+	if (ret) {
+		perror("set_clx_pbf_cpufreq_scaling_min_max");
+		return ret;
+	}
+
+	ctdp_level = &clx_n_pkg_dev.ctdp_level[0];
+	pbf_info = &ctdp_level->pbf_info;
+	freq_high = pbf_info->p1_high * 100000;
+	freq_low = pbf_info->p1_low * 100000;
+
+	pkg_id = get_physical_package_id(cpu);
+	die_id = get_physical_die_id(cpu);
+	for (i = 0; i < get_topo_max_cpus(); ++i) {
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		if (CPU_ISSET_S(i, pbf_info->core_cpumask_size,
+				  pbf_info->core_cpumask))
+			freq = freq_high;
+		else
+			freq = freq_low;
+
+		set_cpufreq_scaling_min_max(i, 1, freq);
+		set_cpufreq_scaling_min_max(i, 0, freq);
+	}
+
+	return 0;
+}
+
+static int set_cpufreq_scaling_min_max_from_cpuinfo(int cpu, int cpuinfo_max, int scaling_max)
+{
+	char buffer[128], min_freq[16];
+	int fd, ret, len;
+
+	if (!CPU_ISSET_S(cpu, present_cpumask_size, present_cpumask))
+		return -1;
+
+	if (cpuinfo_max)
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", cpu);
+	else
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_min_freq", cpu);
+
+	fd = open(buffer, O_RDONLY);
+	if (fd < 0)
+		return fd;
+
+	len = read(fd, min_freq, sizeof(min_freq));
+	close(fd);
+
+	if (len < 0)
+		return len;
+
+	if (scaling_max)
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
+	else
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", cpu);
+
+	fd = open(buffer, O_WRONLY);
+	if (fd < 0)
+		return fd;
+
+	len = strlen(min_freq);
+	ret = write(fd, min_freq, len);
+	if (ret == -1) {
+		close(fd);
+		return ret;
+	}
+	close(fd);
+
+	return 0;
+}
+
+static void set_scaling_min_to_cpuinfo_max(int cpu)
+{
+	int i, pkg_id, die_id;
+
+	pkg_id = get_physical_package_id(cpu);
+	die_id = get_physical_die_id(cpu);
+	for (i = 0; i < get_topo_max_cpus(); ++i) {
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 0);
+	}
+}
+
+static void set_scaling_min_to_cpuinfo_min(int cpu)
+{
+	int i, pkg_id, die_id;
+
+	pkg_id = get_physical_package_id(cpu);
+	die_id = get_physical_die_id(cpu);
+	for (i = 0; i < get_topo_max_cpus(); ++i) {
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		set_cpufreq_scaling_min_max_from_cpuinfo(i, 0, 0);
+	}
+}
+
+static void set_scaling_max_to_cpuinfo_max(int cpu)
+{
+	int i, pkg_id, die_id;
+
+	pkg_id = get_physical_package_id(cpu);
+	die_id = get_physical_die_id(cpu);
+	for (i = 0; i < get_topo_max_cpus(); ++i) {
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 1);
+	}
+}
+
+static int set_core_priority_and_min(int cpu, int mask_size,
+				     cpu_set_t *cpu_mask, int min_high,
+				     int min_low)
+{
+	int pkg_id, die_id, ret, i;
+
+	if (!CPU_COUNT_S(mask_size, cpu_mask))
+		return -1;
+
+	ret = set_clos_param(cpu, 0, 0, 0, min_high, 0xff);
+	if (ret)
+		return ret;
+
+	ret = set_clos_param(cpu, 1, 15, 15, min_low, 0xff);
+	if (ret)
+		return ret;
+
+	ret = set_clos_param(cpu, 2, 15, 15, min_low, 0xff);
+	if (ret)
+		return ret;
+
+	ret = set_clos_param(cpu, 3, 15, 15, min_low, 0xff);
+	if (ret)
+		return ret;
+
+	pkg_id = get_physical_package_id(cpu);
+	die_id = get_physical_die_id(cpu);
+	for (i = 0; i < get_topo_max_cpus(); ++i) {
+		int clos;
+
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		if (CPU_ISSET_S(i, mask_size, cpu_mask))
+			clos = 0;
+		else
+			clos = 3;
+
+		debug_printf("Associate cpu: %d clos: %d\n", i, clos);
+		ret = isst_clos_associate(i, clos);
+		if (ret) {
+			perror("isst_clos_associate");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int set_pbf_core_power(int cpu)
+{
+	struct isst_pbf_info pbf_info;
+	struct isst_pkg_ctdp pkg_dev;
+	int ret;
+
+	ret = isst_get_ctdp_levels(cpu, &pkg_dev);
+	if (ret) {
+		perror("isst_get_ctdp_levels");
+		return ret;
+	}
+	debug_printf("Current_level: %d\n", pkg_dev.current_level);
+
+	ret = isst_get_pbf_info(cpu, pkg_dev.current_level, &pbf_info);
+	if (ret) {
+		perror("isst_get_pbf_info");
+		return ret;
+	}
+	debug_printf("p1_high: %d p1_low: %d\n", pbf_info.p1_high,
+		     pbf_info.p1_low);
+
+	ret = set_core_priority_and_min(cpu, pbf_info.core_cpumask_size,
+					pbf_info.core_cpumask,
+					pbf_info.p1_high, pbf_info.p1_low);
+	if (ret) {
+		perror("set_core_priority_and_min");
+		return ret;
+	}
+
+	ret = isst_pm_qos_config(cpu, 1, 1);
+	if (ret) {
+		perror("isst_pm_qos_config");
+		return ret;
+	}
+
+	return 0;
 }
 
 static void set_pbf_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
@@ -858,56 +1368,81 @@ static void set_pbf_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	int ret;
 	int status = *(int *)arg4;
 
+	if (is_clx_n_platform()) {
+		if (status) {
+			ret = 0;
+			if (auto_mode)
+				set_clx_pbf_cpufreq_scaling_min_max(cpu);
+
+		} else {
+			ret = -1;
+			if (auto_mode) {
+				set_scaling_max_to_cpuinfo_max(cpu);
+				set_scaling_min_to_cpuinfo_min(cpu);
+			}
+		}
+		goto disp_result;
+	}
+
+	if (auto_mode && status) {
+		ret = set_pbf_core_power(cpu);
+		if (ret)
+			goto disp_result;
+	}
+
 	ret = isst_set_pbf_fact_status(cpu, 1, status);
 	if (ret) {
 		perror("isst_set_pbf");
+		if (auto_mode)
+			isst_pm_qos_config(cpu, 0, 0);
 	} else {
-		if (status)
-			isst_display_result(cpu, outf, "base-freq", "enable",
-					    ret);
-		else
-			isst_display_result(cpu, outf, "base-freq", "disable",
-					    ret);
+		if (auto_mode) {
+			if (status)
+				set_scaling_min_to_cpuinfo_max(cpu);
+			else
+				set_scaling_min_to_cpuinfo_min(cpu);
+		}
 	}
+
+	if (auto_mode && !status)
+		isst_pm_qos_config(cpu, 0, 0);
+
+disp_result:
+	if (status)
+		isst_display_result(cpu, outf, "base-freq", "enable",
+				    ret);
+	else
+		isst_display_result(cpu, outf, "base-freq", "disable",
+				    ret);
 }
 
-static void set_pbf_enable(void)
+static void set_pbf_enable(int arg)
 {
-	int status = 1;
+	int enable = arg;
 
 	if (cmd_help) {
-		fprintf(stderr,
-			"Enable Intel Speed Select Technology base frequency feature [No command arguments are required]\n");
+		if (enable) {
+			fprintf(stderr,
+				"Enable Intel Speed Select Technology base frequency feature\n");
+			fprintf(stderr,
+				"\tOptional Arguments: -a|--auto : Use priority of cores to set core-power associations\n");
+		} else {
+
+			fprintf(stderr,
+				"Disable Intel Speed Select Technology base frequency feature\n");
+			fprintf(stderr,
+				"\tOptional Arguments: -a|--auto : Also disable core-power associations\n");
+		}
 		exit(0);
 	}
 
 	isst_ctdp_display_information_start(outf);
 	if (max_target_cpus)
 		for_each_online_target_cpu_in_set(set_pbf_for_cpu, NULL, NULL,
-						  NULL, &status);
+						  NULL, &enable);
 	else
 		for_each_online_package_in_set(set_pbf_for_cpu, NULL, NULL,
-					       NULL, &status);
-	isst_ctdp_display_information_end(outf);
-}
-
-static void set_pbf_disable(void)
-{
-	int status = 0;
-
-	if (cmd_help) {
-		fprintf(stderr,
-			"Disable Intel Speed Select Technology base frequency feature [No command arguments are required]\n");
-		exit(0);
-	}
-
-	isst_ctdp_display_information_start(outf);
-	if (max_target_cpus)
-		for_each_online_target_cpu_in_set(set_pbf_for_cpu, NULL, NULL,
-						  NULL, &status);
-	else
-		for_each_online_package_in_set(set_pbf_for_cpu, NULL, NULL,
-					       NULL, &status);
+					       NULL, &enable);
 	isst_ctdp_display_information_end(outf);
 }
 
@@ -925,7 +1460,7 @@ static void dump_fact_config_for_cpu(int cpu, void *arg1, void *arg2,
 					      fact_avx, &fact_info);
 }
 
-static void dump_fact_config(void)
+static void dump_fact_config(int arg)
 {
 	if (cmd_help) {
 		fprintf(stderr,
@@ -960,73 +1495,155 @@ static void set_fact_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	int ret;
 	int status = *(int *)arg4;
 
+	if (auto_mode && status) {
+		ret = isst_pm_qos_config(cpu, 1, 1);
+		if (ret)
+			goto disp_results;
+	}
+
 	ret = isst_set_pbf_fact_status(cpu, 0, status);
-	if (ret)
+	if (ret) {
 		perror("isst_set_fact");
-	else {
-		if (status) {
-			struct isst_pkg_ctdp pkg_dev;
+		if (auto_mode)
+			isst_pm_qos_config(cpu, 0, 0);
 
-			ret = isst_get_ctdp_levels(cpu, &pkg_dev);
-			if (ret) {
-				isst_display_result(cpu, outf, "turbo-freq",
-						    "enable", ret);
-				return;
-			}
+		goto disp_results;
+	}
+
+	/* Set TRL */
+	if (status) {
+		struct isst_pkg_ctdp pkg_dev;
+
+		ret = isst_get_ctdp_levels(cpu, &pkg_dev);
+		if (!ret)
 			ret = isst_set_trl(cpu, fact_trl);
-			isst_display_result(cpu, outf, "turbo-freq", "enable",
-					    ret);
+		if (ret && auto_mode)
+			isst_pm_qos_config(cpu, 0, 0);
+	} else {
+		if (auto_mode)
+			isst_pm_qos_config(cpu, 0, 0);
+	}
+
+disp_results:
+	if (status) {
+		isst_display_result(cpu, outf, "turbo-freq", "enable", ret);
+	} else {
+		/* Since we modified TRL during Fact enable, restore it */
+		isst_set_trl_from_current_tdp(cpu, fact_trl);
+		isst_display_result(cpu, outf, "turbo-freq", "disable", ret);
+	}
+}
+
+static void set_fact_enable(int arg)
+{
+	int i, ret, enable = arg;
+
+	if (cmd_help) {
+		if (enable) {
+			fprintf(stderr,
+				"Enable Intel Speed Select Technology Turbo frequency feature\n");
+			fprintf(stderr,
+				"Optional: -t|--trl : Specify turbo ratio limit\n");
+			fprintf(stderr,
+				"\tOptional Arguments: -a|--auto : Designate specified target CPUs with");
+			fprintf(stderr,
+				"-C|--cpu option as as high priority using core-power feature\n");
 		} else {
-			/* Since we modified TRL during Fact enable, restore it */
-			isst_set_trl_from_current_tdp(cpu, fact_trl);
-			isst_display_result(cpu, outf, "turbo-freq", "disable",
-					    ret);
+			fprintf(stderr,
+				"Disable Intel Speed Select Technology turbo frequency feature\n");
+			fprintf(stderr,
+				"Optional: -t|--trl : Specify turbo ratio limit\n");
+			fprintf(stderr,
+				"\tOptional Arguments: -a|--auto : Also disable core-power associations\n");
 		}
-	}
-}
-
-static void set_fact_enable(void)
-{
-	int status = 1;
-
-	if (cmd_help) {
-		fprintf(stderr,
-			"Enable Intel Speed Select Technology Turbo frequency feature\n");
-		fprintf(stderr,
-			"Optional: -t|--trl : Specify turbo ratio limit\n");
 		exit(0);
 	}
 
 	isst_ctdp_display_information_start(outf);
 	if (max_target_cpus)
 		for_each_online_target_cpu_in_set(set_fact_for_cpu, NULL, NULL,
-						  NULL, &status);
+						  NULL, &enable);
 	else
 		for_each_online_package_in_set(set_fact_for_cpu, NULL, NULL,
-					       NULL, &status);
+					       NULL, &enable);
 	isst_ctdp_display_information_end(outf);
-}
 
-static void set_fact_disable(void)
-{
-	int status = 0;
+	if (enable && auto_mode) {
+		/*
+		 * When we adjust CLOS param, we have to set for siblings also.
+		 * So for the each user specified CPU, also add the sibling
+		 * in the present_cpu_mask.
+		 */
+		for (i = 0; i < get_topo_max_cpus(); ++i) {
+			char buffer[128], sibling_list[128], *cpu_str;
+			int fd, len;
 
-	if (cmd_help) {
-		fprintf(stderr,
-			"Disable Intel Speed Select Technology turbo frequency feature\n");
-		fprintf(stderr,
-			"Optional: -t|--trl : Specify turbo ratio limit\n");
-		exit(0);
+			if (!CPU_ISSET_S(i, target_cpumask_size, target_cpumask))
+				continue;
+
+			snprintf(buffer, sizeof(buffer),
+				 "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", i);
+
+			fd = open(buffer, O_RDONLY);
+			if (fd < 0)
+				continue;
+
+			len = read(fd, sibling_list, sizeof(sibling_list));
+			close(fd);
+
+			if (len < 0)
+				continue;
+
+			cpu_str = strtok(sibling_list, ",");
+			while (cpu_str != NULL) {
+				int cpu;
+
+				sscanf(cpu_str, "%d", &cpu);
+				CPU_SET_S(cpu, target_cpumask_size, target_cpumask);
+				cpu_str = strtok(NULL, ",");
+			}
+		}
+
+		for (i = 0; i < get_topo_max_cpus(); ++i) {
+			int clos;
+
+			if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
+				continue;
+
+			ret = set_clos_param(i, 0, 0, 0, 0, 0xff);
+			if (ret)
+				goto error_disp;
+
+			ret = set_clos_param(i, 1, 15, 15, 0, 0xff);
+			if (ret)
+				goto error_disp;
+
+			ret = set_clos_param(i, 2, 15, 15, 0, 0xff);
+			if (ret)
+				goto error_disp;
+
+			ret = set_clos_param(i, 3, 15, 15, 0, 0xff);
+			if (ret)
+				goto error_disp;
+
+			if (CPU_ISSET_S(i, target_cpumask_size, target_cpumask))
+				clos = 0;
+			else
+				clos = 3;
+
+			debug_printf("Associate cpu: %d clos: %d\n", i, clos);
+			ret = isst_clos_associate(i, clos);
+			if (ret)
+				goto error_disp;
+		}
+		isst_display_result(-1, outf, "turbo-freq --auto", "enable", 0);
 	}
 
-	isst_ctdp_display_information_start(outf);
-	if (max_target_cpus)
-		for_each_online_target_cpu_in_set(set_fact_for_cpu, NULL, NULL,
-						  NULL, &status);
-	else
-		for_each_online_package_in_set(set_fact_for_cpu, NULL, NULL,
-					       NULL, &status);
-	isst_ctdp_display_information_end(outf);
+	return;
+
+error_disp:
+	isst_display_result(i, outf, "turbo-freq --auto", "enable", ret);
+
 }
 
 static void enable_clos_qos_config(int cpu, void *arg1, void *arg2, void *arg3,
@@ -1036,31 +1653,36 @@ static void enable_clos_qos_config(int cpu, void *arg1, void *arg2, void *arg3,
 	int status = *(int *)arg4;
 
 	ret = isst_pm_qos_config(cpu, status, clos_priority_type);
-	if (ret) {
+	if (ret)
 		perror("isst_pm_qos_config");
-	} else {
-		if (status)
-			isst_display_result(cpu, outf, "core-power", "enable",
-					    ret);
-		else
-			isst_display_result(cpu, outf, "core-power", "disable",
-					    ret);
-	}
+
+	if (status)
+		isst_display_result(cpu, outf, "core-power", "enable",
+				    ret);
+	else
+		isst_display_result(cpu, outf, "core-power", "disable",
+				    ret);
 }
 
-static void set_clos_enable(void)
+static void set_clos_enable(int arg)
 {
-	int status = 1;
+	int enable = arg;
 
 	if (cmd_help) {
-		fprintf(stderr, "Enable core-power for a package/die\n");
-		fprintf(stderr,
-			"\tClos Enable: Specify priority type with [--priority|-p]\n");
-		fprintf(stderr, "\t\t 0: Proportional, 1: Ordered\n");
+		if (enable) {
+			fprintf(stderr,
+				"Enable core-power for a package/die\n");
+			fprintf(stderr,
+				"\tClos Enable: Specify priority type with [--priority|-p]\n");
+			fprintf(stderr, "\t\t 0: Proportional, 1: Ordered\n");
+		} else {
+			fprintf(stderr,
+				"Disable core-power: [No command arguments are required]\n");
+		}
 		exit(0);
 	}
 
-	if (cpufreq_sysfs_present()) {
+	if (enable && cpufreq_sysfs_present()) {
 		fprintf(stderr,
 			"cpufreq subsystem and core-power enable will interfere with each other!\n");
 	}
@@ -1068,30 +1690,10 @@ static void set_clos_enable(void)
 	isst_ctdp_display_information_start(outf);
 	if (max_target_cpus)
 		for_each_online_target_cpu_in_set(enable_clos_qos_config, NULL,
-						  NULL, NULL, &status);
+						  NULL, NULL, &enable);
 	else
 		for_each_online_package_in_set(enable_clos_qos_config, NULL,
-					       NULL, NULL, &status);
-	isst_ctdp_display_information_end(outf);
-}
-
-static void set_clos_disable(void)
-{
-	int status = 0;
-
-	if (cmd_help) {
-		fprintf(stderr,
-			"Disable core-power: [No command arguments are required]\n");
-		exit(0);
-	}
-
-	isst_ctdp_display_information_start(outf);
-	if (max_target_cpus)
-		for_each_online_target_cpu_in_set(enable_clos_qos_config, NULL,
-						  NULL, NULL, &status);
-	else
-		for_each_online_package_in_set(enable_clos_qos_config, NULL,
-					       NULL, NULL, &status);
+					       NULL, NULL, &enable);
 	isst_ctdp_display_information_end(outf);
 }
 
@@ -1109,7 +1711,7 @@ static void dump_clos_config_for_cpu(int cpu, void *arg1, void *arg2,
 					      &clos_config);
 }
 
-static void dump_clos_config(void)
+static void dump_clos_config(int arg)
 {
 	if (cmd_help) {
 		fprintf(stderr,
@@ -1145,7 +1747,7 @@ static void get_clos_info_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 		isst_clos_display_clos_information(cpu, outf, enable, prio_type);
 }
 
-static void dump_clos_info(void)
+static void dump_clos_info(int arg)
 {
 	if (cmd_help) {
 		fprintf(stderr,
@@ -1188,7 +1790,7 @@ static void set_clos_config_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 		isst_display_result(cpu, outf, "core-power", "config", ret);
 }
 
-static void set_clos_config(void)
+static void set_clos_config(int arg)
 {
 	if (cmd_help) {
 		fprintf(stderr,
@@ -1198,9 +1800,9 @@ static void set_clos_config(void)
 		fprintf(stderr, "\tSpecify clos EPP with [--epp|-e]\n");
 		fprintf(stderr,
 			"\tSpecify clos Proportional Priority [--weight|-w]\n");
-		fprintf(stderr, "\tSpecify clos min with [--min|-n]\n");
-		fprintf(stderr, "\tSpecify clos max with [--max|-m]\n");
-		fprintf(stderr, "\tSpecify clos desired with [--desired|-d]\n");
+		fprintf(stderr, "\tSpecify clos min in MHz with [--min|-n]\n");
+		fprintf(stderr, "\tSpecify clos max in MHz with [--max|-m]\n");
+		fprintf(stderr, "\tSpecify clos desired in MHz with [--desired|-d]\n");
 		exit(0);
 	}
 
@@ -1222,7 +1824,7 @@ static void set_clos_config(void)
 		clos_min = 0;
 	}
 	if (clos_max < 0) {
-		fprintf(stderr, "clos max is not specified, default: 0xff\n");
+		fprintf(stderr, "clos max is not specified, default: 25500 MHz\n");
 		clos_max = 0xff;
 	}
 	if (clos_desired < 0) {
@@ -1252,7 +1854,7 @@ static void set_clos_assoc_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 		isst_display_result(cpu, outf, "core-power", "assoc", ret);
 }
 
-static void set_clos_assoc(void)
+static void set_clos_assoc(int arg)
 {
 	if (cmd_help) {
 		fprintf(stderr, "Associate a clos id to a CPU\n");
@@ -1286,7 +1888,7 @@ static void get_clos_assoc_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 		isst_clos_display_assoc_information(cpu, outf, clos);
 }
 
-static void get_clos_assoc(void)
+static void get_clos_assoc(int arg)
 {
 	if (cmd_help) {
 		fprintf(stderr, "Get associate clos id to a CPU\n");
@@ -1306,27 +1908,36 @@ static void get_clos_assoc(void)
 	isst_ctdp_display_information_end(outf);
 }
 
+static struct process_cmd_struct clx_n_cmds[] = {
+	{ "perf-profile", "info", dump_isst_config, 0 },
+	{ "base-freq", "info", dump_pbf_config, 0 },
+	{ "base-freq", "enable", set_pbf_enable, 1 },
+	{ "base-freq", "disable", set_pbf_enable, 0 },
+	{ NULL, NULL, NULL, 0 }
+};
+
 static struct process_cmd_struct isst_cmds[] = {
-	{ "perf-profile", "get-lock-status", get_tdp_locked },
-	{ "perf-profile", "get-config-levels", get_tdp_levels },
-	{ "perf-profile", "get-config-version", get_tdp_version },
-	{ "perf-profile", "get-config-enabled", get_tdp_enabled },
-	{ "perf-profile", "get-config-current-level", get_tdp_current_level },
-	{ "perf-profile", "set-config-level", set_tdp_level },
-	{ "perf-profile", "info", dump_isst_config },
-	{ "base-freq", "info", dump_pbf_config },
-	{ "base-freq", "enable", set_pbf_enable },
-	{ "base-freq", "disable", set_pbf_disable },
-	{ "turbo-freq", "info", dump_fact_config },
-	{ "turbo-freq", "enable", set_fact_enable },
-	{ "turbo-freq", "disable", set_fact_disable },
-	{ "core-power", "info", dump_clos_info },
-	{ "core-power", "enable", set_clos_enable },
-	{ "core-power", "disable", set_clos_disable },
-	{ "core-power", "config", set_clos_config },
-	{ "core-power", "get-config", dump_clos_config },
-	{ "core-power", "assoc", set_clos_assoc },
-	{ "core-power", "get-assoc", get_clos_assoc },
+	{ "perf-profile", "get-lock-status", get_tdp_locked, 0 },
+	{ "perf-profile", "get-config-levels", get_tdp_levels, 0 },
+	{ "perf-profile", "get-config-version", get_tdp_version, 0 },
+	{ "perf-profile", "get-config-enabled", get_tdp_enabled, 0 },
+	{ "perf-profile", "get-config-current-level", get_tdp_current_level,
+	 0 },
+	{ "perf-profile", "set-config-level", set_tdp_level, 0 },
+	{ "perf-profile", "info", dump_isst_config, 0 },
+	{ "base-freq", "info", dump_pbf_config, 0 },
+	{ "base-freq", "enable", set_pbf_enable, 1 },
+	{ "base-freq", "disable", set_pbf_enable, 0 },
+	{ "turbo-freq", "info", dump_fact_config, 0 },
+	{ "turbo-freq", "enable", set_fact_enable, 1 },
+	{ "turbo-freq", "disable", set_fact_enable, 0 },
+	{ "core-power", "info", dump_clos_info, 0 },
+	{ "core-power", "enable", set_clos_enable, 1 },
+	{ "core-power", "disable", set_clos_enable, 0 },
+	{ "core-power", "config", set_clos_config, 0 },
+	{ "core-power", "get-config", dump_clos_config, 0 },
+	{ "core-power", "assoc", set_clos_assoc, 0 },
+	{ "core-power", "get-assoc", get_clos_assoc, 0 },
 	{ NULL, NULL, NULL }
 };
 
@@ -1417,15 +2028,19 @@ static void parse_cmd_args(int argc, int start, char **argv)
 		{ "max", required_argument, 0, 'm' },
 		{ "priority", required_argument, 0, 'p' },
 		{ "weight", required_argument, 0, 'w' },
+		{ "auto", no_argument, 0, 'a' },
 		{ 0, 0, 0, 0 }
 	};
 
 	option_index = start;
 
 	optind = start + 1;
-	while ((opt = getopt_long(argc, argv, "b:l:t:c:d:e:n:m:p:w:ho",
+	while ((opt = getopt_long(argc, argv, "b:l:t:c:d:e:n:m:p:w:hoa",
 				  long_options, &option_index)) != -1) {
 		switch (opt) {
+		case 'a':
+			auto_mode = 1;
+			break;
 		case 'b':
 			fact_bucket = atoi(optarg);
 			break;
@@ -1459,15 +2074,18 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			break;
 		case 'd':
 			clos_desired = atoi(optarg);
+			clos_desired /= DISP_FREQ_MULTIPLIER;
 			break;
 		case 'e':
 			clos_epp = atoi(optarg);
 			break;
 		case 'n':
 			clos_min = atoi(optarg);
+			clos_min /= DISP_FREQ_MULTIPLIER;
 			break;
 		case 'm':
 			clos_max = atoi(optarg);
+			clos_max /= DISP_FREQ_MULTIPLIER;
 			break;
 		case 'p':
 			clos_priority_type = atoi(optarg);
@@ -1489,12 +2107,15 @@ static void isst_help(void)
 		TDP, etc.\n");
 	printf("\nCommands : For feature=perf-profile\n");
 	printf("\tinfo\n");
-	printf("\tget-lock-status\n");
-	printf("\tget-config-levels\n");
-	printf("\tget-config-version\n");
-	printf("\tget-config-enabled\n");
-	printf("\tget-config-current-level\n");
-	printf("\tset-config-level\n");
+
+	if (!is_clx_n_platform()) {
+		printf("\tget-lock-status\n");
+		printf("\tget-config-levels\n");
+		printf("\tget-config-version\n");
+		printf("\tget-config-enabled\n");
+		printf("\tget-config-current-level\n");
+		printf("\tset-config-level\n");
+	}
 }
 
 static void pbf_help(void)
@@ -1544,7 +2165,15 @@ static struct process_cmd_help_struct isst_help_cmds[] = {
 	{ NULL, NULL }
 };
 
-void process_command(int argc, char **argv)
+static struct process_cmd_help_struct clx_n_help_cmds[] = {
+	{ "perf-profile", isst_help },
+	{ "base-freq", pbf_help },
+	{ NULL, NULL }
+};
+
+void process_command(int argc, char **argv,
+		     struct process_cmd_help_struct *help_cmds,
+		     struct process_cmd_struct *cmds)
 {
 	int i = 0, matched = 0;
 	char *feature = argv[optind];
@@ -1555,23 +2184,24 @@ void process_command(int argc, char **argv)
 
 	debug_printf("feature name [%s] command [%s]\n", feature, cmd);
 	if (!strcmp(cmd, "-h") || !strcmp(cmd, "--help")) {
-		while (isst_help_cmds[i].feature) {
-			if (!strcmp(isst_help_cmds[i].feature, feature)) {
-				isst_help_cmds[i].process_fn();
+		while (help_cmds[i].feature) {
+			if (!strcmp(help_cmds[i].feature, feature)) {
+				help_cmds[i].process_fn();
 				exit(0);
 			}
 			++i;
 		}
 	}
 
-	create_cpu_map();
+	if (!is_clx_n_platform())
+		create_cpu_map();
 
 	i = 0;
-	while (isst_cmds[i].feature) {
-		if (!strcmp(isst_cmds[i].feature, feature) &&
-		    !strcmp(isst_cmds[i].command, cmd)) {
+	while (cmds[i].feature) {
+		if (!strcmp(cmds[i].feature, feature) &&
+		    !strcmp(cmds[i].command, cmd)) {
 			parse_cmd_args(argc, optind + 1, argv);
-			isst_cmds[i].process_fn();
+			cmds[i].process_fn(cmds[i].arg);
 			matched = 1;
 			break;
 		}
@@ -1682,17 +2312,23 @@ static void cmdline(int argc, char **argv)
 		fprintf(stderr, "Feature name and|or command not specified\n");
 		exit(0);
 	}
-	update_cpu_model();
+	ret = update_cpu_model();
+	if (ret)
+		err(-1, "Invalid CPU model (%d)\n", cpu_model);
 	printf("Intel(R) Speed Select Technology\n");
 	printf("Executing on CPU model:%d[0x%x]\n", cpu_model, cpu_model);
 	set_max_cpu_num();
 	set_cpu_present_cpu_mask();
 	set_cpu_target_cpu_mask();
-	ret = isst_fill_platform_info();
-	if (ret)
-		goto out;
 
-	process_command(argc, argv);
+	if (!is_clx_n_platform()) {
+		ret = isst_fill_platform_info();
+		if (ret)
+			goto out;
+		process_command(argc, argv, isst_help_cmds, isst_cmds);
+	} else {
+		process_command(argc, argv, clx_n_help_cmds, clx_n_cmds);
+	}
 out:
 	free_cpu_set(present_cpumask);
 	free_cpu_set(target_cpumask);

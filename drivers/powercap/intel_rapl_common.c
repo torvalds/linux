@@ -978,6 +978,9 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	INTEL_CPU_FAM6(ICELAKE_NNPI, rapl_defaults_core),
 	INTEL_CPU_FAM6(ICELAKE_X, rapl_defaults_hsw_server),
 	INTEL_CPU_FAM6(ICELAKE_D, rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(COMETLAKE_L, rapl_defaults_core),
+	INTEL_CPU_FAM6(COMETLAKE, rapl_defaults_core),
+	INTEL_CPU_FAM6(TIGERLAKE_L, rapl_defaults_core),
 
 	INTEL_CPU_FAM6(ATOM_SILVERMONT, rapl_defaults_byt),
 	INTEL_CPU_FAM6(ATOM_AIRMONT, rapl_defaults_cht),
@@ -987,6 +990,7 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS, rapl_defaults_core),
 	INTEL_CPU_FAM6(ATOM_GOLDMONT_D, rapl_defaults_core),
 	INTEL_CPU_FAM6(ATOM_TREMONT_D, rapl_defaults_core),
+	INTEL_CPU_FAM6(ATOM_TREMONT_L, rapl_defaults_core),
 
 	INTEL_CPU_FAM6(XEON_PHI_KNL, rapl_defaults_hsw_server),
 	INTEL_CPU_FAM6(XEON_PHI_KNM, rapl_defaults_hsw_server),
@@ -1292,6 +1296,9 @@ struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 	struct rapl_package *rp;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	int ret;
+
+	if (!rapl_defaults)
+		return ERR_PTR(-ENODEV);
 
 	rp = kzalloc(sizeof(struct rapl_package), GFP_KERNEL);
 	if (!rp)

@@ -68,7 +68,6 @@ static bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	enum rf_pwrstate rtstate;
 	bool actionallowed = false;
 	u16 rfwait_cnt = 0;
 
@@ -101,8 +100,6 @@ static bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 			break;
 		}
 	}
-
-	rtstate = ppsc->rfpwr_state;
 
 	switch (state_toset) {
 	case ERFON:
@@ -161,8 +158,7 @@ static void _rtl_ps_inactive_ps(struct ieee80211_hw *hw)
 	if (ppsc->inactive_pwrstate == ERFON &&
 	    rtlhal->interface == INTF_PCI) {
 		if ((ppsc->reg_rfps_level & RT_RF_OFF_LEVL_ASPM) &&
-		    RT_IN_PS_LEVEL(ppsc, RT_PS_LEVEL_ASPM) &&
-		    rtlhal->interface == INTF_PCI) {
+		    RT_IN_PS_LEVEL(ppsc, RT_PS_LEVEL_ASPM)) {
 			rtlpriv->intf_ops->disable_aspm(hw);
 			RT_CLEAR_PS_LEVEL(ppsc, RT_PS_LEVEL_ASPM);
 		}
@@ -741,7 +737,7 @@ static void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data,
 	find_p2p_ie = true;
 	/*to find noa ie*/
 	while (ie + 1 < end) {
-		noa_len = READEF2BYTE((__le16 *)&ie[1]);
+		noa_len = le16_to_cpu(*((__le16 *)&ie[1]));
 		if (ie + 3 + ie[1] > end)
 			return;
 
@@ -754,6 +750,9 @@ static void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data,
 				return;
 			} else {
 				noa_num = (noa_len - 2) / 13;
+				if (noa_num > P2P_MAX_NOA_NUM)
+					noa_num = P2P_MAX_NOA_NUM;
+
 			}
 			noa_index = ie[3];
 			if (rtlpriv->psc.p2p_ps_info.p2p_ps_mode ==
@@ -767,16 +766,16 @@ static void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data,
 				index = 5;
 				for (i = 0; i < noa_num; i++) {
 					p2pinfo->noa_count_type[i] =
-							READEF1BYTE(ie+index);
+					 *(u8 *)(ie + index);
 					index += 1;
 					p2pinfo->noa_duration[i] =
-						 READEF4BYTE((__le32 *)ie+index);
+					 le32_to_cpu(*(__le32 *)ie + index);
 					index += 4;
 					p2pinfo->noa_interval[i] =
-						 READEF4BYTE((__le32 *)ie+index);
+					 le32_to_cpu(*(__le32 *)ie + index);
 					index += 4;
 					p2pinfo->noa_start_time[i] =
-						 READEF4BYTE((__le32 *)ie+index);
+					 le32_to_cpu(*(__le32 *)ie + index);
 					index += 4;
 				}
 
@@ -833,7 +832,7 @@ static void rtl_p2p_action_ie(struct ieee80211_hw *hw, void *data,
 	RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD, "action frame find P2P IE.\n");
 	/*to find noa ie*/
 	while (ie + 1 < end) {
-		noa_len = READEF2BYTE((__le16 *)&ie[1]);
+		noa_len = le16_to_cpu(*(__le16 *)&ie[1]);
 		if (ie + 3 + ie[1] > end)
 			return;
 
@@ -848,6 +847,9 @@ static void rtl_p2p_action_ie(struct ieee80211_hw *hw, void *data,
 				return;
 			} else {
 				noa_num = (noa_len - 2) / 13;
+				if (noa_num > P2P_MAX_NOA_NUM)
+					noa_num = P2P_MAX_NOA_NUM;
+
 			}
 			noa_index = ie[3];
 			if (rtlpriv->psc.p2p_ps_info.p2p_ps_mode ==
@@ -859,16 +861,16 @@ static void rtl_p2p_action_ie(struct ieee80211_hw *hw, void *data,
 				index = 5;
 				for (i = 0; i < noa_num; i++) {
 					p2pinfo->noa_count_type[i] =
-							READEF1BYTE(ie+index);
+					 *(u8 *)(ie + index);
 					index += 1;
 					p2pinfo->noa_duration[i] =
-							 READEF4BYTE((__le32 *)ie+index);
+					 le32_to_cpu(*(__le32 *)ie + index);
 					index += 4;
 					p2pinfo->noa_interval[i] =
-							 READEF4BYTE((__le32 *)ie+index);
+					 le32_to_cpu(*(__le32 *)ie + index);
 					index += 4;
 					p2pinfo->noa_start_time[i] =
-							 READEF4BYTE((__le32 *)ie+index);
+					 le32_to_cpu(*(__le32 *)ie + index);
 					index += 4;
 				}
 

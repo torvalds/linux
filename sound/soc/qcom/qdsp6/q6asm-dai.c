@@ -72,7 +72,7 @@ struct q6asm_dai_data {
 	long long int sid;
 };
 
-static struct snd_pcm_hardware q6asm_dai_hardware_capture = {
+static const struct snd_pcm_hardware q6asm_dai_hardware_capture = {
 	.info =                 (SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				SNDRV_PCM_INFO_MMAP_VALID |
@@ -206,16 +206,16 @@ static void event_handler(uint32_t opcode, uint32_t token,
 	}
 }
 
-static int q6asm_dai_prepare(struct snd_pcm_substream *substream)
+static int q6asm_dai_prepare(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
-	struct snd_soc_component *c = snd_soc_rtdcom_lookup(soc_prtd, DRV_NAME);
 	struct q6asm_dai_data *pdata;
 	int ret, i;
 
-	pdata = snd_soc_component_get_drvdata(c);
+	pdata = snd_soc_component_get_drvdata(component);
 	if (!pdata)
 		return -EINVAL;
 
@@ -294,7 +294,8 @@ static int q6asm_dai_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int q6asm_dai_trigger(struct snd_pcm_substream *substream, int cmd)
+static int q6asm_dai_trigger(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream, int cmd)
 {
 	int ret = 0;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -322,21 +323,21 @@ static int q6asm_dai_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static int q6asm_dai_open(struct snd_pcm_substream *substream)
+static int q6asm_dai_open(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = soc_prtd->cpu_dai;
-	struct snd_soc_component *c = snd_soc_rtdcom_lookup(soc_prtd, DRV_NAME);
 	struct q6asm_dai_rtd *prtd;
 	struct q6asm_dai_data *pdata;
-	struct device *dev = c->dev;
+	struct device *dev = component->dev;
 	int ret = 0;
 	int stream_id;
 
 	stream_id = cpu_dai->driver->id;
 
-	pdata = snd_soc_component_get_drvdata(c);
+	pdata = snd_soc_component_get_drvdata(component);
 	if (!pdata) {
 		pr_err("Drv data not found ..\n");
 		return -EINVAL;
@@ -414,7 +415,8 @@ static int q6asm_dai_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int q6asm_dai_close(struct snd_pcm_substream *substream)
+static int q6asm_dai_close(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
@@ -435,7 +437,8 @@ static int q6asm_dai_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static snd_pcm_uframes_t q6asm_dai_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t q6asm_dai_pointer(struct snd_soc_component *component,
+					   struct snd_pcm_substream *substream)
 {
 
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -447,22 +450,21 @@ static snd_pcm_uframes_t q6asm_dai_pointer(struct snd_pcm_substream *substream)
 	return bytes_to_frames(runtime, (prtd->pcm_irq_pos));
 }
 
-static int q6asm_dai_mmap(struct snd_pcm_substream *substream,
-				struct vm_area_struct *vma)
+static int q6asm_dai_mmap(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream,
+			  struct vm_area_struct *vma)
 {
-
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
-	struct snd_soc_component *c = snd_soc_rtdcom_lookup(soc_prtd, DRV_NAME);
-	struct device *dev = c->dev;
+	struct device *dev = component->dev;
 
 	return dma_mmap_coherent(dev, vma,
 			runtime->dma_area, runtime->dma_addr,
 			runtime->dma_bytes);
 }
 
-static int q6asm_dai_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+static int q6asm_dai_hw_params(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *params)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
@@ -481,17 +483,6 @@ static int q6asm_dai_hw_params(struct snd_pcm_substream *substream,
 
 	return 0;
 }
-
-static struct snd_pcm_ops q6asm_dai_ops = {
-	.open           = q6asm_dai_open,
-	.hw_params	= q6asm_dai_hw_params,
-	.close          = q6asm_dai_close,
-	.ioctl          = snd_pcm_lib_ioctl,
-	.prepare        = q6asm_dai_prepare,
-	.trigger        = q6asm_dai_trigger,
-	.pointer        = q6asm_dai_pointer,
-	.mmap		= q6asm_dai_mmap,
-};
 
 static void compress_event_handler(uint32_t opcode, uint32_t token,
 				   uint32_t *payload, void *priv)
@@ -635,8 +626,14 @@ static int q6asm_dai_compr_set_params(struct snd_compr_stream *stream,
 	struct snd_soc_component *c = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	int dir = stream->direction;
 	struct q6asm_dai_data *pdata;
+	struct q6asm_flac_cfg flac_cfg;
 	struct device *dev = c->dev;
 	int ret;
+	union snd_codec_options *codec_options;
+	struct snd_dec_flac *flac;
+
+	codec_options = &(prtd->codec_param.codec.options);
+
 
 	memcpy(&prtd->codec_param, params, sizeof(*params));
 
@@ -671,6 +668,32 @@ static int q6asm_dai_compr_set_params(struct snd_compr_stream *stream,
 	if (ret) {
 		dev_err(dev, "Stream reg failed ret:%d\n", ret);
 		return ret;
+	}
+
+	switch (params->codec.id) {
+	case SND_AUDIOCODEC_FLAC:
+
+		memset(&flac_cfg, 0x0, sizeof(struct q6asm_flac_cfg));
+		flac = &codec_options->flac_d;
+
+		flac_cfg.ch_cfg = params->codec.ch_in;
+		flac_cfg.sample_rate =  params->codec.sample_rate;
+		flac_cfg.stream_info_present = 1;
+		flac_cfg.sample_size = flac->sample_size;
+		flac_cfg.min_blk_size = flac->min_blk_size;
+		flac_cfg.max_blk_size = flac->max_blk_size;
+		flac_cfg.max_frame_size = flac->max_frame_size;
+		flac_cfg.min_frame_size = flac->min_frame_size;
+
+		ret = q6asm_stream_media_format_block_flac(prtd->audio_client,
+							   &flac_cfg);
+		if (ret < 0) {
+			dev_err(dev, "FLAC CMD Format block failed:%d\n", ret);
+			return -EIO;
+		}
+		break;
+	default:
+		break;
 	}
 
 	ret = q6asm_map_memory_regions(dir, prtd->audio_client, prtd->phys,
@@ -768,8 +791,9 @@ static int q6asm_dai_compr_get_caps(struct snd_compr_stream *stream,
 	caps->max_fragment_size = COMPR_PLAYBACK_MAX_FRAGMENT_SIZE;
 	caps->min_fragments = COMPR_PLAYBACK_MIN_NUM_FRAGMENTS;
 	caps->max_fragments = COMPR_PLAYBACK_MAX_NUM_FRAGMENTS;
-	caps->num_codecs = 1;
+	caps->num_codecs = 2;
 	caps->codecs[0] = SND_AUDIOCODEC_MP3;
+	caps->codecs[1] = SND_AUDIOCODEC_FLAC;
 
 	return 0;
 }
@@ -800,15 +824,15 @@ static struct snd_compr_ops q6asm_dai_compr_ops = {
 	.ack		= q6asm_dai_compr_ack,
 };
 
-static int q6asm_dai_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int q6asm_dai_pcm_new(struct snd_soc_component *component,
+			     struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm_substream *psubstream, *csubstream;
-	struct snd_soc_component *c = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_pcm *pcm = rtd->pcm;
 	struct device *dev;
 	int size, ret;
 
-	dev = c->dev;
+	dev = component->dev;
 	size = q6asm_dai_hardware_playback.buffer_bytes_max;
 	psubstream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
 	if (psubstream) {
@@ -835,7 +859,8 @@ static int q6asm_dai_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static void q6asm_dai_pcm_free(struct snd_pcm *pcm)
+static void q6asm_dai_pcm_free(struct snd_soc_component *component,
+			       struct snd_pcm *pcm)
 {
 	struct snd_pcm_substream *substream;
 	int i;
@@ -852,9 +877,15 @@ static void q6asm_dai_pcm_free(struct snd_pcm *pcm)
 
 static const struct snd_soc_component_driver q6asm_fe_dai_component = {
 	.name		= DRV_NAME,
-	.ops		= &q6asm_dai_ops,
-	.pcm_new	= q6asm_dai_pcm_new,
-	.pcm_free	= q6asm_dai_pcm_free,
+	.open		= q6asm_dai_open,
+	.hw_params	= q6asm_dai_hw_params,
+	.close		= q6asm_dai_close,
+	.prepare	= q6asm_dai_prepare,
+	.trigger	= q6asm_dai_trigger,
+	.pointer	= q6asm_dai_pointer,
+	.mmap		= q6asm_dai_mmap,
+	.pcm_construct	= q6asm_dai_pcm_new,
+	.pcm_destruct	= q6asm_dai_pcm_free,
 	.compr_ops	= &q6asm_dai_compr_ops,
 };
 

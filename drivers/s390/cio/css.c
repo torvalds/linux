@@ -232,7 +232,12 @@ struct subchannel *css_alloc_subchannel(struct subchannel_id schid,
 	 * belong to a subchannel need to fit 31 bit width (e.g. ccw).
 	 */
 	sch->dev.coherent_dma_mask = DMA_BIT_MASK(31);
-	sch->dev.dma_mask = &sch->dev.coherent_dma_mask;
+	/*
+	 * But we don't have such restrictions imposed on the stuff that
+	 * is handled by the streaming API.
+	 */
+	sch->dma_mask = DMA_BIT_MASK(64);
+	sch->dev.dma_mask = &sch->dma_mask;
 	return sch;
 
 err:
@@ -1367,18 +1372,17 @@ static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 	return ret ? ret : count;
 }
 
-static const struct file_operations cio_settle_proc_fops = {
-	.open = nonseekable_open,
-	.write = cio_settle_write,
-	.llseek = no_llseek,
+static const struct proc_ops cio_settle_proc_ops = {
+	.proc_open	= nonseekable_open,
+	.proc_write	= cio_settle_write,
+	.proc_lseek	= no_llseek,
 };
 
 static int __init cio_settle_init(void)
 {
 	struct proc_dir_entry *entry;
 
-	entry = proc_create("cio_settle", S_IWUSR, NULL,
-			    &cio_settle_proc_fops);
+	entry = proc_create("cio_settle", S_IWUSR, NULL, &cio_settle_proc_ops);
 	if (!entry)
 		return -ENOMEM;
 	return 0;

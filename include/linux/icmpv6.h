@@ -31,6 +31,12 @@ static inline void icmpv6_send(struct sk_buff *skb,
 }
 #endif
 
+#if IS_ENABLED(CONFIG_NF_NAT)
+void icmpv6_ndo_send(struct sk_buff *skb_in, u8 type, u8 code, __u32 info);
+#else
+#define icmpv6_ndo_send icmpv6_send
+#endif
+
 extern int				icmpv6_init(void);
 extern int				icmpv6_err_convert(u8 type, u8 code,
 							   int *err);
@@ -46,4 +52,18 @@ extern void				icmpv6_flow_init(struct sock *sk,
 							 const struct in6_addr *saddr,
 							 const struct in6_addr *daddr,
 							 int oif);
+
+static inline bool icmpv6_is_err(int type)
+{
+	switch (type) {
+	case ICMPV6_DEST_UNREACH:
+	case ICMPV6_PKT_TOOBIG:
+	case ICMPV6_TIME_EXCEED:
+	case ICMPV6_PARAMPROB:
+		return true;
+	}
+
+	return false;
+}
+
 #endif

@@ -160,6 +160,11 @@ static struct policydb_compat_info policydb_compat[] = {
 		.sym_num	= SYM_NUM,
 		.ocon_num	= OCON_NUM,
 	},
+	{
+		.version	= POLICYDB_VERSION_GLBLUB,
+		.sym_num	= SYM_NUM,
+		.ocon_num	= OCON_NUM,
+	},
 };
 
 static struct policydb_compat_info *policydb_lookup_compat(int version)
@@ -870,6 +875,11 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 		if (c->sid[0] == SECSID_NULL || c->sid[0] > SECINITSID_NUM) {
 			pr_err("SELinux:  Initial SID %s out of range.\n",
 				c->u.name);
+			sidtab_destroy(s);
+			goto out;
+		}
+		rc = context_add_hash(p, &c->context[0]);
+		if (rc) {
 			sidtab_destroy(s);
 			goto out;
 		}
@@ -2649,7 +2659,7 @@ static int role_trans_write(struct policydb *p, void *fp)
 {
 	struct role_trans *r = p->role_tr;
 	struct role_trans *tr;
-	u32 buf[3];
+	__le32 buf[3];
 	size_t nel;
 	int rc;
 
@@ -2681,7 +2691,7 @@ static int role_trans_write(struct policydb *p, void *fp)
 static int role_allow_write(struct role_allow *r, void *fp)
 {
 	struct role_allow *ra;
-	u32 buf[2];
+	__le32 buf[2];
 	size_t nel;
 	int rc;
 

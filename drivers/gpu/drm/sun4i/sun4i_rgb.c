@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
@@ -46,7 +47,7 @@ static int sun4i_rgb_get_modes(struct drm_connector *connector)
 	struct sun4i_rgb *rgb =
 		drm_connector_to_sun4i_rgb(connector);
 
-	return drm_panel_get_modes(rgb->panel);
+	return drm_panel_get_modes(rgb->panel, connector);
 }
 
 /*

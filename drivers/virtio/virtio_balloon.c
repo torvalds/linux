@@ -32,10 +32,11 @@
 #define VIRTIO_BALLOON_FREE_PAGE_ALLOC_FLAG (__GFP_NORETRY | __GFP_NOWARN | \
 					     __GFP_NOMEMALLOC)
 /* The order of free page blocks to report to host */
-#define VIRTIO_BALLOON_FREE_PAGE_ORDER (MAX_ORDER - 1)
+#define VIRTIO_BALLOON_HINT_BLOCK_ORDER (MAX_ORDER - 1)
 /* The size of a free page block in bytes */
-#define VIRTIO_BALLOON_FREE_PAGE_SIZE \
-	(1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
+#define VIRTIO_BALLOON_HINT_BLOCK_BYTES \
+	(1 << (VIRTIO_BALLOON_HINT_BLOCK_ORDER + PAGE_SHIFT))
+#define VIRTIO_BALLOON_HINT_BLOCK_PAGES (1 << VIRTIO_BALLOON_HINT_BLOCK_ORDER)
 
 #ifdef CONFIG_BALLOON_COMPACTION
 static struct vfsmount *balloon_mnt;
@@ -156,6 +157,8 @@ static void set_page_pfns(struct virtio_balloon *vb,
 			  __virtio32 pfns[], struct page *page)
 {
 	unsigned int i;
+
+	BUILD_BUG_ON(VIRTIO_BALLOON_PAGES_PER_PAGE > VIRTIO_BALLOON_ARRAY_PFNS_MAX);
 
 	/*
 	 * Set balloon pfns pointing at this page.
@@ -380,7 +383,7 @@ static unsigned long return_free_pages_to_mm(struct virtio_balloon *vb,
 		if (!page)
 			break;
 		free_pages((unsigned long)page_address(page),
-			   VIRTIO_BALLOON_FREE_PAGE_ORDER);
+			   VIRTIO_BALLOON_HINT_BLOCK_ORDER);
 	}
 	vb->num_free_page_blocks -= num_returned;
 	spin_unlock_irq(&vb->free_page_list_lock);
@@ -474,7 +477,9 @@ static int init_vqs(struct virtio_balloon *vb)
 	names[VIRTIO_BALLOON_VQ_INFLATE] = "inflate";
 	callbacks[VIRTIO_BALLOON_VQ_DEFLATE] = balloon_ack;
 	names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
+	callbacks[VIRTIO_BALLOON_VQ_STATS] = NULL;
 	names[VIRTIO_BALLOON_VQ_STATS] = NULL;
+	callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
 	names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
 
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
@@ -582,7 +587,7 @@ static int get_free_page_and_send(struct virtio_balloon *vb)
 		;
 
 	page = alloc_pages(VIRTIO_BALLOON_FREE_PAGE_ALLOC_FLAG,
-			   VIRTIO_BALLOON_FREE_PAGE_ORDER);
+			   VIRTIO_BALLOON_HINT_BLOCK_ORDER);
 	/*
 	 * When the allocation returns NULL, it indicates that we have got all
 	 * the possible free pages, so return -EINTR to stop.
@@ -591,13 +596,13 @@ static int get_free_page_and_send(struct virtio_balloon *vb)
 		return -EINTR;
 
 	p = page_address(page);
-	sg_init_one(&sg, p, VIRTIO_BALLOON_FREE_PAGE_SIZE);
+	sg_init_one(&sg, p, VIRTIO_BALLOON_HINT_BLOCK_BYTES);
 	/* There is always 1 entry reserved for the cmd id to use. */
 	if (vq->num_free > 1) {
 		err = virtqueue_add_inbuf(vq, &sg, 1, p, GFP_KERNEL);
 		if (unlikely(err)) {
 			free_pages((unsigned long)p,
-				   VIRTIO_BALLOON_FREE_PAGE_ORDER);
+				   VIRTIO_BALLOON_HINT_BLOCK_ORDER);
 			return err;
 		}
 		virtqueue_kick(vq);
@@ -610,7 +615,7 @@ static int get_free_page_and_send(struct virtio_balloon *vb)
 		 * The vq has no available entry to add this page block, so
 		 * just free it.
 		 */
-		free_pages((unsigned long)p, VIRTIO_BALLOON_FREE_PAGE_ORDER);
+		free_pages((unsigned long)p, VIRTIO_BALLOON_HINT_BLOCK_ORDER);
 	}
 
 	return 0;
@@ -721,6 +726,17 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
 
 	get_page(newpage); /* balloon reference */
 
+	/*
+	  * When we migrate a page to a different zone and adjusted the
+	  * managed page count when inflating, we have to fixup the count of
+	  * both involved zones.
+	  */
+	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM) &&
+	    page_zone(page) != page_zone(newpage)) {
+		adjust_managed_page_count(page, 1);
+		adjust_managed_page_count(newpage, -1);
+	}
+
 	/* balloon's page migration 1st step  -- inflate "newpage" */
 	spin_lock_irqsave(&vb_dev_info->pages_lock, flags);
 	balloon_page_insert(vb_dev_info, newpage);
@@ -765,11 +781,18 @@ static unsigned long shrink_free_pages(struct virtio_balloon *vb,
 	unsigned long blocks_to_free, blocks_freed;
 
 	pages_to_free = round_up(pages_to_free,
-				 1 << VIRTIO_BALLOON_FREE_PAGE_ORDER);
-	blocks_to_free = pages_to_free >> VIRTIO_BALLOON_FREE_PAGE_ORDER;
+				 VIRTIO_BALLOON_HINT_BLOCK_PAGES);
+	blocks_to_free = pages_to_free / VIRTIO_BALLOON_HINT_BLOCK_PAGES;
 	blocks_freed = return_free_pages_to_mm(vb, blocks_to_free);
 
-	return blocks_freed << VIRTIO_BALLOON_FREE_PAGE_ORDER;
+	return blocks_freed * VIRTIO_BALLOON_HINT_BLOCK_PAGES;
+}
+
+static unsigned long leak_balloon_pages(struct virtio_balloon *vb,
+                                          unsigned long pages_to_free)
+{
+	return leak_balloon(vb, pages_to_free * VIRTIO_BALLOON_PAGES_PER_PAGE) /
+		VIRTIO_BALLOON_PAGES_PER_PAGE;
 }
 
 static unsigned long shrink_balloon_pages(struct virtio_balloon *vb,
@@ -782,11 +805,10 @@ static unsigned long shrink_balloon_pages(struct virtio_balloon *vb,
 	 * VIRTIO_BALLOON_ARRAY_PFNS_MAX balloon pages, so we call it
 	 * multiple times to deflate pages till reaching pages_to_free.
 	 */
-	while (vb->num_pages && pages_to_free) {
-		pages_freed += leak_balloon(vb, pages_to_free) /
-					VIRTIO_BALLOON_PAGES_PER_PAGE;
-		pages_to_free -= pages_freed;
-	}
+	while (vb->num_pages && pages_freed < pages_to_free)
+		pages_freed += leak_balloon_pages(vb,
+						  pages_to_free - pages_freed);
+
 	update_balloon_size(vb);
 
 	return pages_freed;
@@ -799,7 +821,7 @@ static unsigned long virtio_balloon_shrinker_scan(struct shrinker *shrinker,
 	struct virtio_balloon *vb = container_of(shrinker,
 					struct virtio_balloon, shrinker);
 
-	pages_to_free = sc->nr_to_scan * VIRTIO_BALLOON_PAGES_PER_PAGE;
+	pages_to_free = sc->nr_to_scan;
 
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
 		pages_freed = shrink_free_pages(vb, pages_to_free);
@@ -820,7 +842,7 @@ static unsigned long virtio_balloon_shrinker_count(struct shrinker *shrinker,
 	unsigned long count;
 
 	count = vb->num_pages / VIRTIO_BALLOON_PAGES_PER_PAGE;
-	count += vb->num_free_page_blocks >> VIRTIO_BALLOON_FREE_PAGE_ORDER;
+	count += vb->num_free_page_blocks * VIRTIO_BALLOON_HINT_BLOCK_PAGES;
 
 	return count;
 }
@@ -881,8 +903,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	vb->vb_dev_info.inode = alloc_anon_inode(balloon_mnt->mnt_sb);
 	if (IS_ERR(vb->vb_dev_info.inode)) {
 		err = PTR_ERR(vb->vb_dev_info.inode);
-		kern_unmount(balloon_mnt);
-		goto out_del_vqs;
+		goto out_kern_unmount;
 	}
 	vb->vb_dev_info.inode->i_mapping->a_ops = &balloon_aops;
 #endif
@@ -893,13 +914,13 @@ static int virtballoon_probe(struct virtio_device *vdev)
 		 */
 		if (virtqueue_get_vring_size(vb->free_page_vq) < 2) {
 			err = -ENOSPC;
-			goto out_del_vqs;
+			goto out_iput;
 		}
 		vb->balloon_wq = alloc_workqueue("balloon-wq",
 					WQ_FREEZABLE | WQ_CPU_INTENSIVE, 0);
 		if (!vb->balloon_wq) {
 			err = -ENOMEM;
-			goto out_del_vqs;
+			goto out_iput;
 		}
 		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
 		vb->cmd_id_received_cache = VIRTIO_BALLOON_CMD_ID_STOP;
@@ -933,6 +954,12 @@ static int virtballoon_probe(struct virtio_device *vdev)
 out_del_balloon_wq:
 	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
 		destroy_workqueue(vb->balloon_wq);
+out_iput:
+#ifdef CONFIG_BALLOON_COMPACTION
+	iput(vb->vb_dev_info.inode);
+out_kern_unmount:
+	kern_unmount(balloon_mnt);
+#endif
 out_del_vqs:
 	vdev->config->del_vqs(vdev);
 out_free_vb:
@@ -947,6 +974,10 @@ static void remove_common(struct virtio_balloon *vb)
 	while (vb->num_pages)
 		leak_balloon(vb, vb->num_pages);
 	update_balloon_size(vb);
+
+	/* There might be free pages that are being reported: release them. */
+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
+		return_free_pages_to_mm(vb, ULONG_MAX);
 
 	/* Now we reset the device so we can clean up the queues. */
 	vb->vdev->config->reset(vb->vdev);

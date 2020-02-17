@@ -1186,7 +1186,7 @@ void __ceph_dentry_dir_lease_touch(struct ceph_dentry_info *di)
 	struct dentry *dn = di->dentry;
 	struct ceph_mds_client *mdsc;
 
-	dout("dentry_dir_lease_touch %p %p '%pd' (offset %lld)\n",
+	dout("dentry_dir_lease_touch %p %p '%pd' (offset 0x%llx)\n",
 	     di, dn, dn, di->offset);
 
 	if (!list_empty(&di->lease_list)) {
@@ -1553,36 +1553,37 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	int valid = 0;
 	struct dentry *parent;
-	struct inode *dir;
+	struct inode *dir, *inode;
 
 	if (flags & LOOKUP_RCU) {
 		parent = READ_ONCE(dentry->d_parent);
 		dir = d_inode_rcu(parent);
 		if (!dir)
 			return -ECHILD;
+		inode = d_inode_rcu(dentry);
 	} else {
 		parent = dget_parent(dentry);
 		dir = d_inode(parent);
+		inode = d_inode(dentry);
 	}
 
-	dout("d_revalidate %p '%pd' inode %p offset %lld\n", dentry,
-	     dentry, d_inode(dentry), ceph_dentry(dentry)->offset);
+	dout("d_revalidate %p '%pd' inode %p offset 0x%llx\n", dentry,
+	     dentry, inode, ceph_dentry(dentry)->offset);
 
 	/* always trust cached snapped dentries, snapdir dentry */
 	if (ceph_snap(dir) != CEPH_NOSNAP) {
 		dout("d_revalidate %p '%pd' inode %p is SNAPPED\n", dentry,
-		     dentry, d_inode(dentry));
+		     dentry, inode);
 		valid = 1;
-	} else if (d_really_is_positive(dentry) &&
-		   ceph_snap(d_inode(dentry)) == CEPH_SNAPDIR) {
+	} else if (inode && ceph_snap(inode) == CEPH_SNAPDIR) {
 		valid = 1;
 	} else {
 		valid = dentry_lease_is_valid(dentry, flags);
 		if (valid == -ECHILD)
 			return valid;
 		if (valid || dir_lease_is_valid(dir, dentry)) {
-			if (d_really_is_positive(dentry))
-				valid = ceph_is_any_caps(d_inode(dentry));
+			if (inode)
+				valid = ceph_is_any_caps(inode);
 			else
 				valid = 1;
 		}
@@ -1808,6 +1809,7 @@ const struct file_operations ceph_dir_fops = {
 	.open = ceph_open,
 	.release = ceph_release,
 	.unlocked_ioctl = ceph_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.fsync = ceph_fsync,
 	.lock = ceph_lock,
 	.flock = ceph_flock,

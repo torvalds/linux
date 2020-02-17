@@ -432,16 +432,6 @@ config VIRTIO_BLK
 	  This is the virtual block driver for virtio.  It can be used with
           QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
-config VIRTIO_BLK_SCSI
-	bool "SCSI passthrough request for the Virtio block driver"
-	depends on VIRTIO_BLK
-	select BLK_SCSI_REQUEST
-	---help---
-	  Enable support for SCSI passthrough (e.g. the SG_IO ioctl) on
-	  virtio-blk devices.  This is only supported for the legacy
-	  virtio protocol and not enabled by default by any hypervisor.
-	  You probably want to use virtio-scsi instead.
-
 config BLK_DEV_RBD
 	tristate "Rados block device (RBD)"
 	depends on INET && BLOCK

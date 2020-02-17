@@ -3,6 +3,7 @@
  * Copyright (C) 2012 Regents of the University of California
  */
 
+#include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -40,7 +41,7 @@ void die(struct pt_regs *regs, const char *str)
 	print_modules();
 	show_regs(regs);
 
-	ret = notify_die(DIE_OOPS, str, regs, 0, regs->scause, SIGSEGV);
+	ret = notify_die(DIE_OOPS, str, regs, 0, regs->cause, SIGSEGV);
 
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
@@ -83,9 +84,9 @@ static void do_trap_error(struct pt_regs *regs, int signo, int code,
 }
 
 #define DO_ERROR_INFO(name, signo, code, str)				\
-asmlinkage void name(struct pt_regs *regs)				\
+asmlinkage __visible void name(struct pt_regs *regs)			\
 {									\
-	do_trap_error(regs, signo, code, regs->sepc, "Oops - " str);	\
+	do_trap_error(regs, signo, code, regs->epc, "Oops - " str);	\
 }
 
 DO_ERROR_INFO(do_trap_unknown,
@@ -111,7 +112,6 @@ DO_ERROR_INFO(do_trap_ecall_s,
 DO_ERROR_INFO(do_trap_ecall_m,
 	SIGILL, ILL_ILLTRP, "environment call from M-mode");
 
-#ifdef CONFIG_GENERIC_BUG
 static inline unsigned long get_break_insn_length(unsigned long pc)
 {
 	bug_insn_t insn;
@@ -120,28 +120,15 @@ static inline unsigned long get_break_insn_length(unsigned long pc)
 		return 0;
 	return (((insn & __INSN_LENGTH_MASK) == __INSN_LENGTH_32) ? 4UL : 2UL);
 }
-#endif /* CONFIG_GENERIC_BUG */
 
-asmlinkage void do_trap_break(struct pt_regs *regs)
+asmlinkage __visible void do_trap_break(struct pt_regs *regs)
 {
-#ifdef CONFIG_GENERIC_BUG
-	if (!user_mode(regs)) {
-		enum bug_trap_type type;
-
-		type = report_bug(regs->sepc, regs);
-		switch (type) {
-		case BUG_TRAP_TYPE_NONE:
-			break;
-		case BUG_TRAP_TYPE_WARN:
-			regs->sepc += get_break_insn_length(regs->sepc);
-			break;
-		case BUG_TRAP_TYPE_BUG:
-			die(regs, "Kernel BUG");
-		}
-	}
-#endif /* CONFIG_GENERIC_BUG */
-
-	force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)(regs->sepc));
+	if (user_mode(regs))
+		force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->epc);
+	else if (report_bug(regs->epc, regs) == BUG_TRAP_TYPE_WARN)
+		regs->epc += get_break_insn_length(regs->epc);
+	else
+		die(regs, "Kernel BUG");
 }
 
 #ifdef CONFIG_GENERIC_BUG
@@ -166,9 +153,9 @@ void __init trap_init(void)
 	 * Set sup0 scratch register to 0, indicating to exception vector
 	 * that we are presently executing in the kernel
 	 */
-	csr_write(CSR_SSCRATCH, 0);
+	csr_write(CSR_SCRATCH, 0);
 	/* Set the exception vector address */
-	csr_write(CSR_STVEC, &handle_exception);
+	csr_write(CSR_TVEC, &handle_exception);
 	/* Enable all interrupts */
-	csr_write(CSR_SIE, -1);
+	csr_write(CSR_IE, -1);
 }

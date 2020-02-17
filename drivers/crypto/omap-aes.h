@@ -9,6 +9,7 @@
 #ifndef __OMAP_AES_H__
 #define __OMAP_AES_H__
 
+#include <crypto/aes.h>
 #include <crypto/engine.h>
 
 #define DST_MAXBURST			4
@@ -79,7 +80,6 @@
 
 #define FLAGS_INIT		BIT(5)
 #define FLAGS_FAST		BIT(6)
-#define FLAGS_BUSY		BIT(7)
 
 #define FLAGS_IN_DATA_ST_SHIFT	8
 #define FLAGS_OUT_DATA_ST_SHIFT	10
@@ -98,7 +98,11 @@ struct omap_aes_ctx {
 	u32		key[AES_KEYSIZE_256 / sizeof(u32)];
 	u8		nonce[4];
 	struct crypto_sync_skcipher	*fallback;
-	struct crypto_skcipher	*ctr;
+};
+
+struct omap_aes_gcm_ctx {
+	struct omap_aes_ctx	octx;
+	struct crypto_aes_ctx	actx;
 };
 
 struct omap_aes_reqctx {
@@ -112,7 +116,7 @@ struct omap_aes_reqctx {
 #define OMAP_AES_CACHE_SIZE	0
 
 struct omap_aes_algs_info {
-	struct crypto_alg	*algs_list;
+	struct skcipher_alg	*algs_list;
 	unsigned int		size;
 	unsigned int		registered;
 };
@@ -162,7 +166,7 @@ struct omap_aes_dev {
 	struct aead_queue	aead_queue;
 	spinlock_t		lock;
 
-	struct ablkcipher_request	*req;
+	struct skcipher_request		*req;
 	struct aead_request		*aead_req;
 	struct crypto_engine		*engine;
 
@@ -202,8 +206,12 @@ int omap_aes_4106gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 			    unsigned int keylen);
 int omap_aes_gcm_encrypt(struct aead_request *req);
 int omap_aes_gcm_decrypt(struct aead_request *req);
+int omap_aes_gcm_setauthsize(struct crypto_aead *tfm, unsigned int authsize);
 int omap_aes_4106gcm_encrypt(struct aead_request *req);
 int omap_aes_4106gcm_decrypt(struct aead_request *req);
+int omap_aes_4106gcm_setauthsize(struct crypto_aead *parent,
+				 unsigned int authsize);
+int omap_aes_gcm_cra_init(struct crypto_aead *tfm);
 int omap_aes_write_ctrl(struct omap_aes_dev *dd);
 int omap_aes_crypt_dma_start(struct omap_aes_dev *dd);
 int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd);

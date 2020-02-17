@@ -73,19 +73,21 @@ factors. Example usage: Thermal management or other exceptional situations where
 SoC framework might choose to disable a higher frequency OPP to safely continue
 operations until that OPP could be re-enabled if possible.
 
-OPP library facilitates this concept in it's implementation. The following
+OPP library facilitates this concept in its implementation. The following
 operational functions operate only on available opps:
-opp_find_freq_{ceil, floor}, dev_pm_opp_get_voltage, dev_pm_opp_get_freq, dev_pm_opp_get_opp_count
+opp_find_freq_{ceil, floor}, dev_pm_opp_get_voltage, dev_pm_opp_get_freq,
+dev_pm_opp_get_opp_count
 
-dev_pm_opp_find_freq_exact is meant to be used to find the opp pointer which can then
-be used for dev_pm_opp_enable/disable functions to make an opp available as required.
+dev_pm_opp_find_freq_exact is meant to be used to find the opp pointer
+which can then be used for dev_pm_opp_enable/disable functions to make an
+opp available as required.
 
 WARNING: Users of OPP library should refresh their availability count using
-get_opp_count if dev_pm_opp_enable/disable functions are invoked for a device, the
-exact mechanism to trigger these or the notification mechanism to other
-dependent subsystems such as cpufreq are left to the discretion of the SoC
-specific framework which uses the OPP library. Similar care needs to be taken
-care to refresh the cpufreq table in cases of these operations.
+get_opp_count if dev_pm_opp_enable/disable functions are invoked for a
+device, the exact mechanism to trigger these or the notification mechanism
+to other dependent subsystems such as cpufreq are left to the discretion of
+the SoC specific framework which uses the OPP library. Similar care needs
+to be taken care to refresh the cpufreq table in cases of these operations.
 
 2. Initial OPP List Registration
 ================================
@@ -99,11 +101,11 @@ OPPs dynamically using the dev_pm_opp_enable / disable functions.
 dev_pm_opp_add
 	Add a new OPP for a specific domain represented by the device pointer.
 	The OPP is defined using the frequency and voltage. Once added, the OPP
-	is assumed to be available and control of it's availability can be done
-	with the dev_pm_opp_enable/disable functions. OPP library internally stores
-	and manages this information in the opp struct. This function may be
-	used by SoC framework to define a optimal list as per the demands of
-	SoC usage environment.
+	is assumed to be available and control of its availability can be done
+	with the dev_pm_opp_enable/disable functions. OPP library
+	internally stores and manages this information in the opp struct.
+	This function may be used by SoC framework to define a optimal list
+	as per the demands of SoC usage environment.
 
 	WARNING:
 		Do not use this function in interrupt context.
@@ -354,7 +356,7 @@ struct dev_pm_opp
 
 struct device
 	This is used to identify a domain to the OPP layer. The
-	nature of the device and it's implementation is left to the user of
+	nature of the device and its implementation is left to the user of
 	OPP library such as the SoC framework.
 
 Overall, in a simplistic view, the data structure operations is represented as

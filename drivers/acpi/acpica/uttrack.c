@@ -3,7 +3,7 @@
  *
  * Module Name: uttrack - Memory allocation tracking routines (debug only)
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -660,7 +660,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 					case ACPI_DESC_TYPE_PARSER:
 
 						acpi_os_printf
-						    ("AmlOpcode 0x%04hX\n",
+						    ("AmlOpcode 0x%04X\n",
 						     descriptor->op.asl.
 						     aml_opcode);
 						break;

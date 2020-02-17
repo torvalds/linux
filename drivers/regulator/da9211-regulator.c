@@ -283,12 +283,12 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 
 		pdata->init_data[n] = da9211_matches[i].init_data;
 		pdata->reg_node[n] = da9211_matches[i].of_node;
-		pdata->gpiod_ren[n] = devm_gpiod_get_from_of_node(dev,
-				  da9211_matches[i].of_node,
-				  "enable-gpios",
-				  0,
-				  GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
-				  "da9211-enable");
+		pdata->gpiod_ren[n] = devm_fwnode_gpiod_get(dev,
+					of_fwnode_handle(pdata->reg_node[n]),
+					"enable",
+					GPIOD_OUT_HIGH |
+						GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+					"da9211-enable");
 		if (IS_ERR(pdata->gpiod_ren[n]))
 			pdata->gpiod_ren[n] = NULL;
 		n++;
@@ -416,8 +416,7 @@ static int da9211_regulator_init(struct da9211 *chip)
 /*
  * I2C driver interface functions
  */
-static int da9211_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int da9211_i2c_probe(struct i2c_client *i2c)
 {
 	struct da9211 *chip;
 	int error, ret;
@@ -526,7 +525,7 @@ static struct i2c_driver da9211_regulator_driver = {
 		.name = "da9211",
 		.of_match_table = of_match_ptr(da9211_dt_ids),
 	},
-	.probe = da9211_i2c_probe,
+	.probe_new = da9211_i2c_probe,
 	.id_table = da9211_i2c_id,
 };
 

@@ -582,7 +582,7 @@ static int replacement_allowed(struct aa_profile *profile, int noreplace,
 {
 	if (profile) {
 		if (profile->label.flags & FLAG_IMMUTIBLE) {
-			*info = "cannot replace immutible profile";
+			*info = "cannot replace immutable profile";
 			return -EPERM;
 		} else if (noreplace) {
 			*info = "profile already exists";
@@ -856,7 +856,7 @@ static struct aa_profile *update_to_newest_parent(struct aa_profile *new)
 ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 			    u32 mask, struct aa_loaddata *udata)
 {
-	const char *ns_name, *info = NULL;
+	const char *ns_name = NULL, *info = NULL;
 	struct aa_ns *ns = NULL;
 	struct aa_load_ent *ent, *tmp;
 	struct aa_loaddata *rawdata_ent;
@@ -1043,6 +1043,7 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 out:
 	aa_put_ns(ns);
 	aa_put_loaddata(udata);
+	kfree(ns_name);
 
 	if (error)
 		return error;
@@ -1124,8 +1125,8 @@ ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_label *subj,
 	if (!name) {
 		/* remove namespace - can only happen if fqname[0] == ':' */
 		mutex_lock_nested(&ns->parent->lock, ns->level);
-		__aa_remove_ns(ns);
 		__aa_bump_ns_revision(ns);
+		__aa_remove_ns(ns);
 		mutex_unlock(&ns->parent->lock);
 	} else {
 		/* remove profile */
@@ -1137,9 +1138,9 @@ ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_label *subj,
 			goto fail_ns_lock;
 		}
 		name = profile->base.hname;
+		__aa_bump_ns_revision(ns);
 		__remove_profile(profile);
 		__aa_labelset_update_subtree(ns);
-		__aa_bump_ns_revision(ns);
 		mutex_unlock(&ns->lock);
 	}
 

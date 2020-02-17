@@ -35,7 +35,6 @@ static bool seq_nr_after(u16 a, u16 b)
 }
 
 #define seq_nr_before(a, b)		seq_nr_after((b), (a))
-#define seq_nr_after_or_eq(a, b)	(!seq_nr_before((a), (b)))
 #define seq_nr_before_or_eq(a, b)	(!seq_nr_after((a), (b)))
 
 bool hsr_addr_is_self(struct hsr_priv *hsr, unsigned char *addr)
@@ -75,10 +74,11 @@ static struct hsr_node *find_node_by_addr_A(struct list_head *node_db,
 /* Helper for device init; the self_node_db is used in hsr_rcv() to recognize
  * frames from self that's been looped over the HSR ring.
  */
-int hsr_create_self_node(struct list_head *self_node_db,
+int hsr_create_self_node(struct hsr_priv *hsr,
 			 unsigned char addr_a[ETH_ALEN],
 			 unsigned char addr_b[ETH_ALEN])
 {
+	struct list_head *self_node_db = &hsr->self_node_db;
 	struct hsr_node *node, *oldnode;
 
 	node = kmalloc(sizeof(*node), GFP_KERNEL);
@@ -88,33 +88,33 @@ int hsr_create_self_node(struct list_head *self_node_db,
 	ether_addr_copy(node->macaddress_A, addr_a);
 	ether_addr_copy(node->macaddress_B, addr_b);
 
-	rcu_read_lock();
+	spin_lock_bh(&hsr->list_lock);
 	oldnode = list_first_or_null_rcu(self_node_db,
 					 struct hsr_node, mac_list);
 	if (oldnode) {
 		list_replace_rcu(&oldnode->mac_list, &node->mac_list);
-		rcu_read_unlock();
-		synchronize_rcu();
-		kfree(oldnode);
+		spin_unlock_bh(&hsr->list_lock);
+		kfree_rcu(oldnode, rcu_head);
 	} else {
-		rcu_read_unlock();
 		list_add_tail_rcu(&node->mac_list, self_node_db);
+		spin_unlock_bh(&hsr->list_lock);
 	}
 
 	return 0;
 }
 
-void hsr_del_self_node(struct list_head *self_node_db)
+void hsr_del_self_node(struct hsr_priv *hsr)
 {
+	struct list_head *self_node_db = &hsr->self_node_db;
 	struct hsr_node *node;
 
-	rcu_read_lock();
+	spin_lock_bh(&hsr->list_lock);
 	node = list_first_or_null_rcu(self_node_db, struct hsr_node, mac_list);
-	rcu_read_unlock();
 	if (node) {
 		list_del_rcu(&node->mac_list);
-		kfree(node);
+		kfree_rcu(node, rcu_head);
 	}
+	spin_unlock_bh(&hsr->list_lock);
 }
 
 void hsr_del_nodes(struct list_head *node_db)
@@ -130,30 +130,43 @@ void hsr_del_nodes(struct list_head *node_db)
  * seq_out is used to initialize filtering of outgoing duplicate frames
  * originating from the newly added node.
  */
-struct hsr_node *hsr_add_node(struct list_head *node_db, unsigned char addr[],
-			      u16 seq_out)
+static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
+				     struct list_head *node_db,
+				     unsigned char addr[],
+				     u16 seq_out)
 {
-	struct hsr_node *node;
+	struct hsr_node *new_node, *node;
 	unsigned long now;
 	int i;
 
-	node = kzalloc(sizeof(*node), GFP_ATOMIC);
-	if (!node)
+	new_node = kzalloc(sizeof(*new_node), GFP_ATOMIC);
+	if (!new_node)
 		return NULL;
 
-	ether_addr_copy(node->macaddress_A, addr);
+	ether_addr_copy(new_node->macaddress_A, addr);
 
 	/* We are only interested in time diffs here, so use current jiffies
 	 * as initialization. (0 could trigger an spurious ring error warning).
 	 */
 	now = jiffies;
 	for (i = 0; i < HSR_PT_PORTS; i++)
-		node->time_in[i] = now;
+		new_node->time_in[i] = now;
 	for (i = 0; i < HSR_PT_PORTS; i++)
-		node->seq_out[i] = seq_out;
+		new_node->seq_out[i] = seq_out;
 
-	list_add_tail_rcu(&node->mac_list, node_db);
-
+	spin_lock_bh(&hsr->list_lock);
+	list_for_each_entry_rcu(node, node_db, mac_list) {
+		if (ether_addr_equal(node->macaddress_A, addr))
+			goto out;
+		if (ether_addr_equal(node->macaddress_B, addr))
+			goto out;
+	}
+	list_add_tail_rcu(&new_node->mac_list, node_db);
+	spin_unlock_bh(&hsr->list_lock);
+	return new_node;
+out:
+	spin_unlock_bh(&hsr->list_lock);
+	kfree(new_node);
 	return node;
 }
 
@@ -163,6 +176,7 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 			      bool is_sup)
 {
 	struct list_head *node_db = &port->hsr->node_db;
+	struct hsr_priv *hsr = port->hsr;
 	struct hsr_node *node;
 	struct ethhdr *ethhdr;
 	u16 seq_out;
@@ -196,7 +210,7 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 		seq_out = HSR_SEQNR_START;
 	}
 
-	return hsr_add_node(node_db, ethhdr->h_source, seq_out);
+	return hsr_add_node(hsr, node_db, ethhdr->h_source, seq_out);
 }
 
 /* Use the Supervision frame's info about an eventual macaddress_B for merging
@@ -206,10 +220,11 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 			  struct hsr_port *port_rcv)
 {
-	struct ethhdr *ethhdr;
-	struct hsr_node *node_real;
+	struct hsr_priv *hsr = port_rcv->hsr;
 	struct hsr_sup_payload *hsr_sp;
+	struct hsr_node *node_real;
 	struct list_head *node_db;
+	struct ethhdr *ethhdr;
 	int i;
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
@@ -231,7 +246,7 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 	node_real = find_node_by_addr_A(node_db, hsr_sp->macaddress_A);
 	if (!node_real)
 		/* No frame received from AddrA of this node yet */
-		node_real = hsr_add_node(node_db, hsr_sp->macaddress_A,
+		node_real = hsr_add_node(hsr, node_db, hsr_sp->macaddress_A,
 					 HSR_SEQNR_START - 1);
 	if (!node_real)
 		goto done; /* No mem */
@@ -252,7 +267,9 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 	}
 	node_real->addr_B_port = port_rcv->type;
 
+	spin_lock_bh(&hsr->list_lock);
 	list_del_rcu(&node_curr->mac_list);
+	spin_unlock_bh(&hsr->list_lock);
 	kfree_rcu(node_curr, rcu_head);
 
 done:
@@ -368,12 +385,13 @@ void hsr_prune_nodes(struct timer_list *t)
 {
 	struct hsr_priv *hsr = from_timer(hsr, t, prune_timer);
 	struct hsr_node *node;
+	struct hsr_node *tmp;
 	struct hsr_port *port;
 	unsigned long timestamp;
 	unsigned long time_a, time_b;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(node, &hsr->node_db, mac_list) {
+	spin_lock_bh(&hsr->list_lock);
+	list_for_each_entry_safe(node, tmp, &hsr->node_db, mac_list) {
 		/* Don't prune own node. Neither time_in[HSR_PT_SLAVE_A]
 		 * nor time_in[HSR_PT_SLAVE_B], will ever be updated for
 		 * the master port. Thus the master node will be repeatedly
@@ -421,7 +439,7 @@ void hsr_prune_nodes(struct timer_list *t)
 			kfree_rcu(node, rcu_head);
 		}
 	}
-	rcu_read_unlock();
+	spin_unlock_bh(&hsr->list_lock);
 
 	/* Restart timer */
 	mod_timer(&hsr->prune_timer,

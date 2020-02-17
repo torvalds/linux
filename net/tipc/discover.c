@@ -94,6 +94,7 @@ static void tipc_disc_init_msg(struct net *net, struct sk_buff *skb,
 	msg_set_dest_domain(hdr, dest_domain);
 	msg_set_bc_netid(hdr, tn->net_id);
 	b->media->addr2msg(msg_media_addr(hdr), &b->addr);
+	msg_set_peer_net_hash(hdr, tipc_net_hash_mixes(net, tn->random));
 	msg_set_node_id(hdr, tipc_own_id(net));
 }
 
@@ -193,6 +194,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 {
 	struct tipc_net *tn = tipc_net(net);
 	struct tipc_msg *hdr = buf_msg(skb);
+	u32 pnet_hash = msg_peer_net_hash(hdr);
 	u16 caps = msg_node_capabilities(hdr);
 	bool legacy = tn->legacy_addr_format;
 	u32 sugg = msg_sugg_node_addr(hdr);
@@ -241,7 +243,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 		return;
 	if (!tipc_in_scope(legacy, b->domain, src))
 		return;
-	tipc_node_check_dest(net, src, peer_id, b, caps, signature,
+	tipc_node_check_dest(net, src, peer_id, b, caps, signature, pnet_hash,
 			     &maddr, &respond, &dupl_addr);
 	if (dupl_addr)
 		disc_dupl_alert(b, src, &maddr);

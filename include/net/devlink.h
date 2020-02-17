@@ -38,7 +38,9 @@ struct devlink {
 	struct device *dev;
 	possible_net_t _net;
 	struct mutex lock;
-	bool reload_failed;
+	u8 reload_failed:1,
+	   reload_enabled:1,
+	   registered:1;
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
@@ -400,6 +402,7 @@ enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
 	DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
 	DEVLINK_PARAM_GENERIC_ID_RESET_DEV_ON_DRV_PROBE,
+	DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
@@ -433,6 +436,9 @@ enum devlink_param_generic_id {
 #define DEVLINK_PARAM_GENERIC_RESET_DEV_ON_DRV_PROBE_NAME \
 	"reset_dev_on_drv_probe"
 #define DEVLINK_PARAM_GENERIC_RESET_DEV_ON_DRV_PROBE_TYPE DEVLINK_PARAM_TYPE_U8
+
+#define DEVLINK_PARAM_GENERIC_ENABLE_ROCE_NAME "enable_roce"
+#define DEVLINK_PARAM_GENERIC_ENABLE_ROCE_TYPE DEVLINK_PARAM_TYPE_BOOL
 
 #define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
 {									\
@@ -479,6 +485,10 @@ enum devlink_param_generic_id {
 #define DEVLINK_INFO_VERSION_GENERIC_FW_UNDI	"fw.undi"
 /* NCSI support/handler version */
 #define DEVLINK_INFO_VERSION_GENERIC_FW_NCSI	"fw.ncsi"
+/* FW parameter set id */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_PSID	"fw.psid"
+/* RoCE FW version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_ROCE	"fw.roce"
 
 struct devlink_region;
 struct devlink_info_req;
@@ -506,11 +516,13 @@ enum devlink_health_reporter_state {
 struct devlink_health_reporter_ops {
 	char *name;
 	int (*recover)(struct devlink_health_reporter *reporter,
-		       void *priv_ctx);
+		       void *priv_ctx, struct netlink_ext_ack *extack);
 	int (*dump)(struct devlink_health_reporter *reporter,
-		    struct devlink_fmsg *fmsg, void *priv_ctx);
+		    struct devlink_fmsg *fmsg, void *priv_ctx,
+		    struct netlink_ext_ack *extack);
 	int (*diagnose)(struct devlink_health_reporter *reporter,
-			struct devlink_fmsg *fmsg);
+			struct devlink_fmsg *fmsg,
+			struct netlink_ext_ack *extack);
 };
 
 /**
@@ -554,7 +566,7 @@ struct devlink_trap {
 };
 
 /* All traps must be documented in
- * Documentation/networking/devlink-trap.rst
+ * Documentation/networking/devlink/devlink-trap.rst
  */
 enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_SMAC_MC,
@@ -566,6 +578,24 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_BLACKHOLE_ROUTE,
 	DEVLINK_TRAP_GENERIC_ID_TTL_ERROR,
 	DEVLINK_TRAP_GENERIC_ID_TAIL_DROP,
+	DEVLINK_TRAP_GENERIC_ID_NON_IP_PACKET,
+	DEVLINK_TRAP_GENERIC_ID_UC_DIP_MC_DMAC,
+	DEVLINK_TRAP_GENERIC_ID_DIP_LB,
+	DEVLINK_TRAP_GENERIC_ID_SIP_MC,
+	DEVLINK_TRAP_GENERIC_ID_SIP_LB,
+	DEVLINK_TRAP_GENERIC_ID_CORRUPTED_IP_HDR,
+	DEVLINK_TRAP_GENERIC_ID_IPV4_SIP_BC,
+	DEVLINK_TRAP_GENERIC_ID_IPV6_MC_DIP_RESERVED_SCOPE,
+	DEVLINK_TRAP_GENERIC_ID_IPV6_MC_DIP_INTERFACE_LOCAL_SCOPE,
+	DEVLINK_TRAP_GENERIC_ID_MTU_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_UNRESOLVED_NEIGH,
+	DEVLINK_TRAP_GENERIC_ID_RPF,
+	DEVLINK_TRAP_GENERIC_ID_REJECT_ROUTE,
+	DEVLINK_TRAP_GENERIC_ID_IPV4_LPM_UNICAST_MISS,
+	DEVLINK_TRAP_GENERIC_ID_IPV6_LPM_UNICAST_MISS,
+	DEVLINK_TRAP_GENERIC_ID_NON_ROUTABLE,
+	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_OVERLAY_SMAC_MC,
 
 	/* Add new generic trap IDs above */
 	__DEVLINK_TRAP_GENERIC_ID_MAX,
@@ -573,12 +603,13 @@ enum devlink_trap_generic_id {
 };
 
 /* All trap groups must be documented in
- * Documentation/networking/devlink-trap.rst
+ * Documentation/networking/devlink/devlink-trap.rst
  */
 enum devlink_trap_group_generic_id {
 	DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS,
 	DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS,
 	DEVLINK_TRAP_GROUP_GENERIC_ID_BUFFER_DROPS,
+	DEVLINK_TRAP_GROUP_GENERIC_ID_TUNNEL_DROPS,
 
 	/* Add new generic trap group IDs above */
 	__DEVLINK_TRAP_GROUP_GENERIC_ID_MAX,
@@ -604,6 +635,42 @@ enum devlink_trap_group_generic_id {
 	"ttl_value_is_too_small"
 #define DEVLINK_TRAP_GENERIC_NAME_TAIL_DROP \
 	"tail_drop"
+#define DEVLINK_TRAP_GENERIC_NAME_NON_IP_PACKET \
+	"non_ip"
+#define DEVLINK_TRAP_GENERIC_NAME_UC_DIP_MC_DMAC \
+	"uc_dip_over_mc_dmac"
+#define DEVLINK_TRAP_GENERIC_NAME_DIP_LB \
+	"dip_is_loopback_address"
+#define DEVLINK_TRAP_GENERIC_NAME_SIP_MC \
+	"sip_is_mc"
+#define DEVLINK_TRAP_GENERIC_NAME_SIP_LB \
+	"sip_is_loopback_address"
+#define DEVLINK_TRAP_GENERIC_NAME_CORRUPTED_IP_HDR \
+	"ip_header_corrupted"
+#define DEVLINK_TRAP_GENERIC_NAME_IPV4_SIP_BC \
+	"ipv4_sip_is_limited_bc"
+#define DEVLINK_TRAP_GENERIC_NAME_IPV6_MC_DIP_RESERVED_SCOPE \
+	"ipv6_mc_dip_reserved_scope"
+#define DEVLINK_TRAP_GENERIC_NAME_IPV6_MC_DIP_INTERFACE_LOCAL_SCOPE \
+	"ipv6_mc_dip_interface_local_scope"
+#define DEVLINK_TRAP_GENERIC_NAME_MTU_ERROR \
+	"mtu_value_is_too_small"
+#define DEVLINK_TRAP_GENERIC_NAME_UNRESOLVED_NEIGH \
+	"unresolved_neigh"
+#define DEVLINK_TRAP_GENERIC_NAME_RPF \
+	"mc_reverse_path_forwarding"
+#define DEVLINK_TRAP_GENERIC_NAME_REJECT_ROUTE \
+	"reject_route"
+#define DEVLINK_TRAP_GENERIC_NAME_IPV4_LPM_UNICAST_MISS \
+	"ipv4_lpm_miss"
+#define DEVLINK_TRAP_GENERIC_NAME_IPV6_LPM_UNICAST_MISS \
+	"ipv6_lpm_miss"
+#define DEVLINK_TRAP_GENERIC_NAME_NON_ROUTABLE \
+	"non_routable_packet"
+#define DEVLINK_TRAP_GENERIC_NAME_DECAP_ERROR \
+	"decap_error"
+#define DEVLINK_TRAP_GENERIC_NAME_OVERLAY_SMAC_MC \
+	"overlay_smac_is_mc"
 
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_L2_DROPS \
 	"l2_drops"
@@ -611,6 +678,8 @@ enum devlink_trap_group_generic_id {
 	"l3_drops"
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_BUFFER_DROPS \
 	"buffer_drops"
+#define DEVLINK_TRAP_GROUP_GENERIC_NAME_TUNNEL_DROPS \
+	"tunnel_drops"
 
 #define DEVLINK_TRAP_GENERIC(_type, _init_action, _id, _group, _metadata_cap) \
 	{								      \
@@ -643,7 +712,7 @@ enum devlink_trap_group_generic_id {
 	}
 
 struct devlink_ops {
-	int (*reload_down)(struct devlink *devlink,
+	int (*reload_down)(struct devlink *devlink, bool netns_change,
 			   struct netlink_ext_ack *extack);
 	int (*reload_up)(struct devlink *devlink,
 			 struct netlink_ext_ack *extack);
@@ -771,9 +840,13 @@ static inline struct devlink *netdev_to_devlink(struct net_device *dev)
 
 struct ib_device;
 
+struct net *devlink_net(const struct devlink *devlink);
+void devlink_net_set(struct devlink *devlink, struct net *net);
 struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size);
 int devlink_register(struct devlink *devlink, struct device *dev);
 void devlink_unregister(struct devlink *devlink);
+void devlink_reload_enable(struct devlink *devlink);
+void devlink_reload_disable(struct devlink *devlink);
 void devlink_free(struct devlink *devlink);
 int devlink_port_register(struct devlink *devlink,
 			  struct devlink_port *devlink_port,
@@ -881,7 +954,7 @@ struct devlink_region *devlink_region_create(struct devlink *devlink,
 					     u32 region_max_snapshots,
 					     u64 region_size);
 void devlink_region_destroy(struct devlink_region *region);
-u32 devlink_region_shapshot_id_get(struct devlink *devlink);
+u32 devlink_region_snapshot_id_get(struct devlink *devlink);
 int devlink_region_snapshot_create(struct devlink_region *region,
 				   u8 *data, u32 snapshot_id,
 				   devlink_snapshot_data_dest_t *data_destructor);
@@ -914,8 +987,6 @@ int devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value);
 int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value);
 int devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value);
 int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value);
-int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
-			    u16 value_len);
 
 int devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
 			       bool value);
@@ -928,7 +999,7 @@ int devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
 int devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
 				 const char *value);
 int devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
-				 const void *value, u16 value_len);
+				 const void *value, u32 value_len);
 
 struct devlink_health_reporter *
 devlink_health_reporter_create(struct devlink *devlink,
@@ -945,6 +1016,8 @@ int devlink_health_report(struct devlink_health_reporter *reporter,
 void
 devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
 				     enum devlink_health_reporter_state state);
+void
+devlink_health_reporter_recovery_done(struct devlink_health_reporter *reporter);
 
 bool devlink_is_reload_failed(const struct devlink *devlink);
 

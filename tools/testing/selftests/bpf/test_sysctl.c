@@ -13,7 +13,7 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "bpf_endian.h"
+#include <bpf/bpf_endian.h>
 #include "bpf_rlimit.h"
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
@@ -121,6 +121,29 @@ static struct sysctl_test tests[] = {
 		.result = OP_EPERM,
 	},
 	{
+		.descr = "ctx:write sysctl:write read ok narrow",
+		.insns = {
+			/* u64 w = (u16)write & 1; */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_1,
+				    offsetof(struct bpf_sysctl, write)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_1,
+				    offsetof(struct bpf_sysctl, write) + 2),
+#endif
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_7, 1),
+			/* return 1 - w; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_ALU64_REG(BPF_SUB, BPF_REG_0, BPF_REG_7),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "kernel/domainname",
+		.open_flags = O_WRONLY,
+		.newval = "(none)", /* same as default, should fail anyway */
+		.result = OP_EPERM,
+	},
+	{
 		.descr = "ctx:write sysctl:read write reject",
 		.insns = {
 			/* write = X */
@@ -161,9 +184,14 @@ static struct sysctl_test tests[] = {
 		.descr = "ctx:file_pos sysctl:read read ok narrow",
 		.insns = {
 			/* If (file_pos == X) */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_1,
 				    offsetof(struct bpf_sysctl, file_pos)),
-			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0, 2),
+#else
+			BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_1,
+				    offsetof(struct bpf_sysctl, file_pos) + 3),
+#endif
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 4, 2),
 
 			/* return ALLOW; */
 			BPF_MOV64_IMM(BPF_REG_0, 1),
@@ -176,6 +204,7 @@ static struct sysctl_test tests[] = {
 		.attach_type = BPF_CGROUP_SYSCTL,
 		.sysctl = "kernel/ostype",
 		.open_flags = O_RDONLY,
+		.seek = 4,
 		.result = SUCCESS,
 	},
 	{

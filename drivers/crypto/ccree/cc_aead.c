@@ -237,7 +237,7 @@ static void cc_aead_complete(struct device *dev, void *cc_req, int err)
 			 * revealed the decrypted message --> zero its memory.
 			 */
 			sg_zero_buffer(areq->dst, sg_nents(areq->dst),
-				       areq->cryptlen, 0);
+				       areq->cryptlen, areq->assoclen);
 			err = -EBADMSG;
 		}
 	/*ENCRYPT*/
@@ -293,7 +293,8 @@ static unsigned int xcbc_setkey(struct cc_hw_desc *desc,
 	return 4;
 }
 
-static int hmac_setkey(struct cc_hw_desc *desc, struct cc_aead_ctx *ctx)
+static unsigned int hmac_setkey(struct cc_hw_desc *desc,
+				struct cc_aead_ctx *ctx)
 {
 	unsigned int hmac_pad_const[2] = { HMAC_IPAD_CONST, HMAC_OPAD_CONST };
 	unsigned int digest_ofs = 0;
@@ -384,13 +385,13 @@ static int validate_keys_sizes(struct cc_aead_ctx *ctx)
 			return -EINVAL;
 		break;
 	default:
-		dev_err(dev, "Invalid auth_mode=%d\n", ctx->auth_mode);
+		dev_dbg(dev, "Invalid auth_mode=%d\n", ctx->auth_mode);
 		return -EINVAL;
 	}
 	/* Check cipher key size */
 	if (ctx->flow_mode == S_DIN_to_DES) {
 		if (ctx->enc_keylen != DES3_EDE_KEY_SIZE) {
-			dev_err(dev, "Invalid cipher(3DES) key size: %u\n",
+			dev_dbg(dev, "Invalid cipher(3DES) key size: %u\n",
 				ctx->enc_keylen);
 			return -EINVAL;
 		}
@@ -398,7 +399,7 @@ static int validate_keys_sizes(struct cc_aead_ctx *ctx)
 		if (ctx->enc_keylen != AES_KEYSIZE_128 &&
 		    ctx->enc_keylen != AES_KEYSIZE_192 &&
 		    ctx->enc_keylen != AES_KEYSIZE_256) {
-			dev_err(dev, "Invalid cipher(AES) key size: %u\n",
+			dev_dbg(dev, "Invalid cipher(AES) key size: %u\n",
 				ctx->enc_keylen);
 			return -EINVAL;
 		}
@@ -561,7 +562,7 @@ static int cc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 
 		rc = crypto_authenc_extractkeys(&keys, key, keylen);
 		if (rc)
-			goto badkey;
+			return rc;
 		enckey = keys.enckey;
 		authkey = keys.authkey;
 		ctx->enc_keylen = keys.enckeylen;
@@ -569,10 +570,9 @@ static int cc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 
 		if (ctx->cipher_mode == DRV_CIPHER_CTR) {
 			/* the nonce is stored in bytes at end of key */
-			rc = -EINVAL;
 			if (ctx->enc_keylen <
 			    (AES_MIN_KEY_SIZE + CTR_RFC3686_NONCE_SIZE))
-				goto badkey;
+				return -EINVAL;
 			/* Copy nonce from last 4 bytes in CTR key to
 			 *  first 4 bytes in CTR IV
 			 */
@@ -590,7 +590,7 @@ static int cc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 
 	rc = validate_keys_sizes(ctx);
 	if (rc)
-		goto badkey;
+		return rc;
 
 	/* STAT_PHASE_1: Copy key to ctx */
 
@@ -604,7 +604,7 @@ static int cc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	} else if (ctx->auth_mode != DRV_HASH_NULL) { /* HMAC */
 		rc = cc_get_plain_hmac_key(tfm, authkey, ctx->auth_keylen);
 		if (rc)
-			goto badkey;
+			return rc;
 	}
 
 	/* STAT_PHASE_2: Create sequence */
@@ -621,8 +621,7 @@ static int cc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 		break; /* No auth. key setup */
 	default:
 		dev_err(dev, "Unsupported authenc (%d)\n", ctx->auth_mode);
-		rc = -ENOTSUPP;
-		goto badkey;
+		return -ENOTSUPP;
 	}
 
 	/* STAT_PHASE_3: Submit sequence to HW */
@@ -631,17 +630,11 @@ static int cc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 		rc = cc_send_sync_request(ctx->drvdata, &cc_req, desc, seq_len);
 		if (rc) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-			goto setkey_error;
+			return rc;
 		}
 	}
 
 	/* Update STAT_PHASE_3 */
-	return rc;
-
-badkey:
-	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-
-setkey_error:
 	return rc;
 }
 
@@ -1566,7 +1559,7 @@ static int config_ccm_adata(struct aead_request *req)
 	/* taken from crypto/ccm.c */
 	/* 2 <= L <= 8, so 1 <= L' <= 7. */
 	if (l < 2 || l > 8) {
-		dev_err(dev, "illegal iv value %X\n", req->iv[0]);
+		dev_dbg(dev, "illegal iv value %X\n", req->iv[0]);
 		return -EINVAL;
 	}
 	memcpy(b0, req->iv, AES_BLOCK_SIZE);
@@ -1924,7 +1917,6 @@ static int cc_proc_aead(struct aead_request *req,
 	if (validate_data_size(ctx, direct, req)) {
 		dev_err(dev, "Unsupported crypt/assoc len %d/%d.\n",
 			req->cryptlen, areq_ctx->assoclen);
-		crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_BLOCK_LEN);
 		return -EINVAL;
 	}
 
@@ -2064,7 +2056,7 @@ static int cc_rfc4309_ccm_encrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
@@ -2114,7 +2106,7 @@ static int cc_rfc4309_ccm_decrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
@@ -2233,7 +2225,7 @@ static int cc_rfc4106_gcm_encrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
@@ -2264,7 +2256,7 @@ static int cc_rfc4543_gcm_encrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
@@ -2298,7 +2290,7 @@ static int cc_rfc4106_gcm_decrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 
@@ -2329,7 +2321,7 @@ static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
-		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
 

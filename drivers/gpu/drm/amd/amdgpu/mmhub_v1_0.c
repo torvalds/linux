@@ -27,16 +27,12 @@
 #include "mmhub/mmhub_1_0_offset.h"
 #include "mmhub/mmhub_1_0_sh_mask.h"
 #include "mmhub/mmhub_1_0_default.h"
-#include "mmhub/mmhub_9_4_0_offset.h"
 #include "vega10_enum.h"
-
+#include "soc15.h"
 #include "soc15_common.h"
 
 #define mmDAGB0_CNTL_MISC2_RV 0x008f
 #define mmDAGB0_CNTL_MISC2_RV_BASE_IDX 0
-
-#define EA_EDC_CNT_MASK 0x3
-#define EA_EDC_CNT_SHIFT 0x2
 
 u64 mmhub_v1_0_get_fb_location(struct amdgpu_device *adev)
 {
@@ -206,6 +202,8 @@ static void mmhub_v1_0_enable_system_domain(struct amdgpu_device *adev)
 	tmp = RREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, PAGE_TABLE_DEPTH, 0);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL,
+			    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT, 0);
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_CNTL, tmp);
 }
 
@@ -418,6 +416,8 @@ void mmhub_v1_0_init(struct amdgpu_device *adev)
 	hub->ctx0_ptb_addr_hi32 =
 		SOC15_REG_OFFSET(MMHUB, 0,
 				 mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32);
+	hub->vm_inv_eng0_sem =
+		SOC15_REG_OFFSET(MMHUB, 0, mmVM_INVALIDATE_ENG0_SEM);
 	hub->vm_inv_eng0_req =
 		SOC15_REG_OFFSET(MMHUB, 0, mmVM_INVALIDATE_ENG0_REQ);
 	hub->vm_inv_eng0_ack =
@@ -523,9 +523,9 @@ int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 	case CHIP_RAVEN:
 	case CHIP_RENOIR:
 		mmhub_v1_0_update_medium_grain_clock_gating(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		mmhub_v1_0_update_medium_grain_light_sleep(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		break;
 	default:
 		break;
@@ -560,61 +560,194 @@ void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 		*flags |= AMD_CG_SUPPORT_MC_LS;
 }
 
+static const struct soc15_ras_field_entry mmhub_v1_0_ras_fields[] = {
+	{ "MMEA0_DRAMRD_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, DRAMRD_CMDMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, DRAMRD_CMDMEM_DED_COUNT),
+	},
+	{ "MMEA0_DRAMWR_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, DRAMWR_CMDMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, DRAMWR_CMDMEM_DED_COUNT),
+	},
+	{ "MMEA0_DRAMWR_DATAMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, DRAMWR_DATAMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, DRAMWR_DATAMEM_DED_COUNT),
+	},
+	{ "MMEA0_RRET_TAGMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, RRET_TAGMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, RRET_TAGMEM_DED_COUNT),
+	},
+	{ "MMEA0_WRET_TAGMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, WRET_TAGMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, WRET_TAGMEM_DED_COUNT),
+	},
+	{ "MMEA0_DRAMRD_PAGEMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, DRAMRD_PAGEMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA0_DRAMWR_PAGEMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, DRAMWR_PAGEMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA0_IORD_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, IORD_CMDMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA0_IOWR_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, IOWR_CMDMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA0_IOWR_DATAMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT_VG20, IOWR_DATAMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA0_GMIRD_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT2_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT2_VG20, GMIRD_CMDMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT2_VG20, GMIRD_CMDMEM_DED_COUNT),
+	},
+	{ "MMEA0_GMIWR_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT2_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT2_VG20, GMIWR_CMDMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT2_VG20, GMIWR_CMDMEM_DED_COUNT),
+	},
+	{ "MMEA0_GMIWR_DATAMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT2_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT2_VG20, GMIWR_DATAMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT2_VG20, GMIWR_DATAMEM_DED_COUNT),
+	},
+	{ "MMEA0_GMIRD_PAGEMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT2_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT2_VG20, GMIRD_PAGEMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA0_GMIWR_PAGEMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT2_VG20),
+	SOC15_REG_FIELD(MMEA0_EDC_CNT2_VG20, GMIWR_PAGEMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA1_DRAMRD_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, DRAMRD_CMDMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, DRAMRD_CMDMEM_DED_COUNT),
+	},
+	{ "MMEA1_DRAMWR_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, DRAMWR_CMDMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, DRAMWR_CMDMEM_DED_COUNT),
+	},
+	{ "MMEA1_DRAMWR_DATAMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, DRAMWR_DATAMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, DRAMWR_DATAMEM_DED_COUNT),
+	},
+	{ "MMEA1_RRET_TAGMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, RRET_TAGMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, RRET_TAGMEM_DED_COUNT),
+	},
+	{ "MMEA1_WRET_TAGMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, WRET_TAGMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, WRET_TAGMEM_DED_COUNT),
+	},
+	{ "MMEA1_DRAMRD_PAGEMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, DRAMRD_PAGEMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA1_DRAMWR_PAGEMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, DRAMWR_PAGEMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA1_IORD_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, IORD_CMDMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA1_IOWR_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, IOWR_CMDMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA1_IOWR_DATAMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT_VG20, IOWR_DATAMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA1_GMIRD_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT2_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT2_VG20, GMIRD_CMDMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT2_VG20, GMIRD_CMDMEM_DED_COUNT),
+	},
+	{ "MMEA1_GMIWR_CMDMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT2_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT2_VG20, GMIWR_CMDMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT2_VG20, GMIWR_CMDMEM_DED_COUNT),
+	},
+	{ "MMEA1_GMIWR_DATAMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT2_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT2_VG20, GMIWR_DATAMEM_SEC_COUNT),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT2_VG20, GMIWR_DATAMEM_DED_COUNT),
+	},
+	{ "MMEA1_GMIRD_PAGEMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT2_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT2_VG20, GMIRD_PAGEMEM_SED_COUNT),
+	0, 0,
+	},
+	{ "MMEA1_GMIWR_PAGEMEM", SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT2_VG20),
+	SOC15_REG_FIELD(MMEA1_EDC_CNT2_VG20, GMIWR_PAGEMEM_SED_COUNT),
+	0, 0,
+	}
+};
+
+static const struct soc15_reg_entry mmhub_v1_0_edc_cnt_regs[] = {
+   { SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT_VG20), 0, 0, 0},
+   { SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_EDC_CNT2_VG20), 0, 0, 0},
+   { SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT_VG20), 0, 0, 0},
+   { SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT2_VG20), 0, 0, 0},
+};
+
+static int mmhub_v1_0_get_ras_error_count(const struct soc15_reg_entry *reg,
+	uint32_t value, uint32_t *sec_count, uint32_t *ded_count)
+{
+	uint32_t i;
+	uint32_t sec_cnt, ded_cnt;
+
+	for (i = 0; i < ARRAY_SIZE(mmhub_v1_0_ras_fields); i++) {
+		if(mmhub_v1_0_ras_fields[i].reg_offset != reg->reg_offset)
+			continue;
+
+		sec_cnt = (value &
+				mmhub_v1_0_ras_fields[i].sec_count_mask) >>
+				mmhub_v1_0_ras_fields[i].sec_count_shift;
+		if (sec_cnt) {
+			DRM_INFO("MMHUB SubBlock %s, SEC %d\n",
+				mmhub_v1_0_ras_fields[i].name,
+				sec_cnt);
+			*sec_count += sec_cnt;
+		}
+
+		ded_cnt = (value &
+				mmhub_v1_0_ras_fields[i].ded_count_mask) >>
+				mmhub_v1_0_ras_fields[i].ded_count_shift;
+		if (ded_cnt) {
+			DRM_INFO("MMHUB SubBlock %s, DED %d\n",
+				mmhub_v1_0_ras_fields[i].name,
+				ded_cnt);
+			*ded_count += ded_cnt;
+		}
+	}
+
+	return 0;
+}
+
 static void mmhub_v1_0_query_ras_error_count(struct amdgpu_device *adev,
 					   void *ras_error_status)
 {
-	int i;
-	uint32_t ea0_edc_cnt, ea0_edc_cnt2;
-	uint32_t ea1_edc_cnt, ea1_edc_cnt2;
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+	uint32_t sec_count = 0, ded_count = 0;
+	uint32_t i;
+	uint32_t reg_value;
 
-	/* EDC CNT will be cleared automatically after read */
-	ea0_edc_cnt = RREG32_SOC15(MMHUB, 0, mmMMEA0_EDC_CNT_VG20);
-	ea0_edc_cnt2 = RREG32_SOC15(MMHUB, 0, mmMMEA0_EDC_CNT2_VG20);
-	ea1_edc_cnt = RREG32_SOC15(MMHUB, 0, mmMMEA1_EDC_CNT_VG20);
-	ea1_edc_cnt2 = RREG32_SOC15(MMHUB, 0, mmMMEA1_EDC_CNT2_VG20);
+	err_data->ue_count = 0;
+	err_data->ce_count = 0;
 
-	/* error count of each error type is recorded by 2 bits,
-	 * ce and ue count in EDC_CNT
-	 */
-	for (i = 0; i < 5; i++) {
-		err_data->ce_count += (ea0_edc_cnt & EA_EDC_CNT_MASK);
-		err_data->ce_count += (ea1_edc_cnt & EA_EDC_CNT_MASK);
-		ea0_edc_cnt >>= EA_EDC_CNT_SHIFT;
-		ea1_edc_cnt >>= EA_EDC_CNT_SHIFT;
-		err_data->ue_count += (ea0_edc_cnt & EA_EDC_CNT_MASK);
-		err_data->ue_count += (ea1_edc_cnt & EA_EDC_CNT_MASK);
-		ea0_edc_cnt >>= EA_EDC_CNT_SHIFT;
-		ea1_edc_cnt >>= EA_EDC_CNT_SHIFT;
-	}
-	/* successive ue count in EDC_CNT */
-	for (i = 0; i < 5; i++) {
-		err_data->ue_count += (ea0_edc_cnt & EA_EDC_CNT_MASK);
-		err_data->ue_count += (ea1_edc_cnt & EA_EDC_CNT_MASK);
-		ea0_edc_cnt >>= EA_EDC_CNT_SHIFT;
-		ea1_edc_cnt >>= EA_EDC_CNT_SHIFT;
+	for (i = 0; i < ARRAY_SIZE(mmhub_v1_0_edc_cnt_regs); i++) {
+		reg_value =
+			RREG32(SOC15_REG_ENTRY_OFFSET(mmhub_v1_0_edc_cnt_regs[i]));
+		if (reg_value)
+			mmhub_v1_0_get_ras_error_count(&mmhub_v1_0_edc_cnt_regs[i],
+				reg_value, &sec_count, &ded_count);
 	}
 
-	/* ce and ue count in EDC_CNT2 */
-	for (i = 0; i < 3; i++) {
-		err_data->ce_count += (ea0_edc_cnt2 & EA_EDC_CNT_MASK);
-		err_data->ce_count += (ea1_edc_cnt2 & EA_EDC_CNT_MASK);
-		ea0_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
-		ea1_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
-		err_data->ue_count += (ea0_edc_cnt2 & EA_EDC_CNT_MASK);
-		err_data->ue_count += (ea1_edc_cnt2 & EA_EDC_CNT_MASK);
-		ea0_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
-		ea1_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
-	}
-	/* successive ue count in EDC_CNT2 */
-	for (i = 0; i < 6; i++) {
-		err_data->ue_count += (ea0_edc_cnt2 & EA_EDC_CNT_MASK);
-		err_data->ue_count += (ea1_edc_cnt2 & EA_EDC_CNT_MASK);
-		ea0_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
-		ea1_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
-	}
+	err_data->ce_count += sec_count;
+	err_data->ue_count += ded_count;
 }
 
 const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs = {
+	.ras_late_init = amdgpu_mmhub_ras_late_init,
 	.query_ras_error_count = mmhub_v1_0_query_ras_error_count,
 };

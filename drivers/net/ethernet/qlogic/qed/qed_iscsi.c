@@ -204,17 +204,14 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-	SET_FIELD(p_init->hdr.flags,
-		  ISCSI_SLOW_PATH_HDR_LAYER_CODE, ISCSI_SLOW_PATH_LAYER_CODE);
-	p_init->hdr.op_code = ISCSI_RAMROD_CMD_ID_INIT_FUNC;
-
 	val = p_params->half_way_close_timeout;
 	p_init->half_way_close_timeout = cpu_to_le16(val);
 	p_init->num_sq_pages_in_ring = p_params->num_sq_pages_in_ring;
 	p_init->num_r2tq_pages_in_ring = p_params->num_r2tq_pages_in_ring;
 	p_init->num_uhq_pages_in_ring = p_params->num_uhq_pages_in_ring;
-	p_init->ll2_rx_queue_id = p_hwfn->hw_info.resc_start[QED_LL2_QUEUE] +
-				  p_params->ll2_ooo_queue_id;
+	p_init->ll2_rx_queue_id =
+	    p_hwfn->hw_info.resc_start[QED_LL2_RAM_QUEUE] +
+	    p_params->ll2_ooo_queue_id;
 
 	p_init->func_params.log_page_size = p_params->log_page_size;
 	val = p_params->num_tasks;
@@ -331,12 +328,7 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 	p_conn->physical_q1 = cpu_to_le16(physical_q);
 	p_ramrod->iscsi.physical_q1 = cpu_to_le16(physical_q);
 
-	p_ramrod->hdr.op_code = ISCSI_RAMROD_CMD_ID_OFFLOAD_CONN;
-	SET_FIELD(p_ramrod->hdr.flags, ISCSI_SLOW_PATH_HDR_LAYER_CODE,
-		  p_conn->layer_code);
-
 	p_ramrod->conn_id = cpu_to_le16(p_conn->conn_id);
-	p_ramrod->fw_cid = cpu_to_le32(p_conn->icid);
 
 	DMA_REGPAIR_LE(p_ramrod->iscsi.sq_pbl_addr, p_conn->sq_pbl_addr);
 
@@ -492,12 +484,8 @@ static int qed_sp_iscsi_conn_update(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	p_ramrod = &p_ent->ramrod.iscsi_conn_update;
-	p_ramrod->hdr.op_code = ISCSI_RAMROD_CMD_ID_UPDATE_CONN;
-	SET_FIELD(p_ramrod->hdr.flags,
-		  ISCSI_SLOW_PATH_HDR_LAYER_CODE, p_conn->layer_code);
 
 	p_ramrod->conn_id = cpu_to_le16(p_conn->conn_id);
-	p_ramrod->fw_cid = cpu_to_le32(p_conn->icid);
 	p_ramrod->flags = p_conn->update_flag;
 	p_ramrod->max_seq_size = cpu_to_le32(p_conn->max_seq_size);
 	dval = p_conn->max_recv_pdu_length;
@@ -537,12 +525,8 @@ qed_sp_iscsi_mac_update(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	p_ramrod = &p_ent->ramrod.iscsi_conn_mac_update;
-	p_ramrod->hdr.op_code = ISCSI_RAMROD_CMD_ID_MAC_UPDATE;
-	SET_FIELD(p_ramrod->hdr.flags,
-		  ISCSI_SLOW_PATH_HDR_LAYER_CODE, p_conn->layer_code);
 
 	p_ramrod->conn_id = cpu_to_le16(p_conn->conn_id);
-	p_ramrod->fw_cid = cpu_to_le32(p_conn->icid);
 	ucval = p_conn->remote_mac[1];
 	((u8 *)(&p_ramrod->remote_mac_addr_hi))[0] = ucval;
 	ucval = p_conn->remote_mac[0];
@@ -583,12 +567,8 @@ static int qed_sp_iscsi_conn_terminate(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	p_ramrod = &p_ent->ramrod.iscsi_conn_terminate;
-	p_ramrod->hdr.op_code = ISCSI_RAMROD_CMD_ID_TERMINATION_CONN;
-	SET_FIELD(p_ramrod->hdr.flags,
-		  ISCSI_SLOW_PATH_HDR_LAYER_CODE, p_conn->layer_code);
 
 	p_ramrod->conn_id = cpu_to_le16(p_conn->conn_id);
-	p_ramrod->fw_cid = cpu_to_le32(p_conn->icid);
 	p_ramrod->abortive = p_conn->abortive_dsconnect;
 
 	DMA_REGPAIR_LE(p_ramrod->query_params_addr,
@@ -603,7 +583,6 @@ static int qed_sp_iscsi_conn_clear_sq(struct qed_hwfn *p_hwfn,
 				      enum spq_mode comp_mode,
 				      struct qed_spq_comp_cb *p_comp_addr)
 {
-	struct iscsi_slow_path_hdr *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
@@ -621,11 +600,6 @@ static int qed_sp_iscsi_conn_clear_sq(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	p_ramrod = &p_ent->ramrod.iscsi_empty;
-	p_ramrod->op_code = ISCSI_RAMROD_CMD_ID_CLEAR_SQ;
-	SET_FIELD(p_ramrod->flags,
-		  ISCSI_SLOW_PATH_HDR_LAYER_CODE, p_conn->layer_code);
-
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
@@ -633,7 +607,6 @@ static int qed_sp_iscsi_func_stop(struct qed_hwfn *p_hwfn,
 				  enum spq_mode comp_mode,
 				  struct qed_spq_comp_cb *p_comp_addr)
 {
-	struct iscsi_spe_func_dstry *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	int rc = 0;
@@ -650,9 +623,6 @@ static int qed_sp_iscsi_func_stop(struct qed_hwfn *p_hwfn,
 				 PROTOCOLID_ISCSI, &init_data);
 	if (rc)
 		return rc;
-
-	p_ramrod = &p_ent->ramrod.iscsi_destroy;
-	p_ramrod->hdr.op_code = ISCSI_RAMROD_CMD_ID_DESTROY_FUNC;
 
 	rc = qed_spq_post(p_hwfn, p_ent, NULL);
 

@@ -37,7 +37,6 @@
  */
 
 #define RSB_CLEAR_LOOPS		32	/* To forcibly overwrite all entries */
-#define RSB_FILL_LOOPS		16	/* To avoid underflow */
 
 /*
  * Google experimented with loop-unrolling and this turned out to be
@@ -314,7 +313,7 @@ DECLARE_STATIC_KEY_FALSE(mds_idle_clear);
 #include <asm/segment.h>
 
 /**
- * mds_clear_cpu_buffers - Mitigation for MDS vulnerability
+ * mds_clear_cpu_buffers - Mitigation for MDS and TAA vulnerability
  *
  * This uses the otherwise unused and obsolete VERW instruction in
  * combination with microcode which triggers a CPU buffer flush when the
@@ -337,7 +336,7 @@ static inline void mds_clear_cpu_buffers(void)
 }
 
 /**
- * mds_user_clear_cpu_buffers - Mitigation for MDS vulnerability
+ * mds_user_clear_cpu_buffers - Mitigation for MDS and TAA vulnerability
  *
  * Clear CPU buffers if the corresponding static key is enabled
  */

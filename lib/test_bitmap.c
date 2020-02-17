@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Test cases for printf facility.
+ * Test cases for bitmap API.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -21,6 +21,39 @@ static unsigned failed_tests __initdata;
 
 static char pbl_buffer[PAGE_SIZE] __initdata;
 
+static const unsigned long exp1[] __initconst = {
+	BITMAP_FROM_U64(1),
+	BITMAP_FROM_U64(2),
+	BITMAP_FROM_U64(0x0000ffff),
+	BITMAP_FROM_U64(0xffff0000),
+	BITMAP_FROM_U64(0x55555555),
+	BITMAP_FROM_U64(0xaaaaaaaa),
+	BITMAP_FROM_U64(0x11111111),
+	BITMAP_FROM_U64(0x22222222),
+	BITMAP_FROM_U64(0xffffffff),
+	BITMAP_FROM_U64(0xfffffffe),
+	BITMAP_FROM_U64(0x3333333311111111ULL),
+	BITMAP_FROM_U64(0xffffffff77777777ULL),
+	BITMAP_FROM_U64(0),
+};
+
+static const unsigned long exp2[] __initconst = {
+	BITMAP_FROM_U64(0x3333333311111111ULL),
+	BITMAP_FROM_U64(0xffffffff77777777ULL),
+};
+
+/* Fibonacci sequence */
+static const unsigned long exp2_to_exp3_mask[] __initconst = {
+	BITMAP_FROM_U64(0x008000020020212eULL),
+};
+/* exp3_0_1 = (exp2[0] & ~exp2_to_exp3_mask) | (exp2[1] & exp2_to_exp3_mask) */
+static const unsigned long exp3_0_1[] __initconst = {
+	BITMAP_FROM_U64(0x33b3333311313137ULL),
+};
+/* exp3_1_0 = (exp2[1] & ~exp2_to_exp3_mask) | (exp2[0] & exp2_to_exp3_mask) */
+static const unsigned long exp3_1_0[] __initconst = {
+	BITMAP_FROM_U64(0xff7fffff77575751ULL),
+};
 
 static bool __init
 __check_eq_uint(const char *srcfile, unsigned int line,
@@ -92,6 +125,36 @@ __check_eq_u32_array(const char *srcfile, unsigned int line,
 	return true;
 }
 
+static bool __init __check_eq_clump8(const char *srcfile, unsigned int line,
+				    const unsigned int offset,
+				    const unsigned int size,
+				    const unsigned char *const clump_exp,
+				    const unsigned long *const clump)
+{
+	unsigned long exp;
+
+	if (offset >= size) {
+		pr_warn("[%s:%u] bit offset for clump out-of-bounds: expected less than %u, got %u\n",
+			srcfile, line, size, offset);
+		return false;
+	}
+
+	exp = clump_exp[offset / 8];
+	if (!exp) {
+		pr_warn("[%s:%u] bit offset for zero clump: expected nonzero clump, got bit offset %u with clump value 0",
+			srcfile, line, offset);
+		return false;
+	}
+
+	if (*clump != exp) {
+		pr_warn("[%s:%u] expected clump value of 0x%lX, got clump value of 0x%lX",
+			srcfile, line, exp, *clump);
+		return false;
+	}
+
+	return true;
+}
+
 #define __expect_eq(suffix, ...)					\
 	({								\
 		int result = 0;						\
@@ -108,6 +171,7 @@ __check_eq_u32_array(const char *srcfile, unsigned int line,
 #define expect_eq_bitmap(...)		__expect_eq(bitmap, ##__VA_ARGS__)
 #define expect_eq_pbl(...)		__expect_eq(pbl, ##__VA_ARGS__)
 #define expect_eq_u32_array(...)	__expect_eq(u32_array, ##__VA_ARGS__)
+#define expect_eq_clump8(...)		__expect_eq(clump8, ##__VA_ARGS__)
 
 static void __init test_zero_clear(void)
 {
@@ -206,7 +270,33 @@ static void __init test_copy(void)
 	expect_eq_pbl("0-108,128-1023", bmap2, 1024);
 }
 
-#define PARSE_TIME 0x1
+#define EXP2_IN_BITS	(sizeof(exp2) * 8)
+
+static void __init test_replace(void)
+{
+	unsigned int nbits = 64;
+	unsigned int nlongs = DIV_ROUND_UP(nbits, BITS_PER_LONG);
+	DECLARE_BITMAP(bmap, 1024);
+
+	bitmap_zero(bmap, 1024);
+	bitmap_replace(bmap, &exp2[0 * nlongs], &exp2[1 * nlongs], exp2_to_exp3_mask, nbits);
+	expect_eq_bitmap(bmap, exp3_0_1, nbits);
+
+	bitmap_zero(bmap, 1024);
+	bitmap_replace(bmap, &exp2[1 * nlongs], &exp2[0 * nlongs], exp2_to_exp3_mask, nbits);
+	expect_eq_bitmap(bmap, exp3_1_0, nbits);
+
+	bitmap_fill(bmap, 1024);
+	bitmap_replace(bmap, &exp2[0 * nlongs], &exp2[1 * nlongs], exp2_to_exp3_mask, nbits);
+	expect_eq_bitmap(bmap, exp3_0_1, nbits);
+
+	bitmap_fill(bmap, 1024);
+	bitmap_replace(bmap, &exp2[1 * nlongs], &exp2[0 * nlongs], exp2_to_exp3_mask, nbits);
+	expect_eq_bitmap(bmap, exp3_1_0, nbits);
+}
+
+#define PARSE_TIME	0x1
+#define NO_LEN		0x2
 
 struct test_bitmap_parselist{
 	const int errno;
@@ -216,53 +306,32 @@ struct test_bitmap_parselist{
 	const int flags;
 };
 
-static const unsigned long exp[] __initconst = {
-	BITMAP_FROM_U64(1),
-	BITMAP_FROM_U64(2),
-	BITMAP_FROM_U64(0x0000ffff),
-	BITMAP_FROM_U64(0xffff0000),
-	BITMAP_FROM_U64(0x55555555),
-	BITMAP_FROM_U64(0xaaaaaaaa),
-	BITMAP_FROM_U64(0x11111111),
-	BITMAP_FROM_U64(0x22222222),
-	BITMAP_FROM_U64(0xffffffff),
-	BITMAP_FROM_U64(0xfffffffe),
-	BITMAP_FROM_U64(0x3333333311111111ULL),
-	BITMAP_FROM_U64(0xffffffff77777777ULL),
-	BITMAP_FROM_U64(0),
-};
-
-static const unsigned long exp2[] __initconst = {
-	BITMAP_FROM_U64(0x3333333311111111ULL),
-	BITMAP_FROM_U64(0xffffffff77777777ULL)
-};
-
 static const struct test_bitmap_parselist parselist_tests[] __initconst = {
 #define step (sizeof(u64) / sizeof(unsigned long))
 
-	{0, "0",			&exp[0], 8, 0},
-	{0, "1",			&exp[1 * step], 8, 0},
-	{0, "0-15",			&exp[2 * step], 32, 0},
-	{0, "16-31",			&exp[3 * step], 32, 0},
-	{0, "0-31:1/2",			&exp[4 * step], 32, 0},
-	{0, "1-31:1/2",			&exp[5 * step], 32, 0},
-	{0, "0-31:1/4",			&exp[6 * step], 32, 0},
-	{0, "1-31:1/4",			&exp[7 * step], 32, 0},
-	{0, "0-31:4/4",			&exp[8 * step], 32, 0},
-	{0, "1-31:4/4",			&exp[9 * step], 32, 0},
-	{0, "0-31:1/4,32-63:2/4",	&exp[10 * step], 64, 0},
-	{0, "0-31:3/4,32-63:4/4",	&exp[11 * step], 64, 0},
-	{0, "  ,,  0-31:3/4  ,, 32-63:4/4  ,,  ",	&exp[11 * step], 64, 0},
+	{0, "0",			&exp1[0], 8, 0},
+	{0, "1",			&exp1[1 * step], 8, 0},
+	{0, "0-15",			&exp1[2 * step], 32, 0},
+	{0, "16-31",			&exp1[3 * step], 32, 0},
+	{0, "0-31:1/2",			&exp1[4 * step], 32, 0},
+	{0, "1-31:1/2",			&exp1[5 * step], 32, 0},
+	{0, "0-31:1/4",			&exp1[6 * step], 32, 0},
+	{0, "1-31:1/4",			&exp1[7 * step], 32, 0},
+	{0, "0-31:4/4",			&exp1[8 * step], 32, 0},
+	{0, "1-31:4/4",			&exp1[9 * step], 32, 0},
+	{0, "0-31:1/4,32-63:2/4",	&exp1[10 * step], 64, 0},
+	{0, "0-31:3/4,32-63:4/4",	&exp1[11 * step], 64, 0},
+	{0, "  ,,  0-31:3/4  ,, 32-63:4/4  ,,  ",	&exp1[11 * step], 64, 0},
 
 	{0, "0-31:1/4,32-63:2/4,64-95:3/4,96-127:4/4",	exp2, 128, 0},
 
 	{0, "0-2047:128/256", NULL, 2048, PARSE_TIME},
 
-	{0, "",				&exp[12 * step], 8, 0},
-	{0, "\n",			&exp[12 * step], 8, 0},
-	{0, ",,  ,,  , ,  ,",		&exp[12 * step], 8, 0},
-	{0, " ,  ,,  , ,   ",		&exp[12 * step], 8, 0},
-	{0, " ,  ,,  , ,   \n",		&exp[12 * step], 8, 0},
+	{0, "",				&exp1[12 * step], 8, 0},
+	{0, "\n",			&exp1[12 * step], 8, 0},
+	{0, ",,  ,,  , ,  ,",		&exp1[12 * step], 8, 0},
+	{0, " ,  ,,  , ,   ",		&exp1[12 * step], 8, 0},
+	{0, " ,  ,,  , ,   \n",		&exp1[12 * step], 8, 0},
 
 	{-EINVAL, "-1",	NULL, 8, 0},
 	{-EINVAL, "-0",	NULL, 8, 0},
@@ -280,6 +349,7 @@ static const struct test_bitmap_parselist parselist_tests[] __initconst = {
 	{-EINVAL, "a-31:10/1", NULL, 8, 0},
 	{-EINVAL, "0-31:a/1", NULL, 8, 0},
 	{-EINVAL, "0-\n", NULL, 8, 0},
+
 };
 
 static void __init __test_bitmap_parselist(int is_user)
@@ -299,7 +369,7 @@ static void __init __test_bitmap_parselist(int is_user)
 
 			set_fs(KERNEL_DS);
 			time = ktime_get();
-			err = bitmap_parselist_user(ptest.in, len,
+			err = bitmap_parselist_user((__force const char __user *)ptest.in, len,
 						    bmap, ptest.nbits);
 			time = ktime_get() - time;
 			set_fs(orig_fs);
@@ -326,6 +396,97 @@ static void __init __test_bitmap_parselist(int is_user)
 		if (ptest.flags & PARSE_TIME)
 			pr_err("parselist%s: %d: input is '%s' OK, Time: %llu\n",
 					mode, i, ptest.in, time);
+
+#undef ptest
+	}
+}
+
+static const unsigned long parse_test[] __initconst = {
+	BITMAP_FROM_U64(0),
+	BITMAP_FROM_U64(1),
+	BITMAP_FROM_U64(0xdeadbeef),
+	BITMAP_FROM_U64(0x100000000ULL),
+};
+
+static const unsigned long parse_test2[] __initconst = {
+	BITMAP_FROM_U64(0x100000000ULL), BITMAP_FROM_U64(0xdeadbeef),
+	BITMAP_FROM_U64(0x100000000ULL), BITMAP_FROM_U64(0xbaadf00ddeadbeef),
+	BITMAP_FROM_U64(0x100000000ULL), BITMAP_FROM_U64(0x0badf00ddeadbeef),
+};
+
+static const struct test_bitmap_parselist parse_tests[] __initconst = {
+	{0, "",				&parse_test[0 * step], 32, 0},
+	{0, " ",			&parse_test[0 * step], 32, 0},
+	{0, "0",			&parse_test[0 * step], 32, 0},
+	{0, "0\n",			&parse_test[0 * step], 32, 0},
+	{0, "1",			&parse_test[1 * step], 32, 0},
+	{0, "deadbeef",			&parse_test[2 * step], 32, 0},
+	{0, "1,0",			&parse_test[3 * step], 33, 0},
+	{0, "deadbeef,\n,0,1",		&parse_test[2 * step], 96, 0},
+
+	{0, "deadbeef,1,0",		&parse_test2[0 * 2 * step], 96, 0},
+	{0, "baadf00d,deadbeef,1,0",	&parse_test2[1 * 2 * step], 128, 0},
+	{0, "badf00d,deadbeef,1,0",	&parse_test2[2 * 2 * step], 124, 0},
+	{0, "badf00d,deadbeef,1,0",	&parse_test2[2 * 2 * step], 124, NO_LEN},
+	{0, "  badf00d,deadbeef,1,0  ",	&parse_test2[2 * 2 * step], 124, 0},
+	{0, " , badf00d,deadbeef,1,0 , ",	&parse_test2[2 * 2 * step], 124, 0},
+	{0, " , badf00d, ,, ,,deadbeef,1,0 , ",	&parse_test2[2 * 2 * step], 124, 0},
+
+	{-EINVAL,    "goodfood,deadbeef,1,0",	NULL, 128, 0},
+	{-EOVERFLOW, "3,0",			NULL, 33, 0},
+	{-EOVERFLOW, "123badf00d,deadbeef,1,0",	NULL, 128, 0},
+	{-EOVERFLOW, "badf00d,deadbeef,1,0",	NULL, 90, 0},
+	{-EOVERFLOW, "fbadf00d,deadbeef,1,0",	NULL, 95, 0},
+	{-EOVERFLOW, "badf00d,deadbeef,1,0",	NULL, 100, 0},
+#undef step
+};
+
+static void __init __test_bitmap_parse(int is_user)
+{
+	int i;
+	int err;
+	ktime_t time;
+	DECLARE_BITMAP(bmap, 2048);
+	char *mode = is_user ? "_user"  : "";
+
+	for (i = 0; i < ARRAY_SIZE(parse_tests); i++) {
+		struct test_bitmap_parselist test = parse_tests[i];
+
+		if (is_user) {
+			size_t len = strlen(test.in);
+			mm_segment_t orig_fs = get_fs();
+
+			set_fs(KERNEL_DS);
+			time = ktime_get();
+			err = bitmap_parse_user((__force const char __user *)test.in, len,
+						bmap, test.nbits);
+			time = ktime_get() - time;
+			set_fs(orig_fs);
+		} else {
+			size_t len = test.flags & NO_LEN ?
+				UINT_MAX : strlen(test.in);
+			time = ktime_get();
+			err = bitmap_parse(test.in, len, bmap, test.nbits);
+			time = ktime_get() - time;
+		}
+
+		if (err != test.errno) {
+			pr_err("parse%s: %d: input is %s, errno is %d, expected %d\n",
+					mode, i, test.in, err, test.errno);
+			continue;
+		}
+
+		if (!err && test.expected
+			 && !__bitmap_equal(bmap, test.expected, test.nbits)) {
+			pr_err("parse%s: %d: input is %s, result is 0x%lx, expected 0x%lx\n",
+					mode, i, test.in, bmap[0],
+					*test.expected);
+			continue;
+		}
+
+		if (test.flags & PARSE_TIME)
+			pr_err("parse%s: %d: input is '%s' OK, Time: %llu\n",
+					mode, i, test.in, time);
 	}
 }
 
@@ -339,20 +500,30 @@ static void __init test_bitmap_parselist_user(void)
 	__test_bitmap_parselist(1);
 }
 
-#define EXP_BYTES	(sizeof(exp) * 8)
+static void __init test_bitmap_parse(void)
+{
+	__test_bitmap_parse(0);
+}
+
+static void __init test_bitmap_parse_user(void)
+{
+	__test_bitmap_parse(1);
+}
+
+#define EXP1_IN_BITS	(sizeof(exp1) * 8)
 
 static void __init test_bitmap_arr32(void)
 {
 	unsigned int nbits, next_bit;
-	u32 arr[sizeof(exp) / 4];
-	DECLARE_BITMAP(bmap2, EXP_BYTES);
+	u32 arr[EXP1_IN_BITS / 32];
+	DECLARE_BITMAP(bmap2, EXP1_IN_BITS);
 
 	memset(arr, 0xa5, sizeof(arr));
 
-	for (nbits = 0; nbits < EXP_BYTES; ++nbits) {
-		bitmap_to_arr32(arr, exp, nbits);
+	for (nbits = 0; nbits < EXP1_IN_BITS; ++nbits) {
+		bitmap_to_arr32(arr, exp1, nbits);
 		bitmap_from_arr32(bmap2, arr, nbits);
-		expect_eq_bitmap(bmap2, exp, nbits);
+		expect_eq_bitmap(bmap2, exp1, nbits);
 
 		next_bit = find_next_bit(bmap2,
 				round_up(nbits, BITS_PER_LONG), nbits);
@@ -361,7 +532,7 @@ static void __init test_bitmap_arr32(void)
 				" tail is not safely cleared: %d\n",
 				nbits, next_bit);
 
-		if (nbits < EXP_BYTES - 32)
+		if (nbits < EXP1_IN_BITS - 32)
 			expect_eq_uint(arr[DIV_ROUND_UP(nbits, 32)],
 								0xa5a5a5a5);
 	}
@@ -404,15 +575,52 @@ static void noinline __init test_mem_optimisations(void)
 	}
 }
 
+static const unsigned char clump_exp[] __initconst = {
+	0x01,	/* 1 bit set */
+	0x02,	/* non-edge 1 bit set */
+	0x00,	/* zero bits set */
+	0x38,	/* 3 bits set across 4-bit boundary */
+	0x38,	/* Repeated clump */
+	0x0F,	/* 4 bits set */
+	0xFF,	/* all bits set */
+	0x05,	/* non-adjacent 2 bits set */
+};
+
+static void __init test_for_each_set_clump8(void)
+{
+#define CLUMP_EXP_NUMBITS 64
+	DECLARE_BITMAP(bits, CLUMP_EXP_NUMBITS);
+	unsigned int start;
+	unsigned long clump;
+
+	/* set bitmap to test case */
+	bitmap_zero(bits, CLUMP_EXP_NUMBITS);
+	bitmap_set(bits, 0, 1);		/* 0x01 */
+	bitmap_set(bits, 9, 1);		/* 0x02 */
+	bitmap_set(bits, 27, 3);	/* 0x28 */
+	bitmap_set(bits, 35, 3);	/* 0x28 */
+	bitmap_set(bits, 40, 4);	/* 0x0F */
+	bitmap_set(bits, 48, 8);	/* 0xFF */
+	bitmap_set(bits, 56, 1);	/* 0x05 - part 1 */
+	bitmap_set(bits, 58, 1);	/* 0x05 - part 2 */
+
+	for_each_set_clump8(start, clump, bits, CLUMP_EXP_NUMBITS)
+		expect_eq_clump8(start, CLUMP_EXP_NUMBITS, clump_exp, &clump);
+}
+
 static void __init selftest(void)
 {
 	test_zero_clear();
 	test_fill_set();
 	test_copy();
+	test_replace();
 	test_bitmap_arr32();
+	test_bitmap_parse();
+	test_bitmap_parse_user();
 	test_bitmap_parselist();
 	test_bitmap_parselist_user();
 	test_mem_optimisations();
+	test_for_each_set_clump8();
 }
 
 KSTM_MODULE_LOADERS(test_bitmap);

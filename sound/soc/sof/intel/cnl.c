@@ -17,6 +17,8 @@
 
 #include "../ops.h"
 #include "hda.h"
+#include "hda-ipc.h"
+#include "../sof-audio.h"
 
 static const struct snd_sof_debugfs_map cnl_dsp_debugfs[] = {
 	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000, SOF_DEBUGFS_ACCESS_ALWAYS},
@@ -105,10 +107,6 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 				    "nothing to do in IPC IRQ thread\n");
 	}
 
-	/* re-enable IPC interrupt */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
-				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
-
 	return IRQ_HANDLED;
 }
 
@@ -150,14 +148,45 @@ static void cnl_ipc_dsp_done(struct snd_sof_dev *sdev)
 				CNL_DSP_REG_HIPCCTL_DONE);
 }
 
+static bool cnl_compact_ipc_compress(struct snd_sof_ipc_msg *msg,
+				     u32 *dr, u32 *dd)
+{
+	struct sof_ipc_pm_gate *pm_gate;
+
+	if (msg->header == (SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_GATE)) {
+		pm_gate = msg->msg_data;
+
+		/* send the compact message via the primary register */
+		*dr = HDA_IPC_MSG_COMPACT | HDA_IPC_PM_GATE;
+
+		/* send payload via the extended data register */
+		*dd = pm_gate->flags;
+
+		return true;
+	}
+
+	return false;
+}
+
 static int cnl_ipc_send_msg(struct snd_sof_dev *sdev,
 			    struct snd_sof_ipc_msg *msg)
 {
-	/* send the message */
-	sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
-			  msg->msg_size);
-	snd_sof_dsp_write(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR,
-			  CNL_DSP_REG_HIPCIDR_BUSY);
+	u32 dr = 0;
+	u32 dd = 0;
+
+	if (cnl_compact_ipc_compress(msg, &dr, &dd)) {
+		/* send the message via IPC registers */
+		snd_sof_dsp_write(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDD,
+				  dd);
+		snd_sof_dsp_write(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR,
+				  CNL_DSP_REG_HIPCIDR_BUSY | dr);
+	} else {
+		/* send the message via mailbox */
+		sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
+				  msg->msg_size);
+		snd_sof_dsp_write(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR,
+				  CNL_DSP_REG_HIPCIDR_BUSY);
+	}
 
 	return 0;
 }
@@ -199,7 +228,6 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.block_write	= sof_block_write,
 
 	/* doorbell */
-	.irq_handler	= hda_dsp_ipc_irq_handler,
 	.irq_thread	= cnl_ipc_irq_thread,
 
 	/* ipc */
@@ -210,6 +238,12 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 
 	.ipc_msg_data	= hda_ipc_msg_data,
 	.ipc_pcm_params	= hda_ipc_pcm_params,
+
+	/* machine driver */
+	.machine_select = hda_machine_select,
+	.machine_register = sof_machine_register,
+	.machine_unregister = sof_machine_unregister,
+	.set_mach_params = hda_set_mach_params,
 
 	/* debug */
 	.debug_map	= cnl_dsp_debugfs,
@@ -255,8 +289,18 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.runtime_resume		= hda_dsp_runtime_resume,
 	.runtime_idle		= hda_dsp_runtime_idle,
 	.set_hw_params_upon_resume = hda_dsp_set_hw_params_upon_resume,
+	.set_power_state	= hda_dsp_set_power_state,
+
+	/* ALSA HW info flags */
+	.hw_info =	SNDRV_PCM_INFO_MMAP |
+			SNDRV_PCM_INFO_MMAP_VALID |
+			SNDRV_PCM_INFO_INTERLEAVED |
+			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+
+	.arch_ops = &sof_xtensa_arch_ops,
 };
-EXPORT_SYMBOL(sof_cnl_ops);
+EXPORT_SYMBOL_NS(sof_cnl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc cnl_chip_info = {
 	/* Cannonlake */
@@ -275,7 +319,7 @@ const struct sof_intel_dsp_desc cnl_chip_info = {
 	.ssp_count = CNL_SSP_COUNT,
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 };
-EXPORT_SYMBOL(cnl_chip_info);
+EXPORT_SYMBOL_NS(cnl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc icl_chip_info = {
 	/* Icelake */
@@ -294,7 +338,7 @@ const struct sof_intel_dsp_desc icl_chip_info = {
 	.ssp_count = ICL_SSP_COUNT,
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 };
-EXPORT_SYMBOL(icl_chip_info);
+EXPORT_SYMBOL_NS(icl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc tgl_chip_info = {
 	/* Tigerlake */
@@ -310,7 +354,7 @@ const struct sof_intel_dsp_desc tgl_chip_info = {
 	.ssp_count = ICL_SSP_COUNT,
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 };
-EXPORT_SYMBOL(tgl_chip_info);
+EXPORT_SYMBOL_NS(tgl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc ehl_chip_info = {
 	/* Elkhartlake */
@@ -326,4 +370,21 @@ const struct sof_intel_dsp_desc ehl_chip_info = {
 	.ssp_count = ICL_SSP_COUNT,
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 };
-EXPORT_SYMBOL(ehl_chip_info);
+EXPORT_SYMBOL_NS(ehl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
+
+const struct sof_intel_dsp_desc jsl_chip_info = {
+	/* Jasperlake */
+	.cores_num = 2,
+	.init_core_mask = 1,
+	.cores_mask = HDA_DSP_CORE_MASK(0) |
+				HDA_DSP_CORE_MASK(1),
+	.ipc_req = CNL_DSP_REG_HIPCIDR,
+	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
+	.ipc_ack = CNL_DSP_REG_HIPCIDA,
+	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
+	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
+	.rom_init_timeout	= 300,
+	.ssp_count = ICL_SSP_COUNT,
+	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
+};
+EXPORT_SYMBOL_NS(jsl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);

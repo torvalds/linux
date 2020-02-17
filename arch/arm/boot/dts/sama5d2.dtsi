@@ -300,6 +300,8 @@
 			interrupts = <31 IRQ_TYPE_LEVEL_HIGH 0>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 31>, <&pmc PMC_TYPE_GCK 31>, <&pmc PMC_TYPE_CORE PMC_MAIN>;
 			clock-names = "hclock", "multclk", "baseclk";
+			assigned-clocks = <&pmc PMC_TYPE_GCK 31>;
+			assigned-clock-rates = <480000000>;
 			status = "disabled";
 		};
 
@@ -309,6 +311,8 @@
 			interrupts = <32 IRQ_TYPE_LEVEL_HIGH 0>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 32>, <&pmc PMC_TYPE_GCK 32>, <&pmc PMC_TYPE_CORE PMC_MAIN>;
 			clock-names = "hclock", "multclk", "baseclk";
+			assigned-clocks = <&pmc PMC_TYPE_GCK 32>;
+			assigned-clock-rates = <480000000>;
 			status = "disabled";
 		};
 
@@ -615,6 +619,7 @@
 				interrupts = <38 IRQ_TYPE_LEVEL_HIGH 7>;
 				#pwm-cells = <3>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 38>;
+				status = "disabled";
 			};
 
 			sfr: sfr@f8030000 {
@@ -689,7 +694,7 @@
 				#clock-cells = <0>;
 			};
 
-			rtc@f80480b0 {
+			rtc: rtc@f80480b0 {
 				compatible = "atmel,at91rm9200-rtc";
 				reg = <0xf80480b0 0x30>;
 				interrupts = <74 IRQ_TYPE_LEVEL_HIGH 7>;
@@ -884,9 +889,12 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 18>;
 			};
 
-			secumod@fc040000 {
+			pioBU: secumod@fc040000 {
 				compatible = "atmel,sama5d2-secumod", "syscon";
 				reg = <0xfc040000 0x100>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
 			};
 
 			tdes@fc044000 {

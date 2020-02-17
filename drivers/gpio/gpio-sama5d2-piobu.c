@@ -119,7 +119,8 @@ static int sama5d2_piobu_get_direction(struct gpio_chip *chip,
 	if (ret < 0)
 		return ret;
 
-	return (ret == PIOBU_IN) ? 1 : 0;
+	return (ret == PIOBU_IN) ? GPIO_LINE_DIRECTION_IN :
+				   GPIO_LINE_DIRECTION_OUT;
 }
 
 /**
@@ -154,9 +155,9 @@ static int sama5d2_piobu_get(struct gpio_chip *chip, unsigned int pin)
 	/* if pin is input, read value from PDS else read from SOD */
 	int ret = sama5d2_piobu_get_direction(chip, pin);
 
-	if (ret == 1)
+	if (ret == GPIO_LINE_DIRECTION_IN)
 		ret = sama5d2_piobu_read_value(chip, pin, PIOBU_PDS);
-	else if (!ret)
+	else if (ret == GPIO_LINE_DIRECTION_OUT)
 		ret = sama5d2_piobu_read_value(chip, pin, PIOBU_SOD);
 
 	if (ret < 0)
@@ -243,7 +244,6 @@ static struct platform_driver sama5d2_piobu_driver = {
 
 module_platform_driver(sama5d2_piobu_driver);
 
-MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SAMA5D2 PIOBU controller driver");
 MODULE_AUTHOR("Andrei Stefanescu <andrei.stefanescu@microchip.com>");

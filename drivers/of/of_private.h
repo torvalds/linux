@@ -84,15 +84,11 @@ static inline void __of_detach_node_sysfs(struct device_node *np) {}
 int of_resolve_phandles(struct device_node *tree);
 #endif
 
-#if defined(CONFIG_OF_DYNAMIC)
-void __of_free_phandle_cache_entry(phandle handle);
-#endif
+void __of_phandle_cache_inv_entry(phandle handle);
 
 #if defined(CONFIG_OF_OVERLAY)
 void of_overlay_mutex_lock(void);
 void of_overlay_mutex_unlock(void);
-int of_free_phandle_cache(void);
-void of_populate_phandle_cache(void);
 #else
 static inline void of_overlay_mutex_lock(void) {};
 static inline void of_overlay_mutex_unlock(void) {};
@@ -157,5 +153,19 @@ extern void __of_sysfs_remove_bin_file(struct device_node *np,
 /* reverse iterator */
 #define for_each_transaction_entry_reverse(_oft, _te) \
 	list_for_each_entry_reverse(_te, &(_oft)->te_list, node)
+
+extern int of_bus_n_addr_cells(struct device_node *np);
+extern int of_bus_n_size_cells(struct device_node *np);
+
+#ifdef CONFIG_OF_ADDRESS
+extern int of_dma_get_range(struct device_node *np, u64 *dma_addr,
+			    u64 *paddr, u64 *size);
+#else
+static inline int of_dma_get_range(struct device_node *np, u64 *dma_addr,
+				   u64 *paddr, u64 *size)
+{
+	return -ENODEV;
+}
+#endif
 
 #endif /* _LINUX_OF_PRIVATE_H */

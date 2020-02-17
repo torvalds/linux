@@ -193,6 +193,16 @@ static inline int snd_sof_dsp_set_clk(struct snd_sof_dev *sdev, u32 freq)
 	return 0;
 }
 
+static inline int snd_sof_dsp_set_power_state(struct snd_sof_dev *sdev,
+					      enum sof_d0_substate substate)
+{
+	if (sof_ops(sdev)->set_power_state)
+		return sof_ops(sdev)->set_power_state(sdev, substate);
+
+	/* D0 substate is not supported */
+	return -ENOTSUPP;
+}
+
 /* debug */
 static inline void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags)
 {
@@ -379,6 +389,40 @@ snd_sof_pcm_platform_pointer(struct snd_sof_dev *sdev,
 		return sof_ops(sdev)->pcm_pointer(sdev, substream);
 
 	return 0;
+}
+
+/* machine driver */
+static inline int
+snd_sof_machine_register(struct snd_sof_dev *sdev, void *pdata)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->machine_register)
+		return sof_ops(sdev)->machine_register(sdev, pdata);
+
+	return 0;
+}
+
+static inline void
+snd_sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->machine_unregister)
+		sof_ops(sdev)->machine_unregister(sdev, pdata);
+}
+
+static inline void
+snd_sof_machine_select(struct snd_sof_dev *sdev)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->machine_select)
+		sof_ops(sdev)->machine_select(sdev);
+}
+
+static inline void
+snd_sof_set_mach_params(const struct snd_soc_acpi_mach *mach,
+			struct device *dev)
+{
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+
+	if (sof_ops(sdev) && sof_ops(sdev)->set_mach_params)
+		sof_ops(sdev)->set_mach_params(mach, dev);
 }
 
 static inline const struct snd_sof_dsp_ops

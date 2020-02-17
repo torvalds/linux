@@ -64,7 +64,7 @@ static inline void devm_ioport_unmap(struct device *dev, void __iomem *addr)
 
 void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
 			   resource_size_t size);
-void __iomem *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
+void __iomem *devm_ioremap_uc(struct device *dev, resource_size_t offset,
 				   resource_size_t size);
 void __iomem *devm_ioremap_wc(struct device *dev, resource_size_t offset,
 				   resource_size_t size);
@@ -85,7 +85,7 @@ void *__devm_memremap_pages(struct device *dev, struct resource *res);
  * Posting") mandate non-posted configuration transactions. There is
  * no ioremap API in the kernel that can guarantee non-posted write
  * semantics across arches so provide a default implementation for
- * mapping PCI config space that defaults to ioremap_nocache(); arches
+ * mapping PCI config space that defaults to ioremap(); arches
  * should override it if they have memory mapping implementations that
  * guarantee non-posted writes semantics to make the memory mapping
  * compliant with the PCI specification.
@@ -95,7 +95,7 @@ void *__devm_memremap_pages(struct device *dev, struct resource *res);
 static inline void __iomem *pci_remap_cfgspace(phys_addr_t offset,
 					       size_t size)
 {
-	return ioremap_nocache(offset, size);
+	return ioremap(offset, size);
 }
 #endif
 #endif

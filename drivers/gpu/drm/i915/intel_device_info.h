@@ -107,6 +107,7 @@ enum intel_ppgtt_type {
 	func(is_mobile); \
 	func(is_lp); \
 	func(require_force_probe); \
+	func(is_dgfx); \
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
 	func(gpu_reset_clobbers_display); \
@@ -135,8 +136,11 @@ enum intel_ppgtt_type {
 	func(has_csr); \
 	func(has_ddi); \
 	func(has_dp_mst); \
+	func(has_dsb); \
+	func(has_dsc); \
 	func(has_fbc); \
 	func(has_gmch); \
+	func(has_hdcp); \
 	func(has_hotplug); \
 	func(has_ipc); \
 	func(has_modular_fia); \
@@ -159,9 +163,11 @@ struct intel_device_info {
 
 	unsigned int page_sizes; /* page sizes supported by the HW */
 
+	u32 memory_regions; /* regions supported by the HW */
+
 	u32 display_mmio_offset;
 
-	u8 num_pipes;
+	u8 pipe_mask;
 
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
@@ -224,12 +230,13 @@ const char *intel_platform_name(enum intel_platform platform);
 
 void intel_device_info_subplatform_init(struct drm_i915_private *dev_priv);
 void intel_device_info_runtime_init(struct drm_i915_private *dev_priv);
-void intel_device_info_dump_flags(const struct intel_device_info *info,
-				  struct drm_printer *p);
-void intel_device_info_dump_runtime(const struct intel_runtime_info *info,
+
+void intel_device_info_print_static(const struct intel_device_info *info,
 				    struct drm_printer *p);
-void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
+void intel_device_info_print_runtime(const struct intel_runtime_info *info,
 				     struct drm_printer *p);
+void intel_device_info_print_topology(const struct sseu_dev_info *sseu,
+				      struct drm_printer *p);
 
 void intel_device_info_init_mmio(struct drm_i915_private *dev_priv);
 

@@ -206,14 +206,14 @@ static int nt39016_disable(struct drm_panel *drm_panel)
 	return 0;
 }
 
-static int nt39016_get_modes(struct drm_panel *drm_panel)
+static int nt39016_get_modes(struct drm_panel *drm_panel,
+			     struct drm_connector *connector)
 {
 	struct nt39016 *panel = to_nt39016(drm_panel);
 	const struct nt39016_panel_info *panel_info = panel->panel_info;
-	struct drm_connector *connector = drm_panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(drm_panel->drm, &panel_info->display_mode);
+	mode = drm_mode_duplicate(connector->dev, &panel_info->display_mode);
 	if (!mode)
 		return -ENOMEM;
 
@@ -292,9 +292,8 @@ static int nt39016_probe(struct spi_device *spi)
 		return err;
 	}
 
-	drm_panel_init(&panel->drm_panel);
-	panel->drm_panel.dev = dev;
-	panel->drm_panel.funcs = &nt39016_funcs;
+	drm_panel_init(&panel->drm_panel, dev, &nt39016_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	err = drm_panel_add(&panel->drm_panel);
 	if (err < 0) {

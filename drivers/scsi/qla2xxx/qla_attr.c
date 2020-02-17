@@ -102,8 +102,10 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			qla8044_idc_lock(ha);
 			qla82xx_set_reset_owner(vha);
 			qla8044_idc_unlock(ha);
-		} else
+		} else {
+			ha->fw_dump_mpi = 1;
 			qla2x00_system_error(vha);
+		}
 		break;
 	case 4:
 		if (IS_P3P_TYPE(ha)) {
@@ -176,6 +178,7 @@ qla2x00_sysfs_read_nvram(struct file *filp, struct kobject *kobj,
 
 	faddr = ha->flt_region_nvram;
 	if (IS_QLA28XX(ha)) {
+		qla28xx_get_aux_images(vha, &active_regions);
 		if (active_regions.aux.vpd_nvram == QLA27XX_SECONDARY_IMAGE)
 			faddr = ha->flt_region_nvram_sec;
 	}
@@ -440,9 +443,6 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		valid = 0;
 		if (ha->optrom_size == OPTROM_SIZE_2300 && start == 0)
 			valid = 1;
-		else if (start == (ha->flt_region_boot * 4) ||
-		    start == (ha->flt_region_fw * 4))
-			valid = 1;
 		else if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha))
 			valid = 1;
 		if (!valid) {
@@ -489,8 +489,10 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		    "Writing flash region -- 0x%x/0x%x.\n",
 		    ha->optrom_region_start, ha->optrom_region_size);
 
-		ha->isp_ops->write_optrom(vha, ha->optrom_buffer,
+		rval = ha->isp_ops->write_optrom(vha, ha->optrom_buffer,
 		    ha->optrom_region_start, ha->optrom_region_size);
+		if (rval)
+			rval = -EIO;
 		break;
 	default:
 		rval = -EINVAL;

@@ -68,6 +68,58 @@ static const char *inv_mpu_match_acpi_device(struct device *dev,
 	return dev_name(dev);
 }
 
+static bool inv_mpu_i2c_aux_bus(struct device *dev)
+{
+	struct inv_mpu6050_state *st = iio_priv(dev_get_drvdata(dev));
+
+	switch (st->chip_type) {
+	case INV_ICM20608:
+	case INV_ICM20602:
+		/* no i2c auxiliary bus on the chip */
+		return false;
+	case INV_MPU9150:
+	case INV_MPU9250:
+	case INV_MPU9255:
+		if (st->magn_disabled)
+			return true;
+		else
+			return false;
+	default:
+		return true;
+	}
+}
+
+/*
+ * MPU9xxx magnetometer support requires to disable i2c auxiliary bus support.
+ * To ensure backward compatibility with existing setups, do not disable
+ * i2c auxiliary bus if it used.
+ * Check for i2c-gate node in devicetree and set magnetometer disabled.
+ * Only MPU6500 is supported by ACPI, no need to check.
+ */
+static int inv_mpu_magn_disable(struct iio_dev *indio_dev)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	struct device *dev = indio_dev->dev.parent;
+	struct device_node *mux_node;
+
+	switch (st->chip_type) {
+	case INV_MPU9150:
+	case INV_MPU9250:
+	case INV_MPU9255:
+		mux_node = of_get_child_by_name(dev->of_node, "i2c-gate");
+		if (mux_node != NULL) {
+			st->magn_disabled = true;
+			dev_warn(dev, "disable internal use of magnetometer\n");
+		}
+		of_node_put(mux_node);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 /**
  *  inv_mpu_probe() - probe function.
  *  @client:          i2c client.
@@ -112,17 +164,12 @@ static int inv_mpu_probe(struct i2c_client *client,
 	}
 
 	result = inv_mpu_core_probe(regmap, client->irq, name,
-				    NULL, chip_type);
+				    inv_mpu_magn_disable, chip_type);
 	if (result < 0)
 		return result;
 
 	st = iio_priv(dev_get_drvdata(&client->dev));
-	switch (st->chip_type) {
-	case INV_ICM20608:
-	case INV_ICM20602:
-		/* no i2c auxiliary bus on the chip */
-		break;
-	default:
+	if (inv_mpu_i2c_aux_bus(&client->dev)) {
 		/* declare i2c auxiliary bus */
 		st->muxc = i2c_mux_alloc(client->adapter, &client->dev,
 					 1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
@@ -137,7 +184,6 @@ static int inv_mpu_probe(struct i2c_client *client,
 		result = inv_mpu_acpi_create_mux_client(client);
 		if (result)
 			goto out_del_mux;
-		break;
 	}
 
 	return 0;

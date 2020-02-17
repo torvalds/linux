@@ -75,6 +75,8 @@
 
 #define QM_Q_DEPTH			1024
 
+#define HISI_ACC_SGL_SGE_NR_MAX		255
+
 enum qp_state {
 	QP_STOP,
 };
@@ -132,6 +134,7 @@ struct hisi_qm {
 	u32 sqe_size;
 	u32 qp_base;
 	u32 qp_num;
+	u32 qp_in_used;
 	u32 ctrl_qp_num;
 
 	struct qm_dma qdma;
@@ -204,12 +207,24 @@ int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg);
 int hisi_qm_stop_qp(struct hisi_qp *qp);
 void hisi_qm_release_qp(struct hisi_qp *qp);
 int hisi_qp_send(struct hisi_qp *qp, const void *msg);
+int hisi_qm_get_free_qp_num(struct hisi_qm *qm);
 int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number);
 int hisi_qm_set_vft(struct hisi_qm *qm, u32 fun_num, u32 base, u32 number);
 int hisi_qm_debug_init(struct hisi_qm *qm);
 void hisi_qm_hw_error_init(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 			   u32 msi);
-int hisi_qm_hw_error_handle(struct hisi_qm *qm);
+pci_ers_result_t hisi_qm_hw_error_handle(struct hisi_qm *qm);
 enum qm_hw_ver hisi_qm_get_hw_version(struct pci_dev *pdev);
 void hisi_qm_debug_regs_clear(struct hisi_qm *qm);
+
+struct hisi_acc_sgl_pool;
+struct hisi_acc_hw_sgl *hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
+	struct scatterlist *sgl, struct hisi_acc_sgl_pool *pool,
+	u32 index, dma_addr_t *hw_sgl_dma);
+void hisi_acc_sg_buf_unmap(struct device *dev, struct scatterlist *sgl,
+			   struct hisi_acc_hw_sgl *hw_sgl);
+struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
+						   u32 count, u32 sge_nr);
+void hisi_acc_free_sgl_pool(struct device *dev,
+			    struct hisi_acc_sgl_pool *pool);
 #endif

@@ -3,7 +3,7 @@
  *
  * Module Name: utids - support for device Ids - HID, UID, CID, SUB, CLS
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -289,9 +289,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 						  value);
 			length = ACPI_EISAID_STRING_SIZE;
 		} else {	/* ACPI_TYPE_STRING */
-
 			/* Copy the String CID from the returned object */
-
 			strcpy(next_id_string, cid_objects[i]->string.pointer);
 			length = cid_objects[i]->string.length + 1;
 		}

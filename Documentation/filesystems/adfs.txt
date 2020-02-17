@@ -1,3 +1,27 @@
+Filesystems supported by ADFS
+-----------------------------
+
+The ADFS module supports the following Filecore formats which have:
+
+- new maps
+- new directories or big directories
+
+In terms of the named formats, this means we support:
+
+- E and E+, with or without boot block
+- F and F+
+
+We fully support reading files from these filesystems, and writing to
+existing files within their existing allocation.  Essentially, we do
+not support changing any of the filesystem metadata.
+
+This is intended to support loopback mounted Linux native filesystems
+on a RISC OS Filecore filesystem, but will allow the data within files
+to be changed.
+
+If write support (ADFS_FS_RW) is configured, we allow rudimentary
+directory updates, specifically updating the access mode and timestamp.
+
 Mount options for ADFS
 ----------------------
 

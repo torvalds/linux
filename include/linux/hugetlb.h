@@ -105,8 +105,7 @@ void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason);
 void free_huge_page(struct page *page);
 void hugetlb_fix_reserve_counts(struct inode *inode);
 extern struct mutex *hugetlb_fault_mutex_table;
-u32 hugetlb_fault_mutex_hash(struct hstate *h, struct address_space *mapping,
-				pgoff_t idx, unsigned long address);
+u32 hugetlb_fault_mutex_hash(struct address_space *mapping, pgoff_t idx);
 
 pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
 
@@ -164,38 +163,130 @@ static inline void adjust_range_if_pmd_sharing_possible(
 {
 }
 
-#define follow_hugetlb_page(m,v,p,vs,a,b,i,w,n)	({ BUG(); 0; })
-#define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
-#define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
+static inline long follow_hugetlb_page(struct mm_struct *mm,
+			struct vm_area_struct *vma, struct page **pages,
+			struct vm_area_struct **vmas, unsigned long *position,
+			unsigned long *nr_pages, long i, unsigned int flags,
+			int *nonblocking)
+{
+	BUG();
+	return 0;
+}
+
+static inline struct page *follow_huge_addr(struct mm_struct *mm,
+					unsigned long address, int write)
+{
+	return ERR_PTR(-EINVAL);
+}
+
+static inline int copy_hugetlb_page_range(struct mm_struct *dst,
+			struct mm_struct *src, struct vm_area_struct *vma)
+{
+	BUG();
+	return 0;
+}
+
 static inline void hugetlb_report_meminfo(struct seq_file *m)
 {
 }
-#define hugetlb_report_node_meminfo(n, buf)	0
+
+static inline int hugetlb_report_node_meminfo(int nid, char *buf)
+{
+	return 0;
+}
+
 static inline void hugetlb_show_meminfo(void)
 {
 }
-#define follow_huge_pd(vma, addr, hpd, flags, pdshift) NULL
-#define follow_huge_pmd(mm, addr, pmd, flags)	NULL
-#define follow_huge_pud(mm, addr, pud, flags)	NULL
-#define follow_huge_pgd(mm, addr, pgd, flags)	NULL
-#define prepare_hugepage_range(file, addr, len)	(-EINVAL)
-#define pmd_huge(x)	0
-#define pud_huge(x)	0
-#define is_hugepage_only_range(mm, addr, len)	0
-#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
-#define hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
-				src_addr, pagep)	({ BUG(); 0; })
-#define huge_pte_offset(mm, address, sz)	0
+
+static inline struct page *follow_huge_pd(struct vm_area_struct *vma,
+				unsigned long address, hugepd_t hpd, int flags,
+				int pdshift)
+{
+	return NULL;
+}
+
+static inline struct page *follow_huge_pmd(struct mm_struct *mm,
+				unsigned long address, pmd_t *pmd, int flags)
+{
+	return NULL;
+}
+
+static inline struct page *follow_huge_pud(struct mm_struct *mm,
+				unsigned long address, pud_t *pud, int flags)
+{
+	return NULL;
+}
+
+static inline struct page *follow_huge_pgd(struct mm_struct *mm,
+				unsigned long address, pgd_t *pgd, int flags)
+{
+	return NULL;
+}
+
+static inline int prepare_hugepage_range(struct file *file,
+				unsigned long addr, unsigned long len)
+{
+	return -EINVAL;
+}
+
+static inline int pmd_huge(pmd_t pmd)
+{
+	return 0;
+}
+
+static inline int pud_huge(pud_t pud)
+{
+	return 0;
+}
+
+static inline int is_hugepage_only_range(struct mm_struct *mm,
+					unsigned long addr, unsigned long len)
+{
+	return 0;
+}
+
+static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
+				unsigned long addr, unsigned long end,
+				unsigned long floor, unsigned long ceiling)
+{
+	BUG();
+}
+
+static inline int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+						pte_t *dst_pte,
+						struct vm_area_struct *dst_vma,
+						unsigned long dst_addr,
+						unsigned long src_addr,
+						struct page **pagep)
+{
+	BUG();
+	return 0;
+}
+
+static inline pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr,
+					unsigned long sz)
+{
+	return NULL;
+}
 
 static inline bool isolate_huge_page(struct page *page, struct list_head *list)
 {
 	return false;
 }
-#define putback_active_hugepage(p)	do {} while (0)
-#define move_hugetlb_state(old, new, reason)	do {} while (0)
 
-static inline unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
-		unsigned long address, unsigned long end, pgprot_t newprot)
+static inline void putback_active_hugepage(struct page *page)
+{
+}
+
+static inline void move_hugetlb_state(struct page *oldpage,
+					struct page *newpage, int reason)
+{
+}
+
+static inline unsigned long hugetlb_change_protection(
+			struct vm_area_struct *vma, unsigned long address,
+			unsigned long end, pgprot_t newprot)
 {
 	return 0;
 }
@@ -213,9 +304,10 @@ static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
 {
 	BUG();
 }
+
 static inline vm_fault_t hugetlb_fault(struct mm_struct *mm,
-				struct vm_area_struct *vma, unsigned long address,
-				unsigned int flags)
+			struct vm_area_struct *vma, unsigned long address,
+			unsigned int flags)
 {
 	BUG();
 	return 0;
@@ -340,7 +432,8 @@ struct hstate {
 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
 #ifdef CONFIG_CGROUP_HUGETLB
 	/* cgroup control files */
-	struct cftype cgroup_files[5];
+	struct cftype cgroup_files_dfl[5];
+	struct cftype cgroup_files_legacy[5];
 #endif
 	char name[HSTATE_NAME_LEN];
 };

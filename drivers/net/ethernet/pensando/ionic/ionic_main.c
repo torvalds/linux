@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2017 - 2019 Pensando Systems, Inc */
 
+#include <linux/printk.h>
+#include <linux/dynamic_debug.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/utsname.h>
@@ -163,6 +165,10 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 		return "IONIC_CMD_FW_DOWNLOAD";
 	case IONIC_CMD_FW_CONTROL:
 		return "IONIC_CMD_FW_CONTROL";
+	case IONIC_CMD_VF_GETATTR:
+		return "IONIC_CMD_VF_GETATTR";
+	case IONIC_CMD_VF_SETATTR:
+		return "IONIC_CMD_VF_SETATTR";
 	default:
 		return "DEVCMD_UNKNOWN";
 	}
@@ -245,6 +251,10 @@ static int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 		goto err_out;
 	}
 
+	err = ionic_heartbeat_check(lif->ionic);
+	if (err)
+		goto err_out;
+
 	memcpy(adminq->head->desc, &ctx->cmd, sizeof(ctx->cmd));
 
 	dev_dbg(&lif->netdev->dev, "post admin queue command:\n");
@@ -305,6 +315,14 @@ int ionic_napi(struct napi_struct *napi, int budget, ionic_cq_cb cb,
 	return work_done;
 }
 
+static void ionic_dev_cmd_clean(struct ionic *ionic)
+{
+	union ionic_dev_cmd_regs *regs = ionic->idev.dev_cmd_regs;
+
+	iowrite32(0, &regs->doorbell);
+	memset_io(&regs->cmd, 0, sizeof(regs->cmd));
+}
+
 int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
 {
 	struct ionic_dev *idev = &ionic->idev;
@@ -312,6 +330,7 @@ int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
 	unsigned long max_wait;
 	unsigned long duration;
 	int opcode;
+	int hb = 0;
 	int done;
 	int err;
 
@@ -328,7 +347,8 @@ try_again:
 		if (done)
 			break;
 		msleep(20);
-	} while (!done && time_before(jiffies, max_wait));
+		hb = ionic_heartbeat_check(ionic);
+	} while (!done && !hb && time_before(jiffies, max_wait));
 	duration = jiffies - start_time;
 
 	opcode = idev->dev_cmd_regs->cmd.cmd.opcode;
@@ -336,7 +356,15 @@ try_again:
 		ionic_opcode_to_str(opcode), opcode,
 		done, duration / HZ, duration);
 
+	if (!done && hb) {
+		ionic_dev_cmd_clean(ionic);
+		dev_warn(ionic->dev, "DEVCMD %s (%d) failed - FW halted\n",
+			 ionic_opcode_to_str(opcode), opcode);
+		return -ENXIO;
+	}
+
 	if (!done && !time_before(jiffies, max_wait)) {
+		ionic_dev_cmd_clean(ionic);
 		dev_warn(ionic->dev, "DEVCMD %s (%d) timeout after %ld secs\n",
 			 ionic_opcode_to_str(opcode), opcode, max_seconds);
 		return -ETIMEDOUT;

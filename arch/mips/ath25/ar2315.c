@@ -262,7 +262,7 @@ void __init ar2315_plat_mem_setup(void)
 	u32 config;
 
 	/* Detect memory size */
-	sdram_base = ioremap_nocache(AR2315_SDRAMCTL_BASE,
+	sdram_base = ioremap(AR2315_SDRAMCTL_BASE,
 				     AR2315_SDRAMCTL_SIZE);
 	memcfg = __raw_readl(sdram_base + AR2315_MEM_CFG);
 	memsize   = 1 + ATH25_REG_MS(memcfg, AR2315_MEM_CFG_DATA_WIDTH);
@@ -272,7 +272,7 @@ void __init ar2315_plat_mem_setup(void)
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
 	iounmap(sdram_base);
 
-	ar2315_rst_base = ioremap_nocache(AR2315_RST_BASE, AR2315_RST_SIZE);
+	ar2315_rst_base = ioremap(AR2315_RST_BASE, AR2315_RST_SIZE);
 
 	/* Detect the hardware based on the device ID */
 	devid = ar2315_rst_reg_read(AR2315_SREV) & AR2315_REV_CHIP;

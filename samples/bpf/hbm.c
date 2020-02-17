@@ -50,8 +50,8 @@
 #include "cgroup_helpers.h"
 #include "hbm.h"
 #include "bpf_util.h"
-#include "bpf.h"
-#include "libbpf.h"
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 
 bool outFlag = true;
 int minRate = 1000;		/* cgroup rate limit in Mbps */
@@ -147,7 +147,7 @@ static int prog_load(char *prog)
 	}
 
 	if (ret) {
-		printf("ERROR: load_bpf_file failed for: %s\n", prog);
+		printf("ERROR: bpf_prog_load_xattr failed for: %s\n", prog);
 		printf("  Output from verifier:\n%s\n------\n", bpf_log_buf);
 		ret = -1;
 	} else {

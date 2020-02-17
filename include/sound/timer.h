@@ -89,7 +89,7 @@ struct snd_timer_instance {
 			  unsigned long ticks, unsigned long resolution);
 	void (*ccallback) (struct snd_timer_instance * timeri,
 			   int event,
-			   struct timespec * tstamp,
+			   struct timespec64 * tstamp,
 			   unsigned long resolution);
 	void (*disconnect)(struct snd_timer_instance *timeri);
 	void *callback_data;
@@ -113,13 +113,15 @@ struct snd_timer_instance {
  */
 
 int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid, struct snd_timer **rtimer);
-void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstamp);
+void snd_timer_notify(struct snd_timer *timer, int event, struct timespec64 *tstamp);
 int snd_timer_global_new(char *id, int device, struct snd_timer **rtimer);
 int snd_timer_global_free(struct snd_timer *timer);
 int snd_timer_global_register(struct snd_timer *timer);
 
-int snd_timer_open(struct snd_timer_instance **ti, char *owner, struct snd_timer_id *tid, unsigned int slave_id);
-int snd_timer_close(struct snd_timer_instance *timeri);
+struct snd_timer_instance *snd_timer_instance_new(const char *owner);
+void snd_timer_instance_free(struct snd_timer_instance *timeri);
+int snd_timer_open(struct snd_timer_instance *timeri, struct snd_timer_id *tid, unsigned int slave_id);
+void snd_timer_close(struct snd_timer_instance *timeri);
 unsigned long snd_timer_resolution(struct snd_timer_instance *timeri);
 int snd_timer_start(struct snd_timer_instance *timeri, unsigned int ticks);
 int snd_timer_stop(struct snd_timer_instance *timeri);

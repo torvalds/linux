@@ -9,6 +9,7 @@
 	aliases {
 		rtc0 = &tps659038_rtc;
 		rtc1 = &rtc;
+		display0 = &hdmi0;
 	};
 
 	chosen {
@@ -94,6 +95,48 @@
 			label = "out7";
 			gpios = <&tpic2810 7 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
+		};
+	};
+
+	hdmi0: connector@0 {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tpd12s015_out>;
+			};
+		};
+	};
+
+	tpd12s015: encoder@0 {
+		compatible = "ti,tpd12s016", "ti,tpd12s015";
+
+		gpios = <0>, /* optional CT_CP_HPD */
+			<0>, /* optional LS_OE */
+			<&gpio7 12 GPIO_ACTIVE_HIGH>;	/* HPD */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tpd12s015_in: endpoint@0 {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tpd12s015_out: endpoint@0 {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
 		};
 	};
 };
@@ -363,11 +406,6 @@
 	ext-clk-src;
 };
 
-&mac {
-	status = "okay";
-	dual_emac;
-};
-
 &cpsw_emac0 {
 	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
@@ -489,4 +527,20 @@
 
 &cpu0 {
 	vdd-supply = <&smps12_reg>;
+};
+
+&hdmi {
+	status = "okay";
+
+	vdda-supply = <&ldo4_reg>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&tpd12s015_in>;
+		};
+	};
+};
+
+&dss {
+	status = "okay";
 };

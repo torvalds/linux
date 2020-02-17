@@ -134,7 +134,7 @@ int snd_gus_create(struct snd_card *card,
 {
 	struct snd_gus_card *gus;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_gus_dev_free,
 	};
 
@@ -181,6 +181,7 @@ int snd_gus_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	gus->gf1.irq = irq;
+	card->sync_irq = irq;
 	if (request_dma(dma1, "GUS - 1")) {
 		snd_printk(KERN_ERR "gus: can't grab DMA1 %d\n", dma1);
 		snd_gus_free(gus);
@@ -266,9 +267,9 @@ static int snd_gus_init_dma_irq(struct snd_gus_card * gus, int latches)
 	struct snd_card *card;
 	unsigned long flags;
 	int irq, dma1, dma2;
-	static unsigned char irqs[16] =
+	static const unsigned char irqs[16] =
 		{0, 0, 1, 3, 0, 2, 0, 4, 0, 1, 0, 5, 6, 0, 0, 7};
-	static unsigned char dmas[8] =
+	static const unsigned char dmas[8] =
 		{6, 1, 0, 2, 0, 3, 4, 5};
 
 	if (snd_BUG_ON(!gus))

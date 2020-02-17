@@ -212,6 +212,9 @@
 #define MT_AGG_PCR_RTS_THR		GENMASK(19, 0)
 #define MT_AGG_PCR_RTS_PKT_THR		GENMASK(31, 25)
 
+#define MT_AGG_ASRCR			MT_WF_AGG(0x060)
+#define MT_AGG_ASRCR_RANGE(val, n)	(((val) >> ((n) << 3)) & GENMASK(5, 0))
+
 #define MT_AGG_CONTROL			MT_WF_AGG(0x070)
 #define MT_AGG_CONTROL_NO_BA_RULE	BIT(0)
 #define MT_AGG_CONTROL_NO_BA_AR_RULE	BIT(1)
@@ -554,6 +557,8 @@ enum {
 
 #define MT_MIB_STAT_PSCCA		MT_MIB_STAT(16)
 #define MT_MIB_STAT_PSCCA_MASK		GENMASK(23, 0)
+
+#define MT_TX_AGG_CNT(n)		MT_MIB(0xa8 + ((n) << 2))
 
 #define MT_MIB_STAT_ED			MT_MIB_STAT(18)
 #define MT_MIB_STAT_ED_MASK		GENMASK(23, 0)

@@ -360,7 +360,10 @@ static int update_affinity(struct vgic_irq *irq, struct kvm_vcpu *vcpu)
 		if (ret)
 			return ret;
 
+		if (map.vpe)
+			atomic_dec(&map.vpe->vlpi_count);
 		map.vpe = &vcpu->arch.vgic_cpu.vgic_v3.its_vpe;
+		atomic_inc(&map.vpe->vlpi_count);
 
 		ret = its_map_vlpi(irq->host_irq, &map);
 	}
@@ -836,9 +839,8 @@ static int vgic_its_cmd_handle_discard(struct kvm *kvm, struct vgic_its *its,
 	u32 event_id = its_cmd_get_id(its_cmd);
 	struct its_ite *ite;
 
-
 	ite = find_ite(its, device_id, event_id);
-	if (ite && ite->collection) {
+	if (ite && its_is_collection_mapped(ite->collection)) {
 		/*
 		 * Though the spec talks about removing the pending state, we
 		 * don't bother here since we clear the ITTE anyway and the
@@ -2472,7 +2474,8 @@ static int vgic_its_restore_cte(struct vgic_its *its, gpa_t gpa, int esz)
 	target_addr = (u32)(val >> KVM_ITS_CTE_RDBASE_SHIFT);
 	coll_id = val & KVM_ITS_CTE_ICID_MASK;
 
-	if (target_addr >= atomic_read(&kvm->online_vcpus))
+	if (target_addr != COLLECTION_NOT_MAPPED &&
+	    target_addr >= atomic_read(&kvm->online_vcpus))
 		return -EINVAL;
 
 	collection = find_collection(its, coll_id);

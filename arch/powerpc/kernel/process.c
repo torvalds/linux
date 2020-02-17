@@ -715,6 +715,8 @@ static void set_debug_reg_defaults(struct thread_struct *thread)
 {
 	thread->hw_brk.address = 0;
 	thread->hw_brk.type = 0;
+	thread->hw_brk.len = 0;
+	thread->hw_brk.hw_len = 0;
 	if (ppc_breakpoint_available())
 		set_breakpoint(&thread->hw_brk);
 }
@@ -738,28 +740,6 @@ static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
 		mtspr(SPRN_DABRX, dabrx);
 	return 0;
 }
-#elif defined(CONFIG_PPC_8xx)
-static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
-{
-	unsigned long addr = dabr & ~HW_BRK_TYPE_DABR;
-	unsigned long lctrl1 = 0x90000000; /* compare type: equal on E & F */
-	unsigned long lctrl2 = 0x8e000002; /* watchpoint 1 on cmp E | F */
-
-	if ((dabr & HW_BRK_TYPE_RDWR) == HW_BRK_TYPE_READ)
-		lctrl1 |= 0xa0000;
-	else if ((dabr & HW_BRK_TYPE_RDWR) == HW_BRK_TYPE_WRITE)
-		lctrl1 |= 0xf0000;
-	else if ((dabr & HW_BRK_TYPE_RDWR) == 0)
-		lctrl2 = 0;
-
-	mtspr(SPRN_LCTRL2, 0);
-	mtspr(SPRN_CMPE, addr);
-	mtspr(SPRN_CMPF, addr + 4);
-	mtspr(SPRN_LCTRL1, lctrl1);
-	mtspr(SPRN_LCTRL2, lctrl2);
-
-	return 0;
-}
 #else
 static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
 {
@@ -780,6 +760,39 @@ static inline int set_dabr(struct arch_hw_breakpoint *brk)
 	return __set_dabr(dabr, dabrx);
 }
 
+static inline int set_breakpoint_8xx(struct arch_hw_breakpoint *brk)
+{
+	unsigned long lctrl1 = LCTRL1_CTE_GT | LCTRL1_CTF_LT | LCTRL1_CRWE_RW |
+			       LCTRL1_CRWF_RW;
+	unsigned long lctrl2 = LCTRL2_LW0EN | LCTRL2_LW0LADC | LCTRL2_SLW0EN;
+	unsigned long start_addr = brk->address & ~HW_BREAKPOINT_ALIGN;
+	unsigned long end_addr = (brk->address + brk->len - 1) | HW_BREAKPOINT_ALIGN;
+
+	if (start_addr == 0)
+		lctrl2 |= LCTRL2_LW0LA_F;
+	else if (end_addr == ~0U)
+		lctrl2 |= LCTRL2_LW0LA_E;
+	else
+		lctrl2 |= LCTRL2_LW0LA_EandF;
+
+	mtspr(SPRN_LCTRL2, 0);
+
+	if ((brk->type & HW_BRK_TYPE_RDWR) == 0)
+		return 0;
+
+	if ((brk->type & HW_BRK_TYPE_RDWR) == HW_BRK_TYPE_READ)
+		lctrl1 |= LCTRL1_CRWE_RO | LCTRL1_CRWF_RO;
+	if ((brk->type & HW_BRK_TYPE_RDWR) == HW_BRK_TYPE_WRITE)
+		lctrl1 |= LCTRL1_CRWE_WO | LCTRL1_CRWF_WO;
+
+	mtspr(SPRN_CMPE, start_addr - 1);
+	mtspr(SPRN_CMPF, end_addr + 1);
+	mtspr(SPRN_LCTRL1, lctrl1);
+	mtspr(SPRN_LCTRL2, lctrl2);
+
+	return 0;
+}
+
 void __set_breakpoint(struct arch_hw_breakpoint *brk)
 {
 	memcpy(this_cpu_ptr(&current_brk), brk, sizeof(*brk));
@@ -787,6 +800,8 @@ void __set_breakpoint(struct arch_hw_breakpoint *brk)
 	if (dawr_enabled())
 		// Power8 or later
 		set_dawr(brk);
+	else if (IS_ENABLED(CONFIG_PPC_8xx))
+		set_breakpoint_8xx(brk);
 	else if (!cpu_has_feature(CPU_FTR_ARCH_207S))
 		// Power7 or earlier
 		set_dabr(brk);
@@ -816,6 +831,7 @@ static inline bool hw_brk_match(struct arch_hw_breakpoint *a,
 		return false;
 	if (a->len != b->len)
 		return false;
+	/* no need to check hw_len. it's calculated from address and len */
 	return true;
 }
 
@@ -1261,16 +1277,6 @@ void show_user_instructions(struct pt_regs *regs)
 
 	pc = regs->nip - (NR_INSN_TO_PRINT * 3 / 4 * sizeof(int));
 
-	/*
-	 * Make sure the NIP points at userspace, not kernel text/data or
-	 * elsewhere.
-	 */
-	if (!__access_ok(pc, NR_INSN_TO_PRINT * sizeof(int), USER_DS)) {
-		pr_info("%s[%d]: Bad NIP, not dumping instructions.\n",
-			current->comm, current->pid);
-		return;
-	}
-
 	seq_buf_init(&s, buf, sizeof(buf));
 
 	while (n) {
@@ -1281,7 +1287,7 @@ void show_user_instructions(struct pt_regs *regs)
 		for (i = 0; i < 8 && n; i++, n--, pc += sizeof(int)) {
 			int instr;
 
-			if (probe_kernel_address((const void *)pc, instr)) {
+			if (probe_user_read(&instr, (void __user *)pc, sizeof(instr))) {
 				seq_buf_printf(&s, "XXXXXXXX ");
 				continue;
 			}

@@ -9,19 +9,50 @@
 #include "reg.h"
 #include "spectrum.h"
 
+/* All driver-specific traps must be documented in
+ * Documentation/networking/devlink/mlxsw.rst
+ */
+enum {
+	DEVLINK_MLXSW_TRAP_ID_BASE = DEVLINK_TRAP_GENERIC_ID_MAX,
+	DEVLINK_MLXSW_TRAP_ID_IRIF_DISABLED,
+	DEVLINK_MLXSW_TRAP_ID_ERIF_DISABLED,
+};
+
+#define DEVLINK_MLXSW_TRAP_NAME_IRIF_DISABLED \
+	"irif_disabled"
+#define DEVLINK_MLXSW_TRAP_NAME_ERIF_DISABLED \
+	"erif_disabled"
+
 #define MLXSW_SP_TRAP_METADATA DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT
 
 static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u8 local_port,
 				      void *priv);
+static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
+					   void *trap_ctx);
 
 #define MLXSW_SP_TRAP_DROP(_id, _group_id)				      \
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
 			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
 			     MLXSW_SP_TRAP_METADATA)
 
+#define MLXSW_SP_TRAP_DRIVER_DROP(_id, _group_id)			      \
+	DEVLINK_TRAP_DRIVER(DROP, DROP, DEVLINK_MLXSW_TRAP_ID_##_id,	      \
+			    DEVLINK_MLXSW_TRAP_NAME_##_id,		      \
+			    DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			    MLXSW_SP_TRAP_METADATA)
+
+#define MLXSW_SP_TRAP_EXCEPTION(_id, _group_id)		      \
+	DEVLINK_TRAP_GENERIC(EXCEPTION, TRAP, _id,			      \
+			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     MLXSW_SP_TRAP_METADATA)
+
 #define MLXSW_SP_RXL_DISCARD(_id, _group_id)				      \
 	MLXSW_RXL(mlxsw_sp_rx_drop_listener, DISCARD_##_id, SET_FW_DEFAULT,   \
 		  false, SP_##_group_id, DISCARD)
+
+#define MLXSW_SP_RXL_EXCEPTION(_id, _group_id, _action)			      \
+	MLXSW_RXL(mlxsw_sp_rx_exception_listener, _id,			      \
+		   _action, false, SP_##_group_id, DISCARD)
 
 static struct devlink_trap mlxsw_sp_traps_arr[] = {
 	MLXSW_SP_TRAP_DROP(SMAC_MC, L2_DROPS),
@@ -30,6 +61,28 @@ static struct devlink_trap mlxsw_sp_traps_arr[] = {
 	MLXSW_SP_TRAP_DROP(INGRESS_STP_FILTER, L2_DROPS),
 	MLXSW_SP_TRAP_DROP(EMPTY_TX_LIST, L2_DROPS),
 	MLXSW_SP_TRAP_DROP(PORT_LOOPBACK_FILTER, L2_DROPS),
+	MLXSW_SP_TRAP_DROP(BLACKHOLE_ROUTE, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(NON_IP_PACKET, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(UC_DIP_MC_DMAC, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(DIP_LB, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(SIP_MC, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(SIP_LB, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(CORRUPTED_IP_HDR, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(IPV4_SIP_BC, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(IPV6_MC_DIP_RESERVED_SCOPE, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(IPV6_MC_DIP_INTERFACE_LOCAL_SCOPE, L3_DROPS),
+	MLXSW_SP_TRAP_EXCEPTION(MTU_ERROR, L3_DROPS),
+	MLXSW_SP_TRAP_EXCEPTION(TTL_ERROR, L3_DROPS),
+	MLXSW_SP_TRAP_EXCEPTION(RPF, L3_DROPS),
+	MLXSW_SP_TRAP_EXCEPTION(REJECT_ROUTE, L3_DROPS),
+	MLXSW_SP_TRAP_EXCEPTION(UNRESOLVED_NEIGH, L3_DROPS),
+	MLXSW_SP_TRAP_EXCEPTION(IPV4_LPM_UNICAST_MISS, L3_DROPS),
+	MLXSW_SP_TRAP_EXCEPTION(IPV6_LPM_UNICAST_MISS, L3_DROPS),
+	MLXSW_SP_TRAP_DRIVER_DROP(IRIF_DISABLED, L3_DROPS),
+	MLXSW_SP_TRAP_DRIVER_DROP(ERIF_DISABLED, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(NON_ROUTABLE, L3_DROPS),
+	MLXSW_SP_TRAP_EXCEPTION(DECAP_ERROR, TUNNEL_DROPS),
+	MLXSW_SP_TRAP_DROP(OVERLAY_SMAC_MC, TUNNEL_DROPS),
 };
 
 static struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
@@ -40,6 +93,37 @@ static struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
 	MLXSW_SP_RXL_DISCARD(LOOKUP_SWITCH_UC, L2_DISCARDS),
 	MLXSW_SP_RXL_DISCARD(LOOKUP_SWITCH_MC_NULL, L2_DISCARDS),
 	MLXSW_SP_RXL_DISCARD(LOOKUP_SWITCH_LB, L2_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(ROUTER2, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(ING_ROUTER_NON_IP_PACKET, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(ING_ROUTER_UC_DIP_MC_DMAC, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(ING_ROUTER_DIP_LB, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(ING_ROUTER_SIP_MC, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(ING_ROUTER_SIP_LB, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(ING_ROUTER_CORRUPTED_IP_HDR, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(ING_ROUTER_IPV4_SIP_BC, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(IPV6_MC_DIP_RESERVED_SCOPE, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(IPV6_MC_DIP_INTERFACE_LOCAL_SCOPE, L3_DISCARDS),
+	MLXSW_SP_RXL_EXCEPTION(MTUERROR, ROUTER_EXP, TRAP_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(TTLERROR, ROUTER_EXP, TRAP_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(RPF, RPF, TRAP_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(RTR_INGRESS1, REMOTE_ROUTE, TRAP_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV4, HOST_MISS, TRAP_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV6, HOST_MISS, TRAP_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER3, REMOTE_ROUTE,
+			       TRAP_EXCEPTION_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM4, ROUTER_EXP,
+			       TRAP_EXCEPTION_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM6, ROUTER_EXP,
+			       TRAP_EXCEPTION_TO_CPU),
+	MLXSW_SP_RXL_DISCARD(ROUTER_IRIF_EN, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(ROUTER_ERIF_EN, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(NON_ROUTABLE, L3_DISCARDS),
+	MLXSW_SP_RXL_EXCEPTION(DECAP_ECN0, ROUTER_EXP, TRAP_EXCEPTION_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(IPIP_DECAP_ERROR, ROUTER_EXP,
+			       TRAP_EXCEPTION_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(DISCARD_DEC_PKT, TUNNEL_DISCARDS,
+			       TRAP_EXCEPTION_TO_CPU),
+	MLXSW_SP_RXL_DISCARD(OVERLAY_SMAC_MC, TUNNEL_DISCARDS),
 };
 
 /* Mapping between hardware trap and devlink trap. Multiple hardware traps can
@@ -54,6 +138,32 @@ static u16 mlxsw_sp_listener_devlink_map[] = {
 	DEVLINK_TRAP_GENERIC_ID_EMPTY_TX_LIST,
 	DEVLINK_TRAP_GENERIC_ID_EMPTY_TX_LIST,
 	DEVLINK_TRAP_GENERIC_ID_PORT_LOOPBACK_FILTER,
+	DEVLINK_TRAP_GENERIC_ID_BLACKHOLE_ROUTE,
+	DEVLINK_TRAP_GENERIC_ID_NON_IP_PACKET,
+	DEVLINK_TRAP_GENERIC_ID_UC_DIP_MC_DMAC,
+	DEVLINK_TRAP_GENERIC_ID_DIP_LB,
+	DEVLINK_TRAP_GENERIC_ID_SIP_MC,
+	DEVLINK_TRAP_GENERIC_ID_SIP_LB,
+	DEVLINK_TRAP_GENERIC_ID_CORRUPTED_IP_HDR,
+	DEVLINK_TRAP_GENERIC_ID_IPV4_SIP_BC,
+	DEVLINK_TRAP_GENERIC_ID_IPV6_MC_DIP_RESERVED_SCOPE,
+	DEVLINK_TRAP_GENERIC_ID_IPV6_MC_DIP_INTERFACE_LOCAL_SCOPE,
+	DEVLINK_TRAP_GENERIC_ID_MTU_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_TTL_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_RPF,
+	DEVLINK_TRAP_GENERIC_ID_REJECT_ROUTE,
+	DEVLINK_TRAP_GENERIC_ID_UNRESOLVED_NEIGH,
+	DEVLINK_TRAP_GENERIC_ID_UNRESOLVED_NEIGH,
+	DEVLINK_TRAP_GENERIC_ID_UNRESOLVED_NEIGH,
+	DEVLINK_TRAP_GENERIC_ID_IPV4_LPM_UNICAST_MISS,
+	DEVLINK_TRAP_GENERIC_ID_IPV6_LPM_UNICAST_MISS,
+	DEVLINK_MLXSW_TRAP_ID_IRIF_DISABLED,
+	DEVLINK_MLXSW_TRAP_ID_ERIF_DISABLED,
+	DEVLINK_TRAP_GENERIC_ID_NON_ROUTABLE,
+	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_OVERLAY_SMAC_MC,
 };
 
 static int mlxsw_sp_rx_listener(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
@@ -99,8 +209,33 @@ static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u8 local_port,
 	devlink = priv_to_devlink(mlxsw_sp->core);
 	in_devlink_port = mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
 							   local_port);
+	skb_push(skb, ETH_HLEN);
 	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port);
 	consume_skb(skb);
+}
+
+static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
+					   void *trap_ctx)
+{
+	struct devlink_port *in_devlink_port;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp *mlxsw_sp;
+	struct devlink *devlink;
+
+	mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
+	mlxsw_sp_port = mlxsw_sp->ports[local_port];
+
+	if (mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port))
+		return;
+
+	devlink = priv_to_devlink(mlxsw_sp->core);
+	in_devlink_port = mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
+							   local_port);
+	skb_push(skb, ETH_HLEN);
+	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port);
+	skb_pull(skb, ETH_HLEN);
+	skb->offload_fwd_mark = 1;
+	netif_receive_skb(skb);
 }
 
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
@@ -210,7 +345,9 @@ mlxsw_sp_trap_group_policer_init(struct mlxsw_sp *mlxsw_sp,
 	u32 rate;
 
 	switch (group->id) {
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS:
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS: /* fall through */
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS: /* fall through */
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_TUNNEL_DROPS:
 		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
 		ir_units = MLXSW_REG_QPCR_IR_UNITS_M;
 		is_bytes = false;
@@ -237,6 +374,18 @@ __mlxsw_sp_trap_group_init(struct mlxsw_sp *mlxsw_sp,
 	switch (group->id) {
 	case DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS:
 		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS;
+		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
+		priority = 0;
+		tc = 1;
+		break;
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS:
+		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS;
+		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
+		priority = 0;
+		tc = 1;
+		break;
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_TUNNEL_DROPS:
+		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS;
 		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
 		priority = 0;
 		tc = 1;

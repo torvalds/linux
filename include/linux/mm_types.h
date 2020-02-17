@@ -221,6 +221,11 @@ struct page {
 #endif
 } _struct_page_alignment;
 
+static inline atomic_t *compound_mapcount_ptr(struct page *page)
+{
+	return &page[1].compound_mapcount;
+}
+
 /*
  * Used for sizing the vmemmap region on some architectures
  */
@@ -307,7 +312,12 @@ struct vm_area_struct {
 	/* Second cache line starts here. */
 
 	struct mm_struct *vm_mm;	/* The address space we belong to. */
-	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
+
+	/*
+	 * Access permissions of this VMA.
+	 * See vmf_insert_mixed_prot() for discussion.
+	 */
+	pgprot_t vm_page_prot;
 	unsigned long vm_flags;		/* Flags, see mm.h. */
 
 	/*
@@ -485,7 +495,7 @@ struct mm_struct {
 		/* store ref to file /proc/<pid>/exe symlink points to */
 		struct file __rcu *exe_file;
 #ifdef CONFIG_MMU_NOTIFIER
-		struct mmu_notifier_mm *mmu_notifier_mm;
+		struct mmu_notifier_subscriptions *notifier_subscriptions;
 #endif
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
 		pgtable_t pmd_huge_pte; /* protected by page_table_lock */

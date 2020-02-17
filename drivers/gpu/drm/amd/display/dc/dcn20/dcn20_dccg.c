@@ -44,49 +44,26 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
-void dccg2_update_dpp_dto(struct dccg *dccg,
-		int dpp_inst,
-		int req_dppclk,
-		bool reduce_divider_only)
+void dccg2_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
 	if (dccg->ref_dppclk && req_dppclk) {
 		int ref_dppclk = dccg->ref_dppclk;
-		int current_phase, current_modulo;
+		int modulo, phase;
 
-		ASSERT(req_dppclk <= ref_dppclk);
-		/* need to clamp to 8 bits */
-		if (ref_dppclk > 0xff) {
-			int divider = (ref_dppclk + 0xfe) / 0xff;
+		// phase / modulo = dpp pipe clk / dpp global clk
+		modulo = 0xff;   // use FF at the end
+		phase = ((modulo * req_dppclk) + ref_dppclk - 1) / ref_dppclk;
 
-			ref_dppclk /= divider;
-			req_dppclk = (req_dppclk + divider - 1) / divider;
-			if (req_dppclk > ref_dppclk)
-				req_dppclk = ref_dppclk;
+		if (phase > 0xff) {
+			ASSERT(false);
+			phase = 0xff;
 		}
 
-		REG_GET_2(DPPCLK_DTO_PARAM[dpp_inst],
-				DPPCLK0_DTO_PHASE, &current_phase,
-				DPPCLK0_DTO_MODULO, &current_modulo);
-
-		if (reduce_divider_only) {
-			// requested phase/modulo greater than current
-			if (req_dppclk * current_modulo >= current_phase * ref_dppclk) {
-				REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
-						DPPCLK0_DTO_PHASE, req_dppclk,
-						DPPCLK0_DTO_MODULO, ref_dppclk);
-			} else {
-				REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
-						DPPCLK0_DTO_PHASE, current_phase,
-						DPPCLK0_DTO_MODULO, current_modulo);
-			}
-		} else {
-			REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
-					DPPCLK0_DTO_PHASE, req_dppclk,
-					DPPCLK0_DTO_MODULO, ref_dppclk);
-		}
-
+		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
+				DPPCLK0_DTO_PHASE, phase,
+				DPPCLK0_DTO_MODULO, modulo);
 		REG_UPDATE(DPPCLK_DTO_CTRL,
 				DPPCLK_DTO_ENABLE[dpp_inst], 1);
 	} else {
@@ -119,32 +96,6 @@ void dccg2_get_dccg_ref_freq(struct dccg *dccg,
 
 void dccg2_init(struct dccg *dccg)
 {
-	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
-
-	// Fallthrough intentional to program all available dpp_dto's
-	switch (dccg_dcn->base.ctx->dc->res_pool->pipe_count) {
-	case 6:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[5], 1);
-		/* Fall through */
-	case 5:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[4], 1);
-		/* Fall through */
-	case 4:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[3], 1);
-		/* Fall through */
-	case 3:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[2], 1);
-		/* Fall through */
-	case 2:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[1], 1);
-		/* Fall through */
-	case 1:
-		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_DB_EN[0], 1);
-		break;
-	default:
-		ASSERT(false);
-		break;
-	}
 }
 
 static const struct dccg_funcs dccg2_funcs = {

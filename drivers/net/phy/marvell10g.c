@@ -26,6 +26,7 @@
 #include <linux/hwmon.h>
 #include <linux/marvell_phy.h>
 #include <linux/phy.h>
+#include <linux/sfp.h>
 
 #define MV_PHY_ALASKA_NBT_QUIRK_MASK	0xfffffffe
 #define MV_PHY_ALASKA_NBT_QUIRK_REV	(MARVELL_PHY_ID_88X3310 | 0xa)
@@ -206,6 +207,28 @@ static int mv3310_hwmon_probe(struct phy_device *phydev)
 }
 #endif
 
+static int mv3310_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
+{
+	struct phy_device *phydev = upstream;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(support) = { 0, };
+	phy_interface_t iface;
+
+	sfp_parse_support(phydev->sfp_bus, id, support);
+	iface = sfp_select_interface(phydev->sfp_bus, support);
+
+	if (iface != PHY_INTERFACE_MODE_10GBASER) {
+		dev_err(&phydev->mdio.dev, "incompatible SFP module inserted\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static const struct sfp_upstream_ops mv3310_sfp_ops = {
+	.attach = phy_sfp_attach,
+	.detach = phy_sfp_detach,
+	.module_insert = mv3310_sfp_insert,
+};
+
 static int mv3310_probe(struct phy_device *phydev)
 {
 	struct mv3310_priv *priv;
@@ -236,7 +259,7 @@ static int mv3310_probe(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	return 0;
+	return phy_sfp_probe(phydev, &mv3310_sfp_ops);
 }
 
 static int mv3310_suspend(struct phy_device *phydev)
@@ -281,7 +304,7 @@ static int mv3310_config_init(struct phy_device *phydev)
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
 	    phydev->interface != PHY_INTERFACE_MODE_XAUI &&
 	    phydev->interface != PHY_INTERFACE_MODE_RXAUI &&
-	    phydev->interface != PHY_INTERFACE_MODE_10GKR)
+	    phydev->interface != PHY_INTERFACE_MODE_10GBASER)
 		return -ENODEV;
 
 	return 0;
@@ -363,16 +386,17 @@ static void mv3310_update_interface(struct phy_device *phydev)
 {
 	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
 	     phydev->interface == PHY_INTERFACE_MODE_2500BASEX ||
-	     phydev->interface == PHY_INTERFACE_MODE_10GKR) && phydev->link) {
+	     phydev->interface == PHY_INTERFACE_MODE_10GBASER) &&
+	    phydev->link) {
 		/* The PHY automatically switches its serdes interface (and
-		 * active PHYXS instance) between Cisco SGMII, 10GBase-KR and
+		 * active PHYXS instance) between Cisco SGMII, 10GBase-R and
 		 * 2500BaseX modes according to the speed.  Florian suggests
 		 * setting phydev->interface to communicate this to the MAC.
 		 * Only do this if we are already in one of the above modes.
 		 */
 		switch (phydev->speed) {
 		case SPEED_10000:
-			phydev->interface = PHY_INTERFACE_MODE_10GKR;
+			phydev->interface = PHY_INTERFACE_MODE_10GBASER;
 			break;
 		case SPEED_2500:
 			phydev->interface = PHY_INTERFACE_MODE_2500BASEX;

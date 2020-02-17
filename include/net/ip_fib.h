@@ -204,6 +204,18 @@ __be32 fib_result_prefsrc(struct net *net, struct fib_result *res);
 #define FIB_RES_DEV(res)	(FIB_RES_NHC(res)->nhc_dev)
 #define FIB_RES_OIF(res)	(FIB_RES_NHC(res)->nhc_oif)
 
+struct fib_rt_info {
+	struct fib_info		*fi;
+	u32			tb_id;
+	__be32			dst;
+	int			dst_len;
+	u8			tos;
+	u8			type;
+	u8			offload:1,
+				trap:1,
+				unused:6;
+};
+
 struct fib_entry_notifier_info {
 	struct fib_notifier_info info; /* must be first */
 	u32 dst;
@@ -219,7 +231,7 @@ struct fib_nh_notifier_info {
 	struct fib_nh *fib_nh;
 };
 
-int call_fib4_notifier(struct notifier_block *nb, struct net *net,
+int call_fib4_notifier(struct notifier_block *nb,
 		       enum fib_event_type event_type,
 		       struct fib_notifier_info *info);
 int call_fib4_notifiers(struct net *net, enum fib_event_type event_type,
@@ -229,7 +241,8 @@ int __net_init fib4_notifier_init(struct net *net);
 void __net_exit fib4_notifier_exit(struct net *net);
 
 void fib_info_notify_update(struct net *net, struct nl_info *info);
-void fib_notify(struct net *net, struct notifier_block *nb);
+int fib_notify(struct net *net, struct notifier_block *nb,
+	       struct netlink_ext_ack *extack);
 
 struct fib_table {
 	struct hlist_node	tb_hlist;
@@ -310,12 +323,18 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 	return err;
 }
 
+static inline bool fib4_has_custom_rules(const struct net *net)
+{
+	return false;
+}
+
 static inline bool fib4_rule_default(const struct fib_rule *rule)
 {
 	return true;
 }
 
-static inline int fib4_rules_dump(struct net *net, struct notifier_block *nb)
+static inline int fib4_rules_dump(struct net *net, struct notifier_block *nb,
+				  struct netlink_ext_ack *extack)
 {
 	return 0;
 }
@@ -376,8 +395,14 @@ out:
 	return err;
 }
 
+static inline bool fib4_has_custom_rules(const struct net *net)
+{
+	return net->ipv4.fib_has_custom_rules;
+}
+
 bool fib4_rule_default(const struct fib_rule *rule);
-int fib4_rules_dump(struct net *net, struct notifier_block *nb);
+int fib4_rules_dump(struct net *net, struct notifier_block *nb,
+		    struct netlink_ext_ack *extack);
 unsigned int fib4_rules_seq_read(struct net *net);
 
 static inline bool fib4_rules_early_flow_dissect(struct net *net,
@@ -451,6 +476,7 @@ int fib_nh_common_init(struct fib_nh_common *nhc, struct nlattr *fc_encap,
 void fib_nh_common_release(struct fib_nh_common *nhc);
 
 /* Exported by fib_trie.c */
+void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri);
 void fib_trie_init(void);
 struct fib_table *fib_trie_table(u32 id, struct fib_table *alias);
 

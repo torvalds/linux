@@ -155,6 +155,12 @@
 		pwms = <&pwm9 0 26316 0>; /* 38000 Hz */
 	};
 
+	rom_rng: rng {
+		compatible = "nokia,n900-rom-rng";
+		clocks = <&rng_ick>;
+		clock-names = "ick";
+	};
+
 	/* controlled (enabled/disabled) directly by bcm2048 and wl1251 */
 	vctcxo: vctcxo {
 		compatible = "fixed-clock";
@@ -474,6 +480,11 @@
 	regulator-name = "VINTDIG";
 	/* fixed to 1500000 */
 	regulator-always-on;
+};
+
+/* First two dma channels are reserved on secure omap3 */
+&sdma {
+	dma-channel-mask = <0xfffffffc>;
 };
 
 &twl {
@@ -1011,6 +1022,11 @@
 
 		clocks = <&vctcxo>;
 	};
+};
+
+/* RNG not directly accessible on n900, see omap3-rom-rng instead */
+&rng_target {
+	status = "disabled";
 };
 
 &usb_otg_hs {

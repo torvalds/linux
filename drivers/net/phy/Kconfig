@@ -38,6 +38,7 @@ config MDIO_BCM_IPROC
 	tristate "Broadcom iProc MDIO bus controller"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on HAS_IOMEM && OF_MDIO
+	default ARCH_BCM_IPROC
 	help
 	  This module provides a driver for the MDIO busses found in the
 	  Broadcom iProc SoC's.
@@ -282,11 +283,6 @@ config AX88796B_PHY
 	  Currently supports the Asix Electronics PHY found in the X-Surf 100
 	  AX88796B package.
 
-config AT803X_PHY
-	tristate "AT803X PHYs"
-	---help---
-	  Currently supports the AT8030 and AT8035 model
-
 config BCM63XX_PHY
 	tristate "Broadcom 63xx SOCs internal PHY"
 	depends on BCM63XX || COMPILE_TEST
@@ -329,6 +325,12 @@ config BROADCOM_PHY
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
 	  BCM5481, BCM54810 and BCM5482 PHYs.
 
+config BCM84881_PHY
+	bool "Broadcom BCM84881 PHY"
+	depends on PHYLIB=y
+	---help---
+	  Support the Broadcom BCM84881 PHY.
+
 config CICADA_PHY
 	tristate "Cicada PHYs"
 	---help---
@@ -345,14 +347,15 @@ config DAVICOM_PHY
 	  Currently supports dm9161e and dm9131
 
 config DP83822_PHY
-	tristate "Texas Instruments DP83822 PHY"
+	tristate "Texas Instruments DP83822/825/826 PHYs"
 	---help---
-	  Supports the DP83822 PHY.
+	  Supports the DP83822, DP83825I, DP83825CM, DP83825CS, DP83825S,
+	  DP83826C and DP83826NC PHYs.
 
 config DP83TC811_PHY
-	tristate "Texas Instruments DP83TC822 PHY"
+	tristate "Texas Instruments DP83TC811 PHY"
 	---help---
-	  Supports the DP83TC822 PHY.
+	  Supports the DP83TC811 PHY.
 
 config DP83848_PHY
 	tristate "Texas Instruments DP83848 PHY"
@@ -363,6 +366,12 @@ config DP83867_PHY
 	tristate "Texas Instruments DP83867 Gigabit PHY"
 	---help---
 	  Currently supports the DP83867 PHY.
+
+config DP83869_PHY
+	tristate "Texas Instruments DP83869 Gigabit PHY"
+	---help---
+	  Currently supports the DP83869 PHY.  This PHY supports copper and
+	  fiber connections.
 
 config FIXED_PHY
 	tristate "MDIO Bus/PHY emulation with fixed speed/link PHYs"
@@ -430,6 +439,9 @@ config MICROCHIP_T1_PHY
 
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
+	depends on MACSEC || MACSEC=n
+	select CRYPTO_AES
+	select CRYPTO_ECB
 	---help---
 	  Currently supports VSC8514, VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 
@@ -443,6 +455,12 @@ config NXP_TJA11XX_PHY
 	depends on HWMON
 	---help---
 	  Currently supports the NXP TJA1100 and TJA1101 PHY.
+
+config AT803X_PHY
+	tristate "Qualcomm Atheros AR803X PHYs"
+	depends on REGULATOR
+	help
+	  Currently supports the AR8030, AR8031, AR8033 and AR8035 model
 
 config QSEMI_PHY
 	tristate "Quality Semiconductor PHYs"

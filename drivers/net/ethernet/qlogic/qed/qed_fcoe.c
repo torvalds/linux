@@ -167,6 +167,8 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 		goto err;
 	}
 	p_cxt = cxt_info.p_cxt;
+	memset(p_cxt, 0, sizeof(*p_cxt));
+
 	SET_FIELD(p_cxt->tstorm_ag_context.flags3,
 		  E4_TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_EN, 1);
 

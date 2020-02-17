@@ -37,9 +37,7 @@
 #include "dcn10/rv1_clk_mgr.h"
 #include "dcn10/rv2_clk_mgr.h"
 #include "dcn20/dcn20_clk_mgr.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #include "dcn21/rn_clk_mgr.h"
-#endif
 
 
 int clk_mgr_helper_get_active_display_cnt(
@@ -65,6 +63,31 @@ int clk_mgr_helper_get_active_display_cnt(
 	return display_count;
 }
 
+void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
+{
+	struct dc_link *edp_link = get_edp_link(dc);
+
+	if (dc->hwss.exit_optimized_pwr_state)
+		dc->hwss.exit_optimized_pwr_state(dc, dc->current_state);
+
+	if (edp_link) {
+		clk_mgr->psr_allow_active_cache = edp_link->psr_allow_active;
+		dc_link_set_psr_allow_active(edp_link, false, false);
+	}
+
+}
+
+void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
+{
+	struct dc_link *edp_link = get_edp_link(dc);
+
+	if (edp_link)
+		dc_link_set_psr_allow_active(edp_link, clk_mgr->psr_allow_active_cache, false);
+
+	if (dc->hwss.optimize_pwr_state)
+		dc->hwss.optimize_pwr_state(dc, dc->current_state);
+
+}
 
 struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *pp_smu, struct dccg *dccg)
 {
@@ -109,14 +132,19 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			dce120_clk_mgr_construct(ctx, clk_mgr);
 		break;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case FAMILY_RV:
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+		if (ASICREV_IS_DALI(asic_id.hw_internal_rev) ||
+				ASICREV_IS_POLLOCK(asic_id.hw_internal_rev)) {
+			/* TEMP: this check has to come before ASICREV_IS_RENOIR */
+			/* which also incorrectly returns true for Dali/Pollock*/
+			rv2_clk_mgr_construct(ctx, clk_mgr, pp_smu);
+			break;
+		}
 		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev)) {
 			rn_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			break;
 		}
-#endif	/* DCN2_1 */
 		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev)) {
 			rv2_clk_mgr_construct(ctx, clk_mgr, pp_smu);
 			break;
@@ -127,13 +155,11 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			break;
 		}
 		break;
-#endif	/* Family RV */
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	case FAMILY_NV:
 		dcn20_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 		break;
-#endif /* Family NV */
+#endif	/* Family RV and NV*/
 
 	default:
 		ASSERT(0); /* Unknown Asic */

@@ -55,11 +55,9 @@ struct inode *ceph_get_inode(struct super_block *sb, struct ceph_vino vino)
 	inode = iget5_locked(sb, t, ceph_ino_compare, ceph_set_ino_cb, &vino);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	if (inode->i_state & I_NEW) {
+	if (inode->i_state & I_NEW)
 		dout("get_inode created new inode %p %llx.%llx ino %llx\n",
 		     inode, ceph_vinop(inode), (u64)inode->i_ino);
-		unlock_new_inode(inode);
-	}
 
 	dout("get_inode on %lu=%llx.%llx got %p\n", inode->i_ino, vino.ino,
 	     vino.snap, inode);
@@ -88,6 +86,10 @@ struct inode *ceph_get_snapdir(struct inode *parent)
 	inode->i_fop = &ceph_snapdir_fops;
 	ci->i_snap_caps = CEPH_CAP_PIN; /* so we can open */
 	ci->i_rbytes = 0;
+
+	if (inode->i_state & I_NEW)
+		unlock_new_inode(inode);
+
 	return inode;
 }
 
@@ -728,8 +730,7 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 static int fill_inode(struct inode *inode, struct page *locked_page,
 		      struct ceph_mds_reply_info_in *iinfo,
 		      struct ceph_mds_reply_dirfrag *dirinfo,
-		      struct ceph_mds_session *session,
-		      unsigned long ttl_from, int cap_fmode,
+		      struct ceph_mds_session *session, int cap_fmode,
 		      struct ceph_cap_reservation *caps_reservation)
 {
 	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
@@ -754,8 +755,11 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	info_caps = le32_to_cpu(info->cap.caps);
 
 	/* prealloc new cap struct */
-	if (info_caps && ceph_snap(inode) == CEPH_NOSNAP)
+	if (info_caps && ceph_snap(inode) == CEPH_NOSNAP) {
 		new_cap = ceph_get_cap(mdsc, caps_reservation);
+		if (!new_cap)
+			return -ENOMEM;
+	}
 
 	/*
 	 * prealloc xattr data, if it looks like we'll need it.  only
@@ -1237,7 +1241,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req)
 		if (dir) {
 			err = fill_inode(dir, NULL,
 					 &rinfo->diri, rinfo->dirfrag,
-					 session, req->r_request_started, -1,
+					 session, -1,
 					 &req->r_caps_reservation);
 			if (err < 0)
 				goto done;
@@ -1302,18 +1306,22 @@ retry_lookup:
 			err = PTR_ERR(in);
 			goto done;
 		}
-		req->r_target_inode = in;
 
 		err = fill_inode(in, req->r_locked_page, &rinfo->targeti, NULL,
-				session, req->r_request_started,
+				session,
 				(!test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags) &&
-				rinfo->head->result == 0) ?  req->r_fmode : -1,
+				 rinfo->head->result == 0) ?  req->r_fmode : -1,
 				&req->r_caps_reservation);
 		if (err < 0) {
 			pr_err("fill_inode badness %p %llx.%llx\n",
 				in, ceph_vinop(in));
+			if (in->i_state & I_NEW)
+				discard_new_inode(in);
 			goto done;
 		}
+		req->r_target_inode = in;
+		if (in->i_state & I_NEW)
+			unlock_new_inode(in);
 	}
 
 	/*
@@ -1434,6 +1442,7 @@ retry_lookup:
 		dout(" final dn %p\n", dn);
 	} else if ((req->r_op == CEPH_MDS_OP_LOOKUPSNAP ||
 		    req->r_op == CEPH_MDS_OP_MKSNAP) &&
+	           test_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags) &&
 		   !test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags)) {
 		struct inode *dir = req->r_parent;
 
@@ -1492,12 +1501,18 @@ static int readdir_prepopulate_inodes_only(struct ceph_mds_request *req,
 			continue;
 		}
 		rc = fill_inode(in, NULL, &rde->inode, NULL, session,
-				req->r_request_started, -1,
-				&req->r_caps_reservation);
+				-1, &req->r_caps_reservation);
 		if (rc < 0) {
 			pr_err("fill_inode badness on %p got %d\n", in, rc);
 			err = rc;
+			if (in->i_state & I_NEW) {
+				ihold(in);
+				discard_new_inode(in);
+			}
+		} else if (in->i_state & I_NEW) {
+			unlock_new_inode(in);
 		}
+
 		/* avoid calling iput_final() in mds dispatch threads */
 		ceph_async_iput(in);
 	}
@@ -1693,19 +1708,24 @@ retry_lookup:
 		}
 
 		ret = fill_inode(in, NULL, &rde->inode, NULL, session,
-				 req->r_request_started, -1,
-				 &req->r_caps_reservation);
+				 -1, &req->r_caps_reservation);
 		if (ret < 0) {
 			pr_err("fill_inode badness on %p\n", in);
 			if (d_really_is_negative(dn)) {
 				/* avoid calling iput_final() in mds
 				 * dispatch threads */
+				if (in->i_state & I_NEW) {
+					ihold(in);
+					discard_new_inode(in);
+				}
 				ceph_async_iput(in);
 			}
 			d_drop(dn);
 			err = ret;
 			goto next_item;
 		}
+		if (in->i_state & I_NEW)
+			unlock_new_inode(in);
 
 		if (d_really_is_negative(dn)) {
 			if (ceph_security_xattr_deadlock(in)) {

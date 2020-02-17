@@ -631,9 +631,12 @@ int mv88e6xxx_g1_vtu_prob_irq_setup(struct mv88e6xxx_chip *chip)
 	if (chip->vtu_prob_irq < 0)
 		return chip->vtu_prob_irq;
 
+	snprintf(chip->vtu_prob_irq_name, sizeof(chip->vtu_prob_irq_name),
+		 "mv88e6xxx-%s-g1-vtu-prob", dev_name(chip->dev));
+
 	err = request_threaded_irq(chip->vtu_prob_irq, NULL,
 				   mv88e6xxx_g1_vtu_prob_irq_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-g1-vtu-prob",
+				   IRQF_ONESHOT, chip->vtu_prob_irq_name,
 				   chip);
 	if (err)
 		irq_dispose_mapping(chip->vtu_prob_irq);

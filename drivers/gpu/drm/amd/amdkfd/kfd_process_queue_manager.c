@@ -53,7 +53,7 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 	pr_debug("The new slot id %lu\n", found);
 
 	if (found >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS) {
-		pr_info("Cannot open more queues for process with pasid %d\n",
+		pr_info("Cannot open more queues for process with pasid 0x%x\n",
 				pqm->process->pasid);
 		return -ENOMEM;
 	}
@@ -162,7 +162,7 @@ void pqm_uninit(struct process_queue_manager *pqm)
 	pqm->queue_slot_bitmap = NULL;
 }
 
-static int create_cp_queue(struct process_queue_manager *pqm,
+static int init_user_queue(struct process_queue_manager *pqm,
 				struct kfd_dev *dev, struct queue **q,
 				struct queue_properties *q_properties,
 				struct file *f, unsigned int qid)
@@ -192,7 +192,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct kfd_dev *dev,
 			    struct file *f,
 			    struct queue_properties *properties,
-			    unsigned int *qid)
+			    unsigned int *qid,
+			    uint32_t *p_doorbell_offset_in_process)
 {
 	int retval;
 	struct kfd_process_device *pdd;
@@ -250,7 +251,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		}
 
-		retval = create_cp_queue(pqm, dev, &q, properties, f, *qid);
+		retval = init_user_queue(pqm, dev, &q, properties, f, *qid);
 		if (retval != 0)
 			goto err_create_queue;
 		pqn->q = q;
@@ -271,7 +272,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		}
 
-		retval = create_cp_queue(pqm, dev, &q, properties, f, *qid);
+		retval = init_user_queue(pqm, dev, &q, properties, f, *qid);
 		if (retval != 0)
 			goto err_create_queue;
 		pqn->q = q;
@@ -298,17 +299,20 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	}
 
 	if (retval != 0) {
-		pr_err("Pasid %d DQM create queue %d failed. ret %d\n",
+		pr_err("Pasid 0x%x DQM create queue %d failed. ret %d\n",
 			pqm->process->pasid, type, retval);
 		goto err_create_queue;
 	}
 
-	if (q)
+	if (q && p_doorbell_offset_in_process)
 		/* Return the doorbell offset within the doorbell page
 		 * to the caller so it can be passed up to user mode
 		 * (in bytes).
+		 * There are always 1024 doorbells per process, so in case
+		 * of 8-byte doorbells, there are two doorbell pages per
+		 * process.
 		 */
-		properties->doorbell_off =
+		*p_doorbell_offset_in_process =
 			(q->properties.doorbell_off * sizeof(uint32_t)) &
 			(kfd_doorbell_process_slice(dev) - 1);
 
@@ -370,14 +374,14 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		/* destroy kernel queue (DIQ) */
 		dqm = pqn->kq->dev->dqm;
 		dqm->ops.destroy_kernel_queue(dqm, pqn->kq, &pdd->qpd);
-		kernel_queue_uninit(pqn->kq);
+		kernel_queue_uninit(pqn->kq, false);
 	}
 
 	if (pqn->q) {
 		dqm = pqn->q->device->dqm;
 		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
 		if (retval) {
-			pr_err("Pasid %d destroy queue %d failed, ret %d\n",
+			pr_err("Pasid 0x%x destroy queue %d failed, ret %d\n",
 				pqm->process->pasid,
 				pqn->q->properties.queue_id, retval);
 			if (retval != -ETIME)

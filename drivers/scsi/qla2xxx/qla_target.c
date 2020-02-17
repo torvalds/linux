@@ -463,7 +463,7 @@ void qlt_response_pkt_all_vps(struct scsi_qla_host *vha,
 
 	case IMMED_NOTIFY_TYPE:
 	{
-		struct scsi_qla_host *host = vha;
+		struct scsi_qla_host *host;
 		struct imm_ntfy_from_isp *entry =
 		    (struct imm_ntfy_from_isp *)pkt;
 
@@ -596,7 +596,8 @@ static void qla2x00_async_nack_sp_done(srb_t *sp, int res)
 			spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 		} else {
 			sp->fcport->login_retry = 0;
-			sp->fcport->disc_state = DSC_LOGIN_COMPLETE;
+			qla2x00_set_fcport_disc_state(sp->fcport,
+			    DSC_LOGIN_COMPLETE);
 			sp->fcport->deleted = 0;
 			sp->fcport->logout_on_delete = 1;
 		}
@@ -957,7 +958,7 @@ void qlt_free_session_done(struct work_struct *work)
 	struct qlt_plogi_ack_t *own =
 		sess->plogi_link[QLT_PLOGI_LINK_SAME_WWN];
 
-	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf084,
+	ql_dbg(ql_dbg_disc, vha, 0xf084,
 		"%s: se_sess %p / sess %p from port %8phC loop_id %#04x"
 		" s_id %02x:%02x:%02x logout %d keep %d els_logo %d\n",
 		__func__, sess->se_sess, sess, sess->port_name, sess->loop_id,
@@ -966,7 +967,7 @@ void qlt_free_session_done(struct work_struct *work)
 		sess->send_els_logo);
 
 	if (!IS_SW_RESV_ADDR(sess->d_id)) {
-		qla2x00_mark_device_lost(vha, sess, 0, 0);
+		qla2x00_mark_device_lost(vha, sess, 0);
 
 		if (sess->send_els_logo) {
 			qlt_port_logo_t logo;
@@ -1024,7 +1025,7 @@ void qlt_free_session_done(struct work_struct *work)
 
 		while (!READ_ONCE(sess->logout_completed)) {
 			if (!traced) {
-				ql_dbg(ql_dbg_tgt_mgt, vha, 0xf086,
+				ql_dbg(ql_dbg_disc, vha, 0xf086,
 					"%s: waiting for sess %p logout\n",
 					__func__, sess);
 				traced = true;
@@ -1045,6 +1046,10 @@ void qlt_free_session_done(struct work_struct *work)
 			(struct imm_ntfy_from_isp *)sess->iocb, SRB_NACK_LOGO);
 	}
 
+	spin_lock_irqsave(&vha->work_lock, flags);
+	sess->flags &= ~FCF_ASYNC_SENT;
+	spin_unlock_irqrestore(&vha->work_lock, flags);
+
 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
 	if (sess->se_sess) {
 		sess->se_sess = NULL;
@@ -1052,7 +1057,7 @@ void qlt_free_session_done(struct work_struct *work)
 			tgt->sess_count--;
 	}
 
-	sess->disc_state = DSC_DELETED;
+	qla2x00_set_fcport_disc_state(sess, DSC_DELETED);
 	sess->fw_login_state = DSC_LS_PORT_UNAVAIL;
 	sess->deleted = QLA_SESS_DELETED;
 
@@ -1104,10 +1109,11 @@ void qlt_free_session_done(struct work_struct *work)
 		}
 	}
 
+	sess->explicit_logout = 0;
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 	sess->free_pending = 0;
 
-	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf001,
+	ql_dbg(ql_dbg_disc, vha, 0xf001,
 	    "Unregistration of sess %p %8phC finished fcp_cnt %d\n",
 		sess, sess->port_name, vha->fcport_count);
 
@@ -1150,17 +1156,21 @@ void qlt_unreg_sess(struct fc_port *sess)
 		return;
 	}
 	sess->free_pending = 1;
+	/*
+	 * Use FCF_ASYNC_SENT flag to block other cmds used in sess
+	 * management from being sent.
+	 */
+	sess->flags |= FCF_ASYNC_SENT;
 	spin_unlock_irqrestore(&sess->vha->work_lock, flags);
 
 	if (sess->se_sess)
 		vha->hw->tgt.tgt_ops->clear_nacl_from_fcport_map(sess);
 
 	sess->deleted = QLA_SESS_DELETION_IN_PROGRESS;
-	sess->disc_state = DSC_DELETE_PEND;
+	qla2x00_set_fcport_disc_state(sess, DSC_DELETE_PEND);
 	sess->last_rscn_gen = sess->rscn_gen;
 	sess->last_login_gen = sess->login_gen;
 
-	INIT_WORK(&sess->free_work, qlt_free_session_done);
 	queue_work(sess->vha->hw->wq, &sess->free_work);
 }
 EXPORT_SYMBOL(qlt_unreg_sess);
@@ -1257,7 +1267,8 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 	sess->deleted = QLA_SESS_DELETION_IN_PROGRESS;
 	spin_unlock_irqrestore(&sess->vha->work_lock, flags);
 
-	sess->disc_state = DSC_DELETE_PEND;
+	sess->prli_pend_timer = 0;
+	qla2x00_set_fcport_disc_state(sess, DSC_DELETE_PEND);
 
 	qla24xx_chk_fcp_state(sess);
 
@@ -1265,7 +1276,6 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 	    "Scheduling sess %p for deletion %8phC\n",
 	    sess, sess->port_name);
 
-	INIT_WORK(&sess->del_work, qla24xx_delete_sess_fn);
 	WARN_ON(!queue_work(sess->vha->hw->wq, &sess->del_work));
 }
 
@@ -3447,13 +3457,13 @@ qlt_handle_dif_error(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
 
 	cmd->trc_flags |= TRC_DIF_ERR;
 
-	cmd->a_guard   = be16_to_cpu(*(uint16_t *)(ap + 0));
-	cmd->a_app_tag = be16_to_cpu(*(uint16_t *)(ap + 2));
-	cmd->a_ref_tag = be32_to_cpu(*(uint32_t *)(ap + 4));
+	cmd->a_guard   = get_unaligned_be16(ap + 0);
+	cmd->a_app_tag = get_unaligned_be16(ap + 2);
+	cmd->a_ref_tag = get_unaligned_be32(ap + 4);
 
-	cmd->e_guard   = be16_to_cpu(*(uint16_t *)(ep + 0));
-	cmd->e_app_tag = be16_to_cpu(*(uint16_t *)(ep + 2));
-	cmd->e_ref_tag = be32_to_cpu(*(uint32_t *)(ep + 4));
+	cmd->e_guard   = get_unaligned_be16(ep + 0);
+	cmd->e_app_tag = get_unaligned_be16(ep + 2);
+	cmd->e_ref_tag = get_unaligned_be32(ep + 4);
 
 	ql_dbg(ql_dbg_tgt_dif, vha, 0xf075,
 	    "%s: aborted %d state %d\n", __func__, cmd->aborted, cmd->state);
@@ -4580,7 +4590,7 @@ qlt_find_sess_invalidate_other(scsi_qla_host_t *vha, uint64_t wwn,
 		/* find other sess with nport_id collision */
 		if (port_id.b24 == other_sess->d_id.b24) {
 			if (loop_id != other_sess->loop_id) {
-				ql_dbg(ql_dbg_tgt_tmr, vha, 0x1000c,
+				ql_dbg(ql_dbg_disc, vha, 0x1000c,
 				    "Invalidating sess %p loop_id %d wwn %llx.\n",
 				    other_sess, other_sess->loop_id, other_wwn);
 
@@ -4596,7 +4606,7 @@ qlt_find_sess_invalidate_other(scsi_qla_host_t *vha, uint64_t wwn,
 				 * Another wwn used to have our s_id/loop_id
 				 * kill the session, but don't free the loop_id
 				 */
-				ql_dbg(ql_dbg_tgt_tmr, vha, 0xf01b,
+				ql_dbg(ql_dbg_disc, vha, 0xf01b,
 				    "Invalidating sess %p loop_id %d wwn %llx.\n",
 				    other_sess, other_sess->loop_id, other_wwn);
 
@@ -4611,7 +4621,7 @@ qlt_find_sess_invalidate_other(scsi_qla_host_t *vha, uint64_t wwn,
 		/* find other sess with nport handle collision */
 		if ((loop_id == other_sess->loop_id) &&
 			(loop_id != FC_NO_LOOP_ID)) {
-			ql_dbg(ql_dbg_tgt_tmr, vha, 0x1000d,
+			ql_dbg(ql_dbg_disc, vha, 0x1000d,
 			       "Invalidating sess %p loop_id %d wwn %llx.\n",
 			       other_sess, other_sess->loop_id, other_wwn);
 
@@ -4804,6 +4814,7 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 
 	switch (sess->disc_state) {
 	case DSC_DELETED:
+	case DSC_LOGIN_PEND:
 		qlt_plogi_ack_unref(vha, pla);
 		break;
 
@@ -6053,7 +6064,7 @@ static fc_port_t *qlt_get_port_database(struct scsi_qla_host *vha,
 		if (!IS_SW_RESV_ADDR(fcport->d_id))
 		   vha->fcport_count++;
 		fcport->login_gen++;
-		fcport->disc_state = DSC_LOGIN_COMPLETE;
+		qla2x00_set_fcport_disc_state(fcport, DSC_LOGIN_COMPLETE);
 		fcport->login_succ = 1;
 		newfcport = 1;
 	}

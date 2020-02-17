@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File aq_pci_func.c: Definition of PCI functions. */
@@ -185,6 +185,7 @@ unsigned int aq_pci_func_get_irq_type(struct aq_nic_s *self)
 		return AQ_HW_IRQ_MSIX;
 	if (self->pdev->msi_enabled)
 		return AQ_HW_IRQ_MSI;
+
 	return AQ_HW_IRQ_LEGACY;
 }
 
@@ -196,12 +197,12 @@ static void aq_pci_free_irq_vectors(struct aq_nic_s *self)
 static int aq_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *pci_id)
 {
-	struct aq_nic_s *self;
-	int err;
 	struct net_device *ndev;
 	resource_size_t mmio_pa;
-	u32 bar;
+	struct aq_nic_s *self;
 	u32 numvecs;
+	u32 bar;
+	int err;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -252,7 +253,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 				goto err_free_aq_hw;
 			}
 
-			self->aq_hw->mmio = ioremap_nocache(mmio_pa, reg_sz);
+			self->aq_hw->mmio = ioremap(mmio_pa, reg_sz);
 			if (!self->aq_hw->mmio) {
 				err = -EIO;
 				goto err_free_aq_hw;
@@ -269,6 +270,9 @@ static int aq_pci_probe(struct pci_dev *pdev,
 	numvecs = min((u8)AQ_CFG_VECS_DEF,
 		      aq_nic_get_cfg(self)->aq_hw_caps->msix_irqs);
 	numvecs = min(numvecs, num_online_cpus());
+	/* Request IRQ vector for PTP */
+	numvecs += 1;
+
 	numvecs += AQ_HW_SERVICE_IRQS;
 	/*enable interrupts */
 #if !AQ_CFG_FORCE_LEGACY_INT
@@ -308,6 +312,7 @@ err_ndev:
 	pci_release_regions(pdev);
 err_pci_func:
 	pci_disable_device(pdev);
+
 	return err;
 }
 
@@ -344,29 +349,98 @@ static void aq_pci_shutdown(struct pci_dev *pdev)
 	}
 }
 
-static int aq_pci_suspend(struct pci_dev *pdev, pm_message_t pm_msg)
+static int aq_suspend_common(struct device *dev, bool deep)
 {
-	struct aq_nic_s *self = pci_get_drvdata(pdev);
+	struct aq_nic_s *nic = pci_get_drvdata(to_pci_dev(dev));
 
-	return aq_nic_change_pm_state(self, &pm_msg);
+	rtnl_lock();
+
+	nic->power_state = AQ_HW_POWER_STATE_D3;
+	netif_device_detach(nic->ndev);
+	netif_tx_stop_all_queues(nic->ndev);
+
+	aq_nic_stop(nic);
+
+	if (deep) {
+		aq_nic_deinit(nic, !nic->aq_hw->aq_nic_cfg->wol);
+		aq_nic_set_power(nic);
+	}
+
+	rtnl_unlock();
+
+	return 0;
 }
 
-static int aq_pci_resume(struct pci_dev *pdev)
+static int atl_resume_common(struct device *dev, bool deep)
 {
-	struct aq_nic_s *self = pci_get_drvdata(pdev);
-	pm_message_t pm_msg = PMSG_RESTORE;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct aq_nic_s *nic;
+	int ret;
 
-	return aq_nic_change_pm_state(self, &pm_msg);
+	nic = pci_get_drvdata(pdev);
+
+	rtnl_lock();
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	if (deep) {
+		ret = aq_nic_init(nic);
+		if (ret)
+			goto err_exit;
+	}
+
+	ret = aq_nic_start(nic);
+	if (ret)
+		goto err_exit;
+
+	netif_device_attach(nic->ndev);
+	netif_tx_start_all_queues(nic->ndev);
+
+err_exit:
+	rtnl_unlock();
+
+	return ret;
 }
+
+static int aq_pm_freeze(struct device *dev)
+{
+	return aq_suspend_common(dev, false);
+}
+
+static int aq_pm_suspend_poweroff(struct device *dev)
+{
+	return aq_suspend_common(dev, true);
+}
+
+static int aq_pm_thaw(struct device *dev)
+{
+	return atl_resume_common(dev, false);
+}
+
+static int aq_pm_resume_restore(struct device *dev)
+{
+	return atl_resume_common(dev, true);
+}
+
+static const struct dev_pm_ops aq_pm_ops = {
+	.suspend = aq_pm_suspend_poweroff,
+	.poweroff = aq_pm_suspend_poweroff,
+	.freeze = aq_pm_freeze,
+	.resume = aq_pm_resume_restore,
+	.restore = aq_pm_resume_restore,
+	.thaw = aq_pm_thaw,
+};
 
 static struct pci_driver aq_pci_ops = {
 	.name = AQ_CFG_DRV_NAME,
 	.id_table = aq_pci_tbl,
 	.probe = aq_pci_probe,
 	.remove = aq_pci_remove,
-	.suspend = aq_pci_suspend,
-	.resume = aq_pci_resume,
 	.shutdown = aq_pci_shutdown,
+#ifdef CONFIG_PM
+	.driver.pm = &aq_pm_ops,
+#endif
 };
 
 int aq_pci_func_register_driver(void)

@@ -30,8 +30,8 @@ if:
 properties:
   compatible:
     enum:
-      - const: regulator-fixed
-      - const: regulator-fixed-clock
+      - regulator-fixed
+      - regulator-fixed-clock
 
   regulator-name: true
 
@@ -50,6 +50,10 @@ properties:
     description: startup time in microseconds
     $ref: /schemas/types.yaml#/definitions/uint32
 
+  off-on-delay-us:
+    description: off delay time in microseconds
+    $ref: /schemas/types.yaml#/definitions/uint32
+
   enable-active-high:
     description:
       Polarity of GPIO is Active high. If this property is missing,
@@ -64,7 +68,6 @@ properties:
 
   vin-supply:
     description: Input supply phandle.
-    $ref: /schemas/types.yaml#/definitions/phandle
 
 required:
   - compatible

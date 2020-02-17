@@ -150,7 +150,7 @@ void drm_client_release(struct drm_client_dev *client)
 {
 	struct drm_device *dev = client->dev;
 
-	DRM_DEV_DEBUG_KMS(dev->dev, "%s\n", client->name);
+	drm_dbg_kms(dev, "%s\n", client->name);
 
 	drm_client_modeset_free(client);
 	drm_client_close(client);
@@ -203,7 +203,7 @@ void drm_client_dev_hotplug(struct drm_device *dev)
 			continue;
 
 		ret = client->funcs->hotplug(client);
-		DRM_DEV_DEBUG_KMS(dev->dev, "%s: ret=%d\n", client->name, ret);
+		drm_dbg_kms(dev, "%s: ret=%d\n", client->name, ret);
 	}
 	mutex_unlock(&dev->clientlist_mutex);
 }
@@ -223,7 +223,7 @@ void drm_client_dev_restore(struct drm_device *dev)
 			continue;
 
 		ret = client->funcs->restore(client);
-		DRM_DEV_DEBUG_KMS(dev->dev, "%s: ret=%d\n", client->name, ret);
+		drm_dbg_kms(dev, "%s: ret=%d\n", client->name, ret);
 		if (!ret) /* The first one to return zero gets the privilege to restore */
 			break;
 	}
@@ -351,8 +351,8 @@ static void drm_client_buffer_rmfb(struct drm_client_buffer *buffer)
 
 	ret = drm_mode_rmfb(buffer->client->dev, buffer->fb->base.id, buffer->client->file);
 	if (ret)
-		DRM_DEV_ERROR(buffer->client->dev->dev,
-			      "Error removing FB:%u (%d)\n", buffer->fb->base.id, ret);
+		drm_err(buffer->client->dev,
+			"Error removing FB:%u (%d)\n", buffer->fb->base.id, ret);
 
 	buffer->fb = NULL;
 }

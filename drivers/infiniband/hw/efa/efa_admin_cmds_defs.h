@@ -160,10 +160,16 @@ struct efa_admin_create_qp_resp {
 	/* Common Admin Queue completion descriptor */
 	struct efa_admin_acq_common_desc acq_common_desc;
 
-	/* Opaque handle to be used for consequent operations on the QP */
+	/*
+	 * Opaque handle to be used for consequent admin operations on the
+	 * QP
+	 */
 	u32 qp_handle;
 
-	/* QP number in the given EFA virtual device */
+	/*
+	 * QP number in the given EFA virtual device. Least-significant bits
+	 *    (as needed according to max_qp) carry unique QP ID
+	 */
 	u16 qp_num;
 
 	/* MBZ */
@@ -286,6 +292,7 @@ struct efa_admin_create_ah_cmd {
 	/* PD number */
 	u16 pd;
 
+	/* MBZ */
 	u16 reserved;
 };
 
@@ -296,6 +303,7 @@ struct efa_admin_create_ah_resp {
 	/* Target interface address handle (opaque) */
 	u16 ah;
 
+	/* MBZ */
 	u16 reserved;
 };
 
@@ -362,12 +370,17 @@ struct efa_admin_reg_mr_cmd {
 
 	/*
 	 * permissions
-	 * 0 : local_write_enable - Write permissions: value
-	 *    of 1 needed for RQ buffers and for RDMA write
-	 * 7:1 : reserved1 - remote access flags, etc
+	 * 0 : local_write_enable - Local write permissions:
+	 *    must be set for RQ buffers and buffers posted for
+	 *    RDMA Read requests
+	 * 1 : reserved1 - MBZ
+	 * 2 : remote_read_enable - Remote read permissions:
+	 *    must be set to enable RDMA read from the region
+	 * 7:3 : reserved2 - MBZ
 	 */
 	u8 permissions;
 
+	/* MBZ */
 	u16 reserved16_w5;
 
 	/* number of pages in PBL (redundant, could be calculated) */
@@ -415,20 +428,20 @@ struct efa_admin_create_cq_cmd {
 	struct efa_admin_aq_common_desc aq_common_desc;
 
 	/*
-	 * 4:0 : reserved5
+	 * 4:0 : reserved5 - MBZ
 	 * 5 : interrupt_mode_enabled - if set, cq operates
 	 *    in interrupt mode (i.e. CQ events and MSI-X are
 	 *    generated), otherwise - polling
 	 * 6 : virt - If set, ring base address is virtual
 	 *    (IOVA returned by MR registration)
-	 * 7 : reserved6
+	 * 7 : reserved6 - MBZ
 	 */
 	u8 cq_caps_1;
 
 	/*
 	 * 4:0 : cq_entry_size_words - size of CQ entry in
 	 *    32-bit words, valid values: 4, 8.
-	 * 7:5 : reserved7
+	 * 7:5 : reserved7 - MBZ
 	 */
 	u8 cq_caps_2;
 
@@ -474,6 +487,7 @@ struct efa_admin_destroy_cq_cmd {
 
 	u16 cq_idx;
 
+	/* MBZ */
 	u16 reserved1;
 };
 
@@ -526,7 +540,7 @@ struct efa_admin_get_set_feature_common_desc {
 	/*
 	 * 1:0 : select - 0x1 - current value; 0x3 - default
 	 *    value
-	 * 7:3 : reserved3
+	 * 7:3 : reserved3 - MBZ
 	 */
 	u8 flags;
 
@@ -553,38 +567,49 @@ struct efa_admin_feature_device_attr_desc {
 	/* Bar used for SQ and RQ doorbells */
 	u16 db_bar;
 
-	/* Indicates how many bits are used physical address access */
+	/* Indicates how many bits are used on physical address access */
 	u8 phys_addr_width;
 
-	/* Indicates how many bits are used virtual address access */
+	/* Indicates how many bits are used on virtual address access */
 	u8 virt_addr_width;
+
+	/*
+	 * 0 : rdma_read - If set, RDMA Read is supported on
+	 *    TX queues
+	 * 31:1 : reserved - MBZ
+	 */
+	u32 device_caps;
+
+	/* Max RDMA transfer size in bytes */
+	u32 max_rdma_size;
 };
 
 struct efa_admin_feature_queue_attr_desc {
 	/* The maximum number of queue pairs supported */
 	u32 max_qp;
 
+	/* Maximum number of WQEs per Send Queue */
 	u32 max_sq_depth;
 
-	/* max send wr used in inline-buf */
+	/* Maximum size of data that can be sent inline in a Send WQE */
 	u32 inline_buf_size;
 
+	/* Maximum number of buffer descriptors per Recv Queue */
 	u32 max_rq_depth;
 
 	/* The maximum number of completion queues supported per VF */
 	u32 max_cq;
 
+	/* Maximum number of CQEs per Completion Queue */
 	u32 max_cq_depth;
 
 	/* Number of sub-CQs to be created for each CQ */
 	u16 sub_cqs_per_cq;
 
+	/* MBZ */
 	u16 reserved;
 
-	/*
-	 * Maximum number of SGEs (buffs) allowed for a single send work
-	 *    queue element (WQE)
-	 */
+	/* Maximum number of SGEs (buffers) allowed for a single send WQE */
 	u16 max_wr_send_sges;
 
 	/* Maximum number of SGEs allowed for a single recv WQE */
@@ -604,6 +629,9 @@ struct efa_admin_feature_queue_attr_desc {
 
 	/* The maximum size of LLQ in bytes */
 	u32 max_llq_size;
+
+	/* Maximum number of SGEs for a single RDMA read WQE */
+	u16 max_wr_rdma_sges;
 };
 
 struct efa_admin_feature_aenq_desc {
@@ -618,6 +646,7 @@ struct efa_admin_feature_network_attr_desc {
 	/* Raw address data in network byte order */
 	u8 addr[16];
 
+	/* max packet payload size in bytes */
 	u32 mtu;
 };
 
@@ -780,6 +809,8 @@ struct efa_admin_mmio_req_read_less_resp {
 #define EFA_ADMIN_REG_MR_CMD_MEM_ADDR_PHY_MODE_EN_SHIFT     7
 #define EFA_ADMIN_REG_MR_CMD_MEM_ADDR_PHY_MODE_EN_MASK      BIT(7)
 #define EFA_ADMIN_REG_MR_CMD_LOCAL_WRITE_ENABLE_MASK        BIT(0)
+#define EFA_ADMIN_REG_MR_CMD_REMOTE_READ_ENABLE_SHIFT       2
+#define EFA_ADMIN_REG_MR_CMD_REMOTE_READ_ENABLE_MASK        BIT(2)
 
 /* create_cq_cmd */
 #define EFA_ADMIN_CREATE_CQ_CMD_INTERRUPT_MODE_ENABLED_SHIFT 5
@@ -790,5 +821,8 @@ struct efa_admin_mmio_req_read_less_resp {
 
 /* get_set_feature_common_desc */
 #define EFA_ADMIN_GET_SET_FEATURE_COMMON_DESC_SELECT_MASK   GENMASK(1, 0)
+
+/* feature_device_attr_desc */
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK   BIT(0)
 
 #endif /* _EFA_ADMIN_CMDS_H_ */

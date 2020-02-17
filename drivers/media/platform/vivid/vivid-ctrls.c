@@ -32,6 +32,7 @@
 #define VIVID_CID_U32_ARRAY		(VIVID_CID_CUSTOM_BASE + 8)
 #define VIVID_CID_U16_MATRIX		(VIVID_CID_CUSTOM_BASE + 9)
 #define VIVID_CID_U8_4D_ARRAY		(VIVID_CID_CUSTOM_BASE + 10)
+#define VIVID_CID_AREA			(VIVID_CID_CUSTOM_BASE + 11)
 
 #define VIVID_CID_VIVID_BASE		(0x00f00000 | 0xf000)
 #define VIVID_CID_VIVID_CLASS		(0x00f00000 | 1)
@@ -94,6 +95,9 @@
 
 #define VIVID_CID_SDR_CAP_FM_DEVIATION	(VIVID_CID_VIVID_BASE + 110)
 
+#define VIVID_CID_META_CAP_GENERATE_PTS	(VIVID_CID_VIVID_BASE + 111)
+#define VIVID_CID_META_CAP_GENERATE_SCR	(VIVID_CID_VIVID_BASE + 112)
+
 /* General User Controls */
 
 static int vivid_user_gen_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -110,6 +114,7 @@ static int vivid_user_gen_s_ctrl(struct v4l2_ctrl *ctrl)
 		clear_bit(V4L2_FL_REGISTERED, &dev->sdr_cap_dev.flags);
 		clear_bit(V4L2_FL_REGISTERED, &dev->radio_rx_dev.flags);
 		clear_bit(V4L2_FL_REGISTERED, &dev->radio_tx_dev.flags);
+		clear_bit(V4L2_FL_REGISTERED, &dev->meta_cap_dev.flags);
 		break;
 	case VIVID_CID_BUTTON:
 		dev->button_pressed = 30;
@@ -262,6 +267,18 @@ static const struct v4l2_ctrl_config vivid_ctrl_disconnect = {
 	.type = V4L2_CTRL_TYPE_BUTTON,
 };
 
+static const struct v4l2_area area = {
+	.width = 1000,
+	.height = 2000,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_area = {
+	.ops = &vivid_user_gen_ctrl_ops,
+	.id = VIVID_CID_AREA,
+	.name = "Area",
+	.type = V4L2_CTRL_TYPE_AREA,
+	.p_def.p_const = &area,
+};
 
 /* Framebuffer Controls */
 
@@ -1421,6 +1438,47 @@ static const struct v4l2_ctrl_config vivid_ctrl_sdr_cap_fm_deviation = {
 	.step =     1,
 };
 
+/* Metadata Capture Control */
+
+static int vivid_meta_cap_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev,
+					     ctrl_hdl_meta_cap);
+
+	switch (ctrl->id) {
+	case VIVID_CID_META_CAP_GENERATE_PTS:
+		dev->meta_pts = ctrl->val;
+		break;
+	case VIVID_CID_META_CAP_GENERATE_SCR:
+		dev->meta_scr = ctrl->val;
+		break;
+	}
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops vivid_meta_cap_ctrl_ops = {
+	.s_ctrl = vivid_meta_cap_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_meta_has_pts = {
+	.ops = &vivid_meta_cap_ctrl_ops,
+	.id = VIVID_CID_META_CAP_GENERATE_PTS,
+	.name = "Generate PTS",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.max = 1,
+	.def = 1,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_meta_has_src_clk = {
+	.ops = &vivid_meta_cap_ctrl_ops,
+	.id = VIVID_CID_META_CAP_GENERATE_SCR,
+	.name = "Generate SCR",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.max = 1,
+	.def = 1,
+	.step = 1,
+};
 
 static const struct v4l2_ctrl_config vivid_ctrl_class = {
 	.ops = &vivid_user_gen_ctrl_ops,
@@ -1448,6 +1506,10 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	struct v4l2_ctrl_handler *hdl_radio_rx = &dev->ctrl_hdl_radio_rx;
 	struct v4l2_ctrl_handler *hdl_radio_tx = &dev->ctrl_hdl_radio_tx;
 	struct v4l2_ctrl_handler *hdl_sdr_cap = &dev->ctrl_hdl_sdr_cap;
+	struct v4l2_ctrl_handler *hdl_meta_cap = &dev->ctrl_hdl_meta_cap;
+	struct v4l2_ctrl_handler *hdl_meta_out = &dev->ctrl_hdl_meta_out;
+	struct v4l2_ctrl_handler *hdl_tch_cap = &dev->ctrl_hdl_touch_cap;
+
 	struct v4l2_ctrl_config vivid_ctrl_dv_timings = {
 		.ops = &vivid_vid_cap_ctrl_ops,
 		.id = VIVID_CID_DV_TIMINGS,
@@ -1486,6 +1548,12 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	v4l2_ctrl_new_custom(hdl_radio_tx, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_sdr_cap, 19);
 	v4l2_ctrl_new_custom(hdl_sdr_cap, &vivid_ctrl_class, NULL);
+	v4l2_ctrl_handler_init(hdl_meta_cap, 2);
+	v4l2_ctrl_new_custom(hdl_meta_cap, &vivid_ctrl_class, NULL);
+	v4l2_ctrl_handler_init(hdl_meta_out, 2);
+	v4l2_ctrl_new_custom(hdl_meta_out, &vivid_ctrl_class, NULL);
+	v4l2_ctrl_handler_init(hdl_tch_cap, 2);
+	v4l2_ctrl_new_custom(hdl_tch_cap, &vivid_ctrl_class, NULL);
 
 	/* User Controls */
 	dev->volume = v4l2_ctrl_new_std(hdl_user_aud, NULL,
@@ -1522,6 +1590,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	dev->string = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_string, NULL);
 	dev->bitmask = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_bitmask, NULL);
 	dev->int_menu = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_int_menu, NULL);
+	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_area, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u32_array, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u16_matrix, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u8_4d_array, NULL);
@@ -1743,6 +1812,13 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		v4l2_ctrl_new_custom(hdl_sdr_cap,
 			&vivid_ctrl_sdr_cap_fm_deviation, NULL);
 	}
+	if (dev->has_meta_cap) {
+		v4l2_ctrl_new_custom(hdl_meta_cap,
+				     &vivid_ctrl_meta_has_pts, NULL);
+		v4l2_ctrl_new_custom(hdl_meta_cap,
+				     &vivid_ctrl_meta_has_src_clk, NULL);
+	}
+
 	if (hdl_user_gen->error)
 		return hdl_user_gen->error;
 	if (hdl_user_vid->error)
@@ -1817,6 +1893,27 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 			return hdl_sdr_cap->error;
 		dev->sdr_cap_dev.ctrl_handler = hdl_sdr_cap;
 	}
+	if (dev->has_meta_cap) {
+		v4l2_ctrl_add_handler(hdl_meta_cap, hdl_user_gen, NULL, false);
+		v4l2_ctrl_add_handler(hdl_meta_cap, hdl_streaming, NULL, false);
+		if (hdl_meta_cap->error)
+			return hdl_meta_cap->error;
+		dev->meta_cap_dev.ctrl_handler = hdl_meta_cap;
+	}
+	if (dev->has_meta_out) {
+		v4l2_ctrl_add_handler(hdl_meta_out, hdl_user_gen, NULL, false);
+		v4l2_ctrl_add_handler(hdl_meta_out, hdl_streaming, NULL, false);
+		if (hdl_meta_out->error)
+			return hdl_meta_out->error;
+		dev->meta_out_dev.ctrl_handler = hdl_meta_out;
+	}
+	if (dev->has_touch_cap) {
+		v4l2_ctrl_add_handler(hdl_tch_cap, hdl_user_gen, NULL, false);
+		v4l2_ctrl_add_handler(hdl_tch_cap, hdl_streaming, NULL, false);
+		if (hdl_tch_cap->error)
+			return hdl_tch_cap->error;
+		dev->touch_cap_dev.ctrl_handler = hdl_tch_cap;
+	}
 	return 0;
 }
 
@@ -1836,4 +1933,7 @@ void vivid_free_controls(struct vivid_dev *dev)
 	v4l2_ctrl_handler_free(&dev->ctrl_hdl_sdtv_cap);
 	v4l2_ctrl_handler_free(&dev->ctrl_hdl_loop_cap);
 	v4l2_ctrl_handler_free(&dev->ctrl_hdl_fb);
+	v4l2_ctrl_handler_free(&dev->ctrl_hdl_meta_cap);
+	v4l2_ctrl_handler_free(&dev->ctrl_hdl_meta_out);
+	v4l2_ctrl_handler_free(&dev->ctrl_hdl_touch_cap);
 }

@@ -1432,11 +1432,11 @@ struct mv643xx_eth_stats {
 };
 
 #define SSTAT(m)						\
-	{ #m, FIELD_SIZEOF(struct net_device_stats, m),		\
+	{ #m, sizeof_field(struct net_device_stats, m),		\
 	  offsetof(struct net_device, stats.m), -1 }
 
 #define MIBSTAT(m)						\
-	{ #m, FIELD_SIZEOF(struct mib_counters, m),		\
+	{ #m, sizeof_field(struct mib_counters, m),		\
 	  -1, offsetof(struct mv643xx_eth_private, mib_counters.m) }
 
 static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
@@ -2590,7 +2590,7 @@ static void tx_timeout_task(struct work_struct *ugly)
 	}
 }
 
-static void mv643xx_eth_tx_timeout(struct net_device *dev)
+static void mv643xx_eth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
@@ -2959,15 +2959,16 @@ static void set_params(struct mv643xx_eth_private *mp,
 static int get_phy_mode(struct mv643xx_eth_private *mp)
 {
 	struct device *dev = mp->dev->dev.parent;
-	int iface = -1;
+	phy_interface_t iface;
+	int err;
 
 	if (dev->of_node)
-		iface = of_get_phy_mode(dev->of_node);
+		err = of_get_phy_mode(dev->of_node, &iface);
 
 	/* Historical default if unspecified. We could also read/write
 	 * the interface state in the PSC1
 	 */
-	if (iface < 0)
+	if (!dev->of_node || err)
 		iface = PHY_INTERFACE_MODE_GMII;
 	return iface;
 }

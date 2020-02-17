@@ -149,10 +149,20 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 
 	if (enetc_tx_csum(skb, &temp_bd))
 		flags |= ENETC_TXBD_FLAGS_CSUM | ENETC_TXBD_FLAGS_L4CS;
+	else if (tx_ring->tsd_enable)
+		flags |= ENETC_TXBD_FLAGS_TSE | ENETC_TXBD_FLAGS_TXSTART;
 
 	/* first BD needs frm_len and offload flags set */
 	temp_bd.frm_len = cpu_to_le16(skb->len);
 	temp_bd.flags = flags;
+
+	if (flags & ENETC_TXBD_FLAGS_TSE) {
+		u32 temp;
+
+		temp = (skb->skb_mstamp_ns >> 5 & ENETC_TXBD_TXSTART_MASK)
+			| (flags << ENETC_TXBD_FLAGS_OFFSET);
+		temp_bd.txstart = cpu_to_le32(temp);
+	}
 
 	if (flags & ENETC_TXBD_FLAGS_EX) {
 		u8 e_flags = 0;
@@ -226,6 +236,8 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 
 	enetc_bdr_idx_inc(tx_ring, &i);
 	tx_ring->next_to_use = i;
+
+	skb_tx_timestamp(skb);
 
 	/* let H/W know BD ring has been updated */
 	enetc_wr_reg(tx_ring->tpir, i); /* includes wmb() */
@@ -742,9 +754,14 @@ void enetc_get_si_caps(struct enetc_si *si)
 	si->num_rss = 0;
 	val = enetc_rd(hw, ENETC_SIPCAPR0);
 	if (val & ENETC_SIPCAPR0_RSS) {
-		val = enetc_rd(hw, ENETC_SIRSSCAPR);
-		si->num_rss = ENETC_SIRSSCAPR_GET_NUM_RSS(val);
+		u32 rss;
+
+		rss = enetc_rd(hw, ENETC_SIRSSCAPR);
+		si->num_rss = ENETC_SIRSSCAPR_GET_NUM_RSS(rss);
 	}
+
+	if (val & ENETC_SIPCAPR0_QBV)
+		si->hw_features |= ENETC_SI_F_QBV;
 }
 
 static int enetc_dma_alloc_bdr(struct enetc_bdr *r, size_t bd_size)
@@ -1314,7 +1331,11 @@ static void enetc_disable_interrupts(struct enetc_ndev_priv *priv)
 
 static void adjust_link(struct net_device *ndev)
 {
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct phy_device *phydev = ndev->phydev;
+
+	if (priv->active_offloads & ENETC_F_QBV)
+		enetc_sched_speed_set(ndev);
 
 	phy_print_status(phydev);
 }
@@ -1323,6 +1344,7 @@ static int enetc_phy_connect(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct phy_device *phydev;
+	struct ethtool_eee edata;
 
 	if (!priv->phy_node)
 		return 0; /* phy-less mode */
@@ -1335,6 +1357,10 @@ static int enetc_phy_connect(struct net_device *ndev)
 	}
 
 	phy_attached_info(phydev);
+
+	/* disable EEE autoneg, until ENETC driver supports it */
+	memset(&edata, 0, sizeof(struct ethtool_eee));
+	phy_ethtool_set_eee(phydev, &edata);
 
 	return 0;
 }
@@ -1427,17 +1453,13 @@ int enetc_close(struct net_device *ndev)
 	return 0;
 }
 
-int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
-		   void *type_data)
+static int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct tc_mqprio_qopt *mqprio = type_data;
 	struct enetc_bdr *tx_ring;
 	u8 num_tc;
 	int i;
-
-	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 	num_tc = mqprio->num_tc;
@@ -1481,6 +1503,23 @@ int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		netdev_set_tc_queue(ndev, i, 1, i);
 
 	return 0;
+}
+
+int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
+		   void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_QDISC_MQPRIO:
+		return enetc_setup_tc_mqprio(ndev, type_data);
+	case TC_SETUP_QDISC_TAPRIO:
+		return enetc_setup_tc_taprio(ndev, type_data);
+	case TC_SETUP_QDISC_CBS:
+		return enetc_setup_tc_cbs(ndev, type_data);
+	case TC_SETUP_QDISC_ETF:
+		return enetc_setup_tc_txtime(ndev, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 struct net_device_stats *enetc_get_stats(struct net_device *ndev)
@@ -1599,7 +1638,10 @@ int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 	if (cmd == SIOCGHWTSTAMP)
 		return enetc_hwtstamp_get(ndev, rq);
 #endif
-	return -EINVAL;
+
+	if (!ndev->phydev)
+		return -EOPNOTSUPP;
+	return phy_mii_ioctl(ndev->phydev, rq, cmd);
 }
 
 int enetc_alloc_msix(struct enetc_ndev_priv *priv)

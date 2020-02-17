@@ -154,14 +154,14 @@ static void calculate_bandwidth(
 
 
 
-	if (data->d0_underlay_mode == bw_def_none) { d0_underlay_enable = 0; }
-	else {
-		d0_underlay_enable = 1;
-	}
-	if (data->d1_underlay_mode == bw_def_none) { d1_underlay_enable = 0; }
-	else {
-		d1_underlay_enable = 1;
-	}
+	if (data->d0_underlay_mode == bw_def_none)
+		d0_underlay_enable = false;
+	else
+		d0_underlay_enable = true;
+	if (data->d1_underlay_mode == bw_def_none)
+		d1_underlay_enable = false;
+	else
+		d1_underlay_enable = true;
 	data->number_of_underlay_surfaces = d0_underlay_enable + d1_underlay_enable;
 	switch (data->underlay_surface_type) {
 	case bw_def_420:
@@ -286,8 +286,8 @@ static void calculate_bandwidth(
 	data->cursor_width_pixels[2] = bw_int_to_fixed(0);
 	data->cursor_width_pixels[3] = bw_int_to_fixed(0);
 	/* graphics surface parameters from spreadsheet*/
-	fbc_enabled = 0;
-	lpt_enabled = 0;
+	fbc_enabled = false;
+	lpt_enabled = false;
 	for (i = 4; i <= maximum_number_of_surfaces - 3; i++) {
 		if (i < data->number_of_displays + 4) {
 			if (i == 4 && data->d0_underlay_mode == bw_def_underlay_only) {
@@ -338,9 +338,9 @@ static void calculate_bandwidth(
 			data->access_one_channel_only[i] = 0;
 		}
 		if (data->fbc_en[i] == 1) {
-			fbc_enabled = 1;
+			fbc_enabled = true;
 			if (data->lpt_en[i] == 1) {
-				lpt_enabled = 1;
+				lpt_enabled = true;
 			}
 		}
 		data->cursor_width_pixels[i] = bw_int_to_fixed(vbios->cursor_width);

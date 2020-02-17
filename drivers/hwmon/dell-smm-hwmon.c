@@ -68,6 +68,8 @@ static uint i8k_pwm_mult;
 static uint i8k_fan_max = I8K_FAN_HIGH;
 static bool disallow_fan_type_call;
 static bool disallow_fan_support;
+static unsigned int manual_fan;
+static unsigned int auto_fan;
 
 #define I8K_HWMON_HAVE_TEMP1	(1 << 0)
 #define I8K_HWMON_HAVE_TEMP2	(1 << 1)
@@ -298,6 +300,20 @@ static int i8k_get_fan_nominal_speed(int fan, int speed)
 
 	regs.ebx = (fan & 0xff) | (speed << 8);
 	return i8k_smm(&regs) ? : (regs.eax & 0xffff) * i8k_fan_mult;
+}
+
+/*
+ * Enable or disable automatic BIOS fan control support
+ */
+static int i8k_enable_fan_auto_mode(bool enable)
+{
+	struct smm_regs regs = { };
+
+	if (disallow_fan_support)
+		return -EINVAL;
+
+	regs.eax = enable ? auto_fan : manual_fan;
+	return i8k_smm(&regs);
 }
 
 /*
@@ -579,19 +595,18 @@ static int i8k_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, i8k_proc_show, NULL);
 }
 
-static const struct file_operations i8k_fops = {
-	.owner		= THIS_MODULE,
-	.open		= i8k_open_fs,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.unlocked_ioctl	= i8k_ioctl,
+static const struct proc_ops i8k_proc_ops = {
+	.proc_open	= i8k_open_fs,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_ioctl	= i8k_ioctl,
 };
 
 static void __init i8k_init_procfs(void)
 {
 	/* Register the proc entry */
-	proc_create("i8k", 0, NULL, &i8k_fops);
+	proc_create("i8k", 0, NULL, &i8k_proc_ops);
 }
 
 static void __exit i8k_exit_procfs(void)
@@ -726,6 +741,35 @@ static ssize_t i8k_hwmon_pwm_store(struct device *dev,
 	return err < 0 ? -EIO : count;
 }
 
+static ssize_t i8k_hwmon_pwm_enable_store(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	int err;
+	bool enable;
+	unsigned long val;
+
+	if (!auto_fan)
+		return -ENODEV;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+
+	if (val == 1)
+		enable = false;
+	else if (val == 2)
+		enable = true;
+	else
+		return -EINVAL;
+
+	mutex_lock(&i8k_mutex);
+	err = i8k_enable_fan_auto_mode(enable);
+	mutex_unlock(&i8k_mutex);
+
+	return err ? err : count;
+}
+
 static SENSOR_DEVICE_ATTR_RO(temp1_input, i8k_hwmon_temp, 0);
 static SENSOR_DEVICE_ATTR_RO(temp1_label, i8k_hwmon_temp_label, 0);
 static SENSOR_DEVICE_ATTR_RO(temp2_input, i8k_hwmon_temp, 1);
@@ -749,6 +793,7 @@ static SENSOR_DEVICE_ATTR_RO(temp10_label, i8k_hwmon_temp_label, 9);
 static SENSOR_DEVICE_ATTR_RO(fan1_input, i8k_hwmon_fan, 0);
 static SENSOR_DEVICE_ATTR_RO(fan1_label, i8k_hwmon_fan_label, 0);
 static SENSOR_DEVICE_ATTR_RW(pwm1, i8k_hwmon_pwm, 0);
+static SENSOR_DEVICE_ATTR_WO(pwm1_enable, i8k_hwmon_pwm_enable, 0);
 static SENSOR_DEVICE_ATTR_RO(fan2_input, i8k_hwmon_fan, 1);
 static SENSOR_DEVICE_ATTR_RO(fan2_label, i8k_hwmon_fan_label, 1);
 static SENSOR_DEVICE_ATTR_RW(pwm2, i8k_hwmon_pwm, 1);
@@ -780,12 +825,13 @@ static struct attribute *i8k_attrs[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,	/* 20 */
 	&sensor_dev_attr_fan1_label.dev_attr.attr,	/* 21 */
 	&sensor_dev_attr_pwm1.dev_attr.attr,		/* 22 */
-	&sensor_dev_attr_fan2_input.dev_attr.attr,	/* 23 */
-	&sensor_dev_attr_fan2_label.dev_attr.attr,	/* 24 */
-	&sensor_dev_attr_pwm2.dev_attr.attr,		/* 25 */
-	&sensor_dev_attr_fan3_input.dev_attr.attr,	/* 26 */
-	&sensor_dev_attr_fan3_label.dev_attr.attr,	/* 27 */
-	&sensor_dev_attr_pwm3.dev_attr.attr,		/* 28 */
+	&sensor_dev_attr_pwm1_enable.dev_attr.attr,	/* 23 */
+	&sensor_dev_attr_fan2_input.dev_attr.attr,	/* 24 */
+	&sensor_dev_attr_fan2_label.dev_attr.attr,	/* 25 */
+	&sensor_dev_attr_pwm2.dev_attr.attr,		/* 26 */
+	&sensor_dev_attr_fan3_input.dev_attr.attr,	/* 27 */
+	&sensor_dev_attr_fan3_label.dev_attr.attr,	/* 28 */
+	&sensor_dev_attr_pwm3.dev_attr.attr,		/* 29 */
 	NULL
 };
 
@@ -828,14 +874,17 @@ static umode_t i8k_is_visible(struct kobject *kobj, struct attribute *attr,
 	    !(i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP10))
 		return 0;
 
-	if (index >= 20 && index <= 22 &&
+	if (index >= 20 && index <= 23 &&
 	    !(i8k_hwmon_flags & I8K_HWMON_HAVE_FAN1))
 		return 0;
-	if (index >= 23 && index <= 25 &&
+	if (index >= 24 && index <= 26 &&
 	    !(i8k_hwmon_flags & I8K_HWMON_HAVE_FAN2))
 		return 0;
-	if (index >= 26 && index <= 28 &&
+	if (index >= 27 && index <= 29 &&
 	    !(i8k_hwmon_flags & I8K_HWMON_HAVE_FAN3))
+		return 0;
+
+	if (index == 23 && !auto_fan)
 		return 0;
 
 	return attr->mode;
@@ -1135,12 +1184,48 @@ static struct dmi_system_id i8k_blacklist_fan_support_dmi_table[] __initdata = {
 	{ }
 };
 
+struct i8k_fan_control_data {
+	unsigned int manual_fan;
+	unsigned int auto_fan;
+};
+
+enum i8k_fan_controls {
+	I8K_FAN_34A3_35A3,
+};
+
+static const struct i8k_fan_control_data i8k_fan_control_data[] = {
+	[I8K_FAN_34A3_35A3] = {
+		.manual_fan = 0x34a3,
+		.auto_fan = 0x35a3,
+	},
+};
+
+static struct dmi_system_id i8k_whitelist_fan_control[] __initdata = {
+	{
+		.ident = "Dell Precision 5530",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Precision 5530"),
+		},
+		.driver_data = (void *)&i8k_fan_control_data[I8K_FAN_34A3_35A3],
+	},
+	{
+		.ident = "Dell Latitude E6440",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Latitude E6440"),
+		},
+		.driver_data = (void *)&i8k_fan_control_data[I8K_FAN_34A3_35A3],
+	},
+	{ }
+};
+
 /*
  * Probe for the presence of a supported laptop.
  */
 static int __init i8k_probe(void)
 {
-	const struct dmi_system_id *id;
+	const struct dmi_system_id *id, *fan_control;
 	int fan, ret;
 
 	/*
@@ -1199,6 +1284,15 @@ static int __init i8k_probe(void)
 
 	i8k_fan_max = fan_max ? : I8K_FAN_HIGH;	/* Must not be 0 */
 	i8k_pwm_mult = DIV_ROUND_UP(255, i8k_fan_max);
+
+	fan_control = dmi_first_match(i8k_whitelist_fan_control);
+	if (fan_control && fan_control->driver_data) {
+		const struct i8k_fan_control_data *data = fan_control->driver_data;
+
+		manual_fan = data->manual_fan;
+		auto_fan = data->auto_fan;
+		pr_info("enabling support for setting automatic/manual fan control\n");
+	}
 
 	if (!fan_mult) {
 		/*

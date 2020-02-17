@@ -618,9 +618,11 @@ static int ci_usb_role_switch_set(struct device *dev, enum usb_role role)
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
 	struct ci_hdrc_cable *cable = NULL;
 	enum usb_role current_role = ci_role_to_usb_role(ci);
+	enum ci_role ci_role = usb_role_to_ci_role(role);
 	unsigned long flags;
 
-	if (current_role == role)
+	if ((ci_role != CI_ROLE_END && !ci->roles[ci_role]) ||
+	    (current_role == role))
 		return 0;
 
 	pm_runtime_get_sync(ci->dev);
@@ -683,7 +685,7 @@ static int ci_get_platdata(struct device *dev,
 
 	if (platdata->dr_mode != USB_DR_MODE_PERIPHERAL) {
 		/* Get the vbus regulator */
-		platdata->reg_vbus = devm_regulator_get(dev, "vbus");
+		platdata->reg_vbus = devm_regulator_get_optional(dev, "vbus");
 		if (PTR_ERR(platdata->reg_vbus) == -EPROBE_DEFER) {
 			return -EPROBE_DEFER;
 		} else if (PTR_ERR(platdata->reg_vbus) == -ENODEV) {

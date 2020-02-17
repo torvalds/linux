@@ -1668,12 +1668,12 @@ static int tunables_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations proc_uv_ptc_operations = {
-	.open		= ptc_proc_open,
-	.read		= seq_read,
-	.write		= ptc_proc_write,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops uv_ptc_proc_ops = {
+	.proc_open	= ptc_proc_open,
+	.proc_read	= seq_read,
+	.proc_write	= ptc_proc_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static const struct file_operations tunables_fops = {
@@ -1691,7 +1691,7 @@ static int __init uv_ptc_init(void)
 		return 0;
 
 	proc_uv_ptc = proc_create(UV_PTC_BASENAME, 0444, NULL,
-				  &proc_uv_ptc_operations);
+				  &uv_ptc_proc_ops);
 	if (!proc_uv_ptc) {
 		pr_err("unable to create %s proc entry\n",
 		       UV_PTC_BASENAME);

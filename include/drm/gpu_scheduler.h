@@ -26,6 +26,7 @@
 
 #include <drm/spsc_queue.h>
 #include <linux/dma-fence.h>
+#include <linux/completion.h>
 
 #define MAX_WAIT_SCHED_ENTITY_Q_EMPTY msecs_to_jiffies(1000)
 
@@ -51,9 +52,10 @@ enum drm_sched_priority {
  * @list: used to append this struct to the list of entities in the
  *        runqueue.
  * @rq: runqueue on which this entity is currently scheduled.
- * @rq_list: a list of run queues on which jobs from this entity can
- *           be scheduled
- * @num_rq_list: number of run queues in the rq_list
+ * @sched_list: A list of schedulers (drm_gpu_schedulers).
+ *              Jobs from this entity can be scheduled on any scheduler
+ *              on this list.
+ * @num_sched_list: number of drm_gpu_schedulers in the sched_list.
  * @rq_lock: lock to modify the runqueue to which this entity belongs.
  * @job_queue: the list of jobs of this entity.
  * @fence_seq: a linearly increasing seqno incremented with each
@@ -71,6 +73,7 @@ enum drm_sched_priority {
  * @last_scheduled: points to the finished fence of the last scheduled job.
  * @last_user: last group leader pushing a job into the entity.
  * @stopped: Marks the enity as removed from rq and destined for termination.
+ * @entity_idle: Signals when enityt is not in use
  *
  * Entities will emit jobs in order to their corresponding hardware
  * ring, and the scheduler will alternate between entities based on
@@ -79,8 +82,9 @@ enum drm_sched_priority {
 struct drm_sched_entity {
 	struct list_head		list;
 	struct drm_sched_rq		*rq;
-	struct drm_sched_rq		**rq_list;
-	unsigned int                    num_rq_list;
+	struct drm_gpu_scheduler        **sched_list;
+	unsigned int                    num_sched_list;
+	enum drm_sched_priority         priority;
 	spinlock_t			rq_lock;
 
 	struct spsc_queue		job_queue;
@@ -94,6 +98,7 @@ struct drm_sched_entity {
 	struct dma_fence                *last_scheduled;
 	struct task_struct		*last_user;
 	bool 				stopped;
+	struct completion		entity_idle;
 };
 
 /**
@@ -257,7 +262,7 @@ struct drm_sched_backend_ops {
  * @job_list_lock: lock to protect the ring_mirror_list.
  * @hang_limit: once the hangs by a job crosses this limit then it is marked
  *              guilty and it will be considered for scheduling further.
- * @num_jobs: the number of jobs in queue in the scheduler
+ * @score: score to help loadbalancer pick a idle sched
  * @ready: marks if the underlying HW is ready to work
  * @free_guilty: A hit to time out handler to free the guilty job.
  *
@@ -278,8 +283,8 @@ struct drm_gpu_scheduler {
 	struct list_head		ring_mirror_list;
 	spinlock_t			job_list_lock;
 	int				hang_limit;
-	atomic_t                        num_jobs;
-	bool			ready;
+	atomic_t                        score;
+	bool				ready;
 	bool				free_guilty;
 };
 
@@ -309,8 +314,9 @@ void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 				struct drm_sched_entity *entity);
 
 int drm_sched_entity_init(struct drm_sched_entity *entity,
-			  struct drm_sched_rq **rq_list,
-			  unsigned int num_rq_list,
+			  enum drm_sched_priority priority,
+			  struct drm_gpu_scheduler **sched_list,
+			  unsigned int num_sched_list,
 			  atomic_t *guilty);
 long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout);
 void drm_sched_entity_fini(struct drm_sched_entity *entity);

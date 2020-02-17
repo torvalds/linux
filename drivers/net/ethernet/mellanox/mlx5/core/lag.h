@@ -8,6 +8,11 @@
 #include "lag_mp.h"
 
 enum {
+	MLX5_LAG_P1,
+	MLX5_LAG_P2,
+};
+
+enum {
 	MLX5_LAG_FLAG_ROCE   = 1 << 0,
 	MLX5_LAG_FLAG_SRIOV  = 1 << 1,
 	MLX5_LAG_FLAG_MULTIPATH = 1 << 2,
@@ -39,6 +44,7 @@ struct mlx5_lag {
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
 	struct notifier_block     nb;
+	struct netdev_net_notifier	nn;
 	struct lag_mp             lag_mp;
 };
 

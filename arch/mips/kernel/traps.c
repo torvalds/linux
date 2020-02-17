@@ -210,11 +210,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 			regs.regs[29] = task->thread.reg29;
 			regs.regs[31] = 0;
 			regs.cp0_epc = task->thread.reg31;
-#ifdef CONFIG_KGDB_KDB
-		} else if (atomic_read(&kgdb_active) != -1 &&
-			   kdb_current_regs) {
-			memcpy(&regs, kdb_current_regs, sizeof(regs));
-#endif /* CONFIG_KGDB_KDB */
 		} else {
 			prepare_frametrace(&regs);
 		}
@@ -1761,7 +1756,7 @@ static inline void parity_protection_init(void)
 
 	case CPU_5KC:
 	case CPU_5KE:
-	case CPU_LOONGSON1:
+	case CPU_LOONGSON32:
 		write_c0_ecc(0x80000000);
 		back_to_back_c0_hazard();
 		/* Set the PE bit (bit 31) in the c0_errctl register. */
@@ -2394,7 +2389,7 @@ void __init trap_init(void)
 	else {
 		if (cpu_has_vtag_icache)
 			set_except_vector(EXCCODE_RI, handle_ri_rdhwr_tlbp);
-		else if (current_cpu_type() == CPU_LOONGSON3)
+		else if (current_cpu_type() == CPU_LOONGSON64)
 			set_except_vector(EXCCODE_RI, handle_ri_rdhwr_tlbp);
 		else
 			set_except_vector(EXCCODE_RI, handle_ri_rdhwr);

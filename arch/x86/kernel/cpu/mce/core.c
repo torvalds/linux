@@ -53,8 +53,6 @@
 
 #include "internal.h"
 
-static DEFINE_MUTEX(mce_log_mutex);
-
 /* sysfs synchronization */
 static DEFINE_MUTEX(mce_sysfs_mutex);
 
@@ -156,19 +154,10 @@ void mce_log(struct mce *m)
 	if (!mce_gen_pool_add(m))
 		irq_work_queue(&mce_irq_work);
 }
-
-void mce_inject_log(struct mce *m)
-{
-	mutex_lock(&mce_log_mutex);
-	mce_log(m);
-	mutex_unlock(&mce_log_mutex);
-}
-EXPORT_SYMBOL_GPL(mce_inject_log);
-
-static struct notifier_block mce_srao_nb;
+EXPORT_SYMBOL_GPL(mce_log);
 
 /*
- * We run the default notifier if we have only the SRAO, the first and the
+ * We run the default notifier if we have only the UC, the first and the
  * default notifier registered. I.e., the mandatory NUM_DEFAULT_NOTIFIERS
  * notifiers registered on the chain.
  */
@@ -488,8 +477,9 @@ int mce_usable_address(struct mce *m)
 	if (!(m->status & MCI_STATUS_ADDRV))
 		return 0;
 
-	/* Checks after this one are Intel-specific: */
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+	/* Checks after this one are Intel/Zhaoxin-specific: */
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_ZHAOXIN)
 		return 1;
 
 	if (!(m->status & MCI_STATUS_MISCV))
@@ -507,10 +497,13 @@ EXPORT_SYMBOL_GPL(mce_usable_address);
 
 bool mce_is_memory_error(struct mce *m)
 {
-	if (m->cpuvendor == X86_VENDOR_AMD ||
-	    m->cpuvendor == X86_VENDOR_HYGON) {
+	switch (m->cpuvendor) {
+	case X86_VENDOR_AMD:
+	case X86_VENDOR_HYGON:
 		return amd_mce_is_memory_error(m);
-	} else if (m->cpuvendor == X86_VENDOR_INTEL) {
+
+	case X86_VENDOR_INTEL:
+	case X86_VENDOR_ZHAOXIN:
 		/*
 		 * Intel SDM Volume 3B - 15.9.2 Compound Error Codes
 		 *
@@ -527,9 +520,10 @@ bool mce_is_memory_error(struct mce *m)
 		return (m->status & 0xef80) == BIT(7) ||
 		       (m->status & 0xef00) == BIT(8) ||
 		       (m->status & 0xeffc) == 0xc;
-	}
 
-	return false;
+	default:
+		return false;
+	}
 }
 EXPORT_SYMBOL_GPL(mce_is_memory_error);
 
@@ -589,26 +583,29 @@ static struct notifier_block first_nb = {
 	.priority	= MCE_PRIO_FIRST,
 };
 
-static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
-				void *data)
+static int uc_decode_notifier(struct notifier_block *nb, unsigned long val,
+			      void *data)
 {
 	struct mce *mce = (struct mce *)data;
 	unsigned long pfn;
 
-	if (!mce)
+	if (!mce || !mce_usable_address(mce))
 		return NOTIFY_DONE;
 
-	if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
-		pfn = mce->addr >> PAGE_SHIFT;
-		if (!memory_failure(pfn, 0))
-			set_mce_nospec(pfn);
-	}
+	if (mce->severity != MCE_AO_SEVERITY &&
+	    mce->severity != MCE_DEFERRED_SEVERITY)
+		return NOTIFY_DONE;
+
+	pfn = mce->addr >> PAGE_SHIFT;
+	if (!memory_failure(pfn, 0))
+		set_mce_nospec(pfn);
 
 	return NOTIFY_OK;
 }
-static struct notifier_block mce_srao_nb = {
-	.notifier_call	= srao_decode_notifier,
-	.priority	= MCE_PRIO_SRAO,
+
+static struct notifier_block mce_uc_nb = {
+	.notifier_call	= uc_decode_notifier,
+	.priority	= MCE_PRIO_UC,
 };
 
 static int mce_default_notifier(struct notifier_block *nb, unsigned long val,
@@ -758,26 +755,22 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 log_it:
 		error_seen = true;
 
+		if (flags & MCP_DONTLOG)
+			goto clear_it;
+
 		mce_read_aux(&m, i);
-
 		m.severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
-
 		/*
 		 * Don't get the IP here because it's unlikely to
 		 * have anything to do with the actual error location.
 		 */
-		if (!(flags & MCP_DONTLOG) && !mca_cfg.dont_log_ce)
-			mce_log(&m);
-		else if (mce_usable_address(&m)) {
-			/*
-			 * Although we skipped logging this, we still want
-			 * to take action. Add to the pool so the registered
-			 * notifiers will see it.
-			 */
-			if (!mce_gen_pool_add(&m))
-				mce_schedule_work();
-		}
 
+		if (mca_cfg.dont_log_ce && !mce_usable_address(&m))
+			goto clear_it;
+
+		mce_log(&m);
+
+clear_it:
 		/*
 		 * Clear state for this bank.
 		 */
@@ -802,7 +795,7 @@ EXPORT_SYMBOL_GPL(machine_check_poll);
 static int mce_no_way_out(struct mce *m, char **msg, unsigned long *validp,
 			  struct pt_regs *regs)
 {
-	char *tmp;
+	char *tmp = *msg;
 	int i;
 
 	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
@@ -814,8 +807,8 @@ static int mce_no_way_out(struct mce *m, char **msg, unsigned long *validp,
 		if (quirk_no_way_out)
 			quirk_no_way_out(i, m, regs);
 
+		m->bank = i;
 		if (mce_severity(m, mca_cfg.tolerant, &tmp, true) >= MCE_PANIC_SEVERITY) {
-			m->bank = i;
 			mce_read_aux(m, i);
 			*msg = tmp;
 			return 1;
@@ -1127,6 +1120,12 @@ static bool __mc_check_crashing_cpu(int cpu)
 		u64 mcgstatus;
 
 		mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
+
+		if (boot_cpu_data.x86_vendor == X86_VENDOR_ZHAOXIN) {
+			if (mcgstatus & MCG_STATUS_LMCES)
+				return false;
+		}
+
 		if (mcgstatus & MCG_STATUS_RIPV) {
 			mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
 			return true;
@@ -1221,8 +1220,8 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
 	struct mca_config *cfg = &mca_cfg;
 	int cpu = smp_processor_id();
-	char *msg = "Unknown";
 	struct mce m, *final;
+	char *msg = NULL;
 	int worst = 0;
 
 	/*
@@ -1277,9 +1276,10 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 	/*
 	 * Check if this MCE is signaled to only this logical processor,
-	 * on Intel only.
+	 * on Intel, Zhaoxin only.
 	 */
-	if (m.cpuvendor == X86_VENDOR_INTEL)
+	if (m.cpuvendor == X86_VENDOR_INTEL ||
+	    m.cpuvendor == X86_VENDOR_ZHAOXIN)
 		lmce = m.mcgstatus & MCG_STATUS_LMCES;
 
 	/*
@@ -1353,7 +1353,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		ist_end_non_atomic();
 	} else {
 		if (!fixup_exception(regs, X86_TRAP_MC, error_code, 0))
-			mce_panic("Failed kernel mode recovery", &m, NULL);
+			mce_panic("Failed kernel mode recovery", &m, msg);
 	}
 
 out_ist:
@@ -1697,6 +1697,18 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 		if (c->x86 == 6 && c->x86_model == 45)
 			quirk_no_way_out = quirk_sandybridge_ifu;
 	}
+
+	if (c->x86_vendor == X86_VENDOR_ZHAOXIN) {
+		/*
+		 * All newer Zhaoxin CPUs support MCE broadcasting. Enable
+		 * synchronization with a one second timeout.
+		 */
+		if (c->x86 > 6 || (c->x86_model == 0x19 || c->x86_model == 0x1f)) {
+			if (cfg->monarch_timeout < 0)
+				cfg->monarch_timeout = USEC_PER_SEC;
+		}
+	}
+
 	if (cfg->monarch_timeout < 0)
 		cfg->monarch_timeout = 0;
 	if (cfg->bootlog != 0)
@@ -1760,6 +1772,35 @@ static void mce_centaur_feature_init(struct cpuinfo_x86 *c)
 	}
 }
 
+static void mce_zhaoxin_feature_init(struct cpuinfo_x86 *c)
+{
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
+
+	/*
+	 * These CPUs have MCA bank 8 which reports only one error type called
+	 * SVAD (System View Address Decoder). The reporting of that error is
+	 * controlled by IA32_MC8.CTL.0.
+	 *
+	 * If enabled, prefetching on these CPUs will cause SVAD MCE when
+	 * virtual machines start and result in a system  panic. Always disable
+	 * bank 8 SVAD error by default.
+	 */
+	if ((c->x86 == 7 && c->x86_model == 0x1b) ||
+	    (c->x86_model == 0x19 || c->x86_model == 0x1f)) {
+		if (this_cpu_read(mce_num_banks) > 8)
+			mce_banks[8].ctl = 0;
+	}
+
+	intel_init_cmci();
+	intel_init_lmce();
+	mce_adjust_timer = cmci_intel_adjust_timer;
+}
+
+static void mce_zhaoxin_feature_clear(struct cpuinfo_x86 *c)
+{
+	intel_clear_lmce();
+}
+
 static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 {
 	switch (c->x86_vendor) {
@@ -1781,6 +1822,10 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 		mce_centaur_feature_init(c);
 		break;
 
+	case X86_VENDOR_ZHAOXIN:
+		mce_zhaoxin_feature_init(c);
+		break;
+
 	default:
 		break;
 	}
@@ -1792,6 +1837,11 @@ static void __mcheck_cpu_clear_vendor(struct cpuinfo_x86 *c)
 	case X86_VENDOR_INTEL:
 		mce_intel_feature_clear(c);
 		break;
+
+	case X86_VENDOR_ZHAOXIN:
+		mce_zhaoxin_feature_clear(c);
+		break;
+
 	default:
 		break;
 	}
@@ -1979,7 +2029,7 @@ int __init mcheck_init(void)
 {
 	mcheck_intel_therm_init();
 	mce_register_decode_chain(&first_nb);
-	mce_register_decode_chain(&mce_srao_nb);
+	mce_register_decode_chain(&mce_uc_nb);
 	mce_register_decode_chain(&mce_default_nb);
 	mcheck_vendor_init_severity();
 
@@ -2014,15 +2064,16 @@ static void mce_disable_error_reporting(void)
 static void vendor_disable_error_reporting(void)
 {
 	/*
-	 * Don't clear on Intel or AMD or Hygon CPUs. Some of these MSRs
-	 * are socket-wide.
-	 * Disabling them for just a single offlined CPU is bad, since it will
-	 * inhibit reporting for all shared resources on the socket like the
-	 * last level cache (LLC), the integrated memory controller (iMC), etc.
+	 * Don't clear on Intel or AMD or Hygon or Zhaoxin CPUs. Some of these
+	 * MSRs are socket-wide. Disabling them for just a single offlined CPU
+	 * is bad, since it will inhibit reporting for all shared resources on
+	 * the socket like the last level cache (LLC), the integrated memory
+	 * controller (iMC), etc.
 	 */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL ||
 	    boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ||
-	    boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+	    boot_cpu_data.x86_vendor == X86_VENDOR_AMD ||
+	    boot_cpu_data.x86_vendor == X86_VENDOR_ZHAOXIN)
 		return;
 
 	mce_disable_error_reporting();

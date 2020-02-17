@@ -894,7 +894,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 	u8 *peer, *pos, *end;
 	u8 i, action, basic;
 	u16 cap = 0;
-	int ie_len = 0;
+	int ies_len = 0;
 
 	if (len < (sizeof(struct ethhdr) + 3))
 		return;
@@ -916,7 +916,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 		pos = buf + sizeof(struct ethhdr) + 4;
 		/* payload 1+ category 1 + action 1 + dialog 1 */
 		cap = get_unaligned_le16(pos);
-		ie_len = len - sizeof(struct ethhdr) - TDLS_REQ_FIX_LEN;
+		ies_len = len - sizeof(struct ethhdr) - TDLS_REQ_FIX_LEN;
 		pos += 2;
 		break;
 
@@ -926,7 +926,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 		/* payload 1+ category 1 + action 1 + dialog 1 + status code 2*/
 		pos = buf + sizeof(struct ethhdr) + 6;
 		cap = get_unaligned_le16(pos);
-		ie_len = len - sizeof(struct ethhdr) - TDLS_RESP_FIX_LEN;
+		ies_len = len - sizeof(struct ethhdr) - TDLS_RESP_FIX_LEN;
 		pos += 2;
 		break;
 
@@ -934,7 +934,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 		if (len < (sizeof(struct ethhdr) + TDLS_CONFIRM_FIX_LEN))
 			return;
 		pos = buf + sizeof(struct ethhdr) + TDLS_CONFIRM_FIX_LEN;
-		ie_len = len - sizeof(struct ethhdr) - TDLS_CONFIRM_FIX_LEN;
+		ies_len = len - sizeof(struct ethhdr) - TDLS_CONFIRM_FIX_LEN;
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR, "Unknown TDLS frame type.\n");
@@ -947,65 +947,104 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 
 	sta_ptr->tdls_cap.capab = cpu_to_le16(cap);
 
-	for (end = pos + ie_len; pos + 1 < end; pos += 2 + pos[1]) {
-		if (pos + 2 + pos[1] > end)
+	for (end = pos + ies_len; pos + 1 < end; pos += 2 + pos[1]) {
+		u8 ie_len = pos[1];
+
+		if (pos + 2 + ie_len > end)
 			break;
 
 		switch (*pos) {
 		case WLAN_EID_SUPP_RATES:
-			sta_ptr->tdls_cap.rates_len = pos[1];
-			for (i = 0; i < pos[1]; i++)
+			if (ie_len > sizeof(sta_ptr->tdls_cap.rates))
+				return;
+			sta_ptr->tdls_cap.rates_len = ie_len;
+			for (i = 0; i < ie_len; i++)
 				sta_ptr->tdls_cap.rates[i] = pos[i + 2];
 			break;
 
 		case WLAN_EID_EXT_SUPP_RATES:
+			if (ie_len > sizeof(sta_ptr->tdls_cap.rates))
+				return;
 			basic = sta_ptr->tdls_cap.rates_len;
-			for (i = 0; i < pos[1]; i++)
+			if (ie_len > sizeof(sta_ptr->tdls_cap.rates) - basic)
+				return;
+			for (i = 0; i < ie_len; i++)
 				sta_ptr->tdls_cap.rates[basic + i] = pos[i + 2];
-			sta_ptr->tdls_cap.rates_len += pos[1];
+			sta_ptr->tdls_cap.rates_len += ie_len;
 			break;
 		case WLAN_EID_HT_CAPABILITY:
-			memcpy((u8 *)&sta_ptr->tdls_cap.ht_capb, pos,
+			if (ie_len != sizeof(struct ieee80211_ht_cap))
+				return;
+			/* copy the ie's value into ht_capb*/
+			memcpy((u8 *)&sta_ptr->tdls_cap.ht_capb, pos + 2,
 			       sizeof(struct ieee80211_ht_cap));
 			sta_ptr->is_11n_enabled = 1;
 			break;
 		case WLAN_EID_HT_OPERATION:
-			memcpy(&sta_ptr->tdls_cap.ht_oper, pos,
+			if (ie_len != sizeof(struct ieee80211_ht_operation))
+				return;
+			/* copy the ie's value into ht_oper*/
+			memcpy(&sta_ptr->tdls_cap.ht_oper, pos + 2,
 			       sizeof(struct ieee80211_ht_operation));
 			break;
 		case WLAN_EID_BSS_COEX_2040:
+			if (ie_len != sizeof(pos[2]))
+				return;
 			sta_ptr->tdls_cap.coex_2040 = pos[2];
 			break;
 		case WLAN_EID_EXT_CAPABILITY:
+			if (ie_len < sizeof(struct ieee_types_header))
+				return;
+			if (ie_len > 8)
+				return;
 			memcpy((u8 *)&sta_ptr->tdls_cap.extcap, pos,
 			       sizeof(struct ieee_types_header) +
-			       min_t(u8, pos[1], 8));
+			       min_t(u8, ie_len, 8));
 			break;
 		case WLAN_EID_RSN:
+			if (ie_len < sizeof(struct ieee_types_header))
+				return;
+			if (ie_len > IEEE_MAX_IE_SIZE -
+			    sizeof(struct ieee_types_header))
+				return;
 			memcpy((u8 *)&sta_ptr->tdls_cap.rsn_ie, pos,
 			       sizeof(struct ieee_types_header) +
-			       min_t(u8, pos[1], IEEE_MAX_IE_SIZE -
+			       min_t(u8, ie_len, IEEE_MAX_IE_SIZE -
 				     sizeof(struct ieee_types_header)));
 			break;
 		case WLAN_EID_QOS_CAPA:
+			if (ie_len != sizeof(pos[2]))
+				return;
 			sta_ptr->tdls_cap.qos_info = pos[2];
 			break;
 		case WLAN_EID_VHT_OPERATION:
-			if (priv->adapter->is_hw_11ac_capable)
-				memcpy(&sta_ptr->tdls_cap.vhtoper, pos,
+			if (priv->adapter->is_hw_11ac_capable) {
+				if (ie_len !=
+				    sizeof(struct ieee80211_vht_operation))
+					return;
+				/* copy the ie's value into vhtoper*/
+				memcpy(&sta_ptr->tdls_cap.vhtoper, pos + 2,
 				       sizeof(struct ieee80211_vht_operation));
+			}
 			break;
 		case WLAN_EID_VHT_CAPABILITY:
 			if (priv->adapter->is_hw_11ac_capable) {
-				memcpy((u8 *)&sta_ptr->tdls_cap.vhtcap, pos,
+				if (ie_len != sizeof(struct ieee80211_vht_cap))
+					return;
+				/* copy the ie's value into vhtcap*/
+				memcpy((u8 *)&sta_ptr->tdls_cap.vhtcap, pos + 2,
 				       sizeof(struct ieee80211_vht_cap));
 				sta_ptr->is_11ac_enabled = 1;
 			}
 			break;
 		case WLAN_EID_AID:
-			if (priv->adapter->is_hw_11ac_capable)
+			if (priv->adapter->is_hw_11ac_capable) {
+				if (ie_len != sizeof(u16))
+					return;
 				sta_ptr->tdls_cap.aid =
 					get_unaligned_le16((pos + 2));
+			}
+			break;
 		default:
 			break;
 		}

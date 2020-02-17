@@ -114,6 +114,7 @@ struct dispc_features {
 	const unsigned int num_reg_fields;
 	const enum omap_overlay_caps *overlay_caps;
 	const u32 **supported_color_modes;
+	const u32 *supported_scaler_color_modes;
 	unsigned int num_mgrs;
 	unsigned int num_ovls;
 	unsigned int buffer_size_unit;
@@ -184,9 +185,6 @@ struct dispc_device {
 
 	struct regmap *syscon_pol;
 	u32 syscon_pol_offset;
-
-	/* DISPC_CONTROL & DISPC_CONFIG lock*/
-	spinlock_t control_lock;
 };
 
 enum omap_color_component {
@@ -368,25 +366,17 @@ static inline u32 dispc_read_reg(struct dispc_device *dispc, u16 idx)
 static u32 mgr_fld_read(struct dispc_device *dispc, enum omap_channel channel,
 			enum mgr_reg_fields regfld)
 {
-	const struct dispc_reg_field rfld = mgr_desc[channel].reg_desc[regfld];
+	const struct dispc_reg_field *rfld = &mgr_desc[channel].reg_desc[regfld];
 
-	return REG_GET(dispc, rfld.reg, rfld.high, rfld.low);
+	return REG_GET(dispc, rfld->reg, rfld->high, rfld->low);
 }
 
 static void mgr_fld_write(struct dispc_device *dispc, enum omap_channel channel,
 			  enum mgr_reg_fields regfld, int val)
 {
-	const struct dispc_reg_field rfld = mgr_desc[channel].reg_desc[regfld];
-	const bool need_lock = rfld.reg == DISPC_CONTROL || rfld.reg == DISPC_CONFIG;
-	unsigned long flags;
+	const struct dispc_reg_field *rfld = &mgr_desc[channel].reg_desc[regfld];
 
-	if (need_lock) {
-		spin_lock_irqsave(&dispc->control_lock, flags);
-		REG_FLD_MOD(dispc, rfld.reg, val, rfld.high, rfld.low);
-		spin_unlock_irqrestore(&dispc->control_lock, flags);
-	} else {
-		REG_FLD_MOD(dispc, rfld.reg, val, rfld.high, rfld.low);
-	}
+	REG_FLD_MOD(dispc, rfld->reg, val, rfld->high, rfld->low);
 }
 
 static int dispc_get_num_ovls(struct dispc_device *dispc)
@@ -403,8 +393,7 @@ static void dispc_get_reg_field(struct dispc_device *dispc,
 				enum dispc_feat_reg_field id,
 				u8 *start, u8 *end)
 {
-	if (id >= dispc->feat->num_reg_fields)
-		BUG();
+	BUG_ON(id >= dispc->feat->num_reg_fields);
 
 	*start = dispc->feat->reg_fields[id].start;
 	*end = dispc->feat->reg_fields[id].end;
@@ -2510,6 +2499,19 @@ static int dispc_ovl_calc_scaling(struct dispc_device *dispc,
 	if (width == out_width && height == out_height)
 		return 0;
 
+	if (dispc->feat->supported_scaler_color_modes) {
+		const u32 *modes = dispc->feat->supported_scaler_color_modes;
+		unsigned int i;
+
+		for (i = 0; modes[i]; ++i) {
+			if (modes[i] == fourcc)
+				break;
+		}
+
+		if (modes[i] == 0)
+			return -EINVAL;
+	}
+
 	if (plane == OMAP_DSS_WB) {
 		switch (fourcc) {
 		case DRM_FORMAT_NV12:
@@ -4225,6 +4227,12 @@ static const u32 *omap4_dispc_supported_color_modes[] = {
 	DRM_FORMAT_RGBX8888),
 };
 
+static const u32 omap3_dispc_supported_scaler_color_modes[] = {
+	DRM_FORMAT_XRGB8888, DRM_FORMAT_RGB565, DRM_FORMAT_YUYV,
+	DRM_FORMAT_UYVY,
+	0,
+};
+
 static const struct dispc_features omap24xx_dispc_feats = {
 	.sw_start		=	5,
 	.fp_start		=	15,
@@ -4253,6 +4261,7 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.num_reg_fields		=	ARRAY_SIZE(omap2_dispc_reg_fields),
 	.overlay_caps		=	omap2_dispc_overlay_caps,
 	.supported_color_modes	=	omap2_dispc_supported_color_modes,
+	.supported_scaler_color_modes = COLOR_ARRAY(DRM_FORMAT_XRGB8888),
 	.num_mgrs		=	2,
 	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
@@ -4287,6 +4296,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
+	.supported_scaler_color_modes = omap3_dispc_supported_scaler_color_modes,
 	.num_mgrs		=	2,
 	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
@@ -4321,6 +4331,7 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
+	.supported_scaler_color_modes = omap3_dispc_supported_scaler_color_modes,
 	.num_mgrs		=	2,
 	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
@@ -4355,6 +4366,7 @@ static const struct dispc_features omap36xx_dispc_feats = {
 	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3630_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
+	.supported_scaler_color_modes = omap3_dispc_supported_scaler_color_modes,
 	.num_mgrs		=	2,
 	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
@@ -4389,6 +4401,7 @@ static const struct dispc_features am43xx_dispc_feats = {
 	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
+	.supported_scaler_color_modes = omap3_dispc_supported_scaler_color_modes,
 	.num_mgrs		=	1,
 	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
@@ -4767,8 +4780,6 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	dispc->pdev = pdev;
 	platform_set_drvdata(pdev, dispc);
 	dispc->dss = dss;
-
-	spin_lock_init(&dispc->control_lock);
 
 	/*
 	 * The OMAP3-based models can't be told apart using the compatible

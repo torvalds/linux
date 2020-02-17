@@ -55,6 +55,7 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "fw/file.h"
+#include "iwl-prph.h"
 
 /* Highest firmware API version supported */
 #define IWL9000_UCODE_API_MAX	46
@@ -137,23 +138,45 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.thermal_params = &iwl9000_tt_params,				\
 	.apmg_not_supported = true,					\
 	.trans.mq_rx_supported = true,					\
+	.num_rbds = 512,						\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = true,					\
 	.trans.rf_id = true,						\
 	.nvm_type = IWL_NVM_EXT,					\
 	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x800000,				\
-	.trans.csr = &iwl_csr_v1,					\
 	.d3_debug_data_base_addr = 0x401000,				\
 	.d3_debug_data_length = 92 * 1024,				\
 	.ht_params = &iwl9000_ht_params,				\
 	.nvm_ver = IWL9000_NVM_VERSION,					\
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,		\
-	.fw_mon_smem_write_ptr_addr = 0xa0476c,				\
-	.fw_mon_smem_write_ptr_msk = 0xfffff,				\
-	.fw_mon_smem_cycle_cnt_ptr_addr = 0xa04774,			\
-	.fw_mon_smem_cycle_cnt_ptr_msk = 0xfffff
+	.mon_smem_regs = {						\
+		.write_ptr = {						\
+			.addr = LDBG_M2S_BUF_WPTR,			\
+			.mask = LDBG_M2S_BUF_WPTR_VAL_MSK,		\
+		},							\
+		.cycle_cnt = {						\
+			.addr = LDBG_M2S_BUF_WRAP_CNT,			\
+			.mask = LDBG_M2S_BUF_WRAP_CNT_VAL_MSK,		\
+		},							\
+	},								\
+	.mon_dram_regs = {						\
+		.write_ptr = {						\
+			.addr = MON_BUFF_WRPTR_VER2,			\
+			.mask = 0xffffffff,				\
+		},							\
+		.cycle_cnt = {						\
+			.addr = MON_BUFF_CYCLE_CNT_VER2,		\
+			.mask = 0xffffffff,				\
+		},							\
+	}
 
+const struct iwl_cfg_trans_params iwl9000_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_9000,
+	.base_params = &iwl9000_base_params,
+	.mq_rx_supported = true,
+	.rf_id = true,
+};
 
 const struct iwl_cfg iwl9160_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 9160",
@@ -167,8 +190,10 @@ const struct iwl_cfg iwl9260_2ac_cfg = {
 	IWL_DEVICE_9000,
 };
 
+const char iwl9260_160_name[] = "Intel(R) Wireless-AC 9260 160MHz";
+const char iwl9560_160_name[] = "Intel(R) Wireless-AC 9560 160MHz";
+
 const struct iwl_cfg iwl9260_2ac_160_cfg = {
-	.name = "Intel(R) Wireless-AC 9260 160MHz",
 	.fw_name_pre = IWL9260_FW_PRE,
 	IWL_DEVICE_9000,
 };

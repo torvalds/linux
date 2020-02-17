@@ -43,7 +43,7 @@ __iomem void *plat_of_remap_node(const char *node)
 				res.name))
 		panic("Failed to request resources for %s", node);
 
-	return ioremap_nocache(res.start, resource_size(&res));
+	return ioremap(res.start, resource_size(&res));
 }
 
 void __init device_tree_init(void)

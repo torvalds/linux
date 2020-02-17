@@ -645,7 +645,8 @@ static void ksz8795_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 }
 
 static enum dsa_tag_protocol ksz8795_get_tag_protocol(struct dsa_switch *ds,
-						      int port)
+						      int port,
+						      enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_KSZ8795;
 }
@@ -1223,10 +1224,6 @@ static const struct ksz_chip_data ksz8795_switch_chips[] = {
 static int ksz8795_switch_init(struct ksz_device *dev)
 {
 	int i;
-
-	mutex_init(&dev->stats_mutex);
-	mutex_init(&dev->alu_mutex);
-	mutex_init(&dev->vlan_mutex);
 
 	dev->ds->ops = &ksz8795_switch_ops;
 

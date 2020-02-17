@@ -63,7 +63,7 @@ int ssb_extif_serial_init(struct ssb_extif *extif, struct ssb_serial_port *ports
 	for (i = 0; i < 2; i++) {
 		void __iomem *uart_regs;
 
-		uart_regs = ioremap_nocache(SSB_EUART, 16);
+		uart_regs = ioremap(SSB_EUART, 16);
 		if (uart_regs) {
 			uart_regs += (i * 8);
 

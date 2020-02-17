@@ -188,7 +188,7 @@ static void pnv_ioda_free_pe(struct pnv_ioda_pe *pe)
 	unsigned int pe_num = pe->pe_number;
 
 	WARN_ON(pe->pdev);
-	WARN_ON(pe->npucomp); /* NPUs are not supposed to be freed */
+	WARN_ON(pe->npucomp); /* NPUs for nvlink are not supposed to be freed */
 	kfree(pe->npucomp);
 	memset(pe, 0, sizeof(struct pnv_ioda_pe));
 	clear_bit(pe_num, phb->ioda.pe_alloc);
@@ -777,6 +777,34 @@ static int pnv_ioda_set_peltv(struct pnv_phb *phb,
 	return 0;
 }
 
+static void pnv_ioda_unset_peltv(struct pnv_phb *phb,
+				 struct pnv_ioda_pe *pe,
+				 struct pci_dev *parent)
+{
+	int64_t rc;
+
+	while (parent) {
+		struct pci_dn *pdn = pci_get_pdn(parent);
+
+		if (pdn && pdn->pe_number != IODA_INVALID_PE) {
+			rc = opal_pci_set_peltv(phb->opal_id, pdn->pe_number,
+						pe->pe_number,
+						OPAL_REMOVE_PE_FROM_DOMAIN);
+			/* XXX What to do in case of error ? */
+		}
+		parent = parent->bus->self;
+	}
+
+	opal_pci_eeh_freeze_clear(phb->opal_id, pe->pe_number,
+				  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+
+	/* Disassociate PE in PELT */
+	rc = opal_pci_set_peltv(phb->opal_id, pe->pe_number,
+				pe->pe_number, OPAL_REMOVE_PE_FROM_DOMAIN);
+	if (rc)
+		pe_warn(pe, "OPAL error %lld remove self from PELTV\n", rc);
+}
+
 static int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 {
 	struct pci_dev *parent;
@@ -792,7 +820,7 @@ static int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 		fcomp = OPAL_IGNORE_RID_FUNCTION_NUMBER;
 		parent = pe->pbus->self;
 		if (pe->flags & PNV_IODA_PE_BUS_ALL)
-			count = pe->pbus->busn_res.end - pe->pbus->busn_res.start + 1;
+			count = resource_size(&pe->pbus->busn_res);
 		else
 			count = 1;
 
@@ -827,25 +855,13 @@ static int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 	for (rid = pe->rid; rid < rid_end; rid++)
 		phb->ioda.pe_rmap[rid] = IODA_INVALID_PE;
 
-	/* Release from all parents PELT-V */
-	while (parent) {
-		struct pci_dn *pdn = pci_get_pdn(parent);
-		if (pdn && pdn->pe_number != IODA_INVALID_PE) {
-			rc = opal_pci_set_peltv(phb->opal_id, pdn->pe_number,
-						pe->pe_number, OPAL_REMOVE_PE_FROM_DOMAIN);
-			/* XXX What to do in case of error ? */
-		}
-		parent = parent->bus->self;
-	}
+	/*
+	 * Release from all parents PELT-V. NPUs don't have a PELTV
+	 * table
+	 */
+	if (phb->type != PNV_PHB_NPU_NVLINK && phb->type != PNV_PHB_NPU_OCAPI)
+		pnv_ioda_unset_peltv(phb, pe, parent);
 
-	opal_pci_eeh_freeze_clear(phb->opal_id, pe->pe_number,
-				  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
-
-	/* Disassociate PE in PELT */
-	rc = opal_pci_set_peltv(phb->opal_id, pe->pe_number,
-				pe->pe_number, OPAL_REMOVE_PE_FROM_DOMAIN);
-	if (rc)
-		pe_warn(pe, "OPAL error %lld remove self from PELTV\n", rc);
 	rc = opal_pci_set_pe(phb->opal_id, pe->pe_number, pe->rid,
 			     bcomp, dcomp, fcomp, OPAL_UNMAP_PE);
 	if (rc)
@@ -874,7 +890,7 @@ static int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 		fcomp = OPAL_IGNORE_RID_FUNCTION_NUMBER;
 		parent = pe->pbus->self;
 		if (pe->flags & PNV_IODA_PE_BUS_ALL)
-			count = pe->pbus->busn_res.end - pe->pbus->busn_res.start + 1;
+			count = resource_size(&pe->pbus->busn_res);
 		else
 			count = 1;
 
@@ -1062,20 +1078,20 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 		return NULL;
 	}
 
-	/* NOTE: We get only one ref to the pci_dev for the pdn, not for the
-	 * pointer in the PE data structure, both should be destroyed at the
-	 * same time. However, this needs to be looked at more closely again
-	 * once we actually start removing things (Hotplug, SR-IOV, ...)
+	/* NOTE: We don't get a reference for the pointer in the PE
+	 * data structure, both the device and PE structures should be
+	 * destroyed at the same time. However, removing nvlink
+	 * devices will need some work.
 	 *
 	 * At some point we want to remove the PDN completely anyways
 	 */
-	pci_dev_get(dev);
 	pdn->pe_number = pe->pe_number;
 	pe->flags = PNV_IODA_PE_DEV;
 	pe->pdev = dev;
 	pe->pbus = NULL;
 	pe->mve_number = -1;
 	pe->rid = dev->bus->number << 8 | pdn->devfn;
+	pe->device_count++;
 
 	pe_info(pe, "Associated device to PE\n");
 
@@ -1084,13 +1100,13 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 		pnv_ioda_free_pe(pe);
 		pdn->pe_number = IODA_INVALID_PE;
 		pe->pdev = NULL;
-		pci_dev_put(dev);
 		return NULL;
 	}
 
 	/* Put PE to the list */
+	mutex_lock(&phb->ioda.pe_list_mutex);
 	list_add_tail(&pe->list, &phb->ioda.pe_list);
-
+	mutex_unlock(&phb->ioda.pe_list_mutex);
 	return pe;
 }
 
@@ -1206,6 +1222,14 @@ static struct pnv_ioda_pe *pnv_ioda_setup_npu_PE(struct pci_dev *npu_pdev)
 	struct pnv_phb *phb = hose->private_data;
 
 	/*
+	 * Intentionally leak a reference on the npu device (for
+	 * nvlink only; this is not an opencapi path) to make sure it
+	 * never goes away, as it's been the case all along and some
+	 * work is needed otherwise.
+	 */
+	pci_dev_get(npu_pdev);
+
+	/*
 	 * Due to a hardware errata PE#0 on the NPU is reserved for
 	 * error handling. This means we only have three PEs remaining
 	 * which need to be assigned to four links, implying some
@@ -1228,11 +1252,11 @@ static struct pnv_ioda_pe *pnv_ioda_setup_npu_PE(struct pci_dev *npu_pdev)
 			 */
 			dev_info(&npu_pdev->dev,
 				"Associating to existing PE %x\n", pe_num);
-			pci_dev_get(npu_pdev);
 			npu_pdn = pci_get_pdn(npu_pdev);
 			rid = npu_pdev->bus->number << 8 | npu_pdn->devfn;
 			npu_pdn->pe_number = pe_num;
 			phb->ioda.pe_rmap[rid] = pe->pe_number;
+			pe->device_count++;
 
 			/* Map the PE to this link */
 			rc = opal_pci_set_pe(phb->opal_id, pe_num, rid,
@@ -1268,8 +1292,6 @@ static void pnv_pci_ioda_setup_PEs(void)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
-	struct pci_bus *bus;
-	struct pci_dev *pdev;
 	struct pnv_ioda_pe *pe;
 
 	list_for_each_entry(hose, &hose_list, list_node) {
@@ -1280,11 +1302,6 @@ static void pnv_pci_ioda_setup_PEs(void)
 			pnv_ioda_setup_npu_PEs(hose->bus);
 			if (phb->model == PNV_PHB_MODEL_NPU2)
 				WARN_ON_ONCE(pnv_npu2_init(hose));
-		}
-		if (phb->type == PNV_PHB_NPU_OCAPI) {
-			bus = hose->bus;
-			list_for_each_entry(pdev, &bus->devices, bus_list)
-				pnv_ioda_setup_dev_PE(pdev);
 		}
 	}
 	list_for_each_entry(hose, &hose_list, list_node) {
@@ -1558,6 +1575,10 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 
 	/* Reserve PE for each VF */
 	for (vf_index = 0; vf_index < num_vfs; vf_index++) {
+		int vf_devfn = pci_iov_virtfn_devfn(pdev, vf_index);
+		int vf_bus = pci_iov_virtfn_bus(pdev, vf_index);
+		struct pci_dn *vf_pdn;
+
 		if (pdn->m64_single_mode)
 			pe_num = pdn->pe_num_map[vf_index];
 		else
@@ -1570,13 +1591,11 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 		pe->pbus = NULL;
 		pe->parent_dev = pdev;
 		pe->mve_number = -1;
-		pe->rid = (pci_iov_virtfn_bus(pdev, vf_index) << 8) |
-			   pci_iov_virtfn_devfn(pdev, vf_index);
+		pe->rid = (vf_bus << 8) | vf_devfn;
 
 		pe_info(pe, "VF %04d:%02d:%02d.%d associated with PE#%x\n",
 			hose->global_number, pdev->bus->number,
-			PCI_SLOT(pci_iov_virtfn_devfn(pdev, vf_index)),
-			PCI_FUNC(pci_iov_virtfn_devfn(pdev, vf_index)), pe_num);
+			PCI_SLOT(vf_devfn), PCI_FUNC(vf_devfn), pe_num);
 
 		if (pnv_ioda_configure_pe(phb, pe)) {
 			/* XXX What do we do here ? */
@@ -1589,6 +1608,15 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 		mutex_lock(&phb->ioda.pe_list_mutex);
 		list_add_tail(&pe->list, &phb->ioda.pe_list);
 		mutex_unlock(&phb->ioda.pe_list_mutex);
+
+		/* associate this pe to it's pdn */
+		list_for_each_entry(vf_pdn, &pdn->parent->child_list, list) {
+			if (vf_pdn->busno == vf_bus &&
+			    vf_pdn->devfn == vf_devfn) {
+				vf_pdn->pe_number = pe_num;
+				break;
+			}
+		}
 
 		pnv_pci_ioda2_setup_dma_pe(phb, pe);
 #ifdef CONFIG_IOMMU_API
@@ -1719,21 +1747,23 @@ int pnv_pcibios_sriov_disable(struct pci_dev *pdev)
 	pnv_pci_sriov_disable(pdev);
 
 	/* Release PCI data */
-	remove_dev_pci_data(pdev);
+	remove_sriov_vf_pdns(pdev);
 	return 0;
 }
 
 int pnv_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 {
 	/* Allocate PCI data */
-	add_dev_pci_data(pdev);
+	add_sriov_vf_pdns(pdev);
 
 	return pnv_pci_sriov_enable(pdev, num_vfs);
 }
 #endif /* CONFIG_PCI_IOV */
 
-static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev)
+static void pnv_pci_ioda_dma_dev_setup(struct pci_dev *pdev)
 {
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
 	struct pci_dn *pdn = pci_get_pdn(pdev);
 	struct pnv_ioda_pe *pe;
 
@@ -2889,9 +2919,6 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 	struct pci_dn *pdn;
 	int mul, total_vfs;
 
-	if (!pdev->is_physfn || pci_dev_is_added(pdev))
-		return;
-
 	pdn = pci_get_pdn(pdev);
 	pdn->vfs_expanded = 0;
 	pdn->m64_single_mode = false;
@@ -2964,6 +2991,30 @@ truncate_iov:
 		res = &pdev->resource[i + PCI_IOV_RESOURCES];
 		res->flags = 0;
 		res->end = res->start - 1;
+	}
+}
+
+static void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev)
+{
+	if (WARN_ON(pci_dev_is_added(pdev)))
+		return;
+
+	if (pdev->is_virtfn) {
+		struct pnv_ioda_pe *pe = pnv_ioda_get_pe(pdev);
+
+		/*
+		 * VF PEs are single-device PEs so their pdev pointer needs to
+		 * be set. The pdev doesn't exist when the PE is allocated (in
+		 * (pcibios_sriov_enable()) so we fix it up here.
+		 */
+		pe->pdev = pdev;
+		WARN_ON(!(pe->flags & PNV_IODA_PE_VF));
+	} else if (pdev->is_physfn) {
+		/*
+		 * For PFs adjust their allocated IOV resources to match what
+		 * the PHB can support using it's M64 BAR table.
+		 */
+		pnv_pci_ioda_fixup_iov_resources(pdev);
 	}
 }
 #endif /* CONFIG_PCI_IOV */
@@ -3062,18 +3113,8 @@ static void pnv_ioda_setup_pe_seg(struct pnv_ioda_pe *pe)
 #ifdef CONFIG_DEBUG_FS
 static int pnv_pci_diag_data_set(void *data, u64 val)
 {
-	struct pci_controller *hose;
-	struct pnv_phb *phb;
+	struct pnv_phb *phb = data;
 	s64 ret;
-
-	if (val != 1ULL)
-		return -EINVAL;
-
-	hose = (struct pci_controller *)data;
-	if (!hose || !hose->private_data)
-		return -ENODEV;
-
-	phb = hose->private_data;
 
 	/* Retrieve the diag data from firmware */
 	ret = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag_data,
@@ -3086,8 +3127,35 @@ static int pnv_pci_diag_data_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(pnv_pci_diag_data_fops, NULL,
-			pnv_pci_diag_data_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(pnv_pci_diag_data_fops, NULL, pnv_pci_diag_data_set,
+			 "%llu\n");
+
+static int pnv_pci_ioda_pe_dump(void *data, u64 val)
+{
+	struct pnv_phb *phb = data;
+	int pe_num;
+
+	for (pe_num = 0; pe_num < phb->ioda.total_pe_num; pe_num++) {
+		struct pnv_ioda_pe *pe = &phb->ioda.pe_array[pe_num];
+
+		if (!test_bit(pe_num, phb->ioda.pe_alloc))
+			continue;
+
+		pe_warn(pe, "rid: %04x dev count: %2d flags: %s%s%s%s%s%s\n",
+			pe->rid, pe->device_count,
+			(pe->flags & PNV_IODA_PE_DEV) ? "dev " : "",
+			(pe->flags & PNV_IODA_PE_BUS) ? "bus " : "",
+			(pe->flags & PNV_IODA_PE_BUS_ALL) ? "all " : "",
+			(pe->flags & PNV_IODA_PE_MASTER) ? "master " : "",
+			(pe->flags & PNV_IODA_PE_SLAVE) ? "slave " : "",
+			(pe->flags & PNV_IODA_PE_VF) ? "vf " : "");
+	}
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(pnv_pci_ioda_pe_dump_fops, NULL,
+			 pnv_pci_ioda_pe_dump, "%llu\n");
 
 #endif /* CONFIG_DEBUG_FS */
 
@@ -3112,8 +3180,10 @@ static void pnv_pci_ioda_create_dbgfs(void)
 			continue;
 		}
 
-		debugfs_create_file("dump_diag_regs", 0200, phb->dbgfs, hose,
-				    &pnv_pci_diag_data_fops);
+		debugfs_create_file_unsafe("dump_diag_regs", 0200, phb->dbgfs,
+					   phb, &pnv_pci_diag_data_fops);
+		debugfs_create_file_unsafe("dump_ioda_pe_state", 0200, phb->dbgfs,
+					   phb, &pnv_pci_ioda_pe_dump_fops);
 	}
 #endif /* CONFIG_DEBUG_FS */
 }
@@ -3383,6 +3453,28 @@ static bool pnv_pci_enable_device_hook(struct pci_dev *dev)
 	return true;
 }
 
+static bool pnv_ocapi_enable_device_hook(struct pci_dev *dev)
+{
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	struct pnv_phb *phb = hose->private_data;
+	struct pci_dn *pdn;
+	struct pnv_ioda_pe *pe;
+
+	if (!phb->initialized)
+		return true;
+
+	pdn = pci_get_pdn(dev);
+	if (!pdn)
+		return false;
+
+	if (pdn->pe_number == IODA_INVALID_PE) {
+		pe = pnv_ioda_setup_dev_PE(dev);
+		if (!pe)
+			return false;
+	}
+	return true;
+}
+
 static long pnv_pci_ioda1_unset_window(struct iommu_table_group *table_group,
 				       int num)
 {
@@ -3512,13 +3604,18 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 	struct pnv_phb *phb = pe->phb;
 	struct pnv_ioda_pe *slave, *tmp;
 
+	mutex_lock(&phb->ioda.pe_list_mutex);
 	list_del(&pe->list);
+	mutex_unlock(&phb->ioda.pe_list_mutex);
+
 	switch (phb->type) {
 	case PNV_PHB_IODA1:
 		pnv_pci_ioda1_release_pe_dma(pe);
 		break;
 	case PNV_PHB_IODA2:
 		pnv_pci_ioda2_release_pe_dma(pe);
+		break;
+	case PNV_PHB_NPU_OCAPI:
 		break;
 	default:
 		WARN_ON(1);
@@ -3594,9 +3691,29 @@ static void pnv_pci_ioda_shutdown(struct pci_controller *hose)
 		       OPAL_ASSERT_RESET);
 }
 
+static void pnv_pci_ioda_dma_bus_setup(struct pci_bus *bus)
+{
+	struct pci_controller *hose = bus->sysdata;
+	struct pnv_phb *phb = hose->private_data;
+	struct pnv_ioda_pe *pe;
+
+	list_for_each_entry(pe, &phb->ioda.pe_list, list) {
+		if (!(pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)))
+			continue;
+
+		if (!pe->pbus)
+			continue;
+
+		if (bus->number == ((pe->rid >> 8) & 0xFF)) {
+			pe->pbus = bus;
+			break;
+		}
+	}
+}
+
 static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
-	.dma_dev_setup		= pnv_pci_dma_dev_setup,
-	.dma_bus_setup		= pnv_pci_dma_bus_setup,
+	.dma_dev_setup		= pnv_pci_ioda_dma_dev_setup,
+	.dma_bus_setup		= pnv_pci_ioda_dma_bus_setup,
 	.iommu_bypass_supported	= pnv_pci_ioda_iommu_bypass_supported,
 	.setup_msi_irqs		= pnv_setup_msi_irqs,
 	.teardown_msi_irqs	= pnv_teardown_msi_irqs,
@@ -3609,7 +3726,6 @@ static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
 };
 
 static const struct pci_controller_ops pnv_npu_ioda_controller_ops = {
-	.dma_dev_setup		= pnv_pci_dma_dev_setup,
 	.setup_msi_irqs		= pnv_setup_msi_irqs,
 	.teardown_msi_irqs	= pnv_teardown_msi_irqs,
 	.enable_device_hook	= pnv_pci_enable_device_hook,
@@ -3620,7 +3736,8 @@ static const struct pci_controller_ops pnv_npu_ioda_controller_ops = {
 };
 
 static const struct pci_controller_ops pnv_npu_ocapi_ioda_controller_ops = {
-	.enable_device_hook	= pnv_pci_enable_device_hook,
+	.enable_device_hook	= pnv_ocapi_enable_device_hook,
+	.release_device		= pnv_pci_release_device,
 	.window_alignment	= pnv_pci_window_alignment,
 	.reset_secondary_bus	= pnv_pci_reset_secondary_bus,
 	.shutdown		= pnv_pci_ioda_shutdown,
@@ -3855,14 +3972,13 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		hose->controller_ops = pnv_npu_ocapi_ioda_controller_ops;
 		break;
 	default:
-		phb->dma_dev_setup = pnv_pci_ioda_dma_dev_setup;
 		hose->controller_ops = pnv_pci_ioda_controller_ops;
 	}
 
 	ppc_md.pcibios_default_alignment = pnv_pci_default_alignment;
 
 #ifdef CONFIG_PCI_IOV
-	ppc_md.pcibios_fixup_sriov = pnv_pci_ioda_fixup_iov_resources;
+	ppc_md.pcibios_fixup_sriov = pnv_pci_ioda_fixup_iov;
 	ppc_md.pcibios_iov_resource_alignment = pnv_pci_iov_resource_alignment;
 	ppc_md.pcibios_sriov_enable = pnv_pcibios_sriov_enable;
 	ppc_md.pcibios_sriov_disable = pnv_pcibios_sriov_disable;

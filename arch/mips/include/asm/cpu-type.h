@@ -17,16 +17,16 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	switch (cpu_type) {
 #if defined(CONFIG_SYS_HAS_CPU_LOONGSON2E) || \
     defined(CONFIG_SYS_HAS_CPU_LOONGSON2F)
-	case CPU_LOONGSON2:
+	case CPU_LOONGSON2EF:
 #endif
 
-#ifdef CONFIG_SYS_HAS_CPU_LOONGSON3
-	case CPU_LOONGSON3:
+#ifdef CONFIG_SYS_HAS_CPU_LOONGSON64
+	case CPU_LOONGSON64:
 #endif
 
 #if defined(CONFIG_SYS_HAS_CPU_LOONGSON1B) || \
     defined(CONFIG_SYS_HAS_CPU_LOONGSON1C)
-	case CPU_LOONGSON1:
+	case CPU_LOONGSON32:
 #endif
 
 #ifdef CONFIG_SYS_HAS_CPU_MIPS32_R1

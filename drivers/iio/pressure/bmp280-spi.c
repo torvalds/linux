@@ -86,11 +86,6 @@ static int bmp280_spi_probe(struct spi_device *spi)
 				   spi->irq);
 }
 
-static int bmp280_spi_remove(struct spi_device *spi)
-{
-	return bmp280_common_remove(&spi->dev);
-}
-
 static const struct of_device_id bmp280_of_spi_match[] = {
 	{ .compatible = "bosch,bmp085", },
 	{ .compatible = "bosch,bmp180", },
@@ -118,7 +113,6 @@ static struct spi_driver bmp280_spi_driver = {
 	},
 	.id_table = bmp280_spi_id,
 	.probe = bmp280_spi_probe,
-	.remove = bmp280_spi_remove,
 };
 module_spi_driver(bmp280_spi_driver);
 

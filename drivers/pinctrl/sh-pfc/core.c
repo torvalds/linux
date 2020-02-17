@@ -23,18 +23,19 @@
 #include <linux/platform_device.h>
 #include <linux/psci.h>
 #include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #include "core.h"
 
 static int sh_pfc_map_resources(struct sh_pfc *pfc,
 				struct platform_device *pdev)
 {
-	unsigned int num_windows, num_irqs;
 	struct sh_pfc_window *windows;
 	unsigned int *irqs = NULL;
+	unsigned int num_windows;
 	struct resource *res;
 	unsigned int i;
-	int irq;
+	int num_irqs;
 
 	/* Count the MEM and IRQ resources. */
 	for (num_windows = 0;; num_windows++) {
@@ -42,16 +43,12 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 		if (!res)
 			break;
 	}
-	for (num_irqs = 0;; num_irqs++) {
-		irq = platform_get_irq(pdev, num_irqs);
-		if (irq == -EPROBE_DEFER)
-			return irq;
-		if (irq < 0)
-			break;
-	}
-
 	if (num_windows == 0)
 		return -EINVAL;
+
+	num_irqs = platform_irq_count(pdev);
+	if (num_irqs < 0)
+		return num_irqs;
 
 	/* Allocate memory windows and IRQs arrays. */
 	windows = devm_kcalloc(pfc->dev, num_windows, sizeof(*windows),
@@ -518,6 +515,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a774a1_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A774B1
+	{
+		.compatible = "renesas,pfc-r8a774b1",
+		.data = &r8a774b1_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_R8A774C0
 	{
 		.compatible = "renesas,pfc-r8a774c0",
@@ -566,23 +569,29 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7794_pinmux_info,
 	},
 #endif
-#ifdef CONFIG_PINCTRL_PFC_R8A7795
+/* Both r8a7795 entries must be present to make sanity checks work */
+#ifdef CONFIG_PINCTRL_PFC_R8A77950
 	{
 		.compatible = "renesas,pfc-r8a7795",
-		.data = &r8a7795_pinmux_info,
+		.data = &r8a77950_pinmux_info,
 	},
-#ifdef DEBUG
-	{
-		/* For sanity checks only (nothing matches against this) */
-		.compatible = "renesas,pfc-r8a77950",	/* R-Car H3 ES1.0 */
-		.data = &r8a7795es1_pinmux_info,
-	},
-#endif /* DEBUG */
 #endif
-#ifdef CONFIG_PINCTRL_PFC_R8A7796
+#ifdef CONFIG_PINCTRL_PFC_R8A77951
+	{
+		.compatible = "renesas,pfc-r8a7795",
+		.data = &r8a77951_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77960
 	{
 		.compatible = "renesas,pfc-r8a7796",
-		.data = &r8a7796_pinmux_info,
+		.data = &r8a77960_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77961
+	{
+		.compatible = "renesas,pfc-r8a77961",
+		.data = &r8a77961_pinmux_info,
 	},
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A77965
@@ -878,19 +887,49 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 static inline void sh_pfc_check_driver(struct platform_driver *pdrv) {}
 #endif /* !DEBUG */
 
+#ifdef CONFIG_OF
+static const void *sh_pfc_quirk_match(void)
+{
+#if defined(CONFIG_PINCTRL_PFC_R8A77950) || \
+    defined(CONFIG_PINCTRL_PFC_R8A77951)
+	const struct soc_device_attribute *match;
+	static const struct soc_device_attribute quirks[] = {
+		{
+			.soc_id = "r8a7795", .revision = "ES1.*",
+			.data = &r8a77950_pinmux_info,
+		},
+		{
+			.soc_id = "r8a7795",
+			.data = &r8a77951_pinmux_info,
+		},
+
+		{ /* sentinel */ }
+	};
+
+	match = soc_device_match(quirks);
+	if (match)
+		return match->data ?: ERR_PTR(-ENODEV);
+#endif /* CONFIG_PINCTRL_PFC_R8A77950 || CONFIG_PINCTRL_PFC_R8A77951 */
+
+	return NULL;
+}
+#endif /* CONFIG_OF */
+
 static int sh_pfc_probe(struct platform_device *pdev)
 {
-#ifdef CONFIG_OF
-	struct device_node *np = pdev->dev.of_node;
-#endif
 	const struct sh_pfc_soc_info *info;
 	struct sh_pfc *pfc;
 	int ret;
 
 #ifdef CONFIG_OF
-	if (np)
-		info = of_device_get_match_data(&pdev->dev);
-	else
+	if (pdev->dev.of_node) {
+		info = sh_pfc_quirk_match();
+		if (IS_ERR(info))
+			return PTR_ERR(info);
+
+		if (!info)
+			info = of_device_get_match_data(&pdev->dev);
+	} else
 #endif
 		info = (const void *)platform_get_device_id(pdev)->driver_data;
 

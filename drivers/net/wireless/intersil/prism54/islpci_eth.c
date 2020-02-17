@@ -473,7 +473,7 @@ islpci_do_reset_and_wake(struct work_struct *work)
 }
 
 void
-islpci_eth_tx_timeout(struct net_device *ndev)
+islpci_eth_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	islpci_private *priv = netdev_priv(ndev);
 

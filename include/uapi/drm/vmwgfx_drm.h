@@ -71,6 +71,7 @@ extern "C" {
 #define DRM_VMW_CREATE_EXTENDED_CONTEXT 26
 #define DRM_VMW_GB_SURFACE_CREATE_EXT   27
 #define DRM_VMW_GB_SURFACE_REF_EXT      28
+#define DRM_VMW_MSG                     29
 
 /*************************************************************************/
 /**
@@ -891,11 +892,13 @@ struct drm_vmw_shader_arg {
  *                                      surface.
  * @drm_vmw_surface_flag_create_buffer: Create a backup buffer if none is
  *                                      given.
+ * @drm_vmw_surface_flag_coherent:      Back surface with coherent memory.
  */
 enum drm_vmw_surface_flags {
 	drm_vmw_surface_flag_shareable = (1 << 0),
 	drm_vmw_surface_flag_scanout = (1 << 1),
-	drm_vmw_surface_flag_create_buffer = (1 << 2)
+	drm_vmw_surface_flag_create_buffer = (1 << 2),
+	drm_vmw_surface_flag_coherent = (1 << 3),
 };
 
 /**
@@ -1209,6 +1212,22 @@ struct drm_vmw_gb_surface_ref_ext_rep {
 union drm_vmw_gb_surface_reference_ext_arg {
 	struct drm_vmw_gb_surface_ref_ext_rep rep;
 	struct drm_vmw_surface_arg req;
+};
+
+/**
+ * struct drm_vmw_msg_arg
+ *
+ * @send: Pointer to user-space msg string (null terminated).
+ * @receive: Pointer to user-space receive buffer.
+ * @send_only: Boolean whether this is only sending or receiving too.
+ *
+ * Argument to the DRM_VMW_MSG ioctl.
+ */
+struct drm_vmw_msg_arg {
+	__u64 send;
+	__u64 receive;
+	__s32 send_only;
+	__u32 receive_len;
 };
 
 #if defined(__cplusplus)

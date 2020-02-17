@@ -218,7 +218,14 @@ static int fastlane_esp_irq_pending(struct esp *esp)
 static u32 zorro_esp_dma_length_limit(struct esp *esp, u32 dma_addr,
 					u32 dma_len)
 {
-	return dma_len > 0xFFFF ? 0xFFFF : dma_len;
+	return dma_len > (1U << 16) ? (1U << 16) : dma_len;
+}
+
+static u32 fastlane_esp_dma_length_limit(struct esp *esp, u32 dma_addr,
+					u32 dma_len)
+{
+	/* The old driver used 0xfffc as limit, so do that here too */
+	return dma_len > 0xfffc ? 0xfffc : dma_len;
 }
 
 static void zorro_esp_reset_dma(struct esp *esp)
@@ -604,7 +611,7 @@ static const struct esp_driver_ops fastlane_esp_ops = {
 	.esp_write8		= zorro_esp_write8,
 	.esp_read8		= zorro_esp_read8,
 	.irq_pending		= fastlane_esp_irq_pending,
-	.dma_length_limit	= zorro_esp_dma_length_limit,
+	.dma_length_limit	= fastlane_esp_dma_length_limit,
 	.reset_dma		= zorro_esp_reset_dma,
 	.dma_drain		= zorro_esp_dma_drain,
 	.dma_invalidate		= fastlane_esp_dma_invalidate,
@@ -794,7 +801,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	/* additional setup required for Fastlane */
 	if (zep->zorro3 && ent->driver_data == ZORRO_BLZ1230II) {
 		/* map full address space up to ESP base for DMA */
-		zep->board_base = ioremap_nocache(board,
+		zep->board_base = ioremap(board,
 						FASTLANE_ESP_ADDR-1);
 		if (!zep->board_base) {
 			pr_err("Cannot allocate board address space\n");
@@ -809,7 +816,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	esp->ops = zdd->esp_ops;
 
 	if (ioaddr > 0xffffff)
-		esp->regs = ioremap_nocache(ioaddr, 0x20);
+		esp->regs = ioremap(ioaddr, 0x20);
 	else
 		/* ZorroII address space remapped nocache by early startup */
 		esp->regs = ZTWO_VADDR(ioaddr);
@@ -835,7 +842,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 		 * Only Fastlane Z3 for now - add switch for correct struct
 		 * dma_registers size if adding any more
 		 */
-		esp->dma_regs = ioremap_nocache(dmaaddr,
+		esp->dma_regs = ioremap(dmaaddr,
 				sizeof(struct fastlane_dma_registers));
 	} else
 		/* ZorroII address space remapped nocache by early startup */

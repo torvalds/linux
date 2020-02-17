@@ -340,6 +340,10 @@ static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
 				user_key[i * 4 + 1],
 				user_key[i * 4 + 2],
 				user_key[i * 4 + 3]);
+
+		if (WARN_ON_ONCE(off >= tbl.maxlen - 1))
+			break;
+
 		if (i + 1 < n_keys)
 			off += snprintf(tbl.data + off, tbl.maxlen - off, ",");
 	}
@@ -1037,7 +1041,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_fib_multipath_hash_policy,
 		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.extra2		= &two,
 	},
 #endif
 	{
@@ -1187,6 +1191,15 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "tcp_no_ssthresh_metrics_save",
+		.data		= &init_net.ipv4.sysctl_tcp_no_ssthresh_metrics_save,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 	{
 		.procname	= "tcp_moderate_rcvbuf",

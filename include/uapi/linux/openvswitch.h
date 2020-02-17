@@ -173,6 +173,7 @@ enum ovs_packet_cmd {
  * @OVS_PACKET_ATTR_LEN: Packet size before truncation.
  * %OVS_PACKET_ATTR_USERSPACE action specify the Maximum received fragment
  * size.
+ * @OVS_PACKET_ATTR_HASH: Packet hash info (e.g. hash, sw_hash and l4_hash in skb).
  *
  * These attributes follow the &struct ovs_header within the Generic Netlink
  * payload for %OVS_PACKET_* commands.
@@ -190,7 +191,8 @@ enum ovs_packet_attr {
 	OVS_PACKET_ATTR_PROBE,      /* Packet operation is a feature probe,
 				       error logging should be suppressed. */
 	OVS_PACKET_ATTR_MRU,	    /* Maximum received IP fragment size. */
-	OVS_PACKET_ATTR_LEN,		/* Packet size before truncation. */
+	OVS_PACKET_ATTR_LEN,	    /* Packet size before truncation. */
+	OVS_PACKET_ATTR_HASH,	    /* Packet hash. */
 	__OVS_PACKET_ATTR_MAX
 };
 
@@ -671,6 +673,32 @@ struct ovs_action_push_mpls {
 };
 
 /**
+ * struct ovs_action_add_mpls - %OVS_ACTION_ATTR_ADD_MPLS action
+ * argument.
+ * @mpls_lse: MPLS label stack entry to push.
+ * @mpls_ethertype: Ethertype to set in the encapsulating ethernet frame.
+ * @tun_flags: MPLS tunnel attributes.
+ *
+ * The only values @mpls_ethertype should ever be given are %ETH_P_MPLS_UC and
+ * %ETH_P_MPLS_MC, indicating MPLS unicast or multicast. Other are rejected.
+ */
+struct ovs_action_add_mpls {
+	__be32 mpls_lse;
+	__be16 mpls_ethertype; /* Either %ETH_P_MPLS_UC or %ETH_P_MPLS_MC */
+	__u16 tun_flags;
+};
+
+#define OVS_MPLS_L3_TUNNEL_FLAG_MASK  (1 << 0) /* Flag to specify the place of
+						* insertion of MPLS header.
+						* When false, the MPLS header
+						* will be inserted at the start
+						* of the packet.
+						* When true, the MPLS header
+						* will be inserted at the start
+						* of the l3 header.
+						*/
+
+/**
  * struct ovs_action_push_vlan - %OVS_ACTION_ATTR_PUSH_VLAN action argument.
  * @vlan_tpid: Tag protocol identifier (TPID) to push.
  * @vlan_tci: Tag control identifier (TCI) to push.  The CFI bit must be set
@@ -890,6 +918,10 @@ struct check_pkt_len_arg {
  * @OVS_ACTION_ATTR_CHECK_PKT_LEN: Check the packet length and execute a set
  * of actions if greater than the specified packet length, else execute
  * another set of actions.
+ * @OVS_ACTION_ATTR_ADD_MPLS: Push a new MPLS label stack entry at the
+ * start of the packet or at the start of the l3 header depending on the value
+ * of l3 tunnel flag in the tun_flags field of OVS_ACTION_ATTR_ADD_MPLS
+ * argument.
  *
  * Only a single header can be set with a single %OVS_ACTION_ATTR_SET.  Not all
  * fields within a header are modifiable, e.g. the IPv4 protocol and fragment
@@ -925,6 +957,7 @@ enum ovs_action_attr {
 	OVS_ACTION_ATTR_METER,        /* u32 meter ID. */
 	OVS_ACTION_ATTR_CLONE,        /* Nested OVS_CLONE_ATTR_*.  */
 	OVS_ACTION_ATTR_CHECK_PKT_LEN, /* Nested OVS_CHECK_PKT_LEN_ATTR_*. */
+	OVS_ACTION_ATTR_ADD_MPLS,     /* struct ovs_action_add_mpls. */
 
 	__OVS_ACTION_ATTR_MAX,	      /* Nothing past this will be accepted
 				       * from userspace. */

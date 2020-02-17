@@ -501,7 +501,7 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	/* Only allow ndo_xdp_xmit if XDP is loaded on dev, as this
 	 * indicate XDP resources have been successfully allocated.
 	 */
-	xdp_prog = rcu_dereference(rq->xdp_prog);
+	xdp_prog = rcu_access_pointer(rq->xdp_prog);
 	if (!xdp_prog)
 		return -ENXIO;
 
@@ -1432,7 +1432,7 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 		virtqueue_napi_complete(napi, rq->vq, received);
 
 	if (xdp_xmit & VIRTIO_XDP_REDIR)
-		xdp_do_flush_map();
+		xdp_do_flush();
 
 	if (xdp_xmit & VIRTIO_XDP_TX) {
 		sq = virtnet_xdp_sq(vi);
@@ -2445,11 +2445,8 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	if (!prog && !old_prog)
 		return 0;
 
-	if (prog) {
-		prog = bpf_prog_add(prog, vi->max_queue_pairs - 1);
-		if (IS_ERR(prog))
-			return PTR_ERR(prog);
-	}
+	if (prog)
+		bpf_prog_add(prog, vi->max_queue_pairs - 1);
 
 	/* Make sure NAPI is not using any XDP TX queues for RX. */
 	if (netif_running(dev)) {

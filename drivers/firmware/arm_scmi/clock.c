@@ -65,6 +65,7 @@ struct scmi_clock_set_rate {
 };
 
 struct clock_info {
+	u32 version;
 	int num_clocks;
 	int max_async_req;
 	atomic_t cur_async_req;
@@ -340,6 +341,7 @@ static int scmi_clock_protocol_init(struct scmi_handle *handle)
 			scmi_clock_describe_rates_get(handle, clkid, clk);
 	}
 
+	cinfo->version = version;
 	handle->clk_ops = &clk_ops;
 	handle->clk_priv = cinfo;
 

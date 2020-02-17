@@ -50,42 +50,6 @@ static const u8 dummy_eth_header[DUMMY_ETH_HDR_LEN] = { 0x2, 0, 0, 0, 0, 0,
 	 ((n) * sizeof(((struct ice_sw_rule_vsi_list *)0)->vsi)))
 
 /**
- * ice_aq_alloc_free_res - command to allocate/free resources
- * @hw: pointer to the HW struct
- * @num_entries: number of resource entries in buffer
- * @buf: Indirect buffer to hold data parameters and response
- * @buf_size: size of buffer for indirect commands
- * @opc: pass in the command opcode
- * @cd: pointer to command details structure or NULL
- *
- * Helper function to allocate/free resources using the admin queue commands
- */
-static enum ice_status
-ice_aq_alloc_free_res(struct ice_hw *hw, u16 num_entries,
-		      struct ice_aqc_alloc_free_res_elem *buf, u16 buf_size,
-		      enum ice_adminq_opc opc, struct ice_sq_cd *cd)
-{
-	struct ice_aqc_alloc_free_res_cmd *cmd;
-	struct ice_aq_desc desc;
-
-	cmd = &desc.params.sw_res_ctrl;
-
-	if (!buf)
-		return ICE_ERR_PARAM;
-
-	if (buf_size < (num_entries * sizeof(buf->elem[0])))
-		return ICE_ERR_PARAM;
-
-	ice_fill_dflt_direct_cmd_desc(&desc, opc);
-
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-
-	cmd->num_entries = cpu_to_le16(num_entries);
-
-	return ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
-}
-
-/**
  * ice_init_def_sw_recp - initialize the recipe book keeping tables
  * @hw: pointer to the HW struct
  *
@@ -416,8 +380,7 @@ ice_add_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
 		ice_save_vsi_ctx(hw, vsi_handle, tmp_vsi_ctx);
 	} else {
 		/* update with new HW VSI num */
-		if (tmp_vsi_ctx->vsi_num != vsi_ctx->vsi_num)
-			tmp_vsi_ctx->vsi_num = vsi_ctx->vsi_num;
+		tmp_vsi_ctx->vsi_num = vsi_ctx->vsi_num;
 	}
 
 	return 0;
@@ -2429,7 +2392,7 @@ ice_clear_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
 	if (!ice_is_vsi_valid(hw, vsi_handle))
 		return ICE_ERR_PARAM;
 
-	if (vid)
+	if (promisc_mask & (ICE_PROMISC_VLAN_RX | ICE_PROMISC_VLAN_TX))
 		recipe_id = ICE_SW_LKUP_PROMISC_VLAN;
 	else
 		recipe_id = ICE_SW_LKUP_PROMISC;
@@ -2441,13 +2404,18 @@ ice_clear_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
 
 	mutex_lock(rule_lock);
 	list_for_each_entry(itr, rule_head, list_entry) {
+		struct ice_fltr_info *fltr_info;
 		u8 fltr_promisc_mask = 0;
 
 		if (!ice_vsi_uses_fltr(itr, vsi_handle))
 			continue;
+		fltr_info = &itr->fltr_info;
 
-		fltr_promisc_mask |=
-			ice_determine_promisc_mask(&itr->fltr_info);
+		if (recipe_id == ICE_SW_LKUP_PROMISC_VLAN &&
+		    vid != fltr_info->l_data.mac_vlan.vlan_id)
+			continue;
+
+		fltr_promisc_mask |= ice_determine_promisc_mask(fltr_info);
 
 		/* Skip if filter is not completely specified by given mask */
 		if (fltr_promisc_mask & ~promisc_mask)
@@ -2455,7 +2423,7 @@ ice_clear_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
 
 		status = ice_add_entry_to_vsi_fltr_list(hw, vsi_handle,
 							&remove_list_head,
-							&itr->fltr_info);
+							fltr_info);
 		if (status) {
 			mutex_unlock(rule_lock);
 			goto free_fltr_list;

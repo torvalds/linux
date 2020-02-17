@@ -44,7 +44,7 @@
 
 #define QMP_NUM_COOLING_RESOURCES	2
 
-static bool qmp_cdev_init_state = 1;
+static bool qmp_cdev_max_state = 1;
 
 struct qmp_cooling_device {
 	struct thermal_cooling_device *cdev;
@@ -402,7 +402,7 @@ static void qmp_pd_remove(struct qmp *qmp)
 static int qmp_cdev_get_max_state(struct thermal_cooling_device *cdev,
 				  unsigned long *state)
 {
-	*state = qmp_cdev_init_state;
+	*state = qmp_cdev_max_state;
 	return 0;
 }
 
@@ -432,7 +432,7 @@ static int qmp_cdev_set_cur_state(struct thermal_cooling_device *cdev,
 	snprintf(buf, sizeof(buf),
 		 "{class: volt_flr, event:zero_temp, res:%s, value:%s}",
 			qmp_cdev->name,
-			cdev_state ? "off" : "on");
+			cdev_state ? "on" : "off");
 
 	ret = qmp_send(qmp_cdev->qmp, buf, sizeof(buf));
 
@@ -455,7 +455,7 @@ static int qmp_cooling_device_add(struct qmp *qmp,
 	char *cdev_name = (char *)node->name;
 
 	qmp_cdev->qmp = qmp;
-	qmp_cdev->state = qmp_cdev_init_state;
+	qmp_cdev->state = !qmp_cdev_max_state;
 	qmp_cdev->name = cdev_name;
 	qmp_cdev->cdev = devm_thermal_of_cooling_device_register
 				(qmp->dev, node,

@@ -7,6 +7,7 @@
  * Copyright (C) 2010		SUSE Linux Products GmbH
  * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
  */
+#include <linux/compiler.h>
 #include <linux/completion.h>
 #include <linux/cpu.h>
 #include <linux/init.h>
@@ -167,7 +168,7 @@ static void set_state(struct multi_stop_data *msdata,
 	/* Reset ack counter. */
 	atomic_set(&msdata->thread_ack, msdata->num_threads);
 	smp_wmb();
-	msdata->state = newstate;
+	WRITE_ONCE(msdata->state, newstate);
 }
 
 /* Last one to ack a state moves to the next state. */
@@ -186,7 +187,7 @@ void __weak stop_machine_yield(const struct cpumask *cpumask)
 static int multi_cpu_stop(void *data)
 {
 	struct multi_stop_data *msdata = data;
-	enum multi_stop_state curstate = MULTI_STOP_NONE;
+	enum multi_stop_state newstate, curstate = MULTI_STOP_NONE;
 	int cpu = smp_processor_id(), err = 0;
 	const struct cpumask *cpumask;
 	unsigned long flags;
@@ -210,8 +211,9 @@ static int multi_cpu_stop(void *data)
 	do {
 		/* Chill out and ensure we re-read multi_stop_state. */
 		stop_machine_yield(cpumask);
-		if (msdata->state != curstate) {
-			curstate = msdata->state;
+		newstate = READ_ONCE(msdata->state);
+		if (newstate != curstate) {
+			curstate = newstate;
 			switch (curstate) {
 			case MULTI_STOP_DISABLE_IRQ:
 				local_irq_disable();
@@ -233,6 +235,7 @@ static int multi_cpu_stop(void *data)
 			 */
 			touch_nmi_watchdog();
 		}
+		rcu_momentary_dyntick_idle();
 	} while (curstate != MULTI_STOP_EXIT);
 
 	local_irq_restore(flags);
@@ -439,42 +442,12 @@ static int __stop_cpus(const struct cpumask *cpumask,
  * @cpumask were offline; otherwise, 0 if all executions of @fn
  * returned 0, any non zero return value if any returned non zero.
  */
-int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg)
+static int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg)
 {
 	int ret;
 
 	/* static works are used, process one request at a time */
 	mutex_lock(&stop_cpus_mutex);
-	ret = __stop_cpus(cpumask, fn, arg);
-	mutex_unlock(&stop_cpus_mutex);
-	return ret;
-}
-
-/**
- * try_stop_cpus - try to stop multiple cpus
- * @cpumask: cpus to stop
- * @fn: function to execute
- * @arg: argument to @fn
- *
- * Identical to stop_cpus() except that it fails with -EAGAIN if
- * someone else is already using the facility.
- *
- * CONTEXT:
- * Might sleep.
- *
- * RETURNS:
- * -EAGAIN if someone else is already stopping cpus, -ENOENT if
- * @fn(@arg) was not executed at all because all cpus in @cpumask were
- * offline; otherwise, 0 if all executions of @fn returned 0, any non
- * zero return value if any returned non zero.
- */
-int try_stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg)
-{
-	int ret;
-
-	/* static works are used, process one request at a time */
-	if (!mutex_trylock(&stop_cpus_mutex))
-		return -EAGAIN;
 	ret = __stop_cpus(cpumask, fn, arg);
 	mutex_unlock(&stop_cpus_mutex);
 	return ret;

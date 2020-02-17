@@ -639,20 +639,14 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
+#ifdef _PAGE_HUGE
+#define pmd_leaf(pmd)	((pmd_val(pmd) & _PAGE_HUGE) != 0)
+#define pud_leaf(pud)	((pud_val(pud) & _PAGE_HUGE) != 0)
+#endif
+
 #define gup_fast_permitted(start, end)	(!cpu_has_dc_aliases)
 
 #include <asm-generic/pgtable.h>
-
-/*
- * uncached accelerated TLB map for video memory access
- */
-#ifdef CONFIG_CPU_SUPPORTS_UNCACHED_ACCELERATED
-#define __HAVE_PHYS_MEM_ACCESS_PROT
-
-struct file;
-pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
-		unsigned long size, pgprot_t vma_prot);
-#endif
 
 /*
  * We provide our own get_unmapped area to cope with the virtual aliasing

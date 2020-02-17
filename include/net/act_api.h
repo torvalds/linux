@@ -23,7 +23,6 @@ struct tc_action_ops;
 struct tc_action {
 	const struct tc_action_ops	*ops;
 	__u32				type; /* for backward compat(TCA_OLD_COMPAT) */
-	__u32				order;
 	struct tcf_idrinfo		*idrinfo;
 
 	u32				tcfa_index;
@@ -41,6 +40,7 @@ struct tc_action {
 	struct gnet_stats_queue __percpu *cpu_qstats;
 	struct tc_cookie	__rcu *act_cookie;
 	struct tcf_chain	__rcu *goto_chain;
+	u32			tcfa_flags;
 };
 #define tcf_index	common.tcfa_index
 #define tcf_refcnt	common.tcfa_refcnt
@@ -94,7 +94,7 @@ struct tc_action_ops {
 	int     (*init)(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **act, int ovr,
 			int bind, bool rtnl_held, struct tcf_proto *tp,
-			struct netlink_ext_ack *extack);
+			u32 flags, struct netlink_ext_ack *extack);
 	int     (*walk)(struct net *, struct sk_buff *,
 			struct netlink_callback *, int,
 			const struct tc_action_ops *,
@@ -154,7 +154,11 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index);
 int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   struct tc_action **a, const struct tc_action_ops *ops,
-		   int bind, bool cpustats);
+		   int bind, bool cpustats, u32 flags);
+int tcf_idr_create_from_flags(struct tc_action_net *tn, u32 index,
+			      struct nlattr *est, struct tc_action **a,
+			      const struct tc_action_ops *ops, int bind,
+			      u32 flags);
 void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a);
 
 void tcf_idr_cleanup(struct tc_action_net *tn, u32 index);
@@ -186,6 +190,43 @@ int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[], int bind,
 		    int ref);
 int tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int, int);
 int tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int, int);
+
+static inline void tcf_action_update_bstats(struct tc_action *a,
+					    struct sk_buff *skb)
+{
+	if (likely(a->cpu_bstats)) {
+		bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), skb);
+		return;
+	}
+	spin_lock(&a->tcfa_lock);
+	bstats_update(&a->tcfa_bstats, skb);
+	spin_unlock(&a->tcfa_lock);
+}
+
+static inline void tcf_action_inc_drop_qstats(struct tc_action *a)
+{
+	if (likely(a->cpu_qstats)) {
+		qstats_drop_inc(this_cpu_ptr(a->cpu_qstats));
+		return;
+	}
+	spin_lock(&a->tcfa_lock);
+	qstats_drop_inc(&a->tcfa_qstats);
+	spin_unlock(&a->tcfa_lock);
+}
+
+static inline void tcf_action_inc_overlimit_qstats(struct tc_action *a)
+{
+	if (likely(a->cpu_qstats)) {
+		qstats_overlimit_inc(this_cpu_ptr(a->cpu_qstats));
+		return;
+	}
+	spin_lock(&a->tcfa_lock);
+	qstats_overlimit_inc(&a->tcfa_qstats);
+	spin_unlock(&a->tcfa_lock);
+}
+
+void tcf_action_update_stats(struct tc_action *a, u64 bytes, u32 packets,
+			     bool drop, bool hw);
 int tcf_action_copy_stats(struct sk_buff *, struct tc_action *, int);
 
 int tcf_action_check_ctrlact(int action, struct tcf_proto *tp,

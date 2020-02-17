@@ -299,6 +299,12 @@
 	.put = snd_soc_bytes_put, .private_value =	      \
 		((unsigned long)&(struct soc_bytes)           \
 		{.base = xbase, .num_regs = xregs }) }
+#define SND_SOC_BYTES_E(xname, xbase, xregs, xhandler_get, xhandler_put) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_bytes_info, .get = xhandler_get, \
+	.put = xhandler_put, .private_value = \
+		((unsigned long)&(struct soc_bytes) \
+		{.base = xbase, .num_regs = xregs }) }
 
 #define SND_SOC_BYTES_MASK(xname, xbase, xregs, xmask)	      \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \
@@ -458,10 +464,8 @@ static inline int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 
 void snd_soc_disconnect_sync(struct device *dev);
 
-struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
-		const char *dai_link, int stream);
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
-		const char *dai_link);
+				struct snd_soc_dai_link *dai_link);
 
 bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd);
 void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream);
@@ -732,17 +736,9 @@ struct snd_soc_compr_ops {
 	int (*trigger)(struct snd_compr_stream *);
 };
 
-struct snd_soc_rtdcom_list {
-	struct snd_soc_component *component;
-	struct list_head list; /* rtd::component_list */
-};
 struct snd_soc_component*
 snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 		       const char *driver_name);
-#define for_each_rtdcom(rtd, rtdcom) \
-	list_for_each_entry(rtdcom, &(rtd)->component_list, list)
-#define for_each_rtdcom_safe(rtd, rtdcom1, rtdcom2) \
-	list_for_each_entry_safe(rtdcom1, rtdcom2, &(rtd)->component_list, list)
 
 struct snd_soc_dai_link_component {
 	const char *name;
@@ -844,8 +840,9 @@ struct snd_soc_dai_link {
 	/* Do not create a PCM for this DAI link (Backend link) */
 	unsigned int ignore:1;
 
-	struct list_head list; /* DAI link list of the soc card */
+#ifdef CONFIG_SND_SOC_TOPOLOGY
 	struct snd_soc_dobj dobj; /* For topology */
+#endif
 };
 #define for_each_link_codecs(link, i, codec)				\
 	for ((i) = 0;							\
@@ -942,6 +939,7 @@ struct snd_soc_dai_link {
 #define COMP_CODEC(_name, _dai)		{ .name = _name, .dai_name = _dai, }
 #define COMP_PLATFORM(_name)		{ .name = _name }
 #define COMP_AUX(_name)			{ .name = _name }
+#define COMP_CODEC_CONF(_name)		{ .name = _name }
 #define COMP_DUMMY()			{ .name = "snd-soc-dummy", .dai_name = "snd-soc-dummy-dai", }
 
 extern struct snd_soc_dai_link_component null_dailink_component[0];
@@ -952,8 +950,7 @@ struct snd_soc_codec_conf {
 	 * specify device either by device name, or by
 	 * DT/OF node, but not both.
 	 */
-	const char *dev_name;
-	struct device_node *of_node;
+	struct snd_soc_dai_link_component dlc;
 
 	/*
 	 * optional map of kcontrol, widget and path name prefixes that are
@@ -978,7 +975,10 @@ struct snd_soc_card {
 	const char *name;
 	const char *long_name;
 	const char *driver_name;
+	const char *components;
+#ifdef CONFIG_DMI
 	char dmi_longname[80];
+#endif /* CONFIG_DMI */
 	char topology_shortname[32];
 
 	struct device *dev;
@@ -1026,7 +1026,6 @@ struct snd_soc_card {
 	/* CPU <--> Codec DAI links  */
 	struct snd_soc_dai_link *dai_link;  /* predefined links only */
 	int num_links;  /* predefined links only */
-	struct list_head dai_link_list; /* all links */
 
 	struct list_head rtd_list;
 	int num_rtd;
@@ -1096,11 +1095,6 @@ struct snd_soc_card {
 	     ((i) < (card)->num_aux_devs) && ((aux) = &(card)->aux_dev[i]); \
 	     (i)++)
 
-#define for_each_card_links(card, link)				\
-	list_for_each_entry(link, &(card)->dai_link_list, list)
-#define for_each_card_links_safe(card, link, _link)			\
-	list_for_each_entry_safe(link, _link, &(card)->dai_link_list, list)
-
 #define for_each_card_rtds(card, rtd)			\
 	list_for_each_entry(rtd, &(card)->rtd_list, list)
 #define for_each_card_rtds_safe(card, rtd, _rtd)	\
@@ -1139,19 +1133,25 @@ struct snd_soc_pcm_runtime {
 	unsigned int num_codecs;
 
 	struct delayed_work delayed_work;
+	void (*close_delayed_work_func)(struct snd_soc_pcm_runtime *rtd);
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dpcm_root;
 #endif
 
 	unsigned int num; /* 0-based and monotonic increasing */
 	struct list_head list; /* rtd list of the soc card */
-	struct list_head component_list; /* list of connected components */
 
 	/* bit field */
-	unsigned int dev_registered:1;
 	unsigned int pop_wait:1;
 	unsigned int fe_compr:1; /* for Dynamic PCM */
+
+	int num_components;
+	struct snd_soc_component *components[0]; /* CPU/Codec/Platform */
 };
+#define for_each_rtd_components(rtd, i, component)			\
+	for ((i) = 0;							\
+	     ((i) < rtd->num_components) && ((component) = rtd->components[i]);\
+	     (i)++)
 #define for_each_rtd_codec_dai(rtd, i, dai)\
 	for ((i) = 0;						       \
 	     ((i) < rtd->num_codecs) && ((dai) = rtd->codec_dais[i]); \
@@ -1159,6 +1159,7 @@ struct snd_soc_pcm_runtime {
 #define for_each_rtd_codec_dai_rollback(rtd, i, dai)		\
 	for (; ((--i) >= 0) && ((dai) = rtd->codec_dais[i]);)
 
+void snd_soc_close_delayed_work(struct snd_soc_pcm_runtime *rtd);
 
 /* mixer control */
 struct soc_mixer_control {
@@ -1168,7 +1169,9 @@ struct soc_mixer_control {
 	unsigned int sign_bit;
 	unsigned int invert:1;
 	unsigned int autodisable:1;
+#ifdef CONFIG_SND_SOC_TOPOLOGY
 	struct snd_soc_dobj dobj;
+#endif
 };
 
 struct soc_bytes {
@@ -1179,8 +1182,9 @@ struct soc_bytes {
 
 struct soc_bytes_ext {
 	int max;
+#ifdef CONFIG_SND_SOC_TOPOLOGY
 	struct snd_soc_dobj dobj;
-
+#endif
 	/* used for TLV byte control */
 	int (*get)(struct snd_kcontrol *kcontrol, unsigned int __user *bytes,
 			unsigned int size);
@@ -1204,7 +1208,9 @@ struct soc_enum {
 	const char * const *texts;
 	const unsigned int *values;
 	unsigned int autodisable:1;
+#ifdef CONFIG_SND_SOC_TOPOLOGY
 	struct snd_soc_dobj dobj;
+#endif
 };
 
 /* device driver data */
@@ -1317,16 +1323,15 @@ int snd_soc_of_get_dai_link_codecs(struct device *dev,
 				   struct snd_soc_dai_link *dai_link);
 void snd_soc_of_put_dai_link_codecs(struct snd_soc_dai_link *dai_link);
 
-int snd_soc_add_dai_link(struct snd_soc_card *card,
-				struct snd_soc_dai_link *dai_link);
-void snd_soc_remove_dai_link(struct snd_soc_card *card,
-			     struct snd_soc_dai_link *dai_link);
-struct snd_soc_dai_link *snd_soc_find_dai_link(struct snd_soc_card *card,
-					       int id, const char *name,
-					       const char *stream_name);
+int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
+			    struct snd_soc_dai_link *dai_link);
+void snd_soc_remove_pcm_runtime(struct snd_soc_card *card,
+				struct snd_soc_pcm_runtime *rtd);
 
-int snd_soc_register_dai(struct snd_soc_component *component,
-	struct snd_soc_dai_driver *dai_drv);
+struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
+					 struct snd_soc_dai_driver *dai_drv,
+					 bool legacy_dai_naming);
+void snd_soc_unregister_dai(struct snd_soc_dai *dai);
 
 struct snd_soc_dai *snd_soc_find_dai(
 	const struct snd_soc_dai_link_component *dlc);

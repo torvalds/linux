@@ -253,7 +253,7 @@ The following sysctls are available for the XFS filesystem:
 	pool.
 
   fs.xfs.speculative_prealloc_lifetime
-		(Units: seconds   Min: 1  Default: 300  Max: 86400)
+	(Units: seconds   Min: 1  Default: 300  Max: 86400)
 	The interval at which the background scanning for inodes
 	with unused speculative preallocation runs. The scan
 	removes unused preallocation from clean inodes and releases

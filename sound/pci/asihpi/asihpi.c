@@ -300,7 +300,7 @@ static void print_hwparams(struct snd_pcm_substream *substream,
 
 #define INVALID_FORMAT	(__force snd_pcm_format_t)(-1)
 
-static snd_pcm_format_t hpi_to_alsa_formats[] = {
+static const snd_pcm_format_t hpi_to_alsa_formats[] = {
 	INVALID_FORMAT,		/* INVALID */
 	SNDRV_PCM_FORMAT_U8,	/* HPI_FORMAT_PCM8_UNSIGNED        1 */
 	SNDRV_PCM_FORMAT_S16,	/* HPI_FORMAT_PCM16_SIGNED         2 */
@@ -449,9 +449,6 @@ static int snd_card_asihpi_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int bytes_per_sec;
 
 	print_hwparams(substream, params);
-	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (err < 0)
-		return err;
 	err = snd_card_asihpi_format_alsa2hpi(params_format(params), &format);
 	if (err)
 		return err;
@@ -509,7 +506,6 @@ snd_card_asihpi_hw_free(struct snd_pcm_substream *substream)
 	if (dpcm->hpi_buffer_attached)
 		hpi_stream_host_buffer_detach(dpcm->h_stream);
 
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -947,15 +943,6 @@ static void snd_card_asihpi_isr(struct hpi_adapter *a)
 }
 
 /***************************** PLAYBACK OPS ****************/
-static int snd_card_asihpi_playback_ioctl(struct snd_pcm_substream *substream,
-					  unsigned int cmd, void *arg)
-{
-	char name[16];
-	snd_pcm_debug_name(substream, name, sizeof(name));
-	snd_printddd(KERN_INFO "%s ioctl %d\n", name, cmd);
-	return snd_pcm_lib_ioctl(substream, cmd, arg);
-}
-
 static int snd_card_asihpi_playback_prepare(struct snd_pcm_substream *
 					    substream)
 {
@@ -1122,7 +1109,6 @@ static int snd_card_asihpi_playback_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_card_asihpi_playback_mmap_ops = {
 	.open = snd_card_asihpi_playback_open,
 	.close = snd_card_asihpi_playback_close,
-	.ioctl = snd_card_asihpi_playback_ioctl,
 	.hw_params = snd_card_asihpi_pcm_hw_params,
 	.hw_free = snd_card_asihpi_hw_free,
 	.prepare = snd_card_asihpi_playback_prepare,
@@ -1145,12 +1131,6 @@ snd_card_asihpi_capture_pointer(struct snd_pcm_substream *substream)
 		the local buffer available for reading.
 	*/
 	return bytes_to_frames(runtime, dpcm->pcm_buf_dma_ofs % dpcm->buffer_bytes);
-}
-
-static int snd_card_asihpi_capture_ioctl(struct snd_pcm_substream *substream,
-					 unsigned int cmd, void *arg)
-{
-	return snd_pcm_lib_ioctl(substream, cmd, arg);
 }
 
 static int snd_card_asihpi_capture_prepare(struct snd_pcm_substream *substream)
@@ -1288,7 +1268,6 @@ static int snd_card_asihpi_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_card_asihpi_capture_mmap_ops = {
 	.open = snd_card_asihpi_capture_open,
 	.close = snd_card_asihpi_capture_close,
-	.ioctl = snd_card_asihpi_capture_ioctl,
 	.hw_params = snd_card_asihpi_pcm_hw_params,
 	.hw_free = snd_card_asihpi_hw_free,
 	.prepare = snd_card_asihpi_capture_prepare,
@@ -1324,9 +1303,9 @@ static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 
 	/*? do we want to emulate MMAP for non-BBM cards?
 	Jack doesn't work with ALSAs MMAP emulation - WHY NOT? */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						snd_dma_pci_data(asihpi->pci),
-						64*1024, BUFFER_BYTES_MAX);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &asihpi->pci->dev,
+				       64*1024, BUFFER_BYTES_MAX);
 
 	return 0;
 }
@@ -2094,7 +2073,7 @@ static int snd_asihpi_meter_info(struct snd_kcontrol *kcontrol,
 }
 
 /* linear values for 10dB steps */
-static int log2lin[] = {
+static const int log2lin[] = {
 	0x7FFFFFFF, /* 0dB */
 	679093956,
 	214748365,
