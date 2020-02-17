@@ -86,5 +86,6 @@ Documentation for filesystem implementations.
    ramfs-rootfs-initramfs
    relay
    romfs
+   squashfs
    virtiofs
    vfat

@@ -1,7 +1,11 @@
-SQUASHFS 4.0 FILESYSTEM
+.. SPDX-License-Identifier: GPL-2.0
+
+=======================
+Squashfs 4.0 Filesystem
 =======================
 
 Squashfs is a compressed read-only filesystem for Linux.
+
 It uses zlib, lz4, lzo, or xz compression to compress files, inodes and
 directories.  Inodes in the system are very small and all blocks are packed to
 minimise data overhead. Block sizes greater than 4K are supported up to a
@@ -15,31 +19,33 @@ needed.
 Mailing list: squashfs-devel@lists.sourceforge.net
 Web site: www.squashfs.org
 
-1. FILESYSTEM FEATURES
+1. Filesystem Features
 ----------------------
 
 Squashfs filesystem features versus Cramfs:
 
+============================== 	=========		==========
 				Squashfs		Cramfs
-
-Max filesystem size:		2^64			256 MiB
-Max file size:			~ 2 TiB			16 MiB
-Max files:			unlimited		unlimited
-Max directories:		unlimited		unlimited
-Max entries per directory:	unlimited		unlimited
-Max block size:			1 MiB			4 KiB
-Metadata compression:		yes			no
-Directory indexes:		yes			no
-Sparse file support:		yes			no
-Tail-end packing (fragments):	yes			no
-Exportable (NFS etc.):		yes			no
-Hard link support:		yes			no
-"." and ".." in readdir:	yes			no
-Real inode numbers:		yes			no
-32-bit uids/gids:		yes			no
-File creation time:		yes			no
-Xattr support:			yes			no
-ACL support:			no			no
+============================== 	=========		==========
+Max filesystem size		2^64			256 MiB
+Max file size			~ 2 TiB			16 MiB
+Max files			unlimited		unlimited
+Max directories			unlimited		unlimited
+Max entries per directory	unlimited		unlimited
+Max block size			1 MiB			4 KiB
+Metadata compression		yes			no
+Directory indexes		yes			no
+Sparse file support		yes			no
+Tail-end packing (fragments)	yes			no
+Exportable (NFS etc.)		yes			no
+Hard link support		yes			no
+"." and ".." in readdir		yes			no
+Real inode numbers		yes			no
+32-bit uids/gids		yes			no
+File creation time		yes			no
+Xattr support			yes			no
+ACL support			no			no
+============================== 	=========		==========
 
 Squashfs compresses data, inodes and directories.  In addition, inode and
 directory data are highly compacted, and packed on byte boundaries.  Each
@@ -47,7 +53,7 @@ compressed inode is on average 8 bytes in length (the exact length varies on
 file type, i.e. regular file, directory, symbolic link, and block/char device
 inodes have different sizes).
 
-2. USING SQUASHFS
+2. Using Squashfs
 -----------------
 
 As squashfs is a read-only filesystem, the mksquashfs program must be used to
@@ -58,11 +64,11 @@ obtained from this site also.
 The squashfs-tools development tree is now located on kernel.org
 	git://git.kernel.org/pub/scm/fs/squashfs/squashfs-tools.git
 
-3. SQUASHFS FILESYSTEM DESIGN
+3. Squashfs Filesystem Design
 -----------------------------
 
 A squashfs filesystem consists of a maximum of nine parts, packed together on a
-byte alignment:
+byte alignment::
 
 	 ---------------
 	|  superblock 	|
@@ -229,15 +235,15 @@ location of the xattr list inside each inode, a 32-bit xattr id
 is stored.  This xattr id is mapped into the location of the xattr
 list using a second xattr id lookup table.
 
-4. TODOS AND OUTSTANDING ISSUES
+4. TODOs and Outstanding Issues
 -------------------------------
 
-4.1 Todo list
+4.1 TODO list
 -------------
 
 Implement ACL support.
 
-4.2 Squashfs internal cache
+4.2 Squashfs Internal Cache
 ---------------------------
 
 Blocks in Squashfs are compressed.  To avoid repeatedly decompressing
