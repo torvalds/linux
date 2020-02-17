@@ -1018,7 +1018,14 @@ static void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
 
 static int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port)
 {
-	return 32 * sizeof(u16);
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int len;
+
+	len = 32 * sizeof(u16);
+	if (chip->info->ops->serdes_get_regs_len)
+		len += chip->info->ops->serdes_get_regs_len(chip, port);
+
+	return len;
 }
 
 static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
@@ -1042,6 +1049,9 @@ static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 		if (!err)
 			p[i] = reg;
 	}
+
+	if (chip->info->ops->serdes_get_regs)
+		chip->info->ops->serdes_get_regs(chip, port, &p[i]);
 
 	mv88e6xxx_reg_unlock(chip);
 }
@@ -3664,6 +3674,8 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.serdes_get_lane = mv88e6352_serdes_get_lane,
 	.serdes_power = mv88e6352_serdes_power,
+	.serdes_get_regs_len = mv88e6352_serdes_get_regs_len,
+	.serdes_get_regs = mv88e6352_serdes_get_regs,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.phylink_validate = mv88e6352_phylink_validate,
 };
@@ -3758,6 +3770,8 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.serdes_irq_mapping = mv88e6352_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6352_serdes_irq_enable,
 	.serdes_irq_status = mv88e6352_serdes_irq_status,
+	.serdes_get_regs_len = mv88e6352_serdes_get_regs_len,
+	.serdes_get_regs = mv88e6352_serdes_get_regs,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.phylink_validate = mv88e6352_phylink_validate,
 };
@@ -3847,6 +3861,8 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
 	.serdes_get_strings = mv88e6390_serdes_get_strings,
 	.serdes_get_stats = mv88e6390_serdes_get_stats,
+	.serdes_get_regs_len = mv88e6390_serdes_get_regs_len,
+	.serdes_get_regs = mv88e6390_serdes_get_regs,
 	.phylink_validate = mv88e6390_phylink_validate,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.phylink_validate = mv88e6390_phylink_validate,
@@ -3901,6 +3917,8 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
 	.serdes_get_strings = mv88e6390_serdes_get_strings,
 	.serdes_get_stats = mv88e6390_serdes_get_stats,
+	.serdes_get_regs_len = mv88e6390_serdes_get_regs_len,
+	.serdes_get_regs = mv88e6390_serdes_get_regs,
 	.phylink_validate = mv88e6390_phylink_validate,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.phylink_validate = mv88e6390x_phylink_validate,
@@ -3954,6 +3972,8 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
 	.serdes_get_strings = mv88e6390_serdes_get_strings,
 	.serdes_get_stats = mv88e6390_serdes_get_stats,
+	.serdes_get_regs_len = mv88e6390_serdes_get_regs_len,
+	.serdes_get_regs = mv88e6390_serdes_get_regs,
 	.phylink_validate = mv88e6390_phylink_validate,
 	.avb_ops = &mv88e6390_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
@@ -4008,6 +4028,8 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.serdes_irq_mapping = mv88e6352_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6352_serdes_irq_enable,
 	.serdes_irq_status = mv88e6352_serdes_irq_status,
+	.serdes_get_regs_len = mv88e6352_serdes_get_regs_len,
+	.serdes_get_regs = mv88e6352_serdes_get_regs,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6352_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
@@ -4103,6 +4125,8 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
 	.serdes_get_strings = mv88e6390_serdes_get_strings,
 	.serdes_get_stats = mv88e6390_serdes_get_stats,
+	.serdes_get_regs_len = mv88e6390_serdes_get_regs_len,
+	.serdes_get_regs = mv88e6390_serdes_get_regs,
 	.phylink_validate = mv88e6390_phylink_validate,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
@@ -4388,6 +4412,8 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.serdes_get_sset_count = mv88e6352_serdes_get_sset_count,
 	.serdes_get_strings = mv88e6352_serdes_get_strings,
 	.serdes_get_stats = mv88e6352_serdes_get_stats,
+	.serdes_get_regs_len = mv88e6352_serdes_get_regs_len,
+	.serdes_get_regs = mv88e6352_serdes_get_regs,
 	.phylink_validate = mv88e6352_phylink_validate,
 };
 
@@ -4446,6 +4472,8 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.serdes_get_sset_count = mv88e6390_serdes_get_sset_count,
 	.serdes_get_strings = mv88e6390_serdes_get_strings,
 	.serdes_get_stats = mv88e6390_serdes_get_stats,
+	.serdes_get_regs_len = mv88e6390_serdes_get_regs_len,
+	.serdes_get_regs = mv88e6390_serdes_get_regs,
 	.phylink_validate = mv88e6390_phylink_validate,
 };
 
@@ -4501,6 +4529,8 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.serdes_get_sset_count = mv88e6390_serdes_get_sset_count,
 	.serdes_get_strings = mv88e6390_serdes_get_strings,
 	.serdes_get_stats = mv88e6390_serdes_get_stats,
+	.serdes_get_regs_len = mv88e6390_serdes_get_regs_len,
+	.serdes_get_regs = mv88e6390_serdes_get_regs,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,

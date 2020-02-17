@@ -237,6 +237,29 @@ unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 	return irq_find_mapping(chip->g2_irq.domain, MV88E6352_SERDES_IRQ);
 }
 
+int mv88e6352_serdes_get_regs_len(struct mv88e6xxx_chip *chip, int port)
+{
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return 0;
+
+	return 32 * sizeof(u16);
+}
+
+void mv88e6352_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
+{
+	u16 *p = _p;
+	u16 reg;
+	int i;
+
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return;
+
+	for (i = 0 ; i < 32; i++) {
+		mv88e6352_serdes_read(chip, i, &reg);
+		p[i] = reg;
+	}
+}
+
 u8 mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode = chip->ports[port].cmode;
@@ -651,4 +674,58 @@ irqreturn_t mv88e6390_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
 unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 {
 	return irq_find_mapping(chip->g2_irq.domain, port);
+}
+
+static const u16 mv88e6390_serdes_regs[] = {
+	/* SERDES common registers */
+	0xf00a, 0xf00b, 0xf00c,
+	0xf010, 0xf011, 0xf012, 0xf013,
+	0xf016, 0xf017, 0xf018,
+	0xf01b, 0xf01c, 0xf01d, 0xf01e, 0xf01f,
+	0xf020, 0xf021, 0xf022, 0xf023, 0xf024, 0xf025, 0xf026, 0xf027,
+	0xf028, 0xf029,
+	0xf030, 0xf031, 0xf032, 0xf033, 0xf034, 0xf035, 0xf036, 0xf037,
+	0xf038, 0xf039,
+	/* SGMII */
+	0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007,
+	0x2008,
+	0x200f,
+	0xa000, 0xa001, 0xa002, 0xa003,
+	/* 10Gbase-X */
+	0x1000, 0x1001, 0x1002, 0x1003, 0x1004, 0x1005, 0x1006, 0x1007,
+	0x1008,
+	0x100e, 0x100f,
+	0x1018, 0x1019,
+	0x9000, 0x9001, 0x9002, 0x9003, 0x9004,
+	0x9006,
+	0x9010, 0x9011, 0x9012, 0x9013, 0x9014, 0x9015, 0x9016,
+	/* 10Gbase-R */
+	0x1020, 0x1021, 0x1022, 0x1023, 0x1024, 0x1025, 0x1026, 0x1027,
+	0x1028, 0x1029, 0x102a, 0x102b,
+};
+
+int mv88e6390_serdes_get_regs_len(struct mv88e6xxx_chip *chip, int port)
+{
+	if (mv88e6xxx_serdes_get_lane(chip, port) == 0)
+		return 0;
+
+	return ARRAY_SIZE(mv88e6390_serdes_regs) * sizeof(u16);
+}
+
+void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
+{
+	u16 *p = _p;
+	int lane;
+	u16 reg;
+	int i;
+
+	lane = mv88e6xxx_serdes_get_lane(chip, port);
+	if (lane == 0)
+		return;
+
+	for (i = 0 ; i < ARRAY_SIZE(mv88e6390_serdes_regs); i++) {
+		mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				      mv88e6390_serdes_regs[i], &reg);
+		p[i] = reg;
+	}
 }
