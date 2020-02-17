@@ -1,12 +1,15 @@
+.. SPDX-License-Identifier: GPL-2.0
 
-	Cramfs - cram a filesystem onto a small ROM
+===========================================
+Cramfs - cram a filesystem onto a small ROM
+===========================================
 
-cramfs is designed to be simple and small, and to compress things well. 
+cramfs is designed to be simple and small, and to compress things well.
 
 It uses the zlib routines to compress a file one page at a time, and
 allows random page access.  The meta-data is not compressed, but is
 expressed in a very terse representation to make it use much less
-diskspace than traditional filesystems. 
+diskspace than traditional filesystems.
 
 You can't write to a cramfs filesystem (making it compressible and
 compact also makes it _very_ hard to update on-the-fly), so you have to
@@ -28,9 +31,9 @@ issue.
 Hard links are supported, but hard linked files
 will still have a link count of 1 in the cramfs image.
 
-Cramfs directories have no `.' or `..' entries.  Directories (like
+Cramfs directories have no ``.`` or ``..`` entries.  Directories (like
 every other file on cramfs) always have a link count of 1.  (There's
-no need to use -noleaf in `find', btw.)
+no need to use -noleaf in ``find``, btw.)
 
 No timestamps are stored in a cramfs, so these default to the epoch
 (1970 GMT).  Recently-accessed files may have updated timestamps, but
@@ -70,9 +73,9 @@ MTD drivers are cfi_cmdset_0001 (Intel/Sharp CFI flash) or physmap
 (Flash device in physical memory map). MTD partitions based on such devices
 are fine too. Then that device should be specified with the "mtd:" prefix
 as the mount device argument. For example, to mount the MTD device named
-"fs_partition" on the /mnt directory:
+"fs_partition" on the /mnt directory::
 
-$ mount -t cramfs mtd:fs_partition /mnt
+    $ mount -t cramfs mtd:fs_partition /mnt
 
 To boot a kernel with this as root filesystem, suffice to specify
 something like "root=mtd:fs_partition" on the kernel command line.
@@ -90,6 +93,7 @@ https://github.com/npitre/cramfs-tools
 For /usr/share/magic
 --------------------
 
+=====	=======================	=======================
 0	ulelong	0x28cd3d45	Linux cramfs offset 0
 >4	ulelong	x		size %d
 >8	ulelong	x		flags 0x%x
@@ -110,6 +114,7 @@ For /usr/share/magic
 >552	ulelong	x		fsid.blocks %d
 >556	ulelong	x		fsid.files %d
 >560	string	>\0		name "%.16s"
+=====	=======================	=======================
 
 
 Hacker Notes
