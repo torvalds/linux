@@ -82,6 +82,15 @@ static int soc_rtd_trigger(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static inline
+struct snd_soc_dapm_widget *dai_get_widget(struct snd_soc_dai *dai, int stream)
+{
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return dai->playback_widget;
+	else
+		return dai->capture_widget;
+}
+
 static void snd_soc_runtime_action(struct snd_soc_pcm_runtime *rtd,
 				   int stream, int action)
 {
@@ -1285,15 +1294,6 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 	dev_err(card->dev, "ASoC: can't get %s BE for %s\n",
 		stream ? "capture" : "playback", widget->name);
 	return NULL;
-}
-
-static inline struct snd_soc_dapm_widget *
-	dai_get_widget(struct snd_soc_dai *dai, int stream)
-{
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		return dai->playback_widget;
-	else
-		return dai->capture_widget;
 }
 
 static int widget_in_list(struct snd_soc_dapm_widget_list *list,
