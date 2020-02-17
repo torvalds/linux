@@ -78,6 +78,7 @@ Documentation for filesystem implementations.
    ntfs
    ocfs2
    ocfs2-online-filecheck
+   omfs
    overlayfs
    virtiofs
    vfat
