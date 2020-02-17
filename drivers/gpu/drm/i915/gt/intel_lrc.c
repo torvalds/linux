@@ -1206,6 +1206,14 @@ static u32 intel_context_get_runtime(const struct intel_context *ce)
 	return READ_ONCE(ce->lrc_reg_state[CTX_TIMESTAMP]);
 }
 
+static void st_update_runtime_underflow(struct intel_context *ce, s32 dt)
+{
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+	ce->runtime.num_underflow += dt < 0;
+	ce->runtime.max_underflow = max_t(u32, ce->runtime.max_underflow, -dt);
+#endif
+}
+
 static void intel_context_update_runtime(struct intel_context *ce)
 {
 	u32 old;
@@ -1221,9 +1229,7 @@ static void intel_context_update_runtime(struct intel_context *ce)
 	if (unlikely(dt <= 0)) {
 		CE_TRACE(ce, "runtime underflow: last=%u, new=%u, delta=%d\n",
 			 old, ce->runtime.last, dt);
-		I915_SELFTEST_ONLY(ce->runtime.num_underflow += dt < 0);
-		I915_SELFTEST_ONLY(ce->runtime.max_underflow =
-				   max_t(u32, ce->runtime.max_underflow, -dt));
+		st_update_runtime_underflow(ce, dt);
 		return;
 	}
 
