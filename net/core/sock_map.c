@@ -518,7 +518,7 @@ struct bpf_htab_elem {
 	u32 hash;
 	struct sock *sk;
 	struct hlist_node node;
-	u8 key[0];
+	u8 key[];
 };
 
 struct bpf_htab_bucket {
