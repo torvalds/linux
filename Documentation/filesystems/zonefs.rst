@@ -1,4 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+================================================
 ZoneFS - Zone filesystem for Zoned block devices
+================================================
 
 Introduction
 ============
@@ -29,6 +33,7 @@ Zoned block devices
 Zoned storage devices belong to a class of storage devices with an address
 space that is divided into zones. A zone is a group of consecutive LBAs and all
 zones are contiguous (there are no LBA gaps). Zones may have different types.
+
 * Conventional zones: there are no access constraints to LBAs belonging to
   conventional zones. Any read or write access can be executed, similarly to a
   regular block device.
@@ -158,6 +163,7 @@ Format options
 --------------
 
 Several optional features of zonefs can be enabled at format time.
+
 * Conventional zone aggregation: ranges of contiguous conventional zones can be
   aggregated into a single larger file instead of the default one file per zone.
 * File ownership: The owner UID and GID of zone files is by default 0 (root)
@@ -249,7 +255,7 @@ permissions.
 Further action taken by zonefs I/O error recovery can be controlled by the user
 with the "errors=xxx" mount option. The table below summarizes the result of
 zonefs I/O error processing depending on the mount option and on the zone
-conditions.
+conditions::
 
     +--------------+-----------+-----------------------------------------+
     |              |           |            Post error state             |
@@ -275,6 +281,7 @@ conditions.
     +--------------+-----------+-----------------------------------------+
 
 Further notes:
+
 * The "errors=remount-ro" mount option is the default behavior of zonefs I/O
   error processing if no errors mount option is specified.
 * With the "errors=remount-ro" mount option, the change of the file access
@@ -302,6 +309,7 @@ Mount options
 zonefs define the "errors=<behavior>" mount option to allow the user to specify
 zonefs behavior in response to I/O errors, inode size inconsistencies or zone
 condition chages. The defined behaviors are as follow:
+
 * remount-ro (default)
 * zone-ro
 * zone-offline
@@ -325,78 +333,78 @@ Examples
 --------
 
 The following formats a 15TB host-managed SMR HDD with 256 MB zones
-with the conventional zones aggregation feature enabled.
+with the conventional zones aggregation feature enabled::
 
-# mkzonefs -o aggr_cnv /dev/sdX
-# mount -t zonefs /dev/sdX /mnt
-# ls -l /mnt/
-total 0
-dr-xr-xr-x 2 root root     1 Nov 25 13:23 cnv
-dr-xr-xr-x 2 root root 55356 Nov 25 13:23 seq
+    # mkzonefs -o aggr_cnv /dev/sdX
+    # mount -t zonefs /dev/sdX /mnt
+    # ls -l /mnt/
+    total 0
+    dr-xr-xr-x 2 root root     1 Nov 25 13:23 cnv
+    dr-xr-xr-x 2 root root 55356 Nov 25 13:23 seq
 
 The size of the zone files sub-directories indicate the number of files
 existing for each type of zones. In this example, there is only one
 conventional zone file (all conventional zones are aggregated under a single
-file).
+file)::
 
-# ls -l /mnt/cnv
-total 137101312
--rw-r----- 1 root root 140391743488 Nov 25 13:23 0
+    # ls -l /mnt/cnv
+    total 137101312
+    -rw-r----- 1 root root 140391743488 Nov 25 13:23 0
 
-This aggregated conventional zone file can be used as a regular file.
+This aggregated conventional zone file can be used as a regular file::
 
-# mkfs.ext4 /mnt/cnv/0
-# mount -o loop /mnt/cnv/0 /data
+    # mkfs.ext4 /mnt/cnv/0
+    # mount -o loop /mnt/cnv/0 /data
 
 The "seq" sub-directory grouping files for sequential write zones has in this
-example 55356 zones.
+example 55356 zones::
 
-# ls -lv /mnt/seq
-total 14511243264
--rw-r----- 1 root root 0 Nov 25 13:23 0
--rw-r----- 1 root root 0 Nov 25 13:23 1
--rw-r----- 1 root root 0 Nov 25 13:23 2
-...
--rw-r----- 1 root root 0 Nov 25 13:23 55354
--rw-r----- 1 root root 0 Nov 25 13:23 55355
+    # ls -lv /mnt/seq
+    total 14511243264
+    -rw-r----- 1 root root 0 Nov 25 13:23 0
+    -rw-r----- 1 root root 0 Nov 25 13:23 1
+    -rw-r----- 1 root root 0 Nov 25 13:23 2
+    ...
+    -rw-r----- 1 root root 0 Nov 25 13:23 55354
+    -rw-r----- 1 root root 0 Nov 25 13:23 55355
 
 For sequential write zone files, the file size changes as data is appended at
-the end of the file, similarly to any regular file system.
+the end of the file, similarly to any regular file system::
 
-# dd if=/dev/zero of=/mnt/seq/0 bs=4096 count=1 conv=notrunc oflag=direct
-1+0 records in
-1+0 records out
-4096 bytes (4.1 kB, 4.0 KiB) copied, 0.00044121 s, 9.3 MB/s
+    # dd if=/dev/zero of=/mnt/seq/0 bs=4096 count=1 conv=notrunc oflag=direct
+    1+0 records in
+    1+0 records out
+    4096 bytes (4.1 kB, 4.0 KiB) copied, 0.00044121 s, 9.3 MB/s
 
-# ls -l /mnt/seq/0
--rw-r----- 1 root root 4096 Nov 25 13:23 /mnt/seq/0
+    # ls -l /mnt/seq/0
+    -rw-r----- 1 root root 4096 Nov 25 13:23 /mnt/seq/0
 
 The written file can be truncated to the zone size, preventing any further
-write operation.
+write operation::
 
-# truncate -s 268435456 /mnt/seq/0
-# ls -l /mnt/seq/0
--rw-r----- 1 root root 268435456 Nov 25 13:49 /mnt/seq/0
+    # truncate -s 268435456 /mnt/seq/0
+    # ls -l /mnt/seq/0
+    -rw-r----- 1 root root 268435456 Nov 25 13:49 /mnt/seq/0
 
 Truncation to 0 size allows freeing the file zone storage space and restart
-append-writes to the file.
+append-writes to the file::
 
-# truncate -s 0 /mnt/seq/0
-# ls -l /mnt/seq/0
--rw-r----- 1 root root 0 Nov 25 13:49 /mnt/seq/0
+    # truncate -s 0 /mnt/seq/0
+    # ls -l /mnt/seq/0
+    -rw-r----- 1 root root 0 Nov 25 13:49 /mnt/seq/0
 
 Since files are statically mapped to zones on the disk, the number of blocks of
-a file as reported by stat() and fstat() indicates the size of the file zone.
+a file as reported by stat() and fstat() indicates the size of the file zone::
 
-# stat /mnt/seq/0
-  File: /mnt/seq/0
-  Size: 0         	Blocks: 524288     IO Block: 4096   regular empty file
-Device: 870h/2160d	Inode: 50431       Links: 1
-Access: (0640/-rw-r-----)  Uid: (    0/    root)   Gid: (    0/    root)
-Access: 2019-11-25 13:23:57.048971997 +0900
-Modify: 2019-11-25 13:52:25.553805765 +0900
-Change: 2019-11-25 13:52:25.553805765 +0900
- Birth: -
+    # stat /mnt/seq/0
+    File: /mnt/seq/0
+    Size: 0         	Blocks: 524288     IO Block: 4096   regular empty file
+    Device: 870h/2160d	Inode: 50431       Links: 1
+    Access: (0640/-rw-r-----)  Uid: (    0/    root)   Gid: (    0/    root)
+    Access: 2019-11-25 13:23:57.048971997 +0900
+    Modify: 2019-11-25 13:52:25.553805765 +0900
+    Change: 2019-11-25 13:52:25.553805765 +0900
+    Birth: -
 
 The number of blocks of the file ("Blocks") in units of 512B blocks gives the
 maximum file size of 524288 * 512 B = 256 MB, corresponding to the device zone

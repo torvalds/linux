@@ -95,3 +95,4 @@ Documentation for filesystem implementations.
    udf
    virtiofs
    vfat
+   zonefs
