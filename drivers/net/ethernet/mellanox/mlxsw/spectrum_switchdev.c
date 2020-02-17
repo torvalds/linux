@@ -2108,38 +2108,8 @@ mlxsw_sp_bridge_8021q_fid_get(struct mlxsw_sp_bridge_device *bridge_device,
 			      u16 vid, struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_device->dev);
-	struct net_device *vxlan_dev;
-	struct mlxsw_sp_fid *fid;
-	int err;
 
-	fid = mlxsw_sp_fid_8021q_get(mlxsw_sp, vid);
-	if (IS_ERR(fid))
-		return fid;
-
-	if (mlxsw_sp_fid_vni_is_set(fid))
-		return fid;
-
-	/* Find the VxLAN device that has the specified VLAN configured as
-	 * PVID and egress untagged. There can be at most one such device
-	 */
-	vxlan_dev = mlxsw_sp_bridge_8021q_vxlan_dev_find(bridge_device->dev,
-							 vid);
-	if (!vxlan_dev)
-		return fid;
-
-	if (!netif_running(vxlan_dev))
-		return fid;
-
-	err = mlxsw_sp_bridge_8021q_vxlan_join(bridge_device, vxlan_dev, vid,
-					       extack);
-	if (err)
-		goto err_vxlan_join;
-
-	return fid;
-
-err_vxlan_join:
-	mlxsw_sp_fid_put(fid);
-	return ERR_PTR(err);
+	return mlxsw_sp_fid_8021q_get(mlxsw_sp, vid);
 }
 
 static struct mlxsw_sp_fid *
@@ -2273,34 +2243,8 @@ mlxsw_sp_bridge_8021d_fid_get(struct mlxsw_sp_bridge_device *bridge_device,
 			      u16 vid, struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_device->dev);
-	struct net_device *vxlan_dev;
-	struct mlxsw_sp_fid *fid;
-	int err;
 
-	fid = mlxsw_sp_fid_8021d_get(mlxsw_sp, bridge_device->dev->ifindex);
-	if (IS_ERR(fid))
-		return fid;
-
-	if (mlxsw_sp_fid_vni_is_set(fid))
-		return fid;
-
-	vxlan_dev = mlxsw_sp_bridge_vxlan_dev_find(bridge_device->dev);
-	if (!vxlan_dev)
-		return fid;
-
-	if (!netif_running(vxlan_dev))
-		return fid;
-
-	err = mlxsw_sp_bridge_8021d_vxlan_join(bridge_device, vxlan_dev, 0,
-					       extack);
-	if (err)
-		goto err_vxlan_join;
-
-	return fid;
-
-err_vxlan_join:
-	mlxsw_sp_fid_put(fid);
-	return ERR_PTR(err);
+	return mlxsw_sp_fid_8021d_get(mlxsw_sp, bridge_device->dev->ifindex);
 }
 
 static struct mlxsw_sp_fid *
