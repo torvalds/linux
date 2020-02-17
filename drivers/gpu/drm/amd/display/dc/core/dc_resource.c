@@ -1399,9 +1399,9 @@ bool dc_remove_plane_from_context(
 			 * For head pipe detach surfaces from pipe for tail
 			 * pipe just zero it out
 			 */
-			if (!pipe_ctx->top_pipe ||
-				(!pipe_ctx->top_pipe->top_pipe &&
+			if (!pipe_ctx->top_pipe || (!pipe_ctx->top_pipe->top_pipe &&
 					pipe_ctx->top_pipe->stream_res.opp != pipe_ctx->stream_res.opp)) {
+				pipe_ctx->top_pipe = NULL;
 				pipe_ctx->plane_state = NULL;
 				pipe_ctx->bottom_pipe = NULL;
 			} else {
@@ -1803,8 +1803,6 @@ enum dc_status dc_remove_stream_from_ctx(
 				dc->res_pool->funcs->remove_stream_from_ctx(dc, new_ctx, stream);
 
 			memset(del_pipe, 0, sizeof(*del_pipe));
-
-			break;
 		}
 	}
 

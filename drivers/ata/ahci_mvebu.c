@@ -28,6 +28,10 @@
 #define AHCI_WINDOW_BASE(win)	(0x64 + ((win) << 4))
 #define AHCI_WINDOW_SIZE(win)	(0x68 + ((win) << 4))
 
+struct ahci_mvebu_plat_data {
+	int (*plat_config)(struct ahci_host_priv *hpriv);
+};
+
 static void ahci_mvebu_mbus_config(struct ahci_host_priv *hpriv,
 				   const struct mbus_dram_target_info *dram)
 {
@@ -60,6 +64,22 @@ static void ahci_mvebu_regret_option(struct ahci_host_priv *hpriv)
 	 */
 	writel(0x4, hpriv->mmio + AHCI_VENDOR_SPECIFIC_0_ADDR);
 	writel(0x80, hpriv->mmio + AHCI_VENDOR_SPECIFIC_0_DATA);
+}
+
+static int ahci_mvebu_armada_380_config(struct ahci_host_priv *hpriv)
+{
+	const struct mbus_dram_target_info *dram;
+	int rc = 0;
+
+	dram = mv_mbus_dram_info();
+	if (dram)
+		ahci_mvebu_mbus_config(hpriv, dram);
+	else
+		rc = -ENODEV;
+
+	ahci_mvebu_regret_option(hpriv);
+
+	return rc;
 }
 
 /**
@@ -126,13 +146,10 @@ static int ahci_mvebu_resume(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 	struct ahci_host_priv *hpriv = host->private_data;
-	const struct mbus_dram_target_info *dram;
+	const struct ahci_mvebu_plat_data *pdata = hpriv->plat_data;
 
-	dram = mv_mbus_dram_info();
-	if (dram)
-		ahci_mvebu_mbus_config(hpriv, dram);
-
-	ahci_mvebu_regret_option(hpriv);
+	if (pdata->plat_config)
+		pdata->plat_config(hpriv);
 
 	return ahci_platform_resume_host(&pdev->dev);
 }
@@ -154,13 +171,19 @@ static struct scsi_host_template ahci_platform_sht = {
 
 static int ahci_mvebu_probe(struct platform_device *pdev)
 {
+	const struct ahci_mvebu_plat_data *pdata;
 	struct ahci_host_priv *hpriv;
-	const struct mbus_dram_target_info *dram;
 	int rc;
+
+	pdata = of_device_get_match_data(&pdev->dev);
+	if (!pdata)
+		return -EINVAL;
 
 	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
+
+	hpriv->plat_data = (void *)pdata;
 
 	rc = ahci_platform_enable_resources(hpriv);
 	if (rc)
@@ -168,14 +191,11 @@ static int ahci_mvebu_probe(struct platform_device *pdev)
 
 	hpriv->stop_engine = ahci_mvebu_stop_engine;
 
-	if (of_device_is_compatible(pdev->dev.of_node,
-				    "marvell,armada-380-ahci")) {
-		dram = mv_mbus_dram_info();
-		if (!dram)
-			return -ENODEV;
-
-		ahci_mvebu_mbus_config(hpriv, dram);
-		ahci_mvebu_regret_option(hpriv);
+	pdata = hpriv->plat_data;
+	if (pdata->plat_config) {
+		rc = pdata->plat_config(hpriv);
+		if (rc)
+			goto disable_resources;
 	}
 
 	rc = ahci_platform_init_host(pdev, hpriv, &ahci_mvebu_port_info,
@@ -190,9 +210,23 @@ disable_resources:
 	return rc;
 }
 
+static const struct ahci_mvebu_plat_data ahci_mvebu_armada_380_plat_data = {
+	.plat_config = ahci_mvebu_armada_380_config,
+};
+
+static const struct ahci_mvebu_plat_data ahci_mvebu_armada_3700_plat_data = {
+	.plat_config = NULL,
+};
+
 static const struct of_device_id ahci_mvebu_of_match[] = {
-	{ .compatible = "marvell,armada-380-ahci", },
-	{ .compatible = "marvell,armada-3700-ahci", },
+	{
+		.compatible = "marvell,armada-380-ahci",
+		.data = &ahci_mvebu_armada_380_plat_data,
+	},
+	{
+		.compatible = "marvell,armada-3700-ahci",
+		.data = &ahci_mvebu_armada_3700_plat_data,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ahci_mvebu_of_match);

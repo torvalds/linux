@@ -659,13 +659,6 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 	if (rsp->sync_hdr.Command != SMB2_OPLOCK_BREAK)
 		return false;
 
-	if (rsp->sync_hdr.CreditRequest) {
-		spin_lock(&server->req_lock);
-		server->credits += le16_to_cpu(rsp->sync_hdr.CreditRequest);
-		spin_unlock(&server->req_lock);
-		wake_up(&server->request_q);
-	}
-
 	if (rsp->StructureSize !=
 				smb2_rsp_struct_sizes[SMB2_OPLOCK_BREAK_HE]) {
 		if (le16_to_cpu(rsp->StructureSize) == 44)
@@ -680,10 +673,10 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &server->smb_ses_list) {
 		ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
+
 		list_for_each(tmp1, &ses->tcon_list) {
 			tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
 
-			cifs_stats_inc(&tcon->stats.cifs_stats.num_oplock_brks);
 			spin_lock(&tcon->open_file_lock);
 			list_for_each(tmp2, &tcon->openFileList) {
 				cfile = list_entry(tmp2, struct cifsFileInfo,
@@ -695,6 +688,8 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 					continue;
 
 				cifs_dbg(FYI, "file id match, oplock break\n");
+				cifs_stats_inc(
+				    &tcon->stats.cifs_stats.num_oplock_brks);
 				cinode = CIFS_I(d_inode(cfile->dentry));
 				spin_lock(&cfile->file_info_lock);
 				if (!CIFS_CACHE_WRITE(cinode) &&
@@ -727,9 +722,6 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 				return true;
 			}
 			spin_unlock(&tcon->open_file_lock);
-			spin_unlock(&cifs_tcp_ses_lock);
-			cifs_dbg(FYI, "No matching file for oplock break\n");
-			return true;
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -751,36 +743,67 @@ smb2_cancelled_close_fid(struct work_struct *work)
 	kfree(cancelled);
 }
 
+/* Caller should already has an extra reference to @tcon */
+static int
+__smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
+			      __u64 volatile_fid)
+{
+	struct close_cancelled_open *cancelled;
+
+	cancelled = kzalloc(sizeof(*cancelled), GFP_ATOMIC);
+	if (!cancelled)
+		return -ENOMEM;
+
+	cancelled->fid.persistent_fid = persistent_fid;
+	cancelled->fid.volatile_fid = volatile_fid;
+	cancelled->tcon = tcon;
+	INIT_WORK(&cancelled->work, smb2_cancelled_close_fid);
+	WARN_ON(queue_work(cifsiod_wq, &cancelled->work) == false);
+
+	return 0;
+}
+
+int
+smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
+			    __u64 volatile_fid)
+{
+	int rc;
+
+	cifs_dbg(FYI, "%s: tc_count=%d\n", __func__, tcon->tc_count);
+	spin_lock(&cifs_tcp_ses_lock);
+	tcon->tc_count++;
+	spin_unlock(&cifs_tcp_ses_lock);
+
+	rc = __smb2_handle_cancelled_close(tcon, persistent_fid, volatile_fid);
+	if (rc)
+		cifs_put_tcon(tcon);
+
+	return rc;
+}
+
 int
 smb2_handle_cancelled_mid(char *buffer, struct TCP_Server_Info *server)
 {
 	struct smb2_sync_hdr *sync_hdr = (struct smb2_sync_hdr *)buffer;
 	struct smb2_create_rsp *rsp = (struct smb2_create_rsp *)buffer;
 	struct cifs_tcon *tcon;
-	struct close_cancelled_open *cancelled;
+	int rc;
 
 	if (sync_hdr->Command != SMB2_CREATE ||
 	    sync_hdr->Status != STATUS_SUCCESS)
 		return 0;
 
-	cancelled = kzalloc(sizeof(*cancelled), GFP_KERNEL);
-	if (!cancelled)
-		return -ENOMEM;
-
 	tcon = smb2_find_smb_tcon(server, sync_hdr->SessionId,
 				  sync_hdr->TreeId);
-	if (!tcon) {
-		kfree(cancelled);
+	if (!tcon)
 		return -ENOENT;
-	}
 
-	cancelled->fid.persistent_fid = rsp->PersistentFileId;
-	cancelled->fid.volatile_fid = rsp->VolatileFileId;
-	cancelled->tcon = tcon;
-	INIT_WORK(&cancelled->work, smb2_cancelled_close_fid);
-	queue_work(cifsiod_wq, &cancelled->work);
+	rc = __smb2_handle_cancelled_close(tcon, rsp->PersistentFileId,
+					   rsp->VolatileFileId);
+	if (rc)
+		cifs_put_tcon(tcon);
 
-	return 0;
+	return rc;
 }
 
 /**

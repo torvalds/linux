@@ -21,6 +21,7 @@
 
 #define HW_ATL_FW2X_MPI_EFUSE_ADDR	0x364
 #define HW_ATL_FW2X_MPI_MBOX_ADDR	0x360
+#define HW_ATL_FW2X_MPI_RPC_ADDR        0x334
 
 #define HW_ATL_FW2X_MPI_CONTROL_ADDR	0x368
 #define HW_ATL_FW2X_MPI_CONTROL2_ADDR	0x36C
@@ -40,6 +41,10 @@ static int aq_fw2x_init(struct aq_hw_s *self)
 	AQ_HW_WAIT_FOR(0U != (self->mbox_addr =
 			aq_hw_read_reg(self, HW_ATL_FW2X_MPI_MBOX_ADDR)),
 		       1000U, 10U);
+	AQ_HW_WAIT_FOR(0U != (self->rpc_addr =
+		       aq_hw_read_reg(self, HW_ATL_FW2X_MPI_RPC_ADDR)),
+		       1000U, 100U);
+
 	return err;
 }
 

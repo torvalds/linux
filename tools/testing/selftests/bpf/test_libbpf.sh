@@ -6,7 +6,7 @@ export TESTNAME=test_libbpf
 # Determine selftest success via shell exit code
 exit_handler()
 {
-	if (( $? == 0 )); then
+	if [ $? -eq 0 ]; then
 		echo "selftests: $TESTNAME [PASS]";
 	else
 		echo "$TESTNAME: failed at file $LAST_LOADED" 1>&2

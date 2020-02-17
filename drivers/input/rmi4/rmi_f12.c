@@ -58,6 +58,9 @@ struct f12_data {
 
 	const struct rmi_register_desc_item *data15;
 	u16 data15_offset;
+
+	unsigned long *abs_mask;
+	unsigned long *rel_mask;
 };
 
 static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
@@ -214,8 +217,8 @@ static irqreturn_t rmi_f12_attention(int irq, void *ctx)
 			valid_bytes = sensor->attn_size;
 		memcpy(sensor->data_pkt, drvdata->attn_data.data,
 			valid_bytes);
-		drvdata->attn_data.data += sensor->attn_size;
-		drvdata->attn_data.size -= sensor->attn_size;
+		drvdata->attn_data.data += valid_bytes;
+		drvdata->attn_data.size -= valid_bytes;
 	} else {
 		retval = rmi_read_block(rmi_dev, f12->data_addr,
 					sensor->data_pkt, sensor->pkt_size);
@@ -296,9 +299,18 @@ static int rmi_f12_write_control_regs(struct rmi_function *fn)
 static int rmi_f12_config(struct rmi_function *fn)
 {
 	struct rmi_driver *drv = fn->rmi_dev->driver;
+	struct f12_data *f12 = dev_get_drvdata(&fn->dev);
+	struct rmi_2d_sensor *sensor;
 	int ret;
 
-	drv->set_irq_bits(fn->rmi_dev, fn->irq_mask);
+	sensor = &f12->sensor;
+
+	if (!sensor->report_abs)
+		drv->clear_irq_bits(fn->rmi_dev, f12->abs_mask);
+	else
+		drv->set_irq_bits(fn->rmi_dev, f12->abs_mask);
+
+	drv->clear_irq_bits(fn->rmi_dev, f12->rel_mask);
 
 	ret = rmi_f12_write_control_regs(fn);
 	if (ret)
@@ -320,8 +332,11 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
 	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	u16 data_offset = 0;
+	int mask_size;
 
 	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s\n", __func__);
+
+	mask_size = BITS_TO_LONGS(drvdata->irq_count) * sizeof(unsigned long);
 
 	ret = rmi_read(fn->rmi_dev, query_addr, &buf);
 	if (ret < 0) {
@@ -337,9 +352,18 @@ static int rmi_f12_probe(struct rmi_function *fn)
 		return -ENODEV;
 	}
 
-	f12 = devm_kzalloc(&fn->dev, sizeof(struct f12_data), GFP_KERNEL);
+	f12 = devm_kzalloc(&fn->dev, sizeof(struct f12_data) + mask_size * 2,
+			GFP_KERNEL);
 	if (!f12)
 		return -ENOMEM;
+
+	f12->abs_mask = (unsigned long *)((char *)f12
+			+ sizeof(struct f12_data));
+	f12->rel_mask = (unsigned long *)((char *)f12
+			+ sizeof(struct f12_data) + mask_size);
+
+	set_bit(fn->irq_pos, f12->abs_mask);
+	set_bit(fn->irq_pos + 1, f12->rel_mask);
 
 	f12->has_dribble = !!(buf & BIT(3));
 

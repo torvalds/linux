@@ -482,6 +482,15 @@ static void pti_clone_entry_text(void)
 	pti_clone_pgtable((unsigned long) __entry_text_start,
 			  (unsigned long) __irqentry_text_end,
 			  PTI_CLONE_PMD);
+
+	/*
+	 * If CFI is enabled, also map jump tables, so the entry code can
+	 * make indirect calls.
+	 */
+	if (IS_ENABLED(CONFIG_CFI_CLANG))
+		pti_clone_pgtable((unsigned long) __cfi_jt_start,
+				  (unsigned long) __cfi_jt_end,
+				  PTI_CLONE_PMD);
 }
 
 /*
@@ -551,7 +560,7 @@ static void pti_clone_kernel_text(void)
 	 */
 	unsigned long start = PFN_ALIGN(_text);
 	unsigned long end_clone  = (unsigned long)__end_rodata_aligned;
-	unsigned long end_global = PFN_ALIGN((unsigned long)__stop___ex_table);
+	unsigned long end_global = PFN_ALIGN((unsigned long)_etext);
 
 	if (!pti_kernel_image_global_ok())
 		return;

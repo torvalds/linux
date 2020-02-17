@@ -482,8 +482,6 @@
 };
 
 &lvds0 {
-	status = "okay";
-
 	ports {
 		port@1 {
 			lvds_connector: endpoint {

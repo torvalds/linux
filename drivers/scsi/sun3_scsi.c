@@ -498,7 +498,7 @@ static struct scsi_host_template sun3_scsi_template = {
 	.eh_host_reset_handler	= sun3scsi_host_reset,
 	.can_queue		= 16,
 	.this_id		= 7,
-	.sg_tablesize		= SG_NONE,
+	.sg_tablesize		= 1,
 	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.cmd_size		= NCR5380_CMD_SIZE,
@@ -520,7 +520,7 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 		sun3_scsi_template.can_queue = setup_can_queue;
 	if (setup_cmd_per_lun > 0)
 		sun3_scsi_template.cmd_per_lun = setup_cmd_per_lun;
-	if (setup_sg_tablesize >= 0)
+	if (setup_sg_tablesize > 0)
 		sun3_scsi_template.sg_tablesize = setup_sg_tablesize;
 	if (setup_hostid >= 0)
 		sun3_scsi_template.this_id = setup_hostid & 7;

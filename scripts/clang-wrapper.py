@@ -39,6 +39,9 @@ import subprocess
 
 allowed_warnings = set([
     "atags_to_fdt.c:109", # arch/arm/boot/compressed/atags_to_fdt.c:109:5: warning: stack frame size of 4416 bytes in function 'atags_to_fdt' [-Wframe-larger-than=]
+    "file.c:3010", # fs/f2fs/file.c:3010:12: warning: unused function 'f2fs_ioctl_check_project'
+    "configfs.c:1488", # drivers/usb/gadget/configfs.c:1488:12: warning: unused function 'configfs_composite_setup'
+    "configfs.c:1513", # drivers/usb/gadget/configfs.c:1513:13: warning: unused function 'configfs_composite_disconnect'
  ])
 
 # Capture the name of the object file, can find it.

@@ -195,6 +195,20 @@ mlxsw_sp_qdisc_get_xstats(struct mlxsw_sp_port *mlxsw_sp_port,
 	return -EOPNOTSUPP;
 }
 
+static u64
+mlxsw_sp_xstats_backlog(struct mlxsw_sp_port_xstats *xstats, int tclass_num)
+{
+	return xstats->backlog[tclass_num] +
+	       xstats->backlog[tclass_num + 8];
+}
+
+static u64
+mlxsw_sp_xstats_tail_drop(struct mlxsw_sp_port_xstats *xstats, int tclass_num)
+{
+	return xstats->tail_drop[tclass_num] +
+	       xstats->tail_drop[tclass_num + 8];
+}
+
 static void
 mlxsw_sp_qdisc_bstats_per_priority_get(struct mlxsw_sp_port_xstats *xstats,
 				       u8 prio_bitmap, u64 *tx_packets,
@@ -269,7 +283,7 @@ mlxsw_sp_setup_tc_qdisc_red_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 					       &stats_base->tx_bytes);
 	red_base->prob_mark = xstats->ecn;
 	red_base->prob_drop = xstats->wred_drop[tclass_num];
-	red_base->pdrop = xstats->tail_drop[tclass_num];
+	red_base->pdrop = mlxsw_sp_xstats_tail_drop(xstats, tclass_num);
 
 	stats_base->overlimits = red_base->prob_drop + red_base->prob_mark;
 	stats_base->drops = red_base->prob_drop + red_base->pdrop;
@@ -369,7 +383,8 @@ mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	early_drops = xstats->wred_drop[tclass_num] - xstats_base->prob_drop;
 	marks = xstats->ecn - xstats_base->prob_mark;
-	pdrops = xstats->tail_drop[tclass_num] - xstats_base->pdrop;
+	pdrops = mlxsw_sp_xstats_tail_drop(xstats, tclass_num) -
+		 xstats_base->pdrop;
 
 	res->pdrop += pdrops;
 	res->prob_drop += early_drops;
@@ -402,9 +417,10 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	overlimits = xstats->wred_drop[tclass_num] + xstats->ecn -
 		     stats_base->overlimits;
-	drops = xstats->wred_drop[tclass_num] + xstats->tail_drop[tclass_num] -
+	drops = xstats->wred_drop[tclass_num] +
+		mlxsw_sp_xstats_tail_drop(xstats, tclass_num) -
 		stats_base->drops;
-	backlog = xstats->backlog[tclass_num];
+	backlog = mlxsw_sp_xstats_backlog(xstats, tclass_num);
 
 	_bstats_update(stats_ptr->bstats, tx_bytes, tx_packets);
 	stats_ptr->qstats->overlimits += overlimits;
@@ -575,9 +591,9 @@ mlxsw_sp_qdisc_get_prio_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 	tx_packets = stats->tx_packets - stats_base->tx_packets;
 
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		drops += xstats->tail_drop[i];
+		drops += mlxsw_sp_xstats_tail_drop(xstats, i);
 		drops += xstats->wred_drop[i];
-		backlog += xstats->backlog[i];
+		backlog += mlxsw_sp_xstats_backlog(xstats, i);
 	}
 	drops = drops - stats_base->drops;
 
@@ -613,7 +629,7 @@ mlxsw_sp_setup_tc_qdisc_prio_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	stats_base->drops = 0;
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		stats_base->drops += xstats->tail_drop[i];
+		stats_base->drops += mlxsw_sp_xstats_tail_drop(xstats, i);
 		stats_base->drops += xstats->wred_drop[i];
 	}
 
@@ -649,6 +665,13 @@ mlxsw_sp_qdisc_prio_graft(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (p->band < IEEE_8021QAZ_MAX_TCS &&
 	    mlxsw_sp_port->tclass_qdiscs[tclass_num].handle == p->child_handle)
 		return 0;
+
+	if (!p->child_handle) {
+		/* This is an invisible FIFO replacing the original Qdisc.
+		 * Ignore it--the original Qdisc's destroy will follow.
+		 */
+		return 0;
+	}
 
 	/* See if the grafted qdisc is already offloaded on any tclass. If so,
 	 * unoffload it.

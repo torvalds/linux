@@ -299,8 +299,23 @@ static void nfp_map_bpf_byte_swap(struct nfp_bpf_map *nfp_map, void *value)
 	unsigned int i;
 
 	for (i = 0; i < DIV_ROUND_UP(nfp_map->offmap->map.value_size, 4); i++)
-		if (nfp_map->use_map[i] == NFP_MAP_USE_ATOMIC_CNT)
+		if (nfp_map->use_map[i].type == NFP_MAP_USE_ATOMIC_CNT)
 			word[i] = (__force u32)cpu_to_be32(word[i]);
+}
+
+/* Mark value as unsafely initialized in case it becomes atomic later
+ * and we didn't byte swap something non-byte swap neutral.
+ */
+static void
+nfp_map_bpf_byte_swap_record(struct nfp_bpf_map *nfp_map, void *value)
+{
+	u32 *word = value;
+	unsigned int i;
+
+	for (i = 0; i < DIV_ROUND_UP(nfp_map->offmap->map.value_size, 4); i++)
+		if (nfp_map->use_map[i].type == NFP_MAP_UNUSED &&
+		    word[i] != (__force u32)cpu_to_be32(word[i]))
+			nfp_map->use_map[i].non_zero_update = 1;
 }
 
 static int
@@ -322,6 +337,7 @@ nfp_bpf_map_update_entry(struct bpf_offloaded_map *offmap,
 			 void *key, void *value, u64 flags)
 {
 	nfp_map_bpf_byte_swap(offmap->dev_priv, value);
+	nfp_map_bpf_byte_swap_record(offmap->dev_priv, value);
 	return nfp_bpf_ctrl_update_entry(offmap, key, value, flags);
 }
 

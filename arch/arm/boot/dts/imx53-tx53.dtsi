@@ -51,6 +51,7 @@
 
 	/* Will be filled by the bootloader */
 	memory@70000000 {
+		device_type = "memory";
 		reg = <0x70000000 0>;
 	};
 

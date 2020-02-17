@@ -1455,9 +1455,9 @@ static int azx_free(struct azx *chip)
 	}
 
 	if (bus->chip_init) {
-		azx_stop_chip(chip);
 		azx_clear_irq_pending(chip);
 		azx_stop_all_streams(chip);
+		azx_stop_chip(chip);
 	}
 
 	if (bus->irq >= 0)
@@ -1492,8 +1492,11 @@ static int azx_free(struct azx *chip)
 static int azx_dev_disconnect(struct snd_device *device)
 {
 	struct azx *chip = device->device_data;
+	struct hdac_bus *bus = azx_bus(chip);
 
 	chip->bus.shutdown = 1;
+	cancel_work_sync(&bus->unsol_work);
+
 	return 0;
 }
 

@@ -2537,7 +2537,8 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x3073,
 		    "PLOGI ELS IOCB:\n");
 		ql_dump_buffer(ql_log_info, vha, 0x0109,
-		    (uint8_t *)els_iocb, 0x70);
+		    (uint8_t *)els_iocb,
+		    sizeof(*els_iocb));
 	} else {
 		els_iocb->tx_byte_count = sizeof(struct els_logo_payload);
 		els_iocb->tx_address[0] =
@@ -2703,7 +2704,8 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 
 	ql_dbg(ql_dbg_disc + ql_dbg_buffer, vha, 0x3073, "PLOGI buffer:\n");
 	ql_dump_buffer(ql_dbg_disc + ql_dbg_buffer, vha, 0x0109,
-	    (uint8_t *)elsio->u.els_plogi.els_plogi_pyld, 0x70);
+	    (uint8_t *)elsio->u.els_plogi.els_plogi_pyld,
+	    sizeof(*elsio->u.els_plogi.els_plogi_pyld));
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
@@ -3297,19 +3299,21 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 {
 	struct srb_iocb *aio = &sp->u.iocb_cmd;
 	scsi_qla_host_t *vha = sp->vha;
-	struct req_que *req = vha->req;
+	struct req_que *req = sp->qpair->req;
 
 	memset(abt_iocb, 0, sizeof(struct abort_entry_24xx));
 	abt_iocb->entry_type = ABORT_IOCB_TYPE;
 	abt_iocb->entry_count = 1;
 	abt_iocb->handle = cpu_to_le32(MAKE_HANDLE(req->id, sp->handle));
-	abt_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	if (sp->fcport) {
+		abt_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+		abt_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
+		abt_iocb->port_id[1] = sp->fcport->d_id.b.area;
+		abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+	}
 	abt_iocb->handle_to_abort =
 	    cpu_to_le32(MAKE_HANDLE(aio->u.abt.req_que_no,
 				    aio->u.abt.cmd_hndl));
-	abt_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
-	abt_iocb->port_id[1] = sp->fcport->d_id.b.area;
-	abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
 	abt_iocb->vp_index = vha->vp_idx;
 	abt_iocb->req_que_no = cpu_to_le16(aio->u.abt.req_que_no);
 	/* Send the command to the firmware */

@@ -468,6 +468,7 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 	void *daddr = NULL;
 	u32 act = 0;
 	__be16 *off;
+	u8 q_rgn;
 
 	if (opc == ice_aqc_opc_remove_sw_rules) {
 		s_rule->pdata.lkup_tx_rx.act = 0;
@@ -503,13 +504,18 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 		act |= (f_info->fwd_id.q_id << ICE_SINGLE_ACT_Q_INDEX_S) &
 			ICE_SINGLE_ACT_Q_INDEX_M;
 		break;
-	case ICE_FWD_TO_QGRP:
-		act |= ICE_SINGLE_ACT_TO_Q;
-		act |= (f_info->qgrp_size << ICE_SINGLE_ACT_Q_REGION_S) &
-			ICE_SINGLE_ACT_Q_REGION_M;
-		break;
 	case ICE_DROP_PACKET:
-		act |= ICE_SINGLE_ACT_VSI_FORWARDING | ICE_SINGLE_ACT_DROP;
+		act |= ICE_SINGLE_ACT_VSI_FORWARDING | ICE_SINGLE_ACT_DROP |
+			ICE_SINGLE_ACT_VALID_BIT;
+		break;
+	case ICE_FWD_TO_QGRP:
+		q_rgn = f_info->qgrp_size > 0 ?
+			(u8)ilog2(f_info->qgrp_size) : 0;
+		act |= ICE_SINGLE_ACT_TO_Q;
+		act |= (f_info->fwd_id.q_id << ICE_SINGLE_ACT_Q_INDEX_S) &
+			ICE_SINGLE_ACT_Q_INDEX_M;
+		act |= (q_rgn << ICE_SINGLE_ACT_Q_REGION_S) &
+			ICE_SINGLE_ACT_Q_REGION_M;
 		break;
 	default:
 		return;
@@ -1016,6 +1022,9 @@ ice_handle_vsi_list_mgmt(struct ice_hw *hw,
 	} else {
 		u16 vsi_id = new_fltr->fwd_id.vsi_id;
 		enum ice_adminq_opc opcode;
+
+		if (!m_entry->vsi_list_info)
+			return ICE_ERR_CFG;
 
 		/* A rule already exists with the new VSI being added */
 		if (test_bit(vsi_id, m_entry->vsi_list_info->vsi_map))

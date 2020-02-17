@@ -103,8 +103,7 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
 	    ct->status & IPS_SEQ_ADJUST)
 		goto out;
 
-	if (ctinfo == IP_CT_NEW ||
-	    ctinfo == IP_CT_RELATED)
+	if (!nf_ct_is_confirmed(ct))
 		goto out;
 
 	if (test_and_set_bit(IPS_OFFLOAD_BIT, &ct->status))

@@ -297,6 +297,9 @@ Files in /sys/fs/f2fs/<devname>
 			      reclaim the prefree segments to free segments.
 			      By default, 5% over total # of segments.
 
+ main_blkaddr                 This value gives the first block address of
+			      MAIN area in the partition.
+
  max_small_discards	      This parameter controls the number of discard
 			      commands that consist small blocks less than 2MB.
 			      The candidates to be discarded are cached until
@@ -346,7 +349,7 @@ Files in /sys/fs/f2fs/<devname>
 
  ram_thresh                   This parameter controls the memory footprint used
 			      by free nids and cached nat entries. By default,
-			      10 is set, which indicates 10 MB / 1 GB RAM.
+			      1 is set, which indicates 10 MB / 1 GB RAM.
 
  ra_nid_pages		      When building free nids, F2FS reads NAT blocks
 			      ahead for speed up. Default is 0.

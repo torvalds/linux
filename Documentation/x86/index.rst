@@ -6,3 +6,4 @@ x86 architecture specifics
    :maxdepth: 1
 
    mds
+   tsx_async_abort

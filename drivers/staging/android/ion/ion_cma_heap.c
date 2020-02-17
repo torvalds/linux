@@ -134,9 +134,12 @@ static int __ion_add_cma_heaps(struct cma *cma, void *data)
 	return 0;
 }
 
-static int ion_add_cma_heaps(void)
+int ion_add_cma_heaps(void)
 {
 	cma_for_each_area(__ion_add_cma_heaps, NULL);
 	return 0;
 }
+
+#ifndef CONFIG_ION_MODULE
 device_initcall(ion_add_cma_heaps);
+#endif

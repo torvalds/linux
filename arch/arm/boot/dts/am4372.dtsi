@@ -1101,7 +1101,7 @@
 			};
 		};
 
-		qspi: qspi@47900000 {
+		qspi: spi@47900000 {
 			compatible = "ti,am4372-qspi";
 			reg = <0x47900000 0x100>,
 			      <0x30000000 0x4000000>;
@@ -1142,6 +1142,8 @@
 				ti,hwmods = "dss_dispc";
 				clocks = <&disp_clk>;
 				clock-names = "fck";
+
+				max-memory-bandwidth = <230000000>;
 			};
 
 			rfbi: rfbi@4832a800 {

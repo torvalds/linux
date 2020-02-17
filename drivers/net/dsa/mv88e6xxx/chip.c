@@ -456,10 +456,12 @@ static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 	 */
 	irq_set_lockdep_class(chip->irq, &lock_key, &request_key);
 
+	mutex_unlock(&chip->reg_lock);
 	err = request_threaded_irq(chip->irq, NULL,
 				   mv88e6xxx_g1_irq_thread_fn,
 				   IRQF_ONESHOT,
 				   dev_name(chip->dev), chip);
+	mutex_lock(&chip->reg_lock);
 	if (err)
 		mv88e6xxx_g1_irq_free_common(chip);
 
@@ -2643,11 +2645,22 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 	mutex_unlock(&chip->reg_lock);
 
 	if (reg == MII_PHYSID2) {
-		/* Some internal PHYS don't have a model number.  Use
-		 * the mv88e6390 family model number instead.
-		 */
-		if (!(val & 0x3f0))
-			val |= MV88E6XXX_PORT_SWITCH_ID_PROD_6390 >> 4;
+		/* Some internal PHYs don't have a model number. */
+		if (chip->info->family != MV88E6XXX_FAMILY_6165)
+			/* Then there is the 6165 family. It gets is
+			 * PHYs correct. But it can also have two
+			 * SERDES interfaces in the PHY address
+			 * space. And these don't have a model
+			 * number. But they are not PHYs, so we don't
+			 * want to give them something a PHY driver
+			 * will recognise.
+			 *
+			 * Use the mv88e6390 family model number
+			 * instead, for anything which really could be
+			 * a PHY,
+			 */
+			if (!(val & 0x3f0))
+				val |= MV88E6XXX_PORT_SWITCH_ID_PROD_6390 >> 4;
 	}
 
 	return err ? err : val;
@@ -3026,7 +3039,7 @@ static const struct mv88e6xxx_ops mv88e6141_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
-	.port_set_speed = mv88e6390_port_set_speed,
+	.port_set_speed = mv88e6341_port_set_speed,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
@@ -3647,7 +3660,7 @@ static const struct mv88e6xxx_ops mv88e6341_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
-	.port_set_speed = mv88e6390_port_set_speed,
+	.port_set_speed = mv88e6341_port_set_speed,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,

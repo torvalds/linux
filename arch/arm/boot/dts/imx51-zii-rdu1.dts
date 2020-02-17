@@ -53,6 +53,7 @@
 
 	/* Will be filled by the bootloader */
 	memory@90000000 {
+		device_type = "memory";
 		reg = <0x90000000 0>;
 	};
 
@@ -514,7 +515,7 @@
 	};
 
 	ds1341: rtc@68 {
-		compatible = "maxim,ds1341";
+		compatible = "dallas,ds1341";
 		reg = <0x68>;
 	};
 

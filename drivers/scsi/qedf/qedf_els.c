@@ -23,8 +23,6 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	int rc = 0;
 	uint32_t did, sid;
 	uint16_t xid;
-	uint32_t start_time = jiffies / HZ;
-	uint32_t current_time;
 	struct fcoe_wqe *sqe;
 	unsigned long flags;
 	u16 sqe_idx;
@@ -59,18 +57,12 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 		goto els_err;
 	}
 
-retry_els:
 	els_req = qedf_alloc_cmd(fcport, QEDF_ELS);
 	if (!els_req) {
-		current_time = jiffies / HZ;
-		if ((current_time - start_time) > 10) {
-			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS,
-				   "els: Failed els 0x%x\n", op);
-			rc = -ENOMEM;
-			goto els_err;
-		}
-		mdelay(20 * USEC_PER_MSEC);
-		goto retry_els;
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_ELS,
+			  "Failed to alloc ELS request 0x%x\n", op);
+		rc = -ENOMEM;
+		goto els_err;
 	}
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "initiate_els els_req = "

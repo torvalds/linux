@@ -205,7 +205,7 @@ int do_event_pipe(int argc, char **argv)
 			NEXT_ARG();
 			cpu = strtoul(*argv, &endptr, 0);
 			if (*endptr) {
-				p_err("can't parse %s as CPU ID", **argv);
+				p_err("can't parse %s as CPU ID", *argv);
 				goto err_close_map;
 			}
 
@@ -216,7 +216,7 @@ int do_event_pipe(int argc, char **argv)
 			NEXT_ARG();
 			index = strtoul(*argv, &endptr, 0);
 			if (*endptr) {
-				p_err("can't parse %s as index", **argv);
+				p_err("can't parse %s as index", *argv);
 				goto err_close_map;
 			}
 

@@ -163,12 +163,11 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 			conn->local_tx_ctrl.prod_flags.urg_data_pending = 1;
 
 		if (!atomic_read(&conn->sndbuf_space) || conn->urg_tx_pend) {
+			if (send_done)
+				return send_done;
 			rc = smc_tx_wait(smc, msg->msg_flags);
-			if (rc) {
-				if (send_done)
-					return send_done;
+			if (rc)
 				goto out_err;
-			}
 			continue;
 		}
 
@@ -487,25 +486,23 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 	struct smc_wr_buf *wr_buf;
 	int rc;
 
-	spin_lock_bh(&conn->send_lock);
 	rc = smc_cdc_get_free_slot(conn, &wr_buf, &pend);
 	if (rc < 0) {
 		if (rc == -EBUSY) {
 			struct smc_sock *smc =
 				container_of(conn, struct smc_sock, conn);
 
-			if (smc->sk.sk_err == ECONNABORTED) {
-				rc = sock_error(&smc->sk);
-				goto out_unlock;
-			}
+			if (smc->sk.sk_err == ECONNABORTED)
+				return sock_error(&smc->sk);
 			rc = 0;
 			if (conn->alert_token_local) /* connection healthy */
 				mod_delayed_work(system_wq, &conn->tx_work,
 						 SMC_TX_WORK_DELAY);
 		}
-		goto out_unlock;
+		return rc;
 	}
 
+	spin_lock_bh(&conn->send_lock);
 	if (!conn->local_tx_ctrl.prod_flags.urg_data_present) {
 		rc = smc_tx_rdma_writes(conn);
 		if (rc) {
@@ -596,7 +593,8 @@ void smc_tx_consumer_update(struct smc_connection *conn, bool force)
 	if (to_confirm > conn->rmbe_update_limit) {
 		smc_curs_copy(&prod, &conn->local_rx_ctrl.prod, conn);
 		sender_free = conn->rmb_desc->len -
-			      smc_curs_diff(conn->rmb_desc->len, &prod, &cfed);
+			      smc_curs_diff_large(conn->rmb_desc->len,
+						  &cfed, &prod);
 	}
 
 	if (conn->local_rx_ctrl.prod_flags.cons_curs_upd_req ||

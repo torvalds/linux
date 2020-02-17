@@ -274,6 +274,7 @@ struct netsec_priv {
 	struct clk *clk;
 	u32 msg_enable;
 	u32 freq;
+	u32 phy_addr;
 	bool rx_cksum_offload_flag;
 };
 
@@ -431,9 +432,12 @@ static int netsec_mac_update_to_phy_state(struct netsec_priv *priv)
 	return 0;
 }
 
+static int netsec_phy_read(struct mii_bus *bus, int phy_addr, int reg_addr);
+
 static int netsec_phy_write(struct mii_bus *bus,
 			    int phy_addr, int reg, u16 val)
 {
+	int status;
 	struct netsec_priv *priv = bus->priv;
 
 	if (netsec_mac_write(priv, GMAC_REG_GDR, val))
@@ -446,8 +450,19 @@ static int netsec_phy_write(struct mii_bus *bus,
 			      GMAC_REG_SHIFT_CR_GAR)))
 		return -ETIMEDOUT;
 
-	return netsec_mac_wait_while_busy(priv, GMAC_REG_GAR,
-					  NETSEC_GMAC_GAR_REG_GB);
+	status = netsec_mac_wait_while_busy(priv, GMAC_REG_GAR,
+					    NETSEC_GMAC_GAR_REG_GB);
+
+	/* Developerbox implements RTL8211E PHY and there is
+	 * a compatibility problem with F_GMAC4.
+	 * RTL8211E expects MDC clock must be kept toggling for several
+	 * clock cycle with MDIO high before entering the IDLE state.
+	 * To meet this requirement, netsec driver needs to issue dummy
+	 * read(e.g. read PHYID1(offset 0x2) register) right after write.
+	 */
+	netsec_phy_read(bus, phy_addr, MII_PHYSID1);
+
+	return status;
 }
 
 static int netsec_phy_read(struct mii_bus *bus, int phy_addr, int reg_addr)
@@ -1346,10 +1361,10 @@ static int netsec_netdev_stop(struct net_device *ndev)
 	netsec_uninit_pkt_dring(priv, NETSEC_RING_TX);
 	netsec_uninit_pkt_dring(priv, NETSEC_RING_RX);
 
-	ret = netsec_reset_hardware(priv, false);
-
 	phy_stop(ndev->phydev);
 	phy_disconnect(ndev->phydev);
+
+	ret = netsec_reset_hardware(priv, false);
 
 	pm_runtime_put_sync(priv->dev);
 
@@ -1360,6 +1375,7 @@ static int netsec_netdev_init(struct net_device *ndev)
 {
 	struct netsec_priv *priv = netdev_priv(ndev);
 	int ret;
+	u16 data;
 
 	ret = netsec_alloc_dring(priv, NETSEC_RING_TX);
 	if (ret)
@@ -1368,6 +1384,11 @@ static int netsec_netdev_init(struct net_device *ndev)
 	ret = netsec_alloc_dring(priv, NETSEC_RING_RX);
 	if (ret)
 		goto err1;
+
+	/* set phy power down */
+	data = netsec_phy_read(priv->mii_bus, priv->phy_addr, MII_BMCR) |
+		BMCR_PDOWN;
+	netsec_phy_write(priv->mii_bus, priv->phy_addr, MII_BMCR, data);
 
 	ret = netsec_reset_hardware(priv, true);
 	if (ret)
@@ -1418,13 +1439,15 @@ static const struct net_device_ops netsec_netdev_ops = {
 };
 
 static int netsec_of_probe(struct platform_device *pdev,
-			   struct netsec_priv *priv)
+			   struct netsec_priv *priv, u32 *phy_addr)
 {
 	priv->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
 	if (!priv->phy_np) {
 		dev_err(&pdev->dev, "missing required property 'phy-handle'\n");
 		return -EINVAL;
 	}
+
+	*phy_addr = of_mdio_parse_addr(&pdev->dev, priv->phy_np);
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL); /* get by 'phy_ref_clk' */
 	if (IS_ERR(priv->clk)) {
@@ -1581,7 +1604,7 @@ static int netsec_probe(struct platform_device *pdev)
 			   NETIF_MSG_LINK | NETIF_MSG_PROBE;
 
 	priv->phy_interface = device_get_phy_mode(&pdev->dev);
-	if (priv->phy_interface < 0) {
+	if ((int)priv->phy_interface < 0) {
 		dev_err(&pdev->dev, "missing required property 'phy-mode'\n");
 		ret = -ENODEV;
 		goto free_ndev;
@@ -1626,11 +1649,13 @@ static int netsec_probe(struct platform_device *pdev)
 	}
 
 	if (dev_of_node(&pdev->dev))
-		ret = netsec_of_probe(pdev, priv);
+		ret = netsec_of_probe(pdev, priv, &phy_addr);
 	else
 		ret = netsec_acpi_probe(pdev, priv, &phy_addr);
 	if (ret)
 		goto free_ndev;
+
+	priv->phy_addr = phy_addr;
 
 	if (!priv->freq) {
 		dev_err(&pdev->dev, "missing PHY reference clock frequency\n");

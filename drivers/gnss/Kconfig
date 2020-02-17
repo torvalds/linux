@@ -40,4 +40,19 @@ config GNSS_UBX_SERIAL
 
 	  If unsure, say N.
 
+config GNSS_CMDLINE_SERIAL
+	tristate "Command line test driver for GNSS"
+	depends on SERIAL_DEV_BUS
+	select GNSS_SERIAL
+	---help---
+	  Say Y here if you want to test the GNSS subsystem but do not have a
+	  way to communicate a binding through firmware such as DT or ACPI.
+	  The correct serdev device and protocol type must be specified on
+	  the module command line.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gnss-cmdline.
+
+	  If unsure, say N.
+
 endif # GNSS

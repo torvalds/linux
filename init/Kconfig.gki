@@ -4,9 +4,10 @@ config GKI_HIDDEN_DRM_CONFIGS
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DSI
+	select VIDEOMODE_HELPERS
 	help
 	  Dummy config option used to enable hidden DRM configs.
-	  These are normally selected implicitely when including a
+	  These are normally selected implicitly when including a
 	  DRM module, but for GKI, the modules are built out-of-tree.
 
 config GKI_HIDDEN_REGMAP_CONFIGS
@@ -14,7 +15,23 @@ config GKI_HIDDEN_REGMAP_CONFIGS
 	select REGMAP_IRQ
 	help
 	  Dummy config option used to enable hidden regmap configs.
-	  These are normally selected implicitely when a module
+	  These are normally selected implicitly when a module
+	  that relies on it is configured.
+
+config GKI_HIDDEN_CRYPTO_CONFIGS
+	bool "Hidden CRYPTO configs needed for GKI"
+	select CRYPTO_ENGINE
+	help
+	  Dummy config option used to enable hidden CRYPTO configs.
+	  These are normally selected implicitly when a module
+	  that relies on it is configured.
+
+config GKI_HIDDEN_SND_CONFIGS
+	bool "Hidden SND configs needed for GKI"
+	select SND_VMASTER
+	help
+	  Dummy config option used to enable hidden SND configs.
+	  These are normally selected implicitly when a module
 	  that relies on it is configured.
 
 config GKI_HIDDEN_SND_SOC_CONFIGS
@@ -22,7 +39,7 @@ config GKI_HIDDEN_SND_SOC_CONFIGS
 	select SND_SOC_GENERIC_DMAENGINE_PCM if (SND_SOC && SND)
 	help
 	  Dummy config option used to enable hidden SND_SOC configs.
-	  These are normally selected implicitely when a module
+	  These are normally selected implicitly when a module
 	  that relies on it is configured.
 
 config GKI_HIDDEN_GPIO_CONFIGS
@@ -31,7 +48,7 @@ config GKI_HIDDEN_GPIO_CONFIGS
 	select GPIO_PL061 if (HAS_IOMEM && ARM_AMBA && GPIOLIB)
 	help
 	  Dummy config option used to enable hidden GPIO configs.
-	  These are normally selected implicitely when a module
+	  These are normally selected implicitly when a module
 	  that relies on it is configured.
 
 # LEGACY_WEXT_ALLCONFIG Discussed upstream, soundly rejected as a unique
@@ -62,8 +79,10 @@ config GKI_LEGACY_WEXT_ALLCONFIG
 #
 config GKI_HACKS_TO_FIX
 	bool "GKI Dummy config options"
+	select GKI_HIDDEN_CRYPTO_CONFIGS
 	select GKI_HIDDEN_DRM_CONFIGS
 	select GKI_HIDDEN_REGMAP_CONFIGS
+	select GKI_HIDDEN_SND_CONFIGS
 	select GKI_HIDDEN_SND_SOC_CONFIGS
 	select GKI_HIDDEN_GPIO_CONFIGS
 	select GKI_LEGACY_WEXT_ALLCONFIG

@@ -5344,6 +5344,30 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	ata_qc_get_active - get bitmask of active qcs
+ *	@ap: port in question
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ *	RETURNS:
+ *	Bitmask of active qcs
+ */
+u64 ata_qc_get_active(struct ata_port *ap)
+{
+	u64 qc_active = ap->qc_active;
+
+	/* ATA_TAG_INTERNAL is sent to hw as tag 0 */
+	if (qc_active & (1ULL << ATA_TAG_INTERNAL)) {
+		qc_active |= (1 << 0);
+		qc_active &= ~(1ULL << ATA_TAG_INTERNAL);
+	}
+
+	return qc_active;
+}
+EXPORT_SYMBOL_GPL(ata_qc_get_active);
+
+/**
  *	ata_qc_complete_multiple - Complete multiple qcs successfully
  *	@ap: port in question
  *	@qc_active: new qc_active mask
@@ -6725,6 +6749,9 @@ static void ata_port_detach(struct ata_port *ap)
 void ata_host_detach(struct ata_host *host)
 {
 	int i;
+
+	/* Ensure ata_port probe has completed */
+	async_synchronize_full();
 
 	for (i = 0; i < host->n_ports; i++)
 		ata_port_detach(host->ports[i]);

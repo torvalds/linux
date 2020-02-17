@@ -300,9 +300,9 @@ void ath_dynack_node_init(struct ath_hw *ah, struct ath_node *an)
 
 	an->ackto = ackto;
 
-	spin_lock(&da->qlock);
+	spin_lock_bh(&da->qlock);
 	list_add_tail(&an->list, &da->nodes);
-	spin_unlock(&da->qlock);
+	spin_unlock_bh(&da->qlock);
 }
 EXPORT_SYMBOL(ath_dynack_node_init);
 
@@ -316,9 +316,9 @@ void ath_dynack_node_deinit(struct ath_hw *ah, struct ath_node *an)
 {
 	struct ath_dynack *da = &ah->dynack;
 
-	spin_lock(&da->qlock);
+	spin_lock_bh(&da->qlock);
 	list_del(&an->list);
-	spin_unlock(&da->qlock);
+	spin_unlock_bh(&da->qlock);
 }
 EXPORT_SYMBOL(ath_dynack_node_deinit);
 

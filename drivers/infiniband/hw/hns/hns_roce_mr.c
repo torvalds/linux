@@ -1017,14 +1017,14 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			goto err_umem;
 		}
 	} else {
-		int pbl_size = 1;
+		u64 pbl_size = 1;
 
 		bt_size = (1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT)) / 8;
 		for (i = 0; i < hr_dev->caps.pbl_hop_num; i++)
 			pbl_size *= bt_size;
 		if (n > pbl_size) {
 			dev_err(dev,
-			    " MR len %lld err. MR page num is limited to %d!\n",
+			    " MR len %lld err. MR page num is limited to %lld!\n",
 			    length, pbl_size);
 			ret = -EINVAL;
 			goto err_umem;

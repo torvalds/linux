@@ -352,10 +352,7 @@ static int write_core_pattern(const char *core_pattern)
 	FILE *f;
 
 	f = fopen(core_pattern_file, "w");
-	if (!f) {
-		perror("Error writing to core_pattern file");
-		return TEST_FAIL;
-	}
+	SKIP_IF_MSG(!f, "Try with root privileges");
 
 	ret = fwrite(core_pattern, 1, len, f);
 	fclose(f);

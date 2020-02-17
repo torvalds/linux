@@ -519,11 +519,10 @@ disable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 
 #if defined(CONFIG_KPROBES_ON_FTRACE) && \
 	!defined(CONFIG_KPROBE_EVENTS_ON_NOTRACE)
-static bool within_notrace_func(struct trace_kprobe *tk)
+static bool __within_notrace_func(unsigned long addr)
 {
-	unsigned long offset, size, addr;
+	unsigned long offset, size;
 
-	addr = trace_kprobe_address(tk);
 	if (!addr || !kallsyms_lookup_size_offset(addr, &size, &offset))
 		return false;
 
@@ -535,6 +534,28 @@ static bool within_notrace_func(struct trace_kprobe *tk)
 	 * to subtract 1 byte from the end address.
 	 */
 	return !ftrace_location_range(addr, addr + size - 1);
+}
+
+static bool within_notrace_func(struct trace_kprobe *tk)
+{
+	unsigned long addr = addr = trace_kprobe_address(tk);
+	char symname[KSYM_NAME_LEN], *p;
+
+	if (!__within_notrace_func(addr))
+		return false;
+
+	/* Check if the address is on a suffixed-symbol */
+	if (!lookup_symbol_name(addr, symname)) {
+		p = strchr(symname, '.');
+		if (!p)
+			return true;
+		*p = '\0';
+		addr = (unsigned long)kprobe_lookup_name(symname, 0);
+		if (addr)
+			return __within_notrace_func(addr);
+	}
+
+	return true;
 }
 #else
 #define within_notrace_func(tk)	(false)

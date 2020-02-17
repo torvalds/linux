@@ -38,6 +38,9 @@ import sys
 import subprocess
 
 allowed_warnings = set([
+    "file.c:3010", # fs/f2fs/file.c:3010:12: warning: 'f2fs_ioctl_check_project' defined but not used
+    "configfs.c:1488", # drivers/usb/gadget/configfs.c:1488:12: warning: 'configfs_composite_setup' defined but not used
+    "configfs.c:1513", # drivers/usb/gadget/configfs.c:1513:13: warning: 'configfs_composite_disconnect' defined but not used
     "posix-cpu-timers.c:1268", # kernel/time/posix-cpu-timers.c:1268:13: warning: 'now' may be used uninitialized in this function
     "af_unix.c:1036", # net/unix/af_unix.c:1036:20: warning: 'hash' may be used uninitialized in this function
     "sunxi_sram.c:214", # drivers/soc/sunxi/sunxi_sram.c:214:24: warning: 'device' may be used uninitialized in this function

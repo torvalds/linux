@@ -268,11 +268,8 @@ static int rpm_get_suppliers(struct device *dev)
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
 		int retval;
 
-		if (!(link->flags & DL_FLAG_PM_RUNTIME))
-			continue;
-
-		if (READ_ONCE(link->status) == DL_STATE_SUPPLIER_UNBIND ||
-		    link->rpm_active)
+		if (!(link->flags & DL_FLAG_PM_RUNTIME) ||
+		    READ_ONCE(link->status) == DL_STATE_SUPPLIER_UNBIND)
 			continue;
 
 		retval = pm_runtime_get_sync(link->supplier);
@@ -281,7 +278,7 @@ static int rpm_get_suppliers(struct device *dev)
 			pm_runtime_put_noidle(link->supplier);
 			return retval;
 		}
-		link->rpm_active = true;
+		refcount_inc(&link->rpm_active);
 	}
 	return 0;
 }
@@ -290,12 +287,13 @@ static void rpm_put_suppliers(struct device *dev)
 {
 	struct device_link *link;
 
-	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		if (link->rpm_active &&
-		    READ_ONCE(link->status) != DL_STATE_SUPPLIER_UNBIND) {
+	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
+		if (READ_ONCE(link->status) == DL_STATE_SUPPLIER_UNBIND)
+			continue;
+
+		while (refcount_dec_not_one(&link->rpm_active))
 			pm_runtime_put(link->supplier);
-			link->rpm_active = false;
-		}
+	}
 }
 
 /**
@@ -1531,7 +1529,7 @@ void pm_runtime_remove(struct device *dev)
  *
  * Check links from this device to any consumers and if any of them have active
  * runtime PM references to the device, drop the usage counter of the device
- * (once per link).
+ * (as many times as needed).
  *
  * Links with the DL_FLAG_STATELESS flag set are ignored.
  *
@@ -1553,10 +1551,8 @@ void pm_runtime_clean_up_links(struct device *dev)
 		if (link->flags & DL_FLAG_STATELESS)
 			continue;
 
-		if (link->rpm_active) {
+		while (refcount_dec_not_one(&link->rpm_active))
 			pm_runtime_put_noidle(dev);
-			link->rpm_active = false;
-		}
 	}
 
 	device_links_read_unlock(idx);
@@ -1574,8 +1570,11 @@ void pm_runtime_get_suppliers(struct device *dev)
 	idx = device_links_read_lock();
 
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		if (link->flags & DL_FLAG_PM_RUNTIME)
+		if (link->flags & DL_FLAG_PM_RUNTIME) {
+			link->supplier_preactivated = true;
+			refcount_inc(&link->rpm_active);
 			pm_runtime_get_sync(link->supplier);
+		}
 
 	device_links_read_unlock(idx);
 }
@@ -1592,8 +1591,11 @@ void pm_runtime_put_suppliers(struct device *dev)
 	idx = device_links_read_lock();
 
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		if (link->flags & DL_FLAG_PM_RUNTIME)
-			pm_runtime_put(link->supplier);
+		if (link->supplier_preactivated) {
+			link->supplier_preactivated = false;
+			if (refcount_dec_not_one(&link->rpm_active))
+				pm_runtime_put(link->supplier);
+		}
 
 	device_links_read_unlock(idx);
 }
@@ -1607,8 +1609,6 @@ void pm_runtime_new_link(struct device *dev)
 
 void pm_runtime_drop_link(struct device *dev)
 {
-	rpm_put_suppliers(dev);
-
 	spin_lock_irq(&dev->power.lock);
 	WARN_ON(dev->power.links_count == 0);
 	dev->power.links_count--;

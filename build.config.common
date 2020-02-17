@@ -2,8 +2,12 @@ BRANCH=android-4.19
 KERNEL_DIR=common
 
 CC=clang
-CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r365631c/bin
+LD=ld.lld
+NM=llvm-nm
+OBJCOPY=llvm-objcopy
+CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r370808/bin
 
 EXTRA_CMDS=''
 STOP_SHIP_TRACEPRINTK=1
-LD=ld.lld
+IN_KERNEL_MODULES=1
+DO_NOT_STRIP_MODULES=1

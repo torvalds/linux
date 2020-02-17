@@ -88,7 +88,7 @@
 };
 
 &i2c0 {
-	tda19988: tda19988 {
+	tda19988: tda19988@70 {
 		compatible = "nxp,tda998x";
 		reg = <0x70>;
 

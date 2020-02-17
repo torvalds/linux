@@ -57,7 +57,6 @@
 
 #define HFI1_VNIC_TXREQ_NAME_LEN   32
 #define HFI1_VNIC_SDMA_DESC_WTRMRK 64
-#define HFI1_VNIC_SDMA_RETRY_COUNT 1
 
 /*
  * struct vnic_txreq - VNIC transmit descriptor
@@ -67,7 +66,6 @@
  * @pad: pad buffer
  * @plen: pad length
  * @pbc_val: pbc value
- * @retry_count: tx retry count
  */
 struct vnic_txreq {
 	struct sdma_txreq       txreq;
@@ -77,8 +75,6 @@ struct vnic_txreq {
 	unsigned char           pad[HFI1_VNIC_MAX_PAD];
 	u16                     plen;
 	__le64                  pbc_val;
-
-	u32                     retry_count;
 };
 
 static void vnic_sdma_complete(struct sdma_txreq *txreq,
@@ -196,7 +192,6 @@ int hfi1_vnic_send_dma(struct hfi1_devdata *dd, u8 q_idx,
 	ret = build_vnic_tx_desc(sde, tx, pbc);
 	if (unlikely(ret))
 		goto free_desc;
-	tx->retry_count = 0;
 
 	ret = sdma_send_txreq(sde, &vnic_sdma->wait, &tx->txreq,
 			      vnic_sdma->pkts_sent);
@@ -238,14 +233,14 @@ static int hfi1_vnic_sdma_sleep(struct sdma_engine *sde,
 	struct hfi1_vnic_sdma *vnic_sdma =
 		container_of(wait, struct hfi1_vnic_sdma, wait);
 	struct hfi1_ibdev *dev = &vnic_sdma->dd->verbs_dev;
-	struct vnic_txreq *tx = container_of(txreq, struct vnic_txreq, txreq);
 
-	if (sdma_progress(sde, seq, txreq))
-		if (tx->retry_count++ < HFI1_VNIC_SDMA_RETRY_COUNT)
-			return -EAGAIN;
+	write_seqlock(&dev->iowait_lock);
+	if (sdma_progress(sde, seq, txreq)) {
+		write_sequnlock(&dev->iowait_lock);
+		return -EAGAIN;
+	}
 
 	vnic_sdma->state = HFI1_VNIC_SDMA_Q_DEFERRED;
-	write_seqlock(&dev->iowait_lock);
 	if (list_empty(&vnic_sdma->wait.list))
 		iowait_queue(pkts_sent, wait, &sde->dmawait);
 	write_sequnlock(&dev->iowait_lock);

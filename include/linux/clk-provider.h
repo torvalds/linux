@@ -40,7 +40,8 @@
 #define CLK_OPS_PARENT_ENABLE	BIT(12)
 /* duty cycle call may be forwarded to the parent clock */
 #define CLK_DUTY_CYCLE_PARENT	BIT(13)
-#define CLK_KEEP_REQ_RATE	BIT(14) /* keep reqrate on parent rate change */
+#define CLK_DONT_HOLD_STATE	BIT(14) /* Don't hold state */
+#define CLK_KEEP_REQ_RATE	BIT(15) /* keep reqrate on parent rate change */
 
 struct clk;
 struct clk_hw;
@@ -772,6 +773,7 @@ void devm_clk_unregister(struct device *dev, struct clk *clk);
 
 void clk_hw_unregister(struct clk_hw *hw);
 void devm_clk_hw_unregister(struct device *dev, struct clk_hw *hw);
+void clk_sync_state(struct device *dev);
 
 /* helper functions */
 const char *__clk_get_name(const struct clk *clk);

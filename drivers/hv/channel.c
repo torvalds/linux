@@ -91,10 +91,13 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	unsigned long flags;
 	int ret, err = 0;
 	struct page *page;
+	unsigned int order;
 
 	if (send_ringbuffer_size % PAGE_SIZE ||
 	    recv_ringbuffer_size % PAGE_SIZE)
 		return -EINVAL;
+
+	order = get_order(send_ringbuffer_size + recv_ringbuffer_size);
 
 	spin_lock_irqsave(&newchannel->lock, flags);
 	if (newchannel->state == CHANNEL_OPEN_STATE) {
@@ -110,21 +113,17 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	/* Allocate the ring buffer */
 	page = alloc_pages_node(cpu_to_node(newchannel->target_cpu),
-				GFP_KERNEL|__GFP_ZERO,
-				get_order(send_ringbuffer_size +
-				recv_ringbuffer_size));
+				GFP_KERNEL|__GFP_ZERO, order);
 
 	if (!page)
-		page = alloc_pages(GFP_KERNEL|__GFP_ZERO,
-				   get_order(send_ringbuffer_size +
-					     recv_ringbuffer_size));
+		page = alloc_pages(GFP_KERNEL|__GFP_ZERO, order);
 
 	if (!page) {
 		err = -ENOMEM;
 		goto error_set_chnstate;
 	}
 
-	newchannel->ringbuffer_pages = page_address(page);
+	newchannel->ringbuffer_page = page;
 	newchannel->ringbuffer_pagecount = (send_ringbuffer_size +
 					   recv_ringbuffer_size) >> PAGE_SHIFT;
 
@@ -239,8 +238,7 @@ error_free_gpadl:
 error_free_pages:
 	hv_ringbuffer_cleanup(&newchannel->outbound);
 	hv_ringbuffer_cleanup(&newchannel->inbound);
-	__free_pages(page,
-		     get_order(send_ringbuffer_size + recv_ringbuffer_size));
+	__free_pages(page, order);
 error_set_chnstate:
 	newchannel->state = CHANNEL_OPEN_STATE;
 	return err;
@@ -666,8 +664,8 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 	hv_ringbuffer_cleanup(&channel->outbound);
 	hv_ringbuffer_cleanup(&channel->inbound);
 
-	free_pages((unsigned long)channel->ringbuffer_pages,
-		get_order(channel->ringbuffer_pagecount * PAGE_SIZE));
+	__free_pages(channel->ringbuffer_page,
+		     get_order(channel->ringbuffer_pagecount << PAGE_SHIFT));
 
 out:
 	return ret;

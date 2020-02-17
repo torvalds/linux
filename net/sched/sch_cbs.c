@@ -61,16 +61,20 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
+#include <net/netevent.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
+
+static LIST_HEAD(cbs_list);
+static DEFINE_SPINLOCK(cbs_list_lock);
 
 #define BYTES_PER_KBIT (1000LL / 8)
 
 struct cbs_sched_data {
 	bool offload;
 	int queue;
-	s64 port_rate; /* in bytes/s */
+	atomic64_t port_rate; /* in bytes/s */
 	s64 last; /* timestamp in ns */
 	s64 credits; /* in bytes */
 	s32 locredit; /* in bytes */
@@ -82,6 +86,7 @@ struct cbs_sched_data {
 		       struct sk_buff **to_free);
 	struct sk_buff *(*dequeue)(struct Qdisc *sch);
 	struct Qdisc *qdisc;
+	struct list_head cbs_list;
 };
 
 static int cbs_child_enqueue(struct sk_buff *skb, struct Qdisc *sch,
@@ -206,7 +211,8 @@ static struct sk_buff *cbs_dequeue_soft(struct Qdisc *sch)
 	/* As sendslope is a negative number, this will decrease the
 	 * amount of q->credits.
 	 */
-	credits = credits_from_len(len, q->sendslope, q->port_rate);
+	credits = credits_from_len(len, q->sendslope,
+				   atomic64_read(&q->port_rate));
 	credits += q->credits;
 
 	q->credits = max_t(s64, credits, q->locredit);
@@ -293,6 +299,58 @@ static int cbs_enable_offload(struct net_device *dev, struct cbs_sched_data *q,
 	return 0;
 }
 
+static void cbs_set_port_rate(struct net_device *dev, struct cbs_sched_data *q)
+{
+	struct ethtool_link_ksettings ecmd;
+	int speed = SPEED_10;
+	int port_rate = -1;
+	int err;
+
+	err = __ethtool_get_link_ksettings(dev, &ecmd);
+	if (err < 0)
+		goto skip;
+
+	if (ecmd.base.speed && ecmd.base.speed != SPEED_UNKNOWN)
+		speed = ecmd.base.speed;
+
+skip:
+	port_rate = speed * 1000 * BYTES_PER_KBIT;
+
+	atomic64_set(&q->port_rate, port_rate);
+	netdev_dbg(dev, "cbs: set %s's port_rate to: %lld, linkspeed: %d\n",
+		   dev->name, (long long)atomic64_read(&q->port_rate),
+		   ecmd.base.speed);
+}
+
+static int cbs_dev_notifier(struct notifier_block *nb, unsigned long event,
+			    void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct cbs_sched_data *q;
+	struct net_device *qdev;
+	bool found = false;
+
+	ASSERT_RTNL();
+
+	if (event != NETDEV_UP && event != NETDEV_CHANGE)
+		return NOTIFY_DONE;
+
+	spin_lock(&cbs_list_lock);
+	list_for_each_entry(q, &cbs_list, cbs_list) {
+		qdev = qdisc_dev(q->qdisc);
+		if (qdev == dev) {
+			found = true;
+			break;
+		}
+	}
+	spin_unlock(&cbs_list_lock);
+
+	if (found)
+		cbs_set_port_rate(dev, q);
+
+	return NOTIFY_DONE;
+}
+
 static int cbs_change(struct Qdisc *sch, struct nlattr *opt,
 		      struct netlink_ext_ack *extack)
 {
@@ -314,16 +372,7 @@ static int cbs_change(struct Qdisc *sch, struct nlattr *opt,
 	qopt = nla_data(tb[TCA_CBS_PARMS]);
 
 	if (!qopt->offload) {
-		struct ethtool_link_ksettings ecmd;
-		s64 link_speed;
-
-		if (!__ethtool_get_link_ksettings(dev, &ecmd))
-			link_speed = ecmd.base.speed;
-		else
-			link_speed = SPEED_1000;
-
-		q->port_rate = link_speed * 1000 * BYTES_PER_KBIT;
-
+		cbs_set_port_rate(dev, q);
 		cbs_disable_offload(dev, q);
 	} else {
 		err = cbs_enable_offload(dev, q, qopt, extack);
@@ -346,6 +395,7 @@ static int cbs_init(struct Qdisc *sch, struct nlattr *opt,
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
+	int err;
 
 	if (!opt) {
 		NL_SET_ERR_MSG(extack, "Missing CBS qdisc options  which are mandatory");
@@ -366,7 +416,17 @@ static int cbs_init(struct Qdisc *sch, struct nlattr *opt,
 
 	qdisc_watchdog_init(&q->watchdog, sch);
 
-	return cbs_change(sch, opt, extack);
+	err = cbs_change(sch, opt, extack);
+	if (err)
+		return err;
+
+	if (!q->offload) {
+		spin_lock(&cbs_list_lock);
+		list_add(&q->cbs_list, &cbs_list);
+		spin_unlock(&cbs_list_lock);
+	}
+
+	return 0;
 }
 
 static void cbs_destroy(struct Qdisc *sch)
@@ -374,8 +434,11 @@ static void cbs_destroy(struct Qdisc *sch)
 	struct cbs_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
 
-	qdisc_watchdog_cancel(&q->watchdog);
+	spin_lock(&cbs_list_lock);
+	list_del(&q->cbs_list);
+	spin_unlock(&cbs_list_lock);
 
+	qdisc_watchdog_cancel(&q->watchdog);
 	cbs_disable_offload(dev, q);
 
 	if (q->qdisc)
@@ -486,14 +549,29 @@ static struct Qdisc_ops cbs_qdisc_ops __read_mostly = {
 	.owner		=	THIS_MODULE,
 };
 
+static struct notifier_block cbs_device_notifier = {
+	.notifier_call = cbs_dev_notifier,
+};
+
 static int __init cbs_module_init(void)
 {
-	return register_qdisc(&cbs_qdisc_ops);
+	int err;
+
+	err = register_netdevice_notifier(&cbs_device_notifier);
+	if (err)
+		return err;
+
+	err = register_qdisc(&cbs_qdisc_ops);
+	if (err)
+		unregister_netdevice_notifier(&cbs_device_notifier);
+
+	return err;
 }
 
 static void __exit cbs_module_exit(void)
 {
 	unregister_qdisc(&cbs_qdisc_ops);
+	unregister_netdevice_notifier(&cbs_device_notifier);
 }
 module_init(cbs_module_init)
 module_exit(cbs_module_exit)

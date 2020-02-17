@@ -321,6 +321,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 
 	if (!bprm || !profile->xattr_count)
 		return 0;
+	might_sleep();
 
 	/* transition from exec match to xattr set */
 	state = aa_dfa_null_transition(profile->xmatch, state);
@@ -365,10 +366,11 @@ out:
 }
 
 /**
- * __attach_match_ - find an attachment match
+ * find_attach - do attachment search for unconfined processes
  * @bprm - binprm structure of transitioning task
- * @name - to match against  (NOT NULL)
+ * @ns: the current namespace  (NOT NULL)
  * @head - profile list to walk  (NOT NULL)
+ * @name - to match against  (NOT NULL)
  * @info - info message if there was an error (NOT NULL)
  *
  * Do a linear search on the profiles in the list.  There is a matching
@@ -378,12 +380,11 @@ out:
  *
  * Requires: @head not be shared or have appropriate locks held
  *
- * Returns: profile or NULL if no match found
+ * Returns: label or NULL if no match found
  */
-static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
-					 const char *name,
-					 struct list_head *head,
-					 const char **info)
+static struct aa_label *find_attach(const struct linux_binprm *bprm,
+				    struct aa_ns *ns, struct list_head *head,
+				    const char *name, const char **info)
 {
 	int candidate_len = 0, candidate_xattrs = 0;
 	bool conflict = false;
@@ -392,6 +393,8 @@ static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
 	AA_BUG(!name);
 	AA_BUG(!head);
 
+	rcu_read_lock();
+restart:
 	list_for_each_entry_rcu(profile, head, base.list) {
 		if (profile->label.flags & FLAG_NULL &&
 		    &profile->label == ns_unconfined(profile->ns))
@@ -417,16 +420,32 @@ static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
 			perm = dfa_user_allow(profile->xmatch, state);
 			/* any accepting state means a valid match. */
 			if (perm & MAY_EXEC) {
-				int ret;
+				int ret = 0;
 
 				if (count < candidate_len)
 					continue;
 
-				ret = aa_xattrs_match(bprm, profile, state);
-				/* Fail matching if the xattrs don't match */
-				if (ret < 0)
-					continue;
+				if (bprm && profile->xattr_count) {
+					long rev = READ_ONCE(ns->revision);
 
+					if (!aa_get_profile_not0(profile))
+						goto restart;
+					rcu_read_unlock();
+					ret = aa_xattrs_match(bprm, profile,
+							      state);
+					rcu_read_lock();
+					aa_put_profile(profile);
+					if (rev !=
+					    READ_ONCE(ns->revision))
+						/* policy changed */
+						goto restart;
+					/*
+					 * Fail matching if the xattrs don't
+					 * match
+					 */
+					if (ret < 0)
+						continue;
+				}
 				/*
 				 * TODO: allow for more flexible best match
 				 *
@@ -449,43 +468,28 @@ static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
 				candidate_xattrs = ret;
 				conflict = false;
 			}
-		} else if (!strcmp(profile->base.name, name))
+		} else if (!strcmp(profile->base.name, name)) {
 			/*
 			 * old exact non-re match, without conditionals such
 			 * as xattrs. no more searching required
 			 */
-			return profile;
+			candidate = profile;
+			goto out;
+		}
 	}
 
-	if (conflict) {
-		*info = "conflicting profile attachments";
+	if (!candidate || conflict) {
+		if (conflict)
+			*info = "conflicting profile attachments";
+		rcu_read_unlock();
 		return NULL;
 	}
 
-	return candidate;
-}
-
-/**
- * find_attach - do attachment search for unconfined processes
- * @bprm - binprm structure of transitioning task
- * @ns: the current namespace  (NOT NULL)
- * @list: list to search  (NOT NULL)
- * @name: the executable name to match against  (NOT NULL)
- * @info: info message if there was an error
- *
- * Returns: label or NULL if no match found
- */
-static struct aa_label *find_attach(const struct linux_binprm *bprm,
-				    struct aa_ns *ns, struct list_head *list,
-				    const char *name, const char **info)
-{
-	struct aa_profile *profile;
-
-	rcu_read_lock();
-	profile = aa_get_profile(__attach_match(bprm, name, list, info));
+out:
+	candidate = aa_get_newest_profile(candidate);
 	rcu_read_unlock();
 
-	return profile ? &profile->label : NULL;
+	return &candidate->label;
 }
 
 static const char *next_name(int xtype, const char *name)

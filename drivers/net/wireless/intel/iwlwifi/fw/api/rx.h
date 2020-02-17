@@ -574,6 +574,69 @@ struct iwl_rx_mpdu_desc {
 
 #define IWL_RX_DESC_SIZE_V1 offsetofend(struct iwl_rx_mpdu_desc, v1)
 
+#define IWL_CD_STTS_OPTIMIZED_POS	0
+#define IWL_CD_STTS_OPTIMIZED_MSK	0x01
+#define IWL_CD_STTS_TRANSFER_STATUS_POS	1
+#define IWL_CD_STTS_TRANSFER_STATUS_MSK	0x0E
+#define IWL_CD_STTS_WIFI_STATUS_POS	4
+#define IWL_CD_STTS_WIFI_STATUS_MSK	0xF0
+
+/**
+ * enum iwl_completion_desc_transfer_status -  transfer status (bits 1-3)
+ * @IWL_CD_STTS_UNUSED: unused
+ * @IWL_CD_STTS_UNUSED_2: unused
+ * @IWL_CD_STTS_END_TRANSFER: successful transfer complete.
+ *	In sniffer mode, when split is used, set in last CD completion. (RX)
+ * @IWL_CD_STTS_OVERFLOW: In sniffer mode, when using split - used for
+ *	all CD completion. (RX)
+ * @IWL_CD_STTS_ABORTED: CR abort / close flow. (RX)
+ * @IWL_CD_STTS_ERROR: general error (RX)
+ */
+enum iwl_completion_desc_transfer_status {
+	IWL_CD_STTS_UNUSED,
+	IWL_CD_STTS_UNUSED_2,
+	IWL_CD_STTS_END_TRANSFER,
+	IWL_CD_STTS_OVERFLOW,
+	IWL_CD_STTS_ABORTED,
+	IWL_CD_STTS_ERROR,
+};
+
+/**
+ * enum iwl_completion_desc_wifi_status - wifi status (bits 4-7)
+ * @IWL_CD_STTS_VALID: the packet is valid (RX)
+ * @IWL_CD_STTS_FCS_ERR: frame check sequence error (RX)
+ * @IWL_CD_STTS_SEC_KEY_ERR: error handling the security key of rx (RX)
+ * @IWL_CD_STTS_DECRYPTION_ERR: error decrypting the frame (RX)
+ * @IWL_CD_STTS_DUP: duplicate packet (RX)
+ * @IWL_CD_STTS_ICV_MIC_ERR: MIC error (RX)
+ * @IWL_CD_STTS_INTERNAL_SNAP_ERR: problems removing the snap (RX)
+ * @IWL_CD_STTS_SEC_PORT_FAIL: security port fail (RX)
+ * @IWL_CD_STTS_BA_OLD_SN: block ack received old SN (RX)
+ * @IWL_CD_STTS_QOS_NULL: QoS null packet (RX)
+ * @IWL_CD_STTS_MAC_HDR_ERR: MAC header conversion error (RX)
+ * @IWL_CD_STTS_MAX_RETRANS: reached max number of retransmissions (TX)
+ * @IWL_CD_STTS_EX_LIFETIME: exceeded lifetime (TX)
+ * @IWL_CD_STTS_NOT_USED: completed but not used (RX)
+ * @IWL_CD_STTS_REPLAY_ERR: pn check failed, replay error (RX)
+ */
+enum iwl_completion_desc_wifi_status {
+	IWL_CD_STTS_VALID,
+	IWL_CD_STTS_FCS_ERR,
+	IWL_CD_STTS_SEC_KEY_ERR,
+	IWL_CD_STTS_DECRYPTION_ERR,
+	IWL_CD_STTS_DUP,
+	IWL_CD_STTS_ICV_MIC_ERR,
+	IWL_CD_STTS_INTERNAL_SNAP_ERR,
+	IWL_CD_STTS_SEC_PORT_FAIL,
+	IWL_CD_STTS_BA_OLD_SN,
+	IWL_CD_STTS_QOS_NULL,
+	IWL_CD_STTS_MAC_HDR_ERR,
+	IWL_CD_STTS_MAX_RETRANS,
+	IWL_CD_STTS_EX_LIFETIME,
+	IWL_CD_STTS_NOT_USED,
+	IWL_CD_STTS_REPLAY_ERR,
+};
+
 struct iwl_frame_release {
 	u8 baid;
 	u8 reserved;
