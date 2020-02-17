@@ -1166,6 +1166,9 @@ static int efx_poll(struct napi_struct *napi, int budget)
 	struct efx_channel *channel =
 		container_of(napi, struct efx_channel, napi_str);
 	struct efx_nic *efx = channel->efx;
+#ifdef CONFIG_RFS_ACCEL
+	unsigned int time;
+#endif
 	int spent;
 
 	netif_vdbg(efx, intr, efx->net_dev,
@@ -1185,7 +1188,10 @@ static int efx_poll(struct napi_struct *napi, int budget)
 
 #ifdef CONFIG_RFS_ACCEL
 		/* Perhaps expire some ARFS filters */
-		mod_delayed_work(system_wq, &channel->filter_work, 0);
+		time = jiffies - channel->rfs_last_expiry;
+		/* Would our quota be >= 20? */
+		if (channel->rfs_filter_count * time >= 600 * HZ)
+			mod_delayed_work(system_wq, &channel->filter_work, 0);
 #endif
 
 		/* There is no race here; although napi_disable() will
