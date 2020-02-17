@@ -12,12 +12,10 @@ struct net_device;
 
 enum {
 	MLO_PAUSE_NONE,
-	MLO_PAUSE_ASYM = BIT(0),
-	MLO_PAUSE_SYM = BIT(1),
-	MLO_PAUSE_RX = BIT(2),
-	MLO_PAUSE_TX = BIT(3),
+	MLO_PAUSE_RX = BIT(0),
+	MLO_PAUSE_TX = BIT(1),
 	MLO_PAUSE_TXRX_MASK = MLO_PAUSE_TX | MLO_PAUSE_RX,
-	MLO_PAUSE_AN = BIT(4),
+	MLO_PAUSE_AN = BIT(2),
 
 	MLO_AN_PHY = 0,	/* Conventional PHY */
 	MLO_AN_FIXED,	/* Fixed-link mode */
@@ -154,13 +152,20 @@ void mac_pcs_get_state(struct phylink_config *config,
  * guaranteed to be correct, and so any mac_config() implementation must
  * never reference these fields.
  *
+ * In all negotiation modes, as defined by @mode, @state->pause indicates the
+ * pause settings which should be applied as follows. If %MLO_PAUSE_AN is not
+ * set, %MLO_PAUSE_TX and %MLO_PAUSE_RX indicate whether the MAC should send
+ * pause frames and/or act on received pause frames respectively. Otherwise,
+ * the results of in-band negotiation/status from the MAC PCS should be used
+ * to control the MAC pause mode settings.
+ *
  * The action performed depends on the currently selected mode:
  *
  * %MLO_AN_FIXED, %MLO_AN_PHY:
- *   Configure the specified @state->speed, @state->duplex and
- *   @state->pause (%MLO_PAUSE_TX / %MLO_PAUSE_RX) modes over a link
- *   specified by @state->interface.  @state->advertising may be used,
- *   but is not required.  Other members of @state must be ignored.
+ *   Configure the specified @state->speed and @state->duplex over a link
+ *   specified by @state->interface. @state->advertising may be used, but
+ *   is not required. Pause modes as above. Other members of @state must
+ *   be ignored.
  *
  *   Valid state members: interface, speed, duplex, pause, advertising.
  *
@@ -172,11 +177,14 @@ void mac_pcs_get_state(struct phylink_config *config,
  *   mac_pcs_get_state() callback. Changes in link state must be made
  *   by calling phylink_mac_change().
  *
+ *   Interface mode specific details are mentioned below.
+ *
  *   If in 802.3z mode, the link speed is fixed, dependent on the
- *   @state->interface. Duplex is negotiated, and pause is advertised
- *   according to @state->an_enabled, @state->pause and
- *   @state->advertising flags. Beware of MACs which only support full
- *   duplex at gigabit and higher speeds.
+ *   @state->interface. Duplex and pause modes are negotiated via
+ *   the in-band configuration word. Advertised pause modes are set
+ *   according to the @state->an_enabled and @state->advertising
+ *   flags. Beware of MACs which only support full duplex at gigabit
+ *   and higher speeds.
  *
  *   If in Cisco SGMII mode, the link speed and duplex mode are passed
  *   in the serial bitstream 16-bit configuration word, and the MAC
