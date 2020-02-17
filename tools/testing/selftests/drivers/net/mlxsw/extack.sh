@@ -8,6 +8,7 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 ALL_TESTS="
 	netdev_pre_up_test
 	vxlan_vlan_add_test
+	vxlan_bridge_create_test
 "
 NUM_NETIFS=2
 source $lib_dir/lib.sh
@@ -103,6 +104,37 @@ vxlan_vlan_add_test()
 
 	ip link del dev vx1
 	ip link del dev br1
+}
+
+vxlan_bridge_create_test()
+{
+	RET=0
+
+	# Unsupported configuration: mlxsw demands VXLAN with "noudpcsum".
+	ip link add name vx1 up type vxlan id 1000 \
+		local 192.0.2.17 remote 192.0.2.18 \
+		dstport 4789 tos inherit ttl 100
+
+	# Test with VLAN-aware bridge.
+	ip link add name br1 up type bridge vlan_filtering 1 mcast_snooping 0
+
+	ip link set dev vx1 master br1
+
+	ip link set dev $swp1 master br1 2>&1 > /dev/null \
+		| grep -q mlxsw_spectrum
+	check_err $?
+
+	# Test with VLAN-unaware bridge.
+	ip link set dev br1 type bridge vlan_filtering 0
+
+	ip link set dev $swp1 master br1 2>&1 > /dev/null \
+		| grep -q mlxsw_spectrum
+	check_err $?
+
+	log_test "extack - bridge creation with VXLAN"
+
+	ip link del dev br1
+	ip link del dev vx1
 }
 
 trap cleanup EXIT
