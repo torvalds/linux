@@ -736,7 +736,7 @@ void ceph_mdsc_release_request(struct kref *kref)
 	put_request_session(req);
 	ceph_unreserve_caps(req->r_mdsc, &req->r_caps_reservation);
 	WARN_ON_ONCE(!list_empty(&req->r_wait));
-	kfree(req);
+	kmem_cache_free(ceph_mds_request_cachep, req);
 }
 
 DEFINE_RB_FUNCS(request, struct ceph_mds_request, r_tid, r_node)
@@ -2094,8 +2094,9 @@ int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 struct ceph_mds_request *
 ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 {
-	struct ceph_mds_request *req = kzalloc(sizeof(*req), GFP_NOFS);
+	struct ceph_mds_request *req;
 
+	req = kmem_cache_zalloc(ceph_mds_request_cachep, GFP_NOFS);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 
