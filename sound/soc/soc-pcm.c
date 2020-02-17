@@ -2954,17 +2954,17 @@ struct snd_pcm_substream *
 }
 EXPORT_SYMBOL_GPL(snd_soc_dpcm_get_substream);
 
-/*
- * We can only hw_free, stop, pause or suspend a BE DAI if any of it's FE
- * are not running, paused or suspended for the specified stream direction.
- */
-int snd_soc_dpcm_can_be_free_stop(struct snd_soc_pcm_runtime *fe,
-		struct snd_soc_pcm_runtime *be, int stream)
+static int snd_soc_dpcm_check_state(struct snd_soc_pcm_runtime *fe,
+				    struct snd_soc_pcm_runtime *be,
+				    int stream,
+				    const enum snd_soc_dpcm_state *states,
+				    int num_states)
 {
 	struct snd_soc_dpcm *dpcm;
 	int state;
 	int ret = 1;
 	unsigned long flags;
+	int i;
 
 	spin_lock_irqsave(&fe->card->dpcm_lock, flags);
 	for_each_dpcm_fe(be, stream, dpcm) {
@@ -2973,17 +2973,33 @@ int snd_soc_dpcm_can_be_free_stop(struct snd_soc_pcm_runtime *fe,
 			continue;
 
 		state = dpcm->fe->dpcm[stream].state;
-		if (state == SND_SOC_DPCM_STATE_START ||
-			state == SND_SOC_DPCM_STATE_PAUSED ||
-			state == SND_SOC_DPCM_STATE_SUSPEND) {
-			ret = 0;
-			break;
+		for (i = 0; i < num_states; i++) {
+			if (state == states[i]) {
+				ret = 0;
+				break;
+			}
 		}
 	}
 	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
 
-	/* it's safe to free/stop this BE DAI */
+	/* it's safe to do this BE DAI */
 	return ret;
+}
+
+/*
+ * We can only hw_free, stop, pause or suspend a BE DAI if any of it's FE
+ * are not running, paused or suspended for the specified stream direction.
+ */
+int snd_soc_dpcm_can_be_free_stop(struct snd_soc_pcm_runtime *fe,
+		struct snd_soc_pcm_runtime *be, int stream)
+{
+	const enum snd_soc_dpcm_state state[] = {
+		SND_SOC_DPCM_STATE_START,
+		SND_SOC_DPCM_STATE_PAUSED,
+		SND_SOC_DPCM_STATE_SUSPEND,
+	};
+
+	return snd_soc_dpcm_check_state(fe, be, stream, state, ARRAY_SIZE(state));
 }
 EXPORT_SYMBOL_GPL(snd_soc_dpcm_can_be_free_stop);
 
@@ -2994,30 +3010,14 @@ EXPORT_SYMBOL_GPL(snd_soc_dpcm_can_be_free_stop);
 int snd_soc_dpcm_can_be_params(struct snd_soc_pcm_runtime *fe,
 		struct snd_soc_pcm_runtime *be, int stream)
 {
-	struct snd_soc_dpcm *dpcm;
-	int state;
-	int ret = 1;
-	unsigned long flags;
+	const enum snd_soc_dpcm_state state[] = {
+		SND_SOC_DPCM_STATE_START,
+		SND_SOC_DPCM_STATE_PAUSED,
+		SND_SOC_DPCM_STATE_SUSPEND,
+		SND_SOC_DPCM_STATE_PREPARE,
+	};
 
-	spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-	for_each_dpcm_fe(be, stream, dpcm) {
-
-		if (dpcm->fe == fe)
-			continue;
-
-		state = dpcm->fe->dpcm[stream].state;
-		if (state == SND_SOC_DPCM_STATE_START ||
-			state == SND_SOC_DPCM_STATE_PAUSED ||
-			state == SND_SOC_DPCM_STATE_SUSPEND ||
-			state == SND_SOC_DPCM_STATE_PREPARE) {
-			ret = 0;
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-
-	/* it's safe to change hw_params */
-	return ret;
+	return snd_soc_dpcm_check_state(fe, be, stream, state, ARRAY_SIZE(state));
 }
 EXPORT_SYMBOL_GPL(snd_soc_dpcm_can_be_params);
 
