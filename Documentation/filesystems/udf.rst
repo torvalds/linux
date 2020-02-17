@@ -1,6 +1,8 @@
-*
-* Documentation/filesystems/udf.txt
-*
+.. SPDX-License-Identifier: GPL-2.0
+
+===============
+UDF file system
+===============
 
 If you encounter problems with reading UDF discs using this driver,
 please report them according to MAINTAINERS file.
@@ -18,8 +20,10 @@ performance due to very poor read-modify-write support supplied internally
 by drive firmware.
 
 -------------------------------------------------------------------------------
+
 The following mount options are supported:
 
+	===========	======================================
 	gid=		Set the default group.
 	umask=		Set the default umask.
 	mode=		Set the default file permissions.
@@ -34,6 +38,7 @@ The following mount options are supported:
 	longad		Use long ad's (default)
 	nostrict	Unset strict conformance
 	iocharset=	Set the NLS character set
+	===========	======================================
 
 The uid= and gid= options need a bit more explaining.  They will accept a
 decimal numeric value and all inodes on that mount will then appear as
@@ -47,13 +52,17 @@ the interactive user will always see the files on the disk as belonging to him.
 
 The remaining are for debugging and disaster recovery:
 
-	novrs		Skip volume sequence recognition 
+	=====		================================
+	novrs		Skip volume sequence recognition
+	=====		================================
 
 The following expect a offset from 0.
 
+	==========	=================================================
 	session=	Set the CDROM session (default= last session)
 	anchor=		Override standard anchor location. (default= 256)
 	lastblock=	Set the last block of the filesystem/
+	==========	=================================================
 
 -------------------------------------------------------------------------------
 
@@ -62,5 +71,5 @@ For the latest version and toolset see:
 	https://github.com/pali/udftools
 
 Documentation on UDF and ECMA 167 is available FREE from:
-	http://www.osta.org/
-	http://www.ecma-international.org/
+	- http://www.osta.org/
+	- http://www.ecma-international.org/

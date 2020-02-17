@@ -92,5 +92,6 @@ Documentation for filesystem implementations.
    tmpfs
    ubifs
    ubifs-authentication.rst
+   udf
    virtiofs
    vfat
