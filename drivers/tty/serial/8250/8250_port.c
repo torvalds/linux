@@ -2876,7 +2876,7 @@ static int do_serial8250_get_rxtrig(struct tty_port *port)
 	return rxtrig_bytes;
 }
 
-static ssize_t serial8250_get_attr_rx_trig_bytes(struct device *dev,
+static ssize_t rx_trig_bytes_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct tty_port *port = dev_get_drvdata(dev);
@@ -2922,7 +2922,7 @@ static int do_serial8250_set_rxtrig(struct tty_port *port, unsigned char bytes)
 	return ret;
 }
 
-static ssize_t serial8250_set_attr_rx_trig_bytes(struct device *dev,
+static ssize_t rx_trig_bytes_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct tty_port *port = dev_get_drvdata(dev);
@@ -2943,18 +2943,16 @@ static ssize_t serial8250_set_attr_rx_trig_bytes(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(rx_trig_bytes, S_IRUSR | S_IWUSR | S_IRGRP,
-		   serial8250_get_attr_rx_trig_bytes,
-		   serial8250_set_attr_rx_trig_bytes);
+static DEVICE_ATTR_RW(rx_trig_bytes);
 
 static struct attribute *serial8250_dev_attrs[] = {
 	&dev_attr_rx_trig_bytes.attr,
-	NULL,
-	};
+	NULL
+};
 
 static struct attribute_group serial8250_dev_attr_group = {
 	.attrs = serial8250_dev_attrs,
-	};
+};
 
 static void register_dev_spec_attr_grp(struct uart_8250_port *up)
 {
