@@ -29,7 +29,7 @@ struct switchdev_deferred_item {
 	struct list_head list;
 	struct net_device *dev;
 	switchdev_deferred_func_t *func;
-	unsigned long data[0];
+	unsigned long data[];
 };
 
 static struct switchdev_deferred_item *switchdev_deferred_dequeue(void)
