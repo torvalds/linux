@@ -2367,9 +2367,14 @@ dont_test_tx_en:
 	 * Request DMA channels for both RX and TX.
 	 */
 	if (up->dma) {
-		retval = serial8250_request_dma(up);
-		if (retval) {
-			dev_warn_ratelimited(port->dev, "failed to request DMA\n");
+		const char *msg = NULL;
+
+		if (uart_console(port))
+			msg = "forbid DMA for kernel console";
+		else if (serial8250_request_dma(up))
+			msg = "failed to request DMA";
+		if (msg) {
+			dev_warn_ratelimited(port->dev, "%s\n", msg);
 			up->dma = NULL;
 		}
 	}
