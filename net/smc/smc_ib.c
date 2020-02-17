@@ -257,6 +257,7 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 					struct ib_event *ibevent)
 {
 	struct smc_ib_device *smcibdev;
+	bool schedule = false;
 	u8 port_idx;
 
 	smcibdev = container_of(handler, struct smc_ib_device, event_handler);
@@ -266,22 +267,35 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 		/* terminate all ports on device */
 		for (port_idx = 0; port_idx < SMC_MAX_PORTS; port_idx++) {
 			set_bit(port_idx, &smcibdev->port_event_mask);
-			set_bit(port_idx, smcibdev->ports_going_away);
+			if (!test_and_set_bit(port_idx,
+					      smcibdev->ports_going_away))
+				schedule = true;
 		}
-		schedule_work(&smcibdev->port_event_work);
+		if (schedule)
+			schedule_work(&smcibdev->port_event_work);
+		break;
+	case IB_EVENT_PORT_ACTIVE:
+		port_idx = ibevent->element.port_num - 1;
+		if (port_idx >= SMC_MAX_PORTS)
+			break;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		if (test_and_clear_bit(port_idx, smcibdev->ports_going_away))
+			schedule_work(&smcibdev->port_event_work);
 		break;
 	case IB_EVENT_PORT_ERR:
-	case IB_EVENT_PORT_ACTIVE:
+		port_idx = ibevent->element.port_num - 1;
+		if (port_idx >= SMC_MAX_PORTS)
+			break;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		if (!test_and_set_bit(port_idx, smcibdev->ports_going_away))
+			schedule_work(&smcibdev->port_event_work);
+		break;
 	case IB_EVENT_GID_CHANGE:
 		port_idx = ibevent->element.port_num - 1;
-		if (port_idx < SMC_MAX_PORTS) {
-			set_bit(port_idx, &smcibdev->port_event_mask);
-			if (ibevent->event == IB_EVENT_PORT_ERR)
-				set_bit(port_idx, smcibdev->ports_going_away);
-			else if (ibevent->event == IB_EVENT_PORT_ACTIVE)
-				clear_bit(port_idx, smcibdev->ports_going_away);
-			schedule_work(&smcibdev->port_event_work);
-		}
+		if (port_idx >= SMC_MAX_PORTS)
+			break;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		schedule_work(&smcibdev->port_event_work);
 		break;
 	default:
 		break;
@@ -316,11 +330,11 @@ static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
 	case IB_EVENT_QP_FATAL:
 	case IB_EVENT_QP_ACCESS_ERR:
 		port_idx = ibevent->element.qp->port - 1;
-		if (port_idx < SMC_MAX_PORTS) {
-			set_bit(port_idx, &smcibdev->port_event_mask);
-			set_bit(port_idx, smcibdev->ports_going_away);
+		if (port_idx >= SMC_MAX_PORTS)
+			break;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		if (!test_and_set_bit(port_idx, smcibdev->ports_going_away))
 			schedule_work(&smcibdev->port_event_work);
-		}
 		break;
 	default:
 		break;
