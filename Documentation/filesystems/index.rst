@@ -88,5 +88,6 @@ Documentation for filesystem implementations.
    romfs
    squashfs
    sysfs
+   sysv-fs
    virtiofs
    vfat
