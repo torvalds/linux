@@ -51,6 +51,7 @@ Documentation for filesystem implementations.
    affs
    afs
    autofs
+   autofs-mount-control
    fuse
    overlayfs
    virtiofs

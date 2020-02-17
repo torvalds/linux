@@ -1,4 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
 
+====================================================================
 Miscellaneous Device control operations for the autofs kernel module
 ====================================================================
 
@@ -36,24 +38,24 @@ For example, there are two types of automount maps, direct (in the kernel
 module source you will see a third type called an offset, which is just
 a direct mount in disguise) and indirect.
 
-Here is a master map with direct and indirect map entries:
+Here is a master map with direct and indirect map entries::
 
-/-      /etc/auto.direct
-/test   /etc/auto.indirect
+    /-      /etc/auto.direct
+    /test   /etc/auto.indirect
 
-and the corresponding map files:
+and the corresponding map files::
 
-/etc/auto.direct:
+    /etc/auto.direct:
 
-/automount/dparse/g6  budgie:/autofs/export1
-/automount/dparse/g1  shark:/autofs/export1
-and so on.
+    /automount/dparse/g6  budgie:/autofs/export1
+    /automount/dparse/g1  shark:/autofs/export1
+    and so on.
 
-/etc/auto.indirect:
+/etc/auto.indirect::
 
-g1    shark:/autofs/export1
-g6    budgie:/autofs/export1
-and so on.
+    g1    shark:/autofs/export1
+    g6    budgie:/autofs/export1
+    and so on.
 
 For the above indirect map an autofs file system is mounted on /test and
 mounts are triggered for each sub-directory key by the inode lookup
@@ -69,23 +71,23 @@ use the follow_link inode operation to trigger the mount.
 But, each entry in direct and indirect maps can have offsets (making
 them multi-mount map entries).
 
-For example, an indirect mount map entry could also be:
+For example, an indirect mount map entry could also be::
 
-g1  \
-   /        shark:/autofs/export5/testing/test \
-   /s1      shark:/autofs/export/testing/test/s1 \
-   /s2      shark:/autofs/export5/testing/test/s2 \
-   /s1/ss1  shark:/autofs/export1 \
-   /s2/ss2  shark:/autofs/export2
+    g1  \
+    /        shark:/autofs/export5/testing/test \
+    /s1      shark:/autofs/export/testing/test/s1 \
+    /s2      shark:/autofs/export5/testing/test/s2 \
+    /s1/ss1  shark:/autofs/export1 \
+    /s2/ss2  shark:/autofs/export2
 
-and a similarly a direct mount map entry could also be:
+and a similarly a direct mount map entry could also be::
 
-/automount/dparse/g1 \
-    /       shark:/autofs/export5/testing/test \
-    /s1     shark:/autofs/export/testing/test/s1 \
-    /s2     shark:/autofs/export5/testing/test/s2 \
-    /s1/ss1 shark:/autofs/export2 \
-    /s2/ss2 shark:/autofs/export2
+    /automount/dparse/g1 \
+	/       shark:/autofs/export5/testing/test \
+	/s1     shark:/autofs/export/testing/test/s1 \
+	/s2     shark:/autofs/export5/testing/test/s2 \
+	/s1/ss1 shark:/autofs/export2 \
+	/s2/ss2 shark:/autofs/export2
 
 One of the issues with version 4 of autofs was that, when mounting an
 entry with a large number of offsets, possibly with nesting, we needed
@@ -170,32 +172,32 @@ autofs Miscellaneous Device mount control interface
 The control interface is opening a device node, typically /dev/autofs.
 
 All the ioctls use a common structure to pass the needed parameter
-information and return operation results:
+information and return operation results::
 
-struct autofs_dev_ioctl {
-	__u32 ver_major;
-	__u32 ver_minor;
-	__u32 size;             /* total size of data passed in
-				 * including this struct */
-	__s32 ioctlfd;          /* automount command fd */
+    struct autofs_dev_ioctl {
+	    __u32 ver_major;
+	    __u32 ver_minor;
+	    __u32 size;             /* total size of data passed in
+				    * including this struct */
+	    __s32 ioctlfd;          /* automount command fd */
 
-	/* Command parameters */
-	union {
-		struct args_protover		protover;
-		struct args_protosubver		protosubver;
-		struct args_openmount		openmount;
-		struct args_ready		ready;
-		struct args_fail		fail;
-		struct args_setpipefd		setpipefd;
-		struct args_timeout		timeout;
-		struct args_requester		requester;
-		struct args_expire		expire;
-		struct args_askumount		askumount;
-		struct args_ismountpoint	ismountpoint;
-	};
+	    /* Command parameters */
+	    union {
+		    struct args_protover		protover;
+		    struct args_protosubver		protosubver;
+		    struct args_openmount		openmount;
+		    struct args_ready		ready;
+		    struct args_fail		fail;
+		    struct args_setpipefd		setpipefd;
+		    struct args_timeout		timeout;
+		    struct args_requester		requester;
+		    struct args_expire		expire;
+		    struct args_askumount		askumount;
+		    struct args_ismountpoint	ismountpoint;
+	    };
 
-	char path[0];
-};
+	    char path[0];
+    };
 
 The ioctlfd field is a mount point file descriptor of an autofs mount
 point. It is returned by the open call and is used by all calls except
@@ -212,7 +214,7 @@ is used account for the increased structure length when translating the
 structure sent from user space.
 
 This structure can be initialized before setting specific fields by using
-the void function call init_autofs_dev_ioctl(struct autofs_dev_ioctl *).
+the void function call init_autofs_dev_ioctl(``struct autofs_dev_ioctl *``).
 
 All of the ioctls perform a copy of this structure from user space to
 kernel space and return -EINVAL if the size parameter is smaller than
