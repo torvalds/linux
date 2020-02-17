@@ -2719,33 +2719,6 @@ out:
 	mutex_unlock(&card->mutex);
 	return ret;
 }
-int soc_dpcm_be_digital_mute(struct snd_soc_pcm_runtime *fe, int mute)
-{
-	struct snd_soc_dpcm *dpcm;
-	struct snd_soc_dai *dai;
-
-	for_each_dpcm_be(fe, SNDRV_PCM_STREAM_PLAYBACK, dpcm) {
-
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		int i;
-
-		if (be->dai_link->ignore_suspend)
-			continue;
-
-		for_each_rtd_codec_dai(be, i, dai) {
-			struct snd_soc_dai_driver *drv = dai->driver;
-
-			dev_dbg(be->dev, "ASoC: BE digital mute %s\n",
-					 be->dai_link->name);
-
-			if (drv->ops && drv->ops->digital_mute &&
-							dai->playback_active)
-				drv->ops->digital_mute(dai, mute);
-		}
-	}
-
-	return 0;
-}
 
 static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 {
