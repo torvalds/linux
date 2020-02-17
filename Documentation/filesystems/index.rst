@@ -70,6 +70,7 @@ Documentation for filesystem implementations.
    hfs
    hfsplus
    hpfs
+   inotify
    fuse
    overlayfs
    virtiofs
