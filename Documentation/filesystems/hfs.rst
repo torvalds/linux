@@ -1,11 +1,16 @@
-Note: This filesystem doesn't have a maintainer.
+.. SPDX-License-Identifier: GPL-2.0
 
+==================================
 Macintosh HFS Filesystem for Linux
 ==================================
 
-HFS stands for ``Hierarchical File System'' and is the filesystem used
+
+.. Note:: This filesystem doesn't have a maintainer.
+
+
+HFS stands for ``Hierarchical File System`` and is the filesystem used
 by the Mac Plus and all later Macintosh models.  Earlier Macintosh
-models used MFS (``Macintosh File System''), which is not supported,
+models used MFS (``Macintosh File System``), which is not supported,
 MacOS 8.1 and newer support a filesystem called HFS+ that's similar to
 HFS but is extended in various areas.  Use the hfsplus filesystem driver
 to access such filesystems from Linux.
@@ -49,25 +54,25 @@ Writing to HFS Filesystems
 HFS is not a UNIX filesystem, thus it does not have the usual features you'd
 expect:
 
- o You can't modify the set-uid, set-gid, sticky or executable bits or the uid
+ * You can't modify the set-uid, set-gid, sticky or executable bits or the uid
    and gid of files.
- o You can't create hard- or symlinks, device files, sockets or FIFOs.
+ * You can't create hard- or symlinks, device files, sockets or FIFOs.
 
 HFS does on the other have the concepts of multiple forks per file.  These
 non-standard forks are represented as hidden additional files in the normal
 filesystems namespace which is kind of a cludge and makes the semantics for
 the a little strange:
 
- o You can't create, delete or rename resource forks of files or the
+ * You can't create, delete or rename resource forks of files or the
    Finder's metadata.
- o They are however created (with default values), deleted and renamed
+ * They are however created (with default values), deleted and renamed
    along with the corresponding data fork or directory.
- o Copying files to a different filesystem will loose those attributes
+ * Copying files to a different filesystem will loose those attributes
    that are essential for MacOS to work.
 
 
 Creating HFS filesystems
-===================================
+========================
 
 The hfsutils package from Robert Leslie contains a program called
 hformat that can be used to create HFS filesystem. See
