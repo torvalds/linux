@@ -7,8 +7,8 @@ performance expectations by drivers, subsystems and user space applications on
 one of the parameters.
 
 Two different PM QoS frameworks are available:
-1. CPU latency QoS.
-2. The per-device PM QoS framework provides the API to manage the
+ * CPU latency QoS.
+ * The per-device PM QoS framework provides the API to manage the
    per-device latency constraints and PM QoS flags.
 
 The latency unit used in the PM QoS framework is the microsecond (usec).
