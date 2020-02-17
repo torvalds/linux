@@ -247,7 +247,6 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
 	 */
 	switch (vsi->type) {
 	case ICE_VSI_LB:
-		/* fall through */
 	case ICE_VSI_PF:
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_PF;
 		break;
@@ -459,17 +458,20 @@ int __ice_vsi_get_qs(struct ice_qs_cfg *qs_cfg)
 }
 
 /**
- * ice_vsi_ctrl_rx_ring - Start or stop a VSI's Rx ring
+ * ice_vsi_ctrl_one_rx_ring - start/stop VSI's Rx ring with no busy wait
  * @vsi: the VSI being configured
- * @ena: start or stop the Rx rings
- * @rxq_idx: Rx queue index
+ * @ena: start or stop the Rx ring
+ * @rxq_idx: 0-based Rx queue index for the VSI passed in
+ * @wait: wait or don't wait for configuration to finish in hardware
+ *
+ * Return 0 on success and negative on error.
  */
-int ice_vsi_ctrl_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
+int
+ice_vsi_ctrl_one_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx, bool wait)
 {
 	int pf_q = vsi->rxq_map[rxq_idx];
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	int ret = 0;
 	u32 rx_reg;
 
 	rx_reg = rd32(hw, QRX_CTRL(pf_q));
@@ -485,13 +487,30 @@ int ice_vsi_ctrl_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
 		rx_reg &= ~QRX_CTRL_QENA_REQ_M;
 	wr32(hw, QRX_CTRL(pf_q), rx_reg);
 
-	/* wait for the change to finish */
-	ret = ice_pf_rxq_wait(pf, pf_q, ena);
-	if (ret)
-		dev_err(ice_pf_to_dev(pf), "VSI idx %d Rx ring %d %sable timeout\n",
-			vsi->idx, pf_q, (ena ? "en" : "dis"));
+	if (!wait)
+		return 0;
 
-	return ret;
+	ice_flush(hw);
+	return ice_pf_rxq_wait(pf, pf_q, ena);
+}
+
+/**
+ * ice_vsi_wait_one_rx_ring - wait for a VSI's Rx ring to be stopped/started
+ * @vsi: the VSI being configured
+ * @ena: true/false to verify Rx ring has been enabled/disabled respectively
+ * @rxq_idx: 0-based Rx queue index for the VSI passed in
+ *
+ * This routine will wait for the given Rx queue of the VSI to reach the
+ * enabled or disabled state. Returns -ETIMEDOUT in case of failing to reach
+ * the requested state after multiple retries; else will return 0 in case of
+ * success.
+ */
+int ice_vsi_wait_one_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
+{
+	int pf_q = vsi->rxq_map[rxq_idx];
+	struct ice_pf *pf = vsi->back;
+
+	return ice_pf_rxq_wait(pf, pf_q, ena);
 }
 
 /**

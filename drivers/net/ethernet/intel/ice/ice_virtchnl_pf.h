@@ -5,11 +5,6 @@
 #define _ICE_VIRTCHNL_PF_H_
 #include "ice.h"
 
-#define ICE_MAX_VLANID			4095
-#define ICE_VLAN_PRIORITY_S		12
-#define ICE_VLAN_M			0xFFF
-#define ICE_PRIORITY_M			0x7000
-
 /* Restrict number of MAC Addr and VLAN that non-trusted VF can programmed */
 #define ICE_MAX_VLAN_PER_VF		8
 #define ICE_MAX_MACADDR_PER_VF		12
@@ -74,7 +69,7 @@ struct ice_vf {
 	struct virtchnl_ether_addr dflt_lan_addr;
 	DECLARE_BITMAP(txq_ena, ICE_MAX_BASE_QS_PER_VF);
 	DECLARE_BITMAP(rxq_ena, ICE_MAX_BASE_QS_PER_VF);
-	u16 port_vlan_id;
+	u16 port_vlan_info;		/* Port VLAN ID and QoS */
 	u8 pf_set_mac:1;		/* VF MAC address set by VMM admin */
 	u8 trusted:1;
 	u8 spoofchk:1;
@@ -95,7 +90,6 @@ struct ice_vf {
 	u8 num_req_qs;			/* num of queue pairs requested by VF */
 	u16 num_mac;
 	u16 num_vf_qs;			/* num of queue configured per VF */
-	u16 num_qs_ena;			/* total num of Tx/Rx queue enabled */
 };
 
 #ifdef CONFIG_PCI_IOV
@@ -127,6 +121,9 @@ void ice_set_vf_state_qs_dis(struct ice_vf *vf);
 int
 ice_get_vf_stats(struct net_device *netdev, int vf_id,
 		 struct ifla_vf_stats *vf_stats);
+void
+ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event);
+
 #else /* CONFIG_PCI_IOV */
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
@@ -134,6 +131,7 @@ ice_get_vf_stats(struct net_device *netdev, int vf_id,
 #define ice_vc_notify_link_state(pf) do {} while (0)
 #define ice_vc_notify_reset(pf) do {} while (0)
 #define ice_set_vf_state_qs_dis(vf) do {} while (0)
+#define ice_vf_lan_overflow_event(pf, event) do {} while (0)
 
 static inline bool
 ice_reset_all_vfs(struct ice_pf __always_unused *pf,

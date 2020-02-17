@@ -183,7 +183,7 @@ static int ice_qp_dis(struct ice_vsi *vsi, u16 q_idx)
 		if (err)
 			return err;
 	}
-	err = ice_vsi_ctrl_rx_ring(vsi, false, q_idx);
+	err = ice_vsi_ctrl_one_rx_ring(vsi, false, q_idx, true);
 	if (err)
 		return err;
 
@@ -243,7 +243,7 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 
 	ice_qvec_cfg_msix(vsi, q_vector);
 
-	err = ice_vsi_ctrl_rx_ring(vsi, true, q_idx);
+	err = ice_vsi_ctrl_one_rx_ring(vsi, true, q_idx, true);
 	if (err)
 		goto free_buf;
 
@@ -609,7 +609,7 @@ ice_alloc_buf_slow_zc(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
  */
 static bool
 ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, int count,
-		     bool alloc(struct ice_ring *, struct ice_rx_buf *))
+		     bool (*alloc)(struct ice_ring *, struct ice_rx_buf *))
 {
 	union ice_32b_rx_flex_desc *rx_desc;
 	u16 ntu = rx_ring->next_to_use;
@@ -816,10 +816,10 @@ ice_run_xdp_zc(struct ice_ring *rx_ring, struct xdp_buff *xdp)
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fallthrough -- not supported action */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
-		/* fallthrough -- handle aborts by dropping frame */
+		fallthrough;
 	case XDP_DROP:
 		result = ICE_XDP_CONSUMED;
 		break;
@@ -841,8 +841,8 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 	u16 cleaned_count = ICE_DESC_UNUSED(rx_ring);
 	unsigned int xdp_xmit = 0;
+	bool failure = false;
 	struct xdp_buff xdp;
-	bool failure = 0;
 
 	xdp.rxq = &rx_ring->xdp_rxq;
 

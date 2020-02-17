@@ -706,7 +706,6 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 	/* Get FEC mode based on negotiated link info */
 	switch (vsi->port_info->phy.link_info.fec_info) {
 	case ICE_AQ_LINK_25G_RS_528_FEC_EN:
-		/* fall through */
 	case ICE_AQ_LINK_25G_RS_544_FEC_EN:
 		fec = "RS-FEC";
 		break;
@@ -1028,6 +1027,9 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		case ice_aqc_opc_get_link_status:
 			if (ice_handle_link_event(pf, &event))
 				dev_err(dev, "Could not handle link event\n");
+			break;
+		case ice_aqc_opc_event_lan_overflow:
+			ice_vf_lan_overflow_event(pf, &event);
 			break;
 		case ice_mbx_opc_send_msg_to_pf:
 			ice_vc_process_vf_msg(pf, &event);
@@ -2461,16 +2463,19 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 	if (vsi->info.pvid)
 		return -EINVAL;
 
-	/* Enable VLAN pruning when VLAN 0 is added */
-	if (unlikely(!vid)) {
+	/* VLAN 0 is added by default during load/reset */
+	if (!vid)
+		return 0;
+
+	/* Enable VLAN pruning when a VLAN other than 0 is added */
+	if (!ice_vsi_is_vlan_pruning_ena(vsi)) {
 		ret = ice_cfg_vlan_pruning(vsi, true, false);
 		if (ret)
 			return ret;
 	}
 
-	/* Add all VLAN IDs including 0 to the switch filter. VLAN ID 0 is
-	 * needed to continue allowing all untagged packets since VLAN prune
-	 * list is applied to all packets by the switch
+	/* Add a switch rule for this VLAN ID so its corresponding VLAN tagged
+	 * packets aren't pruned by the device's internal switch on Rx
 	 */
 	ret = ice_vsi_add_vlan(vsi, vid);
 	if (!ret) {
@@ -2500,6 +2505,10 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 	if (vsi->info.pvid)
 		return -EINVAL;
 
+	/* don't allow removal of VLAN 0 */
+	if (!vid)
+		return 0;
+
 	/* Make sure ice_vsi_kill_vlan is successful before updating VLAN
 	 * information
 	 */
@@ -2507,8 +2516,8 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 	if (ret)
 		return ret;
 
-	/* Disable VLAN pruning when VLAN 0 is removed */
-	if (unlikely(!vid))
+	/* Disable pruning when VLAN 0 is the only VLAN rule */
+	if (vsi->num_vlan == 1 && ice_vsi_is_vlan_pruning_ena(vsi))
 		ret = ice_cfg_vlan_pruning(vsi, false, false);
 
 	vsi->vlan_ena = false;
@@ -2945,7 +2954,6 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 		}
 		break;
 	case ICE_ERR_BUF_TOO_SHORT:
-		/* fall-through */
 	case ICE_ERR_CFG:
 		dev_err(dev, "The DDP package file is invalid. Entering Safe Mode.\n");
 		break;
@@ -2977,7 +2985,7 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 		default:
 			break;
 		}
-		/* fall-through */
+		fallthrough;
 	default:
 		dev_err(dev, "An unknown error (%d) occurred when loading the DDP package.  Entering Safe Mode.\n",
 			*status);
@@ -3961,7 +3969,7 @@ static int ice_up_complete(struct ice_vsi *vsi)
 	 * Tx queue group list was configured and the context bits were
 	 * programmed using ice_vsi_cfg_txqs
 	 */
-	err = ice_vsi_start_rx_rings(vsi);
+	err = ice_vsi_start_all_rx_rings(vsi);
 	if (err)
 		return err;
 
@@ -4340,7 +4348,7 @@ int ice_down(struct ice_vsi *vsi)
 				   vsi->vsi_num, tx_err);
 	}
 
-	rx_err = ice_vsi_stop_rx_rings(vsi);
+	rx_err = ice_vsi_stop_all_rx_rings(vsi);
 	if (rx_err)
 		netdev_err(vsi->netdev, "Failed stop Rx rings, VSI %d error %d\n",
 			   vsi->vsi_num, rx_err);
@@ -5027,6 +5035,7 @@ ice_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 /**
  * ice_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
+ * @txqueue: Tx queue
  */
 static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {

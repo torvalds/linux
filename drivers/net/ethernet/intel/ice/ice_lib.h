@@ -30,9 +30,9 @@ int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi);
 
 int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena);
 
-int ice_vsi_start_rx_rings(struct ice_vsi *vsi);
+int ice_vsi_start_all_rx_rings(struct ice_vsi *vsi);
 
-int ice_vsi_stop_rx_rings(struct ice_vsi *vsi);
+int ice_vsi_stop_all_rx_rings(struct ice_vsi *vsi);
 
 int
 ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
@@ -41,6 +41,8 @@ ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 int ice_vsi_cfg_xdp_txqs(struct ice_vsi *vsi);
 
 int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi);
+
+bool ice_vsi_is_vlan_pruning_ena(struct ice_vsi *vsi);
 
 int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena, bool vlan_promisc);
 
