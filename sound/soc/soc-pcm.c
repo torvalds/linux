@@ -2612,6 +2612,7 @@ static int dpcm_run_old_update(struct snd_soc_pcm_runtime *fe, int stream)
 static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 {
 	struct snd_soc_dapm_widget_list *list;
+	int stream;
 	int count, paths;
 
 	if (!fe->dai_link->dynamic)
@@ -2625,68 +2626,41 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 	dev_dbg(fe->dev, "ASoC: DPCM %s runtime update for FE %s\n",
 		new ? "new" : "old", fe->dai_link->name);
 
-	/* skip if FE doesn't have playback capability */
-	if (!snd_soc_dai_stream_valid(fe->cpu_dai,   SNDRV_PCM_STREAM_PLAYBACK) ||
-	    !snd_soc_dai_stream_valid(fe->codec_dai, SNDRV_PCM_STREAM_PLAYBACK))
-		goto capture;
+	for_each_pcm_streams(stream) {
 
-	/* skip if FE isn't currently playing */
-	if (!fe->cpu_dai->stream_active[SNDRV_PCM_STREAM_PLAYBACK] ||
-	    !fe->codec_dai->stream_active[SNDRV_PCM_STREAM_PLAYBACK])
-		goto capture;
+		/* skip if FE doesn't have playback/capture capability */
+		if (!snd_soc_dai_stream_valid(fe->cpu_dai,   stream) ||
+		    !snd_soc_dai_stream_valid(fe->codec_dai, stream))
+			continue;
 
-	paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_PLAYBACK, &list);
-	if (paths < 0) {
-		dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
-			 fe->dai_link->name,  "playback");
-		return paths;
+		/* skip if FE isn't currently playing/capturing */
+		if (!fe->cpu_dai->stream_active[stream] ||
+		    !fe->codec_dai->stream_active[stream])
+			continue;
+
+		paths = dpcm_path_get(fe, stream, &list);
+		if (paths < 0) {
+			dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
+				 fe->dai_link->name,
+				 stream == SNDRV_PCM_STREAM_PLAYBACK ?
+				 "playback" : "capture");
+			return paths;
+		}
+
+		/* update any playback/capture paths */
+		count = dpcm_process_paths(fe, stream, &list, new);
+		if (count) {
+			if (new)
+				dpcm_run_new_update(fe, stream);
+			else
+				dpcm_run_old_update(fe, stream);
+
+			dpcm_clear_pending_state(fe, stream);
+			dpcm_be_disconnect(fe, stream);
+		}
+
+		dpcm_path_put(&list);
 	}
-
-	/* update any playback paths */
-	count = dpcm_process_paths(fe, SNDRV_PCM_STREAM_PLAYBACK, &list, new);
-	if (count) {
-		if (new)
-			dpcm_run_new_update(fe, SNDRV_PCM_STREAM_PLAYBACK);
-		else
-			dpcm_run_old_update(fe, SNDRV_PCM_STREAM_PLAYBACK);
-
-		dpcm_clear_pending_state(fe, SNDRV_PCM_STREAM_PLAYBACK);
-		dpcm_be_disconnect(fe, SNDRV_PCM_STREAM_PLAYBACK);
-	}
-
-	dpcm_path_put(&list);
-
-capture:
-	/* skip if FE doesn't have capture capability */
-	if (!snd_soc_dai_stream_valid(fe->cpu_dai,   SNDRV_PCM_STREAM_CAPTURE) ||
-	    !snd_soc_dai_stream_valid(fe->codec_dai, SNDRV_PCM_STREAM_CAPTURE))
-		return 0;
-
-	/* skip if FE isn't currently capturing */
-	if (!fe->cpu_dai->stream_active[SNDRV_PCM_STREAM_CAPTURE] ||
-	    !fe->codec_dai->stream_active[SNDRV_PCM_STREAM_CAPTURE])
-		return 0;
-
-	paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_CAPTURE, &list);
-	if (paths < 0) {
-		dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
-			 fe->dai_link->name,  "capture");
-		return paths;
-	}
-
-	/* update any old capture paths */
-	count = dpcm_process_paths(fe, SNDRV_PCM_STREAM_CAPTURE, &list, new);
-	if (count) {
-		if (new)
-			dpcm_run_new_update(fe, SNDRV_PCM_STREAM_CAPTURE);
-		else
-			dpcm_run_old_update(fe, SNDRV_PCM_STREAM_CAPTURE);
-
-		dpcm_clear_pending_state(fe, SNDRV_PCM_STREAM_CAPTURE);
-		dpcm_be_disconnect(fe, SNDRV_PCM_STREAM_CAPTURE);
-	}
-
-	dpcm_path_put(&list);
 
 	return 0;
 }
@@ -3114,19 +3088,18 @@ static ssize_t dpcm_state_read_file(struct file *file, char __user *user_buf,
 {
 	struct snd_soc_pcm_runtime *fe = file->private_data;
 	ssize_t out_count = PAGE_SIZE, offset = 0, ret = 0;
+	int stream;
 	char *buf;
 
 	buf = kmalloc(out_count, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	if (snd_soc_dai_stream_valid(fe->cpu_dai, SNDRV_PCM_STREAM_PLAYBACK))
-		offset += dpcm_show_state(fe, SNDRV_PCM_STREAM_PLAYBACK,
-					buf + offset, out_count - offset);
-
-	if (snd_soc_dai_stream_valid(fe->cpu_dai, SNDRV_PCM_STREAM_CAPTURE))
-		offset += dpcm_show_state(fe, SNDRV_PCM_STREAM_CAPTURE,
-					buf + offset, out_count - offset);
+	for_each_pcm_streams(stream)
+		if (snd_soc_dai_stream_valid(fe->cpu_dai, stream))
+			offset += dpcm_show_state(fe, stream,
+						  buf + offset,
+						  out_count - offset);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, offset);
 
