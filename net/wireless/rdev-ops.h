@@ -734,14 +734,14 @@ static inline int rdev_mgmt_tx(struct cfg80211_registered_device *rdev,
 static inline int rdev_tx_control_port(struct cfg80211_registered_device *rdev,
 				       struct net_device *dev,
 				       const void *buf, size_t len,
-				       const u8 *dest, __be16 proto,
-				       const bool noencrypt)
+				       const u8 *dest, const u8 *src,
+				       __be16 proto, const bool noencrypt)
 {
 	int ret;
 	trace_rdev_tx_control_port(&rdev->wiphy, dev, buf, len,
-				   dest, proto, noencrypt);
+				   dest, src, proto, noencrypt);
 	ret = rdev->ops->tx_control_port(&rdev->wiphy, dev, buf, len,
-					 dest, proto, noencrypt);
+					 dest, src, proto, noencrypt);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }

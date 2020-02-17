@@ -1928,27 +1928,31 @@ TRACE_EVENT(rdev_mgmt_tx,
 
 TRACE_EVENT(rdev_tx_control_port,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 const u8 *buf, size_t len, const u8 *dest, __be16 proto,
+		 const u8 *buf, size_t len,
+		 const u8 *dest, const u8 *src, __be16 proto,
 		 bool unencrypted),
-	TP_ARGS(wiphy, netdev, buf, len, dest, proto, unencrypted),
+	TP_ARGS(wiphy, netdev, buf, len, dest, src, proto, unencrypted),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
 		MAC_ENTRY(dest)
-		__field(__be16, proto)
+		MAC_ENTRY(src)
+		__field(u16, proto)
 		__field(bool, unencrypted)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		MAC_ASSIGN(dest, dest);
-		__entry->proto = proto;
+		MAC_ASSIGN(src, src);
+		__entry->proto = be16_to_cpu(proto);
 		__entry->unencrypted = unencrypted;
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " MAC_PR_FMT ","
-		  " proto: 0x%x, unencrypted: %s",
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(dest),
-		  be16_to_cpu(__entry->proto),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", dest: " MAC_PR_FMT
+		  ", src: " MAC_PR_FMT ", proto: 0x%x, unencrypted: %s",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG,
+		  MAC_PR_ARG(dest), MAC_PR_ARG(src),
+		  __entry->proto,
 		  BOOL_TO_STR(__entry->unencrypted))
 );
 
@@ -2840,6 +2844,7 @@ TRACE_EVENT(cfg80211_rx_control_port,
 	TP_STRUCT__entry(
 		NETDEV_ENTRY
 		__field(int, len)
+		MAC_ENTRY(to)
 		MAC_ENTRY(from)
 		__field(u16, proto)
 		__field(bool, unencrypted)
@@ -2847,12 +2852,14 @@ TRACE_EVENT(cfg80211_rx_control_port,
 	TP_fast_assign(
 		NETDEV_ASSIGN;
 		__entry->len = skb->len;
+		MAC_ASSIGN(to, eth_hdr(skb)->h_dest);
 		MAC_ASSIGN(from, eth_hdr(skb)->h_source);
 		__entry->proto = be16_to_cpu(skb->protocol);
 		__entry->unencrypted = unencrypted;
 	),
-	TP_printk(NETDEV_PR_FMT ", len=%d, " MAC_PR_FMT ", proto: 0x%x, unencrypted: %s",
-		  NETDEV_PR_ARG, __entry->len, MAC_PR_ARG(from),
+	TP_printk(NETDEV_PR_FMT ", len=%d, dest: " MAC_PR_FMT
+		  ", src: " MAC_PR_FMT ", proto: 0x%x, unencrypted: %s",
+		  NETDEV_PR_ARG, __entry->len, MAC_PR_ARG(to), MAC_PR_ARG(from),
 		  __entry->proto, BOOL_TO_STR(__entry->unencrypted))
 );
 

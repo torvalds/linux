@@ -5103,7 +5103,8 @@ static int ath10k_mac_txpower_recalc(struct ath10k *ar)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
-		if (arvif->txpower <= 0)
+		/* txpower not initialized yet? */
+		if (arvif->txpower == INT_MIN)
 			continue;
 
 		if (txpower == -1)

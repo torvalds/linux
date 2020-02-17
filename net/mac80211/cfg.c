@@ -981,7 +981,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		      BSS_CHANGED_P2P_PS |
 		      BSS_CHANGED_TXPOWER |
 		      BSS_CHANGED_TWT |
-		      BSS_CHANGED_HE_OBSS_PD;
+		      BSS_CHANGED_HE_OBSS_PD |
+		      BSS_CHANGED_HE_BSS_COLOR;
 	int err;
 	int prev_beacon_int;
 
@@ -989,20 +990,10 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (old)
 		return -EALREADY;
 
-	switch (params->smps_mode) {
-	case NL80211_SMPS_OFF:
-		sdata->smps_mode = IEEE80211_SMPS_OFF;
-		break;
-	case NL80211_SMPS_STATIC:
-		sdata->smps_mode = IEEE80211_SMPS_STATIC;
-		break;
-	case NL80211_SMPS_DYNAMIC:
-		sdata->smps_mode = IEEE80211_SMPS_DYNAMIC;
-		break;
-	default:
-		return -EINVAL;
-	}
-	sdata->u.ap.req_smps = sdata->smps_mode;
+	if (params->smps_mode != NL80211_SMPS_OFF)
+		return -ENOTSUPP;
+
+	sdata->smps_mode = IEEE80211_SMPS_OFF;
 
 	sdata->needed_rx_chains = sdata->local->rx_chains;
 
@@ -1054,6 +1045,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->vif.bss_conf.twt_responder = params->twt_responder;
 	memcpy(&sdata->vif.bss_conf.he_obss_pd, &params->he_obss_pd,
 	       sizeof(struct ieee80211_he_obss_pd));
+	memcpy(&sdata->vif.bss_conf.he_bss_color, &params->he_bss_color,
+	       sizeof(struct ieee80211_he_bss_color));
 
 	sdata->vif.bss_conf.ssid_len = params->ssid_len;
 	if (params->ssid_len)
@@ -1166,7 +1159,6 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	kfree_rcu(old_beacon, rcu_head);
 	if (old_probe_resp)
 		kfree_rcu(old_probe_resp, rcu_head);
-	sdata->u.ap.driver_smps_mode = IEEE80211_SMPS_OFF;
 
 	kfree(sdata->vif.bss_conf.ftmr_params);
 	sdata->vif.bss_conf.ftmr_params = NULL;
@@ -1690,20 +1682,6 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		goto out_err;
 
 	mutex_unlock(&local->sta_mtx);
-
-	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
-	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
-	    sta->known_smps_mode != sta->sdata->bss->req_smps &&
-	    test_sta_flag(sta, WLAN_STA_AUTHORIZED) &&
-	    sta_info_tx_streams(sta) != 1) {
-		ht_dbg(sta->sdata,
-		       "%pM just authorized and MIMO capable - update SMPS\n",
-		       sta->sta.addr);
-		ieee80211_send_smps_action(sta->sdata,
-			sta->sdata->bss->req_smps,
-			sta->sta.addr,
-			sta->sdata->vif.bss_conf.bssid);
-	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
@@ -2635,74 +2613,6 @@ static int ieee80211_testmode_dump(struct wiphy *wiphy,
 	return local->ops->testmode_dump(&local->hw, skb, cb, data, len);
 }
 #endif
-
-int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
-				enum ieee80211_smps_mode smps_mode)
-{
-	struct sta_info *sta;
-	enum ieee80211_smps_mode old_req;
-
-	if (WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_AP))
-		return -EINVAL;
-
-	if (sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
-		return 0;
-
-	old_req = sdata->u.ap.req_smps;
-	sdata->u.ap.req_smps = smps_mode;
-
-	/* AUTOMATIC doesn't mean much for AP - don't allow it */
-	if (old_req == smps_mode ||
-	    smps_mode == IEEE80211_SMPS_AUTOMATIC)
-		return 0;
-
-	ht_dbg(sdata,
-	       "SMPS %d requested in AP mode, sending Action frame to %d stations\n",
-	       smps_mode, atomic_read(&sdata->u.ap.num_mcast_sta));
-
-	mutex_lock(&sdata->local->sta_mtx);
-	list_for_each_entry(sta, &sdata->local->sta_list, list) {
-		/*
-		 * Only stations associated to our AP and
-		 * associated VLANs
-		 */
-		if (sta->sdata->bss != &sdata->u.ap)
-			continue;
-
-		/* This station doesn't support MIMO - skip it */
-		if (sta_info_tx_streams(sta) == 1)
-			continue;
-
-		/*
-		 * Don't wake up a STA just to send the action frame
-		 * unless we are getting more restrictive.
-		 */
-		if (test_sta_flag(sta, WLAN_STA_PS_STA) &&
-		    !ieee80211_smps_is_restrictive(sta->known_smps_mode,
-						   smps_mode)) {
-			ht_dbg(sdata, "Won't send SMPS to sleeping STA %pM\n",
-			       sta->sta.addr);
-			continue;
-		}
-
-		/*
-		 * If the STA is not authorized, wait until it gets
-		 * authorized and the action frame will be sent then.
-		 */
-		if (!test_sta_flag(sta, WLAN_STA_AUTHORIZED))
-			continue;
-
-		ht_dbg(sdata, "Sending SMPS to %pM\n", sta->sta.addr);
-		ieee80211_send_smps_action(sdata, smps_mode, sta->sta.addr,
-					   sdata->vif.bss_conf.bssid);
-	}
-	mutex_unlock(&sdata->local->sta_mtx);
-
-	sdata->smps_mode = smps_mode;
-	ieee80211_queue_work(&sdata->local->hw, &sdata->recalc_smps);
-
-	return 0;
-}
 
 int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 				 enum ieee80211_smps_mode smps_mode)
