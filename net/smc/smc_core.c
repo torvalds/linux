@@ -629,7 +629,7 @@ void smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 
 	smc_lgr_list_head(lgr, &lgr_lock);
 	spin_lock_bh(lgr_lock);
-	if (lgr->terminating) {
+	if (list_empty(&lgr->list) || lgr->terminating || lgr->freeing) {
 		spin_unlock_bh(lgr_lock);
 		return;	/* lgr already terminating */
 	}
