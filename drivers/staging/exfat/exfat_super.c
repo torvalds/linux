@@ -539,7 +539,6 @@ static int ffsLookupFile(struct inode *inode, char *path, struct file_id_t *fid)
 	int ret, dentry, num_entries;
 	struct chain_t dir;
 	struct uni_name_t uni_name;
-	struct dos_name_t dos_name;
 	struct dentry_t *ep, *ep2;
 	struct entry_set_cache_t *es = NULL;
 	struct super_block *sb = inode->i_sb;
@@ -559,14 +558,13 @@ static int ffsLookupFile(struct inode *inode, char *path, struct file_id_t *fid)
 	if (ret)
 		goto out;
 
-	ret = get_num_entries_and_dos_name(sb, &dir, &uni_name, &num_entries,
-					   &dos_name);
+	ret = get_num_entries(sb, &dir, &uni_name, &num_entries);
 	if (ret)
 		goto out;
 
 	/* search the file name for directories */
 	dentry = exfat_find_dir_entry(sb, &dir, &uni_name, num_entries,
-				      &dos_name, TYPE_ALL);
+				      TYPE_ALL);
 	if (dentry < -1) {
 		ret = -ENOENT;
 		goto out;
@@ -1456,7 +1454,6 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 			       sizeof(struct date_time_t));
 			memset((char *)&info->access_timestamp, 0,
 			       sizeof(struct date_time_t));
-			strcpy(info->short_name, ".");
 			strcpy(info->name, ".");
 
 			dir.dir = p_fs->root_dir;
@@ -1471,7 +1468,7 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 						p_fs->cluster_size_bits;
 			}
 
-			count = count_dos_name_entries(sb, &dir, TYPE_DIR);
+			count = count_entries(sb, &dir, TYPE_DIR);
 			if (count < 0) {
 				ret = count; /* propagate error upward */
 				goto out;
@@ -1538,7 +1535,7 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 			info->Size = (u64)count_num_clusters(sb, &dir) <<
 					p_fs->cluster_size_bits;
 
-		count = count_dos_name_entries(sb, &dir, TYPE_DIR);
+		count = count_entries(sb, &dir, TYPE_DIR);
 		if (count < 0) {
 			ret = count; /* propagate error upward */
 			goto out;
@@ -2061,8 +2058,9 @@ static int exfat_readdir(struct file *filp, struct dir_context *ctx)
 	struct super_block *sb = inode->i_sb;
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 	struct dir_entry_t de;
+	struct inode *tmp;
 	unsigned long inum;
-	loff_t cpos;
+	loff_t cpos, i_pos;
 	int err = 0;
 
 	__lock_super(sb);
@@ -2111,21 +2109,14 @@ get_new:
 	if (!de.name[0])
 		goto end_of_dir;
 
-	if (!memcmp(de.short_name, DOS_CUR_DIR_NAME, DOS_NAME_LENGTH)) {
-		inum = inode->i_ino;
-	} else if (!memcmp(de.short_name, DOS_PAR_DIR_NAME, DOS_NAME_LENGTH)) {
-		inum = parent_ino(filp->f_path.dentry);
+	i_pos = ((loff_t)EXFAT_I(inode)->fid.start_clu << 32) |
+		((EXFAT_I(inode)->fid.rwoffset - 1) & 0xffffffff);
+	tmp = exfat_iget(sb, i_pos);
+	if (tmp) {
+		inum = tmp->i_ino;
+		iput(tmp);
 	} else {
-		loff_t i_pos = ((loff_t)EXFAT_I(inode)->fid.start_clu << 32) |
-				((EXFAT_I(inode)->fid.rwoffset - 1) & 0xffffffff);
-		struct inode *tmp = exfat_iget(sb, i_pos);
-
-		if (tmp) {
-			inum = tmp->i_ino;
-			iput(tmp);
-		} else {
-			inum = iunique(sb, EXFAT_ROOT_INO);
-		}
+		inum = iunique(sb, EXFAT_ROOT_INO);
 	}
 
 	if (!dir_emit(ctx, de.name, strlen(de.name), inum,
@@ -3829,8 +3820,6 @@ static int __init init_exfat(void)
 	int err;
 
 	BUILD_BUG_ON(sizeof(struct dentry_t) != DENTRY_SIZE);
-	BUILD_BUG_ON(sizeof(struct dos_dentry_t) != DENTRY_SIZE);
-	BUILD_BUG_ON(sizeof(struct ext_dentry_t) != DENTRY_SIZE);
 	BUILD_BUG_ON(sizeof(struct file_dentry_t) != DENTRY_SIZE);
 	BUILD_BUG_ON(sizeof(struct strm_dentry_t) != DENTRY_SIZE);
 	BUILD_BUG_ON(sizeof(struct name_dentry_t) != DENTRY_SIZE);

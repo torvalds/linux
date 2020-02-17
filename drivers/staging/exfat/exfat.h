@@ -189,8 +189,6 @@ static inline u16 get_row_index(u16 i)
 #define MAX_PATH_DEPTH		15	/* max depth of path name */
 #define MAX_NAME_LENGTH		256	/* max len of filename including NULL */
 #define MAX_PATH_LENGTH		260	/* max len of pathname including NULL */
-#define DOS_NAME_LENGTH		11	/* DOS filename length excluding NULL */
-#define DOS_PATH_LENGTH		80	/* DOS pathname length excluding NULL */
 
 /* file attributes */
 #define ATTR_NORMAL		0x0000
@@ -209,9 +207,6 @@ static inline u16 get_row_index(u16 i)
 #define FM_SYMLINK              0x40
 
 #define NUM_UPCASE              2918
-
-#define DOS_CUR_DIR_NAME        ".          "
-#define DOS_PAR_DIR_NAME        "..         "
 
 #ifdef __LITTLE_ENDIAN
 #define UNI_CUR_DIR_NAME        ".\0"
@@ -261,10 +256,6 @@ struct file_id_t {
 
 struct dir_entry_t {
 	char name[MAX_NAME_LENGTH * MAX_CHARSET_SIZE];
-
-	/* used only for FAT12/16/32, not used for exFAT */
-	char short_name[DOS_NAME_LENGTH + 2];
-
 	u32 attr;
 	u64 Size;
 	u32 num_subdirs;
@@ -381,33 +372,6 @@ struct dentry_t {
 	u8       dummy[32];
 };
 
-struct dos_dentry_t {
-	u8       name[DOS_NAME_LENGTH];
-	u8       attr;
-	u8       lcase;
-	u8       create_time_ms;
-	u8       create_time[2];
-	u8       create_date[2];
-	u8       access_date[2];
-	u8       start_clu_hi[2];
-	u8       modify_time[2];
-	u8       modify_date[2];
-	u8       start_clu_lo[2];
-	u8       size[4];
-};
-
-/* MS-DOS FAT extended directory entry (32 bytes) */
-struct ext_dentry_t {
-	u8       order;
-	u8       unicode_0_4[10];
-	u8       attr;
-	u8       sysid;
-	u8       checksum;
-	u8       unicode_5_10[12];
-	u8       start_clu[2];
-	u8       unicode_11_12[4];
-};
-
 /* MS-DOS EXFAT file directory entry (32 bytes) */
 struct file_dentry_t {
 	u8       type;
@@ -480,12 +444,6 @@ struct uentry_t {
 	u32      dir;
 	s32       entry;
 	struct chain_t     clu;
-};
-
-/* DOS name structure */
-struct dos_name_t {
-	u8       name[DOS_NAME_LENGTH];
-	u8       name_case;
 };
 
 /* unicode name structure */
@@ -725,8 +683,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 					       u32 type,
 					       struct dentry_t **file_ep);
 void release_entry_set(struct entry_set_cache_t *es);
-s32 count_dos_name_entries(struct super_block *sb, struct chain_t *p_dir,
-			   u32 type);
+s32 count_entries(struct super_block *sb, struct chain_t *p_dir, u32 type);
 void update_dir_checksum(struct super_block *sb, struct chain_t *p_dir,
 			 s32 entry);
 void update_dir_checksum_with_entry_set(struct super_block *sb,
@@ -734,9 +691,8 @@ void update_dir_checksum_with_entry_set(struct super_block *sb,
 bool is_dir_empty(struct super_block *sb, struct chain_t *p_dir);
 
 /* name conversion functions */
-s32 get_num_entries_and_dos_name(struct super_block *sb, struct chain_t *p_dir,
-				 struct uni_name_t *p_uniname, s32 *entries,
-				 struct dos_name_t *p_dosname);
+s32 get_num_entries(struct super_block *sb, struct chain_t *p_dir,
+		    struct uni_name_t *p_uniname, s32 *entries);
 u16 calc_checksum_2byte(void *data, s32 len, u16 chksum, s32 type);
 
 /* name resolution functions */
@@ -784,7 +740,7 @@ s32 exfat_count_used_clusters(struct super_block *sb);
 /* dir operation functions */
 s32 exfat_find_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 			 struct uni_name_t *p_uniname, s32 num_entries,
-			 struct dos_name_t *p_dosname, u32 type);
+			 u32 type);
 void exfat_delete_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 			    s32 entry, s32 order, s32 num_entries);
 void exfat_get_uni_name_from_ext_entry(struct super_block *sb,
