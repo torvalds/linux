@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 
 The Second Extended Filesystem
 ==============================
@@ -14,8 +16,9 @@ Options
 Most defaults are determined by the filesystem superblock, and can be
 set using tune2fs(8). Kernel-determined defaults are indicated by (*).
 
-bsddf			(*)	Makes `df' act like BSD.
-minixdf				Makes `df' act like Minix.
+====================    ===     ================================================
+bsddf			(*)	Makes ``df`` act like BSD.
+minixdf				Makes ``df`` act like Minix.
 
 check=none, nocheck	(*)	Don't do extra checking of bitmaps on mount
 				(check=normal and check=strict options removed)
@@ -62,6 +65,7 @@ quota, usrquota			Enable user disk quota support
 
 grpquota			Enable group disk quota support
 				(requires CONFIG_QUOTA).
+====================    ===     ================================================
 
 noquota option ls silently ignored by ext2.
 
@@ -294,9 +298,9 @@ respective fsck programs.
 If you're exceptionally paranoid, there are 3 ways of making metadata
 writes synchronous on ext2:
 
-per-file if you have the program source: use the O_SYNC flag to open()
-per-file if you don't have the source: use "chattr +S" on the file
-per-filesystem: add the "sync" option to mount (or in /etc/fstab)
+- per-file if you have the program source: use the O_SYNC flag to open()
+- per-file if you don't have the source: use "chattr +S" on the file
+- per-filesystem: add the "sync" option to mount (or in /etc/fstab)
 
 the first and last are not ext2 specific but do force the metadata to
 be written synchronously.  See also Journaling below.
@@ -316,10 +320,12 @@ Most of these limits could be overcome with slight changes in the on-disk
 format and using a compatibility flag to signal the format change (at
 the expense of some compatibility).
 
-Filesystem block size:     1kB        2kB        4kB        8kB
-
-File size limit:          16GB      256GB     2048GB     2048GB
-Filesystem size limit:  2047GB     8192GB    16384GB    32768GB
+=====================  =======    =======    =======   ========
+Filesystem block size      1kB        2kB        4kB        8kB
+=====================  =======    =======    =======   ========
+File size limit           16GB      256GB     2048GB     2048GB
+Filesystem size limit   2047GB     8192GB    16384GB    32768GB
+=====================  =======    =======    =======   ========
 
 There is a 2.4 kernel limit of 2048GB for a single block device, so no
 filesystem larger than that can be created at this time.  There is also
@@ -370,19 +376,24 @@ ext4 and journaling.
 References
 ==========
 
+=======================	===============================================
 The kernel source	file:/usr/src/linux/fs/ext2/
 e2fsprogs (e2fsck)	http://e2fsprogs.sourceforge.net/
 Design & Implementation	http://e2fsprogs.sourceforge.net/ext2intro.html
 Journaling (ext3)	ftp://ftp.uk.linux.org/pub/linux/sct/fs/jfs/
 Filesystem Resizing	http://ext2resize.sourceforge.net/
-Compression (*)		http://e2compr.sourceforge.net/
+Compression [1]_	http://e2compr.sourceforge.net/
+=======================	===============================================
 
 Implementations for:
-Windows 95/98/NT/2000	http://www.chrysocome.net/explore2fs
-Windows 95 (*)		http://www.yipton.net/content.html#FSDEXT2
-DOS client (*)		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
-OS/2 (+)		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
-RISC OS client		http://www.esw-heim.tu-clausthal.de/~marco/smorbrod/IscaFS/
 
-(*) no longer actively developed/supported (as of Apr 2001)
-(+) no longer actively developed/supported (as of Mar 2009)
+=======================	===========================================================
+Windows 95/98/NT/2000	http://www.chrysocome.net/explore2fs
+Windows 95 [1]_		http://www.yipton.net/content.html#FSDEXT2
+DOS client [1]_		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
+OS/2 [2]_		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
+RISC OS client		http://www.esw-heim.tu-clausthal.de/~marco/smorbrod/IscaFS/
+=======================	===========================================================
+
+.. [1] no longer actively developed/supported (as of Apr 2001)
+.. [2] no longer actively developed/supported (as of Mar 2009)
