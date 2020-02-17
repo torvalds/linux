@@ -400,7 +400,7 @@ static int fsl_asrc_dma_pcm_new(struct snd_soc_component *component,
 		return ret;
 	}
 
-	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_LAST; i++) {
+	for_each_pcm_streams(i) {
 		substream = pcm->streams[i].substream;
 		if (!substream)
 			continue;
@@ -428,7 +428,7 @@ static void fsl_asrc_dma_pcm_free(struct snd_soc_component *component,
 	struct snd_pcm_substream *substream;
 	int i;
 
-	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_LAST; i++) {
+	for_each_pcm_streams(i) {
 		substream = pcm->streams[i].substream;
 		if (!substream)
 			continue;
