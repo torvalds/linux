@@ -970,7 +970,7 @@ static int sun6i_dsi_attach(struct mipi_dsi_host *host,
 
 	if (IS_ERR(panel))
 		return PTR_ERR(panel);
-	if (!dsi->drm)
+	if (!dsi->drm || !dsi->drm->registered)
 		return -EPROBE_DEFER;
 
 	dsi->panel = panel;
