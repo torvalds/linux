@@ -3433,16 +3433,13 @@ static void tcf_sample_get_group(struct flow_action_entry *entry,
 }
 
 int tc_setup_flow_action(struct flow_action *flow_action,
-			 const struct tcf_exts *exts, bool rtnl_held)
+			 const struct tcf_exts *exts)
 {
 	struct tc_action *act;
 	int i, j, k, err = 0;
 
 	if (!exts)
 		return 0;
-
-	if (!rtnl_held)
-		rtnl_lock();
 
 	j = 0;
 	tcf_exts_for_each_action(i, act, exts) {
@@ -3577,9 +3574,6 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 	}
 
 err_out:
-	if (!rtnl_held)
-		rtnl_unlock();
-
 	if (err)
 		tc_cleanup_flow_action(flow_action);
 
