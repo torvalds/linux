@@ -1,5 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
 
+=======================================
 efivarfs - a (U)EFI variable filesystem
+=======================================
 
 The efivarfs filesystem was created to address the shortcomings of
 using entries in sysfs to maintain EFI variables. The old sysfs EFI
@@ -11,7 +14,7 @@ than a single page, sysfs isn't the best interface for this.
 Variables can be created, deleted and modified with the efivarfs
 filesystem.
 
-efivarfs is typically mounted like this,
+efivarfs is typically mounted like this::
 
 	mount -t efivarfs none /sys/firmware/efi/efivars
 

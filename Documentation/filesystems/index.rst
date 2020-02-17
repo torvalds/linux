@@ -60,6 +60,7 @@ Documentation for filesystem implementations.
    debugfs
    dlmfs
    ecryptfs
+   efivarfs
    fuse
    overlayfs
    virtiofs
