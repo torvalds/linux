@@ -263,6 +263,7 @@ struct ceph_mds_request {
 	int r_fmode;        /* file mode, if expecting cap */
 	kuid_t r_uid;
 	kgid_t r_gid;
+	int r_request_release_offset;
 	struct timespec64 r_stamp;
 
 	/* for choosing which mds to send this request to */
@@ -280,11 +281,12 @@ struct ceph_mds_request {
 	int r_old_inode_drop, r_old_inode_unless;
 
 	struct ceph_msg  *r_request;  /* original request */
-	int r_request_release_offset;
 	struct ceph_msg  *r_reply;
 	struct ceph_mds_reply_info_parsed r_reply_info;
 	struct page *r_locked_page;
 	int r_err;
+	int r_num_caps;
+	u32               r_readdir_offset;
 
 	unsigned long r_timeout;  /* optional.  jiffies, 0 is "wait forever" */
 	unsigned long r_started;  /* start time to measure timeout against */
@@ -315,10 +317,8 @@ struct ceph_mds_request {
 	long long	  r_dir_release_cnt;
 	long long	  r_dir_ordered_cnt;
 	int		  r_readdir_cache_idx;
-	u32               r_readdir_offset;
 
 	struct ceph_cap_reservation r_caps_reservation;
-	int r_num_caps;
 };
 
 struct ceph_pool_perm {
