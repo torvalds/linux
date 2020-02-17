@@ -787,6 +787,19 @@
 		status = "disabled";
 	};
 
+	can: can@ff610000 {
+		compatible = "rockchip,can-1.0";
+		reg = <0xff610000 0x100>;
+		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+		assigned-clocks = <&cru CLK_CAN>;
+		assigned-clock-rates = <200000000>;
+		clocks = <&cru CLK_CAN>, <&cru PCLK_CAN>;
+		clock-names = "baudclk", "apb_pclk";
+		resets = <&cru SRST_CAN>, <&cru SRST_CAN_P>;
+		reset-names = "can", "can-apb";
+		status = "disabled";
+	};
+
 	mailbox: mailbox@ff6a0000 {
 		compatible = "rockchip,rv1126-mailbox",
 			     "rockchip,rk3368-mailbox";
