@@ -410,6 +410,15 @@ to false.  Generally used with the `kexec_load_disabled`_ toggle.
 msgmax, msgmnb, and msgmni
 ==========================
 
+``msgmax`` is the maximum size of an IPC message, in bytes. 8192 by
+default (``MSGMAX``).
+
+``msgmnb`` is the maximum size of an IPC queue, in bytes. 16384 by
+default (``MSGMNB``).
+
+``msgmni`` is the maximum number of IPC queues. 32000 by default
+(``MSGMNI``).
+
 
 msg_next_id, sem_next_id, and shm_next_id (System V IPC)
 ========================================================
@@ -957,6 +966,9 @@ kernel.  This value defaults to ``SHMMAX``.
 
 shmmni
 ======
+
+This value determines the maximum number of shared memory segments.
+4096 by default (``SHMMNI``).
 
 
 shm_rmid_forced
