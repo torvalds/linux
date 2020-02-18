@@ -172,7 +172,8 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 
 	if (!static_cpu_has(X86_FEATURE_FPU)) {
 		struct user_i387_ia32_struct fp;
-		fpregs_soft_get(current, NULL, 0, sizeof(fp), &fp, NULL);
+		fpregs_soft_get(current, NULL, (struct membuf){.p = &fp,
+						.left = sizeof(fp)});
 		return copy_to_user(buf, &fp, sizeof(fp)) ? -EFAULT : 0;
 	}
 

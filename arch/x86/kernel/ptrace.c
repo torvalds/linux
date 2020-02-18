@@ -433,26 +433,12 @@ static unsigned long getreg(struct task_struct *task, unsigned long offset)
 
 static int genregs_get(struct task_struct *target,
 		       const struct user_regset *regset,
-		       unsigned int pos, unsigned int count,
-		       void *kbuf, void __user *ubuf)
+		       struct membuf to)
 {
-	if (kbuf) {
-		unsigned long *k = kbuf;
-		while (count >= sizeof(*k)) {
-			*k++ = getreg(target, pos);
-			count -= sizeof(*k);
-			pos += sizeof(*k);
-		}
-	} else {
-		unsigned long __user *u = ubuf;
-		while (count >= sizeof(*u)) {
-			if (__put_user(getreg(target, pos), u++))
-				return -EFAULT;
-			count -= sizeof(*u);
-			pos += sizeof(*u);
-		}
-	}
+	int reg;
 
+	for (reg = 0; to.left; reg++)
+		membuf_store(&to, getreg(target, reg * sizeof(unsigned long)));
 	return 0;
 }
 
@@ -716,16 +702,14 @@ static int ioperm_active(struct task_struct *target,
 
 static int ioperm_get(struct task_struct *target,
 		      const struct user_regset *regset,
-		      unsigned int pos, unsigned int count,
-		      void *kbuf, void __user *ubuf)
+		      struct membuf to)
 {
 	struct io_bitmap *iobm = target->thread.io_bitmap;
 
 	if (!iobm)
 		return -ENXIO;
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   iobm->bitmap, 0, IO_BITMAP_BYTES);
+	return membuf_write(&to, iobm->bitmap, IO_BITMAP_BYTES);
 }
 
 /*
@@ -1003,28 +987,15 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 
 static int genregs32_get(struct task_struct *target,
 			 const struct user_regset *regset,
-			 unsigned int pos, unsigned int count,
-			 void *kbuf, void __user *ubuf)
+			 struct membuf to)
 {
-	if (kbuf) {
-		compat_ulong_t *k = kbuf;
-		while (count >= sizeof(*k)) {
-			getreg32(target, pos, k++);
-			count -= sizeof(*k);
-			pos += sizeof(*k);
-		}
-	} else {
-		compat_ulong_t __user *u = ubuf;
-		while (count >= sizeof(*u)) {
-			compat_ulong_t word;
-			getreg32(target, pos, &word);
-			if (__put_user(word, u++))
-				return -EFAULT;
-			count -= sizeof(*u);
-			pos += sizeof(*u);
-		}
-	}
+	int reg;
 
+	for (reg = 0; to.left; reg++) {
+		u32 val;
+		getreg32(target, reg * 4, &val);
+		membuf_store(&to, val);
+	}
 	return 0;
 }
 
@@ -1234,25 +1205,25 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
 		.core_note_type = NT_PRSTATUS,
 		.n = sizeof(struct user_regs_struct) / sizeof(long),
 		.size = sizeof(long), .align = sizeof(long),
-		.get = genregs_get, .set = genregs_set
+		.regset_get = genregs_get, .set = genregs_set
 	},
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG,
 		.n = sizeof(struct user_i387_struct) / sizeof(long),
 		.size = sizeof(long), .align = sizeof(long),
-		.active = regset_xregset_fpregs_active, .get = xfpregs_get, .set = xfpregs_set
+		.active = regset_xregset_fpregs_active, .regset_get = xfpregs_get, .set = xfpregs_set
 	},
 	[REGSET_XSTATE] = {
 		.core_note_type = NT_X86_XSTATE,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = xstateregs_active, .get = xstateregs_get,
+		.active = xstateregs_active, .regset_get = xstateregs_get,
 		.set = xstateregs_set
 	},
 	[REGSET_IOPERM64] = {
 		.core_note_type = NT_386_IOPERM,
 		.n = IO_BITMAP_LONGS,
 		.size = sizeof(long), .align = sizeof(long),
-		.active = ioperm_active, .get = ioperm_get
+		.active = ioperm_active, .regset_get = ioperm_get
 	},
 };
 
@@ -1275,24 +1246,24 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
 		.core_note_type = NT_PRSTATUS,
 		.n = sizeof(struct user_regs_struct32) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
-		.get = genregs32_get, .set = genregs32_set
+		.regset_get = genregs32_get, .set = genregs32_set
 	},
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG,
 		.n = sizeof(struct user_i387_ia32_struct) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
-		.active = regset_fpregs_active, .get = fpregs_get, .set = fpregs_set
+		.active = regset_fpregs_active, .regset_get = fpregs_get, .set = fpregs_set
 	},
 	[REGSET_XFP] = {
 		.core_note_type = NT_PRXFPREG,
 		.n = sizeof(struct user32_fxsr_struct) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
-		.active = regset_xregset_fpregs_active, .get = xfpregs_get, .set = xfpregs_set
+		.active = regset_xregset_fpregs_active, .regset_get = xfpregs_get, .set = xfpregs_set
 	},
 	[REGSET_XSTATE] = {
 		.core_note_type = NT_X86_XSTATE,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = xstateregs_active, .get = xstateregs_get,
+		.active = xstateregs_active, .regset_get = xstateregs_get,
 		.set = xstateregs_set
 	},
 	[REGSET_TLS] = {
@@ -1301,13 +1272,13 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
 		.size = sizeof(struct user_desc),
 		.align = sizeof(struct user_desc),
 		.active = regset_tls_active,
-		.get = regset_tls_get, .set = regset_tls_set
+		.regset_get = regset_tls_get, .set = regset_tls_set
 	},
 	[REGSET_IOPERM32] = {
 		.core_note_type = NT_386_IOPERM,
 		.n = IO_BITMAP_BYTES / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
-		.active = ioperm_active, .get = ioperm_get
+		.active = ioperm_active, .regset_get = ioperm_get
 	},
 };
 
