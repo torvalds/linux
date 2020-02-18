@@ -597,6 +597,7 @@ __be32 nfs4_callback_recallany(void *argp, void *resp,
 	struct cb_recallanyargs *args = argp;
 	__be32 status;
 	fmode_t flags = 0;
+	bool schedule_manager = false;
 
 	status = cpu_to_be32(NFS4ERR_OP_NOT_IN_SESSION);
 	if (!cps->clp) /* set in cb_sequence */
@@ -619,6 +620,18 @@ __be32 nfs4_callback_recallany(void *argp, void *resp,
 
 	if (args->craa_type_mask & BIT(RCA4_TYPE_MASK_FILE_LAYOUT))
 		pnfs_recall_all_layouts(cps->clp);
+
+	if (args->craa_type_mask & BIT(PNFS_FF_RCA4_TYPE_MASK_READ)) {
+		set_bit(NFS4CLNT_RECALL_ANY_LAYOUT_READ, &cps->clp->cl_state);
+		schedule_manager = true;
+	}
+	if (args->craa_type_mask & BIT(PNFS_FF_RCA4_TYPE_MASK_RW)) {
+		set_bit(NFS4CLNT_RECALL_ANY_LAYOUT_RW, &cps->clp->cl_state);
+		schedule_manager = true;
+	}
+	if (schedule_manager)
+		nfs4_schedule_state_manager(cps->clp);
+
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
