@@ -524,11 +524,10 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	}
 
 	if (WARN_ON(exp_info->ops->cache_sgt_mapping &&
-		    exp_info->ops->dynamic_mapping))
+		    (exp_info->ops->pin || exp_info->ops->unpin)))
 		return ERR_PTR(-EINVAL);
 
-	if (WARN_ON(!exp_info->ops->dynamic_mapping &&
-		    (exp_info->ops->pin || exp_info->ops->unpin)))
+	if (WARN_ON(!exp_info->ops->pin != !exp_info->ops->unpin))
 		return ERR_PTR(-EINVAL);
 
 	if (!try_module_get(exp_info->owner))

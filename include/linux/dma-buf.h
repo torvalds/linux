@@ -43,18 +43,6 @@ struct dma_buf_ops {
 	bool cache_sgt_mapping;
 
 	/**
-	 * @dynamic_mapping:
-	 *
-	 * If true the framework makes sure that the map/unmap_dma_buf
-	 * callbacks are always called with the dma_resv object locked.
-	 *
-	 * If false the framework makes sure that the map/unmap_dma_buf
-	 * callbacks are always called without the dma_resv object locked.
-	 * Mutual exclusive with @cache_sgt_mapping.
-	 */
-	bool dynamic_mapping;
-
-	/**
 	 * @attach:
 	 *
 	 * This is called from dma_buf_attach() to make sure that a given
@@ -99,7 +87,8 @@ struct dma_buf_ops {
 	 * This is called by dma_buf_pin and lets the exporter know that the
 	 * DMA-buf can't be moved any more.
 	 *
-	 * This is called with the dmabuf->resv object locked.
+	 * This is called with the dmabuf->resv object locked and is mutual
+	 * exclusive with @cache_sgt_mapping.
 	 *
 	 * This callback is optional and should only be used in limited use
 	 * cases like scanout and not for temporary pin operations.
@@ -116,7 +105,8 @@ struct dma_buf_ops {
 	 * This is called by dma_buf_unpin and lets the exporter know that the
 	 * DMA-buf can be moved again.
 	 *
-	 * This is called with the dmabuf->resv object locked.
+	 * This is called with the dmabuf->resv object locked and is mutual
+	 * exclusive with @cache_sgt_mapping.
 	 *
 	 * This callback is optional.
 	 */
@@ -455,8 +445,7 @@ static inline void get_dma_buf(struct dma_buf *dmabuf)
  */
 static inline bool dma_buf_is_dynamic(struct dma_buf *dmabuf)
 {
-	/* TODO: switch to using pin/unpin functions as indicator. */
-	return dmabuf->ops->dynamic_mapping;
+	return !!dmabuf->ops->pin;
 }
 
 /**
