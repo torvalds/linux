@@ -16,6 +16,7 @@
 
 #include "esw/chains.h"
 #include "en/tc_ct.h"
+#include "en/mod_hdr.h"
 #include "en.h"
 #include "en_tc.h"
 #include "en_rep.h"
@@ -59,6 +60,7 @@ struct mlx5_ct_flow {
 
 struct mlx5_ct_zone_rule {
 	struct mlx5_flow_handle *rule;
+	struct mlx5e_mod_hdr_handle *mh;
 	struct mlx5_esw_flow_attr attr;
 	bool nat;
 };
@@ -397,7 +399,8 @@ mlx5_tc_ct_entry_del_rule(struct mlx5_tc_ct_priv *ct_priv,
 	ct_dbg("Deleting ct entry rule in zone %d", entry->tuple.zone);
 
 	mlx5_eswitch_del_offloaded_rule(esw, zone_rule->rule, attr);
-	mlx5_modify_header_dealloc(esw->dev, attr->modify_hdr);
+	mlx5e_mod_hdr_detach(ct_priv->esw->dev,
+			     &esw->offloads.mod_hdr, zone_rule->mh);
 }
 
 static void
@@ -579,11 +582,10 @@ static int
 mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 				struct mlx5_esw_flow_attr *attr,
 				struct flow_rule *flow_rule,
+				struct mlx5e_mod_hdr_handle **mh,
 				u16 zone, bool nat)
 {
 	struct mlx5e_tc_mod_hdr_acts mod_acts = {};
-	struct mlx5_eswitch *esw = ct_priv->esw;
-	struct mlx5_modify_hdr *mod_hdr;
 	struct flow_action_entry *meta;
 	u16 ct_state = 0;
 	int err;
@@ -617,14 +619,15 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 	if (err)
 		goto err_mapping;
 
-	mod_hdr = mlx5_modify_header_alloc(esw->dev, MLX5_FLOW_NAMESPACE_FDB,
-					   mod_acts.num_actions,
-					   mod_acts.actions);
-	if (IS_ERR(mod_hdr)) {
-		err = PTR_ERR(mod_hdr);
+	*mh = mlx5e_mod_hdr_attach(ct_priv->esw->dev,
+				   &ct_priv->esw->offloads.mod_hdr,
+				   MLX5_FLOW_NAMESPACE_FDB,
+				   &mod_acts);
+	if (IS_ERR(*mh)) {
+		err = PTR_ERR(*mh);
 		goto err_mapping;
 	}
-	attr->modify_hdr = mod_hdr;
+	attr->modify_hdr = mlx5e_mod_hdr_get(*mh);
 
 	dealloc_mod_hdr_actions(&mod_acts);
 	return 0;
@@ -653,6 +656,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 		return -ENOMEM;
 
 	err = mlx5_tc_ct_entry_create_mod_hdr(ct_priv, attr, flow_rule,
+					      &zone_rule->mh,
 					      entry->tuple.zone, nat);
 	if (err) {
 		ct_dbg("Failed to create ct entry mod hdr");
@@ -687,7 +691,8 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	return 0;
 
 err_rule:
-	mlx5_modify_header_dealloc(esw->dev, attr->modify_hdr);
+	mlx5e_mod_hdr_detach(ct_priv->esw->dev,
+			     &esw->offloads.mod_hdr, zone_rule->mh);
 err_mod_hdr:
 	kfree(spec);
 	return err;
