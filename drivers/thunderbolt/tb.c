@@ -437,6 +437,11 @@ static int tb_tunnel_usb3(struct tb *tb, struct tb_switch *sw)
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_tunnel *tunnel;
 
+	if (!tb_acpi_may_tunnel_usb3()) {
+		tb_dbg(tb, "USB3 tunneling disabled, not creating tunnel\n");
+		return 0;
+	}
+
 	up = tb_switch_find_port(sw, TB_TYPE_USB3_UP);
 	if (!up)
 		return 0;
@@ -511,6 +516,9 @@ static int tb_create_usb3_tunnels(struct tb_switch *sw)
 {
 	struct tb_port *port;
 	int ret;
+
+	if (!tb_acpi_may_tunnel_usb3())
+		return 0;
 
 	if (tb_route(sw)) {
 		ret = tb_tunnel_usb3(sw->tb, sw);
@@ -840,6 +848,11 @@ static void tb_tunnel_dp(struct tb *tb)
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_port *port, *in, *out;
 	struct tb_tunnel *tunnel;
+
+	if (!tb_acpi_may_tunnel_dp()) {
+		tb_dbg(tb, "DP tunneling disabled, not creating tunnel\n");
+		return;
+	}
 
 	/*
 	 * Find pair of inactive DP IN and DP OUT adapters and then
@@ -1549,7 +1562,11 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 	if (!tb)
 		return NULL;
 
-	tb->security_level = TB_SECURITY_USER;
+	if (tb_acpi_may_tunnel_pcie())
+		tb->security_level = TB_SECURITY_USER;
+	else
+		tb->security_level = TB_SECURITY_NOPCIE;
+
 	tb->cm_ops = &tb_cm_ops;
 
 	tcm = tb_priv(tb);

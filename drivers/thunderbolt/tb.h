@@ -1044,8 +1044,20 @@ void tb_check_quirks(struct tb_switch *sw);
 
 #ifdef CONFIG_ACPI
 void tb_acpi_add_links(struct tb_nhi *nhi);
+
+bool tb_acpi_is_native(void);
+bool tb_acpi_may_tunnel_usb3(void);
+bool tb_acpi_may_tunnel_dp(void);
+bool tb_acpi_may_tunnel_pcie(void);
+bool tb_acpi_is_xdomain_allowed(void);
 #else
 static inline void tb_acpi_add_links(struct tb_nhi *nhi) { }
+
+static inline bool tb_acpi_is_native(void) { return true; }
+static inline bool tb_acpi_may_tunnel_usb3(void) { return true; }
+static inline bool tb_acpi_may_tunnel_dp(void) { return true; }
+static inline bool tb_acpi_may_tunnel_pcie(void) { return true; }
+static inline bool tb_acpi_is_xdomain_allowed(void) { return true; }
 #endif
 
 #ifdef CONFIG_DEBUG_FS
