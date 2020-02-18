@@ -4442,51 +4442,6 @@ out:
 	return 0;
 }
 
-/*
- * Callback for btrfs_uuid_tree_iterate().
- * returns:
- * 0	check succeeded, the entry is not outdated.
- * < 0	if an error occurred.
- * > 0	if the check failed, which means the caller shall remove the entry.
- */
-static int btrfs_check_uuid_tree_entry(struct btrfs_fs_info *fs_info,
-				       u8 *uuid, u8 type, u64 subid)
-{
-	struct btrfs_key key;
-	int ret = 0;
-	struct btrfs_root *subvol_root;
-
-	if (type != BTRFS_UUID_KEY_SUBVOL &&
-	    type != BTRFS_UUID_KEY_RECEIVED_SUBVOL)
-		goto out;
-
-	key.objectid = subid;
-	key.type = BTRFS_ROOT_ITEM_KEY;
-	key.offset = (u64)-1;
-	subvol_root = btrfs_get_fs_root(fs_info, &key, true);
-	if (IS_ERR(subvol_root)) {
-		ret = PTR_ERR(subvol_root);
-		if (ret == -ENOENT)
-			ret = 1;
-		goto out;
-	}
-
-	switch (type) {
-	case BTRFS_UUID_KEY_SUBVOL:
-		if (memcmp(uuid, subvol_root->root_item.uuid, BTRFS_UUID_SIZE))
-			ret = 1;
-		break;
-	case BTRFS_UUID_KEY_RECEIVED_SUBVOL:
-		if (memcmp(uuid, subvol_root->root_item.received_uuid,
-			   BTRFS_UUID_SIZE))
-			ret = 1;
-		break;
-	}
-	btrfs_put_root(subvol_root);
-out:
-	return ret;
-}
-
 static int btrfs_uuid_rescan_kthread(void *data)
 {
 	struct btrfs_fs_info *fs_info = (struct btrfs_fs_info *)data;
@@ -4497,7 +4452,7 @@ static int btrfs_uuid_rescan_kthread(void *data)
 	 * to delete all entries that contain outdated data.
 	 * 2nd step is to add all missing entries to the UUID tree.
 	 */
-	ret = btrfs_uuid_tree_iterate(fs_info, btrfs_check_uuid_tree_entry);
+	ret = btrfs_uuid_tree_iterate(fs_info);
 	if (ret < 0) {
 		btrfs_warn(fs_info, "iterating uuid_tree failed %d", ret);
 		up(&fs_info->uuid_tree_rescan_sem);
