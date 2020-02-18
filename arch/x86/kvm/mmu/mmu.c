@@ -5942,7 +5942,8 @@ void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,
 	 * kvm_mmu_slot_remove_write_access().
 	 */
 	lockdep_assert_held(&kvm->slots_lock);
-	kvm_flush_remote_tlbs(kvm);
+	kvm_flush_remote_tlbs_with_address(kvm, memslot->base_gfn,
+					   memslot->npages);
 }
 
 void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
