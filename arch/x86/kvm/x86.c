@@ -6492,10 +6492,11 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	gpa_t gpa = cr2_or_gpa;
 	kvm_pfn_t pfn;
 
-	if (!(emulation_type & EMULTYPE_ALLOW_RETRY))
+	if (!(emulation_type & EMULTYPE_ALLOW_RETRY_PF))
 		return false;
 
-	if (WARN_ON_ONCE(is_guest_mode(vcpu)))
+	if (WARN_ON_ONCE(is_guest_mode(vcpu)) ||
+	    WARN_ON_ONCE(!(emulation_type & EMULTYPE_PF)))
 		return false;
 
 	if (!vcpu->arch.mmu->direct_map) {
@@ -6583,10 +6584,11 @@ static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
 	 */
 	vcpu->arch.last_retry_eip = vcpu->arch.last_retry_addr = 0;
 
-	if (!(emulation_type & EMULTYPE_ALLOW_RETRY))
+	if (!(emulation_type & EMULTYPE_ALLOW_RETRY_PF))
 		return false;
 
-	if (WARN_ON_ONCE(is_guest_mode(vcpu)))
+	if (WARN_ON_ONCE(is_guest_mode(vcpu)) ||
+	    WARN_ON_ONCE(!(emulation_type & EMULTYPE_PF)))
 		return false;
 
 	if (x86_page_table_writing_insn(ctxt))
@@ -6839,8 +6841,19 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	}
 
 restart:
-	/* Save the faulting GPA (cr2) in the address field */
-	ctxt->exception.address = cr2_or_gpa;
+	if (emulation_type & EMULTYPE_PF) {
+		/* Save the faulting GPA (cr2) in the address field */
+		ctxt->exception.address = cr2_or_gpa;
+
+		/* With shadow page tables, cr2 contains a GVA or nGPA. */
+		if (vcpu->arch.mmu->direct_map) {
+			vcpu->arch.gpa_available = true;
+			vcpu->arch.gpa_val = cr2_or_gpa;
+		}
+	} else {
+		/* Sanitize the address out of an abundance of paranoia. */
+		ctxt->exception.address = 0;
+	}
 
 	r = x86_emulate_insn(ctxt);
 
