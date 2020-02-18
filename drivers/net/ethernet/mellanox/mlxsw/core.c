@@ -82,7 +82,7 @@ struct mlxsw_core {
 	struct mlxsw_core_port *ports;
 	unsigned int max_ports;
 	bool fw_flash_in_progress;
-	unsigned long driver_priv[0];
+	unsigned long driver_priv[];
 	/* driver_priv has to be always the last item */
 };
 

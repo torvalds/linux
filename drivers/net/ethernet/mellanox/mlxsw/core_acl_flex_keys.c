@@ -72,7 +72,7 @@ struct mlxsw_afk_key_info {
 						      * is index inside "blocks"
 						      */
 	struct mlxsw_afk_element_usage elusage;
-	const struct mlxsw_afk_block *blocks[0];
+	const struct mlxsw_afk_block *blocks[];
 };
 
 static bool

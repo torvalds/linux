@@ -8,7 +8,7 @@
 
 struct mlxsw_sp_kvdl {
 	const struct mlxsw_sp_kvdl_ops *kvdl_ops;
-	unsigned long priv[0];
+	unsigned long priv[];
 	/* priv has to be always the last item */
 };
 

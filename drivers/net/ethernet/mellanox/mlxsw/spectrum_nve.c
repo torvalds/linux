@@ -67,7 +67,7 @@ struct mlxsw_sp_nve_mc_record {
 	struct mlxsw_sp_nve_mc_list *mc_list;
 	const struct mlxsw_sp_nve_mc_record_ops *ops;
 	u32 kvdl_index;
-	struct mlxsw_sp_nve_mc_entry entries[0];
+	struct mlxsw_sp_nve_mc_entry entries[];
 };
 
 struct mlxsw_sp_nve_mc_list {

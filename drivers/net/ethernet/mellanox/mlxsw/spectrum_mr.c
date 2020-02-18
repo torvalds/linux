@@ -68,7 +68,7 @@ struct mlxsw_sp_mr_table {
 	struct list_head route_list;
 	struct rhashtable route_ht;
 	const struct mlxsw_sp_mr_table_ops *ops;
-	char catchall_route_priv[0];
+	char catchall_route_priv[];
 	/* catchall_route_priv has to be always the last item */
 };
 
