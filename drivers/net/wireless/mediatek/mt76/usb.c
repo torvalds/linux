@@ -1157,6 +1157,7 @@ int mt76u_init(struct mt76_dev *dev,
 	};
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct mt76_usb *usb = &dev->usb;
+	int err = -ENOMEM;
 
 	mt76u_ops.rr = ext ? mt76u_rr_ext : mt76u_rr;
 	mt76u_ops.wr = ext ? mt76u_wr_ext : mt76u_wr;
@@ -1176,10 +1177,8 @@ int mt76u_init(struct mt76_dev *dev,
 		usb->data_len = 32;
 
 	usb->data = devm_kmalloc(dev->dev, usb->data_len, GFP_KERNEL);
-	if (!usb->data) {
-		mt76u_deinit(dev);
-		return -ENOMEM;
-	}
+	if (!usb->data)
+		goto error;
 
 	mutex_init(&usb->usb_ctrl_mtx);
 	dev->bus = &mt76u_ops;
@@ -1189,7 +1188,15 @@ int mt76u_init(struct mt76_dev *dev,
 
 	usb->sg_en = mt76u_check_sg(dev);
 
-	return mt76u_set_endpoints(intf, usb);
+	err = mt76u_set_endpoints(intf, usb);
+	if (err < 0)
+		goto error;
+
+	return 0;
+
+error:
+	mt76u_deinit(dev);
+	return err;
 }
 EXPORT_SYMBOL_GPL(mt76u_init);
 
