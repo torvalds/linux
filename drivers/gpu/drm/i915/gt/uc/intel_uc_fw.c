@@ -279,7 +279,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 
 	err = i915_inject_probe_error(i915, -ENXIO);
 	if (err)
-		return err;
+		goto fail;
 
 	__force_fw_fetch_failures(uc_fw, -EINVAL);
 	__force_fw_fetch_failures(uc_fw, -ESTALE);
