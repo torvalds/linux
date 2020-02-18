@@ -1173,7 +1173,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	int out_index;
 
 	if (!mlx5_esw_chains_prios_supported(esw) && attr->prio != 1) {
-		NL_SET_ERR_MSG(extack, "E-switch priorities unsupported, upgrade FW");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "E-switch priorities unsupported, upgrade FW");
 		return -EOPNOTSUPP;
 	}
 
@@ -1184,13 +1185,15 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	 */
 	max_chain = mlx5_esw_chains_get_chain_range(esw);
 	if (!mlx5e_is_ft_flow(flow) && attr->chain > max_chain) {
-		NL_SET_ERR_MSG(extack, "Requested chain is out of supported range");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Requested chain is out of supported range");
 		return -EOPNOTSUPP;
 	}
 
 	max_prio = mlx5_esw_chains_get_prio_range(esw);
 	if (attr->prio > max_prio) {
-		NL_SET_ERR_MSG(extack, "Requested priority is out of supported range");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Requested priority is out of supported range");
 		return -EOPNOTSUPP;
 	}
 
@@ -3540,11 +3543,13 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			}
 			if (!mlx5_esw_chains_backwards_supported(esw) &&
 			    dest_chain <= attr->chain) {
-				NL_SET_ERR_MSG(extack, "Goto earlier chain isn't supported");
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Goto earlier chain isn't supported");
 				return -EOPNOTSUPP;
 			}
 			if (dest_chain > max_chain) {
-				NL_SET_ERR_MSG(extack, "Requested destination chain is out of supported range");
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Requested destination chain is out of supported range");
 				return -EOPNOTSUPP;
 			}
 			action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
@@ -3594,7 +3599,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 	if (attr->dest_chain) {
 		if (attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
-			NL_SET_ERR_MSG(extack, "Mirroring goto chain rules isn't supported");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Mirroring goto chain rules isn't supported");
 			return -EOPNOTSUPP;
 		}
 		attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
@@ -3602,7 +3608,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 	if (!(attr->action &
 	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
-		NL_SET_ERR_MSG(extack, "Rule must have at least one forward/drop action");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Rule must have at least one forward/drop action");
 		return -EOPNOTSUPP;
 	}
 
