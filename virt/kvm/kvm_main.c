@@ -1089,7 +1089,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		new.userspace_addr = mem->userspace_addr;
 
 		if (kvm_arch_create_memslot(kvm, &new, npages))
-			goto out_free;
+			goto out;
 	}
 
 	/* Allocate page dirty bitmap if needed */
