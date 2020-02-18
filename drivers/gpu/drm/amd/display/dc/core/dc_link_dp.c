@@ -1446,6 +1446,10 @@ enum link_training_result dc_link_dp_perform_link_training(
 			&link->preferred_training_settings,
 			&lt_settings);
 
+	/* Configure lttpr mode */
+	if (!link->is_lttpr_mode_transparent)
+		configure_lttpr_mode(link);
+
 	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
 		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
 
@@ -1460,8 +1464,6 @@ enum link_training_result dc_link_dp_perform_link_training(
 	dp_set_fec_ready(link, fec_enable);
 
 	if (!link->is_lttpr_mode_transparent) {
-		/* Configure lttpr mode */
-		configure_lttpr_mode(link);
 
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
