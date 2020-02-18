@@ -5932,12 +5932,12 @@ S:	Maintained
 F:	drivers/media/dvb-frontends/ec100*
 
 ECRYPT FILE SYSTEM
-M:	Tyler Hicks <tyhicks@canonical.com>
+M:	Tyler Hicks <code@tyhicks.com>
 L:	ecryptfs@vger.kernel.org
 W:	http://ecryptfs.org
 W:	https://launchpad.net/ecryptfs
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tyhicks/ecryptfs.git
-S:	Supported
+S:	Odd Fixes
 F:	Documentation/filesystems/ecryptfs.txt
 F:	fs/ecryptfs/
 
