@@ -477,14 +477,6 @@ struct efi_mem_range {
 	u64 attribute;
 };
 
-struct efi_fdt_params {
-	u64 system_table;
-	u64 mmap;
-	u32 mmap_size;
-	u32 desc_size;
-	u32 desc_ver;
-};
-
 typedef struct {
 	u32 version;
 	u32 length;
@@ -631,7 +623,7 @@ extern void efi_mem_reserve(phys_addr_t addr, u64 size);
 extern int efi_mem_reserve_persistent(phys_addr_t addr, u64 size);
 extern void efi_initialize_iomem_resources(struct resource *code_resource,
 		struct resource *data_resource, struct resource *bss_resource);
-extern int efi_get_fdt_params(struct efi_fdt_params *params);
+extern u64 efi_get_fdt_params(struct efi_memory_map_data *data);
 extern struct kobject *efi_kobj;
 
 extern int efi_reboot_quirk_mode;

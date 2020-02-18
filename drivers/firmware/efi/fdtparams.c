@@ -18,6 +18,14 @@
 		sizeof_field(struct efi_fdt_params, field) \
 	}
 
+struct efi_fdt_params {
+	u64 system_table;
+	u64 mmap;
+	u32 mmap_size;
+	u32 desc_size;
+	u32 desc_ver;
+};
+
 struct params {
 	const char name[32];
 	const char propname[32];
@@ -121,22 +129,30 @@ static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
 	return 0;
 }
 
-int __init efi_get_fdt_params(struct efi_fdt_params *params)
+u64 __init efi_get_fdt_params(struct efi_memory_map_data *memmap)
 {
+	struct efi_fdt_params params;
 	struct param_info info;
 	int ret;
 
 	pr_info("Getting EFI parameters from FDT:\n");
 
 	info.found = 0;
-	info.params = params;
+	info.params = &params;
 
 	ret = of_scan_flat_dt(fdt_find_uefi_params, &info);
-	if (!info.found)
+	if (!info.found) {
 		pr_info("UEFI not found.\n");
-	else if (!ret)
-		pr_err("Can't find '%s' in device tree!\n",
-		       info.missing);
+		return 0;
+	} else if (!ret) {
+		pr_err("Can't find '%s' in device tree!\n", info.missing);
+		return 0;
+	}
 
-	return ret;
+	memmap->desc_version	= params.desc_ver;
+	memmap->desc_size	= params.desc_size;
+	memmap->size		= params.mmap_size;
+	memmap->phys_map	= params.mmap;
+
+	return params.system_table;
 }

@@ -205,16 +205,12 @@ static __init void reserve_regions(void)
 void __init efi_init(void)
 {
 	struct efi_memory_map_data data;
-	struct efi_fdt_params params;
+	u64 efi_system_table;
 
 	/* Grab UEFI information placed in FDT by stub */
-	if (!efi_get_fdt_params(&params))
+	efi_system_table = efi_get_fdt_params(&data);
+	if (!efi_system_table)
 		return;
-
-	data.desc_version = params.desc_ver;
-	data.desc_size = params.desc_size;
-	data.size = params.mmap_size;
-	data.phys_map = params.mmap;
 
 	if (efi_memmap_init_early(&data) < 0) {
 		/*
@@ -229,7 +225,7 @@ void __init efi_init(void)
 	     "Unexpected EFI_MEMORY_DESCRIPTOR version %ld",
 	      efi.memmap.desc_version);
 
-	if (uefi_init(params.system_table) < 0) {
+	if (uefi_init(efi_system_table) < 0) {
 		efi_memmap_unmap();
 		return;
 	}
@@ -237,9 +233,8 @@ void __init efi_init(void)
 	reserve_regions();
 	efi_esrt_init();
 
-	memblock_reserve(params.mmap & PAGE_MASK,
-			 PAGE_ALIGN(params.mmap_size +
-				    (params.mmap & ~PAGE_MASK)));
+	memblock_reserve(data.phys_map & PAGE_MASK,
+			 PAGE_ALIGN(data.size + (data.phys_map & ~PAGE_MASK)));
 
 	init_screen_info();
 
