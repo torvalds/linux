@@ -73,7 +73,7 @@
 	status = "okay";
 };
 
-&edp_panel {
+&panel {
 	compatible = "simple-panel";
 	backlight = <&backlight>;
 	enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
@@ -369,10 +369,6 @@
 	lcdc-supply = <&vcc_lcd>;
 	sdcard-supply = <&vccio_sd>;
 	wifi-supply = <&vcc_wl>;
-};
-
-&lvds_panel {
-	power-supply = <&vcc_lcd>;
 };
 
 &rockchip_suspend {

@@ -46,10 +46,6 @@
 #include <dt-bindings/display/media-bus-format.h>
 
 / {
-	firmware {
-		firmware_android: android {};
-	};
-
 	chosen: chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff690000 vmalloc=496M";
 	};
@@ -320,7 +316,8 @@
 				"rockchip,rk3368-hdmi-analog";
 		rockchip,model = "rockchip,rt5640-codec";
 		rockchip,cpu = <&i2s>;
-		rockchip,codec = <&rt5640>, <&hdmi>;
+		//rockchip,codec = <&rt5640>, <&hdmi>;
+		rockchip,codec = <&hdmi>;
 		rockchip,widgets =
 			"Microphone", "Microphone Jack",
 			"Headphone", "Headphone Jack";
@@ -385,8 +382,8 @@
 	dma-coherent;
 };
 
-&video_phy {
-	status = "okay";
+&uart2 {
+	status = "disabled";
 };
 
 &pinctrl {
