@@ -1376,7 +1376,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		execlists_active_lock_bh(execlists);
 		rcu_read_lock();
 		for (port = execlists->active; (rq = *port); port++) {
-			char hdr[80];
+			char hdr[160];
 			int len;
 
 			len = snprintf(hdr, sizeof(hdr),
@@ -1386,10 +1386,12 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 				struct intel_timeline *tl = get_timeline(rq);
 
 				len += snprintf(hdr + len, sizeof(hdr) - len,
-						"ring:{start:%08x, hwsp:%08x, seqno:%08x}, ",
+						"ring:{start:%08x, hwsp:%08x, seqno:%08x, runtime:%llums}, ",
 						i915_ggtt_offset(rq->ring->vma),
 						tl ? tl->hwsp_offset : 0,
-						hwsp_seqno(rq));
+						hwsp_seqno(rq),
+						DIV_ROUND_CLOSEST_ULL(intel_context_get_total_runtime_ns(rq->context),
+								      1000 * 1000));
 
 				if (tl)
 					intel_timeline_put(tl);
