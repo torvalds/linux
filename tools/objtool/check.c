@@ -1025,7 +1025,7 @@ static struct rela *find_jump_table(struct objtool_file *file,
 				      struct instruction *insn)
 {
 	struct rela *text_rela, *table_rela;
-	struct instruction *orig_insn = insn;
+	struct instruction *dest_insn, *orig_insn = insn;
 	struct section *table_sec;
 	unsigned long table_offset;
 
@@ -1077,9 +1077,16 @@ static struct rela *find_jump_table(struct objtool_file *file,
 		    strcmp(table_sec->name, C_JUMP_TABLE_SECTION))
 			continue;
 
-		/* Each table entry has a rela associated with it. */
+		/*
+		 * Each table entry has a rela associated with it.  The rela
+		 * should reference text in the same function as the original
+		 * instruction.
+		 */
 		table_rela = find_rela_by_dest(table_sec, table_offset);
 		if (!table_rela)
+			continue;
+		dest_insn = find_insn(file, table_rela->sym->sec, table_rela->addend);
+		if (!dest_insn || !dest_insn->func || dest_insn->func->pfunc != func)
 			continue;
 
 		/*
