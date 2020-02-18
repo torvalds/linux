@@ -3095,8 +3095,8 @@ void core_link_enable_stream(
 		dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->link->cur_link_settings);
 
-		if (stream->link->local_sink->edid_caps.panel_patch.delay_ignore_msa > 0)
-			msleep(stream->link->local_sink->edid_caps.panel_patch.delay_ignore_msa);
+		if (stream->sink_patches.delay_ignore_msa > 0)
+			msleep(stream->sink_patches.delay_ignore_msa);
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			enable_stream_features(pipe_ctx);
