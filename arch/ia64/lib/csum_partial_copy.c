@@ -103,33 +103,23 @@ out:
  * This is very ugly but temporary. THIS NEEDS SERIOUS ENHANCEMENTS.
  * But it's very tricky to get right even in C.
  */
-extern unsigned long do_csum(const unsigned char *, long);
-
 __wsum
-csum_partial_copy_from_user(const void __user *src, void *dst,
+csum_and_copy_from_user(const void __user *src, void *dst,
 				int len, __wsum psum, int *errp)
 {
-	unsigned long result;
-
 	/* XXX Fixme
 	 * for now we separate the copy from checksum for obvious
 	 * alignment difficulties. Look at the Alpha code and you'll be
 	 * scared.
 	 */
 
-	if (__copy_from_user(dst, src, len) != 0 && errp)
+	if (copy_from_user(dst, src, len))
 		*errp = -EFAULT;
 
-	result = do_csum(dst, len);
-
-	/* add in old sum, and carry.. */
-	result += (__force u32)psum;
-	/* 32+c bits -> 32 bits */
-	result = (result & 0xffffffff) + (result >> 32);
-	return (__force __wsum)result;
+	return csum_partial(dst, len, psum);
 }
 
-EXPORT_SYMBOL(csum_partial_copy_from_user);
+EXPORT_SYMBOL(csum_and_copy_from_user);
 
 __wsum
 csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
