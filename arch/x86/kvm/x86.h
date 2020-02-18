@@ -5,6 +5,7 @@
 #include <linux/kvm_host.h>
 #include <asm/pvclock.h>
 #include "kvm_cache_regs.h"
+#include "kvm_emulate.h"
 
 #define KVM_DEFAULT_PLE_GAP		128
 #define KVM_VMX_DEFAULT_PLE_WINDOW	4096

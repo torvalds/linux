@@ -185,7 +185,10 @@ enum exit_fastpath_completion {
 	EXIT_FASTPATH_SKIP_EMUL_INS,
 };
 
-#include <asm/kvm_emulate.h>
+struct x86_emulate_ctxt;
+struct x86_exception;
+enum x86_intercept;
+enum x86_intercept_stage;
 
 #define KVM_NR_MEM_OBJS 40
 
@@ -1417,8 +1420,6 @@ int kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data);
 int kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data);
 int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu);
 int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu);
-
-struct x86_emulate_ctxt;
 
 int kvm_fast_pio(struct kvm_vcpu *vcpu, int size, unsigned short port, int in);
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu);

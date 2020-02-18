@@ -19,6 +19,7 @@
 #include "mmu.h"
 #include "x86.h"
 #include "kvm_cache_regs.h"
+#include "kvm_emulate.h"
 #include "cpuid.h"
 
 #include <linux/kvm_host.h>
