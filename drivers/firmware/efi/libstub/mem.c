@@ -16,6 +16,15 @@ static inline bool mmap_has_headroom(unsigned long buff_size,
 	return slack / desc_size >= EFI_MMAP_NR_SLACK_SLOTS;
 }
 
+/**
+ * efi_get_memory_map() - get memory map
+ * @map:	on return pointer to memory map
+ *
+ * Retrieve the UEFI memory map. The allocated memory leaves room for
+ * up to EFI_MMAP_NR_SLACK_SLOTS additional memory map entries.
+ *
+ * Return:	status code
+ */
 efi_status_t efi_get_memory_map(struct efi_boot_memmap *map)
 {
 	efi_memory_desc_t *m = NULL;
@@ -109,8 +118,20 @@ efi_status_t efi_allocate_pages(unsigned long size, unsigned long *addr,
 	}
 	return EFI_SUCCESS;
 }
-/*
- * Allocate at the lowest possible address that is not below 'min'.
+/**
+ * efi_low_alloc_above() - allocate pages at or above given address
+ * @size:	size of the memory area to allocate
+ * @align:	minimum alignment of the allocated memory area. It should
+ *		a power of two.
+ * @addr:	on exit the address of the allocated memory
+ * @min:	minimum address to used for the memory allocation
+ *
+ * Allocate at the lowest possible address that is not below @min as
+ * EFI_LOADER_DATA. The allocated pages are aligned according to @align but at
+ * least EFI_ALLOC_ALIGN. The first allocated page will not below the address
+ * given by @min.
+ *
+ * Return:	status code
  */
 efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 				 unsigned long *addr, unsigned long min)
@@ -187,6 +208,17 @@ fail:
 	return status;
 }
 
+/**
+ * efi_free() - free memory pages
+ * @size:	size of the memory area to free in bytes
+ * @addr:	start of the memory area to free (must be EFI_PAGE_SIZE
+ *		aligned)
+ *
+ * @size is rounded up to a multiple of EFI_ALLOC_ALIGN which is an
+ * architecture specific multiple of EFI_PAGE_SIZE. So this function should
+ * only be used to return pages allocated with efi_allocate_pages() or
+ * efi_low_alloc_above().
+ */
 void efi_free(unsigned long size, unsigned long addr)
 {
 	unsigned long nr_pages;
