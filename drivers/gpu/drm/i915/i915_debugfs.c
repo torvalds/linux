@@ -1558,11 +1558,12 @@ static void i915_guc_log_info(struct seq_file *m, struct intel_guc_log *log)
 static int i915_guc_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct intel_uc *uc = &dev_priv->gt.uc;
 
-	if (!USES_GUC(dev_priv))
+	if (!intel_uc_uses_guc(uc))
 		return -ENODEV;
 
-	i915_guc_log_info(m, &dev_priv->gt.uc.guc.log);
+	i915_guc_log_info(m, &uc->guc.log);
 
 	/* Add more as required ... */
 
@@ -1663,11 +1664,12 @@ static int i915_guc_log_dump(struct seq_file *m, void *data)
 static int i915_guc_log_level_get(void *data, u64 *val)
 {
 	struct drm_i915_private *dev_priv = data;
+	struct intel_uc *uc = &dev_priv->gt.uc;
 
-	if (!USES_GUC(dev_priv))
+	if (!intel_uc_uses_guc(uc))
 		return -ENODEV;
 
-	*val = intel_guc_log_get_level(&dev_priv->gt.uc.guc.log);
+	*val = intel_guc_log_get_level(&uc->guc.log);
 
 	return 0;
 }
@@ -1675,11 +1677,12 @@ static int i915_guc_log_level_get(void *data, u64 *val)
 static int i915_guc_log_level_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
+	struct intel_uc *uc = &dev_priv->gt.uc;
 
-	if (!USES_GUC(dev_priv))
+	if (!intel_uc_uses_guc(uc))
 		return -ENODEV;
 
-	return intel_guc_log_set_level(&dev_priv->gt.uc.guc.log, val);
+	return intel_guc_log_set_level(&uc->guc.log, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_level_fops,
