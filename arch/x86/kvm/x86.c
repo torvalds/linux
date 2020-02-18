@@ -5745,10 +5745,9 @@ static int emulator_read_write_onepage(unsigned long addr, void *val,
 	 * operation using rep will only have the initial GPA from the NPF
 	 * occurred.
 	 */
-	if (vcpu->arch.gpa_available &&
-	    emulator_can_use_gpa(ctxt) &&
-	    (addr & ~PAGE_MASK) == (vcpu->arch.gpa_val & ~PAGE_MASK)) {
-		gpa = vcpu->arch.gpa_val;
+	if (ctxt->gpa_available && emulator_can_use_gpa(ctxt) &&
+	    (addr & ~PAGE_MASK) == (ctxt->gpa_val & ~PAGE_MASK)) {
+		gpa = ctxt->gpa_val;
 		ret = vcpu_is_mmio_gpa(vcpu, addr, gpa, write);
 	} else {
 		ret = vcpu_mmio_gva_to_gpa(vcpu, addr, &gpa, exception, write);
@@ -6417,6 +6416,7 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 
 	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
 
+	ctxt->gpa_available = false;
 	ctxt->eflags = kvm_get_rflags(vcpu);
 	ctxt->tf = (ctxt->eflags & X86_EFLAGS_TF) != 0;
 
@@ -6847,8 +6847,8 @@ restart:
 
 		/* With shadow page tables, cr2 contains a GVA or nGPA. */
 		if (vcpu->arch.mmu->direct_map) {
-			vcpu->arch.gpa_available = true;
-			vcpu->arch.gpa_val = cr2_or_gpa;
+			ctxt->gpa_available = true;
+			ctxt->gpa_val = cr2_or_gpa;
 		}
 	} else {
 		/* Sanitize the address out of an abundance of paranoia. */
@@ -8454,7 +8454,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.apic_attention)
 		kvm_lapic_sync_from_vapic(vcpu);
 
-	vcpu->arch.gpa_available = false;
 	r = kvm_x86_ops->handle_exit(vcpu, exit_fastpath);
 	return r;
 

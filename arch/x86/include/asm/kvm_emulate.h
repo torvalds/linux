@@ -319,6 +319,10 @@ struct x86_emulate_ctxt {
 	bool have_exception;
 	struct x86_exception exception;
 
+	/* GPA available */
+	bool gpa_available;
+	gpa_t gpa_val;
+
 	/*
 	 * decode cache
 	 */
