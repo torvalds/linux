@@ -235,13 +235,13 @@ static struct kmem_cache *x86_emulator_cache;
 
 static struct kmem_cache *kvm_alloc_emulator_cache(void)
 {
-	return kmem_cache_create_usercopy("x86_emulator",
-					  sizeof(struct x86_emulate_ctxt),
+	unsigned int useroffset = offsetof(struct x86_emulate_ctxt, src);
+	unsigned int size = sizeof(struct x86_emulate_ctxt);
+
+	return kmem_cache_create_usercopy("x86_emulator", size,
 					  __alignof__(struct x86_emulate_ctxt),
-					  SLAB_ACCOUNT,
-					  0,
-					  sizeof(struct x86_emulate_ctxt),
-					  NULL);
+					  SLAB_ACCOUNT, useroffset,
+					  size - useroffset, NULL);
 }
 
 static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt);

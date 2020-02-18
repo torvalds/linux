@@ -334,9 +334,6 @@ struct x86_emulate_ctxt {
 	u8 intercept;
 	u8 op_bytes;
 	u8 ad_bytes;
-	struct operand src;
-	struct operand src2;
-	struct operand dst;
 	union {
 		int (*execute)(struct x86_emulate_ctxt *ctxt);
 		fastop_t fop;
@@ -364,6 +361,11 @@ struct x86_emulate_ctxt {
 	u8 seg_override;
 	u64 d;
 	unsigned long _eip;
+
+	/* Here begins the usercopy section. */
+	struct operand src;
+	struct operand src2;
+	struct operand dst;
 	struct operand memop;
 	/* Fields above regs are cleared together. */
 	unsigned long _regs[NR_VCPU_REGS];
