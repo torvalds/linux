@@ -2081,8 +2081,7 @@ static void nft_pipapo_gc_init(const struct nft_set *set)
 	priv->last_gc = jiffies;
 }
 
-struct nft_set_type nft_set_pipapo_type __read_mostly = {
-	.owner		= THIS_MODULE,
+const struct nft_set_type nft_set_pipapo_type = {
 	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT |
 			  NFT_SET_TIMEOUT,
 	.ops		= {
