@@ -165,11 +165,12 @@ int siw_query_port(struct ib_device *base_dev, u8 port,
 		   struct ib_port_attr *attr)
 {
 	struct siw_device *sdev = to_siw_dev(base_dev);
+	int rv;
 
 	memset(attr, 0, sizeof(*attr));
 
-	attr->active_speed = 2;
-	attr->active_width = 2;
+	rv = ib_get_eth_speed(base_dev, port, &attr->active_speed,
+			 &attr->active_width);
 	attr->gid_tbl_len = 1;
 	attr->max_msg_sz = -1;
 	attr->max_mtu = ib_mtu_int_to_enum(sdev->netdev->mtu);
@@ -192,7 +193,7 @@ int siw_query_port(struct ib_device *base_dev, u8 port,
 	 * attr->subnet_timeout = 0;
 	 * attr->init_type_repy = 0;
 	 */
-	return 0;
+	return rv;
 }
 
 int siw_get_port_immutable(struct ib_device *base_dev, u8 port,
