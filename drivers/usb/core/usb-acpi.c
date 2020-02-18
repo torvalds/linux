@@ -187,7 +187,7 @@ usb_acpi_find_companion_for_port(struct usb_port *port_dev)
 
 	handle = adev->handle;
 	status = acpi_get_physical_device_location(handle, &pld);
-	if (!ACPI_FAILURE(status) && pld) {
+	if (ACPI_SUCCESS(status) && pld) {
 		port_dev->location = USB_ACPI_LOCATION_VALID
 			| pld->group_token << 8 | pld->group_position;
 		port_dev->connect_type = usb_acpi_get_connect_type(handle, pld);
