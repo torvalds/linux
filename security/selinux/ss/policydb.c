@@ -336,11 +336,17 @@ static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap) =
 
 static int filenametr_destroy(void *key, void *datum, void *p)
 {
-	struct filename_trans *ft = key;
+	struct filename_trans_key *ft = key;
+	struct filename_trans_datum *next, *d = datum;
 
 	kfree(ft->name);
 	kfree(key);
-	kfree(datum);
+	do {
+		ebitmap_destroy(&d->stypes);
+		next = d->next;
+		kfree(d);
+		d = next;
+	} while (unlikely(d));
 	cond_resched();
 	return 0;
 }
@@ -406,12 +412,12 @@ out:
 
 static u32 filenametr_hash(struct hashtab *h, const void *k)
 {
-	const struct filename_trans *ft = k;
+	const struct filename_trans_key *ft = k;
 	unsigned long hash;
 	unsigned int byte_num;
 	unsigned char focus;
 
-	hash = ft->stype ^ ft->ttype ^ ft->tclass;
+	hash = ft->ttype ^ ft->tclass;
 
 	byte_num = 0;
 	while ((focus = ft->name[byte_num++]))
@@ -421,13 +427,9 @@ static u32 filenametr_hash(struct hashtab *h, const void *k)
 
 static int filenametr_cmp(struct hashtab *h, const void *k1, const void *k2)
 {
-	const struct filename_trans *ft1 = k1;
-	const struct filename_trans *ft2 = k2;
+	const struct filename_trans_key *ft1 = k1;
+	const struct filename_trans_key *ft2 = k2;
 	int v;
-
-	v = ft1->stype - ft2->stype;
-	if (v)
-		return v;
 
 	v = ft1->ttype - ft2->ttype;
 	if (v)
@@ -495,7 +497,7 @@ static int policydb_init(struct policydb *p)
 		goto out;
 
 	p->filename_trans = hashtab_create(filenametr_hash, filenametr_cmp,
-					   (1 << 10));
+					   (1 << 11));
 	if (!p->filename_trans) {
 		rc = -ENOMEM;
 		goto out;
@@ -1882,64 +1884,84 @@ out:
 
 static int filename_trans_read_one(struct policydb *p, void *fp)
 {
-	struct filename_trans *ft;
-	struct filename_trans_datum *otype = NULL;
+	struct filename_trans_key key, *ft = NULL;
+	struct filename_trans_datum *last, *datum = NULL;
 	char *name = NULL;
-	u32 len;
+	u32 len, stype, otype;
 	__le32 buf[4];
 	int rc;
-
-	ft = kzalloc(sizeof(*ft), GFP_KERNEL);
-	if (!ft)
-		return -ENOMEM;
-
-	rc = -ENOMEM;
-	otype = kmalloc(sizeof(*otype), GFP_KERNEL);
-	if (!otype)
-		goto out;
 
 	/* length of the path component string */
 	rc = next_entry(buf, fp, sizeof(u32));
 	if (rc)
-		goto out;
+		return rc;
 	len = le32_to_cpu(buf[0]);
 
 	/* path component string */
 	rc = str_read(&name, GFP_KERNEL, fp, len);
 	if (rc)
-		goto out;
-
-	ft->name = name;
+		return rc;
 
 	rc = next_entry(buf, fp, sizeof(u32) * 4);
 	if (rc)
 		goto out;
 
-	ft->stype = le32_to_cpu(buf[0]);
-	ft->ttype = le32_to_cpu(buf[1]);
-	ft->tclass = le32_to_cpu(buf[2]);
+	stype = le32_to_cpu(buf[0]);
+	key.ttype = le32_to_cpu(buf[1]);
+	key.tclass = le32_to_cpu(buf[2]);
+	key.name = name;
 
-	otype->otype = le32_to_cpu(buf[3]);
+	otype = le32_to_cpu(buf[3]);
 
-	rc = ebitmap_set_bit(&p->filename_trans_ttypes, ft->ttype, 1);
-	if (rc)
-		goto out;
-
-	rc = hashtab_insert(p->filename_trans, ft, otype);
-	if (rc) {
-		/*
-		 * Do not return -EEXIST to the caller, or the system
-		 * will not boot.
-		 */
-		if (rc == -EEXIST)
-			rc = 0;
-		goto out;
+	last = NULL;
+	datum = hashtab_search(p->filename_trans, &key);
+	while (datum) {
+		if (unlikely(ebitmap_get_bit(&datum->stypes, stype - 1))) {
+			/* conflicting/duplicate rules are ignored */
+			datum = NULL;
+			goto out;
+		}
+		if (likely(datum->otype == otype))
+			break;
+		last = datum;
+		datum = datum->next;
 	}
-	return 0;
+	if (!datum) {
+		rc = -ENOMEM;
+		datum = kmalloc(sizeof(*datum), GFP_KERNEL);
+		if (!datum)
+			goto out;
+
+		ebitmap_init(&datum->stypes);
+		datum->otype = otype;
+		datum->next = NULL;
+
+		if (unlikely(last)) {
+			last->next = datum;
+		} else {
+			rc = -ENOMEM;
+			ft = kmemdup(&key, sizeof(key), GFP_KERNEL);
+			if (!ft)
+				goto out;
+
+			rc = hashtab_insert(p->filename_trans, ft, datum);
+			if (rc)
+				goto out;
+			name = NULL;
+
+			rc = ebitmap_set_bit(&p->filename_trans_ttypes,
+					     key.ttype, 1);
+			if (rc)
+				return rc;
+		}
+	}
+	kfree(name);
+	return ebitmap_set_bit(&datum->stypes, stype - 1, 1);
+
 out:
 	kfree(ft);
 	kfree(name);
-	kfree(otype);
+	kfree(datum);
 	return rc;
 }
 
@@ -1956,6 +1978,8 @@ static int filename_trans_read(struct policydb *p, void *fp)
 	if (rc)
 		return rc;
 	nel = le32_to_cpu(buf[0]);
+
+	p->filename_trans_count = nel;
 
 	for (i = 0; i < nel; i++) {
 		rc = filename_trans_read_one(p, fp);
@@ -3334,50 +3358,50 @@ static int range_write(struct policydb *p, void *fp)
 
 static int filename_write_helper(void *key, void *data, void *ptr)
 {
-	__le32 buf[4];
-	struct filename_trans *ft = key;
-	struct filename_trans_datum *otype = data;
+	struct filename_trans_key *ft = key;
+	struct filename_trans_datum *datum = data;
+	struct ebitmap_node *node;
 	void *fp = ptr;
+	__le32 buf[4];
 	int rc;
-	u32 len;
+	u32 bit, len = strlen(ft->name);
 
-	len = strlen(ft->name);
-	buf[0] = cpu_to_le32(len);
-	rc = put_entry(buf, sizeof(u32), 1, fp);
-	if (rc)
-		return rc;
+	do {
+		ebitmap_for_each_positive_bit(&datum->stypes, node, bit) {
+			buf[0] = cpu_to_le32(len);
+			rc = put_entry(buf, sizeof(u32), 1, fp);
+			if (rc)
+				return rc;
 
-	rc = put_entry(ft->name, sizeof(char), len, fp);
-	if (rc)
-		return rc;
+			rc = put_entry(ft->name, sizeof(char), len, fp);
+			if (rc)
+				return rc;
 
-	buf[0] = cpu_to_le32(ft->stype);
-	buf[1] = cpu_to_le32(ft->ttype);
-	buf[2] = cpu_to_le32(ft->tclass);
-	buf[3] = cpu_to_le32(otype->otype);
+			buf[0] = cpu_to_le32(bit + 1);
+			buf[1] = cpu_to_le32(ft->ttype);
+			buf[2] = cpu_to_le32(ft->tclass);
+			buf[3] = cpu_to_le32(datum->otype);
 
-	rc = put_entry(buf, sizeof(u32), 4, fp);
-	if (rc)
-		return rc;
+			rc = put_entry(buf, sizeof(u32), 4, fp);
+			if (rc)
+				return rc;
+		}
+
+		datum = datum->next;
+	} while (unlikely(datum));
 
 	return 0;
 }
 
 static int filename_trans_write(struct policydb *p, void *fp)
 {
-	u32 nel;
 	__le32 buf[1];
 	int rc;
 
 	if (p->policyvers < POLICYDB_VERSION_FILENAME_TRANS)
 		return 0;
 
-	nel = 0;
-	rc = hashtab_map(p->filename_trans, hashtab_cnt, &nel);
-	if (rc)
-		return rc;
-
-	buf[0] = cpu_to_le32(nel);
+	buf[0] = cpu_to_le32(p->filename_trans_count);
 	rc = put_entry(buf, sizeof(u32), 1, fp);
 	if (rc)
 		return rc;

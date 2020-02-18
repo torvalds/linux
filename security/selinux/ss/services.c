@@ -1692,8 +1692,8 @@ static void filename_compute_type(struct policydb *policydb,
 				  u32 stype, u32 ttype, u16 tclass,
 				  const char *objname)
 {
-	struct filename_trans ft;
-	struct filename_trans_datum *otype;
+	struct filename_trans_key ft;
+	struct filename_trans_datum *datum;
 
 	/*
 	 * Most filename trans rules are going to live in specific directories
@@ -1703,14 +1703,18 @@ static void filename_compute_type(struct policydb *policydb,
 	if (!ebitmap_get_bit(&policydb->filename_trans_ttypes, ttype))
 		return;
 
-	ft.stype = stype;
 	ft.ttype = ttype;
 	ft.tclass = tclass;
 	ft.name = objname;
 
-	otype = hashtab_search(policydb->filename_trans, &ft);
-	if (otype)
-		newcontext->type = otype->otype;
+	datum = hashtab_search(policydb->filename_trans, &ft);
+	while (datum) {
+		if (ebitmap_get_bit(&datum->stypes, stype - 1)) {
+			newcontext->type = datum->otype;
+			return;
+		}
+		datum = datum->next;
+	}
 }
 
 static int security_compute_sid(struct selinux_state *state,
