@@ -376,7 +376,7 @@ err_fw:
 	intel_uc_fw_fini(&guc->fw);
 err_fetch:
 	intel_uc_fw_cleanup_fetch(&guc->fw);
-	DRM_DEV_DEBUG_DRIVER(gt->i915->drm.dev, "failed with %d\n", ret);
+	i915_probe_error(gt->i915, "failed with %d\n", ret);
 	return ret;
 }
 
