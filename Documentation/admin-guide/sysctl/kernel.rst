@@ -900,16 +900,6 @@ ROM/Flash boot loader. Maybe to tell it what to do after
 rebooting. ???
 
 
-rtsig-max & rtsig-nr
-====================
-
-The file rtsig-max can be used to tune the maximum number
-of POSIX realtime (queued) signals that can be outstanding
-in the system.
-
-rtsig-nr shows the number of RT signals currently queued.
-
-
 sched_energy_aware
 ==================
 
