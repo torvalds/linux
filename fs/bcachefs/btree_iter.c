@@ -1729,7 +1729,12 @@ static inline void __bch2_trans_iter_free(struct btree_trans *trans,
 int bch2_trans_iter_put(struct btree_trans *trans,
 			struct btree_iter *iter)
 {
-	int ret = btree_iter_err(iter);
+	int ret;
+
+	if (IS_ERR_OR_NULL(iter))
+		return 0;
+
+	ret = btree_iter_err(iter);
 
 	if (!(trans->iters_touched & (1ULL << iter->idx)) &&
 	    !(iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT))
@@ -1742,6 +1747,9 @@ int bch2_trans_iter_put(struct btree_trans *trans,
 int bch2_trans_iter_free(struct btree_trans *trans,
 			 struct btree_iter *iter)
 {
+	if (IS_ERR_OR_NULL(iter))
+		return 0;
+
 	trans->iters_touched &= ~(1ULL << iter->idx);
 
 	return bch2_trans_iter_put(trans, iter);
@@ -1981,8 +1989,8 @@ struct btree_iter *bch2_trans_copy_iter(struct btree_trans *trans,
 
 	trans->iters_live |= 1ULL << iter->idx;
 	/*
-	 * Don't mark it as touched, we don't need to preserve this iter since
-	 * it's cheap to copy it again:
+	 * We don't need to preserve this iter since it's cheap to copy it
+	 * again - this will cause trans_iter_put() to free it right away:
 	 */
 	trans->iters_touched &= ~(1ULL << iter->idx);
 

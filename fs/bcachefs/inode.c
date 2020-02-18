@@ -362,16 +362,16 @@ int bch2_inode_create(struct btree_trans *trans,
 		      struct bch_inode_unpacked *inode_u,
 		      u64 min, u64 max, u64 *hint)
 {
-	struct bch_fs *c = trans->c;
 	struct bkey_inode_buf *inode_p;
-	struct btree_iter *iter;
+	struct btree_iter *iter = NULL;
+	struct bkey_s_c k;
 	u64 start;
 	int ret;
 
 	if (!max)
 		max = ULLONG_MAX;
 
-	if (c->opts.inodes_32bit)
+	if (trans->c->opts.inodes_32bit)
 		max = min_t(u64, max, U32_MAX);
 
 	start = READ_ONCE(*hint);
@@ -382,48 +382,37 @@ int bch2_inode_create(struct btree_trans *trans,
 	inode_p = bch2_trans_kmalloc(trans, sizeof(*inode_p));
 	if (IS_ERR(inode_p))
 		return PTR_ERR(inode_p);
-
-	iter = bch2_trans_get_iter(trans,
-			BTREE_ID_INODES, POS(start, 0),
-			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
 again:
-	while (1) {
-		struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
-
-		ret = bkey_err(k);
-		if (ret)
-			return ret;
-
-		switch (k.k->type) {
-		case KEY_TYPE_inode:
-			/* slot used */
-			if (iter->pos.inode >= max)
-				goto out;
-
-			bch2_btree_iter_next_slot(iter);
+	for_each_btree_key(trans, iter, BTREE_ID_INODES, POS(start, 0),
+			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
+		if (iter->pos.inode > max)
 			break;
 
-		default:
-			*hint			= k.k->p.inode;
-			inode_u->bi_inum	= k.k->p.inode;
-			inode_u->bi_generation	= bkey_generation(k);
-
-			bch2_inode_pack(inode_p, inode_u);
-			bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
-			return 0;
-		}
+		if (k.k->type != KEY_TYPE_inode)
+			goto found_slot;
 	}
-out:
+
+	bch2_trans_iter_put(trans, iter);
+
+	if (ret)
+		return ret;
+
 	if (start != min) {
 		/* Retry from start */
 		start = min;
-		bch2_btree_iter_set_pos(iter, POS(start, 0));
 		goto again;
 	}
 
 	return -ENOSPC;
+found_slot:
+	*hint			= k.k->p.inode;
+	inode_u->bi_inum	= k.k->p.inode;
+	inode_u->bi_generation	= bkey_generation(k);
+
+	bch2_inode_pack(inode_p, inode_u);
+	bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
+	bch2_trans_iter_put(trans, iter);
+	return 0;
 }
 
 int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
@@ -518,14 +507,13 @@ int bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = k.k->type == KEY_TYPE_inode
 		? bch2_inode_unpack(bkey_s_c_to_inode(k), inode)
 		: -ENOENT;
-
+err:
 	bch2_trans_iter_put(trans, iter);
-
 	return ret;
 }
 
