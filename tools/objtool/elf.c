@@ -62,8 +62,18 @@ struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset)
 	struct symbol *sym;
 
 	list_for_each_entry(sym, &sec->symbol_list, list)
-		if (sym->type != STT_SECTION &&
-		    sym->offset == offset)
+		if (sym->type != STT_SECTION && sym->offset == offset)
+			return sym;
+
+	return NULL;
+}
+
+struct symbol *find_func_by_offset(struct section *sec, unsigned long offset)
+{
+	struct symbol *sym;
+
+	list_for_each_entry(sym, &sec->symbol_list, list)
+		if (sym->type == STT_FUNC && sym->offset == offset)
 			return sym;
 
 	return NULL;
