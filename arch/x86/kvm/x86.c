@@ -10066,6 +10066,10 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 */
 	if (change != KVM_MR_DELETE)
 		kvm_mmu_slot_apply_flags(kvm, (struct kvm_memory_slot *) new);
+
+	/* Free the arrays associated with the old memslot. */
+	if (change == KVM_MR_MOVE)
+		kvm_arch_free_memslot(kvm, old, NULL);
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
