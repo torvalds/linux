@@ -501,7 +501,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 	if (err)
 		return err;
 
-	if (!intel_uc_fw_is_available(uc_fw))
+	if (!intel_uc_fw_is_loadable(uc_fw))
 		return -ENOEXEC;
 
 	/* Call custom loader */
@@ -544,7 +544,10 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
 {
-	intel_uc_fw_cleanup_fetch(uc_fw);
+	if (i915_gem_object_has_pinned_pages(uc_fw->obj))
+		i915_gem_object_unpin_pages(uc_fw->obj);
+
+	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_AVAILABLE);
 }
 
 /**
