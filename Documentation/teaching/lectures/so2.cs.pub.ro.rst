@@ -12,8 +12,12 @@ Sisteme de operare 2
 The team
 ========
 
-* Daniel Băluță (Daniel), Răzvan Deaconescu (Răzvan, RD), Valentin
-  Ghiță (Vali), Alexandra Săndulescu (Alexandra)
+* Daniel Băluță (Daniel), Răzvan Deaconescu (Răzvan, RD), Claudiu
+  Ghioc (Claudiu), Valentin Ghiță (Vali), Sergiu Weisz (Sergiu),
+  Octavian Purdilă (Tavi)
+* Iulian Mateșică (Iulian), Alexandra Militaru (Alex), Teodora
+  Șerbănescu (Teo), Ștefan Teodorescu (Ștefan, Fane), Mihai Popescu
+  (Mihai, Mișu)
 * Mult succes în noul semestru!
 
 Where do we stand?
