@@ -2000,10 +2000,4 @@ i915_coherent_map_type(struct drm_i915_private *i915)
 	return HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC;
 }
 
-static inline bool intel_guc_submission_is_enabled(struct intel_guc *guc)
-{
-	return intel_guc_is_submission_supported(guc) &&
-	       intel_guc_is_ready(guc);
-}
-
 #endif

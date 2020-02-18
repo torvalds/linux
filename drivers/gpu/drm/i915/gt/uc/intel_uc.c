@@ -49,7 +49,7 @@ static void __confirm_options(struct intel_uc *uc)
 			     "enable_guc=%d (guc:%s submission:%s huc:%s)\n",
 			     i915_modparams.enable_guc,
 			     yesno(intel_uc_wants_guc(uc)),
-			     yesno(intel_uc_uses_guc_submission(uc)),
+			     yesno(intel_uc_wants_guc_submission(uc)),
 			     yesno(intel_uc_wants_huc(uc)));
 
 	if (i915_modparams.enable_guc == -1)
@@ -57,7 +57,7 @@ static void __confirm_options(struct intel_uc *uc)
 
 	if (i915_modparams.enable_guc == 0) {
 		GEM_BUG_ON(intel_uc_wants_guc(uc));
-		GEM_BUG_ON(intel_uc_uses_guc_submission(uc));
+		GEM_BUG_ON(intel_uc_wants_guc_submission(uc));
 		GEM_BUG_ON(intel_uc_wants_huc(uc));
 		return;
 	}
@@ -285,7 +285,7 @@ static void __uc_init(struct intel_uc *uc)
 		return;
 
 	/* XXX: GuC submission is unavailable for now */
-	GEM_BUG_ON(intel_uc_supports_guc_submission(uc));
+	GEM_BUG_ON(intel_uc_uses_guc_submission(uc));
 
 	ret = intel_guc_init(guc);
 	if (ret) {
@@ -410,7 +410,7 @@ static int __uc_init_hw(struct intel_uc *uc)
 	if (!intel_uc_fw_is_available(&guc->fw)) {
 		ret = __uc_check_hw(uc) ||
 		      intel_uc_fw_is_overridden(&guc->fw) ||
-		      intel_uc_supports_guc_submission(uc) ?
+		      intel_uc_wants_guc_submission(uc) ?
 		      intel_uc_fw_status_to_error(guc->fw.status) : 0;
 		goto err_out;
 	}
@@ -462,14 +462,14 @@ static int __uc_init_hw(struct intel_uc *uc)
 	if (ret)
 		goto err_communication;
 
-	if (intel_uc_supports_guc_submission(uc))
+	if (intel_uc_uses_guc_submission(uc))
 		intel_guc_submission_enable(guc);
 
 	dev_info(i915->drm.dev, "%s firmware %s version %u.%u %s:%s\n",
 		 intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_GUC), guc->fw.path,
 		 guc->fw.major_ver_found, guc->fw.minor_ver_found,
 		 "submission",
-		 enableddisabled(intel_uc_supports_guc_submission(uc)));
+		 enableddisabled(intel_uc_uses_guc_submission(uc)));
 
 	if (intel_uc_uses_huc(uc)) {
 		dev_info(i915->drm.dev, "%s firmware %s version %u.%u %s:%s\n",
@@ -511,7 +511,7 @@ static void __uc_fini_hw(struct intel_uc *uc)
 	if (!intel_guc_is_fw_running(guc))
 		return;
 
-	if (intel_uc_supports_guc_submission(uc))
+	if (intel_uc_uses_guc_submission(uc))
 		intel_guc_submission_disable(guc);
 
 	if (guc_communication_enabled(guc))

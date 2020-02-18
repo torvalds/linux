@@ -207,7 +207,7 @@ static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	if (!intel_guc_is_submission_supported(guc))
+	if (!intel_guc_submission_is_used(guc))
 		flags |= GUC_CTL_DISABLE_SCHEDULER;
 
 	return flags;
@@ -217,7 +217,7 @@ static u32 guc_ctl_ctxinfo_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	if (intel_guc_is_submission_supported(guc)) {
+	if (intel_guc_submission_is_used(guc)) {
 		u32 ctxnum, base;
 
 		base = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
@@ -348,7 +348,7 @@ int intel_guc_init(struct intel_guc *guc)
 	if (ret)
 		goto err_ads;
 
-	if (intel_guc_is_submission_supported(guc)) {
+	if (intel_guc_submission_is_used(guc)) {
 		/*
 		 * This is stuff we need to have available at fw load time
 		 * if we are planning to enable submission later
@@ -389,7 +389,7 @@ void intel_guc_fini(struct intel_guc *guc)
 
 	i915_ggtt_disable_guc(gt->ggtt);
 
-	if (intel_guc_is_submission_supported(guc))
+	if (intel_guc_submission_is_used(guc))
 		intel_guc_submission_fini(guc);
 
 	intel_guc_ct_fini(&guc->ct);
@@ -544,7 +544,7 @@ int intel_guc_suspend(struct intel_guc *guc)
 	 * If GuC communication is enabled but submission is not supported,
 	 * we do not need to suspend the GuC.
 	 */
-	if (!intel_guc_submission_is_enabled(guc))
+	if (!intel_guc_submission_is_used(guc) || !intel_guc_is_ready(guc))
 		return 0;
 
 	/*
@@ -609,7 +609,7 @@ int intel_guc_resume(struct intel_guc *guc)
 	 * we do not need to resume the GuC but we do need to enable the
 	 * GuC communication on resume (above).
 	 */
-	if (!intel_guc_submission_is_enabled(guc))
+	if (!intel_guc_submission_is_used(guc) || !intel_guc_is_ready(guc))
 		return 0;
 
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));

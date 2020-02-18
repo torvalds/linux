@@ -7,6 +7,7 @@
 #define _INTEL_UC_H_
 
 #include "intel_guc.h"
+#include "intel_guc_submission.h"
 #include "intel_huc.h"
 #include "i915_params.h"
 
@@ -61,32 +62,23 @@ int intel_uc_runtime_resume(struct intel_uc *uc);
  * - In use: wanted + firmware found on the system and successfully fetched.
  */
 
-#define __uc_state_checker(x, state, required) \
-static inline bool intel_uc_##state##_##x(struct intel_uc *uc) \
+#define __uc_state_checker(x, func, state, required) \
+static inline bool intel_uc_##state##_##func(struct intel_uc *uc) \
 { \
-	return intel_##x##_is_##required(&uc->x); \
+	return intel_##func##_is_##required(&uc->x); \
 }
 
-#define uc_state_checkers(x) \
-__uc_state_checker(x, supports, supported) \
-__uc_state_checker(x, wants, wanted) \
-__uc_state_checker(x, uses, used)
+#define uc_state_checkers(x, func) \
+__uc_state_checker(x, func, supports, supported) \
+__uc_state_checker(x, func, wants, wanted) \
+__uc_state_checker(x, func, uses, used)
 
-uc_state_checkers(guc);
-uc_state_checkers(huc);
+uc_state_checkers(guc, guc);
+uc_state_checkers(huc, huc);
+uc_state_checkers(guc, guc_submission);
 
 #undef uc_state_checkers
 #undef __uc_state_checker
-
-static inline bool intel_uc_supports_guc_submission(struct intel_uc *uc)
-{
-	return intel_guc_is_submission_supported(&uc->guc);
-}
-
-static inline bool intel_uc_uses_guc_submission(struct intel_uc *uc)
-{
-	return intel_guc_is_submission_supported(&uc->guc);
-}
 
 #define intel_uc_ops_function(_NAME, _OPS, _TYPE, _RET) \
 static inline _TYPE intel_uc_##_NAME(struct intel_uc *uc) \

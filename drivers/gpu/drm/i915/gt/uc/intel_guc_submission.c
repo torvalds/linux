@@ -660,12 +660,9 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 	guc_proc_desc_fini(guc);
 }
 
-static bool __guc_submission_support(struct intel_guc *guc)
+static bool __guc_submission_selected(struct intel_guc *guc)
 {
-	/* XXX: GuC submission is unavailable for now */
-	return false;
-
-	if (!intel_guc_is_supported(guc))
+	if (!intel_guc_submission_is_supported(guc))
 		return false;
 
 	return i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION;
@@ -673,7 +670,7 @@ static bool __guc_submission_support(struct intel_guc *guc)
 
 void intel_guc_submission_init_early(struct intel_guc *guc)
 {
-	guc->submission_supported = __guc_submission_support(guc);
+	guc->submission_selected = __guc_submission_selected(guc);
 }
 
 bool intel_engine_in_guc_submission_mode(const struct intel_engine_cs *engine)
