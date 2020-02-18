@@ -410,7 +410,7 @@ static int bcm5481_config_aneg(struct phy_device *phydev)
 	struct device_node *np = phydev->mdio.dev.of_node;
 	int ret;
 
-	/* Aneg firsly. */
+	/* Aneg firstly. */
 	ret = genphy_config_aneg(phydev);
 
 	/* Then we can set up the delay. */
@@ -463,7 +463,7 @@ static int bcm54616s_config_aneg(struct phy_device *phydev)
 {
 	int ret;
 
-	/* Aneg firsly. */
+	/* Aneg firstly. */
 	if (phydev->dev_flags & PHY_BCM_FLAGS_MODE_1000BX)
 		ret = genphy_c37_config_aneg(phydev);
 	else
