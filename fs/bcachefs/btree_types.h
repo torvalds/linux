@@ -238,9 +238,10 @@ struct btree_iter {
 	u16			flags;
 	u8			idx;
 
-	enum btree_iter_uptodate uptodate:4;
 	enum btree_id		btree_id:4;
+	enum btree_iter_uptodate uptodate:4;
 	unsigned		level:4,
+				min_depth:4,
 				locks_want:4,
 				nodes_locked:4,
 				nodes_intent_locked:4;

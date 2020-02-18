@@ -1557,7 +1557,7 @@ bch2_btree_insert_keys_interior(struct btree_update *as, struct btree *b,
 	trans_for_each_iter_with_node(iter->trans, b, linked)
 		bch2_btree_node_iter_peek(&linked->l[b->c.level].iter, b);
 
-	bch2_btree_iter_verify(iter, b);
+	bch2_btree_trans_verify_iters(iter->trans, b);
 }
 
 /**
@@ -1827,7 +1827,7 @@ retry:
 
 	bch2_btree_iter_node_replace(iter, n);
 
-	bch2_btree_iter_verify(iter, n);
+	bch2_btree_trans_verify_iters(trans, n);
 
 	bch2_btree_node_free_inmem(c, b, iter);
 	bch2_btree_node_free_inmem(c, m, iter);

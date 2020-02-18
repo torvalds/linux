@@ -1665,7 +1665,8 @@ struct bkey_packed *bch2_btree_node_iter_prev_all(struct btree_node_iter *iter,
 	struct bset_tree *t;
 	unsigned end = 0;
 
-	bch2_btree_node_iter_verify(iter, b);
+	if (btree_keys_expensive_checks(b))
+		bch2_btree_node_iter_verify(iter, b);
 
 	for_each_bset(b, t) {
 		k = bch2_bkey_prev_all(b, t,
@@ -1700,7 +1701,8 @@ found:
 	iter->data[0].k = __btree_node_key_to_offset(b, prev);
 	iter->data[0].end = end;
 
-	bch2_btree_node_iter_verify(iter, b);
+	if (btree_keys_expensive_checks(b))
+		bch2_btree_node_iter_verify(iter, b);
 	return prev;
 }
 
