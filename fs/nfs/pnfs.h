@@ -105,6 +105,7 @@ enum {
 	NFS_LAYOUT_INVALID_STID,	/* layout stateid id is invalid */
 	NFS_LAYOUT_FIRST_LAYOUTGET,	/* Serialize first layoutget */
 	NFS_LAYOUT_INODE_FREEING,	/* The inode is being freed */
+	NFS_LAYOUT_HASHED,		/* The layout visible */
 };
 
 enum layoutdriver_policy_flags {
@@ -203,6 +204,7 @@ struct pnfs_layout_hdr {
 	loff_t			plh_lwb; /* last write byte for layoutcommit */
 	const struct cred	*plh_lc_cred; /* layoutcommit cred */
 	struct inode		*plh_inode;
+	struct rcu_head		plh_rcu;
 };
 
 struct pnfs_device {

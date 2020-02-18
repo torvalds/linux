@@ -268,11 +268,11 @@ pnfs_free_layout_hdr(struct pnfs_layout_hdr *lo)
 	struct nfs_server *server = NFS_SERVER(lo->plh_inode);
 	struct pnfs_layoutdriver_type *ld = server->pnfs_curr_ld;
 
-	if (!list_empty(&lo->plh_layouts)) {
+	if (test_and_clear_bit(NFS_LAYOUT_HASHED, &lo->plh_flags)) {
 		struct nfs_client *clp = server->nfs_client;
 
 		spin_lock(&clp->cl_lock);
-		list_del_init(&lo->plh_layouts);
+		list_del_rcu(&lo->plh_layouts);
 		spin_unlock(&clp->cl_lock);
 	}
 	put_cred(lo->plh_lc_cred);
@@ -784,7 +784,8 @@ pnfs_layout_bulk_destroy_byserver_locked(struct nfs_client *clp,
 			break;
 		inode = igrab(lo->plh_inode);
 		if (inode != NULL) {
-			list_del_init(&lo->plh_layouts);
+			if (test_and_clear_bit(NFS_LAYOUT_HASHED, &lo->plh_flags))
+				list_del_rcu(&lo->plh_layouts);
 			if (pnfs_layout_add_bulk_destroy_list(inode,
 						layout_list))
 				continue;
@@ -1870,15 +1871,14 @@ static void pnfs_clear_first_layoutget(struct pnfs_layout_hdr *lo)
 static void _add_to_server_list(struct pnfs_layout_hdr *lo,
 				struct nfs_server *server)
 {
-	if (list_empty(&lo->plh_layouts)) {
+	if (!test_and_set_bit(NFS_LAYOUT_HASHED, &lo->plh_flags)) {
 		struct nfs_client *clp = server->nfs_client;
 
 		/* The lo must be on the clp list if there is any
 		 * chance of a CB_LAYOUTRECALL(FILE) coming in.
 		 */
 		spin_lock(&clp->cl_lock);
-		if (list_empty(&lo->plh_layouts))
-			list_add_tail(&lo->plh_layouts, &server->layouts);
+		list_add_tail_rcu(&lo->plh_layouts, &server->layouts);
 		spin_unlock(&clp->cl_lock);
 	}
 }
