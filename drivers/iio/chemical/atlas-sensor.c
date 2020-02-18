@@ -76,6 +76,7 @@ struct atlas_data {
 	struct atlas_device *chip;
 	struct regmap *regmap;
 	struct irq_work work;
+	unsigned int interrupt_enabled;
 
 	__be32 buffer[6]; /* 96-bit data + 32-bit pad + 64-bit timestamp */
 };
@@ -304,6 +305,9 @@ static int atlas_set_powermode(struct atlas_data *data, int on)
 
 static int atlas_set_interrupt(struct atlas_data *data, bool state)
 {
+	if (!data->interrupt_enabled)
+		return 0;
+
 	return regmap_update_bits(data->regmap, ATLAS_REG_INT_CONTROL,
 				  ATLAS_REG_INT_CONTROL_EN,
 				  state ? ATLAS_REG_INT_CONTROL_EN : 0);
@@ -572,11 +576,6 @@ static int atlas_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	if (client->irq <= 0) {
-		dev_err(&client->dev, "no valid irq defined\n");
-		return -EINVAL;
-	}
-
 	ret = chip->calibration(data);
 	if (ret)
 		return ret;
@@ -596,16 +595,20 @@ static int atlas_probe(struct i2c_client *client,
 
 	init_irq_work(&data->work, atlas_work_handler);
 
-	/* interrupt pin toggles on new conversion */
-	ret = devm_request_threaded_irq(&client->dev, client->irq,
-					NULL, atlas_interrupt_handler,
-					IRQF_TRIGGER_RISING |
-					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					"atlas_irq",
-					indio_dev);
-	if (ret) {
-		dev_err(&client->dev, "request irq (%d) failed\n", client->irq);
-		goto unregister_buffer;
+	if (client->irq > 0) {
+		/* interrupt pin toggles on new conversion */
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+				NULL, atlas_interrupt_handler,
+				IRQF_TRIGGER_RISING |
+				IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				"atlas_irq",
+				indio_dev);
+
+		if (ret)
+			dev_warn(&client->dev,
+				"request irq (%d) failed\n", client->irq);
+		else
+			data->interrupt_enabled = 1;
 	}
 
 	ret = atlas_set_powermode(data, 1);
