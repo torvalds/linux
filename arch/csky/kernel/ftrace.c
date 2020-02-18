@@ -126,6 +126,9 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	int ret = ftrace_modify_code((unsigned long)&ftrace_call,
 				(unsigned long)func, true, true);
+	if (!ret)
+		ret = ftrace_modify_code((unsigned long)&ftrace_regs_call,
+				(unsigned long)func, true, true);
 	return ret;
 }
 
@@ -134,6 +137,14 @@ int __init ftrace_dyn_arch_init(void)
 	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
+		       unsigned long addr)
+{
+	return ftrace_modify_code(rec->ip, addr, true, true);
+}
+#endif
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
