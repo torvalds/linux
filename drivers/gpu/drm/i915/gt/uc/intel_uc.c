@@ -48,17 +48,17 @@ static void __confirm_options(struct intel_uc *uc)
 	DRM_DEV_DEBUG_DRIVER(i915->drm.dev,
 			     "enable_guc=%d (guc:%s submission:%s huc:%s)\n",
 			     i915_modparams.enable_guc,
-			     yesno(intel_uc_uses_guc(uc)),
+			     yesno(intel_uc_wants_guc(uc)),
 			     yesno(intel_uc_uses_guc_submission(uc)),
-			     yesno(intel_uc_uses_huc(uc)));
+			     yesno(intel_uc_wants_huc(uc)));
 
 	if (i915_modparams.enable_guc == -1)
 		return;
 
 	if (i915_modparams.enable_guc == 0) {
-		GEM_BUG_ON(intel_uc_uses_guc(uc));
+		GEM_BUG_ON(intel_uc_wants_guc(uc));
 		GEM_BUG_ON(intel_uc_uses_guc_submission(uc));
-		GEM_BUG_ON(intel_uc_uses_huc(uc));
+		GEM_BUG_ON(intel_uc_wants_huc(uc));
 		return;
 	}
 
@@ -93,7 +93,7 @@ void intel_uc_init_early(struct intel_uc *uc)
 
 	__confirm_options(uc);
 
-	if (intel_uc_uses_guc(uc))
+	if (intel_uc_wants_guc(uc))
 		uc->ops = &uc_ops_on;
 	else
 		uc->ops = &uc_ops_off;
@@ -257,13 +257,13 @@ static void __uc_fetch_firmwares(struct intel_uc *uc)
 {
 	int err;
 
-	GEM_BUG_ON(!intel_uc_uses_guc(uc));
+	GEM_BUG_ON(!intel_uc_wants_guc(uc));
 
 	err = intel_uc_fw_fetch(&uc->guc.fw);
 	if (err)
 		return;
 
-	if (intel_uc_uses_huc(uc))
+	if (intel_uc_wants_huc(uc))
 		intel_uc_fw_fetch(&uc->huc.fw);
 }
 
@@ -279,7 +279,10 @@ static void __uc_init(struct intel_uc *uc)
 	struct intel_huc *huc = &uc->huc;
 	int ret;
 
-	GEM_BUG_ON(!intel_uc_uses_guc(uc));
+	GEM_BUG_ON(!intel_uc_wants_guc(uc));
+
+	if (!intel_uc_uses_guc(uc))
+		return;
 
 	/* XXX: GuC submission is unavailable for now */
 	GEM_BUG_ON(intel_uc_supports_guc_submission(uc));
@@ -402,7 +405,7 @@ static int __uc_init_hw(struct intel_uc *uc)
 	int ret, attempts;
 
 	GEM_BUG_ON(!intel_uc_supports_guc(uc));
-	GEM_BUG_ON(!intel_uc_uses_guc(uc));
+	GEM_BUG_ON(!intel_uc_wants_guc(uc));
 
 	if (!intel_uc_fw_is_available(&guc->fw)) {
 		ret = __uc_check_hw(uc) ||

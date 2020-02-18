@@ -143,9 +143,15 @@ static inline bool intel_guc_is_supported(struct intel_guc *guc)
 	return intel_uc_fw_is_supported(&guc->fw);
 }
 
-static inline bool intel_guc_is_enabled(struct intel_guc *guc)
+static inline bool intel_guc_is_wanted(struct intel_guc *guc)
 {
 	return intel_uc_fw_is_enabled(&guc->fw);
+}
+
+static inline bool intel_guc_is_used(struct intel_guc *guc)
+{
+	GEM_BUG_ON(__intel_uc_fw_status(&guc->fw) == INTEL_UC_FIRMWARE_SELECTED);
+	return intel_uc_fw_is_available(&guc->fw);
 }
 
 static inline bool intel_guc_is_fw_running(struct intel_guc *guc)
