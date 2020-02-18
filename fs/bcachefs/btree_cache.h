@@ -35,13 +35,20 @@ void bch2_fs_btree_cache_exit(struct bch_fs *);
 int bch2_fs_btree_cache_init(struct bch_fs *);
 void bch2_fs_btree_cache_init_early(struct btree_cache *);
 
-#define PTR_HASH(_k)	*((u64 *) &bkey_i_to_btree_ptr_c(_k)->v)
+static inline u64 btree_ptr_hash_val(const struct bkey_i *k)
+{
+	switch (k->k.type) {
+	case KEY_TYPE_btree_ptr:
+		return *((u64 *) bkey_i_to_btree_ptr_c(k)->v.start);
+	default:
+		return 0;
+	}
+}
 
 /* is btree node in hash table? */
 static inline bool btree_node_hashed(struct btree *b)
 {
-	return b->key.k.type == KEY_TYPE_btree_ptr &&
-		PTR_HASH(&b->key);
+	return b->hash_val != 0;
 }
 
 #define for_each_cached_btree(_b, _c, _tbl, _iter, _pos)		\

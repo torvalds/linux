@@ -71,9 +71,7 @@ struct btree {
 	struct btree_bkey_cached_common c;
 
 	struct rhash_head	hash;
-
-	/* Key/pointer for this btree node */
-	__BKEY_PADDED(key, BKEY_BTREE_PTR_VAL_U64s_MAX);
+	u64			hash_val;
 
 	unsigned long		flags;
 	u16			written;
@@ -136,6 +134,9 @@ struct btree {
 #ifdef CONFIG_BCACHEFS_DEBUG
 	bool			*expensive_debug_checks;
 #endif
+
+	/* Key/pointer for this btree node */
+	__BKEY_PADDED(key, BKEY_BTREE_PTR_VAL_U64s_MAX);
 };
 
 struct btree_cache {

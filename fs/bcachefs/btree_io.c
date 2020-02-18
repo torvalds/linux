@@ -1254,8 +1254,6 @@ static void bch2_btree_node_write_error(struct bch_fs *c,
 {
 	struct btree *b		= wbio->wbio.bio.bi_private;
 	__BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX) tmp;
-	struct bkey_i_btree_ptr *new_key;
-	struct bkey_s_btree_ptr bp;
 	struct bch_extent_ptr *ptr;
 	struct btree_trans trans;
 	struct btree_iter *iter;
@@ -1281,16 +1279,13 @@ retry:
 
 	bkey_copy(&tmp.k, &b->key);
 
-	new_key = bkey_i_to_btree_ptr(&tmp.k);
-	bp = btree_ptr_i_to_s(new_key);
-
 	bch2_bkey_drop_ptrs(bkey_i_to_s(&tmp.k), ptr,
 		bch2_dev_list_has_dev(wbio->wbio.failed, ptr->dev));
 
-	if (!bch2_bkey_nr_ptrs(bp.s_c))
+	if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(&tmp.k)))
 		goto err;
 
-	ret = bch2_btree_node_update_key(c, iter, b, new_key);
+	ret = bch2_btree_node_update_key(c, iter, b, &tmp.k);
 	if (ret == -EINTR)
 		goto retry;
 	if (ret)

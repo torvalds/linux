@@ -62,13 +62,13 @@ static int bch2_btree_cache_cmp_fn(struct rhashtable_compare_arg *arg,
 	const struct btree *b = obj;
 	const u64 *v = arg->key;
 
-	return PTR_HASH(&b->key) == *v ? 0 : 1;
+	return b->hash_val == *v ? 0 : 1;
 }
 
 static const struct rhashtable_params bch_btree_cache_params = {
 	.head_offset	= offsetof(struct btree, hash),
-	.key_offset	= offsetof(struct btree, key.v),
-	.key_len	= sizeof(struct bch_extent_ptr),
+	.key_offset	= offsetof(struct btree, hash_val),
+	.key_len	= sizeof(u64),
 	.obj_cmpfn	= bch2_btree_cache_cmp_fn,
 };
 
@@ -115,11 +115,14 @@ void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
 	rhashtable_remove_fast(&bc->table, &b->hash, bch_btree_cache_params);
 
 	/* Cause future lookups for this node to fail: */
-	PTR_HASH(&b->key) = 0;
+	b->hash_val = 0;
 }
 
 int __bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b)
 {
+	BUG_ON(b->hash_val);
+	b->hash_val = btree_ptr_hash_val(&b->key);
+
 	return rhashtable_lookup_insert_fast(&bc->table, &b->hash,
 					     bch_btree_cache_params);
 }
@@ -145,8 +148,9 @@ __flatten
 static inline struct btree *btree_cache_find(struct btree_cache *bc,
 				     const struct bkey_i *k)
 {
-	return rhashtable_lookup_fast(&bc->table, &PTR_HASH(k),
-				      bch_btree_cache_params);
+	u64 v = btree_ptr_hash_val(k);
+
+	return rhashtable_lookup_fast(&bc->table, &v, bch_btree_cache_params);
 }
 
 /*
@@ -200,7 +204,7 @@ static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush)
 		btree_node_wait_on_io(b);
 	}
 out:
-	if (PTR_HASH(&b->key) && !ret)
+	if (b->hash_val && !ret)
 		trace_btree_node_reap(c, b);
 	return ret;
 out_unlock:
@@ -608,7 +612,7 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 		/* raced with another fill: */
 
 		/* mark as unhashed... */
-		PTR_HASH(&b->key) = 0;
+		b->hash_val = 0;
 
 		mutex_lock(&bc->lock);
 		list_add(&b->list, &bc->freeable);
@@ -711,7 +715,7 @@ retry:
 		 * free it:
 		 *
 		 * To guard against this, btree nodes are evicted from the cache
-		 * when they're freed - and PTR_HASH() is zeroed out, which we
+		 * when they're freed - and b->hash_val is zeroed out, which we
 		 * check for after we lock the node.
 		 *
 		 * Then, bch2_btree_node_relock() on the parent will fail - because
@@ -724,7 +728,7 @@ retry:
 		if (!btree_node_lock(b, k->k.p, level, iter, lock_type))
 			return ERR_PTR(-EINTR);
 
-		if (unlikely(PTR_HASH(&b->key) != PTR_HASH(k) ||
+		if (unlikely(b->hash_val != btree_ptr_hash_val(k) ||
 			     b->c.level != level ||
 			     race_fault())) {
 			six_unlock_type(&b->c.lock, lock_type);

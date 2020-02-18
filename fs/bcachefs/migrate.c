@@ -123,23 +123,21 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 		for_each_btree_node(&trans, iter, id, POS_MIN,
 				    BTREE_ITER_PREFETCH, b) {
 			__BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX) tmp;
-			struct bkey_i_btree_ptr *new_key;
 retry:
 			if (!bch2_bkey_has_device(bkey_i_to_s_c(&b->key),
 						  dev_idx))
 				continue;
 
 			bkey_copy(&tmp.k, &b->key);
-			new_key = bkey_i_to_btree_ptr(&tmp.k);
 
-			ret = drop_dev_ptrs(c, bkey_i_to_s(&new_key->k_i),
+			ret = drop_dev_ptrs(c, bkey_i_to_s(&tmp.k),
 					    dev_idx, flags, true);
 			if (ret) {
 				bch_err(c, "Cannot drop device without losing data");
 				goto err;
 			}
 
-			ret = bch2_btree_node_update_key(c, iter, b, new_key);
+			ret = bch2_btree_node_update_key(c, iter, b, &tmp.k);
 			if (ret == -EINTR) {
 				b = bch2_btree_iter_peek_node(iter);
 				goto retry;
