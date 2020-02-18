@@ -43,6 +43,7 @@ config SND_SOC_SOF_OF
 
 config SND_SOC_SOF_DEBUG_PROBES
 	bool "SOF enable data probing"
+	select SND_SOC_COMPRESS
 	help
 	  This option enables the data probing feature that can be used to
 	  gather data directly from specific points of the audio pipeline.

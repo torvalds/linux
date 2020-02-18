@@ -14,6 +14,9 @@
 #include <sound/sof.h>
 #include "sof-priv.h"
 #include "ops.h"
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
+#include "probe.h"
+#endif
 
 /* see SOF_DBG_ flags */
 int sof_core_debug;
@@ -292,6 +295,9 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	sdev->pdata = plat_data;
 	sdev->first_boot = true;
 	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
+	sdev->extractor_stream_tag = SOF_PROBE_INVALID_NODE_ID;
+#endif
 	dev_set_drvdata(dev, sdev);
 
 	/* check all mandatory ops */
