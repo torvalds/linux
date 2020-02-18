@@ -786,7 +786,6 @@ static const struct hci_uart_proto h5p = {
 
 static int h5_serdev_probe(struct serdev_device *serdev)
 {
-	const struct acpi_device_id *match;
 	struct device *dev = &serdev->dev;
 	struct h5 *h5;
 
@@ -801,6 +800,8 @@ static int h5_serdev_probe(struct serdev_device *serdev)
 	serdev_device_set_drvdata(serdev, h5);
 
 	if (has_acpi_companion(dev)) {
+		const struct acpi_device_id *match;
+
 		match = acpi_match_device(dev->driver->acpi_match_table, dev);
 		if (!match)
 			return -ENODEV;
