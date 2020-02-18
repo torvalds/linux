@@ -102,7 +102,7 @@ static inline void
 mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc, void __iomem *uar_map,
 		struct mlx5_wqe_ctrl_seg *ctrl)
 {
-	ctrl->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
+	ctrl->fm_ce_se |= MLX5_WQE_CTRL_CQ_UPDATE;
 	/* ensure wqe is visible to device before updating doorbell record */
 	dma_wmb();
 
