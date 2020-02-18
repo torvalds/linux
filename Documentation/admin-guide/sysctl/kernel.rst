@@ -387,7 +387,19 @@ This flag controls the L2 cache of G3 processor boards. If
 modprobe
 ========
 
-See Documentation/debugging-modules.txt.
+This gives the full path of the modprobe command which the kernel will
+use to load modules. This can be used to debug module loading
+requests::
+
+    echo '#! /bin/sh' > /tmp/modprobe
+    echo 'echo "$@" >> /tmp/modprobe.log' >> /tmp/modprobe
+    echo 'exec /sbin/modprobe "$@"' >> /tmp/modprobe
+    chmod a+x /tmp/modprobe
+    echo /tmp/modprobe > /proc/sys/kernel/modprobe
+
+This only applies when the *kernel* is requesting that the module be
+loaded; it won't have any effect if the module is being loaded
+explicitly using ``modprobe`` from userspace.
 
 
 modules_disabled
