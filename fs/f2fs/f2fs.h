@@ -3796,7 +3796,7 @@ int f2fs_write_multi_pages(struct compress_ctx *cc,
 int f2fs_is_compressed_cluster(struct inode *inode, pgoff_t index);
 int f2fs_read_multi_pages(struct compress_ctx *cc, struct bio **bio_ret,
 				unsigned nr_pages, sector_t *last_block_in_bio,
-				bool is_readahead);
+				bool is_readahead, bool for_write);
 struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc);
 void f2fs_free_dic(struct decompress_io_ctx *dic);
 void f2fs_decompress_end_io(struct page **rpages,
