@@ -841,8 +841,8 @@
 #define RT5682_TDM_M_LP_INV			(0x1 << 1)
 #define RT5682_TDM_MS_MASK			(0x1 << 0)
 #define RT5682_TDM_MS_SFT			0
-#define RT5682_TDM_MS_M				(0x0 << 0)
-#define RT5682_TDM_MS_S				(0x1 << 0)
+#define RT5682_TDM_MS_S				(0x0 << 0)
+#define RT5682_TDM_MS_M				(0x1 << 0)
 
 /* Global Clock Control (0x0080) */
 #define RT5682_SCLK_SRC_MASK			(0x7 << 13)
