@@ -432,6 +432,8 @@ static bool pv_tlb_flush_supported(void)
 		kvm_para_has_feature(KVM_FEATURE_STEAL_TIME));
 }
 
+static DEFINE_PER_CPU(cpumask_var_t, __pv_cpu_mask);
+
 #ifdef CONFIG_SMP
 
 static bool pv_ipi_supported(void)
@@ -510,12 +512,12 @@ static void kvm_send_ipi_mask(const struct cpumask *mask, int vector)
 static void kvm_send_ipi_mask_allbutself(const struct cpumask *mask, int vector)
 {
 	unsigned int this_cpu = smp_processor_id();
-	struct cpumask new_mask;
+	struct cpumask *new_mask = this_cpu_cpumask_var_ptr(__pv_cpu_mask);
 	const struct cpumask *local_mask;
 
-	cpumask_copy(&new_mask, mask);
-	cpumask_clear_cpu(this_cpu, &new_mask);
-	local_mask = &new_mask;
+	cpumask_copy(new_mask, mask);
+	cpumask_clear_cpu(this_cpu, new_mask);
+	local_mask = new_mask;
 	__send_ipi_mask(local_mask, vector);
 }
 
@@ -595,7 +597,6 @@ static void __init kvm_apf_trap_init(void)
 	update_intr_gate(X86_TRAP_PF, async_page_fault);
 }
 
-static DEFINE_PER_CPU(cpumask_var_t, __pv_tlb_mask);
 
 static void kvm_flush_tlb_others(const struct cpumask *cpumask,
 			const struct flush_tlb_info *info)
@@ -603,7 +604,7 @@ static void kvm_flush_tlb_others(const struct cpumask *cpumask,
 	u8 state;
 	int cpu;
 	struct kvm_steal_time *src;
-	struct cpumask *flushmask = this_cpu_cpumask_var_ptr(__pv_tlb_mask);
+	struct cpumask *flushmask = this_cpu_cpumask_var_ptr(__pv_cpu_mask);
 
 	cpumask_copy(flushmask, cpumask);
 	/*
@@ -642,6 +643,7 @@ static void __init kvm_guest_init(void)
 	if (pv_tlb_flush_supported()) {
 		pv_ops.mmu.flush_tlb_others = kvm_flush_tlb_others;
 		pv_ops.mmu.tlb_remove_table = tlb_remove_table;
+		pr_info("KVM setup pv remote TLB flush\n");
 	}
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
@@ -748,24 +750,31 @@ static __init int activate_jump_labels(void)
 }
 arch_initcall(activate_jump_labels);
 
-static __init int kvm_setup_pv_tlb_flush(void)
+static __init int kvm_alloc_cpumask(void)
 {
 	int cpu;
+	bool alloc = false;
 
 	if (!kvm_para_available() || nopv)
 		return 0;
 
-	if (pv_tlb_flush_supported()) {
+	if (pv_tlb_flush_supported())
+		alloc = true;
+
+#if defined(CONFIG_SMP)
+	if (pv_ipi_supported())
+		alloc = true;
+#endif
+
+	if (alloc)
 		for_each_possible_cpu(cpu) {
-			zalloc_cpumask_var_node(per_cpu_ptr(&__pv_tlb_mask, cpu),
+			zalloc_cpumask_var_node(per_cpu_ptr(&__pv_cpu_mask, cpu),
 				GFP_KERNEL, cpu_to_node(cpu));
 		}
-		pr_info("KVM setup pv remote TLB flush\n");
-	}
 
 	return 0;
 }
-arch_initcall(kvm_setup_pv_tlb_flush);
+arch_initcall(kvm_alloc_cpumask);
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 
