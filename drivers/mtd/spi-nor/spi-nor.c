@@ -246,55 +246,45 @@ struct flash_info {
 #define JEDEC_MFR(info)	((info)->id[0])
 
 /**
- * spi_nor_spimem_xfer_data() - helper function to read/write data to
- *                              flash's memory region
+ * spi_nor_spimem_bounce() - check if a bounce buffer is needed for the data
+ *                           transfer
  * @nor:        pointer to 'struct spi_nor'
  * @op:         pointer to 'struct spi_mem_op' template for transfer
  *
- * Return: number of bytes transferred on success, -errno otherwise
+ * If we have to use the bounce buffer, the data field in @op will be updated.
+ *
+ * Return: true if the bounce buffer is needed, false if not
  */
-static ssize_t spi_nor_spimem_xfer_data(struct spi_nor *nor,
-					struct spi_mem_op *op)
+static bool spi_nor_spimem_bounce(struct spi_nor *nor, struct spi_mem_op *op)
 {
-	bool usebouncebuf = false;
-	void *rdbuf = NULL;
-	const void *buf;
-	int ret;
-
-	if (op->data.dir == SPI_MEM_DATA_IN)
-		buf = op->data.buf.in;
-	else
-		buf = op->data.buf.out;
-
-	if (object_is_on_stack(buf) || !virt_addr_valid(buf))
-		usebouncebuf = true;
-
-	if (usebouncebuf) {
+	/* op->data.buf.in occupies the same memory as op->data.buf.out */
+	if (object_is_on_stack(op->data.buf.in) ||
+	    !virt_addr_valid(op->data.buf.in)) {
 		if (op->data.nbytes > nor->bouncebuf_size)
 			op->data.nbytes = nor->bouncebuf_size;
-
-		if (op->data.dir == SPI_MEM_DATA_IN) {
-			rdbuf = op->data.buf.in;
-			op->data.buf.in = nor->bouncebuf;
-		} else {
-			op->data.buf.out = nor->bouncebuf;
-			memcpy(nor->bouncebuf, buf,
-			       op->data.nbytes);
-		}
+		op->data.buf.in = nor->bouncebuf;
+		return true;
 	}
 
-	ret = spi_mem_adjust_op_size(nor->spimem, op);
-	if (ret)
-		return ret;
+	return false;
+}
 
-	ret = spi_mem_exec_op(nor->spimem, op);
-	if (ret)
-		return ret;
+/**
+ * spi_nor_spimem_exec_op() - execute a memory operation
+ * @nor:        pointer to 'struct spi_nor'
+ * @op:         pointer to 'struct spi_mem_op' template for transfer
+ *
+ * Return: 0 on success, -error otherwise.
+ */
+static int spi_nor_spimem_exec_op(struct spi_nor *nor, struct spi_mem_op *op)
+{
+	int error;
 
-	if (usebouncebuf && op->data.dir == SPI_MEM_DATA_IN)
-		memcpy(rdbuf, nor->bouncebuf, op->data.nbytes);
+	error = spi_mem_adjust_op_size(nor->spimem, op);
+	if (error)
+		return error;
 
-	return op->data.nbytes;
+	return spi_mem_exec_op(nor->spimem, op);
 }
 
 /**
@@ -315,6 +305,8 @@ static ssize_t spi_nor_spimem_read_data(struct spi_nor *nor, loff_t from,
 			   SPI_MEM_OP_ADDR(nor->addr_width, from, 1),
 			   SPI_MEM_OP_DUMMY(nor->read_dummy, 1),
 			   SPI_MEM_OP_DATA_IN(len, buf, 1));
+	bool usebouncebuf;
+	int error;
 
 	/* get transfer protocols. */
 	op.cmd.buswidth = spi_nor_get_protocol_inst_nbits(nor->read_proto);
@@ -325,7 +317,16 @@ static ssize_t spi_nor_spimem_read_data(struct spi_nor *nor, loff_t from,
 	/* convert the dummy cycles to the number of bytes */
 	op.dummy.nbytes = (nor->read_dummy * op.dummy.buswidth) / 8;
 
-	return spi_nor_spimem_xfer_data(nor, &op);
+	usebouncebuf = spi_nor_spimem_bounce(nor, &op);
+
+	error = spi_nor_spimem_exec_op(nor, &op);
+	if (error)
+		return error;
+
+	if (usebouncebuf)
+		memcpy(buf, op.data.buf.in, op.data.nbytes);
+
+	return op.data.nbytes;
 }
 
 /**
@@ -364,6 +365,7 @@ static ssize_t spi_nor_spimem_write_data(struct spi_nor *nor, loff_t to,
 			   SPI_MEM_OP_ADDR(nor->addr_width, to, 1),
 			   SPI_MEM_OP_NO_DUMMY,
 			   SPI_MEM_OP_DATA_OUT(len, buf, 1));
+	int error;
 
 	op.cmd.buswidth = spi_nor_get_protocol_inst_nbits(nor->write_proto);
 	op.addr.buswidth = spi_nor_get_protocol_addr_nbits(nor->write_proto);
@@ -372,7 +374,14 @@ static ssize_t spi_nor_spimem_write_data(struct spi_nor *nor, loff_t to,
 	if (nor->program_opcode == SPINOR_OP_AAI_WP && nor->sst_write_second)
 		op.addr.nbytes = 0;
 
-	return spi_nor_spimem_xfer_data(nor, &op);
+	if (spi_nor_spimem_bounce(nor, &op))
+		memcpy(nor->bouncebuf, buf, op.data.nbytes);
+
+	error = spi_nor_spimem_exec_op(nor, &op);
+	if (error)
+		return error;
+
+	return op.data.nbytes;
 }
 
 /**
