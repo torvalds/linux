@@ -64,7 +64,6 @@ SECTIONS
 		*(.sdata*)
 		/* End of data section */
 		_edata = .;
-		*(.sbss*)
 	}
 
 	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, 0)
