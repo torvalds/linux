@@ -2025,10 +2025,8 @@ static int atl1c_tso_csum(struct atl1c_adapter *adapter,
 						"IPV6 tso with zero data??\n");
 				goto check_sum;
 			} else
-				tcp_hdr(skb)->check = ~csum_ipv6_magic(
-						&ipv6_hdr(skb)->saddr,
-						&ipv6_hdr(skb)->daddr,
-						0, IPPROTO_TCP, 0);
+				tcp_v6_gso_csum_prep(skb);
+
 			etpd->word1 |= 1 << TPD_LSO_EN_SHIFT;
 			etpd->word1 |= 1 << TPD_LSO_VER_SHIFT;
 			etpd->pkt_len = cpu_to_le32(skb->len);
