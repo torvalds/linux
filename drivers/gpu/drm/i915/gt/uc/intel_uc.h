@@ -40,15 +40,21 @@ void intel_uc_runtime_suspend(struct intel_uc *uc);
 int intel_uc_resume(struct intel_uc *uc);
 int intel_uc_runtime_resume(struct intel_uc *uc);
 
-static inline bool intel_uc_supports_guc(struct intel_uc *uc)
-{
-	return intel_guc_is_supported(&uc->guc);
+#define __uc_state_checker(x, state, required) \
+static inline bool intel_uc_##state##_##x(struct intel_uc *uc) \
+{ \
+	return intel_##x##_is_##required(&uc->x); \
 }
 
-static inline bool intel_uc_uses_guc(struct intel_uc *uc)
-{
-	return intel_guc_is_enabled(&uc->guc);
-}
+#define uc_state_checkers(x) \
+__uc_state_checker(x, supports, supported) \
+__uc_state_checker(x, uses, enabled)
+
+uc_state_checkers(guc);
+uc_state_checkers(huc);
+
+#undef uc_state_checkers
+#undef __uc_state_checker
 
 static inline bool intel_uc_supports_guc_submission(struct intel_uc *uc)
 {
@@ -58,16 +64,6 @@ static inline bool intel_uc_supports_guc_submission(struct intel_uc *uc)
 static inline bool intel_uc_uses_guc_submission(struct intel_uc *uc)
 {
 	return intel_guc_is_submission_supported(&uc->guc);
-}
-
-static inline bool intel_uc_supports_huc(struct intel_uc *uc)
-{
-	return intel_uc_supports_guc(uc);
-}
-
-static inline bool intel_uc_uses_huc(struct intel_uc *uc)
-{
-	return intel_huc_is_enabled(&uc->huc);
 }
 
 #define intel_uc_ops_function(_NAME, _OPS, _TYPE, _RET) \
