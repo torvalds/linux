@@ -9876,6 +9876,12 @@ void kvm_arch_free_memslot(struct kvm *kvm, struct kvm_memory_slot *free,
 int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 			    unsigned long npages)
 {
+	return 0;
+}
+
+static int kvm_alloc_memslot_metadata(struct kvm_memory_slot *slot,
+				      unsigned long npages)
+{
 	int i;
 
 	/*
@@ -9966,10 +9972,9 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				const struct kvm_userspace_memory_region *mem,
 				enum kvm_mr_change change)
 {
-	if (change == KVM_MR_MOVE)
-		return kvm_arch_create_memslot(kvm, memslot,
-					       mem->memory_size >> PAGE_SHIFT);
-
+	if (change == KVM_MR_CREATE || change == KVM_MR_MOVE)
+		return kvm_alloc_memslot_metadata(memslot,
+						  mem->memory_size >> PAGE_SHIFT);
 	return 0;
 }
 
