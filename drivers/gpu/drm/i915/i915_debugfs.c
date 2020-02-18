@@ -1533,10 +1533,8 @@ stringify_guc_log_type(enum guc_log_buffer_type type)
 	return "";
 }
 
-static void i915_guc_log_info(struct seq_file *m,
-			      struct drm_i915_private *dev_priv)
+static void i915_guc_log_info(struct seq_file *m, struct intel_guc_log *log)
 {
-	struct intel_guc_log *log = &dev_priv->gt.uc.guc.log;
 	enum guc_log_buffer_type type;
 
 	if (!intel_guc_log_relay_created(log)) {
@@ -1564,7 +1562,7 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	i915_guc_log_info(m, dev_priv);
+	i915_guc_log_info(m, &dev_priv->gt.uc.guc.log);
 
 	/* Add more as required ... */
 
