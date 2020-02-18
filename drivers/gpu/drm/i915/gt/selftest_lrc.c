@@ -2109,7 +2109,7 @@ static int live_suppress_self_preempt(void *arg)
 	if (!HAS_LOGICAL_RING_PREEMPTION(gt->i915))
 		return 0;
 
-	if (USES_GUC_SUBMISSION(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
 		return 0; /* presume black blox */
 
 	if (intel_vgpu_active(gt->i915))
@@ -3224,7 +3224,7 @@ static int live_virtual_engine(void *arg)
 	unsigned int class, inst;
 	int err;
 
-	if (USES_GUC_SUBMISSION(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
 		return 0;
 
 	for_each_engine(engine, gt, id) {
@@ -3357,7 +3357,7 @@ static int live_virtual_mask(void *arg)
 	unsigned int class, inst;
 	int err;
 
-	if (USES_GUC_SUBMISSION(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
 		return 0;
 
 	for (class = 0; class <= MAX_ENGINE_CLASS; class++) {
@@ -3499,7 +3499,7 @@ static int live_virtual_preserved(void *arg)
 	 * are preserved.
 	 */
 
-	if (USES_GUC_SUBMISSION(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
 		return 0;
 
 	/* As we use CS_GPR we cannot run before they existed on all engines. */
@@ -3729,7 +3729,7 @@ static int live_virtual_bond(void *arg)
 	unsigned int class, inst;
 	int err;
 
-	if (USES_GUC_SUBMISSION(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
 		return 0;
 
 	for (class = 0; class <= MAX_ENGINE_CLASS; class++) {
@@ -3890,7 +3890,7 @@ static int live_virtual_reset(void *arg)
 	 * forgotten.
 	 */
 
-	if (USES_GUC_SUBMISSION(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
 		return 0;
 
 	if (!intel_has_reset_engine(gt))

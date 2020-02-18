@@ -1390,7 +1390,7 @@ set_engines__load_balance(struct i915_user_extension __user *base, void *data)
 	if (!HAS_EXECLISTS(i915))
 		return -ENODEV;
 
-	if (USES_GUC_SUBMISSION(i915))
+	if (intel_uc_uses_guc_submission(&i915->gt.uc))
 		return -ENODEV; /* not implement yet */
 
 	if (get_user(idx, &ext->engine_index))

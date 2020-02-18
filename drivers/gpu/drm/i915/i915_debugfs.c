@@ -1573,11 +1573,11 @@ static int i915_guc_info(struct seq_file *m, void *data)
 static int i915_guc_stage_pool(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	const struct intel_guc *guc = &dev_priv->gt.uc.guc;
-	struct guc_stage_desc *desc = guc->stage_desc_pool_vaddr;
+	struct intel_uc *uc = &dev_priv->gt.uc;
+	struct guc_stage_desc *desc = uc->guc.stage_desc_pool_vaddr;
 	int index;
 
-	if (!USES_GUC_SUBMISSION(dev_priv))
+	if (!intel_uc_uses_guc_submission(uc))
 		return -ENODEV;
 
 	for (index = 0; index < GUC_MAX_STAGE_DESCRIPTORS; index++, desc++) {

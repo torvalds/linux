@@ -105,7 +105,7 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 		return 0;
 	}
 
-	if (USES_GUC_SUBMISSION(dev_priv)) {
+	if (intel_uc_uses_guc_submission(&dev_priv->gt.uc)) {
 		drm_err(&dev_priv->drm,
 			"i915 GVT-g loading failed due to Graphics virtualization is not yet supported with GuC submission\n");
 		return -EIO;
