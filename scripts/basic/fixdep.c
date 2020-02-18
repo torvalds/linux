@@ -246,7 +246,7 @@ static void parse_config_file(const char *p)
 		}
 		p += 7;
 		q = p;
-		while (*q && (isalnum(*q) || *q == '_'))
+		while (isalnum(*q) || *q == '_')
 			q++;
 		if (str_ends_with(p, q - p, "_MODULE"))
 			r = q - 7;
