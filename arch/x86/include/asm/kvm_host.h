@@ -680,7 +680,7 @@ struct kvm_vcpu_arch {
 
 	/* emulate context */
 
-	struct x86_emulate_ctxt emulate_ctxt;
+	struct x86_emulate_ctxt *emulate_ctxt;
 	bool emulate_regs_need_sync_to_vcpu;
 	bool emulate_regs_need_sync_from_vcpu;
 	int (*complete_userspace_io)(struct kvm_vcpu *vcpu);

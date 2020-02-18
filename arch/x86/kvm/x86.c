@@ -81,7 +81,7 @@ u64 __read_mostly kvm_mce_cap_supported = MCG_CTL_P | MCG_SER_P;
 EXPORT_SYMBOL_GPL(kvm_mce_cap_supported);
 
 #define emul_to_vcpu(ctxt) \
-	container_of(ctxt, struct kvm_vcpu, arch.emulate_ctxt)
+	((struct kvm_vcpu *)(ctxt)->vcpu)
 
 /* EFER defaults:
  * - enable syscall per default because its emulated by KVM
@@ -229,6 +229,19 @@ u64 __read_mostly host_xcr0;
 
 struct kmem_cache *x86_fpu_cache;
 EXPORT_SYMBOL_GPL(x86_fpu_cache);
+
+static struct kmem_cache *x86_emulator_cache;
+
+static struct kmem_cache *kvm_alloc_emulator_cache(void)
+{
+	return kmem_cache_create_usercopy("x86_emulator",
+					  sizeof(struct x86_emulate_ctxt),
+					  __alignof__(struct x86_emulate_ctxt),
+					  SLAB_ACCOUNT,
+					  0,
+					  sizeof(struct x86_emulate_ctxt),
+					  NULL);
+}
 
 static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt);
 
@@ -5673,7 +5686,7 @@ static int emulator_read_write_onepage(unsigned long addr, void *val,
 	int handled, ret;
 	bool write = ops->write;
 	struct kvm_mmio_fragment *frag;
-	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
 
 	/*
 	 * If the exit was due to a NPF we may already have a GPA.
@@ -6346,7 +6359,7 @@ static void toggle_interruptibility(struct kvm_vcpu *vcpu, u32 mask)
 
 static bool inject_emulated_exception(struct kvm_vcpu *vcpu)
 {
-	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
 	if (ctxt->exception.vector == PF_VECTOR)
 		return kvm_propagate_fault(vcpu, &ctxt->exception);
 
@@ -6358,9 +6371,26 @@ static bool inject_emulated_exception(struct kvm_vcpu *vcpu)
 	return false;
 }
 
+static struct x86_emulate_ctxt *alloc_emulate_ctxt(struct kvm_vcpu *vcpu)
+{
+	struct x86_emulate_ctxt *ctxt;
+
+	ctxt = kmem_cache_zalloc(x86_emulator_cache, GFP_KERNEL_ACCOUNT);
+	if (!ctxt) {
+		pr_err("kvm: failed to allocate vcpu's emulator\n");
+		return NULL;
+	}
+
+	ctxt->vcpu = vcpu;
+	ctxt->ops = &emulate_ops;
+	vcpu->arch.emulate_ctxt = ctxt;
+
+	return ctxt;
+}
+
 static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 {
-	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
 	int cs_db, cs_l;
 
 	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
@@ -6385,7 +6415,7 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 
 void kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip)
 {
-	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
 	int ret;
 
 	init_emulate_ctxt(vcpu);
@@ -6700,7 +6730,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 			    int emulation_type, void *insn, int insn_len)
 {
 	int r;
-	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
 	bool writeback = true;
 	bool write_fault_to_spt = vcpu->arch.write_fault_to_shadow_pgtable;
 
@@ -7296,10 +7326,16 @@ int kvm_arch_init(void *opaque)
 		goto out;
 	}
 
+	x86_emulator_cache = kvm_alloc_emulator_cache();
+	if (!x86_emulator_cache) {
+		pr_err("kvm: failed to allocate cache for x86 emulator\n");
+		goto out_free_x86_fpu_cache;
+	}
+
 	shared_msrs = alloc_percpu(struct kvm_shared_msrs);
 	if (!shared_msrs) {
 		printk(KERN_ERR "kvm: failed to allocate percpu kvm_shared_msrs\n");
-		goto out_free_x86_fpu_cache;
+		goto out_free_x86_emulator_cache;
 	}
 
 	r = kvm_mmu_module_init();
@@ -7332,6 +7368,8 @@ int kvm_arch_init(void *opaque)
 
 out_free_percpu:
 	free_percpu(shared_msrs);
+out_free_x86_emulator_cache:
+	kmem_cache_destroy(x86_emulator_cache);
 out_free_x86_fpu_cache:
 	kmem_cache_destroy(x86_fpu_cache);
 out:
@@ -8709,7 +8747,7 @@ static void __get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 		 * that usually, but some bad designed PV devices (vmware
 		 * backdoor interface) need this to work
 		 */
-		emulator_writeback_register_cache(&vcpu->arch.emulate_ctxt);
+		emulator_writeback_register_cache(vcpu->arch.emulate_ctxt);
 		vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
 	}
 	regs->rax = kvm_rax_read(vcpu);
@@ -8895,7 +8933,7 @@ out:
 int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
 		    int reason, bool has_error_code, u32 error_code)
 {
-	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
 	int ret;
 
 	init_emulate_ctxt(vcpu);
@@ -9227,7 +9265,6 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	struct page *page;
 	int r;
 
-	vcpu->arch.emulate_ctxt.ops = &emulate_ops;
 	if (!irqchip_in_kernel(vcpu->kvm) || kvm_vcpu_is_reset_bsp(vcpu))
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 	else
@@ -9265,11 +9302,14 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 				GFP_KERNEL_ACCOUNT))
 		goto fail_free_mce_banks;
 
+	if (!alloc_emulate_ctxt(vcpu))
+		goto free_wbinvd_dirty_mask;
+
 	vcpu->arch.user_fpu = kmem_cache_zalloc(x86_fpu_cache,
 						GFP_KERNEL_ACCOUNT);
 	if (!vcpu->arch.user_fpu) {
 		pr_err("kvm: failed to allocate userspace's fpu\n");
-		goto free_wbinvd_dirty_mask;
+		goto free_emulate_ctxt;
 	}
 
 	vcpu->arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache,
@@ -9311,6 +9351,8 @@ free_guest_fpu:
 	kmem_cache_free(x86_fpu_cache, vcpu->arch.guest_fpu);
 free_user_fpu:
 	kmem_cache_free(x86_fpu_cache, vcpu->arch.user_fpu);
+free_emulate_ctxt:
+	kmem_cache_free(x86_emulator_cache, vcpu->arch.emulate_ctxt);
 free_wbinvd_dirty_mask:
 	free_cpumask_var(vcpu->arch.wbinvd_dirty_mask);
 fail_free_mce_banks:
@@ -9361,6 +9403,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 	kvm_x86_ops->vcpu_free(vcpu);
 
+	kmem_cache_free(x86_emulator_cache, vcpu->arch.emulate_ctxt);
 	free_cpumask_var(vcpu->arch.wbinvd_dirty_mask);
 	kmem_cache_free(x86_fpu_cache, vcpu->arch.user_fpu);
 	kmem_cache_free(x86_fpu_cache, vcpu->arch.guest_fpu);

@@ -301,6 +301,7 @@ struct fastop;
 typedef void (*fastop_t)(struct fastop *);
 
 struct x86_emulate_ctxt {
+	void *vcpu;
 	const struct x86_emulate_ops *ops;
 
 	/* Register state before/after emulation. */
