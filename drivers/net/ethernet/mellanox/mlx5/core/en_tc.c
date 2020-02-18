@@ -3381,8 +3381,9 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			if (attr->out_count >= MLX5_MAX_FLOW_FWD_VPORTS) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "can't support more output ports, can't offload forwarding");
-				pr_err("can't support more than %d output ports, can't offload forwarding\n",
-				       attr->out_count);
+				netdev_warn(priv->netdev,
+					    "can't support more than %d output ports, can't offload forwarding\n",
+					    attr->out_count);
 				return -EOPNOTSUPP;
 			}
 
@@ -3460,8 +3461,10 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
 					NL_SET_ERR_MSG_MOD(extack,
 							   "devices are not on same switch HW, can't offload forwarding");
-					pr_err("devices %s %s not on same switch HW, can't offload forwarding\n",
-					       priv->netdev->name, out_dev->name);
+					netdev_warn(priv->netdev,
+						    "devices %s %s not on same switch HW, can't offload forwarding\n",
+						    priv->netdev->name,
+						    out_dev->name);
 					return -EOPNOTSUPP;
 				}
 
@@ -3480,8 +3483,10 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			} else {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "devices are not on same switch HW, can't offload forwarding");
-				pr_err("devices %s %s not on same switch HW, can't offload forwarding\n",
-				       priv->netdev->name, out_dev->name);
+				netdev_warn(priv->netdev,
+					    "devices %s %s not on same switch HW, can't offload forwarding\n",
+					    priv->netdev->name,
+					    out_dev->name);
 				return -EINVAL;
 			}
 			}
