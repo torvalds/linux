@@ -1848,7 +1848,7 @@ static bool dcn21_resource_construct(
 		goto create_fail;
 	}
 
-	if (dc->debug.psr_on_dmub) {
+	if (dc->config.psr_on_dmub) {
 		pool->base.psr = dmub_psr_create(ctx);
 
 		if (pool->base.psr == NULL) {

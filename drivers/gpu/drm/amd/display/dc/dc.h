@@ -230,6 +230,7 @@ struct dc_config {
 	bool forced_clocks;
 	bool disable_extended_timeout_support; // Used to disable extended timeout and lttpr feature as well
 	bool multi_mon_pp_mclk_switch;
+	bool psr_on_dmub;
 };
 
 enum visual_confirm {
@@ -410,7 +411,6 @@ struct dc_debug_options {
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
 	bool dmub_command_table; /* for testing only */
-	bool psr_on_dmub;
 	struct dc_bw_validation_profile bw_val_profile;
 	bool disable_fec;
 	bool disable_48mhz_pwrdwn;
