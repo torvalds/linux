@@ -32,6 +32,7 @@ struct k3_udma_glue_common {
 	bool epib;
 	u32  psdata_size;
 	u32  swdata_size;
+	u32  atype;
 };
 
 struct k3_udma_glue_tx_channel {
@@ -121,6 +122,15 @@ static int of_k3_udma_glue_parse_chn(struct device_node *chn_np,
 		return -ENOENT;
 
 	thread_id = dma_spec.args[0];
+	if (dma_spec.args_count == 2) {
+		if (dma_spec.args[1] > 2) {
+			dev_err(common->dev, "Invalid channel atype: %u\n",
+				dma_spec.args[1]);
+			ret = -EINVAL;
+			goto out_put_spec;
+		}
+		common->atype = dma_spec.args[1];
+	}
 
 	if (tx_chn && !(thread_id & K3_PSIL_DST_THREAD_ID_OFFSET)) {
 		ret = -EINVAL;
@@ -202,7 +212,8 @@ static int k3_udma_glue_cfg_tx_chn(struct k3_udma_glue_tx_channel *tx_chn)
 			TI_SCI_MSG_VALUE_RM_UDMAP_CH_CHAN_TYPE_VALID |
 			TI_SCI_MSG_VALUE_RM_UDMAP_CH_TX_SUPR_TDPKT_VALID |
 			TI_SCI_MSG_VALUE_RM_UDMAP_CH_FETCH_SIZE_VALID |
-			TI_SCI_MSG_VALUE_RM_UDMAP_CH_CQ_QNUM_VALID;
+			TI_SCI_MSG_VALUE_RM_UDMAP_CH_CQ_QNUM_VALID |
+			TI_SCI_MSG_VALUE_RM_UDMAP_CH_ATYPE_VALID;
 	req.nav_id = tisci_rm->tisci_dev_id;
 	req.index = tx_chn->udma_tchan_id;
 	if (tx_chn->tx_pause_on_err)
@@ -216,6 +227,7 @@ static int k3_udma_glue_cfg_tx_chn(struct k3_udma_glue_tx_channel *tx_chn)
 		req.tx_supr_tdpkt = 1;
 	req.tx_fetch_size = tx_chn->common.hdesc_size >> 2;
 	req.txcq_qnum = k3_ringacc_get_ring_id(tx_chn->ringtxcq);
+	req.tx_atype = tx_chn->common.atype;
 
 	return tisci_rm->tisci_udmap_ops->tx_ch_cfg(tisci_rm->tisci, &req);
 }
@@ -502,7 +514,8 @@ static int k3_udma_glue_cfg_rx_chn(struct k3_udma_glue_rx_channel *rx_chn)
 			   TI_SCI_MSG_VALUE_RM_UDMAP_CH_CQ_QNUM_VALID |
 			   TI_SCI_MSG_VALUE_RM_UDMAP_CH_CHAN_TYPE_VALID |
 			   TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_START_VALID |
-			   TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_CNT_VALID;
+			   TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_CNT_VALID |
+			   TI_SCI_MSG_VALUE_RM_UDMAP_CH_ATYPE_VALID;
 
 	req.nav_id = tisci_rm->tisci_dev_id;
 	req.index = rx_chn->udma_rchan_id;
@@ -519,6 +532,7 @@ static int k3_udma_glue_cfg_rx_chn(struct k3_udma_glue_rx_channel *rx_chn)
 		req.flowid_cnt = rx_chn->flow_num;
 	}
 	req.rx_chan_type = TI_SCI_RM_UDMAP_CHAN_TYPE_PKT_PBRR;
+	req.rx_atype = rx_chn->common.atype;
 
 	ret = tisci_rm->tisci_udmap_ops->rx_ch_cfg(tisci_rm->tisci, &req);
 	if (ret)
