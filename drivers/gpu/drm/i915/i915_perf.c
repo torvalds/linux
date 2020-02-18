@@ -555,8 +555,9 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 				aging_tail = hw_tail;
 			stream->oa_buffer.aging_timestamp = now;
 		} else {
-			DRM_ERROR("Ignoring spurious out of range OA buffer tail pointer = %x\n",
-				  hw_tail);
+			drm_err(&stream->perf->i915->drm,
+				"Ignoring spurious out of range OA buffer tail pointer = %x\n",
+				hw_tail);
 		}
 	}
 
@@ -745,7 +746,8 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 */
 		if (drm_WARN_ON(&uncore->i915->drm,
 				(OA_BUFFER_SIZE - head) < report_size)) {
-			DRM_ERROR("Spurious OA head ptr: non-integral report offset\n");
+			drm_err(&uncore->i915->drm,
+				"Spurious OA head ptr: non-integral report offset\n");
 			break;
 		}
 
@@ -1041,7 +1043,8 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		 */
 		if (drm_WARN_ON(&uncore->i915->drm,
 				(OA_BUFFER_SIZE - head) < report_size)) {
-			DRM_ERROR("Spurious OA head ptr: non-integral report offset\n");
+			drm_err(&uncore->i915->drm,
+				"Spurious OA head ptr: non-integral report offset\n");
 			break;
 		}
 
@@ -1339,9 +1342,10 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 
 	ce->tag = stream->specific_ctx_id;
 
-	DRM_DEBUG_DRIVER("filtering on ctx_id=0x%x ctx_id_mask=0x%x\n",
-			 stream->specific_ctx_id,
-			 stream->specific_ctx_id_mask);
+	drm_dbg(&stream->perf->i915->drm,
+		"filtering on ctx_id=0x%x ctx_id_mask=0x%x\n",
+		stream->specific_ctx_id,
+		stream->specific_ctx_id_mask);
 
 	return 0;
 }
@@ -2657,7 +2661,8 @@ static void gen7_oa_disable(struct i915_perf_stream *stream)
 	if (intel_wait_for_register(uncore,
 				    GEN7_OACONTROL, GEN7_OACONTROL_ENABLE, 0,
 				    50))
-		DRM_ERROR("wait for OA to be disabled timed out\n");
+		drm_err(&stream->perf->i915->drm,
+			"wait for OA to be disabled timed out\n");
 }
 
 static void gen8_oa_disable(struct i915_perf_stream *stream)
@@ -2668,7 +2673,8 @@ static void gen8_oa_disable(struct i915_perf_stream *stream)
 	if (intel_wait_for_register(uncore,
 				    GEN8_OACONTROL, GEN8_OA_COUNTER_ENABLE, 0,
 				    50))
-		DRM_ERROR("wait for OA to be disabled timed out\n");
+		drm_err(&stream->perf->i915->drm,
+			"wait for OA to be disabled timed out\n");
 }
 
 static void gen12_oa_disable(struct i915_perf_stream *stream)
@@ -2680,7 +2686,8 @@ static void gen12_oa_disable(struct i915_perf_stream *stream)
 				    GEN12_OAG_OACONTROL,
 				    GEN12_OAG_OACONTROL_OA_COUNTER_ENABLE, 0,
 				    50))
-		DRM_ERROR("wait for OA to be disabled timed out\n");
+		drm_err(&stream->perf->i915->drm,
+			"wait for OA to be disabled timed out\n");
 }
 
 /**
