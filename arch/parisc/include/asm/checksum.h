@@ -26,11 +26,12 @@ extern __wsum csum_partial(const void *, int, __wsum);
  */
 extern __wsum csum_partial_copy_nocheck(const void *, void *, int, __wsum);
 
+#define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 /*
  * this is a new version of the above that records errors it finds in *errp,
  * but continues and zeros the rest of the buffer.
  */
-extern __wsum csum_partial_copy_from_user(const void __user *src,
+extern __wsum csum_and_copy_from_user(const void __user *src,
 		void *dst, int len, __wsum sum, int *errp);
 
 /*
