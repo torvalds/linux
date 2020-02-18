@@ -656,7 +656,7 @@ retry:
 		struct bio *bio = NULL;
 
 		ret = f2fs_read_multi_pages(cc, &bio, cc->cluster_size,
-						&last_block_in_bio, false);
+					&last_block_in_bio, false, true);
 		f2fs_destroy_compress_ctx(cc);
 		if (ret)
 			goto release_pages;
