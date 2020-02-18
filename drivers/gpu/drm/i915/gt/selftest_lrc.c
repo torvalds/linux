@@ -83,7 +83,7 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 			return 0;
 		}
 
-		if (i915_request_completed(rq)) /* that was quick! */
+		if (i915_request_started(rq)) /* that was quick! */
 			return 0;
 	} while (time_before(jiffies, timeout));
 
