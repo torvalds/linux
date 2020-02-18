@@ -544,7 +544,7 @@ static int mtk_hw_get_value_wrap(struct mtk_pinctrl *hw, unsigned int gpio, int 
 	const struct mtk_pin_desc *desc;
 	int value, err;
 
-	if (gpio > hw->soc->npins)
+	if (gpio >= hw->soc->npins)
 		return -EINVAL;
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio];
@@ -583,7 +583,7 @@ ssize_t mtk_pctrl_show_one_pin(struct mtk_pinctrl *hw,
 	int pinmux, pullup, pullen, len = 0, r1 = -1, r0 = -1;
 	const struct mtk_pin_desc *desc;
 
-	if (gpio > hw->soc->npins)
+	if (gpio >= hw->soc->npins)
 		return -EINVAL;
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio];
@@ -766,7 +766,7 @@ static int mtk_gpio_get_direction(struct gpio_chip *chip, unsigned int gpio)
 	const struct mtk_pin_desc *desc;
 	int value, err;
 
-	if (gpio > hw->soc->npins)
+	if (gpio >= hw->soc->npins)
 		return -EINVAL;
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio];
@@ -787,7 +787,7 @@ static int mtk_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 	const struct mtk_pin_desc *desc;
 	int value, err;
 
-	if (gpio > hw->soc->npins)
+	if (gpio >= hw->soc->npins)
 		return -EINVAL;
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio];
@@ -804,7 +804,7 @@ static void mtk_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
 	struct mtk_pinctrl *hw = gpiochip_get_data(chip);
 	const struct mtk_pin_desc *desc;
 
-	if (gpio > hw->soc->npins)
+	if (gpio >= hw->soc->npins)
 		return;
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio];
@@ -816,7 +816,7 @@ static int mtk_gpio_direction_input(struct gpio_chip *chip, unsigned int gpio)
 {
 	struct mtk_pinctrl *hw = gpiochip_get_data(chip);
 
-	if (gpio > hw->soc->npins)
+	if (gpio >= hw->soc->npins)
 		return -EINVAL;
 
 	return pinctrl_gpio_direction_input(chip->base + gpio);
@@ -827,7 +827,7 @@ static int mtk_gpio_direction_output(struct gpio_chip *chip, unsigned int gpio,
 {
 	struct mtk_pinctrl *hw = gpiochip_get_data(chip);
 
-	if (gpio > hw->soc->npins)
+	if (gpio >= hw->soc->npins)
 		return -EINVAL;
 
 	mtk_gpio_set(chip, gpio, value);
