@@ -580,6 +580,7 @@ struct flash_info;
  *                      The structure includes legacy flash parameters and
  *                      settings that can be overwritten by the spi_nor_fixups
  *                      hooks, or dynamically when parsing the SFDP tables.
+ * @dirmap:		pointers to struct spi_mem_dirmap_desc for reads/writes.
  * @priv:		the private data
  */
 struct spi_nor {
@@ -605,6 +606,11 @@ struct spi_nor {
 	const struct spi_nor_controller_ops *controller_ops;
 
 	struct spi_nor_flash_parameter params;
+
+	struct {
+		struct spi_mem_dirmap_desc *rdesc;
+		struct spi_mem_dirmap_desc *wdesc;
+	} dirmap;
 
 	void *priv;
 };
