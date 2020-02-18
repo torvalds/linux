@@ -1671,8 +1671,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	     k.k->p.offset > idx + sectors))
 		goto out;
 
-	bch2_btree_iter_set_pos(iter, bkey_start_pos(k.k));
-	BUG_ON(iter->uptodate > BTREE_ITER_NEED_PEEK);
+	sectors = k.k->p.offset - idx;
 
 	r_v = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 	ret = PTR_ERR_OR_ZERO(r_v);
@@ -1689,9 +1688,12 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 		set_bkey_val_u64s(&r_v->k, 0);
 	}
 
+	bch2_btree_iter_set_pos(iter, bkey_start_pos(k.k));
+	BUG_ON(iter->uptodate > BTREE_ITER_NEED_PEEK);
+
 	bch2_trans_update(trans, iter, &r_v->k_i, 0);
 out:
-	ret = k.k->p.offset - idx;
+	ret = sectors;
 err:
 	bch2_trans_iter_put(trans, iter);
 	return ret;
