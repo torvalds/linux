@@ -1016,7 +1016,7 @@ struct drm_bus_cfg {
 	 * @format: format used on this bus (one of the MEDIA_BUS_FMT_* format)
 	 *
 	 * This field should not be directly modified by drivers
-	 * (&drm_atomic_bridge_chain_select_bus_fmts() takes care of the bus
+	 * (drm_atomic_bridge_chain_select_bus_fmts() takes care of the bus
 	 * format negotiation).
 	 */
 	u32 format;
