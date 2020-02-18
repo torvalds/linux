@@ -409,7 +409,7 @@ or in kernel mode (executing a system call).
 Multi-tasking
 -------------
 
-.. slide:: Execution contexts
+.. slide:: Multi-tasking
    :level: 2
 
    * An OS that supports the "simultaneous" execution of multiple processes
@@ -440,7 +440,7 @@ another task is scheduled.
 Preemptive kernel
 -----------------
 
-.. slide:: Execution contexts
+.. slide:: Preemptive kernel
    :level: 2
    :inline-contents: True
 
@@ -456,7 +456,7 @@ Preemptive kernel
 Pageable kernel memory
 ----------------------
 
-.. slide:: Execution contexts
+.. slide:: Pageable kernel memory
    :level: 2
    :inline-contents: True
 
@@ -467,7 +467,7 @@ Pageable kernel memory
 Kernel stack
 ------------
 
-.. slide:: Execution contexts
+.. slide:: Kernel stack
    :level: 2
    :inline-contents: True
 
@@ -486,7 +486,7 @@ In order to increase portability across various architectures and
 hardware configurations, modern kernels are organized as follows at the
 top level:
 
-.. slide:: Execution contexts
+.. slide:: Portability
    :level: 2
    :inline-contents: True
 
@@ -600,7 +600,7 @@ CPU scalability refers to how well the performance scales with
 the number of cores. There are a few things that the kernel developer
 should keep in mind with regard to CPU scalability:
 
-.. slide:: Execution contexts
+.. slide:: CPU Scalability
    :level: 2
    :inline-contents: True
 
@@ -905,7 +905,7 @@ string operations, etc.)
 Device drivers
 ..............
 
-.. slide:: arch
+.. slide:: Device drivers
    :level: 2
 
    * Unified device model
