@@ -1170,7 +1170,8 @@ struct kvm_x86_ops {
 
 	int (*check_intercept)(struct kvm_vcpu *vcpu,
 			       struct x86_instruction_info *info,
-			       enum x86_intercept_stage stage);
+			       enum x86_intercept_stage stage,
+			       struct x86_exception *exception);
 	void (*handle_exit_irqoff)(struct kvm_vcpu *vcpu,
 		enum exit_fastpath_completion *exit_fastpath);
 	bool (*mpx_supported)(void);

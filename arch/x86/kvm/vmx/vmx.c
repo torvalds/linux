@@ -7174,10 +7174,10 @@ static int vmx_check_intercept_io(struct kvm_vcpu *vcpu,
 
 static int vmx_check_intercept(struct kvm_vcpu *vcpu,
 			       struct x86_instruction_info *info,
-			       enum x86_intercept_stage stage)
+			       enum x86_intercept_stage stage,
+			       struct x86_exception *exception)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
 
 	switch (info->intercept) {
 	/*
@@ -7186,8 +7186,8 @@ static int vmx_check_intercept(struct kvm_vcpu *vcpu,
 	 */
 	case x86_intercept_rdtscp:
 		if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_RDTSCP)) {
-			ctxt->exception.vector = UD_VECTOR;
-			ctxt->exception.error_code_valid = false;
+			exception->vector = UD_VECTOR;
+			exception->error_code_valid = false;
 			return X86EMUL_PROPAGATE_FAULT;
 		}
 		break;
