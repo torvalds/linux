@@ -502,6 +502,8 @@ void hda_dsp_d0i3_work(struct work_struct *work);
 /*
  * DSP PCM Operations.
  */
+u32 hda_dsp_get_mult_div(struct snd_sof_dev *sdev, int rate);
+u32 hda_dsp_get_bits(struct snd_sof_dev *sdev, int sample_bits);
 int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream);
 int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
