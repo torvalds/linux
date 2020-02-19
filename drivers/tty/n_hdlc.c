@@ -232,10 +232,7 @@ static void n_hdlc_release(struct n_hdlc *n_hdlc)
 {
 	struct tty_struct *tty = n_hdlc2tty (n_hdlc);
 	struct n_hdlc_buf *buf;
-	
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_release() called\n",__FILE__,__LINE__);
-		
+
 	/* Ensure that the n_hdlcd process is not hanging on select()/poll() */
 	wake_up_interruptible (&tty->read_wait);
 	wake_up_interruptible (&tty->write_wait);
@@ -287,9 +284,6 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_tty_close() called\n",__FILE__,__LINE__);
-		
 	if (n_hdlc != NULL) {
 		if (n_hdlc->magic != HDLC_MAGIC) {
 			printk (KERN_WARNING"n_hdlc: trying to close unopened tty!\n");
@@ -309,10 +303,6 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 			n_hdlc_release (n_hdlc);
 		}
 	}
-	
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_tty_close() success\n",__FILE__,__LINE__);
-		
 }	/* end of n_hdlc_tty_close() */
 
 /**
@@ -353,10 +343,7 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 	
 	/* flush receive data from driver */
 	tty_driver_flush_buffer(tty);
-		
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_tty_open() success\n",__FILE__,__LINE__);
-		
+
 	return 0;
 	
 }	/* end of n_tty_hdlc_open() */
@@ -376,8 +363,6 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 	unsigned long flags;
 	struct n_hdlc_buf *tbuf;
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_send_frames() called\n",__FILE__,__LINE__);
  check_again:
 		
  	spin_lock_irqsave(&n_hdlc->tx_buf_list.spinlock, flags);
@@ -447,10 +432,6 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 	
         if (n_hdlc->woke_up)
 	  goto check_again;
-
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_send_frames() exit\n",__FILE__,__LINE__);
-		
 }	/* end of n_hdlc_send_frames() */
 
 /**
@@ -463,9 +444,6 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty2n_hdlc(tty);
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_tty_wakeup() called\n",__FILE__,__LINE__);
-		
 	if (!n_hdlc)
 		return;
 
@@ -564,9 +542,6 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 	struct n_hdlc_buf *rbuf;
 	DECLARE_WAITQUEUE(wait, current);
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_tty_read() called\n",__FILE__,__LINE__);
-		
 	/* Validate the pointers */
 	if (!n_hdlc)
 		return -EIO;
@@ -802,9 +777,6 @@ static __poll_t n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
 	__poll_t mask = 0;
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_tty_poll() called\n",__FILE__,__LINE__);
-		
 	if (n_hdlc && n_hdlc->magic == HDLC_MAGIC && tty == n_hdlc->tty) {
 		/* queue current process into any wait queue that */
 		/* may awaken in the future (read and write) */
