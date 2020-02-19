@@ -124,7 +124,6 @@ struct n_hdlc_buf_list {
 /**
  * struct n_hdlc - per device instance data structure
  * @magic - magic value for structure
- * @tty - ptr to TTY structure
  * @tbusy - reentrancy flag for tx wakeup code
  * @woke_up - FIXME: describe this field
  * @tx_buf_list - list of pending transmit frame buffers
@@ -134,7 +133,6 @@ struct n_hdlc_buf_list {
  */
 struct n_hdlc {
 	int			magic;
-	struct tty_struct	*tty;
 	int			tbusy;
 	int			woke_up;
 	struct n_hdlc_buf_list	tx_buf_list;
@@ -240,8 +238,6 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 	clear_bit(TTY_NO_WRITE_SPLIT,&tty->flags);
 #endif
 	tty->disc_data = NULL;
-	if (tty != n_hdlc->tty)
-		return;
 
 	/* Ensure that the n_hdlcd process is not hanging on select()/poll() */
 	wake_up_interruptible(&tty->read_wait);
@@ -280,7 +276,6 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 	}
 		
 	tty->disc_data = n_hdlc;
-	n_hdlc->tty    = tty;
 	tty->receive_room = 65536;
 	
 #if defined(TTY_NO_WRITE_SPLIT)
@@ -391,11 +386,6 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
 	if (!n_hdlc)
 		return;
 
-	if (tty != n_hdlc->tty) {
-		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
-		return;
-	}
-
 	n_hdlc_send_frames (n_hdlc, tty);
 		
 }	/* end of n_hdlc_tty_wakeup() */
@@ -420,7 +410,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 			__FILE__, __LINE__, __func__, count);
 
 	/* This can happen if stuff comes in on the backup tty */
-	if (!n_hdlc || tty != n_hdlc->tty)
+	if (!n_hdlc)
 		return;
 		
 	/* verify line is using HDLC discipline */
@@ -461,8 +451,8 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	
 	/* wake up any blocked reads and perform async signalling */
 	wake_up_interruptible (&tty->read_wait);
-	if (n_hdlc->tty->fasync != NULL)
-		kill_fasync (&n_hdlc->tty->fasync, SIGIO, POLL_IN);
+	if (tty->fasync != NULL)
+		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 
 }	/* end of n_hdlc_tty_receive() */
 
@@ -598,8 +588,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 		schedule();
 			
 		n_hdlc = tty->disc_data;
-		if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC || 
-		    tty != n_hdlc->tty) {
+		if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC) {
 			printk("n_hdlc_tty_write: %p invalid after wait!\n", n_hdlc);
 			error = -EIO;
 			break;
@@ -712,7 +701,7 @@ static __poll_t n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 	struct n_hdlc *n_hdlc = tty->disc_data;
 	__poll_t mask = 0;
 
-	if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC || tty != n_hdlc->tty)
+	if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC)
 		return 0;
 
 	/*
