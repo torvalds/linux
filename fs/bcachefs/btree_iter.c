@@ -1732,8 +1732,7 @@ static inline void bch2_btree_iter_init(struct btree_trans *trans,
 	iter->nodes_locked		= 0;
 	iter->nodes_intent_locked	= 0;
 	for (i = 0; i < ARRAY_SIZE(iter->l); i++)
-		iter->l[i].b		= NULL;
-	iter->l[iter->level].b		= BTREE_ITER_NO_NODE_INIT;
+		iter->l[i].b		= BTREE_ITER_NO_NODE_INIT;
 
 	prefetch(c->btree_roots[btree_id].b);
 }
