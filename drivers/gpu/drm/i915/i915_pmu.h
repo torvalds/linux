@@ -108,6 +108,10 @@ struct i915_pmu {
 	 */
 	ktime_t sleep_last;
 	/**
+	 * @events_attr_group: Device events attribute group.
+	 */
+	struct attribute_group events_attr_group;
+	/**
 	 * @i915_attr: Memory block holding device attributes.
 	 */
 	void *i915_attr;
