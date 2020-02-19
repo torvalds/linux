@@ -244,10 +244,8 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 	tty->disc_data = n_hdlc;
 	tty->receive_room = 65536;
 	
-#if defined(TTY_NO_WRITE_SPLIT)
 	/* change tty_io write() to not split large writes into 8K chunks */
 	set_bit(TTY_NO_WRITE_SPLIT,&tty->flags);
-#endif
 	
 	/* flush receive data from driver */
 	tty_driver_flush_buffer(tty);
