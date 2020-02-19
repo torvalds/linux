@@ -73,5 +73,9 @@ struct mlx5_ib_uapi_devx_async_event_hdr {
 	__u8		out_data[];
 };
 
+enum mlx5_ib_uapi_pp_alloc_flags {
+	MLX5_IB_UAPI_PP_ALLOC_FLAGS_DEDICATED_INDEX = 1 << 0,
+};
+
 #endif
 
