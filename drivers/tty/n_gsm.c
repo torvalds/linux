@@ -140,7 +140,7 @@ struct gsm_dlci {
 	int prev_adaption;
 	u32 modem_rx;		/* Our incoming virtual modem lines */
 	u32 modem_tx;		/* Our outgoing modem lines */
-	int dead;		/* Refuse re-open */
+	bool dead;		/* Refuse re-open */
 	/* Flow control */
 	int throttled;		/* Private copy of throttle state */
 	int constipated;	/* Throttle status for outgoing */
@@ -232,7 +232,7 @@ struct gsm_mux {
 	unsigned int mru;
 	unsigned int mtu;
 	int initiator;			/* Did we initiate connection */
-	int dead;			/* Has the mux been shut down */
+	bool dead;			/* Has the mux been shut down */
 	struct gsm_dlci *dlci[NUM_DLCI];
 	int constipated;		/* Asked by remote to shut up */
 
@@ -1207,8 +1207,8 @@ static void gsm_control_message(struct gsm_mux *gsm, unsigned int command,
 		struct gsm_dlci *dlci = gsm->dlci[0];
 		/* Modem wishes to close down */
 		if (dlci) {
-			dlci->dead = 1;
-			gsm->dead = 1;
+			dlci->dead = true;
+			gsm->dead = true;
 			gsm_dlci_begin_close(dlci);
 		}
 		}
@@ -1434,7 +1434,7 @@ static void gsm_dlci_close(struct gsm_dlci *dlci)
 		tty_port_tty_hangup(&dlci->port, false);
 		kfifo_reset(&dlci->fifo);
 	} else
-		dlci->gsm->dead = 1;
+		dlci->gsm->dead = true;
 	wake_up(&dlci->gsm->event);
 	/* A DLCI 0 close is a MUX termination so we need to kick that
 	   back to userspace somehow */
@@ -2081,7 +2081,7 @@ static void gsm_cleanup_mux(struct gsm_mux *gsm)
 	struct gsm_dlci *dlci = gsm->dlci[0];
 	struct gsm_msg *txq, *ntxq;
 
-	gsm->dead = 1;
+	gsm->dead = true;
 
 	spin_lock(&gsm_mux_lock);
 	for (i = 0; i < MAX_MUX; i++) {
@@ -2098,7 +2098,7 @@ static void gsm_cleanup_mux(struct gsm_mux *gsm)
 	del_timer_sync(&gsm->t2_timer);
 	/* Now we are sure T2 has stopped */
 	if (dlci)
-		dlci->dead = 1;
+		dlci->dead = true;
 
 	/* Free up any link layer users */
 	mutex_lock(&gsm->mutex);
@@ -2152,7 +2152,7 @@ static int gsm_activate_mux(struct gsm_mux *gsm)
 	dlci = gsm_dlci_alloc(gsm, 0);
 	if (dlci == NULL)
 		return -ENOMEM;
-	gsm->dead = 0;		/* Tty opens are now permissible */
+	gsm->dead = false;		/* Tty opens are now permissible */
 	return 0;
 }
 
@@ -2236,7 +2236,7 @@ static struct gsm_mux *gsm_alloc_mux(void)
 	gsm->encoding = 1;
 	gsm->mru = 64;	/* Default to encoding 1 so these should be 64 */
 	gsm->mtu = 64;
-	gsm->dead = 1;	/* Avoid early tty opens */
+	gsm->dead = true;	/* Avoid early tty opens */
 
 	return gsm;
 }
