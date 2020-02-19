@@ -123,14 +123,11 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 		goto reset_fifo_fail;
 
 	/* enable interrupt */
-	if (st->chip_config.accl_fifo_enable ||
-	    st->chip_config.gyro_fifo_enable ||
-	    st->chip_config.magn_fifo_enable) {
-		result = regmap_write(st->map, st->reg->int_enable,
-				      INV_MPU6050_BIT_DATA_RDY_EN);
-		if (result)
-			return result;
-	}
+	result = regmap_write(st->map, st->reg->int_enable,
+			      INV_MPU6050_BIT_DATA_RDY_EN);
+	if (result)
+		return result;
+
 	/* enable FIFO reading */
 	d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_EN;
 	result = regmap_write(st->map, st->reg->user_ctrl, d);
