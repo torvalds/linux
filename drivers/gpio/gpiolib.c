@@ -3143,7 +3143,9 @@ const char *gpiochip_is_requested(struct gpio_chip *chip, unsigned offset)
 	if (offset >= chip->ngpio)
 		return NULL;
 
-	desc = &chip->gpiodev->descs[offset];
+	desc = gpiochip_get_desc(chip, offset);
+	if (IS_ERR(desc))
+		return NULL;
 
 	if (test_bit(FLAG_REQUESTED, &desc->flags) == 0)
 		return NULL;
