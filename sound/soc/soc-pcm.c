@@ -396,20 +396,16 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_substream *substream)
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai;
-	struct snd_soc_dai_driver *cpu_dai_drv = rtd->cpu_dai->driver;
-	struct snd_soc_dai_driver *codec_dai_drv;
 	struct snd_soc_pcm_stream *codec_stream;
 	struct snd_soc_pcm_stream *cpu_stream;
 	unsigned int chan_min = 0, chan_max = UINT_MAX;
 	unsigned int rate_min = 0, rate_max = UINT_MAX;
 	unsigned int rates = UINT_MAX;
 	u64 formats = ULLONG_MAX;
+	int stream = substream->stream;
 	int i;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		cpu_stream = &cpu_dai_drv->playback;
-	else
-		cpu_stream = &cpu_dai_drv->capture;
+	cpu_stream = snd_soc_dai_get_pcm_stream(rtd->cpu_dai, stream);
 
 	/* first calculate min/max only for CODECs in the DAI link */
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
@@ -427,11 +423,8 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_substream *substream)
 					      substream->stream))
 			continue;
 
-		codec_dai_drv = codec_dai->driver;
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			codec_stream = &codec_dai_drv->playback;
-		else
-			codec_stream = &codec_dai_drv->capture;
+		codec_stream = snd_soc_dai_get_pcm_stream(codec_dai, stream);
+
 		chan_min = max(chan_min, codec_stream->channels_min);
 		chan_max = min(chan_max, codec_stream->channels_max);
 		rate_min = max(rate_min, codec_stream->rate_min);
@@ -1600,7 +1593,6 @@ static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
 
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_soc_dai_driver *codec_dai_drv;
 		struct snd_soc_pcm_stream *codec_stream;
 		int i;
 
@@ -1612,11 +1604,7 @@ static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
 			if (!snd_soc_dai_stream_valid(dai, stream))
 				continue;
 
-			codec_dai_drv = dai->driver;
-			if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-				codec_stream = &codec_dai_drv->playback;
-			else
-				codec_stream = &codec_dai_drv->capture;
+			codec_stream = snd_soc_dai_get_pcm_stream(dai, stream);
 
 			*formats &= codec_stream->formats;
 		}
@@ -1641,15 +1629,10 @@ static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
 
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_soc_dai_driver *cpu_dai_drv =  be->cpu_dai->driver;
-		struct snd_soc_dai_driver *codec_dai_drv;
 		struct snd_soc_pcm_stream *codec_stream;
 		struct snd_soc_pcm_stream *cpu_stream;
 
-		if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-			cpu_stream = &cpu_dai_drv->playback;
-		else
-			cpu_stream = &cpu_dai_drv->capture;
+		cpu_stream = snd_soc_dai_get_pcm_stream(be->cpu_dai, stream);
 
 		*channels_min = max(*channels_min, cpu_stream->channels_min);
 		*channels_max = min(*channels_max, cpu_stream->channels_max);
@@ -1659,12 +1642,7 @@ static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
 		 * DAIs connected to a single CPU DAI, use CPU DAI's directly
 		 */
 		if (be->num_codecs == 1) {
-			codec_dai_drv = be->codec_dais[0]->driver;
-
-			if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-				codec_stream = &codec_dai_drv->playback;
-			else
-				codec_stream = &codec_dai_drv->capture;
+			codec_stream = snd_soc_dai_get_pcm_stream(be->codec_dais[0], stream);
 
 			*channels_min = max(*channels_min,
 					    codec_stream->channels_min);
@@ -1693,17 +1671,12 @@ static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
 
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_soc_dai_driver *cpu_dai_drv =  be->cpu_dai->driver;
-		struct snd_soc_dai_driver *codec_dai_drv;
 		struct snd_soc_pcm_stream *codec_stream;
 		struct snd_soc_pcm_stream *cpu_stream;
 		struct snd_soc_dai *dai;
 		int i;
 
-		if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-			cpu_stream = &cpu_dai_drv->playback;
-		else
-			cpu_stream = &cpu_dai_drv->capture;
+		cpu_stream = snd_soc_dai_get_pcm_stream(be->cpu_dai, stream);
 
 		*rate_min = max(*rate_min, cpu_stream->rate_min);
 		*rate_max = min_not_zero(*rate_max, cpu_stream->rate_max);
@@ -1717,11 +1690,7 @@ static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
 			if (!snd_soc_dai_stream_valid(dai, stream))
 				continue;
 
-			codec_dai_drv = dai->driver;
-			if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-				codec_stream = &codec_dai_drv->playback;
-			else
-				codec_stream = &codec_dai_drv->capture;
+			codec_stream = snd_soc_dai_get_pcm_stream(dai, stream);
 
 			*rate_min = max(*rate_min, codec_stream->rate_min);
 			*rate_max = min_not_zero(*rate_max,
