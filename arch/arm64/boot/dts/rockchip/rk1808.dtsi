@@ -1749,10 +1749,10 @@
 		};
 		opp-792000000 {
 			opp-hz = /bits/ 64 <792000000>;
-			opp-microvolt = <825000 825000 880000>;
-			opp-microvolt-L0 = <825000 825000 880000>;
-			opp-microvolt-L1 = <800000 800000 880000>;
-			opp-microvolt-L2 = <775000 775000 880000>;
+			opp-microvolt = <850000 850000 880000>;
+			opp-microvolt-L0 = <850000 850000 880000>;
+			opp-microvolt-L1 = <825000 825000 880000>;
+			opp-microvolt-L2 = <800000 800000 880000>;
 		};
 	};
 
