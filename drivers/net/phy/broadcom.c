@@ -273,10 +273,7 @@ static int bcm54xx_config_init(struct phy_device *phydev)
 	    (phydev->dev_flags & PHY_BRCM_CLEAR_RGMII_MODE))
 		bcm_phy_write_shadow(phydev, BCM54XX_SHD_RGMII_MODE, 0);
 
-	if ((phydev->dev_flags & PHY_BRCM_RX_REFCLK_UNUSED) ||
-	    (phydev->dev_flags & PHY_BRCM_DIS_TXCRXC_NOENRGY) ||
-	    (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE))
-		bcm54xx_adjust_rxrefclk(phydev);
+	bcm54xx_adjust_rxrefclk(phydev);
 
 	if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54210E) {
 		err = bcm54210e_config_init(phydev);
