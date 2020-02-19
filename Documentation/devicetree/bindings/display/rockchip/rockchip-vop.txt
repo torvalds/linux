@@ -14,6 +14,7 @@ Required properties:
 		"rockchip,rk3308-vop";
 		"rockchip,rk1808-vop-lit";
 		"rockchip,rk1808-vop-raw";
+		"rockchip,rv1126-vop";
 		"rockchip,rk3288-vop-lit";
 		"rockchip,rk3288-vop-big";
 		"rockchip,rk3368-vop";
