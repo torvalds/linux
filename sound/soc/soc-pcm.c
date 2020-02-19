@@ -28,6 +28,144 @@
 
 #define DPCM_MAX_BE_USERS	8
 
+#ifdef CONFIG_DEBUG_FS
+static const char *dpcm_state_string(enum snd_soc_dpcm_state state)
+{
+	switch (state) {
+	case SND_SOC_DPCM_STATE_NEW:
+		return "new";
+	case SND_SOC_DPCM_STATE_OPEN:
+		return "open";
+	case SND_SOC_DPCM_STATE_HW_PARAMS:
+		return "hw_params";
+	case SND_SOC_DPCM_STATE_PREPARE:
+		return "prepare";
+	case SND_SOC_DPCM_STATE_START:
+		return "start";
+	case SND_SOC_DPCM_STATE_STOP:
+		return "stop";
+	case SND_SOC_DPCM_STATE_SUSPEND:
+		return "suspend";
+	case SND_SOC_DPCM_STATE_PAUSED:
+		return "paused";
+	case SND_SOC_DPCM_STATE_HW_FREE:
+		return "hw_free";
+	case SND_SOC_DPCM_STATE_CLOSE:
+		return "close";
+	}
+
+	return "unknown";
+}
+
+static ssize_t dpcm_show_state(struct snd_soc_pcm_runtime *fe,
+			       int stream, char *buf, size_t size)
+{
+	struct snd_pcm_hw_params *params = &fe->dpcm[stream].hw_params;
+	struct snd_soc_dpcm *dpcm;
+	ssize_t offset = 0;
+	unsigned long flags;
+
+	/* FE state */
+	offset += snprintf(buf + offset, size - offset,
+			   "[%s - %s]\n", fe->dai_link->name,
+			   stream ? "Capture" : "Playback");
+
+	offset += snprintf(buf + offset, size - offset, "State: %s\n",
+			   dpcm_state_string(fe->dpcm[stream].state));
+
+	if ((fe->dpcm[stream].state >= SND_SOC_DPCM_STATE_HW_PARAMS) &&
+	    (fe->dpcm[stream].state <= SND_SOC_DPCM_STATE_STOP))
+		offset += snprintf(buf + offset, size - offset,
+				   "Hardware Params: "
+				   "Format = %s, Channels = %d, Rate = %d\n",
+				   snd_pcm_format_name(params_format(params)),
+				   params_channels(params),
+				   params_rate(params));
+
+	/* BEs state */
+	offset += snprintf(buf + offset, size - offset, "Backends:\n");
+
+	if (list_empty(&fe->dpcm[stream].be_clients)) {
+		offset += snprintf(buf + offset, size - offset,
+				   " No active DSP links\n");
+		goto out;
+	}
+
+	spin_lock_irqsave(&fe->card->dpcm_lock, flags);
+	for_each_dpcm_be(fe, stream, dpcm) {
+		struct snd_soc_pcm_runtime *be = dpcm->be;
+		params = &dpcm->hw_params;
+
+		offset += snprintf(buf + offset, size - offset,
+				   "- %s\n", be->dai_link->name);
+
+		offset += snprintf(buf + offset, size - offset,
+				   "   State: %s\n",
+				   dpcm_state_string(be->dpcm[stream].state));
+
+		if ((be->dpcm[stream].state >= SND_SOC_DPCM_STATE_HW_PARAMS) &&
+		    (be->dpcm[stream].state <= SND_SOC_DPCM_STATE_STOP))
+			offset += snprintf(buf + offset, size - offset,
+					   "   Hardware Params: "
+					   "Format = %s, Channels = %d, Rate = %d\n",
+					   snd_pcm_format_name(params_format(params)),
+					   params_channels(params),
+					   params_rate(params));
+	}
+	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
+out:
+	return offset;
+}
+
+static ssize_t dpcm_state_read_file(struct file *file, char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct snd_soc_pcm_runtime *fe = file->private_data;
+	ssize_t out_count = PAGE_SIZE, offset = 0, ret = 0;
+	int stream;
+	char *buf;
+
+	buf = kmalloc(out_count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	for_each_pcm_streams(stream)
+		if (snd_soc_dai_stream_valid(fe->cpu_dai, stream))
+			offset += dpcm_show_state(fe, stream,
+						  buf + offset,
+						  out_count - offset);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, offset);
+
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations dpcm_state_fops = {
+	.open = simple_open,
+	.read = dpcm_state_read_file,
+	.llseek = default_llseek,
+};
+
+void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
+{
+	if (!rtd->dai_link)
+		return;
+
+	if (!rtd->dai_link->dynamic)
+		return;
+
+	if (!rtd->card->debugfs_card_root)
+		return;
+
+	rtd->debugfs_dpcm_root = debugfs_create_dir(rtd->dai_link->name,
+						    rtd->card->debugfs_card_root);
+
+	debugfs_create_file("state", 0444, rtd->debugfs_dpcm_root,
+			    rtd, &dpcm_state_fops);
+}
+#endif
+
 static int soc_rtd_startup(struct snd_soc_pcm_runtime *rtd,
 			   struct snd_pcm_substream *substream)
 {
@@ -2930,141 +3068,3 @@ int snd_soc_dpcm_can_be_params(struct snd_soc_pcm_runtime *fe,
 	return snd_soc_dpcm_check_state(fe, be, stream, state, ARRAY_SIZE(state));
 }
 EXPORT_SYMBOL_GPL(snd_soc_dpcm_can_be_params);
-
-#ifdef CONFIG_DEBUG_FS
-static const char *dpcm_state_string(enum snd_soc_dpcm_state state)
-{
-	switch (state) {
-	case SND_SOC_DPCM_STATE_NEW:
-		return "new";
-	case SND_SOC_DPCM_STATE_OPEN:
-		return "open";
-	case SND_SOC_DPCM_STATE_HW_PARAMS:
-		return "hw_params";
-	case SND_SOC_DPCM_STATE_PREPARE:
-		return "prepare";
-	case SND_SOC_DPCM_STATE_START:
-		return "start";
-	case SND_SOC_DPCM_STATE_STOP:
-		return "stop";
-	case SND_SOC_DPCM_STATE_SUSPEND:
-		return "suspend";
-	case SND_SOC_DPCM_STATE_PAUSED:
-		return "paused";
-	case SND_SOC_DPCM_STATE_HW_FREE:
-		return "hw_free";
-	case SND_SOC_DPCM_STATE_CLOSE:
-		return "close";
-	}
-
-	return "unknown";
-}
-
-static ssize_t dpcm_show_state(struct snd_soc_pcm_runtime *fe,
-				int stream, char *buf, size_t size)
-{
-	struct snd_pcm_hw_params *params = &fe->dpcm[stream].hw_params;
-	struct snd_soc_dpcm *dpcm;
-	ssize_t offset = 0;
-	unsigned long flags;
-
-	/* FE state */
-	offset += snprintf(buf + offset, size - offset,
-			"[%s - %s]\n", fe->dai_link->name,
-			stream ? "Capture" : "Playback");
-
-	offset += snprintf(buf + offset, size - offset, "State: %s\n",
-	                dpcm_state_string(fe->dpcm[stream].state));
-
-	if ((fe->dpcm[stream].state >= SND_SOC_DPCM_STATE_HW_PARAMS) &&
-	    (fe->dpcm[stream].state <= SND_SOC_DPCM_STATE_STOP))
-		offset += snprintf(buf + offset, size - offset,
-				"Hardware Params: "
-				"Format = %s, Channels = %d, Rate = %d\n",
-				snd_pcm_format_name(params_format(params)),
-				params_channels(params),
-				params_rate(params));
-
-	/* BEs state */
-	offset += snprintf(buf + offset, size - offset, "Backends:\n");
-
-	if (list_empty(&fe->dpcm[stream].be_clients)) {
-		offset += snprintf(buf + offset, size - offset,
-				" No active DSP links\n");
-		goto out;
-	}
-
-	spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-	for_each_dpcm_be(fe, stream, dpcm) {
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		params = &dpcm->hw_params;
-
-		offset += snprintf(buf + offset, size - offset,
-				"- %s\n", be->dai_link->name);
-
-		offset += snprintf(buf + offset, size - offset,
-				"   State: %s\n",
-				dpcm_state_string(be->dpcm[stream].state));
-
-		if ((be->dpcm[stream].state >= SND_SOC_DPCM_STATE_HW_PARAMS) &&
-		    (be->dpcm[stream].state <= SND_SOC_DPCM_STATE_STOP))
-			offset += snprintf(buf + offset, size - offset,
-				"   Hardware Params: "
-				"Format = %s, Channels = %d, Rate = %d\n",
-				snd_pcm_format_name(params_format(params)),
-				params_channels(params),
-				params_rate(params));
-	}
-	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-out:
-	return offset;
-}
-
-static ssize_t dpcm_state_read_file(struct file *file, char __user *user_buf,
-				size_t count, loff_t *ppos)
-{
-	struct snd_soc_pcm_runtime *fe = file->private_data;
-	ssize_t out_count = PAGE_SIZE, offset = 0, ret = 0;
-	int stream;
-	char *buf;
-
-	buf = kmalloc(out_count, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	for_each_pcm_streams(stream)
-		if (snd_soc_dai_stream_valid(fe->cpu_dai, stream))
-			offset += dpcm_show_state(fe, stream,
-						  buf + offset,
-						  out_count - offset);
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, offset);
-
-	kfree(buf);
-	return ret;
-}
-
-static const struct file_operations dpcm_state_fops = {
-	.open = simple_open,
-	.read = dpcm_state_read_file,
-	.llseek = default_llseek,
-};
-
-void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
-{
-	if (!rtd->dai_link)
-		return;
-
-	if (!rtd->dai_link->dynamic)
-		return;
-
-	if (!rtd->card->debugfs_card_root)
-		return;
-
-	rtd->debugfs_dpcm_root = debugfs_create_dir(rtd->dai_link->name,
-			rtd->card->debugfs_card_root);
-
-	debugfs_create_file("state", 0444, rtd->debugfs_dpcm_root,
-			    rtd, &dpcm_state_fops);
-}
-#endif
