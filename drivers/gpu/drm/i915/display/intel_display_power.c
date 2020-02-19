@@ -5003,6 +5003,14 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 			       table[i].page_mask);
 		intel_de_write(dev_priv, BW_BUDDY2_PAGE_MASK,
 			       table[i].page_mask);
+
+		/* Wa_22010178259:tgl */
+		intel_de_rmw(dev_priv, BW_BUDDY1_CTL,
+			     BW_BUDDY_TLB_REQ_TIMER_MASK,
+			     REG_FIELD_PREP(BW_BUDDY_TLB_REQ_TIMER_MASK, 0x8));
+		intel_de_rmw(dev_priv, BW_BUDDY2_CTL,
+			     BW_BUDDY_TLB_REQ_TIMER_MASK,
+			     REG_FIELD_PREP(BW_BUDDY_TLB_REQ_TIMER_MASK, 0x8));
 	}
 }
 
