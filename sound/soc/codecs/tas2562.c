@@ -382,17 +382,33 @@ static int tas2562_dac_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 					snd_soc_dapm_to_component(w->dapm);
 	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		dev_info(tas2562->dev, "SND_SOC_DAPM_POST_PMU\n");
+		ret = snd_soc_component_update_bits(component,
+			TAS2562_PWR_CTRL,
+			TAS2562_MODE_MASK,
+			TAS2562_MUTE);
+		if (ret)
+			goto end;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		dev_info(tas2562->dev, "SND_SOC_DAPM_PRE_PMD\n");
+		ret = snd_soc_component_update_bits(component,
+			TAS2562_PWR_CTRL,
+			TAS2562_MODE_MASK,
+			TAS2562_SHUTDOWN);
+		if (ret)
+			goto end;
 		break;
 	default:
-		break;
+		dev_err(tas2562->dev, "Not supported evevt\n");
+		return -EINVAL;
 	}
+
+end:
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -415,7 +431,6 @@ static const struct snd_kcontrol_new tas2562_snd_controls[] = {
 static const struct snd_soc_dapm_widget tas2562_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_NOPM, 0, 0, &tas2562_asi1_mux),
-	SND_SOC_DAPM_AIF_IN("DAC IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0, tas2562_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_SWITCH("ISENSE", TAS2562_PWR_CTRL, 3, 1, &isense_switch),
@@ -430,7 +445,7 @@ static const struct snd_soc_dapm_route tas2562_audio_map[] = {
 	{"ASI1 Sel", "Left", "ASI1"},
 	{"ASI1 Sel", "Right", "ASI1"},
 	{"ASI1 Sel", "LeftRightDiv2", "ASI1"},
-	{ "DAC", NULL, "DAC IN" },
+	{ "DAC", NULL, "ASI1 Sel" },
 	{ "OUT", NULL, "DAC" },
 	{"ISENSE", "Switch", "IMON"},
 	{"VSENSE", "Switch", "VMON"},
@@ -470,6 +485,13 @@ static struct snd_soc_dai_driver tas2562_dai[] = {
 			.channels_max   = 2,
 			.rates      = SNDRV_PCM_RATE_8000_192000,
 			.formats    = TAS2562_FORMATS,
+		},
+		.capture = {
+			.stream_name    = "ASI1 Capture",
+			.channels_min   = 0,
+			.channels_max   = 2,
+			.rates		= SNDRV_PCM_RATE_8000_192000,
+			.formats	= TAS2562_FORMATS,
 		},
 		.ops = &tas2562_speaker_dai_ops,
 	},
