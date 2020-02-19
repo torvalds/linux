@@ -175,12 +175,11 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *cp,
 			       char *fp, int count);
 static void n_hdlc_tty_wakeup(struct tty_struct *tty);
 
-#define tty2n_hdlc(tty)	((struct n_hdlc *) ((tty)->disc_data))
 #define n_hdlc2tty(n_hdlc)	((n_hdlc)->tty)
 
 static void flush_rx_queue(struct tty_struct *tty)
 {
-	struct n_hdlc *n_hdlc = tty2n_hdlc(tty);
+	struct n_hdlc *n_hdlc = tty->disc_data;
 	struct n_hdlc_buf *buf;
 
 	while ((buf = n_hdlc_buf_get(&n_hdlc->rx_buf_list)))
@@ -189,7 +188,7 @@ static void flush_rx_queue(struct tty_struct *tty)
 
 static void flush_tx_queue(struct tty_struct *tty)
 {
-	struct n_hdlc *n_hdlc = tty2n_hdlc(tty);
+	struct n_hdlc *n_hdlc = tty->disc_data;
 	struct n_hdlc_buf *buf;
 
 	while ((buf = n_hdlc_buf_get(&n_hdlc->tx_buf_list)))
@@ -252,7 +251,7 @@ static void n_hdlc_release(struct n_hdlc *n_hdlc)
  */
 static void n_hdlc_tty_close(struct tty_struct *tty)
 {
-	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
+	struct n_hdlc *n_hdlc = tty->disc_data;
 
 	if (!n_hdlc)
 		return;
@@ -278,7 +277,7 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
  */
 static int n_hdlc_tty_open (struct tty_struct *tty)
 {
-	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
+	struct n_hdlc *n_hdlc = tty->disc_data;
 
 	pr_debug("%s(%d)%s() called (device=%s)\n",
 			__FILE__, __LINE__, __func__, tty->name);
@@ -402,7 +401,7 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
  */
 static void n_hdlc_tty_wakeup(struct tty_struct *tty)
 {
-	struct n_hdlc *n_hdlc = tty2n_hdlc(tty);
+	struct n_hdlc *n_hdlc = tty->disc_data;
 
 	if (!n_hdlc)
 		return;
@@ -429,7 +428,7 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
 static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 			       char *flags, int count)
 {
-	register struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
+	register struct n_hdlc *n_hdlc = tty->disc_data;
 	register struct n_hdlc_buf *buf;
 
 	pr_debug("%s(%d)%s() called count=%d\n",
@@ -494,7 +493,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 			   __u8 __user *buf, size_t nr)
 {
-	struct n_hdlc *n_hdlc = tty2n_hdlc(tty);
+	struct n_hdlc *n_hdlc = tty->disc_data;
 	int ret = 0;
 	struct n_hdlc_buf *rbuf;
 	DECLARE_WAITQUEUE(wait, current);
@@ -576,7 +575,7 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 			    const unsigned char *data, size_t count)
 {
-	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
+	struct n_hdlc *n_hdlc = tty->disc_data;
 	int error = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	struct n_hdlc_buf *tbuf;
@@ -613,7 +612,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 		}
 		schedule();
 			
-		n_hdlc = tty2n_hdlc (tty);
+		n_hdlc = tty->disc_data;
 		if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC || 
 		    tty != n_hdlc->tty) {
 			printk("n_hdlc_tty_write: %p invalid after wait!\n", n_hdlc);
@@ -656,7 +655,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
-	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
+	struct n_hdlc *n_hdlc = tty->disc_data;
 	int error = 0;
 	int count;
 	unsigned long flags;
@@ -725,7 +724,7 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 static __poll_t n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 				    poll_table *wait)
 {
-	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
+	struct n_hdlc *n_hdlc = tty->disc_data;
 	__poll_t mask = 0;
 
 	if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC || tty != n_hdlc->tty)
