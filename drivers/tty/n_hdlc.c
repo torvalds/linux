@@ -87,9 +87,6 @@
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
 
-#undef VERSION
-#define VERSION(major,minor,patch) (((((major)<<8)+(minor))<<8)+(patch))
-
 #include <linux/poll.h>
 #include <linux/in.h>
 #include <linux/ioctl.h>
@@ -185,8 +182,6 @@ static void n_hdlc_tty_close(struct tty_struct *tty);
 static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *cp,
 			       char *fp, int count);
 static void n_hdlc_tty_wakeup(struct tty_struct *tty);
-
-#define bset(p,b)	((p)[(b) >> 5] |= (1 << ((b) & 0x1f)))
 
 #define tty2n_hdlc(tty)	((struct n_hdlc *) ((tty)->disc_data))
 #define n_hdlc2tty(n_hdlc)	((n_hdlc)->tty)
