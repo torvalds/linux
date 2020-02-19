@@ -1379,9 +1379,6 @@ See subsequent chapter for the syntax of the Kbuild file.
 	in arch/$(ARCH)/include/(uapi/)/asm, Kbuild will automatically generate
 	a wrapper of the asm-generic one.
 
-	The convention is to list one subdir per line and
-	preferably in alphabetic order.
-
 8 Kbuild Variables
 ==================
 
