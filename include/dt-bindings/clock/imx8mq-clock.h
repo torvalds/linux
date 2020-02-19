@@ -429,6 +429,8 @@
 #define IMX8MQ_CLK_M4_CORE			287
 #define IMX8MQ_CLK_VPU_CORE			288
 
-#define IMX8MQ_CLK_END				289
+#define IMX8MQ_CLK_A53_CORE			289
+
+#define IMX8MQ_CLK_END				290
 
 #endif /* __DT_BINDINGS_CLOCK_IMX8MQ_H */
