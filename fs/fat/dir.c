@@ -804,8 +804,6 @@ static long fat_dir_ioctl(struct file *filp, unsigned int cmd,
 		return fat_generic_ioctl(filp, cmd, arg);
 	}
 
-	if (!access_ok(d1, sizeof(struct __fat_dirent[2])))
-		return -EFAULT;
 	/*
 	 * Yes, we don't need this put_user() absolutely. However old
 	 * code didn't return the right value. So, app use this value,
@@ -844,8 +842,6 @@ static long fat_compat_dir_ioctl(struct file *filp, unsigned cmd,
 		return fat_generic_ioctl(filp, cmd, (unsigned long)arg);
 	}
 
-	if (!access_ok(d1, sizeof(struct compat_dirent[2])))
-		return -EFAULT;
 	/*
 	 * Yes, we don't need this put_user() absolutely. However old
 	 * code didn't return the right value. So, app use this value,
