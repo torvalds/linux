@@ -98,10 +98,11 @@ static unsigned long clk_pfdv2_recalc_rate(struct clk_hw *hw,
 	return tmp;
 }
 
-static long clk_pfdv2_round_rate(struct clk_hw *hw, unsigned long rate,
-				 unsigned long *prate)
+static int clk_pfdv2_determine_rate(struct clk_hw *hw,
+				    struct clk_rate_request *req)
 {
-	u64 tmp = *prate;
+	u64 tmp = req->best_parent_rate;
+	u64 rate = req->rate;
 	u8 frac;
 
 	tmp = tmp * 18 + rate / 2;
@@ -113,11 +114,13 @@ static long clk_pfdv2_round_rate(struct clk_hw *hw, unsigned long rate,
 	else if (frac > 35)
 		frac = 35;
 
-	tmp = *prate;
+	tmp = req->best_parent_rate;
 	tmp *= 18;
 	do_div(tmp, frac);
 
-	return tmp;
+	req->rate = tmp;
+
+	return 0;
 }
 
 static int clk_pfdv2_is_enabled(struct clk_hw *hw)
@@ -167,7 +170,7 @@ static const struct clk_ops clk_pfdv2_ops = {
 	.enable		= clk_pfdv2_enable,
 	.disable	= clk_pfdv2_disable,
 	.recalc_rate	= clk_pfdv2_recalc_rate,
-	.round_rate	= clk_pfdv2_round_rate,
+	.determine_rate	= clk_pfdv2_determine_rate,
 	.set_rate	= clk_pfdv2_set_rate,
 	.is_enabled     = clk_pfdv2_is_enabled,
 };
