@@ -201,6 +201,9 @@ static void rockchip_lvds_encoder_enable(struct drm_encoder *encoder)
 	if (lvds->panel)
 		drm_panel_prepare(lvds->panel);
 
+	if (lvds->funcs->enable)
+		lvds->funcs->enable(lvds);
+
 	ret = phy_set_mode(lvds->phy, PHY_MODE_VIDEO_LVDS);
 	if (ret) {
 		DRM_DEV_ERROR(lvds->dev, "failed to set phy mode: %d\n", ret);
@@ -208,9 +211,6 @@ static void rockchip_lvds_encoder_enable(struct drm_encoder *encoder)
 	}
 
 	phy_power_on(lvds->phy);
-
-	if (lvds->funcs->enable)
-		lvds->funcs->enable(lvds);
 
 	if (lvds->panel)
 		drm_panel_enable(lvds->panel);
