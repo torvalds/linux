@@ -663,25 +663,25 @@ struct se_dev_entry {
 };
 
 struct se_dev_attrib {
-	int		emulate_model_alias;
-	int		emulate_dpo;
-	int		emulate_fua_write;
-	int		emulate_fua_read;
-	int		emulate_write_cache;
+	bool		emulate_model_alias;
+	bool		emulate_dpo;		/* deprecated */
+	bool		emulate_fua_write;
+	bool		emulate_fua_read;	/* deprecated */
+	bool		emulate_write_cache;
 	int		emulate_ua_intlck_ctrl;
-	int		emulate_tas;
-	int		emulate_tpu;
-	int		emulate_tpws;
-	int		emulate_caw;
-	int		emulate_3pc;
-	int		emulate_pr;
+	bool		emulate_tas;
+	bool		emulate_tpu;
+	bool		emulate_tpws;
+	bool		emulate_caw;
+	bool		emulate_3pc;
+	bool		emulate_pr;
 	enum target_prot_type pi_prot_type;
 	enum target_prot_type hw_pi_prot_type;
-	int		pi_prot_verify;
-	int		enforce_pr_isids;
-	int		force_pr_aptpl;
-	int		is_nonrot;
-	int		emulate_rest_reord;
+	bool		pi_prot_verify;
+	bool		enforce_pr_isids;
+	bool		force_pr_aptpl;
+	bool		is_nonrot;
+	bool		emulate_rest_reord;
 	bool		unmap_zeroes_data;
 	u32		hw_block_size;
 	u32		block_size;
