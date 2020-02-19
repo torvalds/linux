@@ -20,38 +20,6 @@ static const struct regmap_config inv_mpu_regmap_config = {
 
 static int inv_mpu6050_select_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 {
-	struct iio_dev *indio_dev = i2c_mux_priv(muxc);
-	struct inv_mpu6050_state *st = iio_priv(indio_dev);
-	int ret;
-
-	mutex_lock(&st->lock);
-
-	ret = inv_mpu6050_set_power_itg(st, true);
-	if (ret)
-		goto error_unlock;
-
-	ret = regmap_write(st->map, st->reg->int_pin_cfg,
-			   st->irq_mask | INV_MPU6050_BIT_BYPASS_EN);
-
-error_unlock:
-	mutex_unlock(&st->lock);
-
-	return ret;
-}
-
-static int inv_mpu6050_deselect_bypass(struct i2c_mux_core *muxc, u32 chan_id)
-{
-	struct iio_dev *indio_dev = i2c_mux_priv(muxc);
-	struct inv_mpu6050_state *st = iio_priv(indio_dev);
-
-	mutex_lock(&st->lock);
-
-	/* It doesn't really matter if any of the calls fail */
-	regmap_write(st->map, st->reg->int_pin_cfg, st->irq_mask);
-	inv_mpu6050_set_power_itg(st, false);
-
-	mutex_unlock(&st->lock);
-
 	return 0;
 }
 
@@ -79,19 +47,20 @@ static bool inv_mpu_i2c_aux_bus(struct device *dev)
 	}
 }
 
-/*
- * MPU9xxx magnetometer support requires to disable i2c auxiliary bus support.
- * To ensure backward compatibility with existing setups, do not disable
- * i2c auxiliary bus if it used.
- * Check for i2c-gate node in devicetree and set magnetometer disabled.
- * Only MPU6500 is supported by ACPI, no need to check.
- */
-static int inv_mpu_magn_disable(struct iio_dev *indio_dev)
+static int inv_mpu_i2c_aux_setup(struct iio_dev *indio_dev)
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
 	struct device_node *mux_node;
+	int ret;
 
+	/*
+	 * MPU9xxx magnetometer support requires to disable i2c auxiliary bus.
+	 * To ensure backward compatibility with existing setups, do not disable
+	 * i2c auxiliary bus if it used.
+	 * Check for i2c-gate node in devicetree and set magnetometer disabled.
+	 * Only MPU6500 is supported by ACPI, no need to check.
+	 */
 	switch (st->chip_type) {
 	case INV_MPU9150:
 	case INV_MPU9250:
@@ -107,7 +76,24 @@ static int inv_mpu_magn_disable(struct iio_dev *indio_dev)
 		break;
 	}
 
+	/* enable i2c bypass when using i2c auxiliary bus */
+	if (inv_mpu_i2c_aux_bus(dev)) {
+		ret = inv_mpu6050_set_power_itg(st, true);
+		if (ret)
+			return ret;
+		ret = regmap_write(st->map, st->reg->int_pin_cfg,
+				   st->irq_mask | INV_MPU6050_BIT_BYPASS_EN);
+		if (ret)
+			goto error;
+		ret = inv_mpu6050_set_power_itg(st, false);
+		if (ret)
+			goto error;
+	}
+
 	return 0;
+error:
+	inv_mpu6050_set_power_itg(st, false);
+	return ret;
 }
 
 /**
@@ -151,7 +137,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 	}
 
 	result = inv_mpu_core_probe(regmap, client->irq, name,
-				    inv_mpu_magn_disable, chip_type);
+				    inv_mpu_i2c_aux_setup, chip_type);
 	if (result < 0)
 		return result;
 
@@ -160,8 +146,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 		/* declare i2c auxiliary bus */
 		st->muxc = i2c_mux_alloc(client->adapter, &client->dev,
 					 1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
-					 inv_mpu6050_select_bypass,
-					 inv_mpu6050_deselect_bypass);
+					 inv_mpu6050_select_bypass, NULL);
 		if (!st->muxc)
 			return -ENOMEM;
 		st->muxc->priv = dev_get_drvdata(&client->dev);
