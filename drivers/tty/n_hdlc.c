@@ -258,24 +258,25 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
 
-	if (n_hdlc != NULL) {
-		if (n_hdlc->magic != HDLC_MAGIC) {
-			printk (KERN_WARNING"n_hdlc: trying to close unopened tty!\n");
-			return;
-		}
+	if (!n_hdlc)
+		return;
+
+	if (n_hdlc->magic != HDLC_MAGIC) {
+		printk(KERN_WARNING "n_hdlc: trying to close unopened tty!\n");
+		return;
+	}
 #if defined(TTY_NO_WRITE_SPLIT)
-		clear_bit(TTY_NO_WRITE_SPLIT,&tty->flags);
+	clear_bit(TTY_NO_WRITE_SPLIT,&tty->flags);
 #endif
-		tty->disc_data = NULL;
-		if (tty == n_hdlc->backup_tty)
-			n_hdlc->backup_tty = NULL;
-		if (tty != n_hdlc->tty)
-			return;
-		if (n_hdlc->backup_tty) {
-			n_hdlc->tty = n_hdlc->backup_tty;
-		} else {
-			n_hdlc_release (n_hdlc);
-		}
+	tty->disc_data = NULL;
+	if (tty == n_hdlc->backup_tty)
+		n_hdlc->backup_tty = NULL;
+	if (tty != n_hdlc->tty)
+		return;
+	if (n_hdlc->backup_tty) {
+		n_hdlc->tty = n_hdlc->backup_tty;
+	} else {
+		n_hdlc_release (n_hdlc);
 	}
 }	/* end of n_hdlc_tty_close() */
 
@@ -737,24 +738,27 @@ static __poll_t n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
 	__poll_t mask = 0;
 
-	if (n_hdlc && n_hdlc->magic == HDLC_MAGIC && tty == n_hdlc->tty) {
-		/* queue current process into any wait queue that */
-		/* may awaken in the future (read and write) */
+	if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC || tty != n_hdlc->tty)
+		return 0;
 
-		poll_wait(filp, &tty->read_wait, wait);
-		poll_wait(filp, &tty->write_wait, wait);
+	/*
+	 * queue the current process into any wait queue that may awaken in the
+	 * future (read and write)
+	 */
+	poll_wait(filp, &tty->read_wait, wait);
+	poll_wait(filp, &tty->write_wait, wait);
 
-		/* set bits for operations that won't block */
-		if (!list_empty(&n_hdlc->rx_buf_list.list))
-			mask |= EPOLLIN | EPOLLRDNORM;	/* readable */
-		if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
-			mask |= EPOLLHUP;
-		if (tty_hung_up_p(filp))
-			mask |= EPOLLHUP;
-		if (!tty_is_writelocked(tty) &&
-				!list_empty(&n_hdlc->tx_free_buf_list.list))
-			mask |= EPOLLOUT | EPOLLWRNORM;	/* writable */
-	}
+	/* set bits for operations that won't block */
+	if (!list_empty(&n_hdlc->rx_buf_list.list))
+		mask |= EPOLLIN | EPOLLRDNORM;	/* readable */
+	if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
+		mask |= EPOLLHUP;
+	if (tty_hung_up_p(filp))
+		mask |= EPOLLHUP;
+	if (!tty_is_writelocked(tty) &&
+			!list_empty(&n_hdlc->tx_free_buf_list.list))
+		mask |= EPOLLOUT | EPOLLWRNORM;	/* writable */
+
 	return mask;
 }	/* end of n_hdlc_tty_poll() */
 
