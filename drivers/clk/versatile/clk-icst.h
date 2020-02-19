@@ -11,6 +11,7 @@ enum icst_control_type {
 	ICST_INTEGRATOR_AP_PCI, /* Odd bit pattern storage */
 	ICST_INTEGRATOR_CP_CM_CORE, /* Only 8 bits of VDW and 3 bits of OD */
 	ICST_INTEGRATOR_CP_CM_MEM, /* Only 8 bits of VDW and 3 bits of OD */
+	ICST_INTEGRATOR_IM_PD1, /* Like the Versatile, all control bits */
 };
 
 /**
