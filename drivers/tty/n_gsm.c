@@ -100,6 +100,13 @@ struct gsm_msg {
 	unsigned char buffer[];
 };
 
+enum gsm_dlci_state {
+	DLCI_CLOSED,
+	DLCI_OPENING,		/* Sending SABM not seen UA */
+	DLCI_OPEN,		/* SABM/UA complete */
+	DLCI_CLOSING,		/* Sending DISC not seen UA/DM */
+};
+
 /*
  *	Each active data link has a gsm_dlci structure associated which ties
  *	the link layer to an optional tty (if the tty side is open). To avoid
@@ -113,11 +120,7 @@ struct gsm_msg {
 struct gsm_dlci {
 	struct gsm_mux *gsm;
 	int addr;
-	int state;
-#define DLCI_CLOSED		0
-#define DLCI_OPENING		1	/* Sending SABM not seen UA */
-#define DLCI_OPEN		2	/* SABM/UA complete */
-#define DLCI_CLOSING		3	/* Sending DISC not seen UA/DM */
+	enum gsm_dlci_state state;
 	struct mutex mutex;
 
 	/* Link layer */
@@ -1495,6 +1498,9 @@ static void gsm_dlci_t1(struct timer_list *t)
 		} else
 			gsm_dlci_close(dlci);
 		break;
+	default:
+		pr_debug("%s: unhandled state: %d\n", __func__, dlci->state);
+		break;
 	}
 }
 
@@ -1807,6 +1813,10 @@ static void gsm_queue(struct gsm_mux *gsm)
 			break;
 		case DLCI_OPENING:
 			gsm_dlci_open(dlci);
+			break;
+		default:
+			pr_debug("%s: unhandled state: %d\n", __func__,
+					dlci->state);
 			break;
 		}
 		break;
