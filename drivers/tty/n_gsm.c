@@ -2789,7 +2789,7 @@ static void gsm_destroy_network(struct gsm_dlci *dlci)
 {
 	struct gsm_mux_net *mux_net;
 
-	pr_debug("destroy network interface");
+	pr_debug("destroy network interface\n");
 	if (!dlci->net)
 		return;
 	mux_net = netdev_priv(dlci->net);
@@ -2818,7 +2818,7 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 	if (nc->adaption != 3 && nc->adaption != 4)
 		return -EPROTONOSUPPORT;
 
-	pr_debug("create network interface");
+	pr_debug("create network interface\n");
 
 	netname = "gsm%d";
 	if (nc->if_name[0] != '\0')
@@ -2826,7 +2826,7 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 	net = alloc_netdev(sizeof(struct gsm_mux_net), netname,
 			   NET_NAME_UNKNOWN, gsm_mux_net_init);
 	if (!net) {
-		pr_err("alloc_netdev failed");
+		pr_err("alloc_netdev failed\n");
 		return -ENOMEM;
 	}
 	net->mtu = dlci->gsm->mtu;
@@ -2844,7 +2844,7 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 	dlci->data = gsm_mux_rx_netchar;
 	dlci->net = net;
 
-	pr_debug("register netdev");
+	pr_debug("register netdev\n");
 	retval = register_netdev(net);
 	if (retval) {
 		pr_err("network register fail %d\n", retval);
