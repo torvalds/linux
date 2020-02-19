@@ -1302,6 +1302,11 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 	return paths;
 }
 
+void dpcm_path_put(struct snd_soc_dapm_widget_list **list)
+{
+	snd_soc_dapm_dai_free_widgets(list);
+}
+
 static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
 	struct snd_soc_dapm_widget_list **list_)
 {
