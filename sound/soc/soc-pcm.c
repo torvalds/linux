@@ -164,6 +164,36 @@ void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
 	debugfs_create_file("state", 0444, rtd->debugfs_dpcm_root,
 			    rtd, &dpcm_state_fops);
 }
+
+static void dpcm_create_debugfs_state(struct snd_soc_dpcm *dpcm, int stream)
+{
+	char *name;
+
+	name = kasprintf(GFP_KERNEL, "%s:%s", dpcm->be->dai_link->name,
+			 stream ? "capture" : "playback");
+	if (name) {
+		dpcm->debugfs_state = debugfs_create_dir(
+			name, dpcm->fe->debugfs_dpcm_root);
+		debugfs_create_u32("state", 0644, dpcm->debugfs_state,
+				   &dpcm->state);
+		kfree(name);
+	}
+}
+
+static void dpcm_remove_debugfs_state(struct snd_soc_dpcm *dpcm)
+{
+	debugfs_remove_recursive(dpcm->debugfs_state);
+}
+
+#else
+static inline void dpcm_create_debugfs_state(struct snd_soc_dpcm *dpcm,
+					     int stream)
+{
+}
+
+static inline void dpcm_remove_debugfs_state(struct snd_soc_dpcm *dpcm)
+{
+}
 #endif
 
 static int soc_rtd_startup(struct snd_soc_pcm_runtime *rtd,
@@ -1254,9 +1284,6 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 {
 	struct snd_soc_dpcm *dpcm;
 	unsigned long flags;
-#ifdef CONFIG_DEBUG_FS
-	char *name;
-#endif
 
 	/* only add new dpcms */
 	for_each_dpcm_be(fe, stream, dpcm) {
@@ -1281,17 +1308,8 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 			stream ? "capture" : "playback",  fe->dai_link->name,
 			stream ? "<-" : "->", be->dai_link->name);
 
-#ifdef CONFIG_DEBUG_FS
-	name = kasprintf(GFP_KERNEL, "%s:%s", be->dai_link->name,
-			 stream ? "capture" : "playback");
-	if (name) {
-		dpcm->debugfs_state = debugfs_create_dir(name,
-							 fe->debugfs_dpcm_root);
-		debugfs_create_u32("state", 0644, dpcm->debugfs_state,
-				   &dpcm->state);
-		kfree(name);
-	}
-#endif
+	dpcm_create_debugfs_state(dpcm, stream);
+
 	return 1;
 }
 
@@ -1344,9 +1362,8 @@ void dpcm_be_disconnect(struct snd_soc_pcm_runtime *fe, int stream)
 		/* BEs still alive need new FE */
 		dpcm_be_reparent(fe, dpcm->be, stream);
 
-#ifdef CONFIG_DEBUG_FS
-		debugfs_remove_recursive(dpcm->debugfs_state);
-#endif
+		dpcm_remove_debugfs_state(dpcm);
+
 		spin_lock_irqsave(&fe->card->dpcm_lock, flags);
 		list_del(&dpcm->list_be);
 		list_del(&dpcm->list_fe);
