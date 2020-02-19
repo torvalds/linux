@@ -403,28 +403,22 @@ void qdio_free_async_data(struct qdio_irq *irq_ptr)
 	}
 }
 
-static void __qdio_allocate_fill_qdr(struct qdio_irq *irq_ptr,
-				     struct qdio_q **irq_ptr_qs,
-				     int i, int nr)
+static void qdio_fill_qdr_desc(struct qdesfmt0 *desc, struct qdio_q *queue)
 {
-	irq_ptr->qdr->qdf0[i + nr].sliba =
-		(unsigned long)irq_ptr_qs[i]->slib;
+	desc->sliba = virt_to_phys(queue->slib);
+	desc->sla = virt_to_phys(queue->sl);
+	desc->slsba = virt_to_phys(&queue->slsb);
 
-	irq_ptr->qdr->qdf0[i + nr].sla =
-		(unsigned long)irq_ptr_qs[i]->sl;
-
-	irq_ptr->qdr->qdf0[i + nr].slsba =
-		(unsigned long)&irq_ptr_qs[i]->slsb.val[0];
-
-	irq_ptr->qdr->qdf0[i + nr].akey = PAGE_DEFAULT_KEY >> 4;
-	irq_ptr->qdr->qdf0[i + nr].bkey = PAGE_DEFAULT_KEY >> 4;
-	irq_ptr->qdr->qdf0[i + nr].ckey = PAGE_DEFAULT_KEY >> 4;
-	irq_ptr->qdr->qdf0[i + nr].dkey = PAGE_DEFAULT_KEY >> 4;
+	desc->akey = PAGE_DEFAULT_KEY >> 4;
+	desc->bkey = PAGE_DEFAULT_KEY >> 4;
+	desc->ckey = PAGE_DEFAULT_KEY >> 4;
+	desc->dkey = PAGE_DEFAULT_KEY >> 4;
 }
 
 static void setup_qdr(struct qdio_irq *irq_ptr,
 		      struct qdio_initialize *qdio_init)
 {
+	struct qdesfmt0 *desc = &irq_ptr->qdr->qdf0[0];
 	int i;
 
 	irq_ptr->qdr->qfmt = qdio_init->q_format;
@@ -433,15 +427,14 @@ static void setup_qdr(struct qdio_irq *irq_ptr,
 	irq_ptr->qdr->oqdcnt = qdio_init->no_output_qs;
 	irq_ptr->qdr->iqdsz = sizeof(struct qdesfmt0) / 4; /* size in words */
 	irq_ptr->qdr->oqdsz = sizeof(struct qdesfmt0) / 4;
-	irq_ptr->qdr->qiba = (unsigned long)&irq_ptr->qib;
+	irq_ptr->qdr->qiba = virt_to_phys(&irq_ptr->qib);
 	irq_ptr->qdr->qkey = PAGE_DEFAULT_KEY >> 4;
 
 	for (i = 0; i < qdio_init->no_input_qs; i++)
-		__qdio_allocate_fill_qdr(irq_ptr, irq_ptr->input_qs, i, 0);
+		qdio_fill_qdr_desc(desc++, irq_ptr->input_qs[i]);
 
 	for (i = 0; i < qdio_init->no_output_qs; i++)
-		__qdio_allocate_fill_qdr(irq_ptr, irq_ptr->output_qs, i,
-					 qdio_init->no_input_qs);
+		qdio_fill_qdr_desc(desc++, irq_ptr->output_qs[i]);
 }
 
 static void setup_qib(struct qdio_irq *irq_ptr,
