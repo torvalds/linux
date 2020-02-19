@@ -215,7 +215,7 @@ struct gsm_mux {
 	unsigned int len;
 	unsigned int address;
 	unsigned int count;
-	int escape;
+	bool escape;
 	int encoding;
 	u8 control;
 	u8 fcs;
@@ -1976,7 +1976,7 @@ static void gsm1_receive(struct gsm_mux *gsm, unsigned char c)
 	}
 
 	if (c == GSM1_ESCAPE) {
-		gsm->escape = 1;
+		gsm->escape = true;
 		return;
 	}
 
@@ -1986,7 +1986,7 @@ static void gsm1_receive(struct gsm_mux *gsm, unsigned char c)
 
 	if (gsm->escape) {
 		c ^= GSM1_ESCAPE_BITS;
-		gsm->escape = 0;
+		gsm->escape = false;
 	}
 	switch (gsm->state) {
 	case GSM_START:		/* First byte after SOF */
