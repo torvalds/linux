@@ -385,8 +385,10 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	/* get a free HDLC buffer */
 	buf = n_hdlc_buf_get(&n_hdlc->rx_free_buf_list);
 	if (!buf) {
-		/* no buffers in free list, attempt to allocate another rx buffer */
-		/* unless the maximum count has been reached */
+		/*
+		 * no buffers in free list, attempt to allocate another rx
+		 * buffer unless the maximum count has been reached
+		 */
 		if (n_hdlc->rx_buf_list.count < MAX_RX_BUF_COUNT)
 			buf = kmalloc(struct_size(buf, buf, maxframe),
 				      GFP_ATOMIC);
