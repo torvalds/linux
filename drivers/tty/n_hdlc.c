@@ -125,7 +125,6 @@ struct n_hdlc_buf_list {
  * struct n_hdlc - per device instance data structure
  * @magic - magic value for structure
  * @tty - ptr to TTY structure
- * @backup_tty - TTY to use if tty gets closed
  * @tbusy - reentrancy flag for tx wakeup code
  * @woke_up - FIXME: describe this field
  * @tx_buf_list - list of pending transmit frame buffers
@@ -136,7 +135,6 @@ struct n_hdlc_buf_list {
 struct n_hdlc {
 	int			magic;
 	struct tty_struct	*tty;
-	struct tty_struct	*backup_tty;
 	int			tbusy;
 	int			woke_up;
 	struct n_hdlc_buf_list	tx_buf_list;
@@ -267,15 +265,9 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 	clear_bit(TTY_NO_WRITE_SPLIT,&tty->flags);
 #endif
 	tty->disc_data = NULL;
-	if (tty == n_hdlc->backup_tty)
-		n_hdlc->backup_tty = NULL;
 	if (tty != n_hdlc->tty)
 		return;
-	if (n_hdlc->backup_tty) {
-		n_hdlc->tty = n_hdlc->backup_tty;
-	} else {
-		n_hdlc_release (n_hdlc);
-	}
+	n_hdlc_release (n_hdlc);
 }	/* end of n_hdlc_tty_close() */
 
 /**
