@@ -126,7 +126,11 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		BUG_ON(journal_seq_verify(c) &&
 		       k.k->version.lo > journal_cur_seq(&c->journal));
 
-		if (k.k->version.lo > atomic64_read(&c->key_version))
+		/* XXX change to fsck check */
+		if (fsck_err_on(k.k->version.lo > atomic64_read(&c->key_version), c,
+				"key version number higher than recorded: %llu > %llu",
+				k.k->version.lo,
+				atomic64_read(&c->key_version)))
 			atomic64_set(&c->key_version, k.k->version.lo);
 
 		if (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||

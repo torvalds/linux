@@ -943,7 +943,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 
 		if (bch2_csum_type_is_encryption(op->csum_type)) {
 			if (bversion_zero(version)) {
-				version.lo = atomic64_inc_return(&c->key_version) + 1;
+				version.lo = atomic64_inc_return(&c->key_version);
 			} else {
 				crc.nonce = op->nonce;
 				op->nonce += src_len >> 9;
