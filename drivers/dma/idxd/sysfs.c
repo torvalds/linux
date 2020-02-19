@@ -904,6 +904,20 @@ static ssize_t wq_size_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", wq->size);
 }
 
+static int total_claimed_wq_size(struct idxd_device *idxd)
+{
+	int i;
+	int wq_size = 0;
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		struct idxd_wq *wq = &idxd->wqs[i];
+
+		wq_size += wq->size;
+	}
+
+	return wq_size;
+}
+
 static ssize_t wq_size_store(struct device *dev,
 			     struct device_attribute *attr, const char *buf,
 			     size_t count)
@@ -923,7 +937,7 @@ static ssize_t wq_size_store(struct device *dev,
 	if (wq->state != IDXD_WQ_DISABLED)
 		return -EPERM;
 
-	if (size > idxd->max_wq_size)
+	if (size + total_claimed_wq_size(idxd) - wq->size > idxd->max_wq_size)
 		return -EINVAL;
 
 	wq->size = size;
