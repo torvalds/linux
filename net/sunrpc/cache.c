@@ -113,7 +113,8 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 	spin_lock(&detail->hash_lock);
 
 	/* check if entry appeared while we slept */
-	hlist_for_each_entry_rcu(tmp, head, cache_list) {
+	hlist_for_each_entry_rcu(tmp, head, cache_list,
+				 lockdep_is_held(&detail->hash_lock)) {
 		if (detail->match(tmp, key)) {
 			if (cache_is_expired(detail, tmp)) {
 				sunrpc_begin_cache_remove_entry(tmp, detail);
