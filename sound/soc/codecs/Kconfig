@@ -168,6 +168,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT5670
 	imply SND_SOC_RT5677
 	imply SND_SOC_RT5682
+	imply SND_SOC_RT5682_SDW
 	imply SND_SOC_RT700_SDW
 	imply SND_SOC_RT711_SDW
 	imply SND_SOC_RT715_SDW
@@ -1135,6 +1136,12 @@ config SND_SOC_RT5677_SPI
 config SND_SOC_RT5682
 	tristate
 	depends on I2C
+
+config SND_SOC_RT5682_SDW
+	tristate "Realtek RT5682 Codec - SDW"
+	depends on SOUNDWIRE
+	select SND_SOC_RT5682
+	select REGMAP_SOUNDWIRE
 
 config SND_SOC_RT700
 	tristate
