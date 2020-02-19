@@ -563,8 +563,13 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 					 int *val)
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	unsigned int freq_hz, period_us, min_sleep_us, max_sleep_us;
 	int result;
 	int ret;
+
+	/* compute sample period */
+	freq_hz = INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
+	period_us = 1000000 / freq_hz;
 
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
@@ -576,6 +581,10 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 				INV_MPU6050_SENSOR_GYRO);
 		if (result)
 			goto error_power_off;
+		/* need to wait 2 periods to have first valid sample */
+		min_sleep_us = 2 * period_us;
+		max_sleep_us = 2 * (period_us + period_us / 2);
+		usleep_range(min_sleep_us, max_sleep_us);
 		ret = inv_mpu6050_sensor_show(st, st->reg->raw_gyro,
 					      chan->channel2, val);
 		result = inv_mpu6050_switch_engine(st, false,
@@ -588,6 +597,10 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 				INV_MPU6050_SENSOR_ACCL);
 		if (result)
 			goto error_power_off;
+		/* wait 1 period for first sample availability */
+		min_sleep_us = period_us;
+		max_sleep_us = period_us + period_us / 2;
+		usleep_range(min_sleep_us, max_sleep_us);
 		ret = inv_mpu6050_sensor_show(st, st->reg->raw_accl,
 					      chan->channel2, val);
 		result = inv_mpu6050_switch_engine(st, false,
@@ -600,8 +613,10 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 				INV_MPU6050_SENSOR_TEMP);
 		if (result)
 			goto error_power_off;
-		/* wait for stablization */
-		msleep(INV_MPU6050_TEMP_UP_TIME);
+		/* wait 1 period for first sample availability */
+		min_sleep_us = period_us;
+		max_sleep_us = period_us + period_us / 2;
+		usleep_range(min_sleep_us, max_sleep_us);
 		ret = inv_mpu6050_sensor_show(st, st->reg->temperature,
 					      IIO_MOD_X, val);
 		result = inv_mpu6050_switch_engine(st, false,
@@ -610,7 +625,24 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 			goto error_power_off;
 		break;
 	case IIO_MAGN:
+		result = inv_mpu6050_switch_engine(st, true,
+				INV_MPU6050_SENSOR_MAGN);
+		if (result)
+			goto error_power_off;
+		/* frequency is limited for magnetometer */
+		if (freq_hz > INV_MPU_MAGN_FREQ_HZ_MAX) {
+			freq_hz = INV_MPU_MAGN_FREQ_HZ_MAX;
+			period_us = 1000000 / freq_hz;
+		}
+		/* need to wait 2 periods to have first valid sample */
+		min_sleep_us = 2 * period_us;
+		max_sleep_us = 2 * (period_us + period_us / 2);
+		usleep_range(min_sleep_us, max_sleep_us);
 		ret = inv_mpu_magn_read(st, chan->channel2, val);
+		result = inv_mpu6050_switch_engine(st, false,
+				INV_MPU6050_SENSOR_MAGN);
+		if (result)
+			goto error_power_off;
 		break;
 	default:
 		ret = -EINVAL;

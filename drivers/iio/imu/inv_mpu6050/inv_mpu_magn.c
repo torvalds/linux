@@ -44,9 +44,6 @@
 #define INV_MPU_MAGN_REG_ASAY		0x11
 #define INV_MPU_MAGN_REG_ASAZ		0x12
 
-/* Magnetometer maximum frequency */
-#define INV_MPU_MAGN_FREQ_HZ_MAX	50
-
 static bool inv_magn_supported(const struct inv_mpu6050_state *st)
 {
 	switch (st->chip_type) {
@@ -321,7 +318,6 @@ int inv_mpu_magn_read(struct inv_mpu6050_state *st, int axis, int *val)
 	unsigned int status;
 	__be16 data;
 	uint8_t addr;
-	unsigned int freq_hz, period_ms;
 	int ret;
 
 	/* quit if chip is not supported */
@@ -343,23 +339,6 @@ int inv_mpu_magn_read(struct inv_mpu6050_state *st, int axis, int *val)
 		return -EINVAL;
 	}
 	addr += INV_MPU6050_REG_EXT_SENS_DATA;
-
-	/* compute period depending on current sampling rate */
-	freq_hz = INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
-	if (freq_hz > INV_MPU_MAGN_FREQ_HZ_MAX)
-		freq_hz = INV_MPU_MAGN_FREQ_HZ_MAX;
-	period_ms = 1000 / freq_hz;
-
-	ret = inv_mpu6050_switch_engine(st, true, INV_MPU6050_SENSOR_MAGN);
-	if (ret)
-		return ret;
-
-	/* need to wait 2 periods + half-period margin */
-	msleep(period_ms * 2 + period_ms / 2);
-
-	ret = inv_mpu6050_switch_engine(st, false, INV_MPU6050_SENSOR_MAGN);
-	if (ret)
-		return ret;
 
 	/* check i2c status and read raw data */
 	ret = regmap_read(st->map, INV_MPU6050_REG_I2C_MST_STATUS, &status);
