@@ -197,7 +197,7 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 	struct n_hdlc *n_hdlc = tty->disc_data;
 
 	if (n_hdlc->magic != HDLC_MAGIC) {
-		printk(KERN_WARNING "n_hdlc: trying to close unopened tty!\n");
+		pr_warn("n_hdlc: trying to close unopened tty!\n");
 		return;
 	}
 #if defined(TTY_NO_WRITE_SPLIT)
@@ -231,13 +231,13 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 
 	/* There should not be an existing table for this slot. */
 	if (n_hdlc) {
-		printk (KERN_ERR"n_hdlc_tty_open:tty already associated!\n" );
+		pr_err("%s: tty already associated!\n", __func__);
 		return -EEXIST;
 	}
 	
 	n_hdlc = n_hdlc_alloc();
 	if (!n_hdlc) {
-		printk (KERN_ERR "n_hdlc_alloc failed\n");
+		pr_err("%s: n_hdlc_alloc failed\n", __func__);
 		return -ENFILE;
 	}
 		
@@ -371,8 +371,8 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 
 	/* verify line is using HDLC discipline */
 	if (n_hdlc->magic != HDLC_MAGIC) {
-		printk("%s(%d) line not using HDLC discipline\n",
-			__FILE__,__LINE__);
+		pr_err("%s(%d) line not using HDLC discipline\n",
+				__FILE__, __LINE__);
 		return;
 	}
 	
@@ -431,8 +431,8 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 
 	/* verify user access to buffer */
 	if (!access_ok(buf, nr)) {
-		printk(KERN_WARNING "%s(%d) n_hdlc_tty_read() can't verify user "
-		"buffer\n", __FILE__, __LINE__);
+		pr_warn("%s(%d) %s() can't verify user buffer\n",
+				__FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
 
