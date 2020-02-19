@@ -677,8 +677,10 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 	struct dma_buf_attachment *attach;
 	int ret;
 
-	/* TODO: make move_notify mandatory if importer_ops are provided. */
 	if (WARN_ON(!dmabuf || !dev))
+		return ERR_PTR(-EINVAL);
+
+	if (WARN_ON(importer_ops && !importer_ops->move_notify))
 		return ERR_PTR(-EINVAL);
 
 	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
@@ -877,8 +879,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 
 	if (dma_buf_is_dynamic(attach->dmabuf)) {
 		dma_resv_assert_held(attach->dmabuf->resv);
-		if (!attach->importer_ops->move_notify ||
-		    !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY)) {
+		if (!IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY)) {
 			r = dma_buf_pin(attach);
 			if (r)
 				return ERR_PTR(r);
@@ -890,8 +891,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 		sg_table = ERR_PTR(-ENOMEM);
 
 	if (IS_ERR(sg_table) && dma_buf_is_dynamic(attach->dmabuf) &&
-	    (!attach->importer_ops->move_notify ||
-	     !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY)))
+	     !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY))
 		dma_buf_unpin(attach);
 
 	if (!IS_ERR(sg_table) && attach->dmabuf->ops->cache_sgt_mapping) {
@@ -934,8 +934,7 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 	attach->dmabuf->ops->unmap_dma_buf(attach, sg_table, direction);
 
 	if (dma_buf_is_dynamic(attach->dmabuf) &&
-	    (!attach->importer_ops->move_notify ||
-	     !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY)))
+	    !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY))
 		dma_buf_unpin(attach);
 }
 EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
@@ -955,7 +954,7 @@ void dma_buf_move_notify(struct dma_buf *dmabuf)
 	dma_resv_assert_held(dmabuf->resv);
 
 	list_for_each_entry(attach, &dmabuf->attachments, node)
-		if (attach->importer_ops && attach->importer_ops->move_notify)
+		if (attach->importer_ops)
 			attach->importer_ops->move_notify(attach);
 }
 EXPORT_SYMBOL_GPL(dma_buf_move_notify);
