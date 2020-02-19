@@ -31,6 +31,6 @@ int inv_mpu_magn_set_rate(const struct inv_mpu6050_state *st, int fifo_rate);
 
 int inv_mpu_magn_set_orient(struct inv_mpu6050_state *st);
 
-int inv_mpu_magn_read(const struct inv_mpu6050_state *st, int axis, int *val);
+int inv_mpu_magn_read(struct inv_mpu6050_state *st, int axis, int *val);
 
 #endif		/* INV_MPU_MAGN_H_ */

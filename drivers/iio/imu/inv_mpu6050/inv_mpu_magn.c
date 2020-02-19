@@ -316,9 +316,9 @@ int inv_mpu_magn_set_orient(struct inv_mpu6050_state *st)
  *
  * Returns 0 on success, a negative error code otherwise
  */
-int inv_mpu_magn_read(const struct inv_mpu6050_state *st, int axis, int *val)
+int inv_mpu_magn_read(struct inv_mpu6050_state *st, int axis, int *val)
 {
-	unsigned int user_ctrl, status;
+	unsigned int status;
 	__be16 data;
 	uint8_t addr;
 	unsigned int freq_hz, period_ms;
@@ -350,16 +350,14 @@ int inv_mpu_magn_read(const struct inv_mpu6050_state *st, int axis, int *val)
 		freq_hz = INV_MPU_MAGN_FREQ_HZ_MAX;
 	period_ms = 1000 / freq_hz;
 
-	/* start i2c master, wait for xfer, stop */
-	user_ctrl = st->chip_config.user_ctrl | INV_MPU6050_BIT_I2C_MST_EN;
-	ret = regmap_write(st->map, st->reg->user_ctrl, user_ctrl);
+	ret = inv_mpu6050_switch_engine(st, true, INV_MPU6050_SENSOR_MAGN);
 	if (ret)
 		return ret;
 
 	/* need to wait 2 periods + half-period margin */
 	msleep(period_ms * 2 + period_ms / 2);
-	user_ctrl = st->chip_config.user_ctrl;
-	ret = regmap_write(st->map, st->reg->user_ctrl, user_ctrl);
+
+	ret = inv_mpu6050_switch_engine(st, false, INV_MPU6050_SENSOR_MAGN);
 	if (ret)
 		return ret;
 

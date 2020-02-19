@@ -83,11 +83,22 @@ enum inv_devices {
 	INV_NUM_PARTS
 };
 
+/* chip sensors mask: accelerometer, gyroscope, temperature, magnetometer */
+#define INV_MPU6050_SENSOR_ACCL		BIT(0)
+#define INV_MPU6050_SENSOR_GYRO		BIT(1)
+#define INV_MPU6050_SENSOR_TEMP		BIT(2)
+#define INV_MPU6050_SENSOR_MAGN		BIT(3)
+
 /**
  *  struct inv_mpu6050_chip_config - Cached chip configuration data.
+ *  @clk:		selected chip clock
  *  @fsr:		Full scale range.
  *  @lpf:		Digital low pass filter frequency.
  *  @accl_fs:		accel full scale range.
+ *  @accl_en:		accel engine enabled
+ *  @gyro_en:		gyro engine enabled
+ *  @temp_en:		temperature sensor enabled
+ *  @magn_en:		magn engine (i2c master) enabled
  *  @accl_fifo_enable:	enable accel data output
  *  @gyro_fifo_enable:	enable gyro data output
  *  @temp_fifo_enable:	enable temp data output
@@ -95,9 +106,14 @@ enum inv_devices {
  *  @divider:		chip sample rate divider (sample rate divider - 1)
  */
 struct inv_mpu6050_chip_config {
+	unsigned int clk:3;
 	unsigned int fsr:2;
 	unsigned int lpf:3;
 	unsigned int accl_fs:2;
+	unsigned int accl_en:1;
+	unsigned int gyro_en:1;
+	unsigned int temp_en:1;
+	unsigned int magn_en:1;
 	unsigned int accl_fifo_enable:1;
 	unsigned int gyro_fifo_enable:1;
 	unsigned int temp_fifo_enable:1;
@@ -262,6 +278,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_REG_PWR_MGMT_1          0x6B
 #define INV_MPU6050_BIT_H_RESET             0x80
 #define INV_MPU6050_BIT_SLEEP               0x40
+#define INV_MPU6050_BIT_TEMP_DIS            0x08
 #define INV_MPU6050_BIT_CLK_MASK            0x7
 
 #define INV_MPU6050_REG_PWR_MGMT_2          0x6C
@@ -292,7 +309,9 @@ struct inv_mpu6050_state {
 /* delay time in milliseconds */
 #define INV_MPU6050_POWER_UP_TIME            100
 #define INV_MPU6050_TEMP_UP_TIME             100
-#define INV_MPU6050_SENSOR_UP_TIME           30
+#define INV_MPU6050_ACCEL_UP_TIME            20
+#define INV_MPU6050_GYRO_UP_TIME             35
+#define INV_MPU6050_GYRO_DOWN_TIME           150
 
 /* delay time in microseconds */
 #define INV_MPU6050_REG_UP_TIME_MIN          5000
@@ -417,7 +436,8 @@ enum inv_mpu6050_clock_sel_e {
 irqreturn_t inv_mpu6050_read_fifo(int irq, void *p);
 int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type);
 int inv_reset_fifo(struct iio_dev *indio_dev);
-int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask);
+int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en,
+			      unsigned int mask);
 int inv_mpu6050_write_reg(struct inv_mpu6050_state *st, int reg, u8 val);
 int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
 int inv_mpu_acpi_create_mux_client(struct i2c_client *client);

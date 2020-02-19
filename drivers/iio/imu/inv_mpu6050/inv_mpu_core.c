@@ -99,9 +99,31 @@ static const struct inv_mpu6050_reg_map reg_set_6050 = {
 };
 
 static const struct inv_mpu6050_chip_config chip_config_6050 = {
+	.clk = INV_CLK_INTERNAL,
 	.fsr = INV_MPU6050_FSR_2000DPS,
 	.lpf = INV_MPU6050_FILTER_20HZ,
 	.divider = INV_MPU6050_FIFO_RATE_TO_DIVIDER(50),
+	.gyro_en = true,
+	.accl_en = true,
+	.temp_en = true,
+	.magn_en = false,
+	.gyro_fifo_enable = false,
+	.accl_fifo_enable = false,
+	.temp_fifo_enable = false,
+	.magn_fifo_enable = false,
+	.accl_fs = INV_MPU6050_FS_02G,
+	.user_ctrl = 0,
+};
+
+static const struct inv_mpu6050_chip_config chip_config_6500 = {
+	.clk = INV_CLK_PLL,
+	.fsr = INV_MPU6050_FSR_2000DPS,
+	.lpf = INV_MPU6050_FILTER_20HZ,
+	.divider = INV_MPU6050_FIFO_RATE_TO_DIVIDER(50),
+	.gyro_en = true,
+	.accl_en = true,
+	.temp_en = true,
+	.magn_en = false,
 	.gyro_fifo_enable = false,
 	.accl_fifo_enable = false,
 	.temp_fifo_enable = false,
@@ -124,7 +146,7 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.whoami = INV_MPU6500_WHOAMI_VALUE,
 		.name = "MPU6500",
 		.reg = &reg_set_6500,
-		.config = &chip_config_6050,
+		.config = &chip_config_6500,
 		.fifo_size = 512,
 		.temp = {INV_MPU6500_TEMP_OFFSET, INV_MPU6500_TEMP_SCALE},
 	},
@@ -132,7 +154,7 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.whoami = INV_MPU6515_WHOAMI_VALUE,
 		.name = "MPU6515",
 		.reg = &reg_set_6500,
-		.config = &chip_config_6050,
+		.config = &chip_config_6500,
 		.fifo_size = 512,
 		.temp = {INV_MPU6500_TEMP_OFFSET, INV_MPU6500_TEMP_SCALE},
 	},
@@ -156,7 +178,7 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.whoami = INV_MPU9250_WHOAMI_VALUE,
 		.name = "MPU9250",
 		.reg = &reg_set_6500,
-		.config = &chip_config_6050,
+		.config = &chip_config_6500,
 		.fifo_size = 512,
 		.temp = {INV_MPU6500_TEMP_OFFSET, INV_MPU6500_TEMP_SCALE},
 	},
@@ -164,7 +186,7 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.whoami = INV_MPU9255_WHOAMI_VALUE,
 		.name = "MPU9255",
 		.reg = &reg_set_6500,
-		.config = &chip_config_6050,
+		.config = &chip_config_6500,
 		.fifo_size = 512,
 		.temp = {INV_MPU6500_TEMP_OFFSET, INV_MPU6500_TEMP_SCALE},
 	},
@@ -172,7 +194,7 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.whoami = INV_ICM20608_WHOAMI_VALUE,
 		.name = "ICM20608",
 		.reg = &reg_set_6500,
-		.config = &chip_config_6050,
+		.config = &chip_config_6500,
 		.fifo_size = 512,
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 	},
@@ -180,7 +202,7 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.whoami = INV_ICM20609_WHOAMI_VALUE,
 		.name = "ICM20609",
 		.reg = &reg_set_6500,
-		.config = &chip_config_6050,
+		.config = &chip_config_6500,
 		.fifo_size = 4 * 1024,
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 	},
@@ -188,7 +210,7 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.whoami = INV_ICM20689_WHOAMI_VALUE,
 		.name = "ICM20689",
 		.reg = &reg_set_6500,
-		.config = &chip_config_6050,
+		.config = &chip_config_6500,
 		.fifo_size = 4 * 1024,
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 	},
@@ -196,15 +218,15 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.whoami = INV_ICM20602_WHOAMI_VALUE,
 		.name = "ICM20602",
 		.reg = &reg_set_icm20602,
-		.config = &chip_config_6050,
+		.config = &chip_config_6500,
 		.fifo_size = 1008,
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 	},
 	{
 		.whoami = INV_ICM20690_WHOAMI_VALUE,
 		.name = "ICM20690",
-		.reg = &reg_set_icm20602,
-		.config = &chip_config_6050,
+		.reg = &reg_set_6500,
+		.config = &chip_config_6500,
 		.fifo_size = 1024,
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 	},
@@ -212,61 +234,162 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.whoami = INV_IAM20680_WHOAMI_VALUE,
 		.name = "IAM20680",
 		.reg = &reg_set_6500,
-		.config = &chip_config_6050,
+		.config = &chip_config_6500,
 		.fifo_size = 512,
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 	},
 };
 
-int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
+static int inv_mpu6050_pwr_mgmt_1_write(struct inv_mpu6050_state *st, bool sleep,
+					int clock, int temp_dis)
 {
-	unsigned int d, mgmt_1;
-	int result;
-	/*
-	 * switch clock needs to be careful. Only when gyro is on, can
-	 * clock source be switched to gyro. Otherwise, it must be set to
-	 * internal clock
-	 */
-	if (mask == INV_MPU6050_BIT_PWR_GYRO_STBY) {
-		result = regmap_read(st->map, st->reg->pwr_mgmt_1, &mgmt_1);
-		if (result)
-			return result;
+	u8 val;
 
-		mgmt_1 &= ~INV_MPU6050_BIT_CLK_MASK;
+	if (clock < 0)
+		clock = st->chip_config.clk;
+	if (temp_dis < 0)
+		temp_dis = !st->chip_config.temp_en;
+
+	val = clock & INV_MPU6050_BIT_CLK_MASK;
+	if (temp_dis)
+		val |= INV_MPU6050_BIT_TEMP_DIS;
+	if (sleep)
+		val |= INV_MPU6050_BIT_SLEEP;
+
+	dev_dbg(regmap_get_device(st->map), "pwr_mgmt_1: 0x%x\n", val);
+	return regmap_write(st->map, st->reg->pwr_mgmt_1, val);
+}
+
+static int inv_mpu6050_clock_switch(struct inv_mpu6050_state *st,
+				    unsigned int clock)
+{
+	int ret;
+
+	switch (st->chip_type) {
+	case INV_MPU6050:
+	case INV_MPU6000:
+	case INV_MPU9150:
+		/* old chips: switch clock manually */
+		ret = inv_mpu6050_pwr_mgmt_1_write(st, false, clock, -1);
+		if (ret)
+			return ret;
+		st->chip_config.clk = clock;
+		break;
+	default:
+		/* automatic clock switching, nothing to do */
+		break;
 	}
 
-	if ((mask == INV_MPU6050_BIT_PWR_GYRO_STBY) && (!en)) {
-		/*
-		 * turning off gyro requires switch to internal clock first.
-		 * Then turn off gyro engine
-		 */
-		mgmt_1 |= INV_CLK_INTERNAL;
-		result = regmap_write(st->map, st->reg->pwr_mgmt_1, mgmt_1);
-		if (result)
-			return result;
+	return 0;
+}
+
+int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en,
+			      unsigned int mask)
+{
+	unsigned int sleep;
+	u8 pwr_mgmt2, user_ctrl;
+	int ret;
+
+	/* delete useless requests */
+	if (mask & INV_MPU6050_SENSOR_ACCL && en == st->chip_config.accl_en)
+		mask &= ~INV_MPU6050_SENSOR_ACCL;
+	if (mask & INV_MPU6050_SENSOR_GYRO && en == st->chip_config.gyro_en)
+		mask &= ~INV_MPU6050_SENSOR_GYRO;
+	if (mask & INV_MPU6050_SENSOR_TEMP && en == st->chip_config.temp_en)
+		mask &= ~INV_MPU6050_SENSOR_TEMP;
+	if (mask & INV_MPU6050_SENSOR_MAGN && en == st->chip_config.magn_en)
+		mask &= ~INV_MPU6050_SENSOR_MAGN;
+	if (mask == 0)
+		return 0;
+
+	/* turn on/off temperature sensor */
+	if (mask & INV_MPU6050_SENSOR_TEMP) {
+		ret = inv_mpu6050_pwr_mgmt_1_write(st, false, -1, !en);
+		if (ret)
+			return ret;
+		st->chip_config.temp_en = en;
 	}
 
-	result = regmap_read(st->map, st->reg->pwr_mgmt_2, &d);
-	if (result)
-		return result;
-	if (en)
-		d &= ~mask;
-	else
-		d |= mask;
-	result = regmap_write(st->map, st->reg->pwr_mgmt_2, d);
-	if (result)
-		return result;
+	/* update user_crtl for driving magnetometer */
+	if (mask & INV_MPU6050_SENSOR_MAGN) {
+		user_ctrl = st->chip_config.user_ctrl;
+		if (en)
+			user_ctrl |= INV_MPU6050_BIT_I2C_MST_EN;
+		else
+			user_ctrl &= ~INV_MPU6050_BIT_I2C_MST_EN;
+		ret = regmap_write(st->map, st->reg->user_ctrl, user_ctrl);
+		if (ret)
+			return ret;
+		st->chip_config.user_ctrl = user_ctrl;
+		st->chip_config.magn_en = en;
+	}
 
-	if (en) {
-		/* Wait for output to stabilize */
-		msleep(INV_MPU6050_TEMP_UP_TIME);
-		if (mask == INV_MPU6050_BIT_PWR_GYRO_STBY) {
-			/* switch internal clock to PLL */
-			mgmt_1 |= INV_CLK_PLL;
-			result = regmap_write(st->map,
-					      st->reg->pwr_mgmt_1, mgmt_1);
-			if (result)
-				return result;
+	/* manage accel & gyro engines */
+	if (mask & (INV_MPU6050_SENSOR_ACCL | INV_MPU6050_SENSOR_GYRO)) {
+		/* compute power management 2 current value */
+		pwr_mgmt2 = 0;
+		if (!st->chip_config.accl_en)
+			pwr_mgmt2 |= INV_MPU6050_BIT_PWR_ACCL_STBY;
+		if (!st->chip_config.gyro_en)
+			pwr_mgmt2 |= INV_MPU6050_BIT_PWR_GYRO_STBY;
+
+		/* update to new requested value */
+		if (mask & INV_MPU6050_SENSOR_ACCL) {
+			if (en)
+				pwr_mgmt2 &= ~INV_MPU6050_BIT_PWR_ACCL_STBY;
+			else
+				pwr_mgmt2 |= INV_MPU6050_BIT_PWR_ACCL_STBY;
+		}
+		if (mask & INV_MPU6050_SENSOR_GYRO) {
+			if (en)
+				pwr_mgmt2 &= ~INV_MPU6050_BIT_PWR_GYRO_STBY;
+			else
+				pwr_mgmt2 |= INV_MPU6050_BIT_PWR_GYRO_STBY;
+		}
+
+		/* switch clock to internal when turning gyro off */
+		if (mask & INV_MPU6050_SENSOR_GYRO && !en) {
+			ret = inv_mpu6050_clock_switch(st, INV_CLK_INTERNAL);
+			if (ret)
+				return ret;
+		}
+
+		/* update sensors engine */
+		dev_dbg(regmap_get_device(st->map), "pwr_mgmt_2: 0x%x\n",
+			pwr_mgmt2);
+		ret = regmap_write(st->map, st->reg->pwr_mgmt_2, pwr_mgmt2);
+		if (ret)
+			return ret;
+		if (mask & INV_MPU6050_SENSOR_ACCL)
+			st->chip_config.accl_en = en;
+		if (mask & INV_MPU6050_SENSOR_GYRO)
+			st->chip_config.gyro_en = en;
+
+		/* compute required time to have sensors stabilized */
+		sleep = 0;
+		if (en) {
+			if (mask & INV_MPU6050_SENSOR_ACCL) {
+				if (sleep < INV_MPU6050_ACCEL_UP_TIME)
+					sleep = INV_MPU6050_ACCEL_UP_TIME;
+			}
+			if (mask & INV_MPU6050_SENSOR_GYRO) {
+				if (sleep < INV_MPU6050_GYRO_UP_TIME)
+					sleep = INV_MPU6050_GYRO_UP_TIME;
+			}
+		} else {
+			if (mask & INV_MPU6050_SENSOR_GYRO) {
+				if (sleep < INV_MPU6050_GYRO_DOWN_TIME)
+					sleep = INV_MPU6050_GYRO_DOWN_TIME;
+			}
+		}
+		if (sleep)
+			msleep(sleep);
+
+		/* switch clock to PLL when turning gyro on */
+		if (mask & INV_MPU6050_SENSOR_GYRO && en) {
+			ret = inv_mpu6050_clock_switch(st, INV_CLK_PLL);
+			if (ret)
+				return ret;
 		}
 	}
 
@@ -279,7 +402,7 @@ int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 
 	if (power_on) {
 		if (!st->powerup_count) {
-			result = regmap_write(st->map, st->reg->pwr_mgmt_1, 0);
+			result = inv_mpu6050_pwr_mgmt_1_write(st, false, -1, -1);
 			if (result)
 				return result;
 			usleep_range(INV_MPU6050_REG_UP_TIME_MIN,
@@ -288,8 +411,7 @@ int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 		st->powerup_count++;
 	} else {
 		if (st->powerup_count == 1) {
-			result = regmap_write(st->map, st->reg->pwr_mgmt_1,
-					      INV_MPU6050_BIT_SLEEP);
+			result = inv_mpu6050_pwr_mgmt_1_write(st, true, -1, -1);
 			if (result)
 				return result;
 		}
@@ -451,33 +573,41 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 	switch (chan->type) {
 	case IIO_ANGL_VEL:
 		result = inv_mpu6050_switch_engine(st, true,
-				INV_MPU6050_BIT_PWR_GYRO_STBY);
+				INV_MPU6050_SENSOR_GYRO);
 		if (result)
 			goto error_power_off;
 		ret = inv_mpu6050_sensor_show(st, st->reg->raw_gyro,
 					      chan->channel2, val);
 		result = inv_mpu6050_switch_engine(st, false,
-				INV_MPU6050_BIT_PWR_GYRO_STBY);
+				INV_MPU6050_SENSOR_GYRO);
 		if (result)
 			goto error_power_off;
 		break;
 	case IIO_ACCEL:
 		result = inv_mpu6050_switch_engine(st, true,
-				INV_MPU6050_BIT_PWR_ACCL_STBY);
+				INV_MPU6050_SENSOR_ACCL);
 		if (result)
 			goto error_power_off;
 		ret = inv_mpu6050_sensor_show(st, st->reg->raw_accl,
 					      chan->channel2, val);
 		result = inv_mpu6050_switch_engine(st, false,
-				INV_MPU6050_BIT_PWR_ACCL_STBY);
+				INV_MPU6050_SENSOR_ACCL);
 		if (result)
 			goto error_power_off;
 		break;
 	case IIO_TEMP:
+		result = inv_mpu6050_switch_engine(st, true,
+				INV_MPU6050_SENSOR_TEMP);
+		if (result)
+			goto error_power_off;
 		/* wait for stablization */
-		msleep(INV_MPU6050_SENSOR_UP_TIME);
+		msleep(INV_MPU6050_TEMP_UP_TIME);
 		ret = inv_mpu6050_sensor_show(st, st->reg->temperature,
 					      IIO_MOD_X, val);
+		result = inv_mpu6050_switch_engine(st, false,
+				INV_MPU6050_SENSOR_TEMP);
+		if (result)
+			goto error_power_off;
 		break;
 	case IIO_MAGN:
 		ret = inv_mpu_magn_read(st, chan->channel2, val);
@@ -1108,7 +1238,7 @@ static const struct iio_info mpu_info = {
 static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 {
 	int result;
-	unsigned int regval;
+	unsigned int regval, mask;
 	int i;
 
 	st->hw  = &hw_info[st->chip_type];
@@ -1174,13 +1304,9 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
 		return result;
-
-	result = inv_mpu6050_switch_engine(st, false,
-					   INV_MPU6050_BIT_PWR_ACCL_STBY);
-	if (result)
-		goto error_power_off;
-	result = inv_mpu6050_switch_engine(st, false,
-					   INV_MPU6050_BIT_PWR_GYRO_STBY);
+	mask = INV_MPU6050_SENSOR_ACCL | INV_MPU6050_SENSOR_GYRO |
+			INV_MPU6050_SENSOR_TEMP | INV_MPU6050_SENSOR_MAGN;
+	result = inv_mpu6050_switch_engine(st, false, mask);
 	if (result)
 		goto error_power_off;
 
