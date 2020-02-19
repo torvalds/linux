@@ -957,11 +957,11 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct drm_connector *conn = NULL, *conn_iter;
 	struct drm_crtc *drm_crtc;
 	struct dpu_crtc_state *cstate;
-	struct dpu_rm_hw_iter hw_iter;
 	struct msm_display_topology topology;
-	struct dpu_hw_ctl *hw_ctl[MAX_CHANNELS_PER_ENC] = { NULL };
-	struct dpu_hw_mixer *hw_lm[MAX_CHANNELS_PER_ENC] = { NULL };
-	int num_lm = 0, num_ctl = 0;
+	struct dpu_hw_blk *hw_pp[MAX_CHANNELS_PER_ENC];
+	struct dpu_hw_blk *hw_ctl[MAX_CHANNELS_PER_ENC];
+	struct dpu_hw_blk *hw_lm[MAX_CHANNELS_PER_ENC];
+	int num_lm, num_ctl, num_pp;
 	int i, j, ret;
 
 	if (!drm_enc) {
@@ -1005,42 +1005,31 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		return;
 	}
 
-	dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id, DPU_HW_BLK_PINGPONG);
-	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
-		dpu_enc->hw_pp[i] = NULL;
-		if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
-			break;
-		dpu_enc->hw_pp[i] = (struct dpu_hw_pingpong *) hw_iter.hw;
-	}
+	num_pp = dpu_rm_get_assigned_resources(&dpu_kms->rm, drm_enc->base.id,
+		DPU_HW_BLK_PINGPONG, hw_pp, ARRAY_SIZE(hw_pp));
+	num_ctl = dpu_rm_get_assigned_resources(&dpu_kms->rm, drm_enc->base.id,
+		DPU_HW_BLK_CTL, hw_ctl, ARRAY_SIZE(hw_ctl));
+	num_lm = dpu_rm_get_assigned_resources(&dpu_kms->rm, drm_enc->base.id,
+		DPU_HW_BLK_LM, hw_lm, ARRAY_SIZE(hw_lm));
 
-	dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id, DPU_HW_BLK_CTL);
-	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
-		if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
-			break;
-		hw_ctl[i] = (struct dpu_hw_ctl *)hw_iter.hw;
-		num_ctl++;
-	}
-
-	dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id, DPU_HW_BLK_LM);
-	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
-		if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
-			break;
-		hw_lm[i] = (struct dpu_hw_mixer *)hw_iter.hw;
-		num_lm++;
-	}
+	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++)
+		dpu_enc->hw_pp[i] = i < num_pp ? to_dpu_hw_pingpong(hw_pp[i])
+						: NULL;
 
 	cstate = to_dpu_crtc_state(drm_crtc->state);
 
 	for (i = 0; i < num_lm; i++) {
 		int ctl_idx = (i < num_ctl) ? i : (num_ctl-1);
 
-		cstate->mixers[i].hw_lm = hw_lm[i];
-		cstate->mixers[i].lm_ctl = hw_ctl[ctl_idx];
+		cstate->mixers[i].hw_lm = to_dpu_hw_mixer(hw_lm[i]);
+		cstate->mixers[i].lm_ctl = to_dpu_hw_ctl(hw_ctl[ctl_idx]);
 	}
 
 	cstate->num_mixers = num_lm;
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
+		int num_blk;
+		struct dpu_hw_blk *hw_blk[MAX_CHANNELS_PER_ENC];
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
 
 		if (!dpu_enc->hw_pp[i]) {
@@ -1056,17 +1045,15 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		}
 
 		phys->hw_pp = dpu_enc->hw_pp[i];
-		phys->hw_ctl = hw_ctl[i];
+		phys->hw_ctl = to_dpu_hw_ctl(hw_ctl[i]);
 
-		dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id,
-				    DPU_HW_BLK_INTF);
-		for (j = 0; j < MAX_CHANNELS_PER_ENC; j++) {
+		num_blk = dpu_rm_get_assigned_resources(&dpu_kms->rm,
+			drm_enc->base.id, DPU_HW_BLK_INTF, hw_blk,
+			ARRAY_SIZE(hw_blk));
+		for (j = 0; j < num_blk; j++) {
 			struct dpu_hw_intf *hw_intf;
 
-			if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
-				break;
-
-			hw_intf = (struct dpu_hw_intf *)hw_iter.hw;
+			hw_intf = to_dpu_hw_intf(hw_blk[i]);
 			if (hw_intf->idx == phys->intf_idx)
 				phys->hw_intf = hw_intf;
 		}

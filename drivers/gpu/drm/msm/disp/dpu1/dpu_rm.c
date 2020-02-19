@@ -40,7 +40,21 @@ struct dpu_rm_hw_blk {
 	struct dpu_hw_blk *hw;
 };
 
-void dpu_rm_init_hw_iter(
+/**
+ * struct dpu_rm_hw_iter - iterator for use with dpu_rm
+ * @hw: dpu_hw object requested, or NULL on failure
+ * @blk: dpu_rm internal block representation. Clients ignore. Used as iterator.
+ * @enc_id: DRM ID of Encoder client wishes to search for, or 0 for Any Encoder
+ * @type: Hardware Block Type client wishes to search for.
+ */
+struct dpu_rm_hw_iter {
+	void *hw;
+	struct dpu_rm_hw_blk *blk;
+	uint32_t enc_id;
+	enum dpu_hw_blk_type type;
+};
+
+static void dpu_rm_init_hw_iter(
 		struct dpu_rm_hw_iter *iter,
 		uint32_t enc_id,
 		enum dpu_hw_blk_type type)
@@ -83,7 +97,7 @@ static bool _dpu_rm_get_hw_locked(struct dpu_rm *rm, struct dpu_rm_hw_iter *i)
 	return false;
 }
 
-bool dpu_rm_get_hw(struct dpu_rm *rm, struct dpu_rm_hw_iter *i)
+static bool dpu_rm_get_hw(struct dpu_rm *rm, struct dpu_rm_hw_iter *i)
 {
 	bool ret;
 
@@ -634,4 +648,17 @@ end:
 	mutex_unlock(&rm->rm_lock);
 
 	return ret;
+}
+
+int dpu_rm_get_assigned_resources(struct dpu_rm *rm, uint32_t enc_id,
+	enum dpu_hw_blk_type type, struct dpu_hw_blk **blks, int blks_size)
+{
+	struct dpu_rm_hw_iter hw_iter;
+	int num_blks = 0;
+
+	dpu_rm_init_hw_iter(&hw_iter, enc_id, type);
+	while (num_blks < blks_size && dpu_rm_get_hw(rm, &hw_iter))
+		blks[num_blks++] = hw_iter.blk->hw;
+
+	return num_blks;
 }
