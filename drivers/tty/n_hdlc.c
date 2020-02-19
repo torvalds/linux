@@ -899,13 +899,13 @@ static int __init n_hdlc_init(void)
 	else if (maxframe > 65535)
 		maxframe = 65535;
 
-	pr_info("HDLC line discipline maxframe=%d\n", maxframe);
-
 	status = tty_register_ldisc(N_HDLC, &n_hdlc_ldisc);
 	if (!status)
-		pr_info("N_HDLC line discipline registered.\n");
+		pr_info("N_HDLC line discipline registered with maxframe=%d\n",
+				maxframe);
 	else
-		pr_err("error registering line discipline: %d\n", status);
+		pr_err("N_HDLC: error registering line discipline: %d\n",
+				status);
 
 	return status;
 	
