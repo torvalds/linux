@@ -352,6 +352,12 @@
 		>;
 	};
 
+	pinctrl_pcie: pciegrp {
+		fsl,pins = <
+			MX6SX_PAD_NAND_DATA02__GPIO4_IO_6	0x10b0
+		>;
+	};
+
 	pinctrl_pwm1: pwm1grp-1 {
 		fsl,pins = <
 			/* blue LED */
@@ -488,6 +494,14 @@
 			MX6SX_PAD_SD4_DATA7__USDHC4_DATA7	0x170f9
 		>;
 	};
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio4 6 GPIO_ACTIVE_HIGH>;
+	reset-gpio-active-high;
+	status = "okay";
 };
 
 &pwm1 {
