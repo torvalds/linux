@@ -910,10 +910,6 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 	    fifo_rate > INV_MPU6050_MAX_FIFO_RATE)
 		return -EINVAL;
 
-	result = iio_device_claim_direct_mode(indio_dev);
-	if (result)
-		return result;
-
 	/* compute the chip sample rate divider */
 	d = INV_MPU6050_FIFO_RATE_TO_DIVIDER(fifo_rate);
 	/* compute back the fifo rate to handle truncation cases */
@@ -946,7 +942,6 @@ fifo_rate_fail_power_off:
 	result |= inv_mpu6050_set_power_itg(st, false);
 fifo_rate_fail_unlock:
 	mutex_unlock(&st->lock);
-	iio_device_release_direct_mode(indio_dev);
 	if (result)
 		return result;
 
