@@ -300,6 +300,7 @@ static int __init mpp_service_init(void)
 	MPP_REGISTER_DRIVER(VDPU2, vdpu2);
 	MPP_REGISTER_DRIVER(VEPU2, vepu2);
 	MPP_REGISTER_DRIVER(VEPU22, vepu22);
+	MPP_REGISTER_DRIVER(IEP2, iep2);
 
 	return 0;
 }

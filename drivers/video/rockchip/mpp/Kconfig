@@ -39,10 +39,19 @@ config ROCKCHIP_MPP_VDPU2
 	tristate "VPU decoder v2 device driver"
 	depends on ROCKCHIP_MPP_SERVICE
 	default n
+	help
+	  rockchip mpp vpu decoder v2.
 
 config ROCKCHIP_MPP_VEPU2
 	tristate "VPU encoder v2 device driver"
 	depends on ROCKCHIP_MPP_SERVICE
 	default n
 	help
-	  rockchip mpp vpu encoder v2
+	  rockchip mpp vpu encoder v2.
+
+config ROCKCHIP_MPP_IEP2
+	tristate "IEP v2 device driver"
+	depends on ROCKCHIP_MPP_SERVICE
+	default n
+	help
+	  rockchip iep v2.
