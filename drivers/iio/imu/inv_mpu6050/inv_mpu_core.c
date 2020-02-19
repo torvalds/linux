@@ -101,7 +101,7 @@ static const struct inv_mpu6050_reg_map reg_set_6050 = {
 static const struct inv_mpu6050_chip_config chip_config_6050 = {
 	.fsr = INV_MPU6050_FSR_2000DPS,
 	.lpf = INV_MPU6050_FILTER_20HZ,
-	.divider = INV_MPU6050_FIFO_RATE_TO_DIVIDER(INV_MPU6050_INIT_FIFO_RATE),
+	.divider = INV_MPU6050_FIFO_RATE_TO_DIVIDER(50),
 	.gyro_fifo_enable = false,
 	.accl_fifo_enable = false,
 	.temp_fifo_enable = false,
@@ -370,20 +370,20 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	u8 d;
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 
-	result = inv_mpu6050_set_gyro_fsr(st, INV_MPU6050_FSR_2000DPS);
+	result = inv_mpu6050_set_gyro_fsr(st, st->chip_config.fsr);
 	if (result)
 		return result;
 
-	result = inv_mpu6050_set_lpf_regs(st, INV_MPU6050_FILTER_20HZ);
+	result = inv_mpu6050_set_lpf_regs(st, st->chip_config.lpf);
 	if (result)
 		return result;
 
-	d = INV_MPU6050_FIFO_RATE_TO_DIVIDER(INV_MPU6050_INIT_FIFO_RATE);
+	d = st->chip_config.divider;
 	result = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (result)
 		return result;
 
-	d = (INV_MPU6050_FS_02G << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
+	d = (st->chip_config.accl_fs << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
 	result = regmap_write(st->map, st->reg->accl_config, d);
 	if (result)
 		return result;
@@ -391,9 +391,6 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	result = regmap_write(st->map, st->reg->int_pin_cfg, st->irq_mask);
 	if (result)
 		return result;
-
-	memcpy(&st->chip_config, hw_info[st->chip_type].config,
-	       sizeof(struct inv_mpu6050_chip_config));
 
 	/*
 	 * Internal chip period is 1ms (1kHz).
@@ -1116,6 +1113,8 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 
 	st->hw  = &hw_info[st->chip_type];
 	st->reg = hw_info[st->chip_type].reg;
+	memcpy(&st->chip_config, hw_info[st->chip_type].config,
+	       sizeof(st->chip_config));
 
 	/* check chip self-identification */
 	result = regmap_read(st->map, INV_MPU6050_REG_WHOAMI, &regval);

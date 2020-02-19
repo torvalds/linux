@@ -321,7 +321,6 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_TS_PERIOD_JITTER	4
 
 /* init parameters */
-#define INV_MPU6050_INIT_FIFO_RATE           50
 #define INV_MPU6050_MAX_FIFO_RATE            1000
 #define INV_MPU6050_MIN_FIFO_RATE            4
 
