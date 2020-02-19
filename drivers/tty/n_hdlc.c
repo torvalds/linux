@@ -227,9 +227,6 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 
-	if (!n_hdlc)
-		return;
-
 	if (n_hdlc->magic != HDLC_MAGIC) {
 		printk(KERN_WARNING "n_hdlc: trying to close unopened tty!\n");
 		return;
@@ -383,11 +380,7 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 
-	if (!n_hdlc)
-		return;
-
 	n_hdlc_send_frames (n_hdlc, tty);
-		
 }	/* end of n_hdlc_tty_wakeup() */
 
 /**
@@ -409,10 +402,6 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	pr_debug("%s(%d)%s() called count=%d\n",
 			__FILE__, __LINE__, __func__, count);
 
-	/* This can happen if stuff comes in on the backup tty */
-	if (!n_hdlc)
-		return;
-		
 	/* verify line is using HDLC discipline */
 	if (n_hdlc->magic != HDLC_MAGIC) {
 		printk("%s(%d) line not using HDLC discipline\n",
@@ -472,10 +461,6 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 	int ret = 0;
 	struct n_hdlc_buf *rbuf;
 	DECLARE_WAITQUEUE(wait, current);
-
-	/* Validate the pointers */
-	if (!n_hdlc)
-		return -EIO;
 
 	/* verify user access to buffer */
 	if (!access_ok(buf, nr)) {
@@ -558,10 +543,6 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 	pr_debug("%s(%d)%s() called count=%zd\n", __FILE__, __LINE__, __func__,
 			count);
 
-	/* Verify pointers */
-	if (!n_hdlc)
-		return -EIO;
-
 	if (n_hdlc->magic != HDLC_MAGIC)
 		return -EIO;
 
@@ -586,14 +567,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 			break;
 		}
 		schedule();
-			
-		n_hdlc = tty->disc_data;
-		if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC) {
-			printk("n_hdlc_tty_write: %p invalid after wait!\n", n_hdlc);
-			error = -EIO;
-			break;
-		}
-			
+
 		if (signal_pending(current)) {
 			error = -EINTR;
 			break;
@@ -638,7 +612,7 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 	pr_debug("%s(%d)%s() called %d\n", __FILE__, __LINE__, __func__, cmd);
 
 	/* Verify the status of the device */
-	if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC)
+	if (n_hdlc->magic != HDLC_MAGIC)
 		return -EBADF;
 
 	switch (cmd) {
@@ -701,7 +675,7 @@ static __poll_t n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 	struct n_hdlc *n_hdlc = tty->disc_data;
 	__poll_t mask = 0;
 
-	if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC)
+	if (n_hdlc->magic != HDLC_MAGIC)
 		return 0;
 
 	/*
