@@ -319,36 +319,36 @@ int inv_mpu_magn_set_orient(struct inv_mpu6050_state *st)
 int inv_mpu_magn_read(const struct inv_mpu6050_state *st, int axis, int *val)
 {
 	unsigned int user_ctrl, status;
-	__be16 data[3];
+	__be16 data;
 	uint8_t addr;
-	uint8_t d;
-	unsigned int period_ms;
+	unsigned int freq_hz, period_ms;
 	int ret;
 
 	/* quit if chip is not supported */
 	if (!inv_magn_supported(st))
 		return -ENODEV;
 
-	/* Mag data: X - Y - Z */
+	/* Mag data: XH,XL,YH,YL,ZH,ZL */
 	switch (axis) {
 	case IIO_MOD_X:
 		addr = 0;
 		break;
 	case IIO_MOD_Y:
-		addr = 1;
+		addr = 2;
 		break;
 	case IIO_MOD_Z:
-		addr = 2;
+		addr = 4;
 		break;
 	default:
 		return -EINVAL;
 	}
+	addr += INV_MPU6050_REG_EXT_SENS_DATA;
 
-	/* set sample rate to max mag freq */
-	d = INV_MPU6050_FIFO_RATE_TO_DIVIDER(INV_MPU_MAGN_FREQ_HZ_MAX);
-	ret = regmap_write(st->map, st->reg->sample_rate_div, d);
-	if (ret)
-		return ret;
+	/* compute period depending on current sampling rate */
+	freq_hz = INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
+	if (freq_hz > INV_MPU_MAGN_FREQ_HZ_MAX)
+		freq_hz = INV_MPU_MAGN_FREQ_HZ_MAX;
+	period_ms = 1000 / freq_hz;
 
 	/* start i2c master, wait for xfer, stop */
 	user_ctrl = st->chip_config.user_ctrl | INV_MPU6050_BIT_I2C_MST_EN;
@@ -357,16 +357,9 @@ int inv_mpu_magn_read(const struct inv_mpu6050_state *st, int axis, int *val)
 		return ret;
 
 	/* need to wait 2 periods + half-period margin */
-	period_ms = 1000 / INV_MPU_MAGN_FREQ_HZ_MAX;
 	msleep(period_ms * 2 + period_ms / 2);
 	user_ctrl = st->chip_config.user_ctrl;
 	ret = regmap_write(st->map, st->reg->user_ctrl, user_ctrl);
-	if (ret)
-		return ret;
-
-	/* restore sample rate */
-	d = st->chip_config.divider;
-	ret = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (ret)
 		return ret;
 
@@ -379,12 +372,11 @@ int inv_mpu_magn_read(const struct inv_mpu6050_state *st, int axis, int *val)
 			status & INV_MPU6050_BIT_I2C_SLV1_NACK)
 		return -EIO;
 
-	ret = regmap_bulk_read(st->map, INV_MPU6050_REG_EXT_SENS_DATA,
-			       data, sizeof(data));
+	ret = regmap_bulk_read(st->map, addr, &data, sizeof(data));
 	if (ret)
 		return ret;
 
-	*val = (int16_t)be16_to_cpu(data[addr]);
+	*val = (int16_t)be16_to_cpu(data);
 
 	return IIO_VAL_INT;
 }
