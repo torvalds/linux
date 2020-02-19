@@ -142,7 +142,7 @@ struct gsm_dlci {
 	u32 modem_tx;		/* Our outgoing modem lines */
 	bool dead;		/* Refuse re-open */
 	/* Flow control */
-	int throttled;		/* Private copy of throttle state */
+	bool throttled;		/* Private copy of throttle state */
 	int constipated;	/* Throttle status for outgoing */
 	/* Packetised I/O */
 	struct sk_buff *skb;	/* Frame being sent */
@@ -3172,7 +3172,7 @@ static void gsmtty_throttle(struct tty_struct *tty)
 		return;
 	if (C_CRTSCTS(tty))
 		dlci->modem_tx &= ~TIOCM_DTR;
-	dlci->throttled = 1;
+	dlci->throttled = true;
 	/* Send an MSC with DTR cleared */
 	gsmtty_modem_update(dlci, 0);
 }
@@ -3184,7 +3184,7 @@ static void gsmtty_unthrottle(struct tty_struct *tty)
 		return;
 	if (C_CRTSCTS(tty))
 		dlci->modem_tx |= TIOCM_DTR;
-	dlci->throttled = 0;
+	dlci->throttled = false;
 	/* Send an MSC with DTR set */
 	gsmtty_modem_update(dlci, 0);
 }
