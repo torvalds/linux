@@ -125,7 +125,7 @@ struct n_hdlc_buf_list {
  * struct n_hdlc - per device instance data structure
  * @magic - magic value for structure
  * @tbusy - reentrancy flag for tx wakeup code
- * @woke_up - FIXME: describe this field
+ * @woke_up - tx wakeup needs to be run again as it was called while @tbusy
  * @tx_buf_list - list of pending transmit frame buffers
  * @rx_buf_list - list of received frame buffers
  * @tx_free_buf_list - list unused transmit frame buffers
@@ -133,8 +133,8 @@ struct n_hdlc_buf_list {
  */
 struct n_hdlc {
 	int			magic;
-	int			tbusy;
-	int			woke_up;
+	bool			tbusy;
+	bool			woke_up;
 	struct n_hdlc_buf_list	tx_buf_list;
 	struct n_hdlc_buf_list	rx_buf_list;
 	struct n_hdlc_buf_list	tx_free_buf_list;
@@ -275,12 +275,12 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 		
  	spin_lock_irqsave(&n_hdlc->tx_buf_list.spinlock, flags);
 	if (n_hdlc->tbusy) {
-		n_hdlc->woke_up = 1;
- 		spin_unlock_irqrestore(&n_hdlc->tx_buf_list.spinlock, flags);
+		n_hdlc->woke_up = true;
+		spin_unlock_irqrestore(&n_hdlc->tx_buf_list.spinlock, flags);
 		return;
 	}
-	n_hdlc->tbusy = 1;
-	n_hdlc->woke_up = 0;
+	n_hdlc->tbusy = true;
+	n_hdlc->woke_up = false;
 	spin_unlock_irqrestore(&n_hdlc->tx_buf_list.spinlock, flags);
 
 	tbuf = n_hdlc_buf_get(&n_hdlc->tx_buf_list);
@@ -332,7 +332,7 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 	
 	/* Clear the re-entry flag */
 	spin_lock_irqsave(&n_hdlc->tx_buf_list.spinlock, flags);
-	n_hdlc->tbusy = 0;
+	n_hdlc->tbusy = false;
 	spin_unlock_irqrestore(&n_hdlc->tx_buf_list.spinlock, flags); 
 	
         if (n_hdlc->woke_up)
