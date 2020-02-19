@@ -272,6 +272,8 @@
 
 #define IMX8MM_CLK_CLKO2			250
 
-#define IMX8MM_CLK_END				251
+#define IMX8MM_CLK_A53_CORE			251
+
+#define IMX8MM_CLK_END				252
 
 #endif
