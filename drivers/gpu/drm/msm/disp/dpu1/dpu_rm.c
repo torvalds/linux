@@ -66,8 +66,6 @@ int dpu_rm_destroy(struct dpu_rm *rm)
 		}
 	}
 
-	mutex_destroy(&rm->rm_lock);
-
 	return 0;
 }
 
@@ -84,8 +82,6 @@ int dpu_rm_init(struct dpu_rm *rm,
 
 	/* Clear, setup lists */
 	memset(rm, 0, sizeof(*rm));
-
-	mutex_init(&rm->rm_lock);
 
 	/* Interrogate HW catalog and create tracking items for hw blocks */
 	for (i = 0; i < cat->mixer_count; i++) {
@@ -230,13 +226,14 @@ static bool _dpu_rm_check_lm_peer(struct dpu_rm *rm, int primary_idx,
  * @Return: true if lm matches all requirements, false otherwise
  */
 static bool _dpu_rm_check_lm_and_get_connected_blks(struct dpu_rm *rm,
+		struct dpu_global_state *global_state,
 		uint32_t enc_id, int lm_idx, int *pp_idx)
 {
 	const struct dpu_lm_cfg *lm_cfg;
 	int idx;
 
 	/* Already reserved? */
-	if (reserved_by_other(rm->mixer_to_enc_id, lm_idx, enc_id)) {
+	if (reserved_by_other(global_state->mixer_to_enc_id, lm_idx, enc_id)) {
 		DPU_DEBUG("lm %d already reserved\n", lm_idx + LM_0);
 		return false;
 	}
@@ -248,7 +245,7 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(struct dpu_rm *rm,
 		return false;
 	}
 
-	if (reserved_by_other(rm->pingpong_to_enc_id, idx, enc_id)) {
+	if (reserved_by_other(global_state->pingpong_to_enc_id, idx, enc_id)) {
 		DPU_DEBUG("lm %d pp %d already reserved\n", lm_cfg->id,
 				lm_cfg->pingpong);
 		return false;
@@ -257,7 +254,9 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(struct dpu_rm *rm,
 	return true;
 }
 
-static int _dpu_rm_reserve_lms(struct dpu_rm *rm, uint32_t enc_id,
+static int _dpu_rm_reserve_lms(struct dpu_rm *rm,
+			       struct dpu_global_state *global_state,
+			       uint32_t enc_id,
 			       struct dpu_rm_requirements *reqs)
 
 {
@@ -279,8 +278,8 @@ static int _dpu_rm_reserve_lms(struct dpu_rm *rm, uint32_t enc_id,
 		lm_count = 0;
 		lm_idx[lm_count] = i;
 
-		if (!_dpu_rm_check_lm_and_get_connected_blks(
-				rm, enc_id, i, &pp_idx[lm_count])) {
+		if (!_dpu_rm_check_lm_and_get_connected_blks(rm, global_state,
+				enc_id, i, &pp_idx[lm_count])) {
 			continue;
 		}
 
@@ -298,8 +297,9 @@ static int _dpu_rm_reserve_lms(struct dpu_rm *rm, uint32_t enc_id,
 				continue;
 			}
 
-			if (!_dpu_rm_check_lm_and_get_connected_blks(
-					rm, enc_id, j, &pp_idx[lm_count])) {
+			if (!_dpu_rm_check_lm_and_get_connected_blks(rm,
+					global_state, enc_id, j,
+					&pp_idx[lm_count])) {
 				continue;
 			}
 
@@ -314,8 +314,8 @@ static int _dpu_rm_reserve_lms(struct dpu_rm *rm, uint32_t enc_id,
 	}
 
 	for (i = 0; i < lm_count; i++) {
-		rm->mixer_to_enc_id[lm_idx[i]] = enc_id;
-		rm->pingpong_to_enc_id[pp_idx[i]] = enc_id;
+		global_state->mixer_to_enc_id[lm_idx[i]] = enc_id;
+		global_state->pingpong_to_enc_id[pp_idx[i]] = enc_id;
 
 		trace_dpu_rm_reserve_lms(lm_idx[i] + LM_0, enc_id,
 					 pp_idx[i] + PINGPONG_0);
@@ -326,6 +326,7 @@ static int _dpu_rm_reserve_lms(struct dpu_rm *rm, uint32_t enc_id,
 
 static int _dpu_rm_reserve_ctls(
 		struct dpu_rm *rm,
+		struct dpu_global_state *global_state,
 		uint32_t enc_id,
 		const struct msm_display_topology *top)
 {
@@ -345,7 +346,7 @@ static int _dpu_rm_reserve_ctls(
 
 		if (!rm->ctl_blks[j])
 			continue;
-		if (reserved_by_other(rm->ctl_to_enc_id, j, enc_id))
+		if (reserved_by_other(global_state->ctl_to_enc_id, j, enc_id))
 			continue;
 
 		ctl = to_dpu_hw_ctl(rm->ctl_blks[j]);
@@ -369,7 +370,7 @@ static int _dpu_rm_reserve_ctls(
 		return -ENAVAIL;
 
 	for (i = 0; i < ARRAY_SIZE(ctl_idx) && i < num_ctls; i++) {
-		rm->ctl_to_enc_id[ctl_idx[i]] = enc_id;
+		global_state->ctl_to_enc_id[ctl_idx[i]] = enc_id;
 		trace_dpu_rm_reserve_ctls(i + CTL_0, enc_id);
 	}
 
@@ -378,27 +379,34 @@ static int _dpu_rm_reserve_ctls(
 
 static int _dpu_rm_reserve_intf(
 		struct dpu_rm *rm,
+		struct dpu_global_state *global_state,
 		uint32_t enc_id,
 		uint32_t id)
 {
 	int idx = id - INTF_0;
+
+	if (idx < 0 || idx >= ARRAY_SIZE(rm->intf_blks)) {
+		DPU_ERROR("invalid intf id: %d", id);
+		return -EINVAL;
+	}
 
 	if (!rm->intf_blks[idx]) {
 		DPU_ERROR("couldn't find intf id %d\n", id);
 		return -EINVAL;
 	}
 
-	if (reserved_by_other(rm->intf_to_enc_id, idx, enc_id)) {
+	if (reserved_by_other(global_state->intf_to_enc_id, idx, enc_id)) {
 		DPU_ERROR("intf id %d already reserved\n", id);
 		return -ENAVAIL;
 	}
 
-	rm->intf_to_enc_id[idx] = enc_id;
+	global_state->intf_to_enc_id[idx] = enc_id;
 	return 0;
 }
 
 static int _dpu_rm_reserve_intf_related_hw(
 		struct dpu_rm *rm,
+		struct dpu_global_state *global_state,
 		uint32_t enc_id,
 		struct dpu_encoder_hw_resources *hw_res)
 {
@@ -409,7 +417,7 @@ static int _dpu_rm_reserve_intf_related_hw(
 		if (hw_res->intfs[i] == INTF_MODE_NONE)
 			continue;
 		id = i + INTF_0;
-		ret = _dpu_rm_reserve_intf(rm, enc_id, id);
+		ret = _dpu_rm_reserve_intf(rm, global_state, enc_id, id);
 		if (ret)
 			return ret;
 	}
@@ -419,24 +427,27 @@ static int _dpu_rm_reserve_intf_related_hw(
 
 static int _dpu_rm_make_reservation(
 		struct dpu_rm *rm,
+		struct dpu_global_state *global_state,
 		struct drm_encoder *enc,
 		struct dpu_rm_requirements *reqs)
 {
 	int ret;
 
-	ret = _dpu_rm_reserve_lms(rm, enc->base.id, reqs);
+	ret = _dpu_rm_reserve_lms(rm, global_state, enc->base.id, reqs);
 	if (ret) {
 		DPU_ERROR("unable to find appropriate mixers\n");
 		return ret;
 	}
 
-	ret = _dpu_rm_reserve_ctls(rm, enc->base.id, &reqs->topology);
+	ret = _dpu_rm_reserve_ctls(rm, global_state, enc->base.id,
+				&reqs->topology);
 	if (ret) {
 		DPU_ERROR("unable to find appropriate CTL\n");
 		return ret;
 	}
 
-	ret = _dpu_rm_reserve_intf_related_hw(rm, enc->base.id, &reqs->hw_res);
+	ret = _dpu_rm_reserve_intf_related_hw(rm, global_state, enc->base.id,
+				&reqs->hw_res);
 	if (ret)
 		return ret;
 
@@ -470,33 +481,25 @@ static void _dpu_rm_clear_mapping(uint32_t *res_mapping, int cnt,
 	}
 }
 
-static void _dpu_rm_release_reservation(struct dpu_rm *rm, uint32_t enc_id)
+void dpu_rm_release(struct dpu_global_state *global_state,
+		    struct drm_encoder *enc)
 {
-	_dpu_rm_clear_mapping(rm->pingpong_to_enc_id,
-		ARRAY_SIZE(rm->pingpong_to_enc_id), enc_id);
-	_dpu_rm_clear_mapping(rm->mixer_to_enc_id,
-		ARRAY_SIZE(rm->mixer_to_enc_id), enc_id);
-	_dpu_rm_clear_mapping(rm->ctl_to_enc_id,
-		ARRAY_SIZE(rm->ctl_to_enc_id), enc_id);
-	_dpu_rm_clear_mapping(rm->intf_to_enc_id,
-		ARRAY_SIZE(rm->intf_to_enc_id), enc_id);
-}
-
-void dpu_rm_release(struct dpu_rm *rm, struct drm_encoder *enc)
-{
-	mutex_lock(&rm->rm_lock);
-
-	_dpu_rm_release_reservation(rm, enc->base.id);
-
-	mutex_unlock(&rm->rm_lock);
+	_dpu_rm_clear_mapping(global_state->pingpong_to_enc_id,
+		ARRAY_SIZE(global_state->pingpong_to_enc_id), enc->base.id);
+	_dpu_rm_clear_mapping(global_state->mixer_to_enc_id,
+		ARRAY_SIZE(global_state->mixer_to_enc_id), enc->base.id);
+	_dpu_rm_clear_mapping(global_state->ctl_to_enc_id,
+		ARRAY_SIZE(global_state->ctl_to_enc_id), enc->base.id);
+	_dpu_rm_clear_mapping(global_state->intf_to_enc_id,
+		ARRAY_SIZE(global_state->intf_to_enc_id), enc->base.id);
 }
 
 int dpu_rm_reserve(
 		struct dpu_rm *rm,
+		struct dpu_global_state *global_state,
 		struct drm_encoder *enc,
 		struct drm_crtc_state *crtc_state,
-		struct msm_display_topology topology,
-		bool test_only)
+		struct msm_display_topology topology)
 {
 	struct dpu_rm_requirements reqs;
 	int ret;
@@ -505,35 +508,31 @@ int dpu_rm_reserve(
 	if (!drm_atomic_crtc_needs_modeset(crtc_state))
 		return 0;
 
-	DRM_DEBUG_KMS("reserving hw for enc %d crtc %d test_only %d\n",
-		      enc->base.id, crtc_state->crtc->base.id, test_only);
+	if (IS_ERR(global_state)) {
+		DPU_ERROR("failed to global state\n");
+		return PTR_ERR(global_state);
+	}
 
-	mutex_lock(&rm->rm_lock);
+	DRM_DEBUG_KMS("reserving hw for enc %d crtc %d\n",
+		      enc->base.id, crtc_state->crtc->base.id);
 
 	ret = _dpu_rm_populate_requirements(enc, &reqs, topology);
 	if (ret) {
 		DPU_ERROR("failed to populate hw requirements\n");
-		goto end;
+		return ret;
 	}
 
-	ret = _dpu_rm_make_reservation(rm, enc, &reqs);
-	if (ret) {
+	ret = _dpu_rm_make_reservation(rm, global_state, enc, &reqs);
+	if (ret)
 		DPU_ERROR("failed to reserve hw resources: %d\n", ret);
-		_dpu_rm_release_reservation(rm, enc->base.id);
-	} else if (test_only) {
-		 /* test_only: test the reservation and then undo */
-		DPU_DEBUG("test_only: discard test [enc: %d]\n",
-				enc->base.id);
-		_dpu_rm_release_reservation(rm, enc->base.id);
-	}
 
-end:
-	mutex_unlock(&rm->rm_lock);
+
 
 	return ret;
 }
 
-int dpu_rm_get_assigned_resources(struct dpu_rm *rm, uint32_t enc_id,
+int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
+	struct dpu_global_state *global_state, uint32_t enc_id,
 	enum dpu_hw_blk_type type, struct dpu_hw_blk **blks, int blks_size)
 {
 	struct dpu_hw_blk **hw_blks;
@@ -543,22 +542,22 @@ int dpu_rm_get_assigned_resources(struct dpu_rm *rm, uint32_t enc_id,
 	switch (type) {
 	case DPU_HW_BLK_PINGPONG:
 		hw_blks = rm->pingpong_blks;
-		hw_to_enc_id = rm->pingpong_to_enc_id;
+		hw_to_enc_id = global_state->pingpong_to_enc_id;
 		max_blks = ARRAY_SIZE(rm->pingpong_blks);
 		break;
 	case DPU_HW_BLK_LM:
 		hw_blks = rm->mixer_blks;
-		hw_to_enc_id = rm->mixer_to_enc_id;
+		hw_to_enc_id = global_state->mixer_to_enc_id;
 		max_blks = ARRAY_SIZE(rm->mixer_blks);
 		break;
 	case DPU_HW_BLK_CTL:
 		hw_blks = rm->ctl_blks;
-		hw_to_enc_id = rm->ctl_to_enc_id;
+		hw_to_enc_id = global_state->ctl_to_enc_id;
 		max_blks = ARRAY_SIZE(rm->ctl_blks);
 		break;
 	case DPU_HW_BLK_INTF:
 		hw_blks = rm->intf_blks;
-		hw_to_enc_id = rm->intf_to_enc_id;
+		hw_to_enc_id = global_state->intf_to_enc_id;
 		max_blks = ARRAY_SIZE(rm->intf_blks);
 		break;
 	default:

@@ -11,6 +11,7 @@
 #include "msm_kms.h"
 #include "dpu_hw_top.h"
 
+struct dpu_global_state;
 
 /**
  * struct dpu_rm - DPU dynamic hardware resource manager
@@ -18,10 +19,6 @@
  * @mixer_blks: array of layer mixer hardware resources
  * @ctl_blks: array of ctl hardware resources
  * @intf_blks: array of intf hardware resources
- * @pingpong_to_enc_id: mapping of pingpong hardware resources to an encoder ID
- * @mixer_to_enc_id: mapping of mixer hardware resources to an encoder ID
- * @ctl_to_enc_id: mapping of ctl hardware resources to an encoder ID
- * @intf_to_enc_id: mapping of intf hardware resources to an encoder ID
  * @lm_max_width: cached layer mixer maximum width
  * @rm_lock: resource manager mutex
  */
@@ -31,13 +28,7 @@ struct dpu_rm {
 	struct dpu_hw_blk *ctl_blks[CTL_MAX - CTL_0];
 	struct dpu_hw_blk *intf_blks[INTF_MAX - INTF_0];
 
-	uint32_t pingpong_to_enc_id[PINGPONG_MAX - PINGPONG_0];
-	uint32_t mixer_to_enc_id[LM_MAX - LM_0];
-	uint32_t ctl_to_enc_id[CTL_MAX - CTL_0];
-	uint32_t intf_to_enc_id[INTF_MAX - INTF_0];
-
 	uint32_t lm_max_width;
-	struct mutex rm_lock;
 };
 
 /**
@@ -70,14 +61,13 @@ int dpu_rm_destroy(struct dpu_rm *rm);
  * @drm_enc: DRM Encoder handle
  * @crtc_state: Proposed Atomic DRM CRTC State handle
  * @topology: Pointer to topology info for the display
- * @test_only: Atomic-Test phase, discard results (unless property overrides)
  * @Return: 0 on Success otherwise -ERROR
  */
 int dpu_rm_reserve(struct dpu_rm *rm,
+		struct dpu_global_state *global_state,
 		struct drm_encoder *drm_enc,
 		struct drm_crtc_state *crtc_state,
-		struct msm_display_topology topology,
-		bool test_only);
+		struct msm_display_topology topology);
 
 /**
  * dpu_rm_reserve - Given the encoder for the display chain, release any
@@ -86,12 +76,14 @@ int dpu_rm_reserve(struct dpu_rm *rm,
  * @enc: DRM Encoder handle
  * @Return: 0 on Success otherwise -ERROR
  */
-void dpu_rm_release(struct dpu_rm *rm, struct drm_encoder *enc);
+void dpu_rm_release(struct dpu_global_state *global_state,
+		struct drm_encoder *enc);
 
 /**
  * Get hw resources of the given type that are assigned to this encoder.
  */
-int dpu_rm_get_assigned_resources(struct dpu_rm *rm, uint32_t enc_id,
+int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
+	struct dpu_global_state *global_state, uint32_t enc_id,
 	enum dpu_hw_blk_type type, struct dpu_hw_blk **blks, int blks_size);
 #endif /* __DPU_RM_H__ */
 

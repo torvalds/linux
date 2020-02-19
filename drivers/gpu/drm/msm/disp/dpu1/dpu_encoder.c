@@ -164,7 +164,6 @@ enum dpu_enc_rc_states {
  *				clks and resources after IDLE_TIMEOUT time.
  * @vsync_event_work:		worker to handle vsync event for autorefresh
  * @topology:                   topology of the display
- * @mode_set_complete:          flag to indicate modeset completion
  * @idle_timeout:		idle timeout duration in milliseconds
  */
 struct dpu_encoder_virt {
@@ -202,7 +201,6 @@ struct dpu_encoder_virt {
 	struct delayed_work delayed_off_work;
 	struct kthread_work vsync_event_work;
 	struct msm_display_topology topology;
-	bool mode_set_complete;
 
 	u32 idle_timeout;
 };
@@ -563,6 +561,7 @@ static int dpu_encoder_virt_atomic_check(
 	const struct drm_display_mode *mode;
 	struct drm_display_mode *adj_mode;
 	struct msm_display_topology topology;
+	struct dpu_global_state *global_state;
 	int i = 0;
 	int ret = 0;
 
@@ -579,6 +578,7 @@ static int dpu_encoder_virt_atomic_check(
 	dpu_kms = to_dpu_kms(priv->kms);
 	mode = &crtc_state->mode;
 	adj_mode = &crtc_state->adjusted_mode;
+	global_state = dpu_kms_get_existing_global_state(dpu_kms);
 	trace_dpu_enc_atomic_check(DRMID(drm_enc));
 
 	/*
@@ -610,17 +610,15 @@ static int dpu_encoder_virt_atomic_check(
 
 	topology = dpu_encoder_get_topology(dpu_enc, dpu_kms, adj_mode);
 
-	/* Reserve dynamic resources now. Indicating AtomicTest phase */
+	/* Reserve dynamic resources now. */
 	if (!ret) {
 		/*
 		 * Avoid reserving resources when mode set is pending. Topology
 		 * info may not be available to complete reservation.
 		 */
-		if (drm_atomic_crtc_needs_modeset(crtc_state)
-				&& dpu_enc->mode_set_complete) {
-			ret = dpu_rm_reserve(&dpu_kms->rm, drm_enc, crtc_state,
-					     topology, true);
-			dpu_enc->mode_set_complete = false;
+		if (drm_atomic_crtc_needs_modeset(crtc_state)) {
+			ret = dpu_rm_reserve(&dpu_kms->rm, global_state,
+					drm_enc, crtc_state, topology);
 		}
 	}
 
@@ -957,12 +955,13 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct drm_connector *conn = NULL, *conn_iter;
 	struct drm_crtc *drm_crtc;
 	struct dpu_crtc_state *cstate;
+	struct dpu_global_state *global_state;
 	struct msm_display_topology topology;
 	struct dpu_hw_blk *hw_pp[MAX_CHANNELS_PER_ENC];
 	struct dpu_hw_blk *hw_ctl[MAX_CHANNELS_PER_ENC];
 	struct dpu_hw_blk *hw_lm[MAX_CHANNELS_PER_ENC];
 	int num_lm, num_ctl, num_pp;
-	int i, j, ret;
+	int i, j;
 
 	if (!drm_enc) {
 		DPU_ERROR("invalid encoder\n");
@@ -975,6 +974,12 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	priv = drm_enc->dev->dev_private;
 	dpu_kms = to_dpu_kms(priv->kms);
 	connector_list = &dpu_kms->dev->mode_config.connector_list;
+
+	global_state = dpu_kms_get_existing_global_state(dpu_kms);
+	if (IS_ERR_OR_NULL(global_state)) {
+		DPU_ERROR("Failed to get global state");
+		return;
+	}
 
 	trace_dpu_enc_mode_set(DRMID(drm_enc));
 
@@ -996,21 +1001,14 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 
 	topology = dpu_encoder_get_topology(dpu_enc, dpu_kms, adj_mode);
 
-	/* Reserve dynamic resources now. Indicating non-AtomicTest phase */
-	ret = dpu_rm_reserve(&dpu_kms->rm, drm_enc, drm_crtc->state,
-			     topology, false);
-	if (ret) {
-		DPU_ERROR_ENC(dpu_enc,
-				"failed to reserve hw resources, %d\n", ret);
-		return;
-	}
-
-	num_pp = dpu_rm_get_assigned_resources(&dpu_kms->rm, drm_enc->base.id,
-		DPU_HW_BLK_PINGPONG, hw_pp, ARRAY_SIZE(hw_pp));
-	num_ctl = dpu_rm_get_assigned_resources(&dpu_kms->rm, drm_enc->base.id,
-		DPU_HW_BLK_CTL, hw_ctl, ARRAY_SIZE(hw_ctl));
-	num_lm = dpu_rm_get_assigned_resources(&dpu_kms->rm, drm_enc->base.id,
-		DPU_HW_BLK_LM, hw_lm, ARRAY_SIZE(hw_lm));
+	/* Query resource that have been reserved in atomic check step. */
+	num_pp = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
+		drm_enc->base.id, DPU_HW_BLK_PINGPONG, hw_pp,
+		ARRAY_SIZE(hw_pp));
+	num_ctl = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
+		drm_enc->base.id, DPU_HW_BLK_CTL, hw_ctl, ARRAY_SIZE(hw_ctl));
+	num_lm = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
+		drm_enc->base.id, DPU_HW_BLK_LM, hw_lm, ARRAY_SIZE(hw_lm));
 
 	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++)
 		dpu_enc->hw_pp[i] = i < num_pp ? to_dpu_hw_pingpong(hw_pp[i])
@@ -1035,21 +1033,21 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		if (!dpu_enc->hw_pp[i]) {
 			DPU_ERROR_ENC(dpu_enc,
 				"no pp block assigned at idx: %d\n", i);
-			goto error;
+			return;
 		}
 
 		if (!hw_ctl[i]) {
 			DPU_ERROR_ENC(dpu_enc,
 				"no ctl block assigned at idx: %d\n", i);
-			goto error;
+			return;
 		}
 
 		phys->hw_pp = dpu_enc->hw_pp[i];
 		phys->hw_ctl = to_dpu_hw_ctl(hw_ctl[i]);
 
 		num_blk = dpu_rm_get_assigned_resources(&dpu_kms->rm,
-			drm_enc->base.id, DPU_HW_BLK_INTF, hw_blk,
-			ARRAY_SIZE(hw_blk));
+			global_state, drm_enc->base.id, DPU_HW_BLK_INTF,
+			hw_blk, ARRAY_SIZE(hw_blk));
 		for (j = 0; j < num_blk; j++) {
 			struct dpu_hw_intf *hw_intf;
 
@@ -1061,18 +1059,13 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		if (!phys->hw_intf) {
 			DPU_ERROR_ENC(dpu_enc,
 				      "no intf block assigned at idx: %d\n", i);
-				goto error;
+			return;
 		}
 
 		phys->connector = conn->state->connector;
 		if (phys->ops.mode_set)
 			phys->ops.mode_set(phys, mode, adj_mode);
 	}
-
-	dpu_enc->mode_set_complete = true;
-
-error:
-	dpu_rm_release(&dpu_kms->rm, drm_enc);
 }
 
 static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
@@ -1169,6 +1162,7 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	struct msm_drm_private *priv;
 	struct dpu_kms *dpu_kms;
+	struct dpu_global_state *global_state;
 	int i = 0;
 
 	if (!drm_enc) {
@@ -1187,6 +1181,7 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 
 	priv = drm_enc->dev->dev_private;
 	dpu_kms = to_dpu_kms(priv->kms);
+	global_state = dpu_kms_get_existing_global_state(dpu_kms);
 
 	trace_dpu_enc_disable(DRMID(drm_enc));
 
@@ -1216,7 +1211,7 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 
 	DPU_DEBUG_ENC(dpu_enc, "encoder disabled\n");
 
-	dpu_rm_release(&dpu_kms->rm, drm_enc);
+	dpu_rm_release(global_state, drm_enc);
 
 	mutex_unlock(&dpu_enc->enc_lock);
 }
