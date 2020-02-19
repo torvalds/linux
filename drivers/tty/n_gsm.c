@@ -107,6 +107,11 @@ enum gsm_dlci_state {
 	DLCI_CLOSING,		/* Sending DISC not seen UA/DM */
 };
 
+enum gsm_dlci_mode {
+	DLCI_MODE_ABM,		/* Normal Asynchronous Balanced Mode */
+	DLCI_MODE_ADM,		/* Asynchronous Disconnected Mode */
+};
+
 /*
  *	Each active data link has a gsm_dlci structure associated which ties
  *	the link layer to an optional tty (if the tty side is open). To avoid
@@ -124,9 +129,7 @@ struct gsm_dlci {
 	struct mutex mutex;
 
 	/* Link layer */
-	int mode;
-#define DLCI_MODE_ABM		0	/* Normal Asynchronous Balanced Mode */
-#define DLCI_MODE_ADM		1	/* Asynchronous Disconnected Mode */
+	enum gsm_dlci_mode mode;
 	spinlock_t lock;	/* Protects the internal state */
 	struct timer_list t1;	/* Retransmit timer for SABM and UA */
 	int retries;
