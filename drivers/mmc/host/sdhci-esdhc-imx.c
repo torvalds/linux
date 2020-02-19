@@ -166,6 +166,18 @@
 #define ESDHC_FLAG_STATE_LOST_IN_LPMODE		BIT(14)
 /* The IP lost clock rate in PM_RUNTIME */
 #define ESDHC_FLAG_CLK_RATE_LOST_IN_PM_RUNTIME	BIT(15)
+/*
+ * The IP do not support the ACMD23 feature completely when use ADMA mode.
+ * In ADMA mode, it only use the 16 bit block count of the register 0x4
+ * (BLOCK_ATT) as the CMD23's argument for ACMD23 mode, which means it will
+ * ignore the upper 16 bit of the CMD23's argument. This will block the reliable
+ * write operation in RPMB, because RPMB reliable write need to set the bit31
+ * of the CMD23's argument.
+ * imx6qpdl/imx6sx/imx6sl/imx7d has this limitation only for ADMA mode, SDMA
+ * do not has this limitation. so when these SoC use ADMA mode, it need to
+ * disable the ACMD23 feature.
+ */
+#define ESDHC_FLAG_BROKEN_AUTO_CMD23	BIT(16)
 
 struct esdhc_soc_data {
 	u32 flags;
@@ -188,19 +200,28 @@ static const struct esdhc_soc_data esdhc_imx53_data = {
 };
 
 static const struct esdhc_soc_data usdhc_imx6q_data = {
-	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_MAN_TUNING,
+	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_MAN_TUNING
+			| ESDHC_FLAG_BROKEN_AUTO_CMD23,
 };
 
 static const struct esdhc_soc_data usdhc_imx6sl_data = {
 	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
 			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_ERR004536
-			| ESDHC_FLAG_HS200,
+			| ESDHC_FLAG_HS200
+			| ESDHC_FLAG_BROKEN_AUTO_CMD23,
+};
+
+static const struct esdhc_soc_data usdhc_imx6sll_data = {
+	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
+			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
+			| ESDHC_FLAG_STATE_LOST_IN_LPMODE,
 };
 
 static const struct esdhc_soc_data usdhc_imx6sx_data = {
 	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
 			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
-			| ESDHC_FLAG_STATE_LOST_IN_LPMODE,
+			| ESDHC_FLAG_STATE_LOST_IN_LPMODE
+			| ESDHC_FLAG_BROKEN_AUTO_CMD23,
 };
 
 static const struct esdhc_soc_data usdhc_imx6ull_data = {
@@ -214,7 +235,8 @@ static const struct esdhc_soc_data usdhc_imx7d_data = {
 	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
 			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
 			| ESDHC_FLAG_HS400
-			| ESDHC_FLAG_STATE_LOST_IN_LPMODE,
+			| ESDHC_FLAG_STATE_LOST_IN_LPMODE
+			| ESDHC_FLAG_BROKEN_AUTO_CMD23,
 };
 
 static struct esdhc_soc_data usdhc_imx7ulp_data = {
@@ -276,6 +298,7 @@ static const struct of_device_id imx_esdhc_dt_ids[] = {
 	{ .compatible = "fsl,imx53-esdhc", .data = &esdhc_imx53_data, },
 	{ .compatible = "fsl,imx6sx-usdhc", .data = &usdhc_imx6sx_data, },
 	{ .compatible = "fsl,imx6sl-usdhc", .data = &usdhc_imx6sl_data, },
+	{ .compatible = "fsl,imx6sll-usdhc", .data = &usdhc_imx6sll_data, },
 	{ .compatible = "fsl,imx6q-usdhc", .data = &usdhc_imx6q_data, },
 	{ .compatible = "fsl,imx6ull-usdhc", .data = &usdhc_imx6ull_data, },
 	{ .compatible = "fsl,imx7d-usdhc", .data = &usdhc_imx7d_data, },
@@ -1559,6 +1582,9 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 
 	if (imx_data->socdata->flags & ESDHC_FLAG_HS400)
 		host->quirks2 |= SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400;
+
+	if (imx_data->socdata->flags & ESDHC_FLAG_BROKEN_AUTO_CMD23)
+		host->quirks2 |= SDHCI_QUIRK2_ACMD23_BROKEN;
 
 	if (imx_data->socdata->flags & ESDHC_FLAG_HS400_ES) {
 		host->mmc->caps2 |= MMC_CAP2_HS400_ES;
