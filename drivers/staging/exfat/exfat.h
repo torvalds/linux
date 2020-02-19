@@ -647,7 +647,6 @@ s32 exfat_fat_write(struct super_block *sb, u32 loc, u32 content);
 u8 *exfat_fat_getblk(struct super_block *sb, sector_t sec);
 void exfat_fat_modify(struct super_block *sb, sector_t sec);
 void exfat_fat_release_all(struct super_block *sb);
-void exfat_fat_sync(struct super_block *sb);
 u8 *exfat_buf_getblk(struct super_block *sb, sector_t sec);
 void exfat_buf_modify(struct super_block *sb, sector_t sec);
 void exfat_buf_lock(struct super_block *sb, sector_t sec);

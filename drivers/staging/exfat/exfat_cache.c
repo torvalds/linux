@@ -341,25 +341,6 @@ void exfat_fat_release_all(struct super_block *sb)
 	mutex_unlock(&f_mutex);
 }
 
-void exfat_fat_sync(struct super_block *sb)
-{
-	struct buf_cache_t *bp;
-	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
-
-	mutex_lock(&f_mutex);
-
-	bp = p_fs->FAT_cache_lru_list.next;
-	while (bp != &p_fs->FAT_cache_lru_list) {
-		if ((bp->drv == p_fs->drv) && (bp->flag & DIRTYBIT)) {
-			sync_dirty_buffer(bp->buf_bh);
-			bp->flag &= ~(DIRTYBIT);
-		}
-		bp = bp->next;
-	}
-
-	mutex_unlock(&f_mutex);
-}
-
 static struct buf_cache_t *buf_cache_find(struct super_block *sb, sector_t sec)
 {
 	s32 off;
