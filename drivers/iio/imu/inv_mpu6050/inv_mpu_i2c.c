@@ -78,22 +78,13 @@ static int inv_mpu_i2c_aux_setup(struct iio_dev *indio_dev)
 
 	/* enable i2c bypass when using i2c auxiliary bus */
 	if (inv_mpu_i2c_aux_bus(dev)) {
-		ret = inv_mpu6050_set_power_itg(st, true);
-		if (ret)
-			return ret;
 		ret = regmap_write(st->map, st->reg->int_pin_cfg,
 				   st->irq_mask | INV_MPU6050_BIT_BYPASS_EN);
 		if (ret)
-			goto error;
-		ret = inv_mpu6050_set_power_itg(st, false);
-		if (ret)
-			goto error;
+			return ret;
 	}
 
 	return 0;
-error:
-	inv_mpu6050_set_power_itg(st, false);
-	return ret;
 }
 
 /**

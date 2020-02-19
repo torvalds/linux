@@ -301,7 +301,6 @@ int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(inv_mpu6050_set_power_itg);
 
 static int inv_mpu6050_set_gyro_fsr(struct inv_mpu6050_state *st,
 				    enum inv_mpu6050_fsr_e val)
@@ -371,27 +370,23 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	u8 d;
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 
-	result = inv_mpu6050_set_power_itg(st, true);
+	result = inv_mpu6050_set_gyro_fsr(st, INV_MPU6050_FSR_2000DPS);
 	if (result)
 		return result;
 
-	result = inv_mpu6050_set_gyro_fsr(st, INV_MPU6050_FSR_2000DPS);
-	if (result)
-		goto error_power_off;
-
 	result = inv_mpu6050_set_lpf_regs(st, INV_MPU6050_FILTER_20HZ);
 	if (result)
-		goto error_power_off;
+		return result;
 
 	d = INV_MPU6050_FIFO_RATE_TO_DIVIDER(INV_MPU6050_INIT_FIFO_RATE);
 	result = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (result)
-		goto error_power_off;
+		return result;
 
 	d = (INV_MPU6050_FS_02G << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
 	result = regmap_write(st->map, st->reg->accl_config, d);
 	if (result)
-		goto error_power_off;
+		return result;
 
 	result = regmap_write(st->map, st->reg->int_pin_cfg, st->irq_mask);
 	if (result)
@@ -410,13 +405,9 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	/* magn chip init, noop if not present in the chip */
 	result = inv_mpu_magn_probe(st);
 	if (result)
-		goto error_power_off;
+		return result;
 
-	return inv_mpu6050_set_power_itg(st, false);
-
-error_power_off:
-	inv_mpu6050_set_power_itg(st, false);
-	return result;
+	return 0;
 }
 
 static int inv_mpu6050_sensor_set(struct inv_mpu6050_state  *st, int reg,
@@ -1176,7 +1167,7 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	if (result)
 		goto error_power_off;
 
-	return inv_mpu6050_set_power_itg(st, false);
+	return 0;
 
 error_power_off:
 	inv_mpu6050_set_power_itg(st, false);
@@ -1341,7 +1332,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	result = inv_mpu6050_init_config(indio_dev);
 	if (result) {
 		dev_err(dev, "Could not initialize device.\n");
-		return result;
+		goto error_power_off;
 	}
 
 	dev_set_drvdata(dev, indio_dev);
@@ -1353,8 +1344,16 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		indio_dev->name = dev_name(dev);
 
 	/* requires parent device set in indio_dev */
-	if (inv_mpu_bus_setup)
-		inv_mpu_bus_setup(indio_dev);
+	if (inv_mpu_bus_setup) {
+		result = inv_mpu_bus_setup(indio_dev);
+		if (result)
+			goto error_power_off;
+	}
+
+	/* chip init is done, turning off */
+	result = inv_mpu6050_set_power_itg(st, false);
+	if (result)
+		return result;
 
 	switch (chip_type) {
 	case INV_MPU9150:
@@ -1413,6 +1412,10 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	}
 
 	return 0;
+
+error_power_off:
+	inv_mpu6050_set_power_itg(st, false);
+	return result;
 }
 EXPORT_SYMBOL_GPL(inv_mpu_core_probe);
 
