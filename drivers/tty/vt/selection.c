@@ -35,8 +35,6 @@
 /* Don't take this from <ctype.h>: 011-015 on the screen aren't spaces */
 #define isspace(c)	((c) == ' ')
 
-extern void poke_blanked_console(void);
-
 /* FIXME: all this needs locking */
 static struct vc_selection {
 	struct mutex lock;
