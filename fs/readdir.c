@@ -276,9 +276,6 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 	};
 	int error;
 
-	if (!access_ok(dirent, count))
-		return -EFAULT;
-
 	f = fdget_pos(fd);
 	if (!f.file)
 		return -EBADF;
@@ -362,9 +359,6 @@ int ksys_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 	};
 	int error;
 
-	if (!access_ok(dirent, count))
-		return -EFAULT;
-
 	f = fdget_pos(fd);
 	if (!f.file)
 		return -EBADF;
@@ -377,7 +371,7 @@ int ksys_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 		typeof(lastdirent->d_off) d_off = buf.ctx.pos;
 
 		lastdirent = (void __user *) buf.current_dir - buf.prev_reclen;
-		if (__put_user(d_off, &lastdirent->d_off))
+		if (put_user(d_off, &lastdirent->d_off))
 			error = -EFAULT;
 		else
 			error = count - buf.count;
@@ -536,9 +530,6 @@ COMPAT_SYSCALL_DEFINE3(getdents, unsigned int, fd,
 		.count = count
 	};
 	int error;
-
-	if (!access_ok(dirent, count))
-		return -EFAULT;
 
 	f = fdget_pos(fd);
 	if (!f.file)
