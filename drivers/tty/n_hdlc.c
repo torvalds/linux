@@ -201,7 +201,7 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 		return;
 	}
 #if defined(TTY_NO_WRITE_SPLIT)
-	clear_bit(TTY_NO_WRITE_SPLIT,&tty->flags);
+	clear_bit(TTY_NO_WRITE_SPLIT, &tty->flags);
 #endif
 	tty->disc_data = NULL;
 
@@ -245,7 +245,7 @@ static int n_hdlc_tty_open(struct tty_struct *tty)
 	tty->receive_room = 65536;
 
 	/* change tty_io write() to not split large writes into 8K chunks */
-	set_bit(TTY_NO_WRITE_SPLIT,&tty->flags);
+	set_bit(TTY_NO_WRITE_SPLIT, &tty->flags);
 
 	/* flush receive data from driver */
 	tty_driver_flush_buffer(tty);
@@ -399,7 +399,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	}
 
 	/* copy received data to HDLC buffer */
-	memcpy(buf->buf,data,count);
+	memcpy(buf->buf, data, count);
 	buf->count=count;
 
 	/* add HDLC buffer to list of received frames */
@@ -550,8 +550,8 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 
 		/* Send the data */
 		tbuf->count = error = count;
-		n_hdlc_buf_put(&n_hdlc->tx_buf_list,tbuf);
-		n_hdlc_send_frames(n_hdlc,tty);
+		n_hdlc_buf_put(&n_hdlc->tx_buf_list, tbuf);
+		n_hdlc_send_frames(n_hdlc, tty);
 	}
 
 	return error;
@@ -586,14 +586,14 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 	case FIONREAD:
 		/* report count of read data available */
 		/* in next available frame (if any) */
-		spin_lock_irqsave(&n_hdlc->rx_buf_list.spinlock,flags);
+		spin_lock_irqsave(&n_hdlc->rx_buf_list.spinlock, flags);
 		buf = list_first_entry_or_null(&n_hdlc->rx_buf_list.list,
 						struct n_hdlc_buf, list_item);
 		if (buf)
 			count = buf->count;
 		else
 			count = 0;
-		spin_unlock_irqrestore(&n_hdlc->rx_buf_list.spinlock,flags);
+		spin_unlock_irqrestore(&n_hdlc->rx_buf_list.spinlock, flags);
 		error = put_user(count, (int __user *)arg);
 		break;
 
@@ -601,12 +601,12 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 		/* get the pending tx byte count in the driver */
 		count = tty_chars_in_buffer(tty);
 		/* add size of next output frame in queue */
-		spin_lock_irqsave(&n_hdlc->tx_buf_list.spinlock,flags);
+		spin_lock_irqsave(&n_hdlc->tx_buf_list.spinlock, flags);
 		buf = list_first_entry_or_null(&n_hdlc->tx_buf_list.list,
 						struct n_hdlc_buf, list_item);
 		if (buf)
 			count += buf->count;
-		spin_unlock_irqrestore(&n_hdlc->tx_buf_list.spinlock,flags);
+		spin_unlock_irqrestore(&n_hdlc->tx_buf_list.spinlock, flags);
 		error = put_user(count, (int __user *)arg);
 		break;
 
