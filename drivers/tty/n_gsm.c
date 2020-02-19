@@ -2638,11 +2638,11 @@ static int gsmld_ioctl(struct tty_struct *tty, struct file *file,
 	switch (cmd) {
 	case GSMIOC_GETCONF:
 		gsm_copy_config_values(gsm, &c);
-		if (copy_to_user((void *)arg, &c, sizeof(c)))
+		if (copy_to_user((void __user *)arg, &c, sizeof(c)))
 			return -EFAULT;
 		return 0;
 	case GSMIOC_SETCONF:
-		if (copy_from_user(&c, (void *)arg, sizeof(c)))
+		if (copy_from_user(&c, (void __user *)arg, sizeof(c)))
 			return -EFAULT;
 		return gsm_config(gsm, &c);
 	case GSMIOC_GETFIRST:
