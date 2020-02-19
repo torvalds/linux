@@ -2148,8 +2148,9 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 	 * We need to be sure that all dirty pages are written and the server
 	 * has actual ctime, mtime and file length.
 	 */
-	if (!CIFS_CACHE_READ(CIFS_I(inode)) && inode->i_mapping &&
-	    inode->i_mapping->nrpages != 0) {
+	if ((request_mask & (STATX_CTIME | STATX_MTIME | STATX_SIZE)) &&
+	    !CIFS_CACHE_READ(CIFS_I(inode)) &&
+	    inode->i_mapping && inode->i_mapping->nrpages != 0) {
 		rc = filemap_fdatawait(inode->i_mapping);
 		if (rc) {
 			mapping_set_error(inode->i_mapping, rc);
@@ -2157,9 +2158,20 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 		}
 	}
 
-	rc = cifs_revalidate_dentry_attr(dentry);
-	if (rc)
-		return rc;
+	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_FORCE_SYNC)
+		CIFS_I(inode)->time = 0; /* force revalidate */
+
+	/*
+	 * If the caller doesn't require syncing, only sync if
+	 * necessary (e.g. due to earlier truncate or setattr
+	 * invalidating the cached metadata)
+	 */
+	if (((flags & AT_STATX_SYNC_TYPE) != AT_STATX_DONT_SYNC) ||
+	    (CIFS_I(inode)->time == 0)) {
+		rc = cifs_revalidate_dentry_attr(dentry);
+		if (rc)
+			return rc;
+	}
 
 	generic_fillattr(inode, stat);
 	stat->blksize = cifs_sb->bsize;
