@@ -9,6 +9,7 @@
 #include <asm/export.h>
 #include <asm/nospec-branch.h>
 #include <asm/unwind_hints.h>
+#include <asm/frame.h>
 
 	.code64
 	.section .entry.text, "ax"
@@ -221,6 +222,8 @@ GLOBAL(ftrace_regs_caller_op_ptr)
 	/* Stack - skipping return address and flags */
 	leaq MCOUNT_REG_SIZE+8*2(%rsp), %rcx
 	movq %rcx, RSP(%rsp)
+
+	ENCODE_FRAME_POINTER
 
 	/* regs go into 4th parameter */
 	leaq (%rsp), %rcx
