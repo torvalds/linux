@@ -585,8 +585,8 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 {
 	entry->priority = 0;
 	entry->tv.bo = &vm->root.base.bo->tbo;
-	/* One for TTM and one for the CS job */
-	entry->tv.num_shared = 2;
+	/* Two for VM updates, one for TTM and one for the CS job */
+	entry->tv.num_shared = 4;
 	entry->user_pages = NULL;
 	list_add(&entry->tv.head, validated);
 }
@@ -1597,6 +1597,16 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (vm->evicting) {
 		r = -EBUSY;
 		goto error_unlock;
+	}
+
+	if (flags & AMDGPU_PTE_VALID) {
+		struct amdgpu_bo *root = vm->root.base.bo;
+
+		if (!dma_fence_is_signaled(vm->last_direct))
+			amdgpu_bo_fence(root, vm->last_direct, true);
+
+		if (!dma_fence_is_signaled(vm->last_delayed))
+			amdgpu_bo_fence(root, vm->last_delayed, true);
 	}
 
 	r = vm->update_funcs->prepare(&params, resv, sync_mode);
