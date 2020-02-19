@@ -124,7 +124,6 @@ struct n_hdlc_buf_list {
 /**
  * struct n_hdlc - per device instance data structure
  * @magic - magic value for structure
- * @flags - miscellaneous control flags
  * @tty - ptr to TTY structure
  * @backup_tty - TTY to use if tty gets closed
  * @tbusy - reentrancy flag for tx wakeup code
@@ -136,7 +135,6 @@ struct n_hdlc_buf_list {
  */
 struct n_hdlc {
 	int			magic;
-	__u32			flags;
 	struct tty_struct	*tty;
 	struct tty_struct	*backup_tty;
 	int			tbusy;
@@ -808,8 +806,7 @@ static struct n_hdlc *n_hdlc_alloc(void)
 	
 	/* Initialize the control block */
 	n_hdlc->magic  = HDLC_MAGIC;
-	n_hdlc->flags  = 0;
-	
+
 	return n_hdlc;
 	
 }	/* end of n_hdlc_alloc() */
