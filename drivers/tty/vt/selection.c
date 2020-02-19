@@ -226,45 +226,43 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 	}
 	unicode = vt_do_kdgkbmode(fg_console) == K_UNICODE;
 
-	switch (v->sel_mode)
-	{
-		case TIOCL_SELCHAR:	/* character-by-character selection */
+	switch (v->sel_mode) {
+	case TIOCL_SELCHAR:	/* character-by-character selection */
+		new_sel_start = ps;
+		new_sel_end = pe;
+		break;
+	case TIOCL_SELWORD:	/* word-by-word selection */
+		spc = isspace(sel_pos(ps, unicode));
+		for (new_sel_start = ps; ; ps -= 2) {
+			if ((spc && !isspace(sel_pos(ps, unicode))) ||
+			    (!spc && !inword(sel_pos(ps, unicode))))
+				break;
 			new_sel_start = ps;
+			if (!(ps % vc->vc_size_row))
+				break;
+		}
+
+		spc = isspace(sel_pos(pe, unicode));
+		for (new_sel_end = pe; ; pe += 2) {
+			if ((spc && !isspace(sel_pos(pe, unicode))) ||
+			    (!spc && !inword(sel_pos(pe, unicode))))
+				break;
 			new_sel_end = pe;
-			break;
-		case TIOCL_SELWORD:	/* word-by-word selection */
-			spc = isspace(sel_pos(ps, unicode));
-			for (new_sel_start = ps; ; ps -= 2)
-			{
-				if ((spc && !isspace(sel_pos(ps, unicode))) ||
-				    (!spc && !inword(sel_pos(ps, unicode))))
-					break;
-				new_sel_start = ps;
-				if (!(ps % vc->vc_size_row))
-					break;
-			}
-			spc = isspace(sel_pos(pe, unicode));
-			for (new_sel_end = pe; ; pe += 2)
-			{
-				if ((spc && !isspace(sel_pos(pe, unicode))) ||
-				    (!spc && !inword(sel_pos(pe, unicode))))
-					break;
-				new_sel_end = pe;
-				if (!((pe + 2) % vc->vc_size_row))
-					break;
-			}
-			break;
-		case TIOCL_SELLINE:	/* line-by-line selection */
-			new_sel_start = ps - ps % vc->vc_size_row;
-			new_sel_end = pe + vc->vc_size_row
-				    - pe % vc->vc_size_row - 2;
-			break;
-		case TIOCL_SELPOINTER:
-			highlight_pointer(pe);
-			goto unlock;
-		default:
-			ret = -EINVAL;
-			goto unlock;
+			if (!((pe + 2) % vc->vc_size_row))
+				break;
+		}
+		break;
+	case TIOCL_SELLINE:	/* line-by-line selection */
+		new_sel_start = ps - ps % vc->vc_size_row;
+		new_sel_end = pe + vc->vc_size_row
+			    - pe % vc->vc_size_row - 2;
+		break;
+	case TIOCL_SELPOINTER:
+		highlight_pointer(pe);
+		goto unlock;
+	default:
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	/* remove the pointer */
