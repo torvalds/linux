@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+==========
 Nested VMX
 ==========
 
@@ -41,9 +44,9 @@ No modifications are required to user space (qemu). However, qemu's default
 emulated CPU type (qemu64) does not list the "VMX" CPU feature, so it must be
 explicitly enabled, by giving qemu one of the following options:
 
-     -cpu host              (emulated CPU has all features of the real CPU)
+     - cpu host              (emulated CPU has all features of the real CPU)
 
-     -cpu qemu64,+vmx       (add just the vmx feature to a named CPU type)
+     - cpu qemu64,+vmx       (add just the vmx feature to a named CPU type)
 
 
 ABIs
@@ -74,6 +77,8 @@ For convenience, we repeat the content of struct vmcs12 here. If the internals
 of this structure changes, this can break live migration across KVM versions.
 VMCS12_REVISION (from vmx.c) should be changed if struct vmcs12 or its inner
 struct shadow_vmcs is ever changed.
+
+::
 
 	typedef u64 natural_width;
 	struct __packed vmcs12 {
@@ -220,21 +225,21 @@ Authors
 -------
 
 These patches were written by:
-     Abel Gordon, abelg <at> il.ibm.com
-     Nadav Har'El, nyh <at> il.ibm.com
-     Orit Wasserman, oritw <at> il.ibm.com
-     Ben-Ami Yassor, benami <at> il.ibm.com
-     Muli Ben-Yehuda, muli <at> il.ibm.com
+    - Abel Gordon, abelg <at> il.ibm.com
+    - Nadav Har'El, nyh <at> il.ibm.com
+    - Orit Wasserman, oritw <at> il.ibm.com
+    - Ben-Ami Yassor, benami <at> il.ibm.com
+    - Muli Ben-Yehuda, muli <at> il.ibm.com
 
 With contributions by:
-     Anthony Liguori, aliguori <at> us.ibm.com
-     Mike Day, mdday <at> us.ibm.com
-     Michael Factor, factor <at> il.ibm.com
-     Zvi Dubitzky, dubi <at> il.ibm.com
+    - Anthony Liguori, aliguori <at> us.ibm.com
+    - Mike Day, mdday <at> us.ibm.com
+    - Michael Factor, factor <at> il.ibm.com
+    - Zvi Dubitzky, dubi <at> il.ibm.com
 
 And valuable reviews by:
-     Avi Kivity, avi <at> redhat.com
-     Gleb Natapov, gleb <at> redhat.com
-     Marcelo Tosatti, mtosatti <at> redhat.com
-     Kevin Tian, kevin.tian <at> intel.com
-     and others.
+    - Avi Kivity, avi <at> redhat.com
+    - Gleb Natapov, gleb <at> redhat.com
+    - Marcelo Tosatti, mtosatti <at> redhat.com
+    - Kevin Tian, kevin.tian <at> intel.com
+    - and others.

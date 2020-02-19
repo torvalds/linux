@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+====================================
 FLIC (floating interrupt controller)
 ====================================
 
@@ -31,8 +34,10 @@ Groups:
     Copies all floating interrupts into a buffer provided by userspace.
     When the buffer is too small it returns -ENOMEM, which is the indication
     for userspace to try again with a bigger buffer.
+
     -ENOBUFS is returned when the allocation of a kernelspace buffer has
     failed.
+
     -EFAULT is returned when copying data to userspace failed.
     All interrupts remain pending, i.e. are not deleted from the list of
     currently pending interrupts.
@@ -60,38 +65,41 @@ Groups:
 
   KVM_DEV_FLIC_ADAPTER_REGISTER
     Register an I/O adapter interrupt source. Takes a kvm_s390_io_adapter
-    describing the adapter to register:
+    describing the adapter to register::
 
-struct kvm_s390_io_adapter {
-	__u32 id;
-	__u8 isc;
-	__u8 maskable;
-	__u8 swap;
-	__u8 flags;
-};
+	struct kvm_s390_io_adapter {
+		__u32 id;
+		__u8 isc;
+		__u8 maskable;
+		__u8 swap;
+		__u8 flags;
+	};
 
    id contains the unique id for the adapter, isc the I/O interruption subclass
    to use, maskable whether this adapter may be masked (interrupts turned off),
    swap whether the indicators need to be byte swapped, and flags contains
    further characteristics of the adapter.
+
    Currently defined values for 'flags' are:
+
    - KVM_S390_ADAPTER_SUPPRESSIBLE: adapter is subject to AIS
      (adapter-interrupt-suppression) facility. This flag only has an effect if
      the AIS capability is enabled.
+
    Unknown flag values are ignored.
 
 
   KVM_DEV_FLIC_ADAPTER_MODIFY
     Modifies attributes of an existing I/O adapter interrupt source. Takes
-    a kvm_s390_io_adapter_req specifying the adapter and the operation:
+    a kvm_s390_io_adapter_req specifying the adapter and the operation::
 
-struct kvm_s390_io_adapter_req {
-	__u32 id;
-	__u8 type;
-	__u8 mask;
-	__u16 pad0;
-	__u64 addr;
-};
+	struct kvm_s390_io_adapter_req {
+		__u32 id;
+		__u8 type;
+		__u8 mask;
+		__u16 pad0;
+		__u64 addr;
+	};
 
     id specifies the adapter and type the operation. The supported operations
     are:
@@ -103,8 +111,9 @@ struct kvm_s390_io_adapter_req {
       perform a gmap translation for the guest address provided in addr,
       pin a userspace page for the translated address and add it to the
       list of mappings
-      Note: A new mapping will be created unconditionally; therefore,
-            the calling code should avoid making duplicate mappings.
+
+      .. note:: A new mapping will be created unconditionally; therefore,
+	        the calling code should avoid making duplicate mappings.
 
     KVM_S390_IO_ADAPTER_UNMAP
       release a userspace page for the translated address specified in addr
@@ -112,16 +121,17 @@ struct kvm_s390_io_adapter_req {
 
   KVM_DEV_FLIC_AISM
     modify the adapter-interruption-suppression mode for a given isc if the
-    AIS capability is enabled. Takes a kvm_s390_ais_req describing:
+    AIS capability is enabled. Takes a kvm_s390_ais_req describing::
 
-struct kvm_s390_ais_req {
-	__u8 isc;
-	__u16 mode;
-};
+	struct kvm_s390_ais_req {
+		__u8 isc;
+		__u16 mode;
+	};
 
     isc contains the target I/O interruption subclass, mode the target
     adapter-interruption-suppression mode. The following modes are
     currently supported:
+
     - KVM_S390_AIS_MODE_ALL: ALL-Interruptions Mode, i.e. airq injection
       is always allowed;
     - KVM_S390_AIS_MODE_SINGLE: SINGLE-Interruption Mode, i.e. airq
@@ -139,12 +149,12 @@ struct kvm_s390_ais_req {
 
   KVM_DEV_FLIC_AISM_ALL
     Gets or sets the adapter-interruption-suppression mode for all ISCs. Takes
-    a kvm_s390_ais_all describing:
+    a kvm_s390_ais_all describing::
 
-struct kvm_s390_ais_all {
-       __u8 simm; /* Single-Interruption-Mode mask */
-       __u8 nimm; /* No-Interruption-Mode mask *
-};
+	struct kvm_s390_ais_all {
+	       __u8 simm; /* Single-Interruption-Mode mask */
+	       __u8 nimm; /* No-Interruption-Mode mask *
+	};
 
     simm contains Single-Interruption-Mode mask for all ISCs, nimm contains
     No-Interruption-Mode mask for all ISCs. Each bit in simm and nimm corresponds
@@ -159,5 +169,5 @@ ENXIO, as specified in the API documentation). It is not possible to conclude
 that a FLIC operation is unavailable based on the error code resulting from a
 usage attempt.
 
-Note: The KVM_DEV_FLIC_CLEAR_IO_IRQ ioctl will return EINVAL in case a zero
-schid is specified.
+.. note:: The KVM_DEV_FLIC_CLEAR_IO_IRQ ioctl will return EINVAL in case a
+	  zero schid is specified.

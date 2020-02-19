@@ -337,33 +337,15 @@ static inline int nfs_server_capable(struct inode *inode, int cap)
 	return NFS_SERVER(inode)->caps & cap;
 }
 
-static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
-{
-	dentry->d_time = verf;
-}
-
 /**
  * nfs_save_change_attribute - Returns the inode attribute change cookie
  * @dir - pointer to parent directory inode
- * The "change attribute" is updated every time we finish an operation
- * that will result in a metadata change on the server.
+ * The "cache change attribute" is updated when we need to revalidate
+ * our dentry cache after a directory was seen to change on the server.
  */
 static inline unsigned long nfs_save_change_attribute(struct inode *dir)
 {
 	return NFS_I(dir)->cache_change_attribute;
-}
-
-/**
- * nfs_verify_change_attribute - Detects NFS remote directory changes
- * @dir - pointer to parent directory inode
- * @chattr - previously saved change attribute
- * Return "false" if the verifiers doesn't match the change attribute.
- * This would usually indicate that the directory contents have changed on
- * the server, and that any dentries need revalidating.
- */
-static inline int nfs_verify_change_attribute(struct inode *dir, unsigned long chattr)
-{
-	return chattr == NFS_I(dir)->cache_change_attribute;
 }
 
 /*
@@ -495,6 +477,10 @@ extern const struct file_operations nfs_dir_operations;
 extern const struct dentry_operations nfs_dentry_operations;
 
 extern void nfs_force_lookup_revalidate(struct inode *dir);
+extern void nfs_set_verifier(struct dentry * dentry, unsigned long verf);
+#if IS_ENABLED(CONFIG_NFS_V4)
+extern void nfs_clear_verifier_delegated(struct inode *inode);
+#endif /* IS_ENABLED(CONFIG_NFS_V4) */
 extern struct dentry *nfs_add_or_obtain(struct dentry *dentry,
 			struct nfs_fh *fh, struct nfs_fattr *fattr,
 			struct nfs4_label *label);

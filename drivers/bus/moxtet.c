@@ -465,7 +465,7 @@ static ssize_t input_read(struct file *file, char __user *buf, size_t len,
 {
 	struct moxtet *moxtet = file->private_data;
 	u8 bin[TURRIS_MOX_MAX_MODULES];
-	u8 hex[sizeof(buf) * 2 + 1];
+	u8 hex[sizeof(bin) * 2 + 1];
 	int ret, n;
 
 	ret = moxtet_spi_read(moxtet, bin);

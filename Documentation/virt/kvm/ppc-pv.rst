@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=================================
 The PPC KVM paravirtual interface
 =================================
 
@@ -34,8 +37,9 @@ up the hypercall. To call a hypercall, just call these instructions.
 
 The parameters are as follows:
 
+        ========	================	================
 	Register	IN			OUT
-
+        ========	================	================
 	r0		-			volatile
 	r3		1st parameter		Return code
 	r4		2nd parameter		1st output value
@@ -47,6 +51,7 @@ The parameters are as follows:
 	r10		8th parameter		7th output value
 	r11		hypercall number	8th output value
 	r12		-			volatile
+        ========	================	================
 
 Hypercall definitions are shared in generic code, so the same hypercall numbers
 apply for x86 and powerpc alike with the exception that each KVM hypercall
@@ -54,11 +59,13 @@ also needs to be ORed with the KVM vendor code which is (42 << 16).
 
 Return codes can be as follows:
 
+	====		=========================
 	Code		Meaning
-
+	====		=========================
 	0		Success
 	12		Hypercall not implemented
 	<0		Error
+	====		=========================
 
 The magic page
 ==============
@@ -72,7 +79,7 @@ desired location. The first parameter indicates the effective address when the
 MMU is enabled. The second parameter indicates the address in real mode, if
 applicable to the target. For now, we always map the page to -4096. This way we
 can access it using absolute load and store functions. The following
-instruction reads the first field of the magic page:
+instruction reads the first field of the magic page::
 
 	ld	rX, -4096(0)
 
@@ -93,8 +100,10 @@ a bitmap of available features inside the magic page.
 
 The following enhancements to the magic page are currently available:
 
+  ============================  =======================================
   KVM_MAGIC_FEAT_SR		Maps SR registers r/w in the magic page
   KVM_MAGIC_FEAT_MAS0_TO_SPRG7	Maps MASn, ESR, PIR and high SPRGs
+  ============================  =======================================
 
 For enhanced features in the magic page, please check for the existence of the
 feature before using them!
@@ -121,8 +130,8 @@ when entering the guest or don't have any impact on the hypervisor's behavior.
 
 The following bits are safe to be set inside the guest:
 
-  MSR_EE
-  MSR_RI
+  - MSR_EE
+  - MSR_RI
 
 If any other bit changes in the MSR, please still use mtmsr(d).
 
@@ -138,9 +147,9 @@ guest. Implementing any of those mappings is optional, as the instruction traps
 also act on the shared page. So calling privileged instructions still works as
 before.
 
+======================= ================================
 From			To
-====			==
-
+======================= ================================
 mfmsr	rX		ld	rX, magic_page->msr
 mfsprg	rX, 0		ld	rX, magic_page->sprg0
 mfsprg	rX, 1		ld	rX, magic_page->sprg1
@@ -173,7 +182,7 @@ mtsrin	rX, rY		b	<special mtsrin section>
 
 [BookE only]
 wrteei	[0|1]		b	<special wrteei section>
-
+======================= ================================
 
 Some instructions require more logic to determine what's going on than a load
 or store instruction can deliver. To enable patching of those, we keep some
@@ -191,6 +200,7 @@ for example.
 
 Hypercall ABIs in KVM on PowerPC
 =================================
+
 1) KVM hypercalls (ePAPR)
 
 These are ePAPR compliant hypercall implementation (mentioned above). Even

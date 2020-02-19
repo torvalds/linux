@@ -438,6 +438,14 @@ void kvm_deliver_exception_payload(struct kvm_vcpu *vcpu)
 		 * for #DB exceptions under VMX.
 		 */
 		vcpu->arch.dr6 ^= payload & DR6_RTM;
+
+		/*
+		 * The #DB payload is defined as compatible with the 'pending
+		 * debug exceptions' field under VMX, not DR6. While bit 12 is
+		 * defined in the 'pending debug exceptions' field (enabled
+		 * breakpoint), it is reserved and must be zero in DR6.
+		 */
+		vcpu->arch.dr6 &= ~BIT(12);
 		break;
 	case PF_VECTOR:
 		vcpu->arch.cr2 = payload;
@@ -490,19 +498,7 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		vcpu->arch.exception.error_code = error_code;
 		vcpu->arch.exception.has_payload = has_payload;
 		vcpu->arch.exception.payload = payload;
-		/*
-		 * In guest mode, payload delivery should be deferred,
-		 * so that the L1 hypervisor can intercept #PF before
-		 * CR2 is modified (or intercept #DB before DR6 is
-		 * modified under nVMX).  However, for ABI
-		 * compatibility with KVM_GET_VCPU_EVENTS and
-		 * KVM_SET_VCPU_EVENTS, we can't delay payload
-		 * delivery unless userspace has enabled this
-		 * functionality via the per-VM capability,
-		 * KVM_CAP_EXCEPTION_PAYLOAD.
-		 */
-		if (!vcpu->kvm->arch.exception_payload_enabled ||
-		    !is_guest_mode(vcpu))
+		if (!is_guest_mode(vcpu))
 			kvm_deliver_exception_payload(vcpu);
 		return;
 	}
@@ -2448,7 +2444,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	vcpu->hv_clock.tsc_timestamp = tsc_timestamp;
 	vcpu->hv_clock.system_time = kernel_ns + v->kvm->arch.kvmclock_offset;
 	vcpu->last_guest_tsc = tsc_timestamp;
-	WARN_ON(vcpu->hv_clock.system_time < 0);
+	WARN_ON((s64)vcpu->hv_clock.system_time < 0);
 
 	/* If the host uses TSC clocksource, then it is stable */
 	pvclock_flags = 0;
@@ -3794,6 +3790,21 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 					       struct kvm_vcpu_events *events)
 {
 	process_nmi(vcpu);
+
+	/*
+	 * In guest mode, payload delivery should be deferred,
+	 * so that the L1 hypervisor can intercept #PF before
+	 * CR2 is modified (or intercept #DB before DR6 is
+	 * modified under nVMX). Unless the per-VM capability,
+	 * KVM_CAP_EXCEPTION_PAYLOAD, is set, we may not defer the delivery of
+	 * an exception payload and handle after a KVM_GET_VCPU_EVENTS. Since we
+	 * opportunistically defer the exception payload, deliver it if the
+	 * capability hasn't been requested before processing a
+	 * KVM_GET_VCPU_EVENTS.
+	 */
+	if (!vcpu->kvm->arch.exception_payload_enabled &&
+	    vcpu->arch.exception.pending && vcpu->arch.exception.has_payload)
+		kvm_deliver_exception_payload(vcpu);
 
 	/*
 	 * The API doesn't provide the instruction length for software
@@ -8942,7 +8953,6 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
 
 	kvm_rip_write(vcpu, ctxt->eip);
 	kvm_set_rflags(vcpu, ctxt->eflags);
-	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(kvm_task_switch);
@@ -10182,7 +10192,7 @@ void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct kvm_async_pf *work)
 	      work->arch.cr3 != vcpu->arch.mmu->get_cr3(vcpu))
 		return;
 
-	vcpu->arch.mmu->page_fault(vcpu, work->cr2_or_gpa, 0, true);
+	kvm_mmu_do_page_fault(vcpu, work->cr2_or_gpa, 0, true);
 }
 
 static inline u32 kvm_async_pf_hash_fn(gfn_t gfn)

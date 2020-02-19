@@ -643,7 +643,7 @@ static struct ipv6_pinfo *mptcp_inet6_sk(const struct sock *sk)
 }
 #endif
 
-struct sock *mptcp_sk_clone_lock(const struct sock *sk)
+static struct sock *mptcp_sk_clone_lock(const struct sock *sk)
 {
 	struct sock *nsk = sk_clone_lock(sk, GFP_ATOMIC);
 
