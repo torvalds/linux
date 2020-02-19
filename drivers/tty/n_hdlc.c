@@ -889,13 +889,6 @@ static struct n_hdlc_buf *n_hdlc_buf_get(struct n_hdlc_buf_list *buf_list)
 	return buf;
 }	/* end of n_hdlc_buf_get() */
 
-static const char hdlc_banner[] __initconst =
-	KERN_INFO "HDLC line discipline maxframe=%u\n";
-static const char hdlc_register_ok[] __initconst =
-	KERN_INFO "N_HDLC line discipline registered.\n";
-static const char hdlc_register_fail[] __initconst =
-	KERN_ERR "error registering line discipline: %d\n";
-
 static int __init n_hdlc_init(void)
 {
 	int status;
@@ -906,27 +899,17 @@ static int __init n_hdlc_init(void)
 	else if (maxframe > 65535)
 		maxframe = 65535;
 
-	printk(hdlc_banner, maxframe);
+	pr_info("HDLC line discipline maxframe=%d\n", maxframe);
 
 	status = tty_register_ldisc(N_HDLC, &n_hdlc_ldisc);
 	if (!status)
-		printk(hdlc_register_ok);
+		pr_info("N_HDLC line discipline registered.\n");
 	else
-		printk(hdlc_register_fail, status);
+		pr_err("error registering line discipline: %d\n", status);
 
 	return status;
 	
 }	/* end of init_module() */
-
-#ifdef CONFIG_SPARC
-#undef __exitdata
-#define __exitdata
-#endif
-
-static const char hdlc_unregister_ok[] __exitdata =
-	KERN_INFO "N_HDLC: line discipline unregistered\n";
-static const char hdlc_unregister_fail[] __exitdata =
-	KERN_ERR "N_HDLC: can't unregister line discipline (err = %d)\n";
 
 static void __exit n_hdlc_exit(void)
 {
@@ -934,9 +917,10 @@ static void __exit n_hdlc_exit(void)
 	int status = tty_unregister_ldisc(N_HDLC);
 
 	if (status)
-		printk(hdlc_unregister_fail, status);
+		pr_err("N_HDLC: can't unregister line discipline (err = %d)\n",
+				status);
 	else
-		printk(hdlc_unregister_ok);
+		pr_info("N_HDLC: line discipline unregistered\n");
 }
 
 module_init(n_hdlc_init);
