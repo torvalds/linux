@@ -12,6 +12,16 @@
 	compatible = "rockchip,rv1109-evb-v10", "rockchip,rv1109";
 };
 
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	non-removable;
+	mmc-hs200-1_8v;
+	rockchip,default-sample-phase = <90>;
+	supports-emmc;
+	status = "okay";
+};
+
 &fiq_debugger {
 	status = "okay";
 };
@@ -29,5 +39,30 @@
 	assigned-clock-rates = <25000000>;
 	tx_delay = <0x40>;
 	rx_delay = <0x3a>;
+	status = "okay";
+};
+
+&sdmmc {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	card-detect-delay = <200>;
+	rockchip,default-sample-phase = <90>;
+	supports-sd;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&sdio {
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	non-removable;
+	rockchip,default-sample-phase = <90>;
+	sd-uhs-sdr104;
+	supports-sdio;
 	status = "okay";
 };
