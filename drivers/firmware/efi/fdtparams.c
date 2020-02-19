@@ -5,154 +5,122 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/efi.h>
-#include <linux/of.h>
+#include <linux/libfdt.h>
 #include <linux/of_fdt.h>
 
-#include <asm/early_ioremap.h>
+#include <asm/unaligned.h>
 
-#define UEFI_PARAM(name, prop, field)			   \
-	{						   \
-		{ name },				   \
-		{ prop },				   \
-		offsetof(struct efi_fdt_params, field),    \
-		sizeof_field(struct efi_fdt_params, field) \
-	}
+enum {
+	SYSTAB,
+	MMBASE,
+	MMSIZE,
+	DCSIZE,
+	DCVERS,
 
-struct efi_fdt_params {
-	u64 system_table;
-	u64 mmap;
-	u32 mmap_size;
-	u32 desc_size;
-	u32 desc_ver;
+	PARAMCOUNT
 };
 
-struct params {
-	const char name[32];
-	const char propname[32];
-	int offset;
-	int size;
+static __initconst const char name[][22] = {
+	[SYSTAB] = "System Table         ",
+	[MMBASE] = "MemMap Address       ",
+	[MMSIZE] = "MemMap Size          ",
+	[DCSIZE] = "MemMap Desc. Size    ",
+	[DCVERS] = "MemMap Desc. Version ",
 };
 
-static __initdata struct params fdt_params[] = {
-	UEFI_PARAM("System Table", "linux,uefi-system-table", system_table),
-	UEFI_PARAM("MemMap Address", "linux,uefi-mmap-start", mmap),
-	UEFI_PARAM("MemMap Size", "linux,uefi-mmap-size", mmap_size),
-	UEFI_PARAM("MemMap Desc. Size", "linux,uefi-mmap-desc-size", desc_size),
-	UEFI_PARAM("MemMap Desc. Version", "linux,uefi-mmap-desc-ver", desc_ver)
-};
-
-static __initdata struct params xen_fdt_params[] = {
-	UEFI_PARAM("System Table", "xen,uefi-system-table", system_table),
-	UEFI_PARAM("MemMap Address", "xen,uefi-mmap-start", mmap),
-	UEFI_PARAM("MemMap Size", "xen,uefi-mmap-size", mmap_size),
-	UEFI_PARAM("MemMap Desc. Size", "xen,uefi-mmap-desc-size", desc_size),
-	UEFI_PARAM("MemMap Desc. Version", "xen,uefi-mmap-desc-ver", desc_ver)
-};
-
-#define EFI_FDT_PARAMS_SIZE	ARRAY_SIZE(fdt_params)
-
-static __initdata struct {
-	const char *uname;
-	const char *subnode;
-	struct params *params;
+static __initconst const struct {
+	const char	path[17];
+	const char	params[PARAMCOUNT][26];
 } dt_params[] = {
-	{ "hypervisor", "uefi", xen_fdt_params },
-	{ "chosen", NULL, fdt_params },
+	{
+#ifdef CONFIG_XEN    //  <-------17------>
+		.path = "/hypervisor/uefi",
+		.params = {
+			[SYSTAB] = "xen,uefi-system-table",
+			[MMBASE] = "xen,uefi-mmap-start",
+			[MMSIZE] = "xen,uefi-mmap-size",
+			[DCSIZE] = "xen,uefi-mmap-desc-size",
+			[DCVERS] = "xen,uefi-mmap-desc-ver",
+		}
+	}, {
+#endif
+		.path = "/chosen",
+		.params = {	//  <-----------26----------->
+			[SYSTAB] = "linux,uefi-system-table",
+			[MMBASE] = "linux,uefi-mmap-start",
+			[MMSIZE] = "linux,uefi-mmap-size",
+			[DCSIZE] = "linux,uefi-mmap-desc-size",
+			[DCVERS] = "linux,uefi-mmap-desc-ver",
+		}
+	}
 };
 
-struct param_info {
-	int found;
-	void *params;
-	const char *missing;
-};
-
-static int __init __find_uefi_params(unsigned long node,
-				     struct param_info *info,
-				     struct params *params)
+static int __init efi_get_fdt_prop(const void *fdt, int node, const char *pname,
+				   const char *rname, void *var, int size)
 {
 	const void *prop;
-	void *dest;
+	int len;
 	u64 val;
-	int i, len;
 
-	for (i = 0; i < EFI_FDT_PARAMS_SIZE; i++) {
-		prop = of_get_flat_dt_prop(node, params[i].propname, &len);
-		if (!prop) {
-			info->missing = params[i].name;
-			return 0;
-		}
+	prop = fdt_getprop(fdt, node, pname, &len);
+	if (!prop)
+		return 1;
 
-		dest = info->params + params[i].offset;
-		info->found++;
+	val = (len == 4) ? (u64)be32_to_cpup(prop) : get_unaligned_be64(prop);
 
-		val = of_read_number(prop, len / sizeof(u32));
+	if (size == 8)
+		*(u64 *)var = val;
+	else
+		*(u32 *)var = (val < U32_MAX) ? val : U32_MAX; // saturate
 
-		if (params[i].size == sizeof(u32))
-			*(u32 *)dest = val;
-		else
-			*(u64 *)dest = val;
-
-		if (efi_enabled(EFI_DBG))
-			pr_info("  %s: 0x%0*llx\n", params[i].name,
-				params[i].size * 2, val);
-	}
-
-	return 1;
-}
-
-static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
-				       int depth, void *data)
-{
-	struct param_info *info = data;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
-		const char *subnode = dt_params[i].subnode;
-
-		if (depth != 1 || strcmp(uname, dt_params[i].uname) != 0) {
-			info->missing = dt_params[i].params[0].name;
-			continue;
-		}
-
-		if (subnode) {
-			int err = of_get_flat_dt_subnode_by_name(node, subnode);
-
-			if (err < 0)
-				return 0;
-
-			node = err;
-		}
-
-		return __find_uefi_params(node, info, dt_params[i].params);
-	}
+	if (efi_enabled(EFI_DBG))
+		pr_info("  %s: 0x%0*llx\n", rname, size * 2, val);
 
 	return 0;
 }
 
-u64 __init efi_get_fdt_params(struct efi_memory_map_data *memmap)
+u64 __init efi_get_fdt_params(struct efi_memory_map_data *mm)
 {
-	struct efi_fdt_params params;
-	struct param_info info;
-	int ret;
+	const void *fdt = initial_boot_params;
+	unsigned long systab;
+	int i, j, node;
+	struct {
+		void	*var;
+		int	size;
+	} target[] = {
+		[SYSTAB] = { &systab,		sizeof(systab) },
+		[MMBASE] = { &mm->phys_map,	sizeof(mm->phys_map) },
+		[MMSIZE] = { &mm->size,		sizeof(mm->size) },
+		[DCSIZE] = { &mm->desc_size,	sizeof(mm->desc_size) },
+		[DCVERS] = { &mm->desc_version,	sizeof(mm->desc_version) },
+	};
 
-	pr_info("Getting EFI parameters from FDT:\n");
+	BUILD_BUG_ON(ARRAY_SIZE(target) != ARRAY_SIZE(name));
+	BUILD_BUG_ON(ARRAY_SIZE(target) != ARRAY_SIZE(dt_params[0].params));
 
-	info.found = 0;
-	info.params = &params;
+	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
+		node = fdt_path_offset(fdt, dt_params[i].path);
+		if (node < 0)
+			continue;
 
-	ret = of_scan_flat_dt(fdt_find_uefi_params, &info);
-	if (!info.found) {
-		pr_info("UEFI not found.\n");
-		return 0;
-	} else if (!ret) {
-		pr_err("Can't find '%s' in device tree!\n", info.missing);
-		return 0;
+		if (efi_enabled(EFI_DBG))
+			pr_info("Getting UEFI parameters from %s in DT:\n",
+				dt_params[i].path);
+
+		for (j = 0; j < ARRAY_SIZE(target); j++) {
+			const char *pname = dt_params[i].params[j];
+
+			if (!efi_get_fdt_prop(fdt, node, pname, name[j],
+					      target[j].var, target[j].size))
+				continue;
+			if (!j)
+				goto notfound;
+			pr_err("Can't find property '%s' in DT!\n", pname);
+			return 0;
+		}
+		return systab;
 	}
-
-	memmap->desc_version	= params.desc_ver;
-	memmap->desc_size	= params.desc_size;
-	memmap->size		= params.mmap_size;
-	memmap->phys_map	= params.mmap;
-
-	return params.system_table;
+notfound:
+	pr_info("UEFI not found.\n");
+	return 0;
 }
