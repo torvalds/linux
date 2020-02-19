@@ -11,15 +11,31 @@
 #include "msm_kms.h"
 #include "dpu_hw_top.h"
 
+
 /**
  * struct dpu_rm - DPU dynamic hardware resource manager
- * @hw_blks: array of lists of hardware resources present in the system, one
- *	list per type of hardware block
+ * @pingpong_blks: array of pingpong hardware resources
+ * @mixer_blks: array of layer mixer hardware resources
+ * @ctl_blks: array of ctl hardware resources
+ * @intf_blks: array of intf hardware resources
+ * @pingpong_to_enc_id: mapping of pingpong hardware resources to an encoder ID
+ * @mixer_to_enc_id: mapping of mixer hardware resources to an encoder ID
+ * @ctl_to_enc_id: mapping of ctl hardware resources to an encoder ID
+ * @intf_to_enc_id: mapping of intf hardware resources to an encoder ID
  * @lm_max_width: cached layer mixer maximum width
  * @rm_lock: resource manager mutex
  */
 struct dpu_rm {
-	struct list_head hw_blks[DPU_HW_BLK_MAX];
+	struct dpu_hw_blk *pingpong_blks[PINGPONG_MAX - PINGPONG_0];
+	struct dpu_hw_blk *mixer_blks[LM_MAX - LM_0];
+	struct dpu_hw_blk *ctl_blks[CTL_MAX - CTL_0];
+	struct dpu_hw_blk *intf_blks[INTF_MAX - INTF_0];
+
+	uint32_t pingpong_to_enc_id[PINGPONG_MAX - PINGPONG_0];
+	uint32_t mixer_to_enc_id[LM_MAX - LM_0];
+	uint32_t ctl_to_enc_id[CTL_MAX - CTL_0];
+	uint32_t intf_to_enc_id[INTF_MAX - INTF_0];
+
 	uint32_t lm_max_width;
 	struct mutex rm_lock;
 };
