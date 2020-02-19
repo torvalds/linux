@@ -191,9 +191,9 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 	struct vc_data *vc = vc_cons[fg_console].d;
 	int new_sel_start, new_sel_end, spc;
 	char *bp, *obp;
-	int i, ps, pe, multiplier;
+	int i, ps, pe;
 	u32 c;
-	int mode, ret = 0;
+	int ret = 0;
 
 	poke_blanked_console();
 
@@ -224,11 +224,7 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 		clear_selection();
 		sel_cons = vc_cons[fg_console].d;
 	}
-	mode = vt_do_kdgkbmode(fg_console);
-	if (mode == K_UNICODE)
-		use_unicode = 1;
-	else
-		use_unicode = 0;
+	use_unicode = vt_do_kdgkbmode(fg_console) == K_UNICODE;
 
 	switch (v->sel_mode)
 	{
@@ -312,8 +308,8 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 	sel_end = new_sel_end;
 
 	/* Allocate a new buffer before freeing the old one ... */
-	multiplier = use_unicode ? 4 : 1;  /* chars can take up to 4 bytes */
-	bp = kmalloc_array((sel_end - sel_start) / 2 + 1, multiplier,
+	/* chars can take up to 4 bytes with unicode */
+	bp = kmalloc_array((sel_end - sel_start) / 2 + 1, use_unicode ? 4 : 1,
 			   GFP_KERNEL);
 	if (!bp) {
 		printk(KERN_WARNING "selection: kmalloc() failed\n");
