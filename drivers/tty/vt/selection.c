@@ -41,7 +41,6 @@ extern void poke_blanked_console(void);
 /* Variables for selection control. */
 /* Use a dynamic buffer, instead of static (Dec 1994) */
 struct vc_data *sel_cons;		/* must not be deallocated */
-static int use_unicode;
 static volatile int sel_start = -1; 	/* cleared by clear_selection */
 static int sel_end;
 static int sel_buffer_lth;
@@ -64,9 +63,9 @@ static inline void highlight_pointer(const int where)
 }
 
 static u32
-sel_pos(int n)
+sel_pos(int n, bool unicode)
 {
-	if (use_unicode)
+	if (unicode)
 		return screen_glyph_unicode(sel_cons, n / 2);
 	return inverse_translate(sel_cons, screen_glyph(sel_cons, n),
 				0);
@@ -194,6 +193,7 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 	int i, ps, pe;
 	u32 c;
 	int ret = 0;
+	bool unicode;
 
 	poke_blanked_console();
 
@@ -224,7 +224,7 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 		clear_selection();
 		sel_cons = vc_cons[fg_console].d;
 	}
-	use_unicode = vt_do_kdgkbmode(fg_console) == K_UNICODE;
+	unicode = vt_do_kdgkbmode(fg_console) == K_UNICODE;
 
 	switch (v->sel_mode)
 	{
@@ -233,21 +233,21 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 			new_sel_end = pe;
 			break;
 		case TIOCL_SELWORD:	/* word-by-word selection */
-			spc = isspace(sel_pos(ps));
+			spc = isspace(sel_pos(ps, unicode));
 			for (new_sel_start = ps; ; ps -= 2)
 			{
-				if ((spc && !isspace(sel_pos(ps))) ||
-				    (!spc && !inword(sel_pos(ps))))
+				if ((spc && !isspace(sel_pos(ps, unicode))) ||
+				    (!spc && !inword(sel_pos(ps, unicode))))
 					break;
 				new_sel_start = ps;
 				if (!(ps % vc->vc_size_row))
 					break;
 			}
-			spc = isspace(sel_pos(pe));
+			spc = isspace(sel_pos(pe, unicode));
 			for (new_sel_end = pe; ; pe += 2)
 			{
-				if ((spc && !isspace(sel_pos(pe))) ||
-				    (!spc && !inword(sel_pos(pe))))
+				if ((spc && !isspace(sel_pos(pe, unicode))) ||
+				    (!spc && !inword(sel_pos(pe, unicode))))
 					break;
 				new_sel_end = pe;
 				if (!((pe + 2) % vc->vc_size_row))
@@ -273,12 +273,12 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 	/* select to end of line if on trailing space */
 	if (new_sel_end > new_sel_start &&
 		!atedge(new_sel_end, vc->vc_size_row) &&
-		isspace(sel_pos(new_sel_end))) {
+		isspace(sel_pos(new_sel_end, unicode))) {
 		for (pe = new_sel_end + 2; ; pe += 2)
-			if (!isspace(sel_pos(pe)) ||
+			if (!isspace(sel_pos(pe, unicode)) ||
 			    atedge(pe, vc->vc_size_row))
 				break;
-		if (isspace(sel_pos(pe)))
+		if (isspace(sel_pos(pe, unicode)))
 			new_sel_end = pe;
 	}
 	if (sel_start == -1)	/* no current selection */
@@ -309,7 +309,7 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 
 	/* Allocate a new buffer before freeing the old one ... */
 	/* chars can take up to 4 bytes with unicode */
-	bp = kmalloc_array((sel_end - sel_start) / 2 + 1, use_unicode ? 4 : 1,
+	bp = kmalloc_array((sel_end - sel_start) / 2 + 1, unicode ? 4 : 1,
 			   GFP_KERNEL);
 	if (!bp) {
 		printk(KERN_WARNING "selection: kmalloc() failed\n");
@@ -322,8 +322,8 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 
 	obp = bp;
 	for (i = sel_start; i <= sel_end; i += 2) {
-		c = sel_pos(i);
-		if (use_unicode)
+		c = sel_pos(i, unicode);
+		if (unicode)
 			bp += store_utf8(c, bp);
 		else
 			*bp++ = c;
