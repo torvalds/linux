@@ -1276,6 +1276,52 @@
 		clock-names = "aclk", "hclk";
 		iommus = <&vpu_mmu>;
 		power-domains = <&power RK3288_PD_VIDEO>;
+		status = "disabled";
+	};
+
+	mpp_srv: mpp-srv {
+		compatible = "rockchip,mpp-service";
+		rockchip,taskqueue-count = <2>;
+		rockchip,resetgroup-count = <2>;
+		status = "disabled";
+	};
+
+	vepu: vepu@ff9a0000 {
+		compatible = "rockchip,vpu-encoder-v1";
+		reg = <0x0 0xff9a0000 0x0 0x400>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_enc";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_VCODEC_AXI>, <&cru SRST_VCODEC_AHB>;
+		reset-names = "shared_video_a", "shared_video_h";
+		assigned-clocks = <&cru ACLK_VCODEC>;
+		assigned-clock-rates = <400000000>;
+		iommus = <&vpu_mmu>;
+		power-domains = <&power RK3288_PD_VIDEO>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
+		status = "disabled";
+	};
+
+	vdpu: vdpu@ff9a0400 {
+		compatible = "rockchip,vpu-decoder-v1";
+		reg = <0x0 0xff9a0400 0x0 0x400>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_VCODEC_AXI>, <&cru SRST_VCODEC_AHB>;
+		reset-names = "shared_video_a", "shared_video_h";
+		assigned-clocks = <&cru ACLK_VCODEC>;
+		assigned-clock-rates = <400000000>;
+		iommus = <&vpu_mmu>;
+		power-domains = <&power RK3288_PD_VIDEO>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
+		status = "disabled";
 	};
 
 	vpu_mmu: iommu@ff9a0800 {
@@ -1287,6 +1333,36 @@
 		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
 		power-domains = <&power RK3288_PD_VIDEO>;
+		status = "disabled";
+	};
+
+	hevc: hevc_service@ff9c0000 {
+		compatible = "rockchip,hevc-decoder";
+		reg = <0x0 0xff9c0000 0x0 0x400>;
+		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		clocks = <&cru ACLK_HEVC>, <&cru HCLK_HEVC>, <&cru SCLK_HEVC_CORE>,
+			 <&cru SCLK_HEVC_CABAC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core",
+			      "clk_cabac";
+		resets =  <&cru SRST_HEVC>;
+		reset-names = "video_core";
+
+		/*
+		 * The 4K hevc would also work well with 500/125/300/300,
+		 * no more err irq and reset request.
+		 */
+		assigned-clocks = <&cru ACLK_HEVC>, <&cru HCLK_HEVC>,
+				  <&cru SCLK_HEVC_CORE>,
+				  <&cru SCLK_HEVC_CABAC>;
+		assigned-clock-rates = <400000000>, <100000000>,
+				       <300000000>, <300000000>;
+		iommus = <&hevc_mmu>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <1>;
+		rockchip,resetgroup-node = <1>;
+		power-domains = <&power RK3288_PD_HEVC>;
+		status = "disabled";
 	};
 
 	hevc_mmu: iommu@ff9c0440 {
@@ -1296,6 +1372,7 @@
 		interrupt-names = "hevc_mmu";
 		clocks = <&cru ACLK_HEVC>, <&cru HCLK_HEVC>;
 		clock-names = "aclk", "iface";
+		power-domains = <&power RK3288_PD_HEVC>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
