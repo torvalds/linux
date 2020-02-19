@@ -699,6 +699,23 @@ static __poll_t n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 	return mask;
 }	/* end of n_hdlc_tty_poll() */
 
+static void n_hdlc_alloc_buf(struct n_hdlc_buf_list *list, unsigned int count,
+		const char *name)
+{
+	struct n_hdlc_buf *buf;
+	unsigned int i;
+
+	for (i = 0; i < count; i++) {
+		buf = kmalloc(struct_size(buf, buf, maxframe), GFP_KERNEL);
+		if (!buf) {
+			pr_debug("%s(%d)%s(), kmalloc() failed for %s buffer %u\n",
+					__FILE__, __LINE__, __func__, name, i);
+			return;
+		}
+		n_hdlc_buf_put(list, buf);
+	}
+}
+
 /**
  * n_hdlc_alloc - allocate an n_hdlc instance data structure
  *
@@ -706,8 +723,6 @@ static __poll_t n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
  */
 static struct n_hdlc *n_hdlc_alloc(void)
 {
-	struct n_hdlc_buf *buf;
-	int i;
 	struct n_hdlc *n_hdlc = kzalloc(sizeof(*n_hdlc), GFP_KERNEL);
 
 	if (!n_hdlc)
@@ -723,26 +738,9 @@ static struct n_hdlc *n_hdlc_alloc(void)
 	INIT_LIST_HEAD(&n_hdlc->rx_buf_list.list);
 	INIT_LIST_HEAD(&n_hdlc->tx_buf_list.list);
 
-	/* allocate free rx buffer list */
-	for(i=0;i<DEFAULT_RX_BUF_COUNT;i++) {
-		buf = kmalloc(struct_size(buf, buf, maxframe), GFP_KERNEL);
-		if (buf)
-			n_hdlc_buf_put(&n_hdlc->rx_free_buf_list,buf);
-		else
-			pr_debug("%s(%d)%s(), kmalloc() failed for rx buffer %d\n",
-					__FILE__, __LINE__, __func__, i);
-	}
-	
-	/* allocate free tx buffer list */
-	for(i=0;i<DEFAULT_TX_BUF_COUNT;i++) {
-		buf = kmalloc(struct_size(buf, buf, maxframe), GFP_KERNEL);
-		if (buf)
-			n_hdlc_buf_put(&n_hdlc->tx_free_buf_list,buf);
-		else
-			pr_debug("%s(%d)%s(), kmalloc() failed for tx buffer %d\n",
-					__FILE__, __LINE__, __func__, i);
-	}
-	
+	n_hdlc_alloc_buf(&n_hdlc->rx_free_buf_list, DEFAULT_RX_BUF_COUNT, "rx");
+	n_hdlc_alloc_buf(&n_hdlc->tx_free_buf_list, DEFAULT_TX_BUF_COUNT, "tx");
+
 	/* Initialize the control block */
 	n_hdlc->magic  = HDLC_MAGIC;
 
