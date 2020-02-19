@@ -462,7 +462,8 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
 
 	irq_ptr->debugfs_dev = irq_ptr->debugfs_perf = NULL;
-	irq_ptr->sch_token = irq_ptr->state = irq_ptr->perf_stat_enabled = 0;
+	irq_ptr->sch_token = irq_ptr->perf_stat_enabled = 0;
+	irq_ptr->state = QDIO_IRQ_STATE_INACTIVE;
 
 	/* wipes qib.ac, required by ar7063 */
 	memset(irq_ptr->qdr, 0, sizeof(struct qdr));
