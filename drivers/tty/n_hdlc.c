@@ -152,7 +152,7 @@ static struct n_hdlc_buf *n_hdlc_buf_get(struct n_hdlc_buf_list *list);
 
 /* Local functions */
 
-static struct n_hdlc *n_hdlc_alloc (void);
+static struct n_hdlc *n_hdlc_alloc(void);
 
 /* max frame size for memory allocations */
 static int maxframe = 4096;
@@ -222,7 +222,7 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
  *
  * Returns 0 if success, otherwise error code
  */
-static int n_hdlc_tty_open (struct tty_struct *tty)
+static int n_hdlc_tty_open(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 
@@ -347,7 +347,7 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 
-	n_hdlc_send_frames (n_hdlc, tty);
+	n_hdlc_send_frames(n_hdlc, tty);
 }	/* end of n_hdlc_tty_wakeup() */
 
 /**
@@ -406,7 +406,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	n_hdlc_buf_put(&n_hdlc->rx_buf_list, buf);
 
 	/* wake up any blocked reads and perform async signalling */
-	wake_up_interruptible (&tty->read_wait);
+	wake_up_interruptible(&tty->read_wait);
 	if (tty->fasync != NULL)
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 
