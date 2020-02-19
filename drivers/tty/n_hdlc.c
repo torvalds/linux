@@ -157,22 +157,6 @@ static struct n_hdlc *n_hdlc_alloc (void);
 /* max frame size for memory allocations */
 static int maxframe = 4096;
 
-/* TTY callbacks */
-
-static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
-			   __u8 __user *buf, size_t nr);
-static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
-			    const unsigned char *buf, size_t nr);
-static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
-			    unsigned int cmd, unsigned long arg);
-static __poll_t n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
-				    poll_table *wait);
-static int n_hdlc_tty_open(struct tty_struct *tty);
-static void n_hdlc_tty_close(struct tty_struct *tty);
-static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *cp,
-			       char *fp, int count);
-static void n_hdlc_tty_wakeup(struct tty_struct *tty);
-
 static void flush_rx_queue(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
@@ -190,21 +174,6 @@ static void flush_tx_queue(struct tty_struct *tty)
 	while ((buf = n_hdlc_buf_get(&n_hdlc->tx_buf_list)))
 		n_hdlc_buf_put(&n_hdlc->tx_free_buf_list, buf);
 }
-
-static struct tty_ldisc_ops n_hdlc_ldisc = {
-	.owner		= THIS_MODULE,
-	.magic		= TTY_LDISC_MAGIC,
-	.name		= "hdlc",
-	.open		= n_hdlc_tty_open,
-	.close		= n_hdlc_tty_close,
-	.read		= n_hdlc_tty_read,
-	.write		= n_hdlc_tty_write,
-	.ioctl		= n_hdlc_tty_ioctl,
-	.poll		= n_hdlc_tty_poll,
-	.receive_buf	= n_hdlc_tty_receive,
-	.write_wakeup	= n_hdlc_tty_wakeup,
-	.flush_buffer   = flush_rx_queue,
-};
 
 static void n_hdlc_free_buf_list(struct n_hdlc_buf_list *list)
 {
@@ -809,6 +778,21 @@ static struct n_hdlc_buf *n_hdlc_buf_get(struct n_hdlc_buf_list *buf_list)
 	spin_unlock_irqrestore(&buf_list->spinlock, flags);
 	return buf;
 }	/* end of n_hdlc_buf_get() */
+
+static struct tty_ldisc_ops n_hdlc_ldisc = {
+	.owner		= THIS_MODULE,
+	.magic		= TTY_LDISC_MAGIC,
+	.name		= "hdlc",
+	.open		= n_hdlc_tty_open,
+	.close		= n_hdlc_tty_close,
+	.read		= n_hdlc_tty_read,
+	.write		= n_hdlc_tty_write,
+	.ioctl		= n_hdlc_tty_ioctl,
+	.poll		= n_hdlc_tty_poll,
+	.receive_buf	= n_hdlc_tty_receive,
+	.write_wakeup	= n_hdlc_tty_wakeup,
+	.flush_buffer   = flush_rx_queue,
+};
 
 static int __init n_hdlc_init(void)
 {
