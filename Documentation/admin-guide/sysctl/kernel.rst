@@ -2,6 +2,9 @@
 Documentation for /proc/sys/kernel/
 ===================================
 
+.. See scripts/check-sysctl-docs to keep this up to date
+
+
 Copyright (c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
 
 Copyright (c) 2009,        Shen Feng<shen@cn.fujitsu.com>
