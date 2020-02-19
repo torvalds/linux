@@ -7,6 +7,7 @@
 #include "test_progs.h"
 
 #define MAX_TEST_NAME 80
+#define TCP_ULP 31
 
 static int tcp_server(int family)
 {
