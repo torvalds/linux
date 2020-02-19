@@ -363,28 +363,23 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai;
+	struct snd_soc_pcm_stream *pcm_codec, *pcm_cpu;
+	int stream = substream->stream;
 	int i;
 	unsigned int bits = 0, cpu_bits;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		for_each_rtd_codec_dai(rtd, i, codec_dai) {
-			if (codec_dai->driver->playback.sig_bits == 0) {
-				bits = 0;
-				break;
-			}
-			bits = max(codec_dai->driver->playback.sig_bits, bits);
+	for_each_rtd_codec_dai(rtd, i, codec_dai) {
+		pcm_codec = snd_soc_dai_get_pcm_stream(codec_dai, stream);
+
+		if (pcm_codec->sig_bits == 0) {
+			bits = 0;
+			break;
 		}
-		cpu_bits = cpu_dai->driver->playback.sig_bits;
-	} else {
-		for_each_rtd_codec_dai(rtd, i, codec_dai) {
-			if (codec_dai->driver->capture.sig_bits == 0) {
-				bits = 0;
-				break;
-			}
-			bits = max(codec_dai->driver->capture.sig_bits, bits);
-		}
-		cpu_bits = cpu_dai->driver->capture.sig_bits;
+		bits = max(pcm_codec->sig_bits, bits);
 	}
+
+	pcm_cpu = snd_soc_dai_get_pcm_stream(cpu_dai, stream);
+	cpu_bits = pcm_cpu->sig_bits;
 
 	soc_pcm_set_msb(substream, bits);
 	soc_pcm_set_msb(substream, cpu_bits);
