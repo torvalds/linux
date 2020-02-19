@@ -4626,10 +4626,8 @@ static bool rmode_exception(struct kvm_vcpu *vcpu, int vec)
 			return false;
 		/* fall through */
 	case DB_VECTOR:
-		if (vcpu->guest_debug &
-			(KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
-			return false;
-		/* fall through */
+		return !(vcpu->guest_debug &
+			(KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP));
 	case DE_VECTOR:
 	case OF_VECTOR:
 	case BR_VECTOR:
