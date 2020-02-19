@@ -4344,13 +4344,13 @@ static int live_lrc_state(void *arg)
 	return err;
 }
 
-static int gpr_make_dirty(struct intel_engine_cs *engine)
+static int gpr_make_dirty(struct intel_context *ce)
 {
 	struct i915_request *rq;
 	u32 *cs;
 	int n;
 
-	rq = intel_engine_create_kernel_request(engine);
+	rq = intel_context_create_request(ce);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
@@ -4362,53 +4362,54 @@ static int gpr_make_dirty(struct intel_engine_cs *engine)
 
 	*cs++ = MI_LOAD_REGISTER_IMM(NUM_GPR_DW);
 	for (n = 0; n < NUM_GPR_DW; n++) {
-		*cs++ = CS_GPR(engine, n);
+		*cs++ = CS_GPR(ce->engine, n);
 		*cs++ = STACK_MAGIC;
 	}
 	*cs++ = MI_NOOP;
 
 	intel_ring_advance(rq, cs);
+
+	rq->sched.attr.priority = I915_PRIORITY_BARRIER;
 	i915_request_add(rq);
 
 	return 0;
 }
 
-static int __live_gpr_clear(struct intel_engine_cs *engine,
-			    struct i915_vma *scratch)
+static struct i915_request *
+__gpr_read(struct intel_context *ce, struct i915_vma *scratch, u32 *slot)
 {
-	struct intel_context *ce;
+	const u32 offset =
+		i915_ggtt_offset(ce->engine->status_page.vma) +
+		offset_in_page(slot);
 	struct i915_request *rq;
 	u32 *cs;
 	int err;
 	int n;
 
-	if (INTEL_GEN(engine->i915) < 9 && engine->class != RENDER_CLASS)
-		return 0; /* GPR only on rcs0 for gen8 */
-
-	err = gpr_make_dirty(engine);
-	if (err)
-		return err;
-
-	ce = intel_context_create(engine);
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
-
 	rq = intel_context_create_request(ce);
-	if (IS_ERR(rq)) {
-		err = PTR_ERR(rq);
-		goto err_put;
+	if (IS_ERR(rq))
+		return rq;
+
+	cs = intel_ring_begin(rq, 6 + 4 * NUM_GPR_DW);
+	if (IS_ERR(cs)) {
+		i915_request_add(rq);
+		return ERR_CAST(cs);
 	}
 
-	cs = intel_ring_begin(rq, 4 * NUM_GPR_DW);
-	if (IS_ERR(cs)) {
-		err = PTR_ERR(cs);
-		i915_request_add(rq);
-		goto err_put;
-	}
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+	*cs++ = MI_NOOP;
+
+	*cs++ = MI_SEMAPHORE_WAIT |
+		MI_SEMAPHORE_GLOBAL_GTT |
+		MI_SEMAPHORE_POLL |
+		MI_SEMAPHORE_SAD_NEQ_SDD;
+	*cs++ = 0;
+	*cs++ = offset;
+	*cs++ = 0;
 
 	for (n = 0; n < NUM_GPR_DW; n++) {
 		*cs++ = MI_STORE_REGISTER_MEM_GEN8 | MI_USE_GGTT;
-		*cs++ = CS_GPR(engine, n);
+		*cs++ = CS_GPR(ce->engine, n);
 		*cs++ = i915_ggtt_offset(scratch) + n * sizeof(u32);
 		*cs++ = 0;
 	}
@@ -4421,8 +4422,58 @@ static int __live_gpr_clear(struct intel_engine_cs *engine,
 
 	i915_request_get(rq);
 	i915_request_add(rq);
+	if (err) {
+		i915_request_put(rq);
+		rq = ERR_PTR(err);
+	}
+
+	return rq;
+}
+
+static int __live_lrc_gpr(struct intel_engine_cs *engine,
+			  struct i915_vma *scratch,
+			  bool preempt)
+{
+	u32 *slot = memset32(engine->status_page.addr + 1000, 0, 4);
+	struct intel_context *ce;
+	struct i915_request *rq;
+	u32 *cs;
+	int err;
+	int n;
+
+	if (INTEL_GEN(engine->i915) < 9 && engine->class != RENDER_CLASS)
+		return 0; /* GPR only on rcs0 for gen8 */
+
+	err = gpr_make_dirty(engine->kernel_context);
+	if (err)
+		return err;
+
+	ce = intel_context_create(engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	rq = __gpr_read(ce, scratch, slot);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_put;
+	}
+
+	err = wait_for_submit(engine, rq, HZ / 2);
 	if (err)
 		goto err_rq;
+
+	if (preempt) {
+		err = gpr_make_dirty(engine->kernel_context);
+		if (err)
+			goto err_rq;
+
+		err = emit_semaphore_signal(engine->kernel_context, slot);
+		if (err)
+			goto err_rq;
+	} else {
+		slot[0] = 1;
+		wmb();
+	}
 
 	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 		err = -ETIME;
@@ -4449,13 +4500,15 @@ static int __live_gpr_clear(struct intel_engine_cs *engine,
 	i915_gem_object_unpin_map(scratch->obj);
 
 err_rq:
+	memset32(&slot[0], -1, 4);
+	wmb();
 	i915_request_put(rq);
 err_put:
 	intel_context_put(ce);
 	return err;
 }
 
-static int live_gpr_clear(void *arg)
+static int live_lrc_gpr(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
@@ -4473,13 +4526,25 @@ static int live_gpr_clear(void *arg)
 		return PTR_ERR(scratch);
 
 	for_each_engine(engine, gt, id) {
-		err = __live_gpr_clear(engine, scratch);
+		unsigned long heartbeat;
+
+		engine_heartbeat_disable(engine, &heartbeat);
+
+		err = __live_lrc_gpr(engine, scratch, false);
+		if (err)
+			goto err;
+
+		err = __live_lrc_gpr(engine, scratch, true);
+		if (err)
+			goto err;
+
+err:
+		engine_heartbeat_enable(engine, heartbeat);
+		if (igt_flush_test(gt->i915))
+			err = -EIO;
 		if (err)
 			break;
 	}
-
-	if (igt_flush_test(gt->i915))
-		err = -EIO;
 
 	i915_vma_unpin_and_release(&scratch, 0);
 	return err;
@@ -4779,7 +4844,7 @@ int intel_lrc_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_lrc_layout),
 		SUBTEST(live_lrc_fixed),
 		SUBTEST(live_lrc_state),
-		SUBTEST(live_gpr_clear),
+		SUBTEST(live_lrc_gpr),
 		SUBTEST(live_lrc_timestamp),
 		SUBTEST(live_pphwsp_runtime),
 	};
