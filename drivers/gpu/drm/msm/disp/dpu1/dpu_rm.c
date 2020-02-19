@@ -144,8 +144,7 @@ static int _dpu_rm_hw_blk_create(
 		const struct dpu_mdss_cfg *cat,
 		void __iomem *mmio,
 		enum dpu_hw_blk_type type,
-		uint32_t id,
-		const void *hw_catalog_info)
+		uint32_t id)
 {
 	struct dpu_rm_hw_blk *blk;
 	void *hw;
@@ -223,7 +222,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 		}
 
 		rc = _dpu_rm_hw_blk_create(rm, cat, mmio, DPU_HW_BLK_LM,
-				cat->mixer[i].id, &cat->mixer[i]);
+				cat->mixer[i].id);
 		if (rc) {
 			DPU_ERROR("failed: lm hw not available\n");
 			goto fail;
@@ -244,7 +243,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 
 	for (i = 0; i < cat->pingpong_count; i++) {
 		rc = _dpu_rm_hw_blk_create(rm, cat, mmio, DPU_HW_BLK_PINGPONG,
-				cat->pingpong[i].id, &cat->pingpong[i]);
+				cat->pingpong[i].id);
 		if (rc) {
 			DPU_ERROR("failed: pp hw not available\n");
 			goto fail;
@@ -258,7 +257,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 		}
 
 		rc = _dpu_rm_hw_blk_create(rm, cat, mmio, DPU_HW_BLK_INTF,
-				cat->intf[i].id, &cat->intf[i]);
+				cat->intf[i].id);
 		if (rc) {
 			DPU_ERROR("failed: intf hw not available\n");
 			goto fail;
@@ -267,7 +266,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 
 	for (i = 0; i < cat->ctl_count; i++) {
 		rc = _dpu_rm_hw_blk_create(rm, cat, mmio, DPU_HW_BLK_CTL,
-				cat->ctl[i].id, &cat->ctl[i]);
+				cat->ctl[i].id);
 		if (rc) {
 			DPU_ERROR("failed: ctl hw not available\n");
 			goto fail;
@@ -293,7 +292,6 @@ static bool _dpu_rm_needs_split_display(const struct msm_display_topology *top)
  *	pingpong
  * @rm: dpu resource manager handle
  * @enc_id: encoder id requesting for allocation
- * @reqs: proposed use case requirements
  * @lm: proposed layer mixer, function checks if lm, and all other hardwired
  *      blocks connected to the lm (pp) is available and appropriate
  * @pp: output parameter, pingpong block attached to the layer mixer.
@@ -305,7 +303,6 @@ static bool _dpu_rm_needs_split_display(const struct msm_display_topology *top)
 static bool _dpu_rm_check_lm_and_get_connected_blks(
 		struct dpu_rm *rm,
 		uint32_t enc_id,
-		struct dpu_rm_requirements *reqs,
 		struct dpu_rm_hw_blk *lm,
 		struct dpu_rm_hw_blk **pp,
 		struct dpu_rm_hw_blk *primary_lm)
@@ -384,7 +381,7 @@ static int _dpu_rm_reserve_lms(struct dpu_rm *rm, uint32_t enc_id,
 		lm[lm_count] = iter_i.blk;
 
 		if (!_dpu_rm_check_lm_and_get_connected_blks(
-				rm, enc_id, reqs, lm[lm_count],
+				rm, enc_id, lm[lm_count],
 				&pp[lm_count], NULL))
 			continue;
 
@@ -399,7 +396,7 @@ static int _dpu_rm_reserve_lms(struct dpu_rm *rm, uint32_t enc_id,
 				continue;
 
 			if (!_dpu_rm_check_lm_and_get_connected_blks(
-					rm, enc_id, reqs, iter_j.blk,
+					rm, enc_id, iter_j.blk,
 					&pp[lm_count], iter_i.blk))
 				continue;
 
@@ -480,20 +477,19 @@ static int _dpu_rm_reserve_ctls(
 static int _dpu_rm_reserve_intf(
 		struct dpu_rm *rm,
 		uint32_t enc_id,
-		uint32_t id,
-		enum dpu_hw_blk_type type)
+		uint32_t id)
 {
 	struct dpu_rm_hw_iter iter;
 	int ret = 0;
 
 	/* Find the block entry in the rm, and note the reservation */
-	dpu_rm_init_hw_iter(&iter, 0, type);
+	dpu_rm_init_hw_iter(&iter, 0, DPU_HW_BLK_INTF);
 	while (_dpu_rm_get_hw_locked(rm, &iter)) {
 		if (iter.blk->id != id)
 			continue;
 
 		if (RESERVED_BY_OTHER(iter.blk, enc_id)) {
-			DPU_ERROR("type %d id %d already reserved\n", type, id);
+			DPU_ERROR("intf id %d already reserved\n", id);
 			return -ENAVAIL;
 		}
 
@@ -504,7 +500,7 @@ static int _dpu_rm_reserve_intf(
 
 	/* Shouldn't happen since intfs are fixed at probe */
 	if (!iter.hw) {
-		DPU_ERROR("couldn't find type %d id %d\n", type, id);
+		DPU_ERROR("couldn't find intf id %d\n", id);
 		return -EINVAL;
 	}
 
@@ -523,8 +519,7 @@ static int _dpu_rm_reserve_intf_related_hw(
 		if (hw_res->intfs[i] == INTF_MODE_NONE)
 			continue;
 		id = i + INTF_0;
-		ret = _dpu_rm_reserve_intf(rm, enc_id, id,
-				DPU_HW_BLK_INTF);
+		ret = _dpu_rm_reserve_intf(rm, enc_id, id);
 		if (ret)
 			return ret;
 	}
@@ -535,7 +530,6 @@ static int _dpu_rm_reserve_intf_related_hw(
 static int _dpu_rm_make_reservation(
 		struct dpu_rm *rm,
 		struct drm_encoder *enc,
-		struct drm_crtc_state *crtc_state,
 		struct dpu_rm_requirements *reqs)
 {
 	int ret;
@@ -560,9 +554,7 @@ static int _dpu_rm_make_reservation(
 }
 
 static int _dpu_rm_populate_requirements(
-		struct dpu_rm *rm,
 		struct drm_encoder *enc,
-		struct drm_crtc_state *crtc_state,
 		struct dpu_rm_requirements *reqs,
 		struct msm_display_topology req_topology)
 {
@@ -621,14 +613,13 @@ int dpu_rm_reserve(
 
 	mutex_lock(&rm->rm_lock);
 
-	ret = _dpu_rm_populate_requirements(rm, enc, crtc_state, &reqs,
-					    topology);
+	ret = _dpu_rm_populate_requirements(enc, &reqs, topology);
 	if (ret) {
 		DPU_ERROR("failed to populate hw requirements\n");
 		goto end;
 	}
 
-	ret = _dpu_rm_make_reservation(rm, enc, crtc_state, &reqs);
+	ret = _dpu_rm_make_reservation(rm, enc, &reqs);
 	if (ret) {
 		DPU_ERROR("failed to reserve hw resources: %d\n", ret);
 		_dpu_rm_release_reservation(rm, enc->base.id);
