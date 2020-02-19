@@ -376,7 +376,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 		return;
 	}
 
-	if ( count>maxframe ) {
+	if (count > maxframe) {
 		pr_debug("%s(%d) rx count>maxframesize, data discarded\n",
 				__FILE__, __LINE__);
 		return;
@@ -400,7 +400,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 
 	/* copy received data to HDLC buffer */
 	memcpy(buf->buf, data, count);
-	buf->count=count;
+	buf->count = count;
 
 	/* add HDLC buffer to list of received frames */
 	n_hdlc_buf_put(&n_hdlc->rx_buf_list, buf);
@@ -514,7 +514,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 		return -EIO;
 
 	/* verify frame size */
-	if (count > maxframe ) {
+	if (count > maxframe) {
 		pr_debug("%s: truncating user packet from %zu to %d\n",
 				__func__, count, maxframe);
 		count = maxframe;
