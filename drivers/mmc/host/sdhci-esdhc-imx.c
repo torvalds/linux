@@ -639,10 +639,24 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 			 * For DMA access restore the levels to default value.
 			 */
 			m = readl(host->ioaddr + ESDHC_WTMK_LVL);
-			if (val & SDHCI_TRNS_DMA)
+			if (val & SDHCI_TRNS_DMA) {
 				wml = ESDHC_WTMK_LVL_WML_VAL_DEF;
-			else
+			} else {
+				u8 ctrl;
 				wml = ESDHC_WTMK_LVL_WML_VAL_MAX;
+
+				/*
+				 * Since already disable DMA mode, so also need
+				 * to clear the DMASEL. Otherwise, for standard
+				 * tuning, when send tuning command, usdhc will
+				 * still prefetch the ADMA script from wrong
+				 * DMA address, then we will see IOMMU report
+				 * some error which show lack of TLB mapping.
+				 */
+				ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
+				ctrl &= ~SDHCI_CTRL_DMA_MASK;
+				sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+			}
 			m &= ~(ESDHC_WTMK_LVL_RD_WML_MASK |
 			       ESDHC_WTMK_LVL_WR_WML_MASK);
 			m |= (wml << ESDHC_WTMK_LVL_RD_WML_SHIFT) |
