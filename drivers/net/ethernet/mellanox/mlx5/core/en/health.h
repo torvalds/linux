@@ -5,6 +5,7 @@
 #define __MLX5E_EN_HEALTH_H
 
 #include "en.h"
+#include "diag/rsc_dump.h"
 
 #define MLX5E_RX_ERR_CQE(cqe) (get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)
 
@@ -36,6 +37,7 @@ void mlx5e_reporter_rx_timeout(struct mlx5e_rq *rq);
 
 struct mlx5e_err_ctx {
 	int (*recover)(void *ctx);
+	int (*dump)(struct mlx5e_priv *priv, struct devlink_fmsg *fmsg, void *ctx);
 	void *ctx;
 };
 
@@ -48,6 +50,8 @@ int mlx5e_health_report(struct mlx5e_priv *priv,
 int mlx5e_health_create_reporters(struct mlx5e_priv *priv);
 void mlx5e_health_destroy_reporters(struct mlx5e_priv *priv);
 void mlx5e_health_channels_update(struct mlx5e_priv *priv);
-
-
+int mlx5e_health_rsc_fmsg_dump(struct mlx5e_priv *priv, struct mlx5_rsc_key *key,
+			       struct devlink_fmsg *fmsg);
+int mlx5e_health_queue_dump(struct mlx5e_priv *priv, struct devlink_fmsg *fmsg,
+			    int queue_idx, char *lbl);
 #endif
