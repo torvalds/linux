@@ -143,7 +143,7 @@ struct gsm_dlci {
 	bool dead;		/* Refuse re-open */
 	/* Flow control */
 	bool throttled;		/* Private copy of throttle state */
-	int constipated;	/* Throttle status for outgoing */
+	bool constipated;	/* Throttle status for outgoing */
 	/* Packetised I/O */
 	struct sk_buff *skb;	/* Frame being sent */
 	struct sk_buff_head skb_list;	/* Queued frames */
@@ -234,7 +234,7 @@ struct gsm_mux {
 	int initiator;			/* Did we initiate connection */
 	bool dead;			/* Has the mux been shut down */
 	struct gsm_dlci *dlci[NUM_DLCI];
-	int constipated;		/* Asked by remote to shut up */
+	bool constipated;		/* Asked by remote to shut up */
 
 	spinlock_t tx_lock;
 	unsigned int tx_bytes;		/* TX data outstanding */
@@ -1042,9 +1042,9 @@ static void gsm_process_modem(struct tty_struct *tty, struct gsm_dlci *dlci,
 	fc = (modem & MDM_FC) || !(modem & MDM_RTR);
 	if (fc && !dlci->constipated) {
 		/* Need to throttle our output on this device */
-		dlci->constipated = 1;
+		dlci->constipated = true;
 	} else if (!fc && dlci->constipated) {
-		dlci->constipated = 0;
+		dlci->constipated = false;
 		gsm_dlci_data_kick(dlci);
 	}
 
@@ -1219,7 +1219,7 @@ static void gsm_control_message(struct gsm_mux *gsm, unsigned int command,
 		break;
 	case CMD_FCON:
 		/* Modem can accept data again */
-		gsm->constipated = 0;
+		gsm->constipated = false;
 		gsm_control_reply(gsm, CMD_FCON, NULL, 0);
 		/* Kick the link in case it is idling */
 		spin_lock_irqsave(&gsm->tx_lock, flags);
@@ -1228,7 +1228,7 @@ static void gsm_control_message(struct gsm_mux *gsm, unsigned int command,
 		break;
 	case CMD_FCOFF:
 		/* Modem wants us to STFU */
-		gsm->constipated = 1;
+		gsm->constipated = true;
 		gsm_control_reply(gsm, CMD_FCOFF, NULL, 0);
 		break;
 	case CMD_MSC:
