@@ -916,6 +916,7 @@ static void pvr_fence_release(struct dma_fence *fence)
 	unsigned long flags;
 
 	/*-------------------------------------------------------*/
+	spin_lock_irqsave(fence->lock, flags);
 
 	/* 释放当前 pvr_sync_pt 实例的 private_data. */
 	pvr_sync_free_sync(pt);
@@ -923,7 +924,6 @@ static void pvr_fence_release(struct dma_fence *fence)
     /*-------------------------------------------------------*/
 	/* 参考自 timeline_fence_release(). */
 
-	spin_lock_irqsave(fence->lock, flags);
 	if (!list_empty(&pt->link)) {
 		list_del(&pt->link);
 		rb_erase(&pt->node, &parent->pt_tree);
@@ -1394,6 +1394,7 @@ enum PVRSRV_ERROR pvr_sync_append_fences(
 
 		//update_fence = sync_fence_create(name, &update_point->pt);
 		update_fence = sync_file_create(&update_point->pt.base);
+		dma_fence_put(&update_point->pt.base);
 		if (!update_fence) {
 			struct pvr_sync_native_sync_prim *fence_prim =
 				update_point->sync_data->kernel->fence_sync;
