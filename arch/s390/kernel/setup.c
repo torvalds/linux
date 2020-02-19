@@ -790,6 +790,7 @@ static void __init memblock_add_mem_detect_info(void)
 		memblock_physmem_add(start, end - start);
 	}
 	memblock_set_bottom_up(false);
+	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
 	memblock_dump_all();
 }
 

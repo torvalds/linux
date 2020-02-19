@@ -26,7 +26,6 @@
 #include <linux/nodemask.h>
 #include <linux/node.h>
 #include <asm/sysinfo.h>
-#include <asm/numa.h>
 
 #define PTF_HORIZONTAL	(0UL)
 #define PTF_VERTICAL	(1UL)
@@ -267,7 +266,6 @@ static void update_cpu_masks(void)
 				cpumask_set_cpu(cpu, &cpus_with_topology);
 		}
 	}
-	numa_update_cpu_topology();
 }
 
 void store_topology(struct sysinfo_15_1_x *info)

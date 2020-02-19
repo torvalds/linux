@@ -16,7 +16,6 @@ struct cpu_topology_s390 {
 	unsigned short socket_id;
 	unsigned short book_id;
 	unsigned short drawer_id;
-	unsigned short node_id;
 	unsigned short dedicated : 1;
 	cpumask_t thread_mask;
 	cpumask_t core_mask;
@@ -71,19 +70,23 @@ static inline void topology_expect_change(void) { }
 #define cpu_to_node cpu_to_node
 static inline int cpu_to_node(int cpu)
 {
-	return cpu_topology[cpu].node_id;
+	return 0;
 }
 
 /* Returns a pointer to the cpumask of CPUs on node 'node'. */
 #define cpumask_of_node cpumask_of_node
 static inline const struct cpumask *cpumask_of_node(int node)
 {
-	return &node_to_cpumask_map[node];
+	return cpu_possible_mask;
 }
 
 #define pcibus_to_node(bus) __pcibus_to_node(bus)
 
 #define node_distance(a, b) __node_distance(a, b)
+static inline int __node_distance(int a, int b)
+{
+	return 0;
+}
 
 #else /* !CONFIG_NUMA */
 
