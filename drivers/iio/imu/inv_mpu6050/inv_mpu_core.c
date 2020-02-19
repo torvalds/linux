@@ -598,6 +598,11 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 					      chan->channel2, val);
 		break;
 	case IIO_TEMP:
+		/* temperature sensor work only with accel and/or gyro */
+		if (!st->chip_config.accl_en && !st->chip_config.gyro_en) {
+			result = -EBUSY;
+			goto error_power_off;
+		}
 		if (!st->chip_config.temp_en) {
 			result = inv_mpu6050_switch_engine(st, true,
 					INV_MPU6050_SENSOR_TEMP);
