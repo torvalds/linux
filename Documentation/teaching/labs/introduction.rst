@@ -463,12 +463,27 @@ A summary of the virtual machine infrastructure:
 -  :file:`~/src/linux/tools/labs/qemu`- scripts and auxiliary
    files used to generate and run the QEMU VM.
 
-To start the VM, run :command:`QEMU_DISPLAY=sdl make boot` in the directory :file:`~/src/linux/tools/labs`:
+To start the VM, run :command:`make boot` in the directory :file:`~/src/linux/tools/labs`:
 
 .. code-block:: shell
 
     student@eg106:~$ cd ~/src/linux/tools/labs
-    student@eg106:~/src/linux/tools/labs$ QEMU_DISPLAY=sdl make boot
+    student@eg106:~/src/linux/tools/labs$ make boot
+
+By default, you will not get a prompt or any graphical interface, but you can connect to
+a console exposed by the virtual machine using :command:`minicom` or :command:`screen`.
+
+.. code-block:: shell
+
+    student@eg106:~/so2/linux/tools/labs$ minicom -D serial.pts
+
+    <press enter>
+
+    qemux86 login:
+    Poky (Yocto Project Reference Distro) 2.3 qemux86 /dev/hvc0
+
+Alternatively, you can start the virtual machine with graphical interface support, using
+the :command:`QEMU_DISPLAY=sdl make boot`.
 
 .. note::
     To access the virtual machine, at the login prompt, enter the 
@@ -481,19 +496,23 @@ To start the VM, run :command:`QEMU_DISPLAY=sdl make boot` in the directory :fil
 
 .. note:: If you don't have the file :file:`mydisk.img`, you can download
           it from the address http://elf.cs.pub.ro/so2/res/laboratoare/mydisk.img.
+          The file must be placed in :file:`tools/labs`.
 
 In the :file:`~/src/linux/tools/labs/qemu` directory, you have a new virtual
 machine disk, in the file :file:`mydisk.img`. We want to add the disk
 to the virtual machine and use it within the virtual machine.
 
-Edit the :file:`Makefile` to add the following :code:`-drive file=mydisk.img,format=raw`
-to the :command:`run` target. Run :code:`make` to boot the virtual machine.
+Edit :file:`qemu/Makefile` and add :code:`-drive file=mydisk.img,if=virtio,format=raw`
+to the :code:`QEMU_OPTS` variable.
 
-Within the virtual machine, configure access to the virtual disk.
+.. note:: There are already two disks added to qemu (disk1.img and disk2.img). You will need
+          to add the new one after them. In this case, the new disk can be accessed as
+          :file:`/dev/vdd` (vda is the root partition, vdb is disk1 and vdc is disk2).
 
 .. hint:: You do not need to manually create the entry for the new disk in :file:`/dev`
           because the virtual machine uses :command:`devtmpfs`.
 
+Run :code:`make` in :file:`tools/labs` to boot the virtual machine.
 Create :file:`/test` directory and try to mount the new disk:
 
 .. code-block:: bash
@@ -661,7 +680,7 @@ The :code:`jiffies` variable holds the number of ticks (clock beats) since the s
 5. Cscope spelunking
 --------------------
 
-Use LXR or cscope in the :file:`~/linux/` directory to discover
+Use LXR or cscope in the :file:`~/so2/linux/` directory to discover
 the location of certain structures or functions.
 
 Cscope index files are already generated. Use :command:`vim` and other related commands
