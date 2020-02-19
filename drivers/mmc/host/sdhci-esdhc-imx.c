@@ -1488,7 +1488,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	imx_data->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(imx_data->pinctrl)) {
 		err = PTR_ERR(imx_data->pinctrl);
-		goto disable_ahb_clk;
+		dev_warn(mmc_dev(host->mmc), "could not get pinctrl\n");
 	}
 
 	if (esdhc_is_usdhc(imx_data)) {
