@@ -100,6 +100,54 @@ static unsigned int inv_compute_skip_samples(const struct inv_mpu6050_state *st)
 	return skip_samples;
 }
 
+int inv_mpu6050_prepare_fifo(struct inv_mpu6050_state *st, bool enable)
+{
+	uint8_t d;
+	int ret;
+
+	if (enable) {
+		st->it_timestamp = 0;
+		/* reset FIFO */
+		d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_RST;
+		ret = regmap_write(st->map, st->reg->user_ctrl, d);
+		if (ret)
+			return ret;
+		/* enable sensor output to FIFO */
+		d = 0;
+		if (st->chip_config.gyro_fifo_enable)
+			d |= INV_MPU6050_BITS_GYRO_OUT;
+		if (st->chip_config.accl_fifo_enable)
+			d |= INV_MPU6050_BIT_ACCEL_OUT;
+		if (st->chip_config.temp_fifo_enable)
+			d |= INV_MPU6050_BIT_TEMP_OUT;
+		if (st->chip_config.magn_fifo_enable)
+			d |= INV_MPU6050_BIT_SLAVE_0;
+		ret = regmap_write(st->map, st->reg->fifo_en, d);
+		if (ret)
+			return ret;
+		/* enable FIFO reading */
+		d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_EN;
+		ret = regmap_write(st->map, st->reg->user_ctrl, d);
+		if (ret)
+			return ret;
+		/* enable interrupt */
+		ret = regmap_write(st->map, st->reg->int_enable,
+				   INV_MPU6050_BIT_DATA_RDY_EN);
+	} else {
+		ret = regmap_write(st->map, st->reg->int_enable, 0);
+		if (ret)
+			return ret;
+		ret = regmap_write(st->map, st->reg->fifo_en, 0);
+		if (ret)
+			return ret;
+		/* restore user_ctrl for disabling FIFO reading */
+		ret = regmap_write(st->map, st->reg->user_ctrl,
+				   st->chip_config.user_ctrl);
+	}
+
+	return ret;
+}
+
 /**
  *  inv_mpu6050_set_enable() - enable chip functions.
  *  @indio_dev:	Device driver instance.
@@ -121,24 +169,13 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 		if (result)
 			goto error_power_off;
 		st->skip_samples = inv_compute_skip_samples(st);
-		result = inv_reset_fifo(indio_dev);
+		result = inv_mpu6050_prepare_fifo(st, true);
 		if (result)
 			goto error_sensors_off;
 	} else {
-		result = regmap_write(st->map, st->reg->fifo_en, 0);
-		if (result)
-			goto error_fifo_off;
-
-		result = regmap_write(st->map, st->reg->int_enable, 0);
-		if (result)
-			goto error_fifo_off;
-
-		/* restore user_ctrl for disabling FIFO reading */
-		result = regmap_write(st->map, st->reg->user_ctrl,
-				      st->chip_config.user_ctrl);
+		result = inv_mpu6050_prepare_fifo(st, false);
 		if (result)
 			goto error_sensors_off;
-
 		result = inv_mpu6050_switch_engine(st, false, scan);
 		if (result)
 			goto error_power_off;
@@ -150,9 +187,6 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 
 	return 0;
 
-error_fifo_off:
-	/* always restore user_ctrl to disable fifo properly */
-	regmap_write(st->map, st->reg->user_ctrl, st->chip_config.user_ctrl);
 error_sensors_off:
 	inv_mpu6050_switch_engine(st, false, scan);
 error_power_off:
