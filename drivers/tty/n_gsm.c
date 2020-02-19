@@ -173,6 +173,20 @@ struct gsm_control {
 	int error;	/* Error if any */
 };
 
+enum gsm_mux_state {
+	GSM_SEARCH,
+	GSM_START,
+	GSM_ADDRESS,
+	GSM_CONTROL,
+	GSM_LEN,
+	GSM_DATA,
+	GSM_FCS,
+	GSM_OVERRUN,
+	GSM_LEN0,
+	GSM_LEN1,
+	GSM_SSOF,
+};
+
 /*
  *	Each GSM mux we have is represented by this structure. If we are
  *	operating as an ldisc then we use this structure as our ldisc
@@ -197,18 +211,7 @@ struct gsm_mux {
 
 	/* Framing Layer */
 	unsigned char *buf;
-	int state;
-#define GSM_SEARCH		0
-#define GSM_START		1
-#define GSM_ADDRESS		2
-#define GSM_CONTROL		3
-#define GSM_LEN			4
-#define GSM_DATA		5
-#define GSM_FCS			6
-#define GSM_OVERRUN		7
-#define GSM_LEN0		8
-#define GSM_LEN1		9
-#define GSM_SSOF		10
+	enum gsm_mux_state state;
 	unsigned int len;
 	unsigned int address;
 	unsigned int count;
@@ -1934,6 +1937,9 @@ static void gsm0_receive(struct gsm_mux *gsm, unsigned char c)
 			break;
 		}
 		break;
+	default:
+		pr_debug("%s: unhandled state: %d\n", __func__, gsm->state);
+		break;
 	}
 }
 
@@ -2007,6 +2013,9 @@ static void gsm1_receive(struct gsm_mux *gsm, unsigned char c)
 			gsm->buf[gsm->count++] = c;
 		break;
 	case GSM_OVERRUN:	/* Over-long - eg a dropped SOF */
+		break;
+	default:
+		pr_debug("%s: unhandled state: %d\n", __func__, gsm->state);
 		break;
 	}
 }
