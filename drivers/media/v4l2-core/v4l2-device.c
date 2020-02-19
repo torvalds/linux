@@ -179,6 +179,7 @@ static void v4l2_subdev_release(struct v4l2_subdev *sd)
 
 	if (sd->internal_ops && sd->internal_ops->release)
 		sd->internal_ops->release(sd);
+	sd->devnode = NULL;
 	module_put(owner);
 }
 
