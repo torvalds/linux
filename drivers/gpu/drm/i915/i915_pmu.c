@@ -1042,7 +1042,7 @@ static void free_event_attributes(struct i915_pmu *pmu)
 
 static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 {
-	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), node);
+	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), cpuhp.node);
 
 	GEM_BUG_ON(!pmu->base.event_init);
 
@@ -1055,7 +1055,7 @@ static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 
 static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 {
-	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), node);
+	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), cpuhp.node);
 	unsigned int target;
 
 	GEM_BUG_ON(!pmu->base.event_init);
@@ -1072,8 +1072,6 @@ static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static enum cpuhp_state cpuhp_slot = CPUHP_INVALID;
-
 static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
 {
 	enum cpuhp_state slot;
@@ -1087,21 +1085,22 @@ static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
 		return ret;
 
 	slot = ret;
-	ret = cpuhp_state_add_instance(slot, &pmu->node);
+	ret = cpuhp_state_add_instance(slot, &pmu->cpuhp.node);
 	if (ret) {
 		cpuhp_remove_multi_state(slot);
 		return ret;
 	}
 
-	cpuhp_slot = slot;
+	pmu->cpuhp.slot = slot;
 	return 0;
 }
 
 static void i915_pmu_unregister_cpuhp_state(struct i915_pmu *pmu)
 {
-	WARN_ON(cpuhp_slot == CPUHP_INVALID);
-	WARN_ON(cpuhp_state_remove_instance(cpuhp_slot, &pmu->node));
-	cpuhp_remove_multi_state(cpuhp_slot);
+	WARN_ON(pmu->cpuhp.slot == CPUHP_INVALID);
+	WARN_ON(cpuhp_state_remove_instance(pmu->cpuhp.slot, &pmu->cpuhp.node));
+	cpuhp_remove_multi_state(pmu->cpuhp.slot);
+	pmu->cpuhp.slot = CPUHP_INVALID;
 }
 
 static bool is_igp(struct drm_i915_private *i915)
@@ -1128,6 +1127,7 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	spin_lock_init(&pmu->lock);
 	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pmu->timer.function = i915_sample;
+	pmu->cpuhp.slot = CPUHP_INVALID;
 
 	if (!is_igp(i915)) {
 		pmu->name = kasprintf(GFP_KERNEL,
