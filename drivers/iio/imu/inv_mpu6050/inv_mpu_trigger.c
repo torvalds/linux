@@ -3,6 +3,7 @@
 * Copyright (C) 2012 Invensense, Inc.
 */
 
+#include <linux/pm_runtime.h>
 #include "inv_mpu_iio.h"
 
 static unsigned int inv_scan_query_mpu6050(struct iio_dev *indio_dev)
@@ -156,41 +157,43 @@ int inv_mpu6050_prepare_fifo(struct inv_mpu6050_state *st, bool enable)
 static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	struct device *pdev = regmap_get_device(st->map);
 	unsigned int scan;
 	int result;
 
-	scan = inv_scan_query(indio_dev);
-
 	if (enable) {
-		result = inv_mpu6050_set_power_itg(st, true);
-		if (result)
+		scan = inv_scan_query(indio_dev);
+		result = pm_runtime_get_sync(pdev);
+		if (result < 0) {
+			pm_runtime_put_noidle(pdev);
 			return result;
+		}
+		/*
+		 * In case autosuspend didn't trigger, turn off first not
+		 * required sensors.
+		 */
+		result = inv_mpu6050_switch_engine(st, false, ~scan);
+		if (result)
+			goto error_power_off;
 		result = inv_mpu6050_switch_engine(st, true, scan);
 		if (result)
 			goto error_power_off;
 		st->skip_samples = inv_compute_skip_samples(st);
 		result = inv_mpu6050_prepare_fifo(st, true);
 		if (result)
-			goto error_sensors_off;
+			goto error_power_off;
 	} else {
 		result = inv_mpu6050_prepare_fifo(st, false);
 		if (result)
-			goto error_sensors_off;
-		result = inv_mpu6050_switch_engine(st, false, scan);
-		if (result)
 			goto error_power_off;
-
-		result = inv_mpu6050_set_power_itg(st, false);
-		if (result)
-			goto error_power_off;
+		pm_runtime_mark_last_busy(pdev);
+		pm_runtime_put_autosuspend(pdev);
 	}
 
 	return 0;
 
-error_sensors_off:
-	inv_mpu6050_switch_engine(st, false, scan);
 error_power_off:
-	inv_mpu6050_set_power_itg(st, false);
+	pm_runtime_put_autosuspend(pdev);
 	return result;
 }
 

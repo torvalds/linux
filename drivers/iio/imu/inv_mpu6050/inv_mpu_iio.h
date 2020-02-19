@@ -164,6 +164,7 @@ struct inv_mpu6050_hw {
  *  @magn_disabled:     magnetometer disabled for backward compatibility reason.
  *  @magn_raw_to_gauss:	coefficient to convert mag raw value to Gauss.
  *  @magn_orient:       magnetometer sensor chip orientation if available.
+ *  @suspended_sensors:	sensors mask of sensors turned off for suspend
  */
 struct inv_mpu6050_state {
 	struct mutex lock;
@@ -174,7 +175,6 @@ struct inv_mpu6050_state {
 	enum   inv_devices chip_type;
 	struct i2c_mux_core *muxc;
 	struct i2c_client *mux_client;
-	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
 	struct iio_mount_matrix orientation;
 	struct regmap *map;
@@ -189,6 +189,7 @@ struct inv_mpu6050_state {
 	bool magn_disabled;
 	s32 magn_raw_to_gauss[3];
 	struct iio_mount_matrix magn_orient;
+	unsigned int suspended_sensors;
 };
 
 /*register and associated bit definition*/
@@ -312,6 +313,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_ACCEL_UP_TIME            20
 #define INV_MPU6050_GYRO_UP_TIME             35
 #define INV_MPU6050_GYRO_DOWN_TIME           150
+#define INV_MPU6050_SUSPEND_DELAY_MS         2000
 
 /* delay time in microseconds */
 #define INV_MPU6050_REG_UP_TIME_MIN          5000
@@ -439,7 +441,6 @@ int inv_mpu6050_prepare_fifo(struct inv_mpu6050_state *st, bool enable);
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en,
 			      unsigned int mask);
 int inv_mpu6050_write_reg(struct inv_mpu6050_state *st, int reg, u8 val);
-int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
 int inv_mpu_acpi_create_mux_client(struct i2c_client *client);
 void inv_mpu_acpi_delete_mux_client(struct i2c_client *client);
 int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
