@@ -682,7 +682,7 @@ struct se_dev_attrib {
 	int		force_pr_aptpl;
 	int		is_nonrot;
 	int		emulate_rest_reord;
-	int		unmap_zeroes_data;
+	bool		unmap_zeroes_data;
 	u32		hw_block_size;
 	u32		block_size;
 	u32		hw_max_sectors;
