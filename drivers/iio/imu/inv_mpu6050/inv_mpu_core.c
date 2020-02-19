@@ -1146,6 +1146,24 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	if (result)
 		return result;
 	msleep(INV_MPU6050_POWER_UP_TIME);
+	switch (st->chip_type) {
+	case INV_MPU6000:
+	case INV_MPU6500:
+	case INV_MPU6515:
+	case INV_MPU9250:
+	case INV_MPU9255:
+		/* reset signal path (required for spi connection) */
+		regval = INV_MPU6050_BIT_TEMP_RST | INV_MPU6050_BIT_ACCEL_RST |
+			 INV_MPU6050_BIT_GYRO_RST;
+		result = regmap_write(st->map, INV_MPU6050_REG_SIGNAL_PATH_RESET,
+				      regval);
+		if (result)
+			return result;
+		msleep(INV_MPU6050_POWER_UP_TIME);
+		break;
+	default:
+		break;
+	}
 
 	/*
 	 * Turn power on. After reset, the sleep bit could be on

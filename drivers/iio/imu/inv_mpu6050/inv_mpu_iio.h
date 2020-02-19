@@ -245,7 +245,13 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BIT_I2C_SLV3_DLY_EN     0x08
 #define INV_MPU6050_BIT_DELAY_ES_SHADOW     0x80
 
+#define INV_MPU6050_REG_SIGNAL_PATH_RESET   0x68
+#define INV_MPU6050_BIT_TEMP_RST            BIT(0)
+#define INV_MPU6050_BIT_ACCEL_RST           BIT(1)
+#define INV_MPU6050_BIT_GYRO_RST            BIT(2)
+
 #define INV_MPU6050_REG_USER_CTRL           0x6A
+#define INV_MPU6050_BIT_SIG_COND_RST        0x01
 #define INV_MPU6050_BIT_FIFO_RST            0x04
 #define INV_MPU6050_BIT_DMP_RST             0x08
 #define INV_MPU6050_BIT_I2C_MST_EN          0x20
