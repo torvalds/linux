@@ -750,8 +750,9 @@ static int build_mtree(struct test_file *file)
 	if (block_count == 1) {
 		int seed = get_file_block_seed(file->index, 0);
 
+		memset(data, 0, INCFS_DATA_FILE_BLOCK_SIZE);
 		rnd_buf((uint8_t *)data, file->size, seed);
-		sha256(data, file->size, file->root_hash);
+		sha256(data, INCFS_DATA_FILE_BLOCK_SIZE, file->root_hash);
 		return 0;
 	}
 
@@ -766,11 +767,13 @@ static int build_mtree(struct test_file *file)
 		int seed = get_file_block_seed(file->index, i);
 		char *hash_ptr = file->mtree[block_index].data + block_off;
 
-		if (file->size - offset < block_size)
+		if (file->size - offset < block_size) {
 			block_size = file->size - offset;
+			memset(data, 0, INCFS_DATA_FILE_BLOCK_SIZE);
+		}
 
 		rnd_buf((uint8_t *)data, block_size, seed);
-		sha256(data, block_size, hash_ptr);
+		sha256(data, INCFS_DATA_FILE_BLOCK_SIZE, hash_ptr);
 	}
 
 	/* Build higher levels of hash tree. */
