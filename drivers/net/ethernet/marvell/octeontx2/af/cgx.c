@@ -113,7 +113,6 @@ int cgx_get_cgxcnt_max(void)
 
 	return idmax + 1;
 }
-EXPORT_SYMBOL(cgx_get_cgxcnt_max);
 
 int cgx_get_lmac_cnt(void *cgxd)
 {
@@ -124,7 +123,6 @@ int cgx_get_lmac_cnt(void *cgxd)
 
 	return cgx->lmac_count;
 }
-EXPORT_SYMBOL(cgx_get_lmac_cnt);
 
 void *cgx_get_pdata(int cgx_id)
 {
@@ -136,7 +134,6 @@ void *cgx_get_pdata(int cgx_id)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL(cgx_get_pdata);
 
 int cgx_get_cgxid(void *cgxd)
 {
@@ -164,7 +161,6 @@ int cgx_get_link_info(void *cgxd, int lmac_id,
 	*linfo = lmac->link_info;
 	return 0;
 }
-EXPORT_SYMBOL(cgx_get_link_info);
 
 static u64 mac2u64 (u8 *mac_addr)
 {
@@ -195,7 +191,6 @@ int cgx_lmac_addr_set(u8 cgx_id, u8 lmac_id, u8 *mac_addr)
 
 	return 0;
 }
-EXPORT_SYMBOL(cgx_lmac_addr_set);
 
 u64 cgx_lmac_addr_get(u8 cgx_id, u8 lmac_id)
 {
@@ -205,7 +200,6 @@ u64 cgx_lmac_addr_get(u8 cgx_id, u8 lmac_id)
 	cfg = cgx_read(cgx_dev, 0, CGXX_CMRX_RX_DMAC_CAM0 + lmac_id * 0x8);
 	return cfg & CGX_RX_DMAC_ADR_MASK;
 }
-EXPORT_SYMBOL(cgx_lmac_addr_get);
 
 int cgx_set_pkind(void *cgxd, u8 lmac_id, int pkind)
 {
@@ -217,7 +211,6 @@ int cgx_set_pkind(void *cgxd, u8 lmac_id, int pkind)
 	cgx_write(cgx, lmac_id, CGXX_CMRX_RX_ID_MAP, (pkind & 0x3F));
 	return 0;
 }
-EXPORT_SYMBOL(cgx_set_pkind);
 
 static inline u8 cgx_get_lmac_type(struct cgx *cgx, int lmac_id)
 {
@@ -255,7 +248,6 @@ int cgx_lmac_internal_loopback(void *cgxd, int lmac_id, bool enable)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(cgx_lmac_internal_loopback);
 
 void cgx_lmac_promisc_config(int cgx_id, int lmac_id, bool enable)
 {
@@ -289,7 +281,6 @@ void cgx_lmac_promisc_config(int cgx_id, int lmac_id, bool enable)
 			  (CGXX_CMRX_RX_DMAC_CAM0 + lmac_id * 0x8), cfg);
 	}
 }
-EXPORT_SYMBOL(cgx_lmac_promisc_config);
 
 /* Enable or disable forwarding received pause frames to Tx block */
 void cgx_lmac_enadis_rx_pause_fwding(void *cgxd, int lmac_id, bool enable)
@@ -318,7 +309,6 @@ void cgx_lmac_enadis_rx_pause_fwding(void *cgxd, int lmac_id, bool enable)
 		cgx_write(cgx, lmac_id,	CGXX_SMUX_RX_FRM_CTL, cfg);
 	}
 }
-EXPORT_SYMBOL(cgx_lmac_enadis_rx_pause_fwding);
 
 int cgx_get_rx_stats(void *cgxd, int lmac_id, int idx, u64 *rx_stat)
 {
@@ -329,7 +319,6 @@ int cgx_get_rx_stats(void *cgxd, int lmac_id, int idx, u64 *rx_stat)
 	*rx_stat =  cgx_read(cgx, lmac_id, CGXX_CMRX_RX_STAT0 + (idx * 8));
 	return 0;
 }
-EXPORT_SYMBOL(cgx_get_rx_stats);
 
 int cgx_get_tx_stats(void *cgxd, int lmac_id, int idx, u64 *tx_stat)
 {
@@ -340,7 +329,6 @@ int cgx_get_tx_stats(void *cgxd, int lmac_id, int idx, u64 *tx_stat)
 	*tx_stat = cgx_read(cgx, lmac_id, CGXX_CMRX_TX_STAT0 + (idx * 8));
 	return 0;
 }
-EXPORT_SYMBOL(cgx_get_tx_stats);
 
 int cgx_lmac_rx_tx_enable(void *cgxd, int lmac_id, bool enable)
 {
@@ -358,7 +346,6 @@ int cgx_lmac_rx_tx_enable(void *cgxd, int lmac_id, bool enable)
 	cgx_write(cgx, lmac_id, CGXX_CMRX_CFG, cfg);
 	return 0;
 }
-EXPORT_SYMBOL(cgx_lmac_rx_tx_enable);
 
 int cgx_lmac_tx_enable(void *cgxd, int lmac_id, bool enable)
 {
@@ -379,7 +366,6 @@ int cgx_lmac_tx_enable(void *cgxd, int lmac_id, bool enable)
 		cgx_write(cgx, lmac_id, CGXX_CMRX_CFG, cfg);
 	return !!(last & DATA_PKT_TX_EN);
 }
-EXPORT_SYMBOL(cgx_lmac_tx_enable);
 
 /* CGX Firmware interface low level support */
 static int cgx_fwi_cmd_send(u64 req, u64 *resp, struct lmac *lmac)
@@ -610,7 +596,6 @@ int cgx_get_mkex_prfl_info(u64 *addr, u64 *size)
 
 	return 0;
 }
-EXPORT_SYMBOL(cgx_get_mkex_prfl_info);
 
 static irqreturn_t cgx_fwi_event_handler(int irq, void *data)
 {
@@ -676,7 +661,6 @@ int cgx_lmac_evh_register(struct cgx_event_cb *cb, void *cgxd, int lmac_id)
 
 	return 0;
 }
-EXPORT_SYMBOL(cgx_lmac_evh_register);
 
 int cgx_lmac_evh_unregister(void *cgxd, int lmac_id)
 {
@@ -695,7 +679,6 @@ int cgx_lmac_evh_unregister(void *cgxd, int lmac_id)
 
 	return 0;
 }
-EXPORT_SYMBOL(cgx_lmac_evh_unregister);
 
 static int cgx_fwi_link_change(struct cgx *cgx, int lmac_id, bool enable)
 {
@@ -769,7 +752,6 @@ int cgx_lmac_linkup_start(void *cgxd)
 
 	return 0;
 }
-EXPORT_SYMBOL(cgx_lmac_linkup_start);
 
 static int cgx_lmac_init(struct cgx *cgx)
 {
