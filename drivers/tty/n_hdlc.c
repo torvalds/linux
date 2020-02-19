@@ -175,8 +175,6 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *cp,
 			       char *fp, int count);
 static void n_hdlc_tty_wakeup(struct tty_struct *tty);
 
-#define n_hdlc2tty(n_hdlc)	((n_hdlc)->tty)
-
 static void flush_rx_queue(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
@@ -221,28 +219,6 @@ static void n_hdlc_free_buf_list(struct n_hdlc_buf_list *list)
 }
 
 /**
- * n_hdlc_release - release an n_hdlc per device line discipline info structure
- * @n_hdlc - per device line discipline info structure
- */
-static void n_hdlc_release(struct n_hdlc *n_hdlc)
-{
-	struct tty_struct *tty = n_hdlc2tty (n_hdlc);
-
-	/* Ensure that the n_hdlcd process is not hanging on select()/poll() */
-	wake_up_interruptible (&tty->read_wait);
-	wake_up_interruptible (&tty->write_wait);
-
-	if (tty->disc_data == n_hdlc)
-		tty->disc_data = NULL;	/* Break the tty->n_hdlc link */
-
-	n_hdlc_free_buf_list(&n_hdlc->rx_free_buf_list);
-	n_hdlc_free_buf_list(&n_hdlc->tx_free_buf_list);
-	n_hdlc_free_buf_list(&n_hdlc->rx_buf_list);
-	n_hdlc_free_buf_list(&n_hdlc->tx_buf_list);
-	kfree(n_hdlc);
-}	/* end of n_hdlc_release() */
-
-/**
  * n_hdlc_tty_close - line discipline close
  * @tty - pointer to tty info structure
  *
@@ -266,7 +242,16 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 	tty->disc_data = NULL;
 	if (tty != n_hdlc->tty)
 		return;
-	n_hdlc_release (n_hdlc);
+
+	/* Ensure that the n_hdlcd process is not hanging on select()/poll() */
+	wake_up_interruptible(&tty->read_wait);
+	wake_up_interruptible(&tty->write_wait);
+
+	n_hdlc_free_buf_list(&n_hdlc->rx_free_buf_list);
+	n_hdlc_free_buf_list(&n_hdlc->tx_free_buf_list);
+	n_hdlc_free_buf_list(&n_hdlc->rx_buf_list);
+	n_hdlc_free_buf_list(&n_hdlc->tx_buf_list);
+	kfree(n_hdlc);
 }	/* end of n_hdlc_tty_close() */
 
 /**
