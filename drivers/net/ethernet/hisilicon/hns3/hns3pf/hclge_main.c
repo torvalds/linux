@@ -824,6 +824,8 @@ static void hclge_get_mac_stat(struct hnae3_handle *handle,
 static int hclge_parse_func_status(struct hclge_dev *hdev,
 				   struct hclge_func_status_cmd *status)
 {
+#define HCLGE_MAC_ID_MASK	0xF
+
 	if (!(status->pf_state & HCLGE_PF_STATE_DONE))
 		return -EINVAL;
 
@@ -833,6 +835,7 @@ static int hclge_parse_func_status(struct hclge_dev *hdev,
 	else
 		hdev->flag &= ~HCLGE_FLAG_MAIN;
 
+	hdev->hw.mac.mac_id = status->mac_id & HCLGE_MAC_ID_MASK;
 	return 0;
 }
 
