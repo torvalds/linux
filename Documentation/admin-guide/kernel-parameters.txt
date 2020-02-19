@@ -1775,7 +1775,7 @@
 			provided by tboot because it makes the system
 			vulnerable to DMA attacks.
 		nobounce [Default off]
-			Disable bounce buffer for unstrusted devices such as
+			Disable bounce buffer for untrusted devices such as
 			the Thunderbolt devices. This will treat the untrusted
 			devices as the trusted ones, hence might expose security
 			risks of DMA attacks.
