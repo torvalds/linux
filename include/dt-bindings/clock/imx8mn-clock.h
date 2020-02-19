@@ -232,6 +232,8 @@
 #define IMX8MN_CLK_GPU_CORE			212
 #define IMX8MN_CLK_GPU_SHADER			213
 
-#define IMX8MN_CLK_END				214
+#define IMX8MN_CLK_A53_CORE			214
+
+#define IMX8MN_CLK_END				215
 
 #endif
