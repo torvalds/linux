@@ -1002,12 +1002,14 @@ static ssize_t wq_type_store(struct device *dev,
 		return -EPERM;
 
 	old_type = wq->type;
-	if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_KERNEL]))
+	if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_NONE]))
+		wq->type = IDXD_WQT_NONE;
+	else if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_KERNEL]))
 		wq->type = IDXD_WQT_KERNEL;
 	else if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_USER]))
 		wq->type = IDXD_WQT_USER;
 	else
-		wq->type = IDXD_WQT_NONE;
+		return -EINVAL;
 
 	/* If we are changing queue type, clear the name */
 	if (wq->type != old_type)
