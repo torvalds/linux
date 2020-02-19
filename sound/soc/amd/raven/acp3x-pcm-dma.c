@@ -110,7 +110,7 @@ static void config_acp3x_dma(struct i2s_stream_instance *rtd, int direction)
 {
 	u16 page_idx;
 	u32 low, high, val, acp_fifo_addr, reg_fifo_addr;
-	u32 reg_ringbuf_size, reg_dma_size, reg_fifo_size;
+	u32 reg_dma_size, reg_fifo_size;
 	dma_addr_t addr;
 
 	addr = rtd->dma_addr;
@@ -157,7 +157,6 @@ static void config_acp3x_dma(struct i2s_stream_instance *rtd, int direction)
 	if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
 		switch (rtd->i2s_instance) {
 		case I2S_BT_INSTANCE:
-			reg_ringbuf_size = mmACP_BT_TX_RINGBUFSIZE;
 			reg_dma_size = mmACP_BT_TX_DMA_SIZE;
 			acp_fifo_addr = ACP_SRAM_PTE_OFFSET +
 						BT_PB_FIFO_ADDR_OFFSET;
@@ -169,7 +168,6 @@ static void config_acp3x_dma(struct i2s_stream_instance *rtd, int direction)
 
 		case I2S_SP_INSTANCE:
 		default:
-			reg_ringbuf_size = mmACP_I2S_TX_RINGBUFSIZE;
 			reg_dma_size = mmACP_I2S_TX_DMA_SIZE;
 			acp_fifo_addr = ACP_SRAM_PTE_OFFSET +
 						SP_PB_FIFO_ADDR_OFFSET;
@@ -181,7 +179,6 @@ static void config_acp3x_dma(struct i2s_stream_instance *rtd, int direction)
 	} else {
 		switch (rtd->i2s_instance) {
 		case I2S_BT_INSTANCE:
-			reg_ringbuf_size = mmACP_BT_RX_RINGBUFSIZE;
 			reg_dma_size = mmACP_BT_RX_DMA_SIZE;
 			acp_fifo_addr = ACP_SRAM_PTE_OFFSET +
 						BT_CAPT_FIFO_ADDR_OFFSET;
@@ -193,7 +190,6 @@ static void config_acp3x_dma(struct i2s_stream_instance *rtd, int direction)
 
 		case I2S_SP_INSTANCE:
 		default:
-			reg_ringbuf_size = mmACP_I2S_RX_RINGBUFSIZE;
 			reg_dma_size = mmACP_I2S_RX_DMA_SIZE;
 			acp_fifo_addr = ACP_SRAM_PTE_OFFSET +
 						SP_CAPT_FIFO_ADDR_OFFSET;
@@ -203,7 +199,6 @@ static void config_acp3x_dma(struct i2s_stream_instance *rtd, int direction)
 				rtd->acp3x_base + mmACP_I2S_RX_RINGBUFADDR);
 		}
 	}
-	rv_writel(MAX_BUFFER, rtd->acp3x_base + reg_ringbuf_size);
 	rv_writel(DMA_SIZE, rtd->acp3x_base + reg_dma_size);
 	rv_writel(acp_fifo_addr, rtd->acp3x_base + reg_fifo_addr);
 	rv_writel(FIFO_SIZE, rtd->acp3x_base + reg_fifo_size);
