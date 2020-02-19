@@ -73,6 +73,7 @@
 #define ESDHC_STROBE_DLL_CTRL		0x70
 #define ESDHC_STROBE_DLL_CTRL_ENABLE	(1 << 0)
 #define ESDHC_STROBE_DLL_CTRL_RESET	(1 << 1)
+#define ESDHC_STROBE_DLL_CTRL_SLV_DLY_TARGET_DEFAULT	0x7
 #define ESDHC_STROBE_DLL_CTRL_SLV_DLY_TARGET_SHIFT	3
 #define ESDHC_STROBE_DLL_CTRL_SLV_UPDATE_INT_DEFAULT	(4 << 20)
 
@@ -993,6 +994,9 @@ static int esdhc_change_pinstate(struct sdhci_host *host,
  */
 static void esdhc_set_strobe_dll(struct sdhci_host *host)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
+	u32 strobe_delay;
 	u32 v;
 
 	/* disable clock before enabling strobe dll */
@@ -1010,9 +1014,13 @@ static void esdhc_set_strobe_dll(struct sdhci_host *host)
 	 * enable strobe dll ctrl and adjust the delay target
 	 * for the uSDHC loopback read clock
 	 */
+	if (imx_data->boarddata.strobe_dll_delay_target)
+		strobe_delay = imx_data->boarddata.strobe_dll_delay_target;
+	else
+		strobe_delay = ESDHC_STROBE_DLL_CTRL_SLV_DLY_TARGET_DEFAULT;
 	v = ESDHC_STROBE_DLL_CTRL_ENABLE |
 		ESDHC_STROBE_DLL_CTRL_SLV_UPDATE_INT_DEFAULT |
-		(7 << ESDHC_STROBE_DLL_CTRL_SLV_DLY_TARGET_SHIFT);
+		(strobe_delay << ESDHC_STROBE_DLL_CTRL_SLV_DLY_TARGET_SHIFT);
 	writel(v, host->ioaddr + ESDHC_STROBE_DLL_CTRL);
 	/* wait 5us to make sure strobe dll status register stable */
 	udelay(5);
@@ -1338,6 +1346,8 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 	of_property_read_u32(np, "fsl,tuning-start-tap",
 			     &boarddata->tuning_start_tap);
 
+	of_property_read_u32(np, "fsl,strobe-dll-delay-target",
+				&boarddata->strobe_dll_delay_target);
 	if (of_find_property(np, "no-1-8-v", NULL))
 		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
 
