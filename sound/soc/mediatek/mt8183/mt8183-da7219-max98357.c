@@ -16,20 +16,7 @@
 #include "../../codecs/da7219-aad.h"
 #include "../../codecs/da7219.h"
 
-enum PINCTRL_PIN_STATE {
-	PIN_STATE_DEFAULT = 0,
-	PIN_TDM_OUT_ON,
-	PIN_TDM_OUT_OFF,
-	PIN_STATE_MAX
-};
-
-static const char * const mt8183_pin_str[PIN_STATE_MAX] = {
-	"default", "aud_tdm_out_on", "aud_tdm_out_off",
-};
-
 struct mt8183_da7219_max98357_priv {
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *pin_states[PIN_STATE_MAX];
 	struct snd_soc_jack headset_jack;
 };
 
@@ -259,47 +246,6 @@ SND_SOC_DAILINK_DEFS(tdm,
 	DAILINK_COMP_ARRAY(COMP_DUMMY()),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
-static int mt8183_da7219_tdm_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mt8183_da7219_max98357_priv *priv =
-		snd_soc_card_get_drvdata(rtd->card);
-	int ret;
-
-	if (IS_ERR(priv->pin_states[PIN_TDM_OUT_ON]))
-		return PTR_ERR(priv->pin_states[PIN_TDM_OUT_ON]);
-
-	ret = pinctrl_select_state(priv->pinctrl,
-				   priv->pin_states[PIN_TDM_OUT_ON]);
-	if (ret)
-		dev_err(rtd->card->dev, "%s failed to select state %d\n",
-			__func__, ret);
-
-	return ret;
-}
-
-static void mt8183_da7219_tdm_shutdown(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mt8183_da7219_max98357_priv *priv =
-		snd_soc_card_get_drvdata(rtd->card);
-	int ret;
-
-	if (IS_ERR(priv->pin_states[PIN_TDM_OUT_OFF]))
-		return;
-
-	ret = pinctrl_select_state(priv->pinctrl,
-				   priv->pin_states[PIN_TDM_OUT_OFF]);
-	if (ret)
-		dev_err(rtd->card->dev, "%s failed to select state %d\n",
-			__func__, ret);
-}
-
-static struct snd_soc_ops mt8183_da7219_tdm_ops = {
-	.startup = mt8183_da7219_tdm_startup,
-	.shutdown = mt8183_da7219_tdm_shutdown,
-};
-
 static struct snd_soc_dai_link mt8183_da7219_max98357_dai_links[] = {
 	/* FE */
 	{
@@ -455,7 +401,6 @@ static struct snd_soc_dai_link mt8183_da7219_max98357_dai_links[] = {
 		.dpcm_playback = 1,
 		.ignore_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
-		.ops = &mt8183_da7219_tdm_ops,
 		SND_SOC_DAILINK_REG(tdm),
 	},
 };
@@ -482,10 +427,13 @@ static const struct snd_kcontrol_new mt8183_da7219_max98357_snd_controls[] = {
 static const
 struct snd_soc_dapm_widget mt8183_da7219_max98357_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Speakers", NULL),
+	SND_SOC_DAPM_PINCTRL("TDM_OUT_PINCTRL",
+			     "aud_tdm_out_on", "aud_tdm_out_off"),
 };
 
 static const struct snd_soc_dapm_route mt8183_da7219_max98357_dapm_routes[] = {
 	{"Speakers", NULL, "Speaker"},
+	{"I2S Playback", NULL, "TDM_OUT_PINCTRL"},
 };
 
 static struct snd_soc_card mt8183_da7219_max98357_card = {
@@ -534,6 +482,7 @@ static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 	struct device_node *platform_node;
 	struct snd_soc_dai_link *dai_link;
 	struct mt8183_da7219_max98357_priv *priv;
+	struct pinctrl *pinctrl;
 	int ret, i;
 
 	card->dev = &pdev->dev;
@@ -566,39 +515,12 @@ static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 
 	snd_soc_card_set_drvdata(card, priv);
 
-	priv->pinctrl = devm_pinctrl_get(&pdev->dev);
-	if (IS_ERR(priv->pinctrl)) {
-		dev_err(&pdev->dev, "%s devm_pinctrl_get failed\n",
-			__func__);
-		return PTR_ERR(priv->pinctrl);
-	}
-
-	for (i = 0; i < PIN_STATE_MAX; i++) {
-		priv->pin_states[i] = pinctrl_lookup_state(priv->pinctrl,
-							   mt8183_pin_str[i]);
-		if (IS_ERR(priv->pin_states[i])) {
-			ret = PTR_ERR(priv->pin_states[i]);
-			dev_info(&pdev->dev, "%s Can't find pin state %s %d\n",
-				 __func__, mt8183_pin_str[i], ret);
-		}
-	}
-
-	if (!IS_ERR(priv->pin_states[PIN_TDM_OUT_OFF])) {
-		ret = pinctrl_select_state(priv->pinctrl,
-					   priv->pin_states[PIN_TDM_OUT_OFF]);
-		if (ret)
-			dev_info(&pdev->dev,
-				 "%s failed to select state %d\n",
-				 __func__, ret);
-	}
-
-	if (!IS_ERR(priv->pin_states[PIN_STATE_DEFAULT])) {
-		ret = pinctrl_select_state(priv->pinctrl,
-					   priv->pin_states[PIN_STATE_DEFAULT]);
-		if (ret)
-			dev_info(&pdev->dev,
-				 "%s failed to select state %d\n",
-				 __func__, ret);
+	pinctrl = devm_pinctrl_get_select(&pdev->dev, PINCTRL_STATE_DEFAULT);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		dev_err(&pdev->dev, "%s failed to select default state %d\n",
+			__func__, ret);
+		return ret;
 	}
 
 	return devm_snd_soc_register_card(&pdev->dev, card);
