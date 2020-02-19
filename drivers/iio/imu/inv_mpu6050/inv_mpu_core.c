@@ -1201,7 +1201,7 @@ static int inv_mpu_core_enable_regulator_vddio(struct inv_mpu6050_state *st)
 			"Failed to enable vddio regulator: %d\n", result);
 	} else {
 		/* Give the device a little bit of time to start up. */
-		usleep_range(35000, 70000);
+		usleep_range(3000, 5000);
 	}
 
 	return result;
@@ -1321,6 +1321,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		dev_err(dev, "Failed to enable vdd regulator: %d\n", result);
 		return result;
 	}
+	msleep(INV_MPU6050_POWER_UP_TIME);
 
 	result = inv_mpu_core_enable_regulator_vddio(st);
 	if (result) {
