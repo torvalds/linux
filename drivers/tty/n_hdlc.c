@@ -894,10 +894,7 @@ static int __init n_hdlc_init(void)
 	int status;
 
 	/* range check maxframe arg */
-	if (maxframe < 4096)
-		maxframe = 4096;
-	else if (maxframe > 65535)
-		maxframe = 65535;
+	maxframe = clamp(maxframe, 4096, MAX_HDLC_FRAME_SIZE);
 
 	status = tty_register_ldisc(N_HDLC, &n_hdlc_ldisc);
 	if (!status)
