@@ -206,7 +206,7 @@ medusa_answer_t ipc_update(struct medusa_kobject_s * kobj)
 	ids = medusa_get_ipc_ids(ipc_kobj->ipc_class);
 	if(!ids)
 		goto out_err;
-	
+
 	rcu_read_lock();
 
 	/*

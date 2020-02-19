@@ -129,7 +129,7 @@ void file_kobj_dentry2string(struct dentry * dentry, char * buf)
 	if( IS_ROOT(dentry) )
 	{
 		struct path ndcurrent, ndupper;
-		
+
 		ndcurrent.dentry = dentry;
 		ndcurrent.mnt = NULL;
 		medusa_get_upper_and_parent(&ndcurrent,&ndupper,NULL);
@@ -138,7 +138,7 @@ void file_kobj_dentry2string(struct dentry * dentry, char * buf)
 	}
 	else
 		dget(dentry);
-		
+
 	if (!dentry || IS_ERR(dentry) || !dentry->d_name.name) {
 		buf[0] = '\0';
 		dput(dentry);
