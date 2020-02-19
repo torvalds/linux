@@ -271,6 +271,8 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 
 	case CXGB4_STATE_DETACH:
 		chcr_detach_device(u_ctx);
+		if (!atomic_read(&drv_data.dev_count))
+			stop_crypto();
 		break;
 
 	case CXGB4_STATE_START_RECOVERY:
