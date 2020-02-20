@@ -17,6 +17,62 @@
 #include <linux/wait.h>
 #include "internal.h"
 
+const char * const mhi_ee_str[MHI_EE_MAX] = {
+	[MHI_EE_PBL] = "PBL",
+	[MHI_EE_SBL] = "SBL",
+	[MHI_EE_AMSS] = "AMSS",
+	[MHI_EE_RDDM] = "RDDM",
+	[MHI_EE_WFW] = "WFW",
+	[MHI_EE_PTHRU] = "PASS THRU",
+	[MHI_EE_EDL] = "EDL",
+	[MHI_EE_DISABLE_TRANSITION] = "DISABLE",
+	[MHI_EE_NOT_SUPPORTED] = "NOT SUPPORTED",
+};
+
+const char * const dev_state_tran_str[DEV_ST_TRANSITION_MAX] = {
+	[DEV_ST_TRANSITION_PBL] = "PBL",
+	[DEV_ST_TRANSITION_READY] = "READY",
+	[DEV_ST_TRANSITION_SBL] = "SBL",
+	[DEV_ST_TRANSITION_MISSION_MODE] = "MISSION_MODE",
+};
+
+const char * const mhi_state_str[MHI_STATE_MAX] = {
+	[MHI_STATE_RESET] = "RESET",
+	[MHI_STATE_READY] = "READY",
+	[MHI_STATE_M0] = "M0",
+	[MHI_STATE_M1] = "M1",
+	[MHI_STATE_M2] = "M2",
+	[MHI_STATE_M3] = "M3",
+	[MHI_STATE_M3_FAST] = "M3_FAST",
+	[MHI_STATE_BHI] = "BHI",
+	[MHI_STATE_SYS_ERR] = "SYS_ERR",
+};
+
+static const char * const mhi_pm_state_str[] = {
+	[MHI_PM_STATE_DISABLE] = "DISABLE",
+	[MHI_PM_STATE_POR] = "POR",
+	[MHI_PM_STATE_M0] = "M0",
+	[MHI_PM_STATE_M2] = "M2",
+	[MHI_PM_STATE_M3_ENTER] = "M?->M3",
+	[MHI_PM_STATE_M3] = "M3",
+	[MHI_PM_STATE_M3_EXIT] = "M3->M0",
+	[MHI_PM_STATE_FW_DL_ERR] = "FW DL Error",
+	[MHI_PM_STATE_SYS_ERR_DETECT] = "SYS_ERR Detect",
+	[MHI_PM_STATE_SYS_ERR_PROCESS] = "SYS_ERR Process",
+	[MHI_PM_STATE_SHUTDOWN_PROCESS] = "SHUTDOWN Process",
+	[MHI_PM_STATE_LD_ERR_FATAL_DETECT] = "LD or Error Fatal Detect",
+};
+
+const char *to_mhi_pm_state_str(enum mhi_pm_state state)
+{
+	int index = find_last_bit((unsigned long *)&state, 32);
+
+	if (index >= ARRAY_SIZE(mhi_pm_state_str))
+		return "Invalid State";
+
+	return mhi_pm_state_str[index];
+}
+
 int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 {
 	u32 val;
@@ -364,6 +420,11 @@ static int parse_config(struct mhi_controller *mhi_cntrl,
 	if (!mhi_cntrl->buffer_len)
 		mhi_cntrl->buffer_len = MHI_MAX_MTU;
 
+	/* By default, host is allowed to ring DB in both M0 and M2 states */
+	mhi_cntrl->db_access = MHI_PM_M0 | MHI_PM_M2;
+	if (config->m2_no_db)
+		mhi_cntrl->db_access &= ~MHI_PM_M2;
+
 	return 0;
 
 error_ev_cfg:
@@ -403,8 +464,12 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	}
 
 	INIT_LIST_HEAD(&mhi_cntrl->transition_list);
+	mutex_init(&mhi_cntrl->pm_mutex);
+	rwlock_init(&mhi_cntrl->pm_lock);
 	spin_lock_init(&mhi_cntrl->transition_lock);
 	spin_lock_init(&mhi_cntrl->wlock);
+	INIT_WORK(&mhi_cntrl->st_worker, mhi_pm_st_worker);
+	INIT_WORK(&mhi_cntrl->syserr_worker, mhi_pm_sys_err_worker);
 	init_waitqueue_head(&mhi_cntrl->state_event);
 
 	mhi_cmd = mhi_cntrl->mhi_cmd;

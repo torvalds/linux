@@ -106,6 +106,31 @@ enum mhi_ee_type {
 };
 
 /**
+ * enum mhi_state - MHI states
+ * @MHI_STATE_RESET: Reset state
+ * @MHI_STATE_READY: Ready state
+ * @MHI_STATE_M0: M0 state
+ * @MHI_STATE_M1: M1 state
+ * @MHI_STATE_M2: M2 state
+ * @MHI_STATE_M3: M3 state
+ * @MHI_STATE_M3_FAST: M3 Fast state
+ * @MHI_STATE_BHI: BHI state
+ * @MHI_STATE_SYS_ERR: System Error state
+ */
+enum mhi_state {
+	MHI_STATE_RESET = 0x0,
+	MHI_STATE_READY = 0x1,
+	MHI_STATE_M0 = 0x2,
+	MHI_STATE_M1 = 0x3,
+	MHI_STATE_M2 = 0x4,
+	MHI_STATE_M3 = 0x5,
+	MHI_STATE_M3_FAST = 0x6,
+	MHI_STATE_BHI = 0x7,
+	MHI_STATE_SYS_ERR = 0xFF,
+	MHI_STATE_MAX,
+};
+
+/**
  * enum mhi_ch_ee_mask - Execution environment mask for channel
  * @MHI_CH_EE_PBL: Allow channel to be used in PBL EE
  * @MHI_CH_EE_SBL: Allow channel to be used in SBL EE
@@ -266,6 +291,7 @@ struct mhi_controller_config {
  * @pm_state: MHI power management state
  * @db_access: DB access states
  * @ee: MHI device execution environment
+ * @dev_state: MHI device state
  * @dev_wake: Device wakeup count
  * @pending_pkts: Pending packets for the controller
  * @transition_list: List of MHI state transitions
@@ -298,6 +324,7 @@ struct mhi_controller {
 	void __iomem *regs;
 	void __iomem *bhi;
 	void __iomem *wake_db;
+
 	dma_addr_t iova_start;
 	dma_addr_t iova_stop;
 	const char *fw_image;
@@ -324,6 +351,7 @@ struct mhi_controller {
 	u32 pm_state;
 	u32 db_access;
 	enum mhi_ee_type ee;
+	enum mhi_state dev_state;
 	atomic_t dev_wake;
 	atomic_t pending_pkts;
 	struct list_head transition_list;
@@ -392,6 +420,22 @@ struct mhi_result {
 };
 
 /**
+ * struct mhi_buf - MHI Buffer description
+ * @buf: Virtual address of the buffer
+ * @name: Buffer label. For offload channel, configurations name must be:
+ *        ECA - Event context array data
+ *        CCA - Channel context array data
+ * @dma_addr: IOMMU address of the buffer
+ * @len: # of bytes
+ */
+struct mhi_buf {
+	void *buf;
+	const char *name;
+	dma_addr_t dma_addr;
+	size_t len;
+};
+
+/**
  * struct mhi_driver - Structure representing a MHI client driver
  * @probe: CB function for client driver probe function
  * @remove: CB function for client driver remove function
@@ -441,5 +485,13 @@ int mhi_driver_register(struct mhi_driver *mhi_drv);
  * @mhi_drv: Driver associated with the device
  */
 void mhi_driver_unregister(struct mhi_driver *mhi_drv);
+
+/**
+ * mhi_set_mhi_state - Set MHI device state
+ * @mhi_cntrl: MHI controller
+ * @state: State to set
+ */
+void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl,
+		       enum mhi_state state);
 
 #endif /* _MHI_H_ */
