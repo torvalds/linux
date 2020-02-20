@@ -69,6 +69,7 @@ struct _vcs_dpi_voltage_scaling_st {
 
 struct _vcs_dpi_soc_bounding_box_st {
 	struct _vcs_dpi_voltage_scaling_st clock_limits[MAX_CLOCK_LIMIT_STATES];
+	unsigned int num_states;
 	double sr_exit_time_us;
 	double sr_enter_plus_exit_time_us;
 	double urgent_latency_us;
@@ -111,7 +112,6 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double xfc_bus_transport_time_us;
 	double xfc_xbuf_latency_tolerance_us;
 	int use_urgent_burst_bw;
-	unsigned int num_states;
 	double min_dcfclk;
 	bool do_urgent_latency_adjustment;
 	double urgent_latency_adjustment_fabric_clock_component_us;
