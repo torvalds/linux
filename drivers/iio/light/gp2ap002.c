@@ -205,71 +205,27 @@ err_retrig:
 	return IRQ_HANDLED;
 }
 
-struct gp2ap002_illuminance {
-	unsigned int curr;
-	unsigned int lux;
-};
-
 /*
  * This array maps current and lux.
  *
  * Ambient light sensing range is 3 to 55000 lux.
  *
  * This mapping is based on the following formula.
- * illuminance = 10 ^ (current / 10)
+ * illuminance = 10 ^ (current[mA] / 10)
+ *
+ * When the ADC measures 0, return 0 lux.
  */
-static const struct gp2ap002_illuminance gp2ap002_illuminance_table[] = {
-	{ .curr		= 5, .lux	= 3 },
-	{ .curr		= 6, .lux	= 4 },
-	{ .curr		= 7, .lux	= 5 },
-	{ .curr		= 8, .lux	= 6 },
-	{ .curr		= 9, .lux	= 8 },
-	{ .curr		= 10, .lux	= 10 },
-	{ .curr		= 11, .lux	= 12 },
-	{ .curr		= 12, .lux	= 16 },
-	{ .curr		= 13, .lux	= 20 },
-	{ .curr		= 14, .lux	= 25 },
-	{ .curr		= 15, .lux	= 32 },
-	{ .curr		= 16, .lux	= 40 },
-	{ .curr		= 17, .lux	= 50 },
-	{ .curr		= 18, .lux	= 63 },
-	{ .curr		= 19, .lux	= 79 },
-	{ .curr		= 20, .lux	= 100 },
-	{ .curr		= 21, .lux	= 126 },
-	{ .curr		= 22, .lux	= 158 },
-	{ .curr		= 23, .lux	= 200 },
-	{ .curr		= 24, .lux	= 251 },
-	{ .curr		= 25, .lux	= 316 },
-	{ .curr		= 26, .lux	= 398 },
-	{ .curr		= 27, .lux	= 501 },
-	{ .curr		= 28, .lux	= 631 },
-	{ .curr		= 29, .lux	= 794 },
-	{ .curr		= 30, .lux	= 1000 },
-	{ .curr		= 31, .lux	= 1259 },
-	{ .curr		= 32, .lux	= 1585 },
-	{ .curr		= 33, .lux	= 1995 },
-	{ .curr		= 34, .lux	= 2512 },
-	{ .curr		= 35, .lux	= 3162 },
-	{ .curr		= 36, .lux	= 3981 },
-	{ .curr		= 37, .lux	= 5012 },
-	{ .curr		= 38, .lux	= 6310 },
-	{ .curr		= 39, .lux	= 7943 },
-	{ .curr		= 40, .lux	= 10000 },
-	{ .curr		= 41, .lux	= 12589 },
-	{ .curr		= 42, .lux	= 15849 },
-	{ .curr		= 43, .lux	= 19953 },
-	{ .curr		= 44, .lux	= 25119 },
-	{ .curr		= 45, .lux	= 31623 },
-	{ .curr		= 46, .lux	= 39811 },
-	{ .curr		= 47, .lux	= 50119 },
+static const u16 gp2ap002_illuminance_table[] = {
+	0, 1, 1, 2, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 25, 32, 40, 50, 63, 79,
+	100, 126, 158, 200, 251, 316, 398, 501, 631, 794, 1000, 1259, 1585,
+	1995, 2512, 3162, 3981, 5012, 6310, 7943, 10000, 12589, 15849, 19953,
+	25119, 31623, 39811, 50119,
 };
 
 static int gp2ap002_get_lux(struct gp2ap002 *gp2ap002)
 {
-	const struct gp2ap002_illuminance *ill1;
-	const struct gp2ap002_illuminance *ill2;
 	int ret, res;
-	int i;
+	u16 lux;
 
 	ret = iio_read_channel_processed(gp2ap002->alsout, &res);
 	if (ret < 0)
@@ -277,31 +233,11 @@ static int gp2ap002_get_lux(struct gp2ap002 *gp2ap002)
 
 	dev_dbg(gp2ap002->dev, "read %d mA from ADC\n", res);
 
-	ill1 = &gp2ap002_illuminance_table[0];
-	if (res < ill1->curr) {
-		dev_dbg(gp2ap002->dev, "total darkness\n");
-		return 0;
-	}
-	for (i = 0; i < ARRAY_SIZE(gp2ap002_illuminance_table) - 1; i++) {
-		ill1 = &gp2ap002_illuminance_table[i];
-		ill2 = &gp2ap002_illuminance_table[i + 1];
+	/* ensure we don't under/overflow */
+	res = clamp(res, 0, (int)ARRAY_SIZE(gp2ap002_illuminance_table) - 1);
+	lux = gp2ap002_illuminance_table[res];
 
-		if (res > ill2->curr)
-			continue;
-		if ((res <= ill1->curr) && (res >= ill2->curr))
-			break;
-	}
-	if (res > ill2->curr) {
-		dev_info_once(gp2ap002->dev, "max current overflow\n");
-		return ill2->curr;
-	}
-	/* Interpolate and return */
-	dev_dbg(gp2ap002->dev, "interpolate index %d and %d\n", i, i + 1);
-	/* How many steps along the curve */
-	i = res - ill1->curr; /* x - x0 */
-	/* Linear interpolation */
-	return ill1->lux + i *
-		((ill2->lux - ill1->lux) / (ill2->curr - ill1->curr));
+	return (int)lux;
 }
 
 static int gp2ap002_read_raw(struct iio_dev *indio_dev,
