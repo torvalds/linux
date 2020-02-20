@@ -40,7 +40,7 @@ static void proc_evict_inode(struct inode *inode)
 
 	/* Stop tracking associated processes */
 	if (ei->pid) {
-		put_pid(ei->pid);
+		proc_pid_evict_inode(ei);
 		ei->pid = NULL;
 	}
 
