@@ -46,7 +46,6 @@
 
 
 #define DRIVER_NAME "uml-vector"
-#define DRIVER_VERSION "01"
 struct vector_cmd_line_arg {
 	struct list_head list;
 	int unit;
@@ -1378,7 +1377,6 @@ static void vector_net_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
 }
 
 static int vector_net_load_bpf_flash(struct net_device *dev,
