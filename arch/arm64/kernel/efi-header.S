@@ -36,8 +36,8 @@ extra_header_fields:
 	.long	PECOFF_FILE_ALIGNMENT			// FileAlignment
 	.short	0					// MajorOperatingSystemVersion
 	.short	0					// MinorOperatingSystemVersion
-	.short	0					// MajorImageVersion
-	.short	0					// MinorImageVersion
+	.short	LINUX_EFISTUB_MAJOR_VERSION		// MajorImageVersion
+	.short	LINUX_EFISTUB_MINOR_VERSION		// MinorImageVersion
 	.short	0					// MajorSubsystemVersion
 	.short	0					// MinorSubsystemVersion
 	.long	0					// Win32VersionValue

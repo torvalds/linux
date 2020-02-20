@@ -10,6 +10,9 @@
 
 #include <linux/types.h>
 
+#define LINUX_EFISTUB_MAJOR_VERSION		0x0
+#define LINUX_EFISTUB_MINOR_VERSION		0x0
+
 #define MZ_MAGIC	0x5a4d	/* "MZ" */
 
 #define PE_MAGIC		0x00004550	/* "PE\0\0" */
