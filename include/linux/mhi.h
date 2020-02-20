@@ -240,6 +240,8 @@ struct mhi_controller_config {
  *            controller (required)
  * @mhi_dev: MHI device instance for the controller
  * @regs: Base address of MHI MMIO register space (required)
+ * @bhi: Points to base of MHI BHI register space
+ * @wake_db: MHI WAKE doorbell register address
  * @iova_start: IOMMU starting address for data (required)
  * @iova_stop: IOMMU stop address for data (required)
  * @fw_image: Firmware image name for normal booting (required)
@@ -294,6 +296,8 @@ struct mhi_controller {
 	struct device *cntrl_dev;
 	struct mhi_device *mhi_dev;
 	void __iomem *regs;
+	void __iomem *bhi;
+	void __iomem *wake_db;
 	dma_addr_t iova_start;
 	dma_addr_t iova_stop;
 	const char *fw_image;
