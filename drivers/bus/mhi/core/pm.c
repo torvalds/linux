@@ -450,6 +450,16 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl,
 
 	/* We must notify MHI control driver so it can clean up first */
 	if (transition_state == MHI_PM_SYS_ERR_PROCESS) {
+		/*
+		 * If controller supports RDDM, we do not process
+		 * SYS error state, instead we will jump directly
+		 * to RDDM state
+		 */
+		if (mhi_cntrl->rddm_image) {
+			dev_dbg(dev,
+				 "Controller supports RDDM, so skip SYS_ERR\n");
+			return;
+		}
 		mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_SYS_ERROR);
 	}
 
@@ -895,3 +905,25 @@ int mhi_sync_power_up(struct mhi_controller *mhi_cntrl)
 	return (MHI_IN_MISSION_MODE(mhi_cntrl->ee)) ? 0 : -EIO;
 }
 EXPORT_SYMBOL(mhi_sync_power_up);
+
+int mhi_force_rddm_mode(struct mhi_controller *mhi_cntrl)
+{
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	int ret;
+
+	/* Check if device is already in RDDM */
+	if (mhi_cntrl->ee == MHI_EE_RDDM)
+		return 0;
+
+	dev_dbg(dev, "Triggering SYS_ERR to force RDDM state\n");
+	mhi_set_mhi_state(mhi_cntrl, MHI_STATE_SYS_ERR);
+
+	/* Wait for RDDM event */
+	ret = wait_event_timeout(mhi_cntrl->state_event,
+				 mhi_cntrl->ee == MHI_EE_RDDM,
+				 msecs_to_jiffies(mhi_cntrl->timeout_ms));
+	ret = ret ? 0 : -EIO;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mhi_force_rddm_mode);
