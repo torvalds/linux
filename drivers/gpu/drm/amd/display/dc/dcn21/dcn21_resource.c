@@ -85,6 +85,7 @@
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
 #include "dce/dmub_psr.h"
+#include "dce/dmub_abm.h"
 
 #define SOC_BOUNDING_BOX_VALID false
 #define DC_LOGGER_INIT(logger)
@@ -991,9 +992,12 @@ static void dcn21_resource_destruct(struct dcn21_resource_pool *pool)
 		pool->base.dp_clock_source = NULL;
 	}
 
-
-	if (pool->base.abm != NULL)
-		dce_abm_destroy(&pool->base.abm);
+	if (pool->base.abm != NULL) {
+		if (pool->base.abm->ctx->dc->debug.disable_dmcu)
+			dmub_abm_destroy(&pool->base.abm);
+		else
+			dce_abm_destroy(&pool->base.abm);
+	}
 
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
@@ -1842,14 +1846,16 @@ static bool dcn21_resource_construct(
 		goto create_fail;
 	}
 
-	pool->base.dmcu = dcn21_dmcu_create(ctx,
-			&dmcu_regs,
-			&dmcu_shift,
-			&dmcu_mask);
-	if (pool->base.dmcu == NULL) {
-		dm_error("DC: failed to create dmcu!\n");
-		BREAK_TO_DEBUGGER();
-		goto create_fail;
+	if (!dc->debug.disable_dmcu) {
+		pool->base.dmcu = dcn21_dmcu_create(ctx,
+				&dmcu_regs,
+				&dmcu_shift,
+				&dmcu_mask);
+		if (pool->base.dmcu == NULL) {
+			dm_error("DC: failed to create dmcu!\n");
+			BREAK_TO_DEBUGGER();
+			goto create_fail;
+		}
 	}
 
 	if (dc->debug.disable_dmcu) {
@@ -1862,15 +1868,16 @@ static bool dcn21_resource_construct(
 		}
 	}
 
-	pool->base.abm = dce_abm_create(ctx,
+	if (dc->debug.disable_dmcu)
+		pool->base.abm = dmub_abm_create(ctx,
 			&abm_regs,
 			&abm_shift,
 			&abm_mask);
-	if (pool->base.abm == NULL) {
-		dm_error("DC: failed to create abm!\n");
-		BREAK_TO_DEBUGGER();
-		goto create_fail;
-	}
+	else
+		pool->base.abm = dce_abm_create(ctx,
+			&abm_regs,
+			&abm_shift,
+			&abm_mask);
 
 	pool->base.pp_smu = dcn21_pp_smu_create(ctx);
 
