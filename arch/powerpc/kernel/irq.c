@@ -599,8 +599,10 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 
 static inline void check_stack_overflow(void)
 {
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
 	long sp;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_STACKOVERFLOW))
+		return;
 
 	sp = current_stack_pointer & (THREAD_SIZE - 1);
 
@@ -609,7 +611,6 @@ static inline void check_stack_overflow(void)
 		pr_err("do_IRQ: stack overflow: %ld\n", sp);
 		dump_stack();
 	}
-#endif
 }
 
 void __do_irq(struct pt_regs *regs)
