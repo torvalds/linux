@@ -4103,8 +4103,9 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	path->reada = READA_BACK;
 
-	lock_extent_bits(&BTRFS_I(inode)->io_tree, lock_start, (u64)-1,
-			 &cached_state);
+	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID)
+		lock_extent_bits(&BTRFS_I(inode)->io_tree, lock_start, (u64)-1,
+				 &cached_state);
 
 	/*
 	 * We want to drop from the next block forward in case this new size is
@@ -4368,10 +4369,9 @@ out:
 		if (!ret && last_size > new_size)
 			last_size = new_size;
 		btrfs_ordered_update_i_size(inode, last_size, NULL);
+		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lock_start,
+				     (u64)-1, &cached_state);
 	}
-
-	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lock_start, (u64)-1,
-			     &cached_state);
 
 	btrfs_free_path(path);
 	return ret;
