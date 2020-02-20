@@ -605,6 +605,35 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 }
 
 /**
+ * of_gpiochip_add_hog - Add all hogs in a hog device node
+ * @chip:	gpio chip to act on
+ * @hog:	device node describing the hogs
+ *
+ * Returns error if it fails otherwise 0 on success.
+ */
+static int of_gpiochip_add_hog(struct gpio_chip *chip, struct device_node *hog)
+{
+	enum gpiod_flags dflags;
+	struct gpio_desc *desc;
+	unsigned long lflags;
+	const char *name;
+	unsigned int i;
+	int ret;
+
+	for (i = 0;; i++) {
+		desc = of_parse_own_gpio(hog, chip, i, &name, &lflags, &dflags);
+		if (IS_ERR(desc))
+			break;
+
+		ret = gpiod_hog(desc, name, lflags, dflags);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
  * of_gpiochip_scan_gpios - Scan gpio-controller for gpio definitions
  * @chip:	gpio chip to act on
  *
@@ -614,29 +643,17 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
  */
 static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 {
-	struct gpio_desc *desc = NULL;
 	struct device_node *np;
-	const char *name;
-	unsigned long lflags;
-	enum gpiod_flags dflags;
-	unsigned int i;
 	int ret;
 
 	for_each_available_child_of_node(chip->of_node, np) {
 		if (!of_property_read_bool(np, "gpio-hog"))
 			continue;
 
-		for (i = 0;; i++) {
-			desc = of_parse_own_gpio(np, chip, i, &name, &lflags,
-						 &dflags);
-			if (IS_ERR(desc))
-				break;
-
-			ret = gpiod_hog(desc, name, lflags, dflags);
-			if (ret < 0) {
-				of_node_put(np);
-				return ret;
-			}
+		ret = of_gpiochip_add_hog(chip, np);
+		if (ret < 0) {
+			of_node_put(np);
+			return ret;
 		}
 	}
 
