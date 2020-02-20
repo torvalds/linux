@@ -3103,6 +3103,9 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 		clear_bit(FLAG_PULL_DOWN, &desc->flags);
 		clear_bit(FLAG_BIAS_DISABLE, &desc->flags);
 		clear_bit(FLAG_IS_HOGGED, &desc->flags);
+#ifdef CONFIG_OF_DYNAMIC
+		desc->hog = NULL;
+#endif
 		ret = true;
 	}
 
@@ -5281,10 +5284,15 @@ static int __init gpiolib_dev_init(void)
 	if (ret < 0) {
 		pr_err("gpiolib: failed to allocate char dev region\n");
 		bus_unregister(&gpio_bus_type);
-	} else {
-		gpiolib_initialized = true;
-		gpiochip_setup_devs();
+		return ret;
 	}
+
+	gpiolib_initialized = true;
+	gpiochip_setup_devs();
+
+	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
+		WARN_ON(of_reconfig_notifier_register(&gpio_of_notifier));
+
 	return ret;
 }
 core_initcall(gpiolib_dev_init);
