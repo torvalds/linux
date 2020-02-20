@@ -14,14 +14,19 @@
 #include "spectrum_span.h"
 #include "spectrum_switchdev.h"
 
+struct mlxsw_sp_span {
+	struct mlxsw_sp_span_entry *entries;
+	int entries_count;
+};
+
 static u64 mlxsw_sp_span_occ_get(void *priv)
 {
 	const struct mlxsw_sp *mlxsw_sp = priv;
 	u64 occ = 0;
 	int i;
 
-	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
-		if (mlxsw_sp->span.entries[i].ref_count)
+	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
+		if (mlxsw_sp->span->entries[i].ref_count)
 			occ++;
 	}
 
@@ -31,21 +36,29 @@ static u64 mlxsw_sp_span_occ_get(void *priv)
 int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
-	int i;
+	struct mlxsw_sp_span *span;
+	int i, err;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_SPAN))
 		return -EIO;
 
-	mlxsw_sp->span.entries_count = MLXSW_CORE_RES_GET(mlxsw_sp->core,
-							  MAX_SPAN);
-	mlxsw_sp->span.entries = kcalloc(mlxsw_sp->span.entries_count,
-					 sizeof(struct mlxsw_sp_span_entry),
-					 GFP_KERNEL);
-	if (!mlxsw_sp->span.entries)
+	span = kzalloc(sizeof(*span), GFP_KERNEL);
+	if (!span)
 		return -ENOMEM;
+	mlxsw_sp->span = span;
 
-	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
-		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+	mlxsw_sp->span->entries_count = MLXSW_CORE_RES_GET(mlxsw_sp->core,
+							   MAX_SPAN);
+	mlxsw_sp->span->entries = kcalloc(mlxsw_sp->span->entries_count,
+					  sizeof(struct mlxsw_sp_span_entry),
+					  GFP_KERNEL);
+	if (!mlxsw_sp->span->entries) {
+		err = -ENOMEM;
+		goto err_alloc_span_entries;
+	}
+
+	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 
 		INIT_LIST_HEAD(&curr->bound_ports_list);
 		curr->id = i;
@@ -55,6 +68,10 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 					  mlxsw_sp_span_occ_get, mlxsw_sp);
 
 	return 0;
+
+err_alloc_span_entries:
+	kfree(span);
+	return err;
 }
 
 void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
@@ -64,12 +81,13 @@ void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
 
 	devlink_resource_occ_get_unregister(devlink, MLXSW_SP_RESOURCE_SPAN);
 
-	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
-		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 
 		WARN_ON_ONCE(!list_empty(&curr->bound_ports_list));
 	}
-	kfree(mlxsw_sp->span.entries);
+	kfree(mlxsw_sp->span->entries);
+	kfree(mlxsw_sp->span);
 }
 
 static int
@@ -645,9 +663,9 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp *mlxsw_sp,
 	int i;
 
 	/* find a free entry to use */
-	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
-		if (!mlxsw_sp->span.entries[i].ref_count) {
-			span_entry = &mlxsw_sp->span.entries[i];
+	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
+		if (!mlxsw_sp->span->entries[i].ref_count) {
+			span_entry = &mlxsw_sp->span->entries[i];
 			break;
 		}
 	}
@@ -673,8 +691,8 @@ mlxsw_sp_span_entry_find_by_port(struct mlxsw_sp *mlxsw_sp,
 {
 	int i;
 
-	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
-		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 
 		if (curr->ref_count && curr->to_dev == to_dev)
 			return curr;
@@ -694,8 +712,8 @@ mlxsw_sp_span_entry_find_by_id(struct mlxsw_sp *mlxsw_sp, int span_id)
 {
 	int i;
 
-	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
-		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 
 		if (curr->ref_count && curr->id == span_id)
 			return curr;
@@ -736,8 +754,8 @@ static bool mlxsw_sp_span_is_egress_mirror(struct mlxsw_sp_port *port)
 	struct mlxsw_sp_span_inspected_port *p;
 	int i;
 
-	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
-		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 
 		list_for_each_entry(p, &curr->bound_ports_list, list)
 			if (p->local_port == port->local_port &&
@@ -842,9 +860,9 @@ mlxsw_sp_span_inspected_port_add(struct mlxsw_sp_port *port,
 	 * so if a binding is requested, check for conflicts.
 	 */
 	if (bind)
-		for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
+		for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
 			struct mlxsw_sp_span_entry *curr =
-				&mlxsw_sp->span.entries[i];
+				&mlxsw_sp->span->entries[i];
 
 			if (mlxsw_sp_span_entry_bound_port_find(curr, type,
 								port, bind))
@@ -994,8 +1012,8 @@ void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp)
 	int err;
 
 	ASSERT_RTNL();
-	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
-		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
 		struct mlxsw_sp_span_parms sparms = {NULL};
 
 		if (!curr->ref_count)
