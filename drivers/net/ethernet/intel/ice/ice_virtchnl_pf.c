@@ -171,6 +171,11 @@ static void ice_free_vf_res(struct ice_vf *vf)
 	}
 
 	last_vector_idx = vf->first_vector_idx + pf->num_vf_msix - 1;
+
+	/* clear VF MDD event information */
+	memset(&vf->mdd_tx_events, 0, sizeof(vf->mdd_tx_events));
+	memset(&vf->mdd_rx_events, 0, sizeof(vf->mdd_rx_events));
+
 	/* Disable interrupts so that VF starts in a known state */
 	for (i = vf->first_vector_idx; i <= last_vector_idx; i++) {
 		wr32(&pf->hw, GLINT_DYN_CTL(i), GLINT_DYN_CTL_CLEARPBA_M);
@@ -1175,7 +1180,7 @@ static bool ice_is_vf_disabled(struct ice_vf *vf)
  *
  * Returns true if the VF is reset, false otherwise.
  */
-static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
+bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 {
 	struct ice_pf *pf = vf->pf;
 	struct ice_vsi *vsi;
@@ -2013,7 +2018,7 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 
 	status = ice_update_vsi(&pf->hw, vf_vsi->idx, ctx, NULL);
 	if (status) {
-		dev_err(dev, "Failed to %sable spoofchk on VF %d VSI %d\n error %d",
+		dev_err(dev, "Failed to %sable spoofchk on VF %d VSI %d\n error %d\n",
 			ena ? "en" : "dis", vf->vf_id, vf_vsi->vsi_num, status);
 		ret = -EIO;
 		goto out;
@@ -3528,4 +3533,53 @@ int ice_get_vf_stats(struct net_device *netdev, int vf_id,
 	vf_stats->tx_dropped = stats->tx_discards;
 
 	return 0;
+}
+
+/**
+ * ice_print_vfs_mdd_event - print VFs malicious driver detect event
+ * @pf: pointer to the PF structure
+ *
+ * Called from ice_handle_mdd_event to rate limit and print VFs MDD events.
+ */
+void ice_print_vfs_mdd_events(struct ice_pf *pf)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	int i;
+
+	/* check that there are pending MDD events to print */
+	if (!test_and_clear_bit(__ICE_MDD_VF_PRINT_PENDING, pf->state))
+		return;
+
+	/* VF MDD event logs are rate limited to one second intervals */
+	if (time_is_after_jiffies(pf->last_printed_mdd_jiffies + HZ * 1))
+		return;
+
+	pf->last_printed_mdd_jiffies = jiffies;
+
+	ice_for_each_vf(pf, i) {
+		struct ice_vf *vf = &pf->vf[i];
+
+		/* only print Rx MDD event message if there are new events */
+		if (vf->mdd_rx_events.count != vf->mdd_rx_events.last_printed) {
+			vf->mdd_rx_events.last_printed =
+							vf->mdd_rx_events.count;
+
+			dev_info(dev, "%d Rx Malicious Driver Detection events detected on PF %d VF %d MAC %pM. mdd-auto-reset-vfs=%s\n",
+				 vf->mdd_rx_events.count, hw->pf_id, i,
+				 vf->dflt_lan_addr.addr,
+				 test_bit(ICE_FLAG_MDD_AUTO_RESET_VF, pf->flags)
+					  ? "on" : "off");
+		}
+
+		/* only print Tx MDD event message if there are new events */
+		if (vf->mdd_tx_events.count != vf->mdd_tx_events.last_printed) {
+			vf->mdd_tx_events.last_printed =
+							vf->mdd_tx_events.count;
+
+			dev_info(dev, "%d Tx Malicious Driver Detection events detected on PF %d VF %d MAC %pM.\n",
+				 vf->mdd_tx_events.count, hw->pf_id, i,
+				 vf->dflt_lan_addr.addr);
+		}
+	}
 }

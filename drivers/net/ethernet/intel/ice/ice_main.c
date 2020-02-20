@@ -1187,20 +1187,28 @@ static void ice_service_timer(struct timer_list *t)
  * ice_handle_mdd_event - handle malicious driver detect event
  * @pf: pointer to the PF structure
  *
- * Called from service task. OICR interrupt handler indicates MDD event
+ * Called from service task. OICR interrupt handler indicates MDD event.
+ * VF MDD logging is guarded by net_ratelimit. Additional PF and VF log
+ * messages are wrapped by netif_msg_[rx|tx]_err. Since VF Rx MDD events
+ * disable the queue, the PF can be configured to reset the VF using ethtool
+ * private flag mdd-auto-reset-vf.
  */
 static void ice_handle_mdd_event(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	bool mdd_detected = false;
 	u32 reg;
 	int i;
 
-	if (!test_and_clear_bit(__ICE_MDD_EVENT_PENDING, pf->state))
+	if (!test_and_clear_bit(__ICE_MDD_EVENT_PENDING, pf->state)) {
+		/* Since the VF MDD event logging is rate limited, check if
+		 * there are pending MDD events.
+		 */
+		ice_print_vfs_mdd_events(pf);
 		return;
+	}
 
-	/* find what triggered the MDD event */
+	/* find what triggered an MDD event */
 	reg = rd32(hw, GL_MDET_TX_PQM);
 	if (reg & GL_MDET_TX_PQM_VALID_M) {
 		u8 pf_num = (reg & GL_MDET_TX_PQM_PF_NUM_M) >>
@@ -1216,7 +1224,6 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 			dev_info(dev, "Malicious Driver Detection event %d on TX queue %d PF# %d VF# %d\n",
 				 event, queue, pf_num, vf_num);
 		wr32(hw, GL_MDET_TX_PQM, 0xffffffff);
-		mdd_detected = true;
 	}
 
 	reg = rd32(hw, GL_MDET_TX_TCLAN);
@@ -1234,7 +1241,6 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 			dev_info(dev, "Malicious Driver Detection event %d on TX queue %d PF# %d VF# %d\n",
 				 event, queue, pf_num, vf_num);
 		wr32(hw, GL_MDET_TX_TCLAN, 0xffffffff);
-		mdd_detected = true;
 	}
 
 	reg = rd32(hw, GL_MDET_RX);
@@ -1252,85 +1258,85 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 			dev_info(dev, "Malicious Driver Detection event %d on RX queue %d PF# %d VF# %d\n",
 				 event, queue, pf_num, vf_num);
 		wr32(hw, GL_MDET_RX, 0xffffffff);
-		mdd_detected = true;
 	}
 
-	if (mdd_detected) {
-		bool pf_mdd_detected = false;
-
-		reg = rd32(hw, PF_MDET_TX_PQM);
-		if (reg & PF_MDET_TX_PQM_VALID_M) {
-			wr32(hw, PF_MDET_TX_PQM, 0xFFFF);
-			dev_info(dev, "TX driver issue detected, PF reset issued\n");
-			pf_mdd_detected = true;
-		}
-
-		reg = rd32(hw, PF_MDET_TX_TCLAN);
-		if (reg & PF_MDET_TX_TCLAN_VALID_M) {
-			wr32(hw, PF_MDET_TX_TCLAN, 0xFFFF);
-			dev_info(dev, "TX driver issue detected, PF reset issued\n");
-			pf_mdd_detected = true;
-		}
-
-		reg = rd32(hw, PF_MDET_RX);
-		if (reg & PF_MDET_RX_VALID_M) {
-			wr32(hw, PF_MDET_RX, 0xFFFF);
-			dev_info(dev, "RX driver issue detected, PF reset issued\n");
-			pf_mdd_detected = true;
-		}
-		/* Queue belongs to the PF initiate a reset */
-		if (pf_mdd_detected) {
-			set_bit(__ICE_NEEDS_RESTART, pf->state);
-			ice_service_task_schedule(pf);
-		}
+	/* check to see if this PF caused an MDD event */
+	reg = rd32(hw, PF_MDET_TX_PQM);
+	if (reg & PF_MDET_TX_PQM_VALID_M) {
+		wr32(hw, PF_MDET_TX_PQM, 0xFFFF);
+		if (netif_msg_tx_err(pf))
+			dev_info(dev, "Malicious Driver Detection event TX_PQM detected on PF\n");
 	}
 
-	/* check to see if one of the VFs caused the MDD */
+	reg = rd32(hw, PF_MDET_TX_TCLAN);
+	if (reg & PF_MDET_TX_TCLAN_VALID_M) {
+		wr32(hw, PF_MDET_TX_TCLAN, 0xFFFF);
+		if (netif_msg_tx_err(pf))
+			dev_info(dev, "Malicious Driver Detection event TX_TCLAN detected on PF\n");
+	}
+
+	reg = rd32(hw, PF_MDET_RX);
+	if (reg & PF_MDET_RX_VALID_M) {
+		wr32(hw, PF_MDET_RX, 0xFFFF);
+		if (netif_msg_rx_err(pf))
+			dev_info(dev, "Malicious Driver Detection event RX detected on PF\n");
+	}
+
+	/* Check to see if one of the VFs caused an MDD event, and then
+	 * increment counters and set print pending
+	 */
 	ice_for_each_vf(pf, i) {
 		struct ice_vf *vf = &pf->vf[i];
-
-		bool vf_mdd_detected = false;
 
 		reg = rd32(hw, VP_MDET_TX_PQM(i));
 		if (reg & VP_MDET_TX_PQM_VALID_M) {
 			wr32(hw, VP_MDET_TX_PQM(i), 0xFFFF);
-			vf_mdd_detected = true;
-			dev_info(dev, "TX driver issue detected on VF %d\n",
-				 i);
+			vf->mdd_tx_events.count++;
+			set_bit(__ICE_MDD_VF_PRINT_PENDING, pf->state);
+			if (netif_msg_tx_err(pf))
+				dev_info(dev, "Malicious Driver Detection event TX_PQM detected on VF %d\n",
+					 i);
 		}
 
 		reg = rd32(hw, VP_MDET_TX_TCLAN(i));
 		if (reg & VP_MDET_TX_TCLAN_VALID_M) {
 			wr32(hw, VP_MDET_TX_TCLAN(i), 0xFFFF);
-			vf_mdd_detected = true;
-			dev_info(dev, "TX driver issue detected on VF %d\n",
-				 i);
+			vf->mdd_tx_events.count++;
+			set_bit(__ICE_MDD_VF_PRINT_PENDING, pf->state);
+			if (netif_msg_tx_err(pf))
+				dev_info(dev, "Malicious Driver Detection event TX_TCLAN detected on VF %d\n",
+					 i);
 		}
 
 		reg = rd32(hw, VP_MDET_TX_TDPU(i));
 		if (reg & VP_MDET_TX_TDPU_VALID_M) {
 			wr32(hw, VP_MDET_TX_TDPU(i), 0xFFFF);
-			vf_mdd_detected = true;
-			dev_info(dev, "TX driver issue detected on VF %d\n",
-				 i);
+			vf->mdd_tx_events.count++;
+			set_bit(__ICE_MDD_VF_PRINT_PENDING, pf->state);
+			if (netif_msg_tx_err(pf))
+				dev_info(dev, "Malicious Driver Detection event TX_TDPU detected on VF %d\n",
+					 i);
 		}
 
 		reg = rd32(hw, VP_MDET_RX(i));
 		if (reg & VP_MDET_RX_VALID_M) {
 			wr32(hw, VP_MDET_RX(i), 0xFFFF);
-			vf_mdd_detected = true;
-			dev_info(dev, "RX driver issue detected on VF %d\n",
-				 i);
-		}
+			vf->mdd_rx_events.count++;
+			set_bit(__ICE_MDD_VF_PRINT_PENDING, pf->state);
+			if (netif_msg_rx_err(pf))
+				dev_info(dev, "Malicious Driver Detection event RX detected on VF %d\n",
+					 i);
 
-		if (vf_mdd_detected) {
-			vf->num_mdd_events++;
-			if (vf->num_mdd_events &&
-			    vf->num_mdd_events <= ICE_MDD_EVENTS_THRESHOLD)
-				dev_info(dev, "VF %d has had %llu MDD events since last boot, Admin might need to reload AVF driver with this number of events\n",
-					 i, vf->num_mdd_events);
+			/* Since the queue is disabled on VF Rx MDD events, the
+			 * PF can be configured to reset the VF through ethtool
+			 * private flag mdd-auto-reset-vf.
+			 */
+			if (test_bit(ICE_FLAG_MDD_AUTO_RESET_VF, pf->flags))
+				ice_reset_vf(&pf->vf[i], false);
 		}
 	}
+
+	ice_print_vfs_mdd_events(pf);
 }
 
 /**
@@ -1918,8 +1924,7 @@ ice_xdp_setup_prog(struct ice_vsi *vsi, struct bpf_prog *prog,
 	if (if_running && !test_and_set_bit(__ICE_DOWN, vsi->state)) {
 		ret = ice_down(vsi);
 		if (ret) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Preparing device for XDP attach failed");
+			NL_SET_ERR_MSG_MOD(extack, "Preparing device for XDP attach failed");
 			return ret;
 		}
 	}
@@ -1928,13 +1933,11 @@ ice_xdp_setup_prog(struct ice_vsi *vsi, struct bpf_prog *prog,
 		vsi->num_xdp_txq = vsi->alloc_txq;
 		xdp_ring_err = ice_prepare_xdp_rings(vsi, prog);
 		if (xdp_ring_err)
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Setting up XDP Tx resources failed");
+			NL_SET_ERR_MSG_MOD(extack, "Setting up XDP Tx resources failed");
 	} else if (ice_is_xdp_ena_vsi(vsi) && !prog) {
 		xdp_ring_err = ice_destroy_xdp_rings(vsi);
 		if (xdp_ring_err)
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Freeing XDP Tx resources failed");
+			NL_SET_ERR_MSG_MOD(extack, "Freeing XDP Tx resources failed");
 	} else {
 		ice_vsi_assign_bpf_prog(vsi, prog);
 	}
@@ -1967,8 +1970,7 @@ static int ice_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	struct ice_vsi *vsi = np->vsi;
 
 	if (vsi->type != ICE_VSI_PF) {
-		NL_SET_ERR_MSG_MOD(xdp->extack,
-				   "XDP can be loaded only on PF VSI");
+		NL_SET_ERR_MSG_MOD(xdp->extack, "XDP can be loaded only on PF VSI");
 		return -EINVAL;
 	}
 
@@ -1994,6 +1996,14 @@ static void ice_ena_misc_vector(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
 	u32 val;
+
+	/* Disable anti-spoof detection interrupt to prevent spurious event
+	 * interrupts during a function reset. Anti-spoof functionally is
+	 * still supported.
+	 */
+	val = rd32(hw, GL_MDCK_TX_TDPU);
+	val |= GL_MDCK_TX_TDPU_RCU_ANTISPOOF_ITR_DIS_M;
+	wr32(hw, GL_MDCK_TX_TDPU, val);
 
 	/* clear things first */
 	wr32(hw, PFINT_OICR_ENA, 0);	/* disable all */
@@ -3542,15 +3552,26 @@ static const struct pci_device_id ice_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_BACKPLANE), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_QSFP), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810_XXV_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E823C_BACKPLANE), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E823C_QSFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E823C_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E823C_10G_BASE_T), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E823C_SGMII), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_BACKPLANE), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_QSFP), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_SFP), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_10G_BASE_T), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_SGMII), 0 },
-	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822X_BACKPLANE), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822L_BACKPLANE), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822L_SFP), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822L_10G_BASE_T), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822L_SGMII), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E823L_BACKPLANE), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E823L_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E823L_10G_BASE_T), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E823L_1GBE), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E823L_QSFP), 0 },
 	/* required last entry */
 	{ 0, }
 };

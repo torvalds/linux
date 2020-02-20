@@ -457,7 +457,7 @@ int ice_xsk_umem_setup(struct ice_vsi *vsi, struct xdp_umem *umem, u16 qid)
 	if (if_running) {
 		ret = ice_qp_dis(vsi, qid);
 		if (ret) {
-			netdev_err(vsi->netdev, "ice_qp_dis error = %d", ret);
+			netdev_err(vsi->netdev, "ice_qp_dis error = %d\n", ret);
 			goto xsk_umem_if_up;
 		}
 	}
@@ -471,11 +471,11 @@ xsk_umem_if_up:
 		if (!ret && umem_present)
 			napi_schedule(&vsi->xdp_rings[qid]->q_vector->napi);
 		else if (ret)
-			netdev_err(vsi->netdev, "ice_qp_ena error = %d", ret);
+			netdev_err(vsi->netdev, "ice_qp_ena error = %d\n", ret);
 	}
 
 	if (umem_failure) {
-		netdev_err(vsi->netdev, "Could not %sable UMEM, error = %d",
+		netdev_err(vsi->netdev, "Could not %sable UMEM, error = %d\n",
 			   umem_present ? "en" : "dis", umem_failure);
 		return umem_failure;
 	}
@@ -937,6 +937,15 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 	ice_finalize_xdp_rx(rx_ring, xdp_xmit);
 	ice_update_rx_ring_stats(rx_ring, total_rx_packets, total_rx_bytes);
 
+	if (xsk_umem_uses_need_wakeup(rx_ring->xsk_umem)) {
+		if (failure || rx_ring->next_to_clean == rx_ring->next_to_use)
+			xsk_set_rx_need_wakeup(rx_ring->xsk_umem);
+		else
+			xsk_clear_rx_need_wakeup(rx_ring->xsk_umem);
+
+		return (int)total_rx_packets;
+	}
+
 	return failure ? budget : (int)total_rx_packets;
 }
 
@@ -988,6 +997,8 @@ static bool ice_xmit_zc(struct ice_ring *xdp_ring, int budget)
 	if (tx_desc) {
 		ice_xdp_ring_update_tail(xdp_ring);
 		xsk_umem_consume_tx_done(xdp_ring->xsk_umem);
+		if (xsk_umem_uses_need_wakeup(xdp_ring->xsk_umem))
+			xsk_clear_tx_need_wakeup(xdp_ring->xsk_umem);
 	}
 
 	return budget > 0 && work_done;
@@ -1062,6 +1073,13 @@ bool ice_clean_tx_irq_zc(struct ice_ring *xdp_ring, int budget)
 
 	if (xsk_frames)
 		xsk_umem_complete_tx(xdp_ring->xsk_umem, xsk_frames);
+
+	if (xsk_umem_uses_need_wakeup(xdp_ring->xsk_umem)) {
+		if (xdp_ring->next_to_clean == xdp_ring->next_to_use)
+			xsk_set_tx_need_wakeup(xdp_ring->xsk_umem);
+		else
+			xsk_clear_tx_need_wakeup(xdp_ring->xsk_umem);
+	}
 
 	ice_update_tx_ring_stats(xdp_ring, total_packets, total_bytes);
 	xmit_done = ice_xmit_zc(xdp_ring, ICE_DFLT_IRQ_WORK);

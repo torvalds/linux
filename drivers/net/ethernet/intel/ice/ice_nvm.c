@@ -289,17 +289,31 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 
 	nvm->eetrack = (eetrack_hi << 16) | eetrack_lo;
 
+	switch (hw->device_id) {
 	/* the following devices do not have boot_cfg_tlv yet */
-	if (hw->device_id == ICE_DEV_ID_E822C_BACKPLANE ||
-	    hw->device_id == ICE_DEV_ID_E822C_QSFP ||
-	    hw->device_id == ICE_DEV_ID_E822C_10G_BASE_T ||
-	    hw->device_id == ICE_DEV_ID_E822C_SGMII ||
-	    hw->device_id == ICE_DEV_ID_E822C_SFP ||
-	    hw->device_id == ICE_DEV_ID_E822X_BACKPLANE ||
-	    hw->device_id == ICE_DEV_ID_E822L_SFP ||
-	    hw->device_id == ICE_DEV_ID_E822L_10G_BASE_T ||
-	    hw->device_id == ICE_DEV_ID_E822L_SGMII)
+	case ICE_DEV_ID_E823C_BACKPLANE:
+	case ICE_DEV_ID_E823C_QSFP:
+	case ICE_DEV_ID_E823C_SFP:
+	case ICE_DEV_ID_E823C_10G_BASE_T:
+	case ICE_DEV_ID_E823C_SGMII:
+	case ICE_DEV_ID_E822C_BACKPLANE:
+	case ICE_DEV_ID_E822C_QSFP:
+	case ICE_DEV_ID_E822C_10G_BASE_T:
+	case ICE_DEV_ID_E822C_SGMII:
+	case ICE_DEV_ID_E822C_SFP:
+	case ICE_DEV_ID_E822L_BACKPLANE:
+	case ICE_DEV_ID_E822L_SFP:
+	case ICE_DEV_ID_E822L_10G_BASE_T:
+	case ICE_DEV_ID_E822L_SGMII:
+	case ICE_DEV_ID_E823L_BACKPLANE:
+	case ICE_DEV_ID_E823L_SFP:
+	case ICE_DEV_ID_E823L_10G_BASE_T:
+	case ICE_DEV_ID_E823L_1GBE:
+	case ICE_DEV_ID_E823L_QSFP:
 		return status;
+	default:
+		break;
+	}
 
 	status = ice_get_pfa_module_tlv(hw, &boot_cfg_tlv, &boot_cfg_tlv_len,
 					ICE_SR_BOOT_CFG_PTR);
