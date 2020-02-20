@@ -9,6 +9,7 @@
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
+#include <linux/module.h>
 
 #include "mmc_hsq.h"
 
@@ -342,3 +343,6 @@ int mmc_hsq_resume(struct mmc_host *mmc)
 	return mmc_hsq_enable(mmc, NULL);
 }
 EXPORT_SYMBOL_GPL(mmc_hsq_resume);
+
+MODULE_DESCRIPTION("MMC Host Software Queue support");
+MODULE_LICENSE("GPL v2");
