@@ -69,11 +69,6 @@ static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev);
 static void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev);
 
-static int amdgpu_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
-{
-	return 0;
-}
-
 /**
  * amdgpu_init_mem_type - Initialize a memory manager for a specific type of
  * memory request.
@@ -1638,7 +1633,6 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.ttm_tt_create = &amdgpu_ttm_tt_create,
 	.ttm_tt_populate = &amdgpu_ttm_tt_populate,
 	.ttm_tt_unpopulate = &amdgpu_ttm_tt_unpopulate,
-	.invalidate_caches = &amdgpu_invalidate_caches,
 	.init_mem_type = &amdgpu_init_mem_type,
 	.eviction_valuable = amdgpu_ttm_bo_eviction_valuable,
 	.evict_flags = &amdgpu_evict_flags,

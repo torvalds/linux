@@ -193,6 +193,7 @@ struct virtio_gpu_device {
 
 	bool has_virgl_3d;
 	bool has_edid;
+	bool has_indirect;
 
 	struct work_struct config_changed_work;
 

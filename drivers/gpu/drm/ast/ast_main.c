@@ -388,31 +388,9 @@ static int ast_get_dram_info(struct drm_device *dev)
 	return 0;
 }
 
-enum drm_mode_status ast_mode_config_mode_valid(struct drm_device *dev,
-						const struct drm_display_mode *mode)
-{
-	static const unsigned long max_bpp = 4; /* DRM_FORMAT_XRGBA8888 */
-
-	struct ast_private *ast = dev->dev_private;
-	unsigned long fbsize, fbpages, max_fbpages;
-
-	/* To support double buffering, a framebuffer may not
-	 * consume more than half of the available VRAM.
-	 */
-	max_fbpages = (ast->vram_size / 2) >> PAGE_SHIFT;
-
-	fbsize = mode->hdisplay * mode->vdisplay * max_bpp;
-	fbpages = DIV_ROUND_UP(fbsize, PAGE_SIZE);
-
-	if (fbpages > max_fbpages)
-		return MODE_MEM;
-
-	return MODE_OK;
-}
-
 static const struct drm_mode_config_funcs ast_mode_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.mode_valid = ast_mode_config_mode_valid,
+	.mode_valid = drm_vram_helper_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };

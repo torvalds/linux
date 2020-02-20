@@ -3149,7 +3149,7 @@ static bool downstream_hpd_needs_d0(struct intel_dp *intel_dp)
 	 * FIXME should really check all downstream ports...
 	 */
 	return intel_dp->dpcd[DP_DPCD_REV] == 0x11 &&
-		intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT &&
+		drm_dp_is_branch(intel_dp->dpcd) &&
 		intel_dp->downstream_ports[0] & DP_DS_PORT_HPD;
 }
 
@@ -7401,9 +7401,12 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_connector->panel.backlight.power = intel_edp_backlight_power;
 	intel_panel_setup_backlight(connector, pipe);
 
-	if (fixed_mode)
-		drm_connector_init_panel_orientation_property(
-			connector, fixed_mode->hdisplay, fixed_mode->vdisplay);
+	if (fixed_mode) {
+		/* We do not know the orientation, but their might be a quirk */
+		drm_connector_set_panel_orientation_with_quirk(connector,
+				DRM_MODE_PANEL_ORIENTATION_UNKNOWN,
+				fixed_mode->hdisplay, fixed_mode->vdisplay);
+	}
 
 	return true;
 

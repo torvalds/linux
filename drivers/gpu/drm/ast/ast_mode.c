@@ -833,8 +833,6 @@ static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	struct ast_vbios_mode_info *vbios_mode_info;
 	struct drm_display_mode *adjusted_mode;
 
-	crtc->state->no_vblank = true;
-
 	ast_state = to_ast_crtc_state(crtc->state);
 
 	format = ast_state->format;

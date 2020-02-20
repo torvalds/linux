@@ -1668,9 +1668,8 @@ static void icl_dsi_add_properties(struct intel_connector *connector)
 
 	connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 
-	connector->base.display_info.panel_orientation =
-			intel_dsi_get_panel_orientation(connector);
-	drm_connector_init_panel_orientation_property(&connector->base,
+	drm_connector_set_panel_orientation_with_quirk(&connector->base,
+				intel_dsi_get_panel_orientation(connector),
 				connector->panel.fixed_mode->hdisplay,
 				connector->panel.fixed_mode->vdisplay);
 }
