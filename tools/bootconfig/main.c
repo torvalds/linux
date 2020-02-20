@@ -131,15 +131,26 @@ int load_xbc_from_initrd(int fd, char **buf)
 	struct stat stat;
 	int ret;
 	u32 size = 0, csum = 0, rcsum;
+	char magic[BOOTCONFIG_MAGIC_LEN];
 
 	ret = fstat(fd, &stat);
 	if (ret < 0)
 		return -errno;
 
-	if (stat.st_size < 8)
+	if (stat.st_size < 8 + BOOTCONFIG_MAGIC_LEN)
 		return 0;
 
-	if (lseek(fd, -8, SEEK_END) < 0) {
+	if (lseek(fd, -BOOTCONFIG_MAGIC_LEN, SEEK_END) < 0) {
+		pr_err("Failed to lseek: %d\n", -errno);
+		return -errno;
+	}
+	if (read(fd, magic, BOOTCONFIG_MAGIC_LEN) < 0)
+		return -errno;
+	/* Check the bootconfig magic bytes */
+	if (memcmp(magic, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN) != 0)
+		return 0;
+
+	if (lseek(fd, -(8 + BOOTCONFIG_MAGIC_LEN), SEEK_END) < 0) {
 		pr_err("Failed to lseek: %d\n", -errno);
 		return -errno;
 	}
@@ -150,11 +161,14 @@ int load_xbc_from_initrd(int fd, char **buf)
 	if (read(fd, &csum, sizeof(u32)) < 0)
 		return -errno;
 
-	/* Wrong size, maybe no boot config here */
-	if (stat.st_size < size + 8)
-		return 0;
+	/* Wrong size error  */
+	if (stat.st_size < size + 8 + BOOTCONFIG_MAGIC_LEN) {
+		pr_err("bootconfig size is too big\n");
+		return -E2BIG;
+	}
 
-	if (lseek(fd, stat.st_size - 8 - size, SEEK_SET) < 0) {
+	if (lseek(fd, stat.st_size - (size + 8 + BOOTCONFIG_MAGIC_LEN),
+		  SEEK_SET) < 0) {
 		pr_err("Failed to lseek: %d\n", -errno);
 		return -errno;
 	}
@@ -163,17 +177,17 @@ int load_xbc_from_initrd(int fd, char **buf)
 	if (ret < 0)
 		return ret;
 
-	/* Wrong Checksum, maybe no boot config here */
+	/* Wrong Checksum */
 	rcsum = checksum((unsigned char *)*buf, size);
 	if (csum != rcsum) {
 		pr_err("checksum error: %d != %d\n", csum, rcsum);
-		return 0;
+		return -EINVAL;
 	}
 
 	ret = xbc_init(*buf);
-	/* Wrong data, maybe no boot config here */
+	/* Wrong data */
 	if (ret < 0)
-		return 0;
+		return ret;
 
 	return size;
 }
@@ -226,7 +240,8 @@ int delete_xbc(const char *path)
 	} else if (size > 0) {
 		ret = fstat(fd, &stat);
 		if (!ret)
-			ret = ftruncate(fd, stat.st_size - size - 8);
+			ret = ftruncate(fd, stat.st_size
+					- size - 8 - BOOTCONFIG_MAGIC_LEN);
 		if (ret)
 			ret = -errno;
 	} /* Ignore if there is no boot config in initrd */
@@ -293,6 +308,12 @@ int apply_xbc(const char *path, const char *xbc_path)
 	ret = write(fd, data, size + 8);
 	if (ret < 0) {
 		pr_err("Failed to apply a boot config: %d\n", ret);
+		return ret;
+	}
+	/* Write a magic word of the bootconfig */
+	ret = write(fd, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN);
+	if (ret < 0) {
+		pr_err("Failed to apply a boot config magic: %d\n", ret);
 		return ret;
 	}
 	close(fd);
