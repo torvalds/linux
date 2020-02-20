@@ -15,8 +15,8 @@
 #include "spectrum_switchdev.h"
 
 struct mlxsw_sp_span {
-	struct mlxsw_sp_span_entry *entries;
 	int entries_count;
+	struct mlxsw_sp_span_entry entries[0];
 };
 
 static u64 mlxsw_sp_span_occ_get(void *priv)
@@ -37,25 +37,17 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	struct mlxsw_sp_span *span;
-	int i, err;
+	int i, entries_count;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_SPAN))
 		return -EIO;
 
-	span = kzalloc(sizeof(*span), GFP_KERNEL);
+	entries_count = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_SPAN);
+	span = kzalloc(struct_size(span, entries, entries_count), GFP_KERNEL);
 	if (!span)
 		return -ENOMEM;
+	span->entries_count = entries_count;
 	mlxsw_sp->span = span;
-
-	mlxsw_sp->span->entries_count = MLXSW_CORE_RES_GET(mlxsw_sp->core,
-							   MAX_SPAN);
-	mlxsw_sp->span->entries = kcalloc(mlxsw_sp->span->entries_count,
-					  sizeof(struct mlxsw_sp_span_entry),
-					  GFP_KERNEL);
-	if (!mlxsw_sp->span->entries) {
-		err = -ENOMEM;
-		goto err_alloc_span_entries;
-	}
 
 	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
@@ -68,10 +60,6 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 					  mlxsw_sp_span_occ_get, mlxsw_sp);
 
 	return 0;
-
-err_alloc_span_entries:
-	kfree(span);
-	return err;
 }
 
 void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
@@ -86,7 +74,6 @@ void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
 
 		WARN_ON_ONCE(!list_empty(&curr->bound_ports_list));
 	}
-	kfree(mlxsw_sp->span->entries);
 	kfree(mlxsw_sp->span);
 }
 
