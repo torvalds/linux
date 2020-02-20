@@ -469,28 +469,43 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_substream *substream)
 static int soc_pcm_components_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *last = NULL;
 	struct snd_soc_component *component;
 	int i, ret = 0;
 
 	for_each_rtd_components(rtd, i, component) {
+		last = component;
+
 		ret = snd_soc_component_module_get_when_open(component);
 		if (ret < 0) {
 			dev_err(component->dev,
 				"ASoC: can't get module %s\n",
 				component->name);
-			return ret;
+			break;
 		}
 
 		ret = snd_soc_component_open(component, substream);
 		if (ret < 0) {
+			snd_soc_component_module_put_when_close(component);
 			dev_err(component->dev,
 				"ASoC: can't open component %s: %d\n",
 				component->name, ret);
-			return ret;
+			break;
 		}
 	}
 
-	return 0;
+	if (ret < 0) {
+		/* rollback on error */
+		for_each_rtd_components(rtd, i, component) {
+			if (component == last)
+				break;
+
+			snd_soc_component_close(component, substream);
+			snd_soc_component_module_put_when_close(component);
+		}
+	}
+
+	return ret;
 }
 
 static int soc_pcm_components_close(struct snd_pcm_substream *substream)
@@ -585,7 +600,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	if (ret < 0) {
 		pr_err("ASoC: %s startup failed: %d\n",
 		       rtd->dai_link->name, ret);
-		goto component_err;
+		goto rtd_startup_err;
 	}
 
 	/* startup the audio subsystem */
@@ -681,9 +696,9 @@ cpu_dai_err:
 	snd_soc_dai_shutdown(cpu_dai, substream);
 
 	soc_rtd_shutdown(rtd, substream);
-component_err:
+rtd_startup_err:
 	soc_pcm_components_close(substream);
-
+component_err:
 	mutex_unlock(&rtd->card->pcm_mutex);
 
 	for_each_rtd_components(rtd, i, component) {
