@@ -142,6 +142,11 @@ enum mhi_state mhi_get_mhi_state(struct mhi_controller *mhi_cntrl)
 	return ret ? MHI_STATE_MAX : state;
 }
 
+static void *mhi_to_virtual(struct mhi_ring *ring, dma_addr_t addr)
+{
+	return (addr - ring->iommu_base) + ring->base;
+}
+
 int mhi_destroy_device(struct device *dev, void *data)
 {
 	struct mhi_device *mhi_dev;
@@ -247,4 +252,86 @@ void mhi_create_devices(struct mhi_controller *mhi_cntrl)
 		if (ret)
 			put_device(&mhi_dev->dev);
 	}
+}
+
+irqreturn_t mhi_irq_handler(int irq_number, void *dev)
+{
+	struct mhi_event *mhi_event = dev;
+	struct mhi_controller *mhi_cntrl = mhi_event->mhi_cntrl;
+	struct mhi_event_ctxt *er_ctxt =
+		&mhi_cntrl->mhi_ctxt->er_ctxt[mhi_event->er_index];
+	struct mhi_ring *ev_ring = &mhi_event->ring;
+	void *dev_rp = mhi_to_virtual(ev_ring, er_ctxt->rp);
+
+	/* Only proceed if event ring has pending events */
+	if (ev_ring->rp == dev_rp)
+		return IRQ_HANDLED;
+
+	/* For client managed event ring, notify pending data */
+	if (mhi_event->cl_manage) {
+		struct mhi_chan *mhi_chan = mhi_event->mhi_chan;
+		struct mhi_device *mhi_dev = mhi_chan->mhi_dev;
+
+		if (mhi_dev)
+			mhi_notify(mhi_dev, MHI_CB_PENDING_DATA);
+	} else {
+		tasklet_schedule(&mhi_event->task);
+	}
+
+	return IRQ_HANDLED;
+}
+
+irqreturn_t mhi_intvec_threaded_handler(int irq_number, void *dev)
+{
+	struct mhi_controller *mhi_cntrl = dev;
+	enum mhi_state state = MHI_STATE_MAX;
+	enum mhi_pm_state pm_state = 0;
+	enum mhi_ee_type ee = 0;
+
+	write_lock_irq(&mhi_cntrl->pm_lock);
+	if (MHI_REG_ACCESS_VALID(mhi_cntrl->pm_state)) {
+		state = mhi_get_mhi_state(mhi_cntrl);
+		ee = mhi_cntrl->ee;
+		mhi_cntrl->ee = mhi_get_exec_env(mhi_cntrl);
+	}
+
+	if (state == MHI_STATE_SYS_ERR) {
+		dev_dbg(&mhi_cntrl->mhi_dev->dev, "System error detected\n");
+		pm_state = mhi_tryset_pm_state(mhi_cntrl,
+					       MHI_PM_SYS_ERR_DETECT);
+	}
+	write_unlock_irq(&mhi_cntrl->pm_lock);
+
+	/* If device in RDDM don't bother processing SYS error */
+	if (mhi_cntrl->ee == MHI_EE_RDDM) {
+		if (mhi_cntrl->ee != ee) {
+			mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_EE_RDDM);
+			wake_up_all(&mhi_cntrl->state_event);
+		}
+		goto exit_intvec;
+	}
+
+	if (pm_state == MHI_PM_SYS_ERR_DETECT) {
+		wake_up_all(&mhi_cntrl->state_event);
+
+		/* For fatal errors, we let controller decide next step */
+		if (MHI_IN_PBL(ee))
+			mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_FATAL_ERROR);
+		else
+			schedule_work(&mhi_cntrl->syserr_worker);
+	}
+
+exit_intvec:
+
+	return IRQ_HANDLED;
+}
+
+irqreturn_t mhi_intvec_handler(int irq_number, void *dev)
+{
+	struct mhi_controller *mhi_cntrl = dev;
+
+	/* Wake up events waiting for state change */
+	wake_up_all(&mhi_cntrl->state_event);
+
+	return IRQ_WAKE_THREAD;
 }

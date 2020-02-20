@@ -563,6 +563,11 @@ struct mhi_device *mhi_alloc_device(struct mhi_controller *mhi_cntrl);
 int mhi_destroy_device(struct device *dev, void *data);
 void mhi_create_devices(struct mhi_controller *mhi_cntrl);
 
+int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
+			 struct image_info **image_info, size_t alloc_size);
+void mhi_free_bhie_table(struct mhi_controller *mhi_cntrl,
+			 struct image_info *image_info);
+
 /* Power management APIs */
 enum mhi_pm_state __must_check mhi_tryset_pm_state(
 					struct mhi_controller *mhi_cntrl,
@@ -604,5 +609,34 @@ void mhi_ring_chan_db(struct mhi_controller *mhi_cntrl,
 
 /* Initialization methods */
 int mhi_init_mmio(struct mhi_controller *mhi_cntrl);
+int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl);
+void mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl);
+int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl);
+void mhi_deinit_free_irq(struct mhi_controller *mhi_cntrl);
+
+/* Memory allocation methods */
+static inline void *mhi_alloc_coherent(struct mhi_controller *mhi_cntrl,
+				       size_t size,
+				       dma_addr_t *dma_handle,
+				       gfp_t gfp)
+{
+	void *buf = dma_alloc_coherent(mhi_cntrl->cntrl_dev, size, dma_handle,
+				       gfp);
+
+	return buf;
+}
+
+static inline void mhi_free_coherent(struct mhi_controller *mhi_cntrl,
+				     size_t size,
+				     void *vaddr,
+				     dma_addr_t dma_handle)
+{
+	dma_free_coherent(mhi_cntrl->cntrl_dev, size, vaddr, dma_handle);
+}
+
+/* ISR handlers */
+irqreturn_t mhi_irq_handler(int irq_number, void *dev);
+irqreturn_t mhi_intvec_threaded_handler(int irq_number, void *dev);
+irqreturn_t mhi_intvec_handler(int irq_number, void *dev);
 
 #endif /* _MHI_INT_H */

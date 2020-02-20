@@ -138,6 +138,17 @@ void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl, enum mhi_state state)
 	}
 }
 
+/* NOP for backward compatibility, host allowed to ring DB in M2 state */
+static void mhi_toggle_dev_wake_nop(struct mhi_controller *mhi_cntrl)
+{
+}
+
+static void mhi_toggle_dev_wake(struct mhi_controller *mhi_cntrl)
+{
+	mhi_cntrl->wake_get(mhi_cntrl, false);
+	mhi_cntrl->wake_put(mhi_cntrl, true);
+}
+
 /* Handle device ready state transition */
 int mhi_ready_state_transition(struct mhi_controller *mhi_cntrl)
 {
@@ -676,3 +687,211 @@ int __mhi_device_get_sync(struct mhi_controller *mhi_cntrl)
 
 	return 0;
 }
+
+/* Assert device wake db */
+static void mhi_assert_dev_wake(struct mhi_controller *mhi_cntrl, bool force)
+{
+	unsigned long flags;
+
+	/*
+	 * If force flag is set, then increment the wake count value and
+	 * ring wake db
+	 */
+	if (unlikely(force)) {
+		spin_lock_irqsave(&mhi_cntrl->wlock, flags);
+		atomic_inc(&mhi_cntrl->dev_wake);
+		if (MHI_WAKE_DB_FORCE_SET_VALID(mhi_cntrl->pm_state) &&
+		    !mhi_cntrl->wake_set) {
+			mhi_write_db(mhi_cntrl, mhi_cntrl->wake_db, 1);
+			mhi_cntrl->wake_set = true;
+		}
+		spin_unlock_irqrestore(&mhi_cntrl->wlock, flags);
+	} else {
+		/*
+		 * If resources are already requested, then just increment
+		 * the wake count value and return
+		 */
+		if (likely(atomic_add_unless(&mhi_cntrl->dev_wake, 1, 0)))
+			return;
+
+		spin_lock_irqsave(&mhi_cntrl->wlock, flags);
+		if ((atomic_inc_return(&mhi_cntrl->dev_wake) == 1) &&
+		    MHI_WAKE_DB_SET_VALID(mhi_cntrl->pm_state) &&
+		    !mhi_cntrl->wake_set) {
+			mhi_write_db(mhi_cntrl, mhi_cntrl->wake_db, 1);
+			mhi_cntrl->wake_set = true;
+		}
+		spin_unlock_irqrestore(&mhi_cntrl->wlock, flags);
+	}
+}
+
+/* De-assert device wake db */
+static void mhi_deassert_dev_wake(struct mhi_controller *mhi_cntrl,
+				  bool override)
+{
+	unsigned long flags;
+
+	/*
+	 * Only continue if there is a single resource, else just decrement
+	 * and return
+	 */
+	if (likely(atomic_add_unless(&mhi_cntrl->dev_wake, -1, 1)))
+		return;
+
+	spin_lock_irqsave(&mhi_cntrl->wlock, flags);
+	if ((atomic_dec_return(&mhi_cntrl->dev_wake) == 0) &&
+	    MHI_WAKE_DB_CLEAR_VALID(mhi_cntrl->pm_state) && !override &&
+	    mhi_cntrl->wake_set) {
+		mhi_write_db(mhi_cntrl, mhi_cntrl->wake_db, 0);
+		mhi_cntrl->wake_set = false;
+	}
+	spin_unlock_irqrestore(&mhi_cntrl->wlock, flags);
+}
+
+int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
+{
+	enum mhi_ee_type current_ee;
+	enum dev_st_transition next_state;
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	u32 val;
+	int ret;
+
+	dev_info(dev, "Requested to power ON\n");
+
+	if (mhi_cntrl->nr_irqs < mhi_cntrl->total_ev_rings)
+		return -EINVAL;
+
+	/* Supply default wake routines if not provided by controller driver */
+	if (!mhi_cntrl->wake_get || !mhi_cntrl->wake_put ||
+	    !mhi_cntrl->wake_toggle) {
+		mhi_cntrl->wake_get = mhi_assert_dev_wake;
+		mhi_cntrl->wake_put = mhi_deassert_dev_wake;
+		mhi_cntrl->wake_toggle = (mhi_cntrl->db_access & MHI_PM_M2) ?
+			mhi_toggle_dev_wake_nop : mhi_toggle_dev_wake;
+	}
+
+	mutex_lock(&mhi_cntrl->pm_mutex);
+	mhi_cntrl->pm_state = MHI_PM_DISABLE;
+
+	if (!mhi_cntrl->pre_init) {
+		/* Setup device context */
+		ret = mhi_init_dev_ctxt(mhi_cntrl);
+		if (ret)
+			goto error_dev_ctxt;
+	}
+
+	ret = mhi_init_irq_setup(mhi_cntrl);
+	if (ret)
+		goto error_setup_irq;
+
+	/* Setup BHI offset & INTVEC */
+	write_lock_irq(&mhi_cntrl->pm_lock);
+	ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->regs, BHIOFF, &val);
+	if (ret) {
+		write_unlock_irq(&mhi_cntrl->pm_lock);
+		goto error_bhi_offset;
+	}
+
+	mhi_cntrl->bhi = mhi_cntrl->regs + val;
+
+	/* Setup BHIE offset */
+	if (mhi_cntrl->fbc_download) {
+		ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->regs, BHIEOFF, &val);
+		if (ret) {
+			write_unlock_irq(&mhi_cntrl->pm_lock);
+			dev_err(dev, "Error reading BHIE offset\n");
+			goto error_bhi_offset;
+		}
+
+		mhi_cntrl->bhie = mhi_cntrl->regs + val;
+	}
+
+	mhi_write_reg(mhi_cntrl, mhi_cntrl->bhi, BHI_INTVEC, 0);
+	mhi_cntrl->pm_state = MHI_PM_POR;
+	mhi_cntrl->ee = MHI_EE_MAX;
+	current_ee = mhi_get_exec_env(mhi_cntrl);
+	write_unlock_irq(&mhi_cntrl->pm_lock);
+
+	/* Confirm that the device is in valid exec env */
+	if (!MHI_IN_PBL(current_ee) && current_ee != MHI_EE_AMSS) {
+		dev_err(dev, "Not a valid EE for power on\n");
+		ret = -EIO;
+		goto error_bhi_offset;
+	}
+
+	/* Transition to next state */
+	next_state = MHI_IN_PBL(current_ee) ?
+		DEV_ST_TRANSITION_PBL : DEV_ST_TRANSITION_READY;
+
+	if (next_state == DEV_ST_TRANSITION_PBL)
+		schedule_work(&mhi_cntrl->fw_worker);
+
+	mhi_queue_state_transition(mhi_cntrl, next_state);
+
+	mutex_unlock(&mhi_cntrl->pm_mutex);
+
+	dev_info(dev, "Power on setup success\n");
+
+	return 0;
+
+error_bhi_offset:
+	mhi_deinit_free_irq(mhi_cntrl);
+
+error_setup_irq:
+	if (!mhi_cntrl->pre_init)
+		mhi_deinit_dev_ctxt(mhi_cntrl);
+
+error_dev_ctxt:
+	mutex_unlock(&mhi_cntrl->pm_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mhi_async_power_up);
+
+void mhi_power_down(struct mhi_controller *mhi_cntrl, bool graceful)
+{
+	enum mhi_pm_state cur_state;
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+
+	/* If it's not a graceful shutdown, force MHI to linkdown state */
+	if (!graceful) {
+		mutex_lock(&mhi_cntrl->pm_mutex);
+		write_lock_irq(&mhi_cntrl->pm_lock);
+		cur_state = mhi_tryset_pm_state(mhi_cntrl,
+						MHI_PM_LD_ERR_FATAL_DETECT);
+		write_unlock_irq(&mhi_cntrl->pm_lock);
+		mutex_unlock(&mhi_cntrl->pm_mutex);
+		if (cur_state != MHI_PM_LD_ERR_FATAL_DETECT)
+			dev_dbg(dev, "Failed to move to state: %s from: %s\n",
+				to_mhi_pm_state_str(MHI_PM_LD_ERR_FATAL_DETECT),
+				to_mhi_pm_state_str(mhi_cntrl->pm_state));
+	}
+	mhi_pm_disable_transition(mhi_cntrl, MHI_PM_SHUTDOWN_PROCESS);
+	mhi_deinit_free_irq(mhi_cntrl);
+
+	if (!mhi_cntrl->pre_init) {
+		/* Free all allocated resources */
+		if (mhi_cntrl->fbc_image) {
+			mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image);
+			mhi_cntrl->fbc_image = NULL;
+		}
+		mhi_deinit_dev_ctxt(mhi_cntrl);
+	}
+}
+EXPORT_SYMBOL_GPL(mhi_power_down);
+
+int mhi_sync_power_up(struct mhi_controller *mhi_cntrl)
+{
+	int ret = mhi_async_power_up(mhi_cntrl);
+
+	if (ret)
+		return ret;
+
+	wait_event_timeout(mhi_cntrl->state_event,
+			   MHI_IN_MISSION_MODE(mhi_cntrl->ee) ||
+			   MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state),
+			   msecs_to_jiffies(mhi_cntrl->timeout_ms));
+
+	return (MHI_IN_MISSION_MODE(mhi_cntrl->ee)) ? 0 : -EIO;
+}
+EXPORT_SYMBOL(mhi_sync_power_up);
