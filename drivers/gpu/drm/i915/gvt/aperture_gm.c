@@ -134,11 +134,11 @@ void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
-	if (WARN_ON(fence >= vgpu_fence_sz(vgpu)))
+	if (drm_WARN_ON(&dev_priv->drm, fence >= vgpu_fence_sz(vgpu)))
 		return;
 
 	reg = vgpu->fence.regs[fence];
-	if (WARN_ON(!reg))
+	if (drm_WARN_ON(&dev_priv->drm, !reg))
 		return;
 
 	fence_reg_lo = FENCE_REG_GEN6_LO(reg->id);
@@ -167,7 +167,7 @@ static void free_vgpu_fence(struct intel_vgpu *vgpu)
 	struct i915_fence_reg *reg;
 	u32 i;
 
-	if (WARN_ON(!vgpu_fence_sz(vgpu)))
+	if (drm_WARN_ON(&dev_priv->drm, !vgpu_fence_sz(vgpu)))
 		return;
 
 	intel_runtime_pm_get(&dev_priv->runtime_pm);

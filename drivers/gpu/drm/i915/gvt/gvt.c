@@ -265,7 +265,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 {
 	struct intel_gvt *gvt = to_gvt(dev_priv);
 
-	if (WARN_ON(!gvt))
+	if (drm_WARN_ON(&dev_priv->drm, !gvt))
 		return;
 
 	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
@@ -304,7 +304,7 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	struct intel_vgpu *vgpu;
 	int ret;
 
-	if (WARN_ON(dev_priv->gvt))
+	if (drm_WARN_ON(&dev_priv->drm, dev_priv->gvt))
 		return -EEXIST;
 
 	gvt = kzalloc(sizeof(struct intel_gvt), GFP_KERNEL);

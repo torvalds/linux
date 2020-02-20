@@ -153,7 +153,7 @@ static int gmbus0_mmio_write(struct intel_vgpu *vgpu,
 		port = cnp_get_port_from_gmbus0(pin_select);
 	else
 		port = get_port_from_gmbus0(pin_select);
-	if (WARN_ON(port < 0))
+	if (drm_WARN_ON(&dev_priv->drm, port < 0))
 		return 0;
 
 	vgpu->display.i2c_edid.state = I2C_GMBUS;
