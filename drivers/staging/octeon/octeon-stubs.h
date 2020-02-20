@@ -11,7 +11,7 @@
 #define octeon_has_feature(x)	0
 #define octeon_get_clock_rate()	0
 
-#define CVMX_SYNCIOBDMA		do { } while(0)
+#define CVMX_SYNCIOBDMA		do { } while (0)
 
 #define CVMX_HELPER_INPUT_TAG_TYPE	0
 #define CVMX_HELPER_FIRST_MBUFF_SKIP	7
@@ -22,11 +22,11 @@
 #define CVMX_FPA_PACKET_POOL_SIZE	    16
 #define CVMX_FPA_WQE_POOL		    (1)
 #define CVMX_FPA_WQE_POOL_SIZE		    16
-#define CVMX_GMXX_RXX_ADR_CAM_EN(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CTL(a, b)	((a)+(b))
-#define CVMX_GMXX_PRTX_CFG(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_FRM_MAX(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_JABBER(a, b)	((a)+(b))
+#define CVMX_GMXX_RXX_ADR_CAM_EN(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CTL(a, b)	((a) + (b))
+#define CVMX_GMXX_PRTX_CFG(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_FRM_MAX(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_JABBER(a, b)	((a) + (b))
 #define CVMX_IPD_CTL_STATUS		0
 #define CVMX_PIP_FRM_LEN_CHKX(a)	(a)
 #define CVMX_PIP_NUM_INPUT_PORTS	1
@@ -1410,18 +1410,18 @@ static inline void cvmx_pow_work_submit(struct cvmx_wqe *wqp, uint32_t tag,
 					uint64_t qos, uint64_t grp)
 { }
 
-#define CVMX_ASXX_RX_CLK_SETX(a, b)	((a)+(b))
-#define CVMX_ASXX_TX_CLK_SETX(a, b)	((a)+(b))
+#define CVMX_ASXX_RX_CLK_SETX(a, b)	((a) + (b))
+#define CVMX_ASXX_TX_CLK_SETX(a, b)	((a) + (b))
 #define CVMX_CIU_TIMX(a)		(a)
-#define CVMX_GMXX_RXX_ADR_CAM0(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CAM1(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CAM2(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CAM3(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CAM4(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_ADR_CAM5(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_FRM_CTL(a, b)	((a)+(b))
-#define CVMX_GMXX_RXX_INT_REG(a, b)	((a)+(b))
-#define CVMX_GMXX_SMACX(a, b)		((a)+(b))
+#define CVMX_GMXX_RXX_ADR_CAM0(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CAM1(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CAM2(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CAM3(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CAM4(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_ADR_CAM5(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_FRM_CTL(a, b)	((a) + (b))
+#define CVMX_GMXX_RXX_INT_REG(a, b)	((a) + (b))
+#define CVMX_GMXX_SMACX(a, b)		((a) + (b))
 #define CVMX_PIP_PRT_TAGX(a)		(a)
 #define CVMX_POW_PP_GRP_MSKX(a)		(a)
 #define CVMX_POW_WQ_INT_THRX(a)		(a)
