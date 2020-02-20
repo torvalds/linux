@@ -1668,9 +1668,9 @@ last_active(const struct intel_engine_execlists *execlists)
 				     wait_link)
 
 #define for_each_signaler(p__, rq__) \
-	list_for_each_entry_lockless(p__, \
-				     &(rq__)->sched.signalers_list, \
-				     signal_link)
+	list_for_each_entry_rcu(p__, \
+				&(rq__)->sched.signalers_list, \
+				signal_link)
 
 static void defer_request(struct i915_request *rq, struct list_head * const pl)
 {
@@ -2533,11 +2533,13 @@ unlock:
 static bool hold_request(const struct i915_request *rq)
 {
 	struct i915_dependency *p;
+	bool result = false;
 
 	/*
 	 * If one of our ancestors is on hold, we must also be on hold,
 	 * otherwise we will bypass it and execute before it.
 	 */
+	rcu_read_lock();
 	for_each_signaler(p, rq) {
 		const struct i915_request *s =
 			container_of(p->signaler, typeof(*s), sched);
@@ -2545,11 +2547,13 @@ static bool hold_request(const struct i915_request *rq)
 		if (s->engine != rq->engine)
 			continue;
 
-		if (i915_request_on_hold(s))
-			return true;
+		result = i915_request_on_hold(s);
+		if (result)
+			break;
 	}
+	rcu_read_unlock();
 
-	return false;
+	return result;
 }
 
 static void __execlists_unhold(struct i915_request *rq)
