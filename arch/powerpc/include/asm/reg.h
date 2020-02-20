@@ -1450,6 +1450,8 @@ static inline void mtsrin(u32 val, u32 idx)
 
 extern unsigned long current_stack_frame(void);
 
+register unsigned long current_stack_pointer asm("r1");
+
 extern unsigned long scom970_read(unsigned int address);
 extern void scom970_write(unsigned int address, unsigned long value);
 
