@@ -144,9 +144,6 @@ void free_pid(struct pid *pid)
 			/* Handle a fork failure of the first process */
 			WARN_ON(ns->child_reaper);
 			ns->pid_allocated = 0;
-			/* fall through */
-		case 0:
-			schedule_work(&ns->proc_work);
 			break;
 		}
 
@@ -245,11 +242,6 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 		pid->numbers[i].nr = nr;
 		pid->numbers[i].ns = tmp;
 		tmp = tmp->parent;
-	}
-
-	if (unlikely(is_child_reaper(pid))) {
-		if (pid_ns_prepare_proc(ns))
-			goto out_free;
 	}
 
 	get_pid_ns(ns);

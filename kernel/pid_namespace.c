@@ -57,12 +57,6 @@ static struct kmem_cache *create_pid_cachep(unsigned int level)
 	return READ_ONCE(*pkc);
 }
 
-static void proc_cleanup_work(struct work_struct *work)
-{
-	struct pid_namespace *ns = container_of(work, struct pid_namespace, proc_work);
-	pid_ns_release_proc(ns);
-}
-
 static struct ucounts *inc_pid_namespaces(struct user_namespace *ns)
 {
 	return inc_ucount(ns, current_euid(), UCOUNT_PID_NAMESPACES);
@@ -114,7 +108,6 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->user_ns = get_user_ns(user_ns);
 	ns->ucounts = ucounts;
 	ns->pid_allocated = PIDNS_ADDING;
-	INIT_WORK(&ns->proc_work, proc_cleanup_work);
 
 	return ns;
 
