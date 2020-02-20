@@ -196,6 +196,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS6424
 	imply SND_SOC_TDA7419
 	imply SND_SOC_TFA9879
+	imply SND_SOC_TLV320ADCX140
 	imply SND_SOC_TLV320AIC23_I2C
 	imply SND_SOC_TLV320AIC23_SPI
 	imply SND_SOC_TLV320AIC26
@@ -1333,6 +1334,14 @@ config SND_SOC_TLV320AIC3X
 config SND_SOC_TLV320DAC33
 	tristate
 	depends on I2C
+
+config SND_SOC_TLV320ADCX140
+	tristate "Texas Instruments TLV320ADCX140 CODEC family"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Add support for Texas Instruments tlv320adc3140, tlv320adc5140 and
+	  tlv320adc6140 quad channel ADCs.
 
 config SND_SOC_TS3A227E
 	tristate "TI Headset/Mic detect and keypress chip"
