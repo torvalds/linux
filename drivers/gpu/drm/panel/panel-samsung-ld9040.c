@@ -373,6 +373,12 @@ static const struct of_device_id ld9040_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ld9040_of_match);
 
+static const struct spi_device_id ld9040_ids[] = {
+	{ "ld9040", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(spi, ld9040_ids);
+
 static struct spi_driver ld9040_driver = {
 	.probe = ld9040_probe,
 	.remove = ld9040_remove,
