@@ -533,7 +533,7 @@ struct xbc_node *find_match_node(struct xbc_node *node, char *k)
 
 static int __init __xbc_add_key(char *k)
 {
-	struct xbc_node *node;
+	struct xbc_node *node, *child;
 
 	if (!xbc_valid_keyword(k))
 		return xbc_parse_error("Invalid keyword", k);
@@ -543,8 +543,12 @@ static int __init __xbc_add_key(char *k)
 
 	if (!last_parent)	/* the first level */
 		node = find_match_node(xbc_nodes, k);
-	else
-		node = find_match_node(xbc_node_get_child(last_parent), k);
+	else {
+		child = xbc_node_get_child(last_parent);
+		if (child && xbc_node_is_value(child))
+			return xbc_parse_error("Subkey is mixed with value", k);
+		node = find_match_node(child, k);
+	}
 
 	if (node)
 		last_parent = node;
@@ -577,13 +581,17 @@ static int __init __xbc_parse_keys(char *k)
 static int __init xbc_parse_kv(char **k, char *v)
 {
 	struct xbc_node *prev_parent = last_parent;
-	struct xbc_node *node;
+	struct xbc_node *node, *child;
 	char *next;
 	int c, ret;
 
 	ret = __xbc_parse_keys(*k);
 	if (ret)
 		return ret;
+
+	child = xbc_node_get_child(last_parent);
+	if (child && xbc_node_is_key(child))
+		return xbc_parse_error("Value is mixed with subkey", v);
 
 	c = __xbc_parse_value(&v, &next);
 	if (c < 0)
