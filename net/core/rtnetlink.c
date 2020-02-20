@@ -3911,7 +3911,7 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	/* Support fdb on master device the net/bridge default case */
 	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
-	    (dev->priv_flags & IFF_BRIDGE_PORT)) {
+	    netif_is_bridge_port(dev)) {
 		struct net_device *br_dev = netdev_master_upper_dev_get(dev);
 		const struct net_device_ops *ops = br_dev->netdev_ops;
 
@@ -4022,7 +4022,7 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	/* Support fdb on master device the net/bridge default case */
 	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
-	    (dev->priv_flags & IFF_BRIDGE_PORT)) {
+	    netif_is_bridge_port(dev)) {
 		struct net_device *br_dev = netdev_master_upper_dev_get(dev);
 		const struct net_device_ops *ops = br_dev->netdev_ops;
 
@@ -4248,13 +4248,13 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 				continue;
 
 			if (!br_idx) { /* user did not specify a specific bridge */
-				if (dev->priv_flags & IFF_BRIDGE_PORT) {
+				if (netif_is_bridge_port(dev)) {
 					br_dev = netdev_master_upper_dev_get(dev);
 					cops = br_dev->netdev_ops;
 				}
 			} else {
 				if (dev != br_dev &&
-				    !(dev->priv_flags & IFF_BRIDGE_PORT))
+				    !netif_is_bridge_port(dev))
 					continue;
 
 				if (br_dev != netdev_master_upper_dev_get(dev) &&
@@ -4266,7 +4266,7 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			if (idx < s_idx)
 				goto cont;
 
-			if (dev->priv_flags & IFF_BRIDGE_PORT) {
+			if (netif_is_bridge_port(dev)) {
 				if (cops && cops->ndo_fdb_dump) {
 					err = cops->ndo_fdb_dump(skb, cb,
 								br_dev, dev,
@@ -4416,7 +4416,7 @@ static int rtnl_fdb_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	if (dev) {
 		if (!ndm_flags || (ndm_flags & NTF_MASTER)) {
-			if (!(dev->priv_flags & IFF_BRIDGE_PORT)) {
+			if (!netif_is_bridge_port(dev)) {
 				NL_SET_ERR_MSG(extack, "Device is not a bridge port");
 				return -EINVAL;
 			}

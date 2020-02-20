@@ -3531,7 +3531,7 @@ static int nl80211_valid_4addr(struct cfg80211_registered_device *rdev,
 			       enum nl80211_iftype iftype)
 {
 	if (!use_4addr) {
-		if (netdev && (netdev->priv_flags & IFF_BRIDGE_PORT))
+		if (netdev && netif_is_bridge_port(netdev))
 			return -EBUSY;
 		return 0;
 	}

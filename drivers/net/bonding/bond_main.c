@@ -1265,7 +1265,7 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	skb->dev = bond->dev;
 
 	if (BOND_MODE(bond) == BOND_MODE_ALB &&
-	    bond->dev->priv_flags & IFF_BRIDGE_PORT &&
+	    netif_is_bridge_port(bond->dev) &&
 	    skb->pkt_type == PACKET_HOST) {
 
 		if (unlikely(skb_cow_head(skb,
