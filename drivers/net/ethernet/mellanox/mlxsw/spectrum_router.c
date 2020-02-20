@@ -6285,7 +6285,8 @@ mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *rif, struct net_device *dev,
 	case NETDEV_UP:
 		return rif == NULL;
 	case NETDEV_DOWN:
-		idev = __in_dev_get_rtnl(dev);
+		rcu_read_lock();
+		idev = __in_dev_get_rcu(dev);
 		if (idev && idev->ifa_list)
 			addr_list_empty = false;
 
@@ -6293,6 +6294,7 @@ mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *rif, struct net_device *dev,
 		if (addr_list_empty && inet6_dev &&
 		    !list_empty(&inet6_dev->addr_list))
 			addr_list_empty = false;
+		rcu_read_unlock();
 
 		/* macvlans do not have a RIF, but rather piggy back on the
 		 * RIF of their lower device.
