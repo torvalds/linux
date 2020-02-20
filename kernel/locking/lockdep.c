@@ -393,15 +393,22 @@ void lockdep_init_task(struct task_struct *task)
 	task->lockdep_recursion = 0;
 }
 
+/*
+ * Split the recrursion counter in two to readily detect 'off' vs recursion.
+ */
+#define LOCKDEP_RECURSION_BITS	16
+#define LOCKDEP_OFF		(1U << LOCKDEP_RECURSION_BITS)
+#define LOCKDEP_RECURSION_MASK	(LOCKDEP_OFF - 1)
+
 void lockdep_off(void)
 {
-	current->lockdep_recursion++;
+	current->lockdep_recursion += LOCKDEP_OFF;
 }
 EXPORT_SYMBOL(lockdep_off);
 
 void lockdep_on(void)
 {
-	current->lockdep_recursion--;
+	current->lockdep_recursion -= LOCKDEP_OFF;
 }
 EXPORT_SYMBOL(lockdep_on);
 
@@ -597,6 +604,7 @@ static const char *usage_str[] =
 #include "lockdep_states.h"
 #undef LOCKDEP_STATE
 	[LOCK_USED] = "INITIAL USE",
+	[LOCK_USAGE_STATES] = "IN-NMI",
 };
 #endif
 
@@ -809,6 +817,7 @@ static int count_matching_names(struct lock_class *new_class)
 	return count + 1;
 }
 
+/* used from NMI context -- must be lockless */
 static inline struct lock_class *
 look_up_lock_class(const struct lockdep_map *lock, unsigned int subclass)
 {
@@ -4720,6 +4729,36 @@ void lock_downgrade(struct lockdep_map *lock, unsigned long ip)
 }
 EXPORT_SYMBOL_GPL(lock_downgrade);
 
+/* NMI context !!! */
+static void verify_lock_unused(struct lockdep_map *lock, struct held_lock *hlock, int subclass)
+{
+#ifdef CONFIG_PROVE_LOCKING
+	struct lock_class *class = look_up_lock_class(lock, subclass);
+
+	/* if it doesn't have a class (yet), it certainly hasn't been used yet */
+	if (!class)
+		return;
+
+	if (!(class->usage_mask & LOCK_USED))
+		return;
+
+	hlock->class_idx = class - lock_classes;
+
+	print_usage_bug(current, hlock, LOCK_USED, LOCK_USAGE_STATES);
+#endif
+}
+
+static bool lockdep_nmi(void)
+{
+	if (current->lockdep_recursion & LOCKDEP_RECURSION_MASK)
+		return false;
+
+	if (!in_nmi())
+		return false;
+
+	return true;
+}
+
 /*
  * We are not always called with irqs disabled - do that here,
  * and also avoid lockdep recursion:
@@ -4730,8 +4769,25 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 {
 	unsigned long flags;
 
-	if (unlikely(current->lockdep_recursion))
+	if (unlikely(current->lockdep_recursion)) {
+		/* XXX allow trylock from NMI ?!? */
+		if (lockdep_nmi() && !trylock) {
+			struct held_lock hlock;
+
+			hlock.acquire_ip = ip;
+			hlock.instance = lock;
+			hlock.nest_lock = nest_lock;
+			hlock.irq_context = 2; // XXX
+			hlock.trylock = trylock;
+			hlock.read = read;
+			hlock.check = check;
+			hlock.hardirqs_off = true;
+			hlock.references = 0;
+
+			verify_lock_unused(lock, &hlock, subclass);
+		}
 		return;
+	}
 
 	raw_local_irq_save(flags);
 	check_flags(flags);
