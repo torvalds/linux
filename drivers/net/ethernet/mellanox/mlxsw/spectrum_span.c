@@ -3,6 +3,8 @@
 
 #include <linux/if_bridge.h>
 #include <linux/list.h>
+#include <linux/rtnetlink.h>
+#include <linux/workqueue.h>
 #include <net/arp.h>
 #include <net/gre.h>
 #include <net/lag.h>
@@ -15,9 +17,13 @@
 #include "spectrum_switchdev.h"
 
 struct mlxsw_sp_span {
+	struct work_struct work;
+	struct mlxsw_sp *mlxsw_sp;
 	int entries_count;
 	struct mlxsw_sp_span_entry entries[0];
 };
+
+static void mlxsw_sp_span_respin_work(struct work_struct *work);
 
 static u64 mlxsw_sp_span_occ_get(void *priv)
 {
@@ -47,6 +53,7 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 	if (!span)
 		return -ENOMEM;
 	span->entries_count = entries_count;
+	span->mlxsw_sp = mlxsw_sp;
 	mlxsw_sp->span = span;
 
 	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
@@ -58,6 +65,7 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 
 	devlink_resource_occ_get_register(devlink, MLXSW_SP_RESOURCE_SPAN,
 					  mlxsw_sp_span_occ_get, mlxsw_sp);
+	INIT_WORK(&span->work, mlxsw_sp_span_respin_work);
 
 	return 0;
 }
@@ -67,6 +75,7 @@ void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int i;
 
+	cancel_work_sync(&mlxsw_sp->span->work);
 	devlink_resource_occ_get_unregister(devlink, MLXSW_SP_RESOURCE_SPAN);
 
 	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
@@ -1015,4 +1024,33 @@ void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp)
 			mlxsw_sp_span_entry_configure(mlxsw_sp, curr, sparms);
 		}
 	}
+}
+
+static void mlxsw_sp_span_respin_work(struct work_struct *work)
+{
+	struct mlxsw_sp_span *span;
+	struct mlxsw_sp *mlxsw_sp;
+	int i, err;
+
+	span = container_of(work, struct mlxsw_sp_span, work);
+	mlxsw_sp = span->mlxsw_sp;
+
+	rtnl_lock();
+	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
+		struct mlxsw_sp_span_parms sparms = {NULL};
+
+		if (!curr->ref_count)
+			continue;
+
+		err = curr->ops->parms(curr->to_dev, &sparms);
+		if (err)
+			continue;
+
+		if (memcmp(&sparms, &curr->parms, sizeof(sparms))) {
+			mlxsw_sp_span_entry_deconfigure(curr);
+			mlxsw_sp_span_entry_configure(mlxsw_sp, curr, sparms);
+		}
+	}
+	rtnl_unlock();
 }
