@@ -70,10 +70,10 @@ static u32 ___mt76u_rr(struct mt76_dev *dev, u8 req, u32 addr)
 
 	ret = __mt76u_vendor_request(dev, req,
 				     USB_DIR_IN | USB_TYPE_VENDOR,
-				     addr >> 16, addr, &usb->reg_val,
+				     addr >> 16, addr, usb->data,
 				     sizeof(__le32));
 	if (ret == sizeof(__le32))
-		data = le32_to_cpu(usb->reg_val);
+		data = get_unaligned_le32(usb->data);
 	trace_usb_reg_rr(dev, addr, data);
 
 	return data;
@@ -125,10 +125,10 @@ static void ___mt76u_wr(struct mt76_dev *dev, u8 req,
 {
 	struct mt76_usb *usb = &dev->usb;
 
-	usb->reg_val = cpu_to_le32(val);
+	put_unaligned_le32(val, usb->data);
 	__mt76u_vendor_request(dev, req,
 			       USB_DIR_OUT | USB_TYPE_VENDOR,
-			       addr >> 16, addr, &usb->reg_val,
+			       addr >> 16, addr, usb->data,
 			       sizeof(__le32));
 	trace_usb_reg_wr(dev, addr, val);
 }

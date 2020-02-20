@@ -403,7 +403,6 @@ struct mt76_mcu {
 #define MCU_RESP_URB_SIZE	1024
 struct mt76_usb {
 	struct mutex usb_ctrl_mtx;
-	__le32 reg_val;
 	u8 *data;
 	u16 data_len;
 
