@@ -6873,8 +6873,8 @@ err_rif_vrrp_add:
 	return err;
 }
 
-void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
-			      const struct net_device *macvlan_dev)
+static void __mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
+				       const struct net_device *macvlan_dev)
 {
 	struct macvlan_dev *vlan = netdev_priv(macvlan_dev);
 	struct mlxsw_sp_rif *rif;
@@ -6891,6 +6891,12 @@ void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
 			    mlxsw_sp_fid_index(rif->fid), false);
 }
 
+void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
+			      const struct net_device *macvlan_dev)
+{
+	__mlxsw_sp_rif_macvlan_del(mlxsw_sp, macvlan_dev);
+}
+
 static int mlxsw_sp_inetaddr_macvlan_event(struct mlxsw_sp *mlxsw_sp,
 					   struct net_device *macvlan_dev,
 					   unsigned long event,
@@ -6900,7 +6906,7 @@ static int mlxsw_sp_inetaddr_macvlan_event(struct mlxsw_sp *mlxsw_sp,
 	case NETDEV_UP:
 		return mlxsw_sp_rif_macvlan_add(mlxsw_sp, macvlan_dev, extack);
 	case NETDEV_DOWN:
-		mlxsw_sp_rif_macvlan_del(mlxsw_sp, macvlan_dev);
+		__mlxsw_sp_rif_macvlan_del(mlxsw_sp, macvlan_dev);
 		break;
 	}
 
