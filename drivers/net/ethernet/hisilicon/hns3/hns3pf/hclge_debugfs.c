@@ -310,8 +310,9 @@ static void hclge_title_idx_print(struct hclge_dev *hdev, bool flag, int index,
 				  char *false_buf)
 {
 	if (flag)
-		dev_info(&hdev->pdev->dev, "%s(%d): %s\n", title_buf, index,
-			 true_buf);
+		dev_info(&hdev->pdev->dev, "%s(%d): %s weight: %u\n",
+			 title_buf, index, true_buf,
+			 hdev->tm_info.pg_info[0].tc_dwrr[index]);
 	else
 		dev_info(&hdev->pdev->dev, "%s(%d): %s\n", title_buf, index,
 			 false_buf);
@@ -339,7 +340,8 @@ static void hclge_dbg_dump_tc(struct hclge_dev *hdev)
 
 	ets_weight = (struct hclge_ets_tc_weight_cmd *)desc.data;
 
-	dev_info(&hdev->pdev->dev, "dump tc\n");
+	dev_info(&hdev->pdev->dev, "dump tc: %u tc enabled\n",
+		 hdev->tm_info.num_tc);
 	dev_info(&hdev->pdev->dev, "weight_offset: %u\n",
 		 ets_weight->weight_offset);
 
@@ -1169,6 +1171,57 @@ static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev,
 	}
 }
 
+static void hclge_dbg_dump_loopback(struct hclge_dev *hdev,
+				    const char *cmd_buf)
+{
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+	struct hclge_config_mac_mode_cmd *req_app;
+	struct hclge_serdes_lb_cmd *req_serdes;
+	struct hclge_desc desc;
+	u8 loopback_en;
+	int ret;
+
+	req_app = (struct hclge_config_mac_mode_cmd *)desc.data;
+	req_serdes = (struct hclge_serdes_lb_cmd *)desc.data;
+
+	dev_info(&hdev->pdev->dev, "mac id: %u\n", hdev->hw.mac.mac_id);
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAC_MODE, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump app loopback status, ret = %d\n", ret);
+		return;
+	}
+
+	loopback_en = hnae3_get_bit(le32_to_cpu(req_app->txrx_pad_fcs_loop_en),
+				    HCLGE_MAC_APP_LP_B);
+	dev_info(&hdev->pdev->dev, "app loopback: %s\n",
+		 loopback_en ? "on" : "off");
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SERDES_LOOPBACK, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump serdes loopback status, ret = %d\n",
+			ret);
+		return;
+	}
+
+	loopback_en = req_serdes->enable & HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
+	dev_info(&hdev->pdev->dev, "serdes serial loopback: %s\n",
+		 loopback_en ? "on" : "off");
+
+	loopback_en = req_serdes->enable &
+			HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B;
+	dev_info(&hdev->pdev->dev, "serdes parallel loopback: %s\n",
+		 loopback_en ? "on" : "off");
+
+	if (phydev)
+		dev_info(&hdev->pdev->dev, "phy loopback: %s\n",
+			 phydev->loopback_enabled ? "on" : "off");
+}
+
 /* hclge_dbg_dump_mac_tnl_status: print message about mac tnl interrupt
  * @hdev: pointer to struct hclge_dev
  */
@@ -1269,6 +1322,7 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 {
 #define DUMP_REG	"dump reg"
 #define DUMP_TM_MAP	"dump tm map"
+#define DUMP_LOOPBACK	"dump loopback"
 
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -1302,6 +1356,9 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 					  &cmd_buf[sizeof("dump ncl_config")]);
 	} else if (strncmp(cmd_buf, "dump mac tnl status", 19) == 0) {
 		hclge_dbg_dump_mac_tnl_status(hdev);
+	} else if (strncmp(cmd_buf, DUMP_LOOPBACK,
+		   strlen(DUMP_LOOPBACK)) == 0) {
+		hclge_dbg_dump_loopback(hdev, &cmd_buf[sizeof(DUMP_LOOPBACK)]);
 	} else if (strncmp(cmd_buf, "dump qs shaper", 14) == 0) {
 		hclge_dbg_dump_qs_shaper(hdev,
 					 &cmd_buf[sizeof("dump qs shaper")]);
