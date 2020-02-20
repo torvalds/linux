@@ -1173,16 +1173,12 @@ mlxsw_sp_br_ban_rif_pvid_change(struct mlxsw_sp *mlxsw_sp,
 				const struct net_device *br_dev,
 				const struct switchdev_obj_port_vlan *vlan)
 {
-	struct mlxsw_sp_rif *rif;
-	struct mlxsw_sp_fid *fid;
 	u16 pvid;
 	u16 vid;
 
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, br_dev);
-	if (!rif)
+	pvid = mlxsw_sp_rif_vid(mlxsw_sp, br_dev);
+	if (!pvid)
 		return 0;
-	fid = mlxsw_sp_rif_fid(rif);
-	pvid = mlxsw_sp_fid_8021q_vid(fid);
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
 		if (vlan->flags & BRIDGE_VLAN_INFO_PVID) {

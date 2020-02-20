@@ -6270,6 +6270,27 @@ mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 	return NULL;
 }
 
+u16 mlxsw_sp_rif_vid(struct mlxsw_sp *mlxsw_sp, const struct net_device *dev)
+{
+	struct mlxsw_sp_rif *rif;
+	u16 vid = 0;
+
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!rif)
+		goto out;
+
+	/* We only return the VID for VLAN RIFs. Otherwise we return an
+	 * invalid value (0).
+	 */
+	if (rif->ops->type != MLXSW_SP_RIF_TYPE_VLAN)
+		goto out;
+
+	vid = mlxsw_sp_fid_8021q_vid(rif->fid);
+
+out:
+	return vid;
+}
+
 static int mlxsw_sp_router_rif_disable(struct mlxsw_sp *mlxsw_sp, u16 rif)
 {
 	char ritr_pl[MLXSW_REG_RITR_LEN];
@@ -6434,11 +6455,6 @@ int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif)
 const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif)
 {
 	return rif->dev;
-}
-
-struct mlxsw_sp_fid *mlxsw_sp_rif_fid(const struct mlxsw_sp_rif *rif)
-{
-	return rif->fid;
 }
 
 static struct mlxsw_sp_rif *
