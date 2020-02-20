@@ -1345,7 +1345,7 @@ static inline void cvmx_pow_work_request_async_nocheck(int scr_addr,
 { }
 
 static inline void cvmx_pow_work_request_async(int scr_addr,
-						       cvmx_pow_wait_t wait)
+					       cvmx_pow_wait_t wait)
 { }
 
 static inline struct cvmx_wqe *cvmx_pow_work_response_async(int scr_addr)
