@@ -1448,7 +1448,7 @@ static inline void mtsrin(u32 val, u32 idx)
 
 #define proc_trap()	asm volatile("trap")
 
-extern unsigned long current_stack_pointer(void);
+extern unsigned long current_stack_frame(void);
 
 extern unsigned long scom970_read(unsigned int address);
 extern void scom970_write(unsigned int address, unsigned long value);

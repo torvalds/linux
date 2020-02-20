@@ -2051,7 +2051,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	sp = (unsigned long) stack;
 	if (sp == 0) {
 		if (tsk == current)
-			sp = current_stack_pointer();
+			sp = current_stack_frame();
 		else
 			sp = tsk->thread.ksp;
 	}
