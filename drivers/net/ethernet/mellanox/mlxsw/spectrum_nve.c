@@ -744,6 +744,8 @@ static int mlxsw_sp_nve_tunnel_init(struct mlxsw_sp *mlxsw_sp,
 	if (nve->num_nve_tunnels++ != 0)
 		return 0;
 
+	nve->config = *config;
+
 	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
 				  &nve->tunnel_index);
 	if (err)
@@ -760,6 +762,7 @@ err_ops_init:
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
 			   nve->tunnel_index);
 err_kvdl_alloc:
+	memset(&nve->config, 0, sizeof(nve->config));
 	nve->num_nve_tunnels--;
 	return err;
 }
@@ -839,8 +842,6 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 		NL_SET_ERR_MSG_MOD(extack, "Failed to set VNI on FID");
 		goto err_fid_vni_set;
 	}
-
-	nve->config = config;
 
 	err = ops->fdb_replay(params->dev, params->vni, extack);
 	if (err)

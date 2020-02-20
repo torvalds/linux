@@ -1173,16 +1173,12 @@ mlxsw_sp_br_ban_rif_pvid_change(struct mlxsw_sp *mlxsw_sp,
 				const struct net_device *br_dev,
 				const struct switchdev_obj_port_vlan *vlan)
 {
-	struct mlxsw_sp_rif *rif;
-	struct mlxsw_sp_fid *fid;
 	u16 pvid;
 	u16 vid;
 
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, br_dev);
-	if (!rif)
+	pvid = mlxsw_sp_rif_vid(mlxsw_sp, br_dev);
+	if (!pvid)
 		return 0;
-	fid = mlxsw_sp_rif_fid(rif);
-	pvid = mlxsw_sp_fid_8021q_vid(fid);
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
 		if (vlan->flags & BRIDGE_VLAN_INFO_PVID) {
@@ -1778,36 +1774,6 @@ mlxsw_sp_port_mrouter_update_mdb(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 }
 
-struct mlxsw_sp_span_respin_work {
-	struct work_struct work;
-	struct mlxsw_sp *mlxsw_sp;
-};
-
-static void mlxsw_sp_span_respin_work(struct work_struct *work)
-{
-	struct mlxsw_sp_span_respin_work *respin_work =
-		container_of(work, struct mlxsw_sp_span_respin_work, work);
-
-	rtnl_lock();
-	mlxsw_sp_span_respin(respin_work->mlxsw_sp);
-	rtnl_unlock();
-	kfree(respin_work);
-}
-
-static void mlxsw_sp_span_respin_schedule(struct mlxsw_sp *mlxsw_sp)
-{
-	struct mlxsw_sp_span_respin_work *respin_work;
-
-	respin_work = kzalloc(sizeof(*respin_work), GFP_ATOMIC);
-	if (!respin_work)
-		return;
-
-	INIT_WORK(&respin_work->work, mlxsw_sp_span_respin_work);
-	respin_work->mlxsw_sp = mlxsw_sp;
-
-	mlxsw_core_schedule_work(&respin_work->work);
-}
-
 static int mlxsw_sp_port_obj_add(struct net_device *dev,
 				 const struct switchdev_obj *obj,
 				 struct switchdev_trans *trans,
@@ -1829,7 +1795,7 @@ static int mlxsw_sp_port_obj_add(struct net_device *dev,
 			 * call for later, so that the respin logic sees the
 			 * updated bridge state.
 			 */
-			mlxsw_sp_span_respin_schedule(mlxsw_sp_port->mlxsw_sp);
+			mlxsw_sp_span_respin(mlxsw_sp_port->mlxsw_sp);
 		}
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
@@ -1982,7 +1948,7 @@ static int mlxsw_sp_port_obj_del(struct net_device *dev,
 		break;
 	}
 
-	mlxsw_sp_span_respin_schedule(mlxsw_sp_port->mlxsw_sp);
+	mlxsw_sp_span_respin(mlxsw_sp_port->mlxsw_sp);
 
 	return err;
 }

@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/spinlock.h>
 
 #include "spectrum_cnt.h"
 
@@ -18,6 +19,7 @@ struct mlxsw_sp_counter_sub_pool {
 struct mlxsw_sp_counter_pool {
 	unsigned int pool_size;
 	unsigned long *usage; /* Usage bitmap */
+	spinlock_t counter_pool_lock; /* Protects counter pool allocations */
 	struct mlxsw_sp_counter_sub_pool *sub_pools;
 };
 
@@ -87,6 +89,7 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool)
 		return -ENOMEM;
+	spin_lock_init(&pool->counter_pool_lock);
 
 	pool->pool_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, COUNTER_POOL_SIZE);
 	map_size = BITS_TO_LONGS(pool->pool_size) * sizeof(unsigned long);
@@ -139,25 +142,35 @@ int mlxsw_sp_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_counter_sub_pool *sub_pool;
 	unsigned int entry_index;
 	unsigned int stop_index;
-	int i;
+	int i, err;
 
 	sub_pool = &mlxsw_sp_counter_sub_pools[sub_pool_id];
 	stop_index = sub_pool->base_index + sub_pool->size;
 	entry_index = sub_pool->base_index;
 
+	spin_lock(&pool->counter_pool_lock);
 	entry_index = find_next_zero_bit(pool->usage, stop_index, entry_index);
-	if (entry_index == stop_index)
-		return -ENOBUFS;
+	if (entry_index == stop_index) {
+		err = -ENOBUFS;
+		goto err_alloc;
+	}
 	/* The sub-pools can contain non-integer number of entries
 	 * so we must check for overflow
 	 */
-	if (entry_index + sub_pool->entry_size > stop_index)
-		return -ENOBUFS;
+	if (entry_index + sub_pool->entry_size > stop_index) {
+		err = -ENOBUFS;
+		goto err_alloc;
+	}
 	for (i = 0; i < sub_pool->entry_size; i++)
 		__set_bit(entry_index + i, pool->usage);
+	spin_unlock(&pool->counter_pool_lock);
 
 	*p_counter_index = entry_index;
 	return 0;
+
+err_alloc:
+	spin_unlock(&pool->counter_pool_lock);
+	return err;
 }
 
 void mlxsw_sp_counter_free(struct mlxsw_sp *mlxsw_sp,
@@ -171,6 +184,8 @@ void mlxsw_sp_counter_free(struct mlxsw_sp *mlxsw_sp,
 	if (WARN_ON(counter_index >= pool->pool_size))
 		return;
 	sub_pool = &mlxsw_sp_counter_sub_pools[sub_pool_id];
+	spin_lock(&pool->counter_pool_lock);
 	for (i = 0; i < sub_pool->entry_size; i++)
 		__clear_bit(counter_index + i, pool->usage);
+	spin_unlock(&pool->counter_pool_lock);
 }
