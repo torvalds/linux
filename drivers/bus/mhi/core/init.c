@@ -543,6 +543,18 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 
 		mhi_event->data_type = event_cfg->data_type;
 
+		switch (mhi_event->data_type) {
+		case MHI_ER_DATA:
+			mhi_event->process_event = mhi_process_data_event_ring;
+			break;
+		case MHI_ER_CTRL:
+			mhi_event->process_event = mhi_process_ctrl_ev_ring;
+			break;
+		default:
+			dev_err(dev, "Event Ring type not supported\n");
+			goto error_ev_cfg;
+		}
+
 		mhi_event->hw_ring = event_cfg->hardware_event;
 		if (mhi_event->hw_ring)
 			mhi_cntrl->hw_ev_rings++;
@@ -772,6 +784,12 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 
 		mhi_event->mhi_cntrl = mhi_cntrl;
 		spin_lock_init(&mhi_event->lock);
+		if (mhi_event->data_type == MHI_ER_CTRL)
+			tasklet_init(&mhi_event->task, mhi_ctrl_ev_task,
+				     (ulong)mhi_event);
+		else
+			tasklet_init(&mhi_event->task, mhi_ev_task,
+				     (ulong)mhi_event);
 	}
 
 	mhi_chan = mhi_cntrl->mhi_chan;
