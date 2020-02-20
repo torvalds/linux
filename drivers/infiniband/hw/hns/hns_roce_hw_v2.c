@@ -255,7 +255,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 	struct hns_roce_qp *qp = to_hr_qp(ibqp);
 	struct hns_roce_wqe_frmr_seg *fseg;
 	struct device *dev = hr_dev->dev;
-	struct hns_roce_v2_db sq_db;
+	struct hns_roce_v2_db sq_db = {};
 	unsigned int owner_bit;
 	unsigned int sge_idx;
 	unsigned int wqe_idx;
@@ -582,9 +582,6 @@ out:
 		qp->sq.head += nreq;
 		/* Memory barrier */
 		wmb();
-
-		sq_db.byte_4 = 0;
-		sq_db.parameter = 0;
 
 		roce_set_field(sq_db.byte_4, V2_DB_BYTE_4_TAG_M,
 			       V2_DB_BYTE_4_TAG_S, qp->doorbell_qpn);

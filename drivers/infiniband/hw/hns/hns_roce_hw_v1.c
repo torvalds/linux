@@ -69,7 +69,7 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp,
 	struct hns_roce_wqe_data_seg *dseg = NULL;
 	struct hns_roce_qp *qp = to_hr_qp(ibqp);
 	struct device *dev = &hr_dev->pdev->dev;
-	struct hns_roce_sq_db sq_db;
+	struct hns_roce_sq_db sq_db = {};
 	int ps_opcode = 0, i = 0;
 	unsigned long flags = 0;
 	void *wqe = NULL;
@@ -318,8 +318,6 @@ out:
 		/* Memory barrier */
 		wmb();
 
-		sq_db.u32_4 = 0;
-		sq_db.u32_8 = 0;
 		roce_set_field(sq_db.u32_4, SQ_DOORBELL_U32_4_SQ_HEAD_M,
 			       SQ_DOORBELL_U32_4_SQ_HEAD_S,
 			      (qp->sq.head & ((qp->sq.wqe_cnt << 1) - 1)));
@@ -351,7 +349,7 @@ static int hns_roce_v1_post_recv(struct ib_qp *ibqp,
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct device *dev = &hr_dev->pdev->dev;
-	struct hns_roce_rq_db rq_db;
+	struct hns_roce_rq_db rq_db = {};
 	__le32 doorbell[2] = {0};
 	unsigned long flags = 0;
 	unsigned int wqe_idx;
@@ -418,9 +416,6 @@ out:
 				   ROCEE_QP1C_CFG3_0_REG +
 				   QP1C_CFGN_OFFSET * hr_qp->phy_port, reg_val);
 		} else {
-			rq_db.u32_4 = 0;
-			rq_db.u32_8 = 0;
-
 			roce_set_field(rq_db.u32_4, RQ_DOORBELL_U32_4_RQ_HEAD_M,
 				       RQ_DOORBELL_U32_4_RQ_HEAD_S,
 				       hr_qp->rq.head);
