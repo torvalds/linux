@@ -62,7 +62,7 @@ struct wilc_p2p_pub_act_frame {
 	u8 oui_type;
 	u8 oui_subtype;
 	u8 dialog_token;
-	u8 elem[0];
+	u8 elem[];
 } __packed;
 
 struct wilc_vendor_specific_ie {
@@ -70,13 +70,13 @@ struct wilc_vendor_specific_ie {
 	u8 tag_len;
 	u8 oui[3];
 	u8 oui_type;
-	u8 attr[0];
+	u8 attr[];
 } __packed;
 
 struct wilc_attr_entry {
 	u8  attr_type;
 	__le16 attr_len;
-	u8 val[0];
+	u8 val[];
 } __packed;
 
 struct wilc_attr_oper_ch {
@@ -91,13 +91,13 @@ struct wilc_attr_ch_list {
 	u8 attr_type;
 	__le16 attr_len;
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
-	u8 elem[0];
+	u8 elem[];
 } __packed;
 
 struct wilc_ch_list_elem {
 	u8 op_class;
 	u8 no_of_channels;
-	u8 ch_list[0];
+	u8 ch_list[];
 } __packed;
 
 static void cfg_scan_result(enum scan_event scan_event,

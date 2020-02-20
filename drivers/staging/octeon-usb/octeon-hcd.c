@@ -406,7 +406,7 @@ struct octeon_hcd {
  */
 struct octeon_temp_buffer {
 	void *orig_buffer;
-	u8 data[0];
+	u8 data[];
 };
 
 static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)

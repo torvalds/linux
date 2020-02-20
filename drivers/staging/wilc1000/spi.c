@@ -139,7 +139,7 @@ struct wilc_spi_read_rsp_data {
 	u8 status;
 	u8 resp_header;
 	u8 resp_data[4];
-	u8 crc[0];
+	u8 crc[];
 } __packed;
 
 struct wilc_spi_rsp_data {
