@@ -954,7 +954,7 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
 	 * we didn't get the timestamp from lineevent_irq_handler().
 	 */
 	if (!le->timestamp)
-		ge.timestamp = ktime_get_real_ns();
+		ge.timestamp = ktime_get_ns();
 	else
 		ge.timestamp = le->timestamp;
 
@@ -995,7 +995,7 @@ static irqreturn_t lineevent_irq_handler(int irq, void *p)
 	 * Just store the timestamp in hardirq context so we get it as
 	 * close in time as possible to the actual event.
 	 */
-	le->timestamp = ktime_get_real_ns();
+	le->timestamp = ktime_get_ns();
 
 	return IRQ_WAKE_THREAD;
 }
