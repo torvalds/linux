@@ -597,9 +597,6 @@ typedef struct srb {
 	struct fc_port *fcport;
 	struct scsi_qla_host *vha;
 	unsigned int start_timer:1;
-	unsigned int abort:1;
-	unsigned int aborted:1;
-	unsigned int completed:1;
 
 	uint32_t handle;
 	uint16_t flags;

@@ -1270,17 +1270,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		return SUCCESS;
 
 	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
-	if (sp->completed) {
-		spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
-		return SUCCESS;
-	}
-
-	if (sp->abort || sp->aborted) {
-		spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
-		return FAILED;
-	}
-
-	sp->abort = 1;
 	sp->comp = &comp;
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
@@ -1705,6 +1694,10 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 	return QLA_SUCCESS;
 }
 
+/*
+ * The caller must ensure that no completion interrupts will happen
+ * while this function is in progress.
+ */
 static void qla2x00_abort_srb(struct qla_qpair *qp, srb_t *sp, const int res,
 			      unsigned long *flags)
 	__releases(qp->qp_lock_ptr)
@@ -1713,6 +1706,7 @@ static void qla2x00_abort_srb(struct qla_qpair *qp, srb_t *sp, const int res,
 	DECLARE_COMPLETION_ONSTACK(comp);
 	scsi_qla_host_t *vha = qp->vha;
 	struct qla_hw_data *ha = vha->hw;
+	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	int rval;
 	bool ret_cmd;
 	uint32_t ratov_j;
@@ -1734,7 +1728,6 @@ static void qla2x00_abort_srb(struct qla_qpair *qp, srb_t *sp, const int res,
 		}
 
 		sp->comp = &comp;
-		sp->abort =  1;
 		spin_unlock_irqrestore(qp->qp_lock_ptr, *flags);
 
 		rval = ha->isp_ops->abort_command(sp);
@@ -1758,13 +1751,17 @@ static void qla2x00_abort_srb(struct qla_qpair *qp, srb_t *sp, const int res,
 		}
 
 		spin_lock_irqsave(qp->qp_lock_ptr, *flags);
-		if (ret_cmd && (!sp->completed || !sp->aborted))
+		if (ret_cmd && blk_mq_request_started(cmd->request))
 			sp->done(sp, res);
 	} else {
 		sp->done(sp, res);
 	}
 }
 
+/*
+ * The caller must ensure that no completion interrupts will happen
+ * while this function is in progress.
+ */
 static void
 __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 {
@@ -1811,6 +1808,10 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 	spin_unlock_irqrestore(qp->qp_lock_ptr, flags);
 }
 
+/*
+ * The caller must ensure that no completion interrupts will happen
+ * while this function is in progress.
+ */
 void
 qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 {
