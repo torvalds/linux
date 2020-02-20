@@ -114,7 +114,7 @@ static int __init test_gen_synth_cmd(void)
 	vals[1] = (u64)(long)"hula hoops";	/* next_comm_field */
 	vals[2] = 1000000;		/* ts_ns */
 	vals[3] = 1000;			/* ts_ms */
-	vals[4] = smp_processor_id();	/* cpu */
+	vals[4] = raw_smp_processor_id(); /* cpu */
 	vals[5] = (u64)(long)"thneed";	/* my_string_field */
 	vals[6] = 598;			/* my_int_field */
 
@@ -221,7 +221,7 @@ static int __init test_empty_synth_event(void)
 	vals[1] = (u64)(long)"tiddlywinks";	/* next_comm_field */
 	vals[2] = 1000000;		/* ts_ns */
 	vals[3] = 1000;			/* ts_ms */
-	vals[4] = smp_processor_id();	/* cpu */
+	vals[4] = raw_smp_processor_id(); /* cpu */
 	vals[5] = (u64)(long)"thneed_2.0";	/* my_string_field */
 	vals[6] = 399;			/* my_int_field */
 
@@ -293,7 +293,7 @@ static int __init test_create_synth_event(void)
 	vals[1] = (u64)(long)"tiddlywinks";	/* next_comm_field */
 	vals[2] = 1000000;		/* ts_ns */
 	vals[3] = 1000;			/* ts_ms */
-	vals[4] = smp_processor_id();	/* cpu */
+	vals[4] = raw_smp_processor_id(); /* cpu */
 	vals[5] = (u64)(long)"thneed";	/* my_string_field */
 	vals[6] = 398;			/* my_int_field */
 
@@ -345,7 +345,7 @@ static int __init test_add_next_synth_val(void)
 		goto out;
 
 	/* cpu */
-	ret = synth_event_add_next_val(smp_processor_id(), &trace_state);
+	ret = synth_event_add_next_val(raw_smp_processor_id(), &trace_state);
 	if (ret)
 		goto out;
 
@@ -388,7 +388,7 @@ static int __init test_add_synth_val(void)
 	if (ret)
 		goto out;
 
-	ret = synth_event_add_val("cpu", smp_processor_id(), &trace_state);
+	ret = synth_event_add_val("cpu", raw_smp_processor_id(), &trace_state);
 	if (ret)
 		goto out;
 
@@ -427,7 +427,7 @@ static int __init test_trace_synth_event(void)
 				(u64)(long)"clackers",	/* next_comm_field */
 				(u64)1000000,		/* ts_ns */
 				(u64)1000,		/* ts_ms */
-				(u64)smp_processor_id(),/* cpu */
+				(u64)raw_smp_processor_id(), /* cpu */
 				(u64)(long)"Thneed",	/* my_string_field */
 				(u64)999);		/* my_int_field */
 	return ret;
