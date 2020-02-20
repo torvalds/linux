@@ -19,6 +19,7 @@
 struct mlxsw_sp_span {
 	struct work_struct work;
 	struct mlxsw_sp *mlxsw_sp;
+	atomic_t active_entries_count;
 	int entries_count;
 	struct mlxsw_sp_span_entry entries[0];
 };
@@ -28,15 +29,8 @@ static void mlxsw_sp_span_respin_work(struct work_struct *work);
 static u64 mlxsw_sp_span_occ_get(void *priv)
 {
 	const struct mlxsw_sp *mlxsw_sp = priv;
-	u64 occ = 0;
-	int i;
 
-	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
-		if (mlxsw_sp->span->entries[i].ref_count)
-			occ++;
-	}
-
-	return occ;
+	return atomic_read(&mlxsw_sp->span->active_entries_count);
 }
 
 int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
@@ -53,6 +47,7 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 	if (!span)
 		return -ENOMEM;
 	span->entries_count = entries_count;
+	atomic_set(&span->active_entries_count, 0);
 	span->mlxsw_sp = mlxsw_sp;
 	mlxsw_sp->span = span;
 
@@ -668,6 +663,7 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp *mlxsw_sp,
 	if (!span_entry)
 		return NULL;
 
+	atomic_inc(&mlxsw_sp->span->active_entries_count);
 	span_entry->ops = ops;
 	span_entry->ref_count = 1;
 	span_entry->to_dev = to_dev;
@@ -676,9 +672,11 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp *mlxsw_sp,
 	return span_entry;
 }
 
-static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp_span_entry *span_entry)
+static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_span_entry *span_entry)
 {
 	mlxsw_sp_span_entry_deconfigure(span_entry);
+	atomic_dec(&mlxsw_sp->span->active_entries_count);
 }
 
 struct mlxsw_sp_span_entry *
@@ -740,7 +738,7 @@ static int mlxsw_sp_span_entry_put(struct mlxsw_sp *mlxsw_sp,
 {
 	WARN_ON(!span_entry->ref_count);
 	if (--span_entry->ref_count == 0)
-		mlxsw_sp_span_entry_destroy(span_entry);
+		mlxsw_sp_span_entry_destroy(mlxsw_sp, span_entry);
 	return 0;
 }
 
@@ -1033,5 +1031,7 @@ static void mlxsw_sp_span_respin_work(struct work_struct *work)
 
 void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp)
 {
+	if (atomic_read(&mlxsw_sp->span->active_entries_count) == 0)
+		return;
 	mlxsw_core_schedule_work(&mlxsw_sp->span->work);
 }
