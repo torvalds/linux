@@ -143,7 +143,8 @@ if FTRACE
 
 config BOOTTIME_TRACING
 	bool "Boot-time Tracing support"
-	depends on BOOT_CONFIG && TRACING
+	depends on TRACING
+	select BOOT_CONFIG
 	default y
 	help
 	  Enable developer to setup ftrace subsystem via supplemental
