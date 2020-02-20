@@ -46,3 +46,7 @@ static inline const struct attribute_group **rtc_get_dev_attribute_groups(void)
 	return NULL;
 }
 #endif
+
+#ifdef CONFIG_RTC_HCTOSYS
+extern int rtc_hctosys(void);
+#endif

@@ -375,6 +375,11 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 	dev_info(rtc->dev.parent, "registered as %s\n",
 		 dev_name(&rtc->dev));
 
+#ifdef CONFIG_RTC_HCTOSYS_DEVICE
+	if (!strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE))
+		rtc_hctosys();
+#endif
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__rtc_register_device);
