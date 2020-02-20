@@ -3840,10 +3840,14 @@ static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 	if (!dev)
 		return 0;
 
-	in_dev = __in_dev_get_rtnl(dev);
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev && IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
-	    fib_nh->fib_nh_flags & RTNH_F_LINKDOWN)
+	    fib_nh->fib_nh_flags & RTNH_F_LINKDOWN) {
+		rcu_read_unlock();
 		return 0;
+	}
+	rcu_read_unlock();
 
 	err = mlxsw_sp_nexthop4_type_init(mlxsw_sp, nh, fib_nh);
 	if (err)
