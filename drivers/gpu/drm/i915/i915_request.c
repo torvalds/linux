@@ -51,7 +51,6 @@ struct execute_cb {
 static struct i915_global_request {
 	struct i915_global base;
 	struct kmem_cache *slab_requests;
-	struct kmem_cache *slab_dependencies;
 	struct kmem_cache *slab_execute_cbs;
 } global;
 
@@ -1614,14 +1613,12 @@ out:
 
 static void i915_global_request_shrink(void)
 {
-	kmem_cache_shrink(global.slab_dependencies);
 	kmem_cache_shrink(global.slab_execute_cbs);
 	kmem_cache_shrink(global.slab_requests);
 }
 
 static void i915_global_request_exit(void)
 {
-	kmem_cache_destroy(global.slab_dependencies);
 	kmem_cache_destroy(global.slab_execute_cbs);
 	kmem_cache_destroy(global.slab_requests);
 }
@@ -1651,17 +1648,9 @@ int __init i915_global_request_init(void)
 	if (!global.slab_execute_cbs)
 		goto err_requests;
 
-	global.slab_dependencies = KMEM_CACHE(i915_dependency,
-					      SLAB_HWCACHE_ALIGN |
-					      SLAB_RECLAIM_ACCOUNT);
-	if (!global.slab_dependencies)
-		goto err_execute_cbs;
-
 	i915_global_register(&global.base);
 	return 0;
 
-err_execute_cbs:
-	kmem_cache_destroy(global.slab_execute_cbs);
 err_requests:
 	kmem_cache_destroy(global.slab_requests);
 	return -ENOMEM;
