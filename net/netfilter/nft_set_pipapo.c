@@ -433,7 +433,7 @@ struct nft_pipapo_match {
 	unsigned long * __percpu *scratch;
 	size_t bsize_max;
 	struct rcu_head rcu;
-	struct nft_pipapo_field f[0];
+	struct nft_pipapo_field f[];
 };
 
 /* Current working bitmap index, toggled between field matches */
