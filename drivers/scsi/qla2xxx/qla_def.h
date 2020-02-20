@@ -119,7 +119,10 @@ typedef struct {
 #define LSD(x)	((uint32_t)((uint64_t)(x)))
 #define MSD(x)	((uint32_t)((((uint64_t)(x)) >> 16) >> 16))
 
-#define MAKE_HANDLE(x, y) ((uint32_t)((((uint32_t)(x)) << 16) | (uint32_t)(y)))
+static inline uint32_t make_handle(uint16_t x, uint16_t y)
+{
+	return ((uint32_t)x << 16) | y;
+}
 
 /*
  * I/O register

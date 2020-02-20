@@ -3135,7 +3135,7 @@ qlafx00_start_scsi(srb_t *sp)
 
 	memset(&lcmd_pkt, 0, REQUEST_ENTRY_SIZE);
 
-	lcmd_pkt.handle = MAKE_HANDLE(req->id, sp->handle);
+	lcmd_pkt.handle = make_handle(req->id, sp->handle);
 	lcmd_pkt.reserved_0 = 0;
 	lcmd_pkt.port_path_ctrl = 0;
 	lcmd_pkt.reserved_1 = 0;
@@ -3205,7 +3205,7 @@ qlafx00_tm_iocb(srb_t *sp, struct tsk_mgmt_entry_fx00 *ptm_iocb)
 	memset(&tm_iocb, 0, sizeof(struct tsk_mgmt_entry_fx00));
 	tm_iocb.entry_type = TSK_MGMT_IOCB_TYPE_FX00;
 	tm_iocb.entry_count = 1;
-	tm_iocb.handle = cpu_to_le32(MAKE_HANDLE(req->id, sp->handle));
+	tm_iocb.handle = cpu_to_le32(make_handle(req->id, sp->handle));
 	tm_iocb.reserved_0 = 0;
 	tm_iocb.tgt_id = cpu_to_le16(sp->fcport->tgt_id);
 	tm_iocb.control_flags = cpu_to_le32(fxio->u.tmf.flags);
@@ -3231,9 +3231,9 @@ qlafx00_abort_iocb(srb_t *sp, struct abort_iocb_entry_fx00 *pabt_iocb)
 	memset(&abt_iocb, 0, sizeof(struct abort_iocb_entry_fx00));
 	abt_iocb.entry_type = ABORT_IOCB_TYPE_FX00;
 	abt_iocb.entry_count = 1;
-	abt_iocb.handle = cpu_to_le32(MAKE_HANDLE(req->id, sp->handle));
+	abt_iocb.handle = cpu_to_le32(make_handle(req->id, sp->handle));
 	abt_iocb.abort_handle =
-	    cpu_to_le32(MAKE_HANDLE(req->id, fxio->u.abt.cmd_hndl));
+	    cpu_to_le32(make_handle(req->id, fxio->u.abt.cmd_hndl));
 	abt_iocb.tgt_id_sts = cpu_to_le16(sp->fcport->tgt_id);
 	abt_iocb.req_que_no = cpu_to_le16(req->id);
 
