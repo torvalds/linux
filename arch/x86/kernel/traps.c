@@ -570,6 +570,11 @@ exit:
 
 dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 {
+	/*
+	 * poke_int3_handler() is completely self contained code; it does (and
+	 * must) *NOT* call out to anything, lest it hits upon yet another
+	 * INT3.
+	 */
 	if (poke_int3_handler(regs))
 		return;
 

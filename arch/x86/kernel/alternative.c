@@ -1033,7 +1033,7 @@ static __always_inline void *text_poke_addr(struct text_poke_loc *tp)
 	return _stext + tp->rel_addr;
 }
 
-static int noinstr patch_cmp(const void *key, const void *elt)
+static __always_inline int patch_cmp(const void *key, const void *elt)
 {
 	struct text_poke_loc *tp = (struct text_poke_loc *) elt;
 
@@ -1077,9 +1077,9 @@ int noinstr poke_int3_handler(struct pt_regs *regs)
 	 * Skip the binary search if there is a single member in the vector.
 	 */
 	if (unlikely(desc->nr_entries > 1)) {
-		tp = bsearch(ip, desc->vec, desc->nr_entries,
-			     sizeof(struct text_poke_loc),
-			     patch_cmp);
+		tp = __inline_bsearch(ip, desc->vec, desc->nr_entries,
+				      sizeof(struct text_poke_loc),
+				      patch_cmp);
 		if (!tp)
 			goto out_put;
 	} else {
