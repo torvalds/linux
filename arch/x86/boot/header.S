@@ -15,7 +15,7 @@
  * hex while segment addresses are written as segment:offset.
  *
  */
-
+#include <linux/pe.h>
 #include <asm/segment.h>
 #include <asm/boot.h>
 #include <asm/page_types.h>
@@ -43,8 +43,7 @@ SYSSEG		= 0x1000		/* historical load address >> 4 */
 bootsect_start:
 #ifdef CONFIG_EFI_STUB
 	# "MZ", MS-DOS header
-	.byte 0x4d
-	.byte 0x5a
+	.word	MZ_MAGIC
 #endif
 
 	# Normalize the start address
@@ -97,39 +96,30 @@ bugger_off_msg:
 
 #ifdef CONFIG_EFI_STUB
 pe_header:
-	.ascii	"PE"
-	.word 	0
+	.long	PE_MAGIC
 
 coff_header:
 #ifdef CONFIG_X86_32
-	.word	0x14c				# i386
+	.set	image_file_add_flags, IMAGE_FILE_32BIT_MACHINE
+	.set	pe_opt_magic, PE_OPT_MAGIC_PE32
+	.word	IMAGE_FILE_MACHINE_I386
 #else
-	.word	0x8664				# x86-64
+	.set	image_file_add_flags, 0
+	.set	pe_opt_magic, PE_OPT_MAGIC_PE32PLUS
+	.word	IMAGE_FILE_MACHINE_AMD64
 #endif
 	.word	section_count			# nr_sections
 	.long	0 				# TimeDateStamp
 	.long	0				# PointerToSymbolTable
 	.long	1				# NumberOfSymbols
 	.word	section_table - optional_header	# SizeOfOptionalHeader
-#ifdef CONFIG_X86_32
-	.word	0x306				# Characteristics.
-						# IMAGE_FILE_32BIT_MACHINE |
-						# IMAGE_FILE_DEBUG_STRIPPED |
-						# IMAGE_FILE_EXECUTABLE_IMAGE |
-						# IMAGE_FILE_LINE_NUMS_STRIPPED
-#else
-	.word	0x206				# Characteristics
-						# IMAGE_FILE_DEBUG_STRIPPED |
-						# IMAGE_FILE_EXECUTABLE_IMAGE |
-						# IMAGE_FILE_LINE_NUMS_STRIPPED
-#endif
+	.word	IMAGE_FILE_EXECUTABLE_IMAGE	| \
+		image_file_add_flags		| \
+		IMAGE_FILE_DEBUG_STRIPPED	| \
+		IMAGE_FILE_LINE_NUMS_STRIPPED	# Characteristics
 
 optional_header:
-#ifdef CONFIG_X86_32
-	.word	0x10b				# PE32 format
-#else
-	.word	0x20b 				# PE32+ format
-#endif
+	.word	pe_opt_magic
 	.byte	0x02				# MajorLinkerVersion
 	.byte	0x14				# MinorLinkerVersion
 
@@ -170,7 +160,7 @@ extra_header_fields:
 
 	.long	0x200				# SizeOfHeaders
 	.long	0				# CheckSum
-	.word	0xa				# Subsystem (EFI application)
+	.word	IMAGE_SUBSYSTEM_EFI_APPLICATION	# Subsystem (EFI application)
 	.word	0				# DllCharacteristics
 #ifdef CONFIG_X86_32
 	.long	0				# SizeOfStackReserve
@@ -184,7 +174,7 @@ extra_header_fields:
 	.quad	0				# SizeOfHeapCommit
 #endif
 	.long	0				# LoaderFlags
-	.long	0x6				# NumberOfRvaAndSizes
+	.long	(section_table - .) / 8		# NumberOfRvaAndSizes
 
 	.quad	0				# ExportTable
 	.quad	0				# ImportTable
@@ -210,7 +200,10 @@ section_table:
 	.long	0				# PointerToLineNumbers
 	.word	0				# NumberOfRelocations
 	.word	0				# NumberOfLineNumbers
-	.long	0x60500020			# Characteristics (section flags)
+	.long	IMAGE_SCN_CNT_CODE		| \
+		IMAGE_SCN_MEM_READ		| \
+		IMAGE_SCN_MEM_EXECUTE		| \
+		IMAGE_SCN_ALIGN_16BYTES		# Characteristics
 
 	#
 	# The EFI application loader requires a relocation section
@@ -228,7 +221,10 @@ section_table:
 	.long	0				# PointerToLineNumbers
 	.word	0				# NumberOfRelocations
 	.word	0				# NumberOfLineNumbers
-	.long	0x42100040			# Characteristics (section flags)
+	.long	IMAGE_SCN_CNT_INITIALIZED_DATA	| \
+		IMAGE_SCN_MEM_READ		| \
+		IMAGE_SCN_MEM_DISCARDABLE	| \
+		IMAGE_SCN_ALIGN_1BYTES		# Characteristics
 
 #ifdef CONFIG_EFI_MIXED
 	#
@@ -244,7 +240,10 @@ section_table:
 	.long	0				# PointerToLineNumbers
 	.word	0				# NumberOfRelocations
 	.word	0				# NumberOfLineNumbers
-	.long	0x42100040			# Characteristics (section flags)
+	.long	IMAGE_SCN_CNT_INITIALIZED_DATA	| \
+		IMAGE_SCN_MEM_READ		| \
+		IMAGE_SCN_MEM_DISCARDABLE	| \
+		IMAGE_SCN_ALIGN_1BYTES		# Characteristics
 #endif
 
 	#
@@ -263,7 +262,10 @@ section_table:
 	.long	0				# PointerToLineNumbers
 	.word	0				# NumberOfRelocations
 	.word	0				# NumberOfLineNumbers
-	.long	0x60500020			# Characteristics (section flags)
+	.long	IMAGE_SCN_CNT_CODE		| \
+		IMAGE_SCN_MEM_READ		| \
+		IMAGE_SCN_MEM_EXECUTE		| \
+		IMAGE_SCN_ALIGN_16BYTES		# Characteristics
 
 	.set	section_count, (. - section_table) / 40
 #endif /* CONFIG_EFI_STUB */
