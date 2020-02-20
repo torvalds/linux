@@ -1002,30 +1002,6 @@ void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, int span_id,
 	mlxsw_sp_span_inspected_port_del(from, span_entry, type, bind);
 }
 
-void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp)
-{
-	int i;
-	int err;
-
-	ASSERT_RTNL();
-	for (i = 0; i < mlxsw_sp->span->entries_count; i++) {
-		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span->entries[i];
-		struct mlxsw_sp_span_parms sparms = {NULL};
-
-		if (!curr->ref_count)
-			continue;
-
-		err = curr->ops->parms(curr->to_dev, &sparms);
-		if (err)
-			continue;
-
-		if (memcmp(&sparms, &curr->parms, sizeof(sparms))) {
-			mlxsw_sp_span_entry_deconfigure(curr);
-			mlxsw_sp_span_entry_configure(mlxsw_sp, curr, sparms);
-		}
-	}
-}
-
 static void mlxsw_sp_span_respin_work(struct work_struct *work)
 {
 	struct mlxsw_sp_span *span;
@@ -1053,4 +1029,9 @@ static void mlxsw_sp_span_respin_work(struct work_struct *work)
 		}
 	}
 	rtnl_unlock();
+}
+
+void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_core_schedule_work(&mlxsw_sp->span->work);
 }
