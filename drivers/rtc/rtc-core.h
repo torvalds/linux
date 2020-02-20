@@ -60,3 +60,7 @@ int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps)
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_RTC_HCTOSYS
+extern int rtc_hctosys(void);
+#endif
