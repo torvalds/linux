@@ -288,10 +288,8 @@ static int hda_init(struct snd_sof_dev *sdev)
 
 	/* init i915 and HDMI codecs */
 	ret = hda_codec_i915_init(sdev);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: init i915 and HDMI codec failed\n");
-		return ret;
-	}
+	if (ret < 0)
+		dev_warn(sdev->dev, "init of i915 and HDMI codec failed\n");
 
 	/* get controller capabilities */
 	ret = hda_dsp_ctrl_get_caps(sdev);
@@ -365,9 +363,6 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(bus->dev, "error: init chip failed with ret: %d\n",
 			ret);
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-		hda_codec_i915_exit(sdev);
-#endif
 		return ret;
 	}
 
@@ -379,7 +374,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	hda_codec_probe_bus(sdev, hda_codec_use_common_hdmi);
 
 	if (!HDA_IDISP_CODEC(bus->codec_mask))
-		hda_codec_i915_exit(sdev);
+		hda_codec_i915_display_power(sdev, false);
 
 	/*
 	 * we are done probing so decrement link counts
@@ -699,12 +694,11 @@ static int hda_generic_machine_select(struct snd_sof_dev *sdev)
 		/*
 		 * If no machine driver is found, then:
 		 *
-		 * hda machine driver is used if :
-		 * 1. there is one HDMI codec and one external HDAudio codec
-		 * 2. only HDMI codec
+		 * generic hda machine driver can handle:
+		 *  - one HDMI codec, and/or
+		 *  - one external HDAudio codec
 		 */
-		if (!pdata->machine && codec_num <= 2 &&
-		    HDA_IDISP_CODEC(bus->codec_mask)) {
+		if (!pdata->machine && codec_num <= 2) {
 			hda_mach = snd_soc_acpi_intel_hda_machines;
 
 			/* topology: use the info from hda_machines */
@@ -714,7 +708,7 @@ static int hda_generic_machine_select(struct snd_sof_dev *sdev)
 			dev_info(bus->dev, "using HDA machine driver %s now\n",
 				 hda_mach->drv_name);
 
-			if (codec_num == 1)
+			if (codec_num == 1 && HDA_IDISP_CODEC(bus->codec_mask))
 				idisp_str = "-idisp";
 			else
 				idisp_str = "";
