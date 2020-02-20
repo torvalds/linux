@@ -988,17 +988,23 @@ __mlxsw_sp_ipip_netdev_ul_dev_get(const struct net_device *ol_dev)
 	struct ip_tunnel *tun = netdev_priv(ol_dev);
 	struct net *net = dev_net(ol_dev);
 
-	return __dev_get_by_index(net, tun->parms.link);
+	return dev_get_by_index_rcu(net, tun->parms.link);
 }
 
 u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev)
 {
-	struct net_device *d = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+	struct net_device *d;
+	u32 tb_id;
 
+	rcu_read_lock();
+	d = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
 	if (d)
-		return l3mdev_fib_table(d) ? : RT_TABLE_MAIN;
+		tb_id = l3mdev_fib_table(d) ? : RT_TABLE_MAIN;
 	else
-		return RT_TABLE_MAIN;
+		tb_id = RT_TABLE_MAIN;
+	rcu_read_unlock();
+
+	return tb_id;
 }
 
 static struct mlxsw_sp_rif *
@@ -1355,8 +1361,12 @@ mlxsw_sp_ipip_entry_find_by_ul_dev(const struct mlxsw_sp *mlxsw_sp,
 					ipip_list_node);
 	list_for_each_entry_continue(ipip_entry, &mlxsw_sp->router->ipip_list,
 				     ipip_list_node) {
-		struct net_device *ipip_ul_dev =
-			__mlxsw_sp_ipip_netdev_ul_dev_get(ipip_entry->ol_dev);
+		struct net_device *ol_dev = ipip_entry->ol_dev;
+		struct net_device *ipip_ul_dev;
+
+		rcu_read_lock();
+		ipip_ul_dev = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+		rcu_read_unlock();
 
 		if (ipip_ul_dev == ul_dev)
 			return ipip_entry;
@@ -1722,9 +1732,12 @@ static void mlxsw_sp_ipip_demote_tunnel_by_ul_netdev(struct mlxsw_sp *mlxsw_sp,
 
 	list_for_each_entry_safe(ipip_entry, tmp, &mlxsw_sp->router->ipip_list,
 				 ipip_list_node) {
-		struct net_device *ipip_ul_dev =
-			__mlxsw_sp_ipip_netdev_ul_dev_get(ipip_entry->ol_dev);
+		struct net_device *ol_dev = ipip_entry->ol_dev;
+		struct net_device *ipip_ul_dev;
 
+		rcu_read_lock();
+		ipip_ul_dev = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+		rcu_read_unlock();
 		if (ipip_ul_dev == ul_dev)
 			mlxsw_sp_ipip_entry_demote_tunnel(mlxsw_sp, ipip_entry);
 	}
@@ -3711,9 +3724,15 @@ static void mlxsw_sp_nexthop_neigh_fini(struct mlxsw_sp *mlxsw_sp,
 
 static bool mlxsw_sp_ipip_netdev_ul_up(struct net_device *ol_dev)
 {
-	struct net_device *ul_dev = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+	struct net_device *ul_dev;
+	bool is_up;
 
-	return ul_dev ? (ul_dev->flags & IFF_UP) : true;
+	rcu_read_lock();
+	ul_dev = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+	is_up = ul_dev ? (ul_dev->flags & IFF_UP) : true;
+	rcu_read_unlock();
+
+	return is_up;
 }
 
 static void mlxsw_sp_nexthop_ipip_init(struct mlxsw_sp *mlxsw_sp,
