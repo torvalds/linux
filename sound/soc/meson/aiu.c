@@ -273,6 +273,11 @@ static int aiu_probe(struct platform_device *pdev)
 	aiu = devm_kzalloc(dev, sizeof(*aiu), GFP_KERNEL);
 	if (!aiu)
 		return -ENOMEM;
+
+	aiu->platform = device_get_match_data(dev);
+	if (!aiu->platform)
+		return -ENODEV;
+
 	platform_set_drvdata(pdev, aiu);
 
 	ret = device_reset(dev);
@@ -322,7 +327,7 @@ static int aiu_probe(struct platform_device *pdev)
 	}
 
 	/* Register the internal dac control component on gxl */
-	if (of_device_is_compatible(dev->of_node, "amlogic,aiu-gxl")) {
+	if (aiu->platform->has_acodec) {
 		ret = aiu_acodec_ctrl_register_component(dev);
 		if (ret) {
 			dev_err(dev,
@@ -344,9 +349,17 @@ static int aiu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct aiu_platform_data aiu_gxbb_pdata = {
+	.has_acodec = false,
+};
+
+static const struct aiu_platform_data aiu_gxl_pdata = {
+	.has_acodec = true,
+};
+
 static const struct of_device_id aiu_of_match[] = {
-	{ .compatible = "amlogic,aiu-gxbb", },
-	{ .compatible = "amlogic,aiu-gxl", },
+	{ .compatible = "amlogic,aiu-gxbb", .data = &aiu_gxbb_pdata },
+	{ .compatible = "amlogic,aiu-gxl", .data = &aiu_gxl_pdata },
 	{}
 };
 MODULE_DEVICE_TABLE(of, aiu_of_match);

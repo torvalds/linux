@@ -27,11 +27,16 @@ struct aiu_interface {
 	int irq;
 };
 
+struct aiu_platform_data {
+	bool has_acodec;
+};
+
 struct aiu {
 	struct clk *pclk;
 	struct clk *spdif_mclk;
 	struct aiu_interface i2s;
 	struct aiu_interface spdif;
+	const struct aiu_platform_data *platform;
 };
 
 #define AIU_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |	\
