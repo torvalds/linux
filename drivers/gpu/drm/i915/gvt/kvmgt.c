@@ -150,6 +150,7 @@ static bool kvmgt_guest_exit(struct kvmgt_guest_info *info);
 static void gvt_unpin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		unsigned long size)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	int total_pages;
 	int npage;
 	int ret;
@@ -160,7 +161,7 @@ static void gvt_unpin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		unsigned long cur_gfn = gfn + npage;
 
 		ret = vfio_unpin_pages(mdev_dev(kvmgt_vdev(vgpu)->mdev), &cur_gfn, 1);
-		WARN_ON(ret != 1);
+		drm_WARN_ON(&i915->drm, ret != 1);
 	}
 }
 
@@ -854,6 +855,7 @@ static void intel_vgpu_release_msi_eventfd_ctx(struct intel_vgpu *vgpu)
 static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 {
 	struct kvmgt_vdev *vdev = kvmgt_vdev(vgpu);
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct kvmgt_guest_info *info;
 	int ret;
 
@@ -867,11 +869,13 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 
 	ret = vfio_unregister_notifier(mdev_dev(vdev->mdev), VFIO_IOMMU_NOTIFY,
 					&vdev->iommu_notifier);
-	WARN(ret, "vfio_unregister_notifier for iommu failed: %d\n", ret);
+	drm_WARN(&i915->drm, ret,
+		 "vfio_unregister_notifier for iommu failed: %d\n", ret);
 
 	ret = vfio_unregister_notifier(mdev_dev(vdev->mdev), VFIO_GROUP_NOTIFY,
 					&vdev->group_notifier);
-	WARN(ret, "vfio_unregister_notifier for group failed: %d\n", ret);
+	drm_WARN(&i915->drm, ret,
+		 "vfio_unregister_notifier for group failed: %d\n", ret);
 
 	/* dereference module reference taken at open */
 	module_put(THIS_MODULE);

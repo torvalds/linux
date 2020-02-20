@@ -392,6 +392,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 			int ring_id)
 {
+	struct drm_i915_private *i915 = pre->gvt->dev_priv;
 	struct drm_i915_private *dev_priv;
 	i915_reg_t offset, l3_offset;
 	u32 old_v, new_v;
@@ -406,7 +407,7 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 	int i;
 
 	dev_priv = pre ? pre->gvt->dev_priv : next->gvt->dev_priv;
-	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
+	if (drm_WARN_ON(&i915->drm, ring_id >= ARRAY_SIZE(regs)))
 		return;
 
 	if (ring_id == RCS0 && IS_GEN(dev_priv, 9))
@@ -551,9 +552,10 @@ static void switch_mmio(struct intel_vgpu *pre,
 void intel_gvt_switch_mmio(struct intel_vgpu *pre,
 			   struct intel_vgpu *next, int ring_id)
 {
+	struct drm_i915_private *i915 = pre->gvt->dev_priv;
 	struct drm_i915_private *dev_priv;
 
-	if (WARN_ON(!pre && !next))
+	if (drm_WARN_ON(&i915->drm, !pre && !next))
 		return;
 
 	gvt_dbg_render("switch ring %d from %s to %s\n", ring_id,

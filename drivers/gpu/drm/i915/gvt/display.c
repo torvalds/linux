@@ -320,9 +320,10 @@ static void clean_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num)
 static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 				    int type, unsigned int resolution)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_vgpu_port *port = intel_vgpu_port(vgpu, port_num);
 
-	if (WARN_ON(resolution >= GVT_EDID_NUM))
+	if (drm_WARN_ON(&i915->drm, resolution >= GVT_EDID_NUM))
 		return -EINVAL;
 
 	port->edid = kzalloc(sizeof(*(port->edid)), GFP_KERNEL);

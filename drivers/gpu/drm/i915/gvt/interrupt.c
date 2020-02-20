@@ -244,6 +244,7 @@ int intel_vgpu_reg_master_irq_handler(struct intel_vgpu *vgpu,
 int intel_vgpu_reg_ier_handler(struct intel_vgpu *vgpu,
 	unsigned int reg, void *p_data, unsigned int bytes)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_gvt_irq_ops *ops = gvt->irq.ops;
 	struct intel_gvt_irq_info *info;
@@ -255,7 +256,7 @@ int intel_vgpu_reg_ier_handler(struct intel_vgpu *vgpu,
 	vgpu_vreg(vgpu, reg) = ier;
 
 	info = regbase_to_irq_info(gvt, ier_to_regbase(reg));
-	if (WARN_ON(!info))
+	if (drm_WARN_ON(&i915->drm, !info))
 		return -EINVAL;
 
 	if (info->has_upstream_irq)
@@ -282,6 +283,7 @@ int intel_vgpu_reg_ier_handler(struct intel_vgpu *vgpu,
 int intel_vgpu_reg_iir_handler(struct intel_vgpu *vgpu, unsigned int reg,
 	void *p_data, unsigned int bytes)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_gvt_irq_info *info = regbase_to_irq_info(vgpu->gvt,
 		iir_to_regbase(reg));
 	u32 iir = *(u32 *)p_data;
@@ -289,7 +291,7 @@ int intel_vgpu_reg_iir_handler(struct intel_vgpu *vgpu, unsigned int reg,
 	trace_write_ir(vgpu->id, "IIR", reg, iir, vgpu_vreg(vgpu, reg),
 		       (vgpu_vreg(vgpu, reg) ^ iir));
 
-	if (WARN_ON(!info))
+	if (drm_WARN_ON(&i915->drm, !info))
 		return -EINVAL;
 
 	vgpu_vreg(vgpu, reg) &= ~iir;
@@ -319,6 +321,7 @@ static struct intel_gvt_irq_map gen8_irq_map[] = {
 static void update_upstream_irq(struct intel_vgpu *vgpu,
 		struct intel_gvt_irq_info *info)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_gvt_irq *irq = &vgpu->gvt->irq;
 	struct intel_gvt_irq_map *map = irq->irq_map;
 	struct intel_gvt_irq_info *up_irq_info = NULL;
@@ -340,7 +343,8 @@ static void update_upstream_irq(struct intel_vgpu *vgpu,
 		if (!up_irq_info)
 			up_irq_info = irq->info[map->up_irq_group];
 		else
-			WARN_ON(up_irq_info != irq->info[map->up_irq_group]);
+			drm_WARN_ON(&i915->drm, up_irq_info !=
+				    irq->info[map->up_irq_group]);
 
 		bit = map->up_irq_bit;
 
@@ -350,7 +354,7 @@ static void update_upstream_irq(struct intel_vgpu *vgpu,
 			clear_bits |= (1 << bit);
 	}
 
-	if (WARN_ON(!up_irq_info))
+	if (drm_WARN_ON(&i915->drm, !up_irq_info))
 		return;
 
 	if (up_irq_info->group == INTEL_GVT_IRQ_INFO_MASTER) {
@@ -618,13 +622,14 @@ static struct intel_gvt_irq_ops gen8_irq_ops = {
 void intel_vgpu_trigger_virtual_event(struct intel_vgpu *vgpu,
 	enum intel_gvt_event_type event)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_gvt_irq *irq = &gvt->irq;
 	gvt_event_virt_handler_t handler;
 	struct intel_gvt_irq_ops *ops = gvt->irq.ops;
 
 	handler = get_event_virt_handler(irq, event);
-	WARN_ON(!handler);
+	drm_WARN_ON(&i915->drm, !handler);
 
 	handler(irq, event, vgpu);
 

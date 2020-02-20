@@ -276,7 +276,9 @@ static int gmbus1_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int gmbus3_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	void *p_data, unsigned int bytes)
 {
-	WARN_ON(1);
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
+
+	drm_WARN_ON(&i915->drm, 1);
 	return 0;
 }
 
@@ -371,7 +373,9 @@ static int gmbus2_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 int intel_gvt_i2c_handle_gmbus_read(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
-	if (WARN_ON(bytes > 8 && (offset & (bytes - 1))))
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
+
+	if (drm_WARN_ON(&i915->drm, bytes > 8 && (offset & (bytes - 1))))
 		return -EINVAL;
 
 	if (offset == i915_mmio_reg_offset(PCH_GMBUS2))
@@ -399,7 +403,9 @@ int intel_gvt_i2c_handle_gmbus_read(struct intel_vgpu *vgpu,
 int intel_gvt_i2c_handle_gmbus_write(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
-	if (WARN_ON(bytes > 8 && (offset & (bytes - 1))))
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
+
+	if (drm_WARN_ON(&i915->drm, bytes > 8 && (offset & (bytes - 1))))
 		return -EINVAL;
 
 	if (offset == i915_mmio_reg_offset(PCH_GMBUS0))
@@ -473,6 +479,7 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 				unsigned int offset,
 				void *p_data)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_vgpu_i2c_edid *i2c_edid = &vgpu->display.i2c_edid;
 	int msg_length, ret_msg_size;
 	int msg, addr, ctrl, op;
@@ -532,9 +539,9 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 		 * support the gfx driver to do EDID access.
 		 */
 	} else {
-		if (WARN_ON((op & 0x1) != GVT_AUX_I2C_READ))
+		if (drm_WARN_ON(&i915->drm, (op & 0x1) != GVT_AUX_I2C_READ))
 			return;
-		if (WARN_ON(msg_length != 4))
+		if (drm_WARN_ON(&i915->drm, msg_length != 4))
 			return;
 		if (i2c_edid->edid_available && i2c_edid->slave_selected) {
 			unsigned char val = edid_get_byte(vgpu);
