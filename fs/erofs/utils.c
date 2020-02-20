@@ -37,9 +37,6 @@ void *erofs_get_pcpubuf(unsigned int pagenr)
 /* global shrink count (for all mounted EROFS instances) */
 static atomic_long_t erofs_global_shrink_cnt;
 
-#define __erofs_workgroup_get(grp)	atomic_inc(&(grp)->refcount)
-#define __erofs_workgroup_put(grp)	atomic_dec(&(grp)->refcount)
-
 static int erofs_workgroup_get(struct erofs_workgroup *grp)
 {
 	int o;
@@ -66,7 +63,7 @@ struct erofs_workgroup *erofs_find_workgroup(struct super_block *sb,
 
 repeat:
 	rcu_read_lock();
-	grp = radix_tree_lookup(&sbi->workstn_tree, index);
+	grp = xa_load(&sbi->managed_pslots, index);
 	if (grp) {
 		if (erofs_workgroup_get(grp)) {
 			/* prefer to relax rcu read side */
@@ -80,43 +77,37 @@ repeat:
 	return grp;
 }
 
-int erofs_register_workgroup(struct super_block *sb,
-			     struct erofs_workgroup *grp)
+struct erofs_workgroup *erofs_insert_workgroup(struct super_block *sb,
+					       struct erofs_workgroup *grp)
 {
-	struct erofs_sb_info *sbi;
-	int err;
-
-	/* grp shouldn't be broken or used before */
-	if (atomic_read(&grp->refcount) != 1) {
-		DBG_BUGON(1);
-		return -EINVAL;
-	}
-
-	err = radix_tree_preload(GFP_NOFS);
-	if (err)
-		return err;
-
-	sbi = EROFS_SB(sb);
-	xa_lock(&sbi->workstn_tree);
+	struct erofs_sb_info *const sbi = EROFS_SB(sb);
+	struct erofs_workgroup *pre;
 
 	/*
-	 * Bump up reference count before making this workgroup
-	 * visible to other users in order to avoid potential UAF
-	 * without serialized by workstn_lock.
+	 * Bump up a reference count before making this visible
+	 * to others for the XArray in order to avoid potential
+	 * UAF without serialized by xa_lock.
 	 */
-	__erofs_workgroup_get(grp);
+	atomic_inc(&grp->refcount);
 
-	err = radix_tree_insert(&sbi->workstn_tree, grp->index, grp);
-	if (err)
-		/*
-		 * it's safe to decrease since the workgroup isn't visible
-		 * and refcount >= 2 (cannot be freezed).
-		 */
-		__erofs_workgroup_put(grp);
-
-	xa_unlock(&sbi->workstn_tree);
-	radix_tree_preload_end();
-	return err;
+repeat:
+	xa_lock(&sbi->managed_pslots);
+	pre = __xa_cmpxchg(&sbi->managed_pslots, grp->index,
+			   NULL, grp, GFP_NOFS);
+	if (pre) {
+		if (xa_is_err(pre)) {
+			pre = ERR_PTR(xa_err(pre));
+		} else if (erofs_workgroup_get(pre)) {
+			/* try to legitimize the current in-tree one */
+			xa_unlock(&sbi->managed_pslots);
+			cond_resched();
+			goto repeat;
+		}
+		atomic_dec(&grp->refcount);
+		grp = pre;
+	}
+	xa_unlock(&sbi->managed_pslots);
+	return grp;
 }
 
 static void  __erofs_workgroup_free(struct erofs_workgroup *grp)
@@ -155,7 +146,7 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 
 	/*
 	 * Note that all cached pages should be unattached
-	 * before deleted from the radix tree. Otherwise some
+	 * before deleted from the XArray. Otherwise some
 	 * cached pages could be still attached to the orphan
 	 * old workgroup when the new one is available in the tree.
 	 */
@@ -169,7 +160,7 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 	 * however in order to avoid some race conditions, add a
 	 * DBG_BUGON to observe this in advance.
 	 */
-	DBG_BUGON(radix_tree_delete(&sbi->workstn_tree, grp->index) != grp);
+	DBG_BUGON(xa_erase(&sbi->managed_pslots, grp->index) != grp);
 
 	/*
 	 * If managed cache is on, last refcount should indicate
@@ -182,22 +173,11 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 static unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
 					      unsigned long nr_shrink)
 {
-	pgoff_t first_index = 0;
-	void *batch[PAGEVEC_SIZE];
+	struct erofs_workgroup *grp;
 	unsigned int freed = 0;
+	unsigned long index;
 
-	int i, found;
-repeat:
-	xa_lock(&sbi->workstn_tree);
-
-	found = radix_tree_gang_lookup(&sbi->workstn_tree,
-				       batch, first_index, PAGEVEC_SIZE);
-
-	for (i = 0; i < found; ++i) {
-		struct erofs_workgroup *grp = batch[i];
-
-		first_index = grp->index + 1;
-
+	xa_for_each(&sbi->managed_pslots, index, grp) {
 		/* try to shrink each valid workgroup */
 		if (!erofs_try_to_release_workgroup(sbi, grp))
 			continue;
@@ -206,10 +186,6 @@ repeat:
 		if (!--nr_shrink)
 			break;
 	}
-	xa_unlock(&sbi->workstn_tree);
-
-	if (i && nr_shrink)
-		goto repeat;
 	return freed;
 }
 
