@@ -201,7 +201,7 @@ static void drm_pci_agp_init(struct drm_device *dev)
 
 static int drm_get_pci_dev(struct pci_dev *pdev,
 			   const struct pci_device_id *ent,
-			   struct drm_driver *driver)
+			   const struct drm_driver *driver)
 {
 	struct drm_device *dev;
 	int ret;
@@ -255,7 +255,8 @@ err_free:
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int drm_legacy_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
+int drm_legacy_pci_init(const struct drm_driver *driver,
+			struct pci_driver *pdriver)
 {
 	struct pci_dev *pdev = NULL;
 	const struct pci_device_id *pid;
@@ -300,7 +301,8 @@ EXPORT_SYMBOL(drm_legacy_pci_init);
  * Unregister a DRM driver shadow-attached through drm_legacy_pci_init(). This
  * is deprecated and only used by dri1 drivers.
  */
-void drm_legacy_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
+void drm_legacy_pci_exit(const struct drm_driver *driver,
+			 struct pci_driver *pdriver)
 {
 	struct drm_device *dev, *tmp;
 
