@@ -1470,6 +1470,12 @@ int hdcp2_authenticate_repeater_topology(struct intel_connector *connector)
 	seq_num_v =
 		drm_hdcp_be24_to_cpu((const u8 *)msgs.recvid_list.seq_num_v);
 
+	if (!hdcp->hdcp2_encrypted && seq_num_v) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "Non zero Seq_num_v at first RecvId_List msg\n");
+		return -EINVAL;
+	}
+
 	if (seq_num_v < hdcp->seq_num_v) {
 		/* Roll over of the seq_num_v from repeater. Reauthenticate. */
 		drm_dbg_kms(&dev_priv->drm, "Seq_num_v roll over.\n");
