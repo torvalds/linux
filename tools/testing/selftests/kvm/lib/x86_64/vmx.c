@@ -376,6 +376,16 @@ void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp)
 	init_vmcs_guest_state(guest_rip, guest_rsp);
 }
 
+void nested_vmx_check_supported(void)
+{
+	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
+
+	if (!(entry->ecx & CPUID_VMX)) {
+		fprintf(stderr, "nested VMX not enabled, skipping test\n");
+		exit(KSFT_SKIP);
+	}
+}
+
 void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	 	   uint64_t nested_paddr, uint64_t paddr, uint32_t eptp_memslot)
 {

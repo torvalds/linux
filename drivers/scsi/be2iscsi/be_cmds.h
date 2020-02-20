@@ -1300,7 +1300,7 @@ struct be_cmd_get_port_name {
 
 /* Returns the number of items in the field array. */
 #define BE_NUMBER_OF_FIELD(_type_, _field_)	\
-	(FIELD_SIZEOF(_type_, _field_)/sizeof((((_type_ *)0)->_field_[0])))\
+	(sizeof_field(_type_, _field_)/sizeof((((_type_ *)0)->_field_[0])))\
 
 /**
  * Different types of iSCSI completions to host driver for both initiator

@@ -19,14 +19,11 @@
 #include <linux/memory.h>
 #include <linux/memory_hotplug.h>
 #include <linux/mm.h>
-#include <linux/mutex.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
 
 #include <linux/atomic.h>
 #include <linux/uaccess.h>
-
-static DEFINE_MUTEX(mem_sysfs_mutex);
 
 #define MEMORY_CLASS_NAME	"memory"
 
@@ -538,9 +535,7 @@ static ssize_t soft_offline_page_store(struct device *dev,
 	if (kstrtoull(buf, 0, &pfn) < 0)
 		return -EINVAL;
 	pfn >>= PAGE_SHIFT;
-	if (!pfn_valid(pfn))
-		return -ENXIO;
-	ret = soft_offline_page(pfn_to_page(pfn), 0);
+	ret = soft_offline_page(pfn, 0);
 	return ret == 0 ? count : ret;
 }
 
@@ -702,6 +697,8 @@ static void unregister_memory(struct memory_block *memory)
  * Create memory block devices for the given memory area. Start and size
  * have to be aligned to memory block granularity. Memory block devices
  * will be initialized as offline.
+ *
+ * Called under device_hotplug_lock.
  */
 int create_memory_block_devices(unsigned long start, unsigned long size)
 {
@@ -715,7 +712,6 @@ int create_memory_block_devices(unsigned long start, unsigned long size)
 			 !IS_ALIGNED(size, memory_block_size_bytes())))
 		return -EINVAL;
 
-	mutex_lock(&mem_sysfs_mutex);
 	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
 		ret = init_memory_block(&mem, block_id, MEM_OFFLINE);
 		if (ret)
@@ -727,11 +723,12 @@ int create_memory_block_devices(unsigned long start, unsigned long size)
 		for (block_id = start_block_id; block_id != end_block_id;
 		     block_id++) {
 			mem = find_memory_block_by_id(block_id);
+			if (WARN_ON_ONCE(!mem))
+				continue;
 			mem->section_count = 0;
 			unregister_memory(mem);
 		}
 	}
-	mutex_unlock(&mem_sysfs_mutex);
 	return ret;
 }
 
@@ -739,6 +736,8 @@ int create_memory_block_devices(unsigned long start, unsigned long size)
  * Remove memory block devices for the given memory area. Start and size
  * have to be aligned to memory block granularity. Memory block devices
  * have to be offline.
+ *
+ * Called under device_hotplug_lock.
  */
 void remove_memory_block_devices(unsigned long start, unsigned long size)
 {
@@ -751,7 +750,6 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
 			 !IS_ALIGNED(size, memory_block_size_bytes())))
 		return;
 
-	mutex_lock(&mem_sysfs_mutex);
 	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
 		mem = find_memory_block_by_id(block_id);
 		if (WARN_ON_ONCE(!mem))
@@ -760,7 +758,6 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
 		unregister_memory_block_under_nodes(mem);
 		unregister_memory(mem);
 	}
-	mutex_unlock(&mem_sysfs_mutex);
 }
 
 /* return true if the memory block is offlined, otherwise, return false */
@@ -794,12 +791,13 @@ static const struct attribute_group *memory_root_attr_groups[] = {
 };
 
 /*
- * Initialize the sysfs support for memory devices...
+ * Initialize the sysfs support for memory devices. At the time this function
+ * is called, we cannot have concurrent creation/deletion of memory block
+ * devices, the device_hotplug_lock is not needed.
  */
 void __init memory_dev_init(void)
 {
 	int ret;
-	int err;
 	unsigned long block_sz, nr;
 
 	/* Validate the configured memory block size */
@@ -810,24 +808,19 @@ void __init memory_dev_init(void)
 
 	ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);
 	if (ret)
-		goto out;
+		panic("%s() failed to register subsystem: %d\n", __func__, ret);
 
 	/*
 	 * Create entries for memory sections that were found
 	 * during boot and have been initialized
 	 */
-	mutex_lock(&mem_sysfs_mutex);
 	for (nr = 0; nr <= __highest_present_section_nr;
 	     nr += sections_per_block) {
-		err = add_memory_block(nr);
-		if (!ret)
-			ret = err;
+		ret = add_memory_block(nr);
+		if (ret)
+			panic("%s() failed to add memory block: %d\n", __func__,
+			      ret);
 	}
-	mutex_unlock(&mem_sysfs_mutex);
-
-out:
-	if (ret)
-		panic("%s() failed: %d\n", __func__, ret);
 }
 
 /**
@@ -868,4 +861,40 @@ int walk_memory_blocks(unsigned long start, unsigned long size,
 			break;
 	}
 	return ret;
+}
+
+struct for_each_memory_block_cb_data {
+	walk_memory_blocks_func_t func;
+	void *arg;
+};
+
+static int for_each_memory_block_cb(struct device *dev, void *data)
+{
+	struct memory_block *mem = to_memory_block(dev);
+	struct for_each_memory_block_cb_data *cb_data = data;
+
+	return cb_data->func(mem, cb_data->arg);
+}
+
+/**
+ * for_each_memory_block - walk through all present memory blocks
+ *
+ * @arg: argument passed to func
+ * @func: callback for each memory block walked
+ *
+ * This function walks through all present memory blocks, calling func on
+ * each memory block.
+ *
+ * In case func() returns an error, walking is aborted and the error is
+ * returned.
+ */
+int for_each_memory_block(void *arg, walk_memory_blocks_func_t func)
+{
+	struct for_each_memory_block_cb_data cb_data = {
+		.func = func,
+		.arg = arg,
+	};
+
+	return bus_for_each_dev(&memory_subsys, NULL, &cb_data,
+				for_each_memory_block_cb);
 }

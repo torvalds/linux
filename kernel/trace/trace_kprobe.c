@@ -7,11 +7,11 @@
  */
 #define pr_fmt(fmt)	"trace_kprobe: " fmt
 
+#include <linux/security.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/rculist.h>
 #include <linux/error-injection.h>
-#include <linux/security.h>
 
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 
@@ -435,11 +435,10 @@ static int disable_trace_kprobe(struct trace_event_call *call,
 
 #if defined(CONFIG_KPROBES_ON_FTRACE) && \
 	!defined(CONFIG_KPROBE_EVENTS_ON_NOTRACE)
-static bool within_notrace_func(struct trace_kprobe *tk)
+static bool __within_notrace_func(unsigned long addr)
 {
-	unsigned long offset, size, addr;
+	unsigned long offset, size;
 
-	addr = trace_kprobe_address(tk);
 	if (!addr || !kallsyms_lookup_size_offset(addr, &size, &offset))
 		return false;
 
@@ -451,6 +450,28 @@ static bool within_notrace_func(struct trace_kprobe *tk)
 	 * to subtract 1 byte from the end address.
 	 */
 	return !ftrace_location_range(addr, addr + size - 1);
+}
+
+static bool within_notrace_func(struct trace_kprobe *tk)
+{
+	unsigned long addr = addr = trace_kprobe_address(tk);
+	char symname[KSYM_NAME_LEN], *p;
+
+	if (!__within_notrace_func(addr))
+		return false;
+
+	/* Check if the address is on a suffixed-symbol */
+	if (!lookup_symbol_name(addr, symname)) {
+		p = strchr(symname, '.');
+		if (!p)
+			return true;
+		*p = '\0';
+		addr = (unsigned long)kprobe_lookup_name(symname, 0);
+		if (addr)
+			return __within_notrace_func(addr);
+	}
+
+	return true;
 }
 #else
 #define within_notrace_func(tk)	(false)
@@ -936,6 +957,10 @@ static int probes_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
+	ret = security_locked_down(LOCKDOWN_TRACEFS);
+	if (ret)
+		return ret;
+
 	if ((file->f_mode & FMODE_WRITE) && (file->f_flags & O_TRUNC)) {
 		ret = dyn_events_release_all(&trace_kprobe_ops);
 		if (ret < 0)
@@ -988,6 +1013,12 @@ static const struct seq_operations profile_seq_op = {
 
 static int profile_open(struct inode *inode, struct file *file)
 {
+	int ret;
+
+	ret = security_locked_down(LOCKDOWN_TRACEFS);
+	if (ret)
+		return ret;
+
 	return seq_open(file, &profile_seq_op);
 }
 

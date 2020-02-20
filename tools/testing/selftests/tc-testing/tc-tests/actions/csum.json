@@ -525,5 +525,29 @@
         "teardown": [
             "$TC actions flush action csum"
         ]
+    },
+    {
+        "id": "eaf0",
+        "name": "Add csum iph action with no_percpu flag",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum iph no_percpu",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action csum",
+        "matchPattern": "action order [0-9]*: csum \\(iph\\) action pass.*no_percpu",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
     }
 ]

@@ -81,10 +81,10 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 	pr->performance_platform_limit = (int)ppc;
 
 	if (ppc >= pr->performance->state_count ||
-	    unlikely(!dev_pm_qos_request_active(&pr->perflib_req)))
+	    unlikely(!freq_qos_request_active(&pr->perflib_req)))
 		return 0;
 
-	ret = dev_pm_qos_update_request(&pr->perflib_req,
+	ret = freq_qos_update_request(&pr->perflib_req,
 			pr->performance->states[ppc].core_frequency * 1000);
 	if (ret < 0) {
 		pr_warn("Failed to update perflib freq constraint: CPU%d (%d)\n",
@@ -157,26 +157,36 @@ void acpi_processor_ignore_ppc_init(void)
 		ignore_ppc = 0;
 }
 
-void acpi_processor_ppc_init(int cpu)
+void acpi_processor_ppc_init(struct cpufreq_policy *policy)
 {
-	struct acpi_processor *pr = per_cpu(processors, cpu);
-	int ret;
+	unsigned int cpu;
 
-	ret = dev_pm_qos_add_request(get_cpu_device(cpu),
-				     &pr->perflib_req, DEV_PM_QOS_MAX_FREQUENCY,
-				     INT_MAX);
-	if (ret < 0) {
-		pr_err("Failed to add freq constraint for CPU%d (%d)\n", cpu,
-		       ret);
-		return;
+	for_each_cpu(cpu, policy->related_cpus) {
+		struct acpi_processor *pr = per_cpu(processors, cpu);
+		int ret;
+
+		if (!pr)
+			continue;
+
+		ret = freq_qos_add_request(&policy->constraints,
+					   &pr->perflib_req,
+					   FREQ_QOS_MAX, INT_MAX);
+		if (ret < 0)
+			pr_err("Failed to add freq constraint for CPU%d (%d)\n",
+			       cpu, ret);
 	}
 }
 
-void acpi_processor_ppc_exit(int cpu)
+void acpi_processor_ppc_exit(struct cpufreq_policy *policy)
 {
-	struct acpi_processor *pr = per_cpu(processors, cpu);
+	unsigned int cpu;
 
-	dev_pm_qos_remove_request(&pr->perflib_req);
+	for_each_cpu(cpu, policy->related_cpus) {
+		struct acpi_processor *pr = per_cpu(processors, cpu);
+
+		if (pr)
+			freq_qos_remove_request(&pr->perflib_req);
+	}
 }
 
 static int acpi_processor_get_performance_control(struct acpi_processor *pr)

@@ -22,6 +22,9 @@ enum gpio_lookup_flags;
 
 struct gpio_chip;
 
+#define GPIO_LINE_DIRECTION_IN	1
+#define GPIO_LINE_DIRECTION_OUT	0
+
 /**
  * struct gpio_irq_chip - GPIO interrupt controller
  */
@@ -202,6 +205,14 @@ struct gpio_irq_chip {
 	bool threaded;
 
 	/**
+	 * @init_hw: optional routine to initialize hardware before
+	 * an IRQ chip will be added. This is quite useful when
+	 * a particular driver wants to clear IRQ related registers
+	 * in order to avoid undesired events.
+	 */
+	int (*init_hw)(struct gpio_chip *chip);
+
+	/**
 	 * @init_valid_mask: optional routine to initialize @valid_mask, to be
 	 * used if not all GPIO lines are valid interrupts. Sometimes some
 	 * lines just cannot fire interrupts, and this routine, when defined,
@@ -278,6 +289,9 @@ struct gpio_irq_chip {
  *	state (such as pullup/pulldown configuration).
  * @init_valid_mask: optional routine to initialize @valid_mask, to be used if
  *	not all GPIOs are valid.
+ * @add_pin_ranges: optional routine to initialize pin ranges, to be used when
+ *	requires special mapping of the pins that provides GPIO functionality.
+ *	It is called after adding GPIO chip and before adding IRQ chip.
  * @base: identifies the first GPIO number handled by this chip;
  *	or, if negative during registration, requests dynamic ID allocation.
  *	DEPRECATION: providing anything non-negative and nailing the base
@@ -367,6 +381,8 @@ struct gpio_chip {
 	int			(*init_valid_mask)(struct gpio_chip *chip,
 						   unsigned long *valid_mask,
 						   unsigned int ngpios);
+
+	int			(*add_pin_ranges)(struct gpio_chip *chip);
 
 	int			base;
 	u16			ngpio;

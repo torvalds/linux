@@ -3,8 +3,10 @@ config XTENSA
 	def_bool y
 	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_BINFMT_FLAT if !MMU
-	select ARCH_HAS_SYNC_DMA_FOR_CPU
-	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_HAS_DMA_PREP_COHERENT if MMU
+	select ARCH_HAS_SYNC_DMA_FOR_CPU if MMU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if MMU
+	select ARCH_HAS_UNCACHED_SEGMENT if MMU
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_WANT_FRAME_POINTERS
@@ -19,9 +21,10 @@ config XTENSA
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_STRNCPY_FROM_USER if KASAN
-	select HAVE_ARCH_JUMP_LABEL
-	select HAVE_ARCH_KASAN if MMU
+	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
+	select HAVE_ARCH_KASAN if MMU && !XIP_KERNEL
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_COPY_THREAD_TLS
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_EXIT_THREAD
@@ -213,151 +216,6 @@ config HOTPLUG_CPU
 
 	  Say N if you want to disable CPU hotplug.
 
-config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
-	bool "Initialize Xtensa MMU inside the Linux kernel code"
-	depends on !XTENSA_VARIANT_FSF && !XTENSA_VARIANT_DC232B
-	default y if XTENSA_VARIANT_DC233C || XTENSA_VARIANT_CUSTOM
-	help
-	  Earlier version initialized the MMU in the exception vector
-	  before jumping to _startup in head.S and had an advantage that
-	  it was possible to place a software breakpoint at 'reset' and
-	  then enter your normal kernel breakpoints once the MMU was mapped
-	  to the kernel mappings (0XC0000000).
-
-	  This unfortunately won't work for U-Boot and likely also wont
-	  work for using KEXEC to have a hot kernel ready for doing a
-	  KDUMP.
-
-	  So now the MMU is initialized in head.S but it's necessary to
-	  use hardware breakpoints (gdb 'hbreak' cmd) to break at _startup.
-	  xt-gdb can't place a Software Breakpoint in the  0XD region prior
-	  to mapping the MMU and after mapping even if the area of low memory
-	  was mapped gdb wouldn't remove the breakpoint on hitting it as the
-	  PC wouldn't match. Since Hardware Breakpoints are recommended for
-	  Linux configurations it seems reasonable to just assume they exist
-	  and leave this older mechanism for unfortunate souls that choose
-	  not to follow Tensilica's recommendation.
-
-	  Selecting this will cause U-Boot to set the KERNEL Load and Entry
-	  address at 0x00003000 instead of the mapped std of 0xD0003000.
-
-	  If in doubt, say Y.
-
-config MEMMAP_CACHEATTR
-	hex "Cache attributes for the memory address space"
-	depends on !MMU
-	default 0x22222222
-	help
-	  These cache attributes are set up for noMMU systems. Each hex digit
-	  specifies cache attributes for the corresponding 512MB memory
-	  region: bits 0..3 -- for addresses 0x00000000..0x1fffffff,
-	  bits 4..7 -- for addresses 0x20000000..0x3fffffff, and so on.
-
-	  Cache attribute values are specific for the MMU type.
-	  For region protection MMUs:
-	    1: WT cached,
-	    2: cache bypass,
-	    4: WB cached,
-	    f: illegal.
-	  For ful MMU:
-	    bit 0: executable,
-	    bit 1: writable,
-	    bits 2..3:
-	      0: cache bypass,
-	      1: WB cache,
-	      2: WT cache,
-	      3: special (c and e are illegal, f is reserved).
-	  For MPU:
-	    0: illegal,
-	    1: WB cache,
-	    2: WB, no-write-allocate cache,
-	    3: WT cache,
-	    4: cache bypass.
-
-config KSEG_PADDR
-	hex "Physical address of the KSEG mapping"
-	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX && MMU
-	default 0x00000000
-	help
-	  This is the physical address where KSEG is mapped. Please refer to
-	  the chosen KSEG layout help for the required address alignment.
-	  Unpacked kernel image (including vectors) must be located completely
-	  within KSEG.
-	  Physical memory below this address is not available to linux.
-
-	  If unsure, leave the default value here.
-
-config KERNEL_LOAD_ADDRESS
-	hex "Kernel load address"
-	default 0x60003000 if !MMU
-	default 0x00003000 if MMU && INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
-	default 0xd0003000 if MMU && !INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
-	help
-	  This is the address where the kernel is loaded.
-	  It is virtual address for MMUv2 configurations and physical address
-	  for all other configurations.
-
-	  If unsure, leave the default value here.
-
-config VECTORS_OFFSET
-	hex "Kernel vectors offset"
-	default 0x00003000
-	help
-	  This is the offset of the kernel image from the relocatable vectors
-	  base.
-
-	  If unsure, leave the default value here.
-
-choice
-	prompt "KSEG layout"
-	depends on MMU
-	default XTENSA_KSEG_MMU_V2
-
-config XTENSA_KSEG_MMU_V2
-	bool "MMUv2: 128MB cached + 128MB uncached"
-	help
-	  MMUv2 compatible kernel memory map: TLB way 5 maps 128MB starting
-	  at KSEG_PADDR to 0xd0000000 with cache and to 0xd8000000
-	  without cache.
-	  KSEG_PADDR must be aligned to 128MB.
-
-config XTENSA_KSEG_256M
-	bool "256MB cached + 256MB uncached"
-	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
-	help
-	  TLB way 6 maps 256MB starting at KSEG_PADDR to 0xb0000000
-	  with cache and to 0xc0000000 without cache.
-	  KSEG_PADDR must be aligned to 256MB.
-
-config XTENSA_KSEG_512M
-	bool "512MB cached + 512MB uncached"
-	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
-	help
-	  TLB way 6 maps 512MB starting at KSEG_PADDR to 0xa0000000
-	  with cache and to 0xc0000000 without cache.
-	  KSEG_PADDR must be aligned to 256MB.
-
-endchoice
-
-config HIGHMEM
-	bool "High Memory Support"
-	depends on MMU
-	help
-	  Linux can use the full amount of RAM in the system by
-	  default. However, the default MMUv2 setup only maps the
-	  lowermost 128 MB of memory linearly to the areas starting
-	  at 0xd0000000 (cached) and 0xd8000000 (uncached).
-	  When there are more than 128 MB memory in the system not
-	  all of it can be "permanently mapped" by the kernel.
-	  The physical memory that's not permanently mapped is called
-	  "high memory".
-
-	  If you are compiling a kernel which will never run on a
-	  machine with more than 128 MB total physical RAM, answer
-	  N here.
-
-	  If unsure, say Y.
-
 config FAST_SYSCALL_XTENSA
 	bool "Enable fast atomic syscalls"
 	default n
@@ -444,6 +302,9 @@ config XTENSA_CALIBRATE_CCOUNT
 config SERIAL_CONSOLE
 	def_bool n
 
+config PLATFORM_HAVE_XIP
+	def_bool n
+
 menu "Platform options"
 
 choice
@@ -470,6 +331,7 @@ config XTENSA_PLATFORM_XTFPGA
 	select PLATFORM_WANT_DEFAULT_MEM if !MMU
 	select SERIAL_CONSOLE
 	select XTENSA_CALIBRATE_CCOUNT
+	select PLATFORM_HAVE_XIP
 	help
 	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
 	  This hardware is capable of running a full Linux distribution.
@@ -561,34 +423,6 @@ config SIMDISK1_FILENAME
 	  Another simulated disk in a host file for a buildroot-independent
 	  storage.
 
-config FORCE_MAX_ZONEORDER
-	int "Maximum zone order"
-	default "11"
-	help
-	  The kernel memory allocator divides physically contiguous memory
-	  blocks into "zones", where each zone is a power of two number of
-	  pages.  This option selects the largest power of two that the kernel
-	  keeps in the memory allocator.  If you need to allocate very large
-	  blocks of physically contiguous memory, then you may need to
-	  increase this value.
-
-	  This config option is actually maximum order plus one. For example,
-	  a value of 11 means that the largest free memory block is 2^10 pages.
-
-config PLATFORM_WANT_DEFAULT_MEM
-	def_bool n
-
-config DEFAULT_MEM_START
-	hex
-	prompt "PAGE_OFFSET/PHYS_OFFSET" if !MMU && PLATFORM_WANT_DEFAULT_MEM
-	default 0x60000000 if PLATFORM_WANT_DEFAULT_MEM
-	default 0x00000000
-	help
-	  This is the base address used for both PAGE_OFFSET and PHYS_OFFSET
-	  in noMMU configurations.
-
-	  If unsure, leave the default value here.
-
 config XTFPGA_LCD
 	bool "Enable XTFPGA LCD driver"
 	depends on XTENSA_PLATFORM_XTFPGA
@@ -618,6 +452,221 @@ config XTFPGA_LCD_8BIT_ACCESS
 	  LCD may be connected with 4- or 8-bit interface, 8-bit access may
 	  only be used with 8-bit interface. Please consult prototyping user
 	  guide for your board for the correct interface width.
+
+comment "Kernel memory layout"
+
+config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	bool "Initialize Xtensa MMU inside the Linux kernel code"
+	depends on !XTENSA_VARIANT_FSF && !XTENSA_VARIANT_DC232B
+	default y if XTENSA_VARIANT_DC233C || XTENSA_VARIANT_CUSTOM
+	help
+	  Earlier version initialized the MMU in the exception vector
+	  before jumping to _startup in head.S and had an advantage that
+	  it was possible to place a software breakpoint at 'reset' and
+	  then enter your normal kernel breakpoints once the MMU was mapped
+	  to the kernel mappings (0XC0000000).
+
+	  This unfortunately won't work for U-Boot and likely also wont
+	  work for using KEXEC to have a hot kernel ready for doing a
+	  KDUMP.
+
+	  So now the MMU is initialized in head.S but it's necessary to
+	  use hardware breakpoints (gdb 'hbreak' cmd) to break at _startup.
+	  xt-gdb can't place a Software Breakpoint in the  0XD region prior
+	  to mapping the MMU and after mapping even if the area of low memory
+	  was mapped gdb wouldn't remove the breakpoint on hitting it as the
+	  PC wouldn't match. Since Hardware Breakpoints are recommended for
+	  Linux configurations it seems reasonable to just assume they exist
+	  and leave this older mechanism for unfortunate souls that choose
+	  not to follow Tensilica's recommendation.
+
+	  Selecting this will cause U-Boot to set the KERNEL Load and Entry
+	  address at 0x00003000 instead of the mapped std of 0xD0003000.
+
+	  If in doubt, say Y.
+
+config XIP_KERNEL
+	bool "Kernel Execute-In-Place from ROM"
+	depends on PLATFORM_HAVE_XIP
+	help
+	  Execute-In-Place allows the kernel to run from non-volatile storage
+	  directly addressable by the CPU, such as NOR flash. This saves RAM
+	  space since the text section of the kernel is not loaded from flash
+	  to RAM. Read-write sections, such as the data section and stack,
+	  are still copied to RAM. The XIP kernel is not compressed since
+	  it has to run directly from flash, so it will take more space to
+	  store it. The flash address used to link the kernel object files,
+	  and for storing it, is configuration dependent. Therefore, if you
+	  say Y here, you must know the proper physical address where to
+	  store the kernel image depending on your own flash memory usage.
+
+	  Also note that the make target becomes "make xipImage" rather than
+	  "make Image" or "make uImage". The final kernel binary to put in
+	  ROM memory will be arch/xtensa/boot/xipImage.
+
+	  If unsure, say N.
+
+config MEMMAP_CACHEATTR
+	hex "Cache attributes for the memory address space"
+	depends on !MMU
+	default 0x22222222
+	help
+	  These cache attributes are set up for noMMU systems. Each hex digit
+	  specifies cache attributes for the corresponding 512MB memory
+	  region: bits 0..3 -- for addresses 0x00000000..0x1fffffff,
+	  bits 4..7 -- for addresses 0x20000000..0x3fffffff, and so on.
+
+	  Cache attribute values are specific for the MMU type.
+	  For region protection MMUs:
+	    1: WT cached,
+	    2: cache bypass,
+	    4: WB cached,
+	    f: illegal.
+	  For ful MMU:
+	    bit 0: executable,
+	    bit 1: writable,
+	    bits 2..3:
+	      0: cache bypass,
+	      1: WB cache,
+	      2: WT cache,
+	      3: special (c and e are illegal, f is reserved).
+	  For MPU:
+	    0: illegal,
+	    1: WB cache,
+	    2: WB, no-write-allocate cache,
+	    3: WT cache,
+	    4: cache bypass.
+
+config KSEG_PADDR
+	hex "Physical address of the KSEG mapping"
+	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX && MMU
+	default 0x00000000
+	help
+	  This is the physical address where KSEG is mapped. Please refer to
+	  the chosen KSEG layout help for the required address alignment.
+	  Unpacked kernel image (including vectors) must be located completely
+	  within KSEG.
+	  Physical memory below this address is not available to linux.
+
+	  If unsure, leave the default value here.
+
+config KERNEL_VIRTUAL_ADDRESS
+	hex "Kernel virtual address"
+	depends on MMU && XIP_KERNEL
+	default 0xd0003000
+	help
+	  This is the virtual address where the XIP kernel is mapped.
+	  XIP kernel may be mapped into KSEG or KIO region, virtual address
+	  provided here must match kernel load address provided in
+	  KERNEL_LOAD_ADDRESS.
+
+config KERNEL_LOAD_ADDRESS
+	hex "Kernel load address"
+	default 0x60003000 if !MMU
+	default 0x00003000 if MMU && INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	default 0xd0003000 if MMU && !INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	help
+	  This is the address where the kernel is loaded.
+	  It is virtual address for MMUv2 configurations and physical address
+	  for all other configurations.
+
+	  If unsure, leave the default value here.
+
+config VECTORS_OFFSET
+	hex "Kernel vectors offset"
+	default 0x00003000
+	depends on !XIP_KERNEL
+	help
+	  This is the offset of the kernel image from the relocatable vectors
+	  base.
+
+	  If unsure, leave the default value here.
+
+config XIP_DATA_ADDR
+	hex "XIP kernel data virtual address"
+	depends on XIP_KERNEL
+	default 0x00000000
+	help
+	  This is the virtual address where XIP kernel data is copied.
+	  It must be within KSEG if MMU is used.
+
+config PLATFORM_WANT_DEFAULT_MEM
+	def_bool n
+
+config DEFAULT_MEM_START
+	hex
+	prompt "PAGE_OFFSET/PHYS_OFFSET" if !MMU && PLATFORM_WANT_DEFAULT_MEM
+	default 0x60000000 if PLATFORM_WANT_DEFAULT_MEM
+	default 0x00000000
+	help
+	  This is the base address used for both PAGE_OFFSET and PHYS_OFFSET
+	  in noMMU configurations.
+
+	  If unsure, leave the default value here.
+
+choice
+	prompt "KSEG layout"
+	depends on MMU
+	default XTENSA_KSEG_MMU_V2
+
+config XTENSA_KSEG_MMU_V2
+	bool "MMUv2: 128MB cached + 128MB uncached"
+	help
+	  MMUv2 compatible kernel memory map: TLB way 5 maps 128MB starting
+	  at KSEG_PADDR to 0xd0000000 with cache and to 0xd8000000
+	  without cache.
+	  KSEG_PADDR must be aligned to 128MB.
+
+config XTENSA_KSEG_256M
+	bool "256MB cached + 256MB uncached"
+	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	help
+	  TLB way 6 maps 256MB starting at KSEG_PADDR to 0xb0000000
+	  with cache and to 0xc0000000 without cache.
+	  KSEG_PADDR must be aligned to 256MB.
+
+config XTENSA_KSEG_512M
+	bool "512MB cached + 512MB uncached"
+	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	help
+	  TLB way 6 maps 512MB starting at KSEG_PADDR to 0xa0000000
+	  with cache and to 0xc0000000 without cache.
+	  KSEG_PADDR must be aligned to 256MB.
+
+endchoice
+
+config HIGHMEM
+	bool "High Memory Support"
+	depends on MMU
+	help
+	  Linux can use the full amount of RAM in the system by
+	  default. However, the default MMUv2 setup only maps the
+	  lowermost 128 MB of memory linearly to the areas starting
+	  at 0xd0000000 (cached) and 0xd8000000 (uncached).
+	  When there are more than 128 MB memory in the system not
+	  all of it can be "permanently mapped" by the kernel.
+	  The physical memory that's not permanently mapped is called
+	  "high memory".
+
+	  If you are compiling a kernel which will never run on a
+	  machine with more than 128 MB total physical RAM, answer
+	  N here.
+
+	  If unsure, say Y.
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
 
 endmenu
 

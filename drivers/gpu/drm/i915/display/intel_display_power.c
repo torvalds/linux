@@ -15,6 +15,7 @@
 #include "intel_display_types.h"
 #include "intel_dpio_phy.h"
 #include "intel_hotplug.h"
+#include "intel_pm.h"
 #include "intel_sideband.h"
 #include "intel_tc.h"
 #include "intel_vga.h"
@@ -159,7 +160,7 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 static void intel_power_well_enable(struct drm_i915_private *dev_priv,
 				    struct i915_power_well *power_well)
 {
-	DRM_DEBUG_KMS("enabling %s\n", power_well->desc->name);
+	drm_dbg_kms(&dev_priv->drm, "enabling %s\n", power_well->desc->name);
 	power_well->desc->ops->enable(dev_priv, power_well);
 	power_well->hw_enabled = true;
 }
@@ -167,7 +168,7 @@ static void intel_power_well_enable(struct drm_i915_private *dev_priv,
 static void intel_power_well_disable(struct drm_i915_private *dev_priv,
 				     struct i915_power_well *power_well)
 {
-	DRM_DEBUG_KMS("disabling %s\n", power_well->desc->name);
+	drm_dbg_kms(&dev_priv->drm, "disabling %s\n", power_well->desc->name);
 	power_well->hw_enabled = false;
 	power_well->desc->ops->disable(dev_priv, power_well);
 }
@@ -289,8 +290,8 @@ static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 	/* Timeout for PW1:10 us, AUX:not specified, other PWs:20 us. */
 	if (intel_de_wait_for_set(dev_priv, regs->driver,
 				  HSW_PWR_WELL_CTL_STATE(pw_idx), 1)) {
-		DRM_DEBUG_KMS("%s power well enable timeout\n",
-			      power_well->desc->name);
+		drm_dbg_kms(&dev_priv->drm, "%s power well enable timeout\n",
+			    power_well->desc->name);
 
 		/* An AUX timeout is expected if the TBT DP tunnel is down. */
 		WARN_ON(!power_well->desc->hsw.is_tc_tbt);
@@ -304,11 +305,11 @@ static u32 hsw_power_well_requesters(struct drm_i915_private *dev_priv,
 	u32 req_mask = HSW_PWR_WELL_CTL_REQ(pw_idx);
 	u32 ret;
 
-	ret = I915_READ(regs->bios) & req_mask ? 1 : 0;
-	ret |= I915_READ(regs->driver) & req_mask ? 2 : 0;
+	ret = intel_de_read(dev_priv, regs->bios) & req_mask ? 1 : 0;
+	ret |= intel_de_read(dev_priv, regs->driver) & req_mask ? 2 : 0;
 	if (regs->kvmr.reg)
-		ret |= I915_READ(regs->kvmr) & req_mask ? 4 : 0;
-	ret |= I915_READ(regs->debug) & req_mask ? 8 : 0;
+		ret |= intel_de_read(dev_priv, regs->kvmr) & req_mask ? 4 : 0;
+	ret |= intel_de_read(dev_priv, regs->debug) & req_mask ? 8 : 0;
 
 	return ret;
 }
@@ -330,15 +331,16 @@ static void hsw_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 	 * Skip the wait in case any of the request bits are set and print a
 	 * diagnostic message.
 	 */
-	wait_for((disabled = !(I915_READ(regs->driver) &
+	wait_for((disabled = !(intel_de_read(dev_priv, regs->driver) &
 			       HSW_PWR_WELL_CTL_STATE(pw_idx))) ||
 		 (reqs = hsw_power_well_requesters(dev_priv, regs, pw_idx)), 1);
 	if (disabled)
 		return;
 
-	DRM_DEBUG_KMS("%s forced on (bios:%d driver:%d kvmr:%d debug:%d)\n",
-		      power_well->desc->name,
-		      !!(reqs & 1), !!(reqs & 2), !!(reqs & 4), !!(reqs & 8));
+	drm_dbg_kms(&dev_priv->drm,
+		    "%s forced on (bios:%d driver:%d kvmr:%d debug:%d)\n",
+		    power_well->desc->name,
+		    !!(reqs & 1), !!(reqs & 2), !!(reqs & 4), !!(reqs & 8));
 }
 
 static void gen9_wait_for_power_well_fuses(struct drm_i915_private *dev_priv,
@@ -372,17 +374,18 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 			gen9_wait_for_power_well_fuses(dev_priv, SKL_PG0);
 	}
 
-	val = I915_READ(regs->driver);
-	I915_WRITE(regs->driver, val | HSW_PWR_WELL_CTL_REQ(pw_idx));
+	val = intel_de_read(dev_priv, regs->driver);
+	intel_de_write(dev_priv, regs->driver,
+		       val | HSW_PWR_WELL_CTL_REQ(pw_idx));
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
 
 	/* Display WA #1178: cnl */
 	if (IS_CANNONLAKE(dev_priv) &&
 	    pw_idx >= GLK_PW_CTL_IDX_AUX_B &&
 	    pw_idx <= CNL_PW_CTL_IDX_AUX_F) {
-		val = I915_READ(CNL_AUX_ANAOVRD1(pw_idx));
+		val = intel_de_read(dev_priv, CNL_AUX_ANAOVRD1(pw_idx));
 		val |= CNL_AUX_ANAOVRD1_ENABLE | CNL_AUX_ANAOVRD1_LDO_BYPASS;
-		I915_WRITE(CNL_AUX_ANAOVRD1(pw_idx), val);
+		intel_de_write(dev_priv, CNL_AUX_ANAOVRD1(pw_idx), val);
 	}
 
 	if (wait_fuses)
@@ -403,8 +406,9 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 	hsw_power_well_pre_disable(dev_priv,
 				   power_well->desc->hsw.irq_pipe_mask);
 
-	val = I915_READ(regs->driver);
-	I915_WRITE(regs->driver, val & ~HSW_PWR_WELL_CTL_REQ(pw_idx));
+	val = intel_de_read(dev_priv, regs->driver);
+	intel_de_write(dev_priv, regs->driver,
+		       val & ~HSW_PWR_WELL_CTL_REQ(pw_idx));
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
 
@@ -418,30 +422,27 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	int pw_idx = power_well->desc->hsw.idx;
 	enum phy phy = ICL_AUX_PW_TO_PHY(pw_idx);
 	u32 val;
-	int wa_idx_max;
 
-	val = I915_READ(regs->driver);
-	I915_WRITE(regs->driver, val | HSW_PWR_WELL_CTL_REQ(pw_idx));
+	WARN_ON(!IS_ICELAKE(dev_priv));
+
+	val = intel_de_read(dev_priv, regs->driver);
+	intel_de_write(dev_priv, regs->driver,
+		       val | HSW_PWR_WELL_CTL_REQ(pw_idx));
 
 	if (INTEL_GEN(dev_priv) < 12) {
-		val = I915_READ(ICL_PORT_CL_DW12(phy));
-		I915_WRITE(ICL_PORT_CL_DW12(phy), val | ICL_LANE_ENABLE_AUX);
+		val = intel_de_read(dev_priv, ICL_PORT_CL_DW12(phy));
+		intel_de_write(dev_priv, ICL_PORT_CL_DW12(phy),
+			       val | ICL_LANE_ENABLE_AUX);
 	}
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
 
-	/* Display WA #1178: icl, tgl */
-	if (IS_TIGERLAKE(dev_priv))
-		wa_idx_max = ICL_PW_CTL_IDX_AUX_C;
-	else
-		wa_idx_max = ICL_PW_CTL_IDX_AUX_B;
-
-	if (!IS_ELKHARTLAKE(dev_priv) &&
-	    pw_idx >= ICL_PW_CTL_IDX_AUX_A && pw_idx <= wa_idx_max &&
+	/* Display WA #1178: icl */
+	if (pw_idx >= ICL_PW_CTL_IDX_AUX_A && pw_idx <= ICL_PW_CTL_IDX_AUX_B &&
 	    !intel_bios_is_port_edp(dev_priv, (enum port)phy)) {
-		val = I915_READ(ICL_AUX_ANAOVRD1(pw_idx));
+		val = intel_de_read(dev_priv, ICL_AUX_ANAOVRD1(pw_idx));
 		val |= ICL_AUX_ANAOVRD1_ENABLE | ICL_AUX_ANAOVRD1_LDO_BYPASS;
-		I915_WRITE(ICL_AUX_ANAOVRD1(pw_idx), val);
+		intel_de_write(dev_priv, ICL_AUX_ANAOVRD1(pw_idx), val);
 	}
 }
 
@@ -454,13 +455,15 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 	enum phy phy = ICL_AUX_PW_TO_PHY(pw_idx);
 	u32 val;
 
-	if (INTEL_GEN(dev_priv) < 12) {
-		val = I915_READ(ICL_PORT_CL_DW12(phy));
-		I915_WRITE(ICL_PORT_CL_DW12(phy), val & ~ICL_LANE_ENABLE_AUX);
-	}
+	WARN_ON(!IS_ICELAKE(dev_priv));
 
-	val = I915_READ(regs->driver);
-	I915_WRITE(regs->driver, val & ~HSW_PWR_WELL_CTL_REQ(pw_idx));
+	val = intel_de_read(dev_priv, ICL_PORT_CL_DW12(phy));
+	intel_de_write(dev_priv, ICL_PORT_CL_DW12(phy),
+		       val & ~ICL_LANE_ENABLE_AUX);
+
+	val = intel_de_read(dev_priv, regs->driver);
+	intel_de_write(dev_priv, regs->driver,
+		       val & ~HSW_PWR_WELL_CTL_REQ(pw_idx));
 
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
@@ -519,7 +522,7 @@ static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
 		if (encoder->type == INTEL_OUTPUT_DP_MST)
 			continue;
 
-		dig_port = enc_to_dig_port(&encoder->base);
+		dig_port = enc_to_dig_port(encoder);
 		if (WARN_ON(!dig_port))
 			continue;
 
@@ -557,11 +560,11 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 
 	icl_tc_port_assert_ref_held(dev_priv, power_well);
 
-	val = I915_READ(DP_AUX_CH_CTL(aux_ch));
+	val = intel_de_read(dev_priv, DP_AUX_CH_CTL(aux_ch));
 	val &= ~DP_AUX_CH_CTL_TBT_IO;
 	if (power_well->desc->hsw.is_tc_tbt)
 		val |= DP_AUX_CH_CTL_TBT_IO;
-	I915_WRITE(DP_AUX_CH_CTL(aux_ch), val);
+	intel_de_write(dev_priv, DP_AUX_CH_CTL(aux_ch), val);
 
 	hsw_power_well_enable(dev_priv, power_well);
 
@@ -569,11 +572,13 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 		enum tc_port tc_port;
 
 		tc_port = TGL_AUX_PW_TO_TC_PORT(power_well->desc->hsw.idx);
-		I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x2));
+		intel_de_write(dev_priv, HIP_INDEX_REG(tc_port),
+			       HIP_INDEX_VAL(tc_port, 0x2));
 
 		if (intel_de_wait_for_set(dev_priv, DKL_CMN_UC_DW_27(tc_port),
 					  DKL_CMN_UC_DW27_UC_HEALTH, 1))
-			DRM_WARN("Timeout waiting TC uC health\n");
+			drm_warn(&dev_priv->drm,
+				 "Timeout waiting TC uC health\n");
 	}
 }
 
@@ -601,7 +606,7 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 		   HSW_PWR_WELL_CTL_STATE(pw_idx);
 	u32 val;
 
-	val = I915_READ(regs->driver);
+	val = intel_de_read(dev_priv, regs->driver);
 
 	/*
 	 * On GEN9 big core due to a DMC bug the driver's request bits for PW1
@@ -611,18 +616,18 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 	 */
 	if (IS_GEN(dev_priv, 9) && !IS_GEN9_LP(dev_priv) &&
 	    (id == SKL_DISP_PW_1 || id == SKL_DISP_PW_MISC_IO))
-		val |= I915_READ(regs->bios);
+		val |= intel_de_read(dev_priv, regs->bios);
 
 	return (val & mask) == mask;
 }
 
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 {
-	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
+	WARN_ONCE((intel_de_read(dev_priv, DC_STATE_EN) & DC_STATE_EN_DC9),
 		  "DC9 already programmed to be enabled.\n");
-	WARN_ONCE(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
+	WARN_ONCE(intel_de_read(dev_priv, DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
 		  "DC5 still not disabled to enable DC9.\n");
-	WARN_ONCE(I915_READ(HSW_PWR_WELL_CTL2) &
+	WARN_ONCE(intel_de_read(dev_priv, HSW_PWR_WELL_CTL2) &
 		  HSW_PWR_WELL_CTL_REQ(SKL_PW_CTL_IDX_PW_2),
 		  "Power well 2 on.\n");
 	WARN_ONCE(intel_irqs_enabled(dev_priv),
@@ -641,7 +646,7 @@ static void assert_can_disable_dc9(struct drm_i915_private *dev_priv)
 {
 	WARN_ONCE(intel_irqs_enabled(dev_priv),
 		  "Interrupts not disabled yet.\n");
-	WARN_ONCE(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
+	WARN_ONCE(intel_de_read(dev_priv, DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
 		  "DC5 still not disabled.\n");
 
 	 /*
@@ -660,7 +665,7 @@ static void gen9_write_dc_state(struct drm_i915_private *dev_priv,
 	int rereads = 0;
 	u32 v;
 
-	I915_WRITE(DC_STATE_EN, state);
+	intel_de_write(dev_priv, DC_STATE_EN, state);
 
 	/* It has been observed that disabling the dc6 state sometimes
 	 * doesn't stick and dmc keeps returning old value. Make sure
@@ -668,10 +673,10 @@ static void gen9_write_dc_state(struct drm_i915_private *dev_priv,
 	 * we are confident that state is exactly what we want.
 	 */
 	do  {
-		v = I915_READ(DC_STATE_EN);
+		v = intel_de_read(dev_priv, DC_STATE_EN);
 
 		if (v != state) {
-			I915_WRITE(DC_STATE_EN, state);
+			intel_de_write(dev_priv, DC_STATE_EN, state);
 			rewrites++;
 			rereads = 0;
 		} else if (rereads++ > 5) {
@@ -681,13 +686,15 @@ static void gen9_write_dc_state(struct drm_i915_private *dev_priv,
 	} while (rewrites < 100);
 
 	if (v != state)
-		DRM_ERROR("Writing dc state to 0x%x failed, now 0x%x\n",
-			  state, v);
+		drm_err(&dev_priv->drm,
+			"Writing dc state to 0x%x failed, now 0x%x\n",
+			state, v);
 
 	/* Most of the times we need one retry, avoid spam */
 	if (rewrites > 1)
-		DRM_DEBUG_KMS("Rewrote dc state to 0x%x %d times\n",
-			      state, rewrites);
+		drm_dbg_kms(&dev_priv->drm,
+			    "Rewrote dc state to 0x%x %d times\n",
+			    state, rewrites);
 }
 
 static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
@@ -713,10 +720,11 @@ static void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
-	val = I915_READ(DC_STATE_EN) & gen9_dc_mask(dev_priv);
+	val = intel_de_read(dev_priv, DC_STATE_EN) & gen9_dc_mask(dev_priv);
 
-	DRM_DEBUG_KMS("Resetting DC state tracking from %02x to %02x\n",
-		      dev_priv->csr.dc_state, val);
+	drm_dbg_kms(&dev_priv->drm,
+		    "Resetting DC state tracking from %02x to %02x\n",
+		    dev_priv->csr.dc_state, val);
 	dev_priv->csr.dc_state = val;
 }
 
@@ -751,15 +759,15 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 	if (WARN_ON_ONCE(state & ~dev_priv->csr.allowed_dc_mask))
 		state &= dev_priv->csr.allowed_dc_mask;
 
-	val = I915_READ(DC_STATE_EN);
+	val = intel_de_read(dev_priv, DC_STATE_EN);
 	mask = gen9_dc_mask(dev_priv);
-	DRM_DEBUG_KMS("Setting DC state from %02x to %02x\n",
-		      val & mask, state);
+	drm_dbg_kms(&dev_priv->drm, "Setting DC state from %02x to %02x\n",
+		    val & mask, state);
 
 	/* Check if DMC is ignoring our DC state requests */
 	if ((val & mask) != dev_priv->csr.dc_state)
-		DRM_ERROR("DC state mismatch (0x%x -> 0x%x)\n",
-			  dev_priv->csr.dc_state, val & mask);
+		drm_err(&dev_priv->drm, "DC state mismatch (0x%x -> 0x%x)\n",
+			dev_priv->csr.dc_state, val & mask);
 
 	val &= ~mask;
 	val |= state;
@@ -796,7 +804,7 @@ sanitize_target_dc_state(struct drm_i915_private *dev_priv,
 
 static void tgl_enable_dc3co(struct drm_i915_private *dev_priv)
 {
-	DRM_DEBUG_KMS("Enabling DC3CO\n");
+	drm_dbg_kms(&dev_priv->drm, "Enabling DC3CO\n");
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_DC3CO);
 }
 
@@ -804,10 +812,10 @@ static void tgl_disable_dc3co(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
-	DRM_DEBUG_KMS("Disabling DC3CO\n");
-	val = I915_READ(DC_STATE_EN);
+	drm_dbg_kms(&dev_priv->drm, "Disabling DC3CO\n");
+	val = intel_de_read(dev_priv, DC_STATE_EN);
 	val &= ~DC_STATE_DC3CO_STATUS;
-	I915_WRITE(DC_STATE_EN, val);
+	intel_de_write(dev_priv, DC_STATE_EN, val);
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 	/*
 	 * Delay of 200us DC3CO Exit time B.Spec 49196
@@ -819,7 +827,7 @@ static void bxt_enable_dc9(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc9(dev_priv);
 
-	DRM_DEBUG_KMS("Enabling DC9\n");
+	drm_dbg_kms(&dev_priv->drm, "Enabling DC9\n");
 	/*
 	 * Power sequencer reset is not needed on
 	 * platforms with South Display Engine on PCH,
@@ -834,7 +842,7 @@ static void bxt_disable_dc9(struct drm_i915_private *dev_priv)
 {
 	assert_can_disable_dc9(dev_priv);
 
-	DRM_DEBUG_KMS("Disabling DC9\n");
+	drm_dbg_kms(&dev_priv->drm, "Disabling DC9\n");
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -843,10 +851,11 @@ static void bxt_disable_dc9(struct drm_i915_private *dev_priv)
 
 static void assert_csr_loaded(struct drm_i915_private *dev_priv)
 {
-	WARN_ONCE(!I915_READ(CSR_PROGRAM(0)),
+	WARN_ONCE(!intel_de_read(dev_priv, CSR_PROGRAM(0)),
 		  "CSR program storage start is NULL\n");
-	WARN_ONCE(!I915_READ(CSR_SSP_BASE), "CSR SSP Base Not fine\n");
-	WARN_ONCE(!I915_READ(CSR_HTP_SKL), "CSR HTP Not fine\n");
+	WARN_ONCE(!intel_de_read(dev_priv, CSR_SSP_BASE),
+		  "CSR SSP Base Not fine\n");
+	WARN_ONCE(!intel_de_read(dev_priv, CSR_HTP_SKL), "CSR HTP Not fine\n");
 }
 
 static struct i915_power_well *
@@ -922,7 +931,7 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 
 	WARN_ONCE(pg2_enabled, "PG2 not disabled to enable DC5.\n");
 
-	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
+	WARN_ONCE((intel_de_read(dev_priv, DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
 		  "DC5 already programmed to be enabled.\n");
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
@@ -933,21 +942,21 @@ static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc5(dev_priv);
 
-	DRM_DEBUG_KMS("Enabling DC5\n");
+	drm_dbg_kms(&dev_priv->drm, "Enabling DC5\n");
 
 	/* Wa Display #1183: skl,kbl,cfl */
 	if (IS_GEN9_BC(dev_priv))
-		I915_WRITE(GEN8_CHICKEN_DCPR_1, I915_READ(GEN8_CHICKEN_DCPR_1) |
-			   SKL_SELECT_ALTERNATE_DC_EXIT);
+		intel_de_write(dev_priv, GEN8_CHICKEN_DCPR_1,
+			       intel_de_read(dev_priv, GEN8_CHICKEN_DCPR_1) | SKL_SELECT_ALTERNATE_DC_EXIT);
 
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC5);
 }
 
 static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 {
-	WARN_ONCE(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
+	WARN_ONCE(intel_de_read(dev_priv, UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
 		  "Backlight is not disabled.\n");
-	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
+	WARN_ONCE((intel_de_read(dev_priv, DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
 		  "DC6 already programmed to be enabled.\n");
 
 	assert_csr_loaded(dev_priv);
@@ -957,12 +966,12 @@ static void skl_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc6(dev_priv);
 
-	DRM_DEBUG_KMS("Enabling DC6\n");
+	drm_dbg_kms(&dev_priv->drm, "Enabling DC6\n");
 
 	/* Wa Display #1183: skl,kbl,cfl */
 	if (IS_GEN9_BC(dev_priv))
-		I915_WRITE(GEN8_CHICKEN_DCPR_1, I915_READ(GEN8_CHICKEN_DCPR_1) |
-			   SKL_SELECT_ALTERNATE_DC_EXIT);
+		intel_de_write(dev_priv, GEN8_CHICKEN_DCPR_1,
+			       intel_de_read(dev_priv, GEN8_CHICKEN_DCPR_1) | SKL_SELECT_ALTERNATE_DC_EXIT);
 
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
 }
@@ -973,15 +982,15 @@ static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
 	int pw_idx = power_well->desc->hsw.idx;
 	u32 mask = HSW_PWR_WELL_CTL_REQ(pw_idx);
-	u32 bios_req = I915_READ(regs->bios);
+	u32 bios_req = intel_de_read(dev_priv, regs->bios);
 
 	/* Take over the request bit if set by BIOS. */
 	if (bios_req & mask) {
-		u32 drv_req = I915_READ(regs->driver);
+		u32 drv_req = intel_de_read(dev_priv, regs->driver);
 
 		if (!(drv_req & mask))
-			I915_WRITE(regs->driver, drv_req | mask);
-		I915_WRITE(regs->bios, bios_req & ~mask);
+			intel_de_write(dev_priv, regs->driver, drv_req | mask);
+		intel_de_write(dev_priv, regs->bios, bios_req & ~mask);
 	}
 }
 
@@ -1027,22 +1036,24 @@ static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	return ((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC3CO) == 0 &&
-		(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5_DC6_MASK) == 0);
+	return ((intel_de_read(dev_priv, DC_STATE_EN) & DC_STATE_EN_DC3CO) == 0 &&
+		(intel_de_read(dev_priv, DC_STATE_EN) & DC_STATE_EN_UPTO_DC5_DC6_MASK) == 0);
 }
 
 static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
 {
-	u32 tmp = I915_READ(DBUF_CTL);
+	u8 hw_enabled_dbuf_slices = intel_enabled_dbuf_slices_mask(dev_priv);
+	u8 enabled_dbuf_slices = dev_priv->enabled_dbuf_slices_mask;
 
-	WARN((tmp & (DBUF_POWER_STATE | DBUF_POWER_REQUEST)) !=
-	     (DBUF_POWER_STATE | DBUF_POWER_REQUEST),
-	     "Unexpected DBuf power power state (0x%08x)\n", tmp);
+	WARN(hw_enabled_dbuf_slices != enabled_dbuf_slices,
+	     "Unexpected DBuf power power state (0x%08x, expected 0x%08x)\n",
+	     hw_enabled_dbuf_slices,
+	     enabled_dbuf_slices);
 }
 
 static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 {
-	struct intel_cdclk_state cdclk_state = {};
+	struct intel_cdclk_config cdclk_config = {};
 
 	if (dev_priv->csr.target_dc_state == DC_STATE_EN_DC3CO) {
 		tgl_disable_dc3co(dev_priv);
@@ -1051,9 +1062,9 @@ static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
-	dev_priv->display.get_cdclk(dev_priv, &cdclk_state);
+	dev_priv->display.get_cdclk(dev_priv, &cdclk_config);
 	/* Can't read out voltage_level so can't use intel_cdclk_changed() */
-	WARN_ON(intel_cdclk_needs_modeset(&dev_priv->cdclk.hw, &cdclk_state));
+	WARN_ON(intel_cdclk_needs_modeset(&dev_priv->cdclk.hw, &cdclk_config));
 
 	gen9_assert_dbuf_enabled(dev_priv);
 
@@ -1113,9 +1124,9 @@ static bool i9xx_always_on_power_well_enabled(struct drm_i915_private *dev_priv,
 static void i830_pipes_power_well_enable(struct drm_i915_private *dev_priv,
 					 struct i915_power_well *power_well)
 {
-	if ((I915_READ(PIPECONF(PIPE_A)) & PIPECONF_ENABLE) == 0)
+	if ((intel_de_read(dev_priv, PIPECONF(PIPE_A)) & PIPECONF_ENABLE) == 0)
 		i830_enable_pipe(dev_priv, PIPE_A);
-	if ((I915_READ(PIPECONF(PIPE_B)) & PIPECONF_ENABLE) == 0)
+	if ((intel_de_read(dev_priv, PIPECONF(PIPE_B)) & PIPECONF_ENABLE) == 0)
 		i830_enable_pipe(dev_priv, PIPE_B);
 }
 
@@ -1129,8 +1140,8 @@ static void i830_pipes_power_well_disable(struct drm_i915_private *dev_priv,
 static bool i830_pipes_power_well_enabled(struct drm_i915_private *dev_priv,
 					  struct i915_power_well *power_well)
 {
-	return I915_READ(PIPECONF(PIPE_A)) & PIPECONF_ENABLE &&
-		I915_READ(PIPECONF(PIPE_B)) & PIPECONF_ENABLE;
+	return intel_de_read(dev_priv, PIPECONF(PIPE_A)) & PIPECONF_ENABLE &&
+		intel_de_read(dev_priv, PIPECONF(PIPE_B)) & PIPECONF_ENABLE;
 }
 
 static void i830_pipes_power_well_sync_hw(struct drm_i915_private *dev_priv,
@@ -1168,9 +1179,10 @@ static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 	vlv_punit_write(dev_priv, PUNIT_REG_PWRGT_CTRL, ctrl);
 
 	if (wait_for(COND, 100))
-		DRM_ERROR("timeout setting power well state %08x (%08x)\n",
-			  state,
-			  vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_CTRL));
+		drm_err(&dev_priv->drm,
+			"timeout setting power well state %08x (%08x)\n",
+			state,
+			vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_CTRL));
 
 #undef COND
 
@@ -1236,21 +1248,22 @@ static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 	 * (and never recovering) in this case. intel_dsi_post_disable() will
 	 * clear it when we turn off the display.
 	 */
-	val = I915_READ(DSPCLK_GATE_D);
+	val = intel_de_read(dev_priv, DSPCLK_GATE_D);
 	val &= DPOUNIT_CLOCK_GATE_DISABLE;
 	val |= VRHUNIT_CLOCK_GATE_DISABLE;
-	I915_WRITE(DSPCLK_GATE_D, val);
+	intel_de_write(dev_priv, DSPCLK_GATE_D, val);
 
 	/*
 	 * Disable trickle feed and enable pnd deadline calculation
 	 */
-	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
-	I915_WRITE(CBR1_VLV, 0);
+	intel_de_write(dev_priv, MI_ARB_VLV,
+		       MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
+	intel_de_write(dev_priv, CBR1_VLV, 0);
 
-	WARN_ON(dev_priv->rawclk_freq == 0);
-
-	I915_WRITE(RAWCLK_FREQ_VLV,
-		   DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 1000));
+	WARN_ON(RUNTIME_INFO(dev_priv)->rawclk_freq == 0);
+	intel_de_write(dev_priv, RAWCLK_FREQ_VLV,
+		       DIV_ROUND_CLOSEST(RUNTIME_INFO(dev_priv)->rawclk_freq,
+					 1000));
 }
 
 static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
@@ -1267,13 +1280,13 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 	 * CHV DPLL B/C have some issues if VGA mode is enabled.
 	 */
 	for_each_pipe(dev_priv, pipe) {
-		u32 val = I915_READ(DPLL(pipe));
+		u32 val = intel_de_read(dev_priv, DPLL(pipe));
 
 		val |= DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
 		if (pipe != PIPE_A)
 			val |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
-		I915_WRITE(DPLL(pipe), val);
+		intel_de_write(dev_priv, DPLL(pipe), val);
 	}
 
 	vlv_init_display_clock_gating(dev_priv);
@@ -1353,7 +1366,8 @@ static void vlv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	 * both PLLs disabled, or we risk losing DPIO and PLL
 	 * synchronization.
 	 */
-	I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) | DPIO_CMNRST);
+	intel_de_write(dev_priv, DPIO_CTL,
+		       intel_de_read(dev_priv, DPIO_CTL) | DPIO_CMNRST);
 }
 
 static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
@@ -1365,7 +1379,8 @@ static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 		assert_pll_disabled(dev_priv, pipe);
 
 	/* Assert common reset */
-	I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) & ~DPIO_CMNRST);
+	intel_de_write(dev_priv, DPIO_CTL,
+		       intel_de_read(dev_priv, DPIO_CTL) & ~DPIO_CMNRST);
 
 	vlv_set_power_well(dev_priv, power_well, false);
 }
@@ -1427,7 +1442,7 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 		 */
 		if (BITS_SET(phy_control,
 			     PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH1)) &&
-		    (I915_READ(DPLL(PIPE_B)) & DPLL_VCO_ENABLE) == 0)
+		    (intel_de_read(dev_priv, DPLL(PIPE_B)) & DPLL_VCO_ENABLE) == 0)
 			phy_status |= PHY_STATUS_CMN_LDO(DPIO_PHY0, DPIO_CH1);
 
 		if (BITS_SET(phy_control,
@@ -1472,9 +1487,10 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 	 */
 	if (intel_de_wait_for_register(dev_priv, DISPLAY_PHY_STATUS,
 				       phy_status_mask, phy_status, 10))
-		DRM_ERROR("Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
-			  I915_READ(DISPLAY_PHY_STATUS) & phy_status_mask,
-			   phy_status, dev_priv->chv_phy_control);
+		drm_err(&dev_priv->drm,
+			"Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
+			intel_de_read(dev_priv, DISPLAY_PHY_STATUS) & phy_status_mask,
+			phy_status, dev_priv->chv_phy_control);
 }
 
 #undef BITS_SET
@@ -1504,7 +1520,8 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	/* Poll for phypwrgood signal */
 	if (intel_de_wait_for_set(dev_priv, DISPLAY_PHY_STATUS,
 				  PHY_POWERGOOD(phy), 1))
-		DRM_ERROR("Display PHY %d is not power up\n", phy);
+		drm_err(&dev_priv->drm, "Display PHY %d is not power up\n",
+			phy);
 
 	vlv_dpio_get(dev_priv);
 
@@ -1532,10 +1549,12 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	vlv_dpio_put(dev_priv);
 
 	dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(phy);
-	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+	intel_de_write(dev_priv, DISPLAY_PHY_CONTROL,
+		       dev_priv->chv_phy_control);
 
-	DRM_DEBUG_KMS("Enabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
-		      phy, dev_priv->chv_phy_control);
+	drm_dbg_kms(&dev_priv->drm,
+		    "Enabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
+		    phy, dev_priv->chv_phy_control);
 
 	assert_chv_phy_status(dev_priv);
 }
@@ -1558,12 +1577,14 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	}
 
 	dev_priv->chv_phy_control &= ~PHY_COM_LANE_RESET_DEASSERT(phy);
-	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+	intel_de_write(dev_priv, DISPLAY_PHY_CONTROL,
+		       dev_priv->chv_phy_control);
 
 	vlv_set_power_well(dev_priv, power_well, false);
 
-	DRM_DEBUG_KMS("Disabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
-		      phy, dev_priv->chv_phy_control);
+	drm_dbg_kms(&dev_priv->drm,
+		    "Disabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
+		    phy, dev_priv->chv_phy_control);
 
 	/* PHY is fully reset now, so we can enable the PHY state asserts */
 	dev_priv->chv_phy_assert[phy] = true;
@@ -1651,10 +1672,12 @@ bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 	else
 		dev_priv->chv_phy_control &= ~PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
 
-	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+	intel_de_write(dev_priv, DISPLAY_PHY_CONTROL,
+		       dev_priv->chv_phy_control);
 
-	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d (DPIO_PHY_CONTROL=0x%08x)\n",
-		      phy, ch, dev_priv->chv_phy_control);
+	drm_dbg_kms(&dev_priv->drm,
+		    "Power gating DPIO PHY%d CH%d (DPIO_PHY_CONTROL=0x%08x)\n",
+		    phy, ch, dev_priv->chv_phy_control);
 
 	assert_chv_phy_status(dev_priv);
 
@@ -1669,8 +1692,8 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-	enum dpio_phy phy = vlv_dport_to_phy(enc_to_dig_port(&encoder->base));
-	enum dpio_channel ch = vlv_dport_to_channel(enc_to_dig_port(&encoder->base));
+	enum dpio_phy phy = vlv_dport_to_phy(enc_to_dig_port(encoder));
+	enum dpio_channel ch = vlv_dport_to_channel(enc_to_dig_port(encoder));
 
 	mutex_lock(&power_domains->lock);
 
@@ -1682,10 +1705,12 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 	else
 		dev_priv->chv_phy_control &= ~PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
 
-	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+	intel_de_write(dev_priv, DISPLAY_PHY_CONTROL,
+		       dev_priv->chv_phy_control);
 
-	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d lanes 0x%x (PHY_CONTROL=0x%08x)\n",
-		      phy, ch, mask, dev_priv->chv_phy_control);
+	drm_dbg_kms(&dev_priv->drm,
+		    "Power gating DPIO PHY%d CH%d lanes 0x%x (PHY_CONTROL=0x%08x)\n",
+		    phy, ch, mask, dev_priv->chv_phy_control);
 
 	assert_chv_phy_status(dev_priv);
 
@@ -1747,14 +1772,22 @@ static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
 	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, ctrl);
 
 	if (wait_for(COND, 100))
-		DRM_ERROR("timeout setting power well state %08x (%08x)\n",
-			  state,
-			  vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM));
+		drm_err(&dev_priv->drm,
+			"timeout setting power well state %08x (%08x)\n",
+			state,
+			vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM));
 
 #undef COND
 
 out:
 	vlv_punit_put(dev_priv);
+}
+
+static void chv_pipe_power_well_sync_hw(struct drm_i915_private *dev_priv,
+					struct i915_power_well *power_well)
+{
+	intel_de_write(dev_priv, DISPLAY_PHY_CONTROL,
+		       dev_priv->chv_phy_control);
 }
 
 static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
@@ -2739,7 +2772,7 @@ static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
 };
 
 static const struct i915_power_well_ops chv_pipe_power_well_ops = {
-	.sync_hw = i9xx_power_well_sync_hw_noop,
+	.sync_hw = chv_pipe_power_well_sync_hw,
 	.enable = chv_pipe_power_well_enable,
 	.disable = chv_pipe_power_well_disable,
 	.is_enabled = chv_pipe_power_well_enabled,
@@ -3688,6 +3721,151 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 	},
 };
 
+static const struct i915_power_well_desc ehl_power_wells[] = {
+	{
+		.name = "always-on",
+		.always_on = true,
+		.domains = POWER_DOMAIN_MASK,
+		.ops = &i9xx_always_on_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+	},
+	{
+		.name = "power well 1",
+		/* Handled by the DMC firmware */
+		.always_on = true,
+		.domains = 0,
+		.ops = &hsw_power_well_ops,
+		.id = SKL_DISP_PW_1,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_PW_1,
+			.hsw.has_fuses = true,
+		},
+	},
+	{
+		.name = "DC off",
+		.domains = ICL_DISPLAY_DC_OFF_POWER_DOMAINS,
+		.ops = &gen9_dc_off_power_well_ops,
+		.id = SKL_DISP_DC_OFF,
+	},
+	{
+		.name = "power well 2",
+		.domains = ICL_PW_2_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = SKL_DISP_PW_2,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_PW_2,
+			.hsw.has_fuses = true,
+		},
+	},
+	{
+		.name = "power well 3",
+		.domains = ICL_PW_3_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_PW_3,
+			.hsw.irq_pipe_mask = BIT(PIPE_B),
+			.hsw.has_vga = true,
+			.hsw.has_fuses = true,
+		},
+	},
+	{
+		.name = "DDI A IO",
+		.domains = ICL_DDI_IO_A_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &icl_ddi_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_DDI_A,
+		},
+	},
+	{
+		.name = "DDI B IO",
+		.domains = ICL_DDI_IO_B_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &icl_ddi_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_DDI_B,
+		},
+	},
+	{
+		.name = "DDI C IO",
+		.domains = ICL_DDI_IO_C_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &icl_ddi_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_DDI_C,
+		},
+	},
+	{
+		.name = "DDI D IO",
+		.domains = ICL_DDI_IO_D_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &icl_ddi_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_DDI_D,
+		},
+	},
+	{
+		.name = "AUX A",
+		.domains = ICL_AUX_A_IO_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_A,
+		},
+	},
+	{
+		.name = "AUX B",
+		.domains = ICL_AUX_B_IO_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_B,
+		},
+	},
+	{
+		.name = "AUX C",
+		.domains = ICL_AUX_C_TC1_IO_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_C,
+		},
+	},
+	{
+		.name = "AUX D",
+		.domains = ICL_AUX_D_TC2_IO_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_D,
+		},
+	},
+	{
+		.name = "power well 4",
+		.domains = ICL_PW_4_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_PW_4,
+			.hsw.has_fuses = true,
+			.hsw.irq_pipe_mask = BIT(PIPE_C),
+		},
+	},
+};
+
 static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "always-on",
@@ -3832,7 +4010,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "AUX A",
 		.domains = TGL_AUX_A_IO_POWER_DOMAINS,
-		.ops = &icl_combo_phy_aux_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
@@ -3842,7 +4020,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "AUX B",
 		.domains = TGL_AUX_B_IO_POWER_DOMAINS,
-		.ops = &icl_combo_phy_aux_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
@@ -3852,7 +4030,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 	{
 		.name = "AUX C",
 		.domains = TGL_AUX_C_IO_POWER_DOMAINS,
-		.ops = &icl_combo_phy_aux_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
@@ -4064,11 +4242,13 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	} else if (enable_dc == -1) {
 		requested_dc = max_dc;
 	} else if (enable_dc > max_dc && enable_dc <= 4) {
-		DRM_DEBUG_KMS("Adjusting requested max DC state (%d->%d)\n",
-			      enable_dc, max_dc);
+		drm_dbg_kms(&dev_priv->drm,
+			    "Adjusting requested max DC state (%d->%d)\n",
+			    enable_dc, max_dc);
 		requested_dc = max_dc;
 	} else {
-		DRM_ERROR("Unexpected value for enable_dc (%d)\n", enable_dc);
+		drm_err(&dev_priv->drm,
+			"Unexpected value for enable_dc (%d)\n", enable_dc);
 		requested_dc = max_dc;
 	}
 
@@ -4087,7 +4267,7 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 		break;
 	}
 
-	DRM_DEBUG_KMS("Allowed DC state mask %02x\n", mask);
+	drm_dbg_kms(&dev_priv->drm, "Allowed DC state mask %02x\n", mask);
 
 	return mask;
 }
@@ -4162,6 +4342,8 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_GEN(dev_priv, 12)) {
 		err = set_power_wells(power_domains, tgl_power_wells);
+	} else if (IS_ELKHARTLAKE(dev_priv)) {
+		err = set_power_wells(power_domains, ehl_power_wells);
 	} else if (IS_GEN(dev_priv, 11)) {
 		err = set_power_wells(power_domains, icl_power_wells);
 	} else if (IS_CANNONLAKE(dev_priv)) {
@@ -4229,16 +4411,16 @@ bool intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
 {
 	u32 val, status;
 
-	val = I915_READ(reg);
+	val = intel_de_read(dev_priv, reg);
 	val = enable ? (val | DBUF_POWER_REQUEST) : (val & ~DBUF_POWER_REQUEST);
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	intel_de_write(dev_priv, reg, val);
+	intel_de_posting_read(dev_priv, reg);
 	udelay(10);
 
-	status = I915_READ(reg) & DBUF_POWER_STATE;
+	status = intel_de_read(dev_priv, reg) & DBUF_POWER_STATE;
 	if ((enable && !status) || (!enable && status)) {
-		DRM_ERROR("DBus power %s timeout!\n",
-			  enable ? "enable" : "disable");
+		drm_err(&dev_priv->drm, "DBus power %s timeout!\n",
+			enable ? "enable" : "disable");
 		return false;
 	}
 	return true;
@@ -4246,80 +4428,60 @@ bool intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
 
 static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
 {
-	intel_dbuf_slice_set(dev_priv, DBUF_CTL, true);
+	icl_dbuf_slices_update(dev_priv, BIT(DBUF_S1));
 }
 
 static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 {
-	intel_dbuf_slice_set(dev_priv, DBUF_CTL, false);
-}
-
-static u8 intel_dbuf_max_slices(struct drm_i915_private *dev_priv)
-{
-	if (INTEL_GEN(dev_priv) < 11)
-		return 1;
-	return 2;
+	icl_dbuf_slices_update(dev_priv, 0);
 }
 
 void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			    u8 req_slices)
 {
-	const u8 hw_enabled_slices = dev_priv->wm.skl_hw.ddb.enabled_slices;
-	bool ret;
+	int i;
+	int max_slices = INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
-	if (req_slices > intel_dbuf_max_slices(dev_priv)) {
-		DRM_ERROR("Invalid number of dbuf slices requested\n");
-		return;
+	WARN(hweight8(req_slices) > max_slices,
+	     "Invalid number of dbuf slices requested\n");
+
+	DRM_DEBUG_KMS("Updating dbuf slices to 0x%x\n", req_slices);
+
+	/*
+	 * Might be running this in parallel to gen9_dc_off_power_well_enable
+	 * being called from intel_dp_detect for instance,
+	 * which causes assertion triggered by race condition,
+	 * as gen9_assert_dbuf_enabled might preempt this when registers
+	 * were already updated, while dev_priv was not.
+	 */
+	mutex_lock(&power_domains->lock);
+
+	for (i = 0; i < max_slices; i++) {
+		intel_dbuf_slice_set(dev_priv,
+				     DBUF_CTL_S(i),
+				     (req_slices & BIT(i)) != 0);
 	}
 
-	if (req_slices == hw_enabled_slices || req_slices == 0)
-		return;
+	dev_priv->enabled_dbuf_slices_mask = req_slices;
 
-	if (req_slices > hw_enabled_slices)
-		ret = intel_dbuf_slice_set(dev_priv, DBUF_CTL_S2, true);
-	else
-		ret = intel_dbuf_slice_set(dev_priv, DBUF_CTL_S2, false);
-
-	if (ret)
-		dev_priv->wm.skl_hw.ddb.enabled_slices = req_slices;
+	mutex_unlock(&power_domains->lock);
 }
 
 static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(DBUF_CTL_S1, I915_READ(DBUF_CTL_S1) | DBUF_POWER_REQUEST);
-	I915_WRITE(DBUF_CTL_S2, I915_READ(DBUF_CTL_S2) | DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL_S2);
-
-	udelay(10);
-
-	if (!(I915_READ(DBUF_CTL_S1) & DBUF_POWER_STATE) ||
-	    !(I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE))
-		DRM_ERROR("DBuf power enable timeout\n");
-	else
-		/*
-		 * FIXME: for now pretend that we only have 1 slice, see
-		 * intel_enabled_dbuf_slices_num().
-		 */
-		dev_priv->wm.skl_hw.ddb.enabled_slices = 1;
+	skl_ddb_get_hw_state(dev_priv);
+	/*
+	 * Just power up at least 1 slice, we will
+	 * figure out later which slices we have and what we need.
+	 */
+	icl_dbuf_slices_update(dev_priv, dev_priv->enabled_dbuf_slices_mask |
+			       BIT(DBUF_S1));
 }
 
 static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(DBUF_CTL_S1, I915_READ(DBUF_CTL_S1) & ~DBUF_POWER_REQUEST);
-	I915_WRITE(DBUF_CTL_S2, I915_READ(DBUF_CTL_S2) & ~DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL_S2);
-
-	udelay(10);
-
-	if ((I915_READ(DBUF_CTL_S1) & DBUF_POWER_STATE) ||
-	    (I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE))
-		DRM_ERROR("DBuf power disable timeout!\n");
-	else
-		/*
-		 * FIXME: for now pretend that the first slice is always
-		 * enabled, see intel_enabled_dbuf_slices_num().
-		 */
-		dev_priv->wm.skl_hw.ddb.enabled_slices = 1;
+	icl_dbuf_slices_update(dev_priv, 0);
 }
 
 static void icl_mbus_init(struct drm_i915_private *dev_priv)
@@ -4331,12 +4493,12 @@ static void icl_mbus_init(struct drm_i915_private *dev_priv)
 	      MBUS_ABOX_B_CREDIT(1) |
 	      MBUS_ABOX_BW_CREDIT(1);
 
-	I915_WRITE(MBUS_ABOX_CTL, val);
+	intel_de_write(dev_priv, MBUS_ABOX_CTL, val);
 }
 
 static void hsw_assert_cdclk(struct drm_i915_private *dev_priv)
 {
-	u32 val = I915_READ(LCPLL_CTL);
+	u32 val = intel_de_read(dev_priv, LCPLL_CTL);
 
 	/*
 	 * The LCPLL register should be turned on by the BIOS. For now
@@ -4345,13 +4507,13 @@ static void hsw_assert_cdclk(struct drm_i915_private *dev_priv)
 	 */
 
 	if (val & LCPLL_CD_SOURCE_FCLK)
-		DRM_ERROR("CDCLK source is not LCPLL\n");
+		drm_err(&dev_priv->drm, "CDCLK source is not LCPLL\n");
 
 	if (val & LCPLL_PLL_DISABLE)
-		DRM_ERROR("LCPLL is disabled\n");
+		drm_err(&dev_priv->drm, "LCPLL is disabled\n");
 
 	if ((val & LCPLL_REF_MASK) != LCPLL_REF_NON_SSC)
-		DRM_ERROR("LCPLL not using non-SSC reference\n");
+		drm_err(&dev_priv->drm, "LCPLL not using non-SSC reference\n");
 }
 
 static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
@@ -4363,26 +4525,26 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 		I915_STATE_WARN(crtc->active, "CRTC for pipe %c enabled\n",
 				pipe_name(crtc->pipe));
 
-	I915_STATE_WARN(I915_READ(HSW_PWR_WELL_CTL2),
+	I915_STATE_WARN(intel_de_read(dev_priv, HSW_PWR_WELL_CTL2),
 			"Display power well on\n");
-	I915_STATE_WARN(I915_READ(SPLL_CTL) & SPLL_PLL_ENABLE,
+	I915_STATE_WARN(intel_de_read(dev_priv, SPLL_CTL) & SPLL_PLL_ENABLE,
 			"SPLL enabled\n");
-	I915_STATE_WARN(I915_READ(WRPLL_CTL(0)) & WRPLL_PLL_ENABLE,
+	I915_STATE_WARN(intel_de_read(dev_priv, WRPLL_CTL(0)) & WRPLL_PLL_ENABLE,
 			"WRPLL1 enabled\n");
-	I915_STATE_WARN(I915_READ(WRPLL_CTL(1)) & WRPLL_PLL_ENABLE,
+	I915_STATE_WARN(intel_de_read(dev_priv, WRPLL_CTL(1)) & WRPLL_PLL_ENABLE,
 			"WRPLL2 enabled\n");
-	I915_STATE_WARN(I915_READ(PP_STATUS(0)) & PP_ON,
+	I915_STATE_WARN(intel_de_read(dev_priv, PP_STATUS(0)) & PP_ON,
 			"Panel power on\n");
-	I915_STATE_WARN(I915_READ(BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
+	I915_STATE_WARN(intel_de_read(dev_priv, BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
 			"CPU PWM1 enabled\n");
 	if (IS_HASWELL(dev_priv))
-		I915_STATE_WARN(I915_READ(HSW_BLC_PWM2_CTL) & BLM_PWM_ENABLE,
+		I915_STATE_WARN(intel_de_read(dev_priv, HSW_BLC_PWM2_CTL) & BLM_PWM_ENABLE,
 				"CPU PWM2 enabled\n");
-	I915_STATE_WARN(I915_READ(BLC_PWM_PCH_CTL1) & BLM_PCH_PWM_ENABLE,
+	I915_STATE_WARN(intel_de_read(dev_priv, BLC_PWM_PCH_CTL1) & BLM_PCH_PWM_ENABLE,
 			"PCH PWM1 enabled\n");
-	I915_STATE_WARN(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
+	I915_STATE_WARN(intel_de_read(dev_priv, UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
 			"Utility pin enabled\n");
-	I915_STATE_WARN(I915_READ(PCH_GTC_CTL) & PCH_GTC_ENABLE,
+	I915_STATE_WARN(intel_de_read(dev_priv, PCH_GTC_CTL) & PCH_GTC_ENABLE,
 			"PCH GTC enabled\n");
 
 	/*
@@ -4397,9 +4559,9 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 static u32 hsw_read_dcomp(struct drm_i915_private *dev_priv)
 {
 	if (IS_HASWELL(dev_priv))
-		return I915_READ(D_COMP_HSW);
+		return intel_de_read(dev_priv, D_COMP_HSW);
 	else
-		return I915_READ(D_COMP_BDW);
+		return intel_de_read(dev_priv, D_COMP_BDW);
 }
 
 static void hsw_write_dcomp(struct drm_i915_private *dev_priv, u32 val)
@@ -4407,10 +4569,11 @@ static void hsw_write_dcomp(struct drm_i915_private *dev_priv, u32 val)
 	if (IS_HASWELL(dev_priv)) {
 		if (sandybridge_pcode_write(dev_priv,
 					    GEN6_PCODE_WRITE_D_COMP, val))
-			DRM_DEBUG_KMS("Failed to write to D_COMP\n");
+			drm_dbg_kms(&dev_priv->drm,
+				    "Failed to write to D_COMP\n");
 	} else {
-		I915_WRITE(D_COMP_BDW, val);
-		POSTING_READ(D_COMP_BDW);
+		intel_de_write(dev_priv, D_COMP_BDW, val);
+		intel_de_posting_read(dev_priv, D_COMP_BDW);
 	}
 }
 
@@ -4429,25 +4592,25 @@ static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
 
 	assert_can_disable_lcpll(dev_priv);
 
-	val = I915_READ(LCPLL_CTL);
+	val = intel_de_read(dev_priv, LCPLL_CTL);
 
 	if (switch_to_fclk) {
 		val |= LCPLL_CD_SOURCE_FCLK;
-		I915_WRITE(LCPLL_CTL, val);
+		intel_de_write(dev_priv, LCPLL_CTL, val);
 
-		if (wait_for_us(I915_READ(LCPLL_CTL) &
+		if (wait_for_us(intel_de_read(dev_priv, LCPLL_CTL) &
 				LCPLL_CD_SOURCE_FCLK_DONE, 1))
-			DRM_ERROR("Switching to FCLK failed\n");
+			drm_err(&dev_priv->drm, "Switching to FCLK failed\n");
 
-		val = I915_READ(LCPLL_CTL);
+		val = intel_de_read(dev_priv, LCPLL_CTL);
 	}
 
 	val |= LCPLL_PLL_DISABLE;
-	I915_WRITE(LCPLL_CTL, val);
-	POSTING_READ(LCPLL_CTL);
+	intel_de_write(dev_priv, LCPLL_CTL, val);
+	intel_de_posting_read(dev_priv, LCPLL_CTL);
 
 	if (intel_de_wait_for_clear(dev_priv, LCPLL_CTL, LCPLL_PLL_LOCK, 1))
-		DRM_ERROR("LCPLL still locked\n");
+		drm_err(&dev_priv->drm, "LCPLL still locked\n");
 
 	val = hsw_read_dcomp(dev_priv);
 	val |= D_COMP_COMP_DISABLE;
@@ -4456,13 +4619,13 @@ static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
 
 	if (wait_for((hsw_read_dcomp(dev_priv) &
 		      D_COMP_RCOMP_IN_PROGRESS) == 0, 1))
-		DRM_ERROR("D_COMP RCOMP still in progress\n");
+		drm_err(&dev_priv->drm, "D_COMP RCOMP still in progress\n");
 
 	if (allow_power_down) {
-		val = I915_READ(LCPLL_CTL);
+		val = intel_de_read(dev_priv, LCPLL_CTL);
 		val |= LCPLL_POWER_DOWN_ALLOW;
-		I915_WRITE(LCPLL_CTL, val);
-		POSTING_READ(LCPLL_CTL);
+		intel_de_write(dev_priv, LCPLL_CTL, val);
+		intel_de_posting_read(dev_priv, LCPLL_CTL);
 	}
 }
 
@@ -4474,7 +4637,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
-	val = I915_READ(LCPLL_CTL);
+	val = intel_de_read(dev_priv, LCPLL_CTL);
 
 	if ((val & (LCPLL_PLL_LOCK | LCPLL_PLL_DISABLE | LCPLL_CD_SOURCE_FCLK |
 		    LCPLL_POWER_DOWN_ALLOW)) == LCPLL_PLL_LOCK)
@@ -4488,8 +4651,8 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 
 	if (val & LCPLL_POWER_DOWN_ALLOW) {
 		val &= ~LCPLL_POWER_DOWN_ALLOW;
-		I915_WRITE(LCPLL_CTL, val);
-		POSTING_READ(LCPLL_CTL);
+		intel_de_write(dev_priv, LCPLL_CTL, val);
+		intel_de_posting_read(dev_priv, LCPLL_CTL);
 	}
 
 	val = hsw_read_dcomp(dev_priv);
@@ -4497,27 +4660,28 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	val &= ~D_COMP_COMP_DISABLE;
 	hsw_write_dcomp(dev_priv, val);
 
-	val = I915_READ(LCPLL_CTL);
+	val = intel_de_read(dev_priv, LCPLL_CTL);
 	val &= ~LCPLL_PLL_DISABLE;
-	I915_WRITE(LCPLL_CTL, val);
+	intel_de_write(dev_priv, LCPLL_CTL, val);
 
 	if (intel_de_wait_for_set(dev_priv, LCPLL_CTL, LCPLL_PLL_LOCK, 5))
-		DRM_ERROR("LCPLL not locked yet\n");
+		drm_err(&dev_priv->drm, "LCPLL not locked yet\n");
 
 	if (val & LCPLL_CD_SOURCE_FCLK) {
-		val = I915_READ(LCPLL_CTL);
+		val = intel_de_read(dev_priv, LCPLL_CTL);
 		val &= ~LCPLL_CD_SOURCE_FCLK;
-		I915_WRITE(LCPLL_CTL, val);
+		intel_de_write(dev_priv, LCPLL_CTL, val);
 
-		if (wait_for_us((I915_READ(LCPLL_CTL) &
+		if (wait_for_us((intel_de_read(dev_priv, LCPLL_CTL) &
 				 LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
-			DRM_ERROR("Switching back to LCPLL failed\n");
+			drm_err(&dev_priv->drm,
+				"Switching back to LCPLL failed\n");
 	}
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	intel_update_cdclk(dev_priv);
-	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
+	intel_dump_cdclk_config(&dev_priv->cdclk.hw, "Current CDCLK");
 }
 
 /*
@@ -4547,12 +4711,12 @@ static void hsw_enable_pc8(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
-	DRM_DEBUG_KMS("Enabling package C8+\n");
+	drm_dbg_kms(&dev_priv->drm, "Enabling package C8+\n");
 
 	if (HAS_PCH_LPT_LP(dev_priv)) {
-		val = I915_READ(SOUTH_DSPCLK_GATE_D);
+		val = intel_de_read(dev_priv, SOUTH_DSPCLK_GATE_D);
 		val &= ~PCH_LP_PARTITION_LEVEL_DISABLE;
-		I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
+		intel_de_write(dev_priv, SOUTH_DSPCLK_GATE_D, val);
 	}
 
 	lpt_disable_clkout_dp(dev_priv);
@@ -4563,15 +4727,15 @@ static void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
-	DRM_DEBUG_KMS("Disabling package C8+\n");
+	drm_dbg_kms(&dev_priv->drm, "Disabling package C8+\n");
 
 	hsw_restore_lcpll(dev_priv);
 	intel_init_pch_refclk(dev_priv);
 
 	if (HAS_PCH_LPT_LP(dev_priv)) {
-		val = I915_READ(SOUTH_DSPCLK_GATE_D);
+		val = intel_de_read(dev_priv, SOUTH_DSPCLK_GATE_D);
 		val |= PCH_LP_PARTITION_LEVEL_DISABLE;
-		I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
+		intel_de_write(dev_priv, SOUTH_DSPCLK_GATE_D, val);
 	}
 }
 
@@ -4589,14 +4753,14 @@ static void intel_pch_reset_handshake(struct drm_i915_private *dev_priv,
 		reset_bits = RESET_PCH_HANDSHAKE_ENABLE;
 	}
 
-	val = I915_READ(reg);
+	val = intel_de_read(dev_priv, reg);
 
 	if (enable)
 		val |= reset_bits;
 	else
 		val &= ~reset_bits;
 
-	I915_WRITE(reg, val);
+	intel_de_write(dev_priv, reg, val);
 }
 
 static void skl_display_core_init(struct drm_i915_private *dev_priv,
@@ -4621,7 +4785,7 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 
 	mutex_unlock(&power_domains->lock);
 
-	intel_cdclk_init(dev_priv);
+	intel_cdclk_init_hw(dev_priv);
 
 	gen9_dbuf_enable(dev_priv);
 
@@ -4638,7 +4802,7 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	gen9_dbuf_disable(dev_priv);
 
-	intel_cdclk_uninit(dev_priv);
+	intel_cdclk_uninit_hw(dev_priv);
 
 	/* The spec doesn't call for removing the reset handshake flag */
 	/* disable PG1 and Misc I/O */
@@ -4682,7 +4846,7 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 
 	mutex_unlock(&power_domains->lock);
 
-	intel_cdclk_init(dev_priv);
+	intel_cdclk_init_hw(dev_priv);
 
 	gen9_dbuf_enable(dev_priv);
 
@@ -4699,7 +4863,7 @@ static void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	gen9_dbuf_disable(dev_priv);
 
-	intel_cdclk_uninit(dev_priv);
+	intel_cdclk_uninit_hw(dev_priv);
 
 	/* The spec doesn't call for removing the reset handshake flag */
 
@@ -4741,7 +4905,7 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	mutex_unlock(&power_domains->lock);
 
 	/* 5. Enable CD clock */
-	intel_cdclk_init(dev_priv);
+	intel_cdclk_init_hw(dev_priv);
 
 	/* 6. Enable DBUF */
 	gen9_dbuf_enable(dev_priv);
@@ -4763,7 +4927,7 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 	gen9_dbuf_disable(dev_priv);
 
 	/* 3. Disable CD clock */
-	intel_cdclk_uninit(dev_priv);
+	intel_cdclk_uninit_hw(dev_priv);
 
 	/*
 	 * 4. Disable Power Well 1 (PG1).
@@ -4779,6 +4943,59 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	/* 5. */
 	intel_combo_phy_uninit(dev_priv);
+}
+
+struct buddy_page_mask {
+	u32 page_mask;
+	u8 type;
+	u8 num_channels;
+};
+
+static const struct buddy_page_mask tgl_buddy_page_masks[] = {
+	{ .num_channels = 1, .type = INTEL_DRAM_LPDDR4, .page_mask = 0xE },
+	{ .num_channels = 1, .type = INTEL_DRAM_DDR4,   .page_mask = 0xF },
+	{ .num_channels = 2, .type = INTEL_DRAM_LPDDR4, .page_mask = 0x1C },
+	{ .num_channels = 2, .type = INTEL_DRAM_DDR4,   .page_mask = 0x1F },
+	{}
+};
+
+static const struct buddy_page_mask wa_1409767108_buddy_page_masks[] = {
+	{ .num_channels = 1, .type = INTEL_DRAM_LPDDR4, .page_mask = 0x1 },
+	{ .num_channels = 1, .type = INTEL_DRAM_DDR4,   .page_mask = 0x1 },
+	{ .num_channels = 2, .type = INTEL_DRAM_LPDDR4, .page_mask = 0x3 },
+	{ .num_channels = 2, .type = INTEL_DRAM_DDR4,   .page_mask = 0x3 },
+	{}
+};
+
+static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
+{
+	enum intel_dram_type type = dev_priv->dram_info.type;
+	u8 num_channels = dev_priv->dram_info.num_channels;
+	const struct buddy_page_mask *table;
+	int i;
+
+	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0))
+		/* Wa_1409767108: tgl */
+		table = wa_1409767108_buddy_page_masks;
+	else
+		table = tgl_buddy_page_masks;
+
+	for (i = 0; table[i].page_mask != 0; i++)
+		if (table[i].num_channels == num_channels &&
+		    table[i].type == type)
+			break;
+
+	if (table[i].page_mask == 0) {
+		drm_dbg(&dev_priv->drm,
+			"Unknown memory configuration; disabling address buddy logic.\n");
+		intel_de_write(dev_priv, BW_BUDDY1_CTL, BW_BUDDY_DISABLE);
+		intel_de_write(dev_priv, BW_BUDDY2_CTL, BW_BUDDY_DISABLE);
+	} else {
+		intel_de_write(dev_priv, BW_BUDDY1_PAGE_MASK,
+			       table[i].page_mask);
+		intel_de_write(dev_priv, BW_BUDDY2_PAGE_MASK,
+			       table[i].page_mask);
+	}
 }
 
 static void icl_display_core_init(struct drm_i915_private *dev_priv,
@@ -4805,13 +5022,17 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	mutex_unlock(&power_domains->lock);
 
 	/* 4. Enable CDCLK. */
-	intel_cdclk_init(dev_priv);
+	intel_cdclk_init_hw(dev_priv);
 
 	/* 5. Enable DBUF. */
 	icl_dbuf_enable(dev_priv);
 
 	/* 6. Setup MBUS. */
 	icl_mbus_init(dev_priv);
+
+	/* 7. Program arbiter BW_BUDDY registers */
+	if (INTEL_GEN(dev_priv) >= 12)
+		tgl_bw_buddy_init(dev_priv);
 
 	if (resume && dev_priv->csr.dmc_payload)
 		intel_csr_load_program(dev_priv);
@@ -4830,7 +5051,7 @@ static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 	icl_dbuf_disable(dev_priv);
 
 	/* 3. Disable CD clock */
-	intel_cdclk_uninit(dev_priv);
+	intel_cdclk_uninit_hw(dev_priv);
 
 	/*
 	 * 4. Disable Power Well 1 (PG1).
@@ -4875,7 +5096,7 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 	 * current lane status.
 	 */
 	if (cmn_bc->desc->ops->is_enabled(dev_priv, cmn_bc)) {
-		u32 status = I915_READ(DPLL(PIPE_A));
+		u32 status = intel_de_read(dev_priv, DPLL(PIPE_A));
 		unsigned int mask;
 
 		mask = status & DPLL_PORTB_READY_MASK;
@@ -4906,7 +5127,7 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (cmn_d->desc->ops->is_enabled(dev_priv, cmn_d)) {
-		u32 status = I915_READ(DPIO_PHY_STATUS);
+		u32 status = intel_de_read(dev_priv, DPIO_PHY_STATUS);
 		unsigned int mask;
 
 		mask = status & DPLL_PORTD_READY_MASK;
@@ -4927,10 +5148,10 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 		dev_priv->chv_phy_assert[DPIO_PHY1] = true;
 	}
 
-	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+	drm_dbg_kms(&dev_priv->drm, "Initial PHY_CONTROL=0x%08x\n",
+		    dev_priv->chv_phy_control);
 
-	DRM_DEBUG_KMS("Initial PHY_CONTROL=0x%08x\n",
-		      dev_priv->chv_phy_control);
+	/* Defer application of initial phy_control to enabling the powerwell */
 }
 
 static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
@@ -4943,10 +5164,10 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 	/* If the display might be already active skip this */
 	if (cmn->desc->ops->is_enabled(dev_priv, cmn) &&
 	    disp2d->desc->ops->is_enabled(dev_priv, disp2d) &&
-	    I915_READ(DPIO_CTL) & DPIO_CMNRST)
+	    intel_de_read(dev_priv, DPIO_CTL) & DPIO_CMNRST)
 		return;
 
-	DRM_DEBUG_KMS("toggling display PHY side reset\n");
+	drm_dbg_kms(&dev_priv->drm, "toggling display PHY side reset\n");
 
 	/* cmnlane needs DPLL registers */
 	disp2d->desc->ops->enable(dev_priv, disp2d);
@@ -5218,13 +5439,13 @@ static void intel_power_domains_dump_info(struct drm_i915_private *i915)
 	for_each_power_well(i915, power_well) {
 		enum intel_display_power_domain domain;
 
-		DRM_DEBUG_DRIVER("%-25s %d\n",
-				 power_well->desc->name, power_well->count);
+		drm_dbg(&i915->drm, "%-25s %d\n",
+			power_well->desc->name, power_well->count);
 
 		for_each_power_domain(domain, power_well->desc->domains)
-			DRM_DEBUG_DRIVER("  %-23s %d\n",
-					 intel_display_power_domain_str(domain),
-					 power_domains->domain_use_count[domain]);
+			drm_dbg(&i915->drm, "  %-23s %d\n",
+				intel_display_power_domain_str(domain),
+				power_domains->domain_use_count[domain]);
 	}
 }
 
@@ -5257,19 +5478,21 @@ static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 		enabled = power_well->desc->ops->is_enabled(i915, power_well);
 		if ((power_well->count || power_well->desc->always_on) !=
 		    enabled)
-			DRM_ERROR("power well %s state mismatch (refcount %d/enabled %d)",
-				  power_well->desc->name,
-				  power_well->count, enabled);
+			drm_err(&i915->drm,
+				"power well %s state mismatch (refcount %d/enabled %d)",
+				power_well->desc->name,
+				power_well->count, enabled);
 
 		domains_count = 0;
 		for_each_power_domain(domain, power_well->desc->domains)
 			domains_count += power_domains->domain_use_count[domain];
 
 		if (power_well->count != domains_count) {
-			DRM_ERROR("power well %s refcount/domain refcount mismatch "
-				  "(refcount %d/domains refcount %d)\n",
-				  power_well->desc->name, power_well->count,
-				  domains_count);
+			drm_err(&i915->drm,
+				"power well %s refcount/domain refcount mismatch "
+				"(refcount %d/domains refcount %d)\n",
+				power_well->desc->name, power_well->count,
+				domains_count);
 			dump_domain_info = true;
 		}
 	}

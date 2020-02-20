@@ -63,14 +63,7 @@ fb_create(struct drm_device *dev, struct drm_file *filp,
 	if (IS_ERR_OR_NULL(fb))
 		return fb;
 
-	gem_obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
-	if (!gem_obj) {
-		DRM_ERROR("Failed to lookup GEM object\n");
-		ret = -ENOENT;
-		goto fail;
-	}
-
-	drm_gem_object_put_unlocked(gem_obj);
+	gem_obj = fb->obj[0];
 
 	ret = xen_drm_front_fb_attach(drm_info->front_info,
 				      xen_drm_front_dbuf_to_cookie(gem_obj),
@@ -270,11 +263,12 @@ static void display_update(struct drm_simple_display_pipe *pipe,
 }
 
 static enum drm_mode_status
-display_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
+display_mode_valid(struct drm_simple_display_pipe *pipe,
+		   const struct drm_display_mode *mode)
 {
 	struct xen_drm_front_drm_pipeline *pipeline =
-			container_of(crtc, struct xen_drm_front_drm_pipeline,
-				     pipe.crtc);
+			container_of(pipe, struct xen_drm_front_drm_pipeline,
+				     pipe);
 
 	if (mode->hdisplay != pipeline->width)
 		return MODE_ERROR;

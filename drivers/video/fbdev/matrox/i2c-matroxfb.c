@@ -191,8 +191,8 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 				0x1b, I2C_CLIENT_END
 			};
 
-			i2c_new_probed_device(&m2info->maven.adapter,
-					      &maven_info, addr_list, NULL);
+			i2c_new_scanned_device(&m2info->maven.adapter,
+					       &maven_info, addr_list, NULL);
 		}
 	}
 	return m2info;

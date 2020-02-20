@@ -117,7 +117,7 @@ static int cs5535audio_build_dma_packets(struct cs5535audio *cs5535au,
 
 	if (dma->desc_buf.area == NULL) {
 		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-					snd_dma_pci_data(cs5535au->pci),
+					&cs5535au->pci->dev,
 					CS5535AUDIO_DESC_LIST_SIZE+1,
 					&dma->desc_buf) < 0)
 			return -ENOMEM;
@@ -432,8 +432,8 @@ int snd_cs5535audio_pcm(struct cs5535audio *cs5535au)
 	strcpy(pcm->name, "CS5535 Audio");
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					snd_dma_pci_data(cs5535au->pci),
-					64*1024, 128*1024);
+					      &cs5535au->pci->dev,
+					      64*1024, 128*1024);
 	cs5535au->pcm = pcm;
 
 	return 0;

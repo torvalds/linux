@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>
+#include <linux/compat.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/io.h>
@@ -473,6 +474,11 @@ static long cpwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
+static long cpwd_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	return cpwd_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
+}
+
 static ssize_t cpwd_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
@@ -497,7 +503,7 @@ static ssize_t cpwd_read(struct file *file, char __user *buffer,
 static const struct file_operations cpwd_fops = {
 	.owner =		THIS_MODULE,
 	.unlocked_ioctl =	cpwd_ioctl,
-	.compat_ioctl =		compat_ptr_ioctl,
+	.compat_ioctl =		cpwd_compat_ioctl,
 	.open =			cpwd_open,
 	.write =		cpwd_write,
 	.read =			cpwd_read,

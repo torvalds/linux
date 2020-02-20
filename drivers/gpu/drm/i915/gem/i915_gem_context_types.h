@@ -20,6 +20,7 @@
 #include "gt/intel_context_types.h"
 
 #include "i915_scheduler.h"
+#include "i915_sw_fence.h"
 
 struct pid;
 
@@ -30,7 +31,12 @@ struct intel_timeline;
 struct intel_ring;
 
 struct i915_gem_engines {
-	struct rcu_head rcu;
+	union {
+		struct list_head link;
+		struct rcu_head rcu;
+	};
+	struct i915_sw_fence fence;
+	struct i915_gem_context *ctx;
 	unsigned int num_engines;
 	struct intel_context *engines[];
 };
@@ -100,15 +106,6 @@ struct i915_gem_context {
 	 */
 	struct pid *pid;
 
-	/**
-	 * @name: arbitrary name
-	 *
-	 * A name is constructed for the context from the creator's process
-	 * name, pid and user handle in order to uniquely identify the
-	 * context in messages.
-	 */
-	const char *name;
-
 	/** link: place with &drm_i915_private.context_list */
 	struct list_head link;
 	struct llist_node free_link;
@@ -143,11 +140,8 @@ struct i915_gem_context {
 	 * @flags: small set of booleans
 	 */
 	unsigned long flags;
-#define CONTEXT_BANNED			0
-#define CONTEXT_CLOSED			1
-#define CONTEXT_FORCE_SINGLE_SUBMISSION	2
-#define CONTEXT_USER_ENGINES		3
-#define CONTEXT_NOPREEMPT		4
+#define CONTEXT_CLOSED			0
+#define CONTEXT_USER_ENGINES		1
 
 	struct mutex mutex;
 
@@ -176,6 +170,20 @@ struct i915_gem_context {
 	 * per vm, which may be one per context or shared with the global GTT)
 	 */
 	struct radix_tree_root handles_vma;
+
+	/**
+	 * @name: arbitrary name, used for user debug
+	 *
+	 * A name is constructed for the context from the creator's process
+	 * name, pid and user handle in order to uniquely identify the
+	 * context in messages.
+	 */
+	char name[TASK_COMM_LEN + 8];
+
+	struct {
+		spinlock_t lock;
+		struct list_head engines;
+	} stale;
 };
 
 #endif /* __I915_GEM_CONTEXT_TYPES_H__ */

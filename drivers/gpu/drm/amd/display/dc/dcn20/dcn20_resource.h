@@ -50,7 +50,7 @@ unsigned int dcn20_calc_max_scaled_time(
 		enum mmhubbub_wbif_mode mode,
 		unsigned int urgent_watermark);
 int dcn20_populate_dml_pipes_from_context(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes);
+		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes);
 struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
 		struct dc_state *state,
 		const struct resource_pool *pool,
@@ -95,9 +95,12 @@ struct display_stream_compressor *dcn20_dsc_create(
 	struct dc_context *ctx, uint32_t inst);
 void dcn20_dsc_destroy(struct display_stream_compressor **dsc);
 
-struct pp_smu_funcs *dcn20_pp_smu_create(struct dc_context *ctx);
-void dcn20_pp_smu_destroy(struct pp_smu_funcs **pp_smu);
-
+void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb);
+void dcn20_cap_soc_clocks(
+		struct _vcs_dpi_soc_bounding_box_st *bb,
+		struct pp_smu_nv_clock_table max_clocks);
+void dcn20_update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb,
+		struct pp_smu_nv_clock_table *max_clocks, unsigned int *uclk_states, unsigned int num_states);
 struct hubp *dcn20_hubp_create(
 	struct dc_context *ctx,
 	uint32_t inst);
@@ -116,6 +119,29 @@ void dcn20_set_mcif_arb_params(
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt);
 bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context, bool fast_validate);
+void dcn20_merge_pipes_for_validate(
+		struct dc *dc,
+		struct dc_state *context);
+int dcn20_validate_apply_pipe_split_flags(
+		struct dc *dc,
+		struct dc_state *context,
+		int vlevel,
+		bool *split);
+bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx);
+void dcn20_split_stream_for_mpc(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct pipe_ctx *primary_pipe,
+		struct pipe_ctx *secondary_pipe);
+bool dcn20_split_stream_for_odm(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct pipe_ctx *prev_odm_pipe,
+		struct pipe_ctx *next_odm_pipe);
+struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe);
 bool dcn20_fast_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
@@ -131,6 +157,7 @@ void dcn20_calculate_dlg_params(
 
 enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state *context, struct dc_stream_state *stream);
 enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, struct dc_stream_state *dc_stream);
+enum dc_status dcn20_add_dsc_to_stream_resource(struct dc *dc, struct dc_state *dc_ctx, struct dc_stream_state *dc_stream);
 enum dc_status dcn20_remove_stream_from_ctx(struct dc *dc, struct dc_state *new_ctx, struct dc_stream_state *dc_stream);
 enum dc_status dcn20_get_default_swizzle_mode(struct dc_plane_state *plane_state);
 

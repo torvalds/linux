@@ -140,8 +140,8 @@ static ssize_t crc_control_write(struct file *file, const char __user *ubuf,
 	if (IS_ERR(source))
 		return PTR_ERR(source);
 
-	if (source[len] == '\n')
-		source[len] = '\0';
+	if (source[len - 1] == '\n')
+		source[len - 1] = '\0';
 
 	ret = crtc->funcs->verify_crc_source(crtc, source, &values_cnt);
 	if (ret)
@@ -257,6 +257,11 @@ static int crtc_crc_release(struct inode *inode, struct file *filep)
 {
 	struct drm_crtc *crtc = filep->f_inode->i_private;
 	struct drm_crtc_crc *crc = &crtc->crc;
+
+	/* terminate the infinite while loop if 'drm_dp_aux_crc_work' running */
+	spin_lock_irq(&crc->lock);
+	crc->opened = false;
+	spin_unlock_irq(&crc->lock);
 
 	crtc->funcs->set_crc_source(crtc, NULL);
 

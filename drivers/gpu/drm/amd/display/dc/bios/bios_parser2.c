@@ -111,7 +111,7 @@ static struct atom_encoder_caps_record *get_encoder_cap_record(
 
 #define DATA_TABLES(table) (bp->master_data_tbl->listOfdatatables.table)
 
-static void destruct(struct bios_parser *bp)
+static void bios_parser2_destruct(struct bios_parser *bp)
 {
 	kfree(bp->base.bios_local_image);
 	kfree(bp->base.integrated_info);
@@ -126,7 +126,7 @@ static void firmware_parser_destroy(struct dc_bios **dcb)
 		return;
 	}
 
-	destruct(bp);
+	bios_parser2_destruct(bp);
 
 	kfree(bp);
 	*dcb = NULL;
@@ -294,10 +294,20 @@ static enum bp_result bios_parser_get_i2c_info(struct dc_bios *dcb,
 	struct atom_display_object_path_v2 *object;
 	struct atom_common_record_header *header;
 	struct atom_i2c_record *record;
+	struct atom_i2c_record dummy_record = {0};
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 
 	if (!info)
 		return BP_RESULT_BADINPUT;
+
+	if (id.type == OBJECT_TYPE_GENERIC) {
+		dummy_record.i2c_id = id.id;
+
+		if (get_gpio_i2c_info(bp, &dummy_record, info) == BP_RESULT_OK)
+			return BP_RESULT_OK;
+		else
+			return BP_RESULT_NORECORD;
+	}
 
 	object = get_bios_object(bp, id);
 
@@ -341,6 +351,7 @@ static enum bp_result get_gpio_i2c_info(
 	struct atom_gpio_pin_lut_v2_1 *header;
 	uint32_t count = 0;
 	unsigned int table_index = 0;
+	bool find_valid = false;
 
 	if (!info)
 		return BP_RESULT_BADINPUT;
@@ -368,32 +379,27 @@ static enum bp_result get_gpio_i2c_info(
 			- sizeof(struct atom_common_table_header))
 				/ sizeof(struct atom_gpio_pin_assignment);
 
-	table_index = record->i2c_id  & I2C_HW_LANE_MUX;
-
-	if (count < table_index) {
-		bool find_valid = false;
-
-		for (table_index = 0; table_index < count; table_index++) {
-			if (((record->i2c_id & I2C_HW_CAP) == (
-			header->gpio_pin[table_index].gpio_id &
-							I2C_HW_CAP)) &&
-			((record->i2c_id & I2C_HW_ENGINE_ID_MASK)  ==
-			(header->gpio_pin[table_index].gpio_id &
-						I2C_HW_ENGINE_ID_MASK)) &&
-			((record->i2c_id & I2C_HW_LANE_MUX) ==
-			(header->gpio_pin[table_index].gpio_id &
-							I2C_HW_LANE_MUX))) {
-				/* still valid */
-				find_valid = true;
-				break;
-			}
+	for (table_index = 0; table_index < count; table_index++) {
+		if (((record->i2c_id & I2C_HW_CAP) == (
+		header->gpio_pin[table_index].gpio_id &
+						I2C_HW_CAP)) &&
+		((record->i2c_id & I2C_HW_ENGINE_ID_MASK)  ==
+		(header->gpio_pin[table_index].gpio_id &
+					I2C_HW_ENGINE_ID_MASK)) &&
+		((record->i2c_id & I2C_HW_LANE_MUX) ==
+		(header->gpio_pin[table_index].gpio_id &
+						I2C_HW_LANE_MUX))) {
+			/* still valid */
+			find_valid = true;
+			break;
 		}
-		/* If we don't find the entry that we are looking for then
-		 *  we will return BP_Result_BadBiosTable.
-		 */
-		if (find_valid == false)
-			return BP_RESULT_BADBIOSTABLE;
 	}
+
+	/* If we don't find the entry that we are looking for then
+	 *  we will return BP_Result_BadBiosTable.
+	 */
+	if (find_valid == false)
+		return BP_RESULT_BADBIOSTABLE;
 
 	/* get the GPIO_I2C_INFO */
 	info->i2c_hw_assist = (record->i2c_id & I2C_HW_CAP) ? true : false;
@@ -828,6 +834,7 @@ static enum bp_result bios_parser_get_spread_spectrum_info(
 		case 1:
 			return get_ss_info_v4_1(bp, signal, index, ss_info);
 		case 2:
+		case 3:
 			return get_ss_info_v4_2(bp, signal, index, ss_info);
 		default:
 			break;
@@ -986,7 +993,7 @@ static uint32_t get_support_mask_for_device_id(struct device_id device_id)
 		break;
 	default:
 		break;
-	};
+	}
 
 	/* Unidentified device ID, return empty support mask. */
 	return 0;
@@ -1205,6 +1212,8 @@ static enum bp_result get_firmware_info_v3_1(
 				bp->cmd_tbl.get_smu_clock_info(bp, SMU9_SYSPLL0_ID) * 10;
 	}
 
+	info->oem_i2c_present = false;
+
 	return BP_RESULT_OK;
 }
 
@@ -1281,6 +1290,13 @@ static enum bp_result get_firmware_info_v3_2(
 		else if (revision.minor == 3)
 			info->smu_gpu_pll_output_freq =
 					bp->cmd_tbl.get_smu_clock_info(bp, SMU11_SYSPLL3_0_ID) * 10;
+	}
+
+	if (firmware_info->board_i2c_feature_id == 0x2) {
+		info->oem_i2c_present = true;
+		info->oem_i2c_obj_id = firmware_info->board_i2c_feature_gpio_id;
+	} else {
+		info->oem_i2c_present = false;
 	}
 
 	return BP_RESULT_OK;
@@ -1402,10 +1418,8 @@ static enum bp_result get_integrated_info_v11(
 	info->ma_channel_number = info_v11->umachannelnumber;
 	info->lvds_ss_percentage =
 	le16_to_cpu(info_v11->lvds_ss_percentage);
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	info->dp_ss_control =
 	le16_to_cpu(info_v11->reserved1);
-#endif
 	info->lvds_sspread_rate_in_10hz =
 	le16_to_cpu(info_v11->lvds_ss_rate_10hz);
 	info->hdmi_ss_percentage =
@@ -1613,8 +1627,6 @@ static enum bp_result construct_integrated_info(
 
 	struct atom_common_table_header *header;
 	struct atom_data_revision revision;
-
-	struct clock_voltage_caps temp = {0, 0};
 	uint32_t i;
 	uint32_t j;
 
@@ -1627,6 +1639,7 @@ static enum bp_result construct_integrated_info(
 		/* Don't need to check major revision as they are all 1 */
 		switch (revision.minor) {
 		case 11:
+		case 12:
 			result = get_integrated_info_v11(bp, info);
 			break;
 		default:
@@ -1644,10 +1657,8 @@ static enum bp_result construct_integrated_info(
 				info->disp_clk_voltage[j-1].max_supported_clk
 				) {
 				/* swap j and j - 1*/
-				temp = info->disp_clk_voltage[j-1];
-				info->disp_clk_voltage[j-1] =
-					info->disp_clk_voltage[j];
-				info->disp_clk_voltage[j] = temp;
+				swap(info->disp_clk_voltage[j - 1],
+				     info->disp_clk_voltage[j]);
 			}
 		}
 	}
@@ -1829,7 +1840,6 @@ static enum bp_result bios_get_board_layout_info(
 	struct board_layout_info *board_layout_info)
 {
 	unsigned int i;
-	struct bios_parser *bp;
 	enum bp_result record_result;
 
 	const unsigned int slot_index_to_vbios_id[MAX_BOARD_SLOTS] = {
@@ -1838,7 +1848,6 @@ static enum bp_result bios_get_board_layout_info(
 		0, 0
 	};
 
-	bp = BP_FROM_DCB(dcb);
 	if (board_layout_info == NULL) {
 		DC_LOG_DETECTION_EDID_PARSER("Invalid board_layout_info\n");
 		return BP_RESULT_BADINPUT;
@@ -1918,7 +1927,7 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.get_board_layout_info = bios_get_board_layout_info,
 };
 
-static bool bios_parser_construct(
+static bool bios_parser2_construct(
 	struct bios_parser *bp,
 	struct bp_init_data *init,
 	enum dce_version dce_version)
@@ -2011,7 +2020,7 @@ struct dc_bios *firmware_parser_create(
 	if (!bp)
 		return NULL;
 
-	if (bios_parser_construct(bp, init, dce_version))
+	if (bios_parser2_construct(bp, init, dce_version))
 		return &bp->base;
 
 	kfree(bp);

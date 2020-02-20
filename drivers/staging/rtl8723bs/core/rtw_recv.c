@@ -1400,10 +1400,8 @@ static sint validate_80211w_mgmt(struct adapter *adapter, union recv_frame *prec
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
 	u8 *ptr = precv_frame->u.hdr.rx_data;
-	u8 type;
 	u8 subtype;
 
-	type =  GetFrameType(ptr);
 	subtype = GetFrameSubType(ptr); /* bit(7)~bit(2) */
 
 	/* only support station mode */
@@ -1412,9 +1410,8 @@ static sint validate_80211w_mgmt(struct adapter *adapter, union recv_frame *prec
 		/* unicast management frame decrypt */
 		if (pattrib->privacy && !(IS_MCAST(GetAddr1Ptr(ptr))) &&
 			(subtype == WIFI_DEAUTH || subtype == WIFI_DISASSOC || subtype == WIFI_ACTION)) {
-			u8 *ppp, *mgmt_DATA;
+			u8 *mgmt_DATA;
 			u32 data_len = 0;
-			ppp = GetAddr2Ptr(ptr);
 
 			pattrib->bdecrypted = 0;
 			pattrib->encrypt = _AES_;
@@ -1709,7 +1706,7 @@ static union recv_frame *recvframe_defrag(struct adapter *adapter,
 					  struct __queue *defrag_q)
 {
 	struct list_head	 *plist, *phead;
-	u8 *data, wlanhdr_offset;
+	u8  wlanhdr_offset;
 	u8 curfragnum;
 	struct recv_frame_hdr *pfhdr, *pnfhdr;
 	union recv_frame *prframe, *pnextrframe;
@@ -1738,8 +1735,6 @@ static union recv_frame *recvframe_defrag(struct adapter *adapter,
 	plist = get_list_head(defrag_q);
 
 	plist = get_next(plist);
-
-	data = get_recvframe_data(prframe);
 
 	while (phead != plist) {
 		pnextrframe = (union recv_frame *)plist;

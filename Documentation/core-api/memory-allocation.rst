@@ -88,39 +88,41 @@ Selecting memory allocator
 ==========================
 
 The most straightforward way to allocate memory is to use a function
-from the :c:func:`kmalloc` family. And, to be on the safe size it's
-best to use routines that set memory to zero, like
-:c:func:`kzalloc`. If you need to allocate memory for an array, there
-are :c:func:`kmalloc_array` and :c:func:`kcalloc` helpers.
+from the kmalloc() family. And, to be on the safe side it's best to use
+routines that set memory to zero, like kzalloc(). If you need to
+allocate memory for an array, there are kmalloc_array() and kcalloc()
+helpers. The helpers struct_size(), array_size() and array3_size() can
+be used to safely calculate object sizes without overflowing.
 
 The maximal size of a chunk that can be allocated with `kmalloc` is
 limited. The actual limit depends on the hardware and the kernel
 configuration, but it is a good practice to use `kmalloc` for objects
 smaller than page size.
 
-For large allocations you can use :c:func:`vmalloc` and
-:c:func:`vzalloc`, or directly request pages from the page
-allocator. The memory allocated by `vmalloc` and related functions is
-not physically contiguous.
+The address of a chunk allocated with `kmalloc` is aligned to at least
+ARCH_KMALLOC_MINALIGN bytes.  For sizes which are a power of two, the
+alignment is also guaranteed to be at least the respective size.
+
+For large allocations you can use vmalloc() and vzalloc(), or directly
+request pages from the page allocator. The memory allocated by `vmalloc`
+and related functions is not physically contiguous.
 
 If you are not sure whether the allocation size is too large for
-`kmalloc`, it is possible to use :c:func:`kvmalloc` and its
-derivatives. It will try to allocate memory with `kmalloc` and if the
-allocation fails it will be retried with `vmalloc`. There are
-restrictions on which GFP flags can be used with `kvmalloc`; please
-see :c:func:`kvmalloc_node` reference documentation. Note that
-`kvmalloc` may return memory that is not physically contiguous.
+`kmalloc`, it is possible to use kvmalloc() and its derivatives. It will
+try to allocate memory with `kmalloc` and if the allocation fails it
+will be retried with `vmalloc`. There are restrictions on which GFP
+flags can be used with `kvmalloc`; please see kvmalloc_node() reference
+documentation. Note that `kvmalloc` may return memory that is not
+physically contiguous.
 
 If you need to allocate many identical objects you can use the slab
-cache allocator. The cache should be set up with
-:c:func:`kmem_cache_create` or :c:func:`kmem_cache_create_usercopy`
-before it can be used. The second function should be used if a part of
-the cache might be copied to the userspace.  After the cache is
-created :c:func:`kmem_cache_alloc` and its convenience wrappers can
-allocate memory from that cache.
+cache allocator. The cache should be set up with kmem_cache_create() or
+kmem_cache_create_usercopy() before it can be used. The second function
+should be used if a part of the cache might be copied to the userspace.
+After the cache is created kmem_cache_alloc() and its convenience
+wrappers can allocate memory from that cache.
 
-When the allocated memory is no longer needed it must be freed. You
-can use :c:func:`kvfree` for the memory allocated with `kmalloc`,
-`vmalloc` and `kvmalloc`. The slab caches should be freed with
-:c:func:`kmem_cache_free`. And don't forget to destroy the cache with
-:c:func:`kmem_cache_destroy`.
+When the allocated memory is no longer needed it must be freed. You can
+use kvfree() for the memory allocated with `kmalloc`, `vmalloc` and
+`kvmalloc`. The slab caches should be freed with kmem_cache_free(). And
+don't forget to destroy the cache with kmem_cache_destroy().

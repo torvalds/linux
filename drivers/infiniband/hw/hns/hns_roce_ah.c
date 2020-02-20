@@ -46,32 +46,32 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
 	const struct ib_gid_attr *gid_attr;
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ah *ah = to_hr_ah(ibah);
-	u16 vlan_tag = 0xffff;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
+	u16 vlan_id = 0xffff;
 	bool vlan_en = false;
 	int ret;
 
 	gid_attr = ah_attr->grh.sgid_attr;
-	ret = rdma_read_gid_l2_fields(gid_attr, &vlan_tag, NULL);
+	ret = rdma_read_gid_l2_fields(gid_attr, &vlan_id, NULL);
 	if (ret)
 		return ret;
 
 	/* Get mac address */
 	memcpy(ah->av.mac, ah_attr->roce.dmac, ETH_ALEN);
 
-	if (vlan_tag < VLAN_CFI_MASK) {
+	if (vlan_id < VLAN_N_VID) {
 		vlan_en = true;
-		vlan_tag |= (rdma_ah_get_sl(ah_attr) &
+		vlan_id |= (rdma_ah_get_sl(ah_attr) &
 			     HNS_ROCE_VLAN_SL_BIT_MASK) <<
 			     HNS_ROCE_VLAN_SL_SHIFT;
 	}
 
 	ah->av.port = rdma_ah_get_port_num(ah_attr);
 	ah->av.gid_index = grh->sgid_index;
-	ah->av.vlan = vlan_tag;
+	ah->av.vlan_id = vlan_id;
 	ah->av.vlan_en = vlan_en;
-	dev_dbg(dev, "gid_index = 0x%x,vlan = 0x%x\n", ah->av.gid_index,
-		ah->av.vlan);
+	dev_dbg(dev, "gid_index = 0x%x,vlan_id = 0x%x\n", ah->av.gid_index,
+		ah->av.vlan_id);
 
 	if (rdma_ah_get_static_rate(ah_attr))
 		ah->av.stat_rate = IB_RATE_10_GBPS;

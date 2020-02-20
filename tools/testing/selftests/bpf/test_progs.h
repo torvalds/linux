@@ -39,6 +39,13 @@ typedef __u16 __sum16;
 #include "trace_helpers.h"
 #include "flow_dissector_load.h"
 
+enum verbosity {
+	VERBOSE_NONE,
+	VERBOSE_NORMAL,
+	VERBOSE_VERY,
+	VERBOSE_SUPER,
+};
+
 struct test_selector {
 	const char *name;
 	bool *num_set;
@@ -49,8 +56,7 @@ struct test_env {
 	struct test_selector test_selector;
 	struct test_selector subtest_selector;
 	bool verifier_stats;
-	bool verbose;
-	bool very_verbose;
+	enum verbosity verbosity;
 
 	bool jit_enabled;
 

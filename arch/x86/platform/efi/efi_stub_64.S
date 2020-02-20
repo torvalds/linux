@@ -39,7 +39,7 @@
 	mov %rsi, %cr0;			\
 	mov (%rsp), %rsp
 
-ENTRY(efi_call)
+SYM_FUNC_START(efi_call)
 	pushq %rbp
 	movq %rsp, %rbp
 	SAVE_XMM
@@ -55,4 +55,4 @@ ENTRY(efi_call)
 	RESTORE_XMM
 	popq %rbp
 	ret
-ENDPROC(efi_call)
+SYM_FUNC_END(efi_call)

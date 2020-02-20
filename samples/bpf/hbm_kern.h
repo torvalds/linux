@@ -59,21 +59,18 @@
 #define BYTES_PER_NS(delta, rate) ((((u64)(delta)) * (rate)) >> 20)
 #define BYTES_TO_NS(bytes, rate) div64_u64(((u64)(bytes)) << 20, (u64)(rate))
 
-struct bpf_map_def SEC("maps") queue_state = {
-	.type = BPF_MAP_TYPE_CGROUP_STORAGE,
-	.key_size = sizeof(struct bpf_cgroup_storage_key),
-	.value_size = sizeof(struct hbm_vqueue),
-};
-BPF_ANNOTATE_KV_PAIR(queue_state, struct bpf_cgroup_storage_key,
-		     struct hbm_vqueue);
+struct {
+	__uint(type, BPF_MAP_TYPE_CGROUP_STORAGE);
+	__type(key, struct bpf_cgroup_storage_key);
+	__type(value, struct hbm_vqueue);
+} queue_state SEC(".maps");
 
-struct bpf_map_def SEC("maps") queue_stats = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(struct hbm_queue_stats),
-	.max_entries = 1,
-};
-BPF_ANNOTATE_KV_PAIR(queue_stats, int, struct hbm_queue_stats);
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, u32);
+	__type(value, struct hvm_queue_stats);
+} queue_stats SEC(".maps");
 
 struct hbm_pkt_info {
 	int	cwnd;

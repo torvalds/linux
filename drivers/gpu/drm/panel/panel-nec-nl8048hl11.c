@@ -123,12 +123,12 @@ static const struct drm_display_mode nl8048_mode = {
 	.height_mm = 53,
 };
 
-static int nl8048_get_modes(struct drm_panel *panel)
+static int nl8048_get_modes(struct drm_panel *panel,
+			    struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &nl8048_mode);
+	mode = drm_mode_duplicate(connector->dev, &nl8048_mode);
 	if (!mode)
 		return -ENOMEM;
 
@@ -229,9 +229,17 @@ static const struct of_device_id nl8048_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, nl8048_of_match);
 
+static const struct spi_device_id nl8048_ids[] = {
+	{ "nl8048hl11", 0 },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(spi, nl8048_ids);
+
 static struct spi_driver nl8048_driver = {
 	.probe		= nl8048_probe,
 	.remove		= nl8048_remove,
+	.id_table	= nl8048_ids,
 	.driver		= {
 		.name	= "panel-nec-nl8048hl11",
 		.pm	= &nl8048_pm_ops,
@@ -241,7 +249,6 @@ static struct spi_driver nl8048_driver = {
 
 module_spi_driver(nl8048_driver);
 
-MODULE_ALIAS("spi:nec,nl8048hl11");
 MODULE_AUTHOR("Erik Gilling <konkers@android.com>");
 MODULE_DESCRIPTION("NEC-NL8048HL11 Driver");
 MODULE_LICENSE("GPL");

@@ -7,7 +7,6 @@ config DRM_I915_WERROR
 	# We use the dependency on !COMPILE_TEST to not be enabled in
 	# allmodconfig or allyesconfig configurations
 	depends on !COMPILE_TEST
-	select HEADER_TEST
 	default n
 	help
 	  Add -Werror to the build flags for (and only for) i915.ko.
@@ -22,13 +21,13 @@ config DRM_I915_DEBUG
 	depends on DRM_I915
 	select DEBUG_FS
 	select PREEMPT_COUNT
-	select REFCOUNT_FULL
 	select I2C_CHARDEV
 	select STACKDEPOT
 	select DRM_DP_AUX_CHARDEV
 	select X86_MSR # used by igt/pm_rpm
 	select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
 	select DRM_DEBUG_MM if DRM=y
+	select DRM_EXPORT_FOR_TESTS if m
 	select DRM_DEBUG_SELFTEST
 	select DMABUF_SELFTESTS
 	select SW_SYNC # signaling validation framework (igt/syncobj*)
@@ -36,7 +35,6 @@ config DRM_I915_DEBUG
 	select DRM_I915_SELFTEST
 	select DRM_I915_DEBUG_RUNTIME_PM
 	select DRM_I915_DEBUG_MMIO
-	select BROKEN # for prototype uAPI
 	default n
 	help
 	  Choose this option to turn on extra driver debugging that may affect
@@ -152,6 +150,7 @@ config DRM_I915_SELFTEST
 	bool "Enable selftests upon driver load"
 	depends on DRM_I915
 	default n
+	select DRM_EXPORT_FOR_TESTS if m
 	select FAULT_INJECTION
 	select PRIME_NUMBERS
 	help

@@ -19,7 +19,7 @@
 
 int fd;
 const char v = 'V';
-static const char sopts[] = "bdehp:t:Tn:NLf:";
+static const char sopts[] = "bdehp:t:Tn:NLf:i";
 static const struct option lopts[] = {
 	{"bootstatus",          no_argument, NULL, 'b'},
 	{"disable",             no_argument, NULL, 'd'},
@@ -32,6 +32,7 @@ static const struct option lopts[] = {
 	{"getpretimeout",       no_argument, NULL, 'N'},
 	{"gettimeleft",		no_argument, NULL, 'L'},
 	{"file",          required_argument, NULL, 'f'},
+	{"info",		no_argument, NULL, 'i'},
 	{NULL,                  no_argument, NULL, 0x0}
 };
 
@@ -72,6 +73,7 @@ static void usage(char *progname)
 	printf("Usage: %s [options]\n", progname);
 	printf(" -f, --file\t\tOpen watchdog device file\n");
 	printf("\t\t\tDefault is /dev/watchdog\n");
+	printf(" -i, --info\t\tShow watchdog_info\n");
 	printf(" -b, --bootstatus\tGet last boot status (Watchdog/POR)\n");
 	printf(" -d, --disable\t\tTurn off the watchdog timer\n");
 	printf(" -e, --enable\t\tTurn on the watchdog timer\n");
@@ -97,6 +99,7 @@ int main(int argc, char *argv[])
 	int c;
 	int oneshot = 0;
 	char *file = "/dev/watchdog";
+	struct watchdog_info info;
 
 	setbuf(stdout, NULL);
 
@@ -116,6 +119,16 @@ int main(int argc, char *argv[])
 			printf("Watchdog device open failed %s\n",
 				strerror(errno));
 		exit(-1);
+	}
+
+	/*
+	 * Validate that `file` is a watchdog device
+	 */
+	ret = ioctl(fd, WDIOC_GETSUPPORT, &info);
+	if (ret) {
+		printf("WDIOC_GETSUPPORT error '%s'\n", strerror(errno));
+		close(fd);
+		exit(ret);
 	}
 
 	optind = 0;
@@ -204,6 +217,18 @@ int main(int argc, char *argv[])
 			break;
 		case 'f':
 			/* Handled above */
+			break;
+		case 'i':
+			/*
+			 * watchdog_info was obtained as part of file open
+			 * validation. So we just show it here.
+			 */
+			oneshot = 1;
+			printf("watchdog_info:\n");
+			printf(" identity:\t\t%s\n", info.identity);
+			printf(" firmware_version:\t%u\n",
+			       info.firmware_version);
+			printf(" options:\t\t%08x\n", info.options);
 			break;
 
 		default:

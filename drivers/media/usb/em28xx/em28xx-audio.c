@@ -31,7 +31,6 @@
 #include <linux/soundcard.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/proc_fs.h>
 #include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>

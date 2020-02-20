@@ -48,7 +48,6 @@ static int amd_powerplay_create(struct amdgpu_device *adev)
 
 	hwmgr->adev = adev;
 	hwmgr->not_vf = !amdgpu_sriov_vf(adev);
-	hwmgr->pm_en = (amdgpu_dpm && hwmgr->not_vf) ? true : false;
 	hwmgr->device = amdgpu_cgs_create_device(adev);
 	mutex_init(&hwmgr->smu_lock);
 	hwmgr->chip_family = adev->family;
@@ -928,8 +927,11 @@ static int pp_dpm_set_mp1_state(void *handle, enum pp_mp1_state mp1_state)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
-	if (!hwmgr || !hwmgr->pm_en)
+	if (!hwmgr)
 		return -EINVAL;
+
+	if (!hwmgr->pm_en)
+		return 0;
 
 	if (hwmgr->hwmgr_func->set_mp1_state)
 		return hwmgr->hwmgr_func->set_mp1_state(hwmgr, mp1_state);
@@ -967,6 +969,14 @@ static int pp_dpm_switch_power_profile(void *handle,
 		index = fls(hwmgr->workload_mask);
 		index = index <= Workload_Policy_Max ? index - 1 : 0;
 		workload = hwmgr->workload_setting[index];
+	}
+
+	if (type == PP_SMC_POWER_PROFILE_COMPUTE &&
+		hwmgr->hwmgr_func->disable_power_features_for_compute_performance) {
+			if (hwmgr->hwmgr_func->disable_power_features_for_compute_performance(hwmgr, en)) {
+				mutex_unlock(&hwmgr->smu_lock);
+				return -EINVAL;
+			}
 	}
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
@@ -1421,6 +1431,7 @@ static int pp_get_asic_baco_capability(void *handle, bool *cap)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
+	*cap = false;
 	if (!hwmgr)
 		return -EINVAL;
 
@@ -1548,6 +1559,40 @@ static int pp_smu_i2c_bus_access(void *handle, bool acquire)
 	return ret;
 }
 
+static int pp_set_df_cstate(void *handle, enum pp_df_cstate state)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr)
+		return -EINVAL;
+
+	if (!hwmgr->pm_en || !hwmgr->hwmgr_func->set_df_cstate)
+		return 0;
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->set_df_cstate(hwmgr, state);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
+static int pp_set_xgmi_pstate(void *handle, uint32_t pstate)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr)
+		return -EINVAL;
+
+	if (!hwmgr->pm_en || !hwmgr->hwmgr_func->set_xgmi_pstate)
+		return 0;
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->set_xgmi_pstate(hwmgr, pstate);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1606,4 +1651,6 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_ppfeature_status = pp_set_ppfeature_status,
 	.asic_reset_mode_2 = pp_asic_reset_mode_2,
 	.smu_i2c_bus_access = pp_smu_i2c_bus_access,
+	.set_df_cstate = pp_set_df_cstate,
+	.set_xgmi_pstate = pp_set_xgmi_pstate,
 };

@@ -29,6 +29,9 @@ const char *stack_type_name(enum stack_type type)
 	if (type == STACK_TYPE_ENTRY)
 		return "ENTRY_TRAMPOLINE";
 
+	if (type == STACK_TYPE_EXCEPTION)
+		return "#DF";
+
 	return NULL;
 }
 
@@ -82,6 +85,30 @@ static bool in_softirq_stack(unsigned long *stack, struct stack_info *info)
 	return true;
 }
 
+static bool in_doublefault_stack(unsigned long *stack, struct stack_info *info)
+{
+#ifdef CONFIG_DOUBLEFAULT
+	struct cpu_entry_area *cea = get_cpu_entry_area(raw_smp_processor_id());
+	struct doublefault_stack *ss = &cea->doublefault_stack;
+
+	void *begin = ss->stack;
+	void *end = begin + sizeof(ss->stack);
+
+	if ((void *)stack < begin || (void *)stack >= end)
+		return false;
+
+	info->type	= STACK_TYPE_EXCEPTION;
+	info->begin	= begin;
+	info->end	= end;
+	info->next_sp	= (unsigned long *)this_cpu_read(cpu_tss_rw.x86_tss.sp);
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+
 int get_stack_info(unsigned long *stack, struct task_struct *task,
 		   struct stack_info *info, unsigned long *visit_mask)
 {
@@ -103,6 +130,9 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 		goto recursion_check;
 
 	if (in_softirq_stack(stack, info))
+		goto recursion_check;
+
+	if (in_doublefault_stack(stack, info))
 		goto recursion_check;
 
 	goto unknown;

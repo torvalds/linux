@@ -29,6 +29,13 @@ struct intel_gt;
 #define CACHELINE_BYTES 64
 #define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(u32))
 
+#define ENGINE_TRACE(e, fmt, ...) do {					\
+	const struct intel_engine_cs *e__ __maybe_unused = (e);		\
+	GEM_TRACE("%s %s: " fmt,					\
+		  dev_name(e__->i915->drm.dev), e__->name,		\
+		  ##__VA_ARGS__);					\
+} while (0)
+
 /*
  * The register defines to be used with the following macros need to accept a
  * base param, e.g:
@@ -100,9 +107,7 @@ execlists_num_ports(const struct intel_engine_execlists * const execlists)
 static inline struct i915_request *
 execlists_active(const struct intel_engine_execlists *execlists)
 {
-	GEM_BUG_ON(execlists->active - execlists->inflight >
-		   execlists_num_ports(execlists));
-	return READ_ONCE(*execlists->active);
+	return *READ_ONCE(execlists->active);
 }
 
 static inline void
@@ -179,15 +184,17 @@ void intel_engine_stop(struct intel_engine_cs *engine);
 void intel_engine_cleanup(struct intel_engine_cs *engine);
 
 int intel_engines_init_mmio(struct intel_gt *gt);
-int intel_engines_setup(struct intel_gt *gt);
 int intel_engines_init(struct intel_gt *gt);
-void intel_engines_cleanup(struct intel_gt *gt);
+
+void intel_engines_release(struct intel_gt *gt);
+void intel_engines_free(struct intel_gt *gt);
 
 int intel_engine_init_common(struct intel_engine_cs *engine);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 
+int intel_engine_resume(struct intel_engine_cs *engine);
+
 int intel_ring_submission_setup(struct intel_engine_cs *engine);
-int intel_ring_submission_init(struct intel_engine_cs *engine);
 
 int intel_engine_stop_cs(struct intel_engine_cs *engine);
 void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine);
@@ -197,7 +204,7 @@ void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask);
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine);
 u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine);
 
-void intel_engine_get_instdone(struct intel_engine_cs *engine,
+void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone);
 
 void intel_engine_init_execlists(struct intel_engine_cs *engine);
@@ -208,12 +215,10 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
 
 static inline void
-intel_engine_queue_breadcrumbs(struct intel_engine_cs *engine)
+intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine)
 {
 	irq_work_queue(&engine->breadcrumbs.irq_work);
 }
-
-void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine);
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
@@ -272,8 +277,8 @@ gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 static inline void __intel_engine_reset(struct intel_engine_cs *engine,
 					bool stalled)
 {
-	if (engine->reset.reset)
-		engine->reset.reset(engine, stalled);
+	if (engine->reset.rewind)
+		engine->reset.rewind(engine, stalled);
 	engine->serial++; /* contexts lost */
 }
 
@@ -298,27 +303,7 @@ ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
 struct i915_request *
 intel_engine_find_active_request(struct intel_engine_cs *engine);
 
-u32 intel_engine_context_size(struct drm_i915_private *i915, u8 class);
-
-#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-
-static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
-{
-	if (!execlists->preempt_hang.inject_hang)
-		return false;
-
-	complete(&execlists->preempt_hang.completion);
-	return true;
-}
-
-#else
-
-static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
-{
-	return false;
-}
-
-#endif
+u32 intel_engine_context_size(struct intel_gt *gt, u8 class);
 
 void intel_engine_init_active(struct intel_engine_cs *engine,
 			      unsigned int subclass);

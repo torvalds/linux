@@ -109,8 +109,6 @@ struct rpc_procinfo {
 	const char *		p_name;		/* name of procedure */
 };
 
-#ifdef __KERNEL__
-
 struct rpc_create_args {
 	struct net		*net;
 	int			protocol;
@@ -149,6 +147,7 @@ struct rpc_add_xprt_test {
 #define RPC_CLNT_CREATE_NO_IDLE_TIMEOUT	(1UL << 8)
 #define RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT	(1UL << 9)
 #define RPC_CLNT_CREATE_SOFTERR		(1UL << 10)
+#define RPC_CLNT_CREATE_REUSEPORT	(1UL << 11)
 
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
@@ -237,5 +236,4 @@ static inline int rpc_reply_expected(struct rpc_task *task)
 		(task->tk_msg.rpc_proc->p_decode != NULL);
 }
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */

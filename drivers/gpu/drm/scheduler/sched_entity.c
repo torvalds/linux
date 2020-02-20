@@ -23,6 +23,7 @@
 
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/completion.h>
 
 #include <drm/drm_print.h>
 #include <drm/gpu_scheduler.h>
@@ -37,44 +38,40 @@
  * submit to HW ring.
  *
  * @entity: scheduler entity to init
- * @rq_list: the list of run queue on which jobs from this
+ * @priority: priority of the entity
+ * @sched_list: the list of drm scheds on which jobs from this
  *           entity can be submitted
- * @num_rq_list: number of run queue in rq_list
+ * @num_sched_list: number of drm sched in sched_list
  * @guilty: atomic_t set to 1 when a job on this queue
  *          is found to be guilty causing a timeout
  *
- * Note: the rq_list should have atleast one element to schedule
+ * Note: the sched_list should have at least one element to schedule
  *       the entity
  *
  * Returns 0 on success or a negative error code on failure.
  */
 int drm_sched_entity_init(struct drm_sched_entity *entity,
-			  struct drm_sched_rq **rq_list,
-			  unsigned int num_rq_list,
+			  enum drm_sched_priority priority,
+			  struct drm_gpu_scheduler **sched_list,
+			  unsigned int num_sched_list,
 			  atomic_t *guilty)
 {
-	int i;
-
-	if (!(entity && rq_list && (num_rq_list == 0 || rq_list[0])))
+	if (!(entity && sched_list && (num_sched_list == 0 || sched_list[0])))
 		return -EINVAL;
 
 	memset(entity, 0, sizeof(struct drm_sched_entity));
 	INIT_LIST_HEAD(&entity->list);
 	entity->rq = NULL;
 	entity->guilty = guilty;
-	entity->num_rq_list = num_rq_list;
-	entity->rq_list = kcalloc(num_rq_list, sizeof(struct drm_sched_rq *),
-				GFP_KERNEL);
-	if (!entity->rq_list)
-		return -ENOMEM;
-
-	for (i = 0; i < num_rq_list; ++i)
-		entity->rq_list[i] = rq_list[i];
-
-	if (num_rq_list)
-		entity->rq = rq_list[0];
-
+	entity->num_sched_list = num_sched_list;
+	entity->priority = priority;
+	entity->sched_list = num_sched_list > 1 ? sched_list : NULL;
 	entity->last_scheduled = NULL;
+
+	if(num_sched_list)
+		entity->rq = &sched_list[0]->sched_rq[entity->priority];
+
+	init_completion(&entity->entity_idle);
 
 	spin_lock_init(&entity->rq_lock);
 	spsc_queue_init(&entity->job_queue);
@@ -133,21 +130,21 @@ static struct drm_sched_rq *
 drm_sched_entity_get_free_sched(struct drm_sched_entity *entity)
 {
 	struct drm_sched_rq *rq = NULL;
-	unsigned int min_jobs = UINT_MAX, num_jobs;
+	unsigned int min_score = UINT_MAX, num_score;
 	int i;
 
-	for (i = 0; i < entity->num_rq_list; ++i) {
-		struct drm_gpu_scheduler *sched = entity->rq_list[i]->sched;
+	for (i = 0; i < entity->num_sched_list; ++i) {
+		struct drm_gpu_scheduler *sched = entity->sched_list[i];
 
-		if (!entity->rq_list[i]->sched->ready) {
+		if (!entity->sched_list[i]->ready) {
 			DRM_WARN("sched%s is not ready, skipping", sched->name);
 			continue;
 		}
 
-		num_jobs = atomic_read(&sched->num_jobs);
-		if (num_jobs < min_jobs) {
-			min_jobs = num_jobs;
-			rq = entity->rq_list[i];
+		num_score = atomic_read(&sched->score);
+		if (num_score < min_score) {
+			min_score = num_score;
+			rq = &entity->sched_list[i]->sched_rq[entity->priority];
 		}
 	}
 
@@ -286,11 +283,12 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 	 */
 	if (spsc_queue_count(&entity->job_queue)) {
 		if (sched) {
-			/* Park the kernel for a moment to make sure it isn't processing
-			 * our enity.
+			/*
+			 * Wait for thread to idle to make sure it isn't processing
+			 * this entity.
 			 */
-			kthread_park(sched->thread);
-			kthread_unpark(sched->thread);
+			wait_for_completion(&entity->entity_idle);
+
 		}
 		if (entity->dependency) {
 			dma_fence_remove_callback(entity->dependency,
@@ -304,7 +302,6 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 
 	dma_fence_put(entity->last_scheduled);
 	entity->last_scheduled = NULL;
-	kfree(entity->rq_list);
 }
 EXPORT_SYMBOL(drm_sched_entity_fini);
 
@@ -350,15 +347,6 @@ static void drm_sched_entity_wakeup(struct dma_fence *f,
 }
 
 /**
- * drm_sched_entity_set_rq_priority - helper for drm_sched_entity_set_priority
- */
-static void drm_sched_entity_set_rq_priority(struct drm_sched_rq **rq,
-					     enum drm_sched_priority priority)
-{
-	*rq = &(*rq)->sched->sched_rq[priority];
-}
-
-/**
  * drm_sched_entity_set_priority - Sets priority of the entity
  *
  * @entity: scheduler entity
@@ -369,19 +357,8 @@ static void drm_sched_entity_set_rq_priority(struct drm_sched_rq **rq,
 void drm_sched_entity_set_priority(struct drm_sched_entity *entity,
 				   enum drm_sched_priority priority)
 {
-	unsigned int i;
-
 	spin_lock(&entity->rq_lock);
-
-	for (i = 0; i < entity->num_rq_list; ++i)
-		drm_sched_entity_set_rq_priority(&entity->rq_list[i], priority);
-
-	if (entity->rq) {
-		drm_sched_rq_remove_entity(entity->rq, entity);
-		drm_sched_entity_set_rq_priority(&entity->rq, priority);
-		drm_sched_rq_add_entity(entity->rq, entity);
-	}
-
+	entity->priority = priority;
 	spin_unlock(&entity->rq_lock);
 }
 EXPORT_SYMBOL(drm_sched_entity_set_priority);
@@ -486,20 +463,20 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 	struct dma_fence *fence;
 	struct drm_sched_rq *rq;
 
-	if (spsc_queue_count(&entity->job_queue) || entity->num_rq_list <= 1)
+	if (spsc_queue_count(&entity->job_queue) || entity->num_sched_list <= 1)
 		return;
 
 	fence = READ_ONCE(entity->last_scheduled);
 	if (fence && !dma_fence_is_signaled(fence))
 		return;
 
-	rq = drm_sched_entity_get_free_sched(entity);
-	if (rq == entity->rq)
-		return;
-
 	spin_lock(&entity->rq_lock);
-	drm_sched_rq_remove_entity(entity->rq, entity);
-	entity->rq = rq;
+	rq = drm_sched_entity_get_free_sched(entity);
+	if (rq != entity->rq) {
+		drm_sched_rq_remove_entity(entity->rq, entity);
+		entity->rq = rq;
+	}
+
 	spin_unlock(&entity->rq_lock);
 }
 
@@ -521,7 +498,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 	bool first;
 
 	trace_drm_sched_job(sched_job, entity);
-	atomic_inc(&entity->rq->sched->num_jobs);
+	atomic_inc(&entity->rq->sched->score);
 	WRITE_ONCE(entity->last_user, current->group_leader);
 	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
 

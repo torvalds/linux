@@ -525,6 +525,7 @@ config HID_LENOVO
 config HID_LOGITECH
 	tristate "Logitech devices"
 	depends on HID
+	depends on LEDS_CLASS
 	default !EXPERT
 	---help---
 	Support for Logitech devices that are not fully compliant with HID standard.

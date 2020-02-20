@@ -154,6 +154,7 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 
 	struct fixed31_32 l_pow_m1;
 	struct fixed31_32 base, div;
+	struct fixed31_32 base2;
 
 
 	if (dc_fixpt_lt(in_x, dc_fixpt_zero))
@@ -163,13 +164,15 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 			dc_fixpt_div(dc_fixpt_one, m2));
 	base = dc_fixpt_sub(l_pow_m1, c1);
 
-	if (dc_fixpt_lt(base, dc_fixpt_zero))
-		base = dc_fixpt_zero;
-
 	div = dc_fixpt_sub(c2, dc_fixpt_mul(c3, l_pow_m1));
 
-	*out_y = dc_fixpt_pow(dc_fixpt_div(base, div),
-			dc_fixpt_div(dc_fixpt_one, m1));
+	base2 = dc_fixpt_div(base, div);
+	//avoid complex numbers
+	if (dc_fixpt_lt(base2, dc_fixpt_zero))
+		base2 = dc_fixpt_sub(dc_fixpt_zero, base2);
+
+
+	*out_y = dc_fixpt_pow(base2, dc_fixpt_div(dc_fixpt_one, m1));
 
 }
 
@@ -361,8 +364,10 @@ static struct fixed31_32 translate_from_linear_space(
 			scratch_2 = dc_fixpt_mul(gamma_of_2,
 					pow_buffer[pow_buffer_ptr%16]);
 
-		pow_buffer[pow_buffer_ptr%16] = scratch_2;
-		pow_buffer_ptr++;
+		if (pow_buffer_ptr != -1) {
+			pow_buffer[pow_buffer_ptr%16] = scratch_2;
+			pow_buffer_ptr++;
+		}
 
 		scratch_1 = dc_fixpt_mul(scratch_1, scratch_2);
 		scratch_1 = dc_fixpt_sub(scratch_1, args->a2);
@@ -373,7 +378,42 @@ static struct fixed31_32 translate_from_linear_space(
 		return dc_fixpt_mul(args->arg, args->a1);
 }
 
-static struct fixed31_32 calculate_gamma22(struct fixed31_32 arg)
+
+static struct fixed31_32 translate_from_linear_space_long(
+		struct translate_from_linear_space_args *args)
+{
+	const struct fixed31_32 one = dc_fixpt_from_int(1);
+
+	if (dc_fixpt_lt(one, args->arg))
+		return one;
+
+	if (dc_fixpt_le(args->arg, dc_fixpt_neg(args->a0)))
+		return dc_fixpt_sub(
+			args->a2,
+			dc_fixpt_mul(
+				dc_fixpt_add(
+					one,
+					args->a3),
+				dc_fixpt_pow(
+					dc_fixpt_neg(args->arg),
+					dc_fixpt_recip(args->gamma))));
+	else if (dc_fixpt_le(args->a0, args->arg))
+		return dc_fixpt_sub(
+			dc_fixpt_mul(
+				dc_fixpt_add(
+					one,
+					args->a3),
+				dc_fixpt_pow(
+						args->arg,
+					dc_fixpt_recip(args->gamma))),
+					args->a2);
+	else
+		return dc_fixpt_mul(
+			args->arg,
+			args->a1);
+}
+
+static struct fixed31_32 calculate_gamma22(struct fixed31_32 arg, bool use_eetf)
 {
 	struct fixed31_32 gamma = dc_fixpt_from_fraction(22, 10);
 
@@ -384,8 +424,12 @@ static struct fixed31_32 calculate_gamma22(struct fixed31_32 arg)
 	scratch_gamma_args.a3 = dc_fixpt_zero;
 	scratch_gamma_args.gamma = gamma;
 
+	if (use_eetf)
+		return translate_from_linear_space_long(&scratch_gamma_args);
+
 	return translate_from_linear_space(&scratch_gamma_args);
 }
+
 
 static struct fixed31_32 translate_to_linear_space(
 	struct fixed31_32 arg,
@@ -898,7 +942,6 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	struct fixed31_32 max_display;
 	struct fixed31_32 min_display;
 	struct fixed31_32 max_content;
-	struct fixed31_32 min_content;
 	struct fixed31_32 clip = dc_fixpt_one;
 	struct fixed31_32 output;
 	bool use_eetf = false;
@@ -912,7 +955,6 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	max_display = dc_fixpt_from_int(fs_params->max_display);
 	min_display = dc_fixpt_from_fraction(fs_params->min_display, 10000);
 	max_content = dc_fixpt_from_int(fs_params->max_content);
-	min_content = dc_fixpt_from_fraction(fs_params->min_content, 10000);
 	sdr_white_level = dc_fixpt_from_int(fs_params->sdr_white_level);
 
 	if (fs_params->min_display > 1000) // cap at 0.1 at the bottom
@@ -920,11 +962,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	if (fs_params->max_display < 100) // cap at 100 at the top
 		max_display = dc_fixpt_from_int(100);
 
-	if (fs_params->min_content < fs_params->min_display)
-		use_eetf = true;
-	else
-		min_content = min_display;
-
+	// only max used, we don't adjust min luminance
 	if (fs_params->max_content > fs_params->max_display)
 		use_eetf = true;
 	else
@@ -950,7 +988,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 				if (dc_fixpt_lt(scaledX, dc_fixpt_zero))
 					output = dc_fixpt_zero;
 				else
-					output = calculate_gamma22(scaledX);
+					output = calculate_gamma22(scaledX, use_eetf);
 
 				rgb->r = output;
 				rgb->g = output;
@@ -1635,129 +1673,6 @@ static bool map_regamma_hw_to_x_user(
 
 #define _EXTRA_POINTS 3
 
-bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
-		const struct dc_gamma *ramp, bool mapUserRamp, bool canRomBeUsed,
-		const struct freesync_hdr_tf_params *fs_params)
-{
-	struct dc_transfer_func_distributed_points *tf_pts = &output_tf->tf_pts;
-	struct dividers dividers;
-
-	struct pwl_float_data *rgb_user = NULL;
-	struct pwl_float_data_ex *rgb_regamma = NULL;
-	struct gamma_pixel *axis_x = NULL;
-	struct pixel_gamma_point *coeff = NULL;
-	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
-	bool ret = false;
-
-	if (output_tf->type == TF_TYPE_BYPASS)
-		return false;
-
-	/* we can use hardcoded curve for plain SRGB TF */
-	if (output_tf->type == TF_TYPE_PREDEFINED && canRomBeUsed == true &&
-			output_tf->tf == TRANSFER_FUNCTION_SRGB) {
-		if (ramp == NULL)
-			return true;
-		if ((ramp->is_identity && ramp->type != GAMMA_CS_TFM_1D) ||
-				(!mapUserRamp && ramp->type == GAMMA_RGB_256))
-			return true;
-	}
-
-	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
-
-	if (ramp && ramp->type != GAMMA_CS_TFM_1D &&
-			(mapUserRamp || ramp->type != GAMMA_RGB_256)) {
-		rgb_user = kvcalloc(ramp->num_entries + _EXTRA_POINTS,
-			    sizeof(*rgb_user),
-			    GFP_KERNEL);
-		if (!rgb_user)
-			goto rgb_user_alloc_fail;
-
-		axis_x = kvcalloc(ramp->num_entries + 3, sizeof(*axis_x),
-				GFP_KERNEL);
-		if (!axis_x)
-			goto axis_x_alloc_fail;
-
-		dividers.divider1 = dc_fixpt_from_fraction(3, 2);
-		dividers.divider2 = dc_fixpt_from_int(2);
-		dividers.divider3 = dc_fixpt_from_fraction(5, 2);
-
-		build_evenly_distributed_points(
-				axis_x,
-				ramp->num_entries,
-				dividers);
-
-		if (ramp->type == GAMMA_RGB_256 && mapUserRamp)
-			scale_gamma(rgb_user, ramp, dividers);
-		else if (ramp->type == GAMMA_RGB_FLOAT_1024)
-			scale_gamma_dx(rgb_user, ramp, dividers);
-	}
-
-	rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
-			       sizeof(*rgb_regamma),
-			       GFP_KERNEL);
-	if (!rgb_regamma)
-		goto rgb_regamma_alloc_fail;
-
-	coeff = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS, sizeof(*coeff),
-			 GFP_KERNEL);
-	if (!coeff)
-		goto coeff_alloc_fail;
-
-	tf = output_tf->tf;
-	if (tf == TRANSFER_FUNCTION_PQ) {
-		tf_pts->end_exponent = 7;
-		tf_pts->x_point_at_y1_red = 125;
-		tf_pts->x_point_at_y1_green = 125;
-		tf_pts->x_point_at_y1_blue = 125;
-
-		build_pq(rgb_regamma,
-				MAX_HW_POINTS,
-				coordinates_x,
-				output_tf->sdr_ref_white_level);
-	} else if (tf == TRANSFER_FUNCTION_GAMMA22 &&
-			fs_params != NULL && fs_params->skip_tm == 0) {
-		build_freesync_hdr(rgb_regamma,
-				MAX_HW_POINTS,
-				coordinates_x,
-				fs_params);
-	} else if (tf == TRANSFER_FUNCTION_HLG) {
-		build_freesync_hdr(rgb_regamma,
-				MAX_HW_POINTS,
-				coordinates_x,
-				fs_params);
-
-	} else {
-		tf_pts->end_exponent = 0;
-		tf_pts->x_point_at_y1_red = 1;
-		tf_pts->x_point_at_y1_green = 1;
-		tf_pts->x_point_at_y1_blue = 1;
-
-		build_regamma(rgb_regamma,
-				MAX_HW_POINTS,
-				coordinates_x, tf);
-	}
-	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
-			coordinates_x, axis_x, rgb_regamma,
-			MAX_HW_POINTS, tf_pts,
-			(mapUserRamp || (ramp && ramp->type != GAMMA_RGB_256)) &&
-			(ramp && ramp->type != GAMMA_CS_TFM_1D));
-
-	if (ramp && ramp->type == GAMMA_CS_TFM_1D)
-		apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
-
-	ret = true;
-
-	kvfree(coeff);
-coeff_alloc_fail:
-	kvfree(rgb_regamma);
-rgb_regamma_alloc_fail:
-	kvfree(axis_x);
-axis_x_alloc_fail:
-	kvfree(rgb_user);
-rgb_user_alloc_fail:
-	return ret;
-}
-
 bool calculate_user_regamma_coeff(struct dc_transfer_func *output_tf,
 		const struct regamma_lut *regamma)
 {
@@ -1965,10 +1880,28 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	tf_pts->x_point_at_y1_green = 1;
 	tf_pts->x_point_at_y1_blue = 1;
 
-	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
-			coordinates_x, axis_x, curve,
-			MAX_HW_POINTS, tf_pts,
-			mapUserRamp && ramp && ramp->type == GAMMA_RGB_256);
+	if (input_tf->tf == TRANSFER_FUNCTION_PQ) {
+		/* just copy current rgb_regamma into  tf_pts */
+		struct pwl_float_data_ex *curvePt = curve;
+		int i = 0;
+
+		while (i <= MAX_HW_POINTS) {
+			tf_pts->red[i]   = curvePt->r;
+			tf_pts->green[i] = curvePt->g;
+			tf_pts->blue[i]  = curvePt->b;
+			++curvePt;
+			++i;
+		}
+	} else {
+		//clamps to 0-1
+		map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
+				coordinates_x, axis_x, curve,
+				MAX_HW_POINTS, tf_pts,
+				mapUserRamp && ramp && ramp->type == GAMMA_RGB_256);
+	}
+
+
+
 	if (ramp->type == GAMMA_CUSTOM)
 		apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
 
@@ -1987,14 +1920,14 @@ rgb_user_alloc_fail:
 	return ret;
 }
 
-
-bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
+static bool calculate_curve(enum dc_transfer_func_predefined trans,
 				struct dc_transfer_func_distributed_points *points,
+				struct pwl_float_data_ex *rgb_regamma,
+				const struct freesync_hdr_tf_params *fs_params,
 				uint32_t sdr_ref_white_level)
 {
 	uint32_t i;
 	bool ret = false;
-	struct pwl_float_data_ex *rgb_regamma = NULL;
 
 	if (trans == TRANSFER_FUNCTION_UNITY ||
 		trans == TRANSFER_FUNCTION_LINEAR) {
@@ -2004,68 +1937,33 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 		points->x_point_at_y1_blue = 1;
 
 		for (i = 0; i <= MAX_HW_POINTS ; i++) {
-			points->red[i]    = coordinates_x[i].x;
-			points->green[i]  = coordinates_x[i].x;
-			points->blue[i]   = coordinates_x[i].x;
+			rgb_regamma[i].r = coordinates_x[i].x;
+			rgb_regamma[i].g = coordinates_x[i].x;
+			rgb_regamma[i].b = coordinates_x[i].x;
 		}
+
 		ret = true;
 	} else if (trans == TRANSFER_FUNCTION_PQ) {
-		rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
-				       sizeof(*rgb_regamma),
-				       GFP_KERNEL);
-		if (!rgb_regamma)
-			goto rgb_regamma_alloc_fail;
 		points->end_exponent = 7;
 		points->x_point_at_y1_red = 125;
 		points->x_point_at_y1_green = 125;
 		points->x_point_at_y1_blue = 125;
 
-
 		build_pq(rgb_regamma,
 				MAX_HW_POINTS,
 				coordinates_x,
 				sdr_ref_white_level);
-		for (i = 0; i <= MAX_HW_POINTS ; i++) {
-			points->red[i]    = rgb_regamma[i].r;
-			points->green[i]  = rgb_regamma[i].g;
-			points->blue[i]   = rgb_regamma[i].b;
-		}
+
 		ret = true;
-
-		kvfree(rgb_regamma);
-	} else if (trans == TRANSFER_FUNCTION_SRGB ||
-		trans == TRANSFER_FUNCTION_BT709 ||
-		trans == TRANSFER_FUNCTION_GAMMA22 ||
-		trans == TRANSFER_FUNCTION_GAMMA24 ||
-		trans == TRANSFER_FUNCTION_GAMMA26) {
-		rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
-				       sizeof(*rgb_regamma),
-				       GFP_KERNEL);
-		if (!rgb_regamma)
-			goto rgb_regamma_alloc_fail;
-		points->end_exponent = 0;
-		points->x_point_at_y1_red = 1;
-		points->x_point_at_y1_green = 1;
-		points->x_point_at_y1_blue = 1;
-
-		build_regamma(rgb_regamma,
+	} else if (trans == TRANSFER_FUNCTION_GAMMA22 &&
+			fs_params != NULL && fs_params->skip_tm == 0) {
+		build_freesync_hdr(rgb_regamma,
 				MAX_HW_POINTS,
 				coordinates_x,
-				trans);
-		for (i = 0; i <= MAX_HW_POINTS ; i++) {
-			points->red[i]    = rgb_regamma[i].r;
-			points->green[i]  = rgb_regamma[i].g;
-			points->blue[i]   = rgb_regamma[i].b;
-		}
-		ret = true;
+				fs_params);
 
-		kvfree(rgb_regamma);
+		ret = true;
 	} else if (trans == TRANSFER_FUNCTION_HLG) {
-		rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
-				       sizeof(*rgb_regamma),
-				       GFP_KERNEL);
-		if (!rgb_regamma)
-			goto rgb_regamma_alloc_fail;
 		points->end_exponent = 4;
 		points->x_point_at_y1_red = 12;
 		points->x_point_at_y1_green = 12;
@@ -2075,18 +1973,127 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 				MAX_HW_POINTS,
 				coordinates_x,
 				80, 1000);
-		for (i = 0; i <= MAX_HW_POINTS ; i++) {
-			points->red[i]    = rgb_regamma[i].r;
-			points->green[i]  = rgb_regamma[i].g;
-			points->blue[i]   = rgb_regamma[i].b;
-		}
+
 		ret = true;
-		kvfree(rgb_regamma);
+	} else {
+		// trans == TRANSFER_FUNCTION_SRGB
+		// trans == TRANSFER_FUNCTION_BT709
+		// trans == TRANSFER_FUNCTION_GAMMA22
+		// trans == TRANSFER_FUNCTION_GAMMA24
+		// trans == TRANSFER_FUNCTION_GAMMA26
+		points->end_exponent = 0;
+		points->x_point_at_y1_red = 1;
+		points->x_point_at_y1_green = 1;
+		points->x_point_at_y1_blue = 1;
+
+		build_regamma(rgb_regamma,
+				MAX_HW_POINTS,
+				coordinates_x,
+				trans);
+
+		ret = true;
 	}
-rgb_regamma_alloc_fail:
+
 	return ret;
 }
 
+bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
+		const struct dc_gamma *ramp, bool mapUserRamp, bool canRomBeUsed,
+		const struct freesync_hdr_tf_params *fs_params)
+{
+	struct dc_transfer_func_distributed_points *tf_pts = &output_tf->tf_pts;
+	struct dividers dividers;
+
+	struct pwl_float_data *rgb_user = NULL;
+	struct pwl_float_data_ex *rgb_regamma = NULL;
+	struct gamma_pixel *axis_x = NULL;
+	struct pixel_gamma_point *coeff = NULL;
+	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
+	bool ret = false;
+
+	if (output_tf->type == TF_TYPE_BYPASS)
+		return false;
+
+	/* we can use hardcoded curve for plain SRGB TF */
+	if (output_tf->type == TF_TYPE_PREDEFINED && canRomBeUsed == true &&
+			output_tf->tf == TRANSFER_FUNCTION_SRGB) {
+		if (ramp == NULL)
+			return true;
+		if ((ramp->is_identity && ramp->type != GAMMA_CS_TFM_1D) ||
+				(!mapUserRamp && ramp->type == GAMMA_RGB_256))
+			return true;
+	}
+
+	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
+
+	if (ramp && ramp->type != GAMMA_CS_TFM_1D &&
+			(mapUserRamp || ramp->type != GAMMA_RGB_256)) {
+		rgb_user = kvcalloc(ramp->num_entries + _EXTRA_POINTS,
+			    sizeof(*rgb_user),
+			    GFP_KERNEL);
+		if (!rgb_user)
+			goto rgb_user_alloc_fail;
+
+		axis_x = kvcalloc(ramp->num_entries + 3, sizeof(*axis_x),
+				GFP_KERNEL);
+		if (!axis_x)
+			goto axis_x_alloc_fail;
+
+		dividers.divider1 = dc_fixpt_from_fraction(3, 2);
+		dividers.divider2 = dc_fixpt_from_int(2);
+		dividers.divider3 = dc_fixpt_from_fraction(5, 2);
+
+		build_evenly_distributed_points(
+				axis_x,
+				ramp->num_entries,
+				dividers);
+
+		if (ramp->type == GAMMA_RGB_256 && mapUserRamp)
+			scale_gamma(rgb_user, ramp, dividers);
+		else if (ramp->type == GAMMA_RGB_FLOAT_1024)
+			scale_gamma_dx(rgb_user, ramp, dividers);
+	}
+
+	rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
+			       sizeof(*rgb_regamma),
+			       GFP_KERNEL);
+	if (!rgb_regamma)
+		goto rgb_regamma_alloc_fail;
+
+	coeff = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS, sizeof(*coeff),
+			 GFP_KERNEL);
+	if (!coeff)
+		goto coeff_alloc_fail;
+
+	tf = output_tf->tf;
+
+	ret = calculate_curve(tf,
+			tf_pts,
+			rgb_regamma,
+			fs_params,
+			output_tf->sdr_ref_white_level);
+
+	if (ret) {
+		map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
+				coordinates_x, axis_x, rgb_regamma,
+				MAX_HW_POINTS, tf_pts,
+				(mapUserRamp || (ramp && ramp->type != GAMMA_RGB_256)) &&
+				(ramp && ramp->type != GAMMA_CS_TFM_1D));
+
+		if (ramp && ramp->type == GAMMA_CS_TFM_1D)
+			apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
+	}
+
+	kvfree(coeff);
+coeff_alloc_fail:
+	kvfree(rgb_regamma);
+rgb_regamma_alloc_fail:
+	kvfree(axis_x);
+axis_x_alloc_fail:
+	kvfree(rgb_user);
+rgb_user_alloc_fail:
+	return ret;
+}
 
 bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 				struct dc_transfer_func_distributed_points *points)
@@ -2173,5 +2180,3 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 rgb_degamma_alloc_fail:
 	return ret;
 }
-
-

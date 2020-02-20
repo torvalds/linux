@@ -121,6 +121,9 @@ struct ast_private {
 		unsigned int next_index;
 	} cursor;
 
+	struct drm_plane primary_plane;
+	struct drm_plane cursor_plane;
+
 	bool support_wide_screen;
 	enum {
 		ast_use_p2a,
@@ -136,8 +139,6 @@ struct ast_private {
 
 int ast_driver_load(struct drm_device *dev, unsigned long flags);
 void ast_driver_unload(struct drm_device *dev);
-
-struct ast_gem_object;
 
 #define AST_IO_AR_PORT_WRITE		(0x40)
 #define AST_IO_MISC_PORT_WRITE		(0x42)
@@ -280,6 +281,17 @@ struct ast_vbios_mode_info {
 	const struct ast_vbios_enhtable *enh_table;
 };
 
+struct ast_crtc_state {
+	struct drm_crtc_state base;
+
+	/* Last known format of primary plane */
+	const struct drm_format_info *format;
+
+	struct ast_vbios_mode_info vbios_mode_info;
+};
+
+#define to_ast_crtc_state(state) container_of(state, struct ast_crtc_state, base)
+
 extern int ast_mode_init(struct drm_device *dev);
 extern void ast_mode_fini(struct drm_device *dev);
 
@@ -288,10 +300,6 @@ extern void ast_mode_fini(struct drm_device *dev);
 
 int ast_mm_init(struct ast_private *ast);
 void ast_mm_fini(struct ast_private *ast);
-
-int ast_gem_create(struct drm_device *dev,
-		   u32 size, bool iskernel,
-		   struct drm_gem_object **obj);
 
 /* ast post */
 void ast_enable_vga(struct drm_device *dev);

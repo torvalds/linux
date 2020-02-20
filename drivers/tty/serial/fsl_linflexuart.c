@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Freescale linflexuart serial port driver
+ * Freescale LINFlexD UART serial port driver
  *
  * Copyright 2012-2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2019 NXP
  */
 
 #if defined(CONFIG_SERIAL_FSL_LINFLEXUART_CONSOLE) && \
@@ -246,12 +246,14 @@ static irqreturn_t linflex_rxint(int irq, void *dev_id)
 	struct tty_port *port = &sport->state->port;
 	unsigned long flags, status;
 	unsigned char rx;
+	bool brk;
 
 	spin_lock_irqsave(&sport->lock, flags);
 
 	status = readl(sport->membase + UARTSR);
 	while (status & LINFLEXD_UARTSR_RMB) {
 		rx = readb(sport->membase + BDRM);
+		brk = false;
 		flg = TTY_NORMAL;
 		sport->icount.rx++;
 
@@ -261,8 +263,11 @@ static irqreturn_t linflex_rxint(int irq, void *dev_id)
 				status |= LINFLEXD_UARTSR_SZF;
 			if (status & LINFLEXD_UARTSR_BOF)
 				status |= LINFLEXD_UARTSR_BOF;
-			if (status & LINFLEXD_UARTSR_FEF)
+			if (status & LINFLEXD_UARTSR_FEF) {
+				if (!rx)
+					brk = true;
 				status |= LINFLEXD_UARTSR_FEF;
+			}
 			if (status & LINFLEXD_UARTSR_PE)
 				status |=  LINFLEXD_UARTSR_PE;
 		}
@@ -271,13 +276,15 @@ static irqreturn_t linflex_rxint(int irq, void *dev_id)
 		       sport->membase + UARTSR);
 		status = readl(sport->membase + UARTSR);
 
-		if (uart_handle_sysrq_char(sport, (unsigned char)rx))
-			continue;
-
+		if (brk) {
+			uart_handle_break(sport);
+		} else {
 #ifdef SUPPORT_SYSRQ
-			sport->sysrq = 0;
+			if (uart_handle_sysrq_char(sport, (unsigned char)rx))
+				continue;
 #endif
-		tty_insert_flip_char(port, rx, flg);
+			tty_insert_flip_char(port, rx, flg);
+		}
 	}
 
 	spin_unlock_irqrestore(&sport->lock, flags);
@@ -933,5 +940,5 @@ static void __exit linflex_serial_exit(void)
 module_init(linflex_serial_init);
 module_exit(linflex_serial_exit);
 
-MODULE_DESCRIPTION("Freescale linflex serial port driver");
+MODULE_DESCRIPTION("Freescale LINFlexD serial port driver");
 MODULE_LICENSE("GPL v2");

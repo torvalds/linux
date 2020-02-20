@@ -234,9 +234,11 @@ static int cdns3_req_ep0_set_address(struct cdns3_device *priv_dev,
 static int cdns3_req_ep0_get_status(struct cdns3_device *priv_dev,
 				    struct usb_ctrlrequest *ctrl)
 {
+	struct cdns3_endpoint *priv_ep;
 	__le16 *response_pkt;
 	u16 usb_status = 0;
 	u32 recip;
+	u8 index;
 
 	recip = ctrl->bRequestType & USB_RECIP_MASK;
 
@@ -262,9 +264,13 @@ static int cdns3_req_ep0_get_status(struct cdns3_device *priv_dev,
 	case USB_RECIP_INTERFACE:
 		return cdns3_ep0_delegate_req(priv_dev, ctrl);
 	case USB_RECIP_ENDPOINT:
-		/* check if endpoint is stalled */
+		index = cdns3_ep_addr_to_index(ctrl->wIndex);
+		priv_ep = priv_dev->eps[index];
+
+		/* check if endpoint is stalled or stall is pending */
 		cdns3_select_ep(priv_dev, ctrl->wIndex);
-		if (EP_STS_STALL(readl(&priv_dev->regs->ep_sts)))
+		if (EP_STS_STALL(readl(&priv_dev->regs->ep_sts)) ||
+		    (priv_ep->flags & EP_STALL_PENDING))
 			usb_status =  BIT(USB_ENDPOINT_HALT);
 		break;
 	default:
@@ -332,7 +338,7 @@ static int cdns3_ep0_feature_handle_device(struct cdns3_device *priv_dev,
 			 * for sending status stage.
 			 * This time should be less then 3ms.
 			 */
-			usleep_range(1000, 2000);
+			mdelay(1);
 			cdns3_set_register_bit(&priv_dev->regs->usb_cmd,
 					       USB_CMD_STMODE |
 					       USB_STS_TMODE_SEL(tmode - 1));

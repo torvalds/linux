@@ -146,7 +146,7 @@ int pvrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 		goto err_srq;
 	}
 
-	srq->umem = ib_umem_get(udata, ucmd.buf_addr, ucmd.buf_size, 0, 0);
+	srq->umem = ib_umem_get(udata, ucmd.buf_addr, ucmd.buf_size, 0);
 	if (IS_ERR(srq->umem)) {
 		ret = PTR_ERR(srq->umem);
 		goto err_srq;
@@ -229,8 +229,6 @@ static void pvrdma_free_srq(struct pvrdma_dev *dev, struct pvrdma_srq *srq)
 	ib_umem_release(srq->umem);
 
 	pvrdma_page_dir_cleanup(dev, &srq->pdir);
-
-	kfree(srq);
 
 	atomic_dec(&dev->num_srqs);
 }

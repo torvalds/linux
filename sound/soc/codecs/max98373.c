@@ -901,16 +901,20 @@ static void max98373_slot_config(struct i2c_client *i2c,
 		max98373->i_slot = value & 0xF;
 	else
 		max98373->i_slot = 1;
-
-	max98373->reset_gpio = of_get_named_gpio(dev->of_node,
+	if (dev->of_node) {
+		max98373->reset_gpio = of_get_named_gpio(dev->of_node,
 						"maxim,reset-gpio", 0);
-	if (!gpio_is_valid(max98373->reset_gpio)) {
-		dev_err(dev, "Looking up %s property in node %s failed %d\n",
-			"maxim,reset-gpio", dev->of_node->full_name,
-			max98373->reset_gpio);
+		if (!gpio_is_valid(max98373->reset_gpio)) {
+			dev_err(dev, "Looking up %s property in node %s failed %d\n",
+				"maxim,reset-gpio", dev->of_node->full_name,
+				max98373->reset_gpio);
+		} else {
+			dev_dbg(dev, "maxim,reset-gpio=%d",
+				max98373->reset_gpio);
+		}
 	} else {
-		dev_dbg(dev, "maxim,reset-gpio=%d",
-			max98373->reset_gpio);
+		/* this makes reset_gpio as invalid */
+		max98373->reset_gpio = -1;
 	}
 
 	if (!device_property_read_u32(dev, "maxim,spkfb-slot-no", &value))
@@ -956,11 +960,11 @@ static int max98373_i2c_probe(struct i2c_client *i2c,
 
 	/* Power on device */
 	if (gpio_is_valid(max98373->reset_gpio)) {
-		ret = gpio_request(max98373->reset_gpio, "MAX98373_RESET");
+		ret = devm_gpio_request(&i2c->dev, max98373->reset_gpio,
+					"MAX98373_RESET");
 		if (ret) {
 			dev_err(&i2c->dev, "%s: Failed to request gpio %d\n",
 				__func__, max98373->reset_gpio);
-			gpio_free(max98373->reset_gpio);
 			return -EINVAL;
 		}
 		gpio_direction_output(max98373->reset_gpio, 0);

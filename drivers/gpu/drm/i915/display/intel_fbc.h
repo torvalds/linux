@@ -19,15 +19,13 @@ struct intel_plane_state;
 void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 			   struct intel_atomic_state *state);
 bool intel_fbc_is_active(struct drm_i915_private *dev_priv);
-void intel_fbc_pre_update(struct intel_crtc *crtc,
-			  struct intel_crtc_state *crtc_state,
-			  struct intel_plane_state *plane_state);
-void intel_fbc_post_update(struct intel_crtc *crtc);
+bool intel_fbc_pre_update(struct intel_atomic_state *state,
+			  struct intel_crtc *crtc);
+void intel_fbc_post_update(struct intel_atomic_state *state,
+			   struct intel_crtc *crtc);
 void intel_fbc_init(struct drm_i915_private *dev_priv);
-void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv);
-void intel_fbc_enable(struct intel_crtc *crtc,
-		      struct intel_crtc_state *crtc_state,
-		      struct intel_plane_state *plane_state);
+void intel_fbc_enable(struct intel_atomic_state *state,
+		      struct intel_crtc *crtc);
 void intel_fbc_disable(struct intel_crtc *crtc);
 void intel_fbc_global_disable(struct drm_i915_private *dev_priv);
 void intel_fbc_invalidate(struct drm_i915_private *dev_priv,

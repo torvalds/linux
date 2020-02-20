@@ -198,14 +198,12 @@ static int spufs_fill_dir(struct dentry *dir,
 
 static int spufs_dir_close(struct inode *inode, struct file *file)
 {
-	struct spu_context *ctx;
 	struct inode *parent;
 	struct dentry *dir;
 	int ret;
 
 	dir = file->f_path.dentry;
 	parent = d_inode(dir->d_parent);
-	ctx = SPUFS_I(d_inode(dir))->i_ctx;
 
 	inode_lock_nested(parent, I_MUTEX_PARENT);
 	ret = spufs_rmdir(parent, dir);
@@ -761,6 +759,7 @@ static int spufs_init_fs_context(struct fs_context *fc)
 	ctx->gid = current_gid();
 	ctx->mode = 0755;
 
+	fc->fs_private = ctx;
 	fc->s_fs_info = sbi;
 	fc->ops = &spufs_context_ops;
 	return 0;

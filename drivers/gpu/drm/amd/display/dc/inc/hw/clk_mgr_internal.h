@@ -96,12 +96,10 @@ enum dentist_divider_range {
 	.MP1_SMN_C2PMSG_83 = mmMP1_SMN_C2PMSG_83, \
 	.MP1_SMN_C2PMSG_67 = mmMP1_SMN_C2PMSG_67
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 #define CLK_REG_LIST_NV10() \
 	SR(DENTIST_DISPCLK_CNTL), \
 	CLK_SRI(CLK3_CLK_PLL_REQ, CLK3, 0), \
 	CLK_SRI(CLK3_CLK2_DFS_CNTL, CLK3, 0)
-#endif
 
 #define CLK_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -120,7 +118,6 @@ enum dentist_divider_range {
 	CLK_SF(MP1_SMN_C2PMSG_83, CONTENT, mask_sh),\
 	CLK_SF(MP1_SMN_C2PMSG_91, CONTENT, mask_sh),
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 #define CLK_COMMON_MASK_SH_LIST_DCN20_BASE(mask_sh) \
 	CLK_COMMON_MASK_SH_LIST_DCN_COMMON_BASE(mask_sh),\
 	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, mask_sh),\
@@ -130,7 +127,6 @@ enum dentist_divider_range {
 	CLK_COMMON_MASK_SH_LIST_DCN20_BASE(mask_sh),\
 	CLK_SF(CLK3_0_CLK3_CLK_PLL_REQ, FbMult_int, mask_sh),\
 	CLK_SF(CLK3_0_CLK3_CLK_PLL_REQ, FbMult_frac, mask_sh)
-#endif
 
 #define CLK_REG_FIELD_LIST(type) \
 	type DPREFCLK_SRC_SEL; \
@@ -143,30 +139,24 @@ enum dentist_divider_range {
  ****************** Clock Manager Private Structures ***********************************
  ***************************************************************************************
  */
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 #define CLK20_REG_FIELD_LIST(type) \
 	type DENTIST_DPPCLK_WDIVIDER; \
 	type DENTIST_DPPCLK_CHG_DONE; \
 	type FbMult_int; \
 	type FbMult_frac;
-#endif
 
 #define VBIOS_SMU_REG_FIELD_LIST(type) \
 	type CONTENT;
 
 struct clk_mgr_shift {
 	CLK_REG_FIELD_LIST(uint8_t)
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	CLK20_REG_FIELD_LIST(uint8_t)
-#endif
 	VBIOS_SMU_REG_FIELD_LIST(uint32_t)
 };
 
 struct clk_mgr_mask {
 	CLK_REG_FIELD_LIST(uint32_t)
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	CLK20_REG_FIELD_LIST(uint32_t)
-#endif
 	VBIOS_SMU_REG_FIELD_LIST(uint32_t)
 };
 
@@ -174,15 +164,28 @@ struct clk_mgr_registers {
 	uint32_t DPREFCLK_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	uint32_t CLK3_CLK2_DFS_CNTL;
 	uint32_t CLK3_CLK_PLL_REQ;
-#endif
 
 	uint32_t MP1_SMN_C2PMSG_67;
 	uint32_t MP1_SMN_C2PMSG_83;
 	uint32_t MP1_SMN_C2PMSG_91;
 };
+
+enum clock_type {
+	clock_type_dispclk = 1,
+	clock_type_dcfclk,
+	clock_type_socclk,
+	clock_type_pixelclk,
+	clock_type_phyclk,
+	clock_type_dppclk,
+	clock_type_fclk,
+	clock_type_dcfdsclk,
+	clock_type_dscclk,
+	clock_type_uclk,
+	clock_type_dramclk,
+};
+
 
 struct state_dependent_clocks {
 	int display_clk_khz;
@@ -210,8 +213,6 @@ struct clk_mgr_internal {
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
 
 	/*TODO: figure out which of the below fields should be here vs in asic specific portion */
-	int dentist_vco_freq_khz;
-
 	/* Cache the status of DFS-bypass feature*/
 	bool dfs_bypass_enabled;
 	/* True if the DFS-bypass feature is enabled and active. */

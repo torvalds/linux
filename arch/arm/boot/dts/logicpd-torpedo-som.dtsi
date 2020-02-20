@@ -35,6 +35,11 @@
 	};
 };
 
+/* The Torpedo doesn't route the USB host pins */
+&usbhshost {
+	status = "disabled";
+};
+
 &gpmc {
 	ranges = <0 0 0x30000000 0x1000000>;	/* CS0: 16MB for NAND */
 
@@ -191,4 +196,8 @@
 
 &twl_gpio {
 	ti,use-leds;
+};
+
+&twl_keypad {
+	status = "disabled";
 };

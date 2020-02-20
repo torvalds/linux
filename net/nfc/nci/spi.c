@@ -44,7 +44,8 @@ static int __nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb,
 		t.len = 0;
 	}
 	t.cs_change = cs_change;
-	t.delay_usecs = nspi->xfer_udelay;
+	t.delay.value = nspi->xfer_udelay;
+	t.delay.unit = SPI_DELAY_UNIT_USECS;
 	t.speed_hz = nspi->xfer_speed_hz;
 
 	spi_message_init(&m);
@@ -216,7 +217,8 @@ static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 	rx.rx_buf = skb_put(skb, rx_len);
 	rx.len = rx_len;
 	rx.cs_change = 0;
-	rx.delay_usecs = nspi->xfer_udelay;
+	rx.delay.value = nspi->xfer_udelay;
+	rx.delay.unit = SPI_DELAY_UNIT_USECS;
 	rx.speed_hz = nspi->xfer_speed_hz;
 	spi_message_add_tail(&rx, &m);
 

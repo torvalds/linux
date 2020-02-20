@@ -8,7 +8,9 @@ Device Mapper
     cache-policies
     cache
     delay
+    dm-clone
     dm-crypt
+    dm-dust
     dm-flakey
     dm-init
     dm-integrity

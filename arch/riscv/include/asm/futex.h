@@ -4,13 +4,19 @@
  * Copyright (c) 2018  Jim Wilson (jimw@sifive.com)
  */
 
-#ifndef _ASM_FUTEX_H
-#define _ASM_FUTEX_H
+#ifndef _ASM_RISCV_FUTEX_H
+#define _ASM_RISCV_FUTEX_H
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 #include <linux/errno.h>
 #include <asm/asm.h>
+
+/* We don't even really need the extable code, but for now keep it simple */
+#ifndef CONFIG_MMU
+#define __enable_user_access()		do { } while (0)
+#define __disable_user_access()		do { } while (0)
+#endif
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)	\
 {								\
@@ -112,4 +118,4 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	return ret;
 }
 
-#endif /* _ASM_FUTEX_H */
+#endif /* _ASM_RISCV_FUTEX_H */

@@ -690,15 +690,15 @@ static int vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 }
 
 /**
- * vi_asic_reset - soft reset GPU
+ * vi_asic_pci_config_reset - soft reset GPU
  *
  * @adev: amdgpu_device pointer
  *
- * Look up which blocks are hung and attempt
- * to reset them.
+ * Use PCI Config method to reset the GPU.
+ *
  * Returns 0 for success.
  */
-static int vi_asic_reset(struct amdgpu_device *adev)
+static int vi_asic_pci_config_reset(struct amdgpu_device *adev)
 {
 	int r;
 
@@ -711,10 +711,68 @@ static int vi_asic_reset(struct amdgpu_device *adev)
 	return r;
 }
 
+static bool vi_asic_supports_baco(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_FIJI:
+	case CHIP_TONGA:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_TOPAZ:
+		return amdgpu_dpm_is_baco_supported(adev);
+	default:
+		return false;
+	}
+}
+
 static enum amd_reset_method
 vi_asic_reset_method(struct amdgpu_device *adev)
 {
-	return AMD_RESET_METHOD_LEGACY;
+	bool baco_reset;
+
+	switch (adev->asic_type) {
+	case CHIP_FIJI:
+	case CHIP_TONGA:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_TOPAZ:
+		baco_reset = amdgpu_dpm_is_baco_supported(adev);
+		break;
+	default:
+		baco_reset = false;
+		break;
+	}
+
+	if (baco_reset)
+		return AMD_RESET_METHOD_BACO;
+	else
+		return AMD_RESET_METHOD_LEGACY;
+}
+
+/**
+ * vi_asic_reset - soft reset GPU
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Look up which blocks are hung and attempt
+ * to reset them.
+ * Returns 0 for success.
+ */
+static int vi_asic_reset(struct amdgpu_device *adev)
+{
+	int r;
+
+	if (vi_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
+		if (!adev->in_suspend)
+			amdgpu_inc_vram_lost(adev);
+		r = amdgpu_dpm_baco_reset(adev);
+	} else {
+		r = vi_asic_pci_config_reset(adev);
+	}
+
+	return r;
 }
 
 static u32 vi_get_config_memsize(struct amdgpu_device *adev)
@@ -1042,6 +1100,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_pcie_usage = &vi_get_pcie_usage,
 	.need_reset_on_init = &vi_need_reset_on_init,
 	.get_pcie_replay_count = &vi_get_pcie_replay_count,
+	.supports_baco = &vi_asic_supports_baco,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \

@@ -29,10 +29,27 @@
 
 int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 {
+	static const struct vm_operations_struct vmw_vm_ops = {
+		.pfn_mkwrite = vmw_bo_vm_mkwrite,
+		.page_mkwrite = vmw_bo_vm_mkwrite,
+		.fault = vmw_bo_vm_fault,
+		.open = ttm_bo_vm_open,
+		.close = ttm_bo_vm_close
+	};
 	struct drm_file *file_priv = filp->private_data;
 	struct vmw_private *dev_priv = vmw_priv(file_priv->minor->dev);
+	int ret = ttm_bo_mmap(filp, vma, &dev_priv->bdev);
 
-	return ttm_bo_mmap(filp, vma, &dev_priv->bdev);
+	if (ret)
+		return ret;
+
+	vma->vm_ops = &vmw_vm_ops;
+
+	/* Use VM_PFNMAP rather than VM_MIXEDMAP if not a COW mapping */
+	if ((vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) != VM_MAYWRITE)
+		vma->vm_flags = (vma->vm_flags & ~VM_MIXEDMAP) | VM_PFNMAP;
+
+	return 0;
 }
 
 /* struct vmw_validation_mem callback */

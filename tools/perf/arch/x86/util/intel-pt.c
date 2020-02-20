@@ -17,6 +17,7 @@
 #include "../../util/event.h"
 #include "../../util/evlist.h"
 #include "../../util/evsel.h"
+#include "../../util/evsel_config.h"
 #include "../../util/cpumap.h"
 #include "../../util/mmap.h"
 #include <subcmd/parse-options.h>
@@ -551,6 +552,43 @@ static int intel_pt_validate_config(struct perf_pmu *intel_pt_pmu,
 					evsel->core.attr.config);
 }
 
+static void intel_pt_config_sample_mode(struct perf_pmu *intel_pt_pmu,
+					struct evsel *evsel)
+{
+	struct perf_evsel_config_term *term;
+	u64 user_bits = 0, bits;
+
+	term = perf_evsel__get_config_term(evsel, CFG_CHG);
+	if (term)
+		user_bits = term->val.cfg_chg;
+
+	bits = perf_pmu__format_bits(&intel_pt_pmu->format, "psb_period");
+
+	/* Did user change psb_period */
+	if (bits & user_bits)
+		return;
+
+	/* Set psb_period to 0 */
+	evsel->core.attr.config &= ~bits;
+}
+
+static void intel_pt_min_max_sample_sz(struct evlist *evlist,
+				       size_t *min_sz, size_t *max_sz)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		size_t sz = evsel->core.attr.aux_sample_size;
+
+		if (!sz)
+			continue;
+		if (min_sz && (sz < *min_sz || !*min_sz))
+			*min_sz = sz;
+		if (max_sz && sz > *max_sz)
+			*max_sz = sz;
+	}
+}
+
 /*
  * Currently, there is not enough information to disambiguate different PEBS
  * events, so only allow one.
@@ -606,6 +644,11 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		return -EINVAL;
 	}
 
+	if (opts->auxtrace_snapshot_mode && opts->auxtrace_sample_mode) {
+		pr_err("Snapshot mode (" INTEL_PT_PMU_NAME " PMU) and sample trace cannot be used together\n");
+		return -EINVAL;
+	}
+
 	if (opts->use_clockid) {
 		pr_err("Cannot use clockid (-k option) with " INTEL_PT_PMU_NAME "\n");
 		return -EINVAL;
@@ -616,6 +659,9 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 
 	if (!opts->full_auxtrace)
 		return 0;
+
+	if (opts->auxtrace_sample_mode)
+		intel_pt_config_sample_mode(intel_pt_pmu, intel_pt_evsel);
 
 	err = intel_pt_validate_config(intel_pt_pmu, intel_pt_evsel);
 	if (err)
@@ -666,6 +712,34 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 				    opts->auxtrace_snapshot_size, psb_period);
 	}
 
+	/* Set default sizes for sample mode */
+	if (opts->auxtrace_sample_mode) {
+		size_t psb_period = intel_pt_psb_period(intel_pt_pmu, evlist);
+		size_t min_sz = 0, max_sz = 0;
+
+		intel_pt_min_max_sample_sz(evlist, &min_sz, &max_sz);
+		if (!opts->auxtrace_mmap_pages && !privileged &&
+		    opts->mmap_pages == UINT_MAX)
+			opts->mmap_pages = KiB(256) / page_size;
+		if (!opts->auxtrace_mmap_pages) {
+			size_t sz = round_up(max_sz, page_size) / page_size;
+
+			opts->auxtrace_mmap_pages = roundup_pow_of_two(sz);
+		}
+		if (max_sz > opts->auxtrace_mmap_pages * (size_t)page_size) {
+			pr_err("Sample size %zu must not be greater than AUX area tracing mmap size %zu\n",
+			       max_sz,
+			       opts->auxtrace_mmap_pages * (size_t)page_size);
+			return -EINVAL;
+		}
+		pr_debug2("Intel PT min. sample size: %zu max. sample size: %zu\n",
+			  min_sz, max_sz);
+		if (psb_period &&
+		    min_sz <= psb_period + INTEL_PT_PSB_PERIOD_NEAR)
+			ui__warning("Intel PT sample size (%zu) may be too small for PSB period (%zu)\n",
+				    min_sz, psb_period);
+	}
+
 	/* Set default sizes for full trace mode */
 	if (opts->full_auxtrace && !opts->auxtrace_mmap_pages) {
 		if (privileged) {
@@ -682,7 +756,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		size_t sz = opts->auxtrace_mmap_pages * (size_t)page_size;
 		size_t min_sz;
 
-		if (opts->auxtrace_snapshot_mode)
+		if (opts->auxtrace_snapshot_mode || opts->auxtrace_sample_mode)
 			min_sz = KiB(4);
 		else
 			min_sz = KiB(8);
@@ -1136,5 +1210,10 @@ struct auxtrace_record *intel_pt_recording_init(int *err)
 	ptr->itr.parse_snapshot_options = intel_pt_parse_snapshot_options;
 	ptr->itr.reference = intel_pt_reference;
 	ptr->itr.read_finish = intel_pt_read_finish;
+	/*
+	 * Decoding starts at a PSB packet. Minimum PSB period is 2K so 4K
+	 * should give at least 1 PSB per sample.
+	 */
+	ptr->itr.default_aux_sample_size = 4096;
 	return &ptr->itr;
 }

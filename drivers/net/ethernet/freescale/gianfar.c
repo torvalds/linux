@@ -641,6 +641,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	const char *model;
 	const void *mac_addr;
 	int err = 0, i;
+	phy_interface_t interface;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
 	struct device_node *np = ofdev->dev.of_node;
@@ -805,9 +806,9 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	 * rgmii-id really needs to be specified. Other types can be
 	 * detected by hardware
 	 */
-	err = of_get_phy_mode(np);
-	if (err >= 0)
-		priv->interface = err;
+	err = of_get_phy_mode(np, &interface);
+	if (!err)
+		priv->interface = interface;
 	else
 		priv->interface = gfar_get_interface(dev);
 

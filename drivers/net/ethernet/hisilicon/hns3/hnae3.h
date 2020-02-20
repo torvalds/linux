@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 // Copyright (c) 2016-2017 Hisilicon Limited.
 
 #ifndef __HNAE3_H
@@ -31,6 +31,8 @@
 #include <linux/types.h>
 
 #define HNAE3_MOD_VERSION "1.0"
+
+#define HNAE3_MIN_VECTOR_NUM	2 /* first one for misc, another for IO */
 
 /* Device IDs */
 #define HNAE3_DEV_ID_GE				0xA220
@@ -128,7 +130,6 @@ enum hnae3_module_type {
 	HNAE3_MODULE_TYPE_CR		= 0x04,
 	HNAE3_MODULE_TYPE_KR		= 0x05,
 	HNAE3_MODULE_TYPE_TP		= 0x06,
-
 };
 
 enum hnae3_fec_mode {
@@ -364,6 +365,19 @@ struct hnae3_ae_dev {
  *   Enable/disable HW GRO
  * add_arfs_entry
  *   Check the 5-tuples of flow, and create flow director rule
+ * get_vf_config
+ *   Get the VF configuration setting by the host
+ * set_vf_link_state
+ *   Set VF link status
+ * set_vf_spoofchk
+ *   Enable/disable spoof check for specified vf
+ * set_vf_trust
+ *   Enable/disable trust for specified vf, if the vf being trusted, then
+ *   it can enable promisc mode
+ * set_vf_rate
+ *   Set the max tx rate of specified vf.
+ * set_vf_mac
+ *   Configure the default MAC for specified VF
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -529,6 +543,16 @@ struct hnae3_ae_ops {
 	int (*mac_connect_phy)(struct hnae3_handle *handle);
 	void (*mac_disconnect_phy)(struct hnae3_handle *handle);
 	void (*restore_vlan_table)(struct hnae3_handle *handle);
+	int (*get_vf_config)(struct hnae3_handle *handle, int vf,
+			     struct ifla_vf_info *ivf);
+	int (*set_vf_link_state)(struct hnae3_handle *handle, int vf,
+				 int link_state);
+	int (*set_vf_spoofchk)(struct hnae3_handle *handle, int vf,
+			       bool enable);
+	int (*set_vf_trust)(struct hnae3_handle *handle, int vf, bool enable);
+	int (*set_vf_rate)(struct hnae3_handle *handle, int vf,
+			   int min_tx_rate, int max_tx_rate, bool force);
+	int (*set_vf_mac)(struct hnae3_handle *handle, int vf, u8 *p);
 };
 
 struct hnae3_dcb_ops {
@@ -551,7 +575,8 @@ struct hnae3_ae_algo {
 	const struct pci_device_id *pdev_id_table;
 };
 
-#define HNAE3_INT_NAME_LEN        (IFNAMSIZ + 16)
+#define HNAE3_INT_NAME_EXT_LEN    32	 /* Max extra information length */
+#define HNAE3_INT_NAME_LEN        (IFNAMSIZ + HNAE3_INT_NAME_EXT_LEN)
 #define HNAE3_ITR_COUNTDOWN_START 100
 
 struct hnae3_tc_info {

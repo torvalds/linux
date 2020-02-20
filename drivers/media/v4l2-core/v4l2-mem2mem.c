@@ -284,7 +284,8 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
 				 struct v4l2_m2m_ctx *m2m_ctx)
 {
-	unsigned long flags_job, flags_out, flags_cap;
+	unsigned long flags_job;
+	struct vb2_v4l2_buffer *dst, *src;
 
 	dprintk("Trying to schedule a job for m2m_ctx: %p\n", m2m_ctx);
 
@@ -307,20 +308,37 @@ static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
 		goto job_unlock;
 	}
 
-	spin_lock_irqsave(&m2m_ctx->out_q_ctx.rdy_spinlock, flags_out);
-	if (list_empty(&m2m_ctx->out_q_ctx.rdy_queue)
-	    && !m2m_ctx->out_q_ctx.buffered) {
+	src = v4l2_m2m_next_src_buf(m2m_ctx);
+	dst = v4l2_m2m_next_dst_buf(m2m_ctx);
+	if (!src && !m2m_ctx->out_q_ctx.buffered) {
 		dprintk("No input buffers available\n");
-		goto out_unlock;
+		goto job_unlock;
 	}
-	spin_lock_irqsave(&m2m_ctx->cap_q_ctx.rdy_spinlock, flags_cap);
-	if (list_empty(&m2m_ctx->cap_q_ctx.rdy_queue)
-	    && !m2m_ctx->cap_q_ctx.buffered) {
+	if (!dst && !m2m_ctx->cap_q_ctx.buffered) {
 		dprintk("No output buffers available\n");
-		goto cap_unlock;
+		goto job_unlock;
 	}
-	spin_unlock_irqrestore(&m2m_ctx->cap_q_ctx.rdy_spinlock, flags_cap);
-	spin_unlock_irqrestore(&m2m_ctx->out_q_ctx.rdy_spinlock, flags_out);
+
+	m2m_ctx->new_frame = true;
+
+	if (src && dst && dst->is_held &&
+	    dst->vb2_buf.copied_timestamp &&
+	    dst->vb2_buf.timestamp != src->vb2_buf.timestamp) {
+		dst->is_held = false;
+		v4l2_m2m_dst_buf_remove(m2m_ctx);
+		v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);
+		dst = v4l2_m2m_next_dst_buf(m2m_ctx);
+
+		if (!dst && !m2m_ctx->cap_q_ctx.buffered) {
+			dprintk("No output buffers available after returning held buffer\n");
+			goto job_unlock;
+		}
+	}
+
+	if (src && dst && (m2m_ctx->out_q_ctx.q.subsystem_flags &
+			   VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF))
+		m2m_ctx->new_frame = !dst->vb2_buf.copied_timestamp ||
+			dst->vb2_buf.timestamp != src->vb2_buf.timestamp;
 
 	if (m2m_dev->m2m_ops->job_ready
 		&& (!m2m_dev->m2m_ops->job_ready(m2m_ctx->priv))) {
@@ -331,13 +349,6 @@ static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
 	list_add_tail(&m2m_ctx->queue, &m2m_dev->job_queue);
 	m2m_ctx->job_flags |= TRANS_QUEUED;
 
-	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
-	return;
-
-cap_unlock:
-	spin_unlock_irqrestore(&m2m_ctx->cap_q_ctx.rdy_spinlock, flags_cap);
-out_unlock:
-	spin_unlock_irqrestore(&m2m_ctx->out_q_ctx.rdy_spinlock, flags_out);
 job_unlock:
 	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
 }
@@ -412,36 +423,96 @@ static void v4l2_m2m_cancel_job(struct v4l2_m2m_ctx *m2m_ctx)
 	}
 }
 
-void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
-			 struct v4l2_m2m_ctx *m2m_ctx)
+/*
+ * Schedule the next job, called from v4l2_m2m_job_finish() or
+ * v4l2_m2m_buf_done_and_job_finish().
+ */
+static void v4l2_m2m_schedule_next_job(struct v4l2_m2m_dev *m2m_dev,
+				       struct v4l2_m2m_ctx *m2m_ctx)
 {
-	unsigned long flags;
+	/*
+	 * This instance might have more buffers ready, but since we do not
+	 * allow more than one job on the job_queue per instance, each has
+	 * to be scheduled separately after the previous one finishes.
+	 */
+	__v4l2_m2m_try_queue(m2m_dev, m2m_ctx);
 
-	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+	/*
+	 * We might be running in atomic context,
+	 * but the job must be run in non-atomic context.
+	 */
+	schedule_work(&m2m_dev->job_work);
+}
+
+/*
+ * Assumes job_spinlock is held, called from v4l2_m2m_job_finish() or
+ * v4l2_m2m_buf_done_and_job_finish().
+ */
+static bool _v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
+				 struct v4l2_m2m_ctx *m2m_ctx)
+{
 	if (!m2m_dev->curr_ctx || m2m_dev->curr_ctx != m2m_ctx) {
-		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
 		dprintk("Called by an instance not currently running\n");
-		return;
+		return false;
 	}
 
 	list_del(&m2m_dev->curr_ctx->queue);
 	m2m_dev->curr_ctx->job_flags &= ~(TRANS_QUEUED | TRANS_RUNNING);
 	wake_up(&m2m_dev->curr_ctx->finished);
 	m2m_dev->curr_ctx = NULL;
+	return true;
+}
 
+void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
+			 struct v4l2_m2m_ctx *m2m_ctx)
+{
+	unsigned long flags;
+	bool schedule_next;
+
+	/*
+	 * This function should not be used for drivers that support
+	 * holding capture buffers. Those should use
+	 * v4l2_m2m_buf_done_and_job_finish() instead.
+	 */
+	WARN_ON(m2m_ctx->out_q_ctx.q.subsystem_flags &
+		VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF);
+	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+	schedule_next = _v4l2_m2m_job_finish(m2m_dev, m2m_ctx);
 	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
 
-	/* This instance might have more buffers ready, but since we do not
-	 * allow more than one job on the job_queue per instance, each has
-	 * to be scheduled separately after the previous one finishes. */
-	__v4l2_m2m_try_queue(m2m_dev, m2m_ctx);
-
-	/* We might be running in atomic context,
-	 * but the job must be run in non-atomic context.
-	 */
-	schedule_work(&m2m_dev->job_work);
+	if (schedule_next)
+		v4l2_m2m_schedule_next_job(m2m_dev, m2m_ctx);
 }
 EXPORT_SYMBOL(v4l2_m2m_job_finish);
+
+void v4l2_m2m_buf_done_and_job_finish(struct v4l2_m2m_dev *m2m_dev,
+				      struct v4l2_m2m_ctx *m2m_ctx,
+				      enum vb2_buffer_state state)
+{
+	struct vb2_v4l2_buffer *src_buf, *dst_buf;
+	bool schedule_next = false;
+	unsigned long flags;
+
+	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+	src_buf = v4l2_m2m_src_buf_remove(m2m_ctx);
+	dst_buf = v4l2_m2m_next_dst_buf(m2m_ctx);
+
+	if (WARN_ON(!src_buf || !dst_buf))
+		goto unlock;
+	v4l2_m2m_buf_done(src_buf, state);
+	dst_buf->is_held = src_buf->flags & V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF;
+	if (!dst_buf->is_held) {
+		v4l2_m2m_dst_buf_remove(m2m_ctx);
+		v4l2_m2m_buf_done(dst_buf, state);
+	}
+	schedule_next = _v4l2_m2m_job_finish(m2m_dev, m2m_ctx);
+unlock:
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+
+	if (schedule_next)
+		v4l2_m2m_schedule_next_job(m2m_dev, m2m_ctx);
+}
+EXPORT_SYMBOL(v4l2_m2m_buf_done_and_job_finish);
 
 int v4l2_m2m_reqbufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		     struct v4l2_requestbuffers *reqbufs)
@@ -1153,6 +1224,59 @@ int v4l2_m2m_ioctl_try_decoder_cmd(struct file *file, void *fh,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_try_decoder_cmd);
+
+int v4l2_m2m_ioctl_stateless_try_decoder_cmd(struct file *file, void *fh,
+					     struct v4l2_decoder_cmd *dc)
+{
+	if (dc->cmd != V4L2_DEC_CMD_FLUSH)
+		return -EINVAL;
+
+	dc->flags = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_stateless_try_decoder_cmd);
+
+int v4l2_m2m_ioctl_stateless_decoder_cmd(struct file *file, void *priv,
+					 struct v4l2_decoder_cmd *dc)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct vb2_v4l2_buffer *out_vb, *cap_vb;
+	struct v4l2_m2m_dev *m2m_dev = fh->m2m_ctx->m2m_dev;
+	unsigned long flags;
+	int ret;
+
+	ret = v4l2_m2m_ioctl_stateless_try_decoder_cmd(file, priv, dc);
+	if (ret < 0)
+		return ret;
+
+	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+	out_vb = v4l2_m2m_last_src_buf(fh->m2m_ctx);
+	cap_vb = v4l2_m2m_last_dst_buf(fh->m2m_ctx);
+
+	/*
+	 * If there is an out buffer pending, then clear any HOLD flag.
+	 *
+	 * By clearing this flag we ensure that when this output
+	 * buffer is processed any held capture buffer will be released.
+	 */
+	if (out_vb) {
+		out_vb->flags &= ~V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF;
+	} else if (cap_vb && cap_vb->is_held) {
+		/*
+		 * If there were no output buffers, but there is a
+		 * capture buffer that is held, then release that
+		 * buffer.
+		 */
+		cap_vb->is_held = false;
+		v4l2_m2m_dst_buf_remove(fh->m2m_ctx);
+		v4l2_m2m_buf_done(cap_vb, VB2_BUF_STATE_DONE);
+	}
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_stateless_decoder_cmd);
 
 /*
  * v4l2_file_operations helpers. It is assumed here same lock is used

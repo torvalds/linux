@@ -215,6 +215,7 @@ static const struct file_operations pnx833x_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= pnx833x_wdt_write,
 	.unlocked_ioctl	= pnx833x_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= pnx833x_wdt_open,
 	.release	= pnx833x_wdt_release,
 };

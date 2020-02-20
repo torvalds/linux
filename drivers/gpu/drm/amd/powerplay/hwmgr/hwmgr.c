@@ -81,6 +81,8 @@ static void hwmgr_init_workload_prority(struct pp_hwmgr *hwmgr)
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev;
+
 	if (!hwmgr)
 		return -EINVAL;
 
@@ -94,8 +96,11 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	hwmgr_init_workload_prority(hwmgr);
 	hwmgr->gfxoff_state_changed_by_workload = false;
 
+	adev = hwmgr->adev;
+
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CI:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		hwmgr->smumgr_funcs = &ci_smu_funcs;
 		ci_set_asic_special_caps(hwmgr);
 		hwmgr->feature_mask &= ~(PP_VBI_TIME_SUPPORT_MASK |
@@ -106,12 +111,14 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		smu7_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_CZ:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		hwmgr->od_enabled = false;
 		hwmgr->smumgr_funcs = &smu8_smu_funcs;
 		hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 		smu8_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_VI:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 		switch (hwmgr->chip_id) {
 		case CHIP_TOPAZ:
@@ -153,6 +160,7 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	case AMDGPU_FAMILY_AI:
 		switch (hwmgr->chip_id) {
 		case CHIP_VEGA10:
+			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 			hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 			hwmgr->smumgr_funcs = &vega10_smu_funcs;
 			vega10_hwmgr_init(hwmgr);
@@ -162,6 +170,7 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 			vega12_hwmgr_init(hwmgr);
 			break;
 		case CHIP_VEGA20:
+			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 			hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 			hwmgr->smumgr_funcs = &vega20_smu_funcs;
 			vega20_hwmgr_init(hwmgr);
@@ -212,6 +221,9 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
+	hwmgr->pp_one_vf = amdgpu_sriov_is_pp_one_vf((struct amdgpu_device *)hwmgr->adev);
+	hwmgr->pm_en = (amdgpu_dpm && (hwmgr->not_vf || hwmgr->pp_one_vf))
+			? true : false;
 	if (!hwmgr->pm_en)
 		return 0;
 
@@ -270,7 +282,7 @@ err:
 
 int hwmgr_hw_fini(struct pp_hwmgr *hwmgr)
 {
-	if (!hwmgr || !hwmgr->pm_en)
+	if (!hwmgr || !hwmgr->pm_en || !hwmgr->not_vf)
 		return 0;
 
 	phm_stop_thermal_controller(hwmgr);
@@ -290,7 +302,7 @@ int hwmgr_suspend(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	if (!hwmgr || !hwmgr->pm_en)
+	if (!hwmgr || !hwmgr->pm_en || !hwmgr->not_vf)
 		return 0;
 
 	phm_disable_smc_firmware_ctf(hwmgr);
@@ -312,7 +324,7 @@ int hwmgr_resume(struct pp_hwmgr *hwmgr)
 	if (!hwmgr)
 		return -EINVAL;
 
-	if (!hwmgr->pm_en)
+	if (!hwmgr->not_vf || !hwmgr->pm_en)
 		return 0;
 
 	ret = phm_setup_asic(hwmgr);
@@ -356,6 +368,8 @@ int hwmgr_handle_task(struct pp_hwmgr *hwmgr, enum amd_pp_task task_id,
 
 	switch (task_id) {
 	case AMD_PP_TASK_DISPLAY_CONFIG_CHANGE:
+		if (!hwmgr->not_vf)
+			return ret;
 		ret = phm_pre_display_configuration_changed(hwmgr);
 		if (ret)
 			return ret;
@@ -372,6 +386,8 @@ int hwmgr_handle_task(struct pp_hwmgr *hwmgr, enum amd_pp_task task_id,
 		enum PP_StateUILabel requested_ui_label;
 		struct pp_power_state *requested_ps = NULL;
 
+		if (!hwmgr->not_vf)
+			return ret;
 		if (user_state == NULL) {
 			ret = -EINVAL;
 			break;

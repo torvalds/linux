@@ -633,9 +633,9 @@ snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device)
 	chip->csubs = NULL;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						snd_dma_pci_data(chip->pci),
-						BUFFER_BYTES_MAX / 2,
-						BUFFER_BYTES_MAX);
+					      &chip->pci->dev,
+					      BUFFER_BYTES_MAX / 2,
+					      BUFFER_BYTES_MAX);
 
 	return 0;
 }

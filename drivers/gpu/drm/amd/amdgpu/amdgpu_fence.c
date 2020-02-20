@@ -34,6 +34,7 @@
 #include <linux/kref.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drm_debugfs.h>
 
@@ -154,7 +155,7 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f,
 		       seq);
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
 			       seq, flags | AMDGPU_FENCE_FLAG_INT);
-
+	pm_runtime_get_noresume(adev->ddev->dev);
 	ptr = &ring->fence_drv.fences[seq & ring->fence_drv.num_fences_mask];
 	if (unlikely(rcu_dereference_protected(*ptr, 1))) {
 		struct dma_fence *old;
@@ -234,6 +235,7 @@ static void amdgpu_fence_schedule_fallback(struct amdgpu_ring *ring)
 bool amdgpu_fence_process(struct amdgpu_ring *ring)
 {
 	struct amdgpu_fence_driver *drv = &ring->fence_drv;
+	struct amdgpu_device *adev = ring->adev;
 	uint32_t seq, last_seq;
 	int r;
 
@@ -274,6 +276,8 @@ bool amdgpu_fence_process(struct amdgpu_ring *ring)
 			BUG();
 
 		dma_fence_put(fence);
+		pm_runtime_mark_last_busy(adev->ddev->dev);
+		pm_runtime_put_autosuspend(adev->ddev->dev);
 	} while (last_seq != seq);
 
 	return true;
@@ -462,18 +466,7 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 			timeout = adev->gfx_timeout;
 			break;
 		case AMDGPU_RING_TYPE_COMPUTE:
-			/*
-			 * For non-sriov case, no timeout enforce
-			 * on compute ring by default. Unless user
-			 * specifies a timeout for compute ring.
-			 *
-			 * For sriov case, always use the timeout
-			 * as gfx ring
-			 */
-			if (!amdgpu_sriov_vf(ring->adev))
-				timeout = adev->compute_timeout;
-			else
-				timeout = adev->gfx_timeout;
+			timeout = adev->compute_timeout;
 			break;
 		case AMDGPU_RING_TYPE_SDMA:
 			timeout = adev->sdma_timeout;
@@ -748,9 +741,17 @@ static int amdgpu_debugfs_gpu_recover(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
+	int r;
+
+	r = pm_runtime_get_sync(dev->dev);
+	if (r < 0)
+		return 0;
 
 	seq_printf(m, "gpu recover\n");
 	amdgpu_device_gpu_recover(adev, NULL);
+
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 
 	return 0;
 }

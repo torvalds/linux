@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -288,8 +288,7 @@ struct iwl_mvm_keyinfo {
  * @addr: station's MAC address
  * @reserved2: reserved
  * @sta_id: index of station in uCode's station table
- * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
- *	alone. 1 - modify, 0 - don't change.
+ * @modify_mask: from &enum iwl_sta_modify_flag, selects what to change
  * @reserved3: reserved
  * @station_flags: look at &enum iwl_sta_flags
  * @station_flags_msk: what of %station_flags have changed,
@@ -369,8 +368,7 @@ enum iwl_sta_type {
  * @addr: station's MAC address
  * @reserved2: reserved
  * @sta_id: index of station in uCode's station table
- * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
- *	alone. 1 - modify, 0 - don't change.
+ * @modify_mask: from &enum iwl_sta_modify_flag, selects what to change
  * @reserved3: reserved
  * @station_flags: look at &enum iwl_sta_flags
  * @station_flags_msk: what of %station_flags have changed,

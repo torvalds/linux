@@ -346,12 +346,12 @@ static const struct drm_display_mode td043mtea1_mode = {
 	.height_mm = 56,
 };
 
-static int td043mtea1_get_modes(struct drm_panel *panel)
+static int td043mtea1_get_modes(struct drm_panel *panel,
+				struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &td043mtea1_mode);
+	mode = drm_mode_duplicate(connector->dev, &td043mtea1_mode);
 	if (!mode)
 		return -ENOMEM;
 
@@ -490,9 +490,17 @@ static const struct of_device_id td043mtea1_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, td043mtea1_of_match);
 
+static const struct spi_device_id td043mtea1_ids[] = {
+	{ "td043mtea1", 0 },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(spi, td043mtea1_ids);
+
 static struct spi_driver td043mtea1_driver = {
 	.probe		= td043mtea1_probe,
 	.remove		= td043mtea1_remove,
+	.id_table	= td043mtea1_ids,
 	.driver		= {
 		.name	= "panel-tpo-td043mtea1",
 		.pm	= &td043mtea1_pm_ops,
@@ -502,7 +510,6 @@ static struct spi_driver td043mtea1_driver = {
 
 module_spi_driver(td043mtea1_driver);
 
-MODULE_ALIAS("spi:tpo,td043mtea1");
 MODULE_AUTHOR("Gražvydas Ignotas <notasas@gmail.com>");
 MODULE_DESCRIPTION("TPO TD043MTEA1 Panel Driver");
 MODULE_LICENSE("GPL");

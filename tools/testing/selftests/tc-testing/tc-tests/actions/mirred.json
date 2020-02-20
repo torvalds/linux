@@ -553,5 +553,29 @@
         "matchPattern": "^[ \t]+index [0-9]+ ref",
         "matchCount": "0",
         "teardown": []
+    },
+    {
+        "id": "31e3",
+        "name": "Add mirred mirror to egress action with no_percpu flag",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred egress mirror dev lo no_percpu",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "action order [0-9]*: mirred \\(Egress Mirror to device lo\\).*no_percpu",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
     }
 ]

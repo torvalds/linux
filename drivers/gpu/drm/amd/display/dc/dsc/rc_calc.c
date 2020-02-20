@@ -1,4 +1,3 @@
-#if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
 
 /*
  * Copyright 2017 Advanced Micro Devices, Inc.
@@ -177,7 +176,6 @@ void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_com
 {
 	float bpp_group;
 	float initial_xmit_delay_factor;
-	int source_bpp;
 	int padding_pixels;
 	int i;
 
@@ -217,8 +215,6 @@ void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_com
 			rc->initial_xmit_delay++;
 	}
 
-	source_bpp = MODE_SELECT(bpc * 3, bpc * 2, bpc * 1.5);
-
 	rc->flatness_min_qp     = ((bpc == BPC_8) ?  (3) : ((bpc == BPC_10) ? (7)  : (11))) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
 	rc->flatness_max_qp     = ((bpc == BPC_8) ? (12) : ((bpc == BPC_10) ? (16) : (20))) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
 	rc->flatness_det_thresh = 2 << (bpc - 8);
@@ -255,4 +251,3 @@ void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_com
 	rc->rc_buf_thresh[13] = 8064;
 }
 
-#endif

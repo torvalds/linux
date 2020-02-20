@@ -8,9 +8,10 @@
  *          Dave Airlie
  */
 
+#include <linux/pci.h>
+
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_pci.h>
 
 #include "mgag200_drv.h"
 
@@ -94,7 +95,8 @@ static int mgag200_device_init(struct drm_device *dev,
 	struct mga_device *mdev = dev->dev_private;
 	int ret, option;
 
-	mdev->type = flags;
+	mdev->flags = mgag200_flags_from_driver_data(flags);
+	mdev->type = mgag200_type_from_driver_data(flags);
 
 	/* Hardcode the number of CRTCs to 1 */
 	mdev->num_crtc = 1;
@@ -117,8 +119,11 @@ static int mgag200_device_init(struct drm_device *dev,
 		return -ENOMEM;
 
 	/* stash G200 SE model number for later use */
-	if (IS_G200_SE(mdev))
+	if (IS_G200_SE(mdev)) {
 		mdev->unique_rev_id = RREG32(0x1e24);
+		DRM_DEBUG("G200 SE unique revision id is 0x%x\n",
+			  mdev->unique_rev_id);
+	}
 
 	ret = mga_vram_init(mdev);
 	if (ret)

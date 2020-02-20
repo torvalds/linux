@@ -328,7 +328,7 @@ static int xenfb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops xenfb_fb_ops = {
+static const struct fb_ops xenfb_fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_read	= fb_sys_read,
 	.fb_write	= xenfb_write,

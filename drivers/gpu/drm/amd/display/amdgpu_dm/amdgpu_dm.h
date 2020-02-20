@@ -57,6 +57,8 @@ struct amdgpu_device;
 struct drm_device;
 struct amdgpu_dm_irq_handler_data;
 struct dc;
+struct amdgpu_bo;
+struct dmub_srv;
 
 struct common_irq_params {
 	struct amdgpu_device *adev;
@@ -108,12 +110,69 @@ struct amdgpu_dm_backlight_caps {
  * @display_indexes_num: Max number of display streams supported
  * @irq_handler_list_table_lock: Synchronizes access to IRQ tables
  * @backlight_dev: Backlight control device
+ * @backlight_link: Link on which to control backlight
+ * @backlight_caps: Capabilities of the backlight device
+ * @freesync_module: Module handling freesync calculations
+ * @fw_dmcu: Reference to DMCU firmware
+ * @dmcu_fw_version: Version of the DMCU firmware
+ * @soc_bounding_box: SOC bounding box values provided by gpu_info FW
  * @cached_state: Caches device atomic state for suspend/resume
  * @compressor: Frame buffer compression buffer. See &struct dm_comressor_info
  */
 struct amdgpu_display_manager {
 
 	struct dc *dc;
+
+	/**
+	 * @dmub_srv:
+	 *
+	 * DMUB service, used for controlling the DMUB on hardware
+	 * that supports it. The pointer to the dmub_srv will be
+	 * NULL on hardware that does not support it.
+	 */
+	struct dmub_srv *dmub_srv;
+
+	/**
+	 * @dmub_fb_info:
+	 *
+	 * Framebuffer regions for the DMUB.
+	 */
+	struct dmub_srv_fb_info *dmub_fb_info;
+
+	/**
+	 * @dmub_fw:
+	 *
+	 * DMUB firmware, required on hardware that has DMUB support.
+	 */
+	const struct firmware *dmub_fw;
+
+	/**
+	 * @dmub_bo:
+	 *
+	 * Buffer object for the DMUB.
+	 */
+	struct amdgpu_bo *dmub_bo;
+
+	/**
+	 * @dmub_bo_gpu_addr:
+	 *
+	 * GPU virtual address for the DMUB buffer object.
+	 */
+	u64 dmub_bo_gpu_addr;
+
+	/**
+	 * @dmub_bo_cpu_addr:
+	 *
+	 * CPU address for the DMUB buffer object.
+	 */
+	void *dmub_bo_cpu_addr;
+
+	/**
+	 * @dmcub_fw_version:
+	 *
+	 * DMCUB firmware version.
+	 */
+	uint32_t dmcub_fw_version;
 
 	/**
 	 * @cgs_device:
@@ -128,7 +187,7 @@ struct amdgpu_display_manager {
 	u16 display_indexes_num;
 
 	/**
-	 * @atomic_obj
+	 * @atomic_obj:
 	 *
 	 * In combination with &dm_atomic_state it helps manage
 	 * global atomic state that doesn't map cleanly into existing
@@ -225,6 +284,9 @@ struct amdgpu_display_manager {
 	struct amdgpu_dm_backlight_caps backlight_caps;
 
 	struct mod_freesync *freesync_module;
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	struct hdcp_workqueue *hdcp_workqueue;
+#endif
 
 	struct drm_atomic_state *cached_state;
 
@@ -232,13 +294,13 @@ struct amdgpu_display_manager {
 
 	const struct firmware *fw_dmcu;
 	uint32_t dmcu_fw_version;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	/**
+	 * @soc_bounding_box:
+	 *
 	 * gpu_info FW provided soc bounding box struct or 0 if not
 	 * available in FW
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
-#endif
 };
 
 struct amdgpu_dm_connector {
@@ -268,6 +330,7 @@ struct amdgpu_dm_connector {
 	struct drm_dp_mst_port *port;
 	struct amdgpu_dm_connector *mst_port;
 	struct amdgpu_encoder *mst_encoder;
+	struct drm_dp_aux *dsc_aux;
 
 	/* TODO see if we can merge with ddc_bus or make a dm_connector */
 	struct amdgpu_i2c_adapter *i2c;
@@ -287,6 +350,7 @@ struct amdgpu_dm_connector {
 	uint32_t debugfs_dpcd_address;
 	uint32_t debugfs_dpcd_size;
 #endif
+	bool force_yuv420_output;
 };
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
@@ -347,6 +411,8 @@ struct dm_connector_state {
 	bool underscan_enable;
 	bool freesync_capable;
 	uint8_t abm_level;
+	int vcpi_slots;
+	uint64_t pbn;
 };
 
 #define to_dm_connector_state(x)\

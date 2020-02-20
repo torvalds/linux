@@ -93,7 +93,7 @@ int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
 	case SPEED_1000:
 		val |= SGMII_SPEED_1000;
 		break;
-	};
+	}
 
 	if (state->duplex == DUPLEX_FULL)
 		val |= SGMII_DUPLEX_FULL;

@@ -44,7 +44,12 @@ static ssize_t setup_data_read(struct file *file, char __user *user_buf,
 	if (count > node->len - pos)
 		count = node->len - pos;
 
-	pa = node->paddr + sizeof(struct setup_data) + pos;
+	pa = node->paddr + pos;
+
+	/* Is it direct data or invalid indirect one? */
+	if (!(node->type & SETUP_INDIRECT) || node->type == SETUP_INDIRECT)
+		pa += sizeof(struct setup_data);
+
 	p = memremap(pa, count, MEMREMAP_WB);
 	if (!p)
 		return -ENOMEM;
@@ -108,9 +113,17 @@ static int __init create_setup_data_nodes(struct dentry *parent)
 			goto err_dir;
 		}
 
-		node->paddr = pa_data;
-		node->type = data->type;
-		node->len = data->len;
+		if (data->type == SETUP_INDIRECT &&
+		    ((struct setup_indirect *)data->data)->type != SETUP_INDIRECT) {
+			node->paddr = ((struct setup_indirect *)data->data)->addr;
+			node->type  = ((struct setup_indirect *)data->data)->type;
+			node->len   = ((struct setup_indirect *)data->data)->len;
+		} else {
+			node->paddr = pa_data;
+			node->type  = data->type;
+			node->len   = data->len;
+		}
+
 		create_setup_data_node(d, no, node);
 		pa_data = data->next;
 

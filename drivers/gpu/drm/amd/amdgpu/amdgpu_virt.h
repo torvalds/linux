@@ -57,8 +57,6 @@ struct amdgpu_virt_ops {
 	int (*reset_gpu)(struct amdgpu_device *adev);
 	int (*wait_reset)(struct amdgpu_device *adev);
 	void (*trans_msg)(struct amdgpu_device *adev, u32 req, u32 data1, u32 data2, u32 data3);
-	int (*get_pp_clk)(struct amdgpu_device *adev, u32 type, char *buf);
-	int (*force_dpm_level)(struct amdgpu_device *adev, u32 level);
 };
 
 /*
@@ -85,8 +83,8 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_GIM_LOAD_UCODES   = 0x2,
 	/* VRAM LOST by GIM */
 	AMDGIM_FEATURE_GIM_FLR_VRAMLOST = 0x4,
-	/* HW PERF SIM in GIM */
-	AMDGIM_FEATURE_HW_PERF_SIMULATION = (1 << 3),
+	/* PP ONE VF MODE in GIM */
+	AMDGIM_FEATURE_PP_ONE_VF = (1 << 4),
 };
 
 struct amd_sriov_msg_pf2vf_info_header {
@@ -257,8 +255,6 @@ struct amdgpu_virt {
 	struct amdgpu_vf_error_buffer   vf_errors;
 	struct amdgpu_virt_fw_reserve	fw_reserve;
 	uint32_t gim_feature;
-	/* protect DPM events to GIM */
-	struct mutex                    dpm_mutex;
 	uint32_t reg_access_mode;
 };
 
@@ -286,13 +282,11 @@ static inline bool is_virtual_machine(void)
 #endif
 }
 
-#define amdgim_is_hwperf(adev) \
-	((adev)->virt.gim_feature & AMDGIM_FEATURE_HW_PERF_SIMULATION)
+#define amdgpu_sriov_is_pp_one_vf(adev) \
+	((adev)->virt.gim_feature & AMDGIM_FEATURE_PP_ONE_VF)
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
-uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg);
-void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
 void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
 					uint32_t reg0, uint32_t rreg1,
 					uint32_t ref, uint32_t mask);
@@ -306,6 +300,4 @@ int amdgpu_virt_fw_reserve_get_checksum(void *obj, unsigned long obj_size,
 					unsigned int key,
 					unsigned int chksum);
 void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev);
-uint32_t amdgpu_virt_get_sclk(struct amdgpu_device *adev, bool lowest);
-uint32_t amdgpu_virt_get_mclk(struct amdgpu_device *adev, bool lowest);
 #endif

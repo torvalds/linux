@@ -350,7 +350,7 @@ static int setup_corb_rirb(struct lola *chip)
 	unsigned long end_time;
 
 	err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-				  snd_dma_pci_data(chip->pci),
+				  &chip->pci->dev,
 				  PAGE_SIZE, &chip->rb);
 	if (err < 0)
 		return err;

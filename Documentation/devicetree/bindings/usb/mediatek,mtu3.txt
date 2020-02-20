@@ -17,7 +17,7 @@ Required properties:
  - clock-names : must contain "sys_ck" for clock of controller,
 	the following clocks are optional:
 	"ref_ck", "mcu_ck" and "dma_ck";
- - phys : see usb-hcd.txt in the current directory
+ - phys : see usb-hcd.yaml in the current directory
  - dr_mode : should be one of "host", "peripheral" or "otg",
 	refer to usb/generic.txt
 
@@ -60,7 +60,7 @@ Optional properties:
  - mediatek,u3p-dis-msk : mask to disable u3ports, bit0 for u3port0,
 	bit1 for u3port1, ... etc;
 
-additionally the properties from usb-hcd.txt (in the current directory) are
+additionally the properties from usb-hcd.yaml (in the current directory) are
 supported.
 
 Sub-nodes:

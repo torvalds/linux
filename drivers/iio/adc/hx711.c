@@ -23,6 +23,7 @@
 
 /* gain to pulse and scale conversion */
 #define HX711_GAIN_MAX		3
+#define HX711_RESET_GAIN	128
 
 struct hx711_gain_to_scale {
 	int			gain;
@@ -100,14 +101,14 @@ struct hx711_data {
 
 static int hx711_cycle(struct hx711_data *hx711_data)
 {
-	int val;
+	unsigned long flags;
 
 	/*
 	 * if preempted for more then 60us while PD_SCK is high:
 	 * hx711 is going in reset
 	 * ==> measuring is false
 	 */
-	preempt_disable();
+	local_irq_save(flags);
 	gpiod_set_value(hx711_data->gpiod_pd_sck, 1);
 
 	/*
@@ -117,7 +118,6 @@ static int hx711_cycle(struct hx711_data *hx711_data)
 	 */
 	ndelay(hx711_data->data_ready_delay_ns);
 
-	val = gpiod_get_value(hx711_data->gpiod_dout);
 	/*
 	 * here we are not waiting for 0.2 us as suggested by the datasheet,
 	 * because the oscilloscope showed in a test scenario
@@ -125,7 +125,7 @@ static int hx711_cycle(struct hx711_data *hx711_data)
 	 * and 0.56 us for PD_SCK low on TI Sitara with 800 MHz
 	 */
 	gpiod_set_value(hx711_data->gpiod_pd_sck, 0);
-	preempt_enable();
+	local_irq_restore(flags);
 
 	/*
 	 * make it a square wave for addressing cases with capacitance on
@@ -133,7 +133,8 @@ static int hx711_cycle(struct hx711_data *hx711_data)
 	 */
 	ndelay(hx711_data->data_ready_delay_ns);
 
-	return val;
+	/* sample as late as possible */
+	return gpiod_get_value(hx711_data->gpiod_dout);
 }
 
 static int hx711_read(struct hx711_data *hx711_data)
@@ -185,8 +186,7 @@ static int hx711_wait_for_ready(struct hx711_data *hx711_data)
 
 static int hx711_reset(struct hx711_data *hx711_data)
 {
-	int ret;
-	int val = gpiod_get_value(hx711_data->gpiod_dout);
+	int val = hx711_wait_for_ready(hx711_data);
 
 	if (val) {
 		/*
@@ -202,22 +202,10 @@ static int hx711_reset(struct hx711_data *hx711_data)
 		msleep(10);
 		gpiod_set_value(hx711_data->gpiod_pd_sck, 0);
 
-		ret = hx711_wait_for_ready(hx711_data);
-		if (ret)
-			return ret;
-		/*
-		 * after a reset the gain is 128 so we do a dummy read
-		 * to set the gain for the next read
-		 */
-		ret = hx711_read(hx711_data);
-		if (ret < 0)
-			return ret;
-
-		/*
-		 * after a dummy read we need to wait vor readiness
-		 * for not mixing gain pulses with the clock
-		 */
 		val = hx711_wait_for_ready(hx711_data);
+
+		/* after a reset the gain is 128 */
+		hx711_data->gain_set = HX711_RESET_GAIN;
 	}
 
 	return val;

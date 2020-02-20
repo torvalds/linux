@@ -19,10 +19,10 @@
 
 #include <drm/drm.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_irq.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_pciids.h>
 #include <drm/drm_vblank.h>
 
@@ -426,14 +426,48 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	return drm_get_pci_dev(pdev, ent, &driver);
-}
+	struct drm_device *dev;
+	int ret;
 
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+
+	dev = drm_dev_alloc(&driver, &pdev->dev);
+	if (IS_ERR(dev)) {
+		ret = PTR_ERR(dev);
+		goto err_pci_disable_device;
+	}
+
+	dev->pdev = pdev;
+	pci_set_drvdata(pdev, dev);
+
+	ret = psb_driver_load(dev, ent->driver_data);
+	if (ret)
+		goto err_drm_dev_put;
+
+	ret = drm_dev_register(dev, ent->driver_data);
+	if (ret)
+		goto err_psb_driver_unload;
+
+	return 0;
+
+err_psb_driver_unload:
+	psb_driver_unload(dev);
+err_drm_dev_put:
+	drm_dev_put(dev);
+err_pci_disable_device:
+	pci_disable_device(pdev);
+	return ret;
+}
 
 static void psb_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	drm_put_dev(dev);
+
+	drm_dev_unregister(dev);
+	psb_driver_unload(dev);
+	drm_dev_put(dev);
 }
 
 static const struct dev_pm_ops psb_pm_ops = {
@@ -466,8 +500,6 @@ static const struct file_operations psb_gem_fops = {
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,
-	.load = psb_driver_load,
-	.unload = psb_driver_unload,
 	.lastclose = drm_fb_helper_lastclose,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),

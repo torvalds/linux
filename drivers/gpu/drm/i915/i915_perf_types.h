@@ -380,7 +380,6 @@ struct i915_perf {
 	struct drm_i915_private *i915;
 
 	struct kobject *metrics_kobj;
-	struct ctl_table_header *sysctl_header;
 
 	/*
 	 * Lock associated with adding/modifying/removing OA configs

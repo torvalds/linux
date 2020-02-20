@@ -62,6 +62,12 @@ struct bnxt_tc_tunnel_key {
 	__be32			id;
 };
 
+#define bnxt_eth_addr_key_mask_invalid(eth_addr, eth_addr_mask)		\
+	((is_wildcard(&(eth_addr)[0], ETH_ALEN) &&			\
+	 is_wildcard(&(eth_addr)[ETH_ALEN / 2], ETH_ALEN)) ||		\
+	(is_wildcard(&(eth_addr_mask)[0], ETH_ALEN) &&			\
+	 is_wildcard(&(eth_addr_mask)[ETH_ALEN / 2], ETH_ALEN)))
+
 struct bnxt_tc_actions {
 	u32				flags;
 #define BNXT_TC_ACTION_FLAG_FWD			BIT(0)
@@ -71,6 +77,8 @@ struct bnxt_tc_actions {
 #define BNXT_TC_ACTION_FLAG_DROP		BIT(5)
 #define BNXT_TC_ACTION_FLAG_TUNNEL_ENCAP	BIT(6)
 #define BNXT_TC_ACTION_FLAG_TUNNEL_DECAP	BIT(7)
+#define BNXT_TC_ACTION_FLAG_L2_REWRITE		BIT(8)
+#define BNXT_TC_ACTION_FLAG_NAT_XLATE		BIT(9)
 
 	u16				dst_fid;
 	struct net_device		*dst_dev;
@@ -79,6 +87,18 @@ struct bnxt_tc_actions {
 
 	/* tunnel encap */
 	struct ip_tunnel_key		tun_encap_key;
+#define	PEDIT_OFFSET_SMAC_LAST_4_BYTES		0x8
+	__be16				l2_rewrite_dmac[3];
+	__be16				l2_rewrite_smac[3];
+	struct {
+		bool src_xlate;  /* true => translate src,
+				  * false => translate dst
+				  * Mutually exclusive, i.e cannot set both
+				  */
+		bool l3_is_ipv4; /* false means L3 is ipv6 */
+		struct bnxt_tc_l3_key l3;
+		struct bnxt_tc_l4_key l4;
+	} nat;
 };
 
 struct bnxt_tc_flow {

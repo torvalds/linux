@@ -182,7 +182,7 @@ int mlx4_crdump_collect(struct mlx4_dev *dev)
 	crdump_enable_crspace_access(dev, cr_space);
 
 	/* Get the available snapshot ID for the dumps */
-	id = devlink_region_shapshot_id_get(devlink);
+	id = devlink_region_snapshot_id_get(devlink);
 
 	/* Try to capture dumps */
 	mlx4_crdump_collect_crspace(dev, cr_space, id);

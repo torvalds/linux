@@ -12,8 +12,6 @@
 #include <asm/pat.h>
 #include <asm/x86_init.h>
 
-#ifdef __KERNEL__
-
 struct pci_sysdata {
 	int		domain;		/* PCI domain */
 	int		node;		/* NUMA node */
@@ -117,11 +115,6 @@ void native_restore_msi_irqs(struct pci_dev *dev);
 #else
 #define native_setup_msi_irqs		NULL
 #define native_teardown_msi_irq		NULL
-#endif
-#endif  /* __KERNEL__ */
-
-#ifdef CONFIG_X86_64
-#include <asm/pci_64.h>
 #endif
 
 /* generic pci stuff */

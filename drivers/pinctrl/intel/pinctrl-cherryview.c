@@ -147,7 +147,9 @@ struct chv_pin_context {
  * @pctldesc: Pin controller description
  * @pctldev: Pointer to the pin controller device
  * @chip: GPIO chip in this pin controller
+ * @irqchip: IRQ chip in this pin controller
  * @regs: MMIO registers
+ * @irq: Our parent irq
  * @intr_lines: Stores mapping between 16 HW interrupt wires and GPIO
  *		offset (in GPIO number space)
  * @community: Community this pinctrl instance represents
@@ -162,8 +164,10 @@ struct chv_pinctrl {
 	struct pinctrl_desc pctldesc;
 	struct pinctrl_dev *pctldev;
 	struct gpio_chip chip;
+	struct irq_chip irqchip;
 	void __iomem *regs;
-	unsigned intr_lines[16];
+	unsigned int irq;
+	unsigned int intr_lines[16];
 	const struct chv_community *community;
 	u32 saved_intmask;
 	struct chv_pin_context *saved_pin_context;
@@ -377,7 +381,7 @@ static const struct chv_community southwest_community = {
 	.gpio_ranges = southwest_gpio_ranges,
 	.ngpio_ranges = ARRAY_SIZE(southwest_gpio_ranges),
 	/*
-	 * Southwest community can benerate GPIO interrupts only for the
+	 * Southwest community can generate GPIO interrupts only for the
 	 * first 8 interrupts. The upper half (8-15) can only be used to
 	 * trigger GPEs.
 	 */
@@ -1466,16 +1470,6 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static struct irq_chip chv_gpio_irqchip = {
-	.name = "chv-gpio",
-	.irq_startup = chv_gpio_irq_startup,
-	.irq_ack = chv_gpio_irq_ack,
-	.irq_mask = chv_gpio_irq_mask,
-	.irq_unmask = chv_gpio_irq_unmask,
-	.irq_set_type = chv_gpio_irq_type,
-	.flags = IRQCHIP_SKIP_SET_WAKE,
-};
-
 static void chv_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
@@ -1488,7 +1482,7 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 
 	pending = readl(pctrl->regs + CHV_INTSTAT);
 	for_each_set_bit(intr_line, &pending, pctrl->community->nirqs) {
-		unsigned irq, offset;
+		unsigned int irq, offset;
 
 		offset = pctrl->intr_lines[intr_line];
 		irq = irq_find_mapping(gc->irq.domain, offset);
@@ -1513,7 +1507,6 @@ static const struct dmi_system_id chv_no_valid_mask[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "Intel_Strago"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "1.0"),
 		},
 	},
 	{
@@ -1521,7 +1514,6 @@ static const struct dmi_system_id chv_no_valid_mask[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Setzer"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "1.0"),
 		},
 	},
 	{
@@ -1529,7 +1521,6 @@ static const struct dmi_system_id chv_no_valid_mask[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Cyan"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "1.0"),
 		},
 	},
 	{
@@ -1537,7 +1528,6 @@ static const struct dmi_system_id chv_no_valid_mask[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Celes"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "1.0"),
 		},
 	},
 	{}
@@ -1563,8 +1553,55 @@ static void chv_init_irq_valid_mask(struct gpio_chip *chip,
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
 
 		if (intsel >= community->nirqs)
-			clear_bit(i, valid_mask);
+			clear_bit(desc->number, valid_mask);
 	}
+}
+
+static int chv_gpio_irq_init_hw(struct gpio_chip *chip)
+{
+	struct chv_pinctrl *pctrl = gpiochip_get_data(chip);
+
+	/*
+	 * The same set of machines in chv_no_valid_mask[] have incorrectly
+	 * configured GPIOs that generate spurious interrupts so we use
+	 * this same list to apply another quirk for them.
+	 *
+	 * See also https://bugzilla.kernel.org/show_bug.cgi?id=197953.
+	 */
+	if (!pctrl->chip.irq.init_valid_mask) {
+		/*
+		 * Mask all interrupts the community is able to generate
+		 * but leave the ones that can only generate GPEs unmasked.
+		 */
+		chv_writel(GENMASK(31, pctrl->community->nirqs),
+			   pctrl->regs + CHV_INTMASK);
+	}
+
+	/* Clear all interrupts */
+	chv_writel(0xffff, pctrl->regs + CHV_INTSTAT);
+
+	return 0;
+}
+
+static int chv_gpio_add_pin_ranges(struct gpio_chip *chip)
+{
+	struct chv_pinctrl *pctrl = gpiochip_get_data(chip);
+	const struct chv_community *community = pctrl->community;
+	const struct chv_gpio_pinrange *range;
+	int ret, i;
+
+	for (i = 0; i < community->ngpio_ranges; i++) {
+		range = &community->gpio_ranges[i];
+		ret = gpiochip_add_pin_range(chip, dev_name(pctrl->dev),
+					     range->base, range->base,
+					     range->npins);
+		if (ret) {
+			dev_err(pctrl->dev, "failed to add GPIO pin range\n");
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
@@ -1579,48 +1616,29 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 
 	chip->ngpio = community->pins[community->npins - 1].number + 1;
 	chip->label = dev_name(pctrl->dev);
+	chip->add_pin_ranges = chv_gpio_add_pin_ranges;
 	chip->parent = pctrl->dev;
 	chip->base = -1;
-	if (need_valid_mask)
+
+	pctrl->irq = irq;
+	pctrl->irqchip.name = "chv-gpio";
+	pctrl->irqchip.irq_startup = chv_gpio_irq_startup;
+	pctrl->irqchip.irq_ack = chv_gpio_irq_ack;
+	pctrl->irqchip.irq_mask = chv_gpio_irq_mask;
+	pctrl->irqchip.irq_unmask = chv_gpio_irq_unmask;
+	pctrl->irqchip.irq_set_type = chv_gpio_irq_type;
+	pctrl->irqchip.flags = IRQCHIP_SKIP_SET_WAKE;
+
+	chip->irq.chip = &pctrl->irqchip;
+	chip->irq.init_hw = chv_gpio_irq_init_hw;
+	chip->irq.parent_handler = chv_gpio_irq_handler;
+	chip->irq.num_parents = 1;
+	chip->irq.parents = &pctrl->irq;
+	chip->irq.default_type = IRQ_TYPE_NONE;
+	chip->irq.handler = handle_bad_irq;
+	if (need_valid_mask) {
 		chip->irq.init_valid_mask = chv_init_irq_valid_mask;
-
-	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
-	if (ret) {
-		dev_err(pctrl->dev, "Failed to register gpiochip\n");
-		return ret;
-	}
-
-	for (i = 0; i < community->ngpio_ranges; i++) {
-		range = &community->gpio_ranges[i];
-		ret = gpiochip_add_pin_range(chip, dev_name(pctrl->dev),
-					     range->base, range->base,
-					     range->npins);
-		if (ret) {
-			dev_err(pctrl->dev, "failed to add GPIO pin range\n");
-			return ret;
-		}
-	}
-
-	/*
-	 * The same set of machines in chv_no_valid_mask[] have incorrectly
-	 * configured GPIOs that generate spurious interrupts so we use
-	 * this same list to apply another quirk for them.
-	 *
-	 * See also https://bugzilla.kernel.org/show_bug.cgi?id=197953.
-	 */
-	if (!need_valid_mask) {
-		/*
-		 * Mask all interrupts the community is able to generate
-		 * but leave the ones that can only generate GPEs unmasked.
-		 */
-		chv_writel(GENMASK(31, pctrl->community->nirqs),
-			   pctrl->regs + CHV_INTMASK);
-	}
-
-	/* Clear all interrupts */
-	chv_writel(0xffff, pctrl->regs + CHV_INTSTAT);
-
-	if (!need_valid_mask) {
+	} else {
 		irq_base = devm_irq_alloc_descs(pctrl->dev, -1, 0,
 						community->npins, NUMA_NO_NODE);
 		if (irq_base < 0) {
@@ -1629,10 +1647,9 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		}
 	}
 
-	ret = gpiochip_irqchip_add(chip, &chv_gpio_irqchip, 0,
-				   handle_bad_irq, IRQ_TYPE_NONE);
+	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
 	if (ret) {
-		dev_err(pctrl->dev, "failed to add IRQ chip\n");
+		dev_err(pctrl->dev, "Failed to register gpiochip\n");
 		return ret;
 	}
 
@@ -1646,8 +1663,6 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		}
 	}
 
-	gpiochip_set_chained_irqchip(chip, &chv_gpio_irqchip, irq,
-				     chv_gpio_irq_handler);
 	return 0;
 }
 

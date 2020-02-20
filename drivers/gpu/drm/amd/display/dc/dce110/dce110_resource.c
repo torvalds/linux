@@ -275,6 +275,14 @@ static const struct dce_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCE110(_MASK)
 };
 
+static const struct dce110_aux_registers_shift aux_shift = {
+	DCE_AUX_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce110_aux_registers_mask aux_mask = {
+	DCE_AUX_MASK_SH_LIST(_MASK)
+};
+
 #define opp_regs(id)\
 [id] = {\
 	OPP_DCE_110_REG_LIST(id),\
@@ -439,6 +447,37 @@ static const struct dc_plane_cap underlay_plane_cap = {
 #define CC_DC_HDMI_STRAPS__AUDIO_STREAM_NUMBER_MASK 0x700
 #define CC_DC_HDMI_STRAPS__AUDIO_STREAM_NUMBER__SHIFT 0x8
 #endif
+
+static int map_transmitter_id_to_phy_instance(
+	enum transmitter transmitter)
+{
+	switch (transmitter) {
+	case TRANSMITTER_UNIPHY_A:
+		return 0;
+	break;
+	case TRANSMITTER_UNIPHY_B:
+		return 1;
+	break;
+	case TRANSMITTER_UNIPHY_C:
+		return 2;
+	break;
+	case TRANSMITTER_UNIPHY_D:
+		return 3;
+	break;
+	case TRANSMITTER_UNIPHY_E:
+		return 4;
+	break;
+	case TRANSMITTER_UNIPHY_F:
+		return 5;
+	break;
+	case TRANSMITTER_UNIPHY_G:
+		return 6;
+	break;
+	default:
+		ASSERT(0);
+		return 0;
+	}
+}
 
 static void read_dce_straps(
 	struct dc_context *ctx,
@@ -617,14 +656,18 @@ static struct link_encoder *dce110_link_encoder_create(
 {
 	struct dce110_link_encoder *enc110 =
 		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
+	int link_regs_id;
 
 	if (!enc110)
 		return NULL;
 
+	link_regs_id =
+		map_transmitter_id_to_phy_instance(enc_init_data->transmitter);
+
 	dce110_link_encoder_construct(enc110,
 				      enc_init_data,
 				      &link_enc_feature,
-				      &link_enc_regs[enc_init_data->transmitter],
+				      &link_enc_regs[link_regs_id],
 				      &link_enc_aux_regs[enc_init_data->channel - 1],
 				      &link_enc_hpd_regs[enc_init_data->hpd_source]);
 	return &enc110->base;
@@ -657,7 +700,10 @@ struct dce_aux *dce110_aux_engine_create(
 
 	dce110_aux_engine_construct(aux_engine, ctx, inst,
 				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
-				    &aux_engine_regs[inst]);
+				    &aux_engine_regs[inst],
+					&aux_mask,
+					&aux_shift,
+					ctx->dc->caps.extended_aux_timeout_support);
 
 	return &aux_engine->base;
 }
@@ -736,7 +782,7 @@ void dce110_clock_source_destroy(struct clock_source **clk_src)
 	*clk_src = NULL;
 }
 
-static void destruct(struct dce110_resource_pool *pool)
+static void dce110_resource_destruct(struct dce110_resource_pool *pool)
 {
 	unsigned int i;
 
@@ -1051,6 +1097,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 		struct dc_stream_state *stream)
 {
 	struct dc *dc = stream->ctx->dc;
+	struct dce_hwseq *hws = dc->hwseq;
 	struct resource_context *res_ctx = &context->res_ctx;
 	unsigned int underlay_idx = pool->underlay_pipe_index;
 	struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[underlay_idx];
@@ -1071,7 +1118,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 		struct tg_color black_color = {0};
 		struct dc_bios *dcb = dc->ctx->dc_bios;
 
-		dc->hwss.enable_display_power_gating(
+		hws->funcs.enable_display_power_gating(
 				dc,
 				pipe_ctx->stream_res.tg->inst,
 				dcb, PIPE_GATING_CONTROL_DISABLE);
@@ -1115,7 +1162,7 @@ static void dce110_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
 
-	destruct(dce110_pool);
+	dce110_resource_destruct(dce110_pool);
 	kfree(dce110_pool);
 	*pool = NULL;
 }
@@ -1267,7 +1314,7 @@ const struct resource_caps *dce110_resource_cap(
 		return &carrizo_resource_cap;
 }
 
-static bool construct(
+static bool dce110_resource_construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
 	struct dce110_resource_pool *pool,
@@ -1293,6 +1340,7 @@ static bool construct(
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 128;
 	dc->caps.is_apu = true;
+	dc->caps.extended_aux_timeout_support = false;
 
 	/*************************************************
 	 *  Create resources                             *
@@ -1445,7 +1493,7 @@ static bool construct(
 	return true;
 
 res_create_fail:
-	destruct(pool);
+	dce110_resource_destruct(pool);
 	return false;
 }
 
@@ -1460,7 +1508,7 @@ struct resource_pool *dce110_create_resource_pool(
 	if (!pool)
 		return NULL;
 
-	if (construct(num_virtual_links, dc, pool, asic_id))
+	if (dce110_resource_construct(num_virtual_links, dc, pool, asic_id))
 		return &pool->base;
 
 	kfree(pool);

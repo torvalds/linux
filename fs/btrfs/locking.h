@@ -6,6 +6,8 @@
 #ifndef BTRFS_LOCKING_H
 #define BTRFS_LOCKING_H
 
+#include "extent_io.h"
+
 #define BTRFS_WRITE_LOCK 1
 #define BTRFS_READ_LOCK 2
 #define BTRFS_WRITE_LOCK_BLOCKING 3
@@ -19,11 +21,20 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb);
 void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb);
 void btrfs_set_lock_blocking_read(struct extent_buffer *eb);
 void btrfs_set_lock_blocking_write(struct extent_buffer *eb);
-void btrfs_assert_tree_locked(struct extent_buffer *eb);
 int btrfs_try_tree_read_lock(struct extent_buffer *eb);
 int btrfs_try_tree_write_lock(struct extent_buffer *eb);
 int btrfs_tree_read_lock_atomic(struct extent_buffer *eb);
 
+#ifdef CONFIG_BTRFS_DEBUG
+static inline void btrfs_assert_tree_locked(struct extent_buffer *eb) {
+	BUG_ON(!eb->write_locks);
+}
+#else
+static inline void btrfs_assert_tree_locked(struct extent_buffer *eb) { }
+#endif
+
+void btrfs_set_path_blocking(struct btrfs_path *p);
+void btrfs_unlock_up_safe(struct btrfs_path *path, int level);
 
 static inline void btrfs_tree_unlock_rw(struct extent_buffer *eb, int rw)
 {

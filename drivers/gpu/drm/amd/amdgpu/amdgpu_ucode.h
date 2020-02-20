@@ -108,6 +108,12 @@ struct ta_firmware_header_v1_0 {
 	uint32_t ta_ras_ucode_version;
 	uint32_t ta_ras_offset_bytes;
 	uint32_t ta_ras_size_bytes;
+	uint32_t ta_hdcp_ucode_version;
+	uint32_t ta_hdcp_offset_bytes;
+	uint32_t ta_hdcp_size_bytes;
+	uint32_t ta_dtm_ucode_version;
+	uint32_t ta_dtm_offset_bytes;
+	uint32_t ta_dtm_size_bytes;
 };
 
 /* version_major=1, version_minor=0 */
@@ -245,6 +251,13 @@ struct dmcu_firmware_header_v1_0 {
 	uint32_t intv_size_bytes;  /* size of interrupt vectors, in bytes */
 };
 
+/* version_major=1, version_minor=0 */
+struct dmcub_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t inst_const_bytes; /* size of instruction region, in bytes */
+	uint32_t bss_data_bytes; /* size of bss/data region, in bytes */
+};
+
 /* header is fixed size */
 union amdgpu_firmware_header {
 	struct common_firmware_header common;
@@ -262,6 +275,7 @@ union amdgpu_firmware_header {
 	struct sdma_firmware_header_v1_1 sdma_v1_1;
 	struct gpu_info_firmware_header_v1_0 gpu_info;
 	struct dmcu_firmware_header_v1_0 dmcu;
+	struct dmcub_firmware_header_v1_0 dmcub;
 	uint8_t raw[0x100];
 };
 
@@ -286,10 +300,10 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_CP_MEC2_JT,
 	AMDGPU_UCODE_ID_CP_MES,
 	AMDGPU_UCODE_ID_CP_MES_DATA,
-	AMDGPU_UCODE_ID_RLC_G,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM,
+	AMDGPU_UCODE_ID_RLC_G,
 	AMDGPU_UCODE_ID_STORAGE,
 	AMDGPU_UCODE_ID_SMC,
 	AMDGPU_UCODE_ID_UVD,
@@ -301,6 +315,7 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_DMCU_INTV,
 	AMDGPU_UCODE_ID_VCN0_RAM,
 	AMDGPU_UCODE_ID_VCN1_RAM,
+	AMDGPU_UCODE_ID_DMCUB,
 	AMDGPU_UCODE_ID_MAXIMUM,
 };
 

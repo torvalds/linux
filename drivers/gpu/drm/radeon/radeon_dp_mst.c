@@ -233,20 +233,25 @@ drm_encoder *radeon_mst_best_encoder(struct drm_connector *connector)
 	return &radeon_connector->mst_encoder->base;
 }
 
+static int
+radeon_dp_mst_detect(struct drm_connector *connector,
+		     struct drm_modeset_acquire_ctx *ctx,
+		     bool force)
+{
+	struct radeon_connector *radeon_connector =
+		to_radeon_connector(connector);
+	struct radeon_connector *master = radeon_connector->mst_port;
+
+	return drm_dp_mst_detect_port(connector, ctx, &master->mst_mgr,
+				      radeon_connector->port);
+}
+
 static const struct drm_connector_helper_funcs radeon_dp_mst_connector_helper_funcs = {
 	.get_modes = radeon_dp_mst_get_modes,
 	.mode_valid = radeon_dp_mst_mode_valid,
 	.best_encoder = radeon_mst_best_encoder,
+	.detect_ctx = radeon_dp_mst_detect,
 };
-
-static enum drm_connector_status
-radeon_dp_mst_detect(struct drm_connector *connector, bool force)
-{
-	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	struct radeon_connector *master = radeon_connector->mst_port;
-
-	return drm_dp_mst_detect_port(connector, &master->mst_mgr, radeon_connector->port);
-}
 
 static void
 radeon_dp_mst_connector_destroy(struct drm_connector *connector)
@@ -262,7 +267,6 @@ radeon_dp_mst_connector_destroy(struct drm_connector *connector)
 
 static const struct drm_connector_funcs radeon_dp_mst_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = radeon_dp_mst_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = radeon_dp_mst_connector_destroy,
 };
@@ -514,7 +518,7 @@ static bool radeon_mst_mode_fixup(struct drm_encoder *encoder,
 
 	mst_enc = radeon_encoder->enc_priv;
 
-	mst_enc->pbn = drm_dp_calc_pbn_mode(adjusted_mode->clock, bpp);
+	mst_enc->pbn = drm_dp_calc_pbn_mode(adjusted_mode->clock, bpp, false);
 
 	mst_enc->primary->active_device = mst_enc->primary->devices & mst_enc->connector->devices;
 	DRM_DEBUG_KMS("setting active device to %08x from %08x %08x for encoder %d\n",

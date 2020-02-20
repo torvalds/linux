@@ -11,7 +11,7 @@ allOf:
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   compatible:
@@ -38,6 +38,8 @@ required:
   - phy-handle
   - allwinner,sram
 
+unevaluatedProperties: false
+
 examples:
   - |
     emac: ethernet@1c0b000 {
@@ -48,9 +50,5 @@ examples:
         phy-handle = <&phy0>;
         allwinner,sram = <&emac_sram 1>;
     };
-
-# FIXME: We should set it, but it would report all the generic
-# properties as additional properties.
-# additionalProperties: false
 
 ...

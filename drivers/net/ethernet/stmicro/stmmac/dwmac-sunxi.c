@@ -18,7 +18,7 @@
 #include "stmmac_platform.h"
 
 struct sunxi_priv_data {
-	int interface;
+	phy_interface_t interface;
 	int clk_enabled;
 	struct clk *tx_clk;
 	struct regulator *regulator;
@@ -44,7 +44,7 @@ static int sun7i_gmac_init(struct platform_device *pdev, void *priv)
 	 * rate, which then uses the auto-reparenting feature of the
 	 * clock driver, and enabling/disabling the clock.
 	 */
-	if (gmac->interface == PHY_INTERFACE_MODE_RGMII) {
+	if (phy_interface_mode_is_rgmii(gmac->interface)) {
 		clk_set_rate(gmac->tx_clk, SUN7I_GMAC_GMII_RGMII_RATE);
 		clk_prepare_enable(gmac->tx_clk);
 		gmac->clk_enabled = 1;
@@ -118,7 +118,11 @@ static int sun7i_gmac_probe(struct platform_device *pdev)
 		goto err_remove_config_dt;
 	}
 
-	gmac->interface = of_get_phy_mode(dev->of_node);
+	ret = of_get_phy_mode(dev->of_node, &gmac->interface);
+	if (ret && ret != -ENODEV) {
+		dev_err(dev, "Can't get phy-mode\n");
+		goto err_remove_config_dt;
+	}
 
 	gmac->tx_clk = devm_clk_get(dev, "allwinner_gmac_tx");
 	if (IS_ERR(gmac->tx_clk)) {

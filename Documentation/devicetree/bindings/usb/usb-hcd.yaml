@@ -18,8 +18,13 @@ properties:
     description:
       List of all the USB PHYs on this HCD
 
+  phy-names:
+    description:
+      Name specifier for the USB PHY
+
 examples:
   - |
     usb {
         phys = <&usb2_phy1>, <&usb3_phy1>;
+        phy-names = "usb";
     };

@@ -118,6 +118,13 @@ void perf_evlist__stop_sb_thread(struct evlist *evlist);
 int perf_evlist__add_newtp(struct evlist *evlist,
 			   const char *sys, const char *name, void *handler);
 
+int __evlist__set_tracepoints_handlers(struct evlist *evlist,
+				       const struct evsel_str_handler *assocs,
+				       size_t nr_assocs);
+
+#define evlist__set_tracepoints_handlers(evlist, array) \
+	__evlist__set_tracepoints_handlers(evlist, array, ARRAY_SIZE(array))
+
 void __perf_evlist__set_sample_bit(struct evlist *evlist,
 				   enum perf_event_sample_format bit);
 void __perf_evlist__reset_sample_bit(struct evlist *evlist,
@@ -132,6 +139,11 @@ void __perf_evlist__reset_sample_bit(struct evlist *evlist,
 int perf_evlist__set_tp_filter(struct evlist *evlist, const char *filter);
 int perf_evlist__set_tp_filter_pid(struct evlist *evlist, pid_t pid);
 int perf_evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
+
+int perf_evlist__append_tp_filter(struct evlist *evlist, const char *filter);
+
+int perf_evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid);
+int perf_evlist__append_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
 
 struct evsel *
 perf_evlist__find_tracepoint_by_id(struct evlist *evlist, int id);
@@ -164,6 +176,7 @@ void perf_evlist__set_id_pos(struct evlist *evlist);
 bool perf_can_sample_identifier(void);
 bool perf_can_record_switch_events(void);
 bool perf_can_record_cpu_wide(void);
+bool perf_can_aux_sample(void);
 void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 			 struct callchain_param *callchain);
 int record_opts__config(struct record_opts *opts);
@@ -321,8 +334,16 @@ void perf_evlist__to_front(struct evlist *evlist,
 #define evlist__for_each_entry_safe(evlist, tmp, evsel) \
 	__evlist__for_each_entry_safe(&(evlist)->core.entries, tmp, evsel)
 
+#define evlist__for_each_cpu(evlist, index, cpu)	\
+	evlist__cpu_iter_start(evlist);			\
+	perf_cpu_map__for_each_cpu (cpu, index, (evlist)->core.all_cpus)
+
 void perf_evlist__set_tracking_event(struct evlist *evlist,
 				     struct evsel *tracking_evsel);
+
+void evlist__cpu_iter_start(struct evlist *evlist);
+bool evsel__cpu_iter_skip(struct evsel *ev, int cpu);
+bool evsel__cpu_iter_skip_no_inc(struct evsel *ev, int cpu);
 
 struct evsel *
 perf_evlist__find_evsel_by_str(struct evlist *evlist, const char *str);
@@ -335,5 +356,6 @@ bool perf_evlist__exclude_kernel(struct evlist *evlist);
 void perf_evlist__force_leader(struct evlist *evlist);
 
 struct evsel *perf_evlist__reset_weak_group(struct evlist *evlist,
-						 struct evsel *evsel);
+						 struct evsel *evsel,
+						bool close);
 #endif /* __PERF_EVLIST_H */

@@ -1145,6 +1145,14 @@ static void cdns3_transfer_completed(struct cdns3_device *priv_dev,
 		request = cdns3_next_request(&priv_ep->pending_req_list);
 		priv_req = to_cdns3_request(request);
 
+		trb = priv_ep->trb_pool + priv_ep->dequeue;
+
+		/* Request was dequeued and TRB was changed to TRB_LINK. */
+		if (TRB_FIELD_TO_TYPE(trb->control) == TRB_LINK) {
+			trace_cdns3_complete_trb(priv_ep, trb);
+			cdns3_move_deq_to_next_trb(priv_req);
+		}
+
 		/* Re-select endpoint. It could be changed by other CPU during
 		 * handling usb_gadget_giveback_request.
 		 */
@@ -1367,12 +1375,9 @@ static void cdns3_check_usb_interrupt_proceed(struct cdns3_device *priv_dev,
  */
 static irqreturn_t cdns3_device_irq_handler(int irq, void *data)
 {
-	struct cdns3_device *priv_dev;
-	struct cdns3 *cdns = data;
+	struct cdns3_device *priv_dev = data;
 	irqreturn_t ret = IRQ_NONE;
 	u32 reg;
-
-	priv_dev = cdns->gadget_dev;
 
 	/* check USB device interrupt */
 	reg = readl(&priv_dev->regs->usb_ists);
@@ -1411,14 +1416,12 @@ static irqreturn_t cdns3_device_irq_handler(int irq, void *data)
  */
 static irqreturn_t cdns3_device_thread_irq_handler(int irq, void *data)
 {
-	struct cdns3_device *priv_dev;
-	struct cdns3 *cdns = data;
+	struct cdns3_device *priv_dev = data;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned long flags;
 	int bit;
 	u32 reg;
 
-	priv_dev = cdns->gadget_dev;
 	spin_lock_irqsave(&priv_dev->lock, flags);
 
 	reg = readl(&priv_dev->regs->usb_ists);
@@ -2067,6 +2070,7 @@ int cdns3_gadget_ep_dequeue(struct usb_ep *ep,
 	struct usb_request *req, *req_temp;
 	struct cdns3_request *priv_req;
 	struct cdns3_trb *link_trb;
+	u8 req_on_hw_ring = 0;
 	unsigned long flags;
 	int ret = 0;
 
@@ -2083,8 +2087,10 @@ int cdns3_gadget_ep_dequeue(struct usb_ep *ep,
 
 	list_for_each_entry_safe(req, req_temp, &priv_ep->pending_req_list,
 				 list) {
-		if (request == req)
+		if (request == req) {
+			req_on_hw_ring = 1;
 			goto found;
+		}
 	}
 
 	list_for_each_entry_safe(req, req_temp, &priv_ep->deferred_req_list,
@@ -2096,26 +2102,20 @@ int cdns3_gadget_ep_dequeue(struct usb_ep *ep,
 	goto not_found;
 
 found:
-
-	if (priv_ep->wa1_trb == priv_req->trb)
-		cdns3_wa1_restore_cycle_bit(priv_ep);
-
 	link_trb = priv_req->trb;
-	cdns3_move_deq_to_next_trb(priv_req);
-	cdns3_gadget_giveback(priv_ep, priv_req, -ECONNRESET);
 
-	/* Update ring */
-	request = cdns3_next_request(&priv_ep->deferred_req_list);
-	if (request) {
-		priv_req = to_cdns3_request(request);
-
+	/* Update ring only if removed request is on pending_req_list list */
+	if (req_on_hw_ring) {
 		link_trb->buffer = TRB_BUFFER(priv_ep->trb_pool_dma +
 					      (priv_req->start_trb * TRB_SIZE));
 		link_trb->control = (link_trb->control & TRB_CYCLE) |
-				    TRB_TYPE(TRB_LINK) | TRB_CHAIN | TRB_TOGGLE;
-	} else {
-		priv_ep->flags |= EP_UPDATE_EP_TRBADDR;
+				    TRB_TYPE(TRB_LINK) | TRB_CHAIN;
+
+		if (priv_ep->wa1_trb == priv_req->trb)
+			cdns3_wa1_restore_cycle_bit(priv_ep);
 	}
+
+	cdns3_gadget_giveback(priv_ep, priv_req, -ECONNRESET);
 
 not_found:
 	spin_unlock_irqrestore(&priv_dev->lock, flags);
@@ -2324,8 +2324,6 @@ static void cdns3_gadget_config(struct cdns3_device *priv_dev)
 	writel(USB_CONF_CLK2OFFDS | USB_CONF_L1DS, &regs->usb_conf);
 
 	cdns3_configure_dmult(priv_dev, NULL);
-
-	cdns3_gadget_pullup(&priv_dev->gadget, 1);
 }
 
 /**
@@ -2340,9 +2338,35 @@ static int cdns3_gadget_udc_start(struct usb_gadget *gadget,
 {
 	struct cdns3_device *priv_dev = gadget_to_cdns3_device(gadget);
 	unsigned long flags;
+	enum usb_device_speed max_speed = driver->max_speed;
 
 	spin_lock_irqsave(&priv_dev->lock, flags);
 	priv_dev->gadget_driver = driver;
+
+	/* limit speed if necessary */
+	max_speed = min(driver->max_speed, gadget->max_speed);
+
+	switch (max_speed) {
+	case USB_SPEED_FULL:
+		writel(USB_CONF_SFORCE_FS, &priv_dev->regs->usb_conf);
+		writel(USB_CONF_USB3DIS, &priv_dev->regs->usb_conf);
+		break;
+	case USB_SPEED_HIGH:
+		writel(USB_CONF_USB3DIS, &priv_dev->regs->usb_conf);
+		break;
+	case USB_SPEED_SUPER:
+		break;
+	default:
+		dev_err(priv_dev->dev,
+			"invalid maximum_speed parameter %d\n",
+			max_speed);
+		/* fall through */
+	case USB_SPEED_UNKNOWN:
+		/* default to superspeed */
+		max_speed = USB_SPEED_SUPER;
+		break;
+	}
+
 	cdns3_gadget_config(priv_dev);
 	spin_unlock_irqrestore(&priv_dev->lock, flags);
 	return 0;
@@ -2376,6 +2400,8 @@ static int cdns3_gadget_udc_stop(struct usb_gadget *gadget)
 		writel(EP_CMD_EPRST, &priv_dev->regs->ep_cmd);
 		readl_poll_timeout_atomic(&priv_dev->regs->ep_cmd, val,
 					  !(val & EP_CMD_EPRST), 1, 100);
+
+		priv_ep->flags &= ~EP_CLAIMED;
 	}
 
 	/* disable interrupt for device */
@@ -2508,7 +2534,7 @@ void cdns3_gadget_exit(struct cdns3 *cdns)
 
 	priv_dev = cdns->gadget_dev;
 
-	devm_free_irq(cdns->dev, cdns->dev_irq, cdns);
+	devm_free_irq(cdns->dev, cdns->dev_irq, priv_dev);
 
 	pm_runtime_mark_last_busy(cdns->dev);
 	pm_runtime_put_autosuspend(cdns->dev);
@@ -2570,11 +2596,7 @@ static int cdns3_gadget_start(struct cdns3 *cdns)
 	/* Check the maximum_speed parameter */
 	switch (max_speed) {
 	case USB_SPEED_FULL:
-		writel(USB_CONF_SFORCE_FS, &priv_dev->regs->usb_conf);
-		break;
 	case USB_SPEED_HIGH:
-		writel(USB_CONF_USB3DIS, &priv_dev->regs->usb_conf);
-		break;
 	case USB_SPEED_SUPER:
 		break;
 	default:
@@ -2662,6 +2684,13 @@ static int __cdns3_gadget_init(struct cdns3 *cdns)
 {
 	int ret = 0;
 
+	/* Ensure 32-bit DMA Mask in case we switched back from Host mode */
+	ret = dma_set_mask_and_coherent(cdns->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(cdns->dev, "Failed to set dma mask: %d\n", ret);
+		return ret;
+	}
+
 	cdns3_drd_switch_gadget(cdns, 1);
 	pm_runtime_get_sync(cdns->dev);
 
@@ -2676,7 +2705,8 @@ static int __cdns3_gadget_init(struct cdns3 *cdns)
 	ret = devm_request_threaded_irq(cdns->dev, cdns->dev_irq,
 					cdns3_device_irq_handler,
 					cdns3_device_thread_irq_handler,
-					IRQF_SHARED, dev_name(cdns->dev), cdns);
+					IRQF_SHARED, dev_name(cdns->dev),
+					cdns->gadget_dev);
 
 	if (ret)
 		goto err0;
@@ -2699,8 +2729,6 @@ static int cdns3_gadget_suspend(struct cdns3 *cdns, bool do_wakeup)
 
 	/* disable interrupt for device */
 	writel(0, &priv_dev->regs->usb_ien);
-
-	cdns3_gadget_pullup(&priv_dev->gadget, 0);
 
 	return 0;
 }

@@ -1,5 +1,5 @@
 Kernel driver inspur-ipsps1
-=======================
+===========================
 
 Supported chips:
 
@@ -17,7 +17,7 @@ Usage Notes
 -----------
 
 This driver does not auto-detect devices. You will have to instantiate the
-devices explicitly. Please see Documentation/i2c/instantiating-devices for
+devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 
 Sysfs entries

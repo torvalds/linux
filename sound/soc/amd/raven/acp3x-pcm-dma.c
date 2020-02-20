@@ -275,16 +275,12 @@ static void config_acp3x_dma(struct i2s_stream_instance *rtd, int direction)
 		  rtd->acp3x_base + mmACP_EXTERNAL_INTR_CNTL);
 }
 
-static int acp3x_dma_open(struct snd_pcm_substream *substream)
+static int acp3x_dma_open(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream)
 {
 	int ret = 0;
-
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *prtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(prtd,
-								    DRV_NAME);
 	struct i2s_dev_data *adata = dev_get_drvdata(component->dev);
-
 	struct i2s_stream_instance *i2s_data = kzalloc(sizeof(struct i2s_stream_instance),
 						       GFP_KERNEL);
 	if (!i2s_data)
@@ -334,7 +330,8 @@ static u64 acp_get_byte_count(struct i2s_stream_instance *rtd, int direction)
 	return byte_count;
 }
 
-static int acp3x_dma_hw_params(struct snd_pcm_substream *substream,
+static int acp3x_dma_hw_params(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params)
 {
 	int status;
@@ -362,7 +359,8 @@ static int acp3x_dma_hw_params(struct snd_pcm_substream *substream,
 	return status;
 }
 
-static snd_pcm_uframes_t acp3x_dma_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t acp3x_dma_pointer(struct snd_soc_component *component,
+					   struct snd_pcm_substream *substream)
 {
 	u32 pos = 0;
 	u32 buffersize = 0;
@@ -379,33 +377,32 @@ static snd_pcm_uframes_t acp3x_dma_pointer(struct snd_pcm_substream *substream)
 	return bytes_to_frames(substream->runtime, pos);
 }
 
-static int acp3x_dma_new(struct snd_soc_pcm_runtime *rtd)
+static int acp3x_dma_new(struct snd_soc_component *component,
+			 struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
-								    DRV_NAME);
 	struct device *parent = component->dev->parent;
 	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
 					      parent, MIN_BUFFER, MAX_BUFFER);
 	return 0;
 }
 
-static int acp3x_dma_hw_free(struct snd_pcm_substream *substream)
+static int acp3x_dma_hw_free(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream)
 {
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static int acp3x_dma_mmap(struct snd_pcm_substream *substream,
+static int acp3x_dma_mmap(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream,
 			  struct vm_area_struct *vma)
 {
 	return snd_pcm_lib_default_mmap(substream, vma);
 }
 
-static int acp3x_dma_close(struct snd_pcm_substream *substream)
+static int acp3x_dma_close(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *prtd = substream->private_data;
 	struct i2s_stream_instance *rtd = substream->runtime->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(prtd,
-								    DRV_NAME);
 	struct i2s_dev_data *adata = dev_get_drvdata(component->dev);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -421,17 +418,6 @@ static int acp3x_dma_close(struct snd_pcm_substream *substream)
 	kfree(rtd);
 	return 0;
 }
-
-static struct snd_pcm_ops acp3x_dma_ops = {
-	.open = acp3x_dma_open,
-	.close = acp3x_dma_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = acp3x_dma_hw_params,
-	.hw_free = acp3x_dma_hw_free,
-	.pointer = acp3x_dma_pointer,
-	.mmap = acp3x_dma_mmap,
-};
-
 
 static int acp3x_dai_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
@@ -610,9 +596,15 @@ static struct snd_soc_dai_driver acp3x_i2s_dai_driver = {
 };
 
 static const struct snd_soc_component_driver acp3x_i2s_component = {
-	.name           = DRV_NAME,
-	.ops		= &acp3x_dma_ops,
-	.pcm_new	= acp3x_dma_new,
+	.name		= DRV_NAME,
+	.open		= acp3x_dma_open,
+	.close		= acp3x_dma_close,
+	.ioctl		= snd_soc_pcm_lib_ioctl,
+	.hw_params	= acp3x_dma_hw_params,
+	.hw_free	= acp3x_dma_hw_free,
+	.pointer	= acp3x_dma_pointer,
+	.mmap		= acp3x_dma_mmap,
+	.pcm_construct	= acp3x_dma_new,
 };
 
 static int acp3x_audio_probe(struct platform_device *pdev)
@@ -631,7 +623,7 @@ static int acp3x_audio_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
-			return -ENODEV;
+		return -ENODEV;
 	}
 
 	adata = devm_kzalloc(&pdev->dev, sizeof(*adata), GFP_KERNEL);
