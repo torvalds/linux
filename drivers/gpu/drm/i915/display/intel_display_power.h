@@ -100,6 +100,7 @@ enum i915_power_well_id {
 	SKL_DISP_PW_MISC_IO,
 	SKL_DISP_PW_1,
 	SKL_DISP_PW_2,
+	TGL_DISP_PW_3,
 	SKL_DISP_DC_OFF,
 };
 
