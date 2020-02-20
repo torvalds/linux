@@ -382,6 +382,7 @@ union cvmx_ipd_sub_port_qos_cnt {
 		uint64_t reserved_41_63:23;
 	} s;
 };
+
 typedef struct {
 	uint32_t dropped_octets;
 	uint32_t dropped_packets;
