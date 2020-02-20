@@ -29,6 +29,7 @@ struct aiu_interface {
 
 struct aiu_platform_data {
 	bool has_acodec;
+	bool has_clk_ctrl_more_i2s_div;
 };
 
 struct aiu {

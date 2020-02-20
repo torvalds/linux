@@ -10,7 +10,7 @@ config SND_MESON_AIU
 	imply SND_SOC_HDMI_CODEC if DRM_MESON_DW_HDMI
 	help
 	  Select Y or M to add support for the Audio output subsystem found
-	  in the Amlogic GX SoC family
+	  in the Amlogic Meson8, Meson8b and GX SoC families
 
 config SND_MESON_AXG_FIFO
 	tristate

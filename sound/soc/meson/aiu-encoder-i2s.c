@@ -111,12 +111,76 @@ static int aiu_encoder_i2s_setup_desc(struct snd_soc_component *component,
 	return 0;
 }
 
+static int aiu_encoder_i2s_set_legacy_div(struct snd_soc_component *component,
+					  struct snd_pcm_hw_params *params,
+					  unsigned int bs)
+{
+	switch (bs) {
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		/* These are the only valid legacy dividers */
+		break;
+
+	default:
+		dev_err(component->dev, "Unsupported i2s divider: %u\n", bs);
+		return -EINVAL;
+	};
+
+	snd_soc_component_update_bits(component, AIU_CLK_CTRL,
+				      AIU_CLK_CTRL_I2S_DIV,
+				      FIELD_PREP(AIU_CLK_CTRL_I2S_DIV,
+						 __ffs(bs)));
+
+	snd_soc_component_update_bits(component, AIU_CLK_CTRL_MORE,
+				      AIU_CLK_CTRL_MORE_I2S_DIV,
+				      FIELD_PREP(AIU_CLK_CTRL_MORE_I2S_DIV,
+						 0));
+
+	return 0;
+}
+
+static int aiu_encoder_i2s_set_more_div(struct snd_soc_component *component,
+					struct snd_pcm_hw_params *params,
+					unsigned int bs)
+{
+	/*
+	 * NOTE: this HW is odd.
+	 * In most configuration, the i2s divider is 'mclk / blck'.
+	 * However, in 16 bits - 8ch mode, this factor needs to be
+	 * increased by 50% to get the correct output rate.
+	 * No idea why !
+	 */
+	if (params_width(params) == 16 && params_channels(params) == 8) {
+		if (bs % 2) {
+			dev_err(component->dev,
+				"Cannot increase i2s divider by 50%%\n");
+			return -EINVAL;
+		}
+		bs += bs / 2;
+	}
+
+	/* Use CLK_MORE for mclk to bclk divider */
+	snd_soc_component_update_bits(component, AIU_CLK_CTRL,
+				      AIU_CLK_CTRL_I2S_DIV,
+				      FIELD_PREP(AIU_CLK_CTRL_I2S_DIV, 0));
+
+	snd_soc_component_update_bits(component, AIU_CLK_CTRL_MORE,
+				      AIU_CLK_CTRL_MORE_I2S_DIV,
+				      FIELD_PREP(AIU_CLK_CTRL_MORE_I2S_DIV,
+						 bs - 1));
+
+	return 0;
+}
+
 static int aiu_encoder_i2s_set_clocks(struct snd_soc_component *component,
 				      struct snd_pcm_hw_params *params)
 {
 	struct aiu *aiu = snd_soc_component_get_drvdata(component);
 	unsigned int srate = params_rate(params);
 	unsigned int fs, bs;
+	int ret;
 
 	/* Get the oversampling factor */
 	fs = DIV_ROUND_CLOSEST(clk_get_rate(aiu->i2s.clks[MCLK].clk), srate);
@@ -135,31 +199,15 @@ static int aiu_encoder_i2s_set_clocks(struct snd_soc_component *component,
 				      FIELD_PREP(AIU_CODEC_DAC_LRCLK_CTRL_DIV,
 						 64 - 1));
 
-	/* Use CLK_MORE for mclk to bclk divider */
-	snd_soc_component_update_bits(component, AIU_CLK_CTRL,
-				      AIU_CLK_CTRL_I2S_DIV, 0);
-
-	/*
-	 * NOTE: this HW is odd.
-	 * In most configuration, the i2s divider is 'mclk / blck'.
-	 * However, in 16 bits - 8ch mode, this factor needs to be
-	 * increased by 50% to get the correct output rate.
-	 * No idea why !
-	 */
 	bs = fs / 64;
-	if (params_width(params) == 16 && params_channels(params) == 8) {
-		if (bs % 2) {
-			dev_err(component->dev,
-				"Cannot increase i2s divider by 50%%\n");
-			return -EINVAL;
-		}
-		bs += bs / 2;
-	}
 
-	snd_soc_component_update_bits(component, AIU_CLK_CTRL_MORE,
-				      AIU_CLK_CTRL_MORE_I2S_DIV,
-				      FIELD_PREP(AIU_CLK_CTRL_MORE_I2S_DIV,
-						 bs - 1));
+	if (aiu->platform->has_clk_ctrl_more_i2s_div)
+		ret = aiu_encoder_i2s_set_more_div(component, params, bs);
+	else
+		ret = aiu_encoder_i2s_set_legacy_div(component, params, bs);
+
+	if (ret)
+		return ret;
 
 	/* Make sure amclk is used for HDMI i2s as well */
 	snd_soc_component_update_bits(component, AIU_CLK_CTRL_MORE,

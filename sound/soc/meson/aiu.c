@@ -351,15 +351,24 @@ static int aiu_remove(struct platform_device *pdev)
 
 static const struct aiu_platform_data aiu_gxbb_pdata = {
 	.has_acodec = false,
+	.has_clk_ctrl_more_i2s_div = true,
 };
 
 static const struct aiu_platform_data aiu_gxl_pdata = {
 	.has_acodec = true,
+	.has_clk_ctrl_more_i2s_div = true,
+};
+
+static const struct aiu_platform_data aiu_meson8_pdata = {
+	.has_acodec = false,
+	.has_clk_ctrl_more_i2s_div = false,
 };
 
 static const struct of_device_id aiu_of_match[] = {
 	{ .compatible = "amlogic,aiu-gxbb", .data = &aiu_gxbb_pdata },
 	{ .compatible = "amlogic,aiu-gxl", .data = &aiu_gxl_pdata },
+	{ .compatible = "amlogic,aiu-meson8", .data = &aiu_meson8_pdata },
+	{ .compatible = "amlogic,aiu-meson8b", .data = &aiu_meson8_pdata },
 	{}
 };
 MODULE_DEVICE_TABLE(of, aiu_of_match);
