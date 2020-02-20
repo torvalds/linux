@@ -363,6 +363,9 @@ static void __bump_priority(struct i915_sched_node *node, unsigned int bump)
 {
 	struct i915_sched_attr attr = node->attr;
 
+	if (attr.priority & bump)
+		return;
+
 	attr.priority |= bump;
 	__i915_schedule(node, &attr);
 }
