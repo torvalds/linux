@@ -453,6 +453,7 @@ struct ovl_cattr {
 struct dentry *ovl_create_real(struct inode *dir, struct dentry *newdentry,
 			       struct ovl_cattr *attr);
 int ovl_cleanup(struct inode *dir, struct dentry *dentry);
+struct dentry *ovl_lookup_temp(struct dentry *workdir);
 struct dentry *ovl_create_temp(struct dentry *workdir, struct ovl_cattr *attr);
 
 /* file.c */

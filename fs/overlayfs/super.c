@@ -1071,6 +1071,66 @@ out:
 	return err;
 }
 
+/*
+ * Returns 1 if RENAME_WHITEOUT is supported, 0 if not supported and
+ * negative values if error is encountered.
+ */
+static int ovl_check_rename_whiteout(struct dentry *workdir)
+{
+	struct inode *dir = d_inode(workdir);
+	struct dentry *temp;
+	struct dentry *dest;
+	struct dentry *whiteout;
+	struct name_snapshot name;
+	int err;
+
+	inode_lock_nested(dir, I_MUTEX_PARENT);
+
+	temp = ovl_create_temp(workdir, OVL_CATTR(S_IFREG | 0));
+	err = PTR_ERR(temp);
+	if (IS_ERR(temp))
+		goto out_unlock;
+
+	dest = ovl_lookup_temp(workdir);
+	err = PTR_ERR(dest);
+	if (IS_ERR(dest)) {
+		dput(temp);
+		goto out_unlock;
+	}
+
+	/* Name is inline and stable - using snapshot as a copy helper */
+	take_dentry_name_snapshot(&name, temp);
+	err = ovl_do_rename(dir, temp, dir, dest, RENAME_WHITEOUT);
+	if (err) {
+		if (err == -EINVAL)
+			err = 0;
+		goto cleanup_temp;
+	}
+
+	whiteout = lookup_one_len(name.name.name, workdir, name.name.len);
+	err = PTR_ERR(whiteout);
+	if (IS_ERR(whiteout))
+		goto cleanup_temp;
+
+	err = ovl_is_whiteout(whiteout);
+
+	/* Best effort cleanup of whiteout and temp file */
+	if (err)
+		ovl_cleanup(dir, whiteout);
+	dput(whiteout);
+
+cleanup_temp:
+	ovl_cleanup(dir, temp);
+	release_dentry_name_snapshot(&name);
+	dput(temp);
+	dput(dest);
+
+out_unlock:
+	inode_unlock(dir);
+
+	return err;
+}
+
 static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 			    struct path *workpath)
 {
@@ -1115,6 +1175,15 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 		dput(temp);
 	else
 		pr_warn("upper fs does not support tmpfile.\n");
+
+
+	/* Check if upper/work fs supports RENAME_WHITEOUT */
+	err = ovl_check_rename_whiteout(ofs->workdir);
+	if (err < 0)
+		goto out;
+
+	if (!err)
+		pr_warn("upper fs does not support RENAME_WHITEOUT.\n");
 
 	/*
 	 * Check if upper/work fs supports trusted.overlay.* xattr
