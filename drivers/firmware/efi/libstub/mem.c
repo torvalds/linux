@@ -230,15 +230,26 @@ void efi_free(unsigned long size, unsigned long addr)
 	efi_bs_call(free_pages, addr, nr_pages);
 }
 
-/*
- * Relocate a kernel image, either compressed or uncompressed.
- * In the ARM64 case, all kernel images are currently
- * uncompressed, and as such when we relocate it we need to
- * allocate additional space for the BSS segment. Any low
- * memory that this function should avoid needs to be
- * unavailable in the EFI memory map, as if the preferred
- * address is not available the lowest available address will
- * be used.
+/**
+ * efi_relocate_kernel() - copy memory area
+ * @image_addr:		pointer to address of memory area to copy
+ * @image_size:		size of memory area to copy
+ * @alloc_size:		minimum size of memory to allocate, must be greater or
+ *			equal to image_size
+ * @preferred_addr:	preferred target address
+ * @alignment:		minimum alignment of the allocated memory area. It
+ *			should be a power of two.
+ * @min_addr:		minimum target address
+ *
+ * Copy a memory area to a newly allocated memory area aligned according
+ * to @alignment but at least EFI_ALLOC_ALIGN. If the preferred address
+ * is not available, the allocated address will not be below @min_addr.
+ * On exit, @image_addr is updated to the target copy address that was used.
+ *
+ * This function is used to copy the Linux kernel verbatim. It does not apply
+ * any relocation changes.
+ *
+ * Return:		status code
  */
 efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 				 unsigned long image_size,
