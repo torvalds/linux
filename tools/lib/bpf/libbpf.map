@@ -237,4 +237,6 @@ LIBBPF_0.0.7 {
 } LIBBPF_0.0.6;
 
 LIBBPF_0.0.8 {
+	global:
+		bpf_program__set_attach_target;
 } LIBBPF_0.0.7;
