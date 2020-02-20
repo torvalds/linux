@@ -4803,9 +4803,9 @@ static __sum16 *skb_checksum_setup_ip(struct sk_buff *skb,
 				      typeof(IPPROTO_IP) proto,
 				      unsigned int off)
 {
-	switch (proto) {
-		int err;
+	int err;
 
+	switch (proto) {
 	case IPPROTO_TCP:
 		err = skb_maybe_pull_tail(skb, off + sizeof(struct tcphdr),
 					  off + MAX_TCP_HDR_LEN);
