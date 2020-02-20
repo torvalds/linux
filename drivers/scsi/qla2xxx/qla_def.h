@@ -414,7 +414,7 @@ struct els_logo_payload {
 struct els_plogi_payload {
 	uint8_t opcode;
 	uint8_t rsvd[3];
-	uint8_t data[112];
+	__be32	data[112 / 4];
 };
 
 struct ct_arg {
