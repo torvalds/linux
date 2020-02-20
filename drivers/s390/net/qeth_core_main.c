@@ -5447,7 +5447,6 @@ static int qeth_extract_skbs(struct qeth_card *card, int budget,
 {
 	int work_done = 0;
 
-	WARN_ON_ONCE(!budget);
 	*done = false;
 
 	while (budget) {
