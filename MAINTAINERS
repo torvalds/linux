@@ -5600,12 +5600,13 @@ S:	Maintained
 F:	drivers/gpu/drm/gma500/
 
 DRM DRIVERS FOR HISILICON
-M:	Xinliang Liu <z.liuxinliang@hisilicon.com>
+M:	Xinliang Liu <xinliang.liu@linaro.org>
 M:	Rongrong Zou <zourongrong@gmail.com>
+R:	John Stultz <john.stultz@linaro.org>
 R:	Xinwei Kong <kong.kongxinwei@hisilicon.com>
 R:	Chen Feng <puck.chen@hisilicon.com>
 L:	dri-devel@lists.freedesktop.org
-T:	git git://github.com/xin3liang/linux.git
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/hisilicon/
 F:	Documentation/devicetree/bindings/display/hisilicon/
