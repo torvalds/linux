@@ -561,6 +561,15 @@ static inline void ovl_lockdep_annotate_inode_mutex_key(struct inode *inode)
 #endif
 }
 
+static void ovl_next_ino(struct inode *inode)
+{
+	struct ovl_fs *ofs = inode->i_sb->s_fs_info;
+
+	inode->i_ino = atomic_long_inc_return(&ofs->last_ino);
+	if (unlikely(!inode->i_ino))
+		inode->i_ino = atomic_long_inc_return(&ofs->last_ino);
+}
+
 static void ovl_map_ino(struct inode *inode, unsigned long ino, int fsid)
 {
 	int xinobits = ovl_xino_bits(inode->i_sb);
@@ -572,12 +581,12 @@ static void ovl_map_ino(struct inode *inode, unsigned long ino, int fsid)
 	 * consistent with d_ino and st_ino values. An i_ino value inconsistent
 	 * with d_ino also causes nfsd readdirplus to fail.
 	 */
+	inode->i_ino = ino;
 	if (ovl_same_dev(inode->i_sb)) {
-		inode->i_ino = ino;
 		if (xinobits && fsid && !(ino >> (64 - xinobits)))
 			inode->i_ino |= (unsigned long)fsid << (64 - xinobits);
-	} else {
-		inode->i_ino = get_next_ino();
+	} else if (S_ISDIR(inode->i_mode)) {
+		ovl_next_ino(inode);
 	}
 }
 
