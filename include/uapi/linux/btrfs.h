@@ -97,15 +97,25 @@ struct btrfs_ioctl_qgroup_limit_args {
 };
 
 /*
- * flags for subvolumes
+ * Arguments for specification of subvolumes or devices, supporting by-name or
+ * by-id and flags
  *
- * Used by:
- * struct btrfs_ioctl_vol_args_v2.flags
+ * The set of supported flags depends on the ioctl
  *
  * BTRFS_SUBVOL_RDONLY is also provided/consumed by the following ioctls:
  * - BTRFS_IOC_SUBVOL_GETFLAGS
  * - BTRFS_IOC_SUBVOL_SETFLAGS
  */
+
+/* Supported flags for BTRFS_IOC_RM_DEV_V2 */
+#define BTRFS_DEVICE_REMOVE_ARGS_MASK					\
+	(BTRFS_DEVICE_SPEC_BY_ID)
+
+/* Supported flags for BTRFS_IOC_SNAP_CREATE_V2 and BTRFS_IOC_SUBVOL_CREATE_V2 */
+#define BTRFS_SUBVOL_CREATE_ARGS_MASK					\
+	(BTRFS_SUBVOL_CREATE_ASYNC |					\
+	 BTRFS_SUBVOL_RDONLY |						\
+	 BTRFS_SUBVOL_QGROUP_INHERIT)
 
 struct btrfs_ioctl_vol_args_v2 {
 	__s64 fd;
