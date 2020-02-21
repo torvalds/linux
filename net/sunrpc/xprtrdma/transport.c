@@ -286,7 +286,6 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 
 	rpcrdma_xprt_disconnect(r_xprt);
 	rpcrdma_buffer_destroy(&r_xprt->rx_buf);
-	rpcrdma_ia_close(&r_xprt->rx_ia);
 
 	xprt_rdma_free_addresses(xprt);
 	xprt_free(xprt);
@@ -347,10 +346,6 @@ xprt_setup_rdma(struct xprt_create *args)
 	xprt_rdma_format_addresses(xprt, sap);
 
 	new_xprt = rpcx_to_rdmax(xprt);
-	rc = rpcrdma_ia_open(new_xprt);
-	if (rc)
-		goto out1;
-
 	rc = rpcrdma_buffer_create(new_xprt);
 	if (rc)
 		goto out2;
@@ -372,8 +367,6 @@ out4:
 	rpcrdma_buffer_destroy(&new_xprt->rx_buf);
 	rc = -ENODEV;
 out2:
-	rpcrdma_ia_close(&new_xprt->rx_ia);
-out1:
 	trace_xprtrdma_op_destroy(new_xprt);
 	xprt_rdma_free_addresses(xprt);
 	xprt_free(xprt);

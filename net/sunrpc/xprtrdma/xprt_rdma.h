@@ -457,9 +457,7 @@ extern unsigned int xprt_rdma_memreg_strategy;
 /*
  * Interface Adapter calls - xprtrdma/verbs.c
  */
-int rpcrdma_ia_open(struct rpcrdma_xprt *xprt);
 void rpcrdma_ia_remove(struct rpcrdma_ia *ia);
-void rpcrdma_ia_close(struct rpcrdma_ia *);
 
 /*
  * Endpoint calls - xprtrdma/verbs.c

@@ -346,31 +346,6 @@ out:
  */
 
 /**
- * rpcrdma_ia_open - Open and initialize an Interface Adapter.
- * @xprt: transport with IA to (re)initialize
- *
- * Returns 0 on success, negative errno if an appropriate
- * Interface Adapter could not be found and opened.
- */
-int
-rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
-{
-	struct rpcrdma_ia *ia = &xprt->rx_ia;
-	int rc;
-
-	ia->ri_id = rpcrdma_create_id(xprt, ia);
-	if (IS_ERR(ia->ri_id)) {
-		rc = PTR_ERR(ia->ri_id);
-		goto out_err;
-	}
-	return 0;
-
-out_err:
-	rpcrdma_ia_close(ia);
-	return rc;
-}
-
-/**
  * rpcrdma_ia_remove - Handle device driver unload
  * @ia: interface adapter being removed
  *
@@ -401,26 +376,17 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 	trace_xprtrdma_remove(r_xprt);
 }
 
-/**
- * rpcrdma_ia_close - Clean up/close an IA.
- * @ia: interface adapter to close
- *
- */
-void
-rpcrdma_ia_close(struct rpcrdma_ia *ia)
-{
-	if (ia->ri_id && !IS_ERR(ia->ri_id))
-		rdma_destroy_id(ia->ri_id);
-	ia->ri_id = NULL;
-}
-
-static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt,
-			     struct rdma_cm_id *id)
+static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_connect_private *pmsg = &ep->rep_cm_private;
+	struct rdma_cm_id *id;
 	int rc;
+
+	id = rpcrdma_create_id(r_xprt, ia);
+	if (IS_ERR(id))
+		return PTR_ERR(id);
 
 	ep->rep_max_requests = r_xprt->rx_xprt.max_reqs;
 	ep->rep_inline_send = xprt_rdma_max_inline_write;
@@ -428,7 +394,8 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt,
 
 	rc = frwr_query_device(r_xprt, id->device);
 	if (rc)
-		return rc;
+		goto out_destroy;
+
 	r_xprt->rx_buf.rb_max_requests = cpu_to_be32(ep->rep_max_requests);
 
 	ep->rep_attr.event_handler = rpcrdma_qp_event_handler;
@@ -507,10 +474,12 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt,
 	rc = rdma_create_qp(id, ia->ri_pd, &ep->rep_attr);
 	if (rc)
 		goto out_destroy;
+	ia->ri_id = id;
 	return 0;
 
 out_destroy:
 	rpcrdma_ep_destroy(r_xprt);
+	rdma_destroy_id(id);
 	return rc;
 }
 
@@ -536,79 +505,8 @@ static void rpcrdma_ep_destroy(struct rpcrdma_xprt *r_xprt)
 	ia->ri_pd = NULL;
 }
 
-/* Re-establish a connection after a device removal event.
- * Unlike a normal reconnection, a fresh PD and a new set
- * of MRs and buffers is needed.
- */
-static int rpcrdma_ep_recreate_xprt(struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	int rc, err;
-
-	trace_xprtrdma_reinsert(r_xprt);
-
-	rc = -EHOSTUNREACH;
-	if (rpcrdma_ia_open(r_xprt))
-		goto out1;
-
-	rc = -ENETUNREACH;
-	err = rpcrdma_ep_create(r_xprt, ia->ri_id);
-	if (err)
-		goto out2;
-	return 0;
-
-out2:
-	rpcrdma_ia_close(ia);
-out1:
-	return rc;
-}
-
-static int rpcrdma_ep_reconnect(struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rdma_cm_id *id, *old;
-	int err, rc;
-
-	rc = -EHOSTUNREACH;
-	id = rpcrdma_create_id(r_xprt, ia);
-	if (IS_ERR(id))
-		goto out;
-
-	/* As long as the new ID points to the same device as the
-	 * old ID, we can reuse the transport's existing PD and all
-	 * previously allocated MRs. Also, the same device means
-	 * the transport's previous DMA mappings are still valid.
-	 *
-	 * This is a sanity check only. There should be no way these
-	 * point to two different devices here.
-	 */
-	old = id;
-	rc = -ENETUNREACH;
-	if (ia->ri_id->device != id->device) {
-		pr_err("rpcrdma: can't reconnect on different device!\n");
-		goto out_destroy;
-	}
-
-	err = rpcrdma_ep_create(r_xprt, id);
-	if (err)
-		goto out_destroy;
-
-	/* Atomically replace the transport's ID. */
-	rc = 0;
-	old = ia->ri_id;
-	ia->ri_id = id;
-
-out_destroy:
-	rdma_destroy_id(old);
-out:
-	return rc;
-}
-
-/**
- * rpcrdma_xprt_connect - Connect an unconnected transport
- * @r_xprt: controlling transport instance
- *
- * Returns 0 on success or a negative errno.
+/*
+ * Connect unconnected endpoint.
  */
 int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 {
@@ -618,25 +516,10 @@ int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 	int rc;
 
 retry:
-	switch (ep->rep_connected) {
-	case 0:
-		rc = -ENETUNREACH;
-		if (rpcrdma_ep_create(r_xprt, ia->ri_id))
-			goto out_noupdate;
-		break;
-	case -ENODEV:
-		rc = rpcrdma_ep_recreate_xprt(r_xprt);
-		if (rc)
-			goto out_noupdate;
-		break;
-	case 1:
-		rpcrdma_xprt_disconnect(r_xprt);
-		/* fall through */
-	default:
-		rc = rpcrdma_ep_reconnect(r_xprt);
-		if (rc)
-			goto out;
-	}
+	rpcrdma_xprt_disconnect(r_xprt);
+	rc = rpcrdma_ep_create(r_xprt);
+	if (rc)
+		goto out_noupdate;
 
 	ep->rep_connected = 0;
 	xprt_clear_connected(xprt);
@@ -712,6 +595,10 @@ out:
 	rpcrdma_sendctxs_destroy(r_xprt);
 
 	rpcrdma_ep_destroy(r_xprt);
+
+	if (ia->ri_id)
+		rdma_destroy_id(ia->ri_id);
+	ia->ri_id = NULL;
 }
 
 /* Fixed-size circular FIFO queue. This implementation is wait-free and
