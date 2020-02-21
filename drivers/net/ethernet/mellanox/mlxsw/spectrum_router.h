@@ -47,6 +47,7 @@ struct mlxsw_sp_router {
 	u32 adj_discard_index;
 	bool adj_discard_index_valid;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
+	struct mutex lock; /* Protects shared router resources */
 };
 
 struct mlxsw_sp_rif_ipip_lb;

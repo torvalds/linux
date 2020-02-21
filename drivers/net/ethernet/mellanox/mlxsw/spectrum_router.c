@@ -17,6 +17,7 @@
 #include <linux/refcount.h>
 #include <linux/jhash.h>
 #include <linux/net_namespace.h>
+#include <linux/mutex.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
@@ -8065,6 +8066,7 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	router = kzalloc(sizeof(*mlxsw_sp->router), GFP_KERNEL);
 	if (!router)
 		return -ENOMEM;
+	mutex_init(&router->lock);
 	mlxsw_sp->router = router;
 	router->mlxsw_sp = mlxsw_sp;
 
@@ -8168,6 +8170,7 @@ err_router_init:
 err_register_inet6addr_notifier:
 	unregister_inetaddr_notifier(&router->inetaddr_nb);
 err_register_inetaddr_notifier:
+	mutex_destroy(&mlxsw_sp->router->lock);
 	kfree(mlxsw_sp->router);
 	return err;
 }
@@ -8188,5 +8191,6 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	__mlxsw_sp_router_fini(mlxsw_sp);
 	unregister_inet6addr_notifier(&mlxsw_sp->router->inet6addr_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp->router->inetaddr_nb);
+	mutex_destroy(&mlxsw_sp->router->lock);
 	kfree(mlxsw_sp->router);
 }
