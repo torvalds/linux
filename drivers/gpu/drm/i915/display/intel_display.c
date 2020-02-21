@@ -13155,7 +13155,6 @@ static bool check_digital_port_conflicts(struct intel_atomic_state *state)
 		WARN_ON(!connector_state->crtc);
 
 		switch (encoder->type) {
-			unsigned int port_mask;
 		case INTEL_OUTPUT_DDI:
 			if (WARN_ON(!HAS_DDI(to_i915(dev))))
 				break;
@@ -13163,13 +13162,11 @@ static bool check_digital_port_conflicts(struct intel_atomic_state *state)
 		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_HDMI:
 		case INTEL_OUTPUT_EDP:
-			port_mask = 1 << encoder->port;
-
 			/* the same port mustn't appear more than once */
-			if (used_ports & port_mask)
+			if (used_ports & BIT(encoder->port))
 				ret = false;
 
-			used_ports |= port_mask;
+			used_ports |= BIT(encoder->port);
 			break;
 		case INTEL_OUTPUT_DP_MST:
 			used_mst_ports |=
