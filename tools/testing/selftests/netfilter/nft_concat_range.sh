@@ -1025,7 +1025,7 @@ format_noconcat() {
 add() {
 	if ! nft add element inet filter test "${1}"; then
 		err "Failed to add ${1} given ruleset:"
-		err "$(nft list ruleset -a)"
+		err "$(nft -a list ruleset)"
 		return 1
 	fi
 }
@@ -1045,7 +1045,7 @@ add_perf() {
 add_perf_norange() {
 	if ! nft add element netdev perf norange "${1}"; then
 		err "Failed to add ${1} given ruleset:"
-		err "$(nft list ruleset -a)"
+		err "$(nft -a list ruleset)"
 		return 1
 	fi
 }
@@ -1054,7 +1054,7 @@ add_perf_norange() {
 add_perf_noconcat() {
 	if ! nft add element netdev perf noconcat "${1}"; then
 		err "Failed to add ${1} given ruleset:"
-		err "$(nft list ruleset -a)"
+		err "$(nft -a list ruleset)"
 		return 1
 	fi
 }
@@ -1063,7 +1063,7 @@ add_perf_noconcat() {
 del() {
 	if ! nft delete element inet filter test "${1}"; then
 		err "Failed to delete ${1} given ruleset:"
-		err "$(nft list ruleset -a)"
+		err "$(nft -a list ruleset)"
 		return 1
 	fi
 }
@@ -1134,7 +1134,7 @@ send_match() {
 		err "  $(for f in ${src}; do
 			 eval format_\$f "${2}"; printf ' '; done)"
 		err "should have matched ruleset:"
-		err "$(nft list ruleset -a)"
+		err "$(nft -a list ruleset)"
 		return 1
 	fi
 	nft reset counter inet filter test >/dev/null
@@ -1160,7 +1160,7 @@ send_nomatch() {
 		err "  $(for f in ${src}; do
 			 eval format_\$f "${2}"; printf ' '; done)"
 		err "should not have matched ruleset:"
-		err "$(nft list ruleset -a)"
+		err "$(nft -a list ruleset)"
 		return 1
 	fi
 }
