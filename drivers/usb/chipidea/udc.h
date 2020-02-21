@@ -61,6 +61,7 @@ struct td_node {
 	struct list_head	td;
 	dma_addr_t		dma;
 	struct ci_hw_td		*ptr;
+	int			td_remaining_size;
 };
 
 /**
