@@ -6,6 +6,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kvm_host.h>
 
 #include <asm/kvm_ppc.h>
@@ -47,7 +49,18 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 	u64 newmsr, bescr;
 	int ra, rs;
 
-	switch (instr & 0xfc0007ff) {
+	/*
+	 * rfid, rfebb, and mtmsrd encode bit 31 = 0 since it's a reserved bit
+	 * in these instructions, so masking bit 31 out doesn't change these
+	 * instructions. For treclaim., tsr., and trechkpt. instructions if bit
+	 * 31 = 0 then they are per ISA invalid forms, however P9 UM, in section
+	 * 4.6.10 Book II Invalid Forms, informs specifically that ignoring bit
+	 * 31 is an acceptable way to handle these invalid forms that have
+	 * bit 31 = 0. Moreover, for emulation purposes both forms (w/ and wo/
+	 * bit 31 set) can generate a softpatch interrupt. Hence both forms
+	 * are handled below for these instructions so they behave the same way.
+	 */
+	switch (instr & PO_XOP_OPCODE_MASK) {
 	case PPC_INST_RFID:
 		/* XXX do we need to check for PR=0 here? */
 		newmsr = vcpu->arch.shregs.srr1;
@@ -108,7 +121,8 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 		vcpu->arch.shregs.msr = newmsr;
 		return RESUME_GUEST;
 
-	case PPC_INST_TSR:
+	/* ignore bit 31, see comment above */
+	case (PPC_INST_TSR & PO_XOP_OPCODE_MASK):
 		/* check for PR=1 and arch 2.06 bit set in PCR */
 		if ((msr & MSR_PR) && (vcpu->arch.vcore->pcr & PCR_ARCH_206)) {
 			/* generate an illegal instruction interrupt */
@@ -143,7 +157,8 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 		vcpu->arch.shregs.msr = msr;
 		return RESUME_GUEST;
 
-	case PPC_INST_TRECLAIM:
+	/* ignore bit 31, see comment above */
+	case (PPC_INST_TRECLAIM & PO_XOP_OPCODE_MASK):
 		/* check for TM disabled in the HFSCR or MSR */
 		if (!(vcpu->arch.hfscr & HFSCR_TM)) {
 			/* generate an illegal instruction interrupt */
@@ -179,7 +194,8 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 		vcpu->arch.shregs.msr &= ~MSR_TS_MASK;
 		return RESUME_GUEST;
 
-	case PPC_INST_TRECHKPT:
+	/* ignore bit 31, see comment above */
+	case (PPC_INST_TRECHKPT & PO_XOP_OPCODE_MASK):
 		/* XXX do we need to check for PR=0 here? */
 		/* check for TM disabled in the HFSCR or MSR */
 		if (!(vcpu->arch.hfscr & HFSCR_TM)) {
@@ -211,6 +227,8 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 	}
 
 	/* What should we do here? We didn't recognize the instruction */
-	WARN_ON_ONCE(1);
+	kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
+	pr_warn_ratelimited("Unrecognized TM-related instruction %#x for emulation", instr);
+
 	return RESUME_GUEST;
 }
