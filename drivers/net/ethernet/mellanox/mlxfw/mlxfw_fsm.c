@@ -114,6 +114,84 @@ retry:
 	return 0;
 }
 
+static int
+mlxfw_fsm_reactivate_err(struct mlxfw_dev *mlxfw_dev,
+			 struct netlink_ext_ack *extack, u8 err)
+{
+	enum mlxfw_fsm_reactivate_status status;
+
+#define MXFW_REACT_PRFX "Reactivate FSM: "
+#define MLXFW_REACT_ERR(msg, err) \
+	MLXFW_ERR_MSG(mlxfw_dev, extack, MXFW_REACT_PRFX msg, err)
+
+	status = min_t(enum mlxfw_fsm_reactivate_status, err,
+		       MLXFW_FSM_REACTIVATE_STATUS_MAX);
+
+	switch (status) {
+	case MLXFW_FSM_REACTIVATE_STATUS_BUSY:
+		MLXFW_REACT_ERR("busy", err);
+		break;
+	case MLXFW_FSM_REACTIVATE_STATUS_PROHIBITED_FW_VER_ERR:
+		MLXFW_REACT_ERR("prohibited fw ver", err);
+		break;
+	case MLXFW_FSM_REACTIVATE_STATUS_FIRST_PAGE_COPY_FAILED:
+		MLXFW_REACT_ERR("first page copy failed", err);
+		break;
+	case MLXFW_FSM_REACTIVATE_STATUS_FIRST_PAGE_ERASE_FAILED:
+		MLXFW_REACT_ERR("first page erase failed", err);
+		break;
+	case MLXFW_FSM_REACTIVATE_STATUS_FIRST_PAGE_RESTORE_FAILED:
+		MLXFW_REACT_ERR("first page restore failed", err);
+		break;
+	case MLXFW_FSM_REACTIVATE_STATUS_CANDIDATE_FW_DEACTIVATION_FAILED:
+		MLXFW_REACT_ERR("candidate fw deactivation failed", err);
+		break;
+	case MLXFW_FSM_REACTIVATE_STATUS_ERR_DEVICE_RESET_REQUIRED:
+		MLXFW_REACT_ERR("device reset required", err);
+		break;
+	case MLXFW_FSM_REACTIVATE_STATUS_ERR_FW_PROGRAMMING_NEEDED:
+		MLXFW_REACT_ERR("fw progamming needed", err);
+		break;
+	case MLXFW_FSM_REACTIVATE_STATUS_FW_ALREADY_ACTIVATED:
+		MLXFW_REACT_ERR("fw already activated", err);
+		break;
+	case MLXFW_FSM_REACTIVATE_STATUS_OK: /* fall through */
+	case MLXFW_FSM_REACTIVATE_STATUS_MAX:
+		MLXFW_REACT_ERR("unexpected error", err);
+		break;
+	};
+	return -EREMOTEIO;
+};
+
+static int mlxfw_fsm_reactivate(struct mlxfw_dev *mlxfw_dev,
+				struct netlink_ext_ack *extack,
+				bool *supported)
+{
+	u8 status;
+	int err;
+
+	if (!mlxfw_dev->ops->fsm_reactivate)
+		return 0;
+
+	err = mlxfw_dev->ops->fsm_reactivate(mlxfw_dev, &status);
+	if (err == -EOPNOTSUPP) {
+		*supported = false;
+		return 0;
+	}
+
+	if (err) {
+		MLXFW_ERR_MSG(mlxfw_dev, extack,
+			      "Could not reactivate firmware flash", err);
+		return err;
+	}
+
+	if (status == MLXFW_FSM_REACTIVATE_STATUS_OK ||
+	    status == MLXFW_FSM_REACTIVATE_STATUS_FW_ALREADY_ACTIVATED)
+		return 0;
+
+	return mlxfw_fsm_reactivate_err(mlxfw_dev, extack, status);
+}
+
 static void mlxfw_status_notify(struct mlxfw_dev *mlxfw_dev,
 				const char *msg, const char *comp_name,
 				u32 done_bytes, u32 total_bytes)
@@ -129,6 +207,7 @@ static void mlxfw_status_notify(struct mlxfw_dev *mlxfw_dev,
 static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 				 u32 fwhandle,
 				 struct mlxfw_mfa2_component *comp,
+				 bool reactivate_supp,
 				 struct netlink_ext_ack *extack)
 {
 	u16 comp_max_write_size;
@@ -166,8 +245,13 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 						   comp->index,
 						   comp->data_size);
 	if (err) {
-		MLXFW_ERR_MSG(mlxfw_dev, extack,
-			      "FSM component update failed", err);
+		if (!reactivate_supp)
+			MLXFW_ERR_MSG(mlxfw_dev, extack,
+				      "FSM component update failed, FW reactivate is not supported",
+				      err);
+		else
+			MLXFW_ERR_MSG(mlxfw_dev, extack,
+				      "FSM component update failed", err);
 		return err;
 	}
 
@@ -221,6 +305,7 @@ err_out:
 
 static int mlxfw_flash_components(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 				  struct mlxfw_mfa2_file *mfa2_file,
+				  bool reactivate_supp,
 				  struct netlink_ext_ack *extack)
 {
 	u32 component_count;
@@ -250,7 +335,8 @@ static int mlxfw_flash_components(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 
 		mlxfw_info(mlxfw_dev, "Flashing component type %d\n",
 			   comp->index);
-		err = mlxfw_flash_component(mlxfw_dev, fwhandle, comp, extack);
+		err = mlxfw_flash_component(mlxfw_dev, fwhandle, comp,
+					    reactivate_supp, extack);
 		mlxfw_mfa2_file_component_put(comp);
 		if (err)
 			return err;
@@ -263,6 +349,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 			 struct netlink_ext_ack *extack)
 {
 	struct mlxfw_mfa2_file *mfa2_file;
+	bool reactivate_supp = true;
 	u32 fwhandle;
 	int err;
 
@@ -296,7 +383,17 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	if (err)
 		goto err_state_wait_idle_to_locked;
 
-	err = mlxfw_flash_components(mlxfw_dev, fwhandle, mfa2_file, extack);
+	err = mlxfw_fsm_reactivate(mlxfw_dev, extack, &reactivate_supp);
+	if (err)
+		goto err_fsm_reactivate;
+
+	err = mlxfw_fsm_state_wait(mlxfw_dev, fwhandle,
+				   MLXFW_FSM_STATE_LOCKED, extack);
+	if (err)
+		goto err_state_wait_reactivate_to_locked;
+
+	err = mlxfw_flash_components(mlxfw_dev, fwhandle, mfa2_file,
+				     reactivate_supp, extack);
 	if (err)
 		goto err_flash_components;
 
@@ -326,6 +423,8 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 err_state_wait_activate_to_locked:
 err_fsm_activate:
 err_flash_components:
+err_state_wait_reactivate_to_locked:
+err_fsm_reactivate:
 err_state_wait_idle_to_locked:
 	mlxfw_dev->ops->fsm_release(mlxfw_dev, fwhandle);
 err_fsm_lock:

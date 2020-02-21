@@ -55,6 +55,20 @@ enum mlxfw_fsm_state_err {
 	MLXFW_FSM_STATE_ERR_MAX,
 };
 
+enum mlxfw_fsm_reactivate_status {
+	MLXFW_FSM_REACTIVATE_STATUS_OK,
+	MLXFW_FSM_REACTIVATE_STATUS_BUSY,
+	MLXFW_FSM_REACTIVATE_STATUS_PROHIBITED_FW_VER_ERR,
+	MLXFW_FSM_REACTIVATE_STATUS_FIRST_PAGE_COPY_FAILED,
+	MLXFW_FSM_REACTIVATE_STATUS_FIRST_PAGE_ERASE_FAILED,
+	MLXFW_FSM_REACTIVATE_STATUS_FIRST_PAGE_RESTORE_FAILED,
+	MLXFW_FSM_REACTIVATE_STATUS_CANDIDATE_FW_DEACTIVATION_FAILED,
+	MLXFW_FSM_REACTIVATE_STATUS_FW_ALREADY_ACTIVATED,
+	MLXFW_FSM_REACTIVATE_STATUS_ERR_DEVICE_RESET_REQUIRED,
+	MLXFW_FSM_REACTIVATE_STATUS_ERR_FW_PROGRAMMING_NEEDED,
+	MLXFW_FSM_REACTIVATE_STATUS_MAX,
+};
+
 struct mlxfw_dev_ops {
 	int (*component_query)(struct mlxfw_dev *mlxfw_dev, u16 component_index,
 			       u32 *p_max_size, u8 *p_align_bits,
@@ -72,6 +86,8 @@ struct mlxfw_dev_ops {
 				    u16 component_index);
 
 	int (*fsm_activate)(struct mlxfw_dev *mlxfw_dev, u32 fwhandle);
+
+	int (*fsm_reactivate)(struct mlxfw_dev *mlxfw_dev, u8 *status);
 
 	int (*fsm_query_state)(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 			       enum mlxfw_fsm_state *fsm_state,
