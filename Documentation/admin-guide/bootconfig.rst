@@ -71,7 +71,15 @@ For example,::
  foo = bar, baz
  foo = qux  # !ERROR! we can not re-define same key
 
-Also, a sub-key and a value can not co-exist under a parent key.
+If you want to append the value to existing key as an array member,
+you can use ``+=`` operator. For example::
+
+ foo = bar, baz
+ foo += qux
+
+In this case, the key ``foo`` has ``bar``, ``baz`` and ``qux``.
+
+However, a sub-key and a value can not co-exist under a parent key.
 For example, following config is NOT allowed.::
 
  foo = value1

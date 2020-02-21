@@ -578,7 +578,7 @@ static int __init __xbc_parse_keys(char *k)
 	return __xbc_add_key(k);
 }
 
-static int __init xbc_parse_kv(char **k, char *v)
+static int __init xbc_parse_kv(char **k, char *v, int op)
 {
 	struct xbc_node *prev_parent = last_parent;
 	struct xbc_node *child;
@@ -593,7 +593,7 @@ static int __init xbc_parse_kv(char **k, char *v)
 	if (child) {
 		if (xbc_node_is_key(child))
 			return xbc_parse_error("Value is mixed with subkey", v);
-		else
+		else if (op == '=')
 			return xbc_parse_error("Value is redefined", v);
 	}
 
@@ -774,7 +774,7 @@ int __init xbc_init(char *buf)
 
 	p = buf;
 	do {
-		q = strpbrk(p, "{}=;\n#");
+		q = strpbrk(p, "{}=+;\n#");
 		if (!q) {
 			p = skip_spaces(p);
 			if (*p != '\0')
@@ -785,8 +785,15 @@ int __init xbc_init(char *buf)
 		c = *q;
 		*q++ = '\0';
 		switch (c) {
+		case '+':
+			if (*q++ != '=') {
+				ret = xbc_parse_error("Wrong '+' operator",
+							q - 2);
+				break;
+			}
+			/* Fall through */
 		case '=':
-			ret = xbc_parse_kv(&p, q);
+			ret = xbc_parse_kv(&p, q, c);
 			break;
 		case '{':
 			ret = xbc_open_brace(&p, q);
