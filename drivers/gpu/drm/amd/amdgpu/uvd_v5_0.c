@@ -208,12 +208,9 @@ done:
 static int uvd_v5_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring = &adev->uvd.inst->ring;
 
 	if (RREG32(mmUVD_STATUS) != 0)
 		uvd_v5_0_stop(adev);
-
-	ring->sched.ready = false;
 
 	return 0;
 }

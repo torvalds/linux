@@ -320,8 +320,6 @@ static void cik_sdma_gfx_stop(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i], rb_cntl);
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], 0);
 	}
-	sdma0->sched.ready = false;
-	sdma1->sched.ready = false;
 }
 
 /**

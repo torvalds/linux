@@ -124,7 +124,6 @@ static void si_dma_stop(struct amdgpu_device *adev)
 
 		if (adev->mman.buffer_funcs_ring == ring)
 			amdgpu_ttm_set_buffer_funcs_status(adev, false);
-		ring->sched.ready = false;
 	}
 }
 

@@ -227,13 +227,10 @@ done:
 static int vcn_v1_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring = &adev->vcn.inst->ring_dec;
 
 	if ((adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) ||
 		RREG32_SOC15(VCN, 0, mmUVD_STATUS))
 		vcn_v1_0_set_powergating_state(adev, AMD_PG_STATE_GATE);
-
-	ring->sched.ready = false;
 
 	return 0;
 }

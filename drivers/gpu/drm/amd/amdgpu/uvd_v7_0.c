@@ -600,19 +600,12 @@ done:
 static int uvd_v7_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i;
 
 	if (!amdgpu_sriov_vf(adev))
 		uvd_v7_0_stop(adev);
 	else {
 		/* full access mode, so don't touch any UVD register */
 		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
-	}
-
-	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
-		if (adev->uvd.harvest_config & (1 << i))
-			continue;
-		adev->uvd.inst[i].ring.sched.ready = false;
 	}
 
 	return 0;

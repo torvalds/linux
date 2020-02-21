@@ -539,7 +539,6 @@ static int vce_v4_0_hw_init(void *handle)
 static int vce_v4_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		/* vce_v4_0_wait_for_idle(handle); */
@@ -548,9 +547,6 @@ static int vce_v4_0_hw_fini(void *handle)
 		/* full access mode, so don't touch any VCE register */
 		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
 	}
-
-	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].sched.ready = false;
 
 	return 0;
 }
