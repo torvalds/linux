@@ -371,10 +371,10 @@ static void __mlxsw_sp_mr_route_del(struct mlxsw_sp_mr_table *mr_table,
 				    struct mlxsw_sp_mr_route *mr_route)
 {
 	mlxsw_sp_mr_mfc_offload_set(mr_route, false);
-	mlxsw_sp_mr_route_erase(mr_table, mr_route);
 	rhashtable_remove_fast(&mr_table->route_ht, &mr_route->ht_node,
 			       mlxsw_sp_mr_route_ht_params);
 	list_del(&mr_route->node);
+	mlxsw_sp_mr_route_erase(mr_table, mr_route);
 	mlxsw_sp_mr_route_destroy(mr_table, mr_route);
 }
 
@@ -415,6 +415,11 @@ int mlxsw_sp_mr_route_add(struct mlxsw_sp_mr_table *mr_table,
 		goto err_duplicate_route;
 	}
 
+	/* Write the route to the hardware */
+	err = mlxsw_sp_mr_route_write(mr_table, mr_route, replace);
+	if (err)
+		goto err_mr_route_write;
+
 	/* Put it in the table data-structures */
 	list_add_tail(&mr_route->node, &mr_table->route_list);
 	err = rhashtable_insert_fast(&mr_table->route_ht,
@@ -422,11 +427,6 @@ int mlxsw_sp_mr_route_add(struct mlxsw_sp_mr_table *mr_table,
 				     mlxsw_sp_mr_route_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
-
-	/* Write the route to the hardware */
-	err = mlxsw_sp_mr_route_write(mr_table, mr_route, replace);
-	if (err)
-		goto err_mr_route_write;
 
 	/* Destroy the original route */
 	if (replace) {
@@ -440,11 +440,10 @@ int mlxsw_sp_mr_route_add(struct mlxsw_sp_mr_table *mr_table,
 	mlxsw_sp_mr_mfc_offload_update(mr_route);
 	return 0;
 
-err_mr_route_write:
-	rhashtable_remove_fast(&mr_table->route_ht, &mr_route->ht_node,
-			       mlxsw_sp_mr_route_ht_params);
 err_rhashtable_insert:
 	list_del(&mr_route->node);
+	mlxsw_sp_mr_route_erase(mr_table, mr_route);
+err_mr_route_write:
 err_no_orig_route:
 err_duplicate_route:
 	mlxsw_sp_mr_route_destroy(mr_table, mr_route);
