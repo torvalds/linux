@@ -2286,9 +2286,7 @@ static void bpf_object__sanitize_btf_ext(struct bpf_object *obj)
 
 static bool bpf_object__is_btf_mandatory(const struct bpf_object *obj)
 {
-	return obj->efile.btf_maps_shndx >= 0 ||
-		obj->efile.st_ops_shndx >= 0 ||
-		obj->nr_extern > 0;
+	return obj->efile.st_ops_shndx >= 0 || obj->nr_extern > 0;
 }
 
 static int bpf_object__init_btf(struct bpf_object *obj,
@@ -4945,8 +4943,8 @@ int bpf_program__load(struct bpf_program *prog, char *license, __u32 kern_ver)
 {
 	int err = 0, fd, i, btf_id;
 
-	if (prog->type == BPF_PROG_TYPE_TRACING ||
-	    prog->type == BPF_PROG_TYPE_EXT) {
+	if ((prog->type == BPF_PROG_TYPE_TRACING ||
+	     prog->type == BPF_PROG_TYPE_EXT) && !prog->attach_btf_id) {
 		btf_id = libbpf_find_attach_btf_id(prog);
 		if (btf_id <= 0)
 			return btf_id;
@@ -6589,6 +6587,9 @@ static inline int __find_vmlinux_btf_id(struct btf *btf, const char *name,
 	else
 		err = btf__find_by_name_kind(btf, name, BTF_KIND_FUNC);
 
+	if (err <= 0)
+		pr_warn("%s is not found in vmlinux BTF\n", name);
+
 	return err;
 }
 
@@ -6661,8 +6662,6 @@ static int libbpf_find_attach_btf_id(struct bpf_program *prog)
 			err = __find_vmlinux_btf_id(prog->obj->btf_vmlinux,
 						    name + section_defs[i].len,
 						    attach_type);
-		if (err <= 0)
-			pr_warn("%s is not found in vmlinux BTF\n", name);
 		return err;
 	}
 	pr_warn("failed to identify btf_id based on ELF section name '%s'\n", name);
@@ -8136,6 +8135,31 @@ void bpf_program__bpil_offs_to_addr(struct bpf_prog_info_linear *info_linear)
 		bpf_prog_info_set_offset_u64(&info_linear->info,
 					     desc->array_offset, addr);
 	}
+}
+
+int bpf_program__set_attach_target(struct bpf_program *prog,
+				   int attach_prog_fd,
+				   const char *attach_func_name)
+{
+	int btf_id;
+
+	if (!prog || attach_prog_fd < 0 || !attach_func_name)
+		return -EINVAL;
+
+	if (attach_prog_fd)
+		btf_id = libbpf_find_prog_btf_id(attach_func_name,
+						 attach_prog_fd);
+	else
+		btf_id = __find_vmlinux_btf_id(prog->obj->btf_vmlinux,
+					       attach_func_name,
+					       prog->expected_attach_type);
+
+	if (btf_id < 0)
+		return btf_id;
+
+	prog->attach_btf_id = btf_id;
+	prog->attach_prog_fd = attach_prog_fd;
+	return 0;
 }
 
 int parse_cpu_mask_str(const char *s, bool **mask, int *mask_sz)

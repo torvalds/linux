@@ -235,3 +235,8 @@ LIBBPF_0.0.7 {
 		btf__align_of;
 		libbpf_find_kernel_btf;
 } LIBBPF_0.0.6;
+
+LIBBPF_0.0.8 {
+	global:
+		bpf_program__set_attach_target;
+} LIBBPF_0.0.7;
