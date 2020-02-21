@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
 
+#include <linux/mutex.h>
 #include <linux/rhashtable.h>
 #include <net/ipv6.h>
 
@@ -12,6 +13,7 @@ struct mlxsw_sp_mr {
 	void *catchall_route_priv;
 	struct delayed_work stats_update_dw;
 	struct list_head table_list;
+	struct mutex table_list_lock; /* Protects table_list */
 #define MLXSW_SP_MR_ROUTES_COUNTER_UPDATE_INTERVAL 5000 /* ms */
 	unsigned long priv[0];
 	/* priv has to be always the last item */
@@ -926,7 +928,9 @@ struct mlxsw_sp_mr_table *mlxsw_sp_mr_table_create(struct mlxsw_sp *mlxsw_sp,
 				       &catchall_route_params);
 	if (err)
 		goto err_ops_route_create;
+	mutex_lock(&mr->table_list_lock);
 	list_add_tail(&mr_table->node, &mr->table_list);
+	mutex_unlock(&mr->table_list_lock);
 	return mr_table;
 
 err_ops_route_create:
@@ -942,7 +946,9 @@ void mlxsw_sp_mr_table_destroy(struct mlxsw_sp_mr_table *mr_table)
 	struct mlxsw_sp_mr *mr = mlxsw_sp->mr;
 
 	WARN_ON(!mlxsw_sp_mr_table_empty(mr_table));
+	mutex_lock(&mr->table_list_lock);
 	list_del(&mr_table->node);
+	mutex_unlock(&mr->table_list_lock);
 	mr->mr_ops->route_destroy(mlxsw_sp, mr->priv,
 				  &mr_table->catchall_route_priv);
 	rhashtable_destroy(&mr_table->route_ht);
@@ -1000,10 +1006,12 @@ static void mlxsw_sp_mr_stats_update(struct work_struct *work)
 	unsigned long interval;
 
 	rtnl_lock();
+	mutex_lock(&mr->table_list_lock);
 	list_for_each_entry(mr_table, &mr->table_list, node)
 		list_for_each_entry(mr_route, &mr_table->route_list, node)
 			mlxsw_sp_mr_route_stats_update(mr_table->mlxsw_sp,
 						       mr_route);
+	mutex_unlock(&mr->table_list_lock);
 	rtnl_unlock();
 
 	interval = msecs_to_jiffies(MLXSW_SP_MR_ROUTES_COUNTER_UPDATE_INTERVAL);
@@ -1023,6 +1031,7 @@ int mlxsw_sp_mr_init(struct mlxsw_sp *mlxsw_sp,
 	mr->mr_ops = mr_ops;
 	mlxsw_sp->mr = mr;
 	INIT_LIST_HEAD(&mr->table_list);
+	mutex_init(&mr->table_list_lock);
 
 	err = mr_ops->init(mlxsw_sp, mr->priv);
 	if (err)
@@ -1034,6 +1043,7 @@ int mlxsw_sp_mr_init(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_core_schedule_dw(&mr->stats_update_dw, interval);
 	return 0;
 err:
+	mutex_destroy(&mr->table_list_lock);
 	kfree(mr);
 	return err;
 }
@@ -1044,5 +1054,6 @@ void mlxsw_sp_mr_fini(struct mlxsw_sp *mlxsw_sp)
 
 	cancel_delayed_work_sync(&mr->stats_update_dw);
 	mr->mr_ops->fini(mlxsw_sp, mr->priv);
+	mutex_destroy(&mr->table_list_lock);
 	kfree(mr);
 }
