@@ -410,6 +410,8 @@ struct clk_hw *imx_clk_hw_pll14xx(const char *name, const char *parent_name,
 	default:
 		pr_err("%s: Unknown pll type for pll clk %s\n",
 		       __func__, name);
+		kfree(pll);
+		return ERR_PTR(-EINVAL);
 	};
 
 	pll->base = base;
