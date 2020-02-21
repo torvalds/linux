@@ -35,6 +35,19 @@ struct binder_device {
 	struct inode *binderfs_inode;
 };
 
+static inline struct binder_device *binderfs_device_get(struct binder_device *dev)
+{
+	if (dev->binderfs_inode)
+		ihold(dev->binderfs_inode);
+	return dev;
+}
+
+static inline void binderfs_device_put(struct binder_device *dev)
+{
+	if (dev->binderfs_inode)
+		iput(dev->binderfs_inode);
+}
+
 /**
  * binderfs_mount_opts - mount options for binderfs
  * @max: maximum number of allocatable binderfs binder devices
