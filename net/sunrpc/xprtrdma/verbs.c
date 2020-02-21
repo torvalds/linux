@@ -116,16 +116,14 @@ static void rpcrdma_xprt_drain(struct rpcrdma_xprt *r_xprt)
  * @context: ep that owns QP where event occurred
  *
  * Called from the RDMA provider (device driver) possibly in an interrupt
- * context.
+ * context. The QP is always destroyed before the ID, so the ID will be
+ * reliably available when this handler is invoked.
  */
-static void
-rpcrdma_qp_event_handler(struct ib_event *event, void *context)
+static void rpcrdma_qp_event_handler(struct ib_event *event, void *context)
 {
 	struct rpcrdma_ep *ep = context;
-	struct rpcrdma_xprt *r_xprt = container_of(ep, struct rpcrdma_xprt,
-						   rx_ep);
 
-	trace_xprtrdma_qp_event(r_xprt, event);
+	trace_xprtrdma_qp_event(ep, event);
 }
 
 /**
@@ -202,11 +200,10 @@ out_flushed:
 	rpcrdma_rep_destroy(rep);
 }
 
-static void rpcrdma_update_cm_private(struct rpcrdma_xprt *r_xprt,
+static void rpcrdma_update_cm_private(struct rpcrdma_ep *ep,
 				      struct rdma_conn_param *param)
 {
 	const struct rpcrdma_connect_private *pmsg = param->private_data;
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	unsigned int rsize, wsize;
 
 	/* Default settings for RPC-over-RDMA Version One */
@@ -241,6 +238,7 @@ static void rpcrdma_update_cm_private(struct rpcrdma_xprt *r_xprt,
 static int
 rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
+	struct sockaddr *sap = (struct sockaddr *)&id->route.addr.dst_addr;
 	struct rpcrdma_xprt *r_xprt = id->context;
 	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
@@ -263,24 +261,21 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		complete(&ep->re_done);
 		return 0;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-		pr_info("rpcrdma: removing device %s for %s:%s\n",
-			ep->re_id->device->name,
-			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt));
-#endif
+		pr_info("rpcrdma: removing device %s for %pISpc\n",
+			ep->re_id->device->name, sap);
 		init_completion(&ep->re_remove_done);
 		ep->re_connect_status = -ENODEV;
 		xprt_force_disconnect(xprt);
 		wait_for_completion(&ep->re_remove_done);
-		trace_xprtrdma_remove(r_xprt);
+		trace_xprtrdma_remove(ep);
 
 		/* Return 1 to ensure the core destroys the id. */
 		return 1;
 	case RDMA_CM_EVENT_ESTABLISHED:
 		++xprt->connect_cookie;
 		ep->re_connect_status = 1;
-		rpcrdma_update_cm_private(r_xprt, &event->param.conn);
-		trace_xprtrdma_inline_thresh(r_xprt);
+		rpcrdma_update_cm_private(ep, &event->param.conn);
+		trace_xprtrdma_inline_thresh(ep);
 		wake_up_all(&ep->re_connect_wait);
 		break;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
@@ -290,9 +285,8 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		ep->re_connect_status = -ENETUNREACH;
 		goto disconnected;
 	case RDMA_CM_EVENT_REJECTED:
-		dprintk("rpcrdma: connection to %s:%s rejected: %s\n",
-			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
-			rdma_reject_msg(id, event->status));
+		dprintk("rpcrdma: connection to %pISpc rejected: %s\n",
+			sap, rdma_reject_msg(id, event->status));
 		ep->re_connect_status = -ECONNREFUSED;
 		if (event->status == IB_CM_REJ_STALE_CONN)
 			ep->re_connect_status = -EAGAIN;
@@ -307,8 +301,7 @@ disconnected:
 		break;
 	}
 
-	dprintk("RPC:       %s: %s:%s on %s/frwr: %s\n", __func__,
-		rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
+	dprintk("RPC:       %s: %pISpc on %s/frwr: %s\n", __func__, sap,
 		ep->re_id->device->name, rdma_event_msg(event->event));
 	return 0;
 }

@@ -375,37 +375,65 @@ TRACE_EVENT(xprtrdma_cm_event,
 
 TRACE_EVENT(xprtrdma_inline_thresh,
 	TP_PROTO(
-		const struct rpcrdma_xprt *r_xprt
+		const struct rpcrdma_ep *ep
 	),
 
-	TP_ARGS(r_xprt),
+	TP_ARGS(ep),
 
 	TP_STRUCT__entry(
-		__field(const void *, r_xprt)
 		__field(unsigned int, inline_send)
 		__field(unsigned int, inline_recv)
 		__field(unsigned int, max_send)
 		__field(unsigned int, max_recv)
-		__string(addr, rpcrdma_addrstr(r_xprt))
-		__string(port, rpcrdma_portstr(r_xprt))
+		__array(unsigned char, srcaddr, sizeof(struct sockaddr_in6))
+		__array(unsigned char, dstaddr, sizeof(struct sockaddr_in6))
 	),
 
 	TP_fast_assign(
-		const struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+		const struct rdma_cm_id *id = ep->re_id;
 
-		__entry->r_xprt = r_xprt;
 		__entry->inline_send = ep->re_inline_send;
 		__entry->inline_recv = ep->re_inline_recv;
 		__entry->max_send = ep->re_max_inline_send;
 		__entry->max_recv = ep->re_max_inline_recv;
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		memcpy(__entry->srcaddr, &id->route.addr.src_addr,
+		       sizeof(struct sockaddr_in6));
+		memcpy(__entry->dstaddr, &id->route.addr.dst_addr,
+		       sizeof(struct sockaddr_in6));
 	),
 
-	TP_printk("peer=[%s]:%s r_xprt=%p neg send/recv=%u/%u, calc send/recv=%u/%u",
-		__get_str(addr), __get_str(port), __entry->r_xprt,
+	TP_printk("%pISpc -> %pISpc neg send/recv=%u/%u, calc send/recv=%u/%u",
+		__entry->srcaddr, __entry->dstaddr,
 		__entry->inline_send, __entry->inline_recv,
 		__entry->max_send, __entry->max_recv
+	)
+);
+
+TRACE_EVENT(xprtrdma_remove,
+	TP_PROTO(
+		const struct rpcrdma_ep *ep
+	),
+
+	TP_ARGS(ep),
+
+	TP_STRUCT__entry(
+		__array(unsigned char, srcaddr, sizeof(struct sockaddr_in6))
+		__array(unsigned char, dstaddr, sizeof(struct sockaddr_in6))
+		__string(name, ep->re_id->device->name)
+	),
+
+	TP_fast_assign(
+		const struct rdma_cm_id *id = ep->re_id;
+
+		memcpy(__entry->srcaddr, &id->route.addr.src_addr,
+		       sizeof(struct sockaddr_in6));
+		memcpy(__entry->dstaddr, &id->route.addr.dst_addr,
+		       sizeof(struct sockaddr_in6));
+		__assign_str(name, id->device->name);
+	),
+
+	TP_printk("%pISpc -> %pISpc device=%s",
+		__entry->srcaddr, __entry->dstaddr, __get_str(name)
 	)
 );
 
@@ -415,7 +443,6 @@ DEFINE_CONN_EVENT(flush_dct);
 
 DEFINE_RXPRT_EVENT(xprtrdma_create);
 DEFINE_RXPRT_EVENT(xprtrdma_op_destroy);
-DEFINE_RXPRT_EVENT(xprtrdma_remove);
 DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
 DEFINE_RXPRT_EVENT(xprtrdma_op_close);
 DEFINE_RXPRT_EVENT(xprtrdma_op_setport);
@@ -482,32 +509,33 @@ TRACE_EVENT(xprtrdma_op_set_cto,
 
 TRACE_EVENT(xprtrdma_qp_event,
 	TP_PROTO(
-		const struct rpcrdma_xprt *r_xprt,
+		const struct rpcrdma_ep *ep,
 		const struct ib_event *event
 	),
 
-	TP_ARGS(r_xprt, event),
+	TP_ARGS(ep, event),
 
 	TP_STRUCT__entry(
-		__field(const void *, r_xprt)
-		__field(unsigned int, event)
+		__field(unsigned long, event)
 		__string(name, event->device->name)
-		__string(addr, rpcrdma_addrstr(r_xprt))
-		__string(port, rpcrdma_portstr(r_xprt))
+		__array(unsigned char, srcaddr, sizeof(struct sockaddr_in6))
+		__array(unsigned char, dstaddr, sizeof(struct sockaddr_in6))
 	),
 
 	TP_fast_assign(
-		__entry->r_xprt = r_xprt;
+		const struct rdma_cm_id *id = ep->re_id;
+
 		__entry->event = event->event;
 		__assign_str(name, event->device->name);
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		memcpy(__entry->srcaddr, &id->route.addr.src_addr,
+		       sizeof(struct sockaddr_in6));
+		memcpy(__entry->dstaddr, &id->route.addr.dst_addr,
+		       sizeof(struct sockaddr_in6));
 	),
 
-	TP_printk("peer=[%s]:%s r_xprt=%p: dev %s: %s (%u)",
-		__get_str(addr), __get_str(port), __entry->r_xprt,
-		__get_str(name), rdma_show_ib_event(__entry->event),
-		__entry->event
+	TP_printk("%pISpc -> %pISpc device=%s %s (%lu)",
+		__entry->srcaddr, __entry->dstaddr, __get_str(name),
+		rdma_show_ib_event(__entry->event), __entry->event
 	)
 );
 
