@@ -8,13 +8,17 @@
 	fragment@0 {
 		target = <&spi0>;
 		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "okay";
 
 			spidev@0{
+				reg = <0>;
 				status = "disabled";
 			};
 
 			spidev@1{
+				reg = <1>;
 				status = "disabled";
 			};
 		};
