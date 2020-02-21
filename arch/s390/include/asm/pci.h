@@ -231,6 +231,11 @@ static inline struct zpci_dev *to_zpci(struct pci_dev *pdev)
 	return pdev->sysdata;
 }
 
+static inline struct zpci_dev *to_zpci_dev(struct device *dev)
+{
+	return to_zpci(to_pci_dev(dev));
+}
+
 struct zpci_dev *get_zdev_by_fid(u32);
 
 /* DMA */
