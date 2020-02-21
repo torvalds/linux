@@ -673,6 +673,50 @@ int tb_port_unlock(struct tb_port *port)
 	return 0;
 }
 
+static int __tb_port_enable(struct tb_port *port, bool enable)
+{
+	int ret;
+	u32 phy;
+
+	if (!tb_port_is_null(port))
+		return -EINVAL;
+
+	ret = tb_port_read(port, &phy, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	if (enable)
+		phy &= ~LANE_ADP_CS_1_LD;
+	else
+		phy |= LANE_ADP_CS_1_LD;
+
+	return tb_port_write(port, &phy, TB_CFG_PORT,
+			     port->cap_phy + LANE_ADP_CS_1, 1);
+}
+
+/**
+ * tb_port_enable() - Enable lane adapter
+ * @port: Port to enable (can be %NULL)
+ *
+ * This is used for lane 0 and 1 adapters to enable it.
+ */
+int tb_port_enable(struct tb_port *port)
+{
+	return __tb_port_enable(port, true);
+}
+
+/**
+ * tb_port_disable() - Disable lane adapter
+ * @port: Port to disable (can be %NULL)
+ *
+ * This is used for lane 0 and 1 adapters to disable it.
+ */
+int tb_port_disable(struct tb_port *port)
+{
+	return __tb_port_enable(port, false);
+}
+
 /**
  * tb_init_port() - initialize a port
  *
