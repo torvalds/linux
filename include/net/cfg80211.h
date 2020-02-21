@@ -4462,8 +4462,8 @@ struct wiphy_iftype_akm_suites {
  *	the same number of arbitrary MAC addresses.
  * @registered: protects ->resume and ->suspend sysfs callbacks against
  *	unregister hardware
- * @debugfsdir: debugfs directory used for this wiphy, will be renamed
- *	automatically on wiphy renames
+ * @debugfsdir: debugfs directory used for this wiphy (ieee80211/<wiphyname>).
+ *	It will be renamed automatically on wiphy renames
  * @dev: (virtual) struct device for this wiphy
  * @wext: wireless extension handlers
  * @priv: driver private data (sized according to wiphy_new() parameter)
@@ -4689,7 +4689,6 @@ struct wiphy {
 
 	bool registered;
 
-	/* dir in debugfs: ieee80211/<wiphyname> */
 	struct dentry *debugfsdir;
 
 	const struct ieee80211_ht_cap *ht_capa_mod_mask;
