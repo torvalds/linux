@@ -72,12 +72,12 @@ struct wiphy;
  *
  * @IEEE80211_CHAN_DISABLED: This channel is disabled.
  * @IEEE80211_CHAN_NO_IR: do not initiate radiation, this includes
- * 	sending probe requests or beaconing.
+ *	sending probe requests or beaconing.
  * @IEEE80211_CHAN_RADAR: Radar detection is required on this channel.
  * @IEEE80211_CHAN_NO_HT40PLUS: extension channel above this channel
- * 	is not permitted.
+ *	is not permitted.
  * @IEEE80211_CHAN_NO_HT40MINUS: extension channel below this channel
- * 	is not permitted.
+ *	is not permitted.
  * @IEEE80211_CHAN_NO_OFDM: OFDM is not allowed on this channel.
  * @IEEE80211_CHAN_NO_80MHZ: If the driver supports 80 MHz on the band,
  *	this flag indicates that an 80 MHz channel cannot use this
@@ -1686,7 +1686,7 @@ struct mpath_info {
  * @basic_rates_len: number of basic rates
  * @ap_isolate: do not forward packets between connected stations
  * @ht_opmode: HT Operation mode
- * 	(u16 = opmode, -1 = do not change)
+ *	(u16 = opmode, -1 = do not change)
  * @p2p_ctwindow: P2P CT Window (-1 = no change)
  * @p2p_opp_ps: P2P opportunistic PS (-1 = no change)
  */
@@ -2062,8 +2062,8 @@ struct cfg80211_bss_select_adjust {
  * @ie_len: length of ie in octets
  * @flags: bit field of flags controlling operation
  * @match_sets: sets of parameters to be matched for a scan result
- * 	entry to be considered valid and to be passed to the host
- * 	(others are filtered out).
+ *	entry to be considered valid and to be passed to the host
+ *	(others are filtered out).
  *	If ommited, all results are passed.
  * @n_match_sets: number of match sets
  * @report_results: indicates that results were reported for this request
@@ -2456,7 +2456,7 @@ struct cfg80211_disassoc_request {
  *	will be used in ht_capa.  Un-supported values will be ignored.
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
  * @wep_keys: static WEP keys, if not NULL points to an array of
- * 	CFG80211_MAX_WEP_KEYS WEP keys
+ *	CFG80211_MAX_WEP_KEYS WEP keys
  * @wep_tx_key: key index (0..3) of the default TX static WEP key
  */
 struct cfg80211_ibss_params {
@@ -4426,7 +4426,7 @@ struct wiphy_iftype_akm_suites {
  *	note that if your driver uses wiphy_apply_custom_regulatory()
  *	the reg_notifier's request can be passed as NULL
  * @regd: the driver's regulatory domain, if one was requested via
- * 	the regulatory_hint() API. This can be used by the driver
+ *	the regulatory_hint() API. This can be used by the driver
  *	on the reg_notifier() if it chooses to ignore future
  *	regulatory domain changes caused by other drivers.
  * @signal_type: signal type reported in &struct cfg80211_bss.
@@ -5502,9 +5502,9 @@ void cfg80211_send_layer2_update(struct net_device *dev, const u8 *addr);
  * @wiphy: the wireless device giving the hint (used only for reporting
  *	conflicts)
  * @alpha2: the ISO/IEC 3166 alpha2 the driver claims its regulatory domain
- * 	should be in. If @rd is set this should be NULL. Note that if you
- * 	set this to NULL you should still set rd->alpha2 to some accepted
- * 	alpha2.
+ *	should be in. If @rd is set this should be NULL. Note that if you
+ *	set this to NULL you should still set rd->alpha2 to some accepted
+ *	alpha2.
  *
  * Wireless drivers can use this function to hint to the wireless core
  * what it believes should be the current regulatory domain by
