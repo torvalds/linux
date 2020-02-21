@@ -95,7 +95,7 @@ retry:
 	err = mlxfw_dev->ops->fsm_query_state(mlxfw_dev, fwhandle,
 					      &curr_fsm_state, &fsm_state_err);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "FSM state query failed");
+		MLXFW_ERR_MSG(mlxfw_dev, extack, "FSM state query failed", err);
 		return err;
 	}
 
@@ -104,8 +104,8 @@ retry:
 
 	if (curr_fsm_state != fsm_state) {
 		if (--times == 0) {
-			mlxfw_err(mlxfw_dev, "Timeout reached on FSM state change\n");
-			NL_SET_ERR_MSG_MOD(extack, "Timeout reached on FSM state change");
+			MLXFW_ERR_MSG(mlxfw_dev, extack,
+				      "Timeout reached on FSM state change", -ETIMEDOUT);
 			return -ETIMEDOUT;
 		}
 		msleep(MLXFW_FSM_STATE_WAIT_CYCLE_MS);
@@ -146,15 +146,14 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 					      &comp_max_size, &comp_align_bits,
 					      &comp_max_write_size);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "FSM component query failed");
+		MLXFW_ERR_MSG(mlxfw_dev, extack, "FSM component query failed", err);
 		return err;
 	}
 
 	comp_max_size = min_t(u32, comp_max_size, MLXFW_FSM_MAX_COMPONENT_SIZE);
 	if (comp->data_size > comp_max_size) {
-		mlxfw_err(mlxfw_dev, "Component %d is of size %d which is bigger than limit %d\n",
-			  comp->index, comp->data_size, comp_max_size);
-		NL_SET_ERR_MSG_MOD(extack, "Component is bigger than limit");
+		MLXFW_ERR_MSG(mlxfw_dev, extack,
+			      "Component size is bigger than limit", -EINVAL);
 		return -EINVAL;
 	}
 
@@ -167,7 +166,8 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 						   comp->index,
 						   comp->data_size);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "FSM component update failed");
+		MLXFW_ERR_MSG(mlxfw_dev, extack,
+			      "FSM component update failed", err);
 		return err;
 	}
 
@@ -189,7 +189,8 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 							 block_ptr, block_size,
 							 offset);
 		if (err) {
-			NL_SET_ERR_MSG_MOD(extack, "Component download failed");
+			MLXFW_ERR_MSG(mlxfw_dev, extack,
+				      "Component download failed", err);
 			goto err_out;
 		}
 		mlxfw_status_notify(mlxfw_dev, "Downloading component",
@@ -202,7 +203,8 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 	err = mlxfw_dev->ops->fsm_component_verify(mlxfw_dev, fwhandle,
 						   comp->index);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "FSM component verify failed");
+		MLXFW_ERR_MSG(mlxfw_dev, extack,
+			      "FSM component verify failed", err);
 		goto err_out;
 	}
 
@@ -229,8 +231,8 @@ static int mlxfw_flash_components(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 					      mlxfw_dev->psid_size,
 					      &component_count);
 	if (err) {
-		mlxfw_err(mlxfw_dev, "Could not find device PSID in MFA2 file\n");
-		NL_SET_ERR_MSG_MOD(extack, "Could not find device PSID in MFA2 file");
+		MLXFW_ERR_MSG(mlxfw_dev, extack,
+			      "Could not find device PSID in MFA2 file", err);
 		return err;
 	}
 
@@ -241,7 +243,8 @@ static int mlxfw_flash_components(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 						     mlxfw_dev->psid_size, i);
 		if (IS_ERR(comp)) {
 			err = PTR_ERR(comp);
-			NL_SET_ERR_MSG_MOD(extack, "Failed to get MFA2 component");
+			MLXFW_ERR_MSG(mlxfw_dev, extack,
+				      "Failed to get MFA2 component", err);
 			return err;
 		}
 
@@ -264,16 +267,16 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	int err;
 
 	if (!mlxfw_mfa2_check(firmware)) {
-		mlxfw_err(mlxfw_dev, "Firmware file is not MFA2\n");
-		NL_SET_ERR_MSG_MOD(extack, "Firmware file is not MFA2");
+		MLXFW_ERR_MSG(mlxfw_dev, extack,
+			      "Firmware file is not MFA2", -EINVAL);
 		return -EINVAL;
 	}
 
 	mfa2_file = mlxfw_mfa2_file_init(firmware);
 	if (IS_ERR(mfa2_file)) {
 		err = PTR_ERR(mfa2_file);
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Failed to initialize MFA2 firmware file");
+		MLXFW_ERR_MSG(mlxfw_dev, extack,
+			      "Failed to initialize MFA2 firmware file", err);
 		return err;
 	}
 
@@ -283,8 +286,8 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 			    NULL, 0, 0);
 	err = mlxfw_dev->ops->fsm_lock(mlxfw_dev, &fwhandle);
 	if (err) {
-		mlxfw_err(mlxfw_dev, "Could not lock the firmware FSM\n");
-		NL_SET_ERR_MSG_MOD(extack, "Could not lock the firmware FSM");
+		MLXFW_ERR_MSG(mlxfw_dev, extack,
+			      "Could not lock the firmware FSM", err);
 		goto err_fsm_lock;
 	}
 
@@ -301,8 +304,8 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	mlxfw_status_notify(mlxfw_dev, "Activating image", NULL, 0, 0);
 	err = mlxfw_dev->ops->fsm_activate(mlxfw_dev, fwhandle);
 	if (err) {
-		mlxfw_err(mlxfw_dev, "Could not activate the downloaded image\n");
-		NL_SET_ERR_MSG_MOD(extack, "Could not activate the downloaded image");
+		MLXFW_ERR_MSG(mlxfw_dev, extack,
+			      "Could not activate the downloaded image", err);
 		goto err_fsm_activate;
 	}
 
