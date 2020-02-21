@@ -77,9 +77,9 @@ static u8 ice_dcb_get_mode(struct ice_port_info *port_info, bool host)
 		mode = DCB_CAP_DCBX_LLD_MANAGED;
 
 	if (port_info->local_dcbx_cfg.dcbx_mode & ICE_DCBX_MODE_CEE)
-		return (mode | DCB_CAP_DCBX_VER_CEE);
+		return mode | DCB_CAP_DCBX_VER_CEE;
 	else
-		return (mode | DCB_CAP_DCBX_VER_IEEE);
+		return mode | DCB_CAP_DCBX_VER_IEEE;
 }
 
 /**
