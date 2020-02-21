@@ -936,10 +936,12 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
-	if (!crtc_state->has_psr)
+	if (!CAN_PSR(dev_priv) || dev_priv->psr.dp != intel_dp)
 		return;
 
-	if (drm_WARN_ON(&dev_priv->drm, !CAN_PSR(dev_priv)))
+	dev_priv->psr.force_mode_changed = false;
+
+	if (!crtc_state->has_psr)
 		return;
 
 	drm_WARN_ON(&dev_priv->drm, dev_priv->drrs.dp);
@@ -1098,6 +1100,8 @@ void intel_psr_update(struct intel_dp *intel_dp,
 
 	if (!CAN_PSR(dev_priv) || READ_ONCE(psr->dp) != intel_dp)
 		return;
+
+	dev_priv->psr.force_mode_changed = false;
 
 	mutex_lock(&dev_priv->psr.lock);
 
@@ -1629,7 +1633,7 @@ void intel_psr_atomic_check(struct drm_connector *connector,
 	struct drm_crtc_state *crtc_state;
 
 	if (!CAN_PSR(dev_priv) || !new_state->crtc ||
-	    dev_priv->psr.initially_probed)
+	    !dev_priv->psr.force_mode_changed)
 		return;
 
 	intel_connector = to_intel_connector(connector);
@@ -1640,5 +1644,18 @@ void intel_psr_atomic_check(struct drm_connector *connector,
 	crtc_state = drm_atomic_get_new_crtc_state(new_state->state,
 						   new_state->crtc);
 	crtc_state->mode_changed = true;
-	dev_priv->psr.initially_probed = true;
+}
+
+void intel_psr_set_force_mode_changed(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv;
+
+	if (!intel_dp)
+		return;
+
+	dev_priv = dp_to_i915(intel_dp);
+	if (!CAN_PSR(dev_priv) || intel_dp != dev_priv->psr.dp)
+		return;
+
+	dev_priv->psr.force_mode_changed = true;
 }
