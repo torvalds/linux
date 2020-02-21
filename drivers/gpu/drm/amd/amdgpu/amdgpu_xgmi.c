@@ -51,6 +51,21 @@ static const int wafl_pcs_err_status_reg_vg20[] = {
 	smnPCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS + 0x100000,
 };
 
+static const int xgmi_pcs_err_status_reg_arct[] = {
+	smnXGMI0_PCS_GOPX16_PCS_ERROR_STATUS,
+	smnXGMI0_PCS_GOPX16_PCS_ERROR_STATUS + 0x100000,
+	smnXGMI0_PCS_GOPX16_PCS_ERROR_STATUS + 0x500000,
+	smnXGMI0_PCS_GOPX16_PCS_ERROR_STATUS + 0x600000,
+	smnXGMI0_PCS_GOPX16_PCS_ERROR_STATUS + 0x700000,
+	smnXGMI0_PCS_GOPX16_PCS_ERROR_STATUS + 0x800000,
+};
+
+/* same as vg20*/
+static const int wafl_pcs_err_status_reg_arct[] = {
+	smnPCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS,
+	smnPCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS + 0x100000,
+};
+
 static const struct amdgpu_pcs_ras_field xgmi_pcs_ras_fields[] = {
 	{"XGMI PCS DataLossErr",
 	 SOC15_REG_FIELD(XGMI0_PCS_GOPX16_PCS_ERROR_STATUS, DataLossErr)},
@@ -709,6 +724,22 @@ int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 	err_data->ce_count = 0;
 
 	switch (adev->asic_type) {
+	case CHIP_ARCTURUS:
+		/* check xgmi pcs error */
+		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_err_status_reg_arct); i++) {
+			data = RREG32_PCIE(xgmi_pcs_err_status_reg_arct[i]);
+			if (data)
+				amdgpu_xgmi_query_pcs_error_status(adev,
+						data, &ue_cnt, &ce_cnt, true);
+		}
+		/* check wafl pcs error */
+		for (i = 0; i < ARRAY_SIZE(wafl_pcs_err_status_reg_arct); i++) {
+			data = RREG32_PCIE(wafl_pcs_err_status_reg_arct[i]);
+			if (data)
+				amdgpu_xgmi_query_pcs_error_status(adev,
+						data, &ue_cnt, &ce_cnt, false);
+		}
+		break;
 	case CHIP_VEGA20:
 	default:
 		/* check xgmi pcs error */
