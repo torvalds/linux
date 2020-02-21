@@ -109,7 +109,7 @@ DECLARE_EVENT_CLASS(xprtrdma_connect_class,
 		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),
 
-	TP_printk("peer=[%s]:%s r_xprt=%p: rc=%d connect status=%d",
+	TP_printk("peer=[%s]:%s r_xprt=%p: rc=%d connection status=%d",
 		__get_str(addr), __get_str(port), __entry->r_xprt,
 		__entry->rc, __entry->connect_status
 	)
@@ -411,6 +411,7 @@ TRACE_EVENT(xprtrdma_inline_thresh,
 
 DEFINE_CONN_EVENT(connect);
 DEFINE_CONN_EVENT(disconnect);
+DEFINE_CONN_EVENT(flush_dct);
 
 DEFINE_RXPRT_EVENT(xprtrdma_create);
 DEFINE_RXPRT_EVENT(xprtrdma_op_destroy);

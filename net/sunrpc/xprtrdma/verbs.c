@@ -129,13 +129,31 @@ rpcrdma_qp_event_handler(struct ib_event *event, void *context)
 }
 
 /**
+ * rpcrdma_flush_disconnect - Disconnect on flushed completion
+ * @cq: completion queue
+ * @wc: work completion entry
+ *
+ * Must be called in process context.
+ */
+void rpcrdma_flush_disconnect(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct rpcrdma_xprt *r_xprt = cq->cq_context;
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+
+	if (wc->status != IB_WC_SUCCESS && r_xprt->rx_ep.rep_connected == 1) {
+		r_xprt->rx_ep.rep_connected = -ECONNABORTED;
+		trace_xprtrdma_flush_dct(r_xprt, wc->status);
+		xprt_force_disconnect(xprt);
+	}
+}
+
+/**
  * rpcrdma_wc_send - Invoked by RDMA provider for each polled Send WC
  * @cq:	completion queue
- * @wc:	completed WR
+ * @wc:	WCE for a completed Send WR
  *
  */
-static void
-rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
+static void rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct rpcrdma_sendctx *sc =
@@ -144,21 +162,21 @@ rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_send(sc, wc);
 	rpcrdma_sendctx_put_locked((struct rpcrdma_xprt *)cq->cq_context, sc);
+	rpcrdma_flush_disconnect(cq, wc);
 }
 
 /**
  * rpcrdma_wc_receive - Invoked by RDMA provider for each polled Receive WC
- * @cq:	completion queue (ignored)
- * @wc:	completed WR
+ * @cq:	completion queue
+ * @wc:	WCE for a completed Receive WR
  *
  */
-static void
-rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
+static void rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct rpcrdma_rep *rep = container_of(cqe, struct rpcrdma_rep,
 					       rr_cqe);
-	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
+	struct rpcrdma_xprt *r_xprt = cq->cq_context;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_receive(wc);
@@ -179,6 +197,7 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	return;
 
 out_flushed:
+	rpcrdma_flush_disconnect(cq, wc);
 	rpcrdma_rep_destroy(rep);
 }
 
@@ -395,7 +414,7 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 		goto out_destroy;
 	}
 
-	ep->rep_attr.recv_cq = ib_alloc_cq_any(id->device, NULL,
+	ep->rep_attr.recv_cq = ib_alloc_cq_any(id->device, r_xprt,
 					       ep->rep_attr.cap.max_recv_wr,
 					       IB_POLL_WORKQUEUE);
 	if (IS_ERR(ep->rep_attr.recv_cq)) {

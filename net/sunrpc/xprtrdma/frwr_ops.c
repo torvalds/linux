@@ -358,8 +358,8 @@ out_mapmr_err:
 
 /**
  * frwr_wc_fastreg - Invoked by RDMA provider for a flushed FastReg WC
- * @cq:	completion queue (ignored)
- * @wc:	completed WR
+ * @cq: completion queue
+ * @wc: WCE for a completed FastReg WR
  *
  */
 static void frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
@@ -371,6 +371,8 @@ static void frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_fastreg(wc, frwr);
 	/* The MR will get recycled when the associated req is retransmitted */
+
+	rpcrdma_flush_disconnect(cq, wc);
 }
 
 /**
@@ -441,8 +443,8 @@ static void __frwr_release_mr(struct ib_wc *wc, struct rpcrdma_mr *mr)
 
 /**
  * frwr_wc_localinv - Invoked by RDMA provider for a LOCAL_INV WC
- * @cq:	completion queue (ignored)
- * @wc:	completed WR
+ * @cq: completion queue
+ * @wc: WCE for a completed LocalInv WR
  *
  */
 static void frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
@@ -455,12 +457,14 @@ static void frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_li(wc, frwr);
 	__frwr_release_mr(wc, mr);
+
+	rpcrdma_flush_disconnect(cq, wc);
 }
 
 /**
  * frwr_wc_localinv_wake - Invoked by RDMA provider for a LOCAL_INV WC
- * @cq:	completion queue (ignored)
- * @wc:	completed WR
+ * @cq: completion queue
+ * @wc: WCE for a completed LocalInv WR
  *
  * Awaken anyone waiting for an MR to finish being fenced.
  */
@@ -475,6 +479,8 @@ static void frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 	trace_xprtrdma_wc_li_wake(wc, frwr);
 	__frwr_release_mr(wc, mr);
 	complete(&frwr->fr_linv_done);
+
+	rpcrdma_flush_disconnect(cq, wc);
 }
 
 /**
@@ -562,8 +568,8 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 /**
  * frwr_wc_localinv_done - Invoked by RDMA provider for a signaled LOCAL_INV WC
- * @cq:	completion queue (ignored)
- * @wc:	completed WR
+ * @cq:	completion queue
+ * @wc:	WCE for a completed LocalInv WR
  *
  */
 static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
@@ -581,6 +587,8 @@ static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
 	/* Ensure @rep is generated before __frwr_release_mr */
 	smp_rmb();
 	rpcrdma_complete_rqst(rep);
+
+	rpcrdma_flush_disconnect(cq, wc);
 }
 
 /**
