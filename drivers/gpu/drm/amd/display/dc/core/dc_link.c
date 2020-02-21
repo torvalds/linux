@@ -970,6 +970,9 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			break;
 		}
 
+		if (link->local_sink->edid_caps.panel_patch.disable_fec)
+			link->ctx->dc->debug.disable_fec = true;
+
 		// Check if edid is the same
 		if ((prev_sink != NULL) && ((edid_status == EDID_THE_SAME) || (edid_status == EDID_OK)))
 			same_edid = is_same_edid(&prev_sink->dc_edid, &sink->dc_edid);
