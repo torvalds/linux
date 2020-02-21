@@ -755,60 +755,50 @@ static int mptcp_setsockopt(struct sock *sk, int level, int optname,
 			    char __user *optval, unsigned int optlen)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	int ret = -EOPNOTSUPP;
 	struct socket *ssock;
-	struct sock *ssk;
 
 	pr_debug("msk=%p", msk);
 
 	/* @@ the meaning of setsockopt() when the socket is connected and
-	 * there are multiple subflows is not defined.
+	 * there are multiple subflows is not yet defined. It is up to the
+	 * MPTCP-level socket to configure the subflows until the subflow
+	 * is in TCP fallback, when TCP socket options are passed through
+	 * to the one remaining subflow.
 	 */
 	lock_sock(sk);
-	ssock = __mptcp_socket_create(msk, MPTCP_SAME_STATE);
-	if (IS_ERR(ssock)) {
-		release_sock(sk);
-		return ret;
-	}
+	ssock = __mptcp_tcp_fallback(msk);
+	if (ssock)
+		return tcp_setsockopt(ssock->sk, level, optname, optval,
+				      optlen);
 
-	ssk = ssock->sk;
-	sock_hold(ssk);
 	release_sock(sk);
 
-	ret = tcp_setsockopt(ssk, level, optname, optval, optlen);
-	sock_put(ssk);
-
-	return ret;
+	return -EOPNOTSUPP;
 }
 
 static int mptcp_getsockopt(struct sock *sk, int level, int optname,
 			    char __user *optval, int __user *option)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	int ret = -EOPNOTSUPP;
 	struct socket *ssock;
-	struct sock *ssk;
 
 	pr_debug("msk=%p", msk);
 
-	/* @@ the meaning of getsockopt() when the socket is connected and
-	 * there are multiple subflows is not defined.
+	/* @@ the meaning of setsockopt() when the socket is connected and
+	 * there are multiple subflows is not yet defined. It is up to the
+	 * MPTCP-level socket to configure the subflows until the subflow
+	 * is in TCP fallback, when socket options are passed through
+	 * to the one remaining subflow.
 	 */
 	lock_sock(sk);
-	ssock = __mptcp_socket_create(msk, MPTCP_SAME_STATE);
-	if (IS_ERR(ssock)) {
-		release_sock(sk);
-		return ret;
-	}
+	ssock = __mptcp_tcp_fallback(msk);
+	if (ssock)
+		return tcp_getsockopt(ssock->sk, level, optname, optval,
+				      option);
 
-	ssk = ssock->sk;
-	sock_hold(ssk);
 	release_sock(sk);
 
-	ret = tcp_getsockopt(ssk, level, optname, optval, option);
-	sock_put(ssk);
-
-	return ret;
+	return -EOPNOTSUPP;
 }
 
 static int mptcp_get_port(struct sock *sk, unsigned short snum)

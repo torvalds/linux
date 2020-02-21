@@ -437,8 +437,6 @@ static int ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return -ENOENT;
 
 	switch (type) {
-		struct ipv6_tlv_tnl_enc_lim *tel;
-		__u32 teli;
 	case ICMPV6_DEST_UNREACH:
 		net_dbg_ratelimited("%s: Path to destination invalid or inactive!\n",
 				    t->parms.name);
@@ -452,7 +450,10 @@ static int ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			break;
 		}
 		return 0;
-	case ICMPV6_PARAMPROB:
+	case ICMPV6_PARAMPROB: {
+		struct ipv6_tlv_tnl_enc_lim *tel;
+		__u32 teli;
+
 		teli = 0;
 		if (code == ICMPV6_HDR_FIELD)
 			teli = ip6_tnl_parse_tlv_enc_lim(skb, skb->data);
@@ -468,6 +469,7 @@ static int ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 					    t->parms.name);
 		}
 		return 0;
+	}
 	case ICMPV6_PKT_TOOBIG:
 		ip6_update_pmtu(skb, net, info, 0, 0, sock_net_uid(net, NULL));
 		return 0;
