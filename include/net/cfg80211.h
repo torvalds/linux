@@ -4666,11 +4666,6 @@ struct wiphy {
 	u32 available_antennas_tx;
 	u32 available_antennas_rx;
 
-	/*
-	 * Bitmap of supported protocols for probe response offloading
-	 * see &enum nl80211_probe_resp_offload_support_attr. Only valid
-	 * when the wiphy flag @WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD is set.
-	 */
 	u32 probe_resp_offload;
 
 	const u8 *extended_capabilities, *extended_capabilities_mask;
