@@ -93,8 +93,10 @@ static int mlxfw_fsm_state_wait(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 retry:
 	err = mlxfw_dev->ops->fsm_query_state(mlxfw_dev, fwhandle,
 					      &curr_fsm_state, &fsm_state_err);
-	if (err)
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "FSM state query failed");
 		return err;
+	}
 
 	if (fsm_state_err != MLXFW_FSM_STATE_ERR_OK)
 		return mlxfw_fsm_state_err(extack, fsm_state_err);
@@ -142,8 +144,10 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 	err = mlxfw_dev->ops->component_query(mlxfw_dev, comp->index,
 					      &comp_max_size, &comp_align_bits,
 					      &comp_max_write_size);
-	if (err)
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "FSM component query failed");
 		return err;
+	}
 
 	comp_max_size = min_t(u32, comp_max_size, MLXFW_FSM_MAX_COMPONENT_SIZE);
 	if (comp->data_size > comp_max_size) {
@@ -161,8 +165,10 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 	err = mlxfw_dev->ops->fsm_component_update(mlxfw_dev, fwhandle,
 						   comp->index,
 						   comp->data_size);
-	if (err)
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "FSM component update failed");
 		return err;
+	}
 
 	err = mlxfw_fsm_state_wait(mlxfw_dev, fwhandle,
 				   MLXFW_FSM_STATE_DOWNLOAD, extack);
@@ -181,8 +187,10 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 		err = mlxfw_dev->ops->fsm_block_download(mlxfw_dev, fwhandle,
 							 block_ptr, block_size,
 							 offset);
-		if (err)
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "Component download failed");
 			goto err_out;
+		}
 		mlxfw_status_notify(mlxfw_dev, "Downloading component",
 				    comp_name, offset + block_size,
 				    comp->data_size);
@@ -192,8 +200,10 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 	mlxfw_status_notify(mlxfw_dev, "Verifying component", comp_name, 0, 0);
 	err = mlxfw_dev->ops->fsm_component_verify(mlxfw_dev, fwhandle,
 						   comp->index);
-	if (err)
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "FSM component verify failed");
 		goto err_out;
+	}
 
 	err = mlxfw_fsm_state_wait(mlxfw_dev, fwhandle,
 				   MLXFW_FSM_STATE_LOCKED, extack);
@@ -228,8 +238,11 @@ static int mlxfw_flash_components(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 
 		comp = mlxfw_mfa2_file_component_get(mfa2_file, mlxfw_dev->psid,
 						     mlxfw_dev->psid_size, i);
-		if (IS_ERR(comp))
-			return PTR_ERR(comp);
+		if (IS_ERR(comp)) {
+			err = PTR_ERR(comp);
+			NL_SET_ERR_MSG_MOD(extack, "Failed to get MFA2 component");
+			return err;
+		}
 
 		pr_info("Flashing component type %d\n", comp->index);
 		err = mlxfw_flash_component(mlxfw_dev, fwhandle, comp, extack);
@@ -255,8 +268,12 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	}
 
 	mfa2_file = mlxfw_mfa2_file_init(firmware);
-	if (IS_ERR(mfa2_file))
-		return PTR_ERR(mfa2_file);
+	if (IS_ERR(mfa2_file)) {
+		err = PTR_ERR(mfa2_file);
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Failed to initialize MFA2 firmware file");
+		return err;
+	}
 
 	pr_info("Initialize firmware flash process\n");
 	devlink_flash_update_begin_notify(mlxfw_dev->devlink);
