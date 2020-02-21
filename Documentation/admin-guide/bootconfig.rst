@@ -62,7 +62,16 @@ Or more shorter, written as following::
 In both styles, same key words are automatically merged when parsing it
 at boot time. So you can append similar trees or key-values.
 
-Note that a sub-key and a value can not co-exist under a parent key.
+Same-key Values
+---------------
+
+It is prohibited that two or more values or arrays share a same-key.
+For example,::
+
+ foo = bar, baz
+ foo = qux  # !ERROR! we can not re-define same key
+
+Also, a sub-key and a value can not co-exist under a parent key.
 For example, following config is NOT allowed.::
 
  foo = value1

@@ -581,7 +581,7 @@ static int __init __xbc_parse_keys(char *k)
 static int __init xbc_parse_kv(char **k, char *v)
 {
 	struct xbc_node *prev_parent = last_parent;
-	struct xbc_node *node, *child;
+	struct xbc_node *child;
 	char *next;
 	int c, ret;
 
@@ -590,15 +590,18 @@ static int __init xbc_parse_kv(char **k, char *v)
 		return ret;
 
 	child = xbc_node_get_child(last_parent);
-	if (child && xbc_node_is_key(child))
-		return xbc_parse_error("Value is mixed with subkey", v);
+	if (child) {
+		if (xbc_node_is_key(child))
+			return xbc_parse_error("Value is mixed with subkey", v);
+		else
+			return xbc_parse_error("Value is redefined", v);
+	}
 
 	c = __xbc_parse_value(&v, &next);
 	if (c < 0)
 		return c;
 
-	node = xbc_add_sibling(v, XBC_VALUE);
-	if (!node)
+	if (!xbc_add_sibling(v, XBC_VALUE))
 		return -ENOMEM;
 
 	if (c == ',') {	/* Array */
