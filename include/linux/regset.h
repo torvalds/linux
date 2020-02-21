@@ -17,6 +17,52 @@
 struct task_struct;
 struct user_regset;
 
+struct membuf {
+	void *p;
+	size_t left;
+};
+
+static inline int membuf_zero(struct membuf *s, size_t size)
+{
+	if (s->left) {
+		if (size > s->left)
+			size = s->left;
+		memset(s->p, 0, size);
+		s->p += size;
+		s->left -= size;
+	}
+	return s->left;
+}
+
+static inline int membuf_write(struct membuf *s, const void *v, size_t size)
+{
+	if (s->left) {
+		if (size > s->left)
+			size = s->left;
+		memcpy(s->p, v, size);
+		s->p += size;
+		s->left -= size;
+	}
+	return s->left;
+}
+
+/* current s->p must be aligned for v; v must be a scalar */
+#define membuf_store(s, v)				\
+({							\
+	struct membuf *__s = (s);			\
+        if (__s->left) {				\
+		typeof(v) __v = (v);			\
+		size_t __size = sizeof(__v);		\
+		if (unlikely(__size > __s->left)) {	\
+			__size = __s->left;		\
+			memcpy(__s->p, &__v, __size);	\
+		} else {				\
+			*(typeof(__v + 0) *)__s->p = __v;	\
+		}					\
+		__s->p += __size;			\
+		__s->left -= __size;			\
+	}						\
+	__s->left;})
 
 /**
  * user_regset_active_fn - type of @active function in &struct user_regset
@@ -56,6 +102,10 @@ typedef int user_regset_get_fn(struct task_struct *target,
 			       const struct user_regset *regset,
 			       unsigned int pos, unsigned int count,
 			       void *kbuf, void __user *ubuf);
+
+typedef int user_regset_get2_fn(struct task_struct *target,
+			       const struct user_regset *regset,
+			       struct membuf to);
 
 /**
  * user_regset_set_fn - type of @set function in &struct user_regset
@@ -186,6 +236,7 @@ typedef unsigned int user_regset_get_size_fn(struct task_struct *target,
  */
 struct user_regset {
 	user_regset_get_fn		*get;
+	user_regset_get2_fn		*regset_get;
 	user_regset_set_fn		*set;
 	user_regset_active_fn		*active;
 	user_regset_writeback_fn	*writeback;

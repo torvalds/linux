@@ -11,7 +11,7 @@ static int __regset_get(struct task_struct *target,
 	void *p = *data, *to_free = NULL;
 	int res;
 
-	if (!regset->get)
+	if (!regset->get && !regset->regset_get)
 		return -EOPNOTSUPP;
 	if (size > regset->n * regset->size)
 		size = regset->n * regset->size;
@@ -19,6 +19,16 @@ static int __regset_get(struct task_struct *target,
 		to_free = p = kzalloc(size, GFP_KERNEL);
 		if (!p)
 			return -ENOMEM;
+	}
+	if (regset->regset_get) {
+		res = regset->regset_get(target, regset,
+				   (struct membuf){.p = p, .left = size});
+		if (res < 0) {
+			kfree(to_free);
+			return res;
+		}
+		*data = p;
+		return size - res;
 	}
 	res = regset->get(target, regset, 0, size, p, NULL);
 	if (unlikely(res < 0)) {
