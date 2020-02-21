@@ -2,7 +2,7 @@
 /* Copyright (c) 2019 Mellanox Technologies. */
 
 #ifndef __MLX5_RSC_DUMP_H
-#define __MLX5_RSC_DUMP__H
+#define __MLX5_RSC_DUMP_H
 
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
