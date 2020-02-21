@@ -104,7 +104,7 @@ DECLARE_EVENT_CLASS(xprtrdma_connect_class,
 	TP_fast_assign(
 		__entry->r_xprt = r_xprt;
 		__entry->rc = rc;
-		__entry->connect_status = r_xprt->rx_ep.rep_connected;
+		__entry->connect_status = r_xprt->rx_ep.re_connect_status;
 		__assign_str(addr, rpcrdma_addrstr(r_xprt));
 		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),
@@ -394,10 +394,10 @@ TRACE_EVENT(xprtrdma_inline_thresh,
 		const struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 
 		__entry->r_xprt = r_xprt;
-		__entry->inline_send = ep->rep_inline_send;
-		__entry->inline_recv = ep->rep_inline_recv;
-		__entry->max_send = ep->rep_max_inline_send;
-		__entry->max_recv = ep->rep_max_inline_recv;
+		__entry->inline_send = ep->re_inline_send;
+		__entry->inline_recv = ep->re_inline_recv;
+		__entry->max_send = ep->re_max_inline_send;
+		__entry->max_recv = ep->re_max_inline_recv;
 		__assign_str(addr, rpcrdma_addrstr(r_xprt));
 		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),
@@ -803,7 +803,7 @@ TRACE_EVENT(xprtrdma_post_recvs,
 		__entry->r_xprt = r_xprt;
 		__entry->count = count;
 		__entry->status = status;
-		__entry->posted = r_xprt->rx_ep.rep_receive_count;
+		__entry->posted = r_xprt->rx_ep.re_receive_count;
 		__assign_str(addr, rpcrdma_addrstr(r_xprt));
 		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),

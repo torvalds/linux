@@ -238,11 +238,12 @@ xprt_rdma_connect_worker(struct work_struct *work)
 	struct rpcrdma_xprt *r_xprt = container_of(work, struct rpcrdma_xprt,
 						   rx_connect_worker.work);
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	int rc;
 
 	rc = rpcrdma_xprt_connect(r_xprt);
 	xprt_clear_connecting(xprt);
-	if (r_xprt->rx_ep.rep_connected > 0) {
+	if (ep->re_connect_status > 0) {
 		xprt->stat.connect_count++;
 		xprt->stat.connect_time += (long)jiffies -
 					   xprt->stat.connect_start;
@@ -265,7 +266,7 @@ xprt_rdma_inject_disconnect(struct rpc_xprt *xprt)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
 	trace_xprtrdma_op_inject_dsc(r_xprt);
-	rdma_disconnect(r_xprt->rx_ia.ri_id);
+	rdma_disconnect(r_xprt->rx_ep.re_id);
 }
 
 /**
@@ -355,6 +356,7 @@ xprt_setup_rdma(struct xprt_create *args)
 
 	INIT_DELAYED_WORK(&new_xprt->rx_connect_worker,
 			  xprt_rdma_connect_worker);
+
 	xprt->max_payload = RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT;
 
 	dprintk("RPC:       %s: %s:%s\n", __func__,
@@ -489,10 +491,11 @@ static void
 xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	unsigned long delay;
 
 	delay = 0;
-	if (r_xprt->rx_ep.rep_connected != 0) {
+	if (ep->re_connect_status != 0) {
 		delay = xprt_reconnect_delay(xprt);
 		xprt_reconnect_backoff(xprt, RPCRDMA_INIT_REEST_TO);
 	}
