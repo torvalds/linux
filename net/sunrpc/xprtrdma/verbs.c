@@ -1461,20 +1461,17 @@ static void rpcrdma_regbuf_free(struct rpcrdma_regbuf *rb)
 }
 
 /**
- * rpcrdma_ep_post - Post WRs to a transport's Send Queue
- * @ia: transport's device information
- * @ep: transport's RDMA endpoint information
+ * rpcrdma_post_sends - Post WRs to a transport's Send Queue
+ * @r_xprt: controlling transport instance
  * @req: rpcrdma_req containing the Send WR to post
  *
  * Returns 0 if the post was successful, otherwise -ENOTCONN
  * is returned.
  */
-int
-rpcrdma_ep_post(struct rpcrdma_ia *ia,
-		struct rpcrdma_ep *ep,
-		struct rpcrdma_req *req)
+int rpcrdma_post_sends(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
 	struct ib_send_wr *send_wr = &req->rl_wr;
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	int rc;
 
 	if (!ep->rep_send_count || kref_read(&req->rl_kref) > 1) {
@@ -1485,7 +1482,7 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		--ep->rep_send_count;
 	}
 
-	rc = frwr_send(ia, req);
+	rc = frwr_send(r_xprt, req);
 	trace_xprtrdma_post_send(req, rc);
 	if (rc)
 		return -ENOTCONN;
