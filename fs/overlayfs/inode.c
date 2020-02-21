@@ -99,13 +99,13 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 		 * This way all overlay inode numbers are unique and use the
 		 * overlay st_dev.
 		 */
-		if (unlikely(stat->ino >> xinoshift)) {
-			pr_warn_ratelimited("inode number too big (%pd2, ino=%llu, xinobits=%d)\n",
-					    dentry, stat->ino, xinobits);
-		} else {
+		if (likely(!(stat->ino >> xinoshift))) {
 			stat->ino |= ((u64)fsid) << (xinoshift + 1);
 			stat->dev = dentry->d_sb->s_dev;
 			return 0;
+		} else if (ovl_xino_warn(dentry->d_sb)) {
+			pr_warn_ratelimited("inode number too big (%pd2, ino=%llu, xinobits=%d)\n",
+					    dentry, stat->ino, xinobits);
 		}
 	}
 

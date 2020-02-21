@@ -48,6 +48,12 @@ enum ovl_entry_flag {
 	OVL_E_CONNECTED,
 };
 
+enum {
+	OVL_XINO_OFF,
+	OVL_XINO_AUTO,
+	OVL_XINO_ON,
+};
+
 /*
  * The tuple (fh,uuid) is a universal unique identifier for a copy up origin,
  * where:
@@ -299,6 +305,16 @@ ssize_t ovl_getxattr(struct dentry *dentry, char *name, char **value,
 static inline bool ovl_is_impuredir(struct dentry *dentry)
 {
 	return ovl_check_dir_xattr(dentry, OVL_XATTR_IMPURE);
+}
+
+/*
+ * With xino=auto, we do best effort to keep all inodes on same st_dev and
+ * d_ino consistent with st_ino.
+ * With xino=on, we do the same effort but we warn if we failed.
+ */
+static inline bool ovl_xino_warn(struct super_block *sb)
+{
+	return OVL_FS(sb)->config.xino == OVL_XINO_ON;
 }
 
 /* All layers on same fs? */
