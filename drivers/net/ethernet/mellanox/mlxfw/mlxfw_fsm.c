@@ -39,16 +39,6 @@ static const char * const mlxfw_fsm_state_err_str[] = {
 		"unknown error"
 };
 
-static void mlxfw_status_notify(struct mlxfw_dev *mlxfw_dev,
-				const char *msg, const char *comp_name,
-				u32 done_bytes, u32 total_bytes)
-{
-	if (!mlxfw_dev->ops->status_notify)
-		return;
-	mlxfw_dev->ops->status_notify(mlxfw_dev, msg, comp_name,
-				      done_bytes, total_bytes);
-}
-
 static int mlxfw_fsm_state_wait(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 				enum mlxfw_fsm_state fsm_state,
 				struct netlink_ext_ack *extack)
@@ -83,6 +73,14 @@ retry:
 		goto retry;
 	}
 	return 0;
+}
+
+static void mlxfw_status_notify(struct mlxfw_dev *mlxfw_dev,
+				const char *msg, const char *comp_name,
+				u32 done_bytes, u32 total_bytes)
+{
+	devlink_flash_update_status_notify(mlxfw_dev->devlink, msg, comp_name,
+					   done_bytes, total_bytes);
 }
 
 #define MLXFW_ALIGN_DOWN(x, align_bits) ((x) & ~((1 << (align_bits)) - 1))
@@ -225,6 +223,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 		return PTR_ERR(mfa2_file);
 
 	pr_info("Initialize firmware flash process\n");
+	devlink_flash_update_begin_notify(mlxfw_dev->devlink);
 	mlxfw_status_notify(mlxfw_dev, "Initializing firmware flash process",
 			    NULL, 0, 0);
 	err = mlxfw_dev->ops->fsm_lock(mlxfw_dev, &fwhandle);
@@ -263,6 +262,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	pr_info("Firmware flash done.\n");
 	mlxfw_status_notify(mlxfw_dev, "Firmware flash done", NULL, 0, 0);
 	mlxfw_mfa2_file_fini(mfa2_file);
+	devlink_flash_update_end_notify(mlxfw_dev->devlink);
 	return 0;
 
 err_state_wait_activate_to_locked:
@@ -272,6 +272,7 @@ err_state_wait_idle_to_locked:
 	mlxfw_dev->ops->fsm_release(mlxfw_dev, fwhandle);
 err_fsm_lock:
 	mlxfw_mfa2_file_fini(mfa2_file);
+	devlink_flash_update_end_notify(mlxfw_dev->devlink);
 	return err;
 }
 EXPORT_SYMBOL(mlxfw_firmware_flash);

@@ -6,6 +6,7 @@
 
 #include <linux/firmware.h>
 #include <linux/netlink.h>
+#include <net/devlink.h>
 
 enum mlxfw_fsm_state {
 	MLXFW_FSM_STATE_IDLE,
@@ -58,16 +59,13 @@ struct mlxfw_dev_ops {
 	void (*fsm_cancel)(struct mlxfw_dev *mlxfw_dev, u32 fwhandle);
 
 	void (*fsm_release)(struct mlxfw_dev *mlxfw_dev, u32 fwhandle);
-
-	void (*status_notify)(struct mlxfw_dev *mlxfw_dev,
-			      const char *msg, const char *comp_name,
-			      u32 done_bytes, u32 total_bytes);
 };
 
 struct mlxfw_dev {
 	const struct mlxfw_dev_ops *ops;
 	const char *psid;
 	u16 psid_size;
+	struct devlink *devlink;
 };
 
 #if IS_REACHABLE(CONFIG_MLXFW)

@@ -634,6 +634,7 @@ int mlx5_firmware_flash(struct mlx5_core_dev *dev,
 			.ops = &mlx5_mlxfw_dev_ops,
 			.psid = dev->board_id,
 			.psid_size = strlen(dev->board_id),
+			.devlink = priv_to_devlink(dev),
 		},
 		.mlx5_core_dev = dev
 	};
