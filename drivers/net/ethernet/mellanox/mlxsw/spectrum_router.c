@@ -1833,8 +1833,18 @@ int mlxsw_sp_router_nve_promote_decap(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
 				      u32 tunnel_index)
 {
 	enum mlxsw_sp_fib_entry_type type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
+	struct mlxsw_sp_router *router = mlxsw_sp->router;
 	struct mlxsw_sp_fib_entry *fib_entry;
 	int err;
+
+	if (WARN_ON_ONCE(router->nve_decap_config.valid))
+		return -EINVAL;
+
+	router->nve_decap_config.ul_tb_id = ul_tb_id;
+	router->nve_decap_config.tunnel_index = tunnel_index;
+	router->nve_decap_config.ul_proto = ul_proto;
+	router->nve_decap_config.ul_sip = *ul_sip;
+	router->nve_decap_config.valid = true;
 
 	/* It is valid to create a tunnel with a local IP and only later
 	 * assign this IP address to a local interface
@@ -1865,7 +1875,13 @@ void mlxsw_sp_router_nve_demote_decap(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
 				      const union mlxsw_sp_l3addr *ul_sip)
 {
 	enum mlxsw_sp_fib_entry_type type = MLXSW_SP_FIB_ENTRY_TYPE_NVE_DECAP;
+	struct mlxsw_sp_router *router = mlxsw_sp->router;
 	struct mlxsw_sp_fib_entry *fib_entry;
+
+	if (WARN_ON_ONCE(!router->nve_decap_config.valid))
+		return;
+
+	router->nve_decap_config.valid = false;
 
 	fib_entry = mlxsw_sp_router_ip2me_fib_entry_find(mlxsw_sp, ul_tb_id,
 							 ul_proto, ul_sip,
@@ -1875,6 +1891,20 @@ void mlxsw_sp_router_nve_demote_decap(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
 
 	fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
 	mlxsw_sp_fib_entry_update(mlxsw_sp, fib_entry);
+}
+
+static bool mlxsw_sp_router_nve_is_decap(struct mlxsw_sp *mlxsw_sp,
+					 u32 ul_tb_id,
+					 enum mlxsw_sp_l3proto ul_proto,
+					 const union mlxsw_sp_l3addr *ul_sip)
+{
+	struct mlxsw_sp_router *router = mlxsw_sp->router;
+
+	return router->nve_decap_config.valid &&
+	       router->nve_decap_config.ul_tb_id == ul_tb_id &&
+	       router->nve_decap_config.ul_proto == ul_proto &&
+	       !memcmp(&router->nve_decap_config.ul_sip, ul_sip,
+		       sizeof(*ul_sip));
 }
 
 struct mlxsw_sp_neigh_key {
@@ -4466,6 +4496,7 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 {
 	struct net_device *dev = fib_info_nh(fen_info->fi, 0)->fib_nh_dev;
 	union mlxsw_sp_l3addr dip = { .addr4 = htonl(fen_info->dst) };
+	struct mlxsw_sp_router *router = mlxsw_sp->router;
 	u32 tb_id = mlxsw_sp_fix_tb_id(fen_info->tb_id);
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 	struct fib_info *fi = fen_info->fi;
@@ -4480,12 +4511,13 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 							     fib_entry,
 							     ipip_entry);
 		}
-		if (mlxsw_sp_nve_ipv4_route_is_decap(mlxsw_sp, tb_id,
-						     dip.addr4)) {
-			u32 t_index;
+		if (mlxsw_sp_router_nve_is_decap(mlxsw_sp, tb_id,
+						 MLXSW_SP_L3_PROTO_IPV4,
+						 &dip)) {
+			u32 tunnel_index;
 
-			t_index = mlxsw_sp_nve_decap_tunnel_index_get(mlxsw_sp);
-			fib_entry->decap.tunnel_index = t_index;
+			tunnel_index = router->nve_decap_config.tunnel_index;
+			fib_entry->decap.tunnel_index = tunnel_index;
 			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_NVE_DECAP;
 			return 0;
 		}

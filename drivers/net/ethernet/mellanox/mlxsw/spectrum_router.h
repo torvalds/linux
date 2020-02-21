@@ -7,6 +7,14 @@
 #include "spectrum.h"
 #include "reg.h"
 
+struct mlxsw_sp_router_nve_decap {
+	u32 ul_tb_id;
+	u32 tunnel_index;
+	enum mlxsw_sp_l3proto ul_proto;
+	union mlxsw_sp_l3addr ul_sip;
+	u8 valid:1;
+};
+
 struct mlxsw_sp_router {
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_sp_rif **rifs;
@@ -38,6 +46,7 @@ struct mlxsw_sp_router {
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 	u32 adj_discard_index;
 	bool adj_discard_index_valid;
+	struct mlxsw_sp_router_nve_decap nve_decap_config;
 };
 
 struct mlxsw_sp_rif_ipip_lb;
