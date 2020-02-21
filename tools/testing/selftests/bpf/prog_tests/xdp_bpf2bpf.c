@@ -14,7 +14,7 @@ void test_xdp_bpf2bpf(void)
 	struct test_xdp *pkt_skel = NULL;
 	struct test_xdp_bpf2bpf *ftrace_skel = NULL;
 	struct vip key4 = {.protocol = 6, .family = AF_INET};
-	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts);
+	struct bpf_program *prog;
 
 	/* Load XDP program to introspect */
 	pkt_skel = test_xdp__open_and_load();
@@ -27,10 +27,20 @@ void test_xdp_bpf2bpf(void)
 	bpf_map_update_elem(map_fd, &key4, &value4, 0);
 
 	/* Load trace program */
-	opts.attach_prog_fd = pkt_fd,
-	ftrace_skel = test_xdp_bpf2bpf__open_opts(&opts);
+	ftrace_skel = test_xdp_bpf2bpf__open();
 	if (CHECK(!ftrace_skel, "__open", "ftrace skeleton failed\n"))
 		goto out;
+
+	/* Demonstrate the bpf_program__set_attach_target() API rather than
+	 * the load with options, i.e. opts.attach_prog_fd.
+	 */
+	prog = ftrace_skel->progs.trace_on_entry;
+	bpf_program__set_expected_attach_type(prog, BPF_TRACE_FENTRY);
+	bpf_program__set_attach_target(prog, pkt_fd, "_xdp_tx_iptunnel");
+
+	prog = ftrace_skel->progs.trace_on_exit;
+	bpf_program__set_expected_attach_type(prog, BPF_TRACE_FEXIT);
+	bpf_program__set_attach_target(prog, pkt_fd, "_xdp_tx_iptunnel");
 
 	err = test_xdp_bpf2bpf__load(ftrace_skel);
 	if (CHECK(err, "__load", "ftrace skeleton failed\n"))
