@@ -51,8 +51,15 @@ free space valid for 30 seconds.
 acpi_video_flags
 ================
 
-See Documentation/kernel/power/video.txt, it allows mode of video boot
-to be set during run time.
+See :doc:`/power/video`. This allows the video resume mode to be set,
+in a similar fashion to the ``acpi_sleep`` kernel parameter, by
+combining the following values:
+
+= =======
+1 s3_bios
+2 s3_mode
+4 s3_beep
+= =======
 
 
 auto_msgmni
