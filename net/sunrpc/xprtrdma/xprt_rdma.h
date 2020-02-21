@@ -464,8 +464,8 @@ void rpcrdma_ia_close(struct rpcrdma_ia *);
 /*
  * Endpoint calls - xprtrdma/verbs.c
  */
-int rpcrdma_ep_connect(struct rpcrdma_ep *, struct rpcrdma_ia *);
-void rpcrdma_ep_disconnect(struct rpcrdma_ep *, struct rpcrdma_ia *);
+int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt);
+void rpcrdma_xprt_disconnect(struct rpcrdma_xprt *r_xprt);
 
 int rpcrdma_post_sends(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req);
 void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp);

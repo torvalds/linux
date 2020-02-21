@@ -610,15 +610,17 @@ out:
 	return rc;
 }
 
-/*
- * Connect unconnected endpoint.
+/**
+ * rpcrdma_xprt_connect - Connect an unconnected transport
+ * @r_xprt: controlling transport instance
+ *
+ * Returns 0 on success or a negative errno.
  */
-int
-rpcrdma_ep_connect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
+int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 {
-	struct rpcrdma_xprt *r_xprt = container_of(ia, struct rpcrdma_xprt,
-						   rx_ia);
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	int rc;
 
 retry:
@@ -634,7 +636,7 @@ retry:
 			goto out_noupdate;
 		break;
 	case 1:
-		rpcrdma_ep_disconnect(ep, ia);
+		rpcrdma_xprt_disconnect(r_xprt);
 		/* fall through */
 	default:
 		rc = rpcrdma_ep_reconnect(r_xprt);
@@ -668,7 +670,7 @@ retry:
 
 	rc = rpcrdma_reqs_setup(r_xprt);
 	if (rc) {
-		rpcrdma_ep_disconnect(ep, ia);
+		rpcrdma_xprt_disconnect(r_xprt);
 		goto out;
 	}
 	rpcrdma_mrs_create(r_xprt);
@@ -683,18 +685,16 @@ out_noupdate:
 }
 
 /**
- * rpcrdma_ep_disconnect - Disconnect underlying transport
- * @ep: endpoint to disconnect
- * @ia: associated interface adapter
+ * rpcrdma_xprt_disconnect - Disconnect underlying transport
+ * @r_xprt: controlling transport instance
  *
  * Caller serializes. Either the transport send lock is held,
  * or we're being called to destroy the transport.
  */
-void
-rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
+void rpcrdma_xprt_disconnect(struct rpcrdma_xprt *r_xprt)
 {
-	struct rpcrdma_xprt *r_xprt = container_of(ep, struct rpcrdma_xprt,
-						   rx_ep);
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rdma_cm_id *id = ia->ri_id;
 	int rc;
 

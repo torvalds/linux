@@ -240,7 +240,7 @@ xprt_rdma_connect_worker(struct work_struct *work)
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	int rc;
 
-	rc = rpcrdma_ep_connect(&r_xprt->rx_ep, &r_xprt->rx_ia);
+	rc = rpcrdma_xprt_connect(r_xprt);
 	xprt_clear_connecting(xprt);
 	if (r_xprt->rx_ep.rep_connected > 0) {
 		xprt->stat.connect_count++;
@@ -284,7 +284,7 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 
 	cancel_delayed_work_sync(&r_xprt->rx_connect_worker);
 
-	rpcrdma_ep_disconnect(&r_xprt->rx_ep, &r_xprt->rx_ia);
+	rpcrdma_xprt_disconnect(r_xprt);
 	rpcrdma_buffer_destroy(&r_xprt->rx_buf);
 	rpcrdma_ia_close(&r_xprt->rx_ia);
 
@@ -409,7 +409,7 @@ void xprt_rdma_close(struct rpc_xprt *xprt)
 
 	if (ep->rep_connected == -ENODEV)
 		return;
-	rpcrdma_ep_disconnect(ep, ia);
+	rpcrdma_xprt_disconnect(r_xprt);
 
 out:
 	xprt->reestablish_timeout = 0;
