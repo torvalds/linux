@@ -284,17 +284,14 @@ static const struct file_operations debugfs_perf_fops = {
 	.release = single_release,
 };
 
-static void setup_debugfs_entry(struct qdio_q *q)
+static void setup_debugfs_entry(struct dentry *parent, struct qdio_q *q)
 {
 	char name[QDIO_DEBUGFS_NAME_LEN];
 
 	snprintf(name, QDIO_DEBUGFS_NAME_LEN, "%s_%d",
 		 q->is_input_q ? "input" : "output",
 		 q->nr);
-	q->debugfs_q = debugfs_create_file(name, 0444,
-				q->irq_ptr->debugfs_dev, q, &qstat_fops);
-	if (IS_ERR(q->debugfs_q))
-		q->debugfs_q = NULL;
+	debugfs_create_file(name, 0444, parent, q, &qstat_fops);
 }
 
 void qdio_setup_debug_entries(struct qdio_irq *irq_ptr, struct ccw_device *cdev)
@@ -304,33 +301,18 @@ void qdio_setup_debug_entries(struct qdio_irq *irq_ptr, struct ccw_device *cdev)
 
 	irq_ptr->debugfs_dev = debugfs_create_dir(dev_name(&cdev->dev),
 						  debugfs_root);
-	if (IS_ERR(irq_ptr->debugfs_dev))
-		irq_ptr->debugfs_dev = NULL;
-
-	irq_ptr->debugfs_perf = debugfs_create_file("statistics",
-				S_IFREG | S_IRUGO | S_IWUSR,
-				irq_ptr->debugfs_dev, irq_ptr,
-				&debugfs_perf_fops);
-	if (IS_ERR(irq_ptr->debugfs_perf))
-		irq_ptr->debugfs_perf = NULL;
+	debugfs_create_file("statistics", S_IFREG | S_IRUGO | S_IWUSR,
+			    irq_ptr->debugfs_dev, irq_ptr, &debugfs_perf_fops);
 
 	for_each_input_queue(irq_ptr, q, i)
-		setup_debugfs_entry(q);
+		setup_debugfs_entry(irq_ptr->debugfs_dev, q);
 	for_each_output_queue(irq_ptr, q, i)
-		setup_debugfs_entry(q);
+		setup_debugfs_entry(irq_ptr->debugfs_dev, q);
 }
 
 void qdio_shutdown_debug_entries(struct qdio_irq *irq_ptr)
 {
-	struct qdio_q *q;
-	int i;
-
-	for_each_input_queue(irq_ptr, q, i)
-		debugfs_remove(q->debugfs_q);
-	for_each_output_queue(irq_ptr, q, i)
-		debugfs_remove(q->debugfs_q);
-	debugfs_remove(irq_ptr->debugfs_perf);
-	debugfs_remove(irq_ptr->debugfs_dev);
+	debugfs_remove_recursive(irq_ptr->debugfs_dev);
 }
 
 int __init qdio_debug_init(void)
@@ -352,7 +334,7 @@ int __init qdio_debug_init(void)
 void qdio_debug_exit(void)
 {
 	qdio_clear_dbf_list();
-	debugfs_remove(debugfs_root);
+	debugfs_remove_recursive(debugfs_root);
 	debug_unregister(qdio_dbf_setup);
 	debug_unregister(qdio_dbf_error);
 }
