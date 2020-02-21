@@ -969,6 +969,10 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 		return  -ENXIO;
 	}
 
+	/*
+	 * Note that UTMI pad registers are shared by all PHYs, therefore
+	 * devm_platform_ioremap_resource() can't be used here.
+	 */
 	tegra_phy->pad_regs = devm_ioremap(&pdev->dev, res->start,
 					   resource_size(res));
 	if (!tegra_phy->pad_regs) {
@@ -1087,6 +1091,10 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 		return  -ENXIO;
 	}
 
+	/*
+	 * Note that PHY and USB controller are using shared registers,
+	 * therefore devm_platform_ioremap_resource() can't be used here.
+	 */
 	tegra_phy->regs = devm_ioremap(&pdev->dev, res->start,
 				       resource_size(res));
 	if (!tegra_phy->regs) {
