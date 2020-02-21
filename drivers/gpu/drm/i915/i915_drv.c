@@ -1494,13 +1494,6 @@ void i915_driver_remove(struct drm_i915_private *i915)
 
 	i915_driver_unregister(i915);
 
-	/*
-	 * After unregistering the device to prevent any new users, cancel
-	 * all in-flight requests so that we can quickly unbind the active
-	 * resources.
-	 */
-	intel_gt_set_wedged(&i915->gt);
-
 	/* Flush any external code that still may be under the RCU lock */
 	synchronize_rcu();
 

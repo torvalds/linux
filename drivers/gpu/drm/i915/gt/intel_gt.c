@@ -644,6 +644,13 @@ void intel_gt_driver_remove(struct intel_gt *gt)
 void intel_gt_driver_unregister(struct intel_gt *gt)
 {
 	intel_rps_driver_unregister(&gt->rps);
+
+	/*
+	 * Upon unregistering the device to prevent any new users, cancel
+	 * all in-flight requests so that we can quickly unbind the active
+	 * resources.
+	 */
+	intel_gt_set_wedged(gt);
 }
 
 void intel_gt_driver_release(struct intel_gt *gt)
