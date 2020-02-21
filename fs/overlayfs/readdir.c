@@ -440,13 +440,19 @@ static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 static u64 ovl_remap_lower_ino(u64 ino, int xinobits, int fsid,
 			       const char *name, int namelen)
 {
-	if (ino >> (64 - xinobits)) {
+	unsigned int xinoshift = 64 - xinobits;
+
+	if (unlikely(ino >> xinoshift)) {
 		pr_warn_ratelimited("d_ino too big (%.*s, ino=%llu, xinobits=%d)\n",
 				    namelen, name, ino, xinobits);
 		return ino;
 	}
 
-	return ino | ((u64)fsid) << (64 - xinobits);
+	/*
+	 * The lowest xinobit is reserved for mapping the non-peresistent inode
+	 * numbers range, but this range is only exposed via st_ino, not here.
+	 */
+	return ino | ((u64)fsid) << (xinoshift + 1);
 }
 
 /*

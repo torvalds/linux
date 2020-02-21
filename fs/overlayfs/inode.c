@@ -79,6 +79,7 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 {
 	bool samefs = ovl_same_fs(dentry->d_sb);
 	unsigned int xinobits = ovl_xino_bits(dentry->d_sb);
+	unsigned int xinoshift = 64 - xinobits;
 
 	if (samefs) {
 		/*
@@ -89,20 +90,20 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 		stat->dev = dentry->d_sb->s_dev;
 		return 0;
 	} else if (xinobits) {
-		unsigned int shift = 64 - xinobits;
 		/*
 		 * All inode numbers of underlying fs should not be using the
 		 * high xinobits, so we use high xinobits to partition the
 		 * overlay st_ino address space. The high bits holds the fsid
-		 * (upper fsid is 0). This way overlay inode numbers are unique
-		 * and all inodes use overlay st_dev. Inode numbers are also
-		 * persistent for a given layer configuration.
+		 * (upper fsid is 0). The lowest xinobit is reserved for mapping
+		 * the non-peresistent inode numbers range in case of overflow.
+		 * This way all overlay inode numbers are unique and use the
+		 * overlay st_dev.
 		 */
-		if (stat->ino >> shift) {
+		if (unlikely(stat->ino >> xinoshift)) {
 			pr_warn_ratelimited("inode number too big (%pd2, ino=%llu, xinobits=%d)\n",
 					    dentry, stat->ino, xinobits);
 		} else {
-			stat->ino |= ((u64)fsid) << shift;
+			stat->ino |= ((u64)fsid) << (xinoshift + 1);
 			stat->dev = dentry->d_sb->s_dev;
 			return 0;
 		}
@@ -573,6 +574,7 @@ static void ovl_next_ino(struct inode *inode)
 static void ovl_map_ino(struct inode *inode, unsigned long ino, int fsid)
 {
 	int xinobits = ovl_xino_bits(inode->i_sb);
+	unsigned int xinoshift = 64 - xinobits;
 
 	/*
 	 * When d_ino is consistent with st_ino (samefs or i_ino has enough
@@ -582,11 +584,28 @@ static void ovl_map_ino(struct inode *inode, unsigned long ino, int fsid)
 	 * with d_ino also causes nfsd readdirplus to fail.
 	 */
 	inode->i_ino = ino;
-	if (ovl_same_dev(inode->i_sb)) {
-		if (xinobits && fsid && !(ino >> (64 - xinobits)))
-			inode->i_ino |= (unsigned long)fsid << (64 - xinobits);
-	} else if (S_ISDIR(inode->i_mode)) {
+	if (ovl_same_fs(inode->i_sb)) {
+		return;
+	} else if (xinobits && likely(!(ino >> xinoshift))) {
+		inode->i_ino |= (unsigned long)fsid << (xinoshift + 1);
+		return;
+	}
+
+	/*
+	 * For directory inodes on non-samefs with xino disabled or xino
+	 * overflow, we allocate a non-persistent inode number, to be used for
+	 * resolving st_ino collisions in ovl_map_dev_ino().
+	 *
+	 * To avoid ino collision with legitimate xino values from upper
+	 * layer (fsid 0), use the lowest xinobit to map the non
+	 * persistent inode numbers to the unified st_ino address space.
+	 */
+	if (S_ISDIR(inode->i_mode)) {
 		ovl_next_ino(inode);
+		if (xinobits) {
+			inode->i_ino &= ~0UL >> xinobits;
+			inode->i_ino |= 1UL << xinoshift;
+		}
 	}
 }
 

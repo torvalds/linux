@@ -1483,7 +1483,8 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	 * free high bits in underlying fs to hold the unique fsid.
 	 * If overlayfs does encounter underlying inodes using the high xino
 	 * bits reserved for fsid, it emits a warning and uses the original
-	 * inode number.
+	 * inode number or a non persistent inode number allocated from a
+	 * dedicated range.
 	 */
 	if (ofs->numfs - !ofs->upper_mnt == 1) {
 		if (ofs->config.xino == OVL_XINO_ON)
@@ -1494,11 +1495,13 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	} else if (ofs->config.xino == OVL_XINO_ON && ofs->xino_mode < 0) {
 		/*
 		 * This is a roundup of number of bits needed for encoding
-		 * fsid, where fsid 0 is reserved for upper fs even with
-		 * lower only overlay.
+		 * fsid, where fsid 0 is reserved for upper fs (even with
+		 * lower only overlay) +1 extra bit is reserved for the non
+		 * persistent inode number range that is used for resolving
+		 * xino lower bits overflow.
 		 */
-		BUILD_BUG_ON(ilog2(OVL_MAX_STACK) > 31);
-		ofs->xino_mode = ilog2(ofs->numfs - 1) + 1;
+		BUILD_BUG_ON(ilog2(OVL_MAX_STACK) > 30);
+		ofs->xino_mode = ilog2(ofs->numfs - 1) + 2;
 	}
 
 	if (ofs->xino_mode > 0) {
