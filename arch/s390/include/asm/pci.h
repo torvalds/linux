@@ -109,6 +109,9 @@ struct zpci_dev {
 	u8		pft;		/* pci function type */
 	u16		domain;
 	u8		port;
+	u8		rid_available	: 1;
+	u8		reserved	: 7;
+	unsigned int	devfn;		/* DEVFN part of the RID*/
 
 	struct mutex lock;
 	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
