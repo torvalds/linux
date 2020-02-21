@@ -1078,8 +1078,6 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tun_debug(KERN_INFO, tun, "tun_net_xmit %d\n", skb->len);
 
-	BUG_ON(!tfile);
-
 	/* Drop if the filter does not like it.
 	 * This is a noop if the filter is disabled.
 	 * Filter can be enabled only for the TAP devices. */
