@@ -5143,6 +5143,18 @@ static int io_sq_thread(void *data)
 		 */
 		if (!to_submit || ret == -EBUSY) {
 			/*
+			 * Drop cur_mm before scheduling, we can't hold it for
+			 * long periods (or over schedule()). Do this before
+			 * adding ourselves to the waitqueue, as the unuse/drop
+			 * may sleep.
+			 */
+			if (cur_mm) {
+				unuse_mm(cur_mm);
+				mmput(cur_mm);
+				cur_mm = NULL;
+			}
+
+			/*
 			 * We're polling. If we're within the defined idle
 			 * period, then let us spin without work before going
 			 * to sleep. The exception is if we got EBUSY doing
@@ -5154,18 +5166,6 @@ static int io_sq_thread(void *data)
 			    !percpu_ref_is_dying(&ctx->refs))) {
 				cond_resched();
 				continue;
-			}
-
-			/*
-			 * Drop cur_mm before scheduling, we can't hold it for
-			 * long periods (or over schedule()). Do this before
-			 * adding ourselves to the waitqueue, as the unuse/drop
-			 * may sleep.
-			 */
-			if (cur_mm) {
-				unuse_mm(cur_mm);
-				mmput(cur_mm);
-				cur_mm = NULL;
 			}
 
 			prepare_to_wait(&ctx->sqo_wait, &wait,
