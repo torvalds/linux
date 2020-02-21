@@ -250,12 +250,11 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt));
 #endif
 		init_completion(&ia->ri_remove_done);
-		set_bit(RPCRDMA_IAF_REMOVING, &ia->ri_flags);
 		ep->rep_connected = -ENODEV;
 		xprt_force_disconnect(xprt);
 		wait_for_completion(&ia->ri_remove_done);
+		trace_xprtrdma_remove(r_xprt);
 
-		ia->ri_id = NULL;
 		/* Return 1 to ensure the core destroys the id. */
 		return 1;
 	case RDMA_CM_EVENT_ESTABLISHED:
@@ -344,37 +343,6 @@ out:
 /*
  * Exported functions.
  */
-
-/**
- * rpcrdma_ia_remove - Handle device driver unload
- * @ia: interface adapter being removed
- *
- * Divest transport H/W resources associated with this adapter,
- * but allow it to be restored later.
- *
- * Caller must hold the transport send lock.
- */
-void
-rpcrdma_ia_remove(struct rpcrdma_ia *ia)
-{
-	struct rpcrdma_xprt *r_xprt = container_of(ia, struct rpcrdma_xprt,
-						   rx_ia);
-
-	if (ia->ri_id->qp)
-		rpcrdma_xprt_drain(r_xprt);
-
-	rpcrdma_reps_unmap(r_xprt);
-	rpcrdma_reqs_reset(r_xprt);
-	rpcrdma_mrs_destroy(r_xprt);
-	rpcrdma_sendctxs_destroy(r_xprt);
-
-	rpcrdma_ep_destroy(r_xprt);
-
-	/* Allow waiters to continue */
-	complete(&ia->ri_remove_done);
-
-	trace_xprtrdma_remove(r_xprt);
-}
 
 static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 {
@@ -573,12 +541,13 @@ void rpcrdma_xprt_disconnect(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rdma_cm_id *id = ia->ri_id;
-	int rc;
+	int rc, status = ep->rep_connected;
+
+	might_sleep();
 
 	if (!id)
-		goto out;
+		return;
 
-	/* returns without wait if ID is not connected */
 	rc = rdma_disconnect(id);
 	if (!rc)
 		wait_event_interruptible(ep->rep_connect_wait,
@@ -589,15 +558,17 @@ void rpcrdma_xprt_disconnect(struct rpcrdma_xprt *r_xprt)
 
 	if (id->qp)
 		rpcrdma_xprt_drain(r_xprt);
-out:
+	rpcrdma_reps_unmap(r_xprt);
 	rpcrdma_reqs_reset(r_xprt);
 	rpcrdma_mrs_destroy(r_xprt);
 	rpcrdma_sendctxs_destroy(r_xprt);
 
 	rpcrdma_ep_destroy(r_xprt);
 
-	if (ia->ri_id)
-		rdma_destroy_id(ia->ri_id);
+	if (status == -ENODEV)
+		complete(&ia->ri_remove_done);
+	else
+		rdma_destroy_id(id);
 	ia->ri_id = NULL;
 }
 
@@ -815,10 +786,10 @@ void rpcrdma_mrs_refresh(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 
-	/* If there is no underlying device, it's no use to
-	 * wake the refresh worker.
+	/* If there is no underlying connection, it's no use
+	 * to wake the refresh worker.
 	 */
-	if (ep->rep_connected != -ENODEV) {
+	if (ep->rep_connected == 1) {
 		/* The work is scheduled on a WQ_MEM_RECLAIM
 		 * workqueue in order to prevent MR allocation
 		 * from recursing into NFS during direct reclaim.

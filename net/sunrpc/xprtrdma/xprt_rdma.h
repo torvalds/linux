@@ -75,13 +75,8 @@ struct rpcrdma_ia {
 	unsigned int		ri_max_frwr_depth;
 	bool			ri_implicit_roundup;
 	enum ib_mr_type		ri_mrtype;
-	unsigned long		ri_flags;
 	struct completion	ri_done;
 	struct completion	ri_remove_done;
-};
-
-enum {
-	RPCRDMA_IAF_REMOVING = 0,
 };
 
 /*
@@ -453,11 +448,6 @@ extern int xprt_rdma_pad_optimize;
  * registration strategy.
  */
 extern unsigned int xprt_rdma_memreg_strategy;
-
-/*
- * Interface Adapter calls - xprtrdma/verbs.c
- */
-void rpcrdma_ia_remove(struct rpcrdma_ia *ia);
 
 /*
  * Endpoint calls - xprtrdma/verbs.c

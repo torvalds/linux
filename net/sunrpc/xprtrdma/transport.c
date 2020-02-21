@@ -385,26 +385,11 @@ out2:
 void xprt_rdma_close(struct rpc_xprt *xprt)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-
-	might_sleep();
 
 	trace_xprtrdma_op_close(r_xprt);
 
-	/* Prevent marshaling and sending of new requests */
-	xprt_clear_connected(xprt);
-
-	if (test_and_clear_bit(RPCRDMA_IAF_REMOVING, &ia->ri_flags)) {
-		rpcrdma_ia_remove(ia);
-		goto out;
-	}
-
-	if (ep->rep_connected == -ENODEV)
-		return;
 	rpcrdma_xprt_disconnect(r_xprt);
 
-out:
 	xprt->reestablish_timeout = 0;
 	++xprt->connect_cookie;
 	xprt_disconnect_done(xprt);
