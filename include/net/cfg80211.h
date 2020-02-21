@@ -4598,7 +4598,6 @@ struct wiphy_iftype_akm_suites {
 struct wiphy {
 	/* assign these fields before you register the wiphy */
 
-	/* permanent MAC address(es) */
 	u8 perm_addr[ETH_ALEN];
 	u8 addr_mask[ETH_ALEN];
 
