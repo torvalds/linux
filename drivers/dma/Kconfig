@@ -658,6 +658,17 @@ config UNIPHIER_MDMAC
 	  UniPhier platform.  This DMA controller is used as the external
 	  DMA engine of the SD/eMMC controllers of the LD4, Pro4, sLD8 SoCs.
 
+config UNIPHIER_XDMAC
+	tristate "UniPhier XDMAC support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the XDMAC (external DMA controller) on the
+	  UniPhier platform. This DMA controller can transfer data from
+	  memory to memory, memory to peripheral and peripheral to memory.
+
 config XGENE_DMA
 	tristate "APM X-Gene DMA support"
 	depends on ARCH_XGENE || COMPILE_TEST
