@@ -1674,7 +1674,7 @@ void dcn20_optimize_bandwidth(
 				dc->clk_mgr,
 				context,
 				true);
-		dc->wm_optimized_required = false;
+		dc->clk_optimized_required = false;
 	}
 }
 
