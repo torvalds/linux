@@ -1240,6 +1240,13 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 		}
 		ctx->nfs_mod = nfs_mod;
 	}
+
+	/* Ensure the filesystem context has the correct fs_type */
+	if (fc->fs_type != ctx->nfs_mod->nfs_fs) {
+		module_put(fc->fs_type->owner);
+		__module_get(ctx->nfs_mod->nfs_fs->owner);
+		fc->fs_type = ctx->nfs_mod->nfs_fs;
+	}
 	return 0;
 
 out_no_device_name:
