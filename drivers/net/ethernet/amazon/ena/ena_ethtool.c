@@ -674,7 +674,6 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	 * supports getting/setting the hash function.
 	 */
 	rc = ena_com_get_hash_function(adapter->ena_dev, &ena_func, key);
-
 	if (rc) {
 		if (rc == -EOPNOTSUPP) {
 			key = NULL;
@@ -684,9 +683,6 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 
 		return rc;
 	}
-
-	if (rc)
-		return rc;
 
 	switch (ena_func) {
 	case ENA_ADMIN_TOEPLITZ:
