@@ -21,11 +21,20 @@ properties:
       - enum:
           - apm,potenza-pmu
           - arm,armv8-pmuv3
+          - arm,neoverse-n1-pmu
+          - arm,neoverse-e1-pmu
+          - arm,cortex-a77-pmu
+          - arm,cortex-a76-pmu
+          - arm,cortex-a75-pmu
           - arm,cortex-a73-pmu
           - arm,cortex-a72-pmu
+          - arm,cortex-a65-pmu
           - arm,cortex-a57-pmu
+          - arm,cortex-a55-pmu
           - arm,cortex-a53-pmu
           - arm,cortex-a35-pmu
+          - arm,cortex-a34-pmu
+          - arm,cortex-a32-pmu
           - arm,cortex-a17-pmu
           - arm,cortex-a15-pmu
           - arm,cortex-a12-pmu
