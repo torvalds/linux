@@ -255,6 +255,13 @@ config ARCH_HAS_SET_DIRECT_MAP
 config ARCH_HAS_DMA_SET_UNCACHED
 	bool
 
+#
+# Select if the architectures provides the arch_dma_clear_uncached symbol
+# to undo an in-place page table remap for uncached access.
+#
+config ARCH_HAS_DMA_CLEAR_UNCACHED
+	bool
+
 # Select if arch init_task must go in the __init_task_data section
 config ARCH_TASK_STRUCT_ON_STACK
 	bool
