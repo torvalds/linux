@@ -1328,14 +1328,21 @@ void dcn10_init_hw(struct dc *dc)
 		enum dc_status status = DC_ERROR_UNEXPECTED;
 
 		for (i = 0; i < dc->link_count; i++) {
-			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT) {
+			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
 				continue;
-			}
-			/* if any of the displays are lit up turn them off */
-			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
-						     &dpcd_power_state, sizeof(dpcd_power_state));
-			if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
-				dp_receiver_power_ctrl(dc->links[i], false);
+
+			/*
+			 * core_link_read_dpcd() will invoke dm_helpers_dp_read_dpcd(),
+			 * which needs to read dpcd info with the help of aconnector.
+			 * If aconnector (dc->links[i]->prev) is NULL, then dpcd status
+			 * cannot be read.
+			 */
+			if (dc->links[i]->priv) {
+				/* if any of the displays are lit up turn them off */
+				status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
+								&dpcd_power_state, sizeof(dpcd_power_state));
+				if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0)
+					dp_receiver_power_ctrl(dc->links[i], false);
 			}
 		}
 	}
