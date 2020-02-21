@@ -727,8 +727,9 @@ found:
 	if (!bp->b_addr) {
 		error = _xfs_buf_map_pages(bp, flags);
 		if (unlikely(error)) {
-			xfs_warn(target->bt_mount,
-				"%s: failed to map pagesn", __func__);
+			xfs_warn_ratelimited(target->bt_mount,
+				"%s: failed to map %u pages", __func__,
+				bp->b_page_count);
 			xfs_buf_relse(bp);
 			return error;
 		}
