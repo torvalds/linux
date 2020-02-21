@@ -840,6 +840,55 @@ err:
 	return result;
 }
 
+/**
+ * amdgpu_debugfs_regs_gfxoff_write - Enable/disable GFXOFF
+ *
+ * @f: open file handle
+ * @buf: User buffer to write data from
+ * @size: Number of bytes to write
+ * @pos:  Offset to seek to
+ *
+ * Write a 32-bit zero to disable or a 32-bit non-zero to enable
+ */
+static ssize_t amdgpu_debugfs_gfxoff_write(struct file *f, const char __user *buf,
+					 size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	ssize_t result = 0;
+	int r;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	r = pm_runtime_get_sync(adev->ddev->dev);
+	if (r < 0)
+		return r;
+
+	while (size) {
+		uint32_t value;
+
+		r = get_user(value, (uint32_t *)buf);
+		if (r) {
+			pm_runtime_mark_last_busy(adev->ddev->dev);
+			pm_runtime_put_autosuspend(adev->ddev->dev);
+			return r;
+		}
+
+		amdgpu_gfx_off_ctrl(adev, value ? true : false);
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	pm_runtime_mark_last_busy(adev->ddev->dev);
+	pm_runtime_put_autosuspend(adev->ddev->dev);
+
+	return result;
+}
+
+
 static const struct file_operations amdgpu_debugfs_regs_fops = {
 	.owner = THIS_MODULE,
 	.read = amdgpu_debugfs_regs_read,
@@ -888,6 +937,11 @@ static const struct file_operations amdgpu_debugfs_gpr_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations amdgpu_debugfs_gfxoff_fops = {
+	.owner = THIS_MODULE,
+	.write = amdgpu_debugfs_gfxoff_write,
+};
+
 static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_regs_fops,
 	&amdgpu_debugfs_regs_didt_fops,
@@ -897,6 +951,7 @@ static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_sensors_fops,
 	&amdgpu_debugfs_wave_fops,
 	&amdgpu_debugfs_gpr_fops,
+	&amdgpu_debugfs_gfxoff_fops,
 };
 
 static const char *debugfs_regs_names[] = {
@@ -908,6 +963,7 @@ static const char *debugfs_regs_names[] = {
 	"amdgpu_sensors",
 	"amdgpu_wave",
 	"amdgpu_gpr",
+	"amdgpu_gfxoff",
 };
 
 /**
