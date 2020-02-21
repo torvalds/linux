@@ -190,7 +190,7 @@ static efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 							    &alloc_addr,
 							    hard_limit);
 			if (status != EFI_SUCCESS) {
-				pr_efi_err("Failed to reallocate memory for files\n");
+				pr_efi_err("Failed to allocate memory for files\n");
 				goto err_close_file;
 			}
 
