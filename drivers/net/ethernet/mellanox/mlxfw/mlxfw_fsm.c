@@ -16,27 +16,68 @@
 	(MLXFW_FSM_STATE_WAIT_TIMEOUT_MS / MLXFW_FSM_STATE_WAIT_CYCLE_MS)
 #define MLXFW_FSM_MAX_COMPONENT_SIZE (10 * (1 << 20))
 
-static const char * const mlxfw_fsm_state_err_str[] = {
-	[MLXFW_FSM_STATE_ERR_ERROR] =
-		"general error",
-	[MLXFW_FSM_STATE_ERR_REJECTED_DIGEST_ERR] =
-		"component hash mismatch",
-	[MLXFW_FSM_STATE_ERR_REJECTED_NOT_APPLICABLE] =
-		"component not applicable",
-	[MLXFW_FSM_STATE_ERR_REJECTED_UNKNOWN_KEY] =
-		"unknown key",
-	[MLXFW_FSM_STATE_ERR_REJECTED_AUTH_FAILED] =
-		"authentication failed",
-	[MLXFW_FSM_STATE_ERR_REJECTED_UNSIGNED] =
-		"component was not signed",
-	[MLXFW_FSM_STATE_ERR_REJECTED_KEY_NOT_APPLICABLE] =
-		"key not applicable",
-	[MLXFW_FSM_STATE_ERR_REJECTED_BAD_FORMAT] =
-		"bad format",
-	[MLXFW_FSM_STATE_ERR_BLOCKED_PENDING_RESET] =
-		"pending reset",
-	[MLXFW_FSM_STATE_ERR_MAX] =
-		"unknown error"
+static const int mlxfw_fsm_state_errno[] = {
+	[MLXFW_FSM_STATE_ERR_ERROR] = -EIO,
+	[MLXFW_FSM_STATE_ERR_REJECTED_DIGEST_ERR] = -EBADMSG,
+	[MLXFW_FSM_STATE_ERR_REJECTED_NOT_APPLICABLE] = -ENOENT,
+	[MLXFW_FSM_STATE_ERR_REJECTED_UNKNOWN_KEY] = -ENOKEY,
+	[MLXFW_FSM_STATE_ERR_REJECTED_AUTH_FAILED] = -EACCES,
+	[MLXFW_FSM_STATE_ERR_REJECTED_UNSIGNED] = -EKEYREVOKED,
+	[MLXFW_FSM_STATE_ERR_REJECTED_KEY_NOT_APPLICABLE] = -EKEYREJECTED,
+	[MLXFW_FSM_STATE_ERR_REJECTED_BAD_FORMAT] = -ENOEXEC,
+	[MLXFW_FSM_STATE_ERR_BLOCKED_PENDING_RESET] = -EBUSY,
+	[MLXFW_FSM_STATE_ERR_MAX] = -EINVAL
+};
+
+#define MLXFW_ERR_PRFX "Firmware flash failed: "
+#define MLXFW_ERR_MSG(extack, msg, err) do { \
+	pr_err("%s, err (%d)\n", MLXFW_ERR_PRFX msg, err); \
+	NL_SET_ERR_MSG_MOD(extack, MLXFW_ERR_PRFX msg); \
+} while (0)
+
+static int mlxfw_fsm_state_err(struct netlink_ext_ack *extack,
+			       enum mlxfw_fsm_state_err err)
+{
+	enum mlxfw_fsm_state_err fsm_state_err;
+
+	fsm_state_err = min_t(enum mlxfw_fsm_state_err, err,
+			      MLXFW_FSM_STATE_ERR_MAX);
+
+	switch (fsm_state_err) {
+	case MLXFW_FSM_STATE_ERR_ERROR:
+		MLXFW_ERR_MSG(extack, "general error", err);
+		break;
+	case MLXFW_FSM_STATE_ERR_REJECTED_DIGEST_ERR:
+		MLXFW_ERR_MSG(extack, "component hash mismatch", err);
+		break;
+	case MLXFW_FSM_STATE_ERR_REJECTED_NOT_APPLICABLE:
+		MLXFW_ERR_MSG(extack, "component not applicable", err);
+		break;
+	case MLXFW_FSM_STATE_ERR_REJECTED_UNKNOWN_KEY:
+		MLXFW_ERR_MSG(extack, "unknown key", err);
+		break;
+	case MLXFW_FSM_STATE_ERR_REJECTED_AUTH_FAILED:
+		MLXFW_ERR_MSG(extack, "authentication failed", err);
+		break;
+	case MLXFW_FSM_STATE_ERR_REJECTED_UNSIGNED:
+		MLXFW_ERR_MSG(extack, "component was not signed", err);
+		break;
+	case MLXFW_FSM_STATE_ERR_REJECTED_KEY_NOT_APPLICABLE:
+		MLXFW_ERR_MSG(extack, "key not applicable", err);
+		break;
+	case MLXFW_FSM_STATE_ERR_REJECTED_BAD_FORMAT:
+		MLXFW_ERR_MSG(extack, "bad format", err);
+		break;
+	case MLXFW_FSM_STATE_ERR_BLOCKED_PENDING_RESET:
+		MLXFW_ERR_MSG(extack, "pending reset", err);
+		break;
+	case MLXFW_FSM_STATE_ERR_OK: /* fall through */
+	case MLXFW_FSM_STATE_ERR_MAX:
+		MLXFW_ERR_MSG(extack, "unknown error", err);
+		break;
+	};
+
+	return mlxfw_fsm_state_errno[fsm_state_err];
 };
 
 static int mlxfw_fsm_state_wait(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
@@ -55,14 +96,9 @@ retry:
 	if (err)
 		return err;
 
-	if (fsm_state_err != MLXFW_FSM_STATE_ERR_OK) {
-		fsm_state_err = min_t(enum mlxfw_fsm_state_err,
-				      fsm_state_err, MLXFW_FSM_STATE_ERR_MAX);
-		pr_err("Firmware flash failed: %s\n",
-		       mlxfw_fsm_state_err_str[fsm_state_err]);
-		NL_SET_ERR_MSG_MOD(extack, "Firmware flash failed");
-		return -EINVAL;
-	}
+	if (fsm_state_err != MLXFW_FSM_STATE_ERR_OK)
+		return mlxfw_fsm_state_err(extack, fsm_state_err);
+
 	if (curr_fsm_state != fsm_state) {
 		if (--times == 0) {
 			pr_err("Timeout reached on FSM state change");
