@@ -932,10 +932,6 @@ sub get_maintainers {
 	}
     }
 
-    foreach my $fix (@fixes) {
-	vcs_add_commit_signers($fix, "blamed_fixes");
-    }
-
     foreach my $email (@email_to, @list_to) {
 	$email->[0] = deduplicate_email($email->[0]);
     }
@@ -972,6 +968,10 @@ sub get_maintainers {
 	    push_email_address($tmp_email, '');
 	    add_role($tmp_email, 'in file');
 	}
+    }
+
+    foreach my $fix (@fixes) {
+	vcs_add_commit_signers($fix, "blamed_fixes");
     }
 
     my @to = ();
