@@ -284,7 +284,7 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 
 	cancel_delayed_work_sync(&r_xprt->rx_connect_worker);
 
-	rpcrdma_ep_destroy(r_xprt);
+	rpcrdma_ep_disconnect(&r_xprt->rx_ep, &r_xprt->rx_ia);
 	rpcrdma_buffer_destroy(&r_xprt->rx_buf);
 	rpcrdma_ia_close(&r_xprt->rx_ia);
 
@@ -351,13 +351,9 @@ xprt_setup_rdma(struct xprt_create *args)
 	if (rc)
 		goto out1;
 
-	rc = rpcrdma_ep_create(new_xprt);
-	if (rc)
-		goto out2;
-
 	rc = rpcrdma_buffer_create(new_xprt);
 	if (rc)
-		goto out3;
+		goto out2;
 
 	if (!try_module_get(THIS_MODULE))
 		goto out4;
@@ -375,8 +371,6 @@ xprt_setup_rdma(struct xprt_create *args)
 out4:
 	rpcrdma_buffer_destroy(&new_xprt->rx_buf);
 	rc = -ENODEV;
-out3:
-	rpcrdma_ep_destroy(new_xprt);
 out2:
 	rpcrdma_ia_close(&new_xprt->rx_ia);
 out1:
