@@ -919,6 +919,11 @@ int i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	if (err)
 		goto err_fence;
 
+	if (unlikely(i915_vma_is_closed(vma))) {
+		err = -ENOENT;
+		goto err_unlock;
+	}
+
 	bound = atomic_read(&vma->flags);
 	if (unlikely(bound & I915_VMA_ERROR)) {
 		err = -ENOMEM;
