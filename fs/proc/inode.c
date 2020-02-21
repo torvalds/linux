@@ -108,10 +108,11 @@ void proc_prune_siblings_dcache(struct hlist_head *inodes, spinlock_t *lock)
 	struct inode *inode;
 	struct proc_inode *ei;
 	struct hlist_node *node;
-	struct super_block *sb;
+	struct super_block *old_sb = NULL;
 
 	rcu_read_lock();
 	for (;;) {
+		struct super_block *sb;
 		node = hlist_first_rcu(inodes);
 		if (!node)
 			break;
@@ -122,23 +123,28 @@ void proc_prune_siblings_dcache(struct hlist_head *inodes, spinlock_t *lock)
 
 		inode = &ei->vfs_inode;
 		sb = inode->i_sb;
-		if (!atomic_inc_not_zero(&sb->s_active))
+		if ((sb != old_sb) && !atomic_inc_not_zero(&sb->s_active))
 			continue;
 		inode = igrab(inode);
 		rcu_read_unlock();
+		if (sb != old_sb) {
+			if (old_sb)
+				deactivate_super(old_sb);
+			old_sb = sb;
+		}
 		if (unlikely(!inode)) {
-			deactivate_super(sb);
 			rcu_read_lock();
 			continue;
 		}
 
 		d_prune_aliases(inode);
 		iput(inode);
-		deactivate_super(sb);
 
 		rcu_read_lock();
 	}
 	rcu_read_unlock();
+	if (old_sb)
+		deactivate_super(old_sb);
 }
 
 static int proc_show_options(struct seq_file *seq, struct dentry *root)
