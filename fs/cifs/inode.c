@@ -2282,7 +2282,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	 * writebehind data than the SMB timeout for the SetPathInfo
 	 * request would allow
 	 */
-	open_file = find_writable_file(cifsInode, true);
+	open_file = find_writable_file(cifsInode, FIND_WR_FSUID_ONLY);
 	if (open_file) {
 		tcon = tlink_tcon(open_file->tlink);
 		server = tcon->ses->server;
@@ -2432,7 +2432,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		args->ctime = NO_CHANGE_64;
 
 	args->device = 0;
-	open_file = find_writable_file(cifsInode, true);
+	open_file = find_writable_file(cifsInode, FIND_WR_FSUID_ONLY);
 	if (open_file) {
 		u16 nfid = open_file->fid.netfid;
 		u32 npid = open_file->pid;
@@ -2535,7 +2535,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	rc = 0;
 
 	if (attrs->ia_valid & ATTR_MTIME) {
-		rc = cifs_get_writable_file(cifsInode, false, &wfile);
+		rc = cifs_get_writable_file(cifsInode, FIND_WR_ANY, &wfile);
 		if (!rc) {
 			tcon = tlink_tcon(wfile->tlink);
 			rc = tcon->ses->server->ops->flush(xid, tcon, &wfile->fid);
