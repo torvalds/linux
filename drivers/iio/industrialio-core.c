@@ -301,10 +301,13 @@ static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
 	struct iio_dev *indio_dev = file->private_data;
-	char buf[20];
 	unsigned val = 0;
-	ssize_t len;
 	int ret;
+
+	if (*ppos > 0)
+		return simple_read_from_buffer(userbuf, count, ppos,
+					       indio_dev->read_buf,
+					       indio_dev->read_buf_len);
 
 	ret = indio_dev->info->debugfs_reg_access(indio_dev,
 						  indio_dev->cached_reg_addr,
@@ -314,9 +317,13 @@ static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 		return ret;
 	}
 
-	len = snprintf(buf, sizeof(buf), "0x%X\n", val);
+	indio_dev->read_buf_len = snprintf(indio_dev->read_buf,
+					   sizeof(indio_dev->read_buf),
+					   "0x%X\n", val);
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+	return simple_read_from_buffer(userbuf, count, ppos,
+				       indio_dev->read_buf,
+				       indio_dev->read_buf_len);
 }
 
 static ssize_t iio_debugfs_write_reg(struct file *file,
