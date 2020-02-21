@@ -4699,7 +4699,6 @@ struct wiphy {
 
 	struct list_head wdev_list;
 
-	/* the network namespace this phy lives in currently */
 	possible_net_t _net;
 
 #ifdef CONFIG_CFG80211_WEXT
