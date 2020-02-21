@@ -68,6 +68,7 @@
  * RDMA Endpoint -- connection endpoint details
  */
 struct rpcrdma_ep {
+	struct kref		re_kref;
 	struct rdma_cm_id 	*re_id;
 	struct ib_pd		*re_pd;
 	unsigned int		re_max_rdma_segs;
@@ -75,7 +76,6 @@ struct rpcrdma_ep {
 	bool			re_implicit_roundup;
 	enum ib_mr_type		re_mrtype;
 	struct completion	re_done;
-	struct completion	re_remove_done;
 	unsigned int		re_send_count;
 	unsigned int		re_send_batch;
 	unsigned int		re_max_inline_send;
@@ -83,7 +83,8 @@ struct rpcrdma_ep {
 	int			re_async_rc;
 	int			re_connect_status;
 	struct ib_qp_init_attr	re_attr;
-	wait_queue_head_t	re_connect_wait;
+	wait_queue_head_t       re_connect_wait;
+	struct rpc_xprt		*re_xprt;
 	struct rpcrdma_connect_private
 				re_cm_private;
 	struct rdma_conn_param	re_remote_cma;
@@ -411,7 +412,7 @@ struct rpcrdma_stats {
  */
 struct rpcrdma_xprt {
 	struct rpc_xprt		rx_xprt;
-	struct rpcrdma_ep	rx_ep;
+	struct rpcrdma_ep	*rx_ep;
 	struct rpcrdma_buffer	rx_buf;
 	struct delayed_work	rx_connect_worker;
 	struct rpc_timeout	rx_timeout;

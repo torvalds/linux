@@ -74,7 +74,7 @@ static void frwr_mr_recycle(struct rpcrdma_mr *mr)
 
 	if (mr->mr_dir != DMA_NONE) {
 		trace_xprtrdma_mr_unmap(mr);
-		ib_dma_unmap_sg(r_xprt->rx_ep.re_id->device,
+		ib_dma_unmap_sg(r_xprt->rx_ep->re_id->device,
 				mr->mr_sg, mr->mr_nents, mr->mr_dir);
 		mr->mr_dir = DMA_NONE;
 	}
@@ -115,7 +115,7 @@ void frwr_reset(struct rpcrdma_req *req)
  */
 int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 {
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	unsigned int depth = ep->re_max_fr_depth;
 	struct scatterlist *sg;
 	struct ib_mr *frmr;
@@ -283,7 +283,7 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 				int nsegs, bool writing, __be32 xid,
 				struct rpcrdma_mr *mr)
 {
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	struct ib_reg_wr *reg_wr;
 	int i, n, dma_nents;
 	struct ib_mr *ibmr;
@@ -405,7 +405,7 @@ int frwr_send(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		post_wr = &frwr->fr_regwr.wr;
 	}
 
-	return ib_post_send(r_xprt->rx_ep.re_id->qp, post_wr, NULL);
+	return ib_post_send(r_xprt->rx_ep->re_id->qp, post_wr, NULL);
 }
 
 /**
@@ -535,7 +535,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * unless re_id->qp is a valid pointer.
 	 */
 	bad_wr = NULL;
-	rc = ib_post_send(r_xprt->rx_ep.re_id->qp, first, &bad_wr);
+	rc = ib_post_send(r_xprt->rx_ep->re_id->qp, first, &bad_wr);
 
 	/* The final LOCAL_INV WR in the chain is supposed to
 	 * do the wake. If it was never posted, the wake will
@@ -640,7 +640,7 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * unless re_id->qp is a valid pointer.
 	 */
 	bad_wr = NULL;
-	rc = ib_post_send(r_xprt->rx_ep.re_id->qp, first, &bad_wr);
+	rc = ib_post_send(r_xprt->rx_ep->re_id->qp, first, &bad_wr);
 	if (!rc)
 		return;
 

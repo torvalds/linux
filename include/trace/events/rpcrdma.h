@@ -104,7 +104,7 @@ DECLARE_EVENT_CLASS(xprtrdma_connect_class,
 	TP_fast_assign(
 		__entry->r_xprt = r_xprt;
 		__entry->rc = rc;
-		__entry->connect_status = r_xprt->rx_ep.re_connect_status;
+		__entry->connect_status = r_xprt->rx_ep->re_connect_status;
 		__assign_str(addr, rpcrdma_addrstr(r_xprt));
 		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),
@@ -342,37 +342,6 @@ DECLARE_EVENT_CLASS(xprtrdma_cb_event,
  ** Connection events
  **/
 
-TRACE_EVENT(xprtrdma_cm_event,
-	TP_PROTO(
-		const struct rpcrdma_xprt *r_xprt,
-		struct rdma_cm_event *event
-	),
-
-	TP_ARGS(r_xprt, event),
-
-	TP_STRUCT__entry(
-		__field(const void *, r_xprt)
-		__field(unsigned int, event)
-		__field(int, status)
-		__string(addr, rpcrdma_addrstr(r_xprt))
-		__string(port, rpcrdma_portstr(r_xprt))
-	),
-
-	TP_fast_assign(
-		__entry->r_xprt = r_xprt;
-		__entry->event = event->event;
-		__entry->status = event->status;
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
-	),
-
-	TP_printk("peer=[%s]:%s r_xprt=%p: %s (%u/%d)",
-		__get_str(addr), __get_str(port),
-		__entry->r_xprt, rdma_show_cm_event(__entry->event),
-		__entry->event, __entry->status
-	)
-);
-
 TRACE_EVENT(xprtrdma_inline_thresh,
 	TP_PROTO(
 		const struct rpcrdma_ep *ep
@@ -406,34 +375,6 @@ TRACE_EVENT(xprtrdma_inline_thresh,
 		__entry->srcaddr, __entry->dstaddr,
 		__entry->inline_send, __entry->inline_recv,
 		__entry->max_send, __entry->max_recv
-	)
-);
-
-TRACE_EVENT(xprtrdma_remove,
-	TP_PROTO(
-		const struct rpcrdma_ep *ep
-	),
-
-	TP_ARGS(ep),
-
-	TP_STRUCT__entry(
-		__array(unsigned char, srcaddr, sizeof(struct sockaddr_in6))
-		__array(unsigned char, dstaddr, sizeof(struct sockaddr_in6))
-		__string(name, ep->re_id->device->name)
-	),
-
-	TP_fast_assign(
-		const struct rdma_cm_id *id = ep->re_id;
-
-		memcpy(__entry->srcaddr, &id->route.addr.src_addr,
-		       sizeof(struct sockaddr_in6));
-		memcpy(__entry->dstaddr, &id->route.addr.dst_addr,
-		       sizeof(struct sockaddr_in6));
-		__assign_str(name, id->device->name);
-	),
-
-	TP_printk("%pISpc -> %pISpc device=%s",
-		__entry->srcaddr, __entry->dstaddr, __get_str(name)
 	)
 );
 
@@ -831,7 +772,7 @@ TRACE_EVENT(xprtrdma_post_recvs,
 		__entry->r_xprt = r_xprt;
 		__entry->count = count;
 		__entry->status = status;
-		__entry->posted = r_xprt->rx_ep.re_receive_count;
+		__entry->posted = r_xprt->rx_ep->re_receive_count;
 		__assign_str(addr, rpcrdma_addrstr(r_xprt));
 		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),
