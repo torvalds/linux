@@ -25,6 +25,17 @@ union efi_rng_protocol {
 	} mixed_mode;
 };
 
+/**
+ * efi_get_random_bytes() - fill a buffer with random bytes
+ * @size:	size of the buffer
+ * @out:	caller allocated buffer to receive the random bytes
+ *
+ * The call will fail if either the firmware does not implement the
+ * EFI_RNG_PROTOCOL or there are not enough random bytes available to fill
+ * the buffer.
+ *
+ * Return:	status code
+ */
 efi_status_t efi_get_random_bytes(unsigned long size, u8 *out)
 {
 	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
@@ -38,6 +49,19 @@ efi_status_t efi_get_random_bytes(unsigned long size, u8 *out)
 	return efi_call_proto(rng, get_rng, NULL, size, out);
 }
 
+/**
+ * efi_random_get_seed() - provide random seed as configuration table
+ *
+ * The EFI_RNG_PROTOCOL is used to read random bytes. These random bytes are
+ * saved as a configuration table which can be used as entropy by the kernel
+ * for the initialization of its pseudo random number generator.
+ *
+ * If the EFI_RNG_PROTOCOL is not available or there are not enough random bytes
+ * available, the configuration table will not be installed and an error code
+ * will be returned.
+ *
+ * Return:	status code
+ */
 efi_status_t efi_random_get_seed(void)
 {
 	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
