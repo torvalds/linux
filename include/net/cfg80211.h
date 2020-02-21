@@ -4464,7 +4464,9 @@ struct wiphy_iftype_akm_suites {
  *	unregister hardware
  * @debugfsdir: debugfs directory used for this wiphy (ieee80211/<wiphyname>).
  *	It will be renamed automatically on wiphy renames
- * @dev: (virtual) struct device for this wiphy
+ * @dev: (virtual) struct device for this wiphy. The item in
+ *	/sys/class/ieee80211/ points to this. You need use set_wiphy_dev()
+ *	(see below).
  * @wext: wireless extension handlers
  * @priv: driver private data (sized according to wiphy_new() parameter)
  * @interface_modes: bitmask of interfaces types valid for this wiphy,
@@ -4683,8 +4685,6 @@ struct wiphy {
 
 	const struct ieee80211_regdomain __rcu *regd;
 
-	/* the item in /sys/class/ieee80211/ points to this,
-	 * you need use set_wiphy_dev() (see below) */
 	struct device dev;
 
 	bool registered;
