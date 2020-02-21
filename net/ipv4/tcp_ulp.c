@@ -22,7 +22,8 @@ static struct tcp_ulp_ops *tcp_ulp_find(const char *name)
 {
 	struct tcp_ulp_ops *e;
 
-	list_for_each_entry_rcu(e, &tcp_ulp_list, list) {
+	list_for_each_entry_rcu(e, &tcp_ulp_list, list,
+				lockdep_is_held(&tcp_ulp_list_lock)) {
 		if (strcmp(e->name, name) == 0)
 			return e;
 	}
