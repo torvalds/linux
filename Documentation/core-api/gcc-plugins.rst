@@ -72,6 +72,10 @@ e.g., on Ubuntu for gcc-4.9::
 
 	apt-get install gcc-4.9-plugin-dev
 
+Or on Fedora::
+
+	dnf install gcc-plugin-devel
+
 Enable a GCC plugin based feature in the kernel config::
 
 	CONFIG_GCC_PLUGIN_CYC_COMPLEXITY = y
