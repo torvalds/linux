@@ -590,7 +590,7 @@ struct type86x_reply {
 	struct CPRBX cprbx;
 	unsigned char pad[4];	/* 4 byte function code/rules block ? */
 	unsigned short length;
-	char text[0];
+	char text[];
 } __packed;
 
 struct type86_ep11_reply {
