@@ -52,7 +52,7 @@
 
 /**
  * frwr_release_mr - Destroy one MR
- * @mr: MR allocated by frwr_init_mr
+ * @mr: MR allocated by frwr_mr_init
  *
  */
 void frwr_release_mr(struct rpcrdma_mr *mr)
@@ -106,15 +106,16 @@ void frwr_reset(struct rpcrdma_req *req)
 }
 
 /**
- * frwr_init_mr - Initialize one MR
- * @ia: interface adapter
+ * frwr_mr_init - Initialize one MR
+ * @r_xprt: controlling transport instance
  * @mr: generic MR to prepare for FRWR
  *
  * Returns zero if successful. Otherwise a negative errno
  * is returned.
  */
-int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
+int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 {
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	unsigned int depth = ia->ri_max_frwr_depth;
 	struct scatterlist *sg;
 	struct ib_mr *frmr;
@@ -128,6 +129,7 @@ int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 	if (!sg)
 		goto out_list_err;
 
+	mr->mr_xprt = r_xprt;
 	mr->frwr.fr_mr = frmr;
 	mr->mr_dir = DMA_NONE;
 	INIT_LIST_HEAD(&mr->mr_list);

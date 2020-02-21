@@ -896,13 +896,11 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 		if (!mr)
 			break;
 
-		rc = frwr_init_mr(ia, mr);
+		rc = frwr_mr_init(r_xprt, mr);
 		if (rc) {
 			kfree(mr);
 			break;
 		}
-
-		mr->mr_xprt = r_xprt;
 
 		spin_lock(&buf->rb_lock);
 		rpcrdma_mr_push(mr, &buf->rb_mrs);
