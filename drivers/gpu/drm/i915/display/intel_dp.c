@@ -6636,7 +6636,7 @@ static int intel_modeset_tile_group(struct intel_atomic_state *state,
 		if (ret)
 			break;
 	}
-	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	return ret;
 }
