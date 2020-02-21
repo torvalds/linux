@@ -363,14 +363,6 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
 		rc = PTR_ERR(ia->ri_id);
 		goto out_err;
 	}
-
-	ia->ri_pd = ib_alloc_pd(ia->ri_id->device, 0);
-	if (IS_ERR(ia->ri_pd)) {
-		rc = PTR_ERR(ia->ri_pd);
-		pr_err("rpcrdma: ib_alloc_pd() returned %d\n", rc);
-		goto out_err;
-	}
-
 	return 0;
 
 out_err:
@@ -403,9 +395,6 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 
 	rpcrdma_ep_destroy(r_xprt);
 
-	ib_dealloc_pd(ia->ri_pd);
-	ia->ri_pd = NULL;
-
 	/* Allow waiters to continue */
 	complete(&ia->ri_remove_done);
 
@@ -423,11 +412,6 @@ rpcrdma_ia_close(struct rpcrdma_ia *ia)
 	if (ia->ri_id && !IS_ERR(ia->ri_id))
 		rdma_destroy_id(ia->ri_id);
 	ia->ri_id = NULL;
-
-	/* If the pd is still busy, xprtrdma missed freeing a resource */
-	if (ia->ri_pd && !IS_ERR(ia->ri_pd))
-		ib_dealloc_pd(ia->ri_pd);
-	ia->ri_pd = NULL;
 }
 
 static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt,
@@ -514,6 +498,12 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt,
 	ep->rep_remote_cma.flow_control = 0;
 	ep->rep_remote_cma.rnr_retry_count = 0;
 
+	ia->ri_pd = ib_alloc_pd(id->device, 0);
+	if (IS_ERR(ia->ri_pd)) {
+		rc = PTR_ERR(ia->ri_pd);
+		goto out_destroy;
+	}
+
 	rc = rdma_create_qp(id, ia->ri_pd, &ep->rep_attr);
 	if (rc)
 		goto out_destroy;
@@ -540,6 +530,10 @@ static void rpcrdma_ep_destroy(struct rpcrdma_xprt *r_xprt)
 	if (ep->rep_attr.send_cq)
 		ib_free_cq(ep->rep_attr.send_cq);
 	ep->rep_attr.send_cq = NULL;
+
+	if (ia->ri_pd)
+		ib_dealloc_pd(ia->ri_pd);
+	ia->ri_pd = NULL;
 }
 
 /* Re-establish a connection after a device removal event.
