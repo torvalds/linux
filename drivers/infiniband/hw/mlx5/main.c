@@ -2283,8 +2283,8 @@ static int mlx5_ib_mmap_offset(struct mlx5_ib_dev *dev,
 
 static u64 mlx5_entry_to_mmap_offset(struct mlx5_user_mmap_entry *entry)
 {
-	u16 cmd = entry->rdma_entry.start_pgoff >> 16;
-	u16 index = entry->rdma_entry.start_pgoff & 0xFFFF;
+	u64 cmd = (entry->rdma_entry.start_pgoff >> 16) & 0xFFFF;
+	u64 index = entry->rdma_entry.start_pgoff & 0xFFFF;
 
 	return (((index >> 8) << 16) | (cmd << MLX5_IB_MMAP_CMD_SHIFT) |
 		(index & 0xFF)) << PAGE_SHIFT;
@@ -6545,7 +6545,7 @@ static int mlx5_ib_init_var_table(struct mlx5_ib_dev *dev)
 					doorbell_bar_offset);
 	bar_size = (1ULL << log_doorbell_bar_size) * 4096;
 	var_table->stride_size = 1ULL << log_doorbell_stride;
-	var_table->num_var_hw_entries = bar_size / var_table->stride_size;
+	var_table->num_var_hw_entries = div64_u64(bar_size, var_table->stride_size);
 	mutex_init(&var_table->bitmap_lock);
 	var_table->bitmap = bitmap_zalloc(var_table->num_var_hw_entries,
 					  GFP_KERNEL);

@@ -428,6 +428,9 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 		return ret;
 	}
 
+	/* display codec can powered off after link reset */
+	hda_codec_i915_display_power(sdev, false);
+
 	return 0;
 }
 
@@ -438,6 +441,9 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 	struct hdac_ext_link *hlink = NULL;
 #endif
 	int ret;
+
+	/* display codec must be powered before link reset */
+	hda_codec_i915_display_power(sdev, true);
 
 	/*
 	 * clear TCSEL to clear playback on some HD Audio
@@ -482,6 +488,8 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 
 	if (sdev->s0_suspend) {
+		hda_codec_i915_display_power(sdev, true);
+
 		/* restore L1SEN bit */
 		if (hda->l1_support_changed)
 			snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
@@ -531,6 +539,9 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev)
 	int ret;
 
 	if (sdev->s0_suspend) {
+		/* we can't keep a wakeref to display driver at suspend */
+		hda_codec_i915_display_power(sdev, false);
+
 		/* enable L1SEN to make sure the system can enter S0Ix */
 		hda->l1_support_changed =
 			snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,

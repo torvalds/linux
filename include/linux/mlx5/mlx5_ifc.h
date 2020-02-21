@@ -688,7 +688,10 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 	u8         nic_rx_multi_path_tirs[0x1];
 	u8         nic_rx_multi_path_tirs_fts[0x1];
 	u8         allow_sniffer_and_nic_rx_shared_tir[0x1];
-	u8	   reserved_at_3[0x1d];
+	u8	   reserved_at_3[0x4];
+	u8	   sw_owner_reformat_supported[0x1];
+	u8	   reserved_at_8[0x18];
+
 	u8	   encap_general_header[0x1];
 	u8	   reserved_at_21[0xa];
 	u8	   log_max_packet_reformat_context[0x5];
