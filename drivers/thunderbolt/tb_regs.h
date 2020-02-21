@@ -338,6 +338,25 @@ struct tb_regs_port_header {
 #define ADP_USB3_CS_0				0x00
 #define ADP_USB3_CS_0_V				BIT(30)
 #define ADP_USB3_CS_0_PE			BIT(31)
+#define ADP_USB3_CS_1				0x01
+#define ADP_USB3_CS_1_CUBW_MASK			GENMASK(11, 0)
+#define ADP_USB3_CS_1_CDBW_MASK			GENMASK(23, 12)
+#define ADP_USB3_CS_1_CDBW_SHIFT		12
+#define ADP_USB3_CS_1_HCA			BIT(31)
+#define ADP_USB3_CS_2				0x02
+#define ADP_USB3_CS_2_AUBW_MASK			GENMASK(11, 0)
+#define ADP_USB3_CS_2_ADBW_MASK			GENMASK(23, 12)
+#define ADP_USB3_CS_2_ADBW_SHIFT		12
+#define ADP_USB3_CS_2_CMR			BIT(31)
+#define ADP_USB3_CS_3				0x03
+#define ADP_USB3_CS_3_SCALE_MASK		GENMASK(5, 0)
+#define ADP_USB3_CS_4				0x04
+#define ADP_USB3_CS_4_ALR_MASK			GENMASK(6, 0)
+#define ADP_USB3_CS_4_ALR_20G			0x1
+#define ADP_USB3_CS_4_ULV			BIT(7)
+#define ADP_USB3_CS_4_MSLR_MASK			GENMASK(18, 12)
+#define ADP_USB3_CS_4_MSLR_SHIFT		12
+#define ADP_USB3_CS_4_MSLR_20G			0x1
 
 /* Hop register from TB_CFG_HOPS. 8 byte per entry. */
 struct tb_regs_hop {

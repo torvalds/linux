@@ -853,4 +853,13 @@ struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 					  const struct tb_port *port);
 
 int usb4_port_unlock(struct tb_port *port);
+
+int usb4_usb3_port_max_link_rate(struct tb_port *port);
+int usb4_usb3_port_actual_link_rate(struct tb_port *port);
+int usb4_usb3_port_allocated_bandwidth(struct tb_port *port, int *upstream_bw,
+				       int *downstream_bw);
+int usb4_usb3_port_allocate_bandwidth(struct tb_port *port, int *upstream_bw,
+				      int *downstream_bw);
+int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
+				     int *downstream_bw);
 #endif
