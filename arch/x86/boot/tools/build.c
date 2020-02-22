@@ -408,7 +408,7 @@ int main(int argc, char ** argv)
 
 	update_pecoff_text(setup_sectors * 512, i + (sys_size * 16));
 	init_sz = get_unaligned_le32(&buf[0x260]);
-	update_pecoff_bss(i + (sys_size * 16), init_sz);
+	update_pecoff_bss(i + (sys_size * 16), init_sz + setup_sectors * 512);
 
 	efi_stub_entry_update();
 
