@@ -111,7 +111,7 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 		.config = config,
 	};
 
-	attr.sample_period = (-pmc->counter) & pmc_bitmask(pmc);
+	attr.sample_period = get_sample_period(pmc, pmc->counter);
 
 	if (in_tx)
 		attr.config |= HSW_IN_TX;
@@ -158,7 +158,7 @@ static bool pmc_resume_counter(struct kvm_pmc *pmc)
 
 	/* recalibrate sample period and check if it's accepted by perf core */
 	if (perf_event_period(pmc->perf_event,
-			(-pmc->counter) & pmc_bitmask(pmc)))
+			      get_sample_period(pmc, pmc->counter)))
 		return false;
 
 	/* reuse perf_event to serve as pmc_reprogram_counter() does*/
