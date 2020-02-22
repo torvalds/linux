@@ -447,7 +447,6 @@ static int sec_skcipher_init(struct crypto_skcipher *tfm)
 	struct sec_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int ret;
 
-	ctx = crypto_skcipher_ctx(tfm);
 	ctx->alg_type = SEC_SKCIPHER;
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct sec_req));
 	ctx->c_ctx.ivsize = crypto_skcipher_ivsize(tfm);
