@@ -469,7 +469,7 @@
 			resets = <&sys_rst 2>, <&sys_rst 2>;
 		};
 
-		emmc: sdhc@68400000 {
+		emmc: mmc@68400000 {
 			compatible = "socionext,uniphier-sd-v3.1";
 			status = "disabled";
 			reg = <0x68400000 0x800>;
@@ -485,7 +485,7 @@
 			non-removable;
 		};
 
-		sd: sdhc@68800000 {
+		sd: mmc@68800000 {
 			compatible = "socionext,uniphier-sd-v3.1";
 			status = "disabled";
 			reg = <0x68800000 0x800>;

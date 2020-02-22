@@ -245,7 +245,7 @@
 			#dma-cells = <1>;
 		};
 
-		sd: sdhc@5a400000 {
+		sd: mmc@5a400000 {
 			compatible = "socionext,uniphier-sd-v2.91";
 			status = "disabled";
 			reg = <0x5a400000 0x200>;
@@ -265,7 +265,7 @@
 			sd-uhs-sdr50;
 		};
 
-		emmc: sdhc@5a500000 {
+		emmc: mmc@5a500000 {
 			compatible = "socionext,uniphier-sd-v2.91";
 			status = "disabled";
 			reg = <0x5a500000 0x200>;
