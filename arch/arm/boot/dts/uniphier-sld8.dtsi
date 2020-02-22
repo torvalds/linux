@@ -379,7 +379,7 @@
 			interrupt-controller;
 		};
 
-		aidet: aidet@61830000 {
+		aidet: interrupt-controller@61830000 {
 			compatible = "socionext,uniphier-sld8-aidet";
 			reg = <0x61830000 0x200>;
 			interrupt-controller;
