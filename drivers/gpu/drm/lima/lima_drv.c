@@ -276,6 +276,93 @@ static struct drm_driver lima_drm_driver = {
 	.gem_prime_mmap = drm_gem_prime_mmap,
 };
 
+struct lima_block_reader {
+	void *dst;
+	size_t base;
+	size_t count;
+	size_t off;
+	ssize_t read;
+};
+
+static bool lima_read_block(struct lima_block_reader *reader,
+			    void *src, size_t src_size)
+{
+	size_t max_off = reader->base + src_size;
+
+	if (reader->off < max_off) {
+		size_t size = min_t(size_t, max_off - reader->off,
+				    reader->count);
+
+		memcpy(reader->dst, src + (reader->off - reader->base), size);
+
+		reader->dst += size;
+		reader->off += size;
+		reader->read += size;
+		reader->count -= size;
+	}
+
+	reader->base = max_off;
+
+	return !!reader->count;
+}
+
+static ssize_t lima_error_state_read(struct file *filp, struct kobject *kobj,
+				     struct bin_attribute *attr, char *buf,
+				     loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct lima_device *ldev = dev_get_drvdata(dev);
+	struct lima_sched_error_task *et;
+	struct lima_block_reader reader = {
+		.dst = buf,
+		.count = count,
+		.off = off,
+	};
+
+	mutex_lock(&ldev->error_task_list_lock);
+
+	if (lima_read_block(&reader, &ldev->dump, sizeof(ldev->dump))) {
+		list_for_each_entry(et, &ldev->error_task_list, list) {
+			if (!lima_read_block(&reader, et->data, et->size))
+				break;
+		}
+	}
+
+	mutex_unlock(&ldev->error_task_list_lock);
+	return reader.read;
+}
+
+static ssize_t lima_error_state_write(struct file *file, struct kobject *kobj,
+				      struct bin_attribute *attr, char *buf,
+				      loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct lima_device *ldev = dev_get_drvdata(dev);
+	struct lima_sched_error_task *et, *tmp;
+
+	mutex_lock(&ldev->error_task_list_lock);
+
+	list_for_each_entry_safe(et, tmp, &ldev->error_task_list, list) {
+		list_del(&et->list);
+		kvfree(et);
+	}
+
+	ldev->dump.size = 0;
+	ldev->dump.num_tasks = 0;
+
+	mutex_unlock(&ldev->error_task_list_lock);
+
+	return count;
+}
+
+static const struct bin_attribute lima_error_state_attr = {
+	.attr.name = "error",
+	.attr.mode = 0600,
+	.size = 0,
+	.read = lima_error_state_read,
+	.write = lima_error_state_write,
+};
+
 static int lima_pdev_probe(struct platform_device *pdev)
 {
 	struct lima_device *ldev;
@@ -318,6 +405,11 @@ static int lima_pdev_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto err_out2;
 
+	platform_set_drvdata(pdev, ldev);
+
+	if (sysfs_create_bin_file(&ldev->dev->kobj, &lima_error_state_attr))
+		dev_warn(ldev->dev, "fail to create error state sysfs\n");
+
 	return 0;
 
 err_out2:
@@ -334,6 +426,8 @@ static int lima_pdev_remove(struct platform_device *pdev)
 	struct lima_device *ldev = platform_get_drvdata(pdev);
 	struct drm_device *ddev = ldev->ddev;
 
+	sysfs_remove_bin_file(&ldev->dev->kobj, &lima_error_state_attr);
+	platform_set_drvdata(pdev, NULL);
 	drm_dev_unregister(ddev);
 	lima_device_fini(ldev);
 	drm_dev_put(ddev);
