@@ -19,7 +19,7 @@
  * };
  */
 int fpr_get(struct task_struct *target, const struct user_regset *regset,
-	    unsigned int pos, unsigned int count, void *kbuf, void __user *ubuf)
+	    struct membuf to)
 {
 	u64 buf[33];
 	int i;
@@ -30,7 +30,7 @@ int fpr_get(struct task_struct *target, const struct user_regset *regset,
 	for (i = 0; i < 32 ; i++)
 		buf[i] = target->thread.TS_FPR(i);
 	buf[32] = target->thread.fp_state.fpscr;
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, buf, 0, -1);
+	return membuf_write(&to, buf, 33 * sizeof(u64));
 }
 
 /*
@@ -95,10 +95,10 @@ int vsr_active(struct task_struct *target, const struct user_regset *regset)
  * };
  */
 int vsr_get(struct task_struct *target, const struct user_regset *regset,
-	    unsigned int pos, unsigned int count, void *kbuf, void __user *ubuf)
+	    struct membuf to)
 {
 	u64 buf[32];
-	int ret, i;
+	int i;
 
 	flush_tmregs_to_thread(target);
 	flush_fp_to_thread(target);
@@ -108,10 +108,7 @@ int vsr_get(struct task_struct *target, const struct user_regset *regset,
 	for (i = 0; i < 32 ; i++)
 		buf[i] = target->thread.fp_state.fpr[i][TS_VSRLOWOFFSET];
 
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  buf, 0, 32 * sizeof(double));
-
-	return ret;
+	return membuf_write(&to, buf, 32 * sizeof(double));
 }
 
 /*
