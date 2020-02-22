@@ -559,7 +559,7 @@
 			};
 		};
 
-		emmc: sdhc@5a000000 {
+		emmc: mmc@5a000000 {
 			compatible = "socionext,uniphier-sd4hc", "cdns,sd4hc";
 			reg = <0x5a000000 0x400>;
 			interrupts = <0 78 4>;
@@ -578,7 +578,7 @@
 			cdns,phy-dll-delay-sdclk-hsmmc = <21>;
 		};
 
-		sd: sdhc@5a400000 {
+		sd: mmc@5a400000 {
 			compatible = "socionext,uniphier-sd-v3.1.1";
 			status = "disabled";
 			reg = <0x5a400000 0x800>;
