@@ -2792,7 +2792,6 @@ static int ice_vc_ena_qs_msg(struct ice_vf *vf, u8 *msg)
 		set_bit(vf_q_id, vf->rxq_ena);
 	}
 
-	vsi = pf->vsi[vf->lan_vsi_idx];
 	q_map = vqs->tx_queues;
 	for_each_set_bit(vf_q_id, &q_map, ICE_MAX_RSS_QS_PER_VF) {
 		if (!ice_vc_isvalid_q_id(vf, vqs->vsi_id, vf_q_id)) {
