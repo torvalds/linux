@@ -639,7 +639,7 @@ static int measure_breadcrumb_dw(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine = ce->engine;
 	struct measure_breadcrumb *frame;
-	int dw = -ENOMEM;
+	int dw;
 
 	GEM_BUG_ON(!engine->gt->scratch);
 
