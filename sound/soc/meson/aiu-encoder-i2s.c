@@ -126,7 +126,7 @@ static int aiu_encoder_i2s_set_legacy_div(struct snd_soc_component *component,
 	default:
 		dev_err(component->dev, "Unsupported i2s divider: %u\n", bs);
 		return -EINVAL;
-	};
+	}
 
 	snd_soc_component_update_bits(component, AIU_CLK_CTRL,
 				      AIU_CLK_CTRL_I2S_DIV,
