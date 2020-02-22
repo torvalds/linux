@@ -566,7 +566,7 @@
 			};
 		};
 
-		aidet: aidet@5fc20000 {
+		aidet: interrupt-controller@5fc20000 {
 			compatible = "socionext,uniphier-ld11-aidet";
 			reg = <0x5fc20000 0x200>;
 			interrupt-controller;
