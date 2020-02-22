@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rng/brcm,bcm2835.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: BCM2835/6368 Random number generator
+
+maintainers:
+  - Stefan Wahren <stefan.wahren@i2se.com>
+  - Florian Fainelli <f.fainelli@gmail.com>
+  - Herbert Xu <herbert@gondor.apana.org.au>
+
+properties:
+  compatible:
+    enum:
+      - brcm,bcm2835-rng
+      - brcm,bcm-nsp-rng
+      - brcm,bcm5301x-rng
+      - brcm,bcm6368-rng
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: ipsec
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    rng {
+        compatible = "brcm,bcm2835-rng";
+        reg = <0x7e104000 0x10>;
+        interrupts = <2 29>;
+    };
+
+  - |
+    rng@18033000 {
+        compatible = "brcm,bcm-nsp-rng";
+        reg = <0x18033000 0x14>;
+    };
+
+  - |
+    rng@10004180 {
+        compatible = "brcm,bcm6368-rng";
+        reg = <0x10004180 0x14>;
+
+        clocks = <&periph_clk 18>;
+        clock-names = "ipsec";
+    };
