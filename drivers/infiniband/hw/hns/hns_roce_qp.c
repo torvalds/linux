@@ -98,6 +98,15 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 		return;
 	}
 
+	if (hr_dev->hw_rev != HNS_ROCE_HW_VER1 &&
+	    (event_type == HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR ||
+	     event_type == HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR ||
+	     event_type == HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR)) {
+		qp->state = IB_QPS_ERR;
+		if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
+			init_flush_work(hr_dev, qp);
+	}
+
 	qp->event(qp, (enum hns_roce_event)event_type);
 
 	if (atomic_dec_and_test(&qp->refcount))

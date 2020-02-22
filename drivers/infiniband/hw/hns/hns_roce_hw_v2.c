@@ -5184,39 +5184,6 @@ static int hns_roce_v2_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	return ret;
 }
 
-static void hns_roce_set_qps_to_err(struct hns_roce_dev *hr_dev, u32 qpn)
-{
-	struct hns_roce_qp *hr_qp;
-	struct ib_qp_attr attr;
-	int attr_mask;
-	int ret;
-
-	hr_qp = __hns_roce_qp_lookup(hr_dev, qpn);
-	if (!hr_qp) {
-		dev_warn(hr_dev->dev, "no hr_qp can be found!\n");
-		return;
-	}
-
-	if (hr_qp->ibqp.uobject) {
-		if (hr_qp->sdb_en == 1) {
-			hr_qp->sq.head = *(int *)(hr_qp->sdb.virt_addr);
-			if (hr_qp->rdb_en == 1)
-				hr_qp->rq.head = *(int *)(hr_qp->rdb.virt_addr);
-		} else {
-			dev_warn(hr_dev->dev, "flush cqe is unsupported in userspace!\n");
-			return;
-		}
-	}
-
-	attr_mask = IB_QP_STATE;
-	attr.qp_state = IB_QPS_ERR;
-	ret = hns_roce_v2_modify_qp(&hr_qp->ibqp, &attr, attr_mask,
-				    hr_qp->state, IB_QPS_ERR);
-	if (ret)
-		dev_err(hr_dev->dev, "failed to modify qp %d to err state.\n",
-			qpn);
-}
-
 static void hns_roce_irq_work_handle(struct work_struct *work)
 {
 	struct hns_roce_work *irq_work =
@@ -5240,17 +5207,14 @@ static void hns_roce_irq_work_handle(struct work_struct *work)
 	case HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR:
 		dev_err(dev, "Local work queue 0x%x catas error, sub_type:%d\n",
 			qpn, irq_work->sub_type);
-		hns_roce_set_qps_to_err(irq_work->hr_dev, qpn);
 		break;
 	case HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR:
 		dev_err(dev, "Invalid request local work queue 0x%x error.\n",
 			qpn);
-		hns_roce_set_qps_to_err(irq_work->hr_dev, qpn);
 		break;
 	case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
 		dev_err(dev, "Local access violation work queue 0x%x error, sub_type:%d\n",
 			qpn, irq_work->sub_type);
-		hns_roce_set_qps_to_err(irq_work->hr_dev, qpn);
 		break;
 	case HNS_ROCE_EVENT_TYPE_SRQ_LIMIT_REACH:
 		dev_warn(dev, "SRQ limit reach.\n");
