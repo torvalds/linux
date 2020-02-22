@@ -83,39 +83,25 @@ static int regwindow32_set(struct task_struct *target,
 
 static int genregs32_get(struct task_struct *target,
 			 const struct user_regset *regset,
-			 unsigned int pos, unsigned int count,
-			 void *kbuf, void __user *ubuf)
+			 struct membuf to)
 {
 	const struct pt_regs *regs = target->thread.kregs;
 	u32 uregs[16];
-	int ret;
 
 	if (target == current)
 		flush_user_windows();
 
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  regs->u_regs,
-				  0, 16 * sizeof(u32));
-	if (ret || !count)
-		return ret;
-
+	membuf_write(&to, regs->u_regs, 16 * sizeof(u32));
+	if (!to.left)
+		return 0;
 	if (regwindow32_get(target, regs, uregs))
 		return -EFAULT;
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  uregs,
-				  16 * sizeof(u32), 32 * sizeof(u32));
-	if (ret)
-		return ret;
-
-	uregs[0] = regs->psr;
-	uregs[1] = regs->pc;
-	uregs[2] = regs->npc;
-	uregs[3] = regs->y;
-	uregs[4] = 0;	/* WIM */
-	uregs[5] = 0;	/* TBR */
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  uregs,
-				  32 * sizeof(u32), 38 * sizeof(u32));
+	membuf_write(&to, uregs, 16 * sizeof(u32));
+	membuf_store(&to, regs->psr);
+	membuf_store(&to, regs->pc);
+	membuf_store(&to, regs->npc);
+	membuf_store(&to, regs->y);
+	return membuf_zero(&to, 2 * sizeof(u32));
 }
 
 static int genregs32_set(struct task_struct *target,
@@ -179,46 +165,18 @@ static int genregs32_set(struct task_struct *target,
 
 static int fpregs32_get(struct task_struct *target,
 			const struct user_regset *regset,
-			unsigned int pos, unsigned int count,
-			void *kbuf, void __user *ubuf)
+			struct membuf to)
 {
-	const unsigned long *fpregs = target->thread.float_regs;
-	int ret = 0;
-
 #if 0
 	if (target == current)
 		save_and_clear_fpu();
 #endif
 
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  fpregs,
-				  0, 32 * sizeof(u32));
-
-	if (!ret)
-		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					       32 * sizeof(u32),
-					       33 * sizeof(u32));
-	if (!ret)
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					  &target->thread.fsr,
-					  33 * sizeof(u32),
-					  34 * sizeof(u32));
-
-	if (!ret) {
-		unsigned long val;
-
-		val = (1 << 8) | (8 << 16);
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					  &val,
-					  34 * sizeof(u32),
-					  35 * sizeof(u32));
-	}
-
-	if (!ret)
-		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					       35 * sizeof(u32), -1);
-
-	return ret;
+	membuf_write(&to, target->thread.float_regs, 32 * sizeof(u32));
+	membuf_zero(&to, sizeof(u32));
+	membuf_write(&to, &target->thread.fsr, sizeof(u32));
+	membuf_store(&to, (u32)((1 << 8) | (8 << 16)));
+	return membuf_zero(&to, 64 * sizeof(u32));
 }
 
 static int fpregs32_set(struct task_struct *target,
@@ -263,7 +221,7 @@ static const struct user_regset sparc32_regsets[] = {
 		.core_note_type = NT_PRSTATUS,
 		.n = 38,
 		.size = sizeof(u32), .align = sizeof(u32),
-		.get = genregs32_get, .set = genregs32_set
+		.regset_get = genregs32_get, .set = genregs32_set
 	},
 	/* Format is:
 	 *	F0 --> F31
@@ -279,35 +237,24 @@ static const struct user_regset sparc32_regsets[] = {
 		.core_note_type = NT_PRFPREG,
 		.n = 99,
 		.size = sizeof(u32), .align = sizeof(u32),
-		.get = fpregs32_get, .set = fpregs32_set
+		.regset_get = fpregs32_get, .set = fpregs32_set
 	},
 };
 
 static int getregs_get(struct task_struct *target,
 			 const struct user_regset *regset,
-			 unsigned int pos, unsigned int count,
-			 void *kbuf, void __user *ubuf)
+			 struct membuf to)
 {
 	const struct pt_regs *regs = target->thread.kregs;
-	u32 v[4];
-	int ret;
 
 	if (target == current)
 		flush_user_windows();
 
-	v[0] = regs->psr;
-	v[1] = regs->pc;
-	v[2] = regs->npc;
-	v[3] = regs->y;
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  v,
-				  0 * sizeof(u32), 4 * sizeof(u32));
-	if (ret)
-		return ret;
-
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  regs->u_regs + 1,
-				  4 * sizeof(u32), 19 * sizeof(u32));
+	membuf_store(&to, regs->psr);
+	membuf_store(&to, regs->pc);
+	membuf_store(&to, regs->npc);
+	membuf_store(&to, regs->y);
+	return membuf_write(&to, regs->u_regs + 1, 15 * sizeof(u32));
 }
 
 static int setregs_set(struct task_struct *target,
@@ -339,29 +286,15 @@ static int setregs_set(struct task_struct *target,
 
 static int getfpregs_get(struct task_struct *target,
 			const struct user_regset *regset,
-			unsigned int pos, unsigned int count,
-			void *kbuf, void __user *ubuf)
+			struct membuf to)
 {
-	const unsigned long *fpregs = target->thread.float_regs;
-	int ret = 0;
-
 #if 0
 	if (target == current)
 		save_and_clear_fpu();
 #endif
-
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  fpregs,
-				  0, 32 * sizeof(u32));
-	if (ret)
-		return ret;
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fsr,
-				  32 * sizeof(u32), 33 * sizeof(u32));
-	if (ret)
-		return ret;
-	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-				  33 * sizeof(u32), 68 * sizeof(u32));
+	membuf_write(&to, &target->thread.float_regs, 32 * sizeof(u32));
+	membuf_write(&to, &target->thread.fsr, sizeof(u32));
+	return membuf_zero(&to, 35 * sizeof(u32));
 }
 
 static int setfpregs_set(struct task_struct *target,
@@ -390,11 +323,11 @@ static int setfpregs_set(struct task_struct *target,
 static const struct user_regset ptrace32_regsets[] = {
 	[REGSET_GENERAL] = {
 		.n = 19, .size = sizeof(u32),
-		.get = getregs_get, .set = setregs_set,
+		.regset_get = getregs_get, .set = setregs_set,
 	},
 	[REGSET_FP] = {
 		.n = 68, .size = sizeof(u32),
-		.get = getfpregs_get, .set = setfpregs_set,
+		.regset_get = getfpregs_get, .set = setfpregs_set,
 	},
 };
 
