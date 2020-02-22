@@ -1750,7 +1750,8 @@ mt7603_false_cca_check(struct mt7603_dev *dev)
 	min_signal -= 15;
 
 	false_cca = dev->false_cca_ofdm + dev->false_cca_cck;
-	if (false_cca > 600) {
+	if (false_cca > 600 &&
+	    dev->sensitivity < -100 + dev->sensitivity_limit) {
 		if (!dev->sensitivity)
 			dev->sensitivity = -92;
 		else
