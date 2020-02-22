@@ -244,6 +244,38 @@ static int check_send_valid(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
+static inline void update_sq_db(struct hns_roce_dev *hr_dev,
+				struct hns_roce_qp *qp)
+{
+	/*
+	 * Hip08 hardware cannot flush the WQEs in SQ if the QP state
+	 * gets into errored mode. Hence, as a workaround to this
+	 * hardware limitation, driver needs to assist in flushing. But
+	 * the flushing operation uses mailbox to convey the QP state to
+	 * the hardware and which can sleep due to the mutex protection
+	 * around the mailbox calls. Hence, use the deferred flush for
+	 * now.
+	 */
+	if (qp->state == IB_QPS_ERR) {
+		if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
+			init_flush_work(hr_dev, qp);
+	} else {
+		struct hns_roce_v2_db sq_db = {};
+
+		roce_set_field(sq_db.byte_4, V2_DB_BYTE_4_TAG_M,
+			       V2_DB_BYTE_4_TAG_S, qp->doorbell_qpn);
+		roce_set_field(sq_db.byte_4, V2_DB_BYTE_4_CMD_M,
+			       V2_DB_BYTE_4_CMD_S, HNS_ROCE_V2_SQ_DB);
+		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_IDX_M,
+			       V2_DB_PARAMETER_IDX_S,
+			       qp->sq.head & ((qp->sq.wqe_cnt << 1) - 1));
+		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_SL_M,
+			       V2_DB_PARAMETER_SL_S, qp->sl);
+
+		hns_roce_write64(hr_dev, (__le32 *)&sq_db, qp->sq.db_reg_l);
+	}
+}
+
 static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 				 const struct ib_send_wr *wr,
 				 const struct ib_send_wr **bad_wr)
@@ -255,7 +287,6 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 	struct hns_roce_qp *qp = to_hr_qp(ibqp);
 	struct hns_roce_wqe_frmr_seg *fseg;
 	struct device *dev = hr_dev->dev;
-	struct hns_roce_v2_db sq_db = {};
 	unsigned int owner_bit;
 	unsigned int sge_idx;
 	unsigned int wqe_idx;
@@ -580,36 +611,10 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 out:
 	if (likely(nreq)) {
 		qp->sq.head += nreq;
+		qp->next_sge = sge_idx;
 		/* Memory barrier */
 		wmb();
-
-		roce_set_field(sq_db.byte_4, V2_DB_BYTE_4_TAG_M,
-			       V2_DB_BYTE_4_TAG_S, qp->doorbell_qpn);
-		roce_set_field(sq_db.byte_4, V2_DB_BYTE_4_CMD_M,
-			       V2_DB_BYTE_4_CMD_S, HNS_ROCE_V2_SQ_DB);
-		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_IDX_M,
-			       V2_DB_PARAMETER_IDX_S,
-			       qp->sq.head & ((qp->sq.wqe_cnt << 1) - 1));
-		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_SL_M,
-			       V2_DB_PARAMETER_SL_S, qp->sl);
-
-		hns_roce_write64(hr_dev, (__le32 *)&sq_db, qp->sq.db_reg_l);
-
-		qp->next_sge = sge_idx;
-
-		/*
-		 * Hip08 hardware cannot flush the WQEs in SQ if the QP state
-		 * gets into errored mode. Hence, as a workaround to this
-		 * hardware limitation, driver needs to assist in flushing. But
-		 * the flushing operation uses mailbox to convey the QP state to
-		 * the hardware and which can sleep due to the mutex protection
-		 * around the mailbox calls. Hence, use the deferred flush for
-		 * now.
-		 */
-		if (qp->state == IB_QPS_ERR)
-			if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG,
-					      &qp->flush_flag))
-				init_flush_work(hr_dev, qp);
+		update_sq_db(hr_dev, qp);
 	}
 
 	spin_unlock_irqrestore(&qp->sq.lock, flags);
@@ -706,8 +711,6 @@ out:
 		/* Memory barrier */
 		wmb();
 
-		*hr_qp->rdb.db_record = hr_qp->rq.head & 0xffff;
-
 		/*
 		 * Hip08 hardware cannot flush the WQEs in RQ if the QP state
 		 * gets into errored mode. Hence, as a workaround to this
@@ -717,10 +720,13 @@ out:
 		 * around the mailbox calls. Hence, use the deferred flush for
 		 * now.
 		 */
-		if (hr_qp->state == IB_QPS_ERR)
+		if (hr_qp->state == IB_QPS_ERR) {
 			if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG,
 					      &hr_qp->flush_flag))
 				init_flush_work(hr_dev, hr_qp);
+		} else {
+			*hr_qp->rdb.db_record = hr_qp->rq.head & 0xffff;
+		}
 	}
 	spin_unlock_irqrestore(&hr_qp->rq.lock, flags);
 
@@ -4750,7 +4756,6 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	/* When QP state is err, SQ and RQ WQE should be flushed */
 	if (new_state == IB_QPS_ERR) {
 		spin_lock_irqsave(&hr_qp->sq.lock, sq_flag);
-		spin_lock_irqsave(&hr_qp->rq.lock, rq_flag);
 		hr_qp->state = IB_QPS_ERR;
 		roce_set_field(context->byte_160_sq_ci_pi,
 			       V2_QPC_BYTE_160_SQ_PRODUCER_IDX_M,
@@ -4759,8 +4764,10 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		roce_set_field(qpc_mask->byte_160_sq_ci_pi,
 			       V2_QPC_BYTE_160_SQ_PRODUCER_IDX_M,
 			       V2_QPC_BYTE_160_SQ_PRODUCER_IDX_S, 0);
+		spin_unlock_irqrestore(&hr_qp->sq.lock, sq_flag);
 
 		if (!ibqp->srq) {
+			spin_lock_irqsave(&hr_qp->rq.lock, rq_flag);
 			roce_set_field(context->byte_84_rq_ci_pi,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_M,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_S,
@@ -4768,9 +4775,8 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 			roce_set_field(qpc_mask->byte_84_rq_ci_pi,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_M,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_S, 0);
+			spin_unlock_irqrestore(&hr_qp->rq.lock, rq_flag);
 		}
-		spin_unlock_irqrestore(&hr_qp->rq.lock, rq_flag);
-		spin_unlock_irqrestore(&hr_qp->sq.lock, sq_flag);
 	}
 
 	/* Configure the optional fields */
