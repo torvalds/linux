@@ -364,7 +364,7 @@ static int icp10100_read_raw_measures(struct iio_dev *indio_dev,
 	default:
 		ret = -EINVAL;
 		break;
-	};
+	}
 
 error_release:
 	iio_device_release_direct_mode(indio_dev);

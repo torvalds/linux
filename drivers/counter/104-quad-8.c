@@ -43,6 +43,7 @@ MODULE_PARM_DESC(base, "ACCES 104-QUAD-8 base addresses");
  */
 struct quad8_iio {
 	struct counter_device counter;
+	unsigned int fck_prescaler[QUAD8_NUM_COUNTERS];
 	unsigned int preset[QUAD8_NUM_COUNTERS];
 	unsigned int count_mode[QUAD8_NUM_COUNTERS];
 	unsigned int quadrature_mode[QUAD8_NUM_COUNTERS];
@@ -84,6 +85,8 @@ struct quad8_iio {
 #define QUAD8_RLD_PRESET_CNTR 0x08
 /* Transfer Counter to Output Latch */
 #define QUAD8_RLD_CNTR_OUT 0x10
+/* Transfer Preset Register LSB to FCK Prescaler */
+#define QUAD8_RLD_PRESET_PSC 0x18
 #define QUAD8_CHAN_OP_ENABLE_COUNTERS 0x00
 #define QUAD8_CHAN_OP_RESET_COUNTERS 0x01
 #define QUAD8_CMR_QUADRATURE_X1 0x08
@@ -1140,6 +1143,50 @@ static ssize_t quad8_count_preset_enable_write(struct counter_device *counter,
 	return len;
 }
 
+static ssize_t quad8_signal_fck_prescaler_read(struct counter_device *counter,
+	struct counter_signal *signal, void *private, char *buf)
+{
+	const struct quad8_iio *const priv = counter->priv;
+	const size_t channel_id = signal->id / 2;
+
+	return sprintf(buf, "%u\n", priv->fck_prescaler[channel_id]);
+}
+
+static ssize_t quad8_signal_fck_prescaler_write(struct counter_device *counter,
+	struct counter_signal *signal, void *private, const char *buf,
+	size_t len)
+{
+	struct quad8_iio *const priv = counter->priv;
+	const size_t channel_id = signal->id / 2;
+	const int base_offset = priv->base + 2 * channel_id;
+	u8 prescaler;
+	int ret;
+
+	ret = kstrtou8(buf, 0, &prescaler);
+	if (ret)
+		return ret;
+
+	priv->fck_prescaler[channel_id] = prescaler;
+
+	/* Reset Byte Pointer */
+	outb(QUAD8_CTR_RLD | QUAD8_RLD_RESET_BP, base_offset + 1);
+
+	/* Set filter clock factor */
+	outb(prescaler, base_offset);
+	outb(QUAD8_CTR_RLD | QUAD8_RLD_RESET_BP | QUAD8_RLD_PRESET_PSC,
+	     base_offset + 1);
+
+	return len;
+}
+
+static const struct counter_signal_ext quad8_signal_ext[] = {
+	{
+		.name = "filter_clock_prescaler",
+		.read = quad8_signal_fck_prescaler_read,
+		.write = quad8_signal_fck_prescaler_write
+	}
+};
+
 static const struct counter_signal_ext quad8_index_ext[] = {
 	COUNTER_SIGNAL_ENUM("index_polarity", &quad8_index_pol_enum),
 	COUNTER_SIGNAL_ENUM_AVAILABLE("index_polarity",	&quad8_index_pol_enum),
@@ -1147,9 +1194,11 @@ static const struct counter_signal_ext quad8_index_ext[] = {
 	COUNTER_SIGNAL_ENUM_AVAILABLE("synchronous_mode", &quad8_syn_mode_enum)
 };
 
-#define	QUAD8_QUAD_SIGNAL(_id, _name) {	\
-	.id = (_id),			\
-	.name = (_name)			\
+#define QUAD8_QUAD_SIGNAL(_id, _name) {		\
+	.id = (_id),				\
+	.name = (_name),			\
+	.ext = quad8_signal_ext,		\
+	.num_ext = ARRAY_SIZE(quad8_signal_ext)	\
 }
 
 #define	QUAD8_INDEX_SIGNAL(_id, _name) {	\
@@ -1312,6 +1361,12 @@ static int quad8_probe(struct device *dev, unsigned int id)
 	/* Set initial configuration for all counters */
 	for (i = 0; i < QUAD8_NUM_COUNTERS; i++) {
 		base_offset = base[id] + 2 * i;
+		/* Reset Byte Pointer */
+		outb(QUAD8_CTR_RLD | QUAD8_RLD_RESET_BP, base_offset + 1);
+		/* Reset filter clock factor */
+		outb(0, base_offset);
+		outb(QUAD8_CTR_RLD | QUAD8_RLD_RESET_BP | QUAD8_RLD_PRESET_PSC,
+		     base_offset + 1);
 		/* Reset Byte Pointer */
 		outb(QUAD8_CTR_RLD | QUAD8_RLD_RESET_BP, base_offset + 1);
 		/* Reset Preset Register */
