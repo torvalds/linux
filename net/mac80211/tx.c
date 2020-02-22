@@ -4664,6 +4664,28 @@ bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 }
 EXPORT_SYMBOL(ieee80211_csa_is_complete);
 
+static int ieee80211_beacon_protect(struct sk_buff *skb,
+				    struct ieee80211_local *local,
+				    struct ieee80211_sub_if_data *sdata)
+{
+	ieee80211_tx_result res;
+	struct ieee80211_tx_data tx;
+
+	memset(&tx, 0, sizeof(tx));
+	tx.key = rcu_dereference(sdata->default_beacon_key);
+	if (!tx.key)
+		return 0;
+	tx.local = local;
+	tx.sdata = sdata;
+	__skb_queue_head_init(&tx.skbs);
+	__skb_queue_tail(&tx.skbs, skb);
+	res = ieee80211_tx_h_encrypt(&tx);
+	if (WARN_ON_ONCE(res != TX_CONTINUE))
+		return -1;
+
+	return 0;
+}
+
 static struct sk_buff *
 __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
@@ -4731,6 +4753,9 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 			if (beacon->tail)
 				skb_put_data(skb, beacon->tail,
 					     beacon->tail_len);
+
+			if (ieee80211_beacon_protect(skb, local, sdata) < 0)
+				goto out;
 		} else
 			goto out;
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
