@@ -5218,6 +5218,7 @@ static void goya_hw_queues_lock(struct hl_device *hdev)
 }
 
 static void goya_hw_queues_unlock(struct hl_device *hdev)
+	__releases(&goya->hw_queues_lock)
 {
 	struct goya_device *goya = hdev->asic_specific;
 
