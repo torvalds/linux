@@ -97,7 +97,6 @@ struct mlxsw_listener {
 		.unreg_action = MLXSW_REG_HPKT_ACTION_##_unreg_action,	\
 		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_trap_group,	\
 		.is_ctrl = _is_ctrl,					\
-		.is_event = false,					\
 	}
 
 #define MLXSW_EVENTL(_func, _trap_id, _trap_group)			\
@@ -110,7 +109,6 @@ struct mlxsw_listener {
 		},							\
 		.action = MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,		\
 		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_trap_group,	\
-		.is_ctrl = false,					\
 		.is_event = true,					\
 	}
 
