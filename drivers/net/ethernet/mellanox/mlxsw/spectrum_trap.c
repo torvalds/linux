@@ -199,11 +199,13 @@ static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u8 local_port,
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp;
 	struct devlink *devlink;
+	int err;
 
 	mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 
-	if (mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port))
+	err = mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port);
+	if (err)
 		return;
 
 	devlink = priv_to_devlink(mlxsw_sp->core);
@@ -221,11 +223,13 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp;
 	struct devlink *devlink;
+	int err;
 
 	mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 
-	if (mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port))
+	err = mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port);
+	if (err)
 		return;
 
 	devlink = priv_to_devlink(mlxsw_sp->core);
