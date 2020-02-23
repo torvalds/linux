@@ -658,6 +658,11 @@ properties:
           - const: pineriver,mini-xplus
           - const: allwinner,sun4i-a10
 
+      - description: PocketBook Touch Lux 3
+        items:
+          - const: pocketbook,touch-lux-3
+          - const: allwinner,sun5i-a13
+
       - description: Point of View Protab2-IPS9
         items:
           - const: pov,protab2-ips9
