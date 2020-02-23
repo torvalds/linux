@@ -447,6 +447,15 @@ struct io_splice {
 	unsigned int			flags;
 };
 
+struct io_provide_buf {
+	struct file			*file;
+	__u64				addr;
+	__s32				len;
+	__u32				bgid;
+	__u16				nbufs;
+	__u16				bid;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -572,6 +581,7 @@ struct io_kiocb {
 		struct io_madvise	madvise;
 		struct io_epoll		epoll;
 		struct io_splice	splice;
+		struct io_provide_buf	pbuf;
 	};
 
 	struct io_async_ctx		*io;
@@ -799,7 +809,8 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
-	}
+	},
+	[IORING_OP_PROVIDE_BUFFERS] = {},
 };
 
 static void io_wq_submit_work(struct io_wq_work **workptr);
@@ -2785,6 +2796,120 @@ static int io_openat(struct io_kiocb *req, bool force_nonblock)
 	return io_openat2(req, force_nonblock);
 }
 
+static int io_provide_buffers_prep(struct io_kiocb *req,
+				   const struct io_uring_sqe *sqe)
+{
+	struct io_provide_buf *p = &req->pbuf;
+	u64 tmp;
+
+	if (sqe->ioprio || sqe->rw_flags)
+		return -EINVAL;
+
+	tmp = READ_ONCE(sqe->fd);
+	if (!tmp || tmp > USHRT_MAX)
+		return -E2BIG;
+	p->nbufs = tmp;
+	p->addr = READ_ONCE(sqe->addr);
+	p->len = READ_ONCE(sqe->len);
+
+	if (!access_ok(u64_to_user_ptr(p->addr), p->len))
+		return -EFAULT;
+
+	p->bgid = READ_ONCE(sqe->buf_group);
+	tmp = READ_ONCE(sqe->off);
+	if (tmp > USHRT_MAX)
+		return -E2BIG;
+	p->bid = tmp;
+	return 0;
+}
+
+static int io_add_buffers(struct io_provide_buf *pbuf, struct io_buffer **head)
+{
+	struct io_buffer *buf;
+	u64 addr = pbuf->addr;
+	int i, bid = pbuf->bid;
+
+	for (i = 0; i < pbuf->nbufs; i++) {
+		buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+		if (!buf)
+			break;
+
+		buf->addr = addr;
+		buf->len = pbuf->len;
+		buf->bid = bid;
+		addr += pbuf->len;
+		bid++;
+		if (!*head) {
+			INIT_LIST_HEAD(&buf->list);
+			*head = buf;
+		} else {
+			list_add_tail(&buf->list, &(*head)->list);
+		}
+	}
+
+	return i ? i : -ENOMEM;
+}
+
+static void io_ring_submit_unlock(struct io_ring_ctx *ctx, bool needs_lock)
+{
+	if (needs_lock)
+		mutex_unlock(&ctx->uring_lock);
+}
+
+static void io_ring_submit_lock(struct io_ring_ctx *ctx, bool needs_lock)
+{
+	/*
+	 * "Normal" inline submissions always hold the uring_lock, since we
+	 * grab it from the system call. Same is true for the SQPOLL offload.
+	 * The only exception is when we've detached the request and issue it
+	 * from an async worker thread, grab the lock for that case.
+	 */
+	if (needs_lock)
+		mutex_lock(&ctx->uring_lock);
+}
+
+static int io_provide_buffers(struct io_kiocb *req, bool force_nonblock)
+{
+	struct io_provide_buf *p = &req->pbuf;
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_buffer *head, *list;
+	int ret = 0;
+
+	io_ring_submit_lock(ctx, !force_nonblock);
+
+	lockdep_assert_held(&ctx->uring_lock);
+
+	list = head = idr_find(&ctx->io_buffer_idr, p->bgid);
+
+	ret = io_add_buffers(p, &head);
+	if (ret < 0)
+		goto out;
+
+	if (!list) {
+		ret = idr_alloc(&ctx->io_buffer_idr, head, p->bgid, p->bgid + 1,
+					GFP_KERNEL);
+		if (ret < 0) {
+			while (!list_empty(&head->list)) {
+				struct io_buffer *buf;
+
+				buf = list_first_entry(&head->list,
+							struct io_buffer, list);
+				list_del(&buf->list);
+				kfree(buf);
+			}
+			kfree(head);
+			goto out;
+		}
+	}
+out:
+	io_ring_submit_unlock(ctx, !force_nonblock);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	io_put_req(req);
+	return 0;
+}
+
 static int io_epoll_ctl_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
@@ -4392,6 +4517,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	case IORING_OP_SPLICE:
 		ret = io_splice_prep(req, sqe);
 		break;
+	case IORING_OP_PROVIDE_BUFFERS:
+		ret = io_provide_buffers_prep(req, sqe);
+		break;
 	default:
 		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
 				req->opcode);
@@ -4668,6 +4796,14 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 				break;
 		}
 		ret = io_splice(req, force_nonblock);
+		break;
+	case IORING_OP_PROVIDE_BUFFERS:
+		if (sqe) {
+			ret = io_provide_buffers_prep(req, sqe);
+			if (ret)
+				break;
+		}
+		ret = io_provide_buffers(req, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;
