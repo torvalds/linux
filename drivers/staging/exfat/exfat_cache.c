@@ -515,22 +515,3 @@ void exfat_buf_release_all(struct super_block *sb)
 
 	mutex_unlock(&b_mutex);
 }
-
-void exfat_buf_sync(struct super_block *sb)
-{
-	struct buf_cache_t *bp;
-	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
-
-	mutex_lock(&b_mutex);
-
-	bp = p_fs->buf_cache_lru_list.next;
-	while (bp != &p_fs->buf_cache_lru_list) {
-		if ((bp->drv == p_fs->drv) && (bp->flag & DIRTYBIT)) {
-			sync_dirty_buffer(bp->buf_bh);
-			bp->flag &= ~(DIRTYBIT);
-		}
-		bp = bp->next;
-	}
-
-	mutex_unlock(&b_mutex);
-}

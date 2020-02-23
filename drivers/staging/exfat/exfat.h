@@ -653,7 +653,6 @@ void exfat_buf_lock(struct super_block *sb, sector_t sec);
 void exfat_buf_unlock(struct super_block *sb, sector_t sec);
 void exfat_buf_release(struct super_block *sb, sector_t sec);
 void exfat_buf_release_all(struct super_block *sb);
-void exfat_buf_sync(struct super_block *sb);
 
 /* fs management functions */
 void fs_set_vol_flags(struct super_block *sb, u32 new_flag);
