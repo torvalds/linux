@@ -5210,6 +5210,7 @@ static bool goya_is_device_idle(struct hl_device *hdev, u32 *mask,
 }
 
 static void goya_hw_queues_lock(struct hl_device *hdev)
+	__acquires(&goya->hw_queues_lock)
 {
 	struct goya_device *goya = hdev->asic_specific;
 
