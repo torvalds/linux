@@ -744,17 +744,22 @@
 			enetc_port0: ethernet@0,0 {
 				compatible = "fsl,enetc";
 				reg = <0x000000 0 0 0 0>;
+				status = "disabled";
 			};
+
 			enetc_port1: ethernet@0,1 {
 				compatible = "fsl,enetc";
 				reg = <0x000100 0 0 0 0>;
+				status = "disabled";
 			};
+
 			enetc_mdio_pf3: mdio@0,3 {
 				compatible = "fsl,enetc-mdio";
 				reg = <0x000300 0 0 0 0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
+
 			ethernet@0,4 {
 				compatible = "fsl,enetc-ptp";
 				reg = <0x000400 0 0 0 0>;

@@ -180,6 +180,7 @@
 &enetc_port0 {
 	phy-handle = <&sgmii_phy0>;
 	phy-connection-type = "sgmii";
+	status = "okay";
 
 	mdio {
 		#address-cells = <1>;
@@ -188,10 +189,6 @@
 			reg = <0x2>;
 		};
 	};
-};
-
-&enetc_port1 {
-	status = "disabled";
 };
 
 &sai4 {
