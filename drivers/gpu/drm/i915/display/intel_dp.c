@@ -1023,9 +1023,10 @@ void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
 
-	if (drm_WARN_ON(&dev_priv->drm, !IS_VALLEYVIEW(dev_priv) &&
-			IS_CHERRYVIEW(dev_priv) &&
-			!IS_GEN9_LP(dev_priv)))
+	if (drm_WARN_ON(&dev_priv->drm,
+			!(IS_VALLEYVIEW(dev_priv) ||
+			  IS_CHERRYVIEW(dev_priv) ||
+			  IS_GEN9_LP(dev_priv))))
 		return;
 
 	/*
