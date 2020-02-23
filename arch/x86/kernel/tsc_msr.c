@@ -15,7 +15,7 @@
 #include <asm/param.h>
 #include <asm/tsc.h>
 
-#define MAX_NUM_FREQS	9
+#define MAX_NUM_FREQS	16 /* 4 bits to select the frequency */
 
 /*
  * If MSR_PERF_STAT[31] is set, the maximum resolved bus ratio can be
@@ -27,6 +27,7 @@
 struct freq_desc {
 	bool use_msr_plat;
 	u32 freqs[MAX_NUM_FREQS];
+	u32 mask;
 };
 
 /*
@@ -37,37 +38,44 @@ struct freq_desc {
 static const struct freq_desc freq_desc_pnw = {
 	.use_msr_plat = false,
 	.freqs = { 0, 0, 0, 0, 0, 99840, 0, 83200 },
+	.mask = 0x07,
 };
 
 static const struct freq_desc freq_desc_clv = {
 	.use_msr_plat = false,
 	.freqs = { 0, 133200, 0, 0, 0, 99840, 0, 83200 },
+	.mask = 0x07,
 };
 
 static const struct freq_desc freq_desc_byt = {
 	.use_msr_plat = true,
 	.freqs = { 83300, 100000, 133300, 116700, 80000, 0, 0, 0 },
+	.mask = 0x07,
 };
 
 static const struct freq_desc freq_desc_cht = {
 	.use_msr_plat = true,
 	.freqs = { 83300, 100000, 133300, 116700, 80000, 93300, 90000,
 		   88900, 87500 },
+	.mask = 0x0f,
 };
 
 static const struct freq_desc freq_desc_tng = {
 	.use_msr_plat = true,
 	.freqs = { 0, 100000, 133300, 0, 0, 0, 0, 0 },
+	.mask = 0x07,
 };
 
 static const struct freq_desc freq_desc_ann = {
 	.use_msr_plat = true,
 	.freqs = { 83300, 100000, 133300, 100000, 0, 0, 0, 0 },
+	.mask = 0x0f,
 };
 
 static const struct freq_desc freq_desc_lgm = {
 	.use_msr_plat = true,
 	.freqs = { 78000, 78000, 78000, 78000, 78000, 78000, 78000, 78000 },
+	.mask = 0x0f,
 };
 
 static const struct x86_cpu_id tsc_msr_cpu_ids[] = {
@@ -93,6 +101,7 @@ unsigned long cpu_khz_from_msr(void)
 	const struct freq_desc *freq_desc;
 	const struct x86_cpu_id *id;
 	unsigned long res;
+	int index;
 
 	id = x86_match_cpu(tsc_msr_cpu_ids);
 	if (!id)
@@ -109,12 +118,16 @@ unsigned long cpu_khz_from_msr(void)
 
 	/* Get FSB FREQ ID */
 	rdmsr(MSR_FSB_FREQ, lo, hi);
+	index = lo & freq_desc->mask;
 
 	/* Map CPU reference clock freq ID(0-7) to CPU reference clock freq(KHz) */
-	freq = freq_desc->freqs[lo & 0x7];
+	freq = freq_desc->freqs[index];
 
 	/* TSC frequency = maximum resolved freq * maximum resolved bus ratio */
 	res = freq * ratio;
+
+	if (freq == 0)
+		pr_err("Error MSR_FSB_FREQ index %d is unknown\n", index);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	lapic_timer_period = (freq * 1000) / HZ;
