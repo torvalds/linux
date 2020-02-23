@@ -75,7 +75,7 @@ struct mlxsw_listener {
 	union {
 		struct mlxsw_rx_listener rx_listener;
 		struct mlxsw_event_listener event_listener;
-	} u;
+	};
 	enum mlxsw_reg_hpkt_action action;
 	enum mlxsw_reg_hpkt_action unreg_action;
 	u8 trap_group;
@@ -87,7 +87,7 @@ struct mlxsw_listener {
 		  _unreg_action)					\
 	{								\
 		.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
-		.u.rx_listener =					\
+		.rx_listener =						\
 		{							\
 			.func = _func,					\
 			.local_port = MLXSW_PORT_DONT_CARE,		\
@@ -103,7 +103,7 @@ struct mlxsw_listener {
 #define MLXSW_EVENTL(_func, _trap_id, _trap_group)			\
 	{								\
 		.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
-		.u.event_listener =					\
+		.event_listener =					\
 		{							\
 			.func = _func,					\
 			.trap_id = MLXSW_TRAP_ID_##_trap_id,		\

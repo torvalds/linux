@@ -1611,11 +1611,11 @@ static int mlxsw_core_listener_register(struct mlxsw_core *mlxsw_core,
 {
 	if (listener->is_event)
 		return mlxsw_core_event_listener_register(mlxsw_core,
-						&listener->u.event_listener,
+						&listener->event_listener,
 						priv);
 	else
 		return mlxsw_core_rx_listener_register(mlxsw_core,
-						&listener->u.rx_listener,
+						&listener->rx_listener,
 						priv);
 }
 
@@ -1625,11 +1625,11 @@ static void mlxsw_core_listener_unregister(struct mlxsw_core *mlxsw_core,
 {
 	if (listener->is_event)
 		mlxsw_core_event_listener_unregister(mlxsw_core,
-						     &listener->u.event_listener,
+						     &listener->event_listener,
 						     priv);
 	else
 		mlxsw_core_rx_listener_unregister(mlxsw_core,
-						  &listener->u.rx_listener,
+						  &listener->rx_listener,
 						  priv);
 }
 
