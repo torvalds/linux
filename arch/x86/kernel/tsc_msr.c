@@ -22,10 +22,10 @@
  * read in MSR_PLATFORM_ID[12:8], otherwise in MSR_PERF_STAT[44:40].
  * Unfortunately some Intel Atom SoCs aren't quite compliant to this,
  * so we need manually differentiate SoC families. This is what the
- * field msr_plat does.
+ * field use_msr_plat does.
  */
 struct freq_desc {
-	u8 msr_plat;	/* 1: use MSR_PLATFORM_INFO, 0: MSR_IA32_PERF_STATUS */
+	bool use_msr_plat;
 	u32 freqs[MAX_NUM_FREQS];
 };
 
@@ -35,31 +35,39 @@ struct freq_desc {
  * by MSR based on SDM.
  */
 static const struct freq_desc freq_desc_pnw = {
-	0, { 0, 0, 0, 0, 0, 99840, 0, 83200 }
+	.use_msr_plat = false,
+	.freqs = { 0, 0, 0, 0, 0, 99840, 0, 83200 },
 };
 
 static const struct freq_desc freq_desc_clv = {
-	0, { 0, 133200, 0, 0, 0, 99840, 0, 83200 }
+	.use_msr_plat = false,
+	.freqs = { 0, 133200, 0, 0, 0, 99840, 0, 83200 },
 };
 
 static const struct freq_desc freq_desc_byt = {
-	1, { 83300, 100000, 133300, 116700, 80000, 0, 0, 0 }
+	.use_msr_plat = true,
+	.freqs = { 83300, 100000, 133300, 116700, 80000, 0, 0, 0 },
 };
 
 static const struct freq_desc freq_desc_cht = {
-	1, { 83300, 100000, 133300, 116700, 80000, 93300, 90000, 88900, 87500 }
+	.use_msr_plat = true,
+	.freqs = { 83300, 100000, 133300, 116700, 80000, 93300, 90000,
+		   88900, 87500 },
 };
 
 static const struct freq_desc freq_desc_tng = {
-	1, { 0, 100000, 133300, 0, 0, 0, 0, 0 }
+	.use_msr_plat = true,
+	.freqs = { 0, 100000, 133300, 0, 0, 0, 0, 0 },
 };
 
 static const struct freq_desc freq_desc_ann = {
-	1, { 83300, 100000, 133300, 100000, 0, 0, 0, 0 }
+	.use_msr_plat = true,
+	.freqs = { 83300, 100000, 133300, 100000, 0, 0, 0, 0 },
 };
 
 static const struct freq_desc freq_desc_lgm = {
-	1, { 78000, 78000, 78000, 78000, 78000, 78000, 78000, 78000 }
+	.use_msr_plat = true,
+	.freqs = { 78000, 78000, 78000, 78000, 78000, 78000, 78000, 78000 },
 };
 
 static const struct x86_cpu_id tsc_msr_cpu_ids[] = {
@@ -91,7 +99,7 @@ unsigned long cpu_khz_from_msr(void)
 		return 0;
 
 	freq_desc = (struct freq_desc *)id->driver_data;
-	if (freq_desc->msr_plat) {
+	if (freq_desc->use_msr_plat) {
 		rdmsr(MSR_PLATFORM_INFO, lo, hi);
 		ratio = (lo >> 8) & 0xff;
 	} else {
