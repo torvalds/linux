@@ -936,8 +936,6 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
 	char *frozen_buffer = NULL;
 	unsigned long start_lock, time_lock;
 
-	if (is_handle_aborted(handle))
-		return -EROFS;
 	journal = transaction->t_journal;
 
 	jbd_debug(5, "journal_head %p, force_copy %d\n", jh, force_copy);
@@ -1189,6 +1187,9 @@ int jbd2_journal_get_write_access(handle_t *handle, struct buffer_head *bh)
 	struct journal_head *jh;
 	int rc;
 
+	if (is_handle_aborted(handle))
+		return -EROFS;
+
 	if (jbd2_write_access_granted(handle, bh, false))
 		return 0;
 
@@ -1325,6 +1326,9 @@ int jbd2_journal_get_undo_access(handle_t *handle, struct buffer_head *bh)
 	int err;
 	struct journal_head *jh;
 	char *committed_data = NULL;
+
+	if (is_handle_aborted(handle))
+		return -EROFS;
 
 	if (jbd2_write_access_granted(handle, bh, true))
 		return 0;
