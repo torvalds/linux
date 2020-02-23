@@ -895,6 +895,7 @@ const struct seq_operations nr_node_seqops = {
 };
 
 static void *nr_neigh_start(struct seq_file *seq, loff_t *pos)
+	__acquires(&nr_neigh_list_lock)
 {
 	spin_lock_bh(&nr_neigh_list_lock);
 	return seq_hlist_start_head(&nr_neigh_list, *pos);
