@@ -5276,6 +5276,7 @@ static inline void btrfs_release_extent_buffer_rcu(struct rcu_head *head)
 }
 
 static int release_extent_buffer(struct extent_buffer *eb)
+	__releases(&eb->refs_lock)
 {
 	lockdep_assert_held(&eb->refs_lock);
 
