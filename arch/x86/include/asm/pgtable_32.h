@@ -66,8 +66,7 @@ do {						\
 #endif /* !__ASSEMBLY__ */
 
 /*
- * kern_addr_valid() is (1) for FLATMEM and (0) for
- * SPARSEMEM and DISCONTIGMEM
+ * kern_addr_valid() is (1) for FLATMEM and (0) for SPARSEMEM
  */
 #ifdef CONFIG_FLATMEM
 #define kern_addr_valid(addr)	(1)
