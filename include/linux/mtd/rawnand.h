@@ -1215,7 +1215,7 @@ static inline struct device_node *nand_get_flash_node(struct nand_chip *chip)
  * struct nand_flash_dev - NAND Flash Device ID Structure
  * @name: a human-readable name of the NAND chip
  * @dev_id: the device ID (the second byte of the full chip ID array)
- * @mfr_id: manufecturer ID part of the full chip ID array (refers the same
+ * @mfr_id: manufacturer ID part of the full chip ID array (refers the same
  *          memory address as ``id[0]``)
  * @dev_id: device ID part of the full chip ID array (refers the same memory
  *          address as ``id[1]``)
