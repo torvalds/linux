@@ -237,9 +237,25 @@ static u16 mlxsw_sp_listener_devlink_map[] = {
 	DEVLINK_TRAP_GENERIC_ID_OVERLAY_SMAC_MC,
 };
 
+#define MLXSW_SP_DISCARD_POLICER_ID	(MLXSW_REG_HTGT_TRAP_GROUP_MAX + 1)
+
+static int mlxsw_sp_trap_cpu_policers_set(struct mlxsw_sp *mlxsw_sp)
+{
+	char qpcr_pl[MLXSW_REG_QPCR_LEN];
+
+	mlxsw_reg_qpcr_pack(qpcr_pl, MLXSW_SP_DISCARD_POLICER_ID,
+			    MLXSW_REG_QPCR_IR_UNITS_M, false, 10 * 1024, 7);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpcr), qpcr_pl);
+}
+
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	int err;
+
+	err = mlxsw_sp_trap_cpu_policers_set(mlxsw_sp);
+	if (err)
+		return err;
 
 	if (WARN_ON(ARRAY_SIZE(mlxsw_sp_listener_devlink_map) !=
 		    ARRAY_SIZE(mlxsw_sp_listeners_arr)))
@@ -330,41 +346,8 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 	return 0;
 }
 
-#define MLXSW_SP_DISCARD_POLICER_ID	(MLXSW_REG_HTGT_TRAP_GROUP_MAX + 1)
-
-static int
-mlxsw_sp_trap_group_policer_init(struct mlxsw_sp *mlxsw_sp,
-				 const struct devlink_trap_group *group)
-{
-	enum mlxsw_reg_qpcr_ir_units ir_units;
-	char qpcr_pl[MLXSW_REG_QPCR_LEN];
-	u16 policer_id;
-	u8 burst_size;
-	bool is_bytes;
-	u32 rate;
-
-	switch (group->id) {
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS: /* fall through */
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS: /* fall through */
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_TUNNEL_DROPS:
-		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
-		ir_units = MLXSW_REG_QPCR_IR_UNITS_M;
-		is_bytes = false;
-		rate = 10 * 1024; /* 10Kpps */
-		burst_size = 7;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	mlxsw_reg_qpcr_pack(qpcr_pl, policer_id, ir_units, is_bytes, rate,
-			    burst_size);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpcr), qpcr_pl);
-}
-
-static int
-__mlxsw_sp_trap_group_init(struct mlxsw_sp *mlxsw_sp,
-			   const struct devlink_trap_group *group)
+int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
+			     const struct devlink_trap_group *group)
 {
 	char htgt_pl[MLXSW_REG_HTGT_LEN];
 	u8 priority, tc, group_id;
@@ -394,22 +377,5 @@ __mlxsw_sp_trap_group_init(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	mlxsw_reg_htgt_pack(htgt_pl, group_id, policer_id, priority, tc);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(htgt), htgt_pl);
-}
-
-int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
-			     const struct devlink_trap_group *group)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
-	int err;
-
-	err = mlxsw_sp_trap_group_policer_init(mlxsw_sp, group);
-	if (err)
-		return err;
-
-	err = __mlxsw_sp_trap_group_init(mlxsw_sp, group);
-	if (err)
-		return err;
-
-	return 0;
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
