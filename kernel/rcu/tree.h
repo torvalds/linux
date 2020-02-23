@@ -359,6 +359,7 @@ struct rcu_state {
 /* Values for rcu_state structure's gp_flags field. */
 #define RCU_GP_FLAG_INIT 0x1	/* Need grace-period initialization. */
 #define RCU_GP_FLAG_FQS  0x2	/* Need grace-period quiescent-state forcing. */
+#define RCU_GP_FLAG_OVLD 0x4	/* Experiencing callback overload. */
 
 /* Values for rcu_state structure's gp_state field. */
 #define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */

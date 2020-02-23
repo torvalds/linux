@@ -1624,12 +1624,16 @@ static bool rcu_gp_fqs_check_wake(int *gfp)
 {
 	struct rcu_node *rnp = rcu_get_root();
 
-	/* Someone like call_rcu() requested a force-quiescent-state scan. */
+	// If under overload conditions, force an immediate FQS scan.
+	if (*gfp & RCU_GP_FLAG_OVLD)
+		return true;
+
+	// Someone like call_rcu() requested a force-quiescent-state scan.
 	*gfp = READ_ONCE(rcu_state.gp_flags);
 	if (*gfp & RCU_GP_FLAG_FQS)
 		return true;
 
-	/* The current grace period has completed. */
+	// The current grace period has completed.
 	if (!READ_ONCE(rnp->qsmask) && !rcu_preempt_blocked_readers_cgp(rnp))
 		return true;
 
@@ -1667,13 +1671,15 @@ static void rcu_gp_fqs(bool first_time)
 static void rcu_gp_fqs_loop(void)
 {
 	bool first_gp_fqs;
-	int gf;
+	int gf = 0;
 	unsigned long j;
 	int ret;
 	struct rcu_node *rnp = rcu_get_root();
 
 	first_gp_fqs = true;
 	j = READ_ONCE(jiffies_till_first_fqs);
+	if (rcu_state.cbovld)
+		gf = RCU_GP_FLAG_OVLD;
 	ret = 0;
 	for (;;) {
 		if (!ret) {
@@ -1698,7 +1704,11 @@ static void rcu_gp_fqs_loop(void)
 			trace_rcu_grace_period(rcu_state.name, rcu_state.gp_seq,
 					       TPS("fqsstart"));
 			rcu_gp_fqs(first_gp_fqs);
-			first_gp_fqs = false;
+			gf = 0;
+			if (first_gp_fqs) {
+				first_gp_fqs = false;
+				gf = rcu_state.cbovld ? RCU_GP_FLAG_OVLD : 0;
+			}
 			trace_rcu_grace_period(rcu_state.name, rcu_state.gp_seq,
 					       TPS("fqsend"));
 			cond_resched_tasks_rcu_qs();
@@ -1718,6 +1728,7 @@ static void rcu_gp_fqs_loop(void)
 				j = 1;
 			else
 				j = rcu_state.jiffies_force_qs - j;
+			gf = 0;
 		}
 	}
 }
