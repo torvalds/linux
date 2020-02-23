@@ -767,6 +767,8 @@ patternProperties:
     description: Broadcom Corporation (formerly PLX Technology)
   "^pni,.*":
     description: PNI Sensor Corporation
+  "^pocketbook,.*":
+    description: PocketBook International SA
   "^polaroid,.*":
     description: Polaroid Corporation
   "^portwell,.*":
