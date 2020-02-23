@@ -116,15 +116,13 @@ int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 				    const struct mlxsw_rx_listener *rxl,
 				    void *priv);
 void mlxsw_core_rx_listener_unregister(struct mlxsw_core *mlxsw_core,
-				       const struct mlxsw_rx_listener *rxl,
-				       void *priv);
+				       const struct mlxsw_rx_listener *rxl);
 
 int mlxsw_core_event_listener_register(struct mlxsw_core *mlxsw_core,
 				       const struct mlxsw_event_listener *el,
 				       void *priv);
 void mlxsw_core_event_listener_unregister(struct mlxsw_core *mlxsw_core,
-					  const struct mlxsw_event_listener *el,
-					  void *priv);
+					  const struct mlxsw_event_listener *el);
 
 int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 			     const struct mlxsw_listener *listener,
