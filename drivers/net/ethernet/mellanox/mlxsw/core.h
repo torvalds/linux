@@ -79,8 +79,8 @@ struct mlxsw_listener {
 	enum mlxsw_reg_hpkt_action action;
 	enum mlxsw_reg_hpkt_action unreg_action;
 	u8 trap_group;
-	bool is_ctrl; /* should go via control buffer or not */
-	bool is_event;
+	u8 is_ctrl:1, /* should go via control buffer or not */
+	   is_event:1;
 };
 
 #define MLXSW_RXL(_func, _trap_id, _action, _is_ctrl, _trap_group,	\
