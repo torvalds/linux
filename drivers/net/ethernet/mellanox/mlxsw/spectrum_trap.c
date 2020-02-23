@@ -125,7 +125,7 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 	MLXSW_RXL(mlxsw_sp_rx_exception_listener, _id,			      \
 		   _action, false, SP_##_group_id, DISCARD)
 
-static struct devlink_trap mlxsw_sp_traps_arr[] = {
+static const struct devlink_trap mlxsw_sp_traps_arr[] = {
 	MLXSW_SP_TRAP_DROP(SMAC_MC, L2_DROPS),
 	MLXSW_SP_TRAP_DROP(VLAN_TAG_MISMATCH, L2_DROPS),
 	MLXSW_SP_TRAP_DROP(INGRESS_VLAN_FILTER, L2_DROPS),
@@ -156,7 +156,7 @@ static struct devlink_trap mlxsw_sp_traps_arr[] = {
 	MLXSW_SP_TRAP_DROP(OVERLAY_SMAC_MC, TUNNEL_DROPS),
 };
 
-static struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
+static const struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
 	MLXSW_SP_RXL_DISCARD(ING_PACKET_SMAC_MC, L2_DISCARDS),
 	MLXSW_SP_RXL_DISCARD(ING_SWITCH_VTAG_ALLOW, L2_DISCARDS),
 	MLXSW_SP_RXL_DISCARD(ING_SWITCH_VLAN, L2_DISCARDS),
@@ -201,7 +201,7 @@ static struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
  * be mapped to the same devlink trap. Order is according to
  * 'mlxsw_sp_listeners_arr'.
  */
-static u16 mlxsw_sp_listener_devlink_map[] = {
+static const u16 mlxsw_sp_listener_devlink_map[] = {
 	DEVLINK_TRAP_GENERIC_ID_SMAC_MC,
 	DEVLINK_TRAP_GENERIC_ID_VLAN_TAG_MISMATCH,
 	DEVLINK_TRAP_GENERIC_ID_INGRESS_VLAN_FILTER,
@@ -280,7 +280,7 @@ int mlxsw_sp_trap_init(struct mlxsw_core *mlxsw_core,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener_devlink_map); i++) {
-		struct mlxsw_listener *listener;
+		const struct mlxsw_listener *listener;
 		int err;
 
 		if (mlxsw_sp_listener_devlink_map[i] != trap->id)
@@ -301,7 +301,7 @@ void mlxsw_sp_trap_fini(struct mlxsw_core *mlxsw_core,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener_devlink_map); i++) {
-		struct mlxsw_listener *listener;
+		const struct mlxsw_listener *listener;
 
 		if (mlxsw_sp_listener_devlink_map[i] != trap->id)
 			continue;
@@ -318,8 +318,8 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener_devlink_map); i++) {
+		const struct mlxsw_listener *listener;
 		enum mlxsw_reg_hpkt_action hw_action;
-		struct mlxsw_listener *listener;
 		int err;
 
 		if (mlxsw_sp_listener_devlink_map[i] != trap->id)
