@@ -1349,6 +1349,24 @@ static __init void svm_adjust_mmio_mask(void)
 	kvm_mmu_set_mmio_spte_mask(mask, mask, PT_WRITABLE_MASK | PT_USER_MASK);
 }
 
+static void svm_hardware_teardown(void)
+{
+	int cpu;
+
+	if (svm_sev_enabled()) {
+		bitmap_free(sev_asid_bitmap);
+		bitmap_free(sev_reclaim_asid_bitmap);
+
+		sev_flush_asids();
+	}
+
+	for_each_possible_cpu(cpu)
+		svm_cpu_uninit(cpu);
+
+	__free_pages(pfn_to_page(iopm_base >> PAGE_SHIFT), IOPM_ALLOC_ORDER);
+	iopm_base = 0;
+}
+
 static __init int svm_hardware_setup(void)
 {
 	int cpu;
@@ -1462,27 +1480,8 @@ static __init int svm_hardware_setup(void)
 	return 0;
 
 err:
-	__free_pages(iopm_pages, IOPM_ALLOC_ORDER);
-	iopm_base = 0;
+	svm_hardware_teardown();
 	return r;
-}
-
-static __exit void svm_hardware_unsetup(void)
-{
-	int cpu;
-
-	if (svm_sev_enabled()) {
-		bitmap_free(sev_asid_bitmap);
-		bitmap_free(sev_reclaim_asid_bitmap);
-
-		sev_flush_asids();
-	}
-
-	for_each_possible_cpu(cpu)
-		svm_cpu_uninit(cpu);
-
-	__free_pages(pfn_to_page(iopm_base >> PAGE_SHIFT), IOPM_ALLOC_ORDER);
-	iopm_base = 0;
 }
 
 static void init_seg(struct vmcb_seg *seg)
@@ -7385,7 +7384,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
 	.hardware_setup = svm_hardware_setup,
-	.hardware_unsetup = svm_hardware_unsetup,
+	.hardware_unsetup = svm_hardware_teardown,
 	.check_processor_compatibility = svm_check_processor_compat,
 	.hardware_enable = svm_hardware_enable,
 	.hardware_disable = svm_hardware_disable,
