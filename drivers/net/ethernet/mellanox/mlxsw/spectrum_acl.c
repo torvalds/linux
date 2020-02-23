@@ -99,7 +99,8 @@ struct mlxsw_sp *mlxsw_sp_acl_block_mlxsw_sp(struct mlxsw_sp_acl_block *block)
 	return block->mlxsw_sp;
 }
 
-unsigned int mlxsw_sp_acl_block_rule_count(struct mlxsw_sp_acl_block *block)
+unsigned int
+mlxsw_sp_acl_block_rule_count(const struct mlxsw_sp_acl_block *block)
 {
 	return block ? block->rule_count : 0;
 }
@@ -116,12 +117,12 @@ void mlxsw_sp_acl_block_disable_dec(struct mlxsw_sp_acl_block *block)
 		block->disable_count--;
 }
 
-bool mlxsw_sp_acl_block_disabled(struct mlxsw_sp_acl_block *block)
+bool mlxsw_sp_acl_block_disabled(const struct mlxsw_sp_acl_block *block)
 {
 	return block->disable_count;
 }
 
-bool mlxsw_sp_acl_block_is_egress_bound(struct mlxsw_sp_acl_block *block)
+bool mlxsw_sp_acl_block_is_egress_bound(const struct mlxsw_sp_acl_block *block)
 {
 	struct mlxsw_sp_acl_block_binding *binding;
 
@@ -163,7 +164,8 @@ mlxsw_sp_acl_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
 			    binding->mlxsw_sp_port, binding->ingress);
 }
 
-static bool mlxsw_sp_acl_ruleset_block_bound(struct mlxsw_sp_acl_block *block)
+static bool
+mlxsw_sp_acl_ruleset_block_bound(const struct mlxsw_sp_acl_block *block)
 {
 	return block->ruleset_zero;
 }
