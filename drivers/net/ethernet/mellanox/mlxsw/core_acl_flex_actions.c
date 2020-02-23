@@ -747,97 +747,94 @@ int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_vlan_modify);
 
-/* Trap / Discard Action
- * ---------------------
- * The Trap / Discard action enables trapping / mirroring packets to the CPU
+/* Trap Action
+ * -----------
+ * The Trap action enables trapping / mirroring packets to the CPU
  * as well as discarding packets.
  * The ACL Trap / Discard separates the forward/discard control from CPU
  * trap control. In addition, the Trap / Discard action enables activating
  * SPAN (port mirroring).
  */
 
-#define MLXSW_AFA_TRAPDISC_CODE 0x03
-#define MLXSW_AFA_TRAPDISC_SIZE 1
+#define MLXSW_AFA_TRAP_CODE 0x03
+#define MLXSW_AFA_TRAP_SIZE 1
 
-enum mlxsw_afa_trapdisc_trap_action {
-	MLXSW_AFA_TRAPDISC_TRAP_ACTION_NOP = 0,
-	MLXSW_AFA_TRAPDISC_TRAP_ACTION_TRAP = 2,
+enum mlxsw_afa_trap_trap_action {
+	MLXSW_AFA_TRAP_TRAP_ACTION_NOP = 0,
+	MLXSW_AFA_TRAP_TRAP_ACTION_TRAP = 2,
 };
 
-/* afa_trapdisc_trap_action
+/* afa_trap_trap_action
  * Trap Action.
  */
-MLXSW_ITEM32(afa, trapdisc, trap_action, 0x00, 24, 4);
+MLXSW_ITEM32(afa, trap, trap_action, 0x00, 24, 4);
 
-enum mlxsw_afa_trapdisc_forward_action {
-	MLXSW_AFA_TRAPDISC_FORWARD_ACTION_FORWARD = 1,
-	MLXSW_AFA_TRAPDISC_FORWARD_ACTION_DISCARD = 3,
+enum mlxsw_afa_trap_forward_action {
+	MLXSW_AFA_TRAP_FORWARD_ACTION_FORWARD = 1,
+	MLXSW_AFA_TRAP_FORWARD_ACTION_DISCARD = 3,
 };
 
-/* afa_trapdisc_forward_action
+/* afa_trap_forward_action
  * Forward Action.
  */
-MLXSW_ITEM32(afa, trapdisc, forward_action, 0x00, 0, 4);
+MLXSW_ITEM32(afa, trap, forward_action, 0x00, 0, 4);
 
-/* afa_trapdisc_trap_id
+/* afa_trap_trap_id
  * Trap ID to configure.
  */
-MLXSW_ITEM32(afa, trapdisc, trap_id, 0x04, 0, 9);
+MLXSW_ITEM32(afa, trap, trap_id, 0x04, 0, 9);
 
-/* afa_trapdisc_mirror_agent
+/* afa_trap_mirror_agent
  * Mirror agent.
  */
-MLXSW_ITEM32(afa, trapdisc, mirror_agent, 0x08, 29, 3);
+MLXSW_ITEM32(afa, trap, mirror_agent, 0x08, 29, 3);
 
-/* afa_trapdisc_mirror_enable
+/* afa_trap_mirror_enable
  * Mirror enable.
  */
-MLXSW_ITEM32(afa, trapdisc, mirror_enable, 0x08, 24, 1);
+MLXSW_ITEM32(afa, trap, mirror_enable, 0x08, 24, 1);
 
 static inline void
-mlxsw_afa_trapdisc_pack(char *payload,
-			enum mlxsw_afa_trapdisc_trap_action trap_action,
-			enum mlxsw_afa_trapdisc_forward_action forward_action,
-			u16 trap_id)
+mlxsw_afa_trap_pack(char *payload,
+		    enum mlxsw_afa_trap_trap_action trap_action,
+		    enum mlxsw_afa_trap_forward_action forward_action,
+		    u16 trap_id)
 {
-	mlxsw_afa_trapdisc_trap_action_set(payload, trap_action);
-	mlxsw_afa_trapdisc_forward_action_set(payload, forward_action);
-	mlxsw_afa_trapdisc_trap_id_set(payload, trap_id);
+	mlxsw_afa_trap_trap_action_set(payload, trap_action);
+	mlxsw_afa_trap_forward_action_set(payload, forward_action);
+	mlxsw_afa_trap_trap_id_set(payload, trap_id);
 }
 
 static inline void
-mlxsw_afa_trapdisc_mirror_pack(char *payload, bool mirror_enable,
-			       u8 mirror_agent)
+mlxsw_afa_trap_mirror_pack(char *payload, bool mirror_enable,
+			   u8 mirror_agent)
 {
-	mlxsw_afa_trapdisc_mirror_enable_set(payload, mirror_enable);
-	mlxsw_afa_trapdisc_mirror_agent_set(payload, mirror_agent);
+	mlxsw_afa_trap_mirror_enable_set(payload, mirror_enable);
+	mlxsw_afa_trap_mirror_agent_set(payload, mirror_agent);
 }
 
 int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block)
 {
-	char *act = mlxsw_afa_block_append_action(block,
-						  MLXSW_AFA_TRAPDISC_CODE,
-						  MLXSW_AFA_TRAPDISC_SIZE);
+	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAP_CODE,
+						  MLXSW_AFA_TRAP_SIZE);
 
 	if (IS_ERR(act))
 		return PTR_ERR(act);
-	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_TRAP_ACTION_NOP,
-				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_DISCARD, 0);
+	mlxsw_afa_trap_pack(act, MLXSW_AFA_TRAP_TRAP_ACTION_NOP,
+			    MLXSW_AFA_TRAP_FORWARD_ACTION_DISCARD, 0);
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_drop);
 
 int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block, u16 trap_id)
 {
-	char *act = mlxsw_afa_block_append_action(block,
-						  MLXSW_AFA_TRAPDISC_CODE,
-						  MLXSW_AFA_TRAPDISC_SIZE);
+	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAP_CODE,
+						  MLXSW_AFA_TRAP_SIZE);
 
 	if (IS_ERR(act))
 		return PTR_ERR(act);
-	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_TRAP_ACTION_TRAP,
-				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_DISCARD,
-				trap_id);
+	mlxsw_afa_trap_pack(act, MLXSW_AFA_TRAP_TRAP_ACTION_TRAP,
+			    MLXSW_AFA_TRAP_FORWARD_ACTION_DISCARD, trap_id);
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_trap);
@@ -845,15 +842,13 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_trap);
 int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
 					    u16 trap_id)
 {
-	char *act = mlxsw_afa_block_append_action(block,
-						  MLXSW_AFA_TRAPDISC_CODE,
-						  MLXSW_AFA_TRAPDISC_SIZE);
+	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAP_CODE,
+						  MLXSW_AFA_TRAP_SIZE);
 
 	if (IS_ERR(act))
 		return PTR_ERR(act);
-	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_TRAP_ACTION_TRAP,
-				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_FORWARD,
-				trap_id);
+	mlxsw_afa_trap_pack(act, MLXSW_AFA_TRAP_TRAP_ACTION_TRAP,
+			    MLXSW_AFA_TRAP_FORWARD_ACTION_FORWARD, trap_id);
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_trap_and_forward);
@@ -920,13 +915,13 @@ mlxsw_afa_block_append_allocated_mirror(struct mlxsw_afa_block *block,
 					u8 mirror_agent)
 {
 	char *act = mlxsw_afa_block_append_action(block,
-						  MLXSW_AFA_TRAPDISC_CODE,
-						  MLXSW_AFA_TRAPDISC_SIZE);
+						  MLXSW_AFA_TRAP_CODE,
+						  MLXSW_AFA_TRAP_SIZE);
 	if (IS_ERR(act))
 		return PTR_ERR(act);
-	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_TRAP_ACTION_NOP,
-				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_FORWARD, 0);
-	mlxsw_afa_trapdisc_mirror_pack(act, true, mirror_agent);
+	mlxsw_afa_trap_pack(act, MLXSW_AFA_TRAP_TRAP_ACTION_NOP,
+			    MLXSW_AFA_TRAP_FORWARD_ACTION_FORWARD, 0);
+	mlxsw_afa_trap_mirror_pack(act, true, mirror_agent);
 	return 0;
 }
 
