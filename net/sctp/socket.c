@@ -5340,7 +5340,7 @@ void sctp_transport_walk_start(struct rhashtable_iter *iter) __acquires(RCU)
 	rhashtable_walk_start(iter);
 }
 
-void sctp_transport_walk_stop(struct rhashtable_iter *iter)
+void sctp_transport_walk_stop(struct rhashtable_iter *iter) __releases(RCU)
 {
 	rhashtable_walk_stop(iter);
 	rhashtable_walk_exit(iter);
