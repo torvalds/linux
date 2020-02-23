@@ -25,10 +25,81 @@ enum {
 
 #define MLXSW_SP_TRAP_METADATA DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT
 
+static int mlxsw_sp_rx_listener(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+				u8 local_port,
+				struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_port_pcpu_stats *pcpu_stats;
+
+	if (unlikely(!mlxsw_sp_port)) {
+		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: skb received for non-existent port\n",
+				     local_port);
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	skb->dev = mlxsw_sp_port->dev;
+
+	pcpu_stats = this_cpu_ptr(mlxsw_sp_port->pcpu_stats);
+	u64_stats_update_begin(&pcpu_stats->syncp);
+	pcpu_stats->rx_packets++;
+	pcpu_stats->rx_bytes += skb->len;
+	u64_stats_update_end(&pcpu_stats->syncp);
+
+	skb->protocol = eth_type_trans(skb, skb->dev);
+
+	return 0;
+}
+
 static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u8 local_port,
-				      void *priv);
+				      void *trap_ctx)
+{
+	struct devlink_port *in_devlink_port;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp *mlxsw_sp;
+	struct devlink *devlink;
+	int err;
+
+	mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
+	mlxsw_sp_port = mlxsw_sp->ports[local_port];
+
+	err = mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port);
+	if (err)
+		return;
+
+	devlink = priv_to_devlink(mlxsw_sp->core);
+	in_devlink_port = mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
+							   local_port);
+	skb_push(skb, ETH_HLEN);
+	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port);
+	consume_skb(skb);
+}
+
 static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
-					   void *trap_ctx);
+					   void *trap_ctx)
+{
+	struct devlink_port *in_devlink_port;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp *mlxsw_sp;
+	struct devlink *devlink;
+	int err;
+
+	mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
+	mlxsw_sp_port = mlxsw_sp->ports[local_port];
+
+	err = mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port);
+	if (err)
+		return;
+
+	devlink = priv_to_devlink(mlxsw_sp->core);
+	in_devlink_port = mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
+							   local_port);
+	skb_push(skb, ETH_HLEN);
+	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port);
+	skb_pull(skb, ETH_HLEN);
+	skb->offload_fwd_mark = 1;
+	netif_receive_skb(skb);
+}
 
 #define MLXSW_SP_TRAP_DROP(_id, _group_id)				      \
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
@@ -165,82 +236,6 @@ static u16 mlxsw_sp_listener_devlink_map[] = {
 	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
 	DEVLINK_TRAP_GENERIC_ID_OVERLAY_SMAC_MC,
 };
-
-static int mlxsw_sp_rx_listener(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
-				u8 local_port,
-				struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	struct mlxsw_sp_port_pcpu_stats *pcpu_stats;
-
-	if (unlikely(!mlxsw_sp_port)) {
-		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: skb received for non-existent port\n",
-				     local_port);
-		kfree_skb(skb);
-		return -EINVAL;
-	}
-
-	skb->dev = mlxsw_sp_port->dev;
-
-	pcpu_stats = this_cpu_ptr(mlxsw_sp_port->pcpu_stats);
-	u64_stats_update_begin(&pcpu_stats->syncp);
-	pcpu_stats->rx_packets++;
-	pcpu_stats->rx_bytes += skb->len;
-	u64_stats_update_end(&pcpu_stats->syncp);
-
-	skb->protocol = eth_type_trans(skb, skb->dev);
-
-	return 0;
-}
-
-static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u8 local_port,
-				      void *trap_ctx)
-{
-	struct devlink_port *in_devlink_port;
-	struct mlxsw_sp_port *mlxsw_sp_port;
-	struct mlxsw_sp *mlxsw_sp;
-	struct devlink *devlink;
-	int err;
-
-	mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
-	mlxsw_sp_port = mlxsw_sp->ports[local_port];
-
-	err = mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port);
-	if (err)
-		return;
-
-	devlink = priv_to_devlink(mlxsw_sp->core);
-	in_devlink_port = mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
-							   local_port);
-	skb_push(skb, ETH_HLEN);
-	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port);
-	consume_skb(skb);
-}
-
-static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
-					   void *trap_ctx)
-{
-	struct devlink_port *in_devlink_port;
-	struct mlxsw_sp_port *mlxsw_sp_port;
-	struct mlxsw_sp *mlxsw_sp;
-	struct devlink *devlink;
-	int err;
-
-	mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
-	mlxsw_sp_port = mlxsw_sp->ports[local_port];
-
-	err = mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port);
-	if (err)
-		return;
-
-	devlink = priv_to_devlink(mlxsw_sp->core);
-	in_devlink_port = mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
-							   local_port);
-	skb_push(skb, ETH_HLEN);
-	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port);
-	skb_pull(skb, ETH_HLEN);
-	skb->offload_fwd_mark = 1;
-	netif_receive_skb(skb);
-}
 
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 {
