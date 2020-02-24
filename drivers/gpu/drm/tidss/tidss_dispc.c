@@ -1228,7 +1228,7 @@ int dispc_vp_set_clk_rate(struct dispc_device *dispc, u32 hw_videoport,
 
 	if (dispc_pclk_diff(rate, new_rate) > 5)
 		dev_warn(dispc->dev,
-			 "vp%d: Clock rate %lu differs over 5%% from requsted %lu\n",
+			 "vp%d: Clock rate %lu differs over 5%% from requested %lu\n",
 			 hw_videoport, new_rate, rate);
 
 	dev_dbg(dispc->dev, "vp%d: new rate %lu Hz (requested %lu Hz)\n",
@@ -1694,7 +1694,7 @@ static int dispc_vid_calc_scaling(struct dispc_device *dispc,
 
 		if (sp->xinc > f->xinc_max) {
 			dev_dbg(dispc->dev,
-				"%s: Too wide input bufer %u > %u\n", __func__,
+				"%s: Too wide input buffer %u > %u\n", __func__,
 				state->src_w >> 16, in_width_max * f->xinc_max);
 			return -EINVAL;
 		}
