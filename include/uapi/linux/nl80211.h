@@ -1039,14 +1039,11 @@
  *	a control port frame and as a notification that a control port frame
  *	has been received. %NL80211_ATTR_FRAME is used to specify the
  *	frame contents.  The frame is the raw EAPoL data, without ethernet or
- *	802.11 headers. An optional %NL80211_ATTR_SRC_MAC can be used to send
- *	pre-auth frames to STAs on behalf of other APs.
+ *	802.11 headers.
  *	When used as an event indication %NL80211_ATTR_CONTROL_PORT_ETHERTYPE,
  *	%NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT and %NL80211_ATTR_MAC are added
  *	indicating the protocol type of the received frame; whether the frame
  *	was received unencrypted and the MAC address of the peer respectively.
- *	%NL80211_ATTR_DST_MAC can be used to forward pre-auth frames in
- *	userspace while using AP mode.
  *
  * @NL80211_CMD_RELOAD_REGDB: Request that the regdb firmware file is reloaded.
  *
@@ -2412,9 +2409,6 @@ enum nl80211_commands {
  *	%NL80211_ATTR_AKM_SUITES are default capabilities if AKM suites not
  *	advertised for a specific interface type.
  *
- * @NL80211_ATTR_SRC_MAC: MAC address used in control port over nl80211 transmit
- * @NL80211_ATTR_DST_MAC: MAC address used in control port over nl80211 receive
- *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2882,9 +2876,6 @@ enum nl80211_attrs {
 	NL80211_ATTR_HE_BSS_COLOR,
 
 	NL80211_ATTR_IFTYPE_AKM_SUITES,
-
-	NL80211_ATTR_SRC_MAC,
-	NL80211_ATTR_DST_MAC,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -5548,10 +5539,6 @@ enum nl80211_feature_flags {
  *	feature, which prevents bufferbloat by using the expected transmission
  *	time to limit the amount of data buffered in the hardware.
  *
- * @NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211_MAC_ADDRS: The driver
- *	can use src and dst MAC addresses with control port over nl80211 rx
- *	and tx operations.
- *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5599,7 +5586,6 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_SAE_OFFLOAD,
 	NL80211_EXT_FEATURE_VLAN_OFFLOAD,
 	NL80211_EXT_FEATURE_AQL,
-	NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211_MAC_ADDRS,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

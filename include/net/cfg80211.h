@@ -3974,8 +3974,7 @@ struct cfg80211_ops {
 	int	(*tx_control_port)(struct wiphy *wiphy,
 				   struct net_device *dev,
 				   const u8 *buf, size_t len,
-				   const u8 *dest, const u8 *src,
-				   const __be16 proto,
+				   const u8 *dest, const __be16 proto,
 				   const bool noencrypt);
 
 	int	(*get_ftm_responder_stats)(struct wiphy *wiphy,
