@@ -19,10 +19,16 @@ enum flow_offload_tuple_dir;
 struct nf_flow_key {
 	struct flow_dissector_key_meta			meta;
 	struct flow_dissector_key_control		control;
+	struct flow_dissector_key_control		enc_control;
 	struct flow_dissector_key_basic			basic;
 	union {
 		struct flow_dissector_key_ipv4_addrs	ipv4;
 		struct flow_dissector_key_ipv6_addrs	ipv6;
+	};
+	struct flow_dissector_key_keyid			enc_key_id;
+	union {
+		struct flow_dissector_key_ipv4_addrs	enc_ipv4;
+		struct flow_dissector_key_ipv6_addrs	enc_ipv6;
 	};
 	struct flow_dissector_key_tcp			tcp;
 	struct flow_dissector_key_ports			tp;
