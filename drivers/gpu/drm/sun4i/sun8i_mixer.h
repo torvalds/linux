@@ -10,7 +10,6 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
-#include "sun8i_csc.h"
 #include "sunxi_engine.h"
 
 #define SUN8I_MIXER_SIZE(w, h)			(((h) - 1) << 16 | ((w) - 1))
@@ -145,9 +144,8 @@
 #define SUN50I_MIXER_CDC1_EN			0xd8000
 
 struct de2_fmt_info {
-	u32			drm_fmt;
-	u32			de2_fmt;
-	enum sun8i_csc_mode	csc;
+	u32	drm_fmt;
+	u32	de2_fmt;
 };
 
 /**
