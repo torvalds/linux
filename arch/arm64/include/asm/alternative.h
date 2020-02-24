@@ -42,7 +42,7 @@ static inline void apply_alternatives_module(void *start, size_t length) { }
 	" .byte 662b-661b\n"				/* source len      */ \
 	" .byte 664f-663f\n"				/* replacement len */
 
-#define ALTINSTR_ENTRY_CB(feature,cb)					      \
+#define ALTINSTR_ENTRY_CB(feature, cb)					      \
 	" .word 661b - .\n"				/* label           */ \
 	" .word " __stringify(cb) "- .\n"		/* callback */	      \
 	" .hword " __stringify(feature) "\n"		/* feature bit     */ \
@@ -88,7 +88,7 @@ static inline void apply_alternatives_module(void *start, size_t length) { }
 	oldinstr "\n"							\
 	"662:\n"							\
 	".pushsection .altinstructions,\"a\"\n"				\
-	ALTINSTR_ENTRY_CB(feature,cb)					\
+	ALTINSTR_ENTRY_CB(feature, cb)					\
 	".popsection\n"							\
 	"663:\n\t"							\
 	"664:\n\t"							\
