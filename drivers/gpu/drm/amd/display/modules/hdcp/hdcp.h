@@ -392,13 +392,13 @@ enum mod_hdcp_status mod_hdcp_write_content_type(struct mod_hdcp *hdcp);
 /* hdcp version helpers */
 static inline uint8_t is_dp_hdcp(struct mod_hdcp *hdcp)
 {
-	return (hdcp->connection.link.mode == MOD_HDCP_MODE_DP ||
-			hdcp->connection.link.mode == MOD_HDCP_MODE_DP_MST);
+	return (hdcp->connection.link.mode == MOD_HDCP_MODE_DP);
 }
 
 static inline uint8_t is_dp_mst_hdcp(struct mod_hdcp *hdcp)
 {
-	return (hdcp->connection.link.mode == MOD_HDCP_MODE_DP_MST);
+	return (hdcp->connection.link.mode == MOD_HDCP_MODE_DP &&
+			hdcp->connection.link.dp.mst_supported);
 }
 
 static inline uint8_t is_hdmi_dvi_sl_hdcp(struct mod_hdcp *hdcp)

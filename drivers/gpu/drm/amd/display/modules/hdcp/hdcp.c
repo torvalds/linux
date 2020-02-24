@@ -481,10 +481,8 @@ enum mod_hdcp_operation_mode mod_hdcp_signal_type_to_operation_mode(
 		break;
 	case SIGNAL_TYPE_EDP:
 	case SIGNAL_TYPE_DISPLAY_PORT:
-		mode = MOD_HDCP_MODE_DP;
-		break;
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
-		mode = MOD_HDCP_MODE_DP_MST;
+		mode = MOD_HDCP_MODE_DP;
 		break;
 	default:
 		break;
