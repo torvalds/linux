@@ -62,7 +62,6 @@ struct mlxsw_rx_listener {
 	void (*func)(struct sk_buff *skb, u8 local_port, void *priv);
 	u8 local_port;
 	u16 trap_id;
-	enum mlxsw_reg_hpkt_action action;
 };
 
 struct mlxsw_event_listener {
@@ -76,19 +75,19 @@ struct mlxsw_listener {
 	union {
 		struct mlxsw_rx_listener rx_listener;
 		struct mlxsw_event_listener event_listener;
-	} u;
+	};
 	enum mlxsw_reg_hpkt_action action;
 	enum mlxsw_reg_hpkt_action unreg_action;
 	u8 trap_group;
-	bool is_ctrl; /* should go via control buffer or not */
-	bool is_event;
+	u8 is_ctrl:1, /* should go via control buffer or not */
+	   is_event:1;
 };
 
 #define MLXSW_RXL(_func, _trap_id, _action, _is_ctrl, _trap_group,	\
 		  _unreg_action)					\
 	{								\
 		.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
-		.u.rx_listener =					\
+		.rx_listener =						\
 		{							\
 			.func = _func,					\
 			.local_port = MLXSW_PORT_DONT_CARE,		\
@@ -98,20 +97,18 @@ struct mlxsw_listener {
 		.unreg_action = MLXSW_REG_HPKT_ACTION_##_unreg_action,	\
 		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_trap_group,	\
 		.is_ctrl = _is_ctrl,					\
-		.is_event = false,					\
 	}
 
 #define MLXSW_EVENTL(_func, _trap_id, _trap_group)			\
 	{								\
 		.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
-		.u.event_listener =					\
+		.event_listener =					\
 		{							\
 			.func = _func,					\
 			.trap_id = MLXSW_TRAP_ID_##_trap_id,		\
 		},							\
 		.action = MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,		\
 		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_trap_group,	\
-		.is_ctrl = false,					\
 		.is_event = true,					\
 	}
 
@@ -119,15 +116,13 @@ int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 				    const struct mlxsw_rx_listener *rxl,
 				    void *priv);
 void mlxsw_core_rx_listener_unregister(struct mlxsw_core *mlxsw_core,
-				       const struct mlxsw_rx_listener *rxl,
-				       void *priv);
+				       const struct mlxsw_rx_listener *rxl);
 
 int mlxsw_core_event_listener_register(struct mlxsw_core *mlxsw_core,
 				       const struct mlxsw_event_listener *el,
 				       void *priv);
 void mlxsw_core_event_listener_unregister(struct mlxsw_core *mlxsw_core,
-					  const struct mlxsw_event_listener *el,
-					  void *priv);
+					  const struct mlxsw_event_listener *el);
 
 int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 			     const struct mlxsw_listener *listener,

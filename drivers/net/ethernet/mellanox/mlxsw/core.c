@@ -1457,14 +1457,12 @@ static bool __is_rx_listener_equal(const struct mlxsw_rx_listener *rxl_a,
 
 static struct mlxsw_rx_listener_item *
 __find_rx_listener_item(struct mlxsw_core *mlxsw_core,
-			const struct mlxsw_rx_listener *rxl,
-			void *priv)
+			const struct mlxsw_rx_listener *rxl)
 {
 	struct mlxsw_rx_listener_item *rxl_item;
 
 	list_for_each_entry(rxl_item, &mlxsw_core->rx_listener_list, list) {
-		if (__is_rx_listener_equal(&rxl_item->rxl, rxl) &&
-		    rxl_item->priv == priv)
+		if (__is_rx_listener_equal(&rxl_item->rxl, rxl))
 			return rxl_item;
 	}
 	return NULL;
@@ -1476,7 +1474,7 @@ int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 {
 	struct mlxsw_rx_listener_item *rxl_item;
 
-	rxl_item = __find_rx_listener_item(mlxsw_core, rxl, priv);
+	rxl_item = __find_rx_listener_item(mlxsw_core, rxl);
 	if (rxl_item)
 		return -EEXIST;
 	rxl_item = kmalloc(sizeof(*rxl_item), GFP_KERNEL);
@@ -1491,12 +1489,11 @@ int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 EXPORT_SYMBOL(mlxsw_core_rx_listener_register);
 
 void mlxsw_core_rx_listener_unregister(struct mlxsw_core *mlxsw_core,
-				       const struct mlxsw_rx_listener *rxl,
-				       void *priv)
+				       const struct mlxsw_rx_listener *rxl)
 {
 	struct mlxsw_rx_listener_item *rxl_item;
 
-	rxl_item = __find_rx_listener_item(mlxsw_core, rxl, priv);
+	rxl_item = __find_rx_listener_item(mlxsw_core, rxl);
 	if (!rxl_item)
 		return;
 	list_del_rcu(&rxl_item->list);
@@ -1534,14 +1531,12 @@ static bool __is_event_listener_equal(const struct mlxsw_event_listener *el_a,
 
 static struct mlxsw_event_listener_item *
 __find_event_listener_item(struct mlxsw_core *mlxsw_core,
-			   const struct mlxsw_event_listener *el,
-			   void *priv)
+			   const struct mlxsw_event_listener *el)
 {
 	struct mlxsw_event_listener_item *el_item;
 
 	list_for_each_entry(el_item, &mlxsw_core->event_listener_list, list) {
-		if (__is_event_listener_equal(&el_item->el, el) &&
-		    el_item->priv == priv)
+		if (__is_event_listener_equal(&el_item->el, el))
 			return el_item;
 	}
 	return NULL;
@@ -1559,7 +1554,7 @@ int mlxsw_core_event_listener_register(struct mlxsw_core *mlxsw_core,
 		.trap_id = el->trap_id,
 	};
 
-	el_item = __find_event_listener_item(mlxsw_core, el, priv);
+	el_item = __find_event_listener_item(mlxsw_core, el);
 	if (el_item)
 		return -EEXIST;
 	el_item = kmalloc(sizeof(*el_item), GFP_KERNEL);
@@ -1586,8 +1581,7 @@ err_rx_listener_register:
 EXPORT_SYMBOL(mlxsw_core_event_listener_register);
 
 void mlxsw_core_event_listener_unregister(struct mlxsw_core *mlxsw_core,
-					  const struct mlxsw_event_listener *el,
-					  void *priv)
+					  const struct mlxsw_event_listener *el)
 {
 	struct mlxsw_event_listener_item *el_item;
 	const struct mlxsw_rx_listener rxl = {
@@ -1596,10 +1590,10 @@ void mlxsw_core_event_listener_unregister(struct mlxsw_core *mlxsw_core,
 		.trap_id = el->trap_id,
 	};
 
-	el_item = __find_event_listener_item(mlxsw_core, el, priv);
+	el_item = __find_event_listener_item(mlxsw_core, el);
 	if (!el_item)
 		return;
-	mlxsw_core_rx_listener_unregister(mlxsw_core, &rxl, el_item);
+	mlxsw_core_rx_listener_unregister(mlxsw_core, &rxl);
 	list_del(&el_item->list);
 	kfree(el_item);
 }
@@ -1611,11 +1605,11 @@ static int mlxsw_core_listener_register(struct mlxsw_core *mlxsw_core,
 {
 	if (listener->is_event)
 		return mlxsw_core_event_listener_register(mlxsw_core,
-						&listener->u.event_listener,
+						&listener->event_listener,
 						priv);
 	else
 		return mlxsw_core_rx_listener_register(mlxsw_core,
-						&listener->u.rx_listener,
+						&listener->rx_listener,
 						priv);
 }
 
@@ -1625,12 +1619,10 @@ static void mlxsw_core_listener_unregister(struct mlxsw_core *mlxsw_core,
 {
 	if (listener->is_event)
 		mlxsw_core_event_listener_unregister(mlxsw_core,
-						     &listener->u.event_listener,
-						     priv);
+						     &listener->event_listener);
 	else
 		mlxsw_core_rx_listener_unregister(mlxsw_core,
-						  &listener->u.rx_listener,
-						  priv);
+						  &listener->rx_listener);
 }
 
 int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
