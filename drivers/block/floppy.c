@@ -313,7 +313,6 @@ static bool initialized;
 #define UDP	(&drive_params[drive])
 #define UDRS	(&drive_state[drive])
 #define UDRWE	(&write_errors[drive])
-#define UFDCS	(&fdc_state[FDC(drive)])
 
 #define PH_HEAD(floppy, head) (((((floppy)->stretch & 2) >> 1) ^ head) << 2)
 #define STRETCH(floppy)	((floppy)->stretch & FD_STRETCH)
@@ -3549,7 +3548,7 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
 	case FDRESET:
 		return user_reset_fdc(drive, (int)param, true);
 	case FDGETFDCSTAT:
-		outparam = UFDCS;
+		outparam = &fdc_state[FDC(drive)];
 		break;
 	case FDWERRORCLR:
 		memset(UDRWE, 0, sizeof(*UDRWE));
@@ -3833,7 +3832,7 @@ static int compat_getfdcstat(int drive,
 	struct floppy_fdc_state v;
 
 	mutex_lock(&floppy_mutex);
-	v = *UFDCS;
+	v = fdc_state[FDC(drive)];
 	mutex_unlock(&floppy_mutex);
 
 	memset(&v32, 0, sizeof(struct compat_floppy_fdc_state));
@@ -4062,8 +4061,8 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 			buffer_track = -1;
 	}
 
-	if (UFDCS->rawcmd == 1)
-		UFDCS->rawcmd = 2;
+	if (fdc_state[FDC(drive)].rawcmd == 1)
+		fdc_state[FDC(drive)].rawcmd = 2;
 
 	if (!(mode & FMODE_NDELAY)) {
 		if (mode & (FMODE_READ|FMODE_WRITE)) {
