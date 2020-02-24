@@ -149,6 +149,30 @@ static const struct de2_fmt_info de2_formats[] = {
 		.csc = SUN8I_CSC_MODE_OFF,
 	},
 	{
+		.drm_fmt = DRM_FORMAT_ARGB2101010,
+		.de2_fmt = SUN8I_MIXER_FBFMT_ARGB2101010,
+		.rgb = true,
+		.csc = SUN8I_CSC_MODE_OFF,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_ABGR2101010,
+		.de2_fmt = SUN8I_MIXER_FBFMT_ABGR2101010,
+		.rgb = true,
+		.csc = SUN8I_CSC_MODE_OFF,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_RGBA1010102,
+		.de2_fmt = SUN8I_MIXER_FBFMT_RGBA1010102,
+		.rgb = true,
+		.csc = SUN8I_CSC_MODE_OFF,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_BGRA1010102,
+		.de2_fmt = SUN8I_MIXER_FBFMT_BGRA1010102,
+		.rgb = true,
+		.csc = SUN8I_CSC_MODE_OFF,
+	},
+	{
 		.drm_fmt = DRM_FORMAT_UYVY,
 		.de2_fmt = SUN8I_MIXER_FBFMT_UYVY,
 		.rgb = false,
@@ -231,6 +255,18 @@ static const struct de2_fmt_info de2_formats[] = {
 		.de2_fmt = SUN8I_MIXER_FBFMT_YUV411,
 		.rgb = false,
 		.csc = SUN8I_CSC_MODE_YVU2RGB,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_P010,
+		.de2_fmt = SUN8I_MIXER_FBFMT_P010_YUV,
+		.rgb = false,
+		.csc = SUN8I_CSC_MODE_YUV2RGB,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_P210,
+		.de2_fmt = SUN8I_MIXER_FBFMT_P210_YUV,
+		.rgb = false,
+		.csc = SUN8I_CSC_MODE_YUV2RGB,
 	},
 };
 
