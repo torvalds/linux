@@ -329,10 +329,10 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 
 		switch (action) {
 		case DEVLINK_TRAP_ACTION_DROP:
-			hw_action = MLXSW_REG_HPKT_ACTION_SET_FW_DEFAULT;
+			hw_action = listener->dis_action;
 			break;
 		case DEVLINK_TRAP_ACTION_TRAP:
-			hw_action = MLXSW_REG_HPKT_ACTION_TRAP_EXCEPTION_TO_CPU;
+			hw_action = listener->en_action;
 			break;
 		default:
 			return -EINVAL;
