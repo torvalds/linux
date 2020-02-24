@@ -790,7 +790,15 @@ ext2_xattr_delete_inode(struct inode *inode)
 	struct buffer_head *bh = NULL;
 	struct ext2_sb_info *sbi = EXT2_SB(inode->i_sb);
 
-	down_write(&EXT2_I(inode)->xattr_sem);
+	/*
+	 * We are the only ones holding inode reference. The xattr_sem should
+	 * better be unlocked! We could as well just not acquire xattr_sem at
+	 * all but this makes the code more futureproof. OTOH we need trylock
+	 * here to avoid false-positive warning from lockdep about reclaim
+	 * circular dependency.
+	 */
+	if (WARN_ON_ONCE(!down_write_trylock(&EXT2_I(inode)->xattr_sem)))
+		return;
 	if (!EXT2_I(inode)->i_file_acl)
 		goto cleanup;
 
