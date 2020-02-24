@@ -624,7 +624,7 @@ static void sysc_check_one_child(struct sysc *ddata,
 	const char *name;
 
 	name = of_get_property(np, "ti,hwmods", NULL);
-	if (name)
+	if (name && !of_device_is_compatible(np, "ti,sysc"))
 		dev_warn(ddata->dev, "really a child ti,hwmods property?");
 
 	sysc_check_quirk_stdout(ddata, np);
