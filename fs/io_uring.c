@@ -1253,6 +1253,15 @@ fallback:
 	return NULL;
 }
 
+static inline void io_put_file(struct io_kiocb *req, struct file *file,
+			  bool fixed)
+{
+	if (fixed)
+		percpu_ref_put(&req->ctx->file_data->refs);
+	else
+		fput(file);
+}
+
 static void __io_req_do_free(struct io_kiocb *req)
 {
 	if (likely(!io_is_fallback_req(req)))
@@ -1263,18 +1272,12 @@ static void __io_req_do_free(struct io_kiocb *req)
 
 static void __io_req_aux_free(struct io_kiocb *req)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		io_cleanup_req(req);
 
 	kfree(req->io);
-	if (req->file) {
-		if (req->flags & REQ_F_FIXED_FILE)
-			percpu_ref_put(&ctx->file_data->refs);
-		else
-			fput(req->file);
-	}
+	if (req->file)
+		io_put_file(req, req->file, (req->flags & REQ_F_FIXED_FILE));
 
 	io_req_work_drop_env(req);
 }
@@ -1848,7 +1851,7 @@ static void io_file_put(struct io_submit_state *state)
  * assuming most submissions are for one file, or at least that each file
  * has more than one submission.
  */
-static struct file *io_file_get(struct io_submit_state *state, int fd)
+static struct file *__io_file_get(struct io_submit_state *state, int fd)
 {
 	if (!state)
 		return fget(fd);
@@ -4578,12 +4581,38 @@ static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
 	return table->files[index & IORING_FILE_TABLE_MASK];;
 }
 
+static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
+			int fd, struct file **out_file, bool fixed)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct file *file;
+
+	if (fixed) {
+		if (unlikely(!ctx->file_data ||
+		    (unsigned) fd >= ctx->nr_user_files))
+			return -EBADF;
+		fd = array_index_nospec(fd, ctx->nr_user_files);
+		file = io_file_from_index(ctx, fd);
+		if (!file)
+			return -EBADF;
+		percpu_ref_get(&ctx->file_data->refs);
+	} else {
+		trace_io_uring_file_get(ctx, fd);
+		file = __io_file_get(state, fd);
+		if (unlikely(!file))
+			return -EBADF;
+	}
+
+	*out_file = file;
+	return 0;
+}
+
 static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 			   const struct io_uring_sqe *sqe)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	unsigned flags;
 	int fd;
+	bool fixed;
 
 	flags = READ_ONCE(sqe->flags);
 	fd = READ_ONCE(sqe->fd);
@@ -4591,26 +4620,11 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 	if (!io_req_needs_file(req, fd))
 		return 0;
 
-	if (flags & IOSQE_FIXED_FILE) {
-		if (unlikely(!ctx->file_data ||
-		    (unsigned) fd >= ctx->nr_user_files))
-			return -EBADF;
-		fd = array_index_nospec(fd, ctx->nr_user_files);
-		req->file = io_file_from_index(ctx, fd);
-		if (!req->file)
-			return -EBADF;
-		req->flags |= REQ_F_FIXED_FILE;
-		percpu_ref_get(&ctx->file_data->refs);
-	} else {
-		if (req->needs_fixed_file)
-			return -EBADF;
-		trace_io_uring_file_get(ctx, fd);
-		req->file = io_file_get(state, fd);
-		if (unlikely(!req->file))
-			return -EBADF;
-	}
+	fixed = (flags & IOSQE_FIXED_FILE);
+	if (unlikely(!fixed && req->needs_fixed_file))
+		return -EBADF;
 
-	return 0;
+	return io_file_get(state, req, fd, &req->file, fixed);
 }
 
 static int io_grab_files(struct io_kiocb *req)
@@ -4857,8 +4871,8 @@ static bool io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	}
 
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
-	req->flags |= sqe_flags & (IOSQE_IO_DRAIN|IOSQE_IO_HARDLINK|
-					IOSQE_ASYNC);
+	req->flags |= sqe_flags & (IOSQE_IO_DRAIN | IOSQE_IO_HARDLINK |
+					IOSQE_ASYNC | IOSQE_FIXED_FILE);
 
 	ret = io_req_set_file(state, req, sqe);
 	if (unlikely(ret)) {
