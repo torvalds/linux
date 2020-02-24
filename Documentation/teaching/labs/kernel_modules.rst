@@ -37,22 +37,22 @@ it will generate the message :code:`"Hi"`. When unloading the kernel module, the
     #include <linux/kernel.h>
     #include <linux/init.h>
     #include <linux/module.h>
-     
+
     MODULE_DESCRIPTION("My kernel module");
     MODULE_AUTHOR("Me");
     MODULE_LICENSE("GPL");
-     
+
     static int dummy_init(void)
     {
             pr_debug("Hi\n");
             return 0;
     }
-     
+
     static void dummy_exit(void)
     {
             pr_debug("Bye\n");
     }
-     
+
     module_init(dummy_init);
     module_exit(dummy_exit);
 
@@ -63,11 +63,11 @@ by the logging daemon (syslog). To display kernel messages, you can use the
 :command:`dmesg` command or inspect the logs:
 
 .. code-block:: bash
-   
+
    # cat /var/log/syslog | tail -2
    Feb 20 13:57:38 asgard kernel: Hi
    Feb 20 13:57:43 asgard kernel: Bye
-    
+
    # dmesg | tail -2
    Hi
    Bye
@@ -85,23 +85,23 @@ a :file:`Makefile` and a :file:`Kbuild` file.
 Below is an example of a :file:`Makefile`:
 
 .. code-block:: bash
-   
+
    KDIR = /lib/modules/`uname -r`/build
-    
+
    kbuild:
            make -C $(KDIR) M=`pwd`
-    
+
    clean:
            make -C $(KDIR) M=`pwd` clean
 
 And the example of a :file:`Kbuild` file used to compile a module:
 
 .. code-block:: bash
-   
+
    EXTRA_CFLAGS = -Wall -g
-    
+
    obj-m        = modul.o
-   
+
 
 As you can see, calling :command:`make` on the :file:`Makefile` file in the
 example shown will result in the :command:`make` invocation in the kernel
@@ -263,23 +263,23 @@ Look at the kernel module below that contains a bug that generates an oops:
     /*
      * Oops generating kernel module
      */
-     
+
     #include <linux/kernel.h>
     #include <linux/module.h>
     #include <linux/init.h>
-     
+
     MODULE_DESCRIPTION ("Oops");
     MODULE_LICENSE ("GPL");
     MODULE_AUTHOR ("PSO");
-     
+
     #define OP_READ         0
     #define OP_WRITE        1
     #define OP_OOPS         OP_WRITE
-     
+
     static int my_oops_init (void)
     {
             int *a;
-     
+
             a = (int *) 0x00001234;
     #if OP_OOPS == OP_WRITE
             *a = 3;
@@ -288,14 +288,14 @@ Look at the kernel module below that contains a bug that generates an oops:
     #else
     #error "Unknown op for oops!"
     #endif
-     
+
             return 0;
     }
-     
+
     static void my_oops_exit (void)
     {
     }
-     
+
     module_init (my_oops_init);
     module_exit (my_oops_exit);
 
@@ -304,10 +304,10 @@ Look at the kernel module below that contains a bug that generates an oops:
 Inserting this module into the kernel will generate an oops:
 
 .. code-block:: bash
-   
+
    faust:~/lab-01/modul-oops# insmod oops.ko
    [...]
-   
+
    faust:~/lab-01/modul-oops# dmesg | tail -32
    BUG: unable to handle kernel paging request at 00001234
    IP: [<c89d4005>] my_oops_init+0x5/0x20 [oops]
@@ -315,7 +315,7 @@ Inserting this module into the kernel will generate an oops:
    Oops: 0002 [#1] PREEMPT DEBUG_PAGEALLOC
    last sysfs file: /sys/devices/virtual/net/lo/operstate
    Modules linked in: oops(+) netconsole ide_cd_mod pcnet32 crc32 cdrom [last unloaded: modul]
-   
+
    Pid: 4157, comm: insmod Not tainted (2.6.28.4 #2) VMware Virtual Platform
    EIP: 0060:[<c89d4005>] EFLAGS: 00010246 CPU: 0
    EIP is at my_oops_init+0x5/0x20 [oops]
@@ -427,7 +427,7 @@ Here's an example of using :command:`objdump` on the above module to identify
 the instruction that generated the oops:
 
 .. code-block:: bash
-   
+
    faust:~/lab-01/modul-oops# cat /proc/modules
    oops 1280 1 - Loading 0xc89d4000
    netconsole 8352 0 - Live 0xc89ad000
@@ -435,38 +435,38 @@ the instruction that generated the oops:
    ide_cd_mod 34952 0 - Live 0xc8903000
    crc32 4224 1 pcnet32, Live 0xc888a000
    cdrom 34848 1 ide_cd_mod, Live 0xc886d000
-   
+
    faust:~/lab-01/modul-oops# objdump -dS --adjust-vma=0xc89d4000 oops.ko
-   
+
    oops.ko:     file format elf32-i386
-   
-   
+
+
    Disassembly of section .text:
-   
+
    c89d4000 <init_module>:
    #define OP_READ         0
    #define OP_WRITE        1
    #define OP_OOPS         OP_WRITE
-   
+
    static int my_oops_init (void)
    {
    c89d4000:       55                      push   %ebp
    #else
    #error "Unknown op for oops!"
    #endif
-   
+
            return 0;
    }
    c89d4001:       31 c0                   xor    %eax,%eax
    #define OP_READ         0
    #define OP_WRITE        1
    #define OP_OOPS         OP_WRITE
-   
+
    static int my_oops_init (void)
    {
    c89d4003:       89 e5                   mov    %esp,%ebp
            int *a;
-   
+
            a = (int *) 0x00001234;
    #if OP_OOPS == OP_WRITE
            *a = 3;
@@ -475,7 +475,7 @@ the instruction that generated the oops:
    #else
    #error "Unknown op for oops!"
    #endif
-   
+
            return 0;
    }
    c89d400f:       5d                      pop    %ebp
@@ -494,9 +494,9 @@ the instruction that generated the oops:
    c89d401d:       90                      nop
    c89d401e:       90                      nop
    c89d401f:       90                      nop
-   
+
    c89d4020 <cleanup_module>:
-   
+
    static void my_oops_exit (void)
    {
    c89d4020:       55                      push   %ebp
@@ -559,13 +559,13 @@ displayed after the virtual machine starts:
 Minicom use:
 
 .. code-block:: bash
-   
+
    #for connecting via COM1 and using a speed of 115,200 characters per second
    minicom -b 115200 -D /dev/ttyS0
-   
+
    #For USB serial port connection
    minicom -D /dev/ttyUSB0
-   
+
    #To connect to the serial port of the virtual machine
    minicom -D /dev/pts/20
 
@@ -592,7 +592,7 @@ An example configuration when inserting :command:`netconsole` kernel module is
 as follows:
 
 .. code-block:: bash
-   
+
    alice:~# modprobe netconsole netconsole=6666@192.168.191.130/eth0,6000@192.168.191.1/00:50:56:c0:00:08
 
 Thus, the debug messages on the station that has the address
@@ -853,6 +853,8 @@ with operators ``+`, ``-`` or ``=``:
 Exercises
 =========
 
+.. _exercises_summary:
+
 .. important::
 
    .. include:: exercises-summary.hrst
@@ -863,20 +865,70 @@ Exercises
 0. Intro
 --------
 
-Using |LXR|_ find the definitions of the following symbols in the Linux kernel:
+Using :command:`cscope` or |LXR|_ find the definitions of the following symbols
+in the Linux kernel source code:
 
 * :c:func:`module_init` and :c:func:`module_exit`
 
-  - what does the two macros do? What is ``init_module`` and ``cleanup_module``?
+  - what do the two macros do? What is ``init_module`` and ``cleanup_module``?
+
 * :c:data:`ignore_loglevel`
 
   - What is this variable used for?
 
-1. Module
----------
+.. warning::
+  If you have problems using :command:`cscope`, it is possible that the database
+  is not generated.  To generate it, use the following command in the kernel
+  directory:
+
+  .. code-block:: bash
+
+    make ARCH=x86 cscope
+
+.. note::
+  When searching for a structure using :command:`cscope`, use only the
+  structure name (without :code:`struct`).  So, to search for the
+  structure :c:type:`struct module`, you will use the command
+
+   .. code-block:: bash
+
+     vim -t module
+
+  or, in :command:`vim`, the command
+
+   .. code-block:: bash
+
+     :cs f g module
+
+.. note::
+  For more info on using :command:`cscope`, read the
+  :ref:`cscope section <cscope_intro>` in the previous lab.
+
+1. Kernel module
+----------------
+
+To work with the kernel modules, we will follow the steps described
+:ref:`above <exercises_summary>`.
 
 Generate the skeleton for the task named **1-2-test-mod** then build and
-copy the module to the VM. Perform the following tasks:
+copy the module to the VM, by running the following commands in
+:file:`tools/labs`.
+
+.. code-block:: bash
+
+  $ LABS=kernel_modules make skels
+  $ make build
+  $ make copy
+
+The these commands will build and copy all the modules in the current
+lab skeleton.
+
+.. warning::
+  Until after solving exercise 3, you will get a compilation error for
+  ``3-error-mod``. To avoid this issue, remove the directory
+  :file:`skels/kernel_modules/3-error-mod/`.
+
+Start the VM using :command:`make boot` and perform the following tasks:
 
 * load the kernel module.
 
@@ -888,8 +940,8 @@ copy the module to the VM. Perform the following tasks:
   :command:`dmesg` command
 
 .. note:: Read `Loading/unloading a kernel module`_ section. When unloading
-          a kernel module, only the module name (without extension) can
-          be specified.
+          a kernel module, you can specify only the module name
+          (without extension).
 
 2. Printk
 ---------
@@ -900,61 +952,68 @@ to the virtual machine console?
 Inspect the source code file. Change the source code file so that messages are
 displayed directly on the serial console.
 
-.. hint:: Read the `Printk debugging`_ section of the lab and change
-          the log level of the prints in the module source.
+.. hint:: Read the `Printk debugging`_ section of the lab and focus on the
+          information regarding the :c:func:`printk` function.
+
+          You will need to edit the kernel boot options in the file
+          :file:`qemu/Makefile` and add the option `ignore_loglevel` on the line
+          starting with `append root...`.
 
 .. hint:: Another option is to set the current log level by writting
           the desired log level to ``/proc/sys/kernel/printk``
 
-.. hint:: An alternative approach is to edit the boot options in
-          ``tools/labs/qemu/Makefile``. Add ``ignore_loglevel`` option
-	  to the qemu ``--append`` option.
+          An alternative approach is to use a higher log level in the
+          :c:func:`printk` calls.
+
+
+Compile the module, copy it to the virtual machine, boot and load/unload the
+module. The messages should be printed to the virtual machine console.
 
 3. Error
 --------
 
 Generate the skeleton for the task named **3-error-mod**. Compile the
-sources and get the corresponding kernel module. Why have compilation
-errors occurred?
+sources and get the corresponding kernel module.
 
-.. hint:: How does this module differ from the previous module?
+Why have compilation
+errors occurred? **Hint:** How does this module differ from the previous module?
 
-Modify the module to solve the cause of those errors.
+Modify the module to solve the cause of those errors, then compile and test
+the module.
 
 4. Sub-modules
 --------------
 
-Generate the skeleton for the task named **4-multi-mod**. Inspect the
-C source files: ``mod1.c`` and ``mod2.c``. Module 2 contains only the
-definition of a function used by module 1.
+Inspect the C source files ``mod1.c`` and ``mod2.c`` in :file:`4-multi-mod/`.
+Module 2 contains only the definition of a function used by module 1.
 
-Create a Kbuild file that will lead to creating the ``multi_mod.ko``
-from the two source files.
+Change the :file:`Kbuild` file to create the ``multi_mod.ko`` module from
+from the two C source files.
 
 .. hint:: Read the `Compiling kernel modules`_ section of the lab.
 
-Compile, copy, load and unload the kernel module. Make sure messages
+Compile, copy, boot the VM, load and unload the kernel module. Make sure messages
 are properly displayed on the console.
 
 5. Kernel oops
 --------------
 
-Generate the skeleton for the task named **5-oops-mod** and inspect the
-C source file. Notice where the problem will occur. Add -g to
-compilation in the Kbuild file.
+Enter the directory for the task **5-oops-mod** and inspect the
+C source file. Notice where the problem will occur. Add the compilation flag
+``-g`` in the Kbuild file.
 
 .. hint:: Read `Compiling kernel modules`_  section of the lab.
 
-Compile the associated module and load it into the kernel. Identify the memory
+Compile the corresponding module and load it into the kernel. Identify the memory
 address at which the oops appeared.
 
 .. hint:: Read `Debugging`_ section of the lab.  To identify the
           address, follow the oops message and extract the value of
-          the instructions pointer (EIP) register.
+          the instructions pointer (``EIP``) register.
 
 Determine which instruction has triggered the oops.
 
-.. hint:: Use the /proc/modules information to get the load address of
+.. hint:: Use the :file:`proc/modules` information to get the load address of
           the kernel module.  Use, on the physical machine, objdump
           and/or addr2line . Objdump needs debugging support for
           compilation!  Read the lab's `objdump`_ and `addr2line`_
@@ -969,7 +1028,7 @@ unloaded.
 6. Module parameters
 --------------------
 
-Generate the skeletons for **6-cmd-mod** and inspect the C
+Enter the directory for the task **6-cmd-mod** and inspect the C
 ``cmd_mod.c`` source file. Compile and copy the associated module and
 load the kernel module to see the printk message. Then unload the
 module from the kernel.
@@ -986,21 +1045,24 @@ message shown is ``Early bird gets tired``.
 7. Proc info
 ------------
 
-Generate the skeleton for the task named **7-list-proc**. Add code to
-display the Process ID (``PID``) and the executable name. The
-information will be displayed both when loading and unloading the
+Check the skeleton for the task named **7-list-proc**. Add code to
+display the Process ID (``PID``) and the executable name for the current
+process.
+
+Follow the commands marked with ``TODO``.
+The information must be displayed both when loading and unloading the
 module.
 
 .. note::
           * In the Linux kernel, a process is described by the
-	    :c:type:`struct task_struct`.  Use |LXR|_ to find the
+            :c:type:`struct task_struct`.  Use |LXR|_ or ``cscope`` to find the
             definition of :c:type:`struct task_struct`.
 
           * To find the structure field that contains the name of the
-	    executable, look for the "executable" comment.
+            executable, look for the "executable" comment.
 
           * The pointer to the structure of the current process
-	    running at a given time in the kernel is given by the
+            running at a given time in the kernel is given by the
             :c:macro:`current` variable (of the type
             :c:type:`struct task_struct*`).
 
@@ -1008,10 +1070,10 @@ module.
           in which the :c:type:`struct task_struct` is defined, i.e
           ``linux/sched.h``.
 
-Compile, copy and load the module. Unload the kernel module.
+Compile, copy, boot the VM and load the module. Unload the kernel module.
 
 Repeat the loading/unloading operation. Note that the PIDs of the
-displayed processes differ. This is because a module is being loaded
+displayed processes differ. This is because a process is created
 from the executable :file:`/sbin/insmod` when the module is loaded and
 when the module is unloaded a process is created from the executable
 :file:`/sbin/rmmod`.

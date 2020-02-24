@@ -8,38 +8,37 @@ To solve exercises, you need to perform these steps:
 
 The current lab name is |LAB_NAME|. See the exercises for the task name.
 
-.. container:: toggle
+The skeleton code is generated from full source examples located in
+:file:`tools/labs/templates`. To solve the tasks, start by generating
+the skeleton code for a complete lab:
 
-   .. container:: header
+.. code-block:: shell
 
-      **See details**
+   tools/labs $ make clean
+   tools/labs $ LABS=<lab name> make skels
 
-   The skeleton code is generated from full source examples located in
-   :file:`tools/labs/templates`. To solve the tasks, start by generating
-   the skeleton code:
+You can also generate the skeleton for a single task, using
 
-   .. code-block:: shell
+.. code-block:: shell
 
-      tools/labs $ make clean
-      tools/labs $ LABS=<lab name>/<task name> make skels
+   tools/labs $ LABS=<lab name>/<task name> make skels
 
-   where task name is defined for each task. Once the skeleton drivers are
-   generated, build the source:
+Once the skeleton drivers are generated, build the source:
 
-   .. code-block:: shell
+.. code-block:: shell
 
-      tools/labs $ make build
+   tools/labs $ make build
 
-   Then, copy the modules and start the VM:
+Then, copy the modules and start the VM:
 
-   .. code-block:: shell
+.. code-block:: shell
 
-      tools/labs $ make copy
-      tools/labs $ make boot
+   tools/labs $ make copy
+   tools/labs $ make boot
 
-   The modules are placed in /home/root/skels/|LAB_NAME|/<task_name>.
+The modules are placed in /home/root/skels/|LAB_NAME|/<task_name>.
 
-   Alternatively, we can copy files via :command:`scp`, in order to avoid restarting the VM.
-   For additional details about connecting to the VM via the network, please check :ref:`vm_interaction_link`.
+Alternatively, we can copy files via :command:`scp`, in order to avoid restarting the VM.
+For additional details about connecting to the VM via the network, please check :ref:`vm_interaction_link`.
 
-   Review the `Exercises`_ section for more detailed information.
+Review the `Exercises`_ section for more detailed information.

@@ -20,12 +20,12 @@ Keywords
 About this laboratory
 =====================
 
-The Operating Systems 2 lab is a kernel programming and driver development lab. 
+The Operating Systems 2 lab is a kernel programming and driver development lab.
 The objectives of the laboratory are:
 
 * deepening the notions presented in the course
 * presentation of kernel programming interfaces (kernel API)
-* gaining documenting, development and debugging skills on a freestanding 
+* gaining documenting, development and debugging skills on a freestanding
   environment
 * acquiring knowledge and skills for drivers development
 
@@ -34,7 +34,7 @@ specific to a given problem. The lab will start with a presentation
 (each lab will have a set of slides) (15 minutes) and the remaining
 time will be allocated to the lab exercises (80 minutes).
 
-For best laboratory performance, we recommend that you read the related slides. 
+For best laboratory performance, we recommend that you read the related slides.
 To fully understand a laboratory, we recommend going through the lab support. For
 in-depth study, use the supporting documentation.
 
@@ -58,15 +58,17 @@ Documentation
 Source code navigation
 ======================
 
+.. _cscope_intro:
+
 cscope
 ------
 
 `Cscope <http://cscope.sourceforge.net/>`__ is a tool for
-efficient navigation of C sources. To use it, a cscope database must 
+efficient navigation of C sources. To use it, a cscope database must
 be generated from the existing sources. In a Linux tree, the command
-:command:`make ARCH=x86 cscope` is sufficient. Specification of the 
-architecture through the ARCH variable is optional but recommended; 
-otherwise, some architecture dependent functions will appear multiple 
+:command:`make ARCH=x86 cscope` is sufficient. Specification of the
+architecture through the ARCH variable is optional but recommended;
+otherwise, some architecture dependent functions will appear multiple
 times in the database.
 
 You can build the cscope database with the command :command:`make
@@ -75,7 +77,7 @@ only contain symbols that have already been used in the compile
 process before, thus resulting in better performance when searching
 for symbols.
 
-Cscope can also be used as stand-alone, but it is more useful when 
+Cscope can also be used as stand-alone, but it is more useful when
 combined with an editor. To use cscope with :command:`vim`, it is necessary to
 install both packages and add the following lines to the file
 :file:`.vimrc` (the machine in the lab already has the settings):
@@ -116,13 +118,13 @@ install both packages and add the following lines to the file
 
 The script searches for a file called :file:`cscope.out` in the current directory, or
 in parent directories. If :command:`vim` finds this file, you can use the shortcut :code:`Ctrl +]`
-or :code:`Ctrl+\ g` (the combination control-\\ followed by g) to jump directly to 
-the definition of the word under the cursor (function, variable, structure, etc.). 
+or :code:`Ctrl+\ g` (the combination control-\\ followed by g) to jump directly to
+the definition of the word under the cursor (function, variable, structure, etc.).
 Similarly, you can use :code:`Ctrl+\ s` to go where the word under the cursor is used.
 
 You can take a cscope-enabled :file:`.vimrc` file (also contains other goodies) from
 https://github.com/ddvlad/cfg/blob/master/\_vimrc.
-The following guidelines are based on this file, but also show basic :command:`vim` commands 
+The following guidelines are based on this file, but also show basic :command:`vim` commands
 that have the same effect.
 
 If there are more than one results (usually there are) you can move between them
@@ -165,7 +167,7 @@ it will use that). For more details, check `https://github.com/dkogan/xcscope.el
 Kscope
 ~~~~~~
 
-For a simpler interface, `Kscope <http://sourceforge.net/projects/kscope/>`__ 
+For a simpler interface, `Kscope <http://sourceforge.net/projects/kscope/>`__
 is a cscope frontend which uses QT. It is lightweight, very fast and very
 easy to use. It allows searching using regular expressions, call graphs, etc.
 Kscope is no longer mantained.
@@ -186,7 +188,7 @@ are `OpenGrok <http://oracle.github.io/opengrok/>`__ and
 `Gonzui <http://en.wikipedia.org/wiki/Gonzui>`__.
 
 Although LXR was originally intended for the Linux kernel sources, it is
-also used in the sources of `Mozilla <http://lxr.mozilla.org/>`__, 
+also used in the sources of `Mozilla <http://lxr.mozilla.org/>`__,
 `Apache HTTP Server <http://apache.wirebrain.de/lxr/>`__ and
 `FreeBSD <http://lxr.linux.no/freebsd/source>`__.
 
@@ -198,17 +200,17 @@ use `https://elixir.bootlin.com/ <https://elixir.bootlin.com/>`__.
 LXR allows searching for an identifier (symbol), after a free text
 or after a file name. The main feature and, at the same
 time, the main advantage provided is the ease of finding the declaration
-of any global identifier. This way, it facilitates quick access to function 
-declarations, variables, macro definitions and the code can be easily 
-navigated. Also, the fact that it can detect what code areas are affected 
-when a variable or function is changed is a real advantage in the development 
+of any global identifier. This way, it facilitates quick access to function
+declarations, variables, macro definitions and the code can be easily
+navigated. Also, the fact that it can detect what code areas are affected
+when a variable or function is changed is a real advantage in the development
 and debugging phase.
 
 SourceWeb
 ---------
 
 `SourceWeb <http://rprichard.github.io/sourceweb/>`__ is a source code indexer
-for C and C++. It uses the 
+for C and C++. It uses the
 `framework <http://clang.llvm.org/docs/IntroductionToTheClangAST.html>`__
 provided by the Clang compiler to index the code.
 
@@ -234,7 +236,7 @@ Usage example:
 library to :code:`LD_PRELOAD`. This way, the library is loaded by
 every process started by :code:`make` (basically, the compiler),
 registers the commands used to start the processes and generates
-a filed called :file:`btrace.log`. This file is then used by 
+a filed called :file:`btrace.log`. This file is then used by
 :code:`sw-btrace-to-compile-db` which converts it to a format defined
 by clang: `JSON Compilation Database <http://clang.llvm.org/docs/JSONCompilationDatabase.html>`__.
 This JSON Compilation Database resulted from the above steps is then
@@ -263,7 +265,7 @@ the uncompressed kernel image (:file:`vmlinux`) and :file:`/proc/kcore`
 (the real-time kernel image). This method is usually used to inspect
 the kernel and detect certain inconsistencies while it runs. The
 method is useful especially if the kernel was compiled using the
-:code:`-g` option, which keeps debug information. Some well-known 
+:code:`-g` option, which keeps debug information. Some well-known
 debug techniques can't be used by this method, such as breakpoints
 of data modification.
 
@@ -391,7 +393,7 @@ Getting a stack trace
 ---------------------
 
 Sometimes, you will want information about the trace the execution
-reaches a certain point. You can determine this information using 
+reaches a certain point. You can determine this information using
 :command:`cscope` or LXR, but some function are called from many
 execution paths, which makes this method difficult.
 
@@ -432,7 +434,7 @@ Remarks
 
   -  Usually, the steps used to develop a kernel module are the
      following:
-  
+
      -  editing the module source code (on the physical machine);
      -  module compilation (on the physical machine);
      -  generation of the minimal image for the virtual machine;
@@ -440,12 +442,12 @@ Remarks
         eventually test programs;
      -  starting the virtual machine using QEMU;
      -  running the tests in the virtual machine.
-  
+
   -  When using cscope, use :file:`~/src/linux`.
      If there is no :file:`cscope.out` file, you can generate it using
      the command :command:`make ARCH=x86 cscope`.
 
-  -  You can find more details about the virtual machine at 
+  -  You can find more details about the virtual machine at
      :ref:`vm_link`.
 
 .. important::
@@ -486,7 +488,7 @@ Alternatively, you can start the virtual machine with graphical interface suppor
 the :command:`QEMU_DISPLAY=sdl make boot`.
 
 .. note::
-    To access the virtual machine, at the login prompt, enter the 
+    To access the virtual machine, at the login prompt, enter the
     username :code:`root`; there is no need to enter a password.
     The virtual machine will start with the permissions of the
     root account.
