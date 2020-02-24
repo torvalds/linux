@@ -9076,8 +9076,8 @@ init_nic_err:
 static int hclge_init_roce_client_instance(struct hnae3_ae_dev *ae_dev,
 					   struct hclge_vport *vport)
 {
-	struct hnae3_client *client = vport->roce.client;
 	struct hclge_dev *hdev = ae_dev->priv;
+	struct hnae3_client *client;
 	int rst_cnt;
 	int ret;
 
