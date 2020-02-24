@@ -9620,6 +9620,8 @@ F:	drivers/crypto/vmx/
 F:	drivers/i2c/busses/i2c-opal.c
 F:	drivers/net/ethernet/ibm/ibmveth.*
 F:	drivers/net/ethernet/ibm/ibmvnic.*
+F:	drivers/*/*/*pasemi*
+F:	drivers/*/*pasemi*
 F:	drivers/pci/hotplug/pnv_php.c
 F:	drivers/pci/hotplug/rpa*
 F:	drivers/rtc/rtc-opal.c
@@ -9673,13 +9675,6 @@ L:	linuxppc-dev@lists.ozlabs.org
 S:	Orphan
 F:	arch/powerpc/*/*virtex*
 F:	arch/powerpc/*/*/*virtex*
-
-LINUX FOR POWERPC PA SEMI PWRFICIENT
-L:	linuxppc-dev@lists.ozlabs.org
-S:	Orphan
-F:	arch/powerpc/platforms/pasemi/
-F:	drivers/*/*pasemi*
-F:	drivers/*/*/*pasemi*
 
 LINUX KERNEL DUMP TEST MODULE (LKDTM)
 M:	Kees Cook <keescook@chromium.org>
@@ -12539,16 +12534,6 @@ L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Maintained
 F:	drivers/net/wireless/intersil/p54/
-
-PA SEMI ETHERNET DRIVER
-L:	netdev@vger.kernel.org
-S:	Orphan
-F:	drivers/net/ethernet/pasemi/*
-
-PA SEMI SMBUS DRIVER
-L:	linux-i2c@vger.kernel.org
-S:	Orphan
-F:	drivers/i2c/busses/i2c-pasemi.c
 
 PACKING
 M:	Vladimir Oltean <olteanv@gmail.com>
