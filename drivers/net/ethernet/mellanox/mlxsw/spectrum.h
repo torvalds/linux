@@ -645,6 +645,7 @@ struct mlxsw_sp_acl_rule_info {
 	struct mlxsw_afk_element_values values;
 	struct mlxsw_afa_block *act_block;
 	u8 action_created:1,
+	   ingress_bind_blocker:1,
 	   egress_bind_blocker:1;
 	unsigned int counter_index;
 };
@@ -664,6 +665,7 @@ struct mlxsw_sp_acl_block {
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned int rule_count;
 	unsigned int disable_count;
+	unsigned int ingress_blocker_rule_count;
 	unsigned int egress_blocker_rule_count;
 	unsigned int ingress_binding_count;
 	unsigned int egress_binding_count;

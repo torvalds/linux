@@ -256,6 +256,11 @@ int mlxsw_sp_acl_block_bind(struct mlxsw_sp *mlxsw_sp,
 	if (WARN_ON(mlxsw_sp_acl_block_lookup(block, mlxsw_sp_port, ingress)))
 		return -EEXIST;
 
+	if (ingress && block->ingress_blocker_rule_count) {
+		NL_SET_ERR_MSG_MOD(extack, "Block cannot be bound to ingress because it contains unsupported rules");
+		return -EOPNOTSUPP;
+	}
+
 	if (!ingress && block->egress_blocker_rule_count) {
 		NL_SET_ERR_MSG_MOD(extack, "Block cannot be bound to egress because it contains unsupported rules");
 		return -EOPNOTSUPP;
@@ -722,6 +727,7 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 	list_add_tail(&rule->list, &mlxsw_sp->acl->rules);
 	mutex_unlock(&mlxsw_sp->acl->rules_lock);
 	block->rule_count++;
+	block->ingress_blocker_rule_count += rule->rulei->ingress_bind_blocker;
 	block->egress_blocker_rule_count += rule->rulei->egress_bind_blocker;
 	return 0;
 
@@ -741,6 +747,7 @@ void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_block *block = ruleset->ht_key.block;
 
 	block->egress_blocker_rule_count -= rule->rulei->egress_bind_blocker;
+	block->ingress_blocker_rule_count -= rule->rulei->ingress_bind_blocker;
 	ruleset->ht_key.block->rule_count--;
 	mutex_lock(&mlxsw_sp->acl->rules_lock);
 	list_del(&rule->list);
