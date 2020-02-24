@@ -533,4 +533,7 @@ int amdgpu_dpm_baco_exit(struct amdgpu_device *adev);
 
 int amdgpu_dpm_baco_enter(struct amdgpu_device *adev);
 
+int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
+			     uint32_t cstate);
+
 #endif
