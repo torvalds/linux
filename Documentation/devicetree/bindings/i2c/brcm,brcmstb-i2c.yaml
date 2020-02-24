@@ -15,11 +15,21 @@ allOf:
 properties:
   compatible:
     enum:
+      - brcm,bcm2711-hdmi-i2c
       - brcm,brcmstb-i2c
       - brcm,brcmper-i2c
 
   reg:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
+    items:
+      - description: BSC register range
+      - description: Auto-I2C register range
+
+  reg-names:
+    items:
+      - const: bsc
+      - const: auto-i2c
 
   interrupts:
     maxItems: 1
@@ -45,6 +55,26 @@ required:
 
 unevaluatedProperties: false
 
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - brcm,bcm2711-hdmi-i2c
+
+then:
+  properties:
+    reg:
+      minItems: 2
+
+  required:
+    - reg-names
+
+else:
+  properties:
+    reg:
+      maxItems: 1
+
 examples:
   - |
       bsca: i2c@f0406200 {
@@ -54,6 +84,14 @@ examples:
           reg = <0xf0406200 0x58>;
           interrupts = <0x18>;
           interrupt-names = "upg_bsca";
+      };
+
+  - |
+      ddc0: i2c@7ef04500 {
+          compatible = "brcm,bcm2711-hdmi-i2c";
+          reg = <0x7ef04500 0x100>, <0x7ef00b00 0x300>;
+          reg-names = "bsc", "auto-i2c";
+          clock-frequency = <390000>;
       };
 
 ...
