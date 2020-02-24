@@ -186,11 +186,12 @@ struct dm_integrity_c {
 	__u8 sectors_per_block;
 
 	unsigned char mode;
-	int suspending;
 
 	int failed;
 
 	struct crypto_shash *internal_hash;
+
+	struct dm_target *ti;
 
 	/* these variables are locked with endio_wait.lock */
 	struct rb_root in_progress;
@@ -2080,7 +2081,7 @@ static void integrity_writer(struct work_struct *w)
 	unsigned prev_free_sectors;
 
 	/* the following test is not needed, but it tests the replay code */
-	if (READ_ONCE(ic->suspending) && !ic->meta_dev)
+	if (unlikely(dm_suspended(ic->ti)) && !ic->meta_dev)
 		return;
 
 	spin_lock_irq(&ic->endio_wait.lock);
@@ -2139,7 +2140,7 @@ static void integrity_recalc(struct work_struct *w)
 
 next_chunk:
 
-	if (unlikely(READ_ONCE(ic->suspending)))
+	if (unlikely(dm_suspended(ic->ti)))
 		goto unlock_ret;
 
 	range.logical_sector = le64_to_cpu(ic->sb->recalc_sector);
@@ -2411,8 +2412,6 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
 
 	del_timer_sync(&ic->autocommit_timer);
 
-	WRITE_ONCE(ic->suspending, 1);
-
 	if (ic->recalc_wq)
 		drain_workqueue(ic->recalc_wq);
 
@@ -2425,8 +2424,6 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
 		drain_workqueue(ic->writer_wq);
 		dm_integrity_flush_buffers(ic);
 	}
-
-	WRITE_ONCE(ic->suspending, 0);
 
 	BUG_ON(!RB_EMPTY_ROOT(&ic->in_progress));
 
@@ -3116,6 +3113,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 	ti->private = ic;
 	ti->per_io_data_size = sizeof(struct dm_integrity_io);
+	ic->ti = ti;
 
 	ic->in_progress = RB_ROOT;
 	INIT_LIST_HEAD(&ic->wait_list);

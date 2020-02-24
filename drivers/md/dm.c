@@ -2353,6 +2353,7 @@ static void __dm_destroy(struct mapped_device *md, bool wait)
 	map = dm_get_live_table(md, &srcu_idx);
 	if (!dm_suspended_md(md)) {
 		dm_table_presuspend_targets(map);
+		set_bit(DMF_SUSPENDED, &md->flags);
 		dm_table_postsuspend_targets(map);
 	}
 	/* dm_put_live_table must be before msleep, otherwise deadlock is possible */
