@@ -3562,7 +3562,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get(&priv->pdev->dev, "enet");
 	if (IS_ERR(priv->clk)) {
-		dev_warn(&priv->pdev->dev, "failed to get enet clock\n");
+		dev_dbg(&priv->pdev->dev, "failed to get enet clock\n");
 		priv->clk = NULL;
 	}
 
@@ -3586,13 +3586,13 @@ static int bcmgenet_probe(struct platform_device *pdev)
 
 	priv->clk_wol = devm_clk_get(&priv->pdev->dev, "enet-wol");
 	if (IS_ERR(priv->clk_wol)) {
-		dev_warn(&priv->pdev->dev, "failed to get enet-wol clock\n");
+		dev_dbg(&priv->pdev->dev, "failed to get enet-wol clock\n");
 		priv->clk_wol = NULL;
 	}
 
 	priv->clk_eee = devm_clk_get(&priv->pdev->dev, "enet-eee");
 	if (IS_ERR(priv->clk_eee)) {
-		dev_warn(&priv->pdev->dev, "failed to get enet-eee clock\n");
+		dev_dbg(&priv->pdev->dev, "failed to get enet-eee clock\n");
 		priv->clk_eee = NULL;
 	}
 
