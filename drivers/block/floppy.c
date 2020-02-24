@@ -310,8 +310,6 @@ static bool initialized;
 #define DRS	(&drive_state[current_drive])
 #define DRWE	(&write_errors[current_drive])
 
-#define UDRWE	(&write_errors[drive])
-
 #define PH_HEAD(floppy, head) (((((floppy)->stretch & 2) >> 1) ^ head) << 2)
 #define STRETCH(floppy)	((floppy)->stretch & FD_STRETCH)
 
@@ -3553,10 +3551,10 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
 		outparam = &fdc_state[FDC(drive)];
 		break;
 	case FDWERRORCLR:
-		memset(UDRWE, 0, sizeof(*UDRWE));
+		memset(&write_errors[drive], 0, sizeof(write_errors[drive]));
 		return 0;
 	case FDWERRORGET:
-		outparam = UDRWE;
+		outparam = &write_errors[drive];
 		break;
 	case FDRAWCMD:
 		if (type)
@@ -3867,7 +3865,7 @@ static int compat_werrorget(int drive,
 
 	memset(&v32, 0, sizeof(struct compat_floppy_write_errors));
 	mutex_lock(&floppy_mutex);
-	v = *UDRWE;
+	v = write_errors[drive];
 	mutex_unlock(&floppy_mutex);
 	v32.write_errors = v.write_errors;
 	v32.first_error_sector = v.first_error_sector;
@@ -4643,7 +4641,7 @@ static int __init do_floppy_init(void)
 	/* initialise drive state */
 	for (drive = 0; drive < N_DRIVE; drive++) {
 		memset(&drive_state[drive], 0, sizeof(drive_state[drive]));
-		memset(UDRWE, 0, sizeof(*UDRWE));
+		memset(&write_errors[drive], 0, sizeof(write_errors[drive]));
 		set_bit(FD_DISK_NEWCHANGE_BIT, &drive_state[drive].flags);
 		set_bit(FD_DISK_CHANGED_BIT, &drive_state[drive].flags);
 		set_bit(FD_VERIFY_BIT, &drive_state[drive].flags);
