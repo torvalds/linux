@@ -1500,7 +1500,28 @@ struct numa_stats {
 	unsigned int nr_running;
 	unsigned int weight;
 	enum numa_type node_type;
+	int idle_cpu;
 };
+
+static inline bool is_core_idle(int cpu)
+{
+#ifdef CONFIG_SCHED_SMT
+	int sibling;
+
+	for_each_cpu(sibling, cpu_smt_mask(cpu)) {
+		if (cpu == sibling)
+			continue;
+
+		if (!idle_cpu(cpu))
+			return false;
+	}
+#endif
+
+	return true;
+}
+
+/* Forward declarations of select_idle_sibling helpers */
+static inline bool test_idle_cores(int cpu, bool def);
 
 struct task_numa_env {
 	struct task_struct *p;
@@ -1537,15 +1558,39 @@ numa_type numa_classify(unsigned int imbalance_pct,
 	return node_fully_busy;
 }
 
+static inline int numa_idle_core(int idle_core, int cpu)
+{
+#ifdef CONFIG_SCHED_SMT
+	if (!static_branch_likely(&sched_smt_present) ||
+	    idle_core >= 0 || !test_idle_cores(cpu, false))
+		return idle_core;
+
+	/*
+	 * Prefer cores instead of packing HT siblings
+	 * and triggering future load balancing.
+	 */
+	if (is_core_idle(cpu))
+		idle_core = cpu;
+#endif
+
+	return idle_core;
+}
+
 /*
- * XXX borrowed from update_sg_lb_stats
+ * Gather all necessary information to make NUMA balancing placement
+ * decisions that are compatible with standard load balancer. This
+ * borrows code and logic from update_sg_lb_stats but sharing a
+ * common implementation is impractical.
  */
 static void update_numa_stats(struct task_numa_env *env,
-			      struct numa_stats *ns, int nid)
+			      struct numa_stats *ns, int nid,
+			      bool find_idle)
 {
-	int cpu;
+	int cpu, idle_core = -1;
 
 	memset(ns, 0, sizeof(*ns));
+	ns->idle_cpu = -1;
+
 	for_each_cpu(cpu, cpumask_of_node(nid)) {
 		struct rq *rq = cpu_rq(cpu);
 
@@ -1553,11 +1598,25 @@ static void update_numa_stats(struct task_numa_env *env,
 		ns->util += cpu_util(cpu);
 		ns->nr_running += rq->cfs.h_nr_running;
 		ns->compute_capacity += capacity_of(cpu);
+
+		if (find_idle && !rq->nr_running && idle_cpu(cpu)) {
+			if (READ_ONCE(rq->numa_migrate_on) ||
+			    !cpumask_test_cpu(cpu, env->p->cpus_ptr))
+				continue;
+
+			if (ns->idle_cpu == -1)
+				ns->idle_cpu = cpu;
+
+			idle_core = numa_idle_core(idle_core, cpu);
+		}
 	}
 
 	ns->weight = cpumask_weight(cpumask_of_node(nid));
 
 	ns->node_type = numa_classify(env->imbalance_pct, ns);
+
+	if (idle_core >= 0)
+		ns->idle_cpu = idle_core;
 }
 
 static void task_numa_assign(struct task_numa_env *env,
@@ -1566,7 +1625,7 @@ static void task_numa_assign(struct task_numa_env *env,
 	struct rq *rq = cpu_rq(env->dst_cpu);
 
 	/* Bail out if run-queue part of active NUMA balance. */
-	if (xchg(&rq->numa_migrate_on, 1))
+	if (env->best_cpu != env->dst_cpu && xchg(&rq->numa_migrate_on, 1))
 		return;
 
 	/*
@@ -1730,19 +1789,39 @@ static void task_numa_compare(struct task_numa_env *env,
 		goto unlock;
 
 assign:
-	/*
-	 * One idle CPU per node is evaluated for a task numa move.
-	 * Call select_idle_sibling to maybe find a better one.
-	 */
+	/* Evaluate an idle CPU for a task numa move. */
 	if (!cur) {
+		int cpu = env->dst_stats.idle_cpu;
+
+		/* Nothing cached so current CPU went idle since the search. */
+		if (cpu < 0)
+			cpu = env->dst_cpu;
+
 		/*
-		 * select_idle_siblings() uses an per-CPU cpumask that
-		 * can be used from IRQ context.
+		 * If the CPU is no longer truly idle and the previous best CPU
+		 * is, keep using it.
 		 */
-		local_irq_disable();
-		env->dst_cpu = select_idle_sibling(env->p, env->src_cpu,
+		if (!idle_cpu(cpu) && env->best_cpu >= 0 &&
+		    idle_cpu(env->best_cpu)) {
+			cpu = env->best_cpu;
+		}
+
+		/*
+		 * Use select_idle_sibling if the previously found idle CPU is
+		 * not idle any more.
+		 */
+		if (!idle_cpu(cpu)) {
+			/*
+			 * select_idle_siblings() uses an per-CPU cpumask that
+			 * can be used from IRQ context.
+			 */
+			local_irq_disable();
+			cpu = select_idle_sibling(env->p, env->src_cpu,
 						   env->dst_cpu);
-		local_irq_enable();
+			local_irq_enable();
+		}
+
+		env->dst_cpu = cpu;
 	}
 
 	task_numa_assign(env, cur, imp);
@@ -1776,8 +1855,14 @@ static void task_numa_find_cpu(struct task_numa_env *env,
 		imbalance = adjust_numa_imbalance(imbalance, src_running);
 
 		/* Use idle CPU if there is no imbalance */
-		if (!imbalance)
+		if (!imbalance) {
 			maymove = true;
+			if (env->dst_stats.idle_cpu >= 0) {
+				env->dst_cpu = env->dst_stats.idle_cpu;
+				task_numa_assign(env, NULL, 0);
+				return;
+			}
+		}
 	} else {
 		long src_load, dst_load, load;
 		/*
@@ -1850,10 +1935,10 @@ static int task_numa_migrate(struct task_struct *p)
 	dist = env.dist = node_distance(env.src_nid, env.dst_nid);
 	taskweight = task_weight(p, env.src_nid, dist);
 	groupweight = group_weight(p, env.src_nid, dist);
-	update_numa_stats(&env, &env.src_stats, env.src_nid);
+	update_numa_stats(&env, &env.src_stats, env.src_nid, false);
 	taskimp = task_weight(p, env.dst_nid, dist) - taskweight;
 	groupimp = group_weight(p, env.dst_nid, dist) - groupweight;
-	update_numa_stats(&env, &env.dst_stats, env.dst_nid);
+	update_numa_stats(&env, &env.dst_stats, env.dst_nid, true);
 
 	/* Try to find a spot on the preferred nid. */
 	task_numa_find_cpu(&env, taskimp, groupimp);
@@ -1886,7 +1971,7 @@ static int task_numa_migrate(struct task_struct *p)
 
 			env.dist = dist;
 			env.dst_nid = nid;
-			update_numa_stats(&env, &env.dst_stats, env.dst_nid);
+			update_numa_stats(&env, &env.dst_stats, env.dst_nid, true);
 			task_numa_find_cpu(&env, taskimp, groupimp);
 		}
 	}
