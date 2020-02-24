@@ -106,6 +106,7 @@ enum {
 	POWER_SUPPLY_DP_DM_FORCE_5V = 13,
 	POWER_SUPPLY_DP_DM_FORCE_9V = 14,
 	POWER_SUPPLY_DP_DM_FORCE_12V = 15,
+	POWER_SUPPLY_DP_DM_CONFIRMED_HVDCP3P5 = 16,
 };
 
 enum {
@@ -125,6 +126,7 @@ enum {
 enum {
 	POWER_SUPPLY_CP_NONE = 0,
 	POWER_SUPPLY_CP_HVDCP3,
+	POWER_SUPPLY_CP_HVDCP3P5,
 	POWER_SUPPLY_CP_PPS,
 	POWER_SUPPLY_CP_WIRELESS,
 };
@@ -411,6 +413,7 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_APPLE_BRICK_ID,	/* Apple Charging Method */
 	POWER_SUPPLY_TYPE_USB_HVDCP,		/* High Voltage DCP */
 	POWER_SUPPLY_TYPE_USB_HVDCP_3,		/* Efficient High Voltage DCP */
+	POWER_SUPPLY_TYPE_USB_HVDCP_3P5,	/* Efficient High Voltage DCP */
 	POWER_SUPPLY_TYPE_WIRELESS,		/* Accessory Charger Adapters */
 	POWER_SUPPLY_TYPE_USB_FLOAT,		/* Floating charger */
 	POWER_SUPPLY_TYPE_BMS,			/* Battery Monitor System */
