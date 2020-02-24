@@ -419,7 +419,6 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_BMS,			/* Battery Monitor System */
 	POWER_SUPPLY_TYPE_PARALLEL,		/* Parallel Path */
 	POWER_SUPPLY_TYPE_MAIN,			/* Main Path */
-	POWER_SUPPLY_TYPE_WIPOWER,		/* Wipower */
 	POWER_SUPPLY_TYPE_UFP,			/* Type-C UFP */
 	POWER_SUPPLY_TYPE_DFP,			/* Type-C DFP */
 	POWER_SUPPLY_TYPE_CHARGE_PUMP,		/* Charge Pump */
