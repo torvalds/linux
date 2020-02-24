@@ -148,7 +148,6 @@ struct chcr_dev {
 	int wqretry;
 	struct delayed_work detach_work;
 	struct completion detach_comp;
-	unsigned char tx_channel_id;
 };
 
 struct uld_ctx {
