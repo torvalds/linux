@@ -7,6 +7,7 @@
 
 #define pr_fmt(fmt)				"bcmgenet: " fmt
 
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -3466,10 +3467,9 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	const struct bcmgenet_plat_data *pdata;
 	struct bcmgenet_priv *priv;
 	struct net_device *dev;
-	const void *macaddr;
+	const void *macaddr = NULL;
 	unsigned int i;
 	int err = -EIO;
-	const char *phy_mode_str;
 
 	/* Up to GENET_MAX_MQ_CNT + 1 TX queues and RX queues */
 	dev = alloc_etherdev_mqs(sizeof(*priv), GENET_MAX_MQ_CNT + 1,
@@ -3500,7 +3500,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 
 	if (dn)
 		macaddr = of_get_mac_address(dn);
-	else
+	else if (pd)
 		macaddr = pd->mac_address;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
@@ -3547,8 +3547,9 @@ static int bcmgenet_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 	priv->pdev = pdev;
-	if (of_id) {
-		pdata = of_id->data;
+
+	pdata = device_get_match_data(&pdev->dev);
+	if (pdata) {
 		priv->version = pdata->version;
 		priv->dma_max_burst_length = pdata->dma_max_burst_length;
 	} else {
@@ -3595,8 +3596,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	/* If this is an internal GPHY, power it on now, before UniMAC is
 	 * brought out of reset as absolutely no UniMAC activity is allowed
 	 */
-	if (dn && !of_property_read_string(dn, "phy-mode", &phy_mode_str) &&
-	    !strcasecmp(phy_mode_str, "internal"))
+	if (device_get_phy_mode(&pdev->dev) == PHY_INTERFACE_MODE_INTERNAL)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
 	reset_umac(priv);
@@ -3771,6 +3771,12 @@ static int bcmgenet_suspend(struct device *d)
 
 static SIMPLE_DEV_PM_OPS(bcmgenet_pm_ops, bcmgenet_suspend, bcmgenet_resume);
 
+static const struct acpi_device_id genet_acpi_match[] = {
+	{ "BCM6E4E", (kernel_ulong_t)&bcm2711_plat_data },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, genet_acpi_match);
+
 static struct platform_driver bcmgenet_driver = {
 	.probe	= bcmgenet_probe,
 	.remove	= bcmgenet_remove,
@@ -3779,6 +3785,7 @@ static struct platform_driver bcmgenet_driver = {
 		.name	= "bcmgenet",
 		.of_match_table = bcmgenet_match,
 		.pm	= &bcmgenet_pm_ops,
+		.acpi_match_table = ACPI_PTR(genet_acpi_match),
 	},
 };
 module_platform_driver(bcmgenet_driver);
