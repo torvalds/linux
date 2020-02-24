@@ -550,22 +550,20 @@ static int __nd_alloc_stack(struct nameidata *nd)
 }
 
 /**
- * path_connected - Verify that a path->dentry is below path->mnt.mnt_root
- * @path: nameidate to verify
+ * path_connected - Verify that a dentry is below mnt.mnt_root
  *
  * Rename can sometimes move a file or directory outside of a bind
  * mount, path_connected allows those cases to be detected.
  */
-static bool path_connected(const struct path *path)
+static bool path_connected(struct vfsmount *mnt, struct dentry *dentry)
 {
-	struct vfsmount *mnt = path->mnt;
 	struct super_block *sb = mnt->mnt_sb;
 
 	/* Bind mounts and multi-root filesystems can have disconnected paths */
 	if (!(sb->s_iflags & SB_I_MULTIROOT) && (mnt->mnt_root == sb->s_root))
 		return true;
 
-	return is_subdir(path->dentry, mnt->mnt_root);
+	return is_subdir(dentry, mnt->mnt_root);
 }
 
 static inline int nd_alloc_stack(struct nameidata *nd)
@@ -1386,7 +1384,7 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 				return -ECHILD;
 			nd->path.dentry = parent;
 			nd->seq = seq;
-			if (unlikely(!path_connected(&nd->path)))
+			if (unlikely(!path_connected(nd->path.mnt, parent)))
 				return -ECHILD;
 			break;
 		} else {
@@ -1448,7 +1446,7 @@ static int path_parent_directory(struct path *path)
 	/* rare case of legitimate dget_parent()... */
 	path->dentry = dget_parent(path->dentry);
 	dput(old);
-	if (unlikely(!path_connected(path)))
+	if (unlikely(!path_connected(path->mnt, path->dentry)))
 		return -ENOENT;
 	return 0;
 }
