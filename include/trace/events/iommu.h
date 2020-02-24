@@ -161,6 +161,66 @@ DEFINE_EVENT(iommu_error, io_page_fault,
 
 	TP_ARGS(dev, iova, flags)
 );
+
+DECLARE_EVENT_CLASS(iommu_tlbi,
+
+	TP_PROTO(struct device *dev, u64 time),
+
+	TP_ARGS(dev, time),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(dev))
+		__field(u64, time)
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(dev));
+		__entry->time = time;
+	),
+
+	TP_printk("IOMMU:%s %lld us",
+			__get_str(device), __entry->time
+	)
+);
+
+DEFINE_EVENT(iommu_tlbi, tlbi_start,
+
+	TP_PROTO(struct device *dev, u64 time),
+
+	TP_ARGS(dev, time)
+);
+
+DEFINE_EVENT(iommu_tlbi, tlbi_end,
+
+	TP_PROTO(struct device *dev, u64 time),
+
+	TP_ARGS(dev, time)
+);
+
+DEFINE_EVENT(iommu_tlbi, tlbsync_timeout,
+
+	TP_PROTO(struct device *dev, u64 time),
+
+	TP_ARGS(dev, time)
+);
+
+TRACE_EVENT(smmu_init,
+
+	TP_PROTO(u64 time),
+
+	TP_ARGS(time),
+
+	TP_STRUCT__entry(
+		__field(u64, time)
+	),
+
+	TP_fast_assign(
+		__entry->time = time;
+	),
+
+	TP_printk("ARM SMMU init latency: %lld us", __entry->time)
+);
+
 #endif /* _TRACE_IOMMU_H */
 
 /* This part must be outside protection */
