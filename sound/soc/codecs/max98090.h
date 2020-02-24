@@ -1539,8 +1539,7 @@ struct max98090_priv {
 	unsigned int pa2en;
 	unsigned int sidetone;
 	bool master;
-	int saved_count;
-	int saved_shdn;
+	bool shdn_pending;
 };
 
 int max98090_mic_detect(struct snd_soc_component *component,

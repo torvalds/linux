@@ -71,13 +71,11 @@ enum i915_mmap_type {
 };
 
 struct i915_mmap_offset {
-	struct drm_device *dev;
 	struct drm_vma_offset_node vma_node;
 	struct drm_i915_gem_object *obj;
-	struct drm_file *file;
 	enum i915_mmap_type mmap_type;
 
-	struct list_head offset;
+	struct rb_node offset;
 };
 
 struct drm_i915_gem_object {
@@ -137,7 +135,7 @@ struct drm_i915_gem_object {
 
 	struct {
 		spinlock_t lock; /* Protects access to mmo offsets */
-		struct list_head offsets;
+		struct rb_root offsets;
 	} mmo;
 
 	I915_SELFTEST_DECLARE(struct list_head st_link);
@@ -287,9 +285,6 @@ struct drm_i915_gem_object {
 
 		void *gvt_info;
 	};
-
-	/** for phys allocated objects */
-	struct drm_dma_handle *phys_handle;
 };
 
 static inline struct drm_i915_gem_object *

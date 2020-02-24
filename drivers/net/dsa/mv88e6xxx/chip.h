@@ -236,7 +236,7 @@ struct mv88e6xxx_port {
 	bool mirror_ingress;
 	bool mirror_egress;
 	unsigned int serdes_irq;
-	char serdes_irq_name[32];
+	char serdes_irq_name[64];
 };
 
 struct mv88e6xxx_chip {
@@ -293,16 +293,16 @@ struct mv88e6xxx_chip {
 	struct mv88e6xxx_irq g1_irq;
 	struct mv88e6xxx_irq g2_irq;
 	int irq;
-	char irq_name[32];
+	char irq_name[64];
 	int device_irq;
-	char device_irq_name[32];
+	char device_irq_name[64];
 	int watchdog_irq;
-	char watchdog_irq_name[32];
+	char watchdog_irq_name[64];
 
 	int atu_prob_irq;
-	char atu_prob_irq_name[32];
+	char atu_prob_irq_name[64];
 	int vtu_prob_irq;
-	char vtu_prob_irq_name[32];
+	char vtu_prob_irq_name[64];
 	struct kthread_worker *kworker;
 	struct kthread_delayed_work irq_poll_work;
 

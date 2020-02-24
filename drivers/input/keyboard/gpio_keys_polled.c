@@ -38,7 +38,7 @@ struct gpio_keys_polled_dev {
 	const struct gpio_keys_platform_data *pdata;
 	unsigned long rel_axis_seen[BITS_TO_LONGS(REL_CNT)];
 	unsigned long abs_axis_seen[BITS_TO_LONGS(ABS_CNT)];
-	struct gpio_keys_button_data data[0];
+	struct gpio_keys_button_data data[];
 };
 
 static void gpio_keys_button_event(struct input_dev *input,

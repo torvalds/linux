@@ -10,16 +10,6 @@
 #define GPIO_OUT_REG(off) (BD71828_REG_GPIO_CTRL1 + (off))
 #define HALL_GPIO_OFFSET 3
 
-/*
- * These defines can be removed when
- * "gpio: Add definition for GPIO direction"
- * (9208b1e77d6e8e9776f34f46ef4079ecac9c3c25 in GPIO tree) gets merged,
- */
-#ifndef GPIO_LINE_DIRECTION_IN
-	#define GPIO_LINE_DIRECTION_IN 1
-	#define GPIO_LINE_DIRECTION_OUT 0
-#endif
-
 struct bd71828_gpio {
 	struct rohm_regmap_dev chip;
 	struct gpio_chip gpio;

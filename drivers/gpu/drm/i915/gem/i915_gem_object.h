@@ -70,14 +70,22 @@ i915_gem_object_lookup_rcu(struct drm_file *file, u32 handle)
 }
 
 static inline struct drm_i915_gem_object *
+i915_gem_object_get_rcu(struct drm_i915_gem_object *obj)
+{
+	if (obj && !kref_get_unless_zero(&obj->base.refcount))
+		obj = NULL;
+
+	return obj;
+}
+
+static inline struct drm_i915_gem_object *
 i915_gem_object_lookup(struct drm_file *file, u32 handle)
 {
 	struct drm_i915_gem_object *obj;
 
 	rcu_read_lock();
 	obj = i915_gem_object_lookup_rcu(file, handle);
-	if (obj && !kref_get_unless_zero(&obj->base.refcount))
-		obj = NULL;
+	obj = i915_gem_object_get_rcu(obj);
 	rcu_read_unlock();
 
 	return obj;

@@ -103,7 +103,7 @@ int ionic_heartbeat_check(struct ionic *ionic)
 {
 	struct ionic_dev *idev = &ionic->idev;
 	unsigned long hb_time;
-	u32 fw_status;
+	u8 fw_status;
 	u32 hb;
 
 	/* wait a little more than one second before testing again */
@@ -111,9 +111,12 @@ int ionic_heartbeat_check(struct ionic *ionic)
 	if (time_before(hb_time, (idev->last_hb_time + ionic->watchdog_period)))
 		return 0;
 
-	/* firmware is useful only if fw_status is non-zero */
-	fw_status = ioread32(&idev->dev_info_regs->fw_status);
-	if (!fw_status)
+	/* firmware is useful only if the running bit is set and
+	 * fw_status != 0xff (bad PCI read)
+	 */
+	fw_status = ioread8(&idev->dev_info_regs->fw_status);
+	if (fw_status == 0xff ||
+	    !(fw_status & IONIC_FW_STS_F_RUNNING))
 		return -ENXIO;
 
 	/* early FW has no heartbeat, else FW will return non-zero */
