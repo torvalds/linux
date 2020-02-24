@@ -1669,17 +1669,19 @@ void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_trap_unregister);
 
-int mlxsw_core_trap_action_set(struct mlxsw_core *mlxsw_core,
-			       const struct mlxsw_listener *listener,
-			       enum mlxsw_reg_hpkt_action action)
+int mlxsw_core_trap_state_set(struct mlxsw_core *mlxsw_core,
+			      const struct mlxsw_listener *listener,
+			      bool enabled)
 {
+	enum mlxsw_reg_hpkt_action action;
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 
+	action = enabled ? listener->en_action : listener->dis_action;
 	mlxsw_reg_hpkt_pack(hpkt_pl, action, listener->trap_id,
 			    listener->trap_group, listener->is_ctrl);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
 }
-EXPORT_SYMBOL(mlxsw_core_trap_action_set);
+EXPORT_SYMBOL(mlxsw_core_trap_state_set);
 
 static u64 mlxsw_core_tid_get(struct mlxsw_core *mlxsw_core)
 {

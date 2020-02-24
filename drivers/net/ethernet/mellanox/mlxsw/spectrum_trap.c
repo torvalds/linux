@@ -320,26 +320,23 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener_devlink_map); i++) {
 		const struct mlxsw_listener *listener;
-		enum mlxsw_reg_hpkt_action hw_action;
+		bool enabled;
 		int err;
 
 		if (mlxsw_sp_listener_devlink_map[i] != trap->id)
 			continue;
 		listener = &mlxsw_sp_listeners_arr[i];
-
 		switch (action) {
 		case DEVLINK_TRAP_ACTION_DROP:
-			hw_action = listener->dis_action;
+			enabled = false;
 			break;
 		case DEVLINK_TRAP_ACTION_TRAP:
-			hw_action = listener->en_action;
+			enabled = true;
 			break;
 		default:
 			return -EINVAL;
 		}
-
-		err = mlxsw_core_trap_action_set(mlxsw_core, listener,
-						 hw_action);
+		err = mlxsw_core_trap_state_set(mlxsw_core, listener, enabled);
 		if (err)
 			return err;
 	}
