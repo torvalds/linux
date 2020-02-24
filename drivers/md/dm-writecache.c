@@ -26,6 +26,8 @@
 #define AUTOCOMMIT_BLOCKS_SSD		65536
 #define AUTOCOMMIT_BLOCKS_PMEM		64
 #define AUTOCOMMIT_MSEC			1000
+#define MAX_AGE_DIV			16
+#define MAX_AGE_UNSPECIFIED		-1UL
 
 #define BITMAP_GRANULARITY	65536
 #if BITMAP_GRANULARITY < PAGE_SIZE
@@ -88,6 +90,7 @@ struct wc_entry {
 		:47
 #endif
 	;
+	unsigned long age;
 #ifdef DM_WRITECACHE_HANDLE_HARDWARE_ERRORS
 	uint64_t original_sector;
 	uint64_t seq_count;
@@ -119,6 +122,7 @@ struct dm_writecache {
 	size_t writeback_size;
 	size_t freelist_high_watermark;
 	size_t freelist_low_watermark;
+	unsigned long max_age;
 
 	unsigned uncommitted_blocks;
 	unsigned autocommit_blocks;
@@ -129,6 +133,8 @@ struct dm_writecache {
 	unsigned long autocommit_jiffies;
 	struct timer_list autocommit_timer;
 	struct wait_queue_head freelist_wait;
+
+	struct timer_list max_age_timer;
 
 	atomic_t bio_in_progress[2];
 	struct wait_queue_head bio_in_progress_wait[2];
@@ -597,6 +603,7 @@ static void writecache_insert_entry(struct dm_writecache *wc, struct wc_entry *i
 	rb_link_node(&ins->rb_node, parent, node);
 	rb_insert_color(&ins->rb_node, &wc->tree);
 	list_add(&ins->lru, &wc->lru);
+	ins->age = jiffies;
 }
 
 static void writecache_unlink(struct dm_writecache *wc, struct wc_entry *e)
@@ -630,6 +637,16 @@ static inline void writecache_verify_watermark(struct dm_writecache *wc)
 {
 	if (unlikely(wc->freelist_size + wc->writeback_size <= wc->freelist_high_watermark))
 		queue_work(wc->writeback_wq, &wc->writeback_work);
+}
+
+static void writecache_max_age_timer(struct timer_list *t)
+{
+	struct dm_writecache *wc = from_timer(wc, t, max_age_timer);
+
+	if (!dm_suspended(wc->ti) && !writecache_has_error(wc)) {
+		queue_work(wc->writeback_wq, &wc->writeback_work);
+		mod_timer(&wc->max_age_timer, jiffies + wc->max_age / MAX_AGE_DIV);
+	}
 }
 
 static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc, sector_t expected_sector)
@@ -838,6 +855,7 @@ static void writecache_suspend(struct dm_target *ti)
 	bool flush_on_suspend;
 
 	del_timer_sync(&wc->autocommit_timer);
+	del_timer_sync(&wc->max_age_timer);
 
 	wc_lock(wc);
 	writecache_flush(wc);
@@ -973,6 +991,9 @@ erase_this:
 	}
 
 	writecache_verify_watermark(wc);
+
+	if (wc->max_age != MAX_AGE_UNSPECIFIED)
+		mod_timer(&wc->max_age_timer, jiffies + wc->max_age / MAX_AGE_DIV);
 
 	wc_unlock(wc);
 }
@@ -1661,7 +1682,9 @@ restart:
 	wbl.size = 0;
 	while (!list_empty(&wc->lru) &&
 	       (wc->writeback_all ||
-		wc->freelist_size + wc->writeback_size <= wc->freelist_low_watermark)) {
+		wc->freelist_size + wc->writeback_size <= wc->freelist_low_watermark ||
+		(jiffies - container_of(wc->lru.prev, struct wc_entry, lru)->age >=
+		 wc->max_age - wc->max_age / MAX_AGE_DIV))) {
 
 		n_walked++;
 		if (unlikely(n_walked > WRITEBACK_LATENCY) &&
@@ -1924,9 +1947,11 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	wc->ti = ti;
 
 	mutex_init(&wc->lock);
+	wc->max_age = MAX_AGE_UNSPECIFIED;
 	writecache_poison_lists(wc);
 	init_waitqueue_head(&wc->freelist_wait);
 	timer_setup(&wc->autocommit_timer, writecache_autocommit_timer, 0);
+	timer_setup(&wc->max_age_timer, writecache_max_age_timer, 0);
 
 	for (i = 0; i < 2; i++) {
 		atomic_set(&wc->bio_in_progress[i], 0);
@@ -2100,6 +2125,14 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 				goto invalid_optional;
 			wc->autocommit_jiffies = msecs_to_jiffies(autocommit_msecs);
 			wc->autocommit_time_set = true;
+		} else if (!strcasecmp(string, "max_age") && opt_params >= 1) {
+			unsigned max_age_msecs;
+			string = dm_shift_arg(&as), opt_params--;
+			if (sscanf(string, "%u%c", &max_age_msecs, &dummy) != 1)
+				goto invalid_optional;
+			if (max_age_msecs > 86400000)
+				goto invalid_optional;
+			wc->max_age = msecs_to_jiffies(max_age_msecs);
 		} else if (!strcasecmp(string, "cleaner")) {
 			wc->cleaner = true;
 		} else if (!strcasecmp(string, "fua")) {
@@ -2361,6 +2394,8 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" autocommit_blocks %u", wc->autocommit_blocks);
 		if (wc->autocommit_time_set)
 			DMEMIT(" autocommit_time %u", jiffies_to_msecs(wc->autocommit_jiffies));
+		if (wc->max_age != MAX_AGE_UNSPECIFIED)
+			DMEMIT(" max_age %u", jiffies_to_msecs(wc->max_age));
 		if (wc->cleaner)
 			DMEMIT(" cleaner");
 		if (wc->writeback_fua_set)
