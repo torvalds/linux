@@ -9638,8 +9638,7 @@ N:	pseries
 LINUX FOR POWERPC EMBEDDED MPC5XXX
 M:	Anatolij Gustschin <agust@denx.de>
 L:	linuxppc-dev@lists.ozlabs.org
-T:	git git://git.denx.de/linux-denx-agust.git
-S:	Maintained
+S:	Odd Fixes
 F:	arch/powerpc/platforms/512x/
 F:	arch/powerpc/platforms/52xx/
 
