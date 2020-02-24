@@ -265,6 +265,8 @@
 	};
 
 	i2c@7000c500 {
+		status = "okay";
+
 		/* module ID EEPROM */
 		eeprom@50 {
 			compatible = "atmel,24c02";
