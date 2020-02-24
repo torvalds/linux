@@ -92,10 +92,12 @@ struct backref_node {
 	u64 owner;
 	/* link to pending, changed or detached list */
 	struct list_head list;
-	/* list of upper level blocks reference this block */
+
+	/* List of upper level edges, which link this node to its parents */
 	struct list_head upper;
-	/* list of child blocks in the cache */
+	/* List of lower level edges, which link this node to its children */
 	struct list_head lower;
+
 	/* NULL if this node is not tree root */
 	struct btrfs_root *root;
 	/* extent buffer got by COW the block */
@@ -130,17 +132,26 @@ struct backref_node {
 	unsigned int is_reloc_root:1;
 };
 
-/*
- * present a block pointer in the backref cache
- */
-struct backref_edge {
-	struct list_head list[2];
-	struct backref_node *node[2];
-};
-
 #define LOWER	0
 #define UPPER	1
 #define RELOCATION_RESERVED_NODES	256
+/*
+ * present an edge connecting upper and lower backref nodes.
+ */
+struct backref_edge {
+	/*
+	 * list[LOWER] is linked to backref_node::upper of lower level node,
+	 * and list[UPPER] is linked to backref_node::lower of upper level node.
+	 *
+	 * Also, build_backref_tree() uses list[UPPER] for pending edges, before
+	 * linking list[UPPER] to its upper level nodes.
+	 */
+	struct list_head list[2];
+
+	/* Two related nodes */
+	struct backref_node *node[2];
+};
+
 
 struct backref_cache {
 	/* red black tree of all backref nodes in the cache */
@@ -361,6 +372,22 @@ static struct backref_edge *alloc_backref_edge(struct backref_cache *cache)
 	if (edge)
 		cache->nr_edges++;
 	return edge;
+}
+
+#define		LINK_LOWER	(1 << 0)
+#define		LINK_UPPER	(1 << 1)
+static void link_backref_edge(struct backref_edge *edge,
+			      struct backref_node *lower,
+			      struct backref_node *upper,
+			      int link_which)
+{
+	ASSERT(upper && lower && upper->level == lower->level + 1);
+	edge->node[LOWER] = lower;
+	edge->node[UPPER] = upper;
+	if (link_which & LINK_LOWER)
+		list_add_tail(&edge->list[LOWER], &lower->upper);
+	if (link_which & LINK_UPPER)
+		list_add_tail(&edge->list[UPPER], &upper->lower);
 }
 
 static void free_backref_edge(struct backref_cache *cache,
@@ -767,9 +794,7 @@ static int handle_direct_tree_backref(struct backref_cache *cache,
 		ASSERT(upper->checked);
 		INIT_LIST_HEAD(&edge->list[UPPER]);
 	}
-	list_add_tail(&edge->list[LOWER], &cur->upper);
-	edge->node[LOWER] = cur;
-	edge->node[UPPER] = upper;
+	link_backref_edge(edge, cur, upper, LINK_LOWER);
 	return 0;
 }
 
@@ -914,9 +939,7 @@ static int handle_indirect_tree_backref(struct backref_cache *cache,
 			if (!upper->owner)
 				upper->owner = btrfs_header_owner(eb);
 		}
-		list_add_tail(&edge->list[LOWER], &lower->upper);
-		edge->node[LOWER] = lower;
-		edge->node[UPPER] = upper;
+		link_backref_edge(edge, lower, upper, LINK_LOWER);
 
 		if (rb_node) {
 			btrfs_put_root(root);
@@ -1340,10 +1363,8 @@ static int clone_backref_node(struct btrfs_trans_handle *trans,
 			if (!new_edge)
 				goto fail;
 
-			new_edge->node[UPPER] = new_node;
-			new_edge->node[LOWER] = edge->node[LOWER];
-			list_add_tail(&new_edge->list[UPPER],
-				      &new_node->lower);
+			link_backref_edge(new_edge, edge->node[LOWER], new_node,
+					  LINK_UPPER);
 		}
 	} else {
 		list_add_tail(&new_node->lower, &cache->leaves);
