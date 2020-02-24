@@ -175,12 +175,14 @@ static int sun8i_ui_layer_update_formats(struct sun8i_mixer *mixer, int channel,
 {
 	struct drm_plane_state *state = plane->state;
 	const struct de2_fmt_info *fmt_info;
+	const struct drm_format_info *fmt;
 	u32 val, ch_base;
 
 	ch_base = sun8i_channel_base(mixer, channel);
 
-	fmt_info = sun8i_mixer_format_info(state->fb->format->format);
-	if (!fmt_info || !fmt_info->rgb) {
+	fmt = state->fb->format;
+	fmt_info = sun8i_mixer_format_info(fmt->format);
+	if (!fmt_info || fmt->is_yuv) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
 		return -EINVAL;
 	}

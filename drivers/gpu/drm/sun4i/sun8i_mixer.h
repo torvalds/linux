@@ -147,7 +147,6 @@
 struct de2_fmt_info {
 	u32			drm_fmt;
 	u32			de2_fmt;
-	bool			rgb;
 	enum sun8i_csc_mode	csc;
 };
 
