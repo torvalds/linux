@@ -8,6 +8,7 @@ Contents:
 
    netdev-FAQ
    af_xdp
+   bareudp
    batman-adv
    can
    can_ucan_protocol
