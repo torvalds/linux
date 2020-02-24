@@ -58,8 +58,7 @@ static void test_msr_platform_info_enabled(struct kvm_vm *vm)
 			exit_reason_str(run->exit_reason));
 	get_ucall(vm, VCPU_ID, &uc);
 	TEST_ASSERT(uc.cmd == UCALL_SYNC,
-			"Received ucall other than UCALL_SYNC: %u\n",
-			ucall);
+			"Received ucall other than UCALL_SYNC: %lu\n", uc.cmd);
 	TEST_ASSERT((uc.args[1] & MSR_PLATFORM_INFO_MAX_TURBO_RATIO) ==
 		MSR_PLATFORM_INFO_MAX_TURBO_RATIO,
 		"Expected MSR_PLATFORM_INFO to have max turbo ratio mask: %i.",

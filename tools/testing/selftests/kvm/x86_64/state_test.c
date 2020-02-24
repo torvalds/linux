@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_ASSERT(false, "Unknown ucall %lu", uc.cmd);
 		}
 
 		/* UCALL_SYNC is handled here.  */

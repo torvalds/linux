@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 			TEST_ASSERT(false, "%s", (const char *)uc.args[0]);
 			/* NOT REACHED */
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_ASSERT(false, "Unknown ucall %lu", uc.cmd);
 		}
 	}
 }

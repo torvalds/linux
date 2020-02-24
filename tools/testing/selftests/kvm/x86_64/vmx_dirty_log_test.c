@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 			done = true;
 			break;
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_ASSERT(false, "Unknown ucall %lu", uc.cmd);
 		}
 	}
 }
