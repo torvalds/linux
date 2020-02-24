@@ -1739,11 +1739,12 @@ static void ibx_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	if (pch_iir & SDE_POISON)
 		drm_err(&dev_priv->drm, "PCH poison interrupt\n");
 
-	if (pch_iir & SDE_FDI_MASK)
+	if (pch_iir & SDE_FDI_MASK) {
 		for_each_pipe(dev_priv, pipe)
 			drm_dbg(&dev_priv->drm, "  pipe %c FDI IIR: 0x%08x\n",
 				pipe_name(pipe),
 				I915_READ(FDI_RX_IIR(pipe)));
+	}
 
 	if (pch_iir & (SDE_TRANSB_CRC_DONE | SDE_TRANSA_CRC_DONE))
 		drm_dbg(&dev_priv->drm, "PCH transcoder CRC done interrupt\n");
@@ -1823,11 +1824,12 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	if (pch_iir & SDE_AUDIO_CP_CHG_CPT)
 		drm_dbg(&dev_priv->drm, "Audio CP change interrupt\n");
 
-	if (pch_iir & SDE_FDI_MASK_CPT)
+	if (pch_iir & SDE_FDI_MASK_CPT) {
 		for_each_pipe(dev_priv, pipe)
 			drm_dbg(&dev_priv->drm, "  pipe %c FDI IIR: 0x%08x\n",
 				pipe_name(pipe),
 				I915_READ(FDI_RX_IIR(pipe)));
+	}
 
 	if (pch_iir & SDE_ERROR_CPT)
 		cpt_serr_int_handler(dev_priv);
