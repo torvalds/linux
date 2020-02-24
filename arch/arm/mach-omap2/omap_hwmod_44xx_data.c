@@ -706,39 +706,6 @@ static struct omap_hwmod omap44xx_gpmc_hwmod = {
 	},
 };
 
-
-/*
- * 'ipu' class
- * imaging processor unit
- */
-
-static struct omap_hwmod_class omap44xx_ipu_hwmod_class = {
-	.name	= "ipu",
-};
-
-/* ipu */
-static struct omap_hwmod_rst_info omap44xx_ipu_resets[] = {
-	{ .name = "cpu0", .rst_shift = 0 },
-	{ .name = "cpu1", .rst_shift = 1 },
-};
-
-static struct omap_hwmod omap44xx_ipu_hwmod = {
-	.name		= "ipu",
-	.class		= &omap44xx_ipu_hwmod_class,
-	.clkdm_name	= "ducati_clkdm",
-	.rst_lines	= omap44xx_ipu_resets,
-	.rst_lines_cnt	= ARRAY_SIZE(omap44xx_ipu_resets),
-	.main_clk	= "ducati_clk_mux_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_DUCATI_DUCATI_CLKCTRL_OFFSET,
-			.rstctrl_offs = OMAP4_RM_DUCATI_RSTCTRL_OFFSET,
-			.context_offs = OMAP4_RM_DUCATI_DUCATI_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
-		},
-	},
-};
-
 /*
  * 'iss' class
  * external images sensor pixel data processor
@@ -1245,14 +1212,6 @@ static struct omap_hwmod_ocp_if omap44xx_debugss__l3_main_2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* ipu -> l3_main_2 */
-static struct omap_hwmod_ocp_if omap44xx_ipu__l3_main_2 = {
-	.master		= &omap44xx_ipu_hwmod,
-	.slave		= &omap44xx_l3_main_2_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* iss -> l3_main_2 */
 static struct omap_hwmod_ocp_if omap44xx_iss__l3_main_2 = {
 	.master		= &omap44xx_iss_hwmod,
@@ -1549,14 +1508,6 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__gpmc = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l3_main_2 -> ipu */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__ipu = {
-	.master		= &omap44xx_l3_main_2_hwmod,
-	.slave		= &omap44xx_ipu_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_2 -> iss */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_2__iss = {
 	.master		= &omap44xx_l3_main_2_hwmod,
@@ -1696,7 +1647,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__l3_main_1,
 	&omap44xx_mpu__l3_main_1,
 	&omap44xx_debugss__l3_main_2,
-	&omap44xx_ipu__l3_main_2,
 	&omap44xx_iss__l3_main_2,
 	&omap44xx_iva__l3_main_2,
 	&omap44xx_l3_main_1__l3_main_2,
@@ -1734,7 +1684,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l3_main_2__dss_venc,
 	&omap44xx_l4_per__dss_venc,
 	&omap44xx_l3_main_2__gpmc,
-	&omap44xx_l3_main_2__ipu,
 	&omap44xx_l3_main_2__iss,
 	/* &omap44xx_iva__sl2if, */
 	&omap44xx_l3_main_2__iva,
