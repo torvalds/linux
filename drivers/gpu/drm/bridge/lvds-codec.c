@@ -50,7 +50,7 @@ static void lvds_codec_disable(struct drm_bridge *bridge)
 		gpiod_set_value_cansleep(lvds_codec->powerdown_gpio, 1);
 }
 
-static struct drm_bridge_funcs funcs = {
+static const struct drm_bridge_funcs funcs = {
 	.attach = lvds_codec_attach,
 	.enable = lvds_codec_enable,
 	.disable = lvds_codec_disable,
