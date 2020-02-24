@@ -56,6 +56,7 @@
 		backlight: backlight@2c {
 			compatible = "ti,lp8557";
 			reg = <0x2c>;
+			power-supply = <&vdd_3v3_sys>;
 
 			dev-ctrl = /bits/ 8 <0x80>;
 			init-brt = /bits/ 8 <0xff>;
