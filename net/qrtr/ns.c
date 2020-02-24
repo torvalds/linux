@@ -150,7 +150,7 @@ static int service_announce_del(struct sockaddr_qrtr *dest,
 
 	ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
 	if (ret < 0)
-		pr_err("failed to announce del serivce\n");
+		pr_err("failed to announce del service\n");
 
 	return ret;
 }
