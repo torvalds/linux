@@ -278,7 +278,7 @@
 			status = "okay";
 
 			avdd-io-hdmi-dp-supply = <&vdd_hdmi_1v05>;
-			vdd-hdmi-dp-pll = <&vdd_1v8_ap>;
+			vdd-hdmi-dp-pll-supply = <&vdd_1v8_ap>;
 
 			nvidia,dpaux = <&dpaux>;
 		};
