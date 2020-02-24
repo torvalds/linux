@@ -36,18 +36,13 @@
 
 #include "atl2.h"
 
-#define ATL2_DRV_VERSION "2.2.3"
-
 static const char atl2_driver_name[] = "atl2";
 static const char atl2_driver_string[] = "Atheros(R) L2 Ethernet Driver";
-static const char atl2_copyright[] = "Copyright (c) 2007 Atheros Corporation.";
-static const char atl2_driver_version[] = ATL2_DRV_VERSION;
 static const struct ethtool_ops atl2_ethtool_ops;
 
 MODULE_AUTHOR("Atheros Corporation <xiong.huang@atheros.com>, Chris Snook <csnook@redhat.com>");
 MODULE_DESCRIPTION("Atheros Fast Ethernet Network Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(ATL2_DRV_VERSION);
 
 /*
  * atl2_pci_tbl - PCI Device ID Table
@@ -1688,9 +1683,6 @@ static struct pci_driver atl2_driver = {
  */
 static int __init atl2_init_module(void)
 {
-	printk(KERN_INFO "%s - version %s\n", atl2_driver_string,
-		atl2_driver_version);
-	printk(KERN_INFO "%s\n", atl2_copyright);
 	return pci_register_driver(&atl2_driver);
 }
 module_init(atl2_init_module);
@@ -2011,8 +2003,6 @@ static void atl2_get_drvinfo(struct net_device *netdev,
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver,  atl2_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, atl2_driver_version,
-		sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, "L2", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));

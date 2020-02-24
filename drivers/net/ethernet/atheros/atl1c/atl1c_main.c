@@ -8,9 +8,7 @@
 
 #include "atl1c.h"
 
-#define ATL1C_DRV_VERSION "1.0.1.1-NAPI"
 char atl1c_driver_name[] = "atl1c";
-char atl1c_driver_version[] = ATL1C_DRV_VERSION;
 
 /*
  * atl1c_pci_tbl - PCI Device ID Table
@@ -37,7 +35,6 @@ MODULE_AUTHOR("Jie Yang");
 MODULE_AUTHOR("Qualcomm Atheros Inc., <nic-devel@qualcomm.com>");
 MODULE_DESCRIPTION("Qualcomm Atheros 100/1000M Ethernet Network Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(ATL1C_DRV_VERSION);
 
 static int atl1c_stop_mac(struct atl1c_hw *hw);
 static void atl1c_disable_l0s_l1(struct atl1c_hw *hw);
@@ -2642,8 +2639,6 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_register;
 	}
 
-	if (netif_msg_probe(adapter))
-		dev_info(&pdev->dev, "version %s\n", ATL1C_DRV_VERSION);
 	cards_found++;
 	return 0;
 
