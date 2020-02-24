@@ -535,13 +535,28 @@ uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
 					   uint64_t addr)
 {
 	uint32_t df_inst_id;
+	uint64_t dram_base_addr = 0;
+	const struct amdgpu_df_funcs *df_funcs = adev->df.funcs;
 
-	if ((!adev->df.funcs)                 ||
-	    (!adev->df.funcs->get_df_inst_id) ||
-	    (!adev->df.funcs->get_dram_base_addr))
+	if ((!df_funcs)                 ||
+	    (!df_funcs->get_df_inst_id) ||
+	    (!df_funcs->get_dram_base_addr)) {
+		dev_warn(adev->dev,
+			 "XGMI: relative phy_addr algorithm is not supported\n");
 		return addr;
+	}
 
-	df_inst_id = adev->df.funcs->get_df_inst_id(adev);
+	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW)) {
+		dev_warn(adev->dev,
+			 "failed to disable DF-Cstate, DF register may not be accessible\n");
+		return addr;
+	}
 
-	return addr + adev->df.funcs->get_dram_base_addr(adev, df_inst_id);
+	df_inst_id = df_funcs->get_df_inst_id(adev);
+	dram_base_addr = df_funcs->get_dram_base_addr(adev, df_inst_id);
+
+	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_ALLOW))
+		dev_warn(adev->dev, "failed to enable DF-Cstate\n");
+
+	return addr + dram_base_addr;
 }
