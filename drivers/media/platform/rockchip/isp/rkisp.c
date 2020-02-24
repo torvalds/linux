@@ -1590,6 +1590,15 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		isp_dev->dmarx_dev.frame_id = trigger->frame_id;
 		rkisp_trigger_read_back(&isp_dev->csi_dev, trigger->times);
 		break;
+	case RKISP_CMD_CSI_MEMORY_MODE:
+		if (*((int *)arg) == CSI_MEM_BYTE_BE)
+			isp_dev->csi_dev.memory = SW_CSI_RWA_WR_SIMG_SWP |
+						SW_CSI_RAW_WR_SIMG_MODE;
+		else if (*((int *)arg) == CSI_MEM_BYTE_LE)
+			isp_dev->csi_dev.memory = SW_CSI_RAW_WR_SIMG_MODE;
+		else
+			isp_dev->csi_dev.memory = 0;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -1604,12 +1613,18 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct isp2x_csi_trigger trigger;
 	long ret = 0;
+	int mode;
 
 	switch (cmd) {
 	case RKISP_CMD_TRIGGER_READ_BACK:
 		ret = copy_from_user(&trigger, up, sizeof(trigger));
 		if (!ret)
 			ret = rkisp_ioctl(sd, cmd, &trigger);
+		break;
+	case RKISP_CMD_CSI_MEMORY_MODE:
+		ret = copy_from_user(&mode, up, sizeof(int));
+		if (!ret)
+			ret = rkisp_ioctl(sd, cmd, &mode);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

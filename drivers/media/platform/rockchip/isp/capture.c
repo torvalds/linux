@@ -1021,8 +1021,8 @@ static int dmatx3_config_mi(struct rkisp_stream *stream)
 	vc = csi->sink[CSI_SRC_CH4 - 1].index;
 	raw_wr_ctrl(stream,
 		SW_CSI_RAW_WR_CH_EN(vc) |
-		SW_CSI_RAW_WR_SIMG_MODE |
-		SW_CSI_RWA_WR_SIMG_SWP);
+		csi->memory |
+		SW_CSI_RAW_WR_EN_ORG);
 	mi_set_y_size(stream, in_size);
 	mi_frame_end(stream);
 	mi_frame_end_int_enable(stream);
@@ -1068,10 +1068,7 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 				    stream->out_fmt.height);
 		vc = csi->sink[CSI_SRC_CH3 - 1].index;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
-		if (IS_HDR_DBG(dev->hdr.op_mode) ||
-		    dev->hdr.op_mode == HDR_NORMAL)
-			val |= SW_CSI_RWA_WR_SIMG_SWP |
-				SW_CSI_RAW_WR_SIMG_MODE;
+		val |= csi->memory;
 		if (dev->hdr.op_mode != HDR_NORMAL)
 			val |= SW_CSI_RAW_WR_EN_ORG;
 		raw_wr_ctrl(stream, val);
@@ -1114,10 +1111,7 @@ static int dmatx1_config_mi(struct rkisp_stream *stream)
 		raw_wr_set_pic_offs(stream, 0);
 		vc = csi->sink[CSI_SRC_CH2 - 1].index;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
-		if (IS_HDR_DBG(dev->hdr.op_mode) ||
-		    dev->hdr.op_mode == HDR_NORMAL)
-			val |= SW_CSI_RWA_WR_SIMG_SWP |
-				SW_CSI_RAW_WR_SIMG_MODE;
+		val |= csi->memory;
 		if (dev->hdr.op_mode != HDR_NORMAL)
 			val |= SW_CSI_RAW_WR_EN_ORG;
 		raw_wr_ctrl(stream, val);
@@ -1165,10 +1159,7 @@ static int dmatx0_config_mi(struct rkisp_stream *stream)
 		raw_wr_set_pic_offs(dmatx, 0);
 		vc = csi->sink[CSI_SRC_CH1 - 1].index;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
-		if (IS_HDR_DBG(dev->hdr.op_mode) ||
-		    dev->hdr.op_mode == HDR_NORMAL)
-			val |= SW_CSI_RWA_WR_SIMG_SWP |
-				SW_CSI_RAW_WR_SIMG_MODE;
+		val |= csi->memory;
 		if (dev->hdr.op_mode != HDR_NORMAL)
 			val |= SW_CSI_RAW_WR_EN_ORG;
 		raw_wr_ctrl(dmatx, val);
@@ -1707,9 +1698,7 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 		dmatx2_config_mi(&dev->cap_dev.stream[RKISP_STREAM_DMATX2]);
 
 	if (IS_HDR_DBG(dev->hdr.op_mode))
-		raw_rd_ctrl(dev->base_addr,
-			SW_CSI_RAW_RD_SIMG_SWP |
-			SW_CSI_RAW_RD_SIMG_MOD);
+		raw_rd_ctrl(dev->base_addr, dev->csi_dev.memory << 2);
 	return 0;
 }
 
@@ -2318,7 +2307,13 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			height = pixm->height / ysubs;
 		}
 
-		bytesperline = width * DIV_ROUND_UP(fmt->bpp[i], 8);
+		if (dev->isp_ver == ISP_V20 &&
+		    !dev->csi_dev.memory &&
+		    stream->id != RKISP_STREAM_MP &&
+		    stream->id != RKISP_STREAM_SP)
+			bytesperline = width * fmt->bpp[i] / 8;
+		else
+			bytesperline = width * DIV_ROUND_UP(fmt->bpp[i], 8);
 		/* stride is only available for sp stream and y plane */
 		if (stream->id != RKISP_STREAM_SP || i != 0 ||
 		    plane_fmt->bytesperline < bytesperline)

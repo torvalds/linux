@@ -100,6 +100,70 @@ static const struct capture_fmt dmarx_fmts[] = {
 	}
 };
 
+static const struct capture_fmt rawrd_fmts[] = {
+	{
+		.fourcc = V4L2_PIX_FMT_SRGGB8,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG8,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG8,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR8,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}
+};
+
 static struct stream_config rkisp_dmarx_stream_config = {
 	.fmts = dmarx_fmts,
 	.fmt_size = ARRAY_SIZE(dmarx_fmts),
@@ -112,8 +176,8 @@ static struct stream_config rkisp_dmarx_stream_config = {
 };
 
 static struct stream_config rkisp2_dmarx0_stream_config = {
-	.fmts = dmarx_fmts,
-	.fmt_size = ARRAY_SIZE(dmarx_fmts),
+	.fmts = rawrd_fmts,
+	.fmt_size = ARRAY_SIZE(rawrd_fmts),
 	.frame_end_id = RAW0_RD_FRAME,
 	.mi = {
 		.y_base_ad_init = MI_RAW0_RD_BASE,
@@ -122,8 +186,8 @@ static struct stream_config rkisp2_dmarx0_stream_config = {
 };
 
 static struct stream_config rkisp2_dmarx1_stream_config = {
-	.fmts = dmarx_fmts,
-	.fmt_size = ARRAY_SIZE(dmarx_fmts),
+	.fmts = rawrd_fmts,
+	.fmt_size = ARRAY_SIZE(rawrd_fmts),
 	.frame_end_id = RAW1_RD_FRAME,
 	.mi = {
 		.y_base_ad_init = MI_RAW1_RD_BASE,
@@ -132,8 +196,8 @@ static struct stream_config rkisp2_dmarx1_stream_config = {
 };
 
 static struct stream_config rkisp2_dmarx2_stream_config = {
-	.fmts = dmarx_fmts,
-	.fmt_size = ARRAY_SIZE(dmarx_fmts),
+	.fmts = rawrd_fmts,
+	.fmt_size = ARRAY_SIZE(rawrd_fmts),
 	.frame_end_id = RAW2_RD_FRAME,
 	.mi = {
 		.y_base_ad_init = MI_RAW2_RD_BASE,
@@ -227,8 +291,7 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 		stream->out_fmt.width,
 		stream->out_fmt.height);
 	isp_set_bits(base + CSI2RX_RAW_RD_CTRL, 0,
-		     SW_CSI_RAW_RD_SIMG_SWP |
-		     SW_CSI_RAW_RD_SIMG_MOD |
+		     dev->csi_dev.memory << 2 |
 		     1 << (stream->id - 1));
 
 	return 0;
@@ -564,7 +627,12 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			height = pixm->height / ysubs;
 		}
 
-		bytesperline = width * DIV_ROUND_UP(fmt->bpp[i], 8);
+		if (stream->ispdev->isp_ver == ISP_V20 &&
+		    !stream->ispdev->csi_dev.memory &&
+		    stream->id != RKISP_STREAM_DMARX)
+			bytesperline = width * fmt->bpp[i] / 8;
+		else
+			bytesperline = width * DIV_ROUND_UP(fmt->bpp[i], 8);
 		/* stride is only available for sp stream and y plane */
 		if (i != 0 ||
 		    plane_fmt->bytesperline < bytesperline)

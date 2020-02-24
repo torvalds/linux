@@ -13,6 +13,9 @@
 #define RKISP_CMD_TRIGGER_READ_BACK \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct isp2x_csi_trigger)
 
+#define RKISP_CMD_CSI_MEMORY_MODE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 1, int)
+
 #define ISP2X_MODULE_DPCC		BIT_ULL(0)
 #define ISP2X_MODULE_BLS		BIT_ULL(1)
 #define ISP2X_MODULE_SDG		BIT_ULL(2)
@@ -140,6 +143,13 @@ struct isp2x_csi_trigger {
 	u32 frame_id;
 	int times;
 } __attribute__ ((packed));
+
+enum isp2x_csi_memory {
+	CSI_MEM_COMPACT = 0,
+	CSI_MEM_BYTE_BE,
+	CSI_MEM_BYTE_LE,
+	CSI_MEM_MAX,
+};
 
 struct isp2x_window {
 	u16 h_offs;

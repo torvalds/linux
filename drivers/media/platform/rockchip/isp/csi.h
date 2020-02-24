@@ -64,6 +64,7 @@ struct sink_info {
  * mipi_di: Data Identifier (vc[7:6],dt[5:0])
  * filt_state: multiframe read back mode to filt irq event
  * tx_first: flags for dmatx first Y_STATE irq
+ * memory: compact or big/little endian byte order for tx/rx
  */
 struct rkisp_csi_device {
 	struct rkisp_device *ispdev;
@@ -74,6 +75,7 @@ struct rkisp_csi_device {
 	u8 mipi_di[CSI_PAD_MAX - 1];
 	u8 filt_state[CSI_F_MAX];
 	u8 tx_first[HDR_DMA_MAX];
+	u8 memory;
 };
 
 int rkisp_register_csi_subdev(struct rkisp_device *dev,
