@@ -215,8 +215,14 @@ static ssize_t power_supply_show_property(struct device *dev,
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER_EXT:
 		ret = sprintf(buf, "%lld\n", value.int64val);
 		break;
-	case POWER_SUPPLY_PROP_MODEL_NAME ... POWER_SUPPLY_PROP_SERIAL_NUMBER:
+	case POWER_SUPPLY_PROP_MODEL_NAME ... POWER_SUPPLY_PROP_CYCLE_COUNTS:
 		ret = sprintf(buf, "%s\n", value.strval);
+		break;
+	/*
+	 * FIXME: b/139264914, ignore it temporarily to avoid hit NULL point.
+	 * will review it
+	 */
+	case POWER_SUPPLY_PROP_SERIAL_NUMBER:
 		break;
 	default:
 		ret = sprintf(buf, "%d\n", value.intval);
@@ -467,6 +473,12 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(charge_disable),
 	POWER_SUPPLY_ATTR(adapter_details),
 	POWER_SUPPLY_ATTR(dead_battery),
+	/* Capacity Estimation */
+	POWER_SUPPLY_ATTR(batt_ce_ctrl),
+	POWER_SUPPLY_ATTR(batt_ce_full),
+	/* Resistance Estimaton */
+	POWER_SUPPLY_ATTR(resistance_avg),
+	POWER_SUPPLY_ATTR(batt_res_filt_cnts),
 	/* Charge pump properties */
 	POWER_SUPPLY_ATTR(cp_status1),
 	POWER_SUPPLY_ATTR(cp_status2),
