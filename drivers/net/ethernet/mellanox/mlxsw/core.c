@@ -1628,6 +1628,7 @@ static void mlxsw_core_listener_unregister(struct mlxsw_core *mlxsw_core,
 int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 			     const struct mlxsw_listener *listener, void *priv)
 {
+	enum mlxsw_reg_hpkt_action action;
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 	int err;
 
@@ -1635,7 +1636,9 @@ int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 	if (err)
 		return err;
 
-	mlxsw_reg_hpkt_pack(hpkt_pl, listener->action, listener->trap_id,
+	action = listener->enabled_on_register ? listener->en_action :
+						 listener->dis_action;
+	mlxsw_reg_hpkt_pack(hpkt_pl, action, listener->trap_id,
 			    listener->trap_group, listener->is_ctrl);
 	err = mlxsw_reg_write(mlxsw_core,  MLXSW_REG(hpkt), hpkt_pl);
 	if (err)
@@ -1656,7 +1659,7 @@ void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 
 	if (!listener->is_event) {
-		mlxsw_reg_hpkt_pack(hpkt_pl, listener->unreg_action,
+		mlxsw_reg_hpkt_pack(hpkt_pl, listener->dis_action,
 				    listener->trap_id, listener->trap_group,
 				    listener->is_ctrl);
 		mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
