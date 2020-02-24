@@ -46,8 +46,8 @@ static inline enum mod_hdcp_status check_hdcp2_capable(struct mod_hdcp *hdcp)
 	enum mod_hdcp_status status;
 
 	if (is_dp_hdcp(hdcp))
-		status = (hdcp->auth.msg.hdcp2.rxcaps_dp[2] & HDCP_2_2_RX_CAPS_VERSION_VAL) &&
-				HDCP_2_2_DP_HDCP_CAPABLE(hdcp->auth.msg.hdcp2.rxcaps_dp[0]) ?
+		status = (hdcp->auth.msg.hdcp2.rxcaps_dp[0] == HDCP_2_2_RX_CAPS_VERSION_VAL) &&
+				HDCP_2_2_DP_HDCP_CAPABLE(hdcp->auth.msg.hdcp2.rxcaps_dp[2]) ?
 				MOD_HDCP_STATUS_SUCCESS :
 				MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
 	else

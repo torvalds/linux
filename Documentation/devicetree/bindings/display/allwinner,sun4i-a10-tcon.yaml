@@ -43,8 +43,12 @@ properties:
         - enum:
           - allwinner,sun8i-h3-tcon-tv
           - allwinner,sun50i-a64-tcon-tv
-          - allwinner,sun50i-h6-tcon-tv
         - const: allwinner,sun8i-a83t-tcon-tv
+
+      - items:
+        - enum:
+          - allwinner,sun50i-h6-tcon-tv
+        - const: allwinner,sun8i-r40-tcon-tv
 
   reg:
     maxItems: 1

@@ -30,6 +30,12 @@ struct panfrost_gem_object {
 		struct mutex lock;
 	} mappings;
 
+	/*
+	 * Count the number of jobs referencing this BO so we don't let the
+	 * shrinker reclaim this object prematurely.
+	 */
+	atomic_t gpu_usecount;
+
 	bool noexec		:1;
 	bool is_heap		:1;
 };

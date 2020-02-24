@@ -271,7 +271,8 @@ static inline void xskq_cons_release(struct xsk_queue *q)
 {
 	/* To improve performance, only update local state here.
 	 * Reflect this to global state when we get new entries
-	 * from the ring in xskq_cons_get_entries().
+	 * from the ring in xskq_cons_get_entries() and whenever
+	 * Rx or Tx processing are completed in the NAPI loop.
 	 */
 	q->cached_cons++;
 }

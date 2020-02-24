@@ -41,6 +41,9 @@ static bool panfrost_gem_purge(struct drm_gem_object *obj)
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 
+	if (atomic_read(&bo->gpu_usecount))
+		return false;
+
 	if (!mutex_trylock(&shmem->pages_lock))
 		return false;
 

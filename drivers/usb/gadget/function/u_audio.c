@@ -361,7 +361,7 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 	ep = audio_dev->out_ep;
 	prm = &uac->c_prm;
 	config_ep_by_speed(gadget, &audio_dev->func, ep);
-	req_len = prm->max_psize;
+	req_len = ep->maxpacket;
 
 	prm->ep_enabled = true;
 	usb_ep_enable(ep);
@@ -379,7 +379,7 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 			req->context = &prm->ureq[i];
 			req->length = req_len;
 			req->complete = u_audio_iso_complete;
-			req->buf = prm->rbuf + i * prm->max_psize;
+			req->buf = prm->rbuf + i * ep->maxpacket;
 		}
 
 		if (usb_ep_queue(ep, prm->ureq[i].req, GFP_ATOMIC))
@@ -430,9 +430,9 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	uac->p_pktsize = min_t(unsigned int,
 				uac->p_framesize *
 					(params->p_srate / uac->p_interval),
-				prm->max_psize);
+				ep->maxpacket);
 
-	if (uac->p_pktsize < prm->max_psize)
+	if (uac->p_pktsize < ep->maxpacket)
 		uac->p_pktsize_residue = uac->p_framesize *
 			(params->p_srate % uac->p_interval);
 	else
@@ -457,7 +457,7 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 			req->context = &prm->ureq[i];
 			req->length = req_len;
 			req->complete = u_audio_iso_complete;
-			req->buf = prm->rbuf + i * prm->max_psize;
+			req->buf = prm->rbuf + i * ep->maxpacket;
 		}
 
 		if (usb_ep_queue(ep, prm->ureq[i].req, GFP_ATOMIC))

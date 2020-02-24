@@ -30,6 +30,9 @@
 #define HW_ATL_FW3X_EXT_CONTROL_ADDR     0x378
 #define HW_ATL_FW3X_EXT_STATE_ADDR       0x37c
 
+#define HW_ATL_FW3X_PTP_ADJ_LSW_ADDR	 0x50a0
+#define HW_ATL_FW3X_PTP_ADJ_MSW_ADDR	 0x50a4
+
 #define HW_ATL_FW2X_CAP_PAUSE            BIT(CAPS_HI_PAUSE)
 #define HW_ATL_FW2X_CAP_ASYM_PAUSE       BIT(CAPS_HI_ASYMMETRIC_PAUSE)
 #define HW_ATL_FW2X_CAP_SLEEP_PROXY      BIT(CAPS_HI_SLEEP_PROXY)
@@ -475,6 +478,14 @@ static void aq_fw3x_enable_ptp(struct aq_hw_s *self, int enable)
 	aq_hw_write_reg(self, HW_ATL_FW3X_EXT_CONTROL_ADDR, ptp_opts);
 }
 
+static void aq_fw3x_adjust_ptp(struct aq_hw_s *self, uint64_t adj)
+{
+	aq_hw_write_reg(self, HW_ATL_FW3X_PTP_ADJ_LSW_ADDR,
+			(adj >>  0) & 0xffffffff);
+	aq_hw_write_reg(self, HW_ATL_FW3X_PTP_ADJ_MSW_ADDR,
+			(adj >> 32) & 0xffffffff);
+}
+
 static int aq_fw2x_led_control(struct aq_hw_s *self, u32 mode)
 {
 	if (self->fw_ver_actual < HW_ATL_FW_VER_LED)
@@ -633,4 +644,5 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.enable_ptp         = aq_fw3x_enable_ptp,
 	.led_control        = aq_fw2x_led_control,
 	.set_phyloopback    = aq_fw2x_set_phyloopback,
+	.adjust_ptp         = aq_fw3x_adjust_ptp,
 };

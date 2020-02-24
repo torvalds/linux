@@ -3373,21 +3373,16 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 
 	/* down(&ieee->wx_sem); */
 
-	if (p->length < sizeof(struct ieee_param) || !p->pointer) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!p->pointer || p->length != sizeof(struct ieee_param))
+		return -EINVAL;
 
 	param = rtw_malloc(p->length);
-	if (param == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (param == NULL)
+		return -ENOMEM;
 
 	if (copy_from_user(param, p->pointer, p->length)) {
 		kfree(param);
-		ret = -EFAULT;
-		goto out;
+		return -EFAULT;
 	}
 
 	switch (param->cmd) {
@@ -3421,12 +3416,8 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 
 	kfree(param);
 
-out:
-
 	/* up(&ieee->wx_sem); */
-
 	return ret;
-
 }
 
 static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, u32 param_len)
@@ -4200,28 +4191,19 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 	* so, we just check hw_init_completed
 	*/
 
-	if (!padapter->hw_init_completed) {
-		ret = -EPERM;
-		goto out;
-	}
+	if (!padapter->hw_init_completed)
+		return -EPERM;
 
-
-	/* if (p->length < sizeof(struct ieee_param) || !p->pointer) { */
-	if (!p->pointer) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!p->pointer || p->length != sizeof(*param))
+		return -EINVAL;
 
 	param = rtw_malloc(p->length);
-	if (param == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (param == NULL)
+		return -ENOMEM;
 
 	if (copy_from_user(param, p->pointer, p->length)) {
 		kfree(param);
-		ret = -EFAULT;
-		goto out;
+		return -EFAULT;
 	}
 
 	/* DBG_871X("%s, cmd =%d\n", __func__, param->cmd); */
@@ -4321,13 +4303,8 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 	if (ret == 0 && copy_to_user(p->pointer, param, p->length))
 		ret = -EFAULT;
 
-
 	kfree(param);
-
-out:
-
 	return ret;
-
 }
 
 static int rtw_wx_set_priv(struct net_device *dev,

@@ -63,7 +63,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&obj->lut_list);
 
 	spin_lock_init(&obj->mmo.lock);
-	INIT_LIST_HEAD(&obj->mmo.offsets);
+	obj->mmo.offsets = RB_ROOT;
 
 	init_rcu_head(&obj->rcu);
 
@@ -100,8 +100,8 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem);
 	struct drm_i915_file_private *fpriv = file->driver_priv;
+	struct i915_mmap_offset *mmo, *mn;
 	struct i915_lut_handle *lut, *ln;
-	struct i915_mmap_offset *mmo;
 	LIST_HEAD(close);
 
 	i915_gem_object_lock(obj);
@@ -117,14 +117,8 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 	i915_gem_object_unlock(obj);
 
 	spin_lock(&obj->mmo.lock);
-	list_for_each_entry(mmo, &obj->mmo.offsets, offset) {
-		if (mmo->file != file)
-			continue;
-
-		spin_unlock(&obj->mmo.lock);
+	rbtree_postorder_for_each_entry_safe(mmo, mn, &obj->mmo.offsets, offset)
 		drm_vma_node_revoke(&mmo->vma_node, file);
-		spin_lock(&obj->mmo.lock);
-	}
 	spin_unlock(&obj->mmo.lock);
 
 	list_for_each_entry_safe(lut, ln, &close, obj_link) {
@@ -203,12 +197,14 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 		i915_gem_object_release_mmap(obj);
 
-		list_for_each_entry_safe(mmo, mn, &obj->mmo.offsets, offset) {
+		rbtree_postorder_for_each_entry_safe(mmo, mn,
+						     &obj->mmo.offsets,
+						     offset) {
 			drm_vma_offset_remove(obj->base.dev->vma_offset_manager,
 					      &mmo->vma_node);
 			kfree(mmo);
 		}
-		INIT_LIST_HEAD(&obj->mmo.offsets);
+		obj->mmo.offsets = RB_ROOT;
 
 		GEM_BUG_ON(atomic_read(&obj->bind_count));
 		GEM_BUG_ON(obj->userfault_count);

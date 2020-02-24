@@ -145,6 +145,13 @@ static inline void hlist_nulls_add_tail_rcu(struct hlist_nulls_node *n,
 	}
 }
 
+/* after that hlist_nulls_del will work */
+static inline void hlist_nulls_add_fake(struct hlist_nulls_node *n)
+{
+	n->pprev = &n->next;
+	n->next = (struct hlist_nulls_node *)NULLS_MARKER(NULL);
+}
+
 /**
  * hlist_nulls_for_each_entry_rcu - iterate over rcu list of given type
  * @tpos:	the type * to use as a loop cursor.

@@ -2114,6 +2114,7 @@ static void init_once(void *foo)
 	init_rwsem(&nfsi->rmdir_sem);
 	mutex_init(&nfsi->commit_mutex);
 	nfs4_init_once(nfsi);
+	nfsi->cache_change_attribute = 0;
 }
 
 static int __init nfs_init_inodecache(void)
