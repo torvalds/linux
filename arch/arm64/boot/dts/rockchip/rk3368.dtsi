@@ -1698,7 +1698,7 @@
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		resets = <&cru SRST_VIDEO_AXI>, <&cru SRST_VIDEO_AHB>;
 		reset-names = "shared_video_a", "shared_video_h";
-		iommus = <&vepu_mmu>;
+		iommus = <&vpu_mmu>;
 		power-domains = <&power RK3368_PD_VIDEO>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <0>;
@@ -1715,7 +1715,7 @@
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		resets = <&cru SRST_VIDEO_AXI>, <&cru SRST_VIDEO_AHB>;
 		reset-names = "shared_video_a", "shared_video_h";
-		iommus = <&vdpu_mmu>;
+		iommus = <&vpu_mmu>;
 		power-domains = <&power RK3368_PD_VIDEO>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <0>;
@@ -1736,23 +1736,12 @@
 		status = "disabled";
 	};
 
-	vepu_mmu: iommu@ff9a0800 {
+	vpu_mmu: iommu@ff9a0800 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff9a0800 0x0 0x100>;
-		interrupts =  <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vepu_mmu";
-		clocks = <&cru ACLK_VIDEO>, <&cru HCLK_VIDEO>;
-		clock-names = "aclk", "iface";
-		power-domains = <&power RK3368_PD_VIDEO>;
-		#iommu-cells = <0>;
-		status = "disabled";
-	};
-
-	vdpu_mmu: iommu@ff9a0800 {
-		compatible = "rockchip,iommu";
-		reg = <0x0 0xff9a0800 0x0 0x100>;
-		interrupts =  <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vdpu_mmu";
+		interrupts =  <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vepu_mmu", "vdpu_mmu";
 		clocks = <&cru ACLK_VIDEO>, <&cru HCLK_VIDEO>;
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3368_PD_VIDEO>;

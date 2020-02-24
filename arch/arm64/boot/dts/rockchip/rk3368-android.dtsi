@@ -202,15 +202,11 @@
 	status = "okay";
 };
 
-&vdpu_mmu {
-	status = "okay";
-};
-
 &vepu {
 	status = "okay";
 };
 
-&vepu_mmu {
+&vpu_mmu {
 	status = "okay";
 };
 
