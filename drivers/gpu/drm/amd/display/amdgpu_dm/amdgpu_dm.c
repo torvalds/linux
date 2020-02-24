@@ -2225,10 +2225,10 @@ static void handle_hpd_rx_irq(void *param)
 		}
 	}
 #ifdef CONFIG_DRM_AMD_DC_HDCP
-	    if (hpd_irq_data.bytes.device_service_irq.bits.CP_IRQ) {
-		    if (adev->dm.hdcp_workqueue)
-			    hdcp_handle_cpirq(adev->dm.hdcp_workqueue,  aconnector->base.index);
-	    }
+	if (hpd_irq_data.bytes.device_service_irq.bits.CP_IRQ) {
+		if (adev->dm.hdcp_workqueue)
+			hdcp_handle_cpirq(adev->dm.hdcp_workqueue,  aconnector->base.index);
+	}
 #endif
 	if ((dc_link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) ||
 	    (dc_link->type == dc_connection_mst_branch))
