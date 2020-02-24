@@ -2077,6 +2077,18 @@ vlv_sprite_check(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+static bool intel_format_is_p01x(u32 format)
+{
+	switch (format) {
+	case DRM_FORMAT_P010:
+	case DRM_FORMAT_P012:
+	case DRM_FORMAT_P016:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
@@ -2152,6 +2164,15 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	     fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Y/Yf tiling not supported in IF-ID mode\n");
+		return -EINVAL;
+	}
+
+	/* Wa_1606054188:tgl */
+	if (IS_TIGERLAKE(dev_priv) &&
+	    plane_state->ckey.flags & I915_SET_COLORKEY_SOURCE &&
+	    intel_format_is_p01x(fb->format->format)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "Source color keying not supported with P01x formats\n");
 		return -EINVAL;
 	}
 
