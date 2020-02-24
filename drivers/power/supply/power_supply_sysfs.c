@@ -447,6 +447,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(fcc_stepper_enable),
 	POWER_SUPPLY_ATTR(toggle_stat),
 	POWER_SUPPLY_ATTR(main_fcc_max),
+	POWER_SUPPLY_ATTR(fg_reset),
 	/* Charge pump properties */
 	POWER_SUPPLY_ATTR(cp_status1),
 	POWER_SUPPLY_ATTR(cp_status2),
