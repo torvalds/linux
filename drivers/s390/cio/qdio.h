@@ -182,11 +182,9 @@ enum qdio_queue_irq_states {
 };
 
 struct qdio_input_q {
-	/* input buffer acknowledgement flag */
-	int polling;
 	/* first ACK'ed buffer */
 	int ack_start;
-	/* how much sbals are acknowledged with qebsm */
+	/* how many SBALs are acknowledged */
 	int ack_count;
 	/* last time of noticing incoming data */
 	u64 timestamp;

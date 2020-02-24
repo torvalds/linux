@@ -251,6 +251,18 @@ int main(int argc, char **argv)
 	fprintf(out_file, "#include <linux/linkage.h>\n");
 	fprintf(out_file, "#include <linux/mm.h>\n");
 	fprintf(out_file, "#include <asm/vdso.h>\n");
+	fprintf(out_file, "static int vdso_mremap(\n");
+	fprintf(out_file, "	const struct vm_special_mapping *sm,\n");
+	fprintf(out_file, "	struct vm_area_struct *new_vma)\n");
+	fprintf(out_file, "{\n");
+	fprintf(out_file, "	unsigned long new_size =\n");
+	fprintf(out_file, "	new_vma->vm_end - new_vma->vm_start;\n");
+	fprintf(out_file, "	if (vdso_image.size != new_size)\n");
+	fprintf(out_file, "		return -EINVAL;\n");
+	fprintf(out_file, "	current->mm->context.vdso =\n");
+	fprintf(out_file, "	(void __user *)(new_vma->vm_start);\n");
+	fprintf(out_file, "	return 0;\n");
+	fprintf(out_file, "}\n");
 
 	/* Write out the stripped VDSO data. */
 	fprintf(out_file,
@@ -275,6 +287,7 @@ int main(int argc, char **argv)
 	fprintf(out_file, "\t.mapping = {\n");
 	fprintf(out_file, "\t\t.name = \"[vdso]\",\n");
 	fprintf(out_file, "\t\t.pages = vdso_pages,\n");
+	fprintf(out_file, "\t\t.mremap = vdso_mremap,\n");
 	fprintf(out_file, "\t},\n");
 
 	/* Calculate and write symbol offsets to <output file> */

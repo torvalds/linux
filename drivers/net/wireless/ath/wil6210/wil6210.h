@@ -1059,6 +1059,8 @@ struct wil6210_priv {
 
 	u32 max_agg_wsize;
 	u32 max_ampdu_size;
+	u8 multicast_to_unicast;
+	s32 cqm_rssi_thold;
 };
 
 #define wil_to_wiphy(i) (i->wiphy)
@@ -1148,7 +1150,7 @@ static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
  */
 static inline bool wil_cid_valid(struct wil6210_priv *wil, int cid)
 {
-	return (cid >= 0 && cid < wil->max_assoc_sta);
+	return (cid >= 0 && cid < wil->max_assoc_sta && cid < WIL6210_MAX_CID);
 }
 
 void wil_get_board_file(struct wil6210_priv *wil, char *buf, size_t len);
@@ -1440,4 +1442,6 @@ int wmi_addba_rx_resp_edma(struct wil6210_priv *wil, u8 mid, u8 cid,
 void update_supported_bands(struct wil6210_priv *wil);
 
 void wil_clear_fw_log_addr(struct wil6210_priv *wil);
+int wmi_set_cqm_rssi_config(struct wil6210_priv *wil,
+			    s32 rssi_thold, u32 rssi_hyst);
 #endif /* __WIL6210_H__ */

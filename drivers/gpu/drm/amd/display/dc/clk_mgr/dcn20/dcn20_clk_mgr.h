@@ -34,7 +34,7 @@ void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
 			struct dc_state *context,
 			bool safe_to_lower);
 void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
-		struct dc_state *context);
+		struct dc_state *context, bool safe_to_lower);
 
 void dcn2_init_clocks(struct clk_mgr *clk_mgr);
 
@@ -51,4 +51,8 @@ void dcn2_get_clock(struct clk_mgr *clk_mgr,
 			struct dc_clock_config *clock_cfg);
 
 void dcn20_update_clocks_update_dentist(struct clk_mgr_internal *clk_mgr);
+
+void dcn2_read_clocks_from_hw_dentist(struct clk_mgr *clk_mgr_base);
+
+
 #endif //__DCN20_CLK_MGR_H__

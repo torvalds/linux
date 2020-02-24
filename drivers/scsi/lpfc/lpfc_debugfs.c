@@ -2085,6 +2085,8 @@ static int lpfc_debugfs_ras_log_data(struct lpfc_hba *phba,
 	int copied = 0;
 	struct lpfc_dmabuf *dmabuf, *next;
 
+	memset(buffer, 0, size);
+
 	spin_lock_irq(&phba->hbalock);
 	if (phba->ras_fwlog.state != ACTIVE) {
 		spin_unlock_irq(&phba->hbalock);
@@ -2094,10 +2096,15 @@ static int lpfc_debugfs_ras_log_data(struct lpfc_hba *phba,
 
 	list_for_each_entry_safe(dmabuf, next,
 				 &phba->ras_fwlog.fwlog_buff_list, list) {
+		/* Check if copying will go over size and a '\0' char */
+		if ((copied + LPFC_RAS_MAX_ENTRY_SIZE) >= (size - 1)) {
+			memcpy(buffer + copied, dmabuf->virt,
+			       size - copied - 1);
+			copied += size - copied - 1;
+			break;
+		}
 		memcpy(buffer + copied, dmabuf->virt, LPFC_RAS_MAX_ENTRY_SIZE);
 		copied += LPFC_RAS_MAX_ENTRY_SIZE;
-		if (size > copied)
-			break;
 	}
 	return copied;
 }
@@ -5385,7 +5392,6 @@ static const struct file_operations lpfc_debugfs_ras_log = {
 	.read =         lpfc_debugfs_read,
 	.release =      lpfc_debugfs_ras_log_release,
 };
-#endif
 
 #undef lpfc_debugfs_op_dumpHBASlim
 static const struct file_operations lpfc_debugfs_op_dumpHBASlim = {
@@ -5557,7 +5563,7 @@ static const struct file_operations lpfc_idiag_op_extAcc = {
 	.write =        lpfc_idiag_extacc_write,
 	.release =      lpfc_idiag_cmd_release,
 };
-
+#endif
 
 /* lpfc_idiag_mbxacc_dump_bsg_mbox - idiag debugfs dump bsg mailbox command
  * @phba: Pointer to HBA context object.

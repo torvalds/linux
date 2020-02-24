@@ -10,6 +10,8 @@
  *	Zhang Yanmin (yanmin.zhang@intel.com)
  */
 
+#define dev_fmt(fmt) "AER: " fmt
+
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -61,10 +63,12 @@ static int report_error_detected(struct pci_dev *dev,
 		 * error callbacks of "any" device in the subtree, and will
 		 * exit in the disconnected error state.
 		 */
-		if (dev->hdr_type != PCI_HEADER_TYPE_BRIDGE)
+		if (dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
 			vote = PCI_ERS_RESULT_NO_AER_DRIVER;
-		else
+			pci_info(dev, "can't recover (no error_detected callback)\n");
+		} else {
 			vote = PCI_ERS_RESULT_NONE;
+		}
 	} else {
 		err_handler = dev->driver->err_handler;
 		vote = err_handler->error_detected(dev, state);
@@ -233,12 +237,12 @@ void pcie_do_recovery(struct pci_dev *dev, enum pci_channel_state state,
 
 	pci_aer_clear_device_status(dev);
 	pci_cleanup_aer_uncorrect_error_status(dev);
-	pci_info(dev, "AER: Device recovery successful\n");
+	pci_info(dev, "device recovery successful\n");
 	return;
 
 failed:
 	pci_uevent_ers(dev, PCI_ERS_RESULT_DISCONNECT);
 
 	/* TODO: Should kernel panic here? */
-	pci_info(dev, "AER: Device recovery failed\n");
+	pci_info(dev, "device recovery failed\n");
 }

@@ -379,8 +379,7 @@ static inline int get_datalen_for_atio(struct atio_from_isp *atio)
 {
 	int len = atio->u.isp24.fcp_cmnd.add_cdb_len;
 
-	return (be32_to_cpu(get_unaligned((uint32_t *)
-	    &atio->u.isp24.fcp_cmnd.add_cdb[len * 4])));
+	return get_unaligned_be32(&atio->u.isp24.fcp_cmnd.add_cdb[len * 4]);
 }
 
 #define CTIO_TYPE7 0x12 /* Continue target I/O entry (for 24xx) */

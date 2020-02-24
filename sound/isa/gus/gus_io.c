@@ -403,7 +403,7 @@ void snd_gf1_select_active_voices(struct snd_gus_card * gus)
 {
 	unsigned short voices;
 
-	static unsigned short voices_tbl[32 - 14 + 1] =
+	static const unsigned short voices_tbl[32 - 14 + 1] =
 	{
 	    44100, 41160, 38587, 36317, 34300, 32494, 30870, 29400, 28063, 26843,
 	    25725, 24696, 23746, 22866, 22050, 21289, 20580, 19916, 19293

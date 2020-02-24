@@ -7,8 +7,13 @@ RCU concepts
 .. toctree::
    :maxdepth: 3
 
+   arrayRCU
+   rcubarrier
+   rcu_dereference
+   whatisRCU
    rcu
    listRCU
+   NMI-RCU
    UP
 
    Design/Memory-Ordering/Tree-RCU-Memory-Ordering

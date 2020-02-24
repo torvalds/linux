@@ -364,11 +364,14 @@ void rxrpc_queue_local(struct rxrpc_local *local)
 void rxrpc_put_local(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
+	unsigned int debug_id;
 	int n;
 
 	if (local) {
+		debug_id = local->debug_id;
+
 		n = atomic_dec_return(&local->usage);
-		trace_rxrpc_local(local->debug_id, rxrpc_local_put, n, here);
+		trace_rxrpc_local(debug_id, rxrpc_local_put, n, here);
 
 		if (n == 0)
 			call_rcu(&local->rcu, rxrpc_local_rcu);
@@ -380,14 +383,11 @@ void rxrpc_put_local(struct rxrpc_local *local)
  */
 struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *local)
 {
-	unsigned int au;
-
 	local = rxrpc_get_local_maybe(local);
 	if (!local)
 		return NULL;
 
-	au = atomic_fetch_add_unless(&local->active_users, 1, 0);
-	if (au == 0) {
+	if (!__rxrpc_use_local(local)) {
 		rxrpc_put_local(local);
 		return NULL;
 	}
@@ -401,14 +401,11 @@ struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *local)
  */
 void rxrpc_unuse_local(struct rxrpc_local *local)
 {
-	unsigned int au;
-
 	if (local) {
-		au = atomic_dec_return(&local->active_users);
-		if (au == 0)
+		if (__rxrpc_unuse_local(local)) {
+			rxrpc_get_local(local);
 			rxrpc_queue_local(local);
-		else
-			rxrpc_put_local(local);
+		}
 	}
 }
 
@@ -465,7 +462,7 @@ static void rxrpc_local_processor(struct work_struct *work)
 
 	do {
 		again = false;
-		if (atomic_read(&local->active_users) == 0) {
+		if (!__rxrpc_use_local(local)) {
 			rxrpc_local_destroyer(local);
 			break;
 		}
@@ -479,6 +476,8 @@ static void rxrpc_local_processor(struct work_struct *work)
 			rxrpc_process_local_events(local);
 			again = true;
 		}
+
+		__rxrpc_unuse_local(local);
 	} while (again);
 
 	rxrpc_put_local(local);

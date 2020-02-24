@@ -831,7 +831,8 @@ static int rtsx_probe(struct pci_dev *pci,
 	host = scsi_host_alloc(&rtsx_host_template, sizeof(*dev));
 	if (!host) {
 		dev_err(&pci->dev, "Unable to allocate the scsi host\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto scsi_host_alloc_fail;
 	}
 
 	dev = host_to_rtsx(host);
@@ -858,7 +859,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	dev_info(&pci->dev, "Resource length: 0x%x\n",
 		 (unsigned int)pci_resource_len(pci, 0));
 	dev->addr = pci_resource_start(pci, 0);
-	dev->remap_addr = ioremap_nocache(dev->addr, pci_resource_len(pci, 0));
+	dev->remap_addr = ioremap(dev->addr, pci_resource_len(pci, 0));
 	if (!dev->remap_addr) {
 		dev_err(&pci->dev, "ioremap error\n");
 		err = -ENXIO;
@@ -971,7 +972,8 @@ ioremap_fail:
 	kfree(dev->chip);
 chip_alloc_fail:
 	dev_err(&pci->dev, "%s failed\n", __func__);
-
+scsi_host_alloc_fail:
+	pci_release_regions(pci);
 	return err;
 }
 
@@ -983,6 +985,7 @@ static void rtsx_remove(struct pci_dev *pci)
 
 	quiesce_and_remove_host(dev);
 	release_everything(dev);
+	pci_release_regions(pci);
 }
 
 /* PCI IDs */

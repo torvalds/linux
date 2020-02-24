@@ -2282,7 +2282,7 @@ err:
 	return -ret;
 }
 
-static void ibmvnic_tx_timeout(struct net_device *dev)
+static void ibmvnic_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(dev);
 

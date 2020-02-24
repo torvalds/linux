@@ -11,7 +11,7 @@ config XTENSA
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select BUILDTIME_EXTABLE_SORT
+	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select DMA_REMAP if MMU
@@ -24,6 +24,7 @@ config XTENSA
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KASAN if MMU && !XIP_KERNEL
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_COPY_THREAD_TLS
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_EXIT_THREAD
@@ -179,11 +180,11 @@ config HAVE_SMP
 	depends on XTENSA_VARIANT_CUSTOM
 	select XTENSA_MX
 	help
-	  This option is use to indicate that the system-on-a-chip (SOC)
+	  This option is used to indicate that the system-on-a-chip (SOC)
 	  supports Multiprocessing. Multiprocessor support implemented above
 	  the CPU core definition and currently needs to be selected manually.
 
-	  Multiprocessor support in implemented with external cache and
+	  Multiprocessor support is implemented with external cache and
 	  interrupt controllers.
 
 	  The MX interrupt distributer adds Interprocessor Interrupts
@@ -571,15 +572,41 @@ config KERNEL_LOAD_ADDRESS
 
 	  If unsure, leave the default value here.
 
-config VECTORS_OFFSET
-	hex "Kernel vectors offset"
-	default 0x00003000
-	depends on !XIP_KERNEL
+choice
+	prompt "Relocatable vectors location"
+	default XTENSA_VECTORS_IN_TEXT
 	help
-	  This is the offset of the kernel image from the relocatable vectors
-	  base.
+	  Choose whether relocatable vectors are merged into the kernel .text
+	  or placed separately at runtime. This option does not affect
+	  configurations without VECBASE register where vectors are always
+	  placed at their hardware-defined locations.
 
-	  If unsure, leave the default value here.
+config XTENSA_VECTORS_IN_TEXT
+	bool "Merge relocatable vectors into kernel text"
+	depends on !MTD_XIP
+	help
+	  This option puts relocatable vectors into the kernel .text section
+	  with proper alignment.
+	  This is a safe choice for most configurations.
+
+config XTENSA_VECTORS_SEPARATE
+	bool "Put relocatable vectors at fixed address"
+	help
+	  This option puts relocatable vectors at specific virtual address.
+	  Vectors are merged with the .init data in the kernel image and
+	  are copied into their designated location during kernel startup.
+	  Use it to put vectors into IRAM or out of FLASH on kernels with
+	  XIP-aware MTD support.
+
+endchoice
+
+config VECTORS_ADDR
+	hex "Kernel vectors virtual address"
+	default 0x00000000
+	depends on XTENSA_VECTORS_SEPARATE
+	help
+	  This is the virtual address of the (relocatable) vectors base.
+	  It must be within KSEG if MMU is used.
 
 config XIP_DATA_ADDR
 	hex "XIP kernel data virtual address"

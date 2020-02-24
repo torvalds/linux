@@ -727,6 +727,14 @@ static int chtls_close_listsrv_rpl(struct chtls_dev *cdev, struct sk_buff *skb)
 	return 0;
 }
 
+static void chtls_purge_wr_queue(struct sock *sk)
+{
+	struct sk_buff *skb;
+
+	while ((skb = dequeue_wr(sk)) != NULL)
+		kfree_skb(skb);
+}
+
 static void chtls_release_resources(struct sock *sk)
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
@@ -740,6 +748,11 @@ static void chtls_release_resources(struct sock *sk)
 	tids = cdev->tids;
 	kfree_skb(csk->txdata_skb_cache);
 	csk->txdata_skb_cache = NULL;
+
+	if (csk->wr_credits != csk->wr_max_credits) {
+		chtls_purge_wr_queue(sk);
+		chtls_reset_wr_list(csk);
+	}
 
 	if (csk->l2t_entry) {
 		cxgb4_l2t_release(csk->l2t_entry);
@@ -1273,7 +1286,7 @@ static int chtls_pass_accept_req(struct chtls_dev *cdev, struct sk_buff *skb)
 	ctx = (struct listen_ctx *)data;
 	lsk = ctx->lsk;
 
-	if (unlikely(tid >= cdev->tids->ntids)) {
+	if (unlikely(tid_out_of_range(cdev->tids, tid))) {
 		pr_info("passive open TID %u too large\n", tid);
 		return 1;
 	}
@@ -1735,6 +1748,7 @@ static void chtls_peer_close(struct sock *sk, struct sk_buff *skb)
 		else
 			sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	}
+	kfree_skb(skb);
 }
 
 static void chtls_close_con_rpl(struct sock *sk, struct sk_buff *skb)
@@ -1815,6 +1829,20 @@ static void send_defer_abort_rpl(struct chtls_dev *cdev, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
+/*
+ * Add an skb to the deferred skb queue for processing from process context.
+ */
+static void t4_defer_reply(struct sk_buff *skb, struct chtls_dev *cdev,
+			   defer_handler_t handler)
+{
+	DEFERRED_SKB_CB(skb)->handler = handler;
+	spin_lock_bh(&cdev->deferq.lock);
+	__skb_queue_tail(&cdev->deferq, skb);
+	if (skb_queue_len(&cdev->deferq) == 1)
+		schedule_work(&cdev->deferq_task);
+	spin_unlock_bh(&cdev->deferq.lock);
+}
+
 static void send_abort_rpl(struct sock *sk, struct sk_buff *skb,
 			   struct chtls_dev *cdev, int status, int queue)
 {
@@ -1829,7 +1857,7 @@ static void send_abort_rpl(struct sock *sk, struct sk_buff *skb,
 
 	if (!reply_skb) {
 		req->status = (queue << 1);
-		send_defer_abort_rpl(cdev, skb);
+		t4_defer_reply(skb, cdev, send_defer_abort_rpl);
 		return;
 	}
 
@@ -1846,20 +1874,6 @@ static void send_abort_rpl(struct sock *sk, struct sk_buff *skb,
 		}
 	}
 	cxgb4_ofld_send(cdev->lldi->ports[0], reply_skb);
-}
-
-/*
- * Add an skb to the deferred skb queue for processing from process context.
- */
-static void t4_defer_reply(struct sk_buff *skb, struct chtls_dev *cdev,
-			   defer_handler_t handler)
-{
-	DEFERRED_SKB_CB(skb)->handler = handler;
-	spin_lock_bh(&cdev->deferq.lock);
-	__skb_queue_tail(&cdev->deferq, skb);
-	if (skb_queue_len(&cdev->deferq) == 1)
-		schedule_work(&cdev->deferq_task);
-	spin_unlock_bh(&cdev->deferq.lock);
 }
 
 static void chtls_send_abort_rpl(struct sock *sk, struct sk_buff *skb,
@@ -2060,19 +2074,6 @@ static int chtls_conn_cpl(struct chtls_dev *cdev, struct sk_buff *skb)
 rel_skb:
 	kfree_skb(skb);
 	return 0;
-}
-
-static struct sk_buff *dequeue_wr(struct sock *sk)
-{
-	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
-	struct sk_buff *skb = csk->wr_skb_head;
-
-	if (likely(skb)) {
-	/* Don't bother clearing the tail */
-		csk->wr_skb_head = WR_SKB_CB(skb)->next_wr;
-		WR_SKB_CB(skb)->next_wr = NULL;
-	}
-	return skb;
 }
 
 static void chtls_rx_ack(struct sock *sk, struct sk_buff *skb)

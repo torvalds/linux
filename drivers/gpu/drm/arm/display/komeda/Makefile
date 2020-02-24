@@ -16,12 +16,11 @@ komeda-y := \
 	komeda_crtc.o \
 	komeda_plane.o \
 	komeda_wb_connector.o \
-	komeda_private_obj.o
+	komeda_private_obj.o \
+	komeda_event.o
 
 komeda-y += \
 	d71/d71_dev.o \
 	d71/d71_component.o
-
-komeda-$(CONFIG_DRM_KOMEDA_ERROR_PRINT) += komeda_event.o
 
 obj-$(CONFIG_DRM_KOMEDA) += komeda.o

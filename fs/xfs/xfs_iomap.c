@@ -923,7 +923,7 @@ xfs_buffered_write_iomap_begin(
 		xfs_trim_extent(&imap, offset_fsb, end_fsb - offset_fsb);
 
 		/* Trim the mapping to the nearest shared extent boundary. */
-		error = xfs_inode_need_cow(ip, &imap, &shared);
+		error = xfs_bmap_trim_cow(ip, &imap, &shared);
 		if (error)
 			goto out_unlock;
 

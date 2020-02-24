@@ -34,7 +34,7 @@ static inline struct gr2d *to_gr2d(struct tegra_drm_client *client)
 static int gr2d_init(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct drm_device *dev = dev_get_drvdata(client->parent);
+	struct drm_device *dev = dev_get_drvdata(client->host);
 	unsigned long flags = HOST1X_SYNCPT_HAS_BASE;
 	struct gr2d *gr2d = to_gr2d(drm);
 	int err;
@@ -76,7 +76,7 @@ put:
 static int gr2d_exit(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct drm_device *dev = dev_get_drvdata(client->parent);
+	struct drm_device *dev = dev_get_drvdata(client->host);
 	struct tegra_drm *tegra = dev->dev_private;
 	struct gr2d *gr2d = to_gr2d(drm);
 	int err;

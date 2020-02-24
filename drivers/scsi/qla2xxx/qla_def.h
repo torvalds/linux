@@ -2402,6 +2402,7 @@ typedef struct fc_port {
 	unsigned int scan_needed:1;
 	unsigned int n2n_flag:1;
 	unsigned int explicit_logout:1;
+	unsigned int prli_pend_timer:1;
 
 	struct completion nvme_del_done;
 	uint32_t nvme_prli_service_param;
@@ -2428,6 +2429,7 @@ typedef struct fc_port {
 	struct work_struct free_work;
 	struct work_struct reg_work;
 	uint64_t jiffies_at_registration;
+	unsigned long prli_expired;
 	struct qlt_plogi_ack_t *plogi_link[QLT_PLOGI_LINK_MAX];
 
 	uint16_t tgt_id;
@@ -2464,6 +2466,7 @@ typedef struct fc_port {
 	struct qla_tgt_sess *tgt_session;
 	struct ct_sns_desc ct_desc;
 	enum discovery_state disc_state;
+	atomic_t shadow_disc_state;
 	enum discovery_state next_disc_state;
 	enum login_state fw_login_state;
 	unsigned long dm_login_expire;
@@ -2509,6 +2512,19 @@ struct event_arg {
 #define FCS_ONLINE		4
 
 extern const char *const port_state_str[5];
+
+static const char * const port_dstate_str[] = {
+	"DELETED",
+	"GNN_ID",
+	"GNL",
+	"LOGIN_PEND",
+	"LOGIN_FAILED",
+	"GPDB",
+	"UPD_FCPORT",
+	"LOGIN_COMPLETE",
+	"ADISC",
+	"DELETE_PEND"
+};
 
 /*
  * FC port flags.
@@ -3263,7 +3279,6 @@ enum qla_work_type {
 	QLA_EVT_IDC_ACK,
 	QLA_EVT_ASYNC_LOGIN,
 	QLA_EVT_ASYNC_LOGOUT,
-	QLA_EVT_ASYNC_LOGOUT_DONE,
 	QLA_EVT_ASYNC_ADISC,
 	QLA_EVT_UEVENT,
 	QLA_EVT_AENFX,
@@ -3953,7 +3968,7 @@ struct qla_hw_data {
 	void		*sfp_data;
 	dma_addr_t	sfp_data_dma;
 
-	void		*flt;
+	struct qla_flt_header *flt;
 	dma_addr_t	flt_dma;
 
 #define XGMAC_DATA_SIZE	4096
@@ -4844,6 +4859,9 @@ struct sff_8247_a0 {
 	((NVME_FCP_TARGET(fcport) && \
 	(ha->fc4_type_priority == FC4_PRIORITY_NVME)) || \
 	NVME_ONLY_TARGET(fcport)) \
+
+#define PRLI_PHASE(_cls) \
+	((_cls == DSC_LS_PRLI_PEND) || (_cls == DSC_LS_PRLI_COMP))
 
 #include "qla_target.h"
 #include "qla_gbl.h"

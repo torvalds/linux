@@ -60,7 +60,7 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 		return 0;
 }
 
-int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
+int cpufreq_frequency_table_verify(struct cpufreq_policy_data *policy,
 				   struct cpufreq_frequency_table *table)
 {
 	struct cpufreq_frequency_table *pos;
@@ -100,7 +100,7 @@ EXPORT_SYMBOL_GPL(cpufreq_frequency_table_verify);
  * Generic routine to verify policy & frequency table, requires driver to set
  * policy->freq_table prior to it.
  */
-int cpufreq_generic_frequency_table_verify(struct cpufreq_policy *policy)
+int cpufreq_generic_frequency_table_verify(struct cpufreq_policy_data *policy)
 {
 	if (!policy->freq_table)
 		return -ENODEV;

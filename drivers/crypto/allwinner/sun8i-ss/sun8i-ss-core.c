@@ -595,7 +595,7 @@ error_alg:
 error_irq:
 	sun8i_ss_pm_exit(ss);
 error_pm:
-	sun8i_ss_free_flows(ss, MAXFLOW);
+	sun8i_ss_free_flows(ss, MAXFLOW - 1);
 	return err;
 }
 
@@ -609,7 +609,7 @@ static int sun8i_ss_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(ss->dbgfs_dir);
 #endif
 
-	sun8i_ss_free_flows(ss, MAXFLOW);
+	sun8i_ss_free_flows(ss, MAXFLOW - 1);
 
 	sun8i_ss_pm_exit(ss);
 

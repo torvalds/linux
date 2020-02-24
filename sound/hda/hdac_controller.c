@@ -181,6 +181,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_send_cmd);
  * @bus: HD-audio core bus
  *
  * Usually called from interrupt handler.
+ * The caller needs bus->reg_lock spinlock before calling this.
  */
 void snd_hdac_bus_update_rirb(struct hdac_bus *bus)
 {
@@ -216,6 +217,9 @@ void snd_hdac_bus_update_rirb(struct hdac_bus *bus)
 		else if (bus->rirb.cmds[addr]) {
 			bus->rirb.res[addr] = res;
 			bus->rirb.cmds[addr]--;
+			if (!bus->rirb.cmds[addr] &&
+			    waitqueue_active(&bus->rirb_wq))
+				wake_up(&bus->rirb_wq);
 		} else {
 			dev_err_ratelimited(bus->dev,
 				"spurious response %#x:%#x, last cmd=%#08x\n",
@@ -238,29 +242,50 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 {
 	unsigned long timeout;
 	unsigned long loopcounter;
+	wait_queue_entry_t wait;
+	bool warned = false;
 
+	init_wait_entry(&wait, 0);
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	for (loopcounter = 0;; loopcounter++) {
 		spin_lock_irq(&bus->reg_lock);
+		if (!bus->polling_mode)
+			prepare_to_wait(&bus->rirb_wq, &wait,
+					TASK_UNINTERRUPTIBLE);
 		if (bus->polling_mode)
 			snd_hdac_bus_update_rirb(bus);
 		if (!bus->rirb.cmds[addr]) {
 			if (res)
 				*res = bus->rirb.res[addr]; /* the last value */
+			if (!bus->polling_mode)
+				finish_wait(&bus->rirb_wq, &wait);
 			spin_unlock_irq(&bus->reg_lock);
 			return 0;
 		}
 		spin_unlock_irq(&bus->reg_lock);
 		if (time_after(jiffies, timeout))
 			break;
-		if (loopcounter > 3000)
+#define LOOP_COUNT_MAX	3000
+		if (!bus->polling_mode) {
+			schedule_timeout(msecs_to_jiffies(2));
+		} else if (bus->needs_damn_long_delay ||
+			   loopcounter > LOOP_COUNT_MAX) {
+			if (loopcounter > LOOP_COUNT_MAX && !warned) {
+				dev_dbg_ratelimited(bus->dev,
+						    "too slow response, last cmd=%#08x\n",
+						    bus->last_cmd[addr]);
+				warned = true;
+			}
 			msleep(2); /* temporary workaround */
-		else {
+		} else {
 			udelay(10);
 			cond_resched();
 		}
 	}
+
+	if (!bus->polling_mode)
+		finish_wait(&bus->rirb_wq, &wait);
 
 	return -EIO;
 }
@@ -536,7 +561,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_stop_chip);
  * snd_hdac_bus_handle_stream_irq - interrupt handler for streams
  * @bus: HD-audio core bus
  * @status: INTSTS register value
- * @ask: callback to be called for woken streams
+ * @ack: callback to be called for woken streams
  *
  * Returns the bits of handled streams, or zero if no stream is handled.
  */

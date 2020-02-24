@@ -232,6 +232,13 @@ struct ice_aqc_get_sw_cfg_resp {
  */
 #define ICE_AQC_RES_TYPE_VSI_LIST_REP			0x03
 #define ICE_AQC_RES_TYPE_VSI_LIST_PRUNE			0x04
+#define ICE_AQC_RES_TYPE_HASH_PROF_BLDR_PROFID		0x60
+#define ICE_AQC_RES_TYPE_HASH_PROF_BLDR_TCAM		0x61
+
+#define ICE_AQC_RES_TYPE_FLAG_SCAN_BOTTOM		BIT(12)
+#define ICE_AQC_RES_TYPE_FLAG_IGNORE_INDEX		BIT(13)
+
+#define ICE_AQC_RES_TYPE_FLAG_DEDICATED			0x00
 
 /* Allocate Resources command (indirect 0x0208)
  * Free Resources command (indirect 0x0209)
@@ -1653,6 +1660,7 @@ struct ice_aqc_get_pkg_info_resp {
 	__le32 count;
 	struct ice_aqc_get_pkg_info pkg_info[1];
 };
+
 /**
  * struct ice_aq_desc - Admin Queue (AQ) descriptor
  * @flags: ICE_AQ_FLAG_* flags
@@ -1849,6 +1857,7 @@ enum ice_adminq_opc {
 
 	/* package commands */
 	ice_aqc_opc_download_pkg			= 0x0C40,
+	ice_aqc_opc_update_pkg				= 0x0C42,
 	ice_aqc_opc_get_pkg_info_list			= 0x0C43,
 
 	/* debug commands */

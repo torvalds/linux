@@ -339,14 +339,11 @@ static __init int hp100_isa_probe1(struct net_device *dev, int ioaddr)
 	if (sig == NULL)
 		goto err;
 
-	for (i = 0; i < ARRAY_SIZE(hp100_isa_tbl); i++) {
-		if (!strcmp(hp100_isa_tbl[i], sig))
-			break;
+	i = match_string(hp100_isa_tbl, ARRAY_SIZE(hp100_isa_tbl), sig);
+	if (i < 0)
+		goto err;
 
-	}
-
-	if (i < ARRAY_SIZE(hp100_isa_tbl))
-		return hp100_probe1(dev, ioaddr, HP100_BUS_ISA, NULL);
+	return hp100_probe1(dev, ioaddr, HP100_BUS_ISA, NULL);
  err:
 	return -ENODEV;
 

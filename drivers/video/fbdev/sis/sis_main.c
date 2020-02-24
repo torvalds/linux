@@ -1906,7 +1906,7 @@ sisfb_get_fix(struct fb_fix_screeninfo *fix, int con, struct fb_info *info)
 
 /* ----------------  fb_ops structures ----------------- */
 
-static struct fb_ops sisfb_ops = {
+static const struct fb_ops sisfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= sisfb_open,
 	.fb_release	= sisfb_release,

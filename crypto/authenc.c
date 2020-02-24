@@ -91,15 +91,12 @@ static int crypto_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	int err = -EINVAL;
 
 	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
-		goto badkey;
+		goto out;
 
 	crypto_ahash_clear_flags(auth, CRYPTO_TFM_REQ_MASK);
 	crypto_ahash_set_flags(auth, crypto_aead_get_flags(authenc) &
 				    CRYPTO_TFM_REQ_MASK);
 	err = crypto_ahash_setkey(auth, keys.authkey, keys.authkeylen);
-	crypto_aead_set_flags(authenc, crypto_ahash_get_flags(auth) &
-				       CRYPTO_TFM_RES_MASK);
-
 	if (err)
 		goto out;
 
@@ -107,16 +104,9 @@ static int crypto_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	crypto_skcipher_set_flags(enc, crypto_aead_get_flags(authenc) &
 				       CRYPTO_TFM_REQ_MASK);
 	err = crypto_skcipher_setkey(enc, keys.enckey, keys.enckeylen);
-	crypto_aead_set_flags(authenc, crypto_skcipher_get_flags(enc) &
-				       CRYPTO_TFM_RES_MASK);
-
 out:
 	memzero_explicit(&keys, sizeof(keys));
 	return err;
-
-badkey:
-	crypto_aead_set_flags(authenc, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	goto out;
 }
 
 static void authenc_geniv_ahash_done(struct crypto_async_request *areq, int err)
@@ -383,12 +373,12 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 				 struct rtattr **tb)
 {
 	struct crypto_attr_type *algt;
+	u32 mask;
 	struct aead_instance *inst;
+	struct authenc_instance_ctx *ctx;
 	struct hash_alg_common *auth;
 	struct crypto_alg *auth_base;
 	struct skcipher_alg *enc;
-	struct authenc_instance_ctx *ctx;
-	const char *enc_name;
 	int err;
 
 	algt = crypto_get_attr_type(tb);
@@ -398,38 +388,24 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
-	auth = ahash_attr_alg(tb[1], CRYPTO_ALG_TYPE_HASH,
-			      CRYPTO_ALG_TYPE_AHASH_MASK |
-			      crypto_requires_sync(algt->type, algt->mask));
-	if (IS_ERR(auth))
-		return PTR_ERR(auth);
-
-	auth_base = &auth->base;
-
-	enc_name = crypto_attr_alg_name(tb[2]);
-	err = PTR_ERR(enc_name);
-	if (IS_ERR(enc_name))
-		goto out_put_auth;
+	mask = crypto_requires_sync(algt->type, algt->mask);
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
-	err = -ENOMEM;
 	if (!inst)
-		goto out_put_auth;
-
+		return -ENOMEM;
 	ctx = aead_instance_ctx(inst);
 
-	err = crypto_init_ahash_spawn(&ctx->auth, auth,
-				      aead_crypto_instance(inst));
+	err = crypto_grab_ahash(&ctx->auth, aead_crypto_instance(inst),
+				crypto_attr_alg_name(tb[1]), 0, mask);
 	if (err)
 		goto err_free_inst;
+	auth = crypto_spawn_ahash_alg(&ctx->auth);
+	auth_base = &auth->base;
 
-	crypto_set_skcipher_spawn(&ctx->enc, aead_crypto_instance(inst));
-	err = crypto_grab_skcipher(&ctx->enc, enc_name, 0,
-				   crypto_requires_sync(algt->type,
-							algt->mask));
+	err = crypto_grab_skcipher(&ctx->enc, aead_crypto_instance(inst),
+				   crypto_attr_alg_name(tb[2]), 0, mask);
 	if (err)
-		goto err_drop_auth;
-
+		goto err_free_inst;
 	enc = crypto_spawn_skcipher_alg(&ctx->enc);
 
 	ctx->reqoff = ALIGN(2 * auth->digestsize + auth_base->cra_alignmask,
@@ -440,12 +416,12 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 		     "authenc(%s,%s)", auth_base->cra_name,
 		     enc->base.cra_name) >=
 	    CRYPTO_MAX_ALG_NAME)
-		goto err_drop_enc;
+		goto err_free_inst;
 
 	if (snprintf(inst->alg.base.cra_driver_name, CRYPTO_MAX_ALG_NAME,
 		     "authenc(%s,%s)", auth_base->cra_driver_name,
 		     enc->base.cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
-		goto err_drop_enc;
+		goto err_free_inst;
 
 	inst->alg.base.cra_flags = (auth_base->cra_flags |
 				    enc->base.cra_flags) & CRYPTO_ALG_ASYNC;
@@ -470,21 +446,11 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 	inst->free = crypto_authenc_free;
 
 	err = aead_register_instance(tmpl, inst);
-	if (err)
-		goto err_drop_enc;
-
-out:
-	crypto_mod_put(auth_base);
-	return err;
-
-err_drop_enc:
-	crypto_drop_skcipher(&ctx->enc);
-err_drop_auth:
-	crypto_drop_ahash(&ctx->auth);
+	if (err) {
 err_free_inst:
-	kfree(inst);
-out_put_auth:
-	goto out;
+		crypto_authenc_free(inst);
+	}
+	return err;
 }
 
 static struct crypto_template crypto_authenc_tmpl = {

@@ -17,6 +17,8 @@
 #include "intel_engine_types.h"
 #include "intel_sseu.h"
 
+#define CONTEXT_REDZONE POISON_INUSE
+
 struct i915_gem_context;
 struct i915_vma;
 struct intel_context;
@@ -44,7 +46,7 @@ struct intel_context {
 #define intel_context_inflight_count(ce) ptr_unmask_bits((ce)->inflight, 2)
 
 	struct i915_address_space *vm;
-	struct i915_gem_context *gem_context;
+	struct i915_gem_context __rcu *gem_context;
 
 	struct list_head signal_link;
 	struct list_head signals;
@@ -54,7 +56,13 @@ struct intel_context {
 	struct intel_timeline *timeline;
 
 	unsigned long flags;
-#define CONTEXT_ALLOC_BIT 0
+#define CONTEXT_BARRIER_BIT		0
+#define CONTEXT_ALLOC_BIT		1
+#define CONTEXT_VALID_BIT		2
+#define CONTEXT_USE_SEMAPHORES		3
+#define CONTEXT_BANNED			4
+#define CONTEXT_FORCE_SINGLE_SUBMISSION	5
+#define CONTEXT_NOPREEMPT		6
 
 	u32 *lrc_reg_state;
 	u64 lrc_desc;

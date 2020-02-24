@@ -135,7 +135,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	else
 		flags |= DRM_MODE_FLAG_PVSYNC;
 
-	pipe_config->base.adjusted_mode.flags |= flags;
+	pipe_config->hw.adjusted_mode.flags |= flags;
 
 	if (INTEL_GEN(dev_priv) < 5)
 		pipe_config->gmch_pfit.lvds_border_bits =
@@ -148,7 +148,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 		pipe_config->gmch_pfit.control |= tmp & PANEL_8TO6_DITHER_ENABLE;
 	}
 
-	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
+	pipe_config->hw.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
@@ -230,8 +230,8 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 {
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
-	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	enum pipe pipe = crtc->pipe;
 	u32 temp;
 
@@ -392,8 +392,8 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 		to_lvds_encoder(&intel_encoder->base);
 	struct intel_connector *intel_connector =
 		lvds_encoder->attached_connector;
-	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
+	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
+	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	unsigned int lvds_bpp;
 
 	/* Should never happen!! */

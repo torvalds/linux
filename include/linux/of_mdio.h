@@ -55,7 +55,7 @@ static inline int of_mdio_parse_addr(struct device *dev,
 }
 
 #else /* CONFIG_OF_MDIO */
-static bool of_mdiobus_child_is_phy(struct device_node *child)
+static inline bool of_mdiobus_child_is_phy(struct device_node *child)
 {
 	return false;
 }

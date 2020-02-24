@@ -442,18 +442,18 @@ static ssize_t prof_cpu_mask_proc_write(struct file *file,
 	return err;
 }
 
-static const struct file_operations prof_cpu_mask_proc_fops = {
-	.open		= prof_cpu_mask_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= prof_cpu_mask_proc_write,
+static const struct proc_ops prof_cpu_mask_proc_ops = {
+	.proc_open	= prof_cpu_mask_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= prof_cpu_mask_proc_write,
 };
 
 void create_prof_cpu_mask(void)
 {
 	/* create /proc/irq/prof_cpu_mask */
-	proc_create("irq/prof_cpu_mask", 0600, NULL, &prof_cpu_mask_proc_fops);
+	proc_create("irq/prof_cpu_mask", 0600, NULL, &prof_cpu_mask_proc_ops);
 }
 
 /*
@@ -517,10 +517,10 @@ static ssize_t write_profile(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations proc_profile_operations = {
-	.read		= read_profile,
-	.write		= write_profile,
-	.llseek		= default_llseek,
+static const struct proc_ops profile_proc_ops = {
+	.proc_read	= read_profile,
+	.proc_write	= write_profile,
+	.proc_lseek	= default_llseek,
 };
 
 int __ref create_proc_profile(void)
@@ -548,7 +548,7 @@ int __ref create_proc_profile(void)
 	err = 0;
 #endif
 	entry = proc_create("profile", S_IWUSR | S_IRUGO,
-			    NULL, &proc_profile_operations);
+			    NULL, &profile_proc_ops);
 	if (!entry)
 		goto err_state_onl;
 	proc_set_size(entry, (1 + prof_len) * sizeof(atomic_t));

@@ -251,7 +251,7 @@ static void atl1e_cancel_work(struct atl1e_adapter *adapter)
  * atl1e_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
-static void atl1e_tx_timeout(struct net_device *netdev)
+static void atl1e_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct atl1e_adapter *adapter = netdev_priv(netdev);
 

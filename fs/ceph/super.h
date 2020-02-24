@@ -91,7 +91,7 @@ struct ceph_mount_options {
 
 	char *snapdir_name;   /* default ".snap" */
 	char *mds_namespace;  /* default NULL */
-	char *server_path;    /* default  "/" */
+	char *server_path;    /* default NULL (means "/") */
 	char *fscache_uniq;   /* default NULL */
 };
 
@@ -105,6 +105,8 @@ struct ceph_fs_client {
 
 	unsigned long last_auto_reconnect;
 	bool blacklisted;
+
+	bool have_copy_from2;
 
 	u32 filp_gen;
 	loff_t max_file_size;

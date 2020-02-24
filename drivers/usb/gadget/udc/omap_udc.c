@@ -2757,7 +2757,7 @@ static int omap_udc_probe(struct platform_device *pdev)
 
 	/* NOTE:  "knows" the order of the resources! */
 	if (!request_mem_region(pdev->resource[0].start,
-			pdev->resource[0].end - pdev->resource[0].start + 1,
+			resource_size(&pdev->resource[0]),
 			driver_name)) {
 		DBG("request_mem_region failed\n");
 		return -EBUSY;
@@ -2934,7 +2934,7 @@ cleanup0:
 	}
 
 	release_mem_region(pdev->resource[0].start,
-			pdev->resource[0].end - pdev->resource[0].start + 1);
+			   resource_size(&pdev->resource[0]));
 
 	return status;
 }
@@ -2950,7 +2950,7 @@ static int omap_udc_remove(struct platform_device *pdev)
 	wait_for_completion(&done);
 
 	release_mem_region(pdev->resource[0].start,
-			pdev->resource[0].end - pdev->resource[0].start + 1);
+			   resource_size(&pdev->resource[0]));
 
 	return 0;
 }

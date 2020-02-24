@@ -16,6 +16,10 @@ static const char *__doc__ =
 #include <getopt.h>
 #include <net/if.h>
 #include <time.h>
+#include <linux/limits.h>
+
+#define __must_check
+#include <linux/err.h>
 
 #include <arpa/inet.h>
 #include <linux/if_link.h>
@@ -26,7 +30,7 @@ static const char *__doc__ =
 #define MAX_PROG 6
 
 #include <bpf/bpf.h>
-#include "libbpf.h"
+#include <bpf/libbpf.h>
 
 #include "bpf_util.h"
 
@@ -45,6 +49,10 @@ static int cpus_available_map_fd;
 static int cpus_count_map_fd;
 static int cpus_iterator_map_fd;
 static int exception_cnt_map_fd;
+
+#define NUM_TP 5
+struct bpf_link *tp_links[NUM_TP] = { 0 };
+static int tp_cnt = 0;
 
 /* Exit return codes */
 #define EXIT_OK		0
@@ -88,6 +96,10 @@ static void int_exit(int sig)
 			printf("program on interface changed, not removing\n");
 		}
 	}
+	/* Detach tracepoints */
+	while (tp_cnt)
+		bpf_link__destroy(tp_links[--tp_cnt]);
+
 	exit(EXIT_OK);
 }
 
@@ -588,23 +600,61 @@ static void stats_poll(int interval, bool use_separators, char *prog_name,
 	free_stats_record(prev);
 }
 
+static struct bpf_link * attach_tp(struct bpf_object *obj,
+				   const char *tp_category,
+				   const char* tp_name)
+{
+	struct bpf_program *prog;
+	struct bpf_link *link;
+	char sec_name[PATH_MAX];
+	int len;
+
+	len = snprintf(sec_name, PATH_MAX, "tracepoint/%s/%s",
+		       tp_category, tp_name);
+	if (len < 0)
+		exit(EXIT_FAIL);
+
+	prog = bpf_object__find_program_by_title(obj, sec_name);
+	if (!prog) {
+		fprintf(stderr, "ERR: finding progsec: %s\n", sec_name);
+		exit(EXIT_FAIL_BPF);
+	}
+
+	link = bpf_program__attach_tracepoint(prog, tp_category, tp_name);
+	if (IS_ERR(link))
+		exit(EXIT_FAIL_BPF);
+
+	return link;
+}
+
+static void init_tracepoints(struct bpf_object *obj) {
+	tp_links[tp_cnt++] = attach_tp(obj, "xdp", "xdp_redirect_err");
+	tp_links[tp_cnt++] = attach_tp(obj, "xdp", "xdp_redirect_map_err");
+	tp_links[tp_cnt++] = attach_tp(obj, "xdp", "xdp_exception");
+	tp_links[tp_cnt++] = attach_tp(obj, "xdp", "xdp_cpumap_enqueue");
+	tp_links[tp_cnt++] = attach_tp(obj, "xdp", "xdp_cpumap_kthread");
+}
+
 static int init_map_fds(struct bpf_object *obj)
 {
-	cpu_map_fd = bpf_object__find_map_fd_by_name(obj, "cpu_map");
-	rx_cnt_map_fd = bpf_object__find_map_fd_by_name(obj, "rx_cnt");
+	/* Maps updated by tracepoints */
 	redirect_err_cnt_map_fd =
 		bpf_object__find_map_fd_by_name(obj, "redirect_err_cnt");
+	exception_cnt_map_fd =
+		bpf_object__find_map_fd_by_name(obj, "exception_cnt");
 	cpumap_enqueue_cnt_map_fd =
 		bpf_object__find_map_fd_by_name(obj, "cpumap_enqueue_cnt");
 	cpumap_kthread_cnt_map_fd =
 		bpf_object__find_map_fd_by_name(obj, "cpumap_kthread_cnt");
+
+	/* Maps used by XDP */
+	rx_cnt_map_fd = bpf_object__find_map_fd_by_name(obj, "rx_cnt");
+	cpu_map_fd = bpf_object__find_map_fd_by_name(obj, "cpu_map");
 	cpus_available_map_fd =
 		bpf_object__find_map_fd_by_name(obj, "cpus_available");
 	cpus_count_map_fd = bpf_object__find_map_fd_by_name(obj, "cpus_count");
 	cpus_iterator_map_fd =
 		bpf_object__find_map_fd_by_name(obj, "cpus_iterator");
-	exception_cnt_map_fd =
-		bpf_object__find_map_fd_by_name(obj, "exception_cnt");
 
 	if (cpu_map_fd < 0 || rx_cnt_map_fd < 0 ||
 	    redirect_err_cnt_map_fd < 0 || cpumap_enqueue_cnt_map_fd < 0 ||
@@ -662,6 +712,7 @@ int main(int argc, char **argv)
 			strerror(errno));
 		return EXIT_FAIL;
 	}
+	init_tracepoints(obj);
 	if (init_map_fds(obj) < 0) {
 		fprintf(stderr, "bpf_object__find_map_fd_by_name failed\n");
 		return EXIT_FAIL;
@@ -728,6 +779,10 @@ int main(int argc, char **argv)
 			return EXIT_FAIL_OPTION;
 		}
 	}
+
+	if (!(xdp_flags & XDP_FLAGS_SKB_MODE))
+		xdp_flags |= XDP_FLAGS_DRV_MODE;
+
 	/* Required option */
 	if (ifindex == -1) {
 		fprintf(stderr, "ERR: required option --dev missing\n");

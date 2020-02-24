@@ -299,7 +299,7 @@ void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 	entry = debugfs_create_dir("vbif", debugfs_root);
 
 	for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
-		struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
+		const struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
 
 		snprintf(vbif_name, sizeof(vbif_name), "%d", vbif->id);
 
@@ -318,7 +318,7 @@ void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 			(u32 *)&vbif->default_ot_wr_limit);
 
 		for (j = 0; j < vbif->dynamic_ot_rd_tbl.count; j++) {
-			struct dpu_vbif_dynamic_ot_cfg *cfg =
+			const struct dpu_vbif_dynamic_ot_cfg *cfg =
 					&vbif->dynamic_ot_rd_tbl.cfg[j];
 
 			snprintf(vbif_name, sizeof(vbif_name),
@@ -332,7 +332,7 @@ void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 		}
 
 		for (j = 0; j < vbif->dynamic_ot_wr_tbl.count; j++) {
-			struct dpu_vbif_dynamic_ot_cfg *cfg =
+			const struct dpu_vbif_dynamic_ot_cfg *cfg =
 					&vbif->dynamic_ot_wr_tbl.cfg[j];
 
 			snprintf(vbif_name, sizeof(vbif_name),

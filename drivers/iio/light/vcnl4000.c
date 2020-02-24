@@ -163,7 +163,6 @@ static int vcnl4200_init(struct vcnl4000_data *data)
 	if (ret < 0)
 		return ret;
 
-	data->al_scale = 24000;
 	data->vcnl4200_al.reg = VCNL4200_AL_DATA;
 	data->vcnl4200_ps.reg = VCNL4200_PS_DATA;
 	switch (id) {
@@ -172,11 +171,13 @@ static int vcnl4200_init(struct vcnl4000_data *data)
 		/* show 54ms in total. */
 		data->vcnl4200_al.sampling_rate = ktime_set(0, 54000 * 1000);
 		data->vcnl4200_ps.sampling_rate = ktime_set(0, 4200 * 1000);
+		data->al_scale = 24000;
 		break;
 	case VCNL4040_PROD_ID:
 		/* Integration time is 80ms, add 10ms. */
 		data->vcnl4200_al.sampling_rate = ktime_set(0, 100000 * 1000);
 		data->vcnl4200_ps.sampling_rate = ktime_set(0, 100000 * 1000);
+		data->al_scale = 120000;
 		break;
 	}
 	data->vcnl4200_al.last_measurement = ktime_set(0, 0);

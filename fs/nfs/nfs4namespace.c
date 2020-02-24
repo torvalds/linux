@@ -8,6 +8,7 @@
  * NFSv4 namespace
  */
 
+#include <linux/module.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -21,37 +22,64 @@
 #include <linux/inet.h>
 #include "internal.h"
 #include "nfs4_fs.h"
+#include "nfs.h"
 #include "dns_resolve.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
 /*
- * Convert the NFSv4 pathname components into a standard posix path.
- *
- * Note that the resulting string will be placed at the end of the buffer
+ * Work out the length that an NFSv4 path would render to as a standard posix
+ * path, with a leading slash but no terminating slash.
  */
-static inline char *nfs4_pathname_string(const struct nfs4_pathname *pathname,
-					 char *buffer, ssize_t buflen)
+static ssize_t nfs4_pathname_len(const struct nfs4_pathname *pathname)
 {
-	char *end = buffer + buflen;
-	int n;
+	ssize_t len = 0;
+	int i;
 
-	*--end = '\0';
-	buflen--;
+	for (i = 0; i < pathname->ncomponents; i++) {
+		const struct nfs4_string *component = &pathname->components[i];
 
-	n = pathname->ncomponents;
-	while (--n >= 0) {
-		const struct nfs4_string *component = &pathname->components[n];
-		buflen -= component->len + 1;
-		if (buflen < 0)
-			goto Elong;
-		end -= component->len;
-		memcpy(end, component->data, component->len);
-		*--end = '/';
+		if (component->len > NAME_MAX)
+			goto too_long;
+		len += 1 + component->len; /* Adding "/foo" */
+		if (len > PATH_MAX)
+			goto too_long;
 	}
-	return end;
-Elong:
-	return ERR_PTR(-ENAMETOOLONG);
+	return len;
+
+too_long:
+	return -ENAMETOOLONG;
+}
+
+/*
+ * Convert the NFSv4 pathname components into a standard posix path.
+ */
+static char *nfs4_pathname_string(const struct nfs4_pathname *pathname,
+				  unsigned short *_len)
+{
+	ssize_t len;
+	char *buf, *p;
+	int i;
+
+	len = nfs4_pathname_len(pathname);
+	if (len < 0)
+		return ERR_PTR(len);
+	*_len = len;
+
+	p = buf = kmalloc(len + 1, GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < pathname->ncomponents; i++) {
+		const struct nfs4_string *component = &pathname->components[i];
+
+		*p++ = '/';
+		memcpy(p, component->data, component->len);
+		p += component->len;
+	}
+
+	*p = 0;
+	return buf;
 }
 
 /*
@@ -100,21 +128,36 @@ static char *nfs4_path(struct dentry *dentry, char *buffer, ssize_t buflen)
  */
 static int nfs4_validate_fspath(struct dentry *dentry,
 				const struct nfs4_fs_locations *locations,
-				char *page, char *page2)
+				struct nfs_fs_context *ctx)
 {
-	const char *path, *fs_path;
+	const char *path;
+	char *fs_path;
+	unsigned short len;
+	char *buf;
+	int n;
 
-	path = nfs4_path(dentry, page, PAGE_SIZE);
-	if (IS_ERR(path))
+	buf = kmalloc(4096, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	path = nfs4_path(dentry, buf, 4096);
+	if (IS_ERR(path)) {
+		kfree(buf);
 		return PTR_ERR(path);
+	}
 
-	fs_path = nfs4_pathname_string(&locations->fs_path, page2, PAGE_SIZE);
-	if (IS_ERR(fs_path))
+	fs_path = nfs4_pathname_string(&locations->fs_path, &len);
+	if (IS_ERR(fs_path)) {
+		kfree(buf);
 		return PTR_ERR(fs_path);
+	}
 
-	if (strncmp(path, fs_path, strlen(fs_path)) != 0) {
+	n = strncmp(path, fs_path, len);
+	kfree(buf);
+	kfree(fs_path);
+	if (n != 0) {
 		dprintk("%s: path %s does not begin with fsroot %s\n",
-			__func__, path, fs_path);
+			__func__, path, ctx->nfs_server.export_path);
 		return -ENOENT;
 	}
 
@@ -236,55 +279,77 @@ out:
 	return new;
 }
 
-static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
-				     char *page, char *page2,
-				     const struct nfs4_fs_location *location)
+static int try_location(struct fs_context *fc,
+			const struct nfs4_fs_location *location)
 {
-	const size_t addr_bufsize = sizeof(struct sockaddr_storage);
-	struct net *net = rpc_net_ns(NFS_SB(mountdata->sb)->client);
-	struct vfsmount *mnt = ERR_PTR(-ENOENT);
-	char *mnt_path;
-	unsigned int maxbuflen;
-	unsigned int s;
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
+	unsigned int len, s;
+	char *export_path, *source, *p;
+	int ret = -ENOENT;
 
-	mnt_path = nfs4_pathname_string(&location->rootpath, page2, PAGE_SIZE);
-	if (IS_ERR(mnt_path))
-		return ERR_CAST(mnt_path);
-	mountdata->mnt_path = mnt_path;
-	maxbuflen = mnt_path - 1 - page2;
-
-	mountdata->addr = kmalloc(addr_bufsize, GFP_KERNEL);
-	if (mountdata->addr == NULL)
-		return ERR_PTR(-ENOMEM);
-
+	/* Allocate a buffer big enough to hold any of the hostnames plus a
+	 * terminating char and also a buffer big enough to hold the hostname
+	 * plus a colon plus the path.
+	 */
+	len = 0;
 	for (s = 0; s < location->nservers; s++) {
 		const struct nfs4_string *buf = &location->servers[s];
+		if (buf->len > len)
+			len = buf->len;
+	}
 
-		if (buf->len <= 0 || buf->len >= maxbuflen)
-			continue;
+	kfree(ctx->nfs_server.hostname);
+	ctx->nfs_server.hostname = kmalloc(len + 1, GFP_KERNEL);
+	if (!ctx->nfs_server.hostname)
+		return -ENOMEM;
+
+	export_path = nfs4_pathname_string(&location->rootpath,
+					   &ctx->nfs_server.export_path_len);
+	if (IS_ERR(export_path))
+		return PTR_ERR(export_path);
+
+	ctx->nfs_server.export_path = export_path;
+
+	source = kmalloc(len + 1 + ctx->nfs_server.export_path_len + 1,
+			 GFP_KERNEL);
+	if (!source)
+		return -ENOMEM;
+
+	kfree(fc->source);
+	fc->source = source;
+	for (s = 0; s < location->nservers; s++) {
+		const struct nfs4_string *buf = &location->servers[s];
 
 		if (memchr(buf->data, IPV6_SCOPE_DELIMITER, buf->len))
 			continue;
 
-		mountdata->addrlen = nfs_parse_server_name(buf->data, buf->len,
-				mountdata->addr, addr_bufsize, net);
-		if (mountdata->addrlen == 0)
+		ctx->nfs_server.addrlen =
+			nfs_parse_server_name(buf->data, buf->len,
+					      &ctx->nfs_server.address,
+					      sizeof(ctx->nfs_server._address),
+					      fc->net_ns);
+		if (ctx->nfs_server.addrlen == 0)
 			continue;
 
-		memcpy(page2, buf->data, buf->len);
-		page2[buf->len] = '\0';
-		mountdata->hostname = page2;
+		rpc_set_port(&ctx->nfs_server.address, NFS_PORT);
 
-		snprintf(page, PAGE_SIZE, "%s:%s",
-				mountdata->hostname,
-				mountdata->mnt_path);
+		memcpy(ctx->nfs_server.hostname, buf->data, buf->len);
+		ctx->nfs_server.hostname[buf->len] = '\0';
 
-		mnt = vfs_submount(mountdata->dentry, &nfs4_referral_fs_type, page, mountdata);
-		if (!IS_ERR(mnt))
-			break;
+		p = source;
+		memcpy(p, buf->data, buf->len);
+		p += buf->len;
+		*p++ = ':';
+		memcpy(p, ctx->nfs_server.export_path, ctx->nfs_server.export_path_len);
+		p += ctx->nfs_server.export_path_len;
+		*p = 0;
+
+		ret = nfs4_get_referral_tree(fc);
+		if (ret == 0)
+			return 0;
 	}
-	kfree(mountdata->addr);
-	return mnt;
+
+	return ret;
 }
 
 /**
@@ -293,38 +358,23 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
  * @locations: array of NFSv4 server location information
  *
  */
-static struct vfsmount *nfs_follow_referral(struct dentry *dentry,
-					    const struct nfs4_fs_locations *locations)
+static int nfs_follow_referral(struct fs_context *fc,
+			       const struct nfs4_fs_locations *locations)
 {
-	struct vfsmount *mnt = ERR_PTR(-ENOENT);
-	struct nfs_clone_mount mountdata = {
-		.sb = dentry->d_sb,
-		.dentry = dentry,
-		.authflavor = NFS_SB(dentry->d_sb)->client->cl_auth->au_flavor,
-	};
-	char *page = NULL, *page2 = NULL;
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	int loc, error;
 
 	if (locations == NULL || locations->nlocations <= 0)
-		goto out;
+		return -ENOENT;
 
-	dprintk("%s: referral at %pd2\n", __func__, dentry);
-
-	page = (char *) __get_free_page(GFP_USER);
-	if (!page)
-		goto out;
-
-	page2 = (char *) __get_free_page(GFP_USER);
-	if (!page2)
-		goto out;
+	dprintk("%s: referral at %pd2\n", __func__, ctx->clone_data.dentry);
 
 	/* Ensure fs path is a prefix of current dentry path */
-	error = nfs4_validate_fspath(dentry, locations, page, page2);
-	if (error < 0) {
-		mnt = ERR_PTR(error);
-		goto out;
-	}
+	error = nfs4_validate_fspath(ctx->clone_data.dentry, locations, ctx);
+	if (error < 0)
+		return error;
 
+	error = -ENOENT;
 	for (loc = 0; loc < locations->nlocations; loc++) {
 		const struct nfs4_fs_location *location = &locations->locations[loc];
 
@@ -332,15 +382,12 @@ static struct vfsmount *nfs_follow_referral(struct dentry *dentry,
 		    location->rootpath.ncomponents == 0)
 			continue;
 
-		mnt = try_location(&mountdata, page, page2, location);
-		if (!IS_ERR(mnt))
-			break;
+		error = try_location(fc, location);
+		if (error == 0)
+			return 0;
 	}
 
-out:
-	free_page((unsigned long) page);
-	free_page((unsigned long) page2);
-	return mnt;
+	return error;
 }
 
 /*
@@ -348,71 +395,72 @@ out:
  * @dentry - dentry of referral
  *
  */
-static struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *dentry)
+static int nfs_do_refmount(struct fs_context *fc, struct rpc_clnt *client)
 {
-	struct vfsmount *mnt = ERR_PTR(-ENOMEM);
-	struct dentry *parent;
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
+	struct dentry *dentry, *parent;
 	struct nfs4_fs_locations *fs_locations = NULL;
 	struct page *page;
-	int err;
+	int err = -ENOMEM;
 
 	/* BUG_ON(IS_ROOT(dentry)); */
 	page = alloc_page(GFP_KERNEL);
-	if (page == NULL)
-		return mnt;
+	if (!page)
+		return -ENOMEM;
 
 	fs_locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
-	if (fs_locations == NULL)
+	if (!fs_locations)
 		goto out_free;
 
 	/* Get locations */
-	mnt = ERR_PTR(-ENOENT);
-
+	dentry = ctx->clone_data.dentry;
 	parent = dget_parent(dentry);
 	dprintk("%s: getting locations for %pd2\n",
 		__func__, dentry);
 
 	err = nfs4_proc_fs_locations(client, d_inode(parent), &dentry->d_name, fs_locations, page);
 	dput(parent);
-	if (err != 0 ||
-	    fs_locations->nlocations <= 0 ||
-	    fs_locations->fs_path.ncomponents <= 0)
-		goto out_free;
+	if (err != 0)
+		goto out_free_2;
 
-	mnt = nfs_follow_referral(dentry, fs_locations);
+	err = -ENOENT;
+	if (fs_locations->nlocations <= 0 ||
+	    fs_locations->fs_path.ncomponents <= 0)
+		goto out_free_2;
+
+	err = nfs_follow_referral(fc, fs_locations);
+out_free_2:
+	kfree(fs_locations);
 out_free:
 	__free_page(page);
-	kfree(fs_locations);
-	return mnt;
+	return err;
 }
 
-struct vfsmount *nfs4_submount(struct nfs_server *server, struct dentry *dentry,
-			       struct nfs_fh *fh, struct nfs_fattr *fattr)
+int nfs4_submount(struct fs_context *fc, struct nfs_server *server)
 {
-	rpc_authflavor_t flavor = server->client->cl_auth->au_flavor;
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
+	struct dentry *dentry = ctx->clone_data.dentry;
 	struct dentry *parent = dget_parent(dentry);
 	struct inode *dir = d_inode(parent);
-	const struct qstr *name = &dentry->d_name;
 	struct rpc_clnt *client;
-	struct vfsmount *mnt;
+	int ret;
 
 	/* Look it up again to get its attributes and sec flavor */
-	client = nfs4_proc_lookup_mountpoint(dir, name, fh, fattr);
+	client = nfs4_proc_lookup_mountpoint(dir, dentry, ctx->mntfh,
+					     ctx->clone_data.fattr);
 	dput(parent);
 	if (IS_ERR(client))
-		return ERR_CAST(client);
+		return PTR_ERR(client);
 
-	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL) {
-		mnt = nfs_do_refmount(client, dentry);
-		goto out;
+	ctx->selected_flavor = client->cl_auth->au_flavor;
+	if (ctx->clone_data.fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL) {
+		ret = nfs_do_refmount(fc, client);
+	} else {
+		ret = nfs_do_submount(fc);
 	}
 
-	if (client->cl_auth->au_flavor != flavor)
-		flavor = client->cl_auth->au_flavor;
-	mnt = nfs_do_submount(dentry, fh, fattr, flavor);
-out:
 	rpc_shutdown_client(client);
-	return mnt;
+	return ret;
 }
 
 /*
@@ -453,7 +501,7 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
 		rpc_set_port(sap, NFS_PORT);
 
 		error = -ENOMEM;
-		hostname = kstrndup(buf->data, buf->len, GFP_KERNEL);
+		hostname = kmemdup_nul(buf->data, buf->len, GFP_KERNEL);
 		if (hostname == NULL)
 			break;
 

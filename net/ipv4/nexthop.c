@@ -321,7 +321,9 @@ static size_t nh_nlmsg_size_single(struct nexthop *nh)
 
 static size_t nh_nlmsg_size(struct nexthop *nh)
 {
-	size_t sz = nla_total_size(4);    /* NHA_ID */
+	size_t sz = NLMSG_ALIGN(sizeof(struct nhmsg));
+
+	sz += nla_total_size(4); /* NHA_ID */
 
 	if (nh->is_group)
 		sz += nh_nlmsg_size_grp(nh);

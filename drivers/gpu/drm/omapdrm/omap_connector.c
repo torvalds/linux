@@ -229,7 +229,8 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 	 * operation to the panel API.
 	 */
 	if (omap_connector->output->panel)
-		return drm_panel_get_modes(omap_connector->output->panel);
+		return drm_panel_get_modes(omap_connector->output->panel,
+					   connector);
 
 	/*
 	 * We can't retrieve modes, which can happen for instance for a DVI or

@@ -131,8 +131,7 @@ static const struct of_device_id da9210_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, da9210_dt_ids);
 
-static int da9210_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int da9210_i2c_probe(struct i2c_client *i2c)
 {
 	struct da9210 *chip;
 	struct device *dev = &i2c->dev;
@@ -228,7 +227,7 @@ static struct i2c_driver da9210_regulator_driver = {
 		.name = "da9210",
 		.of_match_table = of_match_ptr(da9210_dt_ids),
 	},
-	.probe = da9210_i2c_probe,
+	.probe_new = da9210_i2c_probe,
 	.id_table = da9210_i2c_id,
 };
 

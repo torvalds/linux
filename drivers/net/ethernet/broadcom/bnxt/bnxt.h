@@ -1457,6 +1457,8 @@ struct bnxt {
 #define CHIP_NUM_58804		0xd804
 #define CHIP_NUM_58808		0xd808
 
+	u8			chip_rev;
+
 #define BNXT_CHIP_NUM_5730X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57301 &&	\
 	 (chip_num) <= CHIP_NUM_57304)
@@ -1532,6 +1534,7 @@ struct bnxt {
 	#define BNXT_FLAG_NO_AGG_RINGS	0x20000
 	#define BNXT_FLAG_RX_PAGE_MODE	0x40000
 	#define BNXT_FLAG_MULTI_HOST	0x100000
+	#define BNXT_FLAG_DSN_VALID	0x200000
 	#define BNXT_FLAG_DOUBLE_DB	0x400000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 	#define BNXT_FLAG_DIM		0x2000000
@@ -1845,7 +1848,7 @@ struct bnxt {
 	enum devlink_eswitch_mode eswitch_mode;
 	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
-	u8			switch_id[8];
+	u8			dsn[8];
 	struct bnxt_tc_info	*tc_info;
 	struct list_head	tc_indr_block_list;
 	struct notifier_block	tc_netdev_nb;
@@ -1936,9 +1939,6 @@ static inline bool bnxt_cfa_hwrm_message(u16 req_type)
 	case HWRM_CFA_ENCAP_RECORD_FREE:
 	case HWRM_CFA_DECAP_FILTER_ALLOC:
 	case HWRM_CFA_DECAP_FILTER_FREE:
-	case HWRM_CFA_NTUPLE_FILTER_ALLOC:
-	case HWRM_CFA_NTUPLE_FILTER_FREE:
-	case HWRM_CFA_NTUPLE_FILTER_CFG:
 	case HWRM_CFA_EM_FLOW_ALLOC:
 	case HWRM_CFA_EM_FLOW_FREE:
 	case HWRM_CFA_EM_FLOW_CFG:

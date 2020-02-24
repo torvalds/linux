@@ -95,7 +95,7 @@ to emulate MCTRL (modem control) signals CTS/RTS by using two GPIO lines. The
 MTD NOR flash has add-ons for extra GPIO lines too, though the address bus is
 usually connected directly to the flash.
 
-Use those instead of talking directly to the GPIOs using sysfs; they integrate
-with kernel frameworks better than your userspace code could. Needless to say,
-just using the appropriate kernel drivers will simplify and speed up your
-embedded hacking in particular by providing ready-made components.
+Use those instead of talking directly to the GPIOs from userspace; they
+integrate with kernel frameworks better than your userspace code could.
+Needless to say, just using the appropriate kernel drivers will simplify and
+speed up your embedded hacking in particular by providing ready-made components.

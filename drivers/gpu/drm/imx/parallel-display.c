@@ -50,7 +50,7 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 	struct device_node *np = imxpd->dev->of_node;
 	int num_modes;
 
-	num_modes = drm_panel_get_modes(imxpd->panel);
+	num_modes = drm_panel_get_modes(imxpd->panel, connector);
 	if (num_modes > 0)
 		return num_modes;
 

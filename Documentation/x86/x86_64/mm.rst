@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-================
-Memory Managment
-================
+=================
+Memory Management
+=================
 
 Complete virtual memory map with 4-level page tables
 ====================================================

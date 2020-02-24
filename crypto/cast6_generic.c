@@ -103,17 +103,14 @@ static inline void W(u32 *key, unsigned int i)
 	key[7] ^= F2(key[0], Tr[i % 4][7], Tm[i][7]);
 }
 
-int __cast6_setkey(struct cast6_ctx *c, const u8 *in_key,
-		   unsigned key_len, u32 *flags)
+int __cast6_setkey(struct cast6_ctx *c, const u8 *in_key, unsigned int key_len)
 {
 	int i;
 	u32 key[8];
 	__be32 p_key[8]; /* padded key */
 
-	if (key_len % 4 != 0) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	if (key_len % 4 != 0)
 		return -EINVAL;
-	}
 
 	memset(p_key, 0, 32);
 	memcpy(p_key, in_key, key_len);
@@ -148,13 +145,12 @@ EXPORT_SYMBOL_GPL(__cast6_setkey);
 
 int cast6_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 {
-	return __cast6_setkey(crypto_tfm_ctx(tfm), key, keylen,
-			      &tfm->crt_flags);
+	return __cast6_setkey(crypto_tfm_ctx(tfm), key, keylen);
 }
 EXPORT_SYMBOL_GPL(cast6_setkey);
 
 /*forward quad round*/
-static inline void Q(u32 *block, u8 *Kr, u32 *Km)
+static inline void Q(u32 *block, const u8 *Kr, const u32 *Km)
 {
 	u32 I;
 	block[2] ^= F1(block[3], Kr[0], Km[0]);
@@ -164,7 +160,7 @@ static inline void Q(u32 *block, u8 *Kr, u32 *Km)
 }
 
 /*reverse quad round*/
-static inline void QBAR(u32 *block, u8 *Kr, u32 *Km)
+static inline void QBAR(u32 *block, const u8 *Kr, const u32 *Km)
 {
 	u32 I;
 	block[3] ^= F1(block[0], Kr[3], Km[3]);
@@ -173,13 +169,14 @@ static inline void QBAR(u32 *block, u8 *Kr, u32 *Km)
 	block[2] ^= F1(block[3], Kr[0], Km[0]);
 }
 
-void __cast6_encrypt(struct cast6_ctx *c, u8 *outbuf, const u8 *inbuf)
+void __cast6_encrypt(const void *ctx, u8 *outbuf, const u8 *inbuf)
 {
+	const struct cast6_ctx *c = ctx;
 	const __be32 *src = (const __be32 *)inbuf;
 	__be32 *dst = (__be32 *)outbuf;
 	u32 block[4];
-	u32 *Km;
-	u8 *Kr;
+	const u32 *Km;
+	const u8 *Kr;
 
 	block[0] = be32_to_cpu(src[0]);
 	block[1] = be32_to_cpu(src[1]);
@@ -211,13 +208,14 @@ static void cast6_encrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
 	__cast6_encrypt(crypto_tfm_ctx(tfm), outbuf, inbuf);
 }
 
-void __cast6_decrypt(struct cast6_ctx *c, u8 *outbuf, const u8 *inbuf)
+void __cast6_decrypt(const void *ctx, u8 *outbuf, const u8 *inbuf)
 {
+	const struct cast6_ctx *c = ctx;
 	const __be32 *src = (const __be32 *)inbuf;
 	__be32 *dst = (__be32 *)outbuf;
 	u32 block[4];
-	u32 *Km;
-	u8 *Kr;
+	const u32 *Km;
+	const u8 *Kr;
 
 	block[0] = be32_to_cpu(src[0]);
 	block[1] = be32_to_cpu(src[1]);

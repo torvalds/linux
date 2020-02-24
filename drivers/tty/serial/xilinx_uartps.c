@@ -9,10 +9,6 @@
  * in the code.
  */
 
-#if defined(CONFIG_SERIAL_XILINX_PS_UART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/console.h>
@@ -156,6 +152,16 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
 #define CDNS_UART_MODEMCR_FCM	0x00000020 /* Automatic flow control mode */
 #define CDNS_UART_MODEMCR_RTS	0x00000002 /* Request to send output control */
 #define CDNS_UART_MODEMCR_DTR	0x00000001 /* Data Terminal Ready */
+
+/*
+ * Modem Status register:
+ * The read/write Modem Status register reports the interface with the modem
+ * or data set, or a peripheral device emulating a modem.
+ */
+#define CDNS_UART_MODEMSR_DCD	BIT(7) /* Data Carrier Detect */
+#define CDNS_UART_MODEMSR_RI	BIT(6) /* Ting Indicator */
+#define CDNS_UART_MODEMSR_DSR	BIT(5) /* Data Set Ready */
+#define CDNS_UART_MODEMSR_CTS	BIT(4) /* Clear To Send */
 
 /*
  * Channel Status Register:
@@ -684,7 +690,7 @@ static void cdns_uart_break_ctl(struct uart_port *port, int ctl)
 static void cdns_uart_set_termios(struct uart_port *port,
 				struct ktermios *termios, struct ktermios *old)
 {
-	unsigned int cval = 0;
+	u32 cval = 0;
 	unsigned int baud, minbaud, maxbaud;
 	unsigned long flags;
 	unsigned int ctrl_reg, mode_reg, val;
@@ -804,6 +810,13 @@ static void cdns_uart_set_termios(struct uart_port *port,
 	}
 	cval |= mode_reg & 1;
 	writel(cval, port->membase + CDNS_UART_MR);
+
+	cval = readl(port->membase + CDNS_UART_MODEMCR);
+	if (termios->c_cflag & CRTSCTS)
+		cval |= CDNS_UART_MODEMCR_FCM;
+	else
+		cval &= ~CDNS_UART_MODEMCR_FCM;
+	writel(cval, port->membase + CDNS_UART_MODEMCR);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -1007,12 +1020,24 @@ static void cdns_uart_config_port(struct uart_port *port, int flags)
  */
 static unsigned int cdns_uart_get_mctrl(struct uart_port *port)
 {
+	u32 val;
+	unsigned int mctrl = 0;
 	struct cdns_uart *cdns_uart_data = port->private_data;
 
 	if (cdns_uart_data->cts_override)
-		return 0;
+		return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 
-	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
+	val = readl(port->membase + CDNS_UART_MODEMSR);
+	if (val & CDNS_UART_MODEMSR_CTS)
+		mctrl |= TIOCM_CTS;
+	if (val & CDNS_UART_MODEMSR_DSR)
+		mctrl |= TIOCM_DSR;
+	if (val & CDNS_UART_MODEMSR_RI)
+		mctrl |= TIOCM_RNG;
+	if (val & CDNS_UART_MODEMSR_DCD)
+		mctrl |= TIOCM_CAR;
+
+	return mctrl;
 }
 
 static void cdns_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
@@ -1027,12 +1052,13 @@ static void cdns_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	val = readl(port->membase + CDNS_UART_MODEMCR);
 	mode_reg = readl(port->membase + CDNS_UART_MR);
 
-	val &= ~(CDNS_UART_MODEMCR_RTS | CDNS_UART_MODEMCR_DTR |
-		 CDNS_UART_MODEMCR_FCM);
+	val &= ~(CDNS_UART_MODEMCR_RTS | CDNS_UART_MODEMCR_DTR);
 	mode_reg &= ~CDNS_UART_MR_CHMODE_MASK;
 
-	if (mctrl & TIOCM_RTS || mctrl & TIOCM_DTR)
-		val |= CDNS_UART_MODEMCR_FCM;
+	if (mctrl & TIOCM_RTS)
+		val |= CDNS_UART_MODEMCR_RTS;
+	if (mctrl & TIOCM_DTR)
+		val |= CDNS_UART_MODEMCR_DTR;
 	if (mctrl & TIOCM_LOOP)
 		mode_reg |= CDNS_UART_MR_CHMODE_L_LOOP;
 	else
@@ -1634,6 +1660,7 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	port->flags	= UPF_BOOT_AUTOCONF;
 	port->ops	= &cdns_uart_ops;
 	port->fifosize	= CDNS_UART_FIFO_SIZE;
+	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_XILINX_PS_UART_CONSOLE);
 
 	/*
 	 * Register the port.

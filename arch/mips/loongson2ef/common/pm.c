@@ -91,7 +91,7 @@ static inline void stop_perf_counters(void)
 
 static void loongson_suspend_enter(void)
 {
-	static unsigned int cached_cpu_freq;
+	unsigned int cached_cpu_freq;
 
 	/* setup wakeup events via enabling the IRQs */
 	setup_wakeup_events();

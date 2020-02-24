@@ -1108,7 +1108,7 @@ static int jz4740_mmc_suspend(struct device *dev)
 
 static int jz4740_mmc_resume(struct device *dev)
 {
-	return pinctrl_pm_select_default_state(dev);
+	return pinctrl_select_default_state(dev);
 }
 
 static SIMPLE_DEV_PM_OPS(jz4740_mmc_pm_ops, jz4740_mmc_suspend,

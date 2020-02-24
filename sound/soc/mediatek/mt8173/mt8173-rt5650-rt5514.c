@@ -209,7 +209,7 @@ static int mt8173_rt5650_rt5514_dev_probe(struct platform_device *pdev)
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
-	mt8173_rt5650_rt5514_codec_conf[0].of_node =
+	mt8173_rt5650_rt5514_codec_conf[0].dlc.of_node =
 		mt8173_rt5650_rt5514_dais[DAI_LINK_CODEC_I2S].codecs[1].of_node;
 
 	card->dev = &pdev->dev;

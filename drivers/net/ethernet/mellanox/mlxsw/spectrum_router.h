@@ -104,4 +104,7 @@ static inline bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
 	return !memcmp(addr1, addr2, sizeof(*addr1));
 }
 
+int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
+
 #endif /* _MLXSW_ROUTER_H_*/

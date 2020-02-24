@@ -892,7 +892,7 @@ static netdev_tx_t encx24j600_tx(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* Deal with a transmit timeout */
-static void encx24j600_tx_timeout(struct net_device *dev)
+static void encx24j600_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct encx24j600_priv *priv = netdev_priv(dev);
 

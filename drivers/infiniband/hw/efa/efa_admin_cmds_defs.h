@@ -160,10 +160,16 @@ struct efa_admin_create_qp_resp {
 	/* Common Admin Queue completion descriptor */
 	struct efa_admin_acq_common_desc acq_common_desc;
 
-	/* Opaque handle to be used for consequent operations on the QP */
+	/*
+	 * Opaque handle to be used for consequent admin operations on the
+	 * QP
+	 */
 	u32 qp_handle;
 
-	/* QP number in the given EFA virtual device */
+	/*
+	 * QP number in the given EFA virtual device. Least-significant bits
+	 *    (as needed according to max_qp) carry unique QP ID
+	 */
 	u16 qp_num;
 
 	/* MBZ */
@@ -286,6 +292,7 @@ struct efa_admin_create_ah_cmd {
 	/* PD number */
 	u16 pd;
 
+	/* MBZ */
 	u16 reserved;
 };
 
@@ -296,6 +303,7 @@ struct efa_admin_create_ah_resp {
 	/* Target interface address handle (opaque) */
 	u16 ah;
 
+	/* MBZ */
 	u16 reserved;
 };
 
@@ -372,6 +380,7 @@ struct efa_admin_reg_mr_cmd {
 	 */
 	u8 permissions;
 
+	/* MBZ */
 	u16 reserved16_w5;
 
 	/* number of pages in PBL (redundant, could be calculated) */
@@ -419,20 +428,20 @@ struct efa_admin_create_cq_cmd {
 	struct efa_admin_aq_common_desc aq_common_desc;
 
 	/*
-	 * 4:0 : reserved5
+	 * 4:0 : reserved5 - MBZ
 	 * 5 : interrupt_mode_enabled - if set, cq operates
 	 *    in interrupt mode (i.e. CQ events and MSI-X are
 	 *    generated), otherwise - polling
 	 * 6 : virt - If set, ring base address is virtual
 	 *    (IOVA returned by MR registration)
-	 * 7 : reserved6
+	 * 7 : reserved6 - MBZ
 	 */
 	u8 cq_caps_1;
 
 	/*
 	 * 4:0 : cq_entry_size_words - size of CQ entry in
 	 *    32-bit words, valid values: 4, 8.
-	 * 7:5 : reserved7
+	 * 7:5 : reserved7 - MBZ
 	 */
 	u8 cq_caps_2;
 
@@ -478,6 +487,7 @@ struct efa_admin_destroy_cq_cmd {
 
 	u16 cq_idx;
 
+	/* MBZ */
 	u16 reserved1;
 };
 
@@ -530,7 +540,7 @@ struct efa_admin_get_set_feature_common_desc {
 	/*
 	 * 1:0 : select - 0x1 - current value; 0x3 - default
 	 *    value
-	 * 7:3 : reserved3
+	 * 7:3 : reserved3 - MBZ
 	 */
 	u8 flags;
 
@@ -557,10 +567,10 @@ struct efa_admin_feature_device_attr_desc {
 	/* Bar used for SQ and RQ doorbells */
 	u16 db_bar;
 
-	/* Indicates how many bits are used physical address access */
+	/* Indicates how many bits are used on physical address access */
 	u8 phys_addr_width;
 
-	/* Indicates how many bits are used virtual address access */
+	/* Indicates how many bits are used on virtual address access */
 	u8 virt_addr_width;
 
 	/*
@@ -578,27 +588,28 @@ struct efa_admin_feature_queue_attr_desc {
 	/* The maximum number of queue pairs supported */
 	u32 max_qp;
 
+	/* Maximum number of WQEs per Send Queue */
 	u32 max_sq_depth;
 
-	/* max send wr used in inline-buf */
+	/* Maximum size of data that can be sent inline in a Send WQE */
 	u32 inline_buf_size;
 
+	/* Maximum number of buffer descriptors per Recv Queue */
 	u32 max_rq_depth;
 
 	/* The maximum number of completion queues supported per VF */
 	u32 max_cq;
 
+	/* Maximum number of CQEs per Completion Queue */
 	u32 max_cq_depth;
 
 	/* Number of sub-CQs to be created for each CQ */
 	u16 sub_cqs_per_cq;
 
+	/* MBZ */
 	u16 reserved;
 
-	/*
-	 * Maximum number of SGEs (buffs) allowed for a single send work
-	 *    queue element (WQE)
-	 */
+	/* Maximum number of SGEs (buffers) allowed for a single send WQE */
 	u16 max_wr_send_sges;
 
 	/* Maximum number of SGEs allowed for a single recv WQE */

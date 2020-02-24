@@ -70,7 +70,6 @@ void __init config_sun3x(void)
 		break;
 	default:
 		serial_console = 0;
-		conswitchp = &dummy_con;
 		break;
 	}
 #endif

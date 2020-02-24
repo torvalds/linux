@@ -856,6 +856,17 @@ static int drm_cmdline_test_rotate_270(void *ignored)
 	return 0;
 }
 
+static int drm_cmdline_test_rotate_multiple(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(drm_mode_parse_command_line_for_connector("720x480,rotate=0,rotate=90",
+							  &no_connector,
+							  &mode));
+
+	return 0;
+}
+
 static int drm_cmdline_test_rotate_invalid_val(void *ignored)
 {
 	struct drm_cmdline_mode mode = { };
@@ -888,7 +899,7 @@ static int drm_cmdline_test_hmirror(void *ignored)
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
 	FAIL_ON(mode.yres != 480);
-	FAIL_ON(mode.rotation_reflection != DRM_MODE_REFLECT_X);
+	FAIL_ON(mode.rotation_reflection != (DRM_MODE_ROTATE_0 | DRM_MODE_REFLECT_X));
 
 	FAIL_ON(mode.refresh_specified);
 
@@ -913,7 +924,7 @@ static int drm_cmdline_test_vmirror(void *ignored)
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
 	FAIL_ON(mode.yres != 480);
-	FAIL_ON(mode.rotation_reflection != DRM_MODE_REFLECT_Y);
+	FAIL_ON(mode.rotation_reflection != (DRM_MODE_ROTATE_0 | DRM_MODE_REFLECT_Y));
 
 	FAIL_ON(mode.refresh_specified);
 
@@ -988,6 +999,128 @@ static int drm_cmdline_test_invalid_option(void *ignored)
 	FAIL_ON(drm_mode_parse_command_line_for_connector("720x480,test=42",
 							  &no_connector,
 							  &mode));
+
+	return 0;
+}
+
+static int drm_cmdline_test_bpp_extra_and_option(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24e,rotate=180",
+							   &no_connector,
+							   &mode));
+	FAIL_ON(!mode.specified);
+	FAIL_ON(mode.xres != 720);
+	FAIL_ON(mode.yres != 480);
+	FAIL_ON(mode.rotation_reflection != DRM_MODE_ROTATE_180);
+
+	FAIL_ON(mode.refresh_specified);
+
+	FAIL_ON(!mode.bpp_specified);
+	FAIL_ON(mode.bpp != 24);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_ON);
+
+	return 0;
+}
+
+static int drm_cmdline_test_extra_and_option(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480e,rotate=180",
+							   &no_connector,
+							   &mode));
+	FAIL_ON(!mode.specified);
+	FAIL_ON(mode.xres != 720);
+	FAIL_ON(mode.yres != 480);
+	FAIL_ON(mode.rotation_reflection != DRM_MODE_ROTATE_180);
+
+	FAIL_ON(mode.refresh_specified);
+	FAIL_ON(mode.bpp_specified);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_ON);
+
+	return 0;
+}
+
+static int drm_cmdline_test_freestanding_options(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("margin_right=14,margin_left=24,margin_bottom=36,margin_top=42",
+							   &no_connector,
+							   &mode));
+	FAIL_ON(mode.specified);
+	FAIL_ON(mode.refresh_specified);
+	FAIL_ON(mode.bpp_specified);
+
+	FAIL_ON(mode.tv_margins.right != 14);
+	FAIL_ON(mode.tv_margins.left != 24);
+	FAIL_ON(mode.tv_margins.bottom != 36);
+	FAIL_ON(mode.tv_margins.top != 42);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_UNSPECIFIED);
+
+	return 0;
+}
+
+static int drm_cmdline_test_freestanding_force_e_and_options(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("e,margin_right=14,margin_left=24,margin_bottom=36,margin_top=42",
+							   &no_connector,
+							   &mode));
+	FAIL_ON(mode.specified);
+	FAIL_ON(mode.refresh_specified);
+	FAIL_ON(mode.bpp_specified);
+
+	FAIL_ON(mode.tv_margins.right != 14);
+	FAIL_ON(mode.tv_margins.left != 24);
+	FAIL_ON(mode.tv_margins.bottom != 36);
+	FAIL_ON(mode.tv_margins.top != 42);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_ON);
+
+	return 0;
+}
+
+static int drm_cmdline_test_panel_orientation(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("panel_orientation=upside_down",
+							   &no_connector,
+							   &mode));
+	FAIL_ON(mode.specified);
+	FAIL_ON(mode.refresh_specified);
+	FAIL_ON(mode.bpp_specified);
+
+	FAIL_ON(mode.panel_orientation != DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_UNSPECIFIED);
 
 	return 0;
 }

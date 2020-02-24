@@ -108,7 +108,8 @@ enum ab8500_usb_mode {
 	USB_IDLE = 0,
 	USB_PERIPHERAL,
 	USB_HOST,
-	USB_DEDICATED_CHG
+	USB_DEDICATED_CHG,
+	USB_UART
 };
 
 /* Register USB_LINK_STATUS interrupt */
@@ -393,6 +394,24 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		usb_phy_set_event(&ab->phy, USB_EVENT_CHARGER);
 		break;
 
+	/*
+	 * FIXME: For now we rely on the boot firmware to set up the necessary
+	 * PHY/pin configuration for UART mode.
+	 *
+	 * AB8505 does not seem to report any status change for UART cables,
+	 * possibly because it cannot detect them autonomously.
+	 * We may need to measure the ID resistance manually to reliably
+	 * detect UART cables after bootup.
+	 */
+	case USB_LINK_SAMSUNG_UART_CBL_PHY_EN_8505:
+	case USB_LINK_SAMSUNG_UART_CBL_PHY_DISB_8505:
+		if (ab->mode == USB_IDLE) {
+			ab->mode = USB_UART;
+			ab8500_usb_peri_phy_en(ab);
+		}
+
+		break;
+
 	default:
 		break;
 	}
@@ -564,6 +583,11 @@ static irqreturn_t ab8500_usb_disconnect_irq(int irq, void *data)
 		ab->mode = USB_IDLE;
 		ab->phy.otg->default_a = false;
 		ab->vbus_draw = 0;
+	}
+
+	if (ab->mode == USB_UART) {
+		ab8500_usb_peri_phy_dis(ab);
+		ab->mode = USB_IDLE;
 	}
 
 	if (is_ab8500_2p0(ab->ab8500)) {

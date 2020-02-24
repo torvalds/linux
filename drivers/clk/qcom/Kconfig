@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config KRAIT_CLOCKS
-       bool
-       select KRAIT_L2_ACCESSORS
+	bool
+	select KRAIT_L2_ACCESSORS
 
 config QCOM_GDSC
 	bool
@@ -14,6 +14,7 @@ menuconfig COMMON_CLK_QCOM
 	tristate "Support for Qualcomm's clock controllers"
 	depends on OF
 	depends on ARCH_QCOM || COMPILE_TEST
+	select RATIONAL
 	select REGMAP_MMIO
 	select RESET_CONTROLLER
 
@@ -94,6 +95,14 @@ config IPQ_GCC_4019
 	  Support for the global clock controller on ipq4019 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, SD/eMMC, etc.
+
+config IPQ_GCC_6018
+	tristate "IPQ6018 Global Clock Controller"
+	help
+	  Support for global clock controller on ipq6018 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc. Select this for the root clock
+	  of ipq6018.
 
 config IPQ_GCC_806X
 	tristate "IPQ806x Global Clock Controller"
@@ -229,12 +238,30 @@ config MSM_GPUCC_8998
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config MSM_MMCC_8998
+	tristate "MSM8998 Multimedia Clock Controller"
+	select MSM_GCC_8998
+	select QCOM_GDSC
+	help
+	  Support for the multimedia clock controller on msm8998 devices.
+	  Say Y if you want to support multimedia devices such as display,
+	  graphics, video encode/decode, camera, etc.
+
 config QCS_GCC_404
 	tristate "QCS404 Global Clock Controller"
 	help
 	  Support for the global clock controller on QCS404 devices.
 	  Say Y if you want to use multimedia devices or peripheral
 	  devices such as UART, SPI, I2C, USB, SD/eMMC, PCIe etc.
+
+config SC_DISPCC_7180
+	tristate "SC7180 Display Clock Controller"
+	select SC_GCC_7180
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  SC7180 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
 
 config SC_GCC_7180
 	tristate "SC7180 Global Clock Controller"
@@ -244,6 +271,22 @@ config SC_GCC_7180
 	  Support for the global clock controller on SC7180 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  I2C, USB, UFS, SDCC, etc.
+
+config SC_GPUCC_7180
+	tristate "SC7180 Graphics Clock Controller"
+	select SC_GCC_7180
+	help
+	  Support for the graphics clock controller on SC7180 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
+config SC_VIDEOCC_7180
+	tristate "SC7180 Video Clock Controller"
+	select SC_GCC_7180
+	help
+	  Support for the video clock controller on SC7180 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
 
 config SDM_CAMCC_845
 	tristate "SDM845 Camera Clock Controller"

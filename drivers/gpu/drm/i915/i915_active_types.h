@@ -20,21 +20,6 @@
 struct i915_active_fence {
 	struct dma_fence __rcu *fence;
 	struct dma_fence_cb cb;
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
-	/*
-	 * Incorporeal!
-	 *
-	 * Updates to the i915_active_request must be serialised under a lock
-	 * to ensure that the timeline is ordered. Normally, this is the
-	 * timeline->mutex, but another mutex may be used so long as it is
-	 * done so consistently.
-	 *
-	 * For lockdep tracking of the above, we store the lock we intend
-	 * to always use for updates of this i915_active_request during
-	 * construction and assert that is held on every update.
-	 */
-	struct mutex *lock;
-#endif
 };
 
 struct active_node;

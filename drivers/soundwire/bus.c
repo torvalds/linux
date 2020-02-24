@@ -456,26 +456,35 @@ err:
 static int sdw_assign_device_num(struct sdw_slave *slave)
 {
 	int ret, dev_num;
+	bool new_device = false;
 
 	/* check first if device number is assigned, if so reuse that */
 	if (!slave->dev_num) {
-		mutex_lock(&slave->bus->bus_lock);
-		dev_num = sdw_get_device_num(slave);
-		mutex_unlock(&slave->bus->bus_lock);
-		if (dev_num < 0) {
-			dev_err(slave->bus->dev, "Get dev_num failed: %d\n",
-				dev_num);
-			return dev_num;
+		if (!slave->dev_num_sticky) {
+			mutex_lock(&slave->bus->bus_lock);
+			dev_num = sdw_get_device_num(slave);
+			mutex_unlock(&slave->bus->bus_lock);
+			if (dev_num < 0) {
+				dev_err(slave->bus->dev, "Get dev_num failed: %d\n",
+					dev_num);
+				return dev_num;
+			}
+			slave->dev_num = dev_num;
+			slave->dev_num_sticky = dev_num;
+			new_device = true;
+		} else {
+			slave->dev_num = slave->dev_num_sticky;
 		}
-	} else {
+	}
+
+	if (!new_device)
 		dev_info(slave->bus->dev,
-			 "Slave already registered dev_num:%d\n",
+			 "Slave already registered, reusing dev_num:%d\n",
 			 slave->dev_num);
 
-		/* Clear the slave->dev_num to transfer message on device 0 */
-		dev_num = slave->dev_num;
-		slave->dev_num = 0;
-	}
+	/* Clear the slave->dev_num to transfer message on device 0 */
+	dev_num = slave->dev_num;
+	slave->dev_num = 0;
 
 	ret = sdw_write(slave, SDW_SCP_DEVNUMBER, dev_num);
 	if (ret < 0) {
@@ -485,7 +494,7 @@ static int sdw_assign_device_num(struct sdw_slave *slave)
 	}
 
 	/* After xfer of msg, restore dev_num */
-	slave->dev_num = dev_num;
+	slave->dev_num = slave->dev_num_sticky;
 
 	return 0;
 }
@@ -978,6 +987,24 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
 	enum sdw_slave_status prev_status;
 	struct sdw_slave *slave;
 	int i, ret = 0;
+
+	/* first check if any Slaves fell off the bus */
+	for (i = 1; i <= SDW_MAX_DEVICES; i++) {
+		mutex_lock(&bus->bus_lock);
+		if (test_bit(i, bus->assigned) == false) {
+			mutex_unlock(&bus->bus_lock);
+			continue;
+		}
+		mutex_unlock(&bus->bus_lock);
+
+		slave = sdw_get_slave(bus, i);
+		if (!slave)
+			continue;
+
+		if (status[i] == SDW_SLAVE_UNATTACHED &&
+		    slave->status != SDW_SLAVE_UNATTACHED)
+			sdw_modify_slave_status(slave, SDW_SLAVE_UNATTACHED);
+	}
 
 	if (status[0] == SDW_SLAVE_ATTACHED) {
 		dev_dbg(bus->dev, "Slave attached, programming device number\n");

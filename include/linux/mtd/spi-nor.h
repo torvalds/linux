@@ -128,7 +128,8 @@
 #define SR_BP0			BIT(2)	/* Block protect 0 */
 #define SR_BP1			BIT(3)	/* Block protect 1 */
 #define SR_BP2			BIT(4)	/* Block protect 2 */
-#define SR_TB			BIT(5)	/* Top/Bottom protect */
+#define SR_TB_BIT5		BIT(5)	/* Top/Bottom protect */
+#define SR_TB_BIT6		BIT(6)	/* Top/Bottom protect */
 #define SR_SRWD			BIT(7)	/* SR write protect */
 /* Spansion/Cypress specific status bits */
 #define SR_E_ERR		BIT(5)
@@ -224,14 +225,6 @@ static inline u8 spi_nor_get_protocol_width(enum spi_nor_protocol proto)
 	return spi_nor_get_protocol_data_nbits(proto);
 }
 
-enum spi_nor_ops {
-	SPI_NOR_OPS_READ = 0,
-	SPI_NOR_OPS_WRITE,
-	SPI_NOR_OPS_ERASE,
-	SPI_NOR_OPS_LOCK,
-	SPI_NOR_OPS_UNLOCK,
-};
-
 enum spi_nor_option_flags {
 	SNOR_F_USE_FSR		= BIT(0),
 	SNOR_F_HAS_SR_TB	= BIT(1),
@@ -244,6 +237,7 @@ enum spi_nor_option_flags {
 	SNOR_F_HAS_LOCK		= BIT(8),
 	SNOR_F_HAS_16BIT_SR	= BIT(9),
 	SNOR_F_NO_READ_CR	= BIT(10),
+	SNOR_F_HAS_SR_TB_BIT6	= BIT(11),
 
 };
 
@@ -483,8 +477,8 @@ struct spi_nor;
  *			opcode via write_reg().
  */
 struct spi_nor_controller_ops {
-	int (*prepare)(struct spi_nor *nor, enum spi_nor_ops ops);
-	void (*unprepare)(struct spi_nor *nor, enum spi_nor_ops ops);
+	int (*prepare)(struct spi_nor *nor);
+	void (*unprepare)(struct spi_nor *nor);
 	int (*read_reg)(struct spi_nor *nor, u8 opcode, u8 *buf, size_t len);
 	int (*write_reg)(struct spi_nor *nor, u8 opcode, const u8 *buf,
 			 size_t len);

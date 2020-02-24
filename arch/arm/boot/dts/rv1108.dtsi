@@ -456,7 +456,7 @@
 		#reset-cells = <1>;
 	};
 
-	emmc: dwmmc@30110000 {
+	emmc: mmc@30110000 {
 		compatible = "rockchip,rv1108-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x30110000 0x4000>;
 		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
@@ -468,7 +468,7 @@
 		status = "disabled";
 	};
 
-	sdio: dwmmc@30120000 {
+	sdio: mmc@30120000 {
 		compatible = "rockchip,rv1108-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x30120000 0x4000>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
@@ -480,7 +480,7 @@
 		status = "disabled";
 	};
 
-	sdmmc: dwmmc@30130000 {
+	sdmmc: mmc@30130000 {
 		compatible = "rockchip,rv1108-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x30130000 0x4000>;
 		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;

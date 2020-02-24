@@ -221,55 +221,6 @@ rpcauth_get_gssinfo(rpc_authflavor_t pseudoflavor, struct rpcsec_gss_info *info)
 }
 EXPORT_SYMBOL_GPL(rpcauth_get_gssinfo);
 
-/**
- * rpcauth_list_flavors - discover registered flavors and pseudoflavors
- * @array: array to fill in
- * @size: size of "array"
- *
- * Returns the number of array items filled in, or a negative errno.
- *
- * The returned array is not sorted by any policy.  Callers should not
- * rely on the order of the items in the returned array.
- */
-int
-rpcauth_list_flavors(rpc_authflavor_t *array, int size)
-{
-	const struct rpc_authops *ops;
-	rpc_authflavor_t flavor, pseudos[4];
-	int i, len, result = 0;
-
-	rcu_read_lock();
-	for (flavor = 0; flavor < RPC_AUTH_MAXFLAVOR; flavor++) {
-		ops = rcu_dereference(auth_flavors[flavor]);
-		if (result >= size) {
-			result = -ENOMEM;
-			break;
-		}
-
-		if (ops == NULL)
-			continue;
-		if (ops->list_pseudoflavors == NULL) {
-			array[result++] = ops->au_flavor;
-			continue;
-		}
-		len = ops->list_pseudoflavors(pseudos, ARRAY_SIZE(pseudos));
-		if (len < 0) {
-			result = len;
-			break;
-		}
-		for (i = 0; i < len; i++) {
-			if (result >= size) {
-				result = -ENOMEM;
-				break;
-			}
-			array[result++] = pseudos[i];
-		}
-	}
-	rcu_read_unlock();
-	return result;
-}
-EXPORT_SYMBOL_GPL(rpcauth_list_flavors);
-
 struct rpc_auth *
 rpcauth_create(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {

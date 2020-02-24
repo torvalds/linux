@@ -466,6 +466,9 @@ static void nft_rbtree_destroy(const struct nft_set *set)
 static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,
 				struct nft_set_estimate *est)
 {
+	if (desc->field_count > 1)
+		return false;
+
 	if (desc->size)
 		est->size = sizeof(struct nft_rbtree) +
 			    desc->size * sizeof(struct nft_rbtree_elem);

@@ -12,8 +12,6 @@
 #define _XTENSA_PLATFORM_H
 
 #include <linux/types.h>
-#include <linux/pci.h>
-
 #include <asm/bootparam.h>
 
 /*

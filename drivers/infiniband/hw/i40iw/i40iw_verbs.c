@@ -169,8 +169,7 @@ static void i40iw_dealloc_ucontext(struct ib_ucontext *context)
 static int i40iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
 	struct i40iw_ucontext *ucontext;
-	u64 db_addr_offset;
-	u64 push_offset;
+	u64 db_addr_offset, push_offset, pfn;
 
 	ucontext = to_ucontext(context);
 	if (ucontext->iwdev->sc_dev.is_pf) {
@@ -189,7 +188,6 @@ static int i40iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 
 	if (vma->vm_pgoff == (db_addr_offset >> PAGE_SHIFT)) {
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		vma->vm_private_data = ucontext;
 	} else {
 		if ((vma->vm_pgoff - (push_offset >> PAGE_SHIFT)) % 2)
 			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
@@ -197,12 +195,12 @@ static int i40iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 			vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	}
 
-	if (io_remap_pfn_range(vma, vma->vm_start,
-			       vma->vm_pgoff + (pci_resource_start(ucontext->iwdev->ldev->pcidev, 0) >> PAGE_SHIFT),
-			       PAGE_SIZE, vma->vm_page_prot))
-		return -EAGAIN;
+	pfn = vma->vm_pgoff +
+	      (pci_resource_start(ucontext->iwdev->ldev->pcidev, 0) >>
+	       PAGE_SHIFT);
 
-	return 0;
+	return rdma_user_mmap_io(context, vma, pfn, PAGE_SIZE,
+				 vma->vm_page_prot, NULL);
 }
 
 /**
@@ -1758,12 +1756,15 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	int ret;
 	int pg_shift;
 
+	if (!udata)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (iwdev->closing)
 		return ERR_PTR(-ENODEV);
 
 	if (length > I40IW_MAX_MR_SIZE)
 		return ERR_PTR(-EINVAL);
-	region = ib_umem_get(udata, start, length, acc);
+	region = ib_umem_get(pd->device, start, length, acc);
 	if (IS_ERR(region))
 		return (struct ib_mr *)region;
 

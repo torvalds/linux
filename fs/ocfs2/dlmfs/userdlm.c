@@ -21,12 +21,12 @@
 #include <linux/types.h>
 #include <linux/crc32.h>
 
-#include "ocfs2_lockingver.h"
-#include "stackglue.h"
+#include "../ocfs2_lockingver.h"
+#include "../stackglue.h"
 #include "userdlm.h"
 
 #define MLOG_MASK_PREFIX ML_DLMFS
-#include "cluster/masklog.h"
+#include "../cluster/masklog.h"
 
 
 static inline struct user_lock_res *user_lksb_to_lock_res(struct ocfs2_dlm_lksb *lksb)

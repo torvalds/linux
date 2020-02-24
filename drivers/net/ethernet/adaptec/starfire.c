@@ -576,7 +576,7 @@ static int	mdio_read(struct net_device *dev, int phy_id, int location);
 static void	mdio_write(struct net_device *dev, int phy_id, int location, int value);
 static int	netdev_open(struct net_device *dev);
 static void	check_duplex(struct net_device *dev);
-static void	tx_timeout(struct net_device *dev);
+static void	tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void	init_ring(struct net_device *dev);
 static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t intr_handler(int irq, void *dev_instance);
@@ -1105,7 +1105,7 @@ static void check_duplex(struct net_device *dev)
 }
 
 
-static void tx_timeout(struct net_device *dev)
+static void tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;

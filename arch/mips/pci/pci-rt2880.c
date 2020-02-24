@@ -218,7 +218,7 @@ static int rt288x_pci_probe(struct platform_device *pdev)
 {
 	void __iomem *io_map_base;
 
-	rt2880_pci_base = ioremap_nocache(RT2880_PCI_BASE, PAGE_SIZE);
+	rt2880_pci_base = ioremap(RT2880_PCI_BASE, PAGE_SIZE);
 
 	io_map_base = ioremap(RT2880_PCI_IO_BASE, RT2880_PCI_IO_SIZE);
 	rt2880_pci_controller.io_map_base = (unsigned long) io_map_base;

@@ -12,7 +12,7 @@
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include <linux/slab.h>
 #include <net/ip_fib.h>
 

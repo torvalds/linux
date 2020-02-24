@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU12_DRIVER_IF_VERSION 10
+#define SMU12_DRIVER_IF_VERSION 11
 
 typedef struct {
   int32_t value;
@@ -192,6 +192,11 @@ typedef struct {
   uint16_t SocTemperature;              //[centi-Celsius]
   uint16_t ThrottlerStatus;
   uint16_t spare;
+
+  uint16_t StapmOriginalLimit;          //[mW]
+  uint16_t StapmCurrentLimit;           //[mW]
+  uint16_t ApuPower;              //[mW]
+  uint16_t dGpuPower;               //[mW]
 } SmuMetrics_t;
 
 

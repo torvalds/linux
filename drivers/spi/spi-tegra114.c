@@ -269,10 +269,10 @@ static unsigned tegra_spi_calculate_curr_xfer_param(
 
 	if ((bits_per_word == 8 || bits_per_word == 16 ||
 	     bits_per_word == 32) && t->len > 3) {
-		tspi->is_packed = 1;
+		tspi->is_packed = true;
 		tspi->words_per_32bit = 32/bits_per_word;
 	} else {
-		tspi->is_packed = 0;
+		tspi->is_packed = false;
 		tspi->words_per_32bit = 1;
 	}
 

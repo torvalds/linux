@@ -46,12 +46,8 @@ enum dce_version {
 	DCE_VERSION_MAX,
 	DCN_VERSION_1_0,
 	DCN_VERSION_1_01,
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	DCN_VERSION_2_0,
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	DCN_VERSION_2_1,
-#endif
 	DCN_VERSION_MAX
 };
 

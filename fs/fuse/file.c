@@ -803,6 +803,10 @@ static int fuse_do_readpage(struct file *file, struct page *page)
 
 	attr_ver = fuse_get_attr_version(fc);
 
+	/* Don't overflow end offset */
+	if (pos + (desc.length - 1) == LLONG_MAX)
+		desc.length--;
+
 	fuse_read_args_fill(&ia, file, pos, desc.length, FUSE_READ);
 	res = fuse_simple_request(fc, &ia.ap.args);
 	if (res < 0)
@@ -882,11 +886,20 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file)
 	struct fuse_args_pages *ap = &ia->ap;
 	loff_t pos = page_offset(ap->pages[0]);
 	size_t count = ap->num_pages << PAGE_SHIFT;
+	ssize_t res;
 	int err;
 
 	ap->args.out_pages = true;
 	ap->args.page_zeroing = true;
 	ap->args.page_replace = true;
+
+	/* Don't overflow end offset */
+	if (pos + (count - 1) == LLONG_MAX) {
+		count--;
+		ap->descs[ap->num_pages - 1].length--;
+	}
+	WARN_ON((loff_t) (pos + count) < 0);
+
 	fuse_read_args_fill(ia, file, pos, count, FUSE_READ);
 	ia->read.attr_ver = fuse_get_attr_version(fc);
 	if (fc->async_read) {
@@ -896,7 +909,8 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file)
 		if (!err)
 			return;
 	} else {
-		err = fuse_simple_request(fc, &ap->args);
+		res = fuse_simple_request(fc, &ap->args);
+		err = res < 0 ? res : 0;
 	}
 	fuse_readpages_end(fc, &ap->args, err);
 }
@@ -1395,9 +1409,9 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 	}
 
 	if (write)
-		ap->args.in_pages = 1;
+		ap->args.in_pages = true;
 	else
-		ap->args.out_pages = 1;
+		ap->args.out_pages = true;
 
 	*nbytesp = nbytes;
 
@@ -1463,6 +1477,7 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 		}
 		ia = NULL;
 		if (nres < 0) {
+			iov_iter_revert(iter, nbytes);
 			err = nres;
 			break;
 		}
@@ -1471,8 +1486,10 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 		count -= nres;
 		res += nres;
 		pos += nres;
-		if (nres != nbytes)
+		if (nres != nbytes) {
+			iov_iter_revert(iter, nbytes - nres);
 			break;
+		}
 		if (count) {
 			max_pages = iov_iter_npages(iter, fc->max_pages);
 			ia = fuse_io_alloc(io, max_pages);

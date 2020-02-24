@@ -622,7 +622,7 @@ struct fifo_buffer {
 	int total; /* sum of all values */
 	int values[0];
 };
-extern struct fifo_buffer *fifo_alloc(int fifo_size);
+extern struct fifo_buffer *fifo_alloc(unsigned int fifo_size);
 
 /* flag bits per connection */
 enum {

@@ -63,12 +63,10 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 	}
 	isync();
 
-	pagefault_disable();
 	if (is_load)
-		ret = raw_copy_from_user(to, from, n);
+		ret = probe_user_read(to, (const void __user *)from, n);
 	else
-		ret = raw_copy_to_user(to, from, n);
-	pagefault_enable();
+		ret = probe_user_write((void __user *)to, from, n);
 
 	/* switch the pid first to avoid running host with unallocated pid */
 	if (quadrant == 1 && pid != old_pid)
@@ -1102,7 +1100,7 @@ void kvmppc_radix_flush_memslot(struct kvm *kvm,
 	unsigned int shift;
 
 	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START)
-		kvmppc_uvmem_drop_pages(memslot, kvm);
+		kvmppc_uvmem_drop_pages(memslot, kvm, true);
 
 	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
 		return;

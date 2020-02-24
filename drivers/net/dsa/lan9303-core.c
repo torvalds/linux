@@ -883,7 +883,8 @@ static int lan9303_check_device(struct lan9303 *chip)
 /* ---------------------------- DSA -----------------------------------*/
 
 static enum dsa_tag_protocol lan9303_get_tag_protocol(struct dsa_switch *ds,
-						      int port)
+						      int port,
+						      enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_LAN9303;
 }

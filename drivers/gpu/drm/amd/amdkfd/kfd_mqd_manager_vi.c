@@ -312,11 +312,7 @@ static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 static void update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q)
 {
-	struct vi_mqd *m;
 	__update_mqd(mm, mqd, q, MTYPE_UC, 0);
-
-	m = get_mqd(mqd);
-	m->cp_hqd_vmid = q->vmid;
 }
 
 static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
@@ -425,7 +421,6 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 
 	switch (type) {
 	case KFD_MQD_TYPE_CP:
-	case KFD_MQD_TYPE_COMPUTE:
 		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd;
 		mqd->free_mqd = free_mqd;
@@ -453,7 +448,7 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 #endif
 		break;
 	case KFD_MQD_TYPE_DIQ:
-		mqd->allocate_mqd = allocate_hiq_mqd;
+		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd_hiq;
 		mqd->free_mqd = free_mqd;
 		mqd->load_mqd = load_mqd;
@@ -494,7 +489,7 @@ struct mqd_manager *mqd_manager_init_vi_tonga(enum KFD_MQD_TYPE type,
 	mqd = mqd_manager_init_vi(type, dev);
 	if (!mqd)
 		return NULL;
-	if ((type == KFD_MQD_TYPE_CP) || (type == KFD_MQD_TYPE_COMPUTE))
+	if (type == KFD_MQD_TYPE_CP)
 		mqd->update_mqd = update_mqd_tonga;
 	return mqd;
 }

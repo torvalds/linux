@@ -704,7 +704,7 @@ static int bnxt_qplib_alloc_dpi_tbl(struct bnxt_qplib_res     *res,
 		return -ENOMEM;
 	}
 
-	dpit->dbr_bar_reg_iomem = ioremap_nocache(bar_reg_base + dbr_offset,
+	dpit->dbr_bar_reg_iomem = ioremap(bar_reg_base + dbr_offset,
 						  dbr_len);
 	if (!dpit->dbr_bar_reg_iomem) {
 		dev_err(&res->pdev->dev,

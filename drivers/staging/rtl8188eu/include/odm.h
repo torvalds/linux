@@ -239,7 +239,6 @@ struct odm_rate_adapt {
 
 #define IQK_MAC_REG_NUM		4
 #define IQK_ADDA_REG_NUM	16
-#define IQK_BB_REG_NUM_MAX	10
 #define IQK_BB_REG_NUM		9
 #define HP_THERMAL_NUM		8
 

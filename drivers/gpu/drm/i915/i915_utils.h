@@ -69,7 +69,7 @@ bool i915_error_injected(void);
 
 #else
 
-#define i915_inject_probe_error(_i915, _err) 0
+#define i915_inject_probe_error(i915, e) ({ BUILD_BUG_ON_INVALID(i915); 0; })
 #define i915_error_injected() false
 
 #endif

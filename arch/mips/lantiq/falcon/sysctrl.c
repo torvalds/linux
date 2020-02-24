@@ -221,16 +221,16 @@ void __init ltq_soc_init(void)
 				res_sys[2].name) < 0))
 		pr_err("Failed to request core resources");
 
-	status_membase = ioremap_nocache(res_status.start,
+	status_membase = ioremap(res_status.start,
 					resource_size(&res_status));
-	ltq_ebu_membase = ioremap_nocache(res_ebu.start,
+	ltq_ebu_membase = ioremap(res_ebu.start,
 					resource_size(&res_ebu));
 
 	if (!status_membase || !ltq_ebu_membase)
 		panic("Failed to remap core resources");
 
 	for (i = 0; i < 3; i++) {
-		sysctl_membase[i] = ioremap_nocache(res_sys[i].start,
+		sysctl_membase[i] = ioremap(res_sys[i].start,
 						resource_size(&res_sys[i]));
 		if (!sysctl_membase[i])
 			panic("Failed to remap sysctrl resources");

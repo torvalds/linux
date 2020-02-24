@@ -266,9 +266,11 @@ static int crypto_kw_create(struct crypto_template *tmpl, struct rtattr **tb)
 	struct crypto_alg *alg;
 	int err;
 
-	inst = skcipher_alloc_instance_simple(tmpl, tb, &alg);
+	inst = skcipher_alloc_instance_simple(tmpl, tb);
 	if (IS_ERR(inst))
 		return PTR_ERR(inst);
+
+	alg = skcipher_ialg_simple(inst);
 
 	err = -EINVAL;
 	/* Section 5.1 requirement for KW */
@@ -283,14 +285,11 @@ static int crypto_kw_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.decrypt = crypto_kw_decrypt;
 
 	err = skcipher_register_instance(tmpl, inst);
-	if (err)
-		goto out_free_inst;
-	goto out_put_alg;
-
+	if (err) {
 out_free_inst:
-	inst->free(inst);
-out_put_alg:
-	crypto_mod_put(alg);
+		inst->free(inst);
+	}
+
 	return err;
 }
 

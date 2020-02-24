@@ -13,6 +13,7 @@
 #include "ice_controlq.h"
 #include "ice_lan_tx_rx.h"
 #include "ice_flex_type.h"
+#include "ice_protocol_type.h"
 
 static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 {
@@ -41,6 +42,7 @@ static inline u32 ice_round_to_num(u32 N, u32 R)
 #define ICE_DBG_QCTX		BIT_ULL(6)
 #define ICE_DBG_NVM		BIT_ULL(7)
 #define ICE_DBG_LAN		BIT_ULL(8)
+#define ICE_DBG_FLOW		BIT_ULL(9)
 #define ICE_DBG_SW		BIT_ULL(13)
 #define ICE_DBG_SCHED		BIT_ULL(14)
 #define ICE_DBG_PKG		BIT_ULL(16)
@@ -515,7 +517,7 @@ struct ice_hw {
 	struct ice_fw_log_cfg fw_log;
 
 /* Device max aggregate bandwidths corresponding to the GL_PWR_MODE_CTL
- * register. Used for determining the ITR/intrl granularity during
+ * register. Used for determining the ITR/INTRL granularity during
  * initialization.
  */
 #define ICE_MAX_AGG_BW_200G	0x0
@@ -559,6 +561,10 @@ struct ice_hw {
 
 	/* HW block tables */
 	struct ice_blk_info blk[ICE_BLK_COUNT];
+	struct mutex fl_profs_locks[ICE_BLK_COUNT];	/* lock fltr profiles */
+	struct list_head fl_profs[ICE_BLK_COUNT];
+	struct mutex rss_locks;	/* protect RSS configuration */
+	struct list_head rss_list_head;
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */

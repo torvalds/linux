@@ -145,10 +145,7 @@ properties:
       over reads to the next slave address. Please consult the manual of
       your device.
 
-  wp-gpios:
-    description:
-      GPIO to which the write-protect pin of the chip is connected.
-    maxItems: 1
+  wp-gpios: true
 
   address-width:
     allOf:
@@ -166,6 +163,10 @@ properties:
     default: 1
     minimum: 1
     maximum: 8
+
+  vcc-supply:
+    description:
+      phandle of the regulator that provides the supply voltage.
 
 required:
   - compatible

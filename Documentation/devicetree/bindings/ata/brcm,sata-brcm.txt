@@ -5,6 +5,7 @@ Each SATA controller should have its own node.
 
 Required properties:
 - compatible         : should be one or more of
+			"brcm,bcm7216-ahci"
 			"brcm,bcm7425-ahci"
 			"brcm,bcm7445-ahci"
 			"brcm,bcm-nsp-ahci"
@@ -13,6 +14,12 @@ Required properties:
 - reg                : register mappings for AHCI and SATA_TOP_CTRL
 - reg-names          : "ahci" and "top-ctrl"
 - interrupts         : interrupt mapping for SATA IRQ
+
+Optional properties:
+
+- reset: for "brcm,bcm7216-ahci" must be a valid reset phandle
+  pointing to the RESCAL reset controller provider node.
+- reset-names: for "brcm,bcm7216-ahci", must be "rescal".
 
 Also see ahci-platform.txt.
 

@@ -332,7 +332,7 @@ static int fuse_readdir_uncached(struct file *file, struct dir_context *ctx)
 		return -ENOMEM;
 
 	plus = fuse_use_readdirplus(inode, ctx);
-	ap->args.out_pages = 1;
+	ap->args.out_pages = true;
 	ap->num_pages = 1;
 	ap->pages = &page;
 	ap->descs = &desc;

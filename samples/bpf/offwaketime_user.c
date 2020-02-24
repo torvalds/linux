@@ -12,7 +12,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <sys/resource.h>
-#include "libbpf.h"
+#include <bpf/libbpf.h>
 #include "bpf_load.h"
 #include "trace_helpers.h"
 

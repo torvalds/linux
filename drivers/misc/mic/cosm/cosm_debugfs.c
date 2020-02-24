@@ -102,9 +102,6 @@ void cosm_create_debug_dir(struct cosm_device *cdev)
 
 void cosm_delete_debug_dir(struct cosm_device *cdev)
 {
-	if (!cdev->dbg_dir)
-		return;
-
 	debugfs_remove_recursive(cdev->dbg_dir);
 }
 

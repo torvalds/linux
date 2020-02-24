@@ -138,7 +138,7 @@ static int snd_cs5535audio_mixer(struct cs5535audio *cs5535au)
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_cs5535audio_ac97_codec_write,
 		.read = snd_cs5535audio_ac97_codec_read,
 	};
@@ -237,7 +237,6 @@ static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id)
 
 static int snd_cs5535audio_free(struct cs5535audio *cs5535au)
 {
-	synchronize_irq(cs5535au->irq);
 	pci_set_power_state(cs5535au->pci, PCI_D3hot);
 
 	if (cs5535au->irq >= 0)
@@ -262,7 +261,7 @@ static int snd_cs5535audio_create(struct snd_card *card,
 	struct cs5535audio *cs5535au;
 
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_cs5535audio_dev_free,
 	};
 
@@ -303,6 +302,7 @@ static int snd_cs5535audio_create(struct snd_card *card,
 	}
 
 	cs5535au->irq = pci->irq;
+	card->sync_irq = cs5535au->irq;
 	pci_set_master(pci);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL,

@@ -356,7 +356,6 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  *
  * Function		Memory type	Cacheability	Cache hint
  * ioremap()		Device		n/a		n/a
- * ioremap_nocache()	Device		n/a		n/a
  * ioremap_cache()	Normal		Writeback	Read allocate
  * ioremap_wc()		Normal		Non-cacheable	n/a
  * ioremap_wt()		Normal		Non-cacheable	n/a
@@ -367,13 +366,6 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  * - number, order and size of accesses are maintained
  * - unaligned accesses are "unpredictable"
  * - writes may be delayed before they hit the endpoint device
- *
- * ioremap_nocache() is the same as ioremap() as there are too many device
- * drivers using this for device registers, and documentation which tells
- * people to use it for such for this to be any different.  This is not a
- * safe fallback for memory-like mappings, or memory regions where the
- * compiler may generate unaligned accesses - eg, via inlining its own
- * memcpy.
  *
  * All normal memory mappings have the following properties:
  * - reads can be repeated with no side effects

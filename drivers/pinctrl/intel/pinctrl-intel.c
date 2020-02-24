@@ -8,8 +8,8 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/interrupt.h>
 #include <linux/gpio/driver.h>
+#include <linux/interrupt.h>
 #include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -83,39 +83,6 @@ struct intel_pad_context {
 struct intel_community_context {
 	u32 *intmask;
 	u32 *hostown;
-};
-
-struct intel_pinctrl_context {
-	struct intel_pad_context *pads;
-	struct intel_community_context *communities;
-};
-
-/**
- * struct intel_pinctrl - Intel pinctrl private structure
- * @dev: Pointer to the device structure
- * @lock: Lock to serialize register access
- * @pctldesc: Pin controller description
- * @pctldev: Pointer to the pin controller device
- * @chip: GPIO chip in this pin controller
- * @irqchip: IRQ chip in this pin controller
- * @soc: SoC/PCH specific pin configuration data
- * @communities: All communities in this pin controller
- * @ncommunities: Number of communities in this pin controller
- * @context: Configuration saved over system sleep
- * @irq: pinctrl/GPIO chip irq number
- */
-struct intel_pinctrl {
-	struct device *dev;
-	raw_spinlock_t lock;
-	struct pinctrl_desc pctldesc;
-	struct pinctrl_dev *pctldev;
-	struct gpio_chip chip;
-	struct irq_chip irqchip;
-	const struct intel_pinctrl_soc_data *soc;
-	struct intel_community *communities;
-	size_t ncommunities;
-	struct intel_pinctrl_context context;
-	int irq;
 };
 
 #define pin_to_padno(c, p)	((p) - (c)->pin_base)
@@ -944,7 +911,10 @@ static int intel_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	if (padcfg0 & PADCFG0_PMODE_MASK)
 		return -EINVAL;
 
-	return !!(padcfg0 & PADCFG0_GPIOTXDIS);
+	if (padcfg0 & PADCFG0_GPIOTXDIS)
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int intel_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
@@ -1160,8 +1130,8 @@ static irqreturn_t intel_gpio_irq(int irq, void *data)
 	return ret;
 }
 
-static int intel_gpio_add_pin_ranges(struct intel_pinctrl *pctrl,
-				     const struct intel_community *community)
+static int intel_gpio_add_community_ranges(struct intel_pinctrl *pctrl,
+				const struct intel_community *community)
 {
 	int ret = 0, i;
 
@@ -1179,6 +1149,24 @@ static int intel_gpio_add_pin_ranges(struct intel_pinctrl *pctrl,
 	}
 
 	return ret;
+}
+
+static int intel_gpio_add_pin_ranges(struct gpio_chip *gc)
+{
+	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
+	int ret, i;
+
+	for (i = 0; i < pctrl->ncommunities; i++) {
+		struct intel_community *community = &pctrl->communities[i];
+
+		ret = intel_gpio_add_community_ranges(pctrl, community);
+		if (ret) {
+			dev_err(pctrl->dev, "failed to add GPIO pin range\n");
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static unsigned int intel_gpio_ngpio(const struct intel_pinctrl *pctrl)
@@ -1205,7 +1193,8 @@ static unsigned int intel_gpio_ngpio(const struct intel_pinctrl *pctrl)
 
 static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 {
-	int ret, i;
+	int ret;
+	struct gpio_irq_chip *girq;
 
 	pctrl->chip = intel_gpio_chip;
 
@@ -1214,6 +1203,7 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 	pctrl->chip.label = dev_name(pctrl->dev);
 	pctrl->chip.parent = pctrl->dev;
 	pctrl->chip.base = -1;
+	pctrl->chip.add_pin_ranges = intel_gpio_add_pin_ranges;
 	pctrl->irq = irq;
 
 	/* Setup IRQ chip */
@@ -1225,26 +1215,9 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 	pctrl->irqchip.irq_set_wake = intel_gpio_irq_wake;
 	pctrl->irqchip.flags = IRQCHIP_MASK_ON_SUSPEND;
 
-	ret = devm_gpiochip_add_data(pctrl->dev, &pctrl->chip, pctrl);
-	if (ret) {
-		dev_err(pctrl->dev, "failed to register gpiochip\n");
-		return ret;
-	}
-
-	for (i = 0; i < pctrl->ncommunities; i++) {
-		struct intel_community *community = &pctrl->communities[i];
-
-		ret = intel_gpio_add_pin_ranges(pctrl, community);
-		if (ret) {
-			dev_err(pctrl->dev, "failed to add GPIO pin range\n");
-			return ret;
-		}
-	}
-
 	/*
-	 * We need to request the interrupt here (instead of providing chip
-	 * to the irq directly) because on some platforms several GPIO
-	 * controllers share the same interrupt line.
+	 * On some platforms several GPIO controllers share the same interrupt
+	 * line.
 	 */
 	ret = devm_request_irq(pctrl->dev, irq, intel_gpio_irq,
 			       IRQF_SHARED | IRQF_NO_THREAD,
@@ -1254,14 +1227,20 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 		return ret;
 	}
 
-	ret = gpiochip_irqchip_add(&pctrl->chip, &pctrl->irqchip, 0,
-				   handle_bad_irq, IRQ_TYPE_NONE);
+	girq = &pctrl->chip.irq;
+	girq->chip = &pctrl->irqchip;
+	/* This will let us handle the IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_bad_irq;
+
+	ret = devm_gpiochip_add_data(pctrl->dev, &pctrl->chip, pctrl);
 	if (ret) {
-		dev_err(pctrl->dev, "failed to add irqchip\n");
+		dev_err(pctrl->dev, "failed to register gpiochip\n");
 		return ret;
 	}
 
-	gpiochip_set_chained_irqchip(&pctrl->chip, &pctrl->irqchip, irq, NULL);
 	return 0;
 }
 

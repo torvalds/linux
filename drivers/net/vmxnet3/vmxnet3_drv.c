@@ -3198,7 +3198,7 @@ vmxnet3_free_intr_resources(struct vmxnet3_adapter *adapter)
 
 
 static void
-vmxnet3_tx_timeout(struct net_device *netdev)
+vmxnet3_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	adapter->tx_timeout_count++;

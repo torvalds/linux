@@ -23,21 +23,9 @@ enum wfx_state {
 	WFX_STATE_AP,
 };
 
-struct wfx_ht_info {
-	struct ieee80211_sta_ht_cap ht_cap;
-	enum nl80211_channel_type channel_type;
-	u16 operation_mode;
-};
-
 struct wfx_hif_event {
 	struct list_head link;
 	struct hif_ind_event evt;
-};
-
-struct wfx_edca_params {
-	/* NOTE: index is a linux queue id. */
-	struct hif_req_edca_queue_params params[IEEE80211_NUM_ACS];
-	bool uapsd_enable[IEEE80211_NUM_ACS];
 };
 
 struct wfx_grp_addr_table {
@@ -49,6 +37,9 @@ struct wfx_grp_addr_table {
 struct wfx_sta_priv {
 	int link_id;
 	int vif_id;
+	u8 buffered[IEEE80211_NUM_TIDS];
+	// Ensure atomicity of "buffered" and calls to ieee80211_sta_set_buffered()
+	spinlock_t lock;
 };
 
 // mac80211 interface
@@ -91,13 +82,12 @@ void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw,
 			      struct ieee80211_chanctx_conf *conf);
 
 // WSM Callbacks
-void wfx_suspend_resume(struct wfx_vif *wvif,
-			struct hif_ind_suspend_resume_tx *arg);
+void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd cmd);
 
 // Other Helpers
 void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad);
 void wfx_update_filtering(struct wfx_vif *wvif);
-int wfx_set_pm(struct wfx_vif *wvif, const struct hif_req_set_pm_mode *arg);
 int wfx_fwd_probe_req(struct wfx_vif *wvif, bool enable);
+u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates);
 
 #endif /* WFX_STA_H */

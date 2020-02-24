@@ -2,7 +2,7 @@
 
 #define KBUILD_MODNAME "xdp_dummy"
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 SEC("xdp_dummy")
 int xdp_dummy_prog(struct xdp_md *ctx)

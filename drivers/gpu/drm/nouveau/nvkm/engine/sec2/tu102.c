@@ -19,15 +19,54 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #include "priv.h"
+#include <subdev/acr.h>
+
+static const struct nvkm_falcon_func
+tu102_sec2_flcn = {
+	.debug = 0x408,
+	.fbif = 0x600,
+	.load_imem = nvkm_falcon_v1_load_imem,
+	.load_dmem = nvkm_falcon_v1_load_dmem,
+	.read_dmem = nvkm_falcon_v1_read_dmem,
+	.emem_addr = 0x01000000,
+	.bind_context = gp102_sec2_flcn_bind_context,
+	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
+	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
+	.set_start_addr = nvkm_falcon_v1_set_start_addr,
+	.start = nvkm_falcon_v1_start,
+	.enable = nvkm_falcon_v1_enable,
+	.disable = nvkm_falcon_v1_disable,
+	.cmdq = { 0xc00, 0xc04, 8 },
+	.msgq = { 0xc80, 0xc84, 8 },
+};
+
+static const struct nvkm_sec2_func
+tu102_sec2 = {
+	.flcn = &tu102_sec2_flcn,
+	.unit_acr = 0x07,
+	.intr = gp102_sec2_intr,
+	.initmsg = gp102_sec2_initmsg,
+};
+
+static int
+tu102_sec2_nofw(struct nvkm_sec2 *sec2, int ver,
+		const struct nvkm_sec2_fwif *fwif)
+{
+	return 0;
+}
+
+static const struct nvkm_sec2_fwif
+tu102_sec2_fwif[] = {
+	{  0, gp102_sec2_load, &tu102_sec2, &gp102_sec2_acr_1 },
+	{ -1, tu102_sec2_nofw, &tu102_sec2 }
+};
 
 int
-tu102_sec2_new(struct nvkm_device *device, int index,
-	       struct nvkm_sec2 **psec2)
+tu102_sec2_new(struct nvkm_device *device, int index, struct nvkm_sec2 **psec2)
 {
 	/* TOP info wasn't updated on Turing to reflect the PRI
 	 * address change for some reason.  We override it here.
 	 */
-	return nvkm_sec2_new_(device, index, 0x840000, psec2);
+	return nvkm_sec2_new_(tu102_sec2_fwif, device, index, 0x840000, psec2);
 }

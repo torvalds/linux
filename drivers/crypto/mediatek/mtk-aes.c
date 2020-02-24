@@ -652,7 +652,6 @@ static int mtk_aes_setkey(struct crypto_skcipher *tfm,
 		break;
 
 	default:
-		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
@@ -1022,7 +1021,6 @@ static int mtk_aes_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 		break;
 
 	default:
-		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
@@ -1033,8 +1031,6 @@ static int mtk_aes_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	crypto_skcipher_set_flags(ctr, crypto_aead_get_flags(aead) &
 				  CRYPTO_TFM_REQ_MASK);
 	err = crypto_skcipher_setkey(ctr, key, keylen);
-	crypto_aead_set_flags(aead, crypto_skcipher_get_flags(ctr) &
-			      CRYPTO_TFM_RES_MASK);
 	if (err)
 		return err;
 

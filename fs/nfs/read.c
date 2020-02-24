@@ -214,7 +214,7 @@ static void nfs_initiate_read(struct nfs_pgio_header *hdr,
 
 	task_setup_data->flags |= swap_flags;
 	rpc_ops->read_setup(hdr, msg);
-	trace_nfs_initiate_read(inode, hdr->io_start, hdr->good_bytes);
+	trace_nfs_initiate_read(hdr);
 }
 
 static void
@@ -247,8 +247,7 @@ static int nfs_readpage_done(struct rpc_task *task,
 		return status;
 
 	nfs_add_stats(inode, NFSIOS_SERVERREADBYTES, hdr->res.count);
-	trace_nfs_readpage_done(inode, task->tk_status,
-				hdr->args.offset, hdr->res.eof);
+	trace_nfs_readpage_done(task, hdr);
 
 	if (task->tk_status == -ESTALE) {
 		set_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
@@ -282,6 +281,8 @@ static void nfs_readpage_retry(struct rpc_task *task,
 	argp->offset += resp->count;
 	argp->pgbase += resp->count;
 	argp->count -= resp->count;
+	resp->count = 0;
+	resp->eof = 0;
 	rpc_restart_call_prepare(task);
 }
 

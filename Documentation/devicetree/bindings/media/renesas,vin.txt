@@ -13,6 +13,7 @@ on Gen3 and RZ/G2 platforms to a CSI-2 receiver.
    - "renesas,vin-r8a7743" for the R8A7743 device
    - "renesas,vin-r8a7744" for the R8A7744 device
    - "renesas,vin-r8a7745" for the R8A7745 device
+   - "renesas,vin-r8a77470" for the R8A77470 device
    - "renesas,vin-r8a774a1" for the R8A774A1 device
    - "renesas,vin-r8a774b1" for the R8A774B1 device
    - "renesas,vin-r8a774c0" for the R8A774C0 device
@@ -40,9 +41,6 @@ on Gen3 and RZ/G2 platforms to a CSI-2 receiver.
  - reg: the register base and size for the device registers
  - interrupts: the interrupt for the device
  - clocks: Reference to the parent clock
-
-Additionally, an alias named vinX will need to be created to specify
-which video input device this is.
 
 The per-board settings for Gen2 and RZ/G1 platforms:
 

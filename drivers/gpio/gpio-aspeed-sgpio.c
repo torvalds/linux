@@ -107,7 +107,7 @@ static void __iomem *bank_reg(struct aspeed_sgpio *gpio,
 		return gpio->base + bank->irq_regs + GPIO_IRQ_STATUS;
 	default:
 		/* acturally if code runs to here, it's an error case */
-		BUG_ON(1);
+		BUG();
 	}
 }
 
@@ -391,7 +391,7 @@ static int aspeed_sgpio_setup_irqs(struct aspeed_sgpio *gpio,
 
 	gpio->irq = rc;
 
-	/* Disable IRQ and clear Interrupt status registers for all SPGIO Pins. */
+	/* Disable IRQ and clear Interrupt status registers for all SGPIO Pins. */
 	for (i = 0; i < ARRAY_SIZE(aspeed_sgpio_banks); i++) {
 		bank =  &aspeed_sgpio_banks[i];
 		/* disable irq enable bits */

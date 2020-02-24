@@ -308,6 +308,7 @@ struct tcf_proto_ops {
 	int			(*delete)(struct tcf_proto *tp, void *arg,
 					  bool *last, bool rtnl_held,
 					  struct netlink_ext_ack *);
+	bool			(*delete_empty)(struct tcf_proto *tp);
 	void			(*walk)(struct tcf_proto *tp,
 					struct tcf_walker *arg, bool rtnl_held);
 	int			(*reoffload)(struct tcf_proto *tp, bool add,
@@ -317,7 +318,8 @@ struct tcf_proto_ops {
 					  void *type_data);
 	void			(*hw_del)(struct tcf_proto *tp,
 					  void *type_data);
-	void			(*bind_class)(void *, u32, unsigned long);
+	void			(*bind_class)(void *, u32, unsigned long,
+					      void *, unsigned long);
 	void *			(*tmplt_create)(struct net *net,
 						struct tcf_chain *chain,
 						struct nlattr **tca,
@@ -336,6 +338,10 @@ struct tcf_proto_ops {
 	int			flags;
 };
 
+/* Classifiers setting TCF_PROTO_OPS_DOIT_UNLOCKED in tcf_proto_ops->flags
+ * are expected to implement tcf_proto_ops->delete_empty(), otherwise race
+ * conditions can occur when filters are inserted/deleted simultaneously.
+ */
 enum tcf_proto_ops_flags {
 	TCF_PROTO_OPS_DOIT_UNLOCKED = 1,
 };

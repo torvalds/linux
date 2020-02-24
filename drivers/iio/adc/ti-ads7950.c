@@ -602,7 +602,7 @@ static int ti_ads7950_probe(struct spi_device *spi)
 
 	st->reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(st->reg)) {
-		dev_err(&spi->dev, "Failed get get regulator \"vref\"\n");
+		dev_err(&spi->dev, "Failed to get regulator \"vref\"\n");
 		ret = PTR_ERR(st->reg);
 		goto error_destroy_mutex;
 	}

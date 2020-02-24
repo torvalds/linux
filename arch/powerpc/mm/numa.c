@@ -1616,11 +1616,11 @@ static ssize_t topology_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations topology_ops = {
-	.read = seq_read,
-	.write = topology_write,
-	.open = topology_open,
-	.release = single_release
+static const struct proc_ops topology_proc_ops = {
+	.proc_read	= seq_read,
+	.proc_write	= topology_write,
+	.proc_open	= topology_open,
+	.proc_release	= single_release,
 };
 
 static int topology_update_init(void)
@@ -1630,7 +1630,7 @@ static int topology_update_init(void)
 	if (vphn_enabled)
 		topology_schedule_update();
 
-	if (!proc_create("powerpc/topology_updates", 0644, NULL, &topology_ops))
+	if (!proc_create("powerpc/topology_updates", 0644, NULL, &topology_proc_ops))
 		return -ENOMEM;
 
 	topology_inited = 1;

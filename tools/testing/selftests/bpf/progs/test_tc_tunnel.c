@@ -17,8 +17,8 @@
 #include <linux/pkt_cls.h>
 #include <linux/types.h>
 
-#include "bpf_endian.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_endian.h>
+#include <bpf/bpf_helpers.h>
 
 static const int cfg_port = 8000;
 

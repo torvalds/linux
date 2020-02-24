@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
+#include "test_send_signal_kern.skel.h"
 
 static volatile int sigusr1_received = 0;
 
@@ -9,17 +10,15 @@ static void sigusr1_handler(int signum)
 }
 
 static void test_send_signal_common(struct perf_event_attr *attr,
-				    int prog_type,
+				    bool signal_thread,
 				    const char *test_name)
 {
-	int err = -1, pmu_fd, prog_fd, info_map_fd, status_map_fd;
-	const char *file = "./test_send_signal_kern.o";
-	struct bpf_object *obj = NULL;
+	struct test_send_signal_kern *skel;
 	int pipe_c2p[2], pipe_p2c[2];
-	__u32 key = 0, duration = 0;
+	int err = -1, pmu_fd = -1;
+	__u32 duration = 0;
 	char buf[256];
 	pid_t pid;
-	__u64 val;
 
 	if (CHECK(pipe(pipe_c2p), test_name,
 		  "pipe pipe_c2p error: %s\n", strerror(errno)))
@@ -73,45 +72,39 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 	close(pipe_c2p[1]); /* close write */
 	close(pipe_p2c[0]); /* close read */
 
-	err = bpf_prog_load(file, prog_type, &obj, &prog_fd);
-	if (CHECK(err < 0, test_name, "bpf_prog_load error: %s\n",
-		  strerror(errno)))
-		goto prog_load_failure;
+	skel = test_send_signal_kern__open_and_load();
+	if (CHECK(!skel, "skel_open_and_load", "skeleton open_and_load failed\n"))
+		goto skel_open_load_failure;
 
-	pmu_fd = syscall(__NR_perf_event_open, attr, pid, -1,
-			 -1 /* group id */, 0 /* flags */);
-	if (CHECK(pmu_fd < 0, test_name, "perf_event_open error: %s\n",
-		  strerror(errno))) {
-		err = -1;
-		goto close_prog;
+	if (!attr) {
+		err = test_send_signal_kern__attach(skel);
+		if (CHECK(err, "skel_attach", "skeleton attach failed\n")) {
+			err = -1;
+			goto destroy_skel;
+		}
+	} else {
+		pmu_fd = syscall(__NR_perf_event_open, attr, pid, -1,
+				 -1 /* group id */, 0 /* flags */);
+		if (CHECK(pmu_fd < 0, test_name, "perf_event_open error: %s\n",
+			strerror(errno))) {
+			err = -1;
+			goto destroy_skel;
+		}
+
+		skel->links.send_signal_perf =
+			bpf_program__attach_perf_event(skel->progs.send_signal_perf, pmu_fd);
+		if (CHECK(IS_ERR(skel->links.send_signal_perf), "attach_perf_event",
+			  "err %ld\n", PTR_ERR(skel->links.send_signal_perf)))
+			goto disable_pmu;
 	}
-
-	err = ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
-	if (CHECK(err < 0, test_name, "ioctl perf_event_ioc_enable error: %s\n",
-		  strerror(errno)))
-		goto disable_pmu;
-
-	err = ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd);
-	if (CHECK(err < 0, test_name, "ioctl perf_event_ioc_set_bpf error: %s\n",
-		  strerror(errno)))
-		goto disable_pmu;
-
-	err = -1;
-	info_map_fd = bpf_object__find_map_fd_by_name(obj, "info_map");
-	if (CHECK(info_map_fd < 0, test_name, "find map %s error\n", "info_map"))
-		goto disable_pmu;
-
-	status_map_fd = bpf_object__find_map_fd_by_name(obj, "status_map");
-	if (CHECK(status_map_fd < 0, test_name, "find map %s error\n", "status_map"))
-		goto disable_pmu;
 
 	/* wait until child signal handler installed */
 	read(pipe_c2p[0], buf, 1);
 
 	/* trigger the bpf send_signal */
-	key = 0;
-	val = (((__u64)(SIGUSR1)) << 32) | pid;
-	bpf_map_update_elem(info_map_fd, &key, &val, 0);
+	skel->bss->pid = pid;
+	skel->bss->sig = SIGUSR1;
+	skel->bss->signal_thread = signal_thread;
 
 	/* notify child that bpf program can send_signal now */
 	write(pipe_p2c[1], buf, 1);
@@ -132,46 +125,20 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 
 disable_pmu:
 	close(pmu_fd);
-close_prog:
-	bpf_object__close(obj);
-prog_load_failure:
+destroy_skel:
+	test_send_signal_kern__destroy(skel);
+skel_open_load_failure:
 	close(pipe_c2p[0]);
 	close(pipe_p2c[1]);
 	wait(NULL);
 }
 
-static void test_send_signal_tracepoint(void)
+static void test_send_signal_tracepoint(bool signal_thread)
 {
-	const char *id_path = "/sys/kernel/debug/tracing/events/syscalls/sys_enter_nanosleep/id";
-	struct perf_event_attr attr = {
-		.type = PERF_TYPE_TRACEPOINT,
-		.sample_type = PERF_SAMPLE_RAW | PERF_SAMPLE_CALLCHAIN,
-		.sample_period = 1,
-		.wakeup_events = 1,
-	};
-	__u32 duration = 0;
-	int bytes, efd;
-	char buf[256];
-
-	efd = open(id_path, O_RDONLY, 0);
-	if (CHECK(efd < 0, "tracepoint",
-		  "open syscalls/sys_enter_nanosleep/id failure: %s\n",
-		  strerror(errno)))
-		return;
-
-	bytes = read(efd, buf, sizeof(buf));
-	close(efd);
-	if (CHECK(bytes <= 0 || bytes >= sizeof(buf), "tracepoint",
-		  "read syscalls/sys_enter_nanosleep/id failure: %s\n",
-		  strerror(errno)))
-		return;
-
-	attr.config = strtol(buf, NULL, 0);
-
-	test_send_signal_common(&attr, BPF_PROG_TYPE_TRACEPOINT, "tracepoint");
+	test_send_signal_common(NULL, signal_thread, "tracepoint");
 }
 
-static void test_send_signal_perf(void)
+static void test_send_signal_perf(bool signal_thread)
 {
 	struct perf_event_attr attr = {
 		.sample_period = 1,
@@ -179,15 +146,13 @@ static void test_send_signal_perf(void)
 		.config = PERF_COUNT_SW_CPU_CLOCK,
 	};
 
-	test_send_signal_common(&attr, BPF_PROG_TYPE_PERF_EVENT,
-				"perf_sw_event");
+	test_send_signal_common(&attr, signal_thread, "perf_sw_event");
 }
 
-static void test_send_signal_nmi(void)
+static void test_send_signal_nmi(bool signal_thread)
 {
 	struct perf_event_attr attr = {
-		.sample_freq = 50,
-		.freq = 1,
+		.sample_period = 1,
 		.type = PERF_TYPE_HARDWARE,
 		.config = PERF_COUNT_HW_CPU_CYCLES,
 	};
@@ -210,16 +175,21 @@ static void test_send_signal_nmi(void)
 		close(pmu_fd);
 	}
 
-	test_send_signal_common(&attr, BPF_PROG_TYPE_PERF_EVENT,
-				"perf_hw_event");
+	test_send_signal_common(&attr, signal_thread, "perf_hw_event");
 }
 
 void test_send_signal(void)
 {
 	if (test__start_subtest("send_signal_tracepoint"))
-		test_send_signal_tracepoint();
+		test_send_signal_tracepoint(false);
 	if (test__start_subtest("send_signal_perf"))
-		test_send_signal_perf();
+		test_send_signal_perf(false);
 	if (test__start_subtest("send_signal_nmi"))
-		test_send_signal_nmi();
+		test_send_signal_nmi(false);
+	if (test__start_subtest("send_signal_tracepoint_thread"))
+		test_send_signal_tracepoint(true);
+	if (test__start_subtest("send_signal_perf_thread"))
+		test_send_signal_perf(true);
+	if (test__start_subtest("send_signal_nmi_thread"))
+		test_send_signal_nmi(true);
 }

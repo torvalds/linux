@@ -32,7 +32,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Matt.Sickler@Daktronics.com");
 
-struct i2c_device {
+struct kpc_i2c {
 	unsigned long           smba;
 	struct i2c_adapter      adapter;
 	unsigned int            features;
@@ -131,7 +131,7 @@ struct i2c_device {
 /* Make sure the SMBus host is ready to start transmitting.
  * Return 0 if it is, -EBUSY if it is not.
  */
-static int i801_check_pre(struct i2c_device *priv)
+static int i801_check_pre(struct kpc_i2c *priv)
 {
 	int status;
 
@@ -156,7 +156,7 @@ static int i801_check_pre(struct i2c_device *priv)
 }
 
 /* Convert the status register to an error code, and clear it. */
-static int i801_check_post(struct i2c_device *priv, int status, int timeout)
+static int i801_check_post(struct kpc_i2c *priv, int status, int timeout)
 {
 	int result = 0;
 
@@ -206,7 +206,7 @@ static int i801_check_post(struct i2c_device *priv, int status, int timeout)
 	return result;
 }
 
-static int i801_transaction(struct i2c_device *priv, int xact)
+static int i801_transaction(struct kpc_i2c *priv, int xact)
 {
 	int status;
 	int result;
@@ -235,7 +235,7 @@ static int i801_transaction(struct i2c_device *priv, int xact)
 }
 
 /* wait for INTR bit as advised by Intel */
-static void i801_wait_hwpec(struct i2c_device *priv)
+static void i801_wait_hwpec(struct kpc_i2c *priv)
 {
 	int timeout = 0;
 	int status;
@@ -251,7 +251,7 @@ static void i801_wait_hwpec(struct i2c_device *priv)
 	outb_p(status, SMBHSTSTS(priv));
 }
 
-static int i801_block_transaction_by_block(struct i2c_device *priv,
+static int i801_block_transaction_by_block(struct kpc_i2c *priv,
 					   union i2c_smbus_data *data,
 					   char read_write, int hwpec)
 {
@@ -285,7 +285,7 @@ static int i801_block_transaction_by_block(struct i2c_device *priv,
 	return 0;
 }
 
-static int i801_block_transaction_byte_by_byte(struct i2c_device *priv,
+static int i801_block_transaction_byte_by_byte(struct kpc_i2c *priv,
 					       union i2c_smbus_data *data,
 					       char read_write, int command,
 					       int hwpec)
@@ -367,7 +367,7 @@ static int i801_block_transaction_byte_by_byte(struct i2c_device *priv,
 	return 0;
 }
 
-static int i801_set_block_buffer_mode(struct i2c_device *priv)
+static int i801_set_block_buffer_mode(struct kpc_i2c *priv)
 {
 	outb_p(inb_p(SMBAUXCTL(priv)) | SMBAUXCTL_E32B, SMBAUXCTL(priv));
 	if ((inb_p(SMBAUXCTL(priv)) & SMBAUXCTL_E32B) == 0)
@@ -376,7 +376,7 @@ static int i801_set_block_buffer_mode(struct i2c_device *priv)
 }
 
 /* Block transaction function */
-static int i801_block_transaction(struct i2c_device *priv,
+static int i801_block_transaction(struct kpc_i2c *priv,
 				  union i2c_smbus_data *data, char read_write,
 				  int command, int hwpec)
 {
@@ -440,7 +440,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	int hwpec;
 	int block = 0;
 	int ret, xact = 0;
-	struct i2c_device *priv = i2c_get_adapdata(adap);
+	struct kpc_i2c *priv = i2c_get_adapdata(adap);
 
 	hwpec = (priv->features & FEATURE_SMBUS_PEC) &&
 		(flags & I2C_CLIENT_PEC) &&
@@ -572,9 +572,13 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	return 0;
 }
 
+#define enable_flag(x) (x)
+#define disable_flag(x) 0
+#define enable_flag_if(x, cond) ((cond) ? (x) : 0)
+
 static u32 i801_func(struct i2c_adapter *adapter)
 {
-	struct i2c_device *priv = i2c_get_adapdata(adapter);
+	struct kpc_i2c *priv = i2c_get_adapdata(adapter);
 
 	/* original settings
 	 * u32 f = I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
@@ -588,42 +592,42 @@ static u32 i801_func(struct i2c_adapter *adapter)
 	// http://lxr.free-electrons.com/source/include/uapi/linux/i2c.h#L85
 
 	u32 f =
-		I2C_FUNC_I2C                     | /* 0x00000001(I enabled this
-						    * one)
-						    */
-		!I2C_FUNC_10BIT_ADDR             |		/* 0x00000002 */
-		!I2C_FUNC_PROTOCOL_MANGLING      |		/* 0x00000004 */
-		((priv->features & FEATURE_SMBUS_PEC) ?
-			I2C_FUNC_SMBUS_PEC : 0)  |		/* 0x00000008 */
-		!I2C_FUNC_SMBUS_BLOCK_PROC_CALL  |		/* 0x00008000 */
-		I2C_FUNC_SMBUS_QUICK             |		/* 0x00010000 */
-		!I2C_FUNC_SMBUS_READ_BYTE	 |		/* 0x00020000 */
-		!I2C_FUNC_SMBUS_WRITE_BYTE       |		/* 0x00040000 */
-		!I2C_FUNC_SMBUS_READ_BYTE_DATA   |		/* 0x00080000 */
-		!I2C_FUNC_SMBUS_WRITE_BYTE_DATA  |		/* 0x00100000 */
-		!I2C_FUNC_SMBUS_READ_WORD_DATA   |		/* 0x00200000 */
-		!I2C_FUNC_SMBUS_WRITE_WORD_DATA  |		/* 0x00400000 */
-		!I2C_FUNC_SMBUS_PROC_CALL        |		/* 0x00800000 */
-		!I2C_FUNC_SMBUS_READ_BLOCK_DATA  |		/* 0x01000000 */
-		!I2C_FUNC_SMBUS_WRITE_BLOCK_DATA |		/* 0x02000000 */
-		((priv->features & FEATURE_I2C_BLOCK_READ) ?
-			I2C_FUNC_SMBUS_READ_I2C_BLOCK : 0) |	/* 0x04000000 */
-		I2C_FUNC_SMBUS_WRITE_I2C_BLOCK   |		/* 0x08000000 */
+		enable_flag(I2C_FUNC_I2C) | /* 0x00000001(I enabled this one) */
+		disable_flag(I2C_FUNC_10BIT_ADDR)             | /* 0x00000002 */
+		disable_flag(I2C_FUNC_PROTOCOL_MANGLING)      | /* 0x00000004 */
+		enable_flag_if(I2C_FUNC_SMBUS_PEC,
+			       priv->features & FEATURE_SMBUS_PEC) |
+								/* 0x00000008 */
+		disable_flag(I2C_FUNC_SMBUS_BLOCK_PROC_CALL)  | /* 0x00008000 */
+		enable_flag(I2C_FUNC_SMBUS_QUICK)             | /* 0x00010000 */
+		disable_flag(I2C_FUNC_SMBUS_READ_BYTE)	      |	/* 0x00020000 */
+		disable_flag(I2C_FUNC_SMBUS_WRITE_BYTE)       |	/* 0x00040000 */
+		disable_flag(I2C_FUNC_SMBUS_READ_BYTE_DATA)   |	/* 0x00080000 */
+		disable_flag(I2C_FUNC_SMBUS_WRITE_BYTE_DATA)  |	/* 0x00100000 */
+		disable_flag(I2C_FUNC_SMBUS_READ_WORD_DATA)   |	/* 0x00200000 */
+		disable_flag(I2C_FUNC_SMBUS_WRITE_WORD_DATA)  |	/* 0x00400000 */
+		disable_flag(I2C_FUNC_SMBUS_PROC_CALL)        |	/* 0x00800000 */
+		disable_flag(I2C_FUNC_SMBUS_READ_BLOCK_DATA)  |	/* 0x01000000 */
+		disable_flag(I2C_FUNC_SMBUS_WRITE_BLOCK_DATA) |	/* 0x02000000 */
+		enable_flag_if(I2C_FUNC_SMBUS_READ_I2C_BLOCK,
+			       priv->features & FEATURE_I2C_BLOCK_READ) |
+								/* 0x04000000 */
+		enable_flag(I2C_FUNC_SMBUS_WRITE_I2C_BLOCK)   |	/* 0x08000000 */
 
-		I2C_FUNC_SMBUS_BYTE              | /* _READ_BYTE  _WRITE_BYTE */
-		I2C_FUNC_SMBUS_BYTE_DATA         | /* _READ_BYTE_DATA
-						    * _WRITE_BYTE_DATA
-						    */
-		I2C_FUNC_SMBUS_WORD_DATA         | /* _READ_WORD_DATA
-						    * _WRITE_WORD_DATA
-						    */
-		I2C_FUNC_SMBUS_BLOCK_DATA        | /* _READ_BLOCK_DATA
-						    * _WRITE_BLOCK_DATA
-						    */
-		!I2C_FUNC_SMBUS_I2C_BLOCK        | /* _READ_I2C_BLOCK
-						    * _WRITE_I2C_BLOCK
-						    */
-		!I2C_FUNC_SMBUS_EMUL;              /* _QUICK  _BYTE
+		enable_flag(I2C_FUNC_SMBUS_BYTE) | /* _READ_BYTE  _WRITE_BYTE */
+		enable_flag(I2C_FUNC_SMBUS_BYTE_DATA)  | /* _READ_BYTE_DATA
+							  * _WRITE_BYTE_DATA
+							  */
+		enable_flag(I2C_FUNC_SMBUS_WORD_DATA)  | /* _READ_WORD_DATA
+							  * _WRITE_WORD_DATA
+							  */
+		enable_flag(I2C_FUNC_SMBUS_BLOCK_DATA) | /* _READ_BLOCK_DATA
+							  * _WRITE_BLOCK_DATA
+							  */
+		disable_flag(I2C_FUNC_SMBUS_I2C_BLOCK) | /* _READ_I2C_BLOCK
+							  * _WRITE_I2C_BLOCK
+							  */
+		disable_flag(I2C_FUNC_SMBUS_EMUL); /* _QUICK  _BYTE
 						    * _BYTE_DATA  _WORD_DATA
 						    * _PROC_CALL
 						    * _WRITE_BLOCK_DATA
@@ -631,6 +635,10 @@ static u32 i801_func(struct i2c_adapter *adapter)
 						    */
 	return f;
 }
+
+#undef enable_flag
+#undef disable_flag
+#undef enable_flag_if
 
 static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer     = i801_access,
@@ -640,10 +648,10 @@ static const struct i2c_algorithm smbus_algorithm = {
 /********************************
  *** Part 2 - Driver Handlers ***
  ********************************/
-static int pi2c_probe(struct platform_device *pldev)
+static int kpc_i2c_probe(struct platform_device *pldev)
 {
 	int err;
-	struct i2c_device *priv;
+	struct kpc_i2c *priv;
 	struct resource *res;
 
 	priv = devm_kzalloc(&pldev->dev, sizeof(*priv), GFP_KERNEL);
@@ -659,7 +667,7 @@ static int pi2c_probe(struct platform_device *pldev)
 	if (!res)
 		return -ENXIO;
 
-	priv->smba = (unsigned long)devm_ioremap_nocache(&pldev->dev,
+	priv->smba = (unsigned long)devm_ioremap(&pldev->dev,
 							 res->start,
 							 resource_size(res));
 	if (!priv->smba)
@@ -692,11 +700,11 @@ static int pi2c_probe(struct platform_device *pldev)
 	return 0;
 }
 
-static int pi2c_remove(struct platform_device *pldev)
+static int kpc_i2c_remove(struct platform_device *pldev)
 {
-	struct i2c_device *lddev;
+	struct kpc_i2c *lddev;
 
-	lddev = (struct i2c_device *)platform_get_drvdata(pldev);
+	lddev = (struct kpc_i2c *)platform_get_drvdata(pldev);
 
 	i2c_del_adapter(&lddev->adapter);
 
@@ -710,12 +718,12 @@ static int pi2c_remove(struct platform_device *pldev)
 	return 0;
 }
 
-static struct platform_driver i2c_plat_driver_i = {
-	.probe      = pi2c_probe,
-	.remove     = pi2c_remove,
+static struct platform_driver kpc_i2c_driver = {
+	.probe      = kpc_i2c_probe,
+	.remove     = kpc_i2c_remove,
 	.driver     = {
 		.name   = KP_DRIVER_NAME_I2C,
 	},
 };
 
-module_platform_driver(i2c_plat_driver_i);
+module_platform_driver(kpc_i2c_driver);

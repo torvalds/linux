@@ -7,6 +7,7 @@
 #include <asm/perf_event.h>
 #include <asm/tlbflush.h>
 #include <asm/insn.h>
+#include <asm/io.h>
 
 #include "../perf_event.h"
 
@@ -1712,6 +1713,8 @@ intel_pmu_save_and_restart_reload(struct perf_event *event, int count)
 	new = ((s64)(new_raw_count << shift) >> shift);
 	old = ((s64)(prev_raw_count << shift) >> shift);
 	local64_add(new - old + count * period, &event->count);
+
+	local64_set(&hwc->period_left, -new);
 
 	perf_event_update_userpage(event);
 

@@ -40,7 +40,7 @@ static u8 *fjes_hw_iomap(struct fjes_hw *hw)
 		return NULL;
 	}
 
-	base = (u8 *)ioremap_nocache(hw->hw_res.start, hw->hw_res.size);
+	base = (u8 *)ioremap(hw->hw_res.start, hw->hw_res.size);
 
 	return base;
 }

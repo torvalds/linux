@@ -8,6 +8,7 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -23,6 +24,7 @@
 
 struct uniphier_spi_priv {
 	void __iomem *base;
+	dma_addr_t base_dma_addr;
 	struct clk *clk;
 	struct spi_master *master;
 	struct completion xfer_done;
@@ -32,6 +34,7 @@ struct uniphier_spi_priv {
 	unsigned int rx_bytes;
 	const u8 *tx_buf;
 	u8 *rx_buf;
+	atomic_t dma_busy;
 
 	bool is_save_param;
 	u8 bits_per_word;
@@ -61,11 +64,16 @@ struct uniphier_spi_priv {
 #define   SSI_FPS_FSTRT		BIT(14)
 
 #define SSI_SR			0x14
+#define   SSI_SR_BUSY		BIT(7)
 #define   SSI_SR_RNE		BIT(0)
 
 #define SSI_IE			0x18
+#define   SSI_IE_TCIE		BIT(4)
 #define   SSI_IE_RCIE		BIT(3)
+#define   SSI_IE_TXRE		BIT(2)
+#define   SSI_IE_RXRE		BIT(1)
 #define   SSI_IE_RORIE		BIT(0)
+#define   SSI_IE_ALL_MASK	GENMASK(4, 0)
 
 #define SSI_IS			0x1c
 #define   SSI_IS_RXRS		BIT(9)
@@ -87,15 +95,19 @@ struct uniphier_spi_priv {
 #define SSI_RXDR		0x24
 
 #define SSI_FIFO_DEPTH		8U
+#define SSI_FIFO_BURST_NUM	1
+
+#define SSI_DMA_RX_BUSY		BIT(1)
+#define SSI_DMA_TX_BUSY		BIT(0)
 
 static inline unsigned int bytes_per_word(unsigned int bits)
 {
 	return bits <= 8 ? 1 : (bits <= 16 ? 2 : 4);
 }
 
-static inline void uniphier_spi_irq_enable(struct spi_device *spi, u32 mask)
+static inline void uniphier_spi_irq_enable(struct uniphier_spi_priv *priv,
+					   u32 mask)
 {
-	struct uniphier_spi_priv *priv = spi_master_get_devdata(spi->master);
 	u32 val;
 
 	val = readl(priv->base + SSI_IE);
@@ -103,9 +115,9 @@ static inline void uniphier_spi_irq_enable(struct spi_device *spi, u32 mask)
 	writel(val, priv->base + SSI_IE);
 }
 
-static inline void uniphier_spi_irq_disable(struct spi_device *spi, u32 mask)
+static inline void uniphier_spi_irq_disable(struct uniphier_spi_priv *priv,
+					    u32 mask)
 {
-	struct uniphier_spi_priv *priv = spi_master_get_devdata(spi->master);
 	u32 val;
 
 	val = readl(priv->base + SSI_IE);
@@ -290,25 +302,32 @@ static void uniphier_spi_recv(struct uniphier_spi_priv *priv)
 	}
 }
 
-static void uniphier_spi_fill_tx_fifo(struct uniphier_spi_priv *priv)
+static void uniphier_spi_set_fifo_threshold(struct uniphier_spi_priv *priv,
+					    unsigned int threshold)
 {
-	unsigned int fifo_threshold, fill_bytes;
 	u32 val;
 
-	fifo_threshold = DIV_ROUND_UP(priv->rx_bytes,
-				bytes_per_word(priv->bits_per_word));
-	fifo_threshold = min(fifo_threshold, SSI_FIFO_DEPTH);
-
-	fill_bytes = fifo_threshold - (priv->rx_bytes - priv->tx_bytes);
-
-	/* set fifo threshold */
 	val = readl(priv->base + SSI_FC);
 	val &= ~(SSI_FC_TXFTH_MASK | SSI_FC_RXFTH_MASK);
-	val |= FIELD_PREP(SSI_FC_TXFTH_MASK, fifo_threshold);
-	val |= FIELD_PREP(SSI_FC_RXFTH_MASK, fifo_threshold);
+	val |= FIELD_PREP(SSI_FC_TXFTH_MASK, SSI_FIFO_DEPTH - threshold);
+	val |= FIELD_PREP(SSI_FC_RXFTH_MASK, threshold);
 	writel(val, priv->base + SSI_FC);
+}
 
-	while (fill_bytes--)
+static void uniphier_spi_fill_tx_fifo(struct uniphier_spi_priv *priv)
+{
+	unsigned int fifo_threshold, fill_words;
+	unsigned int bpw = bytes_per_word(priv->bits_per_word);
+
+	fifo_threshold = DIV_ROUND_UP(priv->rx_bytes, bpw);
+	fifo_threshold = min(fifo_threshold, SSI_FIFO_DEPTH);
+
+	uniphier_spi_set_fifo_threshold(priv, fifo_threshold);
+
+	fill_words = fifo_threshold -
+		DIV_ROUND_UP(priv->rx_bytes - priv->tx_bytes, bpw);
+
+	while (fill_words--)
 		uniphier_spi_send(priv);
 }
 
@@ -327,6 +346,128 @@ static void uniphier_spi_set_cs(struct spi_device *spi, bool enable)
 	writel(val, priv->base + SSI_FPS);
 }
 
+static bool uniphier_spi_can_dma(struct spi_master *master,
+				 struct spi_device *spi,
+				 struct spi_transfer *t)
+{
+	struct uniphier_spi_priv *priv = spi_master_get_devdata(master);
+	unsigned int bpw = bytes_per_word(priv->bits_per_word);
+
+	if ((!master->dma_tx && !master->dma_rx)
+	    || (!master->dma_tx && t->tx_buf)
+	    || (!master->dma_rx && t->rx_buf))
+		return false;
+
+	return DIV_ROUND_UP(t->len, bpw) > SSI_FIFO_DEPTH;
+}
+
+static void uniphier_spi_dma_rxcb(void *data)
+{
+	struct spi_master *master = data;
+	struct uniphier_spi_priv *priv = spi_master_get_devdata(master);
+	int state = atomic_fetch_andnot(SSI_DMA_RX_BUSY, &priv->dma_busy);
+
+	uniphier_spi_irq_disable(priv, SSI_IE_RXRE);
+
+	if (!(state & SSI_DMA_TX_BUSY))
+		spi_finalize_current_transfer(master);
+}
+
+static void uniphier_spi_dma_txcb(void *data)
+{
+	struct spi_master *master = data;
+	struct uniphier_spi_priv *priv = spi_master_get_devdata(master);
+	int state = atomic_fetch_andnot(SSI_DMA_TX_BUSY, &priv->dma_busy);
+
+	uniphier_spi_irq_disable(priv, SSI_IE_TXRE);
+
+	if (!(state & SSI_DMA_RX_BUSY))
+		spi_finalize_current_transfer(master);
+}
+
+static int uniphier_spi_transfer_one_dma(struct spi_master *master,
+					 struct spi_device *spi,
+					 struct spi_transfer *t)
+{
+	struct uniphier_spi_priv *priv = spi_master_get_devdata(master);
+	struct dma_async_tx_descriptor *rxdesc = NULL, *txdesc = NULL;
+	int buswidth;
+
+	atomic_set(&priv->dma_busy, 0);
+
+	uniphier_spi_set_fifo_threshold(priv, SSI_FIFO_BURST_NUM);
+
+	if (priv->bits_per_word <= 8)
+		buswidth = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	else if (priv->bits_per_word <= 16)
+		buswidth = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	else
+		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
+
+	if (priv->rx_buf) {
+		struct dma_slave_config rxconf = {
+			.direction = DMA_DEV_TO_MEM,
+			.src_addr = priv->base_dma_addr + SSI_RXDR,
+			.src_addr_width = buswidth,
+			.src_maxburst = SSI_FIFO_BURST_NUM,
+		};
+
+		dmaengine_slave_config(master->dma_rx, &rxconf);
+
+		rxdesc = dmaengine_prep_slave_sg(
+			master->dma_rx,
+			t->rx_sg.sgl, t->rx_sg.nents,
+			DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!rxdesc)
+			goto out_err_prep;
+
+		rxdesc->callback = uniphier_spi_dma_rxcb;
+		rxdesc->callback_param = master;
+
+		uniphier_spi_irq_enable(priv, SSI_IE_RXRE);
+		atomic_or(SSI_DMA_RX_BUSY, &priv->dma_busy);
+
+		dmaengine_submit(rxdesc);
+		dma_async_issue_pending(master->dma_rx);
+	}
+
+	if (priv->tx_buf) {
+		struct dma_slave_config txconf = {
+			.direction = DMA_MEM_TO_DEV,
+			.dst_addr = priv->base_dma_addr + SSI_TXDR,
+			.dst_addr_width = buswidth,
+			.dst_maxburst = SSI_FIFO_BURST_NUM,
+		};
+
+		dmaengine_slave_config(master->dma_tx, &txconf);
+
+		txdesc = dmaengine_prep_slave_sg(
+			master->dma_tx,
+			t->tx_sg.sgl, t->tx_sg.nents,
+			DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!txdesc)
+			goto out_err_prep;
+
+		txdesc->callback = uniphier_spi_dma_txcb;
+		txdesc->callback_param = master;
+
+		uniphier_spi_irq_enable(priv, SSI_IE_TXRE);
+		atomic_or(SSI_DMA_TX_BUSY, &priv->dma_busy);
+
+		dmaengine_submit(txdesc);
+		dma_async_issue_pending(master->dma_tx);
+	}
+
+	/* signal that we need to wait for completion */
+	return (priv->tx_buf || priv->rx_buf);
+
+out_err_prep:
+	if (rxdesc)
+		dmaengine_terminate_sync(master->dma_rx);
+
+	return -EINVAL;
+}
+
 static int uniphier_spi_transfer_one_irq(struct spi_master *master,
 					 struct spi_device *spi,
 					 struct spi_transfer *t)
@@ -339,12 +480,12 @@ static int uniphier_spi_transfer_one_irq(struct spi_master *master,
 
 	uniphier_spi_fill_tx_fifo(priv);
 
-	uniphier_spi_irq_enable(spi, SSI_IE_RCIE | SSI_IE_RORIE);
+	uniphier_spi_irq_enable(priv, SSI_IE_RCIE | SSI_IE_RORIE);
 
 	time_left = wait_for_completion_timeout(&priv->xfer_done,
 					msecs_to_jiffies(SSI_TIMEOUT_MS));
 
-	uniphier_spi_irq_disable(spi, SSI_IE_RCIE | SSI_IE_RORIE);
+	uniphier_spi_irq_disable(priv, SSI_IE_RCIE | SSI_IE_RORIE);
 
 	if (!time_left) {
 		dev_err(dev, "transfer timeout.\n");
@@ -388,12 +529,17 @@ static int uniphier_spi_transfer_one(struct spi_master *master,
 {
 	struct uniphier_spi_priv *priv = spi_master_get_devdata(master);
 	unsigned long threshold;
+	bool use_dma;
 
 	/* Terminate and return success for 0 byte length transfer */
 	if (!t->len)
 		return 0;
 
 	uniphier_spi_setup_transfer(spi, t);
+
+	use_dma = master->can_dma ? master->can_dma(master, spi, t) : false;
+	if (use_dma)
+		return uniphier_spi_transfer_one_dma(master, spi, t);
 
 	/*
 	 * If the transfer operation will take longer than
@@ -423,6 +569,32 @@ static int uniphier_spi_unprepare_transfer_hardware(struct spi_master *master)
 	writel(0, priv->base + SSI_CTL);
 
 	return 0;
+}
+
+static void uniphier_spi_handle_err(struct spi_master *master,
+				    struct spi_message *msg)
+{
+	struct uniphier_spi_priv *priv = spi_master_get_devdata(master);
+	u32 val;
+
+	/* stop running spi transfer */
+	writel(0, priv->base + SSI_CTL);
+
+	/* reset FIFOs */
+	val = SSI_FC_TXFFL | SSI_FC_RXFFL;
+	writel(val, priv->base + SSI_FC);
+
+	uniphier_spi_irq_disable(priv, SSI_IE_ALL_MASK);
+
+	if (atomic_read(&priv->dma_busy) & SSI_DMA_TX_BUSY) {
+		dmaengine_terminate_async(master->dma_tx);
+		atomic_andnot(SSI_DMA_TX_BUSY, &priv->dma_busy);
+	}
+
+	if (atomic_read(&priv->dma_busy) & SSI_DMA_RX_BUSY) {
+		dmaengine_terminate_async(master->dma_rx);
+		atomic_andnot(SSI_DMA_RX_BUSY, &priv->dma_busy);
+	}
 }
 
 static irqreturn_t uniphier_spi_handler(int irq, void *dev_id)
@@ -470,6 +642,9 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 {
 	struct uniphier_spi_priv *priv;
 	struct spi_master *master;
+	struct resource *res;
+	struct dma_slave_caps caps;
+	u32 dma_tx_burst = 0, dma_rx_burst = 0;
 	unsigned long clk_rate;
 	int irq;
 	int ret;
@@ -484,11 +659,13 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 	priv->master = master;
 	priv->is_save_param = false;
 
-	priv->base = devm_platform_ioremap_resource(pdev, 0);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->base)) {
 		ret = PTR_ERR(priv->base);
 		goto out_master_put;
 	}
+	priv->base_dma_addr = res->start;
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
@@ -531,7 +708,45 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 				= uniphier_spi_prepare_transfer_hardware;
 	master->unprepare_transfer_hardware
 				= uniphier_spi_unprepare_transfer_hardware;
+	master->handle_err = uniphier_spi_handle_err;
+	master->can_dma = uniphier_spi_can_dma;
+
 	master->num_chipselect = 1;
+	master->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
+
+	master->dma_tx = dma_request_chan(&pdev->dev, "tx");
+	if (IS_ERR_OR_NULL(master->dma_tx)) {
+		if (PTR_ERR(master->dma_tx) == -EPROBE_DEFER)
+			goto out_disable_clk;
+		master->dma_tx = NULL;
+		dma_tx_burst = INT_MAX;
+	} else {
+		ret = dma_get_slave_caps(master->dma_tx, &caps);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get TX DMA capacities: %d\n",
+				ret);
+			goto out_disable_clk;
+		}
+		dma_tx_burst = caps.max_burst;
+	}
+
+	master->dma_rx = dma_request_chan(&pdev->dev, "rx");
+	if (IS_ERR_OR_NULL(master->dma_rx)) {
+		if (PTR_ERR(master->dma_rx) == -EPROBE_DEFER)
+			goto out_disable_clk;
+		master->dma_rx = NULL;
+		dma_rx_burst = INT_MAX;
+	} else {
+		ret = dma_get_slave_caps(master->dma_rx, &caps);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get RX DMA capacities: %d\n",
+				ret);
+			goto out_disable_clk;
+		}
+		dma_rx_burst = caps.max_burst;
+	}
+
+	master->max_dma_len = min(dma_tx_burst, dma_rx_burst);
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret)
@@ -550,6 +765,11 @@ out_master_put:
 static int uniphier_spi_remove(struct platform_device *pdev)
 {
 	struct uniphier_spi_priv *priv = platform_get_drvdata(pdev);
+
+	if (priv->master->dma_tx)
+		dma_release_channel(priv->master->dma_tx);
+	if (priv->master->dma_rx)
+		dma_release_channel(priv->master->dma_rx);
 
 	clk_disable_unprepare(priv->clk);
 

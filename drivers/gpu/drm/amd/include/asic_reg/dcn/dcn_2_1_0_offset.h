@@ -7103,7 +7103,10 @@
 #define mmMPC_OUT3_CSC_C31_C32_B_BASE_IDX                                                              2
 #define mmMPC_OUT3_CSC_C33_C34_B                                                                       0x15ea
 #define mmMPC_OUT3_CSC_C33_C34_B_BASE_IDX                                                              2
-
+#define mmMPC_OCSC_TEST_DEBUG_INDEX                                                                    0x163b
+#define mmMPC_OCSC_TEST_DEBUG_INDEX_BASE_IDX                                                           2
+#define mmMPC_OCSC_TEST_DEBUG_DATA_BASE_IDX                                                            2
+#define mmMPC_OCSC_TEST_DEBUG_DATA                                                                     0x163c
 
 // addressBlock: dce_dc_mpc_mpc_dcperfmon_dc_perfmon_dispdec
 // base address: 0x5964

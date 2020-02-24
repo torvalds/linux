@@ -33,9 +33,9 @@
 #include <linux/seq_file.h>
 #include <linux/platform_data/x86/asus-wmi.h>
 #include <linux/platform_device.h>
-#include <linux/thermal.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/units.h>
 
 #include <acpi/battery.h>
 #include <acpi/video.h>
@@ -61,6 +61,7 @@ MODULE_LICENSE("GPL");
 #define NOTIFY_KBD_BRTDWN		0xc5
 #define NOTIFY_KBD_BRTTOGGLE		0xc7
 #define NOTIFY_KBD_FBM			0x99
+#define NOTIFY_KBD_TTP			0xae
 
 #define ASUS_WMI_FNLOCK_BIOS_DISABLED	BIT(0)
 
@@ -80,6 +81,10 @@ MODULE_LICENSE("GPL");
 #define ASUS_FAN_BOOST_MODE_SILENT		2
 #define ASUS_FAN_BOOST_MODE_SILENT_MASK		0x02
 #define ASUS_FAN_BOOST_MODES_MASK		0x03
+
+#define ASUS_THROTTLE_THERMAL_POLICY_DEFAULT	0
+#define ASUS_THROTTLE_THERMAL_POLICY_OVERBOOST	1
+#define ASUS_THROTTLE_THERMAL_POLICY_SILENT	2
 
 #define USB_INTEL_XUSB2PR		0xD0
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_XHCI	0x9c31
@@ -197,6 +202,9 @@ struct asus_wmi {
 	bool fan_boost_mode_available;
 	u8 fan_boost_mode_mask;
 	u8 fan_boost_mode;
+
+	bool throttle_thermal_policy_available;
+	u8 throttle_thermal_policy_mode;
 
 	// The RSOC controls the maximum charging percentage.
 	bool battery_rsoc_available;
@@ -512,13 +520,7 @@ static void kbd_led_update(struct asus_wmi *asus)
 {
 	int ctrl_param = 0;
 
-	/*
-	 * bits 0-2: level
-	 * bit 7: light on/off
-	 */
-	if (asus->kbd_led_wk > 0)
-		ctrl_param = 0x80 | (asus->kbd_led_wk & 0x7F);
-
+	ctrl_param = 0x80 | (asus->kbd_led_wk & 0x7F);
 	asus_wmi_set_devstate(ASUS_WMI_DEVID_KBD_BACKLIGHT, ctrl_param, NULL);
 }
 
@@ -1512,9 +1514,8 @@ static ssize_t asus_hwmon_temp1(struct device *dev,
 	if (err < 0)
 		return err;
 
-	value = DECI_KELVIN_TO_CELSIUS((value & 0xFFFF)) * 1000;
-
-	return sprintf(buf, "%d\n", value);
+	return sprintf(buf, "%ld\n",
+		       deci_kelvin_to_millicelsius(value & 0xFFFF));
 }
 
 /* Fan1 */
@@ -1723,6 +1724,107 @@ static ssize_t fan_boost_mode_store(struct device *dev,
 
 // Fan boost mode: 0 - normal, 1 - overboost, 2 - silent
 static DEVICE_ATTR_RW(fan_boost_mode);
+
+/* Throttle thermal policy ****************************************************/
+
+static int throttle_thermal_policy_check_present(struct asus_wmi *asus)
+{
+	u32 result;
+	int err;
+
+	asus->throttle_thermal_policy_available = false;
+
+	err = asus_wmi_get_devstate(asus,
+				    ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY,
+				    &result);
+	if (err) {
+		if (err == -ENODEV)
+			return 0;
+		return err;
+	}
+
+	if (result & ASUS_WMI_DSTS_PRESENCE_BIT)
+		asus->throttle_thermal_policy_available = true;
+
+	return 0;
+}
+
+static int throttle_thermal_policy_write(struct asus_wmi *asus)
+{
+	int err;
+	u8 value;
+	u32 retval;
+
+	value = asus->throttle_thermal_policy_mode;
+
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY,
+				    value, &retval);
+	if (err) {
+		pr_warn("Failed to set throttle thermal policy: %d\n", err);
+		return err;
+	}
+
+	if (retval != 1) {
+		pr_warn("Failed to set throttle thermal policy (retval): 0x%x\n",
+			retval);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int throttle_thermal_policy_set_default(struct asus_wmi *asus)
+{
+	if (!asus->throttle_thermal_policy_available)
+		return 0;
+
+	asus->throttle_thermal_policy_mode = ASUS_THROTTLE_THERMAL_POLICY_DEFAULT;
+	return throttle_thermal_policy_write(asus);
+}
+
+static int throttle_thermal_policy_switch_next(struct asus_wmi *asus)
+{
+	u8 new_mode = asus->throttle_thermal_policy_mode + 1;
+
+	if (new_mode > ASUS_THROTTLE_THERMAL_POLICY_SILENT)
+		new_mode = ASUS_THROTTLE_THERMAL_POLICY_DEFAULT;
+
+	asus->throttle_thermal_policy_mode = new_mode;
+	return throttle_thermal_policy_write(asus);
+}
+
+static ssize_t throttle_thermal_policy_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+	u8 mode = asus->throttle_thermal_policy_mode;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", mode);
+}
+
+static ssize_t throttle_thermal_policy_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int result;
+	u8 new_mode;
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+
+	result = kstrtou8(buf, 10, &new_mode);
+	if (result < 0)
+		return result;
+
+	if (new_mode > ASUS_THROTTLE_THERMAL_POLICY_SILENT)
+		return -EINVAL;
+
+	asus->throttle_thermal_policy_mode = new_mode;
+	throttle_thermal_policy_write(asus);
+
+	return count;
+}
+
+// Throttle thermal policy: 0 - default, 1 - overboost, 2 - silent
+static DEVICE_ATTR_RW(throttle_thermal_policy);
 
 /* Backlight ******************************************************************/
 
@@ -2005,6 +2107,11 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 		return;
 	}
 
+	if (asus->throttle_thermal_policy_available && code == NOTIFY_KBD_TTP) {
+		throttle_thermal_policy_switch_next(asus);
+		return;
+	}
+
 	if (is_display_toggle(code) && asus->driver->quirks->no_display_toggle)
 		return;
 
@@ -2155,6 +2262,7 @@ static struct attribute *platform_attributes[] = {
 	&dev_attr_lid_resume.attr,
 	&dev_attr_als_enable.attr,
 	&dev_attr_fan_boost_mode.attr,
+	&dev_attr_throttle_thermal_policy.attr,
 	NULL
 };
 
@@ -2178,6 +2286,8 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 		devid = ASUS_WMI_DEVID_ALS_ENABLE;
 	else if (attr == &dev_attr_fan_boost_mode.attr)
 		ok = asus->fan_boost_mode_available;
+	else if (attr == &dev_attr_throttle_thermal_policy.attr)
+		ok = asus->throttle_thermal_policy_available;
 
 	if (devid != -1)
 		ok = !(asus_wmi_get_devstate_simple(asus, devid) < 0);
@@ -2437,6 +2547,12 @@ static int asus_wmi_add(struct platform_device *pdev)
 	if (err)
 		goto fail_fan_boost_mode;
 
+	err = throttle_thermal_policy_check_present(asus);
+	if (err)
+		goto fail_throttle_thermal_policy;
+	else
+		throttle_thermal_policy_set_default(asus);
+
 	err = asus_wmi_sysfs_init(asus->platform_device);
 	if (err)
 		goto fail_sysfs;
@@ -2521,6 +2637,7 @@ fail_hwmon:
 fail_input:
 	asus_wmi_sysfs_exit(asus->platform_device);
 fail_sysfs:
+fail_throttle_thermal_policy:
 fail_fan_boost_mode:
 fail_platform:
 	kfree(asus);

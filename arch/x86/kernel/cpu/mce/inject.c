@@ -494,7 +494,7 @@ static void do_inject(void)
 		i_mce.status |= MCI_STATUS_SYNDV;
 
 	if (inj_type == SW_INJ) {
-		mce_inject_log(&i_mce);
+		mce_log(&i_mce);
 		return;
 	}
 

@@ -61,7 +61,7 @@ int etnaviv_gem_prime_pin(struct drm_gem_object *obj);
 void etnaviv_gem_prime_unpin(struct drm_gem_object *obj);
 void *etnaviv_gem_vmap(struct drm_gem_object *obj);
 int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
-		struct timespec *timeout);
+		struct drm_etnaviv_timespec *timeout);
 int etnaviv_gem_cpu_fini(struct drm_gem_object *obj);
 void etnaviv_gem_free_object(struct drm_gem_object *obj);
 int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
@@ -107,11 +107,12 @@ static inline size_t size_vstruct(size_t nelem, size_t elem_size, size_t base)
  * between the specified timeout and the current CLOCK_MONOTONIC time.
  */
 static inline unsigned long etnaviv_timeout_to_jiffies(
-	const struct timespec *timeout)
+	const struct drm_etnaviv_timespec *timeout)
 {
-	struct timespec64 ts, to;
-
-	to = timespec_to_timespec64(*timeout);
+	struct timespec64 ts, to = {
+		.tv_sec = timeout->tv_sec,
+		.tv_nsec = timeout->tv_nsec,
+	};
 
 	ktime_get_ts64(&ts);
 

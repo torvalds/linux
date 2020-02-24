@@ -18,7 +18,8 @@
 #define MALIDP_CORE_ID_STATUS(__core_id)     (((__u32)(__core_id)) & 0xFF)
 
 /* Mali-display product IDs */
-#define MALIDP_D71_PRODUCT_ID   0x0071
+#define MALIDP_D71_PRODUCT_ID	0x0071
+#define MALIDP_D32_PRODUCT_ID	0x0032
 
 union komeda_config_id {
 	struct {

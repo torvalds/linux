@@ -44,7 +44,7 @@ __attribute__((weak, section(".rodata")));
 extern const unsigned long kallsyms_relative_base
 __attribute__((weak, section(".rodata")));
 
-extern const u8 kallsyms_token_table[] __weak;
+extern const char kallsyms_token_table[] __weak;
 extern const u16 kallsyms_token_index[] __weak;
 
 extern const unsigned int kallsyms_markers[] __weak;
@@ -58,7 +58,8 @@ static unsigned int kallsyms_expand_symbol(unsigned int off,
 					   char *result, size_t maxlen)
 {
 	int len, skipped_first = 0;
-	const u8 *tptr, *data;
+	const char *tptr;
+	const u8 *data;
 
 	/* Get the compressed symbol length from the first symbol byte. */
 	data = &kallsyms_names[off];
@@ -698,16 +699,16 @@ const char *kdb_walk_kallsyms(loff_t *pos)
 }
 #endif	/* CONFIG_KGDB_KDB */
 
-static const struct file_operations kallsyms_operations = {
-	.open = kallsyms_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_private,
+static const struct proc_ops kallsyms_proc_ops = {
+	.proc_open	= kallsyms_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release_private,
 };
 
 static int __init kallsyms_init(void)
 {
-	proc_create("kallsyms", 0444, NULL, &kallsyms_operations);
+	proc_create("kallsyms", 0444, NULL, &kallsyms_proc_ops);
 	return 0;
 }
 device_initcall(kallsyms_init);

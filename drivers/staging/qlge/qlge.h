@@ -63,7 +63,6 @@
 #define UDELAY_COUNT 3
 #define UDELAY_DELAY 100
 
-
 #define TX_DESC_PER_IOCB 8
 
 #if ((MAX_SKB_FRAGS - TX_DESC_PER_IOCB) + 2) > 0
@@ -1627,18 +1626,18 @@ enum {
 #define MPI_COREDUMP_COOKIE 0x5555aaaa
 struct mpi_coredump_global_header {
 	u32	cookie;
-	u8	idString[16];
-	u32	timeLo;
-	u32	timeHi;
-	u32	imageSize;
-	u32	headerSize;
+	u8	id_string[16];
+	u32	time_lo;
+	u32	time_hi;
+	u32	image_size;
+	u32	header_size;
 	u8	info[220];
 };
 
 struct mpi_coredump_segment_header {
 	u32	cookie;
-	u32	segNum;
-	u32	segSize;
+	u32	seg_num;
+	u32	seg_size;
 	u32	extra;
 	u8	description[16];
 };

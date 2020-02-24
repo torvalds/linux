@@ -794,4 +794,5 @@ const struct ide_disk_ops ide_ata_disk_ops = {
 	.set_doorlock		= ide_disk_set_doorlock,
 	.do_request		= ide_do_rw_disk,
 	.ioctl			= ide_disk_ioctl,
+	.compat_ioctl		= ide_disk_ioctl,
 };

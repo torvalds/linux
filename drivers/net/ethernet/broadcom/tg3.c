@@ -7645,7 +7645,7 @@ static void tg3_poll_controller(struct net_device *dev)
 }
 #endif
 
-static void tg3_tx_timeout(struct net_device *dev)
+static void tg3_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
@@ -7874,8 +7874,8 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *, struct net_device *);
 static int tg3_tso_bug(struct tg3 *tp, struct tg3_napi *tnapi,
 		       struct netdev_queue *txq, struct sk_buff *skb)
 {
-	struct sk_buff *segs, *nskb;
 	u32 frag_cnt_est = skb_shinfo(skb)->gso_segs * 3;
+	struct sk_buff *segs, *seg, *next;
 
 	/* Estimate the number of fragments in the worst case */
 	if (unlikely(tg3_tx_avail(tnapi) <= frag_cnt_est)) {
@@ -7898,12 +7898,10 @@ static int tg3_tso_bug(struct tg3 *tp, struct tg3_napi *tnapi,
 	if (IS_ERR(segs) || !segs)
 		goto tg3_tso_bug_end;
 
-	do {
-		nskb = segs;
-		segs = segs->next;
-		nskb->next = NULL;
-		tg3_start_xmit(nskb, tp->dev);
-	} while (segs);
+	skb_list_walk_safe(segs, seg, next) {
+		skb_mark_not_on_list(seg);
+		tg3_start_xmit(seg, tp->dev);
+	}
 
 tg3_tso_bug_end:
 	dev_consume_skb_any(skb);

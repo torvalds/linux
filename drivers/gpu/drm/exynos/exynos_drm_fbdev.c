@@ -60,7 +60,7 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 	return 0;
 }
 
-static struct fb_ops exynos_drm_fb_ops = {
+static const struct fb_ops exynos_drm_fb_ops = {
 	.owner		= THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_mmap        = exynos_drm_fb_mmap,

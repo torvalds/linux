@@ -758,7 +758,7 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
  */
 bool RFbSetPower(struct vnt_private *priv, unsigned int rate, u16 uCH)
 {
-	bool ret = true;
+	bool ret;
 	unsigned char byPwr = 0;
 	unsigned char byDec = 0;
 

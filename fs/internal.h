@@ -38,7 +38,7 @@ static inline int __sync_blockdev(struct block_device *bdev, int wait)
 /*
  * buffer.c
  */
-extern void guard_bio_eod(int rw, struct bio *bio);
+extern void guard_bio_eod(struct bio *bio);
 extern int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
 		get_block_t *get_block, struct iomap *iomap);
 
@@ -124,6 +124,8 @@ extern struct file *do_filp_open(int dfd, struct filename *pathname,
 		const struct open_flags *op);
 extern struct file *do_file_open_root(struct dentry *, struct vfsmount *,
 		const char *, const struct open_flags *);
+extern struct open_how build_open_how(int flags, umode_t mode);
+extern int build_open_flags(const struct open_how *how, struct open_flags *op);
 
 long do_sys_ftruncate(unsigned int fd, loff_t length, int small);
 long do_faccessat(int dfd, const char __user *filename, int mode);
@@ -180,11 +182,11 @@ extern void mnt_pin_kill(struct mount *m);
  */
 extern const struct dentry_operations ns_dentry_operations;
 
-/*
- * fs/ioctl.c
- */
-extern int do_vfs_ioctl(struct file *file, unsigned int fd, unsigned int cmd,
-		    unsigned long arg);
-
 /* direct-io.c: */
 int sb_init_dio_done_wq(struct super_block *sb);
+
+/*
+ * fs/stat.c:
+ */
+unsigned vfs_stat_set_lookup_flags(unsigned *lookup_flags, int flags);
+int cp_statx(const struct kstat *stat, struct statx __user *buffer);

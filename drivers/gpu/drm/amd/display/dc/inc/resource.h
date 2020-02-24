@@ -46,12 +46,8 @@ struct resource_caps {
 	int num_pll;
 	int num_dwb;
 	int num_ddc;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	int num_vmid;
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	int num_dsc;
-#endif
-#endif
 };
 
 struct resource_straps {
@@ -181,4 +177,6 @@ void update_audio_usage(
 
 unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format);
 
+void get_audio_check(struct audio_info *aud_modes,
+	struct audio_check *aud_chk);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

@@ -68,7 +68,7 @@ static int siw_rx_umem(struct siw_rx_stream *srx, struct siw_umem *umem,
 			return -EFAULT;
 		}
 		if (srx->mpa_crc_hd) {
-			if (rx_qp(srx)->kernel_verbs) {
+			if (rdma_is_kernel_res(&rx_qp(srx)->base_qp.res)) {
 				crypto_shash_update(srx->mpa_crc_hd,
 					(u8 *)(dest + pg_off), bytes);
 				kunmap_atomic(dest);
@@ -388,7 +388,7 @@ static struct siw_wqe *siw_rqe_get(struct siw_qp *qp)
 				struct siw_rqe *rqe2 = &srq->recvq[off];
 
 				if (!(rqe2->flags & SIW_WQE_VALID)) {
-					srq->armed = 0;
+					srq->armed = false;
 					srq_event = true;
 				}
 			}
@@ -1264,7 +1264,7 @@ static int siw_rdmap_complete(struct siw_qp *qp, int error)
 
 			if (wc_status == SIW_WC_SUCCESS)
 				wc_status = SIW_WC_GENERAL_ERR;
-		} else if (qp->kernel_verbs &&
+		} else if (rdma_is_kernel_res(&qp->base_qp.res) &&
 			   rx_type(wqe) == SIW_OP_READ_LOCAL_INV) {
 			/*
 			 * Handle any STag invalidation request

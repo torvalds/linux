@@ -1106,7 +1106,7 @@ static int via_sd_probe(struct pci_dev *pcidev,
 
 	len = pci_resource_len(pcidev, 0);
 	base = pci_resource_start(pcidev, 0);
-	sdhost->mmiobase = ioremap_nocache(base, len);
+	sdhost->mmiobase = ioremap(base, len);
 	if (!sdhost->mmiobase) {
 		ret = -ENOMEM;
 		goto free_mmc_host;

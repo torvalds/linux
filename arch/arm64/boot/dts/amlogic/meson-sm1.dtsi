@@ -201,6 +201,7 @@
 			resets = <&arb AXG_ARB_TODDR_A>,
 				 <&clkc_audio AUD_RESET_TODDR_A>;
 			reset-names = "arb", "rst";
+			amlogic,fifo-depth = <8192>;
 			status = "disabled";
 		};
 
@@ -215,6 +216,7 @@
 			resets = <&arb AXG_ARB_TODDR_B>,
 				 <&clkc_audio AUD_RESET_TODDR_B>;
 			reset-names = "arb", "rst";
+			amlogic,fifo-depth = <256>;
 			status = "disabled";
 		};
 
@@ -229,6 +231,7 @@
 			resets = <&arb AXG_ARB_TODDR_C>,
 				 <&clkc_audio AUD_RESET_TODDR_C>;
 			reset-names = "arb", "rst";
+			amlogic,fifo-depth = <256>;
 			status = "disabled";
 		};
 
@@ -243,6 +246,7 @@
 			resets = <&arb AXG_ARB_FRDDR_A>,
 				 <&clkc_audio AUD_RESET_FRDDR_A>;
 			reset-names = "arb", "rst";
+			amlogic,fifo-depth = <512>;
 			status = "disabled";
 		};
 
@@ -257,6 +261,7 @@
 			resets = <&arb AXG_ARB_FRDDR_B>,
 				 <&clkc_audio AUD_RESET_FRDDR_B>;
 			reset-names = "arb", "rst";
+			amlogic,fifo-depth = <256>;
 			status = "disabled";
 		};
 
@@ -271,6 +276,7 @@
 			resets = <&arb AXG_ARB_FRDDR_C>,
 				 <&clkc_audio AUD_RESET_FRDDR_C>;
 			reset-names = "arb", "rst";
+			amlogic,fifo-depth = <256>;
 			status = "disabled";
 		};
 
@@ -412,6 +418,7 @@
 			resets = <&arb AXG_ARB_TODDR_D>,
 				 <&clkc_audio AUD_RESET_TODDR_D>;
 			reset-names = "arb", "rst";
+			amlogic,fifo-depth = <256>;
 			status = "disabled";
 		};
 
@@ -426,6 +433,7 @@
 			resets = <&arb AXG_ARB_FRDDR_D>,
 				 <&clkc_audio AUD_RESET_FRDDR_D>;
 			reset-names = "arb", "rst";
+			amlogic,fifo-depth = <256>;
 			status = "disabled";
 		};
 	};
@@ -480,6 +488,10 @@
 
 &simplefb_hdmi {
 	power-domains = <&pwrc PWRC_SM1_VPU_ID>;
+};
+
+&vdec {
+	compatible = "amlogic,sm1-vdec";
 };
 
 &vpu {

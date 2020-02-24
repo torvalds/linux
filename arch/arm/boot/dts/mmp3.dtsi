@@ -201,6 +201,50 @@
 				status = "disabled";
 			};
 
+			hsic_phy0: hsic-phy@f0001800 {
+				compatible = "marvell,mmp3-hsic-phy",
+					     "usb-nop-xceiv";
+				reg = <0xf0001800 0x40>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			hsic0: hsic@f0001000 {
+				compatible = "marvell,pxau2o-ehci";
+				reg = <0xf0001000 0x200>;
+				interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_USBHSIC0>;
+				clock-names = "USBCLK";
+				phys = <&hsic_phy0>;
+				phy-names = "usb";
+				phy_type = "hsic";
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				status = "disabled";
+			};
+
+			hsic_phy1: hsic-phy@f0002800 {
+				compatible = "marvell,mmp3-hsic-phy",
+					     "usb-nop-xceiv";
+				reg = <0xf0002800 0x40>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			hsic1: hsic@f0002000 {
+				compatible = "marvell,pxau2o-ehci";
+				reg = <0xf0002000 0x200>;
+				interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_USBHSIC1>;
+				clock-names = "USBCLK";
+				phys = <&hsic_phy1>;
+				phy-names = "usb";
+				phy_type = "hsic";
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				status = "disabled";
+			};
+
 			mmc1: mmc@d4280000 {
 				compatible = "mrvl,pxav3-mmc";
 				reg = <0xd4280000 0x120>;
@@ -356,7 +400,7 @@
 
 			twsi1: i2c@d4011000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4011000 0x1000>;
+				reg = <0xd4011000 0x70>;
 				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI0>;
 				resets = <&soc_clocks MMP2_CLK_TWSI0>;
@@ -368,7 +412,7 @@
 
 			twsi2: i2c@d4031000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4031000 0x1000>;
+				reg = <0xd4031000 0x70>;
 				interrupt-parent = <&twsi_mux>;
 				interrupts = <0>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI1>;
@@ -380,7 +424,7 @@
 
 			twsi3: i2c@d4032000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4032000 0x1000>;
+				reg = <0xd4032000 0x70>;
 				interrupt-parent = <&twsi_mux>;
 				interrupts = <1>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI2>;
@@ -392,7 +436,7 @@
 
 			twsi4: i2c@d4033000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4033000 0x1000>;
+				reg = <0xd4033000 0x70>;
 				interrupt-parent = <&twsi_mux>;
 				interrupts = <2>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI3>;
@@ -405,7 +449,7 @@
 
 			twsi5: i2c@d4033800 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4033800 0x1000>;
+				reg = <0xd4033800 0x70>;
 				interrupt-parent = <&twsi_mux>;
 				interrupts = <3>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI4>;
@@ -417,7 +461,7 @@
 
 			twsi6: i2c@d4034000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4034000 0x1000>;
+				reg = <0xd4034000 0x70>;
 				interrupt-parent = <&twsi_mux>;
 				interrupts = <4>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI5>;

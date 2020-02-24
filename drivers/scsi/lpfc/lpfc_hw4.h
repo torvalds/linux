@@ -3925,6 +3925,9 @@ struct lpfc_mbx_wr_object {
 #define LPFC_CHANGE_STATUS_FW_RESET		0x02
 #define LPFC_CHANGE_STATUS_PORT_MIGRATION	0x04
 #define LPFC_CHANGE_STATUS_PCI_RESET		0x05
+#define lpfc_wr_object_csf_SHIFT		8
+#define lpfc_wr_object_csf_MASK			0x00000001
+#define lpfc_wr_object_csf_WORD			word5
 		} response;
 	} u;
 };

@@ -21,33 +21,34 @@ extern int __map_without_ltlbs;
 static unsigned long block_mapped_ram;
 
 /*
- * Return PA for this VA if it is in an area mapped with LTLBs.
+ * Return PA for this VA if it is in an area mapped with LTLBs or fixmap.
  * Otherwise, returns 0
  */
 phys_addr_t v_block_mapped(unsigned long va)
 {
 	unsigned long p = PHYS_IMMR_BASE;
 
-	if (__map_without_ltlbs)
-		return 0;
 	if (va >= VIRT_IMMR_BASE && va < VIRT_IMMR_BASE + IMMR_SIZE)
 		return p + va - VIRT_IMMR_BASE;
+	if (__map_without_ltlbs)
+		return 0;
 	if (va >= PAGE_OFFSET && va < PAGE_OFFSET + block_mapped_ram)
 		return __pa(va);
 	return 0;
 }
 
 /*
- * Return VA for a given PA mapped with LTLBs or 0 if not mapped
+ * Return VA for a given PA mapped with LTLBs or fixmap
+ * Return 0 if not mapped
  */
 unsigned long p_block_mapped(phys_addr_t pa)
 {
 	unsigned long p = PHYS_IMMR_BASE;
 
-	if (__map_without_ltlbs)
-		return 0;
 	if (pa >= p && pa < p + IMMR_SIZE)
 		return VIRT_IMMR_BASE + pa - p;
+	if (__map_without_ltlbs)
+		return 0;
 	if (pa < block_mapped_ram)
 		return (unsigned long)__va(pa);
 	return 0;

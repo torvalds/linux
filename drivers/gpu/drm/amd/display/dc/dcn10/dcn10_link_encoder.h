@@ -72,9 +72,7 @@
 struct dcn10_link_enc_aux_registers {
 	uint32_t AUX_CONTROL;
 	uint32_t AUX_DPHY_RX_CONTROL0;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	uint32_t AUX_DPHY_TX_CONTROL;
-#endif
 };
 
 struct dcn10_link_enc_hpd_registers {
@@ -106,7 +104,6 @@ struct dcn10_link_enc_registers {
 	uint32_t DP_DPHY_HBR2_PATTERN_CONTROL;
 	uint32_t DP_SEC_CNTL1;
 	uint32_t TMDS_CTL_BITS;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	/* DCCG  */
 	uint32_t CLOCK_ENABLE;
 	/* DIG */
@@ -127,6 +124,26 @@ struct dcn10_link_enc_registers {
 	uint32_t RDPCSTX_PHY_CNTL13;
 	uint32_t RDPCSTX_PHY_CNTL14;
 	uint32_t RDPCSTX_PHY_CNTL15;
+	uint32_t RDPCSTX_CNTL;
+	uint32_t RDPCSTX_CLOCK_CNTL;
+	uint32_t RDPCSTX_PHY_CNTL0;
+	uint32_t RDPCSTX_PHY_CNTL2;
+	uint32_t RDPCSTX_PLL_UPDATE_DATA;
+	uint32_t RDPCS_TX_CR_ADDR;
+	uint32_t RDPCS_TX_CR_DATA;
+	uint32_t DPCSTX_TX_CLOCK_CNTL;
+	uint32_t DPCSTX_TX_CNTL;
+	uint32_t RDPCSTX_INTERRUPT_CONTROL;
+	uint32_t RDPCSTX_PHY_FUSE0;
+	uint32_t RDPCSTX_PHY_FUSE1;
+	uint32_t RDPCSTX_PHY_FUSE2;
+	uint32_t RDPCSTX_PHY_FUSE3;
+	uint32_t RDPCSTX_PHY_RX_LD_VAL;
+	uint32_t DPCSTX_DEBUG_CONFIG;
+	uint32_t RDPCSTX_DEBUG_CONFIG;
+	uint32_t RDPCSTX0_RDPCSTX_SCRATCH;
+	uint32_t RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG;
+	uint32_t DCIO_SOFT_RESET;
 	/* indirect registers */
 	uint32_t RAWLANE0_DIG_PCS_XF_RX_OVRD_IN_2;
 	uint32_t RAWLANE0_DIG_PCS_XF_RX_OVRD_IN_3;
@@ -136,7 +153,6 @@ struct dcn10_link_enc_registers {
 	uint32_t RAWLANE2_DIG_PCS_XF_RX_OVRD_IN_3;
 	uint32_t RAWLANE3_DIG_PCS_XF_RX_OVRD_IN_2;
 	uint32_t RAWLANE3_DIG_PCS_XF_RX_OVRD_IN_3;
-#endif
 };
 
 #define LE_SF(reg_name, field_name, post_fix)\
@@ -242,7 +258,6 @@ struct dcn10_link_enc_registers {
 	type AUX_LS_READ_EN;\
 	type AUX_RX_RECEIVE_WINDOW
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
 #define DCN20_LINK_ENCODER_DPCS_REG_FIELD_LIST(type) \
 		type RDPCS_PHY_DP_TX0_DATA_EN;\
@@ -423,20 +438,15 @@ struct dcn10_link_enc_registers {
 	type AUX_TX_PRECHARGE_SYMBOLS; \
 	type AUX_MODE_DET_CHECK_DELAY;\
 	type DPCS_DBG_CBUS_DIS
-#endif
 
 struct dcn10_link_enc_shift {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
-#endif
 };
 
 struct dcn10_link_enc_mask {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
-#endif
 };
 
 struct dcn10_link_encoder {

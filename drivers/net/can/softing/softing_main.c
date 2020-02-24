@@ -777,7 +777,7 @@ static int softing_pdev_probe(struct platform_device *pdev)
 		goto platform_resource_failed;
 	card->dpram_phys = pres->start;
 	card->dpram_size = resource_size(pres);
-	card->dpram = ioremap_nocache(card->dpram_phys, card->dpram_size);
+	card->dpram = ioremap(card->dpram_phys, card->dpram_size);
 	if (!card->dpram) {
 		dev_alert(&card->pdev->dev, "dpram ioremap failed\n");
 		goto ioremap_failed;

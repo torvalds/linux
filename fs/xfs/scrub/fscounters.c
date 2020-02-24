@@ -83,9 +83,6 @@ xchk_fscount_warmup(
 		error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, &agf_bp);
 		if (error)
 			break;
-		error = -ENOMEM;
-		if (!agf_bp || !agi_bp)
-			break;
 
 		/*
 		 * These are supposed to be initialized by the header read

@@ -87,56 +87,56 @@ extern bool __xive_enabled;
 
 static inline bool xive_enabled(void) { return __xive_enabled; }
 
-extern bool xive_spapr_init(void);
-extern bool xive_native_init(void);
-extern void xive_smp_probe(void);
-extern int  xive_smp_prepare_cpu(unsigned int cpu);
-extern void xive_smp_setup_cpu(void);
-extern void xive_smp_disable_cpu(void);
-extern void xive_teardown_cpu(void);
-extern void xive_shutdown(void);
-extern void xive_flush_interrupt(void);
+bool xive_spapr_init(void);
+bool xive_native_init(void);
+void xive_smp_probe(void);
+int  xive_smp_prepare_cpu(unsigned int cpu);
+void xive_smp_setup_cpu(void);
+void xive_smp_disable_cpu(void);
+void xive_teardown_cpu(void);
+void xive_shutdown(void);
+void xive_flush_interrupt(void);
 
 /* xmon hook */
-extern void xmon_xive_do_dump(int cpu);
-extern int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d);
+void xmon_xive_do_dump(int cpu);
+int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d);
 
 /* APIs used by KVM */
-extern u32 xive_native_default_eq_shift(void);
-extern u32 xive_native_alloc_vp_block(u32 max_vcpus);
-extern void xive_native_free_vp_block(u32 vp_base);
-extern int xive_native_populate_irq_data(u32 hw_irq,
-					 struct xive_irq_data *data);
-extern void xive_cleanup_irq_data(struct xive_irq_data *xd);
-extern u32 xive_native_alloc_irq(void);
-extern void xive_native_free_irq(u32 irq);
-extern int xive_native_configure_irq(u32 hw_irq, u32 target, u8 prio, u32 sw_irq);
+u32 xive_native_default_eq_shift(void);
+u32 xive_native_alloc_vp_block(u32 max_vcpus);
+void xive_native_free_vp_block(u32 vp_base);
+int xive_native_populate_irq_data(u32 hw_irq,
+				  struct xive_irq_data *data);
+void xive_cleanup_irq_data(struct xive_irq_data *xd);
+u32 xive_native_alloc_irq(void);
+void xive_native_free_irq(u32 irq);
+int xive_native_configure_irq(u32 hw_irq, u32 target, u8 prio, u32 sw_irq);
 
-extern int xive_native_configure_queue(u32 vp_id, struct xive_q *q, u8 prio,
-				       __be32 *qpage, u32 order, bool can_escalate);
-extern void xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio);
+int xive_native_configure_queue(u32 vp_id, struct xive_q *q, u8 prio,
+				__be32 *qpage, u32 order, bool can_escalate);
+void xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio);
 
-extern void xive_native_sync_source(u32 hw_irq);
-extern void xive_native_sync_queue(u32 hw_irq);
-extern bool is_xive_irq(struct irq_chip *chip);
-extern int xive_native_enable_vp(u32 vp_id, bool single_escalation);
-extern int xive_native_disable_vp(u32 vp_id);
-extern int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id);
-extern bool xive_native_has_single_escalation(void);
+void xive_native_sync_source(u32 hw_irq);
+void xive_native_sync_queue(u32 hw_irq);
+bool is_xive_irq(struct irq_chip *chip);
+int xive_native_enable_vp(u32 vp_id, bool single_escalation);
+int xive_native_disable_vp(u32 vp_id);
+int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id);
+bool xive_native_has_single_escalation(void);
 
-extern int xive_native_get_queue_info(u32 vp_id, uint32_t prio,
-				      u64 *out_qpage,
-				      u64 *out_qsize,
-				      u64 *out_qeoi_page,
-				      u32 *out_escalate_irq,
-				      u64 *out_qflags);
+int xive_native_get_queue_info(u32 vp_id, uint32_t prio,
+			       u64 *out_qpage,
+			       u64 *out_qsize,
+			       u64 *out_qeoi_page,
+			       u32 *out_escalate_irq,
+			       u64 *out_qflags);
 
-extern int xive_native_get_queue_state(u32 vp_id, uint32_t prio, u32 *qtoggle,
-				       u32 *qindex);
-extern int xive_native_set_queue_state(u32 vp_id, uint32_t prio, u32 qtoggle,
-				       u32 qindex);
-extern int xive_native_get_vp_state(u32 vp_id, u64 *out_state);
-extern bool xive_native_has_queue_state_support(void);
+int xive_native_get_queue_state(u32 vp_id, uint32_t prio, u32 *qtoggle,
+				u32 *qindex);
+int xive_native_set_queue_state(u32 vp_id, uint32_t prio, u32 qtoggle,
+				u32 qindex);
+int xive_native_get_vp_state(u32 vp_id, u64 *out_state);
+bool xive_native_has_queue_state_support(void);
 
 #else
 

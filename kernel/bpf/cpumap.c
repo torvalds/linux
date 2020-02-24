@@ -72,17 +72,18 @@ struct bpf_cpu_map {
 	struct bpf_map map;
 	/* Below members specific for map type */
 	struct bpf_cpu_map_entry **cpu_map;
-	struct list_head __percpu *flush_list;
 };
 
-static int bq_flush_to_queue(struct xdp_bulk_queue *bq, bool in_napi_ctx);
+static DEFINE_PER_CPU(struct list_head, cpu_map_flush_list);
+
+static int bq_flush_to_queue(struct xdp_bulk_queue *bq);
 
 static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 {
 	struct bpf_cpu_map *cmap;
 	int err = -ENOMEM;
-	int ret, cpu;
 	u64 cost;
+	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
@@ -106,7 +107,6 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 
 	/* make sure page count doesn't overflow */
 	cost = (u64) cmap->map.max_entries * sizeof(struct bpf_cpu_map_entry *);
-	cost += sizeof(struct list_head) * num_possible_cpus();
 
 	/* Notice returns -EPERM on if map size is larger than memlock limit */
 	ret = bpf_map_charge_init(&cmap->map.memory, cost);
@@ -115,23 +115,14 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 		goto free_cmap;
 	}
 
-	cmap->flush_list = alloc_percpu(struct list_head);
-	if (!cmap->flush_list)
-		goto free_charge;
-
-	for_each_possible_cpu(cpu)
-		INIT_LIST_HEAD(per_cpu_ptr(cmap->flush_list, cpu));
-
 	/* Alloc array for possible remote "destination" CPUs */
 	cmap->cpu_map = bpf_map_area_alloc(cmap->map.max_entries *
 					   sizeof(struct bpf_cpu_map_entry *),
 					   cmap->map.numa_node);
 	if (!cmap->cpu_map)
-		goto free_percpu;
+		goto free_charge;
 
 	return &cmap->map;
-free_percpu:
-	free_percpu(cmap->flush_list);
 free_charge:
 	bpf_map_charge_finish(&cmap->map.memory);
 free_cmap:
@@ -399,22 +390,14 @@ free_rcu:
 static void __cpu_map_entry_free(struct rcu_head *rcu)
 {
 	struct bpf_cpu_map_entry *rcpu;
-	int cpu;
 
 	/* This cpu_map_entry have been disconnected from map and one
-	 * RCU graze-period have elapsed.  Thus, XDP cannot queue any
+	 * RCU grace-period have elapsed.  Thus, XDP cannot queue any
 	 * new packets and cannot change/set flush_needed that can
 	 * find this entry.
 	 */
 	rcpu = container_of(rcu, struct bpf_cpu_map_entry, rcu);
 
-	/* Flush remaining packets in percpu bulkq */
-	for_each_online_cpu(cpu) {
-		struct xdp_bulk_queue *bq = per_cpu_ptr(rcpu->bulkq, cpu);
-
-		/* No concurrent bq_enqueue can run at this point */
-		bq_flush_to_queue(bq, false);
-	}
 	free_percpu(rcpu->bulkq);
 	/* Cannot kthread_stop() here, last put free rcpu resources */
 	put_cpu_map_entry(rcpu);
@@ -436,7 +419,7 @@ static void __cpu_map_entry_free(struct rcu_head *rcu)
  * percpu bulkq to queue.  Due to caller map_delete_elem() disable
  * preemption, cannot call kthread_stop() to make sure queue is empty.
  * Instead a work_queue is started for stopping kthread,
- * cpu_map_kthread_stop, which waits for an RCU graze period before
+ * cpu_map_kthread_stop, which waits for an RCU grace period before
  * stopping kthread, emptying the queue.
  */
 static void __cpu_map_entry_replace(struct bpf_cpu_map *cmap,
@@ -507,7 +490,6 @@ static int cpu_map_update_elem(struct bpf_map *map, void *key, void *value,
 static void cpu_map_free(struct bpf_map *map)
 {
 	struct bpf_cpu_map *cmap = container_of(map, struct bpf_cpu_map, map);
-	int cpu;
 	u32 i;
 
 	/* At this point bpf_prog->aux->refcnt == 0 and this map->refcnt == 0,
@@ -522,18 +504,6 @@ static void cpu_map_free(struct bpf_map *map)
 	bpf_clear_redirect_map(map);
 	synchronize_rcu();
 
-	/* To ensure all pending flush operations have completed wait for flush
-	 * list be empty on _all_ cpus. Because the above synchronize_rcu()
-	 * ensures the map is disconnected from the program we can assume no new
-	 * items will be added to the list.
-	 */
-	for_each_online_cpu(cpu) {
-		struct list_head *flush_list = per_cpu_ptr(cmap->flush_list, cpu);
-
-		while (!list_empty(flush_list))
-			cond_resched();
-	}
-
 	/* For cpu_map the remote CPUs can still be using the entries
 	 * (struct bpf_cpu_map_entry).
 	 */
@@ -544,10 +514,9 @@ static void cpu_map_free(struct bpf_map *map)
 		if (!rcpu)
 			continue;
 
-		/* bq flush and cleanup happens after RCU graze-period */
+		/* bq flush and cleanup happens after RCU grace-period */
 		__cpu_map_entry_replace(cmap, i, NULL); /* call_rcu */
 	}
-	free_percpu(cmap->flush_list);
 	bpf_map_area_free(cmap->cpu_map);
 	kfree(cmap);
 }
@@ -599,7 +568,7 @@ const struct bpf_map_ops cpu_map_ops = {
 	.map_check_btf		= map_check_no_btf,
 };
 
-static int bq_flush_to_queue(struct xdp_bulk_queue *bq, bool in_napi_ctx)
+static int bq_flush_to_queue(struct xdp_bulk_queue *bq)
 {
 	struct bpf_cpu_map_entry *rcpu = bq->obj;
 	unsigned int processed = 0, drops = 0;
@@ -620,10 +589,7 @@ static int bq_flush_to_queue(struct xdp_bulk_queue *bq, bool in_napi_ctx)
 		err = __ptr_ring_produce(q, xdpf);
 		if (err) {
 			drops++;
-			if (likely(in_napi_ctx))
-				xdp_return_frame_rx_napi(xdpf);
-			else
-				xdp_return_frame(xdpf);
+			xdp_return_frame_rx_napi(xdpf);
 		}
 		processed++;
 	}
@@ -642,11 +608,11 @@ static int bq_flush_to_queue(struct xdp_bulk_queue *bq, bool in_napi_ctx)
  */
 static int bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_frame *xdpf)
 {
-	struct list_head *flush_list = this_cpu_ptr(rcpu->cmap->flush_list);
+	struct list_head *flush_list = this_cpu_ptr(&cpu_map_flush_list);
 	struct xdp_bulk_queue *bq = this_cpu_ptr(rcpu->bulkq);
 
 	if (unlikely(bq->count == CPU_MAP_BULK_SIZE))
-		bq_flush_to_queue(bq, true);
+		bq_flush_to_queue(bq);
 
 	/* Notice, xdp_buff/page MUST be queued here, long enough for
 	 * driver to code invoking us to finished, due to driver
@@ -681,16 +647,26 @@ int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_buff *xdp,
 	return 0;
 }
 
-void __cpu_map_flush(struct bpf_map *map)
+void __cpu_map_flush(void)
 {
-	struct bpf_cpu_map *cmap = container_of(map, struct bpf_cpu_map, map);
-	struct list_head *flush_list = this_cpu_ptr(cmap->flush_list);
+	struct list_head *flush_list = this_cpu_ptr(&cpu_map_flush_list);
 	struct xdp_bulk_queue *bq, *tmp;
 
 	list_for_each_entry_safe(bq, tmp, flush_list, flush_node) {
-		bq_flush_to_queue(bq, true);
+		bq_flush_to_queue(bq);
 
 		/* If already running, costs spin_lock_irqsave + smb_mb */
 		wake_up_process(bq->obj->kthread);
 	}
 }
+
+static int __init cpu_map_init(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		INIT_LIST_HEAD(&per_cpu(cpu_map_flush_list, cpu));
+	return 0;
+}
+
+subsys_initcall(cpu_map_init);

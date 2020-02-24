@@ -512,7 +512,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	int i, ret;
 	unsigned int block_w, block_h;
 
-	if (!state->crtc || !state->fb)
+	if (!state->crtc || WARN_ON(!state->fb))
 		return 0;
 
 	fb = state->fb;

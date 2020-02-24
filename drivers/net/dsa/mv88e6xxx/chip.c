@@ -340,11 +340,14 @@ static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 	 */
 	irq_set_lockdep_class(chip->irq, &lock_key, &request_key);
 
+	snprintf(chip->irq_name, sizeof(chip->irq_name),
+		 "mv88e6xxx-%s", dev_name(chip->dev));
+
 	mv88e6xxx_reg_unlock(chip);
 	err = request_threaded_irq(chip->irq, NULL,
 				   mv88e6xxx_g1_irq_thread_fn,
 				   IRQF_ONESHOT | IRQF_SHARED,
-				   dev_name(chip->dev), chip);
+				   chip->irq_name, chip);
 	mv88e6xxx_reg_lock(chip);
 	if (err)
 		mv88e6xxx_g1_irq_free_common(chip);
@@ -2303,10 +2306,14 @@ static int mv88e6xxx_serdes_irq_request(struct mv88e6xxx_chip *chip, int port,
 	if (!irq)
 		return 0;
 
+	snprintf(dev_id->serdes_irq_name, sizeof(dev_id->serdes_irq_name),
+		 "mv88e6xxx-%s-serdes-%d", dev_name(chip->dev), port);
+
 	/* Requesting the IRQ will trigger IRQ callbacks, so release the lock */
 	mv88e6xxx_reg_unlock(chip);
 	err = request_threaded_irq(irq, NULL, mv88e6xxx_serdes_irq_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-serdes", dev_id);
+				   IRQF_ONESHOT, dev_id->serdes_irq_name,
+				   dev_id);
 	mv88e6xxx_reg_lock(chip);
 	if (err)
 		return err;
@@ -3838,6 +3845,9 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
+	.serdes_get_strings = mv88e6390_serdes_get_strings,
+	.serdes_get_stats = mv88e6390_serdes_get_stats,
+	.phylink_validate = mv88e6390_phylink_validate,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.phylink_validate = mv88e6390_phylink_validate,
 };
@@ -3889,6 +3899,9 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
+	.serdes_get_strings = mv88e6390_serdes_get_strings,
+	.serdes_get_stats = mv88e6390_serdes_get_stats,
+	.phylink_validate = mv88e6390_phylink_validate,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.phylink_validate = mv88e6390x_phylink_validate,
 };
@@ -3939,6 +3952,9 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
+	.serdes_get_strings = mv88e6390_serdes_get_strings,
+	.serdes_get_stats = mv88e6390_serdes_get_stats,
+	.phylink_validate = mv88e6390_phylink_validate,
 	.avb_ops = &mv88e6390_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
 	.phylink_validate = mv88e6390_phylink_validate,
@@ -4085,6 +4101,9 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
+	.serdes_get_strings = mv88e6390_serdes_get_strings,
+	.serdes_get_stats = mv88e6390_serdes_get_stats,
+	.phylink_validate = mv88e6390_phylink_validate,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
@@ -4424,6 +4443,9 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
+	.serdes_get_sset_count = mv88e6390_serdes_get_sset_count,
+	.serdes_get_strings = mv88e6390_serdes_get_strings,
+	.serdes_get_stats = mv88e6390_serdes_get_stats,
 	.phylink_validate = mv88e6390_phylink_validate,
 };
 
@@ -4476,6 +4498,9 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
+	.serdes_get_sset_count = mv88e6390_serdes_get_sset_count,
+	.serdes_get_strings = mv88e6390_serdes_get_strings,
+	.serdes_get_stats = mv88e6390_serdes_get_stats,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
@@ -5207,7 +5232,8 @@ static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 }
 
 static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds,
-							int port)
+							int port,
+							enum dsa_tag_protocol m)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 

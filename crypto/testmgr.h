@@ -85,16 +85,22 @@ struct cipher_testvec {
  * @ctext:	Pointer to the full authenticated ciphertext.  For AEADs that
  *		produce a separate "ciphertext" and "authentication tag", these
  *		two parts are concatenated: ciphertext || tag.
- * @novrfy:	Decryption verification failure expected?
+ * @novrfy:	If set, this is an inauthentic input test: only decryption is
+ *		tested, and it is expected to fail with either -EBADMSG or
+ *		@crypt_error if it is nonzero.
  * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
  *		(e.g. setkey() needs to fail due to a weak key)
  * @klen:	Length of @key in bytes
  * @plen:	Length of @ptext in bytes
  * @alen:	Length of @assoc in bytes
  * @clen:	Length of @ctext in bytes
- * @setkey_error: Expected error from setkey()
- * @setauthsize_error: Expected error from setauthsize()
- * @crypt_error: Expected error from encrypt() and decrypt()
+ * @setkey_error: Expected error from setkey().  If set, neither encryption nor
+ *		  decryption is tested.
+ * @setauthsize_error: Expected error from setauthsize().  If set, neither
+ *		       encryption nor decryption is tested.
+ * @crypt_error: When @novrfy=0, the expected error from encrypt().  When
+ *		 @novrfy=1, an optional alternate error code that is acceptable
+ *		 for decrypt() to return besides -EBADMSG.
  */
 struct aead_testvec {
 	const char *key;

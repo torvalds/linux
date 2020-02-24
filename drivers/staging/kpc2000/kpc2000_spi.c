@@ -464,7 +464,7 @@ kp_spi_probe(struct platform_device *pldev)
 		goto free_master;
 	}
 
-	kpspi->base = devm_ioremap_nocache(&pldev->dev, r->start,
+	kpspi->base = devm_ioremap(&pldev->dev, r->start,
 					   resource_size(r));
 
 	status = spi_register_master(master);

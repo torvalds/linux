@@ -27,6 +27,7 @@
 #include "clk_mgr_internal.h"
 
 #include "dce100/dce_clk_mgr.h"
+#include "dcn20_clk_mgr.h"
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dm_helpers.h"
@@ -100,13 +101,13 @@ uint32_t dentist_get_did_from_divider(int divider)
 }
 
 void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
-		struct dc_state *context)
+		struct dc_state *context, bool safe_to_lower)
 {
 	int i;
 
 	clk_mgr->dccg->ref_dppclk = clk_mgr->base.clks.dppclk_khz;
 	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
-		int dpp_inst, dppclk_khz;
+		int dpp_inst, dppclk_khz, prev_dppclk_khz;
 
 		/* Loop index will match dpp->inst if resource exists,
 		 * and we want to avoid dependency on dpp object
@@ -114,8 +115,12 @@ void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 		dpp_inst = i;
 		dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
 
-		clk_mgr->dccg->funcs->update_dpp_dto(
-				clk_mgr->dccg, dpp_inst, dppclk_khz);
+		prev_dppclk_khz = clk_mgr->base.ctx->dc->current_state->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
+
+		if ((prev_dppclk_khz > dppclk_khz && safe_to_lower) || prev_dppclk_khz < dppclk_khz) {
+			clk_mgr->dccg->funcs->update_dpp_dto(
+							clk_mgr->dccg, dpp_inst, dppclk_khz);
+		}
 	}
 }
 
@@ -161,6 +166,9 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 		dc->debug.force_clock_mode & 0x1) {
 		//this is from resume or boot up, if forced_clock cfg option used, we bypass program dispclk and DPPCLK, but need set them for S3.
 		force_reset = true;
+
+		dcn2_read_clocks_from_hw_dentist(clk_mgr_base);
+
 		//force_clock_mode 0x1:  force reset the clock even it is the same clock as long as it is in Passive level.
 	}
 	display_count = clk_mgr_helper_get_active_display_cnt(dc, context);
@@ -240,7 +248,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
 		if (dpp_clock_lowered) {
 			// if clock is being lowered, increase DTO before lowering refclk
-			dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
+			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 			dcn20_update_clocks_update_dentist(clk_mgr);
 		} else {
 			// if clock is being raised, increase refclk before lowering DTO
@@ -248,7 +256,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 				dcn20_update_clocks_update_dentist(clk_mgr);
 			// always update dtos unless clock is lowered and not safe to lower
 			if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
-				dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
+				dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 		}
 	}
 
@@ -337,6 +345,32 @@ void dcn2_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 		if (pp_smu->set_pme_wa_enable)
 			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
 	}
+}
+
+
+void dcn2_read_clocks_from_hw_dentist(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	uint32_t dispclk_wdivider;
+	uint32_t dppclk_wdivider;
+	int disp_divider;
+	int dpp_divider;
+
+	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, &dispclk_wdivider);
+	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, &dppclk_wdivider);
+
+	disp_divider = dentist_get_divider_from_did(dispclk_wdivider);
+	dpp_divider = dentist_get_divider_from_did(dispclk_wdivider);
+
+	if (disp_divider && dpp_divider) {
+		/* Calculate the current DFS clock, in kHz.*/
+		clk_mgr_base->clks.dispclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->base.dentist_vco_freq_khz) / disp_divider;
+
+		clk_mgr_base->clks.dppclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+				* clk_mgr->base.dentist_vco_freq_khz) / dpp_divider;
+	}
+
 }
 
 void dcn2_get_clock(struct clk_mgr *clk_mgr,

@@ -19,7 +19,6 @@
 #include <asm/sn/addrs.h>
 #include <asm/sn/agent.h>
 #include <asm/sn/arch.h>
-#include <asm/sn/hub.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/irq_alloc.h>
 
@@ -288,10 +287,8 @@ void __init arch_init_irq(void)
 	 * Mark these as reserved right away so they won't be used accidentally
 	 * later.
 	 */
-	for (i = 0; i <= BASE_PCI_IRQ; i++)
+	for (i = 0; i <= CPU_CALL_B_IRQ; i++)
 		set_bit(i, hub_irq_map);
-
-	set_bit(IP_PEND0_6_63, hub_irq_map);
 
 	for (i = NI_BRDCAST_ERR_A; i <= MSC_PANIC_INTR; i++)
 		set_bit(i, hub_irq_map);

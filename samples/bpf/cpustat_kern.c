@@ -3,7 +3,7 @@
 #include <linux/version.h>
 #include <linux/ptrace.h>
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 /*
  * The CPU number, cstate number and pstate number are based

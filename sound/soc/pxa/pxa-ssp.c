@@ -133,12 +133,12 @@ static void pxa_ssp_shutdown(struct snd_pcm_substream *substream,
 
 #ifdef CONFIG_PM
 
-static int pxa_ssp_suspend(struct snd_soc_dai *cpu_dai)
+static int pxa_ssp_suspend(struct snd_soc_component *component)
 {
-	struct ssp_priv *priv = snd_soc_dai_get_drvdata(cpu_dai);
+	struct ssp_priv *priv = snd_soc_component_get_drvdata(component);
 	struct ssp_device *ssp = priv->ssp;
 
-	if (!cpu_dai->active)
+	if (!component->active)
 		clk_prepare_enable(ssp->clk);
 
 	priv->cr0 = __raw_readl(ssp->mmio_base + SSCR0);
@@ -151,9 +151,9 @@ static int pxa_ssp_suspend(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
-static int pxa_ssp_resume(struct snd_soc_dai *cpu_dai)
+static int pxa_ssp_resume(struct snd_soc_component *component)
 {
-	struct ssp_priv *priv = snd_soc_dai_get_drvdata(cpu_dai);
+	struct ssp_priv *priv = snd_soc_component_get_drvdata(component);
 	struct ssp_device *ssp = priv->ssp;
 	uint32_t sssr = SSSR_ROR | SSSR_TUR | SSSR_BCE;
 
@@ -165,7 +165,7 @@ static int pxa_ssp_resume(struct snd_soc_dai *cpu_dai)
 	__raw_writel(priv->to,  ssp->mmio_base + SSTO);
 	__raw_writel(priv->psp, ssp->mmio_base + SSPSP);
 
-	if (cpu_dai->active)
+	if (component->active)
 		pxa_ssp_enable(ssp);
 	else
 		clk_disable_unprepare(ssp->clk);
@@ -850,8 +850,6 @@ static const struct snd_soc_dai_ops pxa_ssp_dai_ops = {
 static struct snd_soc_dai_driver pxa_ssp_dai = {
 		.probe = pxa_ssp_probe,
 		.remove = pxa_ssp_remove,
-		.suspend = pxa_ssp_suspend,
-		.resume = pxa_ssp_resume,
 		.playback = {
 			.channels_min = 1,
 			.channels_max = 8,
@@ -873,13 +871,14 @@ static const struct snd_soc_component_driver pxa_ssp_component = {
 	.pcm_destruct	= pxa2xx_soc_pcm_free,
 	.open		= pxa2xx_soc_pcm_open,
 	.close		= pxa2xx_soc_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= pxa2xx_soc_pcm_hw_params,
 	.hw_free	= pxa2xx_soc_pcm_hw_free,
 	.prepare	= pxa2xx_soc_pcm_prepare,
 	.trigger	= pxa2xx_soc_pcm_trigger,
 	.pointer	= pxa2xx_soc_pcm_pointer,
 	.mmap		= pxa2xx_soc_pcm_mmap,
+	.suspend	= pxa_ssp_suspend,
+	.resume		= pxa_ssp_resume,
 };
 
 #ifdef CONFIG_OF

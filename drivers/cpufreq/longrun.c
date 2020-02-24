@@ -122,17 +122,13 @@ static int longrun_set_policy(struct cpufreq_policy *policy)
  * Validates a new CPUFreq policy. This function has to be called with
  * cpufreq_driver locked.
  */
-static int longrun_verify_policy(struct cpufreq_policy *policy)
+static int longrun_verify_policy(struct cpufreq_policy_data *policy)
 {
 	if (!policy)
 		return -EINVAL;
 
 	policy->cpu = 0;
 	cpufreq_verify_within_cpu_limits(policy);
-
-	if ((policy->policy != CPUFREQ_POLICY_POWERSAVE) &&
-	    (policy->policy != CPUFREQ_POLICY_PERFORMANCE))
-		return -EINVAL;
 
 	return 0;
 }

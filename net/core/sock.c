@@ -2786,7 +2786,7 @@ static void sock_def_error_report(struct sock *sk)
 	rcu_read_unlock();
 }
 
-static void sock_def_readable(struct sock *sk)
+void sock_def_readable(struct sock *sk)
 {
 	struct socket_wq *wq;
 

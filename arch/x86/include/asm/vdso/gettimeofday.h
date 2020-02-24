@@ -21,6 +21,7 @@
 #include <clocksource/hyperv_timer.h>
 
 #define __vdso_data (VVAR(_vdso_data))
+#define __timens_vdso_data (TIMENS(_vdso_data))
 
 #define VDSO_HAS_TIME 1
 
@@ -54,6 +55,13 @@ extern struct pvclock_vsyscall_time_info pvclock_page
 #ifdef CONFIG_HYPERV_TIMER
 extern struct ms_hyperv_tsc_page hvclock_page
 	__attribute__((visibility("hidden")));
+#endif
+
+#ifdef CONFIG_TIME_NS
+static __always_inline const struct vdso_data *__arch_get_timens_vdso_data(void)
+{
+	return __timens_vdso_data;
+}
 #endif
 
 #ifndef BUILD_VDSO32
@@ -95,8 +103,6 @@ long clock_getres_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
 }
 
 #else
-
-#define VDSO_HAS_32BIT_FALLBACK	1
 
 static __always_inline
 long clock_gettime_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)

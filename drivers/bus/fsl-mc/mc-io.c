@@ -97,12 +97,12 @@ int __must_check fsl_create_mc_io(struct device *dev,
 		return -EBUSY;
 	}
 
-	mc_portal_virt_addr = devm_ioremap_nocache(dev,
+	mc_portal_virt_addr = devm_ioremap(dev,
 						   mc_portal_phys_addr,
 						   mc_portal_size);
 	if (!mc_portal_virt_addr) {
 		dev_err(dev,
-			"devm_ioremap_nocache failed for MC portal %pa\n",
+			"devm_ioremap failed for MC portal %pa\n",
 			&mc_portal_phys_addr);
 		return -ENXIO;
 	}

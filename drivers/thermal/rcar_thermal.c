@@ -219,7 +219,7 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 		 * to get stable temperature.
 		 * see "Usage Notes" on datasheet
 		 */
-		udelay(300);
+		usleep_range(300, 400);
 
 		new = rcar_thermal_read(priv, THSSR) & CTEMP;
 		if (new == old) {
@@ -275,12 +275,7 @@ static int rcar_thermal_get_current_temp(struct rcar_thermal_priv *priv,
 		tmp = MCELSIUS((priv->ctemp * 5) - 60);
 	mutex_unlock(&priv->lock);
 
-	if ((tmp < MCELSIUS(-45)) || (tmp > MCELSIUS(125))) {
-		struct device *dev = rcar_priv_to_dev(priv);
-
-		dev_err(dev, "it couldn't measure temperature correctly\n");
-		return -EIO;
-	}
+	/* Guaranteed operating range is -45C to 125C. */
 
 	*temp = tmp;
 

@@ -18,6 +18,7 @@ obj-y					+= broadcom/	\
 					   cadence/	\
 					   freescale/	\
 					   hisilicon/	\
+					   intel/	\
 					   lantiq/	\
 					   marvell/	\
 					   motorola/	\

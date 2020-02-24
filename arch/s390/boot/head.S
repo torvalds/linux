@@ -329,7 +329,7 @@ ENTRY(startup_kdump)
 	.quad	.Lduct			# cr5: primary-aste origin
 	.quad	0			# cr6:	I/O interrupts
 	.quad	0			# cr7:	secondary space segment table
-	.quad	0			# cr8:	access registers translation
+	.quad	0x0000000000008000	# cr8:	access registers translation
 	.quad	0			# cr9:	tracing off
 	.quad	0			# cr10: tracing off
 	.quad	0			# cr11: tracing off

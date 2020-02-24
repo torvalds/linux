@@ -79,6 +79,7 @@
 #include "iwl-agn-hw.h"
 #include "fw/error-dump.h"
 #include "fw/dbg.h"
+#include "fw/api/tx.h"
 #include "internal.h"
 #include "iwl-fh.h"
 
@@ -183,8 +184,7 @@ out:
 static void iwl_trans_pcie_sw_reset(struct iwl_trans *trans)
 {
 	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
-	iwl_set_bit(trans, trans->trans_cfg->csr->addr_sw_reset,
-		    BIT(trans->trans_cfg->csr->flag_sw_reset));
+	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 	usleep_range(5000, 6000);
 }
 
@@ -301,18 +301,13 @@ void iwl_pcie_apm_config(struct iwl_trans *trans)
 	u16 cap;
 
 	/*
-	 * HW bug W/A for instability in PCIe bus L0S->L1 transition.
-	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
-	 * If so (likely), disable L0S, so device moves directly L0->L1;
-	 *    costs negligible amount of power savings.
-	 * If not (unlikely), enable L0S, so there is at least some
-	 *    power savings, even without L1.
+	 * L0S states have been found to be unstable with our devices
+	 * and in newer hardware they are not officially supported at
+	 * all, so we must always set the L0S_DISABLED bit.
 	 */
+	iwl_set_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_DISABLED);
+
 	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_LNKCTL, &lctl);
-	if (lctl & PCI_EXP_LNKCTL_ASPM_L1)
-		iwl_set_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
-	else
-		iwl_clear_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 	trans->pm_support = !(lctl & PCI_EXP_LNKCTL_ASPM_L0S);
 
 	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_DEVCTL2, &cap);
@@ -487,8 +482,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	 * Clear "initialization complete" bit to move adapter from
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
-	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      BIT(trans->trans_cfg->csr->flag_init_done));
+	iwl_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* Activates XTAL resources monitor */
 	__iwl_trans_pcie_set_bit(trans, CSR_MONITOR_CFG_REG,
@@ -510,12 +504,11 @@ void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 	int ret;
 
 	/* stop device's busmaster DMA activity */
-	iwl_set_bit(trans, trans->trans_cfg->csr->addr_sw_reset,
-		    BIT(trans->trans_cfg->csr->flag_stop_master));
+	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
-	ret = iwl_poll_bit(trans, trans->trans_cfg->csr->addr_sw_reset,
-			   BIT(trans->trans_cfg->csr->flag_master_dis),
-			   BIT(trans->trans_cfg->csr->flag_master_dis), 100);
+	ret = iwl_poll_bit(trans, CSR_RESET,
+			   CSR_RESET_REG_FLAG_MASTER_DISABLED,
+			   CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
 	if (ret < 0)
 		IWL_WARN(trans, "Master Disable Timed Out, 100 usec\n");
 
@@ -564,8 +557,7 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 	 * Clear "initialization complete" bit to move adapter from
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
-	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      BIT(trans->trans_cfg->csr->flag_init_done));
+	iwl_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 }
 
 static int iwl_pcie_nic_init(struct iwl_trans *trans)
@@ -1270,7 +1262,7 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 
 	/* Make sure (redundant) we've released our request to stay awake */
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      BIT(trans->trans_cfg->csr->flag_mac_access_req));
+		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_apm_stop(trans, false);
@@ -1494,9 +1486,8 @@ void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
 	iwl_pcie_synchronize_irqs(trans);
 
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      BIT(trans->trans_cfg->csr->flag_mac_access_req));
-	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      BIT(trans->trans_cfg->csr->flag_init_done));
+		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	iwl_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	if (reset) {
 		/*
@@ -1561,7 +1552,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	}
 
 	iwl_set_bit(trans, CSR_GP_CNTRL,
-		    BIT(trans->trans_cfg->csr->flag_mac_access_req));
+		    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	ret = iwl_finish_nic_init(trans, trans->trans_cfg);
 	if (ret)
@@ -1583,7 +1574,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 
 	if (!reset) {
 		iwl_clear_bit(trans, CSR_GP_CNTRL,
-			      BIT(trans->trans_cfg->csr->flag_mac_access_req));
+			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	} else {
 		iwl_trans_pcie_tx_reset(trans);
 
@@ -1945,6 +1936,11 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans_pcie->rx_buf_size = trans_cfg->rx_buf_size;
 	trans_pcie->rx_page_order =
 		iwl_trans_get_rb_size_order(trans_pcie->rx_buf_size);
+	trans_pcie->rx_buf_bytes =
+		iwl_trans_get_rb_size(trans_pcie->rx_buf_size);
+	trans_pcie->supported_dma_mask = DMA_BIT_MASK(12);
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		trans_pcie->supported_dma_mask = DMA_BIT_MASK(11);
 
 	trans_pcie->bc_table_dword = trans_cfg->bc_table_dword;
 	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
@@ -2054,7 +2050,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 
 	/* this bit wakes up the NIC */
 	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
-				 BIT(trans->trans_cfg->csr->flag_mac_access_req));
+				 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_8000)
 		udelay(2);
 
@@ -2079,8 +2075,8 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 	 * and do not save/restore SRAM when power cycling.
 	 */
 	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   BIT(trans->trans_cfg->csr->flag_val_mac_access_en),
-			   (BIT(trans->trans_cfg->csr->flag_mac_clock_ready) |
+			   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
+			   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
 			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
 	if (unlikely(ret < 0)) {
 		u32 cntrl = iwl_read32(trans, CSR_GP_CNTRL);
@@ -2162,7 +2158,7 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
 		goto out;
 
 	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-				   BIT(trans->trans_cfg->csr->flag_mac_access_req));
+				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	/*
 	 * Above we read the CSR_GP_CNTRL register, which will flush
 	 * any previous writes, but we need the write that clears the
@@ -2963,7 +2959,7 @@ static u32 iwl_trans_pcie_dump_rbs(struct iwl_trans *trans,
 				   int allocated_rb_nums)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	int max_len = PAGE_SIZE << trans_pcie->rx_page_order;
+	int max_len = trans_pcie->rx_buf_bytes;
 	/* Dump RBs is supported only for pre-9000 devices (1 queue) */
 	struct iwl_rxq *rxq = &trans_pcie->rxq[0];
 	u32 i, r, j, rb_len = 0;
@@ -2989,9 +2985,9 @@ static u32 iwl_trans_pcie_dump_rbs(struct iwl_trans *trans,
 		rb->index = cpu_to_le32(i);
 		memcpy(rb->data, page_address(rxb->page), max_len);
 		/* remap the page for the free benefit */
-		rxb->page_dma = dma_map_page(trans->dev, rxb->page, 0,
-						     max_len,
-						     DMA_FROM_DEVICE);
+		rxb->page_dma = dma_map_page(trans->dev, rxb->page,
+					     rxb->offset, max_len,
+					     DMA_FROM_DEVICE);
 
 		*data = iwl_fw_error_next_data(*data);
 	}
@@ -3460,19 +3456,34 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 {
 	struct iwl_trans_pcie *trans_pcie;
 	struct iwl_trans *trans;
-	int ret, addr_size;
+	int ret, addr_size, txcmd_size, txcmd_align;
+	const struct iwl_trans_ops *ops = &trans_ops_pcie_gen2;
+
+	if (!cfg_trans->gen2) {
+		ops = &trans_ops_pcie;
+		txcmd_size = sizeof(struct iwl_tx_cmd);
+		txcmd_align = sizeof(void *);
+	} else if (cfg_trans->device_family < IWL_DEVICE_FAMILY_AX210) {
+		txcmd_size = sizeof(struct iwl_tx_cmd_gen2);
+		txcmd_align = 64;
+	} else {
+		txcmd_size = sizeof(struct iwl_tx_cmd_gen3);
+		txcmd_align = 128;
+	}
+
+	txcmd_size += sizeof(struct iwl_cmd_header);
+	txcmd_size += 36; /* biggest possible 802.11 header */
+
+	/* Ensure device TX cmd cannot reach/cross a page boundary in gen2 */
+	if (WARN_ON(cfg_trans->gen2 && txcmd_size >= txcmd_align))
+		return ERR_PTR(-EINVAL);
 
 	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (cfg_trans->gen2)
-		trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie),
-					&pdev->dev, &trans_ops_pcie_gen2);
-	else
-		trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie),
-					&pdev->dev, &trans_ops_pcie);
-
+	trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie), &pdev->dev, ops,
+				txcmd_size, txcmd_align);
 	if (!trans)
 		return ERR_PTR(-ENOMEM);
 
@@ -3482,6 +3493,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans_pcie->opmode_down = true;
 	spin_lock_init(&trans_pcie->irq_lock);
 	spin_lock_init(&trans_pcie->reg_lock);
+	spin_lock_init(&trans_pcie->alloc_page_lock);
 	mutex_init(&trans_pcie->mutex);
 	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
 

@@ -63,10 +63,12 @@ enum phylink_op_type {
  * struct phylink_config - PHYLINK configuration structure
  * @dev: a pointer to a struct device associated with the MAC
  * @type: operation type of PHYLINK instance
+ * @pcs_poll: MAC PCS cannot provide link change interrupt
  */
 struct phylink_config {
 	struct device *dev;
 	enum phylink_op_type type;
+	bool pcs_poll;
 };
 
 /**

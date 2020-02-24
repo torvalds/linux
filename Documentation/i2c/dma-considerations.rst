@@ -2,7 +2,7 @@
 Linux I2C and DMA
 =================
 
-Given that i2c is a low-speed bus, over which the majority of messages
+Given that I2C is a low-speed bus, over which the majority of messages
 transferred are small, it is not considered a prime user of DMA access. At this
 time of writing, only 10% of I2C bus master drivers have DMA support
 implemented. And the vast majority of transactions are so small that setting up

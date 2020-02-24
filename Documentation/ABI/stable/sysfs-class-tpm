@@ -1,7 +1,7 @@
 What:		/sys/class/tpm/tpmX/device/
 Date:		April 2005
 KernelVersion:	2.6.12
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The device/ directory under a specific TPM instance exposes
 		the properties of that TPM chip
 
@@ -9,7 +9,7 @@ Description:	The device/ directory under a specific TPM instance exposes
 What:		/sys/class/tpm/tpmX/device/active
 Date:		April 2006
 KernelVersion:	2.6.17
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The "active" property prints a '1' if the TPM chip is accepting
 		commands. An inactive TPM chip still contains all the state of
 		an active chip (Storage Root Key, NVRAM, etc), and can be
@@ -21,7 +21,7 @@ Description:	The "active" property prints a '1' if the TPM chip is accepting
 What:		/sys/class/tpm/tpmX/device/cancel
 Date:		June 2005
 KernelVersion:	2.6.13
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The "cancel" property allows you to cancel the currently
 		pending TPM command. Writing any value to cancel will call the
 		TPM vendor specific cancel operation.
@@ -29,7 +29,7 @@ Description:	The "cancel" property allows you to cancel the currently
 What:		/sys/class/tpm/tpmX/device/caps
 Date:		April 2005
 KernelVersion:	2.6.12
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The "caps" property contains TPM manufacturer and version info.
 
 		Example output:
@@ -46,7 +46,7 @@ Description:	The "caps" property contains TPM manufacturer and version info.
 What:		/sys/class/tpm/tpmX/device/durations
 Date:		March 2011
 KernelVersion:	3.1
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The "durations" property shows the 3 vendor-specific values
 		used to wait for a short, medium and long TPM command. All
 		TPM commands are categorized as short, medium or long in
@@ -69,7 +69,7 @@ Description:	The "durations" property shows the 3 vendor-specific values
 What:		/sys/class/tpm/tpmX/device/enabled
 Date:		April 2006
 KernelVersion:	2.6.17
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The "enabled" property prints a '1' if the TPM chip is enabled,
 		meaning that it should be visible to the OS. This property
 		may be visible but produce a '0' after some operation that
@@ -78,7 +78,7 @@ Description:	The "enabled" property prints a '1' if the TPM chip is enabled,
 What:		/sys/class/tpm/tpmX/device/owned
 Date:		April 2006
 KernelVersion:	2.6.17
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The "owned" property produces a '1' if the TPM_TakeOwnership
 		ordinal has been executed successfully in the chip. A '0'
 		indicates that ownership hasn't been taken.
@@ -86,7 +86,7 @@ Description:	The "owned" property produces a '1' if the TPM_TakeOwnership
 What:		/sys/class/tpm/tpmX/device/pcrs
 Date:		April 2005
 KernelVersion:	2.6.12
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The "pcrs" property will dump the current value of all Platform
 		Configuration Registers in the TPM. Note that since these
 		values may be constantly changing, the output is only valid
@@ -109,7 +109,7 @@ Description:	The "pcrs" property will dump the current value of all Platform
 What:		/sys/class/tpm/tpmX/device/pubek
 Date:		April 2005
 KernelVersion:	2.6.12
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The "pubek" property will return the TPM's public endorsement
 		key if possible. If the TPM has had ownership established and
 		is version 1.2, the pubek will not be available without the
@@ -161,7 +161,7 @@ Description:	The "pubek" property will return the TPM's public endorsement
 What:		/sys/class/tpm/tpmX/device/temp_deactivated
 Date:		April 2006
 KernelVersion:	2.6.17
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The "temp_deactivated" property returns a '1' if the chip has
 		been temporarily deactivated, usually until the next power
 		cycle. Whether a warm boot (reboot) will clear a TPM chip
@@ -170,7 +170,7 @@ Description:	The "temp_deactivated" property returns a '1' if the chip has
 What:		/sys/class/tpm/tpmX/device/timeouts
 Date:		March 2011
 KernelVersion:	3.1
-Contact:	tpmdd-devel@lists.sf.net
+Contact:	linux-integrity@vger.kernel.org
 Description:	The "timeouts" property shows the 4 vendor-specific values
 		for the TPM's interface spec timeouts. The use of these
 		timeouts is defined by the TPM interface spec that the chip
@@ -183,3 +183,14 @@ Description:	The "timeouts" property shows the 4 vendor-specific values
 		The four timeout values are shown in usecs, with a trailing
 		"[original]" or "[adjusted]" depending on whether the values
 		were scaled by the driver to be reported in usec from msecs.
+
+What:		/sys/class/tpm/tpmX/tpm_version_major
+Date:		October 2019
+KernelVersion:	5.5
+Contact:	linux-integrity@vger.kernel.org
+Description:	The "tpm_version_major" property shows the TCG spec major version
+		implemented by the TPM device.
+
+		Example output:
+
+		2

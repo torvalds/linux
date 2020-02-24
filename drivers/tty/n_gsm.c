@@ -2704,7 +2704,7 @@ static netdev_tx_t gsm_mux_net_start_xmit(struct sk_buff *skb,
 }
 
 /* called when a packet did not ack after watchdogtimeout */
-static void gsm_mux_net_tx_timeout(struct net_device *net)
+static void gsm_mux_net_tx_timeout(struct net_device *net, unsigned int txqueue)
 {
 	/* Tell syslog we are hosed. */
 	dev_dbg(&net->dev, "Tx timed out.\n");

@@ -151,10 +151,6 @@ void __init setup_arch(char **cmdline_p)
 	dma_ops_init();
 #endif
 
-#if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;	/* we use do_take_over_console() later ! */
-#endif
-
 	clear_sched_clock_stable();
 }
 

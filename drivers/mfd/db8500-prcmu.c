@@ -542,102 +542,6 @@ static struct dsiescclk dsiescclk[3] = {
 	}
 };
 
-
-/*
-* Used by MCDE to setup all necessary PRCMU registers
-*/
-#define PRCMU_RESET_DSIPLL		0x00004000
-#define PRCMU_UNCLAMP_DSIPLL		0x00400800
-
-#define PRCMU_CLK_PLL_DIV_SHIFT		0
-#define PRCMU_CLK_PLL_SW_SHIFT		5
-#define PRCMU_CLK_38			(1 << 9)
-#define PRCMU_CLK_38_SRC		(1 << 10)
-#define PRCMU_CLK_38_DIV		(1 << 11)
-
-/* PLLDIV=12, PLLSW=4 (PLLDDR) */
-#define PRCMU_DSI_CLOCK_SETTING		0x0000008C
-
-/* DPI 50000000 Hz */
-#define PRCMU_DPI_CLOCK_SETTING		((1 << PRCMU_CLK_PLL_SW_SHIFT) | \
-					  (16 << PRCMU_CLK_PLL_DIV_SHIFT))
-#define PRCMU_DSI_LP_CLOCK_SETTING	0x00000E00
-
-/* D=101, N=1, R=4, SELDIV2=0 */
-#define PRCMU_PLLDSI_FREQ_SETTING	0x00040165
-
-#define PRCMU_ENABLE_PLLDSI		0x00000001
-#define PRCMU_DISABLE_PLLDSI		0x00000000
-#define PRCMU_RELEASE_RESET_DSS		0x0000400C
-#define PRCMU_DSI_PLLOUT_SEL_SETTING	0x00000202
-/* ESC clk, div0=1, div1=1, div2=3 */
-#define PRCMU_ENABLE_ESCAPE_CLOCK_DIV	0x07030101
-#define PRCMU_DISABLE_ESCAPE_CLOCK_DIV	0x00030101
-#define PRCMU_DSI_RESET_SW		0x00000007
-
-#define PRCMU_PLLDSI_LOCKP_LOCKED	0x3
-
-int db8500_prcmu_enable_dsipll(void)
-{
-	int i;
-
-	/* Clear DSIPLL_RESETN */
-	writel(PRCMU_RESET_DSIPLL, PRCM_APE_RESETN_CLR);
-	/* Unclamp DSIPLL in/out */
-	writel(PRCMU_UNCLAMP_DSIPLL, PRCM_MMIP_LS_CLAMP_CLR);
-
-	/* Set DSI PLL FREQ */
-	writel(PRCMU_PLLDSI_FREQ_SETTING, PRCM_PLLDSI_FREQ);
-	writel(PRCMU_DSI_PLLOUT_SEL_SETTING, PRCM_DSI_PLLOUT_SEL);
-	/* Enable Escape clocks */
-	writel(PRCMU_ENABLE_ESCAPE_CLOCK_DIV, PRCM_DSITVCLK_DIV);
-
-	/* Start DSI PLL */
-	writel(PRCMU_ENABLE_PLLDSI, PRCM_PLLDSI_ENABLE);
-	/* Reset DSI PLL */
-	writel(PRCMU_DSI_RESET_SW, PRCM_DSI_SW_RESET);
-	for (i = 0; i < 10; i++) {
-		if ((readl(PRCM_PLLDSI_LOCKP) & PRCMU_PLLDSI_LOCKP_LOCKED)
-					== PRCMU_PLLDSI_LOCKP_LOCKED)
-			break;
-		udelay(100);
-	}
-	/* Set DSIPLL_RESETN */
-	writel(PRCMU_RESET_DSIPLL, PRCM_APE_RESETN_SET);
-	return 0;
-}
-
-int db8500_prcmu_disable_dsipll(void)
-{
-	/* Disable dsi pll */
-	writel(PRCMU_DISABLE_PLLDSI, PRCM_PLLDSI_ENABLE);
-	/* Disable  escapeclock */
-	writel(PRCMU_DISABLE_ESCAPE_CLOCK_DIV, PRCM_DSITVCLK_DIV);
-	return 0;
-}
-
-int db8500_prcmu_set_display_clocks(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&clk_mgt_lock, flags);
-
-	/* Grab the HW semaphore. */
-	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
-		cpu_relax();
-
-	writel(PRCMU_DSI_CLOCK_SETTING, prcmu_base + PRCM_HDMICLK_MGT);
-	writel(PRCMU_DSI_LP_CLOCK_SETTING, prcmu_base + PRCM_TVCLK_MGT);
-	writel(PRCMU_DPI_CLOCK_SETTING, prcmu_base + PRCM_LCDCLK_MGT);
-
-	/* Release the HW semaphore. */
-	writel(0, PRCM_SEM);
-
-	spin_unlock_irqrestore(&clk_mgt_lock, flags);
-
-	return 0;
-}
-
 u32 db8500_prcmu_read(unsigned int reg)
 {
 	return readl(prcmu_base + reg);
@@ -3060,30 +2964,44 @@ static const struct mfd_cell db8500_prcmu_devs[] = {
 static int db8500_prcmu_register_ab8500(struct device *parent)
 {
 	struct device_node *np;
-	struct resource ab8500_resource;
+	struct resource ab850x_resource;
 	const struct mfd_cell ab8500_cell = {
 		.name = "ab8500-core",
 		.of_compatible = "stericsson,ab8500",
 		.id = AB8500_VERSION_AB8500,
-		.resources = &ab8500_resource,
+		.resources = &ab850x_resource,
 		.num_resources = 1,
 	};
+	const struct mfd_cell ab8505_cell = {
+		.name = "ab8505-core",
+		.of_compatible = "stericsson,ab8505",
+		.id = AB8500_VERSION_AB8505,
+		.resources = &ab850x_resource,
+		.num_resources = 1,
+	};
+	const struct mfd_cell *ab850x_cell;
 
 	if (!parent->of_node)
 		return -ENODEV;
 
 	/* Look up the device node, sneak the IRQ out of it */
 	for_each_child_of_node(parent->of_node, np) {
-		if (of_device_is_compatible(np, ab8500_cell.of_compatible))
+		if (of_device_is_compatible(np, ab8500_cell.of_compatible)) {
+			ab850x_cell = &ab8500_cell;
 			break;
+		}
+		if (of_device_is_compatible(np, ab8505_cell.of_compatible)) {
+			ab850x_cell = &ab8505_cell;
+			break;
+		}
 	}
 	if (!np) {
-		dev_info(parent, "could not find AB8500 node in the device tree\n");
+		dev_info(parent, "could not find AB850X node in the device tree\n");
 		return -ENODEV;
 	}
-	of_irq_to_resource_table(np, &ab8500_resource, 1);
+	of_irq_to_resource_table(np, &ab850x_resource, 1);
 
-	return mfd_add_devices(parent, 0, &ab8500_cell, 1, NULL, 0, NULL);
+	return mfd_add_devices(parent, 0, ab850x_cell, 1, NULL, 0, NULL);
 }
 
 /**

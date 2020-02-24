@@ -83,12 +83,24 @@ static bool sja1105_filter(const struct sk_buff *skb, struct net_device *dev)
 	return false;
 }
 
+/* Calls sja1105_port_deferred_xmit in sja1105_main.c */
+static struct sk_buff *sja1105_defer_xmit(struct sja1105_port *sp,
+					  struct sk_buff *skb)
+{
+	/* Increase refcount so the kfree_skb in dsa_slave_xmit
+	 * won't really free the packet.
+	 */
+	skb_queue_tail(&sp->xmit_queue, skb_get(skb));
+	kthread_queue_work(sp->xmit_worker, &sp->xmit_work);
+
+	return NULL;
+}
+
 static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	struct dsa_switch *ds = dp->ds;
-	u16 tx_vid = dsa_8021q_tx_vid(ds, dp->index);
+	u16 tx_vid = dsa_8021q_tx_vid(dp->ds, dp->index);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
 
@@ -97,7 +109,7 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 	 * is the .port_deferred_xmit driver callback.
 	 */
 	if (unlikely(sja1105_is_link_local(skb)))
-		return dsa_defer_xmit(skb, netdev);
+		return sja1105_defer_xmit(dp->priv, skb);
 
 	/* If we are under a vlan_filtering bridge, IP termination on
 	 * switch ports based on 802.1Q tags is simply too brittle to
