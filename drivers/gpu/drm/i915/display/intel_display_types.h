@@ -1415,6 +1415,9 @@ intel_get_first_crtc(struct drm_i915_private *dev_priv)
 static inline struct intel_crtc *
 intel_get_crtc_for_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
+	/* pipe_to_crtc_mapping may have hole on any of 3 display pipe system */
+	drm_WARN_ON(&dev_priv->drm,
+		    !(INTEL_INFO(dev_priv)->pipe_mask & BIT(pipe)));
 	return dev_priv->pipe_to_crtc_mapping[pipe];
 }
 
