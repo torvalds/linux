@@ -1,11 +1,14 @@
 # SPDX-License-Identifier: (GPL-2.0 OR MIT)
 
-snd-soc-meson-aiu-bus-objs := aiu-bus.o
-snd-soc-meson-aiu-fifo-objs := aiu-fifo.o
-snd-soc-meson-aiu-i2s-fifo-objs := aiu-i2s-fifo.o
-snd-soc-meson-aiu-spdif-fifo-objs := aiu-spdif-fifo.o
-snd-soc-meson-aiu-i2s-encode-objs := aiu-i2s-encode.o
-snd-soc-meson-aiu-spdif-encode-objs := aiu-spdif-encode.o
+snd-soc-meson-aiu-objs := aiu.o
+#snd-soc-meson-aiu-objs += aiu-bus.o
+snd-soc-meson-aiu-objs += aiu-acodec-ctrl.o
+snd-soc-meson-aiu-objs += aiu-codec-ctrl.o
+snd-soc-meson-aiu-objs += aiu-encoder-i2s.o
+snd-soc-meson-aiu-objs += aiu-encoder-spdif.o
+snd-soc-meson-aiu-objs += aiu-fifo.o
+snd-soc-meson-aiu-objs += aiu-fifo-i2s.o
+snd-soc-meson-aiu-objs += aiu-fifo-spdif.o
 snd-soc-meson-axg-fifo-objs := axg-fifo.o
 snd-soc-meson-axg-frddr-objs := axg-frddr.o
 snd-soc-meson-axg-toddr-objs := axg-toddr.o
@@ -23,13 +26,15 @@ snd-soc-meson-gx-sound-card-objs := gx-card.o
 snd-soc-meson-g12a-toacodec-objs := g12a-toacodec.o
 snd-soc-meson-g12a-tohdmitx-objs := g12a-tohdmitx.o
 snd-soc-meson-t9015-objs := t9015.o
+snd-soc-meson-gxbb-toacodec-objs := gxbb-toacodec.o
 
-obj-$(CONFIG_SND_MESON_AIU_BUS) += snd-soc-meson-aiu-bus.o
-obj-$(CONFIG_SND_MESON_AIU_FIFO) += snd-soc-meson-aiu-fifo.o
-obj-$(CONFIG_SND_MESON_AIU_I2S_FIFO) += snd-soc-meson-aiu-i2s-fifo.o
-obj-$(CONFIG_SND_MESON_AIU_SPDIF_FIFO) += snd-soc-meson-aiu-spdif-fifo.o
-obj-$(CONFIG_SND_MESON_AIU_I2S_ENCODER) += snd-soc-meson-aiu-i2s-encode.o
-obj-$(CONFIG_SND_MESON_AIU_SPDIF_ENCODER) += snd-soc-meson-aiu-spdif-encode.o
+obj-$(CONFIG_SND_MESON_AIU) += snd-soc-meson-aiu.o
+#obj-$(CONFIG_SND_MESON_AIU_BUS) += snd-soc-meson-aiu-bus.o
+#obj-$(CONFIG_SND_MESON_AIU_FIFO) += snd-soc-meson-aiu-fifo.o
+#obj-$(CONFIG_SND_MESON_AIU_I2S_FIFO) += snd-soc-meson-aiu-i2s-fifo.o
+#obj-$(CONFIG_SND_MESON_AIU_SPDIF_FIFO) += snd-soc-meson-aiu-spdif-fifo.o
+#obj-$(CONFIG_SND_MESON_AIU_I2S_ENCODER) += snd-soc-meson-aiu-i2s-encode.o
+#obj-$(CONFIG_SND_MESON_AIU_SPDIF_ENCODER) += snd-soc-meson-aiu-spdif-encode.o
 obj-$(CONFIG_SND_MESON_AXG_FIFO) += snd-soc-meson-axg-fifo.o
 obj-$(CONFIG_SND_MESON_AXG_FRDDR) += snd-soc-meson-axg-frddr.o
 obj-$(CONFIG_SND_MESON_AXG_TODDR) += snd-soc-meson-axg-toddr.o
@@ -47,3 +52,5 @@ obj-$(CONFIG_SND_MESON_GX_SOUND_CARD) += snd-soc-meson-gx-sound-card.o
 obj-$(CONFIG_SND_MESON_G12A_TOACODEC) += snd-soc-meson-g12a-toacodec.o
 obj-$(CONFIG_SND_MESON_G12A_TOHDMITX) += snd-soc-meson-g12a-tohdmitx.o
 obj-$(CONFIG_SND_SOC_MESON_T9015) += snd-soc-meson-t9015.o
+obj-$(CONFIG_SND_MESON_GXBB_TOACODEC) += snd-soc-meson-gxbb-toacodec.o
+

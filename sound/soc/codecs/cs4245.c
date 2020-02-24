@@ -144,7 +144,7 @@ static const struct snd_kcontrol_new loopback_ctl =
 /*
 static const struct snd_kcontrol_new spdif_switch =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 0, 0);
-
+*/
 /*Use DAC widget not DAC switch */
 /*
 static const struct snd_kcontrol_new dac_switch =
@@ -252,7 +252,7 @@ static const struct snd_soc_dapm_widget cs4245_dapm_widgets[] = {
 static const struct snd_soc_dapm_route cs4245_audio_map[] = {
 
 	{"DIN1", NULL, "DAI1 Playback"},
-	{"DIN1", NULL, "DAI2 Playback"},
+//	{"DIN1", NULL, "DAI2 Playback"},
 //	{"SDIN1 Input Mixer", NULL, "DIN1"},
 //	{"SDIN2 Input Mixer", NULL, "DIN2"},
 //	{"Input Mux", "SDIN1", "SDIN1 Input Mixer"},
@@ -569,42 +569,23 @@ static const struct snd_soc_dai_ops cs4245_ops = {
 
 static struct snd_soc_dai_driver cs4245_dai[] = {
 	{
-		.name = "cs4245-dai1",
+		.name = "cs4245-dai",
 		.playback = {
-			.stream_name = "DAI1 Playback",
+			.stream_name = "I2S Playback",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = CS4245_RATES,
 			.formats = CS4245_FORMATS,
 		},
 		.capture = {
-			.stream_name = "DAI1 Capture",
+			.stream_name = "I2S Capture",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = CS4245_RATES,
 			.formats = CS4245_FORMATS,
 		},
 		.ops = &cs4245_ops,
-	},
-/*	{
-		.name = "cs4245-dai2",
-		.playback = {
-			.stream_name = "DAI2 Playback",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = CS4245_RATES,
-			.formats = CS4245_FORMATS,
-		},
-		.capture = {
-			.stream_name = "DAI2 Capture",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = CS4245_RATES,
-			.formats = CS4245_FORMATS,
-		},
-		.ops = &cs4245_ops,
-	},
-*/
+	}
 };
 
 static const struct snd_soc_component_driver soc_component_cs4245 = {

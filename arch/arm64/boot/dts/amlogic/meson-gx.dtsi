@@ -10,6 +10,7 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/gxbb-clkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
@@ -231,15 +232,70 @@
 				#reset-cells = <1>;
 			};
 
+			aiu: audio-controller@5400 {
+				compatible = "amlogic,aiu-gxbb";
+				#sound-dai-cells = <2>;
+				sound-name-prefix = "AIU_CPU";
+				reg = <0x0 0x5400 0x0 0x2ac>;
+				interrupts = <GIC_SPI 48 IRQ_TYPE_EDGE_RISING>,
+					     <GIC_SPI 50 IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "i2s", "spdif";
+				status = "disabled";
+				i2s_fifo: audio-controller-0 {
+					sound-name-prefix = "I2S FIFO";
+					#sound-dai-cells = <0>;
+				};
+
+				spdif_fifo: audio-controller-1 {
+					sound-name-prefix = "SPDIF FIFO";
+					#sound-dai-cells = <0>;
+				};
+
+				i2s_encoder: audio-controller-2 {
+					sound-name-prefix = "I2S Encoder";
+					#sound-dai-cells = <0>;
+				};
+				spdif_encoder: audio-controller-3 {
+					sound-name-prefix = "SPDIF Encoder";
+					#sound-dai-cells = <0>;
+				};
+			};
+/*
+				reset-names = "aiu", "audin";
+*/
+/*
+				aiu_i2s: audio-controller-0 {
+					compatible = "amlogic,meson-aiu-i2s";
+					pinctrl-0 = <&i2s_am_clk_pins>, <&i2s_out_ao_clk_pins>,
+						<&i2s_out_lr_clk_pins>, <&i2s_out_ch01_ao_pins>,
+						<&i2s_in_ch01_ao_pins>;
+					pinctrl-names = "default";
+					clocks = <&clkc CLKID_I2S_OUT>,
+						 <&clkc CLKID_MIXER_IFACE>,
+						 <&clkc CLKID_AOCLK_GATE>,
+						 <&clkc CLKID_CTS_AMCLK>;
+					clock-names = "fast", "iface", "bclks", "mclk";
+					#sound-dai-cells = <0>;
+					interrupts = <GIC_SPI 48 IRQ_TYPE_EDGE_RISING>;
+					status = "okay";
+				};
+				aiu_spdif: audio-controller-1 {
+					#sound-dai-cells = <0>;
+					compatible = "amlogic,meson-aiu-spdif";
+					interrupts = <GIC_SPI 50 IRQ_TYPE_EDGE_RISING>;
+					status = "disabled";
+				};
+*/
+/*
 			aiu: bus@5400 {
 				compatible = "amlogic,aiu-bus", "syscon";
 				reg = <0x0 0x5400 0x0 0x2ac>;
 				status = "disabled";
 
-				i2s_fifo: audio-controller-0 {
+				i2s_fifo: i2s_fifo-0 {
 					compatible = "amlogic,aiu-i2s-fifo",
 						     "amlogic,aiu-fifo";
-					sound-name-prefix = "I2S FIFO";
+					sound-name-prefix = "AIU I2S FIFO";
 					interrupts = <GIC_SPI 48 IRQ_TYPE_EDGE_RISING>;
 					#sound-dai-cells = <0>;
 				};
@@ -252,9 +308,9 @@
 					#sound-dai-cells = <0>;
 				};
 
-				i2s_encoder: audio-controller-2 {
+				i2s_encoder: i2s_encoder-1 {
 					compatible = "amlogic,aiu-i2s-encode";
-					sound-name-prefix = "I2S ENCODER";
+					sound-name-prefix = "AIU I2S ENCODER";
 					#sound-dai-cells = <0>;
 				};
 
@@ -263,8 +319,9 @@
 					sound-name-prefix = "SPDIF ENCODER";
 					#sound-dai-cells = <0>;
 				};
-			};
 
+			};
+*/
 			uart_A: serial@84c0 {
 				compatible = "amlogic,meson-gx-uart";
 				reg = <0x0 0x84c0 0x0 0x18>;
@@ -613,6 +670,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#sound-dai-cells = <0>;
+			sound-name-prefix = "HDMITX";
 			status = "disabled";
 
 			/* VPU VENC Input */

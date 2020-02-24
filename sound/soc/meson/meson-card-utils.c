@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// Copyright (c) 2019 BayLibre, SAS.
+// Copyright (c) 2020 BayLibre, SAS.
 // Author: Jerome Brunet <jbrunet@baylibre.com>
 
 #include <linux/module.h>
@@ -73,26 +73,32 @@ int meson_card_parse_dai(struct snd_soc_card *card,
 	struct of_phandle_args args;
 	int ret;
 
-	if (!dai_name || !dai_of_node || !node)
+	if (!dai_name || !dai_of_node || !node) {
+		printk("meson_card_parse_dai: dai_name=%p, dai_of_node=%p, node=%p", 
+			dai_name, dai_of_node, node);
 		return -EINVAL;
+	}
+	printk("meson_card_parse_dai: dai_name=%p, dai_of_node=%p, node=%p", 
 
 	ret = of_parse_phandle_with_args(node, "sound-dai",
 					 "#sound-dai-cells", 0, &args);
+	printk("meson_card_parse_dai: ret=%d defer=%d", ret, EPROBE_DEFER);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(card->dev, "can't parse dai %d\n", ret);
 		return ret;
 	}
 	*dai_of_node = args.np;
-
-	return snd_soc_get_dai_name(&args, dai_name);
+	ret = snd_soc_get_dai_name(&args, dai_name);
+	printk("meson_card_parse_dai: %s ret=%d", *dai_name, ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(meson_card_parse_dai);
 
 static int meson_card_set_link_name(struct snd_soc_card *card,
-				  struct snd_soc_dai_link *link,
-				  struct device_node *node,
-				  const char *prefix)
+				    struct snd_soc_dai_link *link,
+				    struct device_node *node,
+				    const char *prefix)
 {
 	char *name = devm_kasprintf(card->dev, GFP_KERNEL, "%s.%s",
 				    prefix, node->full_name);
@@ -101,7 +107,7 @@ static int meson_card_set_link_name(struct snd_soc_card *card,
 
 	link->name = name;
 	link->stream_name = name;
-
+	printk("meson_card_set_link_name: %s", name);
 	return 0;
 }
 
@@ -125,7 +131,7 @@ unsigned int meson_card_parse_daifmt(struct device_node *node,
 		daifmt |= (!framemaster || framemaster == cpu_node) ?
 			SND_SOC_DAIFMT_CBM_CFS : SND_SOC_DAIFMT_CBM_CFM;
 	}
-
+	printk("meson_card_parse_daifmt: daifmt=%d BM_FM=1, BS_FM=2, BM_FS=3, BS_FS=4", daifmt);
 	of_node_put(bitclkmaster);
 	of_node_put(framemaster);
 
@@ -153,6 +159,7 @@ int meson_card_set_be_link(struct snd_soc_card *card,
 	}
 
 	codec = devm_kcalloc(card->dev, num_codecs, sizeof(*codec), GFP_KERNEL);
+	printk("gx card be link codec: numcodecs=%d, name=%s", num_codecs, codec->name);
 	if (!codec)
 		return -ENOMEM;
 
@@ -161,19 +168,18 @@ int meson_card_set_be_link(struct snd_soc_card *card,
 
 	for_each_child_of_node(node, np) {
 		ret = meson_card_parse_dai(card, np, &codec->of_node,
-					 &codec->dai_name);
+					   &codec->dai_name);
 		if (ret) {
 			of_node_put(np);
 			return ret;
 		}
-
 		codec++;
 	}
 
 	ret = meson_card_set_link_name(card, link, node, "be");
 	if (ret)
 		dev_err(card->dev, "error setting %pOFn link name\n", np);
-
+	printk("gx card be link codec: %s", codec->name);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(meson_card_set_be_link);
@@ -240,9 +246,9 @@ static int meson_card_add_links(struct snd_soc_card *card)
 }
 
 static int meson_card_parse_of_optional(struct snd_soc_card *card,
-				      const char *propname,
-				      int (*func)(struct snd_soc_card *c,
-						  const char *p))
+					const char *propname,
+					int (*func)(struct snd_soc_card *c,
+						    const char *p))
 {
 	/* If property is not provided, don't fail ... */
 	if (!of_property_read_bool(card->dev->of_node, propname))
@@ -287,13 +293,14 @@ static void meson_card_clean_references(struct meson_card *priv)
 {
 	struct snd_soc_card *card = &priv->card;
 	struct snd_soc_dai_link *link;
-	struct snd_soc_dai_link_component *codec;
 //	struct snd_soc_aux_dev *aux;
+	struct snd_soc_dai_link_component *codec;
 	int i, j;
 
 	if (card->dai_link) {
 		for_each_card_prelinks(card, i, link) {
-			of_node_put(link->cpu_of_node);
+			if (link->cpus)
+				of_node_put(link->cpus->of_node);
 			for_each_link_codecs(link, j, codec)
 				of_node_put(codec->of_node);
 		}

@@ -22,6 +22,8 @@
 #define TOACODEC_CTRL0			0x0
 #define  CTRL0_ENABLE_SHIFT		31
 #define  CTRL0_DAT_SEL			GENMASK(15, 14)
+#define  CTRL0_DAT_SEL_SHIFT		14
+#define  CTRL0_DAT_SEL			(0x3 << CTRL0_DAT_SEL_SHIFT)
 #define  CTRL0_LANE_SEL			12
 #define  CTRL0_LRCLK_SEL		GENMASK(9, 8)
 #define  CTRL0_BLK_CAP_INV		BIT(7)
@@ -35,47 +37,28 @@ static const char * const g12a_toacodec_if_mux_texts[] = {
 	"I2S A", "I2S B", "I2S C",
 };
 
-static SOC_ENUM_SINGLE_EXT_DECL(g12a_toacodec_if_mux_enum,
-				g12a_toacodec_if_mux_texts);
-
-static int g12a_toacodec_get_input_val(struct snd_soc_component *component,
-				       unsigned int mask)
-{
-	unsigned int val;
-
-	snd_soc_component_read(component, TOACODEC_CTRL0, &val);
-	return (val & mask) >> __ffs(mask);
-}
-
-static int g12a_toacodec_if_mux_get_enum(struct snd_kcontrol *kcontrol,
-					  struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-		snd_soc_dapm_kcontrol_component(kcontrol);
-
-	ucontrol->value.enumerated.item[0] =
-		g12a_toacodec_get_input_val(component, CTRL0_DAT_SEL);
-
-	return 0;
-}
-
-static int g12a_toacodec_if_mux_put_enum(struct snd_kcontrol *kcontrol,
-					  struct snd_ctl_elem_value *ucontrol)
+static int g12a_toacodec_mux_put_enum(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_kcontrol_component(kcontrol);
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int mux = ucontrol->value.enumerated.item[0];
-	unsigned int val = g12a_toacodec_get_input_val(component,
-						       CTRL0_DAT_SEL);
+	unsigned int mux, changed;
+
+	mux = snd_soc_enum_item_to_val(e, ucontrol->value.enumerated.item[0]);
+	changed = snd_soc_component_test_bits(component, e->reg,
+					      CTRL0_DAT_SEL,
+					      FIELD_PREP(CTRL0_DAT_SEL, mux));
+
+	if (!changed)
+		return 0;
 
 	/* Force disconnect of the mux while updating */
-	if (val != mux)
-		snd_soc_dapm_mux_update_power(dapm, kcontrol, 0, NULL, NULL);
+	snd_soc_dapm_mux_update_power(dapm, kcontrol, 0, NULL, NULL);
 
-	snd_soc_component_update_bits(component, TOACODEC_CTRL0,
+	snd_soc_component_update_bits(component, e->reg,
 				      CTRL0_DAT_SEL |
 				      CTRL0_LRCLK_SEL |
 				      CTRL0_BCLK_SEL,
@@ -94,7 +77,7 @@ static int g12a_toacodec_if_mux_put_enum(struct snd_kcontrol *kcontrol,
 	 * source. For that, we will need regmap backed clock mux which
 	 * is a work in progress
 	 */
-	snd_soc_component_update_bits(component, TOACODEC_CTRL0,
+	snd_soc_component_update_bits(component, e->reg,
 				      CTRL0_MCLK_SEL,
 				      FIELD_PREP(CTRL0_MCLK_SEL, mux));
 
@@ -103,21 +86,22 @@ static int g12a_toacodec_if_mux_put_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static SOC_ENUM_SINGLE_EXT_DECL(g12a_toacodec_if_mux_enum,
+				g12a_toacodec_if_mux_texts);
+
 static const struct snd_kcontrol_new g12a_toacodec_if_mux =
-	SOC_DAPM_ENUM_EXT("I2S Source", g12a_toacodec_if_mux_enum,
+	SOC_DAPM_ENUM_EXT("Source", g12a_toacodec_if_mux_enum,
 			  g12a_toacodec_if_mux_get_enum,
 			  g12a_toacodec_if_mux_put_enum);
-
-/* Insert lane control here */
 
 static const struct snd_kcontrol_new g12a_toacodec_out_enable =
 	SOC_DAPM_SINGLE_AUTODISABLE("Switch", TOACODEC_CTRL0,
 				    CTRL0_ENABLE_SHIFT, 1, 0);
 
 static const struct snd_soc_dapm_widget g12a_toacodec_widgets[] = {
-	SND_SOC_DAPM_MUX("I2S SRC", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("SRC", SND_SOC_NOPM, 0, 0,
 			 &g12a_toacodec_if_mux),
-	SND_SOC_DAPM_SWITCH("I2S OUT EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("OUT EN", SND_SOC_NOPM, 0, 0,
 			    &g12a_toacodec_out_enable),
 };
 
@@ -150,27 +134,6 @@ static const struct snd_soc_dai_ops g12a_toacodec_input_ops = {
 static const struct snd_soc_dai_ops g12a_toacodec_output_ops = {
 	.startup	= meson_codec_glue_output_startup,
 };
-
-static int g12a_toacodec_input_probe(struct snd_soc_dai *dai)
-{
-	struct meson_codec_glue_input *data;
-
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	meson_codec_glue_input_set_data(dai, data);
-	return 0;
-}
-
-static int g12a_toacodec_input_remove(struct snd_soc_dai *dai)
-{
-	struct meson_codec_glue_input *data =
-		meson_codec_glue_input_get_data(dai);
-
-	kfree(data);
-	return 0;
-}
 
 #define TOACODEC_STREAM(xname, xsuffix, xchmax)			\
 {								\

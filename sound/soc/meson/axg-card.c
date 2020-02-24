@@ -9,11 +9,7 @@
 #include <sound/soc-dai.h>
 
 #include "axg-tdm.h"
-
-struct axg_card {
-	struct snd_soc_card card;
-	void **link_data;
-};
+#include "meson-card.h"
 
 struct axg_dai_link_tdm_mask {
 	u32 tx;
@@ -41,6 +37,7 @@ static const struct snd_soc_pcm_stream codec_params = {
 	.channels_max = 8,
 };
 
+/*
 #define PREFIX "amlogic,"
 
 static int axg_card_reallocate_links(struct axg_card *priv,
@@ -165,35 +162,14 @@ static int axg_card_add_aux_devices(struct snd_soc_card *card)
 
 	return 0;
 }
-
+*/
 static int axg_card_tdm_be_hw_params(struct snd_pcm_substream *substream,
 				     struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct axg_card *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct axg_dai_link_tdm_data *be =
-		(struct axg_dai_link_tdm_data *)priv->link_data[rtd->num];
-	struct snd_soc_dai *codec_dai;
-	unsigned int mclk;
-	int ret, i;
+	struct meson_card *priv = snd_soc_card_get_drvdata(rtd->card);
 
-	if (be->mclk_fs) {
-		mclk = params_rate(params) * be->mclk_fs;
-
-		for_each_rtd_codec_dai(rtd, i, codec_dai) {
-			ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
-						     SND_SOC_CLOCK_IN);
-			if (ret && ret != -ENOTSUPP)
-				return ret;
-		}
-
-		ret = snd_soc_dai_set_sysclk(rtd->cpu_dai, 0, mclk,
-					     SND_SOC_CLOCK_OUT);
-		if (ret && ret != -ENOTSUPP)
-			return ret;
-	}
-
-	return 0;
+	return meson_card_i2s_set_sysclk(substream, params, be->mclk_fs);
 }
 
 static const struct snd_soc_ops axg_card_tdm_be_ops = {
@@ -202,7 +178,7 @@ static const struct snd_soc_ops axg_card_tdm_be_ops = {
 
 static int axg_card_tdm_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct axg_card *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct meson_card *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct axg_dai_link_tdm_data *be =
 		(struct axg_dai_link_tdm_data *)priv->link_data[rtd->num];
 	struct snd_soc_dai *codec_dai;
@@ -232,7 +208,7 @@ static int axg_card_tdm_dai_init(struct snd_soc_pcm_runtime *rtd)
 
 static int axg_card_tdm_dai_lb_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct axg_card *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct meson_card *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct axg_dai_link_tdm_data *be =
 		(struct axg_dai_link_tdm_data *)priv->link_data[rtd->num];
 	int ret;
@@ -251,13 +227,13 @@ static int axg_card_tdm_dai_lb_init(struct snd_soc_pcm_runtime *rtd)
 static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 				     int *index)
 {
-	struct axg_card *priv = snd_soc_card_get_drvdata(card);
+	struct meson_card *priv = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link *pad = &card->dai_link[*index];
 	struct snd_soc_dai_link *lb;
 	int ret;
 
 	/* extend links */
-	ret = axg_card_reallocate_links(priv, card->num_links + 1);
+	ret = meson_card_reallocate_links(card, card->num_links + 1);
 	if (ret)
 		return ret;
 
@@ -291,7 +267,7 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 
 	return 0;
 }
-
+/*
 static unsigned int axg_card_parse_daifmt(struct device_node *node,
 					  struct device_node *cpu_node)
 {
@@ -317,7 +293,7 @@ static unsigned int axg_card_parse_daifmt(struct device_node *node,
 
 	return daifmt;
 }
-
+*/
 static int axg_card_parse_cpu_tdm_slots(struct snd_soc_card *card,
 					struct snd_soc_dai_link *link,
 					struct device_node *node,
@@ -412,7 +388,7 @@ static int axg_card_parse_tdm(struct snd_soc_card *card,
 			      struct device_node *node,
 			      int *index)
 {
-	struct axg_card *priv = snd_soc_card_get_drvdata(card);
+	struct meson_card *priv = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link *link = &card->dai_link[*index];
 	struct axg_dai_link_tdm_data *be;
 	int ret;
@@ -426,7 +402,7 @@ static int axg_card_parse_tdm(struct snd_soc_card *card,
 	/* Setup tdm link */
 	link->ops = &axg_card_tdm_be_ops;
 	link->init = axg_card_tdm_dai_init;
-	link->dai_fmt = axg_card_parse_daifmt(node, link->cpu_of_node);
++	link->dai_fmt = meson_card_parse_daifmt(node, link->cpus->of_node);
 
 	of_property_read_u32(node, "mclk-fs", &be->mclk_fs);
 
@@ -449,7 +425,7 @@ static int axg_card_parse_tdm(struct snd_soc_card *card,
 
 	return 0;
 }
-
+/*
 static int axg_card_set_be_link(struct snd_soc_card *card,
 				struct snd_soc_dai_link *link,
 				struct device_node *node)
@@ -513,45 +489,53 @@ static int axg_card_set_fe_link(struct snd_soc_card *card,
 
 	return axg_card_set_link_name(card, link, node, "fe");
 }
-
+*/
 static int axg_card_cpu_is_capture_fe(struct device_node *np)
 {
-	return of_device_is_compatible(np, PREFIX "axg-toddr");
+	return of_device_is_compatible(np, DT_PREFIX "axg-toddr");
 }
 
 static int axg_card_cpu_is_playback_fe(struct device_node *np)
 {
-	return of_device_is_compatible(np, PREFIX "axg-frddr");
+	return of_device_is_compatible(np, DT_PREFIX "axg-frddr");
 }
 
 static int axg_card_cpu_is_tdm_iface(struct device_node *np)
 {
-	return of_device_is_compatible(np, PREFIX "axg-tdm-iface");
+	return of_device_is_compatible(np, DT_PREFIX "axg-tdm-iface");
 }
 
 static int axg_card_cpu_is_codec(struct device_node *np)
 {
-	return of_device_is_compatible(np, PREFIX "g12a-tohdmitx") ||
-		of_device_is_compatible(np, PREFIX "g12a-toacodec");
+	return of_device_is_compatible(np, DT_PREFIX "g12a-tohdmitx") ||
+	       of_device_is_compatible(np, DT_PREFIX "g12a-toacodec");
 }
 
 static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
 			     int *index)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[*index];
+	struct snd_soc_dai_link_component *cpu;
 	int ret;
 
-	ret = axg_card_parse_dai(card, np, &dai_link->cpu_of_node,
-				 &dai_link->cpu_dai_name);
+	cpu = devm_kzalloc(card->dev, sizeof(*cpu), GFP_KERNEL);
+	if (!cpu)
+		return -ENOMEM;
+
+ 	dai_link->cpus = cpu;
+ 	dai_link->num_cpus = 1;
+
+	ret = meson_card_parse_dai(card, np, &dai_link->cpus->of_node,
+				   &dai_link->cpus->dai_name);
 	if (ret)
 		return ret;
 
 	if (axg_card_cpu_is_playback_fe(dai_link->cpu_of_node))
-		ret = axg_card_set_fe_link(card, dai_link, np, true);
+		ret = meson_card_set_fe_link(card, dai_link, np, true);
 	else if (axg_card_cpu_is_capture_fe(dai_link->cpu_of_node))
-		ret = axg_card_set_fe_link(card, dai_link, np, false);
+		ret = meson_card_set_fe_link(card, dai_link, np, false);
 	else
-		ret = axg_card_set_be_link(card, dai_link, np);
+		ret = meson_card_set_be_link(card, dai_link, np);
 
 	if (ret)
 		return ret;
@@ -563,7 +547,7 @@ static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
 
 	return ret;
 }
-
+/*
 static int axg_card_add_links(struct snd_soc_card *card)
 {
 	struct axg_card *priv = snd_soc_card_get_drvdata(card);
@@ -607,13 +591,19 @@ static int axg_card_parse_of_optional(struct snd_soc_card *card,
 	/* ... but do fail if it is provided and the parsing fails */
 	return func(card, propname);
 }
+*/
+static const struct meson_card_match_data axg_card_match_data = {
+	.add_link = axg_card_add_link,
+};
 
 static const struct of_device_id axg_card_of_match[] = {
-	{ .compatible = "amlogic,axg-sound-card", },
-	{}
+	{
+		.compatible = "amlogic,axg-sound-card",
+		.data = &axg_card_match_data,
+	}, {}
 };
 MODULE_DEVICE_TABLE(of, axg_card_of_match);
-
+/*
 static int axg_card_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -675,10 +665,10 @@ static int axg_card_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
+*/
 static struct platform_driver axg_card_pdrv = {
-	.probe = axg_card_probe,
-	.remove = axg_card_remove,
+	.probe = meson_card_probe,
+	.remove = meson_card_remove,
 	.driver = {
 		.name = "axg-sound-card",
 		.of_match_table = axg_card_of_match,

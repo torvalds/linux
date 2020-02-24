@@ -1306,8 +1306,8 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 	}
 
 	/* dai link name and stream name set correctly ? */
-	dev_err(card->dev, "ASoC: can't get %s BE for %s\n",
-		stream ? "capture" : "playback", widget->name);
+//	dev_err(card->dev, "ASoC: can't get %s BE for %s\n",
+//		stream ? "capture" : "playback", widget->name);
 	return NULL;
 }
 

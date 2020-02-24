@@ -798,6 +798,8 @@ struct snd_soc_dai_link {
 	 */
 	const char *cpu_dai_name;
 
+	struct snd_soc_dai_link_component *cpus;
+	unsigned int num_cpus;
 	/*
 	 *	codec_name
 	 *	codec_of_node
@@ -816,6 +818,7 @@ struct snd_soc_dai_link {
 	 */
 	const char *codec_name;
 	struct device_node *codec_of_node;
+
 	/* You MUST specify the DAI name within the codec */
 	const char *codec_dai_name;
 
@@ -931,6 +934,15 @@ struct snd_soc_codec_conf {
 };
 
 struct snd_soc_aux_dev {
+	/*
+	 * specify multi-codec either by device name, or by
+	 * DT/OF node, but not both.
+	 */
+//	struct snd_soc_dai_link_component dlc;
+
+	/* codec/machine specific init - e.g. add machine controls */
+//	int (*init)(struct snd_soc_component *component);
+
 	const char *name;		/* Codec name */
 
 	/*

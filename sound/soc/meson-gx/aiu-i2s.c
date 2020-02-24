@@ -36,7 +36,6 @@
 struct meson_aiu_i2s {
 	struct meson_audio_core_data *core;
 	struct clk *mclk;
-	struct clk *cts_mclk;
 	struct clk *bclks;
 	struct clk *iface;
 	struct clk *fast;
@@ -160,6 +159,7 @@ static int meson_aiu_i2s_dma_trigger(struct snd_pcm_substream *substream, int cm
 		__dma_enable(priv, false);
 		break;
 	default:
+		printk("meson_aiu_i2s_dma_trigger");
 		return -EINVAL;
 	}
 
@@ -309,7 +309,8 @@ static const struct snd_pcm_ops meson_aiu_i2s_dma_ops = {
 	.trigger =	meson_aiu_i2s_dma_trigger,
 };
 
-static int meson_aiu_i2s_dma_new(struct snd_soc_pcm_runtime *rtd)
+static int meson_aiu_i2s_dma_new(struct snd_soc_component *component, 
+				 struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	size_t size = meson_aiu_i2s_dma_hw.buffer_bytes_max;
@@ -333,11 +334,15 @@ static int meson_aiu_i2s_dma_new(struct snd_soc_pcm_runtime *rtd)
 #define AIU_CLK_CTRL_ALRCLK_LEFT_J		(0 << 8)
 #define AIU_CLK_CTRL_ALRCLK_I2S			(1 << 8)
 #define AIU_CLK_CTRL_ALRCLK_RIGHT_J		(2 << 8)
+#define AIU_CLK_CTRL_CLK_SRC_MASK		BIT(10)
+#define AIU_CLK_CTRL_CLK_SRC_PIN		(0 << 10)
+#define AIU_CLK_CTRL_CLK_SRC_PLL		(1 << 10)
 #define AIU_CLK_CTRL_MORE_I2S_DIV_MASK		GENMASK(5, 0)
 #define AIU_CLK_CTRL_MORE_I2S_DIV(div)		(((div) - 1) << 0)
-#define AIU_CLK_CTRL_MORE_HDMI_TX_SEL_MASK     BIT(6)
-#define AIU_CLK_CTRL_MORE_HDMI_TX_I958_CLK     (0 << 6)
-#define AIU_CLK_CTRL_MORE_HDMI_TX_INT_CLK      (1 << 6)
+#define AIU_CLK_CTRL_MORE_HDMI_TX_SEL_MASK      BIT(6)
+#define AIU_CLK_CTRL_MORE_HDMI_TX_I958_CLK      (0 << 6)
+#define AIU_CLK_CTRL_MORE_HDMI_TX_INT_CLK       (1 << 6)
+#define AIU_CLK_CTRL_MORE_ADC_SCLK_EN		BIT(14)
 #define AIU_CODEC_DAC_LRCLK_CTRL_DIV_MASK	GENMASK(11, 0)
 #define AIU_CODEC_DAC_LRCLK_CTRL_DIV(div)	(((div) - 1) << 0)
 #define AIU_HDMI_CLK_DATA_CTRL_CLK_SEL_MASK    GENMASK(1, 0)
@@ -348,6 +353,14 @@ static int meson_aiu_i2s_dma_new(struct snd_soc_pcm_runtime *rtd)
 #define AIU_HDMI_CLK_DATA_CTRL_DATA_MUTE       (0 << 4)
 #define AIU_HDMI_CLK_DATA_CTRL_DATA_PCM                (1 << 4)
 #define AIU_HDMI_CLK_DATA_CTRL_DATA_I2S                (2 << 4)
+#define AIU_CODEC_CLK_DATA_CTRL_CLK_SEL_MASK    GENMASK(1, 0)
+#define AIU_CODEC_CLK_DATA_CTRL_CLK_DISABLE     (0 << 0)
+#define AIU_CODEC_CLK_DATA_CTRL_CLK_PCM         (1 << 0)
+#define AIU_CODEC_CLK_DATA_CTRL_CLK_I2S         (2 << 0)
+#define AIU_CODEC_CLK_DATA_CTRL_DATA_SEL_MASK   GENMASK(5, 4)
+#define AIU_CODEC_CLK_DATA_CTRL_DATA_MUTE       (0 << 4)
+#define AIU_CODEC_CLK_DATA_CTRL_DATA_PCM                (1 << 4)
+#define AIU_CODEC_CLK_DATA_CTRL_DATA_I2S                (2 << 4)
 #define AIU_I2S_DAC_CFG_PAYLOAD_SIZE_MASK	GENMASK(1, 0)
 #define AIU_I2S_DAC_CFG_AOCLK_32		(0 << 0)
 #define AIU_I2S_DAC_CFG_AOCLK_48		(2 << 0)
@@ -407,6 +420,7 @@ static int meson_aiu_i2s_dai_trigger(struct snd_pcm_substream *substream, int cm
 		return 0;
 
 	default:
+		printk("meson_aiu_i2s_dai_trigger");
 		return -EINVAL;
 	}
 }
@@ -424,6 +438,7 @@ static int __bclks_set_rate(struct meson_aiu_i2s *priv, unsigned int srate,
 	 * bclk being 32 * lrclk or 48 * lrclk
 	 * Restrict to blck = 64 * lrclk
 	 */
+
 	if (fs % 64)
 		return -EINVAL;
 
@@ -477,6 +492,7 @@ static int __setup_desc(struct meson_aiu_i2s *priv, unsigned int width,
 		desc |= AIU_I2S_SOURCE_DESC_MODE_8CH;
 		break;
 	default:
+		printk("__setup_desc width");
 		return -EINVAL;
 	}
 
@@ -511,17 +527,26 @@ static int meson_aiu_i2s_dai_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+       /* Quick and dirty hack for CODEC */
+	regmap_update_bits(priv->core->aiu, AIU_CODEC_CLK_DATA_CTRL,
+			   AIU_CODEC_CLK_DATA_CTRL_CLK_SEL_MASK |
+			   AIU_CODEC_CLK_DATA_CTRL_DATA_SEL_MASK,
+			   AIU_CODEC_CLK_DATA_CTRL_CLK_I2S |
+			   AIU_CODEC_CLK_DATA_CTRL_DATA_I2S);
+
        /* Quick and dirty hack for HDMI */
+/*
 	regmap_update_bits(priv->core->aiu, AIU_HDMI_CLK_DATA_CTRL,
 			   AIU_HDMI_CLK_DATA_CTRL_CLK_SEL_MASK |
 			   AIU_HDMI_CLK_DATA_CTRL_DATA_SEL_MASK,
 			   AIU_HDMI_CLK_DATA_CTRL_CLK_I2S |
 			   AIU_HDMI_CLK_DATA_CTRL_DATA_I2S);
 
+
 	regmap_update_bits(priv->core->aiu, AIU_CLK_CTRL_MORE,
 			   AIU_CLK_CTRL_MORE_HDMI_TX_SEL_MASK,
 			   AIU_CLK_CTRL_MORE_HDMI_TX_INT_CLK);
-
+*/
 	return 0;
 }
 
@@ -529,10 +554,30 @@ static int meson_aiu_i2s_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct meson_aiu_i2s *priv = snd_soc_dai_get_drvdata(dai);
 	u32 val;
-
-	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS)
+/*
+	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
+		printk("meson_aiu_i2s_dai_set_fmt: ! SND_SOC_DAIFMT_CBS_CFS");
 		return -EINVAL;
+	}
+*/
+	/* DAI master / slave clock selection */
+	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBM_CFM:
+		printk("meson_aiu_i2s_dai_set_fmt: master mode");
+		val = AIU_CLK_CTRL_CLK_SRC_PLL;
+		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+		printk("meson_aiu_i2s_dai_set_fmt: slave mode");
+		val = AIU_CLK_CTRL_CLK_SRC_PLL;
+		break;
+	default:
+		printk("meson_aiu_i2s_dai_set_fmt: DAI master/slave clock unknown");
+		return -EINVAL;
+	}
 
+	regmap_update_bits(priv->core->aiu, AIU_CLK_CTRL,
+			   AIU_CLK_CTRL_CLK_SRC_MASK,
+			   val);
 	/* DAI output mode */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
@@ -545,6 +590,7 @@ static int meson_aiu_i2s_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		val = AIU_CLK_CTRL_ALRCLK_RIGHT_J;
 		break;
 	default:
+		printk("meson_aiu_i2s_dai_set_fmt: DAI output mode unknown");
 		return -EINVAL;
 	}
 
@@ -575,6 +621,7 @@ static int meson_aiu_i2s_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			AIU_CLK_CTRL_AOCLK_POLARITY_NORMAL;
 		break;
 	default:
+		printk("meson_aiu_i2s_dai_set_fmt: DAI clock polarity unknown");
 		return -EINVAL;
 	}
 
@@ -591,6 +638,7 @@ static int meson_aiu_i2s_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		priv->bclks_idle = false;
 		break;
 	default:
+		printk("meson_aiu_i2s_dai_set_fmt: DAIFMT CONT GATED");
 		return -EINVAL;
 	}
 
@@ -603,8 +651,10 @@ static int meson_aiu_i2s_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	struct meson_aiu_i2s *priv = snd_soc_dai_get_drvdata(dai);
 	int ret;
 
-	if (WARN_ON(clk_id != 0))
+	if (WARN_ON(clk_id != 0)) {
+		printk("meson_aiu_i2s_dai_set_sysclk: clk_id = %d", clk_id);
 		return -EINVAL;
+	}
 
 	if (dir == SND_SOC_CLOCK_IN)
 		return 0;
@@ -698,7 +748,7 @@ static struct snd_soc_dai_driver meson_aiu_i2s_dai = {
 
 static const struct snd_soc_component_driver meson_aiu_i2s_component = {
 	.ops = &meson_aiu_i2s_dma_ops,
-	.pcm_new = meson_aiu_i2s_dma_new,
+	.pcm_construct = meson_aiu_i2s_dma_new,
 	.name	= DRV_NAME,
 };
 
@@ -741,13 +791,6 @@ static int meson_aiu_i2s_probe(struct platform_device *pdev)
 		if (PTR_ERR(priv->mclk) != -EPROBE_DEFER)
 			dev_err(dev, "failed to get the i2s master clock\n");
 		return PTR_ERR(priv->mclk);
-	}
-
-	priv->cts_mclk = devm_clk_get(dev, "cts_mclk");
-	if (IS_ERR(priv->cts_mclk)) {
-		if (PTR_ERR(priv->cts_mclk) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get the i2s master clock\n");
-		return PTR_ERR(priv->cts_mclk);
 	}
 
 	priv->irq = platform_get_irq(pdev, 0);

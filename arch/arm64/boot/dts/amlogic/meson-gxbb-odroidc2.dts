@@ -9,6 +9,7 @@
 
 #include "meson-gxbb.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/sound/meson-aiu.h>
 
 / {
 	compatible = "hardkernel,odroid-c2", "amlogic,meson-gxbb";
@@ -110,23 +111,64 @@
 			};
 		};
 	};
-// github.com/LibreELEC/linux-amlogic/blob/amlogic-3.14.y/arch/arm64/boot/dts/meson64-odroidc2.dts
-// github.com/hardkernel/linux/blob/odroidc2-v3.16y/arch/arm64/boot/dts/meson64-odroidc2.dts
-
+//github.com/LibreELEC/linux-amlogic/blob/amlogic-3.14.y/arch/arm64/boot/dts/meson64-odroidc2.dts
+//github.com/hardkernel/linux/blob/odroidc2-v3.16.y/arch/arm64/boot/dts/meson64_odroidc2.dts
+/*
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "meson-gx-audio";
+	        model = "Hardkernel ODROID-C2";
+		status = "okay";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&dailink0_master>;
+		simple-audio-card,frame-master = <&dailink0_master>;
+		simple-audio-card,cpu {
+			assigned-clocks = <&clkc CLKID_MPLL2>,
+					  <&clkc CLKID_MPLL0>,
+					  <&clkc CLKID_MPLL1>;
+			assigned-clock-parents = <0>, <0>, <0>;
+			assigned-clock-rates = <294912000>,
+					       <270950400>,
+					       <393216000>;
+			gpios = <&gpio GPIOX_3 0>,	//LOWA
+				<&gpio GPIOX_1 1>,	//MIDA
+				<&gpio GPIOX_7 0>,	//LOWB
+				<&gpio GPIOX_4 1>,	//MIDB
+				<&gpio GPIOX_8 0>,	//MICA
+				<&gpio GPIOX_5 0>,	//INSTA
+				<&gpio GPIOX_19 0>,	//MICB
+				<&gpio GPIOX_11 0>,	//INSTB
+				<&gpio GPIOY_3 0>,	//TBPASSA
+				<&gpio GPIOY_7 0>,	//TBPASSB
+				<&gpio GPIOX_0 0>,	//HP_CLK
+				<&gpio GPIOY_8 1>,	//HP_ENA
+				<&gpio GPIOX_6 0>;	//HP_UP_DN
+			sound-dai = <&aiu_i2s>;
+		};
+		dailink0_master: simple-audio-card,codec {
+			sound-dai = <&cs4245>;
+		};
+	};
+	cs4245: cs4245@4c {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "cirrus,cs4245";
+		reg = <0x4c>;
+		reset-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_LOW>;
+		reset-delay-us = <10000>;
+		reset-active-low;
+		default-state = "off";
+	};
+};
+*/
 	sound {
 		compatible = "amlogic,gx-sound-card";
-		model = "Hardkernel ODROID-C2";
-		audio-routing = "I2S ENCODER Playback", "I2S FIFO Playback";
-/*
-		widgets = 
-			"Line", "Analog Left Output",
-			"Line", "Analog Right Output";
-		gx-sound-card,routing = 
-			"Analog Left Output", "OUTL",
-			"Analog Right Output", "OUTR",
-			"INL", "AOUTL",
-			"INR", "AOUTR";
-*/
+	        model = "Hardkernel ODROID-C2";
+		audio-routing = "I2S Encoder Playback", "I2S FIFO Playback",
+				"I2S Playback", "I2S Encoder Playback",
+				"LINEOUTL","I2S Playback",
+				"LINEOUTR","I2S Playback";
 		assigned-clocks = <&clkc CLKID_MPLL2>,
 				  <&clkc CLKID_MPLL0>,
 				  <&clkc CLKID_MPLL1>;
@@ -151,34 +193,54 @@
 			<&gpio GPIOX_6 0>;	//HP_UP_DN
 */
 		dai-link-0 {
-			sound-dai = <&i2s_fifo>;
+			sound-dai = <&aiu AIU_CPU CPU_I2S_FIFO>;
 		};
 		dai-link-1 {
-			sound-dai = <&i2s_encoder>;
+			sound-dai = <&aiu AIU_CPU CPU_I2S_ENCODER>;
 			dai-format = "i2s";
 			mclk-fs = <256>;
-//			bitclock-master = <&i2s_encoder>;
-//			frame-master = <&i2s_encoder>;
-
+			bitclock-master = <&aiu>;
+			frame-master = <&aiu>;
 			codec-0 {
-				sound-dai = <&cs4245>;
+				sound-dai = <&aiu AIU_HDMI CTRL_I2S>;
+			};
+		};
+		dai-link-2 {
+			sound-dai = <&aiu AIU_HDMI CTRL_OUT>;
+			codec-0 {
+				sound-dai = <&hdmi_tx>;
 			};
 		};
 	};
-
-	cs4245: cs4245@4c {
-		status = "okay";
-		#sound-dai-cells = <0>;
+};
+/*
+&audio {
+	status = "okay";
+};
+*/
+/*
+	i2s_in_ch01_ao_pins	=	SDOUT	= GPIOAO_6
+	i2s_am_clk_pins 	=	MCLK	= GPIOAO_8
+	i2s_out_ao_clk_pins 	=	SCLK	= GPIOAO_9
+	i2s_out_lr_clk_pins	=	LRCK	= GPIOAO_10
+	i2s_out_ch01_ao_pins	=	SDIN	= GPIOAO_11
+*/
+&i2c_A {
+	codec0: cs4245@4c {
 		compatible = "cirrus,cs4245";
+		#sound-dai-cells = <0>;
 		reg = <0x4c>;
 		reset-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_LOW>;
 		reset-delay-us = <10000>;
 		reset-active-low;
 		default-state = "off";
+		status = "okay";
 	};
 };
-
 &aiu {
+	pinctrl-0 = <&i2s_am_clk_pins>, <&i2s_out_ao_clk_pins>,
+		    <&i2s_out_lr_clk_pins>, <&i2s_out_ch01_ao_pins>, <&i2s_in_ch01_ao_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -231,15 +293,6 @@
 		line-name = "usb-hub-reset";
 	};
 };
-
-&i2s_fifo {
-	status = "okay";
-};
-
-&i2s_encoder {
-	status = "okay";
-};
-
 &hdmi_tx {
 	status = "okay";
 	pinctrl-0 = <&hdmi_hpd_pins>, <&hdmi_i2c_pins>;

@@ -27,11 +27,12 @@
 
 #include "audio-core.h"
 
-#define DRV_NAME "meson-gx-audio-core"
+#define DRV_NAME "meson-gx-audio"
 
-static const char * const acore_clock_names[] = { "aiu_top",
-						  "aiu_glue",
-						  "audin" };
+static const char * const acore_clock_names[] = { "top",
+						  "abuf",
+						  "glue",
+						  "i2s_spdif" };
 
 static int meson_acore_init_clocks(struct device *dev)
 {
@@ -50,6 +51,7 @@ static int meson_acore_init_clocks(struct device *dev)
 					acore_clock_names[i]);
 
 		ret = clk_prepare_enable(clock);
+		printk ("meson_acore_init_clocks: %s", acore_clock_names[i]);
 		if (ret) {
 			dev_err(dev, "Failed to enable %s clock\n",
 				acore_clock_names[i]);
@@ -85,6 +87,7 @@ static int meson_acore_init_resets(struct device *dev)
 		}
 
 		ret = reset_control_reset(reset);
+		printk ("meson_acore_init_resets: %s", acore_reset_names[i]);
 		if (ret) {
 			dev_err(dev, "Failed to pulse %s reset\n",
 				acore_reset_names[i]);
@@ -163,7 +166,7 @@ static int meson_acore_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id meson_acore_of_match[] = {
-	{ .compatible = "amlogic,meson-gx-audio-core", },
+	{ .compatible = "amlogic,meson-gx-audio", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, meson_acore_of_match);

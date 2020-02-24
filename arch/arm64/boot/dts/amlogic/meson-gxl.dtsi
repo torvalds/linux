@@ -14,6 +14,17 @@
 	compatible = "amlogic,meson-gxl";
 
 	soc {
+		acodec: audio-controller@c8832000 {
+			compatible = "amlogic,t9015";
+			reg = <0x0 0xc8832000 0x0 0x14>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "ACODEC";
+			clocks = <&clkc CLKID_ACODEC>;
+			clock-names = "pclk";
+			resets = <&reset RESET_ACODEC>;
+			status = "disabled";
+		};
+
 		usb0: usb@c9000000 {
 			status = "disabled";
 			compatible = "amlogic,meson-gxl-dwc3";
@@ -36,13 +47,39 @@
 				phys = <&usb3_phy>, <&usb2_phy0>, <&usb2_phy1>;
 			};
 		};
+
+		crypto: crypto@c883e000 {
+			compatible = "amlogic,gxl-crypto";
+			reg = <0x0 0xc883e000 0x0 0x36>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 189 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkc CLKID_BLKMV>;
+			clock-names = "blkmv";
+			status = "okay";
+		};
 	};
 };
 
 &aiu {
-	clocks = <&clkc CLKID_AIU>,
-     	       	 <&clkc CLKID_AIU_GLUE>;
-	clock-names = "top", "glue";
+	compatible = "amlogic,aiu-gxl", "amlogic,aiu";
+	clocks = <&clkc CLKID_AIU_GLUE>,
+	       	 <&clkc CLKID_I2S_OUT>,
+	       	 <&clkc CLKID_AOCLK_GATE>,
+		 <&clkc CLKID_CTS_AMCLK>,
+		 <&clkc CLKID_MIXER_IFACE>,
+		 <&clkc CLKID_IEC958>,
+		 <&clkc CLKID_IEC958_GATE>,
+		 <&clkc CLKID_CTS_MCLK_I958>,
+		 <&clkc CLKID_CTS_I958>;
+	clock-names = "pclk",
+		      "i2s_pclk",
+		      "i2s_aoclk",
+		      "i2s_mclk",
+		      "i2s_mixer",
+		      "spdif_pclk",
+		      "spdif_aoclk",
+		      "spdif_mclk",
+		      "spdif_mclk_sel";
 	resets = <&reset RESET_AIU>;
 };
 
@@ -309,17 +346,6 @@
 
 &i2c_C {
 	clocks = <&clkc CLKID_I2C>;
-};
-
-&i2s_fifo {
-	clocks = <&clkc CLKID_I2S_OUT>;
-};
-
-&i2s_encoder {
-	clocks = <&clkc CLKID_MIXER_IFACE>,
-	       	 <&clkc CLKID_AOCLK_GATE>,
-		 <&clkc CLKID_CTS_AMCLK>;
-	clock-names = "pclk", "aoclk", "mclk";
 };
 
 &periphs {

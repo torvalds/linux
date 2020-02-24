@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2019 BayLibre, SAS.
+ * Copyright (c) 2020 BayLibre, SAS.
  * Author: Jerome Brunet <jbrunet@baylibre.com>
  */
 

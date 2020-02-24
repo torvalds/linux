@@ -8,10 +8,19 @@
  * the pin-compatible S912 (GXM) or S905D (GXL) SoCs.
  */
 
+#include <dt-bindings/sound/meson-aiu.h>
+
 / {
 	aliases {
 		serial0 = &uart_AO;
 		ethernet0 = &ethmac;
+	};
+
+	dio2133: analog-amplifier {
+		compatible = "simple-audio-amplifier";
+		sound-name-prefix = "AU2";
+		VCC-supply = <&hdmi_5v>;
+		enable-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 	};
 
 	spdif_dit: audio-codec-0 {
@@ -113,10 +122,14 @@
 	sound {
 		compatible = "amlogic,gx-sound-card";
 		model = "GX-P230-Q200";
-		audio-routing = "I2S ENCODER I2S IN", "I2S FIFO Playback",
-				"I2S ENCODER SPDIF IN", "SPDIF FIFO Playback",
-				"SPDIF ENCODER Playback", "I2S ENCODER SPDIF OUT";
-
+		audio-aux-devs = <&dio2133>;
+		audio-widgets = "Line", "Lineout";
+		audio-routing = "AU2 INL", "ACODEC LOLP",
+				"AU2 INR", "ACODEC LORP",
+				"AU2 INL", "ACODEC LOLN",
+				"AU2 INR", "ACODEC LORN",
+				"Lineout", "AU2 OUTL",
+				"Lineout", "AU2 OUTR";
 		assigned-clocks = <&clkc CLKID_MPLL2>,
 				  <&clkc CLKID_MPLL0>,
 				  <&clkc CLKID_MPLL1>;
@@ -127,35 +140,62 @@
 		status = "okay";
 
 		dai-link-0 {
-			sound-dai = <&i2s_fifo>;
+			sound-dai = <&aiu AIU_CPU CPU_I2S_FIFO>;
 		};
 
 		dai-link-1 {
-			sound-dai = <&spdif_fifo>;
+			sound-dai = <&aiu AIU_CPU CPU_SPDIF_FIFO>;
 		};
 
 		dai-link-2 {
-			sound-dai = <&i2s_encoder>;
+			sound-dai = <&aiu AIU_CPU CPU_I2S_ENCODER>;
 			dai-format = "i2s";
 			mclk-fs = <256>;
+
+			codec-0 {
+				sound-dai = <&aiu AIU_HDMI CTRL_I2S>;
+			};
+
+			codec-1 {
+				sound-dai = <&aiu AIU_ACODEC CTRL_I2S>;
+			};
+		};
+
+		dai-link-3 {
+			sound-dai = <&aiu AIU_CPU CPU_SPDIF_ENCODER>;
+
+			codec-0 {
+				sound-dai = <&spdif_dit>;
+			};
+		};
+
+		dai-link-4 {
+			sound-dai = <&aiu AIU_HDMI CTRL_OUT>;
 
 			codec-0 {
 				sound-dai = <&hdmi_tx>;
 			};
 		};
 
-		dai-link-3 {
-			sound-dai = <&spdif_encoder>;
+		dai-link-5 {
+			sound-dai = <&aiu AIU_ACODEC CTRL_OUT>;
 
 			codec-0 {
-				sound-dai = <&spdif_dit>;
+				sound-dai = <&acodec>;
 			};
 		};
 	};
 };
 
+&acodec {
+	AVDD-supply = <&vddio_ao18>;
+	status = "okay";
+};
+
 &aiu {
 	status = "okay";
+	pinctrl-0 = <&spdif_out_h_pins>;
+	pinctrl-names = "default";
 };
 
 &cec_AO {

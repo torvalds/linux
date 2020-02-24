@@ -327,7 +327,8 @@ static const struct snd_pcm_ops meson_aiu_spdif_dma_ops = {
 	.trigger =	meson_aiu_spdif_dma_trigger,
 };
 
-static int meson_aiu_spdif_dma_new(struct snd_soc_pcm_runtime *rtd)
+static int meson_aiu_spdif_dma_new(struct snd_soc_component *component,
+				   struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	size_t size = meson_aiu_spdif_dma_hw.buffer_bytes_max;
@@ -595,7 +596,7 @@ static struct snd_soc_dai_driver meson_aiu_spdif_dai = {
 
 static const struct snd_soc_component_driver meson_aiu_spdif_component = {
 	.ops		= &meson_aiu_spdif_dma_ops,
-	.pcm_new	= meson_aiu_spdif_dma_new,
+	.pcm_construct	= meson_aiu_spdif_dma_new,
 	.name	= DRV_NAME,
 };
 
