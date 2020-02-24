@@ -137,16 +137,9 @@ bool tegra_set_cpu_in_lp2(void)
 
 	if ((phy_cpu_id == 0) && cpumask_equal(cpu_lp2_mask, cpu_online_mask))
 		last_cpu = true;
-	else if (tegra_get_chip_id() == TEGRA20 && phy_cpu_id == 1)
-		tegra20_cpu_set_resettable_soon();
 
 	spin_unlock(&tegra_lp2_lock);
 	return last_cpu;
-}
-
-int tegra_cpu_do_idle(void)
-{
-	return cpu_do_idle();
 }
 
 static int tegra_sleep_cpu(unsigned long v2p)
