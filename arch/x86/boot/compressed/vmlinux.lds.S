@@ -73,9 +73,4 @@ SECTIONS
 #endif
 	. = ALIGN(PAGE_SIZE);	/* keep ZO size page aligned */
 	_end = .;
-
-	/* Discard .eh_frame to save some space */
-	/DISCARD/ : {
-		*(.eh_frame)
-	}
 }
