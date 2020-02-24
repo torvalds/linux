@@ -122,6 +122,11 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 		      TRAP_EXCEPTION_TO_CPU, false, SP_##_group_id,	      \
 		      SET_FW_DEFAULT, SP_##_group_id)
 
+#define MLXSW_SP_RXL_ACL_DISCARD(_id, _en_group_id, _dis_group_id)	      \
+	MLXSW_RXL_DIS(mlxsw_sp_rx_drop_listener, DISCARD_##_id,		      \
+		      TRAP_EXCEPTION_TO_CPU, false, SP_##_en_group_id,	      \
+		      SET_FW_DEFAULT, SP_##_dis_group_id)
+
 #define MLXSW_SP_RXL_EXCEPTION(_id, _group_id, _action)			      \
 	MLXSW_RXL(mlxsw_sp_rx_exception_listener, _id,			      \
 		   _action, false, SP_##_group_id, SET_FW_DEFAULT)
@@ -155,6 +160,8 @@ static const struct devlink_trap mlxsw_sp_traps_arr[] = {
 	MLXSW_SP_TRAP_DROP(NON_ROUTABLE, L3_DROPS),
 	MLXSW_SP_TRAP_EXCEPTION(DECAP_ERROR, TUNNEL_DROPS),
 	MLXSW_SP_TRAP_DROP(OVERLAY_SMAC_MC, TUNNEL_DROPS),
+	MLXSW_SP_TRAP_DROP(INGRESS_FLOW_ACTION_DROP, ACL_DROPS),
+	MLXSW_SP_TRAP_DROP(EGRESS_FLOW_ACTION_DROP, ACL_DROPS),
 };
 
 static const struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
@@ -196,6 +203,8 @@ static const struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
 	MLXSW_SP_RXL_EXCEPTION(DISCARD_DEC_PKT, TUNNEL_DISCARDS,
 			       TRAP_EXCEPTION_TO_CPU),
 	MLXSW_SP_RXL_DISCARD(OVERLAY_SMAC_MC, TUNNEL_DISCARDS),
+	MLXSW_SP_RXL_ACL_DISCARD(INGRESS_ACL, ACL_DISCARDS, DUMMY),
+	MLXSW_SP_RXL_ACL_DISCARD(EGRESS_ACL, ACL_DISCARDS, DUMMY),
 };
 
 /* Mapping between hardware trap and devlink trap. Multiple hardware traps can
@@ -236,6 +245,8 @@ static const u16 mlxsw_sp_listener_devlink_map[] = {
 	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
 	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
 	DEVLINK_TRAP_GENERIC_ID_OVERLAY_SMAC_MC,
+	DEVLINK_TRAP_GENERIC_ID_INGRESS_FLOW_ACTION_DROP,
+	DEVLINK_TRAP_GENERIC_ID_EGRESS_FLOW_ACTION_DROP,
 };
 
 #define MLXSW_SP_DISCARD_POLICER_ID	(MLXSW_REG_HTGT_TRAP_GROUP_MAX + 1)
@@ -390,6 +401,12 @@ int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 		break;
 	case DEVLINK_TRAP_GROUP_GENERIC_ID_TUNNEL_DROPS:
 		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS;
+		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
+		priority = 0;
+		tc = 1;
+		break;
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_ACL_DROPS:
+		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_ACL_DISCARDS;
 		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
 		priority = 0;
 		tc = 1;
