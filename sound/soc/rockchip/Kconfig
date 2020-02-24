@@ -14,6 +14,14 @@ config SND_SOC_ROCKCHIP_PREALLOC_BUFFER_SIZE
 	  The default value is 512 kilobytes. Only change this if you know
 	  what you are doing.
 
+config SND_SOC_ROCKCHIP_AUDIO_PWM
+	tristate "Rockchip Audio PWM Driver"
+	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for Audio PWM driver for
+	  Rockchip Audio PWM Controller.
+
 config SND_SOC_ROCKCHIP_I2S
 	tristate "Rockchip I2S Device Driver"
 	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
