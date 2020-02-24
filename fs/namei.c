@@ -1440,19 +1440,21 @@ static void follow_mount(struct path *path)
 	}
 }
 
-static int path_parent_directory(struct path *path)
+static struct dentry *path_parent_directory(struct path *path)
 {
-	struct dentry *old = path->dentry;
 	/* rare case of legitimate dget_parent()... */
-	path->dentry = dget_parent(path->dentry);
-	dput(old);
-	if (unlikely(!path_connected(path->mnt, path->dentry)))
-		return -ENOENT;
-	return 0;
+	struct dentry *parent = dget_parent(path->dentry);
+
+	if (unlikely(!path_connected(path->mnt, parent))) {
+		dput(parent);
+		parent = NULL;
+	}
+	return parent;
 }
 
 static int follow_dotdot(struct nameidata *nd)
 {
+	struct dentry *parent;
 	while (1) {
 		if (path_equal(&nd->path, &nd->root)) {
 			if (unlikely(nd->flags & LOOKUP_BENEATH))
@@ -1460,9 +1462,11 @@ static int follow_dotdot(struct nameidata *nd)
 			break;
 		}
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
-			int ret = path_parent_directory(&nd->path);
-			if (ret)
-				return ret;
+			parent = path_parent_directory(&nd->path);
+			if (!parent)
+				return -ENOENT;
+			dput(nd->path.dentry);
+			nd->path.dentry = parent;
 			break;
 		}
 		if (!follow_up(&nd->path))
@@ -2600,13 +2604,13 @@ int path_pts(struct path *path)
 	 */
 	struct dentry *child, *parent;
 	struct qstr this;
-	int ret;
 
-	ret = path_parent_directory(path);
-	if (ret)
-		return ret;
+	parent = path_parent_directory(path);
+	if (!parent)
+		return -ENOENT;
 
-	parent = path->dentry;
+	dput(path->dentry);
+	path->dentry = parent;
 	this.name = "pts";
 	this.len = 3;
 	child = d_hash_and_lookup(parent, &this);
