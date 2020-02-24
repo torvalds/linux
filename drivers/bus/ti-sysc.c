@@ -70,8 +70,8 @@ static const char * const clock_names[SYSC_MAX_CLOCKS] = {
  * @child_needs_resume: runtime resume needed for child on resume from suspend
  * @disable_on_idle: status flag used for disabling modules with resets
  * @idle_work: work structure used to perform delayed idle on a module
- * @clk_enable_quirk: module specific clock enable quirk
- * @clk_disable_quirk: module specific clock disable quirk
+ * @pre_reset_quirk: module specific pre-reset quirk
+ * @post_reset_quirk: module specific post-reset quirk
  * @reset_done_quirk: module specific reset done quirk
  * @module_enable_quirk: module specific enable quirk
  * @module_disable_quirk: module specific disable quirk
@@ -97,8 +97,8 @@ struct sysc {
 	unsigned int needs_resume:1;
 	unsigned int child_needs_resume:1;
 	struct delayed_work idle_work;
-	void (*clk_enable_quirk)(struct sysc *sysc);
-	void (*clk_disable_quirk)(struct sysc *sysc);
+	void (*pre_reset_quirk)(struct sysc *sysc);
+	void (*post_reset_quirk)(struct sysc *sysc);
 	void (*reset_done_quirk)(struct sysc *sysc);
 	void (*module_enable_quirk)(struct sysc *sysc);
 	void (*module_disable_quirk)(struct sysc *sysc);
@@ -1418,7 +1418,7 @@ static void sysc_module_enable_quirk_aess(struct sysc *ddata)
 	sysc_write(ddata, offset, 1);
 }
 
-/* I2C needs extra enable bit toggling for reset */
+/* I2C needs to be disabled for reset */
 static void sysc_clk_quirk_i2c(struct sysc *ddata, bool enable)
 {
 	int offset;
@@ -1439,14 +1439,14 @@ static void sysc_clk_quirk_i2c(struct sysc *ddata, bool enable)
 	sysc_write(ddata, offset, val);
 }
 
-static void sysc_clk_enable_quirk_i2c(struct sysc *ddata)
-{
-	sysc_clk_quirk_i2c(ddata, true);
-}
-
-static void sysc_clk_disable_quirk_i2c(struct sysc *ddata)
+static void sysc_pre_reset_quirk_i2c(struct sysc *ddata)
 {
 	sysc_clk_quirk_i2c(ddata, false);
+}
+
+static void sysc_post_reset_quirk_i2c(struct sysc *ddata)
+{
+	sysc_clk_quirk_i2c(ddata, true);
 }
 
 /* 36xx SGX needs a quirk for to bypass OCP IPG interrupt logic */
@@ -1488,14 +1488,14 @@ static void sysc_init_module_quirks(struct sysc *ddata)
 		return;
 
 	if (ddata->cfg.quirks & SYSC_MODULE_QUIRK_HDQ1W) {
-		ddata->clk_disable_quirk = sysc_pre_reset_quirk_hdq1w;
+		ddata->pre_reset_quirk = sysc_pre_reset_quirk_hdq1w;
 
 		return;
 	}
 
 	if (ddata->cfg.quirks & SYSC_MODULE_QUIRK_I2C) {
-		ddata->clk_enable_quirk = sysc_clk_enable_quirk_i2c;
-		ddata->clk_disable_quirk = sysc_clk_disable_quirk_i2c;
+		ddata->pre_reset_quirk = sysc_pre_reset_quirk_i2c;
+		ddata->post_reset_quirk = sysc_post_reset_quirk_i2c;
 
 		return;
 	}
@@ -1583,8 +1583,8 @@ static int sysc_reset(struct sysc *ddata)
 	else
 		syss_done = ddata->cfg.syss_mask;
 
-	if (ddata->clk_disable_quirk)
-		ddata->clk_disable_quirk(ddata);
+	if (ddata->pre_reset_quirk)
+		ddata->pre_reset_quirk(ddata);
 
 	sysc_val = sysc_read_sysconfig(ddata);
 	sysc_val |= sysc_mask;
@@ -1594,8 +1594,8 @@ static int sysc_reset(struct sysc *ddata)
 		usleep_range(ddata->cfg.srst_udelay,
 			     ddata->cfg.srst_udelay * 2);
 
-	if (ddata->clk_enable_quirk)
-		ddata->clk_enable_quirk(ddata);
+	if (ddata->post_reset_quirk)
+		ddata->post_reset_quirk(ddata);
 
 	/* Poll on reset status */
 	if (syss_offset >= 0) {
