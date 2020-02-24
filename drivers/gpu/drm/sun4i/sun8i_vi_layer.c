@@ -231,20 +231,20 @@ static int sun8i_vi_layer_update_formats(struct sun8i_mixer *mixer, int channel,
 					 int overlay, struct drm_plane *plane)
 {
 	struct drm_plane_state *state = plane->state;
-	const struct de2_fmt_info *fmt_info;
+	u32 val, ch_base, csc_mode, hw_fmt;
 	const struct drm_format_info *fmt;
-	u32 val, ch_base, csc_mode;
+	int ret;
 
 	ch_base = sun8i_channel_base(mixer, channel);
 
 	fmt = state->fb->format;
-	fmt_info = sun8i_mixer_format_info(fmt->format);
-	if (!fmt_info) {
+	ret = sun8i_mixer_drm_format_to_hw(fmt->format, &hw_fmt);
+	if (ret) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
-		return -EINVAL;
+		return ret;
 	}
 
-	val = fmt_info->de2_fmt << SUN8I_MIXER_CHAN_VI_LAYER_ATTR_FBFMT_OFFSET;
+	val = hw_fmt << SUN8I_MIXER_CHAN_VI_LAYER_ATTR_FBFMT_OFFSET;
 	regmap_update_bits(mixer->engine.regs,
 			   SUN8I_MIXER_CHAN_VI_LAYER_ATTR(ch_base, overlay),
 			   SUN8I_MIXER_CHAN_VI_LAYER_ATTR_FBFMT_MASK, val);

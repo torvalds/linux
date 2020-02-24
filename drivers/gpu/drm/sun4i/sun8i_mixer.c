@@ -27,6 +27,11 @@
 #include "sun8i_vi_layer.h"
 #include "sunxi_engine.h"
 
+struct de2_fmt_info {
+	u32	drm_fmt;
+	u32	de2_fmt;
+};
+
 static const struct de2_fmt_info de2_formats[] = {
 	{
 		.drm_fmt = DRM_FORMAT_ARGB8888,
@@ -230,15 +235,17 @@ static const struct de2_fmt_info de2_formats[] = {
 	},
 };
 
-const struct de2_fmt_info *sun8i_mixer_format_info(u32 format)
+int sun8i_mixer_drm_format_to_hw(u32 format, u32 *hw_format)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(de2_formats); ++i)
-		if (de2_formats[i].drm_fmt == format)
-			return &de2_formats[i];
+		if (de2_formats[i].drm_fmt == format) {
+			*hw_format = de2_formats[i].de2_fmt;
+			return 0;
+		}
 
-	return NULL;
+	return -EINVAL;
 }
 
 static void sun8i_mixer_commit(struct sunxi_engine *engine)
