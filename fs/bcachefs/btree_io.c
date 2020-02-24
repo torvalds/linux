@@ -1647,6 +1647,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 
 	b->written += sectors_to_write;
 
+	/* XXX: submitting IO with btree locks held: */
 	bch2_submit_wbio_replicas(&wbio->wbio, c, BCH_DATA_BTREE, &k.key);
 	return;
 err:

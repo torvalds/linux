@@ -912,6 +912,27 @@ static void btree_iter_prefetch(struct btree_iter *iter)
 		btree_node_unlock(iter, iter->level);
 }
 
+static noinline void btree_node_mem_ptr_set(struct btree_iter *iter,
+					    unsigned plevel, struct btree *b)
+{
+	struct btree_iter_level *l = &iter->l[plevel];
+	bool locked = btree_node_locked(iter, plevel);
+	struct bkey_packed *k;
+	struct bch_btree_ptr_v2 *bp;
+
+	if (!bch2_btree_node_relock(iter, plevel))
+		return;
+
+	k = bch2_btree_node_iter_peek_all(&l->iter, l->b);
+	BUG_ON(k->type != KEY_TYPE_btree_ptr_v2);
+
+	bp = (void *) bkeyp_val(&l->b->format, k);
+	bp->mem_ptr = (unsigned long)b;
+
+	if (!locked)
+		btree_node_unlock(iter, plevel);
+}
+
 static __always_inline int btree_iter_down(struct btree_iter *iter)
 {
 	struct bch_fs *c = iter->trans->c;
@@ -932,6 +953,10 @@ static __always_inline int btree_iter_down(struct btree_iter *iter)
 
 	mark_btree_node_locked(iter, level, lock_type);
 	btree_iter_node_set(iter, b);
+
+	if (tmp.k.k.type == KEY_TYPE_btree_ptr_v2 &&
+	    unlikely(b != btree_node_mem_ptr(&tmp.k)))
+		btree_node_mem_ptr_set(iter, level + 1, b);
 
 	if (iter->flags & BTREE_ITER_PREFETCH)
 		btree_iter_prefetch(iter);

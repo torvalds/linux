@@ -596,12 +596,13 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
 
+	BUG_ON(level + 1 >= BTREE_MAX_DEPTH);
 	/*
 	 * Parent node must be locked, else we could read in a btree node that's
 	 * been freed:
 	 */
-	BUG_ON(!btree_node_locked(iter, level + 1));
-	BUG_ON(level >= BTREE_MAX_DEPTH);
+	if (!bch2_btree_node_relock(iter, level + 1))
+		return ERR_PTR(-EINTR);
 
 	b = bch2_btree_node_mem_alloc(c);
 	if (IS_ERR(b))
@@ -624,13 +625,9 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	}
 
 	/*
-	 * If the btree node wasn't cached, we can't drop our lock on
-	 * the parent until after it's added to the cache - because
-	 * otherwise we could race with a btree_split() freeing the node
-	 * we're trying to lock.
+	 * Unlock before doing IO:
 	 *
-	 * But the deadlock described below doesn't exist in this case,
-	 * so it's safe to not drop the parent lock until here:
+	 * XXX: ideally should be dropping all btree node locks here
 	 */
 	if (btree_node_read_locked(iter, level + 1))
 		btree_node_unlock(iter, level + 1);
@@ -667,16 +664,11 @@ struct btree *bch2_btree_node_get(struct bch_fs *c, struct btree_iter *iter,
 	struct btree *b;
 	struct bset_tree *t;
 
-	/*
-	 * XXX: locking optimization
-	 *
-	 * we can make the locking looser here - caller can drop lock on parent
-	 * node before locking child node (and potentially blocking): we just
-	 * have to have bch2_btree_node_fill() call relock on the parent and
-	 * return -EINTR if that fails
-	 */
-	EBUG_ON(!btree_node_locked(iter, level + 1));
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
+
+	b = btree_node_mem_ptr(k);
+	if (b)
+		goto lock_node;
 retry:
 	b = btree_cache_find(bc, k);
 	if (unlikely(!b)) {
@@ -694,6 +686,7 @@ retry:
 		if (IS_ERR(b))
 			return b;
 	} else {
+lock_node:
 		/*
 		 * There's a potential deadlock with splits and insertions into
 		 * interior nodes we have to avoid:
@@ -740,6 +733,7 @@ retry:
 		}
 	}
 
+	/* XXX: waiting on IO with btree locks held: */
 	wait_on_bit_io(&b->flags, BTREE_NODE_read_in_flight,
 		       TASK_UNINTERRUPTIBLE);
 
