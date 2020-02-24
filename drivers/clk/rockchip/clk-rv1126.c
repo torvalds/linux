@@ -145,7 +145,7 @@ PNAME(mux_uart1_p)			= { "sclk_uart1_div", "sclk_uart1_fracdiv", "xin24m" };
 PNAME(mux_xin24m_gpll_p)		= { "xin24m", "gpll" };
 PNAME(mux_gpll_xin24m_p)		= { "gpll", "xin24m" };
 PNAME(mux_xin24m_32k_p)			= { "xin24m", "clk_rtc32k" };
-PNAME(mux_usbphy_otp_ref_p)		= { "clk_ref12m", "xin_osc0_div2_usbphyref_otg" };
+PNAME(mux_usbphy_otg_ref_p)		= { "clk_ref12m", "xin_osc0_div2_usbphyref_otg" };
 PNAME(mux_usbphy_host_ref_p)		= { "clk_ref12m", "xin_osc0_div2_usbphyref_host" };
 PNAME(mux_mipidsiphy_ref_p)		= { "clk_ref24m", "xin_osc0_mipiphyref" };
 PNAME(mux_usb480m_p)			= { "xin24m", "usb480m_phy", "clk_rtc32k" };
@@ -416,7 +416,7 @@ static struct rockchip_clk_branch rv1126_clk_pmu_branches[] __initdata = {
 			RV1126_PMU_CLKGATE_CON(1), 7, GFLAGS),
 	FACTOR(0, "xin_osc0_div2_usbphyref_otg", "xin_osc0_usbphyref_otg", 0, 1, 2),
 	FACTOR(0, "xin_osc0_div2_usbphyref_host", "xin_osc0_usbphyref_host", 0, 1, 2),
-	MUX(CLK_USBPHY_OTP_REF, "clk_usbphy_otp_ref", mux_usbphy_otp_ref_p, CLK_SET_RATE_PARENT,
+	MUX(CLK_USBPHY_OTG_REF, "clk_usbphy_otg_ref", mux_usbphy_otg_ref_p, CLK_SET_RATE_PARENT,
 			RV1126_PMU_CLKSEL_CON(7), 6, 1, MFLAGS),
 	MUX(CLK_USBPHY_HOST_REF, "clk_usbphy_host_ref", mux_usbphy_host_ref_p, CLK_SET_RATE_PARENT,
 			RV1126_PMU_CLKSEL_CON(7), 7, 1, MFLAGS),
