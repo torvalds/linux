@@ -327,6 +327,11 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 	struct drm_device *dev;
 	int ret;
 
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev,
+								"hibmcdrmfb");
+	if (ret)
+		return ret;
+
 	dev = drm_dev_alloc(&hibmc_driver, &pdev->dev);
 	if (IS_ERR(dev)) {
 		DRM_ERROR("failed to allocate drm_device\n");
