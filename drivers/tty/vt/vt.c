@@ -2577,8 +2577,6 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	if (in_interrupt())
 		return count;
 
-	might_sleep();
-
 	console_lock();
 	vc = tty->driver_data;
 	if (vc == NULL) {
