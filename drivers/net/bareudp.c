@@ -320,6 +320,7 @@ static int bareudp_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	df = key->tun_flags & TUNNEL_DONT_FRAGMENT ? htons(IP_DF) : 0;
 	skb_scrub_packet(skb, xnet);
 
+	err = -ENOSPC;
 	if (!skb_pull(skb, skb_network_offset(skb)))
 		goto free_dst;
 
@@ -381,6 +382,7 @@ static int bareudp6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 
 	skb_scrub_packet(skb, xnet);
 
+	err = -ENOSPC;
 	if (!skb_pull(skb, skb_network_offset(skb)))
 		goto free_dst;
 
