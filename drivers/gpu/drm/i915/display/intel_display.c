@@ -249,6 +249,15 @@ intel_fdi_link_freq(struct drm_i915_private *dev_priv,
 		return dev_priv->fdi_pll_freq;
 }
 
+static bool
+has_transcoder(struct drm_i915_private *dev_priv, enum transcoder cpu_transcoder)
+{
+	if (cpu_transcoder == TRANSCODER_EDP)
+		return HAS_TRANSCODER_EDP(dev_priv);
+	else
+		return INTEL_INFO(dev_priv)->pipe_mask & BIT(cpu_transcoder);
+}
+
 static const struct intel_limit intel_limits_i8xx_dac = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 908000, .max = 1512000 },
@@ -18930,7 +18939,7 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv)
 	for (i = 0; i < ARRAY_SIZE(error->transcoder); i++) {
 		enum transcoder cpu_transcoder = transcoders[i];
 
-		if (!INTEL_INFO(dev_priv)->trans_offsets[cpu_transcoder])
+		if (!has_transcoder(dev_priv, cpu_transcoder))
 			continue;
 
 		error->transcoder[i].available = true;
