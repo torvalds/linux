@@ -5,7 +5,7 @@
  * Copyright (c) 2014-2017 Broadcom
  */
 
-
+#include <linux/acpi.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
@@ -311,7 +311,8 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 int bcmgenet_mii_probe(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device *kdev = &priv->pdev->dev;
+	struct device_node *dn = kdev->of_node;
 	struct phy_device *phydev;
 	u32 phy_flags = 0;
 	int ret;
@@ -334,7 +335,27 @@ int bcmgenet_mii_probe(struct net_device *dev)
 			return -ENODEV;
 		}
 	} else {
-		phydev = dev->phydev;
+		if (has_acpi_companion(kdev)) {
+			char mdio_bus_id[MII_BUS_ID_SIZE];
+			struct mii_bus *unimacbus;
+
+			snprintf(mdio_bus_id, MII_BUS_ID_SIZE, "%s-%d",
+				 UNIMAC_MDIO_DRV_NAME, priv->pdev->id);
+
+			unimacbus = mdio_find_bus(mdio_bus_id);
+			if (!unimacbus) {
+				pr_err("Unable to find mii\n");
+				return -ENODEV;
+			}
+			phydev = phy_find_first(unimacbus);
+			put_device(&unimacbus->dev);
+			if (!phydev) {
+				pr_err("Unable to find PHY\n");
+				return -ENODEV;
+			}
+		} else {
+			phydev = dev->phydev;
+		}
 		phydev->dev_flags = phy_flags;
 
 		ret = phy_connect_direct(dev, phydev, bcmgenet_mii_setup,
@@ -455,9 +476,12 @@ static int bcmgenet_mii_register(struct bcmgenet_priv *priv)
 	/* Retain this platform_device pointer for later cleanup */
 	priv->mii_pdev = ppdev;
 	ppdev->dev.parent = &pdev->dev;
-	ppdev->dev.of_node = bcmgenet_mii_of_find_mdio(priv);
-	if (pdata)
+	if (dn)
+		ppdev->dev.of_node = bcmgenet_mii_of_find_mdio(priv);
+	else if (pdata)
 		bcmgenet_mii_pdata_init(priv, &ppd);
+	else
+		ppd.phy_mask = ~0;
 
 	ret = platform_device_add_resources(ppdev, &res, 1);
 	if (ret)
@@ -591,10 +615,13 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 
 static int bcmgenet_mii_bus_init(struct bcmgenet_priv *priv)
 {
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device *kdev = &priv->pdev->dev;
+	struct device_node *dn = kdev->of_node;
 
 	if (dn)
 		return bcmgenet_mii_of_init(priv);
+	else if (has_acpi_companion(kdev))
+		return bcmgenet_phy_interface_init(priv);
 	else
 		return bcmgenet_mii_pd_init(priv);
 }
