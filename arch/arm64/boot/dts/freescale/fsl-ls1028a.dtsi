@@ -739,7 +739,9 @@
 				  /* PF1: VF0-1 BAR0 - non-prefetchable memory */
 				  0x82000000 0x0 0x00000000  0x1 0xf8210000  0x0 0x020000
 				  /* PF1: VF0-1 BAR2 - prefetchable memory */
-				  0xc2000000 0x0 0x00000000  0x1 0xf8230000  0x0 0x020000>;
+				  0xc2000000 0x0 0x00000000  0x1 0xf8230000  0x0 0x020000
+				  /* BAR4 (PF5) - non-prefetchable memory */
+				  0x82000000 0x0 0x00000000  0x1 0xfc000000  0x0 0x400000>;
 
 			enetc_port0: ethernet@0,0 {
 				compatible = "fsl,enetc";
@@ -751,6 +753,18 @@
 				compatible = "fsl,enetc";
 				reg = <0x000100 0 0 0 0>;
 				status = "disabled";
+			};
+
+			enetc_port2: ethernet@0,2 {
+				compatible = "fsl,enetc";
+				reg = <0x000200 0 0 0 0>;
+				phy-mode = "internal";
+				status = "disabled";
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
 			};
 
 			enetc_mdio_pf3: mdio@0,3 {
@@ -766,6 +780,73 @@
 				clocks = <&clockgen 4 0>;
 				little-endian;
 				fsl,extts-fifo;
+			};
+
+			ethernet-switch@0,5 {
+				reg = <0x000500 0 0 0 0>;
+				/* IEP INT_B */
+				interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					/* External ports */
+					mscc_felix_port0: port@0 {
+						reg = <0>;
+						status = "disabled";
+					};
+
+					mscc_felix_port1: port@1 {
+						reg = <1>;
+						status = "disabled";
+					};
+
+					mscc_felix_port2: port@2 {
+						reg = <2>;
+						status = "disabled";
+					};
+
+					mscc_felix_port3: port@3 {
+						reg = <3>;
+						status = "disabled";
+					};
+
+					/* Internal ports */
+					mscc_felix_port4: port@4 {
+						reg = <4>;
+						phy-mode = "internal";
+						status = "disabled";
+
+						fixed-link {
+							speed = <2500>;
+							full-duplex;
+						};
+					};
+
+					mscc_felix_port5: port@5 {
+						reg = <5>;
+						phy-mode = "internal";
+						status = "disabled";
+
+						fixed-link {
+							speed = <1000>;
+							full-duplex;
+						};
+					};
+				};
+			};
+
+			enetc_port3: ethernet@0,6 {
+				compatible = "fsl,enetc";
+				reg = <0x000600 0 0 0 0>;
+				phy-mode = "internal";
+				status = "disabled";
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
 			};
 		};
 	};
