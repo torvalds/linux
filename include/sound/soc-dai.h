@@ -352,6 +352,21 @@ struct snd_soc_dai {
 	unsigned int started:1;
 };
 
+static inline struct snd_soc_pcm_stream *
+snd_soc_dai_get_pcm_stream(const struct snd_soc_dai *dai, int stream)
+{
+	return (stream == SNDRV_PCM_STREAM_PLAYBACK) ?
+		&dai->driver->playback : &dai->driver->capture;
+}
+
+static inline
+struct snd_soc_dapm_widget *snd_soc_dai_get_widget(
+	struct snd_soc_dai *dai, int stream)
+{
+	return (stream == SNDRV_PCM_STREAM_PLAYBACK) ?
+		dai->playback_widget : dai->capture_widget;
+}
+
 static inline void *snd_soc_dai_get_dma_data(const struct snd_soc_dai *dai,
 					     const struct snd_pcm_substream *ss)
 {
