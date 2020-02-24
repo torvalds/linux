@@ -665,6 +665,8 @@ struct mlxsw_sp_acl_block {
 	unsigned int rule_count;
 	unsigned int disable_count;
 	unsigned int egress_blocker_rule_count;
+	unsigned int ingress_binding_count;
+	unsigned int egress_binding_count;
 	struct net *net;
 };
 
@@ -688,6 +690,8 @@ int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_port *mlxsw_sp_port,
 			      bool ingress);
 bool mlxsw_sp_acl_block_is_egress_bound(const struct mlxsw_sp_acl_block *block);
+bool mlxsw_sp_acl_block_is_ingress_bound(const struct mlxsw_sp_acl_block *block);
+bool mlxsw_sp_acl_block_is_mixed_bound(const struct mlxsw_sp_acl_block *block);
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_block *block, u32 chain_index,

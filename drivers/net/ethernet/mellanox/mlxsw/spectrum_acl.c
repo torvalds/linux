@@ -124,13 +124,17 @@ bool mlxsw_sp_acl_block_disabled(const struct mlxsw_sp_acl_block *block)
 
 bool mlxsw_sp_acl_block_is_egress_bound(const struct mlxsw_sp_acl_block *block)
 {
-	struct mlxsw_sp_acl_block_binding *binding;
+	return block->egress_binding_count;
+}
 
-	list_for_each_entry(binding, &block->binding_list, list) {
-		if (!binding->ingress)
-			return true;
-	}
-	return false;
+bool mlxsw_sp_acl_block_is_ingress_bound(const struct mlxsw_sp_acl_block *block)
+{
+	return block->ingress_binding_count;
+}
+
+bool mlxsw_sp_acl_block_is_mixed_bound(const struct mlxsw_sp_acl_block *block)
+{
+	return block->ingress_binding_count && block->egress_binding_count;
 }
 
 static bool
@@ -269,6 +273,10 @@ int mlxsw_sp_acl_block_bind(struct mlxsw_sp *mlxsw_sp,
 			goto err_ruleset_bind;
 	}
 
+	if (ingress)
+		block->ingress_binding_count++;
+	else
+		block->egress_binding_count++;
 	list_add(&binding->list, &block->binding_list);
 	return 0;
 
@@ -289,6 +297,11 @@ int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
 		return -ENOENT;
 
 	list_del(&binding->list);
+
+	if (ingress)
+		block->ingress_binding_count--;
+	else
+		block->egress_binding_count--;
 
 	if (mlxsw_sp_acl_ruleset_block_bound(block))
 		mlxsw_sp_acl_ruleset_unbind(mlxsw_sp, block, binding);
