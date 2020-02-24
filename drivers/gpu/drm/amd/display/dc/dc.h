@@ -1025,6 +1025,11 @@ struct dc_sink_dsc_caps {
 	struct dsc_dec_dpcd_caps dsc_dec_caps;
 };
 
+struct dc_sink_fec_caps {
+	bool is_rx_fec_supported;
+	bool is_topology_fec_supported;
+};
+
 /*
  * The sink structure contains EDID and other display device properties
  */
@@ -1038,7 +1043,8 @@ struct dc_sink {
 	struct stereo_3d_features features_3d[TIMING_3D_FORMAT_MAX];
 	bool converter_disable_audio;
 
-	struct dc_sink_dsc_caps sink_dsc_caps;
+	struct dc_sink_dsc_caps dsc_caps;
+	struct dc_sink_fec_caps fec_caps;
 
 	/* private to DC core */
 	struct dc_link *link;
