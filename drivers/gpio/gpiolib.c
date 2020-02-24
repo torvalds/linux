@@ -1276,7 +1276,7 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (IS_ERR(desc))
 			return PTR_ERR(desc);
 
-		clear_bit(desc_to_gpio(desc), &desc->flags);
+		clear_bit(desc_to_gpio(desc), priv->watched_lines);
 		return 0;
 	}
 	return -EINVAL;
