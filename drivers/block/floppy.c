@@ -306,8 +306,6 @@ static bool initialized;
 	/* reverse mapping from unit and fdc to drive */
 #define REVDRIVE(fdc, unit) ((unit) + ((fdc) << 2))
 
-#define DRWE	(&write_errors[current_drive])
-
 #define PH_HEAD(floppy, head) (((((floppy)->stretch & 2) >> 1) ^ head) << 2)
 #define STRETCH(floppy)	((floppy)->stretch & FD_STRETCH)
 
@@ -2069,7 +2067,7 @@ static void bad_flp_intr(void)
 			return;
 	}
 	err_count = ++(*errors);
-	INFBOUND(DRWE->badness, err_count);
+	INFBOUND(write_errors[current_drive].badness, err_count);
 	if (err_count > drive_params[current_drive].max_errors.abort)
 		cont->done(0);
 	if (err_count > drive_params[current_drive].max_errors.reset)
@@ -2274,13 +2272,13 @@ static void request_done(int uptodate)
 	} else {
 		if (rq_data_dir(req) == WRITE) {
 			/* record write error information */
-			DRWE->write_errors++;
-			if (DRWE->write_errors == 1) {
-				DRWE->first_error_sector = blk_rq_pos(req);
-				DRWE->first_error_generation = drive_state[current_drive].generation;
+			write_errors[current_drive].write_errors++;
+			if (write_errors[current_drive].write_errors == 1) {
+				write_errors[current_drive].first_error_sector = blk_rq_pos(req);
+				write_errors[current_drive].first_error_generation = drive_state[current_drive].generation;
 			}
-			DRWE->last_error_sector = blk_rq_pos(req);
-			DRWE->last_error_generation = drive_state[current_drive].generation;
+			write_errors[current_drive].last_error_sector = blk_rq_pos(req);
+			write_errors[current_drive].last_error_generation = drive_state[current_drive].generation;
 		}
 		floppy_end_request(req, BLK_STS_IOERR);
 	}
