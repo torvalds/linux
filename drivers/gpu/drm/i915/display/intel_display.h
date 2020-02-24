@@ -614,6 +614,7 @@ intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
 
 /* modesetting */
 void intel_modeset_init_hw(struct drm_i915_private *i915);
+int intel_modeset_init_noirq(struct drm_i915_private *i915);
 int intel_modeset_init(struct drm_i915_private *i915);
 void intel_modeset_driver_remove(struct drm_i915_private *i915);
 void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915);
