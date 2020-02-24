@@ -535,9 +535,10 @@ int mlxsw_sp_acl_rulei_act_terminate(struct mlxsw_sp_acl_rule_info *rulei)
 	return mlxsw_afa_block_terminate(rulei->act_block);
 }
 
-int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei)
+int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei,
+				bool ingress)
 {
-	return mlxsw_afa_block_append_drop(rulei->act_block);
+	return mlxsw_afa_block_append_drop(rulei->act_block, ingress);
 }
 
 int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei)

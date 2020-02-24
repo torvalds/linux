@@ -813,7 +813,7 @@ mlxsw_afa_trap_mirror_pack(char *payload, bool mirror_enable,
 	mlxsw_afa_trap_mirror_agent_set(payload, mirror_agent);
 }
 
-int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block)
+int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block, bool ingress)
 {
 	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAP_CODE,
 						  MLXSW_AFA_TRAP_SIZE);
