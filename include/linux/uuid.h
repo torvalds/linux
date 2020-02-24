@@ -84,6 +84,7 @@ static inline bool uuid_is_null(const uuid_t *uuid)
 }
 
 void generate_random_uuid(unsigned char uuid[16]);
+void generate_random_guid(unsigned char guid[16]);
 
 extern void guid_gen(guid_t *u);
 extern void uuid_gen(uuid_t *u);
