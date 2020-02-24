@@ -2579,7 +2579,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 	if (req->r_timeout &&
 	    time_after_eq(jiffies, req->r_started + req->r_timeout)) {
 		dout("do_request timed out\n");
-		err = -EIO;
+		err = -ETIMEDOUT;
 		goto finish;
 	}
 	if (READ_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
@@ -2753,7 +2753,7 @@ static int ceph_mdsc_wait_request(struct ceph_mds_client *mdsc,
 		if (timeleft > 0)
 			err = 0;
 		else if (!timeleft)
-			err = -EIO;  /* timed out */
+			err = -ETIMEDOUT;  /* timed out */
 		else
 			err = timeleft;  /* killed */
 	}
