@@ -516,6 +516,53 @@ static void link_disconnect_remap(struct dc_sink *prev_sink, struct dc_link *lin
 }
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
+bool dc_link_is_hdcp14(struct dc_link *link)
+{
+	bool ret = false;
+
+	switch (link->connector_signal)	{
+	case SIGNAL_TYPE_DISPLAY_PORT:
+	case SIGNAL_TYPE_DISPLAY_PORT_MST:
+		ret = link->hdcp_caps.bcaps.bits.HDCP_CAPABLE;
+		break;
+	case SIGNAL_TYPE_DVI_SINGLE_LINK:
+	case SIGNAL_TYPE_DVI_DUAL_LINK:
+	case SIGNAL_TYPE_HDMI_TYPE_A:
+	/* HDMI doesn't tell us its HDCP(1.4) capability, so assume to always be capable,
+	 * we can poll for bksv but some displays have an issue with this. Since its so rare
+	 * for a display to not be 1.4 capable, this assumtion is ok
+	 */
+		ret = true;
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+bool dc_link_is_hdcp22(struct dc_link *link)
+{
+	bool ret = false;
+
+	switch (link->connector_signal)	{
+	case SIGNAL_TYPE_DISPLAY_PORT:
+	case SIGNAL_TYPE_DISPLAY_PORT_MST:
+		ret = (link->hdcp_caps.bcaps.bits.HDCP_CAPABLE &&
+				link->hdcp_caps.rx_caps.fields.byte0.hdcp_capable &&
+				(link->hdcp_caps.rx_caps.fields.version == 0x2)) ? 1 : 0;
+		break;
+	case SIGNAL_TYPE_DVI_SINGLE_LINK:
+	case SIGNAL_TYPE_DVI_DUAL_LINK:
+	case SIGNAL_TYPE_HDMI_TYPE_A:
+		ret = (link->hdcp_caps.rx_caps.fields.version == 0x4) ? 1:0;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 {
 	struct hdcp_protection_message msg22;

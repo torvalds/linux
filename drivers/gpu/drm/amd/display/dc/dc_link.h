@@ -293,6 +293,10 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type);
  * DPCD access interfaces
  */
 
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+bool dc_link_is_hdcp14(struct dc_link *link);
+bool dc_link_is_hdcp22(struct dc_link *link);
+#endif
 void dc_link_set_drive_settings(struct dc *dc,
 				struct link_training_settings *lt_settings,
 				const struct dc_link *link);
