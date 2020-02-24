@@ -190,6 +190,23 @@ static int qstat_show(struct seq_file *m, void *v)
 
 DEFINE_SHOW_ATTRIBUTE(qstat);
 
+static int ssqd_show(struct seq_file *m, void *v)
+{
+	struct ccw_device *cdev = m->private;
+	struct qdio_ssqd_desc ssqd;
+	int rc;
+
+	rc = qdio_get_ssqd_desc(cdev, &ssqd);
+	if (rc)
+		return rc;
+
+	seq_hex_dump(m, "", DUMP_PREFIX_NONE, 16, 4, &ssqd, sizeof(ssqd),
+		     false);
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(ssqd);
+
 static char *qperf_names[] = {
 	"Assumed adapter interrupts",
 	"QDIO interrupts",
@@ -303,6 +320,8 @@ void qdio_setup_debug_entries(struct qdio_irq *irq_ptr, struct ccw_device *cdev)
 						  debugfs_root);
 	debugfs_create_file("statistics", S_IFREG | S_IRUGO | S_IWUSR,
 			    irq_ptr->debugfs_dev, irq_ptr, &debugfs_perf_fops);
+	debugfs_create_file("ssqd", 0444, irq_ptr->debugfs_dev, cdev,
+			    &ssqd_fops);
 
 	for_each_input_queue(irq_ptr, q, i)
 		setup_debugfs_entry(irq_ptr->debugfs_dev, q);
