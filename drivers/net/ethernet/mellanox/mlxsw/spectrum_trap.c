@@ -239,14 +239,34 @@ static const u16 mlxsw_sp_listener_devlink_map[] = {
 };
 
 #define MLXSW_SP_DISCARD_POLICER_ID	(MLXSW_REG_HTGT_TRAP_GROUP_MAX + 1)
+#define MLXSW_SP_THIN_POLICER_ID	(MLXSW_SP_DISCARD_POLICER_ID + 1)
 
 static int mlxsw_sp_trap_cpu_policers_set(struct mlxsw_sp *mlxsw_sp)
 {
 	char qpcr_pl[MLXSW_REG_QPCR_LEN];
+	int err;
 
 	mlxsw_reg_qpcr_pack(qpcr_pl, MLXSW_SP_DISCARD_POLICER_ID,
 			    MLXSW_REG_QPCR_IR_UNITS_M, false, 10 * 1024, 7);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpcr), qpcr_pl);
+	if (err)
+		return err;
+
+	/* The purpose of "thin" policer is to drop as many packets
+	 * as possible. The dummy group is using it.
+	 */
+	mlxsw_reg_qpcr_pack(qpcr_pl, MLXSW_SP_THIN_POLICER_ID,
+			    MLXSW_REG_QPCR_IR_UNITS_M, false, 1, 4);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpcr), qpcr_pl);
+}
+
+static int mlxsw_sp_trap_dummy_group_init(struct mlxsw_sp *mlxsw_sp)
+{
+	char htgt_pl[MLXSW_REG_HTGT_LEN];
+
+	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_SP_DUMMY,
+			    MLXSW_SP_THIN_POLICER_ID, 0, 1);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(htgt), htgt_pl);
 }
 
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
@@ -255,6 +275,10 @@ int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 	int err;
 
 	err = mlxsw_sp_trap_cpu_policers_set(mlxsw_sp);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_trap_dummy_group_init(mlxsw_sp);
 	if (err)
 		return err;
 
