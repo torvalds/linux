@@ -156,15 +156,34 @@ static void hns_roce_ib_qp_event(struct hns_roce_qp *hr_qp,
 	}
 }
 
-static int hns_roce_reserve_range_qp(struct hns_roce_dev *hr_dev, int cnt,
-				     int align, unsigned long *base)
+static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 {
-	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
+	unsigned long num = 0;
+	int ret;
 
-	return hns_roce_bitmap_alloc_range(&qp_table->bitmap, cnt, align,
-					   base) ?
-		       -ENOMEM :
-		       0;
+	if (hr_qp->ibqp.qp_type == IB_QPT_GSI) {
+		/* when hw version is v1, the sqpn is allocated */
+		if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
+			num = HNS_ROCE_MAX_PORTS +
+			      hr_dev->iboe.phy_port[hr_qp->port];
+		else
+			num = 1;
+
+		hr_qp->doorbell_qpn = 1;
+	} else {
+		ret = hns_roce_bitmap_alloc_range(&hr_dev->qp_table.bitmap,
+						  1, 1, &num);
+		if (ret) {
+			ibdev_err(&hr_dev->ib_dev, "Failed to alloc bitmap\n");
+			return -ENOMEM;
+		}
+
+		hr_qp->doorbell_qpn = (u32)num;
+	}
+
+	hr_qp->qpn = num;
+
+	return 0;
 }
 
 enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state)
@@ -323,15 +342,17 @@ static void free_qpc(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	hns_roce_table_put(hr_dev, &qp_table->irrl_table, hr_qp->qpn);
 }
 
-void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
-			       int cnt)
+static void free_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 
-	if (base_qpn < hr_dev->caps.reserved_qps)
+	if (hr_qp->ibqp.qp_type == IB_QPT_GSI)
 		return;
 
-	hns_roce_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt, BITMAP_RR);
+	if (hr_qp->qpn < hr_dev->caps.reserved_qps)
+		return;
+
+	hns_roce_bitmap_free_range(&qp_table->bitmap, hr_qp->qpn, 1, BITMAP_RR);
 }
 
 static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
@@ -749,7 +770,7 @@ static void free_rq_inline_buf(struct hns_roce_qp *hr_qp)
 static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				     struct ib_pd *ib_pd,
 				     struct ib_qp_init_attr *init_attr,
-				     struct ib_udata *udata, unsigned long sqpn,
+				     struct ib_udata *udata,
 				     struct hns_roce_qp *hr_qp)
 {
 	dma_addr_t *buf_list[ARRAY_SIZE(hr_qp->regions)] = { NULL };
@@ -759,7 +780,6 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	struct hns_roce_ucontext *uctx = rdma_udata_to_drv_context(
 		udata, struct hns_roce_ucontext, ibucontext);
 	struct hns_roce_buf_region *r;
-	unsigned long qpn = 0;
 	u32 page_shift;
 	int buf_count;
 	int ret;
@@ -959,19 +979,6 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 	}
 
-	if (sqpn) {
-		qpn = sqpn;
-	} else {
-		/* Get QPN */
-		ret = hns_roce_reserve_range_qp(hr_dev, 1, 1, &qpn);
-		if (ret) {
-			dev_err(dev, "hns_roce_reserve_range_qp alloc qpn error\n");
-			goto err_wrid;
-		}
-	}
-
-	hr_qp->qpn = qpn;
-
 	hr_qp->wqe_bt_pg_shift = calc_wqe_bt_page_shift(hr_dev, hr_qp->regions,
 							hr_qp->region_cnt);
 	hns_roce_mtr_init(&hr_qp->mtr, PAGE_SHIFT + hr_qp->wqe_bt_pg_shift,
@@ -980,6 +987,12 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				  hr_qp->regions, hr_qp->region_cnt);
 	if (ret) {
 		dev_err(dev, "mtr attach error for create qp\n");
+		goto err_wrid;
+	}
+
+	ret = alloc_qpn(hr_dev, hr_qp);
+	if (ret) {
+		ibdev_err(&hr_dev->ib_dev, "Failed to alloc QPN\n");
 		goto err_mtr;
 	}
 
@@ -995,11 +1008,6 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		goto err_qpc;
 	}
 
-	if (sqpn)
-		hr_qp->doorbell_qpn = 1;
-	else
-		hr_qp->doorbell_qpn = (u32)hr_qp->qpn;
-
 	if (udata) {
 		ret = ib_copy_to_udata(udata, &resp,
 				       min(udata->outlen, sizeof(resp)));
@@ -1013,6 +1021,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			goto err_store;
 	}
 
+	hr_qp->ibqp.qp_num = hr_qp->qpn;
 	hr_qp->event = hns_roce_ib_qp_event;
 	atomic_set(&hr_qp->refcount, 1);
 	init_completion(&hr_qp->free);
@@ -1028,8 +1037,7 @@ err_qpc:
 	free_qpc(hr_dev, hr_qp);
 
 err_qpn:
-	if (!sqpn)
-		hns_roce_release_range_qp(hr_dev, qpn, 1);
+	free_qpn(hr_dev, hr_qp);
 
 err_mtr:
 	hns_roce_mtr_cleanup(hr_dev, &hr_qp->mtr);
@@ -1088,9 +1096,7 @@ void hns_roce_qp_destroy(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 
 	free_qpc(hr_dev, hr_qp);
 
-	/* Not special_QP, free their QPN */
-	if (hr_qp->ibqp.qp_type != IB_QPT_GSI)
-		hns_roce_release_range_qp(hr_dev, hr_qp->qpn, 1);
+	free_qpn(hr_dev, hr_qp);
 
 	hns_roce_mtr_cleanup(hr_dev, &hr_qp->mtr);
 
@@ -1139,7 +1145,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 		if (!hr_qp)
 			return ERR_PTR(-ENOMEM);
 
-		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata, 0,
+		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
 						hr_qp);
 		if (ret) {
 			ibdev_err(ibdev, "Create QP 0x%06lx failed(%d)\n",
@@ -1147,8 +1153,6 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 			kfree(hr_qp);
 			return ERR_PTR(ret);
 		}
-
-		hr_qp->ibqp.qp_num = hr_qp->qpn;
 
 		break;
 	}
@@ -1166,15 +1170,8 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 		hr_qp->port = init_attr->port_num - 1;
 		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
 
-		/* when hw version is v1, the sqpn is allocated */
-		if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
-			hr_qp->ibqp.qp_num = HNS_ROCE_MAX_PORTS +
-					     hr_dev->iboe.phy_port[hr_qp->port];
-		else
-			hr_qp->ibqp.qp_num = 1;
-
 		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
-						hr_qp->ibqp.qp_num, hr_qp);
+						hr_qp);
 		if (ret) {
 			ibdev_err(ibdev, "Create GSI QP failed!\n");
 			kfree(hr_qp);
