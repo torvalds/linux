@@ -163,7 +163,7 @@ struct enetc_int_vector {
 	char name[ENETC_INT_NAME_MAX];
 
 	struct enetc_bdr rx_ring ____cacheline_aligned_in_smp;
-	struct enetc_bdr tx_ring[0];
+	struct enetc_bdr tx_ring[];
 };
 
 struct enetc_cls_rule {
