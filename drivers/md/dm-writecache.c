@@ -1194,6 +1194,7 @@ read_next_block:
 		}
 	} else {
 		do {
+			bool found_entry = false;
 			if (writecache_has_error(wc))
 				goto unlock_error;
 			e = writecache_find_entry(wc, bio->bi_iter.bi_sector, 0);
@@ -1204,9 +1205,21 @@ read_next_block:
 					wc->overwrote_committed = true;
 					goto bio_copy;
 				}
+				found_entry = true;
 			}
 			e = writecache_pop_from_freelist(wc, (sector_t)-1);
 			if (unlikely(!e)) {
+				if (!found_entry) {
+					e = writecache_find_entry(wc, bio->bi_iter.bi_sector, WFE_RETURN_FOLLOWING);
+					if (e) {
+						sector_t next_boundary = read_original_sector(wc, e) - bio->bi_iter.bi_sector;
+						BUG_ON(!next_boundary);
+						if (next_boundary < bio->bi_iter.bi_size >> SECTOR_SHIFT) {
+							dm_accept_partial_bio(bio, next_boundary);
+						}
+					}
+					goto unlock_remap_origin;
+				}
 				writecache_wait_on_freelist(wc);
 				continue;
 			}
