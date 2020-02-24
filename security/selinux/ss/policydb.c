@@ -838,29 +838,28 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 
 	head = p->ocontexts[OCON_ISID];
 	for (c = head; c; c = c->next) {
-		rc = -EINVAL;
-		if (!c->context[0].user) {
-			pr_err("SELinux:  SID %s was never defined.\n",
-				c->u.name);
+		u32 sid = c->sid[0];
+		const char *name = security_get_initial_sid_context(sid);
+
+		if (sid == SECSID_NULL) {
+			pr_err("SELinux:  SID 0 was assigned a context.\n");
 			sidtab_destroy(s);
 			goto out;
 		}
-		if (c->sid[0] == SECSID_NULL || c->sid[0] > SECINITSID_NUM) {
-			pr_err("SELinux:  Initial SID %s out of range.\n",
-				c->u.name);
-			sidtab_destroy(s);
-			goto out;
-		}
+
+		/* Ignore initial SIDs unused by this kernel. */
+		if (!name)
+			continue;
+
 		rc = context_add_hash(p, &c->context[0]);
 		if (rc) {
 			sidtab_destroy(s);
 			goto out;
 		}
-
-		rc = sidtab_set_initial(s, c->sid[0], &c->context[0]);
+		rc = sidtab_set_initial(s, sid, &c->context[0]);
 		if (rc) {
 			pr_err("SELinux:  unable to load initial SID %s.\n",
-				c->u.name);
+			       name);
 			sidtab_destroy(s);
 			goto out;
 		}

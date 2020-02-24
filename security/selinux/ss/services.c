@@ -1322,23 +1322,22 @@ static int security_sid_to_context_core(struct selinux_state *state,
 	if (!selinux_initialized(state)) {
 		if (sid <= SECINITSID_NUM) {
 			char *scontextp;
+			const char *s = initial_sid_to_string[sid];
 
-			*scontext_len = strlen(initial_sid_to_string[sid]) + 1;
+			if (!s)
+				return -EINVAL;
+			*scontext_len = strlen(s) + 1;
 			if (!scontext)
-				goto out;
-			scontextp = kmemdup(initial_sid_to_string[sid],
-					    *scontext_len, GFP_ATOMIC);
-			if (!scontextp) {
-				rc = -ENOMEM;
-				goto out;
-			}
+				return 0;
+			scontextp = kmemdup(s, *scontext_len, GFP_ATOMIC);
+			if (!scontextp)
+				return -ENOMEM;
 			*scontext = scontextp;
-			goto out;
+			return 0;
 		}
 		pr_err("SELinux: %s:  called before initial "
 		       "load_policy on unknown SID %d\n", __func__, sid);
-		rc = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 	read_lock(&state->ss->policy_rwlock);
 	policydb = &state->ss->policydb;
@@ -1362,7 +1361,6 @@ static int security_sid_to_context_core(struct selinux_state *state,
 
 out_unlock:
 	read_unlock(&state->ss->policy_rwlock);
-out:
 	return rc;
 
 }
@@ -1552,7 +1550,9 @@ static int security_context_to_sid_core(struct selinux_state *state,
 		int i;
 
 		for (i = 1; i < SECINITSID_NUM; i++) {
-			if (!strcmp(initial_sid_to_string[i], scontext2)) {
+			const char *s = initial_sid_to_string[i];
+
+			if (s && !strcmp(s, scontext2)) {
 				*sid = i;
 				goto out;
 			}
