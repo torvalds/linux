@@ -68,7 +68,7 @@ struct _key_ctx {
 	__be32 ctx_hdr;
 	u8 salt[MAX_SALT];
 	__be64 iv_to_auth;
-	unsigned char key[0];
+	unsigned char key[];
 };
 
 #define KEYCTX_TX_WR_IV_S  55
