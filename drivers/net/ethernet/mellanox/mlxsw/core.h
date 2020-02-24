@@ -129,7 +129,7 @@ struct mlxsw_listener {
 
 int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 				    const struct mlxsw_rx_listener *rxl,
-				    void *priv);
+				    void *priv, bool enabled);
 void mlxsw_core_rx_listener_unregister(struct mlxsw_core *mlxsw_core,
 				       const struct mlxsw_rx_listener *rxl);
 
