@@ -291,6 +291,7 @@ struct chcr_skcipher_req_ctx {
 	struct scatterlist *dstsg;
 	unsigned int processed;
 	unsigned int last_req_len;
+	unsigned int partial_req;
 	struct scatterlist *srcsg;
 	unsigned int src_ofst;
 	unsigned int dst_ofst;
