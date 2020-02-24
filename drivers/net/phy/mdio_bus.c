@@ -462,6 +462,23 @@ static struct class mdio_bus_class = {
 	.dev_groups	= mdio_bus_groups,
 };
 
+/**
+ * mdio_find_bus - Given the name of a mdiobus, find the mii_bus.
+ * @mdio_bus_np: Pointer to the mii_bus.
+ *
+ * Returns a reference to the mii_bus, or NULL if none found.  The
+ * embedded struct device will have its reference count incremented,
+ * and this must be put_deviced'ed once the bus is finished with.
+ */
+struct mii_bus *mdio_find_bus(const char *mdio_name)
+{
+	struct device *d;
+
+	d = class_find_device_by_name(&mdio_bus_class, mdio_name);
+	return d ? to_mii_bus(d) : NULL;
+}
+EXPORT_SYMBOL(mdio_find_bus);
+
 #if IS_ENABLED(CONFIG_OF_MDIO)
 /**
  * of_mdio_find_bus - Given an mii_bus node, find the mii_bus.
