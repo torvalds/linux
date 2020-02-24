@@ -4142,9 +4142,9 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
  * EFAULT - verifier bug
  * 0 - 99% match. The last 1% is validated by the verifier.
  */
-int btf_check_func_type_match(struct bpf_verifier_log *log,
-			      struct btf *btf1, const struct btf_type *t1,
-			      struct btf *btf2, const struct btf_type *t2)
+static int btf_check_func_type_match(struct bpf_verifier_log *log,
+				     struct btf *btf1, const struct btf_type *t1,
+				     struct btf *btf2, const struct btf_type *t2)
 {
 	const struct btf_param *args1, *args2;
 	const char *fn1, *fn2, *s1, *s2;

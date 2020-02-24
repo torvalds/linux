@@ -446,6 +446,53 @@ acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 /******************************************************************************
  *
+ * FUNCTION:    acpi_hw_get_gpe_block_status
+ *
+ * PARAMETERS:  gpe_xrupt_info      - GPE Interrupt info
+ *              gpe_block           - Gpe Block info
+ *
+ * RETURN:      Success
+ *
+ * DESCRIPTION: Produce a combined GPE status bits mask for the given block.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_hw_get_gpe_block_status(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+			     struct acpi_gpe_block_info *gpe_block,
+			     void *ret_ptr)
+{
+	struct acpi_gpe_register_info *gpe_register_info;
+	u64 in_enable, in_status;
+	acpi_status status;
+	u8 *ret = ret_ptr;
+	u32 i;
+
+	/* Examine each GPE Register within the block */
+
+	for (i = 0; i < gpe_block->register_count; i++) {
+		gpe_register_info = &gpe_block->register_info[i];
+
+		status = acpi_hw_read(&in_enable,
+				      &gpe_register_info->enable_address);
+		if (ACPI_FAILURE(status)) {
+			continue;
+		}
+
+		status = acpi_hw_read(&in_status,
+				      &gpe_register_info->status_address);
+		if (ACPI_FAILURE(status)) {
+			continue;
+		}
+
+		*ret |= in_enable & in_status;
+	}
+
+	return (AE_OK);
+}
+
+/******************************************************************************
+ *
  * FUNCTION:    acpi_hw_disable_all_gpes
  *
  * PARAMETERS:  None
@@ -508,6 +555,30 @@ acpi_status acpi_hw_enable_all_wakeup_gpes(void)
 
 	status = acpi_ev_walk_gpe_list(acpi_hw_enable_wakeup_gpe_block, NULL);
 	return_ACPI_STATUS(status);
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_hw_check_all_gpes
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Combined status of all GPEs
+ *
+ * DESCRIPTION: Check all enabled GPEs in all GPE blocks and return TRUE if the
+ *              status bit is set for at least one of them of FALSE otherwise.
+ *
+ ******************************************************************************/
+
+u8 acpi_hw_check_all_gpes(void)
+{
+	u8 ret = 0;
+
+	ACPI_FUNCTION_TRACE(acpi_hw_check_all_gpes);
+
+	(void)acpi_ev_walk_gpe_list(acpi_hw_get_gpe_block_status, &ret);
+
+	return (ret != 0);
 }
 
 #endif				/* !ACPI_REDUCED_HARDWARE */

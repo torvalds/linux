@@ -55,7 +55,7 @@ struct gpio_keys_drvdata {
 	struct input_dev *input;
 	struct mutex disable_lock;
 	unsigned short *keymap;
-	struct gpio_button_data data[0];
+	struct gpio_button_data data[];
 };
 
 /*

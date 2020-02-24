@@ -162,10 +162,9 @@ static int rds_pin_pages(unsigned long user_addr, unsigned int nr_pages,
 	if (write)
 		gup_flags |= FOLL_WRITE;
 
-	ret = get_user_pages_fast(user_addr, nr_pages, gup_flags, pages);
+	ret = pin_user_pages_fast(user_addr, nr_pages, gup_flags, pages);
 	if (ret >= 0 && ret < nr_pages) {
-		while (ret--)
-			put_page(pages[ret]);
+		unpin_user_pages(pages, ret);
 		ret = -EFAULT;
 	}
 
@@ -300,8 +299,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 		 * to release anything.
 		 */
 		if (!need_odp) {
-			for (i = 0 ; i < nents; i++)
-				put_page(sg_page(&sg[i]));
+			unpin_user_pages(pages, nr_pages);
 			kfree(sg);
 		}
 		ret = PTR_ERR(trans_private);
@@ -325,7 +323,12 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	if (cookie_ret)
 		*cookie_ret = cookie;
 
-	if (args->cookie_addr && put_user(cookie, (u64 __user *)(unsigned long) args->cookie_addr)) {
+	if (args->cookie_addr &&
+	    put_user(cookie, (u64 __user *)(unsigned long)args->cookie_addr)) {
+		if (!need_odp) {
+			unpin_user_pages(pages, nr_pages);
+			kfree(sg);
+		}
 		ret = -EFAULT;
 		goto out;
 	}
@@ -496,9 +499,7 @@ void rds_rdma_free_op(struct rm_rdma_op *ro)
 			 * is the case for a RDMA_READ which copies from remote
 			 * to local memory
 			 */
-			if (!ro->op_write)
-				set_page_dirty(page);
-			put_page(page);
+			unpin_user_pages_dirty_lock(&page, 1, !ro->op_write);
 		}
 	}
 
@@ -515,8 +516,7 @@ void rds_atomic_free_op(struct rm_atomic_op *ao)
 	/* Mark page dirty if it was possibly modified, which
 	 * is the case for a RDMA_READ which copies from remote
 	 * to local memory */
-	set_page_dirty(page);
-	put_page(page);
+	unpin_user_pages_dirty_lock(&page, 1, true);
 
 	kfree(ao->op_notifier);
 	ao->op_notifier = NULL;
@@ -944,7 +944,7 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 	return ret;
 err:
 	if (page)
-		put_page(page);
+		unpin_user_page(page);
 	rm->atomic.op_active = 0;
 	kfree(rm->atomic.op_notifier);
 

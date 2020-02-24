@@ -295,6 +295,7 @@ struct intel_engine_cs {
 	struct {
 		spinlock_t lock;
 		struct list_head requests;
+		struct list_head hold; /* ready requests, but on hold */
 	} active;
 
 	struct llist_head barrier_tasks;

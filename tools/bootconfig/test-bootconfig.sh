@@ -64,6 +64,15 @@ echo "File size check"
 new_size=$(stat -c %s $INITRD)
 xpass test $new_size -eq $initrd_size
 
+echo "No error messge while applying"
+OUTFILE=`mktemp tempout-XXXX`
+dd if=/dev/zero of=$INITRD bs=4096 count=1
+printf " \0\0\0 \0\0\0" >> $INITRD
+$BOOTCONF -a $TEMPCONF $INITRD > $OUTFILE 2>&1
+xfail grep -i "failed" $OUTFILE
+xfail grep -i "error" $OUTFILE
+rm $OUTFILE
+
 echo "Max node number check"
 
 echo -n > $TEMPCONF
