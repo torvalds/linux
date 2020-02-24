@@ -7795,6 +7795,8 @@ static const struct devlink_trap devlink_trap_generic[] = {
 	DEVLINK_TRAP(NON_ROUTABLE, DROP),
 	DEVLINK_TRAP(DECAP_ERROR, EXCEPTION),
 	DEVLINK_TRAP(OVERLAY_SMAC_MC, DROP),
+	DEVLINK_TRAP(INGRESS_FLOW_ACTION_DROP, DROP),
+	DEVLINK_TRAP(EGRESS_FLOW_ACTION_DROP, DROP),
 };
 
 #define DEVLINK_TRAP_GROUP(_id)						      \
@@ -7808,6 +7810,7 @@ static const struct devlink_trap_group devlink_trap_group_generic[] = {
 	DEVLINK_TRAP_GROUP(L3_DROPS),
 	DEVLINK_TRAP_GROUP(BUFFER_DROPS),
 	DEVLINK_TRAP_GROUP(TUNNEL_DROPS),
+	DEVLINK_TRAP_GROUP(ACL_DROPS),
 };
 
 static int devlink_trap_generic_verify(const struct devlink_trap *trap)
