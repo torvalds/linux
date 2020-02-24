@@ -27,6 +27,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
+#include <uapi/linux/videodev2.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 
@@ -259,6 +260,13 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
 	s->output_bpc = di->bpc;
+	if (di->num_bus_formats)
+		s->bus_format = di->bus_formats[0];
+	else
+		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	s->tv_state = &conn_state->tv;
+	s->eotf = TRADITIONAL_GAMMA_SDR;
+	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	return 0;
 }
