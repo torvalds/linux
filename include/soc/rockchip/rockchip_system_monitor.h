@@ -167,7 +167,7 @@ rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 	return 0;
 };
 
-static inline int rockchip_monitor_suspend_low_temp_adjust(in cpu)
+static inline int rockchip_monitor_suspend_low_temp_adjust(int cpu)
 {
 	return 0;
 };
