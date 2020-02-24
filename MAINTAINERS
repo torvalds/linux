@@ -9603,7 +9603,7 @@ LINUX FOR POWERPC (32-BIT AND 64-BIT)
 M:	Michael Ellerman <mpe@ellerman.id.au>
 R:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 R:	Paul Mackerras <paulus@samba.org>
-W:	https://github.com/linuxppc/linux/wiki
+W:	https://github.com/linuxppc/wiki/wiki
 L:	linuxppc-dev@lists.ozlabs.org
 Q:	http://patchwork.ozlabs.org/project/linuxppc-dev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git
