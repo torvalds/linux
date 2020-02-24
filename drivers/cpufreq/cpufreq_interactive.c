@@ -1522,9 +1522,8 @@ void cpufreq_interactive_stop(struct cpufreq_policy *policy)
 	for_each_cpu(cpu, policy->cpus) {
 		icpu = &per_cpu(interactive_cpu, cpu);
 
-		icpu_cancel_work(icpu);
-
 		down_write(&icpu->enable_sem);
+		icpu_cancel_work(icpu);
 		icpu->ipolicy = NULL;
 		up_write(&icpu->enable_sem);
 	}
