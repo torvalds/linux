@@ -5019,10 +5019,6 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 	spin_lock_irqsave(&hr_dev->qp_list_lock, flags);
 	hns_roce_lock_cqs(send_cq, recv_cq);
 
-	list_del(&hr_qp->node);
-	list_del(&hr_qp->sq_node);
-	list_del(&hr_qp->rq_node);
-
 	if (!udata) {
 		if (recv_cq)
 			__hns_roce_v2_cq_clean(recv_cq, hr_qp->qpn,
