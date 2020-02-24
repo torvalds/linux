@@ -509,6 +509,34 @@ static void ssd_commit_flushed(struct dm_writecache *wc, bool wait_for_ios)
 	memset(wc->dirty_bitmap, 0, wc->dirty_bitmap_size);
 }
 
+static void ssd_commit_superblock(struct dm_writecache *wc)
+{
+	int r;
+	struct dm_io_region region;
+	struct dm_io_request req;
+
+	region.bdev = wc->ssd_dev->bdev;
+	region.sector = 0;
+	region.count = PAGE_SIZE;
+
+	if (unlikely(region.sector + region.count > wc->metadata_sectors))
+		region.count = wc->metadata_sectors - region.sector;
+
+	region.sector += wc->start_sector;
+
+	req.bi_op = REQ_OP_WRITE;
+	req.bi_op_flags = REQ_SYNC | REQ_FUA;
+	req.mem.type = DM_IO_VMA;
+	req.mem.ptr.vma = (char *)wc->memory_map;
+	req.client = wc->dm_io;
+	req.notify.fn = NULL;
+	req.notify.context = NULL;
+
+	r = dm_io(&req, 1, &region, NULL);
+	if (unlikely(r))
+		writecache_error(wc, r, "error writing superblock");
+}
+
 static void writecache_commit_flushed(struct dm_writecache *wc, bool wait_for_ios)
 {
 	if (WC_MODE_PMEM(wc))
@@ -759,8 +787,10 @@ static void writecache_flush(struct dm_writecache *wc)
 
 	wc->seq_count++;
 	pmem_assign(sb(wc)->seq_count, cpu_to_le64(wc->seq_count));
-	writecache_flush_region(wc, &sb(wc)->seq_count, sizeof sb(wc)->seq_count);
-	writecache_commit_flushed(wc, false);
+	if (WC_MODE_PMEM(wc))
+		writecache_commit_flushed(wc, false);
+	else
+		ssd_commit_superblock(wc);
 
 	wc->overwrote_committed = false;
 
