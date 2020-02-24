@@ -2772,6 +2772,21 @@ static void bcmgenet_set_hw_addr(struct bcmgenet_priv *priv,
 	bcmgenet_umac_writel(priv, (addr[4] << 8) | addr[5], UMAC_MAC1);
 }
 
+static void bcmgenet_get_hw_addr(struct bcmgenet_priv *priv,
+				 unsigned char *addr)
+{
+	u32 addr_tmp;
+
+	addr_tmp = bcmgenet_umac_readl(priv, UMAC_MAC0);
+	addr[0] = addr_tmp >> 24;
+	addr[1] = (addr_tmp >> 16) & 0xff;
+	addr[2] = (addr_tmp >>	8) & 0xff;
+	addr[3] = addr_tmp & 0xff;
+	addr_tmp = bcmgenet_umac_readl(priv, UMAC_MAC1);
+	addr[4] = (addr_tmp >> 8) & 0xff;
+	addr[5] = addr_tmp & 0xff;
+}
+
 /* Returns a reusable dma control register value */
 static u32 bcmgenet_dma_disable(struct bcmgenet_priv *priv)
 {
@@ -3467,7 +3482,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	const struct bcmgenet_plat_data *pdata;
 	struct bcmgenet_priv *priv;
 	struct net_device *dev;
-	const void *macaddr = NULL;
 	unsigned int i;
 	int err = -EIO;
 
@@ -3498,11 +3512,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	}
 	priv->wol_irq = platform_get_irq_optional(pdev, 2);
 
-	if (dn)
-		macaddr = of_get_mac_address(dn);
-	else if (pd)
-		macaddr = pd->mac_address;
-
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
 		err = PTR_ERR(priv->base);
@@ -3513,12 +3522,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	dev_set_drvdata(&pdev->dev, dev);
-	if (IS_ERR_OR_NULL(macaddr) || !is_valid_ether_addr(macaddr)) {
-		dev_warn(&pdev->dev, "using random Ethernet MAC\n");
-		eth_hw_addr_random(dev);
-	} else {
-		ether_addr_copy(dev->dev_addr, macaddr);
-	}
 	dev->watchdog_timeo = 2 * HZ;
 	dev->ethtool_ops = &bcmgenet_ethtool_ops;
 	dev->netdev_ops = &bcmgenet_netdev_ops;
@@ -3598,6 +3601,18 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	 */
 	if (device_get_phy_mode(&pdev->dev) == PHY_INTERFACE_MODE_INTERNAL)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
+
+	if ((pd) && (!IS_ERR_OR_NULL(pd->mac_address)))
+		ether_addr_copy(dev->dev_addr, pd->mac_address);
+	else
+		if (!device_get_mac_address(&pdev->dev, dev->dev_addr, ETH_ALEN))
+			if (has_acpi_companion(&pdev->dev))
+				bcmgenet_get_hw_addr(priv, dev->dev_addr);
+
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		dev_warn(&pdev->dev, "using random Ethernet MAC\n");
+		eth_hw_addr_random(dev);
+	}
 
 	reset_umac(priv);
 
