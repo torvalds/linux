@@ -631,6 +631,12 @@ static void writecache_add_to_freelist(struct dm_writecache *wc, struct wc_entry
 	wc->freelist_size++;
 }
 
+static inline void writecache_verify_watermark(struct dm_writecache *wc)
+{
+	if (unlikely(wc->freelist_size + wc->writeback_size <= wc->freelist_high_watermark))
+		queue_work(wc->writeback_wq, &wc->writeback_work);
+}
+
 static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc)
 {
 	struct wc_entry *e;
@@ -652,8 +658,8 @@ static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc)
 		list_del(&e->lru);
 	}
 	wc->freelist_size--;
-	if (unlikely(wc->freelist_size + wc->writeback_size <= wc->freelist_high_watermark))
-		queue_work(wc->writeback_wq, &wc->writeback_work);
+
+	writecache_verify_watermark(wc);
 
 	return e;
 }
@@ -966,6 +972,8 @@ erase_this:
 		writecache_flush_all_metadata(wc);
 		writecache_commit_flushed(wc, false);
 	}
+
+	writecache_verify_watermark(wc);
 
 	wc_unlock(wc);
 }
