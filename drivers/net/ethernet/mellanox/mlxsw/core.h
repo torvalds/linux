@@ -78,7 +78,8 @@ struct mlxsw_listener {
 	};
 	enum mlxsw_reg_hpkt_action en_action; /* Action when enabled */
 	enum mlxsw_reg_hpkt_action dis_action; /* Action when disabled */
-	u8 trap_group;
+	u8 en_trap_group; /* Trap group when enabled */
+	u8 dis_trap_group; /* Trap group when disabled */
 	u8 is_ctrl:1, /* should go via control buffer or not */
 	   is_event:1,
 	   enabled_on_register:1; /* Trap should be enabled when listener
@@ -86,45 +87,46 @@ struct mlxsw_listener {
 				   */
 };
 
-#define __MLXSW_RXL(_func, _trap_id, _en_action, _is_ctrl, _trap_group,	\
-		    _dis_action, _enabled_on_register)			\
-	{								\
-		.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
-		.rx_listener =						\
-		{							\
-			.func = _func,					\
-			.local_port = MLXSW_PORT_DONT_CARE,		\
-			.trap_id = MLXSW_TRAP_ID_##_trap_id,		\
-		},							\
-		.en_action = MLXSW_REG_HPKT_ACTION_##_en_action,	\
-		.dis_action = MLXSW_REG_HPKT_ACTION_##_dis_action,	\
-		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_trap_group,	\
-		.is_ctrl = _is_ctrl,					\
-		.enabled_on_register = _enabled_on_register,		\
+#define __MLXSW_RXL(_func, _trap_id, _en_action, _is_ctrl, _en_trap_group,	\
+		    _dis_action, _enabled_on_register, _dis_trap_group)		\
+	{									\
+		.trap_id = MLXSW_TRAP_ID_##_trap_id,				\
+		.rx_listener =							\
+		{								\
+			.func = _func,						\
+			.local_port = MLXSW_PORT_DONT_CARE,			\
+			.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
+		},								\
+		.en_action = MLXSW_REG_HPKT_ACTION_##_en_action,		\
+		.dis_action = MLXSW_REG_HPKT_ACTION_##_dis_action,		\
+		.en_trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_en_trap_group,	\
+		.dis_trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_dis_trap_group,	\
+		.is_ctrl = _is_ctrl,						\
+		.enabled_on_register = _enabled_on_register,			\
 	}
 
 #define MLXSW_RXL(_func, _trap_id, _en_action, _is_ctrl, _trap_group,		\
 		  _dis_action)							\
 	__MLXSW_RXL(_func, _trap_id, _en_action, _is_ctrl, _trap_group,		\
-		    _dis_action, true)
+		    _dis_action, true, _trap_group)
 
-#define MLXSW_RXL_DIS(_func, _trap_id, _en_action, _is_ctrl, _trap_group,	\
-		      _dis_action)						\
-	__MLXSW_RXL(_func, _trap_id, _en_action, _is_ctrl, _trap_group,		\
-		    _dis_action, false)
+#define MLXSW_RXL_DIS(_func, _trap_id, _en_action, _is_ctrl, _en_trap_group,	\
+		      _dis_action, _dis_trap_group)				\
+	__MLXSW_RXL(_func, _trap_id, _en_action, _is_ctrl, _en_trap_group,	\
+		    _dis_action, false, _dis_trap_group)
 
-#define MLXSW_EVENTL(_func, _trap_id, _trap_group)			\
-	{								\
-		.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
-		.event_listener =					\
-		{							\
-			.func = _func,					\
-			.trap_id = MLXSW_TRAP_ID_##_trap_id,		\
-		},							\
-		.en_action = MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,		\
-		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_trap_group,	\
-		.is_event = true,					\
-		.enabled_on_register = true,				\
+#define MLXSW_EVENTL(_func, _trap_id, _trap_group)				\
+	{									\
+		.trap_id = MLXSW_TRAP_ID_##_trap_id,				\
+		.event_listener =						\
+		{								\
+			.func = _func,						\
+			.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
+		},								\
+		.en_action = MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,			\
+		.en_trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_trap_group,	\
+		.is_event = true,						\
+		.enabled_on_register = true,					\
 	}
 
 int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
