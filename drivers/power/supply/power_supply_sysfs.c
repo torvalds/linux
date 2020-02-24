@@ -464,6 +464,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(comp_clamp_level),
 	POWER_SUPPLY_ATTR(adapter_cc_mode),
 	POWER_SUPPLY_ATTR(skin_health),
+	POWER_SUPPLY_ATTR(charge_disable),
 	/* Charge pump properties */
 	POWER_SUPPLY_ATTR(cp_status1),
 	POWER_SUPPLY_ATTR(cp_status2),
@@ -576,6 +577,12 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 		char *line;
 
 		attr = &power_supply_attrs[psy->desc->properties[j]];
+
+		if (!attr->attr.name) {
+			dev_info(dev, "%s:%d FAKE attr.name=NULL skip\n",
+				__FILE__, __LINE__, __func__);
+			continue;
+		}
 
 		ret = power_supply_show_property(dev, attr, prop_buf);
 		if (ret == -ENODEV || ret == -ENODATA) {
