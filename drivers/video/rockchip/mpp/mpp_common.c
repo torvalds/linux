@@ -1378,9 +1378,17 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		ret = -ENODEV;
 		goto failed;
 	}
-	mpp->reg_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mpp->reg_base)) {
-		ret = PTR_ERR(mpp->reg_base);
+	/*
+	 * Tips: here can not use function devm_ioremap_resource. The resion is
+	 * that hevc and vdpu map the same register address region in rk3368.
+	 * However, devm_ioremap_resource will call function
+	 * devm_request_mem_region to check region. Thus, use function
+	 * devm_ioremap can avoid it.
+	 */
+	mpp->reg_base = devm_ioremap(dev, res->start, resource_size(res));
+	if (!mpp->reg_base) {
+		dev_err(dev, "ioremap failed for resource %pR\n", res);
+		ret = -ENOMEM;
 		goto failed;
 	}
 
