@@ -7,6 +7,7 @@
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/delay.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
@@ -15,15 +16,47 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
+#include <linux/sys_soc.h>
 #include <linux/iopoll.h>
 
 #include <linux/platform_data/ti-sysc.h>
 
 #include <dt-bindings/bus/ti-sysc.h>
 
+#define DIS_ISP		BIT(2)
+#define DIS_IVA		BIT(1)
+#define DIS_SGX		BIT(0)
+
+#define SOC_FLAG(match, flag)	{ .machine = match, .data = (void *)(flag), }
+
 #define MAX_MODULE_SOFTRESET_WAIT		10000
 
-static const char * const reg_names[] = { "rev", "sysc", "syss", };
+enum sysc_soc {
+	SOC_UNKNOWN,
+	SOC_2420,
+	SOC_2430,
+	SOC_3430,
+	SOC_3630,
+	SOC_4430,
+	SOC_4460,
+	SOC_4470,
+	SOC_5430,
+	SOC_AM3,
+	SOC_AM4,
+	SOC_DRA7,
+};
+
+struct sysc_address {
+	unsigned long base;
+	struct list_head node;
+};
+
+struct sysc_soc_info {
+	unsigned long general_purpose:1;
+	enum sysc_soc soc;
+	struct mutex list_lock;			/* disabled modules list lock */
+	struct list_head disabled_modules;
+};
 
 enum sysc_clocks {
 	SYSC_FCK,
@@ -39,6 +72,8 @@ enum sysc_clocks {
 	SYSC_MAX_CLOCKS,
 };
 
+static struct sysc_soc_info *sysc_soc;
+static const char * const reg_names[] = { "rev", "sysc", "syss", };
 static const char * const clock_names[SYSC_MAX_CLOCKS] = {
 	"fck", "ick", "opt0", "opt1", "opt2", "opt3", "opt4",
 	"opt5", "opt6", "opt7",
@@ -2382,6 +2417,154 @@ static void ti_sysc_idle(struct work_struct *work)
 		pm_runtime_put_sync(ddata->dev);
 }
 
+/*
+ * SoC model and features detection. Only needed for SoCs that need
+ * special handling for quirks, no need to list others.
+ */
+static const struct soc_device_attribute sysc_soc_match[] = {
+	SOC_FLAG("OMAP242*", SOC_2420),
+	SOC_FLAG("OMAP243*", SOC_2430),
+	SOC_FLAG("OMAP3[45]*", SOC_3430),
+	SOC_FLAG("OMAP3[67]*", SOC_3630),
+	SOC_FLAG("OMAP443*", SOC_4430),
+	SOC_FLAG("OMAP446*", SOC_4460),
+	SOC_FLAG("OMAP447*", SOC_4470),
+	SOC_FLAG("OMAP54*", SOC_5430),
+	SOC_FLAG("AM433", SOC_AM3),
+	SOC_FLAG("AM43*", SOC_AM4),
+	SOC_FLAG("DRA7*", SOC_DRA7),
+
+	{ /* sentinel */ },
+};
+
+/*
+ * List of SoCs variants with disabled features. By default we assume all
+ * devices in the device tree are available so no need to list those SoCs.
+ */
+static const struct soc_device_attribute sysc_soc_feat_match[] = {
+	/* OMAP3430/3530 and AM3517 variants with some accelerators disabled */
+	SOC_FLAG("AM3505", DIS_SGX),
+	SOC_FLAG("OMAP3525", DIS_SGX),
+	SOC_FLAG("OMAP3515", DIS_IVA | DIS_SGX),
+	SOC_FLAG("OMAP3503", DIS_ISP | DIS_IVA | DIS_SGX),
+
+	/* OMAP3630/DM3730 variants with some accelerators disabled */
+	SOC_FLAG("AM3703", DIS_IVA | DIS_SGX),
+	SOC_FLAG("DM3725", DIS_SGX),
+	SOC_FLAG("OMAP3611", DIS_ISP | DIS_IVA | DIS_SGX),
+	SOC_FLAG("OMAP3615/AM3715", DIS_IVA),
+	SOC_FLAG("OMAP3621", DIS_ISP),
+
+	{ /* sentinel */ },
+};
+
+static int sysc_add_disabled(unsigned long base)
+{
+	struct sysc_address *disabled_module;
+
+	disabled_module = kzalloc(sizeof(*disabled_module), GFP_KERNEL);
+	if (!disabled_module)
+		return -ENOMEM;
+
+	disabled_module->base = base;
+
+	mutex_lock(&sysc_soc->list_lock);
+	list_add(&disabled_module->node, &sysc_soc->disabled_modules);
+	mutex_unlock(&sysc_soc->list_lock);
+
+	return 0;
+}
+
+/*
+ * One time init to detect the booted SoC and disable unavailable features.
+ * Note that we initialize static data shared across all ti-sysc instances
+ * so ddata is only used for SoC type. This can be called from module_init
+ * once we no longer need to rely on platform data.
+ */
+static int sysc_init_soc(struct sysc *ddata)
+{
+	const struct soc_device_attribute *match;
+	struct ti_sysc_platform_data *pdata;
+	unsigned long features = 0;
+
+	if (sysc_soc)
+		return 0;
+
+	sysc_soc = kzalloc(sizeof(*sysc_soc), GFP_KERNEL);
+	if (!sysc_soc)
+		return -ENOMEM;
+
+	mutex_init(&sysc_soc->list_lock);
+	INIT_LIST_HEAD(&sysc_soc->disabled_modules);
+	sysc_soc->general_purpose = true;
+
+	pdata = dev_get_platdata(ddata->dev);
+	if (pdata && pdata->soc_type_gp)
+		sysc_soc->general_purpose = pdata->soc_type_gp();
+
+	match = soc_device_match(sysc_soc_match);
+	if (match && match->data)
+		sysc_soc->soc = (int)match->data;
+
+	match = soc_device_match(sysc_soc_feat_match);
+	if (!match)
+		return 0;
+
+	if (match->data)
+		features = (unsigned long)match->data;
+
+	/*
+	 * Add disabled devices to the list based on the module base.
+	 * Note that this must be done before we attempt to access the
+	 * device and have module revision checks working.
+	 */
+	if (features & DIS_ISP)
+		sysc_add_disabled(0x480bd400);
+	if (features & DIS_IVA)
+		sysc_add_disabled(0x5d000000);
+	if (features & DIS_SGX)
+		sysc_add_disabled(0x50000000);
+
+	return 0;
+}
+
+static void sysc_cleanup_soc(void)
+{
+	struct sysc_address *disabled_module;
+	struct list_head *pos, *tmp;
+
+	if (!sysc_soc)
+		return;
+
+	mutex_lock(&sysc_soc->list_lock);
+	list_for_each_safe(pos, tmp, &sysc_soc->disabled_modules) {
+		disabled_module = list_entry(pos, struct sysc_address, node);
+		list_del(pos);
+		kfree(disabled_module);
+	}
+	mutex_unlock(&sysc_soc->list_lock);
+}
+
+static int sysc_check_disabled_devices(struct sysc *ddata)
+{
+	struct sysc_address *disabled_module;
+	struct list_head *pos;
+	int error = 0;
+
+	mutex_lock(&sysc_soc->list_lock);
+	list_for_each(pos, &sysc_soc->disabled_modules) {
+		disabled_module = list_entry(pos, struct sysc_address, node);
+		if (ddata->module_pa == disabled_module->base) {
+			dev_dbg(ddata->dev, "module disabled for this SoC\n");
+			error = -ENODEV;
+			break;
+		}
+	}
+	mutex_unlock(&sysc_soc->list_lock);
+
+	return error;
+}
+
 static const struct of_device_id sysc_match_table[] = {
 	{ .compatible = "simple-bus", },
 	{ /* sentinel */ },
@@ -2399,6 +2582,10 @@ static int sysc_probe(struct platform_device *pdev)
 
 	ddata->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ddata);
+
+	error = sysc_init_soc(ddata);
+	if (error)
+		return error;
 
 	error = sysc_init_match(ddata);
 	if (error)
@@ -2429,6 +2616,10 @@ static int sysc_probe(struct platform_device *pdev)
 		return error;
 
 	sysc_init_early_quirks(ddata);
+
+	error = sysc_check_disabled_devices(ddata);
+	if (error)
+		return error;
 
 	error = sysc_get_clocks(ddata);
 	if (error)
@@ -2560,6 +2751,7 @@ static void __exit sysc_exit(void)
 {
 	bus_unregister_notifier(&platform_bus_type, &sysc_nb);
 	platform_driver_unregister(&sysc_driver);
+	sysc_cleanup_soc();
 }
 module_exit(sysc_exit);
 
