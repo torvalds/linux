@@ -1511,7 +1511,7 @@ struct ulptx_sgl {
 	__be32 cmd_nsge;
 	__be32 len0;
 	__be64 addr0;
-	struct ulptx_sge_pair sge[0];
+	struct ulptx_sge_pair sge[];
 };
 
 struct ulptx_idata {

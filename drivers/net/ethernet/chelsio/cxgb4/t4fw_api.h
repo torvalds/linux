@@ -737,7 +737,7 @@ struct fw_flowc_mnemval {
 struct fw_flowc_wr {
 	__be32 op_to_nparams;
 	__be32 flowid_len16;
-	struct fw_flowc_mnemval mnemval[0];
+	struct fw_flowc_mnemval mnemval[];
 };
 
 #define FW_FLOWC_WR_NPARAMS_S           0

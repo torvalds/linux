@@ -984,7 +984,7 @@ static const char * const devlog_facility_strings[] = {
 struct devlog_info {
 	unsigned int nentries;		/* number of entries in log[] */
 	unsigned int first;		/* first [temporal] entry in log[] */
-	struct fw_devlog_e log[0];	/* Firmware Device Log */
+	struct fw_devlog_e log[];	/* Firmware Device Log */
 };
 
 /* Dump a Firmaware Device Log entry.
