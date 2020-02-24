@@ -331,7 +331,7 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	atomic_inc(&tconInfoReconnectCount);
 
 	/* tell server Unix caps we support */
-	if (ses->capabilities & CAP_UNIX)
+	if (cap_unix(ses))
 		reset_cifs_unix_caps(0, tcon, NULL, NULL);
 
 	/*
