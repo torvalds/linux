@@ -4219,8 +4219,8 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 }
 EXPORT_SYMBOL_GPL(kvm_handle_page_fault);
 
-static int tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
-			  bool prefault)
+int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
+		       bool prefault)
 {
 	int max_level;
 
@@ -4925,7 +4925,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 		return;
 
 	context->mmu_role.as_u64 = new_role.as_u64;
-	context->page_fault = tdp_page_fault;
+	context->page_fault = kvm_tdp_page_fault;
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = nonpaging_invlpg;
 	context->update_pte = nonpaging_update_pte;
@@ -5436,9 +5436,8 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
 	}
 
 	if (r == RET_PF_INVALID) {
-		r = vcpu->arch.mmu->page_fault(vcpu, cr2_or_gpa,
-					       lower_32_bits(error_code),
-					       false);
+		r = kvm_mmu_do_page_fault(vcpu, cr2_or_gpa,
+					  lower_32_bits(error_code), false);
 		WARN_ON(r == RET_PF_INVALID);
 	}
 

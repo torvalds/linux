@@ -9,7 +9,6 @@ config CSKY
 	select ARCH_USE_QUEUED_RWLOCKS if NR_CPUS>2
 	select COMMON_CLK
 	select CLKSRC_MMIO
-	select CLKSRC_OF
 	select CSKY_MPINTC if CPU_CK860
 	select CSKY_MP_TIMER if CPU_CK860
 	select CSKY_APB_INTC
@@ -37,6 +36,7 @@ config CSKY
 	select GX6605S_TIMER if CPU_CK610
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_COPY_THREAD_TLS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -47,8 +47,8 @@ config CSKY
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
+	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select MAY_HAVE_SPARSE_IRQ
 	select MODULES_USE_ELF_RELA if MODULES
@@ -59,6 +59,11 @@ config CSKY
 	select TIMER_OF
 	select USB_ARCH_HAS_EHCI
 	select USB_ARCH_HAS_OHCI
+	select GENERIC_PCI_IOMAP
+	select HAVE_PCI
+	select PCI_DOMAINS_GENERIC if PCI
+	select PCI_SYSCALL if PCI
+	select PCI_MSI if PCI
 
 config CPU_HAS_CACHEV2
 	bool
@@ -75,7 +80,7 @@ config CPU_HAS_TLBI
 config CPU_HAS_LDSTEX
 	bool
 	help
-	  For SMP, CPU needs "ldex&stex" instrcutions to atomic operations.
+	  For SMP, CPU needs "ldex&stex" instructions for atomic operations.
 
 config CPU_NEED_TLBSYNC
 	bool
@@ -188,6 +193,40 @@ config CPU_PM_STOP
 	bool "stop"
 endchoice
 
+menuconfig HAVE_TCM
+	bool "Tightly-Coupled/Sram Memory"
+	select GENERIC_ALLOCATOR
+	help
+	  The implementation are not only used by TCM (Tightly-Coupled Meory)
+	  but also used by sram on SOC bus. It follow existed linux tcm
+	  software interface, so that old tcm application codes could be
+	  re-used directly.
+
+if HAVE_TCM
+config ITCM_RAM_BASE
+	hex "ITCM ram base"
+	default 0xffffffff
+
+config ITCM_NR_PAGES
+	int "Page count of ITCM size: NR*4KB"
+	range 1 256
+	default 32
+
+config HAVE_DTCM
+	bool "DTCM Support"
+
+config DTCM_RAM_BASE
+	hex "DTCM ram base"
+	depends on HAVE_DTCM
+	default 0xffffffff
+
+config DTCM_NR_PAGES
+	int "Page count of DTCM size: NR*4KB"
+	depends on HAVE_DTCM
+	range 1 256
+	default 32
+endif
+
 config CPU_HAS_VDSP
 	bool "CPU has VDSP coprocessor"
 	depends on CPU_HAS_FPU && CPU_HAS_FPUV2
@@ -195,6 +234,10 @@ config CPU_HAS_VDSP
 config CPU_HAS_FPU
 	bool "CPU has FPU coprocessor"
 	depends on CPU_CK807 || CPU_CK810 || CPU_CK860
+
+config CPU_HAS_ICACHE_INS
+	bool "CPU has Icache invalidate instructions"
+	depends on CPU_HAS_CACHEV2
 
 config CPU_HAS_TEE
 	bool "CPU has Trusted Execution Environment"
@@ -234,5 +277,7 @@ config HOTPLUG_CPU
 
 	  Say N if you want to disable CPU hotplug.
 endmenu
+
+source "arch/csky/Kconfig.platforms"
 
 source "kernel/Kconfig.hz"

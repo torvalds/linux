@@ -518,19 +518,13 @@ void sidtab_sid2str_put(struct sidtab *s, struct sidtab_entry *entry,
 			const char *str, u32 str_len)
 {
 	struct sidtab_str_cache *cache, *victim = NULL;
+	unsigned long flags;
 
 	/* do not cache invalid contexts */
 	if (entry->context.len)
 		return;
 
-	/*
-	 * Skip the put operation when in non-task context to avoid the need
-	 * to disable interrupts while holding s->cache_lock.
-	 */
-	if (!in_task())
-		return;
-
-	spin_lock(&s->cache_lock);
+	spin_lock_irqsave(&s->cache_lock, flags);
 
 	cache = rcu_dereference_protected(entry->cache,
 					  lockdep_is_held(&s->cache_lock));
@@ -561,7 +555,7 @@ void sidtab_sid2str_put(struct sidtab *s, struct sidtab_entry *entry,
 	rcu_assign_pointer(entry->cache, cache);
 
 out_unlock:
-	spin_unlock(&s->cache_lock);
+	spin_unlock_irqrestore(&s->cache_lock, flags);
 	kfree_rcu(victim, rcu_member);
 }
 

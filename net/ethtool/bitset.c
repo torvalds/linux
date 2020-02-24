@@ -447,7 +447,10 @@ ethnl_update_bitset32_verbose(u32 *bitmap, unsigned int nbits,
 				    "mask only allowed in compact bitset");
 		return -EINVAL;
 	}
+
 	no_mask = tb[ETHTOOL_A_BITSET_NOMASK];
+	if (no_mask)
+		ethnl_bitmap32_clear(bitmap, 0, nbits, mod);
 
 	nla_for_each_nested(bit_attr, tb[ETHTOOL_A_BITSET_BITS], rem) {
 		bool old_val, new_val;

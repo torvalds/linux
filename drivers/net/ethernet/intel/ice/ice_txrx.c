@@ -644,7 +644,7 @@ static bool ice_page_is_reserved(struct page *page)
  * Update the offset within page so that Rx buf will be ready to be reused.
  * For systems with PAGE_SIZE < 8192 this function will flip the page offset
  * so the second half of page assigned to Rx buffer will be used, otherwise
- * the offset is moved by the @size bytes
+ * the offset is moved by "size" bytes
  */
 static void
 ice_rx_buf_adjust_pg_offset(struct ice_rx_buf *rx_buf, unsigned int size)
@@ -1078,8 +1078,6 @@ construct_skb:
 				skb = ice_build_skb(rx_ring, rx_buf, &xdp);
 			else
 				skb = ice_construct_skb(rx_ring, rx_buf, &xdp);
-		} else {
-			skb = ice_construct_skb(rx_ring, rx_buf, &xdp);
 		}
 		/* exit if we failed to retrieve a buffer */
 		if (!skb) {
@@ -1621,11 +1619,11 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 {
 	u64 td_offset, td_tag, td_cmd;
 	u16 i = tx_ring->next_to_use;
-	skb_frag_t *frag;
 	unsigned int data_len, size;
 	struct ice_tx_desc *tx_desc;
 	struct ice_tx_buf *tx_buf;
 	struct sk_buff *skb;
+	skb_frag_t *frag;
 	dma_addr_t dma;
 
 	td_tag = off->td_l2tag1;
@@ -1738,9 +1736,8 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 	ice_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	/* notify HW of packet */
-	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more()) {
+	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more())
 		writel(i, tx_ring->tail);
-	}
 
 	return;
 
@@ -2078,7 +2075,7 @@ static bool __ice_chk_linearize(struct sk_buff *skb)
 	frag = &skb_shinfo(skb)->frags[0];
 
 	/* Initialize size to the negative value of gso_size minus 1. We
-	 * use this as the worst case scenerio in which the frag ahead
+	 * use this as the worst case scenario in which the frag ahead
 	 * of us only provides one byte which is why we are limited to 6
 	 * descriptors for a single transmit as the header and previous
 	 * fragment are already consuming 2 descriptors.

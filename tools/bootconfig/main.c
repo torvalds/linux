@@ -140,7 +140,7 @@ int load_xbc_from_initrd(int fd, char **buf)
 		return 0;
 
 	if (lseek(fd, -8, SEEK_END) < 0) {
-		printf("Failed to lseek: %d\n", -errno);
+		pr_err("Failed to lseek: %d\n", -errno);
 		return -errno;
 	}
 
@@ -155,7 +155,7 @@ int load_xbc_from_initrd(int fd, char **buf)
 		return 0;
 
 	if (lseek(fd, stat.st_size - 8 - size, SEEK_SET) < 0) {
-		printf("Failed to lseek: %d\n", -errno);
+		pr_err("Failed to lseek: %d\n", -errno);
 		return -errno;
 	}
 
@@ -166,7 +166,7 @@ int load_xbc_from_initrd(int fd, char **buf)
 	/* Wrong Checksum, maybe no boot config here */
 	rcsum = checksum((unsigned char *)*buf, size);
 	if (csum != rcsum) {
-		printf("checksum error: %d != %d\n", csum, rcsum);
+		pr_err("checksum error: %d != %d\n", csum, rcsum);
 		return 0;
 	}
 
@@ -185,13 +185,13 @@ int show_xbc(const char *path)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		printf("Failed to open initrd %s: %d\n", path, fd);
+		pr_err("Failed to open initrd %s: %d\n", path, fd);
 		return -errno;
 	}
 
 	ret = load_xbc_from_initrd(fd, &buf);
 	if (ret < 0)
-		printf("Failed to load a boot config from initrd: %d\n", ret);
+		pr_err("Failed to load a boot config from initrd: %d\n", ret);
 	else
 		xbc_show_compact_tree();
 
@@ -209,7 +209,7 @@ int delete_xbc(const char *path)
 
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
-		printf("Failed to open initrd %s: %d\n", path, fd);
+		pr_err("Failed to open initrd %s: %d\n", path, fd);
 		return -errno;
 	}
 
@@ -222,7 +222,7 @@ int delete_xbc(const char *path)
 	pr_output = 1;
 	if (size < 0) {
 		ret = size;
-		printf("Failed to load a boot config from initrd: %d\n", ret);
+		pr_err("Failed to load a boot config from initrd: %d\n", ret);
 	} else if (size > 0) {
 		ret = fstat(fd, &stat);
 		if (!ret)
@@ -245,7 +245,7 @@ int apply_xbc(const char *path, const char *xbc_path)
 
 	ret = load_xbc_file(xbc_path, &buf);
 	if (ret < 0) {
-		printf("Failed to load %s : %d\n", xbc_path, ret);
+		pr_err("Failed to load %s : %d\n", xbc_path, ret);
 		return ret;
 	}
 	size = strlen(buf) + 1;
@@ -262,7 +262,7 @@ int apply_xbc(const char *path, const char *xbc_path)
 	/* Check the data format */
 	ret = xbc_init(buf);
 	if (ret < 0) {
-		printf("Failed to parse %s: %d\n", xbc_path, ret);
+		pr_err("Failed to parse %s: %d\n", xbc_path, ret);
 		free(data);
 		free(buf);
 		return ret;
@@ -279,20 +279,20 @@ int apply_xbc(const char *path, const char *xbc_path)
 	/* Remove old boot config if exists */
 	ret = delete_xbc(path);
 	if (ret < 0) {
-		printf("Failed to delete previous boot config: %d\n", ret);
+		pr_err("Failed to delete previous boot config: %d\n", ret);
 		return ret;
 	}
 
 	/* Apply new one */
 	fd = open(path, O_RDWR | O_APPEND);
 	if (fd < 0) {
-		printf("Failed to open %s: %d\n", path, fd);
+		pr_err("Failed to open %s: %d\n", path, fd);
 		return fd;
 	}
 	/* TODO: Ensure the @path is initramfs/initrd image */
 	ret = write(fd, data, size + 8);
 	if (ret < 0) {
-		printf("Failed to apply a boot config: %d\n", ret);
+		pr_err("Failed to apply a boot config: %d\n", ret);
 		return ret;
 	}
 	close(fd);
@@ -334,12 +334,12 @@ int main(int argc, char **argv)
 	}
 
 	if (apply && delete) {
-		printf("Error: You can not specify both -a and -d at once.\n");
+		pr_err("Error: You can not specify both -a and -d at once.\n");
 		return usage();
 	}
 
 	if (optind >= argc) {
-		printf("Error: No initrd is specified.\n");
+		pr_err("Error: No initrd is specified.\n");
 		return usage();
 	}
 

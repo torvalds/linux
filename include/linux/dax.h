@@ -129,11 +129,6 @@ static inline bool generic_fsdax_supported(struct dax_device *dax_dev,
 			sectors);
 }
 
-static inline struct dax_device *fs_dax_get_by_host(const char *host)
-{
-	return dax_get_by_host(host);
-}
-
 static inline void fs_put_dax(struct dax_device *dax_dev)
 {
 	put_dax(dax_dev);
@@ -141,7 +136,7 @@ static inline void fs_put_dax(struct dax_device *dax_dev)
 
 struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev);
 int dax_writeback_mapping_range(struct address_space *mapping,
-		struct block_device *bdev, struct writeback_control *wbc);
+		struct dax_device *dax_dev, struct writeback_control *wbc);
 
 struct page *dax_layout_busy_page(struct address_space *mapping);
 dax_entry_t dax_lock_page(struct page *page);
@@ -160,11 +155,6 @@ static inline bool generic_fsdax_supported(struct dax_device *dax_dev,
 	return false;
 }
 
-static inline struct dax_device *fs_dax_get_by_host(const char *host)
-{
-	return NULL;
-}
-
 static inline void fs_put_dax(struct dax_device *dax_dev)
 {
 }
@@ -180,7 +170,7 @@ static inline struct page *dax_layout_busy_page(struct address_space *mapping)
 }
 
 static inline int dax_writeback_mapping_range(struct address_space *mapping,
-		struct block_device *bdev, struct writeback_control *wbc)
+		struct dax_device *dax_dev, struct writeback_control *wbc)
 {
 	return -EOPNOTSUPP;
 }

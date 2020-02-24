@@ -297,8 +297,7 @@ ice_dcbnl_get_pfc_cfg(struct net_device *netdev, int prio, u8 *setting)
 		return;
 
 	*setting = (pi->local_dcbx_cfg.pfc.pfcena >> prio) & 0x1;
-	dev_dbg(ice_pf_to_dev(pf),
-		"Get PFC Config up=%d, setting=%d, pfcenable=0x%x\n",
+	dev_dbg(ice_pf_to_dev(pf), "Get PFC Config up=%d, setting=%d, pfcenable=0x%x\n",
 		prio, *setting, pi->local_dcbx_cfg.pfc.pfcena);
 }
 
@@ -418,8 +417,8 @@ ice_dcbnl_get_pg_tc_cfg_tx(struct net_device *netdev, int prio,
 		return;
 
 	*pgid = pi->local_dcbx_cfg.etscfg.prio_table[prio];
-	dev_dbg(ice_pf_to_dev(pf),
-		"Get PG config prio=%d tc=%d\n", prio, *pgid);
+	dev_dbg(ice_pf_to_dev(pf), "Get PG config prio=%d tc=%d\n", prio,
+		*pgid);
 }
 
 /**
@@ -713,13 +712,13 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 		return -EINVAL;
 
 	mutex_lock(&pf->tc_mutex);
-	ret = dcb_ieee_delapp(netdev, app);
-	if (ret)
-		goto delapp_out;
-
 	old_cfg = &pf->hw.port_info->local_dcbx_cfg;
 
-	if (old_cfg->numapps == 1)
+	if (old_cfg->numapps <= 1)
+		goto delapp_out;
+
+	ret = dcb_ieee_delapp(netdev, app);
+	if (ret)
 		goto delapp_out;
 
 	new_cfg = &pf->hw.port_info->desired_dcbx_cfg;
@@ -882,8 +881,7 @@ ice_dcbnl_vsi_del_app(struct ice_vsi *vsi,
 	sapp.protocol = app->prot_id;
 	sapp.priority = app->priority;
 	err = ice_dcbnl_delapp(vsi->netdev, &sapp);
-	dev_dbg(&vsi->back->pdev->dev,
-		"Deleting app for VSI idx=%d err=%d sel=%d proto=0x%x, prio=%d\n",
+	dev_dbg(ice_pf_to_dev(vsi->back), "Deleting app for VSI idx=%d err=%d sel=%d proto=0x%x, prio=%d\n",
 		vsi->idx, err, app->selector, app->prot_id, app->priority);
 }
 
