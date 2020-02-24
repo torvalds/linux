@@ -1698,6 +1698,13 @@ static int drm_mode_parse_cmdline_options(const char *str,
 	if (rotation && freestanding)
 		return -EINVAL;
 
+	if (!(rotation & DRM_MODE_ROTATE_MASK))
+		rotation |= DRM_MODE_ROTATE_0;
+
+	/* Make sure there is exactly one rotation defined */
+	if (!is_power_of_2(rotation & DRM_MODE_ROTATE_MASK))
+		return -EINVAL;
+
 	mode->rotation_reflection = rotation;
 
 	return 0;

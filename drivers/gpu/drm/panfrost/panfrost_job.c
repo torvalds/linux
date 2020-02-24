@@ -280,12 +280,8 @@ static void panfrost_job_cleanup(struct kref *ref)
 	}
 
 	if (job->bos) {
-		struct panfrost_gem_object *bo;
-
-		for (i = 0; i < job->bo_count; i++) {
-			bo = to_panfrost_bo(job->bos[i]);
+		for (i = 0; i < job->bo_count; i++)
 			drm_gem_object_put_unlocked(job->bos[i]);
-		}
 
 		kvfree(job->bos);
 	}

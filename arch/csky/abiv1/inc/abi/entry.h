@@ -16,14 +16,16 @@
 #define LSAVE_A4	40
 #define LSAVE_A5	44
 
+#define usp ss1
+
 .macro USPTOKSP
-	mtcr	sp, ss1
+	mtcr	sp, usp
 	mfcr	sp, ss0
 .endm
 
 .macro KSPTOUSP
 	mtcr	sp, ss0
-	mfcr	sp, ss1
+	mfcr	sp, usp
 .endm
 
 .macro	SAVE_ALL epc_inc
@@ -45,7 +47,13 @@
 	add	lr, r13
 	stw     lr, (sp, 8)
 
+	mov	lr, sp
+	addi	lr, 32
+	addi	lr, 32
+	addi	lr, 16
+	bt	2f
 	mfcr	lr, ss1
+2:
 	stw     lr, (sp, 16)
 
 	stw     a0, (sp, 20)
@@ -79,9 +87,10 @@
 	ldw     a0, (sp, 12)
 	mtcr    a0, epsr
 	btsti   a0, 31
+	bt      1f
 	ldw     a0, (sp, 16)
 	mtcr	a0, ss1
-
+1:
 	ldw     a0, (sp, 24)
 	ldw     a1, (sp, 28)
 	ldw     a2, (sp, 32)
@@ -102,9 +111,9 @@
 	addi	sp, 32
 	addi	sp, 8
 
-	bt      1f
+	bt      2f
 	KSPTOUSP
-1:
+2:
 	rte
 .endm
 
