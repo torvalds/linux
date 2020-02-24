@@ -2462,15 +2462,10 @@ static void io_wq_assign_next(struct io_wq_work **workptr, struct io_kiocb *nxt)
 	}
 }
 
-static void io_fsync_finish(struct io_wq_work **workptr)
+static void __io_fsync(struct io_kiocb *req, struct io_kiocb **nxt)
 {
-	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
 	loff_t end = req->sync.off + req->sync.len;
-	struct io_kiocb *nxt = NULL;
 	int ret;
-
-	if (io_req_cancelled(req))
-		return;
 
 	ret = vfs_fsync_range(req->file, req->sync.off,
 				end > 0 ? end : LLONG_MAX,
@@ -2478,7 +2473,17 @@ static void io_fsync_finish(struct io_wq_work **workptr)
 	if (ret < 0)
 		req_set_fail_links(req);
 	io_cqring_add_event(req, ret);
-	io_put_req_find_next(req, &nxt);
+	io_put_req_find_next(req, nxt);
+}
+
+static void io_fsync_finish(struct io_wq_work **workptr)
+{
+	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
+	struct io_kiocb *nxt = NULL;
+
+	if (io_req_cancelled(req))
+		return;
+	__io_fsync(req, &nxt);
 	if (nxt)
 		io_wq_assign_next(workptr, nxt);
 }
@@ -2486,26 +2491,18 @@ static void io_fsync_finish(struct io_wq_work **workptr)
 static int io_fsync(struct io_kiocb *req, struct io_kiocb **nxt,
 		    bool force_nonblock)
 {
-	struct io_wq_work *work, *old_work;
-
 	/* fsync always requires a blocking context */
 	if (force_nonblock) {
 		io_put_req(req);
 		req->work.func = io_fsync_finish;
 		return -EAGAIN;
 	}
-
-	work = old_work = &req->work;
-	io_fsync_finish(&work);
-	if (work && work != old_work)
-		*nxt = container_of(work, struct io_kiocb, work);
+	__io_fsync(req, nxt);
 	return 0;
 }
 
-static void io_fallocate_finish(struct io_wq_work **workptr)
+static void __io_fallocate(struct io_kiocb *req, struct io_kiocb **nxt)
 {
-	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
-	struct io_kiocb *nxt = NULL;
 	int ret;
 
 	if (io_req_cancelled(req))
@@ -2516,7 +2513,15 @@ static void io_fallocate_finish(struct io_wq_work **workptr)
 	if (ret < 0)
 		req_set_fail_links(req);
 	io_cqring_add_event(req, ret);
-	io_put_req_find_next(req, &nxt);
+	io_put_req_find_next(req, nxt);
+}
+
+static void io_fallocate_finish(struct io_wq_work **workptr)
+{
+	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
+	struct io_kiocb *nxt = NULL;
+
+	__io_fallocate(req, &nxt);
 	if (nxt)
 		io_wq_assign_next(workptr, nxt);
 }
@@ -2536,8 +2541,6 @@ static int io_fallocate_prep(struct io_kiocb *req,
 static int io_fallocate(struct io_kiocb *req, struct io_kiocb **nxt,
 			bool force_nonblock)
 {
-	struct io_wq_work *work, *old_work;
-
 	/* fallocate always requiring blocking context */
 	if (force_nonblock) {
 		io_put_req(req);
@@ -2545,11 +2548,7 @@ static int io_fallocate(struct io_kiocb *req, struct io_kiocb **nxt,
 		return -EAGAIN;
 	}
 
-	work = old_work = &req->work;
-	io_fallocate_finish(&work);
-	if (work && work != old_work)
-		*nxt = container_of(work, struct io_kiocb, work);
-
+	__io_fallocate(req, nxt);
 	return 0;
 }
 
@@ -2953,21 +2952,27 @@ static int io_prep_sfr(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
-static void io_sync_file_range_finish(struct io_wq_work **workptr)
+static void __io_sync_file_range(struct io_kiocb *req, struct io_kiocb **nxt)
 {
-	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
-	struct io_kiocb *nxt = NULL;
 	int ret;
-
-	if (io_req_cancelled(req))
-		return;
 
 	ret = sync_file_range(req->file, req->sync.off, req->sync.len,
 				req->sync.flags);
 	if (ret < 0)
 		req_set_fail_links(req);
 	io_cqring_add_event(req, ret);
-	io_put_req_find_next(req, &nxt);
+	io_put_req_find_next(req, nxt);
+}
+
+
+static void io_sync_file_range_finish(struct io_wq_work **workptr)
+{
+	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
+	struct io_kiocb *nxt = NULL;
+
+	if (io_req_cancelled(req))
+		return;
+	__io_sync_file_range(req, &nxt);
 	if (nxt)
 		io_wq_assign_next(workptr, nxt);
 }
@@ -2975,8 +2980,6 @@ static void io_sync_file_range_finish(struct io_wq_work **workptr)
 static int io_sync_file_range(struct io_kiocb *req, struct io_kiocb **nxt,
 			      bool force_nonblock)
 {
-	struct io_wq_work *work, *old_work;
-
 	/* sync_file_range always requires a blocking context */
 	if (force_nonblock) {
 		io_put_req(req);
@@ -2984,10 +2987,7 @@ static int io_sync_file_range(struct io_kiocb *req, struct io_kiocb **nxt,
 		return -EAGAIN;
 	}
 
-	work = old_work = &req->work;
-	io_sync_file_range_finish(&work);
-	if (work && work != old_work)
-		*nxt = container_of(work, struct io_kiocb, work);
+	__io_sync_file_range(req, nxt);
 	return 0;
 }
 
