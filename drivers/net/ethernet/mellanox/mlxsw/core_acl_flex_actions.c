@@ -813,15 +813,17 @@ mlxsw_afa_trap_mirror_pack(char *payload, bool mirror_enable,
 	mlxsw_afa_trap_mirror_agent_set(payload, mirror_agent);
 }
 
-int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block)
+int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block, bool ingress)
 {
 	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAP_CODE,
 						  MLXSW_AFA_TRAP_SIZE);
 
 	if (IS_ERR(act))
 		return PTR_ERR(act);
-	mlxsw_afa_trap_pack(act, MLXSW_AFA_TRAP_TRAP_ACTION_NOP,
-			    MLXSW_AFA_TRAP_FORWARD_ACTION_DISCARD, 0);
+	mlxsw_afa_trap_pack(act, MLXSW_AFA_TRAP_TRAP_ACTION_TRAP,
+			    MLXSW_AFA_TRAP_FORWARD_ACTION_DISCARD,
+			    ingress ? MLXSW_TRAP_ID_DISCARD_INGRESS_ACL :
+				      MLXSW_TRAP_ID_DISCARD_EGRESS_ACL);
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_drop);

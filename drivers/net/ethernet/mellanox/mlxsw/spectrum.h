@@ -645,6 +645,7 @@ struct mlxsw_sp_acl_rule_info {
 	struct mlxsw_afk_element_values values;
 	struct mlxsw_afa_block *act_block;
 	u8 action_created:1,
+	   ingress_bind_blocker:1,
 	   egress_bind_blocker:1;
 	unsigned int counter_index;
 };
@@ -664,7 +665,10 @@ struct mlxsw_sp_acl_block {
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned int rule_count;
 	unsigned int disable_count;
+	unsigned int ingress_blocker_rule_count;
 	unsigned int egress_blocker_rule_count;
+	unsigned int ingress_binding_count;
+	unsigned int egress_binding_count;
 	struct net *net;
 };
 
@@ -688,6 +692,8 @@ int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_port *mlxsw_sp_port,
 			      bool ingress);
 bool mlxsw_sp_acl_block_is_egress_bound(const struct mlxsw_sp_acl_block *block);
+bool mlxsw_sp_acl_block_is_ingress_bound(const struct mlxsw_sp_acl_block *block);
+bool mlxsw_sp_acl_block_is_mixed_bound(const struct mlxsw_sp_acl_block *block);
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_block *block, u32 chain_index,
@@ -719,7 +725,8 @@ int mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
 				u16 group_id);
 int mlxsw_sp_acl_rulei_act_terminate(struct mlxsw_sp_acl_rule_info *rulei);
-int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei);
+int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei,
+				bool ingress);
 int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_rule_info *rulei,

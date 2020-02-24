@@ -124,13 +124,17 @@ bool mlxsw_sp_acl_block_disabled(const struct mlxsw_sp_acl_block *block)
 
 bool mlxsw_sp_acl_block_is_egress_bound(const struct mlxsw_sp_acl_block *block)
 {
-	struct mlxsw_sp_acl_block_binding *binding;
+	return block->egress_binding_count;
+}
 
-	list_for_each_entry(binding, &block->binding_list, list) {
-		if (!binding->ingress)
-			return true;
-	}
-	return false;
+bool mlxsw_sp_acl_block_is_ingress_bound(const struct mlxsw_sp_acl_block *block)
+{
+	return block->ingress_binding_count;
+}
+
+bool mlxsw_sp_acl_block_is_mixed_bound(const struct mlxsw_sp_acl_block *block)
+{
+	return block->ingress_binding_count && block->egress_binding_count;
 }
 
 static bool
@@ -252,6 +256,11 @@ int mlxsw_sp_acl_block_bind(struct mlxsw_sp *mlxsw_sp,
 	if (WARN_ON(mlxsw_sp_acl_block_lookup(block, mlxsw_sp_port, ingress)))
 		return -EEXIST;
 
+	if (ingress && block->ingress_blocker_rule_count) {
+		NL_SET_ERR_MSG_MOD(extack, "Block cannot be bound to ingress because it contains unsupported rules");
+		return -EOPNOTSUPP;
+	}
+
 	if (!ingress && block->egress_blocker_rule_count) {
 		NL_SET_ERR_MSG_MOD(extack, "Block cannot be bound to egress because it contains unsupported rules");
 		return -EOPNOTSUPP;
@@ -269,6 +278,10 @@ int mlxsw_sp_acl_block_bind(struct mlxsw_sp *mlxsw_sp,
 			goto err_ruleset_bind;
 	}
 
+	if (ingress)
+		block->ingress_binding_count++;
+	else
+		block->egress_binding_count++;
 	list_add(&binding->list, &block->binding_list);
 	return 0;
 
@@ -289,6 +302,11 @@ int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
 		return -ENOENT;
 
 	list_del(&binding->list);
+
+	if (ingress)
+		block->ingress_binding_count--;
+	else
+		block->egress_binding_count--;
 
 	if (mlxsw_sp_acl_ruleset_block_bound(block))
 		mlxsw_sp_acl_ruleset_unbind(mlxsw_sp, block, binding);
@@ -517,9 +535,10 @@ int mlxsw_sp_acl_rulei_act_terminate(struct mlxsw_sp_acl_rule_info *rulei)
 	return mlxsw_afa_block_terminate(rulei->act_block);
 }
 
-int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei)
+int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei,
+				bool ingress)
 {
-	return mlxsw_afa_block_append_drop(rulei->act_block);
+	return mlxsw_afa_block_append_drop(rulei->act_block, ingress);
 }
 
 int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei)
@@ -709,6 +728,7 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 	list_add_tail(&rule->list, &mlxsw_sp->acl->rules);
 	mutex_unlock(&mlxsw_sp->acl->rules_lock);
 	block->rule_count++;
+	block->ingress_blocker_rule_count += rule->rulei->ingress_bind_blocker;
 	block->egress_blocker_rule_count += rule->rulei->egress_bind_blocker;
 	return 0;
 
@@ -728,6 +748,7 @@ void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_block *block = ruleset->ht_key.block;
 
 	block->egress_blocker_rule_count -= rule->rulei->egress_bind_blocker;
+	block->ingress_blocker_rule_count -= rule->rulei->ingress_bind_blocker;
 	ruleset->ht_key.block->rule_count--;
 	mutex_lock(&mlxsw_sp->acl->rules_lock);
 	list_del(&rule->list);

@@ -118,12 +118,18 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 			     MLXSW_SP_TRAP_METADATA)
 
 #define MLXSW_SP_RXL_DISCARD(_id, _group_id)				      \
-	MLXSW_RXL(mlxsw_sp_rx_drop_listener, DISCARD_##_id, SET_FW_DEFAULT,   \
-		  false, SP_##_group_id, DISCARD)
+	MLXSW_RXL_DIS(mlxsw_sp_rx_drop_listener, DISCARD_##_id,		      \
+		      TRAP_EXCEPTION_TO_CPU, false, SP_##_group_id,	      \
+		      SET_FW_DEFAULT, SP_##_group_id)
+
+#define MLXSW_SP_RXL_ACL_DISCARD(_id, _en_group_id, _dis_group_id)	      \
+	MLXSW_RXL_DIS(mlxsw_sp_rx_drop_listener, DISCARD_##_id,		      \
+		      TRAP_EXCEPTION_TO_CPU, false, SP_##_en_group_id,	      \
+		      SET_FW_DEFAULT, SP_##_dis_group_id)
 
 #define MLXSW_SP_RXL_EXCEPTION(_id, _group_id, _action)			      \
 	MLXSW_RXL(mlxsw_sp_rx_exception_listener, _id,			      \
-		   _action, false, SP_##_group_id, DISCARD)
+		   _action, false, SP_##_group_id, SET_FW_DEFAULT)
 
 static const struct devlink_trap mlxsw_sp_traps_arr[] = {
 	MLXSW_SP_TRAP_DROP(SMAC_MC, L2_DROPS),
@@ -154,6 +160,8 @@ static const struct devlink_trap mlxsw_sp_traps_arr[] = {
 	MLXSW_SP_TRAP_DROP(NON_ROUTABLE, L3_DROPS),
 	MLXSW_SP_TRAP_EXCEPTION(DECAP_ERROR, TUNNEL_DROPS),
 	MLXSW_SP_TRAP_DROP(OVERLAY_SMAC_MC, TUNNEL_DROPS),
+	MLXSW_SP_TRAP_DROP(INGRESS_FLOW_ACTION_DROP, ACL_DROPS),
+	MLXSW_SP_TRAP_DROP(EGRESS_FLOW_ACTION_DROP, ACL_DROPS),
 };
 
 static const struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
@@ -195,6 +203,8 @@ static const struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
 	MLXSW_SP_RXL_EXCEPTION(DISCARD_DEC_PKT, TUNNEL_DISCARDS,
 			       TRAP_EXCEPTION_TO_CPU),
 	MLXSW_SP_RXL_DISCARD(OVERLAY_SMAC_MC, TUNNEL_DISCARDS),
+	MLXSW_SP_RXL_ACL_DISCARD(INGRESS_ACL, ACL_DISCARDS, DUMMY),
+	MLXSW_SP_RXL_ACL_DISCARD(EGRESS_ACL, ACL_DISCARDS, DUMMY),
 };
 
 /* Mapping between hardware trap and devlink trap. Multiple hardware traps can
@@ -235,17 +245,39 @@ static const u16 mlxsw_sp_listener_devlink_map[] = {
 	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
 	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
 	DEVLINK_TRAP_GENERIC_ID_OVERLAY_SMAC_MC,
+	DEVLINK_TRAP_GENERIC_ID_INGRESS_FLOW_ACTION_DROP,
+	DEVLINK_TRAP_GENERIC_ID_EGRESS_FLOW_ACTION_DROP,
 };
 
 #define MLXSW_SP_DISCARD_POLICER_ID	(MLXSW_REG_HTGT_TRAP_GROUP_MAX + 1)
+#define MLXSW_SP_THIN_POLICER_ID	(MLXSW_SP_DISCARD_POLICER_ID + 1)
 
 static int mlxsw_sp_trap_cpu_policers_set(struct mlxsw_sp *mlxsw_sp)
 {
 	char qpcr_pl[MLXSW_REG_QPCR_LEN];
+	int err;
 
 	mlxsw_reg_qpcr_pack(qpcr_pl, MLXSW_SP_DISCARD_POLICER_ID,
 			    MLXSW_REG_QPCR_IR_UNITS_M, false, 10 * 1024, 7);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpcr), qpcr_pl);
+	if (err)
+		return err;
+
+	/* The purpose of "thin" policer is to drop as many packets
+	 * as possible. The dummy group is using it.
+	 */
+	mlxsw_reg_qpcr_pack(qpcr_pl, MLXSW_SP_THIN_POLICER_ID,
+			    MLXSW_REG_QPCR_IR_UNITS_M, false, 1, 4);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpcr), qpcr_pl);
+}
+
+static int mlxsw_sp_trap_dummy_group_init(struct mlxsw_sp *mlxsw_sp)
+{
+	char htgt_pl[MLXSW_REG_HTGT_LEN];
+
+	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_SP_DUMMY,
+			    MLXSW_SP_THIN_POLICER_ID, 0, 1);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(htgt), htgt_pl);
 }
 
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
@@ -254,6 +286,10 @@ int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 	int err;
 
 	err = mlxsw_sp_trap_cpu_policers_set(mlxsw_sp);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_trap_dummy_group_init(mlxsw_sp);
 	if (err)
 		return err;
 
@@ -319,26 +355,23 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener_devlink_map); i++) {
 		const struct mlxsw_listener *listener;
-		enum mlxsw_reg_hpkt_action hw_action;
+		bool enabled;
 		int err;
 
 		if (mlxsw_sp_listener_devlink_map[i] != trap->id)
 			continue;
 		listener = &mlxsw_sp_listeners_arr[i];
-
 		switch (action) {
 		case DEVLINK_TRAP_ACTION_DROP:
-			hw_action = MLXSW_REG_HPKT_ACTION_SET_FW_DEFAULT;
+			enabled = false;
 			break;
 		case DEVLINK_TRAP_ACTION_TRAP:
-			hw_action = MLXSW_REG_HPKT_ACTION_TRAP_EXCEPTION_TO_CPU;
+			enabled = true;
 			break;
 		default:
 			return -EINVAL;
 		}
-
-		err = mlxsw_core_trap_action_set(mlxsw_core, listener,
-						 hw_action);
+		err = mlxsw_core_trap_state_set(mlxsw_core, listener, enabled);
 		if (err)
 			return err;
 	}
@@ -368,6 +401,12 @@ int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 		break;
 	case DEVLINK_TRAP_GROUP_GENERIC_ID_TUNNEL_DROPS:
 		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS;
+		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
+		priority = 0;
+		tc = 1;
+		break;
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_ACL_DROPS:
+		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_ACL_DISCARDS;
 		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
 		priority = 0;
 		tc = 1;

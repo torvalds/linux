@@ -142,6 +142,7 @@ struct mlxsw_rx_listener_item {
 	struct list_head list;
 	struct mlxsw_rx_listener rxl;
 	void *priv;
+	bool enabled;
 };
 
 struct mlxsw_event_listener_item {
@@ -1470,7 +1471,7 @@ __find_rx_listener_item(struct mlxsw_core *mlxsw_core,
 
 int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 				    const struct mlxsw_rx_listener *rxl,
-				    void *priv)
+				    void *priv, bool enabled)
 {
 	struct mlxsw_rx_listener_item *rxl_item;
 
@@ -1482,6 +1483,7 @@ int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 		return -ENOMEM;
 	rxl_item->rxl = *rxl;
 	rxl_item->priv = priv;
+	rxl_item->enabled = enabled;
 
 	list_add_rcu(&rxl_item->list, &mlxsw_core->rx_listener_list);
 	return 0;
@@ -1501,6 +1503,19 @@ void mlxsw_core_rx_listener_unregister(struct mlxsw_core *mlxsw_core,
 	kfree(rxl_item);
 }
 EXPORT_SYMBOL(mlxsw_core_rx_listener_unregister);
+
+static void
+mlxsw_core_rx_listener_state_set(struct mlxsw_core *mlxsw_core,
+				 const struct mlxsw_rx_listener *rxl,
+				 bool enabled)
+{
+	struct mlxsw_rx_listener_item *rxl_item;
+
+	rxl_item = __find_rx_listener_item(mlxsw_core, rxl);
+	if (WARN_ON(!rxl_item))
+		return;
+	rxl_item->enabled = enabled;
+}
 
 static void mlxsw_core_event_listener_func(struct sk_buff *skb, u8 local_port,
 					   void *priv)
@@ -1563,7 +1578,7 @@ int mlxsw_core_event_listener_register(struct mlxsw_core *mlxsw_core,
 	el_item->el = *el;
 	el_item->priv = priv;
 
-	err = mlxsw_core_rx_listener_register(mlxsw_core, &rxl, el_item);
+	err = mlxsw_core_rx_listener_register(mlxsw_core, &rxl, el_item, true);
 	if (err)
 		goto err_rx_listener_register;
 
@@ -1601,16 +1616,18 @@ EXPORT_SYMBOL(mlxsw_core_event_listener_unregister);
 
 static int mlxsw_core_listener_register(struct mlxsw_core *mlxsw_core,
 					const struct mlxsw_listener *listener,
-					void *priv)
+					void *priv, bool enabled)
 {
-	if (listener->is_event)
+	if (listener->is_event) {
+		WARN_ON(!enabled);
 		return mlxsw_core_event_listener_register(mlxsw_core,
 						&listener->event_listener,
 						priv);
-	else
+	} else {
 		return mlxsw_core_rx_listener_register(mlxsw_core,
 						&listener->rx_listener,
-						priv);
+						priv, enabled);
+	}
 }
 
 static void mlxsw_core_listener_unregister(struct mlxsw_core *mlxsw_core,
@@ -1628,15 +1645,22 @@ static void mlxsw_core_listener_unregister(struct mlxsw_core *mlxsw_core,
 int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 			     const struct mlxsw_listener *listener, void *priv)
 {
+	enum mlxsw_reg_htgt_trap_group trap_group;
+	enum mlxsw_reg_hpkt_action action;
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 	int err;
 
-	err = mlxsw_core_listener_register(mlxsw_core, listener, priv);
+	err = mlxsw_core_listener_register(mlxsw_core, listener, priv,
+					   listener->enabled_on_register);
 	if (err)
 		return err;
 
-	mlxsw_reg_hpkt_pack(hpkt_pl, listener->action, listener->trap_id,
-			    listener->trap_group, listener->is_ctrl);
+	action = listener->enabled_on_register ? listener->en_action :
+						 listener->dis_action;
+	trap_group = listener->enabled_on_register ? listener->en_trap_group :
+						     listener->dis_trap_group;
+	mlxsw_reg_hpkt_pack(hpkt_pl, action, listener->trap_id,
+			    trap_group, listener->is_ctrl);
 	err = mlxsw_reg_write(mlxsw_core,  MLXSW_REG(hpkt), hpkt_pl);
 	if (err)
 		goto err_trap_set;
@@ -1656,8 +1680,8 @@ void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 
 	if (!listener->is_event) {
-		mlxsw_reg_hpkt_pack(hpkt_pl, listener->unreg_action,
-				    listener->trap_id, listener->trap_group,
+		mlxsw_reg_hpkt_pack(hpkt_pl, listener->dis_action,
+				    listener->trap_id, listener->dis_trap_group,
 				    listener->is_ctrl);
 		mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
 	}
@@ -1666,17 +1690,33 @@ void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_trap_unregister);
 
-int mlxsw_core_trap_action_set(struct mlxsw_core *mlxsw_core,
-			       const struct mlxsw_listener *listener,
-			       enum mlxsw_reg_hpkt_action action)
+int mlxsw_core_trap_state_set(struct mlxsw_core *mlxsw_core,
+			      const struct mlxsw_listener *listener,
+			      bool enabled)
 {
+	enum mlxsw_reg_htgt_trap_group trap_group;
+	enum mlxsw_reg_hpkt_action action;
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
+	int err;
 
+	/* Not supported for event listener */
+	if (WARN_ON(listener->is_event))
+		return -EINVAL;
+
+	action = enabled ? listener->en_action : listener->dis_action;
+	trap_group = enabled ? listener->en_trap_group :
+			       listener->dis_trap_group;
 	mlxsw_reg_hpkt_pack(hpkt_pl, action, listener->trap_id,
-			    listener->trap_group, listener->is_ctrl);
-	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
+			    trap_group, listener->is_ctrl);
+	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
+	if (err)
+		return err;
+
+	mlxsw_core_rx_listener_state_set(mlxsw_core, &listener->rx_listener,
+					 enabled);
+	return 0;
 }
-EXPORT_SYMBOL(mlxsw_core_trap_action_set);
+EXPORT_SYMBOL(mlxsw_core_trap_state_set);
 
 static u64 mlxsw_core_tid_get(struct mlxsw_core *mlxsw_core)
 {
@@ -1934,7 +1974,8 @@ void mlxsw_core_skb_receive(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 		if ((rxl->local_port == MLXSW_PORT_DONT_CARE ||
 		     rxl->local_port == local_port) &&
 		    rxl->trap_id == rx_info->trap_id) {
-			found = true;
+			if (rxl_item->enabled)
+				found = true;
 			break;
 		}
 	}

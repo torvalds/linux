@@ -41,11 +41,28 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 				return err;
 			}
 			break;
-		case FLOW_ACTION_DROP:
-			err = mlxsw_sp_acl_rulei_act_drop(rulei);
+		case FLOW_ACTION_DROP: {
+			bool ingress;
+
+			if (mlxsw_sp_acl_block_is_mixed_bound(block)) {
+				NL_SET_ERR_MSG_MOD(extack, "Drop action is not supported when block is bound to ingress and egress");
+				return -EOPNOTSUPP;
+			}
+			ingress = mlxsw_sp_acl_block_is_ingress_bound(block);
+			err = mlxsw_sp_acl_rulei_act_drop(rulei, ingress);
 			if (err) {
 				NL_SET_ERR_MSG_MOD(extack, "Cannot append drop action");
 				return err;
+			}
+
+			/* Forbid block with this rulei to be bound
+			 * to ingress/egress in future. Ingress rule is
+			 * a blocker for egress and vice versa.
+			 */
+			if (ingress)
+				rulei->egress_bind_blocker = 1;
+			else
+				rulei->ingress_bind_blocker = 1;
 			}
 			break;
 		case FLOW_ACTION_TRAP:

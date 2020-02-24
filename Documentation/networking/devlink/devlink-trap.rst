@@ -238,6 +238,12 @@ be added to the following table:
      - ``drop``
      - Traps NVE packets that the device decided to drop because their overlay
        source MAC is multicast
+   * - ``ingress_flow_action_drop``
+     - ``drop``
+     - Traps packets dropped during processing of ingress flow action drop
+   * - ``egress_flow_action_drop``
+     - ``drop``
+     - Traps packets dropped during processing of egress flow action drop
 
 Driver-specific Packet Traps
 ============================
@@ -277,6 +283,9 @@ narrow. The description of these groups must be added to the following table:
    * - ``tunnel_drops``
      - Contains packet traps for packets that were dropped by the device during
        tunnel encapsulation / decapsulation
+   * - ``acl_drops``
+     - Contains packet traps for packets that were dropped by the device during
+       ACL processing
 
 Testing
 =======
