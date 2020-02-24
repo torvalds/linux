@@ -287,14 +287,18 @@ int kprobe_handler(struct pt_regs *regs)
 
 	p = get_kprobe(addr);
 	if (!p) {
-		if (*addr != BREAKPOINT_INSTRUCTION) {
+		unsigned int instr;
+
+		if (probe_kernel_address(addr, instr))
+			goto no_kprobe;
+
+		if (instr != BREAKPOINT_INSTRUCTION) {
 			/*
 			 * PowerPC has multiple variants of the "trap"
 			 * instruction. If the current instruction is a
 			 * trap variant, it could belong to someone else
 			 */
-			kprobe_opcode_t cur_insn = *addr;
-			if (is_trap(cur_insn))
+			if (is_trap(instr))
 				goto no_kprobe;
 			/*
 			 * The breakpoint instruction was removed right
