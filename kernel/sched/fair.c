@@ -5469,6 +5469,24 @@ static unsigned long cpu_runnable(struct rq *rq)
 	return cfs_rq_runnable_avg(&rq->cfs);
 }
 
+static unsigned long cpu_runnable_without(struct rq *rq, struct task_struct *p)
+{
+	struct cfs_rq *cfs_rq;
+	unsigned int runnable;
+
+	/* Task has no contribution or is new */
+	if (cpu_of(rq) != task_cpu(p) || !READ_ONCE(p->se.avg.last_update_time))
+		return cpu_runnable(rq);
+
+	cfs_rq = &rq->cfs;
+	runnable = READ_ONCE(cfs_rq->avg.runnable_avg);
+
+	/* Discount task's runnable from CPU's runnable */
+	lsub_positive(&runnable, p->se.avg.runnable_avg);
+
+	return runnable;
+}
+
 static unsigned long capacity_of(int cpu)
 {
 	return cpu_rq(cpu)->cpu_capacity;
@@ -7752,7 +7770,8 @@ struct sg_lb_stats {
 	unsigned long avg_load; /*Avg load across the CPUs of the group */
 	unsigned long group_load; /* Total load over the CPUs of the group */
 	unsigned long group_capacity;
-	unsigned long group_util; /* Total utilization of the group */
+	unsigned long group_util; /* Total utilization over the CPUs of the group */
+	unsigned long group_runnable; /* Total runnable time over the CPUs of the group */
 	unsigned int sum_nr_running; /* Nr of tasks running in the group */
 	unsigned int sum_h_nr_running; /* Nr of CFS tasks running in the group */
 	unsigned int idle_cpus;
@@ -7973,6 +7992,10 @@ group_has_capacity(unsigned int imbalance_pct, struct sg_lb_stats *sgs)
 	if (sgs->sum_nr_running < sgs->group_weight)
 		return true;
 
+	if ((sgs->group_capacity * imbalance_pct) <
+			(sgs->group_runnable * 100))
+		return false;
+
 	if ((sgs->group_capacity * 100) >
 			(sgs->group_util * imbalance_pct))
 		return true;
@@ -7996,6 +8019,10 @@ group_is_overloaded(unsigned int imbalance_pct, struct sg_lb_stats *sgs)
 
 	if ((sgs->group_capacity * 100) <
 			(sgs->group_util * imbalance_pct))
+		return true;
+
+	if ((sgs->group_capacity * imbalance_pct) <
+			(sgs->group_runnable * 100))
 		return true;
 
 	return false;
@@ -8092,6 +8119,7 @@ static inline void update_sg_lb_stats(struct lb_env *env,
 
 		sgs->group_load += cpu_load(rq);
 		sgs->group_util += cpu_util(i);
+		sgs->group_runnable += cpu_runnable(rq);
 		sgs->sum_h_nr_running += rq->cfs.h_nr_running;
 
 		nr_running = rq->nr_running;
@@ -8367,6 +8395,7 @@ static inline void update_sg_wakeup_stats(struct sched_domain *sd,
 
 		sgs->group_load += cpu_load_without(rq, p);
 		sgs->group_util += cpu_util_without(i, p);
+		sgs->group_runnable += cpu_runnable_without(rq, p);
 		local = task_running_on_cpu(i, p);
 		sgs->sum_h_nr_running += rq->cfs.h_nr_running - local;
 
