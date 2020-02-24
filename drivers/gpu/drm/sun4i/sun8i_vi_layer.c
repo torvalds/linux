@@ -13,8 +13,8 @@
 #include <drm/drm_probe_helper.h>
 
 #include "sun8i_csc.h"
-#include "sun8i_vi_layer.h"
 #include "sun8i_mixer.h"
+#include "sun8i_vi_layer.h"
 #include "sun8i_vi_scaler.h"
 
 static void sun8i_vi_layer_enable(struct sun8i_mixer *mixer, int channel,
