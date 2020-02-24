@@ -326,7 +326,7 @@ struct igc_q_vector {
 	struct net_device poll_dev;
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct igc_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct igc_ring ring[] ____cacheline_internodealigned_in_smp;
 };
 
 #define MAX_ETYPE_FILTER		(4 - 1)
