@@ -14299,11 +14299,11 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 	if (new_crtc_state->hw.active)
 		I915_STATE_WARN(!(pll->active_mask & crtc_mask),
 				"pll active mismatch (expected pipe %c in active mask 0x%02x)\n",
-				pipe_name(drm_crtc_index(&crtc->base)), pll->active_mask);
+				pipe_name(crtc->pipe), pll->active_mask);
 	else
 		I915_STATE_WARN(pll->active_mask & crtc_mask,
 				"pll active mismatch (didn't expect pipe %c in active mask 0x%02x)\n",
-				pipe_name(drm_crtc_index(&crtc->base)), pll->active_mask);
+				pipe_name(crtc->pipe), pll->active_mask);
 
 	I915_STATE_WARN(!(pll->state.crtc_mask & crtc_mask),
 			"pll enabled crtcs mismatch (expected 0x%x in 0x%02x)\n",
@@ -14332,10 +14332,10 @@ verify_shared_dpll_state(struct intel_crtc *crtc,
 
 		I915_STATE_WARN(pll->active_mask & crtc_mask,
 				"pll active mismatch (didn't expect pipe %c in active mask)\n",
-				pipe_name(drm_crtc_index(&crtc->base)));
+				pipe_name(crtc->pipe));
 		I915_STATE_WARN(pll->state.crtc_mask & crtc_mask,
 				"pll enabled crtcs mismatch (found %x in enabled mask)\n",
-				pipe_name(drm_crtc_index(&crtc->base)));
+				pipe_name(crtc->pipe));
 	}
 }
 

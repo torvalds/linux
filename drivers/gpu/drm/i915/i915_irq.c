@@ -169,6 +169,14 @@ static const u32 hpd_tgp[HPD_NUM_PINS] = {
 	[HPD_PORT_I] = SDE_TC_HOTPLUG_ICP(PORT_TC6),
 };
 
+static void
+intel_handle_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+
+	drm_crtc_handle_vblank(&crtc->base);
+}
+
 void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
 		    i915_reg_t iir, i915_reg_t ier)
 {
@@ -1364,7 +1372,7 @@ static void i8xx_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 
 	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS)
-			drm_handle_vblank(&dev_priv->drm, pipe);
+			intel_handle_vblank(dev_priv, pipe);
 
 		if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
 			i9xx_pipe_crc_irq_handler(dev_priv, pipe);
@@ -1382,7 +1390,7 @@ static void i915_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 
 	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS)
-			drm_handle_vblank(&dev_priv->drm, pipe);
+			intel_handle_vblank(dev_priv, pipe);
 
 		if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
 			blc_event = true;
@@ -1406,7 +1414,7 @@ static void i965_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 
 	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
-			drm_handle_vblank(&dev_priv->drm, pipe);
+			intel_handle_vblank(dev_priv, pipe);
 
 		if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
 			blc_event = true;
@@ -1432,7 +1440,7 @@ static void valleyview_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 
 	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
-			drm_handle_vblank(&dev_priv->drm, pipe);
+			intel_handle_vblank(dev_priv, pipe);
 
 		if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
 			i9xx_pipe_crc_irq_handler(dev_priv, pipe);
@@ -1970,7 +1978,7 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 
 	for_each_pipe(dev_priv, pipe) {
 		if (de_iir & DE_PIPE_VBLANK(pipe))
-			drm_handle_vblank(&dev_priv->drm, pipe);
+			intel_handle_vblank(dev_priv, pipe);
 
 		if (de_iir & DE_PIPE_FIFO_UNDERRUN(pipe))
 			intel_cpu_fifo_underrun_irq_handler(dev_priv, pipe);
@@ -2023,7 +2031,7 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 
 	for_each_pipe(dev_priv, pipe) {
 		if (de_iir & (DE_PIPE_VBLANK_IVB(pipe)))
-			drm_handle_vblank(&dev_priv->drm, pipe);
+			intel_handle_vblank(dev_priv, pipe);
 	}
 
 	/* check event from PCH */
@@ -2336,7 +2344,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 		I915_WRITE(GEN8_DE_PIPE_IIR(pipe), iir);
 
 		if (iir & GEN8_PIPE_VBLANK)
-			drm_handle_vblank(&dev_priv->drm, pipe);
+			intel_handle_vblank(dev_priv, pipe);
 
 		if (iir & GEN8_PIPE_CDCLK_CRC_DONE)
 			hsw_pipe_crc_irq_handler(dev_priv, pipe);
