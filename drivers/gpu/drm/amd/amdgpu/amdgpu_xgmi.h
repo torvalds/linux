@@ -46,6 +46,8 @@ int amdgpu_xgmi_get_hops_count(struct amdgpu_device *adev,
 		struct amdgpu_device *peer_adev);
 int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev);
 void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev);
+uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
+					   uint64_t addr);
 
 static inline bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
 		struct amdgpu_device *bo_adev)

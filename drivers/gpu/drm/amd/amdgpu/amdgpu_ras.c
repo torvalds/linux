@@ -31,6 +31,7 @@
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_atomfirmware.h"
+#include "amdgpu_xgmi.h"
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 
 const char *ras_error_string[] = {
@@ -742,20 +743,6 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 	return 0;
 }
 
-uint64_t get_xgmi_relative_phy_addr(struct amdgpu_device *adev, uint64_t addr)
-{
-	uint32_t df_inst_id;
-
-	if ((!adev->df.funcs)                 ||
-	    (!adev->df.funcs->get_df_inst_id) ||
-	    (!adev->df.funcs->get_dram_base_addr))
-		return addr;
-
-	df_inst_id = adev->df.funcs->get_df_inst_id(adev);
-
-	return addr + adev->df.funcs->get_dram_base_addr(adev, df_inst_id);
-}
-
 /* wrapper of psp_ras_trigger_error */
 int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 		struct ras_inject_if *info)
@@ -775,8 +762,9 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 
 	/* Calculate XGMI relative offset */
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
-		block_info.address = get_xgmi_relative_phy_addr(adev,
-								block_info.address);
+		block_info.address =
+			amdgpu_xgmi_get_relative_phy_addr(adev,
+							  block_info.address);
 	}
 
 	switch (info->head.block) {

@@ -530,3 +530,18 @@ void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)
 		kfree(ras_if);
 	}
 }
+
+uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
+					   uint64_t addr)
+{
+	uint32_t df_inst_id;
+
+	if ((!adev->df.funcs)                 ||
+	    (!adev->df.funcs->get_df_inst_id) ||
+	    (!adev->df.funcs->get_dram_base_addr))
+		return addr;
+
+	df_inst_id = adev->df.funcs->get_df_inst_id(adev);
+
+	return addr + adev->df.funcs->get_dram_base_addr(adev, df_inst_id);
+}
