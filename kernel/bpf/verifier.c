@@ -8168,14 +8168,19 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 	 * of the memory allocator or at a place where a recursion into the
 	 * memory allocator would see inconsistent state.
 	 *
-	 * For now running such programs is allowed for backwards
-	 * compatibility reasons, but warnings are emitted so developers are
-	 * made aware of the unsafety and can fix their programs before this
-	 * is enforced.
+	 * On RT enabled kernels run-time allocation of all trace type
+	 * programs is strictly prohibited due to lock type constraints. On
+	 * !RT kernels it is allowed for backwards compatibility reasons for
+	 * now, but warnings are emitted so developers are made aware of
+	 * the unsafety and can fix their programs before this is enforced.
 	 */
 	if (is_tracing_prog_type(prog->type) && !is_preallocated_map(map)) {
 		if (prog->type == BPF_PROG_TYPE_PERF_EVENT) {
 			verbose(env, "perf_event programs can only use preallocated hash map\n");
+			return -EINVAL;
+		}
+		if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+			verbose(env, "trace type programs can only use preallocated hash map\n");
 			return -EINVAL;
 		}
 		WARN_ONCE(1, "trace type BPF program uses run-time allocation\n");
