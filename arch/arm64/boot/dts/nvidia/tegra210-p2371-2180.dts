@@ -85,6 +85,7 @@
 			compatible = "atmel,24c02";
 			reg = <0x57>;
 
+			vcc-supply = <&vdd_1v8>;
 			address-bits = <8>;
 			page-size = <8>;
 			size = <256>;
