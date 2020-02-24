@@ -176,11 +176,11 @@ non_ip_test()
 		00:00 de:ad:be:ef" &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 
 	log_test "Non IP"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ip"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ip" 1 101
 }
 
 __uc_dip_over_mc_dmac_test()
@@ -206,11 +206,11 @@ __uc_dip_over_mc_dmac_test()
 		-B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 
 	log_test "Unicast destination IP over multicast destination MAC: $desc"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 $proto
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
 }
 
 uc_dip_over_mc_dmac_test()
@@ -242,11 +242,11 @@ __sip_is_loopback_test()
 		-b $rp1mac -B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 
 	log_test "Source IP is loopback address: $desc"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 $proto
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
 }
 
 sip_is_loopback_test()
@@ -277,11 +277,11 @@ __dip_is_loopback_test()
 		-B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 
 	log_test "Destination IP is loopback address: $desc"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 $proto
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
 }
 
 dip_is_loopback_test()
@@ -313,11 +313,11 @@ __sip_is_mc_test()
 		-b $rp1mac -B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 
 	log_test "Source IP is multicast: $desc"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 $proto
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
 }
 
 sip_is_mc_test()
@@ -345,11 +345,11 @@ ipv4_sip_is_limited_bc_test()
 		-B $h2_ipv4 -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 
 	log_test "IPv4 source IP is limited broadcast"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ip"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ip" 1 101
 }
 
 ipv4_payload_get()
@@ -399,11 +399,11 @@ __ipv4_header_corrupted_test()
 	$MZ $h1 -c 0 -d 1msec -a $h1mac -b $rp1mac -q p=$payload &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 
 	log_test "IP header corrupted: $desc: IPv4"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ip"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ip" 1 101
 }
 
 ipv6_payload_get()
@@ -446,11 +446,11 @@ __ipv6_header_corrupted_test()
 	$MZ $h1 -c 0 -d 1msec -a $h1mac -b $rp1mac -q p=$payload &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 
 	log_test "IP header corrupted: $desc: IPv6"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ip"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ip" 1 101
 }
 
 ip_header_corrupted_test()
@@ -485,11 +485,11 @@ ipv6_mc_dip_reserved_scope_test()
 		"33:33:00:00:00:00" -B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 
 	log_test "IPv6 multicast destination IP reserved scope"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ipv6"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ipv6" 1 101
 }
 
 ipv6_mc_dip_interface_local_scope_test()
@@ -511,11 +511,11 @@ ipv6_mc_dip_interface_local_scope_test()
 		"33:33:00:00:00:00" -B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 
 	log_test "IPv6 multicast destination IP interface-local scope"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 "ipv6"
+	devlink_trap_drop_cleanup $mz_pid $rp2 "ipv6" 1 101
 }
 
 __blackhole_route_test()
@@ -542,10 +542,10 @@ __blackhole_route_test()
 		-B $dip -d 1msec -q &
 	mz_pid=$!
 
-	devlink_trap_drop_test $trap_name $group_name $rp2
+	devlink_trap_drop_test $trap_name $group_name $rp2 101
 	log_test "Blackhole route: IPv$flags"
 
-	devlink_trap_drop_cleanup $mz_pid $rp2 $proto
+	devlink_trap_drop_cleanup $mz_pid $rp2 $proto 1 101
 	ip -$flags route del blackhole $subnet
 }
 
