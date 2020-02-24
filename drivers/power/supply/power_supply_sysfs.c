@@ -482,6 +482,7 @@ static struct device_attribute power_supply_attrs[] = {
 	/* Resistance Estimaton */
 	POWER_SUPPLY_ATTR(resistance_avg),
 	POWER_SUPPLY_ATTR(batt_res_filt_cnts),
+	POWER_SUPPLY_ATTR(aicl_done),
 	/* Charge pump properties */
 	POWER_SUPPLY_ATTR(cp_status1),
 	POWER_SUPPLY_ATTR(cp_status2),

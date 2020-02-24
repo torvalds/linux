@@ -347,6 +347,7 @@ enum power_supply_property {
 	/* Resistance Estimaton */
 	POWER_SUPPLY_PROP_RESISTANCE_AVG,
 	POWER_SUPPLY_PROP_RES_FILTER_COUNT,
+	POWER_SUPPLY_PROP_AICL_DONE,
 	/* Charge pump properties */
 	POWER_SUPPLY_PROP_CP_STATUS1,
 	POWER_SUPPLY_PROP_CP_STATUS2,
