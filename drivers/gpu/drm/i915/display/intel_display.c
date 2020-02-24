@@ -2729,9 +2729,10 @@ u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 
 	/*
 	 * We assume the primary plane for pipe A has
-	 * the highest stride limits of them all.
+	 * the highest stride limits of them all,
+	 * if in case pipe A is disabled, use the first pipe from pipe_mask.
 	 */
-	crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_A);
+	crtc = intel_get_first_crtc(dev_priv);
 	if (!crtc)
 		return 0;
 
