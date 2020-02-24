@@ -10,11 +10,6 @@ config USER_STACKTRACE_SUPPORT
 config NOP_TRACER
 	bool
 
-config HAVE_FTRACE_NMI_ENTER
-	bool
-	help
-	  See Documentation/trace/ftrace-design.rst
-
 config HAVE_FUNCTION_TRACER
 	bool
 	help
@@ -71,11 +66,6 @@ config RING_BUFFER
 	bool
 	select TRACE_CLOCK
 	select IRQ_WORK
-
-config FTRACE_NMI_ENTER
-       bool
-       depends on HAVE_FTRACE_NMI_ENTER
-       default y
 
 config EVENT_TRACING
 	select CONTEXT_SWITCH_TRACER
