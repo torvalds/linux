@@ -1137,7 +1137,8 @@ void f2fs_free_dic(struct decompress_io_ctx *dic)
 		for (i = 0; i < dic->cluster_size; i++) {
 			if (dic->rpages[i])
 				continue;
-			f2fs_put_page(dic->tpages[i], 1);
+			unlock_page(dic->tpages[i]);
+			put_page(dic->tpages[i]);
 		}
 		kfree(dic->tpages);
 	}
