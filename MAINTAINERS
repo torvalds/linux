@@ -9600,9 +9600,9 @@ F:	arch/powerpc/platforms/powermac/
 F:	drivers/macintosh/
 
 LINUX FOR POWERPC (32-BIT AND 64-BIT)
-M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
-M:	Paul Mackerras <paulus@samba.org>
 M:	Michael Ellerman <mpe@ellerman.id.au>
+R:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
+R:	Paul Mackerras <paulus@samba.org>
 W:	https://github.com/linuxppc/linux/wiki
 L:	linuxppc-dev@lists.ozlabs.org
 Q:	http://patchwork.ozlabs.org/project/linuxppc-dev/list/
