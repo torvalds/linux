@@ -21,10 +21,14 @@ struct lvds_codec {
 	u32 connector_type;
 };
 
+static inline struct lvds_codec *to_lvds_codec(struct drm_bridge *bridge)
+{
+	return container_of(bridge, struct lvds_codec, bridge);
+}
+
 static int lvds_codec_attach(struct drm_bridge *bridge)
 {
-	struct lvds_codec *lvds_codec = container_of(bridge,
-						     struct lvds_codec, bridge);
+	struct lvds_codec *lvds_codec = to_lvds_codec(bridge);
 
 	return drm_bridge_attach(bridge->encoder, lvds_codec->panel_bridge,
 				 bridge);
@@ -32,8 +36,7 @@ static int lvds_codec_attach(struct drm_bridge *bridge)
 
 static void lvds_codec_enable(struct drm_bridge *bridge)
 {
-	struct lvds_codec *lvds_codec = container_of(bridge,
-						     struct lvds_codec, bridge);
+	struct lvds_codec *lvds_codec = to_lvds_codec(bridge);
 
 	if (lvds_codec->powerdown_gpio)
 		gpiod_set_value_cansleep(lvds_codec->powerdown_gpio, 0);
@@ -41,8 +44,7 @@ static void lvds_codec_enable(struct drm_bridge *bridge)
 
 static void lvds_codec_disable(struct drm_bridge *bridge)
 {
-	struct lvds_codec *lvds_codec = container_of(bridge,
-						     struct lvds_codec, bridge);
+	struct lvds_codec *lvds_codec = to_lvds_codec(bridge);
 
 	if (lvds_codec->powerdown_gpio)
 		gpiod_set_value_cansleep(lvds_codec->powerdown_gpio, 1);
