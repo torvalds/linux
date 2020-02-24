@@ -363,11 +363,9 @@ static const u32 sun8i_vi_layer_formats[] = {
 	DRM_FORMAT_YUV411,
 	DRM_FORMAT_YUV420,
 	DRM_FORMAT_YUV422,
-	DRM_FORMAT_YUV444,
 	DRM_FORMAT_YVU411,
 	DRM_FORMAT_YVU420,
 	DRM_FORMAT_YVU422,
-	DRM_FORMAT_YVU444,
 };
 
 struct sun8i_vi_layer *sun8i_vi_layer_init_one(struct drm_device *drm,

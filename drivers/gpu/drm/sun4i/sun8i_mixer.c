@@ -257,12 +257,6 @@ static const struct de2_fmt_info de2_formats[] = {
 		.csc = SUN8I_CSC_MODE_YUV2RGB,
 	},
 	{
-		.drm_fmt = DRM_FORMAT_YUV444,
-		.de2_fmt = SUN8I_MIXER_FBFMT_RGB888,
-		.rgb = true,
-		.csc = SUN8I_CSC_MODE_YUV2RGB,
-	},
-	{
 		.drm_fmt = DRM_FORMAT_YUV422,
 		.de2_fmt = SUN8I_MIXER_FBFMT_YUV422,
 		.rgb = false,
@@ -279,12 +273,6 @@ static const struct de2_fmt_info de2_formats[] = {
 		.de2_fmt = SUN8I_MIXER_FBFMT_YUV411,
 		.rgb = false,
 		.csc = SUN8I_CSC_MODE_YUV2RGB,
-	},
-	{
-		.drm_fmt = DRM_FORMAT_YVU444,
-		.de2_fmt = SUN8I_MIXER_FBFMT_RGB888,
-		.rgb = true,
-		.csc = SUN8I_CSC_MODE_YVU2RGB,
 	},
 	{
 		.drm_fmt = DRM_FORMAT_YVU422,
