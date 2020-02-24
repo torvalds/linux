@@ -673,7 +673,6 @@ struct hns_roce_qp {
 	/* this define must less than HNS_ROCE_MAX_BT_REGION */
 #define HNS_ROCE_WQE_REGION_MAX	 3
 	struct hns_roce_buf_region regions[HNS_ROCE_WQE_REGION_MAX];
-	int			region_cnt;
 	int                     wqe_bt_pg_shift;
 
 	u32			buff_size;
