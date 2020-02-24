@@ -330,8 +330,10 @@ he_bss_color_policy[NL80211_HE_BSS_COLOR_ATTR_MAX + 1] = {
 
 static const struct nla_policy
 nl80211_tid_config_attr_policy[NL80211_TID_CONFIG_ATTR_MAX + 1] = {
+	[NL80211_TID_CONFIG_ATTR_VIF_SUPP] = { .type = NLA_U64 },
+	[NL80211_TID_CONFIG_ATTR_PEER_SUPP] = { .type = NLA_U64 },
 	[NL80211_TID_CONFIG_ATTR_OVERRIDE] = { .type = NLA_FLAG },
-	[NL80211_TID_CONFIG_ATTR_TIDS] = { .type = NLA_U8 },
+	[NL80211_TID_CONFIG_ATTR_TIDS] = NLA_POLICY_RANGE(NLA_U16, 1, 0xff),
 	[NL80211_TID_CONFIG_ATTR_NOACK] =
 			NLA_POLICY_MAX(NLA_U8, NL80211_TID_CONFIG_DISABLE),
 };
@@ -1957,6 +1959,40 @@ nl80211_put_iftype_akm_suites(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
+static int
+nl80211_put_tid_config_support(struct cfg80211_registered_device *rdev,
+			       struct sk_buff *msg)
+{
+	struct nlattr *supp;
+
+	if (!rdev->wiphy.tid_config_support.vif &&
+	    !rdev->wiphy.tid_config_support.peer)
+		return 0;
+
+	supp = nla_nest_start(msg, NL80211_ATTR_TID_CONFIG);
+	if (!supp)
+		return -ENOSPC;
+
+	if (rdev->wiphy.tid_config_support.vif &&
+	    nla_put_u64_64bit(msg, NL80211_TID_CONFIG_ATTR_VIF_SUPP,
+			      rdev->wiphy.tid_config_support.vif,
+			      NL80211_TID_CONFIG_ATTR_PAD))
+		goto fail;
+
+	if (rdev->wiphy.tid_config_support.peer &&
+	    nla_put_u64_64bit(msg, NL80211_TID_CONFIG_ATTR_PEER_SUPP,
+			      rdev->wiphy.tid_config_support.peer,
+			      NL80211_TID_CONFIG_ATTR_PAD))
+		goto fail;
+
+	nla_nest_end(msg, supp);
+
+	return 0;
+fail:
+	nla_nest_cancel(msg, supp);
+	return -ENOBUFS;
+}
+
 struct nl80211_dump_wiphy_state {
 	s64 filter_wiphy;
 	long start;
@@ -2516,6 +2552,9 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 			goto nla_put_failure;
 
 		if (nl80211_put_iftype_akm_suites(rdev, msg))
+			goto nla_put_failure;
+
+		if (nl80211_put_tid_config_support(rdev, msg))
 			goto nla_put_failure;
 
 		/* done */
@@ -13944,44 +13983,13 @@ static int nl80211_probe_mesh_link(struct sk_buff *skb, struct genl_info *info)
 	return rdev_probe_mesh_link(rdev, dev, dest, buf, len);
 }
 
-static int
-__nl80211_check_tid_conf_support(struct cfg80211_registered_device *rdev,
-				 struct netlink_ext_ack *extack,
-				 const u8 *peer, struct nlattr *attrs[],
-				 struct ieee80211_tid_cfg *tid_conf,
-				 enum nl80211_tid_config_attr attr,
-				 enum nl80211_ext_feature_index per_tid_config,
-				 enum nl80211_ext_feature_index per_sta_config)
-{
-	if (!wiphy_ext_feature_isset(&rdev->wiphy, per_tid_config)) {
-		NL_SET_ERR_MSG_ATTR(extack, attrs[attr],
-				    "TID specific configuration not supported");
-		return -ENOTSUPP;
-	}
-
-	if (peer && !wiphy_ext_feature_isset(&rdev->wiphy, per_sta_config)) {
-		NL_SET_ERR_MSG_ATTR(extack, attrs[attr],
-				    "peer specific TID configuration not supported");
-		return -ENOTSUPP;
-	}
-
-	tid_conf->tid_conf_mask |= BIT(attr);
-	return 0;
-}
-
-#define nl80211_check_tid_config_support(rdev, extack, peer, attrs, tid_conf, \
-					 conf)	\
-	__nl80211_check_tid_conf_support(rdev, extack, peer, attrs, tid_conf, \
-				 NL80211_TID_CONFIG_ATTR_##conf,	\
-				 NL80211_EXT_FEATURE_PER_TID_##conf##_CONFIG, \
-				 NL80211_EXT_FEATURE_PER_STA_##conf##_CONFIG)
-
 static int parse_tid_conf(struct cfg80211_registered_device *rdev,
 			  struct nlattr *attrs[], struct net_device *dev,
-			  struct ieee80211_tid_cfg *tid_conf,
+			  struct cfg80211_tid_cfg *tid_conf,
 			  struct genl_info *info, const u8 *peer)
 {
 	struct netlink_ext_ack *extack = info->extack;
+	u64 mask;
 	int err;
 
 	if (!attrs[NL80211_TID_CONFIG_ATTR_TIDS])
@@ -13989,12 +13997,12 @@ static int parse_tid_conf(struct cfg80211_registered_device *rdev,
 
 	tid_conf->config_override =
 			nla_get_flag(attrs[NL80211_TID_CONFIG_ATTR_OVERRIDE]);
-	tid_conf->tid = nla_get_u8(attrs[NL80211_TID_CONFIG_ATTR_TIDS]);
+	tid_conf->tids = nla_get_u16(attrs[NL80211_TID_CONFIG_ATTR_TIDS]);
 
 	if (tid_conf->config_override) {
 		if (rdev->ops->reset_tid_config) {
 			err = rdev_reset_tid_config(rdev, dev, peer,
-						    tid_conf->tid);
+						    tid_conf->tids);
 			/* If peer is there no other configuration will be
 			 * allowed
 			 */
@@ -14006,14 +14014,19 @@ static int parse_tid_conf(struct cfg80211_registered_device *rdev,
 	}
 
 	if (attrs[NL80211_TID_CONFIG_ATTR_NOACK]) {
-		err = nl80211_check_tid_config_support(rdev, extack, peer,
-						       attrs, tid_conf,
-						       NOACK);
-		if (err)
-			return err;
-
+		tid_conf->mask |= BIT(NL80211_TID_CONFIG_ATTR_NOACK);
 		tid_conf->noack =
 			nla_get_u8(attrs[NL80211_TID_CONFIG_ATTR_NOACK]);
+	}
+
+	if (peer)
+		mask = rdev->wiphy.tid_config_support.peer;
+	else
+		mask = rdev->wiphy.tid_config_support.vif;
+
+	if (tid_conf->mask & ~mask) {
+		NL_SET_ERR_MSG(extack, "unsupported TID configuration");
+		return -ENOTSUPP;
 	}
 
 	return 0;
@@ -14025,7 +14038,7 @@ static int nl80211_set_tid_config(struct sk_buff *skb,
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct nlattr *attrs[NL80211_TID_CONFIG_ATTR_MAX + 1];
 	struct net_device *dev = info->user_ptr[1];
-	struct ieee80211_tid_config *tid_config;
+	struct cfg80211_tid_config *tid_config;
 	struct nlattr *tid;
 	int conf_idx = 0, rem_conf;
 	int ret = -EINVAL;
