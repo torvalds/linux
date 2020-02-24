@@ -80,7 +80,7 @@ static inline struct opp_table *rockchip_set_opp_prop_name(struct device *dev,
 							   int process,
 							   int volt_sel)
 {
-	return -ENOTSUPP;
+	return ERR_PTR(-ENOTSUPP);
 }
 
 static inline int rockchip_adjust_power_scale(struct device *dev, int scale)
