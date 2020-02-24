@@ -1375,8 +1375,6 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ERR_PTR(err);
 	}
 
-	i915->drm.dev_private = i915;
-
 	i915->drm.pdev = pdev;
 	pci_set_drvdata(pdev, i915);
 
