@@ -1087,6 +1087,47 @@ err_out:
 	return ret;
 }
 
+void hns_roce_qp_destroy(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
+			 struct ib_udata *udata)
+{
+	hns_roce_qp_free(hr_dev, hr_qp);
+
+	/* Not special_QP, free their QPN */
+	if (hr_qp->ibqp.qp_type != IB_QPT_GSI)
+		hns_roce_release_range_qp(hr_dev, hr_qp->qpn, 1);
+
+	hns_roce_mtr_cleanup(hr_dev, &hr_qp->mtr);
+
+	if (udata) {
+		struct hns_roce_ucontext *context =
+			rdma_udata_to_drv_context(
+				udata,
+				struct hns_roce_ucontext,
+				ibucontext);
+
+		if (hr_qp->sq.wqe_cnt && (hr_qp->sdb_en == 1))
+			hns_roce_db_unmap_user(context, &hr_qp->sdb);
+
+		if (hr_qp->rq.wqe_cnt && (hr_qp->rdb_en == 1))
+			hns_roce_db_unmap_user(context, &hr_qp->rdb);
+	} else {
+		kfree(hr_qp->sq.wrid);
+		kfree(hr_qp->rq.wrid);
+		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
+		if (hr_qp->rq.wqe_cnt)
+			hns_roce_free_db(hr_dev, &hr_qp->rdb);
+	}
+	ib_umem_release(hr_qp->umem);
+
+	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
+	     hr_qp->rq.wqe_cnt) {
+		kfree(hr_qp->rq_inl_buf.wqe_list[0].sg_list);
+		kfree(hr_qp->rq_inl_buf.wqe_list);
+	}
+
+	kfree(hr_qp);
+}
+
 struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 				 struct ib_qp_init_attr *init_attr,
 				 struct ib_udata *udata)

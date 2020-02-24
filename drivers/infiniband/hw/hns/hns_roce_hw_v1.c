@@ -3618,26 +3618,11 @@ int hns_roce_v1_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 		if (send_cq && send_cq != recv_cq)
 			__hns_roce_v1_cq_clean(send_cq, hr_qp->qpn, NULL);
 	}
+	hns_roce_qp_remove(hr_dev, hr_qp);
 	hns_roce_unlock_cqs(send_cq, recv_cq);
 
-	hns_roce_qp_remove(hr_dev, hr_qp);
-	hns_roce_qp_free(hr_dev, hr_qp);
+	hns_roce_qp_destroy(hr_dev, hr_qp, udata);
 
-	/* RC QP, release QPN */
-	if (hr_qp->ibqp.qp_type == IB_QPT_RC)
-		hns_roce_release_range_qp(hr_dev, hr_qp->qpn, 1);
-
-	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
-
-	ib_umem_release(hr_qp->umem);
-	if (!udata) {
-		kfree(hr_qp->sq.wrid);
-		kfree(hr_qp->rq.wrid);
-
-		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
-	}
-
-	kfree(hr_qp);
 	return 0;
 }
 
