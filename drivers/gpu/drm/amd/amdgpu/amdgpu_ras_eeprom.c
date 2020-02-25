@@ -26,9 +26,11 @@
 #include "amdgpu_ras.h"
 #include <linux/bits.h>
 #include "smu_v11_0_i2c.h"
+#include "atom.h"
 
-#define EEPROM_I2C_TARGET_ADDR_ARCTURUS  0xA8
-#define EEPROM_I2C_TARGET_ADDR_VEGA20    0xA0
+#define EEPROM_I2C_TARGET_ADDR_VEGA20    	0xA0
+#define EEPROM_I2C_TARGET_ADDR_ARCTURUS  	0xA8
+#define EEPROM_I2C_TARGET_ADDR_ARCTURUS_D342  	0xA0
 
 /*
  * The 2 macros bellow represent the actual size in bytes that
@@ -54,6 +56,45 @@
 #define EEPROM_ADDR_MSB_MASK GENMASK(17, 8)
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_ras, eeprom_control))->adev
+
+static bool __get_eeprom_i2c_addr_arct(struct amdgpu_device *adev,
+				       uint16_t *i2c_addr)
+{
+	struct atom_context *atom_ctx = adev->mode_info.atom_context;
+
+	if (!i2c_addr || !atom_ctx)
+		return false;
+
+	if (strnstr(atom_ctx->vbios_version,
+	            "D342",
+		    sizeof(atom_ctx->vbios_version)))
+		*i2c_addr = EEPROM_I2C_TARGET_ADDR_ARCTURUS_D342;
+	else
+		*i2c_addr = EEPROM_I2C_TARGET_ADDR_ARCTURUS;
+
+	return true;
+}
+
+static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
+				  uint16_t *i2c_addr)
+{
+	if (!i2c_addr)
+		return false;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+		*i2c_addr = EEPROM_I2C_TARGET_ADDR_VEGA20;
+		break;
+
+	case CHIP_ARCTURUS:
+		return __get_eeprom_i2c_addr_arct(adev, i2c_addr);
+
+	default:
+		return false;
+	}
+
+	return true;
+}
 
 static void __encode_table_header_to_buff(struct amdgpu_ras_eeprom_table_header *hdr,
 					  unsigned char *buff)
@@ -102,8 +143,6 @@ static int __update_table_header(struct amdgpu_ras_eeprom_control *control,
 
 	return ret;
 }
-
-
 
 static uint32_t  __calc_hdr_byte_sum(struct amdgpu_ras_eeprom_control *control)
 {
@@ -212,16 +251,17 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 			.buf	= buff,
 	};
 
+	if (!__get_eeprom_i2c_addr(adev, &control->i2c_address))
+		return -EINVAL;
+
 	mutex_init(&control->tbl_mutex);
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
-		control->i2c_address = EEPROM_I2C_TARGET_ADDR_VEGA20;
 		ret = smu_v11_0_i2c_eeprom_control_init(&control->eeprom_accessor);
 		break;
 
 	case CHIP_ARCTURUS:
-		control->i2c_address = EEPROM_I2C_TARGET_ADDR_ARCTURUS;
 		ret = smu_i2c_eeprom_init(&adev->smu, &control->eeprom_accessor);
 		break;
 
