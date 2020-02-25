@@ -832,6 +832,8 @@ static int nfs_parse_source(struct fs_context *fc,
 	if (len > maxnamlen)
 		goto out_hostname;
 
+	kfree(ctx->nfs_server.hostname);
+
 	/* N.B. caller will free nfs_server.hostname in all cases */
 	ctx->nfs_server.hostname = kmemdup_nul(dev_name, len, GFP_KERNEL);
 	if (!ctx->nfs_server.hostname)
