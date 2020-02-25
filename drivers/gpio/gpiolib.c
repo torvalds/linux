@@ -1797,10 +1797,8 @@ EXPORT_SYMBOL_GPL(gpiochip_get_data);
 void gpiochip_remove(struct gpio_chip *chip)
 {
 	struct gpio_device *gdev = chip->gpiodev;
-	struct gpio_desc *desc;
 	unsigned long	flags;
-	unsigned	i;
-	bool		requested = false;
+	unsigned int	i;
 
 	/* FIXME: should the legacy sysfs handling be moved to gpio_device? */
 	gpiochip_sysfs_unregister(gdev);
@@ -1820,13 +1818,12 @@ void gpiochip_remove(struct gpio_chip *chip)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 	for (i = 0; i < gdev->ngpio; i++) {
-		desc = &gdev->descs[i];
-		if (test_bit(FLAG_REQUESTED, &desc->flags))
-			requested = true;
+		if (gpiochip_is_requested(chip, i))
+			break;
 	}
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	if (requested)
+	if (i == gdev->ngpio)
 		dev_crit(&gdev->dev,
 			 "REMOVING GPIOCHIP WITH GPIOS STILL REQUESTED\n");
 
