@@ -4773,7 +4773,10 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	int j;
 	int index;
 
-	BUG_ON(!alloc_profile_is_valid(type, 0));
+	if (!alloc_profile_is_valid(type, 0)) {
+		ASSERT(0);
+		return -EINVAL;
+	}
 
 	if (list_empty(&fs_devices->alloc_list)) {
 		if (btrfs_test_opt(info, ENOSPC_DEBUG))
