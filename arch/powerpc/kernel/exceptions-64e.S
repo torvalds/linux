@@ -1003,38 +1003,6 @@ masked_interrupt_book3e_0x2c0:
 	masked_interrupt_book3e PACA_IRQ_DBELL 0
 
 /*
- * Called from arch_local_irq_enable when an interrupt needs
- * to be resent. r3 contains either 0x500,0x900,0x260 or 0x280
- * to indicate the kind of interrupt. MSR:EE is already off.
- * We generate a stackframe like if a real interrupt had happened.
- *
- * Note: While MSR:EE is off, we need to make sure that _MSR
- * in the generated frame has EE set to 1 or the exception
- * handler will not properly re-enable them.
- */
-_GLOBAL(__replay_interrupt)
-	/* We are going to jump to the exception common code which
-	 * will retrieve various register values from the PACA which
-	 * we don't give a damn about.
-	 */
-	mflr	r10
-	mfmsr	r11
-	mfcr	r4
-	mtspr	SPRN_SPRG_GEN_SCRATCH,r13;
-	std	r1,PACA_EXGEN+EX_R1(r13);
-	stw	r4,PACA_EXGEN+EX_CR(r13);
-	ori	r11,r11,MSR_EE
-	subi	r1,r1,INT_FRAME_SIZE;
-	cmpwi	cr0,r3,0x500
-	beq	exc_0x500_common
-	cmpwi	cr0,r3,0x900
-	beq	exc_0x900_common
-	cmpwi	cr0,r3,0x280
-	beq	exc_0x280_common
-	blr
-
-
-/*
  * This is called from 0x300 and 0x400 handlers after the prologs with
  * r14 and r15 containing the fault address and error code, with the
  * original values stashed away in the PACA
