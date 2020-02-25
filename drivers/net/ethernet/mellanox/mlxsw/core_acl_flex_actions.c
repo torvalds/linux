@@ -769,6 +769,22 @@ static void mlxsw_afa_cookie_put(struct mlxsw_afa *mlxsw_afa,
 	mlxsw_afa_cookie_destroy(mlxsw_afa, cookie);
 }
 
+/* RCU read lock must be held */
+const struct flow_action_cookie *
+mlxsw_afa_cookie_lookup(struct mlxsw_afa *mlxsw_afa, u32 cookie_index)
+{
+	struct mlxsw_afa_cookie *cookie;
+
+	/* 0 index means no cookie */
+	if (!cookie_index)
+		return NULL;
+	cookie = idr_find(&mlxsw_afa->cookie_idr, cookie_index);
+	if (!cookie)
+		return NULL;
+	return &cookie->fa_cookie;
+}
+EXPORT_SYMBOL(mlxsw_afa_cookie_lookup);
+
 struct mlxsw_afa_cookie_ref {
 	struct mlxsw_afa_resource resource;
 	struct mlxsw_afa_cookie *cookie;
