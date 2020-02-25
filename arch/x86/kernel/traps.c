@@ -205,6 +205,21 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 	}
 }
 
+/*
+ * Posix requires to provide the address of the faulting instruction for
+ * SIGILL (#UD) and SIGFPE (#DE) in the si_addr member of siginfo_t.
+ *
+ * This address is usually regs->ip, but when an uprobe moved the code out
+ * of line then regs->ip points to the XOL code which would confuse
+ * anything which analyzes the fault address vs. the unmodified binary. If
+ * a trap happened in XOL code then uprobe maps regs->ip back to the
+ * original instruction address.
+ */
+static __always_inline void __user *error_get_trap_addr(struct pt_regs *regs)
+{
+	return (void __user *)uprobe_get_trap_addr(regs);
+}
+
 #define IP ((void __user *)uprobe_get_trap_addr(regs))
 #define DO_ERROR(trapnr, signr, sicode, addr, str, name)		   \
 dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	   \
