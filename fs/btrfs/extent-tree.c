@@ -3664,6 +3664,37 @@ static int find_free_extent_unclustered(struct btrfs_block_group *bg,
 	return 0;
 }
 
+static int do_allocation_clustered(struct btrfs_block_group *block_group,
+				   struct find_free_extent_ctl *ffe_ctl,
+				   struct btrfs_block_group **bg_ret)
+{
+	int ret;
+
+	/* We want to try and use the cluster allocator, so lets look there */
+	if (ffe_ctl->last_ptr && ffe_ctl->use_cluster) {
+		ret = find_free_extent_clustered(block_group, ffe_ctl->last_ptr,
+						 ffe_ctl, bg_ret);
+		if (ret >= 0 || ret == -EAGAIN)
+			return ret;
+		/* ret == -ENOENT case falls through */
+	}
+
+	return find_free_extent_unclustered(block_group, ffe_ctl->last_ptr,
+					    ffe_ctl);
+}
+
+static int do_allocation(struct btrfs_block_group *block_group,
+			 struct find_free_extent_ctl *ffe_ctl,
+			 struct btrfs_block_group **bg_ret)
+{
+	switch (ffe_ctl->policy) {
+	case BTRFS_EXTENT_ALLOC_CLUSTERED:
+		return do_allocation_clustered(block_group, ffe_ctl, bg_ret);
+	default:
+		BUG();
+	}
+}
+
 /*
  * Return >0 means caller needs to re-search for free extent
  * Return 0 means we have the needed free extent.
@@ -3931,6 +3962,8 @@ search:
 	down_read(&space_info->groups_sem);
 	list_for_each_entry(block_group,
 			    &space_info->block_groups[ffe_ctl.index], list) {
+		struct btrfs_block_group *bg_ret;
+
 		/* If the block group is read-only, we can skip it entirely. */
 		if (unlikely(block_group->ro))
 			continue;
@@ -3991,40 +4024,20 @@ have_block_group:
 		if (unlikely(block_group->cached == BTRFS_CACHE_ERROR))
 			goto loop;
 
-		/*
-		 * Ok we want to try and use the cluster allocator, so
-		 * lets look there
-		 */
-		if (ffe_ctl.last_ptr && ffe_ctl.use_cluster) {
-			struct btrfs_block_group *cluster_bg = NULL;
-
-			ret = find_free_extent_clustered(block_group,
-							 ffe_ctl.last_ptr,
-							 &ffe_ctl, &cluster_bg);
-
-			if (ret == 0) {
-				if (cluster_bg && cluster_bg != block_group) {
-					btrfs_release_block_group(block_group,
-								  delalloc);
-					block_group = cluster_bg;
-				}
-				goto checks;
-			} else if (ret == -EAGAIN) {
-				goto have_block_group;
-			} else if (ret > 0) {
-				goto loop;
+		bg_ret = NULL;
+		ret = do_allocation(block_group, &ffe_ctl, &bg_ret);
+		if (ret == 0) {
+			if (bg_ret && bg_ret != block_group) {
+				btrfs_release_block_group(block_group, delalloc);
+				block_group = bg_ret;
 			}
-			/* ret == -ENOENT case falls through */
+		} else if (ret == -EAGAIN) {
+			goto have_block_group;
+		} else if (ret > 0) {
+			goto loop;
 		}
 
-		ret = find_free_extent_unclustered(block_group,
-						   ffe_ctl.last_ptr, &ffe_ctl);
-		if (ret == -EAGAIN)
-			goto have_block_group;
-		else if (ret > 0)
-			goto loop;
-		/* ret == 0 case falls through */
-checks:
+		/* Checks */
 		ffe_ctl.search_start = round_up(ffe_ctl.found_offset,
 					     fs_info->stripesize);
 
