@@ -775,7 +775,7 @@ static __always_inline void debug_exit(unsigned long dr7)
  *
  * May run on IST stack.
  */
-dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+DEFINE_IDTENTRY_DEBUG(exc_debug)
 {
 	struct task_struct *tsk = current;
 	unsigned long dr6, dr7;
@@ -784,7 +784,10 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 
 	debug_enter(&dr6, &dr7);
 
-	nmi_enter();
+	if (user_mode(regs))
+		idtentry_enter(regs);
+	else
+		nmi_enter();
 
 	/*
 	 * The SDM says "The processor clears the BTF flag when it
@@ -821,7 +824,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 		goto exit;
 #endif
 
-	if (notify_die(DIE_DEBUG, "debug", regs, (long)&dr6, error_code,
+	if (notify_die(DIE_DEBUG, "debug", regs, (long)&dr6, 0,
 		       SIGTRAP) == NOTIFY_STOP)
 		goto exit;
 
@@ -835,8 +838,8 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	cond_local_irq_enable(regs);
 
 	if (v8086_mode(regs)) {
-		handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code,
-					X86_TRAP_DB);
+		handle_vm86_trap((struct kernel_vm86_regs *) regs, 0,
+				 X86_TRAP_DB);
 		cond_local_irq_disable(regs);
 		debug_stack_usage_dec();
 		goto exit;
@@ -855,15 +858,17 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	}
 	si_code = get_si_code(tsk->thread.debugreg6);
 	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
-		send_sigtrap(regs, error_code, si_code);
+		send_sigtrap(regs, 0, si_code);
 	cond_local_irq_disable(regs);
 	debug_stack_usage_dec();
 
 exit:
-	nmi_exit();
+	if (user_mode(regs))
+		idtentry_exit(regs);
+	else
+		nmi_exit();
 	debug_exit(dr7);
 }
-NOKPROBE_SYMBOL(do_debug);
 
 /*
  * Note that we play around with the 'TS' bit in an attempt to get

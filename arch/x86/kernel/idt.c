@@ -59,7 +59,7 @@ static bool idt_setup_done __initdata;
  * stacks work only after cpu_init().
  */
 static const __initconst struct idt_data early_idts[] = {
-	INTG(X86_TRAP_DB,		debug),
+	INTG(X86_TRAP_DB,		asm_exc_debug),
 	SYSG(X86_TRAP_BP,		asm_exc_int3),
 #ifdef CONFIG_X86_32
 	INTG(X86_TRAP_PF,		page_fault),
@@ -93,7 +93,7 @@ static const __initconst struct idt_data def_idts[] = {
 #else
 	INTG(X86_TRAP_DF,		double_fault),
 #endif
-	INTG(X86_TRAP_DB,		debug),
+	INTG(X86_TRAP_DB,		asm_exc_debug),
 
 #ifdef CONFIG_X86_MCE
 	INTG(X86_TRAP_MC,		asm_exc_machine_check),
@@ -164,7 +164,7 @@ static const __initconst struct idt_data early_pf_idts[] = {
  * stack set to DEFAULT_STACK (0). Required for NMI trap handling.
  */
 static const __initconst struct idt_data dbg_idts[] = {
-	INTG(X86_TRAP_DB,	debug),
+	INTG(X86_TRAP_DB,		asm_exc_debug),
 };
 #endif
 
@@ -185,7 +185,7 @@ gate_desc debug_idt_table[IDT_ENTRIES] __page_aligned_bss;
  * cpu_init() when the TSS has been initialized.
  */
 static const __initconst struct idt_data ist_idts[] = {
-	ISTG(X86_TRAP_DB,	debug,			IST_INDEX_DB),
+	ISTG(X86_TRAP_DB,	asm_exc_debug,		IST_INDEX_DB),
 	ISTG(X86_TRAP_NMI,	asm_exc_nmi,		IST_INDEX_NMI),
 	ISTG(X86_TRAP_DF,	double_fault,		IST_INDEX_DF),
 #ifdef CONFIG_X86_MCE

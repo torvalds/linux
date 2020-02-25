@@ -1488,16 +1488,6 @@ ret_to_user:
 	jmp	restore_all_switch_stack
 SYM_CODE_END(handle_exception)
 
-SYM_CODE_START(debug)
-	/*
-	 * Entry from sysenter is now handled in common_exception
-	 */
-	ASM_CLAC
-	pushl	$0
-	pushl	$do_debug
-	jmp	common_exception
-SYM_CODE_END(debug)
-
 SYM_CODE_START(double_fault)
 1:
 	/*
