@@ -402,7 +402,7 @@ void amdgpu_amdkfd_get_local_mem_info(struct kgd_dev *kgd,
 
 	if (amdgpu_sriov_vf(adev))
 		mem_info->mem_clk_max = adev->clock.default_mclk / 100;
-	else if (adev->powerplay.pp_funcs) {
+	else if (adev->pm.dpm_enabled) {
 		if (amdgpu_emu_mode == 1)
 			mem_info->mem_clk_max = 0;
 		else
@@ -427,7 +427,7 @@ uint32_t amdgpu_amdkfd_get_max_engine_clock_in_mhz(struct kgd_dev *kgd)
 	/* the sclk is in quantas of 10kHz */
 	if (amdgpu_sriov_vf(adev))
 		return adev->clock.default_sclk / 100;
-	else if (adev->powerplay.pp_funcs)
+	else if (adev->pm.dpm_enabled)
 		return amdgpu_dpm_get_sclk(adev, false) / 100;
 	else
 		return 100;
