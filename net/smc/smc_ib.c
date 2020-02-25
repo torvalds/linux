@@ -166,7 +166,7 @@ static inline void smc_ib_define_local_systemid(struct smc_ib_device *smcibdev,
 	       sizeof(smcibdev->mac[ibport - 1]));
 }
 
-static bool smc_ib_is_valid_local_systemid(void)
+bool smc_ib_is_valid_local_systemid(void)
 {
 	return !is_zero_ether_addr(&local_systemid[2]);
 }
