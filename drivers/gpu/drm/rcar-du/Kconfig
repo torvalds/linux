@@ -45,6 +45,13 @@ config DRM_RCAR_LVDS
 	select OF_FLATTREE
 	select OF_OVERLAY
 
+config DRM_RCAR_MIPI_DSI
+	tristate "R-Car DU MIPI DSI Encoder Support"
+	depends on DRM && DRM_BRIDGE && OF
+	select DRM_MIPI_DSI
+	help
+	  Enable support for the R-Car Display Unit embedded MIPI DSI encoders.
+
 config DRM_RCAR_VSP
 	bool "R-Car DU VSP Compositor Support" if ARM
 	default y if ARM64
