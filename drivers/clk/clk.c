@@ -3344,6 +3344,7 @@ static int __clk_core_init(struct clk_core *core)
 	int ret;
 	struct clk_core *parent;
 	unsigned long rate;
+	int phase;
 
 	if (!core)
 		return -EINVAL;
@@ -3457,8 +3458,9 @@ static int __clk_core_init(struct clk_core *core)
 	 * Since a phase is by definition relative to its parent, just
 	 * query the current clock phase, or just assume it's in phase.
 	 */
-	ret = clk_core_get_phase(core);
-	if (ret < 0) {
+	phase = clk_core_get_phase(core);
+	if (phase < 0) {
+		ret = phase;
 		pr_warn("%s: Failed to get phase for clk '%s'\n", __func__,
 			core->name);
 		goto out;
