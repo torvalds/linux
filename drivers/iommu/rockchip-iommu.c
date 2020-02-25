@@ -771,7 +771,10 @@ static int rk_iommu_map_iova(struct rk_iommu_domain *rk_domain, u32 *pte_addr,
 	 * We only zap the first and last iova, since only they could have
 	 * dte or pte shared with an existing mapping.
 	 */
-	rk_iommu_zap_iova_first_last(rk_domain, iova, size);
+
+	/* Do not zap tlb cache line if IOMMU_TLB_SHOT_ENTIRE set */
+	if (!(prot & IOMMU_TLB_SHOT_ENTIRE))
+		rk_iommu_zap_iova_first_last(rk_domain, iova, size);
 
 	return 0;
 unwind:

@@ -42,6 +42,9 @@
  */
 #define IOMMU_PRIV	(1 << 5)
 
+/* For shoting entire IOMMU tlb once */
+#define IOMMU_TLB_SHOT_ENTIRE	(1 << 6)
+
 struct iommu_ops;
 struct iommu_group;
 struct bus_type;

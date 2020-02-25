@@ -1717,6 +1717,9 @@ size_t iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 		mapped += s->length;
 	}
 
+	if (domain->ops->flush_iotlb_all && (prot & IOMMU_TLB_SHOT_ENTIRE))
+		domain->ops->flush_iotlb_all(domain);
+
 	return mapped;
 
 out_err:
