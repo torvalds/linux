@@ -40,7 +40,7 @@ xen_pv_trap asm_exc_device_not_available
 xen_pv_trap double_fault
 xen_pv_trap asm_exc_coproc_segment_overrun
 xen_pv_trap asm_exc_invalid_tss
-xen_pv_trap segment_not_present
+xen_pv_trap asm_exc_segment_not_present
 xen_pv_trap stack_segment
 xen_pv_trap general_protection
 xen_pv_trap page_fault

@@ -258,6 +258,12 @@ DEFINE_IDTENTRY_ERRORCODE(exc_invalid_tss)
 		      0, NULL);
 }
 
+DEFINE_IDTENTRY_ERRORCODE(exc_segment_not_present)
+{
+	do_error_trap(regs, error_code, "segment not present", X86_TRAP_NP,
+		      SIGBUS, 0, NULL);
+}
+
 #define IP ((void __user *)uprobe_get_trap_addr(regs))
 #define DO_ERROR(trapnr, signr, sicode, addr, str, name)		   \
 dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	   \
@@ -265,7 +271,6 @@ dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	   \
 	do_error_trap(regs, error_code, str, trapnr, signr, sicode, addr); \
 }
 
-DO_ERROR(X86_TRAP_NP,     SIGBUS,           0, NULL, "segment not present", segment_not_present)
 DO_ERROR(X86_TRAP_SS,     SIGBUS,           0, NULL, "stack segment",       stack_segment)
 #undef IP
 
