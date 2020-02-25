@@ -38,9 +38,13 @@ struct inet_diag_handler {
 	__u16		idiag_info_size;
 };
 
+struct bpf_sk_storage_diag;
 struct inet_diag_dump_data {
 	struct nlattr *req_nlas[__INET_DIAG_REQ_MAX];
 #define inet_diag_nla_bc req_nlas[INET_DIAG_REQ_BYTECODE]
+#define inet_diag_nla_bpf_stgs req_nlas[INET_DIAG_REQ_SK_BPF_STORAGES]
+
+	struct bpf_sk_storage_diag *bpf_stg_diag;
 };
 
 struct inet_connection_sock;
