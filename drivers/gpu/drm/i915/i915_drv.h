@@ -947,6 +947,13 @@ struct drm_i915_private {
 		struct intel_global_obj obj;
 	} cdclk;
 
+	struct {
+		/* The current hardware dbuf configuration */
+		u8 enabled_slices;
+
+		struct intel_global_obj obj;
+	} dbuf;
+
 	/**
 	 * wq - Driver workqueue for GEM.
 	 *
@@ -1123,11 +1130,11 @@ struct drm_i915_private {
 		 * Set during HW readout of watermarks/DDB.  Some platforms
 		 * need to know when we're still using BIOS-provided values
 		 * (which we don't fully trust).
+		 *
+		 * FIXME get rid of this.
 		 */
 		bool distrust_bios_wm;
 	} wm;
-
-	u8 enabled_dbuf_slices_mask; /* GEN11 has configurable 2 slices */
 
 	struct dram_info {
 		bool valid;

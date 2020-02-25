@@ -4040,7 +4040,7 @@ static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv)
 static u8 skl_compute_dbuf_slices(const struct intel_crtc_state *crtc_state,
 				  u8 active_pipes);
 
-static void
+static int
 skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 				   const struct intel_crtc_state *crtc_state,
 				   const u64 total_data_rate,
@@ -4053,29 +4053,28 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	const struct intel_crtc *crtc;
 	u32 pipe_width = 0, total_width_in_range = 0, width_before_pipe_in_range = 0;
 	enum pipe for_pipe = to_intel_crtc(for_crtc)->pipe;
+	struct intel_dbuf_state *new_dbuf_state =
+		intel_atomic_get_new_dbuf_state(intel_state);
+	const struct intel_dbuf_state *old_dbuf_state =
+		intel_atomic_get_old_dbuf_state(intel_state);
+	u8 active_pipes = new_dbuf_state->active_pipes;
 	u16 ddb_size;
 	u32 ddb_range_size;
 	u32 i;
 	u32 dbuf_slice_mask;
-	u32 active_pipes;
 	u32 offset;
 	u32 slice_size;
 	u32 total_slice_mask;
 	u32 start, end;
-
-	if (drm_WARN_ON(&dev_priv->drm, !state) || !crtc_state->hw.active) {
-		alloc->start = 0;
-		alloc->end = 0;
-		*num_active = hweight8(dev_priv->active_pipes);
-		return;
-	}
-
-	if (intel_state->active_pipe_changes)
-		active_pipes = intel_state->active_pipes;
-	else
-		active_pipes = dev_priv->active_pipes;
+	int ret;
 
 	*num_active = hweight8(active_pipes);
+
+	if (!crtc_state->hw.active) {
+		alloc->start = 0;
+		alloc->end = 0;
+		return 0;
+	}
 
 	ddb_size = intel_get_ddb_size(dev_priv);
 
@@ -4089,13 +4088,16 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	 * that changes the active CRTC list or do modeset would need to
 	 * grab _all_ crtc locks, including the one we currently hold.
 	 */
-	if (!intel_state->active_pipe_changes && !intel_state->modeset) {
+	if (old_dbuf_state->active_pipes == new_dbuf_state->active_pipes &&
+	    !dev_priv->wm.distrust_bios_wm) {
 		/*
 		 * alloc may be cleared by clear_intel_crtc_state,
 		 * copy from old state to be sure
+		 *
+		 * FIXME get rid of this mess
 		 */
 		*alloc = to_intel_crtc_state(for_crtc->state)->wm.skl.ddb;
-		return;
+		return 0;
 	}
 
 	/*
@@ -4174,7 +4176,13 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	 * FIXME: For now we always enable slice S1 as per
 	 * the Bspec display initialization sequence.
 	 */
-	intel_state->enabled_dbuf_slices_mask = total_slice_mask | BIT(DBUF_S1);
+	new_dbuf_state->enabled_slices = total_slice_mask | BIT(DBUF_S1);
+
+	if (old_dbuf_state->enabled_slices != new_dbuf_state->enabled_slices) {
+		ret = intel_atomic_serialize_global_state(&new_dbuf_state->base);
+		if (ret)
+			return ret;
+	}
 
 	start = ddb_range_size * width_before_pipe_in_range / total_width_in_range;
 	end = ddb_range_size *
@@ -4185,9 +4193,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 
 	DRM_DEBUG_KMS("Pipe %d ddb %d-%d\n", for_pipe,
 		      alloc->start, alloc->end);
-	DRM_DEBUG_KMS("Enabled ddb slices mask %x num supported %d\n",
-		      intel_state->enabled_dbuf_slices_mask,
-		      INTEL_INFO(dev_priv)->num_supported_dbuf_slices);
+
+	return 0;
 }
 
 static int skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
@@ -4310,8 +4317,8 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	dev_priv->enabled_dbuf_slices_mask =
-				intel_enabled_dbuf_slices_mask(dev_priv);
+	dev_priv->dbuf.enabled_slices =
+		intel_enabled_dbuf_slices_mask(dev_priv);
 }
 
 /*
@@ -4758,6 +4765,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 	u64 uv_plane_data_rate[I915_MAX_PLANES] = {};
 	u32 blocks;
 	int level;
+	int ret;
 
 	/* Clear the partitioning for disabled planes. */
 	memset(crtc_state->wm.skl.plane_ddb_y, 0, sizeof(crtc_state->wm.skl.plane_ddb_y));
@@ -4778,8 +4786,12 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 							 plane_data_rate,
 							 uv_plane_data_rate);
 
-	skl_ddb_get_pipe_allocation_limits(dev_priv, crtc_state, total_data_rate,
-					   alloc, &num_active);
+	ret = skl_ddb_get_pipe_allocation_limits(dev_priv, crtc_state,
+						 total_data_rate,
+						 alloc, &num_active);
+	if (ret)
+		return ret;
+
 	alloc_size = skl_ddb_entry_size(alloc);
 	if (alloc_size == 0)
 		return 0;
@@ -5700,13 +5712,10 @@ skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
 static int
 skl_compute_ddb(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
 	int ret, i;
-
-	state->enabled_dbuf_slices_mask = dev_priv->enabled_dbuf_slices_mask;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
@@ -5855,13 +5864,17 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 	}
 }
 
-static int intel_add_all_pipes(struct intel_atomic_state *state)
+static int intel_add_affected_pipes(struct intel_atomic_state *state,
+				    u8 pipe_mask)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc *crtc;
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state;
+
+		if ((pipe_mask & BIT(crtc->pipe)) == 0)
+			continue;
 
 		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
 		if (IS_ERR(crtc_state))
@@ -5875,49 +5888,54 @@ static int
 skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	int ret;
+	struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int i, ret;
 
-	/*
-	 * If this is our first atomic update following hardware readout,
-	 * we can't trust the DDB that the BIOS programmed for us.  Let's
-	 * pretend that all pipes switched active status so that we'll
-	 * ensure a full DDB recompute.
-	 */
 	if (dev_priv->wm.distrust_bios_wm) {
-		ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
-				       state->base.acquire_ctx);
+		/*
+		 * skl_ddb_get_pipe_allocation_limits() currently requires
+		 * all active pipes to be included in the state so that
+		 * it can redistribute the dbuf among them, and it really
+		 * wants to recompute things when distrust_bios_wm is set
+		 * so we add all the pipes to the state.
+		 */
+		ret = intel_add_affected_pipes(state, ~0);
 		if (ret)
 			return ret;
-
-		state->active_pipe_changes = INTEL_INFO(dev_priv)->pipe_mask;
-
-		/*
-		 * We usually only initialize state->active_pipes if we
-		 * we're doing a modeset; make sure this field is always
-		 * initialized during the sanitization process that happens
-		 * on the first commit too.
-		 */
-		if (!state->modeset)
-			state->active_pipes = dev_priv->active_pipes;
 	}
 
-	/*
-	 * If the modeset changes which CRTC's are active, we need to
-	 * recompute the DDB allocation for *all* active pipes, even
-	 * those that weren't otherwise being modified in any way by this
-	 * atomic commit.  Due to the shrinking of the per-pipe allocations
-	 * when new active CRTC's are added, it's possible for a pipe that
-	 * we were already using and aren't changing at all here to suddenly
-	 * become invalid if its DDB needs exceeds its new allocation.
-	 *
-	 * Note that if we wind up doing a full DDB recompute, we can't let
-	 * any other display updates race with this transaction, so we need
-	 * to grab the lock on *all* CRTC's.
-	 */
-	if (state->active_pipe_changes || state->modeset) {
-		ret = intel_add_all_pipes(state);
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		struct intel_dbuf_state *new_dbuf_state;
+		const struct intel_dbuf_state *old_dbuf_state;
+
+		new_dbuf_state = intel_atomic_get_dbuf_state(state);
+		if (IS_ERR(new_dbuf_state))
+			return ret;
+
+		old_dbuf_state = intel_atomic_get_old_dbuf_state(state);
+
+		new_dbuf_state->active_pipes =
+			intel_calc_active_pipes(state, old_dbuf_state->active_pipes);
+
+		if (old_dbuf_state->active_pipes == new_dbuf_state->active_pipes)
+			break;
+
+		ret = intel_atomic_lock_global_state(&new_dbuf_state->base);
 		if (ret)
 			return ret;
+
+		/*
+		 * skl_ddb_get_pipe_allocation_limits() currently requires
+		 * all active pipes to be included in the state so that
+		 * it can redistribute the dbuf among them.
+		 */
+		ret = intel_add_affected_pipes(state,
+					       new_dbuf_state->active_pipes);
+		if (ret)
+			return ret;
+
+		break;
 	}
 
 	return 0;
@@ -7745,4 +7763,53 @@ void intel_pm_setup(struct drm_i915_private *dev_priv)
 {
 	dev_priv->runtime_pm.suspended = false;
 	atomic_set(&dev_priv->runtime_pm.wakeref_count, 0);
+}
+
+static struct intel_global_state *intel_dbuf_duplicate_state(struct intel_global_obj *obj)
+{
+	struct intel_dbuf_state *dbuf_state;
+
+	dbuf_state = kmemdup(obj->state, sizeof(*dbuf_state), GFP_KERNEL);
+	if (!dbuf_state)
+		return NULL;
+
+	return &dbuf_state->base;
+}
+
+static void intel_dbuf_destroy_state(struct intel_global_obj *obj,
+				     struct intel_global_state *state)
+{
+	kfree(state);
+}
+
+static const struct intel_global_state_funcs intel_dbuf_funcs = {
+	.atomic_duplicate_state = intel_dbuf_duplicate_state,
+	.atomic_destroy_state = intel_dbuf_destroy_state,
+};
+
+struct intel_dbuf_state *
+intel_atomic_get_dbuf_state(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_global_state *dbuf_state;
+
+	dbuf_state = intel_atomic_get_global_obj_state(state, &dev_priv->dbuf.obj);
+	if (IS_ERR(dbuf_state))
+		return ERR_CAST(dbuf_state);
+
+	return to_intel_dbuf_state(dbuf_state);
+}
+
+int intel_dbuf_init(struct drm_i915_private *dev_priv)
+{
+	struct intel_dbuf_state *dbuf_state;
+
+	dbuf_state = kzalloc(sizeof(*dbuf_state), GFP_KERNEL);
+	if (!dbuf_state)
+		return -ENOMEM;
+
+	intel_atomic_global_obj_init(dev_priv, &dev_priv->dbuf.obj,
+				     &dbuf_state->base, &intel_dbuf_funcs);
+
+	return 0;
 }

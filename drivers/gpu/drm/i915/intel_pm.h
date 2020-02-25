@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+#include "display/intel_global_state.h"
+
 #include "i915_reg.h"
 #include "display/intel_bw.h"
 
@@ -62,5 +64,25 @@ void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
 
 bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable);
+
+struct intel_dbuf_state {
+	struct intel_global_state base;
+
+	u8 enabled_slices;
+	u8 active_pipes;
+};
+
+int intel_dbuf_init(struct drm_i915_private *dev_priv);
+
+struct intel_dbuf_state *
+intel_atomic_get_dbuf_state(struct intel_atomic_state *state);
+
+#define to_intel_dbuf_state(x) container_of((x), struct intel_dbuf_state, base)
+#define intel_atomic_get_old_dbuf_state(state) \
+	to_intel_dbuf_state(intel_atomic_get_old_global_obj_state(state, &to_i915(state->base.dev)->dbuf.obj))
+#define intel_atomic_get_new_dbuf_state(state) \
+	to_intel_dbuf_state(intel_atomic_get_new_global_obj_state(state, &to_i915(state->base.dev)->dbuf.obj))
+
+int intel_dbuf_init(struct drm_i915_private *dev_priv);
 
 #endif /* __INTEL_PM_H__ */
