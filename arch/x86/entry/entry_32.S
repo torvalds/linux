@@ -1302,7 +1302,7 @@ SYM_CODE_START(simd_coprocessor_error)
 	pushl	$0
 #ifdef CONFIG_X86_INVD_BUG
 	/* AMD 486 bug: invd from userspace calls exception 19 instead of #GP */
-	ALTERNATIVE "pushl	$do_general_protection",	\
+	ALTERNATIVE "pushl	$exc_general_protection",	\
 		    "pushl	$do_simd_coprocessor_error",	\
 		    X86_FEATURE_XMM
 #else
@@ -1689,12 +1689,6 @@ SYM_CODE_START(int3)
 	pushl	$do_int3
 	jmp	common_exception
 SYM_CODE_END(int3)
-
-SYM_CODE_START(general_protection)
-	ASM_CLAC
-	pushl	$do_general_protection
-	jmp	common_exception
-SYM_CODE_END(general_protection)
 
 .pushsection .text, "ax"
 SYM_CODE_START(rewind_stack_do_exit)
