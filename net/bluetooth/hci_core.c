@@ -2327,7 +2327,7 @@ bool hci_is_blocked_key(struct hci_dev *hdev, u8 type, u8 val[16])
 	struct blocked_key *b;
 
 	rcu_read_lock();
-	list_for_each_entry(b, &hdev->blocked_keys, list) {
+	list_for_each_entry_rcu(b, &hdev->blocked_keys, list) {
 		if (b->type == type && !memcmp(b->val, val, sizeof(b->val))) {
 			blocked = true;
 			break;
