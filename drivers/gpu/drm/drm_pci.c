@@ -75,7 +75,6 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t ali
 
 	return dmah;
 }
-
 EXPORT_SYMBOL(drm_pci_alloc);
 
 /**
@@ -191,23 +190,11 @@ void drm_pci_agp_destroy(struct drm_device *dev)
 	}
 }
 
-/**
- * drm_get_pci_dev - Register a PCI device with the DRM subsystem
- * @pdev: PCI device
- * @ent: entry from the PCI ID table that matches @pdev
- * @driver: DRM device driver
- *
- * Attempt to gets inter module "drm" information. If we are first
- * then register the character device and inter module information.
- * Try and register, if we fail to register, backout previous work.
- *
- * NOTE: This function is deprecated, please use drm_dev_alloc() and
- * drm_dev_register() instead and remove your &drm_driver.load callback.
- *
- * Return: 0 on success or a negative error code on failure.
- */
-int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
-		    struct drm_driver *driver)
+#ifdef CONFIG_DRM_LEGACY
+
+static int drm_get_pci_dev(struct pci_dev *pdev,
+			   const struct pci_device_id *ent,
+			   struct drm_driver *driver)
 {
 	struct drm_device *dev;
 	int ret;
@@ -250,9 +237,6 @@ err_free:
 	drm_dev_put(dev);
 	return ret;
 }
-EXPORT_SYMBOL(drm_get_pci_dev);
-
-#ifdef CONFIG_DRM_LEGACY
 
 /**
  * drm_legacy_pci_init - shadow-attach a legacy DRM PCI driver
