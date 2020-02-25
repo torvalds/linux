@@ -350,6 +350,8 @@ mt7615_cap_dbdc_enable(struct mt7615_dev *dev)
 	else
 		dev->mphy.antenna_mask = dev->chainmask >> 1;
 	dev->phy.chainmask = dev->mphy.antenna_mask;
+	dev->mphy.hw->wiphy->available_antennas_rx = dev->phy.chainmask;
+	dev->mphy.hw->wiphy->available_antennas_tx = dev->phy.chainmask;
 	mt76_set_stream_caps(&dev->mt76, true);
 }
 
@@ -361,6 +363,8 @@ mt7615_cap_dbdc_disable(struct mt7615_dev *dev)
 			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
 	dev->mphy.antenna_mask = dev->chainmask;
 	dev->phy.chainmask = dev->chainmask;
+	dev->mphy.hw->wiphy->available_antennas_rx = dev->chainmask;
+	dev->mphy.hw->wiphy->available_antennas_tx = dev->chainmask;
 	mt76_set_stream_caps(&dev->mt76, true);
 }
 
