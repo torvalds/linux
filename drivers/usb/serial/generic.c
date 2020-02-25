@@ -609,12 +609,10 @@ EXPORT_SYMBOL_GPL(usb_serial_handle_break);
  * @tty: tty for the port
  * @status: new carrier detect status, nonzero if active
  */
-void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
+void usb_serial_handle_dcd_change(struct usb_serial_port *port,
 				struct tty_struct *tty, unsigned int status)
 {
-	struct tty_port *port = &usb_port->port;
-
-	dev_dbg(&usb_port->dev, "%s - status %d\n", __func__, status);
+	dev_dbg(&port->dev, "%s - status %d\n", __func__, status);
 
 	if (tty) {
 		struct tty_ldisc *ld = tty_ldisc_ref(tty);
@@ -627,7 +625,7 @@ void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
 	}
 
 	if (status)
-		wake_up_interruptible(&port->open_wait);
+		wake_up_interruptible(&port->port.open_wait);
 	else if (tty && !C_CLOCAL(tty))
 		tty_hangup(tty);
 }
