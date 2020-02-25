@@ -18,8 +18,7 @@ struct inet_diag_handler {
 				const struct inet_diag_req_v2 *r,
 				struct nlattr *bc);
 
-	int		(*dump_one)(struct sk_buff *in_skb,
-				    const struct nlmsghdr *nlh,
+	int		(*dump_one)(struct netlink_callback *cb,
 				    const struct inet_diag_req_v2 *req);
 
 	void		(*idiag_get_info)(struct sock *sk,
@@ -42,16 +41,15 @@ struct inet_diag_handler {
 
 struct inet_connection_sock;
 int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
-		      struct sk_buff *skb, const struct inet_diag_req_v2 *req,
-		      struct user_namespace *user_ns,
-		      u32 pid, u32 seq, u16 nlmsg_flags,
-		      const struct nlmsghdr *unlh, bool net_admin);
+		      struct sk_buff *skb, struct netlink_callback *cb,
+		      const struct inet_diag_req_v2 *req,
+		      u16 nlmsg_flags, bool net_admin);
 void inet_diag_dump_icsk(struct inet_hashinfo *h, struct sk_buff *skb,
 			 struct netlink_callback *cb,
 			 const struct inet_diag_req_v2 *r,
 			 struct nlattr *bc);
 int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo,
-			    struct sk_buff *in_skb, const struct nlmsghdr *nlh,
+			    struct netlink_callback *cb,
 			    const struct inet_diag_req_v2 *req);
 
 struct sock *inet_diag_find_one_icsk(struct net *net,

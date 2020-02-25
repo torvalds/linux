@@ -21,16 +21,15 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 	if (!inet_diag_bc_sk(bc, sk))
 		return 0;
 
-	return inet_sk_diag_fill(sk, NULL, skb, req,
-			sk_user_ns(NETLINK_CB(cb->skb).sk),
-			NETLINK_CB(cb->skb).portid,
-			cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh, net_admin);
+	return inet_sk_diag_fill(sk, NULL, skb, cb, req, NLM_F_MULTI,
+				 net_admin);
 }
 
-static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
-			const struct nlmsghdr *nlh,
+static int udp_dump_one(struct udp_table *tbl,
+			struct netlink_callback *cb,
 			const struct inet_diag_req_v2 *req)
 {
+	struct sk_buff *in_skb = cb->skb;
 	int err = -EINVAL;
 	struct sock *sk = NULL;
 	struct sk_buff *rep;
@@ -70,11 +69,8 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 	if (!rep)
 		goto out;
 
-	err = inet_sk_diag_fill(sk, NULL, rep, req,
-			   sk_user_ns(NETLINK_CB(in_skb).sk),
-			   NETLINK_CB(in_skb).portid,
-			   nlh->nlmsg_seq, 0, nlh,
-			   netlink_net_capable(in_skb, CAP_NET_ADMIN));
+	err = inet_sk_diag_fill(sk, NULL, rep, cb, req, 0,
+				netlink_net_capable(in_skb, CAP_NET_ADMIN));
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(rep);
@@ -151,10 +147,10 @@ static void udp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	udp_dump(&udp_table, skb, cb, r, bc);
 }
 
-static int udp_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
+static int udp_diag_dump_one(struct netlink_callback *cb,
 			     const struct inet_diag_req_v2 *req)
 {
-	return udp_dump_one(&udp_table, in_skb, nlh, req);
+	return udp_dump_one(&udp_table, cb, req);
 }
 
 static void udp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
@@ -255,10 +251,10 @@ static void udplite_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	udp_dump(&udplite_table, skb, cb, r, bc);
 }
 
-static int udplite_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
+static int udplite_diag_dump_one(struct netlink_callback *cb,
 				 const struct inet_diag_req_v2 *req)
 {
-	return udp_dump_one(&udplite_table, in_skb, nlh, req);
+	return udp_dump_one(&udplite_table, cb, req);
 }
 
 static const struct inet_diag_handler udplite_diag_handler = {

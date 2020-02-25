@@ -87,15 +87,16 @@ out_unlock:
 	return sk ? sk : ERR_PTR(-ENOENT);
 }
 
-static int raw_diag_dump_one(struct sk_buff *in_skb,
-			     const struct nlmsghdr *nlh,
+static int raw_diag_dump_one(struct netlink_callback *cb,
 			     const struct inet_diag_req_v2 *r)
 {
-	struct net *net = sock_net(in_skb->sk);
+	struct sk_buff *in_skb = cb->skb;
 	struct sk_buff *rep;
 	struct sock *sk;
+	struct net *net;
 	int err;
 
+	net = sock_net(in_skb->sk);
 	sk = raw_sock_get(net, r);
 	if (IS_ERR(sk))
 		return PTR_ERR(sk);
@@ -108,10 +109,7 @@ static int raw_diag_dump_one(struct sk_buff *in_skb,
 		return -ENOMEM;
 	}
 
-	err = inet_sk_diag_fill(sk, NULL, rep, r,
-				sk_user_ns(NETLINK_CB(in_skb).sk),
-				NETLINK_CB(in_skb).portid,
-				nlh->nlmsg_seq, 0, nlh,
+	err = inet_sk_diag_fill(sk, NULL, rep, cb, r, 0,
 				netlink_net_capable(in_skb, CAP_NET_ADMIN));
 	sock_put(sk);
 
@@ -136,11 +134,7 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 	if (!inet_diag_bc_sk(bc, sk))
 		return 0;
 
-	return inet_sk_diag_fill(sk, NULL, skb, r,
-				 sk_user_ns(NETLINK_CB(cb->skb).sk),
-				 NETLINK_CB(cb->skb).portid,
-				 cb->nlh->nlmsg_seq, NLM_F_MULTI,
-				 cb->nlh, net_admin);
+	return inet_sk_diag_fill(sk, NULL, skb, cb, r, NLM_F_MULTI, net_admin);
 }
 
 static void raw_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
