@@ -119,6 +119,17 @@ END_BTB_FLUSH_SECTION
 	ld	r11,exception_marker@toc(r2)
 	std	r11,-16(r10)		/* "regshere" marker */
 
+	/*
+	 * RECONCILE_IRQ_STATE without calling trace_hardirqs_off(), which
+	 * would clobber syscall parameters. Also we always enter with IRQs
+	 * enabled and nothing pending. system_call_exception() will call
+	 * trace_hardirqs_off().
+	 */
+	li	r11,IRQS_ALL_DISABLED
+	li	r12,PACA_IRQ_HARD_DIS
+	stb	r11,PACAIRQSOFTMASK(r13)
+	stb	r12,PACAIRQHAPPENED(r13)
+
 	/* Calling convention has r9 = orig r0, r10 = regs */
 	mr	r9,r0
 	bl	system_call_exception
