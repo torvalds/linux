@@ -73,6 +73,20 @@ struct adis_data {
 	bool has_paging;
 };
 
+/**
+ * struct adis - ADIS device instance data
+ * @spi: Reference to SPI device which owns this ADIS IIO device
+ * @trig: IIO trigger object data
+ * @data: ADIS chip variant specific data
+ * @burst: ADIS burst transfer information
+ * @state_lock: Lock used by the device to protect state
+ * @msg: SPI message object
+ * @xfer: SPI transfer objects to be used for a @msg
+ * @current_page: Some ADIS devices have registers, this selects current page
+ * @buffer: Data buffer for information read from the device
+ * @tx: DMA safe TX buffer for SPI transfers
+ * @rx: DMA safe RX buffer for SPI transfers
+ */
 struct adis {
 	struct spi_device	*spi;
 	struct iio_trigger	*trig;
