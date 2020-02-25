@@ -626,7 +626,7 @@ static struct trap_array_entry trap_array[] = {
 	TRAP_ENTRY(exc_bounds,				false ),
 	TRAP_ENTRY(exc_invalid_op,			false ),
 	TRAP_ENTRY(exc_device_not_available,		false ),
-	{ coprocessor_segment_overrun, xen_coprocessor_segment_overrun, false },
+	TRAP_ENTRY(exc_coproc_segment_overrun,		false ),
 	{ invalid_TSS,                 xen_invalid_TSS,                 false },
 	{ segment_not_present,         xen_segment_not_present,         false },
 	{ stack_segment,               xen_stack_segment,               false },
