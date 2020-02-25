@@ -138,17 +138,21 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 }
 
 static void raw_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			  const struct inet_diag_req_v2 *r, struct nlattr *bc)
+			  const struct inet_diag_req_v2 *r)
 {
 	bool net_admin = netlink_net_capable(cb->skb, CAP_NET_ADMIN);
 	struct raw_hashinfo *hashinfo = raw_get_hashinfo(r);
 	struct net *net = sock_net(skb->sk);
+	struct inet_diag_dump_data *cb_data;
 	int num, s_num, slot, s_slot;
 	struct sock *sk = NULL;
+	struct nlattr *bc;
 
 	if (IS_ERR(hashinfo))
 		return;
 
+	cb_data = cb->data;
+	bc = cb_data->inet_diag_nla_bc;
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
 

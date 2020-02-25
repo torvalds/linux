@@ -495,9 +495,11 @@ static int inet_diag_cmd_exact(int cmd, struct sk_buff *in_skb,
 	if (IS_ERR(handler)) {
 		err = PTR_ERR(handler);
 	} else if (cmd == SOCK_DIAG_BY_FAMILY) {
+		struct inet_diag_dump_data empty_dump_data = {};
 		struct netlink_callback cb = {
 			.nlh = nlh,
 			.skb = in_skb,
+			.data = &empty_dump_data,
 		};
 		err = handler->dump_one(&cb, req);
 	} else if (cmd == SOCK_DESTROY && handler->destroy) {
@@ -863,14 +865,17 @@ static void twsk_build_assert(void)
 
 void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 			 struct netlink_callback *cb,
-			 const struct inet_diag_req_v2 *r, struct nlattr *bc)
+			 const struct inet_diag_req_v2 *r)
 {
 	bool net_admin = netlink_net_capable(cb->skb, CAP_NET_ADMIN);
+	struct inet_diag_dump_data *cb_data = cb->data;
 	struct net *net = sock_net(skb->sk);
 	u32 idiag_states = r->idiag_states;
 	int i, num, s_i, s_num;
+	struct nlattr *bc;
 	struct sock *sk;
 
+	bc = cb_data->inet_diag_nla_bc;
 	if (idiag_states & TCPF_SYN_RECV)
 		idiag_states |= TCPF_NEW_SYN_RECV;
 	s_i = cb->args[1];
@@ -1014,15 +1019,14 @@ out:
 EXPORT_SYMBOL_GPL(inet_diag_dump_icsk);
 
 static int __inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			    const struct inet_diag_req_v2 *r,
-			    struct nlattr *bc)
+			    const struct inet_diag_req_v2 *r)
 {
 	const struct inet_diag_handler *handler;
 	int err = 0;
 
 	handler = inet_diag_lock_handler(r->sdiag_protocol);
 	if (!IS_ERR(handler))
-		handler->dump(skb, cb, r, bc);
+		handler->dump(skb, cb, r);
 	else
 		err = PTR_ERR(handler);
 	inet_diag_unlock_handler(handler);
@@ -1032,13 +1036,57 @@ static int __inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 
 static int inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	int hdrlen = sizeof(struct inet_diag_req_v2);
-	struct nlattr *bc = NULL;
+	return __inet_diag_dump(skb, cb, nlmsg_data(cb->nlh));
+}
 
-	if (nlmsg_attrlen(cb->nlh, hdrlen))
-		bc = nlmsg_find_attr(cb->nlh, hdrlen, INET_DIAG_REQ_BYTECODE);
+static int __inet_diag_dump_start(struct netlink_callback *cb, int hdrlen)
+{
+	const struct nlmsghdr *nlh = cb->nlh;
+	struct inet_diag_dump_data *cb_data;
+	struct sk_buff *skb = cb->skb;
+	struct nlattr *nla;
+	int rem, err;
 
-	return __inet_diag_dump(skb, cb, nlmsg_data(cb->nlh), bc);
+	cb_data = kzalloc(sizeof(*cb_data), GFP_KERNEL);
+	if (!cb_data)
+		return -ENOMEM;
+
+	nla_for_each_attr(nla, nlmsg_attrdata(nlh, hdrlen),
+			  nlmsg_attrlen(nlh, hdrlen), rem) {
+		int type = nla_type(nla);
+
+		if (type < __INET_DIAG_REQ_MAX)
+			cb_data->req_nlas[type] = nla;
+	}
+
+	nla = cb_data->inet_diag_nla_bc;
+	if (nla) {
+		err = inet_diag_bc_audit(nla, skb);
+		if (err) {
+			kfree(cb_data);
+			return err;
+		}
+	}
+
+	cb->data = cb_data;
+	return 0;
+}
+
+static int inet_diag_dump_start(struct netlink_callback *cb)
+{
+	return __inet_diag_dump_start(cb, sizeof(struct inet_diag_req_v2));
+}
+
+static int inet_diag_dump_start_compat(struct netlink_callback *cb)
+{
+	return __inet_diag_dump_start(cb, sizeof(struct inet_diag_req));
+}
+
+static int inet_diag_dump_done(struct netlink_callback *cb)
+{
+	kfree(cb->data);
+
+	return 0;
 }
 
 static int inet_diag_type2proto(int type)
@@ -1057,9 +1105,7 @@ static int inet_diag_dump_compat(struct sk_buff *skb,
 				 struct netlink_callback *cb)
 {
 	struct inet_diag_req *rc = nlmsg_data(cb->nlh);
-	int hdrlen = sizeof(struct inet_diag_req);
 	struct inet_diag_req_v2 req;
-	struct nlattr *bc = NULL;
 
 	req.sdiag_family = AF_UNSPEC; /* compatibility */
 	req.sdiag_protocol = inet_diag_type2proto(cb->nlh->nlmsg_type);
@@ -1067,10 +1113,7 @@ static int inet_diag_dump_compat(struct sk_buff *skb,
 	req.idiag_states = rc->idiag_states;
 	req.id = rc->id;
 
-	if (nlmsg_attrlen(cb->nlh, hdrlen))
-		bc = nlmsg_find_attr(cb->nlh, hdrlen, INET_DIAG_REQ_BYTECODE);
-
-	return __inet_diag_dump(skb, cb, &req, bc);
+	return __inet_diag_dump(skb, cb, &req);
 }
 
 static int inet_diag_get_exact_compat(struct sk_buff *in_skb,
@@ -1098,22 +1141,12 @@ static int inet_diag_rcv_msg_compat(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EINVAL;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
-		if (nlmsg_attrlen(nlh, hdrlen)) {
-			struct nlattr *attr;
-			int err;
-
-			attr = nlmsg_find_attr(nlh, hdrlen,
-					       INET_DIAG_REQ_BYTECODE);
-			err = inet_diag_bc_audit(attr, skb);
-			if (err)
-				return err;
-		}
-		{
-			struct netlink_dump_control c = {
-				.dump = inet_diag_dump_compat,
-			};
-			return netlink_dump_start(net->diag_nlsk, skb, nlh, &c);
-		}
+		struct netlink_dump_control c = {
+			.start = inet_diag_dump_start_compat,
+			.done = inet_diag_dump_done,
+			.dump = inet_diag_dump_compat,
+		};
+		return netlink_dump_start(net->diag_nlsk, skb, nlh, &c);
 	}
 
 	return inet_diag_get_exact_compat(skb, nlh);
@@ -1129,22 +1162,12 @@ static int inet_diag_handler_cmd(struct sk_buff *skb, struct nlmsghdr *h)
 
 	if (h->nlmsg_type == SOCK_DIAG_BY_FAMILY &&
 	    h->nlmsg_flags & NLM_F_DUMP) {
-		if (nlmsg_attrlen(h, hdrlen)) {
-			struct nlattr *attr;
-			int err;
-
-			attr = nlmsg_find_attr(h, hdrlen,
-					       INET_DIAG_REQ_BYTECODE);
-			err = inet_diag_bc_audit(attr, skb);
-			if (err)
-				return err;
-		}
-		{
-			struct netlink_dump_control c = {
-				.dump = inet_diag_dump,
-			};
-			return netlink_dump_start(net->diag_nlsk, skb, h, &c);
-		}
+		struct netlink_dump_control c = {
+			.start = inet_diag_dump_start,
+			.done = inet_diag_dump_done,
+			.dump = inet_diag_dump,
+		};
+		return netlink_dump_start(net->diag_nlsk, skb, h, &c);
 	}
 
 	return inet_diag_cmd_exact(h->nlmsg_type, skb, h, nlmsg_data(h));

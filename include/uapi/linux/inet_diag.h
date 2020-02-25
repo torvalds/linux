@@ -64,9 +64,10 @@ struct inet_diag_req_raw {
 enum {
 	INET_DIAG_REQ_NONE,
 	INET_DIAG_REQ_BYTECODE,
+	__INET_DIAG_REQ_MAX,
 };
 
-#define INET_DIAG_REQ_MAX INET_DIAG_REQ_BYTECODE
+#define INET_DIAG_REQ_MAX (__INET_DIAG_REQ_MAX - 1)
 
 /* Bytecode is sequence of 4 byte commands followed by variable arguments.
  * All the commands identified by "code" are conditional jumps forward:

@@ -89,12 +89,16 @@ out_nosk:
 
 static void udp_dump(struct udp_table *table, struct sk_buff *skb,
 		     struct netlink_callback *cb,
-		     const struct inet_diag_req_v2 *r, struct nlattr *bc)
+		     const struct inet_diag_req_v2 *r)
 {
 	bool net_admin = netlink_net_capable(cb->skb, CAP_NET_ADMIN);
 	struct net *net = sock_net(skb->sk);
+	struct inet_diag_dump_data *cb_data;
 	int num, s_num, slot, s_slot;
+	struct nlattr *bc;
 
+	cb_data = cb->data;
+	bc = cb_data->inet_diag_nla_bc;
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
 
@@ -142,9 +146,9 @@ done:
 }
 
 static void udp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			  const struct inet_diag_req_v2 *r, struct nlattr *bc)
+			  const struct inet_diag_req_v2 *r)
 {
-	udp_dump(&udp_table, skb, cb, r, bc);
+	udp_dump(&udp_table, skb, cb, r);
 }
 
 static int udp_diag_dump_one(struct netlink_callback *cb,
@@ -245,10 +249,9 @@ static const struct inet_diag_handler udp_diag_handler = {
 };
 
 static void udplite_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			      const struct inet_diag_req_v2 *r,
-			      struct nlattr *bc)
+			      const struct inet_diag_req_v2 *r)
 {
-	udp_dump(&udplite_table, skb, cb, r, bc);
+	udp_dump(&udplite_table, skb, cb, r);
 }
 
 static int udplite_diag_dump_one(struct netlink_callback *cb,

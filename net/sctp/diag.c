@@ -471,7 +471,7 @@ static int sctp_diag_dump_one(struct netlink_callback *cb,
 }
 
 static void sctp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			   const struct inet_diag_req_v2 *r, struct nlattr *bc)
+			   const struct inet_diag_req_v2 *r)
 {
 	u32 idiag_states = r->idiag_states;
 	struct net *net = sock_net(skb->sk);

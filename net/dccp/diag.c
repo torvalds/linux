@@ -46,9 +46,9 @@ static void dccp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 }
 
 static void dccp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			   const struct inet_diag_req_v2 *r, struct nlattr *bc)
+			   const struct inet_diag_req_v2 *r)
 {
-	inet_diag_dump_icsk(&dccp_hashinfo, skb, cb, r, bc);
+	inet_diag_dump_icsk(&dccp_hashinfo, skb, cb, r);
 }
 
 static int dccp_diag_dump_one(struct netlink_callback *cb,

@@ -15,8 +15,7 @@ struct netlink_callback;
 struct inet_diag_handler {
 	void		(*dump)(struct sk_buff *skb,
 				struct netlink_callback *cb,
-				const struct inet_diag_req_v2 *r,
-				struct nlattr *bc);
+				const struct inet_diag_req_v2 *r);
 
 	int		(*dump_one)(struct netlink_callback *cb,
 				    const struct inet_diag_req_v2 *req);
@@ -39,6 +38,11 @@ struct inet_diag_handler {
 	__u16		idiag_info_size;
 };
 
+struct inet_diag_dump_data {
+	struct nlattr *req_nlas[__INET_DIAG_REQ_MAX];
+#define inet_diag_nla_bc req_nlas[INET_DIAG_REQ_BYTECODE]
+};
+
 struct inet_connection_sock;
 int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		      struct sk_buff *skb, struct netlink_callback *cb,
@@ -46,8 +50,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		      u16 nlmsg_flags, bool net_admin);
 void inet_diag_dump_icsk(struct inet_hashinfo *h, struct sk_buff *skb,
 			 struct netlink_callback *cb,
-			 const struct inet_diag_req_v2 *r,
-			 struct nlattr *bc);
+			 const struct inet_diag_req_v2 *r);
 int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo,
 			    struct netlink_callback *cb,
 			    const struct inet_diag_req_v2 *req);
