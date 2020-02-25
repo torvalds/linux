@@ -1365,7 +1365,7 @@ SYM_CODE_END(divide_error)
 SYM_CODE_START(machine_check)
 	ASM_CLAC
 	pushl	$0
-	pushl	machine_check_vector
+	pushl	$do_mce
 	jmp	common_exception
 SYM_CODE_END(machine_check)
 #endif

@@ -238,9 +238,6 @@ extern void mce_disable_bank(int bank);
 /*
  * Exception handler
  */
-
-/* Call the installed machine check handler for this CPU setup. */
-extern void (*machine_check_vector)(struct pt_regs *, long error_code);
 void do_machine_check(struct pt_regs *, long);
 
 /*

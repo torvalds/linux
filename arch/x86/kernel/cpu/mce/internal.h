@@ -8,6 +8,9 @@
 #include <linux/device.h>
 #include <asm/mce.h>
 
+/* Pointer to the installed machine check handler for this CPU setup. */
+extern void (*machine_check_vector)(struct pt_regs *, long error_code);
+
 enum severity_level {
 	MCE_NO_SEVERITY,
 	MCE_DEFERRED_SEVERITY,
