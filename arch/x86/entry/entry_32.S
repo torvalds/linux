@@ -1318,12 +1318,6 @@ SYM_CODE_START(native_iret)
 SYM_CODE_END(native_iret)
 #endif
 
-SYM_CODE_START(stack_segment)
-	ASM_CLAC
-	pushl	$do_stack_segment
-	jmp	common_exception
-SYM_CODE_END(stack_segment)
-
 SYM_CODE_START(alignment_check)
 	ASM_CLAC
 	pushl	$do_alignment_check

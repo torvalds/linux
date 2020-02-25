@@ -264,15 +264,11 @@ DEFINE_IDTENTRY_ERRORCODE(exc_segment_not_present)
 		      SIGBUS, 0, NULL);
 }
 
-#define IP ((void __user *)uprobe_get_trap_addr(regs))
-#define DO_ERROR(trapnr, signr, sicode, addr, str, name)		   \
-dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	   \
-{									   \
-	do_error_trap(regs, error_code, str, trapnr, signr, sicode, addr); \
+DEFINE_IDTENTRY_ERRORCODE(exc_stack_segment)
+{
+	do_error_trap(regs, error_code, "stack segment", X86_TRAP_SS, SIGBUS,
+		      0, NULL);
 }
-
-DO_ERROR(X86_TRAP_SS,     SIGBUS,           0, NULL, "stack segment",       stack_segment)
-#undef IP
 
 dotraplinkage void do_alignment_check(struct pt_regs *regs, long error_code)
 {
