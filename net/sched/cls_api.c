@@ -3382,14 +3382,40 @@ int tc_setup_cb_reoffload(struct tcf_block *block, struct tcf_proto *tp,
 }
 EXPORT_SYMBOL(tc_setup_cb_reoffload);
 
+static int tcf_act_get_cookie(struct flow_action_entry *entry,
+			      const struct tc_action *act)
+{
+	struct tc_cookie *cookie;
+	int err = 0;
+
+	rcu_read_lock();
+	cookie = rcu_dereference(act->act_cookie);
+	if (cookie) {
+		entry->cookie = flow_action_cookie_create(cookie->data,
+							  cookie->len,
+							  GFP_ATOMIC);
+		if (!entry->cookie)
+			err = -ENOMEM;
+	}
+	rcu_read_unlock();
+	return err;
+}
+
+static void tcf_act_put_cookie(struct flow_action_entry *entry)
+{
+	flow_action_cookie_destroy(entry->cookie);
+}
+
 void tc_cleanup_flow_action(struct flow_action *flow_action)
 {
 	struct flow_action_entry *entry;
 	int i;
 
-	flow_action_for_each(i, entry, flow_action)
+	flow_action_for_each(i, entry, flow_action) {
+		tcf_act_put_cookie(entry);
 		if (entry->destructor)
 			entry->destructor(entry->destructor_priv);
+	}
 }
 EXPORT_SYMBOL(tc_cleanup_flow_action);
 
@@ -3447,6 +3473,9 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 
 		entry = &flow_action->entries[j];
 		spin_lock_bh(&act->tcfa_lock);
+		err = tcf_act_get_cookie(entry, act);
+		if (err)
+			goto err_out_locked;
 		if (is_tcf_gact_ok(act)) {
 			entry->id = FLOW_ACTION_ACCEPT;
 		} else if (is_tcf_gact_shot(act)) {
