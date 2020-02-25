@@ -77,9 +77,8 @@ static ssize_t idletimer_tg_show(struct device *dev,
 			ktimespec = ktime_to_timespec64(expires_alarm);
 			time_diff = ktimespec.tv_sec;
 		} else {
-		expires = timer->timer.expires;
-			time_diff = jiffies_to_msecs(
-						expires - jiffies) / 1000;
+			expires = timer->timer.expires;
+			time_diff = jiffies_to_msecs(expires - jiffies) / 1000;
 		}
 	}
 
@@ -216,7 +215,7 @@ static int idletimer_tg_create_v1(struct idletimer_tg_info_v1 *info)
 	kobject_uevent(idletimer_tg_kobj,KOBJ_ADD);
 
 	list_add(&info->timer->entry, &idletimer_tg_list);
-		pr_debug("timer type value is %u", info->timer_type);
+	pr_debug("timer type value is %u", info->timer_type);
 	info->timer->timer_type = info->timer_type;
 	info->timer->refcnt = 1;
 
