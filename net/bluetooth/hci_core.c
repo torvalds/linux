@@ -2285,7 +2285,7 @@ void hci_link_keys_clear(struct hci_dev *hdev)
 {
 	struct link_key *key;
 
-	list_for_each_entry_rcu(key, &hdev->link_keys, list) {
+	list_for_each_entry(key, &hdev->link_keys, list) {
 		list_del_rcu(&key->list);
 		kfree_rcu(key, rcu);
 	}
@@ -2295,7 +2295,7 @@ void hci_smp_ltks_clear(struct hci_dev *hdev)
 {
 	struct smp_ltk *k;
 
-	list_for_each_entry_rcu(k, &hdev->long_term_keys, list) {
+	list_for_each_entry(k, &hdev->long_term_keys, list) {
 		list_del_rcu(&k->list);
 		kfree_rcu(k, rcu);
 	}
@@ -2305,7 +2305,7 @@ void hci_smp_irks_clear(struct hci_dev *hdev)
 {
 	struct smp_irk *k;
 
-	list_for_each_entry_rcu(k, &hdev->identity_resolving_keys, list) {
+	list_for_each_entry(k, &hdev->identity_resolving_keys, list) {
 		list_del_rcu(&k->list);
 		kfree_rcu(k, rcu);
 	}
@@ -2315,7 +2315,7 @@ void hci_blocked_keys_clear(struct hci_dev *hdev)
 {
 	struct blocked_key *b;
 
-	list_for_each_entry_rcu(b, &hdev->blocked_keys, list) {
+	list_for_each_entry(b, &hdev->blocked_keys, list) {
 		list_del_rcu(&b->list);
 		kfree_rcu(b, rcu);
 	}
