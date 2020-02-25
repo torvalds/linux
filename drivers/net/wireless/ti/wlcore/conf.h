@@ -1150,7 +1150,7 @@ struct wlcore_conf {
 struct wlcore_conf_file {
 	struct wlcore_conf_header header;
 	struct wlcore_conf core;
-	u8 priv[0];
+	u8 priv[];
 } __packed;
 
 #endif
