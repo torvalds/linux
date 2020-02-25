@@ -4491,10 +4491,12 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 }
 
-static bool intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
-				 i915_reg_t reg, bool enable)
+static void intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
+				 enum dbuf_slice slice, bool enable)
 {
-	u32 val, status;
+	i915_reg_t reg = DBUF_CTL_S(slice);
+	bool state;
+	u32 val;
 
 	val = intel_de_read(dev_priv, reg);
 	val = enable ? (val | DBUF_POWER_REQUEST) : (val & ~DBUF_POWER_REQUEST);
@@ -4502,13 +4504,10 @@ static bool intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
 	intel_de_posting_read(dev_priv, reg);
 	udelay(10);
 
-	status = intel_de_read(dev_priv, reg) & DBUF_POWER_STATE;
-	if ((enable && !status) || (!enable && status)) {
-		drm_err(&dev_priv->drm, "DBus power %s timeout!\n",
-			enable ? "enable" : "disable");
-		return false;
-	}
-	return true;
+	state = intel_de_read(dev_priv, reg) & DBUF_POWER_STATE;
+	drm_WARN(&dev_priv->drm, enable != state,
+		 "DBuf slice %d power %s timeout!\n",
+		 slice, enable ? "enable" : "disable");
 }
 
 static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
@@ -4524,12 +4523,13 @@ static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			    u8 req_slices)
 {
-	int i;
-	int max_slices = INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
+	int num_slices = INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	enum dbuf_slice slice;
 
-	drm_WARN(&dev_priv->drm, hweight8(req_slices) > max_slices,
-		 "Invalid number of dbuf slices requested\n");
+	drm_WARN(&dev_priv->drm, req_slices & ~(BIT(num_slices) - 1),
+		 "Invalid set of dbuf slices (0x%x) requested (num dbuf slices %d)\n",
+		 req_slices, num_slices);
 
 	drm_dbg_kms(&dev_priv->drm, "Updating dbuf slices to 0x%x\n",
 		    req_slices);
@@ -4543,11 +4543,9 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 	 */
 	mutex_lock(&power_domains->lock);
 
-	for (i = 0; i < max_slices; i++) {
-		intel_dbuf_slice_set(dev_priv,
-				     DBUF_CTL_S(i),
-				     (req_slices & BIT(i)) != 0);
-	}
+	for (slice = DBUF_S1; slice < num_slices; slice++)
+		intel_dbuf_slice_set(dev_priv, slice,
+				     req_slices & BIT(slice));
 
 	dev_priv->enabled_dbuf_slices_mask = req_slices;
 
