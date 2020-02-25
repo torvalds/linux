@@ -8205,12 +8205,14 @@ devlink_trap_stats_update(struct devlink_stats __percpu *trap_stats,
 static void
 devlink_trap_report_metadata_fill(struct net_dm_hw_metadata *hw_metadata,
 				  const struct devlink_trap_item *trap_item,
-				  struct devlink_port *in_devlink_port)
+				  struct devlink_port *in_devlink_port,
+				  const struct flow_action_cookie *fa_cookie)
 {
 	struct devlink_trap_group_item *group_item = trap_item->group_item;
 
 	hw_metadata->trap_group_name = group_item->group->name;
 	hw_metadata->trap_name = trap_item->trap->name;
+	hw_metadata->fa_cookie = fa_cookie;
 
 	spin_lock(&in_devlink_port->type_lock);
 	if (in_devlink_port->type == DEVLINK_PORT_TYPE_ETH)
@@ -8224,9 +8226,12 @@ devlink_trap_report_metadata_fill(struct net_dm_hw_metadata *hw_metadata,
  * @skb: Trapped packet.
  * @trap_ctx: Trap context.
  * @in_devlink_port: Input devlink port.
+ * @fa_cookie: Flow action cookie. Could be NULL.
  */
 void devlink_trap_report(struct devlink *devlink, struct sk_buff *skb,
-			 void *trap_ctx, struct devlink_port *in_devlink_port)
+			 void *trap_ctx, struct devlink_port *in_devlink_port,
+			 const struct flow_action_cookie *fa_cookie)
+
 {
 	struct devlink_trap_item *trap_item = trap_ctx;
 	struct net_dm_hw_metadata hw_metadata = {};
@@ -8235,7 +8240,7 @@ void devlink_trap_report(struct devlink *devlink, struct sk_buff *skb,
 	devlink_trap_stats_update(trap_item->group_item->stats, skb->len);
 
 	devlink_trap_report_metadata_fill(&hw_metadata, trap_item,
-					  in_devlink_port);
+					  in_devlink_port, fa_cookie);
 	net_dm_hw_report(skb, &hw_metadata);
 }
 EXPORT_SYMBOL_GPL(devlink_trap_report);

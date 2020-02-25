@@ -71,7 +71,7 @@ static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u8 local_port,
 	in_devlink_port = mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
 							   local_port);
 	skb_push(skb, ETH_HLEN);
-	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port);
+	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port, NULL);
 	consume_skb(skb);
 }
 
@@ -95,7 +95,7 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 	in_devlink_port = mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
 							   local_port);
 	skb_push(skb, ETH_HLEN);
-	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port);
+	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port, NULL);
 	skb_pull(skb, ETH_HLEN);
 	skb->offload_fwd_mark = 1;
 	netif_receive_skb(skb);

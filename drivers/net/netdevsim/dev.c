@@ -385,7 +385,7 @@ static void nsim_dev_trap_report(struct nsim_dev_port *nsim_dev_port)
 		 */
 		local_bh_disable();
 		devlink_trap_report(devlink, skb, nsim_trap_item->trap_ctx,
-				    &nsim_dev_port->devlink_port);
+				    &nsim_dev_port->devlink_port, NULL);
 		local_bh_enable();
 		consume_skb(skb);
 	}
