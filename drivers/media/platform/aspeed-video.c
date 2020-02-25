@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright 2020 IBM Corp.
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 
 #include <linux/atomic.h>
 #include <linux/bitfield.h>
@@ -132,7 +132,8 @@
 #define  VE_COMP_CTRL_HQ_DCT_CHR	GENMASK(26, 22)
 #define  VE_COMP_CTRL_HQ_DCT_LUM	GENMASK(31, 27)
 
-#define VE_OFFSET_COMP_STREAM		0x078
+#define AST2400_VE_COMP_SIZE_READ_BACK	0x078
+#define AST2600_VE_COMP_SIZE_READ_BACK	0x084
 
 #define VE_SRC_LR_EDGE_DET		0x090
 #define  VE_SRC_LR_EDGE_DET_LEFT	GENMASK(11, 0)
@@ -252,12 +253,17 @@ struct aspeed_video_config {
 
 static const struct aspeed_video_config ast2400_config = {
 	.jpeg_mode = AST2400_VE_SEQ_CTRL_JPEG_MODE,
-	.comp_size_read = VE_OFFSET_COMP_STREAM,
+	.comp_size_read = AST2400_VE_COMP_SIZE_READ_BACK,
 };
 
 static const struct aspeed_video_config ast2500_config = {
 	.jpeg_mode = AST2500_VE_SEQ_CTRL_JPEG_MODE,
-	.comp_size_read = VE_OFFSET_COMP_STREAM,
+	.comp_size_read = AST2400_VE_COMP_SIZE_READ_BACK,
+};
+
+static const struct aspeed_video_config ast2600_config = {
+	.jpeg_mode = AST2500_VE_SEQ_CTRL_JPEG_MODE,
+	.comp_size_read = AST2600_VE_COMP_SIZE_READ_BACK,
 };
 
 static const u32 aspeed_video_jpeg_header[ASPEED_VIDEO_JPEG_HEADER_SIZE] = {
@@ -1673,6 +1679,7 @@ err_unprepare_eclk:
 static const struct of_device_id aspeed_video_of_match[] = {
 	{ .compatible = "aspeed,ast2400-video-engine", .data = &ast2400_config },
 	{ .compatible = "aspeed,ast2500-video-engine", .data = &ast2500_config },
+	{ .compatible = "aspeed,ast2600-video-engine", .data = &ast2600_config },
 	{}
 };
 MODULE_DEVICE_TABLE(of, aspeed_video_of_match);
