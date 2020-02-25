@@ -35,7 +35,7 @@
 struct if_spi_packet {
 	struct list_head		list;
 	u16				blen;
-	u8				buffer[0] __attribute__((aligned(4)));
+	u8				buffer[] __aligned(4);
 };
 
 struct if_spi_card {
