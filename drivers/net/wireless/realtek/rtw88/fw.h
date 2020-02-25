@@ -36,7 +36,7 @@ enum rtw_c2h_cmd_id_ext {
 struct rtw_c2h_cmd {
 	u8 id;
 	u8 seq;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 enum rtw_rsvd_packet_type {

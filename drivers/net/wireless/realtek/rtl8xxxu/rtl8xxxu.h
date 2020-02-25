@@ -627,7 +627,7 @@ struct rtl8xxxu_firmware_header {
 	u32	reserved4;
 	u32	reserved5;
 
-	u8	data[0];
+	u8	data[];
 };
 
 /*
