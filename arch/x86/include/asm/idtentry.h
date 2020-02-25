@@ -57,6 +57,49 @@ __visible noinstr void func(struct pt_regs *regs)			\
 									\
 static __always_inline void __##func(struct pt_regs *regs)
 
+/**
+ * DECLARE_IDTENTRY_ERRORCODE - Declare functions for simple IDT entry points
+ *				Error code pushed by hardware
+ * @vector:	Vector number (ignored for C)
+ * @func:	Function name of the entry point
+ *
+ * Declares three functions:
+ * - The ASM entry point: asm_##func
+ * - The XEN PV trap entry point: xen_##func (maybe unused)
+ * - The C handler called from the ASM entry point
+ *
+ * Same as DECLARE_IDTENTRY, but has an extra error_code argument for the
+ * C-handler.
+ */
+#define DECLARE_IDTENTRY_ERRORCODE(vector, func)			\
+	asmlinkage void asm_##func(void);				\
+	asmlinkage void xen_asm_##func(void);				\
+	__visible void func(struct pt_regs *regs, unsigned long error_code)
+
+/**
+ * DEFINE_IDTENTRY_ERRORCODE - Emit code for simple IDT entry points
+ *			       Error code pushed by hardware
+ * @func:	Function name of the entry point
+ *
+ * Same as DEFINE_IDTENTRY, but has an extra error_code argument
+ */
+#define DEFINE_IDTENTRY_ERRORCODE(func)					\
+static __always_inline void __##func(struct pt_regs *regs,		\
+				     unsigned long error_code);		\
+									\
+__visible noinstr void func(struct pt_regs *regs,			\
+			    unsigned long error_code)			\
+{									\
+	idtentry_enter(regs);						\
+	instrumentation_begin();					\
+	__##func (regs, error_code);					\
+	instrumentation_end();						\
+	idtentry_exit(regs);						\
+}									\
+									\
+static __always_inline void __##func(struct pt_regs *regs,		\
+				     unsigned long error_code)
+
 #else /* !__ASSEMBLY__ */
 
 /*
@@ -64,6 +107,9 @@ static __always_inline void __##func(struct pt_regs *regs)
  */
 #define DECLARE_IDTENTRY(vector, func)					\
 	idtentry vector asm_##func func has_error_code=0 sane=1
+
+#define DECLARE_IDTENTRY_ERRORCODE(vector, func)			\
+	idtentry vector asm_##func func has_error_code=1 sane=1
 
 #endif /* __ASSEMBLY__ */
 
