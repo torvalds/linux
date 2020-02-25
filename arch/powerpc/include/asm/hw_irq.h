@@ -228,9 +228,13 @@ static inline bool arch_irqs_disabled(void)
 #ifdef CONFIG_PPC_BOOK3E
 #define __hard_irq_enable()	wrtee(MSR_EE)
 #define __hard_irq_disable()	wrtee(0)
+#define __hard_EE_RI_disable()	wrtee(0)
+#define __hard_RI_enable()	do { } while (0)
 #else
 #define __hard_irq_enable()	__mtmsrd(MSR_EE|MSR_RI, 1)
 #define __hard_irq_disable()	__mtmsrd(MSR_RI, 1)
+#define __hard_EE_RI_disable()	__mtmsrd(0, 1)
+#define __hard_RI_enable()	__mtmsrd(MSR_RI, 1)
 #endif
 
 #define hard_irq_disable()	do {					\

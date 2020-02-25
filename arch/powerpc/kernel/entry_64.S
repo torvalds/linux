@@ -69,6 +69,7 @@ BEGIN_FTR_SECTION
 	bne	.Ltabort_syscall
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif
+_ASM_NOKPROBE_SYMBOL(system_call_common)
 	mr	r10,r1
 	ld	r1,PACAKSAVE(r13)
 	std	r10,0(r1)
@@ -76,341 +77,98 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
 	std	r12,_MSR(r1)
 	std	r0,GPR0(r1)
 	std	r10,GPR1(r1)
+	std	r2,GPR2(r1)
 #ifdef CONFIG_PPC_FSL_BOOK3E
 START_BTB_FLUSH_SECTION
 	BTB_FLUSH(r10)
 END_BTB_FLUSH_SECTION
 #endif
-	ACCOUNT_CPU_USER_ENTRY(r13, r10, r11)
-	std	r2,GPR2(r1)
+	ld	r2,PACATOC(r13)
+	mfcr	r12
+	li	r11,0
+	/* Can we avoid saving r3-r8 in common case? */
 	std	r3,GPR3(r1)
-	mfcr	r2
 	std	r4,GPR4(r1)
 	std	r5,GPR5(r1)
 	std	r6,GPR6(r1)
 	std	r7,GPR7(r1)
 	std	r8,GPR8(r1)
-	li	r11,0
+	/* Zero r9-r12, this should only be required when restoring all GPRs */
 	std	r11,GPR9(r1)
 	std	r11,GPR10(r1)
 	std	r11,GPR11(r1)
 	std	r11,GPR12(r1)
-	std	r11,_XER(r1)
-	std	r11,_CTR(r1)
 	std	r9,GPR13(r1)
 	SAVE_NVGPRS(r1)
+	std	r11,_XER(r1)
+	std	r11,_CTR(r1)
 	mflr	r10
+
 	/*
 	 * This clears CR0.SO (bit 28), which is the error indication on
 	 * return from this system call.
 	 */
-	rldimi	r2,r11,28,(63-28)
+	rldimi	r12,r11,28,(63-28)
 	li	r11,0xc00
 	std	r10,_LINK(r1)
 	std	r11,_TRAP(r1)
+	std	r12,_CCR(r1)
 	std	r3,ORIG_GPR3(r1)
-	std	r2,_CCR(r1)
-	ld	r2,PACATOC(r13)
-	addi	r9,r1,STACK_FRAME_OVERHEAD
+	addi	r10,r1,STACK_FRAME_OVERHEAD
 	ld	r11,exception_marker@toc(r2)
-	std	r11,-16(r9)		/* "regshere" marker */
+	std	r11,-16(r10)		/* "regshere" marker */
 
-	kuap_check_amr r10, r11
+	/* Calling convention has r9 = orig r0, r10 = regs */
+	mr	r9,r0
+	bl	system_call_exception
 
-#if defined(CONFIG_VIRT_CPU_ACCOUNTING_NATIVE) && defined(CONFIG_PPC_SPLPAR)
-BEGIN_FW_FTR_SECTION
-	/* see if there are any DTL entries to process */
-	ld	r10,PACALPPACAPTR(r13)	/* get ptr to VPA */
-	ld	r11,PACA_DTL_RIDX(r13)	/* get log read index */
-	addi	r10,r10,LPPACA_DTLIDX
-	LDX_BE	r10,0,r10		/* get log write index */
-	cmpd	r11,r10
-	beq+	33f
-	bl	accumulate_stolen_time
-	REST_GPR(0,r1)
-	REST_4GPRS(3,r1)
-	REST_2GPRS(7,r1)
-	addi	r9,r1,STACK_FRAME_OVERHEAD
-33:
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE && CONFIG_PPC_SPLPAR */
-
-	/*
-	 * A syscall should always be called with interrupts enabled
-	 * so we just unconditionally hard-enable here. When some kind
-	 * of irq tracing is used, we additionally check that condition
-	 * is correct
-	 */
-#if defined(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) && defined(CONFIG_BUG)
-	lbz	r10,PACAIRQSOFTMASK(r13)
-1:	tdnei	r10,IRQS_ENABLED
-	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
-#endif
-
-#ifdef CONFIG_PPC_BOOK3E
-	wrteei	1
-#else
-	li	r11,MSR_RI
-	ori	r11,r11,MSR_EE
-	mtmsrd	r11,1
-#endif /* CONFIG_PPC_BOOK3E */
-
-system_call:			/* label this so stack traces look sane */
-	/* We do need to set SOFTE in the stack frame or the return
-	 * from interrupt will be painful
-	 */
-	li	r10,IRQS_ENABLED
-	std	r10,SOFTE(r1)
-
-	ld	r11, PACA_THREAD_INFO(r13)
-	ld	r10,TI_FLAGS(r11)
-	andi.	r11,r10,_TIF_SYSCALL_DOTRACE
-	bne	.Lsyscall_dotrace		/* does not return */
-	cmpldi	0,r0,NR_syscalls
-	bge-	.Lsyscall_enosys
-
-.Lsyscall:
-/*
- * Need to vector to 32 Bit or default sys_call_table here,
- * based on caller's run-mode / personality.
- */
-	ld	r11,SYS_CALL_TABLE@toc(2)
-	andis.	r10,r10,_TIF_32BIT@h
-	beq	15f
-	ld	r11,COMPAT_SYS_CALL_TABLE@toc(2)
-	clrldi	r3,r3,32
-	clrldi	r4,r4,32
-	clrldi	r5,r5,32
-	clrldi	r6,r6,32
-	clrldi	r7,r7,32
-	clrldi	r8,r8,32
-15:
-	slwi	r0,r0,3
-
-	barrier_nospec_asm
-	/*
-	 * Prevent the load of the handler below (based on the user-passed
-	 * system call number) being speculatively executed until the test
-	 * against NR_syscalls and branch to .Lsyscall_enosys above has
-	 * committed.
-	 */
-
-	ldx	r12,r11,r0	/* Fetch system call handler [ptr] */
-	mtctr   r12
-	bctrl			/* Call handler */
-
-	/* syscall_exit can exit to kernel mode, via ret_from_kernel_thread */
 .Lsyscall_exit:
-	std	r3,RESULT(r1)
+	addi    r4,r1,STACK_FRAME_OVERHEAD
+	bl	syscall_exit_prepare
 
-#ifdef CONFIG_DEBUG_RSEQ
-	/* Check whether the syscall is issued inside a restartable sequence */
-	addi    r3,r1,STACK_FRAME_OVERHEAD
-	bl      rseq_syscall
-	ld	r3,RESULT(r1)
-#endif
+	ld	r2,_CCR(r1)
+	ld	r4,_NIP(r1)
+	ld	r5,_MSR(r1)
+	ld	r6,_LINK(r1)
 
-	ld	r12, PACA_THREAD_INFO(r13)
-
-	ld	r8,_MSR(r1)
-
-/*
- * This is a few instructions into the actual syscall exit path (which actually
- * starts at .Lsyscall_exit) to cater to kprobe blacklisting and to reduce the
- * number of visible symbols for profiling purposes.
- *
- * We can probe from system_call until this point as MSR_RI is set. But once it
- * is cleared below, we won't be able to take a trap.
- *
- * This is blacklisted from kprobes further below with _ASM_NOKPROBE_SYMBOL().
- */
-system_call_exit:
-	/*
-	 * Disable interrupts so current_thread_info()->flags can't change,
-	 * and so that we don't get interrupted after loading SRR0/1.
-	 *
-	 * Leave MSR_RI enabled for now, because with THREAD_INFO_IN_TASK we
-	 * could fault on the load of the TI_FLAGS below.
-	 */
-#ifdef CONFIG_PPC_BOOK3E
-	wrteei	0
-#else
-	li	r11,MSR_RI
-	mtmsrd	r11,1
-#endif /* CONFIG_PPC_BOOK3E */
-
-	ld	r9,TI_FLAGS(r12)
-	li	r11,-MAX_ERRNO
-	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
-	bne-	.Lsyscall_exit_work
-
-	andi.	r0,r8,MSR_FP
-	beq 2f
-#ifdef CONFIG_ALTIVEC
-	andis.	r0,r8,MSR_VEC@h
-	bne	3f
-#endif
-2:	addi    r3,r1,STACK_FRAME_OVERHEAD
-	bl	restore_math
-	ld	r8,_MSR(r1)
-	ld	r3,RESULT(r1)
-	li	r11,-MAX_ERRNO
-
-3:	cmpld	r3,r11
-	ld	r5,_CCR(r1)
-	bge-	.Lsyscall_error
-.Lsyscall_error_cont:
-	ld	r7,_NIP(r1)
 BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1			/* to clear the reservation */
 END_FTR_SECTION_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
-	andi.	r6,r8,MSR_PR
-	ld	r4,_LINK(r1)
 
-	kuap_check_amr r10, r11
+	mtspr	SPRN_SRR0,r4
+	mtspr	SPRN_SRR1,r5
+	mtlr	r6
 
-#ifdef CONFIG_PPC_BOOK3S
-	/*
-	 * Clear MSR_RI, MSR_EE is already and remains disabled. We could do
-	 * this later, but testing shows that doing it here causes less slow
-	 * down than doing it closer to the rfid.
-	 */
-	li	r11,0
-	mtmsrd	r11,1
-#endif
-
-	beq-	1f
-	ACCOUNT_CPU_USER_EXIT(r13, r11, r12)
+	cmpdi	r3,0
+	bne	.Lsyscall_restore_regs
+.Lsyscall_restore_regs_cont:
 
 BEGIN_FTR_SECTION
 	HMT_MEDIUM_LOW
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	std	r8, PACATMSCRATCH(r13)
-#endif
-
 	/*
 	 * We don't need to restore AMR on the way back to userspace for KUAP.
 	 * The value of AMR only matters while we're in the kernel.
 	 */
-	ld	r13,GPR13(r1)	/* only restore r13 if returning to usermode */
+	mtcr	r2
 	ld	r2,GPR2(r1)
+	ld	r3,GPR3(r1)
+	ld	r13,GPR13(r1)
 	ld	r1,GPR1(r1)
-	mtlr	r4
-	mtcr	r5
-	mtspr	SPRN_SRR0,r7
-	mtspr	SPRN_SRR1,r8
 	RFI_TO_USER
 	b	.	/* prevent speculative execution */
 
-1:	/* exit to kernel */
-	kuap_restore_amr r2
-
-	ld	r2,GPR2(r1)
-	ld	r1,GPR1(r1)
-	mtlr	r4
-	mtcr	r5
-	mtspr	SPRN_SRR0,r7
-	mtspr	SPRN_SRR1,r8
-	RFI_TO_KERNEL
-	b	.	/* prevent speculative execution */
-
-.Lsyscall_error:
-	oris	r5,r5,0x1000	/* Set SO bit in CR */
-	neg	r3,r3
-	std	r5,_CCR(r1)
-	b	.Lsyscall_error_cont
-
-/* Traced system call support */
-.Lsyscall_dotrace:
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	do_syscall_trace_enter
-
-	/*
-	 * We use the return value of do_syscall_trace_enter() as the syscall
-	 * number. If the syscall was rejected for any reason do_syscall_trace_enter()
-	 * returns an invalid syscall number and the test below against
-	 * NR_syscalls will fail.
-	 */
-	mr	r0,r3
-
-	/* Restore argument registers just clobbered and/or possibly changed. */
-	ld	r3,GPR3(r1)
-	ld	r4,GPR4(r1)
-	ld	r5,GPR5(r1)
-	ld	r6,GPR6(r1)
-	ld	r7,GPR7(r1)
-	ld	r8,GPR8(r1)
-
-	/* Repopulate r9 and r10 for the syscall path */
-	addi	r9,r1,STACK_FRAME_OVERHEAD
-	ld	r10, PACA_THREAD_INFO(r13)
-	ld	r10,TI_FLAGS(r10)
-
-	cmpldi	r0,NR_syscalls
-	blt+	.Lsyscall
-
-	/* Return code is already in r3 thanks to do_syscall_trace_enter() */
-	b	.Lsyscall_exit
-
-
-.Lsyscall_enosys:
-	li	r3,-ENOSYS
-	b	.Lsyscall_exit
-	
-.Lsyscall_exit_work:
-	/* If TIF_RESTOREALL is set, don't scribble on either r3 or ccr.
-	 If TIF_NOERROR is set, just save r3 as it is. */
-
-	andi.	r0,r9,_TIF_RESTOREALL
-	beq+	0f
+.Lsyscall_restore_regs:
+	ld	r3,_CTR(r1)
+	ld	r4,_XER(r1)
 	REST_NVGPRS(r1)
-	b	2f
-0:	cmpld	r3,r11		/* r11 is -MAX_ERRNO */
-	blt+	1f
-	andi.	r0,r9,_TIF_NOERROR
-	bne-	1f
-	ld	r5,_CCR(r1)
-	neg	r3,r3
-	oris	r5,r5,0x1000	/* Set SO bit in CR */
-	std	r5,_CCR(r1)
-1:	std	r3,GPR3(r1)
-2:	andi.	r0,r9,(_TIF_PERSYSCALL_MASK)
-	beq	4f
-
-	/* Clear per-syscall TIF flags if any are set.  */
-
-	li	r11,_TIF_PERSYSCALL_MASK
-	addi	r12,r12,TI_FLAGS
-3:	ldarx	r10,0,r12
-	andc	r10,r10,r11
-	stdcx.	r10,0,r12
-	bne-	3b
-	subi	r12,r12,TI_FLAGS
-
-4:	/* Anything else left to do? */
-BEGIN_FTR_SECTION
-	lis	r3,DEFAULT_PPR@highest	/* Set default PPR */
-	sldi	r3,r3,32	/* bits 11-13 are used for ppr */
-	std	r3,_PPR(r1)
-END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
-
-	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP)
-	beq	ret_from_except_lite
-
-	/* Re-enable interrupts */
-#ifdef CONFIG_PPC_BOOK3E
-	wrteei	1
-#else
-	li	r10,MSR_RI
-	ori	r10,r10,MSR_EE
-	mtmsrd	r10,1
-#endif /* CONFIG_PPC_BOOK3E */
-
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	do_syscall_trace_leave
-	b	ret_from_except
+	mtctr	r3
+	mtspr	SPRN_XER,r4
+	ld	r0,GPR0(r1)
+	REST_8GPRS(4, r1)
+	ld	r12,GPR12(r1)
+	b	.Lsyscall_restore_regs_cont
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 .Ltabort_syscall:
@@ -438,8 +196,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	RFI_TO_USER
 	b	.	/* prevent speculative execution */
 #endif
-_ASM_NOKPROBE_SYMBOL(system_call_common);
-_ASM_NOKPROBE_SYMBOL(system_call_exit);
 
 _GLOBAL(ret_from_fork)
 	bl	schedule_tail
