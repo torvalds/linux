@@ -36,7 +36,7 @@ xen_pv_trap xennmi
 xen_pv_trap asm_exc_overflow
 xen_pv_trap asm_exc_bounds
 xen_pv_trap asm_exc_invalid_op
-xen_pv_trap device_not_available
+xen_pv_trap asm_exc_device_not_available
 xen_pv_trap double_fault
 xen_pv_trap coprocessor_segment_overrun
 xen_pv_trap invalid_TSS

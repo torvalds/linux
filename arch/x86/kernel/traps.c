@@ -882,12 +882,9 @@ do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 	 */
 }
 
-dotraplinkage void
-do_device_not_available(struct pt_regs *regs, long error_code)
+DEFINE_IDTENTRY(exc_device_not_available)
 {
 	unsigned long cr0 = read_cr0();
-
-	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 
 #ifdef CONFIG_MATH_EMULATION
 	if (!boot_cpu_has(X86_FEATURE_FPU) && (cr0 & X86_CR0_EM)) {
@@ -913,10 +910,9 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 		 * to kill the task than getting stuck in a never-ending
 		 * loop of #NM faults.
 		 */
-		die("unexpected #NM exception", regs, error_code);
+		die("unexpected #NM exception", regs, 0);
 	}
 }
-NOKPROBE_SYMBOL(do_device_not_available);
 
 #ifdef CONFIG_X86_32
 dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)

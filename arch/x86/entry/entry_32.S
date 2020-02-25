@@ -1311,13 +1311,6 @@ SYM_CODE_START(simd_coprocessor_error)
 	jmp	common_exception
 SYM_CODE_END(simd_coprocessor_error)
 
-SYM_CODE_START(device_not_available)
-	ASM_CLAC
-	pushl	$0
-	pushl	$do_device_not_available
-	jmp	common_exception
-SYM_CODE_END(device_not_available)
-
 #ifdef CONFIG_PARAVIRT
 SYM_CODE_START(native_iret)
 	iret
