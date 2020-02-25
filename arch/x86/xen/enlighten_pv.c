@@ -613,7 +613,7 @@ static struct trap_array_entry trap_array[] = {
 	{ debug,                       xen_xendebug,                    true },
 	{ double_fault,                xen_double_fault,                true },
 #ifdef CONFIG_X86_MCE
-	{ machine_check,               xen_machine_check,               true },
+	TRAP_ENTRY(exc_machine_check,			true  ),
 #endif
 	{ nmi,                         xen_xennmi,                      true },
 	TRAP_ENTRY(exc_int3,				false ),
