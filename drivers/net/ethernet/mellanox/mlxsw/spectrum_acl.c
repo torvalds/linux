@@ -536,9 +536,12 @@ int mlxsw_sp_acl_rulei_act_terminate(struct mlxsw_sp_acl_rule_info *rulei)
 }
 
 int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei,
-				bool ingress)
+				bool ingress,
+				const struct flow_action_cookie *fa_cookie,
+				struct netlink_ext_ack *extack)
 {
-	return mlxsw_afa_block_append_drop(rulei->act_block, ingress);
+	return mlxsw_afa_block_append_drop(rulei->act_block, ingress,
+					   fa_cookie, extack);
 }
 
 int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei)
