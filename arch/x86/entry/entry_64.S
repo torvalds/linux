@@ -642,7 +642,6 @@ SYM_CODE_START(\asmsym)
 	.endif
 
 	movq	%rsp, %rdi		/* pt_regs pointer */
-	xorl	%esi, %esi		/* Clear the error code */
 
 	.if \vector == X86_TRAP_DB
 		subq	$DB_STACK_OFFSET, CPU_TSS_IST(IST_INDEX_DB)
