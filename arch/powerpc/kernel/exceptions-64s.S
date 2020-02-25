@@ -44,7 +44,6 @@
  * EXC_VIRT_BEGIN/END  - virt (AIL), unrelocated exception vectors
  * TRAMP_REAL_BEGIN    - real, unrelocated helpers (virt may call these)
  * TRAMP_VIRT_BEGIN    - virt, unreloc helpers (in practice, real can use)
- * TRAMP_KVM_BEGIN     - KVM handlers, these are put into real, unrelocated
  * EXC_COMMON          - After switching to virtual, relocated mode.
  */
 
@@ -73,13 +72,6 @@ name:
 
 #define TRAMP_VIRT_BEGIN(name)					\
 	FIXED_SECTION_ENTRY_BEGIN(virt_trampolines, name)
-
-#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-#define TRAMP_KVM_BEGIN(name)					\
-	TRAMP_VIRT_BEGIN(name)
-#else
-#define TRAMP_KVM_BEGIN(name)
-#endif
 
 #define EXC_REAL_NONE(start, size)				\
 	FIXED_SECTION_ENTRY_BEGIN_LOCATION(real_vectors, exc_real_##start##_##unused, start, size); \
@@ -271,6 +263,9 @@ do_define_int n
 .endm
 
 .macro GEN_KVM name
+	.balign IFETCH_ALIGN_BYTES
+\name\()_kvm:
+
 	.if IKVM_SKIP
 	cmpwi	r10,KVM_GUEST_MODE_SKIP
 	beq	89f
@@ -281,13 +276,18 @@ BEGIN_FTR_SECTION_NESTED(947)
 END_FTR_SECTION_NESTED(CPU_FTR_CFAR,CPU_FTR_CFAR,947)
 	.endif
 
+	ld	r10,PACA_EXGEN+EX_CTR(r13)
+	mtctr	r10
 BEGIN_FTR_SECTION_NESTED(948)
 	ld	r10,IAREA+EX_PPR(r13)
 	std	r10,HSTATE_PPR(r13)
 END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
-	ld	r10,IAREA+EX_R10(r13)
+	ld	r11,IAREA+EX_R11(r13)
+	ld	r12,IAREA+EX_R12(r13)
 	std	r12,HSTATE_SCRATCH0(r13)
 	sldi	r12,r9,32
+	ld	r9,IAREA+EX_R9(r13)
+	ld	r10,IAREA+EX_R10(r13)
 	/* HSRR variants have the 0x2 bit added to their trap number */
 	.if IHSRR == EXC_HV_OR_STD
 	BEGIN_FTR_SECTION
@@ -300,29 +300,16 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	.else
 	ori	r12,r12,(IVEC)
 	.endif
-
-#ifdef CONFIG_RELOCATABLE
-	/*
-	 * KVM requires __LOAD_FAR_HANDLER beause kvmppc_interrupt lives
-	 * outside the head section. CONFIG_RELOCATABLE KVM expects CTR
-	 * to be saved in HSTATE_SCRATCH1.
-	 */
-	ld	r9,IAREA+EX_CTR(r13)
-	std	r9,HSTATE_SCRATCH1(r13)
-	__LOAD_FAR_HANDLER(r9, kvmppc_interrupt)
-	mtctr	r9
-	ld	r9,IAREA+EX_R9(r13)
-	bctr
-#else
-	ld	r9,IAREA+EX_R9(r13)
 	b	kvmppc_interrupt
-#endif
-
 
 	.if IKVM_SKIP
 89:	mtocrf	0x80,r9
+	ld	r10,PACA_EXGEN+EX_CTR(r13)
+	mtctr	r10
 	ld	r9,IAREA+EX_R9(r13)
 	ld	r10,IAREA+EX_R10(r13)
+	ld	r11,IAREA+EX_R11(r13)
+	ld	r12,IAREA+EX_R12(r13)
 	.if IHSRR == EXC_HV_OR_STD
 	BEGIN_FTR_SECTION
 	b	kvmppc_skip_Hinterrupt
@@ -407,11 +394,6 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	mfctr	r10
 	std	r10,IAREA+EX_CTR(r13)
 	mfcr	r9
-
-	.if (!\virt && IKVM_REAL) || (\virt && IKVM_VIRT)
-		KVMTEST \name IHSRR IVEC
-	.endif
-
 	std	r11,IAREA+EX_R11(r13)
 	std	r12,IAREA+EX_R12(r13)
 
@@ -469,12 +451,18 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 
 /*
  * __GEN_COMMON_ENTRY is required to receive the branch from interrupt
- * entry, except in the case of the IEARLY handlers.
+ * entry, except in the case of the real-mode handlers which require
+ * __GEN_REALMODE_COMMON_ENTRY.
+ *
  * This switches to virtual mode and sets MSR[RI].
  */
 .macro __GEN_COMMON_ENTRY name
 DEFINE_FIXED_SYMBOL(\name\()_common_real)
 \name\()_common_real:
+	.if IKVM_REAL
+		KVMTEST \name IHSRR IVEC
+	.endif
+
 	ld	r10,PACAKMSR(r13)	/* get MSR value for kernel */
 	/* MSR[RI] is clear iff using SRR regs */
 	.if IHSRR == EXC_HV_OR_STD
@@ -487,10 +475,30 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real)
 	mtmsrd	r10
 
 	.if IVIRT
+	.if IKVM_VIRT
+	b	1f /* skip the virt test coming from real */
+	.endif
+
 	.balign IFETCH_ALIGN_BYTES
 DEFINE_FIXED_SYMBOL(\name\()_common_virt)
 \name\()_common_virt:
+	.if IKVM_VIRT
+		KVMTEST \name IHSRR IVEC
+1:
+	.endif
 	.endif /* IVIRT */
+.endm
+
+/*
+ * Don't switch to virt mode. Used for early MCE and HMI handlers that
+ * want to run in real mode.
+ */
+.macro __GEN_REALMODE_COMMON_ENTRY name
+DEFINE_FIXED_SYMBOL(\name\()_common_real)
+\name\()_common_real:
+	.if IKVM_REAL
+		KVMTEST \name IHSRR IVEC
+	.endif
 .endm
 
 .macro __GEN_COMMON_BODY name
@@ -848,8 +856,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 	 */
 EXC_REAL_END(system_reset, 0x100, 0x100)
 EXC_VIRT_NONE(0x4100, 0x100)
-TRAMP_KVM_BEGIN(system_reset_kvm)
-	GEN_KVM system_reset
 
 #ifdef CONFIG_PPC_P7_NAP
 TRAMP_REAL_BEGIN(system_reset_idle_wake)
@@ -927,6 +933,8 @@ EXC_COMMON_BEGIN(system_reset_common)
 	EXCEPTION_RESTORE_REGS EXC_STD
 	RFI_TO_USER_OR_KERNEL
 
+	GEN_KVM system_reset
+
 
 INT_DEFINE_BEGIN(machine_check_early)
 	IVEC=0x200
@@ -968,9 +976,6 @@ TRAMP_REAL_BEGIN(machine_check_fwnmi)
 	GEN_INT_ENTRY machine_check_early, virt=0
 #endif
 
-TRAMP_KVM_BEGIN(machine_check_kvm)
-	GEN_KVM machine_check
-
 #define MACHINE_CHECK_HANDLER_WINDUP			\
 	/* Clear MSR_RI before setting SRR0 and SRR1. */\
 	li	r9,0;					\
@@ -984,6 +989,8 @@ TRAMP_KVM_BEGIN(machine_check_kvm)
 EXC_COMMON_BEGIN(machine_check_early_common)
 	mfspr	r11,SPRN_SRR0
 	mfspr	r12,SPRN_SRR1
+
+	__GEN_REALMODE_COMMON_ENTRY machine_check_early
 
 	/*
 	 * Switch to mc_emergency stack and handle re-entrancy (we limit
@@ -1126,6 +1133,9 @@ EXC_COMMON_BEGIN(machine_check_common)
 	bl	machine_check_exception
 	b	ret_from_except
 
+	GEN_KVM machine_check
+
+
 #ifdef CONFIG_PPC_P7_NAP
 /*
  * This is an idle wakeup. Low level machine check has already been
@@ -1218,8 +1228,6 @@ EXC_REAL_END(data_access, 0x300, 0x80)
 EXC_VIRT_BEGIN(data_access, 0x4300, 0x80)
 	GEN_INT_ENTRY data_access, virt=1
 EXC_VIRT_END(data_access, 0x4300, 0x80)
-TRAMP_KVM_BEGIN(data_access_kvm)
-	GEN_KVM data_access
 EXC_COMMON_BEGIN(data_access_common)
 	GEN_COMMON data_access
 	ld	r4,_DAR(r1)
@@ -1231,6 +1239,8 @@ BEGIN_MMU_FTR_SECTION
 MMU_FTR_SECTION_ELSE
 	b	handle_page_fault
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
+
+	GEN_KVM data_access
 
 
 INT_DEFINE_BEGIN(data_access_slb)
@@ -1248,8 +1258,6 @@ EXC_REAL_END(data_access_slb, 0x380, 0x80)
 EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
 	GEN_INT_ENTRY data_access_slb, virt=1
 EXC_VIRT_END(data_access_slb, 0x4380, 0x80)
-TRAMP_KVM_BEGIN(data_access_slb_kvm)
-	GEN_KVM data_access_slb
 EXC_COMMON_BEGIN(data_access_slb_common)
 	GEN_COMMON data_access_slb
 	ld	r4,_DAR(r1)
@@ -1274,6 +1282,8 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 	bl	do_bad_slb_fault
 	b	ret_from_except
 
+	GEN_KVM data_access_slb
+
 
 INT_DEFINE_BEGIN(instruction_access)
 	IVEC=0x400
@@ -1289,8 +1299,6 @@ EXC_REAL_END(instruction_access, 0x400, 0x80)
 EXC_VIRT_BEGIN(instruction_access, 0x4400, 0x80)
 	GEN_INT_ENTRY instruction_access, virt=1
 EXC_VIRT_END(instruction_access, 0x4400, 0x80)
-TRAMP_KVM_BEGIN(instruction_access_kvm)
-	GEN_KVM instruction_access
 EXC_COMMON_BEGIN(instruction_access_common)
 	GEN_COMMON instruction_access
 	ld	r4,_DAR(r1)
@@ -1302,6 +1310,8 @@ BEGIN_MMU_FTR_SECTION
 MMU_FTR_SECTION_ELSE
 	b	handle_page_fault
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
+
+	GEN_KVM instruction_access
 
 
 INT_DEFINE_BEGIN(instruction_access_slb)
@@ -1319,8 +1329,6 @@ EXC_REAL_END(instruction_access_slb, 0x480, 0x80)
 EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
 	GEN_INT_ENTRY instruction_access_slb, virt=1
 EXC_VIRT_END(instruction_access_slb, 0x4480, 0x80)
-TRAMP_KVM_BEGIN(instruction_access_slb_kvm)
-	GEN_KVM instruction_access_slb
 EXC_COMMON_BEGIN(instruction_access_slb_common)
 	GEN_COMMON instruction_access_slb
 	ld	r4,_DAR(r1)
@@ -1345,6 +1353,9 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 	bl	do_bad_slb_fault
 	b	ret_from_except
 
+	GEN_KVM instruction_access_slb
+
+
 INT_DEFINE_BEGIN(hardware_interrupt)
 	IVEC=0x500
 	IHSRR=EXC_HV_OR_STD
@@ -1359,8 +1370,6 @@ EXC_REAL_END(hardware_interrupt, 0x500, 0x100)
 EXC_VIRT_BEGIN(hardware_interrupt, 0x4500, 0x100)
 	GEN_INT_ENTRY hardware_interrupt, virt=1
 EXC_VIRT_END(hardware_interrupt, 0x4500, 0x100)
-TRAMP_KVM_BEGIN(hardware_interrupt_kvm)
-	GEN_KVM hardware_interrupt
 EXC_COMMON_BEGIN(hardware_interrupt_common)
 	GEN_COMMON hardware_interrupt
 	FINISH_NAP
@@ -1368,6 +1377,8 @@ EXC_COMMON_BEGIN(hardware_interrupt_common)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_IRQ
 	b	ret_from_except_lite
+
+	GEN_KVM hardware_interrupt
 
 
 INT_DEFINE_BEGIN(alignment)
@@ -1383,14 +1394,14 @@ EXC_REAL_END(alignment, 0x600, 0x100)
 EXC_VIRT_BEGIN(alignment, 0x4600, 0x100)
 	GEN_INT_ENTRY alignment, virt=1
 EXC_VIRT_END(alignment, 0x4600, 0x100)
-TRAMP_KVM_BEGIN(alignment_kvm)
-	GEN_KVM alignment
 EXC_COMMON_BEGIN(alignment_common)
 	GEN_COMMON alignment
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	alignment_exception
 	b	ret_from_except
+
+	GEN_KVM alignment
 
 
 INT_DEFINE_BEGIN(program_check)
@@ -1404,8 +1415,6 @@ EXC_REAL_END(program_check, 0x700, 0x100)
 EXC_VIRT_BEGIN(program_check, 0x4700, 0x100)
 	GEN_INT_ENTRY program_check, virt=1
 EXC_VIRT_END(program_check, 0x4700, 0x100)
-TRAMP_KVM_BEGIN(program_check_kvm)
-	GEN_KVM program_check
 EXC_COMMON_BEGIN(program_check_common)
 	__GEN_COMMON_ENTRY program_check
 
@@ -1445,6 +1454,8 @@ EXC_COMMON_BEGIN(program_check_common)
 	bl	program_check_exception
 	b	ret_from_except
 
+	GEN_KVM program_check
+
 
 INT_DEFINE_BEGIN(fp_unavailable)
 	IVEC=0x800
@@ -1458,8 +1469,6 @@ EXC_REAL_END(fp_unavailable, 0x800, 0x100)
 EXC_VIRT_BEGIN(fp_unavailable, 0x4800, 0x100)
 	GEN_INT_ENTRY fp_unavailable, virt=1
 EXC_VIRT_END(fp_unavailable, 0x4800, 0x100)
-TRAMP_KVM_BEGIN(fp_unavailable_kvm)
-	GEN_KVM fp_unavailable
 EXC_COMMON_BEGIN(fp_unavailable_common)
 	GEN_COMMON fp_unavailable
 	bne	1f			/* if from user, just load it up */
@@ -1490,6 +1499,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
 	b	ret_from_except
 #endif
 
+	GEN_KVM fp_unavailable
+
 
 INT_DEFINE_BEGIN(decrementer)
 	IVEC=0x900
@@ -1503,8 +1514,6 @@ EXC_REAL_END(decrementer, 0x900, 0x80)
 EXC_VIRT_BEGIN(decrementer, 0x4900, 0x80)
 	GEN_INT_ENTRY decrementer, virt=1
 EXC_VIRT_END(decrementer, 0x4900, 0x80)
-TRAMP_KVM_BEGIN(decrementer_kvm)
-	GEN_KVM decrementer
 EXC_COMMON_BEGIN(decrementer_common)
 	GEN_COMMON decrementer
 	FINISH_NAP
@@ -1512,6 +1521,8 @@ EXC_COMMON_BEGIN(decrementer_common)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	timer_interrupt
 	b	ret_from_except_lite
+
+	GEN_KVM decrementer
 
 
 INT_DEFINE_BEGIN(hdecrementer)
@@ -1527,14 +1538,14 @@ EXC_REAL_END(hdecrementer, 0x980, 0x80)
 EXC_VIRT_BEGIN(hdecrementer, 0x4980, 0x80)
 	GEN_INT_ENTRY hdecrementer, virt=1
 EXC_VIRT_END(hdecrementer, 0x4980, 0x80)
-TRAMP_KVM_BEGIN(hdecrementer_kvm)
-	GEN_KVM hdecrementer
 EXC_COMMON_BEGIN(hdecrementer_common)
 	GEN_COMMON hdecrementer
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	hdec_interrupt
 	b	ret_from_except
+
+	GEN_KVM hdecrementer
 
 
 INT_DEFINE_BEGIN(doorbell_super)
@@ -1549,8 +1560,6 @@ EXC_REAL_END(doorbell_super, 0xa00, 0x100)
 EXC_VIRT_BEGIN(doorbell_super, 0x4a00, 0x100)
 	GEN_INT_ENTRY doorbell_super, virt=1
 EXC_VIRT_END(doorbell_super, 0x4a00, 0x100)
-TRAMP_KVM_BEGIN(doorbell_super_kvm)
-	GEN_KVM doorbell_super
 EXC_COMMON_BEGIN(doorbell_super_common)
 	GEN_COMMON doorbell_super
 	FINISH_NAP
@@ -1562,6 +1571,8 @@ EXC_COMMON_BEGIN(doorbell_super_common)
 	bl	unknown_exception
 #endif
 	b	ret_from_except_lite
+
+	GEN_KVM doorbell_super
 
 
 EXC_REAL_NONE(0xb00, 0x100)
@@ -1667,6 +1678,7 @@ EXC_VIRT_BEGIN(system_call, 0x4c00, 0x100)
 EXC_VIRT_END(system_call, 0x4c00, 0x100)
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+TRAMP_REAL_BEGIN(system_call_kvm)
 	/*
 	 * This is a hcall, so register convention is as above, with these
 	 * differences:
@@ -1674,20 +1686,35 @@ EXC_VIRT_END(system_call, 0x4c00, 0x100)
 	 * ctr = orig r13
 	 * orig r10 saved in PACA
 	 */
-TRAMP_KVM_BEGIN(system_call_kvm)
 	 /*
 	  * Save the PPR (on systems that support it) before changing to
 	  * HMT_MEDIUM. That allows the KVM code to save that value into the
 	  * guest state (it is the guest's PPR value).
 	  */
-	OPT_GET_SPR(r10, SPRN_PPR, CPU_FTR_HAS_PPR)
+BEGIN_FTR_SECTION_NESTED(948)
+	mfspr	r10,SPRN_PPR
+	std	r10,HSTATE_PPR(r13)
+END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	HMT_MEDIUM
-	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r10, CPU_FTR_HAS_PPR)
 	mfctr	r10
 	SET_SCRATCH0(r10)
-	std	r9,PACA_EXGEN+EX_R9(r13)
-	mfcr	r9
-	GEN_KVM system_call
+	mfcr	r10
+	std	r12,HSTATE_SCRATCH0(r13)
+	sldi	r12,r10,32
+	ori	r12,r12,0xc00
+#ifdef CONFIG_RELOCATABLE
+	/*
+	 * Requires __LOAD_FAR_HANDLER beause kvmppc_interrupt lives
+	 * outside the head section.
+	 */
+	__LOAD_FAR_HANDLER(r10, kvmppc_interrupt)
+	mtctr   r10
+	ld	r10,PACA_EXGEN+EX_R10(r13)
+	bctr
+#else
+	ld	r10,PACA_EXGEN+EX_R10(r13)
+	b       kvmppc_interrupt
+#endif
 #endif
 
 
@@ -1702,14 +1729,14 @@ EXC_REAL_END(single_step, 0xd00, 0x100)
 EXC_VIRT_BEGIN(single_step, 0x4d00, 0x100)
 	GEN_INT_ENTRY single_step, virt=1
 EXC_VIRT_END(single_step, 0x4d00, 0x100)
-TRAMP_KVM_BEGIN(single_step_kvm)
-	GEN_KVM single_step
 EXC_COMMON_BEGIN(single_step_common)
 	GEN_COMMON single_step
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	single_step_exception
 	b	ret_from_except
+
+	GEN_KVM single_step
 
 
 INT_DEFINE_BEGIN(h_data_storage)
@@ -1728,8 +1755,6 @@ EXC_REAL_END(h_data_storage, 0xe00, 0x20)
 EXC_VIRT_BEGIN(h_data_storage, 0x4e00, 0x20)
 	GEN_INT_ENTRY h_data_storage, virt=1, ool=1
 EXC_VIRT_END(h_data_storage, 0x4e00, 0x20)
-TRAMP_KVM_BEGIN(h_data_storage_kvm)
-	GEN_KVM h_data_storage
 EXC_COMMON_BEGIN(h_data_storage_common)
 	GEN_COMMON h_data_storage
 	bl      save_nvgprs
@@ -1742,6 +1767,8 @@ MMU_FTR_SECTION_ELSE
 	bl      unknown_exception
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_TYPE_RADIX)
 	b       ret_from_except
+
+	GEN_KVM h_data_storage
 
 
 INT_DEFINE_BEGIN(h_instr_storage)
@@ -1757,14 +1784,14 @@ EXC_REAL_END(h_instr_storage, 0xe20, 0x20)
 EXC_VIRT_BEGIN(h_instr_storage, 0x4e20, 0x20)
 	GEN_INT_ENTRY h_instr_storage, virt=1, ool=1
 EXC_VIRT_END(h_instr_storage, 0x4e20, 0x20)
-TRAMP_KVM_BEGIN(h_instr_storage_kvm)
-	GEN_KVM h_instr_storage
 EXC_COMMON_BEGIN(h_instr_storage_common)
 	GEN_COMMON h_instr_storage
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unknown_exception
 	b	ret_from_except
+
+	GEN_KVM h_instr_storage
 
 
 INT_DEFINE_BEGIN(emulation_assist)
@@ -1780,14 +1807,14 @@ EXC_REAL_END(emulation_assist, 0xe40, 0x20)
 EXC_VIRT_BEGIN(emulation_assist, 0x4e40, 0x20)
 	GEN_INT_ENTRY emulation_assist, virt=1, ool=1
 EXC_VIRT_END(emulation_assist, 0x4e40, 0x20)
-TRAMP_KVM_BEGIN(emulation_assist_kvm)
-	GEN_KVM emulation_assist
 EXC_COMMON_BEGIN(emulation_assist_common)
 	GEN_COMMON emulation_assist
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	emulation_assist_interrupt
 	b	ret_from_except
+
+	GEN_KVM emulation_assist
 
 
 /*
@@ -1816,14 +1843,13 @@ EXC_REAL_BEGIN(hmi_exception, 0xe60, 0x20)
 	GEN_INT_ENTRY hmi_exception_early, virt=0, ool=1
 EXC_REAL_END(hmi_exception, 0xe60, 0x20)
 EXC_VIRT_NONE(0x4e60, 0x20)
-TRAMP_KVM_BEGIN(hmi_exception_early_kvm)
-	GEN_KVM hmi_exception_early
-TRAMP_KVM_BEGIN(hmi_exception_kvm)
-	GEN_KVM hmi_exception
 
 EXC_COMMON_BEGIN(hmi_exception_early_common)
 	mfspr	r11,SPRN_HSRR0		/* Save HSRR0 */
 	mfspr	r12,SPRN_HSRR1		/* Save HSRR1 */
+
+	__GEN_REALMODE_COMMON_ENTRY hmi_exception_early
+
 	mr	r10,r1			/* Save r1 */
 	ld	r1,PACAEMERGSP(r13)	/* Use emergency stack for realmode */
 	subi	r1,r1,INT_FRAME_SIZE	/* alloc stack frame		*/
@@ -1846,6 +1872,8 @@ EXC_COMMON_BEGIN(hmi_exception_early_common)
 	EXCEPTION_RESTORE_REGS EXC_HV
 	GEN_INT_ENTRY hmi_exception, virt=0
 
+	GEN_KVM hmi_exception_early
+
 EXC_COMMON_BEGIN(hmi_exception_common)
 	GEN_COMMON hmi_exception
 	FINISH_NAP
@@ -1854,6 +1882,8 @@ EXC_COMMON_BEGIN(hmi_exception_common)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	handle_hmi_exception
 	b	ret_from_except
+
+	GEN_KVM hmi_exception
 
 
 INT_DEFINE_BEGIN(h_doorbell)
@@ -1870,8 +1900,6 @@ EXC_REAL_END(h_doorbell, 0xe80, 0x20)
 EXC_VIRT_BEGIN(h_doorbell, 0x4e80, 0x20)
 	GEN_INT_ENTRY h_doorbell, virt=1, ool=1
 EXC_VIRT_END(h_doorbell, 0x4e80, 0x20)
-TRAMP_KVM_BEGIN(h_doorbell_kvm)
-	GEN_KVM h_doorbell
 EXC_COMMON_BEGIN(h_doorbell_common)
 	GEN_COMMON h_doorbell
 	FINISH_NAP
@@ -1883,6 +1911,8 @@ EXC_COMMON_BEGIN(h_doorbell_common)
 	bl	unknown_exception
 #endif
 	b	ret_from_except_lite
+
+	GEN_KVM h_doorbell
 
 
 INT_DEFINE_BEGIN(h_virt_irq)
@@ -1899,8 +1929,6 @@ EXC_REAL_END(h_virt_irq, 0xea0, 0x20)
 EXC_VIRT_BEGIN(h_virt_irq, 0x4ea0, 0x20)
 	GEN_INT_ENTRY h_virt_irq, virt=1, ool=1
 EXC_VIRT_END(h_virt_irq, 0x4ea0, 0x20)
-TRAMP_KVM_BEGIN(h_virt_irq_kvm)
-	GEN_KVM h_virt_irq
 EXC_COMMON_BEGIN(h_virt_irq_common)
 	GEN_COMMON h_virt_irq
 	FINISH_NAP
@@ -1908,6 +1936,8 @@ EXC_COMMON_BEGIN(h_virt_irq_common)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_IRQ
 	b	ret_from_except_lite
+
+	GEN_KVM h_virt_irq
 
 
 EXC_REAL_NONE(0xec0, 0x20)
@@ -1928,8 +1958,6 @@ EXC_REAL_END(performance_monitor, 0xf00, 0x20)
 EXC_VIRT_BEGIN(performance_monitor, 0x4f00, 0x20)
 	GEN_INT_ENTRY performance_monitor, virt=1, ool=1
 EXC_VIRT_END(performance_monitor, 0x4f00, 0x20)
-TRAMP_KVM_BEGIN(performance_monitor_kvm)
-	GEN_KVM performance_monitor
 EXC_COMMON_BEGIN(performance_monitor_common)
 	GEN_COMMON performance_monitor
 	FINISH_NAP
@@ -1937,6 +1965,8 @@ EXC_COMMON_BEGIN(performance_monitor_common)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	performance_monitor_exception
 	b	ret_from_except_lite
+
+	GEN_KVM performance_monitor
 
 
 INT_DEFINE_BEGIN(altivec_unavailable)
@@ -1951,8 +1981,6 @@ EXC_REAL_END(altivec_unavailable, 0xf20, 0x20)
 EXC_VIRT_BEGIN(altivec_unavailable, 0x4f20, 0x20)
 	GEN_INT_ENTRY altivec_unavailable, virt=1, ool=1
 EXC_VIRT_END(altivec_unavailable, 0x4f20, 0x20)
-TRAMP_KVM_BEGIN(altivec_unavailable_kvm)
-	GEN_KVM altivec_unavailable
 EXC_COMMON_BEGIN(altivec_unavailable_common)
 	GEN_COMMON altivec_unavailable
 #ifdef CONFIG_ALTIVEC
@@ -1986,6 +2014,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	bl	altivec_unavailable_exception
 	b	ret_from_except
 
+	GEN_KVM altivec_unavailable
+
 
 INT_DEFINE_BEGIN(vsx_unavailable)
 	IVEC=0xf40
@@ -1999,8 +2029,6 @@ EXC_REAL_END(vsx_unavailable, 0xf40, 0x20)
 EXC_VIRT_BEGIN(vsx_unavailable, 0x4f40, 0x20)
 	GEN_INT_ENTRY vsx_unavailable, virt=1, ool=1
 EXC_VIRT_END(vsx_unavailable, 0x4f40, 0x20)
-TRAMP_KVM_BEGIN(vsx_unavailable_kvm)
-	GEN_KVM vsx_unavailable
 EXC_COMMON_BEGIN(vsx_unavailable_common)
 	GEN_COMMON vsx_unavailable
 #ifdef CONFIG_VSX
@@ -2033,6 +2061,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	bl	vsx_unavailable_exception
 	b	ret_from_except
 
+	GEN_KVM vsx_unavailable
+
 
 INT_DEFINE_BEGIN(facility_unavailable)
 	IVEC=0xf60
@@ -2045,14 +2075,14 @@ EXC_REAL_END(facility_unavailable, 0xf60, 0x20)
 EXC_VIRT_BEGIN(facility_unavailable, 0x4f60, 0x20)
 	GEN_INT_ENTRY facility_unavailable, virt=1, ool=1
 EXC_VIRT_END(facility_unavailable, 0x4f60, 0x20)
-TRAMP_KVM_BEGIN(facility_unavailable_kvm)
-	GEN_KVM facility_unavailable
 EXC_COMMON_BEGIN(facility_unavailable_common)
 	GEN_COMMON facility_unavailable
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	facility_unavailable_exception
 	b	ret_from_except
+
+	GEN_KVM facility_unavailable
 
 
 INT_DEFINE_BEGIN(h_facility_unavailable)
@@ -2068,14 +2098,14 @@ EXC_REAL_END(h_facility_unavailable, 0xf80, 0x20)
 EXC_VIRT_BEGIN(h_facility_unavailable, 0x4f80, 0x20)
 	GEN_INT_ENTRY h_facility_unavailable, virt=1, ool=1
 EXC_VIRT_END(h_facility_unavailable, 0x4f80, 0x20)
-TRAMP_KVM_BEGIN(h_facility_unavailable_kvm)
-	GEN_KVM h_facility_unavailable
 EXC_COMMON_BEGIN(h_facility_unavailable_common)
 	GEN_COMMON h_facility_unavailable
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	facility_unavailable_exception
 	b	ret_from_except
+
+	GEN_KVM h_facility_unavailable
 
 
 EXC_REAL_NONE(0xfa0, 0x20)
@@ -2102,14 +2132,15 @@ EXC_REAL_BEGIN(cbe_system_error, 0x1200, 0x100)
 	GEN_INT_ENTRY cbe_system_error, virt=0
 EXC_REAL_END(cbe_system_error, 0x1200, 0x100)
 EXC_VIRT_NONE(0x5200, 0x100)
-TRAMP_KVM_BEGIN(cbe_system_error_kvm)
-	GEN_KVM cbe_system_error
 EXC_COMMON_BEGIN(cbe_system_error_common)
 	GEN_COMMON cbe_system_error
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	cbe_system_error_exception
 	b	ret_from_except
+
+	GEN_KVM cbe_system_error
+
 #else /* CONFIG_CBE_RAS */
 EXC_REAL_NONE(0x1200, 0x100)
 EXC_VIRT_NONE(0x5200, 0x100)
@@ -2128,14 +2159,14 @@ EXC_REAL_END(instruction_breakpoint, 0x1300, 0x100)
 EXC_VIRT_BEGIN(instruction_breakpoint, 0x5300, 0x100)
 	GEN_INT_ENTRY instruction_breakpoint, virt=1
 EXC_VIRT_END(instruction_breakpoint, 0x5300, 0x100)
-TRAMP_KVM_BEGIN(instruction_breakpoint_kvm)
-	GEN_KVM instruction_breakpoint
 EXC_COMMON_BEGIN(instruction_breakpoint_common)
 	GEN_COMMON instruction_breakpoint
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	instruction_breakpoint_exception
 	b	ret_from_except
+
+	GEN_KVM instruction_breakpoint
 
 
 EXC_REAL_NONE(0x1400, 0x100)
@@ -2145,6 +2176,7 @@ INT_DEFINE_BEGIN(denorm_exception)
 	IVEC=0x1500
 	IHSRR=EXC_HV
 	IEARLY=2
+	IKVM_REAL=1
 INT_DEFINE_END(denorm_exception)
 
 EXC_REAL_BEGIN(denorm_exception, 0x1500, 0x100)
@@ -2154,7 +2186,6 @@ EXC_REAL_BEGIN(denorm_exception, 0x1500, 0x100)
 	andis.	r10,r10,(HSRR1_DENORM)@h /* denorm? */
 	bne+	denorm_assist
 #endif
-	KVMTEST denorm_exception, EXC_HV, 0x1500
 	mfspr	r11,SPRN_HSRR0
 	mfspr	r12,SPRN_HSRR1
 	GEN_BRANCH_TO_COMMON denorm_exception, virt=0
@@ -2172,8 +2203,6 @@ EXC_VIRT_END(denorm_exception, 0x5500, 0x100)
 #else
 EXC_VIRT_NONE(0x5500, 0x100)
 #endif
-TRAMP_KVM_BEGIN(denorm_exception_kvm)
-	GEN_KVM denorm_exception
 
 #ifdef CONFIG_PPC_DENORMALISATION
 TRAMP_REAL_BEGIN(denorm_assist)
@@ -2251,6 +2280,8 @@ EXC_COMMON_BEGIN(denorm_exception_common)
 	bl	unknown_exception
 	b	ret_from_except
 
+	GEN_KVM denorm_exception
+
 
 #ifdef CONFIG_CBE_RAS
 INT_DEFINE_BEGIN(cbe_maintenance)
@@ -2264,14 +2295,15 @@ EXC_REAL_BEGIN(cbe_maintenance, 0x1600, 0x100)
 	GEN_INT_ENTRY cbe_maintenance, virt=0
 EXC_REAL_END(cbe_maintenance, 0x1600, 0x100)
 EXC_VIRT_NONE(0x5600, 0x100)
-TRAMP_KVM_BEGIN(cbe_maintenance_kvm)
-	GEN_KVM cbe_maintenance
 EXC_COMMON_BEGIN(cbe_maintenance_common)
 	GEN_COMMON cbe_maintenance
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	cbe_maintenance_exception
 	b	ret_from_except
+
+	GEN_KVM cbe_maintenance
+
 #else /* CONFIG_CBE_RAS */
 EXC_REAL_NONE(0x1600, 0x100)
 EXC_VIRT_NONE(0x5600, 0x100)
@@ -2289,8 +2321,6 @@ EXC_REAL_END(altivec_assist, 0x1700, 0x100)
 EXC_VIRT_BEGIN(altivec_assist, 0x5700, 0x100)
 	GEN_INT_ENTRY altivec_assist, virt=1
 EXC_VIRT_END(altivec_assist, 0x5700, 0x100)
-TRAMP_KVM_BEGIN(altivec_assist_kvm)
-	GEN_KVM altivec_assist
 EXC_COMMON_BEGIN(altivec_assist_common)
 	GEN_COMMON altivec_assist
 	bl	save_nvgprs
@@ -2301,6 +2331,8 @@ EXC_COMMON_BEGIN(altivec_assist_common)
 	bl	unknown_exception
 #endif
 	b	ret_from_except
+
+	GEN_KVM altivec_assist
 
 
 #ifdef CONFIG_CBE_RAS
@@ -2315,14 +2347,15 @@ EXC_REAL_BEGIN(cbe_thermal, 0x1800, 0x100)
 	GEN_INT_ENTRY cbe_thermal, virt=0
 EXC_REAL_END(cbe_thermal, 0x1800, 0x100)
 EXC_VIRT_NONE(0x5800, 0x100)
-TRAMP_KVM_BEGIN(cbe_thermal_kvm)
-	GEN_KVM cbe_thermal
 EXC_COMMON_BEGIN(cbe_thermal_common)
 	GEN_COMMON cbe_thermal
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	cbe_thermal_exception
 	b	ret_from_except
+
+	GEN_KVM cbe_thermal
+
 #else /* CONFIG_CBE_RAS */
 EXC_REAL_NONE(0x1800, 0x100)
 EXC_VIRT_NONE(0x5800, 0x100)
@@ -2514,17 +2547,12 @@ TRAMP_REAL_BEGIN(hrfi_flush_fallback)
 	GET_SCRATCH0(r13);
 	hrfid
 
-/*
- * Real mode exceptions actually use this too, but alternate
- * instruction code patches (which end up in the common .text area)
- * cannot reach these if they are put there.
- */
 USE_TEXT_SECTION()
 	MASKED_INTERRUPT EXC_STD
 	MASKED_INTERRUPT EXC_HV
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-TRAMP_REAL_BEGIN(kvmppc_skip_interrupt)
+kvmppc_skip_interrupt:
 	/*
 	 * Here all GPRs are unchanged from when the interrupt happened
 	 * except for r13, which is saved in SPRG_SCRATCH0.
@@ -2536,7 +2564,7 @@ TRAMP_REAL_BEGIN(kvmppc_skip_interrupt)
 	RFI_TO_KERNEL
 	b	.
 
-TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
+kvmppc_skip_Hinterrupt:
 	/*
 	 * Here all GPRs are unchanged from when the interrupt happened
 	 * except for r13, which is saved in SPRG_SCRATCH0.
@@ -2548,16 +2576,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 	HRFI_TO_KERNEL
 	b	.
 #endif
-
-/*
- * Ensure that any handlers that get invoked from the exception prologs
- * above are below the first 64KB (0x10000) of the kernel image because
- * the prologs assemble the addresses of these handlers using the
- * LOAD_HANDLER macro, which uses an ori instruction.
- */
-
-/*** Common interrupt handlers ***/
-
 
 	/*
 	 * Relocation-on interrupts: A subset of the interrupts can be delivered
