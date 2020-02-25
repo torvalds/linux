@@ -867,8 +867,7 @@ do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 	math_error(regs, error_code, X86_TRAP_XF);
 }
 
-dotraplinkage void
-do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
+DEFINE_IDTENTRY(exc_spurious_interrupt_bug)
 {
 	/*
 	 * This addresses a Pentium Pro Erratum:
