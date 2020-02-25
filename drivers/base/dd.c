@@ -244,19 +244,6 @@ static int __init deferred_probe_timeout_setup(char *str)
 }
 __setup("deferred_probe_timeout=", deferred_probe_timeout_setup);
 
-static int __driver_deferred_probe_check_state(struct device *dev)
-{
-	if (!IS_ENABLED(CONFIG_MODULES) && initcalls_done)
-		return -ENODEV;
-
-	if (!deferred_probe_timeout) {
-		dev_WARN(dev, "deferred probe timeout, ignoring dependency");
-		return -ETIMEDOUT;
-	}
-
-	return -EPROBE_DEFER;
-}
-
 /**
  * driver_deferred_probe_check_state() - Check deferred probe state
  * @dev: device to check
@@ -272,39 +259,15 @@ static int __driver_deferred_probe_check_state(struct device *dev)
  */
 int driver_deferred_probe_check_state(struct device *dev)
 {
-	int ret;
+	if (!IS_ENABLED(CONFIG_MODULES) && initcalls_done) {
+		dev_warn(dev, "ignoring dependency for device, assuming no driver");
+		return -ENODEV;
+	}
 
-	ret = __driver_deferred_probe_check_state(dev);
-	if (ret != -ENODEV)
-		return ret;
-
-	dev_warn(dev, "ignoring dependency for device, assuming no driver");
-
-	return -ENODEV;
-}
-
-/**
- * driver_deferred_probe_check_state_continue() - check deferred probe state
- * @dev: device to check
- *
- * Returns -ETIMEDOUT if deferred probe debug timeout has expired, or
- * -EPROBE_DEFER otherwise.
- *
- * Drivers or subsystems can opt-in to calling this function instead of
- * directly returning -EPROBE_DEFER.
- *
- * This is similar to driver_deferred_probe_check_state(), but it allows the
- * subsystem to keep deferring probe after built-in drivers have had a chance
- * to probe. One scenario where that is useful is if built-in drivers rely on
- * resources that are provided by modular drivers.
- */
-int driver_deferred_probe_check_state_continue(struct device *dev)
-{
-	int ret;
-
-	ret = __driver_deferred_probe_check_state(dev);
-	if (ret != -ENODEV)
-		return ret;
+	if (!deferred_probe_timeout) {
+		dev_WARN(dev, "deferred probe timeout, ignoring dependency");
+		return -ETIMEDOUT;
+	}
 
 	return -EPROBE_DEFER;
 }
