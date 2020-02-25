@@ -3483,6 +3483,9 @@ struct find_free_extent_ctl {
 	/* Found result */
 	u64 found_offset;
 
+	/* Hint where to start looking for an empty space */
+	u64 hint_byte;
+
 	/* Allocation policy */
 	enum btrfs_extent_allocation_policy policy;
 };
@@ -3797,7 +3800,7 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
  */
 static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 				u64 ram_bytes, u64 num_bytes, u64 empty_size,
-				u64 hint_byte, struct btrfs_key *ins,
+				u64 hint_byte_orig, struct btrfs_key *ins,
 				u64 flags, int delalloc)
 {
 	int ret = 0;
@@ -3822,6 +3825,7 @@ static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 	ffe_ctl.have_caching_bg = false;
 	ffe_ctl.orig_have_caching_bg = false;
 	ffe_ctl.found_offset = 0;
+	ffe_ctl.hint_byte = hint_byte_orig;
 	ffe_ctl.policy = BTRFS_EXTENT_ALLOC_CLUSTERED;
 
 	ins->type = BTRFS_EXTENT_ITEM_KEY;
@@ -3864,14 +3868,14 @@ static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 	if (last_ptr) {
 		spin_lock(&last_ptr->lock);
 		if (last_ptr->block_group)
-			hint_byte = last_ptr->window_start;
+			ffe_ctl.hint_byte = last_ptr->window_start;
 		if (last_ptr->fragmented) {
 			/*
 			 * We still set window_start so we can keep track of the
 			 * last place we found an allocation to try and save
 			 * some time.
 			 */
-			hint_byte = last_ptr->window_start;
+			ffe_ctl.hint_byte = last_ptr->window_start;
 			use_cluster = false;
 		}
 		spin_unlock(&last_ptr->lock);
@@ -3879,8 +3883,8 @@ static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 
 	ffe_ctl.search_start = max(ffe_ctl.search_start,
 				   first_logical_byte(fs_info, 0));
-	ffe_ctl.search_start = max(ffe_ctl.search_start, hint_byte);
-	if (ffe_ctl.search_start == hint_byte) {
+	ffe_ctl.search_start = max(ffe_ctl.search_start, ffe_ctl.hint_byte);
+	if (ffe_ctl.search_start == ffe_ctl.hint_byte) {
 		block_group = btrfs_lookup_block_group(fs_info,
 						       ffe_ctl.search_start);
 		/*
