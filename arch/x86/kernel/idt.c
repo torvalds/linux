@@ -91,7 +91,7 @@ static const __initconst struct idt_data def_idts[] = {
 #ifdef CONFIG_X86_32
 	TSKG(X86_TRAP_DF,		GDT_ENTRY_DOUBLEFAULT_TSS),
 #else
-	INTG(X86_TRAP_DF,		double_fault),
+	INTG(X86_TRAP_DF,		asm_exc_double_fault),
 #endif
 	INTG(X86_TRAP_DB,		asm_exc_debug),
 
@@ -187,7 +187,7 @@ gate_desc debug_idt_table[IDT_ENTRIES] __page_aligned_bss;
 static const __initconst struct idt_data ist_idts[] = {
 	ISTG(X86_TRAP_DB,	asm_exc_debug,		IST_INDEX_DB),
 	ISTG(X86_TRAP_NMI,	asm_exc_nmi,		IST_INDEX_NMI),
-	ISTG(X86_TRAP_DF,	double_fault,		IST_INDEX_DF),
+	ISTG(X86_TRAP_DF,	asm_exc_double_fault,	IST_INDEX_DF),
 #ifdef CONFIG_X86_MCE
 	ISTG(X86_TRAP_MC,	asm_exc_machine_check,	IST_INDEX_MCE),
 #endif

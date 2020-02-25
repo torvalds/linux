@@ -680,15 +680,9 @@ SYM_CODE_START(\asmsym)
 	call	paranoid_entry
 	UNWIND_HINT_REGS
 
-	/* Read CR2 early */
-	GET_CR2_INTO(%r12);
-
-	TRACE_IRQS_OFF
-
 	movq	%rsp, %rdi		/* pt_regs pointer into first argument */
 	movq	ORIG_RAX(%rsp), %rsi	/* get error code into 2nd argument*/
 	movq	$-1, ORIG_RAX(%rsp)	/* no syscall to restart */
-	movq	%r12, %rdx		/* Move CR2 into 3rd argument */
 	call	\cfunc
 
 	jmp	paranoid_exit
@@ -918,7 +912,7 @@ SYM_INNER_LABEL(native_irq_return_iret, SYM_L_GLOBAL)
 	/*
 	 * This may fault.  Non-paranoid faults on return to userspace are
 	 * handled by fixup_bad_iret.  These include #SS, #GP, and #NP.
-	 * Double-faults due to espfix64 are handled in do_double_fault.
+	 * Double-faults due to espfix64 are handled in exc_double_fault.
 	 * Other faults here are fatal.
 	 */
 	iretq
@@ -1072,8 +1066,6 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
  */
 
 idtentry	X86_TRAP_PF		page_fault		do_page_fault			has_error_code=1
-
-idtentry_df	X86_TRAP_DF		double_fault		do_double_fault
 
 #ifdef CONFIG_XEN_PV
 idtentry	512 /* dummy */		hypervisor_callback	xen_do_hypervisor_callback	has_error_code=0

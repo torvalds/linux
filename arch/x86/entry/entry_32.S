@@ -1488,7 +1488,7 @@ ret_to_user:
 	jmp	restore_all_switch_stack
 SYM_CODE_END(handle_exception)
 
-SYM_CODE_START(double_fault)
+SYM_CODE_START(asm_exc_double_fault)
 1:
 	/*
 	 * This is a task gate handler, not an interrupt gate handler.
@@ -1526,7 +1526,7 @@ SYM_CODE_START(double_fault)
 1:
 	hlt
 	jmp 1b
-SYM_CODE_END(double_fault)
+SYM_CODE_END(asm_exc_double_fault)
 
 /*
  * NMI is doubly nasty.  It can happen on the first instruction of

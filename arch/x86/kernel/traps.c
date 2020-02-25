@@ -319,11 +319,18 @@ __visible void __noreturn handle_stack_overflow(const char *message,
  * from the TSS.  Returning is, in principle, okay, but changes to regs will
  * be lost.  If, for some reason, we need to return to a context with modified
  * regs, the shim code could be adjusted to synchronize the registers.
+ *
+ * The 32bit #DF shim provides CR2 already as an argument. On 64bit it needs
+ * to be read before doing anything else.
  */
-dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsigned long cr2)
+DEFINE_IDTENTRY_DF(exc_double_fault)
 {
 	static const char str[] = "double fault";
 	struct task_struct *tsk = current;
+
+#ifdef CONFIG_X86_64
+	unsigned long address = read_cr2();
+#endif
 
 #ifdef CONFIG_X86_ESPFIX64
 	extern unsigned char native_irq_return_iret[];
@@ -381,6 +388,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 #endif
 
 	nmi_enter();
+	instrumentation_begin();
 	notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_DF, SIGSEGV);
 
 	tsk->thread.error_code = error_code;
@@ -424,13 +432,16 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 	 * stack even if the actual trigger for the double fault was
 	 * something else.
 	 */
-	if ((unsigned long)task_stack_page(tsk) - 1 - cr2 < PAGE_SIZE)
-		handle_stack_overflow("kernel stack overflow (double-fault)", regs, cr2);
+	if ((unsigned long)task_stack_page(tsk) - 1 - address < PAGE_SIZE) {
+		handle_stack_overflow("kernel stack overflow (double-fault)",
+				      regs, address);
+	}
 #endif
 
 	pr_emerg("PANIC: double fault, error_code: 0x%lx\n", error_code);
 	die("double fault", regs, error_code);
 	panic("Machine halted.");
+	instrumentation_end();
 }
 
 DEFINE_IDTENTRY(exc_bounds)
