@@ -3835,6 +3835,9 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 		}
 
 		if (ffe_ctl->loop == LOOP_NO_EMPTY_SIZE) {
+			if (ffe_ctl->policy != BTRFS_EXTENT_ALLOC_CLUSTERED)
+				return -ENOSPC;
+
 			/*
 			 * Don't loop again if we already have no empty_size and
 			 * no empty_cluster.
