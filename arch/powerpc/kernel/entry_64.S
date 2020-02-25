@@ -479,12 +479,6 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return)
 	.globl interrupt_return
 interrupt_return:
 _ASM_NOKPROBE_SYMBOL(interrupt_return)
-	REST_NVGPRS(r1)
-
-	.balign IFETCH_ALIGN_BYTES
-	.globl interrupt_return_lite
-interrupt_return_lite:
-_ASM_NOKPROBE_SYMBOL(interrupt_return_lite)
 	ld	r4,_MSR(r1)
 	andi.	r0,r4,MSR_PR
 	beq	.Lkernel_interrupt_return
