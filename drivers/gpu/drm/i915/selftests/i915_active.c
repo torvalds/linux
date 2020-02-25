@@ -201,11 +201,57 @@ static int live_active_retire(void *arg)
 	return err;
 }
 
+static int live_active_barrier(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct live_active *active;
+	int err = 0;
+
+	/* Check that we get a callback when requests retire upon waiting */
+
+	active = __live_alloc(i915);
+	if (!active)
+		return -ENOMEM;
+
+	err = i915_active_acquire(&active->base);
+	if (err)
+		goto out;
+
+	for_each_uabi_engine(engine, i915) {
+		err = i915_active_acquire_preallocate_barrier(&active->base,
+							      engine);
+		if (err)
+			break;
+
+		i915_active_acquire_barrier(&active->base);
+	}
+
+	i915_active_release(&active->base);
+
+	if (err == 0)
+		err = i915_active_wait(&active->base);
+
+	if (err == 0 && !READ_ONCE(active->retired)) {
+		pr_err("i915_active not retired after flushing barriers!\n");
+		err = -EINVAL;
+	}
+
+out:
+	__live_put(active);
+
+	if (igt_flush_test(i915))
+		err = -EIO;
+
+	return err;
+}
+
 int i915_active_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_active_wait),
 		SUBTEST(live_active_retire),
+		SUBTEST(live_active_barrier),
 	};
 
 	if (intel_gt_is_wedged(&i915->gt))
