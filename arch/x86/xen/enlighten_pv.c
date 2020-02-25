@@ -604,6 +604,11 @@ struct trap_array_entry {
 	bool ist_okay;
 };
 
+#define TRAP_ENTRY(func, ist_ok) {			\
+	.orig		= asm_##func,			\
+	.xen		= xen_asm_##func,		\
+	.ist_okay	= ist_ok }
+
 static struct trap_array_entry trap_array[] = {
 	{ debug,                       xen_xendebug,                    true },
 	{ double_fault,                xen_double_fault,                true },
@@ -617,7 +622,7 @@ static struct trap_array_entry trap_array[] = {
 	{ entry_INT80_compat,          xen_entry_INT80_compat,          false },
 #endif
 	{ page_fault,                  xen_page_fault,                  false },
-	{ divide_error,                xen_divide_error,                false },
+	TRAP_ENTRY(exc_divide_error,			false ),
 	{ bounds,                      xen_bounds,                      false },
 	{ invalid_op,                  xen_invalid_op,                  false },
 	{ device_not_available,        xen_device_not_available,        false },

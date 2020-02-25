@@ -67,4 +67,16 @@ static __always_inline void __##func(struct pt_regs *regs)
 
 #endif /* __ASSEMBLY__ */
 
+/*
+ * The actual entry points. Note that DECLARE_IDTENTRY*() serves two
+ * purposes:
+ *  - provide the function declarations when included from C-Code
+ *  - emit the ASM stubs when included from entry_32/64.S
+ *
+ * This avoids duplicate defines and ensures that everything is consistent.
+ */
+
+/* Simple exception entry points. No hardware error code */
+DECLARE_IDTENTRY(X86_TRAP_DE,		exc_divide_error);
+
 #endif

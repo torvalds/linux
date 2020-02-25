@@ -1377,13 +1377,6 @@ SYM_CODE_START(alignment_check)
 	jmp	common_exception
 SYM_CODE_END(alignment_check)
 
-SYM_CODE_START(divide_error)
-	ASM_CLAC
-	pushl	$0				# no error code
-	pushl	$do_divide_error
-	jmp	common_exception
-SYM_CODE_END(divide_error)
-
 #ifdef CONFIG_X86_MCE
 SYM_CODE_START(machine_check)
 	ASM_CLAC
