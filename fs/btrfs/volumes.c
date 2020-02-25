@@ -4805,6 +4805,7 @@ struct alloc_chunk_ctl {
 	int nparity;
 	u64 max_stripe_size;
 	u64 max_chunk_size;
+	u64 dev_extent_min;
 	u64 stripe_size;
 	u64 chunk_size;
 	int ndevs;
@@ -4838,6 +4839,7 @@ static void init_alloc_chunk_ctl_policy_regular(
 	/* We don't want a chunk larger than 10% of writable space */
 	ctl->max_chunk_size = min(div_factor(fs_devices->total_rw_bytes, 1),
 				  ctl->max_chunk_size);
+	ctl->dev_extent_min = BTRFS_STRIPE_LEN * ctl->dev_stripes;
 }
 
 static void init_alloc_chunk_ctl(struct btrfs_fs_devices *fs_devices,
@@ -4873,7 +4875,6 @@ static int gather_device_info(struct btrfs_fs_devices *fs_devices,
 	struct btrfs_device *device;
 	u64 total_avail;
 	u64 dev_extent_want = ctl->max_stripe_size * ctl->dev_stripes;
-	u64 dev_extent_min = BTRFS_STRIPE_LEN * ctl->dev_stripes;
 	int ret;
 	int ndevs = 0;
 	u64 max_avail;
@@ -4901,7 +4902,7 @@ static int gather_device_info(struct btrfs_fs_devices *fs_devices,
 			total_avail = 0;
 
 		/* If there is no space on this device, skip it. */
-		if (total_avail == 0)
+		if (total_avail < ctl->dev_extent_min)
 			continue;
 
 		ret = find_free_dev_extent(device, dev_extent_want, &dev_offset,
@@ -4912,12 +4913,12 @@ static int gather_device_info(struct btrfs_fs_devices *fs_devices,
 		if (ret == 0)
 			max_avail = dev_extent_want;
 
-		if (max_avail < dev_extent_min) {
+		if (max_avail < ctl->dev_extent_min) {
 			if (btrfs_test_opt(info, ENOSPC_DEBUG))
 				btrfs_debug(info,
 			"%s: devid %llu has no free space, have=%llu want=%llu",
 					    __func__, device->devid, max_avail,
-					    dev_extent_min);
+					    ctl->dev_extent_min);
 			continue;
 		}
 
