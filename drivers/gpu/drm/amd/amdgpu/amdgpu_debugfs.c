@@ -1273,7 +1273,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_ib_preempt, NULL,
 
 int amdgpu_debugfs_init(struct amdgpu_device *adev)
 {
-	int r;
+	int r, i;
 
 	adev->debugfs_preempt =
 		debugfs_create_file("amdgpu_preempt_ib", 0600,
@@ -1316,12 +1316,33 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 	if (r)
 		DRM_ERROR("registering firmware debugfs failed (%d).\n", r);
 
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+		struct amdgpu_ring *ring = adev->rings[i];
+
+		if (!ring)
+			continue;
+
+		if (amdgpu_debugfs_ring_init(adev, ring)) {
+			DRM_ERROR("Failed to register debugfs file for rings !\n");
+		}
+	}
+
 	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_list,
 					ARRAY_SIZE(amdgpu_debugfs_list));
 }
 
 void amdgpu_debugfs_fini(struct amdgpu_device *adev)
 {
+	int i;
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+		struct amdgpu_ring *ring = adev->rings[i];
+
+		if (!ring)
+			continue;
+
+		amdgpu_debugfs_ring_fini(ring);
+	}
 	amdgpu_ttm_debugfs_fini(adev);
 	debugfs_remove(adev->debugfs_preempt);
 }
