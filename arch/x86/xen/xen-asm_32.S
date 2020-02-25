@@ -117,7 +117,7 @@ iret_restore_end:
 
 1:	iret
 xen_iret_end_crit:
-	_ASM_EXTABLE(1b, iret_exc)
+	_ASM_EXTABLE(1b, asm_iret_error)
 
 hyper_iret:
 	/* put this out of line since its very rarely used */
