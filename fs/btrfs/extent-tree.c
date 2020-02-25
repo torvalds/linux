@@ -3693,6 +3693,24 @@ static int do_allocation(struct btrfs_block_group *block_group,
 	}
 }
 
+static void release_block_group(struct btrfs_block_group *block_group,
+				struct find_free_extent_ctl *ffe_ctl,
+				int delalloc)
+{
+	switch (ffe_ctl->policy) {
+	case BTRFS_EXTENT_ALLOC_CLUSTERED:
+		ffe_ctl->retry_clustered = false;
+		ffe_ctl->retry_unclustered = false;
+		break;
+	default:
+		BUG();
+	}
+
+	BUG_ON(btrfs_bg_flags_to_raid_index(block_group->flags) !=
+	       ffe_ctl->index);
+	btrfs_release_block_group(block_group, delalloc);
+}
+
 /*
  * Return >0 means caller needs to re-search for free extent
  * Return 0 means we have the needed free extent.
@@ -4069,11 +4087,7 @@ have_block_group:
 		btrfs_release_block_group(block_group, delalloc);
 		break;
 loop:
-		ffe_ctl.retry_clustered = false;
-		ffe_ctl.retry_unclustered = false;
-		BUG_ON(btrfs_bg_flags_to_raid_index(block_group->flags) !=
-		       ffe_ctl.index);
-		btrfs_release_block_group(block_group, delalloc);
+		release_block_group(block_group, &ffe_ctl, delalloc);
 		cond_resched();
 	}
 	up_read(&space_info->groups_sem);
