@@ -877,18 +877,18 @@ int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
 				     struct ethtool_link_ksettings *link_ksettings)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {};
+	u32 eth_proto_admin;
+	u8 an_disable_admin;
 	u16 data_rate_oper;
+	u32 eth_proto_oper;
+	u32 eth_proto_cap;
+	u8 connector_type;
 	u32 rx_pause = 0;
 	u32 tx_pause = 0;
-	u32 eth_proto_cap;
-	u32 eth_proto_admin;
 	u32 eth_proto_lp;
-	u32 eth_proto_oper;
-	u8 an_disable_admin;
-	u8 an_status;
-	u8 connector_type;
 	bool admin_ext;
+	u8 an_status;
 	bool ext;
 	int err;
 
