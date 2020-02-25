@@ -316,12 +316,12 @@ enum dbuf_slice {
 	DBUF_S2,
 };
 
+void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
+			     u8 req_slices);
+
 #define with_intel_display_power(i915, domain, wf) \
 	for ((wf) = intel_display_power_get((i915), (domain)); (wf); \
 	     intel_display_power_put_async((i915), (domain), (wf)), (wf) = 0)
-
-void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
-			    u8 req_slices);
 
 void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 			     bool override, unsigned int mask);

@@ -4491,15 +4491,18 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 }
 
-static void intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
-				 enum dbuf_slice slice, bool enable)
+static void gen9_dbuf_slice_set(struct drm_i915_private *dev_priv,
+				enum dbuf_slice slice, bool enable)
 {
 	i915_reg_t reg = DBUF_CTL_S(slice);
 	bool state;
 	u32 val;
 
 	val = intel_de_read(dev_priv, reg);
-	val = enable ? (val | DBUF_POWER_REQUEST) : (val & ~DBUF_POWER_REQUEST);
+	if (enable)
+		val |= DBUF_POWER_REQUEST;
+	else
+		val &= ~DBUF_POWER_REQUEST;
 	intel_de_write(dev_priv, reg, val);
 	intel_de_posting_read(dev_priv, reg);
 	udelay(10);
@@ -4510,18 +4513,8 @@ static void intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
 		 slice, enable ? "enable" : "disable");
 }
 
-static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
-{
-	icl_dbuf_slices_update(dev_priv, BIT(DBUF_S1));
-}
-
-static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
-{
-	icl_dbuf_slices_update(dev_priv, 0);
-}
-
-void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
-			    u8 req_slices)
+void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
+			     u8 req_slices)
 {
 	int num_slices = INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
@@ -4544,28 +4537,29 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 	mutex_lock(&power_domains->lock);
 
 	for (slice = DBUF_S1; slice < num_slices; slice++)
-		intel_dbuf_slice_set(dev_priv, slice,
-				     req_slices & BIT(slice));
+		gen9_dbuf_slice_set(dev_priv, slice, req_slices & BIT(slice));
 
 	dev_priv->enabled_dbuf_slices_mask = req_slices;
 
 	mutex_unlock(&power_domains->lock);
 }
 
-static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
+static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
 {
-	skl_ddb_get_hw_state(dev_priv);
+	dev_priv->enabled_dbuf_slices_mask =
+		intel_enabled_dbuf_slices_mask(dev_priv);
+
 	/*
 	 * Just power up at least 1 slice, we will
 	 * figure out later which slices we have and what we need.
 	 */
-	icl_dbuf_slices_update(dev_priv, dev_priv->enabled_dbuf_slices_mask |
-			       BIT(DBUF_S1));
+	gen9_dbuf_slices_update(dev_priv, BIT(DBUF_S1) |
+				dev_priv->enabled_dbuf_slices_mask);
 }
 
-static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
+static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 {
-	icl_dbuf_slices_update(dev_priv, 0);
+	gen9_dbuf_slices_update(dev_priv, 0);
 }
 
 static void icl_mbus_init(struct drm_i915_private *dev_priv)
@@ -5125,7 +5119,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	intel_cdclk_init_hw(dev_priv);
 
 	/* 5. Enable DBUF. */
-	icl_dbuf_enable(dev_priv);
+	gen9_dbuf_enable(dev_priv);
 
 	/* 6. Setup MBUS. */
 	icl_mbus_init(dev_priv);
@@ -5148,7 +5142,7 @@ static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 	/* 1. Disable all display engine functions -> aready done */
 
 	/* 2. Disable DBUF */
-	icl_dbuf_disable(dev_priv);
+	gen9_dbuf_disable(dev_priv);
 
 	/* 3. Disable CD clock */
 	intel_cdclk_uninit_hw(dev_priv);
