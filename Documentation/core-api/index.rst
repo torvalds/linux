@@ -12,6 +12,7 @@ Core utilities
    :maxdepth: 1
 
    kernel-api
+   kobject
    assoc_array
    atomic_ops
    cachetlb
