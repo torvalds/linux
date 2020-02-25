@@ -2766,7 +2766,7 @@ static bool ilk_validate_wm_level(int level,
 }
 
 static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
-				 const struct intel_crtc *intel_crtc,
+				 const struct intel_crtc *crtc,
 				 int level,
 				 struct intel_crtc_state *crtc_state,
 				 const struct intel_plane_state *pristate,
@@ -3097,7 +3097,7 @@ static bool ilk_validate_pipe_wm(const struct drm_i915_private *dev_priv,
 static int ilk_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct intel_pipe_wm *pipe_wm;
 	struct intel_plane *plane;
 	const struct intel_plane_state *plane_state;
@@ -3137,7 +3137,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 		usable_level = 0;
 
 	memset(&pipe_wm->wm, 0, sizeof(pipe_wm->wm));
-	ilk_compute_wm_level(dev_priv, intel_crtc, 0, crtc_state,
+	ilk_compute_wm_level(dev_priv, crtc, 0, crtc_state,
 			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
 
 	if (!ilk_validate_pipe_wm(dev_priv, pipe_wm))
@@ -3148,7 +3148,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	for (level = 1; level <= usable_level; level++) {
 		struct intel_wm_level *wm = &pipe_wm->wm[level];
 
-		ilk_compute_wm_level(dev_priv, intel_crtc, level, crtc_state,
+		ilk_compute_wm_level(dev_priv, crtc, level, crtc_state,
 				     pristate, sprstate, curstate, wm);
 
 		/*
@@ -4539,9 +4539,8 @@ static int
 skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 {
 	struct drm_atomic_state *state = crtc_state->uapi.state;
-	struct drm_crtc *crtc = crtc_state->uapi.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct skl_ddb_entry *alloc = &crtc_state->wm.skl.ddb;
 	u16 alloc_size, start = 0;
 	u16 total[I915_MAX_PLANES] = {};
@@ -4599,7 +4598,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 	 */
 	for (level = ilk_wm_max_level(dev_priv); level >= 0; level--) {
 		blocks = 0;
-		for_each_plane_id_on_crtc(intel_crtc, plane_id) {
+		for_each_plane_id_on_crtc(crtc, plane_id) {
 			const struct skl_plane_wm *wm =
 				&crtc_state->wm.skl.optimal.planes[plane_id];
 
@@ -4636,7 +4635,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 	 * watermark level, plus an extra share of the leftover blocks
 	 * proportional to its relative data rate.
 	 */
-	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
+	for_each_plane_id_on_crtc(crtc, plane_id) {
 		const struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 		u64 rate;
@@ -4675,7 +4674,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 
 	/* Set the actual DDB start/end points for each plane */
 	start = alloc->start;
-	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
+	for_each_plane_id_on_crtc(crtc, plane_id) {
 		struct skl_ddb_entry *plane_alloc =
 			&crtc_state->wm.skl.plane_ddb_y[plane_id];
 		struct skl_ddb_entry *uv_plane_alloc =
@@ -4709,7 +4708,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 	 * that aren't actually possible.
 	 */
 	for (level++; level <= ilk_wm_max_level(dev_priv); level++) {
-		for_each_plane_id_on_crtc(intel_crtc, plane_id) {
+		for_each_plane_id_on_crtc(crtc, plane_id) {
 			struct skl_plane_wm *wm =
 				&crtc_state->wm.skl.optimal.planes[plane_id];
 
@@ -4746,7 +4745,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 	 * Go back and disable the transition watermark if it turns out we
 	 * don't have enough DDB blocks for it.
 	 */
-	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
+	for_each_plane_id_on_crtc(crtc, plane_id) {
 		struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 
