@@ -2309,7 +2309,7 @@ struct sky2_hw {
 	struct work_struct   restart_work;
 	wait_queue_head_t    msi_wait;
 
-	char		     irq_name[0];
+	char		     irq_name[];
 };
 
 static inline int sky2_is_copper(const struct sky2_hw *hw)
