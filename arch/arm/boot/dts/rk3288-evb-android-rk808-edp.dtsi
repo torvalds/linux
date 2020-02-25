@@ -86,6 +86,7 @@
 };
 
 &backlight {
+	pwms = <&pwm0 0 1000000 0>;
 	enable-gpios = <&gpio7 RK_PA2 GPIO_ACTIVE_HIGH>;
 };
 
