@@ -98,6 +98,17 @@ struct adis {
 	const struct adis_data	*data;
 	struct adis_burst	*burst;
 
+	/**
+	 * The state_lock is meant to be used during operations that require
+	 * a sequence of SPI R/W in order to protect the SPI transfer
+	 * information (fields 'xfer', 'msg' & 'current_page') between
+	 * potential concurrent accesses.
+	 * This lock is used by all "adis_{functions}" that have to read/write
+	 * registers. These functions also have unlocked variants
+	 * (see "__adis_{functions}"), which don't hold this lock.
+	 * This allows users of the ADIS library to group SPI R/W into
+	 * the drivers, but they also must manage this lock themselves.
+	 */
 	struct mutex		state_lock;
 	struct spi_message	msg;
 	struct spi_transfer	*xfer;
