@@ -168,6 +168,18 @@ __visible noinstr void func(struct pt_regs *regs)
 #define DECLARE_IDTENTRY_DEBUG		DECLARE_IDTENTRY_IST
 #define DEFINE_IDTENTRY_DEBUG		DEFINE_IDTENTRY_IST
 
+/**
+ * DECLARE_IDTENTRY_XEN - Declare functions for XEN redirect IDT entry points
+ * @vector:	Vector number (ignored for C)
+ * @func:	Function name of the entry point
+ *
+ * Used for xennmi and xendebug redirections. No DEFINE as this is all ASM
+ * indirection magic.
+ */
+#define DECLARE_IDTENTRY_XEN(vector, func)				\
+	asmlinkage void xen_asm_exc_xen##func(void);			\
+	asmlinkage void asm_exc_xen##func(void)
+
 #else /* !__ASSEMBLY__ */
 
 /*
@@ -202,6 +214,10 @@ __visible noinstr void func(struct pt_regs *regs)
 
 /* No ASM code emitted for NMI */
 #define DECLARE_IDTENTRY_NMI(vector, func)
+
+/* XEN NMI and DB wrapper */
+#define DECLARE_IDTENTRY_XEN(vector, func)				\
+	idtentry vector asm_exc_xen##func exc_##func has_error_code=0 sane=1
 
 #endif /* __ASSEMBLY__ */
 
