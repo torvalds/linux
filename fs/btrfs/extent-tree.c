@@ -3661,7 +3661,7 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 					struct btrfs_free_cluster *last_ptr,
 					struct btrfs_key *ins,
 					struct find_free_extent_ctl *ffe_ctl,
-					int full_search, bool use_cluster)
+					bool full_search, bool use_cluster)
 {
 	struct btrfs_root *root = fs_info->extent_root;
 	int ret;
