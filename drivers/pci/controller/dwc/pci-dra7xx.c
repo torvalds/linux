@@ -719,7 +719,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ti_conf");
-	base = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!base)
 		return -ENOMEM;
 

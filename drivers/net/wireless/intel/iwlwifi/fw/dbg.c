@@ -929,7 +929,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 			cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
 		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
 		       sizeof(dump_info->fw_human_readable));
-		strncpy(dump_info->dev_human_readable, fwrt->trans->cfg->name,
+		strncpy(dump_info->dev_human_readable, fwrt->trans->name,
 			sizeof(dump_info->dev_human_readable) - 1);
 		strncpy(dump_info->bus_human_readable, fwrt->dev->bus->name,
 			sizeof(dump_info->bus_human_readable) - 1);
@@ -1230,13 +1230,15 @@ static bool iwl_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 			iter->lmac = 0;
 	}
 
-	if (!iter->internal_txf)
+	if (!iter->internal_txf) {
 		for (iter->fifo++; iter->fifo < txf_num; iter->fifo++) {
 			iter->fifo_size =
 				cfg->lmac[iter->lmac].txfifo_size[iter->fifo];
 			if (iter->fifo_size && (lmac_bitmap & BIT(iter->fifo)))
 				return true;
 		}
+		iter->fifo--;
+	}
 
 	iter->internal_txf = 1;
 
@@ -2351,9 +2353,6 @@ int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 	u32 occur, delay;
 	unsigned long idx;
 
-	if (test_bit(STATUS_GEN_ACTIVE_TRIGS, &fwrt->status))
-		return -EBUSY;
-
 	if (!iwl_fw_ini_trigger_on(fwrt, trig)) {
 		IWL_WARN(fwrt, "WRT: Trigger %d is not active, aborting dump\n",
 			 tp_id);
@@ -2669,12 +2668,7 @@ int iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
 {
 	int ret = 0;
 
-	/* if the FW crashed or not debug monitor cfg was given, there is
-	 * no point in changing the recording state
-	 */
-	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status) ||
-	    (!fwrt->trans->dbg.dest_tlv &&
-	     fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
+	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status))
 		return 0;
 
 	if (fw_has_capa(&fwrt->fw->ucode_capa,

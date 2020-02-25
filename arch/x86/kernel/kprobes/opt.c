@@ -38,7 +38,7 @@ unsigned long __recover_optprobed_insn(kprobe_opcode_t *buf, unsigned long addr)
 	long offs;
 	int i;
 
-	for (i = 0; i < RELATIVEJUMP_SIZE; i++) {
+	for (i = 0; i < JMP32_INSN_SIZE; i++) {
 		kp = get_kprobe((void *)addr - i);
 		/* This function only handles jump-optimized kprobe */
 		if (kp && kprobe_optimized(kp)) {
@@ -62,10 +62,10 @@ found:
 
 	if (addr == (unsigned long)kp->addr) {
 		buf[0] = kp->opcode;
-		memcpy(buf + 1, op->optinsn.copied_insn, RELATIVE_ADDR_SIZE);
+		memcpy(buf + 1, op->optinsn.copied_insn, DISP32_SIZE);
 	} else {
 		offs = addr - (unsigned long)kp->addr - 1;
-		memcpy(buf, op->optinsn.copied_insn + offs, RELATIVE_ADDR_SIZE - offs);
+		memcpy(buf, op->optinsn.copied_insn + offs, DISP32_SIZE - offs);
 	}
 
 	return (unsigned long)buf;
@@ -141,8 +141,6 @@ STACK_FRAME_NON_STANDARD(optprobe_template_func);
 #define TMPL_END_IDX \
 	((long)optprobe_template_end - (long)optprobe_template_entry)
 
-#define INT3_SIZE sizeof(kprobe_opcode_t)
-
 /* Optimized kprobe call back function: called from optinsn */
 static void
 optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
@@ -162,7 +160,7 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 		regs->cs |= get_kernel_rpl();
 		regs->gs = 0;
 #endif
-		regs->ip = (unsigned long)op->kp.addr + INT3_SIZE;
+		regs->ip = (unsigned long)op->kp.addr + INT3_INSN_SIZE;
 		regs->orig_ax = ~0UL;
 
 		__this_cpu_write(current_kprobe, &op->kp);
@@ -179,7 +177,7 @@ static int copy_optimized_instructions(u8 *dest, u8 *src, u8 *real)
 	struct insn insn;
 	int len = 0, ret;
 
-	while (len < RELATIVEJUMP_SIZE) {
+	while (len < JMP32_INSN_SIZE) {
 		ret = __copy_instruction(dest + len, src + len, real + len, &insn);
 		if (!ret || !can_boost(&insn, src + len))
 			return -EINVAL;
@@ -271,7 +269,7 @@ static int can_optimize(unsigned long paddr)
 		return 0;
 
 	/* Check there is enough space for a relative jump. */
-	if (size - offset < RELATIVEJUMP_SIZE)
+	if (size - offset < JMP32_INSN_SIZE)
 		return 0;
 
 	/* Decode instructions */
@@ -290,15 +288,15 @@ static int can_optimize(unsigned long paddr)
 		kernel_insn_init(&insn, (void *)recovered_insn, MAX_INSN_SIZE);
 		insn_get_length(&insn);
 		/* Another subsystem puts a breakpoint */
-		if (insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION)
+		if (insn.opcode.bytes[0] == INT3_INSN_OPCODE)
 			return 0;
 		/* Recover address */
 		insn.kaddr = (void *)addr;
 		insn.next_byte = (void *)(addr + insn.length);
 		/* Check any instructions don't jump into target */
 		if (insn_is_indirect_jump(&insn) ||
-		    insn_jump_into_range(&insn, paddr + INT3_SIZE,
-					 RELATIVE_ADDR_SIZE))
+		    insn_jump_into_range(&insn, paddr + INT3_INSN_SIZE,
+					 DISP32_SIZE))
 			return 0;
 		addr += insn.length;
 	}
@@ -374,7 +372,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
 	 * Verify if the address gap is in 2GB range, because this uses
 	 * a relative jump.
 	 */
-	rel = (long)slot - (long)op->kp.addr + RELATIVEJUMP_SIZE;
+	rel = (long)slot - (long)op->kp.addr + JMP32_INSN_SIZE;
 	if (abs(rel) > 0x7fffffff) {
 		ret = -ERANGE;
 		goto err;
@@ -401,7 +399,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
 	/* Set returning jmp instruction at the tail of out-of-line buffer */
 	synthesize_reljump(buf + len, slot + len,
 			   (u8 *)op->kp.addr + op->optinsn.size);
-	len += RELATIVEJUMP_SIZE;
+	len += JMP32_INSN_SIZE;
 
 	/* We have to use text_poke() for instruction buffer because it is RO */
 	text_poke(slot, buf, len);
@@ -416,49 +414,50 @@ err:
 }
 
 /*
- * Replace breakpoints (int3) with relative jumps.
+ * Replace breakpoints (INT3) with relative jumps (JMP.d32).
  * Caller must call with locking kprobe_mutex and text_mutex.
+ *
+ * The caller will have installed a regular kprobe and after that issued
+ * syncrhonize_rcu_tasks(), this ensures that the instruction(s) that live in
+ * the 4 bytes after the INT3 are unused and can now be overwritten.
  */
 void arch_optimize_kprobes(struct list_head *oplist)
 {
 	struct optimized_kprobe *op, *tmp;
-	u8 insn_buff[RELATIVEJUMP_SIZE];
+	u8 insn_buff[JMP32_INSN_SIZE];
 
 	list_for_each_entry_safe(op, tmp, oplist, list) {
 		s32 rel = (s32)((long)op->optinsn.insn -
-			((long)op->kp.addr + RELATIVEJUMP_SIZE));
+			((long)op->kp.addr + JMP32_INSN_SIZE));
 
 		WARN_ON(kprobe_disabled(&op->kp));
 
 		/* Backup instructions which will be replaced by jump address */
-		memcpy(op->optinsn.copied_insn, op->kp.addr + INT3_SIZE,
-		       RELATIVE_ADDR_SIZE);
+		memcpy(op->optinsn.copied_insn, op->kp.addr + INT3_INSN_SIZE,
+		       DISP32_SIZE);
 
-		insn_buff[0] = RELATIVEJUMP_OPCODE;
+		insn_buff[0] = JMP32_INSN_OPCODE;
 		*(s32 *)(&insn_buff[1]) = rel;
 
-		text_poke_bp(op->kp.addr, insn_buff, RELATIVEJUMP_SIZE, NULL);
+		text_poke_bp(op->kp.addr, insn_buff, JMP32_INSN_SIZE, NULL);
 
 		list_del_init(&op->list);
 	}
 }
 
-/* Replace a relative jump with a breakpoint (int3).  */
+/*
+ * Replace a relative jump (JMP.d32) with a breakpoint (INT3).
+ *
+ * After that, we can restore the 4 bytes after the INT3 to undo what
+ * arch_optimize_kprobes() scribbled. This is safe since those bytes will be
+ * unused once the INT3 lands.
+ */
 void arch_unoptimize_kprobe(struct optimized_kprobe *op)
 {
-	u8 insn_buff[RELATIVEJUMP_SIZE];
-	u8 emulate_buff[RELATIVEJUMP_SIZE];
-
-	/* Set int3 to first byte for kprobes */
-	insn_buff[0] = BREAKPOINT_INSTRUCTION;
-	memcpy(insn_buff + 1, op->optinsn.copied_insn, RELATIVE_ADDR_SIZE);
-
-	emulate_buff[0] = RELATIVEJUMP_OPCODE;
-	*(s32 *)(&emulate_buff[1]) = (s32)((long)op->optinsn.insn -
-			((long)op->kp.addr + RELATIVEJUMP_SIZE));
-
-	text_poke_bp(op->kp.addr, insn_buff, RELATIVEJUMP_SIZE,
-		     emulate_buff);
+	arch_arm_kprobe(&op->kp);
+	text_poke(op->kp.addr + INT3_INSN_SIZE,
+		  op->optinsn.copied_insn, DISP32_SIZE);
+	text_poke_sync();
 }
 
 /*

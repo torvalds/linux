@@ -618,16 +618,16 @@
 		};
 
 		qspi: spi@20c0000 {
-			status = "disabled";
-			compatible = "fsl,ls2080a-qspi", "fsl,ls1021a-qspi";
+			compatible = "fsl,ls2080a-qspi";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x20c0000 0x0 0x10000>,
 			      <0x0 0x20000000 0x0 0x10000000>;
 			reg-names = "QuadSPI", "QuadSPI-memory";
-			interrupts = <0 25 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
 			clock-names = "qspi_en", "qspi";
+			status = "disabled";
 		};
 
 		pcie1: pcie@3400000 {

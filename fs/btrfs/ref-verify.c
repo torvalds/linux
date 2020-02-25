@@ -744,6 +744,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 		 */
 		be = add_block_entry(fs_info, bytenr, num_bytes, ref_root);
 		if (IS_ERR(be)) {
+			kfree(ref);
 			kfree(ra);
 			ret = PTR_ERR(be);
 			goto out;
@@ -757,6 +758,8 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 			"re-allocated a block that still has references to it!");
 			dump_block_entry(fs_info, be);
 			dump_ref_action(fs_info, ra);
+			kfree(ref);
+			kfree(ra);
 			goto out_unlock;
 		}
 
@@ -819,6 +822,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 "dropping a ref for a existing root that doesn't have a ref on the block");
 				dump_block_entry(fs_info, be);
 				dump_ref_action(fs_info, ra);
+				kfree(ref);
 				kfree(ra);
 				goto out_unlock;
 			}
@@ -834,6 +838,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 "attempting to add another ref for an existing ref on a tree block");
 			dump_block_entry(fs_info, be);
 			dump_ref_action(fs_info, ra);
+			kfree(ref);
 			kfree(ra);
 			goto out_unlock;
 		}

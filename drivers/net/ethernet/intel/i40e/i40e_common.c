@@ -1113,7 +1113,7 @@ i40e_status i40e_read_pba_string(struct i40e_hw *hw, u8 *pba_num,
 	 */
 	pba_size--;
 	if (pba_num_size < (((u32)pba_size * 2) + 1)) {
-		hw_dbg(hw, "Buffer to small for PBA data.\n");
+		hw_dbg(hw, "Buffer too small for PBA data.\n");
 		return I40E_ERR_PARAM;
 	}
 

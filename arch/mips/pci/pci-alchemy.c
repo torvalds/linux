@@ -409,7 +409,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 		goto out6;
 	}
 
-	ctx->regs = ioremap_nocache(r->start, resource_size(r));
+	ctx->regs = ioremap(r->start, resource_size(r));
 	if (!ctx->regs) {
 		dev_err(&pdev->dev, "cannot map pci regs\n");
 		ret = -ENODEV;

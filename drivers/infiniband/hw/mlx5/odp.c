@@ -93,8 +93,8 @@ struct mlx5_pagefault {
 
 static u64 mlx5_imr_ksm_entries;
 
-void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
-			   struct mlx5_ib_mr *imr, int flags)
+static void populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
+			struct mlx5_ib_mr *imr, int flags)
 {
 	struct mlx5_klm *end = pklm + nentries;
 
@@ -141,6 +141,44 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 			pklm->key = cpu_to_be32(imr->dev->null_mkey);
 			pklm->va = 0;
 		}
+	}
+}
+
+static u64 umem_dma_to_mtt(dma_addr_t umem_dma)
+{
+	u64 mtt_entry = umem_dma & ODP_DMA_ADDR_MASK;
+
+	if (umem_dma & ODP_READ_ALLOWED_BIT)
+		mtt_entry |= MLX5_IB_MTT_READ;
+	if (umem_dma & ODP_WRITE_ALLOWED_BIT)
+		mtt_entry |= MLX5_IB_MTT_WRITE;
+
+	return mtt_entry;
+}
+
+static void populate_mtt(__be64 *pas, size_t idx, size_t nentries,
+			 struct mlx5_ib_mr *mr, int flags)
+{
+	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
+	dma_addr_t pa;
+	size_t i;
+
+	if (flags & MLX5_IB_UPD_XLT_ZAP)
+		return;
+
+	for (i = 0; i < nentries; i++) {
+		pa = odp->dma_list[idx + i];
+		pas[i] = cpu_to_be64(umem_dma_to_mtt(pa));
+	}
+}
+
+void mlx5_odp_populate_xlt(void *xlt, size_t idx, size_t nentries,
+			   struct mlx5_ib_mr *mr, int flags)
+{
+	if (flags & MLX5_IB_UPD_XLT_INDIRECT) {
+		populate_klm(xlt, idx, nentries, mr, flags);
+	} else {
+		populate_mtt(xlt, idx, nentries, mr, flags);
 	}
 }
 
@@ -342,7 +380,7 @@ void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 	memset(caps, 0, sizeof(*caps));
 
 	if (!MLX5_CAP_GEN(dev->mdev, pg) ||
-	    !mlx5_ib_can_use_umr(dev, true))
+	    !mlx5_ib_can_use_umr(dev, true, 0))
 		return;
 
 	caps->general_caps = IB_ODP_SUPPORT;
@@ -497,7 +535,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	struct mlx5_ib_mr *imr;
 	int err;
 
-	umem_odp = ib_umem_odp_alloc_implicit(udata, access_flags);
+	umem_odp = ib_umem_odp_alloc_implicit(&dev->ib_dev, access_flags);
 	if (IS_ERR(umem_odp))
 		return ERR_CAST(umem_odp);
 
@@ -624,11 +662,10 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 	bool downgrade = flags & MLX5_PF_FLAGS_DOWNGRADE;
 	unsigned long current_seq;
 	u64 access_mask;
-	u64 start_idx, page_mask;
+	u64 start_idx;
 
 	page_shift = odp->page_shift;
-	page_mask = ~(BIT(page_shift) - 1);
-	start_idx = (user_va - (mr->mmkey.iova & page_mask)) >> page_shift;
+	start_idx = (user_va - ib_umem_start(odp)) >> page_shift;
 	access_mask = ODP_READ_ALLOWED_BIT;
 
 	if (odp->umem.writable && !downgrade)
@@ -767,11 +804,19 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 {
 	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
 
+	if (unlikely(io_virt < mr->mmkey.iova))
+		return -EFAULT;
+
 	if (!odp->is_implicit_odp) {
-		if (unlikely(io_virt < ib_umem_start(odp) ||
-			     ib_umem_end(odp) - io_virt < bcnt))
+		u64 user_va;
+
+		if (check_add_overflow(io_virt - mr->mmkey.iova,
+				       (u64)odp->umem.address, &user_va))
 			return -EFAULT;
-		return pagefault_real_mr(mr, odp, io_virt, bcnt, bytes_mapped,
+		if (unlikely(user_va >= ib_umem_end(odp) ||
+			     ib_umem_end(odp) - user_va < bcnt))
+			return -EFAULT;
+		return pagefault_real_mr(mr, odp, user_va, bcnt, bytes_mapped,
 					 flags);
 	}
 	return pagefault_implicit_mr(mr, odp, io_virt, bcnt, bytes_mapped,
@@ -1237,15 +1282,15 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 	wqe = wqe_start;
 	qp = (res->res == MLX5_RES_QP) ? res_to_qp(res) : NULL;
 	if (qp && sq) {
-		ret = mlx5_ib_read_user_wqe_sq(qp, wqe_index, wqe, PAGE_SIZE,
-					       &bytes_copied);
+		ret = mlx5_ib_read_wqe_sq(qp, wqe_index, wqe, PAGE_SIZE,
+					  &bytes_copied);
 		if (ret)
 			goto read_user;
 		ret = mlx5_ib_mr_initiator_pfault_handler(
 			dev, pfault, qp, &wqe, &wqe_end, bytes_copied);
 	} else if (qp && !sq) {
-		ret = mlx5_ib_read_user_wqe_rq(qp, wqe_index, wqe, PAGE_SIZE,
-					       &bytes_copied);
+		ret = mlx5_ib_read_wqe_rq(qp, wqe_index, wqe, PAGE_SIZE,
+					  &bytes_copied);
 		if (ret)
 			goto read_user;
 		ret = mlx5_ib_mr_responder_pfault_handler_rq(
@@ -1253,8 +1298,8 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 	} else if (!qp) {
 		struct mlx5_ib_srq *srq = res_to_srq(res);
 
-		ret = mlx5_ib_read_user_wqe_srq(srq, wqe_index, wqe, PAGE_SIZE,
-						&bytes_copied);
+		ret = mlx5_ib_read_wqe_srq(srq, wqe_index, wqe, PAGE_SIZE,
+					   &bytes_copied);
 		if (ret)
 			goto read_user;
 		ret = mlx5_ib_mr_responder_pfault_handler_srq(

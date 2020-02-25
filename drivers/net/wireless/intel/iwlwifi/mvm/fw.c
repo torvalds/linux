@@ -353,22 +353,35 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	if (ret) {
 		struct iwl_trans *trans = mvm->trans;
 
-		if (ret == -ETIMEDOUT)
-			iwl_fw_dbg_error_collect(&mvm->fwrt,
-						 FW_DBG_TRIGGER_ALIVE_TIMEOUT);
-
-		if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000)
+		if (trans->trans_cfg->device_family >=
+					IWL_DEVICE_FAMILY_22000) {
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
 				iwl_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
 				iwl_read_umac_prph(trans,
 						   UMAG_SB_CPU_2_STATUS));
-		else if (trans->trans_cfg->device_family >=
-			 IWL_DEVICE_FAMILY_8000)
+			IWL_ERR(mvm, "UMAC PC: 0x%x\n",
+				iwl_read_umac_prph(trans,
+						   UREG_UMAC_CURRENT_PC));
+			IWL_ERR(mvm, "LMAC PC: 0x%x\n",
+				iwl_read_umac_prph(trans,
+						   UREG_LMAC1_CURRENT_PC));
+			if (iwl_mvm_is_cdb_supported(mvm))
+				IWL_ERR(mvm, "LMAC2 PC: 0x%x\n",
+					iwl_read_umac_prph(trans,
+						UREG_LMAC2_CURRENT_PC));
+		} else if (trans->trans_cfg->device_family >=
+			   IWL_DEVICE_FAMILY_8000) {
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
 				iwl_read_prph(trans, SB_CPU_1_STATUS),
 				iwl_read_prph(trans, SB_CPU_2_STATUS));
+		}
+
+		if (ret == -ETIMEDOUT)
+			iwl_fw_dbg_error_collect(&mvm->fwrt,
+						 FW_DBG_TRIGGER_ALIVE_TIMEOUT);
+
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
 		return ret;
 	}
@@ -841,9 +854,13 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 		return 0;
 	}
 
+	if (!mvm->fwrt.ppag_table.enabled) {
+		IWL_DEBUG_RADIO(mvm,
+				"PPAG not enabled, command not sent.\n");
+		return 0;
+	}
+
 	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
-	IWL_DEBUG_RADIO(mvm, "PPAG is %s\n",
-			mvm->fwrt.ppag_table.enabled ? "enabled" : "disabled");
 
 	for (i = 0; i < ACPI_PPAG_NUM_CHAINS; i++) {
 		for (j = 0; j < ACPI_PPAG_NUM_SUB_BANDS; j++) {

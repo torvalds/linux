@@ -91,10 +91,10 @@ static int sni_82596_probe(struct platform_device *dev)
 	idprom = platform_get_resource(dev, IORESOURCE_MEM, 2);
 	if (!res || !ca || !options || !idprom)
 		return -ENODEV;
-	mpu_addr = ioremap_nocache(res->start, 4);
+	mpu_addr = ioremap(res->start, 4);
 	if (!mpu_addr)
 		return -ENOMEM;
-	ca_addr = ioremap_nocache(ca->start, 4);
+	ca_addr = ioremap(ca->start, 4);
 	if (!ca_addr)
 		goto probe_failed_free_mpu;
 
@@ -110,7 +110,7 @@ static int sni_82596_probe(struct platform_device *dev)
 	netdevice->base_addr = res->start;
 	netdevice->irq = platform_get_irq(dev, 0);
 
-	eth_addr = ioremap_nocache(idprom->start, 0x10);
+	eth_addr = ioremap(idprom->start, 0x10);
 	if (!eth_addr)
 		goto probe_failed;
 

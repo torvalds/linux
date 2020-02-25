@@ -1289,7 +1289,10 @@ static int chv_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	direction = ctrl0 & CHV_PADCTRL0_GPIOCFG_MASK;
 	direction >>= CHV_PADCTRL0_GPIOCFG_SHIFT;
 
-	return direction != CHV_PADCTRL0_GPIOCFG_GPO;
+	if (direction == CHV_PADCTRL0_GPIOCFG_GPO)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int chv_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)

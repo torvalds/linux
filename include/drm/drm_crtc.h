@@ -174,12 +174,25 @@ struct drm_crtc_state {
 	 * @no_vblank:
 	 *
 	 * Reflects the ability of a CRTC to send VBLANK events. This state
-	 * usually depends on the pipeline configuration, and the main usuage
-	 * is CRTCs feeding a writeback connector operating in oneshot mode.
-	 * In this case the VBLANK event is only generated when a job is queued
-	 * to the writeback connector, and we want the core to fake VBLANK
-	 * events when this part of the pipeline hasn't changed but others had
-	 * or when the CRTC and connectors are being disabled.
+	 * usually depends on the pipeline configuration. If set to true, DRM
+	 * atomic helpers will send out a fake VBLANK event during display
+	 * updates after all hardware changes have been committed. This is
+	 * implemented in drm_atomic_helper_fake_vblank().
+	 *
+	 * One usage is for drivers and/or hardware without support for VBLANK
+	 * interrupts. Such drivers typically do not initialize vblanking
+	 * (i.e., call drm_vblank_init() with the number of CRTCs). For CRTCs
+	 * without initialized vblanking, this field is set to true in
+	 * drm_atomic_helper_check_modeset(), and a fake VBLANK event will be
+	 * send out on each update of the display pipeline by
+	 * drm_atomic_helper_fake_vblank().
+	 *
+	 * Another usage is CRTCs feeding a writeback connector operating in
+	 * oneshot mode. In this case the fake VBLANK event is only generated
+	 * when a job is queued to the writeback connector, and we want the
+	 * core to fake VBLANK events when this part of the pipeline hasn't
+	 * changed but others had or when the CRTC and connectors are being
+	 * disabled.
 	 *
 	 * __drm_atomic_helper_crtc_duplicate_state() will not reset the value
 	 * from the current state, the CRTC driver is then responsible for
@@ -335,7 +348,14 @@ struct drm_crtc_state {
 	 *  - Events for disabled CRTCs are not allowed, and drivers can ignore
 	 *    that case.
 	 *
-	 * This can be handled by the drm_crtc_send_vblank_event() function,
+	 * For very simple hardware without VBLANK interrupt, enabling
+	 * &struct drm_crtc_state.no_vblank makes DRM's atomic commit helpers
+	 * send a fake VBLANK event at the end of the display update after all
+	 * hardware changes have been applied. See
+	 * drm_atomic_helper_fake_vblank().
+	 *
+	 * For more complex hardware this
+	 * can be handled by the drm_crtc_send_vblank_event() function,
 	 * which the driver should call on the provided event upon completion of
 	 * the atomic commit. Note that if the driver supports vblank signalling
 	 * and timestamping the vblank counters and timestamps must agree with

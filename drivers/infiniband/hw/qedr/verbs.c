@@ -312,7 +312,18 @@ int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 	}
 	ctx->db_mmap_entry = &entry->rdma_entry;
 
-	uresp.dpm_enabled = dev->user_dpm_enabled;
+	if (!dev->user_dpm_enabled)
+		uresp.dpm_flags = 0;
+	else if (rdma_protocol_iwarp(&dev->ibdev, 1))
+		uresp.dpm_flags = QEDR_DPM_TYPE_IWARP_LEGACY;
+	else
+		uresp.dpm_flags = QEDR_DPM_TYPE_ROCE_ENHANCED |
+				  QEDR_DPM_TYPE_ROCE_LEGACY;
+
+	uresp.dpm_flags |= QEDR_DPM_SIZES_SET;
+	uresp.ldpm_limit_size = QEDR_LDPM_MAX_SIZE;
+	uresp.edpm_trans_size = QEDR_EDPM_TRANS_SIZE;
+
 	uresp.wids_enabled = 1;
 	uresp.wid_count = oparams.wid_count;
 	uresp.db_pa = rdma_user_mmap_get_offset(ctx->db_mmap_entry);
@@ -772,7 +783,7 @@ static inline int qedr_init_user_queue(struct ib_udata *udata,
 
 	q->buf_addr = buf_addr;
 	q->buf_len = buf_len;
-	q->umem = ib_umem_get(udata, q->buf_addr, q->buf_len, access);
+	q->umem = ib_umem_get(&dev->ibdev, q->buf_addr, q->buf_len, access);
 	if (IS_ERR(q->umem)) {
 		DP_ERR(dev, "create user queue: failed ib_umem_get, got %ld\n",
 		       PTR_ERR(q->umem));
@@ -1415,9 +1426,8 @@ static int qedr_init_srq_user_params(struct ib_udata *udata,
 	if (rc)
 		return rc;
 
-	srq->prod_umem =
-		ib_umem_get(udata, ureq->prod_pair_addr,
-			    sizeof(struct rdma_srq_producers), access);
+	srq->prod_umem = ib_umem_get(srq->ibsrq.device, ureq->prod_pair_addr,
+				     sizeof(struct rdma_srq_producers), access);
 	if (IS_ERR(srq->prod_umem)) {
 		qedr_free_pbl(srq->dev, &srq->usrq.pbl_info, srq->usrq.pbl_tbl);
 		ib_umem_release(srq->usrq.umem);
@@ -2839,7 +2849,7 @@ struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 
 	mr->type = QEDR_MR_USER;
 
-	mr->umem = ib_umem_get(udata, start, len, acc);
+	mr->umem = ib_umem_get(ibpd->device, start, len, acc);
 	if (IS_ERR(mr->umem)) {
 		rc = -EFAULT;
 		goto err0;

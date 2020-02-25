@@ -492,7 +492,6 @@ static int mxs_dcp_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			      unsigned int len)
 {
 	struct dcp_async_ctx *actx = crypto_skcipher_ctx(tfm);
-	unsigned int ret;
 
 	/*
 	 * AES 128 is supposed by the hardware, store key into temporary
@@ -513,16 +512,7 @@ static int mxs_dcp_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	crypto_sync_skcipher_clear_flags(actx->fallback, CRYPTO_TFM_REQ_MASK);
 	crypto_sync_skcipher_set_flags(actx->fallback,
 				  tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);
-
-	ret = crypto_sync_skcipher_setkey(actx->fallback, key, len);
-	if (!ret)
-		return 0;
-
-	tfm->base.crt_flags &= ~CRYPTO_TFM_RES_MASK;
-	tfm->base.crt_flags |= crypto_sync_skcipher_get_flags(actx->fallback) &
-			       CRYPTO_TFM_RES_MASK;
-
-	return ret;
+	return crypto_sync_skcipher_setkey(actx->fallback, key, len);
 }
 
 static int mxs_dcp_aes_fallback_init_tfm(struct crypto_skcipher *tfm)

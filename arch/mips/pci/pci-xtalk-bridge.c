@@ -437,17 +437,28 @@ static int bridge_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	struct irq_alloc_info info;
 	int irq;
 
-	irq = bc->pci_int[slot];
+	switch (pin) {
+	case PCI_INTERRUPT_UNKNOWN:
+	case PCI_INTERRUPT_INTA:
+	case PCI_INTERRUPT_INTC:
+		pin = 0;
+		break;
+	case PCI_INTERRUPT_INTB:
+	case PCI_INTERRUPT_INTD:
+		pin = 1;
+	}
+
+	irq = bc->pci_int[slot][pin];
 	if (irq == -1) {
 		info.ctrl = bc;
 		info.nasid = bc->nasid;
-		info.pin = slot;
+		info.pin = bc->int_mapping[slot][pin];
 
 		irq = irq_domain_alloc_irqs(bc->domain, 1, bc->nasid, &info);
 		if (irq < 0)
 			return irq;
 
-		bc->pci_int[slot] = irq;
+		bc->pci_int[slot][pin] = irq;
 	}
 	return irq;
 }
@@ -458,21 +469,26 @@ static void bridge_setup_ip27_baseio6g(struct bridge_controller *bc)
 {
 	bc->ioc3_sid[2] = IOC3_SID(IOC3_SUBSYS_IP27_BASEIO6G);
 	bc->ioc3_sid[6] = IOC3_SID(IOC3_SUBSYS_IP27_MIO);
+	bc->int_mapping[2][1] = 4;
+	bc->int_mapping[6][1] = 6;
 }
 
 static void bridge_setup_ip27_baseio(struct bridge_controller *bc)
 {
 	bc->ioc3_sid[2] = IOC3_SID(IOC3_SUBSYS_IP27_BASEIO);
+	bc->int_mapping[2][1] = 4;
 }
 
 static void bridge_setup_ip29_baseio(struct bridge_controller *bc)
 {
 	bc->ioc3_sid[2] = IOC3_SID(IOC3_SUBSYS_IP29_SYSBOARD);
+	bc->int_mapping[2][1] = 3;
 }
 
 static void bridge_setup_ip30_sysboard(struct bridge_controller *bc)
 {
 	bc->ioc3_sid[2] = IOC3_SID(IOC3_SUBSYS_IP30_SYSBOARD);
+	bc->int_mapping[2][1] = 4;
 }
 
 static void bridge_setup_menet(struct bridge_controller *bc)
@@ -481,6 +497,26 @@ static void bridge_setup_menet(struct bridge_controller *bc)
 	bc->ioc3_sid[1] = IOC3_SID(IOC3_SUBSYS_MENET);
 	bc->ioc3_sid[2] = IOC3_SID(IOC3_SUBSYS_MENET);
 	bc->ioc3_sid[3] = IOC3_SID(IOC3_SUBSYS_MENET4);
+}
+
+static void bridge_setup_io7(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[4] = IOC3_SID(IOC3_SUBSYS_IO7);
+}
+
+static void bridge_setup_io8(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[4] = IOC3_SID(IOC3_SUBSYS_IO8);
+}
+
+static void bridge_setup_io9(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[1] = IOC3_SID(IOC3_SUBSYS_IO9);
+}
+
+static void bridge_setup_ip34_fuel_sysboard(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[4] = IOC3_SID(IOC3_SUBSYS_IP34_SYSBOARD);
 }
 
 #define BRIDGE_BOARD_SETUP(_partno, _setup)	\
@@ -500,6 +536,10 @@ static const struct {
 	BRIDGE_BOARD_SETUP("030-0887-", bridge_setup_ip30_sysboard),
 	BRIDGE_BOARD_SETUP("030-1467-", bridge_setup_ip30_sysboard),
 	BRIDGE_BOARD_SETUP("030-0873-", bridge_setup_menet),
+	BRIDGE_BOARD_SETUP("030-1557-", bridge_setup_io7),
+	BRIDGE_BOARD_SETUP("030-1673-", bridge_setup_io8),
+	BRIDGE_BOARD_SETUP("030-1771-", bridge_setup_io9),
+	BRIDGE_BOARD_SETUP("030-1707-", bridge_setup_ip34_fuel_sysboard),
 };
 
 static void bridge_setup_board(struct bridge_controller *bc, char *partnum)
@@ -655,7 +695,11 @@ static int bridge_probe(struct platform_device *pdev)
 
 	for (slot = 0; slot < 8; slot++) {
 		bridge_set(bc, b_device[slot].reg, BRIDGE_DEV_SWAP_DIR);
-		bc->pci_int[slot] = -1;
+		bc->pci_int[slot][0] = -1;
+		bc->pci_int[slot][1] = -1;
+		/* default interrupt pin mapping */
+		bc->int_mapping[slot][0] = slot;
+		bc->int_mapping[slot][1] = slot ^ 4;
 	}
 	bridge_read(bc, b_wid_tflush);	  /* wait until Bridge PIO complete */
 

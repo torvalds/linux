@@ -583,17 +583,12 @@ enum {
 	Opt_uid, Opt_gid, Opt_mode, Opt_debug,
 };
 
-static const struct fs_parameter_spec spufs_param_specs[] = {
+static const struct fs_parameter_spec spufs_fs_parameters[] = {
 	fsparam_u32	("gid",				Opt_gid),
 	fsparam_u32oct	("mode",			Opt_mode),
 	fsparam_u32	("uid",				Opt_uid),
 	fsparam_flag	("debug",			Opt_debug),
 	{}
-};
-
-static const struct fs_parameter_description spufs_fs_parameters = {
-	.name		= "spufs",
-	.specs		= spufs_param_specs,
 };
 
 static int spufs_show_options(struct seq_file *m, struct dentry *root)
@@ -623,7 +618,7 @@ static int spufs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	kgid_t gid;
 	int opt;
 
-	opt = fs_parse(fc, &spufs_fs_parameters, param, &result);
+	opt = fs_parse(fc, spufs_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -774,7 +769,7 @@ static struct file_system_type spufs_type = {
 	.owner = THIS_MODULE,
 	.name = "spufs",
 	.init_fs_context = spufs_init_fs_context,
-	.parameters	= &spufs_fs_parameters,
+	.parameters	= spufs_fs_parameters,
 	.kill_sb = kill_litter_super,
 };
 MODULE_ALIAS_FS("spufs");

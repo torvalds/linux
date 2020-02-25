@@ -371,8 +371,6 @@ static void b53_enable_vlan(struct b53_device *dev, bool enable,
 		b53_read8(dev, B53_VLAN_PAGE, B53_VLAN_CTRL5, &vc5);
 	}
 
-	mgmt &= ~SM_SW_FWD_MODE;
-
 	if (enable) {
 		vc0 |= VC0_VLAN_EN | VC0_VID_CHK_EN | VC0_VID_HASH_VID;
 		vc1 |= VC1_RX_MCST_UNTAG_EN | VC1_RX_MCST_FWD_EN;
@@ -573,9 +571,8 @@ EXPORT_SYMBOL(b53_disable_port);
 
 void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
 {
-	bool tag_en = !(ds->ops->get_tag_protocol(ds, port) ==
-			 DSA_TAG_PROTO_NONE);
 	struct b53_device *dev = ds->priv;
+	bool tag_en = !(dev->tag_protocol == DSA_TAG_PROTO_NONE);
 	u8 hdr_ctl, val;
 	u16 reg;
 
@@ -594,6 +591,22 @@ void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
 		val = 0;
 		break;
 	}
+
+	/* Enable management mode if tagging is requested */
+	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, &hdr_ctl);
+	if (tag_en)
+		hdr_ctl |= SM_SW_FWD_MODE;
+	else
+		hdr_ctl &= ~SM_SW_FWD_MODE;
+	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, hdr_ctl);
+
+	/* Configure the appropriate IMP port */
+	b53_read8(dev, B53_MGMT_PAGE, B53_GLOBAL_CONFIG, &hdr_ctl);
+	if (port == 8)
+		hdr_ctl |= GC_FRM_MGMT_PORT_MII;
+	else if (port == 5)
+		hdr_ctl |= GC_FRM_MGMT_PORT_M;
+	b53_write8(dev, B53_MGMT_PAGE, B53_GLOBAL_CONFIG, hdr_ctl);
 
 	/* Enable Broadcom tags for IMP port */
 	b53_read8(dev, B53_MGMT_PAGE, B53_BRCM_HDR, &hdr_ctl);
@@ -680,7 +693,7 @@ int b53_configure_vlan(struct dsa_switch *ds)
 		b53_do_vlan_op(dev, VTA_CMD_CLEAR);
 	}
 
-	b53_enable_vlan(dev, false, ds->vlan_filtering);
+	b53_enable_vlan(dev, dev->vlan_enabled, ds->vlan_filtering);
 
 	b53_for_each_port(dev, i)
 		b53_write16(dev, B53_VLAN_PAGE,
@@ -1866,36 +1879,57 @@ static bool b53_possible_cpu_port(struct dsa_switch *ds, int port)
 	return false;
 }
 
-static bool b53_can_enable_brcm_tags(struct dsa_switch *ds, int port)
+static bool b53_can_enable_brcm_tags(struct dsa_switch *ds, int port,
+				     enum dsa_tag_protocol tag_protocol)
 {
 	bool ret = b53_possible_cpu_port(ds, port);
 
-	if (!ret)
+	if (!ret) {
 		dev_warn(ds->dev, "Port %d is not Broadcom tag capable\n",
 			 port);
+		return ret;
+	}
+
+	switch (tag_protocol) {
+	case DSA_TAG_PROTO_BRCM:
+	case DSA_TAG_PROTO_BRCM_PREPEND:
+		dev_warn(ds->dev,
+			 "Port %d is stacked to Broadcom tag switch\n", port);
+		ret = false;
+		break;
+	default:
+		ret = true;
+		break;
+	}
+
 	return ret;
 }
 
-enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds, int port)
+enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds, int port,
+					   enum dsa_tag_protocol mprot)
 {
 	struct b53_device *dev = ds->priv;
 
 	/* Older models (5325, 5365) support a different tag format that we do
-	 * not support in net/dsa/tag_brcm.c yet. 539x and 531x5 require managed
-	 * mode to be turned on which means we need to specifically manage ARL
-	 * misses on multicast addresses (TBD).
+	 * not support in net/dsa/tag_brcm.c yet.
 	 */
-	if (is5325(dev) || is5365(dev) || is539x(dev) || is531x5(dev) ||
-	    !b53_can_enable_brcm_tags(ds, port))
-		return DSA_TAG_PROTO_NONE;
+	if (is5325(dev) || is5365(dev) ||
+	    !b53_can_enable_brcm_tags(ds, port, mprot)) {
+		dev->tag_protocol = DSA_TAG_PROTO_NONE;
+		goto out;
+	}
 
 	/* Broadcom BCM58xx chips have a flow accelerator on Port 8
 	 * which requires us to use the prepended Broadcom tag type
 	 */
-	if (dev->chip_id == BCM58XX_DEVICE_ID && port == B53_CPU_PORT)
-		return DSA_TAG_PROTO_BRCM_PREPEND;
+	if (dev->chip_id == BCM58XX_DEVICE_ID && port == B53_CPU_PORT) {
+		dev->tag_protocol = DSA_TAG_PROTO_BRCM_PREPEND;
+		goto out;
+	}
 
-	return DSA_TAG_PROTO_BRCM;
+	dev->tag_protocol = DSA_TAG_PROTO_BRCM;
+out:
+	return dev->tag_protocol;
 }
 EXPORT_SYMBOL(b53_get_tag_protocol);
 

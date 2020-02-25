@@ -154,8 +154,8 @@ void ips_enter(struct adapter *padapter)
 int ips_leave(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	struct security_priv *psecuritypriv = &(padapter->securitypriv);
-	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct security_priv *psecuritypriv = &padapter->securitypriv;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	int result = _SUCCESS;
 	int keyid;
 
@@ -200,28 +200,24 @@ int ips_leave(struct adapter *padapter)
 
 static bool rtw_pwr_unassociated_idle(struct adapter *adapter)
 {
-	struct mlme_priv *pmlmepriv = &(adapter->mlmepriv);
-	bool ret = false;
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	if (time_after_eq(adapter->pwrctrlpriv.ips_deny_time, jiffies))
-		goto exit;
+		return false;
 
 	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR) ||
 	    check_fwstate(pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS) ||
 	    check_fwstate(pmlmepriv, WIFI_AP_STATE) ||
 	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE))
-		goto exit;
+		return false;
 
-	ret = true;
-
-exit:
-	return ret;
+	return true;
 }
 
 void rtw_ps_processor(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	enum rt_rf_power_state rfpwrstate;
 
 	pwrpriv->ps_processing = true;
@@ -282,7 +278,7 @@ static void pwr_state_check_handler(struct timer_list *t)
  */
 void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 {
-	u8	rpwm;
+	u8 rpwm;
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
 	pslv = PS_STATE(pslv);
@@ -335,8 +331,8 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 static u8 PS_RDY_CHECK(struct adapter *padapter)
 {
 	unsigned long curr_time, delta_time;
-	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
-	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	curr_time = jiffies;
 	delta_time = curr_time - pwrpriv->DelayLPSLastTimeStamp;
@@ -437,7 +433,7 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 /*  */
 void LPS_Enter(struct adapter *padapter)
 {
-	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
+	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
 	if (!PS_RDY_CHECK(padapter))
 		return;
@@ -463,7 +459,7 @@ void LPS_Enter(struct adapter *padapter)
 /*		Leave the leisure power save mode. */
 void LPS_Leave(struct adapter *padapter)
 {
-	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
+	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
 	if (pwrpriv->bLeisurePs) {
 		if (pwrpriv->pwr_mode != PS_MODE_ACTIVE) {
@@ -483,8 +479,8 @@ void LPS_Leave(struct adapter *padapter)
 /*  */
 void LeaveAllPowerSaveMode(struct adapter *Adapter)
 {
-	struct mlme_priv	*pmlmepriv = &(Adapter->mlmepriv);
-	u8	enqueue = 0;
+	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
+	u8 enqueue = 0;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED))
 		rtw_lps_ctrl_wk_cmd(Adapter, LPS_CTRL_LEAVE, enqueue);
@@ -611,7 +607,7 @@ exit:
 
 int rtw_pm_set_lps(struct adapter *padapter, u8 mode)
 {
-	int	ret = 0;
+	int ret = 0;
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
 	if (mode < PS_MODE_NUM) {

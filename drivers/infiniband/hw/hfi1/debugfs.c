@@ -379,7 +379,7 @@ static void *_rcds_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
 
 	++*pos;
-	if (!dd->rcd || *pos >= dd->n_krcv_queues)
+	if (!dd->rcd || *pos >= dd->num_rcv_contexts)
 		return NULL;
 	return pos;
 }

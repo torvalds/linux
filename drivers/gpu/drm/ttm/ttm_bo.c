@@ -372,14 +372,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	}
 
 moved:
-	if (bo->evicted) {
-		if (bdev->driver->invalidate_caches) {
-			ret = bdev->driver->invalidate_caches(bdev, bo->mem.placement);
-			if (ret)
-				pr_err("Can not flush read caches\n");
-		}
-		bo->evicted = false;
-	}
+	bo->evicted = false;
 
 	if (bo->mem.mm_node)
 		bo->offset = (bo->mem.start << PAGE_SHIFT) +
@@ -498,8 +491,10 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 
 		dma_resv_unlock(bo->base.resv);
 	}
-	if (bo->base.resv != &bo->base._resv)
+	if (bo->base.resv != &bo->base._resv) {
+		ttm_bo_flush_all_fences(bo);
 		dma_resv_unlock(&bo->base._resv);
+	}
 
 error:
 	kref_get(&bo->list_kref);

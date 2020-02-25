@@ -34,12 +34,6 @@ struct uprobe_trace_entry_head {
 #define DATAOF_TRACE_ENTRY(entry, is_return)		\
 	((void*)(entry) + SIZEOF_TRACE_ENTRY(is_return))
 
-struct trace_uprobe_filter {
-	rwlock_t		rwlock;
-	int			nr_systemwide;
-	struct list_head	perf_events;
-};
-
 static int trace_uprobe_create(int argc, const char **argv);
 static int trace_uprobe_show(struct seq_file *m, struct dyn_event *ev);
 static int trace_uprobe_release(struct dyn_event *ev);
@@ -60,7 +54,6 @@ static struct dyn_event_operations trace_uprobe_ops = {
  */
 struct trace_uprobe {
 	struct dyn_event		devent;
-	struct trace_uprobe_filter	filter;
 	struct uprobe_consumer		consumer;
 	struct path			path;
 	struct inode			*inode;
@@ -351,7 +344,7 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 	if (!tu)
 		return ERR_PTR(-ENOMEM);
 
-	ret = trace_probe_init(&tu->tp, event, group);
+	ret = trace_probe_init(&tu->tp, event, group, true);
 	if (ret < 0)
 		goto error;
 
@@ -359,7 +352,7 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 	tu->consumer.handler = uprobe_dispatcher;
 	if (is_ret)
 		tu->consumer.ret_handler = uretprobe_dispatcher;
-	init_trace_uprobe_filter(&tu->filter);
+	init_trace_uprobe_filter(tu->tp.event->filter);
 	return tu;
 
 error:
@@ -938,8 +931,8 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 				struct trace_event_file *trace_file)
 {
 	struct uprobe_trace_entry_head *entry;
+	struct trace_buffer *buffer;
 	struct ring_buffer_event *event;
-	struct ring_buffer *buffer;
 	void *data;
 	int size, esize;
 	struct trace_event_call *call = trace_probe_event_call(&tu->tp);
@@ -1067,12 +1060,13 @@ static void __probe_event_disable(struct trace_probe *tp)
 	struct trace_probe *pos;
 	struct trace_uprobe *tu;
 
+	tu = container_of(tp, struct trace_uprobe, tp);
+	WARN_ON(!uprobe_filter_is_empty(tu->tp.event->filter));
+
 	list_for_each_entry(pos, trace_probe_probe_list(tp), list) {
 		tu = container_of(pos, struct trace_uprobe, tp);
 		if (!tu->inode)
 			continue;
-
-		WARN_ON(!uprobe_filter_is_empty(&tu->filter));
 
 		uprobe_unregister(tu->inode, tu->offset, &tu->consumer);
 		tu->inode = NULL;
@@ -1108,7 +1102,7 @@ static int probe_event_enable(struct trace_event_call *call,
 	}
 
 	tu = container_of(tp, struct trace_uprobe, tp);
-	WARN_ON(!uprobe_filter_is_empty(&tu->filter));
+	WARN_ON(!uprobe_filter_is_empty(tu->tp.event->filter));
 
 	if (enabled)
 		return 0;
@@ -1205,39 +1199,39 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 }
 
 static inline bool
-uprobe_filter_event(struct trace_uprobe *tu, struct perf_event *event)
+trace_uprobe_filter_event(struct trace_uprobe_filter *filter,
+			  struct perf_event *event)
 {
-	return __uprobe_perf_filter(&tu->filter, event->hw.target->mm);
+	return __uprobe_perf_filter(filter, event->hw.target->mm);
 }
 
-static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
+static bool trace_uprobe_filter_remove(struct trace_uprobe_filter *filter,
+				       struct perf_event *event)
 {
 	bool done;
 
-	write_lock(&tu->filter.rwlock);
+	write_lock(&filter->rwlock);
 	if (event->hw.target) {
 		list_del(&event->hw.tp_list);
-		done = tu->filter.nr_systemwide ||
+		done = filter->nr_systemwide ||
 			(event->hw.target->flags & PF_EXITING) ||
-			uprobe_filter_event(tu, event);
+			trace_uprobe_filter_event(filter, event);
 	} else {
-		tu->filter.nr_systemwide--;
-		done = tu->filter.nr_systemwide;
+		filter->nr_systemwide--;
+		done = filter->nr_systemwide;
 	}
-	write_unlock(&tu->filter.rwlock);
+	write_unlock(&filter->rwlock);
 
-	if (!done)
-		return uprobe_apply(tu->inode, tu->offset, &tu->consumer, false);
-
-	return 0;
+	return done;
 }
 
-static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
+/* This returns true if the filter always covers target mm */
+static bool trace_uprobe_filter_add(struct trace_uprobe_filter *filter,
+				    struct perf_event *event)
 {
 	bool done;
-	int err;
 
-	write_lock(&tu->filter.rwlock);
+	write_lock(&filter->rwlock);
 	if (event->hw.target) {
 		/*
 		 * event->parent != NULL means copy_process(), we can avoid
@@ -1247,28 +1241,21 @@ static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 		 * attr.enable_on_exec means that exec/mmap will install the
 		 * breakpoints we need.
 		 */
-		done = tu->filter.nr_systemwide ||
+		done = filter->nr_systemwide ||
 			event->parent || event->attr.enable_on_exec ||
-			uprobe_filter_event(tu, event);
-		list_add(&event->hw.tp_list, &tu->filter.perf_events);
+			trace_uprobe_filter_event(filter, event);
+		list_add(&event->hw.tp_list, &filter->perf_events);
 	} else {
-		done = tu->filter.nr_systemwide;
-		tu->filter.nr_systemwide++;
+		done = filter->nr_systemwide;
+		filter->nr_systemwide++;
 	}
-	write_unlock(&tu->filter.rwlock);
+	write_unlock(&filter->rwlock);
 
-	err = 0;
-	if (!done) {
-		err = uprobe_apply(tu->inode, tu->offset, &tu->consumer, true);
-		if (err)
-			uprobe_perf_close(tu, event);
-	}
-	return err;
+	return done;
 }
 
-static int uprobe_perf_multi_call(struct trace_event_call *call,
-				  struct perf_event *event,
-		int (*op)(struct trace_uprobe *tu, struct perf_event *event))
+static int uprobe_perf_close(struct trace_event_call *call,
+			     struct perf_event *event)
 {
 	struct trace_probe *pos, *tp;
 	struct trace_uprobe *tu;
@@ -1278,25 +1265,59 @@ static int uprobe_perf_multi_call(struct trace_event_call *call,
 	if (WARN_ON_ONCE(!tp))
 		return -ENODEV;
 
+	tu = container_of(tp, struct trace_uprobe, tp);
+	if (trace_uprobe_filter_remove(tu->tp.event->filter, event))
+		return 0;
+
 	list_for_each_entry(pos, trace_probe_probe_list(tp), list) {
 		tu = container_of(pos, struct trace_uprobe, tp);
-		ret = op(tu, event);
+		ret = uprobe_apply(tu->inode, tu->offset, &tu->consumer, false);
 		if (ret)
 			break;
 	}
 
 	return ret;
 }
+
+static int uprobe_perf_open(struct trace_event_call *call,
+			    struct perf_event *event)
+{
+	struct trace_probe *pos, *tp;
+	struct trace_uprobe *tu;
+	int err = 0;
+
+	tp = trace_probe_primary_from_call(call);
+	if (WARN_ON_ONCE(!tp))
+		return -ENODEV;
+
+	tu = container_of(tp, struct trace_uprobe, tp);
+	if (trace_uprobe_filter_add(tu->tp.event->filter, event))
+		return 0;
+
+	list_for_each_entry(pos, trace_probe_probe_list(tp), list) {
+		err = uprobe_apply(tu->inode, tu->offset, &tu->consumer, true);
+		if (err) {
+			uprobe_perf_close(call, event);
+			break;
+		}
+	}
+
+	return err;
+}
+
 static bool uprobe_perf_filter(struct uprobe_consumer *uc,
 				enum uprobe_filter_ctx ctx, struct mm_struct *mm)
 {
+	struct trace_uprobe_filter *filter;
 	struct trace_uprobe *tu;
 	int ret;
 
 	tu = container_of(uc, struct trace_uprobe, consumer);
-	read_lock(&tu->filter.rwlock);
-	ret = __uprobe_perf_filter(&tu->filter, mm);
-	read_unlock(&tu->filter.rwlock);
+	filter = tu->tp.event->filter;
+
+	read_lock(&filter->rwlock);
+	ret = __uprobe_perf_filter(filter, mm);
+	read_unlock(&filter->rwlock);
 
 	return ret;
 }
@@ -1419,10 +1440,10 @@ trace_uprobe_register(struct trace_event_call *event, enum trace_reg type,
 		return 0;
 
 	case TRACE_REG_PERF_OPEN:
-		return uprobe_perf_multi_call(event, data, uprobe_perf_open);
+		return uprobe_perf_open(event, data);
 
 	case TRACE_REG_PERF_CLOSE:
-		return uprobe_perf_multi_call(event, data, uprobe_perf_close);
+		return uprobe_perf_close(event, data);
 
 #endif
 	default:
@@ -1507,12 +1528,17 @@ static struct trace_event_functions uprobe_funcs = {
 	.trace		= print_uprobe_event
 };
 
+static struct trace_event_fields uprobe_fields_array[] = {
+	{ .type = TRACE_FUNCTION_TYPE,
+	  .define_fields = uprobe_event_define_fields },
+	{}
+};
+
 static inline void init_trace_event_call(struct trace_uprobe *tu)
 {
 	struct trace_event_call *call = trace_probe_event_call(&tu->tp);
-
 	call->event.funcs = &uprobe_funcs;
-	call->class->define_fields = uprobe_event_define_fields;
+	call->class->fields_array = uprobe_fields_array;
 
 	call->flags = TRACE_EVENT_FL_UPROBE | TRACE_EVENT_FL_CAP_ANY;
 	call->class->reg = trace_uprobe_register;

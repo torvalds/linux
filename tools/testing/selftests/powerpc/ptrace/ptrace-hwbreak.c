@@ -455,9 +455,8 @@ run_tests(pid_t child_pid, struct ppc_debug_info *dbginfo, bool dawr)
 	if (dbginfo->features & PPC_DEBUG_FEATURE_DATA_BP_RANGE) {
 		test_sethwdebug_exact(child_pid);
 
-		if (!is_8xx)
-			test_sethwdebug_range_aligned(child_pid);
-		if (dawr && !is_8xx) {
+		test_sethwdebug_range_aligned(child_pid);
+		if (dawr || is_8xx) {
 			test_sethwdebug_range_unaligned(child_pid);
 			test_sethwdebug_range_unaligned_dar(child_pid);
 			test_sethwdebug_dawr_max_range(child_pid);

@@ -14,7 +14,6 @@
 #include <linux/leds.h>
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
-#include <linux/usb/gpio_vbus.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -352,17 +351,18 @@ static inline void vpac270_uhc_init(void) {}
  * USB Gadget
  ******************************************************************************/
 #if defined(CONFIG_USB_PXA27X)||defined(CONFIG_USB_PXA27X_MODULE)
-static struct gpio_vbus_mach_info vpac270_gpio_vbus_info = {
-	.gpio_vbus		= GPIO41_VPAC270_UDC_DETECT,
-	.gpio_pullup		= -1,
+static struct gpiod_lookup_table vpac270_gpio_vbus_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO41_VPAC270_UDC_DETECT,
+			    "vbus", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device vpac270_gpio_vbus = {
 	.name	= "gpio-vbus",
 	.id	= -1,
-	.dev	= {
-		.platform_data	= &vpac270_gpio_vbus_info,
-	},
 };
 
 static void vpac270_udc_command(int cmd)
@@ -381,6 +381,7 @@ static struct pxa2xx_udc_mach_info vpac270_udc_info __initdata = {
 static void __init vpac270_udc_init(void)
 {
 	pxa_set_udc_info(&vpac270_udc_info);
+	gpiod_add_lookup_table(&vpac270_gpio_vbus_gpiod_table);
 	platform_device_register(&vpac270_gpio_vbus);
 }
 #else

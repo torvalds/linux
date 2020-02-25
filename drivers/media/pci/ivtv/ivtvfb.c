@@ -37,7 +37,7 @@
 #include <linux/ivtvfb.h>
 
 #ifdef CONFIG_X86_64
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #endif
 
 /* card parameters */

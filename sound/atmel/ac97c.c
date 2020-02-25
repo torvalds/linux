@@ -159,12 +159,6 @@ static int atmel_ac97c_playback_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *hw_params)
 {
 	struct atmel_ac97c *chip = snd_pcm_substream_chip(substream);
-	int retval;
-
-	retval = snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-	if (retval < 0)
-		return retval;
 
 	/* Set restrictions to params. */
 	mutex_lock(&opened_mutex);
@@ -172,19 +166,13 @@ static int atmel_ac97c_playback_hw_params(struct snd_pcm_substream *substream,
 	chip->cur_format = params_format(hw_params);
 	mutex_unlock(&opened_mutex);
 
-	return retval;
+	return 0;
 }
 
 static int atmel_ac97c_capture_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *hw_params)
 {
 	struct atmel_ac97c *chip = snd_pcm_substream_chip(substream);
-	int retval;
-
-	retval = snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-	if (retval < 0)
-		return retval;
 
 	/* Set restrictions to params. */
 	mutex_lock(&opened_mutex);
@@ -192,7 +180,7 @@ static int atmel_ac97c_capture_hw_params(struct snd_pcm_substream *substream,
 	chip->cur_format = params_format(hw_params);
 	mutex_unlock(&opened_mutex);
 
-	return retval;
+	return 0;
 }
 
 static int atmel_ac97c_playback_prepare(struct snd_pcm_substream *substream)
@@ -459,9 +447,7 @@ atmel_ac97c_capture_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops atmel_ac97_playback_ops = {
 	.open		= atmel_ac97c_playback_open,
 	.close		= atmel_ac97c_playback_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= atmel_ac97c_playback_hw_params,
-	.hw_free	= snd_pcm_lib_free_pages,
 	.prepare	= atmel_ac97c_playback_prepare,
 	.trigger	= atmel_ac97c_playback_trigger,
 	.pointer	= atmel_ac97c_playback_pointer,
@@ -470,9 +456,7 @@ static const struct snd_pcm_ops atmel_ac97_playback_ops = {
 static const struct snd_pcm_ops atmel_ac97_capture_ops = {
 	.open		= atmel_ac97c_capture_open,
 	.close		= atmel_ac97c_capture_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= atmel_ac97c_capture_hw_params,
-	.hw_free	= snd_pcm_lib_free_pages,
 	.prepare	= atmel_ac97c_capture_prepare,
 	.trigger	= atmel_ac97c_capture_trigger,
 	.pointer	= atmel_ac97c_capture_pointer,
@@ -600,7 +584,7 @@ static int atmel_ac97c_pcm_new(struct atmel_ac97c *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &atmel_ac97_capture_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &atmel_ac97_playback_ops);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 			&chip->pdev->dev, hw.periods_min * hw.period_bytes_min,
 			hw.buffer_bytes_max);
 
@@ -718,7 +702,7 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 	struct atmel_ac97c		*chip;
 	struct resource			*regs;
 	struct clk			*pclk;
-	static struct snd_ac97_bus_ops	ops = {
+	static const struct snd_ac97_bus_ops	ops = {
 		.write	= atmel_ac97c_write,
 		.read	= atmel_ac97c_read,
 	};

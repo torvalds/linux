@@ -328,11 +328,11 @@ static struct snd_soc_aux_dev rx51_aux_dev[] = {
 
 static struct snd_soc_codec_conf rx51_codec_conf[] = {
 	{
-		.dev_name = "tlv320aic3x-codec.2-0019",
+		.dlc = COMP_CODEC_CONF("tlv320aic3x-codec.2-0019"),
 		.name_prefix = "b",
 	},
 	{
-		.dev_name = "tpa6130a2.2-0060",
+		.dlc = COMP_CODEC_CONF("tpa6130a2.2-0060"),
 		.name_prefix = "TPA6130A2",
 	},
 };
@@ -397,8 +397,8 @@ static int rx51_soc_probe(struct platform_device *pdev)
 		}
 		rx51_aux_dev[0].dlc.name = NULL;
 		rx51_aux_dev[0].dlc.of_node = dai_node;
-		rx51_codec_conf[0].dev_name = NULL;
-		rx51_codec_conf[0].of_node = dai_node;
+		rx51_codec_conf[0].dlc.name = NULL;
+		rx51_codec_conf[0].dlc.of_node = dai_node;
 
 		dai_node = of_parse_phandle(np, "nokia,headphone-amplifier", 0);
 		if (!dai_node) {
@@ -407,8 +407,8 @@ static int rx51_soc_probe(struct platform_device *pdev)
 		}
 		rx51_aux_dev[1].dlc.name = NULL;
 		rx51_aux_dev[1].dlc.of_node = dai_node;
-		rx51_codec_conf[1].dev_name = NULL;
-		rx51_codec_conf[1].of_node = dai_node;
+		rx51_codec_conf[1].dlc.name = NULL;
+		rx51_codec_conf[1].dlc.of_node = dai_node;
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);

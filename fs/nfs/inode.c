@@ -1061,7 +1061,7 @@ struct nfs_open_context *nfs_find_open_context(struct inode *inode, const struct
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(pos, &nfsi->open_files, list) {
-		if (cred != NULL && pos->cred != cred)
+		if (cred != NULL && cred_fscmp(pos->cred, cred) != 0)
 			continue;
 		if ((pos->mode & (FMODE_READ|FMODE_WRITE)) != mode)
 			continue;
@@ -1156,7 +1156,13 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		dfprintk(PAGECACHE, "nfs_revalidate_inode: (%s/%Lu) getattr failed, error=%d\n",
 			 inode->i_sb->s_id,
 			 (unsigned long long)NFS_FILEID(inode), status);
-		if (status == -ESTALE) {
+		switch (status) {
+		case -ETIMEDOUT:
+			/* A soft timeout occurred. Use cached information? */
+			if (server->flags & NFS_MOUNT_SOFTREVAL)
+				status = 0;
+			break;
+		case -ESTALE:
 			nfs_zap_caches(inode);
 			if (!S_ISDIR(inode->i_mode))
 				set_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
@@ -2108,6 +2114,7 @@ static void init_once(void *foo)
 	init_rwsem(&nfsi->rmdir_sem);
 	mutex_init(&nfsi->commit_mutex);
 	nfs4_init_once(nfsi);
+	nfsi->cache_change_attribute = 0;
 }
 
 static int __init nfs_init_inodecache(void)

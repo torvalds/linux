@@ -372,7 +372,8 @@ static int hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new eld_bytes_ctl = {
-	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
+	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE |
+		SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK,
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "ELD",
 	.info = hdmi_eld_ctl_info,
@@ -819,10 +820,12 @@ static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
 		cp_ready);
 
 	/* TODO */
-	if (cp_state)
+	if (cp_state) {
 		;
-	if (cp_ready)
+	}
+	if (cp_ready) {
 		;
+	}
 }
 
 
@@ -1547,6 +1550,34 @@ static bool update_eld(struct hda_codec *codec,
 	return eld_changed;
 }
 
+static struct snd_jack *pin_idx_to_pcm_jack(struct hda_codec *codec,
+					    struct hdmi_spec_per_pin *per_pin)
+{
+	struct hdmi_spec *spec = codec->spec;
+	struct snd_jack *jack = NULL;
+	struct hda_jack_tbl *jack_tbl;
+
+	/* if !dyn_pcm_assign, get jack from hda_jack_tbl
+	 * in !dyn_pcm_assign case, spec->pcm_rec[].jack is not
+	 * NULL even after snd_hda_jack_tbl_clear() is called to
+	 * free snd_jack. This may cause access invalid memory
+	 * when calling snd_jack_report
+	 */
+	if (per_pin->pcm_idx >= 0 && spec->dyn_pcm_assign) {
+		jack = spec->pcm_rec[per_pin->pcm_idx].jack;
+	} else if (!spec->dyn_pcm_assign) {
+		/*
+		 * jack tbl doesn't support DP MST
+		 * DP MST will use dyn_pcm_assign,
+		 * so DP MST will never come here
+		 */
+		jack_tbl = snd_hda_jack_tbl_get_mst(codec, per_pin->pin_nid,
+						    per_pin->dev_id);
+		if (jack_tbl)
+			jack = jack_tbl->jack;
+	}
+	return jack;
+}
 /* update ELD and jack state via HD-audio verbs */
 static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 					 int repoll)
@@ -1568,6 +1599,7 @@ static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 	int present;
 	bool ret;
 	bool do_repoll = false;
+	struct snd_jack *pcm_jack = NULL;
 
 	present = snd_hda_jack_pin_sense(codec, pin_nid, dev_id);
 
@@ -1595,10 +1627,19 @@ static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 			do_repoll = true;
 	}
 
-	if (do_repoll)
+	if (do_repoll) {
 		schedule_delayed_work(&per_pin->work, msecs_to_jiffies(300));
-	else
+	} else {
+		/*
+		 * pcm_idx >=0 before update_eld() means it is in monitor
+		 * disconnected event. Jack must be fetched before
+		 * update_eld().
+		 */
+		pcm_jack = pin_idx_to_pcm_jack(codec, per_pin);
 		update_eld(codec, per_pin, eld);
+		if (!pcm_jack)
+			pcm_jack = pin_idx_to_pcm_jack(codec, per_pin);
+	}
 
 	ret = !repoll || !eld->monitor_present || eld->eld_valid;
 
@@ -1607,38 +1648,32 @@ static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 		jack->block_report = !ret;
 		jack->pin_sense = (eld->monitor_present && eld->eld_valid) ?
 			AC_PINSENSE_PRESENCE : 0;
+
+		if (spec->dyn_pcm_assign && pcm_jack && !do_repoll) {
+			int state = 0;
+
+			if (jack->pin_sense & AC_PINSENSE_PRESENCE)
+				state = SND_JACK_AVOUT;
+			snd_jack_report(pcm_jack, state);
+		}
+
+		/*
+		 * snd_hda_jack_pin_sense() call at the beginning of this
+		 * function, updates jack->pins_sense and clears
+		 * jack->jack_dirty, therefore snd_hda_jack_report_sync() will
+		 * not override the jack->pin_sense.
+		 *
+		 * snd_hda_jack_report_sync() is superfluous for dyn_pcm_assign
+		 * case. The jack->pin_sense update was already performed, and
+		 * hda_jack->jack is NULL for dyn_pcm_assign.
+		 *
+		 * Don't call snd_hda_jack_report_sync() for
+		 * dyn_pcm_assign.
+		 */
+		ret = ret && !spec->dyn_pcm_assign;
 	}
 	mutex_unlock(&per_pin->lock);
 	return ret;
-}
-
-static struct snd_jack *pin_idx_to_jack(struct hda_codec *codec,
-				 struct hdmi_spec_per_pin *per_pin)
-{
-	struct hdmi_spec *spec = codec->spec;
-	struct snd_jack *jack = NULL;
-	struct hda_jack_tbl *jack_tbl;
-
-	/* if !dyn_pcm_assign, get jack from hda_jack_tbl
-	 * in !dyn_pcm_assign case, spec->pcm_rec[].jack is not
-	 * NULL even after snd_hda_jack_tbl_clear() is called to
-	 * free snd_jack. This may cause access invalid memory
-	 * when calling snd_jack_report
-	 */
-	if (per_pin->pcm_idx >= 0 && spec->dyn_pcm_assign)
-		jack = spec->pcm_rec[per_pin->pcm_idx].jack;
-	else if (!spec->dyn_pcm_assign) {
-		/*
-		 * jack tbl doesn't support DP MST
-		 * DP MST will use dyn_pcm_assign,
-		 * so DP MST will never come here
-		 */
-		jack_tbl = snd_hda_jack_tbl_get_mst(codec, per_pin->pin_nid,
-						    per_pin->dev_id);
-		if (jack_tbl)
-			jack = jack_tbl->jack;
-	}
-	return jack;
 }
 
 /* update ELD and jack state via audio component */
@@ -1674,10 +1709,10 @@ static void sync_eld_via_acomp(struct hda_codec *codec,
 	/* pcm_idx >=0 before update_eld() means it is in monitor
 	 * disconnected event. Jack must be fetched before update_eld()
 	 */
-	jack = pin_idx_to_jack(codec, per_pin);
+	jack = pin_idx_to_pcm_jack(codec, per_pin);
 	changed = update_eld(codec, per_pin, eld);
 	if (jack == NULL)
-		jack = pin_idx_to_jack(codec, per_pin);
+		jack = pin_idx_to_pcm_jack(codec, per_pin);
 	if (changed && jack)
 		snd_jack_report(jack,
 				(eld->monitor_present && eld->eld_valid) ?
@@ -2403,7 +2438,7 @@ static int generic_hdmi_resume(struct hda_codec *codec)
 	int pin_idx;
 
 	codec->patch_ops.init(codec);
-	regcache_sync(codec->core.regmap);
+	snd_hda_regmap_sync(codec);
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
@@ -2830,9 +2865,12 @@ static int alloc_intel_hdmi(struct hda_codec *codec)
 /* parse and post-process for Intel codecs */
 static int parse_intel_hdmi(struct hda_codec *codec)
 {
-	int err;
+	int err, retries = 3;
 
-	err = hdmi_parse_codec(codec);
+	do {
+		err = hdmi_parse_codec(codec);
+	} while (err < 0 && retries--);
+
 	if (err < 0) {
 		generic_spec_free(codec);
 		return err;
@@ -4250,6 +4288,7 @@ HDA_CODEC_ENTRY(0x8086280c, "Cannonlake HDMI",	patch_i915_glk_hdmi),
 HDA_CODEC_ENTRY(0x8086280d, "Geminilake HDMI",	patch_i915_glk_hdmi),
 HDA_CODEC_ENTRY(0x8086280f, "Icelake HDMI",	patch_i915_icl_hdmi),
 HDA_CODEC_ENTRY(0x80862812, "Tigerlake HDMI",	patch_i915_tgl_hdmi),
+HDA_CODEC_ENTRY(0x8086281a, "Jasperlake HDMI",	patch_i915_icl_hdmi),
 HDA_CODEC_ENTRY(0x80862880, "CedarTrail HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862882, "Valleyview2 HDMI",	patch_i915_byt_hdmi),
 HDA_CODEC_ENTRY(0x80862883, "Braswell HDMI",	patch_i915_byt_hdmi),

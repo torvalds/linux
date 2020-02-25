@@ -160,6 +160,7 @@ extern unsigned long thp_get_unmapped_area(struct file *filp,
 
 extern void prep_transhuge_page(struct page *page);
 extern void free_transhuge_page(struct page *page);
+bool is_transparent_hugepage(struct page *page);
 
 bool can_split_huge_page(struct page *page, int *pextra_pins);
 int split_huge_page_to_list(struct page *page, struct list_head *list);
@@ -307,6 +308,11 @@ static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
 }
 
 static inline void prep_transhuge_page(struct page *page) {}
+
+static inline bool is_transparent_hugepage(struct page *page)
+{
+	return false;
+}
 
 #define transparent_hugepage_flags 0UL
 

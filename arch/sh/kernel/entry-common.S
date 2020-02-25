@@ -41,7 +41,7 @@
  */
 #include <asm/dwarf.h>
 
-#if defined(CONFIG_PREEMPT)
+#if defined(CONFIG_PREEMPTION)
 #  define preempt_stop()	cli ; TRACE_IRQS_OFF
 #else
 #  define preempt_stop()
@@ -84,7 +84,7 @@ ENTRY(ret_from_irq)
 	get_current_thread_info r8, r0
 	bt	resume_kernel	! Yes, it's from kernel, go back soon
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	bra	resume_userspace
 	 nop
 ENTRY(resume_kernel)

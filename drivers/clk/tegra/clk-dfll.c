@@ -1487,7 +1487,6 @@ static int dfll_init(struct tegra_dfll *td)
 	td->last_unrounded_rate = 0;
 
 	pm_runtime_enable(td->dev);
-	pm_runtime_irq_safe(td->dev);
 	pm_runtime_get_sync(td->dev);
 
 	dfll_set_mode(td, DFLL_DISABLED);
@@ -1516,7 +1515,7 @@ di_err1:
 
 /**
  * tegra_dfll_suspend - check DFLL is disabled
- * @dev: DFLL device *
+ * @dev: DFLL instance
  *
  * DFLL clock should be disabled by the CPUFreq driver. So, make
  * sure it is disabled and disable all clocks needed by the DFLL.

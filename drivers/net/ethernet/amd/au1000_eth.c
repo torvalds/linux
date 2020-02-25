@@ -1014,7 +1014,7 @@ static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
  * The Tx ring has been full longer than the watchdog timeout
  * value. The transmitter must be hung?
  */
-static void au1000_tx_timeout(struct net_device *dev)
+static void au1000_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	netdev_err(dev, "au1000_tx_timeout: dev=%p\n", dev);
 	au1000_reset_mac(dev);
@@ -1053,23 +1053,12 @@ static void au1000_multicast_list(struct net_device *dev)
 	writel(reg, &aup->mac->control);
 }
 
-static int au1000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	if (!dev->phydev)
-		return -EINVAL; /* PHY not controllable */
-
-	return phy_mii_ioctl(dev->phydev, rq, cmd);
-}
-
 static const struct net_device_ops au1000_netdev_ops = {
 	.ndo_open		= au1000_open,
 	.ndo_stop		= au1000_close,
 	.ndo_start_xmit		= au1000_tx,
 	.ndo_set_rx_mode	= au1000_multicast_list,
-	.ndo_do_ioctl		= au1000_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_tx_timeout		= au1000_tx_timeout,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1161,7 +1150,7 @@ static int au1000_probe(struct platform_device *pdev)
 
 	/* aup->mac is the base address of the MAC's registers */
 	aup->mac = (struct mac_reg *)
-			ioremap_nocache(base->start, resource_size(base));
+			ioremap(base->start, resource_size(base));
 	if (!aup->mac) {
 		dev_err(&pdev->dev, "failed to ioremap MAC registers\n");
 		err = -ENXIO;
@@ -1169,7 +1158,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 
 	/* Setup some variables for quick register address access */
-	aup->enable = (u32 *)ioremap_nocache(macen->start,
+	aup->enable = (u32 *)ioremap(macen->start,
 						resource_size(macen));
 	if (!aup->enable) {
 		dev_err(&pdev->dev, "failed to ioremap MAC enable register\n");
@@ -1178,7 +1167,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 	aup->mac_id = pdev->id;
 
-	aup->macdma = ioremap_nocache(macdma->start, resource_size(macdma));
+	aup->macdma = ioremap(macdma->start, resource_size(macdma));
 	if (!aup->macdma) {
 		dev_err(&pdev->dev, "failed to ioremap MACDMA registers\n");
 		err = -ENXIO;

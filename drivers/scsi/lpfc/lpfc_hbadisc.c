@@ -28,6 +28,7 @@
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 #include <linux/lockdep.h>
+#include <linux/utsname.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -3315,6 +3316,10 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		lpfc_sli4_clear_fcf_rr_bmask(phba);
 	}
 
+	/* Prepare for LINK up registrations */
+	memset(phba->os_host_name, 0, sizeof(phba->os_host_name));
+	scnprintf(phba->os_host_name, sizeof(phba->os_host_name), "%s",
+		  init_utsname()->nodename);
 	return;
 out:
 	lpfc_vport_set_state(vport, FC_VPORT_FAILED);

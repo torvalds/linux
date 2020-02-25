@@ -47,6 +47,11 @@ struct nf_flowtable {
 	possible_net_t			net;
 };
 
+static inline bool nf_flowtable_hw_offload(struct nf_flowtable *flowtable)
+{
+	return flowtable->flags & NF_FLOWTABLE_HW_OFFLOAD;
+}
+
 enum flow_offload_tuple_dir {
 	FLOW_OFFLOAD_DIR_ORIGINAL = IP_CT_DIR_ORIGINAL,
 	FLOW_OFFLOAD_DIR_REPLY = IP_CT_DIR_REPLY,
@@ -83,13 +88,15 @@ struct flow_offload_tuple_rhash {
 	struct flow_offload_tuple	tuple;
 };
 
-#define FLOW_OFFLOAD_SNAT	0x1
-#define FLOW_OFFLOAD_DNAT	0x2
-#define FLOW_OFFLOAD_DYING	0x4
-#define FLOW_OFFLOAD_TEARDOWN	0x8
-#define FLOW_OFFLOAD_HW		0x10
-#define FLOW_OFFLOAD_HW_DYING	0x20
-#define FLOW_OFFLOAD_HW_DEAD	0x40
+enum nf_flow_flags {
+	NF_FLOW_SNAT,
+	NF_FLOW_DNAT,
+	NF_FLOW_TEARDOWN,
+	NF_FLOW_HW,
+	NF_FLOW_HW_DYING,
+	NF_FLOW_HW_DEAD,
+	NF_FLOW_HW_REFRESH,
+};
 
 enum flow_offload_type {
 	NF_FLOW_OFFLOAD_UNSPEC	= 0,
@@ -99,7 +106,7 @@ enum flow_offload_type {
 struct flow_offload {
 	struct flow_offload_tuple_rhash		tuplehash[FLOW_OFFLOAD_DIR_MAX];
 	struct nf_conn				*ct;
-	u16					flags;
+	unsigned long				flags;
 	u16					type;
 	u32					timeout;
 	struct rcu_head				rcu_head;
@@ -134,10 +141,6 @@ int nf_flow_table_init(struct nf_flowtable *flow_table);
 void nf_flow_table_free(struct nf_flowtable *flow_table);
 
 void flow_offload_teardown(struct flow_offload *flow);
-static inline void flow_offload_dead(struct flow_offload *flow)
-{
-	flow->flags |= FLOW_OFFLOAD_DYING;
-}
 
 int nf_flow_snat_port(const struct flow_offload *flow,
 		      struct sk_buff *skb, unsigned int thoff,

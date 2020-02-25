@@ -522,10 +522,9 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
 
 	if (!is_zero_ether_addr(mac)) {
 		rc = efx_ef10_vport_add_mac(efx, vf->vport_id, mac);
-		if (rc) {
-			eth_zero_addr(vf->mac);
+		if (rc)
 			goto fail;
-		}
+
 		if (vf->efx)
 			ether_addr_copy(vf->efx->net_dev->dev_addr, mac);
 	}

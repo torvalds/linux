@@ -7238,7 +7238,7 @@ out_unlock:
  *  void
  */
 
-static void s2io_tx_watchdog(struct net_device *dev)
+static void s2io_tx_watchdog(struct net_device *dev, unsigned int txqueue)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
 	struct swStat *swstats = &sp->mac_control.stats_info->sw_stat;

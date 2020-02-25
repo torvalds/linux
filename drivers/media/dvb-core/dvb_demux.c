@@ -971,6 +971,7 @@ static int dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	dvbdmxfeed->feed.sec.secbuf = dvbdmxfeed->feed.sec.secbuf_base;
 	dvbdmxfeed->feed.sec.secbufp = 0;
 	dvbdmxfeed->feed.sec.seclen = 0;
+	dvbdmxfeed->pusi_seen = false;
 
 	if (!dvbdmx->start_feed) {
 		mutex_unlock(&dvbdmx->mutex);

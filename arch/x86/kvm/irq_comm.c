@@ -52,14 +52,14 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 	unsigned long dest_vcpu_bitmap[BITS_TO_LONGS(KVM_MAX_VCPUS)];
 	unsigned int dest_vcpus = 0;
 
-	if (irq->dest_mode == 0 && irq->dest_id == 0xff &&
-			kvm_lowest_prio_delivery(irq)) {
+	if (kvm_irq_delivery_to_apic_fast(kvm, src, irq, &r, dest_map))
+		return r;
+
+	if (irq->dest_mode == APIC_DEST_PHYSICAL &&
+	    irq->dest_id == 0xff && kvm_lowest_prio_delivery(irq)) {
 		printk(KERN_INFO "kvm: apic: phys broadcast and lowest prio\n");
 		irq->delivery_mode = APIC_DM_FIXED;
 	}
-
-	if (kvm_irq_delivery_to_apic_fast(kvm, src, irq, &r, dest_map))
-		return r;
 
 	memset(dest_vcpu_bitmap, 0, sizeof(dest_vcpu_bitmap));
 
@@ -114,13 +114,14 @@ void kvm_set_msi_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 		irq->dest_id |= MSI_ADDR_EXT_DEST_ID(e->msi.address_hi);
 	irq->vector = (e->msi.data &
 			MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT;
-	irq->dest_mode = (1 << MSI_ADDR_DEST_MODE_SHIFT) & e->msi.address_lo;
+	irq->dest_mode = kvm_lapic_irq_dest_mode(
+	    !!((1 << MSI_ADDR_DEST_MODE_SHIFT) & e->msi.address_lo));
 	irq->trig_mode = (1 << MSI_DATA_TRIGGER_SHIFT) & e->msi.data;
 	irq->delivery_mode = e->msi.data & 0x700;
 	irq->msi_redir_hint = ((e->msi.address_lo
 		& MSI_ADDR_REDIRECTION_LOWPRI) > 0);
 	irq->level = 1;
-	irq->shorthand = 0;
+	irq->shorthand = APIC_DEST_NOSHORT;
 }
 EXPORT_SYMBOL_GPL(kvm_set_msi_irq);
 
@@ -416,7 +417,8 @@ void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
 
 			kvm_set_msi_irq(vcpu->kvm, entry, &irq);
 
-			if (irq.level && kvm_apic_match_dest(vcpu, NULL, 0,
+			if (irq.level &&
+			    kvm_apic_match_dest(vcpu, NULL, APIC_DEST_NOSHORT,
 						irq.dest_id, irq.dest_mode))
 				__set_bit(irq.vector, ioapic_handled_vectors);
 		}

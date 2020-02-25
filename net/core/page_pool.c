@@ -96,37 +96,73 @@ struct page_pool *page_pool_create(const struct page_pool_params *params)
 }
 EXPORT_SYMBOL(page_pool_create);
 
-/* fast path */
-static struct page *__page_pool_get_cached(struct page_pool *pool)
+static void __page_pool_return_page(struct page_pool *pool, struct page *page);
+
+noinline
+static struct page *page_pool_refill_alloc_cache(struct page_pool *pool)
 {
 	struct ptr_ring *r = &pool->ring;
-	bool refill = false;
 	struct page *page;
-
-	/* Test for safe-context, caller should provide this guarantee */
-	if (likely(in_serving_softirq())) {
-		if (likely(pool->alloc.count)) {
-			/* Fast-path */
-			page = pool->alloc.cache[--pool->alloc.count];
-			return page;
-		}
-		refill = true;
-	}
+	int pref_nid; /* preferred NUMA node */
 
 	/* Quicker fallback, avoid locks when ring is empty */
 	if (__ptr_ring_empty(r))
 		return NULL;
 
-	/* Slow-path: Get page from locked ring queue,
-	 * refill alloc array if requested.
+	/* Softirq guarantee CPU and thus NUMA node is stable. This,
+	 * assumes CPU refilling driver RX-ring will also run RX-NAPI.
 	 */
+#ifdef CONFIG_NUMA
+	pref_nid = (pool->p.nid == NUMA_NO_NODE) ? numa_mem_id() : pool->p.nid;
+#else
+	/* Ignore pool->p.nid setting if !CONFIG_NUMA, helps compiler */
+	pref_nid = numa_mem_id(); /* will be zero like page_to_nid() */
+#endif
+
+	/* Slower-path: Get pages from locked ring queue */
 	spin_lock(&r->consumer_lock);
-	page = __ptr_ring_consume(r);
-	if (refill)
-		pool->alloc.count = __ptr_ring_consume_batched(r,
-							pool->alloc.cache,
-							PP_ALLOC_CACHE_REFILL);
+
+	/* Refill alloc array, but only if NUMA match */
+	do {
+		page = __ptr_ring_consume(r);
+		if (unlikely(!page))
+			break;
+
+		if (likely(page_to_nid(page) == pref_nid)) {
+			pool->alloc.cache[pool->alloc.count++] = page;
+		} else {
+			/* NUMA mismatch;
+			 * (1) release 1 page to page-allocator and
+			 * (2) break out to fallthrough to alloc_pages_node.
+			 * This limit stress on page buddy alloactor.
+			 */
+			__page_pool_return_page(pool, page);
+			page = NULL;
+			break;
+		}
+	} while (pool->alloc.count < PP_ALLOC_CACHE_REFILL);
+
+	/* Return last page */
+	if (likely(pool->alloc.count > 0))
+		page = pool->alloc.cache[--pool->alloc.count];
+
 	spin_unlock(&r->consumer_lock);
+	return page;
+}
+
+/* fast path */
+static struct page *__page_pool_get_cached(struct page_pool *pool)
+{
+	struct page *page;
+
+	/* Caller MUST guarantee safe non-concurrent access, e.g. softirq */
+	if (likely(pool->alloc.count)) {
+		/* Fast-path */
+		page = pool->alloc.cache[--pool->alloc.count];
+	} else {
+		page = page_pool_refill_alloc_cache(pool);
+	}
+
 	return page;
 }
 
@@ -163,7 +199,11 @@ static struct page *__page_pool_alloc_pages_slow(struct page_pool *pool,
 	 */
 
 	/* Cache was empty, do real allocation */
+#ifdef CONFIG_NUMA
 	page = alloc_pages_node(pool->p.nid, gfp, pool->p.order);
+#else
+	page = alloc_pages(gfp, pool->p.order);
+#endif
 	if (!page)
 		return NULL;
 
@@ -311,13 +351,10 @@ static bool __page_pool_recycle_direct(struct page *page,
 
 /* page is NOT reusable when:
  * 1) allocated when system is under some pressure. (page_is_pfmemalloc)
- * 2) belongs to a different NUMA node than pool->p.nid.
- *
- * To update pool->p.nid users must call page_pool_update_nid.
  */
 static bool pool_page_reusable(struct page_pool *pool, struct page *page)
 {
-	return !page_is_pfmemalloc(page) && page_to_nid(page) == pool->p.nid;
+	return !page_is_pfmemalloc(page);
 }
 
 void __page_pool_put_page(struct page_pool *pool, struct page *page,
@@ -484,7 +521,15 @@ EXPORT_SYMBOL(page_pool_destroy);
 /* Caller must provide appropriate safe context, e.g. NAPI. */
 void page_pool_update_nid(struct page_pool *pool, int new_nid)
 {
+	struct page *page;
+
 	trace_page_pool_update_nid(pool, new_nid);
 	pool->p.nid = new_nid;
+
+	/* Flush pool alloc cache, as refill will check NUMA node */
+	while (pool->alloc.count) {
+		page = pool->alloc.cache[--pool->alloc.count];
+		__page_pool_return_page(pool, page);
+	}
 }
 EXPORT_SYMBOL(page_pool_update_nid);

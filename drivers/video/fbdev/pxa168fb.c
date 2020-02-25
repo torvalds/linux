@@ -665,7 +665,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	/*
 	 * Map LCD controller registers.
 	 */
-	fbi->reg_base = devm_ioremap_nocache(&pdev->dev, res->start,
+	fbi->reg_base = devm_ioremap(&pdev->dev, res->start,
 					     resource_size(res));
 	if (fbi->reg_base == NULL) {
 		ret = -ENOMEM;
@@ -769,7 +769,7 @@ failed_free_fbmem:
 	dma_free_wc(fbi->dev, info->fix.smem_len,
 		    info->screen_base, fbi->fb_start_dma);
 failed_free_info:
-	kfree(info);
+	framebuffer_release(info);
 
 	dev_err(&pdev->dev, "frame buffer device init failed with %d\n", ret);
 	return ret;

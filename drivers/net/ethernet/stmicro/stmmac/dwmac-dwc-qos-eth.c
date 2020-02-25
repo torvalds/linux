@@ -40,7 +40,7 @@ struct tegra_eqos {
 static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 				   struct plat_stmmacenet_data *plat_dat)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	u32 burst_map = 0;
 	u32 bit_index = 0;
 	u32 a_index = 0;
@@ -52,9 +52,10 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 			return -ENOMEM;
 	}
 
-	plat_dat->axi->axi_lpi_en = of_property_read_bool(np, "snps,en-lpi");
-	if (of_property_read_u32(np, "snps,write-requests",
-				 &plat_dat->axi->axi_wr_osr_lmt)) {
+	plat_dat->axi->axi_lpi_en = device_property_read_bool(dev,
+							      "snps,en-lpi");
+	if (device_property_read_u32(dev, "snps,write-requests",
+				     &plat_dat->axi->axi_wr_osr_lmt)) {
 		/**
 		 * Since the register has a reset value of 1, if property
 		 * is missing, default to 1.
@@ -68,8 +69,8 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 		plat_dat->axi->axi_wr_osr_lmt--;
 	}
 
-	if (of_property_read_u32(np, "snps,read-requests",
-				 &plat_dat->axi->axi_rd_osr_lmt)) {
+	if (device_property_read_u32(dev, "snps,read-requests",
+				     &plat_dat->axi->axi_rd_osr_lmt)) {
 		/**
 		 * Since the register has a reset value of 1, if property
 		 * is missing, default to 1.
@@ -82,7 +83,7 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 		 */
 		plat_dat->axi->axi_rd_osr_lmt--;
 	}
-	of_property_read_u32(np, "snps,burst-map", &burst_map);
+	device_property_read_u32(dev, "snps,burst-map", &burst_map);
 
 	/* converts burst-map bitmask to burst array */
 	for (bit_index = 0; bit_index < 7; bit_index++) {
@@ -270,6 +271,7 @@ static void *tegra_eqos_probe(struct platform_device *pdev,
 			      struct plat_stmmacenet_data *data,
 			      struct stmmac_resources *res)
 {
+	struct device *dev = &pdev->dev;
 	struct tegra_eqos *eqos;
 	int err;
 
@@ -281,6 +283,9 @@ static void *tegra_eqos_probe(struct platform_device *pdev,
 
 	eqos->dev = &pdev->dev;
 	eqos->regs = res->addr;
+
+	if (!is_of_node(dev->fwnode))
+		goto bypass_clk_reset_gpio;
 
 	eqos->clk_master = devm_clk_get(&pdev->dev, "master_bus");
 	if (IS_ERR(eqos->clk_master)) {
@@ -354,6 +359,7 @@ static void *tegra_eqos_probe(struct platform_device *pdev,
 
 	usleep_range(2000, 4000);
 
+bypass_clk_reset_gpio:
 	data->fix_mac_speed = tegra_eqos_fix_speed;
 	data->init = tegra_eqos_init;
 	data->bsp_priv = eqos;
@@ -421,7 +427,7 @@ static int dwc_eth_dwmac_probe(struct platform_device *pdev)
 	void *priv;
 	int ret;
 
-	data = of_device_get_match_data(&pdev->dev);
+	data = device_get_match_data(&pdev->dev);
 
 	memset(&stmmac_res, 0, sizeof(struct stmmac_resources));
 
@@ -478,7 +484,7 @@ static int dwc_eth_dwmac_remove(struct platform_device *pdev)
 	const struct dwc_eth_dwmac_data *data;
 	int err;
 
-	data = of_device_get_match_data(&pdev->dev);
+	data = device_get_match_data(&pdev->dev);
 
 	err = stmmac_dvr_remove(&pdev->dev);
 	if (err < 0)

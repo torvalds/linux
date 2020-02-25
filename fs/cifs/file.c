@@ -222,9 +222,6 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	if (!buf)
 		return -ENOMEM;
 
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
-
 	/* O_SYNC also has bit for O_DSYNC so following check picks up either */
 	if (f_flags & O_SYNC)
 		create_options |= CREATE_WRITE_THROUGH;
@@ -235,7 +232,7 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = desired_access;
-	oparms.create_options = create_options;
+	oparms.create_options = cifs_create_options(cifs_sb, create_options);
 	oparms.disposition = disposition;
 	oparms.path = full_path;
 	oparms.fid = fid;
@@ -752,9 +749,6 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 
 	desired_access = cifs_convert_flags(cfile->f_flags);
 
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
-
 	/* O_SYNC also has bit for O_DSYNC so following check picks up either */
 	if (cfile->f_flags & O_SYNC)
 		create_options |= CREATE_WRITE_THROUGH;
@@ -768,7 +762,7 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = desired_access;
-	oparms.create_options = create_options;
+	oparms.create_options = cifs_create_options(cifs_sb, create_options);
 	oparms.disposition = disposition;
 	oparms.path = full_path;
 	oparms.fid = &cfile->fid;
@@ -2599,8 +2593,10 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
 	rc = file_write_and_wait_range(file, start, end);
-	if (rc)
+	if (rc) {
+		trace_cifs_fsync_err(inode->i_ino, rc);
 		return rc;
+	}
 
 	xid = get_xid();
 
@@ -2638,8 +2634,10 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
 
 	rc = file_write_and_wait_range(file, start, end);
-	if (rc)
+	if (rc) {
+		trace_cifs_fsync_err(file_inode(file)->i_ino, rc);
 		return rc;
+	}
 
 	xid = get_xid();
 
@@ -2672,7 +2670,8 @@ int cifs_flush(struct file *file, fl_owner_t id)
 		rc = filemap_write_and_wait(inode->i_mapping);
 
 	cifs_dbg(FYI, "Flush inode %p file %p rc %d\n", inode, file, rc);
-
+	if (rc)
+		trace_cifs_flush_err(inode->i_ino, rc);
 	return rc;
 }
 
@@ -2921,7 +2920,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 					"direct_writev couldn't get user pages "
 					"(rc=%zd) iter type %d iov_offset %zd "
 					"count %zd\n",
-					result, from->type,
+					result, iov_iter_type(from),
 					from->iov_offset, from->count);
 				dump_stack();
 
@@ -3132,7 +3131,7 @@ static ssize_t __cifs_writev(
 	 * In this case, fall back to non-direct write function.
 	 * this could be improved by getting pages directly in ITER_KVEC
 	 */
-	if (direct && from->type & ITER_KVEC) {
+	if (direct && iov_iter_is_kvec(from)) {
 		cifs_dbg(FYI, "use non-direct cifs_writev for kvec I/O\n");
 		direct = false;
 	}
@@ -3652,7 +3651,7 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 					"couldn't get user pages (rc=%zd)"
 					" iter type %d"
 					" iov_offset %zd count %zd\n",
-					result, direct_iov.type,
+					result, iov_iter_type(&direct_iov),
 					direct_iov.iov_offset,
 					direct_iov.count);
 				dump_stack();
@@ -3863,7 +3862,7 @@ static ssize_t __cifs_readv(
 	 * fall back to data copy read path
 	 * this could be improved by getting pages directly in ITER_KVEC
 	 */
-	if (direct && to->type & ITER_KVEC) {
+	if (direct && iov_iter_is_kvec(to)) {
 		cifs_dbg(FYI, "use non-direct cifs_user_readv for kvec I/O\n");
 		direct = false;
 	}

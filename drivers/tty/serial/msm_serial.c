@@ -7,10 +7,6 @@
  * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
  */
 
-#if defined(CONFIG_SERIAL_MSM_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-# define SUPPORT_SYSRQ
-#endif
-
 #include <linux/kernel.h>
 #include <linux/atomic.h>
 #include <linux/dma-mapping.h>
@@ -610,7 +606,7 @@ static void msm_start_rx_dma(struct msm_port *msm_port)
 				   UARTDM_RX_SIZE, dma->dir);
 	ret = dma_mapping_error(uart->dev, dma->phys);
 	if (ret)
-		return;
+		goto sw_mode;
 
 	dma->desc = dmaengine_prep_slave_single(dma->chan, dma->phys,
 						UARTDM_RX_SIZE, DMA_DEV_TO_MEM,
@@ -661,6 +657,22 @@ static void msm_start_rx_dma(struct msm_port *msm_port)
 	return;
 unmap:
 	dma_unmap_single(uart->dev, dma->phys, UARTDM_RX_SIZE, dma->dir);
+
+sw_mode:
+	/*
+	 * Switch from DMA to SW/FIFO mode. After clearing Rx BAM (UARTDM_DMEN),
+	 * receiver must be reset.
+	 */
+	msm_write(uart, UART_CR_CMD_RESET_RX, UART_CR);
+	msm_write(uart, UART_CR_RX_ENABLE, UART_CR);
+
+	msm_write(uart, UART_CR_CMD_RESET_STALE_INT, UART_CR);
+	msm_write(uart, 0xFFFFFF, UARTDM_DMRX);
+	msm_write(uart, UART_CR_CMD_STALE_EVENT_ENABLE, UART_CR);
+
+	/* Re-enable RX interrupts */
+	msm_port->imr |= (UART_IMR_RXLEV | UART_IMR_RXSTALE);
+	msm_write(uart, msm_port->imr, UART_IMR);
 }
 
 static void msm_stop_rx(struct uart_port *port)
@@ -1810,6 +1822,7 @@ static int msm_serial_probe(struct platform_device *pdev)
 	if (unlikely(irq < 0))
 		return -ENXIO;
 	port->irq = irq;
+	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_MSM_CONSOLE);
 
 	platform_set_drvdata(pdev, port);
 

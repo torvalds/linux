@@ -192,21 +192,25 @@ config ARCH_R8A774C0
 	help
 	  This enables support for the Renesas RZ/G2E SoC.
 
+config ARCH_R8A77950
+	bool
+
+config ARCH_R8A77951
+	bool
+
 config ARCH_R8A7795
 	bool "Renesas R-Car H3 SoC Platform"
+	select ARCH_R8A77950
+	select ARCH_R8A77951
 	select ARCH_RCAR_GEN3
 	select SYSC_R8A7795
 	help
 	  This enables support for the Renesas R-Car H3 SoC.
 
 config ARCH_R8A77960
-	bool
+	bool "Renesas R-Car M3-W SoC Platform"
 	select ARCH_RCAR_GEN3
 	select SYSC_R8A77960
-
-config ARCH_R8A7796
-	bool "Renesas R-Car M3-W SoC Platform"
-	select ARCH_R8A77960
 	help
 	  This enables support for the Renesas R-Car M3-W SoC.
 

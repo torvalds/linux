@@ -1,9 +1,10 @@
-Ilitek ILI210x/ILI2117/ILI251x touchscreen controller
+Ilitek ILI210x/ILI2117/ILI2120/ILI251x touchscreen controller
 
 Required properties:
 - compatible:
     ilitek,ili210x for ILI210x
     ilitek,ili2117 for ILI2117
+    ilitek,ili2120 for ILI2120
     ilitek,ili251x for ILI251x
 
 - reg: The I2C address of the device

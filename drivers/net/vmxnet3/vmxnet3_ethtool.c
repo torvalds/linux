@@ -555,10 +555,8 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	}
 
 	if (VMXNET3_VERSION_GE_3(adapter)) {
-		if (param->rx_mini_pending < 0 ||
-		    param->rx_mini_pending > VMXNET3_RXDATA_DESC_MAX_SIZE) {
+		if (param->rx_mini_pending > VMXNET3_RXDATA_DESC_MAX_SIZE)
 			return -EINVAL;
-		}
 	} else if (param->rx_mini_pending != 0) {
 		return -EINVAL;
 	}

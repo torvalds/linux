@@ -12,8 +12,8 @@
 #include <linux/tcp.h>
 #include <linux/pkt_cls.h>
 #include <sys/socket.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 /* Sockmap sample program connects a client and a backend together
  * using cgroups.

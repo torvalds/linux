@@ -133,7 +133,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	u32 imr;
 
 	/* STAT_OP_TYPE_GENERIC STAT_PHASE_0: Interrupt */
-	/* if driver suspended return, probebly shared interrupt */
+	/* if driver suspended return, probably shared interrupt */
 	if (cc_pm_is_dev_suspended(dev))
 		return IRQ_NONE;
 
@@ -271,6 +271,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	const struct cc_hw_data *hw_rev;
 	const struct of_device_id *dev_id;
 	struct clk *clk;
+	int irq;
 	int rc = 0;
 
 	new_drvdata = devm_kzalloc(dev, sizeof(*new_drvdata), GFP_KERNEL);
@@ -337,9 +338,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		&req_mem_cc_regs->start, new_drvdata->cc_base);
 
 	/* Then IRQ */
-	new_drvdata->irq = platform_get_irq(plat_dev, 0);
-	if (new_drvdata->irq < 0)
-		return new_drvdata->irq;
+	irq = platform_get_irq(plat_dev, 0);
+	if (irq < 0)
+		return irq;
 
 	init_completion(&new_drvdata->hw_queue_avail);
 
@@ -442,14 +443,13 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X/0x%8X, Driver version %s\n",
 		 hw_rev->name, hw_rev_pidr, sig_cidr, DRV_MODULE_VERSION);
 	/* register the driver isr function */
-	rc = devm_request_irq(dev, new_drvdata->irq, cc_isr,
-			      IRQF_SHARED, "ccree", new_drvdata);
+	rc = devm_request_irq(dev, irq, cc_isr, IRQF_SHARED, "ccree",
+			      new_drvdata);
 	if (rc) {
-		dev_err(dev, "Could not register to interrupt %d\n",
-			new_drvdata->irq);
+		dev_err(dev, "Could not register to interrupt %d\n", irq);
 		goto post_clk_err;
 	}
-	dev_dbg(dev, "Registered to IRQ: %d\n", new_drvdata->irq);
+	dev_dbg(dev, "Registered to IRQ: %d\n", irq);
 
 	rc = init_cc_regs(new_drvdata, true);
 	if (rc) {
@@ -465,7 +465,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	rc = cc_fips_init(new_drvdata);
 	if (rc) {
-		dev_err(dev, "CC_FIPS_INIT failed 0x%x\n", rc);
+		dev_err(dev, "cc_fips_init failed 0x%x\n", rc);
 		goto post_debugfs_err;
 	}
 	rc = cc_sram_mgr_init(new_drvdata);
@@ -490,13 +490,13 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	rc = cc_buffer_mgr_init(new_drvdata);
 	if (rc) {
-		dev_err(dev, "buffer_mgr_init failed\n");
+		dev_err(dev, "cc_buffer_mgr_init failed\n");
 		goto post_req_mgr_err;
 	}
 
 	rc = cc_pm_init(new_drvdata);
 	if (rc) {
-		dev_err(dev, "ssi_power_mgr_init failed\n");
+		dev_err(dev, "cc_pm_init failed\n");
 		goto post_buf_mgr_err;
 	}
 

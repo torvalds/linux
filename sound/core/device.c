@@ -27,7 +27,7 @@
  * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_device_new(struct snd_card *card, enum snd_device_type type,
-		   void *device_data, struct snd_device_ops *ops)
+		   void *device_data, const struct snd_device_ops *ops)
 {
 	struct snd_device *dev;
 	struct list_head *p;

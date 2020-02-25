@@ -272,11 +272,11 @@ static int virtio_crypto_alg_skcipher_init_sessions(
 
 	if (keylen > vcrypto->max_cipher_key_len) {
 		pr_err("virtio_crypto: the key is too long\n");
-		goto bad_key;
+		return -EINVAL;
 	}
 
 	if (virtio_crypto_alg_validate_key(keylen, &alg))
-		goto bad_key;
+		return -EINVAL;
 
 	/* Create encryption session */
 	ret = virtio_crypto_alg_skcipher_init_session(ctx,
@@ -291,10 +291,6 @@ static int virtio_crypto_alg_skcipher_init_sessions(
 		return ret;
 	}
 	return 0;
-
-bad_key:
-	crypto_skcipher_set_flags(ctx->tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	return -EINVAL;
 }
 
 /* Note: kernel crypto API realization */

@@ -125,6 +125,12 @@
 			};
 		};
 	};
+
+	eeprom@50 {
+		compatible = "atmel,24c01";
+		reg = <0x50>;
+		status = "okay";
+	};
 };
 
 &pgc_gpu{

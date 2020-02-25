@@ -1150,7 +1150,7 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
 
-	base = ioremap_nocache(pci_resource_start(pdev, 0), len);
+	base = ioremap(pci_resource_start(pdev, 0), len);
 	if (base == NULL)
 		return;
 

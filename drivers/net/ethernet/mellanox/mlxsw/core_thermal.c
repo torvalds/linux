@@ -895,8 +895,10 @@ static int
 mlxsw_thermal_gearboxes_init(struct device *dev, struct mlxsw_core *core,
 			     struct mlxsw_thermal *thermal)
 {
+	enum mlxsw_reg_mgpir_device_type device_type;
 	struct mlxsw_thermal_module *gearbox_tz;
 	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
+	u8 gbox_num;
 	int i;
 	int err;
 
@@ -908,11 +910,13 @@ mlxsw_thermal_gearboxes_init(struct device *dev, struct mlxsw_core *core,
 	if (err)
 		return err;
 
-	mlxsw_reg_mgpir_unpack(mgpir_pl, &thermal->tz_gearbox_num, NULL, NULL,
+	mlxsw_reg_mgpir_unpack(mgpir_pl, &gbox_num, &device_type, NULL,
 			       NULL);
-	if (!thermal->tz_gearbox_num)
+	if (device_type != MLXSW_REG_MGPIR_DEVICE_TYPE_GEARBOX_DIE ||
+	    !gbox_num)
 		return 0;
 
+	thermal->tz_gearbox_num = gbox_num;
 	thermal->tz_gearbox_arr = kcalloc(thermal->tz_gearbox_num,
 					  sizeof(*thermal->tz_gearbox_arr),
 					  GFP_KERNEL);

@@ -337,38 +337,44 @@ void hisi_uncore_pmu_disable(struct pmu *pmu)
 	hisi_pmu->ops->stop_counters(hisi_pmu);
 }
 
+
 /*
- * Read Super CPU cluster and CPU cluster ID from MPIDR_EL1.
- * If multi-threading is supported, On Huawei Kunpeng 920 SoC whose cpu
- * core is tsv110, CCL_ID is the low 3-bits in MPIDR[Aff2] and SCCL_ID
- * is the upper 5-bits of Aff2 field; while for other cpu types, SCCL_ID
- * is in MPIDR[Aff3] and CCL_ID is in MPIDR[Aff2], if not, SCCL_ID
- * is in MPIDR[Aff2] and CCL_ID is in MPIDR[Aff1].
+ * The Super CPU Cluster (SCCL) and CPU Cluster (CCL) IDs can be
+ * determined from the MPIDR_EL1, but the encoding varies by CPU:
+ *
+ * - For MT variants of TSV110:
+ *   SCCL is Aff2[7:3], CCL is Aff2[2:0]
+ *
+ * - For other MT parts:
+ *   SCCL is Aff3[7:0], CCL is Aff2[7:0]
+ *
+ * - For non-MT parts:
+ *   SCCL is Aff2[7:0], CCL is Aff1[7:0]
  */
-static void hisi_read_sccl_and_ccl_id(int *sccl_id, int *ccl_id)
+static void hisi_read_sccl_and_ccl_id(int *scclp, int *cclp)
 {
 	u64 mpidr = read_cpuid_mpidr();
+	int aff3 = MPIDR_AFFINITY_LEVEL(mpidr, 3);
+	int aff2 = MPIDR_AFFINITY_LEVEL(mpidr, 2);
+	int aff1 = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+	bool mt = mpidr & MPIDR_MT_BITMASK;
+	int sccl, ccl;
 
-	if (mpidr & MPIDR_MT_BITMASK) {
-		if (read_cpuid_part_number() == HISI_CPU_PART_TSV110) {
-			int aff2 = MPIDR_AFFINITY_LEVEL(mpidr, 2);
-
-			if (sccl_id)
-				*sccl_id = aff2 >> 3;
-			if (ccl_id)
-				*ccl_id = aff2 & 0x7;
-		} else {
-			if (sccl_id)
-				*sccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 3);
-			if (ccl_id)
-				*ccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 2);
-		}
+	if (mt && read_cpuid_part_number() == HISI_CPU_PART_TSV110) {
+		sccl = aff2 >> 3;
+		ccl = aff2 & 0x7;
+	} else if (mt) {
+		sccl = aff3;
+		ccl = aff2;
 	} else {
-		if (sccl_id)
-			*sccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 2);
-		if (ccl_id)
-			*ccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+		sccl = aff2;
+		ccl = aff1;
 	}
+
+	if (scclp)
+		*scclp = sccl;
+	if (cclp)
+		*cclp = ccl;
 }
 
 /*

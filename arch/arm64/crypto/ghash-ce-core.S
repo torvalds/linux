@@ -350,13 +350,13 @@ CPU_LE(	rev64		T1.16b, T1.16b	)
 	 * void pmull_ghash_update(int blocks, u64 dg[], const char *src,
 	 *			   struct ghash_key const *k, const char *head)
 	 */
-ENTRY(pmull_ghash_update_p64)
+SYM_FUNC_START(pmull_ghash_update_p64)
 	__pmull_ghash	p64
-ENDPROC(pmull_ghash_update_p64)
+SYM_FUNC_END(pmull_ghash_update_p64)
 
-ENTRY(pmull_ghash_update_p8)
+SYM_FUNC_START(pmull_ghash_update_p8)
 	__pmull_ghash	p8
-ENDPROC(pmull_ghash_update_p8)
+SYM_FUNC_END(pmull_ghash_update_p8)
 
 	KS0		.req	v8
 	KS1		.req	v9

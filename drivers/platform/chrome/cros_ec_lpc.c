@@ -23,6 +23,7 @@
 #include <linux/printk.h>
 #include <linux/suspend.h>
 
+#include "cros_ec.h"
 #include "cros_ec_lpc_mec.h"
 
 #define DRV_NAME "cros_ec_lpcs"
@@ -396,7 +397,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	 * Some boards do not have an IRQ allotted for cros_ec_lpc,
 	 * which makes ENXIO an expected (and safe) scenario.
 	 */
-	irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq_optional(pdev, 0);
 	if (irq > 0)
 		ec_dev->irq = irq;
 	else if (irq != -ENXIO) {

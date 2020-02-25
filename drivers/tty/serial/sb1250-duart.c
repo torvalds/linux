@@ -15,10 +15,6 @@
  *	"BCM1250/BCM1125/BCM1125H User Manual", Broadcom Corporation
  */
 
-#if defined(CONFIG_SERIAL_SB1250_DUART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/compiler.h>
 #include <linux/console.h>
 #include <linux/delay.h>
@@ -668,7 +664,7 @@ static int sbd_map_port(struct uart_port *uport)
 	struct sbd_duart *duart = sport->duart;
 
 	if (!uport->membase)
-		uport->membase = ioremap_nocache(uport->mapbase,
+		uport->membase = ioremap(uport->mapbase,
 						 DUART_CHANREG_SPACING);
 	if (!uport->membase) {
 		printk(err);
@@ -676,7 +672,7 @@ static int sbd_map_port(struct uart_port *uport)
 	}
 
 	if (!sport->memctrl)
-		sport->memctrl = ioremap_nocache(duart->mapctrl,
+		sport->memctrl = ioremap(duart->mapctrl,
 						 DUART_CHANREG_SPACING);
 	if (!sport->memctrl) {
 		printk(err);
@@ -813,6 +809,7 @@ static void __init sbd_probe_duarts(void)
 			uport->ops	= &sbd_ops;
 			uport->line	= line;
 			uport->mapbase	= SBD_CHANREGS(line);
+			uport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_SB1250_DUART_CONSOLE);
 		}
 	}
 }

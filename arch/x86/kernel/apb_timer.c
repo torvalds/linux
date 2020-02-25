@@ -95,7 +95,7 @@ static inline void apbt_set_mapping(void)
 		printk(KERN_WARNING "No timer base from SFI, use default\n");
 		apbt_address = APBT_DEFAULT_BASE;
 	}
-	apbt_virt_address = ioremap_nocache(apbt_address, APBT_MMAP_SIZE);
+	apbt_virt_address = ioremap(apbt_address, APBT_MMAP_SIZE);
 	if (!apbt_virt_address) {
 		pr_debug("Failed mapping APBT phy address at %lu\n",\
 			 (unsigned long)apbt_address);

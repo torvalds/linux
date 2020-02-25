@@ -436,8 +436,7 @@ static int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 static int sctp_send_asconf(struct sctp_association *asoc,
 			    struct sctp_chunk *chunk)
 {
-	struct net 	*net = sock_net(asoc->base.sk);
-	int		retval = 0;
+	int retval = 0;
 
 	/* If there is an outstanding ASCONF chunk, queue it for later
 	 * transmission.
@@ -449,7 +448,7 @@ static int sctp_send_asconf(struct sctp_association *asoc,
 
 	/* Hold the chunk until an ASCONF_ACK is received. */
 	sctp_chunk_hold(chunk);
-	retval = sctp_primitive_ASCONF(net, asoc, chunk);
+	retval = sctp_primitive_ASCONF(asoc->base.net, asoc, chunk);
 	if (retval)
 		sctp_chunk_free(chunk);
 	else
@@ -2428,9 +2427,8 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 	int error;
 
 	if (params->spp_flags & SPP_HB_DEMAND && trans) {
-		struct net *net = sock_net(trans->asoc->base.sk);
-
-		error = sctp_primitive_REQUESTHEARTBEAT(net, trans->asoc, trans);
+		error = sctp_primitive_REQUESTHEARTBEAT(trans->asoc->base.net,
+							trans->asoc, trans);
 		if (error)
 			return error;
 	}
@@ -5364,7 +5362,7 @@ struct sctp_transport *sctp_transport_get_next(struct net *net,
 		if (!sctp_transport_hold(t))
 			continue;
 
-		if (net_eq(sock_net(t->asoc->base.sk), net) &&
+		if (net_eq(t->asoc->base.net, net) &&
 		    t->asoc->peer.primary_path == t)
 			break;
 

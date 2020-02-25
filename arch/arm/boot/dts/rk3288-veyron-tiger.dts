@@ -53,7 +53,7 @@
 };
 
 &panel {
-	compatible = "auo,b101ean01", "simple-panel";
+	compatible = "auo,b101ean01";
 
 	/delete-node/ panel-timing;
 

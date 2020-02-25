@@ -112,6 +112,8 @@
  *	6) Eventually, the free function will be called.
  */
 
+#define IWL_TRANS_FW_DBG_DOMAIN(trans)	IWL_FW_INI_DOMAIN_ALWAYS_ON
+
 #define FH_RSCSR_FRAME_SIZE_MSK		0x00003FFF	/* bits 0-13 */
 #define FH_RSCSR_FRAME_INVALID		0x55550000
 #define FH_RSCSR_FRAME_ALIGN		0x40
@@ -191,6 +193,18 @@ struct iwl_device_cmd {
 					sizeof(struct iwl_cmd_header)];
 		};
 	};
+} __packed;
+
+/**
+ * struct iwl_device_tx_cmd - buffer for TX command
+ * @hdr: the header
+ * @payload: the payload placeholder
+ *
+ * The actual structure is sized dynamically according to need.
+ */
+struct iwl_device_tx_cmd {
+	struct iwl_cmd_header hdr;
+	u8 payload[];
 } __packed;
 
 #define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
@@ -355,6 +369,24 @@ iwl_trans_get_rb_size_order(enum iwl_amsdu_size rb_size)
 	default:
 		WARN_ON(1);
 		return -1;
+	}
+}
+
+static inline int
+iwl_trans_get_rb_size(enum iwl_amsdu_size rb_size)
+{
+	switch (rb_size) {
+	case IWL_AMSDU_2K:
+		return 2 * 1024;
+	case IWL_AMSDU_4K:
+		return 4 * 1024;
+	case IWL_AMSDU_8K:
+		return 8 * 1024;
+	case IWL_AMSDU_12K:
+		return 12 * 1024;
+	default:
+		WARN_ON(1);
+		return 0;
 	}
 }
 
@@ -544,7 +576,7 @@ struct iwl_trans_ops {
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
 	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
-		  struct iwl_device_cmd *dev_cmd, int queue);
+		  struct iwl_device_tx_cmd *dev_cmd, int queue);
 	void (*reclaim)(struct iwl_trans *trans, int queue, int ssn,
 			struct sk_buff_head *skbs);
 
@@ -839,6 +871,8 @@ struct iwl_trans {
 
 	enum iwl_plat_pm_mode system_pm_mode;
 
+	const char *name;
+
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
 	char trans_specific[0] __aligned(sizeof(void *));
@@ -948,22 +982,22 @@ iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask)
 	return trans->ops->dump_data(trans, dump_mask);
 }
 
-static inline struct iwl_device_cmd *
+static inline struct iwl_device_tx_cmd *
 iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
 {
-	return kmem_cache_alloc(trans->dev_cmd_pool, GFP_ATOMIC);
+	return kmem_cache_zalloc(trans->dev_cmd_pool, GFP_ATOMIC);
 }
 
 int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
 static inline void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
-					 struct iwl_device_cmd *dev_cmd)
+					 struct iwl_device_tx_cmd *dev_cmd)
 {
 	kmem_cache_free(trans->dev_cmd_pool, dev_cmd);
 }
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
-			       struct iwl_device_cmd *dev_cmd, int queue)
+			       struct iwl_device_tx_cmd *dev_cmd, int queue)
 {
 	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
 		return -EIO;
@@ -1271,7 +1305,9 @@ static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
  *****************************************************/
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
-				  const struct iwl_trans_ops *ops);
+				  const struct iwl_trans_ops *ops,
+				  unsigned int cmd_pool_size,
+				  unsigned int cmd_pool_align);
 void iwl_trans_free(struct iwl_trans *trans);
 
 /*****************************************************

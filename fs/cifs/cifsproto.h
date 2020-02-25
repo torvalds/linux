@@ -213,6 +213,7 @@ extern struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *,
 						const struct cifs_fid *, u32 *);
 extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
 				const char *, int);
+extern unsigned int setup_authusers_ACE(struct cifs_ace *pace);
 extern unsigned int setup_special_mode_ACE(struct cifs_ace *pace, __u64 nmode);
 
 extern void dequeue_mid(struct mid_q_entry *mid, bool malformed);
@@ -596,6 +597,9 @@ bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface);
 
 void extract_unc_hostname(const char *unc, const char **h, size_t *len);
 int copy_path_name(char *dst, const char *src);
+int smb2_parse_query_directory(struct cifs_tcon *tcon, struct kvec *rsp_iov,
+			       int resp_buftype,
+			       struct cifs_search_info *srch_inf);
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
@@ -607,5 +611,13 @@ static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 			      referral, NULL);
 }
 #endif
+
+static inline int cifs_create_options(struct cifs_sb_info *cifs_sb, int options)
+{
+	if (cifs_sb && (backup_cred(cifs_sb)))
+		return options | CREATE_OPEN_BACKUP_INTENT;
+	else
+		return options;
+}
 
 #endif			/* _CIFSPROTO_H */

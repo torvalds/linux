@@ -2377,7 +2377,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				ts->buf_valid_size = sizeof(*resp);
 			} else
 				PM8001_IO_DBG(pm8001_ha,
-					pm8001_printk("response to large\n"));
+					pm8001_printk("response too large\n"));
 		}
 		if (pm8001_dev)
 			pm8001_dev->running_req--;

@@ -135,7 +135,7 @@ void __init fw_init_early_console(char port)
 	char *arch_cmdline = pic32_getcmdline();
 	int baud = -1;
 
-	uart_base = ioremap_nocache(PIC32_BASE_UART, 0xc00);
+	uart_base = ioremap(PIC32_BASE_UART, 0xc00);
 
 	baud = get_baud_from_cmdline(arch_cmdline);
 	if (port == -1)

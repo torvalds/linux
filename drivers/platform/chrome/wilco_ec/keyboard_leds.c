@@ -69,7 +69,7 @@ static int send_kbbl_msg(struct wilco_ec_device *ec,
 	ret = wilco_ec_mailbox(ec, &msg);
 	if (ret < 0) {
 		dev_err(ec->dev,
-			"Failed sending keyboard LEDs command: %d", ret);
+			"Failed sending keyboard LEDs command: %d\n", ret);
 		return ret;
 	}
 
@@ -94,7 +94,7 @@ static int set_kbbl(struct wilco_ec_device *ec, enum led_brightness brightness)
 
 	if (response.status) {
 		dev_err(ec->dev,
-			"EC reported failure sending keyboard LEDs command: %d",
+			"EC reported failure sending keyboard LEDs command: %d\n",
 			response.status);
 		return -EIO;
 	}
@@ -147,7 +147,7 @@ static int kbbl_init(struct wilco_ec_device *ec)
 
 	if (response.status) {
 		dev_err(ec->dev,
-			"EC reported failure sending keyboard LEDs command: %d",
+			"EC reported failure sending keyboard LEDs command: %d\n",
 			response.status);
 		return -EIO;
 	}
@@ -179,7 +179,7 @@ int wilco_keyboard_leds_init(struct wilco_ec_device *ec)
 	ret = kbbl_exist(ec, &leds_exist);
 	if (ret < 0) {
 		dev_err(ec->dev,
-			"Failed checking keyboard LEDs support: %d", ret);
+			"Failed checking keyboard LEDs support: %d\n", ret);
 		return ret;
 	}
 	if (!leds_exist)

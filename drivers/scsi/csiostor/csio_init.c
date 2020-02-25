@@ -529,7 +529,7 @@ static struct csio_hw *csio_hw_alloc(struct pci_dev *pdev)
 		goto err_free_hw;
 
 	/* Get the start address of registers from BAR 0 */
-	hw->regstart = ioremap_nocache(pci_resource_start(pdev, 0),
+	hw->regstart = ioremap(pci_resource_start(pdev, 0),
 				       pci_resource_len(pdev, 0));
 	if (!hw->regstart) {
 		csio_err(hw, "Could not map BAR 0, regstart = %p\n",

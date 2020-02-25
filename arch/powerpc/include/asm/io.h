@@ -691,8 +691,6 @@ static inline void iosync(void)
  * * ioremap_prot allows to specify the page flags as an argument and can
  *   also be hooked by the platform via ppc_md.
  *
- * * ioremap_nocache is identical to ioremap
- *
  * * ioremap_wc enables write combining
  *
  * * ioremap_wt enables write through
@@ -715,7 +713,6 @@ extern void __iomem *ioremap_prot(phys_addr_t address, unsigned long size,
 extern void __iomem *ioremap_wc(phys_addr_t address, unsigned long size);
 void __iomem *ioremap_wt(phys_addr_t address, unsigned long size);
 void __iomem *ioremap_coherent(phys_addr_t address, unsigned long size);
-#define ioremap_nocache(addr, size)	ioremap((addr), (size))
 #define ioremap_uc(addr, size)		ioremap((addr), (size))
 #define ioremap_cache(addr, size) \
 	ioremap_prot((addr), (size), pgprot_val(PAGE_KERNEL))

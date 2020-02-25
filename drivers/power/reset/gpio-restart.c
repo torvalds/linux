@@ -64,9 +64,11 @@ static int gpio_restart_probe(struct platform_device *pdev)
 
 	gpio_restart->reset_gpio = devm_gpiod_get(&pdev->dev, NULL,
 			open_source ? GPIOD_IN : GPIOD_OUT_LOW);
-	if (IS_ERR(gpio_restart->reset_gpio)) {
-		dev_err(&pdev->dev, "Could not get reset GPIO\n");
-		return PTR_ERR(gpio_restart->reset_gpio);
+	ret = PTR_ERR_OR_ZERO(gpio_restart->reset_gpio);
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Could not get reset GPIO\n");
+		return ret;
 	}
 
 	gpio_restart->restart_handler.notifier_call = gpio_restart_notify;

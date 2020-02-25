@@ -8,10 +8,6 @@
  *
  */
 
-#if defined(CONFIG_SERIAL_8250_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
@@ -1147,7 +1143,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	membase = devm_ioremap_nocache(&pdev->dev, regs->start,
+	membase = devm_ioremap(&pdev->dev, regs->start,
 				       resource_size(regs));
 	if (!membase)
 		return -ENODEV;
@@ -1192,6 +1188,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.port.throttle = omap_8250_throttle;
 	up.port.unthrottle = omap_8250_unthrottle;
 	up.port.rs485_config = omap_8250_rs485_config;
+	up.port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {

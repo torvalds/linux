@@ -479,6 +479,10 @@ tcp_no_metrics_save - BOOLEAN
 	degradation.  If set, TCP will not cache metrics on closing
 	connections.
 
+tcp_no_ssthresh_metrics_save - BOOLEAN
+	Controls whether TCP saves ssthresh metrics in the route cache.
+	Default is 1, which disables ssthresh metrics.
+
 tcp_orphan_retries - INTEGER
 	This value influences the timeout of a locally closed TCP connection,
 	when RTO retransmissions remain unacknowledged.

@@ -50,6 +50,7 @@ struct power_dom_info {
 };
 
 struct scmi_power_info {
+	u32 version;
 	int num_domains;
 	u64 stats_addr;
 	u32 stats_size;
@@ -207,6 +208,7 @@ static int scmi_power_protocol_init(struct scmi_handle *handle)
 		scmi_power_domain_attributes_get(handle, domain, dom);
 	}
 
+	pinfo->version = version;
 	handle->power_ops = &power_ops;
 	handle->power_priv = pinfo;
 

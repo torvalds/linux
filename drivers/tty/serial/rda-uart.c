@@ -498,7 +498,7 @@ static int rda_uart_request_port(struct uart_port *port)
 		return -EBUSY;
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+		port->membase = devm_ioremap(port->dev, port->mapbase,
 						     resource_size(res));
 		if (!port->membase)
 			return -EBUSY;

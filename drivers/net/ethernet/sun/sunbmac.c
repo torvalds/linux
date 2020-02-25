@@ -941,7 +941,7 @@ static int bigmac_close(struct net_device *dev)
 	return 0;
 }
 
-static void bigmac_tx_timeout(struct net_device *dev)
+static void bigmac_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct bigmac *bp = netdev_priv(dev);
 

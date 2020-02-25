@@ -104,25 +104,6 @@ static int uniphier_aiodma_open(struct snd_soc_component *component,
 		SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256);
 }
 
-static int uniphier_aiodma_hw_params(struct snd_soc_component *component,
-				     struct snd_pcm_substream *substream,
-				     struct snd_pcm_hw_params *params)
-{
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-	substream->runtime->dma_bytes = params_buffer_bytes(params);
-
-	return 0;
-}
-
-static int uniphier_aiodma_hw_free(struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream)
-{
-	snd_pcm_set_runtime_buffer(substream, NULL);
-	substream->runtime->dma_bytes = 0;
-
-	return 0;
-}
-
 static int uniphier_aiodma_prepare(struct snd_soc_component *component,
 				   struct snd_pcm_substream *substream)
 {
@@ -232,30 +213,20 @@ static int uniphier_aiodma_new(struct snd_soc_component *component,
 	if (ret)
 		return ret;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm,
+	snd_pcm_set_managed_buffer_all(pcm,
 		SNDRV_DMA_TYPE_DEV, dev,
 		uniphier_aiodma_hw.buffer_bytes_max,
 		uniphier_aiodma_hw.buffer_bytes_max);
 	return 0;
 }
 
-static void uniphier_aiodma_free(struct snd_soc_component *component,
-				 struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static const struct snd_soc_component_driver uniphier_soc_platform = {
 	.open		= uniphier_aiodma_open,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
-	.hw_params	= uniphier_aiodma_hw_params,
-	.hw_free	= uniphier_aiodma_hw_free,
 	.prepare	= uniphier_aiodma_prepare,
 	.trigger	= uniphier_aiodma_trigger,
 	.pointer	= uniphier_aiodma_pointer,
 	.mmap		= uniphier_aiodma_mmap,
 	.pcm_construct	= uniphier_aiodma_new,
-	.pcm_destruct	= uniphier_aiodma_free,
 	.compr_ops	= &uniphier_aio_compr_ops,
 };
 

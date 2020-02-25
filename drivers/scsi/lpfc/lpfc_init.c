@@ -1362,7 +1362,7 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	if (vports != NULL)
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			lpfc_rcv_seq_check_edtov(vports[i]);
-			lpfc_fdmi_num_disc_check(vports[i]);
+			lpfc_fdmi_change_check(vports[i]);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
@@ -8320,14 +8320,6 @@ lpfc_map_topology(struct lpfc_hba *phba, struct lpfc_mbx_read_config *rd_config)
 	phba->hba_flag |= HBA_PERSISTENT_TOPO;
 	switch (phba->pcidev->device) {
 	case PCI_DEVICE_ID_LANCER_G7_FC:
-		if (tf || (pt == LINK_FLAGS_LOOP)) {
-			/* Invalid values from FW - use driver params */
-			phba->hba_flag &= ~HBA_PERSISTENT_TOPO;
-		} else {
-			/* Prism only supports PT2PT topology */
-			phba->cfg_topology = FLAGS_TOPOLOGY_MODE_PT_PT;
-		}
-		break;
 	case PCI_DEVICE_ID_LANCER_G6_FC:
 		if (!tf) {
 			phba->cfg_topology = ((pt == LINK_FLAGS_LOOP)
@@ -10449,6 +10441,8 @@ lpfc_sli4_pci_mem_unset(struct lpfc_hba *phba)
 	case LPFC_SLI_INTF_IF_TYPE_6:
 		iounmap(phba->sli4_hba.drbl_regs_memmap_p);
 		iounmap(phba->sli4_hba.conf_regs_memmap_p);
+		if (phba->sli4_hba.dpp_regs_memmap_p)
+			iounmap(phba->sli4_hba.dpp_regs_memmap_p);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:

@@ -161,6 +161,7 @@ extern const struct clk_ops clk_byte2_ops;
 extern const struct clk_ops clk_pixel_ops;
 extern const struct clk_ops clk_gfx3d_ops;
 extern const struct clk_ops clk_rcg2_shared_ops;
+extern const struct clk_ops clk_dp_ops;
 
 struct clk_rcg_dfs_data {
 	struct clk_rcg2 *rcg;

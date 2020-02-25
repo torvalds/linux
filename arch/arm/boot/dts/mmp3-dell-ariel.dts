@@ -49,6 +49,28 @@
 	status = "okay";
 };
 
+&hsic0 {
+	status = "okay";
+
+	usb1@1 {
+		compatible = "usb424,2640";
+		reg = <0x01>;
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+
+		mass-storage@1 {
+			compatible = "usb424,4040";
+			reg = <0x01>;
+			status = "disabled";
+		};
+	};
+};
+
+&hsic_phy0 {
+	status = "okay";
+	reset-gpios = <&gpio 63 GPIO_ACTIVE_HIGH>;
+};
+
 &mmc3 {
 	status = "okay";
 	max-frequency = <50000000>;

@@ -660,7 +660,6 @@ static snd_pcm_uframes_t emu8k_pcm_pointer(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops emu8k_pcm_ops = {
 	.open =		emu8k_pcm_open,
 	.close =	emu8k_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	emu8k_pcm_hw_params,
 	.hw_free =	emu8k_pcm_hw_free,
 	.prepare =	emu8k_pcm_prepare,

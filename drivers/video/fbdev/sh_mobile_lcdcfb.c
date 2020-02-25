@@ -2588,7 +2588,7 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 	if (num_channels == 2)
 		priv->forced_fourcc = pdata->ch[0].fourcc;
 
-	priv->base = ioremap_nocache(res->start, resource_size(res));
+	priv->base = ioremap(res->start, resource_size(res));
 	if (!priv->base) {
 		error = -ENOMEM;
 		goto err1;

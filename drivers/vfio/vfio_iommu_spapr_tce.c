@@ -79,7 +79,7 @@ static long tce_iommu_mm_set(struct tce_container *container)
 	}
 	BUG_ON(!current->mm);
 	container->mm = current->mm;
-	atomic_inc(&container->mm->mm_count);
+	mmgrab(container->mm);
 
 	return 0;
 }

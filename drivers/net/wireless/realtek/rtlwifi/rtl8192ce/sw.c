@@ -14,7 +14,6 @@
 #include "../rtl8192c/phy_common.h"
 #include "hw.h"
 #include "rf.h"
-#include "sw.h"
 #include "trx.h"
 #include "led.h"
 
@@ -65,7 +64,7 @@ static void rtl92c_init_aspm_vars(struct ieee80211_hw *hw)
 	rtlpci->const_support_pciaspm = rtlpriv->cfg->mod_params->aspm_support;
 }
 
-int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
+static int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 {
 	int err;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -161,7 +160,7 @@ int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 	return 0;
 }
 
-void rtl92c_deinit_sw_vars(struct ieee80211_hw *hw)
+static void rtl92c_deinit_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 

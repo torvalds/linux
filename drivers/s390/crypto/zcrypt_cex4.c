@@ -19,6 +19,7 @@
 #include "zcrypt_error.h"
 #include "zcrypt_cex4.h"
 #include "zcrypt_ccamisc.h"
+#include "zcrypt_ep11misc.h"
 
 #define CEX4A_MIN_MOD_SIZE	  1	/*    8 bits	*/
 #define CEX4A_MAX_MOD_SIZE_2K	256	/* 2048 bits	*/
@@ -71,11 +72,11 @@ static struct ap_device_id zcrypt_cex4_queue_ids[] = {
 MODULE_DEVICE_TABLE(ap, zcrypt_cex4_queue_ids);
 
 /*
- * CCA card addditional device attributes
+ * CCA card additional device attributes
  */
-static ssize_t serialnr_show(struct device *dev,
-			     struct device_attribute *attr,
-			     char *buf)
+static ssize_t cca_serialnr_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	struct cca_info ci;
 	struct ap_card *ac = to_ap_card(dev);
@@ -88,23 +89,25 @@ static ssize_t serialnr_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", ci.serial);
 }
-static DEVICE_ATTR_RO(serialnr);
+
+static struct device_attribute dev_attr_cca_serialnr =
+	__ATTR(serialnr, 0444, cca_serialnr_show, NULL);
 
 static struct attribute *cca_card_attrs[] = {
-	&dev_attr_serialnr.attr,
+	&dev_attr_cca_serialnr.attr,
 	NULL,
 };
 
-static const struct attribute_group cca_card_attr_group = {
+static const struct attribute_group cca_card_attr_grp = {
 	.attrs = cca_card_attrs,
 };
 
-/*
- * CCA queue addditional device attributes
- */
-static ssize_t mkvps_show(struct device *dev,
-			  struct device_attribute *attr,
-			  char *buf)
+ /*
+  * CCA queue additional device attributes
+  */
+static ssize_t cca_mkvps_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
 {
 	int n = 0;
 	struct cca_info ci;
@@ -138,15 +141,231 @@ static ssize_t mkvps_show(struct device *dev,
 
 	return n;
 }
-static DEVICE_ATTR_RO(mkvps);
+
+static struct device_attribute dev_attr_cca_mkvps =
+	__ATTR(mkvps, 0444, cca_mkvps_show, NULL);
 
 static struct attribute *cca_queue_attrs[] = {
-	&dev_attr_mkvps.attr,
+	&dev_attr_cca_mkvps.attr,
 	NULL,
 };
 
-static const struct attribute_group cca_queue_attr_group = {
+static const struct attribute_group cca_queue_attr_grp = {
 	.attrs = cca_queue_attrs,
+};
+
+/*
+ * EP11 card additional device attributes
+ */
+static ssize_t ep11_api_ordinalnr_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct ep11_card_info ci;
+	struct ap_card *ac = to_ap_card(dev);
+	struct zcrypt_card *zc = ac->private;
+
+	memset(&ci, 0, sizeof(ci));
+
+	ep11_get_card_info(ac->id, &ci, zc->online);
+
+	if (ci.API_ord_nr > 0)
+		return snprintf(buf, PAGE_SIZE, "%u\n", ci.API_ord_nr);
+	else
+		return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+static struct device_attribute dev_attr_ep11_api_ordinalnr =
+	__ATTR(API_ordinalnr, 0444, ep11_api_ordinalnr_show, NULL);
+
+static ssize_t ep11_fw_version_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct ep11_card_info ci;
+	struct ap_card *ac = to_ap_card(dev);
+	struct zcrypt_card *zc = ac->private;
+
+	memset(&ci, 0, sizeof(ci));
+
+	ep11_get_card_info(ac->id, &ci, zc->online);
+
+	if (ci.FW_version > 0)
+		return snprintf(buf, PAGE_SIZE, "%d.%d\n",
+				(int)(ci.FW_version >> 8),
+				(int)(ci.FW_version & 0xFF));
+	else
+		return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+static struct device_attribute dev_attr_ep11_fw_version =
+	__ATTR(FW_version, 0444, ep11_fw_version_show, NULL);
+
+static ssize_t ep11_serialnr_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct ep11_card_info ci;
+	struct ap_card *ac = to_ap_card(dev);
+	struct zcrypt_card *zc = ac->private;
+
+	memset(&ci, 0, sizeof(ci));
+
+	ep11_get_card_info(ac->id, &ci, zc->online);
+
+	if (ci.serial[0])
+		return snprintf(buf, PAGE_SIZE, "%16.16s\n", ci.serial);
+	else
+		return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+static struct device_attribute dev_attr_ep11_serialnr =
+	__ATTR(serialnr, 0444, ep11_serialnr_show, NULL);
+
+static const struct {
+	int	    mode_bit;
+	const char *mode_txt;
+} ep11_op_modes[] = {
+	{ 0, "FIPS2009" },
+	{ 1, "BSI2009" },
+	{ 2, "FIPS2011" },
+	{ 3, "BSI2011" },
+	{ 6, "BSICC2017" },
+	{ 0, NULL }
+};
+
+static ssize_t ep11_card_op_modes_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	int i, n = 0;
+	struct ep11_card_info ci;
+	struct ap_card *ac = to_ap_card(dev);
+	struct zcrypt_card *zc = ac->private;
+
+	memset(&ci, 0, sizeof(ci));
+
+	ep11_get_card_info(ac->id, &ci, zc->online);
+
+	for (i = 0; ep11_op_modes[i].mode_txt; i++) {
+		if (ci.op_mode & (1 << ep11_op_modes[i].mode_bit)) {
+			if (n > 0)
+				buf[n++] = ' ';
+			n += snprintf(buf + n, PAGE_SIZE - n,
+				      "%s", ep11_op_modes[i].mode_txt);
+		}
+	}
+	n += snprintf(buf + n, PAGE_SIZE - n, "\n");
+
+	return n;
+}
+
+static struct device_attribute dev_attr_ep11_card_op_modes =
+	__ATTR(op_modes, 0444, ep11_card_op_modes_show, NULL);
+
+static struct attribute *ep11_card_attrs[] = {
+	&dev_attr_ep11_api_ordinalnr.attr,
+	&dev_attr_ep11_fw_version.attr,
+	&dev_attr_ep11_serialnr.attr,
+	&dev_attr_ep11_card_op_modes.attr,
+	NULL,
+};
+
+static const struct attribute_group ep11_card_attr_grp = {
+	.attrs = ep11_card_attrs,
+};
+
+/*
+ * EP11 queue additional device attributes
+ */
+
+static ssize_t ep11_mkvps_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	int n = 0;
+	struct ep11_domain_info di;
+	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
+	static const char * const cwk_state[] = { "invalid", "valid" };
+	static const char * const nwk_state[] = { "empty", "uncommitted",
+						  "committed" };
+
+	memset(&di, 0, sizeof(di));
+
+	if (zq->online)
+		ep11_get_domain_info(AP_QID_CARD(zq->queue->qid),
+				     AP_QID_QUEUE(zq->queue->qid),
+				     &di);
+
+	if (di.cur_wk_state == '0') {
+		n = snprintf(buf, PAGE_SIZE, "WK CUR: %s -\n",
+			     cwk_state[di.cur_wk_state - '0']);
+	} else if (di.cur_wk_state == '1') {
+		n = snprintf(buf, PAGE_SIZE, "WK CUR: %s 0x",
+			     cwk_state[di.cur_wk_state - '0']);
+		bin2hex(buf + n, di.cur_wkvp, sizeof(di.cur_wkvp));
+		n += 2 * sizeof(di.cur_wkvp);
+		n += snprintf(buf + n, PAGE_SIZE - n, "\n");
+	} else
+		n = snprintf(buf, PAGE_SIZE, "WK CUR: - -\n");
+
+	if (di.new_wk_state == '0') {
+		n += snprintf(buf + n, PAGE_SIZE - n, "WK NEW: %s -\n",
+			      nwk_state[di.new_wk_state - '0']);
+	} else if (di.new_wk_state >= '1' && di.new_wk_state <= '2') {
+		n += snprintf(buf + n, PAGE_SIZE - n, "WK NEW: %s 0x",
+			      nwk_state[di.new_wk_state - '0']);
+		bin2hex(buf + n, di.new_wkvp, sizeof(di.new_wkvp));
+		n += 2 * sizeof(di.new_wkvp);
+		n += snprintf(buf + n, PAGE_SIZE - n, "\n");
+	} else
+		n += snprintf(buf + n, PAGE_SIZE - n, "WK NEW: - -\n");
+
+	return n;
+}
+
+static struct device_attribute dev_attr_ep11_mkvps =
+	__ATTR(mkvps, 0444, ep11_mkvps_show, NULL);
+
+static ssize_t ep11_queue_op_modes_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	int i, n = 0;
+	struct ep11_domain_info di;
+	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
+
+	memset(&di, 0, sizeof(di));
+
+	if (zq->online)
+		ep11_get_domain_info(AP_QID_CARD(zq->queue->qid),
+				     AP_QID_QUEUE(zq->queue->qid),
+				     &di);
+
+	for (i = 0; ep11_op_modes[i].mode_txt; i++) {
+		if (di.op_mode & (1 << ep11_op_modes[i].mode_bit)) {
+			if (n > 0)
+				buf[n++] = ' ';
+			n += snprintf(buf + n, PAGE_SIZE - n,
+				      "%s", ep11_op_modes[i].mode_txt);
+		}
+	}
+	n += snprintf(buf + n, PAGE_SIZE - n, "\n");
+
+	return n;
+}
+
+static struct device_attribute dev_attr_ep11_queue_op_modes =
+	__ATTR(op_modes, 0444, ep11_queue_op_modes_show, NULL);
+
+static struct attribute *ep11_queue_attrs[] = {
+	&dev_attr_ep11_mkvps.attr,
+	&dev_attr_ep11_queue_op_modes.attr,
+	NULL,
+};
+
+static const struct attribute_group ep11_queue_attr_grp = {
+	.attrs = ep11_queue_attrs,
 };
 
 /**
@@ -313,7 +532,12 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 
 	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO)) {
 		rc = sysfs_create_group(&ap_dev->device.kobj,
-					&cca_card_attr_group);
+					&cca_card_attr_grp);
+		if (rc)
+			zcrypt_card_unregister(zc);
+	} else if (ap_test_bit(&ac->functions, AP_FUNC_EP11)) {
+		rc = sysfs_create_group(&ap_dev->device.kobj,
+					&ep11_card_attr_grp);
 		if (rc)
 			zcrypt_card_unregister(zc);
 	}
@@ -332,7 +556,9 @@ static void zcrypt_cex4_card_remove(struct ap_device *ap_dev)
 	struct zcrypt_card *zc = ac->private;
 
 	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO))
-		sysfs_remove_group(&ap_dev->device.kobj, &cca_card_attr_group);
+		sysfs_remove_group(&ap_dev->device.kobj, &cca_card_attr_grp);
+	else if (ap_test_bit(&ac->functions, AP_FUNC_EP11))
+		sysfs_remove_group(&ap_dev->device.kobj, &ep11_card_attr_grp);
 	if (zc)
 		zcrypt_card_unregister(zc);
 }
@@ -394,7 +620,12 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 
 	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO)) {
 		rc = sysfs_create_group(&ap_dev->device.kobj,
-					&cca_queue_attr_group);
+					&cca_queue_attr_grp);
+		if (rc)
+			zcrypt_queue_unregister(zq);
+	} else if (ap_test_bit(&aq->card->functions, AP_FUNC_EP11)) {
+		rc = sysfs_create_group(&ap_dev->device.kobj,
+					&ep11_queue_attr_grp);
 		if (rc)
 			zcrypt_queue_unregister(zq);
 	}
@@ -413,7 +644,9 @@ static void zcrypt_cex4_queue_remove(struct ap_device *ap_dev)
 	struct zcrypt_queue *zq = aq->private;
 
 	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO))
-		sysfs_remove_group(&ap_dev->device.kobj, &cca_queue_attr_group);
+		sysfs_remove_group(&ap_dev->device.kobj, &cca_queue_attr_grp);
+	else if (ap_test_bit(&aq->card->functions, AP_FUNC_EP11))
+		sysfs_remove_group(&ap_dev->device.kobj, &ep11_queue_attr_grp);
 	if (zq)
 		zcrypt_queue_unregister(zq);
 }

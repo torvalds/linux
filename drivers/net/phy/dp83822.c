@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Driver for the Texas Instruments DP83822 PHY
+/* Driver for the Texas Instruments DP83822, DP83825 and DP83826 PHYs.
  *
  * Copyright (C) 2017 Texas Instruments Inc.
  */
@@ -15,7 +14,12 @@
 #include <linux/netdevice.h>
 
 #define DP83822_PHY_ID	        0x2000a240
+#define DP83825S_PHY_ID		0x2000a140
 #define DP83825I_PHY_ID		0x2000a150
+#define DP83825CM_PHY_ID	0x2000a160
+#define DP83825CS_PHY_ID	0x2000a170
+#define DP83826C_PHY_ID		0x2000a130
+#define DP83826NC_PHY_ID	0x2000a110
 
 #define DP83822_DEVADDR		0x1f
 
@@ -319,12 +323,22 @@ static int dp83822_resume(struct phy_device *phydev)
 static struct phy_driver dp83822_driver[] = {
 	DP83822_PHY_DRIVER(DP83822_PHY_ID, "TI DP83822"),
 	DP83822_PHY_DRIVER(DP83825I_PHY_ID, "TI DP83825I"),
+	DP83822_PHY_DRIVER(DP83826C_PHY_ID, "TI DP83826C"),
+	DP83822_PHY_DRIVER(DP83826NC_PHY_ID, "TI DP83826NC"),
+	DP83822_PHY_DRIVER(DP83825S_PHY_ID, "TI DP83825S"),
+	DP83822_PHY_DRIVER(DP83825CM_PHY_ID, "TI DP83825M"),
+	DP83822_PHY_DRIVER(DP83825CS_PHY_ID, "TI DP83825CS"),
 };
 module_phy_driver(dp83822_driver);
 
 static struct mdio_device_id __maybe_unused dp83822_tbl[] = {
 	{ DP83822_PHY_ID, 0xfffffff0 },
 	{ DP83825I_PHY_ID, 0xfffffff0 },
+	{ DP83826C_PHY_ID, 0xfffffff0 },
+	{ DP83826NC_PHY_ID, 0xfffffff0 },
+	{ DP83825S_PHY_ID, 0xfffffff0 },
+	{ DP83825CM_PHY_ID, 0xfffffff0 },
+	{ DP83825CS_PHY_ID, 0xfffffff0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(mdio, dp83822_tbl);

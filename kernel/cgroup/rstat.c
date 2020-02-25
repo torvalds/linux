@@ -33,7 +33,7 @@ void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 		return;
 
 	/*
-	 * Paired with the one in cgroup_rstat_cpu_pop_upated().  Either we
+	 * Paired with the one in cgroup_rstat_cpu_pop_updated().  Either we
 	 * see NULL updated_next or they see our updated stat.
 	 */
 	smp_mb();

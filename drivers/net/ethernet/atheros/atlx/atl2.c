@@ -1001,7 +1001,7 @@ static int atl2_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
  * atl2_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
-static void atl2_tx_timeout(struct net_device *netdev)
+static void atl2_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 

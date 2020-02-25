@@ -43,10 +43,13 @@
 /* SOF_HDA_GCTL register bist */
 #define SOF_HDA_GCTL_RESET		BIT(0)
 
-/* SOF_HDA_INCTL and SOF_HDA_INTSTS regs */
+/* SOF_HDA_INCTL regs */
 #define SOF_HDA_INT_GLOBAL_EN		BIT(31)
 #define SOF_HDA_INT_CTRL_EN		BIT(30)
 #define SOF_HDA_INT_ALL_STREAM		0xff
+
+/* SOF_HDA_INTSTS regs */
+#define SOF_HDA_INTSTS_GIS		BIT(31)
 
 #define SOF_HDA_MAX_CAPS		10
 #define SOF_HDA_CAP_ID_OFF		16
@@ -345,7 +348,7 @@
 
 /* Number of DAIs */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-#define SOF_SKL_NUM_DAIS		14
+#define SOF_SKL_NUM_DAIS		15
 #else
 #define SOF_SKL_NUM_DAIS		8
 #endif
@@ -405,8 +408,6 @@ struct sof_intel_hda_dev {
 
 	/* the maximum number of streams (playback + capture) supported */
 	u32 stream_max;
-
-	int irq;
 
 	/* PM related */
 	bool l1_support_changed;/* during suspend, is L1SEN changed or not */
@@ -511,11 +512,12 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			     struct snd_pcm_hw_params *params);
 int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 			   struct hdac_ext_stream *stream, int cmd);
-irqreturn_t hda_dsp_stream_interrupt(int irq, void *context);
 irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context);
 int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 			     struct snd_dma_buffer *dmab,
 			     struct hdac_stream *stream);
+bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev);
+bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev);
 
 struct hdac_ext_stream *
 	hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction);
@@ -540,7 +542,6 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev);
 int hda_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev);
 int hda_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id);
 
-irqreturn_t hda_dsp_ipc_irq_handler(int irq, void *context);
 irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context);
 int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
 
@@ -574,7 +575,8 @@ void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev);
 /*
  * HDA Codec operations.
  */
-int hda_codec_probe_bus(struct snd_sof_dev *sdev);
+void hda_codec_probe_bus(struct snd_sof_dev *sdev,
+			 bool hda_codec_use_common_hdmi);
 void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev);
 void hda_codec_jack_check(struct snd_sof_dev *sdev);
 
@@ -584,15 +586,14 @@ void hda_codec_jack_check(struct snd_sof_dev *sdev);
 	(IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI) || \
 	 IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
 
-void hda_codec_i915_get(struct snd_sof_dev *sdev);
-void hda_codec_i915_put(struct snd_sof_dev *sdev);
+void hda_codec_i915_display_power(struct snd_sof_dev *sdev, bool enable);
 int hda_codec_i915_init(struct snd_sof_dev *sdev);
 int hda_codec_i915_exit(struct snd_sof_dev *sdev);
 
 #else
 
-static inline void hda_codec_i915_get(struct snd_sof_dev *sdev)  { }
-static inline void hda_codec_i915_put(struct snd_sof_dev *sdev)  { }
+static inline void hda_codec_i915_display_power(struct snd_sof_dev *sdev,
+						bool enable) { }
 static inline int hda_codec_i915_init(struct snd_sof_dev *sdev) { return 0; }
 static inline int hda_codec_i915_exit(struct snd_sof_dev *sdev) { return 0; }
 
@@ -621,5 +622,10 @@ extern const struct sof_intel_dsp_desc icl_chip_info;
 extern const struct sof_intel_dsp_desc tgl_chip_info;
 extern const struct sof_intel_dsp_desc ehl_chip_info;
 extern const struct sof_intel_dsp_desc jsl_chip_info;
+
+/* machine driver select */
+void hda_machine_select(struct snd_sof_dev *sdev);
+void hda_set_mach_params(const struct snd_soc_acpi_mach *mach,
+			 struct device *dev);
 
 #endif

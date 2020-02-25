@@ -1186,7 +1186,7 @@ void __ceph_dentry_dir_lease_touch(struct ceph_dentry_info *di)
 	struct dentry *dn = di->dentry;
 	struct ceph_mds_client *mdsc;
 
-	dout("dentry_dir_lease_touch %p %p '%pd' (offset %lld)\n",
+	dout("dentry_dir_lease_touch %p %p '%pd' (offset 0x%llx)\n",
 	     di, dn, dn, di->offset);
 
 	if (!list_empty(&di->lease_list)) {
@@ -1567,7 +1567,7 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 		inode = d_inode(dentry);
 	}
 
-	dout("d_revalidate %p '%pd' inode %p offset %lld\n", dentry,
+	dout("d_revalidate %p '%pd' inode %p offset 0x%llx\n", dentry,
 	     dentry, inode, ceph_dentry(dentry)->offset);
 
 	/* always trust cached snapped dentries, snapdir dentry */

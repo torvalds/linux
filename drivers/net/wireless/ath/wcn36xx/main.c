@@ -1169,7 +1169,6 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 
 	ieee80211_hw_set(wcn->hw, TIMING_BEACON_ONLY);
 	ieee80211_hw_set(wcn->hw, AMPDU_AGGREGATION);
-	ieee80211_hw_set(wcn->hw, CONNECTION_MONITOR);
 	ieee80211_hw_set(wcn->hw, SUPPORTS_PS);
 	ieee80211_hw_set(wcn->hw, SIGNAL_DBM);
 	ieee80211_hw_set(wcn->hw, HAS_RATE_CONTROL);

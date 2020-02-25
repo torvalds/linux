@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 
-#include "most/core.h"
+#include "../most.h"
 
 enum { CH_RX, CH_TX, NUM_CHANNELS };
 

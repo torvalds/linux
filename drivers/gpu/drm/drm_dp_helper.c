@@ -470,8 +470,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 	int len;
 	uint8_t rev[2];
 	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
-	bool branch_device = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-			     DP_DWN_STRM_PORT_PRESENT;
+	bool branch_device = drm_dp_is_branch(dpcd);
 
 	seq_printf(m, "\tDP branch device present: %s\n",
 		   branch_device ? "yes" : "no");

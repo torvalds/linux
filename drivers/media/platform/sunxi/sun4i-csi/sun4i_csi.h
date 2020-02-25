@@ -22,8 +22,8 @@
 #define CSI_CFG_INPUT_FMT(fmt)			((fmt) << 20)
 #define CSI_CFG_OUTPUT_FMT(fmt)			((fmt) << 16)
 #define CSI_CFG_YUV_DATA_SEQ(seq)		((seq) << 8)
-#define CSI_CFG_VSYNC_POL(pol)			((pol) << 2)
-#define CSI_CFG_HSYNC_POL(pol)			((pol) << 1)
+#define CSI_CFG_VREF_POL(pol)			((pol) << 2)
+#define CSI_CFG_HREF_POL(pol)			((pol) << 1)
 #define CSI_CFG_PCLK_POL(pol)			((pol) << 0)
 
 #define CSI_CPT_CTRL_REG		0x08
@@ -107,6 +107,8 @@ const struct sun4i_csi_format *sun4i_csi_find_format(const u32 *fourcc,
 struct sun4i_csi {
 	/* Device resources */
 	struct device			*dev;
+
+	const struct sun4i_csi_traits	*traits;
 
 	void __iomem			*regs;
 	struct clk			*bus_clk;

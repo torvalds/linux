@@ -94,7 +94,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		 * Solaris, at least, doesn't seem to care what the time
 		 * request is.  We require it be within 30 minutes of now.
 		 */
-		time_t delta = iap->ia_atime.tv_sec - get_seconds();
+		time64_t delta = iap->ia_atime.tv_sec - ktime_get_real_seconds();
 
 		nfserr = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP);
 		if (nfserr)
@@ -113,7 +113,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		}
 	}
 
-	nfserr = nfsd_setattr(rqstp, fhp, iap, 0, (time_t)0);
+	nfserr = nfsd_setattr(rqstp, fhp, iap, 0, (time64_t)0);
 done:
 	return nfsd_return_attrs(nfserr, resp);
 }
@@ -226,7 +226,7 @@ nfsd_proc_write(struct svc_rqst *rqstp)
 		return nfserr_io;
 	nfserr = nfsd_write(rqstp, fh_copy(&resp->fh, &argp->fh),
 			    argp->offset, rqstp->rq_vec, nvecs,
-			    &cnt, NFS_DATA_SYNC);
+			    &cnt, NFS_DATA_SYNC, NULL);
 	return nfsd_return_attrs(nfserr, resp);
 }
 
@@ -380,7 +380,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 		 */
 		attr->ia_valid &= ATTR_SIZE;
 		if (attr->ia_valid)
-			nfserr = nfsd_setattr(rqstp, newfhp, attr, 0, (time_t)0);
+			nfserr = nfsd_setattr(rqstp, newfhp, attr, 0, (time64_t)0);
 	}
 
 out_unlock:

@@ -44,6 +44,39 @@ struct tb_switch_nvm {
 
 #define TB_SWITCH_KEY_SIZE		32
 #define TB_SWITCH_MAX_DEPTH		6
+#define USB4_SWITCH_MAX_DEPTH		5
+
+/**
+ * enum tb_switch_tmu_rate - TMU refresh rate
+ * @TB_SWITCH_TMU_RATE_OFF: %0 (Disable Time Sync handshake)
+ * @TB_SWITCH_TMU_RATE_HIFI: %16 us time interval between successive
+ *			     transmission of the Delay Request TSNOS
+ *			     (Time Sync Notification Ordered Set) on a Link
+ * @TB_SWITCH_TMU_RATE_NORMAL: %1 ms time interval between successive
+ *			       transmission of the Delay Request TSNOS on
+ *			       a Link
+ */
+enum tb_switch_tmu_rate {
+	TB_SWITCH_TMU_RATE_OFF = 0,
+	TB_SWITCH_TMU_RATE_HIFI = 16,
+	TB_SWITCH_TMU_RATE_NORMAL = 1000,
+};
+
+/**
+ * struct tb_switch_tmu - Structure holding switch TMU configuration
+ * @cap: Offset to the TMU capability (%0 if not found)
+ * @has_ucap: Does the switch support uni-directional mode
+ * @rate: TMU refresh rate related to upstream switch. In case of root
+ *	  switch this holds the domain rate.
+ * @unidirectional: Is the TMU in uni-directional or bi-directional mode
+ *		    related to upstream switch. Don't case for root switch.
+ */
+struct tb_switch_tmu {
+	int cap;
+	bool has_ucap;
+	enum tb_switch_tmu_rate rate;
+	bool unidirectional;
+};
 
 /**
  * struct tb_switch - a thunderbolt switch
@@ -54,6 +87,7 @@ struct tb_switch_nvm {
  *	      mailbox this will hold the pointer to that (%NULL
  *	      otherwise). If set it also means the switch has
  *	      upgradeable NVM.
+ * @tmu: The switch TMU configuration
  * @tb: Pointer to the domain the switch belongs to
  * @uid: Unique ID of the switch
  * @uuid: UUID of the switch (or %NULL if not supported)
@@ -92,6 +126,7 @@ struct tb_switch {
 	struct tb_regs_switch_header config;
 	struct tb_port *ports;
 	struct tb_dma_port *dma_port;
+	struct tb_switch_tmu tmu;
 	struct tb *tb;
 	u64 uid;
 	uuid_t *uuid;
@@ -128,7 +163,9 @@ struct tb_switch {
  * @remote: Remote port (%NULL if not connected)
  * @xdomain: Remote host (%NULL if not connected)
  * @cap_phy: Offset, zero if not found
+ * @cap_tmu: Offset of the adapter specific TMU capability (%0 if not present)
  * @cap_adap: Offset of the adapter specific capability (%0 if not present)
+ * @cap_usb4: Offset to the USB4 port capability (%0 if not present)
  * @port: Port number on switch
  * @disabled: Disabled by eeprom
  * @bonded: true if the port is bonded (two lanes combined as one)
@@ -145,7 +182,9 @@ struct tb_port {
 	struct tb_port *remote;
 	struct tb_xdomain *xdomain;
 	int cap_phy;
+	int cap_tmu;
 	int cap_adap;
+	int cap_usb4;
 	u8 port;
 	bool disabled;
 	bool bonded;
@@ -393,6 +432,16 @@ static inline bool tb_port_is_dpout(const struct tb_port *port)
 	return port && port->config.type == TB_TYPE_DP_HDMI_OUT;
 }
 
+static inline bool tb_port_is_usb3_down(const struct tb_port *port)
+{
+	return port && port->config.type == TB_TYPE_USB3_DOWN;
+}
+
+static inline bool tb_port_is_usb3_up(const struct tb_port *port)
+{
+	return port && port->config.type == TB_TYPE_USB3_UP;
+}
+
 static inline int tb_sw_read(struct tb_switch *sw, void *buffer,
 			     enum tb_cfg_space space, u32 offset, u32 length)
 {
@@ -533,6 +582,8 @@ void tb_switch_suspend(struct tb_switch *sw);
 int tb_switch_resume(struct tb_switch *sw);
 int tb_switch_reset(struct tb *tb, u64 route);
 void tb_sw_set_unplugged(struct tb_switch *sw);
+struct tb_port *tb_switch_find_port(struct tb_switch *sw,
+				    enum tb_port_type type);
 struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link,
 					       u8 depth);
 struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_t *uuid);
@@ -636,6 +687,17 @@ static inline bool tb_switch_is_titan_ridge(const struct tb_switch *sw)
 }
 
 /**
+ * tb_switch_is_usb4() - Is the switch USB4 compliant
+ * @sw: Switch to check
+ *
+ * Returns true if the @sw is USB4 compliant router, false otherwise.
+ */
+static inline bool tb_switch_is_usb4(const struct tb_switch *sw)
+{
+	return sw->config.thunderbolt_version == USB4_VERSION_1_0;
+}
+
+/**
  * tb_switch_is_icm() - Is the switch handled by ICM firmware
  * @sw: Switch to check
  *
@@ -656,10 +718,22 @@ bool tb_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int tb_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
 void tb_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
 
+int tb_switch_tmu_init(struct tb_switch *sw);
+int tb_switch_tmu_post_time(struct tb_switch *sw);
+int tb_switch_tmu_disable(struct tb_switch *sw);
+int tb_switch_tmu_enable(struct tb_switch *sw);
+
+static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw)
+{
+	return sw->tmu.rate == TB_SWITCH_TMU_RATE_HIFI &&
+	       !sw->tmu.unidirectional;
+}
+
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
 int tb_port_set_initial_credits(struct tb_port *port, u32 credits);
 int tb_port_clear_counter(struct tb_port *port, int counter);
+int tb_port_unlock(struct tb_port *port);
 int tb_port_alloc_in_hopid(struct tb_port *port, int hopid, int max_hopid);
 void tb_port_release_in_hopid(struct tb_port *port, int hopid);
 int tb_port_alloc_out_hopid(struct tb_port *port, int hopid, int max_hopid);
@@ -668,8 +742,12 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 				     struct tb_port *prev);
 
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec);
+int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap);
 int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap);
 bool tb_port_is_enabled(struct tb_port *port);
+
+bool tb_usb3_port_is_enabled(struct tb_port *port);
+int tb_usb3_port_enable(struct tb_port *port, bool enable);
 
 bool tb_pci_port_is_enabled(struct tb_port *port);
 int tb_pci_port_enable(struct tb_port *port, bool enable);
@@ -734,4 +812,27 @@ void tb_xdomain_remove(struct tb_xdomain *xd);
 struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
 						 u8 depth);
 
+int usb4_switch_setup(struct tb_switch *sw);
+int usb4_switch_read_uid(struct tb_switch *sw, u64 *uid);
+int usb4_switch_drom_read(struct tb_switch *sw, unsigned int address, void *buf,
+			  size_t size);
+int usb4_switch_configure_link(struct tb_switch *sw);
+void usb4_switch_unconfigure_link(struct tb_switch *sw);
+bool usb4_switch_lane_bonding_possible(struct tb_switch *sw);
+int usb4_switch_set_sleep(struct tb_switch *sw);
+int usb4_switch_nvm_sector_size(struct tb_switch *sw);
+int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
+			 size_t size);
+int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
+			  const void *buf, size_t size);
+int usb4_switch_nvm_authenticate(struct tb_switch *sw);
+bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
+int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
+int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
+struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
+					  const struct tb_port *port);
+struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
+					  const struct tb_port *port);
+
+int usb4_port_unlock(struct tb_port *port);
 #endif

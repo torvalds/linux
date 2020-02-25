@@ -249,7 +249,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 		goto init_failed;
 	}
 
-	priv->mmio = ioremap_nocache(res->start, resource_size(res));
+	priv->mmio = ioremap(res->start, resource_size(res));
 	if (!priv->mmio) {
 		dev_err(dev, "failed to ioremap\n");
 		ret = -ENOMEM;

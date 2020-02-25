@@ -21,7 +21,7 @@ static int rcar_rst_enable_wdt_reset(void __iomem *base)
 
 struct rst_config {
 	unsigned int modemr;		/* Mode Monitoring Register Offset */
-	int (*configure)(void *base);	/* Platform specific configuration */
+	int (*configure)(void __iomem *base);	/* Platform specific config */
 };
 
 static const struct rst_config rcar_rst_gen1 __initconst = {

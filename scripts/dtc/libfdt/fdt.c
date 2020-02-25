@@ -15,8 +15,10 @@
  * that the given buffer contains what appears to be a flattened
  * device tree with sane information in its header.
  */
-int fdt_ro_probe_(const void *fdt)
+int32_t fdt_ro_probe_(const void *fdt)
 {
+	uint32_t totalsize = fdt_totalsize(fdt);
+
 	if (fdt_magic(fdt) == FDT_MAGIC) {
 		/* Complete tree */
 		if (fdt_version(fdt) < FDT_FIRST_SUPPORTED_VERSION)
@@ -31,7 +33,10 @@ int fdt_ro_probe_(const void *fdt)
 		return -FDT_ERR_BADMAGIC;
 	}
 
-	return 0;
+	if (totalsize < INT32_MAX)
+		return totalsize;
+	else
+		return -FDT_ERR_TRUNCATED;
 }
 
 static int check_off_(uint32_t hdrsize, uint32_t totalsize, uint32_t off)

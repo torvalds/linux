@@ -24,21 +24,21 @@ $(obj)/%.tab.c $(obj)/%.tab.h: $(src)/%.y FORCE
 # Both C and C++ are supported, but preferred language is C for such utilities.
 #
 # Sample syntax (see Documentation/kbuild/makefiles.rst for reference)
-# hostprogs-y := bin2hex
+# hostprogs := bin2hex
 # Will compile bin2hex.c and create an executable named bin2hex
 #
-# hostprogs-y    := lxdialog
+# hostprogs     := lxdialog
 # lxdialog-objs := checklist.o lxdialog.o
 # Will compile lxdialog.c and checklist.c, and then link the executable
 # lxdialog, based on checklist.o and lxdialog.o
 #
-# hostprogs-y      := qconf
+# hostprogs       := qconf
 # qconf-cxxobjs   := qconf.o
 # qconf-objs      := menu.o
 # Will compile qconf as a C++ program, and menu as a C program.
 # They are linked as C++ code to the executable qconf
 
-__hostprogs := $(sort $(hostprogs-y) $(hostprogs-m))
+__hostprogs := $(sort $(hostprogs))
 host-cshlib := $(sort $(hostlibs-y) $(hostlibs-m))
 host-cxxshlib := $(sort $(hostcxxlibs-y) $(hostcxxlibs-m))
 

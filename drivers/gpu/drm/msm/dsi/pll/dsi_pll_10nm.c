@@ -751,9 +751,9 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm)
 	snprintf(parent4, 32, "dsi%d_pll_post_out_div_clk", pll_10nm->id);
 
 	hw = clk_hw_register_mux(dev, clk_name,
-				 (const char *[]){
+				 ((const char *[]){
 				 parent, parent2, parent3, parent4
-				 }, 4, 0, pll_10nm->phy_cmn_mmio +
+				 }), 4, 0, pll_10nm->phy_cmn_mmio +
 				 REG_DSI_10nm_PHY_CMN_CLK_CFG1,
 				 0, 2, 0, NULL);
 	if (IS_ERR(hw)) {

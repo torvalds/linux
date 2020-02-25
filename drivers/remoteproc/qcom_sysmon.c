@@ -394,7 +394,7 @@ static int ssctl_new_server(struct qmi_handle *qmi, struct qmi_service *svc)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	sysmon->ssctl_version = svc->version;
 

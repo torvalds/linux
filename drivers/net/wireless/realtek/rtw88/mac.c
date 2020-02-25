@@ -16,10 +16,12 @@ void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 	u8 value8;
 
 	txsc20 = primary_ch_idx;
-	if (txsc20 == 1 || txsc20 == 3)
-		txsc40 = 9;
-	else
-		txsc40 = 10;
+	if (bw == RTW_CHANNEL_WIDTH_80) {
+		if (txsc20 == 1 || txsc20 == 3)
+			txsc40 = 9;
+		else
+			txsc40 = 10;
+	}
 	rtw_write8(rtwdev, REG_DATA_SC,
 		   BIT_TXSC_20M(txsc20) | BIT_TXSC_40M(txsc40));
 
@@ -1033,6 +1035,8 @@ int rtw_mac_init(struct rtw_dev *rtwdev)
 	ret = rtw_drv_info_cfg(rtwdev);
 	if (ret)
 		return ret;
+
+	rtw_hci_interface_cfg(rtwdev);
 
 	return 0;
 }

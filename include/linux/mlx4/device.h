@@ -47,7 +47,7 @@
 #define DEFAULT_UAR_PAGE_SHIFT  12
 
 #define MAX_MSIX_P_PORT		17
-#define MAX_MSIX		64
+#define MAX_MSIX		128
 #define MIN_MSIX_P_PORT		5
 #define MLX4_IS_LEGACY_EQ_MODE(dev_cap) ((dev_cap).num_comp_vectors < \
 					 (dev_cap).num_ports * MIN_MSIX_P_PORT)

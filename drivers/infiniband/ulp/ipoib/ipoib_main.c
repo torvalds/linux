@@ -1182,7 +1182,7 @@ unref:
 	return NETDEV_TX_OK;
 }
 
-static void ipoib_timeout(struct net_device *dev)
+static void ipoib_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 

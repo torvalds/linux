@@ -17,9 +17,13 @@
 #include "ubifs.h"
 
 /* Need to be kept consistent with checked flags in ioctl2ubifs() */
-#define UBIFS_SUPPORTED_IOCTL_FLAGS \
+#define UBIFS_SETTABLE_IOCTL_FLAGS \
 	(FS_COMPR_FL | FS_SYNC_FL | FS_APPEND_FL | \
 	 FS_IMMUTABLE_FL | FS_DIRSYNC_FL)
+
+/* Need to be kept consistent with checked flags in ubifs2ioctl() */
+#define UBIFS_GETTABLE_IOCTL_FLAGS \
+	(UBIFS_SETTABLE_IOCTL_FLAGS | FS_ENCRYPT_FL)
 
 /**
  * ubifs_set_inode_flags - set VFS inode flags.
@@ -91,6 +95,8 @@ static int ubifs2ioctl(int ubifs_flags)
 		ioctl_flags |= FS_IMMUTABLE_FL;
 	if (ubifs_flags & UBIFS_DIRSYNC_FL)
 		ioctl_flags |= FS_DIRSYNC_FL;
+	if (ubifs_flags & UBIFS_CRYPT_FL)
+		ioctl_flags |= FS_ENCRYPT_FL;
 
 	return ioctl_flags;
 }
@@ -113,7 +119,8 @@ static int setflags(struct inode *inode, int flags)
 	if (err)
 		goto out_unlock;
 
-	ui->flags = ioctl2ubifs(flags);
+	ui->flags &= ~ioctl2ubifs(UBIFS_SETTABLE_IOCTL_FLAGS);
+	ui->flags |= ioctl2ubifs(flags);
 	ubifs_set_inode_flags(inode);
 	inode->i_ctime = current_time(inode);
 	release = ui->dirty;
@@ -155,8 +162,9 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (get_user(flags, (int __user *) arg))
 			return -EFAULT;
 
-		if (flags & ~UBIFS_SUPPORTED_IOCTL_FLAGS)
+		if (flags & ~UBIFS_GETTABLE_IOCTL_FLAGS)
 			return -EOPNOTSUPP;
+		flags &= UBIFS_SETTABLE_IOCTL_FLAGS;
 
 		if (!S_ISDIR(inode->i_mode))
 			flags &= ~FS_DIRSYNC_FL;

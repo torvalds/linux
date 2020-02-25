@@ -69,6 +69,10 @@
 #define PM_CLOS_OFFSET				0x08
 #define PQR_ASSOC_OFFSET			0x20
 
+#define READ_PM_CONFIG				0x94
+#define WRITE_PM_CONFIG				0x95
+#define PM_FEATURE				0x03
+
 #define DISP_FREQ_MULTIPLIER 100
 
 struct isst_clos_config {
@@ -119,6 +123,8 @@ struct isst_pkg_ctdp_level_info {
 	int pbf_support;
 	int fact_enabled;
 	int pbf_enabled;
+	int sst_cp_support;
+	int sst_cp_enabled;
 	int tdp_ratio;
 	int active;
 	int tdp_control;

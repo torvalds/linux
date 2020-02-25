@@ -31,7 +31,6 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_vblank.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"
@@ -372,19 +371,6 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 static void qxl_crtc_atomic_flush(struct drm_crtc *crtc,
 				  struct drm_crtc_state *old_crtc_state)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_pending_vblank_event *event;
-	unsigned long flags;
-
-	if (crtc->state && crtc->state->event) {
-		event = crtc->state->event;
-		crtc->state->event = NULL;
-
-		spin_lock_irqsave(&dev->event_lock, flags);
-		drm_crtc_send_vblank_event(crtc, event);
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-	}
-
 	qxl_crtc_update_monitors_config(crtc, "flush");
 }
 

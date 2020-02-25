@@ -200,10 +200,6 @@ static void __init ps3_setup_arch(void)
 	smp_init_ps3();
 #endif
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
-
 	prealloc_ps3fb_videomemory();
 	prealloc_ps3flash_bounce_buffer();
 

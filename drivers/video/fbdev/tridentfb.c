@@ -1556,7 +1556,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 		return -1;
 	}
 
-	default_par->io_virt = ioremap_nocache(tridentfb_fix.mmio_start,
+	default_par->io_virt = ioremap(tridentfb_fix.mmio_start,
 					       tridentfb_fix.mmio_len);
 
 	if (!default_par->io_virt) {
@@ -1579,7 +1579,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 		goto out_unmap1;
 	}
 
-	info->screen_base = ioremap_nocache(tridentfb_fix.smem_start,
+	info->screen_base = ioremap(tridentfb_fix.smem_start,
 					    tridentfb_fix.smem_len);
 
 	if (!info->screen_base) {

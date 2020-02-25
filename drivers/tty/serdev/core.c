@@ -115,8 +115,8 @@ int serdev_device_add(struct serdev_device *serdev)
 
 	err = device_add(&serdev->dev);
 	if (err < 0) {
-		dev_err(&serdev->dev, "Can't add %s, status %d\n",
-			dev_name(&serdev->dev), err);
+		dev_err(&serdev->dev, "Can't add %s, status %pe\n",
+			dev_name(&serdev->dev), ERR_PTR(err));
 		goto err_clear_serdev;
 	}
 
@@ -540,7 +540,8 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
 		err = serdev_device_add(serdev);
 		if (err) {
 			dev_err(&serdev->dev,
-				"failure adding device. status %d\n", err);
+				"failure adding device. status %pe\n",
+				ERR_PTR(err));
 			serdev_device_put(serdev);
 		} else
 			found = true;
@@ -656,7 +657,8 @@ static acpi_status acpi_serdev_register_device(struct serdev_controller *ctrl,
 	err = serdev_device_add(serdev);
 	if (err) {
 		dev_err(&serdev->dev,
-			"failure adding ACPI serdev device. status %d\n", err);
+			"failure adding ACPI serdev device. status %pe\n",
+			ERR_PTR(err));
 		serdev_device_put(serdev);
 	}
 
@@ -741,8 +743,8 @@ int serdev_controller_add(struct serdev_controller *ctrl)
 	ret_of = of_serdev_register_devices(ctrl);
 	ret_acpi = acpi_serdev_register_devices(ctrl);
 	if (ret_of && ret_acpi) {
-		dev_dbg(&ctrl->dev, "no devices registered: of:%d acpi:%d\n",
-			ret_of, ret_acpi);
+		dev_dbg(&ctrl->dev, "no devices registered: of:%pe acpi:%pe\n",
+			ERR_PTR(ret_of), ERR_PTR(ret_acpi));
 		ret = -ENODEV;
 		goto err_rpm_disable;
 	}

@@ -616,10 +616,10 @@ static int owl_mmc_probe(struct platform_device *pdev)
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-	owl_host->dma = dma_request_slave_channel(&pdev->dev, "mmc");
-	if (!owl_host->dma) {
+	owl_host->dma = dma_request_chan(&pdev->dev, "mmc");
+	if (IS_ERR(owl_host->dma)) {
 		dev_err(owl_host->dev, "Failed to get external DMA channel.\n");
-		ret = -ENXIO;
+		ret = PTR_ERR(owl_host->dma);
 		goto err_free_host;
 	}
 

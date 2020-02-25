@@ -1141,7 +1141,7 @@ fec_stop(struct net_device *ndev)
 
 
 static void
-fec_timeout(struct net_device *ndev)
+fec_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 

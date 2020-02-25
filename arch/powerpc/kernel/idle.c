@@ -77,6 +77,31 @@ void arch_cpu_idle(void)
 
 int powersave_nap;
 
+#ifdef CONFIG_PPC_970_NAP
+void power4_idle(void)
+{
+	if (!cpu_has_feature(CPU_FTR_CAN_NAP))
+		return;
+
+	if (!powersave_nap)
+		return;
+
+	if (!prep_irq_for_idle())
+		return;
+
+	if (cpu_has_feature(CPU_FTR_ALTIVEC))
+		asm volatile("DSSALL ; sync" ::: "memory");
+
+	power4_idle_nap();
+
+	/*
+	 * power4_idle_nap returns with interrupts enabled (soft and hard).
+	 * to our caller with interrupts enabled (soft and hard). Our caller
+	 * can cope with either interrupts disabled or enabled upon return.
+	 */
+}
+#endif
+
 #ifdef CONFIG_SYSCTL
 /*
  * Register the sysctl to set/clear powersave_nap.

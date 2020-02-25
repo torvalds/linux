@@ -4,12 +4,7 @@
 # kernels after the removal of ext3 driver.
 config EXT3_FS
 	tristate "The Extended 3 (ext3) filesystem"
-	# These must match EXT4_FS selects...
 	select EXT4_FS
-	select JBD2
-	select CRC16
-	select CRYPTO
-	select CRYPTO_CRC32C
 	help
 	  This config option is here only for backward compatibility. ext3
 	  filesystem is now handled by the ext4 driver.
@@ -33,12 +28,12 @@ config EXT3_FS_SECURITY
 
 config EXT4_FS
 	tristate "The Extended 4 (ext4) filesystem"
-	# Please update EXT3_FS selects when changing these
 	select JBD2
 	select CRC16
 	select CRYPTO
 	select CRYPTO_CRC32C
 	select FS_IOMAP
+	select FS_ENCRYPTION_ALGS if FS_ENCRYPTION
 	help
 	  This is the next generation of the ext3 filesystem.
 
@@ -108,7 +103,7 @@ config EXT4_DEBUG
 		echo 1 > /sys/module/ext4/parameters/mballoc_debug
 
 config EXT4_KUNIT_TESTS
-	bool "KUnit tests for ext4"
+	tristate "KUnit tests for ext4"
 	select EXT4_FS
 	depends on KUNIT
 	help

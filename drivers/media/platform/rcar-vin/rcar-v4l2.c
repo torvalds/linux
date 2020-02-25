@@ -144,7 +144,7 @@ static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 	}
 
 	/* HW limit width to a multiple of 32 (2^5) for NV12/16 else 2 (2^1) */
-	switch (vin->format.pixelformat) {
+	switch (pix->pixelformat) {
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV16:
 		walign = 5;

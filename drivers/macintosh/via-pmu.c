@@ -212,7 +212,7 @@ static int pmu_info_proc_show(struct seq_file *m, void *v);
 static int pmu_irqstats_proc_show(struct seq_file *m, void *v);
 static int pmu_battery_proc_show(struct seq_file *m, void *v);
 static void pmu_pass_intr(unsigned char *data, int len);
-static const struct file_operations pmu_options_proc_fops;
+static const struct proc_ops pmu_options_proc_ops;
 
 #ifdef CONFIG_ADB
 const struct adb_driver via_pmu_driver = {
@@ -573,7 +573,7 @@ static int __init via_pmu_dev_init(void)
 		proc_pmu_irqstats = proc_create_single("interrupts", 0,
 				proc_pmu_root, pmu_irqstats_proc_show);
 		proc_pmu_options = proc_create("options", 0600, proc_pmu_root,
-						&pmu_options_proc_fops);
+						&pmu_options_proc_ops);
 	}
 	return 0;
 }
@@ -974,13 +974,12 @@ static ssize_t pmu_options_proc_write(struct file *file,
 	return fcount;
 }
 
-static const struct file_operations pmu_options_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= pmu_options_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= pmu_options_proc_write,
+static const struct proc_ops pmu_options_proc_ops = {
+	.proc_open	= pmu_options_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= pmu_options_proc_write,
 };
 
 #ifdef CONFIG_ADB

@@ -429,6 +429,10 @@ wrongid:
 
 static int pda_power_remove(struct platform_device *pdev)
 {
+#if IS_ENABLED(CONFIG_USB_PHY)
+	if (!IS_ERR_OR_NULL(transceiver) && pdata->use_otg_notifier)
+		usb_unregister_notifier(transceiver, &otg_nb);
+#endif
 	if (pdata->is_usb_online && usb_irq)
 		free_irq(usb_irq->start, pda_psy_usb);
 	if (pdata->is_ac_online && ac_irq)

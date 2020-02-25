@@ -288,7 +288,7 @@ static inline void iaputword(struct intel8x0m *chip, u32 offset, u16 val)
 /* return the GLOB_STA bit for the corresponding codec */
 static unsigned int get_ich_codec_bit(struct intel8x0m *chip, unsigned int codec)
 {
-	static unsigned int codec_bit[3] = {
+	static const unsigned int codec_bit[3] = {
 		ICH_PCR, ICH_SCR, ICH_TCR
 	};
 	if (snd_BUG_ON(codec >= 3))
@@ -553,17 +553,6 @@ static int snd_intel8x0m_pcm_trigger(struct snd_pcm_substream *substream, int cm
 	return 0;
 }
 
-static int snd_intel8x0m_hw_params(struct snd_pcm_substream *substream,
-				  struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_intel8x0m_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static snd_pcm_uframes_t snd_intel8x0m_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct intel8x0m *chip = snd_pcm_substream_chip(substream);
@@ -673,9 +662,6 @@ static int snd_intel8x0m_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_intel8x0m_playback_ops = {
 	.open =		snd_intel8x0m_playback_open,
 	.close =	snd_intel8x0m_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_intel8x0m_hw_params,
-	.hw_free =	snd_intel8x0m_hw_free,
 	.prepare =	snd_intel8x0m_pcm_prepare,
 	.trigger =	snd_intel8x0m_pcm_trigger,
 	.pointer =	snd_intel8x0m_pcm_pointer,
@@ -684,9 +670,6 @@ static const struct snd_pcm_ops snd_intel8x0m_playback_ops = {
 static const struct snd_pcm_ops snd_intel8x0m_capture_ops = {
 	.open =		snd_intel8x0m_capture_open,
 	.close =	snd_intel8x0m_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_intel8x0m_hw_params,
-	.hw_free =	snd_intel8x0m_hw_free,
 	.prepare =	snd_intel8x0m_pcm_prepare,
 	.trigger =	snd_intel8x0m_pcm_trigger,
 	.pointer =	snd_intel8x0m_pcm_pointer,
@@ -703,7 +686,7 @@ struct ich_pcm_table {
 };
 
 static int snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
-			      struct ich_pcm_table *rec)
+			      const struct ich_pcm_table *rec)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -733,15 +716,15 @@ static int snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
 		strcpy(pcm->name, chip->card->shortname);
 	chip->pcm[device] = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &chip->pci->dev,
-					      rec->prealloc_size,
-					      rec->prealloc_max_size);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev,
+				       rec->prealloc_size,
+				       rec->prealloc_max_size);
 
 	return 0;
 }
 
-static struct ich_pcm_table intel_pcms[] = {
+static const struct ich_pcm_table intel_pcms[] = {
 	{
 		.suffix = "Modem",
 		.playback_ops = &snd_intel8x0m_playback_ops,
@@ -754,7 +737,7 @@ static struct ich_pcm_table intel_pcms[] = {
 static int snd_intel8x0m_pcm(struct intel8x0m *chip)
 {
 	int i, tblsize, device, err;
-	struct ich_pcm_table *tbl, *rec;
+	const struct ich_pcm_table *tbl, *rec;
 
 #if 1
 	tbl = intel_pcms;
@@ -818,7 +801,7 @@ static int snd_intel8x0m_mixer(struct intel8x0m *chip, int ac97_clock)
 	struct snd_ac97 *x97;
 	int err;
 	unsigned int glob_sta = 0;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_intel8x0m_codec_write,
 		.read = snd_intel8x0m_codec_read,
 	};
@@ -1016,6 +999,7 @@ static int intel8x0m_suspend(struct device *dev)
 	if (chip->irq >= 0) {
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
+		card->sync_irq = -1;
 	}
 	return 0;
 }
@@ -1034,6 +1018,7 @@ static int intel8x0m_resume(struct device *dev)
 		return -EIO;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	snd_intel8x0m_chip_init(chip, 0);
 	snd_ac97_resume(chip->ac97);
 
@@ -1094,14 +1079,14 @@ static int snd_intel8x0m_create(struct snd_card *card,
 	unsigned int i;
 	unsigned int int_sta_masks;
 	struct ichdev *ichdev;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_intel8x0m_dev_free,
 	};
-	static struct ich_reg_info intel_regs[2] = {
+	static const struct ich_reg_info intel_regs[2] = {
 		{ ICH_MIINT, 0 },
 		{ ICH_MOINT, 0x10 },
 	};
-	struct ich_reg_info *tbl;
+	const struct ich_reg_info *tbl;
 
 	*r_intel8x0m = NULL;
 
@@ -1208,6 +1193,7 @@ static int snd_intel8x0m_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_intel8x0m_free(chip);

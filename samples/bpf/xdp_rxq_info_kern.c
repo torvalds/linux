@@ -6,7 +6,7 @@
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/if_ether.h>
 #include <uapi/linux/in.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 /* Config setup from with userspace
  *

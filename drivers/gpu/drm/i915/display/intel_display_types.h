@@ -1168,8 +1168,6 @@ struct intel_hdmi {
 };
 
 struct intel_dp_mst_encoder;
-#define DP_MAX_DOWNSTREAM_PORTS		0x10
-
 /*
  * enum link_m_n_set:
  *	When platform provides two set of M_N registers for dp, we can

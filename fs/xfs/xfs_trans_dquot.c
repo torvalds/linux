@@ -580,7 +580,7 @@ xfs_trans_dqresv(
 {
 	xfs_qcnt_t		hardlimit;
 	xfs_qcnt_t		softlimit;
-	time_t			timer;
+	time64_t		timer;
 	xfs_qwarncnt_t		warns;
 	xfs_qwarncnt_t		warnlimit;
 	xfs_qcnt_t		total_count;
@@ -635,7 +635,8 @@ xfs_trans_dqresv(
 				goto error_return;
 			}
 			if (softlimit && total_count > softlimit) {
-				if ((timer != 0 && get_seconds() > timer) ||
+				if ((timer != 0 &&
+				     ktime_get_real_seconds() > timer) ||
 				    (warns != 0 && warns >= warnlimit)) {
 					xfs_quota_warn(mp, dqp,
 						       QUOTA_NL_BSOFTLONGWARN);
@@ -662,7 +663,8 @@ xfs_trans_dqresv(
 				goto error_return;
 			}
 			if (softlimit && total_count > softlimit) {
-				if  ((timer != 0 && get_seconds() > timer) ||
+				if  ((timer != 0 &&
+				      ktime_get_real_seconds() > timer) ||
 				     (warns != 0 && warns >= warnlimit)) {
 					xfs_quota_warn(mp, dqp,
 						       QUOTA_NL_ISOFTLONGWARN);

@@ -681,6 +681,7 @@ struct mlx5dr_table {
 	u32 level;
 	u32 table_type;
 	u32 table_id;
+	u32 flags;
 	struct list_head matcher_list;
 	struct mlx5dr_action *miss_action;
 	refcount_t refcount;
@@ -744,10 +745,14 @@ struct mlx5dr_action {
 			union {
 				struct mlx5dr_table *tbl;
 				struct {
-					struct mlx5_flow_table *ft;
+					struct mlx5dr_domain *dmn;
+					u32 id;
+					u32 group_id;
+					enum fs_flow_table_type type;
 					u64 rx_icm_addr;
 					u64 tx_icm_addr;
-					struct mlx5_core_dev *mdev;
+					struct mlx5dr_action **ref_actions;
+					u32 num_of_ref_actions;
 				} fw_tbl;
 			};
 		} dest_tbl;
@@ -869,6 +874,17 @@ struct mlx5dr_cmd_query_flow_table_details {
 	u64 sw_owner_icm_root_0;
 };
 
+struct mlx5dr_cmd_create_flow_table_attr {
+	u32 table_type;
+	u64 icm_addr_rx;
+	u64 icm_addr_tx;
+	u8 level;
+	bool sw_owner;
+	bool term_tbl;
+	bool decap_en;
+	bool reformat_en;
+};
+
 /* internal API functions */
 int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 			    struct mlx5dr_cmd_caps *caps);
@@ -906,12 +922,7 @@ int mlx5dr_cmd_destroy_flow_group(struct mlx5_core_dev *mdev,
 				  u32 table_id,
 				  u32 group_id);
 int mlx5dr_cmd_create_flow_table(struct mlx5_core_dev *mdev,
-				 u32 table_type,
-				 u64 icm_addr_rx,
-				 u64 icm_addr_tx,
-				 u8 level,
-				 bool sw_owner,
-				 bool term_tbl,
+				 struct mlx5dr_cmd_create_flow_table_attr *attr,
 				 u64 *fdb_rx_icm_addr,
 				 u32 *table_id);
 int mlx5dr_cmd_destroy_flow_table(struct mlx5_core_dev *mdev,
@@ -1053,6 +1064,43 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 				struct mlx5dr_action *action);
 
+struct mlx5dr_cmd_ft_info {
+	u32 id;
+	u16 vport;
+	enum fs_flow_table_type type;
+};
+
+struct mlx5dr_cmd_flow_destination_hw_info {
+	enum mlx5_flow_destination_type type;
+	union {
+		u32 tir_num;
+		u32 ft_num;
+		u32 ft_id;
+		u32 counter_id;
+		struct {
+			u16 num;
+			u16 vhca_id;
+			u32 reformat_id;
+			u8 flags;
+		} vport;
+	};
+};
+
+struct mlx5dr_cmd_fte_info {
+	u32 dests_size;
+	u32 index;
+	struct mlx5_flow_context flow_context;
+	u32 *val;
+	struct mlx5_flow_act action;
+	struct mlx5dr_cmd_flow_destination_hw_info *dest_arr;
+};
+
+int mlx5dr_cmd_set_fte(struct mlx5_core_dev *dev,
+		       int opmod, int modify_mask,
+		       struct mlx5dr_cmd_ft_info *ft,
+		       u32 group_id,
+		       struct mlx5dr_cmd_fte_info *fte);
+
 struct mlx5dr_fw_recalc_cs_ft {
 	u64 rx_icm_addr;
 	u32 table_id;
@@ -1067,4 +1115,12 @@ void mlx5dr_fw_destroy_recalc_cs_ft(struct mlx5dr_domain *dmn,
 int mlx5dr_domain_cache_get_recalc_cs_ft_addr(struct mlx5dr_domain *dmn,
 					      u32 vport_num,
 					      u64 *rx_icm_addr);
+int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
+			    struct mlx5dr_cmd_flow_destination_hw_info *dest,
+			    int num_dest,
+			    bool reformat_req,
+			    u32 *tbl_id,
+			    u32 *group_id);
+void mlx5dr_fw_destroy_md_tbl(struct mlx5dr_domain *dmn, u32 tbl_id,
+			      u32 group_id);
 #endif  /* _DR_TYPES_H_ */

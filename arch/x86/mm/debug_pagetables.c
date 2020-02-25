@@ -7,7 +7,7 @@
 
 static int ptdump_show(struct seq_file *m, void *v)
 {
-	ptdump_walk_pgd_level_debugfs(m, NULL, false);
+	ptdump_walk_pgd_level_debugfs(m, &init_mm, false);
 	return 0;
 }
 
@@ -15,11 +15,8 @@ DEFINE_SHOW_ATTRIBUTE(ptdump);
 
 static int ptdump_curknl_show(struct seq_file *m, void *v)
 {
-	if (current->mm->pgd) {
-		down_read(&current->mm->mmap_sem);
-		ptdump_walk_pgd_level_debugfs(m, current->mm->pgd, false);
-		up_read(&current->mm->mmap_sem);
-	}
+	if (current->mm->pgd)
+		ptdump_walk_pgd_level_debugfs(m, current->mm, false);
 	return 0;
 }
 
@@ -28,11 +25,8 @@ DEFINE_SHOW_ATTRIBUTE(ptdump_curknl);
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 static int ptdump_curusr_show(struct seq_file *m, void *v)
 {
-	if (current->mm->pgd) {
-		down_read(&current->mm->mmap_sem);
-		ptdump_walk_pgd_level_debugfs(m, current->mm->pgd, true);
-		up_read(&current->mm->mmap_sem);
-	}
+	if (current->mm->pgd)
+		ptdump_walk_pgd_level_debugfs(m, current->mm, true);
 	return 0;
 }
 
@@ -43,7 +37,7 @@ DEFINE_SHOW_ATTRIBUTE(ptdump_curusr);
 static int ptdump_efi_show(struct seq_file *m, void *v)
 {
 	if (efi_mm.pgd)
-		ptdump_walk_pgd_level_debugfs(m, efi_mm.pgd, false);
+		ptdump_walk_pgd_level_debugfs(m, &efi_mm, false);
 	return 0;
 }
 

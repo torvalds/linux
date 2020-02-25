@@ -378,6 +378,17 @@ config INET_ESP_OFFLOAD
 
 	  If unsure, say N.
 
+config INET_ESPINTCP
+	bool "IP: ESP in TCP encapsulation (RFC 8229)"
+	depends on XFRM && INET_ESP
+	select STREAM_PARSER
+	select NET_SOCK_MSG
+	help
+	  Support for RFC 8229 encapsulation of ESP and IKE over
+	  TCP/IPv4 sockets.
+
+	  If unsure, say N.
+
 config INET_IPCOMP
 	tristate "IP: IPComp transformation"
 	select INET_XFRM_TUNNEL

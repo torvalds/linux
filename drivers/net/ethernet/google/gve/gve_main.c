@@ -845,7 +845,7 @@ static void gve_turnup(struct gve_priv *priv)
 	gve_set_napi_enabled(priv);
 }
 
-static void gve_tx_timeout(struct net_device *dev)
+static void gve_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct gve_priv *priv = netdev_priv(dev);
 

@@ -1062,7 +1062,7 @@ static int cqspi_erase(struct spi_nor *nor, loff_t offs)
 	return 0;
 }
 
-static int cqspi_prep(struct spi_nor *nor, enum spi_nor_ops ops)
+static int cqspi_prep(struct spi_nor *nor)
 {
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	struct cqspi_st *cqspi = f_pdata->cqspi;
@@ -1072,7 +1072,7 @@ static int cqspi_prep(struct spi_nor *nor, enum spi_nor_ops ops)
 	return 0;
 }
 
-static void cqspi_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
+static void cqspi_unprep(struct spi_nor *nor)
 {
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	struct cqspi_st *cqspi = f_pdata->cqspi;

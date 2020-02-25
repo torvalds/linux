@@ -2717,10 +2717,9 @@ static ssize_t ray_cs_essid_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations ray_cs_essid_proc_fops = {
-	.owner		= THIS_MODULE,
-	.write		= ray_cs_essid_proc_write,
-	.llseek		= noop_llseek,
+static const struct proc_ops ray_cs_essid_proc_ops = {
+	.proc_write	= ray_cs_essid_proc_write,
+	.proc_lseek	= noop_llseek,
 };
 
 static ssize_t int_proc_write(struct file *file, const char __user *buffer,
@@ -2751,10 +2750,9 @@ static ssize_t int_proc_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static const struct file_operations int_proc_fops = {
-	.owner		= THIS_MODULE,
-	.write		= int_proc_write,
-	.llseek		= noop_llseek,
+static const struct proc_ops int_proc_ops = {
+	.proc_write	= int_proc_write,
+	.proc_lseek	= noop_llseek,
 };
 #endif
 
@@ -2790,10 +2788,10 @@ static int __init init_ray_cs(void)
 	proc_mkdir("driver/ray_cs", NULL);
 
 	proc_create_single("driver/ray_cs/ray_cs", 0, NULL, ray_cs_proc_show);
-	proc_create("driver/ray_cs/essid", 0200, NULL, &ray_cs_essid_proc_fops);
-	proc_create_data("driver/ray_cs/net_type", 0200, NULL, &int_proc_fops,
+	proc_create("driver/ray_cs/essid", 0200, NULL, &ray_cs_essid_proc_ops);
+	proc_create_data("driver/ray_cs/net_type", 0200, NULL, &int_proc_ops,
 			 &net_type);
-	proc_create_data("driver/ray_cs/translate", 0200, NULL, &int_proc_fops,
+	proc_create_data("driver/ray_cs/translate", 0200, NULL, &int_proc_ops,
 			 &translate);
 #endif
 	if (translate != 0)

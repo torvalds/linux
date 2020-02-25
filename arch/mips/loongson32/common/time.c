@@ -49,7 +49,7 @@ static inline void ls1x_pwmtimer_restart(void)
 
 void __init ls1x_pwmtimer_init(void)
 {
-	timer_reg_base = ioremap_nocache(LS1X_TIMER_BASE, SZ_16);
+	timer_reg_base = ioremap(LS1X_TIMER_BASE, SZ_16);
 	if (!timer_reg_base)
 		panic("Failed to remap timer registers");
 

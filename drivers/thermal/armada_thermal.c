@@ -21,8 +21,6 @@
 
 #include "thermal_core.h"
 
-#define TO_MCELSIUS(c)			((c) * 1000)
-
 /* Thermal Manager Control and Status Register */
 #define PMU_TDC0_SW_RST_MASK		(0x1 << 1)
 #define PMU_TM_DISABLE_OFFS		0
@@ -153,6 +151,9 @@ static void armadaxp_init(struct platform_device *pdev,
 	/* Reset the sensor */
 	reg |= PMU_TDC0_SW_RST_MASK;
 
+	regmap_write(priv->syscon, data->syscon_control1_off, reg);
+
+	reg &= ~PMU_TDC0_SW_RST_MASK;
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 
 	/* Enable the sensor */
@@ -578,7 +579,7 @@ static const struct armada_thermal_data armadaxp_data = {
 	.coef_m = 10000000ULL,
 	.coef_div = 13825,
 	.syscon_status_off = 0xb0,
-	.syscon_control1_off = 0xd0,
+	.syscon_control1_off = 0x2d0,
 };
 
 static const struct armada_thermal_data armada370_data = {

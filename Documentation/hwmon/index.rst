@@ -29,6 +29,7 @@ Hardware Monitoring Kernel Drivers
    adm1025
    adm1026
    adm1031
+   adm1177
    adm1275
    adm9240
    ads7828
@@ -47,6 +48,7 @@ Hardware Monitoring Kernel Drivers
    da9055
    dell-smm-hwmon
    dme1737
+   drivetemp
    ds1621
    ds620
    emc1403
@@ -106,8 +108,10 @@ Hardware Monitoring Kernel Drivers
    max1619
    max1668
    max197
+   max20730
    max20751
    max31722
+   max31730
    max31785
    max31790
    max34440
@@ -177,6 +181,7 @@ Hardware Monitoring Kernel Drivers
    wm831x
    wm8350
    xgene-hwmon
+   xdpe12284
    zl6100
 
 .. only::  subproject and html

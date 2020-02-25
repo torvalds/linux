@@ -681,8 +681,7 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 
 	reset_gpiod = devm_gpiod_get_optional(&i2c_client->dev, "reset",
 					      GPIOD_OUT_HIGH);
-	if (IS_ERR(reset_gpiod) &&
-	    PTR_ERR(reset_gpiod) == -EPROBE_DEFER)
+	if (PTR_ERR(reset_gpiod) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	cs4270->regmap = devm_regmap_init_i2c(i2c_client, &cs4270_regmap);

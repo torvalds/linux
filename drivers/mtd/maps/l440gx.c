@@ -78,7 +78,7 @@ static int __init init_l440gx(void)
 		return -ENODEV;
 	}
 
-	l440gx_map.virt = ioremap_nocache(WINDOW_ADDR, WINDOW_SIZE);
+	l440gx_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE);
 
 	if (!l440gx_map.virt) {
 		printk(KERN_WARNING "Failed to ioremap L440GX flash region\n");

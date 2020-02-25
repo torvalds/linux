@@ -1457,6 +1457,8 @@ struct bnxt {
 #define CHIP_NUM_58804		0xd804
 #define CHIP_NUM_58808		0xd808
 
+	u8			chip_rev;
+
 #define BNXT_CHIP_NUM_5730X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57301 &&	\
 	 (chip_num) <= CHIP_NUM_57304)
@@ -1846,7 +1848,7 @@ struct bnxt {
 	enum devlink_eswitch_mode eswitch_mode;
 	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
-	u8			switch_id[8];
+	u8			dsn[8];
 	struct bnxt_tc_info	*tc_info;
 	struct list_head	tc_indr_block_list;
 	struct notifier_block	tc_netdev_nb;

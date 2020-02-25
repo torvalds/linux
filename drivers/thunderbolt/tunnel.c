@@ -19,6 +19,12 @@
 #define TB_PCI_PATH_DOWN		0
 #define TB_PCI_PATH_UP			1
 
+/* USB3 adapters use always HopID of 8 for both directions */
+#define TB_USB3_HOPID			8
+
+#define TB_USB3_PATH_DOWN		0
+#define TB_USB3_PATH_UP			1
+
 /* DP adapters use HopID 8 for AUX and 9 for Video */
 #define TB_DP_AUX_TX_HOPID		8
 #define TB_DP_AUX_RX_HOPID		8
@@ -31,7 +37,7 @@
 #define TB_DMA_PATH_OUT			0
 #define TB_DMA_PATH_IN			1
 
-static const char * const tb_tunnel_names[] = { "PCI", "DP", "DMA" };
+static const char * const tb_tunnel_names[] = { "PCI", "DP", "DMA", "USB3" };
 
 #define __TB_TUNNEL_PRINT(level, tunnel, fmt, arg...)                   \
 	do {                                                            \
@@ -243,6 +249,12 @@ struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 	return tunnel;
 }
 
+static bool tb_dp_is_usb4(const struct tb_switch *sw)
+{
+	/* Titan Ridge DP adapters need the same treatment as USB4 */
+	return tb_switch_is_usb4(sw) || tb_switch_is_titan_ridge(sw);
+}
+
 static int tb_dp_cm_handshake(struct tb_port *in, struct tb_port *out)
 {
 	int timeout = 10;
@@ -250,8 +262,7 @@ static int tb_dp_cm_handshake(struct tb_port *in, struct tb_port *out)
 	int ret;
 
 	/* Both ends need to support this */
-	if (!tb_switch_is_titan_ridge(in->sw) ||
-	    !tb_switch_is_titan_ridge(out->sw))
+	if (!tb_dp_is_usb4(in->sw) || !tb_dp_is_usb4(out->sw))
 		return 0;
 
 	ret = tb_port_read(out, &val, TB_CFG_PORT,
@@ -531,7 +542,7 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel)
 	u32 val, rate = 0, lanes = 0;
 	int ret;
 
-	if (tb_switch_is_titan_ridge(sw)) {
+	if (tb_dp_is_usb4(sw)) {
 		int timeout = 10;
 
 		/*
@@ -839,6 +850,156 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 	}
 	tb_dma_init_path(path, TB_PATH_SOURCE, TB_PATH_ALL, credits);
 	tunnel->paths[TB_DMA_PATH_OUT] = path;
+
+	return tunnel;
+}
+
+static int tb_usb3_activate(struct tb_tunnel *tunnel, bool activate)
+{
+	int res;
+
+	res = tb_usb3_port_enable(tunnel->src_port, activate);
+	if (res)
+		return res;
+
+	if (tb_port_is_usb3_up(tunnel->dst_port))
+		return tb_usb3_port_enable(tunnel->dst_port, activate);
+
+	return 0;
+}
+
+static void tb_usb3_init_path(struct tb_path *path)
+{
+	path->egress_fc_enable = TB_PATH_SOURCE | TB_PATH_INTERNAL;
+	path->egress_shared_buffer = TB_PATH_NONE;
+	path->ingress_fc_enable = TB_PATH_ALL;
+	path->ingress_shared_buffer = TB_PATH_NONE;
+	path->priority = 3;
+	path->weight = 3;
+	path->drop_packages = 0;
+	path->nfc_credits = 0;
+	path->hops[0].initial_credits = 7;
+	path->hops[1].initial_credits =
+		tb_initial_credits(path->hops[1].in_port->sw);
+}
+
+/**
+ * tb_tunnel_discover_usb3() - Discover existing USB3 tunnels
+ * @tb: Pointer to the domain structure
+ * @down: USB3 downstream adapter
+ *
+ * If @down adapter is active, follows the tunnel to the USB3 upstream
+ * adapter and back. Returns the discovered tunnel or %NULL if there was
+ * no tunnel.
+ */
+struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down)
+{
+	struct tb_tunnel *tunnel;
+	struct tb_path *path;
+
+	if (!tb_usb3_port_is_enabled(down))
+		return NULL;
+
+	tunnel = tb_tunnel_alloc(tb, 2, TB_TUNNEL_USB3);
+	if (!tunnel)
+		return NULL;
+
+	tunnel->activate = tb_usb3_activate;
+	tunnel->src_port = down;
+
+	/*
+	 * Discover both paths even if they are not complete. We will
+	 * clean them up by calling tb_tunnel_deactivate() below in that
+	 * case.
+	 */
+	path = tb_path_discover(down, TB_USB3_HOPID, NULL, -1,
+				&tunnel->dst_port, "USB3 Up");
+	if (!path) {
+		/* Just disable the downstream port */
+		tb_usb3_port_enable(down, false);
+		goto err_free;
+	}
+	tunnel->paths[TB_USB3_PATH_UP] = path;
+	tb_usb3_init_path(tunnel->paths[TB_USB3_PATH_UP]);
+
+	path = tb_path_discover(tunnel->dst_port, -1, down, TB_USB3_HOPID, NULL,
+				"USB3 Down");
+	if (!path)
+		goto err_deactivate;
+	tunnel->paths[TB_USB3_PATH_DOWN] = path;
+	tb_usb3_init_path(tunnel->paths[TB_USB3_PATH_DOWN]);
+
+	/* Validate that the tunnel is complete */
+	if (!tb_port_is_usb3_up(tunnel->dst_port)) {
+		tb_port_warn(tunnel->dst_port,
+			     "path does not end on an USB3 adapter, cleaning up\n");
+		goto err_deactivate;
+	}
+
+	if (down != tunnel->src_port) {
+		tb_tunnel_warn(tunnel, "path is not complete, cleaning up\n");
+		goto err_deactivate;
+	}
+
+	if (!tb_usb3_port_is_enabled(tunnel->dst_port)) {
+		tb_tunnel_warn(tunnel,
+			       "tunnel is not fully activated, cleaning up\n");
+		goto err_deactivate;
+	}
+
+	tb_tunnel_dbg(tunnel, "discovered\n");
+	return tunnel;
+
+err_deactivate:
+	tb_tunnel_deactivate(tunnel);
+err_free:
+	tb_tunnel_free(tunnel);
+
+	return NULL;
+}
+
+/**
+ * tb_tunnel_alloc_usb3() - allocate a USB3 tunnel
+ * @tb: Pointer to the domain structure
+ * @up: USB3 upstream adapter port
+ * @down: USB3 downstream adapter port
+ *
+ * Allocate an USB3 tunnel. The ports must be of type @TB_TYPE_USB3_UP and
+ * @TB_TYPE_USB3_DOWN.
+ *
+ * Return: Returns a tb_tunnel on success or %NULL on failure.
+ */
+struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
+				       struct tb_port *down)
+{
+	struct tb_tunnel *tunnel;
+	struct tb_path *path;
+
+	tunnel = tb_tunnel_alloc(tb, 2, TB_TUNNEL_USB3);
+	if (!tunnel)
+		return NULL;
+
+	tunnel->activate = tb_usb3_activate;
+	tunnel->src_port = down;
+	tunnel->dst_port = up;
+
+	path = tb_path_alloc(tb, down, TB_USB3_HOPID, up, TB_USB3_HOPID, 0,
+			     "USB3 Down");
+	if (!path) {
+		tb_tunnel_free(tunnel);
+		return NULL;
+	}
+	tb_usb3_init_path(path);
+	tunnel->paths[TB_USB3_PATH_DOWN] = path;
+
+	path = tb_path_alloc(tb, up, TB_USB3_HOPID, down, TB_USB3_HOPID, 0,
+			     "USB3 Up");
+	if (!path) {
+		tb_tunnel_free(tunnel);
+		return NULL;
+	}
+	tb_usb3_init_path(path);
+	tunnel->paths[TB_USB3_PATH_UP] = path;
 
 	return tunnel;
 }

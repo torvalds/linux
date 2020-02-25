@@ -86,6 +86,7 @@ enum inv_devices {
  *  @accl_fs:		accel full scale range.
  *  @accl_fifo_enable:	enable accel data output
  *  @gyro_fifo_enable:	enable gyro data output
+ *  @temp_fifo_enable:	enable temp data output
  *  @magn_fifo_enable:	enable magn data output
  *  @divider:		chip sample rate divider (sample rate divider - 1)
  */
@@ -95,6 +96,7 @@ struct inv_mpu6050_chip_config {
 	unsigned int accl_fs:2;
 	unsigned int accl_fifo_enable:1;
 	unsigned int gyro_fifo_enable:1;
+	unsigned int temp_fifo_enable:1;
 	unsigned int magn_fifo_enable:1;
 	u8 divider;
 	u8 user_ctrl;
@@ -184,6 +186,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BIT_SLAVE_2             0x04
 #define INV_MPU6050_BIT_ACCEL_OUT           0x08
 #define INV_MPU6050_BITS_GYRO_OUT           0x70
+#define INV_MPU6050_BIT_TEMP_OUT            0x80
 
 #define INV_MPU6050_REG_I2C_MST_CTRL        0x24
 #define INV_MPU6050_BITS_I2C_MST_CLK_400KHZ 0x0D
@@ -268,8 +271,8 @@ struct inv_mpu6050_state {
 /* MPU9X50 9-axis magnetometer */
 #define INV_MPU9X50_BYTES_MAGN               7
 
-/* ICM20602 FIFO samples include temperature readings */
-#define INV_ICM20602_BYTES_PER_TEMP_SENSOR   2
+/* FIFO temperature sample size */
+#define INV_MPU6050_BYTES_PER_TEMP_SENSOR   2
 
 /* mpu6500 registers */
 #define INV_MPU6500_REG_ACCEL_CONFIG_2      0x1D
@@ -298,7 +301,7 @@ struct inv_mpu6050_state {
 #define INV_ICM20608_TEMP_OFFSET	     8170
 #define INV_ICM20608_TEMP_SCALE		     3059976
 
-/* 6 + 6 + 7 (for MPU9x50) = 19 round up to 24 and plus 8 */
+/* 6 + 6 + 2 + 7 (for MPU9x50) = 21 round up to 24 and plus 8 */
 #define INV_MPU6050_OUTPUT_DATA_SIZE         32
 
 #define INV_MPU6050_REG_INT_PIN_CFG	0x37
@@ -344,6 +347,7 @@ enum inv_mpu6050_scan {
 	INV_MPU6050_SCAN_ACCL_X,
 	INV_MPU6050_SCAN_ACCL_Y,
 	INV_MPU6050_SCAN_ACCL_Z,
+	INV_MPU6050_SCAN_TEMP,
 	INV_MPU6050_SCAN_GYRO_X,
 	INV_MPU6050_SCAN_GYRO_Y,
 	INV_MPU6050_SCAN_GYRO_Z,
@@ -353,18 +357,6 @@ enum inv_mpu6050_scan {
 	INV_MPU9X50_SCAN_MAGN_Y,
 	INV_MPU9X50_SCAN_MAGN_Z,
 	INV_MPU9X50_SCAN_TIMESTAMP,
-};
-
-/* scan element definition for ICM20602, which includes temperature */
-enum inv_icm20602_scan {
-	INV_ICM20602_SCAN_ACCL_X,
-	INV_ICM20602_SCAN_ACCL_Y,
-	INV_ICM20602_SCAN_ACCL_Z,
-	INV_ICM20602_SCAN_TEMP,
-	INV_ICM20602_SCAN_GYRO_X,
-	INV_ICM20602_SCAN_GYRO_Y,
-	INV_ICM20602_SCAN_GYRO_Z,
-	INV_ICM20602_SCAN_TIMESTAMP,
 };
 
 enum inv_mpu6050_filter_e {

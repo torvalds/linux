@@ -635,11 +635,13 @@ struct drm_dp_mst_topology_mgr {
 	struct mutex payload_lock;
 	/**
 	 * @proposed_vcpis: Array of pointers for the new VCPI allocation. The
-	 * VCPI structure itself is &drm_dp_mst_port.vcpi.
+	 * VCPI structure itself is &drm_dp_mst_port.vcpi, and the size of
+	 * this array is determined by @max_payloads.
 	 */
 	struct drm_dp_vcpi **proposed_vcpis;
 	/**
-	 * @payloads: Array of payloads.
+	 * @payloads: Array of payloads. The size of this array is determined
+	 * by @max_payloads.
 	 */
 	struct drm_dp_payload *payloads;
 	/**

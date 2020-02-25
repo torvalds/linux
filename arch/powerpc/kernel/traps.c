@@ -1637,6 +1637,15 @@ void StackOverflow(struct pt_regs *regs)
 	panic("kernel stack overflow");
 }
 
+void stack_overflow_exception(struct pt_regs *regs)
+{
+	enum ctx_state prev_state = exception_enter();
+
+	die("Kernel stack overflow", regs, SIGSEGV);
+
+	exception_exit(prev_state);
+}
+
 void kernel_fp_unavailable_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();

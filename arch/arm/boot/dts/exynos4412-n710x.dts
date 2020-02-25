@@ -73,3 +73,8 @@
 	vdda-supply = <&cam_vdda_reg>;
 	status = "okay";
 };
+
+&touchkey_reg {
+	gpio = <&gpm0 5 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};

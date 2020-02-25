@@ -11,7 +11,7 @@
 #include <linux/tracepoint.h>
 
 struct trace_array;
-struct trace_buffer;
+struct array_buffer;
 struct tracer;
 struct dentry;
 struct bpf_prog;
@@ -79,7 +79,7 @@ struct trace_entry {
 struct trace_iterator {
 	struct trace_array	*tr;
 	struct tracer		*trace;
-	struct trace_buffer	*trace_buffer;
+	struct array_buffer	*array_buffer;
 	void			*private;
 	int			cpu_file;
 	struct mutex		mutex;
@@ -153,7 +153,7 @@ void tracing_generic_entry_update(struct trace_entry *entry,
 struct trace_event_file;
 
 struct ring_buffer_event *
-trace_event_buffer_lock_reserve(struct ring_buffer **current_buffer,
+trace_event_buffer_lock_reserve(struct trace_buffer **current_buffer,
 				struct trace_event_file *trace_file,
 				int type, unsigned long len,
 				unsigned long flags, int pc);
@@ -192,6 +192,22 @@ enum trace_reg {
 
 struct trace_event_call;
 
+#define TRACE_FUNCTION_TYPE ((const char *)~0UL)
+
+struct trace_event_fields {
+	const char *type;
+	union {
+		struct {
+			const char *name;
+			const int  size;
+			const int  align;
+			const int  is_signed;
+			const int  filter_type;
+		};
+		int (*define_fields)(struct trace_event_call *);
+	};
+};
+
 struct trace_event_class {
 	const char		*system;
 	void			*probe;
@@ -200,7 +216,7 @@ struct trace_event_class {
 #endif
 	int			(*reg)(struct trace_event_call *event,
 				       enum trace_reg type, void *data);
-	int			(*define_fields)(struct trace_event_call *);
+	struct trace_event_fields *fields_array;
 	struct list_head	*(*get_fields)(struct trace_event_call *);
 	struct list_head	fields;
 	int			(*raw_init)(struct trace_event_call *);
@@ -210,12 +226,13 @@ extern int trace_event_reg(struct trace_event_call *event,
 			    enum trace_reg type, void *data);
 
 struct trace_event_buffer {
-	struct ring_buffer		*buffer;
+	struct trace_buffer		*buffer;
 	struct ring_buffer_event	*event;
 	struct trace_event_file		*trace_file;
 	void				*entry;
 	unsigned long			flags;
 	int				pc;
+	struct pt_regs			*regs;
 };
 
 void *trace_event_buffer_reserve(struct trace_event_buffer *fbuffer,
@@ -347,6 +364,128 @@ enum {
 	EVENT_FILE_FL_PID_FILTER_BIT,
 	EVENT_FILE_FL_WAS_ENABLED_BIT,
 };
+
+extern struct trace_event_file *trace_get_event_file(const char *instance,
+						     const char *system,
+						     const char *event);
+extern void trace_put_event_file(struct trace_event_file *file);
+
+#define MAX_DYNEVENT_CMD_LEN	(2048)
+
+enum dynevent_type {
+	DYNEVENT_TYPE_SYNTH = 1,
+	DYNEVENT_TYPE_KPROBE,
+	DYNEVENT_TYPE_NONE,
+};
+
+struct dynevent_cmd;
+
+typedef int (*dynevent_create_fn_t)(struct dynevent_cmd *cmd);
+
+struct dynevent_cmd {
+	struct seq_buf		seq;
+	const char		*event_name;
+	unsigned int		n_fields;
+	enum dynevent_type	type;
+	dynevent_create_fn_t	run_command;
+	void			*private_data;
+};
+
+extern int dynevent_create(struct dynevent_cmd *cmd);
+
+extern int synth_event_delete(const char *name);
+
+extern void synth_event_cmd_init(struct dynevent_cmd *cmd,
+				 char *buf, int maxlen);
+
+extern int __synth_event_gen_cmd_start(struct dynevent_cmd *cmd,
+				       const char *name,
+				       struct module *mod, ...);
+
+#define synth_event_gen_cmd_start(cmd, name, mod, ...)	\
+	__synth_event_gen_cmd_start(cmd, name, mod, ## __VA_ARGS__, NULL)
+
+struct synth_field_desc {
+	const char *type;
+	const char *name;
+};
+
+extern int synth_event_gen_cmd_array_start(struct dynevent_cmd *cmd,
+					   const char *name,
+					   struct module *mod,
+					   struct synth_field_desc *fields,
+					   unsigned int n_fields);
+extern int synth_event_create(const char *name,
+			      struct synth_field_desc *fields,
+			      unsigned int n_fields, struct module *mod);
+
+extern int synth_event_add_field(struct dynevent_cmd *cmd,
+				 const char *type,
+				 const char *name);
+extern int synth_event_add_field_str(struct dynevent_cmd *cmd,
+				     const char *type_name);
+extern int synth_event_add_fields(struct dynevent_cmd *cmd,
+				  struct synth_field_desc *fields,
+				  unsigned int n_fields);
+
+#define synth_event_gen_cmd_end(cmd)	\
+	dynevent_create(cmd)
+
+struct synth_event;
+
+struct synth_event_trace_state {
+	struct trace_event_buffer fbuffer;
+	struct synth_trace_event *entry;
+	struct trace_buffer *buffer;
+	struct synth_event *event;
+	unsigned int cur_field;
+	unsigned int n_u64;
+	bool disabled;
+	bool add_next;
+	bool add_name;
+};
+
+extern int synth_event_trace(struct trace_event_file *file,
+			     unsigned int n_vals, ...);
+extern int synth_event_trace_array(struct trace_event_file *file, u64 *vals,
+				   unsigned int n_vals);
+extern int synth_event_trace_start(struct trace_event_file *file,
+				   struct synth_event_trace_state *trace_state);
+extern int synth_event_add_next_val(u64 val,
+				    struct synth_event_trace_state *trace_state);
+extern int synth_event_add_val(const char *field_name, u64 val,
+			       struct synth_event_trace_state *trace_state);
+extern int synth_event_trace_end(struct synth_event_trace_state *trace_state);
+
+extern int kprobe_event_delete(const char *name);
+
+extern void kprobe_event_cmd_init(struct dynevent_cmd *cmd,
+				  char *buf, int maxlen);
+
+#define kprobe_event_gen_cmd_start(cmd, name, loc, ...)			\
+	__kprobe_event_gen_cmd_start(cmd, false, name, loc, ## __VA_ARGS__, NULL)
+
+#define kretprobe_event_gen_cmd_start(cmd, name, loc, ...)		\
+	__kprobe_event_gen_cmd_start(cmd, true, name, loc, ## __VA_ARGS__, NULL)
+
+extern int __kprobe_event_gen_cmd_start(struct dynevent_cmd *cmd,
+					bool kretprobe,
+					const char *name,
+					const char *loc, ...);
+
+#define kprobe_event_add_fields(cmd, ...)	\
+	__kprobe_event_add_fields(cmd, ## __VA_ARGS__, NULL)
+
+#define kprobe_event_add_field(cmd, field)	\
+	__kprobe_event_add_fields(cmd, field, NULL)
+
+extern int __kprobe_event_add_fields(struct dynevent_cmd *cmd, ...);
+
+#define kprobe_event_gen_cmd_end(cmd)		\
+	dynevent_create(cmd)
+
+#define kretprobe_event_gen_cmd_end(cmd)	\
+	dynevent_create(cmd)
 
 /*
  * Event file flags:

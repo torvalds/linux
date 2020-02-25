@@ -195,9 +195,9 @@ static int uapi_merge_obj_tree(struct uverbs_api *uapi,
 		 * disassociation, and the FD types require the driver to use
 		 * struct file_operations.owner to prevent the driver module
 		 * code from unloading while the file is open. This provides
-		 * enough safety that uverbs_close_fd() will continue to work.
-		 * Drivers using FD are responsible to handle disassociation of
-		 * the device on their own.
+		 * enough safety that uverbs_uobject_fd_release() will
+		 * continue to work.  Drivers using FD are responsible to
+		 * handle disassociation of the device on their own.
 		 */
 		if (WARN_ON(is_driver &&
 			    obj->type_attrs->type_class != &uverbs_idr_class &&
@@ -626,6 +626,7 @@ void uverbs_destroy_api(struct uverbs_api *uapi)
 }
 
 static const struct uapi_definition uverbs_core_api[] = {
+	UAPI_DEF_CHAIN(uverbs_def_obj_async_fd),
 	UAPI_DEF_CHAIN(uverbs_def_obj_counters),
 	UAPI_DEF_CHAIN(uverbs_def_obj_cq),
 	UAPI_DEF_CHAIN(uverbs_def_obj_device),
