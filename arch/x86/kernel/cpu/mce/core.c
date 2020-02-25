@@ -1904,24 +1904,50 @@ static void unexpected_machine_check(struct pt_regs *regs)
 /* Call the installed machine check handler for this CPU setup. */
 void (*machine_check_vector)(struct pt_regs *) = unexpected_machine_check;
 
-DEFINE_IDTENTRY_MCE(exc_machine_check)
+static __always_inline void exc_machine_check_kernel(struct pt_regs *regs)
 {
+	/*
+	 * Only required when from kernel mode. See
+	 * mce_check_crashing_cpu() for details.
+	 */
 	if (machine_check_vector == do_machine_check &&
 	    mce_check_crashing_cpu())
 		return;
 
-	if (user_mode(regs))
-		idtentry_enter(regs);
-	else
-		nmi_enter();
-
+	nmi_enter();
 	machine_check_vector(regs);
-
-	if (user_mode(regs))
-		idtentry_exit(regs);
-	else
-		nmi_exit();
+	nmi_exit();
 }
+
+static __always_inline void exc_machine_check_user(struct pt_regs *regs)
+{
+	idtentry_enter(regs);
+	machine_check_vector(regs);
+	idtentry_exit(regs);
+}
+
+#ifdef CONFIG_X86_64
+/* MCE hit kernel mode */
+DEFINE_IDTENTRY_MCE(exc_machine_check)
+{
+	exc_machine_check_kernel(regs);
+}
+
+/* The user mode variant. */
+DEFINE_IDTENTRY_MCE_USER(exc_machine_check)
+{
+	exc_machine_check_user(regs);
+}
+#else
+/* 32bit unified entry point */
+DEFINE_IDTENTRY_MCE(exc_machine_check)
+{
+	if (user_mode(regs))
+		exc_machine_check_user(regs);
+	else
+		exc_machine_check_kernel(regs);
+}
+#endif
 
 /*
  * Called for each booted CPU to set up machine checks.

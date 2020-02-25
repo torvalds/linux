@@ -775,19 +775,11 @@ static __always_inline void debug_exit(unsigned long dr7)
  *
  * May run on IST stack.
  */
-DEFINE_IDTENTRY_DEBUG(exc_debug)
+static noinstr void handle_debug(struct pt_regs *regs, unsigned long dr6)
 {
 	struct task_struct *tsk = current;
-	unsigned long dr6, dr7;
 	int user_icebp = 0;
 	int si_code;
-
-	debug_enter(&dr6, &dr7);
-
-	if (user_mode(regs))
-		idtentry_enter(regs);
-	else
-		nmi_enter();
 
 	/*
 	 * The SDM says "The processor clears the BTF flag when it
@@ -800,7 +792,7 @@ DEFINE_IDTENTRY_DEBUG(exc_debug)
 		     is_sysenter_singlestep(regs))) {
 		dr6 &= ~DR_STEP;
 		if (!dr6)
-			goto exit;
+			return;
 		/*
 		 * else we might have gotten a single-step trap and hit a
 		 * watchpoint at the same time, in which case we should fall
@@ -821,12 +813,12 @@ DEFINE_IDTENTRY_DEBUG(exc_debug)
 
 #ifdef CONFIG_KPROBES
 	if (kprobe_debug_handler(regs))
-		goto exit;
+		return;
 #endif
 
 	if (notify_die(DIE_DEBUG, "debug", regs, (long)&dr6, 0,
 		       SIGTRAP) == NOTIFY_STOP)
-		goto exit;
+		return;
 
 	/*
 	 * Let others (NMI) know that the debug stack is in use
@@ -842,7 +834,7 @@ DEFINE_IDTENTRY_DEBUG(exc_debug)
 				 X86_TRAP_DB);
 		cond_local_irq_disable(regs);
 		debug_stack_usage_dec();
-		goto exit;
+		return;
 	}
 
 	if (WARN_ON_ONCE((dr6 & DR_STEP) && !user_mode(regs))) {
@@ -861,14 +853,60 @@ DEFINE_IDTENTRY_DEBUG(exc_debug)
 		send_sigtrap(regs, 0, si_code);
 	cond_local_irq_disable(regs);
 	debug_stack_usage_dec();
+}
 
-exit:
-	if (user_mode(regs))
-		idtentry_exit(regs);
-	else
-		nmi_exit();
+static __always_inline void exc_debug_kernel(struct pt_regs *regs,
+					     unsigned long dr6)
+{
+	nmi_enter();
+	handle_debug(regs, dr6);
+	nmi_exit();
+}
+
+static __always_inline void exc_debug_user(struct pt_regs *regs,
+					   unsigned long dr6)
+{
+	idtentry_enter(regs);
+	handle_debug(regs, dr6);
+	idtentry_exit(regs);
+}
+
+#ifdef CONFIG_X86_64
+/* IST stack entry */
+DEFINE_IDTENTRY_DEBUG(exc_debug)
+{
+	unsigned long dr6, dr7;
+
+	debug_enter(&dr6, &dr7);
+	exc_debug_kernel(regs, dr6);
 	debug_exit(dr7);
 }
+
+/* User entry, runs on regular task stack */
+DEFINE_IDTENTRY_DEBUG_USER(exc_debug)
+{
+	unsigned long dr6, dr7;
+
+	debug_enter(&dr6, &dr7);
+	exc_debug_user(regs, dr6);
+	debug_exit(dr7);
+}
+#else
+/* 32 bit does not have separate entry points. */
+DEFINE_IDTENTRY_DEBUG(exc_debug)
+{
+	unsigned long dr6, dr7;
+
+	debug_enter(&dr6, &dr7);
+
+	if (user_mode(regs))
+		exc_debug_user(regs, dr6);
+	else
+		exc_debug_kernel(regs, dr6);
+
+	debug_exit(dr7);
+}
+#endif
 
 /*
  * Note that we play around with the 'TS' bit in an attempt to get

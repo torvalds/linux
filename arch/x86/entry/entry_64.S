@@ -657,7 +657,7 @@ SYM_CODE_START(\asmsym)
 
 	/* Switch to the regular task stack and use the noist entry point */
 .Lfrom_usermode_switch_stack_\@:
-	idtentry_body vector \cfunc, has_error_code=0
+	idtentry_body vector noist_\cfunc, has_error_code=0 sane=1
 
 _ASM_NOKPROBE(\asmsym)
 SYM_CODE_END(\asmsym)
