@@ -1325,13 +1325,6 @@ SYM_CODE_START(native_iret)
 SYM_CODE_END(native_iret)
 #endif
 
-SYM_CODE_START(invalid_op)
-	ASM_CLAC
-	pushl	$0
-	pushl	$do_invalid_op
-	jmp	common_exception
-SYM_CODE_END(invalid_op)
-
 SYM_CODE_START(coprocessor_segment_overrun)
 	ASM_CLAC
 	pushl	$0

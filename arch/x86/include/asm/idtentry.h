@@ -80,5 +80,6 @@ static __always_inline void __##func(struct pt_regs *regs)
 DECLARE_IDTENTRY(X86_TRAP_DE,		exc_divide_error);
 DECLARE_IDTENTRY(X86_TRAP_OF,		exc_overflow);
 DECLARE_IDTENTRY(X86_TRAP_BR,		exc_bounds);
+DECLARE_IDTENTRY(X86_TRAP_UD,		exc_invalid_op);
 
 #endif

@@ -426,7 +426,7 @@ static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
 		nr = (address - idt_descr.address) >> 3;
 
 		if (nr == 6) {
-			do_invalid_op(regs, 0);
+			handle_invalid_op(regs);
 			return 1;
 		}
 	}
