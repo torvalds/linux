@@ -181,4 +181,7 @@ DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_SS,	exc_stack_segment);
 DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_GP,	exc_general_protection);
 DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_AC,	exc_alignment_check);
 
+/* Raw exception entries which need extra work */
+DECLARE_IDTENTRY_RAW(X86_TRAP_BP,	exc_int3);
+
 #endif

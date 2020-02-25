@@ -1072,8 +1072,6 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
  * Exception entry points.
  */
 
-idtentry	X86_TRAP_BP		int3			do_int3				has_error_code=0
-
 idtentry	X86_TRAP_PF		page_fault		do_page_fault			has_error_code=1
 
 #ifdef CONFIG_X86_MCE

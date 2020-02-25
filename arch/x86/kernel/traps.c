@@ -568,7 +568,7 @@ exit:
 	cond_local_irq_disable(regs);
 }
 
-dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+DEFINE_IDTENTRY_RAW(exc_int3)
 {
 	/*
 	 * poke_int3_handler() is completely self contained code; it does (and
@@ -579,16 +579,20 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 		return;
 
 	/*
-	 * Unlike any other non-IST entry, we can be called from pretty much
-	 * any location in the kernel through kprobes -- text_poke() will most
-	 * likely be handled by poke_int3_handler() above. This means this
-	 * handler is effectively NMI-like.
+	 * idtentry_enter() uses static_branch_{,un}likely() and therefore
+	 * can trigger INT3, hence poke_int3_handler() must be done
+	 * before. If the entry came from kernel mode, then use nmi_enter()
+	 * because the INT3 could have been hit in any context including
+	 * NMI.
 	 */
-	if (!user_mode(regs))
+	if (user_mode(regs))
+		idtentry_enter(regs);
+	else
 		nmi_enter();
 
+	instrumentation_begin();
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
-	if (kgdb_ll_trap(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
+	if (kgdb_ll_trap(DIE_INT3, "int3", regs, 0, X86_TRAP_BP,
 				SIGTRAP) == NOTIFY_STOP)
 		goto exit;
 #endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
@@ -598,19 +602,21 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 		goto exit;
 #endif
 
-	if (notify_die(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
+	if (notify_die(DIE_INT3, "int3", regs, 0, X86_TRAP_BP,
 			SIGTRAP) == NOTIFY_STOP)
 		goto exit;
 
 	cond_local_irq_enable(regs);
-	do_trap(X86_TRAP_BP, SIGTRAP, "int3", regs, error_code, 0, NULL);
+	do_trap(X86_TRAP_BP, SIGTRAP, "int3", regs, 0, 0, NULL);
 	cond_local_irq_disable(regs);
 
 exit:
-	if (!user_mode(regs))
+	instrumentation_end();
+	if (user_mode(regs))
+		idtentry_exit(regs);
+	else
 		nmi_exit();
 }
-NOKPROBE_SYMBOL(do_int3);
 
 #ifdef CONFIG_X86_64
 /*

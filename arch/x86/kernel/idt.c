@@ -60,7 +60,7 @@ static bool idt_setup_done __initdata;
  */
 static const __initconst struct idt_data early_idts[] = {
 	INTG(X86_TRAP_DB,		debug),
-	SYSG(X86_TRAP_BP,		int3),
+	SYSG(X86_TRAP_BP,		asm_exc_int3),
 #ifdef CONFIG_X86_32
 	INTG(X86_TRAP_PF,		page_fault),
 #endif
