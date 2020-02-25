@@ -4460,13 +4460,9 @@ skl_get_total_relative_data_rate(struct intel_crtc_state *crtc_state,
 				 u64 *plane_data_rate,
 				 u64 *uv_plane_data_rate)
 {
-	struct drm_atomic_state *state = crtc_state->uapi.state;
 	struct intel_plane *plane;
 	const struct intel_plane_state *plane_state;
 	u64 total_data_rate = 0;
-
-	if (WARN_ON(!state))
-		return 0;
 
 	/* Calculate and cache data rate for each plane */
 	intel_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state) {
@@ -4494,9 +4490,6 @@ icl_get_total_relative_data_rate(struct intel_crtc_state *crtc_state,
 	struct intel_plane *plane;
 	const struct intel_plane_state *plane_state;
 	u64 total_data_rate = 0;
-
-	if (WARN_ON(!crtc_state->uapi.state))
-		return 0;
 
 	/* Calculate and cache data rate for each plane */
 	intel_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state) {
@@ -4538,7 +4531,6 @@ icl_get_total_relative_data_rate(struct intel_crtc_state *crtc_state,
 static int
 skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 {
-	struct drm_atomic_state *state = crtc_state->uapi.state;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct skl_ddb_entry *alloc = &crtc_state->wm.skl.ddb;
@@ -4556,9 +4548,6 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 	/* Clear the partitioning for disabled planes. */
 	memset(crtc_state->wm.skl.plane_ddb_y, 0, sizeof(crtc_state->wm.skl.plane_ddb_y));
 	memset(crtc_state->wm.skl.plane_ddb_uv, 0, sizeof(crtc_state->wm.skl.plane_ddb_uv));
-
-	if (drm_WARN_ON(&dev_priv->drm, !state))
-		return 0;
 
 	if (!crtc_state->hw.active) {
 		alloc->start = alloc->end = 0;
