@@ -926,9 +926,11 @@ lab skeleton.
 .. warning::
   Until after solving exercise 3, you will get a compilation error for
   ``3-error-mod``. To avoid this issue, remove the directory
-  :file:`skels/kernel_modules/3-error-mod/`.
+  :file:`skels/kernel_modules/3-error-mod/` and remove the corresponding
+  line from ``skels/Kbuild``.
 
-Start the VM using :command:`make boot` and perform the following tasks:
+Start the VM using :command:`make boot`, connect to the serial console
+using `minicom -D serial.pts` and perform the following tasks:
 
 * load the kernel module.
 
@@ -946,28 +948,20 @@ Start the VM using :command:`make boot` and perform the following tasks:
 2. Printk
 ---------
 
-Watch the virtual machine console. Why were the messages not displayed directly
+Watch the virtual machine console. Why were the messages displayed directly
 to the virtual machine console?
 
-Inspect the source code file. Change the source code file so that messages are
-displayed directly on the serial console.
+Configure the system such that the messages are not displayed directly
+on the serial console, and they can only be inspected using ``dmesg``.
 
-.. hint:: Read the `Printk debugging`_ section of the lab and focus on the
-          information regarding the :c:func:`printk` function.
+.. hint:: One option is to set the console log level by writting
+          the desired level to ``/proc/sys/kernel/printk``.
+          Use a value smaller than the level used for the prints in
+          the source code of the module.
 
-          You will need to edit the kernel boot options in the file
-          :file:`qemu/Makefile` and add the option `ignore_loglevel` on the line
-          starting with `append root...`.
-
-.. hint:: Another option is to set the current log level by writting
-          the desired log level to ``/proc/sys/kernel/printk``
-
-          An alternative approach is to use a higher log level in the
-          :c:func:`printk` calls.
-
-
-Compile the module, copy it to the virtual machine, boot and load/unload the
-module. The messages should be printed to the virtual machine console.
+Load/unload the module again.
+The messages should not be printed to the virtual machine console,
+but they should be visible when running ``dmesg``.
 
 3. Error
 --------
