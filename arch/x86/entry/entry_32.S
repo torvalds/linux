@@ -1318,12 +1318,6 @@ SYM_CODE_START(native_iret)
 SYM_CODE_END(native_iret)
 #endif
 
-SYM_CODE_START(invalid_TSS)
-	ASM_CLAC
-	pushl	$do_invalid_TSS
-	jmp	common_exception
-SYM_CODE_END(invalid_TSS)
-
 SYM_CODE_START(segment_not_present)
 	ASM_CLAC
 	pushl	$do_segment_not_present
