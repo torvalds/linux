@@ -154,7 +154,6 @@ amdgpu_dm_mst_connector_late_register(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 		to_amdgpu_dm_connector(connector);
-	struct drm_dp_mst_port *port = amdgpu_dm_connector->port;
 	int r;
 
 	amdgpu_dm_connector->dm_dp_aux.aux.dev = connector->kdev;
@@ -166,7 +165,7 @@ amdgpu_dm_mst_connector_late_register(struct drm_connector *connector)
 	connector_debugfs_init(amdgpu_dm_connector);
 #endif
 
-	return drm_dp_mst_connector_late_register(connector, port);
+	return r;
 }
 
 static void
