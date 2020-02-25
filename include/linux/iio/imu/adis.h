@@ -43,10 +43,14 @@ struct adis_timeout {
  * @diag_stat_reg: Register address of the DIAG_STAT register
  * @prod_id_reg: Register address of the PROD_ID register
  * @prod_id: Product ID code that should be expected when reading @prod_id_reg
+ * @self_test_mask: Bitmask of supported self-test operations
  * @self_test_reg: Register address to request self test command
+ * @self_test_no_autoclear: True if device's self-test needs clear of ctrl reg
  * @status_error_msgs: Array of error messgaes
- * @status_error_mask:
+ * @status_error_mask: Bitmask of errors supported by the device
  * @timeouts: Chip specific delays
+ * @enable_irq: Hook for ADIS devices that have a special IRQ enable/disable
+ * @has_paging: True if ADIS device has paged registers
  */
 struct adis_data {
 	unsigned int read_delay;
