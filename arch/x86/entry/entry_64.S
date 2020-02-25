@@ -889,12 +889,14 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
 	TRACE_IRQS_OFF
 	.endif
 
+#ifdef CONFIG_CONTEXT_TRACKING
 	.if \paranoid == 0
 	testb	$3, CS(%rsp)
 	jz	.Lfrom_kernel_no_context_tracking_\@
 	CALL_enter_from_user_mode
 .Lfrom_kernel_no_context_tracking_\@:
 	.endif
+#endif
 
 	movq	%rsp, %rdi			/* pt_regs pointer */
 
