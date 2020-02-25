@@ -1020,20 +1020,36 @@ _ASM_NOKPROBE(\sym)
 SYM_CODE_END(\sym)
 .endm
 
+
 idtentry divide_error			do_divide_error			has_error_code=0
 idtentry overflow			do_overflow			has_error_code=0
+idtentry int3				do_int3				has_error_code=0	create_gap=1
 idtentry bounds				do_bounds			has_error_code=0
 idtentry invalid_op			do_invalid_op			has_error_code=0
 idtentry device_not_available		do_device_not_available		has_error_code=0
-idtentry double_fault			do_double_fault			has_error_code=1 paranoid=2 read_cr2=1
 idtentry coprocessor_segment_overrun	do_coprocessor_segment_overrun	has_error_code=0
 idtentry invalid_TSS			do_invalid_TSS			has_error_code=1
 idtentry segment_not_present		do_segment_not_present		has_error_code=1
+idtentry stack_segment			do_stack_segment		has_error_code=1
+idtentry general_protection		do_general_protection		has_error_code=1
 idtentry spurious_interrupt_bug		do_spurious_interrupt_bug	has_error_code=0
 idtentry coprocessor_error		do_coprocessor_error		has_error_code=0
 idtentry alignment_check		do_alignment_check		has_error_code=1
 idtentry simd_coprocessor_error		do_simd_coprocessor_error	has_error_code=0
 
+idtentry page_fault		do_page_fault		has_error_code=1	read_cr2=1
+
+#ifdef CONFIG_X86_MCE
+idtentry machine_check		do_mce			has_error_code=0 paranoid=1
+#endif
+idtentry debug			do_debug		has_error_code=0 paranoid=1 shift_ist=IST_INDEX_DB ist_offset=DB_STACK_OFFSET
+idtentry double_fault		do_double_fault		has_error_code=1 paranoid=2 read_cr2=1
+
+#ifdef CONFIG_XEN_PV
+idtentry hypervisor_callback	xen_do_hypervisor_callback	has_error_code=0
+idtentry xennmi			do_nmi				has_error_code=0
+idtentry xendebug		do_debug			has_error_code=0
+#endif
 
 /*
  * Reload gs selector with exception handling
@@ -1084,8 +1100,6 @@ SYM_FUNC_END(do_softirq_own_stack)
 .popsection
 
 #ifdef CONFIG_XEN_PV
-idtentry hypervisor_callback xen_do_hypervisor_callback has_error_code=0
-
 /*
  * A note on the "critical region" in our callback handler.
  * We want to avoid stacking callback handlers due to events occurring
@@ -1186,22 +1200,6 @@ apicinterrupt3 HYPERV_STIMER0_VECTOR \
 #if IS_ENABLED(CONFIG_ACRN_GUEST)
 apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
 	acrn_hv_callback_vector acrn_hv_vector_handler
-#endif
-
-idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=IST_INDEX_DB ist_offset=DB_STACK_OFFSET
-idtentry int3			do_int3			has_error_code=0	create_gap=1
-idtentry stack_segment		do_stack_segment	has_error_code=1
-
-#ifdef CONFIG_XEN_PV
-idtentry xennmi			do_nmi			has_error_code=0
-idtentry xendebug		do_debug		has_error_code=0
-#endif
-
-idtentry general_protection	do_general_protection	has_error_code=1
-idtentry page_fault		do_page_fault		has_error_code=1	read_cr2=1
-
-#ifdef CONFIG_X86_MCE
-idtentry machine_check		do_mce			has_error_code=0	paranoid=1
 #endif
 
 /*
