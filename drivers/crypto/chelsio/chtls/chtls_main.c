@@ -174,9 +174,16 @@ static inline void chtls_dev_release(struct kref *kref)
 {
 	struct tls_toe_device *dev;
 	struct chtls_dev *cdev;
+	struct adapter *adap;
 
 	dev = container_of(kref, struct tls_toe_device, kref);
 	cdev = to_chtls_dev(dev);
+
+	/* Reset tls rx/tx stats */
+	adap = pci_get_drvdata(cdev->pdev);
+	atomic_set(&adap->chcr_stats.tls_pdu_tx, 0);
+	atomic_set(&adap->chcr_stats.tls_pdu_rx, 0);
+
 	chtls_free_uld(cdev);
 }
 

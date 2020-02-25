@@ -1399,6 +1399,8 @@ static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
 	struct chtls_hws *hws = &csk->tlshws;
+	struct net_device *dev = csk->egress_dev;
+	struct adapter *adap = netdev2adap(dev);
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned long avail;
 	int buffers_freed;
@@ -1540,6 +1542,7 @@ skip_copy:
 				tp->copied_seq += skb->len;
 				hws->rcvpld = skb->hdr_len;
 			} else {
+				atomic_inc(&adap->chcr_stats.tls_pdu_rx);
 				tp->copied_seq += hws->rcvpld;
 			}
 			chtls_free_skb(sk, skb);
