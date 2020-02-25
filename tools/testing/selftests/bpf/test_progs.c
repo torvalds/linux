@@ -6,6 +6,8 @@
 #include "bpf_rlimit.h"
 #include <argp.h>
 #include <string.h>
+#include <signal.h>
+#include <execinfo.h> /* backtrace */
 
 /* defined in test_progs.h */
 struct test_env env = {};
@@ -617,6 +619,23 @@ int cd_flavor_subdir(const char *exec_name)
 	return chdir(flavor);
 }
 
+#define MAX_BACKTRACE_SZ 128
+void crash_handler(int signum)
+{
+	void *bt[MAX_BACKTRACE_SZ];
+	size_t sz;
+
+	sz = backtrace(bt, ARRAY_SIZE(bt));
+
+	if (env.test)
+		dump_test_log(env.test, true);
+	if (env.stdout)
+		stdio_restore();
+
+	fprintf(stderr, "Caught signal #%d!\nStack trace:\n", signum);
+	backtrace_symbols_fd(bt, sz, STDERR_FILENO);
+}
+
 int main(int argc, char **argv)
 {
 	static const struct argp argp = {
@@ -624,7 +643,13 @@ int main(int argc, char **argv)
 		.parser = parse_arg,
 		.doc = argp_program_doc,
 	};
+	struct sigaction sigact = {
+		.sa_handler = crash_handler,
+		.sa_flags = SA_RESETHAND,
+	};
 	int err, i;
+
+	sigaction(SIGSEGV, &sigact, NULL);
 
 	err = argp_parse(&argp, argc, argv, 0, NULL, &env);
 	if (err)
