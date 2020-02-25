@@ -617,7 +617,7 @@ static struct trap_array_entry trap_array[] = {
 #endif
 	{ nmi,                         xen_xennmi,                      true },
 	{ int3,                        xen_int3,                        false },
-	{ overflow,                    xen_overflow,                    false },
+	TRAP_ENTRY(exc_overflow,			false ),
 #ifdef CONFIG_IA32_EMULATION
 	{ entry_INT80_compat,          xen_entry_INT80_compat,          false },
 #endif

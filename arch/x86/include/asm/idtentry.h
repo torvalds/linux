@@ -78,5 +78,6 @@ static __always_inline void __##func(struct pt_regs *regs)
 
 /* Simple exception entry points. No hardware error code */
 DECLARE_IDTENTRY(X86_TRAP_DE,		exc_divide_error);
+DECLARE_IDTENTRY(X86_TRAP_OF,		exc_overflow);
 
 #endif
