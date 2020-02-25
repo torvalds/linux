@@ -367,8 +367,9 @@ out:
 	mutex_unlock(&trampoline_mutex);
 }
 
-/* The logic is similar to BPF_PROG_RUN, but with explicit rcu and preempt that
- * are needed for trampoline. The macro is split into
+/* The logic is similar to BPF_PROG_RUN, but with an explicit
+ * rcu_read_lock() and migrate_disable() which are required
+ * for the trampoline. The macro is split into
  * call _bpf_prog_enter
  * call prog->bpf_func
  * call __bpf_prog_exit
@@ -378,7 +379,7 @@ u64 notrace __bpf_prog_enter(void)
 	u64 start = 0;
 
 	rcu_read_lock();
-	preempt_disable();
+	migrate_disable();
 	if (static_branch_unlikely(&bpf_stats_enabled_key))
 		start = sched_clock();
 	return start;
@@ -401,7 +402,7 @@ void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
 		stats->nsecs += sched_clock() - start;
 		u64_stats_update_end(&stats->syncp);
 	}
-	preempt_enable();
+	migrate_enable();
 	rcu_read_unlock();
 }
 

@@ -885,7 +885,7 @@ int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 		struct bpf_prog *_prog;			\
 		struct bpf_prog_array *_array;		\
 		u32 _ret = 1;				\
-		preempt_disable();			\
+		migrate_disable();			\
 		rcu_read_lock();			\
 		_array = rcu_dereference(array);	\
 		if (unlikely(check_non_null && !_array))\
@@ -898,7 +898,7 @@ int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 		}					\
 _out:							\
 		rcu_read_unlock();			\
-		preempt_enable();			\
+		migrate_enable();			\
 		_ret;					\
 	 })
 
@@ -932,7 +932,7 @@ _out:							\
 		u32 ret;				\
 		u32 _ret = 1;				\
 		u32 _cn = 0;				\
-		preempt_disable();			\
+		migrate_disable();			\
 		rcu_read_lock();			\
 		_array = rcu_dereference(array);	\
 		_item = &_array->items[0];		\
@@ -944,7 +944,7 @@ _out:							\
 			_item++;			\
 		}					\
 		rcu_read_unlock();			\
-		preempt_enable();			\
+		migrate_enable();			\
 		if (_ret)				\
 			_ret = (_cn ? NET_XMIT_CN : NET_XMIT_SUCCESS);	\
 		else					\
@@ -960,6 +960,36 @@ _out:							\
 
 #ifdef CONFIG_BPF_SYSCALL
 DECLARE_PER_CPU(int, bpf_prog_active);
+
+/*
+ * Block execution of BPF programs attached to instrumentation (perf,
+ * kprobes, tracepoints) to prevent deadlocks on map operations as any of
+ * these events can happen inside a region which holds a map bucket lock
+ * and can deadlock on it.
+ *
+ * Use the preemption safe inc/dec variants on RT because migrate disable
+ * is preemptible on RT and preemption in the middle of the RMW operation
+ * might lead to inconsistent state. Use the raw variants for non RT
+ * kernels as migrate_disable() maps to preempt_disable() so the slightly
+ * more expensive save operation can be avoided.
+ */
+static inline void bpf_disable_instrumentation(void)
+{
+	migrate_disable();
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		this_cpu_inc(bpf_prog_active);
+	else
+		__this_cpu_inc(bpf_prog_active);
+}
+
+static inline void bpf_enable_instrumentation(void)
+{
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		this_cpu_dec(bpf_prog_active);
+	else
+		__this_cpu_dec(bpf_prog_active);
+	migrate_enable();
+}
 
 extern const struct file_operations bpf_map_fops;
 extern const struct file_operations bpf_prog_fops;
