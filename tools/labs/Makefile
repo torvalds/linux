@@ -26,8 +26,8 @@ copy: $(YOCTO_IMAGE)
 	if  [ -e qemu.mon ]; then exit 1; fi
 	mkdir $(TEMPDIR)
 	sudo mount -t ext4 -o loop $(YOCTO_IMAGE) $(TEMPDIR)
-	find skels -type f \( -name *.ko -or -executable \) | xargs sudo cp --parents -t $(TEMPDIR)/home/root || true
-	find skels -type d \( -name checker \) | xargs sudo cp -r --parents -t $(TEMPDIR)/home/root || true
+	find skels -type f \( -name *.ko -or -executable \) | xargs --no-run-if-empty sudo cp --parents -t $(TEMPDIR)/home/root || true
+	find skels -type d \( -name checker \) | xargs --no-run-if-empty sudo cp -r --parents -t $(TEMPDIR)/home/root || true
 	sudo umount $(TEMPDIR)
 	rmdir $(TEMPDIR)
 
