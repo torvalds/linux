@@ -132,6 +132,42 @@ static __always_inline void __##func(struct pt_regs *regs,		\
 #define DEFINE_IDTENTRY_RAW(func)					\
 __visible noinstr void func(struct pt_regs *regs)
 
+#ifdef CONFIG_X86_64
+/**
+ * DECLARE_IDTENTRY_IST - Declare functions for IST handling IDT entry points
+ * @vector:	Vector number (ignored for C)
+ * @func:	Function name of the entry point
+ *
+ * Maps to DECLARE_IDTENTRY_RAW
+ */
+#define DECLARE_IDTENTRY_IST(vector, func)				\
+	DECLARE_IDTENTRY_RAW(vector, func)
+
+/**
+ * DEFINE_IDTENTRY_IST - Emit code for IST entry points
+ * @func:	Function name of the entry point
+ *
+ * Maps to DEFINE_IDTENTRY_RAW
+ */
+#define DEFINE_IDTENTRY_IST(func)					\
+	DEFINE_IDTENTRY_RAW(func)
+
+#else	/* CONFIG_X86_64 */
+/* Maps to a regular IDTENTRY on 32bit for now */
+# define DECLARE_IDTENTRY_IST		DECLARE_IDTENTRY
+# define DEFINE_IDTENTRY_IST		DEFINE_IDTENTRY
+#endif	/* !CONFIG_X86_64 */
+
+/* C-Code mapping */
+#define DECLARE_IDTENTRY_MCE		DECLARE_IDTENTRY_IST
+#define DEFINE_IDTENTRY_MCE		DEFINE_IDTENTRY_IST
+
+#define DECLARE_IDTENTRY_NMI		DECLARE_IDTENTRY_IST
+#define DEFINE_IDTENTRY_NMI		DEFINE_IDTENTRY_IST
+
+#define DECLARE_IDTENTRY_DEBUG		DECLARE_IDTENTRY_IST
+#define DEFINE_IDTENTRY_DEBUG		DEFINE_IDTENTRY_IST
+
 #else /* !__ASSEMBLY__ */
 
 /*
@@ -148,6 +184,24 @@ __visible noinstr void func(struct pt_regs *regs)
 
 #define DECLARE_IDTENTRY_RAW(vector, func)				\
 	DECLARE_IDTENTRY(vector, func)
+
+#ifdef CONFIG_X86_64
+# define DECLARE_IDTENTRY_MCE(vector, func)				\
+	idtentry_mce_db vector asm_##func func
+
+# define DECLARE_IDTENTRY_DEBUG(vector, func)				\
+	idtentry_mce_db vector asm_##func func
+
+#else
+# define DECLARE_IDTENTRY_MCE(vector, func)				\
+	DECLARE_IDTENTRY(vector, func)
+
+# define DECLARE_IDTENTRY_DEBUG(vector, func)				\
+	DECLARE_IDTENTRY(vector, func)
+#endif
+
+/* No ASM code emitted for NMI */
+#define DECLARE_IDTENTRY_NMI(vector, func)
 
 #endif /* __ASSEMBLY__ */
 
