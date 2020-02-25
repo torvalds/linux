@@ -473,7 +473,10 @@ enum mlxsw_devlink_param_id {
 };
 
 struct mlxsw_skb_cb {
-	struct mlxsw_tx_info tx_info;
+	union {
+		struct mlxsw_tx_info tx_info;
+		u32 cookie_index; /* Only used during receive */
+	};
 };
 
 static inline struct mlxsw_skb_cb *mlxsw_skb_cb(struct sk_buff *skb)

@@ -7,6 +7,9 @@
 #include <linux/errno.h>
 #include <linux/rhashtable.h>
 #include <linux/list.h>
+#include <linux/idr.h>
+#include <linux/refcount.h>
+#include <net/flow_offload.h>
 
 #include "item.h"
 #include "trap.h"
@@ -63,6 +66,8 @@ struct mlxsw_afa {
 	void *ops_priv;
 	struct rhashtable set_ht;
 	struct rhashtable fwd_entry_ht;
+	struct rhashtable cookie_ht;
+	struct idr cookie_idr;
 };
 
 #define MLXSW_AFA_SET_LEN 0xA8
@@ -121,6 +126,55 @@ static const struct rhashtable_params mlxsw_afa_fwd_entry_ht_params = {
 	.automatic_shrinking = true,
 };
 
+struct mlxsw_afa_cookie {
+	struct rhash_head ht_node;
+	refcount_t ref_count;
+	struct rcu_head rcu;
+	u32 cookie_index;
+	struct flow_action_cookie fa_cookie;
+};
+
+static u32 mlxsw_afa_cookie_hash(const struct flow_action_cookie *fa_cookie,
+				 u32 seed)
+{
+	return jhash2((u32 *) fa_cookie->cookie,
+		      fa_cookie->cookie_len / sizeof(u32), seed);
+}
+
+static u32 mlxsw_afa_cookie_key_hashfn(const void *data, u32 len, u32 seed)
+{
+	const struct flow_action_cookie *fa_cookie = data;
+
+	return mlxsw_afa_cookie_hash(fa_cookie, seed);
+}
+
+static u32 mlxsw_afa_cookie_obj_hashfn(const void *data, u32 len, u32 seed)
+{
+	const struct mlxsw_afa_cookie *cookie = data;
+
+	return mlxsw_afa_cookie_hash(&cookie->fa_cookie, seed);
+}
+
+static int mlxsw_afa_cookie_obj_cmpfn(struct rhashtable_compare_arg *arg,
+				      const void *obj)
+{
+	const struct flow_action_cookie *fa_cookie = arg->key;
+	const struct mlxsw_afa_cookie *cookie = obj;
+
+	if (cookie->fa_cookie.cookie_len == fa_cookie->cookie_len)
+		return memcmp(cookie->fa_cookie.cookie, fa_cookie->cookie,
+			      fa_cookie->cookie_len);
+	return 1;
+}
+
+static const struct rhashtable_params mlxsw_afa_cookie_ht_params = {
+	.head_offset = offsetof(struct mlxsw_afa_cookie, ht_node),
+	.hashfn	= mlxsw_afa_cookie_key_hashfn,
+	.obj_hashfn = mlxsw_afa_cookie_obj_hashfn,
+	.obj_cmpfn = mlxsw_afa_cookie_obj_cmpfn,
+	.automatic_shrinking = true,
+};
+
 struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,
 				   const struct mlxsw_afa_ops *ops,
 				   void *ops_priv)
@@ -138,11 +192,18 @@ struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,
 			      &mlxsw_afa_fwd_entry_ht_params);
 	if (err)
 		goto err_fwd_entry_rhashtable_init;
+	err = rhashtable_init(&mlxsw_afa->cookie_ht,
+			      &mlxsw_afa_cookie_ht_params);
+	if (err)
+		goto err_cookie_rhashtable_init;
+	idr_init(&mlxsw_afa->cookie_idr);
 	mlxsw_afa->max_acts_per_set = max_acts_per_set;
 	mlxsw_afa->ops = ops;
 	mlxsw_afa->ops_priv = ops_priv;
 	return mlxsw_afa;
 
+err_cookie_rhashtable_init:
+	rhashtable_destroy(&mlxsw_afa->fwd_entry_ht);
 err_fwd_entry_rhashtable_init:
 	rhashtable_destroy(&mlxsw_afa->set_ht);
 err_set_rhashtable_init:
@@ -153,6 +214,9 @@ EXPORT_SYMBOL(mlxsw_afa_create);
 
 void mlxsw_afa_destroy(struct mlxsw_afa *mlxsw_afa)
 {
+	WARN_ON(!idr_is_empty(&mlxsw_afa->cookie_idr));
+	idr_destroy(&mlxsw_afa->cookie_idr);
+	rhashtable_destroy(&mlxsw_afa->cookie_ht);
 	rhashtable_destroy(&mlxsw_afa->fwd_entry_ht);
 	rhashtable_destroy(&mlxsw_afa->set_ht);
 	kfree(mlxsw_afa);
@@ -627,6 +691,151 @@ err_counter_index_get:
 	return ERR_PTR(err);
 }
 
+/* 20 bits is a maximum that hardware can handle in trap with userdef action
+ * and carry along with the trapped packet.
+ */
+#define MLXSW_AFA_COOKIE_INDEX_BITS 20
+#define MLXSW_AFA_COOKIE_INDEX_MAX ((1 << MLXSW_AFA_COOKIE_INDEX_BITS) - 1)
+
+static struct mlxsw_afa_cookie *
+mlxsw_afa_cookie_create(struct mlxsw_afa *mlxsw_afa,
+			const struct flow_action_cookie *fa_cookie)
+{
+	struct mlxsw_afa_cookie *cookie;
+	u32 cookie_index;
+	int err;
+
+	cookie = kzalloc(sizeof(*cookie) + fa_cookie->cookie_len, GFP_KERNEL);
+	if (!cookie)
+		return ERR_PTR(-ENOMEM);
+	refcount_set(&cookie->ref_count, 1);
+	memcpy(&cookie->fa_cookie, fa_cookie,
+	       sizeof(*fa_cookie) + fa_cookie->cookie_len);
+
+	err = rhashtable_insert_fast(&mlxsw_afa->cookie_ht, &cookie->ht_node,
+				     mlxsw_afa_cookie_ht_params);
+	if (err)
+		goto err_rhashtable_insert;
+
+	/* Start cookie indexes with 1. Leave the 0 index unused. Packets
+	 * that come from the HW which are not dropped by drop-with-cookie
+	 * action are going to pass cookie_index 0 to lookup.
+	 */
+	cookie_index = 1;
+	err = idr_alloc_u32(&mlxsw_afa->cookie_idr, cookie, &cookie_index,
+			    MLXSW_AFA_COOKIE_INDEX_MAX, GFP_KERNEL);
+	if (err)
+		goto err_idr_alloc;
+	cookie->cookie_index = cookie_index;
+	return cookie;
+
+err_idr_alloc:
+	rhashtable_remove_fast(&mlxsw_afa->cookie_ht, &cookie->ht_node,
+			       mlxsw_afa_cookie_ht_params);
+err_rhashtable_insert:
+	kfree(cookie);
+	return ERR_PTR(err);
+}
+
+static void mlxsw_afa_cookie_destroy(struct mlxsw_afa *mlxsw_afa,
+				     struct mlxsw_afa_cookie *cookie)
+{
+	idr_remove(&mlxsw_afa->cookie_idr, cookie->cookie_index);
+	rhashtable_remove_fast(&mlxsw_afa->cookie_ht, &cookie->ht_node,
+			       mlxsw_afa_cookie_ht_params);
+	kfree_rcu(cookie, rcu);
+}
+
+static struct mlxsw_afa_cookie *
+mlxsw_afa_cookie_get(struct mlxsw_afa *mlxsw_afa,
+		     const struct flow_action_cookie *fa_cookie)
+{
+	struct mlxsw_afa_cookie *cookie;
+
+	cookie = rhashtable_lookup_fast(&mlxsw_afa->cookie_ht, fa_cookie,
+					mlxsw_afa_cookie_ht_params);
+	if (cookie) {
+		refcount_inc(&cookie->ref_count);
+		return cookie;
+	}
+	return mlxsw_afa_cookie_create(mlxsw_afa, fa_cookie);
+}
+
+static void mlxsw_afa_cookie_put(struct mlxsw_afa *mlxsw_afa,
+				 struct mlxsw_afa_cookie *cookie)
+{
+	if (!refcount_dec_and_test(&cookie->ref_count))
+		return;
+	mlxsw_afa_cookie_destroy(mlxsw_afa, cookie);
+}
+
+/* RCU read lock must be held */
+const struct flow_action_cookie *
+mlxsw_afa_cookie_lookup(struct mlxsw_afa *mlxsw_afa, u32 cookie_index)
+{
+	struct mlxsw_afa_cookie *cookie;
+
+	/* 0 index means no cookie */
+	if (!cookie_index)
+		return NULL;
+	cookie = idr_find(&mlxsw_afa->cookie_idr, cookie_index);
+	if (!cookie)
+		return NULL;
+	return &cookie->fa_cookie;
+}
+EXPORT_SYMBOL(mlxsw_afa_cookie_lookup);
+
+struct mlxsw_afa_cookie_ref {
+	struct mlxsw_afa_resource resource;
+	struct mlxsw_afa_cookie *cookie;
+};
+
+static void
+mlxsw_afa_cookie_ref_destroy(struct mlxsw_afa_block *block,
+			     struct mlxsw_afa_cookie_ref *cookie_ref)
+{
+	mlxsw_afa_resource_del(&cookie_ref->resource);
+	mlxsw_afa_cookie_put(block->afa, cookie_ref->cookie);
+	kfree(cookie_ref);
+}
+
+static void
+mlxsw_afa_cookie_ref_destructor(struct mlxsw_afa_block *block,
+				struct mlxsw_afa_resource *resource)
+{
+	struct mlxsw_afa_cookie_ref *cookie_ref;
+
+	cookie_ref = container_of(resource, struct mlxsw_afa_cookie_ref,
+				  resource);
+	mlxsw_afa_cookie_ref_destroy(block, cookie_ref);
+}
+
+static struct mlxsw_afa_cookie_ref *
+mlxsw_afa_cookie_ref_create(struct mlxsw_afa_block *block,
+			    const struct flow_action_cookie *fa_cookie)
+{
+	struct mlxsw_afa_cookie_ref *cookie_ref;
+	struct mlxsw_afa_cookie *cookie;
+	int err;
+
+	cookie_ref = kzalloc(sizeof(*cookie_ref), GFP_KERNEL);
+	if (!cookie_ref)
+		return ERR_PTR(-ENOMEM);
+	cookie = mlxsw_afa_cookie_get(block->afa, fa_cookie);
+	if (IS_ERR(cookie)) {
+		err = PTR_ERR(cookie);
+		goto err_cookie_get;
+	}
+	cookie_ref->cookie = cookie;
+	cookie_ref->resource.destructor = mlxsw_afa_cookie_ref_destructor;
+	mlxsw_afa_resource_add(block, &cookie_ref->resource);
+	return cookie_ref;
+
+err_cookie_get:
+	kfree(cookie_ref);
+	return ERR_PTR(err);
+}
+
 #define MLXSW_AFA_ONE_ACTION_LEN 32
 #define MLXSW_AFA_PAYLOAD_OFFSET 4
 
@@ -747,17 +956,24 @@ int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_vlan_modify);
 
-/* Trap Action
- * -----------
+/* Trap Action / Trap With Userdef Action
+ * --------------------------------------
  * The Trap action enables trapping / mirroring packets to the CPU
  * as well as discarding packets.
  * The ACL Trap / Discard separates the forward/discard control from CPU
  * trap control. In addition, the Trap / Discard action enables activating
  * SPAN (port mirroring).
+ *
+ * The Trap with userdef action action has the same functionality as
+ * the Trap action with addition of user defined value that can be set
+ * and used by higher layer applications.
  */
 
 #define MLXSW_AFA_TRAP_CODE 0x03
 #define MLXSW_AFA_TRAP_SIZE 1
+
+#define MLXSW_AFA_TRAPWU_CODE 0x04
+#define MLXSW_AFA_TRAPWU_SIZE 2
 
 enum mlxsw_afa_trap_trap_action {
 	MLXSW_AFA_TRAP_TRAP_ACTION_NOP = 0,
@@ -794,6 +1010,15 @@ MLXSW_ITEM32(afa, trap, mirror_agent, 0x08, 29, 3);
  */
 MLXSW_ITEM32(afa, trap, mirror_enable, 0x08, 24, 1);
 
+/* user_def_val
+ * Value for the SW usage. Can be used to pass information of which
+ * rule has caused a trap. This may be overwritten by later traps.
+ * This field does a set on the packet's user_def_val only if this
+ * is the first trap_id or if the trap_id has replaced the previous
+ * packet's trap_id.
+ */
+MLXSW_ITEM32(afa, trap, user_def_val, 0x0C, 0, 20);
+
 static inline void
 mlxsw_afa_trap_pack(char *payload,
 		    enum mlxsw_afa_trap_trap_action trap_action,
@@ -806,6 +1031,16 @@ mlxsw_afa_trap_pack(char *payload,
 }
 
 static inline void
+mlxsw_afa_trapwu_pack(char *payload,
+		      enum mlxsw_afa_trap_trap_action trap_action,
+		      enum mlxsw_afa_trap_forward_action forward_action,
+		      u16 trap_id, u32 user_def_val)
+{
+	mlxsw_afa_trap_pack(payload, trap_action, forward_action, trap_id);
+	mlxsw_afa_trap_user_def_val_set(payload, user_def_val);
+}
+
+static inline void
 mlxsw_afa_trap_mirror_pack(char *payload, bool mirror_enable,
 			   u8 mirror_agent)
 {
@@ -813,7 +1048,8 @@ mlxsw_afa_trap_mirror_pack(char *payload, bool mirror_enable,
 	mlxsw_afa_trap_mirror_agent_set(payload, mirror_agent);
 }
 
-int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block, bool ingress)
+static int mlxsw_afa_block_append_drop_plain(struct mlxsw_afa_block *block,
+					     bool ingress)
 {
 	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAP_CODE,
 						  MLXSW_AFA_TRAP_SIZE);
@@ -825,6 +1061,53 @@ int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block, bool ingress)
 			    ingress ? MLXSW_TRAP_ID_DISCARD_INGRESS_ACL :
 				      MLXSW_TRAP_ID_DISCARD_EGRESS_ACL);
 	return 0;
+}
+
+static int
+mlxsw_afa_block_append_drop_with_cookie(struct mlxsw_afa_block *block,
+					bool ingress,
+					const struct flow_action_cookie *fa_cookie,
+					struct netlink_ext_ack *extack)
+{
+	struct mlxsw_afa_cookie_ref *cookie_ref;
+	u32 cookie_index;
+	char *act;
+	int err;
+
+	cookie_ref = mlxsw_afa_cookie_ref_create(block, fa_cookie);
+	if (IS_ERR(cookie_ref)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot create cookie for drop action");
+		return PTR_ERR(cookie_ref);
+	}
+	cookie_index = cookie_ref->cookie->cookie_index;
+
+	act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAPWU_CODE,
+					    MLXSW_AFA_TRAPWU_SIZE);
+	if (IS_ERR(act)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append drop with cookie action");
+		err = PTR_ERR(act);
+		goto err_append_action;
+	}
+	mlxsw_afa_trapwu_pack(act, MLXSW_AFA_TRAP_TRAP_ACTION_TRAP,
+			      MLXSW_AFA_TRAP_FORWARD_ACTION_DISCARD,
+			      ingress ? MLXSW_TRAP_ID_DISCARD_INGRESS_ACL :
+					MLXSW_TRAP_ID_DISCARD_EGRESS_ACL,
+			      cookie_index);
+	return 0;
+
+err_append_action:
+	mlxsw_afa_cookie_ref_destroy(block, cookie_ref);
+	return err;
+}
+
+int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block, bool ingress,
+				const struct flow_action_cookie *fa_cookie,
+				struct netlink_ext_ack *extack)
+{
+	return fa_cookie ?
+	       mlxsw_afa_block_append_drop_with_cookie(block, ingress,
+						       fa_cookie, extack) :
+	       mlxsw_afa_block_append_drop_plain(block, ingress);
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_drop);
 

@@ -6,6 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <net/flow_offload.h>
 
 struct mlxsw_afa;
 struct mlxsw_afa_block;
@@ -42,7 +43,11 @@ int mlxsw_afa_block_activity_get(struct mlxsw_afa_block *block, bool *activity);
 int mlxsw_afa_block_continue(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id);
 int mlxsw_afa_block_terminate(struct mlxsw_afa_block *block);
-int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block, bool ingress);
+const struct flow_action_cookie *
+mlxsw_afa_cookie_lookup(struct mlxsw_afa *mlxsw_afa, u32 cookie_index);
+int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block, bool ingress,
+				const struct flow_action_cookie *fa_cookie,
+				struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block, u16 trap_id);
 int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
 					    u16 trap_id);

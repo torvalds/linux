@@ -28,6 +28,7 @@
 #include <linux/workqueue.h>
 #include <net/devlink.h>
 #include <net/ip.h>
+#include <net/flow_offload.h>
 #include <uapi/linux/devlink.h>
 #include <uapi/linux/ip.h>
 #include <uapi/linux/udp.h>
@@ -71,6 +72,98 @@ static const struct file_operations nsim_dev_take_snapshot_fops = {
 	.llseek = generic_file_llseek,
 };
 
+static ssize_t nsim_dev_trap_fa_cookie_read(struct file *file,
+					    char __user *data,
+					    size_t count, loff_t *ppos)
+{
+	struct nsim_dev *nsim_dev = file->private_data;
+	struct flow_action_cookie *fa_cookie;
+	unsigned int buf_len;
+	ssize_t ret;
+	char *buf;
+
+	spin_lock(&nsim_dev->fa_cookie_lock);
+	fa_cookie = nsim_dev->fa_cookie;
+	if (!fa_cookie) {
+		ret = -EINVAL;
+		goto errout;
+	}
+	buf_len = fa_cookie->cookie_len * 2;
+	buf = kmalloc(buf_len, GFP_ATOMIC);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto errout;
+	}
+	bin2hex(buf, fa_cookie->cookie, fa_cookie->cookie_len);
+	spin_unlock(&nsim_dev->fa_cookie_lock);
+
+	ret = simple_read_from_buffer(data, count, ppos, buf, buf_len);
+
+	kfree(buf);
+	return ret;
+
+errout:
+	spin_unlock(&nsim_dev->fa_cookie_lock);
+	return ret;
+}
+
+static ssize_t nsim_dev_trap_fa_cookie_write(struct file *file,
+					     const char __user *data,
+					     size_t count, loff_t *ppos)
+{
+	struct nsim_dev *nsim_dev = file->private_data;
+	struct flow_action_cookie *fa_cookie;
+	size_t cookie_len;
+	ssize_t ret;
+	char *buf;
+
+	if (*ppos != 0)
+		return -EINVAL;
+	cookie_len = (count - 1) / 2;
+	if ((count - 1) % 2)
+		return -EINVAL;
+	buf = kmalloc(count, GFP_KERNEL | __GFP_NOWARN);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = simple_write_to_buffer(buf, count, ppos, data, count);
+	if (ret < 0)
+		goto free_buf;
+
+	fa_cookie = kmalloc(sizeof(*fa_cookie) + cookie_len,
+			    GFP_KERNEL | __GFP_NOWARN);
+	if (!fa_cookie) {
+		ret = -ENOMEM;
+		goto free_buf;
+	}
+
+	fa_cookie->cookie_len = cookie_len;
+	ret = hex2bin(fa_cookie->cookie, buf, cookie_len);
+	if (ret)
+		goto free_fa_cookie;
+	kfree(buf);
+
+	spin_lock(&nsim_dev->fa_cookie_lock);
+	kfree(nsim_dev->fa_cookie);
+	nsim_dev->fa_cookie = fa_cookie;
+	spin_unlock(&nsim_dev->fa_cookie_lock);
+
+	return count;
+
+free_fa_cookie:
+	kfree(fa_cookie);
+free_buf:
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations nsim_dev_trap_fa_cookie_fops = {
+	.open = simple_open,
+	.read = nsim_dev_trap_fa_cookie_read,
+	.write = nsim_dev_trap_fa_cookie_write,
+	.llseek = generic_file_llseek,
+};
+
 static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 {
 	char dev_ddir_name[sizeof(DRV_NAME) + 10];
@@ -97,6 +190,8 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 			    &nsim_dev->dont_allow_reload);
 	debugfs_create_bool("fail_reload", 0600, nsim_dev->ddir,
 			    &nsim_dev->fail_reload);
+	debugfs_create_file("trap_flow_action_cookie", 0600, nsim_dev->ddir,
+			    nsim_dev, &nsim_dev_trap_fa_cookie_fops);
 	return 0;
 }
 
@@ -288,6 +383,10 @@ enum {
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
 			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
 			     NSIM_TRAP_METADATA)
+#define NSIM_TRAP_DROP_EXT(_id, _group_id, _metadata)			      \
+	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
+			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     NSIM_TRAP_METADATA | (_metadata))
 #define NSIM_TRAP_EXCEPTION(_id, _group_id)				      \
 	DEVLINK_TRAP_GENERIC(EXCEPTION, TRAP, _id,			      \
 			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
@@ -309,6 +408,10 @@ static const struct devlink_trap nsim_traps_arr[] = {
 	NSIM_TRAP_DROP(BLACKHOLE_ROUTE, L3_DROPS),
 	NSIM_TRAP_EXCEPTION(TTL_ERROR, L3_DROPS),
 	NSIM_TRAP_DROP(TAIL_DROP, BUFFER_DROPS),
+	NSIM_TRAP_DROP_EXT(INGRESS_FLOW_ACTION_DROP, ACL_DROPS,
+			   DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE),
+	NSIM_TRAP_DROP_EXT(EGRESS_FLOW_ACTION_DROP, ACL_DROPS,
+			   DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE),
 };
 
 #define NSIM_TRAP_L4_DATA_LEN 100
@@ -366,8 +469,13 @@ static void nsim_dev_trap_report(struct nsim_dev_port *nsim_dev_port)
 
 	spin_lock(&nsim_trap_data->trap_lock);
 	for (i = 0; i < ARRAY_SIZE(nsim_traps_arr); i++) {
+		struct flow_action_cookie *fa_cookie = NULL;
 		struct nsim_trap_item *nsim_trap_item;
 		struct sk_buff *skb;
+		bool has_fa_cookie;
+
+		has_fa_cookie = nsim_traps_arr[i].metadata_cap &
+				DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE;
 
 		nsim_trap_item = &nsim_trap_data->trap_items_arr[i];
 		if (nsim_trap_item->action == DEVLINK_TRAP_ACTION_DROP)
@@ -383,10 +491,12 @@ static void nsim_dev_trap_report(struct nsim_dev_port *nsim_dev_port)
 		 * softIRQs to prevent lockdep from complaining about
 		 * "incosistent lock state".
 		 */
-		local_bh_disable();
+
+		spin_lock_bh(&nsim_dev->fa_cookie_lock);
+		fa_cookie = has_fa_cookie ? nsim_dev->fa_cookie : NULL;
 		devlink_trap_report(devlink, skb, nsim_trap_item->trap_ctx,
-				    &nsim_dev_port->devlink_port);
-		local_bh_enable();
+				    &nsim_dev_port->devlink_port, fa_cookie);
+		spin_unlock_bh(&nsim_dev->fa_cookie_lock);
 		consume_skb(skb);
 	}
 	spin_unlock(&nsim_trap_data->trap_lock);
@@ -780,6 +890,7 @@ int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev)
 	nsim_dev->fw_update_status = true;
 	nsim_dev->max_macs = NSIM_DEV_MAX_MACS_DEFAULT;
 	nsim_dev->test1 = NSIM_DEV_TEST1_DEFAULT;
+	spin_lock_init(&nsim_dev->fa_cookie_lock);
 
 	dev_set_drvdata(&nsim_bus_dev->dev, nsim_dev);
 

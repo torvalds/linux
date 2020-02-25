@@ -49,7 +49,8 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 				return -EOPNOTSUPP;
 			}
 			ingress = mlxsw_sp_acl_block_is_ingress_bound(block);
-			err = mlxsw_sp_acl_rulei_act_drop(rulei, ingress);
+			err = mlxsw_sp_acl_rulei_act_drop(rulei, ingress,
+							  act->cookie, extack);
 			if (err) {
 				NL_SET_ERR_MSG_MOD(extack, "Cannot append drop action");
 				return err;

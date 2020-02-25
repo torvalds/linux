@@ -156,6 +156,16 @@ enum flow_action_mangle_base {
 
 typedef void (*action_destr)(void *priv);
 
+struct flow_action_cookie {
+	u32 cookie_len;
+	u8 cookie[];
+};
+
+struct flow_action_cookie *flow_action_cookie_create(void *data,
+						     unsigned int len,
+						     gfp_t gfp);
+void flow_action_cookie_destroy(struct flow_action_cookie *cookie);
+
 struct flow_action_entry {
 	enum flow_action_id		id;
 	action_destr			destructor;
@@ -214,6 +224,7 @@ struct flow_action_entry {
 			u8		ttl;
 		} mpls_mangle;
 	};
+	struct flow_action_cookie *cookie; /* user defined action cookie */
 };
 
 struct flow_action {

@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/refcount.h>
 #include <net/net_namespace.h>
+#include <net/flow_offload.h>
 #include <uapi/linux/devlink.h>
 
 struct devlink_ops;
@@ -541,6 +542,7 @@ struct devlink_trap_group {
 };
 
 #define DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT	BIT(0)
+#define DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE	BIT(1)
 
 /**
  * struct devlink_trap - Immutable packet trap attributes.
@@ -1049,9 +1051,9 @@ int devlink_traps_register(struct devlink *devlink,
 void devlink_traps_unregister(struct devlink *devlink,
 			      const struct devlink_trap *traps,
 			      size_t traps_count);
-void devlink_trap_report(struct devlink *devlink,
-			 struct sk_buff *skb, void *trap_ctx,
-			 struct devlink_port *in_devlink_port);
+void devlink_trap_report(struct devlink *devlink, struct sk_buff *skb,
+			 void *trap_ctx, struct devlink_port *in_devlink_port,
+			 const struct flow_action_cookie *fa_cookie);
 void *devlink_trap_ctx_priv(void *trap_ctx);
 
 #if IS_ENABLED(CONFIG_NET_DEVLINK)
