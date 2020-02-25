@@ -40,19 +40,36 @@
 #include <trace/events/syscalls.h>
 
 #ifdef CONFIG_CONTEXT_TRACKING
-/* Called on entry from user mode with IRQs off. */
+/**
+ * enter_from_user_mode - Establish state when coming from user mode
+ *
+ * Syscall entry disables interrupts, but user mode is traced as interrupts
+ * enabled. Also with NO_HZ_FULL RCU might be idle.
+ *
+ * 1) Tell lockdep that interrupts are disabled
+ * 2) Invoke context tracking if enabled to reactivate RCU
+ * 3) Trace interrupts off state
+ */
 __visible noinstr void enter_from_user_mode(void)
 {
 	enum ctx_state state = ct_state();
 
+	lockdep_hardirqs_off(CALLER_ADDR0);
 	user_exit_irqoff();
 
 	instrumentation_begin();
 	CT_WARN_ON(state != CONTEXT_USER);
+	trace_hardirqs_off_prepare();
 	instrumentation_end();
 }
 #else
-static inline void enter_from_user_mode(void) {}
+static __always_inline void enter_from_user_mode(void)
+{
+	lockdep_hardirqs_off(CALLER_ADDR0);
+	instrumentation_begin();
+	trace_hardirqs_off_prepare();
+	instrumentation_end();
+}
 #endif
 
 static noinstr void exit_to_user_mode(void)
