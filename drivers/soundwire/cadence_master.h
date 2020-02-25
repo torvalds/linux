@@ -148,19 +148,11 @@ int sdw_cdns_enable_interrupt(struct sdw_cdns *cdns, bool state);
 void sdw_cdns_debugfs_init(struct sdw_cdns *cdns, struct dentry *root);
 #endif
 
-int sdw_cdns_get_stream(struct sdw_cdns *cdns,
-			struct sdw_cdns_streams *stream,
-			u32 ch, u32 dir);
 struct sdw_cdns_pdi *sdw_cdns_alloc_pdi(struct sdw_cdns *cdns,
 					struct sdw_cdns_streams *stream,
 					u32 ch, u32 dir, int dai_id);
 void sdw_cdns_config_stream(struct sdw_cdns *cdns,
 			    u32 ch, u32 dir, struct sdw_cdns_pdi *pdi);
-
-int sdw_cdns_pcm_set_stream(struct snd_soc_dai *dai,
-			    void *stream, int direction);
-int sdw_cdns_pdm_set_stream(struct snd_soc_dai *dai,
-			    void *stream, int direction);
 
 enum sdw_command_response
 cdns_reset_page_addr(struct sdw_bus *bus, unsigned int dev_num);
