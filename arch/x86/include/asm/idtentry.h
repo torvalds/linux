@@ -138,10 +138,12 @@ __visible noinstr void func(struct pt_regs *regs)
  * @vector:	Vector number (ignored for C)
  * @func:	Function name of the entry point
  *
- * Maps to DECLARE_IDTENTRY_RAW
+ * Maps to DECLARE_IDTENTRY_RAW, but declares also the NOIST C handler
+ * which is called from the ASM entry point on user mode entry
  */
 #define DECLARE_IDTENTRY_IST(vector, func)				\
-	DECLARE_IDTENTRY_RAW(vector, func)
+	DECLARE_IDTENTRY_RAW(vector, func);				\
+	__visible void noist_##func(struct pt_regs *regs)
 
 /**
  * DEFINE_IDTENTRY_IST - Emit code for IST entry points
@@ -152,6 +154,17 @@ __visible noinstr void func(struct pt_regs *regs)
 #define DEFINE_IDTENTRY_IST(func)					\
 	DEFINE_IDTENTRY_RAW(func)
 
+/**
+ * DEFINE_IDTENTRY_NOIST - Emit code for NOIST entry points which
+ *			   belong to a IST entry point (MCE, DB)
+ * @func:	Function name of the entry point. Must be the same as
+ *		the function name of the corresponding IST variant
+ *
+ * Maps to DEFINE_IDTENTRY_RAW().
+ */
+#define DEFINE_IDTENTRY_NOIST(func)					\
+	DEFINE_IDTENTRY_RAW(noist_##func)
+
 #else	/* CONFIG_X86_64 */
 /* Maps to a regular IDTENTRY on 32bit for now */
 # define DECLARE_IDTENTRY_IST		DECLARE_IDTENTRY
@@ -161,12 +174,14 @@ __visible noinstr void func(struct pt_regs *regs)
 /* C-Code mapping */
 #define DECLARE_IDTENTRY_MCE		DECLARE_IDTENTRY_IST
 #define DEFINE_IDTENTRY_MCE		DEFINE_IDTENTRY_IST
+#define DEFINE_IDTENTRY_MCE_USER	DEFINE_IDTENTRY_NOIST
 
 #define DECLARE_IDTENTRY_NMI		DECLARE_IDTENTRY_IST
 #define DEFINE_IDTENTRY_NMI		DEFINE_IDTENTRY_IST
 
 #define DECLARE_IDTENTRY_DEBUG		DECLARE_IDTENTRY_IST
 #define DEFINE_IDTENTRY_DEBUG		DEFINE_IDTENTRY_IST
+#define DEFINE_IDTENTRY_DEBUG_USER	DEFINE_IDTENTRY_NOIST
 
 /**
  * DECLARE_IDTENTRY_XEN - Declare functions for XEN redirect IDT entry points
