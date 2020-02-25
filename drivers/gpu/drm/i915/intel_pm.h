@@ -83,5 +83,7 @@ intel_atomic_get_dbuf_state(struct intel_atomic_state *state);
 	to_intel_dbuf_state(intel_atomic_get_new_global_obj_state(state, &to_i915(state->base.dev)->dbuf.obj))
 
 int intel_dbuf_init(struct drm_i915_private *dev_priv);
+void intel_dbuf_pre_plane_update(struct intel_atomic_state *state);
+void intel_dbuf_post_plane_update(struct intel_atomic_state *state);
 
 #endif /* __INTEL_PM_H__ */
