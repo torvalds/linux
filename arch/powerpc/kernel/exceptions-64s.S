@@ -105,11 +105,6 @@ name:
 	ori	reg,reg,(ABS_ADDR(label))@l;				\
 	addis	reg,reg,(ABS_ADDR(label))@h
 
-/* Exception register prefixes */
-#define EXC_HV_OR_STD	2 /* depends on HVMODE */
-#define EXC_HV		1
-#define EXC_STD		0
-
 /*
  * Branch to label using its 0xC000 address. This results in instruction
  * address suitable for MSR[IR]=0 or 1, which allows relocation to be turned
@@ -128,6 +123,7 @@ name:
  */
 #define IVEC		.L_IVEC_\name\()
 #define IHSRR		.L_IHSRR_\name\()
+#define IHSRR_IF_HVMODE	.L_IHSRR_IF_HVMODE_\name\()
 #define IAREA		.L_IAREA_\name\()
 #define IVIRT		.L_IVIRT_\name\()
 #define IISIDE		.L_IISIDE_\name\()
@@ -159,7 +155,10 @@ do_define_int n
 		.error "IVEC not defined"
 	.endif
 	.ifndef IHSRR
-		IHSRR=EXC_STD
+		IHSRR=0
+	.endif
+	.ifndef IHSRR_IF_HVMODE
+		IHSRR_IF_HVMODE=0
 	.endif
 	.ifndef IAREA
 		IAREA=PACA_EXGEN
@@ -257,7 +256,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	ld	r9,IAREA+EX_R9(r13)
 	ld	r10,IAREA+EX_R10(r13)
 	/* HSRR variants have the 0x2 bit added to their trap number */
-	.if IHSRR == EXC_HV_OR_STD
+	.if IHSRR_IF_HVMODE
 	BEGIN_FTR_SECTION
 	ori	r12,r12,(IVEC + 0x2)
 	FTR_SECTION_ELSE
@@ -278,7 +277,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	ld	r10,IAREA+EX_R10(r13)
 	ld	r11,IAREA+EX_R11(r13)
 	ld	r12,IAREA+EX_R12(r13)
-	.if IHSRR == EXC_HV_OR_STD
+	.if IHSRR_IF_HVMODE
 	BEGIN_FTR_SECTION
 	b	kvmppc_skip_Hinterrupt
 	FTR_SECTION_ELSE
@@ -403,7 +402,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	stw	r10,IAREA+EX_DSISR(r13)
 	.endif
 
-	.if IHSRR == EXC_HV_OR_STD
+	.if IHSRR_IF_HVMODE
 	BEGIN_FTR_SECTION
 	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
 	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
@@ -499,7 +498,7 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real)
 		.abort "Bad maskable vector"
 		.endif
 
-		.if IHSRR == EXC_HV_OR_STD
+		.if IHSRR_IF_HVMODE
 		BEGIN_FTR_SECTION
 		bne	masked_Hinterrupt
 		FTR_SECTION_ELSE
@@ -632,12 +631,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
  * Restore all registers including H/SRR0/1 saved in a stack frame of a
  * standard exception.
  */
-.macro EXCEPTION_RESTORE_REGS hsrr
+.macro EXCEPTION_RESTORE_REGS hsrr=0
 	/* Move original SRR0 and SRR1 into the respective regs */
 	ld	r9,_MSR(r1)
-	.if \hsrr == EXC_HV_OR_STD
-	.error "EXC_HV_OR_STD Not implemented for EXCEPTION_RESTORE_REGS"
-	.endif
 	.if \hsrr
 	mtspr	SPRN_HSRR1,r9
 	.else
@@ -912,7 +908,7 @@ EXC_COMMON_BEGIN(system_reset_common)
 	ld	r10,SOFTE(r1)
 	stb	r10,PACAIRQSOFTMASK(r13)
 
-	EXCEPTION_RESTORE_REGS EXC_STD
+	EXCEPTION_RESTORE_REGS
 	RFI_TO_USER_OR_KERNEL
 
 	GEN_KVM system_reset
@@ -966,7 +962,7 @@ TRAMP_REAL_BEGIN(machine_check_fwnmi)
 	lhz	r12,PACA_IN_MCE(r13);			\
 	subi	r12,r12,1;				\
 	sth	r12,PACA_IN_MCE(r13);			\
-	EXCEPTION_RESTORE_REGS EXC_STD
+	EXCEPTION_RESTORE_REGS
 
 EXC_COMMON_BEGIN(machine_check_early_common)
 	__GEN_REALMODE_COMMON_ENTRY machine_check_early
@@ -1337,7 +1333,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 INT_DEFINE_BEGIN(hardware_interrupt)
 	IVEC=0x500
-	IHSRR=EXC_HV_OR_STD
+	IHSRR_IF_HVMODE=1
 	IMASK=IRQS_DISABLED
 	IKVM_REAL=1
 	IKVM_VIRT=1
@@ -1506,7 +1502,7 @@ EXC_COMMON_BEGIN(decrementer_common)
 
 INT_DEFINE_BEGIN(hdecrementer)
 	IVEC=0x980
-	IHSRR=EXC_HV
+	IHSRR=1
 	ISTACK=0
 	IRECONCILE=0
 	IKVM_REAL=1
@@ -1735,7 +1731,7 @@ EXC_COMMON_BEGIN(single_step_common)
 
 INT_DEFINE_BEGIN(h_data_storage)
 	IVEC=0xe00
-	IHSRR=EXC_HV
+	IHSRR=1
 	IDAR=1
 	IDSISR=1
 	IKVM_SKIP=1
@@ -1767,7 +1763,7 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_TYPE_RADIX)
 
 INT_DEFINE_BEGIN(h_instr_storage)
 	IVEC=0xe20
-	IHSRR=EXC_HV
+	IHSRR=1
 	IKVM_REAL=1
 	IKVM_VIRT=1
 INT_DEFINE_END(h_instr_storage)
@@ -1790,7 +1786,7 @@ EXC_COMMON_BEGIN(h_instr_storage_common)
 
 INT_DEFINE_BEGIN(emulation_assist)
 	IVEC=0xe40
-	IHSRR=EXC_HV
+	IHSRR=1
 	IKVM_REAL=1
 	IKVM_VIRT=1
 INT_DEFINE_END(emulation_assist)
@@ -1818,7 +1814,7 @@ EXC_COMMON_BEGIN(emulation_assist_common)
  */
 INT_DEFINE_BEGIN(hmi_exception_early)
 	IVEC=0xe60
-	IHSRR=EXC_HV
+	IHSRR=1
 	IREALMODE_COMMON=1
 	ISTACK=0
 	IRECONCILE=0
@@ -1828,7 +1824,7 @@ INT_DEFINE_END(hmi_exception_early)
 
 INT_DEFINE_BEGIN(hmi_exception)
 	IVEC=0xe60
-	IHSRR=EXC_HV
+	IHSRR=1
 	IMASK=IRQS_DISABLED
 	IKVM_REAL=1
 INT_DEFINE_END(hmi_exception)
@@ -1852,7 +1848,7 @@ EXC_COMMON_BEGIN(hmi_exception_early_common)
 	cmpdi	cr0,r3,0
 	bne	1f
 
-	EXCEPTION_RESTORE_REGS EXC_HV
+	EXCEPTION_RESTORE_REGS hsrr=1
 	HRFI_TO_USER_OR_KERNEL
 
 1:
@@ -1860,7 +1856,7 @@ EXC_COMMON_BEGIN(hmi_exception_early_common)
 	 * Go to virtual mode and pull the HMI event information from
 	 * firmware.
 	 */
-	EXCEPTION_RESTORE_REGS EXC_HV
+	EXCEPTION_RESTORE_REGS hsrr=1
 	GEN_INT_ENTRY hmi_exception, virt=0
 
 	GEN_KVM hmi_exception_early
@@ -1879,7 +1875,7 @@ EXC_COMMON_BEGIN(hmi_exception_common)
 
 INT_DEFINE_BEGIN(h_doorbell)
 	IVEC=0xe80
-	IHSRR=EXC_HV
+	IHSRR=1
 	IMASK=IRQS_DISABLED
 	IKVM_REAL=1
 	IKVM_VIRT=1
@@ -1908,7 +1904,7 @@ EXC_COMMON_BEGIN(h_doorbell_common)
 
 INT_DEFINE_BEGIN(h_virt_irq)
 	IVEC=0xea0
-	IHSRR=EXC_HV
+	IHSRR=1
 	IMASK=IRQS_DISABLED
 	IKVM_REAL=1
 	IKVM_VIRT=1
@@ -2078,7 +2074,7 @@ EXC_COMMON_BEGIN(facility_unavailable_common)
 
 INT_DEFINE_BEGIN(h_facility_unavailable)
 	IVEC=0xf80
-	IHSRR=EXC_HV
+	IHSRR=1
 	IKVM_REAL=1
 	IKVM_VIRT=1
 INT_DEFINE_END(h_facility_unavailable)
@@ -2114,7 +2110,7 @@ EXC_VIRT_NONE(0x5100, 0x100)
 #ifdef CONFIG_CBE_RAS
 INT_DEFINE_BEGIN(cbe_system_error)
 	IVEC=0x1200
-	IHSRR=EXC_HV
+	IHSRR=1
 	IKVM_SKIP=1
 	IKVM_REAL=1
 INT_DEFINE_END(cbe_system_error)
@@ -2165,8 +2161,8 @@ EXC_VIRT_NONE(0x5400, 0x100)
 
 INT_DEFINE_BEGIN(denorm_exception)
 	IVEC=0x1500
-	IHSRR=EXC_HV
-	IBRANCH_TO_COMMON=0
+	IHSRR=1
+	IBRANCH_COMMON=0
 	IKVM_REAL=1
 INT_DEFINE_END(denorm_exception)
 
@@ -2274,7 +2270,7 @@ EXC_COMMON_BEGIN(denorm_exception_common)
 #ifdef CONFIG_CBE_RAS
 INT_DEFINE_BEGIN(cbe_maintenance)
 	IVEC=0x1600
-	IHSRR=EXC_HV
+	IHSRR=1
 	IKVM_SKIP=1
 	IKVM_REAL=1
 INT_DEFINE_END(cbe_maintenance)
@@ -2326,7 +2322,7 @@ EXC_COMMON_BEGIN(altivec_assist_common)
 #ifdef CONFIG_CBE_RAS
 INT_DEFINE_BEGIN(cbe_thermal)
 	IVEC=0x1800
-	IHSRR=EXC_HV
+	IHSRR=1
 	IKVM_SKIP=1
 	IKVM_REAL=1
 INT_DEFINE_END(cbe_thermal)
@@ -2389,7 +2385,7 @@ EXC_COMMON_BEGIN(soft_nmi_common)
  * - Else it is one of PACA_IRQ_MUST_HARD_MASK, so hard disable and return.
  * This is called with r10 containing the value to OR to the paca field.
  */
-.macro MASKED_INTERRUPT hsrr
+.macro MASKED_INTERRUPT hsrr=0
 	.if \hsrr
 masked_Hinterrupt:
 	.else
@@ -2536,8 +2532,8 @@ TRAMP_REAL_BEGIN(hrfi_flush_fallback)
 	hrfid
 
 USE_TEXT_SECTION()
-	MASKED_INTERRUPT EXC_STD
-	MASKED_INTERRUPT EXC_HV
+	MASKED_INTERRUPT
+	MASKED_INTERRUPT hsrr=1
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 kvmppc_skip_interrupt:
