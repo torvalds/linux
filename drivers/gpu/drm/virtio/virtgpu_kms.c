@@ -258,6 +258,8 @@ int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file)
 	if (!vfpriv)
 		return -ENOMEM;
 
+	mutex_init(&vfpriv->context_lock);
+
 	handle = ida_alloc(&vgdev->ctx_id_ida, GFP_KERNEL);
 	if (handle < 0) {
 		kfree(vfpriv);
@@ -281,6 +283,7 @@ void virtio_gpu_driver_postclose(struct drm_device *dev, struct drm_file *file)
 	vfpriv = file->driver_priv;
 
 	virtio_gpu_context_destroy(vgdev, vfpriv->ctx_id);
+	mutex_destroy(&vfpriv->context_lock);
 	kfree(vfpriv);
 	file->driver_priv = NULL;
 }

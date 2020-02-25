@@ -209,6 +209,8 @@ struct virtio_gpu_device {
 
 struct virtio_gpu_fpriv {
 	uint32_t ctx_id;
+	bool context_created;
+	struct mutex context_lock;
 };
 
 /* virtio_ioctl.c */
