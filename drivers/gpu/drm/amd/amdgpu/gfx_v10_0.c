@@ -3164,12 +3164,7 @@ static int gfx_v10_0_kiq_enable_kgq(struct amdgpu_device *adev)
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		kiq->pmf->kiq_map_queues(kiq_ring, &adev->gfx.gfx_ring[i]);
 
-	r = amdgpu_ring_test_ring(kiq_ring);
-	if (r) {
-		DRM_ERROR("kfq enable failed\n");
-		kiq_ring->sched.ready = false;
-	}
-	return r;
+	return amdgpu_ring_test_helper(kiq_ring);
 }
 #endif
 
@@ -3785,7 +3780,7 @@ static int gfx_v10_0_kiq_disable_kgq(struct amdgpu_device *adev)
 		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.gfx_ring[i],
 					   PREEMPT_QUEUES, 0, 0);
 
-	return amdgpu_ring_test_ring(kiq_ring);
+	return amdgpu_ring_test_helper(kiq_ring);
 }
 #endif
 
