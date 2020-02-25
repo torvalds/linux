@@ -410,18 +410,17 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 	panic("Machine halted.");
 }
 
-dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+DEFINE_IDTENTRY(exc_bounds)
 {
-	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
-	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
+	if (notify_die(DIE_TRAP, "bounds", regs, 0,
 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
 		return;
 	cond_local_irq_enable(regs);
 
 	if (!user_mode(regs))
-		die("bounds", regs, error_code);
+		die("bounds", regs, 0);
 
-	do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, 0, NULL);
+	do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, 0, 0, NULL);
 
 	cond_local_irq_disable(regs);
 }

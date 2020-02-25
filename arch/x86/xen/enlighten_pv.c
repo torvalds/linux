@@ -623,7 +623,7 @@ static struct trap_array_entry trap_array[] = {
 #endif
 	{ page_fault,                  xen_page_fault,                  false },
 	TRAP_ENTRY(exc_divide_error,			false ),
-	{ bounds,                      xen_bounds,                      false },
+	TRAP_ENTRY(exc_bounds,				false ),
 	{ invalid_op,                  xen_invalid_op,                  false },
 	{ device_not_available,        xen_device_not_available,        false },
 	{ coprocessor_segment_overrun, xen_coprocessor_segment_overrun, false },

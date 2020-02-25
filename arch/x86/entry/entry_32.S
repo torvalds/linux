@@ -1325,13 +1325,6 @@ SYM_CODE_START(native_iret)
 SYM_CODE_END(native_iret)
 #endif
 
-SYM_CODE_START(bounds)
-	ASM_CLAC
-	pushl	$0
-	pushl	$do_bounds
-	jmp	common_exception
-SYM_CODE_END(bounds)
-
 SYM_CODE_START(invalid_op)
 	ASM_CLAC
 	pushl	$0

@@ -34,7 +34,7 @@ xen_pv_trap xendebug
 xen_pv_trap int3
 xen_pv_trap xennmi
 xen_pv_trap asm_exc_overflow
-xen_pv_trap bounds
+xen_pv_trap asm_exc_bounds
 xen_pv_trap invalid_op
 xen_pv_trap device_not_available
 xen_pv_trap double_fault
