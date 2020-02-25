@@ -10,7 +10,6 @@
 #include <linux/uaccess.h>
 
 #include <drm/drm_syncobj.h>
-#include <drm/i915_drm.h>
 
 #include "display/intel_frontbuffer.h"
 

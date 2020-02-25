@@ -41,7 +41,6 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
-#include <drm/i915_drm.h>
 
 #include "display/intel_crt.h"
 #include "display/intel_ddi.h"

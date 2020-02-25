@@ -6,8 +6,6 @@
 #ifndef __INTEL_DDI_H__
 #define __INTEL_DDI_H__
 
-#include <drm/i915_drm.h>
-
 #include "intel_display.h"
 
 struct drm_connector_state;

@@ -32,8 +32,6 @@
 
 #include <linux/types.h>
 
-#include <drm/i915_drm.h>
-
 struct drm_i915_private;
 struct intel_crtc_state;
 struct intel_encoder;

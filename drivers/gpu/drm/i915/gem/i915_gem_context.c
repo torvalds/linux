@@ -67,8 +67,6 @@
 #include <linux/log2.h>
 #include <linux/nospec.h>
 
-#include <drm/i915_drm.h>
-
 #include "gt/gen6_ppgtt.h"
 #include "gt/intel_context.h"
 #include "gt/intel_context_param.h"

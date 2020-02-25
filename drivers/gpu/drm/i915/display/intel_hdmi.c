@@ -36,7 +36,6 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_hdcp.h>
 #include <drm/drm_scdc_helper.h>
-#include <drm/i915_drm.h>
 #include <drm/intel_lpe_audio.h>
 
 #include "i915_debugfs.h"

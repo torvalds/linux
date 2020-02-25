@@ -26,8 +26,6 @@
  *
  */
 
-#include <drm/i915_drm.h>
-
 #include "gem/i915_gem_context.h"
 #include "gt/intel_gt_requests.h"
 

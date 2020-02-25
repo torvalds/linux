@@ -34,7 +34,6 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_irq.h>
-#include <drm/i915_drm.h>
 
 #include "display/intel_display_types.h"
 #include "display/intel_fifo_underrun.h"

@@ -29,8 +29,6 @@
 
 #include <linux/log2.h>
 
-#include <drm/i915_drm.h>
-
 #include "gem/i915_gem_context.h"
 
 #include "gen6_ppgtt.h"

@@ -11,8 +11,6 @@
 #include <drm/drm_file.h>
 #include <drm/drm_device.h>
 
-#include <drm/i915_drm.h>
-
 #include "display/intel_frontbuffer.h"
 #include "i915_gem_object_types.h"
 #include "i915_gem_gtt.h"

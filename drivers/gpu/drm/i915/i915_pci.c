@@ -26,6 +26,7 @@
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drm_drv.h>
+#include <drm/i915_pciids.h>
 
 #include "display/intel_fbdev.h"
 

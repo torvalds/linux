@@ -36,7 +36,6 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-#include <drm/i915_drm.h>
 
 #include <video/mipi_display.h>
 
