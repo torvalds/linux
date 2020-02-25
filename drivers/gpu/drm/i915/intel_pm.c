@@ -4105,10 +4105,6 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	 */
 	dbuf_slice_mask = skl_compute_dbuf_slices(crtc_state, active_pipes);
 
-	DRM_DEBUG_KMS("DBuf slice mask %x pipe %c active pipes %x\n",
-		      dbuf_slice_mask,
-		      pipe_name(for_pipe), active_pipes);
-
 	/*
 	 * Figure out at which DBuf slice we start, i.e if we start at Dbuf S2
 	 * and slice size is 1024, the offset would be 1024
@@ -4191,8 +4187,10 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	alloc->start = offset + start;
 	alloc->end = offset + end;
 
-	DRM_DEBUG_KMS("Pipe %d ddb %d-%d\n", for_pipe,
-		      alloc->start, alloc->end);
+	drm_dbg_kms(&dev_priv->drm,
+		    "[CRTC:%d:%s] dbuf slices 0x%x, ddb (%d - %d), active pipes 0x%x\n",
+		    for_crtc->base.id, for_crtc->name,
+		    dbuf_slice_mask, alloc->start, alloc->end, active_pipes);
 
 	return 0;
 }
@@ -5706,7 +5704,10 @@ skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
 static int
 skl_compute_ddb(struct intel_atomic_state *state)
 {
-	struct intel_crtc_state *old_crtc_state;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_dbuf_state *old_dbuf_state;
+	const struct intel_dbuf_state *new_dbuf_state;
+	const struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
 	int ret, i;
@@ -5722,6 +5723,17 @@ skl_compute_ddb(struct intel_atomic_state *state)
 		if (ret)
 			return ret;
 	}
+
+	old_dbuf_state = intel_atomic_get_old_dbuf_state(state);
+	new_dbuf_state = intel_atomic_get_new_dbuf_state(state);
+
+	if (new_dbuf_state &&
+	    new_dbuf_state->enabled_slices != old_dbuf_state->enabled_slices)
+		drm_dbg_kms(&dev_priv->drm,
+			    "Enabled dbuf slices 0x%x -> 0x%x (out of %d dbuf slices)\n",
+			    old_dbuf_state->enabled_slices,
+			    new_dbuf_state->enabled_slices,
+			    INTEL_INFO(dev_priv)->num_supported_dbuf_slices);
 
 	return 0;
 }
