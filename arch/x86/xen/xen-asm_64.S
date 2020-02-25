@@ -32,7 +32,7 @@ xen_pv_trap asm_exc_divide_error
 xen_pv_trap debug
 xen_pv_trap xendebug
 xen_pv_trap asm_exc_int3
-xen_pv_trap xennmi
+xen_pv_trap asm_exc_xennmi
 xen_pv_trap asm_exc_overflow
 xen_pv_trap asm_exc_bounds
 xen_pv_trap asm_exc_invalid_op

@@ -609,13 +609,18 @@ struct trap_array_entry {
 	.xen		= xen_asm_##func,		\
 	.ist_okay	= ist_ok }
 
+#define TRAP_ENTRY_REDIR(func, xenfunc, ist_ok) {	\
+	.orig		= asm_##func,			\
+	.xen		= xen_asm_##xenfunc,		\
+	.ist_okay	= ist_ok }
+
 static struct trap_array_entry trap_array[] = {
 	{ debug,                       xen_xendebug,                    true },
 	{ double_fault,                xen_double_fault,                true },
 #ifdef CONFIG_X86_MCE
 	TRAP_ENTRY(exc_machine_check,			true  ),
 #endif
-	{ nmi,                         xen_xennmi,                      true },
+	TRAP_ENTRY_REDIR(exc_nmi, exc_xennmi,		true  ),
 	TRAP_ENTRY(exc_int3,				false ),
 	TRAP_ENTRY(exc_overflow,			false ),
 #ifdef CONFIG_IA32_EMULATION

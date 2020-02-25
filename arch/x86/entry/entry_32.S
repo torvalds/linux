@@ -1545,7 +1545,7 @@ SYM_CODE_END(double_fault)
  * switched stacks.  We handle both conditions by simply checking whether we
  * interrupted kernel code running on the SYSENTER stack.
  */
-SYM_CODE_START(nmi)
+SYM_CODE_START(asm_exc_nmi)
 	ASM_CLAC
 
 #ifdef CONFIG_X86_ESPFIX32
@@ -1574,7 +1574,7 @@ SYM_CODE_START(nmi)
 	jb	.Lnmi_from_sysenter_stack
 
 	/* Not on SYSENTER stack. */
-	call	do_nmi
+	call	exc_nmi
 	jmp	.Lnmi_return
 
 .Lnmi_from_sysenter_stack:
@@ -1584,7 +1584,7 @@ SYM_CODE_START(nmi)
 	 */
 	movl	%esp, %ebx
 	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
-	call	do_nmi
+	call	exc_nmi
 	movl	%ebx, %esp
 
 .Lnmi_return:
@@ -1638,7 +1638,7 @@ SYM_CODE_START(nmi)
 	lss	(1+5+6)*4(%esp), %esp			# back to espfix stack
 	jmp	.Lirq_return
 #endif
-SYM_CODE_END(nmi)
+SYM_CODE_END(asm_exc_nmi)
 
 .pushsection .text, "ax"
 SYM_CODE_START(rewind_stack_do_exit)
