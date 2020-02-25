@@ -747,17 +747,24 @@ int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_vlan_modify);
 
-/* Trap Action
- * -----------
+/* Trap Action / Trap With Userdef Action
+ * --------------------------------------
  * The Trap action enables trapping / mirroring packets to the CPU
  * as well as discarding packets.
  * The ACL Trap / Discard separates the forward/discard control from CPU
  * trap control. In addition, the Trap / Discard action enables activating
  * SPAN (port mirroring).
+ *
+ * The Trap with userdef action action has the same functionality as
+ * the Trap action with addition of user defined value that can be set
+ * and used by higher layer applications.
  */
 
 #define MLXSW_AFA_TRAP_CODE 0x03
 #define MLXSW_AFA_TRAP_SIZE 1
+
+#define MLXSW_AFA_TRAPWU_CODE 0x04
+#define MLXSW_AFA_TRAPWU_SIZE 2
 
 enum mlxsw_afa_trap_trap_action {
 	MLXSW_AFA_TRAP_TRAP_ACTION_NOP = 0,
@@ -794,6 +801,15 @@ MLXSW_ITEM32(afa, trap, mirror_agent, 0x08, 29, 3);
  */
 MLXSW_ITEM32(afa, trap, mirror_enable, 0x08, 24, 1);
 
+/* user_def_val
+ * Value for the SW usage. Can be used to pass information of which
+ * rule has caused a trap. This may be overwritten by later traps.
+ * This field does a set on the packet's user_def_val only if this
+ * is the first trap_id or if the trap_id has replaced the previous
+ * packet's trap_id.
+ */
+MLXSW_ITEM32(afa, trap, user_def_val, 0x0C, 0, 20);
+
 static inline void
 mlxsw_afa_trap_pack(char *payload,
 		    enum mlxsw_afa_trap_trap_action trap_action,
@@ -803,6 +819,16 @@ mlxsw_afa_trap_pack(char *payload,
 	mlxsw_afa_trap_trap_action_set(payload, trap_action);
 	mlxsw_afa_trap_forward_action_set(payload, forward_action);
 	mlxsw_afa_trap_trap_id_set(payload, trap_id);
+}
+
+static inline void
+mlxsw_afa_trapwu_pack(char *payload,
+		      enum mlxsw_afa_trap_trap_action trap_action,
+		      enum mlxsw_afa_trap_forward_action forward_action,
+		      u16 trap_id, u32 user_def_val)
+{
+	mlxsw_afa_trap_pack(payload, trap_action, forward_action, trap_id);
+	mlxsw_afa_trap_user_def_val_set(payload, user_def_val);
 }
 
 static inline void
