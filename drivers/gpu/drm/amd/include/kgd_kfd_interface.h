@@ -151,6 +151,7 @@ struct kgd2kfd_shared_resources {
 
 	/* Minor device number of the render node */
 	int drm_render_minor;
+
 };
 
 struct tile_config {
@@ -236,6 +237,8 @@ struct tile_config {
  *
  * @get_hive_id: Returns hive id of current  device,  0 if xgmi is not enabled
  *
+ * @get_unique_id: Returns uuid id of current  device
+ * 
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -313,6 +316,7 @@ struct kfd2kgd_calls {
 			uint32_t vmid, uint64_t page_table_base);
 	uint32_t (*read_vmid_from_vmfault_reg)(struct kgd_dev *kgd);
 	uint64_t (*get_hive_id)(struct kgd_dev *kgd);
+	uint64_t (*get_unique_id)(struct kgd_dev *kgd);
 
 };
 

@@ -648,6 +648,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	if (kfd->kfd2kgd->get_hive_id)
 		kfd->hive_id = kfd->kfd2kgd->get_hive_id(kfd->kgd);
 
+	if (kfd->kfd2kgd->get_unique_id)
+		kfd->unique_id = kfd->kfd2kgd->get_unique_id(kfd->kgd);
+
 	if (kfd_interrupt_init(kfd)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
 		goto kfd_interrupt_error;

@@ -525,6 +525,14 @@ uint64_t amdgpu_amdkfd_get_hive_id(struct kgd_dev *kgd)
 
 	return adev->gmc.xgmi.hive_id;
 }
+
+uint64_t amdgpu_amdkfd_get_unique_id(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	return adev->unique_id;
+}
+
 uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *src)
 {
 	struct amdgpu_device *peer_adev = (struct amdgpu_device *)src;
