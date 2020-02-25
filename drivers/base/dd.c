@@ -237,24 +237,26 @@ __setup("deferred_probe_timeout=", deferred_probe_timeout_setup);
 
 static int __driver_deferred_probe_check_state(struct device *dev)
 {
-	if (!initcalls_done)
-		return -EPROBE_DEFER;
+	if (!IS_ENABLED(CONFIG_MODULES) && initcalls_done)
+		return -ENODEV;
 
 	if (!deferred_probe_timeout) {
 		dev_WARN(dev, "deferred probe timeout, ignoring dependency");
 		return -ETIMEDOUT;
 	}
 
-	return 0;
+	return -EPROBE_DEFER;
 }
 
 /**
  * driver_deferred_probe_check_state() - Check deferred probe state
  * @dev: device to check
  *
- * Returns -ENODEV if init is done and all built-in drivers have had a chance
- * to probe (i.e. initcalls are done), -ETIMEDOUT if deferred probe debug
- * timeout has expired, or -EPROBE_DEFER if none of those conditions are met.
+ * Return:
+ * -ENODEV if initcalls have completed and modules are disabled.
+ * -ETIMEDOUT if the deferred probe timeout was set and has expired
+ *  and modules are enabled.
+ * -EPROBE_DEFER in other cases.
  *
  * Drivers or subsystems can opt-in to calling this function instead of directly
  * returning -EPROBE_DEFER.
@@ -264,7 +266,7 @@ int driver_deferred_probe_check_state(struct device *dev)
 	int ret;
 
 	ret = __driver_deferred_probe_check_state(dev);
-	if (ret < 0)
+	if (ret != -ENODEV)
 		return ret;
 
 	dev_warn(dev, "ignoring dependency for device, assuming no driver");
@@ -292,7 +294,7 @@ int driver_deferred_probe_check_state_continue(struct device *dev)
 	int ret;
 
 	ret = __driver_deferred_probe_check_state(dev);
-	if (ret < 0)
+	if (ret != -ENODEV)
 		return ret;
 
 	return -EPROBE_DEFER;
