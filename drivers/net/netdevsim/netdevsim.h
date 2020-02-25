@@ -178,6 +178,8 @@ struct nsim_dev {
 	bool fail_reload;
 	struct devlink_region *dummy_region;
 	struct nsim_dev_health health;
+	struct flow_action_cookie *fa_cookie;
+	spinlock_t fa_cookie_lock; /* protects fa_cookie */
 };
 
 static inline struct net *nsim_dev_net(struct nsim_dev *nsim_dev)
