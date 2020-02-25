@@ -699,6 +699,12 @@ SYM_CODE_END(\asmsym)
 .endm
 
 /*
+ * Include the defines which emit the idt entries which are shared
+ * shared between 32 and 64 bit.
+ */
+#include <asm/idtentry.h>
+
+/*
  * Interrupt entry helper function.
  *
  * Entry runs with interrupts off. Stack layout at entry:

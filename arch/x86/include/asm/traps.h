@@ -6,8 +6,8 @@
 #include <linux/kprobes.h>
 
 #include <asm/debugreg.h>
+#include <asm/idtentry.h>
 #include <asm/siginfo.h>			/* TRAP_TRACE, ... */
-#include <asm/trapnr.h>
 
 #define dotraplinkage __visible
 
