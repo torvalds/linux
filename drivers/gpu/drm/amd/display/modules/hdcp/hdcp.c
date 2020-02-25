@@ -114,6 +114,9 @@ static enum mod_hdcp_status execution(struct mod_hdcp *hdcp,
 	} else if (is_in_hdcp2_dp_states(hdcp)) {
 		status = mod_hdcp_hdcp2_dp_execution(hdcp,
 				event_ctx, &input->hdcp2);
+	} else {
+		event_ctx->unexpected_event = 1;
+		goto out;
 	}
 out:
 	return status;
