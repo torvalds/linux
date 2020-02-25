@@ -684,7 +684,10 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 					 MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
 					 MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 
+	priv->max_nch = mlx5e_calc_max_nch(priv);
 	params = &priv->channels.params;
+
+	params->num_channels = MLX5E_REP_PARAMS_DEF_NUM_CHANNELS;
 	params->hard_mtu    = MLX5E_ETH_HARD_MTU;
 	params->sw_mtu      = netdev->mtu;
 
@@ -710,12 +713,11 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 	mlx5e_build_rss_params(&priv->rss_params, params->num_channels);
 }
 
-static void mlx5e_build_rep_netdev(struct net_device *netdev)
+static void mlx5e_build_rep_netdev(struct net_device *netdev,
+				   struct mlx5_core_dev *mdev,
+				   struct mlx5_eswitch_rep *rep)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_rep_priv *rpriv = priv->ppriv;
-	struct mlx5_eswitch_rep *rep = rpriv->rep;
-	struct mlx5_core_dev *mdev = priv->mdev;
 
 	SET_NETDEV_DEV(netdev, mdev->device);
 	if (rep->vport == MLX5_VPORT_UPLINK) {
@@ -755,22 +757,11 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 }
 
 static int mlx5e_init_rep(struct mlx5_core_dev *mdev,
-			  struct net_device *netdev,
-			  const struct mlx5e_profile *profile,
-			  void *ppriv)
+			  struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	int err;
-
-	err = mlx5e_netdev_init(netdev, priv, mdev, profile, ppriv);
-	if (err)
-		return err;
-
-	priv->channels.params.num_channels = MLX5E_REP_PARAMS_DEF_NUM_CHANNELS;
 
 	mlx5e_build_rep_params(netdev);
-	mlx5e_build_rep_netdev(netdev);
-
 	mlx5e_timestamp_init(priv);
 
 	return 0;
@@ -778,7 +769,6 @@ static int mlx5e_init_rep(struct mlx5_core_dev *mdev,
 
 static void mlx5e_cleanup_rep(struct mlx5e_priv *priv)
 {
-	mlx5e_netdev_cleanup(priv->netdev, priv);
 }
 
 static int mlx5e_create_rep_ttc_table(struct mlx5e_priv *priv)
@@ -1201,6 +1191,8 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	struct mlx5e_rep_priv *rpriv;
 	struct devlink_port *dl_port;
 	struct net_device *netdev;
+	struct mlx5e_priv *priv;
+	unsigned int txqs, rxqs;
 	int nch, err;
 
 	rpriv = kzalloc(sizeof(*rpriv), GFP_KERNEL);
@@ -1210,10 +1202,13 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	/* rpriv->rep to be looked up when profile->init() is called */
 	rpriv->rep = rep;
 
-	nch = mlx5e_get_max_num_channels(dev);
 	profile = (rep->vport == MLX5_VPORT_UPLINK) ?
 		  &mlx5e_uplink_rep_profile : &mlx5e_rep_profile;
-	netdev = mlx5e_create_netdev(dev, profile, nch, rpriv);
+
+	nch = mlx5e_get_max_num_channels(dev);
+	txqs = nch * profile->max_tc;
+	rxqs = nch * profile->rq_groups;
+	netdev = mlx5e_create_netdev(dev, txqs, rxqs);
 	if (!netdev) {
 		mlx5_core_warn(dev,
 			       "Failed to create representor netdev for vport %d\n",
@@ -1222,7 +1217,8 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 		return -EINVAL;
 	}
 
-	dev_net_set(netdev, mlx5_core_net(dev));
+	mlx5e_build_rep_netdev(netdev, dev, rep);
+
 	rpriv->netdev = netdev;
 	rep->rep_data[REP_ETH].priv = rpriv;
 	INIT_LIST_HEAD(&rpriv->vport_sqs_list);
@@ -1233,12 +1229,21 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 			goto err_destroy_netdev;
 	}
 
+	priv = netdev_priv(netdev);
+	priv->profile = profile;
+	priv->ppriv = rpriv;
+	err = profile->init(dev, netdev);
+	if (err) {
+		netdev_warn(netdev, "rep profile init failed, %d\n", err);
+		goto err_destroy_mdev_resources;
+	}
+
 	err = mlx5e_attach_netdev(netdev_priv(netdev));
 	if (err) {
 		netdev_warn(netdev,
 			    "Failed to attach representor netdev for vport %d\n",
 			    rep->vport);
-		goto err_destroy_mdev_resources;
+		goto err_cleanup_profile;
 	}
 
 	err = mlx5e_rep_neigh_init(rpriv);
@@ -1268,6 +1273,9 @@ err_neigh_cleanup:
 err_detach_netdev:
 	mlx5e_detach_netdev(netdev_priv(netdev));
 
+err_cleanup_profile:
+	priv->profile->cleanup(priv);
+
 err_destroy_mdev_resources:
 	if (rep->vport == MLX5_VPORT_UPLINK)
 		mlx5e_destroy_mdev_resources(dev);
@@ -1294,6 +1302,7 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	unregister_netdev(netdev);
 	mlx5e_rep_neigh_cleanup(rpriv);
 	mlx5e_detach_netdev(priv);
+	priv->profile->cleanup(priv);
 	if (rep->vport == MLX5_VPORT_UPLINK)
 		mlx5e_destroy_mdev_resources(priv->mdev);
 	mlx5e_destroy_netdev(priv);

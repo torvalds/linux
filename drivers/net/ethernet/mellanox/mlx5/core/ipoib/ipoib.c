@@ -72,23 +72,14 @@ static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 }
 
 /* Called directly after IPoIB netdevice was created to initialize SW structs */
-int mlx5i_init(struct mlx5_core_dev *mdev,
-	       struct net_device *netdev,
-	       const struct mlx5e_profile *profile,
-	       void *ppriv)
+int mlx5i_init(struct mlx5_core_dev *mdev, struct net_device *netdev)
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
-	int err;
-
-	err = mlx5e_netdev_init(netdev, priv, mdev, profile, ppriv);
-	if (err)
-		return err;
 
 	mlx5e_set_netdev_mtu_boundaries(priv);
 	netdev->mtu = netdev->max_mtu;
 
-	mlx5e_build_nic_params(priv, NULL, &priv->rss_params, &priv->channels.params,
-			       netdev->mtu);
+	mlx5e_build_nic_params(priv, NULL, netdev->mtu);
 	mlx5i_build_nic_params(mdev, &priv->channels.params);
 
 	mlx5e_timestamp_init(priv);
@@ -753,7 +744,14 @@ static int mlx5_rdma_setup_rn(struct ib_device *ibdev, u8 port_num,
 			goto destroy_ht;
 	}
 
-	prof->init(mdev, netdev, prof, ipriv);
+	err = mlx5e_netdev_init(netdev, epriv, mdev);
+	if (err)
+		goto destroy_mdev_resources;
+
+	epriv->profile = prof;
+	epriv->ppriv = ipriv;
+
+	prof->init(mdev, netdev);
 
 	err = mlx5e_attach_netdev(epriv);
 	if (err)
@@ -777,6 +775,7 @@ detach:
 	prof->cleanup(epriv);
 	if (ipriv->sub_interface)
 		return err;
+destroy_mdev_resources:
 	mlx5e_destroy_mdev_resources(mdev);
 destroy_ht:
 	mlx5i_pkey_qpn_ht_cleanup(netdev);
