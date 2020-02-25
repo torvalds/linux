@@ -1311,12 +1311,6 @@ SYM_CODE_START(native_iret)
 SYM_CODE_END(native_iret)
 #endif
 
-SYM_CODE_START(alignment_check)
-	ASM_CLAC
-	pushl	$do_alignment_check
-	jmp	common_exception
-SYM_CODE_END(alignment_check)
-
 #ifdef CONFIG_X86_MCE
 SYM_CODE_START(machine_check)
 	ASM_CLAC

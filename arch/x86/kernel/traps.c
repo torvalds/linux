@@ -270,11 +270,9 @@ DEFINE_IDTENTRY_ERRORCODE(exc_stack_segment)
 		      0, NULL);
 }
 
-dotraplinkage void do_alignment_check(struct pt_regs *regs, long error_code)
+DEFINE_IDTENTRY_ERRORCODE(exc_alignment_check)
 {
 	char *str = "alignment check";
-
-	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 
 	if (notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_AC, SIGBUS) == NOTIFY_STOP)
 		return;
