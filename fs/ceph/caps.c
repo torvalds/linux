@@ -1634,6 +1634,8 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask,
 	int was = ci->i_dirty_caps;
 	int dirty = 0;
 
+	lockdep_assert_held(&ci->i_ceph_lock);
+
 	if (!ci->i_auth_cap) {
 		pr_warn("__mark_dirty_caps %p %llx mask %s, "
 			"but no auth cap (session was closed?)\n",
@@ -1743,6 +1745,7 @@ static u64 __mark_caps_flushing(struct inode *inode,
 	struct ceph_cap_flush *cf = NULL;
 	int flushing;
 
+	lockdep_assert_held(&ci->i_ceph_lock);
 	BUG_ON(ci->i_dirty_caps == 0);
 	BUG_ON(list_empty(&ci->i_dirty_item));
 	BUG_ON(!ci->i_prealloc_cap_flush);
