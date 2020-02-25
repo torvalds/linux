@@ -71,6 +71,7 @@
 
 #include "gt/gen6_ppgtt.h"
 #include "gt/intel_context.h"
+#include "gt/intel_context_param.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_ring.h"
@@ -668,23 +669,30 @@ err_free:
 	return ERR_PTR(err);
 }
 
-static void
+static int
 context_apply_all(struct i915_gem_context *ctx,
-		  void (*fn)(struct intel_context *ce, void *data),
+		  int (*fn)(struct intel_context *ce, void *data),
 		  void *data)
 {
 	struct i915_gem_engines_iter it;
 	struct intel_context *ce;
+	int err = 0;
 
-	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it)
-		fn(ce, data);
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		err = fn(ce, data);
+		if (err)
+			break;
+	}
 	i915_gem_context_unlock_engines(ctx);
+
+	return err;
 }
 
-static void __apply_ppgtt(struct intel_context *ce, void *vm)
+static int __apply_ppgtt(struct intel_context *ce, void *vm)
 {
 	i915_vm_put(ce->vm);
 	ce->vm = i915_vm_get(vm);
+	return 0;
 }
 
 static struct i915_address_space *
@@ -722,9 +730,10 @@ static void __set_timeline(struct intel_timeline **dst,
 		intel_timeline_put(old);
 }
 
-static void __apply_timeline(struct intel_context *ce, void *timeline)
+static int __apply_timeline(struct intel_context *ce, void *timeline)
 {
 	__set_timeline(&ce->timeline, timeline);
+	return 0;
 }
 
 static void __assign_timeline(struct i915_gem_context *ctx,
@@ -1213,6 +1222,63 @@ unlock:
 out:
 	i915_vm_put(vm);
 	return err;
+}
+
+static int __apply_ringsize(struct intel_context *ce, void *sz)
+{
+	return intel_context_set_ring_size(ce, (unsigned long)sz);
+}
+
+static int set_ringsize(struct i915_gem_context *ctx,
+			struct drm_i915_gem_context_param *args)
+{
+	if (!HAS_LOGICAL_RING_CONTEXTS(ctx->i915))
+		return -ENODEV;
+
+	if (args->size)
+		return -EINVAL;
+
+	if (!IS_ALIGNED(args->value, I915_GTT_PAGE_SIZE))
+		return -EINVAL;
+
+	if (args->value < I915_GTT_PAGE_SIZE)
+		return -EINVAL;
+
+	if (args->value > 128 * I915_GTT_PAGE_SIZE)
+		return -EINVAL;
+
+	return context_apply_all(ctx,
+				 __apply_ringsize,
+				 __intel_context_ring_size(args->value));
+}
+
+static int __get_ringsize(struct intel_context *ce, void *arg)
+{
+	long sz;
+
+	sz = intel_context_get_ring_size(ce);
+	GEM_BUG_ON(sz > INT_MAX);
+
+	return sz; /* stop on first engine */
+}
+
+static int get_ringsize(struct i915_gem_context *ctx,
+			struct drm_i915_gem_context_param *args)
+{
+	int sz;
+
+	if (!HAS_LOGICAL_RING_CONTEXTS(ctx->i915))
+		return -ENODEV;
+
+	if (args->size)
+		return -EINVAL;
+
+	sz = context_apply_all(ctx, __get_ringsize, NULL);
+	if (sz < 0)
+		return sz;
+
+	args->value = sz;
+	return 0;
 }
 
 static int
@@ -1852,17 +1918,19 @@ set_persistence(struct i915_gem_context *ctx,
 	return __context_set_persistence(ctx, args->value);
 }
 
-static void __apply_priority(struct intel_context *ce, void *arg)
+static int __apply_priority(struct intel_context *ce, void *arg)
 {
 	struct i915_gem_context *ctx = arg;
 
 	if (!intel_engine_has_semaphores(ce->engine))
-		return;
+		return 0;
 
 	if (ctx->sched.priority >= I915_PRIORITY_NORMAL)
 		intel_context_set_use_semaphores(ce);
 	else
 		intel_context_clear_use_semaphores(ce);
+
+	return 0;
 }
 
 static int set_priority(struct i915_gem_context *ctx,
@@ -1955,6 +2023,10 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 		ret = set_persistence(ctx, args);
 		break;
 
+	case I915_CONTEXT_PARAM_RINGSIZE:
+		ret = set_ringsize(ctx, args);
+		break;
+
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 	default:
 		ret = -EINVAL;
@@ -1981,6 +2053,18 @@ static int create_setparam(struct i915_user_extension __user *ext, void *data)
 		return -EINVAL;
 
 	return ctx_setparam(arg->fpriv, arg->ctx, &local.param);
+}
+
+static int copy_ring_size(struct intel_context *dst,
+			  struct intel_context *src)
+{
+	long sz;
+
+	sz = intel_context_get_ring_size(src);
+	if (sz < 0)
+		return sz;
+
+	return intel_context_set_ring_size(dst, sz);
 }
 
 static int clone_engines(struct i915_gem_context *dst,
@@ -2026,6 +2110,12 @@ static int clone_engines(struct i915_gem_context *dst,
 		}
 
 		intel_context_set_gem(clone->engines[n], dst);
+
+		/* Copy across the preferred ringsize */
+		if (copy_ring_size(clone->engines[n], e->engines[n])) {
+			__free_engines(clone, n + 1);
+			goto err_unlock;
+		}
 	}
 	clone->num_engines = n;
 
@@ -2386,6 +2476,10 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_CONTEXT_PARAM_PERSISTENCE:
 		args->size = 0;
 		args->value = i915_gem_context_is_persistent(ctx);
+		break;
+
+	case I915_CONTEXT_PARAM_RINGSIZE:
+		ret = get_ringsize(ctx, args);
 		break;
 
 	case I915_CONTEXT_PARAM_BAN_PERIOD:

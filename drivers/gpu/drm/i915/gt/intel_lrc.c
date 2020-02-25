@@ -2966,6 +2966,7 @@ __execlists_update_reg_state(const struct intel_context *ce,
 	regs[CTX_RING_START] = i915_ggtt_offset(ring->vma);
 	regs[CTX_RING_HEAD] = head;
 	regs[CTX_RING_TAIL] = ring->tail;
+	regs[CTX_RING_CTL] = RING_CTL_SIZE(ring->size) | RING_VALID;
 
 	/* RPCS */
 	if (engine->class == RENDER_CLASS) {

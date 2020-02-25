@@ -82,6 +82,7 @@ gt-y += \
 	gt/gen8_ppgtt.o \
 	gt/intel_breadcrumbs.o \
 	gt/intel_context.o \
+	gt/intel_context_param.o \
 	gt/intel_context_sseu.o \
 	gt/intel_engine_cs.o \
 	gt/intel_engine_heartbeat.o \
