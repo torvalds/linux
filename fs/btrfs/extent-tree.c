@@ -3502,11 +3502,11 @@ struct find_free_extent_ctl {
  * Return 0 means we have found a location and set ffe_ctl->found_offset.
  */
 static int find_free_extent_clustered(struct btrfs_block_group *bg,
-		struct btrfs_free_cluster *last_ptr,
-		struct find_free_extent_ctl *ffe_ctl,
-		struct btrfs_block_group **cluster_bg_ret)
+				      struct find_free_extent_ctl *ffe_ctl,
+				      struct btrfs_block_group **cluster_bg_ret)
 {
 	struct btrfs_block_group *cluster_bg;
+	struct btrfs_free_cluster *last_ptr = ffe_ctl->last_ptr;
 	u64 aligned_cluster;
 	u64 offset;
 	int ret;
@@ -3606,9 +3606,9 @@ refill_cluster:
  * Return -EAGAIN to inform caller that we need to re-search this block group
  */
 static int find_free_extent_unclustered(struct btrfs_block_group *bg,
-		struct btrfs_free_cluster *last_ptr,
-		struct find_free_extent_ctl *ffe_ctl)
+					struct find_free_extent_ctl *ffe_ctl)
 {
+	struct btrfs_free_cluster *last_ptr = ffe_ctl->last_ptr;
 	u64 offset;
 
 	/*
@@ -3672,15 +3672,13 @@ static int do_allocation_clustered(struct btrfs_block_group *block_group,
 
 	/* We want to try and use the cluster allocator, so lets look there */
 	if (ffe_ctl->last_ptr && ffe_ctl->use_cluster) {
-		ret = find_free_extent_clustered(block_group, ffe_ctl->last_ptr,
-						 ffe_ctl, bg_ret);
+		ret = find_free_extent_clustered(block_group, ffe_ctl, bg_ret);
 		if (ret >= 0 || ret == -EAGAIN)
 			return ret;
 		/* ret == -ENOENT case falls through */
 	}
 
-	return find_free_extent_unclustered(block_group, ffe_ctl->last_ptr,
-					    ffe_ctl);
+	return find_free_extent_unclustered(block_group, ffe_ctl);
 }
 
 static int do_allocation(struct btrfs_block_group *block_group,
