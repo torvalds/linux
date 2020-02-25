@@ -23,8 +23,6 @@
 #define EFA_DMA_ADDR_TO_UINT32_LOW(x)   ((u32)((u64)(x)))
 #define EFA_DMA_ADDR_TO_UINT32_HIGH(x)  ((u32)(((u64)(x)) >> 32))
 
-#define EFA_REGS_ADMIN_INTR_MASK 1
-
 enum efa_cmd_status {
 	EFA_CMD_SUBMITTED,
 	EFA_CMD_COMPLETED,
@@ -689,7 +687,7 @@ void efa_com_set_admin_polling_mode(struct efa_com_dev *edev, bool polling)
 	u32 mask_value = 0;
 
 	if (polling)
-		mask_value = EFA_REGS_ADMIN_INTR_MASK;
+		EFA_SET(&mask_value, EFA_REGS_INTR_MASK_EN, 1);
 
 	writel(mask_value, edev->reg_bar + EFA_REGS_INTR_MASK_OFF);
 	if (polling)

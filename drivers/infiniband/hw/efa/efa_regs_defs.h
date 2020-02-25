@@ -73,6 +73,9 @@ enum efa_regs_reset_reason_types {
 #define EFA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_MASK             0xff0000
 #define EFA_REGS_AENQ_CAPS_AENQ_MSIX_VECTOR_MASK            0xff000000
 
+/* intr_mask register */
+#define EFA_REGS_INTR_MASK_EN_MASK                          0x1
+
 /* dev_ctl register */
 #define EFA_REGS_DEV_CTL_DEV_RESET_MASK                     0x1
 #define EFA_REGS_DEV_CTL_AQ_RESTART_MASK                    0x2
