@@ -3735,6 +3735,21 @@ static void found_extent(struct find_free_extent_ctl *ffe_ctl,
 	}
 }
 
+static int chunk_allocation_failed(struct find_free_extent_ctl *ffe_ctl)
+{
+	switch (ffe_ctl->policy) {
+	case BTRFS_EXTENT_ALLOC_CLUSTERED:
+		/*
+		 * If we can't allocate a new chunk we've already looped through
+		 * at least once, move on to the NO_EMPTY_SIZE case.
+		 */
+		ffe_ctl->loop = LOOP_NO_EMPTY_SIZE;
+		return 0;
+	default:
+		BUG();
+	}
+}
+
 /*
  * Return >0 means caller needs to re-search for free extent
  * Return 0 means we have the needed free extent.
@@ -3806,16 +3821,10 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 			ret = btrfs_chunk_alloc(trans, ffe_ctl->flags,
 						CHUNK_ALLOC_FORCE);
 
-			/*
-			 * If we can't allocate a new chunk we've already looped
-			 * through at least once, move on to the NO_EMPTY_SIZE
-			 * case.
-			 */
-			if (ret == -ENOSPC)
-				ffe_ctl->loop = LOOP_NO_EMPTY_SIZE;
-
 			/* Do not bail out on ENOSPC since we can do more. */
-			if (ret < 0 && ret != -ENOSPC)
+			if (ret == -ENOSPC)
+				ret = chunk_allocation_failed(ffe_ctl);
+			else if (ret < 0)
 				btrfs_abort_transaction(trans, ret);
 			else
 				ret = 0;
