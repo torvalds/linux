@@ -208,6 +208,11 @@ MLXSW_ITEM32(pci, cqe0, dqn, 0x0C, 1, 5);
 MLXSW_ITEM32(pci, cqe12, dqn, 0x0C, 1, 6);
 mlxsw_pci_cqe_item_helpers(dqn, 0, 12, 12);
 
+/* pci_cqe_user_def_val_orig_pkt_len
+ * When trap_id is an ACL: User defined value from policy engine action.
+ */
+MLXSW_ITEM32(pci, cqe2, user_def_val_orig_pkt_len, 0x14, 0, 20);
+
 /* pci_cqe_owner
  * Ownership bit.
  */
