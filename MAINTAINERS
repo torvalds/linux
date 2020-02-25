@@ -9657,8 +9657,7 @@ F:	arch/powerpc/platforms/85xx/
 F:	Documentation/devicetree/bindings/powerpc/fsl/
 
 LINUX FOR POWERPC EMBEDDED PPC8XX
-M:	Vitaly Bordug <vitb@kernel.crashing.org>
-W:	http://www.penguinppc.org/
+M:	Christophe Leroy <christophe.leroy@c-s.fr>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	arch/powerpc/platforms/8xx/
