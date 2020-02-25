@@ -229,17 +229,19 @@ DEFINE_SHOW_ATTRIBUTE(deferred_devs);
  * In the case of modules, set the default probe timeout to
  * 30 seconds to give userland some time to load needed modules
  */
-static int deferred_probe_timeout = 30;
+int driver_deferred_probe_timeout = 30;
 #else
 /* In the case of !modules, no probe timeout needed */
-static int deferred_probe_timeout = -1;
+int driver_deferred_probe_timeout = -1;
 #endif
+EXPORT_SYMBOL_GPL(driver_deferred_probe_timeout);
+
 static int __init deferred_probe_timeout_setup(char *str)
 {
 	int timeout;
 
 	if (!kstrtoint(str, 10, &timeout))
-		deferred_probe_timeout = timeout;
+		driver_deferred_probe_timeout = timeout;
 	return 1;
 }
 __setup("deferred_probe_timeout=", deferred_probe_timeout_setup);
@@ -264,7 +266,7 @@ int driver_deferred_probe_check_state(struct device *dev)
 		return -ENODEV;
 	}
 
-	if (!deferred_probe_timeout) {
+	if (!driver_deferred_probe_timeout) {
 		dev_WARN(dev, "deferred probe timeout, ignoring dependency");
 		return -ETIMEDOUT;
 	}
@@ -276,7 +278,7 @@ static void deferred_probe_timeout_work_func(struct work_struct *work)
 {
 	struct device_private *private, *p;
 
-	deferred_probe_timeout = 0;
+	driver_deferred_probe_timeout = 0;
 	driver_deferred_probe_trigger();
 	flush_work(&deferred_probe_work);
 
@@ -310,9 +312,9 @@ static int deferred_probe_initcall(void)
 	driver_deferred_probe_trigger();
 	flush_work(&deferred_probe_work);
 
-	if (deferred_probe_timeout > 0) {
+	if (driver_deferred_probe_timeout > 0) {
 		schedule_delayed_work(&deferred_probe_timeout_work,
-			deferred_probe_timeout * HZ);
+			driver_deferred_probe_timeout * HZ);
 	}
 	return 0;
 }
