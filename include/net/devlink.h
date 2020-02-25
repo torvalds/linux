@@ -541,6 +541,7 @@ struct devlink_trap_group {
 };
 
 #define DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT	BIT(0)
+#define DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE	BIT(1)
 
 /**
  * struct devlink_trap - Immutable packet trap attributes.

@@ -5540,6 +5540,9 @@ static int devlink_trap_metadata_put(struct sk_buff *msg,
 	if ((trap->metadata_cap & DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT) &&
 	    nla_put_flag(msg, DEVLINK_ATTR_TRAP_METADATA_TYPE_IN_PORT))
 		goto nla_put_failure;
+	if ((trap->metadata_cap & DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE) &&
+	    nla_put_flag(msg, DEVLINK_ATTR_TRAP_METADATA_TYPE_FA_COOKIE))
+		goto nla_put_failure;
 
 	nla_nest_end(msg, attr);
 
