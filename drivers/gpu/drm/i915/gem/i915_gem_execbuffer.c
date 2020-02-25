@@ -2713,7 +2713,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		vma = i915_gem_object_ggtt_pin(eb.batch->obj, NULL, 0, 0, 0);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
-			goto err_vma;
+			goto err_parse;
 		}
 
 		eb.batch = vma;
@@ -2792,6 +2792,7 @@ err_request:
 err_batch_unpin:
 	if (eb.batch_flags & I915_DISPATCH_SECURE)
 		i915_vma_unpin(eb.batch);
+err_parse:
 	if (eb.batch->private)
 		intel_engine_pool_put(eb.batch->private);
 err_vma:
