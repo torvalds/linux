@@ -87,6 +87,17 @@
 		enable-active-high;
 	};
 
+	vcc_otg_vbus: otg-vbus-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&otg_vbus_drv>;
+		regulator-name = "vcc_otg_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm3 0 25000 0>;
@@ -735,6 +746,11 @@
 
 &u2phy {
 	status = "okay";
+
+	u2phy_otg: otg-port {
+		status = "okay";
+		vbus-supply = <&vcc_otg_vbus>;
+	};
 
 	u2phy_host: host-port {
 		status = "okay";
