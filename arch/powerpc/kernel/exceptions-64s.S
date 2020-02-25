@@ -934,18 +934,19 @@ EXC_COMMON_BEGIN(system_reset_common)
 	__GEN_COMMON_BODY system_reset
 	bl	save_nvgprs
 	/*
-	 * Set IRQS_ALL_DISABLED unconditionally so arch_irqs_disabled does
+	 * Set IRQS_ALL_DISABLED unconditionally so irqs_disabled() does
 	 * the right thing. We do not want to reconcile because that goes
 	 * through irq tracing which we don't want in NMI.
 	 *
-	 * Save PACAIRQHAPPENED because some code will do a hard disable
-	 * (e.g., xmon). So we want to restore this back to where it was
-	 * when we return. DAR is unused in the stack, so save it there.
+	 * Save PACAIRQHAPPENED to _DAR (otherwise unused), and set HARD_DIS
+	 * as we are running with MSR[EE]=0.
 	 */
 	li	r10,IRQS_ALL_DISABLED
 	stb	r10,PACAIRQSOFTMASK(r13)
 	lbz	r10,PACAIRQHAPPENED(r13)
 	std	r10,_DAR(r1)
+	ori	r10,r10,PACA_IRQ_HARD_DIS
+	stb	r10,PACAIRQHAPPENED(r13)
 
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	system_reset_exception
@@ -989,6 +990,11 @@ EXC_COMMON_BEGIN(system_reset_common)
  * machine check and tries to handle it (e.g., flush the SLB if there was an
  * error detected there), determines if it was recoverable and logs the
  * event.
+ *
+ * This early code does not "reconcile" irq soft-mask state like SRESET or
+ * regular interrupts do, so irqs_disabled() among other things may not work
+ * properly (irq disable/enable already doesn't work because irq tracing can
+ * not work in real mode).
  *
  * Then, depending on the execution context when the interrupt is taken, there
  * are 3 main actions:
