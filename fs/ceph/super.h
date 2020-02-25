@@ -1048,6 +1048,8 @@ extern void ceph_early_kick_flushing_caps(struct ceph_mds_client *mdsc,
 					  struct ceph_mds_session *session);
 extern void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);
+void ceph_kick_flushing_inode_caps(struct ceph_mds_session *session,
+				   struct ceph_inode_info *ci);
 extern struct ceph_cap *ceph_get_cap_for_mds(struct ceph_inode_info *ci,
 					     int mds);
 extern void ceph_get_cap_refs(struct ceph_inode_info *ci, int caps);

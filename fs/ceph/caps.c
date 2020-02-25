@@ -2474,16 +2474,15 @@ void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 	}
 }
 
-static void kick_flushing_inode_caps(struct ceph_mds_client *mdsc,
-				     struct ceph_mds_session *session,
-				     struct inode *inode)
-	__releases(ci->i_ceph_lock)
+void ceph_kick_flushing_inode_caps(struct ceph_mds_session *session,
+				   struct ceph_inode_info *ci)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_cap *cap;
+	struct ceph_mds_client *mdsc = session->s_mdsc;
+	struct ceph_cap *cap = ci->i_auth_cap;
 
-	cap = ci->i_auth_cap;
-	dout("kick_flushing_inode_caps %p flushing %s\n", inode,
+	lockdep_assert_held(&ci->i_ceph_lock);
+
+	dout("%s %p flushing %s\n", __func__, &ci->vfs_inode,
 	     ceph_cap_string(ci->i_flushing_caps));
 
 	if (!list_empty(&ci->i_cap_flush_list)) {
@@ -2495,9 +2494,6 @@ static void kick_flushing_inode_caps(struct ceph_mds_client *mdsc,
 		spin_unlock(&mdsc->cap_dirty_lock);
 
 		__kick_flushing_caps(mdsc, session, ci, oldest_flush_tid);
-		spin_unlock(&ci->i_ceph_lock);
-	} else {
-		spin_unlock(&ci->i_ceph_lock);
 	}
 }
 
@@ -3366,7 +3362,8 @@ static void handle_cap_grant(struct inode *inode,
 	if (le32_to_cpu(grant->op) == CEPH_CAP_OP_IMPORT) {
 		if (newcaps & ~extra_info->issued)
 			wake = true;
-		kick_flushing_inode_caps(session->s_mdsc, session, inode);
+		ceph_kick_flushing_inode_caps(session, ci);
+		spin_unlock(&ci->i_ceph_lock);
 		up_read(&session->s_mdsc->snap_rwsem);
 	} else {
 		spin_unlock(&ci->i_ceph_lock);
