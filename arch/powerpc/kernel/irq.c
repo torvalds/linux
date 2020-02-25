@@ -110,6 +110,8 @@ static inline notrace int decrementer_check_overflow(void)
 	return now >= *next_tb;
 }
 
+#ifdef CONFIG_PPC_BOOK3E
+
 /* This is called whenever we are re-enabling interrupts
  * and returns either 0 (nothing to do) or 500/900/280/a00/e80 if
  * there's an EE, DEC or DBELL to generate.
@@ -169,33 +171,9 @@ notrace unsigned int __check_irq_replay(void)
 		}
 	}
 
-	/*
-	 * Force the delivery of pending soft-disabled interrupts on PS3.
-	 * Any HV call will have this side effect.
-	 */
-	if (firmware_has_feature(FW_FEATURE_PS3_LV1)) {
-		u64 tmp, tmp2;
-		lv1_get_version_info(&tmp, &tmp2);
-	}
-
-	/*
-	 * Check if an hypervisor Maintenance interrupt happened.
-	 * This is a higher priority interrupt than the others, so
-	 * replay it first.
-	 */
-	if (happened & PACA_IRQ_HMI) {
-		local_paca->irq_happened &= ~PACA_IRQ_HMI;
-		return 0xe60;
-	}
-
 	if (happened & PACA_IRQ_DEC) {
 		local_paca->irq_happened &= ~PACA_IRQ_DEC;
 		return 0x900;
-	}
-
-	if (happened & PACA_IRQ_PMI) {
-		local_paca->irq_happened &= ~PACA_IRQ_PMI;
-		return 0xf00;
 	}
 
 	if (happened & PACA_IRQ_EE) {
@@ -203,7 +181,6 @@ notrace unsigned int __check_irq_replay(void)
 		return 0x500;
 	}
 
-#ifdef CONFIG_PPC_BOOK3E
 	/*
 	 * Check if an EPR external interrupt happened this bit is typically
 	 * set if we need to handle another "edge" interrupt from within the
@@ -218,20 +195,15 @@ notrace unsigned int __check_irq_replay(void)
 		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
 		return 0x280;
 	}
-#else
-	if (happened & PACA_IRQ_DBELL) {
-		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
-		return 0xa00;
-	}
-#endif /* CONFIG_PPC_BOOK3E */
 
 	/* There should be nothing left ! */
 	BUG_ON(local_paca->irq_happened != 0);
 
 	return 0;
 }
+#endif /* CONFIG_PPC_BOOK3E */
 
-static void replay_soft_interrupts(void)
+void replay_soft_interrupts(void)
 {
 	/*
 	 * We use local_paca rather than get_paca() to avoid all

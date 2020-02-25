@@ -52,6 +52,7 @@
 #ifndef __ASSEMBLY__
 
 extern void replay_system_reset(void);
+extern void replay_soft_interrupts(void);
 
 extern void timer_interrupt(struct pt_regs *);
 extern void timer_broadcast_interrupt(void);

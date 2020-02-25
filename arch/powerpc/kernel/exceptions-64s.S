@@ -589,6 +589,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	std	r10,GPR12(r1)
 	std	r11,GPR13(r1)
 
+	SAVE_NVGPRS(r1)
+
 	.if IDAR
 	.if IISIDE
 	ld	r10,_NIP(r1)
@@ -625,7 +627,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	mfspr	r11,SPRN_XER		/* save XER in stackframe	*/
 	std	r10,SOFTE(r1)
 	std	r11,_XER(r1)
-	li	r9,(IVEC)+1
+	li	r9,IVEC
 	std	r9,_TRAP(r1)		/* set trap number		*/
 	li	r10,0
 	ld	r11,exception_marker@toc(r2)
@@ -932,7 +934,6 @@ EXC_COMMON_BEGIN(system_reset_common)
 	ld	r1,PACA_NMI_EMERG_SP(r13)
 	subi	r1,r1,INT_FRAME_SIZE
 	__GEN_COMMON_BODY system_reset
-	bl	save_nvgprs
 	/*
 	 * Set IRQS_ALL_DISABLED unconditionally so irqs_disabled() does
 	 * the right thing. We do not want to reconcile because that goes
@@ -1115,7 +1116,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	li	r10,MSR_RI
 	mtmsrd	r10,1
 
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	machine_check_early
 	std	r3,RESULT(r1)	/* Save result */
@@ -1208,10 +1208,9 @@ EXC_COMMON_BEGIN(machine_check_common)
 	/* Enable MSR_RI when finished with PACA_EXMC */
 	li	r10,MSR_RI
 	mtmsrd 	r10,1
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	machine_check_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM machine_check
 
@@ -1378,20 +1377,19 @@ BEGIN_MMU_FTR_SECTION
 	bl	do_slb_fault
 	cmpdi	r3,0
 	bne-	1f
-	b	fast_exception_return
+	b	fast_interrupt_return
 1:	/* Error case */
 MMU_FTR_SECTION_ELSE
 	/* Radix case, access is outside page table range */
 	li	r3,-EFAULT
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 	std	r3,RESULT(r1)
-	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r4,_DAR(r1)
 	ld	r5,RESULT(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_bad_slb_fault
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM data_access_slb
 
@@ -1471,20 +1469,19 @@ BEGIN_MMU_FTR_SECTION
 	bl	do_slb_fault
 	cmpdi	r3,0
 	bne-	1f
-	b	fast_exception_return
+	b	fast_interrupt_return
 1:	/* Error case */
 MMU_FTR_SECTION_ELSE
 	/* Radix case, access is outside page table range */
 	li	r3,-EFAULT
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 	std	r3,RESULT(r1)
-	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r4,_DAR(r1)
 	ld	r5,RESULT(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_bad_slb_fault
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM instruction_access_slb
 
@@ -1532,7 +1529,7 @@ EXC_COMMON_BEGIN(hardware_interrupt_common)
 	RUNLATCH_ON
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_IRQ
-	b	ret_from_except_lite
+	b	interrupt_return_lite
 
 	GEN_KVM hardware_interrupt
 
@@ -1558,10 +1555,9 @@ EXC_VIRT_BEGIN(alignment, 0x4600, 0x100)
 EXC_VIRT_END(alignment, 0x4600, 0x100)
 EXC_COMMON_BEGIN(alignment_common)
 	GEN_COMMON alignment
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	alignment_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM alignment
 
@@ -1622,10 +1618,9 @@ EXC_COMMON_BEGIN(program_check_common)
 	__ISTACK(program_check)=1
 	__GEN_COMMON_BODY program_check
 3:
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	program_check_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM program_check
 
@@ -1656,7 +1651,6 @@ EXC_VIRT_END(fp_unavailable, 0x4800, 0x100)
 EXC_COMMON_BEGIN(fp_unavailable_common)
 	GEN_COMMON fp_unavailable
 	bne	1f			/* if from user, just load it up */
-	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	kernel_fp_unavailable_exception
@@ -1673,14 +1667,13 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif
 	bl	load_up_fpu
-	b	fast_exception_return
+	b	fast_interrupt_return
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 2:	/* User process was in a transaction */
-	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	fp_unavailable_tm
-	b	ret_from_except
+	b	interrupt_return
 #endif
 
 	GEN_KVM fp_unavailable
@@ -1723,7 +1716,7 @@ EXC_COMMON_BEGIN(decrementer_common)
 	RUNLATCH_ON
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	timer_interrupt
-	b	ret_from_except_lite
+	b	interrupt_return_lite
 
 	GEN_KVM decrementer
 
@@ -1814,7 +1807,7 @@ EXC_COMMON_BEGIN(doorbell_super_common)
 #else
 	bl	unknown_exception
 #endif
-	b	ret_from_except_lite
+	b	interrupt_return_lite
 
 	GEN_KVM doorbell_super
 
@@ -1986,10 +1979,9 @@ EXC_VIRT_BEGIN(single_step, 0x4d00, 0x100)
 EXC_VIRT_END(single_step, 0x4d00, 0x100)
 EXC_COMMON_BEGIN(single_step_common)
 	GEN_COMMON single_step
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	single_step_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM single_step
 
@@ -2024,7 +2016,6 @@ EXC_VIRT_BEGIN(h_data_storage, 0x4e00, 0x20)
 EXC_VIRT_END(h_data_storage, 0x4e00, 0x20)
 EXC_COMMON_BEGIN(h_data_storage_common)
 	GEN_COMMON h_data_storage
-	bl      save_nvgprs
 	addi    r3,r1,STACK_FRAME_OVERHEAD
 BEGIN_MMU_FTR_SECTION
 	ld	r4,_DAR(r1)
@@ -2033,7 +2024,7 @@ BEGIN_MMU_FTR_SECTION
 MMU_FTR_SECTION_ELSE
 	bl      unknown_exception
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_TYPE_RADIX)
-	b       ret_from_except
+	b       interrupt_return
 
 	GEN_KVM h_data_storage
 
@@ -2058,10 +2049,9 @@ EXC_VIRT_BEGIN(h_instr_storage, 0x4e20, 0x20)
 EXC_VIRT_END(h_instr_storage, 0x4e20, 0x20)
 EXC_COMMON_BEGIN(h_instr_storage_common)
 	GEN_COMMON h_instr_storage
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unknown_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM h_instr_storage
 
@@ -2084,10 +2074,9 @@ EXC_VIRT_BEGIN(emulation_assist, 0x4e40, 0x20)
 EXC_VIRT_END(emulation_assist, 0x4e40, 0x20)
 EXC_COMMON_BEGIN(emulation_assist_common)
 	GEN_COMMON emulation_assist
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	emulation_assist_interrupt
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM emulation_assist
 
@@ -2169,10 +2158,9 @@ EXC_COMMON_BEGIN(hmi_exception_common)
 	GEN_COMMON hmi_exception
 	FINISH_NAP
 	RUNLATCH_ON
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	handle_hmi_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM hmi_exception
 
@@ -2206,7 +2194,7 @@ EXC_COMMON_BEGIN(h_doorbell_common)
 #else
 	bl	unknown_exception
 #endif
-	b	ret_from_except_lite
+	b	interrupt_return_lite
 
 	GEN_KVM h_doorbell
 
@@ -2236,7 +2224,7 @@ EXC_COMMON_BEGIN(h_virt_irq_common)
 	RUNLATCH_ON
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_IRQ
-	b	ret_from_except_lite
+	b	interrupt_return_lite
 
 	GEN_KVM h_virt_irq
 
@@ -2283,7 +2271,7 @@ EXC_COMMON_BEGIN(performance_monitor_common)
 	RUNLATCH_ON
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	performance_monitor_exception
-	b	ret_from_except_lite
+	b	interrupt_return_lite
 
 	GEN_KVM performance_monitor
 
@@ -2323,23 +2311,21 @@ BEGIN_FTR_SECTION
   END_FTR_SECTION_NESTED(CPU_FTR_TM, CPU_FTR_TM, 69)
 #endif
 	bl	load_up_altivec
-	b	fast_exception_return
+	b	fast_interrupt_return
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 2:	/* User process was in a transaction */
-	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	altivec_unavailable_tm
-	b	ret_from_except
+	b	interrupt_return
 #endif
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
-	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	altivec_unavailable_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM altivec_unavailable
 
@@ -2381,20 +2367,18 @@ BEGIN_FTR_SECTION
 	b	load_up_vsx
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 2:	/* User process was in a transaction */
-	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	vsx_unavailable_tm
-	b	ret_from_except
+	b	interrupt_return
 #endif
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
-	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	vsx_unavailable_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM vsx_unavailable
 
@@ -2421,10 +2405,9 @@ EXC_VIRT_BEGIN(facility_unavailable, 0x4f60, 0x20)
 EXC_VIRT_END(facility_unavailable, 0x4f60, 0x20)
 EXC_COMMON_BEGIN(facility_unavailable_common)
 	GEN_COMMON facility_unavailable
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	facility_unavailable_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM facility_unavailable
 
@@ -2451,10 +2434,9 @@ EXC_VIRT_BEGIN(h_facility_unavailable, 0x4f80, 0x20)
 EXC_VIRT_END(h_facility_unavailable, 0x4f80, 0x20)
 EXC_COMMON_BEGIN(h_facility_unavailable_common)
 	GEN_COMMON h_facility_unavailable
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	facility_unavailable_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM h_facility_unavailable
 
@@ -2485,10 +2467,9 @@ EXC_REAL_END(cbe_system_error, 0x1200, 0x100)
 EXC_VIRT_NONE(0x5200, 0x100)
 EXC_COMMON_BEGIN(cbe_system_error_common)
 	GEN_COMMON cbe_system_error
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	cbe_system_error_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM cbe_system_error
 
@@ -2514,10 +2495,9 @@ EXC_VIRT_BEGIN(instruction_breakpoint, 0x5300, 0x100)
 EXC_VIRT_END(instruction_breakpoint, 0x5300, 0x100)
 EXC_COMMON_BEGIN(instruction_breakpoint_common)
 	GEN_COMMON instruction_breakpoint
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	instruction_breakpoint_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM instruction_breakpoint
 
@@ -2637,10 +2617,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 
 EXC_COMMON_BEGIN(denorm_exception_common)
 	GEN_COMMON denorm_exception
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unknown_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM denorm_exception
 
@@ -2659,10 +2638,9 @@ EXC_REAL_END(cbe_maintenance, 0x1600, 0x100)
 EXC_VIRT_NONE(0x5600, 0x100)
 EXC_COMMON_BEGIN(cbe_maintenance_common)
 	GEN_COMMON cbe_maintenance
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	cbe_maintenance_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM cbe_maintenance
 
@@ -2687,14 +2665,13 @@ EXC_VIRT_BEGIN(altivec_assist, 0x5700, 0x100)
 EXC_VIRT_END(altivec_assist, 0x5700, 0x100)
 EXC_COMMON_BEGIN(altivec_assist_common)
 	GEN_COMMON altivec_assist
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 #ifdef CONFIG_ALTIVEC
 	bl	altivec_assist_exception
 #else
 	bl	unknown_exception
 #endif
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM altivec_assist
 
@@ -2713,10 +2690,9 @@ EXC_REAL_END(cbe_thermal, 0x1800, 0x100)
 EXC_VIRT_NONE(0x5800, 0x100)
 EXC_COMMON_BEGIN(cbe_thermal_common)
 	GEN_COMMON cbe_thermal
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	cbe_thermal_exception
-	b	ret_from_except
+	b	interrupt_return
 
 	GEN_KVM cbe_thermal
 
@@ -2749,7 +2725,6 @@ EXC_COMMON_BEGIN(soft_nmi_common)
 	ld	r1,PACAEMERGSP(r13)
 	subi	r1,r1,INT_FRAME_SIZE
 	__GEN_COMMON_BODY soft_nmi
-	bl	save_nvgprs
 
 	/*
 	 * Set IRQS_ALL_DISABLED and save PACAIRQHAPPENED (see
@@ -3082,7 +3057,7 @@ do_hash_page:
         cmpdi	r3,0			/* see if __hash_page succeeded */
 
 	/* Success */
-	beq	fast_exc_return_irq	/* Return from exception on success */
+	beq	interrupt_return_lite	/* Return from exception on success */
 
 	/* Error */
 	blt-	13f
@@ -3099,17 +3074,15 @@ handle_page_fault:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_page_fault
 	cmpdi	r3,0
-	beq+	ret_from_except_lite
-	bl	save_nvgprs
+	beq+	interrupt_return_lite
 	mr	r5,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r4,_DAR(r1)
 	bl	bad_page_fault
-	b	ret_from_except
+	b	interrupt_return
 
 /* We have a data breakpoint exception - handle it */
 handle_dabr_fault:
-	bl	save_nvgprs
 	ld      r4,_DAR(r1)
 	ld      r5,_DSISR(r1)
 	addi    r3,r1,STACK_FRAME_OVERHEAD
@@ -3117,21 +3090,20 @@ handle_dabr_fault:
 	/*
 	 * do_break() may have changed the NV GPRS while handling a breakpoint.
 	 * If so, we need to restore them with their updated values. Don't use
-	 * ret_from_except_lite here.
+	 * interrupt_return_lite here.
 	 */
-	b       ret_from_except
+	b       interrupt_return
 
 
 #ifdef CONFIG_PPC_BOOK3S_64
 /* We have a page fault that hash_page could handle but HV refused
  * the PTE insertion
  */
-13:	bl	save_nvgprs
-	mr	r5,r3
+13:	mr	r5,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r4,_DAR(r1)
 	bl	low_hash_fault
-	b	ret_from_except
+	b	interrupt_return
 #endif
 
 /*
@@ -3141,11 +3113,10 @@ handle_dabr_fault:
  * were soft-disabled.  We want to invoke the exception handler for
  * the access, or panic if there isn't a handler.
  */
-77:	bl	save_nvgprs
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+77:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	li	r5,SIGSEGV
 	bl	bad_page_fault
-	b	ret_from_except
+	b	interrupt_return
 
 /*
  * When doorbell is triggered from system reset wakeup, the message is
