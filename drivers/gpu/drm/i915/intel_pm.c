@@ -4315,12 +4315,6 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 }
 
-void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv)
-{
-	dev_priv->dbuf.enabled_slices =
-		intel_enabled_dbuf_slices_mask(dev_priv);
-}
-
 /*
  * Determines the downscale amount of a plane for the purposes of watermark calculations.
  * The bspec defines downscale amount as:
@@ -6181,7 +6175,6 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 
-	skl_ddb_get_hw_state(dev_priv);
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 
