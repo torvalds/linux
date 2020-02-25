@@ -509,7 +509,7 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 	struct hl_cb *cb;
 	bool int_queues_only = true;
 	u32 size_to_copy;
-	int rc, i, parse_cnt;
+	int rc, i;
 
 	*cs_seq = ULLONG_MAX;
 
@@ -549,7 +549,7 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 	hl_debugfs_add_cs(cs);
 
 	/* Validate ALL the CS chunks before submitting the CS */
-	for (i = 0, parse_cnt = 0 ; i < num_chunks ; i++, parse_cnt++) {
+	for (i = 0 ; i < num_chunks ; i++) {
 		struct hl_cs_chunk *chunk = &cs_chunk_array[i];
 		enum hl_queue_type queue_type;
 		bool is_kernel_allocated_cb;
