@@ -2733,7 +2733,7 @@ qla2x00_gff_id(scsi_qla_host_t *vha, sw_info_t *list)
 	for (i = 0; i < ha->max_fibre_devices; i++) {
 		/* Set default FC4 Type as UNKNOWN so the default is to
 		 * Process this port */
-		list[i].fc4_type = FC4_TYPE_UNKNOWN;
+		list[i].fc4_type = 0;
 
 		/* Do not attempt GFF_ID if we are not FWI_2 capable */
 		if (!IS_FWI2_CAPABLE(ha))
@@ -3083,7 +3083,7 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 			    "%s %d %8phC post new sess\n",
 			    __func__, __LINE__, ea->port_name);
 			qla24xx_post_newsess_work(vha, &ea->id,
-			    ea->port_name, NULL, NULL, FC4_TYPE_UNKNOWN);
+			    ea->port_name, NULL, NULL, 0);
 		}
 	}
 }

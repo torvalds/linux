@@ -4739,11 +4739,11 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 			qla24xx_post_newsess_work(vha, &port_id,
 			    iocb->u.isp24.port_name,
 			    iocb->u.isp24.u.plogi.node_name,
-			    pla, FC4_TYPE_UNKNOWN);
+			    pla, 0);
 		else
 			qla24xx_post_newsess_work(vha, &port_id,
 			    iocb->u.isp24.port_name, NULL,
-			    pla, FC4_TYPE_UNKNOWN);
+			    pla, 0);
 
 		goto out;
 	}

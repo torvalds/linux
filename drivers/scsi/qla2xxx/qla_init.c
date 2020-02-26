@@ -1043,7 +1043,7 @@ static void qla24xx_async_gnl_sp_done(srb_t *sp, int res)
 			    __func__, __LINE__, (u8 *)&wwn, id.b24);
 			wwnn = wwn_to_u64(e->node_name);
 			qla24xx_post_newsess_work(vha, &id, (u8 *)&wwn,
-			    (u8 *)&wwnn, NULL, FC4_TYPE_UNKNOWN);
+			    (u8 *)&wwnn, NULL, 0);
 		}
 	}
 
@@ -5828,7 +5828,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 		/* Bypass ports whose FCP-4 type is not FCP_SCSI */
 		if (ql2xgffidenable &&
 		    (!(new_fcport->fc4_type & FS_FC4TYPE_FCP) &&
-		    new_fcport->fc4_type != FC4_TYPE_UNKNOWN))
+		    new_fcport->fc4_type != 0))
 			continue;
 
 		spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
