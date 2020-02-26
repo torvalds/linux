@@ -76,9 +76,7 @@ static void omap_encoder_hdmi_mode_set(struct drm_connector *connector,
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->output;
-	bool hdmi_mode;
-
-	hdmi_mode = omap_connector_get_hdmi_mode(connector);
+	bool hdmi_mode = connector->display_info.is_hdmi;
 
 	if (dssdev->ops->hdmi.set_hdmi_mode)
 		dssdev->ops->hdmi.set_hdmi_mode(dssdev, hdmi_mode);

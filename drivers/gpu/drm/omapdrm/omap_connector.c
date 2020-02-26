@@ -21,7 +21,6 @@ struct omap_connector {
 	struct drm_connector base;
 	struct omap_dss_device *output;
 	struct omap_dss_device *hpd;
-	bool hdmi_mode;
 };
 
 static void omap_connector_hpd_notify(struct drm_connector *connector,
@@ -82,13 +81,6 @@ void omap_connector_disable_hpd(struct drm_connector *connector)
 
 	if (hpd)
 		hpd->ops->unregister_hpd_cb(hpd);
-}
-
-bool omap_connector_get_hdmi_mode(struct drm_connector *connector)
-{
-	struct omap_connector *omap_connector = to_omap_connector(connector);
-
-	return omap_connector->hdmi_mode;
 }
 
 static struct omap_dss_device *
@@ -167,7 +159,6 @@ static void omap_connector_destroy(struct drm_connector *connector)
 static int omap_connector_get_modes_edid(struct drm_connector *connector,
 					 struct omap_dss_device *dssdev)
 {
-	struct omap_connector *omap_connector = to_omap_connector(connector);
 	enum drm_connector_status status;
 	void *edid;
 	int n;
@@ -188,8 +179,6 @@ static int omap_connector_get_modes_edid(struct drm_connector *connector,
 
 	drm_connector_update_edid_property(connector, edid);
 	n = drm_add_edid_modes(connector, edid);
-
-	omap_connector->hdmi_mode = drm_detect_hdmi_monitor(edid);
 
 	kfree(edid);
 	return n;
