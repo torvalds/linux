@@ -335,7 +335,7 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 			bch2_disk_reservation_init(c, 0);
 		struct bkey_i delete;
 
-		bch2_trans_reset(trans, TRANS_RESET_MEM);
+		bch2_trans_begin(trans);
 
 		ret = bkey_err(k);
 		if (ret)
@@ -409,7 +409,7 @@ int bch2_write_index_default(struct bch_write_op *op)
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	do {
-		bch2_trans_reset(&trans, TRANS_RESET_MEM);
+		bch2_trans_begin(&trans);
 
 		k = bch2_keylist_front(keys);
 

@@ -81,7 +81,6 @@ static int remove_dirent(struct btree_trans *trans,
 	return __bch2_trans_do(trans, NULL, NULL,
 			       BTREE_INSERT_NOFAIL|
 			       BTREE_INSERT_LAZY_RW,
-			       TRANS_RESET_MEM,
 			       __remove_dirent(trans, dirent));
 }
 
@@ -182,8 +181,6 @@ static int hash_redo_key(const struct bch_hash_desc desc,
 	struct bkey_i delete;
 	struct bkey_i *tmp;
 
-	bch2_trans_reset(trans, TRANS_RESET_MEM);
-
 	tmp = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
@@ -194,11 +191,8 @@ static int hash_redo_key(const struct bch_hash_desc desc,
 	delete.k.p = k_iter->pos;
 	bch2_trans_update(trans, k_iter, &delete, 0);
 
-	return  bch2_hash_set(trans, desc, &h->info, k_iter->pos.inode,
-			      tmp, BCH_HASH_SET_MUST_CREATE) ?:
-		bch2_trans_commit(trans, NULL, NULL,
-				  BTREE_INSERT_NOFAIL|
-				  BTREE_INSERT_LAZY_RW);
+	return bch2_hash_set(trans, desc, &h->info, k_iter->pos.inode,
+			     tmp, BCH_HASH_SET_MUST_CREATE);
 }
 
 static int fsck_hash_delete_at(struct btree_trans *trans,
@@ -320,10 +314,9 @@ static int hash_check_key(struct btree_trans *trans,
 			desc.btree_id, k.k->p.offset,
 			hashed, h->chain->pos.offset,
 			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf))) {
-		do {
-			ret = hash_redo_key(desc, trans, h, k_iter, k, hashed);
-		} while (ret == -EINTR);
-
+		ret = __bch2_trans_do(trans, NULL, NULL,
+				      BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+			hash_redo_key(desc, trans, h, k_iter, k, hashed));
 		if (ret) {
 			bch_err(c, "hash_redo_key err %i", ret);
 			return ret;
@@ -387,7 +380,6 @@ static int check_dirent_hash(struct btree_trans *trans, struct hash_check *h,
 		ret = __bch2_trans_do(trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
-				      TRANS_RESET_MEM,
 			(bch2_trans_update(trans, iter, &d->k_i, 0), 0));
 		if (ret)
 			goto err;
@@ -410,11 +402,10 @@ err_redo:
 		     k->k->p.offset, hash, h->chain->pos.offset,
 		     (bch2_bkey_val_to_text(&PBUF(buf), c,
 					    *k), buf))) {
-		do {
-			ret = hash_redo_key(bch2_dirent_hash_desc, trans,
-					    h, iter, *k, hash);
-		} while (ret == -EINTR);
-
+		ret = __bch2_trans_do(trans, NULL, NULL,
+				      BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+			hash_redo_key(bch2_dirent_hash_desc, trans,
+				      h, iter, *k, hash));
 		if (ret)
 			bch_err(c, "hash_redo_key err %i", ret);
 		else
@@ -660,7 +651,6 @@ retry:
 			ret = __bch2_trans_do(&trans, NULL, NULL,
 					      BTREE_INSERT_NOFAIL|
 					      BTREE_INSERT_LAZY_RW,
-					      TRANS_RESET_MEM,
 				(bch2_trans_update(&trans, iter, &n->k_i, 0), 0));
 			kfree(n);
 			if (ret)
@@ -1275,7 +1265,6 @@ static int check_inode(struct btree_trans *trans,
 		ret = __bch2_trans_do(trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
-				      TRANS_RESET_MEM,
 			(bch2_trans_update(trans, iter, &p.inode.k_i, 0), 0));
 		if (ret)
 			bch_err(c, "error in fsck: error %i "

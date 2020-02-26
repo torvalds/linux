@@ -758,7 +758,7 @@ out:
 	if (likely(!(trans->flags & BTREE_INSERT_NOCHECK_RW)))
 		percpu_ref_put(&trans->c->writes);
 out_noupdates:
-	bch2_trans_reset(trans, TRANS_RESET_MEM|TRANS_RESET_NOTRAVERSE);
+	bch2_trans_reset(trans, !ret ? TRANS_RESET_NOTRAVERSE : 0);
 
 	return ret;
 err:
@@ -839,18 +839,21 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 	return 0;
 }
 
-static int __bch2_btree_insert(struct btree_trans *trans,
-			       enum btree_id id, struct bkey_i *k)
+int __bch2_btree_insert(struct btree_trans *trans,
+			enum btree_id id, struct bkey_i *k)
 {
 	struct btree_iter *iter;
+	int ret;
 
 	iter = bch2_trans_get_iter(trans, id, bkey_start_pos(&k->k),
 				   BTREE_ITER_INTENT);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
-	bch2_trans_update(trans, iter, k, 0);
-	return 0;
+	ret   = bch2_btree_iter_traverse(iter) ?:
+		bch2_trans_update(trans, iter, k, 0);
+	bch2_trans_iter_put(trans, iter);
+	return ret;
 }
 
 /**
@@ -882,7 +885,7 @@ retry:
 	       bkey_cmp(iter->pos, end) < 0) {
 		struct bkey_i delete;
 
-		bch2_trans_reset(trans, TRANS_RESET_MEM);
+		bch2_trans_begin(trans);
 
 		bkey_init(&delete.k);
 

@@ -1756,6 +1756,8 @@ int bch2_trans_iter_put(struct btree_trans *trans,
 	if (IS_ERR_OR_NULL(iter))
 		return 0;
 
+	BUG_ON(trans->iters + iter->idx != iter);
+
 	ret = btree_iter_err(iter);
 
 	if (!(trans->iters_touched & (1ULL << iter->idx)) &&
@@ -2080,16 +2082,11 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 
 	bch2_trans_unlink_iters(trans);
 
-	if (flags & TRANS_RESET_ITERS)
-		trans->iters_live = 0;
-
 	trans->iters_touched &= trans->iters_live;
 
 	trans->need_reset		= 0;
 	trans->nr_updates		= 0;
-
-	if (flags & TRANS_RESET_MEM)
-		trans->mem_top		= 0;
+	trans->mem_top			= 0;
 
 	if (trans->fs_usage_deltas) {
 		trans->fs_usage_deltas->used = 0;
@@ -2108,6 +2105,12 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 		     size_t expected_mem_bytes)
 {
 	memset(trans, 0, offsetof(struct btree_trans, iters_onstack));
+
+	/*
+	 * reallocating iterators currently completely breaks
+	 * bch2_trans_iter_put():
+	 */
+	expected_nr_iters = BTREE_ITER_MAX;
 
 	trans->c		= c;
 	trans->ip		= _RET_IP_;

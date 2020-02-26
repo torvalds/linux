@@ -59,6 +59,7 @@ enum btree_insert_flags {
 
 int bch2_btree_delete_at(struct btree_trans *, struct btree_iter *, unsigned);
 
+int __bch2_btree_insert(struct btree_trans *, enum btree_id, struct bkey_i *);
 int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *,
 		     struct disk_reservation *, u64 *, int flags);
 
@@ -98,17 +99,17 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	return __bch2_trans_commit(trans);
 }
 
-#define __bch2_trans_do(_trans, _disk_res, _journal_seq,		\
-			_flags,	_reset_flags, _do)			\
+#define __bch2_trans_do(_trans, _disk_res, _journal_seq, _flags, _do)	\
 ({									\
 	int _ret;							\
 									\
-	do {								\
-		bch2_trans_reset(_trans, _reset_flags);			\
-									\
+	while (1) {							\
 		_ret = (_do) ?:	bch2_trans_commit(_trans, (_disk_res),	\
 					(_journal_seq), (_flags));	\
-	} while (_ret == -EINTR);					\
+		if (_ret != -EINTR)					\
+			break;						\
+		bch2_trans_reset(_trans, 0);				\
+	}								\
 									\
 	_ret;								\
 })
@@ -120,7 +121,7 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 									\
 	bch2_trans_init(&trans, (_c), 0, 0);				\
 	_ret = __bch2_trans_do(&trans, _disk_res, _journal_seq, _flags,	\
-			       TRANS_RESET_MEM|TRANS_RESET_ITERS, _do);	\
+			       _do);					\
 	_ret2 = bch2_trans_exit(&trans);				\
 									\
 	_ret ?: _ret2;							\

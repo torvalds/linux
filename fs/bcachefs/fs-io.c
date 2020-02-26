@@ -2620,7 +2620,7 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		struct bkey_i_reservation reservation;
 		struct bkey_s_c k;
 
-		bch2_trans_reset(&trans, TRANS_RESET_MEM);
+		bch2_trans_begin(&trans);
 
 		k = bch2_btree_iter_peek_slot(iter);
 		if ((ret = bkey_err(k)))

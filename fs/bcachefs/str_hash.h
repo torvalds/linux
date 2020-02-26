@@ -163,6 +163,7 @@ bch2_hash_lookup(struct btree_trans *trans,
 			break;
 		}
 	}
+	bch2_trans_iter_put(trans, iter);
 
 	return ERR_PTR(ret ?: -ENOENT);
 }
@@ -186,6 +187,9 @@ bch2_hash_hole(struct btree_trans *trans,
 		if (k.k->type != desc.key_type)
 			return iter;
 	}
+
+	iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
+	bch2_trans_iter_put(trans, iter);
 
 	return ERR_PTR(ret ?: -ENOSPC);
 }

@@ -169,12 +169,12 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		       const struct qstr *dst_name, u64 *dst_inum,
 		       enum bch_rename_mode mode)
 {
-	struct btree_iter *src_iter, *dst_iter;
+	struct btree_iter *src_iter = NULL, *dst_iter = NULL;
 	struct bkey_s_c old_src, old_dst;
 	struct bkey_i_dirent *new_src = NULL, *new_dst = NULL;
 	struct bpos dst_pos =
 		POS(dst_dir, bch2_dirent_hash(dst_hash, dst_name));
-	int ret;
+	int ret = 0;
 
 	*src_inum = *dst_inum = 0;
 
@@ -191,8 +191,10 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		: bch2_hash_lookup(trans, bch2_dirent_hash_desc,
 				   dst_hash, dst_dir, dst_name,
 				   BTREE_ITER_INTENT);
-	if (IS_ERR(dst_iter))
-		return PTR_ERR(dst_iter);
+	ret = PTR_ERR_OR_ZERO(dst_iter);
+	if (ret)
+		goto out;
+
 	old_dst = bch2_btree_iter_peek_slot(dst_iter);
 
 	if (mode != BCH_RENAME)
@@ -202,15 +204,18 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	src_iter = bch2_hash_lookup(trans, bch2_dirent_hash_desc,
 				    src_hash, src_dir, src_name,
 				    BTREE_ITER_INTENT);
-	if (IS_ERR(src_iter))
-		return PTR_ERR(src_iter);
+	ret = PTR_ERR_OR_ZERO(src_iter);
+	if (ret)
+		goto out;
+
 	old_src = bch2_btree_iter_peek_slot(src_iter);
 	*src_inum = le64_to_cpu(bkey_s_c_to_dirent(old_src).v->d_inum);
 
 	/* Create new dst key: */
 	new_dst = dirent_create_key(trans, 0, dst_name, 0);
-	if (IS_ERR(new_dst))
-		return PTR_ERR(new_dst);
+	ret = PTR_ERR_OR_ZERO(new_dst);
+	if (ret)
+		goto out;
 
 	dirent_copy_target(new_dst, bkey_s_c_to_dirent(old_src));
 	new_dst->k.p = dst_iter->pos;
@@ -218,15 +223,18 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	/* Create new src key: */
 	if (mode == BCH_RENAME_EXCHANGE) {
 		new_src = dirent_create_key(trans, 0, src_name, 0);
-		if (IS_ERR(new_src))
-			return PTR_ERR(new_src);
+		ret = PTR_ERR_OR_ZERO(new_src);
+		if (ret)
+			goto out;
 
 		dirent_copy_target(new_src, bkey_s_c_to_dirent(old_dst));
 		new_src->k.p = src_iter->pos;
 	} else {
 		new_src = bch2_trans_kmalloc(trans, sizeof(struct bkey_i));
-		if (IS_ERR(new_src))
-			return PTR_ERR(new_src);
+		ret = PTR_ERR_OR_ZERO(new_src);
+		if (ret)
+			goto out;
+
 		bkey_init(&new_src->k);
 		new_src->k.p = src_iter->pos;
 
@@ -247,7 +255,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 				new_dst->k.p = src_iter->pos;
 				bch2_trans_update(trans, src_iter,
 						  &new_dst->k_i, 0);
-				return 0;
+				goto out;
 			} else {
 				/* If we're overwriting, we can't insert new_dst
 				 * at a different slot because it has to
@@ -261,7 +269,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 			ret = bch2_hash_needs_whiteout(trans, bch2_dirent_hash_desc,
 						       src_hash, src_iter);
 			if (ret < 0)
-				return ret;
+				goto out;
 
 			if (ret)
 				new_src->k.type = KEY_TYPE_whiteout;
@@ -270,7 +278,10 @@ int bch2_dirent_rename(struct btree_trans *trans,
 
 	bch2_trans_update(trans, src_iter, &new_src->k_i, 0);
 	bch2_trans_update(trans, dst_iter, &new_dst->k_i, 0);
-	return 0;
+out:
+	bch2_trans_iter_put(trans, src_iter);
+	bch2_trans_iter_put(trans, dst_iter);
+	return ret;
 }
 
 int bch2_dirent_delete_at(struct btree_trans *trans,
@@ -331,9 +342,7 @@ int bch2_empty_dir_trans(struct btree_trans *trans, u64 dir_inum)
 			break;
 		}
 	}
-
-	if (!IS_ERR(iter))
-		bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_put(trans, iter);
 
 	return ret;
 }

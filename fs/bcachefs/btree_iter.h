@@ -290,15 +290,13 @@ struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *,
 				enum btree_id, struct bpos,
 				unsigned, unsigned, unsigned);
 
-#define TRANS_RESET_ITERS		(1 << 0)
-#define TRANS_RESET_MEM			(1 << 1)
-#define TRANS_RESET_NOTRAVERSE		(1 << 2)
+#define TRANS_RESET_NOTRAVERSE		(1 << 0)
 
 void bch2_trans_reset(struct btree_trans *, unsigned);
 
 static inline void bch2_trans_begin(struct btree_trans *trans)
 {
-	return bch2_trans_reset(trans, TRANS_RESET_ITERS|TRANS_RESET_MEM);
+	return bch2_trans_reset(trans, 0);
 }
 
 void *bch2_trans_kmalloc(struct btree_trans *, size_t);
