@@ -40,8 +40,6 @@ struct smu_12_0_cmn2aisc_mapping {
 int smu_v12_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg);
 
-int smu_v12_0_read_arg(struct smu_context *smu, uint32_t *arg);
-
 int smu_v12_0_wait_for_response(struct smu_context *smu);
 
 int

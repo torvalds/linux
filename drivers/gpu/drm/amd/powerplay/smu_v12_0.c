@@ -50,7 +50,7 @@ int smu_v12_0_send_msg_without_waiting(struct smu_context *smu,
 	return 0;
 }
 
-int smu_v12_0_read_arg(struct smu_context *smu, uint32_t *arg)
+static int smu_v12_0_read_arg(struct smu_context *smu, uint32_t *arg)
 {
 	struct amdgpu_device *adev = smu->adev;
 

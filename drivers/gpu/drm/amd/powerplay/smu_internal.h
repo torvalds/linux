@@ -86,8 +86,6 @@ static inline int smu_send_smc_msg(struct smu_context *smu, enum smu_message_typ
 	return smu_send_smc_msg_with_param(smu, msg, 0, read_arg);
 }
 
-#define smu_read_smc_arg(smu, arg) \
-	((smu)->ppt_funcs->read_smc_arg? (smu)->ppt_funcs->read_smc_arg((smu), (arg)) : 0)
 #define smu_alloc_dpm_context(smu) \
 	((smu)->ppt_funcs->alloc_dpm_context ? (smu)->ppt_funcs->alloc_dpm_context((smu)) : 0)
 #define smu_init_display_count(smu, count) \

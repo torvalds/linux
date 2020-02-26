@@ -138,8 +138,6 @@ enum smu_v11_0_baco_seq {
 	BACO_SEQ_COUNT,
 };
 
-int smu_v11_0_read_arg(struct smu_context *smu, uint32_t *arg);
-
 int smu_v11_0_init_microcode(struct smu_context *smu);
 
 int smu_v11_0_load_microcode(struct smu_context *smu);
