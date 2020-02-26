@@ -626,8 +626,8 @@ static int venc_bridge_attach(struct drm_bridge *bridge,
 {
 	struct venc_device *venc = drm_bridge_to_venc(bridge);
 
-	if (venc->output.next_bridge)
-		return 0;
+	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+		return -EINVAL;
 
 	return drm_bridge_attach(bridge->encoder, venc->output.next_bridge,
 				 bridge, flags);

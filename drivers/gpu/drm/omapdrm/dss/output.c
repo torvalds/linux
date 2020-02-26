@@ -60,6 +60,11 @@ int omapdss_device_init_output(struct omap_dss_device *out,
 	}
 
 	if (local_bridge) {
+		if (!out->bridge) {
+			ret = -EPROBE_DEFER;
+			goto error;
+		}
+
 		out->next_bridge = out->bridge;
 		out->bridge = local_bridge;
 	}
