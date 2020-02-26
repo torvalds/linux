@@ -956,6 +956,23 @@ hsw_ddi_lcpll_get_dpll(struct intel_crtc_state *crtc_state)
 	return pll;
 }
 
+static struct intel_shared_dpll *
+hsw_ddi_spll_get_dpll(struct intel_atomic_state *state,
+		      struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	if (WARN_ON(crtc_state->port_clock / 2 != 135000))
+		return NULL;
+
+	crtc_state->dpll_hw_state.spll = SPLL_PLL_ENABLE | SPLL_FREQ_1350MHz |
+					 SPLL_REF_MUXED_SSC;
+
+	return intel_find_shared_dpll(state, crtc, &crtc_state->dpll_hw_state,
+				      BIT(DPLL_ID_SPLL));
+}
+
 static bool hsw_get_dpll(struct intel_atomic_state *state,
 			 struct intel_crtc *crtc,
 			 struct intel_encoder *encoder)
@@ -967,23 +984,14 @@ static bool hsw_get_dpll(struct intel_atomic_state *state,
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		pll = hsw_ddi_wrpll_get_dpll(state, crtc);
-	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
+	else if (intel_crtc_has_dp_encoder(crtc_state))
 		pll = hsw_ddi_lcpll_get_dpll(crtc_state);
-	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
-		if (WARN_ON(crtc_state->port_clock / 2 != 135000))
-			return false;
-
-		crtc_state->dpll_hw_state.spll =
-			SPLL_PLL_ENABLE | SPLL_FREQ_1350MHz | SPLL_REF_MUXED_SSC;
-
-		pll = intel_find_shared_dpll(state, crtc,
-					     &crtc_state->dpll_hw_state,
-					     BIT(DPLL_ID_SPLL));
-	} else {
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG))
+		pll = hsw_ddi_spll_get_dpll(state, crtc);
+	else
 		return false;
-	}
 
 	if (!pll)
 		return false;
