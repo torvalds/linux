@@ -1155,14 +1155,7 @@ static inline dma_cookie_t dmaengine_submit(struct dma_async_tx_descriptor *desc
 static inline bool dmaengine_check_align(enum dmaengine_alignment align,
 					 size_t off1, size_t off2, size_t len)
 {
-	size_t mask;
-
-	if (!align)
-		return true;
-	mask = (1 << align) - 1;
-	if (mask & (off1 | off2 | len))
-		return false;
-	return true;
+	return !(((1 << align) - 1) & (off1 | off2 | len));
 }
 
 static inline bool is_dma_copy_aligned(struct dma_device *dev, size_t off1,
