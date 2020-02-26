@@ -849,8 +849,8 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 }
 
 static struct intel_shared_dpll *
-hsw_ddi_hdmi_get_dpll(struct intel_atomic_state *state,
-		      struct intel_crtc *crtc)
+hsw_ddi_wrpll_get_dpll(struct intel_atomic_state *state,
+		       struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -925,7 +925,7 @@ static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 }
 
 static struct intel_shared_dpll *
-hsw_ddi_dp_get_dpll(struct intel_crtc_state *crtc_state)
+hsw_ddi_lcpll_get_dpll(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	struct intel_shared_dpll *pll;
@@ -968,9 +968,9 @@ static bool hsw_get_dpll(struct intel_atomic_state *state,
 	       sizeof(crtc_state->dpll_hw_state));
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
-		pll = hsw_ddi_hdmi_get_dpll(state, crtc);
+		pll = hsw_ddi_wrpll_get_dpll(state, crtc);
 	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
-		pll = hsw_ddi_dp_get_dpll(crtc_state);
+		pll = hsw_ddi_lcpll_get_dpll(crtc_state);
 	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
 		if (WARN_ON(crtc_state->port_clock / 2 != 135000))
 			return false;
