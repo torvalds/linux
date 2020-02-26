@@ -183,17 +183,12 @@ struct fixed_file_table {
 	struct file		**files;
 };
 
-enum {
-	FFD_F_ATOMIC,
-};
-
 struct fixed_file_data {
 	struct fixed_file_table		*table;
 	struct io_ring_ctx		*ctx;
 
 	struct percpu_ref		refs;
 	struct llist_head		put_llist;
-	unsigned long			state;
 	struct work_struct		ref_work;
 	struct completion		done;
 };
@@ -5595,7 +5590,6 @@ static void io_ring_file_ref_switch(struct work_struct *work)
 
 	data = container_of(work, struct fixed_file_data, ref_work);
 	io_ring_file_ref_flush(data);
-	percpu_ref_get(&data->refs);
 	percpu_ref_switch_to_percpu(&data->refs);
 }
 
@@ -5771,8 +5765,13 @@ static void io_atomic_switch(struct percpu_ref *ref)
 {
 	struct fixed_file_data *data;
 
+	/*
+	 * Juggle reference to ensure we hit zero, if needed, so we can
+	 * switch back to percpu mode
+	 */
 	data = container_of(ref, struct fixed_file_data, refs);
-	clear_bit(FFD_F_ATOMIC, &data->state);
+	percpu_ref_put(&data->refs);
+	percpu_ref_get(&data->refs);
 }
 
 static bool io_queue_file_removal(struct fixed_file_data *data,
@@ -5795,11 +5794,7 @@ static bool io_queue_file_removal(struct fixed_file_data *data,
 	llist_add(&pfile->llist, &data->put_llist);
 
 	if (pfile == &pfile_stack) {
-		if (!test_and_set_bit(FFD_F_ATOMIC, &data->state)) {
-			percpu_ref_put(&data->refs);
-			percpu_ref_switch_to_atomic(&data->refs,
-							io_atomic_switch);
-		}
+		percpu_ref_switch_to_atomic(&data->refs, io_atomic_switch);
 		wait_for_completion(&done);
 		flush_work(&data->ref_work);
 		return false;
@@ -5873,10 +5868,8 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		up->offset++;
 	}
 
-	if (ref_switch && !test_and_set_bit(FFD_F_ATOMIC, &data->state)) {
-		percpu_ref_put(&data->refs);
+	if (ref_switch)
 		percpu_ref_switch_to_atomic(&data->refs, io_atomic_switch);
-	}
 
 	return done ? done : err;
 }
