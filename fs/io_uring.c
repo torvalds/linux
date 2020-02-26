@@ -2075,7 +2075,7 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 		ssize_t ret;
 		ret = import_single_range(rw, buf, sqe_len, *iovec, iter);
 		*iovec = NULL;
-		return ret;
+		return ret < 0 ? ret : sqe_len;
 	}
 
 	if (req->io) {
