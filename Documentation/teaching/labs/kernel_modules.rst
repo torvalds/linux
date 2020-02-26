@@ -850,6 +850,64 @@ with operators ``+`, ``-`` or ``=``:
    * ``T`` includes the thread id if it is not called from interrupt context
    * ``_`` no flag is set.
 
+KDB: Kernel debugger
+--------------------
+
+The kernel debugger has proven to be very useful to facilitate the development and
+debugging process. One of its main advantages it the possibility to perform live debugging.
+This allows us to monitor, in real time, the accesses to memory or even modify the memory
+while debugging.
+The debugger has been integrated in the mainline kernel starting with version 2.6.26-rci.
+KDB is not a *source debugger", but for a complete analysis it can be used in parallel with
+gdb and symbol files -- see :ref:`the GDB debugging section <gdb_intro>`
+
+To use KDB, you have the following options:
+
+ * non-usb keyboard + VGA text console
+ * serial port console
+ * USB EHCI debug port
+
+For the lab, we will use a serial interface connected to the host.
+The following command will activate GDB over the serial port:
+
+.. code-block:: bash
+
+  echo hvc0 > /sys/module/kgdboc/parameters/kgdboc
+
+KDB is a *stop mode debugger*, which means that, while it is active, all the other processes
+are stopped. The kernel can be *forced* to enter KDB during execution using the following
+`SysRq <http://en.wikipedia.org/wiki/Magic_SysRq_key>`__ command
+
+.. code-block:: bash
+
+  echo g > /proc/sysrq-trigger
+
+or by using the key combination ``Ctrl+O g`` in a terminal connected to the serial port
+(for example using :command:`minicom`).
+
+KDB has various commands to control and define the context of the debugged system:
+
+ * lsmod, ps, kill, dmesg, env, bt (backtrace)
+ * dump trace logs
+ * hardware breakpoints
+ * modifying memory
+
+For a better description of the available commands you can use the ``help`` command in
+the KDB shell.
+In the next example, you can notice a simple KDB usage example which sets a hardware
+breakpoint to monitor the changes of the ``mVar`` variable.
+
+.. code-block:: bash
+
+  # trigger KDB
+  echo g > /proc/sysrq-trigger
+  # or if we are connected to the serial port issue
+  Ctrl-O g
+  # breakpoint on write access to the mVar variable
+  kdb> bph mVar dataw
+  # return from KDB
+  kdb> go
+
 Exercises
 =========
 

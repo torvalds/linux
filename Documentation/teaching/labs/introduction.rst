@@ -256,6 +256,8 @@ of a program, because there is no support from the operating system.
 This is why this process is usually done using two computers, connected
 on serial interfaces.
 
+.. _gdb_intro:
+
 gdb (Linux)
 -----------
 
