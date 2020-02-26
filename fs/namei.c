@@ -1687,7 +1687,7 @@ static const char *step_into(struct nameidata *nd, int flags,
 	return pick_link(nd, &path, inode, seq, flags);
 }
 
-static int follow_dotdot_rcu(struct nameidata *nd)
+static const char *follow_dotdot_rcu(struct nameidata *nd)
 {
 	struct dentry *parent = NULL;
 	struct inode *inode = nd->inode;
@@ -1703,9 +1703,9 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 			inode = parent->d_inode;
 			seq = read_seqcount_begin(&parent->d_seq);
 			if (unlikely(read_seqcount_retry(&old->d_seq, nd->seq)))
-				return -ECHILD;
+				return ERR_PTR(-ECHILD);
 			if (unlikely(!path_connected(nd->path.mnt, parent)))
-				return -ECHILD;
+				return ERR_PTR(-ECHILD);
 			break;
 		} else {
 			struct mount *mnt = real_mount(nd->path.mnt);
@@ -1714,11 +1714,11 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 			struct inode *inode2 = mountpoint->d_inode;
 			unsigned seq = read_seqcount_begin(&mountpoint->d_seq);
 			if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
-				return -ECHILD;
+				return ERR_PTR(-ECHILD);
 			if (&mparent->mnt == nd->path.mnt)
 				break;
 			if (unlikely(nd->flags & LOOKUP_NO_XDEV))
-				return -ECHILD;
+				return ERR_PTR(-ECHILD);
 			/* we know that mountpoint was pinned */
 			nd->path.dentry = mountpoint;
 			nd->path.mnt = &mparent->mnt;
@@ -1728,7 +1728,7 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 	}
 	if (unlikely(!parent)) {
 		if (unlikely(nd->flags & LOOKUP_BENEATH))
-			return -ECHILD;
+			return ERR_PTR(-ECHILD);
 	} else {
 		nd->path.dentry = parent;
 		nd->seq = seq;
@@ -1737,21 +1737,21 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 		struct mount *mounted;
 		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry);
 		if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
-			return -ECHILD;
+			return ERR_PTR(-ECHILD);
 		if (!mounted)
 			break;
 		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
-			return -ECHILD;
+			return ERR_PTR(-ECHILD);
 		nd->path.mnt = &mounted->mnt;
 		nd->path.dentry = mounted->mnt.mnt_root;
 		inode = nd->path.dentry->d_inode;
 		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
 	}
 	nd->inode = inode;
-	return 0;
+	return NULL;
 }
 
-static int follow_dotdot(struct nameidata *nd)
+static const char *follow_dotdot(struct nameidata *nd)
 {
 	struct dentry *parent = NULL;
 	while (1) {
@@ -1762,34 +1762,34 @@ static int follow_dotdot(struct nameidata *nd)
 			parent = dget_parent(nd->path.dentry);
 			if (unlikely(!path_connected(nd->path.mnt, parent))) {
 				dput(parent);
-				return -ENOENT;
+				return ERR_PTR(-ENOENT);
 			}
 			break;
 		}
 		if (!follow_up(&nd->path))
 			break;
 		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
-			return -EXDEV;
+			return ERR_PTR(-EXDEV);
 	}
 	if (unlikely(!parent)) {
 		if (unlikely(nd->flags & LOOKUP_BENEATH))
-			return -EXDEV;
+			return ERR_PTR(-EXDEV);
 	} else {
 		dput(nd->path.dentry);
 		nd->path.dentry = parent;
 	}
 	follow_mount(&nd->path);
 	nd->inode = nd->path.dentry->d_inode;
-	return 0;
+	return NULL;
 }
 
-static inline int handle_dots(struct nameidata *nd, int type)
+static const char *handle_dots(struct nameidata *nd, int type)
 {
 	if (type == LAST_DOTDOT) {
-		int error = 0;
+		const char *error = NULL;
 
 		if (!nd->root.mnt) {
-			error = set_root(nd);
+			error = ERR_PTR(set_root(nd));
 			if (error)
 				return error;
 		}
@@ -1809,12 +1809,12 @@ static inline int handle_dots(struct nameidata *nd, int type)
 			 */
 			smp_rmb();
 			if (unlikely(__read_seqcount_retry(&mount_lock.seqcount, nd->m_seq)))
-				return -EAGAIN;
+				return ERR_PTR(-EAGAIN);
 			if (unlikely(__read_seqcount_retry(&rename_lock.seqcount, nd->r_seq)))
-				return -EAGAIN;
+				return ERR_PTR(-EAGAIN);
 		}
 	}
-	return 0;
+	return NULL;
 }
 
 static const char *walk_component(struct nameidata *nd, int flags)
@@ -1822,7 +1822,6 @@ static const char *walk_component(struct nameidata *nd, int flags)
 	struct dentry *dentry;
 	struct inode *inode;
 	unsigned seq;
-	int err;
 	/*
 	 * "." and ".." are special - ".." especially so because it has
 	 * to be able to know about the current root directory and
@@ -1831,8 +1830,7 @@ static const char *walk_component(struct nameidata *nd, int flags)
 	if (unlikely(nd->last_type != LAST_NORM)) {
 		if (!(flags & WALK_MORE) && nd->depth)
 			put_link(nd);
-		err = handle_dots(nd, nd->last_type);
-		return ERR_PTR(err);
+		return handle_dots(nd, nd->last_type);
 	}
 	dentry = lookup_fast(nd, &inode, &seq);
 	if (IS_ERR(dentry))
@@ -3128,10 +3126,10 @@ static const char *open_last_lookups(struct nameidata *nd,
 	if (nd->last_type != LAST_NORM) {
 		if (nd->depth)
 			put_link(nd);
-		error = handle_dots(nd, nd->last_type);
-		if (likely(!error))
-			error = complete_walk(nd);
-		return ERR_PTR(error);
+		res = handle_dots(nd, nd->last_type);
+		if (likely(!res))
+			res = ERR_PTR(complete_walk(nd));
+		return res;
 	}
 
 	if (!(open_flag & O_CREAT)) {
