@@ -17,9 +17,16 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
+struct simple_bridge_info {
+	const struct drm_bridge_timings *timings;
+	unsigned int connector_type;
+};
+
 struct simple_bridge {
 	struct drm_bridge	bridge;
 	struct drm_connector	connector;
+
+	const struct simple_bridge_info *info;
 
 	struct i2c_adapter	*ddc;
 	struct regulator	*vdd;
@@ -120,7 +127,7 @@ static int simple_bridge_attach(struct drm_bridge *bridge,
 				 &simple_bridge_con_helper_funcs);
 	ret = drm_connector_init_with_ddc(bridge->dev, &sbridge->connector,
 					  &simple_bridge_con_funcs,
-					  DRM_MODE_CONNECTOR_VGA,
+					  sbridge->info->connector_type,
 					  sbridge->ddc);
 	if (ret) {
 		DRM_ERROR("Failed to initialize connector\n");
@@ -190,6 +197,8 @@ static int simple_bridge_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, sbridge);
 
+	sbridge->info = of_device_get_match_data(&pdev->dev);
+
 	sbridge->vdd = devm_regulator_get_optional(&pdev->dev, "vdd");
 	if (IS_ERR(sbridge->vdd)) {
 		int ret = PTR_ERR(sbridge->vdd);
@@ -213,7 +222,7 @@ static int simple_bridge_probe(struct platform_device *pdev)
 
 	sbridge->bridge.funcs = &simple_bridge_bridge_funcs;
 	sbridge->bridge.of_node = pdev->dev.of_node;
-	sbridge->bridge.timings = of_device_get_match_data(&pdev->dev);
+	sbridge->bridge.timings = sbridge->info->timings;
 
 	drm_bridge_add(&sbridge->bridge);
 
@@ -273,19 +282,27 @@ static const struct drm_bridge_timings ti_ths8135_bridge_timings = {
 static const struct of_device_id simple_bridge_match[] = {
 	{
 		.compatible = "dumb-vga-dac",
-		.data = NULL,
-	},
-	{
+		.data = &(const struct simple_bridge_info) {
+			.connector_type = DRM_MODE_CONNECTOR_VGA,
+		},
+	}, {
 		.compatible = "adi,adv7123",
-		.data = &default_bridge_timings,
-	},
-	{
+		.data = &(const struct simple_bridge_info) {
+			.timings = &default_bridge_timings,
+			.connector_type = DRM_MODE_CONNECTOR_VGA,
+		},
+	}, {
 		.compatible = "ti,ths8135",
-		.data = &ti_ths8135_bridge_timings,
-	},
-	{
+		.data = &(const struct simple_bridge_info) {
+			.timings = &ti_ths8135_bridge_timings,
+			.connector_type = DRM_MODE_CONNECTOR_VGA,
+		},
+	}, {
 		.compatible = "ti,ths8134",
-		.data = &ti_ths8134_bridge_timings,
+		.data = &(const struct simple_bridge_info) {
+			.timings = &ti_ths8134_bridge_timings,
+			.connector_type = DRM_MODE_CONNECTOR_VGA,
+		},
 	},
 	{},
 };
