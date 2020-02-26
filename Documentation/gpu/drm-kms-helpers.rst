@@ -139,11 +139,11 @@ Overview
 .. kernel-doc:: drivers/gpu/drm/drm_bridge.c
    :doc: overview
 
-Default bridge callback sequence
---------------------------------
+Bridge Operations
+-----------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_bridge.c
-   :doc: bridge callbacks
+   :doc: bridge operations
 
 
 Bridge Helper Reference

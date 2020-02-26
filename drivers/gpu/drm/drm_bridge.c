@@ -39,26 +39,50 @@
  * encoder chain.
  *
  * A bridge is always attached to a single &drm_encoder at a time, but can be
- * either connected to it directly, or through an intermediate bridge::
+ * either connected to it directly, or through a chain of bridges::
  *
- *     encoder ---> bridge B ---> bridge A
+ *     [ CRTC ---> ] Encoder ---> Bridge A ---> Bridge B
  *
- * Here, the output of the encoder feeds to bridge B, and that furthers feeds to
- * bridge A.
+ * Here, the output of the encoder feeds to bridge A, and that furthers feeds to
+ * bridge B. Bridge chains can be arbitrarily long, and shall be fully linear:
+ * Chaining multiple bridges to the output of a bridge, or the same bridge to
+ * the output of different bridges, is not supported.
  *
- * The driver using the bridge is responsible to make the associations between
- * the encoder and bridges. Once these links are made, the bridges will
- * participate along with encoder functions to perform mode_set/enable/disable
- * through the ops provided in &drm_bridge_funcs.
+ * Display drivers are responsible for linking encoders with the first bridge
+ * in the chains. This is done by acquiring the appropriate bridge with
+ * of_drm_find_bridge() or drm_of_find_panel_or_bridge(), or creating it for a
+ * panel with drm_panel_bridge_add_typed() (or the managed version
+ * devm_drm_panel_bridge_add_typed()). Once acquired, the bridge shall be
+ * attached to the encoder with a call to drm_bridge_attach().
  *
- * drm_bridge, like drm_panel, aren't drm_mode_object entities like planes,
+ * Bridges are responsible for linking themselves with the next bridge in the
+ * chain, if any. This is done the same way as for encoders, with the call to
+ * drm_bridge_attach() occurring in the &drm_bridge_funcs.attach operation.
+ *
+ * Once these links are created, the bridges can participate along with encoder
+ * functions to perform mode validation and fixup (through
+ * drm_bridge_chain_mode_valid() and drm_atomic_bridge_chain_check()), mode
+ * setting (through drm_bridge_chain_mode_set()), enable (through
+ * drm_atomic_bridge_chain_pre_enable() and drm_atomic_bridge_chain_enable())
+ * and disable (through drm_atomic_bridge_chain_disable() and
+ * drm_atomic_bridge_chain_post_disable()). Those functions call the
+ * corresponding operations provided in &drm_bridge_funcs in sequence for all
+ * bridges in the chain.
+ *
+ * For display drivers that use the atomic helpers
+ * drm_atomic_helper_check_modeset(),
+ * drm_atomic_helper_commit_modeset_enables() and
+ * drm_atomic_helper_commit_modeset_disables() (either directly in hand-rolled
+ * commit check and commit tail handlers, or through the higher-level
+ * drm_atomic_helper_check() and drm_atomic_helper_commit_tail() or
+ * drm_atomic_helper_commit_tail_rpm() helpers), this is done transparently and
+ * requires no intervention from the driver. For other drivers, the relevant
+ * DRM bridge chain functions shall be called manually.
+ *
+ * &drm_bridge, like &drm_panel, aren't &drm_mode_object entities like planes,
  * CRTCs, encoders or connectors and hence are not visible to userspace. They
  * just provide additional hooks to get the desired output at the end of the
  * encoder chain.
- *
- * Bridges can also be chained up using the &drm_bridge.chain_node field.
- *
- * Both legacy CRTC helpers and the new atomic modeset helpers support bridges.
  */
 
 static DEFINE_MUTEX(bridge_lock);
@@ -212,14 +236,41 @@ void drm_bridge_detach(struct drm_bridge *bridge)
 }
 
 /**
- * DOC: bridge callbacks
+ * DOC: bridge operations
  *
- * The &drm_bridge_funcs ops are populated by the bridge driver. The DRM
- * internals (atomic and CRTC helpers) use the helpers defined in drm_bridge.c
- * These helpers call a specific &drm_bridge_funcs op for all the bridges
- * during encoder configuration.
+ * Bridge drivers expose operations through the &drm_bridge_funcs structure.
+ * The DRM internals (atomic and CRTC helpers) use the helpers defined in
+ * drm_bridge.c to call bridge operations. Those operations are divided in
+ * two big categories to support different parts of the bridge usage.
  *
- * For detailed specification of the bridge callbacks see &drm_bridge_funcs.
+ * - The encoder-related operations support control of the bridges in the
+ *   chain, and are roughly counterparts to the &drm_encoder_helper_funcs
+ *   operations. They are used by the legacy CRTC and the atomic modeset
+ *   helpers to perform mode validation, fixup and setting, and enable and
+ *   disable the bridge automatically.
+ *
+ *   The enable and disable operations are split in
+ *   &drm_bridge_funcs.pre_enable, &drm_bridge_funcs.enable,
+ *   &drm_bridge_funcs.disable and &drm_bridge_funcs.post_disable to provide
+ *   finer-grained control.
+ *
+ *   Bridge drivers may implement the legacy version of those operations, or
+ *   the atomic version (prefixed with atomic\_), in which case they shall also
+ *   implement the atomic state bookkeeping operations
+ *   (&drm_bridge_funcs.atomic_duplicate_state,
+ *   &drm_bridge_funcs.atomic_destroy_state and &drm_bridge_funcs.reset).
+ *   Mixing atomic and non-atomic versions of the operations is not supported.
+ *
+ * - The bus format negotiation operations
+ *   &drm_bridge_funcs.atomic_get_output_bus_fmts and
+ *   &drm_bridge_funcs.atomic_get_input_bus_fmts allow bridge drivers to
+ *   negotiate the formats transmitted between bridges in the chain when
+ *   multiple formats are supported. Negotiation for formats is performed
+ *   transparently for display drivers by the atomic modeset helpers. Only
+ *   atomic versions of those operations exist, bridge drivers that need to
+ *   implement them shall thus also implement the atomic version of the
+ *   encoder-related operations. This feature is not supported by the legacy
+ *   CRTC helpers.
  */
 
 /**
