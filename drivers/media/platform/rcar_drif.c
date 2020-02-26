@@ -277,8 +277,12 @@ static int rcar_drif_alloc_dmachannels(struct rcar_drif_sdr *sdr)
 
 		ch->dmach = dma_request_chan(&ch->pdev->dev, "rx");
 		if (IS_ERR(ch->dmach)) {
-			rdrif_err(sdr, "ch%u: dma channel req failed\n", i);
 			ret = PTR_ERR(ch->dmach);
+			if (ret != -EPROBE_DEFER)
+				rdrif_err(sdr,
+					  "ch%u: dma channel req failed: %pe\n",
+					  i, ch->dmach);
+			ch->dmach = NULL;
 			goto dmach_error;
 		}
 
