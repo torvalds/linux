@@ -1729,26 +1729,25 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int link_clock = 0;
-	u32 val, pll;
+	u32 pll;
 
-	val = hsw_pll_to_ddi_pll_sel(pipe_config->shared_dpll);
-	switch (val & PORT_CLK_SEL_MASK) {
-	case PORT_CLK_SEL_LCPLL_810:
+	switch (pipe_config->shared_dpll->info->id) {
+	case DPLL_ID_LCPLL_810:
 		link_clock = 81000;
 		break;
-	case PORT_CLK_SEL_LCPLL_1350:
+	case DPLL_ID_LCPLL_1350:
 		link_clock = 135000;
 		break;
-	case PORT_CLK_SEL_LCPLL_2700:
+	case DPLL_ID_LCPLL_2700:
 		link_clock = 270000;
 		break;
-	case PORT_CLK_SEL_WRPLL1:
+	case DPLL_ID_WRPLL1:
 		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL(0));
 		break;
-	case PORT_CLK_SEL_WRPLL2:
+	case DPLL_ID_WRPLL2:
 		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL(1));
 		break;
-	case PORT_CLK_SEL_SPLL:
+	case DPLL_ID_SPLL:
 		pll = intel_de_read(dev_priv, SPLL_CTL) & SPLL_FREQ_MASK;
 		if (pll == SPLL_FREQ_810MHz)
 			link_clock = 81000;
