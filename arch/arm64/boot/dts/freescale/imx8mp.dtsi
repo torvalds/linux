@@ -306,6 +306,12 @@
 						       <393216000>,
 						       <361267200>;
 			};
+
+			src: reset-controller@30390000 {
+				compatible = "fsl,imx8mp-src", "syscon";
+				reg = <0x30390000 0x10000>;
+				#reset-cells = <1>;
+			};
 		};
 
 		aips2: bus@30400000 {
