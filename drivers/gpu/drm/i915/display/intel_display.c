@@ -18333,7 +18333,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	u8 active_pipes = 0;
-	int i;
 
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_crtc_state *crtc_state =
@@ -18362,33 +18361,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 	readout_plane_state(dev_priv);
 
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
-
-		pll->on = pll->info->funcs->get_hw_state(dev_priv, pll,
-							&pll->state.hw_state);
-
-		if (IS_ELKHARTLAKE(dev_priv) && pll->on &&
-		    pll->info->id == DPLL_ID_EHL_DPLL4) {
-			pll->wakeref = intel_display_power_get(dev_priv,
-							       POWER_DOMAIN_DPLL_DC_OFF);
-		}
-
-		pll->state.crtc_mask = 0;
-		for_each_intel_crtc(dev, crtc) {
-			struct intel_crtc_state *crtc_state =
-				to_intel_crtc_state(crtc->base.state);
-
-			if (crtc_state->hw.active &&
-			    crtc_state->shared_dpll == pll)
-				pll->state.crtc_mask |= 1 << crtc->pipe;
-		}
-		pll->active_mask = pll->state.crtc_mask;
-
-		drm_dbg_kms(&dev_priv->drm,
-			    "%s hw state readout: crtc_mask 0x%08x, on %i\n",
-			    pll->info->name, pll->state.crtc_mask, pll->on);
-	}
+	intel_dpll_readout_hw_state(dev_priv);
 
 	for_each_intel_encoder(dev, encoder) {
 		pipe = 0;
@@ -18645,7 +18618,6 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	struct intel_encoder *encoder;
 	struct intel_crtc *crtc;
 	intel_wakeref_t wakeref;
-	int i;
 
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
@@ -18698,19 +18670,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 
 	intel_modeset_update_connector_atomic_state(dev);
 
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
-
-		if (!pll->on || pll->active_mask)
-			continue;
-
-		drm_dbg_kms(&dev_priv->drm,
-			    "%s enabled but not in use, disabling\n",
-			    pll->info->name);
-
-		pll->info->funcs->disable(dev_priv, pll);
-		pll->on = false;
-	}
+	intel_dpll_sanitize_state(dev_priv);
 
 	if (IS_G4X(dev_priv)) {
 		g4x_wm_get_hw_state(dev_priv);

@@ -3919,6 +3919,65 @@ void intel_update_active_dpll(struct intel_atomic_state *state,
 	dpll_mgr->update_active_dpll(state, crtc, encoder);
 }
 
+static void readout_dpll_hw_state(struct drm_i915_private *i915,
+				  struct intel_shared_dpll *pll)
+{
+	struct intel_crtc *crtc;
+
+	pll->on = pll->info->funcs->get_hw_state(i915, pll,
+						 &pll->state.hw_state);
+
+	if (IS_ELKHARTLAKE(i915) && pll->on &&
+	    pll->info->id == DPLL_ID_EHL_DPLL4) {
+		pll->wakeref = intel_display_power_get(i915,
+						       POWER_DOMAIN_DPLL_DC_OFF);
+	}
+
+	pll->state.crtc_mask = 0;
+	for_each_intel_crtc(&i915->drm, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+
+		if (crtc_state->hw.active && crtc_state->shared_dpll == pll)
+			pll->state.crtc_mask |= 1 << crtc->pipe;
+	}
+	pll->active_mask = pll->state.crtc_mask;
+
+	drm_dbg_kms(&i915->drm,
+		    "%s hw state readout: crtc_mask 0x%08x, on %i\n",
+		    pll->info->name, pll->state.crtc_mask, pll->on);
+}
+
+void intel_dpll_readout_hw_state(struct drm_i915_private *i915)
+{
+	int i;
+
+	for (i = 0; i < i915->num_shared_dpll; i++)
+		readout_dpll_hw_state(i915, &i915->shared_dplls[i]);
+}
+
+static void sanitize_dpll_state(struct drm_i915_private *i915,
+				struct intel_shared_dpll *pll)
+{
+	if (!pll->on || pll->active_mask)
+		return;
+
+	drm_dbg_kms(&i915->drm,
+		    "%s enabled but not in use, disabling\n",
+		    pll->info->name);
+
+	pll->info->funcs->disable(i915, pll);
+	pll->on = false;
+}
+
+void intel_dpll_sanitize_state(struct drm_i915_private *i915)
+{
+	int i;
+
+	for (i = 0; i < i915->num_shared_dpll; i++)
+		sanitize_dpll_state(i915, &i915->shared_dplls[i]);
+}
+
 /**
  * intel_shared_dpll_dump_hw_state - write hw_state to dmesg
  * @dev_priv: i915 drm device
