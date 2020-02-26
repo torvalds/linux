@@ -1042,8 +1042,15 @@ void bch2_journal_write(struct closure *cl)
 	bytes = vstruct_bytes(jset);
 	memset((void *) jset + bytes, 0, (sectors << 9) - bytes);
 
+retry_alloc:
 	spin_lock(&j->lock);
 	ret = journal_write_alloc(j, w, sectors);
+
+	if (ret && j->can_discard) {
+		spin_unlock(&j->lock);
+		bch2_journal_do_discards(j);
+		goto retry_alloc;
+	}
 
 	/*
 	 * write is allocated, no longer need to account for it in
