@@ -196,62 +196,6 @@ config NWFLASH
 
 source "drivers/char/hw_random/Kconfig"
 
-#
-# These legacy RTC drivers just cause too many conflicts with the generic
-# RTC framework ... let's not even try to coexist any more.
-#
-if RTC_LIB=n
-
-config RTC
-	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
-	depends on ALPHA
-	---help---
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock (or hardware clock) built
-	  into your computer.
-
-	  Every PC has such a clock built in. It can be used to generate
-	  signals from as low as 1Hz up to 8192Hz, and can also be used
-	  as a 24 hour alarm. It reports status information via the file
-	  /proc/driver/rtc and its behaviour is set by various ioctls on
-	  /dev/rtc.
-
-	  If you run Linux on a multiprocessor machine and said Y to
-	  "Symmetric Multi Processing" above, you should say Y here to read
-	  and set the RTC in an SMP compatible fashion.
-
-	  If you think you have a use for such a device (such as periodic data
-	  sampling), then say Y here, and read <file:Documentation/admin-guide/rtc.rst>
-	  for details.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rtc.
-
-config JS_RTC
-	tristate "Enhanced Real Time Clock Support"
-	depends on SPARC32 && PCI
-	---help---
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock (or hardware clock) built
-	  into your computer.
-
-	  Every PC has such a clock built in. It can be used to generate
-	  signals from as low as 1Hz up to 8192Hz, and can also be used
-	  as a 24 hour alarm. It reports status information via the file
-	  /proc/driver/rtc and its behaviour is set by various ioctls on
-	  /dev/rtc.
-
-	  If you think you have a use for such a device (such as periodic data
-	  sampling), then say Y here, and read <file:Documentation/admin-guide/rtc.rst>
-	  for details.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called js-rtc.
-
-endif # RTC_LIB
-
 config DTLK
 	tristate "Double Talk PC internal speech card support"
 	depends on ISA
