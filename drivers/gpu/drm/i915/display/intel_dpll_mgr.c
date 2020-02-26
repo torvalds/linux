@@ -103,11 +103,14 @@ enum intel_dpll_id
 intel_get_shared_dpll_id(struct drm_i915_private *dev_priv,
 			 struct intel_shared_dpll *pll)
 {
-	if (drm_WARN_ON(&dev_priv->drm, pll < dev_priv->shared_dplls ||
-			pll > &dev_priv->shared_dplls[dev_priv->num_shared_dpll]))
+	long pll_idx = pll - dev_priv->shared_dplls;
+
+	if (drm_WARN_ON(&dev_priv->drm,
+			pll_idx < 0 ||
+			pll_idx >= dev_priv->num_shared_dpll))
 		return -1;
 
-	return (enum intel_dpll_id) (pll - dev_priv->shared_dplls);
+	return pll_idx;
 }
 
 /* For ILK+ */
