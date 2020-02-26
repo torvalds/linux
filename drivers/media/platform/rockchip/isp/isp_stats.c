@@ -156,6 +156,7 @@ rkisp_stats_vb2_start_streaming(struct vb2_queue *queue,
 {
 	struct rkisp_isp_stats_vdev *stats_vdev = queue->drv_priv;
 
+	stats_vdev->ops->rdbk_enable(stats_vdev, false);
 	stats_vdev->streamon = true;
 	kfifo_reset(&stats_vdev->rd_kfifo);
 	tasklet_enable(&stats_vdev->rd_tasklet);
@@ -229,6 +230,11 @@ static void rkisp_uninit_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_uninit_stats_vdev_v1x(stats_vdev);
 	else
 		rkisp_uninit_stats_vdev_v2x(stats_vdev);
+}
+
+void rkisp_stats_rdbk_enable(struct rkisp_isp_stats_vdev *stats_vdev, bool en)
+{
+	stats_vdev->ops->rdbk_enable(stats_vdev, en);
 }
 
 void rkisp_stats_first_ddr_config(struct rkisp_isp_stats_vdev *stats_vdev)

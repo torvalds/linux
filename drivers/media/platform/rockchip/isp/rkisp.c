@@ -1866,6 +1866,10 @@ void rkisp_isp_isr(unsigned int isp_mis,
 	/* start edge of v_sync */
 	if (isp_mis & CIF_ISP_V_START) {
 		/* filt v_sync when frame read back mode */
+		if (dev->csi_dev.read_bak) {
+			dev->csi_dev.read_bak = false;
+			rkisp_stats_rdbk_enable(&dev->stats_vdev, true);
+		}
 		if (dev->csi_dev.filt_state[CSI_F_VS]) {
 			dev->csi_dev.filt_state[CSI_F_VS]--;
 			goto vs_skip;
@@ -1960,6 +1964,9 @@ vs_skip:
 				readl(base + CIF_ISP_RIS));
 
 		rkisp_stats_isr(&dev->stats_vdev, irq, isp3a_mis);
+
+		if ((isp_mis & CIF_ISP_FRAME) && dev->stats_vdev.rdbk_mode)
+			rkisp_stats_rdbk_enable(&dev->stats_vdev, false);
 	}
 
 	/*

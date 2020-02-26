@@ -76,6 +76,7 @@ struct rkisp_csi_device {
 	u8 filt_state[CSI_F_MAX];
 	u8 tx_first[HDR_DMA_MAX];
 	u8 memory;
+	bool read_bak;
 };
 
 int rkisp_register_csi_subdev(struct rkisp_device *dev,

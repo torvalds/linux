@@ -33,6 +33,7 @@ struct rkisp_isp_stats_ops {
 			u32 isp_mis, u32 isp3a_ris);
 	void (*send_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
 			  struct rkisp_isp_readout_work *meas_work);
+	void (*rdbk_enable)(struct rkisp_isp_stats_vdev *stats_vdev, bool en);
 };
 
 /*
@@ -63,7 +64,13 @@ struct rkisp_isp_stats_vdev {
 	u32 rd_buf_idx;
 	u32 wr_buf_idx;
 	bool rd_stats_from_ddr;
+
+	bool rdbk_mode;
+	u32 isp_rdbk;
+	u32 isp3a_rdbk;
 };
+
+void rkisp_stats_rdbk_enable(struct rkisp_isp_stats_vdev *stats_vdev, bool en);
 
 void rkisp_stats_first_ddr_config(struct rkisp_isp_stats_vdev *stats_vdev);
 

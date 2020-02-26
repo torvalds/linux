@@ -1270,6 +1270,56 @@ rkisp_stats_send_meas_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 }
 
 static void
+rkisp_stats_clr_3a_isr(struct rkisp_isp_stats_vdev *stats_vdev,
+		u32 isp_ris, u32 isp3a_ris)
+{
+	struct rkisp_stats_v2x_ops *ops =
+		(struct rkisp_stats_v2x_ops *)stats_vdev->priv_ops;
+
+	if (isp_ris & ISP2X_SIAWB_DONE)
+		ops->get_siawb_meas(stats_vdev, NULL);
+
+	if (isp_ris & ISP2X_SIAF_FIN)
+		ops->get_siaf_meas(stats_vdev, NULL);
+
+	if (isp_ris & ISP2X_YUVAE_END)
+		ops->get_yuvae_meas(stats_vdev, NULL);
+
+	if (isp_ris & ISP2X_SIHST_RDY)
+		ops->get_sihst_meas(stats_vdev, NULL);
+
+	if (isp3a_ris & ISP2X_3A_RAWAWB)
+		ops->get_rawawb_meas(stats_vdev, NULL);
+
+	if (isp3a_ris & ISP2X_3A_RAWAF)
+		ops->get_rawaf_meas(stats_vdev, NULL);
+
+	if (isp3a_ris & ISP2X_3A_RAWAE_BIG)
+		ops->get_rawaebig1_meas(stats_vdev, NULL);
+
+	if (isp3a_ris & ISP2X_3A_RAWHIST_BIG)
+		ops->get_rawhstbig1_meas(stats_vdev, NULL);
+
+	if (isp3a_ris & ISP2X_3A_RAWAE_CH0)
+		ops->get_rawaelite_meas(stats_vdev, NULL);
+
+	if (isp3a_ris & ISP2X_3A_RAWAE_CH1)
+		ops->get_rawaebig2_meas(stats_vdev, NULL);
+
+	if (isp3a_ris & ISP2X_3A_RAWAE_CH2)
+		ops->get_rawaebig3_meas(stats_vdev, NULL);
+
+	if (isp3a_ris & ISP2X_3A_RAWHIST_CH0)
+		ops->get_rawhstlite_meas(stats_vdev, NULL);
+
+	if (isp3a_ris & ISP2X_3A_RAWHIST_CH1)
+		ops->get_rawhstbig2_meas(stats_vdev, NULL);
+
+	if (isp3a_ris & ISP2X_3A_RAWHIST_CH2)
+		ops->get_rawhstbig3_meas(stats_vdev, NULL);
+}
+
+static void
 rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 		    u32 isp_ris, u32 isp3a_ris)
 {
@@ -1282,6 +1332,7 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 		ISP2X_3A_RAWAE_CH2 | ISP2X_3A_RAWHIST_BIG | ISP2X_3A_RAWHIST_CH0 |
 		ISP2X_3A_RAWHIST_CH1 | ISP2X_3A_RAWHIST_CH2 | ISP2X_3A_RAWAF_SUM |
 		ISP2X_3A_RAWAF_LUM | ISP2X_3A_RAWAF | ISP2X_3A_RAWAWB;
+	u32 hdl_ris, hdl_3aris, unhdl_ris, unhdl_3aris;
 	u32 wr_buf_idx;
 
 #ifdef LOG_ISR_EXE_TIME
@@ -1326,11 +1377,24 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 			stats_vdev->dev->base_addr + MI_SWS_3A_WR_BASE);
 	}
 
-	if ((isp_ris & iq_isr_mask) || (isp3a_ris & iq_3a_mask)) {
+	hdl_ris = isp_ris;
+	hdl_3aris = isp3a_ris;
+	unhdl_ris = 0;
+	unhdl_3aris = 0;
+	if (stats_vdev->rdbk_mode) {
+		hdl_ris = isp_ris & ~stats_vdev->isp_rdbk;
+		hdl_3aris = isp3a_ris & ~stats_vdev->isp3a_rdbk;
+		unhdl_ris = isp_ris & stats_vdev->isp_rdbk;
+		unhdl_3aris = isp3a_ris & stats_vdev->isp3a_rdbk;
+		stats_vdev->isp_rdbk |= hdl_ris;
+		stats_vdev->isp3a_rdbk |= hdl_3aris;
+	}
+
+	if ((hdl_ris & iq_isr_mask) || (hdl_3aris & iq_3a_mask)) {
 		work.readout = RKISP_ISP_READOUT_MEAS;
 		work.frame_id = cur_frame_id;
-		work.isp_ris = isp_ris;
-		work.isp3a_ris = isp3a_ris;
+		work.isp_ris = hdl_ris;
+		work.isp3a_ris = hdl_3aris;
 		work.timestamp = ktime_get_ns();
 
 		if (!kfifo_is_full(&stats_vdev->rd_kfifo))
@@ -1342,6 +1406,8 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 
 		tasklet_schedule(&stats_vdev->rd_tasklet);
 	}
+
+	rkisp_stats_clr_3a_isr(stats_vdev, unhdl_ris, unhdl_3aris);
 
 #ifdef LOG_ISR_EXE_TIME
 	if (isp_ris & iq_isr_mask) {
@@ -1360,9 +1426,21 @@ unlock:
 	spin_unlock(&stats_vdev->irq_lock);
 }
 
+static void
+rkisp_stats_rdbk_enable_v2x(struct rkisp_isp_stats_vdev *stats_vdev, bool en)
+{
+	if (!en) {
+		stats_vdev->isp_rdbk = 0;
+		stats_vdev->isp3a_rdbk = 0;
+	}
+
+	stats_vdev->rdbk_mode = en;
+}
+
 static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 	.isr_hdl = rkisp_stats_isr_v2x,
 	.send_meas = rkisp_stats_send_meas_v2x,
+	.rdbk_enable = rkisp_stats_rdbk_enable_v2x,
 };
 
 void rkisp_stats_first_ddr_config_v2x(struct rkisp_isp_stats_vdev *stats_vdev)

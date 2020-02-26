@@ -385,9 +385,15 @@ unlock:
 	spin_unlock(&stats_vdev->irq_lock);
 }
 
+static void
+rkisp_stats_rdbk_enable_v1x(struct rkisp_isp_stats_vdev *stats_vdev, bool en)
+{
+}
+
 static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 	.isr_hdl = rkisp1_stats_isr_v1x,
 	.send_meas = rkisp1_stats_send_meas_v1x,
+	.rdbk_enable = rkisp_stats_rdbk_enable_v1x,
 };
 
 void rkisp_init_stats_vdev_v1x(struct rkisp_isp_stats_vdev *stats_vdev)
