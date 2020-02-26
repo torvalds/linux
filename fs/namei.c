@@ -1370,11 +1370,8 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 	unsigned seq;
 
 	while (1) {
-		if (path_equal(&nd->path, &nd->root)) {
-			if (unlikely(nd->flags & LOOKUP_BENEATH))
-				return -ECHILD;
+		if (path_equal(&nd->path, &nd->root))
 			break;
-		}
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
 			struct dentry *old = nd->path.dentry;
 
@@ -1405,7 +1402,10 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 			nd->seq = seq;
 		}
 	}
-	if (likely(parent)) {
+	if (unlikely(!parent)) {
+		if (unlikely(nd->flags & LOOKUP_BENEATH))
+			return -ECHILD;
+	} else {
 		nd->path.dentry = parent;
 		nd->seq = seq;
 	}
@@ -1447,11 +1447,8 @@ static int follow_dotdot(struct nameidata *nd)
 {
 	struct dentry *parent = NULL;
 	while (1) {
-		if (path_equal(&nd->path, &nd->root)) {
-			if (unlikely(nd->flags & LOOKUP_BENEATH))
-				return -EXDEV;
+		if (path_equal(&nd->path, &nd->root))
 			break;
-		}
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
 			/* rare case of legitimate dget_parent()... */
 			parent = dget_parent(nd->path.dentry);
@@ -1466,7 +1463,10 @@ static int follow_dotdot(struct nameidata *nd)
 		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
 			return -EXDEV;
 	}
-	if (likely(parent)) {
+	if (unlikely(!parent)) {
+		if (unlikely(nd->flags & LOOKUP_BENEATH))
+			return -EXDEV;
+	} else {
 		dput(nd->path.dentry);
 		nd->path.dentry = parent;
 	}
