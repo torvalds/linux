@@ -44,6 +44,7 @@ struct drm_modeset_acquire_ctx;
 struct drm_plane;
 struct drm_plane_state;
 struct i915_ggtt_view;
+struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_digital_port;
@@ -469,6 +470,8 @@ enum phy_fia {
 			     ((connector) = to_intel_connector((__state)->base.connectors[__i].ptr), \
 			     (new_connector_state) = to_intel_digital_connector_state((__state)->base.connectors[__i].new_state), 1))
 
+u8 intel_calc_active_pipes(struct intel_atomic_state *state,
+			   u8 active_pipes);
 void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n,
@@ -486,6 +489,7 @@ enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
 bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
 
 void intel_plane_destroy(struct drm_plane *plane);
+void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state);
 void intel_disable_pipe(const struct intel_crtc_state *old_crtc_state);
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
 void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
@@ -495,6 +499,7 @@ int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 		      const char *name, u32 reg, int ref_freq);
 int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
 			   const char *name, u32 reg);
+void lpt_pch_enable(const struct intel_crtc_state *crtc_state);
 void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv);
 void lpt_disable_iclkip(struct drm_i915_private *dev_priv);
 void intel_init_display_hooks(struct drm_i915_private *dev_priv);
@@ -520,6 +525,7 @@ enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv,
 int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
 u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc);
+void intel_crtc_vblank_on(const struct intel_crtc_state *crtc_state);
 void intel_crtc_vblank_off(const struct intel_crtc_state *crtc_state);
 
 int ilk_get_lanes_required(int target_clock, int link_bw, int bpp);
@@ -610,6 +616,7 @@ intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
 void intel_modeset_init_hw(struct drm_i915_private *i915);
 int intel_modeset_init(struct drm_i915_private *i915);
 void intel_modeset_driver_remove(struct drm_i915_private *i915);
+void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915);
 void intel_display_resume(struct drm_device *dev);
 void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
 

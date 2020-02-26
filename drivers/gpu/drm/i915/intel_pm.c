@@ -469,9 +469,9 @@ static void vlv_get_fifo_size(struct intel_crtc_state *crtc_state)
 	struct vlv_fifo_state *fifo_state = &crtc_state->wm.vlv.fifo_state;
 	enum pipe pipe = crtc->pipe;
 	int sprite0_start, sprite1_start;
+	u32 dsparb, dsparb2, dsparb3;
 
 	switch (pipe) {
-		u32 dsparb, dsparb2, dsparb3;
 	case PIPE_A:
 		dsparb = I915_READ(DSPARB);
 		dsparb2 = I915_READ(DSPARB2);
@@ -1969,6 +1969,7 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 	const struct vlv_fifo_state *fifo_state =
 		&crtc_state->wm.vlv.fifo_state;
 	int sprite0_start, sprite1_start, fifo_size;
+	u32 dsparb, dsparb2, dsparb3;
 
 	if (!crtc_state->fifo_changed)
 		return;
@@ -1977,8 +1978,8 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 	sprite1_start = fifo_state->plane[PLANE_SPRITE0] + sprite0_start;
 	fifo_size = fifo_state->plane[PLANE_SPRITE1] + sprite1_start;
 
-	WARN_ON(fifo_state->plane[PLANE_CURSOR] != 63);
-	WARN_ON(fifo_size != 511);
+	drm_WARN_ON(&dev_priv->drm, fifo_state->plane[PLANE_CURSOR] != 63);
+	drm_WARN_ON(&dev_priv->drm, fifo_size != 511);
 
 	trace_vlv_fifo_size(crtc, sprite0_start, sprite1_start, fifo_size);
 
@@ -1994,7 +1995,6 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 	spin_lock(&uncore->lock);
 
 	switch (crtc->pipe) {
-		u32 dsparb, dsparb2, dsparb3;
 	case PIPE_A:
 		dsparb = intel_uncore_read_fw(uncore, DSPARB);
 		dsparb2 = intel_uncore_read_fw(uncore, DSPARB2);
@@ -2810,34 +2810,6 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 	result->enable = true;
 }
 
-static u32
-hsw_compute_linetime_wm(const struct intel_crtc_state *crtc_state)
-{
-	const struct intel_atomic_state *intel_state =
-		to_intel_atomic_state(crtc_state->uapi.state);
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
-	u32 linetime, ips_linetime;
-
-	if (!crtc_state->hw.active)
-		return 0;
-	if (WARN_ON(adjusted_mode->crtc_clock == 0))
-		return 0;
-	if (WARN_ON(intel_state->cdclk.logical.cdclk == 0))
-		return 0;
-
-	/* The WM are computed with base on how long it takes to fill a single
-	 * row at the given clock rate, multiplied by 8.
-	 * */
-	linetime = DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
-				     adjusted_mode->crtc_clock);
-	ips_linetime = DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
-					 intel_state->cdclk.logical.cdclk);
-
-	return PIPE_WM_LINETIME_IPS_LINETIME(ips_linetime) |
-	       PIPE_WM_LINETIME_TIME(linetime);
-}
-
 static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 				  u16 wm[8])
 {
@@ -3178,9 +3150,6 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	ilk_compute_wm_level(dev_priv, intel_crtc, 0, crtc_state,
 			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
 
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		pipe_wm->linetime = hsw_compute_linetime_wm(crtc_state);
-
 	if (!ilk_validate_pipe_wm(dev_priv, pipe_wm))
 		return -EINVAL;
 
@@ -3417,7 +3386,7 @@ static void ilk_compute_wm_results(struct drm_i915_private *dev_priv,
 		 * level is disabled. Doing otherwise could cause underruns.
 		 */
 		if (INTEL_GEN(dev_priv) <= 6 && r->spr_val) {
-			WARN_ON(wm_lp != 1);
+			drm_WARN_ON(&dev_priv->drm, wm_lp != 1);
 			results->wm_lp_spr[wm_lp - 1] = WM1S_LP_EN | r->spr_val;
 		} else
 			results->wm_lp_spr[wm_lp - 1] = r->spr_val;
@@ -3426,13 +3395,11 @@ static void ilk_compute_wm_results(struct drm_i915_private *dev_priv,
 	/* LP0 register values */
 	for_each_intel_crtc(&dev_priv->drm, intel_crtc) {
 		enum pipe pipe = intel_crtc->pipe;
-		const struct intel_wm_level *r =
-			&intel_crtc->wm.active.ilk.wm[0];
+		const struct intel_pipe_wm *pipe_wm = &intel_crtc->wm.active.ilk;
+		const struct intel_wm_level *r = &pipe_wm->wm[0];
 
-		if (WARN_ON(!r->enable))
+		if (drm_WARN_ON(&dev_priv->drm, !r->enable))
 			continue;
-
-		results->wm_linetime[pipe] = intel_crtc->wm.active.ilk.linetime;
 
 		results->wm_pipe[pipe] =
 			(r->pri_val << WM0_PIPE_PLANE_SHIFT) |
@@ -3472,7 +3439,6 @@ ilk_find_best_result(struct drm_i915_private *dev_priv,
 
 /* dirty bits used to track which watermarks need changes */
 #define WM_DIRTY_PIPE(pipe) (1 << (pipe))
-#define WM_DIRTY_LINETIME(pipe) (1 << (8 + (pipe)))
 #define WM_DIRTY_LP(wm_lp) (1 << (15 + (wm_lp)))
 #define WM_DIRTY_LP_ALL (WM_DIRTY_LP(1) | WM_DIRTY_LP(2) | WM_DIRTY_LP(3))
 #define WM_DIRTY_FBC (1 << 24)
@@ -3487,12 +3453,6 @@ static unsigned int ilk_compute_wm_dirty(struct drm_i915_private *dev_priv,
 	int wm_lp;
 
 	for_each_pipe(dev_priv, pipe) {
-		if (old->wm_linetime[pipe] != new->wm_linetime[pipe]) {
-			dirty |= WM_DIRTY_LINETIME(pipe);
-			/* Must disable LP1+ watermarks too */
-			dirty |= WM_DIRTY_LP_ALL;
-		}
-
 		if (old->wm_pipe[pipe] != new->wm_pipe[pipe]) {
 			dirty |= WM_DIRTY_PIPE(pipe);
 			/* Must disable LP1+ watermarks too */
@@ -3584,13 +3544,6 @@ static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 	if (dirty & WM_DIRTY_PIPE(PIPE_C))
 		I915_WRITE(WM0_PIPEC_IVB, results->wm_pipe[2]);
 
-	if (dirty & WM_DIRTY_LINETIME(PIPE_A))
-		I915_WRITE(PIPE_WM_LINETIME(PIPE_A), results->wm_linetime[0]);
-	if (dirty & WM_DIRTY_LINETIME(PIPE_B))
-		I915_WRITE(PIPE_WM_LINETIME(PIPE_B), results->wm_linetime[1]);
-	if (dirty & WM_DIRTY_LINETIME(PIPE_C))
-		I915_WRITE(PIPE_WM_LINETIME(PIPE_C), results->wm_linetime[2]);
-
 	if (dirty & WM_DIRTY_DDB) {
 		if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 			val = I915_READ(WM_MISC);
@@ -3644,26 +3597,18 @@ bool ilk_disable_lp_wm(struct drm_i915_private *dev_priv)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
-static u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
+u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *dev_priv)
 {
-	u8 enabled_slices;
+	int i;
+	int max_slices = INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
+	u8 enabled_slices_mask = 0;
 
-	/* Slice 1 will always be enabled */
-	enabled_slices = 1;
+	for (i = 0; i < max_slices; i++) {
+		if (I915_READ(DBUF_CTL_S(i)) & DBUF_POWER_STATE)
+			enabled_slices_mask |= BIT(i);
+	}
 
-	/* Gen prior to GEN11 have only one DBuf slice */
-	if (INTEL_GEN(dev_priv) < 11)
-		return enabled_slices;
-
-	/*
-	 * FIXME: for now we'll only ever use 1 slice; pretend that we have
-	 * only that 1 slice enabled until we have a proper way for on-demand
-	 * toggling of the second slice.
-	 */
-	if (0 && I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE)
-		enabled_slices++;
-
-	return enabled_slices;
+	return enabled_slices_mask;
 }
 
 /*
@@ -3864,47 +3809,46 @@ bool intel_can_enable_sagv(struct intel_atomic_state *state)
 	return true;
 }
 
-static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
-			      const struct intel_crtc_state *crtc_state,
-			      const u64 total_data_rate,
-			      const int num_active,
-			      struct skl_ddb_allocation *ddb)
+/*
+ * Calculate initial DBuf slice offset, based on slice size
+ * and mask(i.e if slice size is 1024 and second slice is enabled
+ * offset would be 1024)
+ */
+static unsigned int
+icl_get_first_dbuf_slice_offset(u32 dbuf_slice_mask,
+				u32 slice_size,
+				u32 ddb_size)
 {
-	const struct drm_display_mode *adjusted_mode;
-	u64 total_data_bw;
+	unsigned int offset = 0;
+
+	if (!dbuf_slice_mask)
+		return 0;
+
+	offset = (ffs(dbuf_slice_mask) - 1) * slice_size;
+
+	WARN_ON(offset >= ddb_size);
+	return offset;
+}
+
+static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv)
+{
 	u16 ddb_size = INTEL_INFO(dev_priv)->ddb_size;
 
-	WARN_ON(ddb_size == 0);
+	drm_WARN_ON(&dev_priv->drm, ddb_size == 0);
 
 	if (INTEL_GEN(dev_priv) < 11)
 		return ddb_size - 4; /* 4 blocks for bypass path allocation */
 
-	adjusted_mode = &crtc_state->hw.adjusted_mode;
-	total_data_bw = total_data_rate * drm_mode_vrefresh(adjusted_mode);
-
-	/*
-	 * 12GB/s is maximum BW supported by single DBuf slice.
-	 *
-	 * FIXME dbuf slice code is broken:
-	 * - must wait for planes to stop using the slice before powering it off
-	 * - plane straddling both slices is illegal in multi-pipe scenarios
-	 * - should validate we stay within the hw bandwidth limits
-	 */
-	if (0 && (num_active > 1 || total_data_bw >= GBps(12))) {
-		ddb->enabled_slices = 2;
-	} else {
-		ddb->enabled_slices = 1;
-		ddb_size /= 2;
-	}
-
 	return ddb_size;
 }
+
+static u8 skl_compute_dbuf_slices(const struct intel_crtc_state *crtc_state,
+				  u32 active_pipes);
 
 static void
 skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 				   const struct intel_crtc_state *crtc_state,
 				   const u64 total_data_rate,
-				   struct skl_ddb_allocation *ddb,
 				   struct skl_ddb_entry *alloc, /* out */
 				   int *num_active /* out */)
 {
@@ -3912,12 +3856,19 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_crtc *for_crtc = crtc_state->uapi.crtc;
 	const struct intel_crtc *crtc;
-	u32 pipe_width = 0, total_width = 0, width_before_pipe = 0;
+	u32 pipe_width = 0, total_width_in_range = 0, width_before_pipe_in_range = 0;
 	enum pipe for_pipe = to_intel_crtc(for_crtc)->pipe;
 	u16 ddb_size;
+	u32 ddb_range_size;
 	u32 i;
+	u32 dbuf_slice_mask;
+	u32 active_pipes;
+	u32 offset;
+	u32 slice_size;
+	u32 total_slice_mask;
+	u32 start, end;
 
-	if (WARN_ON(!state) || !crtc_state->hw.active) {
+	if (drm_WARN_ON(&dev_priv->drm, !state) || !crtc_state->hw.active) {
 		alloc->start = 0;
 		alloc->end = 0;
 		*num_active = hweight8(dev_priv->active_pipes);
@@ -3925,12 +3876,15 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	}
 
 	if (intel_state->active_pipe_changes)
-		*num_active = hweight8(intel_state->active_pipes);
+		active_pipes = intel_state->active_pipes;
 	else
-		*num_active = hweight8(dev_priv->active_pipes);
+		active_pipes = dev_priv->active_pipes;
 
-	ddb_size = intel_get_ddb_size(dev_priv, crtc_state, total_data_rate,
-				      *num_active, ddb);
+	*num_active = hweight8(active_pipes);
+
+	ddb_size = intel_get_ddb_size(dev_priv);
+
+	slice_size = ddb_size / INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
 
 	/*
 	 * If the state doesn't change the active CRTC's or there is no
@@ -3950,30 +3904,95 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	}
 
 	/*
+	 * Get allowed DBuf slices for correspondent pipe and platform.
+	 */
+	dbuf_slice_mask = skl_compute_dbuf_slices(crtc_state, active_pipes);
+
+	DRM_DEBUG_KMS("DBuf slice mask %x pipe %c active pipes %x\n",
+		      dbuf_slice_mask,
+		      pipe_name(for_pipe), active_pipes);
+
+	/*
+	 * Figure out at which DBuf slice we start, i.e if we start at Dbuf S2
+	 * and slice size is 1024, the offset would be 1024
+	 */
+	offset = icl_get_first_dbuf_slice_offset(dbuf_slice_mask,
+						 slice_size, ddb_size);
+
+	/*
+	 * Figure out total size of allowed DBuf slices, which is basically
+	 * a number of allowed slices for that pipe multiplied by slice size.
+	 * Inside of this
+	 * range ddb entries are still allocated in proportion to display width.
+	 */
+	ddb_range_size = hweight8(dbuf_slice_mask) * slice_size;
+
+	/*
 	 * Watermark/ddb requirement highly depends upon width of the
 	 * framebuffer, So instead of allocating DDB equally among pipes
 	 * distribute DDB based on resolution/width of the display.
 	 */
+	total_slice_mask = dbuf_slice_mask;
 	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc_state->hw.adjusted_mode;
 		enum pipe pipe = crtc->pipe;
 		int hdisplay, vdisplay;
+		u32 pipe_dbuf_slice_mask;
 
-		if (!crtc_state->hw.enable)
+		if (!crtc_state->hw.active)
+			continue;
+
+		pipe_dbuf_slice_mask = skl_compute_dbuf_slices(crtc_state,
+							       active_pipes);
+
+		/*
+		 * According to BSpec pipe can share one dbuf slice with another
+		 * pipes or pipe can use multiple dbufs, in both cases we
+		 * account for other pipes only if they have exactly same mask.
+		 * However we need to account how many slices we should enable
+		 * in total.
+		 */
+		total_slice_mask |= pipe_dbuf_slice_mask;
+
+		/*
+		 * Do not account pipes using other slice sets
+		 * luckily as of current BSpec slice sets do not partially
+		 * intersect(pipes share either same one slice or same slice set
+		 * i.e no partial intersection), so it is enough to check for
+		 * equality for now.
+		 */
+		if (dbuf_slice_mask != pipe_dbuf_slice_mask)
 			continue;
 
 		drm_mode_get_hv_timing(adjusted_mode, &hdisplay, &vdisplay);
-		total_width += hdisplay;
+
+		total_width_in_range += hdisplay;
 
 		if (pipe < for_pipe)
-			width_before_pipe += hdisplay;
+			width_before_pipe_in_range += hdisplay;
 		else if (pipe == for_pipe)
 			pipe_width = hdisplay;
 	}
 
-	alloc->start = ddb_size * width_before_pipe / total_width;
-	alloc->end = ddb_size * (width_before_pipe + pipe_width) / total_width;
+	/*
+	 * FIXME: For now we always enable slice S1 as per
+	 * the Bspec display initialization sequence.
+	 */
+	intel_state->enabled_dbuf_slices_mask = total_slice_mask | BIT(DBUF_S1);
+
+	start = ddb_range_size * width_before_pipe_in_range / total_width_in_range;
+	end = ddb_range_size *
+		(width_before_pipe_in_range + pipe_width) / total_width_in_range;
+
+	alloc->start = offset + start;
+	alloc->end = offset + end;
+
+	DRM_DEBUG_KMS("Pipe %d ddb %d-%d\n", for_pipe,
+		      alloc->start, alloc->end);
+	DRM_DEBUG_KMS("Enabled ddb slices mask %x num supported %d\n",
+		      intel_state->enabled_dbuf_slices_mask,
+		      INTEL_INFO(dev_priv)->num_supported_dbuf_slices);
 }
 
 static int skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
@@ -4002,7 +4021,7 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 				    DRM_FORMAT_MOD_LINEAR,
 				    DRM_MODE_ROTATE_0,
 				    crtc_state->pixel_rate, &wp, 0);
-	WARN_ON(ret);
+	drm_WARN_ON(&dev_priv->drm, ret);
 
 	for (level = 0; level <= max_level; level++) {
 		skl_compute_plane_wm(crtc_state, level, &wp, &wm, &wm);
@@ -4091,10 +4110,10 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 }
 
-void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
-			  struct skl_ddb_allocation *ddb /* out */)
+void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	ddb->enabled_slices = intel_enabled_dbuf_slices_num(dev_priv);
+	dev_priv->enabled_dbuf_slices_mask =
+				intel_enabled_dbuf_slices_mask(dev_priv);
 }
 
 /*
@@ -4142,6 +4161,262 @@ skl_plane_downscale_amount(const struct intel_crtc_state *crtc_state,
 	downscale_h = max_fixed16(fp_h_ratio, u32_to_fixed16(1));
 
 	return mul_fixed16(downscale_w, downscale_h);
+}
+
+struct dbuf_slice_conf_entry {
+	u8 active_pipes;
+	u8 dbuf_mask[I915_MAX_PIPES];
+};
+
+/*
+ * Table taken from Bspec 12716
+ * Pipes do have some preferred DBuf slice affinity,
+ * plus there are some hardcoded requirements on how
+ * those should be distributed for multipipe scenarios.
+ * For more DBuf slices algorithm can get even more messy
+ * and less readable, so decided to use a table almost
+ * as is from BSpec itself - that way it is at least easier
+ * to compare, change and check.
+ */
+static const struct dbuf_slice_conf_entry icl_allowed_dbufs[] =
+/* Autogenerated with igt/tools/intel_dbuf_map tool: */
+{
+	{
+		.active_pipes = BIT(PIPE_A),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_B),
+		.dbuf_mask = {
+			[PIPE_B] = BIT(DBUF_S1)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_A) | BIT(PIPE_B),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1),
+			[PIPE_B] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_C),
+		.dbuf_mask = {
+			[PIPE_C] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_A) | BIT(PIPE_C),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1),
+			[PIPE_C] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_B) | BIT(PIPE_C),
+		.dbuf_mask = {
+			[PIPE_B] = BIT(DBUF_S1),
+			[PIPE_C] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1),
+			[PIPE_B] = BIT(DBUF_S1),
+			[PIPE_C] = BIT(DBUF_S2)
+		}
+	},
+};
+
+/*
+ * Table taken from Bspec 49255
+ * Pipes do have some preferred DBuf slice affinity,
+ * plus there are some hardcoded requirements on how
+ * those should be distributed for multipipe scenarios.
+ * For more DBuf slices algorithm can get even more messy
+ * and less readable, so decided to use a table almost
+ * as is from BSpec itself - that way it is at least easier
+ * to compare, change and check.
+ */
+static const struct dbuf_slice_conf_entry tgl_allowed_dbufs[] =
+/* Autogenerated with igt/tools/intel_dbuf_map tool: */
+{
+	{
+		.active_pipes = BIT(PIPE_A),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1) | BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_B),
+		.dbuf_mask = {
+			[PIPE_B] = BIT(DBUF_S1) | BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_A) | BIT(PIPE_B),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S2),
+			[PIPE_B] = BIT(DBUF_S1)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_C),
+		.dbuf_mask = {
+			[PIPE_C] = BIT(DBUF_S2) | BIT(DBUF_S1)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_A) | BIT(PIPE_C),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1),
+			[PIPE_C] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_B) | BIT(PIPE_C),
+		.dbuf_mask = {
+			[PIPE_B] = BIT(DBUF_S1),
+			[PIPE_C] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1),
+			[PIPE_B] = BIT(DBUF_S1),
+			[PIPE_C] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_D),
+		.dbuf_mask = {
+			[PIPE_D] = BIT(DBUF_S2) | BIT(DBUF_S1)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_A) | BIT(PIPE_D),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1),
+			[PIPE_D] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_B) | BIT(PIPE_D),
+		.dbuf_mask = {
+			[PIPE_B] = BIT(DBUF_S1),
+			[PIPE_D] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_D),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1),
+			[PIPE_B] = BIT(DBUF_S1),
+			[PIPE_D] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_C) | BIT(PIPE_D),
+		.dbuf_mask = {
+			[PIPE_C] = BIT(DBUF_S1),
+			[PIPE_D] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_A) | BIT(PIPE_C) | BIT(PIPE_D),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1),
+			[PIPE_C] = BIT(DBUF_S2),
+			[PIPE_D] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
+		.dbuf_mask = {
+			[PIPE_B] = BIT(DBUF_S1),
+			[PIPE_C] = BIT(DBUF_S2),
+			[PIPE_D] = BIT(DBUF_S2)
+		}
+	},
+	{
+		.active_pipes = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
+		.dbuf_mask = {
+			[PIPE_A] = BIT(DBUF_S1),
+			[PIPE_B] = BIT(DBUF_S1),
+			[PIPE_C] = BIT(DBUF_S2),
+			[PIPE_D] = BIT(DBUF_S2)
+		}
+	},
+};
+
+static u8 compute_dbuf_slices(enum pipe pipe,
+			      u32 active_pipes,
+			      const struct dbuf_slice_conf_entry *dbuf_slices,
+			      int size)
+{
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (dbuf_slices[i].active_pipes == active_pipes)
+			return dbuf_slices[i].dbuf_mask[pipe];
+	}
+	return 0;
+}
+
+/*
+ * This function finds an entry with same enabled pipe configuration and
+ * returns correspondent DBuf slice mask as stated in BSpec for particular
+ * platform.
+ */
+static u32 icl_compute_dbuf_slices(enum pipe pipe,
+				   u32 active_pipes)
+{
+	/*
+	 * FIXME: For ICL this is still a bit unclear as prev BSpec revision
+	 * required calculating "pipe ratio" in order to determine
+	 * if one or two slices can be used for single pipe configurations
+	 * as additional constraint to the existing table.
+	 * However based on recent info, it should be not "pipe ratio"
+	 * but rather ratio between pixel_rate and cdclk with additional
+	 * constants, so for now we are using only table until this is
+	 * clarified. Also this is the reason why crtc_state param is
+	 * still here - we will need it once those additional constraints
+	 * pop up.
+	 */
+	return compute_dbuf_slices(pipe, active_pipes,
+				   icl_allowed_dbufs,
+				   ARRAY_SIZE(icl_allowed_dbufs));
+}
+
+static u32 tgl_compute_dbuf_slices(enum pipe pipe,
+				   u32 active_pipes)
+{
+	return compute_dbuf_slices(pipe, active_pipes,
+				   tgl_allowed_dbufs,
+				   ARRAY_SIZE(tgl_allowed_dbufs));
+}
+
+static u8 skl_compute_dbuf_slices(const struct intel_crtc_state *crtc_state,
+				  u32 active_pipes)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	if (IS_GEN(dev_priv, 12))
+		return tgl_compute_dbuf_slices(pipe,
+					       active_pipes);
+	else if (IS_GEN(dev_priv, 11))
+		return icl_compute_dbuf_slices(pipe,
+					       active_pipes);
+	/*
+	 * For anything else just return one slice yet.
+	 * Should be extended for other platforms.
+	 */
+	return BIT(DBUF_S1);
 }
 
 static u64
@@ -4271,8 +4546,7 @@ icl_get_total_relative_data_rate(struct intel_crtc_state *crtc_state,
 }
 
 static int
-skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
-		      struct skl_ddb_allocation *ddb /* out */)
+skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 {
 	struct drm_atomic_state *state = crtc_state->uapi.state;
 	struct drm_crtc *crtc = crtc_state->uapi.crtc;
@@ -4294,7 +4568,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
 	memset(crtc_state->wm.skl.plane_ddb_y, 0, sizeof(crtc_state->wm.skl.plane_ddb_y));
 	memset(crtc_state->wm.skl.plane_ddb_uv, 0, sizeof(crtc_state->wm.skl.plane_ddb_uv));
 
-	if (WARN_ON(!state))
+	if (drm_WARN_ON(&dev_priv->drm, !state))
 		return 0;
 
 	if (!crtc_state->hw.active) {
@@ -4314,7 +4588,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
 
 
 	skl_ddb_get_pipe_allocation_limits(dev_priv, crtc_state, total_data_rate,
-					   ddb, alloc, &num_active);
+					   alloc, &num_active);
 	alloc_size = skl_ddb_entry_size(alloc);
 	if (alloc_size == 0)
 		return 0;
@@ -4341,7 +4615,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
 
 			if (plane_id == PLANE_CURSOR) {
 				if (wm->wm[level].min_ddb_alloc > total[PLANE_CURSOR]) {
-					WARN_ON(wm->wm[level].min_ddb_alloc != U16_MAX);
+					drm_WARN_ON(&dev_priv->drm,
+						    wm->wm[level].min_ddb_alloc != U16_MAX);
 					blocks = U32_MAX;
 					break;
 				}
@@ -4406,7 +4681,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
 		alloc_size -= extra;
 		total_data_rate -= rate;
 	}
-	WARN_ON(alloc_size != 0 || total_data_rate != 0);
+	drm_WARN_ON(&dev_priv->drm, alloc_size != 0 || total_data_rate != 0);
 
 	/* Set the actual DDB start/end points for each plane */
 	start = alloc->start;
@@ -4420,7 +4695,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
 			continue;
 
 		/* Gen11+ uses a separate plane for UV watermarks */
-		WARN_ON(INTEL_GEN(dev_priv) >= 11 && uv_total[plane_id]);
+		drm_WARN_ON(&dev_priv->drm,
+			    INTEL_GEN(dev_priv) >= 11 && uv_total[plane_id]);
 
 		/* Leave disabled planes at (0,0) */
 		if (total[plane_id]) {
@@ -4844,24 +5120,6 @@ skl_compute_wm_levels(const struct intel_crtc_state *crtc_state,
 	}
 }
 
-static u32
-skl_compute_linetime_wm(const struct intel_crtc_state *crtc_state)
-{
-	struct drm_atomic_state *state = crtc_state->uapi.state;
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	uint_fixed_16_16_t linetime_us;
-	u32 linetime_wm;
-
-	linetime_us = intel_get_linetime_us(crtc_state);
-	linetime_wm = fixed16_to_u32_round_up(mul_u32_fixed16(8, linetime_us));
-
-	/* Display WA #1135: BXT:ALL GLK:ALL */
-	if (IS_GEN9_LP(dev_priv) && dev_priv->ipc_enabled)
-		linetime_wm /= 2;
-
-	return linetime_wm;
-}
-
 static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 				      const struct skl_wm_params *wp,
 				      struct skl_plane_wm *wm)
@@ -5049,8 +5307,6 @@ static int skl_build_pipe_wm(struct intel_crtc_state *crtc_state)
 			return ret;
 	}
 
-	pipe_wm->linetime = skl_compute_linetime_wm(crtc_state);
-
 	return 0;
 }
 
@@ -5059,9 +5315,10 @@ static void skl_ddb_entry_write(struct drm_i915_private *dev_priv,
 				const struct skl_ddb_entry *entry)
 {
 	if (entry->end)
-		I915_WRITE_FW(reg, (entry->end - 1) << 16 | entry->start);
+		intel_de_write_fw(dev_priv, reg,
+				  (entry->end - 1) << 16 | entry->start);
 	else
-		I915_WRITE_FW(reg, 0);
+		intel_de_write_fw(dev_priv, reg, 0);
 }
 
 static void skl_write_wm_level(struct drm_i915_private *dev_priv,
@@ -5077,7 +5334,7 @@ static void skl_write_wm_level(struct drm_i915_private *dev_priv,
 	val |= level->plane_res_b;
 	val |= level->plane_res_l << PLANE_WM_LINES_SHIFT;
 
-	I915_WRITE_FW(reg, val);
+	intel_de_write_fw(dev_priv, reg, val);
 }
 
 void skl_write_plane_wm(struct intel_plane *plane,
@@ -5161,23 +5418,6 @@ static bool skl_plane_wm_equals(struct drm_i915_private *dev_priv,
 	return skl_wm_level_equals(&wm1->trans_wm, &wm2->trans_wm);
 }
 
-static bool skl_pipe_wm_equals(struct intel_crtc *crtc,
-			       const struct skl_pipe_wm *wm1,
-			       const struct skl_pipe_wm *wm2)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum plane_id plane_id;
-
-	for_each_plane_id_on_crtc(crtc, plane_id) {
-		if (!skl_plane_wm_equals(dev_priv,
-					 &wm1->planes[plane_id],
-					 &wm2->planes[plane_id]))
-			return false;
-	}
-
-	return wm1->linetime == wm2->linetime;
-}
-
 static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 					   const struct skl_ddb_entry *b)
 {
@@ -5231,18 +5471,17 @@ skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
 static int
 skl_compute_ddb(struct intel_atomic_state *state)
 {
-	const struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct skl_ddb_allocation *ddb = &state->wm_results.ddb;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
 	int ret, i;
 
-	memcpy(ddb, &dev_priv->wm.skl_hw.ddb, sizeof(*ddb));
+	state->enabled_dbuf_slices_mask = dev_priv->enabled_dbuf_slices_mask;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		ret = skl_allocate_pipe_ddb(new_crtc_state, ddb);
+		ret = skl_allocate_pipe_ddb(new_crtc_state);
 		if (ret)
 			return ret;
 
@@ -5439,8 +5678,6 @@ skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
 	 * to grab the lock on *all* CRTC's.
 	 */
 	if (state->active_pipe_changes || state->modeset) {
-		state->wm_results.dirty_pipes = INTEL_INFO(dev_priv)->pipe_mask;
-
 		ret = intel_add_all_pipes(state);
 		if (ret)
 			return ret;
@@ -5515,11 +5752,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc_state *old_crtc_state;
-	struct skl_ddb_values *results = &state->wm_results;
 	int ret, i;
-
-	/* Clear all dirty flags */
-	results->dirty_pipes = 0;
 
 	ret = skl_ddb_add_affected_pipes(state);
 	if (ret)
@@ -5528,8 +5761,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 	/*
 	 * Calculate WM's for all pipes that are part of this transaction.
 	 * Note that skl_ddb_add_affected_pipes may have added more CRTC's that
-	 * weren't otherwise being modified (and set bits in dirty_pipes) if
-	 * pipe allocations had to change.
+	 * weren't otherwise being modified if pipe allocations had to change.
 	 */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
@@ -5540,11 +5772,6 @@ skl_compute_wm(struct intel_atomic_state *state)
 		ret = skl_wm_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
-
-		if (!skl_pipe_wm_equals(crtc,
-					&old_crtc_state->wm.skl.optimal,
-					&new_crtc_state->wm.skl.optimal))
-			results->dirty_pipes |= BIT(crtc->pipe);
 	}
 
 	ret = skl_compute_ddb(state);
@@ -5554,40 +5781,6 @@ skl_compute_wm(struct intel_atomic_state *state)
 	skl_print_wm_changes(state);
 
 	return 0;
-}
-
-static void skl_atomic_update_crtc_wm(struct intel_atomic_state *state,
-				      struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	const struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
-	enum pipe pipe = crtc->pipe;
-
-	if ((state->wm_results.dirty_pipes & BIT(crtc->pipe)) == 0)
-		return;
-
-	I915_WRITE(PIPE_WM_LINETIME(pipe), pipe_wm->linetime);
-}
-
-static void skl_initial_wm(struct intel_atomic_state *state,
-			   struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	const struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	struct skl_ddb_values *results = &state->wm_results;
-
-	if ((results->dirty_pipes & BIT(crtc->pipe)) == 0)
-		return;
-
-	mutex_lock(&dev_priv->wm.wm_mutex);
-
-	if (crtc_state->uapi.active_changed)
-		skl_atomic_update_crtc_wm(state, crtc);
-
-	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
 
 static void ilk_compute_wm_config(struct drm_i915_private *dev_priv,
@@ -5712,25 +5905,18 @@ void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 
 	if (!crtc->active)
 		return;
-
-	out->linetime = I915_READ(PIPE_WM_LINETIME(pipe));
 }
 
 void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	struct skl_ddb_values *hw = &dev_priv->wm.skl_hw;
-	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 
-	skl_ddb_get_hw_state(dev_priv, ddb);
+	skl_ddb_get_hw_state(dev_priv);
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 
 		skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
-
-		if (crtc->active)
-			hw->dirty_pipes |= BIT(crtc->pipe);
 	}
 
 	if (dev_priv->active_pipes) {
@@ -5754,8 +5940,6 @@ static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)
 	};
 
 	hw->wm_pipe[pipe] = I915_READ(wm0_pipe_reg[pipe]);
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
 
 	memset(active, 0, sizeof(*active));
 
@@ -5774,7 +5958,6 @@ static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)
 		active->wm[0].pri_val = (tmp & WM0_PIPE_PLANE_MASK) >> WM0_PIPE_PLANE_SHIFT;
 		active->wm[0].spr_val = (tmp & WM0_PIPE_SPRITE_MASK) >> WM0_PIPE_SPRITE_SHIFT;
 		active->wm[0].cur_val = tmp & WM0_PIPE_CURSOR_MASK;
-		active->linetime = hw->wm_linetime[pipe];
 	} else {
 		int level, max_level = ilk_wm_max_level(dev_priv);
 
@@ -6643,6 +6826,10 @@ static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* Wa_1407352427:icl,ehl */
 	intel_uncore_rmw(&dev_priv->uncore, UNSLICE_UNIT_LEVEL_CLKGATE2,
 			 0, PSDUNIT_CLKGATE_DIS);
+
+	/*Wa_14010594013:icl, ehl */
+	intel_uncore_rmw(&dev_priv->uncore, GEN8_CHICKEN_DCPR_1,
+			 0, CNL_DELAY_PMRSP);
 }
 
 static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -6663,6 +6850,11 @@ static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(POWERGATE_ENABLE,
 		   I915_READ(POWERGATE_ENABLE) | vd_pg_enable);
+
+	/* Wa_1409825376:tgl (pre-prod)*/
+	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0))
+		I915_WRITE(GEN9_CLKGATE_DIS_3, I915_READ(GEN9_CLKGATE_DIS_3) |
+			   TGL_VRH_GATING_DIS);
 }
 
 static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -7248,8 +7440,6 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	/* For FIFO watermark updates */
 	if (INTEL_GEN(dev_priv) >= 9) {
 		skl_setup_wm_latency(dev_priv);
-		dev_priv->display.initial_watermarks = skl_initial_wm;
-		dev_priv->display.atomic_update_watermarks = skl_atomic_update_crtc_wm;
 		dev_priv->display.compute_global_watermarks = skl_compute_wm;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_setup_wm_latency(dev_priv);

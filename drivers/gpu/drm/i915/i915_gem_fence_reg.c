@@ -237,11 +237,12 @@ static int fence_update(struct i915_fence_reg *fence,
 		if (!i915_vma_is_map_and_fenceable(vma))
 			return -EINVAL;
 
-		if (WARN(!i915_gem_object_get_stride(vma->obj) ||
-			 !i915_gem_object_get_tiling(vma->obj),
-			 "bogus fence setup with stride: 0x%x, tiling mode: %i\n",
-			 i915_gem_object_get_stride(vma->obj),
-			 i915_gem_object_get_tiling(vma->obj)))
+		if (drm_WARN(&uncore->i915->drm,
+			     !i915_gem_object_get_stride(vma->obj) ||
+			     !i915_gem_object_get_tiling(vma->obj),
+			     "bogus fence setup with stride: 0x%x, tiling mode: %i\n",
+			     i915_gem_object_get_stride(vma->obj),
+			     i915_gem_object_get_tiling(vma->obj)))
 			return -EINVAL;
 
 		ret = i915_vma_sync(vma);
@@ -713,7 +714,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		}
 
 		if (dcc == 0xffffffff) {
-			DRM_ERROR("Couldn't read from MCHBAR.  "
+			drm_err(&i915->drm, "Couldn't read from MCHBAR.  "
 				  "Disabling tiling.\n");
 			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;

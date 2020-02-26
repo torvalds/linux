@@ -46,7 +46,6 @@ i915-y += i915_drv.o \
 	  i915_switcheroo.o \
 	  i915_sysfs.o \
 	  i915_utils.o \
-	  intel_csr.o \
 	  intel_device_info.o \
 	  intel_memory_region.o \
 	  intel_pch.o \
@@ -54,7 +53,8 @@ i915-y += i915_drv.o \
 	  intel_runtime_pm.o \
 	  intel_sideband.o \
 	  intel_uncore.o \
-	  intel_wakeref.o
+	  intel_wakeref.o \
+	  vlv_suspend.o
 
 # core library code
 i915-y += \
@@ -66,7 +66,11 @@ i915-y += \
 	i915_user_extensions.o
 
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o
-i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o display/intel_pipe_crc.o
+i915-$(CONFIG_DEBUG_FS) += \
+	i915_debugfs.o \
+	i915_debugfs_params.o \
+	display/intel_display_debugfs.o \
+	display/intel_pipe_crc.o
 i915-$(CONFIG_PERF_EVENTS) += i915_pmu.o
 
 # "Graphics Technology" (aka we talk to the gpu)
@@ -78,6 +82,7 @@ gt-y += \
 	gt/gen8_ppgtt.o \
 	gt/intel_breadcrumbs.o \
 	gt/intel_context.o \
+	gt/intel_context_sseu.o \
 	gt/intel_engine_cs.o \
 	gt/intel_engine_heartbeat.o \
 	gt/intel_engine_pm.o \
@@ -179,6 +184,7 @@ i915-y += \
 	display/intel_color.o \
 	display/intel_combo_phy.o \
 	display/intel_connector.o \
+	display/intel_csr.o \
 	display/intel_display.o \
 	display/intel_display_power.o \
 	display/intel_dpio_phy.o \
@@ -187,6 +193,7 @@ i915-y += \
 	display/intel_fbc.o \
 	display/intel_fifo_underrun.o \
 	display/intel_frontbuffer.o \
+	display/intel_global_state.o \
 	display/intel_hdcp.o \
 	display/intel_hotplug.o \
 	display/intel_lpe_audio.o \
@@ -294,7 +301,7 @@ extra-$(CONFIG_DRM_I915_WERROR) += \
 		$(shell cd $(srctree)/$(src) && find * -name '*.h')))
 
 quiet_cmd_hdrtest = HDRTEST $(patsubst %.hdrtest,%.h,$@)
-      cmd_hdrtest = $(CC) $(c_flags) -S -o /dev/null -x c /dev/null -include $<; touch $@
+      cmd_hdrtest = $(CC) $(filter-out $(CFLAGS_GCOV), $(c_flags)) -S -o /dev/null -x c /dev/null -include $<; touch $@
 
 $(obj)/%.hdrtest: $(src)/%.h FORCE
 	$(call if_changed_dep,hdrtest)

@@ -226,10 +226,7 @@ static void gen6_rc6_enable(struct intel_rc6 *rc6)
 
 	set(uncore, GEN6_RC_SLEEP, 0);
 	set(uncore, GEN6_RC1e_THRESHOLD, 1000);
-	if (IS_IVYBRIDGE(i915))
-		set(uncore, GEN6_RC6_THRESHOLD, 125000);
-	else
-		set(uncore, GEN6_RC6_THRESHOLD, 50000);
+	set(uncore, GEN6_RC6_THRESHOLD, 50000);
 	set(uncore, GEN6_RC6p_THRESHOLD, 150000);
 	set(uncore, GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
@@ -299,7 +296,6 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 		pcbr_offset = (pcbr & ~4095) - i915->dsm.start;
 		pctx = i915_gem_object_create_stolen_for_preallocated(i915,
 								      pcbr_offset,
-								      I915_GTT_OFFSET_NONE,
 								      pctx_size);
 		if (IS_ERR(pctx))
 			return PTR_ERR(pctx);
@@ -542,6 +538,8 @@ void intel_rc6_init(struct intel_rc6 *rc6)
 
 void intel_rc6_sanitize(struct intel_rc6 *rc6)
 {
+	memset(rc6->prev_hw_residency, 0, sizeof(rc6->prev_hw_residency));
+
 	if (rc6->enabled) { /* unbalanced suspend/resume */
 		rpm_get(rc6);
 		rc6->enabled = false;
@@ -713,7 +711,7 @@ u64 intel_rc6_residency_ns(struct intel_rc6 *rc6, const i915_reg_t reg)
 	 */
 	i = (i915_mmio_reg_offset(reg) -
 	     i915_mmio_reg_offset(GEN6_GT_GFX_RC6_LOCKED)) / sizeof(u32);
-	if (WARN_ON_ONCE(i >= ARRAY_SIZE(rc6->cur_residency)))
+	if (drm_WARN_ON_ONCE(&i915->drm, i >= ARRAY_SIZE(rc6->cur_residency)))
 		return 0;
 
 	fw_domains = intel_uncore_forcewake_for_reg(uncore, reg, FW_REG_READ);

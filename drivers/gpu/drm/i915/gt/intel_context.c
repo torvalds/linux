@@ -116,7 +116,8 @@ int __intel_context_do_pin(struct intel_context *ce)
 		if (unlikely(err))
 			goto err_active;
 
-		CE_TRACE(ce, "pin ring:{head:%04x, tail:%04x}\n",
+		CE_TRACE(ce, "pin ring:{start:%08x, head:%04x, tail:%04x}\n",
+			 i915_ggtt_offset(ce->ring->vma),
 			 ce->ring->head, ce->ring->tail);
 
 		smp_mb__before_atomic(); /* flush pin before it is visible */
@@ -219,7 +220,9 @@ static void __intel_context_retire(struct i915_active *active)
 {
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
 
-	CE_TRACE(ce, "retire\n");
+	CE_TRACE(ce, "retire runtime: { total:%lluns, avg:%lluns }\n",
+		 intel_context_get_total_runtime_ns(ce),
+		 intel_context_get_avg_runtime_ns(ce));
 
 	set_bit(CONTEXT_VALID_BIT, &ce->flags);
 	if (ce->state)
@@ -279,6 +282,8 @@ intel_context_init(struct intel_context *ce,
 	ce->ops = engine->cops;
 	ce->sseu = engine->sseu;
 	ce->ring = __intel_context_ring_size(SZ_4K);
+
+	ewma_runtime_init(&ce->runtime.avg);
 
 	ce->vm = i915_vm_get(engine->gt->vm);
 

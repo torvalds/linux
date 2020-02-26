@@ -27,6 +27,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_csr.h"
+#include "intel_de.h"
 
 /**
  * DOC: csr support for dmc
@@ -276,11 +277,11 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 		mask |= DC_STATE_DEBUG_MASK_CORES;
 
 	/* The below bit doesn't need to be cleared ever afterwards */
-	val = I915_READ(DC_STATE_DEBUG);
+	val = intel_de_read(dev_priv, DC_STATE_DEBUG);
 	if ((val & mask) != mask) {
 		val |= mask;
-		I915_WRITE(DC_STATE_DEBUG, val);
-		POSTING_READ(DC_STATE_DEBUG);
+		intel_de_write(dev_priv, DC_STATE_DEBUG, val);
+		intel_de_posting_read(dev_priv, DC_STATE_DEBUG);
 	}
 }
 
@@ -298,12 +299,14 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	u32 i, fw_size;
 
 	if (!HAS_CSR(dev_priv)) {
-		DRM_ERROR("No CSR support available for this platform\n");
+		drm_err(&dev_priv->drm,
+			"No CSR support available for this platform\n");
 		return;
 	}
 
 	if (!dev_priv->csr.dmc_payload) {
-		DRM_ERROR("Tried to program CSR with empty payload\n");
+		drm_err(&dev_priv->drm,
+			"Tried to program CSR with empty payload\n");
 		return;
 	}
 
@@ -313,13 +316,14 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	preempt_disable();
 
 	for (i = 0; i < fw_size; i++)
-		I915_WRITE_FW(CSR_PROGRAM(i), payload[i]);
+		intel_uncore_write_fw(&dev_priv->uncore, CSR_PROGRAM(i),
+				      payload[i]);
 
 	preempt_enable();
 
 	for (i = 0; i < dev_priv->csr.mmio_count; i++) {
-		I915_WRITE(dev_priv->csr.mmioaddr[i],
-			   dev_priv->csr.mmiodata[i]);
+		intel_de_write(dev_priv, dev_priv->csr.mmioaddr[i],
+			       dev_priv->csr.mmiodata[i]);
 	}
 
 	dev_priv->csr.dc_state = 0;
@@ -607,7 +611,7 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 static void intel_csr_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
-	WARN_ON(dev_priv->csr.wakeref);
+	drm_WARN_ON(&dev_priv->drm, dev_priv->csr.wakeref);
 	dev_priv->csr.wakeref =
 		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 }
@@ -636,16 +640,16 @@ static void csr_load_work_fn(struct work_struct *work)
 		intel_csr_load_program(dev_priv);
 		intel_csr_runtime_pm_put(dev_priv);
 
-		DRM_INFO("Finished loading DMC firmware %s (v%u.%u)\n",
-			 dev_priv->csr.fw_path,
-			 CSR_VERSION_MAJOR(csr->version),
+		drm_info(&dev_priv->drm,
+			 "Finished loading DMC firmware %s (v%u.%u)\n",
+			 dev_priv->csr.fw_path, CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version));
 	} else {
-		dev_notice(dev_priv->drm.dev,
+		drm_notice(&dev_priv->drm,
 			   "Failed to load DMC firmware %s."
 			   " Disabling runtime power management.\n",
 			   csr->fw_path);
-		dev_notice(dev_priv->drm.dev, "DMC firmware homepage: %s",
+		drm_notice(&dev_priv->drm, "DMC firmware homepage: %s",
 			   INTEL_UC_FIRMWARE_URL);
 	}
 
@@ -712,7 +716,8 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (i915_modparams.dmc_firmware_path) {
 		if (strlen(i915_modparams.dmc_firmware_path) == 0) {
 			csr->fw_path = NULL;
-			DRM_INFO("Disabling CSR firmware and runtime PM\n");
+			drm_info(&dev_priv->drm,
+				 "Disabling CSR firmware and runtime PM\n");
 			return;
 		}
 
@@ -722,11 +727,12 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (csr->fw_path == NULL) {
-		DRM_DEBUG_KMS("No known CSR firmware for platform, disabling runtime PM\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "No known CSR firmware for platform, disabling runtime PM\n");
 		return;
 	}
 
-	DRM_DEBUG_KMS("Loading %s\n", csr->fw_path);
+	drm_dbg_kms(&dev_priv->drm, "Loading %s\n", csr->fw_path);
 	schedule_work(&dev_priv->csr.work);
 }
 
@@ -783,7 +789,7 @@ void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
 		return;
 
 	intel_csr_ucode_suspend(dev_priv);
-	WARN_ON(dev_priv->csr.wakeref);
+	drm_WARN_ON(&dev_priv->drm, dev_priv->csr.wakeref);
 
 	kfree(dev_priv->csr.dmc_payload);
 }

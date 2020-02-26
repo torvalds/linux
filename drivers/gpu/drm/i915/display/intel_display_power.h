@@ -307,6 +307,11 @@ intel_display_power_put_async(struct drm_i915_private *i915,
 }
 #endif
 
+enum dbuf_slice {
+	DBUF_S1,
+	DBUF_S2,
+};
+
 #define with_intel_display_power(i915, domain, wf) \
 	for ((wf) = intel_display_power_get((i915), (domain)); (wf); \
 	     intel_display_power_put_async((i915), (domain), (wf)), (wf) = 0)

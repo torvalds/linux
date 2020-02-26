@@ -1246,7 +1246,8 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 		ce->vm = i915_vm_get(&ppgtt->vm);
 		intel_context_set_single_submission(ce);
 
-		if (!USES_GUC_SUBMISSION(i915)) { /* Max ring buffer size */
+		/* Max ring buffer size */
+		if (!intel_uc_wants_guc_submission(&engine->gt->uc)) {
 			const unsigned int ring_size = 512 * SZ_4K;
 
 			ce->ring = __intel_context_ring_size(ring_size);

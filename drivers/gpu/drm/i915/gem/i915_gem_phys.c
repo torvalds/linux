@@ -22,88 +22,87 @@
 static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 {
 	struct address_space *mapping = obj->base.filp->f_mapping;
-	struct drm_dma_handle *phys;
-	struct sg_table *st;
 	struct scatterlist *sg;
-	char *vaddr;
+	struct sg_table *st;
+	dma_addr_t dma;
+	void *vaddr;
+	void *dst;
 	int i;
-	int err;
 
 	if (WARN_ON(i915_gem_object_needs_bit17_swizzle(obj)))
 		return -EINVAL;
 
-	/* Always aligning to the object size, allows a single allocation
+	/*
+	 * Always aligning to the object size, allows a single allocation
 	 * to handle all possible callers, and given typical object sizes,
 	 * the alignment of the buddy allocation will naturally match.
 	 */
-	phys = drm_pci_alloc(obj->base.dev,
-			     roundup_pow_of_two(obj->base.size),
-			     roundup_pow_of_two(obj->base.size));
-	if (!phys)
+	vaddr = dma_alloc_coherent(&obj->base.dev->pdev->dev,
+				   roundup_pow_of_two(obj->base.size),
+				   &dma, GFP_KERNEL);
+	if (!vaddr)
 		return -ENOMEM;
 
-	vaddr = phys->vaddr;
-	for (i = 0; i < obj->base.size / PAGE_SIZE; i++) {
-		struct page *page;
-		char *src;
-
-		page = shmem_read_mapping_page(mapping, i);
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
-			goto err_phys;
-		}
-
-		src = kmap_atomic(page);
-		memcpy(vaddr, src, PAGE_SIZE);
-		drm_clflush_virt_range(vaddr, PAGE_SIZE);
-		kunmap_atomic(src);
-
-		put_page(page);
-		vaddr += PAGE_SIZE;
-	}
-
-	intel_gt_chipset_flush(&to_i915(obj->base.dev)->gt);
-
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
-	if (!st) {
-		err = -ENOMEM;
-		goto err_phys;
-	}
+	if (!st)
+		goto err_pci;
 
-	if (sg_alloc_table(st, 1, GFP_KERNEL)) {
-		kfree(st);
-		err = -ENOMEM;
-		goto err_phys;
-	}
+	if (sg_alloc_table(st, 1, GFP_KERNEL))
+		goto err_st;
 
 	sg = st->sgl;
 	sg->offset = 0;
 	sg->length = obj->base.size;
 
-	sg_dma_address(sg) = phys->busaddr;
+	sg_assign_page(sg, (struct page *)vaddr);
+	sg_dma_address(sg) = dma;
 	sg_dma_len(sg) = obj->base.size;
 
-	obj->phys_handle = phys;
+	dst = vaddr;
+	for (i = 0; i < obj->base.size / PAGE_SIZE; i++) {
+		struct page *page;
+		void *src;
+
+		page = shmem_read_mapping_page(mapping, i);
+		if (IS_ERR(page))
+			goto err_st;
+
+		src = kmap_atomic(page);
+		memcpy(dst, src, PAGE_SIZE);
+		drm_clflush_virt_range(dst, PAGE_SIZE);
+		kunmap_atomic(src);
+
+		put_page(page);
+		dst += PAGE_SIZE;
+	}
+
+	intel_gt_chipset_flush(&to_i915(obj->base.dev)->gt);
 
 	__i915_gem_object_set_pages(obj, st, sg->length);
 
 	return 0;
 
-err_phys:
-	drm_pci_free(obj->base.dev, phys);
-
-	return err;
+err_st:
+	kfree(st);
+err_pci:
+	dma_free_coherent(&obj->base.dev->pdev->dev,
+			  roundup_pow_of_two(obj->base.size),
+			  vaddr, dma);
+	return -ENOMEM;
 }
 
 static void
 i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages)
 {
+	dma_addr_t dma = sg_dma_address(pages->sgl);
+	void *vaddr = sg_page(pages->sgl);
+
 	__i915_gem_object_release_shmem(obj, pages, false);
 
 	if (obj->mm.dirty) {
 		struct address_space *mapping = obj->base.filp->f_mapping;
-		char *vaddr = obj->phys_handle->vaddr;
+		void *src = vaddr;
 		int i;
 
 		for (i = 0; i < obj->base.size / PAGE_SIZE; i++) {
@@ -115,15 +114,16 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 				continue;
 
 			dst = kmap_atomic(page);
-			drm_clflush_virt_range(vaddr, PAGE_SIZE);
-			memcpy(dst, vaddr, PAGE_SIZE);
+			drm_clflush_virt_range(src, PAGE_SIZE);
+			memcpy(dst, src, PAGE_SIZE);
 			kunmap_atomic(dst);
 
 			set_page_dirty(page);
 			if (obj->mm.madv == I915_MADV_WILLNEED)
 				mark_page_accessed(page);
 			put_page(page);
-			vaddr += PAGE_SIZE;
+
+			src += PAGE_SIZE;
 		}
 		obj->mm.dirty = false;
 	}
@@ -131,7 +131,9 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 	sg_free_table(pages);
 	kfree(pages);
 
-	drm_pci_free(obj->base.dev, obj->phys_handle);
+	dma_free_coherent(&obj->base.dev->pdev->dev,
+			  roundup_pow_of_two(obj->base.size),
+			  vaddr, dma);
 }
 
 static void phys_release(struct drm_i915_gem_object *obj)
