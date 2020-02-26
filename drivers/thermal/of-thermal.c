@@ -992,6 +992,9 @@ int __init of_parse_thermal_zones(void)
 		tzp->slope = tz->slope;
 		tzp->offset = tz->offset;
 
+		if (of_property_read_bool(child, "tracks-low"))
+			tzp->tracks_low = true;
+
 		zone = thermal_zone_device_register(child->name, tz->ntrips,
 						    mask, tz,
 						    ops, tzp,

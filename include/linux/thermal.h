@@ -327,6 +327,12 @@ struct thermal_zone_params {
 	 * 		Used by thermal zone drivers (default 0).
 	 */
 	int offset;
+
+	/*
+	 * @tracks_low:	Indicates that the thermal zone params are for
+	 *		temperatures falling below the thresholds.
+	 */
+	bool tracks_low;
 };
 
 struct thermal_genl_event {
