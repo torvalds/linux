@@ -297,6 +297,7 @@
 
 	pvtm@ff040000 {
 		compatible = "rockchip,rv1126-cpu-pvtm";
+		reg = <0xff040000 0x100>;
 		clocks = <&cru CLK_CPUPVTM>, <&cru PCLK_CPUPVTM>;
 		clock-names = "clk", "pclk";
 		resets = <&cru SRST_CPUPVTM>, <&cru SRST_CPUPVTM_P>;
@@ -575,6 +576,7 @@
 
 	pvtm@ff470000 {
 		compatible = "rockchip,rv1126-pmu-pvtm";
+		reg = <0xff470000 0x100>;
 		clocks = <&pmucru CLK_PMUPVTM>, <&pmucru PCLK_PMUPVTM>;
 		clock-names = "clk", "pclk";
 		resets = <&cru SRST_PMUPVTM>, <&cru SRST_PMUPVTM_P>;
@@ -963,6 +965,7 @@
 
 	pvtm@ffc00000 {
 		compatible = "rockchip,rv1126-npu-pvtm";
+		reg = <0xffc00000 0x100>;
 		clocks = <&cru CLK_NPUPVTM>, <&cru PCLK_NPUPVTM>;
 		clock-names = "clk", "pclk";
 		resets = <&cru SRST_NPUPVTM>, <&cru SRST_NPUPVTM_P>;
