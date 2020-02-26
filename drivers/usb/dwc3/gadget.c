@@ -2174,6 +2174,14 @@ static void dwc3_gadget_set_speed(struct usb_gadget *g,
 	unsigned long		flags;
 	u32			reg;
 
+	/*
+	 * To prevent Android 10 from trying to call UDC and failed constantly
+	 * while dwc3 is suspended, we let the UDC node always exist.
+	 * If not return here, it may cause crashes.
+	 */
+	if (pm_runtime_suspended(dwc->dev))
+		return;
+
 	spin_lock_irqsave(&dwc->lock, flags);
 	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
 	reg &= ~(DWC3_DCFG_SPEED_MASK);
