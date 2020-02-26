@@ -1691,21 +1691,12 @@ static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
 					struct inode **inodep,
 					unsigned *seqp)
 {
-	while (1) {
-		if (path_equal(&nd->path, &nd->root))
-			break;
-		if (nd->path.dentry != nd->path.mnt->mnt_root) {
-			struct dentry *old = nd->path.dentry;
-			struct dentry *parent = old->d_parent;
+	struct dentry *parent, *old;
 
-			*inodep = parent->d_inode;
-			*seqp = read_seqcount_begin(&parent->d_seq);
-			if (unlikely(read_seqcount_retry(&old->d_seq, nd->seq)))
-				return ERR_PTR(-ECHILD);
-			if (unlikely(!path_connected(nd->path.mnt, parent)))
-				return ERR_PTR(-ECHILD);
-			return parent;
-		} else {
+	if (path_equal(&nd->path, &nd->root))
+		goto in_root;
+	if (unlikely(nd->path.dentry == nd->path.mnt->mnt_root)) {
+		while (1) {
 			struct mount *mnt = real_mount(nd->path.mnt);
 			struct mount *mparent = mnt->mnt_parent;
 			struct dentry *mountpoint = mnt->mnt_mountpoint;
@@ -1714,7 +1705,7 @@ static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
 			if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
 				return ERR_PTR(-ECHILD);
 			if (&mparent->mnt == nd->path.mnt)
-				break;
+				goto in_root;
 			if (unlikely(nd->flags & LOOKUP_NO_XDEV))
 				return ERR_PTR(-ECHILD);
 			/* we know that mountpoint was pinned */
@@ -1722,8 +1713,22 @@ static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
 			nd->path.mnt = &mparent->mnt;
 			nd->inode = inode;
 			nd->seq = seq;
+			if (path_equal(&nd->path, &nd->root))
+				goto in_root;
+			if (nd->path.dentry != nd->path.mnt->mnt_root)
+				break;
 		}
 	}
+	old = nd->path.dentry;
+	parent = old->d_parent;
+	*inodep = parent->d_inode;
+	*seqp = read_seqcount_begin(&parent->d_seq);
+	if (unlikely(read_seqcount_retry(&old->d_seq, nd->seq)))
+		return ERR_PTR(-ECHILD);
+	if (unlikely(!path_connected(nd->path.mnt, parent)))
+		return ERR_PTR(-ECHILD);
+	return parent;
+in_root:
 	if (unlikely(nd->flags & LOOKUP_BENEATH))
 		return ERR_PTR(-ECHILD);
 	return NULL;
@@ -1733,25 +1738,33 @@ static struct dentry *follow_dotdot(struct nameidata *nd,
 				 struct inode **inodep,
 				 unsigned *seqp)
 {
-	while (1) {
-		if (path_equal(&nd->path, &nd->root))
-			break;
-		if (nd->path.dentry != nd->path.mnt->mnt_root) {
-			/* rare case of legitimate dget_parent()... */
-			struct dentry *parent = dget_parent(nd->path.dentry);
-			if (unlikely(!path_connected(nd->path.mnt, parent))) {
-				dput(parent);
-				return ERR_PTR(-ENOENT);
-			}
-			*seqp = 0;
-			*inodep = parent->d_inode;
-			return parent;
+	struct dentry *parent;
+
+	if (path_equal(&nd->path, &nd->root))
+		goto in_root;
+	if (unlikely(nd->path.dentry == nd->path.mnt->mnt_root)) {
+		while (1) {
+			if (!follow_up(&nd->path))
+				goto in_root;
+			if (unlikely(nd->flags & LOOKUP_NO_XDEV))
+				return ERR_PTR(-EXDEV);
+			if (path_equal(&nd->path, &nd->root))
+				goto in_root;
+			if (nd->path.dentry != nd->path.mnt->mnt_root)
+				break;
 		}
-		if (!follow_up(&nd->path))
-			break;
-		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
-			return ERR_PTR(-EXDEV);
 	}
+	/* rare case of legitimate dget_parent()... */
+	parent = dget_parent(nd->path.dentry);
+	if (unlikely(!path_connected(nd->path.mnt, parent))) {
+		dput(parent);
+		return ERR_PTR(-ENOENT);
+	}
+	*seqp = 0;
+	*inodep = parent->d_inode;
+	return parent;
+
+in_root:
 	if (unlikely(nd->flags & LOOKUP_BENEATH))
 		return ERR_PTR(-EXDEV);
 	dget(nd->path.dentry);
