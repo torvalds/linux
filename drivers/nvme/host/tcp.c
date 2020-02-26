@@ -1027,8 +1027,15 @@ static int nvme_tcp_try_send(struct nvme_tcp_queue *queue)
 	if (req->state == NVME_TCP_SEND_DDGST)
 		ret = nvme_tcp_try_send_ddgst(req);
 done:
-	if (ret == -EAGAIN)
+	if (ret == -EAGAIN) {
 		ret = 0;
+	} else if (ret < 0) {
+		dev_err(queue->ctrl->ctrl.device,
+			"failed to send request %d\n", ret);
+		if (ret != -EPIPE && ret != -ECONNRESET)
+			nvme_tcp_fail_request(queue->request);
+		nvme_tcp_done_send_req(queue);
+	}
 	return ret;
 }
 
@@ -1059,21 +1066,10 @@ static void nvme_tcp_io_work(struct work_struct *w)
 		int result;
 
 		result = nvme_tcp_try_send(queue);
-		if (result > 0) {
+		if (result > 0)
 			pending = true;
-		} else if (unlikely(result < 0)) {
-			dev_err(queue->ctrl->ctrl.device,
-				"failed to send request %d\n", result);
-
-			/*
-			 * Fail the request unless peer closed the connection,
-			 * in which case error recovery flow will complete all.
-			 */
-			if ((result != -EPIPE) && (result != -ECONNRESET))
-				nvme_tcp_fail_request(queue->request);
-			nvme_tcp_done_send_req(queue);
-			return;
-		}
+		else if (unlikely(result < 0))
+			break;
 
 		result = nvme_tcp_try_recv(queue);
 		if (result > 0)
