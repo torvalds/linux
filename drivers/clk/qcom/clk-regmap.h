@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2014, 2019, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2014, 2019-2020, The Linux Foundation. All rights reserved. */
 
 #ifndef __QCOM_CLK_REGMAP_H__
 #define __QCOM_CLK_REGMAP_H__
@@ -46,6 +46,7 @@ struct clk_regmap {
 	bool enable_is_inverted;
 	struct clk_vdd_class_data vdd_data;
 	struct clk_regmap_ops *ops;
+	struct list_head list_node;
 };
 
 static inline struct clk_regmap *to_clk_regmap(struct clk_hw *hw)
@@ -63,5 +64,6 @@ int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
 int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
 			unsigned long cur_rate);
 int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk);
+bool clk_is_regmap_clk(struct clk_hw *hw);
 
 #endif

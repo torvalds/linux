@@ -10,6 +10,8 @@
 
 #include "clk-regmap.h"
 
+static LIST_HEAD(clk_regmap_list);
+
 /**
  * clk_is_enabled_regmap - standard is_enabled() for regmap users
  *
@@ -231,6 +233,30 @@ void clk_unprepare_regmap(struct clk_hw *hw)
 EXPORT_SYMBOL(clk_unprepare_regmap);
 
 /**
+ * clk_is_regmap_clk - Checks if clk is a regmap clk
+ *
+ * @hw: clk to check on
+ *
+ * Iterate over maintained clk regmap list to know
+ * if concern clk is regmap
+ *
+ * Returns true on success, false otherwise.
+ */
+bool clk_is_regmap_clk(struct clk_hw *hw)
+{
+	struct clk_regmap *rclk;
+
+	if (hw) {
+		list_for_each_entry(rclk, &clk_regmap_list, list_node)
+			if (&rclk->hw  == hw)
+				return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(clk_is_regmap_clk);
+
+/**
  * devm_clk_register_regmap - register a clk_regmap clock
  *
  * @dev: reference to the caller's device
@@ -239,14 +265,21 @@ EXPORT_SYMBOL(clk_unprepare_regmap);
  * Clocks that use regmap for their register I/O should register their
  * clk_regmap struct via this function so that the regmap is initialized
  * and so that the clock is registered with the common clock framework.
+ * Also maintain clk-regmap clks list for providers use.
  */
 int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk)
 {
+	int ret;
+
 	if (dev && dev_get_regmap(dev, NULL))
 		rclk->regmap = dev_get_regmap(dev, NULL);
 	else if (dev && dev->parent)
 		rclk->regmap = dev_get_regmap(dev->parent, NULL);
 
-	return devm_clk_hw_register(dev, &rclk->hw);
+	ret = devm_clk_hw_register(dev, &rclk->hw);
+	if (!ret)
+		list_add(&rclk->list_node, &clk_regmap_list);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_clk_register_regmap);
