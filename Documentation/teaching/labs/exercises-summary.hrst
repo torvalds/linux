@@ -1,44 +1,56 @@
+.. important::
 
-To solve exercises, you need to perform these steps:
+   To solve exercises, you need to perform these steps:
 
-   * prepare skeletons from templates
-   * build modules
-   * copy modules to the VM
-   * start the VM and test the module in the VM.
+      * prepare skeletons from templates
+      * build modules
+      * copy modules to the VM
+      * start the VM and test the module in the VM.
 
-The current lab name is |LAB_NAME|. See the exercises for the task name.
+   The current lab name is |LAB_NAME|. See the exercises for the task name.
 
-The skeleton code is generated from full source examples located in
-:file:`tools/labs/templates`. To solve the tasks, start by generating
-the skeleton code for a complete lab:
+   The skeleton code is generated from full source examples located in
+   :file:`tools/labs/templates`. To solve the tasks, start by generating
+   the skeleton code for a complete lab:
 
-.. code-block:: shell
+   .. code-block:: shell
 
-   tools/labs $ make clean
-   tools/labs $ LABS=<lab name> make skels
+      tools/labs $ make clean
+      tools/labs $ LABS=<lab name> make skels
 
-You can also generate the skeleton for a single task, using
+   You can also generate the skeleton for a single task, using
 
-.. code-block:: shell
+   .. code-block:: shell
 
-   tools/labs $ LABS=<lab name>/<task name> make skels
+      tools/labs $ LABS=<lab name>/<task name> make skels
 
-Once the skeleton drivers are generated, build the source:
+   Once the skeleton drivers are generated, build the source:
 
-.. code-block:: shell
+   .. code-block:: shell
 
-   tools/labs $ make build
+      tools/labs $ make build
 
-Then, copy the modules and start the VM:
+   Then, copy the modules and start the VM:
 
-.. code-block:: shell
+   .. code-block:: shell
 
-   tools/labs $ make copy
-   tools/labs $ make boot
+      tools/labs $ make copy
+      tools/labs $ make boot
 
-The modules are placed in /home/root/skels/|LAB_NAME|/<task_name>.
+   The modules are placed in /home/root/skels/|LAB_NAME|/<task_name>.
 
-Alternatively, we can copy files via :command:`scp`, in order to avoid restarting the VM.
-For additional details about connecting to the VM via the network, please check :ref:`vm_interaction_link`.
+   Alternatively, we can copy files via :command:`scp`, in order to avoid restarting the VM.
+   For additional details about connecting to the VM via the network, please check :ref:`vm_interaction_link`.
 
-Review the `Exercises`_ section for more detailed information.
+   Review the `Exercises`_ section for more detailed information.
+
+.. warning::
+
+   Before starting the exercises or generating the skeletons, please run **git pull** inside the Linux repo,
+   to make sure you have the latest version of the exercises.
+
+   If you have local changes, the pull command will fail. Check for local changes using ``git status``.
+   If you want to keep them, run ``git stash`` before ``pull`` and ``git stash pop`` after.
+   To discard the changes, run ``git reset --hard master``.
+
+   If you already generated the skeleton before ``git pull`` you will need to generate it again.

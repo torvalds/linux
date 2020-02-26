@@ -877,14 +877,8 @@ udevand dispose entries sysfs.
 Exercises
 =========
 
-.. important::
-
-   .. include:: exercises-summary.hrst
-
-   .. |LAB_NAME| replace:: device_model
-
-   Generate the skeleton for this lab (task name should be empty).
-
+.. include:: exercises-summary.hrst
+.. |LAB_NAME| replace:: device_model
 
 0. Intro
 ---------

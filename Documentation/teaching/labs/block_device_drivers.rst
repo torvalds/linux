@@ -866,10 +866,8 @@ Further reading
 Exercises
 =========
 
-.. important::
-
-    .. include:: exercises-summary.hrst
-    .. |LAB_NAME| replace:: block_device_drivers
+.. include:: exercises-summary.hrst
+.. |LAB_NAME| replace:: block_device_drivers
 
 0. Intro
 --------

@@ -307,6 +307,9 @@ Further reading
 Exercises
 =========
 
+.. include:: exercises-summary.hrst
+.. |LAB_NAME| replace:: memory_mapping
+
 1. Mapping contiguous physical memory to userspace
 --------------------------------------------------
 

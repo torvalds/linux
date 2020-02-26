@@ -600,10 +600,8 @@ performed.
 Exercises
 =========
 
-.. important::
-
-    .. include:: exercises-summary.hrst
-    .. |LAB_NAME| replace:: kernel_api
+.. include:: exercises-summary.hrst
+.. |LAB_NAME| replace:: kernel_api
 
 0. Intro
 --------

@@ -602,11 +602,8 @@ Further reading
 Exercises
 =========
 
-.. important::
-
-   .. include:: exercises-summary.hrst
-
-   .. |LAB_NAME| replace:: filesystems
+.. include:: exercises-summary.hrst
+.. |LAB_NAME| replace:: filesystems
 
 .. important::
 

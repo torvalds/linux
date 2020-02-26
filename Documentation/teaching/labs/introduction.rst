@@ -426,7 +426,7 @@ A few links related to the Linux kernel are shown bellow:
 The links are not comprehensive. Using  `The Internet <http://www.google.com>`__ and
 `kernel source code <http://lxr.free-electrons.com/>`__ is essential.
 
-Exercices
+Exercises
 =========
 
 Remarks

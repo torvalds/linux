@@ -754,10 +754,8 @@ While another thread will change the flag value and wake up the waiting threads:
 Exercises
 =========
 
-.. important::
-
-    .. include:: exercises-summary.hrst
-    .. |LAB_NAME| replace:: device_drivers
+.. include:: exercises-summary.hrst
+.. |LAB_NAME| replace:: device_drivers
 
 0. Intro
 --------
