@@ -95,6 +95,8 @@ static LIST_HEAD(bridge_list);
  */
 void drm_bridge_add(struct drm_bridge *bridge)
 {
+	mutex_init(&bridge->hpd_mutex);
+
 	mutex_lock(&bridge_lock);
 	list_add_tail(&bridge->list, &bridge_list);
 	mutex_unlock(&bridge_lock);
@@ -111,6 +113,8 @@ void drm_bridge_remove(struct drm_bridge *bridge)
 	mutex_lock(&bridge_lock);
 	list_del_init(&bridge->list);
 	mutex_unlock(&bridge_lock);
+
+	mutex_destroy(&bridge->hpd_mutex);
 }
 EXPORT_SYMBOL(drm_bridge_remove);
 
@@ -241,7 +245,7 @@ void drm_bridge_detach(struct drm_bridge *bridge)
  * Bridge drivers expose operations through the &drm_bridge_funcs structure.
  * The DRM internals (atomic and CRTC helpers) use the helpers defined in
  * drm_bridge.c to call bridge operations. Those operations are divided in
- * two big categories to support different parts of the bridge usage.
+ * three big categories to support different parts of the bridge usage.
  *
  * - The encoder-related operations support control of the bridges in the
  *   chain, and are roughly counterparts to the &drm_encoder_helper_funcs
@@ -271,6 +275,43 @@ void drm_bridge_detach(struct drm_bridge *bridge)
  *   implement them shall thus also implement the atomic version of the
  *   encoder-related operations. This feature is not supported by the legacy
  *   CRTC helpers.
+ *
+ * - The connector-related operations support implementing a &drm_connector
+ *   based on a chain of bridges. DRM bridges traditionally create a
+ *   &drm_connector for bridges meant to be used at the end of the chain. This
+ *   puts additional burden on bridge drivers, especially for bridges that may
+ *   be used in the middle of a chain or at the end of it. Furthermore, it
+ *   requires all operations of the &drm_connector to be handled by a single
+ *   bridge, which doesn't always match the hardware architecture.
+ *
+ *   To simplify bridge drivers and make the connector implementation more
+ *   flexible, a new model allows bridges to unconditionally skip creation of
+ *   &drm_connector and instead expose &drm_bridge_funcs operations to support
+ *   an externally-implemented &drm_connector. Those operations are
+ *   &drm_bridge_funcs.detect, &drm_bridge_funcs.get_modes,
+ *   &drm_bridge_funcs.get_edid, &drm_bridge_funcs.hpd_notify,
+ *   &drm_bridge_funcs.hpd_enable and &drm_bridge_funcs.hpd_disable. When
+ *   implemented, display drivers shall create a &drm_connector instance for
+ *   each chain of bridges, and implement those connector instances based on
+ *   the bridge connector operations.
+ *
+ *   Bridge drivers shall implement the connector-related operations for all
+ *   the features that the bridge hardware support. For instance, if a bridge
+ *   supports reading EDID, the &drm_bridge_funcs.get_edid shall be
+ *   implemented. This however doesn't mean that the DDC lines are wired to the
+ *   bridge on a particular platform, as they could also be connected to an I2C
+ *   controller of the SoC. Support for the connector-related operations on the
+ *   running platform is reported through the &drm_bridge.ops flags. Bridge
+ *   drivers shall detect which operations they can support on the platform
+ *   (usually this information is provided by ACPI or DT), and set the
+ *   &drm_bridge.ops flags for all supported operations. A flag shall only be
+ *   set if the corresponding &drm_bridge_funcs operation is implemented, but
+ *   an implemented operation doesn't necessarily imply that the corresponding
+ *   flag will be set. Display drivers shall use the &drm_bridge.ops flags to
+ *   decide which bridge to delegate a connector operation to. This mechanism
+ *   allows providing a single static const &drm_bridge_funcs instance in
+ *   bridge drivers, improving security by storing function pointers in
+ *   read-only memory.
  */
 
 /**
@@ -969,6 +1010,164 @@ int drm_atomic_bridge_chain_check(struct drm_bridge *bridge,
 	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_bridge_chain_check);
+
+/**
+ * drm_bridge_detect - check if anything is attached to the bridge output
+ * @bridge: bridge control structure
+ *
+ * If the bridge supports output detection, as reported by the
+ * DRM_BRIDGE_OP_DETECT bridge ops flag, call &drm_bridge_funcs.detect for the
+ * bridge and return the connection status. Otherwise return
+ * connector_status_unknown.
+ *
+ * RETURNS:
+ * The detection status on success, or connector_status_unknown if the bridge
+ * doesn't support output detection.
+ */
+enum drm_connector_status drm_bridge_detect(struct drm_bridge *bridge)
+{
+	if (!(bridge->ops & DRM_BRIDGE_OP_DETECT))
+		return connector_status_unknown;
+
+	return bridge->funcs->detect(bridge);
+}
+EXPORT_SYMBOL_GPL(drm_bridge_detect);
+
+/**
+ * drm_bridge_get_modes - fill all modes currently valid for the sink into the
+ * @connector
+ * @bridge: bridge control structure
+ * @connector: the connector to fill with modes
+ *
+ * If the bridge supports output modes retrieval, as reported by the
+ * DRM_BRIDGE_OP_MODES bridge ops flag, call &drm_bridge_funcs.get_modes to
+ * fill the connector with all valid modes and return the number of modes
+ * added. Otherwise return 0.
+ *
+ * RETURNS:
+ * The number of modes added to the connector.
+ */
+int drm_bridge_get_modes(struct drm_bridge *bridge,
+			 struct drm_connector *connector)
+{
+	if (!(bridge->ops & DRM_BRIDGE_OP_MODES))
+		return 0;
+
+	return bridge->funcs->get_modes(bridge, connector);
+}
+EXPORT_SYMBOL_GPL(drm_bridge_get_modes);
+
+/**
+ * drm_bridge_get_edid - get the EDID data of the connected display
+ * @bridge: bridge control structure
+ * @connector: the connector to read EDID for
+ *
+ * If the bridge supports output EDID retrieval, as reported by the
+ * DRM_BRIDGE_OP_EDID bridge ops flag, call &drm_bridge_funcs.get_edid to
+ * get the EDID and return it. Otherwise return ERR_PTR(-ENOTSUPP).
+ *
+ * RETURNS:
+ * The retrieved EDID on success, or an error pointer otherwise.
+ */
+struct edid *drm_bridge_get_edid(struct drm_bridge *bridge,
+				 struct drm_connector *connector)
+{
+	if (!(bridge->ops & DRM_BRIDGE_OP_EDID))
+		return ERR_PTR(-ENOTSUPP);
+
+	return bridge->funcs->get_edid(bridge, connector);
+}
+EXPORT_SYMBOL_GPL(drm_bridge_get_edid);
+
+/**
+ * drm_bridge_hpd_enable - enable hot plug detection for the bridge
+ * @bridge: bridge control structure
+ * @cb: hot-plug detection callback
+ * @data: data to be passed to the hot-plug detection callback
+ *
+ * Call &drm_bridge_funcs.hpd_enable if implemented and register the given @cb
+ * and @data as hot plug notification callback. From now on the @cb will be
+ * called with @data when an output status change is detected by the bridge,
+ * until hot plug notification gets disabled with drm_bridge_hpd_disable().
+ *
+ * Hot plug detection is supported only if the DRM_BRIDGE_OP_HPD flag is set in
+ * bridge->ops. This function shall not be called when the flag is not set.
+ *
+ * Only one hot plug detection callback can be registered at a time, it is an
+ * error to call this function when hot plug detection is already enabled for
+ * the bridge.
+ */
+void drm_bridge_hpd_enable(struct drm_bridge *bridge,
+			   void (*cb)(void *data,
+				      enum drm_connector_status status),
+			   void *data)
+{
+	if (!(bridge->ops & DRM_BRIDGE_OP_HPD))
+		return;
+
+	mutex_lock(&bridge->hpd_mutex);
+
+	if (WARN(bridge->hpd_cb, "Hot plug detection already enabled\n"))
+		goto unlock;
+
+	bridge->hpd_cb = cb;
+	bridge->hpd_data = data;
+
+	if (bridge->funcs->hpd_enable)
+		bridge->funcs->hpd_enable(bridge);
+
+unlock:
+	mutex_unlock(&bridge->hpd_mutex);
+}
+EXPORT_SYMBOL_GPL(drm_bridge_hpd_enable);
+
+/**
+ * drm_bridge_hpd_disable - disable hot plug detection for the bridge
+ * @bridge: bridge control structure
+ *
+ * Call &drm_bridge_funcs.hpd_disable if implemented and unregister the hot
+ * plug detection callback previously registered with drm_bridge_hpd_enable().
+ * Once this function returns the callback will not be called by the bridge
+ * when an output status change occurs.
+ *
+ * Hot plug detection is supported only if the DRM_BRIDGE_OP_HPD flag is set in
+ * bridge->ops. This function shall not be called when the flag is not set.
+ */
+void drm_bridge_hpd_disable(struct drm_bridge *bridge)
+{
+	if (!(bridge->ops & DRM_BRIDGE_OP_HPD))
+		return;
+
+	mutex_lock(&bridge->hpd_mutex);
+	if (bridge->funcs->hpd_disable)
+		bridge->funcs->hpd_disable(bridge);
+
+	bridge->hpd_cb = NULL;
+	bridge->hpd_data = NULL;
+	mutex_unlock(&bridge->hpd_mutex);
+}
+EXPORT_SYMBOL_GPL(drm_bridge_hpd_disable);
+
+/**
+ * drm_bridge_hpd_notify - notify hot plug detection events
+ * @bridge: bridge control structure
+ * @status: output connection status
+ *
+ * Bridge drivers shall call this function to report hot plug events when they
+ * detect a change in the output status, when hot plug detection has been
+ * enabled by drm_bridge_hpd_enable().
+ *
+ * This function shall be called in a context that can sleep.
+ */
+void drm_bridge_hpd_notify(struct drm_bridge *bridge,
+			   enum drm_connector_status status)
+{
+	mutex_lock(&bridge->hpd_mutex);
+	if (bridge->hpd_cb)
+		bridge->hpd_cb(bridge->hpd_data, status);
+	mutex_unlock(&bridge->hpd_mutex);
+}
+EXPORT_SYMBOL_GPL(drm_bridge_hpd_notify);
 
 #ifdef CONFIG_OF
 /**

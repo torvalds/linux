@@ -23,8 +23,9 @@
 #ifndef __DRM_BRIDGE_H__
 #define __DRM_BRIDGE_H__
 
-#include <linux/list.h>
 #include <linux/ctype.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_encoder.h>
@@ -33,7 +34,10 @@
 
 struct drm_bridge;
 struct drm_bridge_timings;
+struct drm_connector;
 struct drm_panel;
+struct edid;
+struct i2c_adapter;
 
 /**
  * struct drm_bridge_funcs - drm_bridge control functions
@@ -497,6 +501,119 @@ struct drm_bridge_funcs {
 	 * giving the reason of the failure otherwise.
 	 */
 	struct drm_bridge_state *(*atomic_reset)(struct drm_bridge *bridge);
+
+	/**
+	 * @detect:
+	 *
+	 * Check if anything is attached to the bridge output.
+	 *
+	 * This callback is optional, if not implemented the bridge will be
+	 * considered as always having a component attached to its output.
+	 * Bridges that implement this callback shall set the
+	 * DRM_BRIDGE_OP_DETECT flag in their &drm_bridge->ops.
+	 *
+	 * RETURNS:
+	 *
+	 * drm_connector_status indicating the bridge output status.
+	 */
+	enum drm_connector_status (*detect)(struct drm_bridge *bridge);
+
+	/**
+	 * @get_modes:
+	 *
+	 * Fill all modes currently valid for the sink into the &drm_connector
+	 * with drm_mode_probed_add().
+	 *
+	 * The @get_modes callback is mostly intended to support non-probeable
+	 * displays such as many fixed panels. Bridges that support reading
+	 * EDID shall leave @get_modes unimplemented and implement the
+	 * &drm_bridge_funcs->get_edid callback instead.
+	 *
+	 * This callback is optional. Bridges that implement it shall set the
+	 * DRM_BRIDGE_OP_MODES flag in their &drm_bridge->ops.
+	 *
+	 * The connector parameter shall be used for the sole purpose of
+	 * filling modes, and shall not be stored internally by bridge drivers
+	 * for future usage.
+	 *
+	 * RETURNS:
+	 *
+	 * The number of modes added by calling drm_mode_probed_add().
+	 */
+	int (*get_modes)(struct drm_bridge *bridge,
+			 struct drm_connector *connector);
+
+	/**
+	 * @get_edid:
+	 *
+	 * Read and parse the EDID data of the connected display.
+	 *
+	 * The @get_edid callback is the preferred way of reporting mode
+	 * information for a display connected to the bridge output. Bridges
+	 * that support reading EDID shall implement this callback and leave
+	 * the @get_modes callback unimplemented.
+	 *
+	 * The caller of this operation shall first verify the output
+	 * connection status and refrain from reading EDID from a disconnected
+	 * output.
+	 *
+	 * This callback is optional. Bridges that implement it shall set the
+	 * DRM_BRIDGE_OP_EDID flag in their &drm_bridge->ops.
+	 *
+	 * The connector parameter shall be used for the sole purpose of EDID
+	 * retrieval and parsing, and shall not be stored internally by bridge
+	 * drivers for future usage.
+	 *
+	 * RETURNS:
+	 *
+	 * An edid structure newly allocated with kmalloc() (or similar) on
+	 * success, or NULL otherwise. The caller is responsible for freeing
+	 * the returned edid structure with kfree().
+	 */
+	struct edid *(*get_edid)(struct drm_bridge *bridge,
+				 struct drm_connector *connector);
+
+	/**
+	 * @hpd_notify:
+	 *
+	 * Notify the bridge of hot plug detection.
+	 *
+	 * This callback is optional, it may be implemented by bridges that
+	 * need to be notified of display connection or disconnection for
+	 * internal reasons. One use case is to reset the internal state of CEC
+	 * controllers for HDMI bridges.
+	 */
+	void (*hpd_notify)(struct drm_bridge *bridge,
+			   enum drm_connector_status status);
+
+	/**
+	 * @hpd_enable:
+	 *
+	 * Enable hot plug detection. From now on the bridge shall call
+	 * drm_bridge_hpd_notify() each time a change is detected in the output
+	 * connection status, until hot plug detection gets disabled with
+	 * @hpd_disable.
+	 *
+	 * This callback is optional and shall only be implemented by bridges
+	 * that support hot-plug notification without polling. Bridges that
+	 * implement it shall also implement the @hpd_disable callback and set
+	 * the DRM_BRIDGE_OP_HPD flag in their &drm_bridge->ops.
+	 */
+	void (*hpd_enable)(struct drm_bridge *bridge);
+
+	/**
+	 * @hpd_disable:
+	 *
+	 * Disable hot plug detection. Once this function returns the bridge
+	 * shall not call drm_bridge_hpd_notify() when a change in the output
+	 * connection status occurs.
+	 *
+	 * This callback is optional and shall only be implemented by bridges
+	 * that support hot-plug notification without polling. Bridges that
+	 * implement it shall also implement the @hpd_enable callback and set
+	 * the DRM_BRIDGE_OP_HPD flag in their &drm_bridge->ops.
+	 */
+	void (*hpd_disable)(struct drm_bridge *bridge);
 };
 
 /**
@@ -536,6 +653,39 @@ struct drm_bridge_timings {
 };
 
 /**
+ * enum drm_bridge_ops - Bitmask of operations supported by the bridge
+ */
+enum drm_bridge_ops {
+	/**
+	 * @DRM_BRIDGE_OP_DETECT: The bridge can detect displays connected to
+	 * its output. Bridges that set this flag shall implement the
+	 * &drm_bridge_funcs->detect callback.
+	 */
+	DRM_BRIDGE_OP_DETECT = BIT(0),
+	/**
+	 * @DRM_BRIDGE_OP_EDID: The bridge can retrieve the EDID of the display
+	 * connected to its output. Bridges that set this flag shall implement
+	 * the &drm_bridge_funcs->get_edid callback.
+	 */
+	DRM_BRIDGE_OP_EDID = BIT(1),
+	/**
+	 * @DRM_BRIDGE_OP_HPD: The bridge can detect hot-plug and hot-unplug
+	 * without requiring polling. Bridges that set this flag shall
+	 * implement the &drm_bridge_funcs->hpd_enable and
+	 * &drm_bridge_funcs->hpd_disable callbacks if they support enabling
+	 * and disabling hot-plug detection dynamically.
+	 */
+	DRM_BRIDGE_OP_HPD = BIT(2),
+	/**
+	 * @DRM_BRIDGE_OP_MODES: The bridge can retrieve the modes supported
+	 * by the display at its output. This does not include reading EDID
+	 * which is separately covered by @DRM_BRIDGE_OP_EDID. Bridges that set
+	 * this flag shall implement the &drm_bridge_funcs->get_modes callback.
+	 */
+	DRM_BRIDGE_OP_MODES = BIT(3),
+};
+
+/**
  * struct drm_bridge - central DRM bridge control structure
  */
 struct drm_bridge {
@@ -563,6 +713,33 @@ struct drm_bridge {
 	const struct drm_bridge_funcs *funcs;
 	/** @driver_private: pointer to the bridge driver's internal context */
 	void *driver_private;
+	/** @ops: bitmask of operations supported by the bridge */
+	enum drm_bridge_ops ops;
+	/**
+	 * @type: Type of the connection at the bridge output
+	 * (DRM_MODE_CONNECTOR_*). For bridges at the end of this chain this
+	 * identifies the type of connected display.
+	 */
+	int type;
+	/**
+	 * @ddc: Associated I2C adapter for DDC access, if any.
+	 */
+	struct i2c_adapter *ddc;
+	/** private: */
+	/**
+	 * @hpd_mutex: Protects the @hpd_cb and @hpd_data fields.
+	 */
+	struct mutex hpd_mutex;
+	/**
+	 * @hpd_cb: Hot plug detection callback, registered with
+	 * drm_bridge_hpd_enable().
+	 */
+	void (*hpd_cb)(void *data, enum drm_connector_status status);
+	/**
+	 * @hpd_data: Private data passed to the Hot plug detection callback
+	 * @hpd_cb.
+	 */
+	void *hpd_data;
 };
 
 static inline struct drm_bridge *
@@ -668,6 +845,19 @@ drm_atomic_helper_bridge_propagate_bus_fmt(struct drm_bridge *bridge,
 					struct drm_connector_state *conn_state,
 					u32 output_fmt,
 					unsigned int *num_input_fmts);
+
+enum drm_connector_status drm_bridge_detect(struct drm_bridge *bridge);
+int drm_bridge_get_modes(struct drm_bridge *bridge,
+			 struct drm_connector *connector);
+struct edid *drm_bridge_get_edid(struct drm_bridge *bridge,
+				 struct drm_connector *connector);
+void drm_bridge_hpd_enable(struct drm_bridge *bridge,
+			   void (*cb)(void *data,
+				      enum drm_connector_status status),
+			   void *data);
+void drm_bridge_hpd_disable(struct drm_bridge *bridge);
+void drm_bridge_hpd_notify(struct drm_bridge *bridge,
+			   enum drm_connector_status status);
 
 #ifdef CONFIG_DRM_PANEL_BRIDGE
 struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel);
