@@ -167,10 +167,23 @@ static void tfp410_disable(struct drm_bridge *bridge)
 	gpiod_set_value_cansleep(dvi->powerdown, 1);
 }
 
+static enum drm_mode_status tfp410_mode_valid(struct drm_bridge *bridge,
+					      const struct drm_display_mode *mode)
+{
+	if (mode->clock < 25000)
+		return MODE_CLOCK_LOW;
+
+	if (mode->clock > 165000)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
 static const struct drm_bridge_funcs tfp410_bridge_funcs = {
 	.attach		= tfp410_attach,
 	.enable		= tfp410_enable,
 	.disable	= tfp410_disable,
+	.mode_valid	= tfp410_mode_valid,
 };
 
 static void tfp410_hpd_work_func(struct work_struct *work)

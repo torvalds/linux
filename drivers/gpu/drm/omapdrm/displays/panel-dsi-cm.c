@@ -678,7 +678,7 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 	if (r)
 		goto err;
 
-	ddata->enabled = 1;
+	ddata->enabled = true;
 
 	if (!ddata->intro_printed) {
 		dev_info(&ddata->pdev->dev, "panel revision %02x.%02x.%02x\n",
@@ -729,7 +729,7 @@ static void dsicm_power_off(struct panel_drv_data *ddata)
 	if (ddata->vpnl)
 		regulator_disable(ddata->vpnl);
 
-	ddata->enabled = 0;
+	ddata->enabled = false;
 }
 
 static int dsicm_panel_reset(struct panel_drv_data *ddata)

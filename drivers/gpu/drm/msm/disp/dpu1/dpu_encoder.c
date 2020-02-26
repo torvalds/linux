@@ -512,7 +512,6 @@ static void _dpu_encoder_adjust_mode(struct drm_connector *connector,
 		if (cur_mode->vdisplay == adj_mode->vdisplay &&
 		    cur_mode->hdisplay == adj_mode->hdisplay &&
 		    drm_mode_vrefresh(cur_mode) == drm_mode_vrefresh(adj_mode)) {
-			adj_mode->private = cur_mode->private;
 			adj_mode->private_flags |= cur_mode->private_flags;
 		}
 	}

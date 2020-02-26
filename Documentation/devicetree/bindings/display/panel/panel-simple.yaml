@@ -201,6 +201,8 @@ properties:
       - osddisplays,osd101t2045-53ts
         # QiaoDian XianShi Corporation 4"3 TFT LCD panel
       - qiaodian,qd43003c0-40
+        # Rocktech Displays Ltd. RK101II01D-CT 10.1" TFT 1280x800
+      - rocktech,rk101ii01d-ct
         # Rocktech Display Ltd. RK070ER9427 800(RGB)x480 TFT LCD panel
       - rocktech,rk070er9427
         # Samsung 12.2" (2560x1600 pixels) TFT LCD panel

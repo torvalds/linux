@@ -635,7 +635,6 @@ EXPORT_SYMBOL(__drm_atomic_helper_bridge_reset);
  * drm_atomic_helper_bridge_reset() - Allocate and initialize a bridge state
  *				      to its default
  * @bridge: the bridge this state refers to
- * @state: bridge state to initialize
  *
  * Allocates the bridge state and initializes it to default values. This helper
  * is meant to be used as a bridge &drm_bridge_funcs.atomic_reset hook for

@@ -349,9 +349,9 @@ struct drm_bridge_funcs {
 	 * Duplicate the current bridge state object (which is guaranteed to be
 	 * non-NULL).
 	 *
-	 * The atomic_duplicate_state() is optional. When not implemented the
-	 * core allocates a drm_bridge_state object and calls
-	 * &__drm_atomic_helper_bridge_duplicate_state() to initialize it.
+	 * The atomic_duplicate_state() hook is optional. When not implemented
+	 * the core allocates a drm_bridge_state object and calls
+	 * __drm_atomic_helper_bridge_duplicate_state() to initialize it.
 	 *
 	 * RETURNS:
 	 * A valid drm_bridge_state object or NULL if the allocation fails.
@@ -407,11 +407,11 @@ struct drm_bridge_funcs {
 	 * Formats listed in the returned array should be listed in decreasing
 	 * preference order (the core will try all formats until it finds one
 	 * that works). When the format is not supported NULL should be
-	 * returned and *num_output_fmts should be set to 0.
+	 * returned and num_output_fmts should be set to 0.
 	 *
 	 * This method is called on all elements of the bridge chain as part of
 	 * the bus format negotiation process that happens in
-	 * &drm_atomic_bridge_chain_select_bus_fmts().
+	 * drm_atomic_bridge_chain_select_bus_fmts().
 	 * This method is optional. When not implemented, the core will bypass
 	 * bus format negotiation on this element of the bridge without
 	 * failing, and the previous element in the chain will be passed
@@ -478,9 +478,10 @@ struct drm_bridge_funcs {
 	 *
 	 * Note that the atomic_reset() semantics is not exactly matching the
 	 * reset() semantics found on other components (connector, plane, ...).
-	 * 1/ The reset operation happens when the bridge is attached, not when
+	 *
+	 * 1. The reset operation happens when the bridge is attached, not when
 	 *    drm_mode_config_reset() is called
-	 * 2/ It's meant to be used exclusively on bridges that have been
+	 * 2. It's meant to be used exclusively on bridges that have been
 	 *    converted to the ATOMIC API
 	 *
 	 * RETURNS:
