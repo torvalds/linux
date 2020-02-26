@@ -347,7 +347,6 @@ mlxsw_sp_setup_tc_qdisc_red_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 					       mlxsw_sp_qdisc->prio_bitmap,
 					       &stats_base->tx_packets,
 					       &stats_base->tx_bytes);
-	red_base->prob_mark = xstats->ecn;
 	red_base->prob_drop = xstats->wred_drop[tclass_num];
 	red_base->pdrop = mlxsw_sp_xstats_tail_drop(xstats, tclass_num);
 
@@ -453,22 +452,19 @@ mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port,
 	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
 	struct mlxsw_sp_port_xstats *xstats;
 	struct red_stats *res = xstats_ptr;
-	int early_drops, marks, pdrops;
+	int early_drops, pdrops;
 
 	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
 
 	early_drops = xstats->wred_drop[tclass_num] - xstats_base->prob_drop;
-	marks = xstats->ecn - xstats_base->prob_mark;
 	pdrops = mlxsw_sp_xstats_tail_drop(xstats, tclass_num) -
 		 xstats_base->pdrop;
 
 	res->pdrop += pdrops;
 	res->prob_drop += early_drops;
-	res->prob_mark += marks;
 
 	xstats_base->pdrop += pdrops;
 	xstats_base->prob_drop += early_drops;
-	xstats_base->prob_mark += marks;
 	return 0;
 }
 
@@ -486,8 +482,7 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 	stats_base = &mlxsw_sp_qdisc->stats_base;
 
 	mlxsw_sp_qdisc_get_tc_stats(mlxsw_sp_port, mlxsw_sp_qdisc, stats_ptr);
-	overlimits = xstats->wred_drop[tclass_num] + xstats->ecn -
-		     stats_base->overlimits;
+	overlimits = xstats->wred_drop[tclass_num] - stats_base->overlimits;
 
 	stats_ptr->qstats->overlimits += overlimits;
 	stats_base->overlimits += overlimits;

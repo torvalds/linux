@@ -2228,6 +2228,15 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_rfc_3635_stats[] = {
 #define MLXSW_SP_PORT_HW_RFC_3635_STATS_LEN \
 	ARRAY_SIZE(mlxsw_sp_port_hw_rfc_3635_stats)
 
+static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_ext_stats[] = {
+	{
+		.str = "ecn_marked",
+		.getter = mlxsw_reg_ppcnt_ecn_marked_get,
+	},
+};
+
+#define MLXSW_SP_PORT_HW_EXT_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_ext_stats)
+
 static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_discard_stats[] = {
 	{
 		.str = "discard_ingress_general",
@@ -2337,6 +2346,7 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
 					 MLXSW_SP_PORT_HW_RFC_2863_STATS_LEN + \
 					 MLXSW_SP_PORT_HW_RFC_2819_STATS_LEN + \
 					 MLXSW_SP_PORT_HW_RFC_3635_STATS_LEN + \
+					 MLXSW_SP_PORT_HW_EXT_STATS_LEN + \
 					 MLXSW_SP_PORT_HW_DISCARD_STATS_LEN + \
 					 (MLXSW_SP_PORT_HW_PRIO_STATS_LEN * \
 					  IEEE_8021QAZ_MAX_TCS) + \
@@ -2394,6 +2404,12 @@ static void mlxsw_sp_port_get_strings(struct net_device *dev,
 
 		for (i = 0; i < MLXSW_SP_PORT_HW_RFC_3635_STATS_LEN; i++) {
 			memcpy(p, mlxsw_sp_port_hw_rfc_3635_stats[i].str,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+
+		for (i = 0; i < MLXSW_SP_PORT_HW_EXT_STATS_LEN; i++) {
+			memcpy(p, mlxsw_sp_port_hw_ext_stats[i].str,
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
@@ -2458,6 +2474,10 @@ mlxsw_sp_get_hw_stats_by_group(struct mlxsw_sp_port_hw_stats **p_hw_stats,
 	case MLXSW_REG_PPCNT_RFC_3635_CNT:
 		*p_hw_stats = mlxsw_sp_port_hw_rfc_3635_stats;
 		*p_len = MLXSW_SP_PORT_HW_RFC_3635_STATS_LEN;
+		break;
+	case MLXSW_REG_PPCNT_EXT_CNT:
+		*p_hw_stats = mlxsw_sp_port_hw_ext_stats;
+		*p_len = MLXSW_SP_PORT_HW_EXT_STATS_LEN;
 		break;
 	case MLXSW_REG_PPCNT_DISCARD_CNT:
 		*p_hw_stats = mlxsw_sp_port_hw_discard_stats;
@@ -2527,6 +2547,11 @@ static void mlxsw_sp_port_get_stats(struct net_device *dev,
 	__mlxsw_sp_port_get_stats(dev, MLXSW_REG_PPCNT_RFC_3635_CNT, 0,
 				  data, data_index);
 	data_index += MLXSW_SP_PORT_HW_RFC_3635_STATS_LEN;
+
+	/* Extended Counters */
+	__mlxsw_sp_port_get_stats(dev, MLXSW_REG_PPCNT_EXT_CNT, 0,
+				  data, data_index);
+	data_index += MLXSW_SP_PORT_HW_EXT_STATS_LEN;
 
 	/* Discard Counters */
 	__mlxsw_sp_port_get_stats(dev, MLXSW_REG_PPCNT_DISCARD_CNT, 0,
