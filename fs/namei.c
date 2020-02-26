@@ -1722,33 +1722,18 @@ static const char *follow_dotdot_rcu(struct nameidata *nd)
 			/* we know that mountpoint was pinned */
 			nd->path.dentry = mountpoint;
 			nd->path.mnt = &mparent->mnt;
-			inode = inode2;
+			inode = nd->inode = inode2;
 			nd->seq = seq;
 		}
 	}
 	if (unlikely(!parent)) {
 		if (unlikely(nd->flags & LOOKUP_BENEATH))
 			return ERR_PTR(-ECHILD);
+		return step_into(nd, WALK_NOFOLLOW,
+				 nd->path.dentry, nd->inode, nd->seq);
 	} else {
-		nd->path.dentry = parent;
-		nd->seq = seq;
+		return step_into(nd, WALK_NOFOLLOW, parent, inode, seq);
 	}
-	while (unlikely(d_mountpoint(nd->path.dentry))) {
-		struct mount *mounted;
-		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry);
-		if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
-			return ERR_PTR(-ECHILD);
-		if (!mounted)
-			break;
-		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
-			return ERR_PTR(-ECHILD);
-		nd->path.mnt = &mounted->mnt;
-		nd->path.dentry = mounted->mnt.mnt_root;
-		inode = nd->path.dentry->d_inode;
-		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
-	}
-	nd->inode = inode;
-	return NULL;
 }
 
 static const char *follow_dotdot(struct nameidata *nd)
@@ -1774,13 +1759,11 @@ static const char *follow_dotdot(struct nameidata *nd)
 	if (unlikely(!parent)) {
 		if (unlikely(nd->flags & LOOKUP_BENEATH))
 			return ERR_PTR(-EXDEV);
+		return step_into(nd, WALK_NOFOLLOW,
+				 dget(nd->path.dentry), nd->inode, nd->seq);
 	} else {
-		dput(nd->path.dentry);
-		nd->path.dentry = parent;
+		return step_into(nd, WALK_NOFOLLOW, parent, parent->d_inode, 0);
 	}
-	follow_mount(&nd->path);
-	nd->inode = nd->path.dentry->d_inode;
-	return NULL;
 }
 
 static const char *handle_dots(struct nameidata *nd, int type)
