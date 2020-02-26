@@ -109,7 +109,7 @@ int qla24xx_async_notify_ack(scsi_qla_host_t *, fc_port_t *,
 int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *, u8*,
     void *, u8);
 int qla24xx_fcport_handle_login(struct scsi_qla_host *, fc_port_t *);
-int qla24xx_detect_sfp(scsi_qla_host_t *vha);
+int qla24xx_detect_sfp(scsi_qla_host_t *);
 int qla24xx_post_gpdb_work(struct scsi_qla_host *, fc_port_t *, u8);
 
 extern void qla28xx_get_aux_images(struct scsi_qla_host *,

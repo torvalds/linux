@@ -1867,9 +1867,8 @@ struct access_chip_rsp_84xx {
 
 /* LR Distance bit positions */
 #define LR_DIST_NV_POS		2
+#define LR_DIST_NV_MASK		0xf
 #define LR_DIST_FW_POS		12
-#define LR_DIST_FW_SHIFT	(LR_DIST_FW_POS - LR_DIST_NV_POS)
-#define LR_DIST_FW_FIELD(x)	((x) << LR_DIST_FW_SHIFT & 0xf000)
 
 /* FAC semaphore defines */
 #define FAC_SEMAPHORE_UNLOCK    0

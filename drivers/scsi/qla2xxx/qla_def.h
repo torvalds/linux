@@ -1049,6 +1049,7 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 #define MBA_TEMPERATURE_ALERT	0x8070	/* Temperature Alert */
 #define MBA_DPORT_DIAGNOSTICS	0x8080	/* D-port Diagnostics */
 #define MBA_TRANS_INSERT	0x8130	/* Transceiver Insertion */
+#define MBA_TRANS_REMOVE	0x8131	/* Transceiver Removal */
 #define MBA_FW_INIT_FAILURE	0x8401	/* Firmware initialization failure */
 #define MBA_MIRROR_LUN_CHANGE	0x8402	/* Mirror LUN State Change
 					   Notification */
@@ -3802,8 +3803,8 @@ struct qla_hw_data {
 		uint32_t	fw_started:1;
 		uint32_t	fw_init_done:1;
 
-		uint32_t	detected_lr_sfp:1;
-		uint32_t	using_lr_setting:1;
+		uint32_t	lr_detected:1;
+
 		uint32_t	rida_fmt2:1;
 		uint32_t	purge_mbox:1;
 		uint32_t        n2n_bigger:1;
@@ -3812,7 +3813,7 @@ struct qla_hw_data {
 	} flags;
 
 	uint16_t max_exchg;
-	uint16_t long_range_distance;	/* 32G & above */
+	uint16_t lr_distance;	/* 32G & above */
 #define LR_DISTANCE_5K  1
 #define LR_DISTANCE_10K 0
 
@@ -4971,11 +4972,14 @@ struct sff_8247_a0 {
 	u8 resv2[128];
 };
 
-#define AUTO_DETECT_SFP_SUPPORT(_vha)\
-	(ql2xautodetectsfp && !_vha->vp_idx &&		\
-	(IS_QLA25XX(_vha->hw) || IS_QLA81XX(_vha->hw) ||\
-	IS_QLA83XX(_vha->hw) || IS_QLA27XX(_vha->hw) || \
-	 IS_QLA28XX(_vha->hw)))
+/* BPM -- Buffer Plus Management support. */
+#define IS_BPM_CAPABLE(ha) \
+	(IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha) || \
+	 IS_QLA27XX(ha) || IS_QLA28XX(ha))
+#define IS_BPM_RANGE_CAPABLE(ha) \
+	(IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
+#define IS_BPM_ENABLED(vha) \
+	(ql2xautodetectsfp && !vha->vp_idx && IS_BPM_CAPABLE(vha->hw))
 
 #define FLASH_SEMAPHORE_REGISTER_ADDR   0x00101016
 

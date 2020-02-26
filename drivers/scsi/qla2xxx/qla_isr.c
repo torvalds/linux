@@ -960,10 +960,6 @@ skip_rio:
 		vha->flags.management_server_logged_in = 0;
 		qla2x00_post_aen_work(vha, FCH_EVT_LINKUP, ha->link_data_rate);
 
-		if (AUTO_DETECT_SFP_SUPPORT(vha)) {
-			set_bit(DETECT_SFP_CHANGE, &vha->dpc_flags);
-			qla2xxx_wake_dpc(vha);
-		}
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
@@ -1436,6 +1432,11 @@ global_port_update:
 	case MBA_TRANS_INSERT:
 		ql_dbg(ql_dbg_async, vha, 0x5091,
 		    "Transceiver Insertion: %04x\n", mb[1]);
+		set_bit(DETECT_SFP_CHANGE, &vha->dpc_flags);
+		break;
+
+	case MBA_TRANS_REMOVE:
+		ql_dbg(ql_dbg_async, vha, 0x5091, "Transceiver Removal\n");
 		break;
 
 	default:

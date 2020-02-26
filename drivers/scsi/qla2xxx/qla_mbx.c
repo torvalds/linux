@@ -643,28 +643,6 @@ qla2x00_load_ram(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t risc_addr,
 }
 
 #define	NVME_ENABLE_FLAG	BIT_3
-static inline uint16_t qla25xx_set_sfp_lr_dist(struct qla_hw_data *ha)
-{
-	uint16_t mb4 = BIT_0;
-
-	if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
-		mb4 |= ha->long_range_distance << LR_DIST_FW_POS;
-
-	return mb4;
-}
-
-static inline uint16_t qla25xx_set_nvr_lr_dist(struct qla_hw_data *ha)
-{
-	uint16_t mb4 = BIT_0;
-
-	if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
-		struct nvram_81xx *nv = ha->nvram;
-
-		mb4 |= LR_DIST_FW_FIELD(nv->enhanced_features);
-	}
-
-	return mb4;
-}
 
 /*
  * qla2x00_execute_fw
@@ -701,25 +679,13 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		mcp->mb[3] = 0;
 		mcp->mb[4] = 0;
 		mcp->mb[11] = 0;
-		ha->flags.using_lr_setting = 0;
-		if (IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha) ||
-		    IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
-			if (ql2xautodetectsfp) {
-				if (ha->flags.detected_lr_sfp) {
-					mcp->mb[4] |=
-					    qla25xx_set_sfp_lr_dist(ha);
-					ha->flags.using_lr_setting = 1;
-				}
-			} else {
-				struct nvram_81xx *nv = ha->nvram;
-				/* set LR distance if specified in nvram */
-				if (nv->enhanced_features &
-				    NEF_LR_DIST_ENABLE) {
-					mcp->mb[4] |=
-					    qla25xx_set_nvr_lr_dist(ha);
-					ha->flags.using_lr_setting = 1;
-				}
-			}
+
+		/* Enable BPM? */
+		if (ha->flags.lr_detected) {
+			mcp->mb[4] = BIT_0;
+			if (IS_BPM_RANGE_CAPABLE(ha))
+				mcp->mb[4] |=
+				    ha->lr_distance << LR_DIST_FW_POS;
 		}
 
 		if (ql2xnvmeenable && (IS_QLA27XX(ha) || IS_QLA28XX(ha)))
