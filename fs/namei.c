@@ -1365,7 +1365,9 @@ static inline int handle_mounts(struct nameidata *nd, struct dentry *dentry,
 
 static int follow_dotdot_rcu(struct nameidata *nd)
 {
+	struct dentry *parent = NULL;
 	struct inode *inode = nd->inode;
+	unsigned seq;
 
 	while (1) {
 		if (path_equal(&nd->path, &nd->root)) {
@@ -1375,15 +1377,12 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 		}
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
 			struct dentry *old = nd->path.dentry;
-			struct dentry *parent = old->d_parent;
-			unsigned seq;
 
+			parent = old->d_parent;
 			inode = parent->d_inode;
 			seq = read_seqcount_begin(&parent->d_seq);
 			if (unlikely(read_seqcount_retry(&old->d_seq, nd->seq)))
 				return -ECHILD;
-			nd->path.dentry = parent;
-			nd->seq = seq;
 			if (unlikely(!path_connected(nd->path.mnt, parent)))
 				return -ECHILD;
 			break;
@@ -1405,6 +1404,10 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 			inode = inode2;
 			nd->seq = seq;
 		}
+	}
+	if (likely(parent)) {
+		nd->path.dentry = parent;
+		nd->seq = seq;
 	}
 	while (unlikely(d_mountpoint(nd->path.dentry))) {
 		struct mount *mounted;
@@ -1442,7 +1445,7 @@ static void follow_mount(struct path *path)
 
 static int follow_dotdot(struct nameidata *nd)
 {
-	struct dentry *parent;
+	struct dentry *parent = NULL;
 	while (1) {
 		if (path_equal(&nd->path, &nd->root)) {
 			if (unlikely(nd->flags & LOOKUP_BENEATH))
@@ -1452,19 +1455,20 @@ static int follow_dotdot(struct nameidata *nd)
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
 			/* rare case of legitimate dget_parent()... */
 			parent = dget_parent(nd->path.dentry);
-
 			if (unlikely(!path_connected(nd->path.mnt, parent))) {
 				dput(parent);
 				return -ENOENT;
 			}
-			dput(nd->path.dentry);
-			nd->path.dentry = parent;
 			break;
 		}
 		if (!follow_up(&nd->path))
 			break;
 		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
 			return -EXDEV;
+	}
+	if (likely(parent)) {
+		dput(nd->path.dentry);
+		nd->path.dentry = parent;
 	}
 	follow_mount(&nd->path);
 	nd->inode = nd->path.dentry->d_inode;
