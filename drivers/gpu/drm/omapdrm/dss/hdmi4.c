@@ -321,47 +321,6 @@ static void hdmi_disconnect(struct omap_dss_device *src,
 	omapdss_device_disconnect(dst, dst->next);
 }
 
-#define MAX_EDID	512
-
-static struct edid *hdmi_read_edid_data(struct omap_hdmi *hdmi,
-					struct drm_connector *connector)
-{
-	u8 *edid;
-	int r;
-
-	edid = kzalloc(MAX_EDID, GFP_KERNEL);
-	if (!edid)
-		return NULL;
-
-	r = hdmi4_core_ddc_read(&hdmi->core, edid, 0, EDID_LENGTH);
-	if (r)
-		goto error;
-
-	if (edid[0x7e] > 0) {
-		char checksum = 0;
-		unsigned int i;
-
-		r = hdmi4_core_ddc_read(&hdmi->core, edid + EDID_LENGTH, 1,
-					EDID_LENGTH);
-		if (r)
-			goto error;
-
-		for (i = 0; i < EDID_LENGTH; ++i)
-			checksum += edid[EDID_LENGTH + i];
-
-		if (checksum != 0) {
-			DSSERR("E-EDID checksum failed!!\n");
-			goto error;
-		}
-	}
-
-	return (struct edid *)edid;
-
-error:
-	kfree(edid);
-	return NULL;
-}
-
 static struct edid *
 hdmi_do_read_edid(struct omap_hdmi *hdmi,
 		  struct edid *(*read)(struct omap_hdmi *hdmi,
@@ -411,28 +370,9 @@ done:
 	return edid;
 }
 
-static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
-{
-	return hdmi_do_read_edid(dssdev_to_hdmi(dssdev), hdmi_read_edid_data,
-				 NULL);
-}
-
-static void hdmi_lost_hotplug(struct omap_dss_device *dssdev)
-{
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-
-	hdmi4_cec_set_phys_addr(&hdmi->core, CEC_PHYS_ADDR_INVALID);
-}
-
 static const struct omap_dss_device_ops hdmi_ops = {
 	.connect		= hdmi_connect,
 	.disconnect		= hdmi_disconnect,
-
-	.read_edid		= hdmi_read_edid,
-
-	.hdmi = {
-		.lost_hotplug		= hdmi_lost_hotplug,
-	},
 };
 
 /* -----------------------------------------------------------------------------
@@ -804,7 +744,6 @@ static int hdmi4_init_output(struct omap_hdmi *hdmi)
 	out->ops = &hdmi_ops;
 	out->owner = THIS_MODULE;
 	out->of_port = 0;
-	out->ops_flags = OMAP_DSS_DEVICE_OP_EDID;
 
 	r = omapdss_device_init_output(out, &hdmi->bridge);
 	if (r < 0) {

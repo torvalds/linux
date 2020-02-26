@@ -285,10 +285,6 @@ struct omap_dss_writeback_info {
 	u8 pre_mult_alpha;
 };
 
-struct omapdss_hdmi_ops {
-	void (*lost_hotplug)(struct omap_dss_device *dssdev);
-};
-
 struct omapdss_dsi_ops {
 	void (*disable)(struct omap_dss_device *dssdev, bool disconnect_lanes,
 			bool enter_ulps);
@@ -356,36 +352,17 @@ struct omap_dss_device_ops {
 	void (*set_timings)(struct omap_dss_device *dssdev,
 			    const struct drm_display_mode *mode);
 
-	bool (*detect)(struct omap_dss_device *dssdev);
-
-	void (*register_hpd_cb)(struct omap_dss_device *dssdev,
-				void (*cb)(void *cb_data,
-					  enum drm_connector_status status),
-				void *cb_data);
-	void (*unregister_hpd_cb)(struct omap_dss_device *dssdev);
-
-	struct edid *(*read_edid)(struct omap_dss_device *dssdev);
-
 	int (*get_modes)(struct omap_dss_device *dssdev,
 			 struct drm_connector *connector);
 
-	union {
-		const struct omapdss_hdmi_ops hdmi;
-		const struct omapdss_dsi_ops dsi;
-	};
+	const struct omapdss_dsi_ops dsi;
 };
 
 /**
  * enum omap_dss_device_ops_flag - Indicates which device ops are supported
- * @OMAP_DSS_DEVICE_OP_DETECT: The device supports output connection detection
- * @OMAP_DSS_DEVICE_OP_HPD: The device supports all hot-plug-related operations
- * @OMAP_DSS_DEVICE_OP_EDID: The device supports reading EDID
  * @OMAP_DSS_DEVICE_OP_MODES: The device supports reading modes
  */
 enum omap_dss_device_ops_flag {
-	OMAP_DSS_DEVICE_OP_DETECT = BIT(0),
-	OMAP_DSS_DEVICE_OP_HPD = BIT(1),
-	OMAP_DSS_DEVICE_OP_EDID = BIT(2),
 	OMAP_DSS_DEVICE_OP_MODES = BIT(3),
 };
 

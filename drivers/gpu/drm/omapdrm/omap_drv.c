@@ -422,9 +422,7 @@ static void omap_modeset_enable_external_hpd(struct drm_device *ddev)
 		if (!connector)
 			continue;
 
-		if (priv->pipes[i].output->next)
-			omap_connector_enable_hpd(connector);
-		else
+		if (priv->pipes[i].output->bridge)
 			drm_bridge_connector_enable_hpd(connector);
 	}
 }
@@ -443,9 +441,7 @@ static void omap_modeset_disable_external_hpd(struct drm_device *ddev)
 		if (!connector)
 			continue;
 
-		if (priv->pipes[i].output->next)
-			omap_connector_disable_hpd(connector);
-		else
+		if (priv->pipes[i].output->bridge)
 			drm_bridge_connector_disable_hpd(connector);
 	}
 }

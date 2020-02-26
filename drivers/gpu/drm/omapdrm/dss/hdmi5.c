@@ -319,43 +319,6 @@ static void hdmi_disconnect(struct omap_dss_device *src,
 	omapdss_device_disconnect(dst, dst->next);
 }
 
-#define MAX_EDID	512
-
-static struct edid *hdmi_read_edid_data(struct omap_hdmi *hdmi,
-					struct drm_connector *connector)
-{
-	struct hdmi_core_data *core = &hdmi->core;
-	int max_ext_blocks = 3;
-	int r, n, i;
-	u8 *edid;
-
-	edid = kzalloc(MAX_EDID, GFP_KERNEL);
-	if (!edid)
-		return NULL;
-
-	r = hdmi5_core_ddc_read(core, edid, 0, EDID_LENGTH);
-	if (r)
-		goto error;
-
-	n = edid[0x7e];
-
-	if (n > max_ext_blocks)
-		n = max_ext_blocks;
-
-	for (i = 1; i <= n; i++) {
-		r = hdmi5_core_ddc_read(core, edid + i * EDID_LENGTH, i,
-					EDID_LENGTH);
-		if (r)
-			goto error;
-	}
-
-	return (struct edid *)edid;
-
-error:
-	kfree(edid);
-	return NULL;
-}
-
 static struct edid *
 hdmi_do_read_edid(struct omap_hdmi *hdmi,
 		  struct edid *(*read)(struct omap_hdmi *hdmi,
@@ -400,17 +363,9 @@ hdmi_do_read_edid(struct omap_hdmi *hdmi,
 	return (struct edid *)edid;
 }
 
-static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
-{
-	return hdmi_do_read_edid(dssdev_to_hdmi(dssdev), hdmi_read_edid_data,
-				 NULL);
-}
-
 static const struct omap_dss_device_ops hdmi_ops = {
 	.connect		= hdmi_connect,
 	.disconnect		= hdmi_disconnect,
-
-	.read_edid		= hdmi_read_edid,
 };
 
 /* -----------------------------------------------------------------------------
@@ -763,7 +718,6 @@ static int hdmi5_init_output(struct omap_hdmi *hdmi)
 	out->ops = &hdmi_ops;
 	out->owner = THIS_MODULE;
 	out->of_port = 0;
-	out->ops_flags = OMAP_DSS_DEVICE_OP_EDID;
 
 	r = omapdss_device_init_output(out, &hdmi->bridge);
 	if (r < 0) {
