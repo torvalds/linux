@@ -77,6 +77,9 @@ int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 				 struct mlx5dr_action *action);
 
 struct mlx5dr_action *
+mlx5dr_action_create_dest_table_num(struct mlx5dr_domain *dmn, u32 table_num);
+
+struct mlx5dr_action *
 mlx5dr_action_create_dest_table(struct mlx5dr_table *table);
 
 struct mlx5dr_action *
