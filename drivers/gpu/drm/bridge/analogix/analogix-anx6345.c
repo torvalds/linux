@@ -520,10 +520,16 @@ static const struct drm_connector_funcs anx6345_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int anx6345_bridge_attach(struct drm_bridge *bridge)
+static int anx6345_bridge_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
 {
 	struct anx6345 *anx6345 = bridge_to_anx6345(bridge);
 	int err;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");

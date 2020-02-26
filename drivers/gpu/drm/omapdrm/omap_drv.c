@@ -297,7 +297,7 @@ static int omap_modeset_init(struct drm_device *dev)
 
 		if (pipe->output->bridge) {
 			ret = drm_bridge_attach(pipe->encoder,
-						pipe->output->bridge, NULL);
+						pipe->output->bridge, NULL, 0);
 			if (ret < 0)
 				return ret;
 		}

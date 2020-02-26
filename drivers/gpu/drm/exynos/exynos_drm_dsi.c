@@ -1540,7 +1540,7 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 
 	out_bridge  = of_drm_find_bridge(device->dev.of_node);
 	if (out_bridge) {
-		drm_bridge_attach(encoder, out_bridge, NULL);
+		drm_bridge_attach(encoder, out_bridge, NULL, 0);
 		dsi->out_bridge = out_bridge;
 		list_splice_init(&encoder->bridge_chain, &dsi->bridge_chain);
 	} else {
@@ -1717,7 +1717,7 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	if (dsi->in_bridge_node) {
 		in_bridge = of_drm_find_bridge(dsi->in_bridge_node);
 		if (in_bridge)
-			drm_bridge_attach(encoder, in_bridge, NULL);
+			drm_bridge_attach(encoder, in_bridge, NULL, 0);
 	}
 
 	return mipi_dsi_host_register(&dsi->dsi_host);

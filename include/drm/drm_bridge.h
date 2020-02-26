@@ -40,6 +40,17 @@ struct edid;
 struct i2c_adapter;
 
 /**
+ * enum drm_bridge_attach_flags - Flags for &drm_bridge_funcs.attach
+ */
+enum drm_bridge_attach_flags {
+	/**
+	 * @DRM_BRIDGE_ATTACH_NO_CONNECTOR: When this flag is set the bridge
+	 * shall not create a drm_connector.
+	 */
+	DRM_BRIDGE_ATTACH_NO_CONNECTOR = BIT(0),
+};
+
+/**
  * struct drm_bridge_funcs - drm_bridge control functions
  */
 struct drm_bridge_funcs {
@@ -47,7 +58,8 @@ struct drm_bridge_funcs {
 	 * @attach:
 	 *
 	 * This callback is invoked whenever our bridge is being attached to a
-	 * &drm_encoder.
+	 * &drm_encoder. The flags argument tunes the behaviour of the attach
+	 * operation (see DRM_BRIDGE_ATTACH_*).
 	 *
 	 * The @attach callback is optional.
 	 *
@@ -55,7 +67,8 @@ struct drm_bridge_funcs {
 	 *
 	 * Zero on success, error code on failure.
 	 */
-	int (*attach)(struct drm_bridge *bridge);
+	int (*attach)(struct drm_bridge *bridge,
+		      enum drm_bridge_attach_flags flags);
 
 	/**
 	 * @detach:
@@ -757,7 +770,8 @@ void drm_bridge_add(struct drm_bridge *bridge);
 void drm_bridge_remove(struct drm_bridge *bridge);
 struct drm_bridge *of_drm_find_bridge(struct device_node *np);
 int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
-		      struct drm_bridge *previous);
+		      struct drm_bridge *previous,
+		      enum drm_bridge_attach_flags flags);
 
 /**
  * drm_bridge_get_next_bridge() - Get the next bridge in the chain

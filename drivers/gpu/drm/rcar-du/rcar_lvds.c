@@ -23,6 +23,7 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include "rcar_lvds.h"
@@ -643,7 +644,8 @@ static bool rcar_lvds_mode_fixup(struct drm_bridge *bridge,
 	return true;
 }
 
-static int rcar_lvds_attach(struct drm_bridge *bridge)
+static int rcar_lvds_attach(struct drm_bridge *bridge,
+			    enum drm_bridge_attach_flags flags)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 	struct drm_connector *connector = &lvds->connector;
@@ -653,7 +655,12 @@ static int rcar_lvds_attach(struct drm_bridge *bridge)
 	/* If we have a next bridge just attach it. */
 	if (lvds->next_bridge)
 		return drm_bridge_attach(bridge->encoder, lvds->next_bridge,
-					 bridge);
+					 bridge, flags);
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	/* Otherwise if we have a panel, create a connector. */
 	if (!lvds->panel)

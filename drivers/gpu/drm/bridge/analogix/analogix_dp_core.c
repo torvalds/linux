@@ -1216,12 +1216,18 @@ static const struct drm_connector_funcs analogix_dp_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int analogix_dp_bridge_attach(struct drm_bridge *bridge)
+static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
+				     enum drm_bridge_attach_flags flags)
 {
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_encoder *encoder = dp->encoder;
 	struct drm_connector *connector = NULL;
 	int ret = 0;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");
@@ -1598,7 +1604,7 @@ static int analogix_dp_create_bridge(struct drm_device *drm_dev,
 	bridge->driver_private = dp;
 	bridge->funcs = &analogix_dp_bridge_funcs;
 
-	ret = drm_bridge_attach(dp->encoder, bridge, NULL);
+	ret = drm_bridge_attach(dp->encoder, bridge, NULL, 0);
 	if (ret) {
 		DRM_ERROR("failed to attach drm bridge\n");
 		return -EINVAL;
