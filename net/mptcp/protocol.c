@@ -111,6 +111,14 @@ static struct sock *mptcp_subflow_get(const struct mptcp_sock *msk)
 	return NULL;
 }
 
+void mptcp_data_ready(struct sock *sk)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	set_bit(MPTCP_DATA_READY, &msk->flags);
+	sk->sk_data_ready(sk);
+}
+
 static bool mptcp_ext_cache_refill(struct mptcp_sock *msk)
 {
 	if (!msk->cached_ext)
