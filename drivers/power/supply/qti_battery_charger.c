@@ -7,6 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/rpmsg.h>
 #include <linux/mutex.h>
@@ -144,6 +145,9 @@ struct battery_chg_dev {
 	struct mutex			rw_lock;
 	struct completion		ack;
 	struct psy_state		psy_list[PSY_TYPE_MAX];
+	u32				*thermal_levels;
+	int				curr_thermal_level;
+	int				num_thermal_levels;
 };
 
 static const int battery_prop_map[BATT_PROP_MAX] = {
@@ -616,6 +620,30 @@ static const struct power_supply_desc usb_psy_desc = {
 	.property_is_writeable	= usb_psy_prop_is_writeable,
 };
 
+static int battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
+					int val)
+{
+	int rc;
+	u32 fcc_ua;
+
+	if (!bcdev->num_thermal_levels)
+		return 0;
+
+	if (val < 0 || val > bcdev->num_thermal_levels)
+		return -EINVAL;
+
+	fcc_ua = bcdev->thermal_levels[val];
+
+	rc = write_property_id(bcdev, &bcdev->psy_list[PSY_TYPE_BATTERY],
+				BATT_CHG_CTRL_LIM, fcc_ua);
+	if (!rc) {
+		bcdev->curr_thermal_level = val;
+		pr_debug("Set FCC to %u uA\n", fcc_ua);
+	}
+
+	return rc;
+}
+
 static int battery_psy_get_prop(struct power_supply *psy,
 		enum power_supply_property prop,
 		union power_supply_propval *pval)
@@ -644,6 +672,12 @@ static int battery_psy_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP:
 		pval->intval = DIV_ROUND_CLOSEST((int)pst->prop[prop_id], 10);
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+		pval->intval = bcdev->curr_thermal_level;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX:
+		pval->intval = bcdev->num_thermal_levels;
+		break;
 	default:
 		pval->intval = pst->prop[prop_id];
 		break;
@@ -656,12 +690,28 @@ static int battery_psy_set_prop(struct power_supply *psy,
 		enum power_supply_property prop,
 		const union power_supply_propval *pval)
 {
+	struct battery_chg_dev *bcdev = power_supply_get_drvdata(psy);
+
+	switch (prop) {
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+		return battery_psy_set_charge_current(bcdev, pval->intval);
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
 static int battery_psy_prop_is_writeable(struct power_supply *psy,
 		enum power_supply_property prop)
 {
+	switch (prop) {
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+		return 1;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
@@ -867,6 +917,53 @@ static struct attribute *battery_class_attrs[] = {
 };
 ATTRIBUTE_GROUPS(battery_class);
 
+static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
+{
+	struct device_node *node = bcdev->dev->of_node;
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int i, rc, len;
+
+	rc = of_property_count_elems_of_size(node, "qcom,thermal-mitigation",
+						sizeof(u32));
+	if (rc <= 0)
+		return 0;
+
+	len = rc;
+	bcdev->thermal_levels = devm_kcalloc(bcdev->dev, len + 1,
+					sizeof(*bcdev->thermal_levels),
+					GFP_KERNEL);
+	if (!bcdev->thermal_levels)
+		return -ENOMEM;
+
+	/*
+	 * Element 0 is for normal charging current. Elements from index 1
+	 * onwards is for thermal mitigation charging currents.
+	 */
+	rc = of_property_read_u32_array(node, "qcom,thermal-mitigation",
+					&bcdev->thermal_levels[1], len);
+	if (rc < 0) {
+		pr_err("Error in reading qcom,thermal-mitigation, rc=%d\n", rc);
+		return rc;
+	}
+
+	rc = read_property_id(bcdev, pst, BATT_CHG_CTRL_LIM_MAX);
+	if (rc < 0)
+		return rc;
+
+	bcdev->thermal_levels[0] = pst->prop[BATT_CHG_CTRL_LIM_MAX];
+
+	for (i = 1; i <= len; i++) {
+		if (bcdev->thermal_levels[i] > bcdev->thermal_levels[i - 1]) {
+			pr_err("Thermal levels should be in descending order\n");
+			return -EINVAL;
+		}
+	}
+
+	bcdev->num_thermal_levels = len;
+
+	return 0;
+}
+
 static int battery_chg_probe(struct platform_device *pdev)
 {
 	struct battery_chg_dev *bcdev;
@@ -905,7 +1002,10 @@ static int battery_chg_probe(struct platform_device *pdev)
 	if (!bcdev->psy_list[PSY_TYPE_BATTERY].model)
 		return -ENOMEM;
 
+	mutex_init(&bcdev->rw_lock);
+	init_completion(&bcdev->ack);
 	bcdev->dev = dev;
+
 	client_data.id = MSG_OWNER_BC;
 	client_data.name = "battery_charger";
 	client_data.msg_cb = battery_chg_callback;
@@ -920,9 +1020,11 @@ static int battery_chg_probe(struct platform_device *pdev)
 		return rc;
 	}
 
+	rc = battery_chg_parse_dt(bcdev);
+	if (rc < 0)
+		goto error;
+
 	platform_set_drvdata(pdev, bcdev);
-	mutex_init(&bcdev->rw_lock);
-	init_completion(&bcdev->ack);
 	rc = battery_chg_init_psy(bcdev);
 	if (rc < 0)
 		goto error;
