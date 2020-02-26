@@ -76,7 +76,7 @@ static struct qrtr_node *node_get(unsigned int node_id)
 	/* If node didn't exist, allocate and insert it to the tree */
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	node->id = node_id;
 
@@ -224,7 +224,7 @@ static struct qrtr_server *server_add(unsigned int service,
 
 	srv = kzalloc(sizeof(*srv), GFP_KERNEL);
 	if (!srv)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	srv->service = service;
 	srv->instance = instance;
