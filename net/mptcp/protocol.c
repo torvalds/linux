@@ -238,9 +238,16 @@ void mptcp_data_ready(struct sock *sk, struct sock *ssk)
 	if (atomic_read(&sk->sk_rmem_alloc) > READ_ONCE(sk->sk_rcvbuf))
 		goto wake;
 
-	if (schedule_work(&msk->work))
-		sock_hold((struct sock *)msk);
+	/* mptcp socket is owned, release_cb should retry */
+	if (!test_and_set_bit(TCP_DELACK_TIMER_DEFERRED,
+			      &sk->sk_tsq_flags)) {
+		sock_hold(sk);
 
+		/* need to try again, its possible release_cb() has already
+		 * been called after the test_and_set_bit() above.
+		 */
+		move_skbs_to_msk(msk, ssk);
+	}
 wake:
 	sk->sk_data_ready(sk);
 }
@@ -941,6 +948,32 @@ static int mptcp_getsockopt(struct sock *sk, int level, int optname,
 	return -EOPNOTSUPP;
 }
 
+#define MPTCP_DEFERRED_ALL TCPF_DELACK_TIMER_DEFERRED
+
+/* this is very alike tcp_release_cb() but we must handle differently a
+ * different set of events
+ */
+static void mptcp_release_cb(struct sock *sk)
+{
+	unsigned long flags, nflags;
+
+	do {
+		flags = sk->sk_tsq_flags;
+		if (!(flags & MPTCP_DEFERRED_ALL))
+			return;
+		nflags = flags & ~MPTCP_DEFERRED_ALL;
+	} while (cmpxchg(&sk->sk_tsq_flags, flags, nflags) != flags);
+
+	if (flags & TCPF_DELACK_TIMER_DEFERRED) {
+		struct mptcp_sock *msk = mptcp_sk(sk);
+		struct sock *ssk;
+
+		ssk = mptcp_subflow_recv_lookup(msk);
+		if (!ssk || !schedule_work(&msk->work))
+			__sock_put(sk);
+	}
+}
+
 static int mptcp_get_port(struct sock *sk, unsigned short snum)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
@@ -1016,6 +1049,7 @@ static struct proto mptcp_prot = {
 	.destroy	= mptcp_destroy,
 	.sendmsg	= mptcp_sendmsg,
 	.recvmsg	= mptcp_recvmsg,
+	.release_cb	= mptcp_release_cb,
 	.hash		= inet_hash,
 	.unhash		= inet_unhash,
 	.get_port	= mptcp_get_port,
