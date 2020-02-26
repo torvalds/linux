@@ -4647,6 +4647,9 @@ EXPORT_SYMBOL(drm_av_sync_delay);
  *
  * Parse the CEA extension according to CEA-861-B.
  *
+ * Drivers that have added the modes parsed from EDID to drm_display_info
+ * should use &drm_display_info.is_hdmi instead of calling this function.
+ *
  * Return: True if the monitor is HDMI, false if not or unknown.
  */
 bool drm_detect_hdmi_monitor(struct edid *edid)
@@ -4881,6 +4884,8 @@ drm_parse_hdmi_vsdb_video(struct drm_connector *connector, const u8 *db)
 	struct drm_display_info *info = &connector->display_info;
 	u8 len = cea_db_payload_len(db);
 
+	info->is_hdmi = true;
+
 	if (len >= 6)
 		info->dvi_dual = db[6] & 1;
 	if (len >= 7)
@@ -4949,6 +4954,7 @@ drm_reset_display_info(struct drm_connector *connector)
 	info->cea_rev = 0;
 	info->max_tmds_clock = 0;
 	info->dvi_dual = false;
+	info->is_hdmi = false;
 	info->has_hdmi_infoframe = false;
 	info->rgb_quant_range_selectable = false;
 	memset(&info->hdmi, 0, sizeof(info->hdmi));

@@ -435,6 +435,14 @@ struct drm_display_info {
 	bool dvi_dual;
 
 	/**
+	 * @is_hdmi: True if the sink is an HDMI device.
+	 *
+	 * This field shall be used instead of calling
+	 * drm_detect_hdmi_monitor() when possible.
+	 */
+	bool is_hdmi;
+
+	/**
 	 * @has_hdmi_infoframe: Does the sink support the HDMI infoframe?
 	 */
 	bool has_hdmi_infoframe;

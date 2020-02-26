@@ -407,6 +407,20 @@ Contact: Daniel Vetter
 
 Level: Intermediate
 
+Replace drm_detect_hdmi_monitor() with drm_display_info.is_hdmi
+---------------------------------------------------------------
+
+Once EDID is parsed, the monitor HDMI support information is available through
+drm_display_info.is_hdmi. Many drivers still call drm_detect_hdmi_monitor() to
+retrieve the same information, which is less efficient.
+
+Audit each individual driver calling drm_detect_hdmi_monitor() and switch to
+drm_display_info.is_hdmi if applicable.
+
+Contact: Laurent Pinchart, respective driver maintainers
+
+Level: Intermediate
+
 Core refactorings
 =================
 
