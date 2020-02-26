@@ -88,11 +88,12 @@ smu_v12_0_send_msg_with_param(struct smu_context *smu,
 	if (index < 0)
 		return index;
 
+	mutex_lock(&smu->message_lock);
 	ret = smu_v12_0_wait_for_response(smu);
 	if (ret) {
 		pr_err("Msg issuing pre-check failed and "
 		       "SMU may be not in the right state!\n");
-		return ret;
+		goto out;
 	}
 
 	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
@@ -105,17 +106,18 @@ smu_v12_0_send_msg_with_param(struct smu_context *smu,
 	if (ret) {
 		pr_err("Failed to send message 0x%x, response 0x%x param 0x%x\n",
 		       index, ret, param);
-		return ret;
+		goto out;
 	}
 	if (read_arg) {
 		ret = smu_v12_0_read_arg(smu, read_arg);
 		if (ret) {
 			pr_err("Failed to read message arg 0x%x, response 0x%x param 0x%x\n",
 			       index, ret, param);
-			return ret;
+			goto out;
 		}
 	}
-
+out:
+	mutex_unlock(&smu->message_lock);
 	return ret;
 }
 
