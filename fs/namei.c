@@ -1687,31 +1687,29 @@ static const char *step_into(struct nameidata *nd, int flags,
 	return pick_link(nd, &path, inode, seq, flags);
 }
 
-static const char *follow_dotdot_rcu(struct nameidata *nd)
+static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
+					struct inode **inodep,
+					unsigned *seqp)
 {
-	struct dentry *parent = NULL;
-	struct inode *inode = nd->inode;
-	unsigned seq;
-
 	while (1) {
 		if (path_equal(&nd->path, &nd->root))
 			break;
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
 			struct dentry *old = nd->path.dentry;
+			struct dentry *parent = old->d_parent;
 
-			parent = old->d_parent;
-			inode = parent->d_inode;
-			seq = read_seqcount_begin(&parent->d_seq);
+			*inodep = parent->d_inode;
+			*seqp = read_seqcount_begin(&parent->d_seq);
 			if (unlikely(read_seqcount_retry(&old->d_seq, nd->seq)))
 				return ERR_PTR(-ECHILD);
 			if (unlikely(!path_connected(nd->path.mnt, parent)))
 				return ERR_PTR(-ECHILD);
-			break;
+			return parent;
 		} else {
 			struct mount *mnt = real_mount(nd->path.mnt);
 			struct mount *mparent = mnt->mnt_parent;
 			struct dentry *mountpoint = mnt->mnt_mountpoint;
-			struct inode *inode2 = mountpoint->d_inode;
+			struct inode *inode = mountpoint->d_inode;
 			unsigned seq = read_seqcount_begin(&mountpoint->d_seq);
 			if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
 				return ERR_PTR(-ECHILD);
@@ -1722,54 +1720,51 @@ static const char *follow_dotdot_rcu(struct nameidata *nd)
 			/* we know that mountpoint was pinned */
 			nd->path.dentry = mountpoint;
 			nd->path.mnt = &mparent->mnt;
-			inode = nd->inode = inode2;
+			nd->inode = inode;
 			nd->seq = seq;
 		}
 	}
-	if (unlikely(!parent)) {
-		if (unlikely(nd->flags & LOOKUP_BENEATH))
-			return ERR_PTR(-ECHILD);
-		return step_into(nd, WALK_NOFOLLOW,
-				 nd->path.dentry, nd->inode, nd->seq);
-	} else {
-		return step_into(nd, WALK_NOFOLLOW, parent, inode, seq);
-	}
+	if (unlikely(nd->flags & LOOKUP_BENEATH))
+		return ERR_PTR(-ECHILD);
+	return NULL;
 }
 
-static const char *follow_dotdot(struct nameidata *nd)
+static struct dentry *follow_dotdot(struct nameidata *nd,
+				 struct inode **inodep,
+				 unsigned *seqp)
 {
-	struct dentry *parent = NULL;
 	while (1) {
 		if (path_equal(&nd->path, &nd->root))
 			break;
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
 			/* rare case of legitimate dget_parent()... */
-			parent = dget_parent(nd->path.dentry);
+			struct dentry *parent = dget_parent(nd->path.dentry);
 			if (unlikely(!path_connected(nd->path.mnt, parent))) {
 				dput(parent);
 				return ERR_PTR(-ENOENT);
 			}
-			break;
+			*seqp = 0;
+			*inodep = parent->d_inode;
+			return parent;
 		}
 		if (!follow_up(&nd->path))
 			break;
 		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
 			return ERR_PTR(-EXDEV);
 	}
-	if (unlikely(!parent)) {
-		if (unlikely(nd->flags & LOOKUP_BENEATH))
-			return ERR_PTR(-EXDEV);
-		return step_into(nd, WALK_NOFOLLOW,
-				 dget(nd->path.dentry), nd->inode, nd->seq);
-	} else {
-		return step_into(nd, WALK_NOFOLLOW, parent, parent->d_inode, 0);
-	}
+	if (unlikely(nd->flags & LOOKUP_BENEATH))
+		return ERR_PTR(-EXDEV);
+	dget(nd->path.dentry);
+	return NULL;
 }
 
 static const char *handle_dots(struct nameidata *nd, int type)
 {
 	if (type == LAST_DOTDOT) {
 		const char *error = NULL;
+		struct dentry *parent;
+		struct inode *inode;
+		unsigned seq;
 
 		if (!nd->root.mnt) {
 			error = ERR_PTR(set_root(nd));
@@ -1777,10 +1772,18 @@ static const char *handle_dots(struct nameidata *nd, int type)
 				return error;
 		}
 		if (nd->flags & LOOKUP_RCU)
-			error = follow_dotdot_rcu(nd);
+			parent = follow_dotdot_rcu(nd, &inode, &seq);
 		else
-			error = follow_dotdot(nd);
-		if (error)
+			parent = follow_dotdot(nd, &inode, &seq);
+		if (IS_ERR(parent))
+			return ERR_CAST(parent);
+		if (unlikely(!parent))
+			error = step_into(nd, WALK_NOFOLLOW,
+					 nd->path.dentry, nd->inode, nd->seq);
+		else
+			error = step_into(nd, WALK_NOFOLLOW,
+					 parent, inode, seq);
+		if (unlikely(error))
 			return error;
 
 		if (unlikely(nd->flags & LOOKUP_IS_SCOPED)) {
