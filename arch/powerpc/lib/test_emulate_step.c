@@ -160,7 +160,7 @@ static void __init test_std(void)
 
 	/* std r5, 0(r3) */
 	stepped = emulate_step(&regs, TEST_STD(5, 3, 0));
-	if (stepped == 1 || regs.gpr[5] == a)
+	if (stepped == 1 && regs.gpr[5] == a)
 		show_result("std", "PASS");
 	else
 		show_result("std", "FAIL");
