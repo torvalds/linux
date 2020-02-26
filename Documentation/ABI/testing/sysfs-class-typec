@@ -108,6 +108,15 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Revision number of the supported USB Type-C specification.
 
+What:		/sys/class/typec/<port>/orientation
+Date:		February 2020
+Contact:	Badhri Jagan Sridharan <badhri@google.com>
+Description:
+		Indicates the active orientation of the Type-C connector.
+		Valid values:
+		- "normal": CC1 orientation
+		- "reverse": CC2 orientation
+		- "unknown": Orientation cannot be determined.
 
 USB Type-C partner devices (eg. /sys/class/typec/port0-partner/)
 
