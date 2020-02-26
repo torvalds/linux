@@ -3596,6 +3596,25 @@ qla2xxx_msix_rsp_q(int irq, void *dev_id)
 {
 	struct qla_hw_data *ha;
 	struct qla_qpair *qpair;
+
+	qpair = dev_id;
+	if (!qpair) {
+		ql_log(ql_log_info, NULL, 0x505b,
+		    "%s: NULL response queue pointer.\n", __func__);
+		return IRQ_NONE;
+	}
+	ha = qpair->hw;
+
+	queue_work(ha->wq, &qpair->q_work);
+
+	return IRQ_HANDLED;
+}
+
+irqreturn_t
+qla2xxx_msix_rsp_q_hs(int irq, void *dev_id)
+{
+	struct qla_hw_data *ha;
+	struct qla_qpair *qpair;
 	struct device_reg_24xx __iomem *reg;
 	unsigned long flags;
 
@@ -3607,13 +3626,10 @@ qla2xxx_msix_rsp_q(int irq, void *dev_id)
 	}
 	ha = qpair->hw;
 
-	/* Clear the interrupt, if enabled, for this response queue */
-	if (unlikely(!ha->flags.disable_msix_handshake)) {
-		reg = &ha->iobase->isp24;
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	}
+	reg = &ha->iobase->isp24;
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	queue_work(ha->wq, &qpair->q_work);
 
@@ -3632,6 +3648,7 @@ static const struct qla_init_msix_entry msix_entries[] = {
 	{ "rsp_q", qla24xx_msix_rsp_q },
 	{ "atio_q", qla83xx_msix_atio_q },
 	{ "qpair_multiq", qla2xxx_msix_rsp_q },
+	{ "qpair_multiq_hs", qla2xxx_msix_rsp_q_hs },
 };
 
 static const struct qla_init_msix_entry qla82xx_msix_entries[] = {

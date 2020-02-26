@@ -565,6 +565,8 @@ qla2x00_process_completed_request(struct scsi_qla_host *, struct req_que *,
 	uint32_t);
 extern irqreturn_t
 qla2xxx_msix_rsp_q(int irq, void *dev_id);
+extern irqreturn_t
+qla2xxx_msix_rsp_q_hs(int irq, void *dev_id);
 fc_port_t *qla2x00_find_fcport_by_loopid(scsi_qla_host_t *, uint16_t);
 fc_port_t *qla2x00_find_fcport_by_wwpn(scsi_qla_host_t *, u8 *, u8);
 fc_port_t *qla2x00_find_fcport_by_nportid(scsi_qla_host_t *, port_id_t *, u8);

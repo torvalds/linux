@@ -896,7 +896,8 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	    rsp->rsp_q_out);
 
 	ret = qla25xx_request_irq(ha, qpair, qpair->msix,
-	    QLA_MSIX_QPAIR_MULTIQ_RSP_Q);
+		ha->flags.disable_msix_handshake ?
+		QLA_MSIX_QPAIR_MULTIQ_RSP_Q : QLA_MSIX_QPAIR_MULTIQ_RSP_Q_HS);
 	if (ret)
 		goto que_failed;
 
