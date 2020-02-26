@@ -295,7 +295,7 @@ static struct platform_driver simple_bridge_driver = {
 	.probe	= simple_bridge_probe,
 	.remove	= simple_bridge_remove,
 	.driver		= {
-		.name		= "dumb-vga-dac",
+		.name		= "simple-bridge",
 		.of_match_table	= simple_bridge_match,
 	},
 };
