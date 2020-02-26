@@ -1560,9 +1560,7 @@ dmaengine_get_direction_text(enum dma_transfer_direction dir)
 	case DMA_DEV_TO_DEV:
 		return "DEV_TO_DEV";
 	default:
-		break;
+		return "invalid";
 	}
-
-	return "invalid";
 }
 #endif /* DMAENGINE_H */
