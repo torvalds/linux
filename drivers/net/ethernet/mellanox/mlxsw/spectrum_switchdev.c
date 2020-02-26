@@ -2674,19 +2674,24 @@ static void mlxsw_sp_fdb_notify_rec_process(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
-static void mlxsw_sp_fdb_notify_work_schedule(struct mlxsw_sp *mlxsw_sp)
+static void mlxsw_sp_fdb_notify_work_schedule(struct mlxsw_sp *mlxsw_sp,
+					      bool no_delay)
 {
 	struct mlxsw_sp_bridge *bridge = mlxsw_sp->bridge;
+	unsigned int interval = no_delay ? 0 : bridge->fdb_notify.interval;
 
 	mlxsw_core_schedule_dw(&bridge->fdb_notify.dw,
-			       msecs_to_jiffies(bridge->fdb_notify.interval));
+			       msecs_to_jiffies(interval));
 }
+
+#define MLXSW_SP_FDB_SFN_QUERIES_PER_SESSION 10
 
 static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 {
 	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp *mlxsw_sp;
 	char *sfn_pl;
+	int queries;
 	u8 num_rec;
 	int i;
 	int err;
@@ -2699,20 +2704,26 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 	mlxsw_sp = bridge->mlxsw_sp;
 
 	rtnl_lock();
-	mlxsw_reg_sfn_pack(sfn_pl);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(sfn), sfn_pl);
-	if (err) {
-		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to get FDB notifications\n");
-		goto out;
+	queries = MLXSW_SP_FDB_SFN_QUERIES_PER_SESSION;
+	while (queries > 0) {
+		mlxsw_reg_sfn_pack(sfn_pl);
+		err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(sfn), sfn_pl);
+		if (err) {
+			dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to get FDB notifications\n");
+			goto out;
+		}
+		num_rec = mlxsw_reg_sfn_num_rec_get(sfn_pl);
+		for (i = 0; i < num_rec; i++)
+			mlxsw_sp_fdb_notify_rec_process(mlxsw_sp, sfn_pl, i);
+		if (num_rec != MLXSW_REG_SFN_REC_MAX_COUNT)
+			goto out;
+		queries--;
 	}
-	num_rec = mlxsw_reg_sfn_num_rec_get(sfn_pl);
-	for (i = 0; i < num_rec; i++)
-		mlxsw_sp_fdb_notify_rec_process(mlxsw_sp, sfn_pl, i);
 
 out:
 	rtnl_unlock();
 	kfree(sfn_pl);
-	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
+	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp, !queries);
 }
 
 struct mlxsw_sp_switchdev_event_work {
@@ -3458,7 +3469,7 @@ static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 
 	INIT_DELAYED_WORK(&bridge->fdb_notify.dw, mlxsw_sp_fdb_notify_work);
 	bridge->fdb_notify.interval = MLXSW_SP_DEFAULT_LEARNING_INTERVAL;
-	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
+	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp, false);
 	return 0;
 
 err_register_switchdev_blocking_notifier:
