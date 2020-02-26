@@ -1369,6 +1369,7 @@ struct skl_wrpll_params {
 
 static void skl_wrpll_params_populate(struct skl_wrpll_params *params,
 				      u64 afe_clock,
+				      int ref_clock,
 				      u64 central_freq,
 				      u32 p0, u32 p1, u32 p2)
 {
@@ -1428,14 +1429,15 @@ static void skl_wrpll_params_populate(struct skl_wrpll_params *params,
 	 * Intermediate values are in Hz.
 	 * Divide by MHz to match bsepc
 	 */
-	params->dco_integer = div_u64(dco_freq, 24 * MHz(1));
+	params->dco_integer = div_u64(dco_freq, ref_clock * KHz(1));
 	params->dco_fraction =
-		div_u64((div_u64(dco_freq, 24) -
+		div_u64((div_u64(dco_freq, ref_clock / KHz(1)) -
 			 params->dco_integer * MHz(1)) * 0x8000, MHz(1));
 }
 
 static bool
 skl_ddi_calculate_wrpll(int clock /* in Hz */,
+			int ref_clock,
 			struct skl_wrpll_params *wrpll_params)
 {
 	u64 afe_clock = clock * 5; /* AFE Clock is 5x Pixel clock */
@@ -1501,8 +1503,8 @@ skip_remaining_dividers:
 	 */
 	p0 = p1 = p2 = 0;
 	skl_wrpll_get_multipliers(ctx.p, &p0, &p1, &p2);
-	skl_wrpll_params_populate(wrpll_params, afe_clock, ctx.central_freq,
-				  p0, p1, p2);
+	skl_wrpll_params_populate(wrpll_params, afe_clock, ref_clock,
+				  ctx.central_freq, p0, p1, p2);
 
 	return true;
 }
@@ -1520,7 +1522,7 @@ static bool skl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
 
 	ctrl1 |= DPLL_CTRL1_HDMI_MODE(0);
 
-	if (!skl_ddi_calculate_wrpll(crtc_state->port_clock * 1000,
+	if (!skl_ddi_calculate_wrpll(crtc_state->port_clock * 1000, 24000,
 				     &wrpll_params))
 		return false;
 
@@ -1545,6 +1547,7 @@ static bool skl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
 
 static int skl_calc_wrpll_link(const struct intel_dpll_hw_state *pll_state)
 {
+	int ref_clock = 24000;
 	u32 p0, p1, p2, dco_freq;
 
 	p0 = pll_state->cfgcr2 & DPLL_CFGCR2_PDIV_MASK;
@@ -1586,11 +1589,11 @@ static int skl_calc_wrpll_link(const struct intel_dpll_hw_state *pll_state)
 		break;
 	}
 
-	dco_freq = (pll_state->cfgcr1 & DPLL_CFGCR1_DCO_INTEGER_MASK)
-		* 24 * 1000;
+	dco_freq = (pll_state->cfgcr1 & DPLL_CFGCR1_DCO_INTEGER_MASK) *
+		   ref_clock;
 
-	dco_freq += (((pll_state->cfgcr1 & DPLL_CFGCR1_DCO_FRACTION_MASK) >> 9)
-		     * 24 * 1000) / 0x8000;
+	dco_freq += ((pll_state->cfgcr1 & DPLL_CFGCR1_DCO_FRACTION_MASK) >> 9) *
+		    ref_clock / 0x8000;
 
 	if (WARN_ON(p0 == 0 || p1 == 0 || p2 == 0))
 		return 0;
