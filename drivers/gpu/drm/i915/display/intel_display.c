@@ -10138,6 +10138,9 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 					   BIT(PLANE_CURSOR))) == 0)
 		val |= PIPEMISC_HDR_MODE_PRECISION;
 
+	if (INTEL_GEN(dev_priv) >= 12)
+		val |= PIPEMISC_PIXEL_ROUNDING_TRUNC;
+
 	intel_de_write(dev_priv, PIPEMISC(crtc->pipe), val);
 }
 
