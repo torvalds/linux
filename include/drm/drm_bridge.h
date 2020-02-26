@@ -349,9 +349,11 @@ struct drm_bridge_funcs {
 	 * Duplicate the current bridge state object (which is guaranteed to be
 	 * non-NULL).
 	 *
-	 * The atomic_duplicate_state() hook is optional. When not implemented
-	 * the core allocates a drm_bridge_state object and calls
-	 * __drm_atomic_helper_bridge_duplicate_state() to initialize it.
+	 * The atomic_duplicate_state hook is mandatory if the bridge
+	 * implements any of the atomic hooks, and should be left unassigned
+	 * otherwise. For bridges that don't subclass &drm_bridge_state, the
+	 * drm_atomic_helper_bridge_duplicate_state() helper function shall be
+	 * used to implement this hook.
 	 *
 	 * RETURNS:
 	 * A valid drm_bridge_state object or NULL if the allocation fails.
@@ -364,8 +366,11 @@ struct drm_bridge_funcs {
 	 * Destroy a bridge state object previously allocated by
 	 * &drm_bridge_funcs.atomic_duplicate_state().
 	 *
-	 * The atomic_destroy_state hook is optional. When not implemented the
-	 * core calls kfree() on the state.
+	 * The atomic_destroy_state hook is mandatory if the bridge implements
+	 * any of the atomic hooks, and should be left unassigned otherwise.
+	 * For bridges that don't subclass &drm_bridge_state, the
+	 * drm_atomic_helper_bridge_destroy_state() helper function shall be
+	 * used to implement this hook.
 	 */
 	void (*atomic_destroy_state)(struct drm_bridge *bridge,
 				     struct drm_bridge_state *state);
@@ -474,7 +479,10 @@ struct drm_bridge_funcs {
 	 * This function is called at attach time.
 	 *
 	 * The atomic_reset hook is mandatory if the bridge implements any of
-	 * the atomic hooks, and should be left unassigned otherwise.
+	 * the atomic hooks, and should be left unassigned otherwise. For
+	 * bridges that don't subclass &drm_bridge_state, the
+	 * drm_atomic_helper_bridge_reset() helper function shall be used to
+	 * implement this hook.
 	 *
 	 * Note that the atomic_reset() semantics is not exactly matching the
 	 * reset() semantics found on other components (connector, plane, ...).
