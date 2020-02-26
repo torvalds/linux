@@ -370,6 +370,9 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 	set_btree_node_need_write(b);
 
 	bch2_bset_init_first(b, &b->data->keys);
+	b->c.level	= level;
+	b->c.btree_id	= as->btree_id;
+
 	memset(&b->nr, 0, sizeof(b->nr));
 	b->data->magic = cpu_to_le64(bset_magic(c));
 	b->data->flags = 0;
