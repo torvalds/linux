@@ -309,55 +309,6 @@ void hdmi4_core_disable(struct hdmi_core_data *core)
 	mutex_unlock(&hdmi->lock);
 }
 
-static struct edid *
-hdmi_do_read_edid(struct omap_hdmi *hdmi,
-		  struct edid *(*read)(struct omap_hdmi *hdmi,
-				       struct drm_connector *connector),
-		  struct drm_connector *connector)
-{
-	struct edid *edid = NULL;
-	unsigned int cec_addr;
-	bool need_enable;
-	int r;
-
-	need_enable = hdmi->core_enabled == false;
-
-	if (need_enable) {
-		r = hdmi4_core_enable(&hdmi->core);
-		if (r)
-			return NULL;
-	}
-
-	mutex_lock(&hdmi->lock);
-	r = hdmi_runtime_get(hdmi);
-	BUG_ON(r);
-
-	r = hdmi4_core_ddc_init(&hdmi->core);
-	if (r)
-		goto done;
-
-	edid = read(hdmi, connector);
-
-done:
-	hdmi_runtime_put(hdmi);
-	mutex_unlock(&hdmi->lock);
-
-	if (edid && edid->extensions) {
-		unsigned int len = (edid->extensions + 1) * EDID_LENGTH;
-
-		cec_addr = cec_get_edid_phys_addr((u8 *)edid, len, NULL);
-	} else {
-		cec_addr = CEC_PHYS_ADDR_INVALID;
-	}
-
-	hdmi4_cec_set_phys_addr(&hdmi->core, cec_addr);
-
-	if (need_enable)
-		hdmi4_core_disable(&hdmi->core);
-
-	return edid;
-}
-
 /* -----------------------------------------------------------------------------
  * DRM Bridge Operations
  */
@@ -485,18 +436,51 @@ static void hdmi4_bridge_hpd_notify(struct drm_bridge *bridge,
 		hdmi4_cec_set_phys_addr(&hdmi->core, CEC_PHYS_ADDR_INVALID);
 }
 
-static struct edid *hdmi4_bridge_read_edid(struct omap_hdmi *hdmi,
-					   struct drm_connector *connector)
-{
-	return drm_do_get_edid(connector, hdmi4_core_ddc_read, &hdmi->core);
-}
-
 static struct edid *hdmi4_bridge_get_edid(struct drm_bridge *bridge,
 					  struct drm_connector *connector)
 {
 	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
+	struct edid *edid = NULL;
+	unsigned int cec_addr;
+	bool need_enable;
+	int r;
 
-	return hdmi_do_read_edid(hdmi, hdmi4_bridge_read_edid, connector);
+	need_enable = hdmi->core_enabled == false;
+
+	if (need_enable) {
+		r = hdmi4_core_enable(&hdmi->core);
+		if (r)
+			return NULL;
+	}
+
+	mutex_lock(&hdmi->lock);
+	r = hdmi_runtime_get(hdmi);
+	BUG_ON(r);
+
+	r = hdmi4_core_ddc_init(&hdmi->core);
+	if (r)
+		goto done;
+
+	edid = drm_do_get_edid(connector, hdmi4_core_ddc_read, &hdmi->core);
+
+done:
+	hdmi_runtime_put(hdmi);
+	mutex_unlock(&hdmi->lock);
+
+	if (edid && edid->extensions) {
+		unsigned int len = (edid->extensions + 1) * EDID_LENGTH;
+
+		cec_addr = cec_get_edid_phys_addr((u8 *)edid, len, NULL);
+	} else {
+		cec_addr = CEC_PHYS_ADDR_INVALID;
+	}
+
+	hdmi4_cec_set_phys_addr(&hdmi->core, cec_addr);
+
+	if (need_enable)
+		hdmi4_core_disable(&hdmi->core);
+
+	return edid;
 }
 
 static const struct drm_bridge_funcs hdmi4_bridge_funcs = {
