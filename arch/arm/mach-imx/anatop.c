@@ -89,7 +89,6 @@ void imx_anatop_post_resume(void)
 
 	if (cpu_is_imx6sl())
 		imx_anatop_disconnect_high_snvs(false);
-
 }
 
 void __init imx_init_revision_from_anatop(void)
