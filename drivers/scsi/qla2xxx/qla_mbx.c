@@ -3924,10 +3924,28 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 				fcport->scan_state = QLA_FCPORT_SCAN;
 				fcport->n2n_flag = 0;
 			}
+			id.b24 = 0;
+			if (wwn_to_u64(vha->port_name) >
+			    wwn_to_u64(rptid_entry->u.f1.port_name)) {
+				vha->d_id.b24 = 0;
+				vha->d_id.b.al_pa = 1;
+				ha->flags.n2n_bigger = 1;
+
+				id.b.al_pa = 2;
+				ql_dbg(ql_dbg_async, vha, 0x5075,
+				    "Format 1: assign local id %x remote id %x\n",
+				    vha->d_id.b24, id.b24);
+			} else {
+				ql_dbg(ql_dbg_async, vha, 0x5075,
+				    "Format 1: Remote login - Waiting for WWPN %8phC.\n",
+				    rptid_entry->u.f1.port_name);
+				ha->flags.n2n_bigger = 0;
+			}
 
 			fcport = qla2x00_find_fcport_by_wwpn(vha,
 			    rptid_entry->u.f1.port_name, 1);
 			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+
 
 			if (fcport) {
 				fcport->plogi_nack_done_deadline = jiffies + HZ;
@@ -3938,6 +3956,11 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 				fcport->fc4_type = FS_FC4TYPE_FCP;
 				if (vha->flags.nvme_enabled)
 					fcport->fc4_type |= FS_FC4TYPE_NVME;
+
+				if (wwn_to_u64(vha->port_name) >
+				    wwn_to_u64(fcport->port_name)) {
+					fcport->d_id = id;
+				}
 
 				switch (fcport->disc_state) {
 				case DSC_DELETED:
@@ -3951,25 +3974,6 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 					break;
 				}
 			} else {
-				id.b24 = 0;
-				if (wwn_to_u64(vha->port_name) >
-				    wwn_to_u64(rptid_entry->u.f1.port_name)) {
-					vha->d_id.b24 = 0;
-					vha->d_id.b.al_pa = 1;
-					ha->flags.n2n_bigger = 1;
-					ha->flags.n2n_ae = 0;
-
-					id.b.al_pa = 2;
-					ql_dbg(ql_dbg_async, vha, 0x5075,
-					    "Format 1: assign local id %x remote id %x\n",
-					    vha->d_id.b24, id.b24);
-				} else {
-					ql_dbg(ql_dbg_async, vha, 0x5075,
-					    "Format 1: Remote login - Waiting for WWPN %8phC.\n",
-					    rptid_entry->u.f1.port_name);
-					ha->flags.n2n_bigger = 0;
-					ha->flags.n2n_ae = 1;
-				}
 				qla24xx_post_newsess_work(vha, &id,
 				    rptid_entry->u.f1.port_name,
 				    rptid_entry->u.f1.node_name,
