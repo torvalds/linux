@@ -31,8 +31,6 @@ extern int qla24xx_nvram_config(struct scsi_qla_host *);
 extern int qla81xx_nvram_config(struct scsi_qla_host *);
 extern void qla2x00_update_fw_options(struct scsi_qla_host *);
 extern void qla24xx_update_fw_options(scsi_qla_host_t *);
-extern void qla81xx_update_fw_options(scsi_qla_host_t *);
-extern void qla83xx_update_fw_options(scsi_qla_host_t *);
 
 extern int qla2x00_load_risc(struct scsi_qla_host *, uint32_t *);
 extern int qla24xx_load_risc(scsi_qla_host_t *, uint32_t *);
