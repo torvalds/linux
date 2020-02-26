@@ -468,7 +468,7 @@ struct mmc_host {
 	/* Host Software Queue support */
 	bool			hsq_enabled;
 
-	unsigned long		private[0] ____cacheline_aligned;
+	unsigned long		private[] ____cacheline_aligned;
 };
 
 struct device_node;

@@ -75,7 +75,7 @@ struct sdhci_acpi_host {
 	bool				use_runtime_pm;
 	bool				is_intel;
 	bool				reset_signal_volt_on_suspend;
-	unsigned long			private[0] ____cacheline_aligned;
+	unsigned long			private[] ____cacheline_aligned;
 };
 
 enum {

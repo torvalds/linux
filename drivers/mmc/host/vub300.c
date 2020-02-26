@@ -95,7 +95,7 @@ struct sd_response_header {
 	u8 port_number;
 	u8 command_type;
 	u8 command_index;
-	u8 command_response[0];
+	u8 command_response[];
 } __packed;
 
 struct sd_status_header {

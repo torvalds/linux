@@ -614,7 +614,7 @@ struct sdhci_host {
 
 	u64			data_timeout;
 
-	unsigned long private[0] ____cacheline_aligned;
+	unsigned long private[] ____cacheline_aligned;
 };
 
 struct sdhci_ops {
