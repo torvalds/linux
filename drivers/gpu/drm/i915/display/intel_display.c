@@ -16331,7 +16331,6 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	struct intel_plane *plane;
 	const struct drm_plane_funcs *plane_funcs;
 	unsigned int supported_rotations;
-	unsigned int possible_crtcs;
 	const u32 *formats;
 	int num_formats;
 	int ret, zpos;
@@ -16412,18 +16411,16 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	plane->get_hw_state = i9xx_plane_get_hw_state;
 	plane->check_plane = i9xx_plane_check;
 
-	possible_crtcs = BIT(pipe);
-
 	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
-					       possible_crtcs, plane_funcs,
+					       0, plane_funcs,
 					       formats, num_formats,
 					       i9xx_format_modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "primary %c", pipe_name(pipe));
 	else
 		ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
-					       possible_crtcs, plane_funcs,
+					       0, plane_funcs,
 					       formats, num_formats,
 					       i9xx_format_modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
@@ -16465,7 +16462,6 @@ static struct intel_plane *
 intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 			  enum pipe pipe)
 {
-	unsigned int possible_crtcs;
 	struct intel_plane *cursor;
 	int ret, zpos;
 
@@ -16498,10 +16494,8 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv) || HAS_CUR_FBC(dev_priv))
 		cursor->cursor.size = ~0;
 
-	possible_crtcs = BIT(pipe);
-
 	ret = drm_universal_plane_init(&dev_priv->drm, &cursor->base,
-				       possible_crtcs, &intel_cursor_plane_funcs,
+				       0, &intel_cursor_plane_funcs,
 				       intel_cursor_formats,
 				       ARRAY_SIZE(intel_cursor_formats),
 				       cursor_format_modifiers,
@@ -16621,6 +16615,18 @@ static void intel_crtc_free(struct intel_crtc *crtc)
 {
 	intel_crtc_destroy_state(&crtc->base, crtc->base.state);
 	kfree(crtc);
+}
+
+static void intel_plane_possible_crtcs_init(struct drm_i915_private *dev_priv)
+{
+	struct intel_plane *plane;
+
+	for_each_intel_plane(&dev_priv->drm, plane) {
+		struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv,
+								  plane->pipe);
+
+		plane->base.possible_crtcs = drm_crtc_mask(&crtc->base);
+	}
 }
 
 static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
@@ -17847,6 +17853,7 @@ int intel_modeset_init(struct drm_i915_private *i915)
 		}
 	}
 
+	intel_plane_possible_crtcs_init(i915);
 	intel_shared_dpll_init(dev);
 	intel_update_fdi_pll_freq(i915);
 
