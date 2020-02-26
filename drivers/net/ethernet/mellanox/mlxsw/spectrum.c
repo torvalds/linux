@@ -4875,14 +4875,33 @@ static const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops = {
 };
 
 #define MLXSW_SP2_SPAN_EG_MIRROR_BUFFER_FACTOR 38
+#define MLXSW_SP3_SPAN_EG_MIRROR_BUFFER_FACTOR 50
+
+static u32 __mlxsw_sp_span_buffsize_get(int mtu, u32 speed, u32 buffer_factor)
+{
+	return 3 * mtu + buffer_factor * speed / 1000;
+}
 
 static u32 mlxsw_sp2_span_buffsize_get(int mtu, u32 speed)
 {
-	return 3 * mtu + MLXSW_SP2_SPAN_EG_MIRROR_BUFFER_FACTOR * speed / 1000;
+	int factor = MLXSW_SP2_SPAN_EG_MIRROR_BUFFER_FACTOR;
+
+	return __mlxsw_sp_span_buffsize_get(mtu, speed, factor);
 }
 
 static const struct mlxsw_sp_span_ops mlxsw_sp2_span_ops = {
 	.buffsize_get = mlxsw_sp2_span_buffsize_get,
+};
+
+static u32 mlxsw_sp3_span_buffsize_get(int mtu, u32 speed)
+{
+	int factor = MLXSW_SP3_SPAN_EG_MIRROR_BUFFER_FACTOR;
+
+	return __mlxsw_sp_span_buffsize_get(mtu, speed, factor);
+}
+
+static const struct mlxsw_sp_span_ops mlxsw_sp3_span_ops = {
+	.buffsize_get = mlxsw_sp3_span_buffsize_get,
 };
 
 u32 mlxsw_sp_span_buffsize_get(struct mlxsw_sp *mlxsw_sp, int mtu, u32 speed)
@@ -5163,7 +5182,7 @@ static int mlxsw_sp3_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->sb_vals = &mlxsw_sp2_sb_vals;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp2_ptp_ops;
-	mlxsw_sp->span_ops = &mlxsw_sp2_span_ops;
+	mlxsw_sp->span_ops = &mlxsw_sp3_span_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP3;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info, extack);
