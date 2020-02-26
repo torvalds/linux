@@ -1387,7 +1387,7 @@ qla2x00_issue_iocb_timeout(scsi_qla_host_t *vha, void *buffer,
 	mbx_cmd_t	mc;
 	mbx_cmd_t	*mcp = &mc;
 
-	if (qla2x00_chip_is_down(vha))
+	if (!vha->hw->flags.fw_started)
 		return QLA_INVALID_COMMAND;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1038,
