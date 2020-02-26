@@ -950,8 +950,10 @@ static void stmmac_mac_link_down(struct phylink_config *config,
 }
 
 static void stmmac_mac_link_up(struct phylink_config *config,
+			       struct phy_device *phy,
 			       unsigned int mode, phy_interface_t interface,
-			       struct phy_device *phy)
+			       int speed, int duplex,
+			       bool tx_pause, bool rx_pause)
 {
 	struct stmmac_priv *priv = netdev_priv(to_net_dev(config->dev));
 

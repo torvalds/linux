@@ -480,8 +480,11 @@ static void phylink_mac_link_up(struct phylink *pl,
 	struct net_device *ndev = pl->netdev;
 
 	pl->cur_interface = link_state.interface;
-	pl->ops->mac_link_up(pl->config, pl->cur_link_an_mode,
-			     pl->cur_interface, pl->phydev);
+	pl->ops->mac_link_up(pl->config, pl->phydev,
+			     pl->cur_link_an_mode, pl->cur_interface,
+			     link_state.speed, link_state.duplex,
+			     !!(link_state.pause & MLO_PAUSE_TX),
+			     !!(link_state.pause & MLO_PAUSE_RX));
 
 	if (ndev)
 		netif_carrier_on(ndev);
@@ -547,6 +550,8 @@ static void phylink_resolve(struct work_struct *w)
 				link_state.pause = pl->phy_state.pause;
 				phylink_apply_manual_flow(pl, &link_state);
 				phylink_mac_config(pl, &link_state);
+			} else {
+				phylink_apply_manual_flow(pl, &link_state);
 			}
 			break;
 		}
