@@ -27,6 +27,17 @@ config DRM_CDNS_DSI
 	  Support Cadence DPI to DSI bridge. This is an internal
 	  bridge and is meant to be directly embedded in a SoC.
 
+config DRM_DISPLAY_CONNECTOR
+	tristate "Display connector support"
+	depends on OF
+	help
+	  Driver for display connectors with support for DDC and hot-plug
+	  detection. Most display controller handle display connectors
+	  internally and don't need this driver, but the DRM subsystem is
+	  moving towards separating connector handling from display controllers
+	  on ARM-based platforms. Saying Y here when this driver is not needed
+	  will not cause any issue.
+
 config DRM_LVDS_CODEC
 	tristate "Transparent LVDS encoders and decoders support"
 	depends on OF
