@@ -79,6 +79,12 @@
  * requires no intervention from the driver. For other drivers, the relevant
  * DRM bridge chain functions shall be called manually.
  *
+ * Bridges also participate in implementing the &drm_connector at the end of
+ * the bridge chain. Display drivers may use the drm_bridge_connector_init()
+ * helper to create the &drm_connector, or implement it manually on top of the
+ * connector-related operations exposed by the bridge (see the overview
+ * documentation of bridge operations for more details).
+ *
  * &drm_bridge, like &drm_panel, aren't &drm_mode_object entities like planes,
  * CRTCs, encoders or connectors and hence are not visible to userspace. They
  * just provide additional hooks to get the desired output at the end of the
