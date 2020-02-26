@@ -12,7 +12,7 @@
 #include <dt-bindings/sensor-dev.h>
 #include "px30.dtsi"
 #include "px30-android.dtsi"
-
+#include "px30-ddr4p416dd6-timing.dtsi"
 / {
 	model = "Rockchip PX30 evb ddr4 board";
 	compatible = "rockchip,px30-evb-ddr4-v10", "rockchip,px30";
@@ -79,7 +79,7 @@
 			136 137 138 139 140 141 142 143
 			144 145 146 147 148 149 150 151
 			152 153 154 155 156 157 158 159
-			160 161 162 163 164 165 166 167
+			 160 161 162 163 164 165 166 167
 			168 169 170 171 172 173 174 175
 			176 177 178 179 180 181 182 183
 			184 185 186 187 188 189 190 191
@@ -274,6 +274,10 @@
 	};
 };
 
+&chosen {
+	bootargs_ext = "androidboot.boot_devices=ff390000.dwmmc,ff3b0000.nandc";
+};
+
 &dsi_in_vopb {
 	status = "okay";
 };
@@ -294,6 +298,15 @@
 
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
+};
+
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
 };
 
 &emmc {
@@ -441,13 +454,13 @@
 			vcc_1v0: LDO_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <1000000>;
-				regulator-max-microvolt = <1000000>;
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <2500000>;
 				regulator-initial-mode = <0x1>;
 				regulator-name = "vcc_1v0";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1000000>;
+					regulator-suspend-microvolt = <2500000>;
 				};
 			};
 
@@ -608,6 +621,7 @@
 	gt1x: gt1x@14 {
 	      compatible = "goodix,gt1x";
 	      reg = <0x14>;
+	      power-supply = <&vcc3v3_lcd>;
 	      goodix,rst-gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 	      goodix,irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
 	};
@@ -810,23 +824,3 @@
 	status = "okay";
 };
 
-&firmware_android {
-	compatible = "android,firmware";
-	fstab {
-		compatible = "android,fstab";
-		system {
-			compatible = "android,system";
-			dev = "/dev/block/by-name/system";
-			type = "ext4";
-			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-			fsmgr_flags = "wait";
-		};
-		vendor {
-			compatible = "android,vendor";
-			dev = "/dev/block/by-name/vendor";
-			type = "ext4";
-			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-			fsmgr_flags = "wait";
-		};
-	};
-};
