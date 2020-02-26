@@ -1017,17 +1017,19 @@ struct drm_i915_private {
 	struct intel_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
 	struct intel_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
 
-	/* dpll and cdclk state is protected by connection_mutex */
-	int num_shared_dpll;
-	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
-	const struct intel_dpll_mgr *dpll_mgr;
-
-	/*
-	 * dpll_lock serializes intel_{prepare,enable,disable}_shared_dpll.
-	 * Must be global rather than per dpll, because on some platforms
-	 * plls share registers.
+	/**
+	 * dpll and cdclk state is protected by connection_mutex
+	 * dpll.lock serializes intel_{prepare,enable,disable}_shared_dpll.
+	 * Must be global rather than per dpll, because on some platforms plls
+	 * share registers.
 	 */
-	struct mutex dpll_lock;
+	struct {
+		struct mutex lock;
+
+		int num_shared_dpll;
+		struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
+		const struct intel_dpll_mgr *mgr;
+	} dpll;
 
 	struct list_head global_obj_list;
 

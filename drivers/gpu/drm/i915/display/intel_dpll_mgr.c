@@ -52,8 +52,8 @@ intel_atomic_duplicate_dpll_state(struct drm_i915_private *dev_priv,
 	enum intel_dpll_id i;
 
 	/* Copy shared dpll state */
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
+	for (i = 0; i < dev_priv->dpll.num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &dev_priv->dpll.shared_dplls[i];
 
 		shared_dpll[i] = pll->state;
 	}
@@ -88,7 +88,7 @@ struct intel_shared_dpll *
 intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
 			    enum intel_dpll_id id)
 {
-	return &dev_priv->shared_dplls[id];
+	return &dev_priv->dpll.shared_dplls[id];
 }
 
 /**
@@ -103,11 +103,11 @@ enum intel_dpll_id
 intel_get_shared_dpll_id(struct drm_i915_private *dev_priv,
 			 struct intel_shared_dpll *pll)
 {
-	long pll_idx = pll - dev_priv->shared_dplls;
+	long pll_idx = pll - dev_priv->dpll.shared_dplls;
 
 	if (drm_WARN_ON(&dev_priv->drm,
 			pll_idx < 0 ||
-			pll_idx >= dev_priv->num_shared_dpll))
+			pll_idx >= dev_priv->dpll.num_shared_dpll))
 		return -1;
 
 	return pll_idx;
@@ -147,7 +147,7 @@ void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state)
 	if (drm_WARN_ON(&dev_priv->drm, pll == NULL))
 		return;
 
-	mutex_lock(&dev_priv->dpll_lock);
+	mutex_lock(&dev_priv->dpll.lock);
 	drm_WARN_ON(&dev_priv->drm, !pll->state.crtc_mask);
 	if (!pll->active_mask) {
 		drm_dbg(&dev_priv->drm, "setting up %s\n", pll->info->name);
@@ -156,7 +156,7 @@ void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state)
 
 		pll->info->funcs->prepare(dev_priv, pll);
 	}
-	mutex_unlock(&dev_priv->dpll_lock);
+	mutex_unlock(&dev_priv->dpll.lock);
 }
 
 /**
@@ -176,7 +176,7 @@ void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	if (drm_WARN_ON(&dev_priv->drm, pll == NULL))
 		return;
 
-	mutex_lock(&dev_priv->dpll_lock);
+	mutex_lock(&dev_priv->dpll.lock);
 	old_mask = pll->active_mask;
 
 	if (drm_WARN_ON(&dev_priv->drm, !(pll->state.crtc_mask & crtc_mask)) ||
@@ -202,7 +202,7 @@ void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	pll->on = true;
 
 out:
-	mutex_unlock(&dev_priv->dpll_lock);
+	mutex_unlock(&dev_priv->dpll.lock);
 }
 
 /**
@@ -225,7 +225,7 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	if (pll == NULL)
 		return;
 
-	mutex_lock(&dev_priv->dpll_lock);
+	mutex_lock(&dev_priv->dpll.lock);
 	if (drm_WARN_ON(&dev_priv->drm, !(pll->active_mask & crtc_mask)))
 		goto out;
 
@@ -246,7 +246,7 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	pll->on = false;
 
 out:
-	mutex_unlock(&dev_priv->dpll_lock);
+	mutex_unlock(&dev_priv->dpll.lock);
 }
 
 static struct intel_shared_dpll *
@@ -265,7 +265,7 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 	drm_WARN_ON(&dev_priv->drm, dpll_mask & ~(BIT(I915_NUM_PLLS) - 1));
 
 	for_each_set_bit(i, &dpll_mask, I915_NUM_PLLS) {
-		pll = &dev_priv->shared_dplls[i];
+		pll = &dev_priv->dpll.shared_dplls[i];
 
 		/* Only want to check enabled timings first */
 		if (shared_dpll[i].crtc_mask == 0) {
@@ -365,9 +365,9 @@ void intel_shared_dpll_swap_state(struct intel_atomic_state *state)
 	if (!state->dpll_set)
 		return;
 
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+	for (i = 0; i < dev_priv->dpll.num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll =
-			&dev_priv->shared_dplls[i];
+			&dev_priv->dpll.shared_dplls[i];
 
 		swap(pll->state, shared_dpll[i]);
 	}
@@ -465,7 +465,7 @@ static bool ibx_get_dpll(struct intel_atomic_state *state,
 	if (HAS_PCH_IBX(dev_priv)) {
 		/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
 		i = (enum intel_dpll_id) crtc->pipe;
-		pll = &dev_priv->shared_dplls[i];
+		pll = &dev_priv->dpll.shared_dplls[i];
 
 		drm_dbg_kms(&dev_priv->drm,
 			    "[CRTC:%d:%s] using pre-allocated %s\n",
@@ -3817,7 +3817,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 		dpll_mgr = &pch_pll_mgr;
 
 	if (!dpll_mgr) {
-		dev_priv->num_shared_dpll = 0;
+		dev_priv->dpll.num_shared_dpll = 0;
 		return;
 	}
 
@@ -3825,14 +3825,14 @@ void intel_shared_dpll_init(struct drm_device *dev)
 
 	for (i = 0; dpll_info[i].name; i++) {
 		drm_WARN_ON(dev, i != dpll_info[i].id);
-		dev_priv->shared_dplls[i].info = &dpll_info[i];
+		dev_priv->dpll.shared_dplls[i].info = &dpll_info[i];
 	}
 
-	dev_priv->dpll_mgr = dpll_mgr;
-	dev_priv->num_shared_dpll = i;
-	mutex_init(&dev_priv->dpll_lock);
+	dev_priv->dpll.mgr = dpll_mgr;
+	dev_priv->dpll.num_shared_dpll = i;
+	mutex_init(&dev_priv->dpll.lock);
 
-	BUG_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
+	BUG_ON(dev_priv->dpll.num_shared_dpll > I915_NUM_PLLS);
 }
 
 /**
@@ -3859,7 +3859,7 @@ bool intel_reserve_shared_dplls(struct intel_atomic_state *state,
 				struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	const struct intel_dpll_mgr *dpll_mgr = dev_priv->dpll_mgr;
+	const struct intel_dpll_mgr *dpll_mgr = dev_priv->dpll.mgr;
 
 	if (drm_WARN_ON(&dev_priv->drm, !dpll_mgr))
 		return false;
@@ -3882,7 +3882,7 @@ void intel_release_shared_dplls(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	const struct intel_dpll_mgr *dpll_mgr = dev_priv->dpll_mgr;
+	const struct intel_dpll_mgr *dpll_mgr = dev_priv->dpll.mgr;
 
 	/*
 	 * FIXME: this function is called for every platform having a
@@ -3911,7 +3911,7 @@ void intel_update_active_dpll(struct intel_atomic_state *state,
 			      struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	const struct intel_dpll_mgr *dpll_mgr = dev_priv->dpll_mgr;
+	const struct intel_dpll_mgr *dpll_mgr = dev_priv->dpll.mgr;
 
 	if (drm_WARN_ON(&dev_priv->drm, !dpll_mgr))
 		return;
@@ -3952,8 +3952,8 @@ void intel_dpll_readout_hw_state(struct drm_i915_private *i915)
 {
 	int i;
 
-	for (i = 0; i < i915->num_shared_dpll; i++)
-		readout_dpll_hw_state(i915, &i915->shared_dplls[i]);
+	for (i = 0; i < i915->dpll.num_shared_dpll; i++)
+		readout_dpll_hw_state(i915, &i915->dpll.shared_dplls[i]);
 }
 
 static void sanitize_dpll_state(struct drm_i915_private *i915,
@@ -3974,8 +3974,8 @@ void intel_dpll_sanitize_state(struct drm_i915_private *i915)
 {
 	int i;
 
-	for (i = 0; i < i915->num_shared_dpll; i++)
-		sanitize_dpll_state(i915, &i915->shared_dplls[i]);
+	for (i = 0; i < i915->dpll.num_shared_dpll; i++)
+		sanitize_dpll_state(i915, &i915->dpll.shared_dplls[i]);
 }
 
 /**
@@ -3988,8 +3988,8 @@ void intel_dpll_sanitize_state(struct drm_i915_private *i915)
 void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 			      const struct intel_dpll_hw_state *hw_state)
 {
-	if (dev_priv->dpll_mgr) {
-		dev_priv->dpll_mgr->dump_hw_state(dev_priv, hw_state);
+	if (dev_priv->dpll.mgr) {
+		dev_priv->dpll.mgr->dump_hw_state(dev_priv, hw_state);
 	} else {
 		/* fallback for platforms that don't use the shared dpll
 		 * infrastructure
