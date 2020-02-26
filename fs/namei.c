@@ -1134,6 +1134,26 @@ int follow_up(struct path *path)
 }
 EXPORT_SYMBOL(follow_up);
 
+static bool choose_mountpoint_rcu(struct mount *m, const struct path *root,
+				  struct path *path, unsigned *seqp)
+{
+	while (mnt_has_parent(m)) {
+		struct dentry *mountpoint = m->mnt_mountpoint;
+
+		m = m->mnt_parent;
+		if (unlikely(root->dentry == mountpoint &&
+			     root->mnt == &m->mnt))
+			break;
+		if (mountpoint != m->mnt.mnt_root) {
+			path->mnt = &m->mnt;
+			path->dentry = mountpoint;
+			*seqp = read_seqcount_begin(&mountpoint->d_seq);
+			return true;
+		}
+	}
+	return false;
+}
+
 /*
  * Perform an automount
  * - return -EISDIR to tell follow_managed() to stop and return the path we
@@ -1696,23 +1716,11 @@ static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
 	if (path_equal(&nd->path, &nd->root))
 		goto in_root;
 	if (unlikely(nd->path.dentry == nd->path.mnt->mnt_root)) {
-		struct path path = nd->path;
+		struct path path;
 		unsigned seq;
-
-		while (1) {
-			struct mount *mnt = real_mount(path.mnt);
-			struct mount *mparent = mnt->mnt_parent;
-			struct dentry *mountpoint = mnt->mnt_mountpoint;
-			seq = read_seqcount_begin(&mountpoint->d_seq);
-			if (&mparent->mnt == path.mnt)
-				goto in_root;
-			path.dentry = mountpoint;
-			path.mnt = &mparent->mnt;
-			if (path_equal(&path, &nd->root))
-				goto in_root;
-			if (path.dentry != path.mnt->mnt_root)
-				break;
-		}
+		if (!choose_mountpoint_rcu(real_mount(nd->path.mnt),
+					   &nd->root, &path, &seq))
+			goto in_root;
 		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
 			return ERR_PTR(-ECHILD);
 		nd->path = path;
