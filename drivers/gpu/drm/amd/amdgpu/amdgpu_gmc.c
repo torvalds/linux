@@ -383,18 +383,28 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
  */
 void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 {
-	if (!amdgpu_tmz)
-		return;
-
-	if (adev->asic_type < CHIP_RAVEN ||
-	    adev->asic_type == CHIP_ARCTURUS) {
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+	case CHIP_RENOIR:
+	case CHIP_NAVI10:
+	case CHIP_NAVI14:
+	case CHIP_NAVI12:
+		/* Don't enable it by default yet.
+		 */
+		if (amdgpu_tmz < 1) {
+			adev->gmc.tmz_enabled = false;
+			dev_info(adev->dev,
+				 "Trusted Memory Zone (TMZ) feature disabled as experimental (default)\n");
+		} else {
+			adev->gmc.tmz_enabled = true;
+			dev_info(adev->dev,
+				 "Trusted Memory Zone (TMZ) feature enabled as experimental (cmd line)\n");
+		}
+		break;
+	default:
 		adev->gmc.tmz_enabled = false;
 		dev_warn(adev->dev,
 			 "Trusted Memory Zone (TMZ) feature not supported\n");
-	} else {
-
-		adev->gmc.tmz_enabled = true;
-		dev_info(adev->dev,
-			 "Trusted Memory Zone (TMZ) feature supported and enabled\n");
+		break;
 	}
 }
