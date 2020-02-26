@@ -5121,7 +5121,7 @@ static int dsi_init_output(struct dsi_data *dsi)
 		       | DRM_BUS_FLAG_DE_HIGH
 		       | DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE;
 
-	r = omapdss_device_init_output(out);
+	r = omapdss_device_init_output(out, NULL);
 	if (r < 0)
 		return r;
 

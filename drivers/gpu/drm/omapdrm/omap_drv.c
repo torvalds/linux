@@ -324,7 +324,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct drm_encoder *encoder = pipe->encoder;
 		struct drm_crtc *crtc;
 
-		if (!pipe->output->bridge) {
+		if (pipe->output->next) {
 			pipe->connector = omap_connector_init(dev, pipe->output,
 							      encoder);
 			if (!pipe->connector)

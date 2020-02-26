@@ -629,7 +629,7 @@ static int dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 	out->ops = &dpi_ops;
 	out->owner = THIS_MODULE;
 
-	r = omapdss_device_init_output(out);
+	r = omapdss_device_init_output(out, NULL);
 	if (r < 0)
 		return r;
 

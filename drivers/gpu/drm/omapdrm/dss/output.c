@@ -17,7 +17,8 @@
 #include "dss.h"
 #include "omapdss.h"
 
-int omapdss_device_init_output(struct omap_dss_device *out)
+int omapdss_device_init_output(struct omap_dss_device *out,
+			       struct drm_bridge *local_bridge)
 {
 	struct device_node *remote_node;
 	int ret;
@@ -58,10 +59,20 @@ int omapdss_device_init_output(struct omap_dss_device *out)
 		out->bridge = bridge;
 	}
 
-	return out->next || out->bridge ? 0 : -EPROBE_DEFER;
+	if (local_bridge) {
+		out->next_bridge = out->bridge;
+		out->bridge = local_bridge;
+	}
+
+	if (!out->next && !out->bridge) {
+		ret = -EPROBE_DEFER;
+		goto error;
+	}
+
+	return 0;
 
 error:
-	omapdss_device_put(out->next);
+	omapdss_device_cleanup_output(out);
 	out->next = NULL;
 	return ret;
 }
@@ -70,7 +81,8 @@ EXPORT_SYMBOL(omapdss_device_init_output);
 void omapdss_device_cleanup_output(struct omap_dss_device *out)
 {
 	if (out->bridge && out->panel)
-		drm_panel_bridge_remove(out->bridge);
+		drm_panel_bridge_remove(out->next_bridge ?
+					out->next_bridge : out->bridge);
 
 	if (out->next)
 		omapdss_device_put(out->next);

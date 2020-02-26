@@ -271,7 +271,7 @@ static int sdi_init_output(struct sdi_device *sdi)
 	out->bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE	/* 15.5.9.1.2 */
 		       | DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE;
 
-	r = omapdss_device_init_output(out);
+	r = omapdss_device_init_output(out, NULL);
 	if (r < 0)
 		return r;
 
