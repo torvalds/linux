@@ -618,10 +618,11 @@ static inline void dmaengine_unmap_put(struct dmaengine_unmap_data *unmap)
 
 static inline void dma_descriptor_unmap(struct dma_async_tx_descriptor *tx)
 {
-	if (tx->unmap) {
-		dmaengine_unmap_put(tx->unmap);
-		tx->unmap = NULL;
-	}
+	if (!tx->unmap)
+		return;
+
+	dmaengine_unmap_put(tx->unmap);
+	tx->unmap = NULL;
 }
 
 #ifndef CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH
@@ -1408,11 +1409,12 @@ static inline enum dma_status dma_async_is_complete(dma_cookie_t cookie,
 static inline void
 dma_set_tx_state(struct dma_tx_state *st, dma_cookie_t last, dma_cookie_t used, u32 residue)
 {
-	if (st) {
-		st->last = last;
-		st->used = used;
-		st->residue = residue;
-	}
+	if (!st)
+		return;
+
+	st->last = last;
+	st->used = used;
+	st->residue = residue;
 }
 
 #ifdef CONFIG_DMA_ENGINE
@@ -1489,12 +1491,11 @@ static inline int dmaengine_desc_set_reuse(struct dma_async_tx_descriptor *tx)
 	if (ret)
 		return ret;
 
-	if (caps.descriptor_reuse) {
-		tx->flags |= DMA_CTRL_REUSE;
-		return 0;
-	} else {
+	if (!caps.descriptor_reuse)
 		return -EPERM;
-	}
+
+	tx->flags |= DMA_CTRL_REUSE;
+	return 0;
 }
 
 static inline void dmaengine_desc_clear_reuse(struct dma_async_tx_descriptor *tx)
@@ -1510,10 +1511,10 @@ static inline bool dmaengine_desc_test_reuse(struct dma_async_tx_descriptor *tx)
 static inline int dmaengine_desc_free(struct dma_async_tx_descriptor *desc)
 {
 	/* this is supported for reusable desc, so check that */
-	if (dmaengine_desc_test_reuse(desc))
-		return desc->desc_free(desc);
-	else
+	if (!dmaengine_desc_test_reuse(desc))
 		return -EPERM;
+
+	return desc->desc_free(desc);
 }
 
 /* --- DMA device --- */
