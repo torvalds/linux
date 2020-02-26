@@ -24,22 +24,7 @@ struct omap_connector {
 static enum drm_connector_status omap_connector_detect(
 		struct drm_connector *connector, bool force)
 {
-	enum drm_connector_status status;
-
-	switch (connector->connector_type) {
-	case DRM_MODE_CONNECTOR_DPI:
-	case DRM_MODE_CONNECTOR_LVDS:
-	case DRM_MODE_CONNECTOR_DSI:
-		status = connector_status_connected;
-		break;
-	default:
-		status = connector_status_unknown;
-		break;
-	}
-
-	VERB("%s: %d (force=%d)", connector->name, status, force);
-
-	return status;
+	return connector_status_connected;
 }
 
 static void omap_connector_destroy(struct drm_connector *connector)
@@ -138,18 +123,6 @@ static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
 	.mode_valid = omap_connector_mode_valid,
 };
 
-static int omap_connector_get_type(struct omap_dss_device *output)
-{
-	struct omap_dss_device *display;
-	enum omap_display_type type;
-
-	display = omapdss_display_get(output);
-	type = display->type;
-	omapdss_device_put(display);
-
-	return omapdss_device_connector_type(type);
-}
-
 /* initialize connector */
 struct drm_connector *omap_connector_init(struct drm_device *dev,
 					  struct omap_dss_device *output,
@@ -171,7 +144,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	connector->doublescan_allowed = 0;
 
 	drm_connector_init(dev, connector, &omap_connector_funcs,
-			   omap_connector_get_type(output));
+			   DRM_MODE_CONNECTOR_DSI);
 	drm_connector_helper_add(connector, &omap_connector_helper_funcs);
 
 	return connector;
