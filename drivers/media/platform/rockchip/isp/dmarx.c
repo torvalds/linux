@@ -845,6 +845,14 @@ static int dmarx_init(struct rkisp_device *dev, u32 id)
 				     RKISP_ISP_PAD_SINK, 0);
 }
 
+u32 rkisp_dmarx_get_frame_id(struct rkisp_device *dev)
+{
+	if (dev->dmarx_dev.trigger == T_MANUAL)
+		return dev->dmarx_dev.frame_id;
+	else
+		return atomic_read(&dev->isp_sdev.frm_sync_seq) - 1;
+}
+
 int rkisp_register_dmarx_vdev(struct rkisp_device *dev)
 {
 	struct rkisp_dmarx_device *dmarx_dev = &dev->dmarx_dev;

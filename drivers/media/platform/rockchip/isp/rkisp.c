@@ -1579,13 +1579,16 @@ static int rkisp_isp_sd_subs_evt(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
+	struct isp2x_csi_trigger *trigger;
 	long ret = 0;
 
 	switch (cmd) {
 	case RKISP_CMD_TRIGGER_READ_BACK:
 		if (!IS_HDR_DBG(isp_dev->hdr.op_mode))
 			break;
-		rkisp_trigger_read_back(&isp_dev->csi_dev, *((int *)arg));
+		trigger = (struct isp2x_csi_trigger *)arg;
+		isp_dev->dmarx_dev.frame_id = trigger->frame_id;
+		rkisp_trigger_read_back(&isp_dev->csi_dev, trigger->times);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1599,17 +1602,15 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 				 unsigned int cmd, unsigned long arg)
 {
 	void __user *up = compat_ptr(arg);
+	struct isp2x_csi_trigger trigger;
 	long ret = 0;
 
 	switch (cmd) {
-	case RKISP_CMD_TRIGGER_READ_BACK: {
-		int mode;
-
-		ret = copy_from_user(&mode, up, sizeof(int));
+	case RKISP_CMD_TRIGGER_READ_BACK:
+		ret = copy_from_user(&trigger, up, sizeof(trigger));
 		if (!ret)
-			ret = rkisp_ioctl(sd, cmd, &mode);
+			ret = rkisp_ioctl(sd, cmd, &trigger);
 		break;
-	}
 	default:
 		ret = -ENOIOCTLCMD;
 	}

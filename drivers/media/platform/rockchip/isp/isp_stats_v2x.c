@@ -1132,7 +1132,7 @@ rkisp_stats_send_meas_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp_stats_v2x_ops *ops =
 		(struct rkisp_stats_v2x_ops *)stats_vdev->priv_ops;
 
-	cur_frame_id = atomic_read(&stats_vdev->dev->isp_sdev.frm_sync_seq) - 1;
+	cur_frame_id = rkisp_dmarx_get_frame_id(stats_vdev->dev);
 	if (cur_frame_id != meas_work->frame_id) {
 		v4l2_warn(stats_vdev->vnode.vdev.v4l2_dev,
 			  "Measurement late(%d, %d)\n",
@@ -1275,8 +1275,7 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 {
 	u32 isp_mis_tmp = 0;
 	struct rkisp_isp_readout_work work;
-	u32 cur_frame_id =
-		atomic_read(&stats_vdev->dev->isp_sdev.frm_sync_seq) - 1;
+	u32 cur_frame_id = rkisp_dmarx_get_frame_id(stats_vdev->dev);
 	u32 iq_isr_mask = ISP2X_SIAWB_DONE | ISP2X_SIAF_FIN |
 		ISP2X_YUVAE_END | ISP2X_SIHST_RDY | ISP2X_AFM_SUM_OF | ISP2X_AFM_LUM_OF;
 	u32 iq_3a_mask = ISP2X_3A_RAWAE_BIG | ISP2X_3A_RAWAE_CH0 | ISP2X_3A_RAWAE_CH1 |

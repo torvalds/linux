@@ -11,7 +11,7 @@
 #include <linux/v4l2-controls.h>
 
 #define RKISP_CMD_TRIGGER_READ_BACK \
-	_IOW('V', BASE_VIDIOC_PRIVATE + 0, int)
+	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct isp2x_csi_trigger)
 
 #define ISP2X_MODULE_DPCC		BIT_ULL(0)
 #define ISP2X_MODULE_BLS		BIT_ULL(1)
@@ -135,6 +135,11 @@
 #define ISP2X_RAW2_Y_STATE		(1 << 2)
 
 #define ISP2X_3DLUT_DATA_NUM		729
+
+struct isp2x_csi_trigger {
+	u32 frame_id;
+	int times;
+} __attribute__ ((packed));
 
 struct isp2x_window {
 	u16 h_offs;

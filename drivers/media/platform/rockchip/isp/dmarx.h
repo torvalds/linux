@@ -30,10 +30,12 @@ struct rkisp_dmarx_device {
 	struct rkisp_device *ispdev;
 	struct rkisp_stream stream[RKISP_MAX_DMARX_STREAM];
 	enum rkisp_dmarx_trigger trigger;
+	u32 frame_id;
 };
 
 void rkisp_dmarx_isr(u32 mis_val, struct rkisp_device *dev);
 void rkisp2_rawrd_isr(u32 mis_val, struct rkisp_device *dev);
+u32 rkisp_dmarx_get_frame_id(struct rkisp_device *dev);
 void rkisp_unregister_dmarx_vdev(struct rkisp_device *dev);
 int rkisp_register_dmarx_vdev(struct rkisp_device *dev);
 #endif /* _RKISP_DMARX_H */
