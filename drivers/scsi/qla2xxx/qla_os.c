@@ -600,6 +600,9 @@ qla24xx_pci_info_str(struct scsi_qla_host *vha, char *str, size_t str_len)
 		case 3:
 			speed_str = "8.0GT/s";
 			break;
+		case 4:
+			speed_str = "16.0GT/s";
+			break;
 		default:
 			speed_str = "<unknown>";
 			break;
