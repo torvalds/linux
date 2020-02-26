@@ -45,6 +45,21 @@
  * commit phase.
  */
 
+struct intel_dpll_mgr {
+	const struct dpll_info *dpll_info;
+
+	bool (*get_dplls)(struct intel_atomic_state *state,
+			  struct intel_crtc *crtc,
+			  struct intel_encoder *encoder);
+	void (*put_dplls)(struct intel_atomic_state *state,
+			  struct intel_crtc *crtc);
+	void (*update_active_dpll)(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc,
+				   struct intel_encoder *encoder);
+	void (*dump_hw_state)(struct drm_i915_private *dev_priv,
+			      const struct intel_dpll_hw_state *hw_state);
+};
+
 static void
 intel_atomic_duplicate_dpll_state(struct drm_i915_private *dev_priv,
 				  struct intel_shared_dpll_state *shared_dpll)
@@ -509,6 +524,19 @@ static const struct intel_shared_dpll_funcs ibx_pch_dpll_funcs = {
 	.get_hw_state = ibx_pch_dpll_get_hw_state,
 };
 
+static const struct dpll_info pch_plls[] = {
+	{ "PCH DPLL A", &ibx_pch_dpll_funcs, DPLL_ID_PCH_PLL_A, 0 },
+	{ "PCH DPLL B", &ibx_pch_dpll_funcs, DPLL_ID_PCH_PLL_B, 0 },
+	{ },
+};
+
+static const struct intel_dpll_mgr pch_pll_mgr = {
+	.dpll_info = pch_plls,
+	.get_dplls = ibx_get_dpll,
+	.put_dplls = intel_put_dpll,
+	.dump_hw_state = ibx_dump_hw_state,
+};
+
 static void hsw_ddi_wrpll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
 {
@@ -961,6 +989,23 @@ static const struct intel_shared_dpll_funcs hsw_ddi_lcpll_funcs = {
 	.enable = hsw_ddi_lcpll_enable,
 	.disable = hsw_ddi_lcpll_disable,
 	.get_hw_state = hsw_ddi_lcpll_get_hw_state,
+};
+
+static const struct dpll_info hsw_plls[] = {
+	{ "WRPLL 1",    &hsw_ddi_wrpll_funcs, DPLL_ID_WRPLL1,     0 },
+	{ "WRPLL 2",    &hsw_ddi_wrpll_funcs, DPLL_ID_WRPLL2,     0 },
+	{ "SPLL",       &hsw_ddi_spll_funcs,  DPLL_ID_SPLL,       0 },
+	{ "LCPLL 810",  &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_810,  INTEL_DPLL_ALWAYS_ON },
+	{ "LCPLL 1350", &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_1350, INTEL_DPLL_ALWAYS_ON },
+	{ "LCPLL 2700", &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_2700, INTEL_DPLL_ALWAYS_ON },
+	{ },
+};
+
+static const struct intel_dpll_mgr hsw_pll_mgr = {
+	.dpll_info = hsw_plls,
+	.get_dplls = hsw_get_dpll,
+	.put_dplls = intel_put_dpll,
+	.dump_hw_state = hsw_dump_hw_state,
 };
 
 struct skl_dpll_regs {
@@ -1518,6 +1563,21 @@ static const struct intel_shared_dpll_funcs skl_ddi_dpll0_funcs = {
 	.get_hw_state = skl_ddi_dpll0_get_hw_state,
 };
 
+static const struct dpll_info skl_plls[] = {
+	{ "DPLL 0", &skl_ddi_dpll0_funcs, DPLL_ID_SKL_DPLL0, INTEL_DPLL_ALWAYS_ON },
+	{ "DPLL 1", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL1, 0 },
+	{ "DPLL 2", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL2, 0 },
+	{ "DPLL 3", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL3, 0 },
+	{ },
+};
+
+static const struct intel_dpll_mgr skl_pll_mgr = {
+	.dpll_info = skl_plls,
+	.get_dplls = skl_get_dpll,
+	.put_dplls = intel_put_dpll,
+	.dump_hw_state = skl_dump_hw_state,
+};
+
 static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
 {
@@ -1962,66 +2022,6 @@ static const struct intel_shared_dpll_funcs bxt_ddi_pll_funcs = {
 	.enable = bxt_ddi_pll_enable,
 	.disable = bxt_ddi_pll_disable,
 	.get_hw_state = bxt_ddi_pll_get_hw_state,
-};
-
-struct intel_dpll_mgr {
-	const struct dpll_info *dpll_info;
-
-	bool (*get_dplls)(struct intel_atomic_state *state,
-			  struct intel_crtc *crtc,
-			  struct intel_encoder *encoder);
-	void (*put_dplls)(struct intel_atomic_state *state,
-			  struct intel_crtc *crtc);
-	void (*update_active_dpll)(struct intel_atomic_state *state,
-				   struct intel_crtc *crtc,
-				   struct intel_encoder *encoder);
-	void (*dump_hw_state)(struct drm_i915_private *dev_priv,
-			      const struct intel_dpll_hw_state *hw_state);
-};
-
-static const struct dpll_info pch_plls[] = {
-	{ "PCH DPLL A", &ibx_pch_dpll_funcs, DPLL_ID_PCH_PLL_A, 0 },
-	{ "PCH DPLL B", &ibx_pch_dpll_funcs, DPLL_ID_PCH_PLL_B, 0 },
-	{ },
-};
-
-static const struct intel_dpll_mgr pch_pll_mgr = {
-	.dpll_info = pch_plls,
-	.get_dplls = ibx_get_dpll,
-	.put_dplls = intel_put_dpll,
-	.dump_hw_state = ibx_dump_hw_state,
-};
-
-static const struct dpll_info hsw_plls[] = {
-	{ "WRPLL 1",    &hsw_ddi_wrpll_funcs, DPLL_ID_WRPLL1,     0 },
-	{ "WRPLL 2",    &hsw_ddi_wrpll_funcs, DPLL_ID_WRPLL2,     0 },
-	{ "SPLL",       &hsw_ddi_spll_funcs,  DPLL_ID_SPLL,       0 },
-	{ "LCPLL 810",  &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_810,  INTEL_DPLL_ALWAYS_ON },
-	{ "LCPLL 1350", &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_1350, INTEL_DPLL_ALWAYS_ON },
-	{ "LCPLL 2700", &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_2700, INTEL_DPLL_ALWAYS_ON },
-	{ },
-};
-
-static const struct intel_dpll_mgr hsw_pll_mgr = {
-	.dpll_info = hsw_plls,
-	.get_dplls = hsw_get_dpll,
-	.put_dplls = intel_put_dpll,
-	.dump_hw_state = hsw_dump_hw_state,
-};
-
-static const struct dpll_info skl_plls[] = {
-	{ "DPLL 0", &skl_ddi_dpll0_funcs, DPLL_ID_SKL_DPLL0, INTEL_DPLL_ALWAYS_ON },
-	{ "DPLL 1", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL1, 0 },
-	{ "DPLL 2", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL2, 0 },
-	{ "DPLL 3", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL3, 0 },
-	{ },
-};
-
-static const struct intel_dpll_mgr skl_pll_mgr = {
-	.dpll_info = skl_plls,
-	.get_dplls = skl_get_dpll,
-	.put_dplls = intel_put_dpll,
-	.dump_hw_state = skl_dump_hw_state,
 };
 
 static const struct dpll_info bxt_plls[] = {
