@@ -159,6 +159,10 @@ static int psp_sw_fini(void *handle)
 	adev->psp.sos_fw = NULL;
 	release_firmware(adev->psp.asd_fw);
 	adev->psp.asd_fw = NULL;
+	if (adev->psp.cap_fw) {
+		release_firmware(adev->psp.cap_fw);
+		adev->psp.cap_fw = NULL;
+	}
 	if (adev->psp.ta_fw) {
 		release_firmware(adev->psp.ta_fw);
 		adev->psp.ta_fw = NULL;
@@ -246,7 +250,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		DRM_WARN("psp command (0x%X) failed and response status is (0x%X)\n",
 			 psp->cmd_buf_mem->cmd_id,
 			 psp->cmd_buf_mem->resp.status);
-		if (!timeout) {
+		if ((ucode->ucode_id == AMDGPU_UCODE_ID_CAP) || !timeout) {
 			mutex_unlock(&psp->mutex);
 			return -EINVAL;
 		}
@@ -1188,6 +1192,9 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 			   enum psp_gfx_fw_type *type)
 {
 	switch (ucode->ucode_id) {
+	case AMDGPU_UCODE_ID_CAP:
+		*type = GFX_FW_TYPE_CAP;
+		break;
 	case AMDGPU_UCODE_ID_SDMA0:
 		*type = GFX_FW_TYPE_SDMA0;
 		break;
