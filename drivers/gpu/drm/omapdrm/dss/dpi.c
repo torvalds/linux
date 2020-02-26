@@ -48,6 +48,10 @@ static struct dpi_data *dpi_get_data_from_dssdev(struct omap_dss_device *dssdev)
 	return container_of(dssdev, struct dpi_data, output);
 }
 
+/* -----------------------------------------------------------------------------
+ * Clock Handling and PLL
+ */
+
 static enum dss_clk_source dpi_get_clk_src_dra7xx(struct dpi_data *dpi,
 						  enum omap_channel channel)
 {
@@ -366,6 +370,62 @@ static void dpi_config_lcd_manager(struct dpi_data *dpi)
 	dss_mgr_set_lcd_config(&dpi->output, &dpi->mgr_config);
 }
 
+static int dpi_verify_pll(struct dss_pll *pll)
+{
+	int r;
+
+	/* do initial setup with the PLL to see if it is operational */
+
+	r = dss_pll_enable(pll);
+	if (r)
+		return r;
+
+	dss_pll_disable(pll);
+
+	return 0;
+}
+
+static void dpi_init_pll(struct dpi_data *dpi)
+{
+	struct dss_pll *pll;
+
+	if (dpi->pll)
+		return;
+
+	dpi->clk_src = dpi_get_clk_src(dpi);
+
+	pll = dss_pll_find_by_src(dpi->dss, dpi->clk_src);
+	if (!pll)
+		return;
+
+	if (dpi_verify_pll(pll)) {
+		DSSWARN("PLL not operational\n");
+		return;
+	}
+
+	dpi->pll = pll;
+}
+
+/* -----------------------------------------------------------------------------
+ * omap_dss_device Operations
+ */
+
+static int dpi_connect(struct omap_dss_device *src,
+		       struct omap_dss_device *dst)
+{
+	struct dpi_data *dpi = dpi_get_data_from_dssdev(dst);
+
+	dpi_init_pll(dpi);
+
+	return omapdss_device_connect(dst->dss, dst, dst->next);
+}
+
+static void dpi_disconnect(struct omap_dss_device *src,
+			   struct omap_dss_device *dst)
+{
+	omapdss_device_disconnect(dst, dst->next);
+}
+
 static void dpi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
@@ -446,20 +506,6 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&dpi->lock);
 }
 
-static void dpi_set_timings(struct omap_dss_device *dssdev,
-			    const struct drm_display_mode *mode)
-{
-	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-
-	DSSDBG("dpi_set_timings\n");
-
-	mutex_lock(&dpi->lock);
-
-	dpi->pixelclock = mode->clock * 1000;
-
-	mutex_unlock(&dpi->lock);
-}
-
 static int dpi_check_timings(struct omap_dss_device *dssdev,
 			     struct drm_display_mode *mode)
 {
@@ -500,41 +546,30 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static int dpi_verify_pll(struct dss_pll *pll)
+static void dpi_set_timings(struct omap_dss_device *dssdev,
+			    const struct drm_display_mode *mode)
 {
-	int r;
+	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 
-	/* do initial setup with the PLL to see if it is operational */
+	DSSDBG("dpi_set_timings\n");
 
-	r = dss_pll_enable(pll);
-	if (r)
-		return r;
+	mutex_lock(&dpi->lock);
 
-	dss_pll_disable(pll);
+	dpi->pixelclock = mode->clock * 1000;
 
-	return 0;
+	mutex_unlock(&dpi->lock);
 }
 
-static void dpi_init_pll(struct dpi_data *dpi)
-{
-	struct dss_pll *pll;
+static const struct omap_dss_device_ops dpi_ops = {
+	.connect = dpi_connect,
+	.disconnect = dpi_disconnect,
 
-	if (dpi->pll)
-		return;
+	.enable = dpi_display_enable,
+	.disable = dpi_display_disable,
 
-	dpi->clk_src = dpi_get_clk_src(dpi);
-
-	pll = dss_pll_find_by_src(dpi->dss, dpi->clk_src);
-	if (!pll)
-		return;
-
-	if (dpi_verify_pll(pll)) {
-		DSSWARN("PLL not operational\n");
-		return;
-	}
-
-	dpi->pll = pll;
-}
+	.check_timings = dpi_check_timings,
+	.set_timings = dpi_set_timings,
+};
 
 /*
  * Return a hardcoded channel for the DPI output. This should work for
@@ -571,33 +606,6 @@ static enum omap_channel dpi_get_channel(struct dpi_data *dpi)
 		return OMAP_DSS_CHANNEL_LCD;
 	}
 }
-
-static int dpi_connect(struct omap_dss_device *src,
-		       struct omap_dss_device *dst)
-{
-	struct dpi_data *dpi = dpi_get_data_from_dssdev(dst);
-
-	dpi_init_pll(dpi);
-
-	return omapdss_device_connect(dst->dss, dst, dst->next);
-}
-
-static void dpi_disconnect(struct omap_dss_device *src,
-			   struct omap_dss_device *dst)
-{
-	omapdss_device_disconnect(dst, dst->next);
-}
-
-static const struct omap_dss_device_ops dpi_ops = {
-	.connect = dpi_connect,
-	.disconnect = dpi_disconnect,
-
-	.enable = dpi_display_enable,
-	.disable = dpi_display_disable,
-
-	.check_timings = dpi_check_timings,
-	.set_timings = dpi_set_timings,
-};
 
 static int dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 {
@@ -646,6 +654,10 @@ static void dpi_uninit_output_port(struct device_node *port)
 	omapdss_device_unregister(out);
 	omapdss_device_cleanup_output(out);
 }
+
+/* -----------------------------------------------------------------------------
+ * Initialisation and Cleanup
+ */
 
 static const struct soc_device_attribute dpi_soc_devices[] = {
 	{ .machine = "OMAP3[456]*" },
