@@ -1310,6 +1310,7 @@ int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
 				     intel_engine_mask_t engine_mask,
 				     unsigned int interface)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	const struct intel_vgpu_submission_ops *ops[] = {
 		[INTEL_VGPU_EXECLIST_SUBMISSION] =
@@ -1317,10 +1318,11 @@ int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
 	};
 	int ret;
 
-	if (WARN_ON(interface >= ARRAY_SIZE(ops)))
+	if (drm_WARN_ON(&i915->drm, interface >= ARRAY_SIZE(ops)))
 		return -EINVAL;
 
-	if (WARN_ON(interface == 0 && engine_mask != ALL_ENGINES))
+	if (drm_WARN_ON(&i915->drm,
+			interface == 0 && engine_mask != ALL_ENGINES))
 		return -EINVAL;
 
 	if (s->active)

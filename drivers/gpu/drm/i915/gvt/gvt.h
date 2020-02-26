@@ -196,40 +196,20 @@ struct intel_vgpu {
 
 	struct dentry *debugfs;
 
-#if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
-	struct {
-		struct mdev_device *mdev;
-		struct vfio_region *region;
-		int num_regions;
-		struct eventfd_ctx *intx_trigger;
-		struct eventfd_ctx *msi_trigger;
-
-		/*
-		 * Two caches are used to avoid mapping duplicated pages (eg.
-		 * scratch pages). This help to reduce dma setup overhead.
-		 */
-		struct rb_root gfn_cache;
-		struct rb_root dma_addr_cache;
-		unsigned long nr_cache_entries;
-		struct mutex cache_lock;
-
-		struct notifier_block iommu_notifier;
-		struct notifier_block group_notifier;
-		struct kvm *kvm;
-		struct work_struct release_work;
-		atomic_t released;
-		struct vfio_device *vfio_device;
-	} vdev;
-#endif
+	/* Hypervisor-specific device state. */
+	void *vdev;
 
 	struct list_head dmabuf_obj_list_head;
 	struct mutex dmabuf_lock;
 	struct idr object_idr;
 
-	struct completion vblank_done;
-
 	u32 scan_nonprivbb;
 };
+
+static inline void *intel_vgpu_vdev(struct intel_vgpu *vgpu)
+{
+	return vgpu->vdev;
+}
 
 /* validating GM healthy status*/
 #define vgpu_is_vm_unhealthy(ret_val) \
@@ -570,8 +550,7 @@ struct intel_gvt_ops {
 	void (*vgpu_deactivate)(struct intel_vgpu *);
 	struct intel_vgpu_type *(*gvt_find_vgpu_type)(struct intel_gvt *gvt,
 			const char *name);
-	bool (*get_gvt_attrs)(struct attribute ***type_attrs,
-			struct attribute_group ***intel_vgpu_type_groups);
+	bool (*get_gvt_attrs)(struct attribute_group ***intel_vgpu_type_groups);
 	int (*vgpu_query_plane)(struct intel_vgpu *vgpu, void *);
 	int (*vgpu_get_dmabuf)(struct intel_vgpu *vgpu, unsigned int);
 	int (*write_protect_handler)(struct intel_vgpu *, u64, void *,

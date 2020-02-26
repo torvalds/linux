@@ -37,6 +37,7 @@
 
 void populate_pvinfo_page(struct intel_vgpu *vgpu)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	/* setup the ballooning information */
 	vgpu_vreg64_t(vgpu, vgtif_reg(magic)) = VGT_MAGIC;
 	vgpu_vreg_t(vgpu, vgtif_reg(version_major)) = 1;
@@ -69,7 +70,7 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 		vgpu_hidden_gmadr_base(vgpu), vgpu_hidden_sz(vgpu));
 	gvt_dbg_core("fence size %d\n", vgpu_fence_sz(vgpu));
 
-	WARN_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
+	drm_WARN_ON(&i915->drm, sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 }
 
 #define VGPU_MAX_WEIGHT 16
@@ -270,11 +271,12 @@ void intel_gvt_release_vgpu(struct intel_vgpu *vgpu)
  */
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_gvt *gvt = vgpu->gvt;
 
 	mutex_lock(&vgpu->vgpu_lock);
 
-	WARN(vgpu->active, "vGPU is still active!\n");
+	drm_WARN(&i915->drm, vgpu->active, "vGPU is still active!\n");
 
 	intel_gvt_debugfs_remove_vgpu(vgpu);
 	intel_vgpu_clean_sched_policy(vgpu);
@@ -426,9 +428,7 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_clean_sched_policy;
 
-	/*TODO: add more platforms support */
-	if (IS_SKYLAKE(gvt->dev_priv) || IS_KABYLAKE(gvt->dev_priv))
-		ret = intel_gvt_hypervisor_set_edid(vgpu, PORT_D);
+	ret = intel_gvt_hypervisor_set_edid(vgpu, PORT_D);
 	if (ret)
 		goto out_clean_sched_policy;
 

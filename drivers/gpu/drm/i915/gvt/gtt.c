@@ -71,8 +71,10 @@ bool intel_gvt_ggtt_validate_range(struct intel_vgpu *vgpu, u64 addr, u32 size)
 /* translate a guest gmadr to host gmadr */
 int intel_gvt_ggtt_gmadr_g2h(struct intel_vgpu *vgpu, u64 g_addr, u64 *h_addr)
 {
-	if (WARN(!vgpu_gmadr_is_valid(vgpu, g_addr),
-		 "invalid guest gmadr %llx\n", g_addr))
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
+
+	if (drm_WARN(&i915->drm, !vgpu_gmadr_is_valid(vgpu, g_addr),
+		     "invalid guest gmadr %llx\n", g_addr))
 		return -EACCES;
 
 	if (vgpu_gmadr_is_aperture(vgpu, g_addr))
@@ -87,8 +89,10 @@ int intel_gvt_ggtt_gmadr_g2h(struct intel_vgpu *vgpu, u64 g_addr, u64 *h_addr)
 /* translate a host gmadr to guest gmadr */
 int intel_gvt_ggtt_gmadr_h2g(struct intel_vgpu *vgpu, u64 h_addr, u64 *g_addr)
 {
-	if (WARN(!gvt_gmadr_is_valid(vgpu->gvt, h_addr),
-		 "invalid host gmadr %llx\n", h_addr))
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
+
+	if (drm_WARN(&i915->drm, !gvt_gmadr_is_valid(vgpu->gvt, h_addr),
+		     "invalid host gmadr %llx\n", h_addr))
 		return -EACCES;
 
 	if (gvt_gmadr_is_aperture(vgpu->gvt, h_addr))
@@ -940,6 +944,7 @@ static int ppgtt_invalidate_spt(struct intel_vgpu_ppgtt_spt *spt);
 static int ppgtt_invalidate_spt_by_shadow_entry(struct intel_vgpu *vgpu,
 		struct intel_gvt_gtt_entry *e)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
 	struct intel_vgpu_ppgtt_spt *s;
 	enum intel_gvt_gtt_type cur_pt_type;
@@ -952,7 +957,9 @@ static int ppgtt_invalidate_spt_by_shadow_entry(struct intel_vgpu *vgpu,
 
 		if (!gtt_type_is_pt(cur_pt_type) ||
 				!gtt_type_is_pt(cur_pt_type + 1)) {
-			WARN(1, "Invalid page table type, cur_pt_type is: %d\n", cur_pt_type);
+			drm_WARN(&i915->drm, 1,
+				 "Invalid page table type, cur_pt_type is: %d\n",
+				 cur_pt_type);
 			return -EINVAL;
 		}
 
@@ -2347,6 +2354,7 @@ int intel_vgpu_emulate_ggtt_mmio_write(struct intel_vgpu *vgpu,
 static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 		enum intel_gvt_gtt_type type)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_vgpu_gtt *gtt = &vgpu->gtt;
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
 	int page_entry_num = I915_GTT_PAGE_SIZE >>
@@ -2356,7 +2364,8 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 	struct device *dev = &vgpu->gvt->dev_priv->drm.pdev->dev;
 	dma_addr_t daddr;
 
-	if (WARN_ON(type < GTT_TYPE_PPGTT_PTE_PT || type >= GTT_TYPE_MAX))
+	if (drm_WARN_ON(&i915->drm,
+			type < GTT_TYPE_PPGTT_PTE_PT || type >= GTT_TYPE_MAX))
 		return -EINVAL;
 
 	scratch_pt = (void *)get_zeroed_page(GFP_KERNEL);
