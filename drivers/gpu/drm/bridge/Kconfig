@@ -172,6 +172,14 @@ config DRM_TI_SN65DSI86
 	help
 	  Texas Instruments SN65DSI86 DSI to eDP Bridge driver
 
+config DRM_TI_TPD12S015
+	tristate "TI TPD12S015 HDMI level shifter and ESD protection"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Texas Instruments TPD12S015 HDMI level shifter and ESD protection
+	  driver.
+
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 source "drivers/gpu/drm/bridge/adv7511/Kconfig"
