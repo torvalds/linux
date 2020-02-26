@@ -947,6 +947,12 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 	P(se.avg.util_est.ewma);
 	P(se.avg.util_est.enqueued);
 #endif
+#ifdef CONFIG_UCLAMP_TASK
+	__PS("uclamp.min", p->uclamp[UCLAMP_MIN].value);
+	__PS("uclamp.max", p->uclamp[UCLAMP_MAX].value);
+	__PS("effective uclamp.min", uclamp_eff_value(p, UCLAMP_MIN));
+	__PS("effective uclamp.max", uclamp_eff_value(p, UCLAMP_MAX));
+#endif
 	P(policy);
 	P(prio);
 	if (task_has_dl_policy(p)) {
