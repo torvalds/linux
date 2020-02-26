@@ -223,8 +223,6 @@ struct tile_config {
  * @set_scratch_backing_va: Sets VA for scratch backing memory of a VMID.
  * Only used for no cp scheduling mode
  *
- * @get_tile_config: Returns GPU-specific tiling mode information
- *
  * @set_vm_context_page_table_base: Program page table base for a VMID
  *
  * @invalidate_tlbs: Invalidate TLBs for a specific PASID
@@ -309,8 +307,6 @@ struct kfd2kgd_calls {
 	 */
 	void (*set_scratch_backing_va)(struct kgd_dev *kgd,
 				uint64_t va, uint32_t vmid);
-
-	int (*get_tile_config)(struct kgd_dev *kgd, struct tile_config *config);
 
 	void (*set_vm_context_page_table_base)(struct kgd_dev *kgd,
 			uint32_t vmid, uint64_t page_table_base);
