@@ -722,6 +722,11 @@ struct drm_bridge {
 	 */
 	int type;
 	/**
+	 * @interlace_allowed: Indicate that the bridge can handle interlaced
+	 * modes.
+	 */
+	bool interlace_allowed;
+	/**
 	 * @ddc: Associated I2C adapter for DDC access, if any.
 	 */
 	struct i2c_adapter *ddc;
