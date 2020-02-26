@@ -306,6 +306,11 @@ static const struct of_device_id simple_bridge_match[] = {
 			.connector_type = DRM_MODE_CONNECTOR_VGA,
 		},
 	}, {
+		.compatible = "ti,opa362",
+		.data = &(const struct simple_bridge_info) {
+			.connector_type = DRM_MODE_CONNECTOR_Composite,
+		},
+	}, {
 		.compatible = "ti,ths8135",
 		.data = &(const struct simple_bridge_info) {
 			.timings = &ti_ths8135_bridge_timings,
