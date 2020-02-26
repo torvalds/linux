@@ -2219,10 +2219,10 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 
 	/* Check for secure flash support */
 	if (IS_QLA28XX(ha)) {
-		if (RD_REG_DWORD(&reg->mailbox12) & BIT_0) {
-			ql_log(ql_log_info, vha, 0xffff, "Adapter is Secure\n");
+		if (RD_REG_DWORD(&reg->mailbox12) & BIT_0)
 			ha->flags.secure_adapter = 1;
-		}
+		ql_log(ql_log_info, vha, 0xffff, "Secure Adapter: %s\n",
+		    (ha->flags.secure_adapter) ? "Yes" : "No");
 	}
 
 

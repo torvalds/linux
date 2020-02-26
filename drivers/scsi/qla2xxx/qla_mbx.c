@@ -1135,11 +1135,13 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		ha->fw_ddr_ram_start = (mcp->mb[23] << 16) | mcp->mb[22];
 		ha->fw_ddr_ram_end = (mcp->mb[25] << 16) | mcp->mb[24];
 		if (IS_QLA28XX(ha)) {
-			if (mcp->mb[16] & BIT_10) {
-				ql_log(ql_log_info, vha, 0xffff,
-				    "FW support secure flash updates\n");
+			if (mcp->mb[16] & BIT_10)
 				ha->flags.secure_fw = 1;
-			}
+
+			ql_log(ql_log_info, vha, 0xffff,
+			    "Secure Flash Update in FW: %s\n",
+			    (ha->flags.secure_fw) ? "Supported" :
+			    "Not Supported");
 		}
 	}
 
