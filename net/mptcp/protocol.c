@@ -124,7 +124,7 @@ static void __mptcp_move_skb(struct mptcp_sock *msk, struct sock *ssk,
 	struct sock *sk = (struct sock *)msk;
 
 	__skb_unlink(skb, &ssk->sk_receive_queue);
-	skb_orphan(skb);
+	skb_set_owner_r(skb, sk);
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
 
 	msk->ack_seq += copy_len;
@@ -136,10 +136,16 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 					   unsigned int *bytes)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
+	struct sock *sk = (struct sock *)msk;
 	unsigned int moved = 0;
 	bool more_data_avail;
 	struct tcp_sock *tp;
 	bool done = false;
+	int rcvbuf;
+
+	rcvbuf = max(ssk->sk_rcvbuf, sk->sk_rcvbuf);
+	if (rcvbuf > sk->sk_rcvbuf)
+		sk->sk_rcvbuf = rcvbuf;
 
 	tp = tcp_sk(ssk);
 	do {
@@ -183,6 +189,11 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 
 		WRITE_ONCE(tp->copied_seq, seq);
 		more_data_avail = mptcp_subflow_data_available(ssk);
+
+		if (atomic_read(&sk->sk_rmem_alloc) > READ_ONCE(sk->sk_rcvbuf)) {
+			done = true;
+			break;
+		}
 	} while (more_data_avail);
 
 	*bytes = moved;
@@ -196,9 +207,14 @@ void mptcp_data_ready(struct sock *sk)
 
 	set_bit(MPTCP_DATA_READY, &msk->flags);
 
+	/* don't schedule if mptcp sk is (still) over limit */
+	if (atomic_read(&sk->sk_rmem_alloc) > READ_ONCE(sk->sk_rcvbuf))
+		goto wake;
+
 	if (schedule_work(&msk->work))
 		sock_hold((struct sock *)msk);
 
+wake:
 	sk->sk_data_ready(sk);
 }
 
