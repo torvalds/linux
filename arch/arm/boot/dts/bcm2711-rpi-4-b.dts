@@ -21,6 +21,7 @@
 
 	aliases {
 		ethernet0 = &genet;
+		pcie0 = &pcie0;
 	};
 
 	leds {
