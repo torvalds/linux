@@ -588,7 +588,7 @@
 			};
 		};
 
-		nand: nand@68000000 {
+		nand: nand-controller@68000000 {
 			compatible = "socionext,uniphier-denali-nand-v5a";
 			status = "disabled";
 			reg-names = "nand_data", "denali_reg";
