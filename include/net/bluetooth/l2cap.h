@@ -299,14 +299,14 @@ struct l2cap_conn_rsp {
 struct l2cap_conf_req {
 	__le16     dcid;
 	__le16     flags;
-	__u8       data[0];
+	__u8       data[];
 } __packed;
 
 struct l2cap_conf_rsp {
 	__le16     scid;
 	__le16     flags;
 	__le16     result;
-	__u8       data[0];
+	__u8       data[];
 } __packed;
 
 #define L2CAP_CONF_SUCCESS	0x0000
@@ -322,7 +322,7 @@ struct l2cap_conf_rsp {
 struct l2cap_conf_opt {
 	__u8       type;
 	__u8       len;
-	__u8       val[0];
+	__u8       val[];
 } __packed;
 #define L2CAP_CONF_OPT_SIZE	2
 
@@ -392,7 +392,7 @@ struct l2cap_info_req {
 struct l2cap_info_rsp {
 	__le16      type;
 	__le16      result;
-	__u8        data[0];
+	__u8        data[];
 } __packed;
 
 struct l2cap_create_chan_req {
