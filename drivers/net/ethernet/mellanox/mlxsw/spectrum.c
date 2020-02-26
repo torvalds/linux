@@ -2798,27 +2798,6 @@ static u32 mlxsw_sp1_to_ptys_speed(struct mlxsw_sp *mlxsw_sp, u8 width,
 	return ptys_proto;
 }
 
-static u32
-mlxsw_sp1_to_ptys_upper_speed(struct mlxsw_sp *mlxsw_sp, u32 upper_speed)
-{
-	u32 ptys_proto = 0;
-	int i;
-
-	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
-		if (mlxsw_sp1_port_link_mode[i].speed <= upper_speed)
-			ptys_proto |= mlxsw_sp1_port_link_mode[i].mask;
-	}
-	return ptys_proto;
-}
-
-static int
-mlxsw_sp1_port_speed_base(struct mlxsw_sp *mlxsw_sp, u8 local_port,
-			  u32 *base_speed)
-{
-	*base_speed = MLXSW_SP_PORT_BASE_SPEED_25G;
-	return 0;
-}
-
 static void
 mlxsw_sp1_reg_ptys_eth_pack(struct mlxsw_sp *mlxsw_sp, char *payload,
 			    u8 local_port, u32 proto_admin, bool autoneg)
@@ -2843,8 +2822,6 @@ mlxsw_sp1_port_type_speed_ops = {
 	.from_ptys_speed_duplex		= mlxsw_sp1_from_ptys_speed_duplex,
 	.to_ptys_advert_link		= mlxsw_sp1_to_ptys_advert_link,
 	.to_ptys_speed			= mlxsw_sp1_to_ptys_speed,
-	.to_ptys_upper_speed		= mlxsw_sp1_to_ptys_upper_speed,
-	.port_speed_base		= mlxsw_sp1_port_speed_base,
 	.reg_ptys_eth_pack		= mlxsw_sp1_reg_ptys_eth_pack,
 	.reg_ptys_eth_unpack		= mlxsw_sp1_reg_ptys_eth_unpack,
 };
@@ -3245,51 +3222,6 @@ static u32 mlxsw_sp2_to_ptys_speed(struct mlxsw_sp *mlxsw_sp,
 	return ptys_proto;
 }
 
-static u32
-mlxsw_sp2_to_ptys_upper_speed(struct mlxsw_sp *mlxsw_sp, u32 upper_speed)
-{
-	u32 ptys_proto = 0;
-	int i;
-
-	for (i = 0; i < MLXSW_SP2_PORT_LINK_MODE_LEN; i++) {
-		if (mlxsw_sp2_port_link_mode[i].speed <= upper_speed)
-			ptys_proto |= mlxsw_sp2_port_link_mode[i].mask;
-	}
-	return ptys_proto;
-}
-
-static int
-mlxsw_sp2_port_speed_base(struct mlxsw_sp *mlxsw_sp, u8 local_port,
-			  u32 *base_speed)
-{
-	char ptys_pl[MLXSW_REG_PTYS_LEN];
-	u32 eth_proto_cap;
-	int err;
-
-	/* In Spectrum-2, the speed of 1x can change from port to port, so query
-	 * it from firmware.
-	 */
-	mlxsw_reg_ptys_ext_eth_pack(ptys_pl, local_port, 0, false);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
-	if (err)
-		return err;
-	mlxsw_reg_ptys_ext_eth_unpack(ptys_pl, &eth_proto_cap, NULL, NULL);
-
-	if (eth_proto_cap &
-	    MLXSW_REG_PTYS_EXT_ETH_SPEED_50GAUI_1_LAUI_1_50GBASE_CR_KR) {
-		*base_speed = MLXSW_SP_PORT_BASE_SPEED_50G;
-		return 0;
-	}
-
-	if (eth_proto_cap &
-	    MLXSW_REG_PTYS_EXT_ETH_SPEED_25GAUI_1_25GBASE_CR_KR) {
-		*base_speed = MLXSW_SP_PORT_BASE_SPEED_25G;
-		return 0;
-	}
-
-	return -EIO;
-}
-
 static void
 mlxsw_sp2_reg_ptys_eth_pack(struct mlxsw_sp *mlxsw_sp, char *payload,
 			    u8 local_port, u32 proto_admin,
@@ -3315,8 +3247,6 @@ mlxsw_sp2_port_type_speed_ops = {
 	.from_ptys_speed_duplex		= mlxsw_sp2_from_ptys_speed_duplex,
 	.to_ptys_advert_link		= mlxsw_sp2_to_ptys_advert_link,
 	.to_ptys_speed			= mlxsw_sp2_to_ptys_speed,
-	.to_ptys_upper_speed		= mlxsw_sp2_to_ptys_upper_speed,
-	.port_speed_base		= mlxsw_sp2_port_speed_base,
 	.reg_ptys_eth_pack		= mlxsw_sp2_reg_ptys_eth_pack,
 	.reg_ptys_eth_unpack		= mlxsw_sp2_reg_ptys_eth_unpack,
 };
@@ -3530,24 +3460,24 @@ static int
 mlxsw_sp_port_speed_by_width_set(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u32 eth_proto_cap, eth_proto_admin, eth_proto_oper;
 	const struct mlxsw_sp_port_type_speed_ops *ops;
 	char ptys_pl[MLXSW_REG_PTYS_LEN];
-	u32 eth_proto_admin;
-	u32 upper_speed;
-	u32 base_speed;
 	int err;
 
 	ops = mlxsw_sp->port_type_speed_ops;
 
-	err = ops->port_speed_base(mlxsw_sp, mlxsw_sp_port->local_port,
-				   &base_speed);
+	/* Set advertised speeds to supported speeds. */
+	ops->reg_ptys_eth_pack(mlxsw_sp, ptys_pl, mlxsw_sp_port->local_port,
+			       0, false);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 	if (err)
 		return err;
-	upper_speed = base_speed * mlxsw_sp_port->mapping.width;
 
-	eth_proto_admin = ops->to_ptys_upper_speed(mlxsw_sp, upper_speed);
+	ops->reg_ptys_eth_unpack(mlxsw_sp, ptys_pl, &eth_proto_cap,
+				 &eth_proto_admin, &eth_proto_oper);
 	ops->reg_ptys_eth_pack(mlxsw_sp, ptys_pl, mlxsw_sp_port->local_port,
-			       eth_proto_admin, mlxsw_sp_port->link.autoneg);
+			       eth_proto_cap, mlxsw_sp_port->link.autoneg);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 }
 
