@@ -40,6 +40,8 @@ void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list);
 int iommu_dma_reserve_iova(struct device *dev, dma_addr_t base,
 			   u64 size);
 
+int iommu_dma_enable_best_fit_algo(struct device *dev);
+
 #else /* CONFIG_IOMMU_DMA */
 
 struct iommu_domain;
@@ -83,6 +85,11 @@ static inline void iommu_dma_get_resv_regions(struct device *dev, struct list_he
 
 static inline int iommu_dma_reserve_iova(struct device *dev, dma_addr_t base,
 					 u64 size)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_dma_enable_best_fit_algo(struct device *dev)
 {
 	return -ENODEV;
 }
