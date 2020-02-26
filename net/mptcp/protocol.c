@@ -551,12 +551,24 @@ static void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
 	}
 }
 
+static void mptcp_worker(struct work_struct *work)
+{
+	struct mptcp_sock *msk = container_of(work, struct mptcp_sock, work);
+	struct sock *sk = &msk->sk.icsk_inet.sk;
+
+	lock_sock(sk);
+
+	release_sock(sk);
+	sock_put(sk);
+}
+
 static int __mptcp_init_sock(struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
 	INIT_LIST_HEAD(&msk->conn_list);
 	__set_bit(MPTCP_SEND_SPACE, &msk->flags);
+	INIT_WORK(&msk->work, mptcp_worker);
 
 	msk->first = NULL;
 
@@ -569,6 +581,14 @@ static int mptcp_init_sock(struct sock *sk)
 		return -ENOPROTOOPT;
 
 	return __mptcp_init_sock(sk);
+}
+
+static void mptcp_cancel_work(struct sock *sk)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	if (cancel_work_sync(&msk->work))
+		sock_put(sk);
 }
 
 static void mptcp_subflow_shutdown(struct sock *ssk, int how)
@@ -615,6 +635,8 @@ static void mptcp_close(struct sock *sk, long timeout)
 
 		__mptcp_close_ssk(sk, ssk, subflow, timeout);
 	}
+
+	mptcp_cancel_work(sk);
 
 	sk_common_release(sk);
 }
