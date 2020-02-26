@@ -589,22 +589,11 @@ void sdw_extract_slave_id(struct sdw_bus *bus,
 {
 	dev_dbg(bus->dev, "SDW Slave Addr: %llx\n", addr);
 
-	/*
-	 * Spec definition
-	 *   Register		Bit	Contents
-	 *   DevId_0 [7:4]	47:44	sdw_version
-	 *   DevId_0 [3:0]	43:40	unique_id
-	 *   DevId_1		39:32	mfg_id [15:8]
-	 *   DevId_2		31:24	mfg_id [7:0]
-	 *   DevId_3		23:16	part_id [15:8]
-	 *   DevId_4		15:08	part_id [7:0]
-	 *   DevId_5		07:00	class_id
-	 */
-	id->sdw_version = (addr >> 44) & GENMASK(3, 0);
-	id->unique_id = (addr >> 40) & GENMASK(3, 0);
-	id->mfg_id = (addr >> 24) & GENMASK(15, 0);
-	id->part_id = (addr >> 8) & GENMASK(15, 0);
-	id->class_id = addr & GENMASK(7, 0);
+	id->sdw_version = SDW_VERSION(addr);
+	id->unique_id = SDW_UNIQUE_ID(addr);
+	id->mfg_id = SDW_MFG_ID(addr);
+	id->part_id = SDW_PART_ID(addr);
+	id->class_id = SDW_CLASS_ID(addr);
 
 	dev_dbg(bus->dev,
 		"SDW Slave class_id %x, part_id %x, mfg_id %x, unique_id %x, version %x\n",

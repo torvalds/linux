@@ -439,6 +439,29 @@ struct sdw_slave_id {
 	__u8 sdw_version:4;
 };
 
+/*
+ * Helper macros to extract the MIPI-defined IDs
+ *
+ * Spec definition
+ *   Register		Bit	Contents
+ *   DevId_0 [7:4]	47:44	sdw_version
+ *   DevId_0 [3:0]	43:40	unique_id
+ *   DevId_1		39:32	mfg_id [15:8]
+ *   DevId_2		31:24	mfg_id [7:0]
+ *   DevId_3		23:16	part_id [15:8]
+ *   DevId_4		15:08	part_id [7:0]
+ *   DevId_5		07:00	class_id
+ *
+ * The MIPI DisCo for SoundWire defines in addition the link_id as bits 51:48
+ */
+
+#define SDW_DISCO_LINK_ID(adr)	(((adr) >> 48) & GENMASK(3, 0))
+#define SDW_VERSION(adr)	(((adr) >> 44) & GENMASK(3, 0))
+#define SDW_UNIQUE_ID(adr)	(((adr) >> 40) & GENMASK(3, 0))
+#define SDW_MFG_ID(adr)		(((adr) >> 24) & GENMASK(15, 0))
+#define SDW_PART_ID(adr)	(((adr) >> 8) & GENMASK(15, 0))
+#define SDW_CLASS_ID(adr)	((adr) & GENMASK(7, 0))
+
 /**
  * struct sdw_slave_intr_status - Slave interrupt status
  * @control_port: control port status
