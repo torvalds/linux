@@ -623,6 +623,13 @@ enum dc_status dcn20_enable_stream_timing(
 
 	/* TODO check if timing_changed, disable stream if timing changed */
 
+	/* Have to setup DSC here to make sure the bandwidth sent to DIG BE won't be bigger than
+	 * what the link and/or DIG BE can handle. VBID[6]/CompressedStream_flag will be automatically
+	 * set at a later time when the video is enabled (DP_VID_STREAM_EN = 1).
+	 */
+	if (pipe_ctx->stream->timing.flags.DSC)
+		dp_set_dsc_on_stream(pipe_ctx, true);
+
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 		opp_inst[opp_cnt] = odm_pipe->stream_res.opp->inst;
 		opp_cnt++;
