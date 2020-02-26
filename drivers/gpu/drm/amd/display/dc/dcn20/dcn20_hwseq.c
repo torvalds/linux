@@ -1660,22 +1660,16 @@ void dcn20_optimize_bandwidth(
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 
-	if (dc->wm_optimized_required || IS_DIAG_DC(dc->ctx->dce_environment)) {
-		/* program dchubbub watermarks */
-		hubbub->funcs->program_watermarks(hubbub,
-						&context->bw_ctx.bw.dcn.watermarks,
-						dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
-						true);
-		dc->wm_optimized_required = false;
-	}
+	/* program dchubbub watermarks */
+	hubbub->funcs->program_watermarks(hubbub,
+					&context->bw_ctx.bw.dcn.watermarks,
+					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
+					true);
 
-	if (dc->clk_optimized_required || IS_DIAG_DC(dc->ctx->dce_environment)) {
-		dc->clk_mgr->funcs->update_clocks(
-				dc->clk_mgr,
-				context,
-				true);
-		dc->clk_optimized_required = false;
-	}
+	dc->clk_mgr->funcs->update_clocks(
+			dc->clk_mgr,
+			context,
+			true);
 }
 
 bool dcn20_update_bandwidth(
