@@ -1339,9 +1339,15 @@ static int dss_component_compare(struct device *dev, void *data)
 	return dev == child;
 }
 
+struct dss_component_match_data {
+	struct device *dev;
+	struct component_match **match;
+};
+
 static int dss_add_child_component(struct device *dev, void *data)
 {
-	struct component_match **match = data;
+	struct dss_component_match_data *cmatch = data;
+	struct component_match **match = cmatch->match;
 
 	/*
 	 * HACK
@@ -1352,7 +1358,17 @@ static int dss_add_child_component(struct device *dev, void *data)
 	if (strstr(dev_name(dev), "rfbi"))
 		return 0;
 
-	component_match_add(dev->parent, match, dss_component_compare, dev);
+	/*
+	 * Handle possible interconnect target modules defined within the DSS.
+	 * The DSS components can be children of an interconnect target module
+	 * after the device tree has been updated for the module data.
+	 * See also omapdss_boot_init() for compatible fixup.
+	 */
+	if (strstr(dev_name(dev), "target-module"))
+		return device_for_each_child(dev, cmatch,
+					     dss_add_child_component);
+
+	component_match_add(cmatch->dev, match, dss_component_compare, dev);
 
 	return 0;
 }
@@ -1395,6 +1411,7 @@ static int dss_probe_hardware(struct dss_device *dss)
 static int dss_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *soc;
+	struct dss_component_match_data cmatch;
 	struct component_match *match = NULL;
 	struct resource *dss_mem;
 	struct dss_device *dss;
@@ -1472,7 +1489,9 @@ static int dss_probe(struct platform_device *pdev)
 
 	omapdss_gather_components(&pdev->dev);
 
-	device_for_each_child(&pdev->dev, &match, dss_add_child_component);
+	cmatch.dev = &pdev->dev;
+	cmatch.match = &match;
+	device_for_each_child(&pdev->dev, &cmatch, dss_add_child_component);
 
 	r = component_master_add_with_match(&pdev->dev, &dss_component_ops, match);
 	if (r)
