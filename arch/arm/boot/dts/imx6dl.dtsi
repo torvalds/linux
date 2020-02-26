@@ -86,7 +86,7 @@
 		};
 
 		aips1: bus@2000000 {
-			iomuxc: iomuxc@20e0000 {
+			iomuxc: pinctrl@20e0000 {
 				compatible = "fsl,imx6dl-iomuxc";
 			};
 
