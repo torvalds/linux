@@ -53,9 +53,16 @@ u8 buf[SETUP_SECT_MAX*512];
 
 #define PECOFF_RELOC_RESERVE 0x20
 
+#ifdef CONFIG_EFI_MIXED
+#define PECOFF_COMPAT_RESERVE 0x20
+#else
+#define PECOFF_COMPAT_RESERVE 0x0
+#endif
+
 unsigned long efi32_stub_entry;
 unsigned long efi64_stub_entry;
 unsigned long efi_pe_entry;
+unsigned long efi32_pe_entry;
 unsigned long kernel_info;
 unsigned long startup_64;
 
@@ -189,7 +196,10 @@ static void update_pecoff_section_header(char *section_name, u32 offset, u32 siz
 static void update_pecoff_setup_and_reloc(unsigned int size)
 {
 	u32 setup_offset = 0x200;
-	u32 reloc_offset = size - PECOFF_RELOC_RESERVE;
+	u32 reloc_offset = size - PECOFF_RELOC_RESERVE - PECOFF_COMPAT_RESERVE;
+#ifdef CONFIG_EFI_MIXED
+	u32 compat_offset = reloc_offset + PECOFF_RELOC_RESERVE;
+#endif
 	u32 setup_size = reloc_offset - setup_offset;
 
 	update_pecoff_section_header(".setup", setup_offset, setup_size);
@@ -201,43 +211,63 @@ static void update_pecoff_setup_and_reloc(unsigned int size)
 	 */
 	put_unaligned_le32(reloc_offset + 10, &buf[reloc_offset]);
 	put_unaligned_le32(10, &buf[reloc_offset + 4]);
+
+#ifdef CONFIG_EFI_MIXED
+	update_pecoff_section_header(".compat", compat_offset, PECOFF_COMPAT_RESERVE);
+
+	/*
+	 * Put the IA-32 machine type (0x14c) and the associated entry point
+	 * address in the .compat section, so loaders can figure out which other
+	 * execution modes this image supports.
+	 */
+	buf[compat_offset] = 0x1;
+	buf[compat_offset + 1] = 0x8;
+	put_unaligned_le16(0x14c, &buf[compat_offset + 2]);
+	put_unaligned_le32(efi32_pe_entry + size, &buf[compat_offset + 4]);
+#endif
 }
 
-static void update_pecoff_text(unsigned int text_start, unsigned int file_sz)
+static void update_pecoff_text(unsigned int text_start, unsigned int file_sz,
+			       unsigned int init_sz)
 {
 	unsigned int pe_header;
 	unsigned int text_sz = file_sz - text_start;
+	unsigned int bss_sz = init_sz + text_start - file_sz;
 
 	pe_header = get_unaligned_le32(&buf[0x3c]);
+
+#ifdef CONFIG_EFI_MIXED
+	/*
+	 * In mixed mode, we will execute startup_32() at whichever offset in
+	 * memory it happened to land when the PE/COFF loader loaded the image,
+	 * which may be misaligned with respect to the kernel_alignment field
+	 * in the setup header.
+	 *
+	 * In order for startup_32 to safely execute in place at this offset,
+	 * we need to ensure that the CONFIG_PHYSICAL_ALIGN aligned allocation
+	 * it creates for the page tables does not extend beyond the declared
+	 * size of the image in the PE/COFF header. So add the required slack.
+	 */
+	bss_sz	+= CONFIG_PHYSICAL_ALIGN;
+	init_sz	+= CONFIG_PHYSICAL_ALIGN;
+#endif
 
 	/*
 	 * Size of code: Subtract the size of the first sector (512 bytes)
 	 * which includes the header.
 	 */
-	put_unaligned_le32(file_sz - 512, &buf[pe_header + 0x1c]);
+	put_unaligned_le32(file_sz - 512 + bss_sz, &buf[pe_header + 0x1c]);
+
+	/* Size of image */
+	put_unaligned_le32(init_sz + text_start, &buf[pe_header + 0x50]);
 
 	/*
 	 * Address of entry point for PE/COFF executable
 	 */
 	put_unaligned_le32(text_start + efi_pe_entry, &buf[pe_header + 0x28]);
 
-	update_pecoff_section_header(".text", text_start, text_sz);
-}
-
-static void update_pecoff_bss(unsigned int file_sz, unsigned int init_sz)
-{
-	unsigned int pe_header;
-	unsigned int bss_sz = init_sz - file_sz;
-
-	pe_header = get_unaligned_le32(&buf[0x3c]);
-
-	/* Size of uninitialized data */
-	put_unaligned_le32(bss_sz, &buf[pe_header + 0x24]);
-
-	/* Size of image */
-	put_unaligned_le32(init_sz, &buf[pe_header + 0x50]);
-
-	update_pecoff_section_header_fields(".bss", file_sz, bss_sz, 0, 0);
+	update_pecoff_section_header_fields(".text", text_start, text_sz + bss_sz,
+					    text_sz, text_start);
 }
 
 static int reserve_pecoff_reloc_section(int c)
@@ -278,9 +308,8 @@ static void efi_stub_entry_update(void)
 
 static inline void update_pecoff_setup_and_reloc(unsigned int size) {}
 static inline void update_pecoff_text(unsigned int text_start,
-				      unsigned int file_sz) {}
-static inline void update_pecoff_bss(unsigned int file_sz,
-				     unsigned int init_sz) {}
+				      unsigned int file_sz,
+				      unsigned int init_sz) {}
 static inline void efi_stub_defaults(void) {}
 static inline void efi_stub_entry_update(void) {}
 
@@ -290,6 +319,12 @@ static inline int reserve_pecoff_reloc_section(int c)
 }
 #endif /* CONFIG_EFI_STUB */
 
+static int reserve_pecoff_compat_section(int c)
+{
+	/* Reserve 0x20 bytes for .compat section */
+	memset(buf+c, 0, PECOFF_COMPAT_RESERVE);
+	return PECOFF_COMPAT_RESERVE;
+}
 
 /*
  * Parse zoffset.h and find the entry points. We could just #include zoffset.h
@@ -322,6 +357,7 @@ static void parse_zoffset(char *fname)
 		PARSE_ZOFS(p, efi32_stub_entry);
 		PARSE_ZOFS(p, efi64_stub_entry);
 		PARSE_ZOFS(p, efi_pe_entry);
+		PARSE_ZOFS(p, efi32_pe_entry);
 		PARSE_ZOFS(p, kernel_info);
 		PARSE_ZOFS(p, startup_64);
 
@@ -365,6 +401,7 @@ int main(int argc, char ** argv)
 		die("Boot block hasn't got boot flag (0xAA55)");
 	fclose(file);
 
+	c += reserve_pecoff_compat_section(c);
 	c += reserve_pecoff_reloc_section(c);
 
 	/* Pad unused space with zeros */
@@ -406,9 +443,8 @@ int main(int argc, char ** argv)
 	buf[0x1f1] = setup_sectors-1;
 	put_unaligned_le32(sys_size, &buf[0x1f4]);
 
-	update_pecoff_text(setup_sectors * 512, i + (sys_size * 16));
 	init_sz = get_unaligned_le32(&buf[0x260]);
-	update_pecoff_bss(i + (sys_size * 16), init_sz);
+	update_pecoff_text(setup_sectors * 512, i + (sys_size * 16), init_sz);
 
 	efi_stub_entry_update();
 

@@ -1437,30 +1437,28 @@ __enter_kernel:
 reloc_code_end:
 
 #ifdef CONFIG_EFI_STUB
-		.align	2
-_start:		.long	start - .
+ENTRY(efi_enter_kernel)
+		mov	r7, r0				@ preserve image base
+		mov	r4, r1				@ preserve DT pointer
 
-ENTRY(efi_stub_entry)
-		@ allocate space on stack for passing current zImage address
-		@ and for the EFI stub to return of new entry point of
-		@ zImage, as EFI stub may copy the kernel. Pointer address
-		@ is passed in r2. r0 and r1 are passed through from the
-		@ EFI firmware to efi_entry
-		adr	ip, _start
-		ldr	r3, [ip]
-		add	r3, r3, ip
-		stmfd	sp!, {r3, lr}
-		mov	r2, sp			@ pass zImage address in r2
-		bl	efi_entry
-
-		@ Check for error return from EFI stub. r0 has FDT address
-		@ or error code.
-		cmn	r0, #1
-		beq	efi_load_fail
-
-		@ Preserve return value of efi_entry() in r4
-		mov	r4, r0
+		mov	r0, r4				@ DT start
+		add	r1, r4, r2			@ DT end
 		bl	cache_clean_flush
+
+		mov	r0, r7				@ relocated zImage
+		ldr	r1, =_edata			@ size of zImage
+		add	r1, r1, r0			@ end of zImage
+		bl	cache_clean_flush
+
+		@ The PE/COFF loader might not have cleaned the code we are
+		@ running beyond the PoU, and so calling cache_off below from
+		@ inside the PE/COFF loader allocated region is unsafe. Let's
+		@ assume our own zImage relocation code did a better job, and
+		@ jump into its version of this routine before proceeding.
+		ldr	r1, .Ljmp
+		sub	r1, r7, r1
+		mov	pc, r1				@ no mode switch
+0:
 		bl	cache_off
 
 		@ Set parameters for booting zImage according to boot protocol
@@ -1469,18 +1467,10 @@ ENTRY(efi_stub_entry)
 		mov	r0, #0
 		mov	r1, #0xFFFFFFFF
 		mov	r2, r4
-
-		@ Branch to (possibly) relocated zImage that is in [sp]
-		ldr	lr, [sp]
-		ldr	ip, =start_offset
-		add	lr, lr, ip
-		mov	pc, lr				@ no mode switch
-
-efi_load_fail:
-		@ Return EFI_LOAD_ERROR to EFI firmware on error.
-		ldr	r0, =0x80000001
-		ldmfd	sp!, {ip, pc}
-ENDPROC(efi_stub_entry)
+		b	__efi_start
+ENDPROC(efi_enter_kernel)
+		.align	2
+.Ljmp:		.long	start - 0b
 #endif
 
 		.align
