@@ -1383,8 +1383,8 @@ static void intel_ddi_clock_get(struct intel_encoder *encoder,
 		pipe_config->port_clock = icl_calc_tbt_pll_link(dev_priv,
 								encoder->port);
 	else
-		pipe_config->port_clock = intel_dpll_get_freq(encoder,
-							      pipe_config);
+		pipe_config->port_clock =
+			intel_dpll_get_freq(dev_priv, pipe_config->shared_dpll);
 
 	ddi_dotclock_get(pipe_config);
 }
