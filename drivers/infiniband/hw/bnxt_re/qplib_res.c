@@ -44,6 +44,7 @@
 #include <linux/inetdevice.h>
 #include <linux/dma-mapping.h>
 #include <linux/if_vlan.h>
+#include <linux/vmalloc.h>
 #include "roce_hsi.h"
 #include "qplib_res.h"
 #include "qplib_sp.h"
