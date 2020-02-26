@@ -854,12 +854,24 @@ skip_rio:
 		break;
 
 	case MBA_SYSTEM_ERR:		/* System Error */
-		mbx = (IS_QLA81XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
-		    IS_QLA28XX(ha)) ?
-			RD_REG_WORD(&reg24->mailbox7) : 0;
-		ql_log(ql_log_warn, vha, 0x5003,
-		    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh "
-		    "mbx7=%xh.\n", mb[1], mb[2], mb[3], mbx);
+		mbx = 0;
+		if (IS_QLA81XX(ha) || IS_QLA83XX(ha) ||
+		    IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+			u16 m[4];
+
+			m[0] = RD_REG_WORD(&reg24->mailbox4);
+			m[1] = RD_REG_WORD(&reg24->mailbox5);
+			m[2] = RD_REG_WORD(&reg24->mailbox6);
+			mbx = m[3] = RD_REG_WORD(&reg24->mailbox7);
+
+			ql_log(ql_log_warn, vha, 0x5003,
+			    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh mbx4=%xh mbx5=%xh mbx6=%xh mbx7=%xh.\n",
+			    mb[1], mb[2], mb[3], m[0], m[1], m[2], m[3]);
+		} else
+			ql_log(ql_log_warn, vha, 0x5003,
+			    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh.\n ",
+			    mb[1], mb[2], mb[3]);
+
 		ha->fw_dump_mpi =
 		    (IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
 		    RD_REG_WORD(&reg24->mailbox7) & BIT_8;
