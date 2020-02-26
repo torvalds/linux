@@ -665,6 +665,8 @@ patternProperties:
     description: Netron DY
   "^netxeon,.*":
     description: Shenzhen Netxeon Technology CO., LTD
+  "^neweast,.*":
+    description: Guangdong Neweast Optoelectronics CO., LTD
   "^nexbox,.*":
     description: Nexbox
   "^nextthing,.*":
