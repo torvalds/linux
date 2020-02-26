@@ -748,7 +748,7 @@ lock_node:
 	}
 
 	/* avoid atomic set bit if it's not needed: */
-	if (btree_node_accessed(b))
+	if (!btree_node_accessed(b))
 		set_btree_node_accessed(b);
 
 	if (unlikely(btree_node_read_error(b))) {
