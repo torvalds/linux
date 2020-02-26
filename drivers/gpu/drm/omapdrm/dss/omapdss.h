@@ -367,7 +367,7 @@ struct omap_dss_device_ops {
 				void *cb_data);
 	void (*unregister_hpd_cb)(struct omap_dss_device *dssdev);
 
-	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
+	struct edid *(*read_edid)(struct omap_dss_device *dssdev);
 
 	int (*get_modes)(struct omap_dss_device *dssdev,
 			 struct drm_connector *connector);

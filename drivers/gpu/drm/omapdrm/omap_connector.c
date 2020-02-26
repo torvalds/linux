@@ -153,25 +153,19 @@ static void omap_connector_destroy(struct drm_connector *connector)
 	kfree(omap_connector);
 }
 
-#define MAX_EDID  512
-
 static int omap_connector_get_modes_edid(struct drm_connector *connector,
 					 struct omap_dss_device *dssdev)
 {
 	enum drm_connector_status status;
-	void *edid;
+	struct edid *edid;
 	int n;
 
 	status = omap_connector_detect(connector, false);
 	if (status != connector_status_connected)
 		goto no_edid;
 
-	edid = kzalloc(MAX_EDID, GFP_KERNEL);
-	if (!edid)
-		goto no_edid;
-
-	if (dssdev->ops->read_edid(dssdev, edid, MAX_EDID) <= 0 ||
-	    !drm_edid_is_valid(edid)) {
+	edid = dssdev->ops->read_edid(dssdev);
+	if (!edid || !drm_edid_is_valid(edid)) {
 		kfree(edid);
 		goto no_edid;
 	}

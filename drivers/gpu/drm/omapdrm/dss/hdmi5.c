@@ -410,27 +410,39 @@ static void hdmi_disconnect(struct omap_dss_device *src,
 	omapdss_device_disconnect(dst, dst->next);
 }
 
-static int hdmi_read_edid(struct omap_dss_device *dssdev,
-		u8 *edid, int len)
+#define MAX_EDID	512
+
+static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
 {
 	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
 	bool need_enable;
+	u8 *edid;
 	int r;
+
+	edid = kzalloc(MAX_EDID, GFP_KERNEL);
+	if (!edid)
+		return NULL;
 
 	need_enable = hdmi->core_enabled == false;
 
 	if (need_enable) {
 		r = hdmi_core_enable(hdmi);
-		if (r)
-			return r;
+		if (r) {
+			kfree(edid);
+			return NULL;
+		}
 	}
 
-	r = read_edid(hdmi, edid, len);
+	r = read_edid(hdmi, edid, MAX_EDID);
+	if (r < 0) {
+		kfree(edid);
+		edid = NULL;
+	}
 
 	if (need_enable)
 		hdmi_core_disable(hdmi);
 
-	return r;
+	return (struct edid *)edid;
 }
 
 static int hdmi_set_infoframe(struct omap_dss_device *dssdev,
