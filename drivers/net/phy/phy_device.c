@@ -1793,7 +1793,7 @@ EXPORT_SYMBOL(genphy_restart_aneg);
  */
 int genphy_check_and_restart_aneg(struct phy_device *phydev, bool restart)
 {
-	int ret = 0;
+	int ret;
 
 	if (!restart) {
 		/* Advertisement hasn't changed, but maybe aneg was never on to
@@ -1808,9 +1808,9 @@ int genphy_check_and_restart_aneg(struct phy_device *phydev, bool restart)
 	}
 
 	if (restart)
-		ret = genphy_restart_aneg(phydev);
+		return genphy_restart_aneg(phydev);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(genphy_check_and_restart_aneg);
 
