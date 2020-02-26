@@ -32,6 +32,7 @@ STATIC void
 xfs_ail_check(
 	struct xfs_ail		*ailp,
 	struct xfs_log_item	*lip)
+	__must_hold(&ailp->ail_lock)
 {
 	struct xfs_log_item	*prev_lip;
 	struct xfs_log_item	*next_lip;
