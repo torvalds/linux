@@ -484,30 +484,6 @@ void gtt_write_workarounds(struct intel_gt *gt)
 	}
 }
 
-u64 gen8_pte_encode(dma_addr_t addr,
-		    enum i915_cache_level level,
-		    u32 flags)
-{
-	gen8_pte_t pte = addr | _PAGE_PRESENT | _PAGE_RW;
-
-	if (unlikely(flags & PTE_READ_ONLY))
-		pte &= ~_PAGE_RW;
-
-	switch (level) {
-	case I915_CACHE_NONE:
-		pte |= PPAT_UNCACHED;
-		break;
-	case I915_CACHE_WT:
-		pte |= PPAT_DISPLAY_ELLC;
-		break;
-	default:
-		pte |= PPAT_CACHED;
-		break;
-	}
-
-	return pte;
-}
-
 static void tgl_setup_private_ppat(struct intel_uncore *uncore)
 {
 	/* TGL doesn't support LLC or AGE settings */

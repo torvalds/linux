@@ -25,6 +25,30 @@ static u64 gen8_pde_encode(const dma_addr_t addr,
 	return pde;
 }
 
+static u64 gen8_pte_encode(dma_addr_t addr,
+			   enum i915_cache_level level,
+			   u32 flags)
+{
+	gen8_pte_t pte = addr | _PAGE_PRESENT | _PAGE_RW;
+
+	if (unlikely(flags & PTE_READ_ONLY))
+		pte &= ~_PAGE_RW;
+
+	switch (level) {
+	case I915_CACHE_NONE:
+		pte |= PPAT_UNCACHED;
+		break;
+	case I915_CACHE_WT:
+		pte |= PPAT_DISPLAY_ELLC;
+		break;
+	default:
+		pte |= PPAT_CACHED;
+		break;
+	}
+
+	return pte;
+}
+
 static void gen8_ppgtt_notify_vgt(struct i915_ppgtt *ppgtt, bool create)
 {
 	struct drm_i915_private *i915 = ppgtt->vm.i915;
@@ -705,6 +729,8 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt)
 	ppgtt->vm.insert_entries = gen8_ppgtt_insert;
 	ppgtt->vm.allocate_va_range = gen8_ppgtt_alloc;
 	ppgtt->vm.clear_range = gen8_ppgtt_clear;
+
+	ppgtt->vm.pte_encode = gen8_pte_encode;
 
 	if (intel_vgpu_active(gt->i915))
 		gen8_ppgtt_notify_vgt(ppgtt, true);
