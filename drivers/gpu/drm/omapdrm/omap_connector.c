@@ -228,7 +228,7 @@ enum drm_mode_status omap_connector_mode_fixup(struct omap_dss_device *dssdev,
 	drm_mode_copy(adjusted_mode, mode);
 
 	for (; dssdev; dssdev = dssdev->next) {
-		if (!dssdev->ops->check_timings)
+		if (!dssdev->ops || !dssdev->ops->check_timings)
 			continue;
 
 		ret = dssdev->ops->check_timings(dssdev, adjusted_mode);

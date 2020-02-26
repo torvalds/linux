@@ -195,10 +195,12 @@ int omapdss_device_connect(struct dss_device *dss,
 
 	dst->dss = dss;
 
-	ret = dst->ops->connect(src, dst);
-	if (ret < 0) {
-		dst->dss = NULL;
-		return ret;
+	if (dst->ops && dst->ops->connect) {
+		ret = dst->ops->connect(src, dst);
+		if (ret < 0) {
+			dst->dss = NULL;
+			return ret;
+		}
 	}
 
 	return 0;
@@ -226,7 +228,8 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 
 	WARN_ON(dst->state != OMAP_DSS_DISPLAY_DISABLED);
 
-	dst->ops->disconnect(src, dst);
+	if (dst->ops && dst->ops->disconnect)
+		dst->ops->disconnect(src, dst);
 	dst->dss = NULL;
 }
 EXPORT_SYMBOL_GPL(omapdss_device_disconnect);
@@ -238,7 +241,7 @@ void omapdss_device_pre_enable(struct omap_dss_device *dssdev)
 
 	omapdss_device_pre_enable(dssdev->next);
 
-	if (dssdev->ops->pre_enable)
+	if (dssdev->ops && dssdev->ops->pre_enable)
 		dssdev->ops->pre_enable(dssdev);
 }
 EXPORT_SYMBOL_GPL(omapdss_device_pre_enable);
@@ -248,7 +251,7 @@ void omapdss_device_enable(struct omap_dss_device *dssdev)
 	if (!dssdev)
 		return;
 
-	if (dssdev->ops->enable)
+	if (dssdev->ops && dssdev->ops->enable)
 		dssdev->ops->enable(dssdev);
 
 	omapdss_device_enable(dssdev->next);
@@ -264,7 +267,7 @@ void omapdss_device_disable(struct omap_dss_device *dssdev)
 
 	omapdss_device_disable(dssdev->next);
 
-	if (dssdev->ops->disable)
+	if (dssdev->ops && dssdev->ops->disable)
 		dssdev->ops->disable(dssdev);
 }
 EXPORT_SYMBOL_GPL(omapdss_device_disable);
@@ -274,7 +277,7 @@ void omapdss_device_post_disable(struct omap_dss_device *dssdev)
 	if (!dssdev)
 		return;
 
-	if (dssdev->ops->post_disable)
+	if (dssdev->ops && dssdev->ops->post_disable)
 		dssdev->ops->post_disable(dssdev);
 
 	omapdss_device_post_disable(dssdev->next);

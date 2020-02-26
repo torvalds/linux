@@ -77,10 +77,10 @@ static void omap_encoder_hdmi_mode_set(struct drm_connector *connector,
 	struct omap_dss_device *dssdev = omap_encoder->output;
 	bool hdmi_mode = connector->display_info.is_hdmi;
 
-	if (dssdev->ops->hdmi.set_hdmi_mode)
+	if (dssdev->ops && dssdev->ops->hdmi.set_hdmi_mode)
 		dssdev->ops->hdmi.set_hdmi_mode(dssdev, hdmi_mode);
 
-	if (hdmi_mode && dssdev->ops->hdmi.set_infoframe) {
+	if (hdmi_mode && dssdev->ops && dssdev->ops->hdmi.set_infoframe) {
 		struct hdmi_avi_infoframe avi;
 		int r;
 
@@ -139,7 +139,7 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	dss_mgr_set_timings(output, &vm);
 
 	for (dssdev = output; dssdev; dssdev = dssdev->next) {
-		if (dssdev->ops->set_timings)
+		if (dssdev->ops && dssdev->ops->set_timings)
 			dssdev->ops->set_timings(dssdev, adjusted_mode);
 	}
 
@@ -168,7 +168,8 @@ static void omap_encoder_disable(struct drm_encoder *encoder)
 	 * flow where the pipeline output controls the encoder.
 	 */
 	if (dssdev->type != OMAP_DISPLAY_TYPE_DSI) {
-		dssdev->ops->disable(dssdev);
+		if (dssdev->ops && dssdev->ops->disable)
+			dssdev->ops->disable(dssdev);
 		dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 	}
 
@@ -196,7 +197,8 @@ static void omap_encoder_enable(struct drm_encoder *encoder)
 	 * flow where the pipeline output controls the encoder.
 	 */
 	if (dssdev->type != OMAP_DISPLAY_TYPE_DSI) {
-		dssdev->ops->enable(dssdev);
+		if (dssdev->ops && dssdev->ops->enable)
+			dssdev->ops->enable(dssdev);
 		dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 	}
 
