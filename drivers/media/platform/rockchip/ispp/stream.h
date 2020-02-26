@@ -91,6 +91,14 @@ struct in_nr_buf {
 	struct rkispp_dummy_buffer tmp_yuv;
 };
 
+/* fec internal using buf */
+struct in_fec_buf {
+	struct rkispp_dummy_buffer mesh_xint;
+	struct rkispp_dummy_buffer mesh_yint;
+	struct rkispp_dummy_buffer mesh_xfra;
+	struct rkispp_dummy_buffer mesh_yfra;
+};
+
 /* struct rkispp_stream - ISPP stream video device
  * id: stream video identify
  * buf_queue: queued buffer list
@@ -134,6 +142,7 @@ struct rkispp_stream_vdev {
 	struct rkispp_stream stream[STREAM_MAX];
 	struct in_tnr_buf tnr_buf;
 	struct in_nr_buf nr_buf;
+	struct in_fec_buf fec_buf;
 	atomic_t refcnt;
 };
 

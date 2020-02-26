@@ -498,6 +498,9 @@ static int config_2dnr_shp(struct rkispp_device *dev)
 
 	rkispp_clear_bits(base + RKISPP_CTRL_QUICK, GLB_FEC2SCL_EN);
 	if (dev->module_en[ISPP_FEC]) {
+		pic_size = (fmt & FMT_YUV422) ? width * height * 2 :
+			width * height * 3 >> 1;
+		addr_offs = width * height;
 		buf = &vdev->nr_buf.pic_wr;
 		buf->size = pic_size;
 		ret = rkispp_allow_buffer(dev, buf);
@@ -558,7 +561,10 @@ static int config_fec(struct rkispp_device *dev)
 	struct rkispp_stream_vdev *vdev;
 	struct rkispp_stream *stream = NULL;
 	void __iomem *base = dev->base_addr;
+	struct rkispp_dummy_buffer *buf;
 	u32 width, height, fmt, mult = 1;
+	u32 i, mesh_size;
+	int ret;
 
 	vdev = &dev->stream_vdev;
 	if (!dev->module_en[ISPP_FEC])
@@ -590,6 +596,35 @@ static int config_fec(struct rkispp_device *dev)
 		stream->config->reg.cur_uv_base_shd = RKISPP_FEC_RD_UV_BASE_SHD;
 	}
 
+	mesh_size = cal_fec_mesh(width, height, 0);
+	buf = &vdev->fec_buf.mesh_xint;
+	buf->size = ALIGN(mesh_size * 2, 8);
+	ret = rkispp_allow_buffer(dev, buf);
+	if (ret < 0)
+		goto err;
+	writel(buf->dma_addr, base + RKISPP_FEC_MESH_XINT_BASE);
+
+	buf = &vdev->fec_buf.mesh_yint;
+	buf->size = ALIGN(mesh_size * 2, 8);
+	ret = rkispp_allow_buffer(dev, buf);
+	if (ret < 0)
+		goto err;
+	writel(buf->dma_addr, base + RKISPP_FEC_MESH_YINT_BASE);
+
+	buf = &vdev->fec_buf.mesh_xfra;
+	buf->size = ALIGN(mesh_size, 8);
+	ret = rkispp_allow_buffer(dev, buf);
+	if (ret < 0)
+		goto err;
+	writel(buf->dma_addr, base + RKISPP_FEC_MESH_XFRA_BASE);
+
+	buf = &vdev->fec_buf.mesh_yfra;
+	buf->size = ALIGN(mesh_size, 8);
+	ret = rkispp_allow_buffer(dev, buf);
+	if (ret < 0)
+		goto err;
+	writel(buf->dma_addr, base + RKISPP_FEC_MESH_YFRA_BASE);
+
 	rkispp_set_bits(base + RKISPP_FEC_CTRL, FMT_RD_MASK, fmt);
 	writel(ALIGN(width * mult, 16) >> 2, base + RKISPP_FEC_RD_VIR_STRIDE);
 	writel(height << 16 | width, base + RKISPP_FEC_PIC_SIZE);
@@ -600,6 +635,13 @@ static int config_fec(struct rkispp_device *dev)
 		 readl(base + RKISPP_FEC_CTRL),
 		 readl(base + RKISPP_FEC_CORE_CTRL));
 	return 0;
+err:
+	for (i = 0; i < sizeof(vdev->fec_buf) /
+	     sizeof(struct rkispp_dummy_buffer); i++)
+		rkispp_free_buffer(dev, &vdev->fec_buf.mesh_xint + i);
+	v4l2_err(&dev->v4l2_dev,
+		 "%s Failed to allocate buffer\n", __func__);
+	return ret;
 }
 
 static int config_modules(struct rkispp_device *dev)
@@ -916,6 +958,9 @@ static void rkispp_destroy_dummy_buf(struct rkispp_stream *stream)
 		for (i = 0; i < sizeof(vdev->nr_buf) /
 		     sizeof(struct rkispp_dummy_buffer); i++)
 			rkispp_free_buffer(dev, &vdev->nr_buf.pic_cur + i);
+		for (i = 0; i < sizeof(vdev->fec_buf) /
+		     sizeof(struct rkispp_dummy_buffer); i++)
+			rkispp_free_buffer(dev, &vdev->fec_buf.mesh_xint + i);
 	}
 }
 
@@ -1358,7 +1403,6 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 	}
 
 	if (mis_val & SHP_INT &&
-	    dev->inp == INP_DDR &&
 	    dev->module_en[ISPP_FEC])
 		writel(FEC_ST, base + RKISPP_CTRL_STRT);
 
