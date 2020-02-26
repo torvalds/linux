@@ -3929,6 +3929,9 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 			ha->fw_options[2] &= ~BIT_8;
 	}
 
+	if (ql2xrdpenable)
+		ha->fw_options[1] |= ADD_FO1_ENABLE_PUREX_IOCB;
+
 	ql_dbg(ql_dbg_init, vha, 0x00e8,
 	    "%s, add FW options 1-3 = 0x%04x 0x%04x 0x%04x mode %x\n",
 	    __func__, ha->fw_options[1], ha->fw_options[2],
@@ -3939,7 +3942,7 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 
 	/* Update Serial Link options. */
 	if ((le16_to_cpu(ha->fw_seriallink_options24[0]) & BIT_0) == 0)
-		goto enable_purex;
+		return;
 
 	rval = qla2x00_set_serdes_params(vha,
 	    le16_to_cpu(ha->fw_seriallink_options24[1]),
@@ -3949,12 +3952,6 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 		ql_log(ql_log_warn, vha, 0x0104,
 		    "Unable to update Serial Link options (%x).\n", rval);
 	}
-
-enable_purex:
-	if (ql2xrdpenable)
-		ha->fw_options[1] |= ADD_FO1_ENABLE_PUREX_IOCB;
-
-	qla2x00_set_fw_options(vha, ha->fw_options);
 }
 
 void
