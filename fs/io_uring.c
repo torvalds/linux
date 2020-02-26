@@ -6641,6 +6641,7 @@ out_fput:
 	return submitted ? submitted : ret;
 }
 
+#ifdef CONFIG_PROC_FS
 static int io_uring_show_cred(int id, void *p, void *data)
 {
 	const struct cred *cred = p;
@@ -6714,6 +6715,7 @@ static void io_uring_show_fdinfo(struct seq_file *m, struct file *f)
 		percpu_ref_put(&ctx->refs);
 	}
 }
+#endif
 
 static const struct file_operations io_uring_fops = {
 	.release	= io_uring_release,
@@ -6725,7 +6727,9 @@ static const struct file_operations io_uring_fops = {
 #endif
 	.poll		= io_uring_poll,
 	.fasync		= io_uring_fasync,
+#ifdef CONFIG_PROC_FS
 	.show_fdinfo	= io_uring_show_fdinfo,
+#endif
 };
 
 static int io_allocate_scq_urings(struct io_ring_ctx *ctx,
