@@ -877,9 +877,11 @@ hsw_ddi_wrpll_get_dpll(struct intel_atomic_state *state,
 	return pll;
 }
 
-static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
-				   i915_reg_t reg)
+static int hsw_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
+				  const struct intel_shared_dpll *pll)
 {
+	i915_reg_t reg = pll->info->id == DPLL_ID_WRPLL1 ?
+					  WRPLL_CTL(0) : WRPLL_CTL(1);
 	int refclk;
 	int n, p, r;
 	u32 wrpll;
@@ -921,7 +923,7 @@ static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	n = (wrpll & WRPLL_DIVIDER_FB_MASK) >> WRPLL_DIVIDER_FB_SHIFT;
 
 	/* Convert to KHz, p & r have a fixed point portion */
-	return (refclk * n * 100) / (p * r);
+	return (refclk * n * 100) / (p * r) * 2;
 }
 
 static struct intel_shared_dpll *
@@ -956,6 +958,29 @@ hsw_ddi_lcpll_get_dpll(struct intel_crtc_state *crtc_state)
 	return pll;
 }
 
+static int hsw_ddi_lcpll_get_freq(struct drm_i915_private *i915,
+				  const struct intel_shared_dpll *pll)
+{
+	int link_clock = 0;
+
+	switch (pll->info->id) {
+	case DPLL_ID_LCPLL_810:
+		link_clock = 81000;
+		break;
+	case DPLL_ID_LCPLL_1350:
+		link_clock = 135000;
+		break;
+	case DPLL_ID_LCPLL_2700:
+		link_clock = 270000;
+		break;
+	default:
+		drm_WARN(&i915->drm, 1, "bad port clock sel\n");
+		break;
+	}
+
+	return link_clock * 2;
+}
+
 static struct intel_shared_dpll *
 hsw_ddi_spll_get_dpll(struct intel_atomic_state *state,
 		      struct intel_crtc *crtc)
@@ -971,6 +996,29 @@ hsw_ddi_spll_get_dpll(struct intel_atomic_state *state,
 
 	return intel_find_shared_dpll(state, crtc, &crtc_state->dpll_hw_state,
 				      BIT(DPLL_ID_SPLL));
+}
+
+static int hsw_ddi_spll_get_freq(struct drm_i915_private *i915,
+				 const struct intel_shared_dpll *pll)
+{
+	int link_clock = 0;
+
+	switch (intel_de_read(i915, SPLL_CTL) & SPLL_FREQ_MASK) {
+	case SPLL_FREQ_810MHz:
+		link_clock = 81000;
+		break;
+	case SPLL_FREQ_1350MHz:
+		link_clock = 135000;
+		break;
+	case SPLL_FREQ_2700MHz:
+		link_clock = 270000;
+		break;
+	default:
+		drm_WARN(&i915->drm, 1, "bad spll freq\n");
+		break;
+	}
+
+	return link_clock * 2;
 }
 
 static bool hsw_get_dpll(struct intel_atomic_state *state,
@@ -1008,44 +1056,17 @@ static int hsw_ddi_clock_get(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int link_clock = 0;
-	u32 pll;
+	struct intel_shared_dpll *pll = pipe_config->shared_dpll;
 
-	switch (pipe_config->shared_dpll->info->id) {
-	case DPLL_ID_LCPLL_810:
-		link_clock = 81000;
-		break;
-	case DPLL_ID_LCPLL_1350:
-		link_clock = 135000;
-		break;
-	case DPLL_ID_LCPLL_2700:
-		link_clock = 270000;
-		break;
+	switch (pll->info->id) {
 	case DPLL_ID_WRPLL1:
-		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL(0));
-		break;
 	case DPLL_ID_WRPLL2:
-		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL(1));
-		break;
+		return hsw_ddi_wrpll_get_freq(dev_priv, pll);
 	case DPLL_ID_SPLL:
-		pll = intel_de_read(dev_priv, SPLL_CTL) & SPLL_FREQ_MASK;
-		if (pll == SPLL_FREQ_810MHz)
-			link_clock = 81000;
-		else if (pll == SPLL_FREQ_1350MHz)
-			link_clock = 135000;
-		else if (pll == SPLL_FREQ_2700MHz)
-			link_clock = 270000;
-		else {
-			drm_WARN(&dev_priv->drm, 1, "bad spll freq\n");
-			break;
-		}
-		break;
+		return hsw_ddi_spll_get_freq(dev_priv, pll);
 	default:
-		drm_WARN(&dev_priv->drm, 1, "bad port clock sel\n");
-		break;
+		return hsw_ddi_lcpll_get_freq(dev_priv, pll);
 	}
-
-	return link_clock * 2;
 }
 
 static void hsw_dump_hw_state(struct drm_i915_private *dev_priv,
