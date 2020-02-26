@@ -390,7 +390,8 @@ static void hdmi_disconnect(struct omap_dss_device *src,
 
 #define MAX_EDID	512
 
-static struct edid *hdmi_read_edid_data(struct omap_hdmi *hdmi)
+static struct edid *hdmi_read_edid_data(struct omap_hdmi *hdmi,
+					struct drm_connector *connector)
 {
 	u8 *edid;
 	int r;
@@ -428,9 +429,12 @@ error:
 	return NULL;
 }
 
-static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
+static struct edid *
+hdmi_do_read_edid(struct omap_hdmi *hdmi,
+		  struct edid *(*read)(struct omap_hdmi *hdmi,
+				       struct drm_connector *connector),
+		  struct drm_connector *connector)
 {
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
 	struct edid *edid = NULL;
 	unsigned int cec_addr;
 	bool need_enable;
@@ -452,7 +456,7 @@ static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
 	if (r)
 		goto done;
 
-	edid = hdmi_read_edid_data(hdmi);
+	edid = read(hdmi, connector);
 
 done:
 	hdmi_runtime_put(hdmi);
@@ -472,6 +476,12 @@ done:
 		hdmi4_core_disable(&hdmi->core);
 
 	return edid;
+}
+
+static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
+{
+	return hdmi_do_read_edid(dssdev_to_hdmi(dssdev), hdmi_read_edid_data,
+				 NULL);
 }
 
 static void hdmi_lost_hotplug(struct omap_dss_device *dssdev)
@@ -516,6 +526,56 @@ static const struct omap_dss_device_ops hdmi_ops = {
 		.set_hdmi_mode		= hdmi_set_hdmi_mode,
 	},
 };
+
+/* -----------------------------------------------------------------------------
+ * DRM Bridge Operations
+ */
+
+static int hdmi4_bridge_attach(struct drm_bridge *bridge,
+			       enum drm_bridge_attach_flags flags)
+{
+	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
+
+	if (!hdmi->output.next_bridge)
+		return 0;
+
+	return drm_bridge_attach(bridge->encoder, hdmi->output.next_bridge,
+				 bridge, flags);
+}
+
+static struct edid *hdmi4_bridge_read_edid(struct omap_hdmi *hdmi,
+					   struct drm_connector *connector)
+{
+	return drm_do_get_edid(connector, hdmi4_core_ddc_read, &hdmi->core);
+}
+
+static struct edid *hdmi4_bridge_get_edid(struct drm_bridge *bridge,
+					  struct drm_connector *connector)
+{
+	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
+
+	return hdmi_do_read_edid(hdmi, hdmi4_bridge_read_edid, connector);
+}
+
+static const struct drm_bridge_funcs hdmi4_bridge_funcs = {
+	.attach = hdmi4_bridge_attach,
+	.get_edid = hdmi4_bridge_get_edid,
+};
+
+static void hdmi4_bridge_init(struct omap_hdmi *hdmi)
+{
+	hdmi->bridge.funcs = &hdmi4_bridge_funcs;
+	hdmi->bridge.of_node = hdmi->pdev->dev.of_node;
+	hdmi->bridge.ops = DRM_BRIDGE_OP_EDID;
+	hdmi->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
+
+	drm_bridge_add(&hdmi->bridge);
+}
+
+static void hdmi4_bridge_cleanup(struct omap_hdmi *hdmi)
+{
+	drm_bridge_remove(&hdmi->bridge);
+}
 
 /* -----------------------------------------------------------------------------
  * Audio Callbacks
@@ -708,6 +768,8 @@ static int hdmi4_init_output(struct omap_hdmi *hdmi)
 	struct omap_dss_device *out = &hdmi->output;
 	int r;
 
+	hdmi4_bridge_init(hdmi);
+
 	out->dev = &hdmi->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_HDMI;
 	out->type = OMAP_DISPLAY_TYPE_HDMI;
@@ -718,9 +780,11 @@ static int hdmi4_init_output(struct omap_hdmi *hdmi)
 	out->of_port = 0;
 	out->ops_flags = OMAP_DSS_DEVICE_OP_EDID;
 
-	r = omapdss_device_init_output(out, NULL);
-	if (r < 0)
+	r = omapdss_device_init_output(out, &hdmi->bridge);
+	if (r < 0) {
+		hdmi4_bridge_cleanup(hdmi);
 		return r;
+	}
 
 	omapdss_device_register(out);
 
@@ -733,6 +797,8 @@ static void hdmi4_uninit_output(struct omap_hdmi *hdmi)
 
 	omapdss_device_unregister(out);
 	omapdss_device_cleanup_output(out);
+
+	hdmi4_bridge_cleanup(hdmi);
 }
 
 static int hdmi4_probe_of(struct omap_hdmi *hdmi)
