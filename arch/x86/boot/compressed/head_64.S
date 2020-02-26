@@ -456,8 +456,8 @@ trampoline_return:
 	 * to the new copy of the GDT.
 	 */
 	leaq	gdt64(%rbx), %rax
-	subq	%rbp, 2(%rax)
-	addq	%rbx, 2(%rax)
+	leaq	gdt(%rbx), %rdx
+	movq	%rdx, 2(%rax)
 	lgdt	(%rax)
 
 /*

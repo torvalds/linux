@@ -139,12 +139,11 @@ SYM_FUNC_START(startup_32)
 	/*
 	 * The GDT may get overwritten either during the copy we just did or
 	 * during extract_kernel below. To avoid any issues, repoint the GDTR
-	 * to the new copy of the GDT. EAX still contains the previously
-	 * calculated relocation offset of init_size - _end.
+	 * to the new copy of the GDT.
 	 */
-	leal	gdt(%ebx), %edx
-	addl	%eax, 2(%edx)
-	lgdt	(%edx)
+	leal	gdt(%ebx), %eax
+	movl	%eax, 2(%eax)
+	lgdt	(%eax)
 
 /*
  * Jump to the relocated address.
