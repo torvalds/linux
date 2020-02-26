@@ -216,7 +216,7 @@ struct mei_msg_hdr {
 
 struct mei_bus_message {
 	u8 hbm_cmd;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /**
