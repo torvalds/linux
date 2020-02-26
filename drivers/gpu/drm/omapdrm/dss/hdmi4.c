@@ -272,23 +272,6 @@ static int hdmi_dump_regs(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int read_edid(struct omap_hdmi *hdmi, u8 *buf, int len)
-{
-	int r;
-
-	mutex_lock(&hdmi->lock);
-
-	r = hdmi_runtime_get(hdmi);
-	BUG_ON(r);
-
-	r = hdmi4_read_edid(&hdmi->core,  buf, len);
-
-	hdmi_runtime_put(hdmi);
-	mutex_unlock(&hdmi->lock);
-
-	return r;
-}
-
 static void hdmi_start_audio_stream(struct omap_hdmi *hd)
 {
 	hdmi_wp_audio_enable(&hd->wp, true);
@@ -407,10 +390,8 @@ static void hdmi_disconnect(struct omap_dss_device *src,
 
 #define MAX_EDID	512
 
-static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
+static struct edid *hdmi_read_edid_data(struct omap_hdmi *hdmi)
 {
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-	bool need_enable;
 	u8 *edid;
 	int r;
 
@@ -418,32 +399,79 @@ static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
 	if (!edid)
 		return NULL;
 
+	r = hdmi4_core_ddc_read(&hdmi->core, edid, 0, EDID_LENGTH);
+	if (r)
+		goto error;
+
+	if (edid[0x7e] > 0) {
+		char checksum = 0;
+		unsigned int i;
+
+		r = hdmi4_core_ddc_read(&hdmi->core, edid + EDID_LENGTH, 1,
+					EDID_LENGTH);
+		if (r)
+			goto error;
+
+		for (i = 0; i < EDID_LENGTH; ++i)
+			checksum += edid[EDID_LENGTH + i];
+
+		if (checksum != 0) {
+			DSSERR("E-EDID checksum failed!!\n");
+			goto error;
+		}
+	}
+
+	return (struct edid *)edid;
+
+error:
+	kfree(edid);
+	return NULL;
+}
+
+static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
+{
+	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
+	struct edid *edid = NULL;
+	unsigned int cec_addr;
+	bool need_enable;
+	int r;
+
 	need_enable = hdmi->core_enabled == false;
 
 	if (need_enable) {
 		r = hdmi4_core_enable(&hdmi->core);
-		if (r) {
-			kfree(edid);
+		if (r)
 			return NULL;
-		}
 	}
 
-	r = read_edid(hdmi, edid, MAX_EDID);
-	if (r < 0) {
-		kfree(edid);
-		edid = NULL;
+	mutex_lock(&hdmi->lock);
+	r = hdmi_runtime_get(hdmi);
+	BUG_ON(r);
+
+	r = hdmi4_core_ddc_init(&hdmi->core);
+	if (r)
+		goto done;
+
+	edid = hdmi_read_edid_data(hdmi);
+
+done:
+	hdmi_runtime_put(hdmi);
+	mutex_unlock(&hdmi->lock);
+
+	if (edid && edid->extensions) {
+		unsigned int len = (edid->extensions + 1) * EDID_LENGTH;
+
+		cec_addr = cec_get_edid_phys_addr((u8 *)edid, len, NULL);
 	} else {
-		unsigned int cec_addr;
-
-		cec_addr = r >= 256 ? cec_get_edid_phys_addr(edid, r, NULL)
-			 : CEC_PHYS_ADDR_INVALID;
-		hdmi4_cec_set_phys_addr(&hdmi->core, cec_addr);
+		cec_addr = CEC_PHYS_ADDR_INVALID;
 	}
+
+	hdmi4_cec_set_phys_addr(&hdmi->core, cec_addr);
 
 	if (need_enable)
 		hdmi4_core_disable(&hdmi->core);
 
-	return (struct edid *)edid;
+	return edid;
 }
 
 static void hdmi_lost_hotplug(struct omap_dss_device *dssdev)
