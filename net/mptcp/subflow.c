@@ -563,7 +563,7 @@ static void subflow_data_ready(struct sock *sk)
 	}
 
 	if (mptcp_subflow_data_available(sk))
-		mptcp_data_ready(parent);
+		mptcp_data_ready(parent, sk);
 }
 
 static void subflow_write_space(struct sock *sk)
@@ -696,7 +696,7 @@ static void subflow_state_change(struct sock *sk)
 	 * the data available machinery here.
 	 */
 	if (parent && subflow->mp_capable && mptcp_subflow_data_available(sk))
-		mptcp_data_ready(parent);
+		mptcp_data_ready(parent, sk);
 
 	if (parent && !(parent->sk_shutdown & RCV_SHUTDOWN) &&
 	    !subflow->rx_eof && subflow_is_done(sk)) {
