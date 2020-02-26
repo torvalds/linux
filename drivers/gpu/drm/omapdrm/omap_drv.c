@@ -16,7 +16,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
@@ -134,9 +133,6 @@ static void omap_disconnect_pipelines(struct drm_device *ddev)
 	for (i = 0; i < priv->num_pipes; i++) {
 		struct omap_drm_pipeline *pipe = &priv->pipes[i];
 
-		if (pipe->output->panel)
-			drm_panel_detach(pipe->output->panel);
-
 		omapdss_device_disconnect(NULL, pipe->output);
 
 		omapdss_device_put(pipe->output);
@@ -221,8 +217,6 @@ static int omap_display_id(struct omap_dss_device *output)
 			bridge = drm_bridge_get_next_bridge(bridge);
 
 		node = bridge->of_node;
-	} else if (output->panel) {
-		node = output->panel->dev->of_node;
 	}
 
 	return node ? of_alias_get_id(node, "display") : -ENODEV;
@@ -337,13 +331,6 @@ static int omap_modeset_init(struct drm_device *dev)
 				return -ENOMEM;
 
 			drm_connector_attach_encoder(pipe->connector, encoder);
-
-			if (pipe->output->panel) {
-				ret = drm_panel_attach(pipe->output->panel,
-						       pipe->connector);
-				if (ret < 0)
-					return ret;
-			}
 		}
 
 		crtc = omap_crtc_init(dev, pipe, priv->planes[i]);

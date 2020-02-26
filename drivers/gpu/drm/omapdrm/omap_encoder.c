@@ -10,7 +10,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_panel.h>
 
 #include "omap_drv.h"
 
@@ -157,12 +156,6 @@ static void omap_encoder_disable(struct drm_encoder *encoder)
 
 	dev_dbg(dev->dev, "disable(%s)\n", dssdev->name);
 
-	/* Disable the panel if present. */
-	if (dssdev->panel) {
-		drm_panel_disable(dssdev->panel);
-		drm_panel_unprepare(dssdev->panel);
-	}
-
 	/*
 	 * Disable the chain of external devices, starting at the one at the
 	 * internal encoder's output.
@@ -212,12 +205,6 @@ static void omap_encoder_enable(struct drm_encoder *encoder)
 	 * internal encoder's output.
 	 */
 	omapdss_device_enable(dssdev->next);
-
-	/* Enable the panel if present. */
-	if (dssdev->panel) {
-		drm_panel_prepare(dssdev->panel);
-		drm_panel_enable(dssdev->panel);
-	}
 }
 
 static int omap_encoder_atomic_check(struct drm_encoder *encoder,

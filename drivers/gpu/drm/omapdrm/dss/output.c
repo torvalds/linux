@@ -21,6 +21,7 @@
 int omapdss_device_init_output(struct omap_dss_device *out)
 {
 	struct device_node *remote_node;
+	int ret;
 
 	remote_node = of_graph_get_remote_node(out->dev->of_node,
 					       ffs(out->of_ports) - 1, 0);
@@ -39,17 +40,39 @@ int omapdss_device_init_output(struct omap_dss_device *out)
 
 	if (out->next && out->type != out->next->type) {
 		dev_err(out->dev, "output type and display type don't match\n");
-		omapdss_device_put(out->next);
-		out->next = NULL;
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error;
 	}
 
-	return out->next || out->bridge || out->panel ? 0 : -EPROBE_DEFER;
+	if (out->panel) {
+		struct drm_bridge *bridge;
+
+		bridge = drm_panel_bridge_add(out->panel);
+		if (IS_ERR(bridge)) {
+			dev_err(out->dev,
+				"unable to create panel bridge (%ld)\n",
+				PTR_ERR(bridge));
+			ret = PTR_ERR(bridge);
+			goto error;
+		}
+
+		out->bridge = bridge;
+	}
+
+	return out->next || out->bridge ? 0 : -EPROBE_DEFER;
+
+error:
+	omapdss_device_put(out->next);
+	out->next = NULL;
+	return ret;
 }
 EXPORT_SYMBOL(omapdss_device_init_output);
 
 void omapdss_device_cleanup_output(struct omap_dss_device *out)
 {
+	if (out->bridge && out->panel)
+		drm_panel_bridge_remove(out->bridge);
+
 	if (out->next)
 		omapdss_device_put(out->next);
 }

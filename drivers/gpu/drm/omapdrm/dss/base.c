@@ -149,8 +149,7 @@ struct omap_dss_device *omapdss_device_next_output(struct omap_dss_device *from)
 			goto done;
 		}
 
-		if (dssdev->id &&
-		    (dssdev->next || dssdev->bridge || dssdev->panel))
+		if (dssdev->id && (dssdev->next || dssdev->bridge))
 			goto done;
 	}
 
@@ -185,11 +184,10 @@ int omapdss_device_connect(struct dss_device *dss,
 	if (!dst) {
 		/*
 		 * The destination is NULL when the source is connected to a
-		 * bridge or panel instead of a DSS device. Stop here, we will
-		 * attach the bridge or panel later when we will have a DRM
-		 * encoder.
+		 * bridge instead of a DSS device. Stop here, we will attach
+		 * the bridge later when we will have a DRM encoder.
 		 */
-		return src && (src->bridge || src->panel) ? 0 : -EINVAL;
+		return src && src->bridge ? 0 : -EINVAL;
 	}
 
 	if (omapdss_device_is_connected(dst))
@@ -217,7 +215,7 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 		dst ? dev_name(dst->dev) : "NULL");
 
 	if (!dst) {
-		WARN_ON(!src->bridge && !src->panel);
+		WARN_ON(!src->bridge);
 		return;
 	}
 
