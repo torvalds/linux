@@ -880,13 +880,10 @@ hsw_ddi_wrpll_get_dpll(struct intel_atomic_state *state,
 static int hsw_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 				  const struct intel_shared_dpll *pll)
 {
-	i915_reg_t reg = pll->info->id == DPLL_ID_WRPLL1 ?
-					  WRPLL_CTL(0) : WRPLL_CTL(1);
 	int refclk;
 	int n, p, r;
-	u32 wrpll;
+	u32 wrpll = pll->state.hw_state.wrpll;
 
-	wrpll = intel_de_read(dev_priv, reg);
 	switch (wrpll & WRPLL_REF_MASK) {
 	case WRPLL_REF_SPECIAL_HSW:
 		/*
@@ -1003,7 +1000,7 @@ static int hsw_ddi_spll_get_freq(struct drm_i915_private *i915,
 {
 	int link_clock = 0;
 
-	switch (intel_de_read(i915, SPLL_CTL) & SPLL_FREQ_MASK) {
+	switch (pll->state.hw_state.spll & SPLL_FREQ_MASK) {
 	case SPLL_FREQ_810MHz:
 		link_clock = 81000;
 		break;
