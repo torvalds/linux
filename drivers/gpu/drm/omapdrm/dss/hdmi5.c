@@ -271,30 +271,6 @@ static int hdmi_dump_regs(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int read_edid(struct omap_hdmi *hdmi, u8 *buf, int len)
-{
-	int r;
-	int idlemode;
-
-	mutex_lock(&hdmi->lock);
-
-	r = hdmi_runtime_get(hdmi);
-	BUG_ON(r);
-
-	idlemode = REG_GET(hdmi->wp.base, HDMI_WP_SYSCONFIG, 3, 2);
-	/* No-idle mode */
-	REG_FLD_MOD(hdmi->wp.base, HDMI_WP_SYSCONFIG, 1, 3, 2);
-
-	r = hdmi5_read_edid(&hdmi->core,  buf, len);
-
-	REG_FLD_MOD(hdmi->wp.base, HDMI_WP_SYSCONFIG, idlemode, 3, 2);
-
-	hdmi_runtime_put(hdmi);
-	mutex_unlock(&hdmi->lock);
-
-	return r;
-}
-
 static void hdmi_start_audio_stream(struct omap_hdmi *hd)
 {
 	REG_FLD_MOD(hd->wp.base, HDMI_WP_SYSCONFIG, 1, 3, 2);
@@ -412,32 +388,73 @@ static void hdmi_disconnect(struct omap_dss_device *src,
 
 #define MAX_EDID	512
 
-static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
+static struct edid *hdmi_read_edid_data(struct hdmi_core_data *core)
 {
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-	bool need_enable;
+	int max_ext_blocks = 3;
+	int r, n, i;
 	u8 *edid;
-	int r;
 
 	edid = kzalloc(MAX_EDID, GFP_KERNEL);
 	if (!edid)
 		return NULL;
 
+	r = hdmi5_core_ddc_read(core, edid, 0, EDID_LENGTH);
+	if (r)
+		goto error;
+
+	n = edid[0x7e];
+
+	if (n > max_ext_blocks)
+		n = max_ext_blocks;
+
+	for (i = 1; i <= n; i++) {
+		r = hdmi5_core_ddc_read(core, edid + i * EDID_LENGTH, i,
+					EDID_LENGTH);
+		if (r)
+			goto error;
+	}
+
+	return (struct edid *)edid;
+
+error:
+	kfree(edid);
+	return NULL;
+}
+
+static struct edid *hdmi_read_edid(struct omap_dss_device *dssdev)
+{
+	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
+	struct edid *edid;
+	bool need_enable;
+	int idlemode;
+	int r;
+
 	need_enable = hdmi->core_enabled == false;
 
 	if (need_enable) {
 		r = hdmi_core_enable(hdmi);
-		if (r) {
-			kfree(edid);
+		if (r)
 			return NULL;
-		}
 	}
 
-	r = read_edid(hdmi, edid, MAX_EDID);
-	if (r < 0) {
-		kfree(edid);
-		edid = NULL;
-	}
+	mutex_lock(&hdmi->lock);
+	r = hdmi_runtime_get(hdmi);
+	BUG_ON(r);
+
+	idlemode = REG_GET(hdmi->wp.base, HDMI_WP_SYSCONFIG, 3, 2);
+	/* No-idle mode */
+	REG_FLD_MOD(hdmi->wp.base, HDMI_WP_SYSCONFIG, 1, 3, 2);
+
+	hdmi5_core_ddc_init(&hdmi->core);
+
+	edid = hdmi_read_edid_data(&hdmi->core);
+
+	hdmi5_core_ddc_uninit(&hdmi->core);
+
+	REG_FLD_MOD(hdmi->wp.base, HDMI_WP_SYSCONFIG, idlemode, 3, 2);
+
+	hdmi_runtime_put(hdmi);
+	mutex_unlock(&hdmi->lock);
 
 	if (need_enable)
 		hdmi_core_disable(hdmi);
