@@ -11,6 +11,36 @@ config IOASID
 config IOMMU_API
 	bool
 
+if IOMMU_IOVA
+
+config IOMMU_LIMIT_IOVA_ALIGNMENT
+	bool "Limit IOVA alignment"
+	help
+	  When the IOVA framework applies IOVA alignment it aligns all
+	  IOVAs to the smallest PAGE_SIZE order which is greater than or
+	  equal to the requested IOVA size. This works fine for sizes up
+	  to several MiB, but for larger sizes it results in address
+	  space wastage and fragmentation. For example drivers with a 4
+	  GiB IOVA space might run out of IOVA space when allocating
+	  buffers great than 64 MiB.
+
+	  Enable this option to impose a limit on the alignment of IOVAs.
+
+	  If unsure, say N.
+
+config IOMMU_IOVA_ALIGNMENT
+	int "Maximum PAGE_SIZE order of alignment for IOVAs"
+	depends on IOMMU_LIMIT_IOVA_ALIGNMENT
+	range 4 9
+	default 9
+	help
+	  With this parameter you can specify the maximum PAGE_SIZE order for
+	  IOVAs. Larger IOVAs will be aligned only to this specified order.
+	  The order is expressed a power of two multiplied by the PAGE_SIZE.
+
+	  If unsure, leave the default value "9".
+endif
+
 menuconfig IOMMU_SUPPORT
 	bool "IOMMU Hardware Support"
 	depends on MMU

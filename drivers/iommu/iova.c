@@ -178,6 +178,24 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 	rb_insert_color(&iova->node, root);
 }
 
+#ifdef CONFIG_IOMMU_LIMIT_IOVA_ALIGNMENT
+static unsigned long limit_align_shift(struct iova_domain *iovad,
+				       unsigned long shift)
+{
+	unsigned long max_align_shift;
+
+	max_align_shift = CONFIG_IOMMU_IOVA_ALIGNMENT + PAGE_SHIFT
+		- iova_shift(iovad);
+	return min_t(unsigned long, max_align_shift, shift);
+}
+#else
+static unsigned long limit_align_shift(struct iova_domain *iovad,
+				       unsigned long shift)
+{
+	return shift;
+}
+#endif
+
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 		unsigned long size, unsigned long limit_pfn,
 			struct iova *new, bool size_aligned)
@@ -189,7 +207,7 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 	unsigned long align_mask = ~0UL;
 
 	if (size_aligned)
-		align_mask <<= fls_long(size - 1);
+		align_mask <<= limit_align_shift(iovad, fls_long(size - 1));
 
 	/* Walk the tree backwards */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
@@ -242,7 +260,7 @@ static int __alloc_and_insert_iova_best_fit(struct iova_domain *iovad,
 	unsigned long gap, candidate_gap = ~0UL;
 
 	if (size_aligned)
-		align_mask <<= limit_align(iovad, fls_long(size - 1));
+		align_mask <<= limit_align_shift(iovad, fls_long(size - 1));
 
 	/* Walk the tree backwards */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
