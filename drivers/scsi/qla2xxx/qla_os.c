@@ -5203,9 +5203,8 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 					fcport->n2n_flag = 1;
 				}
 				fcport->fw_login_state = 0;
-				/*
-				 * wait link init done before sending login
-				 */
+
+				schedule_delayed_work(&vha->scan.scan_work, 5);
 			} else {
 				qla24xx_fcport_handle_login(vha, fcport);
 			}
