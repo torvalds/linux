@@ -121,20 +121,20 @@ static int smu_feature_update_enable_state(struct smu_context *smu,
 
 	if (enabled) {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesLow,
-						  feature_low);
+						  feature_low, NULL);
 		if (ret)
 			return ret;
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesHigh,
-						  feature_high);
+						  feature_high, NULL);
 		if (ret)
 			return ret;
 	} else {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesLow,
-						  feature_low);
+						  feature_low, NULL);
 		if (ret)
 			return ret;
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesHigh,
-						  feature_high);
+						  feature_high, NULL);
 		if (ret)
 			return ret;
 	}
@@ -195,21 +195,13 @@ int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t 
 		return -EINVAL;
 
 	if (if_version) {
-		ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion);
-		if (ret)
-			return ret;
-
-		ret = smu_read_smc_arg(smu, if_version);
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion, if_version);
 		if (ret)
 			return ret;
 	}
 
 	if (smu_version) {
-		ret = smu_send_smc_msg(smu, SMU_MSG_GetSmuVersion);
-		if (ret)
-			return ret;
-
-		ret = smu_read_smc_arg(smu, smu_version);
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetSmuVersion, smu_version);
 		if (ret)
 			return ret;
 	}
@@ -251,7 +243,7 @@ int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 	if (max > 0) {
 		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMaxByFreq,
-						  param);
+						  param, NULL);
 		if (ret)
 			return ret;
 	}
@@ -259,7 +251,7 @@ int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 	if (min > 0) {
 		param = (uint32_t)((clk_id << 16) | (min & 0xffff));
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinByFreq,
-						  param);
+						  param, NULL);
 		if (ret)
 			return ret;
 	}
@@ -335,12 +327,8 @@ int smu_get_dpm_freq_by_index(struct smu_context *smu, enum smu_clk_type clk_typ
 
 	param = (uint32_t)(((clk_id & 0xffff) << 16) | (level & 0xffff));
 
-	ret = smu_send_smc_msg_with_param(smu,SMU_MSG_GetDpmFreqByIndex,
-					  param);
-	if (ret)
-		return ret;
-
-	ret = smu_read_smc_arg(smu, &param);
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDpmFreqByIndex,
+					  param, &param);
 	if (ret)
 		return ret;
 
@@ -542,7 +530,8 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 	ret = smu_send_smc_msg_with_param(smu, drv2smu ?
 					  SMU_MSG_TransferTableDram2Smu :
 					  SMU_MSG_TransferTableSmu2Dram,
-					  table_id | ((argument & 0xFFFF) << 16));
+					  table_id | ((argument & 0xFFFF) << 16),
+					  NULL);
 	if (ret)
 		return ret;
 
@@ -1992,7 +1981,7 @@ int smu_set_mp1_state(struct smu_context *smu,
 		return 0;
 	}
 
-	ret = smu_send_smc_msg(smu, msg);
+	ret = smu_send_smc_msg(smu, msg, NULL);
 	if (ret)
 		pr_err("[PrepareMp1] Failed!\n");
 
@@ -2668,14 +2657,5 @@ uint32_t smu_get_pptable_power_limit(struct smu_context *smu)
 	if (smu->ppt_funcs->get_pptable_power_limit)
 		ret = smu->ppt_funcs->get_pptable_power_limit(smu);
 
-	return ret;
-}
-
-int smu_send_smc_msg(struct smu_context *smu,
-		     enum smu_message_type msg)
-{
-	int ret;
-
-	ret = smu_send_smc_msg_with_param(smu, msg, 0);
 	return ret;
 }

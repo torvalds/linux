@@ -374,13 +374,13 @@ arcturus_set_single_dpm_table(struct smu_context *smu,
 
 	ret = smu_send_smc_msg_with_param(smu,
 			SMU_MSG_GetDpmFreqByIndex,
-			(clk_id << 16 | 0xFF));
+			(clk_id << 16 | 0xFF),
+			&num_of_levels);
 	if (ret) {
 		pr_err("[%s] failed to get dpm levels!\n", __func__);
 		return ret;
 	}
 
-	smu_read_smc_arg(smu, &num_of_levels);
 	if (!num_of_levels) {
 		pr_err("[%s] number of clk levels is invalid!\n", __func__);
 		return -EINVAL;
@@ -390,12 +390,12 @@ arcturus_set_single_dpm_table(struct smu_context *smu,
 	for (i = 0; i < num_of_levels; i++) {
 		ret = smu_send_smc_msg_with_param(smu,
 				SMU_MSG_GetDpmFreqByIndex,
-				(clk_id << 16 | i));
+				(clk_id << 16 | i),
+				&clk);
 		if (ret) {
 			pr_err("[%s] failed to get dpm freq by index!\n", __func__);
 			return ret;
 		}
-		smu_read_smc_arg(smu, &clk);
 		if (!clk) {
 			pr_err("[%s] clk value is invalid!\n", __func__);
 			return -EINVAL;
@@ -553,13 +553,13 @@ static int arcturus_run_btc(struct smu_context *smu)
 {
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_RunAfllBtc);
+	ret = smu_send_smc_msg(smu, SMU_MSG_RunAfllBtc, NULL);
 	if (ret) {
 		pr_err("RunAfllBtc failed!\n");
 		return ret;
 	}
 
-	return smu_send_smc_msg(smu, SMU_MSG_RunDcBtc);
+	return smu_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
 }
 
 static int arcturus_populate_umd_state_clk(struct smu_context *smu)
@@ -744,7 +744,8 @@ static int arcturus_upload_dpm_level(struct smu_context *smu, bool max,
 			single_dpm_table->dpm_state.soft_min_level;
 		ret = smu_send_smc_msg_with_param(smu,
 			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
-			(PPCLK_GFXCLK << 16) | (freq & 0xffff));
+			(PPCLK_GFXCLK << 16) | (freq & 0xffff),
+			NULL);
 		if (ret) {
 			pr_err("Failed to set soft %s gfxclk !\n",
 						max ? "max" : "min");
@@ -759,7 +760,8 @@ static int arcturus_upload_dpm_level(struct smu_context *smu, bool max,
 			single_dpm_table->dpm_state.soft_min_level;
 		ret = smu_send_smc_msg_with_param(smu,
 			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
-			(PPCLK_UCLK << 16) | (freq & 0xffff));
+			(PPCLK_UCLK << 16) | (freq & 0xffff),
+			NULL);
 		if (ret) {
 			pr_err("Failed to set soft %s memclk !\n",
 						max ? "max" : "min");
@@ -774,7 +776,8 @@ static int arcturus_upload_dpm_level(struct smu_context *smu, bool max,
 			single_dpm_table->dpm_state.soft_min_level;
 		ret = smu_send_smc_msg_with_param(smu,
 			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
-			(PPCLK_SOCCLK << 16) | (freq & 0xffff));
+			(PPCLK_SOCCLK << 16) | (freq & 0xffff),
+			NULL);
 		if (ret) {
 			pr_err("Failed to set soft %s socclk !\n",
 						max ? "max" : "min");
@@ -1289,12 +1292,11 @@ static int arcturus_get_power_limit(struct smu_context *smu,
 				return -EINVAL;
 
 			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
-				power_src << 16);
+				power_src << 16, &asic_default_power_limit);
 			if (ret) {
 				pr_err("[%s] get PPT limit failed!", __func__);
 				return ret;
 			}
-			smu_read_smc_arg(smu, &asic_default_power_limit);
 		} else {
 			/* the last hope to figure out the ppt limit */
 			if (!pptable) {
@@ -1498,7 +1500,8 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 
 	ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_SetWorkloadMask,
-					  1 << workload_type);
+					  1 << workload_type,
+					  NULL);
 	if (ret) {
 		pr_err("Fail to set workload type %d\n", workload_type);
 		return ret;
@@ -2233,7 +2236,7 @@ static int arcturus_set_df_cstate(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	return smu_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl, state);
+	return smu_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl, state, NULL);
 }
 
 static const struct pptable_funcs arcturus_ppt_funcs = {

@@ -47,7 +47,8 @@ int smu_v12_0_wait_for_response(struct smu_context *smu);
 int
 smu_v12_0_send_msg_with_param(struct smu_context *smu,
 			      enum smu_message_type msg,
-			      uint32_t param);
+			      uint32_t param,
+			      uint32_t *read_arg);
 
 int smu_v12_0_check_fw_status(struct smu_context *smu);
 
