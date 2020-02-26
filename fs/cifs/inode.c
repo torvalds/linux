@@ -1835,6 +1835,8 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 		CIFSSMBClose(xid, tcon, fid.netfid);
 	}
 do_rename_exit:
+	if (rc == 0)
+		d_move(from_dentry, to_dentry);
 	cifs_put_tlink(tlink);
 	return rc;
 }
