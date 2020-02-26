@@ -265,7 +265,7 @@ static int sdi_init_output(struct sdi_device *sdi)
 	out->name = "sdi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
 	/* We have SDI only on OMAP3, where it's on port 1 */
-	out->of_ports = BIT(1);
+	out->of_port = 1;
 	out->ops = &sdi_ops;
 	out->owner = THIS_MODULE;
 	out->bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE	/* 15.5.9.1.2 */

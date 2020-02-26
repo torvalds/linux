@@ -625,7 +625,7 @@ static int dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 	out->id = OMAP_DSS_OUTPUT_DPI;
 	out->type = OMAP_DISPLAY_TYPE_DPI;
 	out->dispc_channel = dpi_get_channel(dpi);
-	out->of_ports = BIT(port_num);
+	out->of_port = port_num;
 	out->ops = &dpi_ops;
 	out->owner = THIS_MODULE;
 

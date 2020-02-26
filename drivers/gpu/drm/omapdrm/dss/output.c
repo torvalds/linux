@@ -4,7 +4,6 @@
  * Author: Archit Taneja <archit@ti.com>
  */
 
-#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -24,7 +23,7 @@ int omapdss_device_init_output(struct omap_dss_device *out)
 	int ret;
 
 	remote_node = of_graph_get_remote_node(out->dev->of_node,
-					       ffs(out->of_ports) - 1, 0);
+					       out->of_port, 0);
 	if (!remote_node) {
 		dev_dbg(out->dev, "failed to find video sink\n");
 		return 0;
