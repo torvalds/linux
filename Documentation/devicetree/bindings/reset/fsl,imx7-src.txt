@@ -10,6 +10,7 @@ Required properties:
 	- For i.MX8MQ SoCs should be "fsl,imx8mq-src", "syscon"
 	- For i.MX8MM SoCs should be "fsl,imx8mm-src", "fsl,imx8mq-src", "syscon"
 	- For i.MX8MN SoCs should be "fsl,imx8mn-src", "fsl,imx8mq-src", "syscon"
+	- For i.MX8MP SoCs should be "fsl,imx8mp-src", "syscon"
 - reg: should be register base and length as documented in the
   datasheet
 - interrupts: Should contain SRC interrupt
@@ -51,4 +52,5 @@ For list of all valid reset indices see
 <dt-bindings/reset/imx7-reset.h> for i.MX7,
 <dt-bindings/reset/imx8mq-reset.h> for i.MX8MQ and
 <dt-bindings/reset/imx8mq-reset.h> for i.MX8MM and
-<dt-bindings/reset/imx8mq-reset.h> for i.MX8MN
+<dt-bindings/reset/imx8mq-reset.h> for i.MX8MN and
+<dt-bindings/reset/imx8mp-reset.h> for i.MX8MP
