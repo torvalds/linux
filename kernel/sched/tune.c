@@ -135,7 +135,7 @@ root_schedtune = {
  *    implementation especially for the computation of the per-CPU boost
  *    value
  */
-#define BOOSTGROUPS_COUNT 5
+#define BOOSTGROUPS_COUNT 6
 
 /* Array of configured boostgroups */
 static struct schedtune *allocated_group[BOOSTGROUPS_COUNT] = {
