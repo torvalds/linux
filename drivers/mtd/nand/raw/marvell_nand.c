@@ -2743,11 +2743,14 @@ static int marvell_nfc_init_dma(struct marvell_nfc *nfc)
 	if (ret)
 		return ret;
 
-	nfc->dma_chan =	dma_request_slave_channel(nfc->dev, "data");
-	if (!nfc->dma_chan) {
-		dev_err(nfc->dev,
-			"Unable to request data DMA channel\n");
-		return -ENODEV;
+	nfc->dma_chan =	dma_request_chan(nfc->dev, "data");
+	if (IS_ERR(nfc->dma_chan)) {
+		ret = PTR_ERR(nfc->dma_chan);
+		nfc->dma_chan = NULL;
+		if (ret != -EPROBE_DEFER)
+			dev_err(nfc->dev, "DMA channel request failed: %d\n",
+				ret);
+		return ret;
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
