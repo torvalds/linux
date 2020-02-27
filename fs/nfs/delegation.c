@@ -1092,6 +1092,42 @@ void nfs_delegation_mark_reclaim(struct nfs_client *clp)
 	rcu_read_unlock();
 }
 
+static int nfs_server_reap_unclaimed_delegations(struct nfs_server *server,
+		void __always_unused *data)
+{
+	struct nfs_delegation *delegation;
+	struct inode *inode;
+restart:
+	rcu_read_lock();
+restart_locked:
+	list_for_each_entry_rcu(delegation, &server->delegations, super_list) {
+		if (test_bit(NFS_DELEGATION_INODE_FREEING,
+					&delegation->flags) ||
+		    test_bit(NFS_DELEGATION_RETURNING,
+					&delegation->flags) ||
+		    test_bit(NFS_DELEGATION_NEED_RECLAIM,
+					&delegation->flags) == 0)
+			continue;
+		inode = nfs_delegation_grab_inode(delegation);
+		if (inode == NULL)
+			goto restart_locked;
+		delegation = nfs_start_delegation_return_locked(NFS_I(inode));
+		rcu_read_unlock();
+		if (delegation != NULL) {
+			if (nfs_detach_delegation(NFS_I(inode), delegation,
+						server) != NULL)
+				nfs_free_delegation(delegation);
+			/* Match nfs_start_delegation_return_locked */
+			nfs_put_delegation(delegation);
+		}
+		iput(inode);
+		cond_resched();
+		goto restart;
+	}
+	rcu_read_unlock();
+	return 0;
+}
+
 /**
  * nfs_delegation_reap_unclaimed - reap unclaimed delegations after reboot recovery is done
  * @clp: nfs_client to process
@@ -1099,46 +1135,8 @@ void nfs_delegation_mark_reclaim(struct nfs_client *clp)
  */
 void nfs_delegation_reap_unclaimed(struct nfs_client *clp)
 {
-	struct nfs_delegation *delegation;
-	struct nfs_server *server;
-	struct inode *inode;
-
-restart:
-	rcu_read_lock();
-	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
-		list_for_each_entry_rcu(delegation, &server->delegations,
-								super_list) {
-			if (test_bit(NFS_DELEGATION_INODE_FREEING,
-						&delegation->flags) ||
-			    test_bit(NFS_DELEGATION_RETURNING,
-						&delegation->flags) ||
-			    test_bit(NFS_DELEGATION_NEED_RECLAIM,
-						&delegation->flags) == 0)
-				continue;
-			if (!nfs_sb_active(server->super))
-				break; /* continue in outer loop */
-			inode = nfs_delegation_grab_inode(delegation);
-			if (inode == NULL) {
-				rcu_read_unlock();
-				nfs_sb_deactive(server->super);
-				goto restart;
-			}
-			delegation = nfs_start_delegation_return_locked(NFS_I(inode));
-			rcu_read_unlock();
-			if (delegation != NULL) {
-				if (nfs_detach_delegation(NFS_I(inode), delegation,
-							server) != NULL)
-					nfs_free_delegation(delegation);
-				/* Match nfs_start_delegation_return_locked */
-				nfs_put_delegation(delegation);
-			}
-			iput(inode);
-			nfs_sb_deactive(server->super);
-			cond_resched();
-			goto restart;
-		}
-	}
-	rcu_read_unlock();
+	nfs_client_for_each_server(clp, nfs_server_reap_unclaimed_delegations,
+			NULL);
 }
 
 static inline bool nfs4_server_rebooted(const struct nfs_client *clp)
