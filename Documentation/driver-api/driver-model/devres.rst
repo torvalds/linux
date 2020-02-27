@@ -291,9 +291,7 @@ IIO
   devm_iio_trigger_alloc()
   devm_iio_trigger_register()
   devm_iio_channel_get()
-  devm_iio_channel_release()
   devm_iio_channel_get_all()
-  devm_iio_channel_release_all()
 
 INPUT
   devm_input_allocate_device()
