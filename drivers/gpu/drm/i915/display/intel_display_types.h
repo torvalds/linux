@@ -641,12 +641,28 @@ struct intel_crtc_scaler_state {
 /* Flag to use the scanline counter instead of the pixel counter */
 #define I915_MODE_FLAG_USE_SCANLINE_COUNTER (1<<2)
 
+struct intel_wm_level {
+	bool enable;
+	u32 pri_val;
+	u32 spr_val;
+	u32 cur_val;
+	u32 fbc_val;
+};
+
 struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
 	bool fbc_wm_enabled;
 	bool pipe_enabled;
 	bool sprites_enabled;
 	bool sprites_scaled;
+};
+
+struct skl_wm_level {
+	u16 min_ddb_alloc;
+	u16 plane_res_b;
+	u8 plane_res_l;
+	bool plane_en;
+	bool ignore_lines;
 };
 
 struct skl_plane_wm {

@@ -59,7 +59,6 @@
 #include <drm/drm_connector.h>
 #include <drm/i915_mei_hdcp_interface.h>
 
-#include "i915_fixed.h"
 #include "i915_params.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
@@ -732,14 +731,6 @@ enum intel_ddb_partitioning {
 	INTEL_DDB_PART_5_6, /* IVB+ */
 };
 
-struct intel_wm_level {
-	bool enable;
-	u32 pri_val;
-	u32 spr_val;
-	u32 cur_val;
-	u32 fbc_val;
-};
-
 struct ilk_wm_values {
 	u32 wm_pipe[3];
 	u32 wm_lp[3];
@@ -798,30 +789,6 @@ static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,
 	return false;
 }
 
-struct skl_wm_level {
-	u16 min_ddb_alloc;
-	u16 plane_res_b;
-	u8 plane_res_l;
-	bool plane_en;
-	bool ignore_lines;
-};
-
-/* Stores plane specific WM parameters */
-struct skl_wm_params {
-	bool x_tiled, y_tiled;
-	bool rc_surface;
-	bool is_planar;
-	u32 width;
-	u8 cpp;
-	u32 plane_pixel_rate;
-	u32 y_min_scanlines;
-	u32 plane_bytes_per_line;
-	uint_fixed_16_16_t plane_blocks_per_line;
-	uint_fixed_16_16_t y_tile_minimum;
-	u32 linetime_us;
-	u32 dbuf_block_size;
-};
-
 struct i915_frontbuffer_tracking {
 	spinlock_t lock;
 
@@ -837,13 +804,6 @@ struct i915_virtual_gpu {
 	struct mutex lock; /* serialises sending of g2v_notify command pkts */
 	bool active;
 	u32 caps;
-};
-
-/* used in computing the new watermarks state */
-struct intel_wm_config {
-	unsigned int num_pipes_active;
-	bool sprites_enabled;
-	bool sprites_scaled;
 };
 
 struct intel_cdclk_config {

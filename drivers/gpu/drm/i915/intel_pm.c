@@ -40,11 +40,35 @@
 #include "gt/intel_llc.h"
 
 #include "i915_drv.h"
+#include "i915_fixed.h"
 #include "i915_irq.h"
 #include "i915_trace.h"
 #include "intel_pm.h"
 #include "intel_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
+
+/* Stores plane specific WM parameters */
+struct skl_wm_params {
+	bool x_tiled, y_tiled;
+	bool rc_surface;
+	bool is_planar;
+	u32 width;
+	u8 cpp;
+	u32 plane_pixel_rate;
+	u32 y_min_scanlines;
+	u32 plane_bytes_per_line;
+	uint_fixed_16_16_t plane_blocks_per_line;
+	uint_fixed_16_16_t y_tile_minimum;
+	u32 linetime_us;
+	u32 dbuf_block_size;
+};
+
+/* used in computing the new watermarks state */
+struct intel_wm_config {
+	unsigned int num_pipes_active;
+	bool sprites_enabled;
+	bool sprites_scaled;
+};
 
 static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 {
