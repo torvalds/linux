@@ -289,7 +289,6 @@ IIO
   devm_iio_kfifo_free()
   devm_iio_triggered_buffer_setup()
   devm_iio_trigger_alloc()
-  devm_iio_trigger_free()
   devm_iio_trigger_register()
   devm_iio_channel_get()
   devm_iio_channel_release()

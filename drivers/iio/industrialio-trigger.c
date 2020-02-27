@@ -585,18 +585,6 @@ static void devm_iio_trigger_release(struct device *dev, void *res)
 	iio_trigger_free(*(struct iio_trigger **)res);
 }
 
-static int devm_iio_trigger_match(struct device *dev, void *res, void *data)
-{
-	struct iio_trigger **r = res;
-
-	if (!r || !*r) {
-		WARN_ON(!r || !*r);
-		return 0;
-	}
-
-	return *r == data;
-}
-
 /**
  * devm_iio_trigger_alloc - Resource-managed iio_trigger_alloc()
  * @dev:		Device to allocate iio_trigger for
@@ -607,9 +595,6 @@ static int devm_iio_trigger_match(struct device *dev, void *res, void *data)
  *
  * Managed iio_trigger_alloc.  iio_trigger allocated with this function is
  * automatically freed on driver detach.
- *
- * If an iio_trigger allocated with this function needs to be freed separately,
- * devm_iio_trigger_free() must be used.
  *
  * RETURNS:
  * Pointer to allocated iio_trigger on success, NULL on failure.
@@ -639,23 +624,6 @@ struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
 	return trig;
 }
 EXPORT_SYMBOL_GPL(devm_iio_trigger_alloc);
-
-/**
- * devm_iio_trigger_free - Resource-managed iio_trigger_free()
- * @dev:		Device this iio_dev belongs to
- * @iio_trig:		the iio_trigger associated with the device
- *
- * Free iio_trigger allocated with devm_iio_trigger_alloc().
- */
-void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig)
-{
-	int rc;
-
-	rc = devres_release(dev, devm_iio_trigger_release,
-			    devm_iio_trigger_match, iio_trig);
-	WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_iio_trigger_free);
 
 static void devm_iio_trigger_unreg(struct device *dev, void *res)
 {
