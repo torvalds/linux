@@ -320,11 +320,7 @@ xfs_ioc_attr_put_listent(
 	/*
 	 * Only list entries in the right namespace.
 	 */
-	if (((context->flags & ATTR_SECURE) == 0) !=
-	    ((flags & XFS_ATTR_SECURE) == 0))
-		return;
-	if (((context->flags & ATTR_ROOT) == 0) !=
-	    ((flags & XFS_ATTR_ROOT) == 0))
+	if (context->attr_filter != (flags & XFS_ATTR_NSP_ONDISK_MASK))
 		return;
 
 	arraytop = sizeof(*alist) +
@@ -349,6 +345,28 @@ xfs_ioc_attr_put_listent(
 	trace_xfs_attr_list_add(context);
 }
 
+static unsigned int
+xfs_attr_filter(
+	u32			ioc_flags)
+{
+	if (ioc_flags & XFS_IOC_ATTR_ROOT)
+		return XFS_ATTR_ROOT;
+	if (ioc_flags & XFS_IOC_ATTR_SECURE)
+		return XFS_ATTR_SECURE;
+	return 0;
+}
+
+static unsigned int
+xfs_attr_flags(
+	u32			ioc_flags)
+{
+	if (ioc_flags & XFS_IOC_ATTR_CREATE)
+		return XATTR_CREATE;
+	if (ioc_flags & XFS_IOC_ATTR_REPLACE)
+		return XATTR_REPLACE;
+	return 0;
+}
+
 int
 xfs_ioc_attr_list(
 	struct xfs_inode		*dp,
@@ -370,9 +388,9 @@ xfs_ioc_attr_list(
 	/*
 	 * Reject flags, only allow namespaces.
 	 */
-	if (flags & ~(ATTR_ROOT | ATTR_SECURE))
+	if (flags & ~(XFS_IOC_ATTR_ROOT | XFS_IOC_ATTR_SECURE))
 		return -EINVAL;
-	if (flags == (ATTR_ROOT | ATTR_SECURE))
+	if (flags == (XFS_IOC_ATTR_ROOT | XFS_IOC_ATTR_SECURE))
 		return -EINVAL;
 
 	/*
@@ -397,7 +415,7 @@ xfs_ioc_attr_list(
 	context.dp = dp;
 	context.cursor = &cursor;
 	context.resynch = 1;
-	context.flags = flags;
+	context.attr_filter = xfs_attr_filter(flags);
 	context.buffer = buffer;
 	context.bufsize = (bufsize & ~(sizeof(int)-1));  /* align */
 	context.firstu = context.bufsize;
@@ -454,7 +472,8 @@ xfs_attrmulti_attr_get(
 {
 	struct xfs_da_args	args = {
 		.dp		= XFS_I(inode),
-		.flags		= flags,
+		.attr_filter	= xfs_attr_filter(flags),
+		.attr_flags	= xfs_attr_flags(flags),
 		.name		= name,
 		.namelen	= strlen(name),
 		.valuelen	= *len,
@@ -491,7 +510,8 @@ xfs_attrmulti_attr_set(
 {
 	struct xfs_da_args	args = {
 		.dp		= XFS_I(inode),
-		.flags		= flags,
+		.attr_filter	= xfs_attr_filter(flags),
+		.attr_flags	= xfs_attr_flags(flags),
 		.name		= name,
 		.namelen	= strlen(name),
 	};
@@ -510,7 +530,7 @@ xfs_attrmulti_attr_set(
 	}
 
 	error = xfs_attr_set(&args);
-	if (!error && (flags & ATTR_ROOT))
+	if (!error && (flags & XFS_IOC_ATTR_ROOT))
 		xfs_forget_acl(inode, name);
 	kfree(args.value);
 	return error;
@@ -529,7 +549,7 @@ xfs_ioc_attrmulti_one(
 	unsigned char		*name;
 	int			error;
 
-	if ((flags & ATTR_ROOT) && (flags & ATTR_SECURE))
+	if ((flags & XFS_IOC_ATTR_ROOT) && (flags & XFS_IOC_ATTR_SECURE))
 		return -EINVAL;
 
 	name = strndup_user(uname, MAXNAMELEN);

@@ -16,7 +16,6 @@
 #include "xfs_da_btree.h"
 
 #include <linux/posix_acl_xattr.h>
-#include <linux/xattr.h>
 
 
 static int
@@ -25,7 +24,7 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 {
 	struct xfs_da_args	args = {
 		.dp		= XFS_I(inode),
-		.flags		= handler->flags,
+		.attr_filter	= handler->flags,
 		.name		= name,
 		.namelen	= strlen(name),
 		.value		= value,
@@ -46,7 +45,8 @@ xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused,
 {
 	struct xfs_da_args	args = {
 		.dp		= XFS_I(inode),
-		.flags		= handler->flags,
+		.attr_filter	= handler->flags,
+		.attr_flags	= flags,
 		.name		= name,
 		.namelen	= strlen(name),
 		.value		= (void *)value,
@@ -54,14 +54,8 @@ xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused,
 	};
 	int			error;
 
-	/* Convert Linux syscall to XFS internal ATTR flags */
-	if (flags & XATTR_CREATE)
-		args.flags |= ATTR_CREATE;
-	if (flags & XATTR_REPLACE)
-		args.flags |= ATTR_REPLACE;
-
 	error = xfs_attr_set(&args);
-	if (!error && (handler->flags & ATTR_ROOT))
+	if (!error && (handler->flags & XFS_ATTR_ROOT))
 		xfs_forget_acl(inode, name);
 	return error;
 }
@@ -75,14 +69,14 @@ static const struct xattr_handler xfs_xattr_user_handler = {
 
 static const struct xattr_handler xfs_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
-	.flags	= ATTR_ROOT,
+	.flags	= XFS_ATTR_ROOT,
 	.get	= xfs_xattr_get,
 	.set	= xfs_xattr_set,
 };
 
 static const struct xattr_handler xfs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
-	.flags	= ATTR_SECURE,
+	.flags	= XFS_ATTR_SECURE,
 	.get	= xfs_xattr_get,
 	.set	= xfs_xattr_set,
 };

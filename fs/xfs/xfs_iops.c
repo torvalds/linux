@@ -22,7 +22,6 @@
 #include "xfs_iomap.h"
 #include "xfs_error.h"
 
-#include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/security.h>
 #include <linux/iversion.h>
@@ -52,7 +51,7 @@ xfs_initxattrs(
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
 		struct xfs_da_args	args = {
 			.dp		= ip,
-			.flags		= ATTR_SECURE,
+			.attr_filter	= XFS_ATTR_SECURE,
 			.name		= xattr->name,
 			.namelen	= strlen(xattr->name),
 			.value		= xattr->value,
