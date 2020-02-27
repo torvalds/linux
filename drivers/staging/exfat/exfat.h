@@ -63,7 +63,6 @@
 #define TYPE_VOLUME		0x0103
 #define TYPE_DIR		0x0104
 #define TYPE_FILE		0x011F
-#define TYPE_SYMLINK		0x015F
 #define TYPE_CRITICAL_SEC	0x0200
 #define TYPE_STREAM		0x0201
 #define TYPE_EXTEND		0x0202
@@ -198,13 +197,11 @@ static inline u16 get_row_index(u16 i)
 #define ATTR_VOLUME		0x0008
 #define ATTR_SUBDIR		0x0010
 #define ATTR_ARCHIVE		0x0020
-#define ATTR_SYMLINK		0x0040
 #define ATTR_EXTEND		0x000F
 #define ATTR_RWMASK		0x007E
 
 /* file creation modes */
 #define FM_REGULAR              0x00
-#define FM_SYMLINK              0x40
 
 #define NUM_UPCASE              2918
 
