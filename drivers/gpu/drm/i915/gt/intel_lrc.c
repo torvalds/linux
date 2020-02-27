@@ -3725,7 +3725,10 @@ static void execlists_reset_rewind(struct intel_engine_cs *engine, bool stalled)
 
 static void nop_submission_tasklet(unsigned long data)
 {
+	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
+
 	/* The driver is wedged; don't process any more events. */
+	WRITE_ONCE(engine->execlists.queue_priority_hint, INT_MIN);
 }
 
 static void execlists_reset_cancel(struct intel_engine_cs *engine)
