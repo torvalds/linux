@@ -131,12 +131,6 @@ static irqreturn_t mfgpt_tick(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction mfgptirq  = {
-	.handler = mfgpt_tick,
-	.flags = IRQF_NOBALANCING | IRQF_TIMER | IRQF_SHARED,
-	.name = DRV_NAME,
-};
-
 static int __init cs5535_mfgpt_init(void)
 {
 	struct cs5535_mfgpt_timer *timer;
@@ -158,7 +152,9 @@ static int __init cs5535_mfgpt_init(void)
 	}
 
 	/* And register it with the kernel */
-	ret = setup_irq(timer_irq, &mfgptirq);
+	ret = request_irq(timer_irq, mfgpt_tick,
+			  IRQF_NOBALANCING | IRQF_TIMER | IRQF_SHARED,
+			  DRV_NAME, NULL);
 	if (ret) {
 		printk(KERN_ERR DRV_NAME ": Unable to set up the interrupt.\n");
 		goto err_irq;
