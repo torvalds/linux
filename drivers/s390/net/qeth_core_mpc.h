@@ -93,10 +93,6 @@ enum qeth_link_types {
 	QETH_LINK_TYPE_LANE         = 0x88,
 };
 
-/*
- * Routing stuff
- */
-#define RESET_ROUTING_FLAG 0x10 /* indicate that routing type shall be set */
 enum qeth_routing_types {
 	/* TODO: set to bit flag used in IPA Command */
 	NO_ROUTER		= 0,
@@ -427,7 +423,6 @@ struct qeth_ipacmd_setassparms {
 		struct qeth_arp_cache_entry arp_entry;
 		struct qeth_arp_query_data query_arp;
 		struct qeth_tso_start_data tso;
-		__u8 ip[16];
 	} data;
 } __attribute__ ((packed));
 
@@ -550,8 +545,9 @@ struct qeth_ipacmd_setadpparms {
 
 /* CREATE_ADDR IPA Command:    ***********************************************/
 struct qeth_create_destroy_address {
-	__u8 unique_id[8];
-} __attribute__ ((packed));
+	u8 mac_addr[ETH_ALEN];
+	u16 uid;
+};
 
 /* SET DIAGNOSTIC ASSIST IPA Command:	 *************************************/
 

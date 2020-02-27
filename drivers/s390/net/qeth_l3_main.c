@@ -920,9 +920,11 @@ static int qeth_l3_iqd_read_initial_mac_cb(struct qeth_card *card,
 
 	if (cmd->hdr.return_code)
 		return -EIO;
+	if (!is_valid_ether_addr(cmd->data.create_destroy_addr.mac_addr))
+		return -EADDRNOTAVAIL;
 
 	ether_addr_copy(card->dev->dev_addr,
-			cmd->data.create_destroy_addr.unique_id);
+			cmd->data.create_destroy_addr.mac_addr);
 	return 0;
 }
 
@@ -930,7 +932,6 @@ static int qeth_l3_iqd_read_initial_mac(struct qeth_card *card)
 {
 	int rc = 0;
 	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
 
 	QETH_CARD_TEXT(card, 2, "hsrmac");
 
@@ -938,9 +939,6 @@ static int qeth_l3_iqd_read_initial_mac(struct qeth_card *card)
 				 IPA_DATA_SIZEOF(create_destroy_addr));
 	if (!iob)
 		return -ENOMEM;
-	cmd = __ipa_cmd(iob);
-	*((__u16 *) &cmd->data.create_destroy_addr.unique_id[6]) =
-			card->info.unique_id;
 
 	rc = qeth_send_ipa_cmd(card, iob, qeth_l3_iqd_read_initial_mac_cb,
 				NULL);
@@ -953,8 +951,7 @@ static int qeth_l3_get_unique_id_cb(struct qeth_card *card,
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
 
 	if (cmd->hdr.return_code == 0) {
-		card->info.unique_id = *((__u16 *)
-				&cmd->data.create_destroy_addr.unique_id[6]);
+		card->info.unique_id = cmd->data.create_destroy_addr.uid;
 		return 0;
 	}
 
@@ -968,7 +965,6 @@ static int qeth_l3_get_unique_id(struct qeth_card *card)
 {
 	int rc = 0;
 	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
 
 	QETH_CARD_TEXT(card, 2, "guniqeid");
 
@@ -982,10 +978,8 @@ static int qeth_l3_get_unique_id(struct qeth_card *card)
 				 IPA_DATA_SIZEOF(create_destroy_addr));
 	if (!iob)
 		return -ENOMEM;
-	cmd = __ipa_cmd(iob);
-	*((__u16 *) &cmd->data.create_destroy_addr.unique_id[6]) =
-			card->info.unique_id;
 
+	__ipa_cmd(iob)->data.create_destroy_addr.uid = card->info.unique_id;
 	rc = qeth_send_ipa_cmd(card, iob, qeth_l3_get_unique_id_cb, NULL);
 	return rc;
 }
