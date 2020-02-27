@@ -314,6 +314,12 @@ int sysfs_file_change_owner(struct kobject *kobj, const char *name, kuid_t kuid,
 			    kgid_t kgid);
 int sysfs_link_change_owner(struct kobject *kobj, struct kobject *targ,
 			    const char *name, kuid_t kuid, kgid_t kgid);
+int sysfs_groups_change_owner(struct kobject *kobj,
+			      const struct attribute_group **groups,
+			      kuid_t kuid, kgid_t kgid);
+int sysfs_group_change_owner(struct kobject *kobj,
+			     const struct attribute_group *groups, kuid_t kuid,
+			     kgid_t kgid);
 
 #else /* CONFIG_SYSFS */
 
@@ -538,6 +544,20 @@ static inline int sysfs_link_change_owner(struct kobject *kobj,
 					  struct kobject *targ,
 					  const char *name, kuid_t kuid,
 					  kgid_t kgid)
+{
+	return 0;
+}
+
+static inline int sysfs_groups_change_owner(struct kobject *kobj,
+			  const struct attribute_group **groups,
+			  kuid_t kuid, kgid_t kgid)
+{
+	return 0;
+}
+
+static inline int sysfs_group_change_owner(struct kobject *kobj,
+			 const struct attribute_group **groups,
+			 kuid_t kuid, kgid_t kgid)
 {
 	return 0;
 }

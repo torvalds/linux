@@ -13,6 +13,7 @@
 #include <linux/dcache.h>
 #include <linux/namei.h>
 #include <linux/err.h>
+#include <linux/fs.h>
 #include "sysfs.h"
 
 
@@ -457,3 +458,117 @@ int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
 	return PTR_ERR_OR_ZERO(link);
 }
 EXPORT_SYMBOL_GPL(__compat_only_sysfs_link_entry_to_kobj);
+
+static int sysfs_group_attrs_change_owner(struct kernfs_node *grp_kn,
+					  const struct attribute_group *grp,
+					  struct iattr *newattrs)
+{
+	struct kernfs_node *kn;
+	int error;
+
+	if (grp->attrs) {
+		struct attribute *const *attr;
+
+		for (attr = grp->attrs; *attr; attr++) {
+			kn = kernfs_find_and_get(grp_kn, (*attr)->name);
+			if (!kn)
+				return -ENOENT;
+
+			error = kernfs_setattr(kn, newattrs);
+			kernfs_put(kn);
+			if (error)
+				return error;
+		}
+	}
+
+	if (grp->bin_attrs) {
+		struct bin_attribute *const *bin_attr;
+
+		for (bin_attr = grp->bin_attrs; *bin_attr; bin_attr++) {
+			kn = kernfs_find_and_get(grp_kn, (*bin_attr)->attr.name);
+			if (!kn)
+				return -ENOENT;
+
+			error = kernfs_setattr(kn, newattrs);
+			kernfs_put(kn);
+			if (error)
+				return error;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * sysfs_group_change_owner - change owner of an attribute group.
+ * @kobj:	The kobject containing the group.
+ * @grp:	The attribute group.
+ * @kuid:	new owner's kuid
+ * @kgid:	new owner's kgid
+ *
+ * Returns 0 on success or error code on failure.
+ */
+int sysfs_group_change_owner(struct kobject *kobj,
+			     const struct attribute_group *grp, kuid_t kuid,
+			     kgid_t kgid)
+{
+	struct kernfs_node *grp_kn;
+	int error;
+	struct iattr newattrs = {
+		.ia_valid = ATTR_UID | ATTR_GID,
+		.ia_uid = kuid,
+		.ia_gid = kgid,
+	};
+
+	if (!kobj->state_in_sysfs)
+		return -EINVAL;
+
+	if (grp->name) {
+		grp_kn = kernfs_find_and_get(kobj->sd, grp->name);
+	} else {
+		kernfs_get(kobj->sd);
+		grp_kn = kobj->sd;
+	}
+	if (!grp_kn)
+		return -ENOENT;
+
+	error = kernfs_setattr(grp_kn, &newattrs);
+	if (!error)
+		error = sysfs_group_attrs_change_owner(grp_kn, grp, &newattrs);
+
+	kernfs_put(grp_kn);
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(sysfs_group_change_owner);
+
+/**
+ * sysfs_groups_change_owner - change owner of a set of attribute groups.
+ * @kobj:	The kobject containing the groups.
+ * @groups:	The attribute groups.
+ * @kuid:	new owner's kuid
+ * @kgid:	new owner's kgid
+ *
+ * Returns 0 on success or error code on failure.
+ */
+int sysfs_groups_change_owner(struct kobject *kobj,
+			      const struct attribute_group **groups,
+			      kuid_t kuid, kgid_t kgid)
+{
+	int error = 0, i;
+
+	if (!kobj->state_in_sysfs)
+		return -EINVAL;
+
+	if (!groups)
+		return 0;
+
+	for (i = 0; groups[i]; i++) {
+		error = sysfs_group_change_owner(kobj, groups[i], kuid, kgid);
+		if (error)
+			break;
+	}
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(sysfs_groups_change_owner);
