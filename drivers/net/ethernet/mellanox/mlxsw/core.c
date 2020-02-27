@@ -2201,13 +2201,22 @@ int mlxsw_core_module_max_width(struct mlxsw_core *mlxsw_core, u8 module)
 	/* Here we need to get the module width according to the module type. */
 
 	switch (module_type) {
+	case MLXSW_REG_PMTM_MODULE_TYPE_C2C8X: /* fall through */
+	case MLXSW_REG_PMTM_MODULE_TYPE_QSFP_DD: /* fall through */
+	case MLXSW_REG_PMTM_MODULE_TYPE_OSFP:
+		return 8;
+	case MLXSW_REG_PMTM_MODULE_TYPE_C2C4X: /* fall through */
 	case MLXSW_REG_PMTM_MODULE_TYPE_BP_4X: /* fall through */
-	case MLXSW_REG_PMTM_MODULE_TYPE_BP_QSFP:
+	case MLXSW_REG_PMTM_MODULE_TYPE_QSFP:
 		return 4;
-	case MLXSW_REG_PMTM_MODULE_TYPE_BP_2X:
+	case MLXSW_REG_PMTM_MODULE_TYPE_C2C2X: /* fall through */
+	case MLXSW_REG_PMTM_MODULE_TYPE_BP_2X: /* fall through */
+	case MLXSW_REG_PMTM_MODULE_TYPE_SFP_DD: /* fall through */
+	case MLXSW_REG_PMTM_MODULE_TYPE_DSFP:
 		return 2;
-	case MLXSW_REG_PMTM_MODULE_TYPE_BP_SFP: /* fall through */
-	case MLXSW_REG_PMTM_MODULE_TYPE_BP_1X:
+	case MLXSW_REG_PMTM_MODULE_TYPE_C2C1X: /* fall through */
+	case MLXSW_REG_PMTM_MODULE_TYPE_BP_1X: /* fall through */
+	case MLXSW_REG_PMTM_MODULE_TYPE_SFP:
 		return 1;
 	default:
 		return -EINVAL;
