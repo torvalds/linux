@@ -742,7 +742,7 @@ static void qeth_issue_next_read_cb(struct qeth_card *card,
 		/* fall through */
 	default:
 		qeth_clear_ipacmd_list(card);
-		goto out;
+		goto err_idx;
 	}
 
 	cmd = __ipa_reply(iob);
@@ -795,8 +795,9 @@ out:
 	memcpy(&card->seqno.pdu_hdr_ack,
 		QETH_PDU_HEADER_SEQ_NO(iob->data),
 		QETH_SEQ_NO_LENGTH);
-	qeth_put_cmd(iob);
 	__qeth_issue_next_read(card);
+err_idx:
+	qeth_put_cmd(iob);
 }
 
 static int qeth_set_thread_start_bit(struct qeth_card *card,
