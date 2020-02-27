@@ -104,8 +104,6 @@
 
 #include "intel_region_lmem.h"
 
-#include "intel_gvt.h"
-
 /* General customization:
  */
 
