@@ -3,7 +3,10 @@
 
 lib_dir=$(dirname $0)/../../../net/forwarding
 
-ALL_TESTS="shared_block_drop_test"
+ALL_TESTS="
+	shared_block_drop_test
+	egress_redirect_test
+"
 NUM_NETIFS=2
 
 source $lib_dir/tc_common.sh
@@ -64,6 +67,61 @@ shared_block_drop_test()
 	tc filter del block 22 protocol ip pref 1 handle 101 flower
 
 	tc qdisc del dev $swp2 clsact
+	tc qdisc del dev $swp1 clsact
+
+	log_test "shared block drop"
+}
+
+egress_redirect_test()
+{
+	RET=0
+
+	# It is forbidden in mlxsw driver to have mirred redirect on
+	# egress-bound block.
+
+	tc qdisc add dev $swp1 ingress_block 22 clsact
+	check_err $? "Failed to create clsact with ingress block"
+
+	tc filter add block 22 protocol ip pref 1 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 \
+		action mirred egress redirect dev $swp2
+	check_err $? "Failed to add redirect rule to ingress bound block"
+
+	tc qdisc add dev $swp2 ingress_block 22 clsact
+	check_err $? "Failed to create another clsact with ingress shared block"
+
+	tc qdisc del dev $swp2 clsact
+
+	tc qdisc add dev $swp2 egress_block 22 clsact
+	check_fail $? "Incorrect success to create another clsact with egress shared block"
+
+	tc filter del block 22 protocol ip pref 1 handle 101 flower
+
+	tc qdisc add dev $swp2 egress_block 22 clsact
+	check_err $? "Failed to create another clsact with egress shared block after blocker redirect rule removed"
+
+	tc filter add block 22 protocol ip pref 1 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 \
+		action mirred egress redirect dev $swp2
+	check_fail $? "Incorrect success to add redirect rule to mixed bound block"
+
+	tc qdisc del dev $swp1 clsact
+
+	tc qdisc add dev $swp1 egress_block 22 clsact
+	check_err $? "Failed to create another clsact with egress shared block"
+
+	tc filter add block 22 protocol ip pref 1 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 \
+		action mirred egress redirect dev $swp2
+	check_fail $? "Incorrect success to add redirect rule to egress bound shared block"
+
+	tc qdisc del dev $swp2 clsact
+
+	tc filter add block 22 protocol ip pref 1 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 \
+		action mirred egress redirect dev $swp2
+	check_fail $? "Incorrect success to add redirect rule to egress bound block"
+
 	tc qdisc del dev $swp1 clsact
 
 	log_test "shared block drop"
