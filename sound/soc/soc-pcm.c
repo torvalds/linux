@@ -1690,10 +1690,6 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 			continue;
 		}
 
-		/* make sure BE is a real BE */
-		if (!be->dai_link->no_pcm)
-			continue;
-
 		/* don't connect if FE is not running */
 		if (!fe->dpcm[stream].runtime && !fe->fe_compr)
 			continue;
