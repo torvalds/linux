@@ -1546,17 +1546,6 @@ static void devm_iio_device_release(struct device *dev, void *res)
 	iio_device_free(*(struct iio_dev **)res);
 }
 
-int devm_iio_device_match(struct device *dev, void *res, void *data)
-{
-	struct iio_dev **r = res;
-	if (!r || !*r) {
-		WARN_ON(!r || !*r);
-		return 0;
-	}
-	return *r == data;
-}
-EXPORT_SYMBOL_GPL(devm_iio_device_match);
-
 /**
  * devm_iio_device_alloc - Resource-managed iio_device_alloc()
  * @dev:		Device to allocate iio_dev for
@@ -1564,9 +1553,6 @@ EXPORT_SYMBOL_GPL(devm_iio_device_match);
  *
  * Managed iio_device_alloc. iio_dev allocated with this function is
  * automatically freed on driver detach.
- *
- * If an iio_dev allocated with this function needs to be freed separately,
- * devm_iio_device_free() must be used.
  *
  * RETURNS:
  * Pointer to allocated iio_dev on success, NULL on failure.
@@ -1591,23 +1577,6 @@ struct iio_dev *devm_iio_device_alloc(struct device *dev, int sizeof_priv)
 	return iio_dev;
 }
 EXPORT_SYMBOL_GPL(devm_iio_device_alloc);
-
-/**
- * devm_iio_device_free - Resource-managed iio_device_free()
- * @dev:		Device this iio_dev belongs to
- * @iio_dev:		the iio_dev associated with the device
- *
- * Free iio_dev allocated with devm_iio_device_alloc().
- */
-void devm_iio_device_free(struct device *dev, struct iio_dev *iio_dev)
-{
-	int rc;
-
-	rc = devres_release(dev, devm_iio_device_release,
-			    devm_iio_device_match, iio_dev);
-	WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_iio_device_free);
 
 /**
  * iio_chrdev_open() - chrdev file open for buffer access and ioctls

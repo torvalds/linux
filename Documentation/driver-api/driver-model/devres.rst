@@ -284,7 +284,6 @@ I2C
 
 IIO
   devm_iio_device_alloc()
-  devm_iio_device_free()
   devm_iio_device_register()
   devm_iio_kfifo_allocate()
   devm_iio_kfifo_free()
