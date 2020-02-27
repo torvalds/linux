@@ -8,6 +8,7 @@
 #include "gen8_ppgtt.h"
 #include "i915_scatterlist.h"
 #include "i915_trace.h"
+#include "i915_pvinfo.h"
 #include "i915_vgpu.h"
 #include "intel_gt.h"
 #include "intel_gtt.h"

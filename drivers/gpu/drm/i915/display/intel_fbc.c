@@ -42,6 +42,7 @@
 
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include "i915_vgpu.h"
 #include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"

@@ -759,13 +759,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	i915_gem_driver_register(dev_priv);
 	i915_pmu_register(dev_priv);
 
-	/*
-	 * Notify a valid surface after modesetting,
-	 * when running inside a VM.
-	 */
-	if (intel_vgpu_active(dev_priv))
-		intel_uncore_write(&dev_priv->uncore, vgtif_reg(display_ready),
-				   VGT_DRV_DISPLAY_READY);
+	intel_vgpu_register(dev_priv);
 
 	/* Reveal our presence to userspace */
 	if (drm_dev_register(dev, 0) == 0) {
@@ -972,7 +966,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	disable_rpm_wakeref_asserts(&i915->runtime_pm);
 
-	i915_detect_vgpu(i915);
+	intel_vgpu_detect(i915);
 
 	ret = i915_driver_mmio_probe(i915);
 	if (ret < 0)
