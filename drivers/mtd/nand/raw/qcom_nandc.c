@@ -2628,6 +2628,29 @@ static const struct nand_controller_ops qcom_nandc_ops = {
 	.attach_chip = qcom_nand_attach_chip,
 };
 
+static void qcom_nandc_unalloc(struct qcom_nand_controller *nandc)
+{
+	if (nandc->props->is_bam) {
+		if (!dma_mapping_error(nandc->dev, nandc->reg_read_dma))
+			dma_unmap_single(nandc->dev, nandc->reg_read_dma,
+					 MAX_REG_RD *
+					 sizeof(*nandc->reg_read_buf),
+					 DMA_FROM_DEVICE);
+
+		if (nandc->tx_chan)
+			dma_release_channel(nandc->tx_chan);
+
+		if (nandc->rx_chan)
+			dma_release_channel(nandc->rx_chan);
+
+		if (nandc->cmd_chan)
+			dma_release_channel(nandc->cmd_chan);
+	} else {
+		if (nandc->chan)
+			dma_release_channel(nandc->chan);
+	}
+}
+
 static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 {
 	int ret;
@@ -2676,19 +2699,22 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 		nandc->tx_chan = dma_request_slave_channel(nandc->dev, "tx");
 		if (!nandc->tx_chan) {
 			dev_err(nandc->dev, "failed to request tx channel\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto unalloc;
 		}
 
 		nandc->rx_chan = dma_request_slave_channel(nandc->dev, "rx");
 		if (!nandc->rx_chan) {
 			dev_err(nandc->dev, "failed to request rx channel\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto unalloc;
 		}
 
 		nandc->cmd_chan = dma_request_slave_channel(nandc->dev, "cmd");
 		if (!nandc->cmd_chan) {
 			dev_err(nandc->dev, "failed to request cmd channel\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto unalloc;
 		}
 
 		/*
@@ -2702,7 +2728,8 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 		if (!nandc->bam_txn) {
 			dev_err(nandc->dev,
 				"failed to allocate bam transaction\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto unalloc;
 		}
 	} else {
 		nandc->chan = dma_request_slave_channel(nandc->dev, "rxtx");
@@ -2720,29 +2747,9 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 	nandc->controller.ops = &qcom_nandc_ops;
 
 	return 0;
-}
-
-static void qcom_nandc_unalloc(struct qcom_nand_controller *nandc)
-{
-	if (nandc->props->is_bam) {
-		if (!dma_mapping_error(nandc->dev, nandc->reg_read_dma))
-			dma_unmap_single(nandc->dev, nandc->reg_read_dma,
-					 MAX_REG_RD *
-					 sizeof(*nandc->reg_read_buf),
-					 DMA_FROM_DEVICE);
-
-		if (nandc->tx_chan)
-			dma_release_channel(nandc->tx_chan);
-
-		if (nandc->rx_chan)
-			dma_release_channel(nandc->rx_chan);
-
-		if (nandc->cmd_chan)
-			dma_release_channel(nandc->cmd_chan);
-	} else {
-		if (nandc->chan)
-			dma_release_channel(nandc->chan);
-	}
+unalloc:
+	qcom_nandc_unalloc(nandc);
+	return ret;
 }
 
 /* one time setup of a few nand controller registers */
