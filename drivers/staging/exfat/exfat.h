@@ -457,7 +457,7 @@ struct buf_cache_t {
 	struct buf_cache_t *hash_prev;
 	s32                drv;
 	sector_t          sec;
-	u32               flag;
+	bool              locked;
 	struct buffer_head   *buf_bh;
 };
 

@@ -8,9 +8,6 @@
 #include <linux/mutex.h>
 #include "exfat.h"
 
-#define LOCKBIT		0x01
-#define DIRTYBIT	0x02
-
 /* Local variables */
 static DEFINE_MUTEX(f_mutex);
 static DEFINE_MUTEX(b_mutex);
@@ -141,7 +138,7 @@ void exfat_buf_init(struct super_block *sb)
 	for (i = 0; i < FAT_CACHE_SIZE; i++) {
 		p_fs->FAT_cache_array[i].drv = -1;
 		p_fs->FAT_cache_array[i].sec = ~0;
-		p_fs->FAT_cache_array[i].flag = 0;
+		p_fs->FAT_cache_array[i].locked = false;
 		p_fs->FAT_cache_array[i].buf_bh = NULL;
 		p_fs->FAT_cache_array[i].prev = NULL;
 		p_fs->FAT_cache_array[i].next = NULL;
@@ -155,7 +152,7 @@ void exfat_buf_init(struct super_block *sb)
 	for (i = 0; i < BUF_CACHE_SIZE; i++) {
 		p_fs->buf_cache_array[i].drv = -1;
 		p_fs->buf_cache_array[i].sec = ~0;
-		p_fs->buf_cache_array[i].flag = 0;
+		p_fs->buf_cache_array[i].locked = false;
 		p_fs->buf_cache_array[i].buf_bh = NULL;
 		p_fs->buf_cache_array[i].prev = NULL;
 		p_fs->buf_cache_array[i].next = NULL;
@@ -289,7 +286,7 @@ u8 *exfat_fat_getblk(struct super_block *sb, sector_t sec)
 
 	bp->drv = p_fs->drv;
 	bp->sec = sec;
-	bp->flag = 0;
+	bp->locked = false;
 
 	FAT_cache_insert_hash(sb, bp);
 
@@ -297,7 +294,7 @@ u8 *exfat_fat_getblk(struct super_block *sb, sector_t sec)
 		FAT_cache_remove_hash(bp);
 		bp->drv = -1;
 		bp->sec = ~0;
-		bp->flag = 0;
+		bp->locked = false;
 		bp->buf_bh = NULL;
 
 		move_to_lru(bp, &p_fs->FAT_cache_lru_list);
@@ -328,7 +325,7 @@ void exfat_fat_release_all(struct super_block *sb)
 		if (bp->drv == p_fs->drv) {
 			bp->drv = -1;
 			bp->sec = ~0;
-			bp->flag = 0;
+			bp->locked = false;
 
 			if (bp->buf_bh) {
 				__brelse(bp->buf_bh);
@@ -366,7 +363,7 @@ static struct buf_cache_t *buf_cache_get(struct super_block *sb, sector_t sec)
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
 	bp = p_fs->buf_cache_lru_list.prev;
-	while (bp->flag & LOCKBIT)
+	while (bp->locked)
 		bp = bp->prev;
 
 	move_to_mru(bp, &p_fs->buf_cache_lru_list);
@@ -390,7 +387,7 @@ static u8 *__exfat_buf_getblk(struct super_block *sb, sector_t sec)
 
 	bp->drv = p_fs->drv;
 	bp->sec = sec;
-	bp->flag = 0;
+	bp->locked = false;
 
 	buf_cache_insert_hash(sb, bp);
 
@@ -398,7 +395,7 @@ static u8 *__exfat_buf_getblk(struct super_block *sb, sector_t sec)
 		buf_cache_remove_hash(bp);
 		bp->drv = -1;
 		bp->sec = ~0;
-		bp->flag = 0;
+		bp->locked = false;
 		bp->buf_bh = NULL;
 
 		move_to_lru(bp, &p_fs->buf_cache_lru_list);
@@ -443,7 +440,7 @@ void exfat_buf_lock(struct super_block *sb, sector_t sec)
 
 	bp = buf_cache_find(sb, sec);
 	if (likely(bp))
-		bp->flag |= LOCKBIT;
+		bp->locked = true;
 
 	WARN(!bp, "[EXFAT] failed to find buffer_cache(sector:%llu).\n",
 	     (unsigned long long)sec);
@@ -459,7 +456,7 @@ void exfat_buf_unlock(struct super_block *sb, sector_t sec)
 
 	bp = buf_cache_find(sb, sec);
 	if (likely(bp))
-		bp->flag &= ~(LOCKBIT);
+		bp->locked = false;
 
 	WARN(!bp, "[EXFAT] failed to find buffer_cache(sector:%llu).\n",
 	     (unsigned long long)sec);
@@ -478,7 +475,7 @@ void exfat_buf_release(struct super_block *sb, sector_t sec)
 	if (likely(bp)) {
 		bp->drv = -1;
 		bp->sec = ~0;
-		bp->flag = 0;
+		bp->locked = false;
 
 		if (bp->buf_bh) {
 			__brelse(bp->buf_bh);
@@ -503,7 +500,7 @@ void exfat_buf_release_all(struct super_block *sb)
 		if (bp->drv == p_fs->drv) {
 			bp->drv = -1;
 			bp->sec = ~0;
-			bp->flag = 0;
+			bp->locked = false;
 
 			if (bp->buf_bh) {
 				__brelse(bp->buf_bh);
