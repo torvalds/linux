@@ -1259,6 +1259,9 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 
 		/* Wa_1808121037:tgl */
 		whitelist_reg(w, GEN7_COMMON_SLICE_CHICKEN1);
+
+		/* Wa_1806527549:tgl */
+		whitelist_reg(w, HIZ_CHICKEN);
 		break;
 	default:
 		break;
