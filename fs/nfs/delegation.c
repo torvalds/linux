@@ -1222,6 +1222,46 @@ nfs_delegation_test_free_expired(struct inode *inode,
 		nfs_remove_bad_delegation(inode, stateid);
 }
 
+static int nfs_server_reap_expired_delegations(struct nfs_server *server,
+		void __always_unused *data)
+{
+	struct nfs_delegation *delegation;
+	struct inode *inode;
+	const struct cred *cred;
+	nfs4_stateid stateid;
+restart:
+	rcu_read_lock();
+restart_locked:
+	list_for_each_entry_rcu(delegation, &server->delegations, super_list) {
+		if (test_bit(NFS_DELEGATION_INODE_FREEING,
+					&delegation->flags) ||
+		    test_bit(NFS_DELEGATION_RETURNING,
+					&delegation->flags) ||
+		    test_bit(NFS_DELEGATION_TEST_EXPIRED,
+					&delegation->flags) == 0)
+			continue;
+		inode = nfs_delegation_grab_inode(delegation);
+		if (inode == NULL)
+			goto restart_locked;
+		cred = get_cred_rcu(delegation->cred);
+		nfs4_stateid_copy(&stateid, &delegation->stateid);
+		clear_bit(NFS_DELEGATION_TEST_EXPIRED, &delegation->flags);
+		rcu_read_unlock();
+		nfs_delegation_test_free_expired(inode, &stateid, cred);
+		put_cred(cred);
+		if (!nfs4_server_rebooted(server->nfs_client)) {
+			iput(inode);
+			cond_resched();
+			goto restart;
+		}
+		nfs_inode_mark_test_expired_delegation(server,inode);
+		iput(inode);
+		return -EAGAIN;
+	}
+	rcu_read_unlock();
+	return 0;
+}
+
 /**
  * nfs_reap_expired_delegations - reap expired delegations
  * @clp: nfs_client to process
@@ -1233,51 +1273,8 @@ nfs_delegation_test_free_expired(struct inode *inode,
  */
 void nfs_reap_expired_delegations(struct nfs_client *clp)
 {
-	struct nfs_delegation *delegation;
-	struct nfs_server *server;
-	struct inode *inode;
-	const struct cred *cred;
-	nfs4_stateid stateid;
-
-restart:
-	rcu_read_lock();
-	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
-		list_for_each_entry_rcu(delegation, &server->delegations,
-								super_list) {
-			if (test_bit(NFS_DELEGATION_INODE_FREEING,
-						&delegation->flags) ||
-			    test_bit(NFS_DELEGATION_RETURNING,
-						&delegation->flags) ||
-			    test_bit(NFS_DELEGATION_TEST_EXPIRED,
-						&delegation->flags) == 0)
-				continue;
-			if (!nfs_sb_active(server->super))
-				break; /* continue in outer loop */
-			inode = nfs_delegation_grab_inode(delegation);
-			if (inode == NULL) {
-				rcu_read_unlock();
-				nfs_sb_deactive(server->super);
-				goto restart;
-			}
-			cred = get_cred_rcu(delegation->cred);
-			nfs4_stateid_copy(&stateid, &delegation->stateid);
-			clear_bit(NFS_DELEGATION_TEST_EXPIRED, &delegation->flags);
-			rcu_read_unlock();
-			nfs_delegation_test_free_expired(inode, &stateid, cred);
-			put_cred(cred);
-			if (nfs4_server_rebooted(clp)) {
-				nfs_inode_mark_test_expired_delegation(server,inode);
-				iput(inode);
-				nfs_sb_deactive(server->super);
-				return;
-			}
-			iput(inode);
-			nfs_sb_deactive(server->super);
-			cond_resched();
-			goto restart;
-		}
-	}
-	rcu_read_unlock();
+	nfs_client_for_each_server(clp, nfs_server_reap_expired_delegations,
+			NULL);
 }
 
 void nfs_inode_find_delegation_state_and_recover(struct inode *inode,
