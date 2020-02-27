@@ -27,6 +27,7 @@
 #include <drm/drmP.h>
 #include <video/mipi_display.h>
 #include <asm/unaligned.h>
+#include <uapi/linux/videodev2.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
@@ -1321,6 +1322,8 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+	struct drm_connector *connector = conn_state->connector;
+	struct drm_display_info *info = &connector->display_info;
 
 	switch (dsi->format) {
 	case MIPI_DSI_FMT_RGB888:
@@ -1337,8 +1340,15 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 		return -EINVAL;
 	}
 
+	if (info->num_bus_formats)
+		s->bus_format = info->bus_formats[0];
+	else
+		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+
 	s->output_type = DRM_MODE_CONNECTOR_DSI;
 	s->tv_state = &conn_state->tv;
+	s->eotf = TRADITIONAL_GAMMA_SDR;
+	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	if (dsi->slave)
 		s->output_flags |= ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL;
