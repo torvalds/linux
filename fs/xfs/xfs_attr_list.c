@@ -52,24 +52,19 @@ static int
 xfs_attr_shortform_list(
 	struct xfs_attr_list_context	*context)
 {
-	struct attrlist_cursor_kern	*cursor;
+	struct xfs_attrlist_cursor_kern	*cursor = &context->cursor;
+	struct xfs_inode		*dp = context->dp;
 	struct xfs_attr_sf_sort		*sbuf, *sbp;
 	struct xfs_attr_shortform	*sf;
 	struct xfs_attr_sf_entry	*sfe;
-	struct xfs_inode		*dp;
 	int				sbsize, nsbuf, count, i;
 	int				error = 0;
 
-	ASSERT(context != NULL);
-	dp = context->dp;
-	ASSERT(dp != NULL);
 	ASSERT(dp->i_afp != NULL);
 	sf = (xfs_attr_shortform_t *)dp->i_afp->if_u1.if_data;
 	ASSERT(sf != NULL);
 	if (!sf->hdr.count)
 		return 0;
-	cursor = context->cursor;
-	ASSERT(cursor != NULL);
 
 	trace_xfs_attr_list_sf(context);
 
@@ -205,7 +200,7 @@ out:
 STATIC int
 xfs_attr_node_list_lookup(
 	struct xfs_attr_list_context	*context,
-	struct attrlist_cursor_kern	*cursor,
+	struct xfs_attrlist_cursor_kern	*cursor,
 	struct xfs_buf			**pbp)
 {
 	struct xfs_da3_icnode_hdr	nodehdr;
@@ -288,8 +283,8 @@ STATIC int
 xfs_attr_node_list(
 	struct xfs_attr_list_context	*context)
 {
+	struct xfs_attrlist_cursor_kern	*cursor = &context->cursor;
 	struct xfs_attr3_icleaf_hdr	leafhdr;
-	struct attrlist_cursor_kern	*cursor;
 	struct xfs_attr_leafblock	*leaf;
 	struct xfs_da_intnode		*node;
 	struct xfs_buf			*bp;
@@ -299,7 +294,6 @@ xfs_attr_node_list(
 
 	trace_xfs_attr_node_list(context);
 
-	cursor = context->cursor;
 	cursor->initted = 1;
 
 	/*
@@ -394,7 +388,7 @@ xfs_attr3_leaf_list_int(
 	struct xfs_buf			*bp,
 	struct xfs_attr_list_context	*context)
 {
-	struct attrlist_cursor_kern	*cursor;
+	struct xfs_attrlist_cursor_kern	*cursor = &context->cursor;
 	struct xfs_attr_leafblock	*leaf;
 	struct xfs_attr3_icleaf_hdr	ichdr;
 	struct xfs_attr_leaf_entry	*entries;
@@ -408,7 +402,6 @@ xfs_attr3_leaf_list_int(
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
 	entries = xfs_attr3_leaf_entryp(leaf);
 
-	cursor = context->cursor;
 	cursor->initted = 1;
 
 	/*
@@ -496,7 +489,7 @@ xfs_attr_leaf_list(
 
 	trace_xfs_attr_leaf_list(context);
 
-	context->cursor->blkno = 0;
+	context->cursor.blkno = 0;
 	error = xfs_attr3_leaf_read(context->tp, context->dp, 0, &bp);
 	if (error)
 		return error;

@@ -375,8 +375,7 @@ xfs_ioc_attr_list(
 	int				flags,
 	struct xfs_attrlist_cursor __user *ucursor)
 {
-	struct xfs_attr_list_context	context;
-	struct attrlist_cursor_kern	cursor;
+	struct xfs_attr_list_context	context = { };
 	struct xfs_attrlist		*alist;
 	void				*buffer;
 	int				error;
@@ -396,12 +395,13 @@ xfs_ioc_attr_list(
 	/*
 	 * Validate the cursor.
 	 */
-	if (copy_from_user(&cursor, ucursor, sizeof(cursor)))
+	if (copy_from_user(&context.cursor, ucursor, sizeof(context.cursor)))
 		return -EFAULT;
-	if (cursor.pad1 || cursor.pad2)
+	if (context.cursor.pad1 || context.cursor.pad2)
 		return -EINVAL;
-	if ((cursor.initted == 0) &&
-	    (cursor.hashval || cursor.blkno || cursor.offset))
+	if (!context.cursor.initted &&
+	    (context.cursor.hashval || context.cursor.blkno ||
+	     context.cursor.offset))
 		return -EINVAL;
 
 	buffer = kmem_zalloc_large(bufsize, 0);
@@ -411,9 +411,7 @@ xfs_ioc_attr_list(
 	/*
 	 * Initialize the output buffer.
 	 */
-	memset(&context, 0, sizeof(context));
 	context.dp = dp;
-	context.cursor = &cursor;
 	context.resynch = 1;
 	context.attr_filter = xfs_attr_filter(flags);
 	context.buffer = buffer;
@@ -431,7 +429,7 @@ xfs_ioc_attr_list(
 		goto out_free;
 
 	if (copy_to_user(ubuf, buffer, bufsize) ||
-	    copy_to_user(ucursor, &cursor, sizeof(cursor)))
+	    copy_to_user(ucursor, &context.cursor, sizeof(context.cursor)))
 		error = -EFAULT;
 out_free:
 	kmem_free(buffer);

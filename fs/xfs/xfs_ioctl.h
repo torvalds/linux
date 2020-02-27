@@ -6,7 +6,6 @@
 #ifndef __XFS_IOCTL_H__
 #define __XFS_IOCTL_H__
 
-struct attrlist_cursor_kern;
 struct xfs_bstat;
 struct xfs_ibulk;
 struct xfs_inogrp;
