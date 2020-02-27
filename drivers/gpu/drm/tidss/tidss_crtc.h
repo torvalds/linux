@@ -32,6 +32,8 @@ struct tidss_crtc_state {
 	/* Must be first. */
 	struct drm_crtc_state base;
 
+	bool plane_pos_changed;
+
 	u32 bus_format;
 	u32 bus_flags;
 };

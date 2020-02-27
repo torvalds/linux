@@ -94,6 +94,11 @@ extern const struct dispc_features dispc_j721e_feats;
 void dispc_set_irqenable(struct dispc_device *dispc, dispc_irq_t mask);
 dispc_irq_t dispc_read_and_clear_irqstatus(struct dispc_device *dispc);
 
+void dispc_ovr_set_plane(struct dispc_device *dispc, u32 hw_plane,
+			 u32 hw_videoport, u32 x, u32 y, u32 layer);
+void dispc_ovr_enable_layer(struct dispc_device *dispc,
+			    u32 hw_videoport, u32 layer, bool enable);
+
 void dispc_vp_prepare(struct dispc_device *dispc, u32 hw_videoport,
 		      const struct drm_crtc_state *state);
 void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,

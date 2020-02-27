@@ -47,9 +47,59 @@ static const struct drm_mode_config_helper_funcs mode_config_helper_funcs = {
 	.atomic_commit_tail = tidss_atomic_commit_tail,
 };
 
+static int tidss_atomic_check(struct drm_device *ddev,
+			      struct drm_atomic_state *state)
+{
+	struct drm_plane_state *opstate;
+	struct drm_plane_state *npstate;
+	struct drm_plane *plane;
+	struct drm_crtc_state *cstate;
+	struct drm_crtc *crtc;
+	int ret, i;
+
+	ret = drm_atomic_helper_check(ddev, state);
+	if (ret)
+		return ret;
+
+	/*
+	 * Add all active planes on a CRTC to the atomic state, if
+	 * x/y/z position or activity of any plane on that CRTC
+	 * changes. This is needed for updating the plane positions in
+	 * tidss_crtc_position_planes() which is called from
+	 * crtc_atomic_enable() and crtc_atomic_flush(). We have an
+	 * extra flag to to mark x,y-position changes and together
+	 * with zpos_changed the condition recognizes all the above
+	 * cases.
+	 */
+	for_each_oldnew_plane_in_state(state, plane, opstate, npstate, i) {
+		if (!npstate->crtc || !npstate->visible)
+			continue;
+
+		if (!opstate->crtc || opstate->crtc_x != npstate->crtc_x ||
+		    opstate->crtc_y != npstate->crtc_y) {
+			cstate = drm_atomic_get_crtc_state(state,
+							   npstate->crtc);
+			if (IS_ERR(cstate))
+				return PTR_ERR(cstate);
+			to_tidss_crtc_state(cstate)->plane_pos_changed = true;
+		}
+	}
+
+	for_each_new_crtc_in_state(state, crtc, cstate, i) {
+		if (to_tidss_crtc_state(cstate)->plane_pos_changed ||
+		    cstate->zpos_changed) {
+			ret = drm_atomic_add_affected_planes(state, crtc);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.atomic_check = drm_atomic_helper_check,
+	.atomic_check = tidss_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
