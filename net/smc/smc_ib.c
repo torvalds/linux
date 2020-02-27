@@ -37,11 +37,7 @@ struct smc_ib_devices smc_ib_devices = {	/* smc-registered ib devices */
 	.list = LIST_HEAD_INIT(smc_ib_devices.list),
 };
 
-#define SMC_LOCAL_SYSTEMID_RESET	"%%%%%%%"
-
-u8 local_systemid[SMC_SYSTEMID_LEN] = SMC_LOCAL_SYSTEMID_RESET;	/* unique system
-								 * identifier
-								 */
+u8 local_systemid[SMC_SYSTEMID_LEN];		/* unique system identifier */
 
 static int smc_ib_modify_qp_init(struct smc_link *lnk)
 {
@@ -168,6 +164,15 @@ static inline void smc_ib_define_local_systemid(struct smc_ib_device *smcibdev,
 {
 	memcpy(&local_systemid[2], &smcibdev->mac[ibport - 1],
 	       sizeof(smcibdev->mac[ibport - 1]));
+}
+
+bool smc_ib_is_valid_local_systemid(void)
+{
+	return !is_zero_ether_addr(&local_systemid[2]);
+}
+
+static void smc_ib_init_local_systemid(void)
+{
 	get_random_bytes(&local_systemid[0], 2);
 }
 
@@ -224,8 +229,7 @@ static int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport)
 	rc = smc_ib_fill_mac(smcibdev, ibport);
 	if (rc)
 		goto out;
-	if (!strncmp(local_systemid, SMC_LOCAL_SYSTEMID_RESET,
-		     sizeof(local_systemid)) &&
+	if (!smc_ib_is_valid_local_systemid() &&
 	    smc_ib_port_active(smcibdev, ibport))
 		/* create unique system identifier */
 		smc_ib_define_local_systemid(smcibdev, ibport);
@@ -605,6 +609,7 @@ static struct ib_client smc_ib_client = {
 
 int __init smc_ib_register_client(void)
 {
+	smc_ib_init_local_systemid();
 	return ib_register_client(&smc_ib_client);
 }
 
