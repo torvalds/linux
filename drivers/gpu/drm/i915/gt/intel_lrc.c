@@ -3637,9 +3637,6 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	if (!rq)
 		goto unwind;
 
-	/* We still have requests in-flight; the engine should be active */
-	GEM_BUG_ON(!intel_engine_pm_is_awake(engine));
-
 	ce = rq->context;
 	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
 
@@ -3649,8 +3646,12 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 		goto out_replay;
 	}
 
+	/* We still have requests in-flight; the engine should be active */
+	GEM_BUG_ON(!intel_engine_pm_is_awake(engine));
+
 	/* Context has requests still in-flight; it should not be idle! */
 	GEM_BUG_ON(i915_active_is_idle(&ce->active));
+
 	rq = active_request(ce->timeline, rq);
 	head = intel_ring_wrap(ce->ring, rq->head);
 	GEM_BUG_ON(head == ce->ring->tail);
