@@ -359,7 +359,6 @@ xfs_compat_attrlist_by_handle(
 	compat_xfs_fsop_attrlist_handlereq_t __user *p = arg;
 	compat_xfs_fsop_attrlist_handlereq_t al_hreq;
 	struct dentry		*dentry;
-	char			*kbuf;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -371,27 +370,16 @@ xfs_compat_attrlist_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	error = -ENOMEM;
-	kbuf = kmem_zalloc_large(al_hreq.buflen, 0);
-	if (!kbuf)
+	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
+	error = xfs_ioc_attr_list(XFS_I(d_inode(dentry)),
+			compat_ptr(al_hreq.buffer), al_hreq.buflen,
+			al_hreq.flags, cursor);
+	if (error)
 		goto out_dput;
 
-	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
-	error = xfs_ioc_attr_list(XFS_I(d_inode(dentry)), kbuf, al_hreq.buflen,
-					al_hreq.flags, cursor);
-	if (error)
-		goto out_kfree;
-
-	if (copy_to_user(&p->pos, cursor, sizeof(attrlist_cursor_kern_t))) {
-		error = -EFAULT;
-		goto out_kfree;
-	}
-
-	if (copy_to_user(compat_ptr(al_hreq.buffer), kbuf, al_hreq.buflen))
+	if (copy_to_user(&p->pos, cursor, sizeof(attrlist_cursor_kern_t)))
 		error = -EFAULT;
 
-out_kfree:
-	kmem_free(kbuf);
 out_dput:
 	dput(dentry);
 	return error;

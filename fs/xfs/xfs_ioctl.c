@@ -352,13 +352,14 @@ xfs_ioc_attr_put_listent(
 int
 xfs_ioc_attr_list(
 	struct xfs_inode		*dp,
-	char				*buffer,
+	void __user			*ubuf,
 	int				bufsize,
 	int				flags,
 	struct attrlist_cursor_kern	*cursor)
 {
 	struct xfs_attr_list_context	context;
 	struct xfs_attrlist		*alist;
+	void				*buffer;
 	int				error;
 
 	if (bufsize < sizeof(struct xfs_attrlist) ||
@@ -382,11 +383,9 @@ xfs_ioc_attr_list(
 	    (cursor->hashval || cursor->blkno || cursor->offset))
 		return -EINVAL;
 
-	/*
-	 * Check for a properly aligned buffer.
-	 */
-	if (((long)buffer) & (sizeof(int)-1))
-		return -EFAULT;
+	buffer = kmem_zalloc_large(bufsize, 0);
+	if (!buffer)
+		return -ENOMEM;
 
 	/*
 	 * Initialize the output buffer.
@@ -407,7 +406,13 @@ xfs_ioc_attr_list(
 	alist->al_offset[0] = context.bufsize;
 
 	error = xfs_attr_list(&context);
-	ASSERT(error <= 0);
+	if (error)
+		goto out_free;
+
+	if (copy_to_user(ubuf, buffer, bufsize))
+		error = -EFAULT;
+out_free:
+	kmem_free(buffer);
 	return error;
 }
 
@@ -421,7 +426,6 @@ xfs_attrlist_by_handle(
 	struct xfs_fsop_attrlist_handlereq __user	*p = arg;
 	xfs_fsop_attrlist_handlereq_t al_hreq;
 	struct dentry		*dentry;
-	char			*kbuf;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -432,26 +436,15 @@ xfs_attrlist_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	kbuf = kmem_zalloc_large(al_hreq.buflen, 0);
-	if (!kbuf)
+	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
+	error = xfs_ioc_attr_list(XFS_I(d_inode(dentry)), al_hreq.buffer,
+				  al_hreq.buflen, al_hreq.flags, cursor);
+	if (error)
 		goto out_dput;
 
-	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
-	error = xfs_ioc_attr_list(XFS_I(d_inode(dentry)), kbuf, al_hreq.buflen,
-					al_hreq.flags, cursor);
-	if (error)
-		goto out_kfree;
-
-	if (copy_to_user(&p->pos, cursor, sizeof(attrlist_cursor_kern_t))) {
-		error = -EFAULT;
-		goto out_kfree;
-	}
-
-	if (copy_to_user(al_hreq.buffer, kbuf, al_hreq.buflen))
+	if (copy_to_user(&p->pos, cursor, sizeof(attrlist_cursor_kern_t)))
 		error = -EFAULT;
 
-out_kfree:
-	kmem_free(kbuf);
 out_dput:
 	dput(dentry);
 	return error;

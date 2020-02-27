@@ -39,7 +39,7 @@ xfs_readlink_by_handle(
 int xfs_ioc_attrmulti_one(struct file *parfilp, struct inode *inode,
 		uint32_t opcode, void __user *uname, void __user *value,
 		uint32_t *len, uint32_t flags);
-int xfs_ioc_attr_list(struct xfs_inode *dp, char *buffer, int bufsize,
+int xfs_ioc_attr_list(struct xfs_inode *dp, void __user *ubuf, int bufsize,
 	int flags, struct attrlist_cursor_kern *cursor);
 
 extern struct dentry *
