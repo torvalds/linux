@@ -177,7 +177,7 @@ static inline int is_extension_exist(const unsigned char *s, const char *sub)
 }
 
 /*
- * Set multimedia files as cold files for hot/cold data separation
+ * Set file's temperature for hot/cold data separation
  */
 static inline void set_file_temperature(struct f2fs_sb_info *sbi, struct inode *inode,
 		const unsigned char *name)

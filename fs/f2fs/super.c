@@ -1658,7 +1658,7 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 out_unlock:
 	up_write(&sbi->gc_lock);
 restore_flag:
-	sbi->sb->s_flags = s_flags;	/* Restore MS_RDONLY status */
+	sbi->sb->s_flags = s_flags;	/* Restore SB_RDONLY status */
 	return err;
 }
 
@@ -3590,7 +3590,7 @@ try_onemore:
 			f2fs_err(sbi, "Cannot turn on quotas: error %d", err);
 	}
 #endif
-	/* if there are nt orphan nodes free them */
+	/* if there are any orphan inodes, free them */
 	err = f2fs_recover_orphan_inodes(sbi);
 	if (err)
 		goto free_meta;
