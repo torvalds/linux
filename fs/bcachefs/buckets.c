@@ -1444,8 +1444,7 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	struct bkey_s_c k;
 	struct bkey_alloc_unpacked u;
 	struct bkey_i_alloc *a;
-	u16 *dst_sectors;
-	bool overflow;
+	u16 *dst_sectors, orig_sectors;
 	int ret;
 
 	ret = trans_get_key(trans, BTREE_ID_ALLOC,
@@ -1502,13 +1501,12 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	dst_sectors = !p.ptr.cached
 		? &u.dirty_sectors
 		: &u.cached_sectors;
+	orig_sectors = *dst_sectors;
 
-	overflow = checked_add(*dst_sectors, sectors);
-
-	if (overflow) {
+	if (checked_add(*dst_sectors, sectors)) {
 		bch2_fs_inconsistent(c,
 			"bucket sector count overflow: %u + %lli > U16_MAX",
-			*dst_sectors, sectors);
+			orig_sectors, sectors);
 		/* return an error indicating that we need full fsck */
 		ret = -EIO;
 		goto out;
