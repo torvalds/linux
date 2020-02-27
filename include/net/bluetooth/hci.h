@@ -115,7 +115,7 @@ enum {
 	 * wrongly configured local features that will require forcing
 	 * them to enable this mode. Getting RSSI information with the
 	 * inquiry responses is preferred since it allows for a better
-	 * user expierence.
+	 * user experience.
 	 *
 	 * This quirk must be set before hci_register_dev is called.
 	 */
@@ -142,7 +142,7 @@ enum {
 
 	/* When this quirk is set, an external configuration step
 	 * is required and will be indicated with the controller
-	 * configuation.
+	 * configuration.
 	 *
 	 * This quirk can be set before hci_register_dev is called or
 	 * during the hdev->setup vendor callback.
