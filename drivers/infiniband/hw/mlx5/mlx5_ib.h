@@ -1532,7 +1532,9 @@ static inline bool mlx5_ib_can_use_umr(struct mlx5_ib_dev *dev,
 	    MLX5_CAP_GEN(dev->mdev, umr_modify_atomic_disabled))
 		return false;
 
-	if (access_flags & IB_ACCESS_RELAXED_ORDERING)
+	if (access_flags & IB_ACCESS_RELAXED_ORDERING &&
+	    (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write) ||
+	     MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read)))
 		return false;
 
 	return true;
