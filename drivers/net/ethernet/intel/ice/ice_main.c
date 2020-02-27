@@ -2054,8 +2054,16 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 		set_bit(__ICE_MDD_EVENT_PENDING, pf->state);
 	}
 	if (oicr & PFINT_OICR_VFLR_M) {
-		ena_mask &= ~PFINT_OICR_VFLR_M;
-		set_bit(__ICE_VFLR_EVENT_PENDING, pf->state);
+		/* disable any further VFLR event notifications */
+		if (test_bit(__ICE_VF_RESETS_DISABLED, pf->state)) {
+			u32 reg = rd32(hw, PFINT_OICR_ENA);
+
+			reg &= ~PFINT_OICR_VFLR_M;
+			wr32(hw, PFINT_OICR_ENA, reg);
+		} else {
+			ena_mask &= ~PFINT_OICR_VFLR_M;
+			set_bit(__ICE_VFLR_EVENT_PENDING, pf->state);
+		}
 	}
 
 	if (oicr & PFINT_OICR_GRST_M) {
@@ -3380,11 +3388,14 @@ static void ice_remove(struct pci_dev *pdev)
 		msleep(100);
 	}
 
+	if (test_bit(ICE_FLAG_SRIOV_ENA, pf->flags)) {
+		set_bit(__ICE_VF_RESETS_DISABLED, pf->state);
+		ice_free_vfs(pf);
+	}
+
 	set_bit(__ICE_DOWN, pf->state);
 	ice_service_task_stop(pf);
 
-	if (test_bit(ICE_FLAG_SRIOV_ENA, pf->flags))
-		ice_free_vfs(pf);
 	ice_vsi_release_all(pf);
 	ice_free_irq_msix_misc(pf);
 	ice_for_each_vsi(pf, i) {

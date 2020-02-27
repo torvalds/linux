@@ -300,11 +300,6 @@ void ice_free_vfs(struct ice_pf *pf)
 	while (test_and_set_bit(__ICE_VF_DIS, pf->state))
 		usleep_range(1000, 2000);
 
-	/* Avoid wait time by stopping all VFs at the same time */
-	ice_for_each_vf(pf, i)
-		if (test_bit(ICE_VF_STATE_QS_ENA, pf->vf[i].vf_states))
-			ice_dis_vf_qs(&pf->vf[i]);
-
 	/* Disable IOV before freeing resources. This lets any VF drivers
 	 * running in the host get themselves cleaned up before we yank
 	 * the carpet out from underneath their feet.
@@ -313,6 +308,11 @@ void ice_free_vfs(struct ice_pf *pf)
 		pci_disable_sriov(pf->pdev);
 	else
 		dev_warn(dev, "VFs are assigned - not disabling SR-IOV\n");
+
+	/* Avoid wait time by stopping all VFs at the same time */
+	ice_for_each_vf(pf, i)
+		if (test_bit(ICE_VF_STATE_QS_ENA, pf->vf[i].vf_states))
+			ice_dis_vf_qs(&pf->vf[i]);
 
 	tmp = pf->num_alloc_vfs;
 	pf->num_qps_per_vf = 0;
@@ -1155,7 +1155,8 @@ static bool ice_is_vf_disabled(struct ice_vf *vf)
  * @vf: pointer to the VF structure
  * @is_vflr: true if VFLR was issued, false if not
  *
- * Returns true if the VF is reset, false otherwise.
+ * Returns true if the VF is currently in reset, resets successfully, or resets
+ * are disabled and false otherwise.
  */
 bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 {
@@ -1169,6 +1170,12 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 	int i;
 
 	dev = ice_pf_to_dev(pf);
+
+	if (test_bit(__ICE_VF_RESETS_DISABLED, pf->state)) {
+		dev_dbg(dev, "Trying to reset VF %d, but all VF resets are disabled\n",
+			vf->vf_id);
+		return true;
+	}
 
 	if (ice_is_vf_disabled(vf)) {
 		dev_dbg(dev, "VF is already disabled, there is no need for resetting it, telling VM, all is fine %d\n",
