@@ -605,10 +605,9 @@ static void terminate_walk(struct nameidata *nd)
 }
 
 /* path_put is needed afterwards regardless of success or failure */
-static bool legitimize_path(struct nameidata *nd,
-			    struct path *path, unsigned seq)
+static bool __legitimize_path(struct path *path, unsigned seq, unsigned mseq)
 {
-	int res = __legitimize_mnt(path->mnt, nd->m_seq);
+	int res = __legitimize_mnt(path->mnt, mseq);
 	if (unlikely(res)) {
 		if (res > 0)
 			path->mnt = NULL;
@@ -620,6 +619,12 @@ static bool legitimize_path(struct nameidata *nd,
 		return false;
 	}
 	return !read_seqcount_retry(&path->dentry->d_seq, seq);
+}
+
+static inline bool legitimize_path(struct nameidata *nd,
+			    struct path *path, unsigned seq)
+{
+	return __legitimize_path(path, nd->m_seq, seq);
 }
 
 static bool legitimize_links(struct nameidata *nd)
@@ -1152,6 +1157,31 @@ static bool choose_mountpoint_rcu(struct mount *m, const struct path *root,
 		}
 	}
 	return false;
+}
+
+static bool choose_mountpoint(struct mount *m, const struct path *root,
+			      struct path *path)
+{
+	bool found;
+
+	rcu_read_lock();
+	while (1) {
+		unsigned seq, mseq = read_seqbegin(&mount_lock);
+
+		found = choose_mountpoint_rcu(m, root, path, &seq);
+		if (unlikely(!found)) {
+			if (!read_seqretry(&mount_lock, mseq))
+				break;
+		} else {
+			if (likely(__legitimize_path(path, seq, mseq)))
+				break;
+			rcu_read_unlock();
+			path_put(path);
+			rcu_read_lock();
+		}
+	}
+	rcu_read_unlock();
+	return found;
 }
 
 /*
@@ -1756,22 +1786,14 @@ static struct dentry *follow_dotdot(struct nameidata *nd,
 	if (path_equal(&nd->path, &nd->root))
 		goto in_root;
 	if (unlikely(nd->path.dentry == nd->path.mnt->mnt_root)) {
-		struct path path = nd->path;
-		path_get(&path);
-		while (1) {
-			if (!follow_up(&path)) {
-				path_put(&path);
-				goto in_root;
-			}
-			if (path_equal(&path, &nd->root)) {
-				path_put(&path);
-				goto in_root;
-			}
-			if (path.dentry != nd->path.mnt->mnt_root)
-				break;
-		}
+		struct path path;
+
+		if (!choose_mountpoint(real_mount(nd->path.mnt),
+				       &nd->root, &path))
+			goto in_root;
 		path_put(&nd->path);
 		nd->path = path;
+		nd->inode = path.dentry->d_inode;
 		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
 			return ERR_PTR(-EXDEV);
 	}
