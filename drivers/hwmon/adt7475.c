@@ -1509,6 +1509,36 @@ static int load_attenuators(const struct i2c_client *client, int chip,
 	return 0;
 }
 
+static int adt7475_set_pwm_polarity(struct i2c_client *client)
+{
+	u32 states[ADT7475_PWM_COUNT];
+	int ret, i;
+	u8 val;
+
+	ret = of_property_read_u32_array(client->dev.of_node,
+					 "adi,pwm-active-state", states,
+					 ARRAY_SIZE(states));
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ADT7475_PWM_COUNT; i++) {
+		ret = adt7475_read(PWM_CONFIG_REG(i));
+		if (ret < 0)
+			return ret;
+		val = ret;
+		if (states[i])
+			val &= ~BIT(4);
+		else
+			val |= BIT(4);
+
+		ret = i2c_smbus_write_byte_data(client, PWM_CONFIG_REG(i), val);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int adt7475_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1616,6 +1646,10 @@ static int adt7475_probe(struct i2c_client *client,
 	 */
 	for (i = 0; i < ADT7475_PWM_COUNT; i++)
 		adt7475_read_pwm(client, i);
+
+	ret = adt7475_set_pwm_polarity(client);
+	if (ret && ret != -EINVAL)
+		dev_warn(&client->dev, "Error configuring pwm polarity\n");
 
 	/* Start monitoring */
 	switch (chip) {
