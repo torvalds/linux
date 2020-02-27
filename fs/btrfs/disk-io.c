@@ -253,10 +253,8 @@ out:
 
 /*
  * Compute the csum of a btree block and store the result to provided buffer.
- *
- * Returns error if the extent buffer cannot be mapped.
  */
-static int csum_tree_block(struct extent_buffer *buf, u8 *result)
+static void csum_tree_block(struct extent_buffer *buf, u8 *result)
 {
 	struct btrfs_fs_info *fs_info = buf->fs_info;
 	const int num_pages = fs_info->nodesize >> PAGE_SHIFT;
@@ -276,8 +274,6 @@ static int csum_tree_block(struct extent_buffer *buf, u8 *result)
 	}
 	memset(result, 0, BTRFS_CSUM_SIZE);
 	crypto_shash_final(shash, result);
-
-	return 0;
 }
 
 /*
@@ -528,8 +524,7 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 				    offsetof(struct btrfs_header, fsid),
 				    BTRFS_FSID_SIZE) == 0);
 
-	if (csum_tree_block(eb, result))
-		return -EINVAL;
+	csum_tree_block(eb, result);
 
 	if (btrfs_header_level(eb))
 		ret = btrfs_check_node(eb);
@@ -640,9 +635,7 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 	btrfs_set_buffer_lockdep_class(btrfs_header_owner(eb),
 				       eb, found_level);
 
-	ret = csum_tree_block(eb, result);
-	if (ret)
-		goto err;
+	csum_tree_block(eb, result);
 
 	if (memcmp_extent_buffer(eb, result, 0, csum_size)) {
 		u32 val;
