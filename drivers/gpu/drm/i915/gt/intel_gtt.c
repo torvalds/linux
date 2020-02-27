@@ -171,7 +171,9 @@ void __i915_vm_close(struct i915_address_space *vm)
 {
 	struct i915_vma *vma, *vn;
 
-	mutex_lock(&vm->mutex);
+	if (!atomic_dec_and_mutex_lock(&vm->open, &vm->mutex))
+		return;
+
 	list_for_each_entry_safe(vma, vn, &vm->bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
@@ -186,6 +188,7 @@ void __i915_vm_close(struct i915_address_space *vm)
 		i915_gem_object_put(obj);
 	}
 	GEM_BUG_ON(!list_empty(&vm->bound_list));
+
 	mutex_unlock(&vm->mutex);
 }
 

@@ -429,8 +429,7 @@ static inline void
 i915_vm_close(struct i915_address_space *vm)
 {
 	GEM_BUG_ON(!atomic_read(&vm->open));
-	if (atomic_dec_and_test(&vm->open))
-		__i915_vm_close(vm);
+	__i915_vm_close(vm);
 
 	i915_vm_put(vm);
 }
