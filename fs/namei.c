@@ -1414,22 +1414,6 @@ static inline int handle_mounts(struct nameidata *nd, struct dentry *dentry,
 }
 
 /*
- * Skip to top of mountpoint pile in refwalk mode for follow_dotdot()
- */
-static void follow_mount(struct path *path)
-{
-	while (d_mountpoint(path->dentry)) {
-		struct vfsmount *mounted = lookup_mnt(path);
-		if (!mounted)
-			break;
-		dput(path->dentry);
-		mntput(path->mnt);
-		path->mnt = mounted;
-		path->dentry = dget(mounted->mnt_root);
-	}
-}
-
-/*
  * This looks up the name in dcache and possibly revalidates the found dentry.
  * NULL is returned if the dentry does not exist in the cache.
  */
@@ -2640,7 +2624,7 @@ int path_pts(struct path *path)
 	 */
 	struct dentry *parent = dget_parent(path->dentry);
 	struct dentry *child;
-	struct qstr this;
+	struct qstr this = QSTR_INIT("pts", 3);
 
 	if (unlikely(!path_connected(path->mnt, parent))) {
 		dput(parent);
@@ -2648,15 +2632,13 @@ int path_pts(struct path *path)
 	}
 	dput(path->dentry);
 	path->dentry = parent;
-	this.name = "pts";
-	this.len = 3;
 	child = d_hash_and_lookup(parent, &this);
 	if (!child)
 		return -ENOENT;
 
 	path->dentry = child;
 	dput(parent);
-	follow_mount(path);
+	follow_down(path);
 	return 0;
 }
 #endif
