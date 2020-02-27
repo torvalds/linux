@@ -762,6 +762,10 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 
 		if (lmp_sc_capable(hdev))
 			settings |= MGMT_SETTING_SECURE_CONN;
+
+		if (test_bit(HCI_QUIRK_WIDE_BAND_SPEECH_SUPPORTED,
+			     &hdev->quirks))
+			settings |= MGMT_SETTING_WIDE_BAND_SPEECH;
 	}
 
 	if (lmp_le_capable(hdev)) {
