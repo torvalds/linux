@@ -70,6 +70,7 @@
 
 #include "i915_debugfs.h"
 #include "i915_drv.h"
+#include "i915_ioc32.h"
 #include "i915_irq.h"
 #include "i915_memcpy.h"
 #include "i915_perf.h"
@@ -1762,7 +1763,7 @@ static const struct file_operations i915_driver_fops = {
 	.mmap = i915_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
-	.compat_ioctl = i915_compat_ioctl,
+	.compat_ioctl = i915_ioc32_compat_ioctl,
 	.llseek = noop_llseek,
 };
 

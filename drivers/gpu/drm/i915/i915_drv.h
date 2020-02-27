@@ -1699,11 +1699,6 @@ intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
 }
 
 /* i915_drv.c */
-#ifdef CONFIG_COMPAT
-long i915_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
-#else
-#define i915_compat_ioctl NULL
-#endif
 extern const struct dev_pm_ops i915_pm_ops;
 
 int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
