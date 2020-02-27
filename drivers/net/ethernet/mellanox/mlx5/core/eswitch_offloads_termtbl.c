@@ -195,10 +195,12 @@ static bool mlx5_eswitch_offload_is_uplink_port(const struct mlx5_eswitch *esw,
 
 bool
 mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
+			      struct mlx5_esw_flow_attr *attr,
 			      struct mlx5_flow_act *flow_act,
 			      struct mlx5_flow_spec *spec)
 {
-	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, termination_table))
+	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, termination_table) ||
+	    attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)
 		return false;
 
 	/* push vlan on RX */
