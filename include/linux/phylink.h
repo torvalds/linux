@@ -91,9 +91,10 @@ struct phylink_mac_ops {
 	void (*mac_an_restart)(struct phylink_config *config);
 	void (*mac_link_down)(struct phylink_config *config, unsigned int mode,
 			      phy_interface_t interface);
-	void (*mac_link_up)(struct phylink_config *config, unsigned int mode,
-			    phy_interface_t interface,
-			    struct phy_device *phy);
+	void (*mac_link_up)(struct phylink_config *config,
+			    struct phy_device *phy, unsigned int mode,
+			    phy_interface_t interface, int speed, int duplex,
+			    bool tx_pause, bool rx_pause);
 };
 
 #if 0 /* For kernel-doc purposes only. */
@@ -152,6 +153,9 @@ void mac_pcs_get_state(struct phylink_config *config,
  * guaranteed to be correct, and so any mac_config() implementation must
  * never reference these fields.
  *
+ * (this requires a rewrite - please refer to mac_link_up() for situations
+ *  where the PCS and MAC are not tightly integrated.)
+ *
  * In all negotiation modes, as defined by @mode, @state->pause indicates the
  * pause settings which should be applied as follows. If %MLO_PAUSE_AN is not
  * set, %MLO_PAUSE_TX and %MLO_PAUSE_RX indicate whether the MAC should send
@@ -162,12 +166,20 @@ void mac_pcs_get_state(struct phylink_config *config,
  * The action performed depends on the currently selected mode:
  *
  * %MLO_AN_FIXED, %MLO_AN_PHY:
- *   Configure the specified @state->speed and @state->duplex over a link
- *   specified by @state->interface. @state->advertising may be used, but
- *   is not required. Pause modes as above. Other members of @state must
- *   be ignored.
+ *   Configure for non-inband negotiation mode, where the link settings
+ *   are completely communicated via mac_link_up().  The physical link
+ *   protocol from the MAC is specified by @state->interface.
  *
- *   Valid state members: interface, speed, duplex, pause, advertising.
+ *   @state->advertising may be used, but is not required.
+ *
+ *   Older drivers (prior to the mac_link_up() change) may use @state->speed,
+ *   @state->duplex and @state->pause to configure the MAC, but this is
+ *   deprecated; such drivers should be converted to use mac_link_up().
+ *
+ *   Other members of @state must be ignored.
+ *
+ *   Valid state members: interface, advertising.
+ *   Deprecated state members: speed, duplex, pause.
  *
  * %MLO_AN_INBAND:
  *   place the link in an inband negotiation mode (such as 802.3z
@@ -228,19 +240,34 @@ void mac_link_down(struct phylink_config *config, unsigned int mode,
 /**
  * mac_link_up() - allow the link to come up
  * @config: a pointer to a &struct phylink_config.
+ * @phy: any attached phy
  * @mode: link autonegotiation mode
  * @interface: link &typedef phy_interface_t mode
- * @phy: any attached phy
+ * @speed: link speed
+ * @duplex: link duplex
+ * @tx_pause: link transmit pause enablement status
+ * @rx_pause: link receive pause enablement status
  *
- * If @mode is not an in-band negotiation mode (as defined by
- * phylink_autoneg_inband()), allow the link to come up. If @phy
- * is non-%NULL, configure Energy Efficient Ethernet by calling
+ * Configure the MAC for an established link.
+ *
+ * @speed, @duplex, @tx_pause and @rx_pause indicate the finalised link
+ * settings, and should be used to configure the MAC block appropriately
+ * where these settings are not automatically conveyed from the PCS block,
+ * or if in-band negotiation (as defined by phylink_autoneg_inband(@mode))
+ * is disabled.
+ *
+ * Note that when 802.3z in-band negotiation is in use, it is possible
+ * that the user wishes to override the pause settings, and this should
+ * be allowed when considering the implementation of this method.
+ *
+ * If in-band negotiation mode is disabled, allow the link to come up. If
+ * @phy is non-%NULL, configure Energy Efficient Ethernet by calling
  * phy_init_eee() and perform appropriate MAC configuration for EEE.
  * Interface type selection must be done in mac_config().
  */
-void mac_link_up(struct phylink_config *config, unsigned int mode,
-		 phy_interface_t interface,
-		 struct phy_device *phy);
+void mac_link_up(struct phylink_config *config, struct phy_device *phy,
+		 unsigned int mode, phy_interface_t interface,
+		 int speed, int duplex, bool tx_pause, bool rx_pause);
 #endif
 
 struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
