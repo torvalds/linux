@@ -39,10 +39,19 @@ enum {
 	MV_PCS_BASE_R		= 0x1000,
 	MV_PCS_1000BASEX	= 0x2000,
 
-	MV_PCS_PAIRSWAP		= 0x8182,
-	MV_PCS_PAIRSWAP_MASK	= 0x0003,
-	MV_PCS_PAIRSWAP_AB	= 0x0002,
-	MV_PCS_PAIRSWAP_NONE	= 0x0003,
+	MV_PCS_CSSR1		= 0x8008,
+	MV_PCS_CSSR1_SPD1_MASK	= 0xc000,
+	MV_PCS_CSSR1_SPD1_SPD2	= 0xc000,
+	MV_PCS_CSSR1_SPD1_1000	= 0x8000,
+	MV_PCS_CSSR1_SPD1_100	= 0x4000,
+	MV_PCS_CSSR1_SPD1_10	= 0x0000,
+	MV_PCS_CSSR1_DUPLEX_FULL= BIT(13),
+	MV_PCS_CSSR1_RESOLVED	= BIT(11),
+	MV_PCS_CSSR1_MDIX	= BIT(6),
+	MV_PCS_CSSR1_SPD2_MASK	= 0x000c,
+	MV_PCS_CSSR1_SPD2_5000	= 0x0008,
+	MV_PCS_CSSR1_SPD2_2500	= 0x0004,
+	MV_PCS_CSSR1_SPD2_10000	= 0x0000,
 
 	/* These registers appear at 0x800X and 0xa00X - the 0xa00X control
 	 * registers appear to set themselves to the 0x800X when AN is
@@ -413,35 +422,18 @@ static void mv3310_update_interface(struct phy_device *phydev)
 }
 
 /* 10GBASE-ER,LR,LRM,SR do not support autonegotiation. */
-static int mv3310_read_10gbr_status(struct phy_device *phydev)
+static int mv3310_read_status_10gbaser(struct phy_device *phydev)
 {
 	phydev->link = 1;
 	phydev->speed = SPEED_10000;
 	phydev->duplex = DUPLEX_FULL;
 
-	mv3310_update_interface(phydev);
-
 	return 0;
 }
 
-static int mv3310_read_status(struct phy_device *phydev)
+static int mv3310_read_status_copper(struct phy_device *phydev)
 {
-	int val;
-
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
-	linkmode_zero(phydev->lp_advertising);
-	phydev->link = 0;
-	phydev->pause = 0;
-	phydev->asym_pause = 0;
-	phydev->mdix = 0;
-
-	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_BASE_R + MDIO_STAT1);
-	if (val < 0)
-		return val;
-
-	if (val & MDIO_STAT1_LSTATUS)
-		return mv3310_read_10gbr_status(phydev);
+	int cssr1, speed, val;
 
 	val = genphy_c45_read_link(phydev);
 	if (val < 0)
@@ -450,6 +442,52 @@ static int mv3310_read_status(struct phy_device *phydev)
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_STAT1);
 	if (val < 0)
 		return val;
+
+	cssr1 = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_CSSR1);
+	if (cssr1 < 0)
+		return val;
+
+	/* If the link settings are not resolved, mark the link down */
+	if (!(cssr1 & MV_PCS_CSSR1_RESOLVED)) {
+		phydev->link = 0;
+		return 0;
+	}
+
+	/* Read the copper link settings */
+	speed = cssr1 & MV_PCS_CSSR1_SPD1_MASK;
+	if (speed == MV_PCS_CSSR1_SPD1_SPD2)
+		speed |= cssr1 & MV_PCS_CSSR1_SPD2_MASK;
+
+	switch (speed) {
+	case MV_PCS_CSSR1_SPD1_SPD2 | MV_PCS_CSSR1_SPD2_10000:
+		phydev->speed = SPEED_10000;
+		break;
+
+	case MV_PCS_CSSR1_SPD1_SPD2 | MV_PCS_CSSR1_SPD2_5000:
+		phydev->speed = SPEED_5000;
+		break;
+
+	case MV_PCS_CSSR1_SPD1_SPD2 | MV_PCS_CSSR1_SPD2_2500:
+		phydev->speed = SPEED_2500;
+		break;
+
+	case MV_PCS_CSSR1_SPD1_1000:
+		phydev->speed = SPEED_1000;
+		break;
+
+	case MV_PCS_CSSR1_SPD1_100:
+		phydev->speed = SPEED_100;
+		break;
+
+	case MV_PCS_CSSR1_SPD1_10:
+		phydev->speed = SPEED_10;
+		break;
+	}
+
+	phydev->duplex = cssr1 & MV_PCS_CSSR1_DUPLEX_FULL ?
+			 DUPLEX_FULL : DUPLEX_HALF;
+	phydev->mdix = cssr1 & MV_PCS_CSSR1_MDIX ?
+		       ETH_TP_MDI_X : ETH_TP_MDI;
 
 	if (val & MDIO_AN_STAT1_COMPLETE) {
 		val = genphy_c45_read_lpa(phydev);
@@ -463,39 +501,38 @@ static int mv3310_read_status(struct phy_device *phydev)
 
 		mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising, val);
 
-		if (phydev->autoneg == AUTONEG_ENABLE)
-			phy_resolve_aneg_linkmode(phydev);
+		/* Update the pause status */
+		phy_resolve_aneg_pause(phydev);
 	}
 
-	if (phydev->autoneg != AUTONEG_ENABLE) {
-		val = genphy_c45_read_pma(phydev);
-		if (val < 0)
-			return val;
-	}
+	return 0;
+}
 
-	if (phydev->speed == SPEED_10000) {
-		val = genphy_c45_read_mdix(phydev);
-		if (val < 0)
-			return val;
-	} else {
-		val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_PAIRSWAP);
-		if (val < 0)
-			return val;
+static int mv3310_read_status(struct phy_device *phydev)
+{
+	int err, val;
 
-		switch (val & MV_PCS_PAIRSWAP_MASK) {
-		case MV_PCS_PAIRSWAP_AB:
-			phydev->mdix = ETH_TP_MDI_X;
-			break;
-		case MV_PCS_PAIRSWAP_NONE:
-			phydev->mdix = ETH_TP_MDI;
-			break;
-		default:
-			phydev->mdix = ETH_TP_MDI_INVALID;
-			break;
-		}
-	}
+	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKNOWN;
+	linkmode_zero(phydev->lp_advertising);
+	phydev->link = 0;
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
+	phydev->mdix = ETH_TP_MDI_INVALID;
 
-	mv3310_update_interface(phydev);
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_BASE_R + MDIO_STAT1);
+	if (val < 0)
+		return val;
+
+	if (val & MDIO_STAT1_LSTATUS)
+		err = mv3310_read_status_10gbaser(phydev);
+	else
+		err = mv3310_read_status_copper(phydev);
+	if (err < 0)
+		return err;
+
+	if (phydev->link)
+		mv3310_update_interface(phydev);
 
 	return 0;
 }
