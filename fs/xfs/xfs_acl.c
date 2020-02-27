@@ -172,6 +172,8 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	struct xfs_inode *ip = XFS_I(inode);
 	unsigned char *ea_name;
+	struct xfs_acl *xfs_acl = NULL;
+	int len = 0;
 	int error;
 
 	switch (type) {
@@ -188,9 +190,7 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	}
 
 	if (acl) {
-		struct xfs_acl *xfs_acl;
-		int len = XFS_ACL_MAX_SIZE(ip->i_mount);
-
+		len = XFS_ACL_MAX_SIZE(ip->i_mount);
 		xfs_acl = kmem_zalloc_large(len, 0);
 		if (!xfs_acl)
 			return -ENOMEM;
@@ -200,26 +200,17 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		/* subtract away the unused acl entries */
 		len -= sizeof(struct xfs_acl_entry) *
 			 (XFS_ACL_MAX_ENTRIES(ip->i_mount) - acl->a_count);
-
-		error = xfs_attr_set(ip, ea_name, strlen(ea_name),
-				     (unsigned char *)xfs_acl, len, ATTR_ROOT);
-
-		kmem_free(xfs_acl);
-	} else {
-		/*
-		 * A NULL ACL argument means we want to remove the ACL.
-		 */
-		error = xfs_attr_remove(ip, ea_name,
-					strlen(ea_name),
-					ATTR_ROOT);
-
-		/*
-		 * If the attribute didn't exist to start with that's fine.
-		 */
-		if (error == -ENOATTR)
-			error = 0;
 	}
 
+	error = xfs_attr_set(ip, ea_name, strlen(ea_name),
+			(unsigned char *)xfs_acl, len, ATTR_ROOT);
+	kmem_free(xfs_acl);
+
+	/*
+	 * If the attribute didn't exist to start with that's fine.
+	 */
+	if (!acl && error == -ENOATTR)
+		error = 0;
 	if (!error)
 		set_cached_acl(inode, type, acl);
 	return error;

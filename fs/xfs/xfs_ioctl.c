@@ -417,12 +417,10 @@ xfs_attrmulti_attr_remove(
 	uint32_t		flags)
 {
 	int			error;
-	size_t			namelen;
 
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		return -EPERM;
-	namelen = strlen(name);
-	error = xfs_attr_remove(XFS_I(inode), name, namelen, flags);
+	error = xfs_attr_set(XFS_I(inode), name, strlen(name), NULL, 0, flags);
 	if (!error)
 		xfs_forget_acl(inode, name, flags);
 	return error;
