@@ -419,3 +419,19 @@ devlink_trap_drop_cleanup()
 	kill $mz_pid && wait $mz_pid &> /dev/null
 	tc filter del dev $dev egress protocol $proto pref $pref handle $handle flower
 }
+
+devlink_port_by_netdev()
+{
+	local if_name=$1
+
+	devlink -j port show $if_name | jq -e '.[] | keys' | jq -r '.[]'
+}
+
+devlink_cpu_port_get()
+{
+	local cpu_dl_port_num=$(devlink port list | grep "$DEVLINK_DEV" |
+				grep cpu | cut -d/ -f3 | cut -d: -f1 |
+				sed -n '1p')
+
+	echo "$DEVLINK_DEV/$cpu_dl_port_num"
+}
