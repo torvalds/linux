@@ -35,6 +35,12 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+devlink dev help 2>&1 | grep info &> /dev/null
+if [ $? -ne 0 ]; then
+	echo "SKIP: iproute2 too old, missing devlink dev info support"
+	exit 1
+fi
+
 ##############################################################################
 # Devlink helpers
 
