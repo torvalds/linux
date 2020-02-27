@@ -240,7 +240,7 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  * @f: operation function that will be called if @cond matches.
  *	The operation functions are defined in groups, according to
  *	each element at &struct v4l2_subdev_ops.
- * @args...: arguments for @f.
+ * @args: arguments for @f.
  *
  * Ignore any errors.
  *
@@ -265,7 +265,7 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  * @f: operation function that will be called if @cond matches.
  *	The operation functions are defined in groups, according to
  *	each element at &struct v4l2_subdev_ops.
- * @args...: arguments for @f.
+ * @args: arguments for @f.
  *
  * Ignore any errors.
  *
@@ -293,7 +293,7 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  * @f: operation function that will be called if @cond matches.
  *	The operation functions are defined in groups, according to
  *	each element at &struct v4l2_subdev_ops.
- * @args...: arguments for @f.
+ * @args: arguments for @f.
  *
  * Return:
  *
@@ -328,7 +328,7 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  * @f: operation function that will be called if @cond matches.
  *	The operation functions are defined in groups, according to
  *	each element at &struct v4l2_subdev_ops.
- * @args...: arguments for @f.
+ * @args: arguments for @f.
  *
  * Return:
  *
@@ -359,7 +359,7 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  * @f: operation function that will be called if @cond matches.
  *	The operation functions are defined in groups, according to
  *	each element at &struct v4l2_subdev_ops.
- * @args...: arguments for @f.
+ * @args: arguments for @f.
  *
  * Ignore any errors.
  *
@@ -388,7 +388,7 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  * @f: operation function that will be called if @cond matches.
  *	The operation functions are defined in groups, according to
  *	each element at &struct v4l2_subdev_ops.
- * @args...: arguments for @f.
+ * @args: arguments for @f.
  *
  * Return:
  *
@@ -419,7 +419,7 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  * @f: operation function that will be called if @cond matches.
  *	The operation functions are defined in groups, according to
  *	each element at &struct v4l2_subdev_ops.
- * @args...: arguments for @f.
+ * @args: arguments for @f.
  *
  * Ignore any errors.
  *
@@ -447,7 +447,7 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  * @f: operation function that will be called if @cond matches.
  *	The operation functions are defined in groups, according to
  *	each element at &struct v4l2_subdev_ops.
- * @args...: arguments for @f.
+ * @args: arguments for @f.
  *
  * Return:
  *
