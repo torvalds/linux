@@ -1290,7 +1290,7 @@ SYM_CODE_END(simd_coprocessor_error)
 
 SYM_CODE_START(device_not_available)
 	ASM_CLAC
-	pushl	$-1				# mark this as an int
+	pushl	$0
 	pushl	$do_device_not_available
 	jmp	common_exception
 SYM_CODE_END(device_not_available)
@@ -1531,7 +1531,7 @@ SYM_CODE_START(debug)
 	 * Entry from sysenter is now handled in common_exception
 	 */
 	ASM_CLAC
-	pushl	$-1				# mark this as an int
+	pushl	$0
 	pushl	$do_debug
 	jmp	common_exception
 SYM_CODE_END(debug)
@@ -1682,7 +1682,7 @@ SYM_CODE_END(nmi)
 
 SYM_CODE_START(int3)
 	ASM_CLAC
-	pushl	$-1				# mark this as an int
+	pushl	$0
 	pushl	$do_int3
 	jmp	common_exception
 SYM_CODE_END(int3)
