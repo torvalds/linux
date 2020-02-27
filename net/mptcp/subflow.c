@@ -408,6 +408,18 @@ validate_seq:
 	return MAPPING_OK;
 }
 
+static int subflow_read_actor(read_descriptor_t *desc,
+			      struct sk_buff *skb,
+			      unsigned int offset, size_t len)
+{
+	size_t copy_len = min(desc->count, len);
+
+	desc->count -= copy_len;
+
+	pr_debug("flushed %zu bytes, %zu left", copy_len, desc->count);
+	return copy_len;
+}
+
 static bool subflow_check_data_avail(struct sock *ssk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
@@ -482,16 +494,12 @@ static bool subflow_check_data_avail(struct sock *ssk)
 		pr_debug("discarding %zu bytes, current map len=%d", delta,
 			 map_remaining);
 		if (delta) {
-			struct mptcp_read_arg arg = {
-				.msg = NULL,
-			};
 			read_descriptor_t desc = {
 				.count = delta,
-				.arg.data = &arg,
 			};
 			int ret;
 
-			ret = tcp_read_sock(ssk, &desc, mptcp_read_actor);
+			ret = tcp_read_sock(ssk, &desc, subflow_read_actor);
 			if (ret < 0) {
 				ssk->sk_err = -ret;
 				goto fatal;
@@ -554,11 +562,8 @@ static void subflow_data_ready(struct sock *sk)
 		return;
 	}
 
-	if (mptcp_subflow_data_available(sk)) {
-		set_bit(MPTCP_DATA_READY, &mptcp_sk(parent)->flags);
-
-		parent->sk_data_ready(parent);
-	}
+	if (mptcp_subflow_data_available(sk))
+		mptcp_data_ready(parent, sk);
 }
 
 static void subflow_write_space(struct sock *sk)
@@ -690,11 +695,8 @@ static void subflow_state_change(struct sock *sk)
 	 * a fin packet carrying a DSS can be unnoticed if we don't trigger
 	 * the data available machinery here.
 	 */
-	if (parent && subflow->mp_capable && mptcp_subflow_data_available(sk)) {
-		set_bit(MPTCP_DATA_READY, &mptcp_sk(parent)->flags);
-
-		parent->sk_data_ready(parent);
-	}
+	if (parent && subflow->mp_capable && mptcp_subflow_data_available(sk))
+		mptcp_data_ready(parent, sk);
 
 	if (parent && !(parent->sk_shutdown & RCV_SHUTDOWN) &&
 	    !subflow->rx_eof && subflow_is_done(sk)) {
