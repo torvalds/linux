@@ -65,9 +65,8 @@
 struct rockchip_otp {
 	struct device *dev;
 	void __iomem *base;
-	struct clk *clk;
-	struct clk *pclk;
-	struct clk *pclk_phy;
+	struct clk_bulk_data *clks;
+	int num_clks;
 	struct reset_control *rst;
 };
 
@@ -143,34 +142,23 @@ static int rockchip_otp_read(void *context, unsigned int offset,
 	u8 *buf = val;
 	int ret = 0;
 
-	ret = clk_prepare_enable(otp->clk);
-	if (ret < 0) {
-		dev_err(otp->dev, "failed to prepare/enable otp clk\n");
+
+	ret = clk_bulk_prepare_enable(otp->num_clks, otp->clks);
+	if (ret) {
+		dev_err(otp->dev, "failed to enable clock\n");
 		return ret;
-	}
-
-	ret = clk_prepare_enable(otp->pclk);
-	if (ret < 0) {
-		dev_err(otp->dev, "failed to prepare/enable otp pclk\n");
-		goto otp_clk;
-	}
-
-	ret = clk_prepare_enable(otp->pclk_phy);
-	if (ret < 0) {
-		dev_err(otp->dev, "failed to prepare/enable otp pclk phy\n");
-		goto opt_pclk;
 	}
 
 	ret = rockchip_otp_reset(otp);
 	if (ret) {
 		dev_err(otp->dev, "failed to reset otp phy\n");
-		goto opt_pclk_phy;
+		goto otp_clk;
 	}
 
 	ret = rockchip_otp_ecc_enable(otp, false);
 	if (ret < 0) {
 		dev_err(otp->dev, "rockchip_otp_ecc_enable err\n");
-		goto opt_pclk_phy;
+		goto otp_clk;
 	}
 
 	writel(OTPC_USE_USER | OTPC_USE_USER_MASK, otp->base + OTPC_USER_CTRL);
@@ -190,12 +178,8 @@ static int rockchip_otp_read(void *context, unsigned int offset,
 
 read_end:
 	writel(0x0 | OTPC_USE_USER_MASK, otp->base + OTPC_USER_CTRL);
-opt_pclk_phy:
-	clk_disable_unprepare(otp->pclk_phy);
-opt_pclk:
-	clk_disable_unprepare(otp->pclk);
 otp_clk:
-	clk_disable_unprepare(otp->clk);
+	clk_bulk_disable_unprepare(otp->num_clks, otp->clks);
 
 	return ret;
 }
@@ -253,17 +237,11 @@ static int __init rockchip_otp_probe(struct platform_device *pdev)
 	if (IS_ERR(otp->base))
 		return PTR_ERR(otp->base);
 
-	otp->clk = devm_clk_get(&pdev->dev, "clk_otp");
-	if (IS_ERR(otp->clk))
-		return PTR_ERR(otp->clk);
-
-	otp->pclk = devm_clk_get(&pdev->dev, "pclk_otp");
-	if (IS_ERR(otp->pclk))
-		return PTR_ERR(otp->pclk);
-
-	otp->pclk_phy = devm_clk_get(&pdev->dev, "pclk_otp_phy");
-	if (IS_ERR(otp->pclk_phy))
-		return PTR_ERR(otp->pclk_phy);
+	otp->num_clks = devm_clk_bulk_get_all(dev, &otp->clks);
+	if (otp->num_clks < 0) {
+		dev_err(dev, "failed to get otp clock\n");
+		return -ENODEV;
+	}
 
 	otp->rst = devm_reset_control_get(dev, "otp_phy");
 	if (IS_ERR(otp->rst))
