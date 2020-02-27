@@ -1847,6 +1847,10 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 		break;
 	}
 
+	/* init spm vmid with 0xf */
+	if (adev->gfx.rlc.funcs->update_spm_vmid)
+		adev->gfx.rlc.funcs->update_spm_vmid(adev, 0xf);
+
 	return 0;
 }
 
@@ -4753,6 +4757,18 @@ static int gfx_v9_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void gfx_v9_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
+{
+	u32 data;
+
+	data = RREG32_SOC15(GC, 0, mmRLC_SPM_MC_CNTL);
+
+	data &= ~RLC_SPM_MC_CNTL__RLC_SPM_VMID_MASK;
+	data |= (vmid & RLC_SPM_MC_CNTL__RLC_SPM_VMID_MASK) << RLC_SPM_MC_CNTL__RLC_SPM_VMID__SHIFT;
+
+	WREG32_SOC15(GC, 0, mmRLC_SPM_MC_CNTL, data);
+}
+
 static const struct amdgpu_rlc_funcs gfx_v9_0_rlc_funcs = {
 	.is_rlc_enabled = gfx_v9_0_is_rlc_enabled,
 	.set_safe_mode = gfx_v9_0_set_safe_mode,
@@ -4764,7 +4780,8 @@ static const struct amdgpu_rlc_funcs gfx_v9_0_rlc_funcs = {
 	.resume = gfx_v9_0_rlc_resume,
 	.stop = gfx_v9_0_rlc_stop,
 	.reset = gfx_v9_0_rlc_reset,
-	.start = gfx_v9_0_rlc_start
+	.start = gfx_v9_0_rlc_start,
+	.update_spm_vmid = gfx_v9_0_update_spm_vmid
 };
 
 static int gfx_v9_0_set_powergating_state(void *handle,
