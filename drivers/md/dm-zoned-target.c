@@ -533,8 +533,9 @@ static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 
 	/* Get the BIO chunk work. If one is not active yet, create one */
 	cw = radix_tree_lookup(&dmz->chunk_rxtree, chunk);
-	if (!cw) {
-
+	if (cw) {
+		dmz_get_chunk_work(cw);
+	} else {
 		/* Create a new chunk work */
 		cw = kmalloc(sizeof(struct dm_chunk_work), GFP_NOIO);
 		if (unlikely(!cw)) {
@@ -543,7 +544,7 @@ static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 		}
 
 		INIT_WORK(&cw->work, dmz_chunk_work);
-		refcount_set(&cw->refcount, 0);
+		refcount_set(&cw->refcount, 1);
 		cw->target = dmz;
 		cw->chunk = chunk;
 		bio_list_init(&cw->bio_list);
@@ -556,7 +557,6 @@ static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 	}
 
 	bio_list_add(&cw->bio_list, bio);
-	dmz_get_chunk_work(cw);
 
 	dmz_reclaim_bio_acc(dmz->reclaim);
 	if (queue_work(dmz->chunk_wq, &cw->work))
