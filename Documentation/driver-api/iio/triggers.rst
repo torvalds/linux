@@ -6,7 +6,6 @@ Triggers
 * :c:func:`devm_iio_trigger_alloc` — Resource-managed iio_trigger_alloc
 * :c:func:`devm_iio_trigger_free` — Resource-managed iio_trigger_free
 * :c:func:`devm_iio_trigger_register` — Resource-managed iio_trigger_register
-* :c:func:`devm_iio_trigger_unregister` — Resource-managed
   iio_trigger_unregister
 * :c:func:`iio_trigger_validate_own_device` — Check if a trigger and IIO
   device belong to the same device

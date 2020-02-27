@@ -673,9 +673,6 @@ static void devm_iio_trigger_unreg(struct device *dev, void *res)
  * calls iio_trigger_register() internally. Refer to that function for more
  * information.
  *
- * If an iio_trigger registered with this function needs to be unregistered
- * separately, devm_iio_trigger_unregister() must be used.
- *
  * RETURNS:
  * 0 on success, negative error number on failure.
  */
@@ -700,24 +697,6 @@ int __devm_iio_trigger_register(struct device *dev,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__devm_iio_trigger_register);
-
-/**
- * devm_iio_trigger_unregister - Resource-managed iio_trigger_unregister()
- * @dev:	device this iio_trigger belongs to
- * @trig_info:	the trigger associated with the device
- *
- * Unregister trigger registered with devm_iio_trigger_register().
- */
-void devm_iio_trigger_unregister(struct device *dev,
-				 struct iio_trigger *trig_info)
-{
-	int rc;
-
-	rc = devres_release(dev, devm_iio_trigger_unreg, devm_iio_trigger_match,
-			    trig_info);
-	WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_iio_trigger_unregister);
 
 bool iio_trigger_using_own(struct iio_dev *indio_dev)
 {
