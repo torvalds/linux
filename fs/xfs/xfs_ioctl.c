@@ -415,7 +415,7 @@ xfs_ioc_attr_list(
 	context.resynch = 1;
 	context.attr_filter = xfs_attr_filter(flags);
 	context.buffer = buffer;
-	context.bufsize = (bufsize & ~(sizeof(int)-1));  /* align */
+	context.bufsize = round_down(bufsize, sizeof(uint32_t));
 	context.firstu = context.bufsize;
 	context.put_listent = xfs_ioc_attr_put_listent;
 
