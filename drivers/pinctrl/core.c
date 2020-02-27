@@ -176,6 +176,7 @@ const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin)
 
 	return desc->name;
 }
+EXPORT_SYMBOL_GPL(pin_get_name);
 
 /* Deletes a range of pin descriptors */
 static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
