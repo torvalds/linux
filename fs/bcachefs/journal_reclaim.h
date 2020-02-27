@@ -29,16 +29,24 @@ journal_seq_pin(struct journal *j, u64 seq)
 }
 
 void bch2_journal_pin_put(struct journal *, u64);
-
-void bch2_journal_pin_add(struct journal *, u64, struct journal_entry_pin *,
-			  journal_pin_flush_fn);
-void bch2_journal_pin_update(struct journal *, u64, struct journal_entry_pin *,
-			     journal_pin_flush_fn);
 void bch2_journal_pin_drop(struct journal *, struct journal_entry_pin *);
-void bch2_journal_pin_add_if_older(struct journal *,
-				  struct journal_entry_pin *,
-				  struct journal_entry_pin *,
-				  journal_pin_flush_fn);
+
+void __bch2_journal_pin_add(struct journal *, u64, struct journal_entry_pin *,
+			    journal_pin_flush_fn);
+
+static inline void bch2_journal_pin_add(struct journal *j, u64 seq,
+					struct journal_entry_pin *pin,
+					journal_pin_flush_fn flush_fn)
+{
+	if (unlikely(!journal_pin_active(pin)))
+		__bch2_journal_pin_add(j, seq, pin, flush_fn);
+}
+
+void bch2_journal_pin_copy(struct journal *,
+			   struct journal_entry_pin *,
+			   struct journal_entry_pin *,
+			   journal_pin_flush_fn);
+
 void bch2_journal_pin_flush(struct journal *, struct journal_entry_pin *);
 
 void bch2_journal_do_discards(struct journal *);

@@ -172,6 +172,9 @@ void bch2_btree_journal_key(struct btree_trans *trans,
 	struct journal *j = &c->journal;
 	struct btree *b = iter->l[0].b;
 	struct btree_write *w = btree_current_write(b);
+	u64 seq = likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))
+		? trans->journal_res.seq
+		: j->replay_journal_seq;
 
 	EBUG_ON(iter->level || b->c.level);
 	EBUG_ON(trans->journal_res.ref !=
@@ -183,16 +186,10 @@ void bch2_btree_journal_key(struct btree_trans *trans,
 			cpu_to_le64(trans->journal_res.seq);
 	}
 
-	if (unlikely(!journal_pin_active(&w->journal))) {
-		u64 seq = likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))
-			? trans->journal_res.seq
-			: j->replay_journal_seq;
-
-		bch2_journal_pin_add(j, seq, &w->journal,
-				     btree_node_write_idx(b) == 0
-				     ? btree_node_flush0
-				     : btree_node_flush1);
-	}
+	bch2_journal_pin_add(j, seq, &w->journal,
+			     btree_node_write_idx(b) == 0
+			     ? btree_node_flush0
+			     : btree_node_flush1);
 
 	if (unlikely(!btree_node_dirty(b)))
 		set_btree_node_dirty(b);

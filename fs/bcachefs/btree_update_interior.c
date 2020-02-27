@@ -867,8 +867,8 @@ static void btree_update_reparent(struct btree_update *as,
 	 * just transfer the journal pin to the new interior update so
 	 * btree_update_nodes_written() can drop it.
 	 */
-	bch2_journal_pin_add_if_older(&c->journal, &child->journal,
-				      &as->journal, interior_update_flush);
+	bch2_journal_pin_copy(&c->journal, &as->journal,
+			      &child->journal, interior_update_flush);
 	bch2_journal_pin_drop(&c->journal, &child->journal);
 
 	as->journal_seq = max(as->journal_seq, child->journal_seq);
@@ -1049,13 +1049,13 @@ void bch2_btree_interior_update_will_free_node(struct btree_update *as,
 	 * oldest pin of any of the nodes we're freeing. We'll release the pin
 	 * when the new nodes are persistent and reachable on disk:
 	 */
-	bch2_journal_pin_add_if_older(&c->journal, &w->journal,
-				      &as->journal, interior_update_flush);
+	bch2_journal_pin_copy(&c->journal, &as->journal,
+			      &w->journal, interior_update_flush);
 	bch2_journal_pin_drop(&c->journal, &w->journal);
 
 	w = btree_prev_write(b);
-	bch2_journal_pin_add_if_older(&c->journal, &w->journal,
-				      &as->journal, interior_update_flush);
+	bch2_journal_pin_copy(&c->journal, &as->journal,
+			      &w->journal, interior_update_flush);
 	bch2_journal_pin_drop(&c->journal, &w->journal);
 
 	mutex_unlock(&c->btree_interior_update_lock);

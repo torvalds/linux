@@ -290,38 +290,6 @@ void bch2_journal_pin_put(struct journal *j, u64 seq)
 	}
 }
 
-static inline void __journal_pin_add(struct journal *j,
-				     u64 seq,
-				     struct journal_entry_pin *pin,
-				     journal_pin_flush_fn flush_fn)
-{
-	struct journal_entry_pin_list *pin_list = journal_seq_pin(j, seq);
-
-	BUG_ON(journal_pin_active(pin));
-	BUG_ON(!atomic_read(&pin_list->count));
-
-	atomic_inc(&pin_list->count);
-	pin->seq	= seq;
-	pin->flush	= flush_fn;
-
-	list_add(&pin->list, flush_fn ? &pin_list->list : &pin_list->flushed);
-
-	/*
-	 * If the journal is currently full,  we might want to call flush_fn
-	 * immediately:
-	 */
-	journal_wake(j);
-}
-
-void bch2_journal_pin_add(struct journal *j, u64 seq,
-			  struct journal_entry_pin *pin,
-			  journal_pin_flush_fn flush_fn)
-{
-	spin_lock(&j->lock);
-	__journal_pin_add(j, seq, pin, flush_fn);
-	spin_unlock(&j->lock);
-}
-
 static inline void __journal_pin_drop(struct journal *j,
 				      struct journal_entry_pin *pin)
 {
@@ -354,42 +322,46 @@ void bch2_journal_pin_drop(struct journal *j,
 	spin_unlock(&j->lock);
 }
 
-void bch2_journal_pin_update(struct journal *j, u64 seq,
-			     struct journal_entry_pin *pin,
-			     journal_pin_flush_fn flush_fn)
+void __bch2_journal_pin_add(struct journal *j, u64 seq,
+			    struct journal_entry_pin *pin,
+			    journal_pin_flush_fn flush_fn)
 {
+	struct journal_entry_pin_list *pin_list = journal_seq_pin(j, seq);
+
 	spin_lock(&j->lock);
 
-	if (pin->seq != seq) {
-		__journal_pin_drop(j, pin);
-		__journal_pin_add(j, seq, pin, flush_fn);
-	} else {
-		struct journal_entry_pin_list *pin_list =
-			journal_seq_pin(j, seq);
+	__journal_pin_drop(j, pin);
 
-		list_move(&pin->list, &pin_list->list);
-	}
+	BUG_ON(!atomic_read(&pin_list->count));
+
+	atomic_inc(&pin_list->count);
+	pin->seq	= seq;
+	pin->flush	= flush_fn;
+
+	list_add(&pin->list, flush_fn ? &pin_list->list : &pin_list->flushed);
 
 	spin_unlock(&j->lock);
+
+	/*
+	 * If the journal is currently full,  we might want to call flush_fn
+	 * immediately:
+	 */
+	journal_wake(j);
 }
 
-void bch2_journal_pin_add_if_older(struct journal *j,
-				  struct journal_entry_pin *src_pin,
-				  struct journal_entry_pin *pin,
-				  journal_pin_flush_fn flush_fn)
+void bch2_journal_pin_copy(struct journal *j,
+			   struct journal_entry_pin *dst,
+			   struct journal_entry_pin *src,
+			   journal_pin_flush_fn flush_fn)
 {
-	spin_lock(&j->lock);
-
-	if (journal_pin_active(src_pin) &&
-	    (!journal_pin_active(pin) ||
-	     src_pin->seq < pin->seq)) {
-		__journal_pin_drop(j, pin);
-		__journal_pin_add(j, src_pin->seq, pin, flush_fn);
-	}
-
-	spin_unlock(&j->lock);
+	if (journal_pin_active(src) &&
+	    (!journal_pin_active(dst) || src->seq < dst->seq))
+		__bch2_journal_pin_add(j, src->seq, dst, flush_fn);
 }
 
+/**
+ * bch2_journal_pin_flush: ensure journal pin callback is no longer running
+ */
 void bch2_journal_pin_flush(struct journal *j, struct journal_entry_pin *pin)
 {
 	BUG_ON(journal_pin_active(pin));
