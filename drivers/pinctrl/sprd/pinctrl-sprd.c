@@ -1090,6 +1090,7 @@ int sprd_pinctrl_core_probe(struct platform_device *pdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sprd_pinctrl_core_probe);
 
 int sprd_pinctrl_remove(struct platform_device *pdev)
 {
@@ -1098,6 +1099,7 @@ int sprd_pinctrl_remove(struct platform_device *pdev)
 	pinctrl_unregister(sprd_pctl->pctl);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sprd_pinctrl_remove);
 
 void sprd_pinctrl_shutdown(struct platform_device *pdev)
 {
@@ -1112,6 +1114,7 @@ void sprd_pinctrl_shutdown(struct platform_device *pdev)
 		return;
 	pinctrl_select_state(pinctl, state);
 }
+EXPORT_SYMBOL_GPL(sprd_pinctrl_shutdown);
 
 MODULE_DESCRIPTION("SPREADTRUM Pin Controller Driver");
 MODULE_AUTHOR("Baolin Wang <baolin.wang@spreadtrum.com>");
