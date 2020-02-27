@@ -50,6 +50,19 @@ patternProperties:
      - $ref: /schemas/types.yaml#/definitions/uint32
      - enum: [0, 1]
 
+  "^adi,pwm-active-state$":
+    description: |
+      Integer array, represents the active state of the pwm outputs If set to 0
+      the pwm uses a logic low output for 100% duty cycle. If set to 1 the pwm
+      uses a logic high output for 100% duty cycle.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32-array
+      - minItems: 3
+        maxItems: 3
+        items:
+          enum: [0, 1]
+          default: 1
+
 required:
   - compatible
   - reg
@@ -65,6 +78,7 @@ examples:
         reg = <0x2e>;
         adi,bypass-attenuator-in0 = <1>;
         adi,bypass-attenuator-in1 = <0>;
+        adi,pwm-active-state = <1 0 1>;
       };
     };
 
