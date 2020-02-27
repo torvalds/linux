@@ -3450,7 +3450,7 @@ int iavf_process_config(struct iavf_adapter *adapter)
 	}
 
 	if (num_req_queues &&
-	    num_req_queues != adapter->vsi_res->num_queue_pairs) {
+	    num_req_queues > adapter->vsi_res->num_queue_pairs) {
 		/* Problem.  The PF gave us fewer queues than what we had
 		 * negotiated in our request.  Need a reset to see if we can't
 		 * get back to a working state.
