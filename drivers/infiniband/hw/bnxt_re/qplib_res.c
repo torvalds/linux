@@ -106,13 +106,12 @@ static int __alloc_pbl(struct bnxt_qplib_res *res,
 	struct pci_dev *pdev = res->pdev;
 	struct scatterlist *sghead;
 	bool is_umem = false;
-	u32 pages, pg_size;
+	u32 pages;
 	int i;
 
 	if (sginfo->nopte)
 		return 0;
 	pages = sginfo->npages;
-	pg_size = sginfo->pgsize;
 	sghead = sginfo->sghead;
 	/* page ptr arrays */
 	pbl->pg_arr = vmalloc(pages * sizeof(void *));
