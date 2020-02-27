@@ -682,6 +682,7 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
+		.buffer_select		= 1,
 	},
 	[IORING_OP_WRITEV] = {
 		.async_ctx		= 1,
@@ -1686,9 +1687,10 @@ static inline bool io_req_multi_free(struct req_batch *rb, struct io_kiocb *req)
 
 static int io_put_kbuf(struct io_kiocb *req)
 {
-	struct io_buffer *kbuf = (struct io_buffer *) req->rw.addr;
+	struct io_buffer *kbuf;
 	int cflags;
 
+	kbuf = (struct io_buffer *) (unsigned long) req->rw.addr;
 	cflags = kbuf->bid << IORING_CQE_BUFFER_SHIFT;
 	cflags |= IORING_CQE_F_BUFFER;
 	req->rw.addr = 0;
@@ -2242,12 +2244,95 @@ static struct io_buffer *io_buffer_select(struct io_kiocb *req, size_t *len,
 	return kbuf;
 }
 
+static void __user *io_rw_buffer_select(struct io_kiocb *req, size_t *len,
+					bool needs_lock)
+{
+	struct io_buffer *kbuf;
+	int bgid;
+
+	kbuf = (struct io_buffer *) (unsigned long) req->rw.addr;
+	bgid = (int) (unsigned long) req->rw.kiocb.private;
+	kbuf = io_buffer_select(req, len, bgid, kbuf, needs_lock);
+	if (IS_ERR(kbuf))
+		return kbuf;
+	req->rw.addr = (u64) (unsigned long) kbuf;
+	req->flags |= REQ_F_BUFFER_SELECTED;
+	return u64_to_user_ptr(kbuf->addr);
+}
+
+#ifdef CONFIG_COMPAT
+static ssize_t io_compat_import(struct io_kiocb *req, struct iovec *iov,
+				bool needs_lock)
+{
+	struct compat_iovec __user *uiov;
+	compat_ssize_t clen;
+	void __user *buf;
+	ssize_t len;
+
+	uiov = u64_to_user_ptr(req->rw.addr);
+	if (!access_ok(uiov, sizeof(*uiov)))
+		return -EFAULT;
+	if (__get_user(clen, &uiov->iov_len))
+		return -EFAULT;
+	if (clen < 0)
+		return -EINVAL;
+
+	len = clen;
+	buf = io_rw_buffer_select(req, &len, needs_lock);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+	iov[0].iov_base = buf;
+	iov[0].iov_len = (compat_size_t) len;
+	return 0;
+}
+#endif
+
+static ssize_t __io_iov_buffer_select(struct io_kiocb *req, struct iovec *iov,
+				      bool needs_lock)
+{
+	struct iovec __user *uiov = u64_to_user_ptr(req->rw.addr);
+	void __user *buf;
+	ssize_t len;
+
+	if (copy_from_user(iov, uiov, sizeof(*uiov)))
+		return -EFAULT;
+
+	len = iov[0].iov_len;
+	if (len < 0)
+		return -EINVAL;
+	buf = io_rw_buffer_select(req, &len, needs_lock);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+	iov[0].iov_base = buf;
+	iov[0].iov_len = len;
+	return 0;
+}
+
+static ssize_t io_iov_buffer_select(struct io_kiocb *req, struct iovec *iov,
+				    bool needs_lock)
+{
+	if (req->flags & REQ_F_BUFFER_SELECTED)
+		return 0;
+	if (!req->rw.len)
+		return 0;
+	else if (req->rw.len > 1)
+		return -EINVAL;
+
+#ifdef CONFIG_COMPAT
+	if (req->ctx->compat)
+		return io_compat_import(req, iov, needs_lock);
+#endif
+
+	return __io_iov_buffer_select(req, iov, needs_lock);
+}
+
 static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 			       struct iovec **iovec, struct iov_iter *iter,
 			       bool needs_lock)
 {
 	void __user *buf = u64_to_user_ptr(req->rw.addr);
 	size_t sqe_len = req->rw.len;
+	ssize_t ret;
 	u8 opcode;
 
 	opcode = req->opcode;
@@ -2261,22 +2346,12 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 		return -EINVAL;
 
 	if (opcode == IORING_OP_READ || opcode == IORING_OP_WRITE) {
-		ssize_t ret;
-
 		if (req->flags & REQ_F_BUFFER_SELECT) {
-			struct io_buffer *kbuf = (struct io_buffer *) req->rw.addr;
-			int bgid;
-
-			bgid = (int) (unsigned long) req->rw.kiocb.private;
-			kbuf = io_buffer_select(req, &sqe_len, bgid, kbuf,
-						needs_lock);
-			if (IS_ERR(kbuf)) {
+			buf = io_rw_buffer_select(req, &sqe_len, needs_lock);
+			if (IS_ERR(buf)) {
 				*iovec = NULL;
-				return PTR_ERR(kbuf);
+				return PTR_ERR(buf);
 			}
-			req->rw.addr = (u64) kbuf;
-			req->flags |= REQ_F_BUFFER_SELECTED;
-			buf = u64_to_user_ptr(kbuf->addr);
 		}
 
 		ret = import_single_range(rw, buf, sqe_len, *iovec, iter);
@@ -2292,6 +2367,14 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 		if (iorw->iov == iorw->fast_iov)
 			*iovec = NULL;
 		return iorw->size;
+	}
+
+	if (req->flags & REQ_F_BUFFER_SELECT) {
+		ret = io_iov_buffer_select(req, *iovec, needs_lock);
+		if (!ret)
+			iov_iter_init(iter, rw, *iovec, 1, (*iovec)->iov_len);
+		*iovec = NULL;
+		return ret;
 	}
 
 #ifdef CONFIG_COMPAT
