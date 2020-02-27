@@ -822,32 +822,6 @@ struct skl_wm_params {
 	u32 dbuf_block_size;
 };
 
-enum intel_pipe_crc_source {
-	INTEL_PIPE_CRC_SOURCE_NONE,
-	INTEL_PIPE_CRC_SOURCE_PLANE1,
-	INTEL_PIPE_CRC_SOURCE_PLANE2,
-	INTEL_PIPE_CRC_SOURCE_PLANE3,
-	INTEL_PIPE_CRC_SOURCE_PLANE4,
-	INTEL_PIPE_CRC_SOURCE_PLANE5,
-	INTEL_PIPE_CRC_SOURCE_PLANE6,
-	INTEL_PIPE_CRC_SOURCE_PLANE7,
-	INTEL_PIPE_CRC_SOURCE_PIPE,
-	/* TV/DP on pre-gen5/vlv can't use the pipe source. */
-	INTEL_PIPE_CRC_SOURCE_TV,
-	INTEL_PIPE_CRC_SOURCE_DP_B,
-	INTEL_PIPE_CRC_SOURCE_DP_C,
-	INTEL_PIPE_CRC_SOURCE_DP_D,
-	INTEL_PIPE_CRC_SOURCE_AUTO,
-	INTEL_PIPE_CRC_SOURCE_MAX,
-};
-
-#define INTEL_PIPE_CRC_ENTRIES_NR	128
-struct intel_pipe_crc {
-	spinlock_t lock;
-	int skipped;
-	enum intel_pipe_crc_source source;
-};
-
 struct i915_frontbuffer_tracking {
 	spinlock_t lock;
 
@@ -1042,10 +1016,6 @@ struct drm_i915_private {
 
 	struct intel_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
 	struct intel_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
-
-#ifdef CONFIG_DEBUG_FS
-	struct intel_pipe_crc pipe_crc[I915_MAX_PIPES];
-#endif
 
 	/* dpll and cdclk state is protected by connection_mutex */
 	int num_shared_dpll;
