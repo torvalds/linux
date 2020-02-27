@@ -2696,24 +2696,36 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 			return -EIO;
 		}
 
-		nandc->tx_chan = dma_request_slave_channel(nandc->dev, "tx");
-		if (!nandc->tx_chan) {
-			dev_err(nandc->dev, "failed to request tx channel\n");
-			ret = -ENODEV;
+		nandc->tx_chan = dma_request_chan(nandc->dev, "tx");
+		if (IS_ERR(nandc->tx_chan)) {
+			ret = PTR_ERR(nandc->tx_chan);
+			nandc->tx_chan = NULL;
+			if (ret != -EPROBE_DEFER)
+				dev_err(nandc->dev,
+					"tx DMA channel request failed: %d\n",
+					ret);
 			goto unalloc;
 		}
 
-		nandc->rx_chan = dma_request_slave_channel(nandc->dev, "rx");
-		if (!nandc->rx_chan) {
-			dev_err(nandc->dev, "failed to request rx channel\n");
-			ret = -ENODEV;
+		nandc->rx_chan = dma_request_chan(nandc->dev, "rx");
+		if (IS_ERR(nandc->rx_chan)) {
+			ret = PTR_ERR(nandc->rx_chan);
+			nandc->rx_chan = NULL;
+			if (ret != -EPROBE_DEFER)
+				dev_err(nandc->dev,
+					"rx DMA channel request failed: %d\n",
+					ret);
 			goto unalloc;
 		}
 
-		nandc->cmd_chan = dma_request_slave_channel(nandc->dev, "cmd");
-		if (!nandc->cmd_chan) {
-			dev_err(nandc->dev, "failed to request cmd channel\n");
-			ret = -ENODEV;
+		nandc->cmd_chan = dma_request_chan(nandc->dev, "cmd");
+		if (IS_ERR(nandc->cmd_chan)) {
+			ret = PTR_ERR(nandc->cmd_chan);
+			nandc->cmd_chan = NULL;
+			if (ret != -EPROBE_DEFER)
+				dev_err(nandc->dev,
+					"cmd DMA channel request failed: %d\n",
+					ret);
 			goto unalloc;
 		}
 
@@ -2732,11 +2744,15 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 			goto unalloc;
 		}
 	} else {
-		nandc->chan = dma_request_slave_channel(nandc->dev, "rxtx");
-		if (!nandc->chan) {
-			dev_err(nandc->dev,
-				"failed to request slave channel\n");
-			return -ENODEV;
+		nandc->chan = dma_request_chan(nandc->dev, "rxtx");
+		if (IS_ERR(nandc->chan)) {
+			ret = PTR_ERR(nandc->chan);
+			nandc->chan = NULL;
+			if (ret != -EPROBE_DEFER)
+				dev_err(nandc->dev,
+					"rxtx DMA channel request failed: %d\n",
+					ret);
+			return ret;
 		}
 	}
 
