@@ -125,6 +125,11 @@ bail:
 	return 0;
 }
 
+static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->gvt;
+}
+
 /**
  * intel_gvt_driver_remove - cleanup GVT components when i915 driver is
  *			     unbinding
