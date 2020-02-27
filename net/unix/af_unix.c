@@ -682,7 +682,7 @@ static int unix_set_peek_off(struct sock *sk, int val)
 	return 0;
 }
 
-#ifdef CONFIG_PROCFS
+#ifdef CONFIG_PROC_FS
 static void unix_show_fdinfo(struct seq_file *m, struct socket *sock)
 {
 	struct sock *sk = sock->sk;
