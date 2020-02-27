@@ -929,10 +929,10 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 		if (err)
 			return err;
 
-		down_write(&F2FS_I(inode)->i_sem);
+		spin_lock(&F2FS_I(inode)->i_size_lock);
 		inode->i_mtime = inode->i_ctime = current_time(inode);
 		F2FS_I(inode)->last_disk_size = i_size_read(inode);
-		up_write(&F2FS_I(inode)->i_sem);
+		spin_unlock(&F2FS_I(inode)->i_size_lock);
 	}
 
 	__setattr_copy(inode, attr);

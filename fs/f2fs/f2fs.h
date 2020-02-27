@@ -696,6 +696,7 @@ struct f2fs_inode_info {
 	struct task_struct *cp_task;	/* separate cp/wb IO stats*/
 	nid_t i_xattr_nid;		/* node id that contains xattrs */
 	loff_t	last_disk_size;		/* lastly written file size */
+	spinlock_t i_size_lock;		/* protect last_disk_size */
 
 #ifdef CONFIG_QUOTA
 	struct dquot *i_dquot[MAXQUOTAS];
@@ -2855,9 +2856,9 @@ static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
 	if (!f2fs_is_time_consistent(inode))
 		return false;
 
-	down_read(&F2FS_I(inode)->i_sem);
+	spin_lock(&F2FS_I(inode)->i_size_lock);
 	ret = F2FS_I(inode)->last_disk_size == i_size_read(inode);
-	up_read(&F2FS_I(inode)->i_sem);
+	spin_unlock(&F2FS_I(inode)->i_size_lock);
 
 	return ret;
 }
