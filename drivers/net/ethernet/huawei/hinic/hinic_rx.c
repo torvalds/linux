@@ -414,7 +414,6 @@ static int rx_request_irq(struct hinic_rxq *rxq)
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_rq *rq = rxq->rq;
 	struct hinic_qp *qp;
-	struct cpumask mask;
 	int err;
 
 	rx_add_napi(rxq);
@@ -431,8 +430,8 @@ static int rx_request_irq(struct hinic_rxq *rxq)
 	}
 
 	qp = container_of(rq, struct hinic_qp, rq);
-	cpumask_set_cpu(qp->q_id % num_online_cpus(), &mask);
-	return irq_set_affinity_hint(rq->irq, &mask);
+	cpumask_set_cpu(qp->q_id % num_online_cpus(), &rq->affinity_mask);
+	return irq_set_affinity_hint(rq->irq, &rq->affinity_mask);
 }
 
 static void rx_free_irq(struct hinic_rxq *rxq)
