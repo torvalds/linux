@@ -191,16 +191,11 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	args.namelen = strlen(args.name);
 
 	if (acl) {
-		args.valuelen = XFS_ACL_MAX_SIZE(ip->i_mount);
+		args.valuelen = XFS_ACL_SIZE(acl->a_count);
 		args.value = kmem_zalloc_large(args.valuelen, 0);
 		if (!args.value)
 			return -ENOMEM;
-
 		xfs_acl_to_disk(args.value, acl);
-
-		/* subtract away the unused acl entries */
-		args.valuelen -= sizeof(struct xfs_acl_entry) *
-			 (XFS_ACL_MAX_ENTRIES(ip->i_mount) - acl->a_count);
 	}
 
 	error = xfs_attr_set(&args);
