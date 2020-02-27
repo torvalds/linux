@@ -659,7 +659,7 @@ static int panfrost_remove(struct platform_device *pdev)
 	return 0;
 }
 
-const char * const default_supplies[] = { "mali" };
+static const char * const default_supplies[] = { "mali" };
 static const struct panfrost_compatible default_data = {
 	.num_supplies = ARRAY_SIZE(default_supplies),
 	.supply_names = default_supplies,
