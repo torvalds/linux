@@ -131,7 +131,7 @@ xfs_get_acl(struct inode *inode, int type)
 	struct posix_acl	*acl = NULL;
 	struct xfs_da_args	args = {
 		.dp		= ip,
-		.flags		= ATTR_ALLOC | ATTR_ROOT,
+		.flags		= ATTR_ROOT,
 		.valuelen	= XFS_ACL_MAX_SIZE(mp),
 	};
 	int			error;
@@ -150,19 +150,19 @@ xfs_get_acl(struct inode *inode, int type)
 	}
 	args.namelen = strlen(args.name);
 
+	/*
+	 * If the attribute doesn't exist make sure we have a negative cache
+	 * entry, for any other error assume it is transient.
+	 */
 	error = xfs_attr_get(&args);
-	if (error) {
-		/*
-		 * If the attribute doesn't exist make sure we have a negative
-		 * cache entry, for any other error assume it is transient.
-		 */
-		if (error != -ENOATTR)
-			acl = ERR_PTR(error);
-	} else  {
+	if (!error) {
 		acl = xfs_acl_from_disk(mp, args.value, args.valuelen,
 					XFS_ACL_MAX_ENTRIES(mp));
-		kmem_free(args.value);
+	} else if (error != -ENOATTR) {
+		acl = ERR_PTR(error);
 	}
+
+	kmem_free(args.value);
 	return acl;
 }
 
