@@ -402,15 +402,6 @@ static void htable_remove_proc_entry(struct xt_hashlimit_htable *hinfo)
 		remove_proc_entry(hinfo->name, parent);
 }
 
-static void htable_destroy(struct xt_hashlimit_htable *hinfo)
-{
-	cancel_delayed_work_sync(&hinfo->gc_work);
-	htable_remove_proc_entry(hinfo);
-	htable_selective_cleanup(hinfo, true);
-	kfree(hinfo->name);
-	vfree(hinfo);
-}
-
 static struct xt_hashlimit_htable *htable_find_get(struct net *net,
 						   const char *name,
 						   u_int8_t family)
@@ -432,8 +423,13 @@ static void htable_put(struct xt_hashlimit_htable *hinfo)
 {
 	if (refcount_dec_and_mutex_lock(&hinfo->use, &hashlimit_mutex)) {
 		hlist_del(&hinfo->node);
+		htable_remove_proc_entry(hinfo);
 		mutex_unlock(&hashlimit_mutex);
-		htable_destroy(hinfo);
+
+		cancel_delayed_work_sync(&hinfo->gc_work);
+		htable_selective_cleanup(hinfo, true);
+		kfree(hinfo->name);
+		vfree(hinfo);
 	}
 }
 
