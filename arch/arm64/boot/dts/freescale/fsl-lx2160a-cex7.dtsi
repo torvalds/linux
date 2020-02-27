@@ -73,6 +73,17 @@
 			};
 		};
 
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			regulator@5c {
+				compatible = "lltc,ltc3882";
+				reg = <0x5c>;
+			};
+		};
+
 		i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
