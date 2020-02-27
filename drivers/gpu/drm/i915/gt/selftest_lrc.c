@@ -90,6 +90,49 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 	return -ETIME;
 }
 
+static int wait_for_reset(struct intel_engine_cs *engine,
+			  struct i915_request *rq,
+			  unsigned long timeout)
+{
+	timeout += jiffies;
+
+	do {
+		cond_resched();
+		intel_engine_flush_submission(engine);
+
+		if (READ_ONCE(engine->execlists.pending[0]))
+			continue;
+
+		if (i915_request_completed(rq))
+			break;
+
+		if (READ_ONCE(rq->fence.error))
+			break;
+	} while (time_before(jiffies, timeout));
+
+	flush_scheduled_work();
+
+	if (rq->fence.error != -EIO) {
+		pr_err("%s: hanging request %llx:%lld not reset\n",
+		       engine->name,
+		       rq->fence.context,
+		       rq->fence.seqno);
+		return -EINVAL;
+	}
+
+	/* Give the request a jiffie to complete after flushing the worker */
+	if (i915_request_wait(rq, 0,
+			      max(0l, (long)(timeout - jiffies)) + 1) < 0) {
+		pr_err("%s: hanging request %llx:%lld did not complete\n",
+		       engine->name,
+		       rq->fence.context,
+		       rq->fence.seqno);
+		return -ETIME;
+	}
+
+	return 0;
+}
+
 static int live_sanitycheck(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -1805,14 +1848,9 @@ static int __cancel_active0(struct live_preempt_cancel *arg)
 	if (err)
 		goto out;
 
-	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
-		err = -EIO;
-		goto out;
-	}
-
-	if (rq->fence.error != -EIO) {
-		pr_err("Cancelled inflight0 request did not report -EIO\n");
-		err = -EINVAL;
+	err = wait_for_reset(arg->engine, rq, HZ / 2);
+	if (err) {
+		pr_err("Cancelled inflight0 request did not reset\n");
 		goto out;
 	}
 
@@ -1870,10 +1908,9 @@ static int __cancel_active1(struct live_preempt_cancel *arg)
 		goto out;
 
 	igt_spinner_end(&arg->a.spin);
-	if (i915_request_wait(rq[1], 0, HZ / 5) < 0) {
-		err = -EIO;
+	err = wait_for_reset(arg->engine, rq[1], HZ / 2);
+	if (err)
 		goto out;
-	}
 
 	if (rq[0]->fence.error != 0) {
 		pr_err("Normal inflight0 request did not complete\n");
@@ -1953,10 +1990,9 @@ static int __cancel_queued(struct live_preempt_cancel *arg)
 	if (err)
 		goto out;
 
-	if (i915_request_wait(rq[2], 0, HZ / 5) < 0) {
-		err = -EIO;
+	err = wait_for_reset(arg->engine, rq[2], HZ / 2);
+	if (err)
 		goto out;
-	}
 
 	if (rq[0]->fence.error != -EIO) {
 		pr_err("Cancelled inflight0 request did not report -EIO\n");
@@ -2014,14 +2050,9 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 	if (err)
 		goto out;
 
-	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
-		err = -EIO;
-		goto out;
-	}
-
-	if (rq->fence.error != -EIO) {
-		pr_err("Cancelled inflight0 request did not report -EIO\n");
-		err = -EINVAL;
+	err = wait_for_reset(arg->engine, rq, HZ / 2);
+	if (err) {
+		pr_err("Cancelled inflight0 request did not reset\n");
 		goto out;
 	}
 
