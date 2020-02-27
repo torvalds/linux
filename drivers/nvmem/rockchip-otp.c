@@ -243,7 +243,7 @@ static int __init rockchip_otp_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	otp->rst = devm_reset_control_get(dev, "otp_phy");
+	otp->rst = devm_reset_control_array_get_optional_exclusive(dev);
 	if (IS_ERR(otp->rst))
 		return PTR_ERR(otp->rst);
 
