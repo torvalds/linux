@@ -481,10 +481,6 @@ xfs_attrmulti_attr_get(
 	if (*len > XFS_XATTR_SIZE_MAX)
 		return -EINVAL;
 
-	args.value = kmem_zalloc_large(*len, 0);
-	if (!args.value)
-		return -ENOMEM;
-
 	error = xfs_attr_get(&args);
 	if (error)
 		goto out_kfree;
