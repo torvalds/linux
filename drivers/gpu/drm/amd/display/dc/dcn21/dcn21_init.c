@@ -130,6 +130,7 @@ static const struct hwseq_private_funcs dcn21_private_funcs = {
 	.dccg_init = dcn20_dccg_init,
 	.set_blend_lut = dcn20_set_blend_lut,
 	.set_shaper_3dlut = dcn20_set_shaper_3dlut,
+	.PLAT_58856_wa = dcn21_PLAT_58856_wa,
 };
 
 void dcn21_hw_sequencer_construct(struct dc *dc)
