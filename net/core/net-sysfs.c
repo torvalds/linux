@@ -1767,6 +1767,33 @@ int netdev_register_kobject(struct net_device *ndev)
 	return error;
 }
 
+/* Change owner for sysfs entries when moving network devices across network
+ * namespaces owned by different user namespaces.
+ */
+int netdev_change_owner(struct net_device *ndev, const struct net *net_old,
+			const struct net *net_new)
+{
+	struct device *dev = &ndev->dev;
+	kuid_t old_uid, new_uid;
+	kgid_t old_gid, new_gid;
+	int error;
+
+	net_ns_get_ownership(net_old, &old_uid, &old_gid);
+	net_ns_get_ownership(net_new, &new_uid, &new_gid);
+
+	/* The network namespace was changed but the owning user namespace is
+	 * identical so there's no need to change the owner of sysfs entries.
+	 */
+	if (uid_eq(old_uid, new_uid) && gid_eq(old_gid, new_gid))
+		return 0;
+
+	error = device_change_owner(dev, new_uid, new_gid);
+	if (error)
+		return error;
+
+	return 0;
+}
+
 int netdev_class_create_file_ns(const struct class_attribute *class_attr,
 				const void *ns)
 {
