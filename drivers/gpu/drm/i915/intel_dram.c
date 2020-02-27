@@ -6,6 +6,16 @@
 #include "i915_drv.h"
 #include "intel_dram.h"
 
+struct dram_dimm_info {
+	u8 size, width, ranks;
+};
+
+struct dram_channel_info {
+	struct dram_dimm_info dimm_l, dimm_s;
+	u8 ranks;
+	bool is_16gb_dimm;
+};
+
 #define DRAM_TYPE_STR(type) [INTEL_DRAM_ ## type] = #type
 
 static const char *intel_dram_type_str(enum intel_dram_type type)
