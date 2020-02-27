@@ -107,6 +107,7 @@
 
 		watchdog {
 			compatible = "dlg,da9062-watchdog";
+			dlg,use-sw-pm;
 		};
 
 		regulators {
