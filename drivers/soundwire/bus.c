@@ -1056,13 +1056,10 @@ static int sdw_initialize_slave(struct sdw_slave *slave)
 	val |= SDW_DP0_INT_PORT_READY | SDW_DP0_INT_BRA_FAILURE;
 
 	ret = sdw_update(slave, SDW_DP0_INTMASK, val, val);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(slave->bus->dev,
 			"SDW_DP0_INTMASK read failed:%d\n", ret);
-		return val;
-	}
-
-	return 0;
+	return ret;
 }
 
 static int sdw_handle_dp0_interrupt(struct sdw_slave *slave, u8 *slave_status)
