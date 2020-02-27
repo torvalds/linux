@@ -711,10 +711,6 @@ static void enable_disp_power_gating_dmcub(
 	power_gating.header.sub_type = DMUB_CMD__VBIOS_ENABLE_DISP_POWER_GATING;
 	power_gating.power_gating.pwr = *pwr;
 
-	/* ATOM_ENABLE is old API in DMUB */
-	if (power_gating.power_gating.pwr.enable == ATOM_ENABLE)
-		power_gating.power_gating.pwr.enable = ATOM_INIT;
-
 	dc_dmub_srv_cmd_queue(dmcub, &power_gating.header);
 	dc_dmub_srv_cmd_execute(dmcub);
 	dc_dmub_srv_wait_idle(dmcub);

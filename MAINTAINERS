@@ -2796,11 +2796,11 @@ F:	drivers/block/aoe/
 
 ATHEROS 71XX/9XXX GPIO DRIVER
 M:	Alban Bedel <albeu@free.fr>
+S:	Maintained
 W:	https://github.com/AlbanBedel/linux
 T:	git git://github.com/AlbanBedel/linux
-S:	Maintained
-F:	drivers/gpio/gpio-ath79.c
 F:	Documentation/devicetree/bindings/gpio/gpio-ath79.txt
+F:	drivers/gpio/gpio-ath79.c
 
 ATHEROS 71XX/9XXX USB PHY DRIVER
 M:	Alban Bedel <albeu@free.fr>
@@ -3422,8 +3422,8 @@ BROADCOM BRCMSTB GPIO DRIVER
 M:	Gregory Fong <gregory.0xf0@gmail.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 S:	Supported
-F:	drivers/gpio/gpio-brcmstb.c
 F:	Documentation/devicetree/bindings/gpio/brcm,brcmstb-gpio.txt
+F:	drivers/gpio/gpio-brcmstb.c
 
 BROADCOM BRCMSTB I2C DRIVER
 M:	Kamal Dasu <kdasu.kdev@gmail.com>
@@ -3481,8 +3481,8 @@ BROADCOM KONA GPIO DRIVER
 M:	Ray Jui <rjui@broadcom.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 S:	Supported
-F:	drivers/gpio/gpio-bcm-kona.c
 F:	Documentation/devicetree/bindings/gpio/brcm,kona-gpio.txt
+F:	drivers/gpio/gpio-bcm-kona.c
 
 BROADCOM NETXTREME-E ROCE DRIVER
 M:	Selvin Xavier <selvin.xavier@broadcom.com>
@@ -3597,8 +3597,8 @@ F:	sound/pci/bt87x.c
 
 BT8XXGPIO DRIVER
 M:	Michael Buesch <m@bues.ch>
-W:	http://bu3sch.de/btgpio.php
 S:	Maintained
+W:	http://bu3sch.de/btgpio.php
 F:	drivers/gpio/gpio-bt8xx.c
 
 BTRFS FILE SYSTEM
@@ -7143,18 +7143,18 @@ GPIO SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
 M:	Bartosz Golaszewski <bgolaszewski@baylibre.com>
 L:	linux-gpio@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio.git
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio.git
+F:	Documentation/ABI/obsolete/sysfs-gpio
+F:	Documentation/ABI/testing/gpio-cdev
+F:	Documentation/admin-guide/gpio/
 F:	Documentation/devicetree/bindings/gpio/
 F:	Documentation/driver-api/gpio/
-F:	Documentation/admin-guide/gpio/
-F:	Documentation/ABI/testing/gpio-cdev
-F:	Documentation/ABI/obsolete/sysfs-gpio
 F:	drivers/gpio/
+F:	include/asm-generic/gpio.h
 F:	include/linux/gpio/
 F:	include/linux/gpio.h
 F:	include/linux/of_gpio.h
-F:	include/asm-generic/gpio.h
 F:	include/uapi/linux/gpio.h
 F:	tools/gpio/
 
@@ -8055,8 +8055,8 @@ F:	drivers/scsi/ips.*
 ICH LPC AND GPIO DRIVER
 M:	Peter Tyser <ptyser@xes-inc.com>
 S:	Maintained
-F:	drivers/mfd/lpc_ich.c
 F:	drivers/gpio/gpio-ich.c
+F:	drivers/mfd/lpc_ich.c
 
 ICY I2C DRIVER
 M:	Max Staudt <max@enpas.org>
@@ -16075,8 +16075,8 @@ F:	Documentation/devicetree/bindings/reset/snps,axs10x-reset.txt
 SYNOPSYS CREG GPIO DRIVER
 M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
 S:	Maintained
-F:	drivers/gpio/gpio-creg-snps.c
 F:	Documentation/devicetree/bindings/gpio/snps,creg-gpio.txt
+F:	drivers/gpio/gpio-creg-snps.c
 
 SYNOPSYS DESIGNWARE 8250 UART DRIVER
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
@@ -16087,8 +16087,8 @@ SYNOPSYS DESIGNWARE APB GPIO DRIVER
 M:	Hoan Tran <hoan@os.amperecomputing.com>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
-F:	drivers/gpio/gpio-dwapb.c
 F:	Documentation/devicetree/bindings/gpio/snps-dwapb-gpio.txt
+F:	drivers/gpio/gpio-dwapb.c
 
 SYNOPSYS DESIGNWARE AXI DMAC DRIVER
 M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
@@ -18414,8 +18414,8 @@ M:	Nandor Han <nandor.han@ge.com>
 M:	Semi Malinen <semi.malinen@ge.com>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
-F:	drivers/gpio/gpio-xra1403.c
 F:	Documentation/devicetree/bindings/gpio/gpio-xra1403.txt
+F:	drivers/gpio/gpio-xra1403.c
 
 XTENSA XTFPGA PLATFORM SUPPORT
 M:	Max Filippov <jcmvbkbc@gmail.com>

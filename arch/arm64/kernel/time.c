@@ -23,7 +23,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/clocksource.h>
-#include <linux/clk-provider.h>
+#include <linux/of_clk.h>
 #include <linux/acpi.h>
 
 #include <clocksource/arm_arch_timer.h>

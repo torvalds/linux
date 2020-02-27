@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===========================
 The KVM halt polling system
 ===========================
 
@@ -68,7 +71,8 @@ steady state polling interval but will only really do a good job for wakeups
 which come at an approximately constant rate, otherwise there will be constant
 adjustment of the polling interval.
 
-[0] total block time: the time between when the halt polling function is
+[0] total block time:
+		      the time between when the halt polling function is
 		      invoked and a wakeup source received (irrespective of
 		      whether the scheduler is invoked within that function).
 
@@ -81,31 +85,32 @@ shrunk. These variables are defined in include/linux/kvm_host.h and as module
 parameters in virt/kvm/kvm_main.c, or arch/powerpc/kvm/book3s_hv.c in the
 powerpc kvm-hv case.
 
-Module Parameter	|   Description		    |	     Default Value
---------------------------------------------------------------------------------
-halt_poll_ns		| The global max polling    | KVM_HALT_POLL_NS_DEFAULT
-			| interval which defines    |
-			| the ceiling value of the  |
-			| polling interval for      | (per arch value)
-			| each vcpu.		    |
---------------------------------------------------------------------------------
-halt_poll_ns_grow	| The value by which the    | 2
-			| halt polling interval is  |
-			| multiplied in the	    |
-			| grow_halt_poll_ns()	    |
-			| function.		    |
---------------------------------------------------------------------------------
-halt_poll_ns_grow_start | The initial value to grow | 10000
-			| to from zero in the	    |
-			| grow_halt_poll_ns()	    |
-			| function.		    |
---------------------------------------------------------------------------------
-halt_poll_ns_shrink	| The value by which the    | 0
-			| halt polling interval is  |
-			| divided in the	    |
-			| shrink_halt_poll_ns()	    |
-			| function.		    |
---------------------------------------------------------------------------------
++-----------------------+---------------------------+-------------------------+
+|Module Parameter	|   Description		    |	     Default Value    |
++-----------------------+---------------------------+-------------------------+
+|halt_poll_ns		| The global max polling    | KVM_HALT_POLL_NS_DEFAULT|
+|			| interval which defines    |			      |
+|			| the ceiling value of the  |			      |
+|			| polling interval for      | (per arch value)	      |
+|			| each vcpu.		    |			      |
++-----------------------+---------------------------+-------------------------+
+|halt_poll_ns_grow	| The value by which the    | 2			      |
+|			| halt polling interval is  |			      |
+|			| multiplied in the	    |			      |
+|			| grow_halt_poll_ns()	    |			      |
+|			| function.		    |			      |
++-----------------------+---------------------------+-------------------------+
+|halt_poll_ns_grow_start| The initial value to grow | 10000		      |
+|			| to from zero in the	    |			      |
+|			| grow_halt_poll_ns()	    |			      |
+|			| function.		    |			      |
++-----------------------+---------------------------+-------------------------+
+|halt_poll_ns_shrink	| The value by which the    | 0			      |
+|			| halt polling interval is  |			      |
+|			| divided in the	    |			      |
+|			| shrink_halt_poll_ns()	    |			      |
+|			| function.		    |			      |
++-----------------------+---------------------------+-------------------------+
 
 These module parameters can be set from the debugfs files in:
 
@@ -117,20 +122,19 @@ Note: that these module parameters are system wide values and are not able to
 Further Notes
 =============
 
-- Care should be taken when setting the halt_poll_ns module parameter as a
-large value has the potential to drive the cpu usage to 100% on a machine which
-would be almost entirely idle otherwise. This is because even if a guest has
-wakeups during which very little work is done and which are quite far apart, if
-the period is shorter than the global max polling interval (halt_poll_ns) then
-the host will always poll for the entire block time and thus cpu utilisation
-will go to 100%.
+- Care should be taken when setting the halt_poll_ns module parameter as a large value
+  has the potential to drive the cpu usage to 100% on a machine which would be almost
+  entirely idle otherwise. This is because even if a guest has wakeups during which very
+  little work is done and which are quite far apart, if the period is shorter than the
+  global max polling interval (halt_poll_ns) then the host will always poll for the
+  entire block time and thus cpu utilisation will go to 100%.
 
-- Halt polling essentially presents a trade off between power usage and latency
-and the module parameters should be used to tune the affinity for this. Idle
-cpu time is essentially converted to host kernel time with the aim of decreasing
-latency when entering the guest.
+- Halt polling essentially presents a trade off between power usage and latency and
+  the module parameters should be used to tune the affinity for this. Idle cpu time is
+  essentially converted to host kernel time with the aim of decreasing latency when
+  entering the guest.
 
-- Halt polling will only be conducted by the host when no other tasks are
-runnable on that cpu, otherwise the polling will cease immediately and
-schedule will be invoked to allow that other task to run. Thus this doesn't
-allow a guest to denial of service the cpu.
+- Halt polling will only be conducted by the host when no other tasks are runnable on
+  that cpu, otherwise the polling will cease immediately and schedule will be invoked to
+  allow that other task to run. Thus this doesn't allow a guest to denial of service the
+  cpu.

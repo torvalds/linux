@@ -384,6 +384,7 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	return data;
 }
 
+#ifdef CONFIG_ACPI
 static int i2c_adapter_lookup(struct acpi_resource *ares, void *data)
 {
 	struct i2c_adapter_lookup *lookup = data;
@@ -393,8 +394,7 @@ static int i2c_adapter_lookup(struct acpi_resource *ares, void *data)
 	acpi_handle adapter_handle;
 	acpi_status status;
 
-	if (intel_dsi->i2c_bus_num >= 0 ||
-	    !i2c_acpi_get_i2c_resource(ares, &sb))
+	if (!i2c_acpi_get_i2c_resource(ares, &sb))
 		return 1;
 
 	if (lookup->slave_addr != sb->slave_address)
@@ -413,14 +413,41 @@ static int i2c_adapter_lookup(struct acpi_resource *ares, void *data)
 	return 1;
 }
 
+static void i2c_acpi_find_adapter(struct intel_dsi *intel_dsi,
+				  const u16 slave_addr)
+{
+	struct drm_device *drm_dev = intel_dsi->base.base.dev;
+	struct device *dev = &drm_dev->pdev->dev;
+	struct acpi_device *acpi_dev;
+	struct list_head resource_list;
+	struct i2c_adapter_lookup lookup;
+
+	acpi_dev = ACPI_COMPANION(dev);
+	if (acpi_dev) {
+		memset(&lookup, 0, sizeof(lookup));
+		lookup.slave_addr = slave_addr;
+		lookup.intel_dsi = intel_dsi;
+		lookup.dev_handle = acpi_device_handle(acpi_dev);
+
+		INIT_LIST_HEAD(&resource_list);
+		acpi_dev_get_resources(acpi_dev, &resource_list,
+				       i2c_adapter_lookup,
+				       &lookup);
+		acpi_dev_free_resource_list(&resource_list);
+	}
+}
+#else
+static inline void i2c_acpi_find_adapter(struct intel_dsi *intel_dsi,
+					 const u16 slave_addr)
+{
+}
+#endif
+
 static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	struct drm_device *drm_dev = intel_dsi->base.base.dev;
 	struct device *dev = &drm_dev->pdev->dev;
 	struct i2c_adapter *adapter;
-	struct acpi_device *acpi_dev;
-	struct list_head resource_list;
-	struct i2c_adapter_lookup lookup;
 	struct i2c_msg msg;
 	int ret;
 	u8 vbt_i2c_bus_num = *(data + 2);
@@ -431,20 +458,7 @@ static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 
 	if (intel_dsi->i2c_bus_num < 0) {
 		intel_dsi->i2c_bus_num = vbt_i2c_bus_num;
-
-		acpi_dev = ACPI_COMPANION(dev);
-		if (acpi_dev) {
-			memset(&lookup, 0, sizeof(lookup));
-			lookup.slave_addr = slave_addr;
-			lookup.intel_dsi = intel_dsi;
-			lookup.dev_handle = acpi_device_handle(acpi_dev);
-
-			INIT_LIST_HEAD(&resource_list);
-			acpi_dev_get_resources(acpi_dev, &resource_list,
-					       i2c_adapter_lookup,
-					       &lookup);
-			acpi_dev_free_resource_list(&resource_list);
-		}
+		i2c_acpi_find_adapter(intel_dsi, slave_addr);
 	}
 
 	adapter = i2c_get_adapter(intel_dsi->i2c_bus_num);

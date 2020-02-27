@@ -1,8 +1,12 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===================
 VFIO virtual device
 ===================
 
 Device types supported:
-  KVM_DEV_TYPE_VFIO
+
+  - KVM_DEV_TYPE_VFIO
 
 Only one VFIO instance may be created per VM.  The created device
 tracks VFIO groups in use by the VM and features of those groups
@@ -23,14 +27,15 @@ KVM_DEV_VFIO_GROUP attributes:
 	for the VFIO group.
   KVM_DEV_VFIO_GROUP_SET_SPAPR_TCE: attaches a guest visible TCE table
 	allocated by sPAPR KVM.
-	kvm_device_attr.addr points to a struct:
+	kvm_device_attr.addr points to a struct::
 
-	struct kvm_vfio_spapr_tce {
-		__s32	groupfd;
-		__s32	tablefd;
-	};
+		struct kvm_vfio_spapr_tce {
+			__s32	groupfd;
+			__s32	tablefd;
+		};
 
-	where
-	@groupfd is a file descriptor for a VFIO group;
-	@tablefd is a file descriptor for a TCE table allocated via
-		KVM_CREATE_SPAPR_TCE.
+	where:
+
+	- @groupfd is a file descriptor for a VFIO group;
+	- @tablefd is a file descriptor for a TCE table allocated via
+	  KVM_CREATE_SPAPR_TCE.
