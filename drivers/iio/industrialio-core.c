@@ -1831,23 +1831,6 @@ int __devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev,
 EXPORT_SYMBOL_GPL(__devm_iio_device_register);
 
 /**
- * devm_iio_device_unregister - Resource-managed iio_device_unregister()
- * @dev:	Device this iio_dev belongs to
- * @indio_dev:	the iio_dev associated with the device
- *
- * Unregister iio_dev registered with devm_iio_device_register().
- */
-void devm_iio_device_unregister(struct device *dev, struct iio_dev *indio_dev)
-{
-	int rc;
-
-	rc = devres_release(dev, devm_iio_device_unreg,
-			    devm_iio_device_match, indio_dev);
-	WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_iio_device_unregister);
-
-/**
  * iio_device_claim_direct_mode - Keep device in direct mode
  * @indio_dev:	the iio_dev associated with the device
  *

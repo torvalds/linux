@@ -593,9 +593,6 @@ void iio_device_unregister(struct iio_dev *indio_dev);
  * calls iio_device_register() internally. Refer to that function for more
  * information.
  *
- * If an iio_dev registered with this function needs to be unregistered
- * separately, devm_iio_device_unregister() must be used.
- *
  * RETURNS:
  * 0 on success, negative error number on failure.
  */
@@ -603,7 +600,6 @@ void iio_device_unregister(struct iio_dev *indio_dev);
 	__devm_iio_device_register((dev), (indio_dev), THIS_MODULE);
 int __devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev,
 			       struct module *this_mod);
-void devm_iio_device_unregister(struct device *dev, struct iio_dev *indio_dev);
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp);
 int iio_device_claim_direct_mode(struct iio_dev *indio_dev);
 void iio_device_release_direct_mode(struct iio_dev *indio_dev);
