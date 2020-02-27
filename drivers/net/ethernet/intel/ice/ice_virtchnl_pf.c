@@ -170,7 +170,7 @@ static void ice_free_vf_res(struct ice_vf *vf)
 		vf->num_mac = 0;
 	}
 
-	last_vector_idx = vf->first_vector_idx + pf->num_vf_msix - 1;
+	last_vector_idx = vf->first_vector_idx + pf->num_msix_per_vf - 1;
 
 	/* clear VF MDD event information */
 	memset(&vf->mdd_tx_events, 0, sizeof(vf->mdd_tx_events));
@@ -206,7 +206,7 @@ static void ice_dis_vf_mappings(struct ice_vf *vf)
 	wr32(hw, VPINT_ALLOC_PCI(vf->vf_id), 0);
 
 	first = vf->first_vector_idx;
-	last = first + pf->num_vf_msix - 1;
+	last = first + pf->num_msix_per_vf - 1;
 	for (v = first; v <= last; v++) {
 		u32 reg;
 
@@ -315,7 +315,7 @@ void ice_free_vfs(struct ice_pf *pf)
 		dev_warn(dev, "VFs are assigned - not disabling SR-IOV\n");
 
 	tmp = pf->num_alloc_vfs;
-	pf->num_vf_qps = 0;
+	pf->num_qps_per_vf = 0;
 	pf->num_alloc_vfs = 0;
 	for (i = 0; i < tmp; i++) {
 		if (test_bit(ICE_VF_STATE_INIT, pf->vf[i].vf_states)) {
@@ -503,7 +503,7 @@ ice_vf_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi, u16 vf_id)
  */
 static int ice_calc_vf_first_vector_idx(struct ice_pf *pf, struct ice_vf *vf)
 {
-	return pf->sriov_base_vector + vf->vf_id * pf->num_vf_msix;
+	return pf->sriov_base_vector + vf->vf_id * pf->num_msix_per_vf;
 }
 
 /**
@@ -596,7 +596,7 @@ static int ice_alloc_vf_res(struct ice_vf *vf)
 	 */
 	tx_rx_queue_left = min_t(int, ice_get_avail_txq_count(pf),
 				 ice_get_avail_rxq_count(pf));
-	tx_rx_queue_left += pf->num_vf_qps;
+	tx_rx_queue_left += pf->num_qps_per_vf;
 	if (vf->num_req_qs && vf->num_req_qs <= tx_rx_queue_left &&
 	    vf->num_req_qs != vf->num_vf_qs)
 		vf->num_vf_qs = vf->num_req_qs;
@@ -642,9 +642,9 @@ static void ice_ena_vf_mappings(struct ice_vf *vf)
 	hw = &pf->hw;
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	first = vf->first_vector_idx;
-	last = (first + pf->num_vf_msix) - 1;
+	last = (first + pf->num_msix_per_vf) - 1;
 	abs_first = first + pf->hw.func_caps.common_cap.msix_vector_first_id;
-	abs_last = (abs_first + pf->num_vf_msix) - 1;
+	abs_last = (abs_first + pf->num_msix_per_vf) - 1;
 	abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 
 	/* VF Vector allocation */
@@ -762,7 +762,7 @@ int ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector)
 	pf = vf->pf;
 
 	/* always add one to account for the OICR being the first MSIX */
-	return pf->sriov_base_vector + pf->num_vf_msix * vf->vf_id +
+	return pf->sriov_base_vector + pf->num_msix_per_vf * vf->vf_id +
 		q_vector->v_idx + 1;
 }
 
@@ -847,56 +847,60 @@ static int ice_sriov_set_msix_res(struct ice_pf *pf, u16 num_msix_needed)
 static int ice_set_per_vf_res(struct ice_pf *pf)
 {
 	int max_valid_res_idx = ice_get_max_valid_res_idx(pf->irq_tracker);
+	int msix_avail_per_vf, msix_avail_for_sriov;
 	struct device *dev = ice_pf_to_dev(pf);
-	u16 num_msix, num_txq, num_rxq;
-	int v;
+	u16 num_msix_per_vf, num_txq, num_rxq;
 
 	if (!pf->num_alloc_vfs || max_valid_res_idx < 0)
 		return -EINVAL;
 
 	/* determine MSI-X resources per VF */
-	v = (pf->hw.func_caps.common_cap.num_msix_vectors -
-	     pf->irq_tracker->num_entries) / pf->num_alloc_vfs;
-	if (v >= ICE_NUM_VF_MSIX_MED) {
-		num_msix = ICE_NUM_VF_MSIX_MED;
-	} else if (v >= ICE_NUM_VF_MSIX_SMALL) {
-		num_msix = ICE_NUM_VF_MSIX_SMALL;
-	} else if (v >= ICE_MIN_INTR_PER_VF) {
-		num_msix = ICE_MIN_INTR_PER_VF;
+	msix_avail_for_sriov = pf->hw.func_caps.common_cap.num_msix_vectors -
+		pf->irq_tracker->num_entries;
+	msix_avail_per_vf = msix_avail_for_sriov / pf->num_alloc_vfs;
+	if (msix_avail_per_vf >= ICE_NUM_VF_MSIX_MED) {
+		num_msix_per_vf = ICE_NUM_VF_MSIX_MED;
+	} else if (msix_avail_per_vf >= ICE_NUM_VF_MSIX_SMALL) {
+		num_msix_per_vf = ICE_NUM_VF_MSIX_SMALL;
+	} else if (msix_avail_per_vf >= ICE_MIN_INTR_PER_VF) {
+		num_msix_per_vf = ICE_MIN_INTR_PER_VF;
 	} else {
-		dev_err(dev, "Not enough vectors to support %d VFs\n",
+		dev_err(dev, "Only %d MSI-X interrupts available for SR-IOV. Not enough to support minimum of %d MSI-X interrupts per VF for %d VFs\n",
+			msix_avail_for_sriov, ICE_MIN_INTR_PER_VF,
 			pf->num_alloc_vfs);
 		return -EIO;
 	}
 
 	/* determine queue resources per VF */
 	num_txq = ice_determine_res(pf, ice_get_avail_txq_count(pf),
-				    min_t(u16, num_msix - 1,
+				    min_t(u16,
+					  num_msix_per_vf - ICE_NONQ_VECS_VF,
 					  ICE_MAX_RSS_QS_PER_VF),
 				    ICE_MIN_QS_PER_VF);
 
 	num_rxq = ice_determine_res(pf, ice_get_avail_rxq_count(pf),
-				    min_t(u16, num_msix - 1,
+				    min_t(u16,
+					  num_msix_per_vf - ICE_NONQ_VECS_VF,
 					  ICE_MAX_RSS_QS_PER_VF),
 				    ICE_MIN_QS_PER_VF);
 
 	if (!num_txq || !num_rxq) {
-		dev_err(dev, "Not enough queues to support %d VFs\n",
-			pf->num_alloc_vfs);
+		dev_err(dev, "Not enough queues to support minimum of %d queue pairs per VF for %d VFs\n",
+			ICE_MIN_QS_PER_VF, pf->num_alloc_vfs);
 		return -EIO;
 	}
 
-	if (ice_sriov_set_msix_res(pf, num_msix * pf->num_alloc_vfs)) {
+	if (ice_sriov_set_msix_res(pf, num_msix_per_vf * pf->num_alloc_vfs)) {
 		dev_err(dev, "Unable to set MSI-X resources for %d VFs\n",
 			pf->num_alloc_vfs);
 		return -EINVAL;
 	}
 
 	/* only allow equal Tx/Rx queue count (i.e. queue pairs) */
-	pf->num_vf_qps = min_t(int, num_txq, num_rxq);
-	pf->num_vf_msix = num_msix;
+	pf->num_qps_per_vf = min_t(int, num_txq, num_rxq);
+	pf->num_msix_per_vf = num_msix_per_vf;
 	dev_info(dev, "Enabling %d VFs with %d vectors and %d queues per VF\n",
-		 pf->num_alloc_vfs, num_msix, pf->num_vf_qps);
+		 pf->num_alloc_vfs, pf->num_msix_per_vf, pf->num_qps_per_vf);
 
 	return 0;
 }
@@ -1018,7 +1022,7 @@ static bool ice_config_res_vfs(struct ice_pf *pf)
 	ice_for_each_vf(pf, v) {
 		struct ice_vf *vf = &pf->vf[v];
 
-		vf->num_vf_qs = pf->num_vf_qps;
+		vf->num_vf_qs = pf->num_qps_per_vf;
 		dev_dbg(dev, "VF-id %d has %d queues configured\n", vf->vf_id,
 			vf->num_vf_qs);
 		ice_cleanup_and_realloc_vf(vf);
@@ -1727,7 +1731,7 @@ static int ice_vc_get_vf_res_msg(struct ice_vf *vf, u8 *msg)
 	vfres->num_vsis = 1;
 	/* Tx and Rx queue are equal for VF */
 	vfres->num_queue_pairs = vsi->num_txq;
-	vfres->max_vectors = pf->num_vf_msix;
+	vfres->max_vectors = pf->num_msix_per_vf;
 	vfres->rss_key_size = ICE_VSIQF_HKEY_ARRAY_SIZE;
 	vfres->rss_lut_size = ICE_VSIQF_HLUT_ARRAY_SIZE;
 
@@ -2387,7 +2391,7 @@ static int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
 	 * there is actually at least a single VF queue vector mapped
 	 */
 	if (!test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states) ||
-	    pf->num_vf_msix < num_q_vectors_mapped ||
+	    pf->num_msix_per_vf < num_q_vectors_mapped ||
 	    !num_q_vectors_mapped) {
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 		goto error_param;
@@ -2409,7 +2413,7 @@ static int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
 		/* vector_id is always 0-based for each VF, and can never be
 		 * larger than or equal to the max allowed interrupts per VF
 		 */
-		if (!(vector_id < pf->num_vf_msix) ||
+		if (!(vector_id < pf->num_msix_per_vf) ||
 		    !ice_vc_isvalid_vsi_id(vf, vsi_id) ||
 		    (!vector_id && (map->rxq_map || map->txq_map))) {
 			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
