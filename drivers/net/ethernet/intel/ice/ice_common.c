@@ -620,8 +620,8 @@ static void ice_get_itr_intrl_gran(struct ice_hw *hw)
  * @oem_ver: 8 bit NVM version
  * @oem_build: 16 bit NVM build number
  * @oem_patch: 8 NVM patch number
- * @ver_hi: high 16 bits of the NVM version
- * @ver_lo: low 16 bits of the NVM version
+ * @ver_hi: high 8 bits of the NVM version
+ * @ver_lo: low 8 bits of the NVM version
  */
 void
 ice_get_nvm_version(struct ice_hw *hw, u8 *oem_ver, u16 *oem_build,
