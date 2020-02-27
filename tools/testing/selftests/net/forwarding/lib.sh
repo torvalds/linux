@@ -248,6 +248,33 @@ busywait()
 	done
 }
 
+not()
+{
+	"$@"
+	[[ $? != 0 ]]
+}
+
+grep_bridge_fdb()
+{
+	local addr=$1; shift
+	local word
+	local flag
+
+	if [ "$1" == "self" ] || [ "$1" == "master" ]; then
+		word=$1; shift
+		if [ "$1" == "-v" ]; then
+			flag=$1; shift
+		fi
+	fi
+
+	$@ | grep $addr | grep $flag "$word"
+}
+
+wait_for_offload()
+{
+	"$@" | grep -q offload
+}
+
 until_counter_is()
 {
 	local value=$1; shift
@@ -605,6 +632,16 @@ ethtool_stats_get()
 	local stat=$1; shift
 
 	ethtool -S $dev | grep "^ *$stat:" | head -n 1 | cut -d: -f2
+}
+
+qdisc_stats_get()
+{
+	local dev=$1; shift
+	local handle=$1; shift
+	local selector=$1; shift
+
+	tc -j -s qdisc show dev "$dev" \
+	    | jq '.[] | select(.handle == "'"$handle"'") | '"$selector"
 }
 
 humanize()
@@ -1132,16 +1169,27 @@ flood_test()
 	flood_multicast_test $br_port $host1_if $host2_if
 }
 
-start_traffic()
+__start_traffic()
 {
+	local proto=$1; shift
 	local h_in=$1; shift    # Where the traffic egresses the host
 	local sip=$1; shift
 	local dip=$1; shift
 	local dmac=$1; shift
 
 	$MZ $h_in -p 8000 -A $sip -B $dip -c 0 \
-		-a own -b $dmac -t udp -q &
+		-a own -b $dmac -t "$proto" -q "$@" &
 	sleep 1
+}
+
+start_traffic()
+{
+	__start_traffic udp "$@"
+}
+
+start_tcp_traffic()
+{
+	__start_traffic tcp "$@"
 }
 
 stop_traffic()

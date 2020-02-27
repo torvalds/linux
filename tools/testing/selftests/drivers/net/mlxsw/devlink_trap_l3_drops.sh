@@ -641,13 +641,9 @@ erif_disabled_test()
 	mz_pid=$!
 
 	sleep 5
-	# In order to see this trap we need a route that points to disabled RIF.
-	# When ipv6 address is flushed, there is a delay and the routes are
-	# deleted before the RIF and we cannot get state that we have route
-	# to disabled RIF.
-	# Delete IPv6 address first and then check this trap with flushing IPv4.
-	ip -6 add flush dev br0
-	ip -4 add flush dev br0
+	# Unlinking the port from the bridge will disable the RIF associated
+	# with br0 as it is no longer an upper of any mlxsw port.
+	ip link set dev $rp1 nomaster
 
 	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
 	t1_bytes=$(devlink_trap_rx_bytes_get $trap_name)
@@ -659,7 +655,6 @@ erif_disabled_test()
 	log_test "Egress RIF disabled"
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
-	ip link set dev $rp1 nomaster
 	__addr_add_del $rp1 add 192.0.2.2/24 2001:db8:1::2/64
 	ip link del dev br0 type bridge
 	devlink_trap_action_set $trap_name "drop"
