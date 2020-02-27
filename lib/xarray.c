@@ -1836,7 +1836,7 @@ static bool xas_sibling(struct xa_state *xas)
 	struct xa_node *node = xas->xa_node;
 	unsigned long mask;
 
-	if (!node)
+	if (!IS_ENABLED(CONFIG_XARRAY_MULTI) || !node)
 		return false;
 	mask = (XA_CHUNK_SIZE << node->shift) - 1;
 	return (xas->xa_index & mask) >
