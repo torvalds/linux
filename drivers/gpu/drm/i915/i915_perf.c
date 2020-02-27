@@ -1405,8 +1405,10 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	/*
 	 * Unset exclusive_stream first, it will be checked while disabling
 	 * the metric set on gen8+.
+	 *
+	 * See i915_oa_init_reg_state() and lrc_configure_all_contexts()
 	 */
-	perf->exclusive_stream = NULL;
+	WRITE_ONCE(perf->exclusive_stream, NULL);
 	perf->ops.disable_metric_set(stream);
 
 	free_oa_buffer(stream);
@@ -2847,7 +2849,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		goto err_oa_buf_alloc;
 
 	stream->ops = &i915_oa_stream_ops;
-	perf->exclusive_stream = stream;
+	WRITE_ONCE(perf->exclusive_stream, stream);
 
 	ret = perf->ops.enable_metric_set(stream);
 	if (ret) {
@@ -2867,7 +2869,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	return 0;
 
 err_enable:
-	perf->exclusive_stream = NULL;
+	WRITE_ONCE(perf->exclusive_stream, NULL);
 	perf->ops.disable_metric_set(stream);
 
 	free_oa_buffer(stream);
@@ -2893,12 +2895,11 @@ void i915_oa_init_reg_state(const struct intel_context *ce,
 {
 	struct i915_perf_stream *stream;
 
-	/* perf.exclusive_stream serialised by lrc_configure_all_contexts() */
-
 	if (engine->class != RENDER_CLASS)
 		return;
 
-	stream = engine->i915->perf.exclusive_stream;
+	/* perf.exclusive_stream serialised by lrc_configure_all_contexts() */
+	stream = READ_ONCE(engine->i915->perf.exclusive_stream);
 	/*
 	 * For gen12, only CTX_R_PWR_CLK_STATE needs update, but the caller
 	 * is already doing that, so nothing to be done for gen12 here.
