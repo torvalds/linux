@@ -271,7 +271,6 @@ sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT)
 				| FEATURE_MASK(FEATURE_DPM_FCLK_BIT)
-				| FEATURE_MASK(FEATURE_DS_GFXCLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_SOCCLK_BIT)
 				| FEATURE_MASK(FEATURE_THERMAL_BIT);
 
@@ -286,6 +285,9 @@ sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 
 	if (adev->pm.pp_feature & PP_ULV_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_ULV_BIT);
+
+	if (adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_GFXCLK_BIT);
 
 	return 0;
 }
