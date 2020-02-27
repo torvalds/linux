@@ -1132,16 +1132,27 @@ flood_test()
 	flood_multicast_test $br_port $host1_if $host2_if
 }
 
-start_traffic()
+__start_traffic()
 {
+	local proto=$1; shift
 	local h_in=$1; shift    # Where the traffic egresses the host
 	local sip=$1; shift
 	local dip=$1; shift
 	local dmac=$1; shift
 
 	$MZ $h_in -p 8000 -A $sip -B $dip -c 0 \
-		-a own -b $dmac -t udp -q &
+		-a own -b $dmac -t "$proto" -q "$@" &
 	sleep 1
+}
+
+start_traffic()
+{
+	__start_traffic udp "$@"
+}
+
+start_tcp_traffic()
+{
+	__start_traffic tcp "$@"
 }
 
 stop_traffic()
