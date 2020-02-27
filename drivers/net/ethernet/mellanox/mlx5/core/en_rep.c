@@ -1396,7 +1396,7 @@ static int mlx5e_rep_change_mtu(struct net_device *netdev, int new_mtu)
 
 static int mlx5e_uplink_rep_change_mtu(struct net_device *netdev, int new_mtu)
 {
-	return mlx5e_change_mtu(netdev, new_mtu, mlx5e_set_dev_port_mtu);
+	return mlx5e_change_mtu(netdev, new_mtu, mlx5e_set_dev_port_mtu_ctx);
 }
 
 static int mlx5e_uplink_rep_set_mac(struct net_device *netdev, void *addr)

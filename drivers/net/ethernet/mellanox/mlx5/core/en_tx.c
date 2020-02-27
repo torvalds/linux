@@ -72,8 +72,8 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 {
 	int txq_ix = netdev_pick_tx(dev, skb, NULL);
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	u16 num_channels;
 	int up = 0;
+	int ch_ix;
 
 	if (!netdev_get_num_tc(dev))
 		return txq_ix;
@@ -86,14 +86,13 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		if (skb_vlan_tag_present(skb))
 			up = skb_vlan_tag_get_prio(skb);
 
-	/* txq_ix can be larger than num_channels since
-	 * dev->num_real_tx_queues = num_channels * num_tc
+	/* Normalize any picked txq_ix to [0, num_channels),
+	 * So we can return a txq_ix that matches the channel and
+	 * packet UP.
 	 */
-	num_channels = priv->channels.params.num_channels;
-	if (txq_ix >= num_channels)
-		txq_ix = priv->txq2sq[txq_ix]->ch_ix;
+	ch_ix = priv->txq2sq[txq_ix]->ch_ix;
 
-	return priv->channel_tc2realtxq[txq_ix][up];
+	return priv->channel_tc2realtxq[ch_ix][up];
 }
 
 static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
