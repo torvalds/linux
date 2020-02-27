@@ -1048,8 +1048,6 @@ struct drm_i915_private {
 		struct work_struct free_work;
 	} atomic_helper;
 
-	u16 orig_clock;
-
 	bool mchbar_need_disable;
 
 	struct intel_l3_parity l3_parity;
