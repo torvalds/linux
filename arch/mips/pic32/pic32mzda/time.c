@@ -23,7 +23,7 @@ static const struct of_device_id pic32_infra_match[] = {
 
 static unsigned int pic32_xlate_core_timer_irq(void)
 {
-	static struct device_node *node;
+	struct device_node *node;
 	unsigned int irq;
 
 	node = of_find_matching_node(NULL, pic32_infra_match);
