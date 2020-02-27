@@ -206,6 +206,11 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "rockchip,rk3399-evb", "rockchip,rk3399";
 
+- Rockchip RK3399 evb ind board (Linux):
+    Required root node properties:
+      - compatible = "rockchip,linux", "rockchip,rk3399";
+      - compatible = "rockchip,rk3399-evb-ind-lpddr4-linux";
+
 - Rockchip RK3399 Sapphire board standalone:
     Required root node properties:
       - compatible = "rockchip,rk3399-sapphire", "rockchip,rk3399";
