@@ -518,6 +518,10 @@ void bch2_fs_stop(struct bch_fs *c)
 
 	cancel_work_sync(&c->journal_seq_blacklist_gc_work);
 
+	mutex_lock(&c->state_lock);
+	bch2_fs_read_only(c);
+	mutex_unlock(&c->state_lock);
+
 	for_each_member_device(ca, c, i)
 		if (ca->kobj.state_in_sysfs &&
 		    ca->disk_sb.bdev)
@@ -539,10 +543,6 @@ void bch2_fs_stop(struct bch_fs *c)
 
 	closure_sync(&c->cl);
 	closure_debug_destroy(&c->cl);
-
-	mutex_lock(&c->state_lock);
-	bch2_fs_read_only(c);
-	mutex_unlock(&c->state_lock);
 
 	/* btree prefetch might have kicked off reads in the background: */
 	bch2_btree_flush_all_reads(c);
