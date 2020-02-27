@@ -438,7 +438,6 @@ xfs_ioc_attrmulti_one(
 
 	if ((flags & ATTR_ROOT) && (flags & ATTR_SECURE))
 		return -EINVAL;
-	flags &= ~ATTR_KERNEL_FLAGS;
 
 	name = strndup_user(uname, MAXNAMELEN);
 	if (IS_ERR(name))
