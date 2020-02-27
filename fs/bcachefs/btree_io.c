@@ -708,15 +708,15 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 			 unsigned *whiteout_u64s, int write,
 			 bool have_retry)
 {
-	struct bkey_packed *k, *prev = NULL;
-	struct bpos prev_pos	= POS_MIN;
+	struct bkey_packed *k;
+	struct bkey prev	= KEY(0, 0, 0);
 	struct bpos prev_data	= POS_MIN;
 	bool seen_non_whiteout = false;
 	unsigned version;
 	const char *err;
 	int ret = 0;
 
-	if (i == &b->data->keys) {
+	if (!b->written) {
 		/* These indicate that we read the wrong btree node: */
 		btree_err_on(BTREE_NODE_ID(b->data) != b->c.btree_id,
 			     BTREE_ERR_MUST_RETRY, c, b, i,
@@ -852,25 +852,28 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 
 		if (!seen_non_whiteout &&
 		    (!bkey_whiteout(k) ||
-		     (bkey_cmp(prev_pos, bkey_start_pos(u.k)) > 0))) {
+		     (bkey_cmp(prev.p, bkey_start_pos(u.k)) > 0))) {
 			*whiteout_u64s = k->_data - i->_data;
 			seen_non_whiteout = true;
 		} else if (bkey_cmp(prev_data, bkey_start_pos(u.k)) > 0 ||
-			   bkey_cmp(prev_pos, u.k->p) > 0) {
+			   bkey_cmp(prev.p, u.k->p) > 0) {
+			char buf1[80];
+			char buf2[80];
+
+			bch2_bkey_to_text(&PBUF(buf1), &prev);
+			bch2_bkey_to_text(&PBUF(buf2), u.k);
+
+			bch2_dump_bset(b, i, 0);
 			btree_err(BTREE_ERR_FATAL, c, b, i,
-				  "keys out of order: %llu:%llu > %llu:%llu",
-				  prev_pos.inode,
-				  prev_pos.offset,
-				  u.k->p.inode,
-				  bkey_start_offset(u.k));
+				  "keys out of order: %s > %s",
+				  buf1, buf2);
 			/* XXX: repair this */
 		}
 
 		if (!bkey_deleted(u.k))
 			prev_data = u.k->p;
-		prev_pos = u.k->p;
+		prev = *u.k;
 
-		prev = k;
 		k = bkey_next_skip_noops(k, vstruct_last(i));
 	}
 
