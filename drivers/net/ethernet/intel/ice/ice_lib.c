@@ -571,12 +571,11 @@ static void ice_vsi_set_rss_params(struct ice_vsi *vsi)
 		vsi->rss_lut_type = ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF;
 		break;
 	case ICE_VSI_VF:
-		/* VF VSI will gets a small RSS table
-		 * For VSI_LUT, LUT size should be set to 64 bytes
+		/* VF VSI will get a small RSS table.
+		 * For VSI_LUT, LUT size should be set to 64 bytes.
 		 */
 		vsi->rss_table_size = ICE_VSIQF_HLUT_ARRAY_SIZE;
-		vsi->rss_size = min_t(int, num_online_cpus(),
-				      BIT(cap->rss_table_entry_width));
+		vsi->rss_size = ICE_MAX_RSS_QS_PER_VF;
 		vsi->rss_lut_type = ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_VSI;
 		break;
 	case ICE_VSI_LB:
@@ -684,7 +683,7 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 			if (vsi->type == ICE_VSI_PF)
 				max_rss = ICE_MAX_LG_RSS_QS;
 			else
-				max_rss = ICE_MAX_SMALL_RSS_QS;
+				max_rss = ICE_MAX_RSS_QS_PER_VF;
 			qcount_rx = min_t(int, rx_numq_tc, max_rss);
 			if (!vsi->req_rxq)
 				qcount_rx = min_t(int, qcount_rx,
