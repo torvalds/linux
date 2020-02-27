@@ -1254,6 +1254,7 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 	case RENDER_CLASS:
 		/*
 		 * WaAllowPMDepthAndInvocationCountAccessFromUMD:tgl
+		 * Wa_1408556865:tgl
 		 *
 		 * This covers 4 registers which are next to one another :
 		 *   - PS_INVOCATION_COUNT
