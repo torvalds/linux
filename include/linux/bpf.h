@@ -859,7 +859,7 @@ struct bpf_prog_array_item {
 
 struct bpf_prog_array {
 	struct rcu_head rcu;
-	struct bpf_prog_array_item items[0];
+	struct bpf_prog_array_item items[];
 };
 
 struct bpf_prog_array *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags);
