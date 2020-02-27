@@ -84,6 +84,24 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 EXPORT_SYMBOL(drm_sched_entity_init);
 
 /**
+ * drm_sched_entity_modify_sched - Modify sched of an entity
+ * @entity: scheduler entity to init
+ * @sched_list: the list of new drm scheds which will replace
+ *		 existing entity->sched_list
+ * @num_sched_list: number of drm sched in sched_list
+ */
+void drm_sched_entity_modify_sched(struct drm_sched_entity *entity,
+				    struct drm_gpu_scheduler **sched_list,
+				    unsigned int num_sched_list)
+{
+	WARN_ON(!num_sched_list || !sched_list);
+
+	entity->sched_list = sched_list;
+	entity->num_sched_list = num_sched_list;
+}
+EXPORT_SYMBOL(drm_sched_entity_modify_sched);
+
+/**
  * drm_sched_entity_is_idle - Check if entity is idle
  *
  * @entity: scheduler entity
