@@ -6,6 +6,7 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 ALL_TESTS="
 	shared_block_drop_test
 	egress_redirect_test
+	multi_mirror_test
 "
 NUM_NETIFS=2
 
@@ -125,6 +126,33 @@ egress_redirect_test()
 	tc qdisc del dev $swp1 clsact
 
 	log_test "shared block drop"
+}
+
+multi_mirror_test()
+{
+	RET=0
+
+	# It is forbidden in mlxsw driver to have multiple mirror
+	# actions in a single rule.
+
+	tc qdisc add dev $swp1 clsact
+
+	tc filter add dev $swp1 ingress protocol ip pref 1 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 \
+		action mirred egress mirror dev $swp2
+	check_err $? "Failed to add rule with single mirror action"
+
+	tc filter del dev $swp1 ingress protocol ip pref 1 handle 101 flower
+
+	tc filter add dev $swp1 ingress protocol ip pref 1 handle 101 flower \
+		skip_sw dst_ip 192.0.2.2 \
+		action mirred egress mirror dev $swp2 \
+		action mirred egress mirror dev $swp1
+	check_fail $? "Incorrect success to add rule with two mirror actions"
+
+	tc qdisc del dev $swp1 clsact
+
+	log_test "multi mirror"
 }
 
 setup_prepare()
