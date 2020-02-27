@@ -248,6 +248,28 @@ busywait()
 	done
 }
 
+not()
+{
+	"$@"
+	[[ $? != 0 ]]
+}
+
+grep_bridge_fdb()
+{
+	local addr=$1; shift
+	local word
+	local flag
+
+	if [ "$1" == "self" ] || [ "$1" == "master" ]; then
+		word=$1; shift
+		if [ "$1" == "-v" ]; then
+			flag=$1; shift
+		fi
+	fi
+
+	$@ | grep $addr | grep $flag "$word"
+}
+
 wait_for_offload()
 {
 	"$@" | grep -q offload
