@@ -1624,17 +1624,16 @@ static void qeth_set_blkt_defaults(struct qeth_card *card)
 	}
 }
 
-static void qeth_init_tokens(struct qeth_card *card)
+static void qeth_idx_init(struct qeth_card *card)
 {
+	memset(&card->seqno, 0, sizeof(card->seqno));
+
 	card->token.issuer_rm_w = 0x00010103UL;
 	card->token.cm_filter_w = 0x00010108UL;
 	card->token.cm_connection_w = 0x0001010aUL;
 	card->token.ulp_filter_w = 0x0001010bUL;
 	card->token.ulp_connection_w = 0x0001010dUL;
-}
 
-static void qeth_init_func_level(struct qeth_card *card)
-{
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_IQD:
 		card->info.func_level =	QETH_IDX_FUNC_LEVEL_IQD;
@@ -4952,9 +4951,9 @@ retriable:
 		else
 			goto retry;
 	}
+
 	qeth_determine_capabilities(card);
-	qeth_init_tokens(card);
-	qeth_init_func_level(card);
+	qeth_idx_init(card);
 
 	rc = qeth_idx_activate_read_channel(card);
 	if (rc == -EINTR) {
