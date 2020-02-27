@@ -44,11 +44,11 @@
 #define __SUBCODE_MASK 0x0600
 #define __PF_RES_FIELD 0x8000000000000000ULL
 
-#define VM_FAULT_BADCONTEXT	0x010000
-#define VM_FAULT_BADMAP		0x020000
-#define VM_FAULT_BADACCESS	0x040000
-#define VM_FAULT_SIGNAL		0x080000
-#define VM_FAULT_PFAULT		0x100000
+#define VM_FAULT_BADCONTEXT	((__force vm_fault_t) 0x010000)
+#define VM_FAULT_BADMAP		((__force vm_fault_t) 0x020000)
+#define VM_FAULT_BADACCESS	((__force vm_fault_t) 0x040000)
+#define VM_FAULT_SIGNAL		((__force vm_fault_t) 0x080000)
+#define VM_FAULT_PFAULT		((__force vm_fault_t) 0x100000)
 
 enum fault_type {
 	KERNEL_FAULT,
