@@ -2647,10 +2647,10 @@ write:
 	if (err) {
 		file_set_keep_isize(inode);
 	} else {
-		down_write(&F2FS_I(inode)->i_sem);
+		spin_lock(&F2FS_I(inode)->i_size_lock);
 		if (F2FS_I(inode)->last_disk_size < psize)
 			F2FS_I(inode)->last_disk_size = psize;
-		up_write(&F2FS_I(inode)->i_sem);
+		spin_unlock(&F2FS_I(inode)->i_size_lock);
 	}
 
 done:
