@@ -4438,7 +4438,7 @@ static void soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
 	int i;
 
 	for_each_rtd_cpu_dai(rtd, i, cpu_dai)
-		soc_dapm_dai_stream_event(rtd->cpu_dai, stream, event);
+		soc_dapm_dai_stream_event(cpu_dai, stream, event);
 	for_each_rtd_codec_dai(rtd, i, codec_dai)
 		soc_dapm_dai_stream_event(codec_dai, stream, event);
 
