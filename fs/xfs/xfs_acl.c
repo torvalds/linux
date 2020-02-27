@@ -126,34 +126,31 @@ xfs_acl_to_disk(struct xfs_acl *aclp, const struct posix_acl *acl)
 struct posix_acl *
 xfs_get_acl(struct inode *inode, int type)
 {
-	struct xfs_inode *ip = XFS_I(inode);
-	struct posix_acl *acl = NULL;
-	struct xfs_acl *xfs_acl = NULL;
-	unsigned char *ea_name;
-	int error;
-	int len;
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	struct posix_acl	*acl = NULL;
+	struct xfs_da_args	args = {
+		.dp		= ip,
+		.flags		= ATTR_ALLOC | ATTR_ROOT,
+		.valuelen	= XFS_ACL_MAX_SIZE(mp),
+	};
+	int			error;
 
 	trace_xfs_get_acl(ip);
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		ea_name = SGI_ACL_FILE;
+		args.name = SGI_ACL_FILE;
 		break;
 	case ACL_TYPE_DEFAULT:
-		ea_name = SGI_ACL_DEFAULT;
+		args.name = SGI_ACL_DEFAULT;
 		break;
 	default:
 		BUG();
 	}
+	args.namelen = strlen(args.name);
 
-	/*
-	 * If we have a cached ACLs value just return it, not need to
-	 * go out to the disk.
-	 */
-	len = XFS_ACL_MAX_SIZE(ip->i_mount);
-	error = xfs_attr_get(ip, ea_name, strlen(ea_name),
-				(unsigned char **)&xfs_acl, &len,
-				ATTR_ALLOC | ATTR_ROOT);
+	error = xfs_attr_get(&args);
 	if (error) {
 		/*
 		 * If the attribute doesn't exist make sure we have a negative
@@ -162,9 +159,9 @@ xfs_get_acl(struct inode *inode, int type)
 		if (error != -ENOATTR)
 			acl = ERR_PTR(error);
 	} else  {
-		acl = xfs_acl_from_disk(ip->i_mount, xfs_acl, len,
-					XFS_ACL_MAX_ENTRIES(ip->i_mount));
-		kmem_free(xfs_acl);
+		acl = xfs_acl_from_disk(mp, args.value, args.valuelen,
+					XFS_ACL_MAX_ENTRIES(mp));
+		kmem_free(args.value);
 	}
 	return acl;
 }
