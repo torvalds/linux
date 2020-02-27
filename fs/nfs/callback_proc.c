@@ -121,33 +121,31 @@ out:
  */
 static struct inode *nfs_layout_find_inode_by_stateid(struct nfs_client *clp,
 		const nfs4_stateid *stateid)
+	__must_hold(RCU)
 {
 	struct nfs_server *server;
 	struct inode *inode;
 	struct pnfs_layout_hdr *lo;
 
+	rcu_read_lock();
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
-		list_for_each_entry(lo, &server->layouts, plh_layouts) {
+		list_for_each_entry_rcu(lo, &server->layouts, plh_layouts) {
 			if (!pnfs_layout_is_valid(lo))
 				continue;
 			if (stateid != NULL &&
 			    !nfs4_stateid_match_other(stateid, &lo->plh_stateid))
 				continue;
+			if (!nfs_sb_active(server->super))
+				continue;
 			inode = igrab(lo->plh_inode);
-			if (!inode)
-				return ERR_PTR(-EAGAIN);
-			if (!nfs_sb_active(inode->i_sb)) {
-				rcu_read_unlock();
-				spin_unlock(&clp->cl_lock);
-				iput(inode);
-				spin_lock(&clp->cl_lock);
-				rcu_read_lock();
-				return ERR_PTR(-EAGAIN);
-			}
-			return inode;
+			rcu_read_unlock();
+			if (inode)
+				return inode;
+			nfs_sb_deactive(server->super);
+			return ERR_PTR(-EAGAIN);
 		}
 	}
-
+	rcu_read_unlock();
 	return ERR_PTR(-ENOENT);
 }
 
@@ -165,28 +163,25 @@ static struct inode *nfs_layout_find_inode_by_fh(struct nfs_client *clp,
 	struct inode *inode;
 	struct pnfs_layout_hdr *lo;
 
+	rcu_read_lock();
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
-		list_for_each_entry(lo, &server->layouts, plh_layouts) {
+		list_for_each_entry_rcu(lo, &server->layouts, plh_layouts) {
 			nfsi = NFS_I(lo->plh_inode);
 			if (nfs_compare_fh(fh, &nfsi->fh))
 				continue;
 			if (nfsi->layout != lo)
 				continue;
+			if (!nfs_sb_active(server->super))
+				continue;
 			inode = igrab(lo->plh_inode);
-			if (!inode)
-				return ERR_PTR(-EAGAIN);
-			if (!nfs_sb_active(inode->i_sb)) {
-				rcu_read_unlock();
-				spin_unlock(&clp->cl_lock);
-				iput(inode);
-				spin_lock(&clp->cl_lock);
-				rcu_read_lock();
-				return ERR_PTR(-EAGAIN);
-			}
-			return inode;
+			rcu_read_unlock();
+			if (inode)
+				return inode;
+			nfs_sb_deactive(server->super);
+			return ERR_PTR(-EAGAIN);
 		}
 	}
-
+	rcu_read_unlock();
 	return ERR_PTR(-ENOENT);
 }
 
@@ -196,14 +191,9 @@ static struct inode *nfs_layout_find_inode(struct nfs_client *clp,
 {
 	struct inode *inode;
 
-	spin_lock(&clp->cl_lock);
-	rcu_read_lock();
 	inode = nfs_layout_find_inode_by_stateid(clp, stateid);
 	if (inode == ERR_PTR(-ENOENT))
 		inode = nfs_layout_find_inode_by_fh(clp, fh);
-	rcu_read_unlock();
-	spin_unlock(&clp->cl_lock);
-
 	return inode;
 }
 
