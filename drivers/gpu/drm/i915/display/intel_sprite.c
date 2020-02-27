@@ -364,9 +364,8 @@ static int skl_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 			       const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane_state->uapi.plane->dev);
-	unsigned int pixel_rate = crtc_state->pixel_rate;
-	unsigned int src_w, src_h, dst_w, dst_h;
 	unsigned int num, den;
+	unsigned int pixel_rate = intel_plane_pixel_rate(crtc_state, plane_state);
 
 	skl_plane_ratio(crtc_state, plane_state, &num, &den);
 
@@ -374,17 +373,7 @@ static int skl_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		den *= 2;
 
-	src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
-	src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
-	dst_w = drm_rect_width(&plane_state->uapi.dst);
-	dst_h = drm_rect_height(&plane_state->uapi.dst);
-
-	/* Downscaling limits the maximum pixel rate */
-	dst_w = min(src_w, dst_w);
-	dst_h = min(src_h, dst_h);
-
-	return DIV64_U64_ROUND_UP(mul_u32_u32(pixel_rate * num, src_w * src_h),
-				  mul_u32_u32(den, dst_w * dst_h));
+	return DIV_ROUND_UP(pixel_rate * num, den);
 }
 
 static unsigned int
