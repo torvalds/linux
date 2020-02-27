@@ -9916,7 +9916,7 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 {
 	/* Still write protect RO slot */
 	if (new->flags & KVM_MEM_READONLY) {
-		kvm_mmu_slot_remove_write_access(kvm, new);
+		kvm_mmu_slot_remove_write_access(kvm, new, PT_PAGE_TABLE_LEVEL);
 		return;
 	}
 
@@ -9951,10 +9951,23 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 	 * See the comments in fast_page_fault().
 	 */
 	if (new->flags & KVM_MEM_LOG_DIRTY_PAGES) {
-		if (kvm_x86_ops->slot_enable_log_dirty)
+		if (kvm_x86_ops->slot_enable_log_dirty) {
 			kvm_x86_ops->slot_enable_log_dirty(kvm, new);
-		else
-			kvm_mmu_slot_remove_write_access(kvm, new);
+		} else {
+			int level =
+				kvm_dirty_log_manual_protect_and_init_set(kvm) ?
+				PT_DIRECTORY_LEVEL : PT_PAGE_TABLE_LEVEL;
+
+			/*
+			 * If we're with initial-all-set, we don't need
+			 * to write protect any small page because
+			 * they're reported as dirty already.  However
+			 * we still need to write-protect huge pages
+			 * so that the page split can happen lazily on
+			 * the first write to the huge page.
+			 */
+			kvm_mmu_slot_remove_write_access(kvm, new, level);
+		}
 	} else {
 		if (kvm_x86_ops->slot_disable_log_dirty)
 			kvm_x86_ops->slot_disable_log_dirty(kvm, new);
