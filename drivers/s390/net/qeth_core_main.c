@@ -1257,7 +1257,6 @@ static void qeth_set_initial_options(struct qeth_card *card)
 {
 	card->options.route4.type = NO_ROUTER;
 	card->options.route6.type = NO_ROUTER;
-	card->options.rx_sg_cb = QETH_RX_SG_CB;
 	card->options.isolation = ISOLATION_MODE_NONE;
 	card->options.cq = QETH_CQ_DISABLED;
 	card->options.layer = QETH_DISCIPLINE_UNDETERMINED;
@@ -5268,6 +5267,7 @@ static int qeth_extract_skb(struct qeth_card *card,
 			    int *__offset)
 {
 	struct qdio_buffer_element *element = *__element;
+	struct qeth_priv *priv = netdev_priv(card->dev);
 	struct qdio_buffer *buffer = qethbuffer->buffer;
 	struct napi_struct *napi = &card->napi;
 	unsigned int linear_len = 0;
@@ -5343,7 +5343,7 @@ next_packet:
 	}
 
 	use_rx_sg = (card->options.cq == QETH_CQ_ENABLED) ||
-		    (skb_len > card->options.rx_sg_cb &&
+		    (skb_len > READ_ONCE(priv->rx_copybreak) &&
 		     !atomic_read(&card->force_alloc_skb) &&
 		     !IS_OSN(card));
 
@@ -5892,24 +5892,29 @@ static void qeth_clear_dbf_list(void)
 static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
 {
 	struct net_device *dev;
+	struct qeth_priv *priv;
 
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_IQD:
-		dev = alloc_netdev_mqs(0, "hsi%d", NET_NAME_UNKNOWN,
+		dev = alloc_netdev_mqs(sizeof(*priv), "hsi%d", NET_NAME_UNKNOWN,
 				       ether_setup, QETH_MAX_QUEUES, 1);
 		break;
 	case QETH_CARD_TYPE_OSM:
-		dev = alloc_etherdev(0);
+		dev = alloc_etherdev(sizeof(*priv));
 		break;
 	case QETH_CARD_TYPE_OSN:
-		dev = alloc_netdev(0, "osn%d", NET_NAME_UNKNOWN, ether_setup);
+		dev = alloc_netdev(sizeof(*priv), "osn%d", NET_NAME_UNKNOWN,
+				   ether_setup);
 		break;
 	default:
-		dev = alloc_etherdev_mqs(0, QETH_MAX_QUEUES, 1);
+		dev = alloc_etherdev_mqs(sizeof(*priv), QETH_MAX_QUEUES, 1);
 	}
 
 	if (!dev)
 		return NULL;
+
+	priv = netdev_priv(dev);
+	priv->rx_copybreak = QETH_RX_COPYBREAK;
 
 	dev->ml_priv = card;
 	dev->watchdog_timeo = QETH_TX_TIMEOUT;

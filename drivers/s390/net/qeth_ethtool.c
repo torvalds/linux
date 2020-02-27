@@ -175,6 +175,35 @@ static void qeth_get_channels(struct net_device *dev,
 	channels->combined_count = 0;
 }
 
+static int qeth_get_tunable(struct net_device *dev,
+			    const struct ethtool_tunable *tuna, void *data)
+{
+	struct qeth_priv *priv = netdev_priv(dev);
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)data = priv->rx_copybreak;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int qeth_set_tunable(struct net_device *dev,
+			    const struct ethtool_tunable *tuna,
+			    const void *data)
+{
+	struct qeth_priv *priv = netdev_priv(dev);
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		WRITE_ONCE(priv->rx_copybreak, *(u32 *)data);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 /* Helper function to fill 'advertising' and 'supported' which are the same. */
 /* Autoneg and full-duplex are supported and advertised unconditionally.     */
 /* Always advertise and support all speeds up to specified, and only one     */
@@ -381,6 +410,8 @@ const struct ethtool_ops qeth_ethtool_ops = {
 	.get_sset_count = qeth_get_sset_count,
 	.get_drvinfo = qeth_get_drvinfo,
 	.get_channels = qeth_get_channels,
+	.get_tunable = qeth_get_tunable,
+	.set_tunable = qeth_set_tunable,
 	.get_link_ksettings = qeth_get_link_ksettings,
 };
 
