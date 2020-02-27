@@ -5280,6 +5280,140 @@ static int live_lrc_isolation(void *arg)
 	return 0;
 }
 
+static void garbage_reset(struct intel_engine_cs *engine,
+			  struct i915_request *rq)
+{
+	const unsigned int bit = I915_RESET_ENGINE + engine->id;
+	unsigned long *lock = &engine->gt->reset.flags;
+
+	if (test_and_set_bit(bit, lock))
+		return;
+
+	tasklet_disable(&engine->execlists.tasklet);
+
+	if (!rq->fence.error)
+		intel_engine_reset(engine, NULL);
+
+	tasklet_enable(&engine->execlists.tasklet);
+	clear_and_wake_up_bit(bit, lock);
+}
+
+static struct i915_request *garbage(struct intel_context *ce,
+				    struct rnd_state *prng)
+{
+	struct i915_request *rq;
+	int err;
+
+	err = intel_context_pin(ce);
+	if (err)
+		return ERR_PTR(err);
+
+	prandom_bytes_state(prng,
+			    ce->lrc_reg_state,
+			    ce->engine->context_size -
+			    LRC_STATE_PN * PAGE_SIZE);
+
+	rq = intel_context_create_request(ce);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_unpin;
+	}
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+	return rq;
+
+err_unpin:
+	intel_context_unpin(ce);
+	return ERR_PTR(err);
+}
+
+static int __lrc_garbage(struct intel_engine_cs *engine, struct rnd_state *prng)
+{
+	struct intel_context *ce;
+	struct i915_request *hang;
+	int err = 0;
+
+	ce = intel_context_create(engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	hang = garbage(ce, prng);
+	if (IS_ERR(hang)) {
+		err = PTR_ERR(hang);
+		goto err_ce;
+	}
+
+	if (wait_for_submit(engine, hang, HZ / 2)) {
+		i915_request_put(hang);
+		err = -ETIME;
+		goto err_ce;
+	}
+
+	intel_context_set_banned(ce);
+	garbage_reset(engine, hang);
+
+	intel_engine_flush_submission(engine);
+	if (!hang->fence.error) {
+		i915_request_put(hang);
+		pr_err("%s: corrupted context was not reset\n",
+		       engine->name);
+		err = -EINVAL;
+		goto err_ce;
+	}
+
+	if (i915_request_wait(hang, 0, HZ / 2) < 0) {
+		pr_err("%s: corrupted context did not recover\n",
+		       engine->name);
+		i915_request_put(hang);
+		err = -EIO;
+		goto err_ce;
+	}
+	i915_request_put(hang);
+
+err_ce:
+	intel_context_put(ce);
+	return err;
+}
+
+static int live_lrc_garbage(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	/*
+	 * Verify that we can recover if one context state is completely
+	 * corrupted.
+	 */
+
+	if (!IS_ENABLED(CONFIG_DRM_I915_SELFTEST_BROKEN))
+		return 0;
+
+	for_each_engine(engine, gt, id) {
+		I915_RND_STATE(prng);
+		int err = 0, i;
+
+		if (!intel_has_reset_engine(engine->gt))
+			continue;
+
+		intel_engine_pm_get(engine);
+		for (i = 0; i < 3; i++) {
+			err = __lrc_garbage(engine, &prng);
+			if (err)
+				break;
+		}
+		intel_engine_pm_put(engine);
+
+		if (igt_flush_test(gt->i915))
+			err = -EIO;
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int __live_pphwsp_runtime(struct intel_engine_cs *engine)
 {
 	struct intel_context *ce;
@@ -5379,6 +5513,7 @@ int intel_lrc_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_lrc_gpr),
 		SUBTEST(live_lrc_isolation),
 		SUBTEST(live_lrc_timestamp),
+		SUBTEST(live_lrc_garbage),
 		SUBTEST(live_pphwsp_runtime),
 	};
 
