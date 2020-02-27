@@ -2565,13 +2565,3 @@ int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 	return 0;
 #endif
 }
-
-void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev)
-{
-#if defined(CONFIG_DEBUG_FS)
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(ttm_debugfs_entries); i++)
-		debugfs_remove(adev->mman.debugfs_entries[i]);
-#endif
-}

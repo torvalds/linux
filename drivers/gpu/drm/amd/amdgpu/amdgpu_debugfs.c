@@ -992,18 +992,6 @@ int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev)
-{
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(debugfs_regs); i++) {
-		if (adev->debugfs_regs[i]) {
-			debugfs_remove(adev->debugfs_regs[i]);
-			adev->debugfs_regs[i] = NULL;
-		}
-	}
-}
-
 static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -1339,31 +1327,13 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 					ARRAY_SIZE(amdgpu_debugfs_list));
 }
 
-void amdgpu_debugfs_fini(struct amdgpu_device *adev)
-{
-	int i;
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
-
-		if (!ring)
-			continue;
-
-		amdgpu_debugfs_ring_fini(ring);
-	}
-	amdgpu_ttm_debugfs_fini(adev);
-	debugfs_remove(adev->debugfs_preempt);
-}
-
 #else
 int amdgpu_debugfs_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
-void amdgpu_debugfs_fini(struct amdgpu_device *adev) { }
 int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
-void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev) { }
 #endif

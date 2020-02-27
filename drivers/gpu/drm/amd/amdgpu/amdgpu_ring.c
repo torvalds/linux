@@ -499,13 +499,6 @@ int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 	return 0;
 }
 
-void amdgpu_debugfs_ring_fini(struct amdgpu_ring *ring)
-{
-#if defined(CONFIG_DEBUG_FS)
-	debugfs_remove(ring->ent);
-#endif
-}
-
 /**
  * amdgpu_ring_test_helper - tests ring and set sched readiness status
  *
