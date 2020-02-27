@@ -1877,20 +1877,14 @@ int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi)
  * ice_vsi_is_vlan_pruning_ena - check if VLAN pruning is enabled or not
  * @vsi: VSI to check whether or not VLAN pruning is enabled.
  *
- * returns true if Rx VLAN pruning and Tx VLAN anti-spoof is enabled and false
- * otherwise.
+ * returns true if Rx VLAN pruning is enabled and false otherwise.
  */
 bool ice_vsi_is_vlan_pruning_ena(struct ice_vsi *vsi)
 {
-	u8 rx_pruning = ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
-	u8 tx_pruning = ICE_AQ_VSI_SEC_TX_VLAN_PRUNE_ENA <<
-		ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S;
-
 	if (!vsi)
 		return false;
 
-	return ((vsi->info.sw_flags2 & rx_pruning) &&
-		(vsi->info.sec_flags & tx_pruning));
+	return (vsi->info.sw_flags2 & ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA);
 }
 
 /**
