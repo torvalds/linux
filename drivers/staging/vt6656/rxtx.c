@@ -13,7 +13,6 @@
  *
  * Functions:
  *      vnt_generate_tx_parameter - Generate tx dma required parameter.
- *      vnt_get_duration_le - get tx data required duration
  *      vnt_get_rtscts_duration_le- get rtx/cts required duration
  *      vnt_get_rtscts_rsvtime_le- get rts/cts reserved time
  *      vnt_get_rsvtime- get frame reserved time
@@ -166,27 +165,6 @@ static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv, u8 rsv_type,
 	return cpu_to_le16((u16)rrv_time);
 }
 
-static __le16 vnt_get_duration_le(struct vnt_private *priv, u8 pkt_type,
-				  int need_ack)
-{
-	u32 ack_time = 0;
-
-	if (need_ack) {
-		if (pkt_type == PK_TYPE_11B)
-			ack_time = vnt_get_frame_time(priv->preamble_type,
-						      pkt_type, 14,
-						      priv->top_cck_basic_rate);
-		else
-			ack_time = vnt_get_frame_time(priv->preamble_type,
-						      pkt_type, 14,
-						      priv->top_ofdm_basic_rate);
-
-		return cpu_to_le16((u16)(priv->sifs + ack_time));
-	}
-
-	return 0;
-}
-
 static __le16 vnt_get_rtscts_duration_le(struct vnt_usb_send_context *context,
 					 u8 dur_type, u8 pkt_type, u16 rate)
 {
@@ -246,7 +224,6 @@ static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 				(struct ieee80211_hdr *)tx_context->skb->data;
 	u32 frame_len = tx_context->frame_len;
 	u16 rate = tx_context->tx_rate;
-	u8 need_ack = tx_context->need_ack;
 
 	/* Get SignalField,ServiceField,Length */
 	vnt_get_phy_field(priv, frame_len, rate, tx_context->pkt_type, &buf->a);
@@ -254,16 +231,8 @@ static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 			  PK_TYPE_11B, &buf->b);
 
 	/* Get Duration and TimeStamp */
-	if (ieee80211_is_nullfunc(hdr->frame_control)) {
-		buf->duration_a = hdr->duration_id;
-		buf->duration_b = hdr->duration_id;
-	} else {
-		buf->duration_a = vnt_get_duration_le(priv,
-						tx_context->pkt_type, need_ack);
-		buf->duration_b = vnt_get_duration_le(priv,
-						      PK_TYPE_11B, need_ack);
-	}
-
+	buf->duration_a = hdr->duration_id;
+	buf->duration_b = hdr->duration_id;
 	buf->time_stamp_off_a = vnt_time_stamp_off(priv, rate);
 	buf->time_stamp_off_b = vnt_time_stamp_off(priv,
 						   priv->top_cck_basic_rate);
@@ -281,20 +250,13 @@ static u16 vnt_rxtx_datahead_ab(struct vnt_usb_send_context *tx_context,
 				(struct ieee80211_hdr *)tx_context->skb->data;
 	u32 frame_len = tx_context->frame_len;
 	u16 rate = tx_context->tx_rate;
-	u8 need_ack = tx_context->need_ack;
 
 	/* Get SignalField,ServiceField,Length */
 	vnt_get_phy_field(priv, frame_len, rate,
 			  tx_context->pkt_type, &buf->ab);
 
 	/* Get Duration and TimeStampOff */
-	if (ieee80211_is_nullfunc(hdr->frame_control)) {
-		buf->duration = hdr->duration_id;
-	} else {
-		buf->duration = vnt_get_duration_le(priv, tx_context->pkt_type,
-						    need_ack);
-	}
-
+	buf->duration = hdr->duration_id;
 	buf->time_stamp_off = vnt_time_stamp_off(priv, rate);
 
 	tx_context->tx_hdr_size = vnt_mac_hdr_pos(tx_context, &buf->hdr);
@@ -721,8 +683,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	memcpy(tx_context->hdr, skb->data, tx_body_size);
 
-	hdr->duration_id = cpu_to_le16(duration_id);
-
 	if (info->control.hw_key) {
 		tx_key = info->control.hw_key;
 		if (tx_key->keylen > 0)
@@ -788,9 +748,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 		vnt_get_phy_field(priv, frame_size, current_rate,
 				  PK_TYPE_11A, &short_head->ab);
 
-		/* Get Duration and TimeStampOff */
-		short_head->duration = vnt_get_duration_le(priv,
-							   PK_TYPE_11A, false);
+		/* Get TimeStampOff */
 		short_head->time_stamp_off =
 				vnt_time_stamp_off(priv, current_rate);
 	} else {
@@ -801,9 +759,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 		vnt_get_phy_field(priv, frame_size, current_rate,
 				  PK_TYPE_11B, &short_head->ab);
 
-		/* Get Duration and TimeStampOff */
-		short_head->duration = vnt_get_duration_le(priv,
-							   PK_TYPE_11B, false);
+		/* Get TimeStampOff */
 		short_head->time_stamp_off =
 			vnt_time_stamp_off(priv, current_rate);
 	}
@@ -811,6 +767,9 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 	/* Generate Beacon Header */
 	mgmt_hdr = &beacon_buffer->mgmt_hdr;
 	memcpy(mgmt_hdr, skb->data, skb->len);
+
+	/* Get Duration */
+	short_head->duration = mgmt_hdr->duration;
 
 	/* time stamp always 0 */
 	mgmt_hdr->u.beacon.timestamp = 0;
