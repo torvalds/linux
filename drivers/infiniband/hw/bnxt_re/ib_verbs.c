@@ -1280,14 +1280,12 @@ out:
 static int bnxt_re_create_gsi_qp(struct bnxt_re_qp *qp, struct bnxt_re_pd *pd,
 				 struct ib_qp_init_attr *init_attr)
 {
-	struct bnxt_qplib_dev_attr *dev_attr;
 	struct bnxt_re_dev *rdev;
 	struct bnxt_qplib_qp *qplqp;
 	int rc = 0;
 
 	rdev = qp->rdev;
 	qplqp = &qp->qplib_qp;
-	dev_attr = &rdev->dev_attr;
 
 	qplqp->rq_hdr_buf_size = BNXT_QPLIB_MAX_QP1_RQ_HDR_SIZE_V2;
 	qplqp->sq_hdr_buf_size = BNXT_QPLIB_MAX_QP1_SQ_HDR_SIZE_V2;
