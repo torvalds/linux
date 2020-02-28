@@ -52,9 +52,9 @@ __expr__parse(double *val, struct parse_ctx *ctx, const char *expr,
 	return ret;
 }
 
-int expr__parse(double *final_val, struct parse_ctx *ctx, const char **pp)
+int expr__parse(double *final_val, struct parse_ctx *ctx, const char *expr)
 {
-	return __expr__parse(final_val, ctx, *pp, EXPR_PARSE);
+	return __expr__parse(final_val, ctx, expr, EXPR_PARSE);
 }
 
 static bool
@@ -71,14 +71,14 @@ already_seen(const char *val, const char *one, const char **other,
 	return false;
 }
 
-int expr__find_other(const char *p, const char *one, const char ***other,
+int expr__find_other(const char *expr, const char *one, const char ***other,
 		     int *num_other)
 {
 	int err, i = 0, j = 0;
 	struct parse_ctx ctx;
 
 	expr__ctx_init(&ctx);
-	err = __expr__parse(NULL, &ctx, p, EXPR_OTHER);
+	err = __expr__parse(NULL, &ctx, expr, EXPR_OTHER);
 	if (err)
 		return -1;
 

@@ -10,7 +10,7 @@ static int test(struct parse_ctx *ctx, const char *e, double val2)
 {
 	double val;
 
-	if (expr__parse(&val, ctx, &e))
+	if (expr__parse(&val, ctx, e))
 		TEST_ASSERT_VAL("parse test failed", 0);
 	TEST_ASSERT_VAL("unexpected value", val == val2);
 	return 0;
@@ -44,11 +44,11 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 		return ret;
 
 	p = "FOO/0";
-	ret = expr__parse(&val, &ctx, &p);
+	ret = expr__parse(&val, &ctx, p);
 	TEST_ASSERT_VAL("division by zero", ret == 1);
 
 	p = "BAR/";
-	ret = expr__parse(&val, &ctx, &p);
+	ret = expr__parse(&val, &ctx, p);
 	TEST_ASSERT_VAL("missing operand", ret == 1);
 
 	TEST_ASSERT_VAL("find other",
