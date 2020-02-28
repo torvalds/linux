@@ -676,10 +676,18 @@ int serial8250_em485_config(struct uart_port *port, struct serial_rs485 *rs485)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 
+	/* pick sane settings if the user hasn't */
+	if (!!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
+	    !!(rs485->flags & SER_RS485_RTS_AFTER_SEND)) {
+		rs485->flags |= SER_RS485_RTS_ON_SEND;
+		rs485->flags &= ~SER_RS485_RTS_AFTER_SEND;
+	}
+
 	/* clamp the delays to [0, 100ms] */
 	rs485->delay_rts_before_send = min(rs485->delay_rts_before_send, 100U);
 	rs485->delay_rts_after_send  = min(rs485->delay_rts_after_send, 100U);
 
+	memset(rs485->padding, 0, sizeof(rs485->padding));
 	port->rs485 = *rs485;
 
 	/*
