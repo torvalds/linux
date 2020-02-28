@@ -17,9 +17,7 @@ struct parse_ctx {
 
 void expr__ctx_init(struct parse_ctx *ctx);
 void expr__add_id(struct parse_ctx *ctx, const char *id, double val);
-#ifndef IN_EXPR_Y
 int expr__parse(double *final_val, struct parse_ctx *ctx, const char **pp);
-#endif
 int expr__find_other(const char *p, const char *one, const char ***other,
 		int *num_other);
 
