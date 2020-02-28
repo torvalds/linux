@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2017 Paul Cercueil <paul@crapouillou.net>
  * Copyright (c) 2019 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
+ * Copyright (c) 2017, 2019 Paul Boddie <paul@boddie.org.uk>
  */
 
 #include <linux/compiler.h>
@@ -900,6 +901,7 @@ static int jz4780_mmc0_8bit_a_pins[] = { 0x04, 0x05, 0x06, 0x07, 0x18, };
 static int jz4780_i2c3_pins[] = { 0x6a, 0x6b, };
 static int jz4780_i2c4_e_pins[] = { 0x8c, 0x8d, };
 static int jz4780_i2c4_f_pins[] = { 0xb9, 0xb8, };
+static int jz4780_hdmi_ddc_pins[] = { 0xb9, 0xb8, };
 
 static int jz4780_uart2_data_funcs[] = { 1, 1, };
 static int jz4780_uart2_hwflow_funcs[] = { 1, 1, };
@@ -908,6 +910,7 @@ static int jz4780_mmc0_8bit_a_funcs[] = { 1, 1, 1, 1, 1, };
 static int jz4780_i2c3_funcs[] = { 1, 1, };
 static int jz4780_i2c4_e_funcs[] = { 1, 1, };
 static int jz4780_i2c4_f_funcs[] = { 1, 1, };
+static int jz4780_hdmi_ddc_funcs[] = { 0, 0, };
 
 static const struct group_desc jz4780_groups[] = {
 	INGENIC_PIN_GROUP("uart0-data", jz4770_uart0_data),
@@ -950,6 +953,7 @@ static const struct group_desc jz4780_groups[] = {
 	INGENIC_PIN_GROUP("i2c3-data", jz4780_i2c3),
 	INGENIC_PIN_GROUP("i2c4-data-e", jz4780_i2c4_e),
 	INGENIC_PIN_GROUP("i2c4-data-f", jz4780_i2c4_f),
+	INGENIC_PIN_GROUP("hdmi-ddc", jz4780_hdmi_ddc),
 	INGENIC_PIN_GROUP("cim-data", jz4770_cim_8bit),
 	INGENIC_PIN_GROUP("lcd-24bit", jz4770_lcd_24bit),
 	{ "lcd-no-pins", },
@@ -982,6 +986,7 @@ static const char *jz4780_nemc_groups[] = {
 static const char *jz4780_i2c3_groups[] = { "i2c3-data", };
 static const char *jz4780_i2c4_groups[] = { "i2c4-data-e", "i2c4-data-f", };
 static const char *jz4780_cim_groups[] = { "cim-data", };
+static const char *jz4780_hdmi_ddc_groups[] = { "hdmi-ddc", };
 
 static const struct function_desc jz4780_functions[] = {
 	{ "uart0", jz4770_uart0_groups, ARRAY_SIZE(jz4770_uart0_groups), },
@@ -1014,6 +1019,8 @@ static const struct function_desc jz4780_functions[] = {
 	{ "pwm5", jz4770_pwm5_groups, ARRAY_SIZE(jz4770_pwm5_groups), },
 	{ "pwm6", jz4770_pwm6_groups, ARRAY_SIZE(jz4770_pwm6_groups), },
 	{ "pwm7", jz4770_pwm7_groups, ARRAY_SIZE(jz4770_pwm7_groups), },
+	{ "hdmi-ddc", jz4780_hdmi_ddc_groups,
+		      ARRAY_SIZE(jz4780_hdmi_ddc_groups), },
 };
 
 static const struct ingenic_chip_info jz4780_chip_info = {
