@@ -2106,9 +2106,12 @@ static int unix_dgram_recvmsg(struct socket *sock, struct msghdr *msg,
 
 		skip = sk_peek_offset(sk, flags);
 		skb = __skb_try_recv_datagram(sk, &sk->sk_receive_queue, flags,
-					      scm_stat_del, &skip, &err, &last);
-		if (skb)
+					      &skip, &err, &last);
+		if (skb) {
+			if (!(flags & MSG_PEEK))
+				scm_stat_del(sk, skb);
 			break;
+		}
 
 		mutex_unlock(&u->iolock);
 
