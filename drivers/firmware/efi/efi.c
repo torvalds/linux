@@ -554,7 +554,6 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 		while (prsv) {
 			struct linux_efi_memreserve *rsv;
 			u8 *p;
-			int i;
 
 			/*
 			 * Just map a full page: that is what we will get
