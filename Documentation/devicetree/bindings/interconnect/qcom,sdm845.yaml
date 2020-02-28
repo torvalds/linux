@@ -13,21 +13,44 @@ description: |
    SDM845 interconnect providers support system bandwidth requirements through
    RPMh hardware accelerators known as Bus Clock Manager (BCM). The provider is
    able to communicate with the BCM through the Resource State Coordinator (RSC)
-   associated with each execution environment. Provider nodes must reside within
-   an RPMh device node pertaining to their RSC and each provider maps to a
-   single RPMh resource.
+   associated with each execution environment. Provider nodes must point to at
+   least one RPMh device child node pertaining to their RSC and each provider
+   can map to multiple RPMh resources.
 
 properties:
+  reg:
+    maxItems: 1
+
   compatible:
     enum:
-      - qcom,sdm845-rsc-hlos
+      - qcom,sdm845-aggre1-noc
+      - qcom,sdm845-aggre2-noc
+      - qcom,sdm845-config-noc
+      - qcom,sdm845-dc-noc
+      - qcom,sdm845-gladiator-noc
+      - qcom,sdm845-mem-noc
+      - qcom,sdm845-mmss-noc
+      - qcom,sdm845-system-noc
 
   '#interconnect-cells':
     const: 1
 
+  qcom,bcm-voters:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: |
+      List of phandles to qcom,bcm-voter nodes that are required by
+      this interconnect to send RPMh commands.
+
+  qcom,bcm-voter-names:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description: |
+      Names for each of the qcom,bcm-voters specified.
+
 required:
   - compatible
+  - reg
   - '#interconnect-cells'
+  - qcom,bcm-voters
 
 additionalProperties: false
 
@@ -35,9 +58,17 @@ examples:
   - |
       #include <dt-bindings/interconnect/qcom,sdm845.h>
 
-      apps_rsc: rsc {
-              rsc_hlos: interconnect {
-                      compatible = "qcom,sdm845-rsc-hlos";
-                      #interconnect-cells = <1>;
-              };
+      mem_noc: interconnect@1380000 {
+             compatible = "qcom,sdm845-mem-noc";
+             reg = <0 0x01380000 0 0x27200>;
+             #interconnect-cells = <1>;
+             qcom,bcm-voters = <&apps_bcm_voter>;
+      };
+
+      mmss_noc: interconnect@1740000 {
+             compatible = "qcom,sdm845-mmss-noc";
+             reg = <0 0x01740000 0 0x1c1000>;
+             #interconnect-cells = <1>;
+             qcom,bcm-voter-names = "apps", "disp";
+             qcom,bcm-voters = <&apps_bcm_voter>, <&disp_bcm_voter>;
       };
