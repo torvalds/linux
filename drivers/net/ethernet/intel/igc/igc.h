@@ -246,9 +246,6 @@ extern char igc_driver_version[];
 /* flags controlling PTP/1588 function */
 #define IGC_PTP_ENABLED		BIT(0)
 
-/* Interrupt defines */
-#define IGC_START_ITR			648 /* ~6000 ints/sec */
-
 /* Flags definitions */
 #define IGC_FLAG_HAS_MSI		BIT(0)
 #define IGC_FLAG_QUEUE_PAIRS		BIT(3)
@@ -270,6 +267,7 @@ extern char igc_driver_version[];
 #define IGC_MRQC_RSS_FIELD_IPV4_UDP	0x00400000
 #define IGC_MRQC_RSS_FIELD_IPV6_UDP	0x00800000
 
+/* Interrupt defines */
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
 #define IGC_4K_ITR			980
 #define IGC_20K_ITR			196
