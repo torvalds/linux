@@ -380,7 +380,7 @@ struct svc_deferred_req {
 	struct cache_deferred_req handle;
 	size_t			xprt_hlen;
 	int			argslen;
-	__be32			args[0];
+	__be32			args[];
 };
 
 struct svc_process_info {
