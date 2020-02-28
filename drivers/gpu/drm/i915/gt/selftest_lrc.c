@@ -4015,6 +4015,32 @@ static int emit_semaphore_signal(struct intel_context *ce, void *slot)
 	return 0;
 }
 
+static int context_flush(struct intel_context *ce, long timeout)
+{
+	struct i915_request *rq;
+	struct dma_fence *fence;
+	int err = 0;
+
+	rq = intel_engine_create_kernel_request(ce->engine);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	fence = i915_active_fence_get(&ce->timeline->last_request);
+	if (fence) {
+		i915_request_await_dma_fence(rq, fence);
+		dma_fence_put(fence);
+	}
+
+	rq = i915_request_get(rq);
+	i915_request_add(rq);
+	if (i915_request_wait(rq, 0, timeout) < 0)
+		err = -ETIME;
+	i915_request_put(rq);
+
+	rmb(); /* We know the request is written, make sure all state is too! */
+	return err;
+}
+
 static int live_lrc_layout(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -4638,18 +4664,10 @@ static int __lrc_timestamp(const struct lrc_timestamp *arg, bool preempt)
 		wmb();
 	}
 
-	if (i915_request_wait(rq, 0, HZ / 2) < 0) {
-		err = -ETIME;
+	/* And wait for switch to kernel (to save our context to memory) */
+	err = context_flush(arg->ce[0], HZ / 2);
+	if (err)
 		goto err;
-	}
-
-	/* and wait for switch to kernel */
-	if (igt_flush_test(arg->engine->i915)) {
-		err = -EIO;
-		goto err;
-	}
-
-	rmb();
 
 	if (!timestamp_advanced(arg->poison, slot[1])) {
 		pr_err("%s(%s): invalid timestamp on restore, context:%x, request:%x\n",
