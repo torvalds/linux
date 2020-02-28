@@ -35,6 +35,8 @@
 #include <asm/tlb.h>
 #include <asm/cpuidle_haltpoll.h>
 
+DEFINE_STATIC_KEY_FALSE(kvm_async_pf_enabled);
+
 static int kvmapf = 1;
 
 static int __init parse_no_kvmapf(char *arg)
@@ -242,25 +244,27 @@ u32 kvm_read_and_reset_pf_reason(void)
 EXPORT_SYMBOL_GPL(kvm_read_and_reset_pf_reason);
 NOKPROBE_SYMBOL(kvm_read_and_reset_pf_reason);
 
-dotraplinkage void
-do_async_page_fault(struct pt_regs *regs, unsigned long error_code, unsigned long address)
+bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 {
+	/*
+	 * If we get a page fault right here, the pf_reason seems likely
+	 * to be clobbered.  Bummer.
+	 */
 	switch (kvm_read_and_reset_pf_reason()) {
 	default:
-		do_page_fault(regs, error_code, address);
-		break;
+		return false;
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:
 		/* page is swapped out by the host. */
-		kvm_async_pf_task_wait((u32)address, !user_mode(regs));
-		break;
+		kvm_async_pf_task_wait(token, !user_mode(regs));
+		return true;
 	case KVM_PV_REASON_PAGE_READY:
 		rcu_irq_enter();
-		kvm_async_pf_task_wake((u32)address);
+		kvm_async_pf_task_wake(token);
 		rcu_irq_exit();
-		break;
+		return true;
 	}
 }
-NOKPROBE_SYMBOL(do_async_page_fault);
+NOKPROBE_SYMBOL(__kvm_handle_async_pf);
 
 static void __init paravirt_ops_setup(void)
 {
@@ -306,7 +310,11 @@ static notrace void kvm_guest_apic_eoi_write(u32 reg, u32 val)
 static void kvm_guest_cpu_init(void)
 {
 	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF) && kvmapf) {
-		u64 pa = slow_virt_to_phys(this_cpu_ptr(&apf_reason));
+		u64 pa;
+
+		WARN_ON_ONCE(!static_branch_likely(&kvm_async_pf_enabled));
+
+		pa = slow_virt_to_phys(this_cpu_ptr(&apf_reason));
 
 #ifdef CONFIG_PREEMPTION
 		pa |= KVM_ASYNC_PF_SEND_ALWAYS;
@@ -592,12 +600,6 @@ static int kvm_cpu_down_prepare(unsigned int cpu)
 }
 #endif
 
-static void __init kvm_apf_trap_init(void)
-{
-	update_intr_gate(X86_TRAP_PF, async_page_fault);
-}
-
-
 static void kvm_flush_tlb_others(const struct cpumask *cpumask,
 			const struct flush_tlb_info *info)
 {
@@ -632,8 +634,6 @@ static void __init kvm_guest_init(void)
 	register_reboot_notifier(&kvm_pv_reboot_nb);
 	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++)
 		raw_spin_lock_init(&async_pf_sleepers[i].lock);
-	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF))
-		x86_init.irqs.trap_init = kvm_apf_trap_init;
 
 	if (kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
 		has_steal_clock = 1;
@@ -648,6 +648,9 @@ static void __init kvm_guest_init(void)
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
 		apic_set_eoi_write(kvm_guest_apic_eoi_write);
+
+	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF) && kvmapf)
+		static_branch_enable(&kvm_async_pf_enabled);
 
 #ifdef CONFIG_SMP
 	smp_ops.smp_prepare_cpus = kvm_smp_prepare_cpus;

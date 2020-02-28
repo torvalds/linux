@@ -91,8 +91,18 @@ unsigned int kvm_arch_para_hints(void);
 void kvm_async_pf_task_wait(u32 token, int interrupt_kernel);
 void kvm_async_pf_task_wake(u32 token);
 u32 kvm_read_and_reset_pf_reason(void);
-extern void kvm_disable_steal_time(void);
-void do_async_page_fault(struct pt_regs *regs, unsigned long error_code, unsigned long address);
+void kvm_disable_steal_time(void);
+bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token);
+
+DECLARE_STATIC_KEY_FALSE(kvm_async_pf_enabled);
+
+static __always_inline bool kvm_handle_async_pf(struct pt_regs *regs, u32 token)
+{
+	if (static_branch_unlikely(&kvm_async_pf_enabled))
+		return __kvm_handle_async_pf(regs, token);
+	else
+		return false;
+}
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 void __init kvm_spinlock_init(void);
@@ -129,6 +139,11 @@ static inline u32 kvm_read_and_reset_pf_reason(void)
 static inline void kvm_disable_steal_time(void)
 {
 	return;
+}
+
+static inline bool kvm_handle_async_pf(struct pt_regs *regs, u32 token)
+{
+	return false;
 }
 #endif
 
