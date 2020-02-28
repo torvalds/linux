@@ -181,7 +181,7 @@ int set_selection_user(const struct tiocl_selection __user *sel,
 	return set_selection_kernel(&v, tty);
 }
 
-int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
+static int __set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
 	int new_sel_start, new_sel_end, spc;
@@ -341,6 +341,17 @@ int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
 	sel_buffer_lth = bp - sel_buffer;
 unlock:
 	mutex_unlock(&sel_lock);
+	return ret;
+}
+
+int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
+{
+	int ret;
+
+	console_lock();
+	ret = __set_selection_kernel(v, tty);
+	console_unlock();
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(set_selection_kernel);
