@@ -1379,6 +1379,9 @@ void cnstr_shdsc_skcipher_encap(u32 * const desc, struct alginfo *cdata,
 				const u32 ctx1_iv_off)
 {
 	u32 *key_jump_cmd;
+	u32 options = cdata->algtype | OP_ALG_AS_INIT | OP_ALG_ENCRYPT;
+	bool is_chacha20 = ((cdata->algtype & OP_ALG_ALGSEL_MASK) ==
+			    OP_ALG_ALGSEL_CHACHA20);
 
 	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
 	/* Skip if already shared */
@@ -1417,14 +1420,15 @@ void cnstr_shdsc_skcipher_encap(u32 * const desc, struct alginfo *cdata,
 				      LDST_OFFSET_SHIFT));
 
 	/* Load operation */
-	append_operation(desc, cdata->algtype | OP_ALG_AS_INIT |
-			 OP_ALG_ENCRYPT);
+	if (is_chacha20)
+		options |= OP_ALG_AS_FINALIZE;
+	append_operation(desc, options);
 
 	/* Perform operation */
 	skcipher_append_src_dst(desc);
 
 	/* Store IV */
-	if (ivsize)
+	if (!is_chacha20 && ivsize)
 		append_seq_store(desc, ivsize, LDST_SRCDST_BYTE_CONTEXT |
 				 LDST_CLASS_1_CCB | (ctx1_iv_off <<
 				 LDST_OFFSET_SHIFT));
@@ -1451,6 +1455,8 @@ void cnstr_shdsc_skcipher_decap(u32 * const desc, struct alginfo *cdata,
 				const u32 ctx1_iv_off)
 {
 	u32 *key_jump_cmd;
+	bool is_chacha20 = ((cdata->algtype & OP_ALG_ALGSEL_MASK) ==
+			    OP_ALG_ALGSEL_CHACHA20);
 
 	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
 	/* Skip if already shared */
@@ -1499,7 +1505,7 @@ void cnstr_shdsc_skcipher_decap(u32 * const desc, struct alginfo *cdata,
 	skcipher_append_src_dst(desc);
 
 	/* Store IV */
-	if (ivsize)
+	if (!is_chacha20 && ivsize)
 		append_seq_store(desc, ivsize, LDST_SRCDST_BYTE_CONTEXT |
 				 LDST_CLASS_1_CCB | (ctx1_iv_off <<
 				 LDST_OFFSET_SHIFT));
