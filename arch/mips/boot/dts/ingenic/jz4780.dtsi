@@ -358,11 +358,12 @@
 	};
 
 	nemc: nemc@13410000 {
-		compatible = "ingenic,jz4780-nemc";
+		compatible = "ingenic,jz4780-nemc", "simple-mfd";
 		reg = <0x13410000 0x10000>;
 		#address-cells = <2>;
 		#size-cells = <1>;
-		ranges = <1 0 0x1b000000 0x1000000
+		ranges = <0 0 0x13410000 0x10000
+			  1 0 0x1b000000 0x1000000
 			  2 0 0x1a000000 0x1000000
 			  3 0 0x19000000 0x1000000
 			  4 0 0x18000000 0x1000000
@@ -372,6 +373,20 @@
 		clocks = <&cgu JZ4780_CLK_NEMC>;
 
 		status = "disabled";
+
+		efuse: efuse@d0 {
+			reg = <0 0xd0 0x30>;
+			compatible = "ingenic,jz4780-efuse";
+
+			clocks = <&cgu JZ4780_CLK_AHB2>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			eth0_addr: eth-mac-addr@0x22 {
+				reg = <0x22 0x6>;
+			};
+		};
 	};
 
 	dma: dma@13420000 {
