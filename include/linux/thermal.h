@@ -139,6 +139,8 @@ struct thermal_cooling_device {
 	struct mutex lock; /* protect thermal_instances list */
 	struct list_head thermal_instances;
 	struct list_head node;
+	unsigned long sysfs_cur_state_req;
+	unsigned long sysfs_min_state_req;
 };
 
 struct thermal_attr {
