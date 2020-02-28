@@ -312,7 +312,7 @@ static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 		 */
 		ext->use_map = 1;
 		ext->dsn64 = 1;
-		ext->data_seq = mptcp_sk(subflow->conn)->write_seq;
+		ext->data_seq = subflow->data_fin_tx_seq;
 		ext->subflow_seq = 0;
 		ext->data_len = 1;
 	} else {
@@ -354,8 +354,7 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 		if (mpext)
 			opts->ext_copy = *mpext;
 
-		if (skb && tcp_fin &&
-		    subflow->conn->sk_state != TCP_ESTABLISHED)
+		if (skb && tcp_fin && subflow->data_fin_tx_enable)
 			mptcp_write_data_fin(subflow, &opts->ext_copy);
 		ret = true;
 	}
