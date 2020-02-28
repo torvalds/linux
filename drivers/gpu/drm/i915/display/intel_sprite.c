@@ -283,6 +283,16 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	bool rotated = drm_rotation_90_or_270(plane_state->hw.rotation);
 
 	/*
+	 * FIXME hsub/vsub vs. block size is a mess. Pre-tgl CCS
+	 * abuses hsub/vsub so we can't use them here. But as they
+	 * are limited to 32bpp RGB formats we don't actually need
+	 * to check anything.
+	 */
+	if (fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
+	    fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS)
+		return 0;
+
+	/*
 	 * Hardware doesn't handle subpixel coordinates.
 	 * Adjust to (macro)pixel boundary, but be careful not to
 	 * increase the source viewport size, because that could
@@ -296,26 +306,26 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	drm_rect_init(src, src_x << 16, src_y << 16,
 		      src_w << 16, src_h << 16);
 
-	if (!fb->format->is_yuv)
-		return 0;
-
-	/* YUV specific checks */
-	if (!rotated) {
+	if (fb->format->format == DRM_FORMAT_RGB565 && rotated) {
+		hsub = 2;
+		vsub = 2;
+	} else {
 		hsub = fb->format->hsub;
 		vsub = fb->format->vsub;
-	} else {
-		hsub = vsub = max(fb->format->hsub, fb->format->vsub);
 	}
 
+	if (rotated)
+		hsub = vsub = max(hsub, vsub);
+
 	if (src_x % hsub || src_w % hsub) {
-		DRM_DEBUG_KMS("src x/w (%u, %u) must be a multiple of %u for %sYUV planes\n",
-			      src_x, src_w, hsub, rotated ? "rotated " : "");
+		DRM_DEBUG_KMS("src x/w (%u, %u) must be a multiple of %u (rotated: %s)\n",
+			      src_x, src_w, hsub, yesno(rotated));
 		return -EINVAL;
 	}
 
 	if (src_y % vsub || src_h % vsub) {
-		DRM_DEBUG_KMS("src y/h (%u, %u) must be a multiple of %u for %sYUV planes\n",
-			      src_y, src_h, vsub, rotated ? "rotated " : "");
+		DRM_DEBUG_KMS("src y/h (%u, %u) must be a multiple of %u (rotated: %s)\n",
+			      src_y, src_h, vsub, yesno(rotated));
 		return -EINVAL;
 	}
 
