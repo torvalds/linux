@@ -39,6 +39,10 @@ docs:
 	cp -r $(KDIR)/Documentation/output/slides/teaching/_static $(KDIR)/Documentation/output/teaching/
 
 clean::
-	-rm -rf skels
+	$(MAKE) -C $(KDIR) M=$(KDIR)/tools/labs/skels ARCH=$(ARCH) clean
+	for i in $(shell find skels -name Makefile | xargs --no-run-if-empty dirname); do $(MAKE) -C $$i clean; done
 
-.PHONY: skels build copy docs clean
+clean_skels:
+	rm -rf skels
+
+.PHONY: skels build copy docs clean clean_skels
