@@ -1476,7 +1476,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 {
 	int index, quirks;
 	int retval;
-	struct Scsi_Host *host;
+	struct Scsi_Host *host = aac->scsi_host_ptr;
 	struct scsi_device *dev;
 	int jafo = 0;
 	int bled;
@@ -1493,8 +1493,6 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 *	- The card is dead, or will be very shortly ;-/ so no new
 	 *	  commands are completing in the interrupt service.
 	 */
-	host = aac->scsi_host_ptr;
-	scsi_block_requests(host);
 	aac_adapter_disable_int(aac);
 	if (aac->thread && aac->thread->pid != current->pid) {
 		spin_unlock_irq(host->host_lock);
@@ -1619,7 +1617,6 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 
 out:
 	aac->in_reset = 0;
-	scsi_unblock_requests(host);
 
 	/*
 	 * Issue bus rescan to catch any configuration that might have
@@ -1640,7 +1637,7 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 {
 	unsigned long flagv = 0;
 	int retval;
-	struct Scsi_Host * host;
+	struct Scsi_Host *host = aac->scsi_host_ptr;
 	int bled;
 
 	if (spin_trylock_irqsave(&aac->fib_lock, flagv) == 0)
@@ -1658,7 +1655,6 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 * target (block maximum 60 seconds). Although not necessary,
 	 * it does make us a good storage citizen.
 	 */
-	host = aac->scsi_host_ptr;
 	scsi_block_requests(host);
 
 	/* Quiesce build, flush cache, write through mode */
@@ -1669,6 +1665,8 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 			(aac_check_reset != 0 && aac_check_reset != 1);
 	retval = _aac_reset_adapter(aac, bled, reset_type);
 	spin_unlock_irqrestore(host->host_lock, flagv);
+
+	scsi_unblock_requests(host);
 
 	if ((forced < 2) && (retval == -ENODEV)) {
 		/* Unwind aac_send_shutdown() IOP_RESET unsupported/disabled */
