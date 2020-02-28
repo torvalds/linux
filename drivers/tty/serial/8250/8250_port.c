@@ -3204,6 +3204,7 @@ static void serial8250_console_restore(struct uart_8250_port *up)
 void serial8250_console_write(struct uart_8250_port *up, const char *s,
 			      unsigned int count)
 {
+	struct uart_8250_em485 *em485 = up->em485;
 	struct uart_port *port = &up->port;
 	unsigned long flags;
 	unsigned int ier;
@@ -3234,6 +3235,12 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
 		up->canary = 0;
 	}
 
+	if (em485) {
+		if (em485->tx_stopped)
+			up->rs485_start_tx(up);
+		mdelay(port->rs485.delay_rts_before_send);
+	}
+
 	uart_console_write(port, s, count, serial8250_console_putchar);
 
 	/*
@@ -3242,6 +3249,12 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
 	 */
 	wait_for_xmitr(up, BOTH_EMPTY);
 	serial_port_out(port, UART_IER, ier);
+
+	if (em485) {
+		mdelay(port->rs485.delay_rts_before_send);
+		if (em485->tx_stopped)
+			up->rs485_stop_tx(up);
+	}
 
 	/*
 	 *	The receive handling will happen properly because the
