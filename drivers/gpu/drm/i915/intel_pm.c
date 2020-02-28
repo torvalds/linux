@@ -5124,12 +5124,15 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 	const u16 trans_amount = 10; /* This is configurable amount */
 	u16 wm0_sel_res_b, trans_offset_b, res_blocks;
 
-	/* Transition WM are not recommended by HW team for GEN9 */
-	if (INTEL_GEN(dev_priv) <= 9)
-		return;
-
 	/* Transition WM don't make any sense if ipc is disabled */
 	if (!dev_priv->ipc_enabled)
+		return;
+
+	/*
+	 * WaDisableTWM:skl,kbl,cfl,bxt
+	 * Transition WM are not recommended by HW team for GEN9
+	 */
+	if (IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv))
 		return;
 
 	trans_min = 14;
