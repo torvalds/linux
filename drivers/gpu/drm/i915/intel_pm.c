@@ -5404,8 +5404,12 @@ static bool skl_plane_wm_equals(struct drm_i915_private *dev_priv,
 	int level, max_level = ilk_wm_max_level(dev_priv);
 
 	for (level = 0; level <= max_level; level++) {
-		if (!skl_wm_level_equals(&wm1->wm[level], &wm2->wm[level]) ||
-		    !skl_wm_level_equals(&wm1->uv_wm[level], &wm2->uv_wm[level]))
+		/*
+		 * We don't check uv_wm as the hardware doesn't actually
+		 * use it. It only gets used for calculating the required
+		 * ddb allocation.
+		 */
+		if (!skl_wm_level_equals(&wm1->wm[level], &wm2->wm[level]))
 			return false;
 	}
 
