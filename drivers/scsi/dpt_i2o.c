@@ -2173,7 +2173,7 @@ static irqreturn_t adpt_isr(int irq, void *dev_id)
 						 readl(reply + 12) - 1);
 			if(cmd != NULL){
 				scsi_dma_unmap(cmd);
-				adpt_i2o_to_scsi(reply, cmd);
+				adpt_i2o_scsi_complete(reply, cmd);
 			}
 		}
 		writel(m, pHba->reply_port);
@@ -2341,7 +2341,7 @@ static s32 adpt_scsi_host_alloc(adpt_hba* pHba, struct scsi_host_template *sht)
 }
 
 
-static s32 adpt_i2o_to_scsi(void __iomem *reply, struct scsi_cmnd* cmd)
+static void adpt_i2o_scsi_complete(void __iomem *reply, struct scsi_cmnd *cmd)
 {
 	adpt_hba* pHba;
 	u32 hba_status;
@@ -2459,7 +2459,6 @@ static s32 adpt_i2o_to_scsi(void __iomem *reply, struct scsi_cmnd* cmd)
 	if(cmd->scsi_done != NULL){
 		cmd->scsi_done(cmd);
 	} 
-	return cmd->result;
 }
 
 
