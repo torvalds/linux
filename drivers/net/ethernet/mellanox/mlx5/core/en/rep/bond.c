@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2020 Mellanox Technologies Inc. All rights reserved. */
 
+#include <linux/netdevice.h>
+#include <linux/list.h>
 #include <net/lag.h>
 
 #include "mlx5_core.h"
@@ -11,7 +13,131 @@
 struct mlx5e_rep_bond {
 	struct notifier_block nb;
 	struct netdev_net_notifier nn;
+	struct list_head metadata_list;
 };
+
+struct mlx5e_rep_bond_slave_entry {
+	struct list_head list;
+	struct net_device *netdev;
+};
+
+struct mlx5e_rep_bond_metadata {
+	struct list_head list; /* link to global list of rep_bond_metadata */
+	struct mlx5_eswitch *esw;
+	 /* private of uplink holding rep bond metadata list */
+	struct net_device *lag_dev;
+	u32 metadata_reg_c_0;
+
+	struct list_head slaves_list; /* slaves list */
+	int slaves;
+};
+
+static struct mlx5e_rep_bond_metadata *
+mlx5e_lookup_rep_bond_metadata(struct mlx5_rep_uplink_priv *uplink_priv,
+			       const struct net_device *lag_dev)
+{
+	struct mlx5e_rep_bond_metadata *found = NULL;
+	struct mlx5e_rep_bond_metadata *cur;
+
+	list_for_each_entry(cur, &uplink_priv->bond->metadata_list, list) {
+		if (cur->lag_dev == lag_dev) {
+			found = cur;
+			break;
+		}
+	}
+
+	return found;
+}
+
+static struct mlx5e_rep_bond_slave_entry *
+mlx5e_lookup_rep_bond_slave_entry(struct mlx5e_rep_bond_metadata *mdata,
+				  const struct net_device *netdev)
+{
+	struct mlx5e_rep_bond_slave_entry *found = NULL;
+	struct mlx5e_rep_bond_slave_entry *cur;
+
+	list_for_each_entry(cur, &mdata->slaves_list, list) {
+		if (cur->netdev == netdev) {
+			found = cur;
+			break;
+		}
+	}
+
+	return found;
+}
+
+static void mlx5e_rep_bond_metadata_release(struct mlx5e_rep_bond_metadata *mdata)
+{
+	netdev_dbg(mdata->lag_dev, "destroy rep_bond_metadata(%d)\n",
+		   mdata->metadata_reg_c_0);
+	list_del(&mdata->list);
+	WARN_ON(!list_empty(&mdata->slaves_list));
+	kfree(mdata);
+}
+
+/* This must be called under rtnl_lock */
+int mlx5e_rep_bond_enslave(struct mlx5_eswitch *esw, struct net_device *netdev,
+			   struct net_device *lag_dev)
+{
+	struct mlx5e_rep_bond_slave_entry *s_entry;
+	struct mlx5e_rep_bond_metadata *mdata;
+	struct mlx5e_rep_priv *rpriv;
+
+	ASSERT_RTNL();
+
+	rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+	mdata = mlx5e_lookup_rep_bond_metadata(&rpriv->uplink_priv, lag_dev);
+	if (!mdata) {
+		/* First netdev becomes slave, no metadata presents the lag_dev. Create one */
+		mdata = kzalloc(sizeof(*mdata), GFP_KERNEL);
+		if (!mdata)
+			return -ENOMEM;
+
+		mdata->lag_dev = lag_dev;
+		mdata->esw = esw;
+		INIT_LIST_HEAD(&mdata->slaves_list);
+		list_add(&mdata->list, &rpriv->uplink_priv.bond->metadata_list);
+
+		netdev_dbg(lag_dev, "create rep_bond_metadata(%d)\n",
+			   mdata->metadata_reg_c_0);
+	}
+
+	s_entry = kzalloc(sizeof(*s_entry), GFP_KERNEL);
+	if (!s_entry)
+		return -ENOMEM;
+
+	s_entry->netdev = netdev;
+	mdata->slaves++;
+	list_add_tail(&s_entry->list, &mdata->slaves_list);
+
+	return 0;
+}
+
+/* This must be called under rtnl_lock */
+void mlx5e_rep_bond_unslave(struct mlx5_eswitch *esw,
+			    const struct net_device *netdev,
+			    const struct net_device *lag_dev)
+{
+	struct mlx5e_rep_bond_slave_entry *s_entry;
+	struct mlx5e_rep_bond_metadata *mdata;
+	struct mlx5e_rep_priv *rpriv;
+
+	ASSERT_RTNL();
+
+	rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+	mdata = mlx5e_lookup_rep_bond_metadata(&rpriv->uplink_priv, lag_dev);
+	if (!mdata)
+		return;
+
+	s_entry = mlx5e_lookup_rep_bond_slave_entry(mdata, netdev);
+	if (!s_entry)
+		return;
+
+	list_del(&s_entry->list);
+	if (--mdata->slaves == 0)
+		mlx5e_rep_bond_metadata_release(mdata);
+	kfree(s_entry);
+}
 
 static bool mlx5e_rep_is_lag_netdev(struct net_device *netdev)
 {
@@ -133,6 +259,7 @@ int mlx5e_rep_bond_init(struct mlx5e_rep_priv *rpriv)
 		goto out;
 	}
 
+	INIT_LIST_HEAD(&uplink_priv->bond->metadata_list);
 	uplink_priv->bond->nb.notifier_call = mlx5e_rep_esw_bond_netevent;
 	ret = register_netdevice_notifier_dev_net(netdev,
 						  &uplink_priv->bond->nb,
@@ -142,6 +269,7 @@ int mlx5e_rep_bond_init(struct mlx5e_rep_priv *rpriv)
 		kvfree(uplink_priv->bond);
 		uplink_priv->bond = NULL;
 	}
+
 out:
 	return ret;
 }
