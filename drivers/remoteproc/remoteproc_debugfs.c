@@ -146,6 +146,8 @@ rproc_recovery_write(struct file *filp, const char __user *user_buf,
 	} else if (!strncmp(buf, "recover", count)) {
 		/* begin the recovery process without changing the flag */
 		rproc_trigger_recovery(rproc);
+	} else {
+		return -EINVAL;
 	}
 
 	return count;
