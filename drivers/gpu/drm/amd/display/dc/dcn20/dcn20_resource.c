@@ -2568,38 +2568,25 @@ int dcn20_validate_apply_pipe_split_flags(
 		bool *split)
 {
 	int i, pipe_idx, vlevel_split;
+	int plane_count = 0;
 	bool force_split = false;
-	bool avoid_split = dc->debug.pipe_split_policy != MPC_SPLIT_DYNAMIC;
+	bool avoid_split = dc->debug.pipe_split_policy == MPC_SPLIT_AVOID;
 
-	/* Single display loop, exits if there is more than one display */
+	if (context->stream_count > 1) {
+		if (dc->debug.pipe_split_policy == MPC_SPLIT_AVOID_MULT_DISP)
+			avoid_split = true;
+	} else if (dc->debug.force_single_disp_pipe_split)
+			force_split = true;
+
+	/* TODO: fix dc bugs and remove this split threshold thing */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-		bool exit_loop = false;
 
-		if (!pipe->stream || pipe->top_pipe)
-			continue;
-
-		if (dc->debug.force_single_disp_pipe_split) {
-			if (!force_split)
-				force_split = true;
-			else {
-				force_split = false;
-				exit_loop = true;
-			}
-		}
-		if (dc->debug.pipe_split_policy == MPC_SPLIT_AVOID_MULT_DISP) {
-			if (avoid_split)
-				avoid_split = false;
-			else {
-				avoid_split = true;
-				exit_loop = true;
-			}
-		}
-		if (exit_loop)
-			break;
+		if (pipe->stream && !pipe->prev_odm_pipe &&
+				(!pipe->top_pipe || pipe->top_pipe->plane_state != pipe->plane_state))
+			++plane_count;
 	}
-	/* TODO: fix dc bugs and remove this split threshold thing */
-	if (context->stream_count > dc->res_pool->pipe_count / 2)
+	if (plane_count > dc->res_pool->pipe_count / 2)
 		avoid_split = true;
 
 	/* Avoid split loop looks for lowest voltage level that allows most unsplit pipes possible */
