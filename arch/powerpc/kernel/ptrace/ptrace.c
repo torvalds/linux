@@ -274,17 +274,15 @@ int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
 	if (regno == PT_DSCR)
 		return get_user_dscr(task, data);
 
-#ifdef CONFIG_PPC64
 	/*
 	 * softe copies paca->irq_soft_mask variable state. Since irq_soft_mask is
 	 * no more used as a flag, lets force usr to alway see the softe value as 1
 	 * which means interrupts are not soft disabled.
 	 */
-	if (regno == PT_SOFTE) {
+	if (IS_ENABLED(CONFIG_PPC64) && regno == PT_SOFTE) {
 		*data = 1;
 		return  0;
 	}
-#endif
 
 	regs_max = sizeof(struct user_pt_regs) / sizeof(unsigned long);
 	if (regno < regs_max) {
@@ -1998,7 +1996,6 @@ static const struct user_regset_view user_ppc_native_view = {
 	.regsets = native_regsets, .n = ARRAY_SIZE(native_regsets)
 };
 
-#ifdef CONFIG_PPC64
 #include <linux/compat.h>
 
 static int gpr32_get_common(struct task_struct *target,
@@ -2272,14 +2269,11 @@ static const struct user_regset_view user_ppc_compat_view = {
 	.name = "ppc", .e_machine = EM_PPC, .ei_osabi = ELF_OSABI,
 	.regsets = compat_regsets, .n = ARRAY_SIZE(compat_regsets)
 };
-#endif	/* CONFIG_PPC64 */
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
-#ifdef CONFIG_PPC64
-	if (test_tsk_thread_flag(task, TIF_32BIT))
+	if (IS_ENABLED(CONFIG_PPC64) && test_tsk_thread_flag(task, TIF_32BIT))
 		return &user_ppc_compat_view;
-#endif
 	return &user_ppc_native_view;
 }
 
@@ -3063,11 +3057,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		else
 			dbginfo.num_data_bps = 0;
 		dbginfo.num_condition_regs = 0;
-#ifdef CONFIG_PPC64
-		dbginfo.data_bp_alignment = 8;
-#else
-		dbginfo.data_bp_alignment = 4;
-#endif
+		dbginfo.data_bp_alignment = sizeof(long);
 		dbginfo.sizeof_condition = 0;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		dbginfo.features = PPC_DEBUG_FEATURE_DATA_BP_RANGE;
@@ -3304,12 +3294,10 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->gpr[0]);
 
-#ifdef CONFIG_PPC64
 	if (!is_32bit_task())
 		audit_syscall_entry(regs->gpr[0], regs->gpr[3], regs->gpr[4],
 				    regs->gpr[5], regs->gpr[6]);
 	else
-#endif
 		audit_syscall_entry(regs->gpr[0],
 				    regs->gpr[3] & 0xffffffff,
 				    regs->gpr[4] & 0xffffffff,
