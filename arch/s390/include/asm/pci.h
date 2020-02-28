@@ -108,6 +108,7 @@ struct zpci_dev {
 	u8		pfgid;		/* function group ID */
 	u8		pft;		/* pci function type */
 	u16		domain;
+	u8		port;
 
 	struct mutex lock;
 	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
