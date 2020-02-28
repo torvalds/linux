@@ -300,6 +300,22 @@
 	supports-sd;
 };
 
+&sdio0 {
+	status = "okay";
+	max-frequency = <150000000>;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk &sdio0_int>;
+	sd-uhs-sdr104;
+	supports-sdio;
+};
+
 &gmac {
 	phy-supply = <&vcc_phy>;
 	phy-mode = "rgmii";
