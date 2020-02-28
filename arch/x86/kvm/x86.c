@@ -7190,15 +7190,15 @@ static void kvm_timer_init(void)
 
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
 #ifdef CONFIG_CPU_FREQ
-		struct cpufreq_policy policy;
+		struct cpufreq_policy *policy;
 		int cpu;
 
-		memset(&policy, 0, sizeof(policy));
 		cpu = get_cpu();
-		cpufreq_get_policy(&policy, cpu);
-		if (policy.cpuinfo.max_freq)
-			max_tsc_khz = policy.cpuinfo.max_freq;
+		policy = cpufreq_cpu_get(cpu);
+		if (policy && policy->cpuinfo.max_freq)
+			max_tsc_khz = policy->cpuinfo.max_freq;
 		put_cpu();
+		cpufreq_cpu_put(policy);
 #endif
 		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
 					  CPUFREQ_TRANSITION_NOTIFIER);
