@@ -349,11 +349,17 @@ static void tc358764_enable(struct drm_bridge *bridge)
 		dev_err(ctx->dev, "error enabling panel (%d)\n", ret);
 }
 
-static int tc358764_attach(struct drm_bridge *bridge)
+static int tc358764_attach(struct drm_bridge *bridge,
+			   enum drm_bridge_attach_flags flags)
 {
 	struct tc358764 *ctx = bridge_to_tc358764(bridge);
 	struct drm_device *drm = bridge->dev;
 	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	ctx->connector.polled = DRM_CONNECTOR_POLL_HPD;
 	ret = drm_connector_init(drm, &ctx->connector,

@@ -174,12 +174,7 @@ static const struct of_device_id omapdss_of_match[] __initconst = {
 };
 
 static const struct of_device_id omapdss_of_fixups_whitelist[] __initconst = {
-	{ .compatible = "composite-video-connector" },
-	{ .compatible = "hdmi-connector" },
 	{ .compatible = "panel-dsi-cm" },
-	{ .compatible = "svideo-connector" },
-	{ .compatible = "ti,opa362" },
-	{ .compatible = "ti,tpd12s015" },
 	{},
 };
 

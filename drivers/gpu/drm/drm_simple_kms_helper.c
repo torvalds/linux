@@ -229,7 +229,7 @@ static const struct drm_plane_funcs drm_simple_kms_plane_funcs = {
 int drm_simple_display_pipe_attach_bridge(struct drm_simple_display_pipe *pipe,
 					  struct drm_bridge *bridge)
 {
-	return drm_bridge_attach(&pipe->encoder, bridge, NULL);
+	return drm_bridge_attach(&pipe->encoder, bridge, NULL, 0);
 }
 EXPORT_SYMBOL(drm_simple_display_pipe_attach_bridge);
 

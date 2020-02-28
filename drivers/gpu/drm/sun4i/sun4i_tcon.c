@@ -1501,6 +1501,7 @@ static const struct sun4i_tcon_quirks sun8i_a33_quirks = {
 	.has_lvds_alt		= true,
 	.dclk_min_div		= 1,
 	.setup_lvds_phy		= sun6i_tcon_setup_lvds_phy,
+	.supports_lvds		= true,
 };
 
 static const struct sun4i_tcon_quirks sun8i_a83t_lcd_quirks = {

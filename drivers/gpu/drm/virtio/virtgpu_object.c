@@ -95,7 +95,7 @@ static void virtio_gpu_free_object(struct drm_gem_object *obj)
 	virtio_gpu_cleanup_object(bo);
 }
 
-static const struct drm_gem_object_funcs virtio_gpu_gem_funcs = {
+static const struct drm_gem_object_funcs virtio_gpu_shmem_funcs = {
 	.free = virtio_gpu_free_object,
 	.open = virtio_gpu_gem_object_open,
 	.close = virtio_gpu_gem_object_close,
@@ -106,8 +106,13 @@ static const struct drm_gem_object_funcs virtio_gpu_gem_funcs = {
 	.get_sg_table = drm_gem_shmem_get_sg_table,
 	.vmap = drm_gem_shmem_vmap,
 	.vunmap = drm_gem_shmem_vunmap,
-	.mmap = &drm_gem_shmem_mmap,
+	.mmap = drm_gem_shmem_mmap,
 };
+
+bool virtio_gpu_is_shmem(struct drm_gem_object *obj)
+{
+	return obj->funcs == &virtio_gpu_shmem_funcs;
+}
 
 struct drm_gem_object *virtio_gpu_create_object(struct drm_device *dev,
 						size_t size)
@@ -118,7 +123,7 @@ struct drm_gem_object *virtio_gpu_create_object(struct drm_device *dev,
 	if (!bo)
 		return NULL;
 
-	bo->base.base.funcs = &virtio_gpu_gem_funcs;
+	bo->base.base.funcs = &virtio_gpu_shmem_funcs;
 	return &bo->base.base;
 }
 

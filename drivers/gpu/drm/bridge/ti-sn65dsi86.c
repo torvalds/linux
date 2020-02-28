@@ -266,7 +266,8 @@ static int ti_sn_bridge_parse_regulators(struct ti_sn_bridge *pdata)
 				       pdata->supplies);
 }
 
-static int ti_sn_bridge_attach(struct drm_bridge *bridge)
+static int ti_sn_bridge_attach(struct drm_bridge *bridge,
+			       enum drm_bridge_attach_flags flags)
 {
 	int ret, val;
 	struct ti_sn_bridge *pdata = bridge_to_ti_sn_bridge(bridge);
@@ -276,6 +277,11 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge)
 						   .channel = 0,
 						   .node = NULL,
 						 };
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	ret = drm_connector_init(bridge->dev, &pdata->connector,
 				 &ti_sn_bridge_connector_funcs,

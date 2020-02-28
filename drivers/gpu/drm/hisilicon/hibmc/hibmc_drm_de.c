@@ -40,6 +40,7 @@ struct hibmc_dislay_pll_config {
 };
 
 static const struct hibmc_dislay_pll_config hibmc_pll_table[] = {
+	{640, 480, CRT_PLL1_HS_25MHZ, CRT_PLL2_HS_25MHZ},
 	{800, 600, CRT_PLL1_HS_40MHZ, CRT_PLL2_HS_40MHZ},
 	{1024, 768, CRT_PLL1_HS_65MHZ, CRT_PLL2_HS_65MHZ},
 	{1152, 864, CRT_PLL1_HS_80MHZ_1152, CRT_PLL2_HS_80MHZ},
@@ -47,6 +48,8 @@ static const struct hibmc_dislay_pll_config hibmc_pll_table[] = {
 	{1280, 720, CRT_PLL1_HS_74MHZ, CRT_PLL2_HS_74MHZ},
 	{1280, 960, CRT_PLL1_HS_108MHZ, CRT_PLL2_HS_108MHZ},
 	{1280, 1024, CRT_PLL1_HS_108MHZ, CRT_PLL2_HS_108MHZ},
+	{1440, 900, CRT_PLL1_HS_106MHZ, CRT_PLL2_HS_106MHZ},
+	{1600, 900, CRT_PLL1_HS_108MHZ, CRT_PLL2_HS_108MHZ},
 	{1600, 1200, CRT_PLL1_HS_162MHZ, CRT_PLL2_HS_162MHZ},
 	{1920, 1080, CRT_PLL1_HS_148MHZ, CRT_PLL2_HS_148MHZ},
 	{1920, 1200, CRT_PLL1_HS_193MHZ, CRT_PLL2_HS_193MHZ},
@@ -238,6 +241,25 @@ static void hibmc_crtc_atomic_disable(struct drm_crtc *crtc,
 	reg |= HIBMC_CURR_GATE_LOCALMEM(0);
 	reg |= HIBMC_CURR_GATE_DISPLAY(0);
 	hibmc_set_current_gate(priv, reg);
+}
+
+static enum drm_mode_status
+hibmc_crtc_mode_valid(struct drm_crtc *crtc,
+		      const struct drm_display_mode *mode)
+{
+	int i = 0;
+	int vrefresh = drm_mode_vrefresh(mode);
+
+	if (vrefresh < 59 || vrefresh > 61)
+		return MODE_NOCLOCK;
+
+	for (i = 0; i < ARRAY_SIZE(hibmc_pll_table); i++) {
+		if (hibmc_pll_table[i].hdisplay == mode->hdisplay &&
+		    hibmc_pll_table[i].vdisplay == mode->vdisplay)
+			return MODE_OK;
+	}
+
+	return MODE_BAD;
 }
 
 static unsigned int format_pll_reg(void)
@@ -508,6 +530,7 @@ static const struct drm_crtc_helper_funcs hibmc_crtc_helper_funcs = {
 	.atomic_flush	= hibmc_crtc_atomic_flush,
 	.atomic_enable	= hibmc_crtc_atomic_enable,
 	.atomic_disable	= hibmc_crtc_atomic_disable,
+	.mode_valid = hibmc_crtc_mode_valid,
 };
 
 int hibmc_de_init(struct hibmc_drm_private *priv)

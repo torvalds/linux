@@ -178,7 +178,7 @@ int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 		goto fail;
 	}
 
-	ret = drm_bridge_attach(encoder, edp->bridge, NULL);
+	ret = drm_bridge_attach(encoder, edp->bridge, NULL, 0);
 	if (ret)
 		goto fail;
 
