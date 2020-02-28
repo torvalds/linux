@@ -25,7 +25,6 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 		return RX_HANDLER_PASS;
 	}
 
-	rcu_read_lock(); /* hsr->node_db, hsr->ports */
 	port = hsr_port_get_rcu(skb->dev);
 	if (!port)
 		goto finish_pass;
@@ -45,11 +44,9 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 	hsr_forward_skb(skb, port);
 
 finish_consume:
-	rcu_read_unlock(); /* hsr->node_db, hsr->ports */
 	return RX_HANDLER_CONSUMED;
 
 finish_pass:
-	rcu_read_unlock(); /* hsr->node_db, hsr->ports */
 	return RX_HANDLER_PASS;
 }
 

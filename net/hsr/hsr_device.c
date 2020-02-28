@@ -57,24 +57,19 @@ static void hsr_set_operstate(struct hsr_port *master, bool has_carrier)
 static bool hsr_check_carrier(struct hsr_port *master)
 {
 	struct hsr_port *port;
-	bool has_carrier;
 
-	has_carrier = false;
+	ASSERT_RTNL();
 
-	rcu_read_lock();
-	hsr_for_each_port(master->hsr, port)
+	hsr_for_each_port(master->hsr, port) {
 		if (port->type != HSR_PT_MASTER && is_slave_up(port->dev)) {
-			has_carrier = true;
-			break;
+			netif_carrier_on(master->dev);
+			return true;
 		}
-	rcu_read_unlock();
+	}
 
-	if (has_carrier)
-		netif_carrier_on(master->dev);
-	else
-		netif_carrier_off(master->dev);
+	netif_carrier_off(master->dev);
 
-	return has_carrier;
+	return false;
 }
 
 static void hsr_check_announce(struct net_device *hsr_dev,
@@ -118,11 +113,9 @@ int hsr_get_max_mtu(struct hsr_priv *hsr)
 	struct hsr_port *port;
 
 	mtu_max = ETH_DATA_LEN;
-	rcu_read_lock();
 	hsr_for_each_port(hsr, port)
 		if (port->type != HSR_PT_MASTER)
 			mtu_max = min(port->dev->mtu, mtu_max);
-	rcu_read_unlock();
 
 	if (mtu_max < HSR_HLEN)
 		return 0;
@@ -157,7 +150,6 @@ static int hsr_dev_open(struct net_device *dev)
 	hsr = netdev_priv(dev);
 	designation = '\0';
 
-	rcu_read_lock();
 	hsr_for_each_port(hsr, port) {
 		if (port->type == HSR_PT_MASTER)
 			continue;
@@ -175,7 +167,6 @@ static int hsr_dev_open(struct net_device *dev)
 			netdev_warn(dev, "Slave %c (%s) is not up; please bring it up to get a fully working HSR network\n",
 				    designation, port->dev->name);
 	}
-	rcu_read_unlock();
 
 	if (designation == '\0')
 		netdev_warn(dev, "No slave devices configured\n");

@@ -79,29 +79,20 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 
 static int hsr_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
-	struct hsr_priv *hsr;
+	struct hsr_priv *hsr = netdev_priv(dev);
 	struct hsr_port *port;
-	int res;
 
-	hsr = netdev_priv(dev);
-
-	res = 0;
-
-	rcu_read_lock();
 	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
-	if (port)
-		res = nla_put_u32(skb, IFLA_HSR_SLAVE1, port->dev->ifindex);
-	rcu_read_unlock();
-	if (res)
-		goto nla_put_failure;
+	if (port) {
+		if (nla_put_u32(skb, IFLA_HSR_SLAVE1, port->dev->ifindex))
+			goto nla_put_failure;
+	}
 
-	rcu_read_lock();
 	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
-	if (port)
-		res = nla_put_u32(skb, IFLA_HSR_SLAVE2, port->dev->ifindex);
-	rcu_read_unlock();
-	if (res)
-		goto nla_put_failure;
+	if (port) {
+		if (nla_put_u32(skb, IFLA_HSR_SLAVE2, port->dev->ifindex))
+			goto nla_put_failure;
+	}
 
 	if (nla_put(skb, IFLA_HSR_SUPERVISION_ADDR, ETH_ALEN,
 		    hsr->sup_multicast_addr) ||
