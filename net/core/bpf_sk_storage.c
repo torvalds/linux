@@ -60,7 +60,7 @@ struct bpf_sk_storage_data {
 	 * the number of cachelines access during the cache hit case.
 	 */
 	struct bpf_sk_storage_map __rcu *smap;
-	u8 data[0] __aligned(8);
+	u8 data[] __aligned(8);
 };
 
 /* Linked to bpf_sk_storage and bpf_sk_storage_map */
