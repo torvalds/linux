@@ -1748,16 +1748,24 @@ static struct dentry *follow_dotdot(struct nameidata *nd,
 	if (path_equal(&nd->path, &nd->root))
 		goto in_root;
 	if (unlikely(nd->path.dentry == nd->path.mnt->mnt_root)) {
+		struct path path = nd->path;
+		path_get(&path);
 		while (1) {
-			if (!follow_up(&nd->path))
+			if (!follow_up(&path)) {
+				path_put(&path);
 				goto in_root;
-			if (unlikely(nd->flags & LOOKUP_NO_XDEV))
-				return ERR_PTR(-EXDEV);
-			if (path_equal(&nd->path, &nd->root))
+			}
+			if (path_equal(&path, &nd->root)) {
+				path_put(&path);
 				goto in_root;
-			if (nd->path.dentry != nd->path.mnt->mnt_root)
+			}
+			if (path.dentry != nd->path.mnt->mnt_root)
 				break;
 		}
+		path_put(&nd->path);
+		nd->path = path;
+		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
+			return ERR_PTR(-EXDEV);
 	}
 	/* rare case of legitimate dget_parent()... */
 	parent = dget_parent(nd->path.dentry);
