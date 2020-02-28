@@ -50,6 +50,181 @@
 #define MLX5_ESW_MISS_FLOWS (2)
 #define UPLINK_REP_INDEX 0
 
+/* Per vport tables */
+
+#define MLX5_ESW_VPORT_TABLE_SIZE 128
+
+/* This struct is used as a key to the hash table and we need it to be packed
+ * so hash result is consistent
+ */
+struct mlx5_vport_key {
+	u32 chain;
+	u16 prio;
+	u16 vport;
+	u16 vhca_id;
+} __packed;
+
+struct mlx5_vport_table {
+	struct hlist_node hlist;
+	struct mlx5_flow_table *fdb;
+	u32 num_rules;
+	struct mlx5_vport_key key;
+};
+
+#define MLX5_ESW_VPORT_TBL_NUM_GROUPS  4
+
+static struct mlx5_flow_table *
+esw_vport_tbl_create(struct mlx5_eswitch *esw, struct mlx5_flow_namespace *ns)
+{
+	struct mlx5_flow_table_attr ft_attr = {};
+	struct mlx5_flow_table *fdb;
+
+	ft_attr.autogroup.max_num_groups = MLX5_ESW_VPORT_TBL_NUM_GROUPS;
+	ft_attr.max_fte = MLX5_ESW_VPORT_TABLE_SIZE;
+	ft_attr.prio = FDB_PER_VPORT;
+	fdb = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
+	if (IS_ERR(fdb)) {
+		esw_warn(esw->dev, "Failed to create per vport FDB Table err %ld\n",
+			 PTR_ERR(fdb));
+	}
+
+	return fdb;
+}
+
+static u32 flow_attr_to_vport_key(struct mlx5_eswitch *esw,
+				  struct mlx5_esw_flow_attr *attr,
+				  struct mlx5_vport_key *key)
+{
+	key->vport = attr->in_rep->vport;
+	key->chain = attr->chain;
+	key->prio = attr->prio;
+	key->vhca_id = MLX5_CAP_GEN(esw->dev, vhca_id);
+	return jhash(key, sizeof(*key), 0);
+}
+
+/* caller must hold vports.lock */
+static struct mlx5_vport_table *
+esw_vport_tbl_lookup(struct mlx5_eswitch *esw, struct mlx5_vport_key *skey, u32 key)
+{
+	struct mlx5_vport_table *e;
+
+	hash_for_each_possible(esw->fdb_table.offloads.vports.table, e, hlist, key)
+		if (!memcmp(&e->key, skey, sizeof(*skey)))
+			return e;
+
+	return NULL;
+}
+
+static void
+esw_vport_tbl_put(struct mlx5_eswitch *esw, struct mlx5_esw_flow_attr *attr)
+{
+	struct mlx5_vport_table *e;
+	struct mlx5_vport_key key;
+	u32 hkey;
+
+	mutex_lock(&esw->fdb_table.offloads.vports.lock);
+	hkey = flow_attr_to_vport_key(esw, attr, &key);
+	e = esw_vport_tbl_lookup(esw, &key, hkey);
+	if (!e || --e->num_rules)
+		goto out;
+
+	hash_del(&e->hlist);
+	mlx5_destroy_flow_table(e->fdb);
+	kfree(e);
+out:
+	mutex_unlock(&esw->fdb_table.offloads.vports.lock);
+}
+
+static struct mlx5_flow_table *
+esw_vport_tbl_get(struct mlx5_eswitch *esw, struct mlx5_esw_flow_attr *attr)
+{
+	struct mlx5_core_dev *dev = esw->dev;
+	struct mlx5_flow_namespace *ns;
+	struct mlx5_flow_table *fdb;
+	struct mlx5_vport_table *e;
+	struct mlx5_vport_key skey;
+	u32 hkey;
+
+	mutex_lock(&esw->fdb_table.offloads.vports.lock);
+	hkey = flow_attr_to_vport_key(esw, attr, &skey);
+	e = esw_vport_tbl_lookup(esw, &skey, hkey);
+	if (e) {
+		e->num_rules++;
+		goto out;
+	}
+
+	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	if (!e) {
+		fdb = ERR_PTR(-ENOMEM);
+		goto err_alloc;
+	}
+
+	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
+	if (!ns) {
+		esw_warn(dev, "Failed to get FDB namespace\n");
+		fdb = ERR_PTR(-ENOENT);
+		goto err_ns;
+	}
+
+	fdb = esw_vport_tbl_create(esw, ns);
+	if (IS_ERR(fdb))
+		goto err_ns;
+
+	e->fdb = fdb;
+	e->num_rules = 1;
+	e->key = skey;
+	hash_add(esw->fdb_table.offloads.vports.table, &e->hlist, hkey);
+out:
+	mutex_unlock(&esw->fdb_table.offloads.vports.lock);
+	return e->fdb;
+
+err_ns:
+	kfree(e);
+err_alloc:
+	mutex_unlock(&esw->fdb_table.offloads.vports.lock);
+	return fdb;
+}
+
+int mlx5_esw_vport_tbl_get(struct mlx5_eswitch *esw)
+{
+	struct mlx5_esw_flow_attr attr = {};
+	struct mlx5_eswitch_rep rep = {};
+	struct mlx5_flow_table *fdb;
+	struct mlx5_vport *vport;
+	int i;
+
+	attr.prio = 1;
+	attr.in_rep = &rep;
+	mlx5_esw_for_all_vports(esw, i, vport) {
+		attr.in_rep->vport = vport->vport;
+		fdb = esw_vport_tbl_get(esw, &attr);
+		if (!fdb)
+			goto out;
+	}
+	return 0;
+
+out:
+	mlx5_esw_vport_tbl_put(esw);
+	return PTR_ERR(fdb);
+}
+
+void mlx5_esw_vport_tbl_put(struct mlx5_eswitch *esw)
+{
+	struct mlx5_esw_flow_attr attr = {};
+	struct mlx5_eswitch_rep rep = {};
+	struct mlx5_vport *vport;
+	int i;
+
+	attr.prio = 1;
+	attr.in_rep = &rep;
+	mlx5_esw_for_all_vports(esw, i, vport) {
+		attr.in_rep->vport = vport->vport;
+		esw_vport_tbl_put(esw, &attr);
+	}
+}
+
+/* End: Per vport tables */
+
 static struct mlx5_eswitch_rep *mlx5_eswitch_get_rep(struct mlx5_eswitch *esw,
 						     u16 vport_num)
 {
@@ -191,8 +366,6 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		i++;
 	}
 
-	mlx5_eswitch_set_rule_source_port(esw, spec, attr);
-
 	if (attr->outer_match_level != MLX5_MATCH_NONE)
 		spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 	if (attr->inner_match_level != MLX5_MATCH_NONE)
@@ -201,8 +374,13 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		flow_act.modify_hdr = attr->modify_hdr;
 
-	fdb = mlx5_esw_chains_get_table(esw, attr->chain, attr->prio,
-					!!split);
+	if (split) {
+		fdb = esw_vport_tbl_get(esw, attr);
+	} else {
+		fdb = mlx5_esw_chains_get_table(esw, attr->chain, attr->prio,
+						0);
+		mlx5_eswitch_set_rule_source_port(esw, spec, attr);
+	}
 	if (IS_ERR(fdb)) {
 		rule = ERR_CAST(fdb);
 		goto err_esw_get;
@@ -221,7 +399,10 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	return rule;
 
 err_add_rule:
-	mlx5_esw_chains_put_table(esw, attr->chain, attr->prio, !!split);
+	if (split)
+		esw_vport_tbl_put(esw, attr);
+	else
+		mlx5_esw_chains_put_table(esw, attr->chain, attr->prio, 0);
 err_esw_get:
 	if (!(attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH) && attr->dest_chain)
 		mlx5_esw_chains_put_table(esw, attr->dest_chain, 1, 0);
@@ -247,7 +428,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 		goto err_get_fast;
 	}
 
-	fwd_fdb = mlx5_esw_chains_get_table(esw, attr->chain, attr->prio, 1);
+	fwd_fdb = esw_vport_tbl_get(esw, attr);
 	if (IS_ERR(fwd_fdb)) {
 		rule = ERR_CAST(fwd_fdb);
 		goto err_get_fwd;
@@ -285,7 +466,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 
 	return rule;
 add_err:
-	mlx5_esw_chains_put_table(esw, attr->chain, attr->prio, 1);
+	esw_vport_tbl_put(esw, attr);
 err_get_fwd:
 	mlx5_esw_chains_put_table(esw, attr->chain, attr->prio, 0);
 err_get_fast:
@@ -312,11 +493,14 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 	atomic64_dec(&esw->offloads.num_flows);
 
 	if (fwd_rule)  {
-		mlx5_esw_chains_put_table(esw, attr->chain, attr->prio, 1);
+		esw_vport_tbl_put(esw, attr);
 		mlx5_esw_chains_put_table(esw, attr->chain, attr->prio, 0);
 	} else {
-		mlx5_esw_chains_put_table(esw, attr->chain, attr->prio,
-					  !!split);
+		if (split)
+			esw_vport_tbl_put(esw, attr);
+		else
+			mlx5_esw_chains_put_table(esw, attr->chain, attr->prio,
+						  0);
 		if (attr->dest_chain)
 			mlx5_esw_chains_put_table(esw, attr->dest_chain, 1, 0);
 	}
@@ -1923,6 +2107,9 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 	if (err)
 		goto create_fg_err;
 
+	mutex_init(&esw->fdb_table.offloads.vports.lock);
+	hash_init(esw->fdb_table.offloads.vports.table);
+
 	return 0;
 
 create_fg_err:
@@ -1939,6 +2126,7 @@ create_fdb_err:
 
 static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 {
+	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 	esw_destroy_vport_rx_group(esw);
 	esw_destroy_offloads_table(esw);
 	esw_destroy_offloads_fdb_tables(esw);

@@ -1076,17 +1076,17 @@ mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 static struct mlx5_flow_handle *
 mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 			      struct mlx5e_tc_flow *flow,
-			      struct mlx5_flow_spec *spec,
-			      struct mlx5_esw_flow_attr *slow_attr)
+			      struct mlx5_flow_spec *spec)
 {
+	struct mlx5_esw_flow_attr slow_attr;
 	struct mlx5_flow_handle *rule;
 
-	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
-	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	slow_attr->split_count = 0;
-	slow_attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
+	memcpy(&slow_attr, flow->esw_attr, sizeof(slow_attr));
+	slow_attr.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	slow_attr.split_count = 0;
+	slow_attr.flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
 
-	rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, slow_attr);
+	rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, &slow_attr);
 	if (!IS_ERR(rule))
 		flow_flag_set(flow, SLOW);
 
@@ -1095,14 +1095,15 @@ mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 
 static void
 mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
-				  struct mlx5e_tc_flow *flow,
-				  struct mlx5_esw_flow_attr *slow_attr)
+				  struct mlx5e_tc_flow *flow)
 {
-	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
-	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	slow_attr->split_count = 0;
-	slow_attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
-	mlx5e_tc_unoffload_fdb_rules(esw, flow, slow_attr);
+	struct mlx5_esw_flow_attr slow_attr;
+
+	memcpy(&slow_attr, flow->esw_attr, sizeof(slow_attr));
+	slow_attr.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	slow_attr.split_count = 0;
+	slow_attr.flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
+	mlx5e_tc_unoffload_fdb_rules(esw, flow, &slow_attr);
 	flow_flag_clear(flow, SLOW);
 }
 
@@ -1173,7 +1174,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	int out_index;
 
 	if (!mlx5_esw_chains_prios_supported(esw) && attr->prio != 1) {
-		NL_SET_ERR_MSG(extack, "E-switch priorities unsupported, upgrade FW");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "E-switch priorities unsupported, upgrade FW");
 		return -EOPNOTSUPP;
 	}
 
@@ -1184,13 +1186,15 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	 */
 	max_chain = mlx5_esw_chains_get_chain_range(esw);
 	if (!mlx5e_is_ft_flow(flow) && attr->chain > max_chain) {
-		NL_SET_ERR_MSG(extack, "Requested chain is out of supported range");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Requested chain is out of supported range");
 		return -EOPNOTSUPP;
 	}
 
 	max_prio = mlx5_esw_chains_get_prio_range(esw);
 	if (attr->prio > max_prio) {
-		NL_SET_ERR_MSG(extack, "Requested priority is out of supported range");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Requested priority is out of supported range");
 		return -EOPNOTSUPP;
 	}
 
@@ -1237,14 +1241,10 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	 * (1) there's no error
 	 * (2) there's an encap action and we don't have valid neigh
 	 */
-	if (!encap_valid) {
-		/* continue with goto slow path rule instead */
-		struct mlx5_esw_flow_attr slow_attr;
-
-		flow->rule[0] = mlx5e_tc_offload_to_slow_path(esw, flow, &parse_attr->spec, &slow_attr);
-	} else {
+	if (!encap_valid)
+		flow->rule[0] = mlx5e_tc_offload_to_slow_path(esw, flow, &parse_attr->spec);
+	else
 		flow->rule[0] = mlx5e_tc_offload_fdb_rules(esw, flow, &parse_attr->spec, attr);
-	}
 
 	if (IS_ERR(flow->rule[0]))
 		return PTR_ERR(flow->rule[0]);
@@ -1272,7 +1272,6 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
-	struct mlx5_esw_flow_attr slow_attr;
 	int out_index;
 
 	if (flow_flag_test(flow, NOT_READY)) {
@@ -1283,7 +1282,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	if (mlx5e_is_offloaded_flow(flow)) {
 		if (flow_flag_test(flow, SLOW))
-			mlx5e_tc_unoffload_from_slow_path(esw, flow, &slow_attr);
+			mlx5e_tc_unoffload_from_slow_path(esw, flow);
 		else
 			mlx5e_tc_unoffload_fdb_rules(esw, flow, attr);
 	}
@@ -1312,7 +1311,7 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 			      struct list_head *flow_list)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5_esw_flow_attr slow_attr, *esw_attr;
+	struct mlx5_esw_flow_attr *esw_attr;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	struct mlx5e_tc_flow *flow;
@@ -1365,7 +1364,7 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 			continue;
 		}
 
-		mlx5e_tc_unoffload_from_slow_path(esw, flow, &slow_attr);
+		mlx5e_tc_unoffload_from_slow_path(esw, flow);
 		flow->rule[0] = rule;
 		/* was unset when slow path rule removed */
 		flow_flag_set(flow, OFFLOADED);
@@ -1377,7 +1376,6 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 			      struct list_head *flow_list)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5_esw_flow_attr slow_attr;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	struct mlx5e_tc_flow *flow;
@@ -1389,7 +1387,7 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 		spec = &flow->esw_attr->parse_attr->spec;
 
 		/* update from encap rule to slow path rule */
-		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec, &slow_attr);
+		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec);
 		/* mark the flow's encap dest as non-valid */
 		flow->esw_attr->dests[flow->tmp_efi_index].flags &= ~MLX5_ESW_DEST_ENCAP_VALID;
 
@@ -2560,7 +2558,6 @@ static const struct pedit_headers zero_masks = {};
 
 static int parse_tc_pedit_action(struct mlx5e_priv *priv,
 				 const struct flow_action_entry *act, int namespace,
-				 struct mlx5e_tc_flow_parse_attr *parse_attr,
 				 struct pedit_headers_action *hdrs,
 				 struct netlink_ext_ack *extack)
 {
@@ -2836,8 +2833,7 @@ static int add_vlan_rewrite_action(struct mlx5e_priv *priv, int namespace,
 		return -EOPNOTSUPP;
 	}
 
-	err = parse_tc_pedit_action(priv, &pedit_act, namespace, parse_attr,
-				    hdrs, NULL);
+	err = parse_tc_pedit_action(priv, &pedit_act, namespace, hdrs, NULL);
 	*action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 
 	return err;
@@ -2899,7 +2895,7 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 		case FLOW_ACTION_MANGLE:
 		case FLOW_ACTION_ADD:
 			err = parse_tc_pedit_action(priv, act, MLX5_FLOW_NAMESPACE_KERNEL,
-						    parse_attr, hdrs, extack);
+						    hdrs, extack);
 			if (err)
 				return err;
 
@@ -3343,7 +3339,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		case FLOW_ACTION_MANGLE:
 		case FLOW_ACTION_ADD:
 			err = parse_tc_pedit_action(priv, act, MLX5_FLOW_NAMESPACE_FDB,
-						    parse_attr, hdrs, extack);
+						    hdrs, extack);
 			if (err)
 				return err;
 
@@ -3381,8 +3377,9 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			if (attr->out_count >= MLX5_MAX_FLOW_FWD_VPORTS) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "can't support more output ports, can't offload forwarding");
-				pr_err("can't support more than %d output ports, can't offload forwarding\n",
-				       attr->out_count);
+				netdev_warn(priv->netdev,
+					    "can't support more than %d output ports, can't offload forwarding\n",
+					    attr->out_count);
 				return -EOPNOTSUPP;
 			}
 
@@ -3405,6 +3402,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 				struct net_device *uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
 				struct net_device *uplink_upper;
+				struct mlx5e_rep_priv *rep_priv;
 
 				if (is_duplicated_output_device(priv->netdev,
 								out_dev,
@@ -3440,11 +3438,29 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 						return err;
 				}
 
+				/* Don't allow forwarding between uplink.
+				 *
+				 * Input vport was stored esw_attr->in_rep.
+				 * In LAG case, *priv* is the private data of
+				 * uplink which may be not the input vport.
+				 */
+				rep_priv = mlx5e_rep_to_rep_priv(attr->in_rep);
+				if (mlx5e_eswitch_uplink_rep(rep_priv->netdev) &&
+				    mlx5e_eswitch_uplink_rep(out_dev)) {
+					NL_SET_ERR_MSG_MOD(extack,
+							   "devices are both uplink, can't offload forwarding");
+					pr_err("devices %s %s are both uplink, can't offload forwarding\n",
+					       priv->netdev->name, out_dev->name);
+					return -EOPNOTSUPP;
+				}
+
 				if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
 					NL_SET_ERR_MSG_MOD(extack,
 							   "devices are not on same switch HW, can't offload forwarding");
-					pr_err("devices %s %s not on same switch HW, can't offload forwarding\n",
-					       priv->netdev->name, out_dev->name);
+					netdev_warn(priv->netdev,
+						    "devices %s %s not on same switch HW, can't offload forwarding\n",
+						    priv->netdev->name,
+						    out_dev->name);
 					return -EOPNOTSUPP;
 				}
 
@@ -3463,8 +3479,10 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			} else {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "devices are not on same switch HW, can't offload forwarding");
-				pr_err("devices %s %s not on same switch HW, can't offload forwarding\n",
-				       priv->netdev->name, out_dev->name);
+				netdev_warn(priv->netdev,
+					    "devices %s %s not on same switch HW, can't offload forwarding\n",
+					    priv->netdev->name,
+					    out_dev->name);
 				return -EINVAL;
 			}
 			}
@@ -3516,12 +3534,15 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				NL_SET_ERR_MSG_MOD(extack, "Goto action is not supported");
 				return -EOPNOTSUPP;
 			}
-			if (dest_chain <= attr->chain) {
-				NL_SET_ERR_MSG(extack, "Goto earlier chain isn't supported");
+			if (!mlx5_esw_chains_backwards_supported(esw) &&
+			    dest_chain <= attr->chain) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Goto earlier chain isn't supported");
 				return -EOPNOTSUPP;
 			}
 			if (dest_chain > max_chain) {
-				NL_SET_ERR_MSG(extack, "Requested destination chain is out of supported range");
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Requested destination chain is out of supported range");
 				return -EOPNOTSUPP;
 			}
 			action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
@@ -3571,7 +3592,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 	if (attr->dest_chain) {
 		if (attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
-			NL_SET_ERR_MSG(extack, "Mirroring goto chain rules isn't supported");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Mirroring goto chain rules isn't supported");
 			return -EOPNOTSUPP;
 		}
 		attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
@@ -3579,7 +3601,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 	if (!(attr->action &
 	      (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_DROP))) {
-		NL_SET_ERR_MSG(extack, "Rule must have at least one forward/drop action");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Rule must have at least one forward/drop action");
 		return -EOPNOTSUPP;
 	}
 

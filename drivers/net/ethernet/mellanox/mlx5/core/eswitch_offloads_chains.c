@@ -21,8 +21,6 @@
 #define fdb_ignore_flow_level_supported(esw) \
 	(MLX5_CAP_ESW_FLOWTABLE_FDB((esw)->dev, ignore_flow_level))
 
-#define ESW_OFFLOADS_NUM_GROUPS  4
-
 /* Firmware currently has 4 pool of 4 sizes that it supports (ESW_POOLS),
  * and a virtual memory region of 16M (ESW_SIZE), this region is duplicated
  * for each flow table pool. We can allocate up to 16M of each pool,
@@ -97,6 +95,11 @@ static const struct rhashtable_params prio_params = {
 bool mlx5_esw_chains_prios_supported(struct mlx5_eswitch *esw)
 {
 	return esw->fdb_table.flags & ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED;
+}
+
+bool mlx5_esw_chains_backwards_supported(struct mlx5_eswitch *esw)
+{
+	return fdb_ignore_flow_level_supported(esw);
 }
 
 u32 mlx5_esw_chains_get_chain_range(struct mlx5_eswitch *esw)
@@ -234,7 +237,7 @@ mlx5_esw_chains_create_fdb_table(struct mlx5_eswitch *esw,
 	}
 
 	ft_attr.autogroup.num_reserved_entries = 2;
-	ft_attr.autogroup.max_num_groups = ESW_OFFLOADS_NUM_GROUPS;
+	ft_attr.autogroup.max_num_groups = esw->params.large_group_num;
 	fdb = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(fdb)) {
 		esw_warn(esw->dev,
@@ -637,7 +640,7 @@ mlx5_esw_chains_init(struct mlx5_eswitch *esw)
 
 	esw_debug(dev,
 		  "Init esw offloads chains, max counters(%d), groups(%d), max flow table size(%d)\n",
-		  max_flow_counter, ESW_OFFLOADS_NUM_GROUPS, fdb_max);
+		  max_flow_counter, esw->params.large_group_num, fdb_max);
 
 	mlx5_esw_chains_init_sz_pool(esw);
 
@@ -704,12 +707,9 @@ mlx5_esw_chains_open(struct mlx5_eswitch *esw)
 
 	/* Open level 1 for split rules now if prios isn't supported  */
 	if (!mlx5_esw_chains_prios_supported(esw)) {
-		ft = mlx5_esw_chains_get_table(esw, 0, 1, 1);
-
-		if (IS_ERR(ft)) {
-			err = PTR_ERR(ft);
+		err = mlx5_esw_vport_tbl_get(esw);
+		if (err)
 			goto level_1_err;
-		}
 	}
 
 	return 0;
@@ -725,7 +725,7 @@ static void
 mlx5_esw_chains_close(struct mlx5_eswitch *esw)
 {
 	if (!mlx5_esw_chains_prios_supported(esw))
-		mlx5_esw_chains_put_table(esw, 0, 1, 1);
+		mlx5_esw_vport_tbl_put(esw);
 	mlx5_esw_chains_put_table(esw, 0, 1, 0);
 	mlx5_esw_chains_put_table(esw, mlx5_esw_chains_get_ft_chain(esw), 1, 0);
 }

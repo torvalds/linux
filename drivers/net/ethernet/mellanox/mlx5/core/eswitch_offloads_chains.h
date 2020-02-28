@@ -6,6 +6,8 @@
 
 bool
 mlx5_esw_chains_prios_supported(struct mlx5_eswitch *esw);
+bool
+mlx5_esw_chains_backwards_supported(struct mlx5_eswitch *esw);
 u32
 mlx5_esw_chains_get_prio_range(struct mlx5_eswitch *esw);
 u32
