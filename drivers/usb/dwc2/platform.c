@@ -285,7 +285,9 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 	ret = devm_regulator_bulk_get(hsotg->dev, ARRAY_SIZE(hsotg->supplies),
 				      hsotg->supplies);
 	if (ret) {
-		dev_err(hsotg->dev, "failed to request supplies: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(hsotg->dev, "failed to request supplies: %d\n",
+				ret);
 		return ret;
 	}
 	return 0;
