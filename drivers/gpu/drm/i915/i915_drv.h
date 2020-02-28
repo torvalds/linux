@@ -1029,6 +1029,11 @@ struct drm_i915_private {
 		int num_shared_dpll;
 		struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
 		const struct intel_dpll_mgr *mgr;
+
+		struct {
+			int nssc;
+			int ssc;
+		} ref_clks;
 	} dpll;
 
 	struct list_head global_obj_list;
