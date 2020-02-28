@@ -5766,15 +5766,23 @@ skl_compute_wm(struct intel_atomic_state *state)
 		ret = skl_build_pipe_wm(new_crtc_state);
 		if (ret)
 			return ret;
-
-		ret = skl_wm_add_affected_planes(state, crtc);
-		if (ret)
-			return ret;
 	}
 
 	ret = skl_compute_ddb(state);
 	if (ret)
 		return ret;
+
+	/*
+	 * skl_compute_ddb() will have adjusted the final watermarks
+	 * based on how much ddb is available. Now we can actually
+	 * check if the final watermarks changed.
+	 */
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		ret = skl_wm_add_affected_planes(state, crtc);
+		if (ret)
+			return ret;
+	}
 
 	skl_print_wm_changes(state);
 
