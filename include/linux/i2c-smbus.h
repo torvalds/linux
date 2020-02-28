@@ -31,8 +31,8 @@ struct i2c_smbus_alert_setup {
 	int			irq;
 };
 
-struct i2c_client *i2c_setup_smbus_alert(struct i2c_adapter *adapter,
-					 struct i2c_smbus_alert_setup *setup);
+struct i2c_client *i2c_new_smbus_alert_device(struct i2c_adapter *adapter,
+					      struct i2c_smbus_alert_setup *setup);
 int i2c_handle_smbus_alert(struct i2c_client *ara);
 
 #if IS_ENABLED(CONFIG_I2C_SMBUS) && IS_ENABLED(CONFIG_OF)

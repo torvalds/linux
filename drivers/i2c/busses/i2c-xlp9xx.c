@@ -491,12 +491,16 @@ static int xlp9xx_i2c_get_frequency(struct platform_device *pdev,
 static int xlp9xx_i2c_smbus_setup(struct xlp9xx_i2c_dev *priv,
 				  struct platform_device *pdev)
 {
+	struct i2c_client *ara;
+
 	if (!priv->alert_data.irq)
 		return -EINVAL;
 
-	priv->ara = i2c_setup_smbus_alert(&priv->adapter, &priv->alert_data);
-	if (!priv->ara)
-		return -ENODEV;
+	ara = i2c_new_smbus_alert_device(&priv->adapter, &priv->alert_data);
+	if (IS_ERR(ara))
+		return PTR_ERR(ara);
+
+	priv->ara = ara;
 
 	return 0;
 }
