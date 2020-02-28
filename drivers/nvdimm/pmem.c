@@ -282,6 +282,16 @@ static const struct block_device_operations pmem_fops = {
 	.revalidate_disk =	nvdimm_revalidate_disk,
 };
 
+static int pmem_dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
+				    size_t nr_pages)
+{
+	struct pmem_device *pmem = dax_get_private(dax_dev);
+
+	return blk_status_to_errno(pmem_do_write(pmem, ZERO_PAGE(0), 0,
+				   PFN_PHYS(pgoff) >> SECTOR_SHIFT,
+				   PAGE_SIZE));
+}
+
 static long pmem_dax_direct_access(struct dax_device *dax_dev,
 		pgoff_t pgoff, long nr_pages, void **kaddr, pfn_t *pfn)
 {
@@ -313,6 +323,7 @@ static const struct dax_operations pmem_dax_ops = {
 	.dax_supported = generic_fsdax_supported,
 	.copy_from_iter = pmem_copy_from_iter,
 	.copy_to_iter = pmem_copy_to_iter,
+	.zero_page_range = pmem_dax_zero_page_range,
 };
 
 static const struct attribute_group *pmem_attribute_groups[] = {
