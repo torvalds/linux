@@ -36,7 +36,7 @@ struct tmp_ext {
 		struct in6_addr saddr;
 #endif
 		struct in6_addr daddr;
-		char hdrs[0];
+		char hdrs[];
 };
 
 struct ah_skb_cb {
