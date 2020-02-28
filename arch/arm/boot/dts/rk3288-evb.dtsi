@@ -137,6 +137,14 @@
 		status = "disabled";
 	};
 
+	rk_headset {
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio7 RK_PA7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+		io-channels = <&saradc 2>;
+	};
+
 	ext_gmac: external-gmac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
@@ -485,6 +493,12 @@
 	buttons {
 		pwrbtn: pwrbtn {
 			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	headphone {
+		hp_det: hp-det {
+			rockchip,pins = <7 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 

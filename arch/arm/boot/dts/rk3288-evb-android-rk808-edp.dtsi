@@ -149,6 +149,10 @@
 };
 
 &hdmi_analog_sound {
+	status = "disabled";
+};
+
+&sound {
 	status = "okay";
 };
 
