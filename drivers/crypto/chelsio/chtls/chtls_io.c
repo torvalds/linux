@@ -1081,10 +1081,10 @@ new_buf:
 				pg_size = page_size(page);
 			if (off < pg_size &&
 			    skb_can_coalesce(skb, i, page, off)) {
-				merge = 1;
+				merge = true;
 				goto copy;
 			}
-			merge = 0;
+			merge = false;
 			if (i == (is_tls_tx(csk) ? (MAX_SKB_FRAGS - 1) :
 			    MAX_SKB_FRAGS))
 				goto new_buf;
