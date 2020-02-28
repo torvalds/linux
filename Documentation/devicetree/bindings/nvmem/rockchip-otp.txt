@@ -4,15 +4,18 @@ Required properties:
 - compatible: Should be one of the following.
   - "rockchip,px30-otp" - for PX30 SoCs.
   - "rockchip,rk3308-otp" - for RK3308 SoCs.
-  - reg: Must contain an entry with the physical base address and length
-    for each entry in reg-names.
-  - address-cells: must be set to 1.
-  - size-cells: must be set to 1.
-  - clocks: Must contain an entry for each entry in clock-names.
-  - clock-names: Should be "clk_opt", "pclk_otp" and "pclk_otp_phy".
-  - resets: Must contain an entry for each entry in reset-names.
-    See ../../reset/reset.txt for details.
-  - reset-names: Should be "otp_phy".
+- reg: Must contain an entry with the physical base address and length
+  for each entry in reg-names.
+- address-cells: must be set to 1.
+- size-cells: Must be set to 1.
+- clocks: Must contain an entry for each entry in clock-names.
+- clock-names: Should contain "clk_otp", "pclk_otp" and
+  optionally also "pclk_otp_phy".
+
+Optional properties:
+- resets: Must contain an entry for each entry in reset-names.
+  See ../../reset/reset.txt for details.
+- reset-names: Should be "otp_phy".
 
 See nvmem.txt for more information.
 
@@ -24,5 +27,5 @@ Example:
 		#size-cells = <1>;
 		clocks = <&cru SCLK_OTP_USR>, <&cru PCLK_OTP_NS>,
 			 <&cru PCLK_OTP_PHY>;
-		clock-names = "clk_opt", "pclk_otp", "pclk_otp_phy";
+		clock-names = "clk_otp", "pclk_otp", "pclk_otp_phy";
 	};
