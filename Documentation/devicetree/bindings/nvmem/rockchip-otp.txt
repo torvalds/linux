@@ -7,6 +7,8 @@ Required properties:
 - reg: Should contain the registers location and size
 - clocks: Must contain an entry for each entry in clock-names.
 - clock-names: Should be "otp", "apb_pclk" and "phy".
+
+Optional properties:
 - resets: Must contain an entry for each entry in reset-names.
   See ../../reset/reset.txt for details.
 - reset-names: Should be "phy".
