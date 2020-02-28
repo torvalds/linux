@@ -47,9 +47,8 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 	struct kfd_dev *dev = pm->dqm->dev;
 
 	process_count = pm->dqm->processes_count;
-	queue_count = pm->dqm->queue_count;
-	compute_queue_count = queue_count - pm->dqm->sdma_queue_count -
-				pm->dqm->xgmi_sdma_queue_count;
+	queue_count = pm->dqm->active_queue_count;
+	compute_queue_count = pm->dqm->active_cp_queue_count;
 
 	/* check if there is over subscription
 	 * Note: the arbitration between the number of VMIDs and
@@ -62,7 +61,7 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 		max_proc_per_quantum = dev->max_proc_per_quantum;
 
 	if ((process_count > max_proc_per_quantum) ||
-	    compute_queue_count > get_queues_num(pm->dqm)) {
+	    compute_queue_count > get_cp_queues_num(pm->dqm)) {
 		*over_subscription = true;
 		pr_debug("Over subscribed runlist\n");
 	}
@@ -141,7 +140,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	pm->ib_size_bytes = alloc_size_bytes;
 
 	pr_debug("Building runlist ib process count: %d queues count %d\n",
-		pm->dqm->processes_count, pm->dqm->queue_count);
+		pm->dqm->processes_count, pm->dqm->active_queue_count);
 
 	/* build the run list ib packet */
 	list_for_each_entry(cur, queues, list) {

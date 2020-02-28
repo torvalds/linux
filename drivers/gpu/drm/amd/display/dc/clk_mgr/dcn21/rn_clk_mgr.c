@@ -405,7 +405,7 @@ void rn_init_clocks(struct clk_mgr *clk_mgr)
 	clk_mgr->clks.pwr_state = DCN_PWR_STATE_UNKNOWN;
 }
 
-void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_range_sets *ranges)
+static void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_range_sets *ranges)
 {
 	int i, num_valid_sets;
 
@@ -465,16 +465,15 @@ void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_ra
 static void rn_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 {
 	struct dc_debug_options *debug = &clk_mgr_base->ctx->dc->debug;
-	struct pp_smu_wm_range_sets ranges = {0};
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct pp_smu_funcs *pp_smu = clk_mgr->pp_smu;
 
 	if (!debug->disable_pplib_wm_range) {
-		build_watermark_ranges(clk_mgr_base->bw_params, &ranges);
+		build_watermark_ranges(clk_mgr_base->bw_params, &clk_mgr_base->ranges);
 
 		/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
 		if (pp_smu && pp_smu->rn_funcs.set_wm_ranges)
-			pp_smu->rn_funcs.set_wm_ranges(&pp_smu->rn_funcs.pp_smu, &ranges);
+			pp_smu->rn_funcs.set_wm_ranges(&pp_smu->rn_funcs.pp_smu, &clk_mgr_base->ranges);
 	}
 
 }
@@ -504,7 +503,7 @@ static struct clk_mgr_funcs dcn21_funcs = {
 	.notify_wm_ranges = rn_notify_wm_ranges
 };
 
-struct clk_bw_params rn_bw_params = {
+static struct clk_bw_params rn_bw_params = {
 	.vram_type = Ddr4MemType,
 	.num_channels = 1,
 	.clk_table = {
@@ -544,7 +543,7 @@ struct clk_bw_params rn_bw_params = {
 
 };
 
-struct wm_table ddr4_wm_table = {
+static struct wm_table ddr4_wm_table = {
 	.entries = {
 		{
 			.wm_inst = WM_A,
@@ -581,7 +580,7 @@ struct wm_table ddr4_wm_table = {
 	}
 };
 
-struct wm_table lpddr4_wm_table = {
+static struct wm_table lpddr4_wm_table = {
 	.entries = {
 		{
 			.wm_inst = WM_A,

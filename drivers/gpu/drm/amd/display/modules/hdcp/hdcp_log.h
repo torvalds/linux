@@ -49,6 +49,15 @@
 		HDCP_LOG_VER(hdcp, \
 			"[Link %d] HDCP 2.2 enabled on display %d", \
 			hdcp->config.index, displayIndex)
+#define HDCP_HDCP1_DISABLED_TRACE(hdcp, displayIndex) \
+		HDCP_LOG_VER(hdcp, \
+			"[Link %d] HDCP 1.4 disabled on display %d", \
+			hdcp->config.index, displayIndex)
+#define HDCP_HDCP2_DISABLED_TRACE(hdcp, displayIndex) \
+		HDCP_LOG_VER(hdcp, \
+			"[Link %d] HDCP 2.2 disabled on display %d", \
+			hdcp->config.index, displayIndex)
+
 /* state machine logs */
 #define HDCP_REMOVE_DISPLAY_TRACE(hdcp, displayIndex) \
 		HDCP_LOG_FSM(hdcp, \

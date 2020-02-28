@@ -168,10 +168,6 @@ static enum mod_hdcp_status exchange_ksvs(struct mod_hdcp *hdcp,
 		goto out;
 	}
 
-	if (!mod_hdcp_execute_and_set(mod_hdcp_add_display_topology,
-			&input->add_topology, &status,
-			hdcp, "add_topology"))
-		goto out;
 	if (!mod_hdcp_execute_and_set(mod_hdcp_hdcp1_create_session,
 			&input->create_session, &status,
 			hdcp, "create_session"))

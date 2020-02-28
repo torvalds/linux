@@ -40,10 +40,13 @@ struct dce_hwseq_wa {
 	bool false_optc_underflow;
 	bool DEGVIDCN10_254;
 	bool DEGVIDCN21;
+	bool disallow_self_refresh_during_multi_plane_transition;
 };
 
 struct hwseq_wa_state {
 	bool DEGVIDCN10_253_applied;
+	bool disallow_self_refresh_during_multi_plane_transition_applied;
+	unsigned int disallow_self_refresh_during_multi_plane_transition_applied_on_frame;
 };
 
 struct pipe_ctx;
@@ -97,6 +100,8 @@ struct hwseq_private_funcs {
 			struct dc *dc);
 	void (*edp_backlight_control)(struct dc_link *link,
 			bool enable);
+	bool (*is_panel_backlight_on)(struct dc_link *link);
+	bool (*is_panel_powered_on)(struct dc_link *link);
 	void (*setup_vupdate_interrupt)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx);
 	bool (*did_underflow_occur)(struct dc *dc, struct pipe_ctx *pipe_ctx);

@@ -84,7 +84,7 @@
 #include "dcn21_resource.h"
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
-#include "../dce/dmub_psr.h"
+#include "dce/dmub_psr.h"
 
 #define SOC_BOUNDING_BOX_VALID false
 #define DC_LOGGER_INIT(logger)
@@ -163,10 +163,10 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.clock_limits = {
 			{
 				.state = 0,
-				.dcfclk_mhz = 304.0,
-				.fabricclk_mhz = 600.0,
-				.dispclk_mhz = 618.0,
-				.dppclk_mhz = 440.0,
+				.dcfclk_mhz = 400.0,
+				.fabricclk_mhz = 400.0,
+				.dispclk_mhz = 600.0,
+				.dppclk_mhz = 400.00,
 				.phyclk_mhz = 600.0,
 				.socclk_mhz = 278.0,
 				.dscclk_mhz = 205.67,
@@ -174,10 +174,10 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 			},
 			{
 				.state = 1,
-				.dcfclk_mhz = 304.0,
-				.fabricclk_mhz = 600.0,
-				.dispclk_mhz = 618.0,
-				.dppclk_mhz = 618.0,
+				.dcfclk_mhz = 464.52,
+				.fabricclk_mhz = 800.0,
+				.dispclk_mhz = 654.55,
+				.dppclk_mhz = 626.09,
 				.phyclk_mhz = 600.0,
 				.socclk_mhz = 278.0,
 				.dscclk_mhz = 205.67,
@@ -185,32 +185,65 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 			},
 			{
 				.state = 2,
-				.dcfclk_mhz = 608.0,
-				.fabricclk_mhz = 1066.0,
-				.dispclk_mhz = 888.0,
-				.dppclk_mhz = 888.0,
-				.phyclk_mhz = 810.0,
+				.dcfclk_mhz = 514.29,
+				.fabricclk_mhz = 933.0,
+				.dispclk_mhz = 757.89,
+				.dppclk_mhz = 685.71,
+				.phyclk_mhz = 600.0,
 				.socclk_mhz = 278.0,
 				.dscclk_mhz = 287.67,
-				.dram_speed_mts = 2133.0,
+				.dram_speed_mts = 1866.0,
 			},
 			{
 				.state = 3,
-				.dcfclk_mhz = 676.0,
-				.fabricclk_mhz = 1600.0,
-				.dispclk_mhz = 1015.0,
-				.dppclk_mhz = 1015.0,
-				.phyclk_mhz = 810.0,
+				.dcfclk_mhz = 576.00,
+				.fabricclk_mhz = 1067.0,
+				.dispclk_mhz = 847.06,
+				.dppclk_mhz = 757.89,
+				.phyclk_mhz = 600.0,
 				.socclk_mhz = 715.0,
 				.dscclk_mhz = 318.334,
-				.dram_speed_mts = 4266.0,
+				.dram_speed_mts = 2134.0,
 			},
 			{
 				.state = 4,
-				.dcfclk_mhz = 810.0,
+				.dcfclk_mhz = 626.09,
+				.fabricclk_mhz = 1200.0,
+				.dispclk_mhz = 900.00,
+				.dppclk_mhz = 847.06,
+				.phyclk_mhz = 810.0,
+				.socclk_mhz = 953.0,
+				.dscclk_mhz = 489.0,
+				.dram_speed_mts = 2400.0,
+			},
+			{
+				.state = 5,
+				.dcfclk_mhz = 685.71,
+				.fabricclk_mhz = 1333.0,
+				.dispclk_mhz = 1028.57,
+				.dppclk_mhz = 960.00,
+				.phyclk_mhz = 810.0,
+				.socclk_mhz = 278.0,
+				.dscclk_mhz = 287.67,
+				.dram_speed_mts = 2666.0,
+			},
+			{
+				.state = 6,
+				.dcfclk_mhz = 757.89,
+				.fabricclk_mhz = 1467.0,
+				.dispclk_mhz = 1107.69,
+				.dppclk_mhz = 1028.57,
+				.phyclk_mhz = 810.0,
+				.socclk_mhz = 715.0,
+				.dscclk_mhz = 318.334,
+				.dram_speed_mts = 3200.0,
+			},
+			{
+				.state = 7,
+				.dcfclk_mhz = 847.06,
 				.fabricclk_mhz = 1600.0,
 				.dispclk_mhz = 1395.0,
-				.dppclk_mhz = 1285.0,
+				.dppclk_mhz = 1285.00,
 				.phyclk_mhz = 1325.0,
 				.socclk_mhz = 953.0,
 				.dscclk_mhz = 489.0,
@@ -218,8 +251,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 			},
 			/*Extra state, no dispclk ramping*/
 			{
-				.state = 5,
-				.dcfclk_mhz = 810.0,
+				.state = 8,
+				.dcfclk_mhz = 847.06,
 				.fabricclk_mhz = 1600.0,
 				.dispclk_mhz = 1395.0,
 				.dppclk_mhz = 1285.0,
@@ -266,7 +299,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.xfc_bus_transport_time_us = 4,
 	.xfc_xbuf_latency_tolerance_us = 4,
 	.use_urgent_burst_bw = 1,
-	.num_states = 5
+	.num_states = 9
 };
 
 #ifndef MAX
@@ -826,6 +859,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.timing_trace = false,
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
+		.min_disp_clk_khz = 100000,
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
 		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
@@ -961,6 +995,9 @@ static void dcn21_resource_destruct(struct dcn21_resource_pool *pool)
 
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
+
+	if (pool->base.psr != NULL)
+		dmub_psr_destroy(&pool->base.psr);
 
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
@@ -1335,26 +1372,78 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 {
 	struct dcn21_resource_pool *pool = TO_DCN21_RES_POOL(dc->res_pool);
 	struct clk_limit_table *clk_table = &bw_params->clk_table;
-	int i;
+	unsigned int i, j, k;
+	int closest_clk_lvl;
 
-	dcn2_1_ip.max_num_otg = pool->base.res_cap->num_timing_generator;
-	dcn2_1_ip.max_num_dpp = pool->base.pipe_count;
-	dcn2_1_soc.num_chans = bw_params->num_channels;
+	// diags does not retrieve proper values from SMU
+	// cap states to 5 and make state 5 the max state
+	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) || IS_DIAG_DC(dc->ctx->dce_environment)) {
+		dcn2_1_soc.num_states = 5;
 
-	for (i = 0; i < clk_table->num_entries; i++) {
+		dcn2_1_soc.clock_limits[5].state = 5;
+		dcn2_1_soc.clock_limits[5].dcfclk_mhz = 810.0;
+		dcn2_1_soc.clock_limits[5].fabricclk_mhz = 1600.0;
+		dcn2_1_soc.clock_limits[5].dispclk_mhz = 1395.0;
+		dcn2_1_soc.clock_limits[5].dppclk_mhz = 1285.0;
+		dcn2_1_soc.clock_limits[5].phyclk_mhz = 1325.0;
+		dcn2_1_soc.clock_limits[5].socclk_mhz = 953.0;
+		dcn2_1_soc.clock_limits[5].dscclk_mhz = 489.0;
+		dcn2_1_soc.clock_limits[5].dram_speed_mts = 4266.0;
+	} else {
+		dcn2_1_ip.max_num_otg = pool->base.res_cap->num_timing_generator;
+		dcn2_1_ip.max_num_dpp = pool->base.pipe_count;
+		dcn2_1_soc.num_chans = bw_params->num_channels;
 
-		dcn2_1_soc.clock_limits[i].state = i;
-		dcn2_1_soc.clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
-		dcn2_1_soc.clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
-		dcn2_1_soc.clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-		dcn2_1_soc.clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2;
+		/* Vmin: leave lowest DCN clocks, override with dcfclk, fclk, memclk from fuse */
+		dcn2_1_soc.clock_limits[0].state = 0;
+		dcn2_1_soc.clock_limits[0].dcfclk_mhz = clk_table->entries[0].dcfclk_mhz;
+		dcn2_1_soc.clock_limits[0].fabricclk_mhz = clk_table->entries[0].fclk_mhz;
+		dcn2_1_soc.clock_limits[0].socclk_mhz = clk_table->entries[0].socclk_mhz;
+		dcn2_1_soc.clock_limits[0].dram_speed_mts = clk_table->entries[0].memclk_mhz * 2;
+
+		/*
+		 * Other levels: find cloest DCN clocks that fit the given clock limit using dcfclk
+		 * as indicater
+		 */
+
+		closest_clk_lvl = -1;
+		/* index currently being filled */
+		k = 1;
+		for (i = 1; i < clk_table->num_entries; i++) {
+			/* loop backwards, skip duplicate state, +1 because SMU has precision issue */
+			for (j = dcn2_1_soc.num_states - 2; j >= k; j--) {
+				if ((unsigned int) dcn2_1_soc.clock_limits[j].dcfclk_mhz <= clk_table->entries[i].dcfclk_mhz) {
+					closest_clk_lvl = j;
+					break;
+				}
+			}
+
+			/* if found a lvl that fits, use the DCN clks from it, if not, go to next clk limit*/
+			if (closest_clk_lvl != -1) {
+				dcn2_1_soc.clock_limits[k].state = i;
+				dcn2_1_soc.clock_limits[k].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
+				dcn2_1_soc.clock_limits[k].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
+				dcn2_1_soc.clock_limits[k].socclk_mhz = clk_table->entries[i].socclk_mhz;
+				dcn2_1_soc.clock_limits[k].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2;
+
+				dcn2_1_soc.clock_limits[k].dispclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
+				dcn2_1_soc.clock_limits[k].dppclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
+				dcn2_1_soc.clock_limits[k].dram_bw_per_chan_gbps = dcn2_1_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
+				dcn2_1_soc.clock_limits[k].dscclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
+				dcn2_1_soc.clock_limits[k].dtbclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
+				dcn2_1_soc.clock_limits[k].phyclk_d18_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
+				dcn2_1_soc.clock_limits[k].phyclk_mhz = dcn2_1_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
+				k++;
+			}
+		}
+
+		/* duplicate last level */
+		dcn2_1_soc.clock_limits[k] = dcn2_1_soc.clock_limits[k - 1];
+		dcn2_1_soc.clock_limits[k].state = k;
+		dcn2_1_soc.num_states = k + 1;
 	}
-	dcn2_1_soc.clock_limits[i] = dcn2_1_soc.clock_limits[i - 1];
-	dcn2_1_soc.num_states = i;
 
-	// diags does not retrieve proper values from SMU, do not update DML instance for diags
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) && !IS_DIAG_DC(dc->ctx->dce_environment))
-		dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
+	dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
 }
 
 /* Temporary Place holder until we can get them from fuse */
@@ -1476,6 +1565,7 @@ static struct dce_hwseq *dcn21_hwseq_create(
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
 		hws->wa.DEGVIDCN21 = true;
+		hws->wa.disallow_self_refresh_during_multi_plane_transition = true;
 	}
 	return hws;
 }
@@ -1758,9 +1848,15 @@ static bool dcn21_resource_construct(
 		goto create_fail;
 	}
 
-	// Leave as NULL to not affect current dmcu psr programming sequence
-	// Will be uncommented when functionality is confirmed to be working
-	pool->base.psr = NULL;
+	if (dc->debug.psr_on_dmub) {
+		pool->base.psr = dmub_psr_create(ctx);
+
+		if (pool->base.psr == NULL) {
+			dm_error("DC: failed to create psr obj!\n");
+			BREAK_TO_DEBUGGER();
+			goto create_fail;
+		}
+	}
 
 	pool->base.abm = dce_abm_create(ctx,
 			&abm_regs,

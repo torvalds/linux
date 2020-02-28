@@ -420,7 +420,8 @@ static int psp_v11_0_ring_init(struct psp_context *psp,
 	struct psp_ring *ring;
 	struct amdgpu_device *adev = psp->adev;
 
-	psp_v11_0_reroute_ih(psp);
+	if (!amdgpu_sriov_vf(adev))
+		psp_v11_0_reroute_ih(psp);
 
 	ring = &psp->km_ring;
 

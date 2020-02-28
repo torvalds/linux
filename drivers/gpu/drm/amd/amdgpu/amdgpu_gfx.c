@@ -477,7 +477,7 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
 		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.compute_ring[i],
 					   RESET_QUEUES, 0, 0);
 
-	return amdgpu_ring_test_ring(kiq_ring);
+	return amdgpu_ring_test_helper(kiq_ring);
 }
 
 int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
