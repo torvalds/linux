@@ -393,8 +393,8 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe, unsigned *hash)
 
 		/* hashed, can run if not already running */
 		*hash = work->flags >> IO_WQ_HASH_SHIFT;
-		if (!(wqe->hash_map & BIT_ULL(*hash))) {
-			wqe->hash_map |= BIT_ULL(*hash);
+		if (!(wqe->hash_map & BIT(*hash))) {
+			wqe->hash_map |= BIT(*hash);
 			wq_node_del(&wqe->work_list, node, prev);
 			return work;
 		}
@@ -512,7 +512,7 @@ next:
 		spin_lock_irq(&wqe->lock);
 
 		if (hash != -1U) {
-			wqe->hash_map &= ~BIT_ULL(hash);
+			wqe->hash_map &= ~BIT(hash);
 			wqe->flags &= ~IO_WQE_FLAG_STALLED;
 		}
 		if (work && work != old_work) {
