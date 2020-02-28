@@ -13,3 +13,4 @@ obj-y				+= ptrace-novsx.o
 endif
 obj-$(CONFIG_ALTIVEC)		+= ptrace-altivec.o
 obj-$(CONFIG_SPE)		+= ptrace-spe.o
+obj-$(CONFIG_PPC_TRANSACTIONAL_MEM)	+= ptrace-tm.o
