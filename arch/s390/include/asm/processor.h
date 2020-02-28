@@ -179,7 +179,6 @@ typedef struct thread_struct thread_struct;
 	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_BA;			\
 	regs->psw.addr	= new_psw;					\
 	regs->gprs[15]	= new_stackp;					\
-	crst_table_downgrade(current->mm);				\
 	execve_tail();							\
 } while (0)
 

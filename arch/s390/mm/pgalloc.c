@@ -138,30 +138,6 @@ err_p4d:
 	return -ENOMEM;
 }
 
-void crst_table_downgrade(struct mm_struct *mm)
-{
-	pgd_t *pgd;
-
-	/* downgrade should only happen from 3 to 2 levels (compat only) */
-	VM_BUG_ON(mm->context.asce_limit != _REGION2_SIZE);
-
-	if (current->active_mm == mm) {
-		clear_user_asce();
-		__tlb_flush_mm(mm);
-	}
-
-	pgd = mm->pgd;
-	mm_dec_nr_pmds(mm);
-	mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
-	mm->context.asce_limit = _REGION3_SIZE;
-	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-			   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
-	crst_table_free(mm, (unsigned long *) pgd);
-
-	if (current->active_mm == mm)
-		set_user_asce(mm);
-}
-
 static inline unsigned int atomic_xor_bits(atomic_t *v, unsigned int bits)
 {
 	unsigned int old, new;

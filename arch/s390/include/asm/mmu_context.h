@@ -25,7 +25,6 @@ static inline int init_new_context(struct task_struct *tsk,
 	atomic_set(&mm->context.flush_count, 0);
 	mm->context.gmap_asce = 0;
 	mm->context.flush_mm = 0;
-	mm->context.compat_mm = test_thread_flag(TIF_31BIT);
 #ifdef CONFIG_PGSTE
 	mm->context.alloc_pgste = page_table_allocate_pgste ||
 		test_thread_flag(TIF_PGSTE) ||
@@ -57,10 +56,6 @@ static inline int init_new_context(struct task_struct *tsk,
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;
 		break;
-	case _REGION3_SIZE:
-		/* forked 2-level compat task, set new asce with new mm->pgd */
-		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
 	}
 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
 	return 0;

@@ -46,7 +46,6 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 }
 
 int crst_table_upgrade(struct mm_struct *mm, unsigned long limit);
-void crst_table_downgrade(struct mm_struct *);
 
 static inline unsigned long check_asce_limit(struct mm_struct *mm, unsigned long addr,
 					     unsigned long len)
@@ -130,24 +129,11 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	unsigned long *table = crst_table_alloc(mm);
-
-	if (!table)
-		return NULL;
-	if (mm->context.asce_limit == _REGION3_SIZE) {
-		/* Forking a compat process with 2 page table levels */
-		if (!pgtable_pmd_page_ctor(virt_to_page(table))) {
-			crst_table_free(mm, table);
-			return NULL;
-		}
-	}
-	return (pgd_t *) table;
+	return (pgd_t *) crst_table_alloc(mm);
 }
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	if (mm->context.asce_limit == _REGION3_SIZE)
-		pgtable_pmd_page_dtor(virt_to_page(pgd));
 	crst_table_free(mm, (unsigned long *) pgd);
 }
 
