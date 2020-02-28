@@ -761,6 +761,9 @@ extern void scsi_block_requests(struct Scsi_Host *);
 extern int scsi_host_block(struct Scsi_Host *shost);
 extern int scsi_host_unblock(struct Scsi_Host *shost, int new_state);
 
+void scsi_host_busy_iter(struct Scsi_Host *,
+			 bool (*fn)(struct scsi_cmnd *, void *, bool), void *priv);
+
 struct class_container;
 
 /*
