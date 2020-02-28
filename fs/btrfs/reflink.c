@@ -73,9 +73,8 @@ static int clone_copy_inline_extent(struct inode *dst,
 				    struct btrfs_key *new_key,
 				    const u64 drop_start,
 				    const u64 datal,
-				    const u64 skip,
 				    const u64 size,
-				    char *inline_data)
+				    const char *inline_data)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(dst->i_sb);
 	struct btrfs_root *root = BTRFS_I(dst)->root;
@@ -171,12 +170,6 @@ copy_inline_extent:
 	if (ret)
 		return ret;
 
-	if (skip) {
-		const u32 start = btrfs_file_extent_calc_inline_size(0);
-
-		memmove(inline_data + start, inline_data + start + skip, datal);
-	}
-
 	write_extent_buffer(path->nodes[0], inline_data,
 			    btrfs_item_ptr_offset(path->nodes[0],
 						  path->slots[0]),
@@ -240,7 +233,6 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 		struct btrfs_key new_key;
 		u64 disko = 0, diskl = 0;
 		u64 datao = 0, datal = 0;
-		u8 comp;
 		u64 drop_start;
 
 		/* Note the key will change type as we walk through the tree */
@@ -283,7 +275,6 @@ process_slot:
 
 		extent = btrfs_item_ptr(leaf, slot,
 					struct btrfs_file_extent_item);
-		comp = btrfs_file_extent_compression(leaf, extent);
 		type = btrfs_file_extent_type(leaf, extent);
 		if (type == BTRFS_FILE_EXTENT_REG ||
 		    type == BTRFS_FILE_EXTENT_PREALLOC) {
@@ -365,23 +356,18 @@ process_slot:
 			if (ret)
 				goto out;
 		} else if (type == BTRFS_FILE_EXTENT_INLINE) {
-			u64 skip = 0;
-			u64 trim = 0;
-
-			if (off > key.offset) {
-				skip = off - key.offset;
-				new_key.offset += skip;
-			}
-
-			if (key.offset + datal > off + len)
-				trim = key.offset + datal - (off + len);
-
-			if (comp && (skip || trim)) {
-				ret = -EINVAL;
-				goto out;
-			}
-			size -= skip + trim;
-			datal -= skip + trim;
+			/*
+			 * Inline extents always have to start at file offset 0
+			 * and can never be bigger then the sector size. We can
+			 * never clone only parts of an inline extent, since all
+			 * reflink operations must start at a sector size aligned
+			 * offset, and the length must be aligned too or end at
+			 * the i_size (which implies the whole inlined data).
+			 */
+			ASSERT(key.offset == 0);
+			ASSERT(datal <= fs_info->sectorsize);
+			if (key.offset != 0 || datal > fs_info->sectorsize)
+				return -EUCLEAN;
 
 			/*
 			 * If our extent is inline, we know we will drop or
@@ -399,7 +385,7 @@ process_slot:
 
 			ret = clone_copy_inline_extent(inode, trans, path,
 						       &new_key, drop_start,
-						       datal, skip, size, buf);
+						       datal, size, buf);
 			if (ret) {
 				if (ret != -EOPNOTSUPP)
 					btrfs_abort_transaction(trans, ret);
@@ -542,17 +528,6 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	int ret;
 	u64 len = olen;
 	u64 bs = fs_info->sb->s_blocksize;
-
-	/*
-	 * TODO:
-	 * - split compressed inline extents.  annoying: we need to
-	 *   decompress into destination's address_space (the file offset
-	 *   may change, so source mapping won't do), then recompress (or
-	 *   otherwise reinsert) a subrange.
-	 *
-	 * - split destination inode's inline extents.  The inline extents can
-	 *   be either compressed or non-compressed.
-	 */
 
 	/*
 	 * VFS's generic_remap_file_range_prep() protects us from cloning the
