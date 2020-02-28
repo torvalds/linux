@@ -14,3 +14,7 @@ endif
 obj-$(CONFIG_ALTIVEC)		+= ptrace-altivec.o
 obj-$(CONFIG_SPE)		+= ptrace-spe.o
 obj-$(CONFIG_PPC_TRANSACTIONAL_MEM)	+= ptrace-tm.o
+obj-$(CONFIG_PPC_ADV_DEBUG_REGS)	+= ptrace-adv.o
+ifneq ($(CONFIG_PPC_ADV_DEBUG_REGS),y)
+obj-y				+= ptrace-noadv.o
+endif
