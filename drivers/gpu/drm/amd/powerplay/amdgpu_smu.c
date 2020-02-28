@@ -210,7 +210,7 @@ int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t 
 }
 
 int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
-			    uint32_t min, uint32_t max)
+			    uint32_t min, uint32_t max, bool lock_needed)
 {
 	int ret = 0;
 
@@ -220,7 +220,12 @@ int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 	if (!smu_clk_dpm_is_enabled(smu, clk_type))
 		return 0;
 
+	if (lock_needed)
+		mutex_lock(&smu->mutex);
 	ret = smu_set_soft_freq_limited_range(smu, clk_type, min, max);
+	if (lock_needed)
+		mutex_unlock(&smu->mutex);
+
 	return ret;
 }
 

@@ -707,7 +707,7 @@ int smu_get_dpm_level_count(struct smu_context *smu, enum smu_clk_type clk_type,
 int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			   uint32_t *min, uint32_t *max, bool lock_needed);
 int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
-			    uint32_t min, uint32_t max);
+			    uint32_t min, uint32_t max, bool lock_needed);
 int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max);
 int smu_get_dpm_level_range(struct smu_context *smu, enum smu_clk_type clk_type,
