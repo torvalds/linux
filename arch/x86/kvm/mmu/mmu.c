@@ -4253,6 +4253,14 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->nx = false;
 }
 
+static inline bool is_root_usable(struct kvm_mmu_root_info *root, gpa_t cr3,
+				  union kvm_mmu_page_role role)
+{
+	return (role.direct || cr3 == root->cr3) &&
+	       VALID_PAGE(root->hpa) && page_header(root->hpa) &&
+	       role.word == page_header(root->hpa)->role.word;
+}
+
 /*
  * Find out if a previously cached root matching the new CR3/role is available.
  * The current root is also inserted into the cache.
@@ -4271,12 +4279,13 @@ static bool cached_root_available(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 	root.cr3 = mmu->root_cr3;
 	root.hpa = mmu->root_hpa;
 
+	if (is_root_usable(&root, new_cr3, new_role))
+		return true;
+
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
 		swap(root, mmu->prev_roots[i]);
 
-		if ((new_role.direct || new_cr3 == root.cr3) &&
-		    VALID_PAGE(root.hpa) && page_header(root.hpa) &&
-		    new_role.word == page_header(root.hpa)->role.word)
+		if (is_root_usable(&root, new_cr3, new_role))
 			break;
 	}
 
