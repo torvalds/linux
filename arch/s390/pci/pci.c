@@ -226,28 +226,29 @@ void __iowrite64_copy(void __iomem *to, const void *from, size_t count)
        zpci_memcpy_toio(to, from, count);
 }
 
-void __iomem *ioremap(unsigned long ioaddr, unsigned long size)
+void __iomem *ioremap(phys_addr_t addr, size_t size)
 {
+	unsigned long offset, vaddr;
 	struct vm_struct *area;
-	unsigned long offset;
+	phys_addr_t last_addr;
 
-	if (!size)
+	last_addr = addr + size - 1;
+	if (!size || last_addr < addr)
 		return NULL;
 
 	if (!static_branch_unlikely(&have_mio))
-		return (void __iomem *) ioaddr;
+		return (void __iomem *) addr;
 
-	offset = ioaddr & ~PAGE_MASK;
-	ioaddr &= PAGE_MASK;
+	offset = addr & ~PAGE_MASK;
+	addr &= PAGE_MASK;
 	size = PAGE_ALIGN(size + offset);
 	area = get_vm_area(size, VM_IOREMAP);
 	if (!area)
 		return NULL;
 
-	if (ioremap_page_range((unsigned long) area->addr,
-			       (unsigned long) area->addr + size,
-			       ioaddr, PAGE_KERNEL)) {
-		vunmap(area->addr);
+	vaddr = (unsigned long) area->addr;
+	if (ioremap_page_range(vaddr, vaddr + size, addr, PAGE_KERNEL)) {
+		free_vm_area(area);
 		return NULL;
 	}
 	return (void __iomem *) ((unsigned long) area->addr + offset);
