@@ -39,12 +39,12 @@ cat > "$output_file" << EOT
 
 EOT
 
-[ -f modules.order ] && modlist=modules.order || modlist=/dev/null
-sed 's/ko$/mod/' $modlist |
-xargs -n1 sed -n -e '3{s/ /\n/g;/^$/!p;}' -- |
-cat - "$ksym_wl" |
-sort -u |
-sed -e 's/\(.*\)/#define __KSYM_\1 1/' >> "$output_file"
+for mod in "$MODVERDIR"/*.mod; do
+	[ -f "$mod" ] && sed -n -e '3{s/ /\n/g;/^$/!p;}' "$mod"
+done | cat - "$ksym_wl" | sort -u |
+while read sym; do
+	echo "#define __KSYM_${sym} 1"
+done >> "$output_file"
 
 # Special case for modversions (see modpost.c)
 if [ -n "$CONFIG_MODVERSIONS" ]; then
