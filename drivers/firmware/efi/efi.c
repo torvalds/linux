@@ -300,11 +300,11 @@ static int __init efisubsys_init(void)
 {
 	int error;
 
-	if (!efi_enabled(EFI_BOOT))
-		return 0;
-
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
 		efi.runtime_supported_mask = 0;
+
+	if (!efi_enabled(EFI_BOOT))
+		return 0;
 
 	if (efi.runtime_supported_mask) {
 		/*
