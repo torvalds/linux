@@ -5120,8 +5120,7 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 {
 	struct drm_device *dev = crtc_state->uapi.crtc->dev;
 	const struct drm_i915_private *dev_priv = to_i915(dev);
-	u16 trans_min, trans_y_tile_min;
-	const u16 trans_amount = 10; /* This is configurable amount */
+	u16 trans_min, trans_amount, trans_y_tile_min;
 	u16 wm0_sel_res_b, trans_offset_b, res_blocks;
 
 	/* Transition WM don't make any sense if ipc is disabled */
@@ -5135,9 +5134,16 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 	if (IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv))
 		return;
 
-	trans_min = 14;
 	if (INTEL_GEN(dev_priv) >= 11)
 		trans_min = 4;
+	else
+		trans_min = 14;
+
+	/* Display WA #1140: glk,cnl */
+	if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+		trans_amount = 0;
+	else
+		trans_amount = 10; /* This is configurable amount */
 
 	trans_offset_b = trans_min + trans_amount;
 
@@ -5164,7 +5170,6 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 		/* WA BUG:1938466 add one block for non y-tile planes */
 		if (IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_A0))
 			res_blocks += 1;
-
 	}
 
 	/*
