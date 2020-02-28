@@ -17852,6 +17852,13 @@ S:	Supported
 F:	arch/x86/kernel/cpu/vmware.c
 F:	arch/x86/include/asm/vmware.h
 
+VMWARE VIRTUAL PTP CLOCK DRIVER
+M:	Vivek Thampi <vithampi@vmware.com>
+M:	"VMware, Inc." <pv-drivers@vmware.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/ptp/ptp_vmw.c
+
 VMWARE PVRDMA DRIVER
 M:	Adit Ranadive <aditr@vmware.com>
 M:	VMware PV-Drivers <pv-drivers@vmware.com>
