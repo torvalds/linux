@@ -63,6 +63,9 @@ config DRM_I915_STOP_TIMEOUT
 	  that the reset itself may take longer and so be more disruptive to
 	  interactive or low latency workloads.
 
+	  This is adjustable via
+	  /sys/class/drm/card?/engine/*/stop_timeout_ms
+
 config DRM_I915_TIMESLICE_DURATION
 	int "Scheduling quantum for userspace batches (ms, jiffy granularity)"
 	default 1 # milliseconds

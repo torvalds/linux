@@ -232,6 +232,45 @@ timeslice_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 static struct kobj_attribute timeslice_duration_attr =
 __ATTR(timeslice_duration_ms, 0644, timeslice_show, timeslice_store);
 
+static ssize_t
+stop_store(struct kobject *kobj, struct kobj_attribute *attr,
+	   const char *buf, size_t count)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+	unsigned long long duration;
+	int err;
+
+	/*
+	 * When we allow ourselves to sleep before a GPU reset after disabling
+	 * submission, even for a few milliseconds, gives an innocent context
+	 * the opportunity to clear the GPU before the reset occurs. However,
+	 * how long to sleep depends on the typical non-preemptible duration
+	 * (a similar problem to determining the ideal preempt-reset timeout
+	 * or even the heartbeat interval).
+	 */
+
+	err = kstrtoull(buf, 0, &duration);
+	if (err)
+		return err;
+
+	if (duration > jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT))
+		return -EINVAL;
+
+	WRITE_ONCE(engine->props.stop_timeout_ms, duration);
+	return count;
+}
+
+static ssize_t
+stop_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+
+	return sprintf(buf, "%lu\n", engine->props.stop_timeout_ms);
+}
+
+static struct kobj_attribute stop_timeout_attr =
+__ATTR(stop_timeout_ms, 0644, stop_show, stop_store);
+
 static void kobj_engine_release(struct kobject *kobj)
 {
 	kfree(kobj);
@@ -273,6 +312,7 @@ void intel_engines_add_sysfs(struct drm_i915_private *i915)
 		&caps_attr.attr,
 		&all_caps_attr.attr,
 		&max_spin_attr.attr,
+		&stop_timeout_attr.attr,
 		NULL
 	};
 
