@@ -2845,6 +2845,36 @@ scsi_target_unblock(struct device *dev, enum scsi_device_state new_state)
 }
 EXPORT_SYMBOL_GPL(scsi_target_unblock);
 
+int
+scsi_host_block(struct Scsi_Host *shost)
+{
+	struct scsi_device *sdev;
+	int ret = 0;
+
+	shost_for_each_device(sdev, shost) {
+		ret = scsi_internal_device_block(sdev);
+		if (ret)
+			break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(scsi_host_block);
+
+int
+scsi_host_unblock(struct Scsi_Host *shost, int new_state)
+{
+	struct scsi_device *sdev;
+	int ret = 0;
+
+	shost_for_each_device(sdev, shost) {
+		ret = scsi_internal_device_unblock(sdev, new_state);
+		if (ret)
+			break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(scsi_host_unblock);
+
 /**
  * scsi_kmap_atomic_sg - find and atomically map an sg-elemnt
  * @sgl:	scatter-gather list
