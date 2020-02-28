@@ -22,6 +22,45 @@
 #define TFSO(f)	(offsetof(struct thread_fp_state, f))
 #define TSO(f)	(offsetof(struct thread_struct, f))
 
+/*
+ * These are our native regset flavors.
+ */
+enum powerpc_regset {
+	REGSET_GPR,
+	REGSET_FPR,
+#ifdef CONFIG_ALTIVEC
+	REGSET_VMX,
+#endif
+#ifdef CONFIG_VSX
+	REGSET_VSX,
+#endif
+#ifdef CONFIG_SPE
+	REGSET_SPE,
+#endif
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	REGSET_TM_CGPR,		/* TM checkpointed GPR registers */
+	REGSET_TM_CFPR,		/* TM checkpointed FPR registers */
+	REGSET_TM_CVMX,		/* TM checkpointed VMX registers */
+	REGSET_TM_CVSX,		/* TM checkpointed VSX registers */
+	REGSET_TM_SPR,		/* TM specific SPR registers */
+	REGSET_TM_CTAR,		/* TM checkpointed TAR register */
+	REGSET_TM_CPPR,		/* TM checkpointed PPR register */
+	REGSET_TM_CDSCR,	/* TM checkpointed DSCR register */
+#endif
+#ifdef CONFIG_PPC64
+	REGSET_PPR,		/* PPR register */
+	REGSET_DSCR,		/* DSCR register */
+#endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	REGSET_TAR,		/* TAR register */
+	REGSET_EBB,		/* EBB registers */
+	REGSET_PMR,		/* Performance Monitor Registers */
+#endif
+#ifdef CONFIG_PPC_MEM_KEYS
+	REGSET_PKEY,		/* AMR register */
+#endif
+};
+
 /* ptrace-(no)vsx */
 
 int fpr_get(struct task_struct *target, const struct user_regset *regset,
@@ -131,3 +170,7 @@ int tm_cgpr32_get(struct task_struct *target, const struct user_regset *regset,
 int tm_cgpr32_set(struct task_struct *target, const struct user_regset *regset,
 		  unsigned int pos, unsigned int count,
 		  const void *kbuf, const void __user *ubuf);
+
+/* ptrace-view */
+
+extern const struct user_regset_view user_ppc_native_view;
