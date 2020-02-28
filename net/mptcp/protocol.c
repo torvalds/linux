@@ -666,6 +666,11 @@ static void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
 	}
 }
 
+static unsigned int mptcp_sync_mss(struct sock *sk, u32 pmtu)
+{
+	return 0;
+}
+
 static void mptcp_worker(struct work_struct *work)
 {
 	struct mptcp_sock *msk = container_of(work, struct mptcp_sock, work);
@@ -686,6 +691,7 @@ static int __mptcp_init_sock(struct sock *sk)
 	INIT_WORK(&msk->work, mptcp_worker);
 
 	msk->first = NULL;
+	inet_csk(sk)->icsk_sync_mss = mptcp_sync_mss;
 
 	return 0;
 }

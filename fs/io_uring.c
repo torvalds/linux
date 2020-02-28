@@ -1260,6 +1260,9 @@ static void __io_req_aux_free(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
+	if (req->flags & REQ_F_NEED_CLEANUP)
+		io_cleanup_req(req);
+
 	kfree(req->io);
 	if (req->file) {
 		if (req->flags & REQ_F_FIXED_FILE)
@@ -1274,9 +1277,6 @@ static void __io_req_aux_free(struct io_kiocb *req)
 static void __io_free_req(struct io_kiocb *req)
 {
 	__io_req_aux_free(req);
-
-	if (req->flags & REQ_F_NEED_CLEANUP)
-		io_cleanup_req(req);
 
 	if (req->flags & REQ_F_INFLIGHT) {
 		struct io_ring_ctx *ctx = req->ctx;
@@ -1672,11 +1672,17 @@ static void io_iopoll_reap_events(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 }
 
-static int __io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
-			    long min)
+static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
+			   long min)
 {
 	int iters = 0, ret = 0;
 
+	/*
+	 * We disallow the app entering submit/complete with polling, but we
+	 * still need to lock the ring to prevent racing with polled issue
+	 * that got punted to a workqueue.
+	 */
+	mutex_lock(&ctx->uring_lock);
 	do {
 		int tmin = 0;
 
@@ -1712,21 +1718,6 @@ static int __io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
 		ret = 0;
 	} while (min && !*nr_events && !need_resched());
 
-	return ret;
-}
-
-static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
-			   long min)
-{
-	int ret;
-
-	/*
-	 * We disallow the app entering submit/complete with polling, but we
-	 * still need to lock the ring to prevent racing with polled issue
-	 * that got punted to a workqueue.
-	 */
-	mutex_lock(&ctx->uring_lock);
-	ret = __io_iopoll_check(ctx, nr_events, min);
 	mutex_unlock(&ctx->uring_lock);
 	return ret;
 }
@@ -2517,6 +2508,9 @@ static void io_fallocate_finish(struct io_wq_work **workptr)
 	struct io_kiocb *nxt = NULL;
 	int ret;
 
+	if (io_req_cancelled(req))
+		return;
+
 	ret = vfs_fallocate(req->file, req->sync.mode, req->sync.off,
 				req->sync.len);
 	if (ret < 0)
@@ -2904,6 +2898,7 @@ static void io_close_finish(struct io_wq_work **workptr)
 	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
 	struct io_kiocb *nxt = NULL;
 
+	/* not cancellable, don't do io_req_cancelled() */
 	__io_close_finish(req, &nxt);
 	if (nxt)
 		io_wq_assign_next(workptr, nxt);
@@ -3071,7 +3066,7 @@ static int io_sendmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 			if (req->io)
 				return -EAGAIN;
 			if (io_alloc_async_ctx(req)) {
-				if (kmsg && kmsg->iov != kmsg->fast_iov)
+				if (kmsg->iov != kmsg->fast_iov)
 					kfree(kmsg->iov);
 				return -ENOMEM;
 			}
@@ -3225,7 +3220,7 @@ static int io_recvmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 			if (req->io)
 				return -EAGAIN;
 			if (io_alloc_async_ctx(req)) {
-				if (kmsg && kmsg->iov != kmsg->fast_iov)
+				if (kmsg->iov != kmsg->fast_iov)
 					kfree(kmsg->iov);
 				return -ENOMEM;
 			}
@@ -5114,7 +5109,7 @@ static int io_sq_thread(void *data)
 				 */
 				mutex_lock(&ctx->uring_lock);
 				if (!list_empty(&ctx->poll_list))
-					__io_iopoll_check(ctx, &nr_events, 0);
+					io_iopoll_getevents(ctx, &nr_events, 0);
 				else
 					inflight = 0;
 				mutex_unlock(&ctx->uring_lock);
@@ -5139,6 +5134,18 @@ static int io_sq_thread(void *data)
 		 */
 		if (!to_submit || ret == -EBUSY) {
 			/*
+			 * Drop cur_mm before scheduling, we can't hold it for
+			 * long periods (or over schedule()). Do this before
+			 * adding ourselves to the waitqueue, as the unuse/drop
+			 * may sleep.
+			 */
+			if (cur_mm) {
+				unuse_mm(cur_mm);
+				mmput(cur_mm);
+				cur_mm = NULL;
+			}
+
+			/*
 			 * We're polling. If we're within the defined idle
 			 * period, then let us spin without work before going
 			 * to sleep. The exception is if we got EBUSY doing
@@ -5150,18 +5157,6 @@ static int io_sq_thread(void *data)
 			    !percpu_ref_is_dying(&ctx->refs))) {
 				cond_resched();
 				continue;
-			}
-
-			/*
-			 * Drop cur_mm before scheduling, we can't hold it for
-			 * long periods (or over schedule()). Do this before
-			 * adding ourselves to the waitqueue, as the unuse/drop
-			 * may sleep.
-			 */
-			if (cur_mm) {
-				unuse_mm(cur_mm);
-				mmput(cur_mm);
-				cur_mm = NULL;
 			}
 
 			prepare_to_wait(&ctx->sqo_wait, &wait,

@@ -1256,36 +1256,35 @@ static int hidpp20_battery_map_status_voltage(u8 data[3], int *voltage,
 {
 	int status;
 
-	long charge_sts = (long)data[2];
+	long flags = (long) data[2];
 
-	*level = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
-	switch (data[2] & 0xe0) {
-	case 0x00:
-		status = POWER_SUPPLY_STATUS_CHARGING;
-		break;
-	case 0x20:
-		status = POWER_SUPPLY_STATUS_FULL;
-		*level = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
-		break;
-	case 0x40:
+	if (flags & 0x80)
+		switch (flags & 0x07) {
+		case 0:
+			status = POWER_SUPPLY_STATUS_CHARGING;
+			break;
+		case 1:
+			status = POWER_SUPPLY_STATUS_FULL;
+			*level = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
+			break;
+		case 2:
+			status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			break;
+		default:
+			status = POWER_SUPPLY_STATUS_UNKNOWN;
+			break;
+		}
+	else
 		status = POWER_SUPPLY_STATUS_DISCHARGING;
-		break;
-	case 0xe0:
-		status = POWER_SUPPLY_STATUS_NOT_CHARGING;
-		break;
-	default:
-		status = POWER_SUPPLY_STATUS_UNKNOWN;
-	}
 
 	*charge_type = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
-	if (test_bit(3, &charge_sts)) {
+	if (test_bit(3, &flags)) {
 		*charge_type = POWER_SUPPLY_CHARGE_TYPE_FAST;
 	}
-	if (test_bit(4, &charge_sts)) {
+	if (test_bit(4, &flags)) {
 		*charge_type = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 	}
-
-	if (test_bit(5, &charge_sts)) {
+	if (test_bit(5, &flags)) {
 		*level = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
 	}
 
