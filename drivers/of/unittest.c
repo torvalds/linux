@@ -61,86 +61,6 @@ static struct unittest_results {
 #define EXPECT_END(level, fmt, ...) \
 	printk(level pr_fmt("EXPECT / : ") fmt, ##__VA_ARGS__)
 
-struct unittest_gpio_dev {
-	struct gpio_chip chip;
-};
-
-static int unittest_gpio_chip_request_count;
-static int unittest_gpio_probe_count;
-static int unittest_gpio_probe_pass_count;
-
-static int unittest_gpio_chip_request(struct gpio_chip *chip, unsigned int offset)
-{
-	unittest_gpio_chip_request_count++;
-
-	pr_debug("%s(): %s %d %d\n", __func__, chip->label, offset,
-		 unittest_gpio_chip_request_count);
-	return 0;
-}
-
-static int unittest_gpio_probe(struct platform_device *pdev)
-{
-	struct unittest_gpio_dev *devptr;
-	int ret;
-
-	unittest_gpio_probe_count++;
-
-	devptr = kzalloc(sizeof(*devptr), GFP_KERNEL);
-	if (!devptr)
-		return -ENOMEM;
-
-	platform_set_drvdata(pdev, devptr);
-
-	devptr->chip.of_node = pdev->dev.of_node;
-	devptr->chip.label = "of-unittest-gpio";
-	devptr->chip.base = -1; /* dynamic allocation */
-	devptr->chip.ngpio = 5;
-	devptr->chip.request = unittest_gpio_chip_request;
-
-	ret = gpiochip_add_data(&devptr->chip, NULL);
-
-	unittest(!ret,
-		 "gpiochip_add_data() for node @%pOF failed, ret = %d\n", devptr->chip.of_node, ret);
-
-	if (!ret)
-		unittest_gpio_probe_pass_count++;
-	return ret;
-}
-
-static int unittest_gpio_remove(struct platform_device *pdev)
-{
-	struct unittest_gpio_dev *gdev = platform_get_drvdata(pdev);
-	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
-
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
-
-	if (!gdev)
-		return -EINVAL;
-
-	if (gdev->chip.base != -1)
-		gpiochip_remove(&gdev->chip);
-
-	platform_set_drvdata(pdev, NULL);
-	kfree(pdev);
-
-	return 0;
-}
-
-static const struct of_device_id unittest_gpio_id[] = {
-	{ .compatible = "unittest-gpio", },
-	{}
-};
-
-static struct platform_driver unittest_gpio_driver = {
-	.probe	= unittest_gpio_probe,
-	.remove	= unittest_gpio_remove,
-	.driver	= {
-		.name		= "unittest-gpio",
-		.of_match_table	= of_match_ptr(unittest_gpio_id),
-	},
-};
-
 static void __init of_unittest_find_node_by_name(void)
 {
 	struct device_node *np;
@@ -1588,6 +1508,244 @@ static int of_path_platform_device_exists(const char *path)
 	return pdev != NULL;
 }
 
+#ifdef CONFIG_OF_GPIO
+
+struct unittest_gpio_dev {
+	struct gpio_chip chip;
+};
+
+static int unittest_gpio_chip_request_count;
+static int unittest_gpio_probe_count;
+static int unittest_gpio_probe_pass_count;
+
+static int unittest_gpio_chip_request(struct gpio_chip *chip, unsigned int offset)
+{
+	unittest_gpio_chip_request_count++;
+
+	pr_debug("%s(): %s %d %d\n", __func__, chip->label, offset,
+		 unittest_gpio_chip_request_count);
+	return 0;
+}
+
+static int unittest_gpio_probe(struct platform_device *pdev)
+{
+	struct unittest_gpio_dev *devptr;
+	int ret;
+
+	unittest_gpio_probe_count++;
+
+	devptr = kzalloc(sizeof(*devptr), GFP_KERNEL);
+	if (!devptr)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, devptr);
+
+	devptr->chip.of_node = pdev->dev.of_node;
+	devptr->chip.label = "of-unittest-gpio";
+	devptr->chip.base = -1; /* dynamic allocation */
+	devptr->chip.ngpio = 5;
+	devptr->chip.request = unittest_gpio_chip_request;
+
+	ret = gpiochip_add_data(&devptr->chip, NULL);
+
+	unittest(!ret,
+		 "gpiochip_add_data() for node @%pOF failed, ret = %d\n", devptr->chip.of_node, ret);
+
+	if (!ret)
+		unittest_gpio_probe_pass_count++;
+	return ret;
+}
+
+static int unittest_gpio_remove(struct platform_device *pdev)
+{
+	struct unittest_gpio_dev *gdev = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
+	struct device_node *np = pdev->dev.of_node;
+
+	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+
+	if (!gdev)
+		return -EINVAL;
+
+	if (gdev->chip.base != -1)
+		gpiochip_remove(&gdev->chip);
+
+	platform_set_drvdata(pdev, NULL);
+	kfree(pdev);
+
+	return 0;
+}
+
+static const struct of_device_id unittest_gpio_id[] = {
+	{ .compatible = "unittest-gpio", },
+	{}
+};
+
+static struct platform_driver unittest_gpio_driver = {
+	.probe	= unittest_gpio_probe,
+	.remove	= unittest_gpio_remove,
+	.driver	= {
+		.name		= "unittest-gpio",
+		.of_match_table	= of_match_ptr(unittest_gpio_id),
+	},
+};
+
+static void __init of_unittest_overlay_gpio(void)
+{
+	int chip_request_count;
+	int probe_pass_count;
+	int ret;
+
+	/*
+	 * tests: apply overlays before registering driver
+	 * Similar to installing a driver as a module, the
+	 * driver is registered after applying the overlays.
+	 *
+	 * - apply overlay_gpio_01
+	 * - apply overlay_gpio_02a
+	 * - apply overlay_gpio_02b
+	 * - register driver
+	 *
+	 * register driver will result in
+	 *   - probe and processing gpio hog for overlay_gpio_01
+	 *   - probe for overlay_gpio_02a
+	 *   - processing gpio for overlay_gpio_02b
+	 */
+
+	probe_pass_count = unittest_gpio_probe_pass_count;
+	chip_request_count = unittest_gpio_chip_request_count;
+
+	/*
+	 * overlay_gpio_01 contains gpio node and child gpio hog node
+	 * overlay_gpio_02a contains gpio node
+	 * overlay_gpio_02b contains child gpio hog node
+	 */
+
+	unittest(overlay_data_apply("overlay_gpio_01", NULL),
+		 "Adding overlay 'overlay_gpio_01' failed\n");
+
+	unittest(overlay_data_apply("overlay_gpio_02a", NULL),
+		 "Adding overlay 'overlay_gpio_02a' failed\n");
+
+	unittest(overlay_data_apply("overlay_gpio_02b", NULL),
+		 "Adding overlay 'overlay_gpio_02b' failed\n");
+
+	/*
+	 * messages are the result of the probes, after the
+	 * driver is registered
+	 */
+
+	EXPECT_BEGIN(KERN_INFO,
+		     "GPIO line <<int>> (line-B-input) hogged as input\n");
+
+	EXPECT_BEGIN(KERN_INFO,
+		     "GPIO line <<int>> (line-A-input) hogged as input\n");
+
+	ret = platform_driver_register(&unittest_gpio_driver);
+	if (unittest(ret == 0, "could not register unittest gpio driver\n"))
+		return;
+
+	EXPECT_END(KERN_INFO,
+		   "GPIO line <<int>> (line-A-input) hogged as input\n");
+	EXPECT_END(KERN_INFO,
+		   "GPIO line <<int>> (line-B-input) hogged as input\n");
+
+	unittest(probe_pass_count + 2 == unittest_gpio_probe_pass_count,
+		 "unittest_gpio_probe() failed or not called\n");
+
+	unittest(chip_request_count + 2 == unittest_gpio_chip_request_count,
+		 "unittest_gpio_chip_request() called %d times (expected 1 time)\n",
+		 unittest_gpio_chip_request_count - chip_request_count);
+
+	/*
+	 * tests: apply overlays after registering driver
+	 *
+	 * Similar to a driver built-in to the kernel, the
+	 * driver is registered before applying the overlays.
+	 *
+	 * overlay_gpio_03 contains gpio node and child gpio hog node
+	 *
+	 * - apply overlay_gpio_03
+	 *
+	 * apply overlay will result in
+	 *   - probe and processing gpio hog.
+	 */
+
+	probe_pass_count = unittest_gpio_probe_pass_count;
+	chip_request_count = unittest_gpio_chip_request_count;
+
+	EXPECT_BEGIN(KERN_INFO,
+		     "GPIO line <<int>> (line-D-input) hogged as input\n");
+
+	/* overlay_gpio_03 contains gpio node and child gpio hog node */
+
+	unittest(overlay_data_apply("overlay_gpio_03", NULL),
+		 "Adding overlay 'overlay_gpio_03' failed\n");
+
+	EXPECT_END(KERN_INFO,
+		   "GPIO line <<int>> (line-D-input) hogged as input\n");
+
+	unittest(probe_pass_count + 1 == unittest_gpio_probe_pass_count,
+		 "unittest_gpio_probe() failed or not called\n");
+
+	unittest(chip_request_count + 1 == unittest_gpio_chip_request_count,
+		 "unittest_gpio_chip_request() called %d times (expected 1 time)\n",
+		 unittest_gpio_chip_request_count - chip_request_count);
+
+	/*
+	 * overlay_gpio_04a contains gpio node
+	 *
+	 * - apply overlay_gpio_04a
+	 *
+	 * apply the overlay will result in
+	 *   - probe for overlay_gpio_04a
+	 */
+
+	probe_pass_count = unittest_gpio_probe_pass_count;
+	chip_request_count = unittest_gpio_chip_request_count;
+
+	/* overlay_gpio_04a contains gpio node */
+
+	unittest(overlay_data_apply("overlay_gpio_04a", NULL),
+		 "Adding overlay 'overlay_gpio_04a' failed\n");
+
+	unittest(probe_pass_count + 1 == unittest_gpio_probe_pass_count,
+		 "unittest_gpio_probe() failed or not called\n");
+
+	/*
+	 * overlay_gpio_04b contains child gpio hog node
+	 *
+	 * - apply overlay_gpio_04b
+	 *
+	 * apply the overlay will result in
+	 *   - processing gpio for overlay_gpio_04b
+	 */
+
+	EXPECT_BEGIN(KERN_INFO,
+		     "GPIO line <<int>> (line-C-input) hogged as input\n");
+
+	/* overlay_gpio_04b contains child gpio hog node */
+
+	unittest(overlay_data_apply("overlay_gpio_04b", NULL),
+		 "Adding overlay 'overlay_gpio_04b' failed\n");
+
+	EXPECT_END(KERN_INFO,
+		   "GPIO line <<int>> (line-C-input) hogged as input\n");
+
+	unittest(chip_request_count + 1 == unittest_gpio_chip_request_count,
+		 "unittest_gpio_chip_request() called %d times (expected 1 time)\n",
+		 unittest_gpio_chip_request_count - chip_request_count);
+}
+
+#else
+
+static void __init of_unittest_overlay_gpio(void)
+{
+	/* skip tests */
+}
+
+#endif
+
 #if IS_BUILTIN(CONFIG_I2C)
 
 /* get the i2c client device instantiated at the path */
@@ -2516,153 +2674,6 @@ static inline void of_unittest_overlay_i2c_14(void) { }
 static inline void of_unittest_overlay_i2c_15(void) { }
 
 #endif
-
-static void __init of_unittest_overlay_gpio(void)
-{
-	int chip_request_count;
-	int probe_pass_count;
-	int ret;
-
-	/*
-	 * tests: apply overlays before registering driver
-	 * Similar to installing a driver as a module, the
-	 * driver is registered after applying the overlays.
-	 *
-	 * - apply overlay_gpio_01
-	 * - apply overlay_gpio_02a
-	 * - apply overlay_gpio_02b
-	 * - register driver
-	 *
-	 * register driver will result in
-	 *   - probe and processing gpio hog for overlay_gpio_01
-	 *   - probe for overlay_gpio_02a
-	 *   - processing gpio for overlay_gpio_02b
-	 */
-
-	probe_pass_count = unittest_gpio_probe_pass_count;
-	chip_request_count = unittest_gpio_chip_request_count;
-
-	/*
-	 * overlay_gpio_01 contains gpio node and child gpio hog node
-	 * overlay_gpio_02a contains gpio node
-	 * overlay_gpio_02b contains child gpio hog node
-	 */
-
-	unittest(overlay_data_apply("overlay_gpio_01", NULL),
-		 "Adding overlay 'overlay_gpio_01' failed\n");
-
-	unittest(overlay_data_apply("overlay_gpio_02a", NULL),
-		 "Adding overlay 'overlay_gpio_02a' failed\n");
-
-	unittest(overlay_data_apply("overlay_gpio_02b", NULL),
-		 "Adding overlay 'overlay_gpio_02b' failed\n");
-
-	/*
-	 * messages are the result of the probes, after the
-	 * driver is registered
-	 */
-
-	EXPECT_BEGIN(KERN_INFO,
-		     "GPIO line <<int>> (line-B-input) hogged as input\n");
-
-	EXPECT_BEGIN(KERN_INFO,
-		     "GPIO line <<int>> (line-A-input) hogged as input\n");
-
-	ret = platform_driver_register(&unittest_gpio_driver);
-	if (unittest(ret == 0, "could not register unittest gpio driver\n"))
-		return;
-
-	EXPECT_END(KERN_INFO,
-		   "GPIO line <<int>> (line-A-input) hogged as input\n");
-	EXPECT_END(KERN_INFO,
-		   "GPIO line <<int>> (line-B-input) hogged as input\n");
-
-	unittest(probe_pass_count + 2 == unittest_gpio_probe_pass_count,
-		 "unittest_gpio_probe() failed or not called\n");
-
-	unittest(chip_request_count + 2 == unittest_gpio_chip_request_count,
-		 "unittest_gpio_chip_request() called %d times (expected 1 time)\n",
-		 unittest_gpio_chip_request_count - chip_request_count);
-
-	/*
-	 * tests: apply overlays after registering driver
-	 *
-	 * Similar to a driver built-in to the kernel, the
-	 * driver is registered before applying the overlays.
-	 *
-	 * overlay_gpio_03 contains gpio node and child gpio hog node
-	 *
-	 * - apply overlay_gpio_03
-	 *
-	 * apply overlay will result in
-	 *   - probe and processing gpio hog.
-	 */
-
-	probe_pass_count = unittest_gpio_probe_pass_count;
-	chip_request_count = unittest_gpio_chip_request_count;
-
-	EXPECT_BEGIN(KERN_INFO,
-		     "GPIO line <<int>> (line-D-input) hogged as input\n");
-
-	/* overlay_gpio_03 contains gpio node and child gpio hog node */
-
-	unittest(overlay_data_apply("overlay_gpio_03", NULL),
-		 "Adding overlay 'overlay_gpio_03' failed\n");
-
-	EXPECT_END(KERN_INFO,
-		   "GPIO line <<int>> (line-D-input) hogged as input\n");
-
-	unittest(probe_pass_count + 1 == unittest_gpio_probe_pass_count,
-		 "unittest_gpio_probe() failed or not called\n");
-
-	unittest(chip_request_count + 1 == unittest_gpio_chip_request_count,
-		 "unittest_gpio_chip_request() called %d times (expected 1 time)\n",
-		 unittest_gpio_chip_request_count - chip_request_count);
-
-	/*
-	 * overlay_gpio_04a contains gpio node
-	 *
-	 * - apply overlay_gpio_04a
-	 *
-	 * apply the overlay will result in
-	 *   - probe for overlay_gpio_04a
-	 */
-
-	probe_pass_count = unittest_gpio_probe_pass_count;
-	chip_request_count = unittest_gpio_chip_request_count;
-
-	/* overlay_gpio_04a contains gpio node */
-
-	unittest(overlay_data_apply("overlay_gpio_04a", NULL),
-		 "Adding overlay 'overlay_gpio_04a' failed\n");
-
-	unittest(probe_pass_count + 1 == unittest_gpio_probe_pass_count,
-		 "unittest_gpio_probe() failed or not called\n");
-
-	/*
-	 * overlay_gpio_04b contains child gpio hog node
-	 *
-	 * - apply overlay_gpio_04b
-	 *
-	 * apply the overlay will result in
-	 *   - processing gpio for overlay_gpio_04b
-	 */
-
-	EXPECT_BEGIN(KERN_INFO,
-		     "GPIO line <<int>> (line-C-input) hogged as input\n");
-
-	/* overlay_gpio_04b contains child gpio hog node */
-
-	unittest(overlay_data_apply("overlay_gpio_04b", NULL),
-		 "Adding overlay 'overlay_gpio_04b' failed\n");
-
-	EXPECT_END(KERN_INFO,
-		   "GPIO line <<int>> (line-C-input) hogged as input\n");
-
-	unittest(chip_request_count + 1 == unittest_gpio_chip_request_count,
-		 "unittest_gpio_chip_request() called %d times (expected 1 time)\n",
-		 unittest_gpio_chip_request_count - chip_request_count);
-}
 
 static void __init of_unittest_overlay(void)
 {
