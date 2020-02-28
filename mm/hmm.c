@@ -286,15 +286,6 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 	if (!pte_present(pte)) {
 		swp_entry_t entry = pte_to_swp_entry(pte);
 
-		if (!non_swap_entry(entry)) {
-			cpu_flags = pte_to_hmm_pfn_flags(range, pte);
-			hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
-					   &fault, &write_fault);
-			if (fault || write_fault)
-				goto fault;
-			return 0;
-		}
-
 		/*
 		 * This is a special swap entry, ignore migration, use
 		 * device and report anything else as error.
@@ -314,26 +305,30 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 			return 0;
 		}
 
-		if (is_migration_entry(entry)) {
-			if (fault || write_fault) {
-				pte_unmap(ptep);
-				hmm_vma_walk->last = addr;
-				migration_entry_wait(walk->mm, pmdp, addr);
-				return -EBUSY;
-			}
+		hmm_pte_need_fault(hmm_vma_walk, orig_pfn, 0, &fault,
+				   &write_fault);
+		if (!fault && !write_fault)
 			return 0;
+
+		if (!non_swap_entry(entry))
+			goto fault;
+
+		if (is_migration_entry(entry)) {
+			pte_unmap(ptep);
+			hmm_vma_walk->last = addr;
+			migration_entry_wait(walk->mm, pmdp, addr);
+			return -EBUSY;
 		}
 
 		/* Report error for everything else */
 		pte_unmap(ptep);
 		*pfn = range->values[HMM_PFN_ERROR];
 		return -EFAULT;
-	} else {
-		cpu_flags = pte_to_hmm_pfn_flags(range, pte);
-		hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
-				   &fault, &write_fault);
 	}
 
+	cpu_flags = pte_to_hmm_pfn_flags(range, pte);
+	hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags, &fault,
+			   &write_fault);
 	if (fault || write_fault)
 		goto fault;
 
