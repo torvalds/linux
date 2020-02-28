@@ -305,7 +305,8 @@ nla_put_failure:
 static const struct nla_policy bitset_policy[ETHTOOL_A_BITSET_MAX + 1] = {
 	[ETHTOOL_A_BITSET_UNSPEC]	= { .type = NLA_REJECT },
 	[ETHTOOL_A_BITSET_NOMASK]	= { .type = NLA_FLAG },
-	[ETHTOOL_A_BITSET_SIZE]		= { .type = NLA_U32 },
+	[ETHTOOL_A_BITSET_SIZE]		= NLA_POLICY_MAX(NLA_U32,
+							 ETHNL_MAX_BITSET_SIZE),
 	[ETHTOOL_A_BITSET_BITS]		= { .type = NLA_NESTED },
 	[ETHTOOL_A_BITSET_VALUE]	= { .type = NLA_BINARY },
 	[ETHTOOL_A_BITSET_MASK]		= { .type = NLA_BINARY },
