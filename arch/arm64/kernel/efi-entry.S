@@ -12,32 +12,32 @@
 
 	__INIT
 
-ENTRY(efi_enter_kernel)
+SYM_CODE_START(efi_enter_kernel)
 	/*
 	 * efi_entry() will have copied the kernel image if necessary and we
 	 * end up here with device tree address in x1 and the kernel entry
 	 * point stored in x0. Save those values in registers which are
 	 * callee preserved.
 	 */
-	mov	x19, x0			// relocated Image address
+	ldr	w2, =stext_offset
+	add	x19, x0, x2		// relocated Image entrypoint
 	mov	x20, x1			// DTB address
 
 	/*
-	 * Flush the copied Image to the PoC, and ensure it is not shadowed by
+	 * Clean the copied Image to the PoC, and ensure it is not shadowed by
 	 * stale icache entries from before relocation.
 	 */
 	ldr	w1, =kernel_size
-	bl	__flush_dcache_area
+	bl	__clean_dcache_area_poc
 	ic	ialluis
-	dsb	sy
 
 	/*
-	 * Jump across, into the copy of the image that we just cleaned
-	 * to the PoC, so that we can safely disable the MMU and caches.
+	 * Clean the remainder of this routine to the PoC
+	 * so that we can safely disable the MMU and caches.
 	 */
-	ldr	w0, .Ljmp
-	sub	x0, x19, w0, sxtw
-	br	x0
+	adr	x0, 0f
+	ldr	w1, 3f
+	bl	__clean_dcache_area_poc
 0:
 	/* Turn off Dcache and MMU */
 	mrs	x0, CurrentEL
@@ -63,6 +63,6 @@ ENTRY(efi_enter_kernel)
 	mov	x1, xzr
 	mov	x2, xzr
 	mov	x3, xzr
-	b	stext
-ENDPROC(efi_enter_kernel)
-.Ljmp:	.long	_text - 0b
+	br	x19
+SYM_CODE_END(efi_enter_kernel)
+3:	.long	. - 0b
