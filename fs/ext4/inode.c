@@ -3546,12 +3546,28 @@ static int ext4_iomap_begin_report(struct inode *inode, loff_t offset,
 	map.m_len = min_t(loff_t, (offset + length - 1) >> blkbits,
 			  EXT4_MAX_LOGICAL_BLOCK) - map.m_lblk + 1;
 
+	/*
+	 * Fiemap callers may call for offset beyond s_bitmap_maxbytes.
+	 * So handle it here itself instead of querying ext4_map_blocks().
+	 * Since ext4_map_blocks() will warn about it and will return
+	 * -EIO error.
+	 */
+	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
+		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+
+		if (offset >= sbi->s_bitmap_maxbytes) {
+			map.m_flags = 0;
+			goto set_iomap;
+		}
+	}
+
 	ret = ext4_map_blocks(NULL, inode, &map, 0);
 	if (ret < 0)
 		return ret;
 	if (ret == 0)
 		delalloc = ext4_iomap_is_delalloc(inode, &map);
 
+set_iomap:
 	ext4_set_iomap(inode, iomap, &map, offset, length);
 	if (delalloc && iomap->type == IOMAP_HOLE)
 		iomap->type = IOMAP_DELALLOC;
