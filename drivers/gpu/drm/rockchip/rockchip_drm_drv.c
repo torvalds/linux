@@ -1040,7 +1040,7 @@ static int __init rockchip_clocks_loader_protect(void)
 
 	return 0;
 }
-fs_initcall(rockchip_clocks_loader_protect);
+arch_initcall_sync(rockchip_clocks_loader_protect);
 
 static int __init rockchip_clocks_loader_unprotect(void)
 {
