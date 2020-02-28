@@ -490,7 +490,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.num_sdma_queues_per_engine);
 	sysfs_show_32bit_prop(buffer, "num_cp_queues",
 			dev->node_props.num_cp_queues);
-    sysfs_show_64bit_prop(buffer, "unique_id",
+	sysfs_show_64bit_prop(buffer, "unique_id",
 			dev->node_props.unique_id);
 
 	if (dev->gpu) {
