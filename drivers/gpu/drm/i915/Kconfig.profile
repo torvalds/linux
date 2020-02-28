@@ -33,6 +33,9 @@ config DRM_I915_PREEMPT_TIMEOUT
 	  expires, the HW will be reset to allow the more important context
 	  to execute.
 
+	  This is adjustable via
+	  /sys/class/drm/card?/engine/*/preempt_timeout_ms
+
 	  May be 0 to disable the timeout.
 
 config DRM_I915_MAX_REQUEST_BUSYWAIT

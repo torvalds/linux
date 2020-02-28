@@ -271,6 +271,50 @@ stop_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 static struct kobj_attribute stop_timeout_attr =
 __ATTR(stop_timeout_ms, 0644, stop_show, stop_store);
 
+static ssize_t
+preempt_timeout_store(struct kobject *kobj, struct kobj_attribute *attr,
+		      const char *buf, size_t count)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+	unsigned long long timeout;
+	int err;
+
+	/*
+	 * After initialising a preemption request, we give the current
+	 * resident a small amount of time to vacate the GPU. The preemption
+	 * request is for a higher priority context and should be immediate to
+	 * maintain high quality of service (and avoid priority inversion).
+	 * However, the preemption granularity of the GPU can be quite coarse
+	 * and so we need a compromise.
+	 */
+
+	err = kstrtoull(buf, 0, &timeout);
+	if (err)
+		return err;
+
+	if (timeout > jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT))
+		return -EINVAL;
+
+	WRITE_ONCE(engine->props.preempt_timeout_ms, timeout);
+
+	if (READ_ONCE(engine->execlists.pending[0]))
+		set_timer_ms(&engine->execlists.preempt, timeout);
+
+	return count;
+}
+
+static ssize_t
+preempt_timeout_show(struct kobject *kobj, struct kobj_attribute *attr,
+		     char *buf)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+
+	return sprintf(buf, "%lu\n", engine->props.preempt_timeout_ms);
+}
+
+static struct kobj_attribute preempt_timeout_attr =
+__ATTR(preempt_timeout_ms, 0644, preempt_timeout_show, preempt_timeout_store);
+
 static void kobj_engine_release(struct kobject *kobj)
 {
 	kfree(kobj);
@@ -336,6 +380,10 @@ void intel_engines_add_sysfs(struct drm_i915_private *i915)
 
 		if (intel_engine_has_timeslices(engine) &&
 		    sysfs_create_file(kobj, &timeslice_duration_attr.attr))
+			goto err_engine;
+
+		if (intel_engine_has_preempt_reset(engine) &&
+		    sysfs_create_file(kobj, &preempt_timeout_attr.attr))
 			goto err_engine;
 
 		if (0) {
