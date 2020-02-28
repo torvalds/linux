@@ -73,4 +73,7 @@ config DRM_I915_TIMESLICE_DURATION
 	  is scheduled for execution for the timeslice duration, before
 	  switching to the next context.
 
+	  This is adjustable via
+	  /sys/class/drm/card?/engine/*/timeslice_duration_ms
+
 	  May be 0 to disable timeslicing.
