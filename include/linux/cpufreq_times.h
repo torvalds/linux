@@ -29,7 +29,6 @@ void cpufreq_acct_update_power(struct task_struct *p, u64 cputime);
 void cpufreq_times_create_policy(struct cpufreq_policy *policy);
 void cpufreq_times_record_transition(struct cpufreq_policy *policy,
                                      unsigned int new_freq);
-void cpufreq_task_times_remove_uids(uid_t uid_start, uid_t uid_end);
 #else
 static inline void cpufreq_task_times_init(struct task_struct *p) {}
 static inline void cpufreq_task_times_alloc(struct task_struct *p) {}
@@ -39,7 +38,5 @@ static inline void cpufreq_acct_update_power(struct task_struct *p,
 static inline void cpufreq_times_create_policy(struct cpufreq_policy *policy) {}
 static inline void cpufreq_times_record_transition(
 	struct cpufreq_policy *policy, unsigned int new_freq) {}
-static inline void cpufreq_task_times_remove_uids(uid_t uid_start,
-						  uid_t uid_end) {}
 #endif /* CONFIG_CPU_FREQ_TIMES */
 #endif /* _LINUX_CPUFREQ_TIMES_H */

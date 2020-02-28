@@ -14,7 +14,6 @@
  */
 
 #include <linux/atomic.h>
-#include <linux/cpufreq_times.h>
 #include <linux/err.h>
 #include <linux/hashtable.h>
 #include <linux/init.h>
@@ -423,9 +422,6 @@ static ssize_t uid_remove_write(struct file *file,
 		kstrtol(end_uid, 10, &uid_end) != 0) {
 		return -EINVAL;
 	}
-
-	/* Also remove uids from /proc/uid_time_in_state */
-	cpufreq_task_times_remove_uids(uid_start, uid_end);
 
 	rt_mutex_lock(&uid_lock);
 
