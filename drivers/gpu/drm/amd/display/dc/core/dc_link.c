@@ -1498,9 +1498,8 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 	}
 }
 
-static enum dc_status enable_link_dp(
-		struct dc_state *state,
-		struct pipe_ctx *pipe_ctx)
+static enum dc_status enable_link_dp(struct dc_state *state,
+				     struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_status status;
@@ -1532,7 +1531,8 @@ static enum dc_status enable_link_dp(
 	pipe_ctx->stream_res.pix_clk_params.requested_sym_clk =
 			link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
 	if (state->clk_mgr && !apply_seamless_boot_optimization)
-		state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
+		state->clk_mgr->funcs->update_clocks(state->clk_mgr,
+						     state, false);
 
 	// during mode switch we do DP_SET_POWER off then on, and OUI is lost
 	dpcd_set_source_specific_data(link);
@@ -1540,21 +1540,20 @@ static enum dc_status enable_link_dp(
 	skip_video_pattern = true;
 
 	if (link_settings.link_rate == LINK_RATE_LOW)
-			skip_video_pattern = false;
+		skip_video_pattern = false;
 
-	if (perform_link_training_with_retries(
-			&link_settings,
-			skip_video_pattern,
-			LINK_TRAINING_ATTEMPTS,
-			pipe_ctx,
-			pipe_ctx->stream->signal)) {
+	if (perform_link_training_with_retries(&link_settings,
+					       skip_video_pattern,
+					       LINK_TRAINING_ATTEMPTS,
+					       pipe_ctx,
+					       pipe_ctx->stream->signal)) {
 		link->cur_link_settings = link_settings;
 		status = DC_OK;
-	}
-	else
+	} else {
 		status = DC_FAIL_DP_LINK_TRAINING;
+	}
 
-	if (link->preferred_training_settings.fec_enable != NULL)
+	if (link->preferred_training_settings.fec_enable)
 		fec_enable = *link->preferred_training_settings.fec_enable;
 	else
 		fec_enable = true;
