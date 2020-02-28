@@ -2172,7 +2172,7 @@ s32 create_dir(struct inode *inode, struct chain_t *p_dir,
 }
 
 s32 create_file(struct inode *inode, struct chain_t *p_dir,
-		struct uni_name_t *p_uniname, u8 mode, struct file_id_t *fid)
+		struct uni_name_t *p_uniname, struct file_id_t *fid)
 {
 	s32 ret, dentry, num_entries;
 	struct super_block *sb = inode->i_sb;
@@ -2190,7 +2190,7 @@ s32 create_file(struct inode *inode, struct chain_t *p_dir,
 	/* fill the directory entry information of the created file.
 	 * the first cluster is not determined yet. (0)
 	 */
-	ret = exfat_init_dir_entry(sb, p_dir, dentry, TYPE_FILE | mode,
+	ret = exfat_init_dir_entry(sb, p_dir, dentry, TYPE_FILE,
 				   CLUSTER_32(0), 0);
 	if (ret != 0)
 		return ret;
@@ -2204,7 +2204,7 @@ s32 create_file(struct inode *inode, struct chain_t *p_dir,
 	fid->dir.flags = p_dir->flags;
 	fid->entry = dentry;
 
-	fid->attr = ATTR_ARCHIVE | mode;
+	fid->attr = ATTR_ARCHIVE;
 	fid->flags = 0x03;
 	fid->size = 0;
 	fid->start_clu = CLUSTER_32(~0);

@@ -617,8 +617,7 @@ out:
 	return ret;
 }
 
-static int ffsCreateFile(struct inode *inode, char *path, u8 mode,
-			 struct file_id_t *fid)
+static int ffsCreateFile(struct inode *inode, char *path, struct file_id_t *fid)
 {
 	struct chain_t dir;
 	struct uni_name_t uni_name;
@@ -641,7 +640,7 @@ static int ffsCreateFile(struct inode *inode, char *path, u8 mode,
 	fs_set_vol_flags(sb, VOL_DIRTY);
 
 	/* create a new file */
-	ret = create_file(inode, &dir, &uni_name, mode, fid);
+	ret = create_file(inode, &dir, &uni_name, fid);
 
 #ifndef CONFIG_STAGING_EXFAT_DELAYED_SYNC
 	fs_sync(sb, true);
@@ -1834,7 +1833,7 @@ static int exfat_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	pr_debug("%s entered\n", __func__);
 
-	err = ffsCreateFile(dir, (u8 *)dentry->d_name.name, FM_REGULAR, &fid);
+	err = ffsCreateFile(dir, (u8 *)dentry->d_name.name, &fid);
 	if (err)
 		goto out;
 

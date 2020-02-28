@@ -200,9 +200,6 @@ static inline u16 get_row_index(u16 i)
 #define ATTR_EXTEND		0x000F
 #define ATTR_RWMASK		0x007E
 
-/* file creation modes */
-#define FM_REGULAR              0x00
-
 #define NUM_UPCASE              2918
 
 #ifdef __LITTLE_ENDIAN
@@ -698,7 +695,7 @@ s32 exfat_mount(struct super_block *sb, struct pbr_sector_t *p_pbr);
 s32 create_dir(struct inode *inode, struct chain_t *p_dir,
 	       struct uni_name_t *p_uniname, struct file_id_t *fid);
 s32 create_file(struct inode *inode, struct chain_t *p_dir,
-		struct uni_name_t *p_uniname, u8 mode, struct file_id_t *fid);
+		struct uni_name_t *p_uniname, struct file_id_t *fid);
 void remove_file(struct inode *inode, struct chain_t *p_dir, s32 entry);
 s32 exfat_rename_file(struct inode *inode, struct chain_t *p_dir, s32 old_entry,
 		      struct uni_name_t *p_uniname, struct file_id_t *fid);
