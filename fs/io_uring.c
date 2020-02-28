@@ -2549,7 +2549,7 @@ static void io_link_work_cb(struct io_wq_work **workptr)
 	struct io_kiocb *link = work->data;
 
 	io_queue_linked_timeout(link);
-	work->func = io_wq_submit_work;
+	io_wq_submit_work(workptr);
 }
 
 static void io_wq_assign_next(struct io_wq_work **workptr, struct io_kiocb *nxt)
@@ -2559,7 +2559,6 @@ static void io_wq_assign_next(struct io_wq_work **workptr, struct io_kiocb *nxt)
 	io_prep_next_work(nxt, &link);
 	*workptr = &nxt->work;
 	if (link) {
-		nxt->work.flags |= IO_WQ_WORK_CB;
 		nxt->work.func = io_link_work_cb;
 		nxt->work.data = link;
 	}
