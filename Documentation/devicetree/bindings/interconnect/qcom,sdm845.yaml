@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interconnect/qcom,sdm845.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title:  Qualcomm SDM845 Network-On-Chip Interconnect
+
+maintainers:
+  - Georgi Djakov <georgi.djakov@linaro.org>
+
+description: |
+   SDM845 interconnect providers support system bandwidth requirements through
+   RPMh hardware accelerators known as Bus Clock Manager (BCM). The provider is
+   able to communicate with the BCM through the Resource State Coordinator (RSC)
+   associated with each execution environment. Provider nodes must reside within
+   an RPMh device node pertaining to their RSC and each provider maps to a
+   single RPMh resource.
+
+properties:
+  compatible:
+    enum:
+      - qcom,sdm845-rsc-hlos
+
+  '#interconnect-cells':
+    const: 1
+
+required:
+  - compatible
+  - '#interconnect-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+      #include <dt-bindings/interconnect/qcom,sdm845.h>
+
+      apps_rsc: rsc {
+              rsc_hlos: interconnect {
+                      compatible = "qcom,sdm845-rsc-hlos";
+                      #interconnect-cells = <1>;
+              };
+      };
