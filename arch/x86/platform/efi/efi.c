@@ -90,6 +90,7 @@ static const unsigned long * const efi_tables[] = {
 #endif
 	&efi.tpm_log,
 	&efi.tpm_final_log,
+	&efi_rng_seed,
 };
 
 u64 efi_setup;		/* efi setup_data physical address */
