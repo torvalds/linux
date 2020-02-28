@@ -1894,7 +1894,7 @@ static int aac_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
 
-	scsi_block_requests(shost);
+	scsi_host_block(shost);
 	aac_cancel_rescan_worker(aac);
 	aac_send_shutdown(aac);
 
@@ -1930,7 +1930,7 @@ static int aac_resume(struct pci_dev *pdev)
 	* aac_send_shutdown() to block ioctls from upperlayer
 	*/
 	aac->adapter_shutdown = 0;
-	scsi_unblock_requests(shost);
+	scsi_host_unblock(shost, SDEV_RUNNING);
 
 	return 0;
 
@@ -1945,7 +1945,8 @@ fail_device:
 static void aac_shutdown(struct pci_dev *dev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(dev);
-	scsi_block_requests(shost);
+
+	scsi_host_block(shost);
 	__aac_shutdown((struct aac_dev *)shost->hostdata);
 }
 
@@ -1991,7 +1992,7 @@ static pci_ers_result_t aac_pci_error_detected(struct pci_dev *pdev,
 	case pci_channel_io_frozen:
 		aac->handle_pci_error = 1;
 
-		scsi_block_requests(aac->scsi_host_ptr);
+		scsi_host_block(shost);
 		aac_cancel_rescan_worker(aac);
 		scsi_host_complete_all_commands(shost, DID_NO_CONNECT);
 		aac_release_resources(aac);
@@ -2044,7 +2045,6 @@ fail_device:
 static void aac_pci_resume(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
-	struct scsi_device *sdev = NULL;
 	struct aac_dev *aac = (struct aac_dev *)shost_priv(shost);
 
 	if (aac_adapter_ioremap(aac, aac->base_size)) {
@@ -2071,10 +2071,7 @@ static void aac_pci_resume(struct pci_dev *pdev)
 	aac->adapter_shutdown = 0;
 	aac->handle_pci_error = 0;
 
-	shost_for_each_device(sdev, shost)
-		if (sdev->sdev_state == SDEV_OFFLINE)
-			sdev->sdev_state = SDEV_RUNNING;
-	scsi_unblock_requests(aac->scsi_host_ptr);
+	scsi_host_unblock(shost, SDEV_RUNNING);
 	aac_scan_host(aac);
 	pci_save_state(pdev);
 

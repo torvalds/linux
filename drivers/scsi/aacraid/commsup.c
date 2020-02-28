@@ -1477,7 +1477,6 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	int index, quirks;
 	int retval;
 	struct Scsi_Host *host = aac->scsi_host_ptr;
-	struct scsi_device *dev;
 	int jafo = 0;
 	int bled;
 	u64 dmamask;
@@ -1605,16 +1604,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 */
 	scsi_host_complete_all_commands(host, DID_RESET);
 
-	/*
-	 * Any Device that was already marked offline needs to be marked
-	 * running
-	 */
-	__shost_for_each_device(dev, host) {
-		if (!scsi_device_online(dev))
-			scsi_device_set_state(dev, SDEV_RUNNING);
-	}
 	retval = 0;
-
 out:
 	aac->in_reset = 0;
 
@@ -1655,7 +1645,7 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 * target (block maximum 60 seconds). Although not necessary,
 	 * it does make us a good storage citizen.
 	 */
-	scsi_block_requests(host);
+	scsi_host_block(host);
 
 	/* Quiesce build, flush cache, write through mode */
 	if (forced < 2)
@@ -1666,7 +1656,7 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	retval = _aac_reset_adapter(aac, bled, reset_type);
 	spin_unlock_irqrestore(host->host_lock, flagv);
 
-	scsi_unblock_requests(host);
+	retval = scsi_host_unblock(host, SDEV_RUNNING);
 
 	if ((forced < 2) && (retval == -ENODEV)) {
 		/* Unwind aac_send_shutdown() IOP_RESET unsupported/disabled */
