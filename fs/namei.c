@@ -1696,28 +1696,31 @@ static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
 	if (path_equal(&nd->path, &nd->root))
 		goto in_root;
 	if (unlikely(nd->path.dentry == nd->path.mnt->mnt_root)) {
+		struct path path = nd->path;
+		unsigned seq;
+
 		while (1) {
-			struct mount *mnt = real_mount(nd->path.mnt);
+			struct mount *mnt = real_mount(path.mnt);
 			struct mount *mparent = mnt->mnt_parent;
 			struct dentry *mountpoint = mnt->mnt_mountpoint;
-			struct inode *inode = mountpoint->d_inode;
-			unsigned seq = read_seqcount_begin(&mountpoint->d_seq);
-			if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
-				return ERR_PTR(-ECHILD);
-			if (&mparent->mnt == nd->path.mnt)
+			seq = read_seqcount_begin(&mountpoint->d_seq);
+			if (&mparent->mnt == path.mnt)
 				goto in_root;
-			if (unlikely(nd->flags & LOOKUP_NO_XDEV))
-				return ERR_PTR(-ECHILD);
-			/* we know that mountpoint was pinned */
-			nd->path.dentry = mountpoint;
-			nd->path.mnt = &mparent->mnt;
-			nd->inode = inode;
-			nd->seq = seq;
-			if (path_equal(&nd->path, &nd->root))
+			path.dentry = mountpoint;
+			path.mnt = &mparent->mnt;
+			if (path_equal(&path, &nd->root))
 				goto in_root;
-			if (nd->path.dentry != nd->path.mnt->mnt_root)
+			if (path.dentry != path.mnt->mnt_root)
 				break;
 		}
+		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
+			return ERR_PTR(-ECHILD);
+		nd->path = path;
+		nd->inode = path.dentry->d_inode;
+		nd->seq = seq;
+		if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
+			return ERR_PTR(-ECHILD);
+		/* we know that mountpoint was pinned */
 	}
 	old = nd->path.dentry;
 	parent = old->d_parent;
@@ -1729,6 +1732,8 @@ static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
 		return ERR_PTR(-ECHILD);
 	return parent;
 in_root:
+	if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
+		return ERR_PTR(-ECHILD);
 	if (unlikely(nd->flags & LOOKUP_BENEATH))
 		return ERR_PTR(-ECHILD);
 	return NULL;
