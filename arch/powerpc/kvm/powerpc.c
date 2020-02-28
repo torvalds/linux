@@ -32,7 +32,6 @@
 #include <asm/plpar_wrappers.h>
 #endif
 #include <asm/ultravisor.h>
-#include <asm/kvm_host.h>
 
 #include "timing.h"
 #include "irq.h"

@@ -72,7 +72,6 @@
 #include <asm/xics.h>
 #include <asm/xive.h>
 #include <asm/hw_breakpoint.h>
-#include <asm/kvm_host.h>
 #include <asm/kvm_book3s_uvmem.h>
 #include <asm/ultravisor.h>
 
