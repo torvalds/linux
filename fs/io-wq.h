@@ -5,7 +5,6 @@ struct io_wq;
 
 enum {
 	IO_WQ_WORK_CANCEL	= 1,
-	IO_WQ_WORK_HAS_MM	= 2,
 	IO_WQ_WORK_HASHED	= 4,
 	IO_WQ_WORK_UNBOUND	= 32,
 	IO_WQ_WORK_CB		= 128,
