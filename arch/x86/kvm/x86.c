@@ -9335,11 +9335,9 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 	mutex_unlock(&vcpu->mutex);
 
-	if (!kvmclock_periodic_sync)
-		return;
-
-	schedule_delayed_work(&kvm->arch.kvmclock_sync_work,
-					KVMCLOCK_SYNC_PERIOD);
+	if (kvmclock_periodic_sync && vcpu->vcpu_idx == 0)
+		schedule_delayed_work(&kvm->arch.kvmclock_sync_work,
+						KVMCLOCK_SYNC_PERIOD);
 }
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
