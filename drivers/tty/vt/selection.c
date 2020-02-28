@@ -167,7 +167,7 @@ static int store_utf8(u32 c, char *p)
  *	The entire selection process is managed under the console_lock. It's
  *	 a lot under the lock but its hardly a performance path
  */
-int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *tty)
+static int __set_selection(const struct tiocl_selection __user *sel, struct tty_struct *tty)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
 	int new_sel_start, new_sel_end, spc;
@@ -329,6 +329,17 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	sel_buffer_lth = bp - sel_buffer;
 unlock:
 	mutex_unlock(&sel_lock);
+	return ret;
+}
+
+int set_selection(const struct tiocl_selection __user *v, struct tty_struct *tty)
+{
+	int ret;
+
+	console_lock();
+	ret = __set_selection(v, tty);
+	console_unlock();
+
 	return ret;
 }
 
