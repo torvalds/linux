@@ -47,6 +47,15 @@ inst_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 static struct kobj_attribute inst_attr =
 __ATTR(instance, 0444, inst_show, NULL);
 
+static ssize_t
+mmio_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%x\n", kobj_to_engine(kobj)->mmio_base);
+}
+
+static struct kobj_attribute mmio_attr =
+__ATTR(mmio_base, 0444, mmio_show, NULL);
+
 static const char * const vcs_caps[] = {
 	[ilog2(I915_VIDEO_CLASS_CAPABILITY_HEVC)] = "hevc",
 	[ilog2(I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC)] = "sfc",
@@ -170,6 +179,7 @@ void intel_engines_add_sysfs(struct drm_i915_private *i915)
 		&name_attr.attr,
 		&class_attr.attr,
 		&inst_attr.attr,
+		&mmio_attr.attr,
 		&caps_attr.attr,
 		&all_caps_attr.attr,
 		NULL
