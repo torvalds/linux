@@ -57,11 +57,13 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
+#ifdef MODULE
 static const struct x86_cpu_id svm_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_SVM),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
+#endif
 
 #define IOPM_ALLOC_ORDER 2
 #define MSRPM_ALLOC_ORDER 1
