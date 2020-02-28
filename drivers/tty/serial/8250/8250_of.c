@@ -29,11 +29,12 @@ struct of_serial_info {
  * Fill a struct uart_port for a given device node
  */
 static int of_platform_serial_setup(struct platform_device *ofdev,
-			int type, struct uart_port *port,
+			int type, struct uart_8250_port *up,
 			struct of_serial_info *info)
 {
 	struct resource resource;
 	struct device_node *np = ofdev->dev.of_node;
+	struct uart_port *port = &up->port;
 	u32 clk, spd, prop;
 	int ret, irq;
 
@@ -155,6 +156,8 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	port->dev = &ofdev->dev;
 	port->rs485_config = serial8250_em485_config;
+	up->rs485_start_tx = serial8250_em485_start_tx;
+	up->rs485_stop_tx = serial8250_em485_stop_tx;
 
 	switch (type) {
 	case PORT_RT2880:
@@ -201,7 +204,7 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 		return -ENOMEM;
 
 	memset(&port8250, 0, sizeof(port8250));
-	ret = of_platform_serial_setup(ofdev, port_type, &port8250.port, info);
+	ret = of_platform_serial_setup(ofdev, port_type, &port8250, info);
 	if (ret)
 		goto err_free;
 
