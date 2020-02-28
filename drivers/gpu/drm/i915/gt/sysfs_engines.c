@@ -8,6 +8,7 @@
 
 #include "i915_drv.h"
 #include "intel_engine.h"
+#include "intel_engine_heartbeat.h"
 #include "sysfs_engines.h"
 
 struct kobj_engine {
@@ -315,6 +316,49 @@ preempt_timeout_show(struct kobject *kobj, struct kobj_attribute *attr,
 static struct kobj_attribute preempt_timeout_attr =
 __ATTR(preempt_timeout_ms, 0644, preempt_timeout_show, preempt_timeout_store);
 
+static ssize_t
+heartbeat_store(struct kobject *kobj, struct kobj_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+	unsigned long long delay;
+	int err;
+
+	/*
+	 * We monitor the health of the system via periodic heartbeat pulses.
+	 * The pulses also provide the opportunity to perform garbage
+	 * collection.  However, we interpret an incomplete pulse (a missed
+	 * heartbeat) as an indication that the system is no longer responsive,
+	 * i.e. hung, and perform an engine or full GPU reset. Given that the
+	 * preemption granularity can be very coarse on a system, the optimal
+	 * value for any workload is unknowable!
+	 */
+
+	err = kstrtoull(buf, 0, &delay);
+	if (err)
+		return err;
+
+	if (delay >= jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT))
+		return -EINVAL;
+
+	err = intel_engine_set_heartbeat(engine, delay);
+	if (err)
+		return err;
+
+	return count;
+}
+
+static ssize_t
+heartbeat_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+
+	return sprintf(buf, "%lu\n", engine->props.heartbeat_interval_ms);
+}
+
+static struct kobj_attribute heartbeat_interval_attr =
+__ATTR(heartbeat_interval_ms, 0644, heartbeat_show, heartbeat_store);
+
 static void kobj_engine_release(struct kobject *kobj)
 {
 	kfree(kobj);
@@ -357,6 +401,9 @@ void intel_engines_add_sysfs(struct drm_i915_private *i915)
 		&all_caps_attr.attr,
 		&max_spin_attr.attr,
 		&stop_timeout_attr.attr,
+#if CONFIG_DRM_I915_HEARTBEAT_INTERVAL
+		&heartbeat_interval_attr.attr,
+#endif
 		NULL
 	};
 

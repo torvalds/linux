@@ -20,6 +20,9 @@ config DRM_I915_HEARTBEAT_INTERVAL
 	  check the health of the GPU and undertake regular house-keeping of
 	  internal driver state.
 
+	  This is adjustable via
+	  /sys/class/drm/card?/engine/*/heartbeat_interval_ms
+
 	  May be 0 to disable heartbeats and therefore disable automatic GPU
 	  hang detection.
 
