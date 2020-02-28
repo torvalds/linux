@@ -1183,7 +1183,8 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 
 	if (type & PERF_SAMPLE_BRANCH_STACK) {
 		sz = sample->branch_stack->nr * sizeof(struct branch_entry);
-		sz += sizeof(u64);
+		/* nr, hw_idx */
+		sz += 2 * sizeof(u64);
 		result += sz;
 	}
 
@@ -1344,7 +1345,8 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 
 	if (type & PERF_SAMPLE_BRANCH_STACK) {
 		sz = sample->branch_stack->nr * sizeof(struct branch_entry);
-		sz += sizeof(u64);
+		/* nr, hw_idx */
+		sz += 2 * sizeof(u64);
 		memcpy(array, sample->branch_stack, sz);
 		array = (void *)array + sz;
 	}

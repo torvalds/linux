@@ -389,6 +389,11 @@ static inline bool perf_evsel__has_branch_callstack(const struct evsel *evsel)
 	return evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_CALL_STACK;
 }
 
+static inline bool perf_evsel__has_branch_hw_idx(const struct evsel *evsel)
+{
+	return evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_HW_INDEX;
+}
+
 static inline bool evsel__has_callchain(const struct evsel *evsel)
 {
 	return (evsel->core.attr.sample_type & PERF_SAMPLE_CALLCHAIN) != 0;

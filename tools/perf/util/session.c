@@ -1007,6 +1007,7 @@ static void callchain__lbr_callstack_printf(struct perf_sample *sample)
 {
 	struct ip_callchain *callchain = sample->callchain;
 	struct branch_stack *lbr_stack = sample->branch_stack;
+	struct branch_entry *entries = perf_sample__branch_entries(sample);
 	u64 kernel_callchain_nr = callchain->nr;
 	unsigned int i;
 
@@ -1043,10 +1044,10 @@ static void callchain__lbr_callstack_printf(struct perf_sample *sample)
 			       i, callchain->ips[i]);
 
 		printf("..... %2d: %016" PRIx64 "\n",
-		       (int)(kernel_callchain_nr), lbr_stack->entries[0].to);
+		       (int)(kernel_callchain_nr), entries[0].to);
 		for (i = 0; i < lbr_stack->nr; i++)
 			printf("..... %2d: %016" PRIx64 "\n",
-			       (int)(i + kernel_callchain_nr + 1), lbr_stack->entries[i].from);
+			       (int)(i + kernel_callchain_nr + 1), entries[i].from);
 	}
 }
 
@@ -1068,6 +1069,7 @@ static void callchain__printf(struct evsel *evsel,
 
 static void branch_stack__printf(struct perf_sample *sample, bool callstack)
 {
+	struct branch_entry *entries = perf_sample__branch_entries(sample);
 	uint64_t i;
 
 	printf("%s: nr:%" PRIu64 "\n",
@@ -1075,7 +1077,7 @@ static void branch_stack__printf(struct perf_sample *sample, bool callstack)
 		sample->branch_stack->nr);
 
 	for (i = 0; i < sample->branch_stack->nr; i++) {
-		struct branch_entry *e = &sample->branch_stack->entries[i];
+		struct branch_entry *e = &entries[i];
 
 		if (!callstack) {
 			printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 " %hu cycles %s%s%s%s %x\n",
