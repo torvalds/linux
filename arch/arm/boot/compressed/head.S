@@ -1452,13 +1452,11 @@ ENTRY(efi_enter_kernel)
 
 		@ The PE/COFF loader might not have cleaned the code we are
 		@ running beyond the PoU, and so calling cache_off below from
-		@ inside the PE/COFF loader allocated region is unsafe. Let's
-		@ assume our own zImage relocation code did a better job, and
-		@ jump into its version of this routine before proceeding.
-		ldr	r1, .Ljmp
-		sub	r1, r7, r1
-		mov	pc, r1				@ no mode switch
-0:
+		@ inside the PE/COFF loader allocated region is unsafe unless
+		@ we explicitly clean it to the PoC.
+		adr	r0, call_cache_fn		@ region of code we will
+		adr	r1, 0f				@ run with MMU off
+		bl	cache_clean_flush
 		bl	cache_off
 
 		@ Set parameters for booting zImage according to boot protocol
@@ -1467,10 +1465,10 @@ ENTRY(efi_enter_kernel)
 		mov	r0, #0
 		mov	r1, #0xFFFFFFFF
 		mov	r2, r4
-		b	__efi_start
+		add	r7, r7, #(__efi_start - start)
+		mov	pc, r7				@ no mode switch
 ENDPROC(efi_enter_kernel)
-		.align	2
-.Ljmp:		.long	start - 0b
+0:
 #endif
 
 		.align
