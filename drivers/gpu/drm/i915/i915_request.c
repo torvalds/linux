@@ -1404,7 +1404,7 @@ void i915_request_add(struct i915_request *rq)
 	mutex_unlock(&tl->mutex);
 }
 
-static unsigned long local_clock_us(unsigned int *cpu)
+static unsigned long local_clock_ns(unsigned int *cpu)
 {
 	unsigned long t;
 
@@ -1421,7 +1421,7 @@ static unsigned long local_clock_us(unsigned int *cpu)
 	 * stop busywaiting, see busywait_stop().
 	 */
 	*cpu = get_cpu();
-	t = local_clock() >> 10;
+	t = local_clock();
 	put_cpu();
 
 	return t;
@@ -1431,15 +1431,15 @@ static bool busywait_stop(unsigned long timeout, unsigned int cpu)
 {
 	unsigned int this_cpu;
 
-	if (time_after(local_clock_us(&this_cpu), timeout))
+	if (time_after(local_clock_ns(&this_cpu), timeout))
 		return true;
 
 	return this_cpu != cpu;
 }
 
-static bool __i915_spin_request(const struct i915_request * const rq,
-				int state, unsigned long timeout_us)
+static bool __i915_spin_request(const struct i915_request * const rq, int state)
 {
+	unsigned long timeout_ns;
 	unsigned int cpu;
 
 	/*
@@ -1467,7 +1467,8 @@ static bool __i915_spin_request(const struct i915_request * const rq,
 	 * takes to sleep on a request, on the order of a microsecond.
 	 */
 
-	timeout_us += local_clock_us(&cpu);
+	timeout_ns = READ_ONCE(rq->engine->props.max_busywait_duration_ns);
+	timeout_ns += local_clock_ns(&cpu);
 	do {
 		if (i915_request_completed(rq))
 			return true;
@@ -1475,7 +1476,7 @@ static bool __i915_spin_request(const struct i915_request * const rq,
 		if (signal_pending_state(state, current))
 			break;
 
-		if (busywait_stop(timeout_us, cpu))
+		if (busywait_stop(timeout_ns, cpu))
 			break;
 
 		cpu_relax();
@@ -1561,8 +1562,8 @@ long i915_request_wait(struct i915_request *rq,
 	 * completion. That requires having a good predictor for the request
 	 * duration, which we currently lack.
 	 */
-	if (IS_ACTIVE(CONFIG_DRM_I915_SPIN_REQUEST) &&
-	    __i915_spin_request(rq, state, CONFIG_DRM_I915_SPIN_REQUEST)) {
+	if (IS_ACTIVE(CONFIG_DRM_I915_MAX_REQUEST_BUSYWAIT) &&
+	    __i915_spin_request(rq, state)) {
 		dma_fence_signal(&rq->fence);
 		goto out;
 	}

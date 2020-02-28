@@ -143,6 +143,54 @@ static struct kobj_attribute all_caps_attr =
 __ATTR(known_capabilities, 0444, all_caps_show, NULL);
 
 static ssize_t
+max_spin_store(struct kobject *kobj, struct kobj_attribute *attr,
+	       const char *buf, size_t count)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+	unsigned long long duration;
+	int err;
+
+	/*
+	 * When waiting for a request, if is it currently being executed
+	 * on the GPU, we busywait for a short while before sleeping. The
+	 * premise is that most requests are short, and if it is already
+	 * executing then there is a good chance that it will complete
+	 * before we can setup the interrupt handler and go to sleep.
+	 * We try to offset the cost of going to sleep, by first spinning
+	 * on the request -- if it completed in less time than it would take
+	 * to go sleep, process the interrupt and return back to the client,
+	 * then we have saved the client some latency, albeit at the cost
+	 * of spinning on an expensive CPU core.
+	 *
+	 * While we try to avoid waiting at all for a request that is unlikely
+	 * to complete, deciding how long it is worth spinning is for is an
+	 * arbitrary decision: trading off power vs latency.
+	 */
+
+	err = kstrtoull(buf, 0, &duration);
+	if (err)
+		return err;
+
+	if (duration > jiffies_to_nsecs(2))
+		return -EINVAL;
+
+	WRITE_ONCE(engine->props.max_busywait_duration_ns, duration);
+
+	return count;
+}
+
+static ssize_t
+max_spin_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct intel_engine_cs *engine = kobj_to_engine(kobj);
+
+	return sprintf(buf, "%lu\n", engine->props.max_busywait_duration_ns);
+}
+
+static struct kobj_attribute max_spin_attr =
+__ATTR(max_busywait_duration_ns, 0644, max_spin_show, max_spin_store);
+
+static ssize_t
 timeslice_store(struct kobject *kobj, struct kobj_attribute *attr,
 		const char *buf, size_t count)
 {
@@ -224,6 +272,7 @@ void intel_engines_add_sysfs(struct drm_i915_private *i915)
 		&mmio_attr.attr,
 		&caps_attr.attr,
 		&all_caps_attr.attr,
+		&max_spin_attr.attr,
 		NULL
 	};
 

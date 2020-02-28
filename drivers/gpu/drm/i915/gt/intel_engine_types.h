@@ -547,6 +547,7 @@ struct intel_engine_cs {
 
 	struct {
 		unsigned long heartbeat_interval_ms;
+		unsigned long max_busywait_duration_ns;
 		unsigned long preempt_timeout_ms;
 		unsigned long stop_timeout_ms;
 		unsigned long timeslice_duration_ms;

@@ -35,15 +35,18 @@ config DRM_I915_PREEMPT_TIMEOUT
 
 	  May be 0 to disable the timeout.
 
-config DRM_I915_SPIN_REQUEST
-	int "Busywait for request completion (us)"
-	default 5 # microseconds
+config DRM_I915_MAX_REQUEST_BUSYWAIT
+	int "Busywait for request completion limit (ns)"
+	default 8000 # nanoseconds
 	help
 	  Before sleeping waiting for a request (GPU operation) to complete,
 	  we may spend some time polling for its completion. As the IRQ may
 	  take a non-negligible time to setup, we do a short spin first to
 	  check if the request will complete in the time it would have taken
 	  us to enable the interrupt.
+
+	  This is adjustable via
+	  /sys/class/drm/card?/engine/*/max_busywait_duration_ns
 
 	  May be 0 to disable the initial spin. In practice, we estimate
 	  the cost of enabling the interrupt (if currently disabled) to be
