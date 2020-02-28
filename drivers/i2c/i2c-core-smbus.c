@@ -676,11 +676,6 @@ EXPORT_SYMBOL(i2c_smbus_read_i2c_block_data_or_emulated);
  * Handling can be done either through our IRQ handler, or by the
  * adapter (from its handler, periodic polling, or whatever).
  *
- * NOTE that if we manage the IRQ, we *MUST* know if it's level or
- * edge triggered in order to hand it to the workqueue correctly.
- * If triggering the alert seems to wedge the system, you probably
- * should have said it's level triggered.
- *
  * This returns the ara client, which should be saved for later use with
  * i2c_handle_smbus_alert() and ultimately i2c_unregister_device(); or an
  * ERRPTR to indicate an error.
