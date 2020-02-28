@@ -27,6 +27,7 @@
 #include "qgroup.h"
 #include "compression.h"
 #include "delalloc-space.h"
+#include "reflink.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 /*
