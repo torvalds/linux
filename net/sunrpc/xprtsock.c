@@ -1970,7 +1970,7 @@ static int xs_local_setup_socket(struct sock_xprt *transport)
 	struct rpc_xprt *xprt = &transport->xprt;
 	struct file *filp;
 	struct socket *sock;
-	int status = -EIO;
+	int status;
 
 	status = __sock_create(xprt->xprt_net, AF_LOCAL,
 					SOCK_STREAM, 0, &sock, 1);
