@@ -341,22 +341,33 @@ static void hsr_announce(struct timer_list *t)
 	rcu_read_unlock();
 }
 
+static void hsr_del_ports(struct hsr_priv *hsr)
+{
+	struct hsr_port *port;
+
+	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
+	if (port)
+		hsr_del_port(port);
+
+	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
+	if (port)
+		hsr_del_port(port);
+
+	port = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+	if (port)
+		hsr_del_port(port);
+}
+
 /* This has to be called after all the readers are gone.
  * Otherwise we would have to check the return value of
  * hsr_port_get_hsr().
  */
 static void hsr_dev_destroy(struct net_device *hsr_dev)
 {
-	struct hsr_priv *hsr;
-	struct hsr_port *port;
-	struct hsr_port *tmp;
-
-	hsr = netdev_priv(hsr_dev);
+	struct hsr_priv *hsr = netdev_priv(hsr_dev);
 
 	hsr_debugfs_term(hsr);
-
-	list_for_each_entry_safe(port, tmp, &hsr->ports, port_list)
-		hsr_del_port(port);
+	hsr_del_ports(hsr);
 
 	del_timer_sync(&hsr->prune_timer);
 	del_timer_sync(&hsr->announce_timer);
@@ -426,8 +437,6 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 		     struct netlink_ext_ack *extack)
 {
 	struct hsr_priv *hsr;
-	struct hsr_port *port;
-	struct hsr_port *tmp;
 	int res;
 
 	hsr = netdev_priv(hsr_dev);
@@ -494,8 +503,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 err_add_slaves:
 	unregister_netdevice(hsr_dev);
 err_unregister:
-	list_for_each_entry_safe(port, tmp, &hsr->ports, port_list)
-		hsr_del_port(port);
+	hsr_del_ports(hsr);
 err_add_master:
 	hsr_del_self_node(hsr);
 

@@ -97,19 +97,25 @@ static int hsr_check_dev_ok(struct net_device *dev,
 }
 
 /* Setup device to be added to the HSR bridge. */
-static int hsr_portdev_setup(struct net_device *dev, struct hsr_port *port)
+static int hsr_portdev_setup(struct hsr_priv *hsr, struct net_device *dev,
+			     struct hsr_port *port,
+			     struct netlink_ext_ack *extack)
+
 {
+	struct net_device *hsr_dev;
+	struct hsr_port *master;
 	int res;
 
-	dev_hold(dev);
 	res = dev_set_promiscuity(dev, 1);
 	if (res)
 		goto fail_promiscuity;
 
-	/* FIXME:
-	 * What does net device "adjacency" mean? Should we do
-	 * res = netdev_master_upper_dev_link(port->dev, port->hsr->dev); ?
-	 */
+	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
+	hsr_dev = master->dev;
+
+	res = netdev_upper_dev_link(dev, hsr_dev, extack);
+	if (res)
+		goto fail_upper_dev_link;
 
 	res = netdev_rx_handler_register(dev, hsr_handle_frame, port);
 	if (res)
@@ -119,6 +125,8 @@ static int hsr_portdev_setup(struct net_device *dev, struct hsr_port *port)
 	return 0;
 
 fail_rx_handler:
+	netdev_upper_dev_unlink(dev, hsr_dev);
+fail_upper_dev_link:
 	dev_set_promiscuity(dev, -1);
 fail_promiscuity:
 	dev_put(dev);
@@ -147,7 +155,7 @@ int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
 		return -ENOMEM;
 
 	if (type != HSR_PT_MASTER) {
-		res = hsr_portdev_setup(dev, port);
+		res = hsr_portdev_setup(hsr, dev, port, extack);
 		if (res)
 			goto fail_dev_setup;
 	}
@@ -180,21 +188,14 @@ void hsr_del_port(struct hsr_port *port)
 	list_del_rcu(&port->port_list);
 
 	if (port != master) {
-		if (master) {
-			netdev_update_features(master->dev);
-			dev_set_mtu(master->dev, hsr_get_max_mtu(hsr));
-		}
+		netdev_update_features(master->dev);
+		dev_set_mtu(master->dev, hsr_get_max_mtu(hsr));
 		netdev_rx_handler_unregister(port->dev);
 		dev_set_promiscuity(port->dev, -1);
+		netdev_upper_dev_unlink(port->dev, master->dev);
 	}
-
-	/* FIXME?
-	 * netdev_upper_dev_unlink(port->dev, port->hsr->dev);
-	 */
 
 	synchronize_rcu();
 
-	if (port != master)
-		dev_put(port->dev);
 	kfree(port);
 }
