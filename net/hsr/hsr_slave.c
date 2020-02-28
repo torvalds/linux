@@ -58,33 +58,37 @@ bool hsr_port_exists(const struct net_device *dev)
 	return rcu_access_pointer(dev->rx_handler) == hsr_handle_frame;
 }
 
-static int hsr_check_dev_ok(struct net_device *dev)
+static int hsr_check_dev_ok(struct net_device *dev,
+			    struct netlink_ext_ack *extack)
 {
 	/* Don't allow HSR on non-ethernet like devices */
 	if ((dev->flags & IFF_LOOPBACK) || dev->type != ARPHRD_ETHER ||
 	    dev->addr_len != ETH_ALEN) {
-		netdev_info(dev, "Cannot use loopback or non-ethernet device as HSR slave.\n");
+		NL_SET_ERR_MSG_MOD(extack, "Cannot use loopback or non-ethernet device as HSR slave.");
 		return -EINVAL;
 	}
 
 	/* Don't allow enslaving hsr devices */
 	if (is_hsr_master(dev)) {
-		netdev_info(dev, "Cannot create trees of HSR devices.\n");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot create trees of HSR devices.");
 		return -EINVAL;
 	}
 
 	if (hsr_port_exists(dev)) {
-		netdev_info(dev, "This device is already a HSR slave.\n");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "This device is already a HSR slave.");
 		return -EINVAL;
 	}
 
 	if (is_vlan_dev(dev)) {
-		netdev_info(dev, "HSR on top of VLAN is not yet supported in this driver.\n");
+		NL_SET_ERR_MSG_MOD(extack, "HSR on top of VLAN is not yet supported in this driver.");
 		return -EINVAL;
 	}
 
 	if (dev->priv_flags & IFF_DONT_BRIDGE) {
-		netdev_info(dev, "This device does not support bridging.\n");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "This device does not support bridging.");
 		return -EOPNOTSUPP;
 	}
 
@@ -126,13 +130,13 @@ fail_promiscuity:
 }
 
 int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
-		 enum hsr_port_type type)
+		 enum hsr_port_type type, struct netlink_ext_ack *extack)
 {
 	struct hsr_port *port, *master;
 	int res;
 
 	if (type != HSR_PT_MASTER) {
-		res = hsr_check_dev_ok(dev);
+		res = hsr_check_dev_ok(dev, extack);
 		if (res)
 			return res;
 	}

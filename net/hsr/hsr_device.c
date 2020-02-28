@@ -431,7 +431,8 @@ static const unsigned char def_multicast_addr[ETH_ALEN] __aligned(2) = {
 };
 
 int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
-		     unsigned char multicast_spec, u8 protocol_version)
+		     unsigned char multicast_spec, u8 protocol_version,
+		     struct netlink_ext_ack *extack)
 {
 	struct hsr_priv *hsr;
 	struct hsr_port *port;
@@ -478,7 +479,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	/* Make sure the 1st call to netif_carrier_on() gets through */
 	netif_carrier_off(hsr_dev);
 
-	res = hsr_add_port(hsr, hsr_dev, HSR_PT_MASTER);
+	res = hsr_add_port(hsr, hsr_dev, HSR_PT_MASTER, extack);
 	if (res)
 		goto err_add_master;
 
@@ -486,11 +487,11 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	if (res)
 		goto err_unregister;
 
-	res = hsr_add_port(hsr, slave[0], HSR_PT_SLAVE_A);
+	res = hsr_add_port(hsr, slave[0], HSR_PT_SLAVE_A, extack);
 	if (res)
 		goto err_add_slaves;
 
-	res = hsr_add_port(hsr, slave[1], HSR_PT_SLAVE_B);
+	res = hsr_add_port(hsr, slave[1], HSR_PT_SLAVE_B, extack);
 	if (res)
 		goto err_add_slaves;
 
