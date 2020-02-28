@@ -258,6 +258,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 		INIT_HLIST_HEAD(&pid->tasks[type]);
 
 	init_waitqueue_head(&pid->wait_pidfd);
+	INIT_HLIST_HEAD(&pid->inodes);
 
 	upid = pid->numbers + ns->level;
 	spin_lock_irq(&pidmap_lock);

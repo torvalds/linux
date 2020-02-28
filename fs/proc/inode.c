@@ -33,21 +33,27 @@ static void proc_evict_inode(struct inode *inode)
 {
 	struct proc_dir_entry *de;
 	struct ctl_table_header *head;
+	struct proc_inode *ei = PROC_I(inode);
 
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 
 	/* Stop tracking associated processes */
-	put_pid(PROC_I(inode)->pid);
+	if (ei->pid) {
+		proc_pid_evict_inode(ei);
+		ei->pid = NULL;
+	}
 
 	/* Let go of any associated proc directory entry */
-	de = PDE(inode);
-	if (de)
+	de = ei->pde;
+	if (de) {
 		pde_put(de);
+		ei->pde = NULL;
+	}
 
-	head = PROC_I(inode)->sysctl;
+	head = ei->sysctl;
 	if (head) {
-		RCU_INIT_POINTER(PROC_I(inode)->sysctl, NULL);
+		RCU_INIT_POINTER(ei->sysctl, NULL);
 		proc_sys_evict_inode(inode, head);
 	}
 }
@@ -68,6 +74,7 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei->pde = NULL;
 	ei->sysctl = NULL;
 	ei->sysctl_entry = NULL;
+	INIT_HLIST_NODE(&ei->sibling_inodes);
 	ei->ns_ops = NULL;
 	return &ei->vfs_inode;
 }
@@ -100,6 +107,62 @@ void __init proc_init_kmemcache(void)
 		offsetof(struct proc_dir_entry, inline_name),
 		SIZEOF_PDE_INLINE_NAME, NULL);
 	BUILD_BUG_ON(sizeof(struct proc_dir_entry) >= SIZEOF_PDE);
+}
+
+void proc_invalidate_siblings_dcache(struct hlist_head *inodes, spinlock_t *lock)
+{
+	struct inode *inode;
+	struct proc_inode *ei;
+	struct hlist_node *node;
+	struct super_block *old_sb = NULL;
+
+	rcu_read_lock();
+	for (;;) {
+		struct super_block *sb;
+		node = hlist_first_rcu(inodes);
+		if (!node)
+			break;
+		ei = hlist_entry(node, struct proc_inode, sibling_inodes);
+		spin_lock(lock);
+		hlist_del_init_rcu(&ei->sibling_inodes);
+		spin_unlock(lock);
+
+		inode = &ei->vfs_inode;
+		sb = inode->i_sb;
+		if ((sb != old_sb) && !atomic_inc_not_zero(&sb->s_active))
+			continue;
+		inode = igrab(inode);
+		rcu_read_unlock();
+		if (sb != old_sb) {
+			if (old_sb)
+				deactivate_super(old_sb);
+			old_sb = sb;
+		}
+		if (unlikely(!inode)) {
+			rcu_read_lock();
+			continue;
+		}
+
+		if (S_ISDIR(inode->i_mode)) {
+			struct dentry *dir = d_find_any_alias(inode);
+			if (dir) {
+				d_invalidate(dir);
+				dput(dir);
+			}
+		} else {
+			struct dentry *dentry;
+			while ((dentry = d_find_alias(inode))) {
+				d_invalidate(dentry);
+				dput(dentry);
+			}
+		}
+		iput(inode);
+
+		rcu_read_lock();
+	}
+	rcu_read_unlock();
+	if (old_sb)
+		deactivate_super(old_sb);
 }
 
 static int proc_show_options(struct seq_file *seq, struct dentry *root)
