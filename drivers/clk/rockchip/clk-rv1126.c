@@ -681,6 +681,9 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 	COMPOSITE(CLK_CAN, "clk_can", mux_gpll_xin24m_p, 0,
 			RV1126_CLKSEL_CON(25), 1, 1, MFLAGS, 0, 7, DFLAGS,
 			RV1126_CLKGATE_CON(7), 9, GFLAGS),
+	/* pclk_otp and clk_otp are controlled by sgrf_clkgat_con. */
+	SGRF_GATE(CLK_OTP, "clk_otp", "xin24m"),
+	SGRF_GATE(PCLK_OTP, "pclk_otp", "pclk_pdbus"),
 
 	GATE(PCLK_NPU_TSADC, "pclk_npu_tsadc", "pclk_pdbus", 0,
 			RV1126_CLKGATE_CON(24), 3, GFLAGS),

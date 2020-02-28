@@ -211,6 +211,7 @@
 #define CLK_CORE_NPUPVTM	145
 #define CLK_NPUPVTM		146
 #define SCLK_DDRCLK		147
+#define CLK_OTP			148
 
 /* dclk */
 #define DCLK_DECOM		150
@@ -351,8 +352,9 @@
 #define PCLK_CSIPHY1		291
 #define PCLK_USBPHY_HOST	292
 #define PCLK_USBPHY_OTG		293
+#define PCLK_OTP		294
 
-#define CLK_NR_CLKS		(PCLK_USBPHY_OTG + 1)
+#define CLK_NR_CLKS		(PCLK_OTP + 1)
 
 /* pmu soft-reset indices */
 
