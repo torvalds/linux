@@ -20,15 +20,12 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/atmel_pdc.h>
 #include <linux/uaccess.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/timer.h>
-#include <linux/gpio.h>
-#include <linux/gpio/consumer.h>
 #include <linux/err.h>
 #include <linux/irq.h>
 #include <linux/suspend.h>
