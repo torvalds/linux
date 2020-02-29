@@ -4,7 +4,7 @@
 #include <linux/ptrace.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
-#include "bpf_trace_helpers.h"
+#include <bpf/bpf_tracing.h>
 
 int kprobe_res = 0;
 int kretprobe_res = 0;
