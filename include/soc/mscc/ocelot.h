@@ -463,6 +463,7 @@ struct ocelot {
 
 	const struct vcap_field		*vcap_is2_keys;
 	const struct vcap_field		*vcap_is2_actions;
+	const struct vcap_props		*vcap;
 
 	/* Workqueue to check statistics for overflow with its lock */
 	struct mutex			stats_lock;

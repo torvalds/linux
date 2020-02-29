@@ -18,6 +18,10 @@
 #include "ocelot.h"
 
 #define IFH_EXTRACT_BITFIELD64(x, o, w) (((x) >> (o)) & GENMASK_ULL((w) - 1, 0))
+#define VSC7514_VCAP_IS2_CNT 64
+#define VSC7514_VCAP_IS2_ENTRY_WIDTH 376
+#define VSC7514_VCAP_IS2_ACTION_WIDTH 99
+#define VSC7514_VCAP_PORT_CNT 11
 
 static int ocelot_parse_ifh(u32 *_ifh, struct frame_info *info)
 {
@@ -337,6 +341,31 @@ static const struct vcap_field vsc7514_vcap_is2_actions[] = {
 	[VCAP_IS2_ACT_HIT_CNT]			= { 49, 32},
 };
 
+static const struct vcap_props vsc7514_vcap_props[] = {
+	[VCAP_IS2] = {
+		.tg_width = 2,
+		.sw_count = 4,
+		.entry_count = VSC7514_VCAP_IS2_CNT,
+		.entry_width = VSC7514_VCAP_IS2_ENTRY_WIDTH,
+		.action_count = VSC7514_VCAP_IS2_CNT +
+				VSC7514_VCAP_PORT_CNT + 2,
+		.action_width = 99,
+		.action_type_width = 1,
+		.action_table = {
+			[IS2_ACTION_TYPE_NORMAL] = {
+				.width = 49,
+				.count = 2
+			},
+			[IS2_ACTION_TYPE_SMAC_SIP] = {
+				.width = 6,
+				.count = 4
+			},
+		},
+		.counter_words = 4,
+		.counter_width = 32,
+	},
+};
+
 static int mscc_ocelot_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -439,6 +468,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 
 	ocelot->vcap_is2_keys = vsc7514_vcap_is2_keys;
 	ocelot->vcap_is2_actions = vsc7514_vcap_is2_actions;
+	ocelot->vcap = vsc7514_vcap_props;
 
 	ocelot_init(ocelot);
 	ocelot_set_cpu_port(ocelot, ocelot->num_phys_ports,

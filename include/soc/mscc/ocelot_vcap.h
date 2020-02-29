@@ -11,6 +11,30 @@
  * =================================================================
  */
 
+enum {
+	/* VCAP_IS1, */
+	VCAP_IS2,
+	/* VCAP_ES0, */
+};
+
+struct vcap_props {
+	u16 tg_width; /* Type-group width (in bits) */
+	u16 sw_count; /* Sub word count */
+	u16 entry_count; /* Entry count */
+	u16 entry_words; /* Number of entry words */
+	u16 entry_width; /* Entry width (in bits) */
+	u16 action_count; /* Action count */
+	u16 action_words; /* Number of action words */
+	u16 action_width; /* Action width (in bits) */
+	u16 action_type_width; /* Action type width (in bits) */
+	struct {
+		u16 width; /* Action type width (in bits) */
+		u16 count; /* Action type sub word count */
+	} action_table[2];
+	u16 counter_words; /* Number of counter words */
+	u16 counter_width; /* Counter width (in bits) */
+};
+
 /* VCAP Type-Group values */
 #define VCAP_TG_NONE 0 /* Entry is invalid */
 #define VCAP_TG_FULL 1 /* Full entry */
@@ -21,11 +45,6 @@
  *  VCAP IS2
  * =================================================================
  */
-
-#define VCAP_IS2_CNT 64
-#define VCAP_IS2_ENTRY_WIDTH 376
-#define VCAP_IS2_ACTION_WIDTH 99
-#define VCAP_PORT_CNT 11
 
 /* IS2 half key types */
 #define IS2_TYPE_ETYPE 0
@@ -42,9 +61,11 @@
 /* IS2 half key type mask for matching any IP */
 #define IS2_TYPE_MASK_IP_ANY 0xe
 
-/* IS2 action types */
-#define IS2_ACTION_TYPE_NORMAL 0
-#define IS2_ACTION_TYPE_SMAC_SIP 1
+enum {
+	IS2_ACTION_TYPE_NORMAL,
+	IS2_ACTION_TYPE_SMAC_SIP,
+	IS2_ACTION_TYPE_MAX,
+};
 
 /* IS2 MASK_MODE values */
 #define IS2_ACT_MASK_MODE_NONE 0
