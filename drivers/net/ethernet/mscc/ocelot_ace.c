@@ -6,8 +6,8 @@
 #include <linux/iopoll.h>
 #include <linux/proc_fs.h>
 
+#include <soc/mscc/ocelot_vcap.h>
 #include "ocelot_ace.h"
-#include "ocelot_vcap.h"
 #include "ocelot_s2.h"
 
 #define OCELOT_POLICER_DISCARD 0x17f
@@ -47,7 +47,7 @@ static const struct vcap_props vcap_is2 = {
 	.action_type_width = 1,
 	.action_table = {
 		{
-			.width = (IS2_AO_ACL_ID + IS2_AL_ACL_ID),
+			.width = 49,
 			.count = 2
 		},
 		{
@@ -243,22 +243,39 @@ static u32 vcap_data_get(u32 *data, u32 offset, u32 len)
 	return value;
 }
 
-static void vcap_key_set(struct vcap_data *data, u32 offset, u32 width,
-			 u32 value, u32 mask)
+static void vcap_key_field_set(struct vcap_data *data, u32 offset, u32 width,
+			       u32 value, u32 mask)
 {
 	vcap_data_set(data->entry, offset + data->key_offset, width, value);
 	vcap_data_set(data->mask, offset + data->key_offset, width, mask);
 }
 
-static void vcap_key_bytes_set(struct vcap_data *data, u32 offset, u8 *val,
-			       u8 *msk, u32 count)
+static void vcap_key_set(struct ocelot *ocelot, struct vcap_data *data,
+			 enum vcap_is2_half_key_field field,
+			 u32 value, u32 mask)
 {
+	u32 offset = ocelot->vcap_is2_keys[field].offset;
+	u32 length = ocelot->vcap_is2_keys[field].length;
+
+	vcap_key_field_set(data, offset, length, value, mask);
+}
+
+static void vcap_key_bytes_set(struct ocelot *ocelot, struct vcap_data *data,
+			       enum vcap_is2_half_key_field field,
+			       u8 *val, u8 *msk)
+{
+	u32 offset = ocelot->vcap_is2_keys[field].offset;
+	u32 count  = ocelot->vcap_is2_keys[field].length;
 	u32 i, j, n = 0, value = 0, mask = 0;
+
+	WARN_ON(count % 8);
 
 	/* Data wider than 32 bits are split up in chunks of maximum 32 bits.
 	 * The 32 LSB of the data are written to the 32 MSB of the TCAM.
 	 */
-	offset += (count * 8);
+	offset += count;
+	count /= 8;
+
 	for (i = 0; i < count; i++) {
 		j = (count - i - 1);
 		value += (val[j] << n);
@@ -266,7 +283,7 @@ static void vcap_key_bytes_set(struct vcap_data *data, u32 offset, u8 *val,
 		n += 8;
 		if (n == ENTRY_WIDTH || (i + 1) == count) {
 			offset -= n;
-			vcap_key_set(data, offset, n, value, mask);
+			vcap_key_field_set(data, offset, n, value, mask);
 			n = 0;
 			value = 0;
 			mask = 0;
@@ -274,55 +291,62 @@ static void vcap_key_bytes_set(struct vcap_data *data, u32 offset, u8 *val,
 	}
 }
 
-static void vcap_key_l4_port_set(struct vcap_data *data, u32 offset,
+static void vcap_key_l4_port_set(struct ocelot *ocelot, struct vcap_data *data,
+				 enum vcap_is2_half_key_field field,
 				 struct ocelot_vcap_udp_tcp *port)
 {
-	vcap_key_set(data, offset, 16, port->value, port->mask);
+	u32 offset = ocelot->vcap_is2_keys[field].offset;
+	u32 length = ocelot->vcap_is2_keys[field].length;
+
+	WARN_ON(length != 16);
+
+	vcap_key_field_set(data, offset, length, port->value, port->mask);
 }
 
-static void vcap_key_bit_set(struct vcap_data *data, u32 offset,
+static void vcap_key_bit_set(struct ocelot *ocelot, struct vcap_data *data,
+			     enum vcap_is2_half_key_field field,
 			     enum ocelot_vcap_bit val)
 {
-	vcap_key_set(data, offset, 1, val == OCELOT_VCAP_BIT_1 ? 1 : 0,
-		     val == OCELOT_VCAP_BIT_ANY ? 0 : 1);
+	u32 offset = ocelot->vcap_is2_keys[field].offset;
+	u32 length = ocelot->vcap_is2_keys[field].length;
+	u32 value = (val == OCELOT_VCAP_BIT_1 ? 1 : 0);
+	u32 msk = (val == OCELOT_VCAP_BIT_ANY ? 0 : 1);
+
+	WARN_ON(length != 1);
+
+	vcap_key_field_set(data, offset, length, value, msk);
 }
 
-#define VCAP_KEY_SET(fld, val, msk) \
-	vcap_key_set(&data, IS2_HKO_##fld, IS2_HKL_##fld, val, msk)
-#define VCAP_KEY_ANY_SET(fld) \
-	vcap_key_set(&data, IS2_HKO_##fld, IS2_HKL_##fld, 0, 0)
-#define VCAP_KEY_BIT_SET(fld, val) vcap_key_bit_set(&data, IS2_HKO_##fld, val)
-#define VCAP_KEY_BYTES_SET(fld, val, msk) \
-	vcap_key_bytes_set(&data, IS2_HKO_##fld, val, msk, IS2_HKL_##fld / 8)
-
-static void vcap_action_set(struct vcap_data *data, u32 offset, u32 width,
-			    u32 value)
+static void vcap_action_set(struct ocelot *ocelot, struct vcap_data *data,
+			    enum vcap_is2_action_field field, u32 value)
 {
-	vcap_data_set(data->action, offset + data->action_offset, width, value);
+	int offset = ocelot->vcap_is2_actions[field].offset;
+	int length = ocelot->vcap_is2_actions[field].length;
+
+	vcap_data_set(data->action, offset + data->action_offset, length,
+		      value);
 }
 
-#define VCAP_ACT_SET(fld, val) \
-	vcap_action_set(data, IS2_AO_##fld, IS2_AL_##fld, val)
-
-static void is2_action_set(struct vcap_data *data,
+static void is2_action_set(struct ocelot *ocelot, struct vcap_data *data,
 			   enum ocelot_ace_action action)
 {
 	switch (action) {
 	case OCELOT_ACL_ACTION_DROP:
-		VCAP_ACT_SET(PORT_MASK, 0x0);
-		VCAP_ACT_SET(MASK_MODE, 0x1);
-		VCAP_ACT_SET(POLICE_ENA, 0x1);
-		VCAP_ACT_SET(POLICE_IDX, OCELOT_POLICER_DISCARD);
-		VCAP_ACT_SET(CPU_QU_NUM, 0x0);
-		VCAP_ACT_SET(CPU_COPY_ENA, 0x0);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_PORT_MASK, 0);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_MASK_MODE, 1);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_POLICE_ENA, 1);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_POLICE_IDX,
+				OCELOT_POLICER_DISCARD);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_CPU_QU_NUM, 0);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_CPU_COPY_ENA, 0);
 		break;
 	case OCELOT_ACL_ACTION_TRAP:
-		VCAP_ACT_SET(PORT_MASK, 0x0);
-		VCAP_ACT_SET(MASK_MODE, 0x1);
-		VCAP_ACT_SET(POLICE_ENA, 0x0);
-		VCAP_ACT_SET(POLICE_IDX, 0x0);
-		VCAP_ACT_SET(CPU_QU_NUM, 0x0);
-		VCAP_ACT_SET(CPU_COPY_ENA, 0x1);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_PORT_MASK, 0);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_MASK_MODE, 1);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_POLICE_ENA, 0);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_POLICE_IDX, 0);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_CPU_QU_NUM, 0);
+		vcap_action_set(ocelot, data, VCAP_IS2_ACT_CPU_COPY_ENA, 1);
 		break;
 	}
 }
@@ -352,53 +376,69 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 
 	data.type = IS2_ACTION_TYPE_NORMAL;
 
-	VCAP_KEY_ANY_SET(PAG);
-	VCAP_KEY_SET(IGR_PORT_MASK, 0, ~ace->ingress_port_mask);
-	VCAP_KEY_BIT_SET(FIRST, OCELOT_VCAP_BIT_1);
-	VCAP_KEY_BIT_SET(HOST_MATCH, OCELOT_VCAP_BIT_ANY);
-	VCAP_KEY_BIT_SET(L2_MC, ace->dmac_mc);
-	VCAP_KEY_BIT_SET(L2_BC, ace->dmac_bc);
-	VCAP_KEY_BIT_SET(VLAN_TAGGED, tag->tagged);
-	VCAP_KEY_SET(VID, tag->vid.value, tag->vid.mask);
-	VCAP_KEY_SET(PCP, tag->pcp.value[0], tag->pcp.mask[0]);
-	VCAP_KEY_BIT_SET(DEI, tag->dei);
+	vcap_key_set(ocelot, &data, VCAP_IS2_HK_PAG, 0, 0);
+	vcap_key_set(ocelot, &data, VCAP_IS2_HK_IGR_PORT_MASK, 0,
+		     ~ace->ingress_port_mask);
+	vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_FIRST, OCELOT_VCAP_BIT_1);
+	vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_HOST_MATCH,
+			 OCELOT_VCAP_BIT_ANY);
+	vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_L2_MC, ace->dmac_mc);
+	vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_L2_BC, ace->dmac_bc);
+	vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_VLAN_TAGGED, tag->tagged);
+	vcap_key_set(ocelot, &data, VCAP_IS2_HK_VID,
+		     tag->vid.value, tag->vid.mask);
+	vcap_key_set(ocelot, &data, VCAP_IS2_HK_PCP,
+		     tag->pcp.value[0], tag->pcp.mask[0]);
+	vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_DEI, tag->dei);
 
 	switch (ace->type) {
 	case OCELOT_ACE_TYPE_ETYPE: {
 		struct ocelot_ace_frame_etype *etype = &ace->frame.etype;
 
 		type = IS2_TYPE_ETYPE;
-		VCAP_KEY_BYTES_SET(L2_DMAC, etype->dmac.value,
-				   etype->dmac.mask);
-		VCAP_KEY_BYTES_SET(L2_SMAC, etype->smac.value,
-				   etype->smac.mask);
-		VCAP_KEY_BYTES_SET(MAC_ETYPE_ETYPE, etype->etype.value,
-				   etype->etype.mask);
-		VCAP_KEY_ANY_SET(MAC_ETYPE_L2_PAYLOAD); // Clear unused bits
-		vcap_key_bytes_set(&data, IS2_HKO_MAC_ETYPE_L2_PAYLOAD,
-				   etype->data.value, etype->data.mask, 2);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_L2_DMAC,
+				   etype->dmac.value, etype->dmac.mask);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_L2_SMAC,
+				   etype->smac.value, etype->smac.mask);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_MAC_ETYPE_ETYPE,
+				   etype->etype.value, etype->etype.mask);
+		/* Clear unused bits */
+		vcap_key_set(ocelot, &data, VCAP_IS2_HK_MAC_ETYPE_L2_PAYLOAD0,
+			     0, 0);
+		vcap_key_set(ocelot, &data, VCAP_IS2_HK_MAC_ETYPE_L2_PAYLOAD1,
+			     0, 0);
+		vcap_key_set(ocelot, &data, VCAP_IS2_HK_MAC_ETYPE_L2_PAYLOAD2,
+			     0, 0);
+		vcap_key_bytes_set(ocelot, &data,
+				   VCAP_IS2_HK_MAC_ETYPE_L2_PAYLOAD0,
+				   etype->data.value, etype->data.mask);
 		break;
 	}
 	case OCELOT_ACE_TYPE_LLC: {
 		struct ocelot_ace_frame_llc *llc = &ace->frame.llc;
 
 		type = IS2_TYPE_LLC;
-		VCAP_KEY_BYTES_SET(L2_DMAC, llc->dmac.value, llc->dmac.mask);
-		VCAP_KEY_BYTES_SET(L2_SMAC, llc->smac.value, llc->smac.mask);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_L2_DMAC,
+				   llc->dmac.value, llc->dmac.mask);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_L2_SMAC,
+				   llc->smac.value, llc->smac.mask);
 		for (i = 0; i < 4; i++) {
 			payload.value[i] = llc->llc.value[i];
 			payload.mask[i] = llc->llc.mask[i];
 		}
-		VCAP_KEY_BYTES_SET(MAC_LLC_L2_LLC, payload.value, payload.mask);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_MAC_LLC_L2_LLC,
+				   payload.value, payload.mask);
 		break;
 	}
 	case OCELOT_ACE_TYPE_SNAP: {
 		struct ocelot_ace_frame_snap *snap = &ace->frame.snap;
 
 		type = IS2_TYPE_SNAP;
-		VCAP_KEY_BYTES_SET(L2_DMAC, snap->dmac.value, snap->dmac.mask);
-		VCAP_KEY_BYTES_SET(L2_SMAC, snap->smac.value, snap->smac.mask);
-		VCAP_KEY_BYTES_SET(MAC_SNAP_L2_SNAP,
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_L2_DMAC,
+				   snap->dmac.value, snap->dmac.mask);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_L2_SMAC,
+				   snap->smac.value, snap->smac.mask);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_MAC_SNAP_L2_SNAP,
 				   ace->frame.snap.snap.value,
 				   ace->frame.snap.snap.mask);
 		break;
@@ -407,26 +447,42 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 		struct ocelot_ace_frame_arp *arp = &ace->frame.arp;
 
 		type = IS2_TYPE_ARP;
-		VCAP_KEY_BYTES_SET(MAC_ARP_L2_SMAC, arp->smac.value,
-				   arp->smac.mask);
-		VCAP_KEY_BIT_SET(MAC_ARP_ARP_ADDR_SPACE_OK, arp->ethernet);
-		VCAP_KEY_BIT_SET(MAC_ARP_ARP_PROTO_SPACE_OK, arp->ip);
-		VCAP_KEY_BIT_SET(MAC_ARP_ARP_LEN_OK, arp->length);
-		VCAP_KEY_BIT_SET(MAC_ARP_ARP_TGT_MATCH, arp->dmac_match);
-		VCAP_KEY_BIT_SET(MAC_ARP_ARP_SENDER_MATCH, arp->smac_match);
-		VCAP_KEY_BIT_SET(MAC_ARP_ARP_OPCODE_UNKNOWN, arp->unknown);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_MAC_ARP_SMAC,
+				   arp->smac.value, arp->smac.mask);
+		vcap_key_bit_set(ocelot, &data,
+				 VCAP_IS2_HK_MAC_ARP_ADDR_SPACE_OK,
+				 arp->ethernet);
+		vcap_key_bit_set(ocelot, &data,
+				 VCAP_IS2_HK_MAC_ARP_PROTO_SPACE_OK,
+				 arp->ip);
+		vcap_key_bit_set(ocelot, &data,
+				 VCAP_IS2_HK_MAC_ARP_LEN_OK,
+				 arp->length);
+		vcap_key_bit_set(ocelot, &data,
+				 VCAP_IS2_HK_MAC_ARP_TARGET_MATCH,
+				 arp->dmac_match);
+		vcap_key_bit_set(ocelot, &data,
+				 VCAP_IS2_HK_MAC_ARP_SENDER_MATCH,
+				 arp->smac_match);
+		vcap_key_bit_set(ocelot, &data,
+				 VCAP_IS2_HK_MAC_ARP_OPCODE_UNKNOWN,
+				 arp->unknown);
 
 		/* OPCODE is inverse, bit 0 is reply flag, bit 1 is RARP flag */
 		val = ((arp->req == OCELOT_VCAP_BIT_0 ? 1 : 0) |
 		       (arp->arp == OCELOT_VCAP_BIT_0 ? 2 : 0));
 		msk = ((arp->req == OCELOT_VCAP_BIT_ANY ? 0 : 1) |
 		       (arp->arp == OCELOT_VCAP_BIT_ANY ? 0 : 2));
-		VCAP_KEY_SET(MAC_ARP_ARP_OPCODE, val, msk);
-		vcap_key_bytes_set(&data, IS2_HKO_MAC_ARP_L3_IP4_DIP,
-				   arp->dip.value.addr, arp->dip.mask.addr, 4);
-		vcap_key_bytes_set(&data, IS2_HKO_MAC_ARP_L3_IP4_SIP,
-				   arp->sip.value.addr, arp->sip.mask.addr, 4);
-		VCAP_KEY_ANY_SET(MAC_ARP_DIP_EQ_SIP);
+		vcap_key_set(ocelot, &data, VCAP_IS2_HK_MAC_ARP_OPCODE,
+			     val, msk);
+		vcap_key_bytes_set(ocelot, &data,
+				   VCAP_IS2_HK_MAC_ARP_L3_IP4_DIP,
+				   arp->dip.value.addr, arp->dip.mask.addr);
+		vcap_key_bytes_set(ocelot, &data,
+				   VCAP_IS2_HK_MAC_ARP_L3_IP4_SIP,
+				   arp->sip.value.addr, arp->sip.mask.addr);
+		vcap_key_set(ocelot, &data, VCAP_IS2_HK_MAC_ARP_DIP_EQ_SIP,
+			     0, 0);
 		break;
 	}
 	case OCELOT_ACE_TYPE_IPV4:
@@ -494,18 +550,23 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 			seq_zero = ipv6->seq_zero;
 		}
 
-		VCAP_KEY_BIT_SET(IP4,
+		vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_IP4,
 				 ipv4 ? OCELOT_VCAP_BIT_1 : OCELOT_VCAP_BIT_0);
-		VCAP_KEY_BIT_SET(L3_FRAGMENT, fragment);
-		VCAP_KEY_ANY_SET(L3_FRAG_OFS_GT0);
-		VCAP_KEY_BIT_SET(L3_OPTIONS, options);
-		VCAP_KEY_BIT_SET(L3_TTL_GT0, ttl);
-		VCAP_KEY_BYTES_SET(L3_TOS, ds.value, ds.mask);
-		vcap_key_bytes_set(&data, IS2_HKO_L3_IP4_DIP, dip.value.addr,
-				   dip.mask.addr, 4);
-		vcap_key_bytes_set(&data, IS2_HKO_L3_IP4_SIP, sip.value.addr,
-				   sip.mask.addr, 4);
-		VCAP_KEY_BIT_SET(DIP_EQ_SIP, sip_eq_dip);
+		vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_L3_FRAGMENT,
+				 fragment);
+		vcap_key_set(ocelot, &data, VCAP_IS2_HK_L3_FRAG_OFS_GT0, 0, 0);
+		vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_L3_OPTIONS,
+				 options);
+		vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_IP4_L3_TTL_GT0,
+				 ttl);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_L3_TOS,
+				   ds.value, ds.mask);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_L3_IP4_DIP,
+				   dip.value.addr, dip.mask.addr);
+		vcap_key_bytes_set(ocelot, &data, VCAP_IS2_HK_L3_IP4_SIP,
+				   sip.value.addr, sip.mask.addr);
+		vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_DIP_EQ_SIP,
+				 sip_eq_dip);
 		val = proto.value[0];
 		msk = proto.mask[0];
 		type = IS2_TYPE_IP_UDP_TCP;
@@ -513,25 +574,34 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 			/* UDP/TCP protocol match */
 			tcp = (val == 6 ?
 			       OCELOT_VCAP_BIT_1 : OCELOT_VCAP_BIT_0);
-			VCAP_KEY_BIT_SET(IP4_TCP_UDP_TCP, tcp);
-			vcap_key_l4_port_set(&data,
-					     IS2_HKO_IP4_TCP_UDP_L4_DPORT,
-					     dport);
-			vcap_key_l4_port_set(&data,
-					     IS2_HKO_IP4_TCP_UDP_L4_SPORT,
-					     sport);
-			VCAP_KEY_ANY_SET(IP4_TCP_UDP_L4_RNG);
-			VCAP_KEY_BIT_SET(IP4_TCP_UDP_SPORT_EQ_DPORT,
+			vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_TCP, tcp);
+			vcap_key_l4_port_set(ocelot, &data,
+					     VCAP_IS2_HK_L4_DPORT, dport);
+			vcap_key_l4_port_set(ocelot, &data,
+					     VCAP_IS2_HK_L4_SPORT, sport);
+			vcap_key_set(ocelot, &data, VCAP_IS2_HK_L4_RNG, 0, 0);
+			vcap_key_bit_set(ocelot, &data,
+					 VCAP_IS2_HK_L4_SPORT_EQ_DPORT,
 					 sport_eq_dport);
-			VCAP_KEY_BIT_SET(IP4_TCP_UDP_SEQUENCE_EQ0, seq_zero);
-			VCAP_KEY_BIT_SET(IP4_TCP_UDP_L4_FIN, tcp_fin);
-			VCAP_KEY_BIT_SET(IP4_TCP_UDP_L4_SYN, tcp_syn);
-			VCAP_KEY_BIT_SET(IP4_TCP_UDP_L4_RST, tcp_rst);
-			VCAP_KEY_BIT_SET(IP4_TCP_UDP_L4_PSH, tcp_psh);
-			VCAP_KEY_BIT_SET(IP4_TCP_UDP_L4_ACK, tcp_ack);
-			VCAP_KEY_BIT_SET(IP4_TCP_UDP_L4_URG, tcp_urg);
-			VCAP_KEY_ANY_SET(IP4_TCP_UDP_L4_1588_DOM);
-			VCAP_KEY_ANY_SET(IP4_TCP_UDP_L4_1588_VER);
+			vcap_key_bit_set(ocelot, &data,
+					 VCAP_IS2_HK_L4_SEQUENCE_EQ0,
+					 seq_zero);
+			vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_L4_FIN,
+					 tcp_fin);
+			vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_L4_SYN,
+					 tcp_syn);
+			vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_L4_RST,
+					 tcp_rst);
+			vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_L4_PSH,
+					 tcp_psh);
+			vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_L4_ACK,
+					 tcp_ack);
+			vcap_key_bit_set(ocelot, &data, VCAP_IS2_HK_L4_URG,
+					 tcp_urg);
+			vcap_key_set(ocelot, &data, VCAP_IS2_HK_L4_1588_DOM,
+				     0, 0);
+			vcap_key_set(ocelot, &data, VCAP_IS2_HK_L4_1588_VER,
+				     0, 0);
 		} else {
 			if (msk == 0) {
 				/* Any IP protocol match */
@@ -544,10 +614,12 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 					payload.mask[i] = ip_data->mask[i];
 				}
 			}
-			VCAP_KEY_BYTES_SET(IP4_OTHER_L3_PROTO, proto.value,
-					   proto.mask);
-			VCAP_KEY_BYTES_SET(IP4_OTHER_L3_PAYLOAD, payload.value,
-					   payload.mask);
+			vcap_key_bytes_set(ocelot, &data,
+					   VCAP_IS2_HK_IP4_L3_PROTO,
+					   proto.value, proto.mask);
+			vcap_key_bytes_set(ocelot, &data,
+					   VCAP_IS2_HK_L3_PAYLOAD,
+					   payload.value, payload.mask);
 		}
 		break;
 	}
@@ -556,18 +628,20 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 		type = 0;
 		type_mask = 0;
 		count = (vcap_is2.entry_width / 2);
-		for (i = (IS2_HKO_PCP + IS2_HKL_PCP); i < count;
-		     i += ENTRY_WIDTH) {
-			/* Clear entry data */
-			vcap_key_set(&data, i, min(32u, count - i), 0, 0);
+		/* Iterate over the non-common part of the key and
+		 * clear entry data
+		 */
+		for (i = ocelot->vcap_is2_keys[VCAP_IS2_HK_L2_DMAC].offset;
+		     i < count; i += ENTRY_WIDTH) {
+			vcap_key_field_set(&data, i, min(32u, count - i), 0, 0);
 		}
 		break;
 	}
 
-	VCAP_KEY_SET(TYPE, type, type_mask);
-	is2_action_set(&data, ace->action);
-	vcap_data_set(data.counter, data.counter_offset, vcap_is2.counter_width,
-		      ace->stats.pkts);
+	vcap_key_set(ocelot, &data, VCAP_IS2_TYPE, type, type_mask);
+	is2_action_set(ocelot, &data, ace->action);
+	vcap_data_set(data.counter, data.counter_offset,
+		      vcap_is2.counter_width, ace->stats.pkts);
 
 	/* Write row */
 	vcap_entry2cache(ocelot, &data);
@@ -734,6 +808,7 @@ int ocelot_ace_init(struct ocelot *ocelot)
 	struct vcap_data data;
 
 	memset(&data, 0, sizeof(data));
+
 	vcap_entry2cache(ocelot, &data);
 	ocelot_write(ocelot, vcap_is2.entry_count, S2_CORE_MV_CFG);
 	vcap_cmd(ocelot, 0, VCAP_CMD_INITIALIZE, VCAP_SEL_ENTRY);

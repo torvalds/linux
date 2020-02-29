@@ -462,6 +462,9 @@ struct ocelot {
 
 	struct ocelot_acl_block		acl_block;
 
+	const struct vcap_field		*vcap_is2_keys;
+	const struct vcap_field		*vcap_is2_actions;
+
 	/* Workqueue to check statistics for overflow with its lock */
 	struct mutex			stats_lock;
 	u64				*stats;
