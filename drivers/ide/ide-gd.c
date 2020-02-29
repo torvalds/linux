@@ -361,7 +361,7 @@ static const struct block_device_operations ide_gd_ops = {
 	.release		= ide_gd_release,
 	.ioctl			= ide_gd_ioctl,
 #ifdef CONFIG_COMPAT
-	.ioctl			= ide_gd_compat_ioctl,
+	.compat_ioctl		= ide_gd_compat_ioctl,
 #endif
 	.getgeo			= ide_gd_getgeo,
 	.check_events		= ide_gd_check_events,
