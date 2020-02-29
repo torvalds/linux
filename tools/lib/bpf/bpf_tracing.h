@@ -49,7 +49,7 @@
 
 #if defined(bpf_target_x86)
 
-#ifdef __KERNEL__
+#if defined(__KERNEL__) || defined(__VMLINUX_H__)
 #define PT_REGS_PARM1(x) ((x)->di)
 #define PT_REGS_PARM2(x) ((x)->si)
 #define PT_REGS_PARM3(x) ((x)->dx)
