@@ -4381,7 +4381,7 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 	pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
 
 	pci_write_config_word(pdev, PCI_STATUS,
-		pci_status & (PCI_STATUS_DETECTED_PARITY |
+		pci_status & (PCI_STATUS_DETECTED_PARITY | PCI_STATUS_PARITY |
 		PCI_STATUS_SIG_SYSTEM_ERROR | PCI_STATUS_REC_MASTER_ABORT |
 		PCI_STATUS_REC_TARGET_ABORT | PCI_STATUS_SIG_TARGET_ABORT));
 
