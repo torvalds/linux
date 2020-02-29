@@ -367,7 +367,6 @@ int vnt_vt3184_init(struct vnt_private *priv)
 	int ret = 0;
 	u16 length;
 	u8 *addr;
-	u8 array[256];
 	u8 data;
 
 	ret = vnt_control_in(priv, MESSAGE_TYPE_READ, 0, MESSAGE_REQUEST_EEPROM,
@@ -437,10 +436,8 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		goto end;
 	}
 
-	memcpy(array, addr, length);
-
 	ret = vnt_control_out_blocks(priv, VNT_REG_BLOCK_SIZE,
-				     MESSAGE_REQUEST_BBREG, length, array);
+				     MESSAGE_REQUEST_BBREG, length, addr);
 	if (ret)
 		goto end;
 
