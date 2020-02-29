@@ -317,7 +317,7 @@ int vnt_tx_context(struct vnt_private *priv,
 
 	if (test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags)) {
 		context->in_use = false;
-		return STATUS_RESOURCES;
+		return -ENODEV;
 	}
 
 	usb_fill_bulk_urb(urb,
@@ -333,8 +333,7 @@ int vnt_tx_context(struct vnt_private *priv,
 		dev_dbg(&priv->usb->dev, "Submit Tx URB failed %d\n", status);
 
 		context->in_use = false;
-		return STATUS_FAILURE;
 	}
 
-	return STATUS_PENDING;
+	return status;
 }

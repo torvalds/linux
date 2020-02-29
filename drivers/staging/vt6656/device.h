@@ -256,15 +256,6 @@ struct vnt_interrupt_buffer {
 	bool in_use;
 };
 
-/*++ NDIS related */
-
-enum {
-	STATUS_SUCCESS = 0,
-	STATUS_FAILURE,
-	STATUS_RESOURCES,
-	STATUS_PENDING,
-};
-
 /* flags for options */
 #define DEVICE_FLAGS_UNPLUG		0
 #define DEVICE_FLAGS_DISCONNECTED	1
