@@ -291,3 +291,32 @@ void esw_acl_ingress_ofld_cleanup(struct mlx5_eswitch *esw,
 	esw_acl_ingress_ofld_groups_destroy(vport);
 	esw_acl_ingress_table_destroy(vport);
 }
+
+/* Caller must hold rtnl_lock */
+int mlx5_esw_acl_ingress_vport_bond_update(struct mlx5_eswitch *esw, u16 vport_num,
+					   u32 metadata)
+{
+	struct mlx5_vport *vport = mlx5_eswitch_get_vport(esw, vport_num);
+	int err;
+
+	if (WARN_ON_ONCE(IS_ERR(vport))) {
+		esw_warn(esw->dev, "vport(%d) invalid!\n", vport_num);
+		err = PTR_ERR(vport);
+		goto out;
+	}
+
+	esw_acl_ingress_ofld_rules_destroy(esw, vport);
+
+	vport->metadata = metadata ? metadata : vport->default_metadata;
+
+	/* Recreate ingress acl rules with vport->metadata */
+	err = esw_acl_ingress_ofld_rules_create(esw, vport);
+	if (err)
+		goto out;
+
+	return 0;
+
+out:
+	vport->metadata = vport->default_metadata;
+	return err;
+}
