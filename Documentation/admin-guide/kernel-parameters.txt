@@ -1095,6 +1095,12 @@
 			A valid base address must be provided, and the serial
 			port must already be setup and configured.
 
+		ec_imx21,<addr>
+		ec_imx6q,<addr>
+			Start an early, polled-mode, output-only console on the
+			Freescale i.MX UART at the specified address. The UART
+			must already be setup and configured.
+
 		ar3700_uart,<addr>
 			Start an early, polled-mode console on the
 			Armada 3700 serial port at the specified
