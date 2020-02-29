@@ -453,8 +453,6 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		ocelot->ptp = 1;
 	}
 
-	ocelot->num_cpu_ports = 1; /* 1 port on the switch, two groups */
-
 	ports = of_get_child_by_name(np, "ethernet-ports");
 	if (!ports) {
 		dev_err(&pdev->dev, "no ethernet-ports child node found\n");
@@ -471,8 +469,9 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	ocelot->vcap = vsc7514_vcap_props;
 
 	ocelot_init(ocelot);
-	ocelot_set_cpu_port(ocelot, ocelot->num_phys_ports,
-			    OCELOT_TAG_PREFIX_NONE, OCELOT_TAG_PREFIX_NONE);
+	/* No NPI port */
+	ocelot_configure_cpu(ocelot, -1, OCELOT_TAG_PREFIX_NONE,
+			     OCELOT_TAG_PREFIX_NONE);
 
 	for_each_available_child_of_node(ports, portnp) {
 		struct ocelot_port_private *priv;
