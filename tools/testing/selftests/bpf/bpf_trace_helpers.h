@@ -96,15 +96,16 @@ typeof(name(0)) name(struct pt_regs *ctx)				    \
 static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
 
 #define ___bpf_kretprobe_args0() ctx
-#define ___bpf_kretprobe_argsN(x, args...) \
-	___bpf_kprobe_args(args), (void *)PT_REGS_RET(ctx)
+#define ___bpf_kretprobe_args1(x) \
+	___bpf_kretprobe_args0(), (void *)PT_REGS_RET(ctx)
 #define ___bpf_kretprobe_args(args...) \
-	___bpf_apply(___bpf_kretprobe_args, ___bpf_empty(args))(args)
+	___bpf_apply(___bpf_kretprobe_args, ___bpf_narg(args))(args)
 
 /*
- * BPF_KRETPROBE is similar to BPF_KPROBE, except, in addition to listing all
- * input kprobe arguments, one last extra argument has to be specified, which
- * captures kprobe return value.
+ * BPF_KRETPROBE is similar to BPF_KPROBE, except, it only provides optional
+ * return value (in addition to `struct pt_regs *ctx`), but no input
+ * arguments, because they will be clobbered by the time probed function
+ * returns.
  */
 #define BPF_KRETPROBE(name, args...)					    \
 name(struct pt_regs *ctx);						    \
