@@ -30,7 +30,7 @@ struct lwtunnel_state {
 	int		(*orig_output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int		(*orig_input)(struct sk_buff *);
 	struct		rcu_head rcu;
-	__u8            data[0];
+	__u8            data[];
 };
 
 struct lwtunnel_encap_ops {
