@@ -3488,7 +3488,7 @@ long kvm_arch_dev_ioctl(struct file *filp,
 		r = 0;
 		break;
 	}
-	case KVM_X86_GET_MCE_CAP_SUPPORTED: {
+	case KVM_X86_GET_MCE_CAP_SUPPORTED:
 		r = -EFAULT;
 		if (copy_to_user(argp, &kvm_mce_cap_supported,
 				 sizeof(kvm_mce_cap_supported)))
@@ -3520,9 +3520,9 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	case KVM_GET_MSRS:
 		r = msr_io(NULL, argp, do_get_msr_feature, 1);
 		break;
-	}
 	default:
 		r = -EINVAL;
+		break;
 	}
 out:
 	return r;
