@@ -192,11 +192,7 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 		return ret;
 	}
 
-	ret = ocelot_ace_rule_offload_add(ocelot, ace);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ocelot_ace_rule_offload_add(ocelot, ace);
 }
 EXPORT_SYMBOL_GPL(ocelot_cls_flower_replace);
 
@@ -204,16 +200,11 @@ int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
 			      struct flow_cls_offload *f, bool ingress)
 {
 	struct ocelot_ace_rule ace;
-	int ret;
 
 	ace.prio = f->common.prio;
 	ace.id = f->cookie;
 
-	ret = ocelot_ace_rule_offload_del(ocelot, &ace);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ocelot_ace_rule_offload_del(ocelot, &ace);
 }
 EXPORT_SYMBOL_GPL(ocelot_cls_flower_destroy);
 
