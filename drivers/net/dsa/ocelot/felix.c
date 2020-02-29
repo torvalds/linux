@@ -523,6 +523,15 @@ static int felix_setup(struct dsa_switch *ds)
 					     OCELOT_TAG_PREFIX_LONG);
 	}
 
+	/* Include the CPU port module in the forwarding mask for unknown
+	 * unicast - the hardware default value for ANA_FLOODING_FLD_UNICAST
+	 * excludes BIT(ocelot->num_phys_ports), and so does ocelot_init, since
+	 * Ocelot relies on whitelisting MAC addresses towards PGID_CPU.
+	 */
+	ocelot_write_rix(ocelot,
+			 ANA_PGID_PGID_PGID(GENMASK(ocelot->num_phys_ports, 0)),
+			 ANA_PGID_PGID, PGID_UC);
+
 	/* It looks like the MAC/PCS interrupt register - PM0_IEVENT (0x8040)
 	 * isn't instantiated for the Felix PF.
 	 * In-band AN may take a few ms to complete, so we need to poll.
