@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Generic thermal sysfs drivers configuration
+# Generic thermal drivers configuration
 #
 
 menuconfig THERMAL
-	bool "Generic Thermal sysfs driver"
+	bool "Thermal drivers"
 	help
-	  Generic Thermal Sysfs driver offers a generic mechanism for
+	  Thermal drivers offer a generic mechanism for
 	  thermal management. Usually it's made up of one or more thermal
-	  zone and cooling device.
+	  zones and cooling devices.
 	  Each thermal zone contains its own temperature, trip points,
-	  cooling devices.
-	  All platforms with ACPI thermal support can use this driver.
+	  and cooling devices.
+	  All platforms with ACPI or Open Firmware thermal support can use
+	  this driver.
 	  If you want this support, you should say Y here.
 
 if THERMAL
