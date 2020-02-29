@@ -469,7 +469,8 @@ _bpftool()
                                 cgroup/recvmsg4 cgroup/recvmsg6 \
                                 cgroup/post_bind4 cgroup/post_bind6 \
                                 cgroup/sysctl cgroup/getsockopt \
-                                cgroup/setsockopt" -- \
+                                cgroup/setsockopt struct_ops \
+                                fentry fexit freplace" -- \
                                                    "$cur" ) )
                             return 0
                             ;;
@@ -983,11 +984,12 @@ _bpftool()
                 probe)
                     [[ $prev == "prefix" ]] && return 0
                     if _bpftool_search_list 'macros'; then
-                        COMPREPLY+=( $( compgen -W 'prefix' -- "$cur" ) )
+                        _bpftool_once_attr 'prefix'
                     else
                         COMPREPLY+=( $( compgen -W 'macros' -- "$cur" ) )
                     fi
                     _bpftool_one_of_list 'kernel dev'
+                    _bpftool_once_attr 'full'
                     return 0
                     ;;
                 *)

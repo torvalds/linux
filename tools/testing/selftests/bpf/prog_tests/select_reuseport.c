@@ -509,11 +509,6 @@ static void test_syncookie(int type, sa_family_t family)
 		.pass_on_failure = 0,
 	};
 
-	if (type != SOCK_STREAM) {
-		test__skip();
-		return;
-	}
-
 	/*
 	 * +1 for TCP-SYN and
 	 * +1 for the TCP-ACK (ack the syncookie)
@@ -787,7 +782,7 @@ static const char *sotype_str(int sotype)
 	}
 }
 
-#define TEST_INIT(fn, ...) { fn, #fn, __VA_ARGS__ }
+#define TEST_INIT(fn_, ...) { .fn = fn_, .name = #fn_, __VA_ARGS__ }
 
 static void test_config(int sotype, sa_family_t family, bool inany)
 {
@@ -795,19 +790,31 @@ static void test_config(int sotype, sa_family_t family, bool inany)
 		void (*fn)(int sotype, sa_family_t family);
 		const char *name;
 		bool no_inner_map;
+		int need_sotype;
 	} tests[] = {
-		TEST_INIT(test_err_inner_map, true /* no_inner_map */),
+		TEST_INIT(test_err_inner_map,
+			  .no_inner_map = true),
 		TEST_INIT(test_err_skb_data),
 		TEST_INIT(test_err_sk_select_port),
 		TEST_INIT(test_pass),
-		TEST_INIT(test_syncookie),
+		TEST_INIT(test_syncookie,
+			  .need_sotype = SOCK_STREAM),
 		TEST_INIT(test_pass_on_err),
 		TEST_INIT(test_detach_bpf),
 	};
 	char s[MAX_TEST_NAME];
 	const struct test *t;
 
+	/* SOCKMAP/SOCKHASH don't support UDP yet */
+	if (sotype == SOCK_DGRAM &&
+	    (inner_map_type == BPF_MAP_TYPE_SOCKMAP ||
+	     inner_map_type == BPF_MAP_TYPE_SOCKHASH))
+		return;
+
 	for (t = tests; t < tests + ARRAY_SIZE(tests); t++) {
+		if (t->need_sotype && t->need_sotype != sotype)
+			continue; /* test not compatible with socket type */
+
 		snprintf(s, sizeof(s), "%s %s/%s %s %s",
 			 maptype_str(inner_map_type),
 			 family_str(family), sotype_str(sotype),
@@ -815,13 +822,6 @@ static void test_config(int sotype, sa_family_t family, bool inany)
 
 		if (!test__start_subtest(s))
 			continue;
-
-		if (sotype == SOCK_DGRAM &&
-		    inner_map_type != BPF_MAP_TYPE_REUSEPORT_SOCKARRAY) {
-			/* SOCKMAP/SOCKHASH don't support UDP yet */
-			test__skip();
-			continue;
-		}
 
 		setup_per_test(sotype, family, inany, t->no_inner_map);
 		t->fn(sotype, family);

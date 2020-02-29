@@ -171,11 +171,7 @@ static int bpf_map_update_value(struct bpf_map *map, struct fd f, void *key,
 						    flags);
 	}
 
-	/* must increment bpf_prog_active to avoid kprobe+bpf triggering from
-	 * inside bpf map update or delete otherwise deadlocks are possible
-	 */
-	preempt_disable();
-	__this_cpu_inc(bpf_prog_active);
+	bpf_disable_instrumentation();
 	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH ||
 	    map->map_type == BPF_MAP_TYPE_LRU_PERCPU_HASH) {
 		err = bpf_percpu_hash_update(map, key, value, flags);
@@ -206,8 +202,7 @@ static int bpf_map_update_value(struct bpf_map *map, struct fd f, void *key,
 		err = map->ops->map_update_elem(map, key, value, flags);
 		rcu_read_unlock();
 	}
-	__this_cpu_dec(bpf_prog_active);
-	preempt_enable();
+	bpf_enable_instrumentation();
 	maybe_wait_bpf_programs(map);
 
 	return err;
@@ -222,8 +217,7 @@ static int bpf_map_copy_value(struct bpf_map *map, void *key, void *value,
 	if (bpf_map_is_dev_bound(map))
 		return bpf_map_offload_lookup_elem(map, key, value);
 
-	preempt_disable();
-	this_cpu_inc(bpf_prog_active);
+	bpf_disable_instrumentation();
 	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH ||
 	    map->map_type == BPF_MAP_TYPE_LRU_PERCPU_HASH) {
 		err = bpf_percpu_hash_copy(map, key, value);
@@ -268,8 +262,7 @@ static int bpf_map_copy_value(struct bpf_map *map, void *key, void *value,
 		rcu_read_unlock();
 	}
 
-	this_cpu_dec(bpf_prog_active);
-	preempt_enable();
+	bpf_enable_instrumentation();
 	maybe_wait_bpf_programs(map);
 
 	return err;
@@ -909,6 +902,21 @@ void bpf_map_inc_with_uref(struct bpf_map *map)
 }
 EXPORT_SYMBOL_GPL(bpf_map_inc_with_uref);
 
+struct bpf_map *bpf_map_get(u32 ufd)
+{
+	struct fd f = fdget(ufd);
+	struct bpf_map *map;
+
+	map = __bpf_map_get(f);
+	if (IS_ERR(map))
+		return map;
+
+	bpf_map_inc(map);
+	fdput(f);
+
+	return map;
+}
+
 struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 {
 	struct fd f = fdget(ufd);
@@ -1136,13 +1144,11 @@ static int map_delete_elem(union bpf_attr *attr)
 		goto out;
 	}
 
-	preempt_disable();
-	__this_cpu_inc(bpf_prog_active);
+	bpf_disable_instrumentation();
 	rcu_read_lock();
 	err = map->ops->map_delete_elem(map, key);
 	rcu_read_unlock();
-	__this_cpu_dec(bpf_prog_active);
-	preempt_enable();
+	bpf_enable_instrumentation();
 	maybe_wait_bpf_programs(map);
 out:
 	kfree(key);
@@ -1254,13 +1260,11 @@ int generic_map_delete_batch(struct bpf_map *map,
 			break;
 		}
 
-		preempt_disable();
-		__this_cpu_inc(bpf_prog_active);
+		bpf_disable_instrumentation();
 		rcu_read_lock();
 		err = map->ops->map_delete_elem(map, key);
 		rcu_read_unlock();
-		__this_cpu_dec(bpf_prog_active);
-		preempt_enable();
+		bpf_enable_instrumentation();
 		maybe_wait_bpf_programs(map);
 		if (err)
 			break;

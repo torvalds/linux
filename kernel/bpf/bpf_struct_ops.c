@@ -23,7 +23,7 @@ enum bpf_struct_ops_state {
 
 struct bpf_struct_ops_value {
 	BPF_STRUCT_OPS_COMMON_VALUE;
-	char data[0] ____cacheline_aligned_in_smp;
+	char data[] ____cacheline_aligned_in_smp;
 };
 
 struct bpf_struct_ops_map {
