@@ -367,8 +367,6 @@ int vnt_vt3184_init(struct vnt_private *priv)
 	int ret = 0;
 	u16 length;
 	u8 *addr;
-	u8 *agc;
-	u16 length_agc;
 	u8 array[256];
 	u8 data;
 
@@ -386,8 +384,6 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->bb_rx_conf = vnt_vt3184_al2230[10];
 		length = sizeof(vnt_vt3184_al2230);
 		addr = vnt_vt3184_al2230;
-		agc = vnt_vt3184_agc;
-		length_agc = sizeof(vnt_vt3184_agc);
 
 		priv->bb_vga[0] = 0x1C;
 		priv->bb_vga[1] = 0x10;
@@ -398,8 +394,6 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->bb_rx_conf = vnt_vt3184_al2230[10];
 		length = sizeof(vnt_vt3184_al2230);
 		addr = vnt_vt3184_al2230;
-		agc = vnt_vt3184_agc;
-		length_agc = sizeof(vnt_vt3184_agc);
 
 		addr[0xd7] = 0x06;
 
@@ -413,8 +407,6 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->bb_rx_conf = vnt_vt3184_vt3226d0[10];
 		length = sizeof(vnt_vt3184_vt3226d0);
 		addr = vnt_vt3184_vt3226d0;
-		agc = vnt_vt3184_agc;
-		length_agc = sizeof(vnt_vt3184_agc);
 
 		priv->bb_vga[0] = 0x20;
 		priv->bb_vga[1] = 0x10;
@@ -430,8 +422,6 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->bb_rx_conf = vnt_vt3184_vt3226d0[10];
 		length = sizeof(vnt_vt3184_vt3226d0);
 		addr = vnt_vt3184_vt3226d0;
-		agc = vnt_vt3184_agc;
-		length_agc = sizeof(vnt_vt3184_agc);
 
 		priv->bb_vga[0] = 0x20;
 		priv->bb_vga[1] = 0x10;
@@ -454,10 +444,9 @@ int vnt_vt3184_init(struct vnt_private *priv)
 	if (ret)
 		goto end;
 
-	memcpy(array, agc, length_agc);
-
 	ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
-			      MESSAGE_REQUEST_BBAGC, length_agc, array);
+			      MESSAGE_REQUEST_BBAGC,
+			      sizeof(vnt_vt3184_agc), vnt_vt3184_agc);
 	if (ret)
 		goto end;
 
