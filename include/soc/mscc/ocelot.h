@@ -402,7 +402,6 @@ enum ocelot_tag_prefix {
 struct ocelot;
 
 struct ocelot_ops {
-	void (*pcs_init)(struct ocelot *ocelot, int port);
 	int (*reset)(struct ocelot *ocelot);
 };
 
@@ -479,8 +478,6 @@ struct ocelot {
 	struct mutex			ptp_lock;
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
-
-	void (*port_pcs_init)(struct ocelot_port *port);
 };
 
 #define ocelot_read_ix(ocelot, reg, gi, ri) __ocelot_read_ix(ocelot, reg, reg##_GSZ * (gi) + reg##_RSZ * (ri))
