@@ -891,7 +891,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 				rtd->dai_link->name);
 	}
 
-	if (rtd->dai_link->ops->hw_params) {
+	if (rtd->dai_link->ops && rtd->dai_link->ops->hw_params) {
 		ret = rtd->dai_link->ops->hw_params(substream, params);
 		if (ret < 0) {
 			dev_err(rtd->card->dev, "ASoC: machine hw_params"
