@@ -93,12 +93,12 @@ struct vcap_data {
 	u32 tg_mask; /* Current type-group mask */
 };
 
-static u32 vcap_s2_read_update_ctrl(struct ocelot *oc)
+static u32 vcap_s2_read_update_ctrl(struct ocelot *ocelot)
 {
-	return ocelot_read(oc, S2_CORE_UPDATE_CTRL);
+	return ocelot_read(ocelot, S2_CORE_UPDATE_CTRL);
 }
 
-static void vcap_cmd(struct ocelot *oc, u16 ix, int cmd, int sel)
+static void vcap_cmd(struct ocelot *ocelot, u16 ix, int cmd, int sel)
 {
 	u32 value = (S2_CORE_UPDATE_CTRL_UPDATE_CMD(cmd) |
 		     S2_CORE_UPDATE_CTRL_UPDATE_ADDR(ix) |
@@ -116,42 +116,42 @@ static void vcap_cmd(struct ocelot *oc, u16 ix, int cmd, int sel)
 	if (!(sel & VCAP_SEL_COUNTER))
 		value |= S2_CORE_UPDATE_CTRL_UPDATE_CNT_DIS;
 
-	ocelot_write(oc, value, S2_CORE_UPDATE_CTRL);
-	readx_poll_timeout(vcap_s2_read_update_ctrl, oc, value,
+	ocelot_write(ocelot, value, S2_CORE_UPDATE_CTRL);
+	readx_poll_timeout(vcap_s2_read_update_ctrl, ocelot, value,
 				(value & S2_CORE_UPDATE_CTRL_UPDATE_SHOT) == 0,
 				10, 100000);
 }
 
 /* Convert from 0-based row to VCAP entry row and run command */
-static void vcap_row_cmd(struct ocelot *oc, u32 row, int cmd, int sel)
+static void vcap_row_cmd(struct ocelot *ocelot, u32 row, int cmd, int sel)
 {
-	vcap_cmd(oc, vcap_is2.entry_count - row - 1, cmd, sel);
+	vcap_cmd(ocelot, vcap_is2.entry_count - row - 1, cmd, sel);
 }
 
-static void vcap_entry2cache(struct ocelot *oc, struct vcap_data *data)
+static void vcap_entry2cache(struct ocelot *ocelot, struct vcap_data *data)
 {
 	u32 i;
 
 	for (i = 0; i < vcap_is2.entry_words; i++) {
-		ocelot_write_rix(oc, data->entry[i], S2_CACHE_ENTRY_DAT, i);
-		ocelot_write_rix(oc, ~data->mask[i], S2_CACHE_MASK_DAT, i);
+		ocelot_write_rix(ocelot, data->entry[i], S2_CACHE_ENTRY_DAT, i);
+		ocelot_write_rix(ocelot, ~data->mask[i], S2_CACHE_MASK_DAT, i);
 	}
-	ocelot_write(oc, data->tg, S2_CACHE_TG_DAT);
+	ocelot_write(ocelot, data->tg, S2_CACHE_TG_DAT);
 }
 
-static void vcap_cache2entry(struct ocelot *oc, struct vcap_data *data)
+static void vcap_cache2entry(struct ocelot *ocelot, struct vcap_data *data)
 {
 	u32 i;
 
 	for (i = 0; i < vcap_is2.entry_words; i++) {
-		data->entry[i] = ocelot_read_rix(oc, S2_CACHE_ENTRY_DAT, i);
+		data->entry[i] = ocelot_read_rix(ocelot, S2_CACHE_ENTRY_DAT, i);
 		// Invert mask
-		data->mask[i] = ~ocelot_read_rix(oc, S2_CACHE_MASK_DAT, i);
+		data->mask[i] = ~ocelot_read_rix(ocelot, S2_CACHE_MASK_DAT, i);
 	}
-	data->tg = ocelot_read(oc, S2_CACHE_TG_DAT);
+	data->tg = ocelot_read(ocelot, S2_CACHE_TG_DAT);
 }
 
-static void vcap_action2cache(struct ocelot *oc, struct vcap_data *data)
+static void vcap_action2cache(struct ocelot *ocelot, struct vcap_data *data)
 {
 	u32 i, width, mask;
 
@@ -163,21 +163,24 @@ static void vcap_action2cache(struct ocelot *oc, struct vcap_data *data)
 	}
 
 	for (i = 0; i < vcap_is2.action_words; i++)
-		ocelot_write_rix(oc, data->action[i], S2_CACHE_ACTION_DAT, i);
+		ocelot_write_rix(ocelot, data->action[i],
+				 S2_CACHE_ACTION_DAT, i);
 
 	for (i = 0; i < vcap_is2.counter_words; i++)
-		ocelot_write_rix(oc, data->counter[i], S2_CACHE_CNT_DAT, i);
+		ocelot_write_rix(ocelot, data->counter[i],
+				 S2_CACHE_CNT_DAT, i);
 }
 
-static void vcap_cache2action(struct ocelot *oc, struct vcap_data *data)
+static void vcap_cache2action(struct ocelot *ocelot, struct vcap_data *data)
 {
 	u32 i, width;
 
 	for (i = 0; i < vcap_is2.action_words; i++)
-		data->action[i] = ocelot_read_rix(oc, S2_CACHE_ACTION_DAT, i);
+		data->action[i] = ocelot_read_rix(ocelot, S2_CACHE_ACTION_DAT,
+						  i);
 
 	for (i = 0; i < vcap_is2.counter_words; i++)
-		data->counter[i] = ocelot_read_rix(oc, S2_CACHE_CNT_DAT, i);
+		data->counter[i] = ocelot_read_rix(ocelot, S2_CACHE_CNT_DAT, i);
 
 	/* Extract action type */
 	width = vcap_is2.action_type_width;
