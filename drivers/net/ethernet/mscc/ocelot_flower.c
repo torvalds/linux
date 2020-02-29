@@ -8,11 +8,6 @@
 
 #include "ocelot_ace.h"
 
-struct ocelot_port_block {
-	struct ocelot_acl_block *block;
-	struct ocelot_port_private *priv;
-};
-
 static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 				      struct ocelot_ace_rule *rule)
 {
@@ -168,8 +163,8 @@ finished_key_parsing:
 }
 
 static
-struct ocelot_ace_rule *ocelot_ace_rule_create(struct flow_cls_offload *f,
-					       struct ocelot_port_block *block)
+struct ocelot_ace_rule *ocelot_ace_rule_create(struct ocelot *ocelot, int port,
+					       struct flow_cls_offload *f)
 {
 	struct ocelot_ace_rule *rule;
 
@@ -177,18 +172,17 @@ struct ocelot_ace_rule *ocelot_ace_rule_create(struct flow_cls_offload *f,
 	if (!rule)
 		return NULL;
 
-	rule->ocelot = block->priv->port.ocelot;
-	rule->ingress_port_mask = BIT(block->priv->chip_port);
+	rule->ingress_port_mask = BIT(port);
 	return rule;
 }
 
-static int ocelot_flower_replace(struct flow_cls_offload *f,
-				 struct ocelot_port_block *port_block)
+int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
+			      struct flow_cls_offload *f, bool ingress)
 {
 	struct ocelot_ace_rule *rule;
 	int ret;
 
-	rule = ocelot_ace_rule_create(f, port_block);
+	rule = ocelot_ace_rule_create(ocelot, port, f);
 	if (!rule)
 		return -ENOMEM;
 
@@ -198,159 +192,66 @@ static int ocelot_flower_replace(struct flow_cls_offload *f,
 		return ret;
 	}
 
-	ret = ocelot_ace_rule_offload_add(rule);
+	ret = ocelot_ace_rule_offload_add(ocelot, rule);
 	if (ret)
 		return ret;
 
-	port_block->priv->tc.offload_cnt++;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ocelot_cls_flower_replace);
 
-static int ocelot_flower_destroy(struct flow_cls_offload *f,
-				 struct ocelot_port_block *port_block)
+int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
+			      struct flow_cls_offload *f, bool ingress)
 {
 	struct ocelot_ace_rule rule;
 	int ret;
 
 	rule.prio = f->common.prio;
-	rule.ocelot = port_block->priv->port.ocelot;
 	rule.id = f->cookie;
 
-	ret = ocelot_ace_rule_offload_del(&rule);
+	ret = ocelot_ace_rule_offload_del(ocelot, &rule);
 	if (ret)
 		return ret;
 
-	port_block->priv->tc.offload_cnt--;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ocelot_cls_flower_destroy);
 
-static int ocelot_flower_stats_update(struct flow_cls_offload *f,
-				      struct ocelot_port_block *port_block)
+int ocelot_cls_flower_stats(struct ocelot *ocelot, int port,
+			    struct flow_cls_offload *f, bool ingress)
 {
 	struct ocelot_ace_rule rule;
 	int ret;
 
 	rule.prio = f->common.prio;
-	rule.ocelot = port_block->priv->port.ocelot;
 	rule.id = f->cookie;
-	ret = ocelot_ace_rule_stats_update(&rule);
+	ret = ocelot_ace_rule_stats_update(ocelot, &rule);
 	if (ret)
 		return ret;
 
 	flow_stats_update(&f->stats, 0x0, rule.stats.pkts, 0x0);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ocelot_cls_flower_stats);
 
-static int ocelot_setup_tc_cls_flower(struct flow_cls_offload *f,
-				      struct ocelot_port_block *port_block)
+int ocelot_setup_tc_cls_flower(struct ocelot_port_private *priv,
+			       struct flow_cls_offload *f,
+			       bool ingress)
 {
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
+
+	if (!ingress)
+		return -EOPNOTSUPP;
+
 	switch (f->command) {
 	case FLOW_CLS_REPLACE:
-		return ocelot_flower_replace(f, port_block);
+		return ocelot_cls_flower_replace(ocelot, port, f, ingress);
 	case FLOW_CLS_DESTROY:
-		return ocelot_flower_destroy(f, port_block);
+		return ocelot_cls_flower_destroy(ocelot, port, f, ingress);
 	case FLOW_CLS_STATS:
-		return ocelot_flower_stats_update(f, port_block);
+		return ocelot_cls_flower_stats(ocelot, port, f, ingress);
 	default:
 		return -EOPNOTSUPP;
-	}
-}
-
-static int ocelot_setup_tc_block_cb_flower(enum tc_setup_type type,
-					   void *type_data, void *cb_priv)
-{
-	struct ocelot_port_block *port_block = cb_priv;
-
-	if (!tc_cls_can_offload_and_chain0(port_block->priv->dev, type_data))
-		return -EOPNOTSUPP;
-
-	switch (type) {
-	case TC_SETUP_CLSFLOWER:
-		return ocelot_setup_tc_cls_flower(type_data, cb_priv);
-	case TC_SETUP_CLSMATCHALL:
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static struct ocelot_port_block*
-ocelot_port_block_create(struct ocelot_port_private *priv)
-{
-	struct ocelot_port_block *port_block;
-
-	port_block = kzalloc(sizeof(*port_block), GFP_KERNEL);
-	if (!port_block)
-		return NULL;
-
-	port_block->priv = priv;
-
-	return port_block;
-}
-
-static void ocelot_port_block_destroy(struct ocelot_port_block *block)
-{
-	kfree(block);
-}
-
-static void ocelot_tc_block_unbind(void *cb_priv)
-{
-	struct ocelot_port_block *port_block = cb_priv;
-
-	ocelot_port_block_destroy(port_block);
-}
-
-int ocelot_setup_tc_block_flower_bind(struct ocelot_port_private *priv,
-				      struct flow_block_offload *f)
-{
-	struct ocelot_port_block *port_block;
-	struct flow_block_cb *block_cb;
-	int ret;
-
-	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
-		return -EOPNOTSUPP;
-
-	block_cb = flow_block_cb_lookup(f->block,
-					ocelot_setup_tc_block_cb_flower, priv);
-	if (!block_cb) {
-		port_block = ocelot_port_block_create(priv);
-		if (!port_block)
-			return -ENOMEM;
-
-		block_cb = flow_block_cb_alloc(ocelot_setup_tc_block_cb_flower,
-					       priv, port_block,
-					       ocelot_tc_block_unbind);
-		if (IS_ERR(block_cb)) {
-			ret = PTR_ERR(block_cb);
-			goto err_cb_register;
-		}
-		flow_block_cb_add(block_cb, f);
-		list_add_tail(&block_cb->driver_list, f->driver_block_list);
-	} else {
-		port_block = flow_block_cb_priv(block_cb);
-	}
-
-	flow_block_cb_incref(block_cb);
-	return 0;
-
-err_cb_register:
-	ocelot_port_block_destroy(port_block);
-
-	return ret;
-}
-
-void ocelot_setup_tc_block_flower_unbind(struct ocelot_port_private *priv,
-					 struct flow_block_offload *f)
-{
-	struct flow_block_cb *block_cb;
-
-	block_cb = flow_block_cb_lookup(f->block,
-					ocelot_setup_tc_block_cb_flower, priv);
-	if (!block_cb)
-		return;
-
-	if (!flow_block_cb_decref(block_cb)) {
-		flow_block_cb_remove(block_cb, f);
-		list_del(&block_cb->driver_list);
 	}
 }

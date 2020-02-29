@@ -12,8 +12,6 @@
 
 #define OCELOT_POLICER_DISCARD 0x17f
 
-static struct ocelot_acl_block *acl_block;
-
 struct vcap_props {
 	const char *name; /* Symbolic name */
 	u16 tg_width; /* Type-group width (in bits) */
@@ -574,15 +572,15 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 	vcap_row_cmd(ocelot, row, VCAP_CMD_WRITE, VCAP_SEL_ALL);
 }
 
-static void is2_entry_get(struct ocelot_ace_rule *rule, int ix)
+static void is2_entry_get(struct ocelot *ocelot, struct ocelot_ace_rule *rule,
+			  int ix)
 {
-	struct ocelot *op = rule->ocelot;
 	struct vcap_data data;
 	int row = (ix / 2);
 	u32 cnt;
 
-	vcap_row_cmd(op, row, VCAP_CMD_READ, VCAP_SEL_COUNTER);
-	vcap_cache2action(op, &data);
+	vcap_row_cmd(ocelot, row, VCAP_CMD_READ, VCAP_SEL_COUNTER);
+	vcap_cache2action(ocelot, &data);
 	data.tg_sw = VCAP_TG_HALF;
 	is2_data_get(&data, ix);
 	cnt = vcap_data_get(data.counter, data.counter_offset,
@@ -641,25 +639,27 @@ ocelot_ace_rule_get_rule_index(struct ocelot_acl_block *block, int index)
 	return NULL;
 }
 
-int ocelot_ace_rule_offload_add(struct ocelot_ace_rule *rule)
+int ocelot_ace_rule_offload_add(struct ocelot *ocelot,
+				struct ocelot_ace_rule *rule)
 {
+	struct ocelot_acl_block *block = &ocelot->acl_block;
 	struct ocelot_ace_rule *ace;
 	int i, index;
 
 	/* Add rule to the linked list */
-	ocelot_ace_rule_add(acl_block, rule);
+	ocelot_ace_rule_add(block, rule);
 
 	/* Get the index of the inserted rule */
-	index = ocelot_ace_rule_get_index_id(acl_block, rule);
+	index = ocelot_ace_rule_get_index_id(block, rule);
 
 	/* Move down the rules to make place for the new rule */
-	for (i = acl_block->count - 1; i > index; i--) {
-		ace = ocelot_ace_rule_get_rule_index(acl_block, i);
-		is2_entry_set(rule->ocelot, i, ace);
+	for (i = block->count - 1; i > index; i--) {
+		ace = ocelot_ace_rule_get_rule_index(block, i);
+		is2_entry_set(ocelot, i, ace);
 	}
 
 	/* Now insert the new rule */
-	is2_entry_set(rule->ocelot, index, rule);
+	is2_entry_set(ocelot, index, rule);
 	return 0;
 }
 
@@ -680,8 +680,10 @@ static void ocelot_ace_rule_del(struct ocelot_acl_block *block,
 	block->count--;
 }
 
-int ocelot_ace_rule_offload_del(struct ocelot_ace_rule *rule)
+int ocelot_ace_rule_offload_del(struct ocelot *ocelot,
+				struct ocelot_ace_rule *rule)
 {
+	struct ocelot_acl_block *block = &ocelot->acl_block;
 	struct ocelot_ace_rule del_ace;
 	struct ocelot_ace_rule *ace;
 	int i, index;
@@ -689,57 +691,39 @@ int ocelot_ace_rule_offload_del(struct ocelot_ace_rule *rule)
 	memset(&del_ace, 0, sizeof(del_ace));
 
 	/* Gets index of the rule */
-	index = ocelot_ace_rule_get_index_id(acl_block, rule);
+	index = ocelot_ace_rule_get_index_id(block, rule);
 
 	/* Delete rule */
-	ocelot_ace_rule_del(acl_block, rule);
+	ocelot_ace_rule_del(block, rule);
 
 	/* Move up all the blocks over the deleted rule */
-	for (i = index; i < acl_block->count; i++) {
-		ace = ocelot_ace_rule_get_rule_index(acl_block, i);
-		is2_entry_set(rule->ocelot, i, ace);
+	for (i = index; i < block->count; i++) {
+		ace = ocelot_ace_rule_get_rule_index(block, i);
+		is2_entry_set(ocelot, i, ace);
 	}
 
 	/* Now delete the last rule, because it is duplicated */
-	is2_entry_set(rule->ocelot, acl_block->count, &del_ace);
+	is2_entry_set(ocelot, block->count, &del_ace);
 
 	return 0;
 }
 
-int ocelot_ace_rule_stats_update(struct ocelot_ace_rule *rule)
+int ocelot_ace_rule_stats_update(struct ocelot *ocelot,
+				 struct ocelot_ace_rule *rule)
 {
+	struct ocelot_acl_block *block = &ocelot->acl_block;
 	struct ocelot_ace_rule *tmp;
 	int index;
 
-	index = ocelot_ace_rule_get_index_id(acl_block, rule);
-	is2_entry_get(rule, index);
+	index = ocelot_ace_rule_get_index_id(block, rule);
+	is2_entry_get(ocelot, rule, index);
 
 	/* After we get the result we need to clear the counters */
-	tmp = ocelot_ace_rule_get_rule_index(acl_block, index);
+	tmp = ocelot_ace_rule_get_rule_index(block, index);
 	tmp->stats.pkts = 0;
-	is2_entry_set(rule->ocelot, index, tmp);
+	is2_entry_set(ocelot, index, tmp);
 
 	return 0;
-}
-
-static struct ocelot_acl_block *ocelot_acl_block_create(struct ocelot *ocelot)
-{
-	struct ocelot_acl_block *block;
-
-	block = kzalloc(sizeof(*block), GFP_KERNEL);
-	if (!block)
-		return NULL;
-
-	INIT_LIST_HEAD(&block->rules);
-	block->count = 0;
-	block->ocelot = ocelot;
-
-	return block;
-}
-
-static void ocelot_acl_block_destroy(struct ocelot_acl_block *block)
-{
-	kfree(block);
 }
 
 int ocelot_ace_init(struct ocelot *ocelot)
@@ -771,12 +755,7 @@ int ocelot_ace_init(struct ocelot *ocelot)
 	ocelot_write_gix(ocelot, 0x3fffff, ANA_POL_CIR_STATE,
 			 OCELOT_POLICER_DISCARD);
 
-	acl_block = ocelot_acl_block_create(ocelot);
+	INIT_LIST_HEAD(&ocelot->acl_block.rules);
 
 	return 0;
-}
-
-void ocelot_ace_deinit(void)
-{
-	ocelot_acl_block_destroy(acl_block);
 }

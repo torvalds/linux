@@ -406,6 +406,11 @@ struct ocelot_ops {
 	int (*reset)(struct ocelot *ocelot);
 };
 
+struct ocelot_acl_block {
+	struct list_head rules;
+	int count;
+};
+
 struct ocelot_port {
 	struct ocelot			*ocelot;
 
@@ -454,6 +459,8 @@ struct ocelot {
 	u32				*lags;
 
 	struct list_head		multicast;
+
+	struct ocelot_acl_block		acl_block;
 
 	/* Workqueue to check statistics for overflow with its lock */
 	struct mutex			stats_lock;
