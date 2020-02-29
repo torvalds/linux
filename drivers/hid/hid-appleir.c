@@ -284,10 +284,8 @@ static int appleir_probe(struct hid_device *hid, const struct hid_device_id *id)
 	struct appleir *appleir;
 
 	appleir = kzalloc(sizeof(struct appleir), GFP_KERNEL);
-	if (!appleir) {
-		ret = -ENOMEM;
-		goto allocfail;
-	}
+	if (!appleir)
+		return -ENOMEM;
 
 	appleir->hid = hid;
 
@@ -314,7 +312,6 @@ static int appleir_probe(struct hid_device *hid, const struct hid_device_id *id)
 	return 0;
 fail:
 	kfree(appleir);
-allocfail:
 	return ret;
 }
 
