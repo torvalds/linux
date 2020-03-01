@@ -365,6 +365,8 @@ struct hl_cs_job;
  * @pi: holds the queue's pi value.
  * @ci: holds the queue's ci value, AS CALCULATED BY THE DRIVER (not real ci).
  * @hw_queue_id: the id of the H/W queue.
+ * @cq_id: the id for the corresponding CQ for this H/W queue.
+ * @msi_vec: the IRQ number of the H/W queue.
  * @int_queue_len: length of internal queue (number of entries).
  * @valid: is the queue valid (we have array of 32 queues, not all of them
  *		exists).
@@ -377,6 +379,8 @@ struct hl_hw_queue {
 	u32			pi;
 	u32			ci;
 	u32			hw_queue_id;
+	u32			cq_id;
+	u32			msi_vec;
 	u16			int_queue_len;
 	u8			valid;
 };
@@ -534,6 +538,7 @@ enum hl_pll_frequency {
  * @wreg: Write a register. Needed for simulator support.
  * @halt_coresight: stop the ETF and ETR traces.
  * @get_clk_rate: Retrieve the ASIC current and maximum clock rate in MHz
+ * @get_queue_id_for_cq: Get the H/W queue id related to the given CQ index.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -620,6 +625,7 @@ struct hl_asic_funcs {
 	void (*wreg)(struct hl_device *hdev, u32 reg, u32 val);
 	void (*halt_coresight)(struct hl_device *hdev);
 	int (*get_clk_rate)(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
+	u32 (*get_queue_id_for_cq)(struct hl_device *hdev, u32 cq_idx);
 };
 
 

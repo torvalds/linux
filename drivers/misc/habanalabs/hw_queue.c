@@ -111,7 +111,7 @@ static int ext_queue_sanity_checks(struct hl_device *hdev,
 				bool reserve_cq_entry)
 {
 	atomic_t *free_slots =
-			&hdev->completion_queue[q->hw_queue_id].free_slots_cnt;
+			&hdev->completion_queue[q->cq_id].free_slots_cnt;
 	int free_slots_cnt;
 
 	/* Check we have enough space in the queue */
@@ -194,7 +194,7 @@ static int hw_queue_sanity_checks(struct hl_device *hdev, struct hl_hw_queue *q,
 					int num_of_entries)
 {
 	atomic_t *free_slots =
-			&hdev->completion_queue[q->hw_queue_id].free_slots_cnt;
+			&hdev->completion_queue[q->cq_id].free_slots_cnt;
 
 	/*
 	 * Check we have enough space in the completion queue.
@@ -308,13 +308,13 @@ static void ext_queue_schedule_job(struct hl_cs_job *job)
 	 * No need to check if CQ is full because it was already
 	 * checked in ext_queue_sanity_checks
 	 */
-	cq = &hdev->completion_queue[q->hw_queue_id];
+	cq = &hdev->completion_queue[q->cq_id];
 	cq_addr = cq->bus_address + cq->pi * sizeof(struct hl_cq_entry);
 
 	hdev->asic_funcs->add_end_of_cb_packets(hdev, cb->kernel_address, len,
 						cq_addr,
 						le32_to_cpu(cq_pkt.data),
-						q->hw_queue_id);
+						q->msi_vec);
 
 	q->shadow_queue[hl_pi_2_offset(q->pi)] = job;
 
@@ -401,7 +401,7 @@ static void hw_queue_schedule_job(struct hl_cs_job *job)
 	 * No need to check if CQ is full because it was already
 	 * checked in hw_queue_sanity_checks
 	 */
-	cq = &hdev->completion_queue[q->hw_queue_id];
+	cq = &hdev->completion_queue[q->cq_id];
 	cq->pi = hl_cq_inc_ptr(cq->pi);
 
 	ext_and_hw_queue_submit_bd(hdev, q, ctl, len, ptr);

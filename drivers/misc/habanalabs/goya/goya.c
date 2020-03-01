@@ -890,6 +890,7 @@ void goya_init_dma_qmans(struct hl_device *hdev)
 	q = &hdev->kernel_queues[0];
 
 	for (i = 0 ; i < NUMBER_OF_EXT_HW_QUEUES ; i++, q++) {
+		q->cq_id = q->msi_vec = i;
 		goya_init_dma_qman(hdev, i, q->bus_address);
 		goya_init_dma_ch(hdev, i);
 	}
@@ -5273,6 +5274,11 @@ static enum hl_device_hw_state goya_get_hw_state(struct hl_device *hdev)
 	return RREG32(mmHW_STATE);
 }
 
+u32 goya_get_queue_id_for_cq(struct hl_device *hdev, u32 cq_idx)
+{
+	return cq_idx;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5332,7 +5338,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.rreg = hl_rreg,
 	.wreg = hl_wreg,
 	.halt_coresight = goya_halt_coresight,
-	.get_clk_rate = goya_get_clk_rate
+	.get_clk_rate = goya_get_clk_rate,
+	.get_queue_id_for_cq = goya_get_queue_id_for_cq
 };
 
 /*

@@ -1062,7 +1062,7 @@ out_err:
  */
 int hl_device_init(struct hl_device *hdev, struct class *hclass)
 {
-	int i, rc, cq_ready_cnt;
+	int i, rc, cq_cnt, cq_ready_cnt;
 	char *name;
 	bool add_cdev_sysfs_on_err = false;
 
@@ -1120,14 +1120,16 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto sw_fini;
 	}
 
+	cq_cnt = hdev->asic_prop.completion_queues_count;
+
 	/*
 	 * Initialize the completion queues. Must be done before hw_init,
 	 * because there the addresses of the completion queues are being
 	 * passed as arguments to request_irq
 	 */
-	hdev->completion_queue =
-			kcalloc(hdev->asic_prop.completion_queues_count,
-				sizeof(*hdev->completion_queue), GFP_KERNEL);
+	hdev->completion_queue = kcalloc(cq_cnt,
+						sizeof(*hdev->completion_queue),
+						GFP_KERNEL);
 
 	if (!hdev->completion_queue) {
 		dev_err(hdev->dev, "failed to allocate completion queues\n");
@@ -1135,10 +1137,9 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto hw_queues_destroy;
 	}
 
-	for (i = 0, cq_ready_cnt = 0;
-			i < hdev->asic_prop.completion_queues_count;
-			i++, cq_ready_cnt++) {
-		rc = hl_cq_init(hdev, &hdev->completion_queue[i], i);
+	for (i = 0, cq_ready_cnt = 0 ; i < cq_cnt ; i++, cq_ready_cnt++) {
+		rc = hl_cq_init(hdev, &hdev->completion_queue[i],
+				hdev->asic_funcs->get_queue_id_for_cq(hdev, i));
 		if (rc) {
 			dev_err(hdev->dev,
 				"failed to initialize completion queue\n");
