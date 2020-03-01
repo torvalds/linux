@@ -170,8 +170,6 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	u32 exprom_vers;
 
 	strlcpy(info->driver, cxgb4_driver_name, sizeof(info->driver));
-	strlcpy(info->version, cxgb4_driver_version,
-		sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 	info->regdump_len = get_regs_len(dev);
