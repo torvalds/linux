@@ -1,0 +1,37 @@
+on: [push, pull_request]
+
+jobs:
+  build_job:
+    runs-on: ubuntu-latest
+    name: Build documentation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install native dependencies
+        run: sudo apt-get install -y ditaa graphviz
+      - name: Install pip dependencies
+        run: sudo pip install Sphinx==1.6.7 sphinx_rtd_theme hieroglyph==1.0
+      - name: Build documentation
+        run: cd tools/labs && make docs
+      - name: Setup key to access linux-kernel-labs.github.io
+        run: |
+          mkdir ~/.ssh
+          echo -n "${{ secrets.GITHUB_IO_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa github.com
+      - name: Publish linux-kernel-labs.gihub.io
+        run: |
+          set -x
+          env
+          export PUB_PATH=$(basename $GITHUB_REF)
+          git clone --depth=1 git@github.com:linux-kernel-labs/linux-kernel-labs.github.io.git
+          cd linux-kernel-labs.github.io
+          rm -rf $PUB_PATH
+          mkdir -p $PUB_PATH
+          cp -r ../Documentation/output/teaching/* $PUB_PATH/
+          git config --global user.email "github.actions@linux-kernel-labs.gihub.io"
+          git config --global user.name "GitHub Actions"
+          git add $PUB_PATH
+          git commit --allow-empty -m "Publish $PUB_PATH (built from linux-kernel-labs/linux/$GITHUB_REF)"
+          git push
+
