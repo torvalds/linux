@@ -39,7 +39,6 @@
 MODULE_AUTHOR("Cavium Networks, <support@cavium.com>");
 MODULE_DESCRIPTION("Cavium LiquidIO Intelligent Server Adapter Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(LIQUIDIO_VERSION);
 MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_210SV_NAME
 		"_" LIO_FW_NAME_TYPE_NIC LIO_FW_NAME_SUFFIX);
 MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_210NV_NAME
@@ -1413,13 +1412,6 @@ static int octeon_chip_specific_setup(struct octeon_device *oct)
 		dev_err(&oct->pci_dev->dev, "Unknown device found (dev_id: %x)\n",
 			dev_id);
 	}
-
-	if (!ret)
-		dev_info(&oct->pci_dev->dev, "%s PASS%d.%d %s Version: %s\n", s,
-			 OCTEON_MAJOR_REV(oct),
-			 OCTEON_MINOR_REV(oct),
-			 octeon_get_conf(oct)->card_name,
-			 LIQUIDIO_VERSION);
 
 	return ret;
 }
