@@ -12,7 +12,7 @@
 #define fd_outb(val,port)						\
 	do {								\
 		int new_val = (val);					\
-		if ((port) == (u32)FD_DOR) {				\
+		if (((port) & 7) == FD_DOR) {				\
 			if (new_val & 0xf0)				\
 				new_val = (new_val & 0x0c) |		\
 					  floppy_selects[new_val & 3];	\

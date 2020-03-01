@@ -171,7 +171,6 @@ static int print_unex = 1;
 #include <linux/kernel.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#define FDPATCHES
 #include <linux/fdreg.h>
 #include <linux/fd.h>
 #include <linux/hdreg.h>
@@ -594,14 +593,14 @@ static unsigned char fsector_t;	/* sector in track */
 static unsigned char in_sector_offset;	/* offset within physical sector,
 					 * expressed in units of 512 bytes */
 
-static inline unsigned char fdc_inb(int fdc, unsigned long addr)
+static inline unsigned char fdc_inb(int fdc, int reg)
 {
-	return fd_inb(addr);
+	return fd_inb(fdc_state[fdc].address + reg);
 }
 
-static inline void fdc_outb(unsigned char value, int fdc, unsigned long addr)
+static inline void fdc_outb(unsigned char value, int fdc, int reg)
 {
-	fd_outb(value, addr);
+	fd_outb(value, fdc_state[fdc].address + reg);
 }
 
 static inline bool drive_no_geom(int drive)
