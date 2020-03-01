@@ -38,7 +38,6 @@
 
 static bool cache_defer_req(struct cache_req *req, struct cache_head *item);
 static void cache_revisit_request(struct cache_head *item);
-static bool cache_listeners_exist(struct cache_detail *detail);
 
 static void cache_init(struct cache_head *h, struct cache_detail *detail)
 {
@@ -225,13 +224,6 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_update);
 
-static int cache_make_upcall(struct cache_detail *cd, struct cache_head *h)
-{
-	if (cd->cache_upcall)
-		return cd->cache_upcall(cd, h);
-	return sunrpc_cache_pipe_upcall(cd, h);
-}
-
 static inline int cache_is_valid(struct cache_head *h)
 {
 	if (!test_bit(CACHE_VALID, &h->flags))
@@ -304,17 +296,14 @@ int cache_check(struct cache_detail *detail,
 		   (h->expiry_time != 0 && age > refresh_age/2)) {
 		dprintk("RPC:       Want update, refage=%lld, age=%lld\n",
 				refresh_age, age);
-		if (!test_and_set_bit(CACHE_PENDING, &h->flags)) {
-			switch (cache_make_upcall(detail, h)) {
-			case -EINVAL:
-				rv = try_to_negate_entry(detail, h);
-				break;
-			case -EAGAIN:
-				cache_fresh_unlocked(h, detail);
-				break;
-			}
-		} else if (!cache_listeners_exist(detail))
+		switch (detail->cache_upcall(detail, h)) {
+		case -EINVAL:
 			rv = try_to_negate_entry(detail, h);
+			break;
+		case -EAGAIN:
+			cache_fresh_unlocked(h, detail);
+			break;
+		}
 	}
 
 	if (rv == -EAGAIN) {
@@ -1196,20 +1185,12 @@ static bool cache_listeners_exist(struct cache_detail *detail)
  *
  * Each request is at most one page long.
  */
-int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
+static int cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 {
-
 	char *buf;
 	struct cache_request *crq;
 	int ret = 0;
 
-	if (!detail->cache_request)
-		return -EINVAL;
-
-	if (!cache_listeners_exist(detail)) {
-		warn_no_listener(detail);
-		return -EINVAL;
-	}
 	if (test_bit(CACHE_CLEANED, &h->flags))
 		/* Too late to make an upcall */
 		return -EAGAIN;
@@ -1243,7 +1224,25 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 	}
 	return ret;
 }
+
+int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
+{
+	if (test_and_set_bit(CACHE_PENDING, &h->flags))
+		return 0;
+	return cache_pipe_upcall(detail, h);
+}
 EXPORT_SYMBOL_GPL(sunrpc_cache_pipe_upcall);
+
+int sunrpc_cache_pipe_upcall_timeout(struct cache_detail *detail,
+				     struct cache_head *h)
+{
+	if (!cache_listeners_exist(detail)) {
+		warn_no_listener(detail);
+		return -EINVAL;
+	}
+	return sunrpc_cache_pipe_upcall(detail, h);
+}
+EXPORT_SYMBOL_GPL(sunrpc_cache_pipe_upcall_timeout);
 
 /*
  * parse a message from user-space and pass it
