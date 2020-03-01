@@ -1,0 +1,36 @@
+#!/bin/sh
+
+echo "SO2 checker starts ..." > /dev/hvc0
+echo "SO2 checker starts ..." > /so2-checker.debug
+
+ip a a dev eth0 172.213.0.7/24
+ip l set dev eth0 up
+sleep 1
+
+modprobe netconsole netconsole=6666@172.213.0.7/eth0,6666@172.213.0.1/46:f6:04:29:d8:72
+
+dmesg -n 8
+dmesg -c /dev/null 2>&1
+sleep 3
+
+echo "Starting tests ..." > /dev/hvc0
+echo "Starting tests ..." >> /so2-checker.debug
+date > /dev/hvc0
+date >> /so2-checker.debug
+
+cd /home/root
+/bin/sh ./run.sh > /dev/hvc0
+
+echo "Testing complete." > /dev/hvc0
+echo "Testing complete." >> /so2-checker.debug
+date > /dev/hvc0
+date >> /so2-checker.debug
+
+sleep 5
+rmmod netconsole
+
+sleep 3
+echo "All done. Shutting down ..." > /dev/hvc0
+echo "All done. Shutting down ..." >> /so2-checker.debug
+
+poweroff

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Sample run:
+# sudo ./install-startup-script ../clean-slate.core-image-minimal-qemux86.ext4
+
+startup_script="so2-startup-script"
+
+if test $UID -ne 0; then
+    echo "You must be root to run this script." 1>&2
+    exit 1
+fi
+
+if test $# -ne 1; then
+    echo "Usage: path/to/rootfs/image" 1>&2
+    exit 1
+fi
+
+rootfs_image="$1"
+
+mkdir tmp_mnt
+mount -t ext4 -o loop "$rootfs_image" tmp_mnt
+
+cp "$startup_script" tmp_mnt/etc/init.d/so2
+pushd tmp_mnt/etc/ > /dev/null 2>&1
+for i in rc*.d; do
+    cd "$i"
+    pwd
+    ln -sfn ../init.d/so2 S99so2
+    cd ..
+done
+popd > /dev/null 2>&1
+
+umount tmp_mnt
+rmdir tmp_mnt
