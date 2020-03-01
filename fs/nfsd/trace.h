@@ -105,6 +105,32 @@ TRACE_EVENT(nfsd_exp_find_key,
 	)
 );
 
+TRACE_EVENT(nfsd_expkey_update,
+	TP_PROTO(const struct svc_expkey *key, const char *exp_path),
+	TP_ARGS(key, exp_path),
+	TP_STRUCT__entry(
+		__field(int, fsidtype)
+		__array(u32, fsid, 6)
+		__string(auth_domain, key->ek_client->name)
+		__string(path, exp_path)
+		__field(bool, cache)
+	),
+	TP_fast_assign(
+		__entry->fsidtype = key->ek_fsidtype;
+		memcpy(__entry->fsid, key->ek_fsid, 4*6);
+		__assign_str(auth_domain, key->ek_client->name);
+		__assign_str(path, exp_path);
+		__entry->cache = !test_bit(CACHE_NEGATIVE, &key->h.flags);
+	),
+	TP_printk("fsid=%x::%s domain=%s path=%s cache=%s",
+		__entry->fsidtype,
+		__print_array(__entry->fsid, 6, 4),
+		__get_str(auth_domain),
+		__get_str(path),
+		__entry->cache ? "pos" : "neg"
+	)
+);
+
 TRACE_EVENT(nfsd_exp_get_by_name,
 	TP_PROTO(const struct svc_export *key,
 		 int status),
@@ -123,6 +149,26 @@ TRACE_EVENT(nfsd_exp_get_by_name,
 		__get_str(path),
 		__get_str(auth_domain),
 		__entry->status
+	)
+);
+
+TRACE_EVENT(nfsd_export_update,
+	TP_PROTO(const struct svc_export *key),
+	TP_ARGS(key),
+	TP_STRUCT__entry(
+		__string(path, key->ex_path.dentry->d_name.name)
+		__string(auth_domain, key->ex_client->name)
+		__field(bool, cache)
+	),
+	TP_fast_assign(
+		__assign_str(path, key->ex_path.dentry->d_name.name);
+		__assign_str(auth_domain, key->ex_client->name);
+		__entry->cache = !test_bit(CACHE_NEGATIVE, &key->h.flags);
+	),
+	TP_printk("path=%s domain=%s cache=%s",
+		__get_str(path),
+		__get_str(auth_domain),
+		__entry->cache ? "pos" : "neg"
 	)
 );
 

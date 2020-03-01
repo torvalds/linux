@@ -141,7 +141,9 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	if (len == 0) {
 		set_bit(CACHE_NEGATIVE, &key.h.flags);
 		ek = svc_expkey_update(cd, &key, ek);
-		if (!ek)
+		if (ek)
+			trace_nfsd_expkey_update(ek, NULL);
+		else
 			err = -ENOMEM;
 	} else {
 		err = kern_path(buf, 0, &key.ek_path);
@@ -151,7 +153,9 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 		dprintk("Found the path %s\n", buf);
 
 		ek = svc_expkey_update(cd, &key, ek);
-		if (!ek)
+		if (ek)
+			trace_nfsd_expkey_update(ek, buf);
+		else
 			err = -ENOMEM;
 		path_put(&key.ek_path);
 	}
@@ -644,15 +648,17 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	}
 
 	expp = svc_export_lookup(&exp);
-	if (expp)
-		expp = svc_export_update(&exp, expp);
-	else
+	if (!expp) {
 		err = -ENOMEM;
-	cache_flush();
-	if (expp == NULL)
-		err = -ENOMEM;
-	else
+		goto out4;
+	}
+	expp = svc_export_update(&exp, expp);
+	if (expp) {
+		trace_nfsd_export_update(expp);
+		cache_flush();
 		exp_put(expp);
+	} else
+		err = -ENOMEM;
 out4:
 	nfsd4_fslocs_free(&exp.ex_fslocs);
 	kfree(exp.ex_uuid);
