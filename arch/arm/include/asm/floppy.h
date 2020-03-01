@@ -50,17 +50,13 @@ static inline int fd_dma_setup(void *data, unsigned int length,
  * to a non-zero track, and then restoring it to track 0.  If an error occurs,
  * then there is no floppy drive present.       [to be put back in again]
  */
-static unsigned char floppy_selects[2][4] =
-{
-	{ 0x10, 0x21, 0x23, 0x33 },
-	{ 0x10, 0x21, 0x23, 0x33 }
-};
+static unsigned char floppy_selects[4] = { 0x10, 0x21, 0x23, 0x33 };
 
 #define fd_setdor(dor)								\
 do {										\
 	int new_dor = (dor);							\
 	if (new_dor & 0xf0)							\
-		new_dor = (new_dor & 0x0c) | floppy_selects[fdc][new_dor & 3];	\
+		new_dor = (new_dor & 0x0c) | floppy_selects[new_dor & 3];	\
 	else									\
 		new_dor &= 0x0c;						\
 	outb(new_dor, FD_DOR);							\
@@ -84,9 +80,7 @@ do {										\
  */
 static void driveswap(int *ints, int dummy, int dummy2)
 {
-	floppy_selects[0][0] ^= floppy_selects[0][1];
-	floppy_selects[0][1] ^= floppy_selects[0][0];
-	floppy_selects[0][0] ^= floppy_selects[0][1];
+	swap(floppy_selects[0], floppy_selects[1]);
 }
 
 #define EXTRA_FLOPPY_PARAMS ,{ "driveswap", &driveswap, NULL, 0, 0 }
