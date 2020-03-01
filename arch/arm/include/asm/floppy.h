@@ -9,12 +9,17 @@
 #ifndef __ASM_ARM_FLOPPY_H
 #define __ASM_ARM_FLOPPY_H
 
-#define fd_outb(val,port)			\
-	do {					\
-		if ((port) == (u32)FD_DOR)	\
-			fd_setdor((val));	\
-		else				\
-			outb((val),(port));	\
+#define fd_outb(val,port)						\
+	do {								\
+		int new_val = (val);					\
+		if ((port) == (u32)FD_DOR) {				\
+			if (new_val & 0xf0)				\
+				new_val = (new_val & 0x0c) |		\
+					  floppy_selects[new_val & 3];	\
+			else						\
+				new_val &= 0x0c;			\
+		}							\
+		outb(new_val, (port));					\
 	} while(0)
 
 #define fd_inb(port)		inb((port))
@@ -51,16 +56,6 @@ static inline int fd_dma_setup(void *data, unsigned int length,
  * then there is no floppy drive present.       [to be put back in again]
  */
 static unsigned char floppy_selects[4] = { 0x10, 0x21, 0x23, 0x33 };
-
-#define fd_setdor(dor)								\
-do {										\
-	int new_dor = (dor);							\
-	if (new_dor & 0xf0)							\
-		new_dor = (new_dor & 0x0c) | floppy_selects[new_dor & 3];	\
-	else									\
-		new_dor &= 0x0c;						\
-	outb(new_dor, FD_DOR);							\
-} while (0)
 
 #define FDC1 (0x3f0)
 
