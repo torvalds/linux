@@ -453,6 +453,11 @@ int mlx5_esw_create_vport_egress_acl_vlan(struct mlx5_eswitch *esw,
 					  struct mlx5_vport *vport,
 					  u16 vlan_id, u32 flow_action);
 
+static inline bool mlx5_esw_qos_enabled(struct mlx5_eswitch *esw)
+{
+	return esw->qos.enabled;
+}
+
 static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev,
 						       u8 vlan_depth)
 {
