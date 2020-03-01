@@ -25,7 +25,6 @@
 
 #include "octeon_config.h"
 
-#define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
 #define LIQUIDIO_BASE_MINOR_VERSION 7
 #define LIQUIDIO_BASE_MICRO_VERSION 2
