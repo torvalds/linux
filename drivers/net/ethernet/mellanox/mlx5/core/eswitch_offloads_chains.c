@@ -23,6 +23,8 @@
 #define tc_end_fdb(esw) (esw_chains_priv(esw)->tc_end_fdb)
 #define fdb_ignore_flow_level_supported(esw) \
 	(MLX5_CAP_ESW_FLOWTABLE_FDB((esw)->dev, ignore_flow_level))
+#define fdb_modify_header_fwd_to_table_supported(esw) \
+	(MLX5_CAP_ESW_FLOWTABLE((esw)->dev, fdb_modify_header_fwd_to_table))
 
 /* Firmware currently has 4 pool of 4 sizes that it supports (ESW_POOLS),
  * and a virtual memory region of 16M (ESW_SIZE), this region is duplicated
@@ -107,7 +109,8 @@ bool mlx5_esw_chains_prios_supported(struct mlx5_eswitch *esw)
 
 bool mlx5_esw_chains_backwards_supported(struct mlx5_eswitch *esw)
 {
-	return fdb_ignore_flow_level_supported(esw);
+	return mlx5_esw_chains_prios_supported(esw) &&
+	       fdb_ignore_flow_level_supported(esw);
 }
 
 u32 mlx5_esw_chains_get_chain_range(struct mlx5_eswitch *esw)
@@ -419,7 +422,8 @@ mlx5_esw_chains_add_miss_rule(struct fdb_chain *fdb_chain,
 	dest.type  = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest.ft = next_fdb;
 
-	if (fdb_chain->chain != mlx5_esw_chains_get_ft_chain(esw)) {
+	if (fdb_chain->chain != mlx5_esw_chains_get_ft_chain(esw) &&
+	    fdb_modify_header_fwd_to_table_supported(esw)) {
 		act.modify_hdr = fdb_chain->miss_modify_hdr;
 		act.action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 	}
@@ -779,6 +783,13 @@ mlx5_esw_chains_init(struct mlx5_eswitch *esw)
 	    esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE) {
 		esw->fdb_table.flags &= ~ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED;
 		esw_warn(dev, "Tc chains and priorities offload aren't supported, update firmware if needed\n");
+	} else if (!fdb_modify_header_fwd_to_table_supported(esw)) {
+		/* Disabled when ttl workaround is needed, e.g
+		 * when ESWITCH_IPV4_TTL_MODIFY_ENABLE = true in mlxconfig
+		 */
+		esw_warn(dev,
+			 "Tc chains and priorities offload aren't supported, check firmware version, or mlxconfig settings\n");
+		esw->fdb_table.flags &= ~ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED;
 	} else {
 		esw->fdb_table.flags |= ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED;
 		esw_info(dev, "Supported tc offload range - chains: %u, prios: %u\n",
