@@ -23,6 +23,7 @@
 #include "netns.h"
 #include "pnfs.h"
 #include "filecache.h"
+#include "trace.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT
 
@@ -832,8 +833,10 @@ exp_find_key(struct cache_detail *cd, struct auth_domain *clp, int fsid_type,
 	if (ek == NULL)
 		return ERR_PTR(-ENOMEM);
 	err = cache_check(cd, &ek->h, reqp);
-	if (err)
+	if (err) {
+		trace_nfsd_exp_find_key(&key, err);
 		return ERR_PTR(err);
+	}
 	return ek;
 }
 
@@ -855,8 +858,10 @@ exp_get_by_name(struct cache_detail *cd, struct auth_domain *clp,
 	if (exp == NULL)
 		return ERR_PTR(-ENOMEM);
 	err = cache_check(cd, &exp->h, reqp);
-	if (err)
+	if (err) {
+		trace_nfsd_exp_get_by_name(&key, err);
 		return ERR_PTR(err);
+	}
 	return exp;
 }
 
