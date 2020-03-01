@@ -32,6 +32,7 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include <trace/events/sunrpc.h>
 #include "netns.h"
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
@@ -120,6 +121,7 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 		if (test_bit(CACHE_VALID, &tmp->flags) &&
 		    cache_is_expired(detail, tmp)) {
 			sunrpc_begin_cache_remove_entry(tmp, detail);
+			trace_cache_entry_expired(detail, tmp);
 			freeme = tmp;
 			break;
 		}
@@ -176,6 +178,25 @@ static void cache_fresh_unlocked(struct cache_head *head,
 	}
 }
 
+static void cache_make_negative(struct cache_detail *detail,
+				struct cache_head *h)
+{
+	set_bit(CACHE_NEGATIVE, &h->flags);
+	trace_cache_entry_make_negative(detail, h);
+}
+
+static void cache_entry_update(struct cache_detail *detail,
+			       struct cache_head *h,
+			       struct cache_head *new)
+{
+	if (!test_bit(CACHE_NEGATIVE, &new->flags)) {
+		detail->update(h, new);
+		trace_cache_entry_update(detail, h);
+	} else {
+		cache_make_negative(detail, h);
+	}
+}
+
 struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 				       struct cache_head *new, struct cache_head *old, int hash)
 {
@@ -188,10 +209,7 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	if (!test_bit(CACHE_VALID, &old->flags)) {
 		spin_lock(&detail->hash_lock);
 		if (!test_bit(CACHE_VALID, &old->flags)) {
-			if (test_bit(CACHE_NEGATIVE, &new->flags))
-				set_bit(CACHE_NEGATIVE, &old->flags);
-			else
-				detail->update(old, new);
+			cache_entry_update(detail, old, new);
 			cache_fresh_locked(old, new->expiry_time, detail);
 			spin_unlock(&detail->hash_lock);
 			cache_fresh_unlocked(old, detail);
@@ -209,10 +227,7 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	detail->init(tmp, old);
 
 	spin_lock(&detail->hash_lock);
-	if (test_bit(CACHE_NEGATIVE, &new->flags))
-		set_bit(CACHE_NEGATIVE, &tmp->flags);
-	else
-		detail->update(tmp, new);
+	cache_entry_update(detail, tmp, new);
 	hlist_add_head(&tmp->cache_list, &detail->hash_table[hash]);
 	detail->entries++;
 	cache_get(tmp);
@@ -254,7 +269,7 @@ static int try_to_negate_entry(struct cache_detail *detail, struct cache_head *h
 	spin_lock(&detail->hash_lock);
 	rv = cache_is_valid(h);
 	if (rv == -EAGAIN) {
-		set_bit(CACHE_NEGATIVE, &h->flags);
+		cache_make_negative(detail, h);
 		cache_fresh_locked(h, seconds_since_boot()+CACHE_NEW_EXPIRY,
 				   detail);
 		rv = -ENOENT;
@@ -460,6 +475,7 @@ static int cache_clean(void)
 				continue;
 
 			sunrpc_begin_cache_remove_entry(ch, current_detail);
+			trace_cache_entry_expired(current_detail, ch);
 			rv = 1;
 			break;
 		}
@@ -1215,6 +1231,7 @@ static int cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 	if (test_bit(CACHE_PENDING, &h->flags)) {
 		crq->item = cache_get(h);
 		list_add_tail(&crq->q.list, &detail->queue);
+		trace_cache_entry_upcall(detail, h);
 	} else
 		/* Lost a race, no longer PENDING, so don't enqueue */
 		ret = -EAGAIN;
@@ -1240,6 +1257,7 @@ int sunrpc_cache_pipe_upcall_timeout(struct cache_detail *detail,
 {
 	if (!cache_listeners_exist(detail)) {
 		warn_no_listener(detail);
+		trace_cache_entry_no_listener(detail, h);
 		return -EINVAL;
 	}
 	return sunrpc_cache_pipe_upcall(detail, h);

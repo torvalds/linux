@@ -1335,6 +1335,39 @@ DECLARE_EVENT_CLASS(svc_deferred_event,
 DEFINE_SVC_DEFERRED_EVENT(drop);
 DEFINE_SVC_DEFERRED_EVENT(revisit);
 
+DECLARE_EVENT_CLASS(cache_event,
+	TP_PROTO(
+		const struct cache_detail *cd,
+		const struct cache_head *h
+	),
+
+	TP_ARGS(cd, h),
+
+	TP_STRUCT__entry(
+		__field(const struct cache_head *, h)
+		__string(name, cd->name)
+	),
+
+	TP_fast_assign(
+		__entry->h = h;
+		__assign_str(name, cd->name);
+	),
+
+	TP_printk("cache=%s entry=%p", __get_str(name), __entry->h)
+);
+#define DEFINE_CACHE_EVENT(name) \
+	DEFINE_EVENT(cache_event, name, \
+			TP_PROTO( \
+				const struct cache_detail *cd, \
+				const struct cache_head *h \
+			), \
+			TP_ARGS(cd, h))
+DEFINE_CACHE_EVENT(cache_entry_expired);
+DEFINE_CACHE_EVENT(cache_entry_upcall);
+DEFINE_CACHE_EVENT(cache_entry_update);
+DEFINE_CACHE_EVENT(cache_entry_make_negative);
+DEFINE_CACHE_EVENT(cache_entry_no_listener);
+
 #endif /* _TRACE_SUNRPC_H */
 
 #include <trace/define_trace.h>
