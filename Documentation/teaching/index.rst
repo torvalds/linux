@@ -24,13 +24,21 @@ Computers, University POLITEHNICA of Bucharest.
 
 You can get the latest version at http://github.com/linux-kernel-labs.
 
-To get started build the documentation from the sources:
+To get started build the documentation from the sources after
+installing docker-compose on you host:
+
+.. code-block:: c
+   
+   cd tools/teaching && make docker-docs
+
+then point your browser at **Documentation/output/labs/index.html**.
+
+Alternatively, you can build directly on the host (see
+tools/labs/docs/Dockerfile for dependencies):
 
 .. code-block:: c
    
    cd tools/teaching && make docs
-
-then point your browser at **Documentation/output/labs/index.html**.
 
 .. toctree::
    :caption: Lectures
