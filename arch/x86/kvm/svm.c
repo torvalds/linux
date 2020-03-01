@@ -57,11 +57,13 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
+#ifdef MODULE
 static const struct x86_cpu_id svm_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_SVM),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
+#endif
 
 #define IOPM_ALLOC_ORDER 2
 #define MSRPM_ALLOC_ORDER 1
@@ -2194,8 +2196,9 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 static int avic_init_vcpu(struct vcpu_svm *svm)
 {
 	int ret;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
 
-	if (!kvm_vcpu_apicv_active(&svm->vcpu))
+	if (!avic || !irqchip_in_kernel(vcpu->kvm))
 		return 0;
 
 	ret = avic_init_backing_page(&svm->vcpu);
