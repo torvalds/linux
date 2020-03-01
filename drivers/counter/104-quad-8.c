@@ -31,6 +31,7 @@ MODULE_PARM_DESC(base, "ACCES 104-QUAD-8 base addresses");
 /**
  * struct quad8_iio - IIO device private data structure
  * @counter:		instance of the counter_device
+ * @fck_prescaler:	array of filter clock prescaler configurations
  * @preset:		array of preset values
  * @count_mode:		array of count mode configurations
  * @quadrature_mode:	array of quadrature mode configurations
@@ -39,6 +40,7 @@ MODULE_PARM_DESC(base, "ACCES 104-QUAD-8 base addresses");
  * @preset_enable:	array of set_to_preset_on_index attribute configurations
  * @synchronous_mode:	array of index function synchronous mode configurations
  * @index_polarity:	array of index function polarity configurations
+ * @cable_fault_enable:	differential encoder cable status enable configurations
  * @base:		base port address of the IIO device
  */
 struct quad8_iio {
@@ -52,11 +54,13 @@ struct quad8_iio {
 	unsigned int preset_enable[QUAD8_NUM_COUNTERS];
 	unsigned int synchronous_mode[QUAD8_NUM_COUNTERS];
 	unsigned int index_polarity[QUAD8_NUM_COUNTERS];
+	unsigned int cable_fault_enable;
 	unsigned int base;
 };
 
 #define QUAD8_REG_CHAN_OP 0x11
 #define QUAD8_REG_INDEX_INPUT_LEVELS 0x16
+#define QUAD8_DIFF_ENCODER_CABLE_STATUS 0x17
 /* Borrow Toggle flip-flop */
 #define QUAD8_FLAG_BT BIT(0)
 /* Carry Toggle flip-flop */
@@ -1143,6 +1147,66 @@ static ssize_t quad8_count_preset_enable_write(struct counter_device *counter,
 	return len;
 }
 
+static ssize_t quad8_signal_cable_fault_read(struct counter_device *counter,
+					     struct counter_signal *signal,
+					     void *private, char *buf)
+{
+	const struct quad8_iio *const priv = counter->priv;
+	const size_t channel_id = signal->id / 2;
+	const bool disabled = !(priv->cable_fault_enable & BIT(channel_id));
+	unsigned int status;
+	unsigned int fault;
+
+	if (disabled)
+		return -EINVAL;
+
+	/* Logic 0 = cable fault */
+	status = inb(priv->base + QUAD8_DIFF_ENCODER_CABLE_STATUS);
+
+	/* Mask respective channel and invert logic */
+	fault = !(status & BIT(channel_id));
+
+	return sprintf(buf, "%u\n", fault);
+}
+
+static ssize_t quad8_signal_cable_fault_enable_read(
+	struct counter_device *counter, struct counter_signal *signal,
+	void *private, char *buf)
+{
+	const struct quad8_iio *const priv = counter->priv;
+	const size_t channel_id = signal->id / 2;
+	const unsigned int enb = !!(priv->cable_fault_enable & BIT(channel_id));
+
+	return sprintf(buf, "%u\n", enb);
+}
+
+static ssize_t quad8_signal_cable_fault_enable_write(
+	struct counter_device *counter, struct counter_signal *signal,
+	void *private, const char *buf, size_t len)
+{
+	struct quad8_iio *const priv = counter->priv;
+	const size_t channel_id = signal->id / 2;
+	bool enable;
+	int ret;
+	unsigned int cable_fault_enable;
+
+	ret = kstrtobool(buf, &enable);
+	if (ret)
+		return ret;
+
+	if (enable)
+		priv->cable_fault_enable |= BIT(channel_id);
+	else
+		priv->cable_fault_enable &= ~BIT(channel_id);
+
+	/* Enable is active low in Differential Encoder Cable Status register */
+	cable_fault_enable = ~priv->cable_fault_enable;
+
+	outb(cable_fault_enable, priv->base + QUAD8_DIFF_ENCODER_CABLE_STATUS);
+
+	return len;
+}
+
 static ssize_t quad8_signal_fck_prescaler_read(struct counter_device *counter,
 	struct counter_signal *signal, void *private, char *buf)
 {
@@ -1180,6 +1244,15 @@ static ssize_t quad8_signal_fck_prescaler_write(struct counter_device *counter,
 }
 
 static const struct counter_signal_ext quad8_signal_ext[] = {
+	{
+		.name = "cable_fault",
+		.read = quad8_signal_cable_fault_read
+	},
+	{
+		.name = "cable_fault_enable",
+		.read = quad8_signal_cable_fault_enable_read,
+		.write = quad8_signal_cable_fault_enable_write
+	},
 	{
 		.name = "filter_clock_prescaler",
 		.read = quad8_signal_fck_prescaler_read,
@@ -1383,6 +1456,8 @@ static int quad8_probe(struct device *dev, unsigned int id)
 		/* Disable index function; negative index polarity */
 		outb(QUAD8_CTR_IDR, base_offset + 1);
 	}
+	/* Disable Differential Encoder Cable Status for all channels */
+	outb(0xFF, base[id] + QUAD8_DIFF_ENCODER_CABLE_STATUS);
 	/* Enable all counters */
 	outb(QUAD8_CHAN_OP_ENABLE_COUNTERS, base[id] + QUAD8_REG_CHAN_OP);
 
