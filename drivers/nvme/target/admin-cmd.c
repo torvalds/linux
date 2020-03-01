@@ -733,13 +733,22 @@ static void nvmet_execute_set_features(struct nvmet_req *req)
 {
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
+	u32 cdw11 = le32_to_cpu(req->cmd->common.cdw11);
 	u16 status = 0;
+	u16 nsqr;
+	u16 ncqr;
 
 	if (!nvmet_check_data_len(req, 0))
 		return;
 
 	switch (cdw10 & 0xff) {
 	case NVME_FEAT_NUM_QUEUES:
+		ncqr = (cdw11 >> 16) & 0xffff;
+		nsqr = cdw11 & 0xffff;
+		if (ncqr == 0xffff || nsqr == 0xffff) {
+			status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			break;
+		}
 		nvmet_set_result(req,
 			(subsys->max_qid - 1) | ((subsys->max_qid - 1) << 16));
 		break;
