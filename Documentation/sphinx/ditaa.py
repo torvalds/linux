@@ -202,7 +202,18 @@ def setup(app):
                  #latex=(latex_visit_ditaa, None),
                  )
     app.add_directive('ditaa', Ditaa)
-    app.add_config_value('ditaa', 'ditaa', 'html')
-    app.add_config_value('ditaa_args', [], 'html')
+
+    try:
+        ditaa_cmd = os.environ['SPHINX_DITAA_CMD']
+    except:
+        ditaa_cmd = 'ditaa'
+
+    try:
+        ditaa_arg = os.environ['SPHINX_DITAA_ARG'].split(':')
+    except:
+        ditaa_arg = []
+
+    app.add_config_value('ditaa', ditaa_cmd , 'html')
+    app.add_config_value('ditaa_args', ditaa_arg, 'html')
     app.add_config_value('ditaa_log_enable', True, 'html')
     app.connect('doctree-read', on_doctree_resolved)
