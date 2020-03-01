@@ -106,7 +106,7 @@ static void vnt_set_options(struct vnt_private *priv)
  */
 static int vnt_init_registers(struct vnt_private *priv)
 {
-	int ret = 0;
+	int ret;
 	struct vnt_cmd_card_init *init_cmd = &priv->init_command;
 	struct vnt_rsp_card_init *init_rsp = &priv->init_response;
 	u8 antenna;
@@ -429,7 +429,7 @@ static void vnt_free_int_bufs(struct vnt_private *priv)
 
 static int vnt_alloc_bufs(struct vnt_private *priv)
 {
-	int ret = 0;
+	int ret;
 	struct vnt_usb_send_context *tx_context;
 	struct vnt_rcb *rcb;
 	int ii;
@@ -522,7 +522,7 @@ static void vnt_tx_80211(struct ieee80211_hw *hw,
 
 static int vnt_start(struct ieee80211_hw *hw)
 {
-	int ret = 0;
+	int ret;
 	struct vnt_private *priv = hw->priv;
 
 	priv->rx_buf_sz = MAX_TOTAL_SIZE_WITH_ALL_HEADERS;
@@ -792,7 +792,7 @@ static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
 	struct vnt_private *priv = hw->priv;
 	struct netdev_hw_addr *ha;
 	u64 mc_filter = 0;
-	u32 bit_nr = 0;
+	u32 bit_nr;
 
 	netdev_hw_addr_list_for_each(ha, mc_list) {
 		bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
@@ -965,7 +965,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct vnt_private *priv;
 	struct ieee80211_hw *hw;
 	struct wiphy *wiphy;
-	int rc = 0;
+	int rc;
 
 	udev = usb_get_dev(interface_to_usbdev(intf));
 
