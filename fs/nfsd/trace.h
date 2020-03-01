@@ -50,6 +50,36 @@ TRACE_EVENT(nfsd_compound_status,
 		__get_str(name), __entry->status)
 )
 
+DECLARE_EVENT_CLASS(nfsd_fh_err_class,
+	TP_PROTO(struct svc_rqst *rqstp,
+		 struct svc_fh	*fhp,
+		 int		status),
+	TP_ARGS(rqstp, fhp, status),
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, fh_hash)
+		__field(int, status)
+	),
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->fh_hash = knfsd_fh_hash(&fhp->fh_handle);
+		__entry->status = status;
+	),
+	TP_printk("xid=0x%08x fh_hash=0x%08x status=%d",
+		  __entry->xid, __entry->fh_hash,
+		  __entry->status)
+)
+
+#define DEFINE_NFSD_FH_ERR_EVENT(name)		\
+DEFINE_EVENT(nfsd_fh_err_class, nfsd_##name,	\
+	TP_PROTO(struct svc_rqst *rqstp,	\
+		 struct svc_fh	*fhp,		\
+		 int		status),	\
+	TP_ARGS(rqstp, fhp, status))
+
+DEFINE_NFSD_FH_ERR_EVENT(set_fh_dentry_badexport);
+DEFINE_NFSD_FH_ERR_EVENT(set_fh_dentry_badhandle);
+
 DECLARE_EVENT_CLASS(nfsd_io_class,
 	TP_PROTO(struct svc_rqst *rqstp,
 		 struct svc_fh	*fhp,
