@@ -11,6 +11,7 @@ avx2_supported := $(call as-instr,vpgatherdd %ymm0$(comma)(%eax$(comma)%ymm1\
 avx512_supported :=$(call as-instr,vpmovm2b %k1$(comma)%zmm5,yes,no)
 sha1_ni_supported :=$(call as-instr,sha1msg1 %xmm0$(comma)%xmm1,yes,no)
 sha256_ni_supported :=$(call as-instr,sha256msg1 %xmm0$(comma)%xmm1,yes,no)
+adx_supported := $(call as-instr,adox %r10$(comma)%r10,yes,no)
 
 obj-$(CONFIG_CRYPTO_GLUE_HELPER_X86) += glue_helper.o
 
@@ -39,7 +40,11 @@ obj-$(CONFIG_CRYPTO_AEGIS128_AESNI_SSE2) += aegis128-aesni.o
 
 obj-$(CONFIG_CRYPTO_NHPOLY1305_SSE2) += nhpoly1305-sse2.o
 obj-$(CONFIG_CRYPTO_NHPOLY1305_AVX2) += nhpoly1305-avx2.o
-obj-$(CONFIG_CRYPTO_CURVE25519_X86) += curve25519-x86_64.o
+
+# These modules require the assembler to support ADX.
+ifeq ($(adx_supported),yes)
+	obj-$(CONFIG_CRYPTO_CURVE25519_X86) += curve25519-x86_64.o
+endif
 
 # These modules require assembler to support AVX.
 ifeq ($(avx_supported),yes)
