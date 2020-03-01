@@ -110,8 +110,6 @@ static void dpaa_get_drvinfo(struct net_device *net_dev,
 
 	strlcpy(drvinfo->driver, KBUILD_MODNAME,
 		sizeof(drvinfo->driver));
-	len = snprintf(drvinfo->version, sizeof(drvinfo->version),
-		       "%X", 0);
 	len = snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		       "%X", 0);
 
