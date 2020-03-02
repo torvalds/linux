@@ -3738,8 +3738,9 @@ static bool io_arm_poll_handler(struct io_kiocb *req)
 	req->apoll = apoll;
 	INIT_HLIST_NODE(&req->hash_node);
 
+	mask = 0;
 	if (def->pollin)
-		mask = POLLIN | POLLRDNORM;
+		mask |= POLLIN | POLLRDNORM;
 	if (def->pollout)
 		mask |= POLLOUT | POLLWRNORM;
 	mask |= POLLERR | POLLPRI;
