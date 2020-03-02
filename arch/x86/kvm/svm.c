@@ -1375,6 +1375,11 @@ static __init void svm_set_cpu_caps(void)
 	if (nested)
 		kvm_cpu_cap_set(X86_FEATURE_SVM);
 
+	/* CPUID 0x80000008 */
+	if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) ||
+	    boot_cpu_has(X86_FEATURE_AMD_SSBD))
+		kvm_cpu_cap_set(X86_FEATURE_VIRT_SSBD);
+
 	/* CPUID 0x8000000A */
 	/* Support next_rip if host supports it */
 	kvm_cpu_cap_check_and_set(X86_FEATURE_NRIPS);
@@ -6051,22 +6056,9 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 					 APICV_INHIBIT_REASON_NESTED);
 }
 
-/*
- * Vendor specific emulation must be handled via ->set_supported_cpuid(), not
- * svm_set_cpu_caps(), as capabilities configured during hardware_setup() are
- * masked against hardware/kernel support, i.e. they'd be lost.
- *
- * Note, setting a flag based on a *different* feature, e.g. setting VIRT_SSBD
- * if LS_CFG_SSBD or AMD_SSBD is supported, is effectively emulation.
- */
 static void svm_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 {
 	switch (entry->function) {
-	case 0x80000008:
-		if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) ||
-		    boot_cpu_has(X86_FEATURE_AMD_SSBD))
-			cpuid_entry_set(entry, X86_FEATURE_VIRT_SSBD);
-		break;
 	case 0x8000000A:
 		entry->eax = 1; /* SVM revision 1 */
 		entry->ebx = 8; /* Lets support 8 ASIDs in case we add proper

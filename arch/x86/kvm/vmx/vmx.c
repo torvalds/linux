@@ -7123,11 +7123,6 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	}
 }
 
-/*
- * Vendor specific emulation must be handled via ->set_supported_cpuid(), not
- * vmx_set_cpu_caps(), as capabilities configured during hardware_setup() are
- * masked against hardware/kernel support, i.e. they'd be lost.
- */
 static void vmx_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 {
 }
