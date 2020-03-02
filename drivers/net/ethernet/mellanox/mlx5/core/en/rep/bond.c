@@ -71,6 +71,7 @@ static void mlx5e_rep_bond_metadata_release(struct mlx5e_rep_bond_metadata *mdat
 	netdev_dbg(mdata->lag_dev, "destroy rep_bond_metadata(%d)\n",
 		   mdata->metadata_reg_c_0);
 	list_del(&mdata->list);
+	mlx5_esw_match_metadata_free(mdata->esw, mdata->metadata_reg_c_0);
 	WARN_ON(!list_empty(&mdata->slaves_list));
 	kfree(mdata);
 }
@@ -82,6 +83,8 @@ int mlx5e_rep_bond_enslave(struct mlx5_eswitch *esw, struct net_device *netdev,
 	struct mlx5e_rep_bond_slave_entry *s_entry;
 	struct mlx5e_rep_bond_metadata *mdata;
 	struct mlx5e_rep_priv *rpriv;
+	struct mlx5e_priv *priv;
+	int err;
 
 	ASSERT_RTNL();
 
@@ -96,6 +99,11 @@ int mlx5e_rep_bond_enslave(struct mlx5_eswitch *esw, struct net_device *netdev,
 		mdata->lag_dev = lag_dev;
 		mdata->esw = esw;
 		INIT_LIST_HEAD(&mdata->slaves_list);
+		mdata->metadata_reg_c_0 = mlx5_esw_match_metadata_alloc(esw);
+		if (!mdata->metadata_reg_c_0) {
+			kfree(mdata);
+			return -ENOSPC;
+		}
 		list_add(&mdata->list, &rpriv->uplink_priv.bond->metadata_list);
 
 		netdev_dbg(lag_dev, "create rep_bond_metadata(%d)\n",
@@ -103,14 +111,33 @@ int mlx5e_rep_bond_enslave(struct mlx5_eswitch *esw, struct net_device *netdev,
 	}
 
 	s_entry = kzalloc(sizeof(*s_entry), GFP_KERNEL);
-	if (!s_entry)
-		return -ENOMEM;
+	if (!s_entry) {
+		err = -ENOMEM;
+		goto entry_alloc_err;
+	}
 
 	s_entry->netdev = netdev;
+	priv = netdev_priv(netdev);
+	rpriv = priv->ppriv;
+
+	err = mlx5_esw_acl_ingress_vport_bond_update(esw, rpriv->rep->vport,
+						     mdata->metadata_reg_c_0);
+	if (err)
+		goto ingress_err;
+
 	mdata->slaves++;
 	list_add_tail(&s_entry->list, &mdata->slaves_list);
+	netdev_dbg(netdev, "enslave rep vport(%d) lag_dev(%s) metadata(0x%x)\n",
+		   rpriv->rep->vport, lag_dev->name, mdata->metadata_reg_c_0);
 
 	return 0;
+
+ingress_err:
+	kfree(s_entry);
+entry_alloc_err:
+	if (!mdata->slaves)
+		mlx5e_rep_bond_metadata_release(mdata);
+	return err;
 }
 
 /* This must be called under rtnl_lock */
@@ -121,6 +148,7 @@ void mlx5e_rep_bond_unslave(struct mlx5_eswitch *esw,
 	struct mlx5e_rep_bond_slave_entry *s_entry;
 	struct mlx5e_rep_bond_metadata *mdata;
 	struct mlx5e_rep_priv *rpriv;
+	struct mlx5e_priv *priv;
 
 	ASSERT_RTNL();
 
@@ -133,7 +161,16 @@ void mlx5e_rep_bond_unslave(struct mlx5_eswitch *esw,
 	if (!s_entry)
 		return;
 
+	priv = netdev_priv(netdev);
+	rpriv = priv->ppriv;
+
+	mlx5_esw_acl_ingress_vport_bond_update(esw, rpriv->rep->vport, 0);
+	mlx5e_rep_bond_update(priv, false);
 	list_del(&s_entry->list);
+
+	netdev_dbg(netdev, "unslave rep vport(%d) lag_dev(%s) metadata(0x%x)\n",
+		   rpriv->rep->vport, lag_dev->name, mdata->metadata_reg_c_0);
+
 	if (--mdata->slaves == 0)
 		mlx5e_rep_bond_metadata_release(mdata);
 	kfree(s_entry);
@@ -163,6 +200,7 @@ static void mlx5e_rep_changelowerstate_event(struct net_device *netdev, void *pt
 	struct net_device *dev;
 	u16 acl_vport_num;
 	u16 fwd_vport_num;
+	int err;
 
 	if (!mlx5e_rep_is_lag_netdev(netdev))
 		return;
@@ -187,11 +225,28 @@ static void mlx5e_rep_changelowerstate_event(struct net_device *netdev, void *pt
 		rpriv = priv->ppriv;
 		acl_vport_num = rpriv->rep->vport;
 		if (acl_vport_num != fwd_vport_num) {
-			mlx5_esw_acl_egress_vport_bond(priv->mdev->priv.eswitch,
-						       fwd_vport_num,
-						       acl_vport_num);
+			/* Only single rx_rule for unique bond_metadata should be
+			 * present, delete it if it's saved as passive vport's
+			 * rx_rule with destination as passive vport's root_ft
+			 */
+			mlx5e_rep_bond_update(priv, true);
+			err = mlx5_esw_acl_egress_vport_bond(priv->mdev->priv.eswitch,
+							     fwd_vport_num,
+							     acl_vport_num);
+			if (err)
+				netdev_warn(dev,
+					    "configure slave vport(%d) egress fwd, err(%d)",
+					    acl_vport_num, err);
 		}
 	}
+
+	/* Insert new rx_rule for unique bond_metadata, save it as active vport's
+	 * rx_rule with new destination as active vport's root_ft
+	 */
+	err = mlx5e_rep_bond_update(netdev_priv(netdev), false);
+	if (err)
+		netdev_warn(netdev, "configure active slave vport(%d) rx_rule, err(%d)",
+			    fwd_vport_num, err);
 }
 
 static void mlx5e_rep_changeupper_event(struct net_device *netdev, void *ptr)
