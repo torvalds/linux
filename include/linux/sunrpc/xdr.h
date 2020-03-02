@@ -301,6 +301,21 @@ xdr_align_size(size_t n)
 }
 
 /**
+ * xdr_pad_size - Calculate size of an object's pad
+ * @n: Size of an object being XDR encoded (in bytes)
+ *
+ * This implementation avoids the need for conditional
+ * branches or modulo division.
+ *
+ * Return value:
+ *   Size (in bytes) of the needed XDR pad
+ */
+static inline size_t xdr_pad_size(size_t n)
+{
+	return xdr_align_size(n) - n;
+}
+
+/**
  * xdr_stream_encode_u32 - Encode a 32-bit integer
  * @xdr: pointer to xdr_stream
  * @n: integer to encode

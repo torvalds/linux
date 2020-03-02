@@ -322,11 +322,6 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr)
 	return ret;
 }
 
-static u32 xdr_padsize(u32 len)
-{
-	return (len & 3) ? (4 - (len & 3)) : 0;
-}
-
 /* Returns length of transport header, in bytes.
  */
 static unsigned int svc_rdma_reply_hdr_len(__be32 *rdma_resp)
@@ -595,7 +590,7 @@ static int svc_rdma_pull_up_reply_msg(struct svcxprt_rdma *rdma,
 	if (wr_lst) {
 		u32 xdrpad;
 
-		xdrpad = xdr_padsize(xdr->page_len);
+		xdrpad = xdr_pad_size(xdr->page_len);
 		if (taillen && xdrpad) {
 			tailbase += xdrpad;
 			taillen -= xdrpad;
@@ -670,7 +665,7 @@ int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 	if (wr_lst) {
 		base = xdr->tail[0].iov_base;
 		len = xdr->tail[0].iov_len;
-		xdr_pad = xdr_padsize(xdr->page_len);
+		xdr_pad = xdr_pad_size(xdr->page_len);
 
 		if (len && xdr_pad) {
 			base += xdr_pad;
