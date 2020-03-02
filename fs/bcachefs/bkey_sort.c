@@ -311,6 +311,25 @@ static inline int extent_sort_fix_overlapping_cmp(struct btree *b,
 		cmp_int((unsigned long) r, (unsigned long) l);
 }
 
+/*
+ * The algorithm in extent_sort_fix_overlapping() relies on keys in the same
+ * bset being ordered by start offset - but 0 size whiteouts (which are always
+ * KEY_TYPE_deleted) break this ordering, so we need to skip over them:
+ */
+static void extent_iter_advance(struct sort_iter *iter, unsigned idx)
+{
+	struct sort_iter_set *i = iter->data + idx;
+
+	do {
+		i->k = bkey_next_skip_noops(i->k, i->end);
+	} while (i->k != i->end && bkey_deleted(i->k));
+
+	if (i->k == i->end)
+		array_remove_item(iter->data, iter->used, idx);
+	else
+		__sort_iter_sift(iter, idx, extent_sort_fix_overlapping_cmp);
+}
+
 struct btree_nr_keys
 bch2_extent_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 				 struct sort_iter *iter)
@@ -323,19 +342,26 @@ bch2_extent_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 	struct bkey_s l, r;
 	struct btree_nr_keys nr;
 	struct bkey_on_stack split;
+	unsigned i;
 
 	memset(&nr, 0, sizeof(nr));
 	bkey_on_stack_init(&split);
 
 	sort_iter_sort(iter, extent_sort_fix_overlapping_cmp);
+	for (i = 0; i < iter->used;) {
+		if (bkey_deleted(iter->data[i].k))
+			__sort_iter_advance(iter, i,
+					    extent_sort_fix_overlapping_cmp);
+		else
+			i++;
+	}
 
 	while (!sort_iter_end(iter)) {
 		l = __bkey_disassemble(b, _l->k, &l_unpacked);
 
 		if (iter->used == 1) {
 			extent_sort_append(c, f, &nr, dst->start, &prev, l);
-			sort_iter_advance(iter,
-					  extent_sort_fix_overlapping_cmp);
+			extent_iter_advance(iter, 0);
 			continue;
 		}
 
@@ -344,15 +370,13 @@ bch2_extent_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 		/* If current key and next key don't overlap, just append */
 		if (bkey_cmp(l.k->p, bkey_start_pos(r.k)) <= 0) {
 			extent_sort_append(c, f, &nr, dst->start, &prev, l);
-			sort_iter_advance(iter,
-					  extent_sort_fix_overlapping_cmp);
+			extent_iter_advance(iter, 0);
 			continue;
 		}
 
 		/* Skip 0 size keys */
 		if (!r.k->size) {
-			__sort_iter_advance(iter, 1,
-					    extent_sort_fix_overlapping_cmp);
+			extent_iter_advance(iter, 1);
 			continue;
 		}
 
@@ -369,8 +393,7 @@ bch2_extent_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 		if (_l->k > _r->k) {
 			/* l wins, trim r */
 			if (bkey_cmp(l.k->p, r.k->p) >= 0) {
-				__sort_iter_advance(iter, 1,
-					 extent_sort_fix_overlapping_cmp);
+				extent_iter_advance(iter, 1);
 			} else {
 				bch2_cut_front_s(l.k->p, r);
 				extent_save(b, _r->k, r.k);
