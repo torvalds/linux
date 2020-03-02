@@ -7143,6 +7143,10 @@ static void vmx_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 		    boot_cpu_has(X86_FEATURE_OSPKE))
 			cpuid_entry_set(entry, X86_FEATURE_PKU);
 		break;
+	case 0x80000001:
+		if (!cpu_has_vmx_rdtscp())
+			cpuid_entry_clear(entry, X86_FEATURE_RDTSCP);
+		break;
 	default:
 		break;
 	}
