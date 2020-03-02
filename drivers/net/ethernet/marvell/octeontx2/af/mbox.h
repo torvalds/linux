@@ -256,7 +256,8 @@ enum rvu_af_status {
 
 struct ready_msg_rsp {
 	struct mbox_msghdr hdr;
-	u16    sclk_feq;	/* SCLK frequency */
+	u16    sclk_freq;	/* SCLK frequency (in MHz) */
+	u16    rclk_freq;	/* RCLK frequency (in MHz) */
 };
 
 /* Structure for requesting resource provisioning.
