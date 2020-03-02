@@ -25,13 +25,13 @@
 #include "remoteproc_internal.h"
 
 /**
- * rproc_elf_sanity_check() - Sanity Check ELF firmware image
+ * rproc_elf_sanity_check() - Sanity Check ELF32 firmware image
  * @rproc: the remote processor handle
  * @fw: the ELF firmware image
  *
  * Make sure this fw image is sane.
  */
-int rproc_elf_sanity_check(struct rproc *rproc, const struct firmware *fw)
+int rproc_elf32_sanity_check(struct rproc *rproc, const struct firmware *fw)
 {
 	const char *name = rproc->firmware;
 	struct device *dev = &rproc->dev;
@@ -89,7 +89,7 @@ int rproc_elf_sanity_check(struct rproc *rproc, const struct firmware *fw)
 
 	return 0;
 }
-EXPORT_SYMBOL(rproc_elf_sanity_check);
+EXPORT_SYMBOL(rproc_elf32_sanity_check);
 
 /**
  * rproc_elf_get_boot_addr() - Get rproc's boot address.
