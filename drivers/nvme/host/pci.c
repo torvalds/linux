@@ -989,14 +989,13 @@ static inline void nvme_update_cq_head(struct nvme_queue *nvmeq)
 }
 
 static inline int nvme_process_cq(struct nvme_queue *nvmeq, u16 *start,
-				  u16 *end, unsigned int tag)
+				  u16 *end)
 {
 	int found = 0;
 
 	*start = nvmeq->cq_head;
 	while (nvme_cqe_pending(nvmeq)) {
-		if (tag == -1U || nvmeq->cqes[nvmeq->cq_head].command_id == tag)
-			found++;
+		found++;
 		nvme_update_cq_head(nvmeq);
 	}
 	*end = nvmeq->cq_head;
@@ -1017,7 +1016,7 @@ static irqreturn_t nvme_irq(int irq, void *data)
 	 * the irq handler, even if that was on another CPU.
 	 */
 	rmb();
-	nvme_process_cq(nvmeq, &start, &end, -1);
+	nvme_process_cq(nvmeq, &start, &end);
 	wmb();
 
 	if (start != end) {
@@ -1040,7 +1039,7 @@ static irqreturn_t nvme_irq_check(int irq, void *data)
  * Poll for completions any queue, including those not dedicated to polling.
  * Can be called from any context.
  */
-static int nvme_poll_irqdisable(struct nvme_queue *nvmeq, unsigned int tag)
+static int nvme_poll_irqdisable(struct nvme_queue *nvmeq)
 {
 	struct pci_dev *pdev = to_pci_dev(nvmeq->dev->dev);
 	u16 start, end;
@@ -1053,11 +1052,11 @@ static int nvme_poll_irqdisable(struct nvme_queue *nvmeq, unsigned int tag)
 	 */
 	if (test_bit(NVMEQ_POLLED, &nvmeq->flags)) {
 		spin_lock(&nvmeq->cq_poll_lock);
-		found = nvme_process_cq(nvmeq, &start, &end, tag);
+		found = nvme_process_cq(nvmeq, &start, &end);
 		spin_unlock(&nvmeq->cq_poll_lock);
 	} else {
 		disable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
-		found = nvme_process_cq(nvmeq, &start, &end, tag);
+		found = nvme_process_cq(nvmeq, &start, &end);
 		enable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
 	}
 
@@ -1075,8 +1074,7 @@ static int nvme_poll(struct blk_mq_hw_ctx *hctx)
 		return 0;
 
 	spin_lock(&nvmeq->cq_poll_lock);
-	found = nvme_process_cq(nvmeq, &start, &end, -1);
-	nvme_complete_cqes(nvmeq, start, end);
+	found = nvme_process_cq(nvmeq, &start, &end);
 	spin_unlock(&nvmeq->cq_poll_lock);
 
 	return found;
@@ -1253,7 +1251,8 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	/*
 	 * Did we miss an interrupt?
 	 */
-	if (nvme_poll_irqdisable(nvmeq, req->tag)) {
+	nvme_poll_irqdisable(nvmeq);
+	if (blk_mq_request_completed(req)) {
 		dev_warn(dev->ctrl.device,
 			 "I/O %d QID %d timeout, completion polled\n",
 			 req->tag, nvmeq->qid);
@@ -1396,7 +1395,7 @@ static void nvme_disable_admin_queue(struct nvme_dev *dev, bool shutdown)
 	else
 		nvme_disable_ctrl(&dev->ctrl);
 
-	nvme_poll_irqdisable(nvmeq, -1);
+	nvme_poll_irqdisable(nvmeq);
 }
 
 /*
@@ -1411,7 +1410,7 @@ static void nvme_reap_pending_cqes(struct nvme_dev *dev)
 	int i;
 
 	for (i = dev->ctrl.queue_count - 1; i > 0; i--) {
-		nvme_process_cq(&dev->queues[i], &start, &end, -1);
+		nvme_process_cq(&dev->queues[i], &start, &end);
 		nvme_complete_cqes(&dev->queues[i], start, end);
 	}
 }
