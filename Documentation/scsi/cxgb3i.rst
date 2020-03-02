@@ -1,4 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=================================
 Chelsio S3 iSCSI Driver for Linux
+=================================
 
 Introduction
 ============
@@ -49,7 +53,8 @@ The following steps need to be taken to accelerates the open-iscsi initiator:
 
    The cxgb3i module registers a new transport class "cxgb3i" with open-iscsi.
 
-   * in the case of recompiling the kernel, the cxgb3i selection is located at
+   * in the case of recompiling the kernel, the cxgb3i selection is located at::
+
 	Device Drivers
 		SCSI device support --->
 			[*] SCSI low-level drivers  --->
@@ -58,25 +63,26 @@ The following steps need to be taken to accelerates the open-iscsi initiator:
 2. Create an interface file located under /etc/iscsi/ifaces/ for the new
    transport class "cxgb3i".
 
-   The content of the file should be in the following format:
+   The content of the file should be in the following format::
+
 	iface.transport_name = cxgb3i
 	iface.net_ifacename = <ethX>
 	iface.ipaddress = <iscsi ip address>
 
    * if iface.ipaddress is specified, <iscsi ip address> needs to be either the
-	same as the ethX's ip address or an address on the same subnet. Make
-	sure the ip address is unique in the network.
+     same as the ethX's ip address or an address on the same subnet. Make
+     sure the ip address is unique in the network.
 
 3. edit /etc/iscsi/iscsid.conf
    The default setting for MaxRecvDataSegmentLength (131072) is too big;
-   replace with a value no bigger than 15360 (for example 8192):
+   replace with a value no bigger than 15360 (for example 8192)::
 
 	node.conn[0].iscsi.MaxRecvDataSegmentLength = 8192
 
    * The login would fail for a normal session if MaxRecvDataSegmentLength is
-	too big.  A error message in the format of
-	"cxgb3i: ERR! MaxRecvSegmentLength <X> too big. Need to be <= <Y>."
-	would be logged to dmesg.
+     too big.  A error message in the format of
+     "cxgb3i: ERR! MaxRecvSegmentLength <X> too big. Need to be <= <Y>."
+     would be logged to dmesg.
 
 4. To direct open-iscsi traffic to go through cxgb3i's accelerated path,
    "-I <iface file name>" option needs to be specified with most of the

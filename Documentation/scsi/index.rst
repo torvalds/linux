@@ -16,5 +16,6 @@ Linux SCSI Subsystem
    bfa
    bnx2fc
    BusLogic
+   cxgb3i
 
    scsi_transport_srp/figures
