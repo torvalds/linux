@@ -94,7 +94,7 @@ config CHR_DEV_ST
 	  If you want to use a SCSI tape drive under Linux, say Y and read the
 	  SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, and
-	  <file:Documentation/scsi/st.txt> in the kernel source.  This is NOT
+	  <file:Documentation/scsi/st.rst> in the kernel source.  This is NOT
 	  for SCSI CD-ROMs.
 
 	  To compile this driver as a module, choose M here and read

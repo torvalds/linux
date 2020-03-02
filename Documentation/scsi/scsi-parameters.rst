@@ -73,7 +73,7 @@ parameters may be changed at runtime by the command
 
 	osst=		[HW,SCSI] SCSI Tape Driver
 			Format: <buffer_size>,<write_threshold>
-			See also Documentation/scsi/st.txt.
+			See also Documentation/scsi/st.rst.
 
 	scsi_debug_*=	[SCSI]
 			See drivers/scsi/scsi_debug.c.
@@ -105,7 +105,7 @@ parameters may be changed at runtime by the command
 			See header of drivers/scsi/sim710.c.
 
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
-			See Documentation/scsi/st.txt.
+			See Documentation/scsi/st.rst.
 
 	wd33c93=	[HW,SCSI]
 			See header of drivers/scsi/wd33c93.c.
