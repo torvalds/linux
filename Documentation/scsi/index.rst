@@ -13,6 +13,7 @@ Linux SCSI Subsystem
    aha152x
    aic79xx
    aic7xxx
+   arcmsr_spec
    bfa
    bnx2fc
    BusLogic
