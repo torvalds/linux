@@ -1813,34 +1813,6 @@ TRACE_EVENT(svcrdma_post_rw,
 DEFINE_SENDCOMP_EVENT(read);
 DEFINE_SENDCOMP_EVENT(write);
 
-TRACE_EVENT(svcrdma_cm_event,
-	TP_PROTO(
-		const struct rdma_cm_event *event,
-		const struct sockaddr *sap
-	),
-
-	TP_ARGS(event, sap),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, event)
-		__field(int, status)
-		__array(__u8, addr, INET6_ADDRSTRLEN + 10)
-	),
-
-	TP_fast_assign(
-		__entry->event = event->event;
-		__entry->status = event->status;
-		snprintf(__entry->addr, sizeof(__entry->addr) - 1,
-			 "%pISpc", sap);
-	),
-
-	TP_printk("addr=%s event=%s (%u/%d)",
-		__entry->addr,
-		rdma_show_cm_event(__entry->event),
-		__entry->event, __entry->status
-	)
-);
-
 TRACE_EVENT(svcrdma_qp_error,
 	TP_PROTO(
 		const struct ib_event *event,
