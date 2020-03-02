@@ -3,6 +3,7 @@
 rk_vcodec-objs := mpp_service.o mpp_common.o mpp_iommu.o
 
 rk_vcodec-$(CONFIG_ROCKCHIP_MPP_RKVDEC) += mpp_rkvdec.o
+rk_vcodec-$(CONFIG_ROCKCHIP_MPP_RKVENC) += mpp_rkvenc.o
 rk_vcodec-$(CONFIG_ROCKCHIP_MPP_VDPU1)  += mpp_vdpu1.o
 rk_vcodec-$(CONFIG_ROCKCHIP_MPP_VEPU1)  += mpp_vepu1.o
 rk_vcodec-$(CONFIG_ROCKCHIP_MPP_VDPU2)  += mpp_vdpu2.o
