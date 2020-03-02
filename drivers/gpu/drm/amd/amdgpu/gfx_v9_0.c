@@ -738,9 +738,9 @@ static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring);
 static u64 gfx_v9_0_ring_get_rptr_compute(struct amdgpu_ring *ring);
 static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 					  void *ras_error_status);
-static void gfx_v9_0_clear_ras_edc_counter(struct amdgpu_device *adev);
 static int gfx_v9_0_ras_error_inject(struct amdgpu_device *adev,
 				     void *inject_if);
+static void gfx_v9_0_reset_ras_error_count(struct amdgpu_device *adev);
 
 static void gfx_v9_0_kiq_set_resources(struct amdgpu_ring *kiq_ring,
 				uint64_t queue_mask)
@@ -1997,7 +1997,8 @@ static const struct amdgpu_gfx_funcs gfx_v9_0_gfx_funcs = {
 	.read_wave_vgprs = &gfx_v9_0_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v9_0_select_me_pipe_q,
 	.ras_error_inject = &gfx_v9_0_ras_error_inject,
-	.query_ras_error_count = &gfx_v9_0_query_ras_error_count
+	.query_ras_error_count = &gfx_v9_0_query_ras_error_count,
+	.reset_ras_error_count = &gfx_v9_0_reset_ras_error_count,
 };
 
 static const struct amdgpu_gfx_funcs gfx_v9_4_gfx_funcs = {
@@ -2008,7 +2009,8 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_gfx_funcs = {
 	.read_wave_vgprs = &gfx_v9_0_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v9_0_select_me_pipe_q,
 	.ras_error_inject = &gfx_v9_4_ras_error_inject,
-	.query_ras_error_count = &gfx_v9_4_query_ras_error_count
+	.query_ras_error_count = &gfx_v9_4_query_ras_error_count,
+	.reset_ras_error_count = &gfx_v9_4_reset_ras_error_count,
 };
 
 static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
@@ -4395,18 +4397,6 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 		goto fail;
 	}
 
-	switch (adev->asic_type)
-	{
-	case CHIP_VEGA20:
-		gfx_v9_0_clear_ras_edc_counter(adev);
-		break;
-	case CHIP_ARCTURUS:
-		gfx_v9_4_clear_ras_edc_counter(adev);
-		break;
-	default:
-		break;
-	}
-
 fail:
 	amdgpu_ib_free(adev, &ib, NULL);
 	dma_fence_put(f);
@@ -4453,6 +4443,10 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	r = gfx_v9_0_do_edc_gpr_workarounds(adev);
 	if (r)
 		return r;
+
+	if (adev->gfx.funcs &&
+	    adev->gfx.funcs->reset_ras_error_count)
+		adev->gfx.funcs->reset_ras_error_count(adev);
 
 	r = amdgpu_gfx_ras_late_init(adev);
 	if (r)
@@ -6388,7 +6382,7 @@ static int gfx_v9_0_ras_error_count(const struct soc15_reg_entry *reg,
 	return 0;
 }
 
-static void gfx_v9_0_clear_ras_edc_counter(struct amdgpu_device *adev)
+static void gfx_v9_0_reset_ras_error_count(struct amdgpu_device *adev)
 {
 	int i, j, k;
 

@@ -206,6 +206,7 @@ struct amdgpu_gfx_funcs {
 				 u32 queue, u32 vmid);
 	int (*ras_error_inject)(struct amdgpu_device *adev, void *inject_if);
 	int (*query_ras_error_count) (struct amdgpu_device *adev, void *ras_error_status);
+	void (*reset_ras_error_count) (struct amdgpu_device *adev);
 };
 
 struct sq_work {
