@@ -1,7 +1,11 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===================================
 AACRAID Driver for Linux (take two)
+===================================
 
 Introduction
--------------------------
+============
 The aacraid driver adds support for Adaptec (http://www.adaptec.com)
 RAID controllers. This is a major rewrite from the original
 Adaptec supplied driver. It has significantly cleaned up both the code
@@ -9,8 +13,11 @@ and the running binary size (the module is less than half the size of
 the original).
 
 Supported Cards/Chipsets
--------------------------
+========================
+
+	===================	=======	=======================================
 	PCI ID (pci.ids)	OEM	Product
+	===================	=======	=======================================
 	9005:0285:9005:0285	Adaptec	2200S (Vulcan)
 	9005:0285:9005:0286	Adaptec	2120S (Crusader)
 	9005:0285:9005:0287	Adaptec	2200S (Vulcan-2m)
@@ -117,34 +124,54 @@ Supported Cards/Chipsets
 	9005:0285:108e:0286	SUN	STK RAID INT (Cougar)
 	9005:0285:108e:0287	SUN	STK RAID EXT (Prometheus)
 	9005:0285:108e:7aae	SUN	STK RAID EM (Narvi)
+	===================	=======	=======================================
 
 People
--------------------------
-Alan Cox <alan@lxorguk.ukuu.org.uk>
-Christoph Hellwig <hch@infradead.org>	(updates for new-style PCI probing and SCSI host registration,
-					 small cleanups/fixes)
-Matt Domsch <matt_domsch@dell.com>	(revision ioctl, adapter messages)
-Deanna Bonds                            (non-DASD support, PAE fibs and 64 bit, added new adaptec controllers
-					 added new ioctls, changed scsi interface to use new error handler,
-					 increased the number of fibs and outstanding commands to a container)
+======
 
-					(fixed 64bit and 64G memory model, changed confusing naming convention
-					 where fibs that go to the hardware are consistently called hw_fibs and
-					 not just fibs like the name of the driver tracking structure)
-Mark Salyzyn <Mark_Salyzyn@adaptec.com> Fixed panic issues and added some new product ids for upcoming hbas. Performance tuning, card failover and bug mitigations.
+Alan Cox <alan@lxorguk.ukuu.org.uk>
+
+Christoph Hellwig <hch@infradead.org>
+
+- updates for new-style PCI probing and SCSI host registration,
+  small cleanups/fixes
+
+Matt Domsch <matt_domsch@dell.com>
+
+- revision ioctl, adapter messages
+
+Deanna Bonds
+
+- non-DASD support, PAE fibs and 64 bit, added new adaptec controllers
+  added new ioctls, changed scsi interface to use new error handler,
+  increased the number of fibs and outstanding commands to a container
+- fixed 64bit and 64G memory model, changed confusing naming convention
+  where fibs that go to the hardware are consistently called hw_fibs and
+  not just fibs like the name of the driver tracking structure
+
+Mark Salyzyn <Mark_Salyzyn@adaptec.com>
+
+- Fixed panic issues and added some new product ids for upcoming hbas.
+- Performance tuning, card failover and bug mitigations.
+
 Achim Leubner <Achim_Leubner@adaptec.com>
 
-Original Driver
+- Original Driver
+
 -------------------------
+
 Adaptec Unix OEM Product Group
 
 Mailing List
--------------------------
+============
+
 linux-scsi@vger.kernel.org (Interested parties troll here)
 Also note this is very different to Brian's original driver
 so don't expect him to support it.
+
 Adaptec does support this driver.  Contact Adaptec tech support or
 aacraid@adaptec.com
 
 Original by Brian Boerner February 2001
+
 Rewritten by Alan Cox, November 2001

@@ -8,5 +8,6 @@ Linux SCSI Subsystem
    :maxdepth: 1
 
    53c700
+   aacraid
 
    scsi_transport_srp/figures

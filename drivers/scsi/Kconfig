@@ -421,7 +421,7 @@ config SCSI_AACRAID
 	help
 	  This driver supports a variety of Dell, HP, Adaptec, IBM and
 	  ICP storage products. For a list of supported products, refer
-	  to <file:Documentation/scsi/aacraid.txt>.
+	  to <file:Documentation/scsi/aacraid.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called aacraid.

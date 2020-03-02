@@ -236,7 +236,7 @@ M:	Adaptec OEM Raid Solutions <aacraid@microsemi.com>
 L:	linux-scsi@vger.kernel.org
 W:	http://www.adaptec.com/
 S:	Supported
-F:	Documentation/scsi/aacraid.txt
+F:	Documentation/scsi/aacraid.rst
 F:	drivers/scsi/aacraid/
 
 ABI/API
