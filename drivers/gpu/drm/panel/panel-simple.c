@@ -2277,7 +2277,7 @@ static const struct drm_display_mode mitsubishi_aa070mc01_mode = {
 };
 
 static const struct drm_display_mode logicpd_type_28_mode = {
-	.clock = 9000,
+	.clock = 9107,
 	.hdisplay = 480,
 	.hsync_start = 480 + 3,
 	.hsync_end = 480 + 3 + 42,
