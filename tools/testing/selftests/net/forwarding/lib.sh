@@ -277,11 +277,11 @@ wait_for_offload()
 
 until_counter_is()
 {
-	local value=$1; shift
+	local expr=$1; shift
 	local current=$("$@")
 
 	echo $((current))
-	((current >= value))
+	((current $expr))
 }
 
 busywait_for_counter()
@@ -290,7 +290,7 @@ busywait_for_counter()
 	local delta=$1; shift
 
 	local base=$("$@")
-	busywait "$timeout" until_counter_is $((base + delta)) "$@"
+	busywait "$timeout" until_counter_is ">= $((base + delta))" "$@"
 }
 
 setup_wait_dev()
