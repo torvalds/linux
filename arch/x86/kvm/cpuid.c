@@ -414,7 +414,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 	unsigned f_gbpages = 0;
 	unsigned f_lm = 0;
 #endif
-	unsigned f_xsaves = kvm_x86_ops->xsaves_supported() ? F(XSAVES) : 0;
 	unsigned f_intel_pt = kvm_x86_ops->pt_supported() ? F(INTEL_PT) : 0;
 
 	/* cpuid 1.edx */
@@ -471,7 +470,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 
 	/* cpuid 0xD.1.eax */
 	const u32 kvm_cpuid_D_1_eax_x86_features =
-		F(XSAVEOPT) | F(XSAVEC) | F(XGETBV1) | f_xsaves;
+		F(XSAVEOPT) | F(XSAVEC) | F(XGETBV1) | F(XSAVES);
 
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
@@ -602,6 +601,10 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 
 		entry->eax &= kvm_cpuid_D_1_eax_x86_features;
 		cpuid_entry_mask(entry, CPUID_D_1_EAX);
+
+		if (!kvm_x86_ops->xsaves_supported())
+			cpuid_entry_clear(entry, X86_FEATURE_XSAVES);
+
 		if (entry->eax & (F(XSAVES)|F(XSAVEC)))
 			entry->ebx = xstate_required_size(supported_xcr0, true);
 		else
