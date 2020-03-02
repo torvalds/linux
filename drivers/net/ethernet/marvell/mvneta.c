@@ -344,8 +344,10 @@ enum {
 	ETHTOOL_XDP_REDIRECT,
 	ETHTOOL_XDP_PASS,
 	ETHTOOL_XDP_DROP,
-	ETHTOOL_XDP_XMIT,
 	ETHTOOL_XDP_TX,
+	ETHTOOL_XDP_TX_ERR,
+	ETHTOOL_XDP_XMIT,
+	ETHTOOL_XDP_XMIT_ERR,
 	ETHTOOL_MAX_STATS,
 };
 
@@ -404,7 +406,9 @@ static const struct mvneta_statistic mvneta_statistics[] = {
 	{ ETHTOOL_XDP_PASS, T_SW, "rx_xdp_pass", },
 	{ ETHTOOL_XDP_DROP, T_SW, "rx_xdp_drop", },
 	{ ETHTOOL_XDP_TX, T_SW, "rx_xdp_tx", },
+	{ ETHTOOL_XDP_TX_ERR, T_SW, "rx_xdp_tx_errors", },
 	{ ETHTOOL_XDP_XMIT, T_SW, "tx_xdp_xmit", },
+	{ ETHTOOL_XDP_XMIT_ERR, T_SW, "tx_xdp_xmit_errors", },
 };
 
 struct mvneta_stats {
@@ -417,7 +421,9 @@ struct mvneta_stats {
 	u64	xdp_pass;
 	u64	xdp_drop;
 	u64	xdp_xmit;
+	u64	xdp_xmit_err;
 	u64	xdp_tx;
+	u64	xdp_tx_err;
 };
 
 struct mvneta_ethtool_stats {
@@ -2059,6 +2065,7 @@ mvneta_xdp_submit_frame(struct mvneta_port *pp, struct mvneta_tx_queue *txq,
 static int
 mvneta_xdp_xmit_back(struct mvneta_port *pp, struct xdp_buff *xdp)
 {
+	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 	struct mvneta_tx_queue *txq;
 	struct netdev_queue *nq;
 	struct xdp_frame *xdpf;
@@ -2076,8 +2083,6 @@ mvneta_xdp_xmit_back(struct mvneta_port *pp, struct xdp_buff *xdp)
 	__netif_tx_lock(nq, cpu);
 	ret = mvneta_xdp_submit_frame(pp, txq, xdpf, false);
 	if (ret == MVNETA_XDP_TX) {
-		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
-
 		u64_stats_update_begin(&stats->syncp);
 		stats->es.ps.tx_bytes += xdpf->len;
 		stats->es.ps.tx_packets++;
@@ -2085,6 +2090,10 @@ mvneta_xdp_xmit_back(struct mvneta_port *pp, struct xdp_buff *xdp)
 		u64_stats_update_end(&stats->syncp);
 
 		mvneta_txq_pend_desc_add(pp, txq, 0);
+	} else {
+		u64_stats_update_begin(&stats->syncp);
+		stats->es.ps.xdp_tx_err++;
+		u64_stats_update_end(&stats->syncp);
 	}
 	__netif_tx_unlock(nq);
 
@@ -2128,6 +2137,7 @@ mvneta_xdp_xmit(struct net_device *dev, int num_frame,
 	stats->es.ps.tx_bytes += nxmit_byte;
 	stats->es.ps.tx_packets += nxmit;
 	stats->es.ps.xdp_xmit += nxmit;
+	stats->es.ps.xdp_xmit_err += num_frame - nxmit;
 	u64_stats_update_end(&stats->syncp);
 
 	return nxmit;
@@ -2152,7 +2162,7 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 		int err;
 
 		err = xdp_do_redirect(pp->dev, xdp, prog);
-		if (err) {
+		if (unlikely(err)) {
 			ret = MVNETA_XDP_DROPPED;
 			page_pool_put_page(rxq->page_pool,
 					   virt_to_head_page(xdp->data), len,
@@ -4518,6 +4528,8 @@ mvneta_ethtool_update_pcpu_stats(struct mvneta_port *pp,
 		u64 skb_alloc_error;
 		u64 refill_error;
 		u64 xdp_redirect;
+		u64 xdp_xmit_err;
+		u64 xdp_tx_err;
 		u64 xdp_pass;
 		u64 xdp_drop;
 		u64 xdp_xmit;
@@ -4532,7 +4544,9 @@ mvneta_ethtool_update_pcpu_stats(struct mvneta_port *pp,
 			xdp_pass = stats->es.ps.xdp_pass;
 			xdp_drop = stats->es.ps.xdp_drop;
 			xdp_xmit = stats->es.ps.xdp_xmit;
+			xdp_xmit_err = stats->es.ps.xdp_xmit_err;
 			xdp_tx = stats->es.ps.xdp_tx;
+			xdp_tx_err = stats->es.ps.xdp_tx_err;
 		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
 
 		es->skb_alloc_error += skb_alloc_error;
@@ -4541,7 +4555,9 @@ mvneta_ethtool_update_pcpu_stats(struct mvneta_port *pp,
 		es->ps.xdp_pass += xdp_pass;
 		es->ps.xdp_drop += xdp_drop;
 		es->ps.xdp_xmit += xdp_xmit;
+		es->ps.xdp_xmit_err += xdp_xmit_err;
 		es->ps.xdp_tx += xdp_tx;
+		es->ps.xdp_tx_err += xdp_tx_err;
 	}
 }
 
@@ -4594,8 +4610,14 @@ static void mvneta_ethtool_update_stats(struct mvneta_port *pp)
 			case ETHTOOL_XDP_TX:
 				pp->ethtool_stats[i] = stats.ps.xdp_tx;
 				break;
+			case ETHTOOL_XDP_TX_ERR:
+				pp->ethtool_stats[i] = stats.ps.xdp_tx_err;
+				break;
 			case ETHTOOL_XDP_XMIT:
 				pp->ethtool_stats[i] = stats.ps.xdp_xmit;
+				break;
+			case ETHTOOL_XDP_XMIT_ERR:
+				pp->ethtool_stats[i] = stats.ps.xdp_xmit_err;
 				break;
 			}
 			break;
