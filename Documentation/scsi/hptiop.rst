@@ -1,15 +1,25 @@
-HIGHPOINT ROCKETRAID 3xxx/4xxx ADAPTER DRIVER (hptiop)
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
+======================================================
+Highpoint RocketRAID 3xxx/4xxx Adapter Driver (hptiop)
+======================================================
 
 Controller Register Map
--------------------------
+-----------------------
 
-For RR44xx Intel IOP based adapters, the controller IOP is accessed via PCI BAR0 and BAR2:
+For RR44xx Intel IOP based adapters, the controller IOP is accessed via PCI BAR0 and BAR2
 
+     ============== ==================================
      BAR0 offset    Register
+     ============== ==================================
             0x11C5C Link Interface IRQ Set
             0x11C60 Link Interface IRQ Clear
+     ============== ==================================
 
+     ============== ==================================
      BAR2 offset    Register
+     ============== ==================================
             0x10    Inbound Message Register 0
             0x14    Inbound Message Register 1
             0x18    Outbound Message Register 0
@@ -21,10 +31,13 @@ For RR44xx Intel IOP based adapters, the controller IOP is accessed via PCI BAR0
             0x34    Outbound Interrupt Mask Register
             0x40    Inbound Queue Port
             0x44    Outbound Queue Port
+     ============== ==================================
 
 For Intel IOP based adapters, the controller IOP is accessed via PCI BAR0:
 
+     ============== ==================================
      BAR0 offset    Register
+     ============== ==================================
             0x10    Inbound Message Register 0
             0x14    Inbound Message Register 1
             0x18    Outbound Message Register 0
@@ -36,16 +49,22 @@ For Intel IOP based adapters, the controller IOP is accessed via PCI BAR0:
             0x34    Outbound Interrupt Mask Register
             0x40    Inbound Queue Port
             0x44    Outbound Queue Port
+     ============== ==================================
 
 For Marvell not Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
 
+     ============== ==================================
      BAR0 offset    Register
+     ============== ==================================
          0x20400    Inbound Doorbell Register
          0x20404    Inbound Interrupt Mask Register
          0x20408    Outbound Doorbell Register
          0x2040C    Outbound Interrupt Mask Register
+     ============== ==================================
 
+     ============== ==================================
      BAR1 offset    Register
+     ============== ==================================
              0x0    Inbound Queue Head Pointer
              0x4    Inbound Queue Tail Pointer
              0x8    Outbound Queue Head Pointer
@@ -53,14 +72,20 @@ For Marvell not Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BA
             0x10    Inbound Message Register
             0x14    Outbound Message Register
      0x40-0x1040    Inbound Queue
-   0x1040-0x2040    Outbound Queue
+     0x1040-0x2040  Outbound Queue
+     ============== ==================================
 
 For Marvell Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
 
+     ============== ==================================
      BAR0 offset    Register
+     ============== ==================================
              0x0    IOP configuration information.
+     ============== ==================================
 
+     ============== ===================================================
      BAR1 offset    Register
+     ============== ===================================================
           0x4000    Inbound List Base Address Low
           0x4004    Inbound List Base Address High
           0x4018    Inbound List Write Pointer
@@ -76,10 +101,11 @@ For Marvell Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
          0x10420    CPU to PCIe Function 0 Message A
          0x10480    CPU to PCIe Function 0 Doorbell
          0x10484    CPU to PCIe Function 0 Doorbell Enable
+     ============== ===================================================
 
 
 I/O Request Workflow of Not Marvell Frey
-------------------------------------------
+----------------------------------------
 
 All queued requests are handled via inbound/outbound queue port.
 A request packet can be allocated in either IOP or host memory.
@@ -124,7 +150,7 @@ of an inbound message.
 
 
 I/O Request Workflow of Marvell Frey
---------------------------------------
+------------------------------------
 
 All queued requests are handled via inbound/outbound list.
 
@@ -167,13 +193,17 @@ User-level Interface
 
 The driver exposes following sysfs attributes:
 
+     ==================   ===    ========================
      NAME                 R/W    Description
+     ==================   ===    ========================
      driver-version        R     driver version string
      firmware-version      R     firmware version string
+     ==================   ===    ========================
 
 
 -----------------------------------------------------------------------------
-Copyright (C) 2006-2012 HighPoint Technologies, Inc. All Rights Reserved.
+
+Copyright |copy| 2006-2012 HighPoint Technologies, Inc. All Rights Reserved.
 
   This file is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -181,4 +211,5 @@ Copyright (C) 2006-2012 HighPoint Technologies, Inc. All Rights Reserved.
   GNU General Public License for more details.
 
   linux@highpoint-tech.com
+
   http://www.highpoint-tech.com

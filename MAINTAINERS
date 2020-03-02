@@ -7505,7 +7505,7 @@ HIGHPOINT ROCKETRAID 3xxx RAID DRIVER
 M:	HighPoint Linux Team <linux@highpoint-tech.com>
 W:	http://www.highpoint-tech.com
 S:	Supported
-F:	Documentation/scsi/hptiop.txt
+F:	Documentation/scsi/hptiop.rst
 F:	drivers/scsi/hptiop.c
 
 HIPPI
