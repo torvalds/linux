@@ -408,9 +408,6 @@ static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_array *array,
 		    &entry->eax, &entry->ebx, &entry->ecx, &entry->edx);
 
 	switch (function) {
-	case 2:
-		entry->flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
-		break;
 	case 4:
 	case 7:
 	case 0xb:
@@ -486,17 +483,31 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		 * it since we emulate x2apic in software */
 		cpuid_entry_set(entry, X86_FEATURE_X2APIC);
 		break;
-	/* function 2 entries are STATEFUL. That is, repeated cpuid commands
-	 * may return different values. This forces us to get_cpu() before
-	 * issuing the first command, and also to emulate this annoying behavior
-	 * in kvm_emulate_cpuid() using KVM_CPUID_FLAG_STATE_READ_NEXT */
 	case 2:
+		/*
+		 * On ancient CPUs, function 2 entries are STATEFUL.  That is,
+		 * CPUID(function=2, index=0) may return different results each
+		 * time, with the least-significant byte in EAX enumerating the
+		 * number of times software should do CPUID(2, 0).
+		 *
+		 * Modern CPUs (quite likely every CPU KVM has *ever* run on)
+		 * are less idiotic.  Intel's SDM states that EAX & 0xff "will
+		 * always return 01H. Software should ignore this value and not
+		 * interpret it as an informational descriptor", while AMD's
+		 * APM states that CPUID(2) is reserved.
+		 */
+		max_idx = entry->eax & 0xff;
+		if (likely(max_idx <= 1))
+			break;
+
+		entry->flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
 		entry->flags |= KVM_CPUID_FLAG_STATE_READ_NEXT;
 
-		for (i = 1, max_idx = entry->eax & 0xff; i < max_idx; ++i) {
+		for (i = 1; i < max_idx; ++i) {
 			entry = do_host_cpuid(array, function, 0);
 			if (!entry)
 				goto out;
+			entry->flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
 		}
 		break;
 	/* functions 4 and 0x8000001d have additional index. */
@@ -909,7 +920,7 @@ static int is_matching_cpuid_entry(struct kvm_cpuid_entry2 *e,
 		return 0;
 	if ((e->flags & KVM_CPUID_FLAG_SIGNIFCANT_INDEX) && e->index != index)
 		return 0;
-	if ((e->flags & KVM_CPUID_FLAG_STATEFUL_FUNC) &&
+	if (unlikely(e->flags & KVM_CPUID_FLAG_STATEFUL_FUNC) &&
 	    !(e->flags & KVM_CPUID_FLAG_STATE_READ_NEXT))
 		return 0;
 	return 1;
@@ -926,7 +937,7 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 
 		e = &vcpu->arch.cpuid_entries[i];
 		if (is_matching_cpuid_entry(e, function, index)) {
-			if (e->flags & KVM_CPUID_FLAG_STATEFUL_FUNC)
+			if (unlikely(e->flags & KVM_CPUID_FLAG_STATEFUL_FUNC))
 				move_to_next_stateful_cpuid_entry(vcpu, i);
 			best = e;
 			break;
