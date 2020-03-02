@@ -62,7 +62,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	smb2_oplock = SMB2_OPLOCK_LEVEL_BATCH;
 
 	rc = SMB2_open(xid, oparms, smb2_path, &smb2_oplock, smb2_data, NULL,
-		       NULL);
+		       NULL, NULL);
 	if (rc)
 		goto out;
 

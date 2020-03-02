@@ -1951,25 +1951,46 @@ parse_query_id_ctxt(struct create_context *cc, struct smb2_file_all_info *buf)
 }
 
 static void
-parse_posix_ctxt(struct create_context *cc, struct smb2_file_all_info *info)
+parse_posix_ctxt(struct create_context *cc, struct smb2_file_all_info *info,
+		 struct create_posix_rsp *posix)
 {
-	/* struct create_posix_rsp *posix = (struct create_posix_rsp *)cc; */
+	int sid_len;
+	u8 *beg = (u8 *)cc + le16_to_cpu(cc->DataOffset);
+	u8 *end = beg + le32_to_cpu(cc->DataLength);
+	u8 *sid;
 
-	/*
-	 * TODO: Need to add parsing for the context and return. Can
-	 * smb2_file_all_info hold POSIX data? Need to change the
-	 * passed type from SMB2_open.
-	 */
-	printk_once(KERN_WARNING
-		    "SMB3 3.11 POSIX response context not completed yet\n");
+	memset(posix, 0, sizeof(*posix));
 
+	posix->nlink = le32_to_cpu(*(__le32 *)(beg + 0));
+	posix->reparse_tag = le32_to_cpu(*(__le32 *)(beg + 4));
+	posix->mode = le32_to_cpu(*(__le32 *)(beg + 8));
+
+	sid = beg + 12;
+	sid_len = posix_info_sid_size(sid, end);
+	if (sid_len < 0) {
+		cifs_dbg(VFS, "bad owner sid in posix create response\n");
+		return;
+	}
+	memcpy(&posix->owner, sid, sid_len);
+
+	sid = sid + sid_len;
+	sid_len = posix_info_sid_size(sid, end);
+	if (sid_len < 0) {
+		cifs_dbg(VFS, "bad group sid in posix create response\n");
+		return;
+	}
+	memcpy(&posix->group, sid, sid_len);
+
+	cifs_dbg(FYI, "nlink=%d mode=%o reparse_tag=%x\n",
+		 posix->nlink, posix->mode, posix->reparse_tag);
 }
 
 void
 smb2_parse_contexts(struct TCP_Server_Info *server,
-		       struct smb2_create_rsp *rsp,
-		       unsigned int *epoch, char *lease_key, __u8 *oplock,
-		       struct smb2_file_all_info *buf)
+		    struct smb2_create_rsp *rsp,
+		    unsigned int *epoch, char *lease_key, __u8 *oplock,
+		    struct smb2_file_all_info *buf,
+		    struct create_posix_rsp *posix)
 {
 	char *data_offset;
 	struct create_context *cc;
@@ -1999,8 +2020,9 @@ smb2_parse_contexts(struct TCP_Server_Info *server,
 		    strncmp(name, SMB2_CREATE_QUERY_ON_DISK_ID, 4) == 0)
 			parse_query_id_ctxt(cc, buf);
 		else if ((le16_to_cpu(cc->NameLength) == 16)) {
-			if (memcmp(name, smb3_create_tag_posix, 16) == 0)
-				parse_posix_ctxt(cc, buf);
+			if (posix &&
+			    memcmp(name, smb3_create_tag_posix, 16) == 0)
+				parse_posix_ctxt(cc, buf, posix);
 		}
 		/* else {
 			cifs_dbg(FYI, "Context not matched with len %d\n",
@@ -2725,6 +2747,7 @@ SMB2_open_free(struct smb_rqst *rqst)
 int
 SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	  __u8 *oplock, struct smb2_file_all_info *buf,
+	  struct create_posix_rsp *posix,
 	  struct kvec *err_iov, int *buftype)
 {
 	struct smb_rqst rqst;
@@ -2803,7 +2826,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 
 
 	smb2_parse_contexts(server, rsp, &oparms->fid->epoch,
-			    oparms->fid->lease_key, oplock, buf);
+			    oparms->fid->lease_key, oplock, buf, posix);
 creat_exit:
 	SMB2_open_free(&rqst);
 	free_rsp_buf(resp_buftype, rsp);
@@ -4302,7 +4325,7 @@ SMB2_write(const unsigned int xid, struct cifs_io_parms *io_parms,
 	return rc;
 }
 
-static int posix_info_sid_size(const void *beg, const void *end)
+int posix_info_sid_size(const void *beg, const void *end)
 {
 	size_t subauth;
 	int total;

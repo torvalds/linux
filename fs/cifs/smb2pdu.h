@@ -1605,13 +1605,11 @@ extern char smb2_padding[7];
 
 /* equivalent of the contents of SMB3.1.1 POSIX open context response */
 struct create_posix_rsp {
-	__le32 nlink;
-	__le32 reparse_tag;
-	__le32 mode;
-	/*
-	 * var sized owner SID
-	 * var sized group SID
-	 */
+	u32 nlink;
+	u32 reparse_tag;
+	u32 mode;
+	struct cifs_sid owner; /* var-sized on the wire */
+	struct cifs_sid group; /* var-sized on the wire */
 } __packed;
 
 /*
