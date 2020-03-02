@@ -28,8 +28,8 @@ To get started build the documentation from the sources after
 installing docker-compose on you host:
 
 .. code-block:: c
-   
-   cd tools/teaching && make docker-docs
+
+   cd tools/labs && make docker-docs
 
 then point your browser at **Documentation/output/labs/index.html**.
 
@@ -37,8 +37,8 @@ Alternatively, you can build directly on the host (see
 tools/labs/docs/Dockerfile for dependencies):
 
 .. code-block:: c
-   
-   cd tools/teaching && make docs
+
+   cd tools/labs && make docs
 
 .. toctree::
    :caption: Lectures
@@ -49,7 +49,6 @@ tools/labs/docs/Dockerfile for dependencies):
    lectures/interrupts.rst
    lectures/smp.rst
    lectures/debugging.rst
-   labs/vm.rst
 
 .. toctree::
    :caption: Labs
@@ -67,3 +66,10 @@ tools/labs/docs/Dockerfile for dependencies):
    labs/networking.rst
    labs/memory_mapping.rst
    labs/device_model.rst
+
+.. toctree::
+   :caption: Useful info
+
+   info/vm.rst
+   info/contributing.rst
+
