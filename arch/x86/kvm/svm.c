@@ -6035,9 +6035,9 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 
 #define F feature_bit
 
-static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
+static void svm_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 {
-	switch (func) {
+	switch (entry->function) {
 	case 0x80000001:
 		if (nested)
 			entry->ecx |= (1 << 2); /* Set SVM bit */

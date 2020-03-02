@@ -1161,7 +1161,7 @@ struct kvm_x86_ops {
 
 	void (*set_tdp_cr3)(struct kvm_vcpu *vcpu, unsigned long cr3);
 
-	void (*set_supported_cpuid)(u32 func, struct kvm_cpuid_entry2 *entry);
+	void (*set_supported_cpuid)(struct kvm_cpuid_entry2 *entry);
 
 	bool (*has_wbinvd_exit)(void);
 
