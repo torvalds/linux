@@ -1671,8 +1671,7 @@ static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 static int pick_rt_task(struct rq *rq, struct task_struct *p, int cpu)
 {
 	if (!task_running(rq, p) &&
-	    cpumask_test_cpu(cpu, &p->cpus_allowed) &&
-	    rt_task_fits_capacity(p, cpu))
+	    cpumask_test_cpu(cpu, &p->cpus_allowed))
 		return 1;
 
 	return 0;
