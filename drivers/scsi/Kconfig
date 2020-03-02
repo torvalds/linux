@@ -804,7 +804,7 @@ config SCSI_PPA
 	  newer drives)", below.
 
 	  For more information about this driver and how to use it you should
-	  read the file <file:Documentation/scsi/ppa.txt>.  You should also read
+	  read the file <file:Documentation/scsi/ppa.rst>.  You should also read
 	  the SCSI-HOWTO, which is available from
 	  <http://www.tldp.org/docs.html#howto>.  If you use this driver,
 	  you will still be able to use the parallel port for other tasks,
@@ -831,7 +831,7 @@ config SCSI_IMM
 	  here and Y to "IOMEGA Parallel Port (ppa - older drives)", above.
 
 	  For more information about this driver and how to use it you should
-	  read the file <file:Documentation/scsi/ppa.txt>.  You should also read
+	  read the file <file:Documentation/scsi/ppa.rst>.  You should also read
 	  the SCSI-HOWTO, which is available from
 	  <http://www.tldp.org/docs.html#howto>.  If you use this driver,
 	  you will still be able to use the parallel port for other tasks,
