@@ -872,6 +872,7 @@ struct dc_flip_addrs {
 	unsigned int flip_timestamp_in_us;
 	bool flip_immediate;
 	/* TODO: add flip duration for FreeSync */
+	bool triplebuffer_flips;
 };
 
 bool dc_post_update_surfaces_to_stream(
