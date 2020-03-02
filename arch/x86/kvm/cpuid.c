@@ -653,26 +653,33 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		if (!supported)
 			break;
 
-		for (idx = 1, i = 1; idx < 64; ++idx) {
+		if (*nent >= maxnent)
+			goto out;
+
+		do_host_cpuid(&entry[1], function, 1);
+		++*nent;
+
+		entry[1].eax &= kvm_cpuid_D_1_eax_x86_features;
+		cpuid_mask(&entry[1].eax, CPUID_D_1_EAX);
+		if (entry[1].eax & (F(XSAVES)|F(XSAVEC)))
+			entry[1].ebx = xstate_required_size(supported, true);
+		else
+			entry[1].ebx = 0;
+		/* Saving XSS controlled state via XSAVES isn't supported. */
+		entry[1].ecx = 0;
+		entry[1].edx = 0;
+
+		for (idx = 2, i = 2; idx < 64; ++idx) {
 			u64 mask = ((u64)1 << idx);
+
 			if (*nent >= maxnent)
 				goto out;
 
 			do_host_cpuid(&entry[i], function, idx);
-			if (idx == 1) {
-				entry[i].eax &= kvm_cpuid_D_1_eax_x86_features;
-				cpuid_mask(&entry[i].eax, CPUID_D_1_EAX);
-				entry[i].ebx = 0;
-				if (entry[i].eax & (F(XSAVES)|F(XSAVEC)))
-					entry[i].ebx =
-						xstate_required_size(supported,
-								     true);
-			} else {
-				if (entry[i].eax == 0 || !(supported & mask))
-					continue;
-				if (WARN_ON_ONCE(entry[i].ecx & 1))
-					continue;
-			}
+			if (entry[i].eax == 0 || !(supported & mask))
+				continue;
+			if (WARN_ON_ONCE(entry[i].ecx & 1))
+				continue;
 			entry[i].ecx = 0;
 			entry[i].edx = 0;
 			++*nent;
