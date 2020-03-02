@@ -5559,18 +5559,11 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invpcid_gva);
 
-void kvm_enable_tdp(void)
+void kvm_configure_mmu(bool enable_tdp)
 {
-	tdp_enabled = true;
+	tdp_enabled = enable_tdp;
 }
-EXPORT_SYMBOL_GPL(kvm_enable_tdp);
-
-void kvm_disable_tdp(void)
-{
-	tdp_enabled = false;
-}
-EXPORT_SYMBOL_GPL(kvm_disable_tdp);
-
+EXPORT_SYMBOL_GPL(kvm_configure_mmu);
 
 /* The return value indicates if tlb flush on all vcpus is needed. */
 typedef bool (*slot_level_handler) (struct kvm *kvm, struct kvm_rmap_head *rmap_head);

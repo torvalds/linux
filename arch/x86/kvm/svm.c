@@ -1458,10 +1458,7 @@ static __init int svm_hardware_setup(void)
 	if (npt_enabled && !npt)
 		npt_enabled = false;
 
-	if (npt_enabled)
-		kvm_enable_tdp();
-	else
-		kvm_disable_tdp();
+	kvm_configure_mmu(npt_enabled);
 	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
 
 	if (nrips) {
