@@ -670,13 +670,14 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry[1].edx = 0;
 
 		for (idx = 2, i = 2; idx < 64; ++idx) {
-			u64 mask = ((u64)1 << idx);
+			if (!(supported & BIT_ULL(idx)))
+				continue;
 
 			if (*nent >= maxnent)
 				goto out;
 
 			do_host_cpuid(&entry[i], function, idx);
-			if (entry[i].eax == 0 || !(supported & mask))
+			if (entry[i].eax == 0)
 				continue;
 			if (WARN_ON_ONCE(entry[i].ecx & 1))
 				continue;
