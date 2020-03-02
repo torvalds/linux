@@ -448,7 +448,7 @@ config SCSI_DPT_I2O
 	help
 	  This driver supports all of Adaptec's I2O based RAID controllers as 
 	  well as the DPT SmartRaid V cards.  This is an Adaptec maintained
-	  driver by Deanna Bonds.  See <file:Documentation/scsi/dpti.txt>.
+	  driver by Deanna Bonds.  See <file:Documentation/scsi/dpti.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dpt_i2o.

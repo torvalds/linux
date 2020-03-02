@@ -18,5 +18,6 @@ Linux SCSI Subsystem
    BusLogic
    cxgb3i
    dc395x
+   dpti
 
    scsi_transport_srp/figures

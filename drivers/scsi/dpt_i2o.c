@@ -8,7 +8,7 @@
 			   July 30, 2001 First version being submitted
 			   for inclusion in the kernel.  V2.4
 
-    See Documentation/scsi/dpti.txt for history, notes, license info
+    See Documentation/scsi/dpti.rst for history, notes, license info
     and credits
  ***************************************************************************/
 
