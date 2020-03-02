@@ -22,7 +22,7 @@ parameters may be changed at runtime by the command
 			Format: <portbase>[,<buson>,<busoff>[,<dmaspeed>]]
 
 	aic7xxx=	[HW,SCSI]
-			See Documentation/scsi/aic7xxx.txt.
+			See Documentation/scsi/aic7xxx.rst.
 
 	aic79xx=	[HW,SCSI]
 			See Documentation/scsi/aic79xx.rst.

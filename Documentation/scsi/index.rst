@@ -12,5 +12,6 @@ Linux SCSI Subsystem
    advansys
    aha152x
    aic79xx
+   aic7xxx
 
    scsi_transport_srp/figures
