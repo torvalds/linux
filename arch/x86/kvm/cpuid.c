@@ -677,10 +677,17 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 				goto out;
 
 			do_host_cpuid(&entry[i], function, idx);
-			if (entry[i].eax == 0)
+
+			/*
+			 * The @supported check above should have filtered out
+			 * invalid sub-leafs as well as sub-leafs managed by
+			 * IA32_XSS MSR.  Only XCR0-managed sub-leafs should
+			 * reach this point, and they should have a non-zero
+			 * save state size.
+			 */
+			if (WARN_ON_ONCE(!entry[i].eax || (entry[i].ecx & 1)))
 				continue;
-			if (WARN_ON_ONCE(entry[i].ecx & 1))
-				continue;
+
 			entry[i].ecx = 0;
 			entry[i].edx = 0;
 			++*nent;
