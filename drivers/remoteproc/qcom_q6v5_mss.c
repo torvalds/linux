@@ -1325,7 +1325,7 @@ static int q6v5_stop(struct rproc *rproc)
 	return 0;
 }
 
-static void *q6v5_da_to_va(struct rproc *rproc, u64 da, int len)
+static void *q6v5_da_to_va(struct rproc *rproc, u64 da, size_t len)
 {
 	struct q6v5 *qproc = rproc->priv;
 	int offset;
