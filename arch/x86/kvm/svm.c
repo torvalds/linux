@@ -6074,11 +6074,6 @@ static int svm_get_lpage_level(void)
 	return PT_PDPE_LEVEL;
 }
 
-static bool svm_rdtscp_supported(void)
-{
-	return boot_cpu_has(X86_FEATURE_RDTSCP);
-}
-
 static bool svm_pt_supported(void)
 {
 	return false;
@@ -7445,7 +7440,6 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 
 	.cpuid_update = svm_cpuid_update,
 
-	.rdtscp_supported = svm_rdtscp_supported,
 	.pt_supported = svm_pt_supported,
 
 	.set_supported_cpuid = svm_set_supported_cpuid,
