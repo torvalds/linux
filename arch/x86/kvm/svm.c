@@ -1367,6 +1367,23 @@ static void svm_hardware_teardown(void)
 	iopm_base = 0;
 }
 
+static __init void svm_set_cpu_caps(void)
+{
+	kvm_set_cpu_caps();
+
+	/* CPUID 0x80000001 */
+	if (nested)
+		kvm_cpu_cap_set(X86_FEATURE_SVM);
+
+	/* CPUID 0x8000000A */
+	/* Support next_rip if host supports it */
+	if (boot_cpu_has(X86_FEATURE_NRIPS))
+		kvm_cpu_cap_set(X86_FEATURE_NRIPS);
+
+	if (npt_enabled)
+		kvm_cpu_cap_set(X86_FEATURE_NPT);
+}
+
 static __init int svm_hardware_setup(void)
 {
 	int cpu;
@@ -1479,7 +1496,7 @@ static __init int svm_hardware_setup(void)
 			pr_info("Virtual GIF supported\n");
 	}
 
-	kvm_set_cpu_caps();
+	svm_set_cpu_caps();
 
 	return 0;
 
@@ -6035,16 +6052,20 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 					 APICV_INHIBIT_REASON_NESTED);
 }
 
+/*
+ * Vendor specific emulation must be handled via ->set_supported_cpuid(), not
+ * svm_set_cpu_caps(), as capabilities configured during hardware_setup() are
+ * masked against hardware/kernel support, i.e. they'd be lost.
+ *
+ * Note, setting a flag based on a *different* feature, e.g. setting VIRT_SSBD
+ * if LS_CFG_SSBD or AMD_SSBD is supported, is effectively emulation.
+ */
 static void svm_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 {
 	switch (entry->function) {
-	case 0x80000001:
-		if (nested)
-			cpuid_entry_set(entry, X86_FEATURE_SVM);
-		break;
 	case 0x80000008:
 		if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) ||
-		     boot_cpu_has(X86_FEATURE_AMD_SSBD))
+		    boot_cpu_has(X86_FEATURE_AMD_SSBD))
 			cpuid_entry_set(entry, X86_FEATURE_VIRT_SSBD);
 		break;
 	case 0x8000000A:
@@ -6052,16 +6073,9 @@ static void svm_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 		entry->ebx = 8; /* Lets support 8 ASIDs in case we add proper
 				   ASID emulation to nested SVM */
 		entry->ecx = 0; /* Reserved */
-		entry->edx = 0; /* Per default do not support any
-				   additional features */
-
-		/* Support next_rip if host supports it */
-		if (boot_cpu_has(X86_FEATURE_NRIPS))
-			cpuid_entry_set(entry, X86_FEATURE_NRIPS);
-
-		/* Support NPT for the guest if enabled */
-		if (npt_enabled)
-			cpuid_entry_set(entry, X86_FEATURE_NPT);
+		/* Note, 0x8000000A.EDX is managed via kvm_cpu_caps. */;
+		cpuid_entry_mask(entry, CPUID_8000_000A_EDX);
+		break;
 	}
 }
 
