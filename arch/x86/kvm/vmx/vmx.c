@@ -7137,6 +7137,11 @@ static void vmx_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 			cpuid_entry_set(entry, X86_FEATURE_INVPCID);
 		if (vmx_umip_emulated())
 			cpuid_entry_set(entry, X86_FEATURE_UMIP);
+
+		/* PKU is not yet implemented for shadow paging. */
+		if (enable_ept && boot_cpu_has(X86_FEATURE_PKU) &&
+		    boot_cpu_has(X86_FEATURE_OSPKE))
+			cpuid_entry_set(entry, X86_FEATURE_PKU);
 		break;
 	default:
 		break;
@@ -7938,7 +7943,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.xsaves_supported = vmx_xsaves_supported,
 	.umip_emulated = vmx_umip_emulated,
 	.pt_supported = vmx_pt_supported,
-	.pku_supported = vmx_pku_supported,
 
 	.request_immediate_exit = vmx_request_immediate_exit,
 
