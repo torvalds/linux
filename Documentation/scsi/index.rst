@@ -34,5 +34,6 @@ Linux SCSI Subsystem
    scsi-changer
    scsi_eh
    scsi_fc_transport
+   scsi-generic
 
    scsi_transport_srp/figures

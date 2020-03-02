@@ -133,7 +133,7 @@ config CHR_DEV_SG
 	  quality digital reader of audio CDs (<http://www.xiph.org/paranoia/>).
 	  For other devices, it's possible that you'll have to write the
 	  driver software yourself. Please read the file
-	  <file:Documentation/scsi/scsi-generic.txt> for more information.
+	  <file:Documentation/scsi/scsi-generic.rst> for more information.
 
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/scsi/scsi.txt>. The module will be called sg.

@@ -14797,7 +14797,7 @@ M:	Doug Gilbert <dgilbert@interlog.com>
 L:	linux-scsi@vger.kernel.org
 W:	http://sg.danny.cz/sg
 S:	Maintained
-F:	Documentation/scsi/scsi-generic.txt
+F:	Documentation/scsi/scsi-generic.rst
 F:	drivers/scsi/sg.c
 F:	include/scsi/sg.h
 
