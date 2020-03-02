@@ -1605,19 +1605,18 @@ static bool acpi_ec_ecdt_get_handle(acpi_handle *phandle)
 
 static int acpi_ec_add(struct acpi_device *device)
 {
-	struct acpi_ec *ec = NULL;
-	bool dep_update = true;
-	acpi_status status;
+	struct acpi_ec *ec;
 	int ret;
 
 	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
 
 	if (!strcmp(acpi_device_hid(device), ACPI_ECDT_HID)) {
-		boot_ec_is_ecdt = true;
+		/* Fast path: this device corresponds to the boot EC. */
 		ec = boot_ec;
-		dep_update = false;
 	} else {
+		acpi_status status;
+
 		ec = acpi_ec_alloc();
 		if (!ec)
 			return -ENOMEM;
@@ -1660,10 +1659,9 @@ static int acpi_ec_add(struct acpi_device *device)
 	ret = !!request_region(ec->command_addr, 1, "EC cmd");
 	WARN(!ret, "Could not request EC cmd io port 0x%lx", ec->command_addr);
 
-	if (dep_update) {
-		/* Reprobe devices depending on the EC */
-		acpi_walk_dep_device_list(ec->handle);
-	}
+	/* Reprobe devices depending on the EC */
+	acpi_walk_dep_device_list(ec->handle);
+
 	acpi_handle_debug(ec->handle, "enumerated.\n");
 	return 0;
 
