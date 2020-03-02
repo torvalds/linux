@@ -552,12 +552,12 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 
 		/* read more entries until cache_type is zero */
 		for (i = 1; ; ++i) {
-			if (*nent >= maxnent)
-				goto out;
-
 			cache_type = entry[i - 1].eax & 0x1f;
 			if (!cache_type)
 				break;
+
+			if (*nent >= maxnent)
+				goto out;
 			do_host_cpuid(&entry[i], function, i);
 			++*nent;
 		}
