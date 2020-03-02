@@ -9,8 +9,7 @@
 
 / {
 	model = "Rockchip RK3399 Evaluation Board";
-	compatible = "rockchip,rk3399-evb", "rockchip,rk3399",
-		     "google,rk3399evb-rev2";
+	compatible = "rockchip,rk3399-evb", "rockchip,rk3399";
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
