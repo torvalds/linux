@@ -857,7 +857,7 @@ static struct snd_soc_dai_driver rt1015_dai[] = {
 			.rates = RT1015_STEREO_RATES,
 			.formats = RT1015_FORMATS,
 		},
-		.ops    = &rt1015_aif_dai_ops,
+		.ops = &rt1015_aif_dai_ops,
 	}
 };
 
