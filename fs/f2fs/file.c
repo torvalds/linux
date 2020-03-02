@@ -106,10 +106,18 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 		err = f2fs_get_block(&dn, page->index);
 		f2fs_put_dnode(&dn);
 		__do_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO, false);
-		if (err) {
-			unlock_page(page);
-			goto out_sem;
-		}
+	}
+
+#ifdef CONFIG_F2FS_FS_COMPRESSION
+	if (!need_alloc) {
+		set_new_dnode(&dn, inode, NULL, NULL, 0);
+		err = f2fs_get_dnode_of_data(&dn, page->index, LOOKUP_NODE);
+		f2fs_put_dnode(&dn);
+	}
+#endif
+	if (err) {
+		unlock_page(page);
+		goto out_sem;
 	}
 
 	f2fs_wait_on_page_writeback(page, DATA, false, true);
