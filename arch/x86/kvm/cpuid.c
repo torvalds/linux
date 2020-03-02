@@ -485,8 +485,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		entry->eax = min(entry->eax, 0x1fU);
 		break;
 	case 1:
-		cpuid_entry_mask(entry, CPUID_1_EDX);
-		cpuid_entry_mask(entry, CPUID_1_ECX);
+		cpuid_entry_override(entry, CPUID_1_EDX);
+		cpuid_entry_override(entry, CPUID_1_ECX);
 		/* we support x2apic emulation even if host does not support
 		 * it since we emulate x2apic in software */
 		cpuid_entry_set(entry, X86_FEATURE_X2APIC);
@@ -531,9 +531,9 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 	/* function 7 has additional index. */
 	case 7:
 		entry->eax = min(entry->eax, 1u);
-		cpuid_entry_mask(entry, CPUID_7_0_EBX);
-		cpuid_entry_mask(entry, CPUID_7_ECX);
-		cpuid_entry_mask(entry, CPUID_7_EDX);
+		cpuid_entry_override(entry, CPUID_7_0_EBX);
+		cpuid_entry_override(entry, CPUID_7_ECX);
+		cpuid_entry_override(entry, CPUID_7_EDX);
 
 		/* TSC_ADJUST and ARCH_CAPABILITIES are emulated in software. */
 		cpuid_entry_set(entry, X86_FEATURE_TSC_ADJUST);
@@ -552,7 +552,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			if (!entry)
 				goto out;
 
-			cpuid_entry_mask(entry, CPUID_7_1_EAX);
+			cpuid_entry_override(entry, CPUID_7_1_EAX);
 			entry->ebx = 0;
 			entry->ecx = 0;
 			entry->edx = 0;
@@ -618,7 +618,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		if (!entry)
 			goto out;
 
-		cpuid_entry_mask(entry, CPUID_D_1_EAX);
+		cpuid_entry_override(entry, CPUID_D_1_EAX);
 		if (entry->eax & (F(XSAVES)|F(XSAVEC)))
 			entry->ebx = xstate_required_size(supported_xcr0, true);
 		else
@@ -697,11 +697,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		entry->eax = min(entry->eax, 0x8000001f);
 		break;
 	case 0x80000001:
-		cpuid_entry_mask(entry, CPUID_8000_0001_EDX);
-		/* Add it manually because it may not be in host CPUID.  */
-		if (!tdp_enabled)
-			cpuid_entry_set(entry, X86_FEATURE_GBPAGES);
-		cpuid_entry_mask(entry, CPUID_8000_0001_ECX);
+		cpuid_entry_override(entry, CPUID_8000_0001_EDX);
+		cpuid_entry_override(entry, CPUID_8000_0001_ECX);
 		break;
 	case 0x80000007: /* Advanced power management */
 		/* invariant TSC is CPUID.80000007H:EDX[8] */
@@ -719,7 +716,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			g_phys_as = phys_as;
 		entry->eax = g_phys_as | (virt_as << 8);
 		entry->edx = 0;
-		cpuid_entry_mask(entry, CPUID_8000_0008_EBX);
+		cpuid_entry_override(entry, CPUID_8000_0008_EBX);
 		/*
 		 * AMD has separate bits for each SPEC_CTRL bit.
 		 * arch/x86/kernel/cpu/bugs.c is kind enough to
@@ -761,7 +758,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		entry->eax = min(entry->eax, 0xC0000004);
 		break;
 	case 0xC0000001:
-		cpuid_entry_mask(entry, CPUID_C000_0001_EDX);
+		cpuid_entry_override(entry, CPUID_C000_0001_EDX);
 		break;
 	case 3: /* Processor serial number */
 	case 5: /* MONITOR/MWAIT */

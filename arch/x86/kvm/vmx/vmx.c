@@ -7130,18 +7130,6 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
  */
 static void vmx_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 {
-	switch (entry->function) {
-	case 0x7:
-		/*
-		 * UMIP needs to be manually set even though vmx_set_cpu_caps()
-		 * also sets UMIP since do_host_cpuid() will drop it.
-		 */
-		if (vmx_umip_emulated())
-			cpuid_entry_set(entry, X86_FEATURE_UMIP);
-		break;
-	default:
-		break;
-	}
 }
 
 static __init void vmx_set_cpu_caps(void)

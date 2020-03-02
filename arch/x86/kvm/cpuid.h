@@ -170,13 +170,13 @@ static __always_inline void cpuid_entry_change(struct kvm_cpuid_entry2 *entry,
 		*reg &= ~__feature_bit(x86_feature);
 }
 
-static __always_inline void cpuid_entry_mask(struct kvm_cpuid_entry2 *entry,
-					     enum cpuid_leafs leaf)
+static __always_inline void cpuid_entry_override(struct kvm_cpuid_entry2 *entry,
+						 enum cpuid_leafs leaf)
 {
 	u32 *reg = cpuid_entry_get_reg(entry, leaf * 32);
 
 	BUILD_BUG_ON(leaf >= ARRAY_SIZE(kvm_cpu_caps));
-	*reg &= kvm_cpu_caps[leaf];
+	*reg = kvm_cpu_caps[leaf];
 }
 
 static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu,

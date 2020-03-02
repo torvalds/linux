@@ -6072,8 +6072,7 @@ static void svm_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 		entry->ebx = 8; /* Lets support 8 ASIDs in case we add proper
 				   ASID emulation to nested SVM */
 		entry->ecx = 0; /* Reserved */
-		/* Note, 0x8000000A.EDX is managed via kvm_cpu_caps. */;
-		cpuid_entry_mask(entry, CPUID_8000_000A_EDX);
+		cpuid_entry_override(entry, CPUID_8000_000A_EDX);
 		break;
 	}
 }
