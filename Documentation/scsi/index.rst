@@ -42,5 +42,6 @@ Linux SCSI Subsystem
    smartpqi
    st
    sym53c500_cs
+   sym53c8xx_2
 
    scsi_transport_srp/figures

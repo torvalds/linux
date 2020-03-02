@@ -921,7 +921,7 @@ config SCSI_SYM53C8XX_2
 	  language.  It does not support LSI53C10XX Ultra-320 PCI-X SCSI
 	  controllers; you need to use the Fusion MPT driver for that.
 
-	  Please read <file:Documentation/scsi/sym53c8xx_2.txt> for more
+	  Please read <file:Documentation/scsi/sym53c8xx_2.rst> for more
 	  information.
 
 config SCSI_SYM53C8XX_DMA_ADDRESSING_MODE
