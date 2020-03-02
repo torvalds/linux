@@ -502,7 +502,7 @@ next:
 		if (worker->mm)
 			work->flags |= IO_WQ_WORK_HAS_MM;
 
-		if (wq->get_work && !(work->flags & IO_WQ_WORK_INTERNAL)) {
+		if (wq->get_work) {
 			put_work = work;
 			wq->get_work(work);
 		}
@@ -1055,42 +1055,6 @@ enum io_wq_cancel io_wq_cancel_pid(struct io_wq *wq, pid_t pid)
 	}
 
 	return ret;
-}
-
-struct io_wq_flush_data {
-	struct io_wq_work work;
-	struct completion done;
-};
-
-static void io_wq_flush_func(struct io_wq_work **workptr)
-{
-	struct io_wq_work *work = *workptr;
-	struct io_wq_flush_data *data;
-
-	data = container_of(work, struct io_wq_flush_data, work);
-	complete(&data->done);
-}
-
-/*
- * Doesn't wait for previously queued work to finish. When this completes,
- * it just means that previously queued work was started.
- */
-void io_wq_flush(struct io_wq *wq)
-{
-	struct io_wq_flush_data data;
-	int node;
-
-	for_each_node(node) {
-		struct io_wqe *wqe = wq->wqes[node];
-
-		if (!node_online(node))
-			continue;
-		init_completion(&data.done);
-		INIT_IO_WORK(&data.work, io_wq_flush_func);
-		data.work.flags |= IO_WQ_WORK_INTERNAL;
-		io_wqe_enqueue(wqe, &data.work);
-		wait_for_completion(&data.done);
-	}
 }
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
