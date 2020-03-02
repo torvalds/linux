@@ -891,7 +891,7 @@ struct fw_block {
 struct fw_header {
 	u8 checksum[32];
 	char version[RTL_VER_SIZE];
-	struct fw_block blocks[0];
+	struct fw_block blocks[];
 } __packed;
 
 /**
@@ -930,7 +930,7 @@ struct fw_mac {
 	__le32 reserved;
 	__le16 fw_ver_reg;
 	u8 fw_ver_data;
-	char info[0];
+	char info[];
 } __packed;
 
 /**
@@ -982,7 +982,7 @@ struct fw_phy_nc {
 	__le16 bp_start;
 	__le16 bp_num;
 	__le16 bp[4];
-	char info[0];
+	char info[];
 } __packed;
 
 enum rtl_fw_type {
