@@ -839,6 +839,29 @@ static bool is_centaur_cpu(const struct kvm_cpuid_param *param)
 	return boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR;
 }
 
+static int get_cpuid_func(struct kvm_cpuid_entry2 *entries, u32 func,
+			  int *nent, int maxnent, unsigned int type)
+{
+	u32 limit;
+	int r;
+
+	r = do_cpuid_func(&entries[*nent], func, nent, maxnent, type);
+	if (r)
+		return r;
+
+	limit = entries[*nent - 1].eax;
+	for (func = func + 1; func <= limit; ++func) {
+		if (*nent >= maxnent)
+			return -E2BIG;
+
+		r = do_cpuid_func(&entries[*nent], func, nent, maxnent, type);
+		if (r)
+			break;
+	}
+
+	return r;
+}
+
 static bool sanity_check_entries(struct kvm_cpuid_entry2 __user *entries,
 				 __u32 num_entries, unsigned int ioctl_type)
 {
@@ -871,8 +894,8 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 			    unsigned int type)
 {
 	struct kvm_cpuid_entry2 *cpuid_entries;
-	int limit, nent = 0, r = -E2BIG, i;
-	u32 func;
+	int nent = 0, r = -E2BIG, i;
+
 	static const struct kvm_cpuid_param param[] = {
 		{ .func = 0 },
 		{ .func = 0x80000000 },
@@ -901,22 +924,8 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 		if (ent->qualifier && !ent->qualifier(ent))
 			continue;
 
-		r = do_cpuid_func(&cpuid_entries[nent], ent->func,
-				  &nent, cpuid->nent, type);
-
-		if (r)
-			goto out_free;
-
-		limit = cpuid_entries[nent - 1].eax;
-		for (func = ent->func + 1; func <= limit && r == 0; ++func) {
-			if (nent >= cpuid->nent) {
-				r = -E2BIG;
-				goto out_free;
-			}
-			r = do_cpuid_func(&cpuid_entries[nent], func,
-				          &nent, cpuid->nent, type);
-		}
-
+		r = get_cpuid_func(cpuid_entries, ent->func, &nent,
+				   cpuid->nent, type);
 		if (r)
 			goto out_free;
 	}
