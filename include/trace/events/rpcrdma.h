@@ -1479,7 +1479,9 @@ DECLARE_EVENT_CLASS(svcrdma_segment_event,
 
 DEFINE_SEGMENT_EVENT(decode_wseg);
 DEFINE_SEGMENT_EVENT(encode_rseg);
+DEFINE_SEGMENT_EVENT(send_rseg);
 DEFINE_SEGMENT_EVENT(encode_wseg);
+DEFINE_SEGMENT_EVENT(send_wseg);
 
 DECLARE_EVENT_CLASS(svcrdma_chunk_event,
 	TP_PROTO(
@@ -1502,17 +1504,19 @@ DECLARE_EVENT_CLASS(svcrdma_chunk_event,
 );
 
 #define DEFINE_CHUNK_EVENT(name)					\
-		DEFINE_EVENT(svcrdma_chunk_event, svcrdma_encode_##name,\
+		DEFINE_EVENT(svcrdma_chunk_event, svcrdma_##name,	\
 				TP_PROTO(				\
 					u32 length			\
 				),					\
 				TP_ARGS(length))
 
-DEFINE_CHUNK_EVENT(pzr);
-DEFINE_CHUNK_EVENT(write);
-DEFINE_CHUNK_EVENT(reply);
+DEFINE_CHUNK_EVENT(send_pzr);
+DEFINE_CHUNK_EVENT(encode_write_chunk);
+DEFINE_CHUNK_EVENT(send_write_chunk);
+DEFINE_CHUNK_EVENT(encode_read_chunk);
+DEFINE_CHUNK_EVENT(send_reply_chunk);
 
-TRACE_EVENT(svcrdma_encode_read,
+TRACE_EVENT(svcrdma_send_read_chunk,
 	TP_PROTO(
 		u32 length,
 		u32 position

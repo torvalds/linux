@@ -439,7 +439,8 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 		if (ret < 0)
 			goto out_initerr;
 
-		trace_svcrdma_encode_wseg(seg_handle, write_len, seg_offset);
+		trace_svcrdma_send_wseg(seg_handle, write_len, seg_offset);
+
 		list_add(&ctxt->rw_list, &cc->cc_rwctxts);
 		cc->cc_sqecount += ret;
 		if (write_len == seg_length - info->wi_seg_off) {
@@ -534,7 +535,7 @@ int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma, __be32 *wr_ch,
 	if (ret < 0)
 		goto out_err;
 
-	trace_svcrdma_encode_write(xdr->page_len);
+	trace_svcrdma_send_write_chunk(xdr->page_len);
 	return length;
 
 out_err:
@@ -594,7 +595,7 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 	if (ret < 0)
 		goto out_err;
 
-	trace_svcrdma_encode_reply(consumed);
+	trace_svcrdma_send_reply_chunk(consumed);
 	return consumed;
 
 out_err:
@@ -697,7 +698,7 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 		if (ret < 0)
 			break;
 
-		trace_svcrdma_encode_rseg(rs_handle, rs_length, rs_offset);
+		trace_svcrdma_send_rseg(rs_handle, rs_length, rs_offset);
 		info->ri_chunklen += rs_length;
 	}
 
@@ -728,7 +729,7 @@ static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
 	if (ret < 0)
 		goto out;
 
-	trace_svcrdma_encode_read(info->ri_chunklen, info->ri_position);
+	trace_svcrdma_send_read_chunk(info->ri_chunklen, info->ri_position);
 
 	head->rc_hdr_count = 0;
 
@@ -784,7 +785,7 @@ static int svc_rdma_build_pz_read_chunk(struct svc_rqst *rqstp,
 	if (ret < 0)
 		goto out;
 
-	trace_svcrdma_encode_pzr(info->ri_chunklen);
+	trace_svcrdma_send_pzr(info->ri_chunklen);
 
 	head->rc_arg.len += info->ri_chunklen;
 	head->rc_arg.buflen += info->ri_chunklen;
