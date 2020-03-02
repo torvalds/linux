@@ -971,15 +971,6 @@ static inline void nvme_handle_cqe(struct nvme_queue *nvmeq, u16 idx)
 	nvme_end_request(req, cqe->status, cqe->result);
 }
 
-static void nvme_complete_cqes(struct nvme_queue *nvmeq, u16 start, u16 end)
-{
-	while (start != end) {
-		nvme_handle_cqe(nvmeq, start);
-		if (++start == nvmeq->q_depth)
-			start = 0;
-	}
-}
-
 static inline void nvme_update_cq_head(struct nvme_queue *nvmeq)
 {
 	if (++nvmeq->cq_head == nvmeq->q_depth) {
@@ -988,19 +979,17 @@ static inline void nvme_update_cq_head(struct nvme_queue *nvmeq)
 	}
 }
 
-static inline int nvme_process_cq(struct nvme_queue *nvmeq, u16 *start,
-				  u16 *end)
+static inline int nvme_process_cq(struct nvme_queue *nvmeq)
 {
 	int found = 0;
 
-	*start = nvmeq->cq_head;
 	while (nvme_cqe_pending(nvmeq)) {
 		found++;
+		nvme_handle_cqe(nvmeq, nvmeq->cq_head);
 		nvme_update_cq_head(nvmeq);
 	}
-	*end = nvmeq->cq_head;
 
-	if (*start != *end)
+	if (found)
 		nvme_ring_cq_doorbell(nvmeq);
 	return found;
 }
@@ -1009,20 +998,15 @@ static irqreturn_t nvme_irq(int irq, void *data)
 {
 	struct nvme_queue *nvmeq = data;
 	irqreturn_t ret = IRQ_NONE;
-	u16 start, end;
 
 	/*
 	 * The rmb/wmb pair ensures we see all updates from a previous run of
 	 * the irq handler, even if that was on another CPU.
 	 */
 	rmb();
-	nvme_process_cq(nvmeq, &start, &end);
+	if (nvme_process_cq(nvmeq))
+		ret = IRQ_HANDLED;
 	wmb();
-
-	if (start != end) {
-		nvme_complete_cqes(nvmeq, start, end);
-		return IRQ_HANDLED;
-	}
 
 	return ret;
 }
@@ -1042,7 +1026,6 @@ static irqreturn_t nvme_irq_check(int irq, void *data)
 static int nvme_poll_irqdisable(struct nvme_queue *nvmeq)
 {
 	struct pci_dev *pdev = to_pci_dev(nvmeq->dev->dev);
-	u16 start, end;
 	int found;
 
 	/*
@@ -1052,29 +1035,27 @@ static int nvme_poll_irqdisable(struct nvme_queue *nvmeq)
 	 */
 	if (test_bit(NVMEQ_POLLED, &nvmeq->flags)) {
 		spin_lock(&nvmeq->cq_poll_lock);
-		found = nvme_process_cq(nvmeq, &start, &end);
+		found = nvme_process_cq(nvmeq);
 		spin_unlock(&nvmeq->cq_poll_lock);
 	} else {
 		disable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
-		found = nvme_process_cq(nvmeq, &start, &end);
+		found = nvme_process_cq(nvmeq);
 		enable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
 	}
 
-	nvme_complete_cqes(nvmeq, start, end);
 	return found;
 }
 
 static int nvme_poll(struct blk_mq_hw_ctx *hctx)
 {
 	struct nvme_queue *nvmeq = hctx->driver_data;
-	u16 start, end;
 	bool found;
 
 	if (!nvme_cqe_pending(nvmeq))
 		return 0;
 
 	spin_lock(&nvmeq->cq_poll_lock);
-	found = nvme_process_cq(nvmeq, &start, &end);
+	found = nvme_process_cq(nvmeq);
 	spin_unlock(&nvmeq->cq_poll_lock);
 
 	return found;
@@ -1406,13 +1387,10 @@ static void nvme_disable_admin_queue(struct nvme_dev *dev, bool shutdown)
  */
 static void nvme_reap_pending_cqes(struct nvme_dev *dev)
 {
-	u16 start, end;
 	int i;
 
-	for (i = dev->ctrl.queue_count - 1; i > 0; i--) {
-		nvme_process_cq(&dev->queues[i], &start, &end);
-		nvme_complete_cqes(&dev->queues[i], start, end);
-	}
+	for (i = dev->ctrl.queue_count - 1; i > 0; i--)
+		nvme_process_cq(&dev->queues[i]);
 }
 
 static int nvme_cmb_qdepth(struct nvme_dev *dev, int nr_io_queues,
