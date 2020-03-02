@@ -13,5 +13,6 @@ Linux SCSI Subsystem
    aha152x
    aic79xx
    aic7xxx
+   bfa
 
    scsi_transport_srp/figures
