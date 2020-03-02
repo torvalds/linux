@@ -1380,6 +1380,10 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * Wa_14010229206:tgl
 		 */
 		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
+
+		/* Wa_1408615072:tgl */
+		wa_masked_en(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
+			     VSUNIT_CLKGATE_DIS_TGL);
 	}
 
 	if (IS_TIGERLAKE(i915)) {

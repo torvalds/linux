@@ -6816,10 +6816,6 @@ static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 	u32 vd_pg_enable = 0;
 	unsigned int i;
 
-	/* Wa_1408615072:tgl */
-	intel_uncore_rmw(&dev_priv->uncore, UNSLICE_UNIT_LEVEL_CLKGATE2,
-			 0, VSUNIT_CLKGATE_DIS_TGL);
-
 	/* This is not a WA. Enable VD HCP & MFX_ENC powergate */
 	for (i = 0; i < I915_MAX_VCS; i++) {
 		if (HAS_ENGINE(dev_priv, _VCS(i)))
