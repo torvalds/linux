@@ -1597,14 +1597,13 @@ static const char *pick_link(struct nameidata *nd, struct path *link,
 	error = nd_alloc_stack(nd);
 	if (unlikely(error)) {
 		if (error == -ECHILD) {
-			if (unlikely(!legitimize_path(nd, link, seq))) {
-				drop_links(nd);
-				nd->depth = 0;
-				nd->flags &= ~LOOKUP_RCU;
-				nd->path.mnt = NULL;
-				nd->path.dentry = NULL;
-				rcu_read_unlock();
-			} else if (likely(unlazy_walk(nd)) == 0)
+			// we must grab link first
+			bool grabbed_link = legitimize_path(nd, link, seq);
+			// ... and we must unlazy to be able to clean up
+			error = unlazy_walk(nd);
+			if (unlikely(!grabbed_link))
+				error = -ECHILD;
+			if (!error)
 				error = nd_alloc_stack(nd);
 		}
 		if (error) {
