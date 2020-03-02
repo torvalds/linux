@@ -908,9 +908,14 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 			goto out_free;
 
 		limit = cpuid_entries[nent - 1].eax;
-		for (func = ent->func + 1; func <= limit && nent < cpuid->nent && r == 0; ++func)
+		for (func = ent->func + 1; func <= limit && r == 0; ++func) {
+			if (nent >= cpuid->nent) {
+				r = -E2BIG;
+				goto out_free;
+			}
 			r = do_cpuid_func(&cpuid_entries[nent], func,
 				          &nent, cpuid->nent, type);
+		}
 
 		if (r)
 			goto out_free;
