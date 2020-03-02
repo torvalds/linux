@@ -1385,6 +1385,8 @@ static __init int svm_hardware_setup(void)
 
 	init_msrpm_offsets();
 
+	supported_xcr0 &= ~(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
+
 	if (boot_cpu_has(X86_FEATURE_NX))
 		kvm_enable_efer_bits(EFER_NX);
 

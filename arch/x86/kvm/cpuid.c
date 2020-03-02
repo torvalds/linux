@@ -52,16 +52,6 @@ bool kvm_mpx_supported(void)
 }
 EXPORT_SYMBOL_GPL(kvm_mpx_supported);
 
-u64 kvm_supported_xcr0(void)
-{
-	u64 xcr0 = KVM_SUPPORTED_XCR0 & host_xcr0;
-
-	if (!kvm_mpx_supported())
-		xcr0 &= ~(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
-
-	return xcr0;
-}
-
 #define F feature_bit
 
 int kvm_update_cpuid(struct kvm_vcpu *vcpu)
@@ -107,8 +97,7 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 		vcpu->arch.guest_xstate_size = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
 	} else {
 		vcpu->arch.guest_supported_xcr0 =
-			(best->eax | ((u64)best->edx << 32)) &
-			kvm_supported_xcr0();
+			(best->eax | ((u64)best->edx << 32)) & supported_xcr0;
 		vcpu->arch.guest_xstate_size = best->ebx =
 			xstate_required_size(vcpu->arch.xcr0, false);
 	}
@@ -633,14 +622,12 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 				goto out;
 		}
 		break;
-	case 0xd: {
-		u64 supported = kvm_supported_xcr0();
-
-		entry->eax &= supported;
-		entry->ebx = xstate_required_size(supported, false);
+	case 0xd:
+		entry->eax &= supported_xcr0;
+		entry->ebx = xstate_required_size(supported_xcr0, false);
 		entry->ecx = entry->ebx;
-		entry->edx &= supported >> 32;
-		if (!supported)
+		entry->edx &= supported_xcr0 >> 32;
+		if (!supported_xcr0)
 			break;
 
 		entry = do_host_cpuid(array, function, 1);
@@ -650,7 +637,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		entry->eax &= kvm_cpuid_D_1_eax_x86_features;
 		cpuid_mask(&entry->eax, CPUID_D_1_EAX);
 		if (entry->eax & (F(XSAVES)|F(XSAVEC)))
-			entry->ebx = xstate_required_size(supported, true);
+			entry->ebx = xstate_required_size(supported_xcr0, true);
 		else
 			entry->ebx = 0;
 		/* Saving XSS controlled state via XSAVES isn't supported. */
@@ -658,7 +645,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		entry->edx = 0;
 
 		for (i = 2; i < 64; ++i) {
-			if (!(supported & BIT_ULL(i)))
+			if (!(supported_xcr0 & BIT_ULL(i)))
 				continue;
 
 			entry = do_host_cpuid(array, function, i);
@@ -666,7 +653,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 				goto out;
 
 			/*
-			 * The @supported check above should have filtered out
+			 * The supported check above should have filtered out
 			 * invalid sub-leafs as well as sub-leafs managed by
 			 * IA32_XSS MSR.  Only XCR0-managed sub-leafs should
 			 * reach this point, and they should have a non-zero
@@ -681,7 +668,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			entry->edx = 0;
 		}
 		break;
-	}
 	/* Intel PT */
 	case 0x14:
 		if (!f_intel_pt)
