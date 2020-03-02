@@ -35,7 +35,6 @@
 #include "firmware.h"
 #include "usbpipe.h"
 #include "channel.h"
-#include "int.h"
 
 /*
  * define module options
