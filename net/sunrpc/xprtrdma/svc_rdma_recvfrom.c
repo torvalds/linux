@@ -479,6 +479,7 @@ static bool xdr_check_write_list(struct svc_rdma_recv_ctxt *rctxt)
 	p = xdr_inline_decode(&rctxt->rc_stream, sizeof(*p));
 	if (!p)
 		return false;
+	rctxt->rc_write_list = p;
 	while (*p != xdr_zero) {
 		if (!xdr_check_write_chunk(rctxt, MAX_BYTES_WRITE_CHUNK))
 			return false;
@@ -487,6 +488,8 @@ static bool xdr_check_write_list(struct svc_rdma_recv_ctxt *rctxt)
 		if (!p)
 			return false;
 	}
+	if (!chcount)
+		rctxt->rc_write_list = NULL;
 	return chcount < 2;
 }
 
@@ -509,9 +512,13 @@ static bool xdr_check_reply_chunk(struct svc_rdma_recv_ctxt *rctxt)
 	p = xdr_inline_decode(&rctxt->rc_stream, sizeof(*p));
 	if (!p)
 		return false;
-	if (*p != xdr_zero)
+	rctxt->rc_reply_chunk = p;
+	if (*p != xdr_zero) {
 		if (!xdr_check_write_chunk(rctxt, MAX_BYTES_SPECIAL_CHUNK))
 			return false;
+	} else {
+		rctxt->rc_reply_chunk = NULL;
+	}
 	return true;
 }
 
