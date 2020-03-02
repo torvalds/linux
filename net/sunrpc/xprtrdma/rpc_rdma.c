@@ -275,32 +275,6 @@ out:
 	return n;
 }
 
-static inline int
-encode_item_present(struct xdr_stream *xdr)
-{
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, sizeof(*p));
-	if (unlikely(!p))
-		return -EMSGSIZE;
-
-	*p = xdr_one;
-	return 0;
-}
-
-static inline int
-encode_item_not_present(struct xdr_stream *xdr)
-{
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, sizeof(*p));
-	if (unlikely(!p))
-		return -EMSGSIZE;
-
-	*p = xdr_zero;
-	return 0;
-}
-
 static void
 xdr_encode_rdma_segment(__be32 *iptr, struct rpcrdma_mr *mr)
 {
@@ -414,7 +388,7 @@ static int rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 	} while (nsegs);
 
 done:
-	return encode_item_not_present(xdr);
+	return xdr_stream_encode_item_absent(xdr);
 }
 
 /* Register and XDR encode the Write list. Supports encoding a list
@@ -453,7 +427,7 @@ static int rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt,
 	if (nsegs < 0)
 		return nsegs;
 
-	if (encode_item_present(xdr) < 0)
+	if (xdr_stream_encode_item_present(xdr) < 0)
 		return -EMSGSIZE;
 	segcount = xdr_reserve_space(xdr, sizeof(*segcount));
 	if (unlikely(!segcount))
@@ -480,7 +454,7 @@ static int rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt,
 	*segcount = cpu_to_be32(nchunks);
 
 done:
-	return encode_item_not_present(xdr);
+	return xdr_stream_encode_item_absent(xdr);
 }
 
 /* Register and XDR encode the Reply chunk. Supports encoding an array
@@ -507,14 +481,14 @@ static int rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 	__be32 *segcount;
 
 	if (wtype != rpcrdma_replych)
-		return encode_item_not_present(xdr);
+		return xdr_stream_encode_item_absent(xdr);
 
 	seg = req->rl_segments;
 	nsegs = rpcrdma_convert_iovs(r_xprt, &rqst->rq_rcv_buf, 0, wtype, seg);
 	if (nsegs < 0)
 		return nsegs;
 
-	if (encode_item_present(xdr) < 0)
+	if (xdr_stream_encode_item_present(xdr) < 0)
 		return -EMSGSIZE;
 	segcount = xdr_reserve_space(xdr, sizeof(*segcount));
 	if (unlikely(!segcount))

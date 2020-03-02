@@ -316,6 +316,44 @@ static inline size_t xdr_pad_size(size_t n)
 }
 
 /**
+ * xdr_stream_encode_item_present - Encode a "present" list item
+ * @xdr: pointer to xdr_stream
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline ssize_t xdr_stream_encode_item_present(struct xdr_stream *xdr)
+{
+	const size_t len = sizeof(__be32);
+	__be32 *p = xdr_reserve_space(xdr, len);
+
+	if (unlikely(!p))
+		return -EMSGSIZE;
+	*p = xdr_one;
+	return len;
+}
+
+/**
+ * xdr_stream_encode_item_absent - Encode a "not present" list item
+ * @xdr: pointer to xdr_stream
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline int xdr_stream_encode_item_absent(struct xdr_stream *xdr)
+{
+	const size_t len = sizeof(__be32);
+	__be32 *p = xdr_reserve_space(xdr, len);
+
+	if (unlikely(!p))
+		return -EMSGSIZE;
+	*p = xdr_zero;
+	return len;
+}
+
+/**
  * xdr_stream_encode_u32 - Encode a 32-bit integer
  * @xdr: pointer to xdr_stream
  * @n: integer to encode
