@@ -115,60 +115,55 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	update_cpu_boot_status(CPU_MMU_OFF);
 	__flush_dcache_area(&secondary_data, sizeof(secondary_data));
 
-	/*
-	 * Now bring the CPU into our world.
-	 */
+	/* Now bring the CPU into our world */
 	ret = boot_secondary(cpu, idle);
-	if (ret == 0) {
-		/*
-		 * CPU was successfully started, wait for it to come online or
-		 * time out.
-		 */
-		wait_for_completion_timeout(&cpu_running,
-					    msecs_to_jiffies(5000));
-
-		if (!cpu_online(cpu)) {
-			pr_crit("CPU%u: failed to come online\n", cpu);
-			ret = -EIO;
-		}
-	} else {
+	if (ret) {
 		pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
 		return ret;
 	}
 
+	/*
+	 * CPU was successfully started, wait for it to come online or
+	 * time out.
+	 */
+	wait_for_completion_timeout(&cpu_running,
+				    msecs_to_jiffies(5000));
+	if (cpu_online(cpu))
+		return 0;
+
+	pr_crit("CPU%u: failed to come online\n", cpu);
 	secondary_data.task = NULL;
 	secondary_data.stack = NULL;
 	__flush_dcache_area(&secondary_data, sizeof(secondary_data));
 	status = READ_ONCE(secondary_data.status);
-	if (ret && status) {
+	if (status == CPU_MMU_OFF)
+		status = READ_ONCE(__early_cpu_boot_status);
 
-		if (status == CPU_MMU_OFF)
-			status = READ_ONCE(__early_cpu_boot_status);
-
-		switch (status & CPU_BOOT_STATUS_MASK) {
-		default:
-			pr_err("CPU%u: failed in unknown state : 0x%lx\n",
-					cpu, status);
-			cpus_stuck_in_kernel++;
+	switch (status & CPU_BOOT_STATUS_MASK) {
+	default:
+		pr_err("CPU%u: failed in unknown state : 0x%lx\n",
+		       cpu, status);
+		cpus_stuck_in_kernel++;
+		break;
+	case CPU_KILL_ME:
+		if (!op_cpu_kill(cpu)) {
+			pr_crit("CPU%u: died during early boot\n", cpu);
 			break;
-		case CPU_KILL_ME:
-			if (!op_cpu_kill(cpu)) {
-				pr_crit("CPU%u: died during early boot\n", cpu);
-				break;
-			}
-			pr_crit("CPU%u: may not have shut down cleanly\n", cpu);
-			/* Fall through */
-		case CPU_STUCK_IN_KERNEL:
-			pr_crit("CPU%u: is stuck in kernel\n", cpu);
-			if (status & CPU_STUCK_REASON_52_BIT_VA)
-				pr_crit("CPU%u: does not support 52-bit VAs\n", cpu);
-			if (status & CPU_STUCK_REASON_NO_GRAN)
-				pr_crit("CPU%u: does not support %luK granule \n", cpu, PAGE_SIZE / SZ_1K);
-			cpus_stuck_in_kernel++;
-			break;
-		case CPU_PANIC_KERNEL:
-			panic("CPU%u detected unsupported configuration\n", cpu);
 		}
+		pr_crit("CPU%u: may not have shut down cleanly\n", cpu);
+		/* Fall through */
+	case CPU_STUCK_IN_KERNEL:
+		pr_crit("CPU%u: is stuck in kernel\n", cpu);
+		if (status & CPU_STUCK_REASON_52_BIT_VA)
+			pr_crit("CPU%u: does not support 52-bit VAs\n", cpu);
+		if (status & CPU_STUCK_REASON_NO_GRAN) {
+			pr_crit("CPU%u: does not support %luK granule\n",
+				cpu, PAGE_SIZE / SZ_1K);
+		}
+		cpus_stuck_in_kernel++;
+		break;
+	case CPU_PANIC_KERNEL:
+		panic("CPU%u detected unsupported configuration\n", cpu);
 	}
 
 	return ret;
