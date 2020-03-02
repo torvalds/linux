@@ -95,17 +95,10 @@ static __always_inline struct cpuid_reg x86_feature_cpuid(unsigned int x86_featu
 	return reverse_cpuid[x86_leaf];
 }
 
-static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu,
-						     unsigned int x86_feature)
+static __always_inline u32 *__cpuid_entry_get_reg(struct kvm_cpuid_entry2 *entry,
+						  const struct cpuid_reg *cpuid)
 {
-	struct kvm_cpuid_entry2 *entry;
-	const struct cpuid_reg cpuid = x86_feature_cpuid(x86_feature);
-
-	entry = kvm_find_cpuid_entry(vcpu, cpuid.function, cpuid.index);
-	if (!entry)
-		return NULL;
-
-	switch (cpuid.reg) {
+	switch (cpuid->reg) {
 	case CPUID_EAX:
 		return &entry->eax;
 	case CPUID_EBX:
@@ -118,6 +111,41 @@ static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu,
 		BUILD_BUG();
 		return NULL;
 	}
+}
+
+static __always_inline u32 *cpuid_entry_get_reg(struct kvm_cpuid_entry2 *entry,
+						unsigned int x86_feature)
+{
+	const struct cpuid_reg cpuid = x86_feature_cpuid(x86_feature);
+
+	return __cpuid_entry_get_reg(entry, &cpuid);
+}
+
+static __always_inline u32 cpuid_entry_get(struct kvm_cpuid_entry2 *entry,
+					   unsigned int x86_feature)
+{
+	u32 *reg = cpuid_entry_get_reg(entry, x86_feature);
+
+	return *reg & __feature_bit(x86_feature);
+}
+
+static __always_inline bool cpuid_entry_has(struct kvm_cpuid_entry2 *entry,
+					    unsigned int x86_feature)
+{
+	return cpuid_entry_get(entry, x86_feature);
+}
+
+static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu,
+						     unsigned int x86_feature)
+{
+	const struct cpuid_reg cpuid = x86_feature_cpuid(x86_feature);
+	struct kvm_cpuid_entry2 *entry;
+
+	entry = kvm_find_cpuid_entry(vcpu, cpuid.function, cpuid.index);
+	if (!entry)
+		return NULL;
+
+	return __cpuid_entry_get_reg(entry, &cpuid);
 }
 
 static __always_inline bool guest_cpuid_has(struct kvm_vcpu *vcpu,
