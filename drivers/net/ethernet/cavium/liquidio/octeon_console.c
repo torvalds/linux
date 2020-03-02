@@ -127,7 +127,7 @@ struct octeon_pci_console_desc {
 	u32 pad;
 	/* must be 64 bit aligned here... */
 	/* Array of addresses of octeon_pci_console structures */
-	u64 console_addr_array[0];
+	u64 console_addr_array[];
 	/* Implicit storage for console_addr_array */
 };
 
