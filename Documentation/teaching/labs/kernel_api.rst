@@ -650,12 +650,12 @@ cause of the error?
 
 .. hint:: In the error message, follow the line containing the :c:macro:`BUG`
           for a description of the error. You are not allowed to sleep in
-	  atomic context.  The atomic context is given by a section
-	  between a lock operation and an unlock on a spinlock.
+          atomic context.  The atomic context is given by a section
+          between a lock operation and an unlock on a spinlock.
 
 .. note:: The
           :c:func:`schedule_timeout` function, corroborated with the
-	  :c:macro:`set_current_state` macro, forces the current process to wait
+          :c:macro:`set_current_state` macro, forces the current process to wait
           for 5 seconds.
 
 .. note:: Review the `Contexts of execution`_, `Locking` and `Spinlock`_
@@ -686,27 +686,27 @@ free them (in :c:func:`memory_exit`).
         :c:type:`struct task_struct` structure, returned by :c:macro:`current`
         macro.
 
-.. hint::
-          Search for :c:type:`pid` in :c:type:`task_struct`.
+      .. hint::
+                Search for :c:type:`pid` in :c:type:`task_struct`.
 
-* PID of the parent process of the current process.
+      * PID of the parent process of the current process.
 
-.. hint::
-          Search for the relevant field from :c:type:`struct task_struct`
-          structure. Look after "parent".
+      .. hint::
+                Search for the relevant field from :c:type:`struct task_struct`
+                structure. Look after "parent".
 
-* PID of the next process from the list of processes, relative to the
-  current process.
+      * PID of the next process from the list of processes, relative to the
+        current process.
 
-.. hint::
-          Use :c:macro:`next_task` macro, which returns a pointer to the next
-          process (i.e a :c:type:`struct task_struct` structure).
+      .. hint::
+                Use :c:macro:`next_task` macro, which returns a pointer to the next
+                process (i.e a :c:type:`struct task_struct` structure).
 
-* PID of the next process of the next process, relative to the current
-  process.
+      * PID of the next process of the next process, relative to the current
+        process.
 
-.. hint::
-          Call 2 times the :c:macro:`next_task`.
+      .. hint::
+                Call 2 times the :c:macro:`next_task`.
 
    3. (TODO 3) Display the four structures.
       * Use :c:func:`printk` to display their two fields:
@@ -716,26 +716,26 @@ free them (in :c:func:`memory_exit`).
       (use :c:func:`kfree`).
 
 .. hint::
-	  * You can access the current process using :c:macro:`current`
-	    macro.
-	  * Look for the relevant fields in the :c:type:`struct task_struct`
-            structure (:c:member:`pid`, :c:member:`parent`).
-	  * Use the :c:macro:`next_task` macro. The macro returns the pointer to
-	    the next process (ie. a :c:type:`struct task_struct*` structure).
+  * You can access the current process using :c:macro:`current`
+    macro.
+  * Look for the relevant fields in the :c:type:`struct task_struct`
+    structure (:c:member:`pid`, :c:member:`parent`).
+  * Use the :c:macro:`next_task` macro. The macro returns the pointer to
+    the next process (ie. a :c:type:`struct task_struct*` structure).
 
 .. note:: The :c:type:`struct task_struct` structure contains two fields to
           designate the parent of a task:
 
-	   * :c:member:`real_parent` points to the process that created the
-	      task or to process with pid 1 (init) if the parent
-	      completed its execution.
-	   * :c:member:`parent` indicates to the current task parent (the
-	      process that will be reported if the task completes
-	      execution).
+          * :c:member:`real_parent` points to the process that created the
+            task or to process with pid 1 (init) if the parent
+            completed its execution.
+          * :c:member:`parent` indicates to the current task parent (the
+            process that will be reported if the task completes
+            execution).
 
-	   In general, the values of the two fields are the same, but
-	   there are situations where they differ, for example when
-	   using the :c:func:`ptrace` system call.
+          In general, the values of the two fields are the same, but
+          there are situations where they differ, for example when
+          using the :c:func:`ptrace` system call.
 
 .. hint:: Review the `Memory allocation`_ section in the lab.
 
@@ -751,18 +751,18 @@ previous exercise into a list. The list will be built in the
 loaded. The list will be printed and deleted in the :c:func:`list_exit`
 function and the :c:func:`task_info_purge_list` function.
 
-   1. (TODO 1) Complete the :c:func:`task_info_add_to_list` function to allocate
-      a :c:type:`struct task_info` structure and add it to the list.
+  1. (TODO 1) Complete the :c:func:`task_info_add_to_list` function to allocate
+     a :c:type:`struct task_info` structure and add it to the list.
 
-   2. (TODO 2) Complete the :c:func:`task_info_purge_list` function to delete
-      all the elements in the list.
+  2. (TODO 2) Complete the :c:func:`task_info_purge_list` function to delete
+     all the elements in the list.
 
-   3. Compile the kernel module. Load and unload the module by
-      following the messages displayed by the kernel.
+  3. Compile the kernel module. Load and unload the module by
+     following the messages displayed by the kernel.
 
 .. hint:: Review the labs `Lists`_ section.  When deleting items from
-	  the list, you will need to use either the
-	  :c:macro:`list_for_each_safe` or :c:macro:`list_for_each_entry_safe`
+          the list, you will need to use either the
+          :c:macro:`list_for_each_safe` or :c:macro:`list_for_each_entry_safe`
           macros.
 
 5. Working with kernel lists for process handling
@@ -773,49 +773,49 @@ contents of the :file:`list-full.c` and notice comments marked with
 ``TODO``. In addition to the :file:`4-list` functionality we add the
 following:
 
-   * A :c:member:`count` field showing how many times a process has been "added"
-     to the list.
-   * If a process is "added" several times, no new entry is created in
-     the list, but:
+  * A :c:member:`count` field showing how many times a process has been "added"
+    to the list.
+  * If a process is "added" several times, no new entry is created in
+    the list, but:
 
-      * Update the :c:member:`timestamp` field.
-      * Increment :c:member:`count`.
+     * Update the :c:member:`timestamp` field.
+     * Increment :c:member:`count`.
 
-   * To implement the counter facility, add a :c:func:`task_info_find_pid`
-     function that searches for a pid in the existing list.
+  * To implement the counter facility, add a :c:func:`task_info_find_pid`
+    function that searches for a pid in the existing list.
 
-   * If found, return the reference to the :c:type:`task_info` struct. If
-	not, return :c:macro:`NULL`.
+  * If found, return the reference to the :c:type:`task_info` struct. If
+    not, return :c:macro:`NULL`.
 
-   * An expiration facility. If a process was added more than 3
-     seconds ago and if it does not have a :c:member:`count` greater than 5 then
-     it is considered expired and is removed from the list.
-   * The expiration facility is already implemented in the
-     :c:func:`task_info_remove_expired` function.
+  * An expiration facility. If a process was added more than 3
+    seconds ago and if it does not have a :c:member:`count` greater than 5 then
+    it is considered expired and is removed from the list.
+  * The expiration facility is already implemented in the
+    :c:func:`task_info_remove_expired` function.
 
-   1. (TODO 1) Implement the :c:func:`task_info_find_pid` function.
-   2. (TODO 2) Change a field of an item in the list so it does not
-      expire. It must not satisfy a part of the expiration condition
-      from :c:func:`task_info_remove_expired`.
+  1. (TODO 1) Implement the :c:func:`task_info_find_pid` function.
+  2. (TODO 2) Change a field of an item in the list so it does not
+     expire. It must not satisfy a part of the expiration condition
+     from :c:func:`task_info_remove_expired`.
 
-.. hint:: For ``TODO 2``, extract the first element from the list (the one
-	  referred by :c:member:`head.next`) and set the :c:member:`count`
-          field to a large enough value. Use :c:func:`atomic_set` function.
+     .. hint:: For ``TODO 2``, extract the first element from the list (the one
+               referred by :c:member:`head.next`) and set the :c:member:`count`
+               field to a large enough value. Use :c:func:`atomic_set` function.
 
-3. Compile, copy, load and unload the kernel module following the displayed
-      messages.
-      Kernel module loading will take some time, because :c:func:`sleep` is
-      being called by :c:func:`schedule_timeout` function.
+  3. Compile, copy, load and unload the kernel module following the displayed
+     messages.
+     Kernel module loading will take some time, because :c:func:`sleep` is
+     being called by :c:func:`schedule_timeout` function.
 
 6. Synchronizing list work
 --------------------------
 
 Generate the skeleton for the task named **6-list-sync**.
 
-   1. Browse the code and look for ``TODO`` string.
-   2. Use a spinlock or a read-write lock to synchronize access to the
-      list.
-   3. Compile, load and unload the kernel module.
+  1. Browse the code and look for ``TODO`` string.
+  2. Use a spinlock or a read-write lock to synchronize access to the
+     list.
+  3. Compile, load and unload the kernel module.
 
 .. important:: Always lock data, not code!
 
