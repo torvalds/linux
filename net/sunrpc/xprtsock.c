@@ -2527,46 +2527,25 @@ static void bc_free(struct rpc_task *task)
 	free_page((unsigned long)buf);
 }
 
-/*
- * Use the svc_sock to send the callback. Must be called with svsk->sk_mutex
- * held. Borrows heavily from svc_tcp_sendto and xs_tcp_send_request.
- */
 static int bc_sendto(struct rpc_rqst *req)
 {
-	int len;
-	struct xdr_buf *xbufp = &req->rq_snd_buf;
+	struct xdr_buf *xdr = &req->rq_snd_buf;
 	struct sock_xprt *transport =
 			container_of(req->rq_xprt, struct sock_xprt, xprt);
-	unsigned long headoff;
-	unsigned long tailoff;
-	struct page *tailpage;
 	struct msghdr msg = {
-		.msg_flags	= MSG_MORE
+		.msg_flags	= 0,
 	};
 	rpc_fraghdr marker = cpu_to_be32(RPC_LAST_STREAM_FRAGMENT |
-					 (u32)xbufp->len);
-	struct kvec iov = {
-		.iov_base	= &marker,
-		.iov_len	= sizeof(marker),
-	};
+					 (u32)xdr->len);
+	unsigned int sent = 0;
+	int err;
 
 	req->rq_xtime = ktime_get();
-
-	len = kernel_sendmsg(transport->sock, &msg, &iov, 1, iov.iov_len);
-	if (len != iov.iov_len)
+	err = xprt_sock_sendmsg(transport->sock, &msg, xdr, 0, marker, &sent);
+	xdr_free_bvec(xdr);
+	if (err < 0 || sent != (xdr->len + sizeof(marker)))
 		return -EAGAIN;
-
-	tailpage = NULL;
-	if (xbufp->tail[0].iov_len)
-		tailpage = virt_to_page(xbufp->tail[0].iov_base);
-	tailoff = (unsigned long)xbufp->tail[0].iov_base & ~PAGE_MASK;
-	headoff = (unsigned long)xbufp->head[0].iov_base & ~PAGE_MASK;
-	len = svc_send_common(transport->sock, xbufp,
-			      virt_to_page(xbufp->head[0].iov_base), headoff,
-			      tailpage, tailoff);
-	if (len != xbufp->len)
-		return -EAGAIN;
-	return len;
+	return sent;
 }
 
 /*

@@ -1529,10 +1529,6 @@ svc_process(struct svc_rqst *rqstp)
 		goto out_drop;
 	}
 
-	/* Reserve space for the record marker */
-	if (rqstp->rq_prot == IPPROTO_TCP)
-		svc_putnl(resv, 0);
-
 	/* Returns 1 for send, 0 for drop */
 	if (likely(svc_process_common(rqstp, argv, resv)))
 		return svc_send(rqstp);
