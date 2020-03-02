@@ -1117,7 +1117,7 @@ config SCSI_QLOGIC_FAS
 	  SCSI support"), below.
 
 	  Information about this driver is contained in
-	  <file:Documentation/scsi/qlogicfas.txt>.  You should also read the
+	  <file:Documentation/scsi/qlogicfas.rst>.  You should also read the
 	  SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 

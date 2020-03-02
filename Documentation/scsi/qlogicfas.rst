@@ -1,3 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=================================
+Qlogic FASXXX Family Driver Notes
+=================================
 
 This driver supports the Qlogic FASXXX family of chips.  This driver
 only works with the ISA, VLB, and PCMCIA versions of the Qlogic
@@ -16,7 +21,8 @@ is provided by the qla1280 driver.
 Nor does it support the PCI-Basic, which is supported by the
 'am53c974' driver.
 
-PCMCIA SUPPORT
+PCMCIA Support
+==============
 
 This currently only works if the card is enabled first from DOS.  This
 means you will have to load your socket and card services, and
@@ -31,7 +37,8 @@ it from configuring the card.
 I am working with the PCMCIA group to make it more flexible, but that
 may take a while.
 
-ALL CARDS
+All Cards
+=========
 
 The top of the qlogic.c file has a number of defines that controls
 configuration.  As shipped, it provides a balance between speed and
@@ -46,7 +53,8 @@ command or something.  It comes up faster if this is set to zero, and
 if you have reliable hardware and connections it may be more useful to
 not reset things.
 
-SOME TROUBLESHOOTING TIPS
+Some Troubleshooting Tips
+=========================
 
 Make sure it works properly under DOS.  You should also do an initial FDISK
 on a new drive if you want partitions.
@@ -54,7 +62,8 @@ on a new drive if you want partitions.
 Don't enable all the speedups first.  If anything is wrong, they will make
 any problem worse.
 
-IMPORTANT
+Important
+=========
 
 The best way to test if your cables, termination, etc. are good is to
 copy a very big file (e.g. a doublespace container file, or a very

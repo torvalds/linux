@@ -30,5 +30,6 @@ Linux SCSI Subsystem
    ncr53c8xx
    NinjaSCSI
    ppa
+   qlogicfas
 
    scsi_transport_srp/figures
