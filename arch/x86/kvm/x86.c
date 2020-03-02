@@ -928,7 +928,7 @@ static u64 kvm_host_cr4_reserved_bits(struct cpuinfo_x86 *c)
 	if (kvm_cpu_cap_has(X86_FEATURE_LA57))
 		reserved_bits &= ~X86_CR4_LA57;
 
-	if (kvm_x86_ops->umip_emulated())
+	if (kvm_cpu_cap_has(X86_FEATURE_UMIP))
 		reserved_bits &= ~X86_CR4_UMIP;
 
 	return reserved_bits;

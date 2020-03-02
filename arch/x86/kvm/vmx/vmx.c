@@ -7132,6 +7132,10 @@ static void vmx_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 {
 	switch (entry->function) {
 	case 0x7:
+		/*
+		 * UMIP needs to be manually set even though vmx_set_cpu_caps()
+		 * also sets UMIP since do_host_cpuid() will drop it.
+		 */
 		if (vmx_umip_emulated())
 			cpuid_entry_set(entry, X86_FEATURE_UMIP);
 		break;
@@ -7159,6 +7163,9 @@ static __init void vmx_set_cpu_caps(void)
 	/* PKU is not yet implemented for shadow paging. */
 	if (enable_ept && boot_cpu_has(X86_FEATURE_OSPKE))
 		kvm_cpu_cap_check_and_set(X86_FEATURE_PKU);
+
+	if (vmx_umip_emulated())
+		kvm_cpu_cap_set(X86_FEATURE_UMIP);
 
 	/* CPUID 0xD.1 */
 	if (!vmx_xsaves_supported())
@@ -7963,7 +7970,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 
 	.check_intercept = vmx_check_intercept,
 	.handle_exit_irqoff = vmx_handle_exit_irqoff,
-	.umip_emulated = vmx_umip_emulated,
 	.pt_supported = vmx_pt_supported,
 
 	.request_immediate_exit = vmx_request_immediate_exit,
