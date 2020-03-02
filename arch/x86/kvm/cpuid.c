@@ -459,44 +459,6 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
 	return 0;
 }
 
-static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry)
-{
-	switch (entry->index) {
-	case 0:
-		entry->eax = min(entry->eax, 1u);
-		cpuid_entry_mask(entry, CPUID_7_0_EBX);
-		/* TSC_ADJUST is emulated */
-		cpuid_entry_set(entry, X86_FEATURE_TSC_ADJUST);
-		cpuid_entry_mask(entry, CPUID_7_ECX);
-		cpuid_entry_mask(entry, CPUID_7_EDX);
-		if (boot_cpu_has(X86_FEATURE_IBPB) && boot_cpu_has(X86_FEATURE_IBRS))
-			cpuid_entry_set(entry, X86_FEATURE_SPEC_CTRL);
-		if (boot_cpu_has(X86_FEATURE_STIBP))
-			cpuid_entry_set(entry, X86_FEATURE_INTEL_STIBP);
-		if (boot_cpu_has(X86_FEATURE_AMD_SSBD))
-			cpuid_entry_set(entry, X86_FEATURE_SPEC_CTRL_SSBD);
-		/*
-		 * We emulate ARCH_CAPABILITIES in software even
-		 * if the host doesn't support it.
-		 */
-		cpuid_entry_set(entry, X86_FEATURE_ARCH_CAPABILITIES);
-		break;
-	case 1:
-		cpuid_entry_mask(entry, CPUID_7_1_EAX);
-		entry->ebx = 0;
-		entry->ecx = 0;
-		entry->edx = 0;
-		break;
-	default:
-		WARN_ON_ONCE(1);
-		entry->eax = 0;
-		entry->ebx = 0;
-		entry->ecx = 0;
-		entry->edx = 0;
-		break;
-	}
-}
-
 static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 {
 	struct kvm_cpuid_entry2 *entry;
@@ -558,14 +520,34 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		break;
 	/* function 7 has additional index. */
 	case 7:
-		do_cpuid_7_mask(entry);
+		entry->eax = min(entry->eax, 1u);
+		cpuid_entry_mask(entry, CPUID_7_0_EBX);
+		cpuid_entry_mask(entry, CPUID_7_ECX);
+		cpuid_entry_mask(entry, CPUID_7_EDX);
+
+		/* TSC_ADJUST and ARCH_CAPABILITIES are emulated in software. */
+		cpuid_entry_set(entry, X86_FEATURE_TSC_ADJUST);
+		cpuid_entry_set(entry, X86_FEATURE_ARCH_CAPABILITIES);
+
+		if (boot_cpu_has(X86_FEATURE_IBPB) && boot_cpu_has(X86_FEATURE_IBRS))
+			cpuid_entry_set(entry, X86_FEATURE_SPEC_CTRL);
+		if (boot_cpu_has(X86_FEATURE_STIBP))
+			cpuid_entry_set(entry, X86_FEATURE_INTEL_STIBP);
+		if (boot_cpu_has(X86_FEATURE_AMD_SSBD))
+			cpuid_entry_set(entry, X86_FEATURE_SPEC_CTRL_SSBD);
 
 		for (i = 1, max_idx = entry->eax; i <= max_idx; i++) {
+			if (WARN_ON_ONCE(i > 1))
+				break;
+
 			entry = do_host_cpuid(array, function, i);
 			if (!entry)
 				goto out;
 
-			do_cpuid_7_mask(entry);
+			cpuid_entry_mask(entry, CPUID_7_1_EAX);
+			entry->ebx = 0;
+			entry->ecx = 0;
+			entry->edx = 0;
 		}
 		break;
 	case 9:
