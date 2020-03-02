@@ -43,6 +43,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0xf00>;
+			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
@@ -51,6 +52,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0xf01>;
+			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
@@ -59,6 +61,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0xf02>;
+			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
@@ -67,6 +70,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0xf03>;
+			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
@@ -122,6 +126,11 @@
 		rockchip,baudrate = <115200>;  /* Only 115200 and 1500000 */
 		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
 	};
 
 	rgb: rgb {
