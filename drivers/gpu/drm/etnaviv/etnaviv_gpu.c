@@ -946,6 +946,20 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 		seq_puts(m, "\t FP is not idle\n");
 	if ((idle & VIVS_HI_IDLE_STATE_TS) == 0)
 		seq_puts(m, "\t TS is not idle\n");
+	if ((idle & VIVS_HI_IDLE_STATE_BL) == 0)
+		seq_puts(m, "\t BL is not idle\n");
+	if ((idle & VIVS_HI_IDLE_STATE_ASYNCFE) == 0)
+		seq_puts(m, "\t ASYNCFE is not idle\n");
+	if ((idle & VIVS_HI_IDLE_STATE_MC) == 0)
+		seq_puts(m, "\t MC is not idle\n");
+	if ((idle & VIVS_HI_IDLE_STATE_PPA) == 0)
+		seq_puts(m, "\t PPA is not idle\n");
+	if ((idle & VIVS_HI_IDLE_STATE_WD) == 0)
+		seq_puts(m, "\t WD is not idle\n");
+	if ((idle & VIVS_HI_IDLE_STATE_NN) == 0)
+		seq_puts(m, "\t NN is not idle\n");
+	if ((idle & VIVS_HI_IDLE_STATE_TP) == 0)
+		seq_puts(m, "\t TP is not idle\n");
 	if (idle & VIVS_HI_IDLE_STATE_AXI_LP)
 		seq_puts(m, "\t AXI low power mode\n");
 
