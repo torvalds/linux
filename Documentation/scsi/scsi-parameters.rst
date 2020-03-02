@@ -1,16 +1,20 @@
-                          SCSI Kernel Parameters
-                          ~~~~~~~~~~~~~~~~~~~~~~
+.. SPDX-License-Identifier: GPL-2.0
+
+======================
+SCSI Kernel Parameters
+======================
 
 See Documentation/admin-guide/kernel-parameters.rst for general information on
 specifying module parameters.
 
 This document may not be entirely up to date and comprehensive. The command
-"modinfo -p ${modulename}" shows a current list of all parameters of a loadable
+``modinfo -p ${modulename}`` shows a current list of all parameters of a loadable
 module. Loadable modules, after being loaded into the running kernel, also
 reveal their parameters in /sys/module/${modulename}/parameters/. Some of these
 parameters may be changed at runtime by the command
-"echo -n ${value} > /sys/module/${modulename}/parameters/${parm}".
+``echo -n ${value} > /sys/module/${modulename}/parameters/${parm}``.
 
+::
 
 	advansys=	[HW,SCSI]
 			See header of drivers/scsi/advansys.c.
