@@ -262,8 +262,8 @@ static int live_noa_delay(void *arg)
 
 	delay = intel_read_status_page(stream->engine, 0x102);
 	delay -= intel_read_status_page(stream->engine, 0x100);
-	delay = div_u64(mul_u32_u32(delay, 1000 * 1000),
-			RUNTIME_INFO(i915)->cs_timestamp_frequency_khz);
+	delay = div_u64(mul_u32_u32(delay, 1000000000),
+			RUNTIME_INFO(i915)->cs_timestamp_frequency_hz);
 	pr_info("GPU delay: %uns, expected %lluns\n",
 		delay, expected);
 

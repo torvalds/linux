@@ -1304,8 +1304,8 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	seq_printf(m, "GT awake? %s [%d]\n",
 		   yesno(dev_priv->gt.awake),
 		   atomic_read(&dev_priv->gt.wakeref.count));
-	seq_printf(m, "CS timestamp frequency: %u kHz\n",
-		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz);
+	seq_printf(m, "CS timestamp frequency: %u Hz\n",
+		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_hz);
 
 	p = drm_seq_file_printer(m);
 	for_each_uabi_engine(engine, dev_priv)
@@ -1404,7 +1404,7 @@ static int
 i915_perf_noa_delay_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
-	const u32 clk = RUNTIME_INFO(i915)->cs_timestamp_frequency_khz;
+	const u32 clk = RUNTIME_INFO(i915)->cs_timestamp_frequency_hz / 1000;
 
 	/*
 	 * This would lead to infinite waits as we're doing timestamp
