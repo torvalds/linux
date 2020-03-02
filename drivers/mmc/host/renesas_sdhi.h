@@ -60,7 +60,7 @@ struct renesas_sdhi {
 	bool doing_tune;
 
 	/* Tuning values: 1 for success, 0 for failure */
-	DECLARE_BITMAP(taps, BITS_PER_BYTE * sizeof(long));
+	DECLARE_BITMAP(taps, BITS_PER_LONG);
 	unsigned int tap_num;
 	unsigned long tap_set;
 };
