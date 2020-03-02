@@ -1452,7 +1452,6 @@ config SERIAL_MEN_Z135
 
 config SERIAL_SPRD
 	tristate "Support for Spreadtrum serial"
-	depends on ARCH_SPRD
 	select SERIAL_CORE
 	help
 	  This enables the driver for the Spreadtrum's serial.
