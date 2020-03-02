@@ -889,45 +889,40 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 			    struct kvm_cpuid_entry2 __user *entries,
 			    unsigned int type)
 {
-	struct kvm_cpuid_entry2 *cpuid_entries;
-	int nent = 0, r = -E2BIG, i;
-
 	static const u32 funcs[] = {
 		0, 0x80000000, CENTAUR_CPUID_SIGNATURE, KVM_CPUID_SIGNATURE,
 	};
 
+	struct kvm_cpuid_entry2 *cpuid_entries;
+	int nent = 0, r, i;
+
 	if (cpuid->nent < 1)
-		goto out;
+		return -E2BIG;
 	if (cpuid->nent > KVM_MAX_CPUID_ENTRIES)
 		cpuid->nent = KVM_MAX_CPUID_ENTRIES;
 
 	if (sanity_check_entries(entries, cpuid->nent, type))
 		return -EINVAL;
 
-	r = -ENOMEM;
 	cpuid_entries = vzalloc(array_size(sizeof(struct kvm_cpuid_entry2),
 					   cpuid->nent));
 	if (!cpuid_entries)
-		goto out;
+		return -ENOMEM;
 
-	r = 0;
 	for (i = 0; i < ARRAY_SIZE(funcs); i++) {
 		r = get_cpuid_func(cpuid_entries, funcs[i], &nent, cpuid->nent,
 				   type);
 		if (r)
 			goto out_free;
 	}
+	cpuid->nent = nent;
 
-	r = -EFAULT;
 	if (copy_to_user(entries, cpuid_entries,
 			 nent * sizeof(struct kvm_cpuid_entry2)))
-		goto out_free;
-	cpuid->nent = nent;
-	r = 0;
+		r = -EFAULT;
 
 out_free:
 	vfree(cpuid_entries);
-out:
 	return r;
 }
 
