@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===========================
 Operating FCoE using bnx2fc
 ===========================
 Broadcom FCoE offload through bnx2fc is full stateful hardware offload that
@@ -24,6 +27,7 @@ Driver Usage Model:
 
 2. Configure the interfaces on which bnx2fc driver has to operate on.
 Here are the steps to configure:
+
 	a. cd /etc/fcoe
 	b. copy cfg-ethx to cfg-eth5 if FCoE has to be enabled on eth5.
 	c. Repeat this for all the interfaces where FCoE has to be enabled.
@@ -39,8 +43,10 @@ discovery and log into the targets.
 
 5. "Symbolic Name" in 'fcoeadm -i' output would display if bnx2fc has claimed
 the interface.
-Eg:
-[root@bh2 ~]# fcoeadm -i
+
+Eg::
+
+ [root@bh2 ~]# fcoeadm -i
     Description:      NetXtreme II BCM57712 10 Gigabit Ethernet
     Revision:         01
     Manufacturer:     Broadcom Corporation
@@ -60,16 +66,16 @@ Eg:
         State:             Online
 
 6. Verify the vlan discovery is performed by running ifconfig and notice
-<INTERFACE>.<VLAN>-fcoe interfaces are automatically created.
+   <INTERFACE>.<VLAN>-fcoe interfaces are automatically created.
 
 Refer to fcoeadm manpage for more information on fcoeadm operations to
 create/destroy interfaces or to display lun/target information.
 
-NOTE:
+NOTE
 ====
 ** Broadcom FCoE capable devices implement a DCBX/LLDP client on-chip. Only one
 LLDP client is allowed per interface. For proper operation all host software
 based DCBX/LLDP clients (e.g. lldpad) must be disabled. To disable lldpad on a
-given interface, run the following command:
+given interface, run the following command::
 
-lldptool set-lldp -i <interface_name> adminStatus=disabled
+	lldptool set-lldp -i <interface_name> adminStatus=disabled
