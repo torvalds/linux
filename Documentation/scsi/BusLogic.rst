@@ -1,6 +1,11 @@
-	   BusLogic MultiMaster and FlashPoint SCSI Driver for Linux
+.. SPDX-License-Identifier: GPL-2.0
+
+=========================================================
+BusLogic MultiMaster and FlashPoint SCSI Driver for Linux
+=========================================================
 
 			 Version 2.0.15 for Linux 2.0
+
 			 Version 2.1.15 for Linux 2.1
 
 			      PRODUCTION RELEASE
@@ -8,13 +13,16 @@
 				17 August 1998
 
 			       Leonard N. Zubkoff
+
 			       Dandelion Digital
+
 			       lnz@dandelion.com
 
 	 Copyright 1995-1998 by Leonard N. Zubkoff <lnz@dandelion.com>
 
 
-				 INTRODUCTION
+Introduction
+============
 
 BusLogic, Inc. designed and manufactured a variety of high performance SCSI
 host adapters which share a common programming interface across a diverse
@@ -86,9 +94,11 @@ Contact information for offices in Europe and Japan is available on the Web
 site.
 
 
-				DRIVER FEATURES
+Driver Features
+===============
 
-o Configuration Reporting and Testing
+Configuration Reporting and Testing
+-----------------------------------
 
   During system initialization, the driver reports extensively on the host
   adapter hardware configuration, including the synchronous transfer parameters
@@ -130,7 +140,8 @@ o Configuration Reporting and Testing
     The status of Wide Negotiation, Disconnect/Reconnect, and Tagged Queuing
     are reported as "Enabled", Disabled", or a sequence of "Y" and "N" letters.
 
-o Performance Features
+Performance Features
+--------------------
 
   BusLogic SCSI Host Adapters directly implement SCSI-2 Tagged Queuing, and so
   support has been included in the driver to utilize tagged queuing with any
@@ -150,7 +161,8 @@ o Performance Features
   queue depth of 1 is selected.  Tagged queuing is also disabled for individual
   target devices if disconnect/reconnect is disabled for that device.
 
-o Robustness Features
+Robustness Features
+-------------------
 
   The driver implements extensive error recovery procedures.  When the higher
   level parts of the SCSI subsystem request that a timed out command be reset,
@@ -174,7 +186,8 @@ o Robustness Features
   lock up or crash, and thereby allowing a clean shutdown and restart after the
   offending component is removed.
 
-o PCI Configuration Support
+PCI Configuration Support
+-------------------------
 
   On PCI systems running kernels compiled with PCI BIOS support enabled, this
   driver will interrogate the PCI configuration space and use the I/O port
@@ -184,19 +197,22 @@ o PCI Configuration Support
   used to disable the ISA compatible I/O port entirely as it is not necessary.
   The ISA compatible I/O port is disabled by default on the BT-948/958/958D.
 
-o /proc File System Support
+/proc File System Support
+-------------------------
 
   Copies of the host adapter configuration information together with updated
   data transfer and error recovery statistics are available through the
   /proc/scsi/BusLogic/<N> interface.
 
-o Shared Interrupts Support
+Shared Interrupts Support
+-------------------------
 
   On systems that support shared interrupts, any number of BusLogic Host
   Adapters may share the same interrupt request channel.
 
 
-			    SUPPORTED HOST ADAPTERS
+Supported Host Adapters
+=======================
 
 The following list comprises the supported BusLogic SCSI Host Adapters as of
 the date of this document.  It is recommended that anyone purchasing a BusLogic
@@ -205,6 +221,7 @@ that it is or will be supported.
 
 FlashPoint Series PCI Host Adapters:
 
+=======================	=============================================
 FlashPoint LT (BT-930)	Ultra SCSI-3
 FlashPoint LT (BT-930R)	Ultra SCSI-3 with RAIDPlus
 FlashPoint LT (BT-920)	Ultra SCSI-3 (BT-930 without BIOS)
@@ -214,15 +231,19 @@ FlashPoint LW (BT-950)	Wide Ultra SCSI-3
 FlashPoint LW (BT-950R)	Wide Ultra SCSI-3 with RAIDPlus
 FlashPoint DW (BT-952)	Dual Channel Wide Ultra SCSI-3
 FlashPoint DW (BT-952R)	Dual Channel Wide Ultra SCSI-3 with RAIDPlus
+=======================	=============================================
 
 MultiMaster "W" Series Host Adapters:
 
+=======     ===		==============================
 BT-948	    PCI		Ultra SCSI-3
 BT-958	    PCI		Wide Ultra SCSI-3
 BT-958D	    PCI		Wide Differential Ultra SCSI-3
+=======     ===		==============================
 
 MultiMaster "C" Series Host Adapters:
 
+========    ====	==============================
 BT-946C	    PCI		Fast SCSI-2
 BT-956C	    PCI		Wide Fast SCSI-2
 BT-956CD    PCI		Wide Differential Fast SCSI-2
@@ -232,9 +253,11 @@ BT-757C	    EISA	Wide Fast SCSI-2
 BT-757CD    EISA	Wide Differential Fast SCSI-2
 BT-545C	    ISA		Fast SCSI-2
 BT-540CF    ISA		Fast SCSI-2
+========    ====	==============================
 
 MultiMaster "S" Series Host Adapters:
 
+=======     ====	==============================
 BT-445S	    VLB		Fast SCSI-2
 BT-747S	    EISA	Fast SCSI-2
 BT-747D	    EISA	Differential Fast SCSI-2
@@ -244,11 +267,14 @@ BT-545S	    ISA		Fast SCSI-2
 BT-542D	    ISA		Differential Fast SCSI-2
 BT-742A	    EISA	SCSI-2 (742A revision H)
 BT-542B	    ISA		SCSI-2 (542B revision H)
+=======     ====	==============================
 
 MultiMaster "A" Series Host Adapters:
 
+=======     ====	==============================
 BT-742A	    EISA	SCSI-2 (742A revisions A - G)
 BT-542B	    ISA		SCSI-2 (542B revisions A - G)
+=======     ====	==============================
 
 AMI FastDisk Host Adapters that are true BusLogic MultiMaster clones are also
 supported by this driver.
@@ -260,9 +286,11 @@ list.  The retail kit includes the bare board and manual as well as cabling and
 driver media and documentation that are not provided with bare boards.
 
 
-			 FLASHPOINT INSTALLATION NOTES
+FlashPoint Installation Notes
+=============================
 
-o RAIDPlus Support
+RAIDPlus Support
+----------------
 
   FlashPoint Host Adapters now include RAIDPlus, Mylex's bootable software
   RAID.  RAIDPlus is not supported on Linux, and there are no plans to support
@@ -273,7 +301,8 @@ o RAIDPlus Support
   than RAIDPlus, so there is little impetus to include RAIDPlus support in the
   BusLogic driver.
 
-o Enabling UltraSCSI Transfers
+Enabling UltraSCSI Transfers
+----------------------------
 
   FlashPoint Host Adapters ship with their configuration set to "Factory
   Default" settings that are conservative and do not allow for UltraSCSI speed
@@ -287,12 +316,14 @@ o Enabling UltraSCSI Transfers
   the "Optimum Performance" settings are loaded.
 
 
-		      BT-948/958/958D INSTALLATION NOTES
+BT-948/958/958D Installation Notes
+==================================
 
 The BT-948/958/958D PCI Ultra SCSI Host Adapters have some features which may
 require attention in some circumstances when installing Linux.
 
-o PCI I/O Port Assignments
+PCI I/O Port Assignments
+------------------------
 
   When configured to factory default settings, the BT-948/958/958D will only
   recognize the PCI I/O port assignments made by the motherboard's PCI BIOS.
@@ -312,7 +343,8 @@ o PCI I/O Port Assignments
   possible future I/O port conflicts.  The older BT-946C/956C/956CD also have
   this configuration option, but the factory default setting is "Primary".
 
-o PCI Slot Scanning Order
+PCI Slot Scanning Order
+-----------------------
 
   In systems with multiple BusLogic PCI Host Adapters, the order in which the
   PCI slots are scanned may appear reversed with the BT-948/958/958D as
@@ -339,7 +371,8 @@ o PCI Slot Scanning Order
   so as to recognize the host adapters in the same order as they are enumerated
   by the host adapter's BIOS.
 
-o Enabling UltraSCSI Transfers
+Enabling UltraSCSI Transfers
+----------------------------
 
   The BT-948/958/958D ship with their configuration set to "Factory Default"
   settings that are conservative and do not allow for UltraSCSI speed to be
@@ -353,7 +386,8 @@ o Enabling UltraSCSI Transfers
   "Optimum Performance" settings are loaded.
 
 
-				DRIVER OPTIONS
+Driver Options
+==============
 
 BusLogic Driver Options may be specified either via the Linux Kernel Command
 Line or via the Loadable Kernel Module Installation Facility.  Driver Options
@@ -520,30 +554,34 @@ The following examples demonstrate setting the Queue Depth for Target Devices
 Devices on the second host adapter to 31, and the Bus Settle Time on the
 second host adapter to 30 seconds.
 
-Linux Kernel Command Line:
+Linux Kernel Command Line::
 
   linux BusLogic=QueueDepth:[,7,15];QueueDepth:31,BusSettleTime:30
 
-LILO Linux Boot Loader (in /etc/lilo.conf):
+LILO Linux Boot Loader (in /etc/lilo.conf)::
 
   append = "BusLogic=QueueDepth:[,7,15];QueueDepth:31,BusSettleTime:30"
 
-INSMOD Loadable Kernel Module Installation Facility:
+INSMOD Loadable Kernel Module Installation Facility::
 
   insmod BusLogic.o \
       'BusLogic="QueueDepth:[,7,15];QueueDepth:31,BusSettleTime:30"'
 
-NOTE: Module Utilities 2.1.71 or later is required for correct parsing
+
+.. Note::
+
+      Module Utilities 2.1.71 or later is required for correct parsing
       of driver options containing commas.
 
 
-			      DRIVER INSTALLATION
+Driver Installation
+===================
 
 This distribution was prepared for Linux kernel version 2.0.35, but should be
 compatible with 2.0.4 or any later 2.0 series kernel.
 
 To install the new BusLogic SCSI driver, you may use the following commands,
-replacing "/usr/src" with wherever you keep your Linux kernel source tree:
+replacing "/usr/src" with wherever you keep your Linux kernel source tree::
 
   cd /usr/src
   tar -xvzf BusLogic-2.0.15.tar.gz
@@ -557,7 +595,8 @@ Then install "arch/x86/boot/zImage" as your standard kernel, run lilo if
 appropriate, and reboot.
 
 
-		      BUSLOGIC ANNOUNCEMENTS MAILING LIST
+BusLogic Announcements Mailing List
+===================================
 
 The BusLogic Announcements Mailing List provides a forum for informing Linux
 users of new driver releases and other announcements regarding Linux support

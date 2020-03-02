@@ -502,7 +502,7 @@ config SCSI_BUSLOGIC
 	  This is support for BusLogic MultiMaster and FlashPoint SCSI Host
 	  Adapters. Consult the SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, and the files
-	  <file:Documentation/scsi/BusLogic.txt> and
+	  <file:Documentation/scsi/BusLogic.rst> and
 	  <file:Documentation/scsi/FlashPoint.txt> for more information.
 	  Note that support for FlashPoint is only available for 32-bit
 	  x86 configurations.
