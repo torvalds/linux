@@ -179,7 +179,7 @@ extern int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
 				     unsigned int offset,
 				     unsigned long length);
 extern int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
-				     __be32 *rp_ch, bool writelist,
+				     const struct svc_rdma_recv_ctxt *rctxt,
 				     struct xdr_buf *xdr);
 
 /* svc_rdma_sendto.c */

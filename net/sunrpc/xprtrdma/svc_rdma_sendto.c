@@ -833,7 +833,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		svc_rdma_xdr_encode_write_list(rdma_resp, wr_lst, ret);
 	}
 	if (rp_ch) {
-		ret = svc_rdma_send_reply_chunk(rdma, rp_ch, wr_lst, xdr);
+		ret = svc_rdma_send_reply_chunk(rdma, rctxt, &rqstp->rq_res);
 		if (ret < 0)
 			goto err2;
 		svc_rdma_xdr_encode_reply_chunk(rdma_resp, rp_ch, ret);
