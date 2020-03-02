@@ -88,13 +88,15 @@ int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero)
 	u64 reg_val;
 
 	reg = rvu->afreg_base + ((block << 28) | offset);
-	while (time_before(jiffies, timeout)) {
-		reg_val = readq(reg);
-		if (zero && !(reg_val & mask))
-			return 0;
-		if (!zero && (reg_val & mask))
-			return 0;
+again:
+	reg_val = readq(reg);
+	if (zero && !(reg_val & mask))
+		return 0;
+	if (!zero && (reg_val & mask))
+		return 0;
+	if (time_before(jiffies, timeout)) {
 		usleep_range(1, 5);
+		goto again;
 	}
 	return -EBUSY;
 }
