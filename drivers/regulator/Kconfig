@@ -107,6 +107,7 @@ config REGULATOR_AD5398
 
 config REGULATOR_ANATOP
 	tristate "Freescale i.MX on-chip ANATOP LDO regulators"
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on MFD_SYSCON
 	help
 	  Say y here to support Freescale i.MX on-chip ANATOP LDOs
