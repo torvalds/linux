@@ -25,7 +25,7 @@ parameters may be changed at runtime by the command
 			See Documentation/scsi/aic7xxx.txt.
 
 	aic79xx=	[HW,SCSI]
-			See Documentation/scsi/aic79xx.txt.
+			See Documentation/scsi/aic79xx.rst.
 
 	atascsi=	[HW,SCSI]
 			See drivers/scsi/atari_scsi.c.
