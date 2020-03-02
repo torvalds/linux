@@ -2285,12 +2285,10 @@ s32 exfat_rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
 			return -ENOENT;
 		}
 
-		memcpy((void *)epnew, (void *)epold, DENTRY_SIZE);
-		if (exfat_get_entry_type(epnew) == TYPE_FILE) {
-			exfat_set_entry_attr(epnew,
-					     exfat_get_entry_attr(epnew) |
-					     ATTR_ARCHIVE);
+		*epnew = *epold;
+		if (fid->type == TYPE_FILE) {
 			fid->attr |= ATTR_ARCHIVE;
+			exfat_set_entry_attr(epnew, fid->attr);
 		}
 		exfat_buf_modify(sb, sector_new);
 		exfat_buf_unlock(sb, sector_old);
@@ -2306,7 +2304,7 @@ s32 exfat_rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
 			return -ENOENT;
 		}
 
-		memcpy((void *)epnew, (void *)epold, DENTRY_SIZE);
+		*epnew = *epold;
 		exfat_buf_modify(sb, sector_new);
 		exfat_buf_unlock(sb, sector_old);
 
@@ -2319,11 +2317,9 @@ s32 exfat_rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
 				       num_old_entries);
 		fid->entry = newentry;
 	} else {
-		if (exfat_get_entry_type(epold) == TYPE_FILE) {
-			exfat_set_entry_attr(epold,
-					     exfat_get_entry_attr(epold) |
-					     ATTR_ARCHIVE);
+		if (fid->type == TYPE_FILE) {
 			fid->attr |= ATTR_ARCHIVE;
+			exfat_set_entry_attr(epold, fid->attr);
 		}
 		exfat_buf_modify(sb, sector_old);
 		exfat_buf_unlock(sb, sector_old);
@@ -2387,11 +2383,10 @@ s32 move_file(struct inode *inode, struct chain_t *p_olddir, s32 oldentry,
 		return -ENOENT;
 	}
 
-	memcpy((void *)epnew, (void *)epmov, DENTRY_SIZE);
-	if (exfat_get_entry_type(epnew) == TYPE_FILE) {
-		exfat_set_entry_attr(epnew, exfat_get_entry_attr(epnew) |
-				     ATTR_ARCHIVE);
+	*epnew = *epmov;
+	if (fid->type == TYPE_FILE) {
 		fid->attr |= ATTR_ARCHIVE;
+		exfat_set_entry_attr(epnew, fid->attr);
 	}
 	exfat_buf_modify(sb, sector_new);
 	exfat_buf_unlock(sb, sector_mov);
@@ -2406,7 +2401,7 @@ s32 move_file(struct inode *inode, struct chain_t *p_olddir, s32 oldentry,
 		return -ENOENT;
 	}
 
-	memcpy((void *)epnew, (void *)epmov, DENTRY_SIZE);
+	*epnew = *epmov;
 	exfat_buf_modify(sb, sector_new);
 	exfat_buf_unlock(sb, sector_mov);
 
