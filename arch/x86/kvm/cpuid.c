@@ -545,20 +545,16 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		break;
 	/* functions 4 and 0x8000001d have additional index. */
 	case 4:
-	case 0x8000001d: {
-		int cache_type;
-
-		/* read more entries until cache_type is zero */
-		for (i = 1; ; ++i) {
-			cache_type = entry[i - 1].eax & 0x1f;
-			if (!cache_type)
-				break;
-
+	case 0x8000001d:
+		/*
+		 * Read entries until the cache type in the previous entry is
+		 * zero, i.e. indicates an invalid entry.
+		 */
+		for (i = 1; entry[i - 1].eax & 0x1f; ++i) {
 			if (!do_host_cpuid(&entry[i], nent, maxnent, function, i))
 				goto out;
 		}
 		break;
-	}
 	case 6: /* Thermal management */
 		entry->eax = 0x4; /* allow ARAT */
 		entry->ebx = 0;
