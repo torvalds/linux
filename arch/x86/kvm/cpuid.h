@@ -167,6 +167,14 @@ static __always_inline void cpuid_entry_change(struct kvm_cpuid_entry2 *entry,
 		*reg &= ~__feature_bit(x86_feature);
 }
 
+static __always_inline void cpuid_entry_mask(struct kvm_cpuid_entry2 *entry,
+					     enum cpuid_leafs leaf)
+{
+	u32 *reg = cpuid_entry_get_reg(entry, leaf * 32);
+
+	*reg &= boot_cpu_data.x86_capability[leaf];
+}
+
 static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu,
 						     unsigned int x86_feature)
 {

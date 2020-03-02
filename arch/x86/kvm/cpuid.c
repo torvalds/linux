@@ -254,12 +254,6 @@ out:
 	return r;
 }
 
-static __always_inline void cpuid_mask(u32 *word, int wordnum)
-{
-	reverse_cpuid_check(wordnum);
-	*word &= boot_cpu_data.x86_capability[wordnum];
-}
-
 struct kvm_cpuid_array {
 	struct kvm_cpuid_entry2 *entries;
 	const int maxnent;
@@ -373,13 +367,13 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry)
 	case 0:
 		entry->eax = min(entry->eax, 1u);
 		entry->ebx &= kvm_cpuid_7_0_ebx_x86_features;
-		cpuid_mask(&entry->ebx, CPUID_7_0_EBX);
+		cpuid_entry_mask(entry, CPUID_7_0_EBX);
 		/* TSC_ADJUST is emulated */
 		cpuid_entry_set(entry, X86_FEATURE_TSC_ADJUST);
 
 		entry->ecx &= kvm_cpuid_7_0_ecx_x86_features;
 		f_la57 = cpuid_entry_get(entry, X86_FEATURE_LA57);
-		cpuid_mask(&entry->ecx, CPUID_7_ECX);
+		cpuid_entry_mask(entry, CPUID_7_ECX);
 		/* Set LA57 based on hardware capability. */
 		entry->ecx |= f_la57;
 		entry->ecx |= f_umip;
@@ -389,7 +383,7 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry)
 			cpuid_entry_clear(entry, X86_FEATURE_PKU);
 
 		entry->edx &= kvm_cpuid_7_0_edx_x86_features;
-		cpuid_mask(&entry->edx, CPUID_7_EDX);
+		cpuid_entry_mask(entry, CPUID_7_EDX);
 		if (boot_cpu_has(X86_FEATURE_IBPB) && boot_cpu_has(X86_FEATURE_IBRS))
 			cpuid_entry_set(entry, X86_FEATURE_SPEC_CTRL);
 		if (boot_cpu_has(X86_FEATURE_STIBP))
@@ -507,9 +501,9 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		break;
 	case 1:
 		entry->edx &= kvm_cpuid_1_edx_x86_features;
-		cpuid_mask(&entry->edx, CPUID_1_EDX);
+		cpuid_entry_mask(entry, CPUID_1_EDX);
 		entry->ecx &= kvm_cpuid_1_ecx_x86_features;
-		cpuid_mask(&entry->ecx, CPUID_1_ECX);
+		cpuid_entry_mask(entry, CPUID_1_ECX);
 		/* we support x2apic emulation even if host does not support
 		 * it since we emulate x2apic in software */
 		cpuid_entry_set(entry, X86_FEATURE_X2APIC);
@@ -619,7 +613,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			goto out;
 
 		entry->eax &= kvm_cpuid_D_1_eax_x86_features;
-		cpuid_mask(&entry->eax, CPUID_D_1_EAX);
+		cpuid_entry_mask(entry, CPUID_D_1_EAX);
 		if (entry->eax & (F(XSAVES)|F(XSAVEC)))
 			entry->ebx = xstate_required_size(supported_xcr0, true);
 		else
@@ -699,9 +693,9 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		break;
 	case 0x80000001:
 		entry->edx &= kvm_cpuid_8000_0001_edx_x86_features;
-		cpuid_mask(&entry->edx, CPUID_8000_0001_EDX);
+		cpuid_entry_mask(entry, CPUID_8000_0001_EDX);
 		entry->ecx &= kvm_cpuid_8000_0001_ecx_x86_features;
-		cpuid_mask(&entry->ecx, CPUID_8000_0001_ECX);
+		cpuid_entry_mask(entry, CPUID_8000_0001_ECX);
 		break;
 	case 0x80000007: /* Advanced power management */
 		/* invariant TSC is CPUID.80000007H:EDX[8] */
@@ -720,7 +714,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		entry->eax = g_phys_as | (virt_as << 8);
 		entry->edx = 0;
 		entry->ebx &= kvm_cpuid_8000_0008_ebx_x86_features;
-		cpuid_mask(&entry->ebx, CPUID_8000_0008_EBX);
+		cpuid_entry_mask(entry, CPUID_8000_0008_EBX);
 		/*
 		 * AMD has separate bits for each SPEC_CTRL bit.
 		 * arch/x86/kernel/cpu/bugs.c is kind enough to
@@ -763,7 +757,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		break;
 	case 0xC0000001:
 		entry->edx &= kvm_cpuid_C000_0001_edx_x86_features;
-		cpuid_mask(&entry->edx, CPUID_C000_0001_EDX);
+		cpuid_entry_mask(entry, CPUID_C000_0001_EDX);
 		break;
 	case 3: /* Processor serial number */
 	case 5: /* MONITOR/MWAIT */
