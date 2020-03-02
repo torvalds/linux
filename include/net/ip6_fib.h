@@ -198,7 +198,7 @@ struct fib6_info {
 
 	struct rcu_head			rcu;
 	struct nexthop			*nh;
-	struct fib6_nh			fib6_nh[0];
+	struct fib6_nh			fib6_nh[];
 };
 
 struct rt6_info {
