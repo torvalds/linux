@@ -573,16 +573,16 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 	case 7: {
 		int i;
 
-		for (i = 0; ; ) {
-			do_cpuid_7_mask(&entry[i], i);
-			if (i == entry->eax)
-				break;
+		do_cpuid_7_mask(entry, 0);
+
+		for (i = 1; i <= entry->eax; i++) {
 			if (*nent >= maxnent)
 				goto out;
 
-			++i;
 			do_host_cpuid(&entry[i], function, i);
 			++*nent;
+
+			do_cpuid_7_mask(&entry[i], i);
 		}
 		break;
 	}
