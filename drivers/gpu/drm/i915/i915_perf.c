@@ -1612,9 +1612,7 @@ static int alloc_noa_wait(struct i915_perf_stream *stream)
 	struct drm_i915_gem_object *bo;
 	struct i915_vma *vma;
 	const u64 delay_ticks = 0xffffffffffffffff -
-		DIV_ROUND_UP_ULL(atomic64_read(&stream->perf->noa_programming_delay) *
-				 RUNTIME_INFO(i915)->cs_timestamp_frequency_hz,
-				 1000000000);
+		i915_cs_timestamp_ns_to_ticks(i915, atomic64_read(&stream->perf->noa_programming_delay));
 	const u32 base = stream->engine->mmio_base;
 #define CS_GPR(x) GEN8_RING_CS_GPR(base, x)
 	u32 *batch, *ts0, *cs, *jump;
@@ -3484,8 +3482,7 @@ err:
 
 static u64 oa_exponent_to_ns(struct i915_perf *perf, int exponent)
 {
-	return div_u64(1000000000 * (2ULL << exponent),
-		       RUNTIME_INFO(perf->i915)->cs_timestamp_frequency_hz);
+	return i915_cs_timestamp_ticks_to_ns(perf->i915, 2ULL << exponent);
 }
 
 /**

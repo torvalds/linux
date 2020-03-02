@@ -1404,13 +1404,12 @@ static int
 i915_perf_noa_delay_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
-	const u32 clk = RUNTIME_INFO(i915)->cs_timestamp_frequency_hz / 1000;
 
 	/*
 	 * This would lead to infinite waits as we're doing timestamp
 	 * difference on the CS with only 32bits.
 	 */
-	if (val > mul_u32_u32(U32_MAX, clk))
+	if (i915_cs_timestamp_ns_to_ticks(i915, val) > U32_MAX)
 		return -EINVAL;
 
 	atomic64_set(&i915->perf.noa_programming_delay, val);

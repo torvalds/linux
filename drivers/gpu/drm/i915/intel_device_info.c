@@ -1052,7 +1052,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		read_timestamp_frequency(dev_priv);
 	if (runtime->cs_timestamp_frequency_hz) {
 		runtime->cs_timestamp_period_ns =
-			div_u64(1e9, runtime->cs_timestamp_frequency_hz);
+			i915_cs_timestamp_ticks_to_ns(dev_priv, 1);
 		drm_dbg(&dev_priv->drm,
 			"CS timestamp wraparound in %lldms\n",
 			div_u64(mul_u32_u32(runtime->cs_timestamp_period_ns,
