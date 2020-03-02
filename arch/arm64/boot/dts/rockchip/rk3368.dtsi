@@ -799,8 +799,8 @@
 				"snps,dwc2";
 		reg = <0x0 0xff580000 0x0 0x40000>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru HCLK_OTG0>, <&cru HCLK_USB_PERI>;
-		clock-names = "otg", "hclk_usb_peri";
+		clocks = <&cru HCLK_OTG0>;
+		clock-names = "otg";
 		dr_mode = "otg";
 		g-np-tx-fifo-size = <16>;
 		g-rx-fifo-size = <280>;
