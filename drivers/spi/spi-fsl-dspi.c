@@ -133,27 +133,66 @@ struct fsl_dspi_devtype_data {
 	bool			xspi_mode;
 };
 
-static const struct fsl_dspi_devtype_data vf610_data = {
-	.trans_mode		= DSPI_DMA_MODE,
-	.max_clock_factor	= 2,
+enum {
+	LS1021A,
+	LS1012A,
+	LS1043A,
+	LS1046A,
+	LS2080A,
+	LS2085A,
+	LX2160A,
+	MCF5441X,
+	VF610,
 };
 
-static const struct fsl_dspi_devtype_data ls1021a_v1_data = {
-	.trans_mode		= DSPI_TCFQ_MODE,
-	.max_clock_factor	= 8,
-	.ptp_sts_supported	= true,
-	.xspi_mode		= true,
-};
-
-static const struct fsl_dspi_devtype_data ls2085a_data = {
-	.trans_mode		= DSPI_TCFQ_MODE,
-	.max_clock_factor	= 8,
-	.ptp_sts_supported	= true,
-};
-
-static const struct fsl_dspi_devtype_data coldfire_data = {
-	.trans_mode		= DSPI_EOQ_MODE,
-	.max_clock_factor	= 8,
+static const struct fsl_dspi_devtype_data devtype_data[] = {
+	[VF610] = {
+		.trans_mode		= DSPI_DMA_MODE,
+		.max_clock_factor	= 2,
+	},
+	[LS1021A] = {
+		.trans_mode		= DSPI_TCFQ_MODE,
+		.max_clock_factor	= 8,
+		.ptp_sts_supported	= true,
+		.xspi_mode		= true,
+	},
+	[LS1012A] = {
+		.trans_mode		= DSPI_TCFQ_MODE,
+		.max_clock_factor	= 8,
+		.ptp_sts_supported	= true,
+		.xspi_mode		= true,
+	},
+	[LS1043A] = {
+		.trans_mode		= DSPI_TCFQ_MODE,
+		.max_clock_factor	= 8,
+		.ptp_sts_supported	= true,
+		.xspi_mode		= true,
+	},
+	[LS1046A] = {
+		.trans_mode		= DSPI_TCFQ_MODE,
+		.max_clock_factor	= 8,
+		.ptp_sts_supported	= true,
+		.xspi_mode		= true,
+	},
+	[LS2080A] = {
+		.trans_mode		= DSPI_TCFQ_MODE,
+		.max_clock_factor	= 8,
+		.ptp_sts_supported	= true,
+	},
+	[LS2085A] = {
+		.trans_mode		= DSPI_TCFQ_MODE,
+		.max_clock_factor	= 8,
+		.ptp_sts_supported	= true,
+	},
+	[LX2160A] = {
+		.trans_mode		= DSPI_TCFQ_MODE,
+		.max_clock_factor	= 8,
+		.ptp_sts_supported	= true,
+	},
+	[MCF5441X] = {
+		.trans_mode		= DSPI_EOQ_MODE,
+		.max_clock_factor	= 8,
+	},
 };
 
 struct fsl_dspi_dma {
@@ -909,9 +948,31 @@ static void dspi_cleanup(struct spi_device *spi)
 }
 
 static const struct of_device_id fsl_dspi_dt_ids[] = {
-	{ .compatible = "fsl,vf610-dspi", .data = &vf610_data, },
-	{ .compatible = "fsl,ls1021a-v1.0-dspi", .data = &ls1021a_v1_data, },
-	{ .compatible = "fsl,ls2085a-dspi", .data = &ls2085a_data, },
+	{
+		.compatible = "fsl,vf610-dspi",
+		.data = &devtype_data[VF610],
+	}, {
+		.compatible = "fsl,ls1021a-v1.0-dspi",
+		.data = &devtype_data[LS1021A],
+	}, {
+		.compatible = "fsl,ls1012a-dspi",
+		.data = &devtype_data[LS1012A],
+	}, {
+		.compatible = "fsl,ls1043a-dspi",
+		.data = &devtype_data[LS1043A],
+	}, {
+		.compatible = "fsl,ls1046a-dspi",
+		.data = &devtype_data[LS1046A],
+	}, {
+		.compatible = "fsl,ls2080a-dspi",
+		.data = &devtype_data[LS2080A],
+	}, {
+		.compatible = "fsl,ls2085a-dspi",
+		.data = &devtype_data[LS2085A],
+	}, {
+		.compatible = "fsl,lx2160a-dspi",
+		.data = &devtype_data[LX2160A],
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_dspi_dt_ids);
@@ -1064,7 +1125,8 @@ static int dspi_probe(struct platform_device *pdev)
 		ctlr->num_chipselect = pdata->cs_num;
 		ctlr->bus_num = pdata->bus_num;
 
-		dspi->devtype_data = &coldfire_data;
+		/* Only Coldfire uses platform data */
+		dspi->devtype_data = &devtype_data[MCF5441X];
 	} else {
 
 		ret = of_property_read_u32(np, "spi-num-chipselects", &cs_num);
