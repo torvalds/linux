@@ -49,26 +49,26 @@ static void *typec_switch_match(struct device_connection *con, int ep,
 }
 
 /**
- * typec_switch_get - Find USB Type-C orientation switch
- * @dev: The caller device
+ * fwnode_typec_switch_get - Find USB Type-C orientation switch
+ * @fwnode: The caller device node
  *
  * Finds a switch linked with @dev. Returns a reference to the switch on
  * success, NULL if no matching connection was found, or
  * ERR_PTR(-EPROBE_DEFER) when a connection was found but the switch
  * has not been enumerated yet.
  */
-struct typec_switch *typec_switch_get(struct device *dev)
+struct typec_switch *fwnode_typec_switch_get(struct fwnode_handle *fwnode)
 {
 	struct typec_switch *sw;
 
-	sw = device_connection_find_match(dev, "orientation-switch", NULL,
+	sw = fwnode_connection_find_match(fwnode, "orientation-switch", NULL,
 					  typec_switch_match);
 	if (!IS_ERR_OR_NULL(sw))
 		WARN_ON(!try_module_get(sw->dev.parent->driver->owner));
 
 	return sw;
 }
-EXPORT_SYMBOL_GPL(typec_switch_get);
+EXPORT_SYMBOL_GPL(fwnode_typec_switch_get);
 
 /**
  * typec_put_switch - Release USB Type-C orientation switch
@@ -241,8 +241,8 @@ find_mux:
 }
 
 /**
- * typec_mux_get - Find USB Type-C Multiplexer
- * @dev: The caller device
+ * fwnode_typec_mux_get - Find USB Type-C Multiplexer
+ * @fwnode: The caller device node
  * @desc: Alt Mode description
  *
  * Finds a mux linked to the caller. This function is primarily meant for the
@@ -250,19 +250,19 @@ find_mux:
  * matching connection was found, or ERR_PTR(-EPROBE_DEFER) when a connection
  * was found but the mux has not been enumerated yet.
  */
-struct typec_mux *typec_mux_get(struct device *dev,
-				const struct typec_altmode_desc *desc)
+struct typec_mux *fwnode_typec_mux_get(struct fwnode_handle *fwnode,
+				       const struct typec_altmode_desc *desc)
 {
 	struct typec_mux *mux;
 
-	mux = device_connection_find_match(dev, "mode-switch", (void *)desc,
+	mux = fwnode_connection_find_match(fwnode, "mode-switch", (void *)desc,
 					   typec_mux_match);
 	if (!IS_ERR_OR_NULL(mux))
 		WARN_ON(!try_module_get(mux->dev.parent->driver->owner));
 
 	return mux;
 }
-EXPORT_SYMBOL_GPL(typec_mux_get);
+EXPORT_SYMBOL_GPL(fwnode_typec_mux_get);
 
 /**
  * typec_mux_put - Release handle to a Multiplexer
