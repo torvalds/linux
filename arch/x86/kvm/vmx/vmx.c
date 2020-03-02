@@ -7149,18 +7149,16 @@ static __init void vmx_set_cpu_caps(void)
 		kvm_cpu_cap_set(X86_FEATURE_VMX);
 
 	/* CPUID 0x7 */
-	if (boot_cpu_has(X86_FEATURE_MPX) && kvm_mpx_supported())
-		kvm_cpu_cap_set(X86_FEATURE_MPX);
-	if (boot_cpu_has(X86_FEATURE_INVPCID) && cpu_has_vmx_invpcid())
-		kvm_cpu_cap_set(X86_FEATURE_INVPCID);
-	if (boot_cpu_has(X86_FEATURE_INTEL_PT) &&
-	    vmx_pt_mode_is_host_guest())
-		kvm_cpu_cap_set(X86_FEATURE_INTEL_PT);
+	if (kvm_mpx_supported())
+		kvm_cpu_cap_check_and_set(X86_FEATURE_MPX);
+	if (cpu_has_vmx_invpcid())
+		kvm_cpu_cap_check_and_set(X86_FEATURE_INVPCID);
+	if (vmx_pt_mode_is_host_guest())
+		kvm_cpu_cap_check_and_set(X86_FEATURE_INTEL_PT);
 
 	/* PKU is not yet implemented for shadow paging. */
-	if (enable_ept && boot_cpu_has(X86_FEATURE_PKU) &&
-	    boot_cpu_has(X86_FEATURE_OSPKE))
-		kvm_cpu_cap_set(X86_FEATURE_PKU);
+	if (enable_ept && boot_cpu_has(X86_FEATURE_OSPKE))
+		kvm_cpu_cap_check_and_set(X86_FEATURE_PKU);
 
 	/* CPUID 0xD.1 */
 	if (!vmx_xsaves_supported())

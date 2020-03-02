@@ -1377,8 +1377,7 @@ static __init void svm_set_cpu_caps(void)
 
 	/* CPUID 0x8000000A */
 	/* Support next_rip if host supports it */
-	if (boot_cpu_has(X86_FEATURE_NRIPS))
-		kvm_cpu_cap_set(X86_FEATURE_NRIPS);
+	kvm_cpu_cap_check_and_set(X86_FEATURE_NRIPS);
 
 	if (npt_enabled)
 		kvm_cpu_cap_set(X86_FEATURE_NPT);

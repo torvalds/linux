@@ -282,4 +282,10 @@ static __always_inline void kvm_cpu_cap_set(unsigned int x86_feature)
 	kvm_cpu_caps[x86_leaf] |= __feature_bit(x86_feature);
 }
 
+static __always_inline void kvm_cpu_cap_check_and_set(unsigned int x86_feature)
+{
+	if (boot_cpu_has(x86_feature))
+		kvm_cpu_cap_set(x86_feature);
+}
+
 #endif
