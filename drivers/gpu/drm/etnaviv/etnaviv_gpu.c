@@ -1839,8 +1839,11 @@ static int etnaviv_gpu_rpm_suspend(struct device *dev)
 	mask = gpu->idle_mask & ~(VIVS_HI_IDLE_STATE_FE |
 				  VIVS_HI_IDLE_STATE_MC);
 	idle = gpu_read(gpu, VIVS_HI_IDLE_STATE) & mask;
-	if (idle != mask)
+	if (idle != mask) {
+		dev_warn_ratelimited(dev, "GPU not yet idle, mask: 0x%08x\n",
+				     idle);
 		return -EBUSY;
+	}
 
 	return etnaviv_gpu_hw_suspend(gpu);
 }
