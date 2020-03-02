@@ -503,7 +503,7 @@ config SCSI_BUSLOGIC
 	  Adapters. Consult the SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, and the files
 	  <file:Documentation/scsi/BusLogic.rst> and
-	  <file:Documentation/scsi/FlashPoint.txt> for more information.
+	  <file:Documentation/scsi/FlashPoint.rst> for more information.
 	  Note that support for FlashPoint is only available for 32-bit
 	  x86 configurations.
 

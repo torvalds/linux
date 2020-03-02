@@ -19,5 +19,6 @@ Linux SCSI Subsystem
    cxgb3i
    dc395x
    dpti
+   FlashPoint
 
    scsi_transport_srp/figures
