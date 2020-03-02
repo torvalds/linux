@@ -28,5 +28,6 @@ Linux SCSI Subsystem
    lpfc
    megaraid
    ncr53c8xx
+   NinjaSCSI
 
    scsi_transport_srp/figures

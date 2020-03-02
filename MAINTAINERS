@@ -11801,7 +11801,7 @@ NINJA SCSI-3 / NINJA SCSI-32Bi (16bit/CardBus) PCMCIA SCSI HOST ADAPTER DRIVER
 M:	YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>
 W:	http://www.netlab.is.tsukuba.ac.jp/~yokota/izumi/ninja/
 S:	Maintained
-F:	Documentation/scsi/NinjaSCSI.txt
+F:	Documentation/scsi/NinjaSCSI.rst
 F:	drivers/scsi/pcmcia/nsp_*
 
 NINJA SCSI-32Bi/UDE PCI/CARDBUS SCSI HOST ADAPTER DRIVER
@@ -11809,7 +11809,7 @@ M:	GOTO Masanori <gotom@debian.or.jp>
 M:	YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>
 W:	http://www.netlab.is.tsukuba.ac.jp/~yokota/izumi/ninja/
 S:	Maintained
-F:	Documentation/scsi/NinjaSCSI.txt
+F:	Documentation/scsi/NinjaSCSI.rst
 F:	drivers/scsi/nsp32*
 
 NIOS2 ARCHITECTURE
