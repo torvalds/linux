@@ -329,6 +329,7 @@ usb_role_switch_register(struct device *parent,
 	sw->dev.fwnode = desc->fwnode;
 	sw->dev.class = role_class;
 	sw->dev.type = &usb_role_dev_type;
+	dev_set_drvdata(&sw->dev, desc->driver_data);
 	dev_set_name(&sw->dev, "%s-role-switch", dev_name(parent));
 
 	ret = device_register(&sw->dev);
@@ -355,6 +356,27 @@ void usb_role_switch_unregister(struct usb_role_switch *sw)
 		device_unregister(&sw->dev);
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_unregister);
+
+/**
+ * usb_role_switch_set_drvdata - Assign private data pointer to a switch
+ * @sw: USB Role Switch
+ * @data: Private data pointer
+ */
+void usb_role_switch_set_drvdata(struct usb_role_switch *sw, void *data)
+{
+	dev_set_drvdata(&sw->dev, data);
+}
+EXPORT_SYMBOL_GPL(usb_role_switch_set_drvdata);
+
+/**
+ * usb_role_switch_get_drvdata - Get the private data pointer of a switch
+ * @sw: USB Role Switch
+ */
+void *usb_role_switch_get_drvdata(struct usb_role_switch *sw)
+{
+	return dev_get_drvdata(&sw->dev);
+}
+EXPORT_SYMBOL_GPL(usb_role_switch_get_drvdata);
 
 static int __init usb_roles_init(void)
 {
