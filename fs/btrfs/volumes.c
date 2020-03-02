@@ -5114,14 +5114,15 @@ error_del_extent:
 	return ret;
 }
 
-static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
-			       u64 start, u64 type)
+int btrfs_alloc_chunk(struct btrfs_trans_handle *trans, u64 type)
 {
 	struct btrfs_fs_info *info = trans->fs_info;
 	struct btrfs_fs_devices *fs_devices = info->fs_devices;
 	struct btrfs_device_info *devices_info = NULL;
 	struct alloc_chunk_ctl ctl;
 	int ret;
+
+	lockdep_assert_held(&info->chunk_mutex);
 
 	if (!alloc_profile_is_valid(type, 0)) {
 		ASSERT(0);
@@ -5140,7 +5141,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		return -EINVAL;
 	}
 
-	ctl.start = start;
+	ctl.start = find_next_chunk(info);
 	ctl.type = type;
 	init_alloc_chunk_ctl(fs_devices, &ctl);
 
@@ -5164,6 +5165,13 @@ out:
 	return ret;
 }
 
+/*
+ * Chunk allocation falls into two parts. The first part does work
+ * that makes the new allocated chunk usable, but does not do any operation
+ * that modifies the chunk tree. The second part does the work that
+ * requires modifying the chunk tree. This division is important for the
+ * bootstrap process of adding storage to a seed btrfs.
+ */
 int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 			     u64 chunk_offset, u64 chunk_size)
 {
@@ -5262,39 +5270,19 @@ out:
 	return ret;
 }
 
-/*
- * Chunk allocation falls into two parts. The first part does work
- * that makes the new allocated chunk usable, but does not do any operation
- * that modifies the chunk tree. The second part does the work that
- * requires modifying the chunk tree. This division is important for the
- * bootstrap process of adding storage to a seed btrfs.
- */
-int btrfs_alloc_chunk(struct btrfs_trans_handle *trans, u64 type)
-{
-	u64 chunk_offset;
-
-	lockdep_assert_held(&trans->fs_info->chunk_mutex);
-	chunk_offset = find_next_chunk(trans->fs_info);
-	return __btrfs_alloc_chunk(trans, chunk_offset, type);
-}
-
 static noinline int init_first_rw_device(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	u64 chunk_offset;
-	u64 sys_chunk_offset;
 	u64 alloc_profile;
 	int ret;
 
-	chunk_offset = find_next_chunk(fs_info);
 	alloc_profile = btrfs_metadata_alloc_profile(fs_info);
-	ret = __btrfs_alloc_chunk(trans, chunk_offset, alloc_profile);
+	ret = btrfs_alloc_chunk(trans, alloc_profile);
 	if (ret)
 		return ret;
 
-	sys_chunk_offset = find_next_chunk(fs_info);
 	alloc_profile = btrfs_system_alloc_profile(fs_info);
-	ret = __btrfs_alloc_chunk(trans, sys_chunk_offset, alloc_profile);
+	ret = btrfs_alloc_chunk(trans, alloc_profile);
 	return ret;
 }
 
