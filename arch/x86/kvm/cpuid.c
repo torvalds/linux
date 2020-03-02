@@ -473,8 +473,12 @@ static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_array *array,
 
 static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
 {
-	struct kvm_cpuid_entry2 *entry = &array->entries[array->nent];
+	struct kvm_cpuid_entry2 *entry;
 
+	if (array->nent >= array->maxnent)
+		return -E2BIG;
+
+	entry = &array->entries[array->nent];
 	entry->function = func;
 	entry->index = 0;
 	entry->flags = 0;
@@ -511,7 +515,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 	r = -E2BIG;
 
 	entry = do_host_cpuid(array, function, 0);
-	if (WARN_ON(!entry))
+	if (!entry)
 		goto out;
 
 	switch (function) {
@@ -782,9 +786,6 @@ out:
 static int do_cpuid_func(struct kvm_cpuid_array *array, u32 func,
 			 unsigned int type)
 {
-	if (array->nent >= array->maxnent)
-		return -E2BIG;
-
 	if (type == KVM_GET_EMULATED_CPUID)
 		return __do_cpuid_func_emulated(array, func);
 
