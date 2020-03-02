@@ -6033,19 +6033,17 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 					 APICV_INHIBIT_REASON_NESTED);
 }
 
-#define F feature_bit
-
 static void svm_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 {
 	switch (entry->function) {
 	case 0x80000001:
 		if (nested)
-			entry->ecx |= (1 << 2); /* Set SVM bit */
+			cpuid_entry_set(entry, X86_FEATURE_SVM);
 		break;
 	case 0x80000008:
 		if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) ||
 		     boot_cpu_has(X86_FEATURE_AMD_SSBD))
-			entry->ebx |= F(VIRT_SSBD);
+			cpuid_entry_set(entry, X86_FEATURE_VIRT_SSBD);
 		break;
 	case 0x8000000A:
 		entry->eax = 1; /* SVM revision 1 */
@@ -6057,12 +6055,11 @@ static void svm_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 
 		/* Support next_rip if host supports it */
 		if (boot_cpu_has(X86_FEATURE_NRIPS))
-			entry->edx |= F(NRIPS);
+			cpuid_entry_set(entry, X86_FEATURE_NRIPS);
 
 		/* Support NPT for the guest if enabled */
 		if (npt_enabled)
-			entry->edx |= F(NPT);
-
+			cpuid_entry_set(entry, X86_FEATURE_NPT);
 	}
 }
 

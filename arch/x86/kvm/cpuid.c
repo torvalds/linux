@@ -57,15 +57,12 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 		return 0;
 
 	/* Update OSXSAVE bit */
-	if (boot_cpu_has(X86_FEATURE_XSAVE) && best->function == 0x1) {
-		best->ecx &= ~F(OSXSAVE);
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE))
-			best->ecx |= F(OSXSAVE);
-	}
+	if (boot_cpu_has(X86_FEATURE_XSAVE) && best->function == 0x1)
+		cpuid_entry_change(best, X86_FEATURE_OSXSAVE,
+				   kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE));
 
-	best->edx &= ~F(APIC);
-	if (vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE)
-		best->edx |= F(APIC);
+	cpuid_entry_change(best, X86_FEATURE_APIC,
+			   vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE);
 
 	if (apic) {
 		if (cpuid_entry_has(best, X86_FEATURE_TSC_DEADLINE_TIMER))
@@ -75,14 +72,9 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 	}
 
 	best = kvm_find_cpuid_entry(vcpu, 7, 0);
-	if (best) {
-		/* Update OSPKE bit */
-		if (boot_cpu_has(X86_FEATURE_PKU) && best->function == 0x7) {
-			best->ecx &= ~F(OSPKE);
-			if (kvm_read_cr4_bits(vcpu, X86_CR4_PKE))
-				best->ecx |= F(OSPKE);
-		}
-	}
+	if (best && boot_cpu_has(X86_FEATURE_PKU) && best->function == 0x7)
+		cpuid_entry_change(best, X86_FEATURE_OSPKE,
+				   kvm_read_cr4_bits(vcpu, X86_CR4_PKE));
 
 	best = kvm_find_cpuid_entry(vcpu, 0xD, 0);
 	if (!best) {
@@ -119,12 +111,10 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 
 	if (!kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT)) {
 		best = kvm_find_cpuid_entry(vcpu, 0x1, 0);
-		if (best) {
-			if (vcpu->arch.ia32_misc_enable_msr & MSR_IA32_MISC_ENABLE_MWAIT)
-				best->ecx |= F(MWAIT);
-			else
-				best->ecx &= ~F(MWAIT);
-		}
+		if (best)
+			cpuid_entry_change(best, X86_FEATURE_MWAIT,
+					   vcpu->arch.ia32_misc_enable_msr &
+					   MSR_IA32_MISC_ENABLE_MWAIT);
 	}
 
 	/* Update physical-address width */
@@ -157,7 +147,7 @@ static void cpuid_fix_nx_cap(struct kvm_vcpu *vcpu)
 		}
 	}
 	if (entry && cpuid_entry_has(entry, X86_FEATURE_NX) && !is_efer_nx()) {
-		entry->edx &= ~F(NX);
+		cpuid_entry_clear(entry, X86_FEATURE_NX);
 		printk(KERN_INFO "kvm: guest NX capability removed\n");
 	}
 }
@@ -385,7 +375,7 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry)
 		entry->ebx &= kvm_cpuid_7_0_ebx_x86_features;
 		cpuid_mask(&entry->ebx, CPUID_7_0_EBX);
 		/* TSC_ADJUST is emulated */
-		entry->ebx |= F(TSC_ADJUST);
+		cpuid_entry_set(entry, X86_FEATURE_TSC_ADJUST);
 
 		entry->ecx &= kvm_cpuid_7_0_ecx_x86_features;
 		f_la57 = cpuid_entry_get(entry, X86_FEATURE_LA57);
@@ -396,21 +386,21 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry)
 		entry->ecx |= f_pku;
 		/* PKU is not yet implemented for shadow paging. */
 		if (!tdp_enabled || !boot_cpu_has(X86_FEATURE_OSPKE))
-			entry->ecx &= ~F(PKU);
+			cpuid_entry_clear(entry, X86_FEATURE_PKU);
 
 		entry->edx &= kvm_cpuid_7_0_edx_x86_features;
 		cpuid_mask(&entry->edx, CPUID_7_EDX);
 		if (boot_cpu_has(X86_FEATURE_IBPB) && boot_cpu_has(X86_FEATURE_IBRS))
-			entry->edx |= F(SPEC_CTRL);
+			cpuid_entry_set(entry, X86_FEATURE_SPEC_CTRL);
 		if (boot_cpu_has(X86_FEATURE_STIBP))
-			entry->edx |= F(INTEL_STIBP);
+			cpuid_entry_set(entry, X86_FEATURE_INTEL_STIBP);
 		if (boot_cpu_has(X86_FEATURE_AMD_SSBD))
-			entry->edx |= F(SPEC_CTRL_SSBD);
+			cpuid_entry_set(entry, X86_FEATURE_SPEC_CTRL_SSBD);
 		/*
 		 * We emulate ARCH_CAPABILITIES in software even
 		 * if the host doesn't support it.
 		 */
-		entry->edx |= F(ARCH_CAPABILITIES);
+		cpuid_entry_set(entry, X86_FEATURE_ARCH_CAPABILITIES);
 		break;
 	case 1:
 		entry->eax &= kvm_cpuid_7_1_eax_x86_features;
@@ -522,7 +512,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		cpuid_mask(&entry->ecx, CPUID_1_ECX);
 		/* we support x2apic emulation even if host does not support
 		 * it since we emulate x2apic in software */
-		entry->ecx |= F(X2APIC);
+		cpuid_entry_set(entry, X86_FEATURE_X2APIC);
 		break;
 	/* function 2 entries are STATEFUL. That is, repeated cpuid commands
 	 * may return different values. This forces us to get_cpu() before
@@ -737,22 +727,22 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		 * record that in cpufeatures so use them.
 		 */
 		if (boot_cpu_has(X86_FEATURE_IBPB))
-			entry->ebx |= F(AMD_IBPB);
+			cpuid_entry_set(entry, X86_FEATURE_AMD_IBPB);
 		if (boot_cpu_has(X86_FEATURE_IBRS))
-			entry->ebx |= F(AMD_IBRS);
+			cpuid_entry_set(entry, X86_FEATURE_AMD_IBRS);
 		if (boot_cpu_has(X86_FEATURE_STIBP))
-			entry->ebx |= F(AMD_STIBP);
+			cpuid_entry_set(entry, X86_FEATURE_AMD_STIBP);
 		if (boot_cpu_has(X86_FEATURE_SPEC_CTRL_SSBD))
-			entry->ebx |= F(AMD_SSBD);
+			cpuid_entry_set(entry, X86_FEATURE_AMD_SSBD);
 		if (!boot_cpu_has_bug(X86_BUG_SPEC_STORE_BYPASS))
-			entry->ebx |= F(AMD_SSB_NO);
+			cpuid_entry_set(entry, X86_FEATURE_AMD_SSB_NO);
 		/*
 		 * The preference is to use SPEC CTRL MSR instead of the
 		 * VIRT_SPEC MSR.
 		 */
 		if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) &&
 		    !boot_cpu_has(X86_FEATURE_AMD_SSBD))
-			entry->ebx |= F(VIRT_SSBD);
+			cpuid_entry_set(entry, X86_FEATURE_VIRT_SSBD);
 		break;
 	}
 	case 0x80000019:
