@@ -32,7 +32,7 @@
 		spi1 = &spi1;
 	};
 
-	amba {
+	amba: bus {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
