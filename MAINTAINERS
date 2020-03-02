@@ -540,7 +540,7 @@ M:	Matthew Wilcox <willy@infradead.org>
 M:	Hannes Reinecke <hare@suse.com>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
-F:	Documentation/scsi/advansys.txt
+F:	Documentation/scsi/advansys.rst
 F:	drivers/scsi/advansys.c
 
 ADXL34X THREE-AXIS DIGITAL ACCELEROMETER DRIVER (ADXL345/ADXL346)

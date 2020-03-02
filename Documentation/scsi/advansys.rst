@@ -1,3 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================
+AdvanSys Driver Notes
+=====================
+
 AdvanSys (Advanced System Products, Inc.) manufactures the following
 RISC-based, Bus-Mastering, Fast (10 Mhz) and Ultra (20 Mhz) Narrow
 (8-bit transfer) SCSI Host Adapters for the ISA, EISA, VL, and PCI
@@ -12,50 +18,51 @@ adapter detected. The number of CDBs used by the driver can be
 lowered in the BIOS by changing the 'Host Queue Size' adapter setting.
 
 Laptop Products:
-   ABP-480 - Bus-Master CardBus (16 CDB)
+  - ABP-480 - Bus-Master CardBus (16 CDB)
 
 Connectivity Products:
-   ABP510/5150 - Bus-Master ISA (240 CDB)
-   ABP5140 - Bus-Master ISA PnP (16 CDB)
-   ABP5142 - Bus-Master ISA PnP with floppy (16 CDB)
-   ABP902/3902 - Bus-Master PCI (16 CDB)
-   ABP3905 - Bus-Master PCI (16 CDB)
-   ABP915 - Bus-Master PCI (16 CDB)
-   ABP920 - Bus-Master PCI (16 CDB)
-   ABP3922 - Bus-Master PCI (16 CDB)
-   ABP3925 - Bus-Master PCI (16 CDB)
-   ABP930 - Bus-Master PCI (16 CDB)
-   ABP930U - Bus-Master PCI Ultra (16 CDB)
-   ABP930UA - Bus-Master PCI Ultra (16 CDB)
-   ABP960 - Bus-Master PCI MAC/PC (16 CDB)
-   ABP960U - Bus-Master PCI MAC/PC Ultra (16 CDB)
+   - ABP510/5150 - Bus-Master ISA (240 CDB)
+   - ABP5140 - Bus-Master ISA PnP (16 CDB)
+   - ABP5142 - Bus-Master ISA PnP with floppy (16 CDB)
+   - ABP902/3902 - Bus-Master PCI (16 CDB)
+   - ABP3905 - Bus-Master PCI (16 CDB)
+   - ABP915 - Bus-Master PCI (16 CDB)
+   - ABP920 - Bus-Master PCI (16 CDB)
+   - ABP3922 - Bus-Master PCI (16 CDB)
+   - ABP3925 - Bus-Master PCI (16 CDB)
+   - ABP930 - Bus-Master PCI (16 CDB)
+   - ABP930U - Bus-Master PCI Ultra (16 CDB)
+   - ABP930UA - Bus-Master PCI Ultra (16 CDB)
+   - ABP960 - Bus-Master PCI MAC/PC (16 CDB)
+   - ABP960U - Bus-Master PCI MAC/PC Ultra (16 CDB)
 
 Single Channel Products:
-   ABP542 - Bus-Master ISA with floppy (240 CDB)
-   ABP742 - Bus-Master EISA (240 CDB)
-   ABP842 - Bus-Master VL (240 CDB)
-   ABP940 - Bus-Master PCI (240 CDB)
-   ABP940U - Bus-Master PCI Ultra (240 CDB)
-   ABP940UA/3940UA - Bus-Master PCI Ultra (240 CDB)
-   ABP970 - Bus-Master PCI MAC/PC (240 CDB)
-   ABP970U - Bus-Master PCI MAC/PC Ultra (240 CDB)
-   ABP3960UA - Bus-Master PCI MAC/PC Ultra (240 CDB)
-   ABP940UW/3940UW - Bus-Master PCI Ultra-Wide (253 CDB)
-   ABP970UW - Bus-Master PCI MAC/PC Ultra-Wide (253 CDB)
-   ABP3940U2W - Bus-Master PCI LVD/Ultra2-Wide (253 CDB)
+   - ABP542 - Bus-Master ISA with floppy (240 CDB)
+   - ABP742 - Bus-Master EISA (240 CDB)
+   - ABP842 - Bus-Master VL (240 CDB)
+   - ABP940 - Bus-Master PCI (240 CDB)
+   - ABP940U - Bus-Master PCI Ultra (240 CDB)
+   - ABP940UA/3940UA - Bus-Master PCI Ultra (240 CDB)
+   - ABP970 - Bus-Master PCI MAC/PC (240 CDB)
+   - ABP970U - Bus-Master PCI MAC/PC Ultra (240 CDB)
+   - ABP3960UA - Bus-Master PCI MAC/PC Ultra (240 CDB)
+   - ABP940UW/3940UW - Bus-Master PCI Ultra-Wide (253 CDB)
+   - ABP970UW - Bus-Master PCI MAC/PC Ultra-Wide (253 CDB)
+   - ABP3940U2W - Bus-Master PCI LVD/Ultra2-Wide (253 CDB)
 
 Multi-Channel Products:
-   ABP752 - Dual Channel Bus-Master EISA (240 CDB Per Channel)
-   ABP852 - Dual Channel Bus-Master VL (240 CDB Per Channel)
-   ABP950 - Dual Channel Bus-Master PCI (240 CDB Per Channel)
-   ABP950UW - Dual Channel Bus-Master PCI Ultra-Wide (253 CDB Per Channel)
-   ABP980 - Four Channel Bus-Master PCI (240 CDB Per Channel)
-   ABP980U - Four Channel Bus-Master PCI Ultra (240 CDB Per Channel)
-   ABP980UA/3980UA - Four Channel Bus-Master PCI Ultra (16 CDB Per Chan.)
-   ABP3950U2W - Bus-Master PCI LVD/Ultra2-Wide and Ultra-Wide (253 CDB)
-   ABP3950U3W - Bus-Master PCI Dual LVD2/Ultra3-Wide (253 CDB)
+   - ABP752 - Dual Channel Bus-Master EISA (240 CDB Per Channel)
+   - ABP852 - Dual Channel Bus-Master VL (240 CDB Per Channel)
+   - ABP950 - Dual Channel Bus-Master PCI (240 CDB Per Channel)
+   - ABP950UW - Dual Channel Bus-Master PCI Ultra-Wide (253 CDB Per Channel)
+   - ABP980 - Four Channel Bus-Master PCI (240 CDB Per Channel)
+   - ABP980U - Four Channel Bus-Master PCI Ultra (240 CDB Per Channel)
+   - ABP980UA/3980UA - Four Channel Bus-Master PCI Ultra (16 CDB Per Chan.)
+   - ABP3950U2W - Bus-Master PCI LVD/Ultra2-Wide and Ultra-Wide (253 CDB)
+   - ABP3950U3W - Bus-Master PCI Dual LVD2/Ultra3-Wide (253 CDB)
 
 Driver Compile Time Options and Debugging
+=========================================
 
 The following constants can be defined in the source file.
 
@@ -88,26 +95,30 @@ The following constants can be defined in the source file.
    first three hex digits of the pseudo I/O Port must be set to
    'deb' and the fourth hex digit specifies the debug level: 0 - F.
    The following command line will look for an adapter at 0x330
-   and set the debug level to 2.
+   and set the debug level to 2::
 
       linux advansys=0x330,0,0,0,0xdeb2
 
    If the driver is built as a loadable module this variable can be
    defined when the driver is loaded. The following insmod command
-   will set the debug level to one.
+   will set the debug level to one::
 
       insmod advansys.o asc_dbglvl=1
 
    Debugging Message Levels:
-      0: Errors Only
-      1: High-Level Tracing
-      2-N: Verbose Tracing
+
+
+      ==== ==================
+      0    Errors Only
+      1    High-Level Tracing
+      2-N  Verbose Tracing
+      ==== ==================
 
    To enable debug output to console, please make sure that:
 
    a. System and kernel logging is enabled (syslogd, klogd running).
    b. Kernel messages are routed to console output. Check
-      /etc/syslog.conf for an entry similar to this:
+      /etc/syslog.conf for an entry similar to this::
 
            kern.*                  /dev/console
 
@@ -120,7 +131,10 @@ The following constants can be defined in the source file.
 
    Alternatively you can enable printk() to console with this
    program. However, this is not the 'official' way to do this.
+
    Debug output is logged in /var/log/messages.
+
+   ::
 
      main()
      {
@@ -144,11 +158,11 @@ The following constants can be defined in the source file.
    Statistics are only available for kernels greater than or equal
    to v1.3.0 with the CONFIG_PROC_FS (/proc) file system configured.
 
-   AdvanSys SCSI adapter files have the following path name format:
+   AdvanSys SCSI adapter files have the following path name format::
 
       /proc/scsi/advansys/{0,1,2,3,...}
 
-   This information can be displayed with cat. For example:
+   This information can be displayed with cat. For example::
 
       cat /proc/scsi/advansys/0
 
@@ -156,6 +170,7 @@ The following constants can be defined in the source file.
    contain adapter and device configuration information.
 
 Driver LILO Option
+==================
 
 If init/main.c is modified as described in the 'Directions for Adding
 the AdvanSys Driver to Linux' section (B.4.) above, the driver will
@@ -167,17 +182,30 @@ affects searching for ISA and VL boards.
 
 Examples:
   1. Eliminate I/O port scanning:
-       boot: linux advansys=
-         or
-       boot: linux advansys=0x0
+
+     boot::
+
+	linux advansys=
+
+     or::
+
+	boot: linux advansys=0x0
+
   2. Limit I/O port scanning to one I/O port:
-       boot: linux advansys=0x110
+
+     boot::
+
+	linux advansys=0x110
+
   3. Limit I/O port scanning to four I/O ports:
-       boot: linux advansys=0x110,0x210,0x230,0x330
+
+     boot::
+
+	linux advansys=0x110,0x210,0x230,0x330
 
 For a loadable module the same effect can be achieved by setting
 the 'asc_iopflag' variable and 'asc_ioport' array when loading
-the driver, e.g.
+the driver, e.g.::
 
       insmod advansys.o asc_iopflag=1 asc_ioport=0x110,0x330
 
@@ -187,6 +215,7 @@ the 'Driver Compile Time Options and Debugging' section above for
 more information.
 
 Credits (Chronological Order)
+=============================
 
 Bob Frey <bfrey@turbolinux.com.cn> wrote the AdvanSys SCSI driver
 and maintained it up to 3.3F. He continues to answer questions
