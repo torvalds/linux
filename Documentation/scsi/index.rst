@@ -39,5 +39,6 @@ Linux SCSI Subsystem
    scsi-parameters
    scsi
    sd-parameters
+   smartpqi
 
    scsi_transport_srp/figures
