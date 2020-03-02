@@ -3565,8 +3565,9 @@ static void intel_enable_ddi_hdmi(struct intel_encoder *encoder,
 	if (!intel_hdmi_handle_sink_scrambling(encoder, connector,
 					       crtc_state->hdmi_high_tmds_clock_ratio,
 					       crtc_state->hdmi_scrambling))
-		DRM_ERROR("[CONNECTOR:%d:%s] Failed to configure sink scrambling/TMDS bit clock ratio\n",
-			  connector->base.id, connector->name);
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Failed to configure sink "
+			      "scrambling/TMDS bit clock ratio\n",
+			       connector->base.id, connector->name);
 
 	/* Display WA #1143: skl,kbl,cfl */
 	if (IS_GEN9_BC(dev_priv)) {
