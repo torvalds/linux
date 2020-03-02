@@ -39,6 +39,7 @@
 #define IPL_CCW_STR		"ccw"
 #define IPL_FCP_STR		"fcp"
 #define IPL_FCP_DUMP_STR	"fcp_dump"
+#define IPL_NVME_STR		"nvme"
 #define IPL_NSS_STR		"nss"
 
 #define DUMP_CCW_STR		"ccw"
@@ -93,6 +94,8 @@ static char *ipl_type_str(enum ipl_type type)
 		return IPL_FCP_DUMP_STR;
 	case IPL_TYPE_NSS:
 		return IPL_NSS_STR;
+	case IPL_TYPE_NVME:
+		return IPL_NVME_STR;
 	case IPL_TYPE_UNKNOWN:
 	default:
 		return IPL_UNKNOWN_STR;
@@ -261,6 +264,8 @@ static __init enum ipl_type get_ipl_type(void)
 			return IPL_TYPE_FCP_DUMP;
 		else
 			return IPL_TYPE_FCP;
+	case IPL_PBT_NVME:
+		return IPL_TYPE_NVME;
 	}
 	return IPL_TYPE_UNKNOWN;
 }
@@ -317,6 +322,8 @@ static ssize_t sys_ipl_device_show(struct kobject *kobj,
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
 		return sprintf(page, "0.0.%04x\n", ipl_block.fcp.devno);
+	case IPL_TYPE_NVME:
+		return sprintf(page, "%08ux\n", ipl_block.nvme.fid);
 	default:
 		return 0;
 	}
@@ -345,12 +352,32 @@ static ssize_t ipl_scp_data_read(struct file *filp, struct kobject *kobj,
 
 	return memory_read_from_buffer(buf, count, &off, scp_data, size);
 }
+
+static ssize_t ipl_nvme_scp_data_read(struct file *filp, struct kobject *kobj,
+				 struct bin_attribute *attr, char *buf,
+				 loff_t off, size_t count)
+{
+	unsigned int size = ipl_block.nvme.scp_data_len;
+	void *scp_data = &ipl_block.nvme.scp_data;
+
+	return memory_read_from_buffer(buf, count, &off, scp_data, size);
+}
+
 static struct bin_attribute ipl_scp_data_attr =
 	__BIN_ATTR(scp_data, S_IRUGO, ipl_scp_data_read, NULL, PAGE_SIZE);
+
+static struct bin_attribute ipl_nvme_scp_data_attr =
+	__BIN_ATTR(scp_data, S_IRUGO, ipl_nvme_scp_data_read, NULL, PAGE_SIZE);
 
 static struct bin_attribute *ipl_fcp_bin_attrs[] = {
 	&ipl_parameter_attr,
 	&ipl_scp_data_attr,
+	NULL,
+};
+
+static struct bin_attribute *ipl_nvme_bin_attrs[] = {
+	&ipl_parameter_attr,
+	&ipl_nvme_scp_data_attr,
 	NULL,
 };
 
@@ -364,6 +391,16 @@ DEFINE_IPL_ATTR_RO(ipl_fcp, bootprog, "%lld\n",
 		   (unsigned long long)ipl_block.fcp.bootprog);
 DEFINE_IPL_ATTR_RO(ipl_fcp, br_lba, "%lld\n",
 		   (unsigned long long)ipl_block.fcp.br_lba);
+
+/* NVMe ipl device attributes */
+DEFINE_IPL_ATTR_RO(ipl_nvme, fid, "0x%08llx\n",
+		   (unsigned long long)ipl_block.nvme.fid);
+DEFINE_IPL_ATTR_RO(ipl_nvme, nsid, "0x%08llx\n",
+		   (unsigned long long)ipl_block.nvme.nsid);
+DEFINE_IPL_ATTR_RO(ipl_nvme, bootprog, "%lld\n",
+		   (unsigned long long)ipl_block.nvme.bootprog);
+DEFINE_IPL_ATTR_RO(ipl_nvme, br_lba, "%lld\n",
+		   (unsigned long long)ipl_block.nvme.br_lba);
 
 static ssize_t ipl_ccw_loadparm_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *page)
@@ -398,6 +435,24 @@ static struct attribute_group ipl_fcp_attr_group = {
 	.attrs = ipl_fcp_attrs,
 	.bin_attrs = ipl_fcp_bin_attrs,
 };
+
+static struct attribute *ipl_nvme_attrs[] = {
+	&sys_ipl_type_attr.attr,
+	&sys_ipl_nvme_fid_attr.attr,
+	&sys_ipl_nvme_nsid_attr.attr,
+	&sys_ipl_nvme_bootprog_attr.attr,
+	&sys_ipl_nvme_br_lba_attr.attr,
+	&sys_ipl_ccw_loadparm_attr.attr,
+	&sys_ipl_secure_attr.attr,
+	&sys_ipl_has_secure_attr.attr,
+	NULL,
+};
+
+static struct attribute_group ipl_nvme_attr_group = {
+	.attrs = ipl_nvme_attrs,
+	.bin_attrs = ipl_nvme_bin_attrs,
+};
+
 
 /* CCW ipl device attributes */
 
@@ -473,6 +528,9 @@ static int __init ipl_init(void)
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
 		rc = sysfs_create_group(&ipl_kset->kobj, &ipl_fcp_attr_group);
+		break;
+	case IPL_TYPE_NVME:
+		rc = sysfs_create_group(&ipl_kset->kobj, &ipl_nvme_attr_group);
 		break;
 	default:
 		rc = sysfs_create_group(&ipl_kset->kobj,
@@ -949,6 +1007,7 @@ static void __reipl_run(void *unused)
 		diag308(DIAG308_SET, reipl_block_nss);
 		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
+	case IPL_TYPE_NVME:
 	case IPL_TYPE_UNKNOWN:
 		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
@@ -1749,6 +1808,10 @@ void __init setup_ipl(void)
 		ipl_info.data.fcp.dev_id.devno = ipl_block.fcp.devno;
 		ipl_info.data.fcp.wwpn = ipl_block.fcp.wwpn;
 		ipl_info.data.fcp.lun = ipl_block.fcp.lun;
+		break;
+	case IPL_TYPE_NVME:
+		ipl_info.data.nvme.fid = ipl_block.nvme.fid;
+		ipl_info.data.nvme.nsid = ipl_block.nvme.nsid;
 		break;
 	case IPL_TYPE_NSS:
 	case IPL_TYPE_UNKNOWN:
