@@ -7416,7 +7416,7 @@ M:	Don Brace <don.brace@microsemi.com>
 L:	esc.storagedev@microsemi.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
-F:	Documentation/scsi/hpsa.txt
+F:	Documentation/scsi/hpsa.rst
 F:	drivers/scsi/hpsa*.[ch]
 F:	include/linux/cciss*.h
 F:	include/uapi/linux/cciss*.h

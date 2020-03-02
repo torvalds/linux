@@ -21,5 +21,6 @@ Linux SCSI Subsystem
    dpti
    FlashPoint
    g_NCR5380
+   hpsa
 
    scsi_transport_srp/figures
