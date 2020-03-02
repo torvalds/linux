@@ -439,7 +439,7 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry)
 static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 				  int *nent, int maxnent)
 {
-	int r;
+	int r, i, max_idx;
 	unsigned f_nx = is_efer_nx() ? F(NX) : 0;
 #ifdef CONFIG_X86_64
 	unsigned f_gbpages = (kvm_x86_ops->get_lpage_level() == PT_PDPE_LEVEL)
@@ -535,20 +535,18 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 	 * may return different values. This forces us to get_cpu() before
 	 * issuing the first command, and also to emulate this annoying behavior
 	 * in kvm_emulate_cpuid() using KVM_CPUID_FLAG_STATE_READ_NEXT */
-	case 2: {
-		int t, times = entry->eax & 0xff;
-
+	case 2:
 		entry->flags |= KVM_CPUID_FLAG_STATE_READ_NEXT;
-		for (t = 1; t < times; ++t) {
-			if (!do_host_cpuid(&entry[t], nent, maxnent, function, 0))
+
+		for (i = 1, max_idx = entry->eax & 0xff; i < max_idx; ++i) {
+			if (!do_host_cpuid(&entry[i], nent, maxnent, function, 0))
 				goto out;
 		}
 		break;
-	}
 	/* functions 4 and 0x8000001d have additional index. */
 	case 4:
 	case 0x8000001d: {
-		int i, cache_type;
+		int cache_type;
 
 		/* read more entries until cache_type is zero */
 		for (i = 1; ; ++i) {
@@ -568,19 +566,16 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->edx = 0;
 		break;
 	/* function 7 has additional index. */
-	case 7: {
-		int i;
-
+	case 7:
 		do_cpuid_7_mask(entry);
 
-		for (i = 1; i <= entry->eax; i++) {
+		for (i = 1, max_idx = entry->eax; i <= max_idx; i++) {
 			if (!do_host_cpuid(&entry[i], nent, maxnent, function, i))
 				goto out;
 
 			do_cpuid_7_mask(&entry[i]);
 		}
 		break;
-	}
 	case 9:
 		break;
 	case 0xa: { /* Architectural Performance Monitoring */
@@ -617,9 +612,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 	 * thus they can be handled by common code.
 	 */
 	case 0x1f:
-	case 0xb: {
-		int i;
-
+	case 0xb:
 		/*
 		 * We filled in entry[0] for CPUID(EAX=<function>,
 		 * ECX=00H) above.  If its level type (ECX[15:8]) is
@@ -633,9 +626,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 				goto out;
 		}
 		break;
-	}
 	case 0xd: {
-		int idx, i;
+		int idx;
 		u64 supported = kvm_supported_xcr0();
 
 		entry->eax &= supported;
@@ -684,18 +676,15 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		break;
 	}
 	/* Intel PT */
-	case 0x14: {
-		int t, times = entry->eax;
-
+	case 0x14:
 		if (!f_intel_pt)
 			break;
 
-		for (t = 1; t <= times; ++t) {
-			if (!do_host_cpuid(&entry[t], nent, maxnent, function, t))
+		for (i = 1, max_idx = entry->eax; i <= max_idx; ++i) {
+			if (!do_host_cpuid(&entry[i], nent, maxnent, function, i))
 				goto out;
 		}
 		break;
-	}
 	case KVM_CPUID_SIGNATURE: {
 		static const char signature[12] = "KVMKVMKVM\0\0";
 		const u32 *sigptr = (const u32 *)signature;
