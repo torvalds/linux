@@ -27,12 +27,12 @@ struct imx_sc_sensor {
 struct req_get_temp {
 	u16 resource_id;
 	u8 type;
-} __packed;
+} __packed __aligned(4);
 
 struct resp_get_temp {
 	u16 celsius;
 	u8 tenths;
-} __packed;
+} __packed __aligned(4);
 
 struct imx_sc_msg_misc_get_temp {
 	struct imx_sc_rpc_msg hdr;
@@ -40,7 +40,7 @@ struct imx_sc_msg_misc_get_temp {
 		struct req_get_temp req;
 		struct resp_get_temp resp;
 	} data;
-};
+} __packed __aligned(4);
 
 static int imx_sc_thermal_get_temp(void *data, int *temp)
 {
