@@ -33,5 +33,6 @@ Linux SCSI Subsystem
    qlogicfas
    scsi-changer
    scsi_eh
+   scsi_fc_transport
 
    scsi_transport_srp/figures
