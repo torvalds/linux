@@ -1299,12 +1299,14 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] = {
 	},
 	{
 		/*
-		 * Various HP X2 10 Cherry Trail models use an external
-		 * embedded-controller connected via I2C + an ACPI GPIO
-		 * event handler. The embedded controller generates various
-		 * spurious wakeup events when suspended. So disable wakeup
-		 * for its handler (it uses the only ACPI GPIO event handler).
-		 * This breaks wakeup when opening the lid, the user needs
+		 * HP X2 10 models with Cherry Trail SoC + TI PMIC use an
+		 * external embedded-controller connected via I2C + an ACPI GPIO
+		 * event handler on INT33FF:01 pin 0, causing spurious wakeups.
+		 * When suspending by closing the LID, the power to the USB
+		 * keyboard is turned off, causing INT0002 ACPI events to
+		 * trigger once the XHCI controller notices the keyboard is
+		 * gone. So INT0002 events cause spurious wakeups too. Ignoring
+		 * EC wakes breaks wakeup when opening the lid, the user needs
 		 * to press the power-button to wakeup the system. The
 		 * alternative is suspend simply not working, which is worse.
 		 */
