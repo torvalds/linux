@@ -948,6 +948,9 @@ static int gmc_v9_0_late_init(void *handle)
 		}
 	}
 
+	if (adev->mmhub.funcs && adev->mmhub.funcs->reset_ras_error_count)
+		adev->mmhub.funcs->reset_ras_error_count(adev);
+
 	r = amdgpu_gmc_ras_late_init(adev);
 	if (r)
 		return r;
