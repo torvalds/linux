@@ -2674,9 +2674,12 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 	break;
 	}
 
-	test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
-			DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
-			DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
+	if (dpcd_test_params.bits.CLR_FORMAT == 0)
+		test_pattern_color_space = DP_TEST_PATTERN_COLOR_SPACE_RGB;
+	else
+		test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
+				DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
+				DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
 
 	dc_link_dp_set_test_pattern(
 			link,
