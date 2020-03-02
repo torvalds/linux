@@ -45,13 +45,6 @@ static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 	return ret;
 }
 
-bool kvm_mpx_supported(void)
-{
-	return (supported_xcr0 & (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR))
-		== (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
-}
-EXPORT_SYMBOL_GPL(kvm_mpx_supported);
-
 #define F feature_bit
 
 int kvm_update_cpuid(struct kvm_vcpu *vcpu)

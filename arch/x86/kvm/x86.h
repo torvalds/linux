@@ -273,6 +273,12 @@ enum exit_fastpath_completion handle_fastpath_set_msr_irqoff(struct kvm_vcpu *vc
 extern u64 host_xcr0;
 extern u64 supported_xcr0;
 
+static inline bool kvm_mpx_supported(void)
+{
+	return (supported_xcr0 & (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR))
+		== (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
+}
+
 extern unsigned int min_timer_period_us;
 
 extern bool enable_vmware_backdoor;

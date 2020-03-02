@@ -7,7 +7,6 @@
 #include <asm/processor.h>
 
 int kvm_update_cpuid(struct kvm_vcpu *vcpu);
-bool kvm_mpx_supported(void);
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 					      u32 function, u32 index);
 int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
