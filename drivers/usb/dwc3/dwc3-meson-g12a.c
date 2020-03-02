@@ -321,9 +321,10 @@ static int dwc3_meson_g12a_otg_mode_set(struct dwc3_meson_g12a *priv,
 	return 0;
 }
 
-static int dwc3_meson_g12a_role_set(struct device *dev, enum usb_role role)
+static int dwc3_meson_g12a_role_set(struct usb_role_switch *sw,
+				    enum usb_role role)
 {
-	struct dwc3_meson_g12a *priv = dev_get_drvdata(dev);
+	struct dwc3_meson_g12a *priv = usb_role_switch_get_drvdata(sw);
 	enum phy_mode mode;
 
 	if (role == USB_ROLE_NONE)
@@ -338,9 +339,9 @@ static int dwc3_meson_g12a_role_set(struct device *dev, enum usb_role role)
 	return dwc3_meson_g12a_otg_mode_set(priv, mode);
 }
 
-static enum usb_role dwc3_meson_g12a_role_get(struct device *dev)
+static enum usb_role dwc3_meson_g12a_role_get(struct usb_role_switch *sw)
 {
-	struct dwc3_meson_g12a *priv = dev_get_drvdata(dev);
+	struct dwc3_meson_g12a *priv = usb_role_switch_get_drvdata(sw);
 
 	return priv->otg_phy_mode == PHY_MODE_USB_HOST ?
 		USB_ROLE_HOST : USB_ROLE_DEVICE;
@@ -499,6 +500,7 @@ static int dwc3_meson_g12a_probe(struct platform_device *pdev)
 	priv->switch_desc.allow_userspace_control = true;
 	priv->switch_desc.set = dwc3_meson_g12a_role_set;
 	priv->switch_desc.get = dwc3_meson_g12a_role_get;
+	priv->switch_desc.driver_data = priv;
 
 	priv->role_switch = usb_role_switch_register(dev, &priv->switch_desc);
 	if (IS_ERR(priv->role_switch))

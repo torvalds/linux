@@ -13,8 +13,9 @@ enum usb_role {
 	USB_ROLE_DEVICE,
 };
 
-typedef int (*usb_role_switch_set_t)(struct device *dev, enum usb_role role);
-typedef enum usb_role (*usb_role_switch_get_t)(struct device *dev);
+typedef int (*usb_role_switch_set_t)(struct usb_role_switch *sw,
+				     enum usb_role role);
+typedef enum usb_role (*usb_role_switch_get_t)(struct usb_role_switch *sw);
 
 /**
  * struct usb_role_switch_desc - USB Role Switch Descriptor

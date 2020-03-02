@@ -48,7 +48,7 @@ int usb_role_switch_set_role(struct usb_role_switch *sw, enum usb_role role)
 
 	mutex_lock(&sw->lock);
 
-	ret = sw->set(sw->dev.parent, role);
+	ret = sw->set(sw, role);
 	if (!ret)
 		sw->role = role;
 
@@ -75,7 +75,7 @@ enum usb_role usb_role_switch_get_role(struct usb_role_switch *sw)
 	mutex_lock(&sw->lock);
 
 	if (sw->get)
-		role = sw->get(sw->dev.parent);
+		role = sw->get(sw);
 	else
 		role = sw->role;
 

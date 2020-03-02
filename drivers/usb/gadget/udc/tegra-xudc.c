@@ -676,12 +676,13 @@ static void tegra_xudc_usb_role_sw_work(struct work_struct *work)
 
 }
 
-static int tegra_xudc_usb_role_sw_set(struct device *dev, enum usb_role role)
+static int tegra_xudc_usb_role_sw_set(struct usb_role_switch *sw,
+				      enum usb_role role)
 {
-	struct tegra_xudc *xudc = dev_get_drvdata(dev);
+	struct tegra_xudc *xudc = usb_role_switch_get_drvdata(sw);
 	unsigned long flags;
 
-	dev_dbg(dev, "%s role is %d\n", __func__, role);
+	dev_dbg(xudc->dev, "%s role is %d\n", __func__, role);
 
 	spin_lock_irqsave(&xudc->lock, flags);
 
@@ -3590,6 +3591,7 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 	if (of_property_read_bool(xudc->dev->of_node, "usb-role-switch")) {
 		role_sx_desc.set = tegra_xudc_usb_role_sw_set;
 		role_sx_desc.fwnode = dev_fwnode(xudc->dev);
+		role_sx_desc.driver_data = xudc;
 
 		xudc->usb_role_sw = usb_role_switch_register(xudc->dev,
 							&role_sx_desc);
