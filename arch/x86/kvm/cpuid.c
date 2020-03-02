@@ -287,9 +287,14 @@ static __always_inline void cpuid_mask(u32 *word, int wordnum)
 	*word &= boot_cpu_data.x86_capability[wordnum];
 }
 
-static void do_host_cpuid(struct kvm_cpuid_entry2 *entry, u32 function,
-			   u32 index)
+static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_entry2 *entry,
+					      int *nent, int maxnent,
+					      u32 function, u32 index)
 {
+	if (*nent >= maxnent)
+		return NULL;
+	++*nent;
+
 	entry->function = function;
 	entry->index = index;
 	entry->flags = 0;
@@ -316,6 +321,8 @@ static void do_host_cpuid(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		break;
 	}
+
+	return entry;
 }
 
 static int __do_cpuid_func_emulated(struct kvm_cpuid_entry2 *entry,
@@ -507,11 +514,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 
 	r = -E2BIG;
 
-	if (WARN_ON(*nent >= maxnent))
+	if (WARN_ON(!do_host_cpuid(entry, nent, maxnent, function, 0)))
 		goto out;
-
-	do_host_cpuid(entry, function, 0);
-	++*nent;
 
 	switch (function) {
 	case 0:
@@ -536,11 +540,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 
 		entry->flags |= KVM_CPUID_FLAG_STATE_READ_NEXT;
 		for (t = 1; t < times; ++t) {
-			if (*nent >= maxnent)
+			if (!do_host_cpuid(&entry[t], nent, maxnent, function, 0))
 				goto out;
-
-			do_host_cpuid(&entry[t], function, 0);
-			++*nent;
 		}
 		break;
 	}
@@ -555,10 +556,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			if (!cache_type)
 				break;
 
-			if (*nent >= maxnent)
+			if (!do_host_cpuid(&entry[i], nent, maxnent, function, i))
 				goto out;
-			do_host_cpuid(&entry[i], function, i);
-			++*nent;
 		}
 		break;
 	}
@@ -575,11 +574,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		do_cpuid_7_mask(entry);
 
 		for (i = 1; i <= entry->eax; i++) {
-			if (*nent >= maxnent)
+			if (!do_host_cpuid(&entry[i], nent, maxnent, function, i))
 				goto out;
-
-			do_host_cpuid(&entry[i], function, i);
-			++*nent;
 
 			do_cpuid_7_mask(&entry[i]);
 		}
@@ -633,11 +629,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		 * added entry is zero.
 		 */
 		for (i = 1; entry[i - 1].ecx & 0xff00; ++i) {
-			if (*nent >= maxnent)
+			if (!do_host_cpuid(&entry[i], nent, maxnent, function, i))
 				goto out;
-
-			do_host_cpuid(&entry[i], function, i);
-			++*nent;
 		}
 		break;
 	}
@@ -652,11 +645,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		if (!supported)
 			break;
 
-		if (*nent >= maxnent)
+		if (!do_host_cpuid(&entry[1], nent, maxnent, function, 1))
 			goto out;
-
-		do_host_cpuid(&entry[1], function, 1);
-		++*nent;
 
 		entry[1].eax &= kvm_cpuid_D_1_eax_x86_features;
 		cpuid_mask(&entry[1].eax, CPUID_D_1_EAX);
@@ -672,11 +662,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			if (!(supported & BIT_ULL(idx)))
 				continue;
 
-			if (*nent >= maxnent)
+			if (!do_host_cpuid(&entry[i], nent, maxnent, function, idx))
 				goto out;
-
-			do_host_cpuid(&entry[i], function, idx);
-			++*nent;
 
 			/*
 			 * The @supported check above should have filtered out
@@ -704,10 +691,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			break;
 
 		for (t = 1; t <= times; ++t) {
-			if (*nent >= maxnent)
+			if (!do_host_cpuid(&entry[t], nent, maxnent, function, t))
 				goto out;
-			do_host_cpuid(&entry[t], function, t);
-			++*nent;
 		}
 		break;
 	}
