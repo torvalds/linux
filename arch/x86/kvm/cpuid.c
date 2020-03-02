@@ -844,9 +844,6 @@ static int get_cpuid_func(struct kvm_cpuid_array *array, u32 func,
 
 	limit = array->entries[array->nent - 1].eax;
 	for (func = func + 1; func <= limit; ++func) {
-		if (array->nent >= array->maxnent)
-			return -E2BIG;
-
 		r = do_cpuid_func(array, func, type);
 		if (r)
 			break;
