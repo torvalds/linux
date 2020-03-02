@@ -149,8 +149,6 @@ static void mark_page_dirty_in_slot(struct kvm_memory_slot *memslot, gfn_t gfn);
 __visible bool kvm_rebooting;
 EXPORT_SYMBOL_GPL(kvm_rebooting);
 
-static bool largepages_enabled = true;
-
 #define KVM_EVENT_CREATE_VM 0
 #define KVM_EVENT_DESTROY_VM 1
 static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm);
@@ -1590,17 +1588,6 @@ static int kvm_vm_ioctl_clear_dirty_log(struct kvm *kvm,
 	return r;
 }
 #endif /* CONFIG_KVM_GENERIC_DIRTYLOG_READ_PROTECT */
-
-bool kvm_largepages_enabled(void)
-{
-	return largepages_enabled;
-}
-
-void kvm_disable_largepages(void)
-{
-	largepages_enabled = false;
-}
-EXPORT_SYMBOL_GPL(kvm_disable_largepages);
 
 struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 {
