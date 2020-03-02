@@ -27,5 +27,6 @@ Linux SCSI Subsystem
    link_power_management_policy
    lpfc
    megaraid
+   ncr53c8xx
 
    scsi_transport_srp/figures
