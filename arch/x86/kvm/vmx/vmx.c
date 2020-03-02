@@ -7818,6 +7818,8 @@ static __init int hardware_setup(void)
 			return r;
 	}
 
+	kvm_set_cpu_caps();
+
 	r = alloc_kvm_area();
 	if (r)
 		nested_vmx_hardware_unsetup();

@@ -6,6 +6,9 @@
 #include <asm/cpu.h>
 #include <asm/processor.h>
 
+extern u32 kvm_cpu_caps[NCAPINTS] __read_mostly;
+void kvm_set_cpu_caps(void);
+
 int kvm_update_cpuid(struct kvm_vcpu *vcpu);
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 					      u32 function, u32 index);
@@ -172,7 +175,8 @@ static __always_inline void cpuid_entry_mask(struct kvm_cpuid_entry2 *entry,
 {
 	u32 *reg = cpuid_entry_get_reg(entry, leaf * 32);
 
-	*reg &= boot_cpu_data.x86_capability[leaf];
+	BUILD_BUG_ON(leaf >= ARRAY_SIZE(kvm_cpu_caps));
+	*reg &= kvm_cpu_caps[leaf];
 }
 
 static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu,
@@ -260,6 +264,22 @@ static inline bool cpuid_fault_enabled(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.msr_misc_features_enables &
 		  MSR_MISC_FEATURES_ENABLES_CPUID_FAULT;
+}
+
+static __always_inline void kvm_cpu_cap_clear(unsigned int x86_feature)
+{
+	unsigned int x86_leaf = x86_feature / 32;
+
+	reverse_cpuid_check(x86_leaf);
+	kvm_cpu_caps[x86_leaf] &= ~__feature_bit(x86_feature);
+}
+
+static __always_inline void kvm_cpu_cap_set(unsigned int x86_feature)
+{
+	unsigned int x86_leaf = x86_feature / 32;
+
+	reverse_cpuid_check(x86_leaf);
+	kvm_cpu_caps[x86_leaf] |= __feature_bit(x86_feature);
 }
 
 #endif

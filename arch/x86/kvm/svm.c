@@ -1479,6 +1479,8 @@ static __init int svm_hardware_setup(void)
 			pr_info("Virtual GIF supported\n");
 	}
 
+	kvm_set_cpu_caps();
+
 	return 0;
 
 err:
