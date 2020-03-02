@@ -848,6 +848,14 @@
 		status = "disabled";
 	};
 
+	wdt: watchdog@ff680000 {
+		compatible = "rockchip,rv1126-wdt", "snps,dw-wdt";
+		reg = <0xff680000 0x100>;
+		clocks = <&cru PCLK_WDT>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	mailbox: mailbox@ff6a0000 {
 		compatible = "rockchip,rv1126-mailbox",
 			     "rockchip,rk3368-mailbox";
