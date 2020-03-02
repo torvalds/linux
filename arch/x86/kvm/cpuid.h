@@ -63,7 +63,7 @@ static const struct cpuid_reg reverse_cpuid[] = {
  * and can't be used by KVM to query/control guest capabilities.  And obviously
  * the leaf being queried must have an entry in the lookup table.
  */
-static __always_inline void reverse_cpuid_check(unsigned x86_leaf)
+static __always_inline void reverse_cpuid_check(unsigned int x86_leaf)
 {
 	BUILD_BUG_ON(x86_leaf == CPUID_LNX_1);
 	BUILD_BUG_ON(x86_leaf == CPUID_LNX_2);
@@ -87,15 +87,16 @@ static __always_inline u32 __feature_bit(int x86_feature)
 
 #define feature_bit(name)  __feature_bit(X86_FEATURE_##name)
 
-static __always_inline struct cpuid_reg x86_feature_cpuid(unsigned x86_feature)
+static __always_inline struct cpuid_reg x86_feature_cpuid(unsigned int x86_feature)
 {
-	unsigned x86_leaf = x86_feature / 32;
+	unsigned int x86_leaf = x86_feature / 32;
 
 	reverse_cpuid_check(x86_leaf);
 	return reverse_cpuid[x86_leaf];
 }
 
-static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu, unsigned x86_feature)
+static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu,
+						     unsigned int x86_feature)
 {
 	struct kvm_cpuid_entry2 *entry;
 	const struct cpuid_reg cpuid = x86_feature_cpuid(x86_feature);
@@ -119,7 +120,8 @@ static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu, unsi
 	}
 }
 
-static __always_inline bool guest_cpuid_has(struct kvm_vcpu *vcpu, unsigned x86_feature)
+static __always_inline bool guest_cpuid_has(struct kvm_vcpu *vcpu,
+					    unsigned int x86_feature)
 {
 	u32 *reg;
 
@@ -130,7 +132,8 @@ static __always_inline bool guest_cpuid_has(struct kvm_vcpu *vcpu, unsigned x86_
 	return *reg & __feature_bit(x86_feature);
 }
 
-static __always_inline void guest_cpuid_clear(struct kvm_vcpu *vcpu, unsigned x86_feature)
+static __always_inline void guest_cpuid_clear(struct kvm_vcpu *vcpu,
+					      unsigned int x86_feature)
 {
 	u32 *reg;
 
