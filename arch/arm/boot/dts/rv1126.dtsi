@@ -128,6 +128,13 @@
 		status = "disabled";
 	};
 
+	mpp_srv: mpp-srv {
+		compatible = "rockchip,mpp-service";
+		rockchip,taskqueue-count = <3>;
+		rockchip,resetgroup-count = <3>;
+		status = "disabled";
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
@@ -1013,6 +1020,38 @@
 		clocks = <&cru ACLK_ISPP>, <&cru HCLK_ISPP>,
 			 <&cru CLK_ISPP>;
 		clock-names = "aclk_ispp", "hclk_ispp", "clk_ispp";
+		status = "disabled";
+	};
+
+	rkvenc: rkvenc@ffbb0000 {
+		compatible = "rockchip,rkv-encoder-v1";
+		reg = <0xffbb0000 0x400>;
+		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_enc";
+		clocks = <&cru ACLK_VENC>, <&cru HCLK_VENC>,
+			<&cru CLK_VENC_CORE>;
+		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
+		resets = <&cru SRST_VENC_A>, <&cru SRST_VENC_H>,
+			<&cru SRST_VENC_CORE>;
+		reset-names = "video_a", "video_h", "video_core";
+		iommus = <&rkvenc_mmu>;
+		node-name = "rkvenc";
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <2>;
+		rockchip,resetgroup-node = <2>;
+		status = "disabled";
+	};
+
+	rkvenc_mmu: iommu@ffbb0f00 {
+		compatible = "rockchip,iommu";
+		reg = <0xffbb0f00 0x40>, <0xffbb0f40 0x40>;
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rkvenc_mmu0", "rkvenc_mmu1";
+		clocks = <&cru ACLK_VENC>, <&cru HCLK_VENC>;
+		clock-names = "aclk", "iface";
+		rockchip,disable-mmu-reset;
+		#iommu-cells = <0>;
 		status = "disabled";
 	};
 
