@@ -549,7 +549,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 
 	priv->int_interval = 1;  /* bInterval is set to 1 */
 
-	ret = vnt_int_start_interrupt(priv);
+	ret = vnt_start_interrupt_urb(priv);
 	if (ret)
 		goto free_all;
 

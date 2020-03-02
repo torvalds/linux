@@ -176,6 +176,8 @@ int vnt_start_interrupt_urb(struct vnt_private *priv)
 {
 	int ret = 0;
 
+	dev_dbg(&priv->usb->dev, "---->Interrupt Polling Thread\n");
+
 	if (priv->int_buf.in_use) {
 		ret = -EBUSY;
 		goto err;

@@ -41,7 +41,6 @@ struct vnt_interrupt_data {
 	u8 sw[2];
 } __packed;
 
-int vnt_int_start_interrupt(struct vnt_private *priv);
 void vnt_int_process_data(struct vnt_private *priv);
 
 #endif /* __INT_H__ */

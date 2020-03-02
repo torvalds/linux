@@ -23,17 +23,6 @@
 #include "power.h"
 #include "usbpipe.h"
 
-int vnt_int_start_interrupt(struct vnt_private *priv)
-{
-	int ret = 0;
-
-	dev_dbg(&priv->usb->dev, "---->Interrupt Polling Thread\n");
-
-	ret = vnt_start_interrupt_urb(priv);
-
-	return ret;
-}
-
 static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
 {
 	struct vnt_usb_send_context *context;
