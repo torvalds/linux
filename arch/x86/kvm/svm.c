@@ -1455,16 +1455,14 @@ static __init int svm_hardware_setup(void)
 	if (!boot_cpu_has(X86_FEATURE_NPT))
 		npt_enabled = false;
 
-	if (npt_enabled && !npt) {
-		printk(KERN_INFO "kvm: Nested Paging disabled\n");
+	if (npt_enabled && !npt)
 		npt_enabled = false;
-	}
 
-	if (npt_enabled) {
-		printk(KERN_INFO "kvm: Nested Paging enabled\n");
+	if (npt_enabled)
 		kvm_enable_tdp();
-	} else
+	else
 		kvm_disable_tdp();
+	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
 
 	if (nrips) {
 		if (!boot_cpu_has(X86_FEATURE_NRIPS))
