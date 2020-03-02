@@ -44,5 +44,6 @@ Linux SCSI Subsystem
    sym53c500_cs
    sym53c8xx_2
    tcm_qla2xxx
+   ufs
 
    scsi_transport_srp/figures
