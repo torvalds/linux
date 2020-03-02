@@ -433,7 +433,6 @@ static const struct kvm_vmx_segment_field {
 	VMX_SEGMENT_FIELD(LDTR),
 };
 
-u64 host_efer;
 static unsigned long host_idt_base;
 
 /*
@@ -7645,8 +7644,6 @@ static __init int hardware_setup(void)
 	unsigned long host_bndcfgs;
 	struct desc_ptr dt;
 	int r, i, ept_lpage_level;
-
-	rdmsrl_safe(MSR_EFER, &host_efer);
 
 	store_idt(&dt);
 	host_idt_base = dt.address;

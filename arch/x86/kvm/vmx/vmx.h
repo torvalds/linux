@@ -12,7 +12,6 @@
 #include "vmcs.h"
 
 extern const u32 vmx_msr_index[];
-extern u64 host_efer;
 
 extern u32 get_umwait_control_msr(void);
 

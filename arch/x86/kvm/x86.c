@@ -186,6 +186,9 @@ static struct kvm_shared_msrs __percpu *shared_msrs;
 				| XFEATURE_MASK_BNDCSR | XFEATURE_MASK_AVX512 \
 				| XFEATURE_MASK_PKRU)
 
+u64 __read_mostly host_efer;
+EXPORT_SYMBOL_GPL(host_efer);
+
 static u64 __read_mostly host_xss;
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
@@ -9611,6 +9614,8 @@ void kvm_arch_hardware_disable(void)
 int kvm_arch_hardware_setup(void)
 {
 	int r;
+
+	rdmsrl_safe(MSR_EFER, &host_efer);
 
 	r = kvm_x86_ops->hardware_setup();
 	if (r != 0)

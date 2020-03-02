@@ -1271,6 +1271,8 @@ struct kvm_arch_async_pf {
 	bool direct_map;
 };
 
+extern u64 __read_mostly host_efer;
+
 extern struct kvm_x86_ops *kvm_x86_ops;
 extern struct kmem_cache *x86_fpu_cache;
 
