@@ -634,7 +634,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		}
 		break;
 	case 0xd: {
-		int idx;
 		u64 supported = kvm_supported_xcr0();
 
 		entry->eax &= supported;
@@ -658,11 +657,11 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		entry->ecx = 0;
 		entry->edx = 0;
 
-		for (idx = 2; idx < 64; ++idx) {
-			if (!(supported & BIT_ULL(idx)))
+		for (i = 2; i < 64; ++i) {
+			if (!(supported & BIT_ULL(i)))
 				continue;
 
-			entry = do_host_cpuid(array, function, idx);
+			entry = do_host_cpuid(array, function, i);
 			if (!entry)
 				goto out;
 
