@@ -1469,7 +1469,7 @@ DECLARE_EVENT_CLASS(svcrdma_segment_event,
 );
 
 #define DEFINE_SEGMENT_EVENT(name)					\
-		DEFINE_EVENT(svcrdma_segment_event, svcrdma_encode_##name,\
+		DEFINE_EVENT(svcrdma_segment_event, svcrdma_##name,\
 				TP_PROTO(				\
 					u32 handle,			\
 					u32 length,			\
@@ -1477,8 +1477,9 @@ DECLARE_EVENT_CLASS(svcrdma_segment_event,
 				),					\
 				TP_ARGS(handle, length, offset))
 
-DEFINE_SEGMENT_EVENT(rseg);
-DEFINE_SEGMENT_EVENT(wseg);
+DEFINE_SEGMENT_EVENT(decode_wseg);
+DEFINE_SEGMENT_EVENT(encode_rseg);
+DEFINE_SEGMENT_EVENT(encode_wseg);
 
 DECLARE_EVENT_CLASS(svcrdma_chunk_event,
 	TP_PROTO(
