@@ -346,7 +346,7 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_entry2 *entry,
 	return 0;
 }
 
-static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry, int index)
+static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry)
 {
 	unsigned f_invpcid = kvm_x86_ops->invpcid_supported() ? F(INVPCID) : 0;
 	unsigned f_mpx = kvm_mpx_supported() ? F(MPX) : 0;
@@ -380,7 +380,7 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry, int index)
 	const u32 kvm_cpuid_7_1_eax_x86_features =
 		F(AVX512_BF16);
 
-	switch (index) {
+	switch (entry->index) {
 	case 0:
 		entry->eax = min(entry->eax, 1u);
 		entry->ebx &= kvm_cpuid_7_0_ebx_x86_features;
@@ -573,7 +573,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 	case 7: {
 		int i;
 
-		do_cpuid_7_mask(entry, 0);
+		do_cpuid_7_mask(entry);
 
 		for (i = 1; i <= entry->eax; i++) {
 			if (*nent >= maxnent)
@@ -582,7 +582,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			do_host_cpuid(&entry[i], function, i);
 			++*nent;
 
-			do_cpuid_7_mask(&entry[i], i);
+			do_cpuid_7_mask(&entry[i]);
 		}
 		break;
 	}
