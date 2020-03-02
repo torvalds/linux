@@ -14,6 +14,49 @@
 #include <linux/net.h>
 #include <linux/tracepoint.h>
 
+DECLARE_EVENT_CLASS(xdr_buf_class,
+	TP_PROTO(
+		const struct xdr_buf *xdr
+	),
+
+	TP_ARGS(xdr),
+
+	TP_STRUCT__entry(
+		__field(const void *, head_base)
+		__field(size_t, head_len)
+		__field(const void *, tail_base)
+		__field(size_t, tail_len)
+		__field(unsigned int, page_len)
+		__field(unsigned int, msg_len)
+	),
+
+	TP_fast_assign(
+		__entry->head_base = xdr->head[0].iov_base;
+		__entry->head_len = xdr->head[0].iov_len;
+		__entry->tail_base = xdr->tail[0].iov_base;
+		__entry->tail_len = xdr->tail[0].iov_len;
+		__entry->page_len = xdr->page_len;
+		__entry->msg_len = xdr->len;
+	),
+
+	TP_printk("head=[%p,%zu] page=%u tail=[%p,%zu] len=%u",
+		__entry->head_base, __entry->head_len, __entry->page_len,
+		__entry->tail_base, __entry->tail_len, __entry->msg_len
+	)
+);
+
+#define DEFINE_XDRBUF_EVENT(name)					\
+		DEFINE_EVENT(xdr_buf_class, name,			\
+				TP_PROTO(				\
+					const struct xdr_buf *xdr	\
+				),					\
+				TP_ARGS(xdr))
+
+DEFINE_XDRBUF_EVENT(xprt_sendto);
+DEFINE_XDRBUF_EVENT(xprt_recvfrom);
+DEFINE_XDRBUF_EVENT(svc_recvfrom);
+DEFINE_XDRBUF_EVENT(svc_sendto);
+
 TRACE_DEFINE_ENUM(RPC_AUTH_OK);
 TRACE_DEFINE_ENUM(RPC_AUTH_BADCRED);
 TRACE_DEFINE_ENUM(RPC_AUTH_REJECTEDCRED);

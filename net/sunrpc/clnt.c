@@ -2509,6 +2509,7 @@ call_decode(struct rpc_task *task)
 		goto out;
 
 	req->rq_rcv_buf.len = req->rq_private_buf.len;
+	trace_xprt_recvfrom(&req->rq_rcv_buf);
 
 	/* Check that the softirq receive buffer is valid */
 	WARN_ON(memcmp(&req->rq_rcv_buf, &req->rq_private_buf,
