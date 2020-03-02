@@ -4681,7 +4681,7 @@ L:	dc395x@twibble.org
 W:	http://twibble.org/dist/dc395x/
 W:	http://lists.twibble.org/mailman/listinfo/dc395x/
 S:	Maintained
-F:	Documentation/scsi/dc395x.txt
+F:	Documentation/scsi/dc395x.rst
 F:	drivers/scsi/dc395x.*
 
 DCCP PROTOCOL

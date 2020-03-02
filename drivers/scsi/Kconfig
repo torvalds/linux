@@ -1187,7 +1187,7 @@ config SCSI_DC395x
 	  This driver works, but is still in experimental status. So better
 	  have a bootable disk and a backup in case of emergency.
 
-	  Documentation can be found in <file:Documentation/scsi/dc395x.txt>.
+	  Documentation can be found in <file:Documentation/scsi/dc395x.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dc395x.

@@ -17,5 +17,6 @@ Linux SCSI Subsystem
    bnx2fc
    BusLogic
    cxgb3i
+   dc395x
 
    scsi_transport_srp/figures
