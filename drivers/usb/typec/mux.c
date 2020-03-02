@@ -141,6 +141,16 @@ typec_switch_register(struct device *parent,
 }
 EXPORT_SYMBOL_GPL(typec_switch_register);
 
+int typec_switch_set(struct typec_switch *sw,
+		     enum typec_orientation orientation)
+{
+	if (IS_ERR_OR_NULL(sw))
+		return 0;
+
+	return sw->set(sw, orientation);
+}
+EXPORT_SYMBOL_GPL(typec_switch_set);
+
 /**
  * typec_switch_unregister - Unregister USB Type-C orientation switch
  * @sw: USB Type-C orientation switch
@@ -268,6 +278,15 @@ void typec_mux_put(struct typec_mux *mux)
 	}
 }
 EXPORT_SYMBOL_GPL(typec_mux_put);
+
+int typec_mux_set(struct typec_mux *mux, struct typec_mux_state *state)
+{
+	if (IS_ERR_OR_NULL(mux))
+		return 0;
+
+	return mux->set(mux, state);
+}
+EXPORT_SYMBOL_GPL(typec_mux_set);
 
 static void typec_mux_release(struct device *dev)
 {

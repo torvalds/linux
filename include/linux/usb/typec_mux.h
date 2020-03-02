@@ -23,6 +23,9 @@ struct typec_switch_desc {
 
 struct typec_switch *typec_switch_get(struct device *dev);
 void typec_switch_put(struct typec_switch *sw);
+int typec_switch_set(struct typec_switch *sw,
+		     enum typec_orientation orientation);
+
 struct typec_switch *
 typec_switch_register(struct device *parent,
 		      const struct typec_switch_desc *desc);
@@ -50,6 +53,8 @@ struct typec_mux_desc {
 struct typec_mux *
 typec_mux_get(struct device *dev, const struct typec_altmode_desc *desc);
 void typec_mux_put(struct typec_mux *mux);
+int typec_mux_set(struct typec_mux *mux, struct typec_mux_state *state);
+
 struct typec_mux *
 typec_mux_register(struct device *parent, const struct typec_mux_desc *desc);
 void typec_mux_unregister(struct typec_mux *mux);
