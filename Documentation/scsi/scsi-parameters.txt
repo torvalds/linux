@@ -57,13 +57,13 @@ parameters may be changed at runtime by the command
 			See header of drivers/scsi/NCR_D700.c.
 
 	ncr5380=	[HW,SCSI]
-			See Documentation/scsi/g_NCR5380.txt.
+			See Documentation/scsi/g_NCR5380.rst.
 
 	ncr53c400=	[HW,SCSI]
-			See Documentation/scsi/g_NCR5380.txt.
+			See Documentation/scsi/g_NCR5380.rst.
 
 	ncr53c400a=	[HW,SCSI]
-			See Documentation/scsi/g_NCR5380.txt.
+			See Documentation/scsi/g_NCR5380.rst.
 
 	ncr53c8xx=	[HW,SCSI]
 

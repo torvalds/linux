@@ -20,5 +20,6 @@ Linux SCSI Subsystem
    dc395x
    dpti
    FlashPoint
+   g_NCR5380
 
    scsi_transport_srp/figures
