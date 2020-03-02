@@ -287,13 +287,21 @@ static __always_inline void cpuid_mask(u32 *word, int wordnum)
 	*word &= boot_cpu_data.x86_capability[wordnum];
 }
 
-static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_entry2 *entry,
-					      int *nent, int maxnent,
+struct kvm_cpuid_array {
+	struct kvm_cpuid_entry2 *entries;
+	const int maxnent;
+	int nent;
+};
+
+static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_array *array,
 					      u32 function, u32 index)
 {
-	if (*nent >= maxnent)
+	struct kvm_cpuid_entry2 *entry;
+
+	if (array->nent >= array->maxnent)
 		return NULL;
-	++*nent;
+
+	entry = &array->entries[array->nent++];
 
 	entry->function = function;
 	entry->index = index;
@@ -325,9 +333,10 @@ static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_entry2 *entry,
 	return entry;
 }
 
-static int __do_cpuid_func_emulated(struct kvm_cpuid_entry2 *entry,
-				    u32 func, int *nent, int maxnent)
+static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
 {
+	struct kvm_cpuid_entry2 *entry = &array->entries[array->nent];
+
 	entry->function = func;
 	entry->index = 0;
 	entry->flags = 0;
@@ -335,17 +344,17 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_entry2 *entry,
 	switch (func) {
 	case 0:
 		entry->eax = 7;
-		++*nent;
+		++array->nent;
 		break;
 	case 1:
 		entry->ecx = F(MOVBE);
-		++*nent;
+		++array->nent;
 		break;
 	case 7:
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		entry->eax = 0;
 		entry->ecx = F(RDPID);
-		++*nent;
+		++array->nent;
 	default:
 		break;
 	}
@@ -436,9 +445,9 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry)
 	}
 }
 
-static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
-				  int *nent, int maxnent)
+static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 {
+	struct kvm_cpuid_entry2 *entry;
 	int r, i, max_idx;
 	unsigned f_nx = is_efer_nx() ? F(NX) : 0;
 #ifdef CONFIG_X86_64
@@ -514,7 +523,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 
 	r = -E2BIG;
 
-	if (WARN_ON(!do_host_cpuid(entry, nent, maxnent, function, 0)))
+	entry = do_host_cpuid(array, function, 0);
+	if (WARN_ON(!entry))
 		goto out;
 
 	switch (function) {
@@ -539,7 +549,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->flags |= KVM_CPUID_FLAG_STATE_READ_NEXT;
 
 		for (i = 1, max_idx = entry->eax & 0xff; i < max_idx; ++i) {
-			if (!do_host_cpuid(&entry[i], nent, maxnent, function, 0))
+			entry = do_host_cpuid(array, function, 0);
+			if (!entry)
 				goto out;
 		}
 		break;
@@ -550,8 +561,9 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		 * Read entries until the cache type in the previous entry is
 		 * zero, i.e. indicates an invalid entry.
 		 */
-		for (i = 1; entry[i - 1].eax & 0x1f; ++i) {
-			if (!do_host_cpuid(&entry[i], nent, maxnent, function, i))
+		for (i = 1; entry->eax & 0x1f; ++i) {
+			entry = do_host_cpuid(array, function, i);
+			if (!entry)
 				goto out;
 		}
 		break;
@@ -566,10 +578,11 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		do_cpuid_7_mask(entry);
 
 		for (i = 1, max_idx = entry->eax; i <= max_idx; i++) {
-			if (!do_host_cpuid(&entry[i], nent, maxnent, function, i))
+			entry = do_host_cpuid(array, function, i);
+			if (!entry)
 				goto out;
 
-			do_cpuid_7_mask(&entry[i]);
+			do_cpuid_7_mask(entry);
 		}
 		break;
 	case 9:
@@ -610,15 +623,13 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 	case 0x1f:
 	case 0xb:
 		/*
-		 * We filled in entry[0] for CPUID(EAX=<function>,
-		 * ECX=00H) above.  If its level type (ECX[15:8]) is
-		 * zero, then the leaf is unimplemented, and we're
-		 * done.  Otherwise, continue to populate entries
-		 * until the level type (ECX[15:8]) of the previously
-		 * added entry is zero.
+		 * Populate entries until the level type (ECX[15:8]) of the
+		 * previous entry is zero.  Note, CPUID EAX.{0x1f,0xb}.0 is
+		 * the starting entry, filled by the primary do_host_cpuid().
 		 */
-		for (i = 1; entry[i - 1].ecx & 0xff00; ++i) {
-			if (!do_host_cpuid(&entry[i], nent, maxnent, function, i))
+		for (i = 1; entry->ecx & 0xff00; ++i) {
+			entry = do_host_cpuid(array, function, i);
+			if (!entry)
 				goto out;
 		}
 		break;
@@ -633,24 +644,26 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		if (!supported)
 			break;
 
-		if (!do_host_cpuid(&entry[1], nent, maxnent, function, 1))
+		entry = do_host_cpuid(array, function, 1);
+		if (!entry)
 			goto out;
 
-		entry[1].eax &= kvm_cpuid_D_1_eax_x86_features;
-		cpuid_mask(&entry[1].eax, CPUID_D_1_EAX);
-		if (entry[1].eax & (F(XSAVES)|F(XSAVEC)))
-			entry[1].ebx = xstate_required_size(supported, true);
+		entry->eax &= kvm_cpuid_D_1_eax_x86_features;
+		cpuid_mask(&entry->eax, CPUID_D_1_EAX);
+		if (entry->eax & (F(XSAVES)|F(XSAVEC)))
+			entry->ebx = xstate_required_size(supported, true);
 		else
-			entry[1].ebx = 0;
+			entry->ebx = 0;
 		/* Saving XSS controlled state via XSAVES isn't supported. */
-		entry[1].ecx = 0;
-		entry[1].edx = 0;
+		entry->ecx = 0;
+		entry->edx = 0;
 
-		for (idx = 2, i = 2; idx < 64; ++idx) {
+		for (idx = 2; idx < 64; ++idx) {
 			if (!(supported & BIT_ULL(idx)))
 				continue;
 
-			if (!do_host_cpuid(&entry[i], nent, maxnent, function, idx))
+			entry = do_host_cpuid(array, function, idx);
+			if (!entry)
 				goto out;
 
 			/*
@@ -660,14 +673,13 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			 * reach this point, and they should have a non-zero
 			 * save state size.
 			 */
-			if (WARN_ON_ONCE(!entry[i].eax || (entry[i].ecx & 1))) {
-				--*nent;
+			if (WARN_ON_ONCE(!entry->eax || (entry->ecx & 1))) {
+				--array->nent;
 				continue;
 			}
 
-			entry[i].ecx = 0;
-			entry[i].edx = 0;
-			++i;
+			entry->ecx = 0;
+			entry->edx = 0;
 		}
 		break;
 	}
@@ -677,7 +689,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			break;
 
 		for (i = 1, max_idx = entry->eax; i <= max_idx; ++i) {
-			if (!do_host_cpuid(&entry[i], nent, maxnent, function, i))
+			if (!do_host_cpuid(array, function, i))
 				goto out;
 		}
 		break;
@@ -802,22 +814,22 @@ out:
 	return r;
 }
 
-static int do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 func,
-			 int *nent, int maxnent, unsigned int type)
+static int do_cpuid_func(struct kvm_cpuid_array *array, u32 func,
+			 unsigned int type)
 {
-	if (*nent >= maxnent)
+	if (array->nent >= array->maxnent)
 		return -E2BIG;
 
 	if (type == KVM_GET_EMULATED_CPUID)
-		return __do_cpuid_func_emulated(entry, func, nent, maxnent);
+		return __do_cpuid_func_emulated(array, func);
 
-	return __do_cpuid_func(entry, func, nent, maxnent);
+	return __do_cpuid_func(array, func);
 }
 
 #define CENTAUR_CPUID_SIGNATURE 0xC0000000
 
-static int get_cpuid_func(struct kvm_cpuid_entry2 *entries, u32 func,
-			  int *nent, int maxnent, unsigned int type)
+static int get_cpuid_func(struct kvm_cpuid_array *array, u32 func,
+			  unsigned int type)
 {
 	u32 limit;
 	int r;
@@ -826,16 +838,16 @@ static int get_cpuid_func(struct kvm_cpuid_entry2 *entries, u32 func,
 	    boot_cpu_data.x86_vendor != X86_VENDOR_CENTAUR)
 		return 0;
 
-	r = do_cpuid_func(&entries[*nent], func, nent, maxnent, type);
+	r = do_cpuid_func(array, func, type);
 	if (r)
 		return r;
 
-	limit = entries[*nent - 1].eax;
+	limit = array->entries[array->nent - 1].eax;
 	for (func = func + 1; func <= limit; ++func) {
-		if (*nent >= maxnent)
+		if (array->nent >= array->maxnent)
 			return -E2BIG;
 
-		r = do_cpuid_func(&entries[*nent], func, nent, maxnent, type);
+		r = do_cpuid_func(array, func, type);
 		if (r)
 			break;
 	}
@@ -878,8 +890,11 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 		0, 0x80000000, CENTAUR_CPUID_SIGNATURE, KVM_CPUID_SIGNATURE,
 	};
 
-	struct kvm_cpuid_entry2 *cpuid_entries;
-	int nent = 0, r, i;
+	struct kvm_cpuid_array array = {
+		.nent = 0,
+		.maxnent = cpuid->nent,
+	};
+	int r, i;
 
 	if (cpuid->nent < 1)
 		return -E2BIG;
@@ -889,25 +904,24 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 	if (sanity_check_entries(entries, cpuid->nent, type))
 		return -EINVAL;
 
-	cpuid_entries = vzalloc(array_size(sizeof(struct kvm_cpuid_entry2),
+	array.entries = vzalloc(array_size(sizeof(struct kvm_cpuid_entry2),
 					   cpuid->nent));
-	if (!cpuid_entries)
+	if (!array.entries)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(funcs); i++) {
-		r = get_cpuid_func(cpuid_entries, funcs[i], &nent, cpuid->nent,
-				   type);
+		r = get_cpuid_func(&array, funcs[i], type);
 		if (r)
 			goto out_free;
 	}
-	cpuid->nent = nent;
+	cpuid->nent = array.nent;
 
-	if (copy_to_user(entries, cpuid_entries,
-			 nent * sizeof(struct kvm_cpuid_entry2)))
+	if (copy_to_user(entries, array.entries,
+			 array.nent * sizeof(struct kvm_cpuid_entry2)))
 		r = -EFAULT;
 
 out_free:
-	vfree(cpuid_entries);
+	vfree(array.entries);
 	return r;
 }
 
