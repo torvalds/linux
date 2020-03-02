@@ -18,6 +18,8 @@
 #include "cgx.h"
 
 static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add);
+static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
+			    int type, int chan_id);
 
 enum mc_tbl_sz {
 	MC_TBL_SZ_256,
@@ -211,6 +213,11 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 		pfvf->tx_chan_cnt = 1;
 		cgx_set_pkind(rvu_cgx_pdata(cgx_id, rvu), lmac_id, pkind);
 		rvu_npc_set_pkind(rvu, pkind, pfvf);
+
+		/* By default we enable pause frames */
+		if ((pcifunc & RVU_PFVF_FUNC_MASK) == 0)
+			cgx_lmac_set_pause_frm(rvu_cgx_pdata(cgx_id, rvu),
+					       lmac_id, true, true);
 		break;
 	case NIX_INTF_TYPE_LBK:
 		vf = (pcifunc & RVU_PFVF_FUNC_MASK) - 1;
@@ -271,6 +278,142 @@ static void nix_interface_deinit(struct rvu *rvu, u16 pcifunc, u8 nixlf)
 
 	/* Free and disable any MCAM entries used by this NIX LF */
 	rvu_npc_disable_mcam_entries(rvu, pcifunc, nixlf);
+}
+
+int rvu_mbox_handler_nix_bp_disable(struct rvu *rvu,
+				    struct nix_bp_cfg_req *req,
+				    struct msg_rsp *rsp)
+{
+	u16 pcifunc = req->hdr.pcifunc;
+	struct rvu_pfvf *pfvf;
+	int blkaddr, pf, type;
+	u16 chan_base, chan;
+	u64 cfg;
+
+	pf = rvu_get_pf(pcifunc);
+	type = is_afvf(pcifunc) ? NIX_INTF_TYPE_LBK : NIX_INTF_TYPE_CGX;
+	if (!is_pf_cgxmapped(rvu, pf) && type != NIX_INTF_TYPE_LBK)
+		return 0;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+
+	chan_base = pfvf->rx_chan_base + req->chan_base;
+	for (chan = chan_base; chan < (chan_base + req->chan_cnt); chan++) {
+		cfg = rvu_read64(rvu, blkaddr, NIX_AF_RX_CHANX_CFG(chan));
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_CHANX_CFG(chan),
+			    cfg & ~BIT_ULL(16));
+	}
+	return 0;
+}
+
+static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
+			    int type, int chan_id)
+{
+	int bpid, blkaddr, lmac_chan_cnt;
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 cgx_bpid_cnt, lbk_bpid_cnt;
+	struct rvu_pfvf *pfvf;
+	u8 cgx_id, lmac_id;
+	u64 cfg;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, req->hdr.pcifunc);
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST);
+	lmac_chan_cnt = cfg & 0xFF;
+
+	cgx_bpid_cnt = hw->cgx_links * lmac_chan_cnt;
+	lbk_bpid_cnt = hw->lbk_links * ((cfg >> 16) & 0xFF);
+
+	pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
+
+	/* Backpressure IDs range division
+	 * CGX channles are mapped to (0 - 191) BPIDs
+	 * LBK channles are mapped to (192 - 255) BPIDs
+	 * SDP channles are mapped to (256 - 511) BPIDs
+	 *
+	 * Lmac channles and bpids mapped as follows
+	 * cgx(0)_lmac(0)_chan(0 - 15) = bpid(0 - 15)
+	 * cgx(0)_lmac(1)_chan(0 - 15) = bpid(16 - 31) ....
+	 * cgx(1)_lmac(0)_chan(0 - 15) = bpid(64 - 79) ....
+	 */
+	switch (type) {
+	case NIX_INTF_TYPE_CGX:
+		if ((req->chan_base + req->chan_cnt) > 15)
+			return -EINVAL;
+		rvu_get_cgx_lmac_id(pfvf->cgx_lmac, &cgx_id, &lmac_id);
+		/* Assign bpid based on cgx, lmac and chan id */
+		bpid = (cgx_id * hw->lmac_per_cgx * lmac_chan_cnt) +
+			(lmac_id * lmac_chan_cnt) + req->chan_base;
+
+		if (req->bpid_per_chan)
+			bpid += chan_id;
+		if (bpid > cgx_bpid_cnt)
+			return -EINVAL;
+		break;
+
+	case NIX_INTF_TYPE_LBK:
+		if ((req->chan_base + req->chan_cnt) > 63)
+			return -EINVAL;
+		bpid = cgx_bpid_cnt + req->chan_base;
+		if (req->bpid_per_chan)
+			bpid += chan_id;
+		if (bpid > (cgx_bpid_cnt + lbk_bpid_cnt))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return bpid;
+}
+
+int rvu_mbox_handler_nix_bp_enable(struct rvu *rvu,
+				   struct nix_bp_cfg_req *req,
+				   struct nix_bp_cfg_rsp *rsp)
+{
+	int blkaddr, pf, type, chan_id = 0;
+	u16 pcifunc = req->hdr.pcifunc;
+	struct rvu_pfvf *pfvf;
+	u16 chan_base, chan;
+	s16 bpid, bpid_base;
+	u64 cfg;
+
+	pf = rvu_get_pf(pcifunc);
+	type = is_afvf(pcifunc) ? NIX_INTF_TYPE_LBK : NIX_INTF_TYPE_CGX;
+
+	/* Enable backpressure only for CGX mapped PFs and LBK interface */
+	if (!is_pf_cgxmapped(rvu, pf) && type != NIX_INTF_TYPE_LBK)
+		return 0;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+
+	bpid_base = rvu_nix_get_bpid(rvu, req, type, chan_id);
+	chan_base = pfvf->rx_chan_base + req->chan_base;
+	bpid = bpid_base;
+
+	for (chan = chan_base; chan < (chan_base + req->chan_cnt); chan++) {
+		if (bpid < 0) {
+			dev_warn(rvu->dev, "Fail to enable backpessure\n");
+			return -EINVAL;
+		}
+
+		cfg = rvu_read64(rvu, blkaddr, NIX_AF_RX_CHANX_CFG(chan));
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_CHANX_CFG(chan),
+			    cfg | (bpid & 0xFF) | BIT_ULL(16));
+		chan_id++;
+		bpid = rvu_nix_get_bpid(rvu, req, type, chan_id);
+	}
+
+	for (chan = 0; chan < req->chan_cnt; chan++) {
+		/* Map channel and bpid assign to it */
+		rsp->chan_bpid[chan] = ((req->chan_base + chan) & 0x7F) << 10 |
+					(bpid_base & 0x3FF);
+		if (req->bpid_per_chan)
+			bpid_base++;
+	}
+	rsp->chan_cnt = req->chan_cnt;
+
+	return 0;
 }
 
 static void nix_setup_lso_tso_l3(struct rvu *rvu, int blkaddr,
@@ -565,6 +708,11 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	 */
 	inst.res_addr = (u64)aq->res->iova;
 
+	/* Hardware uses same aq->res->base for updating result of
+	 * previous instruction hence wait here till it is done.
+	 */
+	spin_lock(&aq->lock);
+
 	/* Clean result + context memory */
 	memset(aq->res->base, 0, aq->res->entry_sz);
 	/* Context needs to be written at RES_ADDR + 128 */
@@ -609,10 +757,9 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 		break;
 	default:
 		rc = NIX_AF_ERR_AQ_ENQUEUE;
+		spin_unlock(&aq->lock);
 		return rc;
 	}
-
-	spin_lock(&aq->lock);
 
 	/* Submit the instruction to AQ */
 	rc = nix_aq_enqueue_wait(rvu, block, &inst);
@@ -718,6 +865,8 @@ static int nix_lf_hwctx_disable(struct rvu *rvu, struct hwctx_disable_req *req)
 	if (req->ctype == NIX_AQ_CTYPE_CQ) {
 		aq_req.cq.ena = 0;
 		aq_req.cq_mask.ena = 1;
+		aq_req.cq.bp_ena = 0;
+		aq_req.cq_mask.bp_ena = 1;
 		q_cnt = pfvf->cq_ctx->qsize;
 		bmap = pfvf->cq_bmap;
 	}
@@ -3061,6 +3210,9 @@ int rvu_nix_init(struct rvu *rvu)
 
 		/* Initialize CGX/LBK/SDP link credits, min/max pkt lengths */
 		nix_link_config(rvu, blkaddr);
+
+		/* Enable Channel backpressure */
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_CFG, BIT_ULL(0));
 	}
 	return 0;
 }

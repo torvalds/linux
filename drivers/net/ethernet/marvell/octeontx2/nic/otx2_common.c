@@ -220,6 +220,25 @@ int otx2_hw_set_mtu(struct otx2_nic *pfvf, int mtu)
 	return err;
 }
 
+int otx2_config_pause_frm(struct otx2_nic *pfvf)
+{
+	struct cgx_pause_frm_cfg *req;
+	int err;
+
+	otx2_mbox_lock(&pfvf->mbox);
+	req = otx2_mbox_alloc_msg_cgx_cfg_pause_frm(&pfvf->mbox);
+	if (!req)
+		return -ENOMEM;
+
+	req->rx_pause = !!(pfvf->flags & OTX2_FLAG_RX_PAUSE_ENABLED);
+	req->tx_pause = !!(pfvf->flags & OTX2_FLAG_TX_PAUSE_ENABLED);
+	req->set = 1;
+
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	otx2_mbox_unlock(&pfvf->mbox);
+	return err;
+}
+
 int otx2_set_flowkey_cfg(struct otx2_nic *pfvf)
 {
 	struct otx2_rss_info *rss = &pfvf->hw.rss_info;
@@ -580,6 +599,7 @@ void otx2_sqb_flush(struct otx2_nic *pfvf)
  * RED accepts pkts if free pointers > 102 & <= 205.
  * Drops pkts if free pointers < 102.
  */
+#define RQ_BP_LVL_AURA   (255 - ((85 * 256) / 100)) /* BP when 85% is full */
 #define RQ_PASS_LVL_AURA (255 - ((95 * 256) / 100)) /* RED when 95% is full */
 #define RQ_DROP_LVL_AURA (255 - ((99 * 256) / 100)) /* Drop when 99% is full */
 
@@ -741,6 +761,13 @@ static int otx2_cq_init(struct otx2_nic *pfvf, u16 qidx)
 	if (qidx < pfvf->hw.rx_queues) {
 		aq->cq.drop = RQ_DROP_LVL_CQ(pfvf->hw.rq_skid, cq->cqe_cnt);
 		aq->cq.drop_ena = 1;
+
+		/* Enable receive CQ backpressure */
+		aq->cq.bp_ena = 1;
+		aq->cq.bpid = pfvf->bpid[0];
+
+		/* Set backpressure level is same as cq pass level */
+		aq->cq.bp = RQ_PASS_LVL_CQ(pfvf->hw.rq_skid, qset->rqe_cnt);
 	}
 
 	/* Fill AQ info */
@@ -995,6 +1022,14 @@ static int otx2_aura_init(struct otx2_nic *pfvf, int aura_id,
 	aq->aura.fc_ena = 1;
 	aq->aura.fc_addr = pool->fc_addr->iova;
 	aq->aura.fc_hyst_bits = 0; /* Store count on all updates */
+
+	/* Enable backpressure for RQ aura */
+	if (aura_id < pfvf->hw.rqpool_cnt) {
+		aq->aura.bp_ena = 0;
+		aq->aura.nix0_bpid = pfvf->bpid[0];
+		/* Set backpressure level for RQ's Aura */
+		aq->aura.bp = RQ_BP_LVL_AURA;
+	}
 
 	/* Fill AQ info */
 	aq->ctype = NPA_AQ_CTYPE_AURA;
@@ -1307,6 +1342,25 @@ void otx2_ctx_disable(struct mbox *mbox, int type, bool npa)
 	otx2_mbox_unlock(mbox);
 }
 
+int otx2_nix_config_bp(struct otx2_nic *pfvf, bool enable)
+{
+	struct nix_bp_cfg_req *req;
+
+	if (enable)
+		req = otx2_mbox_alloc_msg_nix_bp_enable(&pfvf->mbox);
+	else
+		req = otx2_mbox_alloc_msg_nix_bp_disable(&pfvf->mbox);
+
+	if (!req)
+		return -ENOMEM;
+
+	req->chan_base = 0;
+	req->chan_cnt = 1;
+	req->bpid_per_chan = 0;
+
+	return otx2_sync_mbox_msg(&pfvf->mbox);
+}
+
 /* Mbox message handlers */
 void mbox_handler_cgx_stats(struct otx2_nic *pfvf,
 			    struct cgx_stats_rsp *rsp)
@@ -1353,6 +1407,17 @@ void mbox_handler_msix_offset(struct otx2_nic *pfvf,
 {
 	pfvf->hw.npa_msixoff = rsp->npa_msixoff;
 	pfvf->hw.nix_msixoff = rsp->nix_msixoff;
+}
+
+void mbox_handler_nix_bp_enable(struct otx2_nic *pfvf,
+				struct nix_bp_cfg_rsp *rsp)
+{
+	int chan, chan_id;
+
+	for (chan = 0; chan < rsp->chan_cnt; chan++) {
+		chan_id = ((rsp->chan_bpid[chan] >> 10) & 0x7F);
+		pfvf->bpid[chan_id] = rsp->chan_bpid[chan] & 0x3FF;
+	}
 }
 
 void otx2_free_cints(struct otx2_nic *pfvf, int n)

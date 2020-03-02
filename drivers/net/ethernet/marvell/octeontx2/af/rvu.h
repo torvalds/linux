@@ -269,6 +269,26 @@ struct mbox_wq_info {
 	struct workqueue_struct *mbox_wq;
 };
 
+struct rvu_fwdata {
+#define RVU_FWDATA_HEADER_MAGIC	0xCFDA	/* Custom Firmware Data*/
+#define RVU_FWDATA_VERSION	0x0001
+	u32 header_magic;
+	u32 version;		/* version id */
+
+	/* MAC address */
+#define PF_MACNUM_MAX	32
+#define VF_MACNUM_MAX	256
+	u64 pf_macs[PF_MACNUM_MAX];
+	u64 vf_macs[VF_MACNUM_MAX];
+	u64 sclk;
+	u64 rclk;
+	u64 mcam_addr;
+	u64 mcam_sz;
+	u64 msixtr_base;
+#define FWDATA_RESERVED_MEM 1023
+	u64 reserved[FWDATA_RESERVED_MEM];
+};
+
 struct rvu {
 	void __iomem		*afreg_base;
 	void __iomem		*pfreg_base;
@@ -294,6 +314,7 @@ struct rvu {
 	char			*irq_name;
 	bool			*irq_allocated;
 	dma_addr_t		msix_base_iova;
+	u64			msixtr_base_phy; /* Register reset value */
 
 	/* CGX */
 #define PF_CGXMAP_BASE		1 /* PF 0 is reserved for RVU PF */
@@ -312,6 +333,9 @@ struct rvu {
 	struct mutex		cgx_cfg_lock; /* serialize cgx configuration */
 
 	char mkex_pfl_name[MKEX_NAME_LEN]; /* Configured MKEX profile name */
+
+	/* Firmware data */
+	struct rvu_fwdata	*fwdata;
 
 #ifdef CONFIG_DEBUG_FS
 	struct rvu_debugfs	rvu_dbg;
@@ -361,6 +385,12 @@ static inline bool is_rvu_96xx_B0(struct rvu *rvu)
 static inline int is_afvf(u16 pcifunc)
 {
 	return !(pcifunc & ~RVU_PFVF_FUNC_MASK);
+}
+
+static inline bool is_rvu_fwdata_valid(struct rvu *rvu)
+{
+	return (rvu->fwdata->header_magic == RVU_FWDATA_HEADER_MAGIC) &&
+		(rvu->fwdata->version == RVU_FWDATA_VERSION);
 }
 
 int rvu_alloc_bitmap(struct rsrc_bmap *rsrc);

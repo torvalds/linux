@@ -204,6 +204,8 @@ struct otx2_nic {
 	u16			rbsize; /* Receive buffer size */
 
 #define OTX2_FLAG_INTF_DOWN			BIT_ULL(2)
+#define OTX2_FLAG_RX_PAUSE_ENABLED		BIT_ULL(9)
+#define OTX2_FLAG_TX_PAUSE_ENABLED		BIT_ULL(10)
 	u64			flags;
 
 	struct otx2_qset	qset;
@@ -216,6 +218,7 @@ struct otx2_nic {
 	struct workqueue_struct *mbox_wq;
 
 	u16			pcifunc; /* RVU PF_FUNC */
+	u16			bpid[NIX_MAX_BPID_CHAN];
 	struct cgx_link_user_info linfo;
 
 	u64			reset_count;
@@ -558,6 +561,7 @@ int otx2_hw_set_mtu(struct otx2_nic *pfvf, int mtu);
 void otx2_tx_timeout(struct net_device *netdev, unsigned int txq);
 void otx2_get_mac_from_af(struct net_device *netdev);
 void otx2_config_irq_coalescing(struct otx2_nic *pfvf, int qidx);
+int otx2_config_pause_frm(struct otx2_nic *pfvf);
 
 /* RVU block related APIs */
 int otx2_attach_npa_nix(struct otx2_nic *pfvf);
@@ -578,6 +582,7 @@ dma_addr_t otx2_alloc_rbuf(struct otx2_nic *pfvf, struct otx2_pool *pool,
 			   gfp_t gfp);
 int otx2_rxtx_enable(struct otx2_nic *pfvf, bool enable);
 void otx2_ctx_disable(struct mbox *mbox, int type, bool npa);
+int otx2_nix_config_bp(struct otx2_nic *pfvf, bool enable);
 void otx2_cleanup_rx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq);
 void otx2_cleanup_tx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq);
 
@@ -598,6 +603,8 @@ void mbox_handler_nix_txsch_alloc(struct otx2_nic *pf,
 				  struct nix_txsch_alloc_rsp *rsp);
 void mbox_handler_cgx_stats(struct otx2_nic *pfvf,
 			    struct cgx_stats_rsp *rsp);
+void mbox_handler_nix_bp_enable(struct otx2_nic *pfvf,
+				struct nix_bp_cfg_rsp *rsp);
 
 /* Device stats APIs */
 void otx2_get_dev_stats(struct otx2_nic *pfvf);
