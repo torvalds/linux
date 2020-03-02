@@ -149,6 +149,8 @@ struct svc_rdma_send_ctxt {
 	struct list_head	sc_list;
 	struct ib_send_wr	sc_send_wr;
 	struct ib_cqe		sc_cqe;
+	struct xdr_buf		sc_hdrbuf;
+	struct xdr_stream	sc_stream;
 	void			*sc_xprt_buf;
 	int			sc_page_count;
 	int			sc_cur_sge_no;
