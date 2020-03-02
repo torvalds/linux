@@ -33,7 +33,7 @@ config SCSI
 	  Channel, and FireWire storage.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>.
+	  <file:Documentation/scsi/scsi.rst>.
 	  The module will be called scsi_mod.
 
 	  However, do not compile this as a module if your root file system
@@ -79,7 +79,7 @@ config BLK_DEV_SD
 	  CD-ROMs.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>.
+	  <file:Documentation/scsi/scsi.rst>.
 	  The module will be called sd_mod.
 
 	  Do not compile this driver as a module if your root file system
@@ -98,7 +98,7 @@ config CHR_DEV_ST
 	  for SCSI CD-ROMs.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>. The module will be called st.
+	  <file:Documentation/scsi/scsi.rst>. The module will be called st.
 
 config BLK_DEV_SR
 	tristate "SCSI CDROM support"
@@ -112,7 +112,7 @@ config BLK_DEV_SR
 	  Make sure to say Y or M to "ISO 9660 CD-ROM file system support".
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>.
+	  <file:Documentation/scsi/scsi.rst>.
 	  The module will be called sr_mod.
 
 config CHR_DEV_SG
@@ -136,7 +136,7 @@ config CHR_DEV_SG
 	  <file:Documentation/scsi/scsi-generic.rst> for more information.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>. The module will be called sg.
+	  <file:Documentation/scsi/scsi.rst>. The module will be called sg.
 
 	  If unsure, say N.
 
@@ -154,7 +154,7 @@ config CHR_DEV_SCH
 	  If you want to compile this as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.rst> and
-	  <file:Documentation/scsi/scsi.txt>. The module will be called ch.o.
+	  <file:Documentation/scsi/scsi.rst>. The module will be called ch.o.
 	  If unsure, say N.
 
 config SCSI_ENCLOSURE
@@ -604,7 +604,7 @@ config FCOE_FNIC
 	  This is support for the Cisco PCI-Express FCoE HBA.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>.
+	  <file:Documentation/scsi/scsi.rst>.
 	  The module will be called fnic.
 
 config SCSI_SNIC
@@ -614,7 +614,7 @@ config SCSI_SNIC
 	  This is support for the Cisco PCI-Express SCSI HBA.
 
 	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>.
+	  <file:Documentation/scsi/scsi.rst>.
 	  The module will be called snic.
 
 config SCSI_SNIC_DEBUG_FS
