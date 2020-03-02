@@ -2243,6 +2243,9 @@ static int rvu_register_interrupts(struct rvu *rvu)
 	}
 	rvu->irq_allocated[RVU_AF_INT_VEC_PFME] = true;
 
+	/* Clear TRPEND bit for all PF */
+	rvu_write64(rvu, BLKADDR_RVUM,
+		    RVU_AF_PFTRPEND, INTR_MASK(rvu->hw->total_pfs));
 	/* Enable ME interrupt for all PFs*/
 	rvu_write64(rvu, BLKADDR_RVUM,
 		    RVU_AF_PFME_INT, INTR_MASK(rvu->hw->total_pfs));
@@ -2554,17 +2557,13 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_disable_device;
 	}
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(48));
+	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (err) {
-		dev_err(dev, "Unable to set DMA mask\n");
+		dev_err(dev, "DMA mask config failed, abort\n");
 		goto err_release_regions;
 	}
 
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(48));
-	if (err) {
-		dev_err(dev, "Unable to set consistent DMA mask\n");
-		goto err_release_regions;
-	}
+	pci_set_master(pdev);
 
 	/* Map Admin function CSRs */
 	rvu->afreg_base = pcim_iomap(pdev, PCI_AF_REG_BAR_NUM, 0);
