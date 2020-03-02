@@ -786,7 +786,6 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 				   struct svc_rqst *rqstp)
 {
 	__be32 *p;
-	int ret;
 
 	p = ctxt->sc_xprt_buf;
 	trace_svcrdma_err_chunk(*p);
@@ -798,13 +797,7 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	svc_rdma_save_io_pages(rqstp, ctxt);
 
 	ctxt->sc_send_wr.opcode = IB_WR_SEND;
-	ret = svc_rdma_send(rdma, &ctxt->sc_send_wr);
-	if (ret) {
-		svc_rdma_send_ctxt_put(rdma, ctxt);
-		return ret;
-	}
-
-	return 0;
+	return svc_rdma_send(rdma, &ctxt->sc_send_wr);
 }
 
 /**
