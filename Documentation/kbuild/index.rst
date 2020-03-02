@@ -19,6 +19,7 @@ Kernel Build System
 
     issues
     reproducible-builds
+    gcc-plugins
 
 .. only::  subproject and html
 
