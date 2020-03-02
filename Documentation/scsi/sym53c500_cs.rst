@@ -1,3 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=======================
+The sym53c500_cs Driver
+=======================
+
 The sym53c500_cs driver originated as an add-on to David Hinds' pcmcia-cs
 package, and was written by Tom Corner (tcorner@via.at).  A rewrite was
 long overdue, and the current version addresses the following concerns:
@@ -20,4 +26,4 @@ Through the years, there have been a number of downloads of the pcmcia-cs
 version of this driver, and I guess it worked for those users.  It worked
 for Tom Corner, and it works for me.  Your mileage will probably vary.
 
---Bob Tracy (rct@frus.com)
+Bob Tracy (rct@frus.com)
