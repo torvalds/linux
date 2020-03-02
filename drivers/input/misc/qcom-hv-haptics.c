@@ -27,10 +27,16 @@
 /* STATUS_DATA_MSB definitions while MOD_STATUS_SEL is 0 */
 #define AUTO_RES_CAL_DONE_BIT			BIT(5)
 #define CAL_TLRA_CL_STS_MSB_MASK		GENMASK(4, 0)
+/* STATUS_DATA_MSB definition in V1 while MOD_STATUS_SEL is 5 */
+#define FIFO_REAL_TIME_FILL_STATUS_MASK_V1	GENMASK(6, 0)
+/* STATUS DATA_MSB definition in V2 while MOD_STATUS_SEL is 5 */
+#define FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2	GENMASK(1, 0)
 
 #define HAP_CFG_STATUS_DATA_LSB_REG		0x0A
-/* STATUS_DATA_MSB definitions while MOD_STATUS_SEL is 0 */
+/* STATUS_DATA_MSB definition while MOD_STATUS_SEL is 0 */
 #define CAL_TLRA_CL_STS_LSB_MASK		GENMASK(7, 0)
+/* STATUS_DATA_LSB definition in V2 while MOD_STATUS_SEL is 5 */
+#define FIFO_REAL_TIME_FILL_STATUS_LSB_MASK_V2	GENMASK(7, 0)
 
 #define HAP_CFG_FAULT_STATUS_REG		0x0C
 #define SC_FLAG_BIT				BIT(2)
@@ -109,6 +115,17 @@
 #define VMAX_HDRM_MASK				GENMASK(6, 0)
 #define VMAX_HDRM_STEP_MV			50
 
+#define HAP_CFG_MOD_STATUS_SEL_REG		0x70
+#define MOD_STATUS_SEL_FIFO_FILL_STATUS_VAL	5
+
+#define HAP_CFG_MOD_STATUS_XT_V2_REG		0x71
+#define MOD_STATUS_XT_V2_FIFO_FILL_STATUS_VAL	0x80
+
+/* version register definitions for HAPTICS_PATTERN module */
+#define HAP_PTN_REVISION2_REG			0x01
+#define HAP_PTN_V1				0x1
+#define HAP_PTN_V2				0x2
+
 /* status register definition for HAPTICS_PATTERN module */
 #define HAP_PTN_FIFO_READY_STS_REG		0x08
 #define FIFO_READY_BIT				BIT(0)
@@ -116,19 +133,32 @@
 #define HAP_PTN_NUM_PAT_REG			0x09
 
 /* config register definition for HAPTICS_PATTERN module */
-#define HAP_PTN_FIFO_DIN_MSB_REG		0x20
-#define HAP_PTN_FIFO_DIN_MSB_BIT		BIT(0)
-#define HAP_PTN_FIFO_DIN_LSB_REG		0x21
-#define HAP_PTN_FIFO_DIN_LSB_MASK		GENMASK(7, 0)
+/* FIFO configuration registers in V1 chip */
+#define HAP_PTN_V1_FIFO_DIN_MSB_REG		0x20
+#define HAP_PTN_V1_FIFO_DIN_MSB_BIT		BIT(0)
+#define HAP_PTN_V1_FIFO_DIN_LSB_REG		0x21
+#define HAP_PTN_V1_FIFO_DIN_LSB_MASK		GENMASK(7, 0)
 
-#define HAP_PTN_FIFO_PLAY_RATE_REG		0x22
+#define HAP_PTN_V1_FIFO_PLAY_RATE_REG		0x22
 #define FIFO_PLAY_RATE_MASK			GENMASK(3, 0)
 
-#define HAP_PTN_FIFO_EMPTY_CFG_REG		0x23
+#define HAP_PTN_V1_FIFO_EMPTY_CFG_REG		0x23
 #define EMPTY_THRESH_MASK			GENMASK(3, 0)
+#define HAP_PTN_V1_FIFO_THRESH_LSB		4
 
-#define HAP_PTN_FIFO_DEPTH_CFG_REG		0x24
+#define HAP_PTN_V1_FIFO_DEPTH_CFG_REG		0x24
 
+/* FIFO configuration registers in V2 chip */
+#define HAP_PTN_V2_FIFO_DIN_0_REG		0x20
+#define HAP_PTN_V2_FIFO_DIN_NUM			4
+
+#define HAP_PTN_V2_FIFO_PLAY_RATE_REG		0x24
+#define HAP_PTN_V2_FIFO_EMPTY_CFG_REG		0x2A
+#define HAP_PTN_V2_FIFO_THRESH_LSB		40
+#define HAP_PTN_V2_FIFO_DEPTH_CFG_REG		0x2B
+#define HAP_PTN_V2_FIFO_DIN_1B_REG		0x2C
+
+/* shared registers between V1 and V2 chips */
 #define HAP_PTN_DIRECT_PLAY_REG			0x26
 
 #define HAP_PTN_AUTORES_CAL_CFG_REG		0x28
@@ -152,16 +182,19 @@
 /* constant parameters */
 #define SAMPLES_PER_PATTERN			8
 #define BRAKE_SAMPLE_COUNT			8
-#define MAX_FIFO_SAMPLES			104
 #define DEFAULT_ERM_PLAY_RATE_US		5000
 #define MAX_EFFECT_COUNT			64
-#define FIFO_EMPTY_THRESHOLD			48
 #define FIFO_READY_TIMEOUT_MS			1000
 #define CHAR_PER_PATTERN_S			48
 #define CHAR_PER_SAMPLE				8
 #define CHAR_MSG_HEADER				16
 #define CHAR_BRAKE_MODE				24
 #define HW_BRAKE_CYCLES				5
+
+#define MAX_FIFO_SAMPLES(chip)		\
+	((chip)->ptn_revision == HAP_PTN_V1 ? 104 : 640)
+#define FIFO_EMPTY_THRESHOLD(chip)	\
+	((chip)->ptn_revision == HAP_PTN_V1 ? 48 : 280)
 
 enum drv_sig_shape {
 	WF_SQUARE,
@@ -267,7 +300,7 @@ struct pattern_cfg {
 };
 
 struct fifo_cfg {
-	u16			*samples;
+	u8			*samples;
 	u32			num_s;
 	enum s_period		period_per_s;
 	u32			play_length_us;
@@ -332,6 +365,7 @@ struct haptics_chip {
 	u32				effects_count;
 	u32				cfg_addr_base;
 	u32				ptn_addr_base;
+	u8				ptn_revision;
 	bool				fifo_empty_irq_en;
 	bool				swr_slave_enabled;
 };
@@ -726,41 +760,30 @@ static int haptics_set_pattern(struct haptics_chip *chip,
 
 }
 
-static int haptics_update_fifo_sample(struct haptics_chip *chip, u16 sample)
+static int haptics_update_fifo_sample_v1(struct haptics_chip *chip, u8 sample)
 {
 	int rc = 0;
 	u8 val;
-	bool ready;
-
-	rc = haptics_read(chip, chip->ptn_addr_base,
-			HAP_PTN_FIFO_READY_STS_REG, &val, 1);
-	if (rc < 0) {
-		dev_err(chip->dev, "read FIFO_READY_STS failed, rc=%d\n",
-				rc);
-		return rc;
-	}
-
-	ready = !!(val & FIFO_READY_BIT);
-	/* sleep no more than 10us if FIFO memory is not ready */
-	if (!ready)
-		usleep_range(1, 10);
 
 	/*
 	 * Fill FIFO_DIN registers to update FIFO memory,
-	 * need to fill LSB first then MSB
+	 * need to fill LSB first then MSB.
+	 * The FIFO memory width in V1 chip is 9-bit so shift
+	 * 1 bit to left on the 8-bit FIFO sample to achieve a
+	 * 9-bit data and fill it into the FIFO_DIN registers.
 	 */
-	val = sample & HAP_PTN_FIFO_DIN_LSB_MASK;
+	val = (sample << 1) & HAP_PTN_V1_FIFO_DIN_LSB_MASK;
 	rc = haptics_write(chip, chip->ptn_addr_base,
-			HAP_PTN_FIFO_DIN_LSB_REG, &val, 1);
+			HAP_PTN_V1_FIFO_DIN_LSB_REG, &val, 1);
 	if (rc < 0) {
 		dev_err(chip->dev, "write FIFO LSB failed, rc=%d\n",
 				rc);
 		return rc;
 	}
 
-	val = (sample >> 8) & HAP_PTN_FIFO_DIN_MSB_BIT;
+	val = (sample >> 7) & HAP_PTN_V1_FIFO_DIN_MSB_BIT;
 	rc = haptics_write(chip, chip->ptn_addr_base,
-			HAP_PTN_FIFO_DIN_MSB_REG, &val, 1);
+			HAP_PTN_V1_FIFO_DIN_MSB_REG, &val, 1);
 	if (rc < 0) {
 		dev_err(chip->dev, "write FIFO MSB failed, rc=%d\n",
 				rc);
@@ -770,11 +793,127 @@ static int haptics_update_fifo_sample(struct haptics_chip *chip, u16 sample)
 	return 0;
 }
 
+static int haptics_update_fifo_sample_v2(struct haptics_chip *chip,
+					u8 *samples, u32 num)
+{
+	int rc, i;
+
+	if (num > HAP_PTN_V2_FIFO_DIN_NUM)
+		return -EINVAL;
+
+	if (num == HAP_PTN_V2_FIFO_DIN_NUM) {
+		rc = haptics_write(chip, chip->ptn_addr_base,
+				HAP_PTN_V2_FIFO_DIN_0_REG, samples, num);
+		if (rc < 0) {
+			dev_err(chip->dev, "bulk write FIFO_DIN failed, rc=%d\n",
+					rc);
+			return rc;
+		}
+	} else if (num < HAP_PTN_V2_FIFO_DIN_NUM) {
+		for (i = 0; i < num; i++) {
+			rc = haptics_write(chip, chip->ptn_addr_base,
+					HAP_PTN_V2_FIFO_DIN_1B_REG,
+					(samples + i), 1);
+			if (rc < 0) {
+				dev_err(chip->dev, "write FIFO_DIN_1B failed, rc=%d\n",
+						rc);
+				return rc;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int haptics_get_available_fifo_memory(struct haptics_chip *chip)
+{
+	int rc;
+	u8 val[2];
+	u32 fill, available;
+
+	val[0] = MOD_STATUS_SEL_FIFO_FILL_STATUS_VAL;
+	if (chip->ptn_revision == HAP_PTN_V1) {
+		rc = haptics_write(chip, chip->cfg_addr_base,
+				HAP_CFG_MOD_STATUS_SEL_REG, val, 1);
+		if (rc < 0)
+			return rc;
+
+		rc = haptics_read(chip, chip->cfg_addr_base,
+				HAP_CFG_STATUS_DATA_MSB_REG, val, 1);
+		if (rc < 0)
+			return rc;
+
+		fill = val[0] & FIFO_REAL_TIME_FILL_STATUS_MASK_V1;
+	} else {
+		val[1] = MOD_STATUS_XT_V2_FIFO_FILL_STATUS_VAL;
+		rc = haptics_write(chip, chip->cfg_addr_base,
+				HAP_CFG_MOD_STATUS_SEL_REG, val, 2);
+		if (rc < 0)
+			return rc;
+
+		rc = haptics_read(chip, chip->cfg_addr_base,
+				HAP_CFG_STATUS_DATA_MSB_REG, val, 2);
+		if (rc < 0)
+			return rc;
+
+		fill = ((val[0] & FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2)
+				<< 8) | val[1];
+	}
+
+	if (fill > MAX_FIFO_SAMPLES(chip)) {
+		dev_err(chip->dev, "Filled FIFO number %d exceed the max %d\n",
+				fill, MAX_FIFO_SAMPLES(chip));
+		return -EINVAL;
+	} else if (fill == MAX_FIFO_SAMPLES(chip)) {
+		dev_err(chip->dev, "no FIFO space available\n");
+		return -EBUSY;
+	}
+
+	available = MAX_FIFO_SAMPLES(chip) - fill;
+	dev_dbg(chip->dev, "Available FIFO memory: %d bytes\n", available);
+	return available;
+}
+
+static int haptics_update_fifo_samples(struct haptics_chip *chip,
+					u8 *samples, u32 length)
+{
+	int rc, count, i;
+
+	if (chip->ptn_revision == HAP_PTN_V1) {
+		for (i = 0; i < length; i++) {
+			rc = haptics_update_fifo_sample_v1(chip, samples[i]);
+			if (rc < 0)
+				return rc;
+		}
+	} else {
+		count = length / HAP_PTN_V2_FIFO_DIN_NUM;
+		for (i = 0; i < count; i++) {
+			rc = haptics_update_fifo_sample_v2(chip,
+					samples, HAP_PTN_V2_FIFO_DIN_NUM);
+			if (rc < 0)
+				return rc;
+
+			samples += HAP_PTN_V2_FIFO_DIN_NUM;
+		}
+
+		if (length % HAP_PTN_V2_FIFO_DIN_NUM) {
+			rc = haptics_update_fifo_sample_v2(chip,
+					samples,
+					length % HAP_PTN_V2_FIFO_DIN_NUM);
+			if (rc < 0)
+				return rc;
+		}
+	}
+
+	return 0;
+}
+
 static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 {
 	struct fifo_play_status *status = &chip->play.fifo_status;
 	u32 num, fifo_thresh;
-	int rc, i;
+	int rc, thresh_per_bit, available;
+	u8 reg;
 
 	if (atomic_read(&status->is_busy) == 1) {
 		dev_err(chip->dev, "FIFO is busy\n");
@@ -782,9 +921,10 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 	}
 
 	/* Configure FIFO play rate */
+	reg = (chip->ptn_revision == HAP_PTN_V1) ?
+		HAP_PTN_V1_FIFO_PLAY_RATE_REG : HAP_PTN_V2_FIFO_PLAY_RATE_REG;
 	rc = haptics_masked_write(chip, chip->ptn_addr_base,
-			HAP_PTN_FIFO_PLAY_RATE_REG,
-			FIFO_PLAY_RATE_MASK, fifo->period_per_s);
+			reg, FIFO_PLAY_RATE_MASK, fifo->period_per_s);
 	if (rc < 0)
 		return rc;
 
@@ -793,18 +933,19 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 
 	/*
 	 * Write the 1st set of the data into FIFO if there are
-	 * more than 104 samples, the rest will be written if
-	 * any FIFO memory is available after playing.
+	 * more than MAX_FIFO_SAMPLES samples, the rest will be
+	 * written if any FIFO memory is available after playing.
 	 */
-	if (fifo->num_s > MAX_FIFO_SAMPLES)
-		num = MAX_FIFO_SAMPLES;
-	else
-		num = fifo->num_s;
+	num = min_t(u32, fifo->num_s, MAX_FIFO_SAMPLES(chip));
+	available = haptics_get_available_fifo_memory(chip);
+	if (available < 0)
+		return available;
 
-	for (i = 0; i < num; i++) {
-		rc = haptics_update_fifo_sample(chip, fifo->samples[i]);
-		if (rc < 0)
-			return rc;
+	num = min_t(u32, available, num);
+	rc = haptics_update_fifo_samples(chip, fifo->samples, num);
+	if (rc < 0) {
+		dev_err(chip->dev, "write FIFO samples failed, rc=%d\n", rc);
+		return rc;
 	}
 
 	atomic_set(&status->is_busy, 1);
@@ -814,7 +955,7 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 		atomic_set(&status->written_done, 1);
 	} else {
 		reinit_completion(&status->fifo_ready);
-		fifo_thresh = FIFO_EMPTY_THRESHOLD;
+		fifo_thresh = FIFO_EMPTY_THRESHOLD(chip);
 	}
 
 	/*
@@ -822,9 +963,12 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 	 * more data can be written into FIFO memory after
 	 * the IRQ is triggered.
 	 */
+	reg = (chip->ptn_revision == HAP_PTN_V1) ?
+		HAP_PTN_V1_FIFO_EMPTY_CFG_REG : HAP_PTN_V2_FIFO_EMPTY_CFG_REG;
+	thresh_per_bit = (chip->ptn_revision == HAP_PTN_V1) ?
+		HAP_PTN_V1_FIFO_THRESH_LSB : HAP_PTN_V2_FIFO_THRESH_LSB;
 	rc = haptics_masked_write(chip, chip->ptn_addr_base,
-			HAP_PTN_FIFO_EMPTY_CFG_REG, EMPTY_THRESH_MASK,
-			fifo_thresh / 4);
+			reg, EMPTY_THRESH_MASK, fifo_thresh / thresh_per_bit);
 	if (rc < 0)
 		return rc;
 
@@ -1145,11 +1289,12 @@ static void update_fifo_work(struct work_struct *work)
 			struct haptics_chip, fifo_work);
 	struct fifo_cfg *fifo = chip->play.effect->fifo;
 	struct fifo_play_status *status = &chip->play.fifo_status;
-	u32 num, samples_written, samples_left;
-	int rc, i;
+	u32 samples_written, samples_left;
+	u8 *samples;
+	u8 reg;
+	int rc, num;
 
 	samples_written = status->samples_written;
-	num = MAX_FIFO_SAMPLES - FIFO_EMPTY_THRESHOLD;
 	samples_left = fifo->num_s - samples_written;
 
 	while (samples_left > 0) {
@@ -1161,17 +1306,23 @@ static void update_fifo_work(struct work_struct *work)
 			return;
 		}
 
+		num = haptics_get_available_fifo_memory(chip);
+		if (num < 0)
+			return;
+
 		if (samples_left <= num)
 			num = samples_left;
 		else
 			reinit_completion(&status->fifo_ready);
 
-		/* Write more pattern data into FIFO memory */
-		for (i = 0; i < num; i++) {
-			rc = haptics_update_fifo_sample(chip,
-					fifo->samples[samples_written + i]);
-			if (rc < 0)
-				return;
+		samples = fifo->samples + samples_written;
+
+		/* Write more pattern data into FIFO memory. */
+		rc = haptics_update_fifo_samples(chip, samples, num);
+		if (rc < 0) {
+			dev_err(chip->dev, "Update FIFO samples failed in fifo_work, rc=%d\n",
+					rc);
+			return;
 		}
 
 		samples_written += num;
@@ -1187,9 +1338,10 @@ static void update_fifo_work(struct work_struct *work)
 	 */
 	dev_dbg(chip->dev, "FIFO programmed done\n");
 	atomic_set(&chip->play.fifo_status.written_done, 1);
+	reg = (chip->ptn_revision == HAP_PTN_V1) ?
+		HAP_PTN_V1_FIFO_EMPTY_CFG_REG : HAP_PTN_V2_FIFO_EMPTY_CFG_REG;
 	rc = haptics_masked_write(chip, chip->ptn_addr_base,
-			HAP_PTN_FIFO_EMPTY_CFG_REG,
-			EMPTY_THRESH_MASK, 0);
+			reg, EMPTY_THRESH_MASK, 0);
 	if (rc < 0)
 		dev_err(chip->dev, "set FIFO empty threshold to 0 failed, rc=%d\n",
 				rc);
@@ -1435,7 +1587,7 @@ static ssize_t fifo_s_dbgfs_write(struct file *fp,
 	char *kbuf, *token;
 	int rc, i = 0;
 	u32 val;
-	u16 *samples;
+	u8 *samples;
 
 	kbuf = kzalloc(count + 1, GFP_KERNEL);
 	if (!kbuf)
@@ -1450,7 +1602,7 @@ static ssize_t fifo_s_dbgfs_write(struct file *fp,
 	kbuf[count] = '\0';
 	*ppos += count;
 
-	samples = kcalloc(fifo->num_s, sizeof(u16), GFP_KERNEL);
+	samples = kcalloc(fifo->num_s, sizeof(*samples), GFP_KERNEL);
 	if (!samples) {
 		rc = -ENOMEM;
 		goto exit;
@@ -1463,16 +1615,16 @@ static ssize_t fifo_s_dbgfs_write(struct file *fp,
 			goto exit2;
 		}
 
-		if (val > 0x1ff)
-			val = 0x1ff;
+		if (val > 0xff)
+			val = 0xff;
 
-		samples[i++] = (u16)val;
+		samples[i++] = val;
 		/* only support fifo pattern no longer than before */
 		if (i >= fifo->num_s)
 			break;
 	}
 
-	memcpy(fifo->samples, samples, sizeof(*fifo->samples) * fifo->num_s);
+	memcpy(fifo->samples, samples, fifo->num_s);
 	fifo->play_length_us = get_fifo_play_length_us(fifo, effect->t_lra_us);
 	if (fifo->play_length_us == -EINVAL) {
 		pr_err("get fifo play length failed\n");
@@ -1918,7 +2070,7 @@ static int haptics_parse_per_effect_dt(struct haptics_chip *chip,
 		}
 	}
 
-	tmp = of_property_count_u16_elems(node, "qcom,wf-fifo-data");
+	tmp = of_property_count_u8_elems(node, "qcom,wf-fifo-data");
 	if (tmp > 0) {
 		effect->fifo = devm_kzalloc(chip->dev,
 				sizeof(*effect->fifo), GFP_KERNEL);
@@ -1926,11 +2078,11 @@ static int haptics_parse_per_effect_dt(struct haptics_chip *chip,
 			return -ENOMEM;
 
 		effect->fifo->samples = devm_kcalloc(chip->dev,
-				tmp, sizeof(u16), GFP_KERNEL);
+				tmp, sizeof(u8), GFP_KERNEL);
 		if (!effect->fifo->samples)
 			return -ENOMEM;
 
-		rc = of_property_read_u16_array(node, "qcom,wf-fifo-data",
+		rc = of_property_read_u8_array(node, "qcom,wf-fifo-data",
 				effect->fifo->samples, tmp);
 		if (rc < 0) {
 			dev_err(chip->dev, "Read wf-fifo-data failed, rc=%d\n",
@@ -2152,6 +2304,22 @@ static int haptics_parse_lra_dt(struct haptics_chip *chip)
 	return 0;
 }
 
+static int haptics_get_revision(struct haptics_chip *chip)
+{
+	int rc;
+	u8 val;
+
+	rc = haptics_read(chip, chip->ptn_addr_base,
+			HAP_PTN_REVISION2_REG, &val, 1);
+	if (rc < 0)
+		return rc;
+
+	chip->ptn_revision = val;
+	dev_dbg(chip->dev, "haptics ptn module revision: %#x\n",
+			chip->ptn_revision);
+	return 0;
+}
+
 static int haptics_parse_dt(struct haptics_chip *chip)
 {
 	struct haptics_hw_config *config = &chip->config;
@@ -2176,6 +2344,12 @@ static int haptics_parse_dt(struct haptics_chip *chip)
 	}
 
 	chip->ptn_addr_base = be32_to_cpu(*addr);
+	rc = haptics_get_revision(chip);
+	if (rc < 0) {
+		dev_err(chip->dev, "Get revision failed, rc=%d\n", rc);
+		return rc;
+	}
+
 	chip->fifo_empty_irq = platform_get_irq_byname(pdev, "fifo-empty");
 	if (!chip->fifo_empty_irq) {
 		dev_err(chip->dev, "Get fifo-empty IRQ failed\n");
