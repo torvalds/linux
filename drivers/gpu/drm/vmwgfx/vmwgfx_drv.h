@@ -480,19 +480,6 @@ struct vmw_private {
 	bool has_sm4_1;
 
 	/*
-	 * VGA registers.
-	 */
-
-	struct vmw_vga_topology_state vga_save[VMWGFX_MAX_DISPLAYS];
-	uint32_t vga_width;
-	uint32_t vga_height;
-	uint32_t vga_bpp;
-	uint32_t vga_bpl;
-	uint32_t vga_pitchlock;
-
-	uint32_t num_displays;
-
-	/*
 	 * Framebuffer info.
 	 */
 
@@ -900,7 +887,6 @@ extern void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes);
 extern void vmw_fifo_commit_flush(struct vmw_private *dev_priv, uint32_t bytes);
 extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 			       uint32_t *seqno);
-extern void vmw_fifo_ping_host_locked(struct vmw_private *, uint32_t reason);
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
@@ -947,7 +933,6 @@ extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_placement vmw_mob_ne_placement;
 extern struct ttm_placement vmw_nonfixed_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
-extern int vmw_dma_quiescent(struct drm_device *dev);
 extern int vmw_bo_map_dma(struct ttm_buffer_object *bo);
 extern void vmw_bo_unmap_dma(struct ttm_buffer_object *bo);
 extern const struct vmw_sg_table *
@@ -1085,8 +1070,6 @@ int vmw_fb_on(struct vmw_private *vmw_priv);
 
 int vmw_kms_init(struct vmw_private *dev_priv);
 int vmw_kms_close(struct vmw_private *dev_priv);
-int vmw_kms_save_vga(struct vmw_private *vmw_priv);
-int vmw_kms_restore_vga(struct vmw_private *vmw_priv);
 int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv);
@@ -1139,7 +1122,6 @@ int vmw_overlay_init(struct vmw_private *dev_priv);
 int vmw_overlay_close(struct vmw_private *dev_priv);
 int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
-int vmw_overlay_stop_all(struct vmw_private *dev_priv);
 int vmw_overlay_resume_all(struct vmw_private *dev_priv);
 int vmw_overlay_pause_all(struct vmw_private *dev_priv);
 int vmw_overlay_claim(struct vmw_private *dev_priv, uint32_t *out);
@@ -1186,10 +1168,6 @@ extern void vmw_otables_takedown(struct vmw_private *dev_priv);
 
 extern const struct vmw_user_resource_conv *user_context_converter;
 
-extern int vmw_context_check(struct vmw_private *dev_priv,
-			     struct ttm_object_file *tfile,
-			     int id,
-			     struct vmw_resource **p_res);
 extern int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 extern int vmw_extended_context_define_ioctl(struct drm_device *dev, void *data,
@@ -1219,7 +1197,6 @@ vmw_context_get_dx_query_mob(struct vmw_resource *ctx_res);
 
 extern const struct vmw_user_resource_conv *user_surface_converter;
 
-extern void vmw_surface_res_free(struct vmw_resource *res);
 extern int vmw_surface_destroy_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
 extern int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
@@ -1230,11 +1207,6 @@ extern int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file_priv);
 extern int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 					  struct drm_file *file_priv);
-extern int vmw_surface_check(struct vmw_private *dev_priv,
-			     struct ttm_object_file *tfile,
-			     uint32_t handle, int *id);
-extern int vmw_surface_validate(struct vmw_private *dev_priv,
-				struct vmw_surface *srf);
 int vmw_surface_gb_priv_define(struct drm_device *dev,
 			       uint32_t user_accounting_size,
 			       SVGA3dSurfaceAllFlags svga3d_flags,
