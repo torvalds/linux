@@ -47,8 +47,8 @@ static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 
 bool kvm_mpx_supported(void)
 {
-	return ((host_xcr0 & (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR))
-		 && kvm_x86_ops->mpx_supported());
+	return (supported_xcr0 & (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR))
+		== (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
 }
 EXPORT_SYMBOL_GPL(kvm_mpx_supported);
 

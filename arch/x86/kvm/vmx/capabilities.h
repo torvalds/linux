@@ -101,7 +101,7 @@ static inline bool cpu_has_load_perf_global_ctrl(void)
 	       (vmcs_config.vmexit_ctrl & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL);
 }
 
-static inline bool vmx_mpx_supported(void)
+static inline bool cpu_has_vmx_mpx(void)
 {
 	return (vmcs_config.vmexit_ctrl & VM_EXIT_CLEAR_BNDCFGS) &&
 		(vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_BNDCFGS);

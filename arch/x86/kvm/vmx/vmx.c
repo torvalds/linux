@@ -7660,7 +7660,7 @@ static __init int hardware_setup(void)
 		WARN_ONCE(host_bndcfgs, "KVM: BNDCFGS in host will be lost");
 	}
 
-	if (!kvm_mpx_supported())
+	if (!cpu_has_vmx_mpx())
 		supported_xcr0 &= ~(XFEATURE_MASK_BNDREGS |
 				    XFEATURE_MASK_BNDCSR);
 
@@ -7927,7 +7927,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 
 	.check_intercept = vmx_check_intercept,
 	.handle_exit_irqoff = vmx_handle_exit_irqoff,
-	.mpx_supported = vmx_mpx_supported,
 	.xsaves_supported = vmx_xsaves_supported,
 	.umip_emulated = vmx_umip_emulated,
 	.pt_supported = vmx_pt_supported,
