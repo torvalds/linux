@@ -87,6 +87,8 @@ __MODULE_PARM_TYPE(nx_huge_pages_recovery_ratio, "uint");
  */
 bool tdp_enabled = false;
 
+static int max_page_level __read_mostly;
+
 enum {
 	AUDIT_PRE_PAGE_FAULT,
 	AUDIT_POST_PAGE_FAULT,
@@ -3282,7 +3284,7 @@ static int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
 	if (!slot)
 		return PT_PAGE_TABLE_LEVEL;
 
-	max_level = min(max_level, kvm_x86_ops->get_lpage_level());
+	max_level = min(max_level, max_page_level);
 	for ( ; max_level > PT_PAGE_TABLE_LEVEL; max_level--) {
 		linfo = lpage_info_slot(gfn, slot, max_level);
 		if (!linfo->disallow_lpage)
@@ -5559,9 +5561,23 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invpcid_gva);
 
-void kvm_configure_mmu(bool enable_tdp)
+void kvm_configure_mmu(bool enable_tdp, int tdp_page_level)
 {
 	tdp_enabled = enable_tdp;
+
+	/*
+	 * max_page_level reflects the capabilities of KVM's MMU irrespective
+	 * of kernel support, e.g. KVM may be capable of using 1GB pages when
+	 * the kernel is not.  But, KVM never creates a page size greater than
+	 * what is used by the kernel for any given HVA, i.e. the kernel's
+	 * capabilities are ultimately consulted by kvm_mmu_hugepage_adjust().
+	 */
+	if (tdp_enabled)
+		max_page_level = tdp_page_level;
+	else if (boot_cpu_has(X86_FEATURE_GBPAGES))
+		max_page_level = PT_PDPE_LEVEL;
+	else
+		max_page_level = PT_DIRECTORY_LEVEL;
 }
 EXPORT_SYMBOL_GPL(kvm_configure_mmu);
 

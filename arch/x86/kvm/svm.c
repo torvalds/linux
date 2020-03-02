@@ -1458,7 +1458,7 @@ static __init int svm_hardware_setup(void)
 	if (npt_enabled && !npt)
 		npt_enabled = false;
 
-	kvm_configure_mmu(npt_enabled);
+	kvm_configure_mmu(npt_enabled, PT_PDPE_LEVEL);
 	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
 
 	if (nrips) {
@@ -6064,11 +6064,6 @@ static void svm_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 	}
 }
 
-static int svm_get_lpage_level(void)
-{
-	return PT_PDPE_LEVEL;
-}
-
 static bool svm_has_wbinvd_exit(void)
 {
 	return true;
@@ -7425,8 +7420,6 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.get_mt_mask = svm_get_mt_mask,
 
 	.get_exit_info = svm_get_exit_info,
-
-	.get_lpage_level = svm_get_lpage_level,
 
 	.cpuid_update = svm_cpuid_update,
 

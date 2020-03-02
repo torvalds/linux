@@ -6913,15 +6913,6 @@ exit:
 	return (cache << VMX_EPT_MT_EPTE_SHIFT) | ipat;
 }
 
-static int vmx_get_lpage_level(void)
-{
-	if (enable_ept && !cpu_has_vmx_ept_1g_page())
-		return PT_DIRECTORY_LEVEL;
-	else
-		/* For shadow and EPT supported 1GB page */
-		return PT_PDPE_LEVEL;
-}
-
 static void vmcs_set_secondary_exec_control(struct vcpu_vmx *vmx)
 {
 	/*
@@ -7653,7 +7644,7 @@ static __init int hardware_setup(void)
 {
 	unsigned long host_bndcfgs;
 	struct desc_ptr dt;
-	int r, i;
+	int r, i, ept_lpage_level;
 
 	rdmsrl_safe(MSR_EFER, &host_efer);
 
@@ -7746,7 +7737,16 @@ static __init int hardware_setup(void)
 
 	if (enable_ept)
 		vmx_enable_tdp();
-	kvm_configure_mmu(enable_ept);
+
+	if (!enable_ept)
+		ept_lpage_level = 0;
+	else if (cpu_has_vmx_ept_1g_page())
+		ept_lpage_level = PT_PDPE_LEVEL;
+	else if (cpu_has_vmx_ept_2m_page())
+		ept_lpage_level = PT_DIRECTORY_LEVEL;
+	else
+		ept_lpage_level = PT_PAGE_TABLE_LEVEL;
+	kvm_configure_mmu(enable_ept, ept_lpage_level);
 
 	/*
 	 * Only enable PML when hardware supports PML feature, and both EPT
@@ -7923,8 +7923,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.get_mt_mask = vmx_get_mt_mask,
 
 	.get_exit_info = vmx_get_exit_info,
-
-	.get_lpage_level = vmx_get_lpage_level,
 
 	.cpuid_update = vmx_cpuid_update,
 	.set_supported_cpuid = vmx_set_supported_cpuid,
