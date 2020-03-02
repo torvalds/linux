@@ -26,5 +26,6 @@ Linux SCSI Subsystem
    libsas
    link_power_management_policy
    lpfc
+   megaraid
 
    scsi_transport_srp/figures

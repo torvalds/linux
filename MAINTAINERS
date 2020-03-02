@@ -10639,7 +10639,7 @@ L:	megaraidlinux.pdl@broadcom.com
 L:	linux-scsi@vger.kernel.org
 W:	http://www.avagotech.com/support/
 S:	Maintained
-F:	Documentation/scsi/megaraid.txt
+F:	Documentation/scsi/megaraid.rst
 F:	drivers/scsi/megaraid.*
 F:	drivers/scsi/megaraid/
 
