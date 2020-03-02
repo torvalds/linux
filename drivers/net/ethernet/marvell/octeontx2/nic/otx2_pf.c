@@ -148,6 +148,9 @@ static void otx2_process_pfaf_mbox_msg(struct otx2_nic *pf,
 		mbox_handler_nix_txsch_alloc(pf,
 					     (struct nix_txsch_alloc_rsp *)msg);
 		break;
+	case MBOX_MSG_NIX_BP_ENABLE:
+		mbox_handler_nix_bp_enable(pf, (struct nix_bp_cfg_rsp *)msg);
+		break;
 	case MBOX_MSG_CGX_STATS:
 		mbox_handler_cgx_stats(pf, (struct cgx_stats_rsp *)msg);
 		break;
@@ -654,6 +657,9 @@ static int otx2_init_hw_resources(struct otx2_nic *pf)
 	if (err)
 		goto err_free_npa_lf;
 
+	/* Enable backpressure */
+	otx2_nix_config_bp(pf, true);
+
 	/* Init Auras and pools used by NIX RQ, for free buffer ptrs */
 	err = otx2_rq_aura_pool_init(pf);
 	if (err) {
@@ -736,6 +742,12 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 	err = otx2_txschq_stop(pf);
 	if (err)
 		dev_err(pf->dev, "RVUPF: Failed to stop/free TX schedulers\n");
+
+	otx2_mbox_lock(mbox);
+	/* Disable backpressure */
+	if (!(pf->pcifunc & RVU_PFVF_FUNC_MASK))
+		otx2_nix_config_bp(pf, false);
+	otx2_mbox_unlock(mbox);
 
 	/* Disable RQs */
 	otx2_ctx_disable(mbox, NIX_AQ_CTYPE_RQ, false);
