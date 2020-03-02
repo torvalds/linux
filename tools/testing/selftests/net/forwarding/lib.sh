@@ -626,6 +626,17 @@ tc_rule_stats_get()
 	    | jq ".[1].options.actions[].stats$selector"
 }
 
+tc_rule_handle_stats_get()
+{
+	local id=$1; shift
+	local handle=$1; shift
+	local selector=${1:-.packets}; shift
+
+	tc -j -s filter show $id \
+	    | jq ".[] | select(.options.handle == $handle) | \
+		  .options.actions[0].stats$selector"
+}
+
 ethtool_stats_get()
 {
 	local dev=$1; shift
