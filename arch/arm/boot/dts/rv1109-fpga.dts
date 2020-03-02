@@ -62,6 +62,10 @@
 	status = "okay";
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
 &rgb {
 	status = "okay";
 	ports {
@@ -76,6 +80,14 @@
 			};
 		};
 	};
+};
+
+&rkvenc {
+	status = "okay";
+};
+
+&rkvenc_mmu {
+	status = "okay";
 };
 
 &uart2 {
