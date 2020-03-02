@@ -7123,36 +7123,48 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	}
 }
 
+/*
+ * Vendor specific emulation must be handled via ->set_supported_cpuid(), not
+ * vmx_set_cpu_caps(), as capabilities configured during hardware_setup() are
+ * masked against hardware/kernel support, i.e. they'd be lost.
+ */
 static void vmx_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 {
 	switch (entry->function) {
-	case 0x1:
-		if (nested)
-			cpuid_entry_set(entry, X86_FEATURE_VMX);
-		break;
 	case 0x7:
-		if (boot_cpu_has(X86_FEATURE_MPX) && kvm_mpx_supported())
-			cpuid_entry_set(entry, X86_FEATURE_MPX);
-		if (boot_cpu_has(X86_FEATURE_INVPCID) && cpu_has_vmx_invpcid())
-			cpuid_entry_set(entry, X86_FEATURE_INVPCID);
-		if (boot_cpu_has(X86_FEATURE_INTEL_PT) &&
-		    vmx_pt_mode_is_host_guest())
-			cpuid_entry_set(entry, X86_FEATURE_INTEL_PT);
 		if (vmx_umip_emulated())
 			cpuid_entry_set(entry, X86_FEATURE_UMIP);
-
-		/* PKU is not yet implemented for shadow paging. */
-		if (enable_ept && boot_cpu_has(X86_FEATURE_PKU) &&
-		    boot_cpu_has(X86_FEATURE_OSPKE))
-			cpuid_entry_set(entry, X86_FEATURE_PKU);
-		break;
-	case 0x80000001:
-		if (!cpu_has_vmx_rdtscp())
-			cpuid_entry_clear(entry, X86_FEATURE_RDTSCP);
 		break;
 	default:
 		break;
 	}
+}
+
+static __init void vmx_set_cpu_caps(void)
+{
+	kvm_set_cpu_caps();
+
+	/* CPUID 0x1 */
+	if (nested)
+		kvm_cpu_cap_set(X86_FEATURE_VMX);
+
+	/* CPUID 0x7 */
+	if (boot_cpu_has(X86_FEATURE_MPX) && kvm_mpx_supported())
+		kvm_cpu_cap_set(X86_FEATURE_MPX);
+	if (boot_cpu_has(X86_FEATURE_INVPCID) && cpu_has_vmx_invpcid())
+		kvm_cpu_cap_set(X86_FEATURE_INVPCID);
+	if (boot_cpu_has(X86_FEATURE_INTEL_PT) &&
+	    vmx_pt_mode_is_host_guest())
+		kvm_cpu_cap_set(X86_FEATURE_INTEL_PT);
+
+	/* PKU is not yet implemented for shadow paging. */
+	if (enable_ept && boot_cpu_has(X86_FEATURE_PKU) &&
+	    boot_cpu_has(X86_FEATURE_OSPKE))
+		kvm_cpu_cap_set(X86_FEATURE_PKU);
+
+	/* CPUID 0x80000001 */
+	if (!cpu_has_vmx_rdtscp())
+		kvm_cpu_cap_clear(X86_FEATURE_RDTSCP);
 }
 
 static void vmx_request_immediate_exit(struct kvm_vcpu *vcpu)
@@ -7818,7 +7830,7 @@ static __init int hardware_setup(void)
 			return r;
 	}
 
-	kvm_set_cpu_caps();
+	vmx_set_cpu_caps();
 
 	r = alloc_kvm_area();
 	if (r)
