@@ -888,7 +888,6 @@ static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 		     struct cfg80211_pmksa *pmksa)
 {
 	u32 i;
-	int ret = 0;
 	struct wilc_vif *vif = netdev_priv(netdev);
 	struct wilc_priv *priv = &vif->priv;
 
@@ -901,21 +900,20 @@ static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 		}
 	}
 
-	if (i < priv->pmkid_list.numpmkid && priv->pmkid_list.numpmkid > 0) {
-		for (; i < (priv->pmkid_list.numpmkid - 1); i++) {
-			memcpy(priv->pmkid_list.pmkidlist[i].bssid,
-			       priv->pmkid_list.pmkidlist[i + 1].bssid,
-			       ETH_ALEN);
-			memcpy(priv->pmkid_list.pmkidlist[i].pmkid,
-			       priv->pmkid_list.pmkidlist[i + 1].pmkid,
-			       WLAN_PMKID_LEN);
-		}
-		priv->pmkid_list.numpmkid--;
-	} else {
-		ret = -EINVAL;
-	}
+	if (i == priv->pmkid_list.numpmkid)
+		return -EINVAL;
 
-	return ret;
+	for (; i < (priv->pmkid_list.numpmkid - 1); i++) {
+		memcpy(priv->pmkid_list.pmkidlist[i].bssid,
+		       priv->pmkid_list.pmkidlist[i + 1].bssid,
+		       ETH_ALEN);
+		memcpy(priv->pmkid_list.pmkidlist[i].pmkid,
+		       priv->pmkid_list.pmkidlist[i + 1].pmkid,
+		       WLAN_PMKID_LEN);
+	}
+	priv->pmkid_list.numpmkid--;
+
+	return 0;
 }
 
 static int flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
