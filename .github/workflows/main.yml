@@ -1,4 +1,10 @@
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   build_job:
@@ -34,4 +40,3 @@ jobs:
           git add $PUB_PATH
           git commit --allow-empty -m "Publish $PUB_PATH (built from linux-kernel-labs/linux/$GITHUB_REF)"
           git push
-
