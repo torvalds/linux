@@ -3030,23 +3030,22 @@ static int io_close(struct io_kiocb *req, struct io_kiocb **nxt,
 		return ret;
 
 	/* if the file has a flush method, be safe and punt to async */
-	if (req->close.put_file->f_op->flush && !io_wq_current_is_worker())
-		goto eagain;
+	if (req->close.put_file->f_op->flush && force_nonblock) {
+		req->work.func = io_close_finish;
+		/*
+		 * Do manual async queue here to avoid grabbing files - we don't
+		 * need the files, and it'll cause io_close_finish() to close
+		 * the file again and cause a double CQE entry for this request
+		 */
+		io_queue_async_work(req);
+		return 0;
+	}
 
 	/*
 	 * No ->flush(), safely close from here and just punt the
 	 * fput() to async context.
 	 */
 	__io_close_finish(req, nxt);
-	return 0;
-eagain:
-	req->work.func = io_close_finish;
-	/*
-	 * Do manual async queue here to avoid grabbing files - we don't
-	 * need the files, and it'll cause io_close_finish() to close
-	 * the file again and cause a double CQE entry for this request
-	 */
-	io_queue_async_work(req);
 	return 0;
 }
 
