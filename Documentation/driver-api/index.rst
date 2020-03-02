@@ -17,6 +17,7 @@ available subsections can be seen below.
    driver-model/index
    basics
    infrastructure
+   ioctl
    early-userspace/index
    pm/index
    clk

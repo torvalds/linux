@@ -102,7 +102,6 @@ Documents that don't fit elsewhere or which have yet to be categorized.
    :maxdepth: 1
 
    librs
-   ioctl
 
 .. only:: subproject and html
 
