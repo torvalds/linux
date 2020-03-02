@@ -8,6 +8,8 @@ fi
 
 device=$1
 
+USER=$(whoami)
+
 case "$device" in
     "tap0")
         subnet=172.213.0
