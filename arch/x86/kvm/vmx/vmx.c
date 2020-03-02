@@ -7130,8 +7130,18 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 
 static void vmx_set_supported_cpuid(struct kvm_cpuid_entry2 *entry)
 {
-	if (entry->function == 1 && nested)
-		entry->ecx |= feature_bit(VMX);
+	switch (entry->function) {
+	case 0x1:
+		if (nested)
+			cpuid_entry_set(entry, X86_FEATURE_VMX);
+		break;
+	case 0x7:
+		if (boot_cpu_has(X86_FEATURE_MPX) && kvm_mpx_supported())
+			cpuid_entry_set(entry, X86_FEATURE_MPX);
+		break;
+	default:
+		break;
+	}
 }
 
 static void vmx_request_immediate_exit(struct kvm_vcpu *vcpu)
