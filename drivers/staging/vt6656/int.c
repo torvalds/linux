@@ -26,15 +26,10 @@
 int vnt_int_start_interrupt(struct vnt_private *priv)
 {
 	int ret = 0;
-	unsigned long flags;
 
 	dev_dbg(&priv->usb->dev, "---->Interrupt Polling Thread\n");
 
-	spin_lock_irqsave(&priv->lock, flags);
-
 	ret = vnt_start_interrupt_urb(priv);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return ret;
 }
