@@ -7162,6 +7162,10 @@ static __init void vmx_set_cpu_caps(void)
 	    boot_cpu_has(X86_FEATURE_OSPKE))
 		kvm_cpu_cap_set(X86_FEATURE_PKU);
 
+	/* CPUID 0xD.1 */
+	if (!vmx_xsaves_supported())
+		kvm_cpu_cap_clear(X86_FEATURE_XSAVES);
+
 	/* CPUID 0x80000001 */
 	if (!cpu_has_vmx_rdtscp())
 		kvm_cpu_cap_clear(X86_FEATURE_RDTSCP);
@@ -7961,7 +7965,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 
 	.check_intercept = vmx_check_intercept,
 	.handle_exit_irqoff = vmx_handle_exit_irqoff,
-	.xsaves_supported = vmx_xsaves_supported,
 	.umip_emulated = vmx_umip_emulated,
 	.pt_supported = vmx_pt_supported,
 

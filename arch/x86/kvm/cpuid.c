@@ -629,10 +629,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			goto out;
 
 		cpuid_entry_mask(entry, CPUID_D_1_EAX);
-
-		if (!kvm_x86_ops->xsaves_supported())
-			cpuid_entry_clear(entry, X86_FEATURE_XSAVES);
-
 		if (entry->eax & (F(XSAVES)|F(XSAVEC)))
 			entry->ebx = xstate_required_size(supported_xcr0, true);
 		else
