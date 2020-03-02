@@ -1,10 +1,11 @@
+.. SPDX-License-Identifier: GPL-2.0
 
-LPFC Driver Release Notes:
+=========================
+LPFC Driver Release Notes
+=========================
 
-=============================================================================
 
-
-                               IMPORTANT:
+.. important::
 
   Starting in the 8.0.17 release, the driver began to be targeted strictly
   toward the upstream kernel. As such, we removed #ifdefs for older kernels
@@ -20,9 +21,6 @@ LPFC Driver Release Notes:
   kernel.
   
   Please heed these dependencies....
-
-
-   ********************************************************************
 
 
 The following information is provided for additional background on the
@@ -64,6 +62,7 @@ Cable pull and temporary device Loss:
 
 
 Kernel Support
+==============
 
   This source package is targeted for the upstream kernel only. (See notes
   at the top of this file). It relies on interfaces that are slowing
@@ -77,7 +76,6 @@ Kernel Support
 
 
 Patches
+=======
 
   Thankfully, at this time, patches are not needed.
-
-

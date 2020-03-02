@@ -25,5 +25,6 @@ Linux SCSI Subsystem
    hptiop
    libsas
    link_power_management_policy
+   lpfc
 
    scsi_transport_srp/figures
