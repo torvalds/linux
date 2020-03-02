@@ -1,4 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
 
+========================================
 README for the SCSI media changer driver
 ========================================
 
@@ -28,15 +30,17 @@ The SCSI changer model is complex, compared to - for example - IDE-CD
 changers. But it allows to handle nearly all possible cases. It knows
 4 different types of changer elements:
 
-  media transport - this one shuffles around the media, i.e. the
+  ===============   ==================================================
+  media transport   this one shuffles around the media, i.e. the
                     transport arm.  Also known as "picker".
-  storage         - a slot which can hold a media.
-  import/export   - the same as above, but is accessible from outside,
+  storage           a slot which can hold a media.
+  import/export     the same as above, but is accessible from outside,
                     i.e. there the operator (you !) can use this to
                     fill in and remove media from the changer.
 		    Sometimes named "mailslot".
-  data transfer   - this is the device which reads/writes, i.e. the
+  data transfer     this is the device which reads/writes, i.e. the
 		    CD-ROM / Tape / whatever drive.
+  ===============   ==================================================
 
 None of these is limited to one: A huge Jukebox could have slots for
 123 CD-ROM's, 5 CD-ROM readers (and therefore 6 SCSI ID's: the changer
@@ -131,24 +135,23 @@ timeout_init=<seconds>
 timeout_move=<seconds>
 	timeout for all other commands (default: 120).
 
-dt_id=<id1>,<id2>,...
-dt_lun=<lun1>,<lun2>,...
+dt_id=<id1>,<id2>,... / dt_lun=<lun1>,<lun2>,...
 	These two allow to specify the SCSI ID and LUN for the data
 	transfer elements.  You likely don't need this as the jukebox
 	should provide this information.  But some devices don't ...
 
-vendor_firsts=
-vendor_counts=
-vendor_labels=
+vendor_firsts=, vendor_counts=, vendor_labels=
 	These insmod options can be used to tell the driver that there
 	are some vendor-specific element types.  Grundig for example
 	does this.  Some jukeboxes have a printer to label fresh burned
 	CDs, which is addressed as element 0xc000 (type 5).  To tell the
-	driver about this vendor-specific element, use this:
+	driver about this vendor-specific element, use this::
+
 		$ insmod ch			\
 			vendor_firsts=0xc000	\
 			vendor_counts=1		\
 			vendor_labels=printer
+
 	All three insmod options accept up to four comma-separated
 	values, this way you can configure the element types 5-8.
 	You likely need the SCSI specs for the device in question to
@@ -162,13 +165,15 @@ Credits
 I wrote this driver using the famous mailing-patches-around-the-world
 method.  With (more or less) help from:
 
-	Daniel Moehwald <moehwald@hdg.de>
-	Dane Jasper <dane@sonic.net>
-	R. Scott Bailey <sbailey@dsddi.eds.com>
-	Jonathan Corbet <corbet@lwn.net>
+	- Daniel Moehwald <moehwald@hdg.de>
+	- Dane Jasper <dane@sonic.net>
+	- R. Scott Bailey <sbailey@dsddi.eds.com>
+	- Jonathan Corbet <corbet@lwn.net>
 
 Special thanks go to
-	Martin Kuehne <martin.kuehne@bnbt.de>
+
+	- Martin Kuehne <martin.kuehne@bnbt.de>
+
 for a old, second-hand (but full functional) cdrom jukebox which I use
 to develop/test driver and tools now.
 
@@ -176,5 +181,4 @@ Have fun,
 
    Gerd
 
--- 
 Gerd Knorr <kraxel@bytesex.org>

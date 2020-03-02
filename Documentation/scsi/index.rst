@@ -31,5 +31,6 @@ Linux SCSI Subsystem
    NinjaSCSI
    ppa
    qlogicfas
+   scsi-changer
 
    scsi_transport_srp/figures
