@@ -159,11 +159,11 @@ applicable everywhere (see syntax).
   Given the following example::
 
     config FOO
-	tristate
+	tristate "foo"
 	imply BAZ
 
     config BAZ
-	tristate
+	tristate "baz"
 	depends on BAR
 
   The following values are possible:
@@ -174,6 +174,9 @@ applicable everywhere (see syntax).
 	n		y		n		N/m/y
 	m		y		m		M/y/n
 	y		y		y		Y/m/n
+	n		m		n		N/m
+	m		m		m		M/n
+	y		m		n		M/n
 	y		n		*		N
 	===		===		=============	==============
 
@@ -190,6 +193,14 @@ applicable everywhere (see syntax).
 			baz_register(&foo);
 		...
 	}
+
+  Note: If the feature provided by BAZ is highly desirable for FOO,
+  FOO should imply not only BAZ, but also its dependency BAR::
+
+    config FOO
+	tristate "foo"
+	imply BAR
+	imply BAZ
 
 - limiting menu display: "visible if" <expr>
 
