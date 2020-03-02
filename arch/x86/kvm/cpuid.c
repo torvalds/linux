@@ -490,25 +490,16 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		 * time, with the least-significant byte in EAX enumerating the
 		 * number of times software should do CPUID(2, 0).
 		 *
-		 * Modern CPUs (quite likely every CPU KVM has *ever* run on)
-		 * are less idiotic.  Intel's SDM states that EAX & 0xff "will
-		 * always return 01H. Software should ignore this value and not
+		 * Modern CPUs, i.e. every CPU KVM has *ever* run on are less
+		 * idiotic.  Intel's SDM states that EAX & 0xff "will always
+		 * return 01H. Software should ignore this value and not
 		 * interpret it as an informational descriptor", while AMD's
 		 * APM states that CPUID(2) is reserved.
+		 *
+		 * WARN if a frankenstein CPU that supports virtualization and
+		 * a stateful CPUID.0x2 is encountered.
 		 */
-		max_idx = entry->eax & 0xff;
-		if (likely(max_idx <= 1))
-			break;
-
-		entry->flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
-		entry->flags |= KVM_CPUID_FLAG_STATE_READ_NEXT;
-
-		for (i = 1; i < max_idx; ++i) {
-			entry = do_host_cpuid(array, function, 0);
-			if (!entry)
-				goto out;
-			entry->flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
-		}
+		WARN_ON_ONCE((entry->eax & 0xff) > 1);
 		break;
 	/* functions 4 and 0x8000001d have additional index. */
 	case 4:
@@ -892,58 +883,20 @@ out_free:
 	return r;
 }
 
-static int move_to_next_stateful_cpuid_entry(struct kvm_vcpu *vcpu, int i)
-{
-	struct kvm_cpuid_entry2 *e = &vcpu->arch.cpuid_entries[i];
-	struct kvm_cpuid_entry2 *ej;
-	int j = i;
-	int nent = vcpu->arch.cpuid_nent;
-
-	e->flags &= ~KVM_CPUID_FLAG_STATE_READ_NEXT;
-	/* when no next entry is found, the current entry[i] is reselected */
-	do {
-		j = (j + 1) % nent;
-		ej = &vcpu->arch.cpuid_entries[j];
-	} while (ej->function != e->function);
-
-	ej->flags |= KVM_CPUID_FLAG_STATE_READ_NEXT;
-
-	return j;
-}
-
-/* find an entry with matching function, matching index (if needed), and that
- * should be read next (if it's stateful) */
-static int is_matching_cpuid_entry(struct kvm_cpuid_entry2 *e,
-	u32 function, u32 index)
-{
-	if (e->function != function)
-		return 0;
-	if ((e->flags & KVM_CPUID_FLAG_SIGNIFCANT_INDEX) && e->index != index)
-		return 0;
-	if (unlikely(e->flags & KVM_CPUID_FLAG_STATEFUL_FUNC) &&
-	    !(e->flags & KVM_CPUID_FLAG_STATE_READ_NEXT))
-		return 0;
-	return 1;
-}
-
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 					      u32 function, u32 index)
 {
+	struct kvm_cpuid_entry2 *e;
 	int i;
-	struct kvm_cpuid_entry2 *best = NULL;
 
 	for (i = 0; i < vcpu->arch.cpuid_nent; ++i) {
-		struct kvm_cpuid_entry2 *e;
-
 		e = &vcpu->arch.cpuid_entries[i];
-		if (is_matching_cpuid_entry(e, function, index)) {
-			if (unlikely(e->flags & KVM_CPUID_FLAG_STATEFUL_FUNC))
-				move_to_next_stateful_cpuid_entry(vcpu, i);
-			best = e;
-			break;
-		}
+
+		if (e->function == function && (e->index == index ||
+		    !(e->flags & KVM_CPUID_FLAG_SIGNIFCANT_INDEX)))
+			return e;
 	}
-	return best;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
 

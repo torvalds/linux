@@ -1574,8 +1574,8 @@ This ioctl would set vcpu's xcr to the value userspace specified.
   };
 
   #define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
-  #define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
-  #define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
+  #define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1) /* deprecated */
+  #define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2) /* deprecated */
 
   struct kvm_cpuid_entry2 {
 	__u32 function;
@@ -1626,13 +1626,6 @@ emulate them efficiently. The fields in each entry are defined as follows:
 
         KVM_CPUID_FLAG_SIGNIFCANT_INDEX:
            if the index field is valid
-        KVM_CPUID_FLAG_STATEFUL_FUNC:
-           if cpuid for this function returns different values for successive
-           invocations; there will be several entries with the same function,
-           all with this flag set
-        KVM_CPUID_FLAG_STATE_READ_NEXT:
-           for KVM_CPUID_FLAG_STATEFUL_FUNC entries, set if this entry is
-           the first entry to be read by a cpu
 
    eax, ebx, ecx, edx:
          the values returned by the cpuid instruction for
@@ -3347,8 +3340,8 @@ The member 'flags' is used for passing flags from userspace.
 ::
 
   #define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
-  #define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
-  #define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
+  #define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1) /* deprecated */
+  #define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2) /* deprecated */
 
   struct kvm_cpuid_entry2 {
 	__u32 function;
@@ -3394,13 +3387,6 @@ The fields in each entry are defined as follows:
 
         KVM_CPUID_FLAG_SIGNIFCANT_INDEX:
            if the index field is valid
-        KVM_CPUID_FLAG_STATEFUL_FUNC:
-           if cpuid for this function returns different values for successive
-           invocations; there will be several entries with the same function,
-           all with this flag set
-        KVM_CPUID_FLAG_STATE_READ_NEXT:
-           for KVM_CPUID_FLAG_STATEFUL_FUNC entries, set if this entry is
-           the first entry to be read by a cpu
 
    eax, ebx, ecx, edx:
 
