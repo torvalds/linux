@@ -319,8 +319,9 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 	struct device *dev = &rproc->dev;
 	struct rproc_vring *rvring = &rvdev->vring[i];
 	struct fw_rsc_vdev *rsc;
-	int ret, size, notifyid;
+	int ret, notifyid;
 	struct rproc_mem_entry *mem;
+	size_t size;
 
 	/* actual size of vring (in bytes) */
 	size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
@@ -750,11 +751,12 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 	va = dma_alloc_coherent(dev->parent, mem->len, &dma, GFP_KERNEL);
 	if (!va) {
 		dev_err(dev->parent,
-			"failed to allocate dma memory: len 0x%x\n", mem->len);
+			"failed to allocate dma memory: len 0x%zx\n",
+			mem->len);
 		return -ENOMEM;
 	}
 
-	dev_dbg(dev, "carveout va %pK, dma %pad, len 0x%x\n",
+	dev_dbg(dev, "carveout va %pK, dma %pad, len 0x%zx\n",
 		va, &dma, mem->len);
 
 	if (mem->da != FW_RSC_ADDR_ANY && !rproc->domain) {
@@ -962,7 +964,7 @@ EXPORT_SYMBOL(rproc_add_carveout);
  */
 struct rproc_mem_entry *
 rproc_mem_entry_init(struct device *dev,
-		     void *va, dma_addr_t dma, int len, u32 da,
+		     void *va, dma_addr_t dma, size_t len, u32 da,
 		     int (*alloc)(struct rproc *, struct rproc_mem_entry *),
 		     int (*release)(struct rproc *, struct rproc_mem_entry *),
 		     const char *name, ...)
@@ -1004,7 +1006,7 @@ EXPORT_SYMBOL(rproc_mem_entry_init);
  * provided by client.
  */
 struct rproc_mem_entry *
-rproc_of_resm_mem_entry_init(struct device *dev, u32 of_resm_idx, int len,
+rproc_of_resm_mem_entry_init(struct device *dev, u32 of_resm_idx, size_t len,
 			     u32 da, const char *name, ...)
 {
 	struct rproc_mem_entry *mem;
@@ -1275,7 +1277,7 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 		unmapped = iommu_unmap(rproc->domain, entry->da, entry->len);
 		if (unmapped != entry->len) {
 			/* nothing much to do besides complaining */
-			dev_err(dev, "failed to unmap %u/%zu\n", entry->len,
+			dev_err(dev, "failed to unmap %zx/%zu\n", entry->len,
 				unmapped);
 		}
 

@@ -293,7 +293,7 @@ static int rproc_carveouts_show(struct seq_file *seq, void *p)
 		seq_printf(seq, "\tVirtual address: %pK\n", carveout->va);
 		seq_printf(seq, "\tDMA address: %pad\n", &carveout->dma);
 		seq_printf(seq, "\tDevice address: 0x%x\n", carveout->da);
-		seq_printf(seq, "\tLength: 0x%x Bytes\n\n", carveout->len);
+		seq_printf(seq, "\tLength: 0x%zx Bytes\n\n", carveout->len);
 	}
 
 	return 0;
