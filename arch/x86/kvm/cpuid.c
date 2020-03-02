@@ -536,11 +536,9 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		if (boot_cpu_has(X86_FEATURE_AMD_SSBD))
 			cpuid_entry_set(entry, X86_FEATURE_SPEC_CTRL_SSBD);
 
-		for (i = 1, max_idx = entry->eax; i <= max_idx; i++) {
-			if (WARN_ON_ONCE(i > 1))
-				break;
-
-			entry = do_host_cpuid(array, function, i);
+		/* KVM only supports 0x7.0 and 0x7.1, capped above via min(). */
+		if (entry->eax == 1) {
+			entry = do_host_cpuid(array, function, 1);
 			if (!entry)
 				goto out;
 
