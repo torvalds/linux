@@ -5,7 +5,7 @@ SCSI EH
 =======
 
 This document describes SCSI midlayer error handling infrastructure.
-Please refer to Documentation/scsi/scsi_mid_low_api.txt for more
+Please refer to Documentation/scsi/scsi_mid_low_api.rst for more
 information regarding SCSI midlayer.
 
 .. TABLE OF CONTENTS
