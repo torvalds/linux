@@ -27,6 +27,7 @@ typedef enum usb_role (*usb_role_switch_get_t)(struct usb_role_switch *sw);
  * @get: Callback for getting the role (optional)
  * @allow_userspace_control: If true userspace may change the role through sysfs
  * @driver_data: Private data pointer
+ * @name: Name for the switch (optional)
  *
  * @usb2_port and @usb3_port will point to the USB host port and @udc to the USB
  * device controller behind the USB connector with the role switch. If
@@ -43,6 +44,7 @@ struct usb_role_switch_desc {
 	usb_role_switch_get_t get;
 	bool allow_userspace_control;
 	void *driver_data;
+	const char *name;
 };
 
 

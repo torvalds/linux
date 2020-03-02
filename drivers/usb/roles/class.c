@@ -330,7 +330,8 @@ usb_role_switch_register(struct device *parent,
 	sw->dev.class = role_class;
 	sw->dev.type = &usb_role_dev_type;
 	dev_set_drvdata(&sw->dev, desc->driver_data);
-	dev_set_name(&sw->dev, "%s-role-switch", dev_name(parent));
+	dev_set_name(&sw->dev, "%s-role-switch",
+		     desc->name ? desc->name : dev_name(parent));
 
 	ret = device_register(&sw->dev);
 	if (ret) {
