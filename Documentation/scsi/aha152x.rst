@@ -1,7 +1,12 @@
-$Id: README.aha152x,v 1.2 1999/12/25 15:32:30 fischer Exp fischer $
-Adaptec AHA-1520/1522 SCSI driver for Linux (aha152x)
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
 
-Copyright 1993-1999 Jürgen Fischer <fischer@norbit.de>
+=====================================================
+Adaptec AHA-1520/1522 SCSI driver for Linux (aha152x)
+=====================================================
+
+Copyright |copy| 1993-1999 Jürgen Fischer <fischer@norbit.de>
+
 TC1550 patches by Luuk van Dijk (ldz@xs4all.nl)
 
 
@@ -14,8 +19,10 @@ less polling loops), has slightly higher throughput (at
 least on my ancient test box; a i486/33Mhz/20MB).
 
 
-CONFIGURATION ARGUMENTS:
+Configuration Arguments
+=======================
 
+============  ========================================  ======================
 IOPORT        base io address                           (0x340/0x140)
 IRQ           interrupt level                           (9-12; default 11)
 SCSI_ID       scsi id of controller                     (0-7; default 7)
@@ -25,31 +32,38 @@ SYNCHRONOUS   enable synchronous transfers              (0/1; default 1 [on])
 DELAY:        bus reset delay                           (default 100)
 EXT_TRANS:    enable extended translation               (0/1: default 0 [off])
               (see NOTES)
+============  ========================================  ======================
 
-COMPILE TIME CONFIGURATION (go into AHA152X in drivers/scsi/Makefile):
+Compile Time Configuration
+==========================
 
--DAUTOCONF
- use configuration the controller reports (AHA-152x only)
+(go into AHA152X in drivers/scsi/Makefile):
 
--DSKIP_BIOSTEST
- Don't test for BIOS signature (AHA-1510 or disabled BIOS)
+- DAUTOCONF
+    use configuration the controller reports (AHA-152x only)
 
--DSETUP0="{ IOPORT, IRQ, SCSI_ID, RECONNECT, PARITY, SYNCHRONOUS, DELAY, EXT_TRANS }"
- override for the first controller 
+- DSKIP_BIOSTEST
+    Don't test for BIOS signature (AHA-1510 or disabled BIOS)
 
--DSETUP1="{ IOPORT, IRQ, SCSI_ID, RECONNECT, PARITY, SYNCHRONOUS, DELAY, EXT_TRANS }"
- override for the second controller
+- DSETUP0="{ IOPORT, IRQ, SCSI_ID, RECONNECT, PARITY, SYNCHRONOUS, DELAY, EXT_TRANS }"
+    override for the first controller
 
--DAHA152X_DEBUG
- enable debugging output
+- DSETUP1="{ IOPORT, IRQ, SCSI_ID, RECONNECT, PARITY, SYNCHRONOUS, DELAY, EXT_TRANS }"
+    override for the second controller
 
--DAHA152X_STAT
- enable some statistics
+- DAHA152X_DEBUG
+    enable debugging output
+
+- DAHA152X_STAT
+    enable some statistics
 
 
-LILO COMMAND LINE OPTIONS:
+LILO Command Line Options
+=========================
 
-aha152x=<IOPORT>[,<IRQ>[,<SCSI-ID>[,<RECONNECT>[,<PARITY>[,<SYNCHRONOUS>[,<DELAY> [,<EXT_TRANS]]]]]]]
+ ::
+
+    aha152x=<IOPORT>[,<IRQ>[,<SCSI-ID>[,<RECONNECT>[,<PARITY>[,<SYNCHRONOUS>[,<DELAY> [,<EXT_TRANS]]]]]]]
 
  The normal configuration can be overridden by specifying a command line.
  When you do this, the BIOS test is skipped. Entered values have to be
@@ -58,17 +72,21 @@ aha152x=<IOPORT>[,<IRQ>[,<SCSI-ID>[,<RECONNECT>[,<PARITY>[,<SYNCHRONOUS>[,<DELAY
  For two controllers use the aha152x statement twice.
 
 
-SYMBOLS FOR MODULE CONFIGURATION:
+Symbols for Module Configuration
+================================
 
 Choose from 2 alternatives:
 
-1. specify everything (old)
+1. specify everything (old)::
 
-aha152x=IOPORT,IRQ,SCSI_ID,RECONNECT,PARITY,SYNCHRONOUS,DELAY,EXT_TRANS
+    aha152x=IOPORT,IRQ,SCSI_ID,RECONNECT,PARITY,SYNCHRONOUS,DELAY,EXT_TRANS
+
   configuration override for first controller
 
+  ::
 
-aha152x1=IOPORT,IRQ,SCSI_ID,RECONNECT,PARITY,SYNCHRONOUS,DELAY,EXT_TRANS
+    aha152x1=IOPORT,IRQ,SCSI_ID,RECONNECT,PARITY,SYNCHRONOUS,DELAY,EXT_TRANS
+
   configuration override for second controller
 
 2. specify only what you need to (irq or io is required; new)
@@ -101,7 +119,8 @@ exttrans=EXTTRANS0[,EXTTRANS1]
 If you use both alternatives the first will be taken.
 
 
-NOTES ON EXT_TRANS: 
+Notes on EXT_TRANS
+==================
 
 SCSI uses block numbers to address blocks/sectors on a device.
 The BIOS uses a cylinder/head/sector addressing scheme (C/H/S)
@@ -150,8 +169,9 @@ geometry right in most cases:
 - for disks<1GB: use default translation (C/32/64)
 
 - for disks>1GB:
+
   - take current geometry from the partition table
-    (using scsicam_bios_param and accept only `valid' geometries,
+    (using scsicam_bios_param and accept only 'valid' geometries,
     ie. either (C/32/64) or (C/63/255)).  This can be extended translation
     even if it's not enabled in the driver.
 
@@ -161,7 +181,8 @@ geometry right in most cases:
     disks.
 
 
-REFERENCES USED:
+References Used
+===============
 
  "AIC-6260 SCSI Chip Specification", Adaptec Corporation.
 
@@ -177,7 +198,7 @@ REFERENCES USED:
 
  Drew Eckhardt (drew@cs.colorado.edu)
 
- Eric Youngdale (eric@andante.org) 
+ Eric Youngdale (eric@andante.org)
 
  special thanks to Eric Youngdale for the free(!) supplying the
  documentation on the chip.

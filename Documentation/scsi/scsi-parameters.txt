@@ -16,7 +16,7 @@ parameters may be changed at runtime by the command
 			See header of drivers/scsi/advansys.c.
 
 	aha152x=	[HW,SCSI]
-			See Documentation/scsi/aha152x.txt.
+			See Documentation/scsi/aha152x.rst.
 
 	aha1542=	[HW,SCSI]
 			Format: <portbase>[,<buson>,<busoff>[,<dmaspeed>]]

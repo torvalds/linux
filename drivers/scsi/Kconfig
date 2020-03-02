@@ -383,7 +383,7 @@ config SCSI_AHA152X
 
 	  It is explained in section 3.3 of the SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>. You might also want to
-	  read the file <file:Documentation/scsi/aha152x.txt>.
+	  read the file <file:Documentation/scsi/aha152x.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called aha152x.

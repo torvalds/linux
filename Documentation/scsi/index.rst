@@ -10,5 +10,6 @@ Linux SCSI Subsystem
    53c700
    aacraid
    advansys
+   aha152x
 
    scsi_transport_srp/figures
