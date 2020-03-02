@@ -23,5 +23,6 @@ Linux SCSI Subsystem
    g_NCR5380
    hpsa
    hptiop
+   libsas
 
    scsi_transport_srp/figures
