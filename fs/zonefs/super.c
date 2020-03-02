@@ -601,13 +601,13 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t ret;
 
 	/*
-	 * For async direct IOs to sequential zone files, ignore IOCB_NOWAIT
+	 * For async direct IOs to sequential zone files, refuse IOCB_NOWAIT
 	 * as this can cause write reordering (e.g. the first aio gets EAGAIN
 	 * on the inode lock but the second goes through but is now unaligned).
 	 */
-	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ && !is_sync_kiocb(iocb)
-	    && (iocb->ki_flags & IOCB_NOWAIT))
-		iocb->ki_flags &= ~IOCB_NOWAIT;
+	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ && !is_sync_kiocb(iocb) &&
+	    (iocb->ki_flags & IOCB_NOWAIT))
+		return -EOPNOTSUPP;
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
 		if (!inode_trylock(inode))

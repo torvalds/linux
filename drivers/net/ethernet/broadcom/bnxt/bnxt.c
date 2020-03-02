@@ -11252,7 +11252,7 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 		}
 	}
 	if (test_and_clear_bit(BNXT_HWRM_PF_UNLOAD_SP_EVENT, &bp->sp_event))
-		netdev_info(bp->dev, "Receive PF driver unload event!");
+		netdev_info(bp->dev, "Receive PF driver unload event!\n");
 }
 
 #else
@@ -11759,7 +11759,7 @@ static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])
 	u32 dw;
 
 	if (!pos) {
-		netdev_info(bp->dev, "Unable do read adapter's DSN");
+		netdev_info(bp->dev, "Unable do read adapter's DSN\n");
 		return -EOPNOTSUPP;
 	}
 

@@ -79,16 +79,10 @@ struct io_wq_work {
 	pid_t task_pid;
 };
 
-#define INIT_IO_WORK(work, _func)			\
-	do {						\
-		(work)->list.next = NULL;		\
-		(work)->func = _func;			\
-		(work)->files = NULL;			\
-		(work)->mm = NULL;			\
-		(work)->creds = NULL;			\
-		(work)->fs = NULL;			\
-		(work)->flags = 0;			\
-	} while (0)					\
+#define INIT_IO_WORK(work, _func)				\
+	do {							\
+		*(work) = (struct io_wq_work){ .func = _func };	\
+	} while (0)						\
 
 typedef void (get_work_fn)(struct io_wq_work *);
 typedef void (put_work_fn)(struct io_wq_work *);
