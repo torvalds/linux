@@ -7,4 +7,6 @@ Linux SCSI Subsystem
 .. toctree::
    :maxdepth: 1
 
+   53c700
+
    scsi_transport_srp/figures

@@ -1,3 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=======================
+The 53c700 Driver Notes
+=======================
+
 General Description
 ===================
 
@@ -16,9 +22,9 @@ fill in to get the driver working.
 Compile Time Flags
 ==================
 
-A compile time flag is:
+A compile time flag is::
 
-CONFIG_53C700_LE_ON_BE
+	CONFIG_53C700_LE_ON_BE
 
 define if the chipset must be supported in little endian mode on a big
 endian architecture (used for the 700 on parisc).
@@ -51,9 +57,11 @@ consistent with the best operation of the chip (although some choose
 to drive it off the CPU or bus clock rather than going to the expense
 of an extra clock chip).  The best operation clock speeds are:
 
-53c700 - 25MHz
-53c700-66 - 50MHz
-53c710 - 40Mhz
+=========  =====
+53c700     25MHz
+53c700-66  50MHz
+53c710     40Mhz
+=========  =====
 
 Writing Your Glue Driver
 ========================
@@ -69,7 +77,7 @@ parameters that matter to you (see below), plumb the NCR_700_intr
 routine into the interrupt line and call NCR_700_detect with the host
 template and the new parameters as arguments.  You should also call
 the relevant request_*_region function and place the register base
-address into the `base' pointer of the host parameters.
+address into the 'base' pointer of the host parameters.
 
 In the release routine, you must free the NCR_700_Host_Parameters that
 you allocated, call the corresponding release_*_region and free the
@@ -78,7 +86,7 @@ interrupt.
 Handling Interrupts
 -------------------
 
-In general, you should just plumb the card's interrupt line in with 
+In general, you should just plumb the card's interrupt line in with
 
 request_irq(irq, NCR_700_intr, <irq flags>, <driver name>, host);
 
@@ -95,41 +103,32 @@ Settable NCR_700_Host_Parameters
 The following are a list of the user settable parameters:
 
 clock: (MANDATORY)
-
-Set to the clock speed of the chip in MHz.
+  Set to the clock speed of the chip in MHz.
 
 base: (MANDATORY)
-
-set to the base of the io or mem region for the register set. On 64
-bit architectures this is only 32 bits wide, so the registers must be
-mapped into the low 32 bits of memory.
+  Set to the base of the io or mem region for the register set. On 64
+  bit architectures this is only 32 bits wide, so the registers must be
+  mapped into the low 32 bits of memory.
 
 pci_dev: (OPTIONAL)
-
-set to the PCI board device.  Leave NULL for a non-pci board.  This is
-used for the pci_alloc_consistent() and pci_map_*() functions.
+  Set to the PCI board device.  Leave NULL for a non-pci board.  This is
+  used for the pci_alloc_consistent() and pci_map_*() functions.
 
 dmode_extra: (OPTIONAL, 53c710 only)
-
-extra flags for the DMODE register.  These are used to control bus
-output pins on the 710.  The settings should be a combination of
-DMODE_FC1 and DMODE_FC2.  What these pins actually do is entirely up
-to the board designer.  Usually it is safe to ignore this setting.
+  Extra flags for the DMODE register.  These are used to control bus
+  output pins on the 710.  The settings should be a combination of
+  DMODE_FC1 and DMODE_FC2.  What these pins actually do is entirely up
+  to the board designer.  Usually it is safe to ignore this setting.
 
 differential: (OPTIONAL)
-
-set to 1 if the chip drives a differential bus.
+  Set to 1 if the chip drives a differential bus.
 
 force_le_on_be: (OPTIONAL, only if CONFIG_53C700_LE_ON_BE is set)
-
-set to 1 if the chip is operating in little endian mode on a big
-endian architecture.
+  Set to 1 if the chip is operating in little endian mode on a big
+  endian architecture.
 
 chip710: (OPTIONAL)
-
-set to 1 if the chip is a 53c710.
+  Set to 1 if the chip is a 53c710.
 
 burst_disable: (OPTIONAL, 53c710 only)
-
-disable 8 byte bursting for DMA transfers.
-
+  Disable 8 byte bursting for DMA transfers.
