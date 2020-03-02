@@ -225,7 +225,7 @@ struct __packed offload_info {
 	struct offload_port_info ports;
 	struct offload_ka_info kas;
 	struct offload_rr_info rrs;
-	u8 buf[0];
+	u8 buf[];
 };
 
 struct __packed hw_atl_utils_fw_rpc {
