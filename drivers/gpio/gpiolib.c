@@ -1823,7 +1823,7 @@ void gpiochip_remove(struct gpio_chip *chip)
 	}
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	if (i == gdev->ngpio)
+	if (i != gdev->ngpio)
 		dev_crit(&gdev->dev,
 			 "REMOVING GPIOCHIP WITH GPIOS STILL REQUESTED\n");
 
