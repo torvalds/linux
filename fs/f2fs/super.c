@@ -829,6 +829,10 @@ static int parse_options(struct super_block *sb, char *options)
 					!strcmp(name, "lz4")) {
 				F2FS_OPTION(sbi).compress_algorithm =
 								COMPRESS_LZ4;
+			} else if (strlen(name) == 4 &&
+					!strcmp(name, "zstd")) {
+				F2FS_OPTION(sbi).compress_algorithm =
+								COMPRESS_ZSTD;
 			} else {
 				kfree(name);
 				return -EINVAL;
@@ -1418,6 +1422,9 @@ static inline void f2fs_show_compress_options(struct seq_file *seq,
 		break;
 	case COMPRESS_LZ4:
 		algtype = "lz4";
+		break;
+	case COMPRESS_ZSTD:
+		algtype = "zstd";
 		break;
 	}
 	seq_printf(seq, ",compress_algorithm=%s", algtype);
