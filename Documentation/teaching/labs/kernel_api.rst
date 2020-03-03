@@ -813,7 +813,7 @@ following:
 
 Generate the skeleton for the task named **6-list-sync**.
 
-  1. Browse the code and look for ``TODO`` string.
+  1. Browse the code and look for ``TODO 1`` string.
   2. Use a spinlock or a read-write lock to synchronize access to the
      list.
   3. Compile, load and unload the kernel module.
@@ -838,6 +838,8 @@ directory, the following steps are required:
     2. Use the :c:macro:`EXPORT_SYMBOL` macro to export the kernel symbols. For
        example: :c:macro:`EXPORT_SYMBOL(task_info_remove_expired);`. The
        macro must be used for each function after the function is defined.
+       Browse the code and look for the ``TODO 2`` string in the
+       :file:`list-sync.c`.
     3. Remove from the module from **6-list-sync** the code that avoids the
        expiration of a list item (it is in contradiction to our exercise).
     4. Compile and load the module from :file:`6-list-sync/`. Once loaded, it
