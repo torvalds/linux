@@ -414,7 +414,8 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         reserved_at_16[0x1];
 	u8	   table_miss_action_domain[0x1];
 	u8         termination_table[0x1];
-	u8         reserved_at_19[0x7];
+	u8         reformat_and_fwd_to_table[0x1];
+	u8         reserved_at_1a[0x6];
 	u8         reserved_at_20[0x2];
 	u8         log_max_ft_size[0x6];
 	u8         log_max_modify_header_context[0x8];
