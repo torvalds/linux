@@ -123,7 +123,7 @@ properties:
       to mandate it.
 
       [3] Documentation/devicetree/bindings/power/power_domain.txt
-      [4] Documentation/devicetree/bindings/power/domain-idle-state.txt
+      [4] Documentation/devicetree/bindings/power/domain-idle-state.yaml
 
   power-domains:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
