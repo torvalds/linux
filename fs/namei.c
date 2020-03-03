@@ -860,18 +860,6 @@ static int set_root(struct nameidata *nd)
 	return 0;
 }
 
-static inline void path_to_nameidata(const struct path *path,
-					struct nameidata *nd)
-{
-	if (!(nd->flags & LOOKUP_RCU)) {
-		dput(nd->path.dentry);
-		if (nd->path.mnt != path->mnt)
-			mntput(nd->path.mnt);
-	}
-	nd->path.mnt = path->mnt;
-	nd->path.dentry = path->dentry;
-}
-
 static int nd_jump_root(struct nameidata *nd)
 {
 	if (unlikely(nd->flags & LOOKUP_BENEATH))
@@ -1705,7 +1693,12 @@ static const char *step_into(struct nameidata *nd, int flags,
 	   ((flags & WALK_TRAILING) && !(nd->flags & LOOKUP_FOLLOW)) ||
 	   (flags & WALK_NOFOLLOW)) {
 		/* not a symlink or should not follow */
-		path_to_nameidata(&path, nd);
+		if (!(nd->flags & LOOKUP_RCU)) {
+			dput(nd->path.dentry);
+			if (nd->path.mnt != path.mnt)
+				mntput(nd->path.mnt);
+		}
+		nd->path = path;
 		nd->inode = inode;
 		nd->seq = seq;
 		return NULL;
