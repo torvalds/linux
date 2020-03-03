@@ -186,6 +186,155 @@ static void tcf_ct_flow_table_process_conn(struct tcf_ct_flow_table *ct_ft,
 	tcf_ct_flow_table_add(ct_ft, ct, tcp);
 }
 
+static bool
+tcf_ct_flow_table_fill_tuple_ipv4(struct sk_buff *skb,
+				  struct flow_offload_tuple *tuple)
+{
+	struct flow_ports *ports;
+	unsigned int thoff;
+	struct iphdr *iph;
+
+	if (!pskb_may_pull(skb, sizeof(*iph)))
+		return false;
+
+	iph = ip_hdr(skb);
+	thoff = iph->ihl * 4;
+
+	if (ip_is_fragment(iph) ||
+	    unlikely(thoff != sizeof(struct iphdr)))
+		return false;
+
+	if (iph->protocol != IPPROTO_TCP &&
+	    iph->protocol != IPPROTO_UDP)
+		return false;
+
+	if (iph->ttl <= 1)
+		return false;
+
+	if (!pskb_may_pull(skb, thoff + sizeof(*ports)))
+		return false;
+
+	ports = (struct flow_ports *)(skb_network_header(skb) + thoff);
+
+	tuple->src_v4.s_addr = iph->saddr;
+	tuple->dst_v4.s_addr = iph->daddr;
+	tuple->src_port = ports->source;
+	tuple->dst_port = ports->dest;
+	tuple->l3proto = AF_INET;
+	tuple->l4proto = iph->protocol;
+
+	return true;
+}
+
+static bool
+tcf_ct_flow_table_fill_tuple_ipv6(struct sk_buff *skb,
+				  struct flow_offload_tuple *tuple)
+{
+	struct flow_ports *ports;
+	struct ipv6hdr *ip6h;
+	unsigned int thoff;
+
+	if (!pskb_may_pull(skb, sizeof(*ip6h)))
+		return false;
+
+	ip6h = ipv6_hdr(skb);
+
+	if (ip6h->nexthdr != IPPROTO_TCP &&
+	    ip6h->nexthdr != IPPROTO_UDP)
+		return false;
+
+	if (ip6h->hop_limit <= 1)
+		return false;
+
+	thoff = sizeof(*ip6h);
+	if (!pskb_may_pull(skb, thoff + sizeof(*ports)))
+		return false;
+
+	ports = (struct flow_ports *)(skb_network_header(skb) + thoff);
+
+	tuple->src_v6 = ip6h->saddr;
+	tuple->dst_v6 = ip6h->daddr;
+	tuple->src_port = ports->source;
+	tuple->dst_port = ports->dest;
+	tuple->l3proto = AF_INET6;
+	tuple->l4proto = ip6h->nexthdr;
+
+	return true;
+}
+
+static bool tcf_ct_flow_table_check_tcp(struct flow_offload *flow,
+					struct sk_buff *skb,
+					unsigned int thoff)
+{
+	struct tcphdr *tcph;
+
+	if (!pskb_may_pull(skb, thoff + sizeof(*tcph)))
+		return false;
+
+	tcph = (void *)(skb_network_header(skb) + thoff);
+	if (unlikely(tcph->fin || tcph->rst)) {
+		flow_offload_teardown(flow);
+		return false;
+	}
+
+	return true;
+}
+
+static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
+				     struct sk_buff *skb,
+				     u8 family)
+{
+	struct nf_flowtable *nf_ft = &p->ct_ft->nf_ft;
+	struct flow_offload_tuple_rhash *tuplehash;
+	struct flow_offload_tuple tuple = {};
+	enum ip_conntrack_info ctinfo;
+	struct flow_offload *flow;
+	struct nf_conn *ct;
+	unsigned int thoff;
+	int ip_proto;
+	u8 dir;
+
+	/* Previously seen or loopback */
+	ct = nf_ct_get(skb, &ctinfo);
+	if ((ct && !nf_ct_is_template(ct)) || ctinfo == IP_CT_UNTRACKED)
+		return false;
+
+	switch (family) {
+	case NFPROTO_IPV4:
+		if (!tcf_ct_flow_table_fill_tuple_ipv4(skb, &tuple))
+			return false;
+		break;
+	case NFPROTO_IPV6:
+		if (!tcf_ct_flow_table_fill_tuple_ipv6(skb, &tuple))
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	tuplehash = flow_offload_lookup(nf_ft, &tuple);
+	if (!tuplehash)
+		return false;
+
+	dir = tuplehash->tuple.dir;
+	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
+	ct = flow->ct;
+
+	ctinfo = dir == FLOW_OFFLOAD_DIR_ORIGINAL ? IP_CT_ESTABLISHED :
+						    IP_CT_ESTABLISHED_REPLY;
+
+	thoff = ip_hdr(skb)->ihl * 4;
+	ip_proto = ip_hdr(skb)->protocol;
+	if (ip_proto == IPPROTO_TCP &&
+	    !tcf_ct_flow_table_check_tcp(flow, skb, thoff))
+		return false;
+
+	nf_conntrack_get(&ct->ct_general);
+	nf_ct_set(skb, ct, ctinfo);
+
+	return true;
+}
+
 static int tcf_ct_flow_tables_init(void)
 {
 	return rhashtable_init(&zones_ht, &zones_params);
@@ -554,6 +703,7 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	struct nf_hook_state state;
 	int nh_ofs, err, retval;
 	struct tcf_ct_params *p;
+	bool skip_add = false;
 	struct nf_conn *ct;
 	u8 family;
 
@@ -603,6 +753,11 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	 */
 	cached = tcf_ct_skb_nfct_cached(net, skb, p->zone, force);
 	if (!cached) {
+		if (!commit && tcf_ct_flow_table_lookup(p, skb, family)) {
+			skip_add = true;
+			goto do_nat;
+		}
+
 		/* Associate skb with specified zone. */
 		if (tmpl) {
 			ct = nf_ct_get(skb, &ctinfo);
@@ -620,6 +775,7 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 			goto out_push;
 	}
 
+do_nat:
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct)
 		goto out_push;
@@ -637,9 +793,9 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 		 * even if the connection is already confirmed.
 		 */
 		nf_conntrack_confirm(skb);
+	} else if (!skip_add) {
+		tcf_ct_flow_table_process_conn(p->ct_ft, ct, ctinfo);
 	}
-
-	tcf_ct_flow_table_process_conn(p->ct_ft, ct, ctinfo);
 
 out_push:
 	skb_push_rcsum(skb, nh_ofs);
