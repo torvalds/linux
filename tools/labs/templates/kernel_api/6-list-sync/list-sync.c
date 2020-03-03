@@ -24,7 +24,7 @@ struct task_info {
 
 static struct list_head head;
 
-/* TODO: you can use either a spinlock or rwlock, define it here */
+/* TODO 1: you can use either a spinlock or rwlock, define it here */
 DEFINE_RWLOCK(lock);
 
 static struct task_info *task_info_alloc(int pid)
@@ -46,7 +46,7 @@ static struct task_info *task_info_find_pid(int pid)
 	struct list_head *p;
 	struct task_info *ti;
 
-	/* TODO: Protect list, is this read or write access? */
+	/* TODO 1: Protect list, is this read or write access? */
 	read_lock(&lock);
 	list_for_each(p, &head) {
 		ti = list_entry(p, struct task_info, list);
@@ -56,7 +56,7 @@ static struct task_info *task_info_find_pid(int pid)
 			return ti;
 		}
 	}
-	/* TODO: critical section ends here */
+	/* TODO 1: critical section ends here */
 	read_unlock(&lock);
 
 	return NULL;
@@ -74,10 +74,10 @@ static void task_info_add_to_list(int pid)
 	}
 
 	ti = task_info_alloc(pid);
-	/* TODO: protect list access, is this read or write access? */
+	/* TODO 1: protect list access, is this read or write access? */
 	write_lock(&lock);
 	list_add(&ti->list, &head);
-	/* TODO: critical section ends here */
+	/* TODO 1: critical section ends here */
 	write_unlock(&lock);
 }
 
@@ -88,6 +88,7 @@ void task_info_add_for_current(void)
 	task_info_add_to_list(next_task(current)->pid);
 	task_info_add_to_list(next_task(next_task(current))->pid);
 }
+/* TODO 2: Export the kernel symbol */
 EXPORT_SYMBOL(task_info_add_for_current);
 
 void task_info_print_list(const char *msg)
@@ -97,16 +98,17 @@ void task_info_print_list(const char *msg)
 
 	pr_info("%s: [ ", msg);
 
-	/* TODO: Protect list, is this read or write access? */
+	/* TODO 1: Protect list, is this read or write access? */
 	read_lock(&lock);
 	list_for_each(p, &head) {
 		ti = list_entry(p, struct task_info, list);
 		pr_info("(%d, %lu) ", ti->pid, ti->timestamp);
 	}
-	/* TODO: Critical section ends here */
+	/* TODO 1: Critical section ends here */
 	read_unlock(&lock);
 	pr_info("]\n");
 }
+/* TODO 2: Export the kernel symbol */
 EXPORT_SYMBOL(task_info_print_list);
 
 void task_info_remove_expired(void)
@@ -114,7 +116,7 @@ void task_info_remove_expired(void)
 	struct list_head *p, *q;
 	struct task_info *ti;
 
-	/* TODO: Protect list, is this read or write access? */
+	/* TODO 1: Protect list, is this read or write access? */
 	write_lock(&lock);
 	list_for_each_safe(p, q, &head) {
 		ti = list_entry(p, struct task_info, list);
@@ -123,9 +125,10 @@ void task_info_remove_expired(void)
 			kfree(ti);
 		}
 	}
-	/* TODO: Critical section ends here */
+	/* TODO 1: Critical section ends here */
 	write_unlock(&lock);
 }
+/* TODO 2: Export the kernel symbol */
 EXPORT_SYMBOL(task_info_remove_expired);
 
 static void task_info_purge_list(void)
@@ -133,14 +136,14 @@ static void task_info_purge_list(void)
 	struct list_head *p, *q;
 	struct task_info *ti;
 
-	/* TODO: Protect list, is this read or write access? */
+	/* TODO 1: Protect list, is this read or write access? */
 	write_lock(&lock);
 	list_for_each_safe(p, q, &head) {
 		ti = list_entry(p, struct task_info, list);
 		list_del(p);
 		kfree(ti);
 	}
-	/* TODO: Critical sections ends here */
+	/* TODO 1: Critical sections ends here */
 	write_unlock(&lock);
 }
 
