@@ -268,4 +268,7 @@ struct btrfs_backref_cache {
 	unsigned int is_reloc;
 };
 
+void btrfs_backref_init_cache(struct btrfs_fs_info *fs_info,
+			      struct btrfs_backref_cache *cache, int is_reloc);
+
 #endif
