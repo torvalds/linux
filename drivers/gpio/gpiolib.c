@@ -830,11 +830,11 @@ static ssize_t lineevent_read(struct file *filep,
 			      loff_t *f_ps)
 {
 	struct lineevent_state *le = filep->private_data;
-	struct gpioevent_data event;
+	struct gpioevent_data ge;
 	ssize_t bytes_read = 0;
 	int ret;
 
-	if (count < sizeof(event))
+	if (count < sizeof(ge))
 		return -EINVAL;
 
 	do {
@@ -858,7 +858,7 @@ static ssize_t lineevent_read(struct file *filep,
 			}
 		}
 
-		ret = kfifo_out(&le->events, &event, 1);
+		ret = kfifo_out(&le->events, &ge, 1);
 		spin_unlock(&le->wait.lock);
 		if (ret != 1) {
 			/*
@@ -870,10 +870,10 @@ static ssize_t lineevent_read(struct file *filep,
 			break;
 		}
 
-		if (copy_to_user(buf + bytes_read, &event, sizeof(event)))
+		if (copy_to_user(buf + bytes_read, &ge, sizeof(ge)))
 			return -EFAULT;
-		bytes_read += sizeof(event);
-	} while (count >= bytes_read + sizeof(event));
+		bytes_read += sizeof(ge);
+	} while (count >= bytes_read + sizeof(ge));
 
 	return bytes_read;
 }
@@ -1261,7 +1261,7 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		if (cmd == GPIO_GET_LINEINFO_WATCH_IOCTL)
-			set_bit(desc_to_gpio(desc), priv->watched_lines);
+			set_bit(gpio_chip_hwgpio(desc), priv->watched_lines);
 
 		return 0;
 	} else if (cmd == GPIO_GET_LINEHANDLE_IOCTL) {
@@ -1276,7 +1276,7 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (IS_ERR(desc))
 			return PTR_ERR(desc);
 
-		clear_bit(desc_to_gpio(desc), &desc->flags);
+		clear_bit(gpio_chip_hwgpio(desc), priv->watched_lines);
 		return 0;
 	}
 	return -EINVAL;
@@ -1304,7 +1304,7 @@ static int lineinfo_changed_notify(struct notifier_block *nb,
 	struct gpio_desc *desc = data;
 	int ret;
 
-	if (!test_bit(desc_to_gpio(desc), priv->watched_lines))
+	if (!test_bit(gpio_chip_hwgpio(desc), priv->watched_lines))
 		return NOTIFY_DONE;
 
 	memset(&chg, 0, sizeof(chg));
