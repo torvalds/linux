@@ -79,7 +79,7 @@ struct stm32_timer_trigger {
 	struct device *dev;
 	struct regmap *regmap;
 	struct clk *clk;
-	bool clk_enabled;
+	bool enabled;
 	u32 max_arr;
 	const void *triggers;
 	const void *valids;
@@ -140,8 +140,8 @@ static int stm32_timer_start(struct stm32_timer_trigger *priv,
 		return -EBUSY;
 
 	mutex_lock(&priv->lock);
-	if (!priv->clk_enabled) {
-		priv->clk_enabled = true;
+	if (!priv->enabled) {
+		priv->enabled = true;
 		clk_enable(priv->clk);
 	}
 
@@ -185,8 +185,8 @@ static void stm32_timer_stop(struct stm32_timer_trigger *priv)
 	/* Make sure that registers are updated */
 	regmap_update_bits(priv->regmap, TIM_EGR, TIM_EGR_UG, TIM_EGR_UG);
 
-	if (priv->clk_enabled) {
-		priv->clk_enabled = false;
+	if (priv->enabled) {
+		priv->enabled = false;
 		clk_disable(priv->clk);
 	}
 	mutex_unlock(&priv->lock);
@@ -305,9 +305,9 @@ static ssize_t stm32_tt_store_master_mode(struct device *dev,
 		if (!strncmp(master_mode_table[i], buf,
 			     strlen(master_mode_table[i]))) {
 			mutex_lock(&priv->lock);
-			if (!priv->clk_enabled) {
+			if (!priv->enabled) {
 				/* Clock should be enabled first */
-				priv->clk_enabled = true;
+				priv->enabled = true;
 				clk_enable(priv->clk);
 			}
 			regmap_update_bits(priv->regmap, TIM_CR2, mask,
@@ -476,8 +476,8 @@ static int stm32_counter_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_ENABLE:
 		mutex_lock(&priv->lock);
 		if (val) {
-			if (!priv->clk_enabled) {
-				priv->clk_enabled = true;
+			if (!priv->enabled) {
+				priv->enabled = true;
 				clk_enable(priv->clk);
 			}
 			regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN,
@@ -485,8 +485,8 @@ static int stm32_counter_write_raw(struct iio_dev *indio_dev,
 		} else {
 			regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN,
 					   0);
-			if (priv->clk_enabled) {
-				priv->clk_enabled = false;
+			if (priv->enabled) {
+				priv->enabled = false;
 				clk_disable(priv->clk);
 			}
 		}
@@ -594,9 +594,9 @@ static int stm32_set_enable_mode(struct iio_dev *indio_dev,
 	 * enable counter clock, so it can use it. Keeps it in sync with CEN.
 	 */
 	mutex_lock(&priv->lock);
-	if (sms == 6 && !priv->clk_enabled) {
+	if (sms == 6 && !priv->enabled) {
 		clk_enable(priv->clk);
-		priv->clk_enabled = true;
+		priv->enabled = true;
 	}
 	mutex_unlock(&priv->lock);
 
@@ -806,7 +806,7 @@ static int stm32_timer_trigger_remove(struct platform_device *pdev)
 	if (!(val & TIM_CCER_CCXE))
 		regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, 0);
 
-	if (priv->clk_enabled)
+	if (priv->enabled)
 		clk_disable(priv->clk);
 
 	return 0;
