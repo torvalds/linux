@@ -1376,8 +1376,9 @@ static void intel_ddi_clock_get(struct intel_encoder *encoder,
 				struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
-	if (INTEL_GEN(dev_priv) >= 11 &&
+	if (intel_phy_is_tc(dev_priv, phy) &&
 	    intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll) ==
 	    DPLL_ID_ICL_TBTPLL)
 		pipe_config->port_clock = icl_calc_tbt_pll_link(dev_priv,
