@@ -6,9 +6,6 @@
 
 #define TASK_RUNNING 0
 
-#define BPF_F_INDEX_MASK		0xffffffffULL
-#define BPF_F_CURRENT_CPU		BPF_F_INDEX_MASK
-
 const volatile __u64 min_us = 0;
 const volatile pid_t targ_pid = 0;
 
