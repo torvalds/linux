@@ -1706,10 +1706,7 @@ i9xx_read_lut_8(const struct intel_crtc_state *crtc_state)
 	blob_data = blob->data;
 
 	for (i = 0; i < LEGACY_LUT_LENGTH; i++) {
-		if (HAS_GMCH(dev_priv))
-			val = intel_de_read(dev_priv, PALETTE(pipe, i));
-		else
-			val = intel_de_read(dev_priv, LGC_PALETTE(pipe, i));
+		val = intel_de_read(dev_priv, PALETTE(pipe, i));
 
 		blob_data[i].red = intel_color_lut_pack(REG_FIELD_GET(
 							LGC_PALETTE_RED_MASK, val), 8);
@@ -1825,6 +1822,38 @@ static void chv_read_luts(struct intel_crtc_state *crtc_state)
 }
 
 static struct drm_property_blob *
+ilk_read_lut_8(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	struct drm_property_blob *blob;
+	struct drm_color_lut *blob_data;
+	u32 i, val;
+
+	blob = drm_property_create_blob(&dev_priv->drm,
+					sizeof(struct drm_color_lut) * LEGACY_LUT_LENGTH,
+					NULL);
+	if (IS_ERR(blob))
+		return NULL;
+
+	blob_data = blob->data;
+
+	for (i = 0; i < LEGACY_LUT_LENGTH; i++) {
+		val = intel_de_read(dev_priv, LGC_PALETTE(pipe, i));
+
+		blob_data[i].red = intel_color_lut_pack(REG_FIELD_GET(
+							LGC_PALETTE_RED_MASK, val), 8);
+		blob_data[i].green = intel_color_lut_pack(REG_FIELD_GET(
+							  LGC_PALETTE_GREEN_MASK, val), 8);
+		blob_data[i].blue = intel_color_lut_pack(REG_FIELD_GET(
+							 LGC_PALETTE_BLUE_MASK, val), 8);
+	}
+
+	return blob;
+}
+
+static struct drm_property_blob *
 ilk_read_lut_10(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -1866,7 +1895,7 @@ static void ilk_read_luts(struct intel_crtc_state *crtc_state)
 		return;
 
 	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
-		crtc_state->hw.gamma_lut = i9xx_read_lut_8(crtc_state);
+		crtc_state->hw.gamma_lut = ilk_read_lut_8(crtc_state);
 	else
 		crtc_state->hw.gamma_lut = ilk_read_lut_10(crtc_state);
 }
@@ -1915,7 +1944,7 @@ static void glk_read_luts(struct intel_crtc_state *crtc_state)
 		return;
 
 	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
-		crtc_state->hw.gamma_lut = i9xx_read_lut_8(crtc_state);
+		crtc_state->hw.gamma_lut = ilk_read_lut_8(crtc_state);
 	else
 		crtc_state->hw.gamma_lut = glk_read_lut_10(crtc_state, PAL_PREC_INDEX_VALUE(0));
 }
