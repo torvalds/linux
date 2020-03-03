@@ -5,7 +5,6 @@ config GKI_HIDDEN_DRM_CONFIGS
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DSI
-	select SND_PCM_ELD
 	select VIDEOMODE_HELPERS
 	select WANT_DEV_COREDUMP
 	help
@@ -33,6 +32,8 @@ config GKI_HIDDEN_CRYPTO_CONFIGS
 config GKI_HIDDEN_SND_CONFIGS
 	bool "Hidden SND configs needed for GKI"
 	select SND_VMASTER
+	select SND_PCM_ELD
+	select SND_INTEL_NHLT if (ACPI)
 	help
 	  Dummy config option used to enable hidden SND configs.
 	  These are normally selected implicitly when a module
