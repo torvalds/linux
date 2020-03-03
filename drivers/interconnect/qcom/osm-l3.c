@@ -14,6 +14,7 @@
 
 #include <dt-bindings/interconnect/qcom,osm-l3.h>
 
+#include "sc7180.h"
 #include "sdm845.h"
 
 #define LUT_MAX_ENTRIES			40U
@@ -80,6 +81,19 @@ static struct qcom_icc_node *sdm845_osm_l3_nodes[] = {
 const static struct qcom_icc_desc sdm845_icc_osm_l3 = {
 	.nodes = sdm845_osm_l3_nodes,
 	.num_nodes = ARRAY_SIZE(sdm845_osm_l3_nodes),
+};
+
+DEFINE_QNODE(sc7180_osm_apps_l3, SC7180_MASTER_OSM_L3_APPS, 16, SC7180_SLAVE_OSM_L3);
+DEFINE_QNODE(sc7180_osm_l3, SC7180_SLAVE_OSM_L3, 16);
+
+static struct qcom_icc_node *sc7180_osm_l3_nodes[] = {
+	[MASTER_OSM_L3_APPS] = &sc7180_osm_apps_l3,
+	[SLAVE_OSM_L3] = &sc7180_osm_l3,
+};
+
+const static struct qcom_icc_desc sc7180_icc_osm_l3 = {
+	.nodes = sc7180_osm_l3_nodes,
+	.num_nodes = ARRAY_SIZE(sc7180_osm_l3_nodes),
 };
 
 static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
@@ -242,6 +256,7 @@ err:
 }
 
 static const struct of_device_id osm_l3_of_match[] = {
+	{ .compatible = "qcom,sc7180-osm-l3", .data = &sc7180_icc_osm_l3 },
 	{ .compatible = "qcom,sdm845-osm-l3", .data = &sdm845_icc_osm_l3 },
 	{ }
 };
