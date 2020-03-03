@@ -112,6 +112,7 @@ struct ov13850_mode {
 struct ov13850 {
 	struct i2c_client	*client;
 	struct clk		*xvclk;
+	struct gpio_desc	*power_gpio;
 	struct gpio_desc	*reset_gpio;
 	struct gpio_desc	*pwdn_gpio;
 	struct regulator_bulk_data supplies[OV13850_NUM_SUPPLIES];
@@ -683,6 +684,8 @@ static int ov13850_write_reg(struct i2c_client *client, u16 reg,
 	u8 *val_p;
 	__be32 val_be;
 
+	dev_dbg(&client->dev, "write reg(0x%x val:0x%x)!\n", reg, val);
+
 	if (len > 4)
 		return -EINVAL;
 
@@ -1086,6 +1089,11 @@ static int __ov13850_power_on(struct ov13850 *ov13850)
 	u32 delay_us;
 	struct device *dev = &ov13850->client->dev;
 
+	if (!IS_ERR(ov13850->power_gpio))
+		gpiod_set_value_cansleep(ov13850->power_gpio, 1);
+
+	usleep_range(1000, 2000);
+
 	if (!IS_ERR_OR_NULL(ov13850->pins_default)) {
 		ret = pinctrl_select_state(ov13850->pinctrl,
 					   ov13850->pins_default);
@@ -1140,12 +1148,16 @@ static void __ov13850_power_off(struct ov13850 *ov13850)
 	clk_disable_unprepare(ov13850->xvclk);
 	if (!IS_ERR(ov13850->reset_gpio))
 		gpiod_set_value_cansleep(ov13850->reset_gpio, 0);
+
 	if (!IS_ERR_OR_NULL(ov13850->pins_sleep)) {
 		ret = pinctrl_select_state(ov13850->pinctrl,
 					   ov13850->pins_sleep);
 		if (ret < 0)
 			dev_dbg(dev, "could not set pins\n");
 	}
+	if (!IS_ERR(ov13850->power_gpio))
+		gpiod_set_value_cansleep(ov13850->power_gpio, 0);
+
 	regulator_bulk_disable(OV13850_NUM_SUPPLIES, ov13850->supplies);
 }
 
@@ -1462,6 +1474,10 @@ static int ov13850_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
+
+	ov13850->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
+	if (IS_ERR(ov13850->power_gpio))
+		dev_warn(dev, "Failed to get power-gpios, maybe no use\n");
 
 	ov13850->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ov13850->reset_gpio))
