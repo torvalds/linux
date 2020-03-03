@@ -38,6 +38,16 @@ config INTERCONNECT_QCOM_QCS404
 config INTERCONNECT_QCOM_RPMH
 	tristate
 
+config INTERCONNECT_QCOM_SC7180
+	tristate "Qualcomm SC7180 interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || COMPILE_TEST
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_BCM_VOTER
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on sc7180-based
+	  platforms.
+
 config INTERCONNECT_QCOM_SDM845
 	tristate "Qualcomm SDM845 interconnect driver"
 	depends on INTERCONNECT_QCOM
