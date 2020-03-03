@@ -272,5 +272,7 @@ void btrfs_backref_init_cache(struct btrfs_fs_info *fs_info,
 			      struct btrfs_backref_cache *cache, int is_reloc);
 struct btrfs_backref_node *btrfs_backref_alloc_node(
 		struct btrfs_backref_cache *cache, u64 bytenr, int level);
+struct btrfs_backref_edge *btrfs_backref_alloc_edge(
+		struct btrfs_backref_cache *cache);
 
 #endif

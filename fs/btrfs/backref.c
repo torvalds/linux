@@ -2503,3 +2503,14 @@ struct btrfs_backref_node *btrfs_backref_alloc_node(
 
 	return node;
 }
+
+struct btrfs_backref_edge *btrfs_backref_alloc_edge(
+		struct btrfs_backref_cache *cache)
+{
+	struct btrfs_backref_edge *edge;
+
+	edge = kzalloc(sizeof(*edge), GFP_NOFS);
+	if (edge)
+		cache->nr_edges++;
+	return edge;
+}

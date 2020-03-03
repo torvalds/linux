@@ -218,17 +218,6 @@ static void free_backref_node(struct btrfs_backref_cache *cache,
 	}
 }
 
-static struct btrfs_backref_edge *alloc_backref_edge(
-		struct btrfs_backref_cache *cache)
-{
-	struct btrfs_backref_edge *edge;
-
-	edge = kzalloc(sizeof(*edge), GFP_NOFS);
-	if (edge)
-		cache->nr_edges++;
-	return edge;
-}
-
 #define		LINK_LOWER	(1 << 0)
 #define		LINK_UPPER	(1 << 1)
 static void link_backref_edge(struct btrfs_backref_edge *edge,
@@ -581,7 +570,7 @@ static int handle_direct_tree_backref(struct btrfs_backref_cache *cache,
 		return 0;
 	}
 
-	edge = alloc_backref_edge(cache);
+	edge = btrfs_backref_alloc_edge(cache);
 	if (!edge)
 		return -ENOMEM;
 
@@ -698,7 +687,7 @@ static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
 			break;
 		}
 
-		edge = alloc_backref_edge(cache);
+		edge = btrfs_backref_alloc_edge(cache);
 		if (!edge) {
 			btrfs_put_root(root);
 			ret = -ENOMEM;
@@ -1263,7 +1252,7 @@ static int clone_backref_node(struct btrfs_trans_handle *trans,
 
 	if (!node->lowest) {
 		list_for_each_entry(edge, &node->lower, list[UPPER]) {
-			new_edge = alloc_backref_edge(cache);
+			new_edge = btrfs_backref_alloc_edge(cache);
 			if (!new_edge)
 				goto fail;
 
