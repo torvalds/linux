@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/uaccess.h>
 
@@ -639,20 +640,35 @@ static void pmc_core_slps0_display(struct pmc_dev *pmcdev, struct device *dev,
 	}
 }
 
+static int pmc_core_lpm_get_arr_size(const struct pmc_bit_map **maps)
+{
+	int idx;
+
+	for (idx = 0; maps[idx]; idx++)
+		;/* Nothing */
+
+	return idx;
+}
+
 static void pmc_core_lpm_display(struct pmc_dev *pmcdev, struct device *dev,
 				 struct seq_file *s, u32 offset,
 				 const char *str,
 				 const struct pmc_bit_map **maps)
 {
-	u32 lpm_regs[ARRAY_SIZE(tgl_lpm_maps)-1];
-	int index, idx, len = 32, bit_mask;
+	int index, idx, len = 32, bit_mask, arr_size;
+	u32 *lpm_regs;
 
-	for (index = 0; tgl_lpm_maps[index]; index++) {
+	arr_size = pmc_core_lpm_get_arr_size(maps);
+	lpm_regs = kmalloc_array(arr_size, sizeof(*lpm_regs), GFP_KERNEL);
+	if (!lpm_regs)
+		return;
+
+	for (index = 0; index < arr_size; index++) {
 		lpm_regs[index] = pmc_core_reg_read(pmcdev, offset);
 		offset += 4;
 	}
 
-	for (idx = 0; maps[idx]; idx++) {
+	for (idx = 0; idx < arr_size; idx++) {
 		if (dev)
 			dev_dbg(dev, "\nLPM_%s_%d:\t0x%x\n", str, idx,
 				lpm_regs[idx]);
@@ -671,6 +687,8 @@ static void pmc_core_lpm_display(struct pmc_dev *pmcdev, struct device *dev,
 					   lpm_regs[idx] & bit_mask ? 1 : 0);
 		}
 	}
+
+	kfree(lpm_regs);
 }
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
