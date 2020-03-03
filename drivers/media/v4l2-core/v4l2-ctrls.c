@@ -4253,18 +4253,18 @@ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
 }
 EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_string);
 
-int __v4l2_ctrl_s_ctrl_area(struct v4l2_ctrl *ctrl,
-			    const struct v4l2_area *area)
+int __v4l2_ctrl_s_ctrl_compound(struct v4l2_ctrl *ctrl,
+				enum v4l2_ctrl_type type, const void *p)
 {
 	lockdep_assert_held(ctrl->handler->lock);
 
 	/* It's a driver bug if this happens. */
-	if (WARN_ON(ctrl->type != V4L2_CTRL_TYPE_AREA))
+	if (WARN_ON(ctrl->type != type))
 		return -EINVAL;
-	*ctrl->p_new.p_area = *area;
+	memcpy(ctrl->p_new.p, p, ctrl->elems * ctrl->elem_size);
 	return set_ctrl(NULL, ctrl, 0);
 }
-EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_area);
+EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_compound);
 
 void v4l2_ctrl_request_complete(struct media_request *req,
 				struct v4l2_ctrl_handler *main_hdl)
