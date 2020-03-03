@@ -15,6 +15,7 @@
 #include <linux/pkt_cls.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/rhashtable.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
@@ -24,12 +25,115 @@
 #include <uapi/linux/tc_act/tc_ct.h>
 #include <net/tc_act/tc_ct.h>
 
+#include <net/netfilter/nf_flow_table.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <uapi/linux/netfilter/nf_nat.h>
+
+static struct workqueue_struct *act_ct_wq;
+static struct rhashtable zones_ht;
+static DEFINE_SPINLOCK(zones_lock);
+
+struct tcf_ct_flow_table {
+	struct rhash_head node; /* In zones tables */
+
+	struct rcu_work rwork;
+	struct nf_flowtable nf_ft;
+	u16 zone;
+	u32 ref;
+
+	bool dying;
+};
+
+static const struct rhashtable_params zones_params = {
+	.head_offset = offsetof(struct tcf_ct_flow_table, node),
+	.key_offset = offsetof(struct tcf_ct_flow_table, zone),
+	.key_len = sizeof_field(struct tcf_ct_flow_table, zone),
+	.automatic_shrinking = true,
+};
+
+static struct nf_flowtable_type flowtable_ct = {
+	.owner		= THIS_MODULE,
+};
+
+static int tcf_ct_flow_table_get(struct tcf_ct_params *params)
+{
+	struct tcf_ct_flow_table *ct_ft;
+	int err = -ENOMEM;
+
+	spin_lock_bh(&zones_lock);
+	ct_ft = rhashtable_lookup_fast(&zones_ht, &params->zone, zones_params);
+	if (ct_ft)
+		goto take_ref;
+
+	ct_ft = kzalloc(sizeof(*ct_ft), GFP_ATOMIC);
+	if (!ct_ft)
+		goto err_alloc;
+
+	ct_ft->zone = params->zone;
+	err = rhashtable_insert_fast(&zones_ht, &ct_ft->node, zones_params);
+	if (err)
+		goto err_insert;
+
+	ct_ft->nf_ft.type = &flowtable_ct;
+	err = nf_flow_table_init(&ct_ft->nf_ft);
+	if (err)
+		goto err_init;
+
+	__module_get(THIS_MODULE);
+take_ref:
+	params->ct_ft = ct_ft;
+	ct_ft->ref++;
+	spin_unlock_bh(&zones_lock);
+
+	return 0;
+
+err_init:
+	rhashtable_remove_fast(&zones_ht, &ct_ft->node, zones_params);
+err_insert:
+	kfree(ct_ft);
+err_alloc:
+	spin_unlock_bh(&zones_lock);
+	return err;
+}
+
+static void tcf_ct_flow_table_cleanup_work(struct work_struct *work)
+{
+	struct tcf_ct_flow_table *ct_ft;
+
+	ct_ft = container_of(to_rcu_work(work), struct tcf_ct_flow_table,
+			     rwork);
+	nf_flow_table_free(&ct_ft->nf_ft);
+	kfree(ct_ft);
+
+	module_put(THIS_MODULE);
+}
+
+static void tcf_ct_flow_table_put(struct tcf_ct_params *params)
+{
+	struct tcf_ct_flow_table *ct_ft = params->ct_ft;
+
+	spin_lock_bh(&zones_lock);
+	if (--params->ct_ft->ref == 0) {
+		rhashtable_remove_fast(&zones_ht, &ct_ft->node, zones_params);
+		INIT_RCU_WORK(&ct_ft->rwork, tcf_ct_flow_table_cleanup_work);
+		queue_rcu_work(act_ct_wq, &ct_ft->rwork);
+	}
+	spin_unlock_bh(&zones_lock);
+}
+
+static int tcf_ct_flow_tables_init(void)
+{
+	return rhashtable_init(&zones_ht, &zones_params);
+}
+
+static void tcf_ct_flow_tables_uninit(void)
+{
+	rhashtable_destroy(&zones_ht);
+}
 
 static struct tc_action_ops act_ct_ops;
 static unsigned int ct_net_id;
@@ -206,6 +310,8 @@ static void tcf_ct_params_free(struct rcu_head *head)
 {
 	struct tcf_ct_params *params = container_of(head,
 						    struct tcf_ct_params, rcu);
+
+	tcf_ct_flow_table_put(params);
 
 	if (params->tmpl)
 		nf_conntrack_put(&params->tmpl->ct_general);
@@ -730,6 +836,10 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 	if (err)
 		goto cleanup;
 
+	err = tcf_ct_flow_table_get(params);
+	if (err)
+		goto cleanup;
+
 	spin_lock_bh(&c->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	params = rcu_replace_pointer(c->params, params,
@@ -974,12 +1084,34 @@ static struct pernet_operations ct_net_ops = {
 
 static int __init ct_init_module(void)
 {
-	return tcf_register_action(&act_ct_ops, &ct_net_ops);
+	int err;
+
+	act_ct_wq = alloc_ordered_workqueue("act_ct_workqueue", 0);
+	if (!act_ct_wq)
+		return -ENOMEM;
+
+	err = tcf_ct_flow_tables_init();
+	if (err)
+		goto err_tbl_init;
+
+	err = tcf_register_action(&act_ct_ops, &ct_net_ops);
+	if (err)
+		goto err_register;
+
+	return 0;
+
+err_tbl_init:
+	destroy_workqueue(act_ct_wq);
+err_register:
+	tcf_ct_flow_tables_uninit();
+	return err;
 }
 
 static void __exit ct_cleanup_module(void)
 {
 	tcf_unregister_action(&act_ct_ops, &ct_net_ops);
+	tcf_ct_flow_tables_uninit();
+	destroy_workqueue(act_ct_wq);
 }
 
 module_init(ct_init_module);
