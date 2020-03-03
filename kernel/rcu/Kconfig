@@ -70,13 +70,19 @@ config TREE_SRCU
 	help
 	  This option selects the full-fledged version of SRCU.
 
+config TASKS_RCU_GENERIC
+	def_bool TASKS_RCU
+	select SRCU
+	help
+	  This option enables generic infrastructure code supporting
+	  task-based RCU implementations.  Not for manual selection.
+
 config TASKS_RCU
 	def_bool PREEMPTION
-	select SRCU
 	help
 	  This option enables a task-based RCU implementation that uses
 	  only voluntary context switch (not preemption!), idle, and
-	  user-mode execution as quiescent states.
+	  user-mode execution as quiescent states.  Not for manual selection.
 
 config RCU_STALL_COMMON
 	def_bool TREE_RCU
