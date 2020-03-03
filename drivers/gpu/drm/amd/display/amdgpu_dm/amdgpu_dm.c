@@ -4316,9 +4316,22 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
 			stream->psr_version = dmcu->dmcu_version.psr_version;
-			mod_build_vsc_infopacket(stream,
-					&stream->vsc_infopacket,
-					&stream->use_vsc_sdp_for_colorimetry);
+
+			//
+			// should decide stream support vsc sdp colorimetry capability
+			// before building vsc info packet
+			//
+			stream->use_vsc_sdp_for_colorimetry = false;
+			if (aconnector->dc_sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+				stream->use_vsc_sdp_for_colorimetry =
+					aconnector->dc_sink->is_vsc_sdp_colorimetry_supported;
+			} else {
+				if (stream->link->dpcd_caps.dpcd_rev.raw >= 0x14 &&
+					stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED) {
+					stream->use_vsc_sdp_for_colorimetry = true;
+				}
+			}
+			mod_build_vsc_infopacket(stream, &stream->vsc_infopacket);
 		}
 	}
 finish:
