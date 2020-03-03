@@ -1,31 +1,23 @@
-     CPU frequency and voltage scaling code in the Linux(TM) kernel
+.. SPDX-License-Identifier: GPL-2.0
 
+=============================================================
+General description of the CPUFreq core and CPUFreq notifiers
+=============================================================
 
-		         L i n u x    C P U F r e q
+Authors:
+	- Dominik Brodowski  <linux@brodo.de>
+	- David Kimdon <dwhedon@debian.org>
+	- Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+	- Viresh Kumar <viresh.kumar@linaro.org>
 
-			  C P U F r e q    C o r e
+.. Contents:
 
-
-		    Dominik Brodowski  <linux@brodo.de>
-		     David Kimdon <dwhedon@debian.org>
-		Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-		   Viresh Kumar <viresh.kumar@linaro.org>
-
-
-
-   Clock scaling allows you to change the clock speed of the CPUs on the
-    fly. This is a nice method to save battery power, because the lower
-            the clock speed, the less power the CPU consumes.
-
-
-Contents:
----------
-1.  CPUFreq core and interfaces
-2.  CPUFreq notifiers
-3.  CPUFreq Table Generation with Operating Performance Point (OPP)
+   1.  CPUFreq core and interfaces
+   2.  CPUFreq notifiers
+   3.  CPUFreq Table Generation with Operating Performance Point (OPP)
 
 1. General Information
-=======================
+======================
 
 The CPUFreq core code is located in drivers/cpufreq/cpufreq.c. This
 cpufreq code offers a standardized interface for the CPUFreq
@@ -63,7 +55,7 @@ The phase is specified in the second argument to the notifier.  The phase is
 CPUFREQ_CREATE_POLICY when the policy is first created and it is
 CPUFREQ_REMOVE_POLICY when the policy is removed.
 
-The third argument, a void *pointer, points to a struct cpufreq_policy
+The third argument, a ``void *pointer``, points to a struct cpufreq_policy
 consisting of several values, including min, max (the lower and upper
 frequencies (in kHz) of the new policy).
 
@@ -80,10 +72,13 @@ CPUFREQ_POSTCHANGE.
 
 The third argument is a struct cpufreq_freqs with the following
 values:
-cpu	- number of the affected CPU
-old	- old frequency
-new	- new frequency
-flags	- flags of the cpufreq driver
+
+=====	===========================
+cpu	number of the affected CPU
+old	old frequency
+new	new frequency
+flags	flags of the cpufreq driver
+=====	===========================
 
 3. CPUFreq Table Generation with Operating Performance Point (OPP)
 ==================================================================
@@ -94,9 +89,12 @@ dev_pm_opp_init_cpufreq_table -
 	the OPP layer's internal information about the available frequencies
 	into a format readily providable to cpufreq.
 
-	WARNING: Do not use this function in interrupt context.
+	.. Warning::
 
-	Example:
+	   Do not use this function in interrupt context.
+
+	Example::
+
 	 soc_pm_init()
 	 {
 		/* Do things */
@@ -106,7 +104,10 @@ dev_pm_opp_init_cpufreq_table -
 		/* Do other things */
 	 }
 
-	NOTE: This function is available only if CONFIG_CPU_FREQ is enabled in
-	addition to CONFIG_PM_OPP.
+	.. note::
 
-dev_pm_opp_free_cpufreq_table - Free up the table allocated by dev_pm_opp_init_cpufreq_table
+	   This function is available only if CONFIG_CPU_FREQ is enabled in
+	   addition to CONFIG_PM_OPP.
+
+dev_pm_opp_free_cpufreq_table
+	Free up the table allocated by dev_pm_opp_init_cpufreq_table

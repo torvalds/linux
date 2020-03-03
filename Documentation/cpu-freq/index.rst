@@ -14,6 +14,8 @@ Author: Dominik Brodowski  <linux@brodo.de>
 .. toctree::
    :maxdepth: 1
 
+   core
+
 Mailing List
 ------------
 There is a CPU frequency changing CVS commit and general list where
