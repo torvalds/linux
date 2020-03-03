@@ -23,6 +23,7 @@
  * link takes priority and the other port is completely locked out.
  */
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/hwmon.h>
 #include <linux/marvell_phy.h>
 #include <linux/phy.h>
@@ -38,6 +39,12 @@ enum {
 	MV_PCS_BASE_T		= 0x0000,
 	MV_PCS_BASE_R		= 0x1000,
 	MV_PCS_1000BASEX	= 0x2000,
+
+	MV_PCS_CSCR1		= 0x8000,
+	MV_PCS_CSCR1_MDIX_MASK	= 0x0060,
+	MV_PCS_CSCR1_MDIX_MDI	= 0x0000,
+	MV_PCS_CSCR1_MDIX_MDIX	= 0x0020,
+	MV_PCS_CSCR1_MDIX_AUTO	= 0x0060,
 
 	MV_PCS_CSSR1		= 0x8008,
 	MV_PCS_CSSR1_SPD1_MASK	= 0xc000,
@@ -216,6 +223,26 @@ static int mv3310_hwmon_probe(struct phy_device *phydev)
 }
 #endif
 
+static int mv3310_reset(struct phy_device *phydev, u32 unit)
+{
+	int retries, val, err;
+
+	err = phy_modify_mmd(phydev, MDIO_MMD_PCS, unit + MDIO_CTRL1,
+			     MDIO_CTRL1_RESET, MDIO_CTRL1_RESET);
+	if (err < 0)
+		return err;
+
+	retries = 20;
+	do {
+		msleep(5);
+		val = phy_read_mmd(phydev, MDIO_MMD_PCS, unit + MDIO_CTRL1);
+		if (val < 0)
+			return val;
+	} while (val & MDIO_CTRL1_RESET && --retries);
+
+	return val & MDIO_CTRL1_RESET ? -ETIMEDOUT : 0;
+}
+
 static int mv3310_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 {
 	struct phy_device *phydev = upstream;
@@ -316,6 +343,8 @@ static int mv3310_config_init(struct phy_device *phydev)
 	    phydev->interface != PHY_INTERFACE_MODE_10GBASER)
 		return -ENODEV;
 
+	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+
 	return 0;
 }
 
@@ -345,14 +374,42 @@ static int mv3310_get_features(struct phy_device *phydev)
 	return 0;
 }
 
+static int mv3310_config_mdix(struct phy_device *phydev)
+{
+	u16 val;
+	int err;
+
+	switch (phydev->mdix_ctrl) {
+	case ETH_TP_MDI_AUTO:
+		val = MV_PCS_CSCR1_MDIX_AUTO;
+		break;
+	case ETH_TP_MDI_X:
+		val = MV_PCS_CSCR1_MDIX_MDIX;
+		break;
+	case ETH_TP_MDI:
+		val = MV_PCS_CSCR1_MDIX_MDI;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	err = phy_modify_mmd_changed(phydev, MDIO_MMD_PCS, MV_PCS_CSCR1,
+				     MV_PCS_CSCR1_MDIX_MASK, val);
+	if (err > 0)
+		err = mv3310_reset(phydev, MV_PCS_BASE_T);
+
+	return err;
+}
+
 static int mv3310_config_aneg(struct phy_device *phydev)
 {
 	bool changed = false;
 	u16 reg;
 	int ret;
 
-	/* We don't support manual MDI control */
-	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+	ret = mv3310_config_mdix(phydev);
+	if (ret < 0)
+		return ret;
 
 	if (phydev->autoneg == AUTONEG_DISABLE)
 		return genphy_c45_pma_setup_forced(phydev);
