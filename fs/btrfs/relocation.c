@@ -208,27 +208,6 @@ static void backref_cache_cleanup(struct btrfs_backref_cache *cache)
 	ASSERT(!cache->nr_edges);
 }
 
-static struct btrfs_backref_node *alloc_backref_node(
-		struct btrfs_backref_cache *cache, u64 bytenr, int level)
-{
-	struct btrfs_backref_node *node;
-
-	ASSERT(level >= 0 && level < BTRFS_MAX_LEVEL);
-	node = kzalloc(sizeof(*node), GFP_NOFS);
-	if (!node)
-		return node;
-
-	INIT_LIST_HEAD(&node->list);
-	INIT_LIST_HEAD(&node->upper);
-	INIT_LIST_HEAD(&node->lower);
-	RB_CLEAR_NODE(&node->rb_node);
-	cache->nr_nodes++;
-	node->level = level;
-	node->bytenr = bytenr;
-
-	return node;
-}
-
 static void free_backref_node(struct btrfs_backref_cache *cache,
 			      struct btrfs_backref_node *node)
 {
@@ -609,7 +588,7 @@ static int handle_direct_tree_backref(struct btrfs_backref_cache *cache,
 	rb_node = rb_simple_search(&cache->rb_root, ref_key->offset);
 	if (!rb_node) {
 		/* Parent node not yet cached */
-		upper = alloc_backref_node(cache, ref_key->offset,
+		upper = btrfs_backref_alloc_node(cache, ref_key->offset,
 					   cur->level + 1);
 		if (!upper) {
 			free_backref_edge(cache, edge);
@@ -729,8 +708,8 @@ static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
 		eb = path->nodes[level];
 		rb_node = rb_simple_search(&cache->rb_root, eb->start);
 		if (!rb_node) {
-			upper = alloc_backref_node(cache, eb->start,
-						   lower->level + 1);
+			upper = btrfs_backref_alloc_node(cache, eb->start,
+							 lower->level + 1);
 			if (!upper) {
 				btrfs_put_root(root);
 				free_backref_edge(cache, edge);
@@ -1135,7 +1114,7 @@ static noinline_for_stack struct btrfs_backref_node *build_backref_tree(
 		goto out;
 	}
 
-	node = alloc_backref_node(cache, bytenr, level);
+	node = btrfs_backref_alloc_node(cache, bytenr, level);
 	if (!node) {
 		err = -ENOMEM;
 		goto out;
@@ -1272,7 +1251,8 @@ static int clone_backref_node(struct btrfs_trans_handle *trans,
 	if (!node)
 		return 0;
 
-	new_node = alloc_backref_node(cache, dest->node->start, node->level);
+	new_node = btrfs_backref_alloc_node(cache, dest->node->start,
+					    node->level);
 	if (!new_node)
 		return -ENOMEM;
 

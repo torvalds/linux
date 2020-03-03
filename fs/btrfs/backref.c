@@ -2482,3 +2482,24 @@ void btrfs_backref_init_cache(struct btrfs_fs_info *fs_info,
 	cache->fs_info = fs_info;
 	cache->is_reloc = is_reloc;
 }
+
+struct btrfs_backref_node *btrfs_backref_alloc_node(
+		struct btrfs_backref_cache *cache, u64 bytenr, int level)
+{
+	struct btrfs_backref_node *node;
+
+	ASSERT(level >= 0 && level < BTRFS_MAX_LEVEL);
+	node = kzalloc(sizeof(*node), GFP_NOFS);
+	if (!node)
+		return node;
+
+	INIT_LIST_HEAD(&node->list);
+	INIT_LIST_HEAD(&node->upper);
+	INIT_LIST_HEAD(&node->lower);
+	RB_CLEAR_NODE(&node->rb_node);
+	cache->nr_nodes++;
+	node->level = level;
+	node->bytenr = bytenr;
+
+	return node;
+}
