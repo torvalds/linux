@@ -1694,7 +1694,7 @@ i9xx_read_lut_8(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
-	struct drm_color_lut *blob_data;
+	struct drm_color_lut *lut;
 	u32 i, val;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
@@ -1703,16 +1703,16 @@ i9xx_read_lut_8(const struct intel_crtc_state *crtc_state)
 	if (IS_ERR(blob))
 		return NULL;
 
-	blob_data = blob->data;
+	lut = blob->data;
 
 	for (i = 0; i < LEGACY_LUT_LENGTH; i++) {
 		val = intel_de_read(dev_priv, PALETTE(pipe, i));
 
-		blob_data[i].red = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].red = intel_color_lut_pack(REG_FIELD_GET(
 							LGC_PALETTE_RED_MASK, val), 8);
-		blob_data[i].green = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].green = intel_color_lut_pack(REG_FIELD_GET(
 							  LGC_PALETTE_GREEN_MASK, val), 8);
-		blob_data[i].blue = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].blue = intel_color_lut_pack(REG_FIELD_GET(
 							 LGC_PALETTE_BLUE_MASK, val), 8);
 	}
 
@@ -1735,7 +1735,7 @@ i965_read_lut_10p6(const struct intel_crtc_state *crtc_state)
 	u32 lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
-	struct drm_color_lut *blob_data;
+	struct drm_color_lut *lut;
 	u32 i, val1, val2;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
@@ -1744,25 +1744,25 @@ i965_read_lut_10p6(const struct intel_crtc_state *crtc_state)
 	if (IS_ERR(blob))
 		return NULL;
 
-	blob_data = blob->data;
+	lut = blob->data;
 
 	for (i = 0; i < lut_size - 1; i++) {
 		val1 = intel_de_read(dev_priv, PALETTE(pipe, 2 * i + 0));
 		val2 = intel_de_read(dev_priv, PALETTE(pipe, 2 * i + 1));
 
-		blob_data[i].red = REG_FIELD_GET(PALETTE_RED_MASK, val2) << 8 |
+		lut[i].red = REG_FIELD_GET(PALETTE_RED_MASK, val2) << 8 |
 						 REG_FIELD_GET(PALETTE_RED_MASK, val1);
-		blob_data[i].green = REG_FIELD_GET(PALETTE_GREEN_MASK, val2) << 8 |
+		lut[i].green = REG_FIELD_GET(PALETTE_GREEN_MASK, val2) << 8 |
 						   REG_FIELD_GET(PALETTE_GREEN_MASK, val1);
-		blob_data[i].blue = REG_FIELD_GET(PALETTE_BLUE_MASK, val2) << 8 |
+		lut[i].blue = REG_FIELD_GET(PALETTE_BLUE_MASK, val2) << 8 |
 						  REG_FIELD_GET(PALETTE_BLUE_MASK, val1);
 	}
 
-	blob_data[i].red = REG_FIELD_GET(PIPEGCMAX_RGB_MASK,
+	lut[i].red = REG_FIELD_GET(PIPEGCMAX_RGB_MASK,
 					 intel_de_read(dev_priv, PIPEGCMAX(pipe, 0)));
-	blob_data[i].green = REG_FIELD_GET(PIPEGCMAX_RGB_MASK,
+	lut[i].green = REG_FIELD_GET(PIPEGCMAX_RGB_MASK,
 					   intel_de_read(dev_priv, PIPEGCMAX(pipe, 1)));
-	blob_data[i].blue = REG_FIELD_GET(PIPEGCMAX_RGB_MASK,
+	lut[i].blue = REG_FIELD_GET(PIPEGCMAX_RGB_MASK,
 					  intel_de_read(dev_priv, PIPEGCMAX(pipe, 2)));
 
 	return blob;
@@ -1787,7 +1787,7 @@ chv_read_cgm_lut(const struct intel_crtc_state *crtc_state)
 	u32 lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
-	struct drm_color_lut *blob_data;
+	struct drm_color_lut *lut;
 	u32 i, val;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
@@ -1796,17 +1796,17 @@ chv_read_cgm_lut(const struct intel_crtc_state *crtc_state)
 	if (IS_ERR(blob))
 		return NULL;
 
-	blob_data = blob->data;
+	lut = blob->data;
 
 	for (i = 0; i < lut_size; i++) {
 		val = intel_de_read(dev_priv, CGM_PIPE_GAMMA(pipe, i, 0));
-		blob_data[i].green = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].green = intel_color_lut_pack(REG_FIELD_GET(
 							  CGM_PIPE_GAMMA_GREEN_MASK, val), 10);
-		blob_data[i].blue = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].blue = intel_color_lut_pack(REG_FIELD_GET(
 							 CGM_PIPE_GAMMA_BLUE_MASK, val), 10);
 
 		val = intel_de_read(dev_priv, CGM_PIPE_GAMMA(pipe, i, 1));
-		blob_data[i].red = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].red = intel_color_lut_pack(REG_FIELD_GET(
 							CGM_PIPE_GAMMA_RED_MASK, val), 10);
 	}
 
@@ -1828,7 +1828,7 @@ ilk_read_lut_8(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
-	struct drm_color_lut *blob_data;
+	struct drm_color_lut *lut;
 	u32 i, val;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
@@ -1837,16 +1837,16 @@ ilk_read_lut_8(const struct intel_crtc_state *crtc_state)
 	if (IS_ERR(blob))
 		return NULL;
 
-	blob_data = blob->data;
+	lut = blob->data;
 
 	for (i = 0; i < LEGACY_LUT_LENGTH; i++) {
 		val = intel_de_read(dev_priv, LGC_PALETTE(pipe, i));
 
-		blob_data[i].red = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].red = intel_color_lut_pack(REG_FIELD_GET(
 							LGC_PALETTE_RED_MASK, val), 8);
-		blob_data[i].green = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].green = intel_color_lut_pack(REG_FIELD_GET(
 							  LGC_PALETTE_GREEN_MASK, val), 8);
-		blob_data[i].blue = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].blue = intel_color_lut_pack(REG_FIELD_GET(
 							 LGC_PALETTE_BLUE_MASK, val), 8);
 	}
 
@@ -1861,7 +1861,7 @@ ilk_read_lut_10(const struct intel_crtc_state *crtc_state)
 	u32 lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
-	struct drm_color_lut *blob_data;
+	struct drm_color_lut *lut;
 	u32 i, val;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
@@ -1870,16 +1870,16 @@ ilk_read_lut_10(const struct intel_crtc_state *crtc_state)
 	if (IS_ERR(blob))
 		return NULL;
 
-	blob_data = blob->data;
+	lut = blob->data;
 
 	for (i = 0; i < lut_size; i++) {
 		val = intel_de_read(dev_priv, PREC_PALETTE(pipe, i));
 
-		blob_data[i].red = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].red = intel_color_lut_pack(REG_FIELD_GET(
 							PREC_PALETTE_RED_MASK, val), 10);
-		blob_data[i].green = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].green = intel_color_lut_pack(REG_FIELD_GET(
 							  PREC_PALETTE_GREEN_MASK, val), 10);
-		blob_data[i].blue = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].blue = intel_color_lut_pack(REG_FIELD_GET(
 							 PREC_PALETTE_BLUE_MASK, val), 10);
 	}
 
@@ -1908,7 +1908,7 @@ glk_read_lut_10(const struct intel_crtc_state *crtc_state, u32 prec_index)
 	int hw_lut_size = ivb_lut_10_size(prec_index);
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
-	struct drm_color_lut *blob_data;
+	struct drm_color_lut *lut;
 	u32 i, val;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
@@ -1917,7 +1917,7 @@ glk_read_lut_10(const struct intel_crtc_state *crtc_state, u32 prec_index)
 	if (IS_ERR(blob))
 		return NULL;
 
-	blob_data = blob->data;
+	lut = blob->data;
 
 	intel_de_write(dev_priv, PREC_PAL_INDEX(pipe),
 		       prec_index | PAL_PREC_AUTO_INCREMENT);
@@ -1925,11 +1925,11 @@ glk_read_lut_10(const struct intel_crtc_state *crtc_state, u32 prec_index)
 	for (i = 0; i < hw_lut_size; i++) {
 		val = intel_de_read(dev_priv, PREC_PAL_DATA(pipe));
 
-		blob_data[i].red = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].red = intel_color_lut_pack(REG_FIELD_GET(
 							PREC_PAL_DATA_RED_MASK, val), 10);
-		blob_data[i].green = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].green = intel_color_lut_pack(REG_FIELD_GET(
 							PREC_PAL_DATA_GREEN_MASK, val), 10);
-		blob_data[i].blue = intel_color_lut_pack(REG_FIELD_GET(
+		lut[i].blue = intel_color_lut_pack(REG_FIELD_GET(
 							PREC_PAL_DATA_BLUE_MASK, val), 10);
 	}
 
