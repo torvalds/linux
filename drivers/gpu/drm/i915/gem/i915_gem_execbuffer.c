@@ -562,14 +562,13 @@ static inline int use_cpu_reloc(const struct reloc_cache *cache,
 }
 
 static int eb_reserve_vma(const struct i915_execbuffer *eb,
-			  struct i915_vma *vma)
+			  struct i915_vma *vma,
+			  u64 pin_flags)
 {
 	struct drm_i915_gem_exec_object2 *entry = exec_entry(eb, vma);
 	unsigned int exec_flags = *vma->exec_flags;
-	u64 pin_flags;
 	int err;
 
-	pin_flags = PIN_USER | PIN_NONBLOCK;
 	if (exec_flags & EXEC_OBJECT_NEEDS_GTT)
 		pin_flags |= PIN_GLOBAL;
 
@@ -583,12 +582,10 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 	if (exec_flags & __EXEC_OBJECT_NEEDS_MAP)
 		pin_flags |= PIN_MAPPABLE;
 
-	if (exec_flags & EXEC_OBJECT_PINNED) {
+	if (exec_flags & EXEC_OBJECT_PINNED)
 		pin_flags |= entry->offset | PIN_OFFSET_FIXED;
-		pin_flags &= ~PIN_NONBLOCK; /* force overlapping checks */
-	} else if (exec_flags & __EXEC_OBJECT_NEEDS_BIAS) {
+	else if (exec_flags & __EXEC_OBJECT_NEEDS_BIAS)
 		pin_flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
-	}
 
 	err = i915_vma_pin(vma,
 			   entry->pad_to_size, entry->alignment,
@@ -621,6 +618,7 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 static int eb_reserve(struct i915_execbuffer *eb)
 {
 	const unsigned int count = eb->buffer_count;
+	unsigned int pin_flags = PIN_USER | PIN_NONBLOCK;
 	struct list_head last;
 	struct i915_vma *vma;
 	unsigned int i, pass;
@@ -644,7 +642,7 @@ static int eb_reserve(struct i915_execbuffer *eb)
 	err = 0;
 	do {
 		list_for_each_entry(vma, &eb->unbound, exec_link) {
-			err = eb_reserve_vma(eb, vma);
+			err = eb_reserve_vma(eb, vma, pin_flags);
 			if (err)
 				break;
 		}
@@ -694,6 +692,8 @@ static int eb_reserve(struct i915_execbuffer *eb)
 		default:
 			return -ENOSPC;
 		}
+
+		pin_flags = PIN_USER;
 	} while (1);
 }
 
