@@ -735,9 +735,9 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 		trace_svcrdma_err_chunk(*rdma_argp);
 	}
 
-	svc_rdma_sync_reply_hdr(xprt, ctxt, ctxt->sc_hdrbuf.len);
-
+	ctxt->sc_send_wr.num_sge = 1;
 	ctxt->sc_send_wr.opcode = IB_WR_SEND;
+	ctxt->sc_sges[0].length = ctxt->sc_hdrbuf.len;
 	ret = svc_rdma_send(xprt, &ctxt->sc_send_wr);
 	if (ret)
 		goto put_ctxt;

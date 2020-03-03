@@ -191,9 +191,6 @@ extern struct svc_rdma_send_ctxt *
 extern void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 				   struct svc_rdma_send_ctxt *ctxt);
 extern int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr);
-extern void svc_rdma_sync_reply_hdr(struct svcxprt_rdma *rdma,
-				    struct svc_rdma_send_ctxt *ctxt,
-				    unsigned int len);
 extern int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 				  struct svc_rdma_send_ctxt *sctxt,
 				  const struct svc_rdma_recv_ctxt *rctxt,

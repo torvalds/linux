@@ -301,6 +301,12 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr)
 
 	might_sleep();
 
+	/* Sync the transport header buffer */
+	ib_dma_sync_single_for_device(rdma->sc_pd->device,
+				      wr->sg_list[0].addr,
+				      wr->sg_list[0].length,
+				      DMA_TO_DEVICE);
+
 	/* If the SQ is full, wait until an SQ entry is available */
 	while (1) {
 		if ((atomic_dec_return(&rdma->sc_sq_avail) < 0)) {
@@ -533,24 +539,6 @@ static int svc_rdma_dma_map_buf(struct svcxprt_rdma *rdma,
 }
 
 /**
- * svc_rdma_sync_reply_hdr - DMA sync the transport header buffer
- * @rdma: controlling transport
- * @ctxt: send_ctxt for the Send WR
- * @len: length of transport header
- *
- */
-void svc_rdma_sync_reply_hdr(struct svcxprt_rdma *rdma,
-			     struct svc_rdma_send_ctxt *ctxt,
-			     unsigned int len)
-{
-	ctxt->sc_sges[0].length = len;
-	ctxt->sc_send_wr.num_sge++;
-	ib_dma_sync_single_for_device(rdma->sc_pd->device,
-				      ctxt->sc_sges[0].addr, len,
-				      DMA_TO_DEVICE);
-}
-
-/**
  * svc_rdma_pull_up_needed - Determine whether to use pull-up
  * @rdma: controlling transport
  * @rctxt: Write and Reply chunks provided by client
@@ -612,9 +600,7 @@ static int svc_rdma_pull_up_reply_msg(struct svcxprt_rdma *rdma,
 	unsigned char *dst, *tailbase;
 	unsigned int taillen;
 
-	dst = sctxt->sc_xprt_buf;
-	dst += sctxt->sc_sges[0].length;
-
+	dst = sctxt->sc_xprt_buf + sctxt->sc_hdrbuf.len;
 	memcpy(dst, xdr->head[0].iov_base, xdr->head[0].iov_len);
 	dst += xdr->head[0].iov_len;
 
@@ -650,11 +636,6 @@ static int svc_rdma_pull_up_reply_msg(struct svcxprt_rdma *rdma,
 		memcpy(dst, tailbase, taillen);
 
 	sctxt->sc_sges[0].length += xdr->len;
-	ib_dma_sync_single_for_device(rdma->sc_pd->device,
-				      sctxt->sc_sges[0].addr,
-				      sctxt->sc_sges[0].length,
-				      DMA_TO_DEVICE);
-
 	return 0;
 }
 
@@ -665,7 +646,7 @@ static int svc_rdma_pull_up_reply_msg(struct svcxprt_rdma *rdma,
  * @xdr: prepared xdr_buf containing RPC message
  *
  * Load the xdr_buf into the ctxt's sge array, and DMA map each
- * element as it is added.
+ * element as it is added. The Send WR's num_sge field is set.
  *
  * Returns zero on success, or a negative errno on failure.
  */
@@ -681,6 +662,19 @@ int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 	u32 xdr_pad;
 	int ret;
 
+	/* Set up the (persistently-mapped) transport header SGE. */
+	sctxt->sc_send_wr.num_sge = 1;
+	sctxt->sc_sges[0].length = sctxt->sc_hdrbuf.len;
+
+	/* If there is a Reply chunk, nothing follows the transport
+	 * header, and we're done here.
+	 */
+	if (rctxt && rctxt->rc_reply_chunk)
+		return 0;
+
+	/* For pull-up, svc_rdma_send() will sync the transport header.
+	 * No additional DMA mapping is necessary.
+	 */
 	if (svc_rdma_pull_up_needed(rdma, rctxt, xdr))
 		return svc_rdma_pull_up_reply_msg(rdma, sctxt, rctxt, xdr);
 
@@ -782,12 +776,9 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 {
 	int ret;
 
-	if (!rctxt->rc_reply_chunk) {
-		ret = svc_rdma_map_reply_msg(rdma, sctxt, rctxt,
-					     &rqstp->rq_res);
-		if (ret < 0)
-			return ret;
-	}
+	ret = svc_rdma_map_reply_msg(rdma, sctxt, rctxt, &rqstp->rq_res);
+	if (ret < 0)
+		return ret;
 
 	svc_rdma_save_io_pages(rqstp, sctxt);
 
@@ -797,8 +788,6 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 	} else {
 		sctxt->sc_send_wr.opcode = IB_WR_SEND;
 	}
-	dprintk("svcrdma: posting Send WR with %u sge(s)\n",
-		sctxt->sc_send_wr.num_sge);
 	return svc_rdma_send(rdma, &sctxt->sc_send_wr);
 }
 
@@ -832,11 +821,11 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	*p   = err_chunk;
 	trace_svcrdma_err_chunk(*rdma_argp);
 
-	svc_rdma_sync_reply_hdr(rdma, ctxt, ctxt->sc_hdrbuf.len);
-
 	svc_rdma_save_io_pages(rqstp, ctxt);
 
+	ctxt->sc_send_wr.num_sge = 1;
 	ctxt->sc_send_wr.opcode = IB_WR_SEND;
+	ctxt->sc_sges[0].length = ctxt->sc_hdrbuf.len;
 	return svc_rdma_send(rdma, &ctxt->sc_send_wr);
 }
 
@@ -921,7 +910,6 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 			goto err0;
 	}
 
-	svc_rdma_sync_reply_hdr(rdma, sctxt, sctxt->sc_hdrbuf.len);
 	ret = svc_rdma_send_reply_msg(rdma, sctxt, rctxt, rqstp);
 	if (ret < 0)
 		goto err1;
