@@ -215,17 +215,6 @@ struct kvm_shadow_walk_iterator {
 	unsigned index;
 };
 
-static const union kvm_mmu_page_role mmu_base_role_mask = {
-	.cr0_wp = 1,
-	.gpte_is_8_bytes = 1,
-	.nxe = 1,
-	.smep_andnot_wp = 1,
-	.smap_andnot_wp = 1,
-	.smm = 1,
-	.guest_mode = 1,
-	.ad_disabled = 1,
-};
-
 #define for_each_shadow_entry_using_root(_vcpu, _root, _addr, _walker)     \
 	for (shadow_walk_init_using_root(&(_walker), (_vcpu),              \
 					 (_root), (_addr));                \
@@ -4930,7 +4919,6 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	union kvm_mmu_role new_role =
 		kvm_calc_tdp_mmu_root_page_role(vcpu, false);
 
-	new_role.base.word &= mmu_base_role_mask.word;
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;
 
@@ -5002,7 +4990,6 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 	union kvm_mmu_role new_role =
 		kvm_calc_shadow_mmu_root_page_role(vcpu, false);
 
-	new_role.base.word &= mmu_base_role_mask.word;
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;
 
@@ -5059,7 +5046,6 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 
 	__kvm_mmu_new_cr3(vcpu, new_eptp, new_role.base, false);
 
-	new_role.base.word &= mmu_base_role_mask.word;
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;
 
@@ -5100,7 +5086,6 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	union kvm_mmu_role new_role = kvm_calc_mmu_role_common(vcpu, false);
 	struct kvm_mmu *g_context = &vcpu->arch.nested_mmu;
 
-	new_role.base.word &= mmu_base_role_mask.word;
 	if (new_role.as_u64 == g_context->mmu_role.as_u64)
 		return;
 
@@ -5339,6 +5324,22 @@ static u64 *get_written_sptes(struct kvm_mmu_page *sp, gpa_t gpa, int *nspte)
 	return spte;
 }
 
+/*
+ * Ignore various flags when determining if a SPTE can be immediately
+ * overwritten for the current MMU.
+ *  - level: explicitly checked in mmu_pte_write_new_pte(), and will never
+ *    match the current MMU role, as MMU's level tracks the root level.
+ *  - access: updated based on the new guest PTE
+ *  - quadrant: handled by get_written_sptes()
+ *  - invalid: always false (loop only walks valid shadow pages)
+ */
+static const union kvm_mmu_page_role role_ign = {
+	.level = 0xf,
+	.access = 0x7,
+	.quadrant = 0x3,
+	.invalid = 0x1,
+};
+
 static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			      const u8 *new, int bytes,
 			      struct kvm_page_track_notifier_node *node)
@@ -5394,8 +5395,8 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			entry = *spte;
 			mmu_page_zap_pte(vcpu->kvm, sp, spte);
 			if (gentry &&
-			      !((sp->role.word ^ base_role)
-			      & mmu_base_role_mask.word) && rmap_can_add(vcpu))
+			    !((sp->role.word ^ base_role) & ~role_ign.word) &&
+			    rmap_can_add(vcpu))
 				mmu_pte_write_new_pte(vcpu, sp, spte, &gentry);
 			if (need_remote_flush(entry, *spte))
 				remote_flush = true;
