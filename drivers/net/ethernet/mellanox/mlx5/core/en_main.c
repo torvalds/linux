@@ -4606,7 +4606,7 @@ const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_set_vf_link_state   = mlx5e_set_vf_link_state,
 	.ndo_get_vf_stats        = mlx5e_get_vf_stats,
 #endif
-	.ndo_get_devlink_port    = mlx5e_get_devlink_phy_port,
+	.ndo_get_devlink_port    = mlx5e_get_devlink_port,
 };
 
 static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
@@ -5473,7 +5473,7 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 		goto err_detach;
 	}
 
-	err = mlx5e_devlink_phy_port_register(netdev);
+	err = mlx5e_devlink_port_register(netdev);
 	if (err) {
 		mlx5_core_err(mdev, "mlx5e_devlink_phy_port_register failed, %d\n", err);
 		goto err_unregister_netdev;
@@ -5507,7 +5507,7 @@ static void mlx5e_remove(struct mlx5_core_dev *mdev, void *vpriv)
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_delete_app(priv);
 #endif
-	mlx5e_devlink_phy_port_unregister(priv);
+	mlx5e_devlink_port_unregister(priv);
 	unregister_netdev(priv->netdev);
 	mlx5e_detach(mdev, vpriv);
 	mlx5e_destroy_netdev(priv);
