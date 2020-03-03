@@ -387,7 +387,6 @@ struct kvm_mmu_root_info {
  * current mmu mode.
  */
 struct kvm_mmu {
-	void (*set_cr3)(struct kvm_vcpu *vcpu, unsigned long root);
 	unsigned long (*get_guest_pgd)(struct kvm_vcpu *vcpu);
 	u64 (*get_pdptr)(struct kvm_vcpu *vcpu, int index);
 	int (*page_fault)(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u32 err,
@@ -1155,8 +1154,6 @@ struct kvm_x86_ops {
 	int (*set_identity_map_addr)(struct kvm *kvm, u64 ident_addr);
 	int (*get_tdp_level)(struct kvm_vcpu *vcpu);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
-
-	void (*set_tdp_cr3)(struct kvm_vcpu *vcpu, unsigned long cr3);
 
 	bool (*has_wbinvd_exit)(void);
 

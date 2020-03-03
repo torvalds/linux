@@ -7922,8 +7922,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.read_l1_tsc_offset = vmx_read_l1_tsc_offset,
 	.write_l1_tsc_offset = vmx_write_l1_tsc_offset,
 
-	.set_tdp_cr3 = vmx_set_cr3,
-
 	.check_intercept = vmx_check_intercept,
 	.handle_exit_irqoff = vmx_handle_exit_irqoff,
 

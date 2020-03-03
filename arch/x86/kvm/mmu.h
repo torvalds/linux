@@ -95,11 +95,11 @@ static inline unsigned long kvm_get_active_pcid(struct kvm_vcpu *vcpu)
 	return kvm_get_pcid(vcpu, kvm_read_cr3(vcpu));
 }
 
-static inline void kvm_mmu_load_cr3(struct kvm_vcpu *vcpu)
+static inline void kvm_mmu_load_pgd(struct kvm_vcpu *vcpu)
 {
 	if (VALID_PAGE(vcpu->arch.mmu->root_hpa))
-		vcpu->arch.mmu->set_cr3(vcpu, vcpu->arch.mmu->root_hpa |
-					      kvm_get_active_pcid(vcpu));
+		kvm_x86_ops->set_cr3(vcpu, vcpu->arch.mmu->root_hpa |
+				     kvm_get_active_pcid(vcpu));
 }
 
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,

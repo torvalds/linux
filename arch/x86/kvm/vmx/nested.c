@@ -354,7 +354,6 @@ static void nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)
 			VMX_EPT_EXECUTE_ONLY_BIT,
 			nested_ept_ad_enabled(vcpu),
 			nested_ept_get_eptp(vcpu));
-	vcpu->arch.mmu->set_cr3           = vmx_set_cr3;
 	vcpu->arch.mmu->get_guest_pgd     = nested_ept_get_eptp;
 	vcpu->arch.mmu->inject_page_fault = nested_ept_inject_page_fault;
 	vcpu->arch.mmu->get_pdptr         = kvm_pdptr_read;

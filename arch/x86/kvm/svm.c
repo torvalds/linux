@@ -2989,15 +2989,6 @@ static u64 nested_svm_get_tdp_pdptr(struct kvm_vcpu *vcpu, int index)
 	return pdpte;
 }
 
-static void nested_svm_set_tdp_cr3(struct kvm_vcpu *vcpu,
-				   unsigned long root)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	svm->vmcb->control.nested_cr3 = __sme_set(root);
-	mark_dirty(svm->vmcb, VMCB_NPT);
-}
-
 static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
 				       struct x86_exception *fault)
 {
@@ -3033,7 +3024,6 @@ static void nested_svm_init_mmu_context(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.mmu = &vcpu->arch.guest_mmu;
 	kvm_init_shadow_mmu(vcpu);
-	vcpu->arch.mmu->set_cr3           = nested_svm_set_tdp_cr3;
 	vcpu->arch.mmu->get_guest_pgd     = nested_svm_get_tdp_cr3;
 	vcpu->arch.mmu->get_pdptr         = nested_svm_get_tdp_pdptr;
 	vcpu->arch.mmu->inject_page_fault = nested_svm_inject_npf_exit;
@@ -5955,21 +5945,27 @@ STACK_FRAME_NON_STANDARD(svm_vcpu_run);
 static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+	bool update_guest_cr3 = true;
+	unsigned long cr3;
 
-	svm->vmcb->save.cr3 = __sme_set(root);
-	mark_dirty(svm->vmcb, VMCB_CR);
-}
+	cr3 = __sme_set(root);
+	if (npt_enabled) {
+		svm->vmcb->control.nested_cr3 = cr3;
+		mark_dirty(svm->vmcb, VMCB_NPT);
 
-static void set_tdp_cr3(struct kvm_vcpu *vcpu, unsigned long root)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
+		/* Loading L2's CR3 is handled by enter_svm_guest_mode.  */
+		if (is_guest_mode(vcpu))
+			update_guest_cr3 = false;
+		else if (test_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail))
+			cr3 = vcpu->arch.cr3;
+		else /* CR3 is already up-to-date.  */
+			update_guest_cr3 = false;
+	}
 
-	svm->vmcb->control.nested_cr3 = __sme_set(root);
-	mark_dirty(svm->vmcb, VMCB_NPT);
-
-	/* Also sync guest cr3 here in case we live migrate */
-	svm->vmcb->save.cr3 = kvm_read_cr3(vcpu);
-	mark_dirty(svm->vmcb, VMCB_CR);
+	if (update_guest_cr3) {
+		svm->vmcb->save.cr3 = cr3;
+		mark_dirty(svm->vmcb, VMCB_CR);
+	}
 }
 
 static int is_disabled(void)
@@ -7417,8 +7413,6 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 
 	.read_l1_tsc_offset = svm_read_l1_tsc_offset,
 	.write_l1_tsc_offset = svm_write_l1_tsc_offset,
-
-	.set_tdp_cr3 = set_tdp_cr3,
 
 	.check_intercept = svm_check_intercept,
 	.handle_exit_irqoff = svm_handle_exit_irqoff,
