@@ -1,6 +1,3 @@
-#
-# Generated files
-#
 *_mono.c
 *_vga16.c
 *_clut224.c
