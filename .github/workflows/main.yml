@@ -19,13 +19,20 @@ jobs:
         run: sudo pip install Sphinx==1.6.7 sphinx_rtd_theme hieroglyph==1.0
       - name: Build documentation
         run: cd tools/labs && make docs
+      - uses: actions/upload-artifact@v1
+        if: github.event_name == 'pull_request'
+        with:
+          name: docs
+          path: Documentation/output/teaching
       - name: Setup key to access linux-kernel-labs.github.io
+        if: github.event_name == 'push'
         run: |
           mkdir ~/.ssh
           echo -n "${{ secrets.GITHUB_IO_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -t rsa github.com
       - name: Publish linux-kernel-labs.gihub.io
+        if: github.event_name == 'push'
         run: |
           set -x
           env
