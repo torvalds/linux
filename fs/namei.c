@@ -1580,6 +1580,28 @@ static inline int may_lookup(struct nameidata *nd)
 	return inode_permission(nd->inode, MAY_EXEC);
 }
 
+static int reserve_stack(struct nameidata *nd, struct path *link, unsigned seq)
+{
+	int error;
+
+	if (unlikely(nd->total_link_count++ >= MAXSYMLINKS))
+		return -ELOOP;
+	error = nd_alloc_stack(nd);
+	if (likely(!error))
+		return 0;
+	if (error == -ECHILD) {
+		// we must grab link first
+		bool grabbed_link = legitimize_path(nd, link, seq);
+		// ... and we must unlazy to be able to clean up
+		error = unlazy_walk(nd);
+		if (unlikely(!grabbed_link))
+			error = -ECHILD;
+		if (!error)
+			error = nd_alloc_stack(nd);
+	}
+	return error;
+}
+
 enum {WALK_TRAILING = 1, WALK_MORE = 2, WALK_NOFOLLOW = 4};
 
 static const char *pick_link(struct nameidata *nd, struct path *link,
@@ -1587,31 +1609,13 @@ static const char *pick_link(struct nameidata *nd, struct path *link,
 {
 	struct saved *last;
 	const char *res;
-	int error;
+	int error = reserve_stack(nd, link, seq);
 
-	if (unlikely(nd->total_link_count++ >= MAXSYMLINKS)) {
+	if (unlikely(error)) {
 		if (!(nd->flags & LOOKUP_RCU))
 			path_put(link);
-		return ERR_PTR(-ELOOP);
+		return ERR_PTR(error);
 	}
-	error = nd_alloc_stack(nd);
-	if (unlikely(error)) {
-		if (error == -ECHILD) {
-			// we must grab link first
-			bool grabbed_link = legitimize_path(nd, link, seq);
-			// ... and we must unlazy to be able to clean up
-			error = unlazy_walk(nd);
-			if (unlikely(!grabbed_link))
-				error = -ECHILD;
-			if (!error)
-				error = nd_alloc_stack(nd);
-		}
-		if (error) {
-			path_put(link);
-			return ERR_PTR(error);
-		}
-	}
-
 	last = nd->stack + nd->depth++;
 	last->link = *link;
 	clear_delayed_call(&last->done);
