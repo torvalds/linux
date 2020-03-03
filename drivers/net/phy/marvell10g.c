@@ -227,6 +227,18 @@ static int mv3310_hwmon_probe(struct phy_device *phydev)
 }
 #endif
 
+static int mv3310_power_down(struct phy_device *phydev)
+{
+	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
+				MV_V2_PORT_CTRL_PWRDOWN);
+}
+
+static int mv3310_power_up(struct phy_device *phydev)
+{
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
+				  MV_V2_PORT_CTRL_PWRDOWN);
+}
+
 static int mv3310_reset(struct phy_device *phydev, u32 unit)
 {
 	int retries, val, err;
@@ -348,6 +360,11 @@ static int mv3310_probe(struct phy_device *phydev)
 
 	dev_set_drvdata(&phydev->mdio.dev, priv);
 
+	/* Powering down the port when not in use saves about 600mW */
+	ret = mv3310_power_down(phydev);
+	if (ret)
+		return ret;
+
 	ret = mv3310_hwmon_probe(phydev);
 	if (ret)
 		return ret;
@@ -357,16 +374,14 @@ static int mv3310_probe(struct phy_device *phydev)
 
 static int mv3310_suspend(struct phy_device *phydev)
 {
-	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
-				MV_V2_PORT_CTRL_PWRDOWN);
+	return mv3310_power_down(phydev);
 }
 
 static int mv3310_resume(struct phy_device *phydev)
 {
 	int ret;
 
-	ret = phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
-				 MV_V2_PORT_CTRL_PWRDOWN);
+	ret = mv3310_power_up(phydev);
 	if (ret)
 		return ret;
 
@@ -392,6 +407,8 @@ static bool mv3310_has_pma_ngbaset_quirk(struct phy_device *phydev)
 
 static int mv3310_config_init(struct phy_device *phydev)
 {
+	int err;
+
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
@@ -401,6 +418,11 @@ static int mv3310_config_init(struct phy_device *phydev)
 		return -ENODEV;
 
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+
+	/* Power up so reset works */
+	err = mv3310_power_up(phydev);
+	if (err)
+		return err;
 
 	/* Enable EDPD mode - saving 600mW */
 	return mv3310_set_edpd(phydev, ETHTOOL_PHY_EDPD_DFLT_TX_MSECS);
