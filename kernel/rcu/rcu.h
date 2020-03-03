@@ -441,6 +441,7 @@ void rcu_request_urgent_qs_task(struct task_struct *t);
 enum rcutorture_type {
 	RCU_FLAVOR,
 	RCU_TASKS_FLAVOR,
+	RCU_TASKS_RUDE_FLAVOR,
 	RCU_TRIVIAL_FLAVOR,
 	SRCU_FLAVOR,
 	INVALID_RCU_FLAVOR
