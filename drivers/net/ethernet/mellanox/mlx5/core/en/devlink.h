@@ -7,9 +7,8 @@
 #include <net/devlink.h>
 #include "en.h"
 
-int mlx5e_devlink_phy_port_register(struct net_device *dev);
-void mlx5e_devlink_phy_port_unregister(struct mlx5e_priv *priv);
-struct devlink_port *mlx5e_get_devlink_phy_port(struct net_device *dev);
+int mlx5e_devlink_port_register(struct net_device *dev);
+void mlx5e_devlink_port_unregister(struct mlx5e_priv *priv);
+struct devlink_port *mlx5e_get_devlink_port(struct net_device *dev);
 
 #endif
-

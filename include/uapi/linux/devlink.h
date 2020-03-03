@@ -187,6 +187,7 @@ enum devlink_port_flavour {
 				      * for the PCI VF. It is an internal
 				      * port that faces the PCI VF.
 				      */
+	DEVLINK_PORT_FLAVOUR_VIRTUAL, /* Any virtual port facing the user. */
 };
 
 enum devlink_param_cmode {
