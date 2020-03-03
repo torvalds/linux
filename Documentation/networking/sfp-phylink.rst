@@ -138,27 +138,27 @@ this documentation.
 
    .. code-block:: c
 
-    static int foo_ethtool_set_link_ksettings(struct net_device *dev,
-					     const struct ethtool_link_ksettings *cmd)
-    {
-	struct foo_priv *priv = netdev_priv(dev);
+	static int foo_ethtool_set_link_ksettings(struct net_device *dev,
+						  const struct ethtool_link_ksettings *cmd)
+	{
+		struct foo_priv *priv = netdev_priv(dev);
+	
+		return phylink_ethtool_ksettings_set(priv->phylink, cmd);
+	}
 
-	return phylink_ethtool_ksettings_set(priv->phylink, cmd);
-    }
+	static int foo_ethtool_get_link_ksettings(struct net_device *dev,
+						  struct ethtool_link_ksettings *cmd)
+	{
+		struct foo_priv *priv = netdev_priv(dev);
+	
+		return phylink_ethtool_ksettings_get(priv->phylink, cmd);
+	}
 
-    static int foo_ethtool_get_link_ksettings(struct net_device *dev,
-					     struct ethtool_link_ksettings *cmd)
-    {
-	struct foo_priv *priv = netdev_priv(dev);
-
-	return phylink_ethtool_ksettings_get(priv->phylink, cmd);
-    }
-
-7. Replace the call to:
+7. Replace the call to::
 
 	phy_dev = of_phy_connect(dev, node, link_func, flags, phy_interface);
 
-   and associated code with a call to:
+   and associated code with a call to::
 
 	err = phylink_of_phy_connect(priv->phylink, node, flags);
 
