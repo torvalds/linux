@@ -6448,6 +6448,7 @@ static
 int intel_dp_hdcp2_config_stream_type(struct intel_digital_port *intel_dig_port,
 				      bool is_repeater, u8 content_type)
 {
+	int ret;
 	struct hdcp2_dp_errata_stream_type stream_type_msg;
 
 	if (is_repeater)
@@ -6463,8 +6464,11 @@ int intel_dp_hdcp2_config_stream_type(struct intel_digital_port *intel_dig_port,
 	stream_type_msg.msg_id = HDCP_2_2_ERRATA_DP_STREAM_TYPE;
 	stream_type_msg.stream_type = content_type;
 
-	return intel_dp_hdcp2_write_msg(intel_dig_port, &stream_type_msg,
+	ret =  intel_dp_hdcp2_write_msg(intel_dig_port, &stream_type_msg,
 					sizeof(stream_type_msg));
+
+	return ret < 0 ? ret : 0;
+
 }
 
 static
