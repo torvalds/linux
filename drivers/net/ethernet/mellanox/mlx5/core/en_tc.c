@@ -3044,8 +3044,7 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 				    struct mlx5e_tc_flow *flow,
 				    struct netlink_ext_ack *extack)
 {
-	struct net_device *filter_dev = parse_attr->filter_dev;
-	bool drop_action, pop_action, ct_flow;
+	bool ct_flow;
 	u32 actions;
 
 	ct_flow = flow_flag_test(flow, CT);
@@ -3062,18 +3061,6 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 		}
 	} else {
 		actions = flow->nic_attr->action;
-	}
-
-	drop_action = actions & MLX5_FLOW_CONTEXT_ACTION_DROP;
-	pop_action = actions & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
-
-	if (flow_flag_test(flow, EGRESS) && !drop_action) {
-		/* We only support filters on tunnel device, or on vlan
-		 * devices if they have pop/drop action
-		 */
-		if (!mlx5e_get_tc_tun(filter_dev) ||
-		    (is_vlan_dev(filter_dev) && !pop_action))
-			return false;
 	}
 
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
