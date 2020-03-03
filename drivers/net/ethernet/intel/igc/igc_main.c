@@ -4033,7 +4033,6 @@ static void igc_watchdog_task(struct work_struct *work)
 	struct igc_hw *hw = &adapter->hw;
 	struct igc_phy_info *phy = &hw->phy;
 	u16 phy_data, retry_count = 20;
-	u32 connsw;
 	u32 link;
 	int i;
 
@@ -4046,14 +4045,6 @@ static void igc_watchdog_task(struct work_struct *work)
 			link = false;
 	}
 
-	/* Force link down if we have fiber to swap to */
-	if (adapter->flags & IGC_FLAG_MAS_ENABLE) {
-		if (hw->phy.media_type == igc_media_type_copper) {
-			connsw = rd32(IGC_CONNSW);
-			if (!(connsw & IGC_CONNSW_AUTOSENSE_EN))
-				link = 0;
-		}
-	}
 	if (link) {
 		/* Cancel scheduled suspend requests. */
 		pm_runtime_resume(netdev->dev.parent);
