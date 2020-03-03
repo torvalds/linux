@@ -1566,7 +1566,7 @@ static void sysc_pre_reset_quirk_dss(struct sysc *ddata)
 		return;
 
 	/* Clear IRQSTATUS */
-	sysc_write(ddata, 0x1000 + 0x18, irq_mask);
+	sysc_write(ddata, dispc_offset + 0x18, irq_mask);
 
 	/* Disable outputs */
 	val = sysc_quirk_dispc(ddata, dispc_offset, true);
@@ -1580,14 +1580,14 @@ static void sysc_pre_reset_quirk_dss(struct sysc *ddata)
 
 	if (sysc_soc->soc == SOC_3430) {
 		/* Clear DSS_SDI_CONTROL */
-		sysc_write(ddata, dispc_offset + 0x44, 0);
+		sysc_write(ddata, 0x44, 0);
 
 		/* Clear DSS_PLL_CONTROL */
-		sysc_write(ddata, dispc_offset + 0x48, 0);
+		sysc_write(ddata, 0x48, 0);
 	}
 
 	/* Clear DSS_CONTROL to switch DSS clock sources to PRCM if not */
-	sysc_write(ddata, dispc_offset + 0x40, 0);
+	sysc_write(ddata, 0x40, 0);
 }
 
 /* 1-wire needs module's internal clocks enabled for reset */
