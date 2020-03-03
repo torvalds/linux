@@ -326,10 +326,8 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 
 	writeb(0, pl061->base + GPIOIE); /* disable irqs */
 	irq = adev->irq[0];
-	if (irq < 0) {
-		dev_err(&adev->dev, "invalid IRQ\n");
-		return -ENODEV;
-	}
+	if (!irq)
+		dev_warn(&adev->dev, "IRQ support disabled\n");
 	pl061->parent_irq = irq;
 
 	girq = &pl061->gc.irq;
