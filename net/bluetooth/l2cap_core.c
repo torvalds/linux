@@ -45,6 +45,7 @@
 #define LE_FLOWCTL_MAX_CREDITS 65535
 
 bool disable_ertm;
+bool enable_ecred;
 
 static u32 l2cap_feat_mask = L2CAP_FEAT_FIXED_CHAN | L2CAP_FEAT_UCD;
 
@@ -5849,6 +5850,9 @@ static inline int l2cap_ecred_conn_req(struct l2cap_conn *conn,
 	int i, num_scid;
 	bool defer = false;
 
+	if (!enable_ecred)
+		return -EINVAL;
+
 	if (cmd_len < sizeof(*req) || cmd_len - sizeof(*req) % sizeof(u16)) {
 		result = L2CAP_CR_LE_INVALID_PARAMS;
 		goto response;
@@ -6091,6 +6095,9 @@ static inline int l2cap_ecred_reconf_req(struct l2cap_conn *conn,
 	u16 mtu, mps, result;
 	struct l2cap_chan *chan;
 	int i, num_scid;
+
+	if (!enable_ecred)
+		return -EINVAL;
 
 	if (cmd_len < sizeof(*req) || cmd_len - sizeof(*req) % sizeof(u16)) {
 		result = L2CAP_CR_LE_INVALID_PARAMS;
@@ -7723,7 +7730,12 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	case L2CAP_MODE_BASIC:
 		break;
 	case L2CAP_MODE_LE_FLOWCTL:
+		break;
 	case L2CAP_MODE_EXT_FLOWCTL:
+		if (!enable_ecred) {
+			err = -EOPNOTSUPP;
+			goto done;
+		}
 		break;
 	case L2CAP_MODE_ERTM:
 	case L2CAP_MODE_STREAMING:
@@ -8301,3 +8313,6 @@ void l2cap_exit(void)
 
 module_param(disable_ertm, bool, 0644);
 MODULE_PARM_DESC(disable_ertm, "Disable enhanced retransmission mode");
+
+module_param(enable_ecred, bool, 0644);
+MODULE_PARM_DESC(enable_ecred, "Enable enhanced credit flow control mode");
