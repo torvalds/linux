@@ -1780,7 +1780,7 @@ static void i965_read_luts(struct intel_crtc_state *crtc_state)
 }
 
 static struct drm_property_blob *
-chv_read_cgm_lut(const struct intel_crtc_state *crtc_state)
+chv_read_cgm_gamma(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1816,7 +1816,7 @@ chv_read_cgm_lut(const struct intel_crtc_state *crtc_state)
 static void chv_read_luts(struct intel_crtc_state *crtc_state)
 {
 	if (crtc_state->cgm_mode & CGM_PIPE_MODE_GAMMA)
-		crtc_state->hw.gamma_lut = chv_read_cgm_lut(crtc_state);
+		crtc_state->hw.gamma_lut = chv_read_cgm_gamma(crtc_state);
 	else
 		i965_read_luts(crtc_state);
 }
