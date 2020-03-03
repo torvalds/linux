@@ -125,6 +125,67 @@ static void tcf_ct_flow_table_put(struct tcf_ct_params *params)
 	spin_unlock_bh(&zones_lock);
 }
 
+static void tcf_ct_flow_table_add(struct tcf_ct_flow_table *ct_ft,
+				  struct nf_conn *ct,
+				  bool tcp)
+{
+	struct flow_offload *entry;
+	int err;
+
+	if (test_and_set_bit(IPS_OFFLOAD_BIT, &ct->status))
+		return;
+
+	entry = flow_offload_alloc(ct);
+	if (!entry) {
+		WARN_ON_ONCE(1);
+		goto err_alloc;
+	}
+
+	if (tcp) {
+		ct->proto.tcp.seen[0].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+		ct->proto.tcp.seen[1].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+	}
+
+	err = flow_offload_add(&ct_ft->nf_ft, entry);
+	if (err)
+		goto err_add;
+
+	return;
+
+err_add:
+	flow_offload_free(entry);
+err_alloc:
+	clear_bit(IPS_OFFLOAD_BIT, &ct->status);
+}
+
+static void tcf_ct_flow_table_process_conn(struct tcf_ct_flow_table *ct_ft,
+					   struct nf_conn *ct,
+					   enum ip_conntrack_info ctinfo)
+{
+	bool tcp = false;
+
+	if (ctinfo != IP_CT_ESTABLISHED && ctinfo != IP_CT_ESTABLISHED_REPLY)
+		return;
+
+	switch (nf_ct_protonum(ct)) {
+	case IPPROTO_TCP:
+		tcp = true;
+		if (ct->proto.tcp.state != TCP_CONNTRACK_ESTABLISHED)
+			return;
+		break;
+	case IPPROTO_UDP:
+		break;
+	default:
+		return;
+	}
+
+	if (nf_ct_ext_exist(ct, NF_CT_EXT_HELPER) ||
+	    ct->status & IPS_SEQ_ADJUST)
+		return;
+
+	tcf_ct_flow_table_add(ct_ft, ct, tcp);
+}
+
 static int tcf_ct_flow_tables_init(void)
 {
 	return rhashtable_init(&zones_ht, &zones_params);
@@ -577,6 +638,8 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 		 */
 		nf_conntrack_confirm(skb);
 	}
+
+	tcf_ct_flow_table_process_conn(p->ct_ft, ct, ctinfo);
 
 out_push:
 	skb_push_rcsum(skb, nh_ofs);
