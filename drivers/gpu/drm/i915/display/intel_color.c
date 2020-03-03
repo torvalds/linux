@@ -387,11 +387,31 @@ static void chv_load_cgm_csc(struct intel_crtc *crtc,
 		       coeffs[8]);
 }
 
+/* convert hw value with given bit_precision to lut property val */
+static u32 intel_color_lut_pack(u32 val, int bit_precision)
+{
+	u32 max = 0xffff >> (16 - bit_precision);
+
+	val = clamp_val(val, 0, max);
+
+	if (bit_precision < 16)
+		val <<= 16 - bit_precision;
+
+	return val;
+}
+
 static u32 i9xx_lut_8(const struct drm_color_lut *color)
 {
 	return drm_color_lut_extract(color->red, 8) << 16 |
 		drm_color_lut_extract(color->green, 8) << 8 |
 		drm_color_lut_extract(color->blue, 8);
+}
+
+static void i9xx_lut_8_pack(struct drm_color_lut *entry, u32 val)
+{
+	entry->red = intel_color_lut_pack(REG_FIELD_GET(LGC_PALETTE_RED_MASK, val), 8);
+	entry->green = intel_color_lut_pack(REG_FIELD_GET(LGC_PALETTE_GREEN_MASK, val), 8);
+	entry->blue = intel_color_lut_pack(REG_FIELD_GET(LGC_PALETTE_BLUE_MASK, val), 8);
 }
 
 /* i965+ "10.6" bit interpolated format "even DW" (low 8 bits) */
@@ -410,11 +430,33 @@ static u32 i965_lut_10p6_udw(const struct drm_color_lut *color)
 		(color->blue >> 8);
 }
 
+static void i965_lut_10p6_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
+{
+	entry->red = REG_FIELD_GET(PALETTE_RED_MASK, udw) << 8 |
+		REG_FIELD_GET(PALETTE_RED_MASK, ldw);
+	entry->green = REG_FIELD_GET(PALETTE_GREEN_MASK, udw) << 8 |
+		REG_FIELD_GET(PALETTE_GREEN_MASK, ldw);
+	entry->blue = REG_FIELD_GET(PALETTE_BLUE_MASK, udw) << 8 |
+		REG_FIELD_GET(PALETTE_BLUE_MASK, ldw);
+}
+
+static u16 i965_lut_11p6_max_pack(u32 val)
+{
+	return REG_FIELD_GET(PIPEGCMAX_RGB_MASK, val);
+}
+
 static u32 ilk_lut_10(const struct drm_color_lut *color)
 {
 	return drm_color_lut_extract(color->red, 10) << 20 |
 		drm_color_lut_extract(color->green, 10) << 10 |
 		drm_color_lut_extract(color->blue, 10);
+}
+
+static void ilk_lut_10_pack(struct drm_color_lut *entry, u32 val)
+{
+	entry->red = intel_color_lut_pack(REG_FIELD_GET(PREC_PALETTE_RED_MASK, val), 10);
+	entry->green = intel_color_lut_pack(REG_FIELD_GET(PREC_PALETTE_GREEN_MASK, val), 10);
+	entry->blue = intel_color_lut_pack(REG_FIELD_GET(PREC_PALETTE_BLUE_MASK, val), 10);
 }
 
 static void i9xx_color_commit(const struct intel_crtc_state *crtc_state)
@@ -981,6 +1023,13 @@ static u32 chv_cgm_degamma_ldw(const struct drm_color_lut *color)
 static u32 chv_cgm_degamma_udw(const struct drm_color_lut *color)
 {
 	return drm_color_lut_extract(color->red, 14);
+}
+
+static void chv_cgm_gamma_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
+{
+	entry->green = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_GREEN_MASK, ldw), 10);
+	entry->blue = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_BLUE_MASK, ldw), 10);
+	entry->red = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_RED_MASK, udw), 10);
 }
 
 static void chv_load_cgm_degamma(struct intel_crtc *crtc,
@@ -1672,19 +1721,6 @@ bool intel_color_lut_equal(struct drm_property_blob *blob1,
 	return true;
 }
 
-/* convert hw value with given bit_precision to lut property val */
-static u32 intel_color_lut_pack(u32 val, int bit_precision)
-{
-	u32 max = 0xffff >> (16 - bit_precision);
-
-	val = clamp_val(val, 0, max);
-
-	if (bit_precision < 16)
-		val <<= 16 - bit_precision;
-
-	return val;
-}
-
 static struct drm_property_blob *
 i9xx_read_lut_8(const struct intel_crtc_state *crtc_state)
 {
@@ -1706,12 +1742,7 @@ i9xx_read_lut_8(const struct intel_crtc_state *crtc_state)
 	for (i = 0; i < LEGACY_LUT_LENGTH; i++) {
 		u32 val = intel_de_read(dev_priv, PALETTE(pipe, i));
 
-		lut[i].red = intel_color_lut_pack(REG_FIELD_GET(
-							LGC_PALETTE_RED_MASK, val), 8);
-		lut[i].green = intel_color_lut_pack(REG_FIELD_GET(
-							  LGC_PALETTE_GREEN_MASK, val), 8);
-		lut[i].blue = intel_color_lut_pack(REG_FIELD_GET(
-							 LGC_PALETTE_BLUE_MASK, val), 8);
+		i9xx_lut_8_pack(&lut[i], val);
 	}
 
 	return blob;
@@ -1744,23 +1775,15 @@ i965_read_lut_10p6(const struct intel_crtc_state *crtc_state)
 	lut = blob->data;
 
 	for (i = 0; i < lut_size - 1; i++) {
-		u32 val1 = intel_de_read(dev_priv, PALETTE(pipe, 2 * i + 0));
-		u32 val2 = intel_de_read(dev_priv, PALETTE(pipe, 2 * i + 1));
+		u32 ldw = intel_de_read(dev_priv, PALETTE(pipe, 2 * i + 0));
+		u32 udw = intel_de_read(dev_priv, PALETTE(pipe, 2 * i + 1));
 
-		lut[i].red = REG_FIELD_GET(PALETTE_RED_MASK, val2) << 8 |
-						 REG_FIELD_GET(PALETTE_RED_MASK, val1);
-		lut[i].green = REG_FIELD_GET(PALETTE_GREEN_MASK, val2) << 8 |
-						   REG_FIELD_GET(PALETTE_GREEN_MASK, val1);
-		lut[i].blue = REG_FIELD_GET(PALETTE_BLUE_MASK, val2) << 8 |
-						  REG_FIELD_GET(PALETTE_BLUE_MASK, val1);
+		i965_lut_10p6_pack(&lut[i], ldw, udw);
 	}
 
-	lut[i].red = REG_FIELD_GET(PIPEGCMAX_RGB_MASK,
-					 intel_de_read(dev_priv, PIPEGCMAX(pipe, 0)));
-	lut[i].green = REG_FIELD_GET(PIPEGCMAX_RGB_MASK,
-					   intel_de_read(dev_priv, PIPEGCMAX(pipe, 1)));
-	lut[i].blue = REG_FIELD_GET(PIPEGCMAX_RGB_MASK,
-					  intel_de_read(dev_priv, PIPEGCMAX(pipe, 2)));
+	lut[i].red = i965_lut_11p6_max_pack(intel_de_read(dev_priv, PIPEGCMAX(pipe, 0)));
+	lut[i].green = i965_lut_11p6_max_pack(intel_de_read(dev_priv, PIPEGCMAX(pipe, 1)));
+	lut[i].blue = i965_lut_11p6_max_pack(intel_de_read(dev_priv, PIPEGCMAX(pipe, 2)));
 
 	return blob;
 }
@@ -1795,16 +1818,10 @@ chv_read_cgm_gamma(const struct intel_crtc_state *crtc_state)
 	lut = blob->data;
 
 	for (i = 0; i < lut_size; i++) {
-		u32 val = intel_de_read(dev_priv, CGM_PIPE_GAMMA(pipe, i, 0));
+		u32 ldw = intel_de_read(dev_priv, CGM_PIPE_GAMMA(pipe, i, 0));
+		u32 udw = intel_de_read(dev_priv, CGM_PIPE_GAMMA(pipe, i, 1));
 
-		lut[i].green = intel_color_lut_pack(REG_FIELD_GET(
-							  CGM_PIPE_GAMMA_GREEN_MASK, val), 10);
-		lut[i].blue = intel_color_lut_pack(REG_FIELD_GET(
-							 CGM_PIPE_GAMMA_BLUE_MASK, val), 10);
-
-		val = intel_de_read(dev_priv, CGM_PIPE_GAMMA(pipe, i, 1));
-		lut[i].red = intel_color_lut_pack(REG_FIELD_GET(
-							CGM_PIPE_GAMMA_RED_MASK, val), 10);
+		chv_cgm_gamma_pack(&lut[i], ldw, udw);
 	}
 
 	return blob;
@@ -1839,12 +1856,7 @@ ilk_read_lut_8(const struct intel_crtc_state *crtc_state)
 	for (i = 0; i < LEGACY_LUT_LENGTH; i++) {
 		u32 val = intel_de_read(dev_priv, LGC_PALETTE(pipe, i));
 
-		lut[i].red = intel_color_lut_pack(REG_FIELD_GET(
-							LGC_PALETTE_RED_MASK, val), 8);
-		lut[i].green = intel_color_lut_pack(REG_FIELD_GET(
-							  LGC_PALETTE_GREEN_MASK, val), 8);
-		lut[i].blue = intel_color_lut_pack(REG_FIELD_GET(
-							 LGC_PALETTE_BLUE_MASK, val), 8);
+		i9xx_lut_8_pack(&lut[i], val);
 	}
 
 	return blob;
@@ -1871,12 +1883,7 @@ ilk_read_lut_10(const struct intel_crtc_state *crtc_state)
 	for (i = 0; i < lut_size; i++) {
 		u32 val = intel_de_read(dev_priv, PREC_PALETTE(pipe, i));
 
-		lut[i].red = intel_color_lut_pack(REG_FIELD_GET(
-							PREC_PALETTE_RED_MASK, val), 10);
-		lut[i].green = intel_color_lut_pack(REG_FIELD_GET(
-							  PREC_PALETTE_GREEN_MASK, val), 10);
-		lut[i].blue = intel_color_lut_pack(REG_FIELD_GET(
-							 PREC_PALETTE_BLUE_MASK, val), 10);
+		ilk_lut_10_pack(&lut[i], val);
 	}
 
 	return blob;
@@ -1920,12 +1927,7 @@ glk_read_lut_10(const struct intel_crtc_state *crtc_state, u32 prec_index)
 	for (i = 0; i < hw_lut_size; i++) {
 		u32 val = intel_de_read(dev_priv, PREC_PAL_DATA(pipe));
 
-		lut[i].red = intel_color_lut_pack(REG_FIELD_GET(
-							PREC_PAL_DATA_RED_MASK, val), 10);
-		lut[i].green = intel_color_lut_pack(REG_FIELD_GET(
-							PREC_PAL_DATA_GREEN_MASK, val), 10);
-		lut[i].blue = intel_color_lut_pack(REG_FIELD_GET(
-							PREC_PAL_DATA_BLUE_MASK, val), 10);
+		ilk_lut_10_pack(&lut[i], val);
 	}
 
 	intel_de_write(dev_priv, PREC_PAL_INDEX(pipe), 0);
