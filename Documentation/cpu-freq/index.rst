@@ -15,6 +15,7 @@ Author: Dominik Brodowski  <linux@brodo.de>
    :maxdepth: 1
 
    core
+   cpu-drivers
 
 Mailing List
 ------------
