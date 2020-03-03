@@ -97,6 +97,14 @@ config GKI_HIDDEN_MEDIA_CONFIGS
 	  These are normally selected implicitly when a module
 	  that relies on it is configured.
 
+config GKI_HIDDEN_VIRTUAL_CONFIGS
+	bool "Hidden Virtual configs needed for GKI"
+	select HVC_DRIVER
+	help
+	  Dummy config option used to enable hidden virtual device configs.
+	  These are normally selected implicitly when a module
+	  that relies on it is configured.
+
 # LEGACY_WEXT_ALLCONFIG Discussed upstream, soundly rejected as a unique
 # problem for GKI to solve.  It should be noted that these extensions are
 # in-effect deprecated and generally unsupported and we should pressure
@@ -135,6 +143,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_QCOM_CONFIGS
 	select GKI_LEGACY_WEXT_ALLCONFIG
 	select GKI_HIDDEN_MEDIA_CONFIGS
+	select GKI_HIDDEN_VIRTUAL_CONFIGS
 	select GKI_QCOM_CLKS_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
