@@ -658,7 +658,7 @@ cause of the error?
           :c:macro:`set_current_state` macro, forces the current process to wait
           for 5 seconds.
 
-.. note:: Review the `Contexts of execution`_, `Locking` and `Spinlock`_
+.. note:: Review the `Contexts of execution`_, `Locking`_ and `Spinlock`_
           sections.
 
 3. Working with kernel memory
@@ -706,9 +706,10 @@ free them (in :c:func:`memory_exit`).
         process.
 
       .. hint::
-                Call 2 times the :c:macro:`next_task`.
+                Call the :c:macro:`next_task` macro 2 times.
 
    3. (TODO 3) Display the four structures.
+
       * Use :c:func:`printk` to display their two fields:
       :c:member:`pid` and :c:member:`timestamp`.
 
