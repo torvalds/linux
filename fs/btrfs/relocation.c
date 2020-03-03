@@ -305,7 +305,8 @@ static bool reloc_root_is_dead(struct btrfs_root *root)
  *
  * Reloc tree after swap is considered dead, thus not considered as valid.
  * This is enough for most callers, as they don't distinguish dead reloc root
- * from no reloc root.  But should_ignore_root() below is a special case.
+ * from no reloc root.  But btrfs_should_ignore_reloc_root() below is a
+ * special case.
  */
 static bool have_reloc_root(struct btrfs_root *root)
 {
@@ -316,7 +317,7 @@ static bool have_reloc_root(struct btrfs_root *root)
 	return true;
 }
 
-static int should_ignore_root(struct btrfs_root *root)
+int btrfs_should_ignore_reloc_root(struct btrfs_root *root)
 {
 	struct btrfs_root *reloc_root;
 
@@ -342,6 +343,7 @@ static int should_ignore_root(struct btrfs_root *root)
 	 */
 	return 1;
 }
+
 /*
  * find reloc tree by address of tree root
  */
@@ -485,7 +487,7 @@ static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
 	if (btrfs_root_level(&root->root_item) == cur->level) {
 		/* Tree root */
 		ASSERT(btrfs_root_bytenr(&root->root_item) == cur->bytenr);
-		if (should_ignore_root(root)) {
+		if (btrfs_should_ignore_reloc_root(root)) {
 			btrfs_put_root(root);
 			list_add(&cur->list, &cache->useless_node);
 		} else {
@@ -526,7 +528,7 @@ static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
 		if (!path->nodes[level]) {
 			ASSERT(btrfs_root_bytenr(&root->root_item) ==
 			       lower->bytenr);
-			if (should_ignore_root(root)) {
+			if (btrfs_should_ignore_reloc_root(root)) {
 				btrfs_put_root(root);
 				list_add(&lower->list, &cache->useless_node);
 			} else {
