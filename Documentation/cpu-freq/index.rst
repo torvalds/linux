@@ -16,6 +16,7 @@ Author: Dominik Brodowski  <linux@brodo.de>
 
    core
    cpu-drivers
+   cpufreq-stats
 
 Mailing List
 ------------
