@@ -2566,6 +2566,72 @@ signal_fence_array(struct i915_execbuffer *eb,
 	}
 }
 
+static void retire_requests(struct intel_timeline *tl, struct i915_request *end)
+{
+	struct i915_request *rq, *rn;
+
+	list_for_each_entry_safe(rq, rn, &tl->requests, link)
+		if (rq == end || !i915_request_retire(rq))
+			break;
+}
+
+static void eb_request_add(struct i915_execbuffer *eb)
+{
+	struct i915_request *rq = eb->request;
+	struct intel_timeline * const tl = i915_request_timeline(rq);
+	struct i915_sched_attr attr = {};
+	struct i915_request *prev;
+
+	lockdep_assert_held(&tl->mutex);
+	lockdep_unpin_lock(&tl->mutex, rq->cookie);
+
+	trace_i915_request_add(rq);
+
+	prev = __i915_request_commit(rq);
+
+	/* Check that the context wasn't destroyed before submission */
+	if (likely(rcu_access_pointer(eb->context->gem_context))) {
+		attr = eb->gem_context->sched;
+
+		/*
+		 * Boost actual workloads past semaphores!
+		 *
+		 * With semaphores we spin on one engine waiting for another,
+		 * simply to reduce the latency of starting our work when
+		 * the signaler completes. However, if there is any other
+		 * work that we could be doing on this engine instead, that
+		 * is better utilisation and will reduce the overall duration
+		 * of the current work. To avoid PI boosting a semaphore
+		 * far in the distance past over useful work, we keep a history
+		 * of any semaphore use along our dependency chain.
+		 */
+		if (!(rq->sched.flags & I915_SCHED_HAS_SEMAPHORE_CHAIN))
+			attr.priority |= I915_PRIORITY_NOSEMAPHORE;
+
+		/*
+		 * Boost priorities to new clients (new request flows).
+		 *
+		 * Allow interactive/synchronous clients to jump ahead of
+		 * the bulk clients. (FQ_CODEL)
+		 */
+		if (list_empty(&rq->sched.signalers_list))
+			attr.priority |= I915_PRIORITY_WAIT;
+	} else {
+		/* Serialise with context_close via the add_to_timeline */
+		i915_request_skip(rq, -ENOENT);
+	}
+
+	local_bh_disable();
+	__i915_request_queue(rq, &attr);
+	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
+
+	/* Try to clean up the client's timeline after submitting the request */
+	if (prev)
+		retire_requests(tl, prev);
+
+	mutex_unlock(&tl->mutex);
+}
+
 static int
 i915_gem_do_execbuffer(struct drm_device *dev,
 		       struct drm_file *file,
@@ -2778,7 +2844,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 err_request:
 	add_to_client(eb.request, file);
 	i915_request_get(eb.request);
-	i915_request_add(eb.request);
+	eb_request_add(&eb);
 
 	if (fences)
 		signal_fence_array(&eb, fences);

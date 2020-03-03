@@ -1339,67 +1339,29 @@ void i915_request_add(struct i915_request *rq)
 {
 	struct intel_timeline * const tl = i915_request_timeline(rq);
 	struct i915_sched_attr attr = {};
-	struct i915_request *prev;
+	struct i915_gem_context *ctx;
 
 	lockdep_assert_held(&tl->mutex);
 	lockdep_unpin_lock(&tl->mutex, rq->cookie);
 
 	trace_i915_request_add(rq);
+	__i915_request_commit(rq);
 
-	prev = __i915_request_commit(rq);
+	/* XXX placeholder for selftests */
+	rcu_read_lock();
+	ctx = rcu_dereference(rq->context->gem_context);
+	if (ctx)
+		attr = ctx->sched;
+	rcu_read_unlock();
 
-	if (rcu_access_pointer(rq->context->gem_context))
-		attr = i915_request_gem_context(rq)->sched;
-
-	/*
-	 * Boost actual workloads past semaphores!
-	 *
-	 * With semaphores we spin on one engine waiting for another,
-	 * simply to reduce the latency of starting our work when
-	 * the signaler completes. However, if there is any other
-	 * work that we could be doing on this engine instead, that
-	 * is better utilisation and will reduce the overall duration
-	 * of the current work. To avoid PI boosting a semaphore
-	 * far in the distance past over useful work, we keep a history
-	 * of any semaphore use along our dependency chain.
-	 */
 	if (!(rq->sched.flags & I915_SCHED_HAS_SEMAPHORE_CHAIN))
 		attr.priority |= I915_PRIORITY_NOSEMAPHORE;
-
-	/*
-	 * Boost priorities to new clients (new request flows).
-	 *
-	 * Allow interactive/synchronous clients to jump ahead of
-	 * the bulk clients. (FQ_CODEL)
-	 */
 	if (list_empty(&rq->sched.signalers_list))
 		attr.priority |= I915_PRIORITY_WAIT;
 
 	local_bh_disable();
 	__i915_request_queue(rq, &attr);
 	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
-
-	/*
-	 * In typical scenarios, we do not expect the previous request on
-	 * the timeline to be still tracked by timeline->last_request if it
-	 * has been completed. If the completed request is still here, that
-	 * implies that request retirement is a long way behind submission,
-	 * suggesting that we haven't been retiring frequently enough from
-	 * the combination of retire-before-alloc, waiters and the background
-	 * retirement worker. So if the last request on this timeline was
-	 * already completed, do a catch up pass, flushing the retirement queue
-	 * up to this client. Since we have now moved the heaviest operations
-	 * during retirement onto secondary workers, such as freeing objects
-	 * or contexts, retiring a bunch of requests is mostly list management
-	 * (and cache misses), and so we should not be overly penalizing this
-	 * client by performing excess work, though we may still performing
-	 * work on behalf of others -- but instead we should benefit from
-	 * improved resource management. (Well, that's the theory at least.)
-	 */
-	if (prev &&
-	    i915_request_completed(prev) &&
-	    rcu_access_pointer(prev->timeline) == tl)
-		i915_request_retire_upto(prev);
 
 	mutex_unlock(&tl->mutex);
 }
