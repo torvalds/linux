@@ -41,6 +41,10 @@ enum {
 	MV_PCS_1000BASEX	= 0x2000,
 
 	MV_PCS_CSCR1		= 0x8000,
+	MV_PCS_CSCR1_ED_MASK	= 0x0300,
+	MV_PCS_CSCR1_ED_OFF	= 0x0000,
+	MV_PCS_CSCR1_ED_RX	= 0x0200,
+	MV_PCS_CSCR1_ED_NLP	= 0x0300,
 	MV_PCS_CSCR1_MDIX_MASK	= 0x0060,
 	MV_PCS_CSCR1_MDIX_MDI	= 0x0000,
 	MV_PCS_CSCR1_MDIX_MDIX	= 0x0020,
@@ -243,6 +247,59 @@ static int mv3310_reset(struct phy_device *phydev, u32 unit)
 	return val & MDIO_CTRL1_RESET ? -ETIMEDOUT : 0;
 }
 
+static int mv3310_get_edpd(struct phy_device *phydev, u16 *edpd)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_CSCR1);
+	if (val < 0)
+		return val;
+
+	switch (val & MV_PCS_CSCR1_ED_MASK) {
+	case MV_PCS_CSCR1_ED_NLP:
+		*edpd = 1000;
+		break;
+	case MV_PCS_CSCR1_ED_RX:
+		*edpd = ETHTOOL_PHY_EDPD_NO_TX;
+		break;
+	default:
+		*edpd = ETHTOOL_PHY_EDPD_DISABLE;
+		break;
+	}
+	return 0;
+}
+
+static int mv3310_set_edpd(struct phy_device *phydev, u16 edpd)
+{
+	u16 val;
+	int err;
+
+	switch (edpd) {
+	case 1000:
+	case ETHTOOL_PHY_EDPD_DFLT_TX_MSECS:
+		val = MV_PCS_CSCR1_ED_NLP;
+		break;
+
+	case ETHTOOL_PHY_EDPD_NO_TX:
+		val = MV_PCS_CSCR1_ED_RX;
+		break;
+
+	case ETHTOOL_PHY_EDPD_DISABLE:
+		val = MV_PCS_CSCR1_ED_OFF;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	err = phy_modify_mmd_changed(phydev, MDIO_MMD_PCS, MV_PCS_CSCR1,
+				     MV_PCS_CSCR1_ED_MASK, val);
+	if (err > 0)
+		err = mv3310_reset(phydev, MV_PCS_BASE_T);
+
+	return err;
+}
+
 static int mv3310_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 {
 	struct phy_device *phydev = upstream;
@@ -345,7 +402,8 @@ static int mv3310_config_init(struct phy_device *phydev)
 
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
 
-	return 0;
+	/* Enable EDPD mode - saving 600mW */
+	return mv3310_set_edpd(phydev, ETHTOOL_PHY_EDPD_DFLT_TX_MSECS);
 }
 
 static int mv3310_get_features(struct phy_device *phydev)
@@ -594,6 +652,28 @@ static int mv3310_read_status(struct phy_device *phydev)
 	return 0;
 }
 
+static int mv3310_get_tunable(struct phy_device *phydev,
+			      struct ethtool_tunable *tuna, void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD:
+		return mv3310_get_edpd(phydev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int mv3310_set_tunable(struct phy_device *phydev,
+			      struct ethtool_tunable *tuna, const void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD:
+		return mv3310_set_edpd(phydev, *(u16 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static struct phy_driver mv3310_drivers[] = {
 	{
 		.phy_id		= MARVELL_PHY_ID_88X3310,
@@ -608,6 +688,8 @@ static struct phy_driver mv3310_drivers[] = {
 		.config_aneg	= mv3310_config_aneg,
 		.aneg_done	= mv3310_aneg_done,
 		.read_status	= mv3310_read_status,
+		.get_tunable	= mv3310_get_tunable,
+		.set_tunable	= mv3310_set_tunable,
 	},
 	{
 		.phy_id		= MARVELL_PHY_ID_88E2110,
@@ -621,6 +703,8 @@ static struct phy_driver mv3310_drivers[] = {
 		.config_aneg	= mv3310_config_aneg,
 		.aneg_done	= mv3310_aneg_done,
 		.read_status	= mv3310_read_status,
+		.get_tunable	= mv3310_get_tunable,
+		.set_tunable	= mv3310_set_tunable,
 	},
 };
 
