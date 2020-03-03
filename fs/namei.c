@@ -529,24 +529,17 @@ static void restore_nameidata(void)
 		kfree(now->stack);
 }
 
-static int __nd_alloc_stack(struct nameidata *nd)
+static bool nd_alloc_stack(struct nameidata *nd)
 {
 	struct saved *p;
 
-	if (nd->flags & LOOKUP_RCU) {
-		p= kmalloc_array(MAXSYMLINKS, sizeof(struct saved),
-				  GFP_ATOMIC);
-		if (unlikely(!p))
-			return -ECHILD;
-	} else {
-		p= kmalloc_array(MAXSYMLINKS, sizeof(struct saved),
-				  GFP_KERNEL);
-		if (unlikely(!p))
-			return -ENOMEM;
-	}
+	p= kmalloc_array(MAXSYMLINKS, sizeof(struct saved),
+			 nd->flags & LOOKUP_RCU ? GFP_ATOMIC : GFP_KERNEL);
+	if (unlikely(!p))
+		return false;
 	memcpy(p, nd->internal, sizeof(nd->internal));
 	nd->stack = p;
-	return 0;
+	return true;
 }
 
 /**
@@ -1573,8 +1566,6 @@ static inline int may_lookup(struct nameidata *nd)
 
 static int reserve_stack(struct nameidata *nd, struct path *link, unsigned seq)
 {
-	int error;
-
 	if (unlikely(nd->total_link_count++ >= MAXSYMLINKS))
 		return -ELOOP;
 
@@ -1582,21 +1573,21 @@ static int reserve_stack(struct nameidata *nd, struct path *link, unsigned seq)
 		return 0;
 	if (likely(nd->stack != nd->internal))
 		return 0;
-
-	error = __nd_alloc_stack(nd);
-	if (likely(!error))
+	if (likely(nd_alloc_stack(nd)))
 		return 0;
-	if (error == -ECHILD) {
-		// we must grab link first
+
+	if (nd->flags & LOOKUP_RCU) {
+		// we need to grab link before we do unlazy.  And we can't skip
+		// unlazy even if we fail to grab the link - cleanup needs it
 		bool grabbed_link = legitimize_path(nd, link, seq);
-		// ... and we must unlazy to be able to clean up
-		error = unlazy_walk(nd);
-		if (unlikely(!grabbed_link))
-			error = -ECHILD;
-		if (!error)
-			error = __nd_alloc_stack(nd);
+
+		if (unlazy_walk(nd) != 0 || !grabbed_link)
+			return -ECHILD;
+
+		if (nd_alloc_stack(nd))
+			return 0;
 	}
-	return error;
+	return -ENOMEM;
 }
 
 enum {WALK_TRAILING = 1, WALK_MORE = 2, WALK_NOFOLLOW = 4};
