@@ -980,6 +980,7 @@ static void wait_barrier(struct r10conf *conf)
 {
 	spin_lock_irq(&conf->resync_lock);
 	if (conf->barrier) {
+		struct bio_list *bio_list = current->bio_list;
 		conf->nr_waiting++;
 		/* Wait for the barrier to drop.
 		 * However if there are already pending
@@ -994,9 +995,16 @@ static void wait_barrier(struct r10conf *conf)
 		wait_event_lock_irq(conf->wait_barrier,
 				    !conf->barrier ||
 				    (atomic_read(&conf->nr_pending) &&
-				     current->bio_list &&
-				     (!bio_list_empty(&current->bio_list[0]) ||
-				      !bio_list_empty(&current->bio_list[1]))),
+				     bio_list &&
+				     (!bio_list_empty(&bio_list[0]) ||
+				      !bio_list_empty(&bio_list[1]))) ||
+				     /* move on if recovery thread is
+				      * blocked by us
+				      */
+				     (conf->mddev->thread->tsk == current &&
+				      test_bit(MD_RECOVERY_RUNNING,
+					       &conf->mddev->recovery) &&
+				      conf->nr_queued > 0),
 				    conf->resync_lock);
 		conf->nr_waiting--;
 		if (!conf->nr_waiting)
