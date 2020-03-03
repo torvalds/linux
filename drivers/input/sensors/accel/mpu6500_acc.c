@@ -129,10 +129,12 @@ static int sensor_init(struct i2c_client *client)
 
 	read_data = sensor_read_reg(client, sensor->ops->id_reg);
 
+#if 0
 	if (read_data != sensor->ops->id_data) {
 		dev_err(&client->dev, "%s:check id err,read_data:%d,ops->id_data:%d\n", __func__, read_data, sensor->ops->id_data);
 		return -1;
 	}
+#endif
 
 	res = sensor_write_reg(client, MPU6500_PWR_MGMT_1, 0x80);
 	if (res) {
@@ -249,8 +251,8 @@ struct sensor_operate gsensor_mpu6500_ops = {
 	.id_i2c				= ACCEL_ID_MPU6500,
 	.read_reg				= MPU6500_ACCEL_XOUT_H,
 	.read_len				= 6,
-	.id_reg				= MPU6500_WHOAMI,
-	.id_data 				= MPU6500_DEVICE_ID,
+	.id_reg				= SENSOR_UNKNOW_DATA,
+	.id_data 				= SENSOR_UNKNOW_DATA,
 	.precision				= MPU6500_PRECISION,
 	.ctrl_reg 				= MPU6500_PWR_MGMT_2,
 	.int_status_reg 		= MPU6500_INT_STATUS,
