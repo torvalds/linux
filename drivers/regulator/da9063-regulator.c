@@ -66,7 +66,7 @@ struct da9063_regulator_data {
 };
 
 struct da9063_regulators_pdata {
-	unsigned			n_regulators;
+	unsigned int			n_regulators;
 	struct da9063_regulator_data	*regulator_data;
 };
 
@@ -131,7 +131,7 @@ struct da9063_regulator_info {
 /* Defines asignment of regulators info table to chip model */
 struct da9063_dev_model {
 	const struct da9063_regulator_info	*regulator_info;
-	unsigned				n_regulators;
+	unsigned int				n_regulators;
 	enum da9063_type			type;
 };
 
@@ -150,9 +150,9 @@ struct da9063_regulator {
 
 /* Encapsulates all information for the regulators driver */
 struct da9063_regulators {
-	unsigned				n_regulators;
+	unsigned int				n_regulators;
 	/* Array size to be defined during init. Keep at end. */
-	struct da9063_regulator			regulator[0];
+	struct da9063_regulator			regulator[];
 };
 
 /* BUCK modes for DA9063 */
@@ -165,38 +165,46 @@ enum {
 
 /* Regulator operations */
 
-/* Current limits array (in uA) for BCORE1, BCORE2, BPRO.
-   Entry indexes corresponds to register values. */
+/*
+ * Current limits array (in uA) for BCORE1, BCORE2, BPRO.
+ * Entry indexes corresponds to register values.
+ */
 static const unsigned int da9063_buck_a_limits[] = {
 	 500000,  600000,  700000,  800000,  900000, 1000000, 1100000, 1200000,
 	1300000, 1400000, 1500000, 1600000, 1700000, 1800000, 1900000, 2000000
 };
 
-/* Current limits array (in uA) for BMEM, BIO, BPERI.
-   Entry indexes corresponds to register values. */
+/*
+ * Current limits array (in uA) for BMEM, BIO, BPERI.
+ * Entry indexes corresponds to register values.
+ */
 static const unsigned int da9063_buck_b_limits[] = {
 	1500000, 1600000, 1700000, 1800000, 1900000, 2000000, 2100000, 2200000,
 	2300000, 2400000, 2500000, 2600000, 2700000, 2800000, 2900000, 3000000
 };
 
-/* Current limits array (in uA) for merged BCORE1 and BCORE2.
-   Entry indexes corresponds to register values. */
+/*
+ * Current limits array (in uA) for merged BCORE1 and BCORE2.
+ * Entry indexes corresponds to register values.
+ */
 static const unsigned int da9063_bcores_merged_limits[] = {
 	1000000, 1200000, 1400000, 1600000, 1800000, 2000000, 2200000, 2400000,
 	2600000, 2800000, 3000000, 3200000, 3400000, 3600000, 3800000, 4000000
 };
 
-/* Current limits array (in uA) for merged BMEM and BIO.
-   Entry indexes corresponds to register values. */
+/*
+ * Current limits array (in uA) for merged BMEM and BIO.
+ * Entry indexes corresponds to register values.
+ */
 static const unsigned int da9063_bmem_bio_merged_limits[] = {
 	3000000, 3200000, 3400000, 3600000, 3800000, 4000000, 4200000, 4400000,
 	4600000, 4800000, 5000000, 5200000, 5400000, 5600000, 5800000, 6000000
 };
 
-static int da9063_buck_set_mode(struct regulator_dev *rdev, unsigned mode)
+static int da9063_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
 	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
-	unsigned val;
+	unsigned int val;
 
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
@@ -221,7 +229,7 @@ static int da9063_buck_set_mode(struct regulator_dev *rdev, unsigned mode)
  * There are 3 modes to map to: FAST, NORMAL, and STANDBY.
  */
 
-static unsigned da9063_buck_get_mode(struct regulator_dev *rdev)
+static unsigned int da9063_buck_get_mode(struct regulator_dev *rdev)
 {
 	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
 	struct regmap_field *field;
@@ -271,10 +279,10 @@ static unsigned da9063_buck_get_mode(struct regulator_dev *rdev)
  * There are 2 modes to map to: NORMAL and STANDBY (sleep) for each state.
  */
 
-static int da9063_ldo_set_mode(struct regulator_dev *rdev, unsigned mode)
+static int da9063_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
 	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
-	unsigned val;
+	unsigned int val;
 
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
@@ -290,7 +298,7 @@ static int da9063_ldo_set_mode(struct regulator_dev *rdev, unsigned mode)
 	return regmap_field_write(regl->sleep, val);
 }
 
-static unsigned da9063_ldo_get_mode(struct regulator_dev *rdev)
+static unsigned int da9063_ldo_get_mode(struct regulator_dev *rdev)
 {
 	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
 	struct regmap_field *field;
@@ -383,7 +391,8 @@ static int da9063_suspend_disable(struct regulator_dev *rdev)
 	return regmap_field_write(regl->suspend, 0);
 }
 
-static int da9063_buck_set_suspend_mode(struct regulator_dev *rdev, unsigned mode)
+static int da9063_buck_set_suspend_mode(struct regulator_dev *rdev,
+				unsigned int mode)
 {
 	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
 	int val;
@@ -405,10 +414,11 @@ static int da9063_buck_set_suspend_mode(struct regulator_dev *rdev, unsigned mod
 	return regmap_field_write(regl->mode, val);
 }
 
-static int da9063_ldo_set_suspend_mode(struct regulator_dev *rdev, unsigned mode)
+static int da9063_ldo_set_suspend_mode(struct regulator_dev *rdev,
+				unsigned int mode)
 {
 	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
-	unsigned val;
+	unsigned int val;
 
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
@@ -593,7 +603,7 @@ static irqreturn_t da9063_ldo_lim_event(int irq, void *data)
 	struct da9063_regulators *regulators = data;
 	struct da9063 *hw = regulators->regulator[0].hw;
 	struct da9063_regulator *regl;
-	int bits, i , ret;
+	int bits, i, ret;
 
 	ret = regmap_read(hw->regmap, DA9063_REG_STATUS_D, &bits);
 	if (ret < 0)
@@ -605,10 +615,10 @@ static irqreturn_t da9063_ldo_lim_event(int irq, void *data)
 			continue;
 
 		if (BIT(regl->info->oc_event.lsb) & bits) {
-		        regulator_lock(regl->rdev);
+			regulator_lock(regl->rdev);
 			regulator_notifier_call_chain(regl->rdev,
 					REGULATOR_EVENT_OVER_CURRENT, NULL);
-		        regulator_unlock(regl->rdev);
+			regulator_unlock(regl->rdev);
 		}
 	}
 
@@ -833,7 +843,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 
 		if (regl->info->suspend_sleep.reg) {
 			regl->suspend_sleep = devm_regmap_field_alloc(&pdev->dev,
-					da9063->regmap, regl->info->suspend_sleep);
+				da9063->regmap, regl->info->suspend_sleep);
 			if (IS_ERR(regl->suspend_sleep))
 				return PTR_ERR(regl->suspend_sleep);
 		}
@@ -867,12 +877,10 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 				NULL, da9063_ldo_lim_event,
 				IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 				"LDO_LIM", regulators);
-	if (ret) {
+	if (ret)
 		dev_err(&pdev->dev, "Failed to request LDO_LIM IRQ.\n");
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static struct platform_driver da9063_regulator_driver = {
