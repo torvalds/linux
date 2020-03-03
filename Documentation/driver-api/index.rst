@@ -79,6 +79,7 @@ available subsections can be seen below.
    ipmb
    isa
    isapnp
+   io-mapping
    generic-counter
    lightnvm-pblk
    memory-devices/index
