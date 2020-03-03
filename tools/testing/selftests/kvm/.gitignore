@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 /s390x/sync_regs_test
 /s390x/memop
 /x86_64/cr4_cpuid_sync_test

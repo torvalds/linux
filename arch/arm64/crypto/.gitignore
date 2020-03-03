@@ -1,2 +1,3 @@
+# SPDX-License-Identifier: GPL-2.0-only
 sha256-core.S
 sha512-core.S
