@@ -29,6 +29,9 @@ config GKI_HIDDEN_CRYPTO_CONFIGS
 config GKI_HIDDEN_SND_CONFIGS
 	bool "Hidden SND configs needed for GKI"
 	select SND_VMASTER
+	select SND_PCM_ELD
+	select SND_JACK
+	select SND_JACK_INPUT_DEV
 	help
 	  Dummy config option used to enable hidden SND configs.
 	  These are normally selected implicitly when a module
