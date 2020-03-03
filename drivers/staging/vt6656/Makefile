@@ -9,7 +9,6 @@ vt6656_stage-y +=	main_usb.o \
 			baseband.o \
 			wcmd.o\
 			rxtx.o \
-			dpc.o \
 			power.o \
 			key.o \
 			rf.o \
