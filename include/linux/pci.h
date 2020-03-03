@@ -1052,6 +1052,8 @@ int pci_find_ht_capability(struct pci_dev *dev, int ht_cap);
 int pci_find_next_ht_capability(struct pci_dev *dev, int pos, int ht_cap);
 struct pci_bus *pci_find_next_bus(const struct pci_bus *from);
 
+u64 pci_get_dsn(struct pci_dev *dev);
+
 struct pci_dev *pci_get_device(unsigned int vendor, unsigned int device,
 			       struct pci_dev *from);
 struct pci_dev *pci_get_subsys(unsigned int vendor, unsigned int device,
@@ -1705,6 +1707,9 @@ static inline int pci_find_next_capability(struct pci_dev *dev, u8 post,
 					   int cap)
 { return 0; }
 static inline int pci_find_ext_capability(struct pci_dev *dev, int cap)
+{ return 0; }
+
+static inline u64 pci_get_dsn(struct pci_dev *dev)
 { return 0; }
 
 /* Power management related routines */
