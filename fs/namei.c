@@ -566,15 +566,6 @@ static bool path_connected(struct vfsmount *mnt, struct dentry *dentry)
 	return is_subdir(dentry, mnt->mnt_root);
 }
 
-static inline int nd_alloc_stack(struct nameidata *nd)
-{
-	if (likely(nd->depth != EMBEDDED_LEVELS))
-		return 0;
-	if (likely(nd->stack != nd->internal))
-		return 0;
-	return __nd_alloc_stack(nd);
-}
-
 static void drop_links(struct nameidata *nd)
 {
 	int i = nd->depth;
@@ -1586,7 +1577,13 @@ static int reserve_stack(struct nameidata *nd, struct path *link, unsigned seq)
 
 	if (unlikely(nd->total_link_count++ >= MAXSYMLINKS))
 		return -ELOOP;
-	error = nd_alloc_stack(nd);
+
+	if (likely(nd->depth != EMBEDDED_LEVELS))
+		return 0;
+	if (likely(nd->stack != nd->internal))
+		return 0;
+
+	error = __nd_alloc_stack(nd);
 	if (likely(!error))
 		return 0;
 	if (error == -ECHILD) {
@@ -1597,7 +1594,7 @@ static int reserve_stack(struct nameidata *nd, struct path *link, unsigned seq)
 		if (unlikely(!grabbed_link))
 			error = -ECHILD;
 		if (!error)
-			error = nd_alloc_stack(nd);
+			error = __nd_alloc_stack(nd);
 	}
 	return error;
 }
