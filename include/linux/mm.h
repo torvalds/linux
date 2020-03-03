@@ -357,6 +357,8 @@ struct vm_fault {
 	gfp_t gfp_mask;			/* gfp mask to be used for allocations */
 	pgoff_t pgoff;			/* Logical page offset based on vma */
 	unsigned long address;		/* Faulting virtual address */
+	unsigned int sequence;		/* Speculative Page Fault field */
+	pmd_t orig_pmd;			/* Speculative Page Fault field */
 	pmd_t *pmd;			/* Pointer to pmd entry matching
 					 * the 'address' */
 	pud_t *pud;			/* Pointer to pud entry matching
@@ -387,6 +389,8 @@ struct vm_fault {
 					 * page table to avoid allocation from
 					 * atomic context.
 					 */
+	unsigned long vma_flags;	/* Speculative Page Fault field */
+	pgprot_t vma_page_prot;		/* Speculative Page Fault field */
 };
 
 /* page entry size for vm->huge_fault() */
