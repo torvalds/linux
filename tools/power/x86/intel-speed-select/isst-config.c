@@ -313,7 +313,6 @@ static void set_max_cpu_num(void)
 	while (fscanf(filep, "%lx,", &dummy) == 1)
 		topo_max_cpus += BITMASK_SIZE;
 	fclose(filep);
-	topo_max_cpus--; /* 0 based */
 
 	debug_printf("max cpus %d\n", topo_max_cpus);
 }
