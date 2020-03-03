@@ -17,6 +17,7 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,sc7180-osm-l3
       - qcom,sdm845-osm-l3
 
   reg:
