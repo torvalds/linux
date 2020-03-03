@@ -46,7 +46,8 @@ enum idh_event {
 	IDH_SUCCESS,
 	IDH_FAIL,
 	IDH_QUERY_ALIVE,
-	IDH_EVENT_MAX
+
+	IDH_TEXT_MESSAGE = 255,
 };
 
 extern const struct amdgpu_virt_ops xgpu_ai_virt_ops;

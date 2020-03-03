@@ -30,7 +30,6 @@
 #include "navi10_ih.h"
 #include "soc15_common.h"
 #include "mxgpu_nv.h"
-#include "mxgpu_ai.h"
 
 static void xgpu_nv_mailbox_send_ack(struct amdgpu_device *adev)
 {

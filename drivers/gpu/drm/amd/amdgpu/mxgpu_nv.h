@@ -28,6 +28,28 @@
 #define NV_MAILBOX_POLL_MSG_TIMEDOUT	12000
 #define NV_MAILBOX_POLL_FLR_TIMEDOUT	500
 
+enum idh_request {
+	IDH_REQ_GPU_INIT_ACCESS = 1,
+	IDH_REL_GPU_INIT_ACCESS,
+	IDH_REQ_GPU_FINI_ACCESS,
+	IDH_REL_GPU_FINI_ACCESS,
+	IDH_REQ_GPU_RESET_ACCESS,
+
+	IDH_LOG_VF_ERROR       = 200,
+};
+
+enum idh_event {
+	IDH_CLR_MSG_BUF	= 0,
+	IDH_READY_TO_ACCESS_GPU,
+	IDH_FLR_NOTIFICATION,
+	IDH_FLR_NOTIFICATION_CMPL,
+	IDH_SUCCESS,
+	IDH_FAIL,
+	IDH_QUERY_ALIVE,
+
+	IDH_TEXT_MESSAGE = 255,
+};
+
 extern const struct amdgpu_virt_ops xgpu_nv_virt_ops;
 
 void xgpu_nv_mailbox_set_irq_funcs(struct amdgpu_device *adev);
