@@ -5870,7 +5870,6 @@ enum {
 
 #define  _PIPEAGCMAX           0x70010
 #define  _PIPEBGCMAX           0x71010
-#define PIPEGCMAX_RGB_MASK     REG_GENMASK(15, 0)
 #define PIPEGCMAX(pipe, i)     _MMIO_PIPE2(pipe, _PIPEAGCMAX + (i) * 4)
 
 #define _PIPE_MISC_A			0x70030

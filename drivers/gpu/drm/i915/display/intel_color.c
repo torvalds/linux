@@ -442,7 +442,8 @@ static void i965_lut_10p6_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
 
 static u16 i965_lut_11p6_max_pack(u32 val)
 {
-	return REG_FIELD_GET(PIPEGCMAX_RGB_MASK, val);
+	/* PIPEGCMAX is 11.6, clamp to 10.6 */
+	return clamp_val(val, 0, 0xffff);
 }
 
 static u32 ilk_lut_10(const struct drm_color_lut *color)
