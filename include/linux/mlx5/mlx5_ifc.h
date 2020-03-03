@@ -8423,7 +8423,8 @@ struct mlx5_ifc_ptys_reg_bits {
 	u8         proto_mask[0x3];
 
 	u8         an_status[0x4];
-	u8         reserved_at_24[0x1c];
+	u8         reserved_at_24[0xc];
+	u8         data_rate_oper[0x10];
 
 	u8         ext_eth_proto_capability[0x20];
 
