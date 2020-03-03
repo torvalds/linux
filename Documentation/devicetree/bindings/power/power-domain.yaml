@@ -25,7 +25,7 @@ description: |+
 
 properties:
   $nodename:
-    pattern: "^(power-controller|power-domain)(@.*)?$"
+    pattern: "^(power-controller|power-domain)([@-].*)?$"
 
   domain-idle-states:
     $ref: /schemas/types.yaml#/definitions/phandle-array
