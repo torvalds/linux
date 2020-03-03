@@ -348,48 +348,43 @@ static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 		       crtc_state->csc_mode);
 }
 
-/*
- * Set up the pipe CSC unit on CherryView.
- */
-static void cherryview_load_csc_matrix(const struct intel_crtc_state *crtc_state)
+static void chv_load_cgm_csc(struct intel_crtc *crtc,
+			     const struct drm_property_blob *blob)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_color_ctm *ctm = blob->data;
 	enum pipe pipe = crtc->pipe;
+	u16 coeffs[9];
+	int i;
 
-	if (crtc_state->hw.ctm) {
-		const struct drm_color_ctm *ctm = crtc_state->hw.ctm->data;
-		u16 coeffs[9] = {};
-		int i;
+	for (i = 0; i < ARRAY_SIZE(coeffs); i++) {
+		u64 abs_coeff = ((1ULL << 63) - 1) & ctm->matrix[i];
 
-		for (i = 0; i < ARRAY_SIZE(coeffs); i++) {
-			u64 abs_coeff =
-				((1ULL << 63) - 1) & ctm->matrix[i];
+		/* Round coefficient. */
+		abs_coeff += 1 << (32 - 13);
+		/* Clamp to hardware limits. */
+		abs_coeff = clamp_val(abs_coeff, 0, CTM_COEFF_8_0 - 1);
 
-			/* Round coefficient. */
-			abs_coeff += 1 << (32 - 13);
-			/* Clamp to hardware limits. */
-			abs_coeff = clamp_val(abs_coeff, 0, CTM_COEFF_8_0 - 1);
+		coeffs[i] = 0;
 
-			/* Write coefficients in S3.12 format. */
-			if (ctm->matrix[i] & (1ULL << 63))
-				coeffs[i] = 1 << 15;
-			coeffs[i] |= ((abs_coeff >> 32) & 7) << 12;
-			coeffs[i] |= (abs_coeff >> 20) & 0xfff;
-		}
+		/* Write coefficients in S3.12 format. */
+		if (ctm->matrix[i] & (1ULL << 63))
+			coeffs[i] |= 1 << 15;
 
-		intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF01(pipe),
-			       coeffs[1] << 16 | coeffs[0]);
-		intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF23(pipe),
-			       coeffs[3] << 16 | coeffs[2]);
-		intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF45(pipe),
-			       coeffs[5] << 16 | coeffs[4]);
-		intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF67(pipe),
-			       coeffs[7] << 16 | coeffs[6]);
-		intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF8(pipe), coeffs[8]);
+		coeffs[i] |= ((abs_coeff >> 32) & 7) << 12;
+		coeffs[i] |= (abs_coeff >> 20) & 0xfff;
 	}
 
-	intel_de_write(dev_priv, CGM_PIPE_MODE(pipe), crtc_state->cgm_mode);
+	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF01(pipe),
+		       coeffs[1] << 16 | coeffs[0]);
+	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF23(pipe),
+		       coeffs[3] << 16 | coeffs[2]);
+	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF45(pipe),
+		       coeffs[5] << 16 | coeffs[4]);
+	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF67(pipe),
+		       coeffs[7] << 16 | coeffs[6]);
+	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF8(pipe),
+		       coeffs[8]);
 }
 
 static u32 i9xx_lut_8(const struct drm_color_lut *color)
@@ -1020,10 +1015,13 @@ static void chv_load_cgm_gamma(struct intel_crtc *crtc,
 static void chv_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_property_blob *degamma_lut = crtc_state->hw.degamma_lut;
+	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
+	const struct drm_property_blob *ctm = crtc_state->hw.ctm;
 
-	cherryview_load_csc_matrix(crtc_state);
+	if (crtc_state->cgm_mode & CGM_PIPE_MODE_CSC)
+		chv_load_cgm_csc(crtc, ctm);
 
 	if (crtc_state->cgm_mode & CGM_PIPE_MODE_DEGAMMA)
 		chv_load_cgm_degamma(crtc, degamma_lut);
@@ -1032,6 +1030,9 @@ static void chv_load_luts(const struct intel_crtc_state *crtc_state)
 		chv_load_cgm_gamma(crtc, gamma_lut);
 	else
 		i965_load_luts(crtc_state);
+
+	intel_de_write(dev_priv, CGM_PIPE_MODE(crtc->pipe),
+		       crtc_state->cgm_mode);
 }
 
 void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
