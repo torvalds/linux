@@ -896,9 +896,9 @@ EXPORT_SYMBOL_GPL(sev_guest_df_flush);
 
 static void sev_exit(struct kref *ref)
 {
-	struct sev_misc_dev *misc_dev = container_of(ref, struct sev_misc_dev, refcount);
-
 	misc_deregister(&misc_dev->misc);
+	kfree(misc_dev);
+	misc_dev = NULL;
 }
 
 static int sev_misc_init(struct sev_device *sev)
@@ -916,7 +916,7 @@ static int sev_misc_init(struct sev_device *sev)
 	if (!misc_dev) {
 		struct miscdevice *misc;
 
-		misc_dev = devm_kzalloc(dev, sizeof(*misc_dev), GFP_KERNEL);
+		misc_dev = kzalloc(sizeof(*misc_dev), GFP_KERNEL);
 		if (!misc_dev)
 			return -ENOMEM;
 
