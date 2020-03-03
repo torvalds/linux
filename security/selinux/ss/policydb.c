@@ -463,36 +463,28 @@ static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
  */
 static int policydb_init(struct policydb *p)
 {
-	int i, rc;
+	int rc;
 
 	memset(p, 0, sizeof(*p));
 
 	rc = avtab_init(&p->te_avtab);
 	if (rc)
-		goto out;
+		return rc;
 
 	rc = cond_policydb_init(p);
 	if (rc)
-		goto out;
+		return rc;
 
 	p->filename_trans = hashtab_create(filenametr_hash, filenametr_cmp,
 					   (1 << 11));
-	if (!p->filename_trans) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!p->filename_trans)
+		return -ENOMEM;
 
 	ebitmap_init(&p->filename_trans_ttypes);
 	ebitmap_init(&p->policycaps);
 	ebitmap_init(&p->permissive_map);
 
 	return 0;
-out:
-	for (i = 0; i < SYM_NUM; i++) {
-		hashtab_map(p->symtab[i].table, destroy_f[i], NULL);
-		hashtab_destroy(p->symtab[i].table);
-	}
-	return rc;
 }
 
 /*
