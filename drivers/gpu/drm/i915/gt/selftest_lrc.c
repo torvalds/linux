@@ -4723,9 +4723,9 @@ err:
 
 static int live_lrc_timestamp(void *arg)
 {
+	struct lrc_timestamp data = {};
 	struct intel_gt *gt = arg;
 	enum intel_engine_id id;
-	struct lrc_timestamp data;
 	const u32 poison[] = {
 		0,
 		S32_MAX,
