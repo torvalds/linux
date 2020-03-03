@@ -408,8 +408,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 	int r, i, max_idx;
 	unsigned f_nx = is_efer_nx() ? F(NX) : 0;
 #ifdef CONFIG_X86_64
-	unsigned f_gbpages = (kvm_x86_ops->get_lpage_level() == PT_PDPE_LEVEL)
-				? F(GBPAGES) : 0;
+	unsigned f_gbpages = F(GBPAGES);
 	unsigned f_lm = F(LM);
 #else
 	unsigned f_gbpages = 0;
@@ -683,6 +682,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 	case 0x80000001:
 		entry->edx &= kvm_cpuid_8000_0001_edx_x86_features;
 		cpuid_entry_mask(entry, CPUID_8000_0001_EDX);
+		if (!tdp_enabled)
+			cpuid_entry_set(entry, X86_FEATURE_GBPAGES);
 		entry->ecx &= kvm_cpuid_8000_0001_ecx_x86_features;
 		cpuid_entry_mask(entry, CPUID_8000_0001_ECX);
 		break;
