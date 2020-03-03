@@ -541,6 +541,7 @@ static int svc_rdma_dma_map_buf(struct svcxprt_rdma *rdma,
 /**
  * svc_rdma_pull_up_needed - Determine whether to use pull-up
  * @rdma: controlling transport
+ * @sctxt: send_ctxt for the Send WR
  * @rctxt: Write and Reply chunks provided by client
  * @xdr: xdr_buf containing RPC message to transmit
  *
@@ -549,11 +550,20 @@ static int svc_rdma_dma_map_buf(struct svcxprt_rdma *rdma,
  *	%false otherwise
  */
 static bool svc_rdma_pull_up_needed(struct svcxprt_rdma *rdma,
+				    struct svc_rdma_send_ctxt *sctxt,
 				    const struct svc_rdma_recv_ctxt *rctxt,
 				    struct xdr_buf *xdr)
 {
 	int elements;
 
+	/* For small messages, copying bytes is cheaper than DMA mapping.
+	 */
+	if (sctxt->sc_hdrbuf.len + xdr->len < RPCRDMA_PULLUP_THRESH)
+		return true;
+
+	/* Check whether the xdr_buf has more elements than can
+	 * fit in a single RDMA Send.
+	 */
 	/* xdr->head */
 	elements = 1;
 
@@ -636,6 +646,7 @@ static int svc_rdma_pull_up_reply_msg(struct svcxprt_rdma *rdma,
 		memcpy(dst, tailbase, taillen);
 
 	sctxt->sc_sges[0].length += xdr->len;
+	trace_svcrdma_send_pullup(sctxt->sc_sges[0].length);
 	return 0;
 }
 
@@ -675,7 +686,7 @@ int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 	/* For pull-up, svc_rdma_send() will sync the transport header.
 	 * No additional DMA mapping is necessary.
 	 */
-	if (svc_rdma_pull_up_needed(rdma, rctxt, xdr))
+	if (svc_rdma_pull_up_needed(rdma, sctxt, rctxt, xdr))
 		return svc_rdma_pull_up_reply_msg(rdma, sctxt, rctxt, xdr);
 
 	++sctxt->sc_cur_sge_no;

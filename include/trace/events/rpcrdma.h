@@ -1639,6 +1639,24 @@ TRACE_EVENT(svcrdma_dma_map_rwctx,
 	)
 );
 
+TRACE_EVENT(svcrdma_send_pullup,
+	TP_PROTO(
+		unsigned int len
+	),
+
+	TP_ARGS(len),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, len)
+	),
+
+	TP_fast_assign(
+		__entry->len = len;
+	),
+
+	TP_printk("len=%u", __entry->len)
+);
+
 TRACE_EVENT(svcrdma_send_failed,
 	TP_PROTO(
 		const struct svc_rqst *rqst,

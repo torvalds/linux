@@ -52,6 +52,7 @@
 
 /* Default and maximum inline threshold sizes */
 enum {
+	RPCRDMA_PULLUP_THRESH = RPCRDMA_V1_DEF_INLINE_SIZE >> 1,
 	RPCRDMA_DEF_INLINE_THRESH = 4096,
 	RPCRDMA_MAX_INLINE_THRESH = 65536
 };
