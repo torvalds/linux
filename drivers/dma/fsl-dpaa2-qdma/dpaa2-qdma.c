@@ -792,13 +792,11 @@ static int dpaa2_qdma_remove(struct fsl_mc_device *ls_dev)
 
 static void dpaa2_qdma_shutdown(struct fsl_mc_device *ls_dev)
 {
-	struct dpaa2_qdma_engine *dpaa2_qdma;
 	struct dpaa2_qdma_priv *priv;
 	struct device *dev;
 
 	dev = &ls_dev->dev;
 	priv = dev_get_drvdata(dev);
-	dpaa2_qdma = priv->dpaa2_qdma;
 
 	dpdmai_disable(priv->mc_io, 0, ls_dev->mc_handle);
 	dpaa2_dpdmai_dpio_unbind(priv);
