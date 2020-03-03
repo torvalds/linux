@@ -1427,54 +1427,43 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	return AE_CTRL_TERMINATE;
 }
 
-static void install_gpe_event_handler(struct acpi_ec *ec)
+static bool install_gpe_event_handler(struct acpi_ec *ec)
 {
-	acpi_status status =
-		acpi_install_gpe_raw_handler(NULL, ec->gpe,
-					     ACPI_GPE_EDGE_TRIGGERED,
-					     &acpi_ec_gpe_handler,
-					     ec);
-	if (ACPI_SUCCESS(status)) {
-		/* This is not fatal as we can poll EC events */
-		set_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags);
-		acpi_ec_leave_noirq(ec);
-		if (test_bit(EC_FLAGS_STARTED, &ec->flags) &&
-		    ec->reference_count >= 1)
-			acpi_ec_enable_gpe(ec, true);
-	}
+	acpi_status status;
+
+	status = acpi_install_gpe_raw_handler(NULL, ec->gpe,
+					      ACPI_GPE_EDGE_TRIGGERED,
+					      &acpi_ec_gpe_handler, ec);
+	if (ACPI_FAILURE(status))
+		return false;
+
+	if (test_bit(EC_FLAGS_STARTED, &ec->flags) && ec->reference_count >= 1)
+		acpi_ec_enable_gpe(ec, true);
+
+	return true;
 }
 
-/* ACPI reduced hardware platforms use a GpioInt specified in _CRS. */
-static int install_gpio_irq_event_handler(struct acpi_ec *ec,
-					  struct acpi_device *device)
+static bool install_gpio_irq_event_handler(struct acpi_ec *ec)
 {
-	int irq = acpi_dev_gpio_irq_get(device, 0);
-	int ret;
-
-	if (irq < 0)
-		return irq;
-
-	ret = request_irq(irq, acpi_ec_irq_handler, IRQF_SHARED,
-			  "ACPI EC", ec);
-
-	/*
-	 * Unlike the GPE case, we treat errors here as fatal, we'll only
-	 * implement GPIO polling if we find a case that needs it.
-	 */
-	if (ret < 0)
-		return ret;
-
-	ec->irq = irq;
-	set_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags);
-	acpi_ec_leave_noirq(ec);
-
-	return 0;
+	return request_irq(ec->irq, acpi_ec_irq_handler, IRQF_SHARED,
+			   "ACPI EC", ec) >= 0;
 }
 
-/*
- * Note: This function returns an error code only when the address space
- *       handler is not installed, which means "not able to handle
- *       transactions".
+/**
+ * ec_install_handlers - Install service callbacks and register query methods.
+ * @ec: Target EC.
+ * @device: ACPI device object corresponding to @ec.
+ *
+ * Install a handler for the EC address space type unless it has been installed
+ * already.  If @device is not NULL, also look for EC query methods in the
+ * namespace and register them, and install an event (either GPE or GPIO IRQ)
+ * handler for the EC, if possible.
+ *
+ * Return:
+ * -ENODEV if the address space handler cannot be installed, which means
+ *  "unable to handle transactions",
+ * -EPROBE_DEFER if GPIO IRQ acquisition needs to be deferred,
+ * or 0 (success) otherwise.
  */
 static int ec_install_handlers(struct acpi_ec *ec, struct acpi_device *device)
 {
@@ -1498,6 +1487,19 @@ static int ec_install_handlers(struct acpi_ec *ec, struct acpi_device *device)
 	if (!device)
 		return 0;
 
+	if (ec->gpe < 0) {
+		/* ACPI reduced hardware platforms use a GpioInt from _CRS. */
+		int irq = acpi_dev_gpio_irq_get(device, 0);
+		/*
+		 * Bail out right away for deferred probing or complete the
+		 * initialization regardless of any other errors.
+		 */
+		if (irq == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		else if (irq >= 0)
+			ec->irq = irq;
+	}
+
 	if (!test_bit(EC_FLAGS_QUERY_METHODS_INSTALLED, &ec->flags)) {
 		/* Find and register all query methods */
 		acpi_walk_namespace(ACPI_TYPE_METHOD, ec->handle, 1,
@@ -1506,13 +1508,21 @@ static int ec_install_handlers(struct acpi_ec *ec, struct acpi_device *device)
 		set_bit(EC_FLAGS_QUERY_METHODS_INSTALLED, &ec->flags);
 	}
 	if (!test_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags)) {
-		if (ec->gpe >= 0) {
-			install_gpe_event_handler(ec);
-		} else {
-			int ret = install_gpio_irq_event_handler(ec, device);
-			if (ret)
-				return ret;
+		bool ready = false;
+
+		if (ec->gpe >= 0)
+			ready = install_gpe_event_handler(ec);
+		else if (ec->irq >= 0)
+			ready = install_gpio_irq_event_handler(ec);
+
+		if (ready) {
+			set_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags);
+			acpi_ec_leave_noirq(ec);
 		}
+		/*
+		 * Failures to install an event handler are not fatal, because
+		 * the EC can be polled for events.
+		 */
 	}
 	/* EC is fully operational, allow queries */
 	acpi_ec_enable_event(ec);
@@ -1625,7 +1635,7 @@ static int acpi_ec_add(struct acpi_device *device)
 		status = ec_parse_device(device->handle, 0, ec, NULL);
 		if (status != AE_CTRL_TERMINATE) {
 			ret = -EINVAL;
-			goto err_alloc;
+			goto err;
 		}
 
 		if (boot_ec && ec->command_addr == boot_ec->command_addr &&
@@ -1646,7 +1656,7 @@ static int acpi_ec_add(struct acpi_device *device)
 
 	ret = acpi_ec_setup(ec, device);
 	if (ret)
-		goto err_query;
+		goto err;
 
 	if (ec == boot_ec)
 		acpi_handle_info(boot_ec->handle,
@@ -1666,12 +1676,10 @@ static int acpi_ec_add(struct acpi_device *device)
 	acpi_handle_debug(ec->handle, "enumerated.\n");
 	return 0;
 
-err_query:
-	if (ec != boot_ec)
-		acpi_ec_remove_query_handlers(ec, true, 0);
-err_alloc:
+err:
 	if (ec != boot_ec)
 		acpi_ec_free(ec);
+
 	return ret;
 }
 
