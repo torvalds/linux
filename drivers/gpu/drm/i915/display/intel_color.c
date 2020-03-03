@@ -1722,10 +1722,8 @@ bool intel_color_lut_equal(struct drm_property_blob *blob1,
 	return true;
 }
 
-static struct drm_property_blob *
-i9xx_read_lut_8(const struct intel_crtc_state *crtc_state)
+static struct drm_property_blob *i9xx_read_lut_8(struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
@@ -1751,16 +1749,16 @@ i9xx_read_lut_8(const struct intel_crtc_state *crtc_state)
 
 static void i9xx_read_luts(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
 	if (!crtc_state->gamma_enable)
 		return;
 
-	crtc_state->hw.gamma_lut = i9xx_read_lut_8(crtc_state);
+	crtc_state->hw.gamma_lut = i9xx_read_lut_8(crtc);
 }
 
-static struct drm_property_blob *
-i965_read_lut_10p6(const struct intel_crtc_state *crtc_state)
+static struct drm_property_blob *i965_read_lut_10p6(struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	int i, lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
@@ -1791,19 +1789,19 @@ i965_read_lut_10p6(const struct intel_crtc_state *crtc_state)
 
 static void i965_read_luts(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
 	if (!crtc_state->gamma_enable)
 		return;
 
 	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
-		crtc_state->hw.gamma_lut = i9xx_read_lut_8(crtc_state);
+		crtc_state->hw.gamma_lut = i9xx_read_lut_8(crtc);
 	else
-		crtc_state->hw.gamma_lut = i965_read_lut_10p6(crtc_state);
+		crtc_state->hw.gamma_lut = i965_read_lut_10p6(crtc);
 }
 
-static struct drm_property_blob *
-chv_read_cgm_gamma(const struct intel_crtc_state *crtc_state)
+static struct drm_property_blob *chv_read_cgm_gamma(struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	int i, lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
@@ -1830,16 +1828,16 @@ chv_read_cgm_gamma(const struct intel_crtc_state *crtc_state)
 
 static void chv_read_luts(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
 	if (crtc_state->cgm_mode & CGM_PIPE_MODE_GAMMA)
-		crtc_state->hw.gamma_lut = chv_read_cgm_gamma(crtc_state);
+		crtc_state->hw.gamma_lut = chv_read_cgm_gamma(crtc);
 	else
 		i965_read_luts(crtc_state);
 }
 
-static struct drm_property_blob *
-ilk_read_lut_8(const struct intel_crtc_state *crtc_state)
+static struct drm_property_blob *ilk_read_lut_8(struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
@@ -1863,10 +1861,8 @@ ilk_read_lut_8(const struct intel_crtc_state *crtc_state)
 	return blob;
 }
 
-static struct drm_property_blob *
-ilk_read_lut_10(const struct intel_crtc_state *crtc_state)
+static struct drm_property_blob *ilk_read_lut_10(struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	int i, lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
@@ -1892,6 +1888,8 @@ ilk_read_lut_10(const struct intel_crtc_state *crtc_state)
 
 static void ilk_read_luts(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
 	if (!crtc_state->gamma_enable)
 		return;
 
@@ -1899,15 +1897,14 @@ static void ilk_read_luts(struct intel_crtc_state *crtc_state)
 		return;
 
 	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
-		crtc_state->hw.gamma_lut = ilk_read_lut_8(crtc_state);
+		crtc_state->hw.gamma_lut = ilk_read_lut_8(crtc);
 	else
-		crtc_state->hw.gamma_lut = ilk_read_lut_10(crtc_state);
+		crtc_state->hw.gamma_lut = ilk_read_lut_10(crtc);
 }
 
-static struct drm_property_blob *
-glk_read_lut_10(const struct intel_crtc_state *crtc_state, u32 prec_index)
+static struct drm_property_blob *glk_read_lut_10(struct intel_crtc *crtc,
+						 u32 prec_index)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	int i, hw_lut_size = ivb_lut_10_size(prec_index);
 	enum pipe pipe = crtc->pipe;
@@ -1938,13 +1935,15 @@ glk_read_lut_10(const struct intel_crtc_state *crtc_state, u32 prec_index)
 
 static void glk_read_luts(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
 	if (!crtc_state->gamma_enable)
 		return;
 
 	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
-		crtc_state->hw.gamma_lut = ilk_read_lut_8(crtc_state);
+		crtc_state->hw.gamma_lut = ilk_read_lut_8(crtc);
 	else
-		crtc_state->hw.gamma_lut = glk_read_lut_10(crtc_state, PAL_PREC_INDEX_VALUE(0));
+		crtc_state->hw.gamma_lut = glk_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
 }
 
 void intel_color_init(struct intel_crtc *crtc)
