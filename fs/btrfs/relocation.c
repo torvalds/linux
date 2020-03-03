@@ -268,37 +268,6 @@ static struct btrfs_backref_node *walk_down_backref(
 	*index = 0;
 	return NULL;
 }
-
-static void unlock_node_buffer(struct btrfs_backref_node *node)
-{
-	if (node->locked) {
-		btrfs_tree_unlock(node->eb);
-		node->locked = 0;
-	}
-}
-
-static void drop_node_buffer(struct btrfs_backref_node *node)
-{
-	if (node->eb) {
-		unlock_node_buffer(node);
-		free_extent_buffer(node->eb);
-		node->eb = NULL;
-	}
-}
-
-static void drop_backref_node(struct btrfs_backref_cache *tree,
-			      struct btrfs_backref_node *node)
-{
-	BUG_ON(!list_empty(&node->upper));
-
-	drop_node_buffer(node);
-	list_del(&node->list);
-	list_del(&node->lower);
-	if (!RB_EMPTY_NODE(&node->rb_node))
-		rb_erase(&node->rb_node, &tree->rb_root);
-	btrfs_backref_free_node(tree, node);
-}
-
 /*
  * remove a backref node from the backref cache
  */
@@ -322,7 +291,7 @@ static void remove_backref_node(struct btrfs_backref_cache *cache,
 
 		if (RB_EMPTY_NODE(&upper->rb_node)) {
 			BUG_ON(!list_empty(&node->upper));
-			drop_backref_node(cache, node);
+			btrfs_backref_drop_node(cache, node);
 			node = upper;
 			node->lowest = 1;
 			continue;
@@ -337,7 +306,7 @@ static void remove_backref_node(struct btrfs_backref_cache *cache,
 		}
 	}
 
-	drop_backref_node(cache, node);
+	btrfs_backref_drop_node(cache, node);
 }
 
 static void update_backref_node(struct btrfs_backref_cache *cache,
@@ -2859,7 +2828,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 				if (node->eb->start == bytenr)
 					goto next;
 			}
-			drop_node_buffer(upper);
+			btrfs_backref_drop_node_buffer(upper);
 		}
 
 		if (!upper->eb) {
@@ -2958,15 +2927,15 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		}
 next:
 		if (!upper->pending)
-			drop_node_buffer(upper);
+			btrfs_backref_drop_node_buffer(upper);
 		else
-			unlock_node_buffer(upper);
+			btrfs_backref_unlock_node_buffer(upper);
 		if (err)
 			break;
 	}
 
 	if (!err && node->pending) {
-		drop_node_buffer(node);
+		btrfs_backref_drop_node_buffer(node);
 		list_move_tail(&node->list, &rc->backref_cache.changed);
 		node->pending = 0;
 	}
@@ -4591,7 +4560,7 @@ int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
 		BUG_ON(node->bytenr != buf->start &&
 		       node->new_bytenr != buf->start);
 
-		drop_node_buffer(node);
+		btrfs_backref_drop_node_buffer(node);
 		atomic_inc(&cow->refs);
 		node->eb = cow;
 		node->new_bytenr = cow->start;

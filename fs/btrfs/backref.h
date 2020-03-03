@@ -311,4 +311,43 @@ static inline void btrfs_backref_free_edge(struct btrfs_backref_cache *cache,
 	}
 }
 
+static inline void btrfs_backref_unlock_node_buffer(
+		struct btrfs_backref_node *node)
+{
+	if (node->locked) {
+		btrfs_tree_unlock(node->eb);
+		node->locked = 0;
+	}
+}
+
+static inline void btrfs_backref_drop_node_buffer(
+		struct btrfs_backref_node *node)
+{
+	if (node->eb) {
+		btrfs_backref_unlock_node_buffer(node);
+		free_extent_buffer(node->eb);
+		node->eb = NULL;
+	}
+}
+
+/*
+ * Drop the backref node from cache without cleaning up its children
+ * edges.
+ *
+ * This can only be called on node without parent edges.
+ * The children edges are still kept as is.
+ */
+static inline void btrfs_backref_drop_node(struct btrfs_backref_cache *tree,
+					   struct btrfs_backref_node *node)
+{
+	BUG_ON(!list_empty(&node->upper));
+
+	btrfs_backref_drop_node_buffer(node);
+	list_del(&node->list);
+	list_del(&node->lower);
+	if (!RB_EMPTY_NODE(&node->rb_node))
+		rb_erase(&node->rb_node, &tree->rb_root);
+	btrfs_backref_free_node(tree, node);
+}
+
 #endif
