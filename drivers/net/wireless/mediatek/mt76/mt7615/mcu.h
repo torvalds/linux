@@ -45,6 +45,62 @@ enum {
 	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
 };
 
+enum {
+    MT_SKU_CCK_1_2 = 0,
+    MT_SKU_CCK_55_11,
+    MT_SKU_OFDM_6_9,
+    MT_SKU_OFDM_12_18,
+    MT_SKU_OFDM_24_36,
+    MT_SKU_OFDM_48,
+    MT_SKU_OFDM_54,
+    MT_SKU_HT20_0_8,
+    MT_SKU_HT20_32,
+    MT_SKU_HT20_1_2_9_10,
+    MT_SKU_HT20_3_4_11_12,
+    MT_SKU_HT20_5_13,
+    MT_SKU_HT20_6_14,
+    MT_SKU_HT20_7_15,
+    MT_SKU_HT40_0_8,
+    MT_SKU_HT40_32,
+    MT_SKU_HT40_1_2_9_10,
+    MT_SKU_HT40_3_4_11_12,
+    MT_SKU_HT40_5_13,
+    MT_SKU_HT40_6_14,
+    MT_SKU_HT40_7_15,
+    MT_SKU_VHT20_0,
+    MT_SKU_VHT20_1_2,
+    MT_SKU_VHT20_3_4,
+    MT_SKU_VHT20_5_6,
+    MT_SKU_VHT20_7,
+    MT_SKU_VHT20_8,
+    MT_SKU_VHT20_9,
+    MT_SKU_VHT40_0,
+    MT_SKU_VHT40_1_2,
+    MT_SKU_VHT40_3_4,
+    MT_SKU_VHT40_5_6,
+    MT_SKU_VHT40_7,
+    MT_SKU_VHT40_8,
+    MT_SKU_VHT40_9,
+    MT_SKU_VHT80_0,
+    MT_SKU_VHT80_1_2,
+    MT_SKU_VHT80_3_4,
+    MT_SKU_VHT80_5_6,
+    MT_SKU_VHT80_7,
+    MT_SKU_VHT80_8,
+    MT_SKU_VHT80_9,
+    MT_SKU_VHT160_0,
+    MT_SKU_VHT160_1_2,
+    MT_SKU_VHT160_3_4,
+    MT_SKU_VHT160_5_6,
+    MT_SKU_VHT160_7,
+    MT_SKU_VHT160_8,
+    MT_SKU_VHT160_9,
+    MT_SKU_1SS_DELTA,
+    MT_SKU_2SS_DELTA,
+    MT_SKU_3SS_DELTA,
+    MT_SKU_4SS_DELTA,
+};
+
 struct mt7615_mcu_rxd {
 	__le32 rxd[4];
 
@@ -58,6 +114,52 @@ struct mt7615_mcu_rxd {
 	u8 ext_eid;
 	u8 __rsv1[2];
 	u8 s2d_index;
+};
+
+struct mt7615_mcu_rdd_report {
+	struct mt7615_mcu_rxd rxd;
+
+	u8 idx;
+	u8 long_detected;
+	u8 constant_prf_detected;
+	u8 staggered_prf_detected;
+	u8 radar_type_idx;
+	u8 periodic_pulse_num;
+	u8 long_pulse_num;
+	u8 hw_pulse_num;
+
+	u8 out_lpn;
+	u8 out_spn;
+	u8 out_crpn;
+	u8 out_crpw;
+	u8 out_crbn;
+	u8 out_stgpn;
+	u8 out_stgpw;
+
+	u8 _rsv[2];
+
+	__le32 out_pri_const;
+	__le32 out_pri_stg[3];
+
+	struct {
+		__le32 start;
+		__le16 pulse_width;
+		__le16 pulse_power;
+	} long_pulse[32];
+
+	struct {
+		__le32 start;
+		__le16 pulse_width;
+		__le16 pulse_power;
+	} periodic_pulse[32];
+
+	struct {
+		__le32 start;
+		__le16 pulse_width;
+		__le16 pulse_power;
+		u8 sc_pass;
+		u8 sw_reset;
+	} hw_pulse[32];
 };
 
 #define MCU_PQ_ID(p, q)		(((p) << 15) | ((q) << 10))
@@ -93,6 +195,7 @@ enum {
 	MCU_EXT_CMD_PM_STATE_CTRL = 0x07,
 	MCU_EXT_CMD_CHANNEL_SWITCH = 0x08,
 	MCU_EXT_CMD_SET_TX_POWER_CTRL = 0x11,
+	MCU_EXT_CMD_FW_LOG_2_HOST = 0x13,
 	MCU_EXT_CMD_EFUSE_BUFFER_MODE = 0x21,
 	MCU_EXT_CMD_STA_REC_UPDATE = 0x25,
 	MCU_EXT_CMD_BSS_INFO_UPDATE = 0x26,
@@ -102,9 +205,12 @@ enum {
 	MCU_EXT_CMD_WTBL_UPDATE = 0x32,
 	MCU_EXT_CMD_SET_RDD_CTRL = 0x3a,
 	MCU_EXT_CMD_PROTECT_CTRL = 0x3e,
+	MCU_EXT_CMD_DBDC_CTRL = 0x45,
 	MCU_EXT_CMD_MAC_INIT_CTRL = 0x46,
 	MCU_EXT_CMD_BCN_OFFLOAD = 0x49,
 	MCU_EXT_CMD_SET_RX_PATH = 0x4e,
+	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
+	MCU_EXT_CMD_SET_RDD_TH = 0x7c,
 	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
 };
 
@@ -154,6 +260,18 @@ enum {
 enum {
 	DEV_INFO_ACTIVE,
 	DEV_INFO_MAX_NUM
+};
+
+enum {
+	DBDC_TYPE_WMM,
+	DBDC_TYPE_MGMT,
+	DBDC_TYPE_BSS,
+	DBDC_TYPE_MBSS,
+	DBDC_TYPE_REPEATER,
+	DBDC_TYPE_MU,
+	DBDC_TYPE_BF,
+	DBDC_TYPE_PTA,
+	__DBDC_TYPE_MAX,
 };
 
 struct bss_info_omac {
@@ -447,9 +565,10 @@ struct sta_rec_ba {
 	__le16 winsize;
 } __packed;
 
-#define MT7615_STA_REC_UPDATE_MAX_SIZE (sizeof(struct sta_rec_basic) + \
-					sizeof(struct sta_rec_ht) + \
-					sizeof(struct sta_rec_vht))
+struct sta_rec_wtbl {
+	__le16 tag;
+	__le16 len;
+} __packed;
 
 enum {
 	STA_REC_BASIC,
@@ -464,6 +583,7 @@ enum {
 	STA_REC_HT,
 	STA_REC_VHT,
 	STA_REC_APPS,
+	STA_REC_WTBL = 13,
 	STA_REC_MAX_NUM
 };
 
