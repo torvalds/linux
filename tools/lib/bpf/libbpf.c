@@ -6931,6 +6931,8 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 struct bpf_link {
 	int (*detach)(struct bpf_link *link);
 	int (*destroy)(struct bpf_link *link);
+	char *pin_path;		/* NULL, if not pinned */
+	int fd;			/* hook FD, -1 if not applicable */
 	bool disconnected;
 };
 
@@ -6960,26 +6962,109 @@ int bpf_link__destroy(struct bpf_link *link)
 		err = link->detach(link);
 	if (link->destroy)
 		link->destroy(link);
+	if (link->pin_path)
+		free(link->pin_path);
 	free(link);
 
 	return err;
 }
 
-struct bpf_link_fd {
-	struct bpf_link link; /* has to be at the top of struct */
-	int fd; /* hook FD */
-};
+int bpf_link__fd(const struct bpf_link *link)
+{
+	return link->fd;
+}
+
+const char *bpf_link__pin_path(const struct bpf_link *link)
+{
+	return link->pin_path;
+}
+
+static int bpf_link__detach_fd(struct bpf_link *link)
+{
+	return close(link->fd);
+}
+
+struct bpf_link *bpf_link__open(const char *path)
+{
+	struct bpf_link *link;
+	int fd;
+
+	fd = bpf_obj_get(path);
+	if (fd < 0) {
+		fd = -errno;
+		pr_warn("failed to open link at %s: %d\n", path, fd);
+		return ERR_PTR(fd);
+	}
+
+	link = calloc(1, sizeof(*link));
+	if (!link) {
+		close(fd);
+		return ERR_PTR(-ENOMEM);
+	}
+	link->detach = &bpf_link__detach_fd;
+	link->fd = fd;
+
+	link->pin_path = strdup(path);
+	if (!link->pin_path) {
+		bpf_link__destroy(link);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	return link;
+}
+
+int bpf_link__pin(struct bpf_link *link, const char *path)
+{
+	int err;
+
+	if (link->pin_path)
+		return -EBUSY;
+	err = make_parent_dir(path);
+	if (err)
+		return err;
+	err = check_path(path);
+	if (err)
+		return err;
+
+	link->pin_path = strdup(path);
+	if (!link->pin_path)
+		return -ENOMEM;
+
+	if (bpf_obj_pin(link->fd, link->pin_path)) {
+		err = -errno;
+		zfree(&link->pin_path);
+		return err;
+	}
+
+	pr_debug("link fd=%d: pinned at %s\n", link->fd, link->pin_path);
+	return 0;
+}
+
+int bpf_link__unpin(struct bpf_link *link)
+{
+	int err;
+
+	if (!link->pin_path)
+		return -EINVAL;
+
+	err = unlink(link->pin_path);
+	if (err != 0)
+		return -errno;
+
+	pr_debug("link fd=%d: unpinned from %s\n", link->fd, link->pin_path);
+	zfree(&link->pin_path);
+	return 0;
+}
 
 static int bpf_link__detach_perf_event(struct bpf_link *link)
 {
-	struct bpf_link_fd *l = (void *)link;
 	int err;
 
-	err = ioctl(l->fd, PERF_EVENT_IOC_DISABLE, 0);
+	err = ioctl(link->fd, PERF_EVENT_IOC_DISABLE, 0);
 	if (err)
 		err = -errno;
 
-	close(l->fd);
+	close(link->fd);
 	return err;
 }
 
@@ -6987,7 +7072,7 @@ struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog,
 						int pfd)
 {
 	char errmsg[STRERR_BUFSIZE];
-	struct bpf_link_fd *link;
+	struct bpf_link *link;
 	int prog_fd, err;
 
 	if (pfd < 0) {
@@ -7005,7 +7090,7 @@ struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog,
 	link = calloc(1, sizeof(*link));
 	if (!link)
 		return ERR_PTR(-ENOMEM);
-	link->link.detach = &bpf_link__detach_perf_event;
+	link->detach = &bpf_link__detach_perf_event;
 	link->fd = pfd;
 
 	if (ioctl(pfd, PERF_EVENT_IOC_SET_BPF, prog_fd) < 0) {
@@ -7024,7 +7109,7 @@ struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog,
 			   libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
 		return ERR_PTR(err);
 	}
-	return (struct bpf_link *)link;
+	return link;
 }
 
 /*
@@ -7312,18 +7397,11 @@ out:
 	return link;
 }
 
-static int bpf_link__detach_fd(struct bpf_link *link)
-{
-	struct bpf_link_fd *l = (void *)link;
-
-	return close(l->fd);
-}
-
 struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 						    const char *tp_name)
 {
 	char errmsg[STRERR_BUFSIZE];
-	struct bpf_link_fd *link;
+	struct bpf_link *link;
 	int prog_fd, pfd;
 
 	prog_fd = bpf_program__fd(prog);
@@ -7336,7 +7414,7 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 	link = calloc(1, sizeof(*link));
 	if (!link)
 		return ERR_PTR(-ENOMEM);
-	link->link.detach = &bpf_link__detach_fd;
+	link->detach = &bpf_link__detach_fd;
 
 	pfd = bpf_raw_tracepoint_open(tp_name, prog_fd);
 	if (pfd < 0) {
@@ -7348,7 +7426,7 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 		return ERR_PTR(pfd);
 	}
 	link->fd = pfd;
-	return (struct bpf_link *)link;
+	return link;
 }
 
 static struct bpf_link *attach_raw_tp(const struct bpf_sec_def *sec,
@@ -7362,7 +7440,7 @@ static struct bpf_link *attach_raw_tp(const struct bpf_sec_def *sec,
 struct bpf_link *bpf_program__attach_trace(struct bpf_program *prog)
 {
 	char errmsg[STRERR_BUFSIZE];
-	struct bpf_link_fd *link;
+	struct bpf_link *link;
 	int prog_fd, pfd;
 
 	prog_fd = bpf_program__fd(prog);
@@ -7375,7 +7453,7 @@ struct bpf_link *bpf_program__attach_trace(struct bpf_program *prog)
 	link = calloc(1, sizeof(*link));
 	if (!link)
 		return ERR_PTR(-ENOMEM);
-	link->link.detach = &bpf_link__detach_fd;
+	link->detach = &bpf_link__detach_fd;
 
 	pfd = bpf_raw_tracepoint_open(NULL, prog_fd);
 	if (pfd < 0) {
@@ -7409,10 +7487,9 @@ struct bpf_link *bpf_program__attach(struct bpf_program *prog)
 
 static int bpf_link__detach_struct_ops(struct bpf_link *link)
 {
-	struct bpf_link_fd *l = (void *)link;
 	__u32 zero = 0;
 
-	if (bpf_map_delete_elem(l->fd, &zero))
+	if (bpf_map_delete_elem(link->fd, &zero))
 		return -errno;
 
 	return 0;
@@ -7421,7 +7498,7 @@ static int bpf_link__detach_struct_ops(struct bpf_link *link)
 struct bpf_link *bpf_map__attach_struct_ops(struct bpf_map *map)
 {
 	struct bpf_struct_ops *st_ops;
-	struct bpf_link_fd *link;
+	struct bpf_link *link;
 	__u32 i, zero = 0;
 	int err;
 
@@ -7453,10 +7530,10 @@ struct bpf_link *bpf_map__attach_struct_ops(struct bpf_map *map)
 		return ERR_PTR(err);
 	}
 
-	link->link.detach = bpf_link__detach_struct_ops;
+	link->detach = bpf_link__detach_struct_ops;
 	link->fd = map->fd;
 
-	return (struct bpf_link *)link;
+	return link;
 }
 
 enum bpf_perf_event_ret
