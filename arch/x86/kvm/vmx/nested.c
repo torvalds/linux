@@ -2582,9 +2582,19 @@ static bool valid_ept_address(struct kvm_vcpu *vcpu, u64 address)
 		return false;
 	}
 
-	/* only 4 levels page-walk length are valid */
-	if (CC((address & VMX_EPTP_PWL_MASK) != VMX_EPTP_PWL_4))
+	/* Page-walk levels validity. */
+	switch (address & VMX_EPTP_PWL_MASK) {
+	case VMX_EPTP_PWL_5:
+		if (CC(!(vmx->nested.msrs.ept_caps & VMX_EPT_PAGE_WALK_5_BIT)))
+			return false;
+		break;
+	case VMX_EPTP_PWL_4:
+		if (CC(!(vmx->nested.msrs.ept_caps & VMX_EPT_PAGE_WALK_4_BIT)))
+			return false;
+		break;
+	default:
 		return false;
+	}
 
 	/* Reserved bits should not be set */
 	if (CC(address >> maxphyaddr || ((address >> 7) & 0x1f)))
@@ -6119,8 +6129,11 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps)
 		/* nested EPT: emulate EPT also to L1 */
 		msrs->secondary_ctls_high |=
 			SECONDARY_EXEC_ENABLE_EPT;
-		msrs->ept_caps = VMX_EPT_PAGE_WALK_4_BIT |
-			 VMX_EPTP_WB_BIT | VMX_EPT_INVEPT_BIT;
+		msrs->ept_caps =
+			VMX_EPT_PAGE_WALK_4_BIT |
+			VMX_EPT_PAGE_WALK_5_BIT |
+			VMX_EPTP_WB_BIT |
+			VMX_EPT_INVEPT_BIT;
 		if (cpu_has_vmx_ept_execute_only())
 			msrs->ept_caps |=
 				VMX_EPT_EXECUTE_ONLY_BIT;

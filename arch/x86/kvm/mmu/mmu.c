@@ -5008,14 +5008,14 @@ EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
 
 static union kvm_mmu_role
 kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
-				   bool execonly)
+				   bool execonly, u8 level)
 {
 	union kvm_mmu_role role = {0};
 
 	/* SMM flag is inherited from root_mmu */
 	role.base.smm = vcpu->arch.root_mmu.mmu_role.base.smm;
 
-	role.base.level = PT64_ROOT_4LEVEL;
+	role.base.level = level;
 	role.base.gpte_is_8_bytes = true;
 	role.base.direct = false;
 	role.base.ad_disabled = !accessed_dirty;
@@ -5039,16 +5039,17 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 			     bool accessed_dirty, gpa_t new_eptp)
 {
 	struct kvm_mmu *context = vcpu->arch.mmu;
+	u8 level = vmx_eptp_page_walk_level(new_eptp);
 	union kvm_mmu_role new_role =
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty,
-						   execonly);
+						   execonly, level);
 
 	__kvm_mmu_new_cr3(vcpu, new_eptp, new_role.base, false);
 
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;
 
-	context->shadow_root_level = PT64_ROOT_4LEVEL;
+	context->shadow_root_level = level;
 
 	context->nx = true;
 	context->ept_ad = accessed_dirty;
@@ -5057,7 +5058,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	context->sync_page = ept_sync_page;
 	context->invlpg = ept_invlpg;
 	context->update_pte = ept_update_pte;
-	context->root_level = PT64_ROOT_4LEVEL;
+	context->root_level = level;
 	context->direct_map = false;
 	context->mmu_role.as_u64 = new_role.as_u64;
 
