@@ -738,7 +738,7 @@ struct mlx5_ifc_flow_table_eswitch_cap_bits {
 	u8      flow_source[0x1];
 	u8      reserved_at_18[0x2];
 	u8      multi_fdb_encap[0x1];
-	u8      reserved_at_1b[0x1];
+	u8      egress_acl_forward_to_vport[0x1];
 	u8      fdb_multi_path_to_table[0x1];
 	u8      reserved_at_1d[0x3];
 
