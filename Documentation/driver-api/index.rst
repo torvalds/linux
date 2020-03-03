@@ -80,6 +80,7 @@ available subsections can be seen below.
    isa
    isapnp
    io-mapping
+   io_ordering
    generic-counter
    lightnvm-pblk
    memory-devices/index
