@@ -393,7 +393,7 @@ int rvu_mbox_handler_nix_bp_enable(struct rvu *rvu,
 
 	for (chan = chan_base; chan < (chan_base + req->chan_cnt); chan++) {
 		if (bpid < 0) {
-			dev_warn(rvu->dev, "Fail to enable backpessure\n");
+			dev_warn(rvu->dev, "Fail to enable backpressure\n");
 			return -EINVAL;
 		}
 
