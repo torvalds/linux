@@ -949,7 +949,7 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 
 	ret = venus_pm_acquire_core(inst);
 	if (ret)
-		return ret;
+		goto error;
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		ret = vdec_start_capture(inst);
