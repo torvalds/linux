@@ -311,8 +311,6 @@ out:
 
 static void label_destroy(struct aa_label *label)
 {
-	struct aa_label *tmp;
-
 	AA_BUG(!label);
 
 	if (!label_isprofile(label)) {
@@ -332,10 +330,6 @@ static void label_destroy(struct aa_label *label)
 		rcu_assign_pointer(label->proxy->label, NULL);
 
 	aa_free_secid(label->secid);
-
-	tmp = rcu_dereference_protected(label->proxy->label, true);
-	if (tmp == label)
-		rcu_assign_pointer(label->proxy->label, NULL);
 
 	aa_put_proxy(label->proxy);
 	label->proxy = (struct aa_proxy *) PROXY_POISON + 1;
