@@ -1179,7 +1179,6 @@ int nfs_get_tree_common(struct fs_context *fc)
 	struct super_block *s;
 	int (*compare_super)(struct super_block *, struct fs_context *) = nfs_compare_super;
 	struct nfs_server *server = ctx->server;
-	unsigned long kflags = 0, kflags_out = 0;
 	int error;
 
 	ctx->server = NULL;
@@ -1239,26 +1238,6 @@ int nfs_get_tree_common(struct fs_context *fc)
 		goto error_splat_super;
 	}
 
-	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL)
-		kflags |= SECURITY_LSM_NATIVE_LABELS;
-	if (ctx->clone_data.sb) {
-		if (d_inode(fc->root)->i_fop != &nfs_dir_operations) {
-			error = -ESTALE;
-			goto error_splat_root;
-		}
-		/* clone any lsm security options from the parent to the new sb */
-		error = security_sb_clone_mnt_opts(ctx->clone_data.sb, s, kflags,
-				&kflags_out);
-	} else {
-		error = security_sb_set_mnt_opts(s, fc->security,
-							kflags, &kflags_out);
-	}
-	if (error)
-		goto error_splat_root;
-	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL &&
-		!(kflags_out & SECURITY_LSM_NATIVE_LABELS))
-		NFS_SB(s)->caps &= ~NFS_CAP_SECURITY_LABEL;
-
 	s->s_flags |= SB_ACTIVE;
 	error = 0;
 
@@ -1268,10 +1247,6 @@ out:
 out_err_nosb:
 	nfs_free_server(server);
 	goto out;
-
-error_splat_root:
-	dput(fc->root);
-	fc->root = NULL;
 error_splat_super:
 	deactivate_locked_super(s);
 	goto out;
