@@ -1602,12 +1602,9 @@ static const char *pick_link(struct nameidata *nd, struct path *link,
 	int error;
 
 	if (unlikely(nd->total_link_count++ >= MAXSYMLINKS)) {
-		path_to_nameidata(link, nd);
+		if (!(nd->flags & LOOKUP_RCU))
+			path_put(link);
 		return ERR_PTR(-ELOOP);
-	}
-	if (!(nd->flags & LOOKUP_RCU)) {
-		if (link->mnt == nd->path.mnt)
-			mntget(link->mnt);
 	}
 	error = nd_alloc_stack(nd);
 	if (unlikely(error)) {
@@ -1713,10 +1710,13 @@ static const char *step_into(struct nameidata *nd, int flags,
 		nd->seq = seq;
 		return NULL;
 	}
-	/* make sure that d_is_symlink above matches inode */
 	if (nd->flags & LOOKUP_RCU) {
+		/* make sure that d_is_symlink above matches inode */
 		if (read_seqcount_retry(&path.dentry->d_seq, seq))
 			return ERR_PTR(-ECHILD);
+	} else {
+		if (path.mnt == nd->path.mnt)
+			mntget(path.mnt);
 	}
 	return pick_link(nd, &path, inode, seq, flags);
 }
