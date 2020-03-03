@@ -15,6 +15,7 @@
 #include <linux/pkt_cls.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/rhashtable.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
@@ -24,12 +25,325 @@
 #include <uapi/linux/tc_act/tc_ct.h>
 #include <net/tc_act/tc_ct.h>
 
+#include <net/netfilter/nf_flow_table.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <uapi/linux/netfilter/nf_nat.h>
+
+static struct workqueue_struct *act_ct_wq;
+static struct rhashtable zones_ht;
+static DEFINE_SPINLOCK(zones_lock);
+
+struct tcf_ct_flow_table {
+	struct rhash_head node; /* In zones tables */
+
+	struct rcu_work rwork;
+	struct nf_flowtable nf_ft;
+	u16 zone;
+	u32 ref;
+
+	bool dying;
+};
+
+static const struct rhashtable_params zones_params = {
+	.head_offset = offsetof(struct tcf_ct_flow_table, node),
+	.key_offset = offsetof(struct tcf_ct_flow_table, zone),
+	.key_len = sizeof_field(struct tcf_ct_flow_table, zone),
+	.automatic_shrinking = true,
+};
+
+static struct nf_flowtable_type flowtable_ct = {
+	.owner		= THIS_MODULE,
+};
+
+static int tcf_ct_flow_table_get(struct tcf_ct_params *params)
+{
+	struct tcf_ct_flow_table *ct_ft;
+	int err = -ENOMEM;
+
+	spin_lock_bh(&zones_lock);
+	ct_ft = rhashtable_lookup_fast(&zones_ht, &params->zone, zones_params);
+	if (ct_ft)
+		goto take_ref;
+
+	ct_ft = kzalloc(sizeof(*ct_ft), GFP_ATOMIC);
+	if (!ct_ft)
+		goto err_alloc;
+
+	ct_ft->zone = params->zone;
+	err = rhashtable_insert_fast(&zones_ht, &ct_ft->node, zones_params);
+	if (err)
+		goto err_insert;
+
+	ct_ft->nf_ft.type = &flowtable_ct;
+	err = nf_flow_table_init(&ct_ft->nf_ft);
+	if (err)
+		goto err_init;
+
+	__module_get(THIS_MODULE);
+take_ref:
+	params->ct_ft = ct_ft;
+	ct_ft->ref++;
+	spin_unlock_bh(&zones_lock);
+
+	return 0;
+
+err_init:
+	rhashtable_remove_fast(&zones_ht, &ct_ft->node, zones_params);
+err_insert:
+	kfree(ct_ft);
+err_alloc:
+	spin_unlock_bh(&zones_lock);
+	return err;
+}
+
+static void tcf_ct_flow_table_cleanup_work(struct work_struct *work)
+{
+	struct tcf_ct_flow_table *ct_ft;
+
+	ct_ft = container_of(to_rcu_work(work), struct tcf_ct_flow_table,
+			     rwork);
+	nf_flow_table_free(&ct_ft->nf_ft);
+	kfree(ct_ft);
+
+	module_put(THIS_MODULE);
+}
+
+static void tcf_ct_flow_table_put(struct tcf_ct_params *params)
+{
+	struct tcf_ct_flow_table *ct_ft = params->ct_ft;
+
+	spin_lock_bh(&zones_lock);
+	if (--params->ct_ft->ref == 0) {
+		rhashtable_remove_fast(&zones_ht, &ct_ft->node, zones_params);
+		INIT_RCU_WORK(&ct_ft->rwork, tcf_ct_flow_table_cleanup_work);
+		queue_rcu_work(act_ct_wq, &ct_ft->rwork);
+	}
+	spin_unlock_bh(&zones_lock);
+}
+
+static void tcf_ct_flow_table_add(struct tcf_ct_flow_table *ct_ft,
+				  struct nf_conn *ct,
+				  bool tcp)
+{
+	struct flow_offload *entry;
+	int err;
+
+	if (test_and_set_bit(IPS_OFFLOAD_BIT, &ct->status))
+		return;
+
+	entry = flow_offload_alloc(ct);
+	if (!entry) {
+		WARN_ON_ONCE(1);
+		goto err_alloc;
+	}
+
+	if (tcp) {
+		ct->proto.tcp.seen[0].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+		ct->proto.tcp.seen[1].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+	}
+
+	err = flow_offload_add(&ct_ft->nf_ft, entry);
+	if (err)
+		goto err_add;
+
+	return;
+
+err_add:
+	flow_offload_free(entry);
+err_alloc:
+	clear_bit(IPS_OFFLOAD_BIT, &ct->status);
+}
+
+static void tcf_ct_flow_table_process_conn(struct tcf_ct_flow_table *ct_ft,
+					   struct nf_conn *ct,
+					   enum ip_conntrack_info ctinfo)
+{
+	bool tcp = false;
+
+	if (ctinfo != IP_CT_ESTABLISHED && ctinfo != IP_CT_ESTABLISHED_REPLY)
+		return;
+
+	switch (nf_ct_protonum(ct)) {
+	case IPPROTO_TCP:
+		tcp = true;
+		if (ct->proto.tcp.state != TCP_CONNTRACK_ESTABLISHED)
+			return;
+		break;
+	case IPPROTO_UDP:
+		break;
+	default:
+		return;
+	}
+
+	if (nf_ct_ext_exist(ct, NF_CT_EXT_HELPER) ||
+	    ct->status & IPS_SEQ_ADJUST)
+		return;
+
+	tcf_ct_flow_table_add(ct_ft, ct, tcp);
+}
+
+static bool
+tcf_ct_flow_table_fill_tuple_ipv4(struct sk_buff *skb,
+				  struct flow_offload_tuple *tuple)
+{
+	struct flow_ports *ports;
+	unsigned int thoff;
+	struct iphdr *iph;
+
+	if (!pskb_may_pull(skb, sizeof(*iph)))
+		return false;
+
+	iph = ip_hdr(skb);
+	thoff = iph->ihl * 4;
+
+	if (ip_is_fragment(iph) ||
+	    unlikely(thoff != sizeof(struct iphdr)))
+		return false;
+
+	if (iph->protocol != IPPROTO_TCP &&
+	    iph->protocol != IPPROTO_UDP)
+		return false;
+
+	if (iph->ttl <= 1)
+		return false;
+
+	if (!pskb_may_pull(skb, thoff + sizeof(*ports)))
+		return false;
+
+	ports = (struct flow_ports *)(skb_network_header(skb) + thoff);
+
+	tuple->src_v4.s_addr = iph->saddr;
+	tuple->dst_v4.s_addr = iph->daddr;
+	tuple->src_port = ports->source;
+	tuple->dst_port = ports->dest;
+	tuple->l3proto = AF_INET;
+	tuple->l4proto = iph->protocol;
+
+	return true;
+}
+
+static bool
+tcf_ct_flow_table_fill_tuple_ipv6(struct sk_buff *skb,
+				  struct flow_offload_tuple *tuple)
+{
+	struct flow_ports *ports;
+	struct ipv6hdr *ip6h;
+	unsigned int thoff;
+
+	if (!pskb_may_pull(skb, sizeof(*ip6h)))
+		return false;
+
+	ip6h = ipv6_hdr(skb);
+
+	if (ip6h->nexthdr != IPPROTO_TCP &&
+	    ip6h->nexthdr != IPPROTO_UDP)
+		return false;
+
+	if (ip6h->hop_limit <= 1)
+		return false;
+
+	thoff = sizeof(*ip6h);
+	if (!pskb_may_pull(skb, thoff + sizeof(*ports)))
+		return false;
+
+	ports = (struct flow_ports *)(skb_network_header(skb) + thoff);
+
+	tuple->src_v6 = ip6h->saddr;
+	tuple->dst_v6 = ip6h->daddr;
+	tuple->src_port = ports->source;
+	tuple->dst_port = ports->dest;
+	tuple->l3proto = AF_INET6;
+	tuple->l4proto = ip6h->nexthdr;
+
+	return true;
+}
+
+static bool tcf_ct_flow_table_check_tcp(struct flow_offload *flow,
+					struct sk_buff *skb,
+					unsigned int thoff)
+{
+	struct tcphdr *tcph;
+
+	if (!pskb_may_pull(skb, thoff + sizeof(*tcph)))
+		return false;
+
+	tcph = (void *)(skb_network_header(skb) + thoff);
+	if (unlikely(tcph->fin || tcph->rst)) {
+		flow_offload_teardown(flow);
+		return false;
+	}
+
+	return true;
+}
+
+static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
+				     struct sk_buff *skb,
+				     u8 family)
+{
+	struct nf_flowtable *nf_ft = &p->ct_ft->nf_ft;
+	struct flow_offload_tuple_rhash *tuplehash;
+	struct flow_offload_tuple tuple = {};
+	enum ip_conntrack_info ctinfo;
+	struct flow_offload *flow;
+	struct nf_conn *ct;
+	unsigned int thoff;
+	int ip_proto;
+	u8 dir;
+
+	/* Previously seen or loopback */
+	ct = nf_ct_get(skb, &ctinfo);
+	if ((ct && !nf_ct_is_template(ct)) || ctinfo == IP_CT_UNTRACKED)
+		return false;
+
+	switch (family) {
+	case NFPROTO_IPV4:
+		if (!tcf_ct_flow_table_fill_tuple_ipv4(skb, &tuple))
+			return false;
+		break;
+	case NFPROTO_IPV6:
+		if (!tcf_ct_flow_table_fill_tuple_ipv6(skb, &tuple))
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	tuplehash = flow_offload_lookup(nf_ft, &tuple);
+	if (!tuplehash)
+		return false;
+
+	dir = tuplehash->tuple.dir;
+	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
+	ct = flow->ct;
+
+	ctinfo = dir == FLOW_OFFLOAD_DIR_ORIGINAL ? IP_CT_ESTABLISHED :
+						    IP_CT_ESTABLISHED_REPLY;
+
+	thoff = ip_hdr(skb)->ihl * 4;
+	ip_proto = ip_hdr(skb)->protocol;
+	if (ip_proto == IPPROTO_TCP &&
+	    !tcf_ct_flow_table_check_tcp(flow, skb, thoff))
+		return false;
+
+	nf_conntrack_get(&ct->ct_general);
+	nf_ct_set(skb, ct, ctinfo);
+
+	return true;
+}
+
+static int tcf_ct_flow_tables_init(void)
+{
+	return rhashtable_init(&zones_ht, &zones_params);
+}
+
+static void tcf_ct_flow_tables_uninit(void)
+{
+	rhashtable_destroy(&zones_ht);
+}
 
 static struct tc_action_ops act_ct_ops;
 static unsigned int ct_net_id;
@@ -206,6 +520,8 @@ static void tcf_ct_params_free(struct rcu_head *head)
 {
 	struct tcf_ct_params *params = container_of(head,
 						    struct tcf_ct_params, rcu);
+
+	tcf_ct_flow_table_put(params);
 
 	if (params->tmpl)
 		nf_conntrack_put(&params->tmpl->ct_general);
@@ -387,6 +703,7 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	struct nf_hook_state state;
 	int nh_ofs, err, retval;
 	struct tcf_ct_params *p;
+	bool skip_add = false;
 	struct nf_conn *ct;
 	u8 family;
 
@@ -436,6 +753,11 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	 */
 	cached = tcf_ct_skb_nfct_cached(net, skb, p->zone, force);
 	if (!cached) {
+		if (!commit && tcf_ct_flow_table_lookup(p, skb, family)) {
+			skip_add = true;
+			goto do_nat;
+		}
+
 		/* Associate skb with specified zone. */
 		if (tmpl) {
 			ct = nf_ct_get(skb, &ctinfo);
@@ -453,6 +775,7 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 			goto out_push;
 	}
 
+do_nat:
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct)
 		goto out_push;
@@ -470,6 +793,8 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 		 * even if the connection is already confirmed.
 		 */
 		nf_conntrack_confirm(skb);
+	} else if (!skip_add) {
+		tcf_ct_flow_table_process_conn(p->ct_ft, ct, ctinfo);
 	}
 
 out_push:
@@ -730,6 +1055,10 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 	if (err)
 		goto cleanup;
 
+	err = tcf_ct_flow_table_get(params);
+	if (err)
+		goto cleanup;
+
 	spin_lock_bh(&c->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	params = rcu_replace_pointer(c->params, params,
@@ -974,12 +1303,34 @@ static struct pernet_operations ct_net_ops = {
 
 static int __init ct_init_module(void)
 {
-	return tcf_register_action(&act_ct_ops, &ct_net_ops);
+	int err;
+
+	act_ct_wq = alloc_ordered_workqueue("act_ct_workqueue", 0);
+	if (!act_ct_wq)
+		return -ENOMEM;
+
+	err = tcf_ct_flow_tables_init();
+	if (err)
+		goto err_tbl_init;
+
+	err = tcf_register_action(&act_ct_ops, &ct_net_ops);
+	if (err)
+		goto err_register;
+
+	return 0;
+
+err_tbl_init:
+	destroy_workqueue(act_ct_wq);
+err_register:
+	tcf_ct_flow_tables_uninit();
+	return err;
 }
 
 static void __exit ct_cleanup_module(void)
 {
 	tcf_unregister_action(&act_ct_ops, &ct_net_ops);
+	tcf_ct_flow_tables_uninit();
+	destroy_workqueue(act_ct_wq);
 }
 
 module_init(ct_init_module);

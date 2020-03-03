@@ -25,6 +25,8 @@ struct tcf_ct_params {
 	u16 ct_action;
 
 	struct rcu_head rcu;
+
+	struct tcf_ct_flow_table *ct_ft;
 };
 
 struct tcf_ct {
