@@ -79,22 +79,28 @@ static irqreturn_t esparser_isr(int irq, void *dev)
  * Also append a start code 000001ff at the end to trigger
  * the ESPARSER interrupt.
  */
-static u32 esparser_pad_start_code(struct vb2_buffer *vb)
+static u32 esparser_pad_start_code(struct amvdec_core *core, struct vb2_buffer *vb)
 {
 	u32 payload_size = vb2_get_plane_payload(vb, 0);
 	u32 pad_size = 0;
-	u8 *vaddr = vb2_plane_vaddr(vb, 0) + payload_size;
+	u8 *vaddr = vb2_plane_vaddr(vb, 0);
 
 	if (payload_size < ESPARSER_MIN_PACKET_SIZE) {
 		pad_size = ESPARSER_MIN_PACKET_SIZE - payload_size;
-		memset(vaddr, 0, pad_size);
+		memset(vaddr + payload_size, 0, pad_size);
 	}
 
-	memset(vaddr + pad_size, 0, SEARCH_PATTERN_LEN);
-	vaddr[pad_size]     = 0x00;
-	vaddr[pad_size + 1] = 0x00;
-	vaddr[pad_size + 2] = 0x01;
-	vaddr[pad_size + 3] = 0xff;
+	if ((payload_size + pad_size + SEARCH_PATTERN_LEN) >
+						vb2_plane_size(vb, 0)) {
+		dev_warn(core->dev, "%s: unable to pad start code\n", __func__);
+		return pad_size;
+	}
+
+	memset(vaddr + payload_size + pad_size, 0, SEARCH_PATTERN_LEN);
+	vaddr[payload_size + pad_size]     = 0x00;
+	vaddr[payload_size + pad_size + 1] = 0x00;
+	vaddr[payload_size + pad_size + 2] = 0x01;
+	vaddr[payload_size + pad_size + 3] = 0xff;
 
 	return pad_size;
 }
@@ -180,31 +186,27 @@ esparser_queue(struct amvdec_session *sess, struct vb2_v4l2_buffer *vbuf)
 	int ret;
 	struct vb2_buffer *vb = &vbuf->vb2_buf;
 	struct amvdec_core *core = sess->core;
-	struct amvdec_codec_ops *codec_ops = sess->fmt_out->codec_ops;
-	u32 num_dst_bufs = 0;
 	u32 payload_size = vb2_get_plane_payload(vb, 0);
 	dma_addr_t phy = vb2_dma_contig_plane_dma_addr(vb, 0);
 	u32 offset;
 	u32 pad_size;
 
-	if (codec_ops->num_pending_bufs)
-		num_dst_bufs = codec_ops->num_pending_bufs(sess);
-
-	num_dst_bufs += v4l2_m2m_num_dst_bufs_ready(sess->m2m_ctx);
-
-	if (esparser_vififo_get_free_space(sess) < payload_size ||
-	    atomic_read(&sess->esparser_queued_bufs) >= num_dst_bufs)
+	if (esparser_vififo_get_free_space(sess) < payload_size)
 		return -EAGAIN;
 
 	v4l2_m2m_src_buf_remove_by_buf(sess->m2m_ctx, vbuf);
 
 	offset = esparser_get_offset(sess);
 
-	amvdec_add_ts_reorder(sess, vb->timestamp, offset);
-	dev_dbg(core->dev, "esparser: ts = %llu pld_size = %u offset = %08X\n",
-		vb->timestamp, payload_size, offset);
+	amvdec_add_ts(sess, vb->timestamp, vbuf->timecode, offset, vbuf->flags);
+	dev_dbg(core->dev, "esparser: ts = %llu pld_size = %u offset = %08X flags = %08X\n",
+		vb->timestamp, payload_size, offset, vbuf->flags);
 
-	pad_size = esparser_pad_start_code(vb);
+	vbuf->flags = 0;
+	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->sequence = sess->sequence_out++;
+
+	pad_size = esparser_pad_start_code(core, vb);
 	ret = esparser_write_data(core, phy, payload_size + pad_size);
 
 	if (ret <= 0) {
@@ -216,19 +218,7 @@ esparser_queue(struct amvdec_session *sess, struct vb2_v4l2_buffer *vbuf)
 		return 0;
 	}
 
-	/* We need to wait until we parse the first keyframe.
-	 * All buffers prior to the first keyframe must be dropped.
-	 */
-	if (!sess->keyframe_found)
-		usleep_range(1000, 2000);
-
-	if (sess->keyframe_found)
-		atomic_inc(&sess->esparser_queued_bufs);
-	else
-		amvdec_remove_ts(sess, vb->timestamp);
-
-	vbuf->flags = 0;
-	vbuf->field = V4L2_FIELD_NONE;
+	atomic_inc(&sess->esparser_queued_bufs);
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
 
 	return 0;
