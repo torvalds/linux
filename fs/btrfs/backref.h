@@ -8,6 +8,7 @@
 
 #include <linux/btrfs.h>
 #include "ulist.h"
+#include "disk-io.h"
 #include "extent_io.h"
 
 struct inode_fs_paths {
@@ -289,6 +290,25 @@ static inline void btrfs_backref_link_edge(struct btrfs_backref_edge *edge,
 		list_add_tail(&edge->list[LOWER], &lower->upper);
 	if (link_which & LINK_UPPER)
 		list_add_tail(&edge->list[UPPER], &upper->lower);
+}
+
+static inline void btrfs_backref_free_node(struct btrfs_backref_cache *cache,
+					   struct btrfs_backref_node *node)
+{
+	if (node) {
+		cache->nr_nodes--;
+		btrfs_put_root(node->root);
+		kfree(node);
+	}
+}
+
+static inline void btrfs_backref_free_edge(struct btrfs_backref_cache *cache,
+					   struct btrfs_backref_edge *edge)
+{
+	if (edge) {
+		cache->nr_edges--;
+		kfree(edge);
+	}
 }
 
 #endif

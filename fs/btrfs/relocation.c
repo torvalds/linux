@@ -208,26 +208,6 @@ static void backref_cache_cleanup(struct btrfs_backref_cache *cache)
 	ASSERT(!cache->nr_edges);
 }
 
-static void free_backref_node(struct btrfs_backref_cache *cache,
-			      struct btrfs_backref_node *node)
-{
-	if (node) {
-		cache->nr_nodes--;
-		btrfs_put_root(node->root);
-		kfree(node);
-	}
-}
-
-
-static void free_backref_edge(struct btrfs_backref_cache *cache,
-			      struct btrfs_backref_edge *edge)
-{
-	if (edge) {
-		cache->nr_edges--;
-		kfree(edge);
-	}
-}
-
 static void backref_tree_panic(struct rb_node *rb_node, int errno, u64 bytenr)
 {
 
@@ -316,7 +296,7 @@ static void drop_backref_node(struct btrfs_backref_cache *tree,
 	list_del(&node->lower);
 	if (!RB_EMPTY_NODE(&node->rb_node))
 		rb_erase(&node->rb_node, &tree->rb_root);
-	free_backref_node(tree, node);
+	btrfs_backref_free_node(tree, node);
 }
 
 /*
@@ -338,7 +318,7 @@ static void remove_backref_node(struct btrfs_backref_cache *cache,
 		upper = edge->node[UPPER];
 		list_del(&edge->list[LOWER]);
 		list_del(&edge->list[UPPER]);
-		free_backref_edge(cache, edge);
+		btrfs_backref_free_edge(cache, edge);
 
 		if (RB_EMPTY_NODE(&upper->rb_node)) {
 			BUG_ON(!list_empty(&node->upper));
@@ -565,7 +545,7 @@ static int handle_direct_tree_backref(struct btrfs_backref_cache *cache,
 		upper = btrfs_backref_alloc_node(cache, ref_key->offset,
 					   cur->level + 1);
 		if (!upper) {
-			free_backref_edge(cache, edge);
+			btrfs_backref_free_edge(cache, edge);
 			return -ENOMEM;
 		}
 
@@ -686,7 +666,7 @@ static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
 							 lower->level + 1);
 			if (!upper) {
 				btrfs_put_root(root);
-				free_backref_edge(cache, edge);
+				btrfs_backref_free_edge(cache, edge);
 				ret = -ENOMEM;
 				goto out;
 			}
@@ -915,7 +895,7 @@ static int finish_upper_links(struct btrfs_backref_cache *cache,
 		/* Parent is detached, no need to keep any edges */
 		if (upper->detached) {
 			list_del(&edge->list[LOWER]);
-			free_backref_edge(cache, edge);
+			btrfs_backref_free_edge(cache, edge);
 
 			/* Lower node is orphan, queue for cleanup */
 			if (list_empty(&lower->upper))
@@ -1024,7 +1004,7 @@ static bool handle_useless_nodes(struct reloc_control *rc,
 			list_del(&edge->list[UPPER]);
 			list_del(&edge->list[LOWER]);
 			lower = edge->node[LOWER];
-			free_backref_edge(cache, edge);
+			btrfs_backref_free_edge(cache, edge);
 
 			/* Child node is also orphan, queue for cleanup */
 			if (list_empty(&lower->upper))
@@ -1043,7 +1023,7 @@ static bool handle_useless_nodes(struct reloc_control *rc,
 			cur->detached = 1;
 		} else {
 			rb_erase(&cur->rb_node, &cache->rb_root);
-			free_backref_node(cache, cur);
+			btrfs_backref_free_node(cache, cur);
 		}
 	}
 	return ret;
@@ -1141,7 +1121,7 @@ out:
 			list_del(&edge->list[LOWER]);
 			lower = edge->node[LOWER];
 			upper = edge->node[UPPER];
-			free_backref_edge(cache, edge);
+			btrfs_backref_free_edge(cache, edge);
 
 			/*
 			 * Lower is no longer linked to any upper backref nodes
@@ -1168,7 +1148,7 @@ out:
 			list_del_init(&lower->list);
 			if (lower == node)
 				node = NULL;
-			free_backref_node(cache, lower);
+			btrfs_backref_free_node(cache, lower);
 		}
 
 		remove_backref_node(cache, node);
@@ -1265,9 +1245,9 @@ fail:
 		new_edge = list_entry(new_node->lower.next,
 				      struct btrfs_backref_edge, list[UPPER]);
 		list_del(&new_edge->list[UPPER]);
-		free_backref_edge(cache, new_edge);
+		btrfs_backref_free_edge(cache, new_edge);
 	}
-	free_backref_node(cache, new_node);
+	btrfs_backref_free_node(cache, new_node);
 	return -ENOMEM;
 }
 
