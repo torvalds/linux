@@ -732,15 +732,39 @@
 				#size-cells = <1>;
 				ranges = <0 0 0x800000>;
 
-				dispc@1000 {
-					compatible = "ti,dra7-dispc";
-					reg = <0x1000 0x1000>;
-					interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
-					ti,hwmods = "dss_dispc";
-					clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>;
+				target-module@1000 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x1000 0x4>,
+					      <0x1010 0x4>,
+					      <0x1014 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-midle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+							 SYSC_OMAP2_ENAWAKEUP |
+							 SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>;
 					clock-names = "fck";
-					/* CTRL_CORE_SMA_SW_1 */
-					syscon-pol = <&scm_conf 0x534>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x1000 0x1000>;
+
+					dispc@0 {
+						compatible = "ti,dra7-dispc";
+						reg = <0 0x1000>;
+						interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+						ti,hwmods = "dss_dispc";
+						clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>;
+						clock-names = "fck";
+						/* CTRL_CORE_SMA_SW_1 */
+						syscon-pol = <&scm_conf 0x534>;
+					};
 				};
 
 				hdmi: encoder@40000 {
