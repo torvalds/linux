@@ -326,6 +326,7 @@
 	clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
 	clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 	dma-coherent;
+	status = "okay";
 };
 
 &rng {
