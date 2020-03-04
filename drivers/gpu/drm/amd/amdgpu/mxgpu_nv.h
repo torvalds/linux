@@ -59,7 +59,21 @@ int xgpu_nv_mailbox_add_irq_id(struct amdgpu_device *adev);
 int xgpu_nv_mailbox_get_irq(struct amdgpu_device *adev);
 void xgpu_nv_mailbox_put_irq(struct amdgpu_device *adev);
 
-#define NV_MAIBOX_CONTROL_TRN_OFFSET_BYTE (SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF_MAILBOX_CONTROL) * 4)
-#define NV_MAIBOX_CONTROL_RCV_OFFSET_BYTE (SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF_MAILBOX_CONTROL) * 4 + 1)
+#define mmMAILBOX_CONTROL 0xE5E
+
+#define NV_MAIBOX_CONTROL_TRN_OFFSET_BYTE (mmMAILBOX_CONTROL * 4)
+#define NV_MAIBOX_CONTROL_RCV_OFFSET_BYTE (NV_MAIBOX_CONTROL_TRN_OFFSET_BYTE + 1)
+
+#define mmMAILBOX_MSGBUF_TRN_DW0 0xE56
+#define mmMAILBOX_MSGBUF_TRN_DW1 0xE57
+#define mmMAILBOX_MSGBUF_TRN_DW2 0xE58
+#define mmMAILBOX_MSGBUF_TRN_DW3 0xE59
+
+#define mmMAILBOX_MSGBUF_RCV_DW0 0xE5A
+#define mmMAILBOX_MSGBUF_RCV_DW1 0xE5B
+#define mmMAILBOX_MSGBUF_RCV_DW2 0xE5C
+#define mmMAILBOX_MSGBUF_RCV_DW3 0xE5D
+
+#define mmMAILBOX_INT_CNTL 0xE5F
 
 #endif

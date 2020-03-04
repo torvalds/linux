@@ -52,8 +52,7 @@ static void xgpu_nv_mailbox_set_valid(struct amdgpu_device *adev, bool val)
  */
 static enum idh_event xgpu_nv_mailbox_peek_msg(struct amdgpu_device *adev)
 {
-	return RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
-				mmBIF_BX_PF_MAILBOX_MSGBUF_RCV_DW0));
+	return RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW0);
 }
 
 
@@ -62,8 +61,7 @@ static int xgpu_nv_mailbox_rcv_msg(struct amdgpu_device *adev,
 {
 	u32 reg;
 
-	reg = RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
-					     mmBIF_BX_PF_MAILBOX_MSGBUF_RCV_DW0));
+	reg = RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW0);
 	if (reg != event)
 		return -ENOENT;
 
@@ -116,7 +114,6 @@ static int xgpu_nv_poll_msg(struct amdgpu_device *adev, enum idh_event event)
 static void xgpu_nv_mailbox_trans_msg (struct amdgpu_device *adev,
 	      enum idh_request req, u32 data1, u32 data2, u32 data3)
 {
-	u32 reg;
 	int r;
 	uint8_t trn;
 
@@ -135,19 +132,10 @@ static void xgpu_nv_mailbox_trans_msg (struct amdgpu_device *adev,
 		}
 	} while (trn);
 
-	reg = RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
-					     mmBIF_BX_PF_MAILBOX_MSGBUF_TRN_DW0));
-	reg = REG_SET_FIELD(reg, BIF_BX_PF_MAILBOX_MSGBUF_TRN_DW0,
-			    MSGBUF_DATA, req);
-	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF_MAILBOX_MSGBUF_TRN_DW0),
-		      reg);
-	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF_MAILBOX_MSGBUF_TRN_DW1),
-				data1);
-	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF_MAILBOX_MSGBUF_TRN_DW2),
-				data2);
-	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF_MAILBOX_MSGBUF_TRN_DW3),
-				data3);
-
+	WREG32_NO_KIQ(mmMAILBOX_MSGBUF_TRN_DW0, req);
+	WREG32_NO_KIQ(mmMAILBOX_MSGBUF_TRN_DW1, data1);
+	WREG32_NO_KIQ(mmMAILBOX_MSGBUF_TRN_DW2, data2);
+	WREG32_NO_KIQ(mmMAILBOX_MSGBUF_TRN_DW3, data3);
 	xgpu_nv_mailbox_set_valid(adev, true);
 
 	/* start to poll ack */
@@ -192,8 +180,7 @@ static int xgpu_nv_send_access_requests(struct amdgpu_device *adev,
 			if (req == IDH_REQ_GPU_INIT_DATA)
 			{
 				adev->virt.req_init_data_ver =
-					RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
-						mmBIF_BX_PF_MAILBOX_MSGBUF_RCV_DW1));
+					RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW1);
 
 				/* assume V1 in case host doesn't set version number */
 				if (adev->virt.req_init_data_ver < 1)
@@ -204,8 +191,7 @@ static int xgpu_nv_send_access_requests(struct amdgpu_device *adev,
 		/* Retrieve checksum from mailbox2 */
 		if (req == IDH_REQ_GPU_INIT_ACCESS || req == IDH_REQ_GPU_RESET_ACCESS) {
 			adev->virt.fw_reserve.checksum_key =
-				RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
-					mmBIF_BX_PF_MAILBOX_MSGBUF_RCV_DW2));
+				RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW2);
 		}
 	}
 
@@ -256,11 +242,14 @@ static int xgpu_nv_set_mailbox_ack_irq(struct amdgpu_device *adev,
 					unsigned type,
 					enum amdgpu_interrupt_state state)
 {
-	u32 tmp = RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF_MAILBOX_INT_CNTL));
+	u32 tmp = RREG32_NO_KIQ(mmMAILBOX_INT_CNTL);
 
-	tmp = REG_SET_FIELD(tmp, BIF_BX_PF_MAILBOX_INT_CNTL, ACK_INT_EN,
-				(state == AMDGPU_IRQ_STATE_ENABLE) ? 1 : 0);
-	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF_MAILBOX_INT_CNTL), tmp);
+	if (state == AMDGPU_IRQ_STATE_ENABLE)
+		tmp |= 2;
+	else
+		tmp &= ~2;
+
+	WREG32_NO_KIQ(mmMAILBOX_INT_CNTL, tmp);
 
 	return 0;
 }
@@ -312,11 +301,14 @@ static int xgpu_nv_set_mailbox_rcv_irq(struct amdgpu_device *adev,
 				       unsigned type,
 				       enum amdgpu_interrupt_state state)
 {
-	u32 tmp = RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF_MAILBOX_INT_CNTL));
+	u32 tmp = RREG32_NO_KIQ(mmMAILBOX_INT_CNTL);
 
-	tmp = REG_SET_FIELD(tmp, BIF_BX_PF_MAILBOX_INT_CNTL, VALID_INT_EN,
-			    (state == AMDGPU_IRQ_STATE_ENABLE) ? 1 : 0);
-	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF_MAILBOX_INT_CNTL), tmp);
+	if (state == AMDGPU_IRQ_STATE_ENABLE)
+		tmp |= 1;
+	else
+		tmp &= ~1;
+
+	WREG32_NO_KIQ(mmMAILBOX_INT_CNTL, tmp);
 
 	return 0;
 }
