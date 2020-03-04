@@ -38,15 +38,15 @@ struct pie_params {
 
 /**
  * struct pie_vars - contains pie variables
- * @qdelay:			current queue delay
- * @qdelay_old:			queue delay in previous qdelay calculation
- * @burst_time:			burst time allowance
- * @dq_tstamp:			timestamp at which dq rate was last calculated
- * @prob:			drop probability
- * @accu_prob:			accumulated drop probability
- * @dq_count:			number of bytes dequeued in a measurement cycle
- * @avg_dq_rate:		calculated average dq rate
- * @backlog_old:		queue backlog during previous qdelay calculation
+ * @qdelay:		current queue delay
+ * @qdelay_old:		queue delay in previous qdelay calculation
+ * @burst_time:		burst time allowance
+ * @dq_tstamp:		timestamp at which dq rate was last calculated
+ * @prob:		drop probability
+ * @accu_prob:		accumulated drop probability
+ * @dq_count:		number of bytes dequeued in a measurement cycle
+ * @avg_dq_rate:	calculated average dq rate
+ * @backlog_old:	queue backlog during previous qdelay calculation
  */
 struct pie_vars {
 	psched_time_t qdelay;
