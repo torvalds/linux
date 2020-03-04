@@ -33,23 +33,39 @@ properties:
     maxItems: 1
 
   clocks:
-    minItems: 2
-    maxItems: 3
-    items:
-      - description: The CSI interface clock
-      - description: The CSI ISP clock
-      - description: The CSI DRAM clock
+    oneOf:
+      - items:
+        - description: The CSI interface clock
+        - description: The CSI DRAM clock
+
+      - items:
+        - description: The CSI interface clock
+        - description: The CSI ISP clock
+        - description: The CSI DRAM clock
 
   clock-names:
-    minItems: 2
-    maxItems: 3
-    items:
-      - const: bus
-      - const: isp
-      - const: ram
+    oneOf:
+      - items:
+        - const: bus
+        - const: ram
+
+      - items:
+        - const: bus
+        - const: isp
+        - const: ram
 
   resets:
     maxItems: 1
+
+  # FIXME: This should be made required eventually once every SoC will
+  # have the MBUS declared.
+  interconnects:
+    maxItems: 1
+
+  # FIXME: This should be made required eventually once every SoC will
+  # have the MBUS declared.
+  interconnect-names:
+    const: dma-mem
 
   # See ./video-interfaces.txt for details
   port:

@@ -5,6 +5,7 @@
 #define __ASM_CSKY_PGTABLE_H
 
 #include <asm/fixmap.h>
+#include <asm/memory.h>
 #include <asm/addrspace.h>
 #include <abi/pgtable-bits.h>
 #include <asm-generic/pgtable-nopmd.h>
@@ -15,11 +16,6 @@
 
 #define USER_PTRS_PER_PGD	(0x80000000UL/PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0UL
-
-#define PKMAP_BASE		(0xff800000)
-
-#define VMALLOC_START		(0xc0008000)
-#define VMALLOC_END		(PKMAP_BASE - 2*PAGE_SIZE)
 
 /*
  * C-SKY is two-level paging structure:

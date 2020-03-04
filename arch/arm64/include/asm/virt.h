@@ -83,7 +83,7 @@ static inline bool is_kernel_in_hyp_mode(void)
 	return read_sysreg(CurrentEL) == CurrentEL_EL2;
 }
 
-static inline bool has_vhe(void)
+static __always_inline bool has_vhe(void)
 {
 	if (cpus_have_const_cap(ARM64_HAS_VIRT_HOST_EXTN))
 		return true;
