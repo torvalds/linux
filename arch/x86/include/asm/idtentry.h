@@ -104,6 +104,34 @@ __visible noinstr void func(struct pt_regs *regs,			\
 static __always_inline void __##func(struct pt_regs *regs,		\
 				     unsigned long error_code)
 
+/**
+ * DECLARE_IDTENTRY_RAW - Declare functions for raw IDT entry points
+ *		      No error code pushed by hardware
+ * @vector:	Vector number (ignored for C)
+ * @func:	Function name of the entry point
+ *
+ * Maps to DECLARE_IDTENTRY().
+ */
+#define DECLARE_IDTENTRY_RAW(vector, func)				\
+	DECLARE_IDTENTRY(vector, func)
+
+/**
+ * DEFINE_IDTENTRY_RAW - Emit code for raw IDT entry points
+ * @func:	Function name of the entry point
+ *
+ * @func is called from ASM entry code with interrupts disabled.
+ *
+ * The macro is written so it acts as function definition. Append the
+ * body with a pair of curly brackets.
+ *
+ * Contrary to DEFINE_IDTENTRY() this does not invoke the
+ * idtentry_enter/exit() helpers before and after the body invocation. This
+ * needs to be done in the body itself if applicable. Use if extra work
+ * is required before the enter/exit() helpers are invoked.
+ */
+#define DEFINE_IDTENTRY_RAW(func)					\
+__visible noinstr void func(struct pt_regs *regs)
+
 #else /* !__ASSEMBLY__ */
 
 /*
@@ -117,6 +145,9 @@ static __always_inline void __##func(struct pt_regs *regs,		\
 
 /* Special case for 32bit IRET 'trap'. Do not emit ASM code */
 #define DECLARE_IDTENTRY_SW(vector, func)
+
+#define DECLARE_IDTENTRY_RAW(vector, func)				\
+	DECLARE_IDTENTRY(vector, func)
 
 #endif /* __ASSEMBLY__ */
 
