@@ -351,13 +351,31 @@
 					};
 				};
 
-				rfbi: encoder@2000  {
-					compatible = "ti,omap5-rfbi";
-					reg = <0x2000 0x100>;
-					status = "disabled";
-					ti,hwmods = "dss_rfbi";
-					clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>, <&l3_iclk_div>;
-					clock-names = "fck", "ick";
+				target-module@2000 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x2000 0x4>,
+					      <0x2010 0x4>,
+					      <0x2014 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
+					clock-names = "fck";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x2000 0x1000>;
+
+					rfbi: encoder@0  {
+						compatible = "ti,omap5-rfbi";
+						reg = <0 0x100>;
+						status = "disabled";
+						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>, <&l3_iclk_div>;
+						clock-names = "fck", "ick";
+					};
 				};
 
 				dsi1: encoder@4000 {
