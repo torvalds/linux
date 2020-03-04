@@ -402,7 +402,7 @@ again:
 			pmd_migration_entry_wait(walk->mm, pmdp);
 			return -EBUSY;
 		}
-		return 0;
+		return hmm_pfns_fill(start, end, range, HMM_PFN_NONE);
 	} else if (!pmd_present(pmd))
 		return hmm_pfns_fill(start, end, range, HMM_PFN_ERROR);
 
