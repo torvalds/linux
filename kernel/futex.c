@@ -331,17 +331,6 @@ static void compat_exit_robust_list(struct task_struct *curr);
 static inline void compat_exit_robust_list(struct task_struct *curr) { }
 #endif
 
-static inline void futex_get_mm(union futex_key *key)
-{
-	mmgrab(key->private.mm);
-	/*
-	 * Ensure futex_get_mm() implies a full barrier such that
-	 * get_futex_key() implies a full barrier. This is relied upon
-	 * as smp_mb(); (B), see the ordering comment above.
-	 */
-	smp_mb__after_atomic();
-}
-
 /*
  * Reflects a new waiter being added to the waitqueue.
  */
@@ -432,7 +421,7 @@ static void get_futex_key_refs(union futex_key *key)
 		smp_mb();		/* explicit smp_mb(); (B) */
 		break;
 	case FUT_OFF_MMSHARED:
-		futex_get_mm(key); /* implies smp_mb(); (B) */
+		smp_mb();		/* explicit smp_mb(); (B) */
 		break;
 	default:
 		/*
@@ -465,7 +454,6 @@ static void drop_futex_key_refs(union futex_key *key)
 	case FUT_OFF_INODE:
 		break;
 	case FUT_OFF_MMSHARED:
-		mmdrop(key->private.mm);
 		break;
 	}
 }
