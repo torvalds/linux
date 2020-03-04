@@ -172,12 +172,16 @@ Dandenong.
 The frequencies broadcast by Mount Dandenong are:
 
 Table 1. Transponder Frequencies Mount Dandenong, Vic, Aus.
+
+=========== ======= ===========
 Broadcaster Channel Frequency
+=========== ======= ===========
 ABC         VHF 12  226.5 MHz
 TEN         VHF 11  219.5 MHz
 NINE        VHF 8   191.625 MHz
 SEVEN       VHF 6   177.5 MHz
 SBS         UHF 29  536.5 MHz
+=========== ======= ===========
 
 The Scan utility has a set of compiled-in defaults for various
 countries and regions, but if they do not suit, or if you have
