@@ -476,7 +476,7 @@ static void io_worker_handle_work(struct io_worker *worker)
 	struct io_wq *wq = wqe->wq;
 
 	do {
-		struct io_wq_work *work, *old_work;
+		struct io_wq_work *work;
 		unsigned hash = -1U;
 
 		/*
@@ -495,12 +495,13 @@ static void io_worker_handle_work(struct io_worker *worker)
 		spin_unlock_irq(&wqe->lock);
 		if (!work)
 			break;
+		io_assign_current_work(worker, work);
 
 		/* handle a whole dependent link */
 		do {
-			io_assign_current_work(worker, work);
-			io_impersonate_work(worker, work);
+			struct io_wq_work *old_work;
 
+			io_impersonate_work(worker, work);
 			/*
 			 * OK to set IO_WQ_WORK_CANCEL even for uncancellable
 			 * work, the worker function will do the right thing.
@@ -513,10 +514,8 @@ static void io_worker_handle_work(struct io_worker *worker)
 
 			old_work = work;
 			work->func(&work);
-
-			spin_lock_irq(&worker->lock);
-			worker->cur_work = NULL;
-			spin_unlock_irq(&worker->lock);
+			work = (old_work == work) ? NULL : work;
+			io_assign_current_work(worker, work);
 
 			if (wq->put_work)
 				wq->put_work(old_work);
@@ -529,7 +528,7 @@ static void io_worker_handle_work(struct io_worker *worker)
 				/* dependent work is not hashed */
 				hash = -1U;
 			}
-		} while (work && work != old_work);
+		} while (work);
 
 		spin_lock_irq(&wqe->lock);
 	} while (1);
