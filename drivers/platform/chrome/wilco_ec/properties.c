@@ -5,7 +5,7 @@
 
 #include <linux/platform_data/wilco-ec.h>
 #include <linux/string.h>
-#include <linux/unaligned/le_memmove.h>
+#include <asm/unaligned.h>
 
 /* Operation code; what the EC should do with the property */
 enum ec_property_op {

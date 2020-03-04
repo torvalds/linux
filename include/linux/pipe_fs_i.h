@@ -29,7 +29,8 @@ struct pipe_buffer {
 /**
  *	struct pipe_inode_info - a linux kernel pipe
  *	@mutex: mutex protecting the whole thing
- *	@wait: reader/writer wait point in case of empty/full pipe
+ *	@rd_wait: reader wait point in case of empty pipe
+ *	@wr_wait: writer wait point in case of full pipe
  *	@head: The point of buffer production
  *	@tail: The point of buffer consumption
  *	@max_usage: The maximum number of slots that may be used in the ring

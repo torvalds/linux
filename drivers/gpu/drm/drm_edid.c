@@ -3211,7 +3211,7 @@ static u8 *drm_find_cea_extension(const struct edid *edid)
 	return cea;
 }
 
-static const struct drm_display_mode *cea_mode_for_vic(u8 vic)
+static __always_inline const struct drm_display_mode *cea_mode_for_vic(u8 vic)
 {
 	BUILD_BUG_ON(1 + ARRAY_SIZE(edid_cea_modes_1) - 1 != 127);
 	BUILD_BUG_ON(193 + ARRAY_SIZE(edid_cea_modes_193) - 1 != 219);

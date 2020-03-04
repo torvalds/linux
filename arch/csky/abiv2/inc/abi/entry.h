@@ -31,7 +31,13 @@
 
 	mfcr	lr, epsr
 	stw	lr, (sp, 12)
+	btsti   lr, 31
+	bf      1f
+	addi    lr, sp, 152
+	br	2f
+1:
 	mfcr	lr, usp
+2:
 	stw	lr, (sp, 16)
 
 	stw     a0, (sp, 20)
@@ -64,8 +70,10 @@
 	mtcr	a0, epc
 	ldw	a0, (sp, 12)
 	mtcr	a0, epsr
+	btsti   a0, 31
 	ldw	a0, (sp, 16)
 	mtcr	a0, usp
+	mtcr	a0, ss0
 
 #ifdef CONFIG_CPU_HAS_HILO
 	ldw	a0, (sp, 140)
@@ -86,6 +94,9 @@
 	addi    sp, 40
 	ldm     r16-r30, (sp)
 	addi    sp, 72
+	bf	1f
+	mfcr	sp, ss0
+1:
 	rte
 .endm
 

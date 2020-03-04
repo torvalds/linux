@@ -543,13 +543,13 @@ struct l4_kwq_update_pg {
 #define L4_KWQ_UPDATE_PG_RESERVERD2_SHIFT 2
 #endif
 #if defined(__BIG_ENDIAN)
-	u16 reserverd3;
+	u16 reserved3;
 	u8 da0;
 	u8 da1;
 #elif defined(__LITTLE_ENDIAN)
 	u8 da1;
 	u8 da0;
-	u16 reserverd3;
+	u16 reserved3;
 #endif
 #if defined(__BIG_ENDIAN)
 	u8 da2;

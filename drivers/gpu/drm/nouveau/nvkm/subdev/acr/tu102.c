@@ -107,6 +107,12 @@ MODULE_FIRMWARE("nvidia/tu104/acr/ucode_unload.bin");
 MODULE_FIRMWARE("nvidia/tu106/acr/unload_bl.bin");
 MODULE_FIRMWARE("nvidia/tu106/acr/ucode_unload.bin");
 
+MODULE_FIRMWARE("nvidia/tu116/acr/unload_bl.bin");
+MODULE_FIRMWARE("nvidia/tu116/acr/ucode_unload.bin");
+
+MODULE_FIRMWARE("nvidia/tu117/acr/unload_bl.bin");
+MODULE_FIRMWARE("nvidia/tu117/acr/ucode_unload.bin");
+
 static const struct nvkm_acr_hsf_fwif
 tu102_acr_unload_fwif[] = {
 	{  0, nvkm_acr_hsfw_load, &gp108_acr_unload_0 },
@@ -130,6 +136,8 @@ tu102_acr_asb_0 = {
 MODULE_FIRMWARE("nvidia/tu102/acr/ucode_asb.bin");
 MODULE_FIRMWARE("nvidia/tu104/acr/ucode_asb.bin");
 MODULE_FIRMWARE("nvidia/tu106/acr/ucode_asb.bin");
+MODULE_FIRMWARE("nvidia/tu116/acr/ucode_asb.bin");
+MODULE_FIRMWARE("nvidia/tu117/acr/ucode_asb.bin");
 
 static const struct nvkm_acr_hsf_fwif
 tu102_acr_asb_fwif[] = {
@@ -153,6 +161,12 @@ MODULE_FIRMWARE("nvidia/tu104/acr/ucode_ahesasc.bin");
 
 MODULE_FIRMWARE("nvidia/tu106/acr/bl.bin");
 MODULE_FIRMWARE("nvidia/tu106/acr/ucode_ahesasc.bin");
+
+MODULE_FIRMWARE("nvidia/tu116/acr/bl.bin");
+MODULE_FIRMWARE("nvidia/tu116/acr/ucode_ahesasc.bin");
+
+MODULE_FIRMWARE("nvidia/tu117/acr/bl.bin");
+MODULE_FIRMWARE("nvidia/tu117/acr/ucode_ahesasc.bin");
 
 static const struct nvkm_acr_hsf_fwif
 tu102_acr_ahesasc_fwif[] = {
