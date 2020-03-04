@@ -88,14 +88,3 @@ Vimc has a module parameter to configure the driver.
         height, so the image size will be ``sca_mult^2`` bigger than the
         original one. Currently, only supports scaling up (the default value
         is 3).
-
-Source code documentation
--------------------------
-
-vimc-streamer
-~~~~~~~~~~~~~
-
-.. kernel-doc:: drivers/media/platform/vimc/vimc-streamer.h
-   :internal:
-
-.. kernel-doc:: drivers/media/platform/vimc/vimc-streamer.c

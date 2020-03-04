@@ -67,4 +67,6 @@ For more details see the file COPYING in the source distribution of Linux.
 	zr364xx
 
 	cpia2_devel
+	vimc-devel
+
 	meye-uapi
