@@ -519,10 +519,24 @@ static void recalc_intercepts(struct vcpu_svm *svm)
 	h = &svm->nested.hsave->control;
 	g = &svm->nested;
 
-	c->intercept_cr = h->intercept_cr | g->intercept_cr;
-	c->intercept_dr = h->intercept_dr | g->intercept_dr;
-	c->intercept_exceptions = h->intercept_exceptions | g->intercept_exceptions;
-	c->intercept = h->intercept | g->intercept;
+	c->intercept_cr = h->intercept_cr;
+	c->intercept_dr = h->intercept_dr;
+	c->intercept_exceptions = h->intercept_exceptions;
+	c->intercept = h->intercept;
+
+	if (svm->vcpu.arch.hflags & HF_VINTR_MASK) {
+		/* We only want the cr8 intercept bits of L1 */
+		c->intercept_cr &= ~(1U << INTERCEPT_CR8_READ);
+		c->intercept_cr &= ~(1U << INTERCEPT_CR8_WRITE);
+	}
+
+	/* We don't want to see VMMCALLs from a nested guest */
+	c->intercept &= ~(1ULL << INTERCEPT_VMMCALL);
+
+	c->intercept_cr |= g->intercept_cr;
+	c->intercept_dr |= g->intercept_dr;
+	c->intercept_exceptions |= g->intercept_exceptions;
+	c->intercept |= g->intercept;
 }
 
 static inline struct vmcb *get_host_vmcb(struct vcpu_svm *svm)
@@ -3591,15 +3605,6 @@ static void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 		svm->vcpu.arch.hflags |= HF_VINTR_MASK;
 	else
 		svm->vcpu.arch.hflags &= ~HF_VINTR_MASK;
-
-	if (svm->vcpu.arch.hflags & HF_VINTR_MASK) {
-		/* We only want the cr8 intercept bits of the guest */
-		clr_cr_intercept(svm, INTERCEPT_CR8_READ);
-		clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
-	}
-
-	/* We don't want to see VMMCALLs from a nested guest */
-	clr_intercept(svm, INTERCEPT_VMMCALL);
 
 	svm->vcpu.arch.tsc_offset += nested_vmcb->control.tsc_offset;
 	svm->vmcb->control.tsc_offset = svm->vcpu.arch.tsc_offset;
