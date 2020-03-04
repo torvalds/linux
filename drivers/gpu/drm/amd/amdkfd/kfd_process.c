@@ -641,6 +641,11 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 
 	/* Indicate to other users that MM is no longer valid */
 	p->mm = NULL;
+	/* Signal the eviction fence after user mode queues are
+	 * destroyed. This allows any BOs to be freed without
+	 * triggering pointless evictions or waiting for fences.
+	 */
+	dma_fence_signal(p->ef);
 
 	mutex_unlock(&p->mutex);
 
