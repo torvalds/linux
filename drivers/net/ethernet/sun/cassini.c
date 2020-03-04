@@ -1716,34 +1716,26 @@ static int cas_pci_interrupt(struct net_device *dev, struct cas *cp,
 	pr_cont("\n");
 
 	if (stat & PCI_ERR_OTHER) {
-		u16 cfg;
+		int pci_errs;
 
 		/* Interrogate PCI config space for the
 		 * true cause.
 		 */
-		pci_read_config_word(cp->pdev, PCI_STATUS, &cfg);
-		netdev_err(dev, "Read PCI cfg space status [%04x]\n", cfg);
-		if (cfg & PCI_STATUS_PARITY)
-			netdev_err(dev, "PCI parity error detected\n");
-		if (cfg & PCI_STATUS_SIG_TARGET_ABORT)
-			netdev_err(dev, "PCI target abort\n");
-		if (cfg & PCI_STATUS_REC_TARGET_ABORT)
-			netdev_err(dev, "PCI master acks target abort\n");
-		if (cfg & PCI_STATUS_REC_MASTER_ABORT)
-			netdev_err(dev, "PCI master abort\n");
-		if (cfg & PCI_STATUS_SIG_SYSTEM_ERROR)
-			netdev_err(dev, "PCI system error SERR#\n");
-		if (cfg & PCI_STATUS_DETECTED_PARITY)
-			netdev_err(dev, "PCI parity error\n");
+		pci_errs = pci_status_get_and_clear_errors(cp->pdev);
 
-		/* Write the error bits back to clear them. */
-		cfg &= (PCI_STATUS_PARITY |
-			PCI_STATUS_SIG_TARGET_ABORT |
-			PCI_STATUS_REC_TARGET_ABORT |
-			PCI_STATUS_REC_MASTER_ABORT |
-			PCI_STATUS_SIG_SYSTEM_ERROR |
-			PCI_STATUS_DETECTED_PARITY);
-		pci_write_config_word(cp->pdev, PCI_STATUS, cfg);
+		netdev_err(dev, "PCI status errors[%04x]\n", pci_errs);
+		if (pci_errs & PCI_STATUS_PARITY)
+			netdev_err(dev, "PCI parity error detected\n");
+		if (pci_errs & PCI_STATUS_SIG_TARGET_ABORT)
+			netdev_err(dev, "PCI target abort\n");
+		if (pci_errs & PCI_STATUS_REC_TARGET_ABORT)
+			netdev_err(dev, "PCI master acks target abort\n");
+		if (pci_errs & PCI_STATUS_REC_MASTER_ABORT)
+			netdev_err(dev, "PCI master abort\n");
+		if (pci_errs & PCI_STATUS_SIG_SYSTEM_ERROR)
+			netdev_err(dev, "PCI system error SERR#\n");
+		if (pci_errs & PCI_STATUS_DETECTED_PARITY)
+			netdev_err(dev, "PCI parity error\n");
 	}
 
 	/* For all PCI errors, we should reset the chip. */
