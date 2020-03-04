@@ -62,27 +62,19 @@ bool pie_drop_early(struct Qdisc *sch, struct pie_params *params,
 	else
 		local_prob = vars->prob;
 
-	if (local_prob == 0) {
+	if (local_prob == 0)
 		vars->accu_prob = 0;
-		vars->accu_prob_overflows = 0;
-	}
+	else
+		vars->accu_prob += local_prob;
 
-	if (local_prob > MAX_PROB - vars->accu_prob)
-		vars->accu_prob_overflows++;
-
-	vars->accu_prob += local_prob;
-
-	if (vars->accu_prob_overflows == 0 &&
-	    vars->accu_prob < (MAX_PROB / 100) * 85)
+	if (vars->accu_prob < (MAX_PROB / 100) * 85)
 		return false;
-	if (vars->accu_prob_overflows == 8 &&
-	    vars->accu_prob >= MAX_PROB / 2)
+	if (vars->accu_prob >= (MAX_PROB / 2) * 17)
 		return true;
 
 	prandom_bytes(&rnd, 8);
-	if (rnd < local_prob) {
+	if ((rnd >> BITS_PER_BYTE) < local_prob) {
 		vars->accu_prob = 0;
-		vars->accu_prob_overflows = 0;
 		return true;
 	}
 
@@ -129,7 +121,6 @@ static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 out:
 	q->stats.dropped++;
 	q->vars.accu_prob = 0;
-	q->vars.accu_prob_overflows = 0;
 	return qdisc_drop(skb, sch, to_free);
 }
 

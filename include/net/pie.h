@@ -8,7 +8,7 @@
 #include <net/inet_ecn.h>
 #include <net/pkt_sched.h>
 
-#define MAX_PROB	U64_MAX
+#define MAX_PROB	(U64_MAX >> BITS_PER_BYTE)
 #define DTIME_INVALID	U64_MAX
 #define QUEUE_THRESHOLD	16384
 #define DQCOUNT_INVALID	-1
@@ -47,7 +47,6 @@ struct pie_params {
  * @dq_count:			number of bytes dequeued in a measurement cycle
  * @avg_dq_rate:		calculated average dq rate
  * @backlog_old:		queue backlog during previous qdelay calculation
- * @accu_prob_overflows:	number of times accu_prob overflows
  */
 struct pie_vars {
 	psched_time_t qdelay;
@@ -59,7 +58,6 @@ struct pie_vars {
 	u64 dq_count;
 	u32 avg_dq_rate;
 	u32 backlog_old;
-	u8 accu_prob_overflows;
 };
 
 /**
@@ -107,7 +105,6 @@ static inline void pie_vars_init(struct pie_vars *vars)
 	vars->accu_prob = 0;
 	vars->dq_count = DQCOUNT_INVALID;
 	vars->avg_dq_rate = 0;
-	vars->accu_prob_overflows = 0;
 }
 
 static inline struct pie_skb_cb *get_pie_cb(const struct sk_buff *skb)
