@@ -1323,6 +1323,7 @@ add_rule_fte(struct fs_fte *fte,
 	fte->node.active = true;
 	fte->status |= FS_FTE_STATUS_EXISTING;
 	atomic_inc(&fte->node.version);
+	atomic_inc(&fg->node.version);
 
 out:
 	return handle;
