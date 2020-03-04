@@ -404,7 +404,6 @@ __create_page_tables:
 
 	ret	x28
 ENDPROC(__create_page_tables)
-	.ltorg
 
 /*
  * The following fragment of code is executed with the MMU enabled.
