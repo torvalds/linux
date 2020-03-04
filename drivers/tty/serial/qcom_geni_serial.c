@@ -21,6 +21,7 @@
 
 /* UART specific GENI registers */
 #define SE_UART_LOOPBACK_CFG		0x22c
+#define SE_UART_IO_MACRO_CTRL		0x240
 #define SE_UART_TX_TRANS_CFG		0x25c
 #define SE_UART_TX_WORD_LEN		0x268
 #define SE_UART_TX_STOP_BIT_LEN		0x26c
@@ -95,6 +96,12 @@
 #define CTS_RTS_SORTED	BIT(1)
 #define RX_TX_CTS_RTS_SORTED	(RX_TX_SORTED | CTS_RTS_SORTED)
 
+/* UART pin swap value */
+#define DEFAULT_IO_MACRO_IO0_IO1_MASK		GENMASK(3, 0)
+#define IO_MACRO_IO0_SEL		0x3
+#define DEFAULT_IO_MACRO_IO2_IO3_MASK		GENMASK(15, 4)
+#define IO_MACRO_IO2_IO3_SWAP		0x4640
+
 #ifdef CONFIG_CONSOLE_POLL
 #define CONSOLE_RX_BYTES_PW 1
 #else
@@ -119,6 +126,8 @@ struct qcom_geni_serial_port {
 
 	unsigned int tx_remaining;
 	int wakeup_irq;
+	bool rx_tx_swap;
+	bool cts_rts_swap;
 };
 
 static const struct uart_ops qcom_geni_console_pops;
@@ -836,6 +845,7 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 	struct qcom_geni_serial_port *port = to_dev_port(uport, uport);
 	u32 rxstale = DEFAULT_BITS_PER_CHAR * STALE_TIMEOUT;
 	u32 proto;
+	u32 pin_swap;
 
 	if (uart_console(uport)) {
 		port->tx_bytes_pw = 1;
@@ -856,6 +866,20 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 	get_tx_fifo_size(port);
 
 	writel(rxstale, uport->membase + SE_UART_RX_STALE_CNT);
+
+	pin_swap = readl(uport->membase + SE_UART_IO_MACRO_CTRL);
+	if (port->rx_tx_swap) {
+		pin_swap &= ~DEFAULT_IO_MACRO_IO2_IO3_MASK;
+		pin_swap |= IO_MACRO_IO2_IO3_SWAP;
+	}
+	if (port->cts_rts_swap) {
+		pin_swap &= ~DEFAULT_IO_MACRO_IO0_IO1_MASK;
+		pin_swap |= IO_MACRO_IO0_SEL;
+	}
+	/* Configure this register if RX-TX, CTS-RTS pins are swapped */
+	if (port->rx_tx_swap || port->cts_rts_swap)
+		writel(pin_swap, uport->membase + SE_UART_IO_MACRO_CTRL);
+
 	/*
 	 * Make an unconditional cancel on the main sequencer to reset
 	 * it else we could end up in data loss scenarios.
@@ -1298,6 +1322,12 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 
 	if (!console)
 		port->wakeup_irq = platform_get_irq_optional(pdev, 1);
+
+	if (of_property_read_bool(pdev->dev.of_node, "rx-tx-swap"))
+		port->rx_tx_swap = true;
+
+	if (of_property_read_bool(pdev->dev.of_node, "cts-rts-swap"))
+		port->cts_rts_swap = true;
 
 	uport->private_data = drv;
 	platform_set_drvdata(pdev, port);
