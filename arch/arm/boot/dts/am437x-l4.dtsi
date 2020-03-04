@@ -2185,13 +2185,31 @@
 					};
 				};
 
-				rfbi: rfbi@800 {
-					compatible = "ti,omap3-rfbi";
-					reg = <0x800 0x100>;
-					ti,hwmods = "dss_rfbi";
-					clocks = <&disp_clk>;
+				target-module@800 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x800 0x4>,
+					      <0x810 0x4>,
+					      <0x814 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
+					clocks = <&dss_clkctrl AM4_DSS_DSS_CORE_CLKCTRL 0>;
 					clock-names = "fck";
-					status = "disabled";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x800 0x400>;
+
+					rfbi: rfbi@0 {
+						compatible = "ti,omap3-rfbi";
+						reg = <0 0x100>;
+						clocks = <&dss_clkctrl AM4_DSS_DSS_CORE_CLKCTRL 0>;
+						clock-names = "fck";
+						status = "disabled";
+					};
 				};
 			};
 		};
