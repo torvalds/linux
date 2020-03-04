@@ -114,38 +114,6 @@ struct omap_hwmod_ocp_if am33xx_l4_ls__timer2 = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l3 main -> tpcc */
-struct omap_hwmod_ocp_if am33xx_l3_main__tpcc = {
-	.master		= &am33xx_l3_main_hwmod,
-	.slave		= &am33xx_tpcc_hwmod,
-	.clk		= "l3_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l3 main -> tpcc0 */
-struct omap_hwmod_ocp_if am33xx_l3_main__tptc0 = {
-	.master		= &am33xx_l3_main_hwmod,
-	.slave		= &am33xx_tptc0_hwmod,
-	.clk		= "l3_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l3 main -> tpcc1 */
-struct omap_hwmod_ocp_if am33xx_l3_main__tptc1 = {
-	.master		= &am33xx_l3_main_hwmod,
-	.slave		= &am33xx_tptc1_hwmod,
-	.clk		= "l3_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l3 main -> tpcc2 */
-struct omap_hwmod_ocp_if am33xx_l3_main__tptc2 = {
-	.master		= &am33xx_l3_main_hwmod,
-	.slave		= &am33xx_tptc2_hwmod,
-	.clk		= "l3_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l3 main -> ocmc */
 struct omap_hwmod_ocp_if am33xx_l3_main__ocmc = {
 	.master		= &am33xx_l3_main_hwmod,

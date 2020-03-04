@@ -29,10 +29,6 @@ extern struct omap_hwmod_ocp_if am33xx_l3_main__gfx;
 extern struct omap_hwmod_ocp_if am33xx_l4_wkup__rtc;
 extern struct omap_hwmod_ocp_if am33xx_l3_s__gpmc;
 extern struct omap_hwmod_ocp_if am33xx_l4_ls__timer2;
-extern struct omap_hwmod_ocp_if am33xx_l3_main__tpcc;
-extern struct omap_hwmod_ocp_if am33xx_l3_main__tptc0;
-extern struct omap_hwmod_ocp_if am33xx_l3_main__tptc1;
-extern struct omap_hwmod_ocp_if am33xx_l3_main__tptc2;
 extern struct omap_hwmod_ocp_if am33xx_l3_main__ocmc;
 
 extern struct omap_hwmod am33xx_l3_main_hwmod;
@@ -50,10 +46,6 @@ extern struct omap_hwmod am33xx_gpmc_hwmod;
 extern struct omap_hwmod am33xx_rtc_hwmod;
 extern struct omap_hwmod am33xx_timer1_hwmod;
 extern struct omap_hwmod am33xx_timer2_hwmod;
-extern struct omap_hwmod am33xx_tpcc_hwmod;
-extern struct omap_hwmod am33xx_tptc0_hwmod;
-extern struct omap_hwmod am33xx_tptc1_hwmod;
-extern struct omap_hwmod am33xx_tptc2_hwmod;
 
 extern struct omap_hwmod_class am33xx_emif_hwmod_class;
 extern struct omap_hwmod_class am33xx_l4_hwmod_class;

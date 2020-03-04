@@ -195,7 +195,6 @@
 
 		target-module@49000000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "tpcc";
 			reg = <0x49000000 0x4>;
 			reg-names = "rev";
 			clocks = <&l3_clkctrl AM3_L3_TPCC_CLKCTRL 0>;
@@ -223,7 +222,6 @@
 
 		target-module@49800000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "tptc0";
 			reg = <0x49800000 0x4>,
 			      <0x49800010 0x4>;
 			reg-names = "rev", "sysc";
@@ -247,7 +245,6 @@
 
 		target-module@49900000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "tptc1";
 			reg = <0x49900000 0x4>,
 			      <0x49900010 0x4>;
 			reg-names = "rev", "sysc";
@@ -271,7 +268,6 @@
 
 		target-module@49a00000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "tptc2";
 			reg = <0x49a00000 0x4>,
 			      <0x49a00010 0x4>;
 			reg-names = "rev", "sysc";
