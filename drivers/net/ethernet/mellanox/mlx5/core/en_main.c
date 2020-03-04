@@ -5467,25 +5467,27 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 		goto err_destroy_netdev;
 	}
 
-	err = register_netdev(netdev);
+	err = mlx5e_devlink_port_register(priv);
 	if (err) {
-		mlx5_core_err(mdev, "register_netdev failed, %d\n", err);
+		mlx5_core_err(mdev, "mlx5e_devlink_port_register failed, %d\n", err);
 		goto err_detach;
 	}
 
-	err = mlx5e_devlink_port_register(netdev);
+	err = register_netdev(netdev);
 	if (err) {
-		mlx5_core_err(mdev, "mlx5e_devlink_phy_port_register failed, %d\n", err);
-		goto err_unregister_netdev;
+		mlx5_core_err(mdev, "register_netdev failed, %d\n", err);
+		goto err_devlink_port_unregister;
 	}
+
+	mlx5e_devlink_port_type_eth_set(priv);
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_init_app(priv);
 #endif
 	return priv;
 
-err_unregister_netdev:
-	unregister_netdev(netdev);
+err_devlink_port_unregister:
+	mlx5e_devlink_port_unregister(priv);
 err_detach:
 	mlx5e_detach(mdev, priv);
 err_destroy_netdev:
