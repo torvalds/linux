@@ -31,7 +31,7 @@ struct pie_sched_data {
 };
 
 bool pie_drop_early(struct Qdisc *sch, struct pie_params *params,
-		    struct pie_vars *vars, u32 qlen, u32 packet_size)
+		    struct pie_vars *vars, u32 backlog, u32 packet_size)
 {
 	u64 rnd;
 	u64 local_prob = vars->prob;
@@ -51,7 +51,7 @@ bool pie_drop_early(struct Qdisc *sch, struct pie_params *params,
 	/* If we have fewer than 2 mtu-sized packets, disable pie_drop_early,
 	 * similar to min_th in RED
 	 */
-	if (qlen < 2 * mtu)
+	if (backlog < 2 * mtu)
 		return false;
 
 	/* If bytemode is turned on, use packet size to compute new
@@ -215,7 +215,7 @@ static int pie_change(struct Qdisc *sch, struct nlattr *opt,
 }
 
 void pie_process_dequeue(struct sk_buff *skb, struct pie_params *params,
-			 struct pie_vars *vars, u32 qlen)
+			 struct pie_vars *vars, u32 backlog)
 {
 	psched_time_t now = psched_get_time();
 	u32 dtime = 0;
@@ -231,7 +231,7 @@ void pie_process_dequeue(struct sk_buff *skb, struct pie_params *params,
 
 		vars->dq_tstamp = now;
 
-		if (qlen == 0)
+		if (backlog == 0)
 			vars->qdelay = 0;
 
 		if (dtime == 0)
@@ -244,7 +244,7 @@ void pie_process_dequeue(struct sk_buff *skb, struct pie_params *params,
 	 * we have enough packets to calculate the drain rate. Save
 	 * current time as dq_tstamp and start measurement cycle.
 	 */
-	if (qlen >= QUEUE_THRESHOLD && vars->dq_count == DQCOUNT_INVALID) {
+	if (backlog >= QUEUE_THRESHOLD && vars->dq_count == DQCOUNT_INVALID) {
 		vars->dq_tstamp = psched_get_time();
 		vars->dq_count = 0;
 	}
@@ -283,7 +283,7 @@ void pie_process_dequeue(struct sk_buff *skb, struct pie_params *params,
 			 * dq_count to 0 to re-enter the if block when the next
 			 * packet is dequeued
 			 */
-			if (qlen < QUEUE_THRESHOLD) {
+			if (backlog < QUEUE_THRESHOLD) {
 				vars->dq_count = DQCOUNT_INVALID;
 			} else {
 				vars->dq_count = 0;
@@ -307,7 +307,7 @@ burst_allowance_reduction:
 EXPORT_SYMBOL_GPL(pie_process_dequeue);
 
 void pie_calculate_probability(struct pie_params *params, struct pie_vars *vars,
-			       u32 qlen)
+			       u32 backlog)
 {
 	psched_time_t qdelay = 0;	/* in pschedtime */
 	psched_time_t qdelay_old = 0;	/* in pschedtime */
@@ -322,7 +322,7 @@ void pie_calculate_probability(struct pie_params *params, struct pie_vars *vars,
 		vars->qdelay_old = vars->qdelay;
 
 		if (vars->avg_dq_rate > 0)
-			qdelay = (qlen << PIE_SCALE) / vars->avg_dq_rate;
+			qdelay = (backlog << PIE_SCALE) / vars->avg_dq_rate;
 		else
 			qdelay = 0;
 	} else {
@@ -330,10 +330,10 @@ void pie_calculate_probability(struct pie_params *params, struct pie_vars *vars,
 		qdelay_old = vars->qdelay_old;
 	}
 
-	/* If qdelay is zero and qlen is not, it means qlen is very small,
+	/* If qdelay is zero and backlog is not, it means backlog is very small,
 	 * so we do not update probabilty in this round.
 	 */
-	if (qdelay == 0 && qlen != 0)
+	if (qdelay == 0 && backlog != 0)
 		update_prob = false;
 
 	/* In the algorithm, alpha and beta are between 0 and 2 with typical
@@ -409,7 +409,7 @@ void pie_calculate_probability(struct pie_params *params, struct pie_vars *vars,
 		vars->prob -= vars->prob / 64;
 
 	vars->qdelay = qdelay;
-	vars->qlen_old = qlen;
+	vars->backlog_old = backlog;
 
 	/* We restart the measurement cycle if the following conditions are met
 	 * 1. If the delay has been low for 2 consecutive Tupdate periods
