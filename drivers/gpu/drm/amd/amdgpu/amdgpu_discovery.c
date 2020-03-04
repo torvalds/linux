@@ -23,9 +23,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_discovery.h"
-#include "soc15_common.h"
 #include "soc15_hw_ip.h"
-#include "nbio/nbio_2_3_offset.h"
 #include "discovery.h"
 
 #define mmRCC_CONFIG_MEMSIZE	0xde3
