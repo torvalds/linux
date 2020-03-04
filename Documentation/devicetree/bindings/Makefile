@@ -26,10 +26,9 @@ DT_DOCS = $(addprefix $(src)/, \
 
 DT_SCHEMA_FILES ?= $(DT_DOCS)
 
-ifeq ($(CHECK_DTBS),)
-extra-y += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
-extra-y += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
-extra-y += processed-schema-examples.yaml
+extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
+extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
+extra-$(CHECK_DT_BINDING) += processed-schema-examples.yaml
 
 override DTC_FLAGS := \
 	-Wno-avoid_unnecessary_addr_size \
@@ -37,7 +36,6 @@ override DTC_FLAGS := \
 
 $(obj)/processed-schema-examples.yaml: $(DT_DOCS) FORCE
 	$(call if_changed,mk_schema)
-endif
 
 $(obj)/processed-schema.yaml: DT_MK_SCHEMA_FLAGS := -u
 $(obj)/processed-schema.yaml: $(DT_SCHEMA_FILES) FORCE

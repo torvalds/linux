@@ -1250,10 +1250,10 @@ dtbs: include/config/kernel.release scripts_dtc
 	$(Q)$(MAKE) $(build)=$(dtstree)
 
 ifneq ($(filter dtbs_check, $(MAKECMDGOALS)),)
+export CHECK_DTBS=y
 dtbs: dt_binding_check
 endif
 
-dtbs_check: export CHECK_DTBS=1
 dtbs_check: dtbs
 
 dtbs_install:
@@ -1268,6 +1268,10 @@ endif
 PHONY += scripts_dtc
 scripts_dtc: scripts_basic
 	$(Q)$(MAKE) $(build)=scripts/dtc
+
+ifneq ($(filter dt_binding_check, $(MAKECMDGOALS)),)
+export CHECK_DT_BINDING=y
+endif
 
 PHONY += dt_binding_check
 dt_binding_check: scripts_dtc
