@@ -94,13 +94,7 @@ static bool mark_guilty(struct i915_request *rq)
 		ctx = NULL;
 	rcu_read_unlock();
 	if (!ctx)
-		return false;
-
-	if (i915_gem_context_is_closed(ctx)) {
-		intel_context_set_banned(rq->context);
-		banned = true;
-		goto out;
-	}
+		return intel_context_is_banned(rq->context);
 
 	atomic_inc(&ctx->guilty_count);
 
