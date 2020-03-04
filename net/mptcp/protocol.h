@@ -125,7 +125,9 @@ struct mptcp_subflow_context {
 		mpc_map : 1,
 		data_avail : 1,
 		rx_eof : 1,
+		data_fin_tx_enable : 1,
 		can_ack : 1;	    /* only after processing the remote a key */
+	u64	data_fin_tx_seq;
 
 	struct	sock *tcp_sock;	    /* tcp sk backpointer */
 	struct	sock *conn;	    /* parent mptcp_sock */

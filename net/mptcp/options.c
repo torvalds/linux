@@ -304,21 +304,22 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 				 struct mptcp_ext *ext)
 {
-	ext->data_fin = 1;
-
 	if (!ext->use_map) {
 		/* RFC6824 requires a DSS mapping with specific values
 		 * if DATA_FIN is set but no data payload is mapped
 		 */
+		ext->data_fin = 1;
 		ext->use_map = 1;
 		ext->dsn64 = 1;
-		ext->data_seq = mptcp_sk(subflow->conn)->write_seq;
+		ext->data_seq = subflow->data_fin_tx_seq;
 		ext->subflow_seq = 0;
 		ext->data_len = 1;
-	} else {
-		/* If there's an existing DSS mapping, DATA_FIN consumes
-		 * 1 additional byte of mapping space.
+	} else if (ext->data_seq + ext->data_len == subflow->data_fin_tx_seq) {
+		/* If there's an existing DSS mapping and it is the
+		 * final mapping, DATA_FIN consumes 1 additional byte of
+		 * mapping space.
 		 */
+		ext->data_fin = 1;
 		ext->data_len++;
 	}
 }
@@ -354,8 +355,7 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 		if (mpext)
 			opts->ext_copy = *mpext;
 
-		if (skb && tcp_fin &&
-		    subflow->conn->sk_state != TCP_ESTABLISHED)
+		if (skb && tcp_fin && subflow->data_fin_tx_enable)
 			mptcp_write_data_fin(subflow, &opts->ext_copy);
 		ret = true;
 	}
