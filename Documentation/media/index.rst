@@ -12,7 +12,7 @@ Linux Media Subsystem Documentation
 .. toctree::
    :maxdepth: 2
 
-   media_uapi
+   ../userspace-api/media/index
    media_kapi
    dvb-drivers/index
    v4l-drivers/index
