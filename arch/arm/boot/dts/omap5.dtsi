@@ -318,13 +318,37 @@
 				#size-cells = <1>;
 				ranges = <0 0 0x1000000>;
 
-				dispc@1000 {
-					compatible = "ti,omap5-dispc";
-					reg = <0x1000 0x1000>;
-					interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+				target-module@1000 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
 					ti,hwmods = "dss_dispc";
+					reg = <0x1000 0x4>,
+					      <0x1010 0x4>,
+					      <0x1014 0x4>;
+					reg-names = "rev", "sysc", "syss";
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-midle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_SMART>;
+					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+							 SYSC_OMAP2_ENAWAKEUP |
+							 SYSC_OMAP2_SOFTRESET |
+							 SYSC_OMAP2_AUTOIDLE)>;
+					ti,syss-mask = <1>;
 					clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
 					clock-names = "fck";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x1000 0x1000>;
+
+					dispc@0 {
+						compatible = "ti,omap5-dispc";
+						reg = <0 0x1000>;
+						interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
+						clock-names = "fck";
+					};
 				};
 
 				rfbi: encoder@2000  {
