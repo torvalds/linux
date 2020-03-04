@@ -107,8 +107,7 @@ struct io_wq {
 	struct io_wqe **wqes;
 	unsigned long state;
 
-	get_work_fn *get_work;
-	put_work_fn *put_work;
+	free_work_fn *free_work;
 
 	struct task_struct *manager;
 	struct user_struct *user;
@@ -509,16 +508,11 @@ get_next:
 			if (test_bit(IO_WQ_BIT_CANCEL, &wq->state))
 				work->flags |= IO_WQ_WORK_CANCEL;
 
-			if (wq->get_work)
-				wq->get_work(work);
-
 			old_work = work;
 			work->func(&work);
 			work = (old_work == work) ? NULL : work;
 			io_assign_current_work(worker, work);
-
-			if (wq->put_work)
-				wq->put_work(old_work);
+			wq->free_work(old_work);
 
 			if (hash != -1U) {
 				spin_lock_irq(&wqe->lock);
@@ -749,14 +743,17 @@ static bool io_wq_can_queue(struct io_wqe *wqe, struct io_wqe_acct *acct,
 	return true;
 }
 
-static void io_run_cancel(struct io_wq_work *work)
+static void io_run_cancel(struct io_wq_work *work, struct io_wqe *wqe)
 {
+	struct io_wq *wq = wqe->wq;
+
 	do {
 		struct io_wq_work *old_work = work;
 
 		work->flags |= IO_WQ_WORK_CANCEL;
 		work->func(&work);
 		work = (work == old_work) ? NULL : work;
+		wq->free_work(old_work);
 	} while (work);
 }
 
@@ -773,7 +770,7 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 	 * It's close enough to not be an issue, fork() has the same delay.
 	 */
 	if (unlikely(!io_wq_can_queue(wqe, acct, work))) {
-		io_run_cancel(work);
+		io_run_cancel(work, wqe);
 		return;
 	}
 
@@ -912,7 +909,7 @@ static enum io_wq_cancel io_wqe_cancel_cb_work(struct io_wqe *wqe,
 	spin_unlock_irqrestore(&wqe->lock, flags);
 
 	if (found) {
-		io_run_cancel(work);
+		io_run_cancel(work, wqe);
 		return IO_WQ_CANCEL_OK;
 	}
 
@@ -987,7 +984,7 @@ static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
 	spin_unlock_irqrestore(&wqe->lock, flags);
 
 	if (found) {
-		io_run_cancel(work);
+		io_run_cancel(work, wqe);
 		return IO_WQ_CANCEL_OK;
 	}
 
@@ -1064,6 +1061,9 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	int ret = -ENOMEM, node;
 	struct io_wq *wq;
 
+	if (WARN_ON_ONCE(!data->free_work))
+		return ERR_PTR(-EINVAL);
+
 	wq = kzalloc(sizeof(*wq), GFP_KERNEL);
 	if (!wq)
 		return ERR_PTR(-ENOMEM);
@@ -1074,8 +1074,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	wq->get_work = data->get_work;
-	wq->put_work = data->put_work;
+	wq->free_work = data->free_work;
 
 	/* caller must already hold a reference to this */
 	wq->user = data->user;
@@ -1132,7 +1131,7 @@ err:
 
 bool io_wq_get(struct io_wq *wq, struct io_wq_data *data)
 {
-	if (data->get_work != wq->get_work || data->put_work != wq->put_work)
+	if (data->free_work != wq->free_work)
 		return false;
 
 	return refcount_inc_not_zero(&wq->use_refs);

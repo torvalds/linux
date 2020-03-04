@@ -1558,8 +1558,8 @@ static void io_put_req(struct io_kiocb *req)
 		io_free_req(req);
 }
 
-static void io_put_req_async_completion(struct io_kiocb *req,
-					struct io_wq_work **workptr)
+static void io_steal_work(struct io_kiocb *req,
+			  struct io_wq_work **workptr)
 {
 	/*
 	 * It's in an io-wq worker, so there always should be at least
@@ -1569,7 +1569,6 @@ static void io_put_req_async_completion(struct io_kiocb *req,
 	 * It also means, that if the counter dropped to 1, then there is
 	 * no asynchronous users left, so it's safe to steal the next work.
 	 */
-	refcount_dec(&req->refs);
 	if (refcount_read(&req->refs) == 1) {
 		struct io_kiocb *nxt = NULL;
 
@@ -2578,7 +2577,7 @@ static bool io_req_cancelled(struct io_kiocb *req)
 	if (req->work.flags & IO_WQ_WORK_CANCEL) {
 		req_set_fail_links(req);
 		io_cqring_add_event(req, -ECANCELED);
-		io_double_put_req(req);
+		io_put_req(req);
 		return true;
 	}
 
@@ -2606,7 +2605,7 @@ static void io_fsync_finish(struct io_wq_work **workptr)
 	if (io_req_cancelled(req))
 		return;
 	__io_fsync(req);
-	io_put_req_async_completion(req, workptr);
+	io_steal_work(req, workptr);
 }
 
 static int io_fsync(struct io_kiocb *req, bool force_nonblock)
@@ -2639,7 +2638,7 @@ static void io_fallocate_finish(struct io_wq_work **workptr)
 	if (io_req_cancelled(req))
 		return;
 	__io_fallocate(req);
-	io_put_req_async_completion(req, workptr);
+	io_steal_work(req, workptr);
 }
 
 static int io_fallocate_prep(struct io_kiocb *req,
@@ -3006,7 +3005,7 @@ static void io_close_finish(struct io_wq_work **workptr)
 
 	/* not cancellable, don't do io_req_cancelled() */
 	__io_close_finish(req);
-	io_put_req_async_completion(req, workptr);
+	io_steal_work(req, workptr);
 }
 
 static int io_close(struct io_kiocb *req, bool force_nonblock)
@@ -3452,7 +3451,7 @@ static void io_accept_finish(struct io_wq_work **workptr)
 	if (io_req_cancelled(req))
 		return;
 	__io_accept(req, false);
-	io_put_req_async_completion(req, workptr);
+	io_steal_work(req, workptr);
 }
 #endif
 
@@ -4719,7 +4718,7 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 		io_put_req(req);
 	}
 
-	io_put_req_async_completion(req, workptr);
+	io_steal_work(req, workptr);
 }
 
 static int io_req_needs_file(struct io_kiocb *req, int fd)
@@ -6105,19 +6104,12 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 	return __io_sqe_files_update(ctx, &up, nr_args);
 }
 
-static void io_put_work(struct io_wq_work *work)
+static void io_free_work(struct io_wq_work *work)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
 
-	/* Consider that io_put_req_async_completion() relies on this ref */
+	/* Consider that io_steal_work() relies on this ref */
 	io_put_req(req);
-}
-
-static void io_get_work(struct io_wq_work *work)
-{
-	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
-
-	refcount_inc(&req->refs);
 }
 
 static int io_init_wq_offload(struct io_ring_ctx *ctx,
@@ -6130,8 +6122,7 @@ static int io_init_wq_offload(struct io_ring_ctx *ctx,
 	int ret = 0;
 
 	data.user = ctx->user;
-	data.get_work = io_get_work;
-	data.put_work = io_put_work;
+	data.free_work = io_free_work;
 
 	if (!(p->flags & IORING_SETUP_ATTACH_WQ)) {
 		/* Do QD, or 4 * CPUS, whatever is smallest */

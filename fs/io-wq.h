@@ -81,14 +81,12 @@ struct io_wq_work {
 		*(work) = (struct io_wq_work){ .func = _func };	\
 	} while (0)						\
 
-typedef void (get_work_fn)(struct io_wq_work *);
-typedef void (put_work_fn)(struct io_wq_work *);
+typedef void (free_work_fn)(struct io_wq_work *);
 
 struct io_wq_data {
 	struct user_struct *user;
 
-	get_work_fn *get_work;
-	put_work_fn *put_work;
+	free_work_fn *free_work;
 };
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data);
