@@ -94,8 +94,8 @@ and other misbehavior due to the missing termination. It also NUL-pads the
 destination buffer if the source contents are shorter than the destination
 buffer size, which may be a needless performance penalty for callers using
 only NUL-terminated strings. The safe replacement is :c:func:`strscpy`.
-(Users of :c:func:`strscpy` still needing NUL-padding will need an
-explicit :c:func:`memset` added.)
+(Users of :c:func:`strscpy` still needing NUL-padding should instead
+use strscpy_pad().)
 
 If a caller is using non-NUL-terminated strings, :c:func:`strncpy()` can
 still be used, but destinations should be marked with the `__nonstring
@@ -144,27 +144,37 @@ memory adjacent to the stack (when built without `CONFIG_VMAP_STACK=y`)
 
 Implicit switch case fall-through
 ---------------------------------
-The C language allows switch cases to "fall-through" when a "break" statement
-is missing at the end of a case. This, however, introduces ambiguity in the
-code, as it's not always clear if the missing break is intentional or a bug.
+The C language allows switch cases to fall through to the next case
+when a "break" statement is missing at the end of a case. This, however,
+introduces ambiguity in the code, as it's not always clear if the missing
+break is intentional or a bug. For example, it's not obvious just from
+looking at the code if `STATE_ONE` is intentionally designed to fall
+through into `STATE_TWO`::
+
+	switch (value) {
+	case STATE_ONE:
+		do_something();
+	case STATE_TWO:
+		do_other();
+		break;
+	default:
+		WARN("unknown state");
+	}
 
 As there have been a long list of flaws `due to missing "break" statements
 <https://cwe.mitre.org/data/definitions/484.html>`_, we no longer allow
-"implicit fall-through".
-
-In order to identify intentional fall-through cases, we have adopted a
-pseudo-keyword macro 'fallthrough' which expands to gcc's extension
-__attribute__((__fallthrough__)).  `Statement Attributes
-<https://gcc.gnu.org/onlinedocs/gcc/Statement-Attributes.html>`_
-
-When the C17/C18  [[fallthrough]] syntax is more commonly supported by
+implicit fall-through. In order to identify intentional fall-through
+cases, we have adopted a pseudo-keyword macro "fallthrough" which
+expands to gcc's extension `__attribute__((__fallthrough__))
+<https://gcc.gnu.org/onlinedocs/gcc/Statement-Attributes.html>`_.
+(When the C17/C18  `[[fallthrough]]` syntax is more commonly supported by
 C compilers, static analyzers, and IDEs, we can switch to using that syntax
-for the macro pseudo-keyword.
+for the macro pseudo-keyword.)
 
 All switch/case blocks must end in one of:
 
-	break;
-	fallthrough;
-	continue;
-	goto <label>;
-	return [expression];
+* break;
+* fallthrough;
+* continue;
+* goto <label>;
+* return [expression];
