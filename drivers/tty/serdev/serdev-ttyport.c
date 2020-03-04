@@ -7,8 +7,14 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/poll.h>
+#include <linux/platform_device.h>
+#include <linux/module.h>
 
 #define SERPORT_ACTIVE		1
+
+static char *pdev_tty_port;
+module_param(pdev_tty_port, charp, 0644);
+MODULE_PARM_DESC(pdev_tty_port, "platform device tty port to claim");
 
 struct serport {
 	struct tty_port *port;
@@ -267,6 +273,7 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 {
 	struct serdev_controller *ctrl;
 	struct serport *serport;
+	bool platform = false;
 	int ret;
 
 	if (!port || !drv || !parent)
@@ -291,7 +298,24 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 	port->client_ops = &client_ops;
 	port->client_data = ctrl;
 
-	ret = serdev_controller_add(ctrl);
+	/* There is not always a way to bind specific platform devices because
+	 * they may be defined on platforms without DT or ACPI. When dealing
+	 * with a platform devices, do not allow direct binding unless it is
+	 * whitelisted by module parameter. If a platform device is otherwise
+	 * described by DT or ACPI it will still be bound and this check will
+	 * be ignored.
+	 */
+	if (parent->bus == &platform_bus_type) {
+		char tty_port_name[7];
+
+		sprintf(tty_port_name, "%s%d", drv->name, idx);
+		if (pdev_tty_port &&
+		    !strcmp(pdev_tty_port, tty_port_name)) {
+			platform = true;
+		}
+	}
+
+	ret = serdev_controller_add_platform(ctrl, platform);
 	if (ret)
 		goto err_reset_data;
 
