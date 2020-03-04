@@ -478,9 +478,6 @@ static int vnt_alloc_bufs(struct vnt_private *priv)
 			ret = -ENOMEM;
 			goto free_rx_tx;
 		}
-
-		rcb->in_use = false;
-
 		/* submit rx urb */
 		ret = vnt_submit_rx_urb(priv, rcb);
 		if (ret)

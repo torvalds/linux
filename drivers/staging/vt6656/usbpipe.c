@@ -393,10 +393,8 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 	if (urb->actual_length) {
 		if (vnt_rx_data(priv, rcb, urb->actual_length)) {
 			rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
-			if (!rcb->skb) {
-				rcb->in_use = false;
+			if (!rcb->skb)
 				return;
-			}
 		} else {
 			skb_push(rcb->skb, skb_headroom(rcb->skb));
 			skb_trim(rcb->skb, 0);
@@ -406,11 +404,8 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 					       skb_tailroom(rcb->skb));
 	}
 
-	if (usb_submit_urb(urb, GFP_ATOMIC)) {
+	if (usb_submit_urb(urb, GFP_ATOMIC))
 		dev_dbg(&priv->usb->dev, "Failed to re submit rx skb\n");
-
-		rcb->in_use = false;
-	}
 }
 
 int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
@@ -433,13 +428,8 @@ int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 			  rcb);
 
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret) {
+	if (ret)
 		dev_dbg(&priv->usb->dev, "Submit Rx URB failed %d\n", ret);
-		goto end;
-	}
-
-	rcb->in_use = true;
-
 end:
 	return ret;
 }

@@ -227,7 +227,6 @@ struct vnt_rcb {
 	void *priv;
 	struct urb *urb;
 	struct sk_buff *skb;
-	int in_use;
 };
 
 /* used to track bulk out irps */
