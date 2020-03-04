@@ -272,35 +272,6 @@ static int gfar_gcoalesce(struct net_device *dev,
 	cvals->tx_coalesce_usecs = gfar_ticks2usecs(priv, txtime);
 	cvals->tx_max_coalesced_frames = txcount;
 
-	cvals->use_adaptive_rx_coalesce = 0;
-	cvals->use_adaptive_tx_coalesce = 0;
-
-	cvals->pkt_rate_low = 0;
-	cvals->rx_coalesce_usecs_low = 0;
-	cvals->rx_max_coalesced_frames_low = 0;
-	cvals->tx_coalesce_usecs_low = 0;
-	cvals->tx_max_coalesced_frames_low = 0;
-
-	/* When the packet rate is below pkt_rate_high but above
-	 * pkt_rate_low (both measured in packets per second) the
-	 * normal {rx,tx}_* coalescing parameters are used.
-	 */
-
-	/* When the packet rate is (measured in packets per second)
-	 * is above pkt_rate_high, the {rx,tx}_*_high parameters are
-	 * used.
-	 */
-	cvals->pkt_rate_high = 0;
-	cvals->rx_coalesce_usecs_high = 0;
-	cvals->rx_max_coalesced_frames_high = 0;
-	cvals->tx_coalesce_usecs_high = 0;
-	cvals->tx_max_coalesced_frames_high = 0;
-
-	/* How often to do adaptive coalescing packet rate sampling,
-	 * measured in seconds.  Must not be zero.
-	 */
-	cvals->rate_sample_interval = 0;
-
 	return 0;
 }
 
