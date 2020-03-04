@@ -3576,6 +3576,10 @@ static bool nested_vmcb_checks(struct vmcb *vmcb)
 static void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 				 struct vmcb *nested_vmcb, struct kvm_host_map *map)
 {
+	bool evaluate_pending_interrupts =
+		is_intercept(svm, INTERCEPT_VINTR) ||
+		is_intercept(svm, INTERCEPT_IRET);
+
 	if (kvm_get_rflags(&svm->vcpu) & X86_EFLAGS_IF)
 		svm->vcpu.arch.hflags |= HF_HIF_MASK;
 	else
@@ -3662,7 +3666,21 @@ static void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 
 	svm->nested.vmcb = vmcb_gpa;
 
+	/*
+	 * If L1 had a pending IRQ/NMI before executing VMRUN,
+	 * which wasn't delivered because it was disallowed (e.g.
+	 * interrupts disabled), L0 needs to evaluate if this pending
+	 * event should cause an exit from L2 to L1 or be delivered
+	 * directly to L2.
+	 *
+	 * Usually this would be handled by the processor noticing an
+	 * IRQ/NMI window request.  However, VMRUN can unblock interrupts
+	 * by implicitly setting GIF, so force L0 to perform pending event
+	 * evaluation by requesting a KVM_REQ_EVENT.
+	 */
 	enable_gif(svm);
+	if (unlikely(evaluate_pending_interrupts))
+		kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
 
 	mark_all_dirty(svm->vmcb);
 }
