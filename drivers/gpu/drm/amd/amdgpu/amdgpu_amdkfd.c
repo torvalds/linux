@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/dma-buf.h>
 #include "amdgpu_xgmi.h"
+#include <uapi/linux/kfd_ioctl.h>
 
 static const unsigned int compute_vmid_bitmap = 0xFF00;
 
@@ -501,10 +502,11 @@ int amdgpu_amdkfd_get_dmabuf_info(struct kgd_dev *kgd, int dma_buf_fd,
 					   metadata_size, &metadata_flags);
 	if (flags) {
 		*flags = (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) ?
-			ALLOC_MEM_FLAGS_VRAM : ALLOC_MEM_FLAGS_GTT;
+				KFD_IOC_ALLOC_MEM_FLAGS_VRAM
+				: KFD_IOC_ALLOC_MEM_FLAGS_GTT;
 
 		if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-			*flags |= ALLOC_MEM_FLAGS_PUBLIC;
+			*flags |= KFD_IOC_ALLOC_MEM_FLAGS_PUBLIC;
 	}
 
 out_put:
