@@ -35,6 +35,7 @@
 #include <linux/kthread.h>
 
 #include "i915_drv.h"
+#include "intel_gvt.h"
 #include "gvt.h"
 #include <linux/vfio.h>
 #include <linux/mdev.h>
