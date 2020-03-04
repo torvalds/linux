@@ -3135,43 +3135,36 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 	return vmexit;
 }
 
-/* This function returns true if it is save to enable the irq window */
-static inline bool nested_svm_intr(struct vcpu_svm *svm)
+static void nested_svm_intr(struct vcpu_svm *svm)
 {
-	if (!is_guest_mode(&svm->vcpu))
-		return true;
-
-	if (!(svm->vcpu.arch.hflags & HF_VINTR_MASK))
-		return true;
-
-	if (!(svm->vcpu.arch.hflags & HF_HIF_MASK))
-		return false;
-
-	/*
-	 * if vmexit was already requested (by intercepted exception
-	 * for instance) do not overwrite it with "external interrupt"
-	 * vmexit.
-	 */
-	if (svm->nested.exit_required)
-		return false;
-
 	svm->vmcb->control.exit_code   = SVM_EXIT_INTR;
 	svm->vmcb->control.exit_info_1 = 0;
 	svm->vmcb->control.exit_info_2 = 0;
 
-	if (svm->nested.intercept & 1ULL) {
-		/*
-		 * The #vmexit can't be emulated here directly because this
-		 * code path runs with irqs and preemption disabled. A
-		 * #vmexit emulation might sleep. Only signal request for
-		 * the #vmexit here.
-		 */
-		svm->nested.exit_required = true;
-		trace_kvm_nested_intr_vmexit(svm->vmcb->save.rip);
-		return false;
+	/* nested_svm_vmexit this gets called afterwards from handle_exit */
+	svm->nested.exit_required = true;
+	trace_kvm_nested_intr_vmexit(svm->vmcb->save.rip);
+}
+
+static bool nested_exit_on_intr(struct vcpu_svm *svm)
+{
+	return (svm->nested.intercept & 1ULL);
+}
+
+static int svm_check_nested_events(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	bool block_nested_events =
+		kvm_event_needs_reinjection(vcpu) || svm->nested.exit_required;
+
+	if (kvm_cpu_has_interrupt(vcpu) && nested_exit_on_intr(svm)) {
+		if (block_nested_events)
+			return -EBUSY;
+		nested_svm_intr(svm);
+		return 0;
 	}
 
-	return true;
+	return 0;
 }
 
 /* This function returns true if it is save to enable the nmi window */
@@ -5546,18 +5539,15 @@ static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
-	int ret;
 
 	if (!gif_set(svm) ||
 	     (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK))
 		return 0;
 
-	ret = !!(kvm_get_rflags(vcpu) & X86_EFLAGS_IF);
-
-	if (is_guest_mode(vcpu))
-		return ret && !(svm->vcpu.arch.hflags & HF_VINTR_MASK);
-
-	return ret;
+	if (is_guest_mode(vcpu) && (svm->vcpu.arch.hflags & HF_VINTR_MASK))
+		return !!(svm->vcpu.arch.hflags & HF_HIF_MASK);
+	else
+		return !!(kvm_get_rflags(vcpu) & X86_EFLAGS_IF);
 }
 
 static void enable_irq_window(struct kvm_vcpu *vcpu)
@@ -5572,7 +5562,7 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 	 * enabled, the STGI interception will not occur. Enable the irq
 	 * window under the assumption that the hardware will set the GIF.
 	 */
-	if ((vgif_enabled(svm) || gif_set(svm)) && nested_svm_intr(svm)) {
+	if (vgif_enabled(svm) || gif_set(svm)) {
 		/*
 		 * IRQ window is not needed when AVIC is enabled,
 		 * unless we have pending ExtINT since it cannot be injected
@@ -7467,6 +7457,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.need_emulation_on_page_fault = svm_need_emulation_on_page_fault,
 
 	.apic_init_signal_blocked = svm_apic_init_signal_blocked,
+
+	.check_nested_events = svm_check_nested_events,
 };
 
 static int __init svm_init(void)
