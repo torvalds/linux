@@ -480,6 +480,9 @@ static int try_prep_async_create(struct inode *dir, struct dentry *dentry,
 	if (d_in_lookup(dentry)) {
 		if (!__ceph_dir_is_complete(ci))
 			goto no_async;
+		spin_lock(&dentry->d_lock);
+		di->lease_shared_gen = atomic_read(&ci->i_shared_gen);
+		spin_unlock(&dentry->d_lock);
 	} else if (atomic_read(&ci->i_shared_gen) !=
 		   READ_ONCE(di->lease_shared_gen)) {
 		goto no_async;
