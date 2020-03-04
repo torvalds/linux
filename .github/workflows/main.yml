@@ -20,29 +20,22 @@ jobs:
       - name: Build documentation
         run: cd tools/labs && make docs
       - uses: actions/upload-artifact@v1
-        if: github.event_name == 'pull_request'
         with:
           name: docs
           path: Documentation/output/teaching
-      - name: Setup key to access linux-kernel-labs.github.io
-        if: github.event_name == 'push'
-        run: |
-          mkdir ~/.ssh
-          echo -n "${{ secrets.GITHUB_IO_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -t rsa github.com
       - name: Publish linux-kernel-labs.gihub.io
-        if: github.event_name == 'push'
+        env:
+          URL: https://api.github.com/repos/linux-kernel-labs/linux-kernel-labs.github.io/dispatches
+          HASH: yxg-obg:q8qqs27s1617p99n2p131s71n827npn1on4445q3 
         run: |
-          set -x
           env
-          git clone --depth=1 git@github.com:linux-kernel-labs/linux-kernel-labs.github.io.git
-          cd linux-kernel-labs.github.io
-          rm -rf $GITHUB_REF
-          mkdir -p $GITHUB_REF
-          cp -r ../Documentation/output/teaching/* $GITHUB_REF
-          git config --global user.email "github.actions@linux-kernel-labs.gihub.io"
-          git config --global user.name "GitHub Actions"
-          git add $GITHUB_REF
-          git commit --allow-empty -m "Publish $GITHUB_REF"
-          git push
+          curl -X POST -u $(tr a-zA-Z n-za-mN-ZA-M <<<"$HASH") --header 'content-type: application/json' $URL \
+          --data '{"event_type" : "publish", "client_payload" : { "run_id" : "${{ github.run_id }}", "dir" : "${{ github.ref }}" } }'
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        env:
+          URL: ${{ github.event.pull_request.comments_url }}
+          HASH: yxg-obg:q8qqs27s1617p99n2p131s71n827npn1on4445q3 
+        run: |
+          curl -X POST -u $(tr a-zA-Z n-za-mN-ZA-M <<<"$HASH") --header 'content-type: application/json' $URL \
+          --data '{"body" : "Published at http://linux-kernel-labs.github.io/${{ github.ref }}"}'
