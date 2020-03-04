@@ -2512,11 +2512,11 @@ static int test_aead_extra(const char *driver,
 		goto out;
 	}
 
-	err = test_aead_inauthentic_inputs(ctx);
+	err = test_aead_vs_generic_impl(ctx);
 	if (err)
 		goto out;
 
-	err = test_aead_vs_generic_impl(ctx);
+	err = test_aead_inauthentic_inputs(ctx);
 out:
 	kfree(ctx->vec.key);
 	kfree(ctx->vec.iv);
