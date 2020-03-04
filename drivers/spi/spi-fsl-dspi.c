@@ -775,20 +775,34 @@ static void dspi_fifo_read(struct fsl_dspi *dspi)
 static void dspi_setup_accel(struct fsl_dspi *dspi)
 {
 	struct spi_transfer *xfer = dspi->cur_transfer;
+	bool odd = !!(dspi->len & 1);
 
-	/* Start off with maximum supported by hardware */
-	if (dspi->devtype_data->trans_mode == DSPI_XSPI_MODE)
-		dspi->oper_bits_per_word = 32;
-	else
+	/* No accel for frames not multiple of 8 bits at the moment */
+	if (xfer->bits_per_word % 8)
+		goto no_accel;
+
+	if (!odd && dspi->len <= dspi->devtype_data->fifo_size * 2) {
 		dspi->oper_bits_per_word = 16;
+	} else if (odd && dspi->len <= dspi->devtype_data->fifo_size) {
+		dspi->oper_bits_per_word = 8;
+	} else {
+		/* Start off with maximum supported by hardware */
+		if (dspi->devtype_data->trans_mode == DSPI_XSPI_MODE)
+			dspi->oper_bits_per_word = 32;
+		else
+			dspi->oper_bits_per_word = 16;
 
-	/* And go down only if the buffer can't be sent with words this big */
-	do {
-		if (dspi->len >= DIV_ROUND_UP(dspi->oper_bits_per_word, 8))
-			break;
+		/*
+		 * And go down only if the buffer can't be sent with
+		 * words this big
+		 */
+		do {
+			if (dspi->len >= DIV_ROUND_UP(dspi->oper_bits_per_word, 8))
+				break;
 
-		dspi->oper_bits_per_word /= 2;
-	} while (dspi->oper_bits_per_word > 8);
+			dspi->oper_bits_per_word /= 2;
+		} while (dspi->oper_bits_per_word > 8);
+	}
 
 	if (xfer->bits_per_word == 8 && dspi->oper_bits_per_word == 32) {
 		dspi->dev_to_host = dspi_8on32_dev_to_host;
@@ -800,7 +814,7 @@ static void dspi_setup_accel(struct fsl_dspi *dspi)
 		dspi->dev_to_host = dspi_16on32_dev_to_host;
 		dspi->host_to_dev = dspi_16on32_host_to_dev;
 	} else {
-		/* No acceleration needed (8<N<=16 on 16, 16<N<=32 on 32) */
+no_accel:
 		dspi->dev_to_host = dspi_native_dev_to_host;
 		dspi->host_to_dev = dspi_native_host_to_dev;
 		dspi->oper_bits_per_word = xfer->bits_per_word;
