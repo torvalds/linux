@@ -391,10 +391,7 @@ static void sdma_v5_2_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	u32 ref_and_mask = 0;
 	const struct nbio_hdp_flush_reg *nbio_hf_reg = adev->nbio.hdp_flush_reg;
 
-	if (ring->me == 0)
-		ref_and_mask = nbio_hf_reg->ref_and_mask_sdma0;
-	else
-		ref_and_mask = nbio_hf_reg->ref_and_mask_sdma1;
+	ref_and_mask = nbio_hf_reg->ref_and_mask_sdma0 << ring->me;
 
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_POLL_REGMEM) |
 			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(1) |
@@ -1224,6 +1221,7 @@ static int sdma_v5_2_sw_init(void *handle)
 		ring = &adev->sdma.instance[i].ring;
 		ring->ring_obj = NULL;
 		ring->use_doorbell = true;
+		ring->me = i;
 
 		DRM_INFO("use_doorbell being set to: [%s]\n",
 				ring->use_doorbell?"true":"false");
