@@ -656,10 +656,8 @@ static void dspi_pushr_write(struct fsl_dspi *dspi)
 	regmap_write(dspi->regmap, SPI_PUSHR, dspi_pop_tx_pushr(dspi));
 }
 
-static void dspi_pushr_cmd_write(struct fsl_dspi *dspi)
+static void dspi_pushr_cmd_write(struct fsl_dspi *dspi, u16 cmd)
 {
-	u16 cmd = dspi->tx_cmd;
-
 	/*
 	 * The only time when the PCS doesn't need continuation after this word
 	 * is when it's last. We need to look ahead, because we actually call
@@ -680,8 +678,13 @@ static void dspi_pushr_txdata_write(struct fsl_dspi *dspi, u16 txdata)
 	regmap_write(dspi->regmap_pushr, PUSHR_TX, txdata);
 }
 
-static void dspi_xspi_write(struct fsl_dspi *dspi, int cnt)
+static void dspi_xspi_write(struct fsl_dspi *dspi, int cnt, bool eoq)
 {
+	u16 tx_cmd = dspi->tx_cmd;
+
+	if (eoq)
+		tx_cmd |= SPI_PUSHR_CMD_EOQ;
+
 	/* Update CTARE */
 	regmap_write(dspi->regmap, SPI_CTARE(0),
 		     SPI_FRAME_EBITS(dspi->oper_bits_per_word) |
@@ -691,7 +694,7 @@ static void dspi_xspi_write(struct fsl_dspi *dspi, int cnt)
 	 * Write the CMD FIFO entry first, and then the two
 	 * corresponding TX FIFO entries (or one...).
 	 */
-	dspi_pushr_cmd_write(dspi);
+	dspi_pushr_cmd_write(dspi, tx_cmd);
 
 	/* Fill TX FIFO with as many transfers as possible */
 	while (cnt--) {
@@ -707,6 +710,7 @@ static void dspi_xspi_fifo_write(struct fsl_dspi *dspi)
 {
 	int num_fifo_entries = dspi->devtype_data->fifo_size;
 	int bytes_in_flight;
+	bool eoq = false;
 
 	/* In XSPI mode each 32-bit word occupies 2 TX FIFO entries */
 	if (dspi->oper_word_size == 4)
@@ -732,11 +736,11 @@ static void dspi_xspi_fifo_write(struct fsl_dspi *dspi)
 	 * So send one word less during this go, to force a split and a command
 	 * with a single word next time, when CONT will be unset.
 	 */
-	if (bytes_in_flight == dspi->len && dspi->words_in_flight > 1 &&
-	    !(dspi->tx_cmd & SPI_PUSHR_CMD_CONT))
-		dspi->words_in_flight--;
+	if (!(dspi->tx_cmd & SPI_PUSHR_CMD_CONT) &&
+	    bytes_in_flight == dspi->len)
+		eoq = true;
 
-	dspi_xspi_write(dspi, dspi->words_in_flight);
+	dspi_xspi_write(dspi, dspi->words_in_flight, eoq);
 }
 
 static void dspi_eoq_fifo_write(struct fsl_dspi *dspi)
