@@ -299,6 +299,25 @@ fill_page_dma(const struct i915_page_dma *p, const u64 val, unsigned int count)
 	kunmap_atomic(memset64(kmap_atomic(p->page), val, count));
 }
 
+static void poison_scratch_page(struct page *page, unsigned long size)
+{
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		return;
+
+	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
+
+	do {
+		void *vaddr;
+
+		vaddr = kmap(page);
+		memset(vaddr, POISON_FREE, PAGE_SIZE);
+		kunmap(page);
+
+		page = pfn_to_page(page_to_pfn(page) + 1);
+		size -= PAGE_SIZE;
+	} while (size);
+}
+
 int setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 {
 	unsigned long size;
@@ -330,6 +349,17 @@ int setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 		page = alloc_pages(gfp, order);
 		if (unlikely(!page))
 			goto skip;
+
+		/*
+		 * Use a non-zero scratch page for debugging.
+		 *
+		 * We want a value that should be reasonably obvious
+		 * to spot in the error state, while also causing a GPU hang
+		 * if executed. We prefer using a clear page in production, so
+		 * should it ever be accidentally used, the effect should be
+		 * fairly benign.
+		 */
+		poison_scratch_page(page, size);
 
 		addr = dma_map_page_attrs(vm->dma,
 					  page, 0, size,
@@ -448,9 +478,9 @@ void gtt_write_workarounds(struct intel_gt *gt)
 		intel_uncore_write(uncore,
 				   HSW_GTT_CACHE_EN,
 				   can_use_gtt_cache ? GTT_CACHE_EN_ALL : 0);
-		WARN_ON_ONCE(can_use_gtt_cache &&
-			     intel_uncore_read(uncore,
-					       HSW_GTT_CACHE_EN) == 0);
+		drm_WARN_ON_ONCE(&i915->drm, can_use_gtt_cache &&
+				 intel_uncore_read(uncore,
+						   HSW_GTT_CACHE_EN) == 0);
 	}
 }
 

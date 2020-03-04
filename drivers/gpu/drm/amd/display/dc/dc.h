@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.69"
+#define DC_VER "3.2.74"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -126,6 +126,7 @@ struct dc_bug_wa {
 	bool no_connect_phy_config;
 	bool dedcn20_305_wa;
 	bool skip_clock_update;
+	bool lt_early_cr_pattern;
 };
 
 struct dc_dcc_surface_param {
@@ -409,6 +410,7 @@ struct dc_debug_options {
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
 	bool dmub_command_table; /* for testing only */
+	bool psr_on_dmub;
 	struct dc_bw_validation_profile bw_val_profile;
 	bool disable_fec;
 	bool disable_48mhz_pwrdwn;
@@ -453,6 +455,7 @@ struct dc_phy_addr_space_config {
 	} gart_config;
 
 	bool valid;
+	bool is_hvm_enabled;
 	uint64_t page_table_default_page_addr;
 };
 
@@ -517,7 +520,8 @@ struct dc {
 	struct dce_hwseq *hwseq;
 
 	/* Require to optimize clocks and bandwidth for added/removed planes */
-	bool optimized_required;
+	bool clk_optimized_required;
+	bool wm_optimized_required;
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
 	int optimize_seamless_boot_streams;
@@ -526,6 +530,7 @@ struct dc {
 	struct compressor *fbc_compressor;
 
 	struct dc_debug_data debug_data;
+	struct dpcd_vendor_signature vendor_signature;
 
 	const char *build_id;
 	struct vm_helper *vm_helper;
@@ -565,12 +570,14 @@ struct dc_init_data {
 	struct dc_reg_helper_state *dmub_offload;
 
 	struct dc_config flags;
-	uint32_t log_mask;
+	uint64_t log_mask;
+
 	/**
 	 * gpu_info FW provided soc bounding box struct or 0 if not
 	 * available in FW
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
+	struct dpcd_vendor_signature vendor_signature;
 };
 
 struct dc_callback_init {
@@ -682,7 +689,6 @@ struct dc_3dlut {
 	struct kref refcount;
 	struct tetrahedral_params lut_3d;
 	struct fixed31_32 hdr_multiplier;
-	bool initialized; /*remove after diag fix*/
 	union dc_3dlut_state state;
 	struct dc_context *ctx;
 };
@@ -979,6 +985,20 @@ struct dpcd_caps {
 
 };
 
+union dpcd_sink_ext_caps {
+	struct {
+		/* 0 - Sink supports backlight adjust via PWM during SDR/HDR mode
+		 * 1 - Sink supports backlight adjust via AUX during SDR/HDR mode.
+		 */
+		uint8_t sdr_aux_backlight_control : 1;
+		uint8_t hdr_aux_backlight_control : 1;
+		uint8_t reserved_1 : 2;
+		uint8_t oled : 1;
+		uint8_t reserved : 3;
+	} bits;
+	uint8_t raw;
+};
+
 #include "dc_link.h"
 
 /*******************************************************************************
@@ -1075,7 +1095,6 @@ unsigned int dc_get_current_backlight_pwm(struct dc *dc);
 unsigned int dc_get_target_backlight_pwm(struct dc *dc);
 
 bool dc_is_dmcu_initialized(struct dc *dc);
-bool dc_is_hw_initialized(struct dc *dc);
 
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);
 void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg);

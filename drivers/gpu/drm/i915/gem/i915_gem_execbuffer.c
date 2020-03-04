@@ -420,6 +420,7 @@ eb_validate_vma(struct i915_execbuffer *eb,
 		struct drm_i915_gem_exec_object2 *entry,
 		struct i915_vma *vma)
 {
+	struct drm_i915_private *i915 = eb->i915;
 	if (unlikely(entry->flags & eb->invalid_flags))
 		return -EINVAL;
 
@@ -443,8 +444,9 @@ eb_validate_vma(struct i915_execbuffer *eb,
 	}
 
 	if (unlikely(vma->exec_flags)) {
-		DRM_DEBUG("Object [handle %d, index %d] appears more than once in object list\n",
-			  entry->handle, (int)(entry - eb->exec));
+		drm_dbg(&i915->drm,
+			"Object [handle %d, index %d] appears more than once in object list\n",
+			entry->handle, (int)(entry - eb->exec));
 		return -EINVAL;
 	}
 
@@ -1330,6 +1332,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 		  struct i915_vma *vma,
 		  const struct drm_i915_gem_relocation_entry *reloc)
 {
+	struct drm_i915_private *i915 = eb->i915;
 	struct i915_vma *target;
 	int err;
 
@@ -1340,7 +1343,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 
 	/* Validate that the target is in a valid r/w GPU domain */
 	if (unlikely(reloc->write_domain & (reloc->write_domain - 1))) {
-		DRM_DEBUG("reloc with multiple write domains: "
+		drm_dbg(&i915->drm, "reloc with multiple write domains: "
 			  "target %d offset %d "
 			  "read %08x write %08x",
 			  reloc->target_handle,
@@ -1351,7 +1354,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 	}
 	if (unlikely((reloc->write_domain | reloc->read_domains)
 		     & ~I915_GEM_GPU_DOMAINS)) {
-		DRM_DEBUG("reloc with read/write non-GPU domains: "
+		drm_dbg(&i915->drm, "reloc with read/write non-GPU domains: "
 			  "target %d offset %d "
 			  "read %08x write %08x",
 			  reloc->target_handle,
@@ -1391,7 +1394,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 	/* Check that the relocation address is valid... */
 	if (unlikely(reloc->offset >
 		     vma->size - (eb->reloc_cache.use_64bit_reloc ? 8 : 4))) {
-		DRM_DEBUG("Relocation beyond object bounds: "
+		drm_dbg(&i915->drm, "Relocation beyond object bounds: "
 			  "target %d offset %d size %d.\n",
 			  reloc->target_handle,
 			  (int)reloc->offset,
@@ -1399,7 +1402,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 		return -EINVAL;
 	}
 	if (unlikely(reloc->offset & 3)) {
-		DRM_DEBUG("Relocation not 4-byte aligned: "
+		drm_dbg(&i915->drm, "Relocation not 4-byte aligned: "
 			  "target %d offset %d.\n",
 			  reloc->target_handle,
 			  (int)reloc->offset);
@@ -1642,9 +1645,6 @@ static int eb_prefault_relocations(const struct i915_execbuffer *eb)
 {
 	const unsigned int count = eb->buffer_count;
 	unsigned int i;
-
-	if (unlikely(i915_modparams.prefault_disable))
-		return 0;
 
 	for (i = 0; i < count; i++) {
 		int err;
@@ -1921,7 +1921,7 @@ static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 	int i;
 
 	if (!IS_GEN(rq->i915, 7) || rq->engine->id != RCS0) {
-		DRM_DEBUG("sol reset is gen7/rcs only\n");
+		drm_dbg(&rq->i915->drm, "sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
 
@@ -2075,6 +2075,7 @@ err_free:
 
 static int eb_parse(struct i915_execbuffer *eb)
 {
+	struct drm_i915_private *i915 = eb->i915;
 	struct intel_engine_pool_node *pool;
 	struct i915_vma *shadow, *trampoline;
 	unsigned int len;
@@ -2090,7 +2091,8 @@ static int eb_parse(struct i915_execbuffer *eb)
 		 * post-scan tampering
 		 */
 		if (!eb->context->vm->has_read_only) {
-			DRM_DEBUG("Cannot prevent post-scan tampering without RO capable vm\n");
+			drm_dbg(&i915->drm,
+				"Cannot prevent post-scan tampering without RO capable vm\n");
 			return -EINVAL;
 		}
 	} else {
@@ -2371,8 +2373,9 @@ eb_select_legacy_ring(struct i915_execbuffer *eb,
 
 	if (user_ring_id != I915_EXEC_BSD &&
 	    (args->flags & I915_EXEC_BSD_MASK)) {
-		DRM_DEBUG("execbuf with non bsd ring but with invalid "
-			  "bsd dispatch flags: %d\n", (int)(args->flags));
+		drm_dbg(&i915->drm,
+			"execbuf with non bsd ring but with invalid "
+			"bsd dispatch flags: %d\n", (int)(args->flags));
 		return -1;
 	}
 
@@ -2386,8 +2389,9 @@ eb_select_legacy_ring(struct i915_execbuffer *eb,
 			bsd_idx >>= I915_EXEC_BSD_SHIFT;
 			bsd_idx--;
 		} else {
-			DRM_DEBUG("execbuf with unknown bsd ring: %u\n",
-				  bsd_idx);
+			drm_dbg(&i915->drm,
+				"execbuf with unknown bsd ring: %u\n",
+				bsd_idx);
 			return -1;
 		}
 
@@ -2395,7 +2399,8 @@ eb_select_legacy_ring(struct i915_execbuffer *eb,
 	}
 
 	if (user_ring_id >= ARRAY_SIZE(user_ring_map)) {
-		DRM_DEBUG("execbuf with unknown ring: %u\n", user_ring_id);
+		drm_dbg(&i915->drm, "execbuf with unknown ring: %u\n",
+			user_ring_id);
 		return -1;
 	}
 
@@ -2669,13 +2674,14 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	}
 
 	if (unlikely(*eb.batch->exec_flags & EXEC_OBJECT_WRITE)) {
-		DRM_DEBUG("Attempting to use self-modifying batch buffer\n");
+		drm_dbg(&i915->drm,
+			"Attempting to use self-modifying batch buffer\n");
 		err = -EINVAL;
 		goto err_vma;
 	}
 	if (eb.batch_start_offset > eb.batch->size ||
 	    eb.batch_len > eb.batch->size - eb.batch_start_offset) {
-		DRM_DEBUG("Attempting to use out-of-bounds batch\n");
+		drm_dbg(&i915->drm, "Attempting to use out-of-bounds batch\n");
 		err = -EINVAL;
 		goto err_vma;
 	}
@@ -2707,7 +2713,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		vma = i915_gem_object_ggtt_pin(eb.batch->obj, NULL, 0, 0, 0);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
-			goto err_vma;
+			goto err_parse;
 		}
 
 		eb.batch = vma;
@@ -2786,6 +2792,7 @@ err_request:
 err_batch_unpin:
 	if (eb.batch_flags & I915_DISPATCH_SECURE)
 		i915_vma_unpin(eb.batch);
+err_parse:
 	if (eb.batch->private)
 		intel_engine_pool_put(eb.batch->private);
 err_vma:
@@ -2838,6 +2845,7 @@ int
 i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file)
 {
+	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_execbuffer *args = data;
 	struct drm_i915_gem_execbuffer2 exec2;
 	struct drm_i915_gem_exec_object *exec_list = NULL;
@@ -2847,7 +2855,7 @@ i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
 	int err;
 
 	if (!check_buffer_count(count)) {
-		DRM_DEBUG("execbuf2 with %zd buffers\n", count);
+		drm_dbg(&i915->drm, "execbuf2 with %zd buffers\n", count);
 		return -EINVAL;
 	}
 
@@ -2872,8 +2880,9 @@ i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
 	exec2_list = kvmalloc_array(count + 1, eb_element_size(),
 				    __GFP_NOWARN | GFP_KERNEL);
 	if (exec_list == NULL || exec2_list == NULL) {
-		DRM_DEBUG("Failed to allocate exec list for %d buffers\n",
-			  args->buffer_count);
+		drm_dbg(&i915->drm,
+			"Failed to allocate exec list for %d buffers\n",
+			args->buffer_count);
 		kvfree(exec_list);
 		kvfree(exec2_list);
 		return -ENOMEM;
@@ -2882,8 +2891,8 @@ i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
 			     u64_to_user_ptr(args->buffers_ptr),
 			     sizeof(*exec_list) * count);
 	if (err) {
-		DRM_DEBUG("copy %d exec entries failed %d\n",
-			  args->buffer_count, err);
+		drm_dbg(&i915->drm, "copy %d exec entries failed %d\n",
+			args->buffer_count, err);
 		kvfree(exec_list);
 		kvfree(exec2_list);
 		return -EFAULT;
@@ -2930,6 +2939,7 @@ int
 i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file)
 {
+	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_execbuffer2 *args = data;
 	struct drm_i915_gem_exec_object2 *exec2_list;
 	struct drm_syncobj **fences = NULL;
@@ -2937,7 +2947,7 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 	int err;
 
 	if (!check_buffer_count(count)) {
-		DRM_DEBUG("execbuf2 with %zd buffers\n", count);
+		drm_dbg(&i915->drm, "execbuf2 with %zd buffers\n", count);
 		return -EINVAL;
 	}
 
@@ -2949,14 +2959,14 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 	exec2_list = kvmalloc_array(count + 1, eb_element_size(),
 				    __GFP_NOWARN | GFP_KERNEL);
 	if (exec2_list == NULL) {
-		DRM_DEBUG("Failed to allocate exec list for %zd buffers\n",
-			  count);
+		drm_dbg(&i915->drm, "Failed to allocate exec list for %zd buffers\n",
+			count);
 		return -ENOMEM;
 	}
 	if (copy_from_user(exec2_list,
 			   u64_to_user_ptr(args->buffers_ptr),
 			   sizeof(*exec2_list) * count)) {
-		DRM_DEBUG("copy %zd exec entries failed\n", count);
+		drm_dbg(&i915->drm, "copy %zd exec entries failed\n", count);
 		kvfree(exec2_list);
 		return -EFAULT;
 	}

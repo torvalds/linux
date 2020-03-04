@@ -2415,9 +2415,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(_MMIO(0x7144c), 0xc, 0, 0, 0, D_PRE_SKL, NULL, NULL);
 	MMIO_F(_MMIO(0x7244c), 0xc, 0, 0, 0, D_PRE_SKL, NULL, NULL);
 
-	MMIO_D(PIPE_WM_LINETIME(PIPE_A), D_ALL);
-	MMIO_D(PIPE_WM_LINETIME(PIPE_B), D_ALL);
-	MMIO_D(PIPE_WM_LINETIME(PIPE_C), D_ALL);
+	MMIO_D(WM_LINETIME(PIPE_A), D_ALL);
+	MMIO_D(WM_LINETIME(PIPE_B), D_ALL);
+	MMIO_D(WM_LINETIME(PIPE_C), D_ALL);
 	MMIO_D(SPLL_CTL, D_ALL);
 	MMIO_D(_MMIO(_WRPLL_CTL1), D_ALL);
 	MMIO_D(_MMIO(_WRPLL_CTL2), D_ALL);
@@ -2902,7 +2902,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(HSW_PWR_WELL_CTL1, D_SKL_PLUS);
 	MMIO_DH(HSW_PWR_WELL_CTL2, D_SKL_PLUS, NULL, skl_power_well_ctl_write);
 
-	MMIO_DH(DBUF_CTL, D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
+	MMIO_DH(DBUF_CTL_S(0), D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
 
 	MMIO_D(GEN9_PG_ENABLE, D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);

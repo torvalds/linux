@@ -672,14 +672,18 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 	workload_type = smu_workload_get_type(smu, smu->power_profile_mode);
 	if (workload_type < 0) {
-		pr_err("Unsupported power profile mode %d on RENOIR\n",smu->power_profile_mode);
+		/*
+		 * TODO: If some case need switch to powersave/default power mode
+		 * then can consider enter WORKLOAD_COMPUTE/WORKLOAD_CUSTOM for power saving.
+		 */
+		pr_err_once("Unsupported power profile mode %d on RENOIR\n",smu->power_profile_mode);
 		return -EINVAL;
 	}
 
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
 				    1 << workload_type);
 	if (ret) {
-		pr_err("Fail to set workload type %d\n", workload_type);
+		pr_err_once("Fail to set workload type %d\n", workload_type);
 		return ret;
 	}
 

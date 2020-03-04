@@ -808,4 +808,5 @@ const struct kfd2kgd_calls gfx_v10_kfd2kgd = {
 	.get_tile_config = amdgpu_amdkfd_get_tile_config,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,
 	.get_hive_id = amdgpu_amdkfd_get_hive_id,
+	.get_unique_id = amdgpu_amdkfd_get_unique_id,
 };

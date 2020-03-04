@@ -241,8 +241,9 @@ u32 vlv_dpio_read(struct drm_i915_private *i915, enum pipe pipe, int reg)
 	 * FIXME: There might be some registers where all 1's is a valid value,
 	 * so ideally we should check the register offset instead...
 	 */
-	WARN(val == 0xffffffff, "DPIO read pipe %c reg 0x%x == 0x%x\n",
-	     pipe_name(pipe), reg, val);
+	drm_WARN(&i915->drm, val == 0xffffffff,
+		 "DPIO read pipe %c reg 0x%x == 0x%x\n",
+		 pipe_name(pipe), reg, val);
 
 	return val;
 }
@@ -365,6 +366,10 @@ static inline int gen7_check_mailbox_status(u32 mbox)
 		return -ETIMEDOUT;
 	case GEN7_PCODE_ILLEGAL_DATA:
 		return -EINVAL;
+	case GEN11_PCODE_ILLEGAL_SUBCOMMAND:
+		return -ENXIO;
+	case GEN11_PCODE_LOCKED:
+		return -EBUSY;
 	case GEN7_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
 		return -EOVERFLOW;
 	default:
@@ -525,7 +530,7 @@ int skl_pcode_request(struct drm_i915_private *i915, u32 mbox, u32 request,
 	 */
 	drm_dbg_kms(&i915->drm,
 		    "PCODE timeout, retrying with preemption disabled\n");
-	WARN_ON_ONCE(timeout_base_ms > 3);
+	drm_WARN_ON_ONCE(&i915->drm, timeout_base_ms > 3);
 	preempt_disable();
 	ret = wait_for_atomic(COND, 50);
 	preempt_enable();

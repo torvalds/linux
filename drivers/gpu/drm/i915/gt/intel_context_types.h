@@ -7,6 +7,7 @@
 #ifndef __INTEL_CONTEXT_TYPES__
 #define __INTEL_CONTEXT_TYPES__
 
+#include <linux/average.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -18,6 +19,8 @@
 #include "intel_sseu.h"
 
 #define CONTEXT_REDZONE POISON_INUSE
+
+DECLARE_EWMA(runtime, 3, 8);
 
 struct i915_gem_context;
 struct i915_vma;
@@ -67,6 +70,15 @@ struct intel_context {
 	u32 *lrc_reg_state;
 	u64 lrc_desc;
 	u32 tag; /* cookie passed to HW to track this context on submission */
+
+	/* Time on GPU as tracked by the hw. */
+	struct {
+		struct ewma_runtime avg;
+		u64 total;
+		u32 last;
+		I915_SELFTEST_DECLARE(u32 num_underflow);
+		I915_SELFTEST_DECLARE(u32 max_underflow);
+	} runtime;
 
 	unsigned int active_count; /* protected by timeline->mutex */
 

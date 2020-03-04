@@ -318,6 +318,7 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 {
 	uint32_t bif_doorbell_intr_cntl;
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, adev->nbio.ras_if);
+	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
 	if (REG_GET_FIELD(bif_doorbell_intr_cntl,
@@ -332,7 +333,19 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 		 * clear error status after ras_controller_intr according to
 		 * hw team and count ue number for query
 		 */
-		nbio_v7_4_query_ras_error_count(adev, &obj->err_data);
+		nbio_v7_4_query_ras_error_count(adev, &err_data);
+
+		/* logging on error counter and printing for awareness */
+		obj->err_data.ue_count += err_data.ue_count;
+		obj->err_data.ce_count += err_data.ce_count;
+
+		if (err_data.ce_count)
+			DRM_INFO("%ld correctable errors detected in %s block\n",
+				obj->err_data.ce_count, adev->nbio.ras_if->name);
+
+		if (err_data.ue_count)
+			DRM_INFO("%ld uncorrectable errors detected in %s block\n",
+				obj->err_data.ue_count, adev->nbio.ras_if->name);
 
 		DRM_WARN("RAS controller interrupt triggered by NBIF error\n");
 

@@ -173,7 +173,8 @@ i915_active_add_request(struct i915_active *ref, struct i915_request *rq)
 	return i915_active_ref(ref, i915_request_timeline(rq), &rq->fence);
 }
 
-void i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f);
+struct dma_fence *
+i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f);
 
 static inline bool i915_active_has_exclusive(struct i915_active *ref)
 {

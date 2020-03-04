@@ -70,7 +70,8 @@ uint64_t amdgpu_sdma_get_csa_mc_addr(struct amdgpu_ring *ring,
 	uint32_t index = 0;
 	int r;
 
-	if (vmid == 0 || !amdgpu_mcbp)
+	/* don't enable OS preemption on SDMA under SRIOV */
+	if (amdgpu_sriov_vf(adev) || vmid == 0 || !amdgpu_mcbp)
 		return 0;
 
 	r = amdgpu_sdma_get_index_from_ring(ring, &index);

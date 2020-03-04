@@ -45,7 +45,7 @@
 #include "dpcd_defs.h"
 #include "dmcu.h"
 #include "hw/clk_mgr.h"
-#include "../dce/dmub_psr.h"
+#include "dce/dmub_psr.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -599,6 +599,9 @@ static bool detect_dp(
 
 	if (sink_caps->transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
 		sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
+
+		dpcd_set_source_specific_data(link);
+
 		if (!detect_dp_sink_caps(link))
 			return false;
 
@@ -769,8 +772,16 @@ static bool dc_link_detect_helper(struct dc_link *link,
 
 	if ((link->connector_signal == SIGNAL_TYPE_LVDS ||
 			link->connector_signal == SIGNAL_TYPE_EDP) &&
-			link->local_sink)
+			link->local_sink) {
+
+		// need to re-write OUI and brightness in resume case
+		if (link->connector_signal == SIGNAL_TYPE_EDP) {
+			dpcd_set_source_specific_data(link);
+			dc_link_set_default_brightness_aux(link); //TODO: use cached
+		}
+
 		return true;
+	}
 
 	if (false == dc_link_detect_sink(link, &new_connection_type)) {
 		BREAK_TO_DEBUGGER();
@@ -818,6 +829,10 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		}
 
 		case SIGNAL_TYPE_EDP: {
+			read_current_link_settings_on_detect(link);
+
+			dpcd_set_source_specific_data(link);
+
 			detect_edp_sink_caps(link);
 			read_current_link_settings_on_detect(link);
 			sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
@@ -961,6 +976,9 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		// Check if edid is the same
 		if ((prev_sink != NULL) && ((edid_status == EDID_THE_SAME) || (edid_status == EDID_OK)))
 			same_edid = is_same_edid(&prev_sink->dc_edid, &sink->dc_edid);
+
+		if (sink->edid_caps.panel_patch.skip_scdc_overwrite)
+			link->ctx->dc->debug.hdmi20_disable = true;
 
 		if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
 			sink_caps.transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
@@ -1492,6 +1510,7 @@ static enum dc_status enable_link_dp(
 	bool fec_enable;
 	int i;
 	bool apply_seamless_boot_optimization = false;
+	uint32_t bl_oled_enable_delay = 50; // in ms
 
 	// check for seamless boot
 	for (i = 0; i < state->stream_count; i++) {
@@ -1514,6 +1533,9 @@ static enum dc_status enable_link_dp(
 			link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
 	if (state->clk_mgr && !apply_seamless_boot_optimization)
 		state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
+
+	// during mode switch we do DP_SET_POWER off then on, and OUI is lost
+	dpcd_set_source_specific_data(link);
 
 	skip_video_pattern = true;
 
@@ -1538,6 +1560,17 @@ static enum dc_status enable_link_dp(
 		fec_enable = true;
 
 	dp_set_fec_enable(link, fec_enable);
+
+	// during mode set we do DP_SET_POWER off then on, aux writes are lost
+	if (link->dpcd_sink_ext_caps.bits.oled == 1 ||
+		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1 ||
+		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1) {
+		dc_link_set_default_brightness_aux(link); // TODO: use cached if known
+		if (link->dpcd_sink_ext_caps.bits.oled == 1)
+			msleep(bl_oled_enable_delay);
+		dc_link_backlight_enable_aux(link, true);
+	}
+
 	return status;
 }
 
@@ -2400,8 +2433,8 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool 
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dmub_psr *psr = dc->res_pool->psr;
 
-	if ((psr != NULL) && link->psr_feature_enabled)
-		psr->funcs->set_psr_enable(psr, allow_active);
+	if (psr != NULL && link->psr_feature_enabled)
+		psr->funcs->psr_enable(psr, allow_active);
 	else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_feature_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
 
@@ -2417,7 +2450,7 @@ bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
 	struct dmub_psr *psr = dc->res_pool->psr;
 
 	if (psr != NULL && link->psr_feature_enabled)
-		psr->funcs->get_psr_state(psr_state);
+		psr->funcs->psr_get_state(psr, psr_state);
 	else if (dmcu != NULL && link->psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, psr_state);
 
@@ -2589,7 +2622,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr_context->frame_delay = 0;
 
 	if (psr)
-		link->psr_feature_enabled = psr->funcs->setup_psr(psr, link, psr_context);
+		link->psr_feature_enabled = psr->funcs->psr_copy_settings(psr, link, psr_context);
 	else
 		link->psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 
@@ -2922,7 +2955,8 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 		memset(&config, 0, sizeof(config));
 
 		config.otg_inst = (uint8_t) pipe_ctx->stream_res.tg->inst;
-		config.stream_enc_inst = (uint8_t) pipe_ctx->stream_res.stream_enc->id;
+		/*stream_enc_inst*/
+		config.stream_enc_inst = (uint8_t) pipe_ctx->stream_res.stream_enc->stream_enc_inst;
 		config.link_enc_inst = pipe_ctx->stream->link->link_enc_hw_inst;
 		config.dpms_off = dpms_off;
 		config.dm_stream_ctx = pipe_ctx->stream->dm_stream_context;
@@ -3060,6 +3094,9 @@ void core_link_enable_stream(
 
 		dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->link->cur_link_settings);
+
+		if (stream->sink_patches.delay_ignore_msa > 0)
+			msleep(stream->sink_patches.delay_ignore_msa);
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			enable_stream_features(pipe_ctx);

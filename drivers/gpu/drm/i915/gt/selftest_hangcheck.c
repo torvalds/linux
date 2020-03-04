@@ -1640,7 +1640,7 @@ static int igt_reset_engines_atomic(void *arg)
 	if (!intel_has_reset_engine(gt))
 		return 0;
 
-	if (USES_GUC_SUBMISSION(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
 		return 0;
 
 	igt_global_reset_lock(gt);

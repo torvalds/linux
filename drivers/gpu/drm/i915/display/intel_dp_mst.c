@@ -352,8 +352,9 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 
 	intel_dp->active_mst_links--;
 	last_mst_stream = intel_dp->active_mst_links == 0;
-	WARN_ON(INTEL_GEN(dev_priv) >= 12 && last_mst_stream &&
-		!intel_dp_mst_is_master_trans(old_crtc_state));
+	drm_WARN_ON(&dev_priv->drm,
+		    INTEL_GEN(dev_priv) >= 12 && last_mst_stream &&
+		    !intel_dp_mst_is_master_trans(old_crtc_state));
 
 	intel_crtc_vblank_off(old_crtc_state);
 
@@ -361,9 +362,12 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 
 	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
 
-	val = I915_READ(TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder));
+	val = intel_de_read(dev_priv,
+			    TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder));
 	val &= ~TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
-	I915_WRITE(TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder), val);
+	intel_de_write(dev_priv,
+		       TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder),
+		       val);
 
 	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
 				  DP_TP_STATUS_ACT_SENT, 1))
@@ -437,8 +441,9 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	connector->encoder = encoder;
 	intel_mst->connector = connector;
 	first_mst_stream = intel_dp->active_mst_links == 0;
-	WARN_ON(INTEL_GEN(dev_priv) >= 12 && first_mst_stream &&
-		!intel_dp_mst_is_master_trans(pipe_config));
+	drm_WARN_ON(&dev_priv->drm,
+		    INTEL_GEN(dev_priv) >= 12 && first_mst_stream &&
+		    !intel_dp_mst_is_master_trans(pipe_config));
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
@@ -459,8 +464,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 		DRM_ERROR("failed to allocate vcpi\n");
 
 	intel_dp->active_mst_links++;
-	temp = I915_READ(intel_dp->regs.dp_tp_status);
-	I915_WRITE(intel_dp->regs.dp_tp_status, temp);
+	temp = intel_de_read(dev_priv, intel_dp->regs.dp_tp_status);
+	intel_de_write(dev_priv, intel_dp->regs.dp_tp_status, temp);
 
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
 
@@ -475,6 +480,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 		intel_ddi_enable_pipe_clock(pipe_config);
 
 	intel_ddi_set_dp_msa(pipe_config, conn_state);
+
+	intel_dp_set_m_n(pipe_config, M1_N1);
 }
 
 static void intel_mst_enable_dp(struct intel_encoder *encoder,
@@ -485,6 +492,12 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
+
+	intel_enable_pipe(pipe_config);
+
+	intel_crtc_vblank_on(pipe_config);
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
@@ -632,9 +645,9 @@ static const struct drm_encoder_funcs intel_dp_mst_enc_funcs = {
 
 static bool intel_dp_mst_get_hw_state(struct intel_connector *connector)
 {
-	if (connector->encoder && connector->base.state->crtc) {
+	if (intel_attached_encoder(connector) && connector->base.state->crtc) {
 		enum pipe pipe;
-		if (!connector->encoder->get_hw_state(connector->encoder, &pipe))
+		if (!intel_attached_encoder(connector)->get_hw_state(intel_attached_encoder(connector), &pipe))
 			return false;
 		return true;
 	}

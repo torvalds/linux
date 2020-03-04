@@ -72,9 +72,10 @@ static void client_mark_guilty(struct i915_gem_context *ctx, bool banned)
 	if (score) {
 		atomic_add(score, &file_priv->ban_score);
 
-		DRM_DEBUG_DRIVER("client %s: gained %u ban score, now %u\n",
-				 ctx->name, score,
-				 atomic_read(&file_priv->ban_score));
+		drm_dbg(&ctx->i915->drm,
+			"client %s: gained %u ban score, now %u\n",
+			ctx->name, score,
+			atomic_read(&file_priv->ban_score));
 	}
 }
 
@@ -122,8 +123,8 @@ static bool mark_guilty(struct i915_request *rq)
 	if (time_before(jiffies, prev_hang + CONTEXT_FAST_HANG_JIFFIES))
 		banned = true;
 	if (banned) {
-		DRM_DEBUG_DRIVER("context %s: guilty %d, banned\n",
-				 ctx->name, atomic_read(&ctx->guilty_count));
+		drm_dbg(&ctx->i915->drm, "context %s: guilty %d, banned\n",
+			ctx->name, atomic_read(&ctx->guilty_count));
 		intel_context_set_banned(rq->context);
 	}
 
@@ -226,7 +227,7 @@ static int g4x_do_reset(struct intel_gt *gt,
 			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
 	ret =  wait_for_atomic(g4x_reset_complete(pdev), 50);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Wait for media reset failed\n");
+		drm_dbg(&gt->i915->drm, "Wait for media reset failed\n");
 		goto out;
 	}
 
@@ -234,7 +235,7 @@ static int g4x_do_reset(struct intel_gt *gt,
 			      GRDOM_RENDER | GRDOM_RESET_ENABLE);
 	ret =  wait_for_atomic(g4x_reset_complete(pdev), 50);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Wait for render reset failed\n");
+		drm_dbg(&gt->i915->drm, "Wait for render reset failed\n");
 		goto out;
 	}
 
@@ -260,7 +261,7 @@ static int ilk_do_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask,
 					   5000, 0,
 					   NULL);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Wait for render reset failed\n");
+		drm_dbg(&gt->i915->drm, "Wait for render reset failed\n");
 		goto out;
 	}
 
@@ -271,7 +272,7 @@ static int ilk_do_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask,
 					   5000, 0,
 					   NULL);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Wait for media reset failed\n");
+		drm_dbg(&gt->i915->drm, "Wait for media reset failed\n");
 		goto out;
 	}
 
@@ -300,8 +301,9 @@ static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
 					   500, 0,
 					   NULL);
 	if (err)
-		DRM_DEBUG_DRIVER("Wait for 0x%08x engines reset failed\n",
-				 hw_domain_mask);
+		drm_dbg(&gt->i915->drm,
+			"Wait for 0x%08x engines reset failed\n",
+			hw_domain_mask);
 
 	return err;
 }
@@ -401,7 +403,8 @@ static int gen11_lock_sfc(struct intel_engine_cs *engine, u32 *hw_mask)
 		return 0;
 
 	if (ret) {
-		DRM_DEBUG_DRIVER("Wait for SFC forced lock ack failed\n");
+		drm_dbg(&engine->i915->drm,
+			"Wait for SFC forced lock ack failed\n");
 		return ret;
 	}
 
@@ -515,9 +518,10 @@ static int gen8_engine_reset_prepare(struct intel_engine_cs *engine)
 	ret = __intel_wait_for_register_fw(uncore, reg, mask, ack,
 					   700, 0, NULL);
 	if (ret)
-		DRM_ERROR("%s reset request timed out: {request: %08x, RESET_CTL: %08x}\n",
-			  engine->name, request,
-			  intel_uncore_read_fw(uncore, reg));
+		drm_err(&engine->i915->drm,
+			"%s reset request timed out: {request: %08x, RESET_CTL: %08x}\n",
+			engine->name, request,
+			intel_uncore_read_fw(uncore, reg));
 
 	return ret;
 }
@@ -800,13 +804,6 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	if (test_bit(I915_WEDGED, &gt->reset.flags))
 		return;
 
-	if (GEM_SHOW_DEBUG() && !intel_engines_are_idle(gt)) {
-		struct drm_printer p = drm_debug_printer(__func__);
-
-		for_each_engine(engine, gt, id)
-			intel_engine_dump(engine, &p, "%s\n", engine->name);
-	}
-
 	GT_TRACE(gt, "start\n");
 
 	/*
@@ -845,10 +842,30 @@ void intel_gt_set_wedged(struct intel_gt *gt)
 {
 	intel_wakeref_t wakeref;
 
+	if (test_bit(I915_WEDGED, &gt->reset.flags))
+		return;
+
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 	mutex_lock(&gt->reset.mutex);
-	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
-		__intel_gt_set_wedged(gt);
+
+	if (GEM_SHOW_DEBUG()) {
+		struct drm_printer p = drm_debug_printer(__func__);
+		struct intel_engine_cs *engine;
+		enum intel_engine_id id;
+
+		drm_printf(&p, "called from %pS\n", (void *)_RET_IP_);
+		for_each_engine(engine, gt, id) {
+			if (intel_engine_is_idle(engine))
+				continue;
+
+			intel_engine_dump(engine, &p, "%s\n", engine->name);
+		}
+	}
+
+	__intel_gt_set_wedged(gt);
+
 	mutex_unlock(&gt->reset.mutex);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 }
 
 static bool __intel_gt_unset_wedged(struct intel_gt *gt)
@@ -969,7 +986,7 @@ static int resume(struct intel_gt *gt)
 	int ret;
 
 	for_each_engine(engine, gt, id) {
-		ret = engine->resume(engine);
+		ret = intel_engine_resume(engine);
 		if (ret)
 			return ret;
 	}
@@ -1022,7 +1039,7 @@ void intel_gt_reset(struct intel_gt *gt,
 		if (i915_modparams.reset)
 			dev_err(gt->i915->drm.dev, "GPU reset not supported\n");
 		else
-			DRM_DEBUG_DRIVER("GPU reset disabled\n");
+			drm_dbg(&gt->i915->drm, "GPU reset disabled\n");
 		goto error;
 	}
 
@@ -1049,8 +1066,9 @@ void intel_gt_reset(struct intel_gt *gt,
 	 */
 	ret = intel_gt_init_hw(gt);
 	if (ret) {
-		DRM_ERROR("Failed to initialise HW following reset (%d)\n",
-			  ret);
+		drm_err(&gt->i915->drm,
+			"Failed to initialise HW following reset (%d)\n",
+			ret);
 		goto taint;
 	}
 
@@ -1126,9 +1144,8 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 		ret = intel_guc_reset_engine(&engine->gt->uc.guc, engine);
 	if (ret) {
 		/* If we fail here, we expect to fallback to a global reset */
-		DRM_DEBUG_DRIVER("%sFailed to reset %s, ret=%d\n",
-				 uses_guc ? "GuC " : "",
-				 engine->name, ret);
+		drm_dbg(&gt->i915->drm, "%sFailed to reset %s, ret=%d\n",
+			uses_guc ? "GuC " : "", engine->name, ret);
 		goto out;
 	}
 
@@ -1144,7 +1161,7 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 	 * have been reset to their default values. Follow the init_ring
 	 * process to program RING_MODE, HWSP and re-enable submission.
 	 */
-	ret = engine->resume(engine);
+	ret = intel_engine_resume(engine);
 
 out:
 	intel_engine_cancel_stop_cs(engine);
@@ -1165,7 +1182,7 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 
 	kobject_uevent_env(kobj, KOBJ_CHANGE, error_event);
 
-	DRM_DEBUG_DRIVER("resetting chip\n");
+	drm_dbg(&gt->i915->drm, "resetting chip, engines=%x\n", engine_mask);
 	kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
 
 	/* Use a watchdog to ensure that our reset completes */

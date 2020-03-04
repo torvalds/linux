@@ -204,9 +204,10 @@ static void i830_overlay_clock_gating(struct drm_i915_private *dev_priv,
 
 	/* WA_OVERLAY_CLKGATE:alm */
 	if (enable)
-		I915_WRITE(DSPCLK_GATE_D, 0);
+		intel_de_write(dev_priv, DSPCLK_GATE_D, 0);
 	else
-		I915_WRITE(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
+		intel_de_write(dev_priv, DSPCLK_GATE_D,
+			       OVRUNIT_CLOCK_GATE_DISABLE);
 
 	/* WA_DISABLE_L2CACHE_CLOCK_GATING:alm */
 	pci_bus_read_config_byte(pdev->bus,
@@ -247,7 +248,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	struct i915_request *rq;
 	u32 *cs;
 
-	WARN_ON(overlay->active);
+	drm_WARN_ON(&dev_priv->drm, overlay->active);
 
 	rq = alloc_request(overlay, NULL);
 	if (IS_ERR(rq))
@@ -315,13 +316,13 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	u32 flip_addr = overlay->flip_addr;
 	u32 tmp, *cs;
 
-	WARN_ON(!overlay->active);
+	drm_WARN_ON(&dev_priv->drm, !overlay->active);
 
 	if (load_polyphase_filter)
 		flip_addr |= OFC_UPDATE;
 
 	/* check for underruns */
-	tmp = I915_READ(DOVSTA);
+	tmp = intel_de_read(dev_priv, DOVSTA);
 	if (tmp & (1 << 17))
 		DRM_DEBUG("overlay underrun, DOVSTA: %x\n", tmp);
 
@@ -456,7 +457,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	if (!overlay->old_vma)
 		return 0;
 
-	if (!(I915_READ(GEN2_ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT)) {
+	if (!(intel_de_read(dev_priv, GEN2_ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT)) {
 		intel_overlay_release_old_vid_tail(overlay);
 		return 0;
 	}
@@ -759,7 +760,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	struct i915_vma *vma;
 	int ret, tmp_width;
 
-	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
+	drm_WARN_ON(&dev_priv->drm,
+		    !drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
 
 	ret = intel_overlay_release_old_vid(overlay);
 	if (ret != 0)
@@ -857,7 +859,8 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	struct drm_i915_private *dev_priv = overlay->i915;
 	int ret;
 
-	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
+	drm_WARN_ON(&dev_priv->drm,
+		    !drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
 
 	ret = intel_overlay_recover_from_interrupt(overlay);
 	if (ret != 0)
@@ -891,7 +894,7 @@ static int check_overlay_possible_on_crtc(struct intel_overlay *overlay,
 static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 {
 	struct drm_i915_private *dev_priv = overlay->i915;
-	u32 pfit_control = I915_READ(PFIT_CONTROL);
+	u32 pfit_control = intel_de_read(dev_priv, PFIT_CONTROL);
 	u32 ratio;
 
 	/* XXX: This is not the same logic as in the xorg driver, but more in
@@ -899,12 +902,12 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 	 */
 	if (INTEL_GEN(dev_priv) >= 4) {
 		/* on i965 use the PGM reg to read out the autoscaler values */
-		ratio = I915_READ(PFIT_PGM_RATIOS) >> PFIT_VERT_SCALE_SHIFT_965;
+		ratio = intel_de_read(dev_priv, PFIT_PGM_RATIOS) >> PFIT_VERT_SCALE_SHIFT_965;
 	} else {
 		if (pfit_control & VERT_AUTO_SCALE)
-			ratio = I915_READ(PFIT_AUTO_RATIOS);
+			ratio = intel_de_read(dev_priv, PFIT_AUTO_RATIOS);
 		else
-			ratio = I915_READ(PFIT_PGM_RATIOS);
+			ratio = intel_de_read(dev_priv, PFIT_PGM_RATIOS);
 		ratio >>= PFIT_VERT_SCALE_SHIFT;
 	}
 
@@ -1239,12 +1242,12 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 		attrs->saturation = overlay->saturation;
 
 		if (!IS_GEN(dev_priv, 2)) {
-			attrs->gamma0 = I915_READ(OGAMC0);
-			attrs->gamma1 = I915_READ(OGAMC1);
-			attrs->gamma2 = I915_READ(OGAMC2);
-			attrs->gamma3 = I915_READ(OGAMC3);
-			attrs->gamma4 = I915_READ(OGAMC4);
-			attrs->gamma5 = I915_READ(OGAMC5);
+			attrs->gamma0 = intel_de_read(dev_priv, OGAMC0);
+			attrs->gamma1 = intel_de_read(dev_priv, OGAMC1);
+			attrs->gamma2 = intel_de_read(dev_priv, OGAMC2);
+			attrs->gamma3 = intel_de_read(dev_priv, OGAMC3);
+			attrs->gamma4 = intel_de_read(dev_priv, OGAMC4);
+			attrs->gamma5 = intel_de_read(dev_priv, OGAMC5);
 		}
 	} else {
 		if (attrs->brightness < -128 || attrs->brightness > 127)
@@ -1274,12 +1277,12 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 			if (ret)
 				goto out_unlock;
 
-			I915_WRITE(OGAMC0, attrs->gamma0);
-			I915_WRITE(OGAMC1, attrs->gamma1);
-			I915_WRITE(OGAMC2, attrs->gamma2);
-			I915_WRITE(OGAMC3, attrs->gamma3);
-			I915_WRITE(OGAMC4, attrs->gamma4);
-			I915_WRITE(OGAMC5, attrs->gamma5);
+			intel_de_write(dev_priv, OGAMC0, attrs->gamma0);
+			intel_de_write(dev_priv, OGAMC1, attrs->gamma1);
+			intel_de_write(dev_priv, OGAMC2, attrs->gamma2);
+			intel_de_write(dev_priv, OGAMC3, attrs->gamma3);
+			intel_de_write(dev_priv, OGAMC4, attrs->gamma4);
+			intel_de_write(dev_priv, OGAMC5, attrs->gamma5);
 		}
 	}
 	overlay->color_key_enabled = (attrs->flags & I915_OVERLAY_DISABLE_DEST_COLORKEY) == 0;
@@ -1389,7 +1392,7 @@ void intel_overlay_cleanup(struct drm_i915_private *dev_priv)
 	 * Furthermore modesetting teardown happens beforehand so the
 	 * hardware should be off already.
 	 */
-	WARN_ON(overlay->active);
+	drm_WARN_ON(&dev_priv->drm, overlay->active);
 
 	i915_gem_object_put(overlay->reg_bo);
 	i915_active_fini(&overlay->last_flip);
@@ -1419,8 +1422,8 @@ intel_overlay_capture_error_state(struct drm_i915_private *dev_priv)
 	if (error == NULL)
 		return NULL;
 
-	error->dovsta = I915_READ(DOVSTA);
-	error->isr = I915_READ(GEN2_ISR);
+	error->dovsta = intel_de_read(dev_priv, DOVSTA);
+	error->isr = intel_de_read(dev_priv, GEN2_ISR);
 	error->base = overlay->flip_addr;
 
 	memcpy_fromio(&error->regs, overlay->regs, sizeof(error->regs));

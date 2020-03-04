@@ -365,6 +365,13 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 		return 0;
 
 	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
+		ret = psp_xgmi_initialize(&adev->psp);
+		if (ret) {
+			dev_err(adev->dev,
+				"XGMI: Failed to initialize xgmi session\n");
+			return ret;
+		}
+
 		ret = psp_xgmi_get_hive_id(&adev->psp, &adev->gmc.xgmi.hive_id);
 		if (ret) {
 			dev_err(adev->dev,
@@ -451,16 +458,16 @@ exit:
 	return ret;
 }
 
-void amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
+int amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 {
 	struct amdgpu_hive_info *hive;
 
 	if (!adev->gmc.xgmi.supported)
-		return;
+		return -EINVAL;
 
 	hive = amdgpu_get_xgmi_hive(adev, 1);
 	if (!hive)
-		return;
+		return -EINVAL;
 
 	if (!(hive->number_devices--)) {
 		amdgpu_xgmi_sysfs_destroy(adev, hive);
@@ -471,6 +478,8 @@ void amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 		amdgpu_xgmi_sysfs_rem_dev_info(adev, hive);
 		mutex_unlock(&hive->hive_lock);
 	}
+
+	return psp_xgmi_terminate(&adev->psp);
 }
 
 int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
@@ -520,4 +529,34 @@ void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)
 		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
 		kfree(ras_if);
 	}
+}
+
+uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
+					   uint64_t addr)
+{
+	uint32_t df_inst_id;
+	uint64_t dram_base_addr = 0;
+	const struct amdgpu_df_funcs *df_funcs = adev->df.funcs;
+
+	if ((!df_funcs)                 ||
+	    (!df_funcs->get_df_inst_id) ||
+	    (!df_funcs->get_dram_base_addr)) {
+		dev_warn(adev->dev,
+			 "XGMI: relative phy_addr algorithm is not supported\n");
+		return addr;
+	}
+
+	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW)) {
+		dev_warn(adev->dev,
+			 "failed to disable DF-Cstate, DF register may not be accessible\n");
+		return addr;
+	}
+
+	df_inst_id = df_funcs->get_df_inst_id(adev);
+	dram_base_addr = df_funcs->get_dram_base_addr(adev, df_inst_id);
+
+	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_ALLOW))
+		dev_warn(adev->dev, "failed to enable DF-Cstate\n");
+
+	return addr + dram_base_addr;
 }

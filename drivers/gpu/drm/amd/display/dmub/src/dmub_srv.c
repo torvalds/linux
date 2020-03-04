@@ -126,6 +126,9 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->set_inbox1_wptr = dmub_dcn20_set_inbox1_wptr;
 		funcs->is_supported = dmub_dcn20_is_supported;
 		funcs->is_hw_init = dmub_dcn20_is_hw_init;
+		funcs->set_gpint = dmub_dcn20_set_gpint;
+		funcs->is_gpint_acked = dmub_dcn20_is_gpint_acked;
+		funcs->get_gpint_response = dmub_dcn20_get_gpint_response;
 
 		if (asic == DMUB_ASIC_DCN21) {
 			dmub->regs = &dmub_srv_dcn21_regs;
@@ -521,4 +524,51 @@ enum dmub_status dmub_srv_wait_for_idle(struct dmub_srv *dmub,
 	}
 
 	return DMUB_STATUS_TIMEOUT;
+}
+
+enum dmub_status
+dmub_srv_send_gpint_command(struct dmub_srv *dmub,
+			    enum dmub_gpint_command command_code,
+			    uint16_t param, uint32_t timeout_us)
+{
+	union dmub_gpint_data_register reg;
+	uint32_t i;
+
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (!dmub->hw_funcs.set_gpint)
+		return DMUB_STATUS_INVALID;
+
+	if (!dmub->hw_funcs.is_gpint_acked)
+		return DMUB_STATUS_INVALID;
+
+	reg.bits.status = 1;
+	reg.bits.command_code = command_code;
+	reg.bits.param = param;
+
+	dmub->hw_funcs.set_gpint(dmub, reg);
+
+	for (i = 0; i < timeout_us; ++i) {
+		if (dmub->hw_funcs.is_gpint_acked(dmub, reg))
+			return DMUB_STATUS_OK;
+	}
+
+	return DMUB_STATUS_TIMEOUT;
+}
+
+enum dmub_status dmub_srv_get_gpint_response(struct dmub_srv *dmub,
+					     uint32_t *response)
+{
+	*response = 0;
+
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (!dmub->hw_funcs.get_gpint_response)
+		return DMUB_STATUS_INVALID;
+
+	*response = dmub->hw_funcs.get_gpint_response(dmub);
+
+	return DMUB_STATUS_OK;
 }

@@ -40,7 +40,7 @@ static inline bool is_dsb_busy(struct intel_dsb *dsb)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	return DSB_STATUS & I915_READ(DSB_CTRL(pipe, dsb->id));
+	return DSB_STATUS & intel_de_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 }
 
 static inline bool intel_dsb_enable_engine(struct intel_dsb *dsb)
@@ -50,16 +50,16 @@ static inline bool intel_dsb_enable_engine(struct intel_dsb *dsb)
 	enum pipe pipe = crtc->pipe;
 	u32 dsb_ctrl;
 
-	dsb_ctrl = I915_READ(DSB_CTRL(pipe, dsb->id));
+	dsb_ctrl = intel_de_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 	if (DSB_STATUS & dsb_ctrl) {
 		DRM_DEBUG_KMS("DSB engine is busy.\n");
 		return false;
 	}
 
 	dsb_ctrl |= DSB_ENABLE;
-	I915_WRITE(DSB_CTRL(pipe, dsb->id), dsb_ctrl);
+	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id), dsb_ctrl);
 
-	POSTING_READ(DSB_CTRL(pipe, dsb->id));
+	intel_de_posting_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 	return true;
 }
 
@@ -70,16 +70,16 @@ static inline bool intel_dsb_disable_engine(struct intel_dsb *dsb)
 	enum pipe pipe = crtc->pipe;
 	u32 dsb_ctrl;
 
-	dsb_ctrl = I915_READ(DSB_CTRL(pipe, dsb->id));
+	dsb_ctrl = intel_de_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 	if (DSB_STATUS & dsb_ctrl) {
 		DRM_DEBUG_KMS("DSB engine is busy.\n");
 		return false;
 	}
 
 	dsb_ctrl &= ~DSB_ENABLE;
-	I915_WRITE(DSB_CTRL(pipe, dsb->id), dsb_ctrl);
+	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id), dsb_ctrl);
 
-	POSTING_READ(DSB_CTRL(pipe, dsb->id));
+	intel_de_posting_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 	return true;
 }
 
@@ -165,7 +165,7 @@ void intel_dsb_put(struct intel_dsb *dsb)
 	if (!HAS_DSB(i915))
 		return;
 
-	if (WARN_ON(dsb->refcount == 0))
+	if (drm_WARN_ON(&i915->drm, dsb->refcount == 0))
 		return;
 
 	if (--dsb->refcount == 0) {
@@ -198,11 +198,11 @@ void intel_dsb_indexed_reg_write(struct intel_dsb *dsb, i915_reg_t reg,
 	u32 reg_val;
 
 	if (!buf) {
-		I915_WRITE(reg, val);
+		intel_de_write(dev_priv, reg, val);
 		return;
 	}
 
-	if (WARN_ON(dsb->free_pos >= DSB_BUF_SIZE)) {
+	if (drm_WARN_ON(&dev_priv->drm, dsb->free_pos >= DSB_BUF_SIZE)) {
 		DRM_DEBUG_KMS("DSB buffer overflow\n");
 		return;
 	}
@@ -272,11 +272,11 @@ void intel_dsb_reg_write(struct intel_dsb *dsb, i915_reg_t reg, u32 val)
 	u32 *buf = dsb->cmd_buf;
 
 	if (!buf) {
-		I915_WRITE(reg, val);
+		intel_de_write(dev_priv, reg, val);
 		return;
 	}
 
-	if (WARN_ON(dsb->free_pos >= DSB_BUF_SIZE)) {
+	if (drm_WARN_ON(&dev_priv->drm, dsb->free_pos >= DSB_BUF_SIZE)) {
 		DRM_DEBUG_KMS("DSB buffer overflow\n");
 		return;
 	}
@@ -313,7 +313,8 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 		DRM_ERROR("HEAD_PTR write failed - dsb engine is busy.\n");
 		goto reset;
 	}
-	I915_WRITE(DSB_HEAD(pipe, dsb->id), i915_ggtt_offset(dsb->vma));
+	intel_de_write(dev_priv, DSB_HEAD(pipe, dsb->id),
+		       i915_ggtt_offset(dsb->vma));
 
 	tail = ALIGN(dsb->free_pos * 4, CACHELINE_BYTES);
 	if (tail > dsb->free_pos * 4)
@@ -326,7 +327,8 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 	}
 	DRM_DEBUG_KMS("DSB execution started - head 0x%x, tail 0x%x\n",
 		      i915_ggtt_offset(dsb->vma), tail);
-	I915_WRITE(DSB_TAIL(pipe, dsb->id), i915_ggtt_offset(dsb->vma) + tail);
+	intel_de_write(dev_priv, DSB_TAIL(pipe, dsb->id),
+		       i915_ggtt_offset(dsb->vma) + tail);
 	if (wait_for(!is_dsb_busy(dsb), 1)) {
 		DRM_ERROR("Timed out waiting for DSB workload completion.\n");
 		goto reset;

@@ -1465,9 +1465,12 @@ out_file:
 
 static int check_scratch(struct i915_address_space *vm, u64 offset)
 {
-	struct drm_mm_node *node =
-		__drm_mm_interval_first(&vm->mm,
-					offset, offset + sizeof(u32) - 1);
+	struct drm_mm_node *node;
+
+	mutex_lock(&vm->mutex);
+	node = __drm_mm_interval_first(&vm->mm,
+				       offset, offset + sizeof(u32) - 1);
+	mutex_unlock(&vm->mutex);
 	if (!node || node->start > offset)
 		return 0;
 
@@ -1491,6 +1494,10 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	int err;
 
 	GEM_BUG_ON(offset < I915_GTT_PAGE_SIZE);
+
+	err = check_scratch(ctx_vm(ctx), offset);
+	if (err)
+		return err;
 
 	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(obj))
@@ -1527,10 +1534,6 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	err = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_OFFSET_FIXED);
 	if (err)
 		goto out_vm;
-
-	err = check_scratch(vm, offset);
-	if (err)
-		goto err_unpin;
 
 	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
@@ -1575,64 +1578,95 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	struct drm_i915_private *i915 = ctx->i915;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
-	const u32 RCS_GPR0 = 0x2600; /* not all engines have their own GPR! */
 	const u32 result = 0x100;
 	struct i915_request *rq;
 	struct i915_vma *vma;
+	unsigned int flags;
 	u32 *cmd;
 	int err;
 
 	GEM_BUG_ON(offset < I915_GTT_PAGE_SIZE);
 
+	err = check_scratch(ctx_vm(ctx), offset);
+	if (err)
+		return err;
+
 	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
-	if (IS_ERR(cmd)) {
-		err = PTR_ERR(cmd);
-		goto out;
-	}
-
-	memset(cmd, POISON_INUSE, PAGE_SIZE);
 	if (INTEL_GEN(i915) >= 8) {
+		const u32 GPR0 = engine->mmio_base + 0x600;
+
+		vm = i915_gem_context_get_vm_rcu(ctx);
+		vma = i915_vma_instance(obj, vm, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out_vm;
+		}
+
+		err = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_OFFSET_FIXED);
+		if (err)
+			goto out_vm;
+
+		cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+		if (IS_ERR(cmd)) {
+			err = PTR_ERR(cmd);
+			goto out;
+		}
+
+		memset(cmd, POISON_INUSE, PAGE_SIZE);
 		*cmd++ = MI_LOAD_REGISTER_MEM_GEN8;
-		*cmd++ = RCS_GPR0;
+		*cmd++ = GPR0;
 		*cmd++ = lower_32_bits(offset);
 		*cmd++ = upper_32_bits(offset);
 		*cmd++ = MI_STORE_REGISTER_MEM_GEN8;
-		*cmd++ = RCS_GPR0;
+		*cmd++ = GPR0;
 		*cmd++ = result;
 		*cmd++ = 0;
-	} else {
-		*cmd++ = MI_LOAD_REGISTER_MEM;
-		*cmd++ = RCS_GPR0;
-		*cmd++ = offset;
-		*cmd++ = MI_STORE_REGISTER_MEM;
-		*cmd++ = RCS_GPR0;
-		*cmd++ = result;
-	}
-	*cmd = MI_BATCH_BUFFER_END;
+		*cmd = MI_BATCH_BUFFER_END;
 
-	i915_gem_object_flush_map(obj);
-	i915_gem_object_unpin_map(obj);
+		i915_gem_object_flush_map(obj);
+		i915_gem_object_unpin_map(obj);
+
+		flags = 0;
+	} else {
+		const u32 reg = engine->mmio_base + 0x420;
+
+		/* hsw: register access even to 3DPRIM! is protected */
+		vm = i915_vm_get(&engine->gt->ggtt->vm);
+		vma = i915_vma_instance(obj, vm, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto out_vm;
+		}
+
+		err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
+		if (err)
+			goto out_vm;
+
+		cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+		if (IS_ERR(cmd)) {
+			err = PTR_ERR(cmd);
+			goto out;
+		}
+
+		memset(cmd, POISON_INUSE, PAGE_SIZE);
+		*cmd++ = MI_LOAD_REGISTER_MEM;
+		*cmd++ = reg;
+		*cmd++ = offset;
+		*cmd++ = MI_STORE_REGISTER_MEM | MI_USE_GGTT;
+		*cmd++ = reg;
+		*cmd++ = vma->node.start + result;
+		*cmd = MI_BATCH_BUFFER_END;
+
+		i915_gem_object_flush_map(obj);
+		i915_gem_object_unpin_map(obj);
+
+		flags = I915_DISPATCH_SECURE;
+	}
 
 	intel_gt_chipset_flush(engine->gt);
-
-	vm = i915_gem_context_get_vm_rcu(ctx);
-	vma = i915_vma_instance(obj, vm, NULL);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
-		goto out_vm;
-	}
-
-	err = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_OFFSET_FIXED);
-	if (err)
-		goto out_vm;
-
-	err = check_scratch(vm, offset);
-	if (err)
-		goto err_unpin;
 
 	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
@@ -1640,7 +1674,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 		goto err_unpin;
 	}
 
-	err = engine->emit_bb_start(rq, vma->node.start, vma->node.size, 0);
+	err = engine->emit_bb_start(rq, vma->node.start, vma->node.size, flags);
 	if (err)
 		goto err_request;
 
@@ -1686,6 +1720,39 @@ out:
 	return err;
 }
 
+static int check_scratch_page(struct i915_gem_context *ctx, u32 *out)
+{
+	struct i915_address_space *vm;
+	struct page *page;
+	u32 *vaddr;
+	int err = 0;
+
+	vm = ctx_vm(ctx);
+	if (!vm)
+		return -ENODEV;
+
+	page = vm->scratch[0].base.page;
+	if (!page) {
+		pr_err("No scratch page!\n");
+		return -EINVAL;
+	}
+
+	vaddr = kmap(page);
+	if (!vaddr) {
+		pr_err("No (mappable) scratch page!\n");
+		return -EINVAL;
+	}
+
+	memcpy(out, vaddr, sizeof(*out));
+	if (memchr_inv(vaddr, *out, PAGE_SIZE)) {
+		pr_err("Inconsistent initial state of scratch page!\n");
+		err = -EINVAL;
+	}
+	kunmap(page);
+
+	return err;
+}
+
 static int igt_vm_isolation(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -1696,6 +1763,7 @@ static int igt_vm_isolation(void *arg)
 	I915_RND_STATE(prng);
 	struct file *file;
 	u64 vm_total;
+	u32 expected;
 	int err;
 
 	if (INTEL_GEN(i915) < 7)
@@ -1730,6 +1798,15 @@ static int igt_vm_isolation(void *arg)
 	if (ctx_vm(ctx_a) == ctx_vm(ctx_b))
 		goto out_file;
 
+	/* Read the initial state of the scratch page */
+	err = check_scratch_page(ctx_a, &expected);
+	if (err)
+		goto out_file;
+
+	err = check_scratch_page(ctx_b, &expected);
+	if (err)
+		goto out_file;
+
 	vm_total = ctx_vm(ctx_a)->total;
 	GEM_BUG_ON(ctx_vm(ctx_b)->total != vm_total);
 	vm_total -= I915_GTT_PAGE_SIZE;
@@ -1741,6 +1818,10 @@ static int igt_vm_isolation(void *arg)
 		unsigned long this = 0;
 
 		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		/* Not all engines have their own GPR! */
+		if (INTEL_GEN(i915) < 8 && engine->class != RENDER_CLASS)
 			continue;
 
 		while (!__igt_timeout(end_time, NULL)) {
@@ -1760,7 +1841,7 @@ static int igt_vm_isolation(void *arg)
 			if (err)
 				goto out_file;
 
-			if (value) {
+			if (value != expected) {
 				pr_err("%s: Read %08x from scratch (offset 0x%08x_%08x), after %lu reads!\n",
 				       engine->name, value,
 				       upper_32_bits(offset),
