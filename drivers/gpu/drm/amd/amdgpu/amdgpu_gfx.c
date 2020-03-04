@@ -48,7 +48,7 @@ int amdgpu_gfx_mec_queue_to_bit(struct amdgpu_device *adev, int mec,
 	return bit;
 }
 
-void amdgpu_gfx_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
+void amdgpu_queue_mask_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
 				 int *mec, int *pipe, int *queue)
 {
 	*queue = bit % adev->gfx.mec.num_queue_per_pipe;
@@ -274,7 +274,7 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
 			continue;
 
-		amdgpu_gfx_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
+		amdgpu_queue_mask_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
 
 		/*
 		 * 1. Using pipes 2/3 from MEC 2 seems cause problems.
@@ -485,17 +485,17 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
 	return amdgpu_ring_test_helper(kiq_ring);
 }
 
-int amdgpu_gfx_kcq_queue_mask_transform(struct amdgpu_device *adev,
+int amdgpu_queue_mask_bit_to_set_resource_bit(struct amdgpu_device *adev,
 					int queue_bit)
 {
 	int mec, pipe, queue;
-	int queue_kcq_bit = 0;
+	int set_resource_bit = 0;
 
-	amdgpu_gfx_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
+	amdgpu_queue_mask_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
 
-	queue_kcq_bit = mec * 4 * 8 + pipe * 8 + queue;
+	set_resource_bit = mec * 4 * 8 + pipe * 8 + queue;
 
-	return queue_kcq_bit;
+	return set_resource_bit;
 }
 
 int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
@@ -520,7 +520,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 			break;
 		}
 
-		queue_mask |= (1ull << amdgpu_gfx_kcq_queue_mask_transform(adev, i));
+		queue_mask |= (1ull << amdgpu_queue_mask_bit_to_set_resource_bit(adev, i));
 	}
 
 	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
