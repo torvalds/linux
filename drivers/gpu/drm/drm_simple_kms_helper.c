@@ -38,15 +38,25 @@ static const struct drm_encoder_funcs drm_simple_encoder_funcs_cleanup = {
 };
 
 /**
- * drm_simple_encoder_init - Initialize a preallocated encoder
+ * drm_simple_encoder_init - Initialize a preallocated encoder with
+ *                           basic functionality.
  * @dev: drm device
- * @funcs: callbacks for this encoder
+ * @encoder: the encoder to initialize
  * @encoder_type: user visible type of the encoder
  *
  * Initialises a preallocated encoder that has no further functionality.
  * Settings for possible CRTC and clones are left to their initial values.
  * The encoder will be cleaned up automatically as part of the mode-setting
  * cleanup.
+ *
+ * The caller of drm_simple_encoder_init() is responsible for freeing
+ * the encoder's memory after the encoder has been cleaned up. At the
+ * moment this only works reliably if the encoder data structure is
+ * stored in the device structure. Free the encoder's memory as part of
+ * the device release function.
+ *
+ * FIXME: Later improvements to DRM's resource management may allow for
+ *        an automated kfree() of the encoder's memory.
  *
  * Returns:
  * Zero on success, error code on failure.
