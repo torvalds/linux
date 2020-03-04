@@ -221,8 +221,6 @@ static void vnt_int_process_data(struct vnt_private *priv)
 		low_stats->dot11ACKFailureCount += int_data->ack_fail;
 		low_stats->dot11FCSErrorCount += int_data->fcs_err;
 	}
-
-	priv->int_buf.in_use = false;
 }
 
 static void vnt_start_interrupt_urb_complete(struct urb *urb)
@@ -237,25 +235,19 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		priv->int_buf.in_use = false;
 		return;
 	default:
 		break;
 	}
 
-	if (status) {
-		priv->int_buf.in_use = false;
-
+	if (status)
 		dev_dbg(&priv->usb->dev, "%s status = %d\n", __func__, status);
-	} else {
+	else
 		vnt_int_process_data(priv);
-	}
 
 	status = usb_submit_urb(priv->interrupt_urb, GFP_ATOMIC);
 	if (status)
 		dev_dbg(&priv->usb->dev, "Submit int URB failed %d\n", status);
-	else
-		priv->int_buf.in_use = true;
 }
 
 int vnt_start_interrupt_urb(struct vnt_private *priv)
@@ -263,13 +255,6 @@ int vnt_start_interrupt_urb(struct vnt_private *priv)
 	int ret = 0;
 
 	dev_dbg(&priv->usb->dev, "---->Interrupt Polling Thread\n");
-
-	if (priv->int_buf.in_use) {
-		ret = -EBUSY;
-		goto err;
-	}
-
-	priv->int_buf.in_use = true;
 
 	usb_fill_int_urb(priv->interrupt_urb,
 			 priv->usb,
@@ -281,16 +266,9 @@ int vnt_start_interrupt_urb(struct vnt_private *priv)
 			 priv->int_interval);
 
 	ret = usb_submit_urb(priv->interrupt_urb, GFP_ATOMIC);
-	if (ret) {
+	if (ret)
 		dev_dbg(&priv->usb->dev, "Submit int URB failed %d\n", ret);
-		goto err_submit;
-	}
 
-	return 0;
-
-err_submit:
-	priv->int_buf.in_use = false;
-err:
 	return ret;
 }
 

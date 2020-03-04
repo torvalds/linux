@@ -253,7 +253,6 @@ struct vnt_usb_send_context {
  */
 struct vnt_interrupt_buffer {
 	u8 *data_buf;
-	bool in_use;
 };
 
 /* flags for options */
