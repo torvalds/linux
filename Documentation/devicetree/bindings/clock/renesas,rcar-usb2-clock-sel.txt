@@ -38,7 +38,8 @@ Required properties:
 - reg: offset and length of the USB 2.0 clock selector register block.
 - clocks: A list of phandles and specifier pairs.
 - clock-names: Name of the clocks.
- - The functional clock must be "ehci_ohci"
+ - The functional clock of USB 2.0 host side must be "ehci_ohci"
+ - The functional clock of HS-USB side must be "hs-usb-if"
  - The USB_EXTAL clock pin must be "usb_extal"
  - The USB_XTAL clock pin must be "usb_xtal"
 - #clock-cells: Must be 0
@@ -49,7 +50,8 @@ Example (R-Car H3):
 		compatible = "renesas,r8a7795-rcar-usb2-clock-sel",
 			     "renesas,rcar-gen3-usb2-clock-sel";
 		reg = <0 0xe6590630 0 0x02>;
-		clocks = <&cpg CPG_MOD 703>, <&usb_extal>, <&usb_xtal>;
-		clock-names = "ehci_ohci", "usb_extal", "usb_xtal";
+		clocks = <&cpg CPG_MOD 703>, <&cpg CPG_MOD 704>,
+			 <&usb_extal>, <&usb_xtal>;
+		clock-names = "ehci_ohci", "hs-usb-if", "usb_extal", "usb_xtal";
 		#clock-cells = <0>;
 	};
