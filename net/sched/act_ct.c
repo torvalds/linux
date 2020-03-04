@@ -195,7 +195,7 @@ tcf_ct_flow_table_fill_tuple_ipv4(struct sk_buff *skb,
 	unsigned int thoff;
 	struct iphdr *iph;
 
-	if (!pskb_may_pull(skb, sizeof(*iph)))
+	if (!pskb_network_may_pull(skb, sizeof(*iph)))
 		return false;
 
 	iph = ip_hdr(skb);
@@ -212,9 +212,9 @@ tcf_ct_flow_table_fill_tuple_ipv4(struct sk_buff *skb,
 	if (iph->ttl <= 1)
 		return false;
 
-	if (!pskb_may_pull(skb, iph->protocol == IPPROTO_TCP ?
-			   thoff + sizeof(struct tcphdr) :
-			   thoff + sizeof(*ports)))
+	if (!pskb_network_may_pull(skb, iph->protocol == IPPROTO_TCP ?
+					thoff + sizeof(struct tcphdr) :
+					thoff + sizeof(*ports)))
 		return false;
 
 	iph = ip_hdr(skb);
@@ -241,7 +241,7 @@ tcf_ct_flow_table_fill_tuple_ipv6(struct sk_buff *skb,
 	struct ipv6hdr *ip6h;
 	unsigned int thoff;
 
-	if (!pskb_may_pull(skb, sizeof(*ip6h)))
+	if (!pskb_network_may_pull(skb, sizeof(*ip6h)))
 		return false;
 
 	ip6h = ipv6_hdr(skb);
@@ -254,9 +254,9 @@ tcf_ct_flow_table_fill_tuple_ipv6(struct sk_buff *skb,
 		return false;
 
 	thoff = sizeof(*ip6h);
-	if (!pskb_may_pull(skb, ip6h->nexthdr == IPPROTO_TCP ?
-			   thoff + sizeof(struct tcphdr) :
-			   thoff + sizeof(*ports)))
+	if (!pskb_network_may_pull(skb, ip6h->nexthdr == IPPROTO_TCP ?
+					thoff + sizeof(struct tcphdr) :
+					thoff + sizeof(*ports)))
 		return false;
 
 	ip6h = ipv6_hdr(skb);
