@@ -3077,24 +3077,16 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* detect hw virtualization here */
 	amdgpu_detect_virtualization(adev);
 
-	if (amdgpu_discovery && adev->asic_type >= CHIP_NAVI10) {
-		r = amdgpu_discovery_init(adev);
-		if (r) {
-			dev_err(adev->dev, "amdgpu_discovery_init failed\n");
-			return r;
-		}
+	r = amdgpu_device_get_job_timeout_settings(adev);
+	if (r) {
+		dev_err(adev->dev, "invalid lockup_timeout parameter syntax\n");
+		return r;
 	}
 
 	/* early init functions */
 	r = amdgpu_device_ip_early_init(adev);
 	if (r)
 		return r;
-
-	r = amdgpu_device_get_job_timeout_settings(adev);
-	if (r) {
-		dev_err(adev->dev, "invalid lockup_timeout parameter syntax\n");
-		return r;
-	}
 
 	/* doorbell bar mapping and doorbell index init*/
 	amdgpu_device_doorbell_init(adev);
