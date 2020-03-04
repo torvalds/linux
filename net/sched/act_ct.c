@@ -188,7 +188,8 @@ static void tcf_ct_flow_table_process_conn(struct tcf_ct_flow_table *ct_ft,
 
 static bool
 tcf_ct_flow_table_fill_tuple_ipv4(struct sk_buff *skb,
-				  struct flow_offload_tuple *tuple)
+				  struct flow_offload_tuple *tuple,
+				  struct tcphdr **tcph)
 {
 	struct flow_ports *ports;
 	unsigned int thoff;
@@ -211,11 +212,16 @@ tcf_ct_flow_table_fill_tuple_ipv4(struct sk_buff *skb,
 	if (iph->ttl <= 1)
 		return false;
 
-	if (!pskb_may_pull(skb, thoff + sizeof(*ports)))
+	if (!pskb_may_pull(skb, iph->protocol == IPPROTO_TCP ?
+			   thoff + sizeof(struct tcphdr) :
+			   thoff + sizeof(*ports)))
 		return false;
 
-	ports = (struct flow_ports *)(skb_network_header(skb) + thoff);
+	iph = ip_hdr(skb);
+	if (iph->protocol == IPPROTO_TCP)
+		*tcph = (void *)(skb_network_header(skb) + thoff);
 
+	ports = (struct flow_ports *)(skb_network_header(skb) + thoff);
 	tuple->src_v4.s_addr = iph->saddr;
 	tuple->dst_v4.s_addr = iph->daddr;
 	tuple->src_port = ports->source;
@@ -228,7 +234,8 @@ tcf_ct_flow_table_fill_tuple_ipv4(struct sk_buff *skb,
 
 static bool
 tcf_ct_flow_table_fill_tuple_ipv6(struct sk_buff *skb,
-				  struct flow_offload_tuple *tuple)
+				  struct flow_offload_tuple *tuple,
+				  struct tcphdr **tcph)
 {
 	struct flow_ports *ports;
 	struct ipv6hdr *ip6h;
@@ -247,35 +254,22 @@ tcf_ct_flow_table_fill_tuple_ipv6(struct sk_buff *skb,
 		return false;
 
 	thoff = sizeof(*ip6h);
-	if (!pskb_may_pull(skb, thoff + sizeof(*ports)))
+	if (!pskb_may_pull(skb, ip6h->nexthdr == IPPROTO_TCP ?
+			   thoff + sizeof(struct tcphdr) :
+			   thoff + sizeof(*ports)))
 		return false;
 
-	ports = (struct flow_ports *)(skb_network_header(skb) + thoff);
+	ip6h = ipv6_hdr(skb);
+	if (ip6h->nexthdr == IPPROTO_TCP)
+		*tcph = (void *)(skb_network_header(skb) + thoff);
 
+	ports = (struct flow_ports *)(skb_network_header(skb) + thoff);
 	tuple->src_v6 = ip6h->saddr;
 	tuple->dst_v6 = ip6h->daddr;
 	tuple->src_port = ports->source;
 	tuple->dst_port = ports->dest;
 	tuple->l3proto = AF_INET6;
 	tuple->l4proto = ip6h->nexthdr;
-
-	return true;
-}
-
-static bool tcf_ct_flow_table_check_tcp(struct flow_offload *flow,
-					struct sk_buff *skb,
-					unsigned int thoff)
-{
-	struct tcphdr *tcph;
-
-	if (!pskb_may_pull(skb, thoff + sizeof(*tcph)))
-		return false;
-
-	tcph = (void *)(skb_network_header(skb) + thoff);
-	if (unlikely(tcph->fin || tcph->rst)) {
-		flow_offload_teardown(flow);
-		return false;
-	}
 
 	return true;
 }
@@ -288,10 +282,9 @@ static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
 	struct flow_offload_tuple_rhash *tuplehash;
 	struct flow_offload_tuple tuple = {};
 	enum ip_conntrack_info ctinfo;
+	struct tcphdr *tcph = NULL;
 	struct flow_offload *flow;
 	struct nf_conn *ct;
-	unsigned int thoff;
-	int ip_proto;
 	u8 dir;
 
 	/* Previously seen or loopback */
@@ -301,11 +294,11 @@ static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
 
 	switch (family) {
 	case NFPROTO_IPV4:
-		if (!tcf_ct_flow_table_fill_tuple_ipv4(skb, &tuple))
+		if (!tcf_ct_flow_table_fill_tuple_ipv4(skb, &tuple, &tcph))
 			return false;
 		break;
 	case NFPROTO_IPV6:
-		if (!tcf_ct_flow_table_fill_tuple_ipv6(skb, &tuple))
+		if (!tcf_ct_flow_table_fill_tuple_ipv6(skb, &tuple, &tcph))
 			return false;
 		break;
 	default:
@@ -320,14 +313,13 @@ static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
 	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
 	ct = flow->ct;
 
+	if (tcph && (unlikely(tcph->fin || tcph->rst))) {
+		flow_offload_teardown(flow);
+		return false;
+	}
+
 	ctinfo = dir == FLOW_OFFLOAD_DIR_ORIGINAL ? IP_CT_ESTABLISHED :
 						    IP_CT_ESTABLISHED_REPLY;
-
-	thoff = ip_hdr(skb)->ihl * 4;
-	ip_proto = ip_hdr(skb)->protocol;
-	if (ip_proto == IPPROTO_TCP &&
-	    !tcf_ct_flow_table_check_tcp(flow, skb, thoff))
-		return false;
 
 	nf_conntrack_get(&ct->ct_general);
 	nf_ct_set(skb, ct, ctinfo);
