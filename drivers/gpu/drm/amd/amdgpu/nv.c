@@ -457,16 +457,19 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 {
 	int r;
 
+	adev->nbio.funcs = &nbio_v2_3_funcs;
+	adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
+
+	if (amdgpu_sriov_vf(adev)) {
+		adev->virt.ops = &xgpu_nv_virt_ops;
+		/* try send GPU_INIT_DATA request to host */
+		amdgpu_virt_request_init_data(adev);
+	}
+
 	/* Set IP register base before any HW register access */
 	r = nv_reg_base_init(adev);
 	if (r)
 		return r;
-
-	adev->nbio.funcs = &nbio_v2_3_funcs;
-	adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
-
-	if (amdgpu_sriov_vf(adev))
-		adev->virt.ops = &xgpu_nv_virt_ops;
 
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
