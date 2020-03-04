@@ -117,16 +117,6 @@ static int psp_early_init(void *handle)
 	return 0;
 }
 
-static int psp_late_init(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->asic_type == CHIP_NAVI10)
-		return psp_sysfs_init(adev);
-
-	return 0;
-}
-
 static int psp_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -148,6 +138,13 @@ static int psp_sw_init(void *handle)
 	if (ret) {
 		DRM_ERROR("Failed to process memory training!\n");
 		return ret;
+	}
+
+	if (adev->asic_type == CHIP_NAVI10) {
+		ret= psp_sysfs_init(adev);
+		if (ret) {
+			return ret;
+		}
 	}
 
 	return 0;
@@ -1843,6 +1840,11 @@ static ssize_t psp_usbc_pd_fw_sysfs_read(struct device *dev,
 	uint32_t fw_ver;
 	int ret;
 
+	if (!adev->ip_blocks[AMD_IP_BLOCK_TYPE_PSP].status.late_initialized) {
+		DRM_INFO("PSP block is not ready yet.");
+		return -EBUSY;
+	}
+
 	mutex_lock(&adev->psp.mutex);
 	ret = psp_read_usbc_pd_fw(&adev->psp, &fw_ver);
 	mutex_unlock(&adev->psp.mutex);
@@ -1868,6 +1870,10 @@ static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
 	char fw_name[100];
 	const struct firmware *usbc_pd_fw;
 
+	if (!adev->ip_blocks[AMD_IP_BLOCK_TYPE_PSP].status.late_initialized) {
+		DRM_INFO("PSP block is not ready yet.");
+		return -EBUSY;
+	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s", buf);
 	ret = request_firmware(&usbc_pd_fw, fw_name, adev->dev);
@@ -1919,7 +1925,7 @@ static DEVICE_ATTR(usbc_pd_fw, S_IRUGO | S_IWUSR,
 const struct amd_ip_funcs psp_ip_funcs = {
 	.name = "psp",
 	.early_init = psp_early_init,
-	.late_init = psp_late_init,
+	.late_init = NULL,
 	.sw_init = psp_sw_init,
 	.sw_fini = psp_sw_fini,
 	.hw_init = psp_hw_init,
