@@ -84,7 +84,7 @@ static int cros_usbpd_notify_plat(struct notifier_block *nb,
 	u32 host_event = cros_ec_get_host_event(ec_dev);
 
 	if (!host_event)
-		return NOTIFY_BAD;
+		return NOTIFY_DONE;
 
 	if (host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_PD_MCU)) {
 		blocking_notifier_call_chain(&cros_usbpd_notifier_list,
