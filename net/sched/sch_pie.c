@@ -363,8 +363,8 @@ void pie_calculate_probability(struct pie_params *params, struct pie_vars *vars,
 	}
 
 	/* alpha and beta should be between 0 and 32, in multiples of 1/16 */
-	delta += alpha * (u64)(qdelay - params->target);
-	delta += beta * (u64)(qdelay - qdelay_old);
+	delta += alpha * (qdelay - params->target);
+	delta += beta * (qdelay - qdelay_old);
 
 	oldprob = vars->prob;
 
