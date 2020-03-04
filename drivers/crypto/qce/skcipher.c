@@ -18,7 +18,7 @@ module_param(aes_sw_max_len, uint, 0644);
 MODULE_PARM_DESC(aes_sw_max_len,
 		 "Only use hardware for AES requests larger than this "
 		 "[0=always use hardware; anything <16 breaks AES-GCM; default="
-		 __stringify(CONFIG_CRYPTO_DEV_QCE_SOFT_THRESHOLD)"]");
+		 __stringify(CONFIG_CRYPTO_DEV_QCE_SW_MAX_LEN)"]");
 
 static LIST_HEAD(skcipher_algs);
 
