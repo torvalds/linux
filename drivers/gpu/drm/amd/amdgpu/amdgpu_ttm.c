@@ -1840,9 +1840,11 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	 *The reserved vram for memory training must be pinned to the specified
 	 *place on the VRAM, so reserve it early.
 	 */
-	r = amdgpu_ttm_training_reserve_vram_init(adev);
-	if (r)
-		return r;
+	if (!amdgpu_sriov_vf(adev)) {
+		r = amdgpu_ttm_training_reserve_vram_init(adev);
+		if (r)
+			return r;
+	}
 
 	/* allocate memory as required for VGA
 	 * This is used for VGA emulation and pre-OS scanout buffers to
