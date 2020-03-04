@@ -812,7 +812,7 @@ static int map_wqe_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 	ret = hns_roce_mtr_attach(hr_dev, &hr_qp->mtr, buf_list, hr_qp->regions,
 				  region_count);
 	if (ret)
-		ibdev_err(ibdev, "Failed to attatch WQE's mtr\n");
+		ibdev_err(ibdev, "Failed to attach WQE's mtr\n");
 
 	goto done;
 
