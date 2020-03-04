@@ -331,27 +331,38 @@
 			#pinctrl-cells = <2>;
 		};
 
-		edma: edma@43300000 {
-			compatible = "ti,edma3-tpcc";
+		target-module@43300000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "tpcc";
-			reg = <0x43300000 0x100000>;
-			reg-names = "edma3_cc";
-			interrupts = <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_ccint", "edma3_mperr",
-					  "edma3_ccerrint";
-			dma-requests = <64>;
-			#dma-cells = <2>;
+			reg = <0x43300000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3main1_clkctrl DRA7_L3MAIN1_TPCC_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x43300000 0x100000>;
 
-			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 0>;
+			edma: dma@0 {
+				compatible = "ti,edma3-tpcc";
+				reg = <0 0x100000>;
+				reg-names = "edma3_cc";
+				interrupts = <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma3_ccint", "edma3_mperr",
+						  "edma3_ccerrint";
+				dma-requests = <64>;
+				#dma-cells = <2>;
 
-			/*
-			 * memcpy is disabled, can be enabled with:
-			 * ti,edma-memcpy-channels = <20 21>;
-			 * for example. Note that these channels need to be
-			 * masked in the xbar as well.
-			 */
+				ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 0>;
+
+				/*
+				* memcpy is disabled, can be enabled with:
+				* ti,edma-memcpy-channels = <20 21>;
+				* for example. Note that these channels need to be
+				* masked in the xbar as well.
+				*/
+			};
 		};
 
 		edma_tptc0: tptc@43400000 {
