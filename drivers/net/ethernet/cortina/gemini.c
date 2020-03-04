@@ -44,7 +44,6 @@
 #include "gemini.h"
 
 #define DRV_NAME		"gmac-gemini"
-#define DRV_VERSION		"1.0"
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 static int debug = -1;
@@ -2204,7 +2203,6 @@ static void gmac_get_drvinfo(struct net_device *netdev,
 			     struct ethtool_drvinfo *info)
 {
 	strcpy(info->driver,  DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
 	strcpy(info->bus_info, netdev->dev_id ? "1" : "0");
 }
 

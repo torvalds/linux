@@ -59,8 +59,6 @@
 #include "bnx2_fw.h"
 
 #define DRV_MODULE_NAME		"bnx2"
-#define DRV_MODULE_VERSION	"2.2.6"
-#define DRV_MODULE_RELDATE	"January 29, 2014"
 #define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-6.2.3.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-6.0.15.fw"
 #define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-6.2.1b.fw"
@@ -72,13 +70,9 @@
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (5*HZ)
 
-static char version[] =
-	"QLogic " DRV_MODULE_NAME " Gigabit Ethernet Driver v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
-
 MODULE_AUTHOR("Michael Chan <mchan@broadcom.com>");
 MODULE_DESCRIPTION("QLogic BCM5706/5708/5709/5716 Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_MODULE_VERSION);
 MODULE_FIRMWARE(FW_MIPS_FILE_06);
 MODULE_FIRMWARE(FW_RV2P_FILE_06);
 MODULE_FIRMWARE(FW_MIPS_FILE_09);
@@ -7048,7 +7042,6 @@ bnx2_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
 	strlcpy(info->fw_version, bp->fw_version, sizeof(info->fw_version));
 }
@@ -8562,14 +8555,10 @@ static const struct net_device_ops bnx2_netdev_ops = {
 static int
 bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int version_printed = 0;
 	struct net_device *dev;
 	struct bnx2 *bp;
 	int rc;
 	char str[40];
-
-	if (version_printed++ == 0)
-		pr_info("%s", version);
 
 	/* dev zeroed in init_etherdev */
 	dev = alloc_etherdev_mq(sizeof(*bp), TX_MAX_RINGS);

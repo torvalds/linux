@@ -106,19 +106,8 @@ static int dpaa_set_link_ksettings(struct net_device *net_dev,
 static void dpaa_get_drvinfo(struct net_device *net_dev,
 			     struct ethtool_drvinfo *drvinfo)
 {
-	int len;
-
 	strlcpy(drvinfo->driver, KBUILD_MODNAME,
 		sizeof(drvinfo->driver));
-	len = snprintf(drvinfo->version, sizeof(drvinfo->version),
-		       "%X", 0);
-	len = snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		       "%X", 0);
-
-	if (len >= sizeof(drvinfo->fw_version)) {
-		/* Truncated output */
-		netdev_notice(net_dev, "snprintf() = %d\n", len);
-	}
 	strlcpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
 }

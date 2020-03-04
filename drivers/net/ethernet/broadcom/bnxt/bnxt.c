@@ -70,12 +70,8 @@
 
 #define BNXT_TX_TIMEOUT		(5 * HZ)
 
-static const char version[] =
-	"Broadcom NetXtreme-C/E driver " DRV_MODULE_NAME " v" DRV_MODULE_VERSION "\n";
-
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Broadcom BCM573xx network driver");
-MODULE_VERSION(DRV_MODULE_VERSION);
 
 #define BNXT_RX_OFFSET (NET_SKB_PAD + NET_IP_ALIGN)
 #define BNXT_RX_DMA_OFFSET NET_SKB_PAD
@@ -11775,16 +11771,12 @@ static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])
 
 static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int version_printed;
 	struct net_device *dev;
 	struct bnxt *bp;
 	int rc, max_irqs;
 
 	if (pci_is_bridge(pdev))
 		return -ENODEV;
-
-	if (version_printed++ == 0)
-		pr_info("%s", version);
 
 	/* Clear any pending DMA transactions from crash kernel
 	 * while loading driver in capture kernel.

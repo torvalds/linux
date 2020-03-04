@@ -2128,7 +2128,6 @@ static void fec_enet_get_drvinfo(struct net_device *ndev,
 
 	strlcpy(info->driver, fep->pdev->dev.driver->name,
 		sizeof(info->driver));
-	strlcpy(info->version, "Revision: 1.0", sizeof(info->version));
 	strlcpy(info->bus_info, dev_name(&ndev->dev), sizeof(info->bus_info));
 }
 

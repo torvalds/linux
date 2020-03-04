@@ -96,11 +96,9 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 	_tg3_flag_clear(TG3_FLAG_##flag, (tp)->tg3_flags)
 
 #define DRV_MODULE_NAME		"tg3"
+/* DO NOT UPDATE TG3_*_NUM defines */
 #define TG3_MAJ_NUM			3
 #define TG3_MIN_NUM			137
-#define DRV_MODULE_VERSION	\
-	__stringify(TG3_MAJ_NUM) "." __stringify(TG3_MIN_NUM)
-#define DRV_MODULE_RELDATE	"May 11, 2014"
 
 #define RESET_KIND_SHUTDOWN	0
 #define RESET_KIND_INIT		1
@@ -222,13 +220,9 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 #define FIRMWARE_TG3TSO		"tigon/tg3_tso.bin"
 #define FIRMWARE_TG3TSO5	"tigon/tg3_tso5.bin"
 
-static char version[] =
-	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")";
-
 MODULE_AUTHOR("David S. Miller (davem@redhat.com) and Jeff Garzik (jgarzik@pobox.com)");
 MODULE_DESCRIPTION("Broadcom Tigon3 ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_MODULE_VERSION);
 MODULE_FIRMWARE(FIRMWARE_TG3);
 MODULE_FIRMWARE(FIRMWARE_TG3TSO);
 MODULE_FIRMWARE(FIRMWARE_TG3TSO5);
@@ -12317,7 +12311,6 @@ static void tg3_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 	struct tg3 *tp = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 	strlcpy(info->fw_version, tp->fw_ver, sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(tp->pdev), sizeof(info->bus_info));
 }
@@ -17624,8 +17617,6 @@ static int tg3_init_one(struct pci_dev *pdev,
 	char str[40];
 	u64 dma_mask, persist_dma_mask;
 	netdev_features_t features = 0;
-
-	printk_once(KERN_INFO "%s\n", version);
 
 	err = pci_enable_device(pdev);
 	if (err) {

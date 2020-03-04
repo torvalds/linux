@@ -840,17 +840,11 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 		return -EINVAL;
 	}
 
-	if (strncmp(LIQUIDIO_PACKAGE, h->version, strlen(LIQUIDIO_PACKAGE))) {
-		dev_err(&oct->pci_dev->dev, "Unmatched firmware package type. Expected %s, got %s.\n",
-			LIQUIDIO_PACKAGE, h->version);
-		return -EINVAL;
-	}
-
-	if (memcmp(LIQUIDIO_BASE_VERSION, h->version + strlen(LIQUIDIO_PACKAGE),
+	if (memcmp(LIQUIDIO_BASE_VERSION, h->version,
 		   strlen(LIQUIDIO_BASE_VERSION))) {
 		dev_err(&oct->pci_dev->dev, "Unmatched firmware version. Expected %s.x, got %s.\n",
 			LIQUIDIO_BASE_VERSION,
-			h->version + strlen(LIQUIDIO_PACKAGE));
+			h->version);
 		return -EINVAL;
 	}
 
