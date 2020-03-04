@@ -1084,6 +1084,22 @@ static int dspi_slave_abort(struct spi_master *master)
 	return 0;
 }
 
+/*
+ * EOQ mode will inevitably deassert its PCS signal on last word in a queue
+ * (hardware limitation), so we need to inform the spi_device that larger
+ * buffers than the FIFO size are going to have the chip select randomly
+ * toggling, so it has a chance to adapt its message sizes.
+ */
+static size_t dspi_max_message_size(struct spi_device *spi)
+{
+	struct fsl_dspi *dspi = spi_controller_get_devdata(spi->controller);
+
+	if (dspi->devtype_data->trans_mode == DSPI_EOQ_MODE)
+		return dspi->devtype_data->fifo_size;
+
+	return SIZE_MAX;
+}
+
 static int dspi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1105,6 +1121,7 @@ static int dspi_probe(struct platform_device *pdev)
 
 	ctlr->setup = dspi_setup;
 	ctlr->transfer_one_message = dspi_transfer_one_message;
+	ctlr->max_message_size = dspi_max_message_size;
 	ctlr->dev.of_node = pdev->dev.of_node;
 
 	ctlr->cleanup = dspi_cleanup;
