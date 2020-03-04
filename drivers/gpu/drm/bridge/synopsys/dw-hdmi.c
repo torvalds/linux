@@ -2414,6 +2414,14 @@ static int dw_hdmi_bridge_attach(struct drm_bridge *bridge,
 				    DRM_MODE_CONNECTOR_HDMIA,
 				    hdmi->ddc);
 
+	/*
+	 * drm_connector_attach_max_bpc_property() requires the
+	 * connector to have a state.
+	 */
+	drm_atomic_helper_connector_reset(connector);
+
+	drm_connector_attach_max_bpc_property(connector, 8, 16);
+
 	if (hdmi->version >= 0x200a && hdmi->plat_data->use_drm_infoframe)
 		drm_object_attach_property(&connector->base,
 			connector->dev->mode_config.hdr_output_metadata_property, 0);
