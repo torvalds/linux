@@ -474,11 +474,11 @@ static void io_worker_handle_work(struct io_worker *worker)
 {
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wq *wq = wqe->wq;
+	unsigned hash = -1U;
 
 	do {
 		struct io_wq_work *work;
-		unsigned hash = -1U;
-
+get_next:
 		/*
 		 * If we got some work, mark us as busy. If we didn't, but
 		 * the list isn't empty, it means we stalled on hashed work.
@@ -524,9 +524,12 @@ static void io_worker_handle_work(struct io_worker *worker)
 				spin_lock_irq(&wqe->lock);
 				wqe->hash_map &= ~BIT_ULL(hash);
 				wqe->flags &= ~IO_WQE_FLAG_STALLED;
-				spin_unlock_irq(&wqe->lock);
 				/* dependent work is not hashed */
 				hash = -1U;
+				/* skip unnecessary unlock-lock wqe->lock */
+				if (!work)
+					goto get_next;
+				spin_unlock_irq(&wqe->lock);
 			}
 		} while (work);
 
