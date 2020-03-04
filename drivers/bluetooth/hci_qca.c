@@ -1562,7 +1562,7 @@ static int qca_power_on(struct hci_dev *hdev)
 		ret = qca_wcn3990_init(hu);
 	} else {
 		qcadev = serdev_device_get_drvdata(hu->serdev);
-		if (!IS_ERR(qcadev->bt_en)) {
+		if (qcadev->bt_en) {
 			gpiod_set_value_cansleep(qcadev->bt_en, 1);
 			/* Controller needs time to bootup. */
 			msleep(150);
@@ -1752,7 +1752,7 @@ static void qca_power_shutdown(struct hci_uart *hu)
 		host_set_baudrate(hu, 2400);
 		qca_send_power_pulse(hu, false);
 		qca_regulator_disable(qcadev);
-	} else if (!IS_ERR(qcadev->bt_en)) {
+	} else if (qcadev->bt_en) {
 		gpiod_set_value_cansleep(qcadev->bt_en, 0);
 	}
 }
@@ -1901,15 +1901,15 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 		}
 	} else {
 		qcadev->btsoc_type = QCA_ROME;
-		qcadev->bt_en = devm_gpiod_get(&serdev->dev, "enable",
+		qcadev->bt_en = devm_gpiod_get_optional(&serdev->dev, "enable",
 					       GPIOD_OUT_LOW);
-		if (IS_ERR(qcadev->bt_en)) {
+		if (!qcadev->bt_en) {
 			dev_warn(&serdev->dev, "failed to acquire enable gpio\n");
 			power_ctrl_enabled = false;
 		}
 
-		qcadev->susclk = devm_clk_get(&serdev->dev, NULL);
-		if (IS_ERR(qcadev->susclk)) {
+		qcadev->susclk = devm_clk_get_optional(&serdev->dev, NULL);
+		if (!qcadev->susclk) {
 			dev_warn(&serdev->dev, "failed to acquire clk\n");
 		} else {
 			err = clk_set_rate(qcadev->susclk, SUSCLK_RATE_32KHZ);
@@ -1924,7 +1924,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 		err = hci_uart_register_device(&qcadev->serdev_hu, &qca_proto);
 		if (err) {
 			BT_ERR("Rome serdev registration failed");
-			if (!IS_ERR(qcadev->susclk))
+			if (qcadev->susclk)
 				clk_disable_unprepare(qcadev->susclk);
 			return err;
 		}
@@ -1945,7 +1945,7 @@ static void qca_serdev_remove(struct serdev_device *serdev)
 
 	if (qca_is_wcn399x(qcadev->btsoc_type))
 		qca_power_shutdown(&qcadev->serdev_hu);
-	else if (!IS_ERR(qcadev->susclk))
+	else if (qcadev->susclk)
 		clk_disable_unprepare(qcadev->susclk);
 
 	hci_uart_unregister_device(&qcadev->serdev_hu);
