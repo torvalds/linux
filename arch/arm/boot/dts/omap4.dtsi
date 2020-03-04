@@ -589,21 +589,40 @@
 					};
 				};
 
-				hdmi: encoder@6000 {
-					compatible = "ti,omap4-hdmi";
-					reg = <0x6000 0x200>,
-					      <0x6200 0x100>,
-					      <0x6300 0x100>,
-					      <0x6400 0x1000>;
-					reg-names = "wp", "pll", "phy", "core";
-					interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
-					status = "disabled";
-					ti,hwmods = "dss_hdmi";
+				target-module@6000 {
+					compatible = "ti,sysc-omap4", "ti,sysc";
+					reg = <0x6000 0x4>,
+					      <0x6010 0x4>;
+					reg-names = "rev", "sysc";
+					/*
+					 * Has SYSC_IDLE_SMART and SYSC_IDLE_SMART_WKUP
+					 * but HDMI audio will fail with them.
+					 */
+					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+							<SYSC_IDLE_NO>;
+					ti,sysc-mask = <(SYSC_OMAP4_SOFTRESET)>;
 					clocks = <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 9>,
-						 <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 10>;
-					clock-names = "fck", "sys_clk";
-					dmas = <&sdma 76>;
-					dma-names = "audio_tx";
+						 <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 8>;
+					clock-names = "fck", "dss_clk";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x6000 0x2000>;
+
+					hdmi: encoder@0 {
+					compatible = "ti,omap4-hdmi";
+						reg = <0 0x200>,
+						      <0x200 0x100>,
+						      <0x300 0x100>,
+						      <0x400 0x1000>;
+						reg-names = "wp", "pll", "phy", "core";
+						interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+						status = "disabled";
+						clocks = <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 9>,
+						         <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 10>;
+						clock-names = "fck", "sys_clk";
+						dmas = <&sdma 76>;
+						dma-names = "audio_tx";
+					};
 				};
 			};
 		};
