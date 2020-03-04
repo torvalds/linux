@@ -31,38 +31,13 @@ For more details see the file COPYING in the source distribution of Linux.
 	:maxdepth: 5
 	:numbered:
 
-	v4l-with-ir
 	tuners
-	cardlist
-	bttv
-	cafe_ccic
-	cpia2
-	cx88
-	davinci-vpbe
-	fimc
-	imx
-	imx7
-	ipu3
-	ivtv
 	max2175
-	meye
-	omap3isp
-	omap4_camera
-	philips
 	pvrusb2
 	pxa_camera
-	qcom_camss
 	radiotrack
-	rcar-fdp1
-	saa7134
 	sh_mobile_ceu_camera
-	si470x
-	si4713
-	si476x
 	uvcvideo
-	vimc
-	vivid
-	zr364xx
 
 	bttv-devel
 	cpia2_devel

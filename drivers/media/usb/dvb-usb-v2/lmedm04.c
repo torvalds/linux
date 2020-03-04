@@ -22,7 +22,7 @@
  *
  * LME2510C + M88RS2000
  *
- * For firmware see Documentation/media/dvb-drivers/lmedm04.rst
+ * For firmware see Documentation/admin-guide/media/lmedm04.rst
  *
  * I2C addresses:
  * 0xd0 - STV0288	- Demodulator

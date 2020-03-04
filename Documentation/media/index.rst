@@ -14,9 +14,9 @@ Linux Media Subsystem Documentation
 
    ../userspace-api/media/index
    ../driver-api/media/index
-   dvb-drivers/index
+
    v4l-drivers/index
-   cec-drivers/index
+   dvb-drivers/index
 
 .. only:: html and subproject
 

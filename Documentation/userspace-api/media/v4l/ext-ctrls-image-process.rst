@@ -53,7 +53,7 @@ Image Process Control IDs
 
 ``V4L2_CID_DEINTERLACING_MODE (menu)``
     The video deinterlacing mode (such as Bob, Weave, ...). The menu items are
-    driver specific and are documented in :ref:`v4l-drivers`.
+    driver specific and are documented in :ref:`uapi-v4l-drivers`.
 
 ``V4L2_CID_DIGITAL_GAIN (integer)``
     Digital gain is the value by which all colour components

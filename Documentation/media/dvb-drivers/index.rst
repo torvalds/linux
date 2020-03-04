@@ -29,17 +29,6 @@ For more details see the file COPYING in the source distribution of Linux.
 	:maxdepth: 5
 	:numbered:
 
-	intro
-	avermedia
-	bt8xx
-	cards
-	ci
 	dvb-usb
-	faq
-	lmedm04
-	opera-firmware
-	technisat
-	ttusb-dec
-	udev
 	frontends
 	contributors

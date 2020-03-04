@@ -458,7 +458,7 @@
 	bttv.card=	[HW,V4L] bttv (bt848 + bt878 based grabber cards)
 	bttv.radio=	Most important insmod options are available as
 			kernel args too.
-	bttv.pll=	See Documentation/media/v4l-drivers/bttv.rst
+	bttv.pll=	See Documentation/admin-guide/media/bttv.rst
 	bttv.tuner=
 
 	bulk_remove=off	[PPC]  This parameter disables the use of the pSeries
@@ -2705,7 +2705,7 @@
 			See Documentation/admin-guide/pm/sleep-states.rst.
 
 	meye.*=		[HW] Set MotionEye Camera parameters
-			See Documentation/media/v4l-drivers/meye.rst.
+			See Documentation/admin-guide/media/meye.rst.
 
 	mfgpt_irq=	[IA-32] Specify the IRQ to use for the
 			Multi-Function General Purpose Timers on AMD Geode

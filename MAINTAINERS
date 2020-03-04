@@ -3758,7 +3758,7 @@ M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/cafe_ccic*
+F:	Documentation/admin-guide/media/cafe_ccic*
 F:	drivers/media/platform/marvell-ccic/
 
 CAIF NETWORK LAYER
@@ -6234,7 +6234,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/em28xx*
+F:	Documentation/admin-guide/media/em28xx*
 F:	drivers/media/usb/em28xx/
 
 EMBEDDED LINUX
@@ -8651,8 +8651,8 @@ M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/userspace-api/media/v4l/pixfmt-meta-intel-ipu3.rst
-F:	Documentation/media/v4l-drivers/ipu3.rst
-F:	Documentation/media/v4l-drivers/ipu3_rcb.svg
+F:	Documentation/admin-guide/media/ipu3.rst
+F:	Documentation/admin-guide/media/ipu3_rcb.svg
 F:	drivers/staging/media/ipu3/
 
 INTEL IXP4XX QMGR, NPE, ETHERNET and HSS SUPPORT
@@ -9076,7 +9076,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/ivtv*
+F:	Documentation/admin-guide/media/ivtv*
 F:	drivers/media/pci/ivtv/
 F:	include/uapi/linux/ivtv*
 
@@ -10450,7 +10450,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/imx.txt
-F:	Documentation/media/v4l-drivers/imx.rst
+F:	Documentation/admin-guide/media/imx.rst
 F:	drivers/staging/media/imx/
 F:	include/linux/imx-media.h
 F:	include/media/imx.h
@@ -10462,7 +10462,7 @@ S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/imx7-csi.txt
 F:	Documentation/devicetree/bindings/media/imx7-mipi-csi2.txt
-F:	Documentation/media/v4l-drivers/imx7.rst
+F:	Documentation/admin-guide/media/imx7.rst
 F:	drivers/staging/media/imx/imx7-media-csi.c
 F:	drivers/staging/media/imx/imx7-mipi-csis.c
 
@@ -13701,7 +13701,7 @@ M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/cec-drivers/pulse8-cec.rst
+F:	Documentation/admin-guide/media/pulse8-cec.rst
 F:	drivers/media/usb/pulse8-cec/*
 
 PVRUSB2 VIDEO4LINUX DRIVER
@@ -13958,7 +13958,7 @@ M:	Todor Tomov <todor.too@gmail.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/qcom,camss.txt
-F:	Documentation/media/v4l-drivers/qcom_camss.rst
+F:	Documentation/admin-guide/media/qcom_camss.rst
 F:	drivers/media/platform/qcom/camss/
 
 QUALCOMM CORE POWER REDUCTION (CPR) AVS DRIVER
@@ -16972,7 +16972,7 @@ L:	linux-media@vger.kernel.org
 S:	Odd fixes
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/tm6000*
+F:	Documentation/admin-guide/media/tm6000*
 F:	drivers/media/usb/tm6000/
 
 TMIO/SDHI MMC DRIVER
@@ -17653,7 +17653,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	http://royale.zerezo.com/zr364xx/
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/zr364xx*
+F:	Documentation/admin-guide/media/zr364xx*
 F:	drivers/media/usb/zr364xx/
 
 USER-MODE LINUX (UML)
