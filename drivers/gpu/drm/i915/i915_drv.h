@@ -114,6 +114,13 @@
 
 struct drm_i915_gem_object;
 
+/*
+ * The code assumes that the hpd_pins below have consecutive values and
+ * starting with HPD_PORT_A, the HPD pin associated with any port can be
+ * retrieved by adding the corresponding port (or phy) enum value to
+ * HPD_PORT_A in most cases. For example:
+ * HPD_PORT_C = HPD_PORT_A + PHY_C - PHY_A
+ */
 enum hpd_pin {
 	HPD_NONE = 0,
 	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */

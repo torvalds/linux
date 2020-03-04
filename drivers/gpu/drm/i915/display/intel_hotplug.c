@@ -87,29 +87,16 @@
 enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
 				   enum port port)
 {
-	switch (port) {
-	case PORT_A:
-		return HPD_PORT_A;
-	case PORT_B:
-		return HPD_PORT_B;
-	case PORT_C:
-		return HPD_PORT_C;
-	case PORT_D:
-		return HPD_PORT_D;
-	case PORT_E:
-		return HPD_PORT_E;
-	case PORT_F:
-		if (IS_CNL_WITH_PORT_F(dev_priv))
-			return HPD_PORT_E;
-		return HPD_PORT_F;
-	case PORT_G:
-		return HPD_PORT_G;
-	case PORT_H:
-		return HPD_PORT_H;
-	case PORT_I:
-		return HPD_PORT_I;
+	enum phy phy = intel_port_to_phy(dev_priv, port);
+
+	switch (phy) {
+	case PHY_F:
+		return IS_CNL_WITH_PORT_F(dev_priv) ? HPD_PORT_E : HPD_PORT_F;
+	case PHY_A ... PHY_E:
+	case PHY_G ... PHY_I:
+		return HPD_PORT_A + phy - PHY_A;
 	default:
-		MISSING_CASE(port);
+		MISSING_CASE(phy);
 		return HPD_NONE;
 	}
 }
