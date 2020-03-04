@@ -528,6 +528,13 @@ static void recalc_intercepts(struct vcpu_svm *svm)
 		/* We only want the cr8 intercept bits of L1 */
 		c->intercept_cr &= ~(1U << INTERCEPT_CR8_READ);
 		c->intercept_cr &= ~(1U << INTERCEPT_CR8_WRITE);
+
+		/*
+		 * Once running L2 with HF_VINTR_MASK, EFLAGS.IF does not
+		 * affect any interrupt we may want to inject; therefore,
+		 * interrupt window vmexits are irrelevant to L0.
+		 */
+		c->intercept &= ~(1ULL << INTERCEPT_VINTR);
 	}
 
 	/* We don't want to see VMMCALLs from a nested guest */
@@ -639,6 +646,11 @@ static inline void clr_intercept(struct vcpu_svm *svm, int bit)
 	vmcb->control.intercept &= ~(1ULL << bit);
 
 	recalc_intercepts(svm);
+}
+
+static inline bool is_intercept(struct vcpu_svm *svm, int bit)
+{
+	return (svm->vmcb->control.intercept & (1ULL << bit)) != 0;
 }
 
 static inline bool vgif_enabled(struct vcpu_svm *svm)
@@ -2440,14 +2452,38 @@ static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 	}
 }
 
+static inline void svm_enable_vintr(struct vcpu_svm *svm)
+{
+	struct vmcb_control_area *control;
+
+	/* The following fields are ignored when AVIC is enabled */
+	WARN_ON(kvm_vcpu_apicv_active(&svm->vcpu));
+
+	/*
+	 * This is just a dummy VINTR to actually cause a vmexit to happen.
+	 * Actual injection of virtual interrupts happens through EVENTINJ.
+	 */
+	control = &svm->vmcb->control;
+	control->int_vector = 0x0;
+	control->int_ctl &= ~V_INTR_PRIO_MASK;
+	control->int_ctl |= V_IRQ_MASK |
+		((/*control->int_vector >> 4*/ 0xf) << V_INTR_PRIO_SHIFT);
+	mark_dirty(svm->vmcb, VMCB_INTR);
+}
+
 static void svm_set_vintr(struct vcpu_svm *svm)
 {
 	set_intercept(svm, INTERCEPT_VINTR);
+	if (is_intercept(svm, INTERCEPT_VINTR))
+		svm_enable_vintr(svm);
 }
 
 static void svm_clear_vintr(struct vcpu_svm *svm)
 {
 	clr_intercept(svm, INTERCEPT_VINTR);
+
+	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
+	mark_dirty(svm->vmcb, VMCB_INTR);
 }
 
 static struct vmcb_seg *svm_seg(struct kvm_vcpu *vcpu, int seg)
@@ -3835,11 +3871,8 @@ static int clgi_interception(struct vcpu_svm *svm)
 	disable_gif(svm);
 
 	/* After a CLGI no interrupts should come */
-	if (!kvm_vcpu_apicv_active(&svm->vcpu)) {
+	if (!kvm_vcpu_apicv_active(&svm->vcpu))
 		svm_clear_vintr(svm);
-		svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
-		mark_dirty(svm->vmcb, VMCB_INTR);
-	}
 
 	return ret;
 }
@@ -5125,19 +5158,6 @@ static void svm_inject_nmi(struct kvm_vcpu *vcpu)
 	++vcpu->stat.nmi_injections;
 }
 
-static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
-{
-	struct vmcb_control_area *control;
-
-	/* The following fields are ignored when AVIC is enabled */
-	control = &svm->vmcb->control;
-	control->int_vector = irq;
-	control->int_ctl &= ~V_INTR_PRIO_MASK;
-	control->int_ctl |= V_IRQ_MASK |
-		((/*control->int_vector >> 4*/ 0xf) << V_INTR_PRIO_SHIFT);
-	mark_dirty(svm->vmcb, VMCB_INTR);
-}
-
 static void svm_set_irq(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -5561,7 +5581,6 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 		 */
 		svm_toggle_avic_for_irq_window(vcpu, false);
 		svm_set_vintr(svm);
-		svm_inject_irq(svm, 0x0);
 	}
 }
 
