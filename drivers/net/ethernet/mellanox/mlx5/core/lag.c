@@ -464,9 +464,6 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 	struct mlx5_lag *ldev;
 	int changed = 0;
 
-	if (!net_eq(dev_net(ndev), &init_net))
-		return NOTIFY_DONE;
-
 	if ((event != NETDEV_CHANGEUPPER) && (event != NETDEV_CHANGELOWERSTATE))
 		return NOTIFY_DONE;
 
@@ -586,8 +583,7 @@ void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev)
 
 	if (!ldev->nb.notifier_call) {
 		ldev->nb.notifier_call = mlx5_lag_netdev_event;
-		if (register_netdevice_notifier_dev_net(netdev, &ldev->nb,
-							&ldev->nn)) {
+		if (register_netdevice_notifier_net(&init_net, &ldev->nb)) {
 			ldev->nb.notifier_call = NULL;
 			mlx5_core_err(dev, "Failed to register LAG netdev notifier\n");
 		}
@@ -600,7 +596,7 @@ void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev)
 }
 
 /* Must be called with intf_mutex held */
-void mlx5_lag_remove(struct mlx5_core_dev *dev, struct net_device *netdev)
+void mlx5_lag_remove(struct mlx5_core_dev *dev)
 {
 	struct mlx5_lag *ldev;
 	int i;
@@ -620,8 +616,7 @@ void mlx5_lag_remove(struct mlx5_core_dev *dev, struct net_device *netdev)
 
 	if (i == MLX5_MAX_PORTS) {
 		if (ldev->nb.notifier_call)
-			unregister_netdevice_notifier_dev_net(netdev, &ldev->nb,
-							      &ldev->nn);
+			unregister_netdevice_notifier_net(&init_net, &ldev->nb);
 		mlx5_lag_mp_cleanup(ldev);
 		cancel_delayed_work_sync(&ldev->bond_work);
 		mlx5_lag_dev_free(ldev);

@@ -185,8 +185,7 @@ u8 __initdata early_hash[256 << 10] __aligned(256 << 10) = {0};
 
 static void __init kasan_early_hash_table(void)
 {
-	unsigned int hash = IS_ENABLED(CONFIG_VMAP_STACK) ? (unsigned int)early_hash :
-							    __pa(early_hash);
+	unsigned int hash = __pa(early_hash);
 
 	modify_instruction_site(&patch__hash_page_A0, 0xffff, hash >> 16);
 	modify_instruction_site(&patch__flush_hash_A0, 0xffff, hash >> 16);

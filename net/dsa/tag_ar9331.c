@@ -31,7 +31,7 @@ static struct sk_buff *ar9331_tag_xmit(struct sk_buff *skb,
 	__le16 *phdr;
 	u16 hdr;
 
-	if (skb_cow_head(skb, 0) < 0)
+	if (skb_cow_head(skb, AR9331_HDR_LEN) < 0)
 		return NULL;
 
 	phdr = skb_push(skb, AR9331_HDR_LEN);

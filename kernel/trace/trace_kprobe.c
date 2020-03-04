@@ -1012,7 +1012,7 @@ int __kprobe_event_add_fields(struct dynevent_cmd *cmd, ...)
 {
 	struct dynevent_arg arg;
 	va_list args;
-	int ret;
+	int ret = 0;
 
 	if (cmd->type != DYNEVENT_TYPE_KPROBE)
 		return -EINVAL;

@@ -1137,9 +1137,9 @@ static int vcn_v2_0_pause_dpg_mode(struct amdgpu_device *adev,
 	int ret_code;
 
 	/* pause/unpause if state is changed */
-	if (adev->vcn.pause_state.fw_based != new_state->fw_based) {
+	if (adev->vcn.inst[inst_idx].pause_state.fw_based != new_state->fw_based) {
 		DRM_DEBUG("dpg pause state changed %d -> %d",
-			adev->vcn.pause_state.fw_based,	new_state->fw_based);
+			adev->vcn.inst[inst_idx].pause_state.fw_based,	new_state->fw_based);
 		reg_data = RREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE) &
 			(~UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK);
 
@@ -1185,7 +1185,7 @@ static int vcn_v2_0_pause_dpg_mode(struct amdgpu_device *adev,
 			reg_data &= ~UVD_DPG_PAUSE__NJ_PAUSE_DPG_REQ_MASK;
 			WREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE, reg_data);
 		}
-		adev->vcn.pause_state.fw_based = new_state->fw_based;
+		adev->vcn.inst[inst_idx].pause_state.fw_based = new_state->fw_based;
 	}
 
 	return 0;

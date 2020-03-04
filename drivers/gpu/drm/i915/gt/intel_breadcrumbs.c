@@ -136,6 +136,9 @@ static void add_retire(struct intel_breadcrumbs *b, struct intel_timeline *tl)
 	struct intel_engine_cs *engine =
 		container_of(b, struct intel_engine_cs, breadcrumbs);
 
+	if (unlikely(intel_engine_is_virtual(engine)))
+		engine = intel_virtual_engine_get_sibling(engine, 0);
+
 	intel_engine_add_retire(engine, tl);
 }
 

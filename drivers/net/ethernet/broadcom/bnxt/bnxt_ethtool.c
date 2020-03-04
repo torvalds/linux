@@ -2028,7 +2028,7 @@ int bnxt_flash_package_from_file(struct net_device *dev, const char *filename,
 	}
 
 	if (fw->size > item_len) {
-		netdev_err(dev, "PKG insufficient update area in nvram: %lu",
+		netdev_err(dev, "PKG insufficient update area in nvram: %lu\n",
 			   (unsigned long)fw->size);
 		rc = -EFBIG;
 	} else {
@@ -3338,7 +3338,7 @@ err:
 	kfree(coredump.data);
 	*dump_len += sizeof(struct bnxt_coredump_record);
 	if (rc == -ENOBUFS)
-		netdev_err(bp->dev, "Firmware returned large coredump buffer");
+		netdev_err(bp->dev, "Firmware returned large coredump buffer\n");
 	return rc;
 }
 

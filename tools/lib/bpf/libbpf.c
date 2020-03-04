@@ -24,6 +24,7 @@
 #include <endian.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <ctype.h>
 #include <asm/unistd.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -1283,7 +1284,7 @@ static size_t bpf_map_mmap_sz(const struct bpf_map *map)
 static char *internal_map_name(struct bpf_object *obj,
 			       enum libbpf_map_type type)
 {
-	char map_name[BPF_OBJ_NAME_LEN];
+	char map_name[BPF_OBJ_NAME_LEN], *p;
 	const char *sfx = libbpf_type_to_btf_name[type];
 	int sfx_len = max((size_t)7, strlen(sfx));
 	int pfx_len = min((size_t)BPF_OBJ_NAME_LEN - sfx_len - 1,
@@ -1291,6 +1292,11 @@ static char *internal_map_name(struct bpf_object *obj,
 
 	snprintf(map_name, sizeof(map_name), "%.*s%.*s", pfx_len, obj->name,
 		 sfx_len, libbpf_type_to_btf_name[type]);
+
+	/* sanitise map name to characters allowed by kernel */
+	for (p = map_name; *p && p < map_name + sizeof(map_name); p++)
+		if (!isalnum(*p) && *p != '_' && *p != '.')
+			*p = '_';
 
 	return strdup(map_name);
 }
