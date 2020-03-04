@@ -338,142 +338,6 @@ static struct omap_hwmod dra7xx_tptc1_hwmod = {
 };
 
 /*
- * 'dss' class
- *
- */
-
-static struct omap_hwmod_class_sysconfig dra7xx_dss_sysc = {
-	.rev_offs	= 0x0000,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= SYSS_HAS_RESET_STATUS,
-};
-
-static struct omap_hwmod_class dra7xx_dss_hwmod_class = {
-	.name	= "dss",
-	.sysc	= &dra7xx_dss_sysc,
-	.reset	= omap_dss_reset,
-};
-
-/* dss */
-static struct omap_hwmod_opt_clk dss_opt_clks[] = {
-	{ .role = "dss_clk", .clk = "dss_dss_clk" },
-	{ .role = "hdmi_phy_clk", .clk = "dss_48mhz_clk" },
-	{ .role = "32khz_clk", .clk = "dss_32khz_clk" },
-	{ .role = "video2_clk", .clk = "dss_video2_clk" },
-	{ .role = "video1_clk", .clk = "dss_video1_clk" },
-	{ .role = "hdmi_clk", .clk = "dss_hdmi_clk" },
-	{ .role = "hdcp_clk", .clk = "dss_deshdcp_clk" },
-};
-
-static struct omap_hwmod dra7xx_dss_hwmod = {
-	.name		= "dss_core",
-	.class		= &dra7xx_dss_hwmod_class,
-	.clkdm_name	= "dss_clkdm",
-	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
-	.main_clk	= "dss_dss_clk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_DSS_DSS_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_DSS_DSS_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-	.opt_clks	= dss_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(dss_opt_clks),
-};
-
-/*
- * 'dispc' class
- * display controller
- */
-
-static struct omap_hwmod_class_sysconfig dra7xx_dispc_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
-			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_MIDLEMODE |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
-			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class dra7xx_dispc_hwmod_class = {
-	.name	= "dispc",
-	.sysc	= &dra7xx_dispc_sysc,
-};
-
-/* dss_dispc */
-/* dss_dispc dev_attr */
-static struct omap_dss_dispc_dev_attr dss_dispc_dev_attr = {
-	.has_framedonetv_irq	= 1,
-	.manager_count		= 4,
-};
-
-static struct omap_hwmod dra7xx_dss_dispc_hwmod = {
-	.name		= "dss_dispc",
-	.class		= &dra7xx_dispc_hwmod_class,
-	.clkdm_name	= "dss_clkdm",
-	.main_clk	= "dss_dss_clk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_DSS_DSS_CLKCTRL_OFFSET,
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-	.dev_attr	= &dss_dispc_dev_attr,
-	.parent_hwmod	= &dra7xx_dss_hwmod,
-};
-
-/*
- * 'hdmi' class
- * hdmi controller
- */
-
-static struct omap_hwmod_class_sysconfig dra7xx_hdmi_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= (SYSC_HAS_RESET_STATUS | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class dra7xx_hdmi_hwmod_class = {
-	.name	= "hdmi",
-	.sysc	= &dra7xx_hdmi_sysc,
-};
-
-/* dss_hdmi */
-
-static struct omap_hwmod_opt_clk dss_hdmi_opt_clks[] = {
-	{ .role = "sys_clk", .clk = "dss_hdmi_clk" },
-};
-
-static struct omap_hwmod dra7xx_dss_hdmi_hwmod = {
-	.name		= "dss_hdmi",
-	.class		= &dra7xx_hdmi_hwmod_class,
-	.clkdm_name	= "dss_clkdm",
-	.main_clk	= "dss_48mhz_clk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_DSS_DSS_CLKCTRL_OFFSET,
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-	.opt_clks	= dss_hdmi_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(dss_hdmi_opt_clks),
-	.parent_hwmod	= &dra7xx_dss_hwmod,
-};
-
-
-
-
-
-/*
  * 'gpmc' class
  *
  */
@@ -1101,30 +965,6 @@ static struct omap_hwmod_ocp_if dra7xx_l3_main_1__tptc1 = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l3_main_1 -> dss */
-static struct omap_hwmod_ocp_if dra7xx_l3_main_1__dss = {
-	.master		= &dra7xx_l3_main_1_hwmod,
-	.slave		= &dra7xx_dss_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l3_main_1 -> dispc */
-static struct omap_hwmod_ocp_if dra7xx_l3_main_1__dispc = {
-	.master		= &dra7xx_l3_main_1_hwmod,
-	.slave		= &dra7xx_dss_dispc_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l3_main_1 -> dispc */
-static struct omap_hwmod_ocp_if dra7xx_l3_main_1__hdmi = {
-	.master		= &dra7xx_l3_main_1_hwmod,
-	.slave		= &dra7xx_dss_hdmi_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_1 -> gpmc */
 static struct omap_hwmod_ocp_if dra7xx_l3_main_1__gpmc = {
 	.master		= &dra7xx_l3_main_1_hwmod,
@@ -1312,9 +1152,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l3_main_1__tpcc,
 	&dra7xx_l3_main_1__tptc0,
 	&dra7xx_l3_main_1__tptc1,
-	&dra7xx_l3_main_1__dss,
-	&dra7xx_l3_main_1__dispc,
-	&dra7xx_l3_main_1__hdmi,
 	&dra7xx_l3_main_1__gpmc,
 	&dra7xx_l4_cfg__mpu,
 	&dra7xx_l3_main_1__pciess1,

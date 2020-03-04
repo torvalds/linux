@@ -707,7 +707,6 @@
 
 		target-module@58000000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dss_core";
 			reg = <0x58000000 4>,
 			      <0x58000014 4>;
 			reg-names = "rev", "syss";
@@ -759,7 +758,6 @@
 						compatible = "ti,dra7-dispc";
 						reg = <0 0x1000>;
 						interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
-						ti,hwmods = "dss_dispc";
 						clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>;
 						clock-names = "fck";
 						/* CTRL_CORE_SMA_SW_1 */
