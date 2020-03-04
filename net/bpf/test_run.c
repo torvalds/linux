@@ -160,16 +160,35 @@ static void *bpf_test_init(const union bpf_attr *kattr, u32 size,
 		kfree(data);
 		return ERR_PTR(-EFAULT);
 	}
-	if (bpf_fentry_test1(1) != 2 ||
-	    bpf_fentry_test2(2, 3) != 5 ||
-	    bpf_fentry_test3(4, 5, 6) != 15 ||
-	    bpf_fentry_test4((void *)7, 8, 9, 10) != 34 ||
-	    bpf_fentry_test5(11, (void *)12, 13, 14, 15) != 65 ||
-	    bpf_fentry_test6(16, (void *)17, 18, 19, (void *)20, 21) != 111) {
-		kfree(data);
-		return ERR_PTR(-EFAULT);
-	}
+
 	return data;
+}
+
+int bpf_prog_test_run_tracing(struct bpf_prog *prog,
+			      const union bpf_attr *kattr,
+			      union bpf_attr __user *uattr)
+{
+	int err = -EFAULT;
+
+	switch (prog->expected_attach_type) {
+	case BPF_TRACE_FENTRY:
+	case BPF_TRACE_FEXIT:
+		if (bpf_fentry_test1(1) != 2 ||
+		    bpf_fentry_test2(2, 3) != 5 ||
+		    bpf_fentry_test3(4, 5, 6) != 15 ||
+		    bpf_fentry_test4((void *)7, 8, 9, 10) != 34 ||
+		    bpf_fentry_test5(11, (void *)12, 13, 14, 15) != 65 ||
+		    bpf_fentry_test6(16, (void *)17, 18, 19, (void *)20, 21) != 111)
+			goto out;
+		break;
+	default:
+		goto out;
+	}
+
+	err = 0;
+out:
+	trace_bpf_test_finish(&err);
+	return err;
 }
 
 static void *bpf_ctx_init(const union bpf_attr *kattr, u32 max_size)
