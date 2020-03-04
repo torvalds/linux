@@ -57,7 +57,7 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 	if (rmnet_is_real_dev_registered(real_dev))
 		return 0;
 
-	port = kzalloc(sizeof(*port), GFP_ATOMIC);
+	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
@@ -127,7 +127,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 		return -ENODEV;
 	}
 
-	ep = kzalloc(sizeof(*ep), GFP_ATOMIC);
+	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
 		return -ENOMEM;
 
