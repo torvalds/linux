@@ -722,9 +722,10 @@ pipe_release(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_WRITE)
 		pipe->writers--;
 
-	if (pipe->readers || pipe->writers) {
-		wake_up_interruptible_sync_poll(&pipe->rd_wait, EPOLLIN | EPOLLRDNORM | EPOLLERR | EPOLLHUP);
-		wake_up_interruptible_sync_poll(&pipe->wr_wait, EPOLLOUT | EPOLLWRNORM | EPOLLERR | EPOLLHUP);
+	/* Was that the last reader or writer, but not the other side? */
+	if (!pipe->readers != !pipe->writers) {
+		wake_up_interruptible_all(&pipe->rd_wait);
+		wake_up_interruptible_all(&pipe->wr_wait);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
@@ -1026,8 +1027,8 @@ static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
 
 static void wake_up_partner(struct pipe_inode_info *pipe)
 {
-	wake_up_interruptible(&pipe->rd_wait);
-	wake_up_interruptible(&pipe->wr_wait);
+	wake_up_interruptible_all(&pipe->rd_wait);
+	wake_up_interruptible_all(&pipe->wr_wait);
 }
 
 static int fifo_open(struct inode *inode, struct file *filp)
@@ -1144,7 +1145,7 @@ err_rd:
 
 err_wr:
 	if (!--pipe->writers)
-		wake_up_interruptible(&pipe->rd_wait);
+		wake_up_interruptible_all(&pipe->rd_wait);
 	ret = -ERESTARTSYS;
 	goto err;
 
@@ -1271,8 +1272,9 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	pipe->max_usage = nr_slots;
 	pipe->tail = tail;
 	pipe->head = head;
-	wake_up_interruptible_all(&pipe->rd_wait);
-	wake_up_interruptible_all(&pipe->wr_wait);
+
+	/* This might have made more room for writers */
+	wake_up_interruptible(&pipe->wr_wait);
 	return pipe->max_usage * PAGE_SIZE;
 
 out_revert_acct:

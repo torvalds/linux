@@ -203,7 +203,7 @@
  * ::
  *
  *       rule indices in last field:    0    1
- *       map to elements:             0x42  0x66
+ *       map to elements:             0x66  0x42
  *
  *
  * Matching
@@ -298,7 +298,7 @@
  * ::
  *
  *       rule indices in last field:    0    1
- *       map to elements:             0x42  0x66
+ *       map to elements:             0x66  0x42
  *
  *      the matching element is at 0x42.
  *
@@ -503,7 +503,7 @@ static int pipapo_refill(unsigned long *map, int len, int rules,
 				return -1;
 			}
 
-			if (unlikely(match_only)) {
+			if (match_only) {
 				bitmap_clear(map, i, 1);
 				return i;
 			}
@@ -1766,11 +1766,13 @@ static bool pipapo_match_field(struct nft_pipapo_field *f,
 static void nft_pipapo_remove(const struct net *net, const struct nft_set *set,
 			      const struct nft_set_elem *elem)
 {
-	const u8 *data = (const u8 *)elem->key.val.data;
 	struct nft_pipapo *priv = nft_set_priv(set);
 	struct nft_pipapo_match *m = priv->clone;
+	struct nft_pipapo_elem *e = elem->priv;
 	int rules_f0, first_rule = 0;
-	struct nft_pipapo_elem *e;
+	const u8 *data;
+
+	data = (const u8 *)nft_set_ext_key(&e->ext);
 
 	e = pipapo_get(net, set, data, 0);
 	if (IS_ERR(e))

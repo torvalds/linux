@@ -2319,14 +2319,12 @@ static int deliver_event(struct devx_event_subscription *event_sub,
 
 	if (ev_file->omit_data) {
 		spin_lock_irqsave(&ev_file->lock, flags);
-		if (!list_empty(&event_sub->event_list)) {
+		if (!list_empty(&event_sub->event_list) ||
+		    ev_file->is_destroyed) {
 			spin_unlock_irqrestore(&ev_file->lock, flags);
 			return 0;
 		}
 
-		/* is_destroyed is ignored here because we don't have any memory
-		 * allocation to clean up for the omit_data case
-		 */
 		list_add_tail(&event_sub->event_list, &ev_file->event_list);
 		spin_unlock_irqrestore(&ev_file->lock, flags);
 		wake_up_interruptible(&ev_file->poll_wait);
@@ -2473,11 +2471,11 @@ static ssize_t devx_async_cmd_event_read(struct file *filp, char __user *buf,
 			return -ERESTARTSYS;
 		}
 
-		if (list_empty(&ev_queue->event_list) &&
-		    ev_queue->is_destroyed)
-			return -EIO;
-
 		spin_lock_irq(&ev_queue->lock);
+		if (ev_queue->is_destroyed) {
+			spin_unlock_irq(&ev_queue->lock);
+			return -EIO;
+		}
 	}
 
 	event = list_entry(ev_queue->event_list.next,
@@ -2551,10 +2549,6 @@ static ssize_t devx_async_event_read(struct file *filp, char __user *buf,
 		return -EOVERFLOW;
 	}
 
-	if (ev_file->is_destroyed) {
-		spin_unlock_irq(&ev_file->lock);
-		return -EIO;
-	}
 
 	while (list_empty(&ev_file->event_list)) {
 		spin_unlock_irq(&ev_file->lock);
@@ -2667,8 +2661,10 @@ static int devx_async_cmd_event_destroy_uobj(struct ib_uobject *uobj,
 
 	spin_lock_irq(&comp_ev_file->ev_queue.lock);
 	list_for_each_entry_safe(entry, tmp,
-				 &comp_ev_file->ev_queue.event_list, list)
+				 &comp_ev_file->ev_queue.event_list, list) {
+		list_del(&entry->list);
 		kvfree(entry);
+	}
 	spin_unlock_irq(&comp_ev_file->ev_queue.lock);
 	return 0;
 };
@@ -2680,11 +2676,29 @@ static int devx_async_event_destroy_uobj(struct ib_uobject *uobj,
 		container_of(uobj, struct devx_async_event_file,
 			     uobj);
 	struct devx_event_subscription *event_sub, *event_sub_tmp;
-	struct devx_async_event_data *entry, *tmp;
 	struct mlx5_ib_dev *dev = ev_file->dev;
 
 	spin_lock_irq(&ev_file->lock);
 	ev_file->is_destroyed = 1;
+
+	/* free the pending events allocation */
+	if (ev_file->omit_data) {
+		struct devx_event_subscription *event_sub, *tmp;
+
+		list_for_each_entry_safe(event_sub, tmp, &ev_file->event_list,
+					 event_list)
+			list_del_init(&event_sub->event_list);
+
+	} else {
+		struct devx_async_event_data *entry, *tmp;
+
+		list_for_each_entry_safe(entry, tmp, &ev_file->event_list,
+					 list) {
+			list_del(&entry->list);
+			kfree(entry);
+		}
+	}
+
 	spin_unlock_irq(&ev_file->lock);
 	wake_up_interruptible(&ev_file->poll_wait);
 
@@ -2698,15 +2712,6 @@ static int devx_async_event_destroy_uobj(struct ib_uobject *uobj,
 		call_rcu(&event_sub->rcu, devx_free_subscription);
 	}
 	mutex_unlock(&dev->devx_event_table.event_xa_lock);
-
-	/* free the pending events allocation */
-	if (!ev_file->omit_data) {
-		spin_lock_irq(&ev_file->lock);
-		list_for_each_entry_safe(entry, tmp,
-					 &ev_file->event_list, list)
-			kfree(entry); /* read can't come any more */
-		spin_unlock_irq(&ev_file->lock);
-	}
 
 	put_device(&dev->ib_dev.dev);
 	return 0;
