@@ -108,7 +108,6 @@
 
 		dsp {
 			compatible = "ti,omap3-c64";
-			ti,hwmods = "dsp";
 		};
 
 		iva {
