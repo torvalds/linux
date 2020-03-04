@@ -838,6 +838,9 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	unsigned long mask = -1UL;
 
+	if (is_compat_task())
+		mask = 0xffffffff;
+
 	/*
 	 * The sysc_tracesys code in entry.S stored the system
 	 * call number to gprs[2].
@@ -854,17 +857,35 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		return -1;
 	}
 
+#ifdef CONFIG_SECCOMP
 	/* Do the secure computing check after ptrace. */
-	if (secure_computing()) {
-		/* seccomp failures shouldn't expose any additional code. */
-		return -1;
+	if (unlikely(test_thread_flag(TIF_SECCOMP))) {
+		struct seccomp_data sd;
+
+		if (is_compat_task()) {
+			sd.instruction_pointer = regs->psw.addr & 0x7fffffff;
+			sd.arch = AUDIT_ARCH_S390;
+		} else {
+			sd.instruction_pointer = regs->psw.addr;
+			sd.arch = AUDIT_ARCH_S390X;
+		}
+
+		sd.nr = regs->gprs[2] & 0xffff;
+		sd.args[0] = regs->orig_gpr2 & mask;
+		sd.args[1] = regs->gprs[3] & mask;
+		sd.args[2] = regs->gprs[4] & mask;
+		sd.args[3] = regs->gprs[5] & mask;
+		sd.args[4] = regs->gprs[6] & mask;
+		sd.args[5] = regs->gprs[7] & mask;
+
+		if (__secure_computing(&sd) == -1)
+			return -1;
 	}
+#endif /* CONFIG_SECCOMP */
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->gprs[2]);
 
-	if (is_compat_task())
-		mask = 0xffffffff;
 
 	audit_syscall_entry(regs->gprs[2], regs->orig_gpr2 & mask,
 			    regs->gprs[3] &mask, regs->gprs[4] &mask,
