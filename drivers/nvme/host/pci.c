@@ -1020,30 +1020,18 @@ static irqreturn_t nvme_irq_check(int irq, void *data)
 }
 
 /*
- * Poll for completions any queue, including those not dedicated to polling.
+ * Poll for completions for any interrupt driven queue
  * Can be called from any context.
  */
-static int nvme_poll_irqdisable(struct nvme_queue *nvmeq)
+static void nvme_poll_irqdisable(struct nvme_queue *nvmeq)
 {
 	struct pci_dev *pdev = to_pci_dev(nvmeq->dev->dev);
-	int found;
 
-	/*
-	 * For a poll queue we need to protect against the polling thread
-	 * using the CQ lock.  For normal interrupt driven threads we have
-	 * to disable the interrupt to avoid racing with it.
-	 */
-	if (test_bit(NVMEQ_POLLED, &nvmeq->flags)) {
-		spin_lock(&nvmeq->cq_poll_lock);
-		found = nvme_process_cq(nvmeq);
-		spin_unlock(&nvmeq->cq_poll_lock);
-	} else {
-		disable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
-		found = nvme_process_cq(nvmeq);
-		enable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
-	}
+	WARN_ON_ONCE(test_bit(NVMEQ_POLLED, &nvmeq->flags));
 
-	return found;
+	disable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
+	nvme_process_cq(nvmeq);
+	enable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
 }
 
 static int nvme_poll(struct blk_mq_hw_ctx *hctx)
@@ -1232,7 +1220,11 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	/*
 	 * Did we miss an interrupt?
 	 */
-	nvme_poll_irqdisable(nvmeq);
+	if (test_bit(NVMEQ_POLLED, &nvmeq->flags))
+		nvme_poll(req->mq_hctx);
+	else
+		nvme_poll_irqdisable(nvmeq);
+
 	if (blk_mq_request_completed(req)) {
 		dev_warn(dev->ctrl.device,
 			 "I/O %d QID %d timeout, completion polled\n",
