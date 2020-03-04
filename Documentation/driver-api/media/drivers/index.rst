@@ -2,6 +2,34 @@
 
 .. include:: <isonum.txt>
 
+################################################
+Video4Linux (V4L)  driver-specific documentation
+################################################
+
+.. only:: html
+
+    .. class:: toc-title
+
+        Table of Contents
+
+.. toctree::
+	:maxdepth: 5
+
+	bttv-devel
+	cpia2_devel
+	cx2341x-devel
+	cx88-devel
+	davinci-vpbe-devel
+	fimc-devel
+	pvrusb2
+	pxa_camera
+	radiotrack
+	saa7134-devel
+	sh_mobile_ceu_camera
+	tuners
+	vimc-devel
+
+
 ##############################################
 Linux Digital TV driver-specific documentation
 ##############################################
@@ -27,7 +55,6 @@ For more details see the file COPYING in the source distribution of Linux.
 
 .. toctree::
 	:maxdepth: 5
-	:numbered:
 
 	dvb-usb
 	frontends

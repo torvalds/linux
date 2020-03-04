@@ -16,7 +16,6 @@ Linux Media Subsystem Documentation
    ../driver-api/media/index
 
    v4l-drivers/index
-   dvb-drivers/index
 
 .. only:: html and subproject
 

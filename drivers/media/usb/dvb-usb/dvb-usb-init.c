@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dvb-usb-common.h"
 

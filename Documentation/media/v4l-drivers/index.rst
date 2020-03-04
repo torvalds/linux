@@ -31,22 +31,8 @@ For more details see the file COPYING in the source distribution of Linux.
 	:maxdepth: 5
 	:numbered:
 
-	tuners
 	max2175
-	pvrusb2
-	pxa_camera
-	radiotrack
-	sh_mobile_ceu_camera
 	uvcvideo
-
-	bttv-devel
-	cpia2_devel
-	cx2341x-devel
-	cx88-devel
-	davinci-vpbe-devel
-	fimc-devel
-	saa7134-devel
-	vimc-devel
 
 	cx2341x-uapi
 	imx-uapi

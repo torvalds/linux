@@ -3667,7 +3667,7 @@ L:	linux-media@vger.kernel.org
 S:	Odd fixes
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/bttv*
+F:	Documentation/driver-api/media/drivers/bttv*
 F:	drivers/media/pci/bt8xx/bttv*
 
 BUS FREQUENCY DRIVER FOR SAMSUNG EXYNOS
@@ -4539,7 +4539,7 @@ L:	linux-media@vger.kernel.org
 S:	Odd fixes
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/cx88*
+F:	Documentation/driver-api/media/drivers/cx88*
 F:	drivers/media/pci/cx88/
 
 CXD2820R MEDIA DRIVER
@@ -13711,7 +13711,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	http://www.isely.net/pvrusb2/
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/pvrusb2*
+F:	Documentation/driver-api/media/drivers/pvrusb2*
 F:	drivers/media/usb/pvrusb2/
 
 PWC WEBCAM DRIVER
@@ -14720,7 +14720,7 @@ L:	linux-media@vger.kernel.org
 S:	Odd fixes
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/saa7134*
+F:	Documentation/driver-api/media/drivers/saa7134*
 F:	drivers/media/pci/saa7134/
 
 SAA7146 VIDEO4LINUX-2 DRIVER

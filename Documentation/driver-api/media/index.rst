@@ -36,3 +36,5 @@ For more details see the file COPYING in the source distribution of Linux.
     mc-core
     cec-core
     csi2
+
+    drivers/index

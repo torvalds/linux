@@ -39,7 +39,7 @@
  * Copyright (C) 2010 Malcolm Priestley (tvboxspy@gmail.com)
  * LME2510(C)(C) Leaguerme (Shenzhen) MicroElectronics Co., Ltd.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  *
  * Known Issues :
  *	LME2510: Non Intel USB chipsets fail to maintain High Speed on

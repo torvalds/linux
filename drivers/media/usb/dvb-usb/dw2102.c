@@ -8,7 +8,7 @@
  *	Terratec Cinergy S2 cards
  * Copyright (C) 2008-2012 Igor M. Liplianin (liplianin@me.by)
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include <media/dvb-usb-ids.h>
 #include "dw2102.h"

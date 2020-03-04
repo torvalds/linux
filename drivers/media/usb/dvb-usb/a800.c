@@ -8,7 +8,7 @@
  *   - AVerMedia who kindly provided information and
  *   - Glen Harris who suffered from my mistakes during development.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dibusb.h"
 

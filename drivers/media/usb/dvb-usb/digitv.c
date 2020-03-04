@@ -6,7 +6,7 @@
  *
  * partly based on the SDK published by Nebula Electronics
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "digitv.h"
 

@@ -18,7 +18,7 @@
  * Copyright (C) 2006, 2007 Chris Pascoe (c.pascoe@itee.uq.edu.au)
  * Copyright (C) 2011, 2017 Maciej S. Szmigiero (mail@maciej.szmigiero.name)
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include <media/tuner.h>
 #include <linux/delay.h>

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009 Adams.Xu <adams.xu@azwave.com.cn>
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "az6027.h"
 
