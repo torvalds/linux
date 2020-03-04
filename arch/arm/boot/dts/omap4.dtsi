@@ -421,7 +421,6 @@
 		 */
 		target-module@58000000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dss_core";
 			reg = <0x58000000 4>,
 			      <0x58000014 4>;
 			reg-names = "rev", "syss";
@@ -447,7 +446,6 @@
 
 				target-module@1000 {
 					compatible = "ti,sysc-omap2", "ti,sysc";
-					ti,hwmods = "dss_dispc";
 					reg = <0x1000 0x4>,
 					      <0x1010 0x4>,
 					      <0x1014 0x4>;
