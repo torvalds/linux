@@ -328,6 +328,10 @@
 	dma-coherent;
 };
 
+&rng {
+	status = "okay";
+};
+
 &uart2 {
 	status = "disabled";
 };
