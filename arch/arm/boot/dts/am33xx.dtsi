@@ -193,21 +193,32 @@
 			reg = <0x48200000 0x1000>;
 		};
 
-		edma: edma@49000000 {
-			compatible = "ti,edma3-tpcc";
+		target-module@49000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "tpcc";
-			reg =	<0x49000000 0x10000>;
-			reg-names = "edma3_cc";
-			interrupts = <12 13 14>;
-			interrupt-names = "edma3_ccint", "edma3_mperr",
-					  "edma3_ccerrint";
-			dma-requests = <64>;
-			#dma-cells = <2>;
+			reg = <0x49000000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3_clkctrl AM3_L3_TPCC_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49000000 0x10000>;
 
-			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
-				   <&edma_tptc2 0>;
+			edma: dma@0 {
+				compatible = "ti,edma3-tpcc";
+				reg = <0 0x10000>;
+				reg-names = "edma3_cc";
+				interrupts = <12 13 14>;
+				interrupt-names = "edma3_ccint", "edma3_mperr",
+						  "edma3_ccerrint";
+				dma-requests = <64>;
+				#dma-cells = <2>;
 
-			ti,edma-memcpy-channels = <20 21>;
+				ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
+					   <&edma_tptc2 0>;
+
+				ti,edma-memcpy-channels = <20 21>;
+			};
 		};
 
 		edma_tptc0: tptc@49800000 {
