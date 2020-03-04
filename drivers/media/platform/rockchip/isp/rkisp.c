@@ -501,17 +501,8 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 
 	/* interrupt mask */
 	irq_mask |= CIF_ISP_FRAME | CIF_ISP_V_START | CIF_ISP_PIC_SIZE_ERROR |
-		    CIF_ISP_FRAME_IN | CIF_ISP_AWB_DONE | CIF_ISP_AFM_FIN;
+		    CIF_ISP_FRAME_IN;
 	writel(irq_mask, base + CIF_ISP_IMSC);
-	if (dev->isp_ver == ISP_V20) {
-		irq_mask = ISP2X_3A_RAWAE_BIG | ISP2X_3A_RAWAE_CH0 |
-			ISP2X_3A_RAWAE_CH1 | ISP2X_3A_RAWAE_CH2 |
-			ISP2X_3A_RAWHIST_BIG | ISP2X_3A_RAWHIST_CH0 |
-			ISP2X_3A_RAWHIST_CH1 | ISP2X_3A_RAWHIST_CH2 |
-			ISP2X_3A_RAWAWB | ISP2X_3A_RAWAF | ISP2X_3A_RAWAF_SUM |
-			ISP2X_3A_RAWAF_LUM;
-		writel(irq_mask, base + ISP_ISP3A_IMSC);
-	}
 
 	if (out_fmt->fmt_type == FMT_BAYER)
 		rkisp_params_disable_isp(&dev->params_vdev);

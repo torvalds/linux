@@ -1336,12 +1336,15 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 		ISP2X_3A_RAWAF_LUM | ISP2X_3A_RAWAF | ISP2X_3A_RAWAWB;
 	u32 hdl_ris, hdl_3aris, unhdl_ris, unhdl_3aris;
 	u32 wr_buf_idx;
+	u32 temp_isp_ris, temp_isp3a_ris;
 
 #ifdef LOG_ISR_EXE_TIME
 	ktime_t in_t = ktime_get();
 #endif
 	spin_lock(&stats_vdev->irq_lock);
 
+	temp_isp_ris = readl(stats_vdev->dev->base_addr + ISP_ISP_RIS);
+	temp_isp3a_ris = readl(stats_vdev->dev->base_addr + ISP_ISP3A_RIS);
 	isp_mis_tmp = isp_ris & iq_isr_mask;
 	if (isp_mis_tmp) {
 		writel(isp_mis_tmp,
@@ -1379,8 +1382,6 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 			stats_vdev->dev->base_addr + MI_SWS_3A_WR_BASE);
 	}
 
-	hdl_ris = isp_ris;
-	hdl_3aris = isp3a_ris;
 	unhdl_ris = 0;
 	unhdl_3aris = 0;
 	if (stats_vdev->rdbk_mode) {
@@ -1392,11 +1393,11 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 		stats_vdev->isp3a_rdbk |= hdl_3aris;
 	}
 
-	if ((hdl_ris & iq_isr_mask) || (hdl_3aris & iq_3a_mask)) {
+	if (isp_ris & CIF_ISP_FRAME) {
 		work.readout = RKISP_ISP_READOUT_MEAS;
 		work.frame_id = cur_frame_id;
-		work.isp_ris = hdl_ris;
-		work.isp3a_ris = hdl_3aris;
+		work.isp_ris = temp_isp_ris | isp_ris;
+		work.isp3a_ris = temp_isp3a_ris;
 		work.timestamp = ktime_get_ns();
 
 		if (!kfifo_is_full(&stats_vdev->rd_kfifo))
