@@ -149,6 +149,9 @@ int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev);
 
 void amdgpu_amdkfd_gpu_reset(struct kgd_dev *kgd);
 
+int amdgpu_queue_mask_bit_to_set_resource_bit(struct amdgpu_device *adev,
+					int queue_bit);
+
 /* Shared API */
 int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 				void **mem_obj, uint64_t *gpu_addr,
