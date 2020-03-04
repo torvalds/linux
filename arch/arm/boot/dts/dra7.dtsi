@@ -384,12 +384,23 @@
 			};
 		};
 
-		edma_tptc1: tptc@43500000 {
-			compatible = "ti,edma3-tptc";
+		target-module@43500000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "tptc1";
-			reg =	<0x43500000 0x100000>;
-			interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_tcerrint";
+			reg = <0x43500000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3main1_clkctrl DRA7_L3MAIN1_TPTC1_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x43500000 0x100000>;
+
+			edma_tptc1: dma@0 {
+				compatible = "ti,edma3-tptc";
+				reg = <0 0x100000>;
+				interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma3_tcerrint";
+			};
 		};
 
 		dmm@4e000000 {
