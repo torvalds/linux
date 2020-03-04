@@ -3055,6 +3055,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (amdgpu_mes && adev->asic_type >= CHIP_NAVI10)
 		adev->enable_mes = true;
 
+	/* detect hw virtualization here */
+	amdgpu_detect_virtualization(adev);
+
 	if (amdgpu_discovery && adev->asic_type >= CHIP_NAVI10) {
 		r = amdgpu_discovery_init(adev);
 		if (r) {

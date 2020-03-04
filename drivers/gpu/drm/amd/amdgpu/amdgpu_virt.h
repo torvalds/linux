@@ -30,6 +30,11 @@
 #define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
 #define AMDGPU_SRIOV_CAPS_RUNTIME      (1 << 4) /* is out of full access mode */
 
+/* all asic after AI use this offset */
+#define mmRCC_IOV_FUNC_IDENTIFIER 0xDE5
+/* tonga/fiji use this offset */
+#define mmBIF_IOV_FUNC_IDENTIFIER 0x1503
+
 struct amdgpu_mm_table {
 	struct amdgpu_bo	*bo;
 	uint32_t		*cpu_addr;
@@ -305,4 +310,5 @@ int amdgpu_virt_fw_reserve_get_checksum(void *obj, unsigned long obj_size,
 					unsigned int key,
 					unsigned int chksum);
 void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev);
+void amdgpu_detect_virtualization(struct amdgpu_device *adev);
 #endif

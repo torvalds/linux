@@ -465,8 +465,6 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 	adev->nbio.funcs = &nbio_v2_3_funcs;
 	adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
 
-	adev->nbio.funcs->detect_hw_virt(adev);
-
 	if (amdgpu_sriov_vf(adev))
 		adev->virt.ops = &xgpu_nv_virt_ops;
 

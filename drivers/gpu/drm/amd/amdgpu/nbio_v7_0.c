@@ -280,12 +280,6 @@ const struct nbio_hdp_flush_reg nbio_v7_0_hdp_flush_reg = {
 	.ref_and_mask_sdma1 = GPU_HDP_FLUSH_DONE__SDMA1_MASK,
 };
 
-static void nbio_v7_0_detect_hw_virt(struct amdgpu_device *adev)
-{
-	if (is_virtual_machine())	/* passthrough mode exclus sriov mod */
-		adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
-}
-
 static void nbio_v7_0_init_registers(struct amdgpu_device *adev)
 {
 
@@ -310,6 +304,5 @@ const struct amdgpu_nbio_funcs nbio_v7_0_funcs = {
 	.get_clockgating_state = nbio_v7_0_get_clockgating_state,
 	.ih_control = nbio_v7_0_ih_control,
 	.init_registers = nbio_v7_0_init_registers,
-	.detect_hw_virt = nbio_v7_0_detect_hw_virt,
 	.remap_hdp_registers = nbio_v7_0_remap_hdp_registers,
 };
