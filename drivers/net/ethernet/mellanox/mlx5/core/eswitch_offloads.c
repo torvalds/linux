@@ -198,7 +198,7 @@ int mlx5_esw_vport_tbl_get(struct mlx5_eswitch *esw)
 	mlx5_esw_for_all_vports(esw, i, vport) {
 		attr.in_rep->vport = vport->vport;
 		fdb = esw_vport_tbl_get(esw, &attr);
-		if (!fdb)
+		if (IS_ERR(fdb))
 			goto out;
 	}
 	return 0;
