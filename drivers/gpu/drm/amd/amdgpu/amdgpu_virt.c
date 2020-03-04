@@ -153,6 +153,19 @@ int amdgpu_virt_reset_gpu(struct amdgpu_device *adev)
 	return 0;
 }
 
+void amdgpu_virt_request_init_data(struct amdgpu_device *adev)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (virt->ops && virt->ops->req_init_data)
+		virt->ops->req_init_data(adev);
+
+	if (adev->virt.req_init_data_ver > 0)
+		DRM_INFO("host supports REQ_INIT_DATA handshake\n");
+	else
+		DRM_WARN("host doesn't support REQ_INIT_DATA handshake\n");
+}
+
 /**
  * amdgpu_virt_wait_reset() - wait for reset gpu completed
  * @amdgpu:	amdgpu device.

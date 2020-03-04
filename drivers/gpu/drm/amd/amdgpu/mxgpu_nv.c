@@ -109,7 +109,6 @@ static int xgpu_nv_poll_msg(struct amdgpu_device *adev, enum idh_event event)
 		timeout -= 10;
 	} while (timeout > 1);
 
-	pr_err("Doesn't get msg:%d from pf, error=%d\n", event, r);
 
 	return -ETIME;
 }
@@ -163,18 +162,45 @@ static int xgpu_nv_send_access_requests(struct amdgpu_device *adev,
 					enum idh_request req)
 {
 	int r;
+	enum idh_event event = -1;
 
 	xgpu_nv_mailbox_trans_msg(adev, req, 0, 0, 0);
 
-	/* start to check msg if request is idh_req_gpu_init_access */
-	if (req == IDH_REQ_GPU_INIT_ACCESS ||
-		req == IDH_REQ_GPU_FINI_ACCESS ||
-		req == IDH_REQ_GPU_RESET_ACCESS) {
-		r = xgpu_nv_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
+	switch (req) {
+	case IDH_REQ_GPU_INIT_ACCESS:
+	case IDH_REQ_GPU_FINI_ACCESS:
+	case IDH_REQ_GPU_RESET_ACCESS:
+		event = IDH_READY_TO_ACCESS_GPU;
+		break;
+	case IDH_REQ_GPU_INIT_DATA:
+		event = IDH_REQ_GPU_INIT_DATA_READY;
+		break;
+	default:
+		break;
+	}
+
+	if (event != -1) {
+		r = xgpu_nv_poll_msg(adev, event);
 		if (r) {
-			pr_err("Doesn't get READY_TO_ACCESS_GPU from pf, give up\n");
-			return r;
+			if (req != IDH_REQ_GPU_INIT_DATA) {
+				pr_err("Doesn't get msg:%d from pf, error=%d\n", event, r);
+				return r;
+			}
+			else /* host doesn't support REQ_GPU_INIT_DATA handshake */
+				adev->virt.req_init_data_ver = 0;
+		} else {
+			if (req == IDH_REQ_GPU_INIT_DATA)
+			{
+				adev->virt.req_init_data_ver =
+					RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
+						mmBIF_BX_PF_MAILBOX_MSGBUF_RCV_DW1));
+
+				/* assume V1 in case host doesn't set version number */
+				if (adev->virt.req_init_data_ver < 1)
+					adev->virt.req_init_data_ver = 1;
+			}
 		}
+
 		/* Retrieve checksum from mailbox2 */
 		if (req == IDH_REQ_GPU_INIT_ACCESS || req == IDH_REQ_GPU_RESET_ACCESS) {
 			adev->virt.fw_reserve.checksum_key =
@@ -210,6 +236,11 @@ static int xgpu_nv_release_full_gpu_access(struct amdgpu_device *adev,
 	r = xgpu_nv_send_access_requests(adev, req);
 
 	return r;
+}
+
+static int xgpu_nv_request_init_data(struct amdgpu_device *adev)
+{
+	return xgpu_nv_send_access_requests(adev, IDH_REQ_GPU_INIT_DATA);
 }
 
 static int xgpu_nv_mailbox_ack_irq(struct amdgpu_device *adev,
@@ -377,6 +408,7 @@ void xgpu_nv_mailbox_put_irq(struct amdgpu_device *adev)
 const struct amdgpu_virt_ops xgpu_nv_virt_ops = {
 	.req_full_gpu	= xgpu_nv_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_nv_release_full_gpu_access,
+	.req_init_data  = xgpu_nv_request_init_data,
 	.reset_gpu = xgpu_nv_request_reset,
 	.wait_reset = NULL,
 	.trans_msg = xgpu_nv_mailbox_trans_msg,
