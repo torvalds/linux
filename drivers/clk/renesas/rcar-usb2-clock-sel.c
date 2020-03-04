@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 
 #define USB20_CLKSET0		0x00
@@ -35,6 +36,7 @@ struct usb2_clock_sel_priv {
 	void __iomem *base;
 	struct clk_hw hw;
 	struct clk_bulk_data clks[ARRAY_SIZE(rcar_usb2_clocks)];
+	struct reset_control *rsts;
 	bool extal;
 	bool xtal;
 };
@@ -62,9 +64,15 @@ static int usb2_clock_sel_enable(struct clk_hw *hw)
 	struct usb2_clock_sel_priv *priv = to_priv(hw);
 	int ret;
 
-	ret = clk_bulk_prepare_enable(ARRAY_SIZE(priv->clks), priv->clks);
+	ret = reset_control_deassert(priv->rsts);
 	if (ret)
 		return ret;
+
+	ret = clk_bulk_prepare_enable(ARRAY_SIZE(priv->clks), priv->clks);
+	if (ret) {
+		reset_control_assert(priv->rsts);
+		return ret;
+	}
 
 	usb2_clock_sel_enable_extal_only(priv);
 
@@ -78,6 +86,7 @@ static void usb2_clock_sel_disable(struct clk_hw *hw)
 	usb2_clock_sel_disable_extal_only(priv);
 
 	clk_bulk_disable_unprepare(ARRAY_SIZE(priv->clks), priv->clks);
+	reset_control_assert(priv->rsts);
 }
 
 /*
@@ -150,6 +159,10 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 	ret = devm_clk_bulk_get(dev, ARRAY_SIZE(priv->clks), priv->clks);
 	if (ret < 0)
 		return ret;
+
+	priv->rsts = devm_reset_control_array_get(dev, true, false);
+	if (IS_ERR(priv->rsts))
+		return PTR_ERR(priv->rsts);
 
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
