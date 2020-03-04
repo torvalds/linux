@@ -318,6 +318,7 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	mutex_init(&gvt->lock);
 	mutex_init(&gvt->sched_lock);
 	gvt->dev_priv = dev_priv;
+	dev_priv->gvt = gvt;
 
 	init_device_info(gvt);
 
@@ -376,7 +377,6 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	intel_gvt_debugfs_init(gvt);
 
 	gvt_dbg_core("gvt device initialization is done\n");
-	dev_priv->gvt = gvt;
 	intel_gvt_host.dev = &dev_priv->drm.pdev->dev;
 	intel_gvt_host.initialized = true;
 	return 0;
@@ -402,6 +402,7 @@ out_clean_mmio_info:
 out_clean_idr:
 	idr_destroy(&gvt->vgpu_idr);
 	kfree(gvt);
+	dev_priv->gvt = NULL;
 	return ret;
 }
 

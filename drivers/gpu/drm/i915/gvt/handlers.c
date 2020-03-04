@@ -142,25 +142,25 @@ static int new_mmio_info(struct intel_gvt *gvt,
 }
 
 /**
- * intel_gvt_render_mmio_to_ring_id - convert a mmio offset into ring id
+ * intel_gvt_render_mmio_to_engine - convert a mmio offset into the engine
  * @gvt: a GVT device
  * @offset: register offset
  *
  * Returns:
- * Ring ID on success, negative error code if failed.
+ * The engine containing the offset within its mmio page.
  */
-int intel_gvt_render_mmio_to_ring_id(struct intel_gvt *gvt,
-		unsigned int offset)
+const struct intel_engine_cs *
+intel_gvt_render_mmio_to_engine(struct intel_gvt *gvt, unsigned int offset)
 {
 	enum intel_engine_id id;
 	struct intel_engine_cs *engine;
 
 	offset &= ~GENMASK(11, 0);
-	for_each_engine(engine, gvt->dev_priv, id) {
+	for_each_engine(engine, gvt->dev_priv, id)
 		if (engine->mmio_base == offset)
-			return id;
-	}
-	return -ENODEV;
+			return engine;
+
+	return NULL;
 }
 
 #define offset_to_fence_num(offset) \
@@ -492,7 +492,7 @@ static i915_reg_t force_nonpriv_white_list[] = {
 };
 
 /* a simple bsearch */
-static inline bool in_whitelist(unsigned int reg)
+static inline bool in_whitelist(u32 reg)
 {
 	int left = 0, right = ARRAY_SIZE(force_nonpriv_white_list);
 	i915_reg_t *array = force_nonpriv_white_list;
@@ -514,26 +514,21 @@ static int force_nonpriv_write(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
 	u32 reg_nonpriv = (*(u32 *)p_data) & REG_GENMASK(25, 2);
-	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
-	u32 ring_base;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	int ret = -EINVAL;
+	const struct intel_engine_cs *engine =
+		intel_gvt_render_mmio_to_engine(vgpu->gvt, offset);
 
-	if ((bytes != 4) || ((offset & (bytes - 1)) != 0) || ring_id < 0) {
-		gvt_err("vgpu(%d) ring %d Invalid FORCE_NONPRIV offset %x(%dB)\n",
-			vgpu->id, ring_id, offset, bytes);
-		return ret;
+	if (bytes != 4 || !IS_ALIGNED(offset, bytes) || !engine) {
+		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV offset %x(%dB)\n",
+			vgpu->id, offset, bytes);
+		return -EINVAL;
 	}
 
-	ring_base = dev_priv->engine[ring_id]->mmio_base;
-
-	if (in_whitelist(reg_nonpriv) ||
-		reg_nonpriv == i915_mmio_reg_offset(RING_NOPID(ring_base))) {
-		ret = intel_vgpu_default_mmio_write(vgpu, offset, p_data,
-			bytes);
-	} else
+	if (!in_whitelist(reg_nonpriv) &&
+	    reg_nonpriv != i915_mmio_reg_offset(RING_NOPID(engine->mmio_base))) {
 		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV write %x at offset %x\n",
-			vgpu->id, *(u32 *)p_data, offset);
+			vgpu->id, reg_nonpriv, offset);
+	} else
+		intel_vgpu_default_mmio_write(vgpu, offset, p_data, bytes);
 
 	return 0;
 }
@@ -1484,7 +1479,8 @@ static int hws_pga_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	u32 value = *(u32 *)p_data;
-	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
+	const struct intel_engine_cs *engine =
+		intel_gvt_render_mmio_to_engine(vgpu->gvt, offset);
 
 	if (!intel_gvt_ggtt_validate_range(vgpu, value, I915_GTT_PAGE_SIZE)) {
 		gvt_vgpu_err("write invalid HWSP address, reg:0x%x, value:0x%x\n",
@@ -1496,12 +1492,12 @@ static int hws_pga_write(struct intel_vgpu *vgpu, unsigned int offset,
 	 * update the VM CSB status correctly. Here listed registers can
 	 * support BDW, SKL or other platforms with same HWSP registers.
 	 */
-	if (unlikely(ring_id < 0 || ring_id >= I915_NUM_ENGINES)) {
+	if (unlikely(!engine)) {
 		gvt_vgpu_err("access unknown hardware status page register:0x%x\n",
 			     offset);
 		return -EINVAL;
 	}
-	vgpu->hws_pga[ring_id] = value;
+	vgpu->hws_pga[engine->id] = value;
 	gvt_dbg_mmio("VM(%d) write: 0x%x to HWSP: 0x%x\n",
 		     vgpu->id, value, offset);
 
@@ -1661,22 +1657,20 @@ static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
-	int ring_id;
-	u32 ring_base;
+	const struct intel_engine_cs *engine =
+		intel_gvt_render_mmio_to_engine(gvt, offset);
 
-	ring_id = intel_gvt_render_mmio_to_ring_id(gvt, offset);
 	/**
 	 * Read HW reg in following case
 	 * a. the offset isn't a ring mmio
 	 * b. the offset's ring is running on hw.
 	 * c. the offset is ring time stamp mmio
 	 */
-	if (ring_id >= 0)
-		ring_base = dev_priv->engine[ring_id]->mmio_base;
 
-	if (ring_id < 0 || vgpu  == gvt->scheduler.engine_owner[ring_id] ||
-	    offset == i915_mmio_reg_offset(RING_TIMESTAMP(ring_base)) ||
-	    offset == i915_mmio_reg_offset(RING_TIMESTAMP_UDW(ring_base))) {
+	if (!engine ||
+	    vgpu == gvt->scheduler.engine_owner[engine->id] ||
+	    offset == i915_mmio_reg_offset(RING_TIMESTAMP(engine->mmio_base)) ||
+	    offset == i915_mmio_reg_offset(RING_TIMESTAMP_UDW(engine->mmio_base))) {
 		mmio_hw_access_pre(dev_priv);
 		vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
 		mmio_hw_access_post(dev_priv);
@@ -1689,22 +1683,22 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
-	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
+	const struct intel_engine_cs *engine = intel_gvt_render_mmio_to_engine(vgpu->gvt, offset);
 	struct intel_vgpu_execlist *execlist;
 	u32 data = *(u32 *)p_data;
 	int ret = 0;
 
-	if (drm_WARN_ON(&i915->drm, ring_id < 0 || ring_id >= I915_NUM_ENGINES))
+	if (drm_WARN_ON(&i915->drm, !engine))
 		return -EINVAL;
 
-	execlist = &vgpu->submission.execlist[ring_id];
+	execlist = &vgpu->submission.execlist[engine->id];
 
 	execlist->elsp_dwords.data[3 - execlist->elsp_dwords.index] = data;
 	if (execlist->elsp_dwords.index == 3) {
-		ret = intel_vgpu_submit_execlist(vgpu, ring_id);
+		ret = intel_vgpu_submit_execlist(vgpu, engine);
 		if(ret)
-			gvt_vgpu_err("fail submit workload on ring %d\n",
-				ring_id);
+			gvt_vgpu_err("fail submit workload on ring %s\n",
+				     engine->name);
 	}
 
 	++execlist->elsp_dwords.index;
@@ -1716,7 +1710,8 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	u32 data = *(u32 *)p_data;
-	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
+	const struct intel_engine_cs *engine =
+		intel_gvt_render_mmio_to_engine(vgpu->gvt, offset);
 	bool enable_execlist;
 	int ret;
 
@@ -1750,16 +1745,16 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			|| (data & _MASKED_BIT_DISABLE(GFX_RUN_LIST_ENABLE))) {
 		enable_execlist = !!(data & GFX_RUN_LIST_ENABLE);
 
-		gvt_dbg_core("EXECLIST %s on ring %d\n",
-				(enable_execlist ? "enabling" : "disabling"),
-				ring_id);
+		gvt_dbg_core("EXECLIST %s on ring %s\n",
+			     (enable_execlist ? "enabling" : "disabling"),
+			     engine->name);
 
 		if (!enable_execlist)
 			return 0;
 
 		ret = intel_vgpu_select_submission_ops(vgpu,
-			       BIT(ring_id),
-			       INTEL_VGPU_EXECLIST_SUBMISSION);
+						       engine->mask,
+						       INTEL_VGPU_EXECLIST_SUBMISSION);
 		if (ret)
 			return ret;
 
