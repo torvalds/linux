@@ -3,15 +3,6 @@
  * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd.
  */
 
-/dts-v1/;
-
-#include "rv1109.dtsi"
-
-/ {
-	model = "Rockchip RV1109 EVB Board";
-	compatible = "rockchip,rv1109-evb-v10", "rockchip,rv1109";
-};
-
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;

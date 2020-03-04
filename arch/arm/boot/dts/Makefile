@@ -845,6 +845,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1109-evb-ddr3-v10.dtb \
 	rv1109-evb-lp3-v10.dtb \
 	rv1109-fpga.dtb \
+	rv1126-evb-ddr3-v10.dtb \
+	rv1126-evb-lp3-v10.dtb \
 	rk3036-evb.dtb \
 	rk3036-kylin.dtb \
 	rk3066a-bqcurie2.dtb \
