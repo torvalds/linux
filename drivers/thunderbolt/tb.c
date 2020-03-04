@@ -235,6 +235,9 @@ static int tb_tunnel_usb3(struct tb *tb, struct tb_switch *sw)
 	if (!up)
 		return 0;
 
+	if (!sw->link_usb4)
+		return 0;
+
 	/*
 	 * Look up available down port. Since we are chaining it should
 	 * be found right above this switch.

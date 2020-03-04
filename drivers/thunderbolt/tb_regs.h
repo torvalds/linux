@@ -290,6 +290,7 @@ struct tb_regs_port_header {
 /* USB4 port registers */
 #define PORT_CS_18				0x12
 #define PORT_CS_18_BE				BIT(8)
+#define PORT_CS_18_TCM				BIT(9)
 #define PORT_CS_19				0x13
 #define PORT_CS_19_PC				BIT(3)
 

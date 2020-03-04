@@ -192,6 +192,20 @@ static int usb4_switch_op(struct tb_switch *sw, u16 opcode, u8 *status)
 	return 0;
 }
 
+static bool link_is_usb4(struct tb_port *port)
+{
+	u32 val;
+
+	if (!port->cap_usb4)
+		return false;
+
+	if (tb_port_read(port, &val, TB_CFG_PORT,
+			 port->cap_usb4 + PORT_CS_18, 1))
+		return false;
+
+	return !(val & PORT_CS_18_TCM);
+}
+
 /**
  * usb4_switch_setup() - Additional setup for USB4 device
  * @sw: USB4 router to setup
@@ -205,6 +219,7 @@ static int usb4_switch_op(struct tb_switch *sw, u16 opcode, u8 *status)
  */
 int usb4_switch_setup(struct tb_switch *sw)
 {
+	struct tb_port *downstream_port;
 	struct tb_switch *parent;
 	bool tbt3, xhci;
 	u32 val = 0;
@@ -217,6 +232,11 @@ int usb4_switch_setup(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
+	parent = tb_switch_parent(sw);
+	downstream_port = tb_port_at(tb_route(sw), parent);
+	sw->link_usb4 = link_is_usb4(downstream_port);
+	tb_sw_dbg(sw, "link: %s\n", sw->link_usb4 ? "USB4" : "TBT3");
+
 	xhci = val & ROUTER_CS_6_HCI;
 	tbt3 = !(val & ROUTER_CS_6_TNS);
 
@@ -227,9 +247,7 @@ int usb4_switch_setup(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	parent = tb_switch_parent(sw);
-
-	if (tb_switch_find_port(parent, TB_TYPE_USB3_DOWN)) {
+	if (sw->link_usb4 && tb_switch_find_port(parent, TB_TYPE_USB3_DOWN)) {
 		val |= ROUTER_CS_5_UTO;
 		xhci = false;
 	}
