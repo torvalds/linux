@@ -351,7 +351,7 @@ build_backlog()
 	local i=0
 
 	while :; do
-		local cur=$(busywait 1100 until_counter_is $((cur + 1)) \
+		local cur=$(busywait 1100 until_counter_is "> $cur" \
 					    get_qdisc_backlog $vlan)
 		local diff=$((size - cur))
 		local pkts=$(((diff + 7999) / 8000))
@@ -481,14 +481,14 @@ do_mc_backlog_test()
 	start_tcp_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) bc
 	start_tcp_traffic $h2.$vlan $(ipaddr 2 $vlan) $(ipaddr 3 $vlan) bc
 
-	qbl=$(busywait 5000 until_counter_is 500000 \
+	qbl=$(busywait 5000 until_counter_is ">= 500000" \
 		       get_qdisc_backlog $vlan)
 	check_err $? "Could not build MC backlog"
 
 	# Verify that we actually see the backlog on BUM TC. Do a busywait as
 	# well, performance blips might cause false fail.
 	local ebl
-	ebl=$(busywait 5000 until_counter_is 500000 \
+	ebl=$(busywait 5000 until_counter_is ">= 500000" \
 		       get_mc_transmit_queue $vlan)
 	check_err $? "MC backlog reported by qdisc not visible in ethtool"
 
