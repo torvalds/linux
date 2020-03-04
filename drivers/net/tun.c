@@ -75,23 +75,6 @@
 static void tun_default_link_ksettings(struct net_device *dev,
 				       struct ethtool_link_ksettings *cmd);
 
-/* Uncomment to enable debugging */
-/* #define TUN_DEBUG 1 */
-
-#ifdef TUN_DEBUG
-#define tun_debug(level, tun, fmt, args...)			\
-do {								\
-	if (tun->msg_enable)					\
-		netdev_printk(level, tun->dev, fmt, ##args);	\
-} while (0)
-#else
-#define tun_debug(level, tun, fmt, args...)			\
-do {								\
-	if (0)							\
-		netdev_printk(level, tun->dev, fmt, ##args);	\
-} while (0)
-#endif
-
 #define TUN_RX_PAD (NET_IP_ALIGN + NET_SKB_PAD)
 
 /* TUN device flags */
