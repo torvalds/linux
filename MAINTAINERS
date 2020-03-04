@@ -3902,7 +3902,7 @@ W:	http://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/ABI/testing/debugfs-cec-error-inj
 F:	Documentation/devicetree/bindings/media/cec.txt
-F:	Documentation/media/kapi/cec-core.rst
+F:	Documentation/driver-api/media/cec-core.rst
 F:	Documentation/userspace-api/media/cec
 F:	drivers/media/cec/
 F:	drivers/media/rc/keymaps/rc-cec.c
@@ -5127,6 +5127,7 @@ X:	Documentation/firmware-guide/acpi/
 X:	Documentation/i2c/
 X:	Documentation/media/
 X:	Documentation/userspace-api/media/
+X:	Documentation/driver-api/media/
 X:	Documentation/power/
 X:	Documentation/spi/
 
@@ -10610,6 +10611,7 @@ T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/
 F:	Documentation/media/
 F:	Documentation/userspace-api/media/
+F:	Documentation/driver-api/media/
 F:	drivers/media/
 F:	drivers/staging/media/
 F:	include/linux/platform_data/media/

@@ -13,7 +13,7 @@ Linux Media Subsystem Documentation
    :maxdepth: 2
 
    ../userspace-api/media/index
-   media_kapi
+   ../driver-api/media/index
    dvb-drivers/index
    v4l-drivers/index
    cec-drivers/index
