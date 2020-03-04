@@ -669,9 +669,6 @@ bool __is_local_mountpoint(struct dentry *dentry)
 	struct mount *mnt;
 	bool is_covered = false;
 
-	if (!d_mountpoint(dentry))
-		goto out;
-
 	down_read(&namespace_sem);
 	list_for_each_entry(mnt, &ns->list, mnt_list) {
 		is_covered = (mnt->mnt_mountpoint == dentry);
@@ -679,7 +676,7 @@ bool __is_local_mountpoint(struct dentry *dentry)
 			break;
 	}
 	up_read(&namespace_sem);
-out:
+
 	return is_covered;
 }
 
