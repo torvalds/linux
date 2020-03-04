@@ -528,8 +528,12 @@ static long seccomp_attach_filter(unsigned int flags,
 		int ret;
 
 		ret = seccomp_can_sync_threads();
-		if (ret)
-			return ret;
+		if (ret) {
+			if (flags & SECCOMP_FILTER_FLAG_TSYNC_ESRCH)
+				return -ESRCH;
+			else
+				return ret;
+		}
 	}
 
 	/* Set log flag, if present. */
@@ -1288,10 +1292,12 @@ static long seccomp_set_mode_filter(unsigned int flags,
 	 * In the successful case, NEW_LISTENER returns the new listener fd.
 	 * But in the failure case, TSYNC returns the thread that died. If you
 	 * combine these two flags, there's no way to tell whether something
-	 * succeeded or failed. So, let's disallow this combination.
+	 * succeeded or failed. So, let's disallow this combination if the user
+	 * has not explicitly requested no errors from TSYNC.
 	 */
 	if ((flags & SECCOMP_FILTER_FLAG_TSYNC) &&
-	    (flags & SECCOMP_FILTER_FLAG_NEW_LISTENER))
+	    (flags & SECCOMP_FILTER_FLAG_NEW_LISTENER) &&
+	    ((flags & SECCOMP_FILTER_FLAG_TSYNC_ESRCH) == 0))
 		return -EINVAL;
 
 	/* Prepare the new filter before holding any locks. */
