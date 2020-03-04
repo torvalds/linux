@@ -20,6 +20,7 @@
 	};
 
 	aliases {
+		emmc2bus = &emmc2bus;
 		ethernet0 = &genet;
 	};
 
