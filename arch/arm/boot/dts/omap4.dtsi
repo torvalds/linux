@@ -506,13 +506,23 @@
 					};
 				};
 
-				venc: encoder@3000 {
-					compatible = "ti,omap4-venc";
-					reg = <0x3000 0x1000>;
-					status = "disabled";
-					ti,hwmods = "dss_venc";
-					clocks = <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 11>;
-					clock-names = "fck";
+				target-module@3000 {
+					compatible = "ti,sysc-omap2", "ti,sysc";
+					reg = <0x3000 0x4>;
+					reg-names = "rev";
+					clocks = <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 10>;
+					clock-names = "sys_clk";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x3000 0x1000>;
+
+					venc: encoder@0 {
+						compatible = "ti,omap4-venc";
+						reg = <0 0x1000>;
+						status = "disabled";
+						clocks = <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 11>;
+						clock-names = "fck";
+					};
 				};
 
 				dsi1: encoder@4000 {
