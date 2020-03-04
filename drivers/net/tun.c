@@ -79,28 +79,16 @@ static void tun_default_link_ksettings(struct net_device *dev,
 /* #define TUN_DEBUG 1 */
 
 #ifdef TUN_DEBUG
-static int debug;
-
 #define tun_debug(level, tun, fmt, args...)			\
 do {								\
 	if (tun->debug)						\
 		netdev_printk(level, tun->dev, fmt, ##args);	\
-} while (0)
-#define DBG1(level, fmt, args...)				\
-do {								\
-	if (debug == 2)						\
-		printk(level fmt, ##args);			\
 } while (0)
 #else
 #define tun_debug(level, tun, fmt, args...)			\
 do {								\
 	if (0)							\
 		netdev_printk(level, tun->dev, fmt, ##args);	\
-} while (0)
-#define DBG1(level, fmt, args...)				\
-do {								\
-	if (0)							\
-		printk(level fmt, ##args);			\
 } while (0)
 #endif
 
@@ -3414,8 +3402,6 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 {
 	struct net *net = current->nsproxy->net_ns;
 	struct tun_file *tfile;
-
-	DBG1(KERN_INFO, "tunX: tun_chr_open\n");
 
 	tfile = (struct tun_file *)sk_alloc(net, AF_UNSPEC, GFP_KERNEL,
 					    &tun_proto, 0);
