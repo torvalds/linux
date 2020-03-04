@@ -395,6 +395,7 @@ static void vdec_reset_bufs_recycle(struct amvdec_session *sess)
 static void vdec_stop_streaming(struct vb2_queue *q)
 {
 	struct amvdec_session *sess = vb2_get_drv_priv(q);
+	struct amvdec_codec_ops *codec_ops = sess->fmt_out->codec_ops;
 	struct amvdec_core *core = sess->core;
 	struct vb2_v4l2_buffer *buf;
 
@@ -423,6 +424,10 @@ static void vdec_stop_streaming(struct vb2_queue *q)
 
 		sess->streamon_out = 0;
 	} else {
+		/* Drain remaining refs if was still running */
+		if (sess->status >= STATUS_RUNNING && codec_ops->drain)
+			codec_ops->drain(sess);
+
 		while ((buf = v4l2_m2m_dst_buf_remove(sess->m2m_ctx)))
 			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_ERROR);
 
