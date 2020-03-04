@@ -186,14 +186,13 @@ struct ocelot_ace_stats {
 
 struct ocelot_ace_rule {
 	struct list_head list;
-	struct ocelot_port *port;
 
 	u16 prio;
 	u32 id;
 
 	enum ocelot_ace_action action;
 	struct ocelot_ace_stats stats;
-	int chip_port;
+	u16 ingress_port_mask;
 
 	enum ocelot_vcap_bit dmac_mc;
 	enum ocelot_vcap_bit dmac_bc;
@@ -211,22 +210,17 @@ struct ocelot_ace_rule {
 	} frame;
 };
 
-struct ocelot_acl_block {
-	struct list_head rules;
-	struct ocelot *ocelot;
-	int count;
-};
-
-int ocelot_ace_rule_offload_add(struct ocelot_ace_rule *rule);
-int ocelot_ace_rule_offload_del(struct ocelot_ace_rule *rule);
-int ocelot_ace_rule_stats_update(struct ocelot_ace_rule *rule);
+int ocelot_ace_rule_offload_add(struct ocelot *ocelot,
+				struct ocelot_ace_rule *rule);
+int ocelot_ace_rule_offload_del(struct ocelot *ocelot,
+				struct ocelot_ace_rule *rule);
+int ocelot_ace_rule_stats_update(struct ocelot *ocelot,
+				 struct ocelot_ace_rule *rule);
 
 int ocelot_ace_init(struct ocelot *ocelot);
-void ocelot_ace_deinit(void);
 
-int ocelot_setup_tc_block_flower_bind(struct ocelot_port_private *priv,
-				      struct flow_block_offload *f);
-void ocelot_setup_tc_block_flower_unbind(struct ocelot_port_private *priv,
-					 struct flow_block_offload *f);
+int ocelot_setup_tc_cls_flower(struct ocelot_port_private *priv,
+			       struct flow_cls_offload *f,
+			       bool ingress);
 
 #endif /* _MSCC_OCELOT_ACE_H_ */

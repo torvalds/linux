@@ -14,9 +14,14 @@
 #include <linux/skbuff.h>
 #include <net/switchdev.h>
 
+#include <soc/mscc/ocelot_vcap.h>
 #include "ocelot.h"
 
 #define IFH_EXTRACT_BITFIELD64(x, o, w) (((x) >> (o)) & GENMASK_ULL((w) - 1, 0))
+#define VSC7514_VCAP_IS2_CNT 64
+#define VSC7514_VCAP_IS2_ENTRY_WIDTH 376
+#define VSC7514_VCAP_IS2_ACTION_WIDTH 99
+#define VSC7514_VCAP_PORT_CNT 11
 
 static int ocelot_parse_ifh(u32 *_ifh, struct frame_info *info)
 {
@@ -211,29 +216,6 @@ static const struct of_device_id mscc_ocelot_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mscc_ocelot_match);
 
-static void ocelot_port_pcs_init(struct ocelot *ocelot, int port)
-{
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
-
-	/* Disable HDX fast control */
-	ocelot_port_writel(ocelot_port, DEV_PORT_MISC_HDX_FAST_DIS,
-			   DEV_PORT_MISC);
-
-	/* SGMII only for now */
-	ocelot_port_writel(ocelot_port, PCS1G_MODE_CFG_SGMII_MODE_ENA,
-			   PCS1G_MODE_CFG);
-	ocelot_port_writel(ocelot_port, PCS1G_SD_CFG_SD_SEL, PCS1G_SD_CFG);
-
-	/* Enable PCS */
-	ocelot_port_writel(ocelot_port, PCS1G_CFG_PCS_ENA, PCS1G_CFG);
-
-	/* No aneg on SGMII */
-	ocelot_port_writel(ocelot_port, 0, PCS1G_ANEG_CFG);
-
-	/* No loopback */
-	ocelot_port_writel(ocelot_port, 0, PCS1G_LB_CFG);
-}
-
 static int ocelot_reset(struct ocelot *ocelot)
 {
 	int retries = 100;
@@ -258,8 +240,130 @@ static int ocelot_reset(struct ocelot *ocelot)
 }
 
 static const struct ocelot_ops ocelot_ops = {
-	.pcs_init		= ocelot_port_pcs_init,
 	.reset			= ocelot_reset,
+};
+
+static const struct vcap_field vsc7514_vcap_is2_keys[] = {
+	/* Common: 46 bits */
+	[VCAP_IS2_TYPE]				= {  0,   4},
+	[VCAP_IS2_HK_FIRST]			= {  4,   1},
+	[VCAP_IS2_HK_PAG]			= {  5,   8},
+	[VCAP_IS2_HK_IGR_PORT_MASK]		= { 13,  12},
+	[VCAP_IS2_HK_RSV2]			= { 25,   1},
+	[VCAP_IS2_HK_HOST_MATCH]		= { 26,   1},
+	[VCAP_IS2_HK_L2_MC]			= { 27,   1},
+	[VCAP_IS2_HK_L2_BC]			= { 28,   1},
+	[VCAP_IS2_HK_VLAN_TAGGED]		= { 29,   1},
+	[VCAP_IS2_HK_VID]			= { 30,  12},
+	[VCAP_IS2_HK_DEI]			= { 42,   1},
+	[VCAP_IS2_HK_PCP]			= { 43,   3},
+	/* MAC_ETYPE / MAC_LLC / MAC_SNAP / OAM common */
+	[VCAP_IS2_HK_L2_DMAC]			= { 46,  48},
+	[VCAP_IS2_HK_L2_SMAC]			= { 94,  48},
+	/* MAC_ETYPE (TYPE=000) */
+	[VCAP_IS2_HK_MAC_ETYPE_ETYPE]		= {142,  16},
+	[VCAP_IS2_HK_MAC_ETYPE_L2_PAYLOAD0]	= {158,  16},
+	[VCAP_IS2_HK_MAC_ETYPE_L2_PAYLOAD1]	= {174,   8},
+	[VCAP_IS2_HK_MAC_ETYPE_L2_PAYLOAD2]	= {182,   3},
+	/* MAC_LLC (TYPE=001) */
+	[VCAP_IS2_HK_MAC_LLC_L2_LLC]		= {142,  40},
+	/* MAC_SNAP (TYPE=010) */
+	[VCAP_IS2_HK_MAC_SNAP_L2_SNAP]		= {142,  40},
+	/* MAC_ARP (TYPE=011) */
+	[VCAP_IS2_HK_MAC_ARP_SMAC]		= { 46,  48},
+	[VCAP_IS2_HK_MAC_ARP_ADDR_SPACE_OK]	= { 94,   1},
+	[VCAP_IS2_HK_MAC_ARP_PROTO_SPACE_OK]	= { 95,   1},
+	[VCAP_IS2_HK_MAC_ARP_LEN_OK]		= { 96,   1},
+	[VCAP_IS2_HK_MAC_ARP_TARGET_MATCH]	= { 97,   1},
+	[VCAP_IS2_HK_MAC_ARP_SENDER_MATCH]	= { 98,   1},
+	[VCAP_IS2_HK_MAC_ARP_OPCODE_UNKNOWN]	= { 99,   1},
+	[VCAP_IS2_HK_MAC_ARP_OPCODE]		= {100,   2},
+	[VCAP_IS2_HK_MAC_ARP_L3_IP4_DIP]	= {102,  32},
+	[VCAP_IS2_HK_MAC_ARP_L3_IP4_SIP]	= {134,  32},
+	[VCAP_IS2_HK_MAC_ARP_DIP_EQ_SIP]	= {166,   1},
+	/* IP4_TCP_UDP / IP4_OTHER common */
+	[VCAP_IS2_HK_IP4]			= { 46,   1},
+	[VCAP_IS2_HK_L3_FRAGMENT]		= { 47,   1},
+	[VCAP_IS2_HK_L3_FRAG_OFS_GT0]		= { 48,   1},
+	[VCAP_IS2_HK_L3_OPTIONS]		= { 49,   1},
+	[VCAP_IS2_HK_IP4_L3_TTL_GT0]		= { 50,   1},
+	[VCAP_IS2_HK_L3_TOS]			= { 51,   8},
+	[VCAP_IS2_HK_L3_IP4_DIP]		= { 59,  32},
+	[VCAP_IS2_HK_L3_IP4_SIP]		= { 91,  32},
+	[VCAP_IS2_HK_DIP_EQ_SIP]		= {123,   1},
+	/* IP4_TCP_UDP (TYPE=100) */
+	[VCAP_IS2_HK_TCP]			= {124,   1},
+	[VCAP_IS2_HK_L4_SPORT]			= {125,  16},
+	[VCAP_IS2_HK_L4_DPORT]			= {141,  16},
+	[VCAP_IS2_HK_L4_RNG]			= {157,   8},
+	[VCAP_IS2_HK_L4_SPORT_EQ_DPORT]		= {165,   1},
+	[VCAP_IS2_HK_L4_SEQUENCE_EQ0]		= {166,   1},
+	[VCAP_IS2_HK_L4_URG]			= {167,   1},
+	[VCAP_IS2_HK_L4_ACK]			= {168,   1},
+	[VCAP_IS2_HK_L4_PSH]			= {169,   1},
+	[VCAP_IS2_HK_L4_RST]			= {170,   1},
+	[VCAP_IS2_HK_L4_SYN]			= {171,   1},
+	[VCAP_IS2_HK_L4_FIN]			= {172,   1},
+	[VCAP_IS2_HK_L4_1588_DOM]		= {173,   8},
+	[VCAP_IS2_HK_L4_1588_VER]		= {181,   4},
+	/* IP4_OTHER (TYPE=101) */
+	[VCAP_IS2_HK_IP4_L3_PROTO]		= {124,   8},
+	[VCAP_IS2_HK_L3_PAYLOAD]		= {132,  56},
+	/* IP6_STD (TYPE=110) */
+	[VCAP_IS2_HK_IP6_L3_TTL_GT0]		= { 46,   1},
+	[VCAP_IS2_HK_L3_IP6_SIP]		= { 47, 128},
+	[VCAP_IS2_HK_IP6_L3_PROTO]		= {175,   8},
+	/* OAM (TYPE=111) */
+	[VCAP_IS2_HK_OAM_MEL_FLAGS]		= {142,   7},
+	[VCAP_IS2_HK_OAM_VER]			= {149,   5},
+	[VCAP_IS2_HK_OAM_OPCODE]		= {154,   8},
+	[VCAP_IS2_HK_OAM_FLAGS]			= {162,   8},
+	[VCAP_IS2_HK_OAM_MEPID]			= {170,  16},
+	[VCAP_IS2_HK_OAM_CCM_CNTS_EQ0]		= {186,   1},
+	[VCAP_IS2_HK_OAM_IS_Y1731]		= {187,   1},
+};
+
+static const struct vcap_field vsc7514_vcap_is2_actions[] = {
+	[VCAP_IS2_ACT_HIT_ME_ONCE]		= {  0,  1},
+	[VCAP_IS2_ACT_CPU_COPY_ENA]		= {  1,  1},
+	[VCAP_IS2_ACT_CPU_QU_NUM]		= {  2,  3},
+	[VCAP_IS2_ACT_MASK_MODE]		= {  5,  2},
+	[VCAP_IS2_ACT_MIRROR_ENA]		= {  7,  1},
+	[VCAP_IS2_ACT_LRN_DIS]			= {  8,  1},
+	[VCAP_IS2_ACT_POLICE_ENA]		= {  9,  1},
+	[VCAP_IS2_ACT_POLICE_IDX]		= { 10,  9},
+	[VCAP_IS2_ACT_POLICE_VCAP_ONLY]		= { 19,  1},
+	[VCAP_IS2_ACT_PORT_MASK]		= { 20, 11},
+	[VCAP_IS2_ACT_REW_OP]			= { 31,  9},
+	[VCAP_IS2_ACT_SMAC_REPLACE_ENA]		= { 40,  1},
+	[VCAP_IS2_ACT_RSV]			= { 41,  2},
+	[VCAP_IS2_ACT_ACL_ID]			= { 43,  6},
+	[VCAP_IS2_ACT_HIT_CNT]			= { 49, 32},
+};
+
+static const struct vcap_props vsc7514_vcap_props[] = {
+	[VCAP_IS2] = {
+		.tg_width = 2,
+		.sw_count = 4,
+		.entry_count = VSC7514_VCAP_IS2_CNT,
+		.entry_width = VSC7514_VCAP_IS2_ENTRY_WIDTH,
+		.action_count = VSC7514_VCAP_IS2_CNT +
+				VSC7514_VCAP_PORT_CNT + 2,
+		.action_width = 99,
+		.action_type_width = 1,
+		.action_table = {
+			[IS2_ACTION_TYPE_NORMAL] = {
+				.width = 49,
+				.count = 2
+			},
+			[IS2_ACTION_TYPE_SMAC_SIP] = {
+				.width = 6,
+				.count = 4
+			},
+		},
+		.counter_words = 4,
+		.counter_width = 32,
+	},
 };
 
 static int mscc_ocelot_probe(struct platform_device *pdev)
@@ -361,6 +465,10 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 
 	ocelot->ports = devm_kcalloc(&pdev->dev, ocelot->num_phys_ports,
 				     sizeof(struct ocelot_port *), GFP_KERNEL);
+
+	ocelot->vcap_is2_keys = vsc7514_vcap_is2_keys;
+	ocelot->vcap_is2_actions = vsc7514_vcap_is2_actions;
+	ocelot->vcap = vsc7514_vcap_props;
 
 	ocelot_init(ocelot);
 	ocelot_set_cpu_port(ocelot, ocelot->num_phys_ports,

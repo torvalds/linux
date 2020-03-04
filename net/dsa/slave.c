@@ -946,6 +946,64 @@ static int dsa_slave_setup_tc_cls_matchall(struct net_device *dev,
 	}
 }
 
+static int dsa_slave_add_cls_flower(struct net_device *dev,
+				    struct flow_cls_offload *cls,
+				    bool ingress)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (!ds->ops->cls_flower_add)
+		return -EOPNOTSUPP;
+
+	return ds->ops->cls_flower_add(ds, port, cls, ingress);
+}
+
+static int dsa_slave_del_cls_flower(struct net_device *dev,
+				    struct flow_cls_offload *cls,
+				    bool ingress)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (!ds->ops->cls_flower_del)
+		return -EOPNOTSUPP;
+
+	return ds->ops->cls_flower_del(ds, port, cls, ingress);
+}
+
+static int dsa_slave_stats_cls_flower(struct net_device *dev,
+				      struct flow_cls_offload *cls,
+				      bool ingress)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (!ds->ops->cls_flower_stats)
+		return -EOPNOTSUPP;
+
+	return ds->ops->cls_flower_stats(ds, port, cls, ingress);
+}
+
+static int dsa_slave_setup_tc_cls_flower(struct net_device *dev,
+					 struct flow_cls_offload *cls,
+					 bool ingress)
+{
+	switch (cls->command) {
+	case FLOW_CLS_REPLACE:
+		return dsa_slave_add_cls_flower(dev, cls, ingress);
+	case FLOW_CLS_DESTROY:
+		return dsa_slave_del_cls_flower(dev, cls, ingress);
+	case FLOW_CLS_STATS:
+		return dsa_slave_stats_cls_flower(dev, cls, ingress);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int dsa_slave_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 				       void *cb_priv, bool ingress)
 {
@@ -957,6 +1015,8 @@ static int dsa_slave_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
 		return dsa_slave_setup_tc_cls_matchall(dev, type_data, ingress);
+	case TC_SETUP_CLSFLOWER:
+		return dsa_slave_setup_tc_cls_flower(dev, type_data, ingress);
 	default:
 		return -EOPNOTSUPP;
 	}

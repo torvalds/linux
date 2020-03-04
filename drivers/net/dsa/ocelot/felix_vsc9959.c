@@ -3,11 +3,16 @@
  * Copyright 2018-2019 NXP Semiconductors
  */
 #include <linux/fsl/enetc_mdio.h>
+#include <soc/mscc/ocelot_vcap.h>
 #include <soc/mscc/ocelot_sys.h>
 #include <soc/mscc/ocelot.h>
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 #include "felix.h"
+
+#define VSC9959_VCAP_IS2_CNT		1024
+#define VSC9959_VCAP_IS2_ENTRY_WIDTH	376
+#define VSC9959_VCAP_PORT_CNT		6
 
 /* TODO: should find a better place for these */
 #define USXGMII_BMCR_RESET		BIT(15)
@@ -545,6 +550,129 @@ static const struct ocelot_stat_layout vsc9959_stats_layout[] = {
 	{ .offset = 0x10F,	.name = "drop_green_prio_5", },
 	{ .offset = 0x110,	.name = "drop_green_prio_6", },
 	{ .offset = 0x111,	.name = "drop_green_prio_7", },
+};
+
+struct vcap_field vsc9959_vcap_is2_keys[] = {
+	/* Common: 41 bits */
+	[VCAP_IS2_TYPE]				= {  0,   4},
+	[VCAP_IS2_HK_FIRST]			= {  4,   1},
+	[VCAP_IS2_HK_PAG]			= {  5,   8},
+	[VCAP_IS2_HK_IGR_PORT_MASK]		= { 13,   7},
+	[VCAP_IS2_HK_RSV2]			= { 20,   1},
+	[VCAP_IS2_HK_HOST_MATCH]		= { 21,   1},
+	[VCAP_IS2_HK_L2_MC]			= { 22,   1},
+	[VCAP_IS2_HK_L2_BC]			= { 23,   1},
+	[VCAP_IS2_HK_VLAN_TAGGED]		= { 24,   1},
+	[VCAP_IS2_HK_VID]			= { 25,  12},
+	[VCAP_IS2_HK_DEI]			= { 37,   1},
+	[VCAP_IS2_HK_PCP]			= { 38,   3},
+	/* MAC_ETYPE / MAC_LLC / MAC_SNAP / OAM common */
+	[VCAP_IS2_HK_L2_DMAC]			= { 41,  48},
+	[VCAP_IS2_HK_L2_SMAC]			= { 89,  48},
+	/* MAC_ETYPE (TYPE=000) */
+	[VCAP_IS2_HK_MAC_ETYPE_ETYPE]		= {137,  16},
+	[VCAP_IS2_HK_MAC_ETYPE_L2_PAYLOAD0]	= {153,  16},
+	[VCAP_IS2_HK_MAC_ETYPE_L2_PAYLOAD1]	= {169,   8},
+	[VCAP_IS2_HK_MAC_ETYPE_L2_PAYLOAD2]	= {177,   3},
+	/* MAC_LLC (TYPE=001) */
+	[VCAP_IS2_HK_MAC_LLC_L2_LLC]		= {137,  40},
+	/* MAC_SNAP (TYPE=010) */
+	[VCAP_IS2_HK_MAC_SNAP_L2_SNAP]		= {137,  40},
+	/* MAC_ARP (TYPE=011) */
+	[VCAP_IS2_HK_MAC_ARP_SMAC]		= { 41,  48},
+	[VCAP_IS2_HK_MAC_ARP_ADDR_SPACE_OK]	= { 89,   1},
+	[VCAP_IS2_HK_MAC_ARP_PROTO_SPACE_OK]	= { 90,   1},
+	[VCAP_IS2_HK_MAC_ARP_LEN_OK]		= { 91,   1},
+	[VCAP_IS2_HK_MAC_ARP_TARGET_MATCH]	= { 92,   1},
+	[VCAP_IS2_HK_MAC_ARP_SENDER_MATCH]	= { 93,   1},
+	[VCAP_IS2_HK_MAC_ARP_OPCODE_UNKNOWN]	= { 94,   1},
+	[VCAP_IS2_HK_MAC_ARP_OPCODE]		= { 95,   2},
+	[VCAP_IS2_HK_MAC_ARP_L3_IP4_DIP]	= { 97,  32},
+	[VCAP_IS2_HK_MAC_ARP_L3_IP4_SIP]	= {129,  32},
+	[VCAP_IS2_HK_MAC_ARP_DIP_EQ_SIP]	= {161,   1},
+	/* IP4_TCP_UDP / IP4_OTHER common */
+	[VCAP_IS2_HK_IP4]			= { 41,   1},
+	[VCAP_IS2_HK_L3_FRAGMENT]		= { 42,   1},
+	[VCAP_IS2_HK_L3_FRAG_OFS_GT0]		= { 43,   1},
+	[VCAP_IS2_HK_L3_OPTIONS]		= { 44,   1},
+	[VCAP_IS2_HK_IP4_L3_TTL_GT0]		= { 45,   1},
+	[VCAP_IS2_HK_L3_TOS]			= { 46,   8},
+	[VCAP_IS2_HK_L3_IP4_DIP]		= { 54,  32},
+	[VCAP_IS2_HK_L3_IP4_SIP]		= { 86,  32},
+	[VCAP_IS2_HK_DIP_EQ_SIP]		= {118,   1},
+	/* IP4_TCP_UDP (TYPE=100) */
+	[VCAP_IS2_HK_TCP]			= {119,   1},
+	[VCAP_IS2_HK_L4_SPORT]			= {120,  16},
+	[VCAP_IS2_HK_L4_DPORT]			= {136,  16},
+	[VCAP_IS2_HK_L4_RNG]			= {152,   8},
+	[VCAP_IS2_HK_L4_SPORT_EQ_DPORT]		= {160,   1},
+	[VCAP_IS2_HK_L4_SEQUENCE_EQ0]		= {161,   1},
+	[VCAP_IS2_HK_L4_URG]			= {162,   1},
+	[VCAP_IS2_HK_L4_ACK]			= {163,   1},
+	[VCAP_IS2_HK_L4_PSH]			= {164,   1},
+	[VCAP_IS2_HK_L4_RST]			= {165,   1},
+	[VCAP_IS2_HK_L4_SYN]			= {166,   1},
+	[VCAP_IS2_HK_L4_FIN]			= {167,   1},
+	[VCAP_IS2_HK_L4_1588_DOM]		= {168,   8},
+	[VCAP_IS2_HK_L4_1588_VER]		= {176,   4},
+	/* IP4_OTHER (TYPE=101) */
+	[VCAP_IS2_HK_IP4_L3_PROTO]		= {119,   8},
+	[VCAP_IS2_HK_L3_PAYLOAD]		= {127,  56},
+	/* IP6_STD (TYPE=110) */
+	[VCAP_IS2_HK_IP6_L3_TTL_GT0]		= { 41,   1},
+	[VCAP_IS2_HK_L3_IP6_SIP]		= { 42, 128},
+	[VCAP_IS2_HK_IP6_L3_PROTO]		= {170,   8},
+	/* OAM (TYPE=111) */
+	[VCAP_IS2_HK_OAM_MEL_FLAGS]		= {137,   7},
+	[VCAP_IS2_HK_OAM_VER]			= {144,   5},
+	[VCAP_IS2_HK_OAM_OPCODE]		= {149,   8},
+	[VCAP_IS2_HK_OAM_FLAGS]			= {157,   8},
+	[VCAP_IS2_HK_OAM_MEPID]			= {165,  16},
+	[VCAP_IS2_HK_OAM_CCM_CNTS_EQ0]		= {181,   1},
+	[VCAP_IS2_HK_OAM_IS_Y1731]		= {182,   1},
+};
+
+struct vcap_field vsc9959_vcap_is2_actions[] = {
+	[VCAP_IS2_ACT_HIT_ME_ONCE]		= {  0,  1},
+	[VCAP_IS2_ACT_CPU_COPY_ENA]		= {  1,  1},
+	[VCAP_IS2_ACT_CPU_QU_NUM]		= {  2,  3},
+	[VCAP_IS2_ACT_MASK_MODE]		= {  5,  2},
+	[VCAP_IS2_ACT_MIRROR_ENA]		= {  7,  1},
+	[VCAP_IS2_ACT_LRN_DIS]			= {  8,  1},
+	[VCAP_IS2_ACT_POLICE_ENA]		= {  9,  1},
+	[VCAP_IS2_ACT_POLICE_IDX]		= { 10,  9},
+	[VCAP_IS2_ACT_POLICE_VCAP_ONLY]		= { 19,  1},
+	[VCAP_IS2_ACT_PORT_MASK]		= { 20, 11},
+	[VCAP_IS2_ACT_REW_OP]			= { 31,  9},
+	[VCAP_IS2_ACT_SMAC_REPLACE_ENA]		= { 40,  1},
+	[VCAP_IS2_ACT_RSV]			= { 41,  2},
+	[VCAP_IS2_ACT_ACL_ID]			= { 43,  6},
+	[VCAP_IS2_ACT_HIT_CNT]			= { 49, 32},
+};
+
+static const struct vcap_props vsc9959_vcap_props[] = {
+	[VCAP_IS2] = {
+		.tg_width = 2,
+		.sw_count = 4,
+		.entry_count = VSC9959_VCAP_IS2_CNT,
+		.entry_width = VSC9959_VCAP_IS2_ENTRY_WIDTH,
+		.action_count = VSC9959_VCAP_IS2_CNT +
+				VSC9959_VCAP_PORT_CNT + 2,
+		.action_width = 89,
+		.action_type_width = 1,
+		.action_table = {
+			[IS2_ACTION_TYPE_NORMAL] = {
+				.width = 44,
+				.count = 2
+			},
+			[IS2_ACTION_TYPE_SMAC_SIP] = {
+				.width = 6,
+				.count = 4
+			},
+		},
+		.counter_words = 4,
+		.counter_width = 32,
+	},
 };
 
 #define VSC9959_INIT_TIMEOUT			50000
@@ -1088,6 +1216,9 @@ struct felix_info felix_info_vsc9959 = {
 	.ops			= &vsc9959_ops,
 	.stats_layout		= vsc9959_stats_layout,
 	.num_stats		= ARRAY_SIZE(vsc9959_stats_layout),
+	.vcap_is2_keys		= vsc9959_vcap_is2_keys,
+	.vcap_is2_actions	= vsc9959_vcap_is2_actions,
+	.vcap			= vsc9959_vcap_props,
 	.shared_queue_sz	= 128 * 1024,
 	.num_ports		= 6,
 	.switch_pci_bar		= 4,

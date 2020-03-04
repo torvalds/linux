@@ -402,8 +402,12 @@ enum ocelot_tag_prefix {
 struct ocelot;
 
 struct ocelot_ops {
-	void (*pcs_init)(struct ocelot *ocelot, int port);
 	int (*reset)(struct ocelot *ocelot);
+};
+
+struct ocelot_acl_block {
+	struct list_head rules;
+	int count;
 };
 
 struct ocelot_port {
@@ -455,6 +459,12 @@ struct ocelot {
 
 	struct list_head		multicast;
 
+	struct ocelot_acl_block		acl_block;
+
+	const struct vcap_field		*vcap_is2_keys;
+	const struct vcap_field		*vcap_is2_actions;
+	const struct vcap_props		*vcap;
+
 	/* Workqueue to check statistics for overflow with its lock */
 	struct mutex			stats_lock;
 	u64				*stats;
@@ -469,8 +479,6 @@ struct ocelot {
 	struct mutex			ptp_lock;
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
-
-	void (*port_pcs_init)(struct ocelot_port *port);
 };
 
 #define ocelot_read_ix(ocelot, reg, gi, ri) __ocelot_read_ix(ocelot, reg, reg##_GSZ * (gi) + reg##_RSZ * (ri))
@@ -541,5 +549,11 @@ int ocelot_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts);
 int ocelot_port_add_txtstamp_skb(struct ocelot_port *ocelot_port,
 				 struct sk_buff *skb);
 void ocelot_get_txtstamp(struct ocelot *ocelot);
+int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
+			      struct flow_cls_offload *f, bool ingress);
+int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
+			      struct flow_cls_offload *f, bool ingress);
+int ocelot_cls_flower_stats(struct ocelot *ocelot, int port,
+			    struct flow_cls_offload *f, bool ingress);
 
 #endif
