@@ -705,44 +705,60 @@
 			ti,irqs-safe-map = <0>;
 		};
 
-		dss: dss@58000000 {
-			compatible = "ti,dra7-dss";
-			/* 'reg' defined in dra72x.dtsi and dra74x.dtsi */
-			/* 'clocks' defined in dra72x.dtsi and dra74x.dtsi */
-			status = "disabled";
+		target-module@58000000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
 			ti,hwmods = "dss_core";
-			/* CTRL_CORE_DSS_PLL_CONTROL */
-			syscon-pll-ctrl = <&scm_conf 0x538>;
+			reg = <0x58000000 4>,
+			      <0x58000014 4>;
+			reg-names = "rev", "syss";
+			ti,syss-mask = <1>;
+			clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 0>,
+				 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 9>,
+				 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 10>,
+				 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 11>;
+			clock-names = "fck", "hdmi_clk", "sys_clk", "tv_clk";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges;
+			ranges = <0 0x58000000 0x800000>;
 
-			dispc@58001000 {
-				compatible = "ti,dra7-dispc";
-				reg = <0x58001000 0x1000>;
-				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
-				ti,hwmods = "dss_dispc";
-				clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>;
-				clock-names = "fck";
-				/* CTRL_CORE_SMA_SW_1 */
-				syscon-pol = <&scm_conf 0x534>;
-			};
-
-			hdmi: encoder@58060000 {
-				compatible = "ti,dra7-hdmi";
-				reg = <0x58040000 0x200>,
-				      <0x58040200 0x80>,
-				      <0x58040300 0x80>,
-				      <0x58060000 0x19000>;
-				reg-names = "wp", "pll", "phy", "core";
-				interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			dss: dss@0 {
+				compatible = "ti,dra7-dss";
+				/* 'reg' defined in dra72x.dtsi and dra74x.dtsi */
+				/* 'clocks' defined in dra72x.dtsi and dra74x.dtsi */
 				status = "disabled";
-				ti,hwmods = "dss_hdmi";
-				clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 9>,
-					 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 10>;
-				clock-names = "fck", "sys_clk";
-				dmas = <&sdma_xbar 76>;
-				dma-names = "audio_tx";
+				/* CTRL_CORE_DSS_PLL_CONTROL */
+				syscon-pll-ctrl = <&scm_conf 0x538>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x800000>;
+
+				dispc@1000 {
+					compatible = "ti,dra7-dispc";
+					reg = <0x1000 0x1000>;
+					interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+					ti,hwmods = "dss_dispc";
+					clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>;
+					clock-names = "fck";
+					/* CTRL_CORE_SMA_SW_1 */
+					syscon-pol = <&scm_conf 0x534>;
+				};
+
+				hdmi: encoder@40000 {
+					compatible = "ti,dra7-hdmi";
+					reg = <0x40000 0x200>,
+					      <0x40200 0x80>,
+					      <0x40300 0x80>,
+					      <0x60000 0x19000>;
+					reg-names = "wp", "pll", "phy", "core";
+					interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
+					ti,hwmods = "dss_hdmi";
+					clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 9>,
+						 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 10>;
+					clock-names = "fck", "sys_clk";
+					dmas = <&sdma_xbar 76>;
+					dma-names = "audio_tx";
+				};
 			};
 		};
 
