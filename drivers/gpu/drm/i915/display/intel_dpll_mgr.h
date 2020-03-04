@@ -279,6 +279,12 @@ struct intel_shared_dpll_funcs {
 			     struct intel_shared_dpll *pll,
 			     struct intel_dpll_hw_state *hw_state);
 
+	/**
+	 * @get_freq:
+	 *
+	 * Hook for calculating the pll's output frequency based on its
+	 * current state.
+	 */
 	int (*get_freq)(struct drm_i915_private *i915,
 			const struct intel_shared_dpll *pll);
 };

@@ -4408,6 +4408,13 @@ void intel_update_active_dpll(struct intel_atomic_state *state,
 	dpll_mgr->update_active_dpll(state, crtc, encoder);
 }
 
+/**
+ * intel_dpll_get_freq - calculate the DPLL's output frequency
+ * @i915: i915 device
+ * @pll: DPLL for which to calculate the output frequency
+ *
+ * Return the output frequency corresponding to @pll's current state.
+ */
 int intel_dpll_get_freq(struct drm_i915_private *i915,
 			const struct intel_shared_dpll *pll)
 {
