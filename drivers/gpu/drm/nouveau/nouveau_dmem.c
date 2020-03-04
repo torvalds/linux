@@ -25,12 +25,14 @@
 #include "nouveau_dma.h"
 #include "nouveau_mem.h"
 #include "nouveau_bo.h"
+#include "nouveau_svm.h"
 
 #include <nvif/class.h>
 #include <nvif/object.h>
 #include <nvif/if000c.h>
 #include <nvif/if500b.h>
 #include <nvif/if900b.h>
+#include <nvif/if000c.h>
 
 #include <linux/sched/mm.h>
 #include <linux/hmm.h>
@@ -561,10 +563,11 @@ out_free:
 }
 
 static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
-		unsigned long src, dma_addr_t *dma_addr)
+		unsigned long src, dma_addr_t *dma_addr, u64 *pfn)
 {
 	struct device *dev = drm->dev->dev;
 	struct page *dpage, *spage;
+	unsigned long paddr;
 
 	spage = migrate_pfn_to_page(src);
 	if (!spage || !(src & MIGRATE_PFN_MIGRATE))
@@ -572,17 +575,21 @@ static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
 
 	dpage = nouveau_dmem_page_alloc_locked(drm);
 	if (!dpage)
-		return 0;
+		goto out;
 
 	*dma_addr = dma_map_page(dev, spage, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, *dma_addr))
 		goto out_free_page;
 
+	paddr = nouveau_dmem_page_addr(dpage);
 	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_VRAM,
-			nouveau_dmem_page_addr(dpage), NOUVEAU_APER_HOST,
-			*dma_addr))
+			paddr, NOUVEAU_APER_HOST, *dma_addr))
 		goto out_dma_unmap;
 
+	*pfn = NVIF_VMM_PFNMAP_V0_V | NVIF_VMM_PFNMAP_V0_VRAM |
+		((paddr >> PAGE_SHIFT) << NVIF_VMM_PFNMAP_V0_ADDR_SHIFT);
+	if (src & MIGRATE_PFN_WRITE)
+		*pfn |= NVIF_VMM_PFNMAP_V0_W;
 	return migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
 
 out_dma_unmap:
@@ -590,18 +597,20 @@ out_dma_unmap:
 out_free_page:
 	nouveau_dmem_page_free_locked(drm, dpage);
 out:
+	*pfn = NVIF_VMM_PFNMAP_V0_NONE;
 	return 0;
 }
 
 static void nouveau_dmem_migrate_chunk(struct nouveau_drm *drm,
-		struct migrate_vma *args, dma_addr_t *dma_addrs)
+		struct nouveau_svmm *svmm, struct migrate_vma *args,
+		dma_addr_t *dma_addrs, u64 *pfns)
 {
 	struct nouveau_fence *fence;
 	unsigned long addr = args->start, nr_dma = 0, i;
 
 	for (i = 0; addr < args->end; i++) {
 		args->dst[i] = nouveau_dmem_migrate_copy_one(drm, args->src[i],
-				dma_addrs + nr_dma);
+				dma_addrs + nr_dma, pfns + i);
 		if (args->dst[i])
 			nr_dma++;
 		addr += PAGE_SIZE;
@@ -610,20 +619,18 @@ static void nouveau_dmem_migrate_chunk(struct nouveau_drm *drm,
 	nouveau_fence_new(drm->dmem->migrate.chan, false, &fence);
 	migrate_vma_pages(args);
 	nouveau_dmem_fence_done(&fence);
+	nouveau_pfns_map(svmm, args->vma->vm_mm, args->start, pfns, i);
 
 	while (nr_dma--) {
 		dma_unmap_page(drm->dev->dev, dma_addrs[nr_dma], PAGE_SIZE,
 				DMA_BIDIRECTIONAL);
 	}
-	/*
-	 * FIXME optimization: update GPU page table to point to newly migrated
-	 * memory.
-	 */
 	migrate_vma_finalize(args);
 }
 
 int
 nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
+			 struct nouveau_svmm *svmm,
 			 struct vm_area_struct *vma,
 			 unsigned long start,
 			 unsigned long end)
@@ -635,7 +642,8 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 		.vma		= vma,
 		.start		= start,
 	};
-	unsigned long c, i;
+	unsigned long i;
+	u64 *pfns;
 	int ret = -ENOMEM;
 
 	args.src = kcalloc(max, sizeof(*args.src), GFP_KERNEL);
@@ -649,19 +657,25 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 	if (!dma_addrs)
 		goto out_free_dst;
 
-	for (i = 0; i < npages; i += c) {
-		c = min(SG_MAX_SINGLE_ALLOC, npages);
-		args.end = start + (c << PAGE_SHIFT);
+	pfns = nouveau_pfns_alloc(max);
+	if (!pfns)
+		goto out_free_dma;
+
+	for (i = 0; i < npages; i += max) {
+		args.end = start + (max << PAGE_SHIFT);
 		ret = migrate_vma_setup(&args);
 		if (ret)
-			goto out_free_dma;
+			goto out_free_pfns;
 
 		if (args.cpages)
-			nouveau_dmem_migrate_chunk(drm, &args, dma_addrs);
+			nouveau_dmem_migrate_chunk(drm, svmm, &args, dma_addrs,
+						   pfns);
 		args.start = args.end;
 	}
 
 	ret = 0;
+out_free_pfns:
+	nouveau_pfns_free(pfns);
 out_free_dma:
 	kfree(dma_addrs);
 out_free_dst:
