@@ -1169,7 +1169,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	goto out_pool;
 
 skip_request:
-	i915_request_skip(rq, err);
+	i915_request_set_error_once(rq, err);
 err_request:
 	i915_request_add(rq);
 err_unpin:
@@ -1850,7 +1850,7 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 	return 0;
 
 err_skip:
-	i915_request_skip(eb->request, err);
+	i915_request_set_error_once(eb->request, err);
 	return err;
 }
 
@@ -2579,7 +2579,8 @@ static void eb_request_add(struct i915_execbuffer *eb)
 			attr.priority |= I915_PRIORITY_WAIT;
 	} else {
 		/* Serialise with context_close via the add_to_timeline */
-		i915_request_skip(rq, -ENOENT);
+		i915_request_set_error_once(rq, -ENOENT);
+		__i915_request_skip(rq);
 	}
 
 	local_bh_disable();

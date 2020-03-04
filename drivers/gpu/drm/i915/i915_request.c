@@ -363,6 +363,50 @@ __await_execution(struct i915_request *rq,
 	return 0;
 }
 
+static bool fatal_error(int error)
+{
+	switch (error) {
+	case 0: /* not an error! */
+	case -EAGAIN: /* innocent victim of a GT reset (__i915_request_reset) */
+	case -ETIMEDOUT: /* waiting for Godot (timer_i915_sw_fence_wake) */
+		return false;
+	default:
+		return true;
+	}
+}
+
+void __i915_request_skip(struct i915_request *rq)
+{
+	GEM_BUG_ON(!fatal_error(rq->fence.error));
+
+	if (rq->infix == rq->postfix)
+		return;
+
+	/*
+	 * As this request likely depends on state from the lost
+	 * context, clear out all the user operations leaving the
+	 * breadcrumb at the end (so we get the fence notifications).
+	 */
+	__i915_request_fill(rq, 0);
+	rq->infix = rq->postfix;
+}
+
+void i915_request_set_error_once(struct i915_request *rq, int error)
+{
+	int old;
+
+	GEM_BUG_ON(!IS_ERR_VALUE((long)error));
+
+	if (i915_request_signaled(rq))
+		return;
+
+	old = READ_ONCE(rq->fence.error);
+	do {
+		if (fatal_error(old))
+			return;
+	} while (!try_cmpxchg(&rq->fence.error, &old, error));
+}
+
 bool __i915_request_submit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
@@ -392,8 +436,10 @@ bool __i915_request_submit(struct i915_request *request)
 	if (i915_request_completed(request))
 		goto xfer;
 
-	if (intel_context_is_banned(request->context))
-		i915_request_skip(request, -EIO);
+	if (unlikely(intel_context_is_banned(request->context)))
+		i915_request_set_error_once(request, -EIO);
+	if (unlikely(fatal_error(request->fence.error)))
+		__i915_request_skip(request);
 
 	/*
 	 * Are we using semaphores when the gpu is already saturated?
@@ -519,7 +565,7 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 		trace_i915_request_submit(request);
 
 		if (unlikely(fence->error))
-			i915_request_skip(request, fence->error);
+			i915_request_set_error_once(request, fence->error);
 
 		/*
 		 * We need to serialize use of the submit_request() callback
@@ -1207,23 +1253,6 @@ i915_request_await_object(struct i915_request *to,
 	}
 
 	return ret;
-}
-
-void i915_request_skip(struct i915_request *rq, int error)
-{
-	GEM_BUG_ON(!IS_ERR_VALUE((long)error));
-	dma_fence_set_error(&rq->fence, error);
-
-	if (rq->infix == rq->postfix)
-		return;
-
-	/*
-	 * As this request likely depends on state from the lost
-	 * context, clear out all the user operations leaving the
-	 * breadcrumb at the end (so we get the fence notifications).
-	 */
-	__i915_request_fill(rq, 0);
-	rq->infix = rq->postfix;
 }
 
 static struct i915_request *

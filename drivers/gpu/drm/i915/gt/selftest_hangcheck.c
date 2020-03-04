@@ -268,7 +268,7 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 
 cancel_rq:
 	if (err) {
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 		i915_request_add(rq);
 	}
 unpin_hws:

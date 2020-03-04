@@ -48,8 +48,10 @@ static void engine_skip_context(struct i915_request *rq)
 
 	lockdep_assert_held(&engine->active.lock);
 	list_for_each_entry_continue(rq, &engine->active.requests, sched.link)
-		if (rq->context == hung_ctx)
-			i915_request_skip(rq, -EIO);
+		if (rq->context == hung_ctx) {
+			i915_request_set_error_once(rq, -EIO);
+			__i915_request_skip(rq);
+		}
 }
 
 static void client_mark_guilty(struct i915_gem_context *ctx, bool banned)
@@ -154,11 +156,12 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 
 	rcu_read_lock(); /* protect the GEM context */
 	if (guilty) {
-		i915_request_skip(rq, -EIO);
+		i915_request_set_error_once(rq, -EIO);
+		__i915_request_skip(rq);
 		if (mark_guilty(rq))
 			engine_skip_context(rq);
 	} else {
-		dma_fence_set_error(&rq->fence, -EAGAIN);
+		i915_request_set_error_once(rq, -EAGAIN);
 		mark_innocent(rq);
 	}
 	rcu_read_unlock();
@@ -785,7 +788,7 @@ static void nop_submit_request(struct i915_request *request)
 	unsigned long flags;
 
 	RQ_TRACE(request, "-EIO\n");
-	dma_fence_set_error(&request->fence, -EIO);
+	i915_request_set_error_once(request, -EIO);
 
 	spin_lock_irqsave(&engine->active.lock, flags);
 	__i915_request_submit(request);

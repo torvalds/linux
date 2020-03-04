@@ -1004,7 +1004,7 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 	return 0;
 
 skip_request:
-	i915_request_skip(rq, err);
+	i915_request_set_error_once(rq, err);
 err_request:
 	i915_request_add(rq);
 err_batch:
@@ -1559,7 +1559,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 
 	goto out_vm;
 skip_request:
-	i915_request_skip(rq, err);
+	i915_request_set_error_once(rq, err);
 err_request:
 	i915_request_add(rq);
 err_unpin:
@@ -1708,7 +1708,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 
 	goto out_vm;
 skip_request:
-	i915_request_skip(rq, err);
+	i915_request_set_error_once(rq, err);
 err_request:
 	i915_request_add(rq);
 err_unpin:

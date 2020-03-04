@@ -244,9 +244,7 @@ static void mock_reset_cancel(struct intel_engine_cs *engine)
 
 	/* Mark all submitted requests as skipped. */
 	list_for_each_entry(request, &engine->active.requests, sched.link) {
-		if (!i915_request_signaled(request))
-			dma_fence_set_error(&request->fence, -EIO);
-
+		i915_request_set_error_once(request, -EIO);
 		i915_request_mark_complete(request);
 	}
 

@@ -186,7 +186,7 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 					0);
 out_request:
 	if (unlikely(err))
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 
 	i915_request_add(rq);
 out_batch:
@@ -385,7 +385,7 @@ out_unlock:
 	drm_gem_unlock_reservations(objs, ARRAY_SIZE(objs), &acquire);
 out_request:
 	if (unlikely(err))
-		i915_request_skip(rq, err);
+		i915_request_set_error_once(rq, err);
 
 	i915_request_add(rq);
 out_batch:

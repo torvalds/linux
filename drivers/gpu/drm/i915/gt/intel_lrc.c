@@ -245,7 +245,7 @@ static void mark_eio(struct i915_request *rq)
 
 	GEM_BUG_ON(i915_request_signaled(rq));
 
-	dma_fence_set_error(&rq->fence, -EIO);
+	i915_request_set_error_once(rq, -EIO);
 	i915_request_mark_complete(rq);
 }
 
@@ -4903,7 +4903,7 @@ static intel_engine_mask_t virtual_submission_mask(struct virtual_engine *ve)
 	mask = rq->execution_mask;
 	if (unlikely(!mask)) {
 		/* Invalid selection, submit to a random engine in error */
-		i915_request_skip(rq, -ENODEV);
+		i915_request_set_error_once(rq, -ENODEV);
 		mask = ve->siblings[0]->mask;
 	}
 
