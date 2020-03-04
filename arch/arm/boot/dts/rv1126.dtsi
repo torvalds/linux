@@ -981,6 +981,20 @@
 		status = "disabled";
 	};
 
+	audpwm: audpwm@ff840000 {
+		compatible = "rockchip,rv1126-audio-pwm", "rockchip,audio-pwm-v1";
+		reg = <0xff840000 0x1000>;
+		clocks = <&cru SCLK_AUDPWM>, <&cru HCLK_AUDPWM>;
+		clock-names = "clk", "hclk";
+		dmas = <&dmac 26>;
+		dma-names = "tx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&audpwmm0_pins>;
+		rockchip,sample-width-bits = <11>;
+		rockchip,interpolat-points = <1>;
+		status = "disabled";
+	};
+
 	dfi: dfi@ff9c0000 {
 		reg = <0xff9c0000 0x400>;
 		compatible = "rockchip,rv1126-dfi";
