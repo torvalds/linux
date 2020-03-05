@@ -18,8 +18,17 @@
 #include "ctl.h"
 #include "dma_port.h"
 
+#define NVM_MIN_SIZE		SZ_32K
+#define NVM_MAX_SIZE		SZ_512K
+
+/* Intel specific NVM offsets */
+#define NVM_DEVID		0x05
+#define NVM_VERSION		0x08
+#define NVM_FLASH_SIZE		0x45
+
 /**
- * struct tb_switch_nvm - Structure holding switch NVM information
+ * struct tb_nvm - Structure holding NVM information
+ * @dev: Owner of the NVM
  * @major: Major version number of the active NVM portion
  * @minor: Minor version number of the active NVM portion
  * @id: Identifier used with both NVM portions
@@ -29,9 +38,13 @@
  *	 the actual NVM flash device
  * @buf_data_size: Number of bytes actually consumed by the new NVM
  *		   image
- * @authenticating: The switch is authenticating the new NVM
+ * @authenticating: The device is authenticating the new NVM
+ *
+ * The user of this structure needs to handle serialization of possible
+ * concurrent access.
  */
-struct tb_switch_nvm {
+struct tb_nvm {
+	struct device *dev;
 	u8 major;
 	u8 minor;
 	int id;
@@ -143,7 +156,7 @@ struct tb_switch {
 	int cap_lc;
 	bool is_unplugged;
 	u8 *drom;
-	struct tb_switch_nvm *nvm;
+	struct tb_nvm *nvm;
 	bool no_nvm_upgrade;
 	bool safe_mode;
 	bool boot;
@@ -544,7 +557,6 @@ extern struct device_type tb_switch_type;
 
 int tb_domain_init(void);
 void tb_domain_exit(void);
-void tb_switch_exit(void);
 int tb_xdomain_init(void);
 void tb_xdomain_exit(void);
 
@@ -576,6 +588,15 @@ static inline void tb_domain_put(struct tb *tb)
 {
 	put_device(&tb->dev);
 }
+
+struct tb_nvm *tb_nvm_alloc(struct device *dev);
+int tb_nvm_add_active(struct tb_nvm *nvm, size_t size, nvmem_reg_read_t reg_read);
+int tb_nvm_write_buf(struct tb_nvm *nvm, unsigned int offset, void *val,
+		     size_t bytes);
+int tb_nvm_add_non_active(struct tb_nvm *nvm, size_t size,
+			  nvmem_reg_write_t reg_write);
+void tb_nvm_free(struct tb_nvm *nvm);
+void tb_nvm_exit(void);
 
 struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 				  u64 route);

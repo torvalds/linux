@@ -13,21 +13,12 @@
 #include <linux/sched/signal.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
 
 #include "tb.h"
 
 /* Switch NVM support */
 
-#define NVM_DEVID		0x05
-#define NVM_VERSION		0x08
 #define NVM_CSS			0x10
-#define NVM_FLASH_SIZE		0x45
-
-#define NVM_MIN_SIZE		SZ_32K
-#define NVM_MAX_SIZE		SZ_512K
-
-static DEFINE_IDA(nvm_ida);
 
 struct nvm_auth_status {
 	struct list_head list;
@@ -328,7 +319,8 @@ static int nvm_authenticate(struct tb_switch *sw)
 static int tb_switch_nvm_read(void *priv, unsigned int offset, void *val,
 			      size_t bytes)
 {
-	struct tb_switch *sw = priv;
+	struct tb_nvm *nvm = priv;
+	struct tb_switch *sw = tb_to_switch(nvm->dev);
 	int ret;
 
 	pm_runtime_get_sync(&sw->dev);
@@ -351,8 +343,9 @@ out:
 static int tb_switch_nvm_write(void *priv, unsigned int offset, void *val,
 			       size_t bytes)
 {
-	struct tb_switch *sw = priv;
-	int ret = 0;
+	struct tb_nvm *nvm = priv;
+	struct tb_switch *sw = tb_to_switch(nvm->dev);
+	int ret;
 
 	if (!mutex_trylock(&sw->tb->lock))
 		return restart_syscall();
@@ -363,55 +356,15 @@ static int tb_switch_nvm_write(void *priv, unsigned int offset, void *val,
 	 * locally here and handle the special cases when the user asks
 	 * us to authenticate the image.
 	 */
-	if (!sw->nvm->buf) {
-		sw->nvm->buf = vmalloc(NVM_MAX_SIZE);
-		if (!sw->nvm->buf) {
-			ret = -ENOMEM;
-			goto unlock;
-		}
-	}
-
-	sw->nvm->buf_data_size = offset + bytes;
-	memcpy(sw->nvm->buf + offset, val, bytes);
-
-unlock:
+	ret = tb_nvm_write_buf(nvm, offset, val, bytes);
 	mutex_unlock(&sw->tb->lock);
 
 	return ret;
 }
 
-static struct nvmem_device *register_nvmem(struct tb_switch *sw, int id,
-					   size_t size, bool active)
-{
-	struct nvmem_config config;
-
-	memset(&config, 0, sizeof(config));
-
-	if (active) {
-		config.name = "nvm_active";
-		config.reg_read = tb_switch_nvm_read;
-		config.read_only = true;
-	} else {
-		config.name = "nvm_non_active";
-		config.reg_write = tb_switch_nvm_write;
-		config.root_only = true;
-	}
-
-	config.id = id;
-	config.stride = 4;
-	config.word_size = 4;
-	config.size = size;
-	config.dev = &sw->dev;
-	config.owner = THIS_MODULE;
-	config.priv = sw;
-
-	return nvmem_register(&config);
-}
-
 static int tb_switch_nvm_add(struct tb_switch *sw)
 {
-	struct nvmem_device *nvm_dev;
-	struct tb_switch_nvm *nvm;
+	struct tb_nvm *nvm;
 	u32 val;
 	int ret;
 
@@ -431,11 +384,9 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 		return 0;
 	}
 
-	nvm = kzalloc(sizeof(*nvm), GFP_KERNEL);
-	if (!nvm)
-		return -ENOMEM;
-
-	nvm->id = ida_simple_get(&nvm_ida, 0, 0, GFP_KERNEL);
+	nvm = tb_nvm_alloc(&sw->dev);
+	if (IS_ERR(nvm))
+		return PTR_ERR(nvm);
 
 	/*
 	 * If the switch is in safe-mode the only accessible portion of
@@ -447,7 +398,7 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 
 		ret = nvm_read(sw, NVM_FLASH_SIZE, &val, sizeof(val));
 		if (ret)
-			goto err_ida;
+			goto err_nvm;
 
 		hdr_size = sw->generation < 3 ? SZ_8K : SZ_16K;
 		nvm_size = (SZ_1M << (val & 7)) / 8;
@@ -455,44 +406,34 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 
 		ret = nvm_read(sw, NVM_VERSION, &val, sizeof(val));
 		if (ret)
-			goto err_ida;
+			goto err_nvm;
 
 		nvm->major = val >> 16;
 		nvm->minor = val >> 8;
 
-		nvm_dev = register_nvmem(sw, nvm->id, nvm_size, true);
-		if (IS_ERR(nvm_dev)) {
-			ret = PTR_ERR(nvm_dev);
-			goto err_ida;
-		}
-		nvm->active = nvm_dev;
+		ret = tb_nvm_add_active(nvm, nvm_size, tb_switch_nvm_read);
+		if (ret)
+			goto err_nvm;
 	}
 
 	if (!sw->no_nvm_upgrade) {
-		nvm_dev = register_nvmem(sw, nvm->id, NVM_MAX_SIZE, false);
-		if (IS_ERR(nvm_dev)) {
-			ret = PTR_ERR(nvm_dev);
-			goto err_nvm_active;
-		}
-		nvm->non_active = nvm_dev;
+		ret = tb_nvm_add_non_active(nvm, NVM_MAX_SIZE,
+					    tb_switch_nvm_write);
+		if (ret)
+			goto err_nvm;
 	}
 
 	sw->nvm = nvm;
 	return 0;
 
-err_nvm_active:
-	if (nvm->active)
-		nvmem_unregister(nvm->active);
-err_ida:
-	ida_simple_remove(&nvm_ida, nvm->id);
-	kfree(nvm);
-
+err_nvm:
+	tb_nvm_free(nvm);
 	return ret;
 }
 
 static void tb_switch_nvm_remove(struct tb_switch *sw)
 {
-	struct tb_switch_nvm *nvm;
+	struct tb_nvm *nvm;
 
 	nvm = sw->nvm;
 	sw->nvm = NULL;
@@ -504,13 +445,7 @@ static void tb_switch_nvm_remove(struct tb_switch *sw)
 	if (!nvm->authenticating)
 		nvm_clear_auth_status(sw);
 
-	if (nvm->non_active)
-		nvmem_unregister(nvm->non_active);
-	if (nvm->active)
-		nvmem_unregister(nvm->active);
-	ida_simple_remove(&nvm_ida, nvm->id);
-	vfree(nvm->buf);
-	kfree(nvm);
+	tb_nvm_free(nvm);
 }
 
 /* port utility functions */
@@ -2771,9 +2706,4 @@ struct tb_port *tb_switch_find_port(struct tb_switch *sw,
 	}
 
 	return NULL;
-}
-
-void tb_switch_exit(void)
-{
-	ida_destroy(&nvm_ida);
 }
