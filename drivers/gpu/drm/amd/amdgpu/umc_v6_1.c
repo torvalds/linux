@@ -236,7 +236,11 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_ADDRT0);
 	}
 
-	/* skip error address process if -ENOMEM */
+	mc_umc_status = RREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4);
+
+	if (mc_umc_status == 0)
+		return;
+
 	if (!err_data->err_addr) {
 		/* clear umc status */
 		WREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4, 0x0ULL);
@@ -244,7 +248,6 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 	}
 
 	err_rec = &err_data->err_addr[err_data->err_addr_cnt];
-	mc_umc_status = RREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4);
 
 	/* calculate error address if ue/ce error is detected */
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
