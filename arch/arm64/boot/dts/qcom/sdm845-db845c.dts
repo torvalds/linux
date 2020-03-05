@@ -359,6 +359,18 @@
 	};
 };
 
+&i2c11 {
+	/* On Low speed expansion */
+	label = "LS-I2C1";
+	status = "okay";
+};
+
+&i2c14 {
+	/* On Low speed expansion */
+	label = "LS-I2C0";
+	status = "okay";
+};
+
 &mss_pil {
 	status = "okay";
 	firmware-name = "qcom/sdm845/mba.mbn", "qcom/sdm845/modem.mbn";
@@ -436,6 +448,12 @@
 
 	bus-width = <4>;
 	cd-gpios = <&tlmm 126 GPIO_ACTIVE_LOW>;
+};
+
+&spi2 {
+	/* On Low speed expansion */
+	label = "LS-SPI0";
+	status = "okay";
 };
 
 &tlmm {
@@ -537,6 +555,11 @@
 	};
 };
 
+&uart3 {
+	label = "LS-UART0";
+	status = "disabled";
+};
+
 &uart6 {
 	status = "okay";
 
@@ -552,6 +575,7 @@
 };
 
 &uart9 {
+	label = "LS-UART1";
 	status = "okay";
 };
 
@@ -637,6 +661,16 @@
 };
 
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
+&qup_spi2_default {
+	drive-strength = <16>;
+};
+
+&qup_uart3_default{
+	pinmux {
+		pins = "gpio41", "gpio42", "gpio43", "gpio44";
+		function = "qup3";
+	};
+};
 
 &qup_uart6_default {
 	pinmux {
