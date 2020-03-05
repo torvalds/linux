@@ -655,6 +655,16 @@ qdisc_stats_get()
 	    | jq '.[] | select(.handle == "'"$handle"'") | '"$selector"
 }
 
+qdisc_parent_stats_get()
+{
+	local dev=$1; shift
+	local parent=$1; shift
+	local selector=$1; shift
+
+	tc -j -s qdisc show dev "$dev" invisible \
+	    | jq '.[] | select(.parent == "'"$parent"'") | '"$selector"
+}
+
 humanize()
 {
 	local speed=$1; shift
