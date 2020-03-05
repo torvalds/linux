@@ -68,6 +68,7 @@ For more details see the file COPYING in the source distribution of Linux.
 
 	bttv-devel
 	cpia2_devel
+	cx88-devel
 	vimc-devel
 
 	meye-uapi
