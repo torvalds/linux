@@ -100,13 +100,9 @@ static size_t inet_sk_attr_size(struct sock *sk,
 		aux = handler->idiag_get_aux_size(sk, net_admin);
 
 	return	  nla_total_size(sizeof(struct tcp_info))
-		+ nla_total_size(1) /* INET_DIAG_SHUTDOWN */
-		+ nla_total_size(1) /* INET_DIAG_TOS */
-		+ nla_total_size(1) /* INET_DIAG_TCLASS */
-		+ nla_total_size(4) /* INET_DIAG_MARK */
-		+ nla_total_size(4) /* INET_DIAG_CLASS_ID */
-		+ nla_total_size(sizeof(struct inet_diag_meminfo))
 		+ nla_total_size(sizeof(struct inet_diag_msg))
+		+ inet_diag_msg_attrs_size()
+		+ nla_total_size(sizeof(struct inet_diag_meminfo))
 		+ nla_total_size(SK_MEMINFO_VARS * sizeof(u32))
 		+ nla_total_size(TCP_CA_NAME_MAX)
 		+ nla_total_size(sizeof(struct tcpvegas_info))
@@ -146,6 +142,24 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 
 	if (net_admin && nla_put_u32(skb, INET_DIAG_MARK, sk->sk_mark))
 		goto errout;
+
+	if (ext & (1 << (INET_DIAG_CLASS_ID - 1)) ||
+	    ext & (1 << (INET_DIAG_TCLASS - 1))) {
+		u32 classid = 0;
+
+#ifdef CONFIG_SOCK_CGROUP_DATA
+		classid = sock_cgroup_classid(&sk->sk_cgrp_data);
+#endif
+		/* Fallback to socket priority if class id isn't set.
+		 * Classful qdiscs use it as direct reference to class.
+		 * For cgroup2 classid is always zero.
+		 */
+		if (!classid)
+			classid = sk->sk_priority;
+
+		if (nla_put_u32(skb, INET_DIAG_CLASS_ID, classid))
+			goto errout;
+	}
 
 	r->idiag_uid = from_kuid_munged(user_ns, sock_i_uid(sk));
 	r->idiag_inode = sock_i_ino(sk);
@@ -281,24 +295,6 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 			sz = ca_ops->get_info(sk, ext, &attr, &info);
 		rcu_read_unlock();
 		if (sz && nla_put(skb, attr, sz, &info) < 0)
-			goto errout;
-	}
-
-	if (ext & (1 << (INET_DIAG_CLASS_ID - 1)) ||
-	    ext & (1 << (INET_DIAG_TCLASS - 1))) {
-		u32 classid = 0;
-
-#ifdef CONFIG_SOCK_CGROUP_DATA
-		classid = sock_cgroup_classid(&sk->sk_cgrp_data);
-#endif
-		/* Fallback to socket priority if class id isn't set.
-		 * Classful qdiscs use it as direct reference to class.
-		 * For cgroup2 classid is always zero.
-		 */
-		if (!classid)
-			classid = sk->sk_priority;
-
-		if (nla_put_u32(skb, INET_DIAG_CLASS_ID, classid))
 			goto errout;
 	}
 
