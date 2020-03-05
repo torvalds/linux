@@ -164,6 +164,7 @@ struct decode_info {
 #define OP_STATE_BASE_ADDRESS                   OP_3D_MEDIA(0x0, 0x1, 0x01)
 #define OP_STATE_SIP                            OP_3D_MEDIA(0x0, 0x1, 0x02)
 #define OP_3D_MEDIA_0_1_4			OP_3D_MEDIA(0x0, 0x1, 0x04)
+#define OP_SWTESS_BASE_ADDRESS			OP_3D_MEDIA(0x0, 0x1, 0x03)
 
 #define OP_3DSTATE_VF_STATISTICS_GM45           OP_3D_MEDIA(0x1, 0x0, 0x0B)
 
@@ -2484,6 +2485,9 @@ static const struct cmd_info cmd_info[] = {
 
 	{"OP_3D_MEDIA_0_1_4", OP_3D_MEDIA_0_1_4, F_LEN_VAR, R_RCS, D_ALL,
 		ADDR_FIX_1(1), 8, NULL},
+
+	{"OP_SWTESS_BASE_ADDRESS", OP_SWTESS_BASE_ADDRESS,
+		F_LEN_VAR, R_RCS, D_ALL, ADDR_FIX_2(1, 2), 3, NULL},
 
 	{"3DSTATE_VS", OP_3DSTATE_VS, F_LEN_VAR, R_RCS, D_ALL, 0, 8, NULL},
 
