@@ -27,6 +27,7 @@
 #include <asm/unwind.h>
 #include <asm/mach_desc.h>
 #include <asm/smp.h>
+#include <asm/dsp-impl.h>
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
@@ -440,6 +441,8 @@ static void arc_chk_core_config(void)
 		/* Accumulator Low:High pair (r58:59) present if DSP MPY or FPU */
 		present = cpu->extn_mpy.dsp | cpu->extn.fpu_sp | cpu->extn.fpu_dp;
 		CHK_OPT_STRICT(CONFIG_ARC_HAS_ACCL_REGS, present);
+
+		dsp_config_check();
 	}
 }
 
