@@ -211,6 +211,28 @@ struct tb_port {
 };
 
 /**
+ * tb_retimer: Thunderbolt retimer
+ * @dev: Device for the retimer
+ * @tb: Pointer to the domain the retimer belongs to
+ * @index: Retimer index facing the router USB4 port
+ * @vendor: Vendor ID of the retimer
+ * @device: Device ID of the retimer
+ * @port: Pointer to the lane 0 adapter
+ * @nvm: Pointer to the NVM if the retimer has one (%NULL otherwise)
+ * @auth_status: Status of last NVM authentication
+ */
+struct tb_retimer {
+	struct device dev;
+	struct tb *tb;
+	u8 index;
+	u32 vendor;
+	u32 device;
+	struct tb_port *port;
+	struct tb_nvm *nvm;
+	u32 auth_status;
+};
+
+/**
  * struct tb_path_hop - routing information for a tb_path
  * @in_port: Ingress port of a switch
  * @out_port: Egress port of a switch where the packet is routed out
@@ -553,6 +575,7 @@ struct tb *icm_probe(struct tb_nhi *nhi);
 struct tb *tb_probe(struct tb_nhi *nhi);
 
 extern struct device_type tb_domain_type;
+extern struct device_type tb_retimer_type;
 extern struct device_type tb_switch_type;
 
 int tb_domain_init(void);
@@ -852,6 +875,21 @@ void tb_xdomain_add(struct tb_xdomain *xd);
 void tb_xdomain_remove(struct tb_xdomain *xd);
 struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
 						 u8 depth);
+
+int tb_retimer_scan(struct tb_port *port);
+void tb_retimer_remove_all(struct tb_port *port);
+
+static inline bool tb_is_retimer(const struct device *dev)
+{
+	return dev->type == &tb_retimer_type;
+}
+
+static inline struct tb_retimer *tb_to_retimer(struct device *dev)
+{
+	if (tb_is_retimer(dev))
+		return container_of(dev, struct tb_retimer, dev);
+	return NULL;
+}
 
 int usb4_switch_setup(struct tb_switch *sw);
 int usb4_switch_read_uid(struct tb_switch *sw, u64 *uid);

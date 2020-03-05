@@ -10,6 +10,8 @@
 #ifndef _SB_REGS
 #define _SB_REGS
 
+#define USB4_SB_VENDOR_ID			0x00
+#define USB4_SB_PRODUCT_ID			0x01
 #define USB4_SB_OPCODE				0x08
 
 enum usb4_sb_opcode {

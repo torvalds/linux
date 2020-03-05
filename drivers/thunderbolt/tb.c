@@ -539,6 +539,9 @@ static void tb_scan_port(struct tb_port *port)
 		tb_port_dbg(port, "port already has a remote\n");
 		return;
 	}
+
+	tb_retimer_scan(port);
+
 	sw = tb_switch_alloc(port->sw->tb, &port->sw->dev,
 			     tb_downstream_route(port));
 	if (IS_ERR(sw)) {
@@ -594,6 +597,9 @@ static void tb_scan_port(struct tb_port *port)
 
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to enable TMU\n");
+
+	/* Scan upstream retimers */
+	tb_retimer_scan(upstream_port);
 
 	/*
 	 * Create USB 3.x tunnels only when the switch is plugged to the
@@ -674,6 +680,7 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 			continue;
 
 		if (port->remote->sw->is_unplugged) {
+			tb_retimer_remove_all(port);
 			tb_remove_dp_resources(port->remote->sw);
 			tb_switch_lane_bonding_disable(port->remote->sw);
 			tb_switch_remove(port->remote->sw);
@@ -1039,6 +1046,8 @@ static void tb_handle_hotplug(struct work_struct *work)
 		goto put_sw;
 	}
 	if (ev->unplug) {
+		tb_retimer_remove_all(port);
+
 		if (tb_port_has_remote(port)) {
 			tb_port_dbg(port, "switch unplugged\n");
 			tb_sw_set_unplugged(port->remote->sw);
@@ -1283,6 +1292,7 @@ static int tb_free_unplugged_xdomains(struct tb_switch *sw)
 		if (tb_is_upstream_port(port))
 			continue;
 		if (port->xdomain && port->xdomain->is_unplugged) {
+			tb_retimer_remove_all(port);
 			tb_xdomain_remove(port->xdomain);
 			port->xdomain = NULL;
 			ret++;

@@ -2392,6 +2392,9 @@ void tb_switch_remove(struct tb_switch *sw)
 			tb_xdomain_remove(port->xdomain);
 			port->xdomain = NULL;
 		}
+
+		/* Remove any downstream retimers */
+		tb_retimer_remove_all(port);
 	}
 
 	if (!sw->is_unplugged)
