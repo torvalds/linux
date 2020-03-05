@@ -5,6 +5,7 @@
 #include "btree_cache.h"
 #include "btree_iter.h"
 #include "btree_locking.h"
+#include "btree_update.h"
 #include "debug.h"
 #include "extents.h"
 #include "trace.h"
@@ -1495,6 +1496,88 @@ struct bkey_s_c bch2_btree_iter_next(struct btree_iter *iter)
 		btree_type_successor(iter->btree_id, iter->k.p));
 
 	return bch2_btree_iter_peek(iter);
+}
+
+static struct bkey_s_c __btree_trans_updates_peek(struct btree_iter *iter)
+{
+	struct bpos pos = btree_iter_search_key(iter);
+	struct btree_trans *trans = iter->trans;
+	struct btree_insert_entry *i;
+
+	trans_for_each_update(trans, i)
+		if ((cmp_int(iter->btree_id,	i->iter->btree_id) ?:
+		     bkey_cmp(pos,		i->k->k.p)) <= 0)
+			break;
+
+	return i < trans->updates + trans->nr_updates &&
+		iter->btree_id == i->iter->btree_id
+		? bkey_i_to_s_c(i->k)
+		: bkey_s_c_null;
+}
+
+static struct bkey_s_c __bch2_btree_iter_peek_with_updates(struct btree_iter *iter)
+{
+	struct btree_iter_level *l = &iter->l[0];
+	struct bkey_s_c k = __btree_iter_peek(iter, l);
+	struct bkey_s_c u = __btree_trans_updates_peek(iter);
+
+	if (k.k && (!u.k || bkey_cmp(k.k->p, u.k->p) < 0))
+		return k;
+	if (u.k && bkey_cmp(u.k->p, l->b->key.k.p) <= 0) {
+		iter->k = *u.k;
+		return u;
+	}
+	return bkey_s_c_null;
+}
+
+struct bkey_s_c bch2_btree_iter_peek_with_updates(struct btree_iter *iter)
+{
+	struct bkey_s_c k;
+	int ret;
+
+	bch2_btree_iter_checks(iter, BTREE_ITER_KEYS);
+
+	while (1) {
+		ret = bch2_btree_iter_traverse(iter);
+		if (unlikely(ret))
+			return bkey_s_c_err(ret);
+
+		k = __bch2_btree_iter_peek_with_updates(iter);
+
+		if (k.k && bkey_deleted(k.k)) {
+			bch2_btree_iter_set_pos(iter,
+				btree_type_successor(iter->btree_id, iter->k.p));
+			continue;
+		}
+
+		if (likely(k.k))
+			break;
+
+		if (!btree_iter_set_pos_to_next_leaf(iter))
+			return bkey_s_c_null;
+	}
+
+	/*
+	 * iter->pos should always be equal to the key we just
+	 * returned - except extents can straddle iter->pos:
+	 */
+	if (!(iter->flags & BTREE_ITER_IS_EXTENTS) ||
+	    bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0)
+		iter->pos = bkey_start_pos(k.k);
+
+	iter->uptodate = BTREE_ITER_UPTODATE;
+	return k;
+}
+
+struct bkey_s_c bch2_btree_iter_next_with_updates(struct btree_iter *iter)
+{
+	if (unlikely(!bkey_cmp(iter->k.p, POS_MAX)))
+		return bkey_s_c_null;
+
+	bch2_btree_iter_set_pos(iter,
+		btree_type_successor(iter->btree_id, iter->k.p));
+
+	return bch2_btree_iter_peek_with_updates(iter);
 }
 
 /**
