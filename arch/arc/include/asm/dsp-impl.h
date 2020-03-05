@@ -103,6 +103,21 @@ static inline void dsp_save_restore(struct task_struct *prev,
 
 	DSP_AUX_SAVE_RESTORE(saveto, readfrom, DSP_BFLY0);
 	DSP_AUX_SAVE_RESTORE(saveto, readfrom, DSP_FFT_CTRL);
+
+#ifdef CONFIG_ARC_DSP_AGU_USERSPACE
+	DSP_AUX_SAVE_RESTORE(saveto, readfrom, AGU_AP0);
+	DSP_AUX_SAVE_RESTORE(saveto, readfrom, AGU_AP1);
+	DSP_AUX_SAVE_RESTORE(saveto, readfrom, AGU_AP2);
+	DSP_AUX_SAVE_RESTORE(saveto, readfrom, AGU_AP3);
+
+	DSP_AUX_SAVE_RESTORE(saveto, readfrom, AGU_OS0);
+	DSP_AUX_SAVE_RESTORE(saveto, readfrom, AGU_OS1);
+
+	DSP_AUX_SAVE_RESTORE(saveto, readfrom, AGU_MOD0);
+	DSP_AUX_SAVE_RESTORE(saveto, readfrom, AGU_MOD1);
+	DSP_AUX_SAVE_RESTORE(saveto, readfrom, AGU_MOD2);
+	DSP_AUX_SAVE_RESTORE(saveto, readfrom, AGU_MOD3);
+#endif /* CONFIG_ARC_DSP_AGU_USERSPACE */
 }
 
 #else /* !CONFIG_ARC_DSP_SAVE_RESTORE_REGS */
@@ -117,9 +132,18 @@ static inline bool dsp_exist(void)
 	return !!bcr.ver;
 }
 
+static inline bool agu_exist(void)
+{
+	struct bcr_generic bcr;
+
+	READ_BCR(ARC_AUX_AGU_BUILD, bcr);
+	return !!bcr.ver;
+}
+
 static inline void dsp_config_check(void)
 {
 	CHK_OPT_STRICT(CONFIG_ARC_DSP_HANDLED, dsp_exist());
+	CHK_OPT_WEAK(CONFIG_ARC_DSP_AGU_USERSPACE, agu_exist());
 }
 
 #endif /* __ASEMBLY__ */

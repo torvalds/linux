@@ -132,6 +132,18 @@
 #define ARC_AUX_DSP_CTRL	0x59F
 #define ARC_AUX_DSP_FFT_CTRL	0x59E
 
+#define ARC_AUX_AGU_BUILD	0xCC
+#define ARC_AUX_AGU_AP0		0x5C0
+#define ARC_AUX_AGU_AP1		0x5C1
+#define ARC_AUX_AGU_AP2		0x5C2
+#define ARC_AUX_AGU_AP3		0x5C3
+#define ARC_AUX_AGU_OS0		0x5D0
+#define ARC_AUX_AGU_OS1		0x5D1
+#define ARC_AUX_AGU_MOD0	0x5E0
+#define ARC_AUX_AGU_MOD1	0x5E1
+#define ARC_AUX_AGU_MOD2	0x5E2
+#define ARC_AUX_AGU_MOD3	0x5E3
+
 #ifndef __ASSEMBLY__
 
 #include <soc/arc/aux.h>
