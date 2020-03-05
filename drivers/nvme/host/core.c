@@ -1585,6 +1585,47 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+struct nvme_user_io32 {
+	__u8	opcode;
+	__u8	flags;
+	__u16	control;
+	__u16	nblocks;
+	__u16	rsvd;
+	__u64	metadata;
+	__u64	addr;
+	__u64	slba;
+	__u32	dsmgmt;
+	__u32	reftag;
+	__u16	apptag;
+	__u16	appmask;
+} __attribute__((__packed__));
+
+#define NVME_IOCTL_SUBMIT_IO32	_IOW('N', 0x42, struct nvme_user_io32)
+
+static int nvme_compat_ioctl(struct block_device *bdev, fmode_t mode,
+		unsigned int cmd, unsigned long arg)
+{
+	/*
+	 * Corresponds to the difference of NVME_IOCTL_SUBMIT_IO
+	 * between 32 bit programs and 64 bit kernel.
+	 * The cause is that the results of sizeof(struct nvme_user_io),
+	 * which is used to define NVME_IOCTL_SUBMIT_IO,
+	 * are not same between 32 bit compiler and 64 bit compiler.
+	 * NVME_IOCTL_SUBMIT_IO32 is for 64 bit kernel handling
+	 * NVME_IOCTL_SUBMIT_IO issued from 32 bit programs.
+	 * Other IOCTL numbers are same between 32 bit and 64 bit.
+	 * So there is nothing to do regarding to other IOCTL numbers.
+	 */
+	if (cmd == NVME_IOCTL_SUBMIT_IO32)
+		return nvme_ioctl(bdev, mode, NVME_IOCTL_SUBMIT_IO, arg);
+
+	return nvme_ioctl(bdev, mode, cmd, arg);
+}
+#else
+#define nvme_compat_ioctl	NULL
+#endif /* CONFIG_COMPAT */
+
 static int nvme_open(struct block_device *bdev, fmode_t mode)
 {
 	struct nvme_ns *ns = bdev->bd_disk->private_data;
@@ -2028,7 +2069,7 @@ EXPORT_SYMBOL_GPL(nvme_sec_submit);
 static const struct block_device_operations nvme_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= nvme_ioctl,
-	.compat_ioctl	= nvme_ioctl,
+	.compat_ioctl	= nvme_compat_ioctl,
 	.open		= nvme_open,
 	.release	= nvme_release,
 	.getgeo		= nvme_getgeo,
@@ -2056,7 +2097,7 @@ const struct block_device_operations nvme_ns_head_ops = {
 	.open		= nvme_ns_head_open,
 	.release	= nvme_ns_head_release,
 	.ioctl		= nvme_ioctl,
-	.compat_ioctl	= nvme_ioctl,
+	.compat_ioctl	= nvme_compat_ioctl,
 	.getgeo		= nvme_getgeo,
 	.pr_ops		= &nvme_pr_ops,
 };
