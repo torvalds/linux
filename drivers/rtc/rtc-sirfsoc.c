@@ -346,6 +346,7 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtcdrv->rtc);
 
 	rtcdrv->rtc->ops = &sirfsoc_rtc_ops;
+	rtcdrv->rtc->range_max = (1ULL << 60) - 1;
 
 	rtcdrv->irq = platform_get_irq(pdev, 0);
 	err = devm_request_irq(&pdev->dev, rtcdrv->irq, sirfsoc_rtc_irq_handler,
