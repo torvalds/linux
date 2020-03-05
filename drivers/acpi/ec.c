@@ -182,7 +182,6 @@ static bool boot_ec_is_ecdt = false;
 static struct workqueue_struct *ec_wq;
 static struct workqueue_struct *ec_query_wq;
 
-static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
 static int EC_FLAGS_CORRECT_ECDT; /* Needs ECDT port address correction */
 static int EC_FLAGS_IGNORE_DSDT_GPE; /* Needs ECDT GPE as correction setting */
 static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
@@ -690,21 +689,9 @@ static void advance_transaction(struct acpi_ec *ec)
 			wakeup = true;
 		}
 		goto out;
-	} else {
-		if (EC_FLAGS_QUERY_HANDSHAKE &&
-		    !(status & ACPI_EC_FLAG_SCI) &&
-		    (t->command == ACPI_EC_COMMAND_QUERY)) {
-			ec_transaction_transition(ec, ACPI_EC_COMMAND_POLL);
-			t->rdata[t->ri++] = 0x00;
-			ec_transaction_transition(ec, ACPI_EC_COMMAND_COMPLETE);
-			ec_dbg_evt("Command(%s) completed by software",
-				   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
-			wakeup = true;
-		} else if ((status & ACPI_EC_FLAG_IBF) == 0) {
-			acpi_ec_write_cmd(ec, t->command);
-			ec_transaction_transition(ec, ACPI_EC_COMMAND_POLL);
-		} else
-			goto err;
+	} else if (!(status & ACPI_EC_FLAG_IBF)) {
+		acpi_ec_write_cmd(ec, t->command);
+		ec_transaction_transition(ec, ACPI_EC_COMMAND_POLL);
 		goto out;
 	}
 err:
@@ -1804,22 +1791,6 @@ static void __init acpi_ec_ecdt_start(void)
 	/* Add a special ACPI device object to represent the boot EC. */
 	acpi_bus_register_early_device(ACPI_BUS_TYPE_ECDT_EC);
 }
-
-#if 0
-/*
- * Some EC firmware variations refuses to respond QR_EC when SCI_EVT is not
- * set, for which case, we complete the QR_EC without issuing it to the
- * firmware.
- * https://bugzilla.kernel.org/show_bug.cgi?id=82611
- * https://bugzilla.kernel.org/show_bug.cgi?id=97381
- */
-static int ec_flag_query_handshake(const struct dmi_system_id *id)
-{
-	pr_debug("Detected the EC firmware requiring QR_EC issued when SCI_EVT set\n");
-	EC_FLAGS_QUERY_HANDSHAKE = 1;
-	return 0;
-}
-#endif
 
 /*
  * On some hardware it is necessary to clear events accumulated by the EC during
