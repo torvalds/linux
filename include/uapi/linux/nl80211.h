@@ -5654,6 +5654,9 @@ enum nl80211_feature_flags {
  *
  * @NL80211_EXT_FEATURE_PROTECTED_TWT: Driver supports protected TWT frames
  *
+ * @NL80211_EXT_FEATURE_DEL_IBSS_STA: The driver supports removing stations
+ *      in IBSS mode, essentially by dropping their state.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5704,6 +5707,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_BEACON_PROTECTION,
 	NL80211_EXT_FEATURE_CONTROL_PORT_NO_PREAUTH,
 	NL80211_EXT_FEATURE_PROTECTED_TWT,
+	NL80211_EXT_FEATURE_DEL_IBSS_STA,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
