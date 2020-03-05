@@ -139,6 +139,7 @@ struct mlxsw_sp_port_type_speed_ops;
 struct mlxsw_sp_ptp_state;
 struct mlxsw_sp_ptp_ops;
 struct mlxsw_sp_span_ops;
+struct mlxsw_sp_qdisc_state;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
@@ -276,8 +277,7 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
 	struct mlxsw_sp_port_vlan *default_vlan;
-	struct mlxsw_sp_qdisc *root_qdisc;
-	struct mlxsw_sp_qdisc *tclass_qdiscs;
+	struct mlxsw_sp_qdisc_state *qdisc;
 	unsigned acl_rule_count;
 	struct mlxsw_sp_acl_block *ing_acl_block;
 	struct mlxsw_sp_acl_block *eg_acl_block;
