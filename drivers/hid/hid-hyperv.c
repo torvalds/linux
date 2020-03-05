@@ -193,8 +193,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 		goto cleanup;
 
 	/* The pointer is not NULL when we resume from hibernation */
-	if (input_device->hid_desc != NULL)
-		kfree(input_device->hid_desc);
+	kfree(input_device->hid_desc);
 	input_device->hid_desc = kmemdup(desc, desc->bLength, GFP_ATOMIC);
 
 	if (!input_device->hid_desc)
@@ -207,8 +206,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	}
 
 	/* The pointer is not NULL when we resume from hibernation */
-	if (input_device->report_desc != NULL)
-		kfree(input_device->report_desc);
+	kfree(input_device->report_desc);
 	input_device->report_desc = kzalloc(input_device->report_desc_size,
 					  GFP_ATOMIC);
 
