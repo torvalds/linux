@@ -213,8 +213,7 @@ drm_fb_helper_from_client(struct drm_client_dev *client)
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 			   const struct drm_fb_helper_funcs *funcs);
-int drm_fb_helper_init(struct drm_device *dev,
-		       struct drm_fb_helper *helper, int max_conn);
+int drm_fb_helper_init(struct drm_device *dev, struct drm_fb_helper *helper);
 void drm_fb_helper_fini(struct drm_fb_helper *helper);
 int drm_fb_helper_blank(int blank, struct fb_info *info);
 int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
@@ -279,8 +278,7 @@ static inline void drm_fb_helper_prepare(struct drm_device *dev,
 }
 
 static inline int drm_fb_helper_init(struct drm_device *dev,
-		       struct drm_fb_helper *helper,
-		       int max_conn)
+		       struct drm_fb_helper *helper)
 {
 	/* So drivers can use it to free the struct */
 	helper->dev = dev;

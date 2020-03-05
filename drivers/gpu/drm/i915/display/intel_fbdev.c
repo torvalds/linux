@@ -453,7 +453,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	if (!intel_fbdev_init_bios(dev, ifbdev))
 		ifbdev->preferred_bpp = 32;
 
-	ret = drm_fb_helper_init(dev, &ifbdev->helper, 4);
+	ret = drm_fb_helper_init(dev, &ifbdev->helper);
 	if (ret) {
 		kfree(ifbdev);
 		return ret;

@@ -124,7 +124,7 @@ int rockchip_drm_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, &rockchip_drm_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper, ROCKCHIP_MAX_CONNECTOR);
+	ret = drm_fb_helper_init(dev, helper);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev->dev,
 			      "Failed to initialize drm fb helper - %d.\n",

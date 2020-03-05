@@ -336,8 +336,7 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 	drm_fb_helper_prepare(adev->ddev, &rfbdev->helper,
 			&amdgpu_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(adev->ddev, &rfbdev->helper,
-				 AMDGPUFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(adev->ddev, &rfbdev->helper);
 	if (ret) {
 		kfree(rfbdev);
 		return ret;

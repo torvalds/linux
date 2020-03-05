@@ -513,7 +513,7 @@ int psb_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, fb_helper, &psb_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, fb_helper, INTELFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(dev, fb_helper);
 	if (ret)
 		goto free;
 

@@ -354,8 +354,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	drm_fb_helper_prepare(rdev->ddev, &rfbdev->helper,
 			      &radeon_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(rdev->ddev, &rfbdev->helper,
-				 RADEONFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(rdev->ddev, &rfbdev->helper);
 	if (ret)
 		goto free;
 
