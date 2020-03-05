@@ -230,7 +230,11 @@ static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
 		goto err;
 
 	list_for_each_entry(p, journal_entries, list)
-		for_each_jset_key(k, _n, entry, &p->j)
+		for_each_jset_key(k, _n, entry, &p->j) {
+			if (bkey_deleted(&k->k) &&
+			    btree_node_type_is_extents(entry->btree_id))
+				continue;
+
 			keys.d[keys.nr++] = (struct journal_key) {
 				.btree_id	= entry->btree_id,
 				.pos		= bkey_start_pos(&k->k),
@@ -239,8 +243,9 @@ static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
 					keys.journal_seq_base,
 				.journal_offset	= k->_data - p->j._data,
 			};
+		}
 
-	sort(keys.d, nr_keys, sizeof(keys.d[0]), journal_sort_key_cmp, NULL);
+	sort(keys.d, keys.nr, sizeof(keys.d[0]), journal_sort_key_cmp, NULL);
 
 	i = keys.d;
 	while (i < keys.d + keys.nr) {
