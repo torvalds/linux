@@ -19,6 +19,7 @@ Required properties:
    - "rockchip,rk3366-i2s", "rockchip,rk3066-i2s": for rk3366
    - "rockchip,rk3368-i2s", "rockchip,rk3066-i2s": for rk3368
    - "rockchip,rk3399-i2s", "rockchip,rk3066-i2s": for rk3399
+   - "rockchip,rv1126-i2s", "rockchip,rk3066-i2s": for rv1126
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: should contain the I2S interrupt.
