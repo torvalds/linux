@@ -818,6 +818,9 @@ config SND_SOC_RK817
 	depends on MFD_RK808
 	select REGMAP_I2C
 
+config SND_SOC_RK_CODEC_DIGITAL
+	tristate "Rockchip Codec Digital Interface"
+
 config SND_SOC_RL6231
 	tristate
 	default y if SND_SOC_RT5514=y
