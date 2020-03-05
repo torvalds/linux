@@ -450,30 +450,6 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	unsigned int rx_frames, rx_riwt, rx_usecs;
 	unsigned int tx_frames;
 
-	/* Check for not supported parameters  */
-	if ((ec->rx_coalesce_usecs_irq) ||
-	    (ec->rx_max_coalesced_frames_irq) ||
-	    (ec->tx_coalesce_usecs) ||
-	    (ec->tx_coalesce_usecs_irq) ||
-	    (ec->tx_max_coalesced_frames_irq) ||
-	    (ec->stats_block_coalesce_usecs) ||
-	    (ec->use_adaptive_rx_coalesce) ||
-	    (ec->use_adaptive_tx_coalesce) ||
-	    (ec->pkt_rate_low) ||
-	    (ec->rx_coalesce_usecs_low) ||
-	    (ec->rx_max_coalesced_frames_low) ||
-	    (ec->tx_coalesce_usecs_low) ||
-	    (ec->tx_max_coalesced_frames_low) ||
-	    (ec->pkt_rate_high) ||
-	    (ec->rx_coalesce_usecs_high) ||
-	    (ec->rx_max_coalesced_frames_high) ||
-	    (ec->tx_coalesce_usecs_high) ||
-	    (ec->tx_max_coalesced_frames_high) ||
-	    (ec->rate_sample_interval)) {
-		netdev_err(netdev, "unsupported coalescing parameter\n");
-		return -EOPNOTSUPP;
-	}
-
 	rx_riwt = hw_if->usec_to_riwt(pdata, ec->rx_coalesce_usecs);
 	rx_usecs = ec->rx_coalesce_usecs;
 	rx_frames = ec->rx_max_coalesced_frames;
@@ -837,6 +813,8 @@ out:
 }
 
 static const struct ethtool_ops xgbe_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo = xgbe_get_drvinfo,
 	.get_msglevel = xgbe_get_msglevel,
 	.set_msglevel = xgbe_set_msglevel,
