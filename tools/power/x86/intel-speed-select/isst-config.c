@@ -2408,6 +2408,8 @@ static void print_version(void)
 
 static void cmdline(int argc, char **argv)
 {
+	const char *pathname = "/dev/isst_interface";
+	FILE *fp;
 	int opt;
 	int option_index = 0;
 	int ret;
@@ -2422,6 +2424,28 @@ static void cmdline(int argc, char **argv)
 		{ "version", no_argument, 0, 'v' },
 		{ 0, 0, 0, 0 }
 	};
+
+	if (geteuid() != 0) {
+		fprintf(stderr, "Must run as root\n");
+		exit(0);
+	}
+
+	ret = update_cpu_model();
+	if (ret)
+		err(-1, "Invalid CPU model (%d)\n", cpu_model);
+	printf("Intel(R) Speed Select Technology\n");
+	printf("Executing on CPU model:%d[0x%x]\n", cpu_model, cpu_model);
+
+	if (!is_clx_n_platform()) {
+		fp = fopen(pathname, "rb");
+		if (!fp) {
+			fprintf(stderr, "Intel speed select drivers are not loaded on this system.\n");
+			fprintf(stderr, "Verify that kernel config includes CONFIG_INTEL_SPEED_SELECT_INTERFACE.\n");
+			fprintf(stderr, "If the config is included then this is not a supported platform.\n");
+			exit(0);
+		}
+		fclose(fp);
+	}
 
 	progname = argv[0];
 	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:v", long_options,
@@ -2457,20 +2481,10 @@ static void cmdline(int argc, char **argv)
 		}
 	}
 
-	if (geteuid() != 0) {
-		fprintf(stderr, "Must run as root\n");
-		exit(0);
-	}
-
 	if (optind > (argc - 2)) {
 		fprintf(stderr, "Feature name and|or command not specified\n");
 		exit(0);
 	}
-	ret = update_cpu_model();
-	if (ret)
-		err(-1, "Invalid CPU model (%d)\n", cpu_model);
-	printf("Intel(R) Speed Select Technology\n");
-	printf("Executing on CPU model:%d[0x%x]\n", cpu_model, cpu_model);
 	set_max_cpu_num();
 	store_cpu_topology();
 	set_cpu_present_cpu_mask();
