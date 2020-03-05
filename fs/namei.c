@@ -3220,31 +3220,26 @@ finish_lookup:
 /*
  * Handle the last step of open()
  */
-static const char *do_last(struct nameidata *nd,
+static int do_open(struct nameidata *nd,
 		   struct file *file, const struct open_flags *op)
 {
 	int open_flag = op->open_flag;
 	bool do_truncate;
 	int acc_mode;
-	const char *link;
 	int error;
-
-	link = open_last_lookups(nd, file, op);
-	if (unlikely(link))
-		return link;
 
 	if (!(file->f_mode & FMODE_CREATED))
 		audit_inode(nd->name, nd->path.dentry, 0);
 	if (open_flag & O_CREAT) {
 		if (d_is_dir(nd->path.dentry))
-			return ERR_PTR(-EISDIR);
+			return -EISDIR;
 		error = may_create_in_sticky(nd->dir_mode, nd->dir_uid,
 					     d_backing_inode(nd->path.dentry));
 		if (unlikely(error))
-			return ERR_PTR(error);
+			return error;
 	}
 	if ((nd->flags & LOOKUP_DIRECTORY) && !d_can_lookup(nd->path.dentry))
-		return ERR_PTR(-ENOTDIR);
+		return -ENOTDIR;
 
 	do_truncate = false;
 	acc_mode = op->acc_mode;
@@ -3255,7 +3250,7 @@ static const char *do_last(struct nameidata *nd,
 	} else if (d_is_reg(nd->path.dentry) && open_flag & O_TRUNC) {
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
-			return ERR_PTR(error);
+			return error;
 		do_truncate = true;
 	}
 	error = may_open(&nd->path, acc_mode, open_flag);
@@ -3271,7 +3266,7 @@ static const char *do_last(struct nameidata *nd,
 	}
 	if (do_truncate)
 		mnt_drop_write(nd->path.mnt);
-	return ERR_PTR(error);
+	return error;
 }
 
 struct dentry *vfs_tmpfile(struct dentry *dentry, umode_t mode, int open_flag)
@@ -3374,8 +3369,10 @@ static struct file *path_openat(struct nameidata *nd,
 	} else {
 		const char *s = path_init(nd, flags);
 		while (!(error = link_path_walk(s, nd)) &&
-		       (s = do_last(nd, file, op)) != NULL)
+		       (s = open_last_lookups(nd, file, op)) != NULL)
 			;
+		if (!error)
+			error = do_open(nd, file, op);
 		terminate_walk(nd);
 	}
 	if (likely(!error)) {
