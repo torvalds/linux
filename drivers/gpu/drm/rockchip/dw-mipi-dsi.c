@@ -1866,6 +1866,20 @@ static const struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_plat_data = {
 	.max_bit_rate_per_lane = 1500000000UL,
 };
 
+static const u32 rv1126_dsi_grf_reg_fields[MAX_FIELDS] = {
+	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0009,  5,  5),
+	[DPISHUTDN]		= GRF_REG_FIELD(0x0009,  4,  4),
+	[DPICOLORM]		= GRF_REG_FIELD(0x0009,  3,  3),
+	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x0220,  4,  7),
+	[TURNDISABLE]		= GRF_REG_FIELD(0x0220,  2,  2),
+	[FORCERXMODE]		= GRF_REG_FIELD(0x0220,  0,  0),
+};
+
+static const struct dw_mipi_dsi_plat_data rv1126_mipi_dsi_plat_data = {
+	.dsi0_grf_reg_fields = rv1126_dsi_grf_reg_fields,
+	.max_bit_rate_per_lane = 1000000000UL,
+};
+
 static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
 	{
 		.compatible = "rockchip,px30-mipi-dsi",
@@ -1885,6 +1899,9 @@ static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
 	}, {
 		.compatible = "rockchip,rk3399-mipi-dsi",
 		.data = &rk3399_mipi_dsi_plat_data,
+	}, {
+		.compatible = "rockchip,rv1126-mipi-dsi",
+		.data = &rv1126_mipi_dsi_plat_data,
 	},
 	{}
 };
