@@ -776,8 +776,8 @@ i915_request_await_start(struct i915_request *rq, struct i915_request *signal)
 	struct dma_fence *fence;
 	int err;
 
-	GEM_BUG_ON(i915_request_timeline(rq) ==
-		   rcu_access_pointer(signal->timeline));
+	if (i915_request_timeline(rq) == rcu_access_pointer(signal->timeline))
+		return 0;
 
 	if (i915_request_started(signal))
 		return 0;
