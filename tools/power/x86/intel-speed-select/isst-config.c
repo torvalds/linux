@@ -2400,9 +2400,12 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			}
 			break;
 		default:
-			printf("no match\n");
+			printf("Unknown option: ignore\n");
 		}
 	}
+
+	if (argv[optind])
+		printf("Garbage at the end of command: ignore\n");
 }
 
 static void isst_help(void)
