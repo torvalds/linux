@@ -42,10 +42,6 @@ SYM_FUNC_END(\name)
 	THUNK trace_hardirqs_off_thunk,trace_hardirqs_off_caller,1
 #endif
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	THUNK lockdep_sys_exit_thunk,lockdep_sys_exit
-#endif
-
 #ifdef CONFIG_PREEMPTION
 	THUNK preempt_schedule_thunk, preempt_schedule
 	THUNK preempt_schedule_notrace_thunk, preempt_schedule_notrace
@@ -54,7 +50,6 @@ SYM_FUNC_END(\name)
 #endif
 
 #if defined(CONFIG_TRACE_IRQFLAGS) \
- || defined(CONFIG_DEBUG_LOCK_ALLOC) \
  || defined(CONFIG_PREEMPTION)
 SYM_CODE_START_LOCAL_NOALIGN(.L_restore)
 	popq %r11
