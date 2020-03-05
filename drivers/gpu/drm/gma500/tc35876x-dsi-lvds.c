@@ -765,12 +765,7 @@ static const struct drm_encoder_helper_funcs tc35876x_encoder_helper_funcs = {
 	.commit = mdfld_dsi_dpi_commit,
 };
 
-static const struct drm_encoder_funcs tc35876x_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 const struct panel_funcs mdfld_tc35876x_funcs = {
-	.encoder_funcs = &tc35876x_encoder_funcs,
 	.encoder_helper_funcs = &tc35876x_encoder_helper_funcs,
 	.get_config_mode = tc35876x_get_config_mode,
 	.get_panel_info = tc35876x_get_panel_info,
