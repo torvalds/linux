@@ -1365,7 +1365,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	int i;
 	struct dc_state *context = dc->current_state;
 
-	if ((!dc->clk_optimized_required && !dc->wm_optimized_required) || dc->optimize_seamless_boot_streams > 0)
+	if ((!dc->optimized_required) || dc->optimize_seamless_boot_streams > 0)
 		return true;
 
 	post_surface_trace(dc);
@@ -1379,7 +1379,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	dc->hwss.optimize_bandwidth(dc, context);
 
-	dc->clk_optimized_required = false;
+	dc->optimized_required = false;
 	dc->wm_optimized_required = false;
 
 	return true;
@@ -1828,11 +1828,12 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		// If there's an available clock comparator, we use that.
 		if (dc->clk_mgr->funcs->are_clock_states_equal) {
 			if (!dc->clk_mgr->funcs->are_clock_states_equal(&dc->clk_mgr->clks, &dc->current_state->bw_ctx.bw.dcn.clk))
-				dc->clk_optimized_required = true;
+				dc->optimized_required = true;
 		// Else we fallback to mem compare.
 		} else if (memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0) {
-			dc->clk_optimized_required = true;
-		}
+			dc->optimized_required = true;
+		} else if (dc->wm_optimized_required)
+			dc->optimized_required = true;
 	}
 
 	return type;
@@ -2204,7 +2205,7 @@ static void commit_planes_for_stream(struct dc *dc,
 			dc->optimize_seamless_boot_streams--;
 
 			if (dc->optimize_seamless_boot_streams == 0)
-				dc->clk_optimized_required = true;
+				dc->optimized_required = true;
 		}
 	}
 

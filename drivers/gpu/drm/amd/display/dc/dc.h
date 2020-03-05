@@ -521,7 +521,7 @@ struct dc {
 	struct dce_hwseq *hwseq;
 
 	/* Require to optimize clocks and bandwidth for added/removed planes */
-	bool clk_optimized_required;
+	bool optimized_required;
 	bool wm_optimized_required;
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
