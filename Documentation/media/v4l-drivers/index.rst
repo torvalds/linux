@@ -76,3 +76,4 @@ For more details see the file COPYING in the source distribution of Linux.
 
 	cx2341x-uapi
 	meye-uapi
+	omap3isp-uapi
