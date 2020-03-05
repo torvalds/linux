@@ -136,6 +136,9 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 
 	mutex_lock(&rtwdev->mutex);
 
+	if (!test_bit(RTW_FLAG_RUNNING, rtwdev->flags))
+		goto unlock;
+
 	switch (c2h->id) {
 	case C2H_BT_INFO:
 		rtw_coex_bt_info_notify(rtwdev, c2h->payload, len);
@@ -153,6 +156,7 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		break;
 	}
 
+unlock:
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -745,7 +749,7 @@ static struct sk_buff *rtw_nlo_info_get(struct ieee80211_hw *hw)
 		loc  = rtw_get_rsvd_page_probe_req_location(rtwdev, ssid);
 		if (!loc) {
 			rtw_err(rtwdev, "failed to get probe req rsvd loc\n");
-			kfree(skb);
+			kfree_skb(skb);
 			return NULL;
 		}
 		nlo_hdr->location[i] = loc;
@@ -819,8 +823,7 @@ static struct sk_buff *rtw_lps_pg_dpk_get(struct ieee80211_hw *hw)
 	return skb;
 }
 
-static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw,
-					   struct ieee80211_vif *vif)
+static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw)
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -876,7 +879,7 @@ static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 		skb_new = rtw_lps_pg_dpk_get(hw);
 		break;
 	case RSVD_LPS_PG_INFO:
-		skb_new = rtw_lps_pg_info_get(hw, vif);
+		skb_new = rtw_lps_pg_info_get(hw);
 		break;
 	case RSVD_PROBE_REQ:
 		ssid = (struct cfg80211_ssid *)rsvd_pkt->ssid;

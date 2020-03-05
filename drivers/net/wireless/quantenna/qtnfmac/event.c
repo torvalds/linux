@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/nospec.h>
 
 #include "cfg80211.h"
 #include "core.h"
@@ -25,7 +26,6 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	size_t payload_len;
 	u16 tlv_type;
 	u16 tlv_value_len;
-	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
 	int ret = 0;
 
@@ -58,23 +58,17 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	sinfo->generation = vif->generation;
 
 	payload_len = len - sizeof(*sta_assoc);
-	tlv = (const struct qlink_tlv_hdr *)sta_assoc->ies;
 
-	while (payload_len >= sizeof(*tlv)) {
+	qlink_for_each_tlv(tlv, sta_assoc->ies, payload_len) {
 		tlv_type = le16_to_cpu(tlv->type);
 		tlv_value_len = le16_to_cpu(tlv->len);
-		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
-
-		if (tlv_full_len > payload_len) {
-			ret = -EINVAL;
-			goto out;
-		}
 
 		if (tlv_type == QTN_TLV_ID_IE_SET) {
 			const struct qlink_tlv_ie_set *ie_set;
 			unsigned int ie_len;
 
-			if (payload_len < sizeof(*ie_set)) {
+			if (tlv_value_len <
+			    (sizeof(*ie_set) - sizeof(ie_set->hdr))) {
 				ret = -EINVAL;
 				goto out;
 			}
@@ -88,12 +82,10 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 				sinfo->assoc_req_ies_len = ie_len;
 			}
 		}
-
-		payload_len -= tlv_full_len;
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
 
-	if (payload_len) {
+	if (!qlink_tlv_parsing_ok(tlv, sta_assoc->ies, payload_len)) {
+		pr_err("Malformed TLV buffer\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -153,7 +145,6 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 	size_t payload_len;
 	u16 tlv_type;
 	u16 tlv_value_len;
-	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
 	const u8 *rsp_ies = NULL;
 	size_t rsp_ies_len = 0;
@@ -235,24 +226,17 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 	}
 
 	payload_len = len - sizeof(*join_info);
-	tlv = (struct qlink_tlv_hdr *)join_info->ies;
 
-	while (payload_len >= sizeof(struct qlink_tlv_hdr)) {
+	qlink_for_each_tlv(tlv, join_info->ies, payload_len) {
 		tlv_type = le16_to_cpu(tlv->type);
 		tlv_value_len = le16_to_cpu(tlv->len);
-		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
-
-		if (payload_len < tlv_full_len) {
-			pr_warn("invalid %u TLV\n", tlv_type);
-			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
-			goto done;
-		}
 
 		if (tlv_type == QTN_TLV_ID_IE_SET) {
 			const struct qlink_tlv_ie_set *ie_set;
 			unsigned int ie_len;
 
-			if (payload_len < sizeof(*ie_set)) {
+			if (tlv_value_len <
+			    (sizeof(*ie_set) - sizeof(ie_set->hdr))) {
 				pr_warn("invalid IE_SET TLV\n");
 				status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 				goto done;
@@ -275,15 +259,10 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 				break;
 			}
 		}
-
-		payload_len -= tlv_full_len;
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
 
-	if (payload_len)
-		pr_warn("VIF%u.%u: unexpected remaining payload: %zu\n",
-			vif->mac->macid, vif->vifid, payload_len);
-
+	if (!qlink_tlv_parsing_ok(tlv, join_info->ies, payload_len))
+		pr_warn("Malformed TLV buffer\n");
 done:
 	cfg80211_connect_result(vif->netdev, join_info->bssid, NULL, 0, rsp_ies,
 				rsp_ies_len, status, GFP_KERNEL);
@@ -368,7 +347,6 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 	size_t payload_len;
 	u16 tlv_type;
 	u16 tlv_value_len;
-	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
 	const u8 *ies = NULL;
 	size_t ies_len = 0;
@@ -387,21 +365,17 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 	}
 
 	payload_len = len - sizeof(*sr);
-	tlv = (struct qlink_tlv_hdr *)sr->payload;
 
-	while (payload_len >= sizeof(struct qlink_tlv_hdr)) {
+	qlink_for_each_tlv(tlv, sr->payload, payload_len) {
 		tlv_type = le16_to_cpu(tlv->type);
 		tlv_value_len = le16_to_cpu(tlv->len);
-		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
-
-		if (tlv_full_len > payload_len)
-			return -EINVAL;
 
 		if (tlv_type == QTN_TLV_ID_IE_SET) {
 			const struct qlink_tlv_ie_set *ie_set;
 			unsigned int ie_len;
 
-			if (payload_len < sizeof(*ie_set))
+			if (tlv_value_len <
+			    (sizeof(*ie_set) - sizeof(ie_set->hdr)))
 				return -EINVAL;
 
 			ie_set = (const struct qlink_tlv_ie_set *)tlv;
@@ -424,12 +398,9 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 				ies_len = ie_len;
 			}
 		}
-
-		payload_len -= tlv_full_len;
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
 
-	if (payload_len)
+	if (!qlink_tlv_parsing_ok(tlv, sr->payload, payload_len))
 		return -EINVAL;
 
 	bss = cfg80211_inform_bss(wiphy, channel, frame_type,
@@ -662,17 +633,19 @@ static int qtnf_event_parse(struct qtnf_wmac *mac,
 	int ret = -1;
 	u16 event_id;
 	u16 event_len;
+	u8 vifid;
 
 	event = (const struct qlink_event *)event_skb->data;
 	event_id = le16_to_cpu(event->event_id);
 	event_len = le16_to_cpu(event->mhdr.len);
 
-	if (likely(event->vifid < QTNF_MAX_INTF)) {
-		vif = &mac->iflist[event->vifid];
-	} else {
+	if (event->vifid >= QTNF_MAX_INTF) {
 		pr_err("invalid vif(%u)\n", event->vifid);
 		return -EINVAL;
 	}
+
+	vifid = array_index_nospec(event->vifid, QTNF_MAX_INTF);
+	vif = &mac->iflist[vifid];
 
 	switch (event_id) {
 	case QLINK_EVENT_STA_ASSOCIATED:

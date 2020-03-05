@@ -21,7 +21,8 @@ enum mt7615_eeprom_field {
 	MT_EE_TX2_5G_G0_TARGET_POWER =		0x142,
 	MT_EE_TX3_5G_G0_TARGET_POWER =		0x16a,
 
-	__MT_EE_MAX =				0x3bf
+	MT7615_EE_MAX =				0x3bf,
+	MT7622_EE_MAX =				0x3db,
 };
 
 #define MT_EE_NIC_CONF_TX_MASK			GENMASK(7, 4)

@@ -1289,6 +1289,17 @@ static int rtw8822c_mac_init(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+static void rtw8822c_rstb_3wire(struct rtw_dev *rtwdev, bool enable)
+{
+	if (enable) {
+		rtw_write32_mask(rtwdev, REG_RSTB, BIT_RSTB_3WIRE, 0x1);
+		rtw_write32_mask(rtwdev, REG_ANAPAR_A, BIT_ANAPAR_UPDATE, 0x1);
+		rtw_write32_mask(rtwdev, REG_ANAPAR_B, BIT_ANAPAR_UPDATE, 0x1);
+	} else {
+		rtw_write32_mask(rtwdev, REG_RSTB, BIT_RSTB_3WIRE, 0x0);
+	}
+}
+
 static void rtw8822c_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
 {
 #define RF18_BAND_MASK		(BIT(16) | BIT(9) | BIT(8))
@@ -1337,6 +1348,8 @@ static void rtw8822c_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
 		break;
 	}
 
+	rtw8822c_rstb_3wire(rtwdev, false);
+
 	rtw_write_rf(rtwdev, RF_PATH_A, RF_LUTWE2, 0x04, 0x01);
 	rtw_write_rf(rtwdev, RF_PATH_A, RF_LUTWA, 0x1f, 0x12);
 	rtw_write_rf(rtwdev, RF_PATH_A, RF_LUTWD0, 0xfffff, rf_rxbb);
@@ -1349,6 +1362,8 @@ static void rtw8822c_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
 
 	rtw_write_rf(rtwdev, RF_PATH_A, RF_CFGCH, RFREG_MASK, rf_reg18);
 	rtw_write_rf(rtwdev, RF_PATH_B, RF_CFGCH, RFREG_MASK, rf_reg18);
+
+	rtw8822c_rstb_3wire(rtwdev, true);
 }
 
 static void rtw8822c_toggle_igi(struct rtw_dev *rtwdev)
@@ -1482,7 +1497,7 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		break;
 	case RTW_CHANNEL_WIDTH_40:
 		rtw_write32_mask(rtwdev, REG_CCKSB, BIT(4),
-				 (primary_ch_idx == 1 ? 1 : 0));
+				 (primary_ch_idx == RTW_SC_20_UPPER ? 1 : 0));
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xf, 0x5);
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xc0, 0x0);
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xff00,
@@ -3399,7 +3414,7 @@ static void rtw8822c_pwr_track(struct rtw_dev *rtwdev)
 	dm_info->pwr_trk_triggered = false;
 }
 
-static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822c[] = {
+static const struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822c[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_SDIO_MSK,
@@ -3442,7 +3457,7 @@ static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822c[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822c[] = {
+static const struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822c[] = {
 	{0x0000,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_USB_MSK | RTW_PWR_INTF_SDIO_MSK,
@@ -3544,6 +3559,11 @@ static struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822c[] = {
 	 RTW_PWR_INTF_ALL_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, BIT(2), BIT(2)},
+	{0x1064,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_ALL_MSK,
+	 RTW_PWR_ADDR_MAC,
+	 RTW_PWR_CMD_WRITE, BIT(1), BIT(1)},
 	{0xFFFF,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -3551,7 +3571,7 @@ static struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822c[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822c[] = {
+static const struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822c[] = {
 	{0x0093,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -3614,7 +3634,7 @@ static struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822c[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822c[] = {
+static const struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822c[] = {
 	{0x0005,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_SDIO_MSK,
@@ -3677,47 +3697,47 @@ static struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822c[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd *card_enable_flow_8822c[] = {
+static const struct rtw_pwr_seq_cmd *card_enable_flow_8822c[] = {
 	trans_carddis_to_cardemu_8822c,
 	trans_cardemu_to_act_8822c,
 	NULL
 };
 
-static struct rtw_pwr_seq_cmd *card_disable_flow_8822c[] = {
+static const struct rtw_pwr_seq_cmd *card_disable_flow_8822c[] = {
 	trans_act_to_cardemu_8822c,
 	trans_cardemu_to_carddis_8822c,
 	NULL
 };
 
-static struct rtw_intf_phy_para usb2_param_8822c[] = {
+static const struct rtw_intf_phy_para usb2_param_8822c[] = {
 	{0xFFFF, 0x00,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_ALL,
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para usb3_param_8822c[] = {
+static const struct rtw_intf_phy_para usb3_param_8822c[] = {
 	{0xFFFF, 0x0000,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_ALL,
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para pcie_gen1_param_8822c[] = {
+static const struct rtw_intf_phy_para pcie_gen1_param_8822c[] = {
 	{0xFFFF, 0x0000,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_ALL,
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para pcie_gen2_param_8822c[] = {
+static const struct rtw_intf_phy_para pcie_gen2_param_8822c[] = {
 	{0xFFFF, 0x0000,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_ALL,
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para_table phy_para_table_8822c = {
+static const struct rtw_intf_phy_para_table phy_para_table_8822c = {
 	.usb2_para	= usb2_param_8822c,
 	.usb3_para	= usb3_param_8822c,
 	.gen1_para	= pcie_gen1_param_8822c,
@@ -3734,12 +3754,12 @@ static const struct rtw_rfe_def rtw8822c_rfe_defs[] = {
 	[2] = RTW_DEF_RFE(8822c, 0, 0),
 };
 
-static struct rtw_hw_reg rtw8822c_dig[] = {
+static const struct rtw_hw_reg rtw8822c_dig[] = {
 	[0] = { .addr = 0x1d70, .mask = 0x7f },
 	[1] = { .addr = 0x1d70, .mask = 0x7f00 },
 };
 
-static struct rtw_page_table page_table_8822c[] = {
+static const struct rtw_page_table page_table_8822c[] = {
 	{64, 64, 64, 64, 1},
 	{64, 64, 64, 64, 1},
 	{64, 64, 0, 0, 1},
@@ -3747,7 +3767,7 @@ static struct rtw_page_table page_table_8822c[] = {
 	{64, 64, 64, 64, 1},
 };
 
-static struct rtw_rqpn rqpn_table_8822c[] = {
+static const struct rtw_rqpn rqpn_table_8822c[] = {
 	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},

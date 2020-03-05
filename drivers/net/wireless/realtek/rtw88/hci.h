@@ -193,6 +193,32 @@ rtw_read32_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask)
 	return ret;
 }
 
+static inline u16
+rtw_read16_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask)
+{
+	u32 shift = __ffs(mask);
+	u32 orig;
+	u32 ret;
+
+	orig = rtw_read16(rtwdev, addr);
+	ret = (orig & mask) >> shift;
+
+	return ret;
+}
+
+static inline u8
+rtw_read8_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask)
+{
+	u32 shift = __ffs(mask);
+	u32 orig;
+	u32 ret;
+
+	orig = rtw_read8(rtwdev, addr);
+	ret = (orig & mask) >> shift;
+
+	return ret;
+}
+
 static inline void
 rtw_write32_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 {

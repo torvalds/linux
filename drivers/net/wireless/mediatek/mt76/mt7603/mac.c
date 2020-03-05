@@ -4,6 +4,7 @@
 #include <linux/timekeeping.h>
 #include "mt7603.h"
 #include "mac.h"
+#include "../trace.h"
 
 #define MT_PSE_PAGE_SIZE	128
 
@@ -53,7 +54,7 @@ void mt7603_mac_set_timing(struct mt7603_dev *dev)
 	int sifs;
 	u32 val;
 
-	if (dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ)
+	if (dev->mphy.chandef.chan->band == NL80211_BAND_5GHZ)
 		sifs = 16;
 	else
 		sifs = 10;
@@ -456,7 +457,7 @@ void mt7603_mac_sta_poll(struct mt7603_dev *dev)
 		return;
 
 	spin_lock_bh(&dev->mt76.cc_lock);
-	dev->mt76.chan_state->cc_tx += total_airtime;
+	dev->mphy.chan_state->cc_tx += total_airtime;
 	spin_unlock_bh(&dev->mt76.cc_lock);
 }
 
@@ -502,7 +503,7 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 	memset(status, 0, sizeof(*status));
 
 	i = FIELD_GET(MT_RXD1_NORMAL_CH_FREQ, rxd1);
-	sband = (i & 1) ? &dev->mt76.sband_5g.sband : &dev->mt76.sband_2g.sband;
+	sband = (i & 1) ? &dev->mphy.sband_5g.sband : &dev->mphy.sband_2g.sband;
 	i >>= 1;
 
 	idx = FIELD_GET(MT_RXD2_NORMAL_WLAN_IDX, rxd2);
@@ -531,12 +532,12 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 
 		/* all subframes of an A-MPDU have the same timestamp */
 		if (dev->rx_ampdu_ts != rxd[12]) {
-			if (!++dev->mt76.ampdu_ref)
-				dev->mt76.ampdu_ref++;
+			if (!++dev->ampdu_ref)
+				dev->ampdu_ref++;
 		}
 		dev->rx_ampdu_ts = rxd[12];
 
-		status->ampdu_ref = dev->mt76.ampdu_ref;
+		status->ampdu_ref = dev->ampdu_ref;
 	}
 
 	remove_pad = rxd1 & MT_RXD1_NORMAL_HDR_OFFSET;
@@ -609,7 +610,7 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 
 		status->rate_idx = i;
 
-		status->chains = dev->mt76.antenna_mask;
+		status->chains = dev->mphy.antenna_mask;
 		status->chain_signal[0] = FIELD_GET(MT_RXV4_IB_RSSI0, rxdg3) +
 					  dev->rssi_offset[0];
 		status->chain_signal[1] = FIELD_GET(MT_RXV4_IB_RSSI1, rxdg3) +
@@ -668,7 +669,7 @@ mt7603_mac_tx_rate_val(struct mt7603_dev *dev,
 			*bw = 1;
 	} else {
 		const struct ieee80211_rate *r;
-		int band = dev->mt76.chandef.chan->band;
+		int band = dev->mphy.chandef.chan->band;
 		u16 val;
 
 		nss = 1;
@@ -1156,10 +1157,10 @@ out:
 		cck = true;
 		/* fall through */
 	case MT_PHY_TYPE_OFDM:
-		if (dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ)
-			sband = &dev->mt76.sband_5g.sband;
+		if (dev->mphy.chandef.chan->band == NL80211_BAND_5GHZ)
+			sband = &dev->mphy.sband_5g.sband;
 		else
-			sband = &dev->mt76.sband_2g.sband;
+			sband = &dev->mphy.sband_2g.sband;
 		final_rate &= GENMASK(5, 0);
 		final_rate = mt76_get_rate(&dev->mt76, sband, final_rate,
 					   cck);
@@ -1192,6 +1193,8 @@ mt7603_mac_add_txs_skb(struct mt7603_dev *dev, struct mt7603_sta *sta, int pid,
 
 	if (pid < MT_PACKET_ID_FIRST)
 		return false;
+
+	trace_mac_txdone(mdev, sta->wcid.idx, pid);
 
 	mt76_tx_status_lock(mdev, &list);
 	skb = mt76_tx_status_skb_get(mdev, &sta->wcid, pid, &list);
@@ -1389,10 +1392,10 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 	int i;
 
 	ieee80211_stop_queues(dev->mt76.hw);
-	set_bit(MT76_RESET, &dev->mt76.state);
+	set_bit(MT76_RESET, &dev->mphy.state);
 
 	/* lock/unlock all queues to ensure that no tx is pending */
-	mt76_txq_schedule_all(&dev->mt76);
+	mt76_txq_schedule_all(&dev->mphy);
 
 	tasklet_disable(&dev->mt76.tx_tasklet);
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
@@ -1426,7 +1429,7 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 
 	mt7603_pse_client_reset(dev);
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.q_tx); i++)
+	for (i = 0; i < __MT_TXQ_MAX; i++)
 		mt76_queue_tx_cleanup(dev, i, true);
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.q_rx); i++)
@@ -1439,7 +1442,7 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 	mt7603_irq_enable(dev, mask);
 
 skip_dma_reset:
-	clear_bit(MT76_RESET, &dev->mt76.state);
+	clear_bit(MT76_RESET, &dev->mphy.state);
 	mutex_unlock(&dev->mt76.mutex);
 
 	tasklet_enable(&dev->mt76.tx_tasklet);
@@ -1456,7 +1459,7 @@ skip_dma_reset:
 	napi_schedule(&dev->mt76.napi[1]);
 
 	ieee80211_wake_queues(dev->mt76.hw);
-	mt76_txq_schedule_all(&dev->mt76);
+	mt76_txq_schedule_all(&dev->mphy);
 }
 
 static u32 mt7603_dma_debug(struct mt7603_dev *dev, u8 index)
@@ -1574,7 +1577,7 @@ void mt7603_update_channel(struct mt76_dev *mdev)
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
 	struct mt76_channel_state *state;
 
-	state = mdev->chan_state;
+	state = mdev->phy.chan_state;
 	state->cc_busy += mt76_rr(dev, MT_MIB_STAT_CCA);
 }
 
@@ -1737,7 +1740,7 @@ mt7603_false_cca_check(struct mt7603_dev *dev)
 
 	mt7603_cca_stats_reset(dev);
 
-	min_signal = mt76_get_min_avg_rssi(&dev->mt76);
+	min_signal = mt76_get_min_avg_rssi(&dev->mt76, false);
 	if (!min_signal) {
 		dev->sensitivity = 0;
 		dev->last_cca_adj = jiffies;

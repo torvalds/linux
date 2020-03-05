@@ -1904,6 +1904,9 @@ static void rtw_coex_run_coex(struct rtw_dev *rtwdev, u8 reason)
 
 	lockdep_assert_held(&rtwdev->mutex);
 
+	if (!test_bit(RTW_FLAG_RUNNING, rtwdev->flags))
+		return;
+
 	coex_dm->reason = reason;
 
 	/* update wifi_link_info_ext variable */

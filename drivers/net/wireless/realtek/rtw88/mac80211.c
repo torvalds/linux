@@ -75,15 +75,12 @@ static int rtw_ops_config(struct ieee80211_hw *hw, u32 changed)
 
 	rtw_leave_lps_deep(rtwdev);
 
-	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
-		if (hw->conf.flags & IEEE80211_CONF_IDLE) {
-			rtw_enter_ips(rtwdev);
-		} else {
-			ret = rtw_leave_ips(rtwdev);
-			if (ret) {
-				rtw_err(rtwdev, "failed to leave idle state\n");
-				goto out;
-			}
+	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
+	    !(hw->conf.flags & IEEE80211_CONF_IDLE)) {
+		ret = rtw_leave_ips(rtwdev);
+		if (ret) {
+			rtw_err(rtwdev, "failed to leave idle state\n");
+			goto out;
 		}
 	}
 
@@ -98,6 +95,10 @@ static int rtw_ops_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
 		rtw_set_channel(rtwdev);
+
+	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
+	    (hw->conf.flags & IEEE80211_CONF_IDLE))
+		rtw_enter_ips(rtwdev);
 
 out:
 	mutex_unlock(&rtwdev->mutex);
@@ -514,6 +515,9 @@ static int rtw_ops_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
 		/* suppress error messages */
 		return -EOPNOTSUPP;
 	default:
@@ -590,6 +594,20 @@ static int rtw_ops_ampdu_action(struct ieee80211_hw *hw,
 	}
 
 	return 0;
+}
+
+static bool rtw_ops_can_aggregate_in_amsdu(struct ieee80211_hw *hw,
+					   struct sk_buff *head,
+					   struct sk_buff *skb)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_hal *hal = &rtwdev->hal;
+
+	/* we don't want to enable TX AMSDU on 2.4G */
+	if (hal->current_band_type == RTW_BAND_2G)
+		return false;
+
+	return true;
 }
 
 static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
@@ -787,6 +805,7 @@ const struct ieee80211_ops rtw_ops = {
 	.sta_remove		= rtw_ops_sta_remove,
 	.set_key		= rtw_ops_set_key,
 	.ampdu_action		= rtw_ops_ampdu_action,
+	.can_aggregate_in_amsdu	= rtw_ops_can_aggregate_in_amsdu,
 	.sw_scan_start		= rtw_ops_sw_scan_start,
 	.sw_scan_complete	= rtw_ops_sw_scan_complete,
 	.mgd_prepare_tx		= rtw_ops_mgd_prepare_tx,
