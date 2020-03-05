@@ -219,7 +219,7 @@ extern int isst_set_pbf_fact_status(int cpu, int pbf, int enable);
 extern int isst_get_pbf_info(int cpu, int level,
 			     struct isst_pbf_info *pbf_info);
 extern void isst_get_pbf_info_complete(struct isst_pbf_info *pbf_info);
-extern int isst_get_fact_info(int cpu, int level,
+extern int isst_get_fact_info(int cpu, int level, int fact_bucket,
 			      struct isst_fact_info *fact_info);
 extern int isst_get_fact_bucket_info(int cpu, int level,
 				     struct isst_fact_bucket_info *bucket_info);

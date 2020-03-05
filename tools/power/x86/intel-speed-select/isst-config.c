@@ -1712,12 +1712,15 @@ static void dump_fact_config_for_cpu(int cpu, void *arg1, void *arg2,
 	struct isst_fact_info fact_info;
 	int ret;
 
-	ret = isst_get_fact_info(cpu, tdp_level, &fact_info);
-	if (ret)
-		perror("isst_get_fact_bucket_info");
-	else
+	ret = isst_get_fact_info(cpu, tdp_level, fact_bucket, &fact_info);
+	if (ret) {
+		isst_display_error_info_message(1, "Failed to get turbo-freq info at this level", 1, tdp_level);
+		isst_ctdp_display_information_end(outf);
+		exit(1);
+	} else {
 		isst_fact_display_information(cpu, outf, tdp_level, fact_bucket,
 					      fact_avx, &fact_info);
+	}
 }
 
 static void dump_fact_config(int arg)
@@ -1735,7 +1738,7 @@ static void dump_fact_config(int arg)
 	}
 
 	if (tdp_level == 0xff) {
-		fprintf(outf, "Invalid command: specify tdp_level\n");
+		isst_display_error_info_message(1, "Invalid command: specify tdp_level\n", 0, 0);
 		exit(1);
 	}
 
@@ -1763,7 +1766,7 @@ static void set_fact_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 
 	ret = isst_set_pbf_fact_status(cpu, 0, status);
 	if (ret) {
-		perror("isst_set_fact");
+		debug_printf("isst_set_pbf_fact_status failed");
 		if (auto_mode)
 			isst_pm_qos_config(cpu, 0, 0);
 

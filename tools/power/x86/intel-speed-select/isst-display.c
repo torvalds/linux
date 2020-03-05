@@ -222,7 +222,21 @@ static void _isst_fact_display_information(int cpu, FILE *outf, int level,
 	struct isst_fact_bucket_info *bucket_info = fact_info->bucket_info;
 	char header[256];
 	char value[256];
-	int j;
+	int print = 0, j;
+
+	for (j = 0; j < ISST_FACT_MAX_BUCKETS; ++j) {
+		if (fact_bucket != 0xff && fact_bucket != j)
+			continue;
+
+		if (!bucket_info[j].high_priority_cores_count)
+			break;
+
+		print = 1;
+	}
+	if (!print) {
+		fprintf(stderr, "Invalid bucket\n");
+		return;
+	}
 
 	snprintf(header, sizeof(header), "speed-select-turbo-freq-properties");
 	format_and_print(outf, base_level, header, NULL);

@@ -516,7 +516,7 @@ int isst_set_pbf_fact_status(int cpu, int pbf, int enable)
 	} else {
 
 		if (enable && !ctdp_level.sst_cp_enabled)
-			fprintf(stderr, "Make sure to execute before: core-power enable\n");
+			isst_display_error_info_message(0, "Make sure to execute before: core-power enable", 0, 0);
 
 		if (ctdp_level.pbf_enabled)
 			req = BIT(17);
@@ -603,18 +603,30 @@ int isst_get_fact_bucket_info(int cpu, int level,
 	return 0;
 }
 
-int isst_get_fact_info(int cpu, int level, struct isst_fact_info *fact_info)
+int isst_get_fact_info(int cpu, int level, int fact_bucket, struct isst_fact_info *fact_info)
 {
 	struct isst_pkg_ctdp_level_info ctdp_level;
+	struct isst_pkg_ctdp pkg_dev;
 	unsigned int resp;
-	int ret;
+	int j, ret, print;
+
+	ret = isst_get_ctdp_levels(cpu, &pkg_dev);
+	if (ret) {
+		isst_display_error_info_message(1, "Failed to get number of levels", 0, 0);
+		return ret;
+	}
+
+	if (level > pkg_dev.levels) {
+		isst_display_error_info_message(1, "Invalid level", 1, level);
+		return -1;
+	}
 
 	ret = isst_get_ctdp_control(cpu, level, &ctdp_level);
 	if (ret)
 		return ret;
 
 	if (!ctdp_level.fact_support) {
-		fprintf(stderr, "turbo-freq feature is not present at this level:%d\n", level);
+		isst_display_error_info_message(1, "turbo-freq feature is not present at this level", 1, level);
 		return -1;
 	}
 
@@ -632,8 +644,25 @@ int isst_get_fact_info(int cpu, int level, struct isst_fact_info *fact_info)
 	fact_info->lp_clipping_ratio_license_avx512 = (resp >> 16) & 0xff;
 
 	ret = isst_get_fact_bucket_info(cpu, level, fact_info->bucket_info);
+	if (ret)
+		return ret;
 
-	return ret;
+	print = 0;
+	for (j = 0; j < ISST_FACT_MAX_BUCKETS; ++j) {
+		if (fact_bucket != 0xff && fact_bucket != j)
+			continue;
+
+		if (!fact_info->bucket_info[j].high_priority_cores_count)
+			break;
+
+		print = 1;
+	}
+	if (!print) {
+		isst_display_error_info_message(1, "Invalid bucket", 0, 0);
+		return -1;
+	}
+
+	return 0;
 }
 
 int isst_set_trl(int cpu, unsigned long long trl)
@@ -769,7 +798,7 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 		}
 
 		if (ctdp_level->fact_support) {
-			ret = isst_get_fact_info(cpu, i,
+			ret = isst_get_fact_info(cpu, i, 0xff,
 						 &ctdp_level->fact_info);
 			if (ret)
 				return ret;
