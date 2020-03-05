@@ -2469,11 +2469,12 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		pr_notice("CIFS: ignoring forcegid mount option specified with no gid= option.\n");
 
 	if (got_version == false)
-		pr_warn("No dialect specified on mount. Default has changed to "
-			"a more secure dialect, SMB2.1 or later (e.g. SMB3), from CIFS "
-			"(SMB1). To use the less secure SMB1 dialect to access "
-			"old servers which do not support SMB3 (or SMB2.1) specify vers=1.0"
-			" on mount.\n");
+		pr_warn_once("No dialect specified on mount. Default has changed"
+			" to a more secure dialect, SMB2.1 or later (e.g. "
+			"SMB3.1.1), from CIFS (SMB1). To use the less secure "
+			"SMB1 dialect to access old servers which do not "
+			"support SMB3.1.1 (or even SMB3 or SMB2.1) specify "
+			"vers=1.0 on mount.\n");
 
 	kfree(mountdata_copy);
 	return 0;
