@@ -422,7 +422,7 @@
 				clocks = <&clks 16>;
 			};
 
-			dcp@80028000 {
+			dcp: crypto@80028000 {
 				compatible = "fsl,imx23-dcp";
 				reg = <0x80028000 0x2000>;
 				interrupts = <53 54>;
