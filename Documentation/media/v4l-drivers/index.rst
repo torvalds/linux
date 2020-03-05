@@ -38,7 +38,6 @@ For more details see the file COPYING in the source distribution of Linux.
 	bttv
 	cafe_ccic
 	cpia2
-	cx2341x
 	cx88
 	davinci-vpbe
 	fimc
@@ -68,7 +67,9 @@ For more details see the file COPYING in the source distribution of Linux.
 
 	bttv-devel
 	cpia2_devel
+	cx2341x-devel
 	cx88-devel
 	vimc-devel
 
+	cx2341x-uapi
 	meye-uapi
