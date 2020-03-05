@@ -917,17 +917,19 @@ int isst_pm_qos_config(int cpu, int enable_clos, int priority_type)
 		}
 		ret = isst_write_pm_config(cpu, 0);
 		if (ret)
-			perror("isst_write_pm_config\n");
+			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error\n", 0, 0);
 	} else {
 		ret = isst_write_pm_config(cpu, 1);
 		if (ret)
-			perror("isst_write_pm_config\n");
+			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error\n", 0, 0);
 	}
 
 	ret = isst_send_mbox_command(cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,
 				     &resp);
-	if (ret)
+	if (ret) {
+		isst_display_error_info_message(1, "CLOS_PM_QOS_CONFIG command failed", 0, 0);
 		return ret;
+	}
 
 	debug_printf("cpu:%d CLOS_PM_QOS_CONFIG resp:%x\n", cpu, resp);
 
@@ -939,7 +941,7 @@ int isst_pm_qos_config(int cpu, int enable_clos, int priority_type)
 		req = req & ~BIT(1);
 
 	if (priority_type > 1)
-		fprintf(stderr, "Invalid priority type: Changing type to ordered\n");
+		isst_display_error_info_message(1, "Invalid priority type: Changing type to ordered", 0, 0);
 
 	if (priority_type)
 		req = req | BIT(2);
