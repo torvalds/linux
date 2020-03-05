@@ -227,7 +227,7 @@ davinci_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-static int convertfromdays(u16 days, struct rtc_time *tm)
+static void convertfromdays(u16 days, struct rtc_time *tm)
 {
 	int tmp_days, year, mon;
 
@@ -250,10 +250,9 @@ static int convertfromdays(u16 days, struct rtc_time *tm)
 			break;
 		}
 	}
-	return 0;
 }
 
-static int convert2days(u16 *days, struct rtc_time *tm)
+static void convert2days(u16 *days, struct rtc_time *tm)
 {
 	int i;
 	*days = 0;
@@ -262,8 +261,6 @@ static int convert2days(u16 *days, struct rtc_time *tm)
 		*days += rtc_year_days(1, 12, i);
 
 	*days += rtc_year_days(tm->tm_mday, tm->tm_mon, 1900 + tm->tm_year);
-
-	return 0;
 }
 
 static int davinci_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -296,8 +293,7 @@ static int davinci_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	days <<= 8;
 	days |= day0;
 
-	if (convertfromdays(days, tm) < 0)
-		return -EINVAL;
+	convertfromdays(days, tm);
 
 	return 0;
 }
@@ -391,8 +387,7 @@ static int davinci_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	days <<= 8;
 	days |= day0;
 
-	if (convertfromdays(days, &alm->time) < 0)
-		return -EINVAL;
+	convertfromdays(days, &alm->time);
 
 	alm->pending = !!(rtcss_read(davinci_rtc,
 			  PRTCSS_RTC_CCTRL) &
