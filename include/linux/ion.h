@@ -144,6 +144,18 @@ struct ion_heap {
 
 #define ion_device_add_heap(heap) __ion_device_add_heap(heap, THIS_MODULE)
 
+/**
+ * struct ion_dma_buf_attachment - hold device-table attachment data for buffer
+ * @dev:	device attached to the buffer.
+ * @table:	cached mapping.
+ * @list:	list of ion_dma_buf_attachment.
+ */
+struct ion_dma_buf_attachment {
+	struct device *dev;
+	struct sg_table *table;
+	struct list_head list;
+};
+
 #ifdef CONFIG_ION
 
 /**

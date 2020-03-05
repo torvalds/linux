@@ -45,12 +45,6 @@ static void free_duped_table(struct sg_table *table)
 	kfree(table);
 }
 
-struct ion_dma_buf_attachment {
-	struct device *dev;
-	struct sg_table *table;
-	struct list_head list;
-};
-
 static int ion_dma_buf_attach(struct dma_buf *dmabuf,
 			      struct dma_buf_attachment *attachment)
 {
