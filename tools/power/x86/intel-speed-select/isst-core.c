@@ -897,6 +897,9 @@ int isst_pm_qos_config(int cpu, int enable_clos, int priority_type)
 	else
 		req = req & ~BIT(1);
 
+	if (priority_type > 1)
+		fprintf(stderr, "Invalid priority type: Changing type to ordered\n");
+
 	if (priority_type)
 		req = req | BIT(2);
 	else
