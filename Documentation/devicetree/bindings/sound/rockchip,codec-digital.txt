@@ -1,0 +1,31 @@
+* Rockchip Codec Digital Interface
+
+Required properties:
+
+- compatible: should be one of the following
+   - "rockchip,codec-digital-v1"
+   - "rockchip,rv1126-codec-digital"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
+- clock-names: clock names.
+- rockchip,bclk-fs: configure the bclk fs.
+- resets: a list of phandle + reset-specifer paris, one for each entry in reset-names.
+- reset-names: reset names, should include "reset".
+- rockchip,grf: the phandle of the syscon node for GRF register.
+
+Example:
+
+rkacdc_dig: codec-digital@ff850000 {
+	compatible = "rockchip,codec-digital-v1";
+	reg = <0xff850000 0x1000>;
+	clocks = <&cru CLK_ACDCDIG_ADC>, <&cru CLK_ACDCDIG_DAC>,
+		 <&cru PCLK_ACDCDIG>;
+	clock-names = "adc", "dac", "pclk";
+	pinctrl-names = "default";
+	pinctrl-0 = <&acodec_pins>;
+	resets = <&cru SRST_ACDCDIG>;
+	reset-names = "reset" ;
+	rockchip,grf = <&grf>;
+	status = "disabled";
+};
