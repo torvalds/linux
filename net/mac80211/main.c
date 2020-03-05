@@ -1083,6 +1083,10 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 				      NL80211_EXT_FEATURE_EXT_KEY_ID);
 	}
 
+	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_ADHOC))
+		wiphy_ext_feature_set(local->hw.wiphy,
+				      NL80211_EXT_FEATURE_DEL_IBSS_STA);
+
 	/*
 	 * Calculate scan IE length -- we need this to alloc
 	 * memory and to subtract from the driver limit. It
