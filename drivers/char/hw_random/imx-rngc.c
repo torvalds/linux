@@ -111,17 +111,11 @@ static int imx_rngc_self_test(struct imx_rngc *rngc)
 	writel(cmd | RNGC_CMD_SELF_TEST, rngc->base + RNGC_COMMAND);
 
 	ret = wait_for_completion_timeout(&rngc->rng_op_done, RNGC_TIMEOUT);
-	if (!ret) {
-		imx_rngc_irq_mask_clear(rngc);
+	imx_rngc_irq_mask_clear(rngc);
+	if (!ret)
 		return -ETIMEDOUT;
-	}
 
-	if (rngc->err_reg != 0) {
-		imx_rngc_irq_mask_clear(rngc);
-		return -EIO;
-	}
-
-	return 0;
+	return rngc->err_reg ? -EIO : 0;
 }
 
 static int imx_rngc_read(struct hwrng *rng, void *data, size_t max, bool wait)
@@ -185,10 +179,10 @@ static int imx_rngc_init(struct hwrng *rng)
 	cmd = readl(rngc->base + RNGC_COMMAND);
 	writel(cmd | RNGC_CMD_CLR_ERR, rngc->base + RNGC_COMMAND);
 
+	imx_rngc_irq_unmask(rngc);
+
 	/* create seed, repeat while there is some statistical error */
 	do {
-		imx_rngc_irq_unmask(rngc);
-
 		/* seed creation */
 		cmd = readl(rngc->base + RNGC_COMMAND);
 		writel(cmd | RNGC_CMD_SEED, rngc->base + RNGC_COMMAND);
@@ -197,14 +191,16 @@ static int imx_rngc_init(struct hwrng *rng)
 				RNGC_TIMEOUT);
 
 		if (!ret) {
-			imx_rngc_irq_mask_clear(rngc);
-			return -ETIMEDOUT;
+			ret = -ETIMEDOUT;
+			goto err;
 		}
 
 	} while (rngc->err_reg == RNGC_ERROR_STATUS_STAT_ERR);
 
-	if (rngc->err_reg)
-		return -EIO;
+	if (rngc->err_reg) {
+		ret = -EIO;
+		goto err;
+	}
 
 	/*
 	 * enable automatic seeding, the rngc creates a new seed automatically
@@ -214,7 +210,23 @@ static int imx_rngc_init(struct hwrng *rng)
 	ctrl |= RNGC_CTRL_AUTO_SEED;
 	writel(ctrl, rngc->base + RNGC_CONTROL);
 
+	/*
+	 * if initialisation was successful, we keep the interrupt
+	 * unmasked until imx_rngc_cleanup is called
+	 * we mask the interrupt ourselves if we return an error
+	 */
 	return 0;
+
+err:
+	imx_rngc_irq_mask_clear(rngc);
+	return ret;
+}
+
+static void imx_rngc_cleanup(struct hwrng *rng)
+{
+	struct imx_rngc *rngc = container_of(rng, struct imx_rngc, rng);
+
+	imx_rngc_irq_mask_clear(rngc);
 }
 
 static int imx_rngc_probe(struct platform_device *pdev)
@@ -272,6 +284,7 @@ static int imx_rngc_probe(struct platform_device *pdev)
 	rngc->rng.name = pdev->name;
 	rngc->rng.init = imx_rngc_init;
 	rngc->rng.read = imx_rngc_read;
+	rngc->rng.cleanup = imx_rngc_cleanup;
 
 	rngc->dev = &pdev->dev;
 	platform_set_drvdata(pdev, rngc);
