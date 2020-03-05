@@ -11,6 +11,8 @@
 
 /* Algorithm resource per hardware SEC queue */
 struct sec_alg_res {
+	u8 *pbuf;
+	dma_addr_t pbuf_dma;
 	u8 *c_ivin;
 	dma_addr_t c_ivin_dma;
 	u8 *out_mac;
@@ -50,6 +52,7 @@ struct sec_req {
 
 	/* Status of the SEC request */
 	bool fake_busy;
+	bool use_pbuf;
 };
 
 /**
@@ -130,6 +133,7 @@ struct sec_ctx {
 	atomic_t dec_qcyclic;
 
 	enum sec_alg_type alg_type;
+	bool pbuf_supported;
 	struct sec_cipher_ctx c_ctx;
 	struct sec_auth_ctx a_ctx;
 };
