@@ -320,6 +320,9 @@ static void vcn_v2_0_mc_resume(struct amdgpu_device *adev)
 	uint32_t size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.fw->size + 4);
 	uint32_t offset;
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	/* cache window 0: fw */
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		WREG32_SOC15(UVD, 0, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW,
@@ -463,6 +466,9 @@ static void vcn_v2_0_mc_resume_dpg_mode(struct amdgpu_device *adev, bool indirec
 static void vcn_v2_0_disable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
+
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	/* UVD disable CGC */
 	data = RREG32_SOC15(VCN, 0, mmUVD_CGC_CTRL);
@@ -622,6 +628,9 @@ static void vcn_v2_0_enable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data = 0;
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	/* enable UVD CGC */
 	data = RREG32_SOC15(VCN, 0, mmUVD_CGC_CTRL);
 	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
@@ -674,6 +683,9 @@ static void vcn_v2_0_disable_static_power_gating(struct amdgpu_device *adev)
 	uint32_t data = 0;
 	int ret;
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN) {
 		data = (1 << UVD_PGFSM_CONFIG__UVDM_PWR_CONFIG__SHIFT
 			| 1 << UVD_PGFSM_CONFIG__UVDU_PWR_CONFIG__SHIFT
@@ -720,6 +732,9 @@ static void vcn_v2_0_enable_static_power_gating(struct amdgpu_device *adev)
 {
 	uint32_t data = 0;
 	int ret;
+
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN) {
 		/* Before power off, this indicator has to be turned on */
@@ -1231,6 +1246,9 @@ static int vcn_v2_0_set_clockgating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_CG_STATE_GATE);
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	if (enable) {
 		/* wait for STATUS to clear */
 		if (vcn_v2_0_is_idle(handle))
@@ -1685,6 +1703,11 @@ static int vcn_v2_0_set_powergating_state(void *handle,
 	 */
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev)) {
+		adev->vcn.cur_state = AMD_PG_STATE_UNGATE;
+		return 0;
+	}
 
 	if (state == adev->vcn.cur_state)
 		return 0;
