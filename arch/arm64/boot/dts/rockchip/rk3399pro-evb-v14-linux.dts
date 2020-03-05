@@ -22,6 +22,9 @@
 	};
 };
 
+/delete-node/ &imx327;
+/delete-node/ &ov13850;
+/delete-node/ &vm149c;
 &i2c1 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <345>;
@@ -46,6 +49,70 @@
 			cam_out: endpoint {
 				remote-endpoint = <&usbacm_video_control_in>;
 				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+
+	i2c-scl-rising-time-ns = <345>;
+	i2c-scl-falling-time-ns = <11>;
+
+	vm149c: vm149c@0c {
+		compatible = "silicon touch,vm149c";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	ov13850: ov13850@10 {
+		compatible = "ovti,ov13850";
+		status = "okay";
+		reg = <0x10>;
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		/* conflict with csi-ctl-gpios */
+		reset-gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PD1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&cif_clkout>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-CT0116";
+		rockchip,camera-module-lens-name = "Largan-50013A1";
+		lens-focus = <&vm149c>;
+
+		port {
+			ucam_out1: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	imx327: imx327@1a {
+		compatible = "sony,imx327";
+		status = "okay";
+		reg = <0x1a>;
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+		/* conflict with csi-ctl-gpios */
+		reset-gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 25 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clkout>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+		port {
+			ucam_out2: endpoint {
+				remote-endpoint = <&mipi_in_ucam2>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
@@ -78,6 +145,38 @@
 			dphy_rx0_out: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&isp0_mipi_in>;
+			};
+		};
+	};
+};
+
+&mipi_dphy_tx1rx1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out1>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_tx1rx1_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp1_mipi_in>;
 			};
 		};
 	};
