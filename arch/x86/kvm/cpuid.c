@@ -946,7 +946,7 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 	 * requested. AMD CPUID semantics returns all zeroes for any
 	 * undefined leaf, whether or not the leaf is in range.
 	 */
-	if (!entry && check_limit && !guest_cpuid_is_amd(vcpu) &&
+	if (!entry && check_limit && !guest_cpuid_is_amd_or_hygon(vcpu) &&
 	    !cpuid_function_in_range(vcpu, function)) {
 		max = kvm_find_cpuid_entry(vcpu, 0, 0);
 		if (max) {

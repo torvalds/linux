@@ -4510,7 +4510,8 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 				cpuid_maxphyaddr(vcpu), context->root_level,
 				context->nx,
 				guest_cpuid_has(vcpu, X86_FEATURE_GBPAGES),
-				is_pse(vcpu), guest_cpuid_is_amd(vcpu));
+				is_pse(vcpu),
+				guest_cpuid_is_amd_or_hygon(vcpu));
 }
 
 static void
