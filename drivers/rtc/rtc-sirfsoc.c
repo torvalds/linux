@@ -341,28 +341,21 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 	rtcdrv->overflow_rtc =
 		sirfsoc_rtc_readl(rtcdrv, RTC_SW_VALUE);
 
-	rtcdrv->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-			&sirfsoc_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtcdrv->rtc)) {
-		err = PTR_ERR(rtcdrv->rtc);
-		dev_err(&pdev->dev, "can't register RTC device\n");
-		return err;
-	}
+	rtcdrv->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtcdrv->rtc))
+		return PTR_ERR(rtcdrv->rtc);
+
+	rtcdrv->rtc->ops = &sirfsoc_rtc_ops;
 
 	rtcdrv->irq = platform_get_irq(pdev, 0);
-	err = devm_request_irq(
-			&pdev->dev,
-			rtcdrv->irq,
-			sirfsoc_rtc_irq_handler,
-			IRQF_SHARED,
-			pdev->name,
-			rtcdrv);
+	err = devm_request_irq(&pdev->dev, rtcdrv->irq, sirfsoc_rtc_irq_handler,
+			       IRQF_SHARED, pdev->name, rtcdrv);
 	if (err) {
 		dev_err(&pdev->dev, "Unable to register for the SiRF SOC RTC IRQ\n");
 		return err;
 	}
 
-	return 0;
+	return rtc_register_device(rtcdrv->rtc);
 }
 
 #ifdef CONFIG_PM_SLEEP
