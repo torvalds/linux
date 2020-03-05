@@ -2329,7 +2329,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 	option_index = start;
 
 	optind = start + 1;
-	while ((opt = getopt_long(argc, argv, "b:l:t:c:d:e:n:m:p:w:hoa",
+	while ((opt = getopt_long(argc, argv, "b:l:t:c:d:e:n:m:p:w:r:hoa",
 				  long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -2355,7 +2355,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 				fact_avx = 0x01;
 			} else if (!strncmp(optarg, "avx2", 4)) {
 				fact_avx = 0x02;
-			} else if (!strncmp(optarg, "avx512", 4)) {
+			} else if (!strncmp(optarg, "avx512", 6)) {
 				fact_avx = 0x04;
 			} else {
 				fprintf(outf, "Invalid sse,avx options\n");
