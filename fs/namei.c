@@ -2124,6 +2124,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	int err;
 
 	nd->last_type = LAST_ROOT;
+	nd->flags |= LOOKUP_PARENT;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 	while (*name=='/')
@@ -2184,8 +2185,10 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		if (unlikely(!*name)) {
 OK:
 			/* pathname or trailing symlink, done */
-			if (!depth)
+			if (!depth) {
+				nd->flags &= ~LOOKUP_PARENT;
 				return 0;
+			}
 			/* last component of nested symlink */
 			name = nd->stack[--depth].name;
 			link = walk_component(nd, 0);
@@ -2222,7 +2225,7 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 	if (flags & LOOKUP_RCU)
 		rcu_read_lock();
 
-	nd->flags = flags | LOOKUP_JUMPED | LOOKUP_PARENT;
+	nd->flags = flags | LOOKUP_JUMPED;
 	nd->depth = 0;
 
 	nd->m_seq = __read_seqcount_begin(&mount_lock.seqcount);
@@ -2314,16 +2317,10 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 
 static inline const char *lookup_last(struct nameidata *nd)
 {
-	const char *link;
 	if (nd->last_type == LAST_NORM && nd->last.name[nd->last.len])
 		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 
-	nd->flags &= ~LOOKUP_PARENT;
-	link = walk_component(nd, WALK_TRAILING);
-	if (link) {
-		nd->flags |= LOOKUP_PARENT;
-	}
-	return link;
+	return walk_component(nd, WALK_TRAILING);
 }
 
 static int handle_lookup_down(struct nameidata *nd)
@@ -3174,7 +3171,6 @@ static const char *do_last(struct nameidata *nd,
 	const char *res;
 	int error;
 
-	nd->flags &= ~LOOKUP_PARENT;
 	nd->flags |= op->intent;
 
 	if (nd->last_type != LAST_NORM) {
@@ -3275,7 +3271,6 @@ finish_lookup:
 		put_link(nd);
 	res = step_into(nd, WALK_TRAILING, dentry, inode, seq);
 	if (unlikely(res)) {
-		nd->flags |= LOOKUP_PARENT;
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
 		return res;
 	}
