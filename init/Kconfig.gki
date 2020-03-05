@@ -79,15 +79,6 @@ config GKI_HIDDEN_QCOM_CONFIGS
 	  These are normally selected implicitly when a module
 	  that relies on it is configured.
 
-config GKI_QCOM_CLKS_CONFIGS
-	bool "QCOM clk drivers needed for GKI due to powerdomain restrictions"
-	select QCOM_RPMHPD	if (ARCH_QCOM)
-	help
-	  This config option selects various QCOM clk drivers that
-	  cannot be built as a module currently due to power-domain
-	  deferred probing limitations.
-	  See https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=e01afc32502555beb2057ddd74401be38475d851
-
 config GKI_HIDDEN_MEDIA_CONFIGS
 	bool "Hidden Media configs needed for GKI"
 	select VIDEOBUF2_CORE
@@ -145,7 +136,6 @@ config GKI_HACKS_TO_FIX
 	select GKI_LEGACY_WEXT_ALLCONFIG
 	select GKI_HIDDEN_MEDIA_CONFIGS
 	select GKI_HIDDEN_VIRTUAL_CONFIGS
-	select GKI_QCOM_CLKS_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
