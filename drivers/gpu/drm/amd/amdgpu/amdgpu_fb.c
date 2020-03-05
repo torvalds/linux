@@ -342,8 +342,6 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 		return ret;
 	}
 
-	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
-
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	if (!amdgpu_device_has_dc_support(adev))
 		drm_helper_disable_unused_functions(adev->ddev);

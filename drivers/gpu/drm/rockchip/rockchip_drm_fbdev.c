@@ -132,13 +132,6 @@ int rockchip_drm_fbdev_init(struct drm_device *dev)
 		return ret;
 	}
 
-	ret = drm_fb_helper_single_add_all_connectors(helper);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dev->dev,
-			      "Failed to add connectors - %d.\n", ret);
-		goto err_drm_fb_helper_fini;
-	}
-
 	ret = drm_fb_helper_initial_config(helper, PREFERRED_BPP);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev->dev,

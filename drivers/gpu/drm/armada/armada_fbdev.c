@@ -135,12 +135,6 @@ int armada_fbdev_init(struct drm_device *dev)
 		goto err_fb_helper;
 	}
 
-	ret = drm_fb_helper_single_add_all_connectors(fbh);
-	if (ret) {
-		DRM_ERROR("failed to add fb connectors\n");
-		goto err_fb_setup;
-	}
-
 	ret = drm_fb_helper_initial_config(fbh, 32);
 	if (ret) {
 		DRM_ERROR("failed to set initial config\n");
