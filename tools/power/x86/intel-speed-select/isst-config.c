@@ -1763,19 +1763,17 @@ static void dump_clos_info(int arg)
 	if (cmd_help) {
 		fprintf(stderr,
 			"Print Intel Speed Select Technology core power information\n");
-		fprintf(stderr, "\tSpecify targeted cpu id with [--cpu|-c]\n");
-		exit(0);
-	}
-
-	if (!max_target_cpus) {
-		fprintf(stderr,
-			"Invalid target cpu. Specify with [-c|--cpu]\n");
+		fprintf(stderr, "\t Optionally specify targeted cpu id with [--cpu|-c]\n");
 		exit(0);
 	}
 
 	isst_ctdp_display_information_start(outf);
-	for_each_online_target_cpu_in_set(get_clos_info_for_cpu, NULL,
-					  NULL, NULL, NULL);
+	if (max_target_cpus)
+		for_each_online_target_cpu_in_set(get_clos_info_for_cpu, NULL,
+						  NULL, NULL, NULL);
+	else
+		for_each_online_package_in_set(get_clos_info_for_cpu, NULL,
+					       NULL, NULL, NULL);
 	isst_ctdp_display_information_end(outf);
 
 }
