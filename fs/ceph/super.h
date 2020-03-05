@@ -1050,7 +1050,7 @@ extern struct ceph_cap *ceph_get_cap(struct ceph_mds_client *mdsc,
 				     struct ceph_cap_reservation *ctx);
 extern void ceph_add_cap(struct inode *inode,
 			 struct ceph_mds_session *session, u64 cap_id,
-			 int fmode, unsigned issued, unsigned wanted,
+			 unsigned issued, unsigned wanted,
 			 unsigned cap, unsigned seq, u64 realmino, int flags,
 			 struct ceph_cap **new_cap);
 extern void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release);
@@ -1096,7 +1096,6 @@ extern int ceph_try_get_caps(struct inode *inode,
 			     int need, int want, bool nonblock, int *got);
 
 /* for counting open files by mode */
-extern void __ceph_get_fmode(struct ceph_inode_info *ci, int mode);
 extern void ceph_get_fmode(struct ceph_inode_info *ci, int mode, int count);
 extern void ceph_put_fmode(struct ceph_inode_info *ci, int mode, int count);
 extern void __ceph_touch_fmode(struct ceph_inode_info *ci,

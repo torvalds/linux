@@ -212,10 +212,8 @@ static int ceph_init_file_info(struct inode *inode, struct file *file,
 	if (isdir) {
 		struct ceph_dir_file_info *dfi =
 			kmem_cache_zalloc(ceph_dir_file_cachep, GFP_KERNEL);
-		if (!dfi) {
-			ceph_put_fmode(ci, fmode, 1); /* clean up */
+		if (!dfi)
 			return -ENOMEM;
-		}
 
 		file->private_data = dfi;
 		fi = &dfi->file_info;
@@ -223,15 +221,15 @@ static int ceph_init_file_info(struct inode *inode, struct file *file,
 		dfi->readdir_cache_idx = -1;
 	} else {
 		fi = kmem_cache_zalloc(ceph_file_cachep, GFP_KERNEL);
-		if (!fi) {
-			ceph_put_fmode(ci, fmode, 1); /* clean up */
+		if (!fi)
 			return -ENOMEM;
-		}
 
 		file->private_data = fi;
 	}
 
+	ceph_get_fmode(ci, fmode, 1);
 	fi->fmode = fmode;
+
 	spin_lock_init(&fi->rw_contexts_lock);
 	INIT_LIST_HEAD(&fi->rw_contexts);
 	fi->meta_err = errseq_sample(&ci->i_meta_err);
@@ -263,7 +261,6 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 	case S_IFLNK:
 		dout("init_file %p %p 0%o (symlink)\n", inode, file,
 		     inode->i_mode);
-		ceph_put_fmode(ceph_inode(inode), fmode, 1); /* clean up */
 		break;
 
 	default:
@@ -273,7 +270,6 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 		 * we need to drop the open ref now, since we don't
 		 * have .release set to ceph_release.
 		 */
-		ceph_put_fmode(ceph_inode(inode), fmode, 1); /* clean up */
 		BUG_ON(inode->i_fop->release == ceph_release);
 
 		/* call the proper open fop */
@@ -327,7 +323,6 @@ int ceph_renew_caps(struct inode *inode, int fmode)
 	req->r_inode = inode;
 	ihold(inode);
 	req->r_num_caps = 1;
-	req->r_fmode = -1;
 
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 	ceph_mdsc_put_request(req);
@@ -373,9 +368,6 @@ int ceph_open(struct inode *inode, struct file *file)
 
 	/* trivially open snapdir */
 	if (ceph_snap(inode) == CEPH_SNAPDIR) {
-		spin_lock(&ci->i_ceph_lock);
-		__ceph_get_fmode(ci, fmode);
-		spin_unlock(&ci->i_ceph_lock);
 		return ceph_init_file(inode, file, fmode);
 	}
 
@@ -393,7 +385,7 @@ int ceph_open(struct inode *inode, struct file *file)
 		dout("open %p fmode %d want %s issued %s using existing\n",
 		     inode, fmode, ceph_cap_string(wanted),
 		     ceph_cap_string(issued));
-		__ceph_get_fmode(ci, fmode);
+		__ceph_touch_fmode(ci, mdsc, fmode);
 		spin_unlock(&ci->i_ceph_lock);
 
 		/* adjust wanted? */
@@ -405,7 +397,6 @@ int ceph_open(struct inode *inode, struct file *file)
 		return ceph_init_file(inode, file, fmode);
 	} else if (ceph_snap(inode) != CEPH_NOSNAP &&
 		   (ci->i_snap_caps & wanted) == wanted) {
-		__ceph_get_fmode(ci, fmode);
 		__ceph_touch_fmode(ci, mdsc, fmode);
 		spin_unlock(&ci->i_ceph_lock);
 		return ceph_init_file(inode, file, fmode);
@@ -782,8 +773,6 @@ retry:
 		err = finish_open(file, dentry, ceph_open);
 	}
 out_req:
-	if (!req->r_err && req->r_target_inode)
-		ceph_put_fmode(ceph_inode(req->r_target_inode), req->r_fmode, 1);
 	ceph_mdsc_put_request(req);
 out_ctx:
 	ceph_release_acl_sec_ctx(&as_ctx);

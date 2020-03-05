@@ -608,7 +608,7 @@ static void __check_cap_issue(struct ceph_inode_info *ci, struct ceph_cap *cap,
  */
 void ceph_add_cap(struct inode *inode,
 		  struct ceph_mds_session *session, u64 cap_id,
-		  int fmode, unsigned issued, unsigned wanted,
+		  unsigned issued, unsigned wanted,
 		  unsigned seq, unsigned mseq, u64 realmino, int flags,
 		  struct ceph_cap **new_cap)
 {
@@ -623,13 +623,6 @@ void ceph_add_cap(struct inode *inode,
 
 	dout("add_cap %p mds%d cap %llx %s seq %d\n", inode,
 	     session->s_mds, cap_id, ceph_cap_string(issued), seq);
-
-	/*
-	 * If we are opening the file, include file mode wanted bits
-	 * in wanted.
-	 */
-	if (fmode >= 0)
-		wanted |= ceph_caps_for_mode(fmode);
 
 	spin_lock(&session->s_gen_ttl_lock);
 	gen = session->s_cap_gen;
@@ -755,9 +748,6 @@ void ceph_add_cap(struct inode *inode,
 	cap->issue_seq = seq;
 	cap->mseq = mseq;
 	cap->cap_gen = gen;
-
-	if (fmode >= 0)
-		__ceph_get_fmode(ci, fmode);
 }
 
 /*
@@ -3707,7 +3697,7 @@ retry:
 		/* add placeholder for the export tagert */
 		int flag = (cap == ci->i_auth_cap) ? CEPH_CAP_FLAG_AUTH : 0;
 		tcap = new_cap;
-		ceph_add_cap(inode, tsession, t_cap_id, -1, issued, 0,
+		ceph_add_cap(inode, tsession, t_cap_id, issued, 0,
 			     t_seq - 1, t_mseq, (u64)-1, flag, &new_cap);
 
 		if (!list_empty(&ci->i_cap_flush_list) &&
@@ -3812,7 +3802,7 @@ retry:
 	__ceph_caps_issued(ci, &issued);
 	issued |= __ceph_caps_dirty(ci);
 
-	ceph_add_cap(inode, session, cap_id, -1, caps, wanted, seq, mseq,
+	ceph_add_cap(inode, session, cap_id, caps, wanted, seq, mseq,
 		     realmino, CEPH_CAP_FLAG_AUTH, &new_cap);
 
 	ocap = peer >= 0 ? __get_cap_for_mds(ci, peer) : NULL;
@@ -4163,16 +4153,6 @@ void ceph_get_fmode(struct ceph_inode_info *ci, int fmode, int count)
 			ci->i_nr_by_mode[i] += count;
 	}
 	spin_unlock(&ci->i_ceph_lock);
-}
-
-void __ceph_get_fmode(struct ceph_inode_info *ci, int fmode)
-{
-	int i;
-	int bits = (fmode << 1) | 1;
-	for (i = 0; i < CEPH_FILE_MODE_BITS; i++) {
-		if (bits & (1 << i))
-			ci->i_nr_by_mode[i]++;
-	}
 }
 
 /*
