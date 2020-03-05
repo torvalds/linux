@@ -396,6 +396,30 @@ struct x86_emulate_ctxt {
 #define X86EMUL_CPUID_VENDOR_GenuineIntel_ecx 0x6c65746e
 #define X86EMUL_CPUID_VENDOR_GenuineIntel_edx 0x49656e69
 
+static inline bool is_guest_vendor_intel(u32 ebx, u32 ecx, u32 edx)
+{
+	return ebx == X86EMUL_CPUID_VENDOR_GenuineIntel_ebx &&
+	       ecx == X86EMUL_CPUID_VENDOR_GenuineIntel_ecx &&
+	       edx == X86EMUL_CPUID_VENDOR_GenuineIntel_edx;
+}
+
+static inline bool is_guest_vendor_amd(u32 ebx, u32 ecx, u32 edx)
+{
+	return (ebx == X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx &&
+		ecx == X86EMUL_CPUID_VENDOR_AuthenticAMD_ecx &&
+		edx == X86EMUL_CPUID_VENDOR_AuthenticAMD_edx) ||
+	       (ebx == X86EMUL_CPUID_VENDOR_AMDisbetterI_ebx &&
+		ecx == X86EMUL_CPUID_VENDOR_AMDisbetterI_ecx &&
+		edx == X86EMUL_CPUID_VENDOR_AMDisbetterI_edx);
+}
+
+static inline bool is_guest_vendor_hygon(u32 ebx, u32 ecx, u32 edx)
+{
+	return ebx == X86EMUL_CPUID_VENDOR_HygonGenuine_ebx &&
+	       ecx == X86EMUL_CPUID_VENDOR_HygonGenuine_ecx &&
+	       edx == X86EMUL_CPUID_VENDOR_HygonGenuine_edx;
+}
+
 enum x86_intercept_stage {
 	X86_ICTP_NONE = 0,   /* Allow zero-init to not match anything */
 	X86_ICPT_PRE_EXCEPT,

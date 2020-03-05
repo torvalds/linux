@@ -219,7 +219,7 @@ static inline bool guest_cpuid_is_amd(struct kvm_vcpu *vcpu)
 	struct kvm_cpuid_entry2 *best;
 
 	best = kvm_find_cpuid_entry(vcpu, 0, 0);
-	return best && best->ebx == X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx;
+	return best && is_guest_vendor_amd(best->ebx, best->ecx, best->edx);
 }
 
 static inline int guest_cpuid_family(struct kvm_vcpu *vcpu)
