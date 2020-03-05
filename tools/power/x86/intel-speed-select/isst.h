@@ -196,6 +196,8 @@ extern int isst_send_msr_command(unsigned int cpu, unsigned int command,
 				 int write, unsigned long long *req_resp);
 
 extern int isst_get_ctdp_levels(int cpu, struct isst_pkg_ctdp *pkg_dev);
+extern int isst_get_ctdp_control(int cpu, int config_index,
+				 struct isst_pkg_ctdp_level_info *ctdp_level);
 extern int isst_get_coremask_info(int cpu, int config_index,
 			   struct isst_pkg_ctdp_level_info *ctdp_level);
 extern int isst_get_process_ctdp(int cpu, int tdp_level,
