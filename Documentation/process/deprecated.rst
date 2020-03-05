@@ -109,6 +109,28 @@ the given limit of bytes to copy. This is inefficient and can lead to
 linear read overflows if a source string is not NUL-terminated. The
 safe replacement is :c:func:`strscpy`.
 
+%p format specifier
+-------------------
+Traditionally, using "%p" in format strings would lead to regular address
+exposure flaws in dmesg, proc, sysfs, etc. Instead of leaving these to
+be exploitable, all "%p" uses in the kernel are being printed as a hashed
+value, rendering them unusable for addressing. New uses of "%p" should not
+be added to the kernel. For text addresses, using "%pS" is likely better,
+as it produces the more useful symbol name instead. For nearly everything
+else, just do not add "%p" at all.
+
+Paraphrasing Linus's current `guidance <https://lore.kernel.org/lkml/CA+55aFwQEd_d40g4mUCSsVRZzrFPUJt74vc6PPpb675hYNXcKw@mail.gmail.com/>`_:
+
+- If the hashed "%p" value is pointless, ask yourself whether the pointer
+  itself is important. Maybe it should be removed entirely?
+- If you really think the true pointer value is important, why is some
+  system state or user privilege level considered "special"? If you think
+  you can justify it (in comments and commit log) well enough to stand
+  up to Linus's scrutiny, maybe you can use "%px", along with making sure
+  you have sensible permissions.
+
+And finally, know that a toggle for "%p" hashing will `not be accepted <https://lore.kernel.org/lkml/CA+55aFwieC1-nAs+NFq9RTwaR8ef9hWa4MjNBWL41F-8wM49eA@mail.gmail.com/>`_.
+
 Variable Length Arrays (VLAs)
 -----------------------------
 Using stack VLAs produces much worse machine code than statically
