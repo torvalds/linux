@@ -69,6 +69,7 @@ For more details see the file COPYING in the source distribution of Linux.
 	cpia2_devel
 	cx2341x-devel
 	cx88-devel
+	davinci-vpbe-devel
 	vimc-devel
 
 	cx2341x-uapi

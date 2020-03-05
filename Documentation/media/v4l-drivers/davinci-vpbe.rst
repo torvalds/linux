@@ -3,38 +3,18 @@
 The VPBE V4L2 driver design
 ===========================
 
-File partitioning
------------------
-
- V4L2 display device driver
-         drivers/media/platform/davinci/vpbe_display.c
-         drivers/media/platform/davinci/vpbe_display.h
-
- VPBE display controller
-         drivers/media/platform/davinci/vpbe.c
-         drivers/media/platform/davinci/vpbe.h
-
- VPBE venc sub device driver
-         drivers/media/platform/davinci/vpbe_venc.c
-         drivers/media/platform/davinci/vpbe_venc.h
-         drivers/media/platform/davinci/vpbe_venc_regs.h
-
- VPBE osd driver
-         drivers/media/platform/davinci/vpbe_osd.c
-         drivers/media/platform/davinci/vpbe_osd.h
-         drivers/media/platform/davinci/vpbe_osd_regs.h
-
 Functional partitioning
 -----------------------
 
-Consists of the following (in the same order as the list under file
-partitioning):
+Consists of the following:
 
  1. V4L2 display driver
+
     Implements creation of video2 and video3 device nodes and
     provides v4l2 device interface to manage VID0 and VID1 layers.
 
  2. Display controller
+
     Loads up VENC, OSD and external encoders such as ths8200. It provides
     a set of API calls to V4L2 drivers to set the output/standards
     in the VENC or external sub devices. It also provides
@@ -54,6 +34,7 @@ partitioning):
     encoders is not present, and would be a part of the next patch series.
 
  3. VENC subdevice module
+
     Responsible for setting outputs provided through internal DACs and also
     setting timings at LCD controller port when external encoders are connected
     at the port or LCD panel timings required. When external encoder/LCD panel
@@ -72,6 +53,7 @@ partitioning):
     patch series.
 
  4. OSD module
+
     OSD module implements all OSD layer management and hardware specific
     features. The VPBE module interacts with the OSD for enabling and
     disabling appropriate features of the OSD.
@@ -81,17 +63,3 @@ Current status
 
 A fully functional working version of the V4L2 driver is available. This
 driver has been tested with NTSC and PAL standards and buffer streaming.
-
-To be done
-----------
-
-vpbe display controller
-    - Add support for external encoders.
-    - add support for selecting external encoder as default at probe time.
-
-vpbe venc sub device
-    - add timings for supporting ths8200
-    - add support for LogicPD LCD.
-
-FB drivers
-    - Add support for fbdev drivers.- Ready and part of subsequent patches.
