@@ -38,26 +38,6 @@ Not currently supported
 - LCD writeback input
 - per frame clock gating (mem-to-mem)
 
-Files partitioning
-------------------
-
-- media device driver
-  drivers/media/platform/exynos4-is/media-dev.[ch]
-
-- camera capture video device driver
-  drivers/media/platform/exynos4-is/fimc-capture.c
-
-- MIPI-CSI2 receiver subdev
-  drivers/media/platform/exynos4-is/mipi-csis.[ch]
-
-- video post-processor (mem-to-mem)
-  drivers/media/platform/exynos4-is/fimc-core.c
-
-- common files
-  drivers/media/platform/exynos4-is/fimc-core.h
-  drivers/media/platform/exynos4-is/fimc-reg.h
-  drivers/media/platform/exynos4-is/regs-fimc.h
-
 User space interfaces
 ---------------------
 
@@ -74,6 +54,7 @@ connections of the MIPI-CSIS device(s) to the FIMC entities.
 The media device interface allows to configure the SoC for capturing image
 data from the sensor through more than one FIMC instance (e.g. for simultaneous
 viewfinder and still capture setup).
+
 Reconfiguration is done by enabling/disabling media links created by the driver
 during initialization. The internal device topology can be easily discovered
 through media entity and links enumeration.
@@ -116,6 +97,7 @@ sensor subdev -> mipi-csi subdev -> fimc subdev -> video node
 When we configure these devices through sub-device API at user space, the
 configuration flow must be from left to right, and the video node is
 configured as last one.
+
 When we don't use sub-device user space API the whole configuration of all
 devices belonging to the pipeline is done at the video node driver.
 The sysfs entry allows to instruct the capture node driver not to configure

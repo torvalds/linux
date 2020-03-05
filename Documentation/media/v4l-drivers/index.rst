@@ -70,6 +70,7 @@ For more details see the file COPYING in the source distribution of Linux.
 	cx2341x-devel
 	cx88-devel
 	davinci-vpbe-devel
+	fimc-devel
 	vimc-devel
 
 	cx2341x-uapi
