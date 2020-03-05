@@ -19,11 +19,11 @@ Required properties:
 - pinctrl-0: pin control group to be used for this controller.
 - pinctrl-names: must contain a "default" entry.
 - spi-num-chipselects : the number of the chipselect signals.
-- bus-num : the slave chip chipselect signal number.
 
 Optional property:
 - big-endian: If present the dspi device's registers are implemented
   in big endian mode.
+- bus-num : the slave chip chipselect signal number.
 
 Optional SPI slave node properties:
 - fsl,spi-cs-sck-delay: a delay in nanoseconds between activating chip
