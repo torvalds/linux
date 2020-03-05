@@ -463,17 +463,10 @@ static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
  */
 static int policydb_init(struct policydb *p)
 {
-	int rc;
-
 	memset(p, 0, sizeof(*p));
 
-	rc = avtab_init(&p->te_avtab);
-	if (rc)
-		return rc;
-
-	rc = cond_policydb_init(p);
-	if (rc)
-		return rc;
+	avtab_init(&p->te_avtab);
+	cond_policydb_init(p);
 
 	p->filename_trans = hashtab_create(filenametr_hash, filenametr_cmp,
 					   (1 << 11));

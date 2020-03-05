@@ -61,7 +61,7 @@ struct cond_node {
 	struct cond_av_list false_list;
 };
 
-int cond_policydb_init(struct policydb *p);
+void cond_policydb_init(struct policydb *p);
 void cond_policydb_destroy(struct policydb *p);
 
 int cond_init_bool_indexes(struct policydb *p);

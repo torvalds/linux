@@ -125,19 +125,13 @@ void evaluate_cond_nodes(struct policydb *p)
 		evaluate_cond_node(p, &p->cond_list[i]);
 }
 
-int cond_policydb_init(struct policydb *p)
+void cond_policydb_init(struct policydb *p)
 {
-	int rc;
-
 	p->bool_val_to_struct = NULL;
 	p->cond_list = NULL;
 	p->cond_list_len = 0;
 
-	rc = avtab_init(&p->te_cond_avtab);
-	if (rc)
-		return rc;
-
-	return 0;
+	avtab_init(&p->te_cond_avtab);
 }
 
 static void cond_node_destroy(struct cond_node *node)
