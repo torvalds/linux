@@ -876,6 +876,22 @@ struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 					  const struct tb_port *port);
 
 int usb4_port_unlock(struct tb_port *port);
+int usb4_port_enumerate_retimers(struct tb_port *port);
+
+int usb4_port_retimer_read(struct tb_port *port, u8 index, u8 reg, void *buf,
+			   u8 size);
+int usb4_port_retimer_write(struct tb_port *port, u8 index, u8 reg,
+			    const void *buf, u8 size);
+int usb4_port_retimer_is_last(struct tb_port *port, u8 index);
+int usb4_port_retimer_nvm_sector_size(struct tb_port *port, u8 index);
+int usb4_port_retimer_nvm_write(struct tb_port *port, u8 index,
+				unsigned int address, const void *buf,
+				size_t size);
+int usb4_port_retimer_nvm_authenticate(struct tb_port *port, u8 index);
+int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
+					      u32 *status);
+int usb4_port_retimer_nvm_read(struct tb_port *port, u8 index,
+			       unsigned int address, void *buf, size_t size);
 
 int usb4_usb3_port_max_link_rate(struct tb_port *port);
 int usb4_usb3_port_actual_link_rate(struct tb_port *port);

@@ -288,6 +288,16 @@ struct tb_regs_port_header {
 #define LANE_ADP_CS_1_CURRENT_WIDTH_SHIFT	20
 
 /* USB4 port registers */
+#define PORT_CS_1				0x01
+#define PORT_CS_1_LENGTH_SHIFT			8
+#define PORT_CS_1_TARGET_MASK			GENMASK(18, 16)
+#define PORT_CS_1_TARGET_SHIFT			16
+#define PORT_CS_1_RETIMER_INDEX_SHIFT		20
+#define PORT_CS_1_WNR_WRITE			BIT(24)
+#define PORT_CS_1_NR				BIT(25)
+#define PORT_CS_1_RC				BIT(26)
+#define PORT_CS_1_PND				BIT(31)
+#define PORT_CS_2				0x02
 #define PORT_CS_18				0x12
 #define PORT_CS_18_BE				BIT(8)
 #define PORT_CS_18_TCM				BIT(9)
