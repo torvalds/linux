@@ -564,7 +564,8 @@ static void sdma_v4_0_destroy_inst_ctx(struct amdgpu_device *adev)
 
 		/* arcturus shares the same FW memory across
 		   all SDMA isntances */
-		if (adev->asic_type == CHIP_ARCTURUS)
+		if (adev->asic_type == CHIP_ARCTURUS ||
+		    adev->asic_type == CHIP_ALDEBARAN)
 			break;
 	}
 
@@ -639,8 +640,9 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		goto out;
 
 	for (i = 1; i < adev->sdma.num_instances; i++) {
-		if (adev->asic_type == CHIP_ARCTURUS) {
-			/* Acturus will leverage the same FW memory
+		if (adev->asic_type == CHIP_ARCTURUS ||
+		    adev->asic_type == CHIP_ALDEBARAN) {
+			/* Acturus & Aldebaran will leverage the same FW memory
 			   for every SDMA instance */
 			memcpy((void *)&adev->sdma.instance[i],
 			       (void *)&adev->sdma.instance[0],
@@ -2574,6 +2576,10 @@ static void sdma_v4_0_set_irq_funcs(struct amdgpu_device *adev)
 	case 1:
 		adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE1;
 		adev->sdma.ecc_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE1;
+		break;
+	case 5:
+		adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE5;
+		adev->sdma.ecc_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE5;
 		break;
 	case 8:
 		adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
