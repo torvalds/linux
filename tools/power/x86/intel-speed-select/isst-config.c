@@ -261,6 +261,10 @@ static void for_each_online_package_in_set(void (*callback)(int, void *, void *,
 		if (die_id < 0)
 			die_id = 0;
 		pkg_id = get_physical_package_id(i);
+		if (pkg_id < 0) {
+			fprintf(stderr, "Failed to get package id, CPU %d may be offline\n", i);
+			continue;
+		}
 		/* Create an unique id for package, die combination to store */
 		pkg_id = (MAX_PACKAGE_COUNT * pkg_id + die_id);
 
@@ -362,6 +366,10 @@ static void set_cpu_present_cpu_mask(void)
 				die_id = 0;
 
 			pkg_id = get_physical_package_id(i);
+			if (pkg_id < 0) {
+				fprintf(stderr, "Failed to get package id, CPU %d may be offline\n", i);
+				continue;
+			}
 			if (pkg_id < MAX_PACKAGE_COUNT &&
 			    die_id < MAX_DIE_PER_PACKAGE) {
 				int core_id = get_physical_core_id(i);
