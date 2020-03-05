@@ -183,6 +183,9 @@ struct hisi_qm {
 	u32 error_mask;
 	u32 msi_mask;
 
+	struct workqueue_struct *wq;
+	struct work_struct work;
+
 	const char *algs;
 	bool use_dma_api;
 	bool use_sva;
@@ -219,8 +222,6 @@ struct hisi_qp {
 	void *qp_ctx;
 	void (*req_cb)(struct hisi_qp *qp, void *data);
 	void (*event_cb)(struct hisi_qp *qp);
-	struct work_struct work;
-	struct workqueue_struct *wq;
 
 	struct hisi_qm *qm;
 	u16 pasid;
