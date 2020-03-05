@@ -5942,7 +5942,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 }
 STACK_FRAME_NON_STANDARD(svm_vcpu_run);
 
-static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
+static void svm_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long root)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	bool update_guest_cr3 = true;
@@ -7354,7 +7354,6 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.decache_cr0_guest_bits = svm_decache_cr0_guest_bits,
 	.decache_cr4_guest_bits = svm_decache_cr4_guest_bits,
 	.set_cr0 = svm_set_cr0,
-	.set_cr3 = svm_set_cr3,
 	.set_cr4 = svm_set_cr4,
 	.set_efer = svm_set_efer,
 	.get_idt = svm_get_idt,
@@ -7413,6 +7412,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 
 	.read_l1_tsc_offset = svm_read_l1_tsc_offset,
 	.write_l1_tsc_offset = svm_write_l1_tsc_offset,
+
+	.load_mmu_pgd = svm_load_mmu_pgd,
 
 	.check_intercept = svm_check_intercept,
 	.handle_exit_irqoff = svm_handle_exit_irqoff,

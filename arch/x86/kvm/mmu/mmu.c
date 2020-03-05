@@ -4311,7 +4311,7 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 			 * accompanied by KVM_REQ_MMU_RELOAD, which will free
 			 * the root set here and allocate a new one.
 			 */
-			kvm_make_request(KVM_REQ_LOAD_CR3, vcpu);
+			kvm_make_request(KVM_REQ_LOAD_MMU_PGD, vcpu);
 			if (!skip_tlb_flush) {
 				kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
 				kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
@@ -5182,7 +5182,7 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 	kvm_mmu_sync_roots(vcpu);
 	if (r)
 		goto out;
-	kvm_mmu_load_cr3(vcpu);
+	kvm_mmu_load_pgd(vcpu);
 	kvm_x86_ops->tlb_flush(vcpu, true);
 out:
 	return r;

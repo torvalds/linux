@@ -2995,7 +2995,7 @@ u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
 	return eptp;
 }
 
-void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	struct kvm *kvm = vcpu->kvm;
 	bool update_guest_cr3 = true;
@@ -7859,7 +7859,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.decache_cr0_guest_bits = vmx_decache_cr0_guest_bits,
 	.decache_cr4_guest_bits = vmx_decache_cr4_guest_bits,
 	.set_cr0 = vmx_set_cr0,
-	.set_cr3 = vmx_set_cr3,
 	.set_cr4 = vmx_set_cr4,
 	.set_efer = vmx_set_efer,
 	.get_idt = vmx_get_idt,
@@ -7921,6 +7920,8 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 
 	.read_l1_tsc_offset = vmx_read_l1_tsc_offset,
 	.write_l1_tsc_offset = vmx_write_l1_tsc_offset,
+
+	.load_mmu_pgd = vmx_load_mmu_pgd,
 
 	.check_intercept = vmx_check_intercept,
 	.handle_exit_irqoff = vmx_handle_exit_irqoff,

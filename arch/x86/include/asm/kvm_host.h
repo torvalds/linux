@@ -58,7 +58,7 @@
 #define KVM_REQ_TRIPLE_FAULT		KVM_ARCH_REQ(2)
 #define KVM_REQ_MMU_SYNC		KVM_ARCH_REQ(3)
 #define KVM_REQ_CLOCK_UPDATE		KVM_ARCH_REQ(4)
-#define KVM_REQ_LOAD_CR3		KVM_ARCH_REQ(5)
+#define KVM_REQ_LOAD_MMU_PGD		KVM_ARCH_REQ(5)
 #define KVM_REQ_EVENT			KVM_ARCH_REQ(6)
 #define KVM_REQ_APF_HALT		KVM_ARCH_REQ(7)
 #define KVM_REQ_STEAL_UPDATE		KVM_ARCH_REQ(8)
@@ -1091,7 +1091,6 @@ struct kvm_x86_ops {
 	void (*decache_cr0_guest_bits)(struct kvm_vcpu *vcpu);
 	void (*decache_cr4_guest_bits)(struct kvm_vcpu *vcpu);
 	void (*set_cr0)(struct kvm_vcpu *vcpu, unsigned long cr0);
-	void (*set_cr3)(struct kvm_vcpu *vcpu, unsigned long cr3);
 	int (*set_cr4)(struct kvm_vcpu *vcpu, unsigned long cr4);
 	void (*set_efer)(struct kvm_vcpu *vcpu, u64 efer);
 	void (*get_idt)(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
@@ -1154,6 +1153,8 @@ struct kvm_x86_ops {
 	int (*set_identity_map_addr)(struct kvm *kvm, u64 ident_addr);
 	int (*get_tdp_level)(struct kvm_vcpu *vcpu);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
+
+	void (*load_mmu_pgd)(struct kvm_vcpu *vcpu, unsigned long cr3);
 
 	bool (*has_wbinvd_exit)(void);
 

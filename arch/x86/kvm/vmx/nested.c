@@ -2473,9 +2473,9 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 			 * If L1 use EPT, then L0 needs to execute INVEPT on
 			 * EPTP02 instead of EPTP01. Therefore, delay TLB
 			 * flush until vmcs02->eptp is fully updated by
-			 * KVM_REQ_LOAD_CR3. Note that this assumes
+			 * KVM_REQ_LOAD_MMU_PGD. Note that this assumes
 			 * KVM_REQ_TLB_FLUSH is evaluated after
-			 * KVM_REQ_LOAD_CR3 in vcpu_enter_guest().
+			 * KVM_REQ_LOAD_MMU_PGD in vcpu_enter_guest().
 			 */
 			kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		}
@@ -2520,7 +2520,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	/*
 	 * Immediately write vmcs02.GUEST_CR3.  It will be propagated to vmcs12
 	 * on nested VM-Exit, which can occur without actually running L2 and
-	 * thus without hitting vmx_set_cr3(), e.g. if L1 is entering L2 with
+	 * thus without hitting vmx_load_mmu_pgd(), e.g. if L1 is entering L2 with
 	 * vmcs12.GUEST_ACTIVITYSTATE=HLT, in which case KVM will intercept the
 	 * transition to HLT instead of running L2.
 	 */
@@ -4031,7 +4031,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	 *
 	 * If vmcs12 uses EPT, we need to execute this flush on EPTP01
 	 * and therefore we request the TLB flush to happen only after VMCS EPTP
-	 * has been set by KVM_REQ_LOAD_CR3.
+	 * has been set by KVM_REQ_LOAD_MMU_PGD.
 	 */
 	if (enable_vpid &&
 	    (!nested_cpu_has_vpid(vmcs12) || !nested_has_guest_tlb_tag(vcpu))) {
