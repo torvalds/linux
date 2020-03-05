@@ -945,13 +945,19 @@ EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
  *  - HyperV:     0x40000000 - 0x400000ff
  *  - KVM:        0x40000100 - 0x400001ff
  */
-static bool cpuid_function_in_range(struct kvm_vcpu *vcpu, u32 function)
+static struct kvm_cpuid_entry2 *
+get_out_of_range_cpuid_entry(struct kvm_vcpu *vcpu, u32 *fn_ptr, u32 index)
 {
 	struct kvm_cpuid_entry2 *basic, *class;
+	u32 function = *fn_ptr;
 
 	basic = kvm_find_cpuid_entry(vcpu, 0, 0);
 	if (!basic)
-		return true;
+		return NULL;
+
+	if (is_guest_vendor_amd(basic->ebx, basic->ecx, basic->edx) ||
+	    is_guest_vendor_hygon(basic->ebx, basic->ecx, basic->edx))
+		return NULL;
 
 	if (function >= 0x40000000 && function <= 0x4fffffff)
 		class = kvm_find_cpuid_entry(vcpu, function & 0xffffff00, 0);
@@ -960,7 +966,23 @@ static bool cpuid_function_in_range(struct kvm_vcpu *vcpu, u32 function)
 	else
 		class = kvm_find_cpuid_entry(vcpu, function & 0x80000000, 0);
 
-	return class && function <= class->eax;
+	if (class && function <= class->eax)
+		return NULL;
+
+	/*
+	 * Leaf specific adjustments are also applied when redirecting to the
+	 * max basic entry, e.g. if the max basic leaf is 0xb but there is no
+	 * entry for CPUID.0xb.index (see below), then the output value for EDX
+	 * needs to be pulled from CPUID.0xb.1.
+	 */
+	*fn_ptr = basic->eax;
+
+	/*
+	 * The class does not exist or the requested function is out of range;
+	 * the effective CPUID entry is the max basic leaf.  Note, the index of
+	 * the original requested leaf is observed!
+	 */
+	return kvm_find_cpuid_entry(vcpu, basic->eax, index);
 }
 
 bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
@@ -968,25 +990,14 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 {
 	u32 orig_function = *eax, function = *eax, index = *ecx;
 	struct kvm_cpuid_entry2 *entry;
-	struct kvm_cpuid_entry2 *max;
 	bool found;
 
 	entry = kvm_find_cpuid_entry(vcpu, function, index);
 	found = entry;
-	/*
-	 * Intel CPUID semantics treats any query for an out-of-range
-	 * leaf as if the highest basic leaf (i.e. CPUID.0H:EAX) were
-	 * requested. AMD CPUID semantics returns all zeroes for any
-	 * undefined leaf, whether or not the leaf is in range.
-	 */
-	if (!entry && check_limit && !guest_cpuid_is_amd_or_hygon(vcpu) &&
-	    !cpuid_function_in_range(vcpu, function)) {
-		max = kvm_find_cpuid_entry(vcpu, 0, 0);
-		if (max) {
-			function = max->eax;
-			entry = kvm_find_cpuid_entry(vcpu, function, index);
-		}
-	}
+
+	if (!entry && check_limit)
+		entry = get_out_of_range_cpuid_entry(vcpu, &function, index);
+
 	if (entry) {
 		*eax = entry->eax;
 		*ebx = entry->ebx;
