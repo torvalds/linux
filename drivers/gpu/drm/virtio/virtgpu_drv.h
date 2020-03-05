@@ -69,15 +69,20 @@ struct virtio_gpu_object_params {
 struct virtio_gpu_object {
 	struct drm_gem_shmem_object base;
 	uint32_t hw_res_handle;
-
-	struct sg_table *pages;
-	uint32_t mapped;
-
 	bool dumb;
 	bool created;
 };
 #define gem_to_virtio_gpu_obj(gobj) \
 	container_of((gobj), struct virtio_gpu_object, base.base)
+
+struct virtio_gpu_object_shmem {
+	struct virtio_gpu_object base;
+	struct sg_table *pages;
+	uint32_t mapped;
+};
+
+#define to_virtio_gpu_shmem(virtio_gpu_object) \
+	container_of((virtio_gpu_object), struct virtio_gpu_object_shmem, base)
 
 struct virtio_gpu_object_array {
 	struct ww_acquire_ctx ticket;
