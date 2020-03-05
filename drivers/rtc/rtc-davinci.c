@@ -258,10 +258,6 @@ static int convert2days(u16 *days, struct rtc_time *tm)
 	int i;
 	*days = 0;
 
-	/* epoch == 1900 */
-	if (tm->tm_year < 100 || tm->tm_year > 199)
-		return -EINVAL;
-
 	for (i = 2000; i < 1900 + tm->tm_year; i++)
 		*days += rtc_year_days(1, 12, i);
 
@@ -313,8 +309,7 @@ static int davinci_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	u8 rtc_cctrl;
 	unsigned long flags;
 
-	if (convert2days(&days, tm) < 0)
-		return -EINVAL;
+	convert2days(&days, tm);
 
 	spin_lock_irqsave(&davinci_rtc_lock, flags);
 
@@ -413,8 +408,7 @@ static int davinci_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	unsigned long flags;
 	u16 days;
 
-	if (convert2days(&days, &alm->time) < 0)
-		return -EINVAL;
+	convert2days(&days, &alm->time);
 
 	spin_lock_irqsave(&davinci_rtc_lock, flags);
 
@@ -469,6 +463,8 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(davinci_rtc->rtc);
 
 	davinci_rtc->rtc->ops = &davinci_rtc_ops;
+	davinci_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	davinci_rtc->rtc->range_max = RTC_TIMESTAMP_BEGIN_2000 + (1 << 16) * 86400ULL - 1;
 
 	rtcif_write(davinci_rtc, PRTCIF_INTFLG_RTCSS, PRTCIF_INTFLG);
 	rtcif_write(davinci_rtc, 0, PRTCIF_INTEN);
