@@ -479,6 +479,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_head_snapc = NULL;
 	ci->i_snap_caps = 0;
 
+	ci->i_last_rd = ci->i_last_wr = jiffies - 3600 * HZ;
 	for (i = 0; i < CEPH_FILE_MODE_BITS; i++)
 		ci->i_nr_by_mode[i] = 0;
 
@@ -639,7 +640,7 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 			if ((issued & (CEPH_CAP_FILE_CACHE|
 				       CEPH_CAP_FILE_BUFFER)) ||
 			    mapping_mapped(inode->i_mapping) ||
-			    __ceph_caps_file_wanted(ci)) {
+			    __ceph_is_file_opened(ci)) {
 				ci->i_truncate_pending++;
 				queue_trunc = 1;
 			}
@@ -1011,6 +1012,13 @@ int ceph_fill_inode(struct inode *inode, struct page *locked_page,
 		if (ci->i_inline_version != CEPH_INLINE_NONE &&
 		    (locked_page || (info_caps & cache_caps)))
 			fill_inline = true;
+	}
+
+	if (cap_fmode >= 0) {
+		if (!info_caps)
+			pr_warn("mds issued no caps on %llx.%llx\n",
+				ceph_vinop(inode));
+		__ceph_touch_fmode(ci, mdsc, cap_fmode);
 	}
 
 	spin_unlock(&ci->i_ceph_lock);

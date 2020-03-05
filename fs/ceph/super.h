@@ -366,6 +366,8 @@ struct ceph_inode_info {
 						    dirty|flushing caps */
 	unsigned i_snap_caps;           /* cap bits for snapped files */
 
+	unsigned long i_last_rd;
+	unsigned long i_last_wr;
 	int i_nr_by_mode[CEPH_FILE_MODE_BITS];  /* open file counts */
 
 	struct mutex i_truncate_mutex;
@@ -680,6 +682,10 @@ extern int __ceph_caps_revoking_other(struct ceph_inode_info *ci,
 extern int ceph_caps_revoking(struct ceph_inode_info *ci, int mask);
 extern int __ceph_caps_used(struct ceph_inode_info *ci);
 
+static inline bool __ceph_is_file_opened(struct ceph_inode_info *ci)
+{
+	return ci->i_nr_by_mode[0];
+}
 extern int __ceph_caps_file_wanted(struct ceph_inode_info *ci);
 extern int __ceph_caps_wanted(struct ceph_inode_info *ci);
 
@@ -1093,7 +1099,10 @@ extern int ceph_try_get_caps(struct inode *inode,
 
 /* for counting open files by mode */
 extern void __ceph_get_fmode(struct ceph_inode_info *ci, int mode);
-extern void ceph_put_fmode(struct ceph_inode_info *ci, int mode);
+extern void ceph_get_fmode(struct ceph_inode_info *ci, int mode, int count);
+extern void ceph_put_fmode(struct ceph_inode_info *ci, int mode, int count);
+extern void __ceph_touch_fmode(struct ceph_inode_info *ci,
+			       struct ceph_mds_client *mdsc, int fmode);
 
 /* addr.c */
 extern const struct address_space_operations ceph_aops;
@@ -1105,7 +1114,7 @@ extern void ceph_pool_perm_destroy(struct ceph_mds_client* mdsc);
 /* file.c */
 extern const struct file_operations ceph_file_fops;
 
-extern int ceph_renew_caps(struct inode *inode);
+extern int ceph_renew_caps(struct inode *inode, int fmode);
 extern int ceph_open(struct inode *inode, struct file *file);
 extern int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 			    struct file *file, unsigned flags, umode_t mode);

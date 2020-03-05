@@ -978,19 +978,67 @@ int __ceph_caps_used(struct ceph_inode_info *ci)
 	return used;
 }
 
+#define FMODE_WAIT_BIAS 1000
+
 /*
  * wanted, by virtue of open file modes
  */
 int __ceph_caps_file_wanted(struct ceph_inode_info *ci)
 {
-	int i, bits = 0;
-	for (i = 0; i < CEPH_FILE_MODE_BITS; i++) {
-		if (ci->i_nr_by_mode[i])
-			bits |= 1 << i;
+	const int PIN_SHIFT = ffs(CEPH_FILE_MODE_PIN);
+	const int RD_SHIFT = ffs(CEPH_FILE_MODE_RD);
+	const int WR_SHIFT = ffs(CEPH_FILE_MODE_WR);
+	const int LAZY_SHIFT = ffs(CEPH_FILE_MODE_LAZY);
+	struct ceph_mount_options *opt =
+		ceph_inode_to_client(&ci->vfs_inode)->mount_options;
+	unsigned long used_cutoff = jiffies - opt->caps_wanted_delay_max * HZ;
+	unsigned long idle_cutoff = jiffies - opt->caps_wanted_delay_min * HZ;
+
+	if (S_ISDIR(ci->vfs_inode.i_mode)) {
+		int want = 0;
+
+		/* use used_cutoff here, to keep dir's wanted caps longer */
+		if (ci->i_nr_by_mode[RD_SHIFT] > 0 ||
+		    time_after(ci->i_last_rd, used_cutoff))
+			want |= CEPH_CAP_ANY_SHARED;
+
+		if (ci->i_nr_by_mode[WR_SHIFT] > 0 ||
+		    time_after(ci->i_last_wr, used_cutoff)) {
+			want |= CEPH_CAP_ANY_SHARED | CEPH_CAP_FILE_EXCL;
+			if (opt->flags & CEPH_MOUNT_OPT_ASYNC_DIROPS)
+				want |= CEPH_CAP_ANY_DIR_OPS;
+		}
+
+		if (want || ci->i_nr_by_mode[PIN_SHIFT] > 0)
+			want |= CEPH_CAP_PIN;
+
+		return want;
+	} else {
+		int bits = 0;
+
+		if (ci->i_nr_by_mode[RD_SHIFT] > 0) {
+			if (ci->i_nr_by_mode[RD_SHIFT] >= FMODE_WAIT_BIAS ||
+			    time_after(ci->i_last_rd, used_cutoff))
+				bits |= 1 << RD_SHIFT;
+		} else if (time_after(ci->i_last_rd, idle_cutoff)) {
+			bits |= 1 << RD_SHIFT;
+		}
+
+		if (ci->i_nr_by_mode[WR_SHIFT] > 0) {
+			if (ci->i_nr_by_mode[WR_SHIFT] >= FMODE_WAIT_BIAS ||
+			    time_after(ci->i_last_wr, used_cutoff))
+				bits |= 1 << WR_SHIFT;
+		} else if (time_after(ci->i_last_wr, idle_cutoff)) {
+			bits |= 1 << WR_SHIFT;
+		}
+
+		/* check lazyio only when read/write is wanted */
+		if ((bits & (CEPH_FILE_MODE_RDWR << 1)) &&
+		    ci->i_nr_by_mode[LAZY_SHIFT] > 0)
+			bits |= 1 << LAZY_SHIFT;
+
+		return bits ? ceph_caps_for_mode(bits >> 1) : 0;
 	}
-	if (bits == 0)
-		return 0;
-	return ceph_caps_for_mode(bits >> 1);
 }
 
 /*
@@ -1030,14 +1078,6 @@ int __ceph_caps_mds_wanted(struct ceph_inode_info *ci, bool check)
 			mds_wanted |= (cap->mds_wanted & ~CEPH_CAP_ANY_FILE_WR);
 	}
 	return mds_wanted;
-}
-
-/*
- * called under i_ceph_lock
- */
-static int __ceph_is_single_caps(struct ceph_inode_info *ci)
-{
-	return rb_first(&ci->i_caps) == rb_last(&ci->i_caps);
 }
 
 int ceph_is_any_caps(struct inode *inode)
@@ -1877,10 +1917,6 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 	if (ci->i_ceph_flags & CEPH_I_FLUSH)
 		flags |= CHECK_CAPS_FLUSH;
 
-	if (!(flags & CHECK_CAPS_AUTHONLY) ||
-	    (ci->i_auth_cap && __ceph_is_single_caps(ci)))
-		__cap_delay_cancel(mdsc, ci);
-
 	goto retry_locked;
 retry:
 	spin_lock(&ci->i_ceph_lock);
@@ -1907,9 +1943,7 @@ retry_locked:
 			if (IS_RDONLY(inode)) {
 				want = CEPH_CAP_ANY_SHARED;
 			} else {
-				want = CEPH_CAP_ANY_SHARED |
-				       CEPH_CAP_FILE_EXCL |
-				       CEPH_CAP_ANY_DIR_OPS;
+				want |= CEPH_CAP_ANY_SHARED | CEPH_CAP_FILE_EXCL;
 			}
 			retain |= want;
 		} else {
@@ -2105,9 +2139,17 @@ ack:
 		goto retry; /* retake i_ceph_lock and restart our cap scan. */
 	}
 
-	/* Reschedule delayed caps release if we delayed anything */
-	if (delayed)
-		__cap_delay_requeue(mdsc, ci, false);
+	if (list_empty(&ci->i_cap_delay_list)) {
+	    if (delayed) {
+		    /* Reschedule delayed caps release if we delayed anything */
+		    __cap_delay_requeue(mdsc, ci, false);
+	    } else if (__ceph_is_any_real_caps(ci) &&
+			(file_wanted & ~CEPH_CAP_PIN) &&
+			!(used & (CEPH_CAP_FILE_RD | CEPH_CAP_ANY_FILE_WR))) {
+		    /* periodically re-calculate caps wanted by open files */
+		    __cap_delay_requeue(mdsc, ci, true);
+	    }
+	}
 
 	spin_unlock(&ci->i_ceph_lock);
 
@@ -2573,8 +2615,9 @@ void ceph_take_cap_refs(struct ceph_inode_info *ci, int got,
  * FIXME: how does a 0 return differ from -EAGAIN?
  */
 enum {
-	NON_BLOCKING	= 1,
-	CHECK_FILELOCK	= 2,
+	/* first 8 bits are reserved for CEPH_FILE_MODE_FOO */
+	NON_BLOCKING	= (1 << 8),
+	CHECK_FILELOCK	= (1 << 9),
 };
 
 static int try_get_cap_refs(struct inode *inode, int need, int want,
@@ -2584,7 +2627,6 @@ static int try_get_cap_refs(struct inode *inode, int need, int want,
 	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	int ret = 0;
 	int have, implemented;
-	int file_wanted;
 	bool snap_rwsem_locked = false;
 
 	dout("get_cap_refs %p need %s want %s\n", inode,
@@ -2597,15 +2639,6 @@ again:
 	    (ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK)) {
 		dout("try_get_cap_refs %p error filelock\n", inode);
 		ret = -EIO;
-		goto out_unlock;
-	}
-
-	/* make sure file is actually open */
-	file_wanted = __ceph_caps_file_wanted(ci);
-	if ((file_wanted & need) != need) {
-		dout("try_get_cap_refs need %s file_wanted %s, EBADF\n",
-		     ceph_cap_string(need), ceph_cap_string(file_wanted));
-		ret = -EBADF;
 		goto out_unlock;
 	}
 
@@ -2719,6 +2752,9 @@ again:
 		     ceph_cap_string(have), ceph_cap_string(need));
 	}
 out_unlock:
+
+	__ceph_touch_fmode(ci, mdsc, flags);
+
 	spin_unlock(&ci->i_ceph_lock);
 	if (snap_rwsem_locked)
 		up_read(&mdsc->snap_rwsem);
@@ -2756,10 +2792,20 @@ static void check_max_size(struct inode *inode, loff_t endoff)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
 }
 
+static inline int get_used_fmode(int caps)
+{
+	int fmode = 0;
+	if (caps & CEPH_CAP_FILE_RD)
+		fmode |= CEPH_FILE_MODE_RD;
+	if (caps & CEPH_CAP_FILE_WR)
+		fmode |= CEPH_FILE_MODE_WR;
+	return fmode;
+}
+
 int ceph_try_get_caps(struct inode *inode, int need, int want,
 		      bool nonblock, int *got)
 {
-	int ret;
+	int ret, flags;
 
 	BUG_ON(need & ~CEPH_CAP_FILE_RD);
 	BUG_ON(want & ~(CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO |
@@ -2771,8 +2817,11 @@ int ceph_try_get_caps(struct inode *inode, int need, int want,
 			return ret;
 	}
 
-	ret = try_get_cap_refs(inode, need, want, 0,
-			       (nonblock ? NON_BLOCKING : 0), got);
+	flags = get_used_fmode(need | want);
+	if (nonblock)
+		flags |= NON_BLOCKING;
+
+	ret = try_get_cap_refs(inode, need, want, 0, flags, got);
 	return ret == -EAGAIN ? 0 : ret;
 }
 
@@ -2798,11 +2847,15 @@ int ceph_get_caps(struct file *filp, int need, int want,
 	    fi->filp_gen != READ_ONCE(fsc->filp_gen))
 		return -EBADF;
 
+	flags = get_used_fmode(need | want);
+
 	while (true) {
 		if (endoff > 0)
 			check_max_size(inode, endoff);
 
-		flags = atomic_read(&fi->num_locks) ? CHECK_FILELOCK : 0;
+		flags &= CEPH_FILE_MODE_MASK;
+		if (atomic_read(&fi->num_locks))
+			flags |= CHECK_FILELOCK;
 		_got = 0;
 		ret = try_get_cap_refs(inode, need, want, endoff,
 				       flags, &_got);
@@ -2822,6 +2875,8 @@ int ceph_get_caps(struct file *filp, int need, int want,
 			list_add(&cw.list, &mdsc->cap_wait_list);
 			spin_unlock(&mdsc->caps_list_lock);
 
+			/* make sure used fmode not timeout */
+			ceph_get_fmode(ci, flags, FMODE_WAIT_BIAS);
 			add_wait_queue(&ci->i_cap_wq, &wait);
 
 			flags |= NON_BLOCKING;
@@ -2835,6 +2890,7 @@ int ceph_get_caps(struct file *filp, int need, int want,
 			}
 
 			remove_wait_queue(&ci->i_cap_wq, &wait);
+			ceph_put_fmode(ci, flags, FMODE_WAIT_BIAS);
 
 			spin_lock(&mdsc->caps_list_lock);
 			list_del(&cw.list);
@@ -2854,7 +2910,7 @@ int ceph_get_caps(struct file *filp, int need, int want,
 		if (ret < 0) {
 			if (ret == -ESTALE) {
 				/* session was killed, try renew caps */
-				ret = ceph_renew_caps(inode);
+				ret = ceph_renew_caps(inode, flags);
 				if (ret == 0)
 					continue;
 			}
@@ -4153,6 +4209,33 @@ void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc)
 	dout("flush_dirty_caps done\n");
 }
 
+void __ceph_touch_fmode(struct ceph_inode_info *ci,
+			struct ceph_mds_client *mdsc, int fmode)
+{
+	unsigned long now = jiffies;
+	if (fmode & CEPH_FILE_MODE_RD)
+		ci->i_last_rd = now;
+	if (fmode & CEPH_FILE_MODE_WR)
+		ci->i_last_wr = now;
+	/* queue periodic check */
+	if (fmode &&
+	    __ceph_is_any_real_caps(ci) &&
+	    list_empty(&ci->i_cap_delay_list))
+		__cap_delay_requeue(mdsc, ci, true);
+}
+
+void ceph_get_fmode(struct ceph_inode_info *ci, int fmode, int count)
+{
+	int i;
+	int bits = (fmode << 1) | 1;
+	spin_lock(&ci->i_ceph_lock);
+	for (i = 0; i < CEPH_FILE_MODE_BITS; i++) {
+		if (bits & (1 << i))
+			ci->i_nr_by_mode[i] += count;
+	}
+	spin_unlock(&ci->i_ceph_lock);
+}
+
 void __ceph_get_fmode(struct ceph_inode_info *ci, int fmode)
 {
 	int i;
@@ -4168,26 +4251,18 @@ void __ceph_get_fmode(struct ceph_inode_info *ci, int fmode)
  * we may need to release capabilities to the MDS (or schedule
  * their delayed release).
  */
-void ceph_put_fmode(struct ceph_inode_info *ci, int fmode)
+void ceph_put_fmode(struct ceph_inode_info *ci, int fmode, int count)
 {
-	int i, last = 0;
+	int i;
 	int bits = (fmode << 1) | 1;
 	spin_lock(&ci->i_ceph_lock);
 	for (i = 0; i < CEPH_FILE_MODE_BITS; i++) {
 		if (bits & (1 << i)) {
-			BUG_ON(ci->i_nr_by_mode[i] == 0);
-			if (--ci->i_nr_by_mode[i] == 0)
-				last++;
+			BUG_ON(ci->i_nr_by_mode[i] < count);
+			ci->i_nr_by_mode[i] -= count;
 		}
 	}
-	dout("put_fmode %p fmode %d {%d,%d,%d,%d}\n",
-	     &ci->vfs_inode, fmode,
-	     ci->i_nr_by_mode[0], ci->i_nr_by_mode[1],
-	     ci->i_nr_by_mode[2], ci->i_nr_by_mode[3]);
 	spin_unlock(&ci->i_ceph_lock);
-
-	if (last && ci->i_vino.snap == CEPH_NOSNAP)
-		ceph_check_caps(ci, 0, NULL);
 }
 
 /*

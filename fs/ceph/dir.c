@@ -335,8 +335,11 @@ static int ceph_readdir(struct file *file, struct dir_context *ctx)
 		ctx->pos = 2;
 	}
 
-	/* can we use the dcache? */
 	spin_lock(&ci->i_ceph_lock);
+	/* request Fx cap. if have Fx, we don't need to release Fs cap
+	 * for later create/unlink. */
+	__ceph_touch_fmode(ci, mdsc, CEPH_FILE_MODE_WR);
+	/* can we use the dcache? */
 	if (ceph_test_mount_opt(fsc, DCACHE) &&
 	    !ceph_test_mount_opt(fsc, NOASYNCREADDIR) &&
 	    ceph_snap(inode) != CEPH_SNAPDIR &&
@@ -760,6 +763,7 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 		    ceph_test_mount_opt(fsc, DCACHE) &&
 		    __ceph_dir_is_complete(ci) &&
 		    (__ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1))) {
+			__ceph_touch_fmode(ci, mdsc, CEPH_FILE_MODE_RD);
 			spin_unlock(&ci->i_ceph_lock);
 			dout(" dir %p complete, -ENOENT\n", dir);
 			d_add(dentry, NULL);
@@ -1621,7 +1625,8 @@ static int __dir_lease_try_check(const struct dentry *dentry)
 /*
  * Check if directory-wide content lease/cap is valid.
  */
-static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry)
+static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry,
+			      struct ceph_mds_client *mdsc)
 {
 	struct ceph_inode_info *ci = ceph_inode(dir);
 	int valid;
@@ -1629,7 +1634,10 @@ static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry)
 
 	spin_lock(&ci->i_ceph_lock);
 	valid = __ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1);
-	shared_gen = atomic_read(&ci->i_shared_gen);
+	if (valid) {
+		__ceph_touch_fmode(ci, mdsc, CEPH_FILE_MODE_RD);
+		shared_gen = atomic_read(&ci->i_shared_gen);
+	}
 	spin_unlock(&ci->i_ceph_lock);
 	if (valid) {
 		struct ceph_dentry_info *di;
@@ -1655,6 +1663,7 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	int valid = 0;
 	struct dentry *parent;
 	struct inode *dir, *inode;
+	struct ceph_mds_client *mdsc;
 
 	if (flags & LOOKUP_RCU) {
 		parent = READ_ONCE(dentry->d_parent);
@@ -1671,6 +1680,8 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	dout("d_revalidate %p '%pd' inode %p offset 0x%llx\n", dentry,
 	     dentry, inode, ceph_dentry(dentry)->offset);
 
+	mdsc = ceph_sb_to_client(dir->i_sb)->mdsc;
+
 	/* always trust cached snapped dentries, snapdir dentry */
 	if (ceph_snap(dir) != CEPH_NOSNAP) {
 		dout("d_revalidate %p '%pd' inode %p is SNAPPED\n", dentry,
@@ -1682,7 +1693,7 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 		valid = dentry_lease_is_valid(dentry, flags);
 		if (valid == -ECHILD)
 			return valid;
-		if (valid || dir_lease_is_valid(dir, dentry)) {
+		if (valid || dir_lease_is_valid(dir, dentry, mdsc)) {
 			if (inode)
 				valid = ceph_is_any_caps(inode);
 			else
@@ -1691,8 +1702,6 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	}
 
 	if (!valid) {
-		struct ceph_mds_client *mdsc =
-			ceph_sb_to_client(dir->i_sb)->mdsc;
 		struct ceph_mds_request *req;
 		int op, err;
 		u32 mask;
