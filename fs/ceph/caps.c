@@ -1371,7 +1371,8 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	arg.size = inode->i_size;
 	ci->i_reported_size = arg.size;
 	arg.max_size = ci->i_wanted_max_size;
-	ci->i_requested_max_size = arg.max_size;
+	if (cap == ci->i_auth_cap)
+		ci->i_requested_max_size = arg.max_size;
 
 	if (flushing & CEPH_CAP_XATTR_EXCL) {
 		old_blob = __ceph_build_xattrs_blob(ci);
