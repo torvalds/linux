@@ -354,6 +354,14 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 		snprintf(value, sizeof(value), "%d", j);
 		format_and_print(outf, base_level + 4, header, value);
 
+		j = CPU_COUNT_S(ctdp_level->core_cpumask_size,
+				ctdp_level->core_cpumask);
+		if (j) {
+			snprintf(header, sizeof(header), "enable-cpu-count");
+			snprintf(value, sizeof(value), "%d", j);
+			format_and_print(outf, base_level + 4, header, value);
+		}
+
 		if (ctdp_level->core_cpumask_size) {
 			snprintf(header, sizeof(header), "enable-cpu-mask");
 			printcpumask(sizeof(value), value,
