@@ -172,6 +172,7 @@ extern int get_cpu_count(int pkg_id, int die_id);
 extern int get_core_count(int pkg_id, int die_id);
 
 /* Common interfaces */
+FILE *get_output_file(void);
 extern void debug_printf(const char *format, ...);
 extern int out_format_is_json(void);
 extern int get_physical_package_id(int cpu);
@@ -252,4 +253,5 @@ extern void isst_clos_display_clos_information(int cpu, FILE *outf,
 extern int is_clx_n_platform(void);
 extern int get_cpufreq_base_freq(int cpu);
 extern int isst_read_pm_config(int cpu, int *cp_state, int *cp_cap);
+extern void isst_display_error_info_message(int error, char *msg, int arg_valid, int arg);
 #endif

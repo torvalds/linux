@@ -515,15 +515,18 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 	format_and_print(outf, 1, NULL, NULL);
 }
 
+static int start;
 void isst_ctdp_display_information_start(FILE *outf)
 {
 	last_level = 0;
 	format_and_print(outf, 0, "start", NULL);
+	start = 1;
 }
 
 void isst_ctdp_display_information_end(FILE *outf)
 {
 	format_and_print(outf, 0, NULL, NULL);
+	start = 0;
 }
 
 void isst_pbf_display_information(int cpu, FILE *outf, int level,
@@ -685,4 +688,45 @@ void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
 	format_and_print(outf, 5, header, value);
 
 	format_and_print(outf, 1, NULL, NULL);
+}
+
+void isst_display_error_info_message(int error, char *msg, int arg_valid, int arg)
+{
+	FILE *outf = get_output_file();
+	static int error_index;
+	char header[256];
+	char value[256];
+
+	if (!out_format_is_json()) {
+		if (arg_valid)
+			snprintf(value, sizeof(value), "%s %d", msg, arg);
+		else
+			snprintf(value, sizeof(value), "%s", msg);
+
+		if (error)
+			fprintf(outf, "Error: %s\n", value);
+		else
+			fprintf(outf, "Information: %s\n", value);
+		return;
+	}
+
+	if (!start)
+		format_and_print(outf, 0, "start", NULL);
+
+	if (error)
+		snprintf(header, sizeof(header), "Error%d", error_index++);
+	else
+		snprintf(header, sizeof(header), "Information:%d", error_index++);
+	format_and_print(outf, 1, header, NULL);
+
+	snprintf(header, sizeof(header), "message");
+	if (arg_valid)
+		snprintf(value, sizeof(value), "%s %d", msg, arg);
+	else
+		snprintf(value, sizeof(value), "%s", msg);
+
+	format_and_print(outf, 2, header, value);
+	format_and_print(outf, 1, NULL, NULL);
+	if (!start)
+		format_and_print(outf, 0, NULL, NULL);
 }

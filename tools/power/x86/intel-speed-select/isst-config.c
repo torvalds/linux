@@ -69,6 +69,11 @@ struct cpu_topology {
 	short die_id;
 };
 
+FILE *get_output_file(void)
+{
+	return outf;
+}
+
 void debug_printf(const char *format, ...)
 {
 	va_list args;
