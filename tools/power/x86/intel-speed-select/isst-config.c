@@ -1130,6 +1130,11 @@ static void dump_clx_n_config_for_cpu(int cpu, void *arg1, void *arg2,
 {
 	int ret;
 
+	if (tdp_level != 0xff && tdp_level != 0) {
+		isst_display_error_info_message(1, "Invalid level", 1, tdp_level);
+		exit(0);
+	}
+
 	ret = clx_n_config(cpu);
 	if (ret) {
 		perror("isst_get_process_ctdp");
@@ -1154,7 +1159,9 @@ static void dump_isst_config_for_cpu(int cpu, void *arg1, void *arg2,
 	memset(&pkg_dev, 0, sizeof(pkg_dev));
 	ret = isst_get_process_ctdp(cpu, tdp_level, &pkg_dev);
 	if (ret) {
-		perror("isst_get_process_ctdp");
+		isst_display_error_info_message(1, "Failed to get perf-profile info on cpu", 1, cpu);
+		isst_ctdp_display_information_end(outf);
+		exit(1);
 	} else {
 		isst_ctdp_display_information(cpu, outf, tdp_level, &pkg_dev);
 		isst_get_process_ctdp_complete(cpu, &pkg_dev);
@@ -1197,9 +1204,11 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	int ret;
 
 	ret = isst_set_tdp_level(cpu, tdp_level);
-	if (ret)
-		perror("set_tdp_level_for_cpu");
-	else {
+	if (ret) {
+		isst_display_error_info_message(1, "Set TDP level failed", 0, 0);
+		isst_ctdp_display_information_end(outf);
+		exit(1);
+	} else {
 		isst_display_result(cpu, outf, "perf-profile", "set_tdp_level",
 				    ret);
 		if (force_online_offline) {
@@ -1237,11 +1246,13 @@ static void set_tdp_level(int arg)
 			"\t Arguments: -l|--level : Specify tdp level\n");
 		fprintf(stderr,
 			"\t Optional Arguments: -o | online : online/offline for the tdp level\n");
+		fprintf(stderr,
+			"\t  online/offline operation has limitations, refer to Linux hotplug documentation\n");
 		exit(0);
 	}
 
 	if (tdp_level == 0xff) {
-		fprintf(outf, "Invalid command: specify tdp_level\n");
+		isst_display_error_info_message(1, "Invalid command: specify tdp_level", 0, 0);
 		exit(1);
 	}
 	isst_ctdp_display_information_start(outf);

@@ -114,8 +114,10 @@ int isst_get_tdp_info(int cpu, int config_index,
 
 	ret = isst_send_mbox_command(cpu, CONFIG_TDP, CONFIG_TDP_GET_TDP_INFO,
 				     0, config_index, &resp);
-	if (ret)
+	if (ret) {
+		isst_display_error_info_message(1, "Invalid level, Can't get TDP information at level", 1, config_index);
 		return ret;
+	}
 
 	ctdp_level->pkg_tdp = resp & GENMASK(14, 0);
 	ctdp_level->tdp_ratio = (resp & GENMASK(23, 16)) >> 16;
@@ -352,7 +354,7 @@ int isst_set_tdp_level_msr(int cpu, int tdp_level)
 	debug_printf("cpu: tdp_level via MSR %d\n", cpu, tdp_level);
 
 	if (isst_get_config_tdp_lock_status(cpu)) {
-		debug_printf("cpu: tdp_locked %d\n", cpu);
+		isst_display_error_info_message(1, "tdp_locked", 0, 0);
 		return -1;
 	}
 
@@ -373,10 +375,19 @@ int isst_set_tdp_level(int cpu, int tdp_level)
 	unsigned int resp;
 	int ret;
 
+
+	if (isst_get_config_tdp_lock_status(cpu)) {
+		isst_display_error_info_message(1, "TDP is locked", 0, 0);
+		return -1;
+
+	}
+
 	ret = isst_send_mbox_command(cpu, CONFIG_TDP, CONFIG_TDP_SET_LEVEL, 0,
 				     tdp_level, &resp);
-	if (ret)
-		return isst_set_tdp_level_msr(cpu, tdp_level);
+	if (ret) {
+		isst_display_error_info_message(1, "Set TDP level failed for level", 1, tdp_level);
+		return ret;
+	}
 
 	return 0;
 }
@@ -671,7 +682,7 @@ void isst_get_process_ctdp_complete(int cpu, struct isst_pkg_ctdp *pkg_dev)
 
 int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 {
-	int i, ret;
+	int i, ret, valid = 0;
 
 	if (pkg_dev->processed)
 		return 0;
@@ -683,6 +694,14 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 	debug_printf("cpu: %d ctdp enable:%d current level: %d levels:%d\n",
 		     cpu, pkg_dev->enabled, pkg_dev->current_level,
 		     pkg_dev->levels);
+
+	if (tdp_level != 0xff && tdp_level > pkg_dev->levels) {
+		isst_display_error_info_message(1, "Invalid level", 0, 0);
+		return -1;
+	}
+
+	if (!pkg_dev->enabled)
+		isst_display_error_info_message(0, "perf-profile feature is not supported, just base-config level 0 is valid", 0, 0);
 
 	for (i = 0; i <= pkg_dev->levels; ++i) {
 		struct isst_pkg_ctdp_level_info *ctdp_level;
@@ -703,6 +722,7 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 		if (ret)
 			continue;
 
+		valid = 1;
 		pkg_dev->processed = 1;
 		ctdp_level->processed = 1;
 
@@ -774,6 +794,9 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 		isst_get_p1_info(cpu, i, ctdp_level);
 		isst_get_uncore_mem_freq(cpu, i, ctdp_level);
 	}
+
+	if (!valid)
+		isst_display_error_info_message(0, "Invalid level, Can't get TDP control information at specified levels on cpu", 1, cpu);
 
 	return 0;
 }
