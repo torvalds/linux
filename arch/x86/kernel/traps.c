@@ -568,6 +568,35 @@ exit:
 	cond_local_irq_disable(regs);
 }
 
+static bool do_int3(struct pt_regs *regs)
+{
+	int res;
+
+#ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
+	if (kgdb_ll_trap(DIE_INT3, "int3", regs, 0, X86_TRAP_BP,
+			 SIGTRAP) == NOTIFY_STOP)
+		return true;
+#endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
+
+#ifdef CONFIG_KPROBES
+	if (kprobe_int3_handler(regs))
+		return true;
+#endif
+	res = notify_die(DIE_INT3, "int3", regs, 0, X86_TRAP_BP, SIGTRAP);
+
+	return res == NOTIFY_STOP;
+}
+
+static void do_int3_user(struct pt_regs *regs)
+{
+	if (do_int3(regs))
+		return;
+
+	cond_local_irq_enable(regs);
+	do_trap(X86_TRAP_BP, SIGTRAP, "int3", regs, 0, 0, NULL);
+	cond_local_irq_disable(regs);
+}
+
 DEFINE_IDTENTRY_RAW(exc_int3)
 {
 	/*
@@ -585,37 +614,20 @@ DEFINE_IDTENTRY_RAW(exc_int3)
 	 * because the INT3 could have been hit in any context including
 	 * NMI.
 	 */
-	if (user_mode(regs))
+	if (user_mode(regs)) {
 		idtentry_enter(regs);
-	else
-		nmi_enter();
-
-	instrumentation_begin();
-#ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
-	if (kgdb_ll_trap(DIE_INT3, "int3", regs, 0, X86_TRAP_BP,
-				SIGTRAP) == NOTIFY_STOP)
-		goto exit;
-#endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
-
-#ifdef CONFIG_KPROBES
-	if (kprobe_int3_handler(regs))
-		goto exit;
-#endif
-
-	if (notify_die(DIE_INT3, "int3", regs, 0, X86_TRAP_BP,
-			SIGTRAP) == NOTIFY_STOP)
-		goto exit;
-
-	cond_local_irq_enable(regs);
-	do_trap(X86_TRAP_BP, SIGTRAP, "int3", regs, 0, 0, NULL);
-	cond_local_irq_disable(regs);
-
-exit:
-	instrumentation_end();
-	if (user_mode(regs))
+		instrumentation_begin();
+		do_int3_user(regs);
+		instrumentation_end();
 		idtentry_exit(regs);
-	else
+	} else {
+		nmi_enter();
+		instrumentation_begin();
+		if (!do_int3(regs))
+			die("int3", regs, 0);
+		instrumentation_end();
 		nmi_exit();
+	}
 }
 
 #ifdef CONFIG_X86_64
