@@ -505,6 +505,8 @@ struct nameidata {
 	struct nameidata *saved;
 	unsigned	root_seq;
 	int		dfd;
+	kuid_t		dir_uid;
+	umode_t		dir_mode;
 } __randomize_layout;
 
 static void set_nameidata(struct nameidata *p, int dfd, struct filename *name)
@@ -938,9 +940,6 @@ int sysctl_protected_regular __read_mostly;
  */
 static inline int may_follow_link(struct nameidata *nd, const struct inode *inode)
 {
-	const struct inode *parent;
-	kuid_t puid;
-
 	if (!sysctl_protected_symlinks)
 		return 0;
 
@@ -949,13 +948,11 @@ static inline int may_follow_link(struct nameidata *nd, const struct inode *inod
 		return 0;
 
 	/* Allowed if parent directory not sticky and world-writable. */
-	parent = nd->inode;
-	if ((parent->i_mode & (S_ISVTX|S_IWOTH)) != (S_ISVTX|S_IWOTH))
+	if ((nd->dir_mode & (S_ISVTX|S_IWOTH)) != (S_ISVTX|S_IWOTH))
 		return 0;
 
 	/* Allowed if parent directory and link owner match. */
-	puid = parent->i_uid;
-	if (uid_valid(puid) && uid_eq(puid, inode->i_uid))
+	if (uid_valid(nd->dir_uid) && uid_eq(nd->dir_uid, inode->i_uid))
 		return 0;
 
 	if (nd->flags & LOOKUP_RCU)
@@ -2159,6 +2156,8 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 OK:
 			/* pathname or trailing symlink, done */
 			if (!depth) {
+				nd->dir_uid = nd->inode->i_uid;
+				nd->dir_mode = nd->inode->i_mode;
 				nd->flags &= ~LOOKUP_PARENT;
 				return 0;
 			}
@@ -3224,8 +3223,6 @@ finish_lookup:
 static const char *do_last(struct nameidata *nd,
 		   struct file *file, const struct open_flags *op)
 {
-	kuid_t dir_uid = nd->inode->i_uid;
-	umode_t dir_mode = nd->inode->i_mode;
 	int open_flag = op->open_flag;
 	bool do_truncate;
 	int acc_mode;
@@ -3241,7 +3238,7 @@ static const char *do_last(struct nameidata *nd,
 	if (open_flag & O_CREAT) {
 		if (d_is_dir(nd->path.dentry))
 			return ERR_PTR(-EISDIR);
-		error = may_create_in_sticky(dir_mode, dir_uid,
+		error = may_create_in_sticky(nd->dir_mode, nd->dir_uid,
 					     d_backing_inode(nd->path.dentry));
 		if (unlikely(error))
 			return ERR_PTR(error);
