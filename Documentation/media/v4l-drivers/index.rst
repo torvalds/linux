@@ -61,7 +61,6 @@ For more details see the file COPYING in the source distribution of Linux.
 	si470x
 	si4713
 	si476x
-	soc-camera
 	uvcvideo
 	vimc
 	vivid
