@@ -514,8 +514,10 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 
 	iowrite32be(0xffffffff, &regs->ievent);
 
-	MAKE_ENET_ADDR_FROM_UINT64(addr, eth_addr);
-	set_mac_address(regs, (u8 *)eth_addr);
+	if (addr) {
+		MAKE_ENET_ADDR_FROM_UINT64(addr, eth_addr);
+		set_mac_address(regs, (u8 *)eth_addr);
+	}
 
 	/* HASH */
 	for (i = 0; i < NUM_OF_HASH_REGS; i++) {
@@ -551,10 +553,6 @@ static int check_init_parameters(struct fman_mac *dtsec)
 {
 	if (dtsec->max_speed >= SPEED_10000) {
 		pr_err("1G MAC driver supports 1G or lower speeds\n");
-		return -EINVAL;
-	}
-	if (dtsec->addr == 0) {
-		pr_err("Ethernet MAC Must have a valid MAC Address\n");
 		return -EINVAL;
 	}
 	if ((dtsec->dtsec_drv_param)->rx_prepend >
