@@ -62,6 +62,13 @@ struct _cpu_map {
 };
 struct _cpu_map *cpu_map;
 
+struct cpu_topology {
+	short cpu;
+	short core_id;
+	short pkg_id;
+	short die_id;
+};
+
 void debug_printf(const char *format, ...)
 {
 	va_list args;
@@ -176,25 +183,137 @@ int out_format_is_json(void)
 	return out_format_json;
 }
 
+static int get_stored_topology_info(int cpu, int *core_id, int *pkg_id, int *die_id)
+{
+	const char *pathname = "/tmp/isst_cpu_topology.dat";
+	struct cpu_topology cpu_top;
+	FILE *fp;
+	int ret;
+
+	fp = fopen(pathname, "rb");
+	if (!fp)
+		return -1;
+
+	ret = fseek(fp, cpu * sizeof(cpu_top), SEEK_SET);
+	if (ret)
+		goto err_ret;
+
+	ret = fread(&cpu_top, sizeof(cpu_top), 1, fp);
+	if (ret != 1) {
+		ret = -1;
+		goto err_ret;
+	}
+
+	*pkg_id = cpu_top.pkg_id;
+	*core_id = cpu_top.core_id;
+	*die_id = cpu_top.die_id;
+	ret = 0;
+
+err_ret:
+	fclose(fp);
+
+	return ret;
+}
+
+static void store_cpu_topology(void)
+{
+	const char *pathname = "/tmp/isst_cpu_topology.dat";
+	FILE *fp;
+	int i;
+
+	fp = fopen(pathname, "rb");
+	if (fp) {
+		/* Mapping already exists */
+		fclose(fp);
+		return;
+	}
+
+	fp = fopen(pathname, "wb");
+	if (!fp) {
+		fprintf(stderr, "Can't create file:%s\n", pathname);
+		return;
+	}
+
+	for (i = 0; i < topo_max_cpus; ++i) {
+		struct cpu_topology cpu_top;
+
+		cpu_top.core_id = parse_int_file(0,
+			"/sys/devices/system/cpu/cpu%d/topology/core_id", i);
+		if (cpu_top.core_id < 0)
+			cpu_top.core_id = -1;
+
+		cpu_top.pkg_id = parse_int_file(0,
+			"/sys/devices/system/cpu/cpu%d/topology/physical_package_id", i);
+		if (cpu_top.pkg_id < 0)
+			cpu_top.pkg_id = -1;
+
+		cpu_top.die_id = parse_int_file(0,
+			"/sys/devices/system/cpu/cpu%d/topology/die_id", i);
+		if (cpu_top.die_id < 0)
+			cpu_top.die_id = -1;
+
+		cpu_top.cpu = i;
+
+		if (fwrite(&cpu_top, sizeof(cpu_top), 1, fp) != 1) {
+			fprintf(stderr, "Can't write to:%s\n", pathname);
+			break;
+		}
+	}
+
+	fclose(fp);
+}
+
 int get_physical_package_id(int cpu)
 {
-	return parse_int_file(
-		0, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id",
-		cpu);
+	int ret;
+
+	ret = parse_int_file(0,
+			"/sys/devices/system/cpu/cpu%d/topology/physical_package_id",
+			cpu);
+	if (ret < 0) {
+		int core_id, pkg_id, die_id;
+
+		ret = get_stored_topology_info(cpu, &core_id, &pkg_id, &die_id);
+		if (!ret)
+			return pkg_id;
+	}
+
+	return ret;
 }
 
 int get_physical_core_id(int cpu)
 {
-	return parse_int_file(
-		0, "/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
+	int ret;
+
+	ret = parse_int_file(0,
+			"/sys/devices/system/cpu/cpu%d/topology/core_id",
+			cpu);
+	if (ret < 0) {
+		int core_id, pkg_id, die_id;
+
+		ret = get_stored_topology_info(cpu, &core_id, &pkg_id, &die_id);
+		if (!ret)
+			return core_id;
+	}
+
+	return ret;
 }
 
 int get_physical_die_id(int cpu)
 {
 	int ret;
 
-	ret = parse_int_file(0, "/sys/devices/system/cpu/cpu%d/topology/die_id",
-			     cpu);
+	ret = parse_int_file(0,
+			"/sys/devices/system/cpu/cpu%d/topology/die_id",
+			cpu);
+	if (ret < 0) {
+		int core_id, pkg_id, die_id;
+
+		ret = get_stored_topology_info(cpu, &core_id, &pkg_id, &die_id);
+		if (!ret)
+			return die_id;
+	}
+
 	if (ret < 0)
 		ret = 0;
 
@@ -266,11 +385,12 @@ static void for_each_online_package_in_set(void (*callback)(int, void *, void *,
 		die_id = get_physical_die_id(i);
 		if (die_id < 0)
 			die_id = 0;
-		pkg_id = get_physical_package_id(i);
-		if (pkg_id < 0) {
-			fprintf(stderr, "Failed to get package id, CPU %d may be offline\n", i);
+
+		pkg_id = parse_int_file(0,
+			"/sys/devices/system/cpu/cpu%d/topology/physical_package_id", i);
+		if (pkg_id < 0)
 			continue;
-		}
+
 		/* Create an unique id for package, die combination to store */
 		pkg_id = (MAX_PACKAGE_COUNT * pkg_id + die_id);
 
@@ -2352,6 +2472,7 @@ static void cmdline(int argc, char **argv)
 	printf("Intel(R) Speed Select Technology\n");
 	printf("Executing on CPU model:%d[0x%x]\n", cpu_model, cpu_model);
 	set_max_cpu_num();
+	store_cpu_topology();
 	set_cpu_present_cpu_mask();
 	set_cpu_target_cpu_mask();
 
