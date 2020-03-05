@@ -1318,6 +1318,7 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	struct resource *res = NULL;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
+	struct mpp_hw_info *hw_info = mpp->var->hw_info;
 
 	/* Get and attach to service */
 	ret = mpp_attach_service(mpp, dev);
@@ -1388,6 +1389,15 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		if (ret)
 			goto failed_init;
 	}
+	if (hw_info->reg_id >= 0) {
+		if (mpp->hw_ops->power_on)
+			mpp->hw_ops->power_on(mpp);
+
+		hw_info->hw_id = mpp_read(mpp, hw_info->reg_id);
+		if (mpp->hw_ops->power_off)
+			mpp->hw_ops->power_off(mpp);
+	}
+
 	pm_runtime_put_sync(dev);
 
 	return ret;

@@ -1104,7 +1104,6 @@ static int rkvdec_debugfs_init(struct mpp_dev *mpp)
 
 static int rkvdec_init(struct mpp_dev *mpp)
 {
-	struct mpp_hw_info *hw_info;
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
 	mutex_init(&dec->sip_reset_lock);
@@ -1163,10 +1162,6 @@ static int rkvdec_init(struct mpp_dev *mpp)
 		mpp_err("No core reset resource define\n");
 		dec->rst_core = NULL;
 	}
-
-	/* read hardware id*/
-	hw_info = mpp->var->hw_info;
-	hw_info->hw_id = mpp_read(mpp, hw_info->reg_id);
 
 	return 0;
 }

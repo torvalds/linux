@@ -527,7 +527,6 @@ static int vdpu_debugfs_init(struct mpp_dev *mpp)
 
 static int vdpu_init(struct mpp_dev *mpp)
 {
-	struct mpp_hw_info *hw_info;
 	struct vdpu_dev *dec = to_vdpu_dev(mpp);
 
 	mpp->grf_info = &mpp->srv->grf_infos[MPP_DRIVER_VDPU1];
@@ -553,10 +552,6 @@ static int vdpu_init(struct mpp_dev *mpp)
 		mpp_err("No hclk reset resource define\n");
 		dec->rst_h = NULL;
 	}
-
-	/* read hardware id*/
-	hw_info = mpp->var->hw_info;
-	hw_info->hw_id = mpp_read(mpp, hw_info->reg_id);
 
 	return 0;
 }

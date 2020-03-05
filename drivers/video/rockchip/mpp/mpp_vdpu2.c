@@ -31,6 +31,7 @@
 #define	VDPU2_SESSION_MAX_BUFFERS	40
 /* The maximum registers number of all the version */
 #define VDPU2_REG_NUM			159
+#define VDPU2_REG_HW_ID_INDEX		-1 /* INVALID */
 #define VDPU2_REG_START_INDEX		50
 #define VDPU2_REG_END_INDEX		158
 
@@ -117,6 +118,7 @@ struct vdpu_dev {
 
 static struct mpp_hw_info vdpu_v2_hw_info = {
 	.reg_num = VDPU2_REG_NUM,
+	.reg_id = VDPU2_REG_HW_ID_INDEX,
 	.reg_start = VDPU2_REG_START_INDEX,
 	.reg_end = VDPU2_REG_END_INDEX,
 	.reg_en = VDPU2_REG_DEC_EN_INDEX,

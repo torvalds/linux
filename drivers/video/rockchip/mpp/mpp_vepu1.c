@@ -443,7 +443,6 @@ static int vepu_debugfs_init(struct mpp_dev *mpp)
 
 static int vepu_init(struct mpp_dev *mpp)
 {
-	struct mpp_hw_info *hw_info;
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
 	mpp->grf_info = &mpp->srv->grf_infos[MPP_DRIVER_VEPU1];
@@ -469,10 +468,6 @@ static int vepu_init(struct mpp_dev *mpp)
 		mpp_err("No hclk reset resource define\n");
 		enc->rst_h = NULL;
 	}
-
-	/* read hardware id*/
-	hw_info = mpp->var->hw_info;
-	hw_info->hw_id = mpp_read(mpp, hw_info->reg_id);
 
 	return 0;
 }

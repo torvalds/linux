@@ -30,6 +30,7 @@
 #define	VEPU2_SESSION_MAX_BUFFERS		20
 /* The maximum registers number of all the version */
 #define VEPU2_REG_NUM				184
+#define VEPU2_REG_HW_ID_INDEX		-1 /* INVALID */
 #define VEPU2_REG_START_INDEX			0
 #define VEPU2_REG_END_INDEX			183
 
@@ -107,6 +108,7 @@ struct vepu_dev {
 
 static struct mpp_hw_info vepu_v2_hw_info = {
 	.reg_num = VEPU2_REG_NUM,
+	.reg_id = VEPU2_REG_HW_ID_INDEX,
 	.reg_start = VEPU2_REG_START_INDEX,
 	.reg_end = VEPU2_REG_END_INDEX,
 	.reg_en = VEPU2_REG_ENC_EN_INDEX,
