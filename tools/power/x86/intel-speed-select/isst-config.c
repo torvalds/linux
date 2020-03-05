@@ -425,7 +425,7 @@ static void for_each_online_target_cpu_in_set(
 	void (*callback)(int, void *, void *, void *, void *), void *arg1,
 	void *arg2, void *arg3, void *arg4)
 {
-	int i;
+	int i, found = 0;
 
 	for (i = 0; i < topo_max_cpus; ++i) {
 		int online;
@@ -439,9 +439,14 @@ static void for_each_online_target_cpu_in_set(
 			online =
 				1; /* online entry for CPU 0 needs some special configs */
 
-		if (online && callback)
+		if (online && callback) {
 			callback(i, arg1, arg2, arg3, arg4);
+			found = 1;
+		}
 	}
+
+	if (!found)
+		fprintf(stderr, "No valid CPU in the list\n");
 }
 
 #define BITMASK_SIZE 32
