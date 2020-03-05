@@ -7126,6 +7126,7 @@ static __init void vmx_set_cpu_caps(void)
 		kvm_cpu_cap_set(X86_FEATURE_UMIP);
 
 	/* CPUID 0xD.1 */
+	supported_xss = 0;
 	if (!vmx_xsaves_supported())
 		kvm_cpu_cap_clear(X86_FEATURE_XSAVES);
 

@@ -190,6 +190,8 @@ u64 __read_mostly host_efer;
 EXPORT_SYMBOL_GPL(host_efer);
 
 static u64 __read_mostly host_xss;
+u64 __read_mostly supported_xss;
+EXPORT_SYMBOL_GPL(supported_xss);
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "pf_fixed", VCPU_STAT(pf_fixed) },
@@ -2827,7 +2829,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		 * IA32_XSS[bit 8]. Guests have to use RDMSR/WRMSR rather than
 		 * XSAVES/XRSTORS to save/restore PT MSRs.
 		 */
-		if (data != 0)
+		if (data & ~supported_xss)
 			return 1;
 		vcpu->arch.ia32_xss = data;
 		break;
@@ -9617,9 +9619,15 @@ int kvm_arch_hardware_setup(void)
 
 	rdmsrl_safe(MSR_EFER, &host_efer);
 
+	if (boot_cpu_has(X86_FEATURE_XSAVES))
+		rdmsrl(MSR_IA32_XSS, host_xss);
+
 	r = kvm_x86_ops->hardware_setup();
 	if (r != 0)
 		return r;
+
+	if (!kvm_cpu_cap_has(X86_FEATURE_XSAVES))
+		supported_xss = 0;
 
 	cr4_reserved_bits = kvm_host_cr4_reserved_bits(&boot_cpu_data);
 
@@ -9636,9 +9644,6 @@ int kvm_arch_hardware_setup(void)
 
 		kvm_default_tsc_scaling_ratio = 1ULL << kvm_tsc_scaling_ratio_frac_bits;
 	}
-
-	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		rdmsrl(MSR_IA32_XSS, host_xss);
 
 	kvm_init_msr_list();
 	return 0;

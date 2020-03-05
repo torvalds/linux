@@ -642,15 +642,22 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 
 		cpuid_entry_override(entry, CPUID_D_1_EAX);
 		if (entry->eax & (F(XSAVES)|F(XSAVEC)))
-			entry->ebx = xstate_required_size(supported_xcr0, true);
-		else
+			entry->ebx = xstate_required_size(supported_xcr0 | supported_xss,
+							  true);
+		else {
+			WARN_ON_ONCE(supported_xss != 0);
 			entry->ebx = 0;
-		/* Saving XSS controlled state via XSAVES isn't supported. */
-		entry->ecx = 0;
-		entry->edx = 0;
+		}
+		entry->ecx &= supported_xss;
+		entry->edx &= supported_xss >> 32;
 
 		for (i = 2; i < 64; ++i) {
-			if (!(supported_xcr0 & BIT_ULL(i)))
+			bool s_state;
+			if (supported_xcr0 & BIT_ULL(i))
+				s_state = false;
+			else if (supported_xss & BIT_ULL(i))
+				s_state = true;
+			else
 				continue;
 
 			entry = do_host_cpuid(array, function, i);
@@ -659,17 +666,16 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 
 			/*
 			 * The supported check above should have filtered out
-			 * invalid sub-leafs as well as sub-leafs managed by
-			 * IA32_XSS MSR.  Only XCR0-managed sub-leafs should
+			 * invalid sub-leafs.  Only valid sub-leafs should
 			 * reach this point, and they should have a non-zero
-			 * save state size.
+			 * save state size.  Furthermore, check whether the
+			 * processor agrees with supported_xcr0/supported_xss
+			 * on whether this is an XCR0- or IA32_XSS-managed area.
 			 */
-			if (WARN_ON_ONCE(!entry->eax || (entry->ecx & 1))) {
+			if (WARN_ON_ONCE(!entry->eax || (entry->ecx & 0x1) != s_state)) {
 				--array->nent;
 				continue;
 			}
-
-			entry->ecx = 0;
 			entry->edx = 0;
 		}
 		break;
