@@ -192,6 +192,9 @@
 	ld	r25, [sp, PT_user_r25]
 #endif
 
+	/* clobbers r10, r11 registers pair */
+	DSP_RESTORE_REGFILE_IRQ
+
 #ifdef CONFIG_ARC_HAS_ACCL_REGS
 	LD2	r58, r59, PT_r58
 #endif

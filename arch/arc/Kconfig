@@ -411,6 +411,9 @@ config ARC_HAS_ACCL_REGS
 config ARC_DSP_HANDLED
 	def_bool n
 
+config ARC_DSP_SAVE_RESTORE_REGS
+	def_bool n
+
 choice
 	prompt "DSP support"
 	default ARC_DSP_NONE
@@ -433,6 +436,15 @@ config ARC_DSP_KERNEL
 	  DSP extension presence in HW, no support for DSP-enabled userspace
 	  applications. We don't save / restore DSP registers and only do
 	  some minimal preparations so userspace won't be able to break kernel
+
+config ARC_DSP_USERSPACE
+	bool "Support DSP for userspace apps"
+	select ARC_HAS_ACCL_REGS
+	select ARC_DSP_HANDLED
+	select ARC_DSP_SAVE_RESTORE_REGS
+	help
+	  DSP extension presence in HW, support save / restore DSP registers to
+	  run DSP-enabled userspace applications
 endchoice
 
 config ARC_IRQ_NO_AUTOSAVE

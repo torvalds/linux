@@ -120,6 +120,8 @@
 
 /*
  * DSP-related registers
+ * Registers names must correspond to dsp_callee_regs structure fields names
+ * for automatic offset calculation in DSP_AUX_SAVE_RESTORE macros.
  */
 #define ARC_AUX_DSP_BUILD	0x7A
 #define ARC_AUX_ACC0_LO		0x580
