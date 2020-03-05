@@ -3188,6 +3188,9 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 
 	dev_dbg(hsotg->dev, "%s()\n", __func__);
 
+	if (!hsotg->ll_phy_enabled && dwc2_is_host_mode(hsotg))
+		dwc2_lowlevel_phy_enable(hsotg);
+
 	gotgctl = dwc2_readl(hsotg, GOTGCTL);
 	dev_dbg(hsotg->dev, "gotgctl=%0x\n", gotgctl);
 	dev_dbg(hsotg->dev, "gotgctl.b.conidsts=%d\n",
