@@ -14,12 +14,16 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/of_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/qpnp/qpnp-revid.h>
 
 #define QPNP_LCDB_REGULATOR_DRIVER_NAME		"qcom,qpnp-lcdb-regulator"
+#define QPNP_LCDB_REGULATOR_DRIVER_660		"qcom,lcdb-pm660"
+#define QPNP_LCDB_REGULATOR_DRIVER_632	"qcom,lcdb-pmi632"
+#define QPNP_LCDB_REGULATOR_DRIVER_6150l	"qcom,lcdb-pm6150l"
 
 /* LCDB */
 #define LCDB_STS1_REG			0x08
@@ -215,11 +219,18 @@ struct bst_params {
 	u16				headroom_mv;
 };
 
+enum pmic_type {
+	PM_DEFAULT,
+	PM660L,
+	PMI632,
+	PM6150L,
+};
+
 struct qpnp_lcdb {
 	struct device			*dev;
 	struct platform_device		*pdev;
 	struct regmap			*regmap;
-	struct pmic_revid_data		*pmic_rev_id;
+	enum pmic_type			subtype;
 	u32				base;
 	u32				wa_flags;
 	int				sc_irq;
@@ -383,10 +394,9 @@ static int qpnp_lcdb_secure_write(struct qpnp_lcdb *lcdb,
 {
 	int rc;
 	u8 val = SECURE_UNLOCK_VALUE;
-	u8 pmic_subtype = lcdb->pmic_rev_id->pmic_subtype;
 
 	mutex_lock(&lcdb->read_write_mutex);
-	if (pmic_subtype == PM660L_SUBTYPE) {
+	if (lcdb->subtype == PM660L) {
 		rc = regmap_write(lcdb->regmap, lcdb->base + SEC_ADDRESS_REG,
 				  val);
 		if (rc < 0) {
@@ -485,9 +495,8 @@ static int qpnp_lcdb_save_settings(struct qpnp_lcdb *lcdb)
 {
 	int i, size, rc = 0;
 	struct settings *setting;
-	u16 pmic_subtype = lcdb->pmic_rev_id->pmic_subtype;
 
-	if (pmic_subtype == PM660L_SUBTYPE) {
+	if (lcdb->subtype == PM660L) {
 		setting = lcdb_settings_pm660l;
 		size = ARRAY_SIZE(lcdb_settings_pm660l);
 	} else {
@@ -515,9 +524,8 @@ static int qpnp_lcdb_restore_settings(struct qpnp_lcdb *lcdb)
 {
 	int i, size, rc = 0;
 	struct settings *setting;
-	u16 pmic_subtype = lcdb->pmic_rev_id->pmic_subtype;
 
-	if (pmic_subtype == PM660L_SUBTYPE) {
+	if (lcdb->subtype == PM660L) {
 		setting = lcdb_settings_pm660l;
 		size = ARRAY_SIZE(lcdb_settings_pm660l);
 	} else {
@@ -751,7 +759,7 @@ static int qpnp_lcdb_enable_wa(struct qpnp_lcdb *lcdb)
 	u8 val = 0;
 
 	/* required only for PM660L */
-	if (lcdb->pmic_rev_id->pmic_subtype != PM660L_SUBTYPE)
+	if (lcdb->subtype != PM660L)
 		return 0;
 
 	val = MODULE_EN_BIT;
@@ -768,37 +776,6 @@ static int qpnp_lcdb_enable_wa(struct qpnp_lcdb *lcdb)
 	if (rc < 0) {
 		pr_err("Failed to disable lcdb rc= %d\n", rc);
 		return rc;
-	}
-
-	/* execute the below for rev1.1 */
-	if (lcdb->pmic_rev_id->rev3 == PM660L_V1P1_REV3 &&
-		lcdb->pmic_rev_id->rev4 == PM660L_V1P1_REV4) {
-		/*
-		 * delay to make sure that the MID pin – ie the
-		 * output of the LCDB boost – returns to 0V
-		 * after the module is disabled
-		 */
-		usleep_range(10000, 10100);
-
-		rc = qpnp_lcdb_masked_write(lcdb,
-				lcdb->base + LCDB_MISC_CTL_REG,
-				DIS_SCP_BIT, DIS_SCP_BIT);
-		if (rc < 0) {
-			pr_err("Failed to disable SC rc=%d\n", rc);
-			return rc;
-		}
-		/* delay for SC-disable to take effect */
-		usleep_range(1000, 1100);
-
-		rc = qpnp_lcdb_masked_write(lcdb,
-				lcdb->base + LCDB_MISC_CTL_REG,
-				DIS_SCP_BIT, 0);
-		if (rc < 0) {
-			pr_err("Failed to enable SC rc=%d\n", rc);
-			return rc;
-		}
-		/* delay for SC-enable to take effect */
-		usleep_range(1000, 1100);
 	}
 
 	return 0;
@@ -910,13 +887,12 @@ static int qpnp_lcdb_disable(struct qpnp_lcdb *lcdb)
 {
 	int rc = 0;
 	u8 val;
-	u16 pmic_subtype = lcdb->pmic_rev_id->pmic_subtype;
 
 	if (!lcdb->lcdb_enabled)
 		return 0;
 
 	if (lcdb->ttw_enable) {
-		if (pmic_subtype == PM660L_SUBTYPE)
+		if (lcdb->subtype == PM660L)
 			rc = qpnp_lcdb_ttw_enter_pm660l(lcdb);
 		else
 			rc = qpnp_lcdb_ttw_enter(lcdb);
@@ -1086,7 +1062,6 @@ static int qpnp_lcdb_set_bst_voltage(struct qpnp_lcdb *lcdb,
 	int rc = 0;
 	u8 val, voltage_step, mask = 0;
 	int bst_voltage_mv;
-	u16 pmic_subtype = lcdb->pmic_rev_id->pmic_subtype;
 	struct ldo_regulator *ldo = &lcdb->ldo;
 	struct ncp_regulator *ncp = &lcdb->ncp;
 	struct bst_params *bst = &lcdb->bst;
@@ -1098,7 +1073,7 @@ static int qpnp_lcdb_set_bst_voltage(struct qpnp_lcdb *lcdb,
 	if (bst_voltage_mv < MIN_BST_VOLTAGE_MV)
 		bst_voltage_mv = MIN_BST_VOLTAGE_MV;
 
-	if (pmic_subtype == PM660L_SUBTYPE) {
+	if (lcdb->subtype == PM660L) {
 		if (bst_voltage_mv > PM660_MAX_BST_VOLTAGE_MV)
 			bst_voltage_mv = PM660_MAX_BST_VOLTAGE_MV;
 	} else {
@@ -1107,7 +1082,7 @@ static int qpnp_lcdb_set_bst_voltage(struct qpnp_lcdb *lcdb,
 	}
 
 	if (bst_voltage_mv != bst->voltage_mv) {
-		if (pmic_subtype == PM660L_SUBTYPE) {
+		if (lcdb->subtype == PM660L) {
 			mask = PM660_BST_OUTPUT_VOLTAGE_MASK;
 			voltage_step = VOLTAGE_STEP_50_MV;
 		} else {
@@ -1138,7 +1113,6 @@ static int qpnp_lcdb_get_bst_voltage(struct qpnp_lcdb *lcdb,
 {
 	int rc;
 	u8 val, voltage_step, mask = 0;
-	u16 pmic_subtype = lcdb->pmic_rev_id->pmic_subtype;
 
 	rc = qpnp_lcdb_read(lcdb, lcdb->base + LCDB_BST_OUTPUT_VOLTAGE_REG,
 						&val, 1);
@@ -1147,7 +1121,7 @@ static int qpnp_lcdb_get_bst_voltage(struct qpnp_lcdb *lcdb,
 		return rc;
 	}
 
-	if (pmic_subtype == PM660L_SUBTYPE) {
+	if (lcdb->subtype == PM660L) {
 		mask = PM660_BST_OUTPUT_VOLTAGE_MASK;
 		voltage_step = VOLTAGE_STEP_50_MV;
 	} else {
@@ -1489,7 +1463,7 @@ static int qpnp_lcdb_regulator_register(struct qpnp_lcdb *lcdb, u8 type)
 	struct regulator_dev *rdev;
 	struct device_node *node;
 
-	if (lcdb->pmic_rev_id->pmic_subtype != PM660L_SUBTYPE)
+	if (lcdb->subtype != PM660L)
 		off_on_delay = PMIC5_LCDB_OFF_ON_DELAY_US;
 
 	if (type == LDO) {
@@ -1685,7 +1659,6 @@ static int qpnp_lcdb_bst_dt_init(struct qpnp_lcdb *lcdb)
 {
 	int rc = 0;
 	struct device_node *node = lcdb->bst.node;
-	u16 pmic_subtype = lcdb->pmic_rev_id->pmic_subtype;
 	u16 default_headroom_mv;
 
 	/* Boost PD  configuration */
@@ -1720,7 +1693,7 @@ static int qpnp_lcdb_bst_dt_init(struct qpnp_lcdb *lcdb)
 		return -EINVAL;
 	}
 
-	default_headroom_mv = (pmic_subtype == PM660L_SUBTYPE) ?
+	default_headroom_mv = (lcdb->subtype == PM660L) ?
 			       PM660_BST_HEADROOM_DEFAULT_MV :
 			       BST_HEADROOM_DEFAULT_MV;
 	/* Boost head room configuration */
@@ -1950,7 +1923,6 @@ static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 {
 	int rc = 0;
 	u8 val, mask = 0;
-	u16 pmic_subtype = lcdb->pmic_rev_id->pmic_subtype;
 
 	/* configure parameters only if LCDB is disabled */
 	if (!is_lcdb_enabled(lcdb)) {
@@ -2003,7 +1975,7 @@ static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 		}
 
 		if (lcdb->bst.ps_threshold != -EINVAL) {
-			mask = (pmic_subtype == PM660L_SUBTYPE) ?
+			mask = (lcdb->subtype == PM660L) ?
 					PM660_PS_THRESH_MASK : PS_THRESH_MASK;
 			val = (lcdb->bst.ps_threshold - MIN_BST_PS_MA) / 10;
 			val = (lcdb->bst.ps_threshold & mask) | EN_PS_BIT;
@@ -2032,7 +2004,7 @@ static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 	}
 	lcdb->bst.vreg_ok_dbc_us = dbc_us[val & VREG_OK_DEB_MASK];
 
-	if (pmic_subtype == PM660L_SUBTYPE) {
+	if (lcdb->subtype == PM660L) {
 		rc = qpnp_lcdb_read(lcdb, lcdb->base +
 				    LCDB_SOFT_START_CTL_REG, &val, 1);
 		if (rc < 0) {
@@ -2060,18 +2032,8 @@ static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 
 static void qpnp_lcdb_pmic_config(struct qpnp_lcdb *lcdb)
 {
-	switch (lcdb->pmic_rev_id->pmic_subtype) {
-	case PM660L_SUBTYPE:
-		if (lcdb->pmic_rev_id->rev4 < PM660L_V2P0_REV4)
-			lcdb->wa_flags |= NCP_SCP_DISABLE_WA;
-		break;
-	case PMI632_SUBTYPE:
-	case PM6150L_SUBTYPE:
+	if (lcdb->subtype == PMI632 || lcdb->subtype == PM6150L)
 		lcdb->wa_flags |= FORCE_PD_ENABLE_WA;
-		break;
-	default:
-		break;
-	}
 
 	pr_debug("LCDB wa_flags = 0x%2x\n", lcdb->wa_flags);
 }
@@ -2110,8 +2072,7 @@ static int qpnp_lcdb_hw_init(struct qpnp_lcdb *lcdb)
 		return rc;
 	}
 
-	if (lcdb->sc_irq >= 0 &&
-		lcdb->pmic_rev_id->pmic_subtype != PM660L_SUBTYPE) {
+	if (lcdb->sc_irq >= 0 && lcdb->subtype != PM660L) {
 		lcdb->sc_count = 0;
 		rc = devm_request_threaded_irq(lcdb->dev, lcdb->sc_irq,
 				NULL, qpnp_lcdb_sc_irq_handler, IRQF_ONESHOT,
@@ -2152,26 +2113,8 @@ static int qpnp_lcdb_parse_dt(struct qpnp_lcdb *lcdb)
 	int rc = 0, i = 0;
 	u32 tmp;
 	const char *label;
-	struct device_node *revid_dev_node, *temp, *node = lcdb->dev->of_node;
+	struct device_node *temp, *node = lcdb->dev->of_node;
 
-	revid_dev_node = of_parse_phandle(node, "qcom,pmic-revid", 0);
-	if (!revid_dev_node) {
-		pr_err("Missing qcom,pmic-revid property - fail driver\n");
-		return -EINVAL;
-	}
-
-	lcdb->pmic_rev_id = get_revid_data(revid_dev_node);
-	if (IS_ERR(lcdb->pmic_rev_id)) {
-		pr_debug("Unable to get revid data\n");
-		/*
-		 * revid should to be defined, return -EPROBE_DEFER
-		 * until the revid module registers.
-		 */
-		of_node_put(revid_dev_node);
-		return -EPROBE_DEFER;
-	}
-
-	of_node_put(revid_dev_node);
 	for_each_available_child_of_node(node, temp) {
 		rc = of_property_read_string(temp, "label", &label);
 		if (rc < 0) {
@@ -2262,6 +2205,8 @@ static int qpnp_lcdb_regulator_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	lcdb->subtype = (u8)of_device_get_match_data(&pdev->dev);
+
 	lcdb->dev = &pdev->dev;
 	lcdb->pdev = pdev;
 	mutex_init(&lcdb->lcdb_mutex);
@@ -2295,7 +2240,14 @@ static int qpnp_lcdb_regulator_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id lcdb_match_table[] = {
-	{ .compatible = QPNP_LCDB_REGULATOR_DRIVER_NAME, },
+	{ .compatible = QPNP_LCDB_REGULATOR_DRIVER_NAME,
+		.data = (void *)PM_DEFAULT,},
+	{ .compatible = QPNP_LCDB_REGULATOR_DRIVER_660,
+		.data = (void *)PM660L,},
+	{ .compatible = QPNP_LCDB_REGULATOR_DRIVER_632,
+		.data = (void *)PMI632,},
+	{ .compatible = QPNP_LCDB_REGULATOR_DRIVER_6150l,
+		.data = (void *)PM6150L,},
 	{ },
 };
 
