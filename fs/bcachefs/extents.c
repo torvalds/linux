@@ -344,7 +344,7 @@ enum merge_result bch2_extent_merge(struct bch_fs *c,
 			    crc_r.uncompressed_size > c->sb.encoded_extent_max)
 				return BCH_MERGE_NOMERGE;
 
-			if (crc_l.uncompressed_size + crc_r.uncompressed_size - 1 >
+			if (crc_l.uncompressed_size + crc_r.uncompressed_size >
 			    bch2_crc_field_size_max[extent_entry_type(en_l)])
 				return BCH_MERGE_NOMERGE;
 
@@ -562,15 +562,15 @@ void bch2_extent_crc_append(struct bkey_i *k,
 	enum bch_extent_entry_type type;
 
 	if (bch_crc_bytes[new.csum_type]	<= 4 &&
-	    new.uncompressed_size - 1		<= CRC32_SIZE_MAX &&
+	    new.uncompressed_size		<= CRC32_SIZE_MAX &&
 	    new.nonce				<= CRC32_NONCE_MAX)
 		type = BCH_EXTENT_ENTRY_crc32;
 	else if (bch_crc_bytes[new.csum_type]	<= 10 &&
-		   new.uncompressed_size - 1	<= CRC64_SIZE_MAX &&
+		   new.uncompressed_size	<= CRC64_SIZE_MAX &&
 		   new.nonce			<= CRC64_NONCE_MAX)
 		type = BCH_EXTENT_ENTRY_crc64;
 	else if (bch_crc_bytes[new.csum_type]	<= 16 &&
-		   new.uncompressed_size - 1	<= CRC128_SIZE_MAX &&
+		   new.uncompressed_size	<= CRC128_SIZE_MAX &&
 		   new.nonce			<= CRC128_NONCE_MAX)
 		type = BCH_EXTENT_ENTRY_crc128;
 	else
