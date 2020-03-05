@@ -29,6 +29,7 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
 
 #define JZ_REG_LCD_CFG				0x00
@@ -583,10 +584,6 @@ static const struct drm_mode_config_funcs ingenic_drm_mode_config_funcs = {
 	.atomic_commit		= drm_atomic_helper_commit,
 };
 
-static const struct drm_encoder_funcs ingenic_drm_encoder_funcs = {
-	.destroy		= drm_encoder_cleanup,
-};
-
 static void ingenic_drm_free_dma_hwdesc(void *d)
 {
 	struct ingenic_drm *priv = d;
@@ -725,8 +722,8 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 	drm_encoder_helper_add(&priv->encoder,
 			       &ingenic_drm_encoder_helper_funcs);
 
-	ret = drm_encoder_init(drm, &priv->encoder, &ingenic_drm_encoder_funcs,
-			       DRM_MODE_ENCODER_DPI, NULL);
+	ret = drm_simple_encoder_init(drm, &priv->encoder,
+				      DRM_MODE_ENCODER_DPI);
 	if (ret) {
 		dev_err(dev, "Failed to init encoder: %i", ret);
 		return ret;
