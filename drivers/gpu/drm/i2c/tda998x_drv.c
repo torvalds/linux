@@ -19,6 +19,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 #include <drm/i2c/tda998x.h>
 
 #include <media/cec-notifier.h>
@@ -1997,15 +1998,6 @@ err_irq:
 
 /* DRM encoder functions */
 
-static void tda998x_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
-static const struct drm_encoder_funcs tda998x_encoder_funcs = {
-	.destroy = tda998x_encoder_destroy,
-};
-
 static int tda998x_encoder_init(struct device *dev, struct drm_device *drm)
 {
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
@@ -2023,8 +2015,8 @@ static int tda998x_encoder_init(struct device *dev, struct drm_device *drm)
 
 	priv->encoder.possible_crtcs = crtcs;
 
-	ret = drm_encoder_init(drm, &priv->encoder, &tda998x_encoder_funcs,
-			       DRM_MODE_ENCODER_TMDS, NULL);
+	ret = drm_simple_encoder_init(drm, &priv->encoder,
+				      DRM_MODE_ENCODER_TMDS);
 	if (ret)
 		goto err_encoder;
 
