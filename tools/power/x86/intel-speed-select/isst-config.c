@@ -95,6 +95,14 @@ int is_clx_n_platform(void)
 	return 0;
 }
 
+int is_skx_based_platform(void)
+{
+	if (cpu_model == 0x55)
+		return 1;
+
+	return 0;
+}
+
 static int update_cpu_model(void)
 {
 	unsigned int ebx, ecx, edx;
@@ -695,7 +703,11 @@ static int isst_send_mmio_command(unsigned int cpu, unsigned int reg, int write,
 	}
 
 	if (ioctl(fd, cmd, &io_regs) == -1) {
-		perror("ISST_IF_IO_CMD");
+		if (errno == ENOTTY) {
+			perror("ISST_IF_IO_COMMAND\n");
+			fprintf(stderr, "Check presence of kernel modules: isst_if_mmio\n");
+			exit(0);
+		}
 		fprintf(outf, "Error: mmio_cmd cpu:%d reg:%x read_write:%x\n",
 			cpu, reg, write);
 	} else {
@@ -724,7 +736,7 @@ int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 		"mbox_send: cpu:%d command:%x sub_command:%x parameter:%x req_data:%x\n",
 		cpu, command, sub_command, parameter, req_data);
 
-	if (isst_platform_info.mmio_supported && command == CONFIG_CLOS &&
+	if (!is_skx_based_platform() && command == CONFIG_CLOS &&
 	    sub_command != CLOS_PM_QOS_CONFIG) {
 		unsigned int value;
 		int write = 0;
@@ -774,10 +786,14 @@ int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 		err(-1, "%s open failed", pathname);
 
 	if (ioctl(fd, ISST_IF_MBOX_COMMAND, &mbox_cmds) == -1) {
-		perror("ISST_IF_MBOX_COMMAND");
-		fprintf(outf,
-			"Error: mbox_cmd cpu:%d command:%x sub_command:%x parameter:%x req_data:%x\n",
-			cpu, command, sub_command, parameter, req_data);
+		if (errno == ENOTTY) {
+			perror("ISST_IF_MBOX_COMMAND\n");
+			fprintf(stderr, "Check presence of kernel modules: isst_if_mbox_pci or isst_if_mbox_msr\n");
+			exit(0);
+		}
+		debug_printf(
+			"Error: mbox_cmd cpu:%d command:%x sub_command:%x parameter:%x req_data:%x errorno:%d\n",
+			cpu, command, sub_command, parameter, req_data, errno);
 		return -1;
 	} else {
 		*resp = mbox_cmds.mbox_cmd[0].resp_data;
