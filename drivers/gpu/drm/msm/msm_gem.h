@@ -157,7 +157,7 @@ struct msm_gem_submit {
 			uint32_t handle;
 		};
 		uint64_t iova;
-	} bos[0];
+	} bos[];
 };
 
 #endif /* __MSM_GEM_H__ */
