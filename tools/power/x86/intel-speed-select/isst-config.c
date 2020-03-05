@@ -1162,7 +1162,7 @@ static void dump_clx_n_config_for_cpu(int cpu, void *arg1, void *arg2,
 
 	ret = clx_n_config(cpu);
 	if (ret) {
-		perror("isst_get_process_ctdp");
+		debug_printf("clx_n_config failed");
 	} else {
 		struct isst_pkg_ctdp_level_info *ctdp_level;
 		struct isst_pbf_info *pbf_info;
@@ -1419,7 +1419,7 @@ static int set_clx_pbf_cpufreq_scaling_min_max(int cpu)
 
 	ret = clx_n_config(cpu);
 	if (ret) {
-		perror("set_clx_pbf_cpufreq_scaling_min_max");
+		debug_printf("cpufreq_scaling_min_max failed for CLX");
 		return ret;
 	}
 
@@ -1635,17 +1635,13 @@ static void set_pbf_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	int status = *(int *)arg4;
 
 	if (is_clx_n_platform()) {
+		ret = 0;
 		if (status) {
-			ret = 0;
-			if (auto_mode)
-				set_clx_pbf_cpufreq_scaling_min_max(cpu);
+			set_clx_pbf_cpufreq_scaling_min_max(cpu);
 
 		} else {
-			ret = -1;
-			if (auto_mode) {
-				set_scaling_max_to_cpuinfo_max(cpu);
-				set_scaling_min_to_cpuinfo_min(cpu);
-			}
+			set_scaling_max_to_cpuinfo_max(cpu);
+			set_scaling_min_to_cpuinfo_min(cpu);
 		}
 		goto disp_result;
 	}
