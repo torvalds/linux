@@ -75,5 +75,6 @@ For more details see the file COPYING in the source distribution of Linux.
 	vimc-devel
 
 	cx2341x-uapi
+	imx-uapi
 	meye-uapi
 	omap3isp-uapi
