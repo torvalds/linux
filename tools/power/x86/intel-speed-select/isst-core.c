@@ -395,15 +395,27 @@ int isst_set_tdp_level(int cpu, int tdp_level)
 int isst_get_pbf_info(int cpu, int level, struct isst_pbf_info *pbf_info)
 {
 	struct isst_pkg_ctdp_level_info ctdp_level;
+	struct isst_pkg_ctdp pkg_dev;
 	int i, ret, core_cnt, max;
 	unsigned int req, resp;
+
+	ret = isst_get_ctdp_levels(cpu, &pkg_dev);
+	if (ret) {
+		isst_display_error_info_message(1, "Failed to get number of levels", 0, 0);
+		return ret;
+	}
+
+	if (level > pkg_dev.levels) {
+		isst_display_error_info_message(1, "Invalid level", 1, level);
+		return -1;
+	}
 
 	ret = isst_get_ctdp_control(cpu, level, &ctdp_level);
 	if (ret)
 		return ret;
 
 	if (!ctdp_level.pbf_support) {
-		fprintf(stderr, "base-freq feature is not present at this level:%d\n", level);
+		isst_display_error_info_message(1, "base-freq feature is not present at this level", 1, level);
 		return -1;
 	}
 

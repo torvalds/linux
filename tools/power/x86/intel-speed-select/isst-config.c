@@ -1276,7 +1276,7 @@ static void clx_n_dump_pbf_config_for_cpu(int cpu, void *arg1, void *arg2,
 
 	ret = clx_n_config(cpu);
 	if (ret) {
-		perror("isst_get_process_ctdp");
+		isst_display_error_info_message(1, "clx_n_config failed", 0, 0);
 	} else {
 		struct isst_pkg_ctdp_level_info *ctdp_level;
 		struct isst_pbf_info *pbf_info;
@@ -1297,7 +1297,9 @@ static void dump_pbf_config_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 
 	ret = isst_get_pbf_info(cpu, tdp_level, &pbf_info);
 	if (ret) {
-		perror("isst_get_pbf_info");
+		isst_display_error_info_message(1, "Failed to get base-freq info at this level", 1, tdp_level);
+		isst_ctdp_display_information_end(outf);
+		exit(1);
 	} else {
 		isst_pbf_display_information(cpu, outf, tdp_level, &pbf_info);
 		isst_get_pbf_info_complete(&pbf_info);
@@ -1317,7 +1319,7 @@ static void dump_pbf_config(int arg)
 	}
 
 	if (tdp_level == 0xff) {
-		fprintf(outf, "Invalid command: specify tdp_level\n");
+		isst_display_error_info_message(1, "Invalid command: specify tdp_level", 0, 0);
 		exit(1);
 	}
 
@@ -1635,7 +1637,7 @@ static void set_pbf_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 
 	ret = isst_set_pbf_fact_status(cpu, 1, status);
 	if (ret) {
-		perror("isst_set_pbf");
+		debug_printf("isst_set_pbf_fact_status failed");
 		if (auto_mode)
 			isst_pm_qos_config(cpu, 0, 0);
 	} else {
@@ -1667,10 +1669,25 @@ static void set_pbf_enable(int arg)
 		if (enable) {
 			fprintf(stderr,
 				"Enable Intel Speed Select Technology base frequency feature\n");
+			if (is_clx_n_platform()) {
+				fprintf(stderr,
+					"\tOn this platform this command doesn't enable feature in the hardware.\n");
+				fprintf(stderr,
+					"\tIt updates the cpufreq scaling_min_freq to match cpufreq base_frequency.\n");
+				exit(0);
+
+			}
 			fprintf(stderr,
 				"\tOptional Arguments: -a|--auto : Use priority of cores to set core-power associations\n");
 		} else {
 
+			if (is_clx_n_platform()) {
+				fprintf(stderr,
+					"\tOn this platform this command doesn't disable feature in the hardware.\n");
+				fprintf(stderr,
+					"\tIt updates the cpufreq scaling_min_freq to match cpuinfo_min_freq\n");
+				exit(0);
+			}
 			fprintf(stderr,
 				"Disable Intel Speed Select Technology base frequency feature\n");
 			fprintf(stderr,
