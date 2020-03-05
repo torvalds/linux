@@ -339,16 +339,21 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 			pte_unmap(ptep);
 			return -EBUSY;
 		}
-	} else if (IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL) && pte_special(pte)) {
-		if (!is_zero_pfn(pte_pfn(pte))) {
+	}
+
+	/*
+	 * Since each architecture defines a struct page for the zero page, just
+	 * fall through and treat it like a normal page.
+	 */
+	if (pte_special(pte) && !is_zero_pfn(pte_pfn(pte))) {
+		hmm_pte_need_fault(hmm_vma_walk, orig_pfn, 0, &fault,
+				   &write_fault);
+		if (fault || write_fault) {
 			pte_unmap(ptep);
-			*pfn = range->values[HMM_PFN_SPECIAL];
 			return -EFAULT;
 		}
-		/*
-		 * Since each architecture defines a struct page for the zero
-		 * page, just fall through and treat it like a normal page.
-		 */
+		*pfn = range->values[HMM_PFN_SPECIAL];
+		return 0;
 	}
 
 	*pfn = hmm_device_entry_from_pfn(range, pte_pfn(pte)) | cpu_flags;
