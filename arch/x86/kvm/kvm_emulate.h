@@ -221,7 +221,7 @@ struct x86_emulate_ops {
 			 enum x86_intercept_stage stage);
 
 	bool (*get_cpuid)(struct x86_emulate_ctxt *ctxt, u32 *eax, u32 *ebx,
-			  u32 *ecx, u32 *edx, bool check_limit);
+			  u32 *ecx, u32 *edx, bool exact_only);
 	bool (*guest_has_long_mode)(struct x86_emulate_ctxt *ctxt);
 	bool (*guest_has_movbe)(struct x86_emulate_ctxt *ctxt);
 	bool (*guest_has_fxsr)(struct x86_emulate_ctxt *ctxt);

@@ -986,16 +986,16 @@ get_out_of_range_cpuid_entry(struct kvm_vcpu *vcpu, u32 *fn_ptr, u32 index)
 }
 
 bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
-	       u32 *ecx, u32 *edx, bool check_limit)
+	       u32 *ecx, u32 *edx, bool exact_only)
 {
 	u32 orig_function = *eax, function = *eax, index = *ecx;
 	struct kvm_cpuid_entry2 *entry;
-	bool found;
+	bool exact;
 
 	entry = kvm_find_cpuid_entry(vcpu, function, index);
-	found = entry;
+	exact = !!entry;
 
-	if (!entry && check_limit)
+	if (!entry && !exact_only)
 		entry = get_out_of_range_cpuid_entry(vcpu, &function, index);
 
 	if (entry) {
@@ -1026,8 +1026,8 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 			}
 		}
 	}
-	trace_kvm_cpuid(orig_function, *eax, *ebx, *ecx, *edx, found);
-	return found;
+	trace_kvm_cpuid(orig_function, *eax, *ebx, *ecx, *edx, exact);
+	return exact;
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
 
@@ -1040,7 +1040,7 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, false);
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);
