@@ -71,6 +71,7 @@ For more details see the file COPYING in the source distribution of Linux.
 	cx88-devel
 	davinci-vpbe-devel
 	fimc-devel
+	saa7134-devel
 	vimc-devel
 
 	cx2341x-uapi
