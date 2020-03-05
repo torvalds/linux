@@ -5,6 +5,7 @@
 #include <linux/types.h>
 #include <linux/in6.h>
 #include <linux/siphash.h>
+#include <linux/string.h>
 #include <uapi/linux/if_ether.h>
 
 /**
@@ -304,6 +305,14 @@ static inline void *skb_flow_dissector_target(struct flow_dissector *flow_dissec
 					      void *target_container)
 {
 	return ((char *)target_container) + flow_dissector->offset[key_id];
+}
+
+static inline void
+flow_dissector_init_keys(struct flow_dissector_key_control *key_control,
+			 struct flow_dissector_key_basic *key_basic)
+{
+	memset(key_control, 0, sizeof(*key_control));
+	memset(key_basic, 0, sizeof(*key_basic));
 }
 
 #endif
