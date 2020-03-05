@@ -173,9 +173,9 @@ struct ceph_cap {
 	struct list_head caps_item;
 };
 
-#define CHECK_CAPS_NODELAY    1  /* do not delay any further */
-#define CHECK_CAPS_AUTHONLY   2  /* only check auth cap */
-#define CHECK_CAPS_FLUSH      4  /* flush any dirty caps */
+#define CHECK_CAPS_AUTHONLY   1  /* only check auth cap */
+#define CHECK_CAPS_FLUSH      2  /* flush any dirty caps */
+#define CHECK_CAPS_NOINVAL    4  /* don't invalidate pagecache */
 
 struct ceph_cap_flush {
 	u64 tid;
@@ -357,7 +357,6 @@ struct ceph_inode_info {
 	struct ceph_cap_flush *i_prealloc_cap_flush;
 	struct list_head i_cap_flush_list;
 	wait_queue_head_t i_cap_wq;      /* threads waiting on a capability */
-	unsigned long i_hold_caps_min; /* jiffies */
 	unsigned long i_hold_caps_max; /* jiffies */
 	struct list_head i_cap_delay_list;  /* for delayed cap release to mds */
 	struct ceph_cap_reservation i_cap_migration_resv;
@@ -518,7 +517,6 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
  * Ceph inode.
  */
 #define CEPH_I_DIR_ORDERED	(1 << 0)  /* dentries in dir are ordered */
-#define CEPH_I_NODELAY		(1 << 1)  /* do not delay cap release */
 #define CEPH_I_FLUSH		(1 << 2)  /* do not delay flush of dirty metadata */
 #define CEPH_I_POOL_PERM	(1 << 3)  /* pool rd/wr bits are valid */
 #define CEPH_I_POOL_RD		(1 << 4)  /* can read from pool */

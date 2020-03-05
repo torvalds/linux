@@ -472,7 +472,6 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_prealloc_cap_flush = NULL;
 	INIT_LIST_HEAD(&ci->i_cap_flush_list);
 	init_waitqueue_head(&ci->i_cap_wq);
-	ci->i_hold_caps_min = 0;
 	ci->i_hold_caps_max = 0;
 	INIT_LIST_HEAD(&ci->i_cap_delay_list);
 	INIT_LIST_HEAD(&ci->i_cap_snaps);
