@@ -621,11 +621,17 @@ void isst_clos_display_clos_information(int cpu, FILE *outf,
 	format_and_print(outf, 5, header, value);
 
 	snprintf(header, sizeof(header), "clos-enable-status");
-	snprintf(value, sizeof(value), "%d", clos_enable);
+	if (clos_enable)
+		snprintf(value, sizeof(value), "enabled");
+	else
+		snprintf(value, sizeof(value), "disabled");
 	format_and_print(outf, 5, header, value);
 
 	snprintf(header, sizeof(header), "priority-type");
-	snprintf(value, sizeof(value), "%d", type);
+	if (type)
+		snprintf(value, sizeof(value), "ordered");
+	else
+		snprintf(value, sizeof(value), "proportional");
 	format_and_print(outf, 5, header, value);
 
 	format_and_print(outf, 1, NULL, NULL);
