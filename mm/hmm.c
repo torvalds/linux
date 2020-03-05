@@ -371,8 +371,10 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
 {
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
-	uint64_t *pfns = range->pfns;
-	unsigned long addr = start, i;
+	uint64_t *pfns = &range->pfns[(start - range->start) >> PAGE_SHIFT];
+	unsigned long npages = (end - start) >> PAGE_SHIFT;
+	unsigned long addr = start;
+	bool fault, write_fault;
 	pte_t *ptep;
 	pmd_t pmd;
 
@@ -382,14 +384,6 @@ again:
 		return hmm_vma_walk_hole(start, end, -1, walk);
 
 	if (thp_migration_supported() && is_pmd_migration_entry(pmd)) {
-		bool fault, write_fault;
-		unsigned long npages;
-		uint64_t *pfns;
-
-		i = (addr - range->start) >> PAGE_SHIFT;
-		npages = (end - addr) >> PAGE_SHIFT;
-		pfns = &range->pfns[i];
-
 		hmm_range_need_fault(hmm_vma_walk, pfns, npages,
 				     0, &fault, &write_fault);
 		if (fault || write_fault) {
@@ -398,8 +392,15 @@ again:
 			return -EBUSY;
 		}
 		return hmm_pfns_fill(start, end, range, HMM_PFN_NONE);
-	} else if (!pmd_present(pmd))
+	}
+
+	if (!pmd_present(pmd)) {
+		hmm_range_need_fault(hmm_vma_walk, pfns, npages, 0, &fault,
+				     &write_fault);
+		if (fault || write_fault)
+			return -EFAULT;
 		return hmm_pfns_fill(start, end, range, HMM_PFN_ERROR);
+	}
 
 	if (pmd_devmap(pmd) || pmd_trans_huge(pmd)) {
 		/*
@@ -416,8 +417,7 @@ again:
 		if (!pmd_devmap(pmd) && !pmd_trans_huge(pmd))
 			goto again;
 
-		i = (addr - range->start) >> PAGE_SHIFT;
-		return hmm_vma_handle_pmd(walk, addr, end, &pfns[i], pmd);
+		return hmm_vma_handle_pmd(walk, addr, end, pfns, pmd);
 	}
 
 	/*
@@ -426,15 +426,19 @@ again:
 	 * entry pointing to pte directory or it is a bad pmd that will not
 	 * recover.
 	 */
-	if (pmd_bad(pmd))
+	if (pmd_bad(pmd)) {
+		hmm_range_need_fault(hmm_vma_walk, pfns, npages, 0, &fault,
+				     &write_fault);
+		if (fault || write_fault)
+			return -EFAULT;
 		return hmm_pfns_fill(start, end, range, HMM_PFN_ERROR);
+	}
 
 	ptep = pte_offset_map(pmdp, addr);
-	i = (addr - range->start) >> PAGE_SHIFT;
-	for (; addr < end; addr += PAGE_SIZE, ptep++, i++) {
+	for (; addr < end; addr += PAGE_SIZE, ptep++, pfns++) {
 		int r;
 
-		r = hmm_vma_handle_pte(walk, addr, end, pmdp, ptep, &pfns[i]);
+		r = hmm_vma_handle_pte(walk, addr, end, pmdp, ptep, pfns);
 		if (r) {
 			/* hmm_vma_handle_pte() did pte_unmap() */
 			hmm_vma_walk->last = addr;
