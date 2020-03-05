@@ -2104,6 +2104,10 @@ static void set_clos_assoc(int arg)
 		fprintf(stderr, "Associate a clos id to a CPU\n");
 		fprintf(stderr,
 			"\tSpecify targeted clos id with [--clos|-c]\n");
+		fprintf(stderr,
+			"\tFor example to associate clos 1 to CPU 0: issue\n");
+		fprintf(stderr,
+			"\tintel-speed-select --cpu 0 core-power assoc --clos 1\n");
 		exit(0);
 	}
 
