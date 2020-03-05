@@ -2368,11 +2368,18 @@ void process_command(int argc, char **argv,
 
 static void usage(void)
 {
-	printf("Intel(R) Speed Select Technology\n");
+	if (is_clx_n_platform()) {
+		fprintf(stderr, "\nThere is limited support of Intel Speed Select features on this platform.\n");
+		fprintf(stderr, "Everything is pre-configured using BIOS options, this tool can't enable any feature in the hardware.\n\n");
+	}
+
 	printf("\nUsage:\n");
 	printf("intel-speed-select [OPTIONS] FEATURE COMMAND COMMAND_ARGUMENTS\n");
-	printf("\nUse this tool to enumerate and control the Intel Speed Select Technology features,\n");
-	printf("\nFEATURE : [perf-profile|base-freq|turbo-freq|core-power]\n");
+	printf("\nUse this tool to enumerate and control the Intel Speed Select Technology features:\n");
+	if (is_clx_n_platform())
+		printf("\nFEATURE : [perf-profile|base-freq]\n");
+	else
+		printf("\nFEATURE : [perf-profile|base-freq|turbo-freq|core-power]\n");
 	printf("\nFor help on each feature, use -h|--help\n");
 	printf("\tFor example:  intel-speed-select perf-profile -h\n");
 
@@ -2385,17 +2392,29 @@ static void usage(void)
 	printf("\t\tDefault: Die scoped for all dies in the system with multiple dies/package\n");
 	printf("\t\t\t Or Package scoped for all Packages when each package contains one die\n");
 	printf("\t[-d|--debug] : Debug mode\n");
+	printf("\t[-f|--format] : output format [json|text]. Default: text\n");
 	printf("\t[-h|--help] : Print help\n");
 	printf("\t[-i|--info] : Print platform information\n");
 	printf("\t[-o|--out] : Output file\n");
 	printf("\t\t\tDefault : stderr\n");
-	printf("\t[-f|--format] : output format [json|text]. Default: text\n");
 	printf("\t[-v|--version] : Print version\n");
 
 	printf("\nResult format\n");
 	printf("\tResult display uses a common format for each command:\n");
 	printf("\tResults are formatted in text/JSON with\n");
 	printf("\t\tPackage, Die, CPU, and command specific results.\n");
+
+	printf("\nExamples\n");
+	printf("\tTo get platform information:\n");
+	printf("\t\tintel-speed-select --info\n");
+	printf("\tTo get full perf-profile information dump:\n");
+	printf("\t\tintel-speed-select perf-profile info\n");
+	printf("\tTo get full base-freq information dump:\n");
+	printf("\t\tintel-speed-select base-freq info -l 0\n");
+	if (!is_clx_n_platform()) {
+		printf("\tTo get full turbo-freq information dump:\n");
+		printf("\t\tintel-speed-select turbo-freq info -l 0\n");
+	}
 	exit(1);
 }
 
@@ -2482,7 +2501,7 @@ static void cmdline(int argc, char **argv)
 	}
 
 	if (optind > (argc - 2)) {
-		fprintf(stderr, "Feature name and|or command not specified\n");
+		usage();
 		exit(0);
 	}
 	set_max_cpu_num();
