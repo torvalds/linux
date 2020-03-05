@@ -46,6 +46,7 @@
 #define SEC_CIPHER_AUTH		0xfe
 #define SEC_AUTH_CIPHER		0x1
 #define SEC_MAX_MAC_LEN		64
+#define SEC_MAX_AAD_LEN		65535
 #define SEC_TOTAL_MAC_SZ	(SEC_MAX_MAC_LEN * QM_Q_DEPTH)
 #define SEC_SQE_LEN_RATE	4
 #define SEC_SQE_CFLAG		2
@@ -110,12 +111,12 @@ static void sec_free_req_id(struct sec_req *req)
 	mutex_unlock(&qp_ctx->req_lock);
 }
 
-static int sec_aead_verify(struct sec_req *req, struct sec_qp_ctx *qp_ctx)
+static int sec_aead_verify(struct sec_req *req)
 {
 	struct aead_request *aead_req = req->aead_req.aead_req;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(aead_req);
-	u8 *mac_out = qp_ctx->res[req->req_id].out_mac;
 	size_t authsize = crypto_aead_authsize(tfm);
+	u8 *mac_out = req->aead_req.out_mac;
 	u8 *mac = mac_out + SEC_MAX_MAC_LEN;
 	struct scatterlist *sgl = aead_req->src;
 	size_t sz;
@@ -163,7 +164,7 @@ static void sec_req_cb(struct hisi_qp *qp, void *resp)
 	}
 
 	if (ctx->alg_type == SEC_AEAD && !req->c_req.encrypt)
-		err = sec_aead_verify(req, qp_ctx);
+		err = sec_aead_verify(req);
 
 	atomic64_inc(&ctx->sec->debug.dfx.recv_cnt);
 
@@ -259,11 +260,11 @@ static int sec_alg_resource_alloc(struct sec_ctx *ctx,
 	if (ctx->alg_type == SEC_AEAD) {
 		ret = sec_alloc_mac_resource(dev, res);
 		if (ret)
-			goto get_fail;
+			goto alloc_fail;
 	}
 
 	return 0;
-get_fail:
+alloc_fail:
 	sec_free_civ_resource(dev, res);
 
 	return ret;
@@ -590,11 +591,21 @@ GEN_SEC_SETKEY_FUNC(3des_cbc, SEC_CALG_3DES, SEC_CMODE_CBC)
 GEN_SEC_SETKEY_FUNC(sm4_xts, SEC_CALG_SM4, SEC_CMODE_XTS)
 GEN_SEC_SETKEY_FUNC(sm4_cbc, SEC_CALG_SM4, SEC_CMODE_CBC)
 
-static int sec_cipher_map(struct device *dev, struct sec_req *req,
+static int sec_cipher_map(struct sec_ctx *ctx, struct sec_req *req,
 			  struct scatterlist *src, struct scatterlist *dst)
 {
 	struct sec_cipher_req *c_req = &req->c_req;
+	struct sec_aead_req *a_req = &req->aead_req;
 	struct sec_qp_ctx *qp_ctx = req->qp_ctx;
+	struct sec_alg_res *res = &qp_ctx->res[req->req_id];
+	struct device *dev = SEC_CTX_DEV(ctx);
+
+	c_req->c_ivin = res->c_ivin;
+	c_req->c_ivin_dma = res->c_ivin_dma;
+	if (ctx->alg_type == SEC_AEAD) {
+		a_req->out_mac = res->out_mac;
+		a_req->out_mac_dma = res->out_mac_dma;
+	}
 
 	c_req->c_in = hisi_acc_sg_buf_map_to_hw_sgl(dev, src,
 						    qp_ctx->c_in_pool,
@@ -625,29 +636,30 @@ static int sec_cipher_map(struct device *dev, struct sec_req *req,
 	return 0;
 }
 
-static void sec_cipher_unmap(struct device *dev, struct sec_cipher_req *req,
+static void sec_cipher_unmap(struct sec_ctx *ctx, struct sec_req *req,
 			     struct scatterlist *src, struct scatterlist *dst)
 {
-	if (dst != src)
-		hisi_acc_sg_buf_unmap(dev, src, req->c_in);
+	struct sec_cipher_req *c_req = &req->c_req;
+	struct device *dev = SEC_CTX_DEV(ctx);
 
-	hisi_acc_sg_buf_unmap(dev, dst, req->c_out);
+	if (dst != src)
+		hisi_acc_sg_buf_unmap(dev, src, c_req->c_in);
+
+	hisi_acc_sg_buf_unmap(dev, dst, c_req->c_out);
 }
 
 static int sec_skcipher_sgl_map(struct sec_ctx *ctx, struct sec_req *req)
 {
 	struct skcipher_request *sq = req->c_req.sk_req;
 
-	return sec_cipher_map(SEC_CTX_DEV(ctx), req, sq->src, sq->dst);
+	return sec_cipher_map(ctx, req, sq->src, sq->dst);
 }
 
 static void sec_skcipher_sgl_unmap(struct sec_ctx *ctx, struct sec_req *req)
 {
-	struct device *dev = SEC_CTX_DEV(ctx);
-	struct sec_cipher_req *c_req = &req->c_req;
-	struct skcipher_request *sk_req = c_req->sk_req;
+	struct skcipher_request *sq = req->c_req.sk_req;
 
-	sec_cipher_unmap(dev, c_req, sk_req->src, sk_req->dst);
+	sec_cipher_unmap(ctx, req, sq->src, sq->dst);
 }
 
 static int sec_aead_aes_set_key(struct sec_cipher_ctx *c_ctx,
@@ -758,16 +770,14 @@ static int sec_aead_sgl_map(struct sec_ctx *ctx, struct sec_req *req)
 {
 	struct aead_request *aq = req->aead_req.aead_req;
 
-	return sec_cipher_map(SEC_CTX_DEV(ctx), req, aq->src, aq->dst);
+	return sec_cipher_map(ctx, req, aq->src, aq->dst);
 }
 
 static void sec_aead_sgl_unmap(struct sec_ctx *ctx, struct sec_req *req)
 {
-	struct device *dev = SEC_CTX_DEV(ctx);
-	struct sec_cipher_req *cq = &req->c_req;
 	struct aead_request *aq = req->aead_req.aead_req;
 
-	sec_cipher_unmap(dev, cq, aq->src, aq->dst);
+	sec_cipher_unmap(ctx, req, aq->src, aq->dst);
 }
 
 static int sec_request_transfer(struct sec_ctx *ctx, struct sec_req *req)
@@ -800,9 +810,9 @@ static void sec_request_untransfer(struct sec_ctx *ctx, struct sec_req *req)
 static void sec_skcipher_copy_iv(struct sec_ctx *ctx, struct sec_req *req)
 {
 	struct skcipher_request *sk_req = req->c_req.sk_req;
-	u8 *c_ivin = req->qp_ctx->res[req->req_id].c_ivin;
+	struct sec_cipher_req *c_req = &req->c_req;
 
-	memcpy(c_ivin, sk_req->iv, ctx->c_ctx.ivsize);
+	memcpy(c_req->c_ivin, sk_req->iv, ctx->c_ctx.ivsize);
 }
 
 static int sec_skcipher_bd_fill(struct sec_ctx *ctx, struct sec_req *req)
@@ -817,8 +827,7 @@ static int sec_skcipher_bd_fill(struct sec_ctx *ctx, struct sec_req *req)
 	memset(sec_sqe, 0, sizeof(struct sec_sqe));
 
 	sec_sqe->type2.c_key_addr = cpu_to_le64(c_ctx->c_key_dma);
-	sec_sqe->type2.c_ivin_addr =
-		cpu_to_le64(req->qp_ctx->res[req->req_id].c_ivin_dma);
+	sec_sqe->type2.c_ivin_addr = cpu_to_le64(c_req->c_ivin_dma);
 	sec_sqe->type2.data_src_addr = cpu_to_le64(c_req->c_in_dma);
 	sec_sqe->type2.data_dst_addr = cpu_to_le64(c_req->c_out_dma);
 
@@ -903,9 +912,9 @@ static void sec_skcipher_callback(struct sec_ctx *ctx, struct sec_req *req,
 static void sec_aead_copy_iv(struct sec_ctx *ctx, struct sec_req *req)
 {
 	struct aead_request *aead_req = req->aead_req.aead_req;
-	u8 *c_ivin = req->qp_ctx->res[req->req_id].c_ivin;
+	struct sec_cipher_req *c_req = &req->c_req;
 
-	memcpy(c_ivin, aead_req->iv, ctx->c_ctx.ivsize);
+	memcpy(c_req->c_ivin, aead_req->iv, ctx->c_ctx.ivsize);
 }
 
 static void sec_auth_bd_fill_ex(struct sec_auth_ctx *ctx, int dir,
@@ -938,8 +947,7 @@ static void sec_auth_bd_fill_ex(struct sec_auth_ctx *ctx, int dir,
 
 	sec_sqe->type2.cipher_src_offset = cpu_to_le16((u16)aq->assoclen);
 
-	sec_sqe->type2.mac_addr =
-		cpu_to_le64(req->qp_ctx->res[req->req_id].out_mac_dma);
+	sec_sqe->type2.mac_addr = cpu_to_le64(a_req->out_mac_dma);
 }
 
 static int sec_aead_bd_fill(struct sec_ctx *ctx, struct sec_req *req)
@@ -963,6 +971,7 @@ static void sec_aead_callback(struct sec_ctx *c, struct sec_req *req, int err)
 {
 	struct aead_request *a_req = req->aead_req.aead_req;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(a_req);
+	struct sec_aead_req *aead_req = &req->aead_req;
 	struct sec_cipher_req *c_req = &req->c_req;
 	size_t authsize = crypto_aead_authsize(tfm);
 	struct sec_qp_ctx *qp_ctx = req->qp_ctx;
@@ -978,7 +987,7 @@ static void sec_aead_callback(struct sec_ctx *c, struct sec_req *req, int err)
 		struct scatterlist *sgl = a_req->dst;
 
 		sz = sg_pcopy_from_buffer(sgl, sg_nents(sgl),
-					  qp_ctx->res[req->req_id].out_mac,
+					  aead_req->out_mac,
 					  authsize, a_req->cryptlen +
 					  a_req->assoclen);
 
@@ -1030,6 +1039,7 @@ static int sec_request_init(struct sec_ctx *ctx, struct sec_req *req)
 
 static int sec_process(struct sec_ctx *ctx, struct sec_req *req)
 {
+	struct sec_cipher_req *c_req = &req->c_req;
 	int ret;
 
 	ret = sec_request_init(ctx, req);
@@ -1056,12 +1066,10 @@ err_send_req:
 	/* As failing, restore the IV from user */
 	if (ctx->c_ctx.c_mode == SEC_CMODE_CBC && !req->c_req.encrypt) {
 		if (ctx->alg_type == SEC_SKCIPHER)
-			memcpy(req->c_req.sk_req->iv,
-			       req->qp_ctx->res[req->req_id].c_ivin,
+			memcpy(req->c_req.sk_req->iv, c_req->c_ivin,
 			       ctx->c_ctx.ivsize);
 		else
-			memcpy(req->aead_req.aead_req->iv,
-			       req->qp_ctx->res[req->req_id].c_ivin,
+			memcpy(req->aead_req.aead_req->iv, c_req->c_ivin,
 			       ctx->c_ctx.ivsize);
 	}
 
@@ -1320,7 +1328,8 @@ static int sec_aead_param_check(struct sec_ctx *ctx, struct sec_req *sreq)
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	size_t authsize = crypto_aead_authsize(tfm);
 
-	if (unlikely(!req->src || !req->dst || !req->cryptlen)) {
+	if (unlikely(!req->src || !req->dst || !req->cryptlen ||
+		req->assoclen > SEC_MAX_AAD_LEN)) {
 		dev_err(SEC_CTX_DEV(ctx), "aead input param error!\n");
 		return -EINVAL;
 	}

@@ -23,6 +23,8 @@ struct sec_cipher_req {
 	dma_addr_t c_in_dma;
 	struct hisi_acc_hw_sgl *c_out;
 	dma_addr_t c_out_dma;
+	u8 *c_ivin;
+	dma_addr_t c_ivin_dma;
 	struct skcipher_request *sk_req;
 	u32 c_len;
 	bool encrypt;
