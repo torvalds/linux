@@ -208,7 +208,7 @@ extern void isst_get_process_ctdp_complete(int cpu,
 extern void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 					  struct isst_pkg_ctdp *pkg_dev);
 extern void isst_ctdp_display_core_info(int cpu, FILE *outf, char *prefix,
-					unsigned int val);
+					unsigned int val, char *str0, char *str1);
 extern void isst_ctdp_display_information_start(FILE *outf);
 extern void isst_ctdp_display_information_end(FILE *outf);
 extern void isst_pbf_display_information(int cpu, FILE *outf, int level,

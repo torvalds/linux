@@ -953,6 +953,7 @@ static void isst_print_platform_information(void)
 	exit(0);
 }
 
+static char *local_str0, *local_str1;
 static void exec_on_get_ctdp_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 				 void *arg4)
 {
@@ -962,13 +963,14 @@ static void exec_on_get_ctdp_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	fn_ptr = arg1;
 	ret = fn_ptr(cpu, arg2);
 	if (ret)
-		perror("get_tdp_*");
+		isst_display_error_info_message(1, "get_tdp_* failed", 0, 0);
 	else
 		isst_ctdp_display_core_info(cpu, outf, arg3,
-					    *(unsigned int *)arg4);
+					    *(unsigned int *)arg4,
+					    local_str0, local_str1);
 }
 
-#define _get_tdp_level(desc, suffix, object, help)                                \
+#define _get_tdp_level(desc, suffix, object, help, str0, str1)			\
 	static void get_tdp_##object(int arg)                                    \
 	{                                                                         \
 		struct isst_pkg_ctdp ctdp;                                        \
@@ -979,6 +981,8 @@ static void exec_on_get_ctdp_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 				help);                                            \
 			exit(0);                                                  \
 		}                                                                 \
+		local_str0 = str0;						  \
+		local_str1 = str1;						  \
 		isst_ctdp_display_information_start(outf);                        \
 		if (max_target_cpus)                                              \
 			for_each_online_target_cpu_in_set(                        \
@@ -992,12 +996,12 @@ static void exec_on_get_ctdp_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 		isst_ctdp_display_information_end(outf);                          \
 	}
 
-_get_tdp_level("get-config-levels", levels, levels, "TDP levels");
-_get_tdp_level("get-config-version", levels, version, "TDP version");
-_get_tdp_level("get-config-enabled", levels, enabled, "TDP enable status");
+_get_tdp_level("get-config-levels", levels, levels, "Max TDP level", NULL, NULL);
+_get_tdp_level("get-config-version", levels, version, "TDP version", NULL, NULL);
+_get_tdp_level("get-config-enabled", levels, enabled, "perf-profile enable status", "disabled", "enabled");
 _get_tdp_level("get-config-current_level", levels, current_level,
-	       "Current TDP Level");
-_get_tdp_level("get-lock-status", levels, locked, "TDP lock status");
+	       "Current TDP Level", NULL, NULL);
+_get_tdp_level("get-lock-status", levels, locked, "TDP lock status", "unlocked", "locked");
 
 struct isst_pkg_ctdp clx_n_pkg_dev;
 

@@ -289,7 +289,7 @@ static void _isst_fact_display_information(int cpu, FILE *outf, int level,
 }
 
 void isst_ctdp_display_core_info(int cpu, FILE *outf, char *prefix,
-				 unsigned int val)
+				 unsigned int val, char *str0, char *str1)
 {
 	char header[256];
 	char value[256];
@@ -301,8 +301,12 @@ void isst_ctdp_display_core_info(int cpu, FILE *outf, char *prefix,
 	format_and_print(outf, 2, header, NULL);
 	snprintf(header, sizeof(header), "cpu-%d", cpu);
 	format_and_print(outf, 3, header, NULL);
-
-	snprintf(value, sizeof(value), "%u", val);
+	if (str0 && !val)
+		snprintf(value, sizeof(value), "%s", str0);
+	else if (str1 && val)
+		snprintf(value, sizeof(value), "%s", str1);
+	else
+		snprintf(value, sizeof(value), "%u", val);
 	format_and_print(outf, 4, prefix, value);
 
 	format_and_print(outf, 1, NULL, NULL);
