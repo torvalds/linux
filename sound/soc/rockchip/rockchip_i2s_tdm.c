@@ -1103,6 +1103,10 @@ static const struct txrx_config rk3308_txrx_config[] = {
 	{ 0xff310000, 0x308, RK3308_I2S1_CLK_TXONLY, RK3308_I2S1_CLK_RXONLY },
 };
 
+static const struct txrx_config rv1126_txrx_config[] = {
+	{ 0xff800000, 0x10260, RV1126_I2S0_CLK_TXONLY, RV1126_I2S0_CLK_RXONLY },
+};
+
 static struct rk_i2s_soc_data px30_i2s_soc_data = {
 	.softrst_offset = 0x0300,
 	.configs = px30_txrx_config,
@@ -1124,10 +1128,18 @@ static struct rk_i2s_soc_data rk3308_i2s_soc_data = {
 	.init = common_soc_init,
 };
 
+static struct rk_i2s_soc_data rv1126_i2s_soc_data = {
+	.softrst_offset = 0x0300,
+	.configs = rv1126_txrx_config,
+	.config_count = ARRAY_SIZE(rv1126_txrx_config),
+	.init = common_soc_init,
+};
+
 static const struct of_device_id rockchip_i2s_tdm_match[] = {
 	{ .compatible = "rockchip,px30-i2s-tdm", .data = &px30_i2s_soc_data },
 	{ .compatible = "rockchip,rk1808-i2s-tdm", .data = &rk1808_i2s_soc_data },
 	{ .compatible = "rockchip,rk3308-i2s-tdm", .data = &rk3308_i2s_soc_data },
+	{ .compatible = "rockchip,rv1126-i2s-tdm", .data = &rv1126_i2s_soc_data },
 	{},
 };
 
