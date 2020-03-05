@@ -1984,7 +1984,7 @@ retry:
 	mutex_unlock(&ci->i_truncate_mutex);
 
 	if (wrbuffer_refs == 0)
-		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
+		ceph_check_caps(ci, 0, NULL);
 
 	wake_up_all(&ci->i_cap_wq);
 }
