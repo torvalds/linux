@@ -245,7 +245,9 @@ extern void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
 
 extern int isst_clos_get_clos_information(int cpu, int *enable, int *type);
 extern void isst_clos_display_clos_information(int cpu, FILE *outf,
-					       int clos_enable, int type);
+					       int clos_enable, int type,
+					       int state, int cap);
 extern int is_clx_n_platform(void);
 extern int get_cpufreq_base_freq(int cpu);
+extern int isst_read_pm_config(int cpu, int *cp_state, int *cp_cap);
 #endif

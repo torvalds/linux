@@ -1754,8 +1754,13 @@ static void get_clos_info_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	ret = isst_clos_get_clos_information(cpu, &enable, &prio_type);
 	if (ret)
 		perror("isst_clos_get_info");
-	else
-		isst_clos_display_clos_information(cpu, outf, enable, prio_type);
+	else {
+		int cp_state, cp_cap;
+
+		isst_read_pm_config(cpu, &cp_state, &cp_cap);
+		isst_clos_display_clos_information(cpu, outf, enable, prio_type,
+						   cp_state, cp_cap);
+	}
 }
 
 static void dump_clos_info(int arg)
