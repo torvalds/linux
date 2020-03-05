@@ -604,18 +604,15 @@ static int hmm_vma_walk_test(unsigned long start, unsigned long end,
 	struct vm_area_struct *vma = walk->vma;
 
 	/*
-	 * Skip vma ranges that don't have struct page backing them or
-	 * map I/O devices directly.
-	 */
-	if (vma->vm_flags & (VM_IO | VM_PFNMAP | VM_MIXEDMAP))
-		return -EFAULT;
-
-	/*
+	 * Skip vma ranges that don't have struct page backing them or map I/O
+	 * devices directly.
+	 *
 	 * If the vma does not allow read access, then assume that it does not
-	 * allow write access either. HMM does not support architectures
-	 * that allow write without read.
+	 * allow write access either. HMM does not support architectures that
+	 * allow write without read.
 	 */
-	if (!(vma->vm_flags & VM_READ)) {
+	if ((vma->vm_flags & (VM_IO | VM_PFNMAP | VM_MIXEDMAP)) ||
+	    !(vma->vm_flags & VM_READ)) {
 		bool fault, write_fault;
 
 		/*
@@ -629,7 +626,7 @@ static int hmm_vma_walk_test(unsigned long start, unsigned long end,
 		if (fault || write_fault)
 			return -EFAULT;
 
-		hmm_pfns_fill(start, end, range, HMM_PFN_NONE);
+		hmm_pfns_fill(start, end, range, HMM_PFN_ERROR);
 		hmm_vma_walk->last = end;
 
 		/* Skip this vma and continue processing the next vma. */
