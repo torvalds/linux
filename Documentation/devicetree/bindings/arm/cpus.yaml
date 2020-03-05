@@ -165,6 +165,7 @@ properties:
       - qcom,krait
       - qcom,kryo
       - qcom,kryo260
+      - qcom,kryo280
       - qcom,kryo385
       - qcom,kryo485
       - qcom,scorpion
