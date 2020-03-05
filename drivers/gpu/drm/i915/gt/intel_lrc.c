@@ -5317,11 +5317,15 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 		show_request(m, last, "\t\tE ");
 	}
 
-	last = NULL;
-	count = 0;
+	if (execlists->switch_priority_hint != INT_MIN)
+		drm_printf(m, "\t\tSwitch priority hint: %d\n",
+			   execlists->switch_priority_hint);
 	if (execlists->queue_priority_hint != INT_MIN)
 		drm_printf(m, "\t\tQueue priority hint: %d\n",
 			   execlists->queue_priority_hint);
+
+	last = NULL;
+	count = 0;
 	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
 		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
 		int i;
