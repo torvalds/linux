@@ -1544,6 +1544,64 @@ static noinline_for_stack int ethtool_get_coalesce(struct net_device *dev,
 	return 0;
 }
 
+static bool
+ethtool_set_coalesce_supported(struct net_device *dev,
+			       struct ethtool_coalesce *coalesce)
+{
+	u32 supported_params = dev->ethtool_ops->supported_coalesce_params;
+	u32 nonzero_params = 0;
+
+	if (!supported_params)
+		return true;
+
+	if (coalesce->rx_coalesce_usecs)
+		nonzero_params |= ETHTOOL_COALESCE_RX_USECS;
+	if (coalesce->rx_max_coalesced_frames)
+		nonzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES;
+	if (coalesce->rx_coalesce_usecs_irq)
+		nonzero_params |= ETHTOOL_COALESCE_RX_USECS_IRQ;
+	if (coalesce->rx_max_coalesced_frames_irq)
+		nonzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES_IRQ;
+	if (coalesce->tx_coalesce_usecs)
+		nonzero_params |= ETHTOOL_COALESCE_TX_USECS;
+	if (coalesce->tx_max_coalesced_frames)
+		nonzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES;
+	if (coalesce->tx_coalesce_usecs_irq)
+		nonzero_params |= ETHTOOL_COALESCE_TX_USECS_IRQ;
+	if (coalesce->tx_max_coalesced_frames_irq)
+		nonzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ;
+	if (coalesce->stats_block_coalesce_usecs)
+		nonzero_params |= ETHTOOL_COALESCE_STATS_BLOCK_USECS;
+	if (coalesce->use_adaptive_rx_coalesce)
+		nonzero_params |= ETHTOOL_COALESCE_USE_ADAPTIVE_RX;
+	if (coalesce->use_adaptive_tx_coalesce)
+		nonzero_params |= ETHTOOL_COALESCE_USE_ADAPTIVE_TX;
+	if (coalesce->pkt_rate_low)
+		nonzero_params |= ETHTOOL_COALESCE_PKT_RATE_LOW;
+	if (coalesce->rx_coalesce_usecs_low)
+		nonzero_params |= ETHTOOL_COALESCE_RX_USECS_LOW;
+	if (coalesce->rx_max_coalesced_frames_low)
+		nonzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES_LOW;
+	if (coalesce->tx_coalesce_usecs_low)
+		nonzero_params |= ETHTOOL_COALESCE_TX_USECS_LOW;
+	if (coalesce->tx_max_coalesced_frames_low)
+		nonzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES_LOW;
+	if (coalesce->pkt_rate_high)
+		nonzero_params |= ETHTOOL_COALESCE_PKT_RATE_HIGH;
+	if (coalesce->rx_coalesce_usecs_high)
+		nonzero_params |= ETHTOOL_COALESCE_RX_USECS_HIGH;
+	if (coalesce->rx_max_coalesced_frames_high)
+		nonzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES_HIGH;
+	if (coalesce->tx_coalesce_usecs_high)
+		nonzero_params |= ETHTOOL_COALESCE_TX_USECS_HIGH;
+	if (coalesce->tx_max_coalesced_frames_high)
+		nonzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES_HIGH;
+	if (coalesce->rate_sample_interval)
+		nonzero_params |= ETHTOOL_COALESCE_RATE_SAMPLE_INTERVAL;
+
+	return (supported_params & nonzero_params) == nonzero_params;
+}
+
 static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 						   void __user *useraddr)
 {
@@ -1554,6 +1612,9 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 
 	if (copy_from_user(&coalesce, useraddr, sizeof(coalesce)))
 		return -EFAULT;
+
+	if (!ethtool_set_coalesce_supported(dev, &coalesce))
+		return -EOPNOTSUPP;
 
 	return dev->ethtool_ops->set_coalesce(dev, &coalesce);
 }
@@ -2333,6 +2394,11 @@ ethtool_set_per_queue_coalesce(struct net_device *dev,
 
 		if (copy_from_user(&coalesce, useraddr, sizeof(coalesce))) {
 			ret = -EFAULT;
+			goto roll_back;
+		}
+
+		if (!ethtool_set_coalesce_supported(dev, &coalesce)) {
+			ret = -EOPNOTSUPP;
 			goto roll_back;
 		}
 
