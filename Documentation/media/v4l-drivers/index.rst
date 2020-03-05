@@ -66,6 +66,7 @@ For more details see the file COPYING in the source distribution of Linux.
 	vivid
 	zr364xx
 
+	bttv-devel
 	cpia2_devel
 	vimc-devel
 
