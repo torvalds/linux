@@ -90,13 +90,13 @@ static int sirfsoc_rtc_read_alarm(struct device *dev,
 	 */
 	/* if alarm is in next overflow cycle */
 	if (rtc_count > rtc_alarm)
-		rtc_time_to_tm((rtcdrv->overflow_rtc + 1)
-				<< (BITS_PER_LONG - RTC_SHIFT)
-				| rtc_alarm >> RTC_SHIFT, &(alrm->time));
+		rtc_time64_to_tm((rtcdrv->overflow_rtc + 1)
+				 << (BITS_PER_LONG - RTC_SHIFT)
+				 | rtc_alarm >> RTC_SHIFT, &alrm->time);
 	else
-		rtc_time_to_tm(rtcdrv->overflow_rtc
-				<< (BITS_PER_LONG - RTC_SHIFT)
-				| rtc_alarm >> RTC_SHIFT, &(alrm->time));
+		rtc_time64_to_tm(rtcdrv->overflow_rtc
+				 << (BITS_PER_LONG - RTC_SHIFT)
+				 | rtc_alarm >> RTC_SHIFT, &alrm->time);
 	if (sirfsoc_rtc_readl(rtcdrv, RTC_STATUS) & SIRFSOC_RTC_AL0E)
 		alrm->enabled = 1;
 
@@ -113,7 +113,7 @@ static int sirfsoc_rtc_set_alarm(struct device *dev,
 	rtcdrv = dev_get_drvdata(dev);
 
 	if (alrm->enabled) {
-		rtc_tm_to_time(&(alrm->time), &rtc_alarm);
+		rtc_alarm = rtc_tm_to_time64(&alrm->time);
 
 		spin_lock_irq(&rtcdrv->lock);
 
@@ -181,8 +181,8 @@ static int sirfsoc_rtc_read_time(struct device *dev,
 		cpu_relax();
 	} while (tmp_rtc != sirfsoc_rtc_readl(rtcdrv, RTC_CN));
 
-	rtc_time_to_tm(rtcdrv->overflow_rtc << (BITS_PER_LONG - RTC_SHIFT) |
-					tmp_rtc >> RTC_SHIFT, tm);
+	rtc_time64_to_tm(rtcdrv->overflow_rtc << (BITS_PER_LONG - RTC_SHIFT)
+			 | tmp_rtc >> RTC_SHIFT, tm);
 	return 0;
 }
 
@@ -193,7 +193,7 @@ static int sirfsoc_rtc_set_time(struct device *dev,
 	struct sirfsoc_rtc_drv *rtcdrv;
 	rtcdrv = dev_get_drvdata(dev);
 
-	rtc_tm_to_time(tm, &rtc_time);
+	rtc_time = rtc_tm_to_time64(tm);
 
 	rtcdrv->overflow_rtc = rtc_time >> (BITS_PER_LONG - RTC_SHIFT);
 
