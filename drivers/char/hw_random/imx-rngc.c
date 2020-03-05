@@ -31,6 +31,7 @@
 
 #define RNGC_CTRL_MASK_ERROR		0x00000040
 #define RNGC_CTRL_MASK_DONE		0x00000020
+#define RNGC_CTRL_AUTO_SEED		0x00000010
 
 #define RNGC_STATUS_ERROR		0x00010000
 #define RNGC_STATUS_FIFO_LEVEL_MASK	0x00000f00
@@ -167,7 +168,7 @@ static irqreturn_t imx_rngc_irq(int irq, void *priv)
 static int imx_rngc_init(struct hwrng *rng)
 {
 	struct imx_rngc *rngc = container_of(rng, struct imx_rngc, rng);
-	u32 cmd;
+	u32 cmd, ctrl;
 	int ret;
 
 	/* clear error */
@@ -192,7 +193,18 @@ static int imx_rngc_init(struct hwrng *rng)
 
 	} while (rngc->err_reg == RNGC_ERROR_STATUS_STAT_ERR);
 
-	return rngc->err_reg ? -EIO : 0;
+	if (rngc->err_reg)
+		return -EIO;
+
+	/*
+	 * enable automatic seeding, the rngc creates a new seed automatically
+	 * after serving 2^20 random 160-bit words
+	 */
+	ctrl = readl(rngc->base + RNGC_CONTROL);
+	ctrl |= RNGC_CTRL_AUTO_SEED;
+	writel(ctrl, rngc->base + RNGC_CONTROL);
+
+	return 0;
 }
 
 static int imx_rngc_probe(struct platform_device *pdev)
