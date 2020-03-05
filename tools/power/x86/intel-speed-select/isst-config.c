@@ -220,8 +220,14 @@ static void set_cpu_online_offline(int cpu, int state)
 		 "/sys/devices/system/cpu/cpu%d/online", cpu);
 
 	fd = open(buffer, O_WRONLY);
-	if (fd < 0)
+	if (fd < 0) {
+		if (!cpu && state) {
+			fprintf(stderr, "This system is not configured for CPU 0 online/offline\n");
+			fprintf(stderr, "Ignoring online request for CPU 0 as this is already online\n");
+			return;
+		}
 		err(-1, "%s open failed", buffer);
+	}
 
 	if (state)
 		ret = write(fd, "1\n", 2);
