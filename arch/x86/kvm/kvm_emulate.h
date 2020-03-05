@@ -396,6 +396,10 @@ struct x86_emulate_ctxt {
 #define X86EMUL_CPUID_VENDOR_GenuineIntel_ecx 0x6c65746e
 #define X86EMUL_CPUID_VENDOR_GenuineIntel_edx 0x49656e69
 
+#define X86EMUL_CPUID_VENDOR_CentaurHauls_ebx 0x746e6543
+#define X86EMUL_CPUID_VENDOR_CentaurHauls_ecx 0x736c7561
+#define X86EMUL_CPUID_VENDOR_CentaurHauls_edx 0x48727561
+
 static inline bool is_guest_vendor_intel(u32 ebx, u32 ecx, u32 edx)
 {
 	return ebx == X86EMUL_CPUID_VENDOR_GenuineIntel_ebx &&
