@@ -46,12 +46,7 @@ static int pl030_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	unsigned long time;
 	int ret;
 
-	/*
-	 * At the moment, we can only deal with non-wildcarded alarm times.
-	 */
-	ret = rtc_valid_tm(&alrm->time);
-	if (ret == 0)
-		ret = rtc_tm_to_time(&alrm->time, &time);
+	ret = rtc_tm_to_time(&alrm->time, &time);
 	if (ret == 0)
 		writel(time, rtc->base + RTC_MR);
 	return ret;
