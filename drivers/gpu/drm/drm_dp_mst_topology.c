@@ -2302,12 +2302,16 @@ drm_dp_mst_handle_link_address_port(struct drm_dp_mst_branch *mstb,
 		mutex_unlock(&mgr->lock);
 	}
 
-	if (old_ddps != port->ddps) {
-		if (port->ddps) {
-			if (!port->input) {
-				drm_dp_send_enum_path_resources(mgr, mstb,
-								port);
-			}
+	/*
+	 * Reprobe PBN caps on both hotplug, and when re-probing the link
+	 * for our parent mstb
+	 */
+	if (old_ddps != port->ddps || !created) {
+		if (port->ddps && !port->input) {
+			ret = drm_dp_send_enum_path_resources(mgr, mstb,
+							      port);
+			if (ret == 1)
+				changed = true;
 		} else {
 			port->full_pbn = 0;
 		}
@@ -2401,11 +2405,10 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 	port->ddps = conn_stat->displayport_device_plug_status;
 
 	if (old_ddps != port->ddps) {
-		if (port->ddps) {
-			dowork = true;
-		} else {
+		if (port->ddps && !port->input)
+			drm_dp_send_enum_path_resources(mgr, mstb, port);
+		else
 			port->full_pbn = 0;
-		}
 	}
 
 	new_pdt = port->input ? DP_PEER_DEVICE_NONE : conn_stat->peer_device_type;
@@ -2555,13 +2558,6 @@ static int drm_dp_check_and_send_link_address(struct drm_dp_mst_topology_mgr *mg
 
 		if (port->input || !port->ddps)
 			continue;
-
-		if (!port->full_pbn) {
-			drm_modeset_lock(&mgr->base.lock, NULL);
-			drm_dp_send_enum_path_resources(mgr, mstb, port);
-			drm_modeset_unlock(&mgr->base.lock);
-			changed = true;
-		}
 
 		if (port->mstb)
 			mstb_child = drm_dp_mst_topology_get_mstb_validated(
@@ -2990,6 +2986,7 @@ drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
 	if (ret > 0) {
+		ret = 0;
 		path_res = &txmsg->reply.u.path_resources;
 
 		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
@@ -3002,13 +2999,22 @@ drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 				      path_res->port_number,
 				      path_res->full_payload_bw_number,
 				      path_res->avail_payload_bw_number);
+
+			/*
+			 * If something changed, make sure we send a
+			 * hotplug
+			 */
+			if (port->full_pbn != path_res->full_payload_bw_number ||
+			    port->fec_capable != path_res->fec_capable)
+				ret = 1;
+
 			port->full_pbn = path_res->full_payload_bw_number;
 			port->fec_capable = path_res->fec_capable;
 		}
 	}
 
 	kfree(txmsg);
-	return 0;
+	return ret;
 }
 
 static struct drm_dp_mst_port *drm_dp_get_last_connected_port_to_mstb(struct drm_dp_mst_branch *mstb)
@@ -3595,13 +3601,9 @@ drm_dp_mst_topology_mgr_invalidate_mstb(struct drm_dp_mst_branch *mstb)
 	/* The link address will need to be re-sent on resume */
 	mstb->link_address_sent = false;
 
-	list_for_each_entry(port, &mstb->ports, next) {
-		/* The PBN for each port will also need to be re-probed */
-		port->full_pbn = 0;
-
+	list_for_each_entry(port, &mstb->ports, next)
 		if (port->mstb)
 			drm_dp_mst_topology_mgr_invalidate_mstb(port->mstb);
-	}
 }
 
 /**
