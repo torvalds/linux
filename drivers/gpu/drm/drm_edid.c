@@ -4434,6 +4434,7 @@ static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 
 	if (cea_revision(cea) >= 3) {
 		int i, start, end;
+		int sad_count;
 
 		if (cea_db_offsets(cea, &start, &end)) {
 			start = 0;
@@ -4445,8 +4446,6 @@ static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 			dbl = cea_db_payload_len(db);
 
 			switch (cea_db_tag(db)) {
-				int sad_count;
-
 			case AUDIO_BLOCK:
 				/* Audio Data Block, contains SADs */
 				sad_count = min(dbl / 3, 15 - total_sad_count);
