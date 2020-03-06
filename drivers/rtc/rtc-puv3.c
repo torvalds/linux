@@ -234,6 +234,7 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 
 	/* register RTC and exit */
 	rtc->ops = &puv3_rtcops;
+	rtc->range_max = U32_MAX;
 	ret = rtc_register_device(rtc);
 	if (ret)
 		goto err_nortc;
