@@ -47,6 +47,43 @@ static void resend_irqs(unsigned long arg)
 /* Tasklet to handle resend: */
 static DECLARE_TASKLET(resend_tasklet, resend_irqs, 0);
 
+static int irq_sw_resend(struct irq_desc *desc)
+{
+	unsigned int irq = irq_desc_get_irq(desc);
+
+	/*
+	 * Validate whether this interrupt can be safely injected from
+	 * non interrupt context
+	 */
+	if (handle_enforce_irqctx(&desc->irq_data))
+		return -EINVAL;
+
+	/*
+	 * If the interrupt is running in the thread context of the parent
+	 * irq we need to be careful, because we cannot trigger it
+	 * directly.
+	 */
+	if (irq_settings_is_nested_thread(desc)) {
+		/*
+		 * If the parent_irq is valid, we retrigger the parent,
+		 * otherwise we do nothing.
+		 */
+		if (!desc->parent_irq)
+			return -EINVAL;
+		irq = desc->parent_irq;
+	}
+
+	/* Set it pending and activate the softirq: */
+	set_bit(irq, irqs_resend);
+	tasklet_schedule(&resend_tasklet);
+	return 0;
+}
+
+#else
+static int irq_sw_resend(struct irq_desc *desc)
+{
+	return -EINVAL;
+}
 #endif
 
 /*
@@ -54,50 +91,28 @@ static DECLARE_TASKLET(resend_tasklet, resend_irqs, 0);
  *
  * Is called with interrupts disabled and desc->lock held.
  */
-void check_irq_resend(struct irq_desc *desc)
+int check_irq_resend(struct irq_desc *desc)
 {
 	/*
-	 * We do not resend level type interrupts. Level type
-	 * interrupts are resent by hardware when they are still
-	 * active. Clear the pending bit so suspend/resume does not
-	 * get confused.
+	 * We do not resend level type interrupts. Level type interrupts
+	 * are resent by hardware when they are still active. Clear the
+	 * pending bit so suspend/resume does not get confused.
 	 */
 	if (irq_settings_is_level(desc)) {
 		desc->istate &= ~IRQS_PENDING;
-		return;
+		return -EINVAL;
 	}
+
 	if (desc->istate & IRQS_REPLAY)
-		return;
+		return -EBUSY;
+
 	if (desc->istate & IRQS_PENDING) {
 		desc->istate &= ~IRQS_PENDING;
 		desc->istate |= IRQS_REPLAY;
 
-		if ((!desc->irq_data.chip->irq_retrigger ||
-		    !desc->irq_data.chip->irq_retrigger(&desc->irq_data)) &&
-		    !handle_enforce_irqctx(&desc->irq_data)) {
-#ifdef CONFIG_HARDIRQS_SW_RESEND
-			unsigned int irq = irq_desc_get_irq(desc);
-
-			/*
-			 * If the interrupt is running in the thread
-			 * context of the parent irq we need to be
-			 * careful, because we cannot trigger it
-			 * directly.
-			 */
-			if (irq_settings_is_nested_thread(desc)) {
-				/*
-				 * If the parent_irq is valid, we
-				 * retrigger the parent, otherwise we
-				 * do nothing.
-				 */
-				if (!desc->parent_irq)
-					return;
-				irq = desc->parent_irq;
-			}
-			/* Set it pending and activate the softirq: */
-			set_bit(irq, irqs_resend);
-			tasklet_schedule(&resend_tasklet);
-#endif
-		}
+		if (!desc->irq_data.chip->irq_retrigger ||
+		    !desc->irq_data.chip->irq_retrigger(&desc->irq_data))
+		    return irq_sw_resend(desc);
 	}
+	return 0;
 }

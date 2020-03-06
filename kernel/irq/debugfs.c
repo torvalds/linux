@@ -218,8 +218,7 @@ static ssize_t irq_debug_write(struct file *file, const char __user *user_buf,
 			err = -EINVAL;
 		} else {
 			desc->istate |= IRQS_PENDING;
-			check_irq_resend(desc);
-			err = 0;
+			err = check_irq_resend(desc);
 		}
 
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
