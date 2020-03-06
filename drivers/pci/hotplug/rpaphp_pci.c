@@ -95,8 +95,10 @@ int rpaphp_enable_slot(struct slot *slot)
 			return -EINVAL;
 		}
 
-		if (list_empty(&bus->devices))
+		if (list_empty(&bus->devices)) {
+			eeh_add_device_tree_early(PCI_DN(slot->dn));
 			pci_hp_add_devices(bus);
+		}
 
 		if (!list_empty(&bus->devices)) {
 			slot->state = CONFIGURED;
