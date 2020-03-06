@@ -504,8 +504,17 @@ static const struct power_supply_desc wls_psy_desc = {
 
 static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 {
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_USB];
 	u32 temp;
 	int rc;
+
+	rc = read_property_id(bcdev, pst, USB_ADAP_TYPE);
+	if (rc < 0)
+		return rc;
+
+	/* Allow this only for SDP and not for other charger types */
+	if (pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_SDP)
+		return -EINVAL;
 
 	/*
 	 * Input current limit (ICL) can be set by different clients. E.g. USB
@@ -518,8 +527,7 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 	if (val < 0)
 		temp = UINT_MAX;
 
-	rc = write_property_id(bcdev, &bcdev->psy_list[PSY_TYPE_USB], prop_id,
-				temp);
+	rc = write_property_id(bcdev, pst, prop_id, temp);
 	if (!rc)
 		pr_debug("Set ICL to %u\n", temp);
 
