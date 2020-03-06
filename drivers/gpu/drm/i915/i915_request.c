@@ -290,7 +290,7 @@ bool i915_request_retire(struct i915_request *rq)
 	spin_unlock_irq(&rq->lock);
 
 	remove_from_client(rq);
-	list_del_rcu(&rq->link);
+	__list_del_entry(&rq->link); /* poison neither prev/next (RCU walks) */
 
 	intel_context_exit(rq->context);
 	intel_context_unpin(rq->context);
