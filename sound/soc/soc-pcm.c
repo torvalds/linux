@@ -2022,7 +2022,6 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai;
-	struct snd_soc_dai_driver *cpu_dai_drv;
 	int i;
 
 	for_each_rtd_cpu_dai(rtd, i, cpu_dai) {
@@ -2033,11 +2032,9 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 		if (!snd_soc_dai_stream_valid(cpu_dai, substream->stream))
 			continue;
 
-		cpu_dai_drv = cpu_dai->driver;
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			dpcm_init_runtime_hw(runtime, &cpu_dai_drv->playback);
-		else
-			dpcm_init_runtime_hw(runtime, &cpu_dai_drv->capture);
+		dpcm_init_runtime_hw(runtime,
+			snd_soc_dai_get_pcm_stream(cpu_dai,
+						   substream->stream));
 	}
 
 	dpcm_runtime_merge_format(substream, &runtime->hw.formats);
