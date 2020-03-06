@@ -21,6 +21,7 @@
 #include "glock.h"
 #include "inode.h"
 #include "meta_io.h"
+#include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
@@ -116,7 +117,7 @@ int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	if (acl && acl->a_count > GFS2_ACL_MAX_ENTRIES(GFS2_SB(inode)))
 		return -E2BIG;
 
-	ret = gfs2_rsqa_alloc(ip);
+	ret = gfs2_qa_alloc(ip);
 	if (ret)
 		return ret;
 
