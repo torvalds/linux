@@ -837,6 +837,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	unsigned long mask = -1UL;
+	long ret = -1;
 
 	if (is_compat_task())
 		mask = 0xffffffff;
@@ -853,8 +854,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		 * debugger stored an invalid system call number. Skip
 		 * the system call and the system call restart handling.
 		 */
-		clear_pt_regs_flag(regs, PIF_SYSCALL);
-		return -1;
+		goto skip;
 	}
 
 #ifdef CONFIG_SECCOMP
@@ -870,7 +870,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 			sd.arch = AUDIT_ARCH_S390X;
 		}
 
-		sd.nr = regs->gprs[2] & 0xffff;
+		sd.nr = regs->int_code & 0xffff;
 		sd.args[0] = regs->orig_gpr2 & mask;
 		sd.args[1] = regs->gprs[3] & mask;
 		sd.args[2] = regs->gprs[4] & mask;
@@ -879,19 +879,26 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		sd.args[5] = regs->gprs[7] & mask;
 
 		if (__secure_computing(&sd) == -1)
-			return -1;
+			goto skip;
 	}
 #endif /* CONFIG_SECCOMP */
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
-		trace_sys_enter(regs, regs->gprs[2]);
+		trace_sys_enter(regs, regs->int_code & 0xffff);
 
 
-	audit_syscall_entry(regs->gprs[2], regs->orig_gpr2 & mask,
+	audit_syscall_entry(regs->int_code & 0xffff, regs->orig_gpr2 & mask,
 			    regs->gprs[3] &mask, regs->gprs[4] &mask,
 			    regs->gprs[5] &mask);
 
+	if ((signed long)regs->gprs[2] >= NR_syscalls) {
+		regs->gprs[2] = -ENOSYS;
+		ret = -ENOSYS;
+	}
 	return regs->gprs[2];
+skip:
+	clear_pt_regs_flag(regs, PIF_SYSCALL);
+	return ret;
 }
 
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs)
