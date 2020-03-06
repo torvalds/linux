@@ -583,7 +583,7 @@
 #define SRST_USBPHYPOR_HOST	185
 #define SRST_PDGMAC_NIU_A	188
 #define SRST_PDGMAC_NIU_P	189
-#define SRST_MAC_PTPREF		190
+#define SRST_GMAC_A		190
 
 /* cru_softrst_con12 */
 #define SRST_DDR_DFICTL_P	193
