@@ -352,6 +352,8 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 
 	rtc->rtc->ops = &mpc5200_rtc_ops;
 	rtc->rtc->uie_unsupported = 1;
+	rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_0000;
+	rtc->rtc->range_max = 65733206399ULL; /* 4052-12-31 23:59:59 */
 
 	if (of_device_is_compatible(op->dev.of_node, "fsl,mpc5121-rtc")) {
 		u32 ka;
@@ -362,6 +364,13 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 			out_be32(&rtc->regs->keep_alive, ka);
 		}
 		rtc->rtc->ops = &mpc5121_rtc_ops;
+		/*
+		 * This is a limitation of the driver that abuses the target
+		 * time register, the actual maximum year for the mpc5121 is
+		 * also 4052.
+		 */
+		rtc->rtc->range_min = 0;
+		rtc->rtc->range_max = U32_MAX;
 	}
 
 	err = rtc_register_device(rtc->rtc);
