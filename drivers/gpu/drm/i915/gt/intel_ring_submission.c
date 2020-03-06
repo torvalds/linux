@@ -32,6 +32,7 @@
 #include "gem/i915_gem_context.h"
 
 #include "gen6_ppgtt.h"
+#include "gen7_renderclear.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_context.h"
@@ -1979,7 +1980,7 @@ static void setup_vecs(struct intel_engine_cs *engine)
 static int gen7_ctx_switch_bb_setup(struct intel_engine_cs * const engine,
 				    struct i915_vma * const vma)
 {
-	return 0;
+	return gen7_setup_clear_gpr_bb(engine, vma);
 }
 
 static int gen7_ctx_switch_bb_init(struct intel_engine_cs *engine)

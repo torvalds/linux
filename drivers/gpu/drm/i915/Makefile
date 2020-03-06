@@ -80,6 +80,7 @@ gt-y += \
 	gt/debugfs_gt.o \
 	gt/debugfs_gt_pm.o \
 	gt/gen6_ppgtt.o \
+	gt/gen7_renderclear.o \
 	gt/gen8_ppgtt.o \
 	gt/intel_breadcrumbs.o \
 	gt/intel_context.o \
