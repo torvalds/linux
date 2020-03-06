@@ -74,18 +74,15 @@ struct io_wq_work {
 	struct files_struct *files;
 	struct mm_struct *mm;
 	const struct cred *creds;
+	struct fs_struct *fs;
 	unsigned flags;
+	pid_t task_pid;
 };
 
-#define INIT_IO_WORK(work, _func)			\
-	do {						\
-		(work)->list.next = NULL;		\
-		(work)->func = _func;			\
-		(work)->flags = 0;			\
-		(work)->files = NULL;			\
-		(work)->mm = NULL;			\
-		(work)->creds = NULL;			\
-	} while (0)					\
+#define INIT_IO_WORK(work, _func)				\
+	do {							\
+		*(work) = (struct io_wq_work){ .func = _func };	\
+	} while (0)						\
 
 typedef void (get_work_fn)(struct io_wq_work *);
 typedef void (put_work_fn)(struct io_wq_work *);
@@ -107,6 +104,7 @@ void io_wq_flush(struct io_wq *wq);
 
 void io_wq_cancel_all(struct io_wq *wq);
 enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork);
+enum io_wq_cancel io_wq_cancel_pid(struct io_wq *wq, pid_t pid);
 
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);
 

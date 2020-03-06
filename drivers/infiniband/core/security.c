@@ -339,22 +339,16 @@ static struct ib_ports_pkeys *get_new_pps(const struct ib_qp *qp,
 	if (!new_pps)
 		return NULL;
 
-	if (qp_attr_mask & (IB_QP_PKEY_INDEX | IB_QP_PORT)) {
-		if (!qp_pps) {
-			new_pps->main.port_num = qp_attr->port_num;
-			new_pps->main.pkey_index = qp_attr->pkey_index;
-		} else {
-			new_pps->main.port_num = (qp_attr_mask & IB_QP_PORT) ?
-						  qp_attr->port_num :
-						  qp_pps->main.port_num;
-
-			new_pps->main.pkey_index =
-					(qp_attr_mask & IB_QP_PKEY_INDEX) ?
-					 qp_attr->pkey_index :
-					 qp_pps->main.pkey_index;
-		}
+	if (qp_attr_mask & IB_QP_PORT)
+		new_pps->main.port_num =
+			(qp_pps) ? qp_pps->main.port_num : qp_attr->port_num;
+	if (qp_attr_mask & IB_QP_PKEY_INDEX)
+		new_pps->main.pkey_index = (qp_pps) ? qp_pps->main.pkey_index :
+						      qp_attr->pkey_index;
+	if ((qp_attr_mask & IB_QP_PKEY_INDEX) && (qp_attr_mask & IB_QP_PORT))
 		new_pps->main.state = IB_PORT_PKEY_VALID;
-	} else if (qp_pps) {
+
+	if (!(qp_attr_mask & (IB_QP_PKEY_INDEX || IB_QP_PORT)) && qp_pps) {
 		new_pps->main.port_num = qp_pps->main.port_num;
 		new_pps->main.pkey_index = qp_pps->main.pkey_index;
 		if (qp_pps->main.state != IB_PORT_PKEY_NOT_VALID)

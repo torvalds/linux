@@ -357,14 +357,16 @@ parse_generic_dtd(struct drm_i915_private *dev_priv,
 		panel_fixed_mode->hdisplay + dtd->hfront_porch;
 	panel_fixed_mode->hsync_end =
 		panel_fixed_mode->hsync_start + dtd->hsync;
-	panel_fixed_mode->htotal = panel_fixed_mode->hsync_end;
+	panel_fixed_mode->htotal =
+		panel_fixed_mode->hdisplay + dtd->hblank;
 
 	panel_fixed_mode->vdisplay = dtd->vactive;
 	panel_fixed_mode->vsync_start =
 		panel_fixed_mode->vdisplay + dtd->vfront_porch;
 	panel_fixed_mode->vsync_end =
 		panel_fixed_mode->vsync_start + dtd->vsync;
-	panel_fixed_mode->vtotal = panel_fixed_mode->vsync_end;
+	panel_fixed_mode->vtotal =
+		panel_fixed_mode->vdisplay + dtd->vblank;
 
 	panel_fixed_mode->clock = dtd->pixel_clock;
 	panel_fixed_mode->width_mm = dtd->width_mm;

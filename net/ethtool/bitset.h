@@ -3,6 +3,8 @@
 #ifndef _NET_ETHTOOL_BITSET_H
 #define _NET_ETHTOOL_BITSET_H
 
+#define ETHNL_MAX_BITSET_SIZE S16_MAX
+
 typedef const char (*const ethnl_string_array_t)[ETH_GSTRING_LEN];
 
 int ethnl_bitset_is_compact(const struct nlattr *bitset, bool *compact);

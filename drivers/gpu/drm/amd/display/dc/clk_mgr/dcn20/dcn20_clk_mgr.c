@@ -117,7 +117,7 @@ void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 
 		prev_dppclk_khz = clk_mgr->base.ctx->dc->current_state->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
 
-		if (safe_to_lower || prev_dppclk_khz < dppclk_khz) {
+		if ((prev_dppclk_khz > dppclk_khz && safe_to_lower) || prev_dppclk_khz < dppclk_khz) {
 			clk_mgr->dccg->funcs->update_dpp_dto(
 							clk_mgr->dccg, dpp_inst, dppclk_khz);
 		}

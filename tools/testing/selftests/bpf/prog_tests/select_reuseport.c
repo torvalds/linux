@@ -506,8 +506,10 @@ static void test_syncookie(int type, sa_family_t family)
 		.pass_on_failure = 0,
 	};
 
-	if (type != SOCK_STREAM)
+	if (type != SOCK_STREAM) {
+		test__skip();
 		return;
+	}
 
 	/*
 	 * +1 for TCP-SYN and
@@ -822,8 +824,10 @@ void test_select_reuseport(void)
 		goto out;
 
 	saved_tcp_fo = read_int_sysctl(TCP_FO_SYSCTL);
+	if (saved_tcp_fo < 0)
+		goto out;
 	saved_tcp_syncookie = read_int_sysctl(TCP_SYNCOOKIE_SYSCTL);
-	if (saved_tcp_syncookie < 0 || saved_tcp_syncookie < 0)
+	if (saved_tcp_syncookie < 0)
 		goto out;
 
 	if (enable_fastopen())

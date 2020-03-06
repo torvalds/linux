@@ -1013,6 +1013,30 @@ static int psp_dtm_initialize(struct psp_context *psp)
 	return 0;
 }
 
+static int psp_dtm_unload(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the unloading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	psp_prep_ta_unload_cmd_buf(cmd, psp->dtm_context.session_id);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	kfree(cmd);
+
+	return ret;
+}
+
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 {
 	/*
@@ -1037,7 +1061,7 @@ static int psp_dtm_terminate(struct psp_context *psp)
 	if (!psp->dtm_context.dtm_initialized)
 		return 0;
 
-	ret = psp_hdcp_unload(psp);
+	ret = psp_dtm_unload(psp);
 	if (ret)
 		return ret;
 

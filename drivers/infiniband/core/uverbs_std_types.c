@@ -220,6 +220,7 @@ void ib_uverbs_free_event_queue(struct ib_uverbs_event_queue *event_queue)
 	list_for_each_entry_safe(entry, tmp, &event_queue->event_list, list) {
 		if (entry->counter)
 			list_del(&entry->obj_list);
+		list_del(&entry->list);
 		kfree(entry);
 	}
 	spin_unlock_irq(&event_queue->lock);
