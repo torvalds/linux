@@ -125,11 +125,9 @@ static int pl031_stv2_tm_to_time(struct device *dev,
 		return -EINVAL;
 	} else if (wday == -1) {
 		/* wday is not provided, calculate it here */
-		unsigned long time;
 		struct rtc_time calc_tm;
 
-		rtc_tm_to_time(tm, &time);
-		rtc_time_to_tm(time, &calc_tm);
+		rtc_time64_to_tm(rtc_tm_to_time64(tm), &calc_tm);
 		wday = calc_tm.tm_wday;
 	}
 
@@ -246,30 +244,25 @@ static int pl031_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pl031_local *ldata = dev_get_drvdata(dev);
 
-	rtc_time_to_tm(readl(ldata->base + RTC_DR), tm);
+	rtc_time64_to_tm(readl(ldata->base + RTC_DR), tm);
 
 	return 0;
 }
 
 static int pl031_set_time(struct device *dev, struct rtc_time *tm)
 {
-	unsigned long time;
 	struct pl031_local *ldata = dev_get_drvdata(dev);
-	int ret;
 
-	ret = rtc_tm_to_time(tm, &time);
+	writel(rtc_tm_to_time64(tm), ldata->base + RTC_LR);
 
-	if (ret == 0)
-		writel(time, ldata->base + RTC_LR);
-
-	return ret;
+	return 0;
 }
 
 static int pl031_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct pl031_local *ldata = dev_get_drvdata(dev);
 
-	rtc_time_to_tm(readl(ldata->base + RTC_MR), &alarm->time);
+	rtc_time64_to_tm(readl(ldata->base + RTC_MR), &alarm->time);
 
 	alarm->pending = readl(ldata->base + RTC_RIS) & RTC_BIT_AI;
 	alarm->enabled = readl(ldata->base + RTC_IMSC) & RTC_BIT_AI;
@@ -280,16 +273,10 @@ static int pl031_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 static int pl031_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct pl031_local *ldata = dev_get_drvdata(dev);
-	unsigned long time;
-	int ret;
 
-	ret = rtc_tm_to_time(&alarm->time, &time);
-	if (ret == 0) {
-		writel(time, ldata->base + RTC_MR);
-		pl031_alarm_irq_enable(dev, alarm->enabled);
-	}
+	writel(rtc_tm_to_time64(&alarm->time), ldata->base + RTC_MR);
 
-	return ret;
+	return 0;
 }
 
 static int pl031_remove(struct amba_device *adev)
