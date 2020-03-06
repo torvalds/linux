@@ -282,12 +282,6 @@ static int pm8xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 	rtc_time64_to_tm(secs, &alarm->time);
 
-	rc = rtc_valid_tm(&alarm->time);
-	if (rc < 0) {
-		dev_err(dev, "Invalid alarm time read from RTC\n");
-		return rc;
-	}
-
 	dev_dbg(dev, "Alarm set for - h:m:s=%ptRt, y-m-d=%ptRdr\n",
 		&alarm->time, &alarm->time);
 
