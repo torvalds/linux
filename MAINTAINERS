@@ -11115,14 +11115,12 @@ S:	Maintained
 F:	drivers/usb/image/microtek.*
 
 MIPS
-M:	Ralf Baechle <ralf@linux-mips.org>
-M:	Paul Burton <paulburton@kernel.org>
+M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
 L:	linux-mips@vger.kernel.org
 W:	http://www.linux-mips.org/
-T:	git git://git.linux-mips.org/pub/scm/ralf/linux.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mips/linux.git
 Q:	http://patchwork.linux-mips.org/project/linux-mips/list/
-S:	Supported
+S:	Maintained
 F:	Documentation/devicetree/bindings/mips/
 F:	Documentation/mips/
 F:	arch/mips/
@@ -12741,7 +12739,7 @@ M:	Tom Joseph <tjoseph@cadence.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/cdns,*.txt
-F:	drivers/pci/controller/pcie-cadence*
+F:	drivers/pci/controller/cadence/
 
 PCI DRIVER FOR FREESCALE LAYERSCAPE
 M:	Minghuan Lian <minghuan.Lian@nxp.com>

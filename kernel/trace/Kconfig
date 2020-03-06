@@ -143,8 +143,8 @@ if FTRACE
 
 config BOOTTIME_TRACING
 	bool "Boot-time Tracing support"
-	depends on BOOT_CONFIG && TRACING
-	default y
+	depends on TRACING
+	select BOOT_CONFIG
 	help
 	  Enable developer to setup ftrace subsystem via supplemental
 	  kernel cmdline at boot time for debugging (tracing) driver
