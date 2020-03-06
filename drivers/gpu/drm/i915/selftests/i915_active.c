@@ -311,20 +311,33 @@ static void spin_unlock_wait(spinlock_t *lock)
 	spin_unlock_irq(lock);
 }
 
+static void active_flush(struct i915_active *ref,
+			 struct i915_active_fence *active)
+{
+	struct dma_fence *fence;
+
+	fence = xchg(__active_fence_slot(active), NULL);
+	if (!fence)
+		return;
+
+	spin_lock_irq(fence->lock);
+	__list_del_entry(&active->cb.node);
+	spin_unlock_irq(fence->lock); /* serialise with fence->cb_list */
+	atomic_dec(&ref->count);
+
+	GEM_BUG_ON(!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
+}
+
 void i915_active_unlock_wait(struct i915_active *ref)
 {
 	if (i915_active_acquire_if_busy(ref)) {
 		struct active_node *it, *n;
 
+		/* Wait for all active callbacks */
 		rcu_read_lock();
-		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
-			struct dma_fence *f;
-
-			/* Wait for all active callbacks */
-			f = rcu_dereference(it->base.fence);
-			if (f)
-				spin_unlock_wait(f->lock);
-		}
+		active_flush(ref, &ref->excl);
+		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node)
+			active_flush(ref, &it->base);
 		rcu_read_unlock();
 
 		i915_active_release(ref);
