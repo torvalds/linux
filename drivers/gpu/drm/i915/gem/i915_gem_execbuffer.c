@@ -611,7 +611,7 @@ static int eb_reserve(struct i915_execbuffer *eb)
 	struct list_head last;
 	struct eb_vma *ev;
 	unsigned int i, pass;
-	int err;
+	int err = 0;
 
 	/*
 	 * Attempt to pin all of the buffers into the GTT.
@@ -627,8 +627,10 @@ static int eb_reserve(struct i915_execbuffer *eb)
 	 * room for the earlier objects *unless* we need to defragment.
 	 */
 
+	if (mutex_lock_interruptible(&eb->i915->drm.struct_mutex))
+		return -EINTR;
+
 	pass = 0;
-	err = 0;
 	do {
 		list_for_each_entry(ev, &eb->unbound, bind_link) {
 			err = eb_reserve_vma(eb, ev, pin_flags);
@@ -636,7 +638,7 @@ static int eb_reserve(struct i915_execbuffer *eb)
 				break;
 		}
 		if (!(err == -ENOSPC || err == -EAGAIN))
-			return err;
+			break;
 
 		/* Resort *all* the objects into priority order */
 		INIT_LIST_HEAD(&eb->unbound);
@@ -667,7 +669,9 @@ static int eb_reserve(struct i915_execbuffer *eb)
 		list_splice_tail(&last, &eb->unbound);
 
 		if (err == -EAGAIN) {
+			mutex_unlock(&eb->i915->drm.struct_mutex);
 			flush_workqueue(eb->i915->mm.userptr_wq);
+			mutex_lock(&eb->i915->drm.struct_mutex);
 			continue;
 		}
 
@@ -681,15 +685,20 @@ static int eb_reserve(struct i915_execbuffer *eb)
 			err = i915_gem_evict_vm(eb->context->vm);
 			mutex_unlock(&eb->context->vm->mutex);
 			if (err)
-				return err;
+				goto unlock;
 			break;
 
 		default:
-			return -ENOSPC;
+			err = -ENOSPC;
+			goto unlock;
 		}
 
 		pin_flags = PIN_USER;
 	} while (1);
+
+unlock:
+	mutex_unlock(&eb->i915->drm.struct_mutex);
+	return err;
 }
 
 static unsigned int eb_batch_index(const struct i915_execbuffer *eb)
@@ -1632,7 +1641,6 @@ static int eb_prefault_relocations(const struct i915_execbuffer *eb)
 
 static noinline int eb_relocate_slow(struct i915_execbuffer *eb)
 {
-	struct drm_device *dev = &eb->i915->drm;
 	bool have_copy = false;
 	struct eb_vma *ev;
 	int err = 0;
@@ -1642,8 +1650,6 @@ repeat:
 		err = -ERESTARTSYS;
 		goto out;
 	}
-
-	mutex_unlock(&dev->struct_mutex);
 
 	/*
 	 * We take 3 passes through the slowpatch.
@@ -1667,21 +1673,8 @@ repeat:
 		cond_resched();
 		err = 0;
 	}
-	if (err) {
-		mutex_lock(&dev->struct_mutex);
+	if (err)
 		goto out;
-	}
-
-	/* A frequent cause for EAGAIN are currently unavailable client pages */
-	flush_workqueue(eb->i915->mm.userptr_wq);
-
-	err = i915_mutex_lock_interruptible(dev);
-	if (err) {
-		mutex_lock(&dev->struct_mutex);
-		goto out;
-	}
-
-	GEM_BUG_ON(!eb->batch);
 
 	list_for_each_entry(ev, &eb->relocs, reloc_link) {
 		if (!have_copy) {
@@ -1739,9 +1732,11 @@ static int eb_relocate(struct i915_execbuffer *eb)
 	if (err)
 		return err;
 
-	err = eb_reserve(eb);
-	if (err)
-		return err;
+	if (!list_empty(&eb->unbound)) {
+		err = eb_reserve(eb);
+		if (err)
+			return err;
+	}
 
 	/* The objects are in their final locations, apply the relocations. */
 	if (eb->args->flags & __EXEC_HAS_RELOC) {
@@ -2691,10 +2686,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (unlikely(err))
 		goto err_context;
 
-	err = i915_mutex_lock_interruptible(dev);
-	if (err)
-		goto err_engine;
-
 	err = eb_relocate(&eb);
 	if (err) {
 		/*
@@ -2838,8 +2829,6 @@ err_vma:
 		eb_release_vmas(&eb);
 	if (eb.trampoline)
 		i915_vma_unpin(eb.trampoline);
-	mutex_unlock(&dev->struct_mutex);
-err_engine:
 	eb_unpin_engine(&eb);
 err_context:
 	i915_gem_context_put(eb.gem_context);
