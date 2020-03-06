@@ -3976,11 +3976,8 @@ static void rtl8169_unmap_tx_skb(struct device *d, struct ring_info *tx_skb,
 	unsigned int len = tx_skb->len;
 
 	dma_unmap_single(d, le64_to_cpu(desc->addr), len, DMA_TO_DEVICE);
-
-	desc->opts1 = 0x00;
-	desc->opts2 = 0x00;
-	desc->addr = 0x00;
-	tx_skb->len = 0;
+	memset(desc, 0, sizeof(*desc));
+	memset(tx_skb, 0, sizeof(*tx_skb));
 }
 
 static void rtl8169_tx_clear_range(struct rtl8169_private *tp, u32 start,
@@ -3998,10 +3995,8 @@ static void rtl8169_tx_clear_range(struct rtl8169_private *tp, u32 start,
 
 			rtl8169_unmap_tx_skb(tp_to_dev(tp), tx_skb,
 					     tp->TxDescArray + entry);
-			if (skb) {
+			if (skb)
 				dev_consume_skb_any(skb);
-				tx_skb->skb = NULL;
-			}
 		}
 	}
 }
@@ -4396,6 +4391,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 	for (tx_left = tp->cur_tx - dirty_tx; tx_left > 0; tx_left--) {
 		unsigned int entry = dirty_tx % NUM_TX_DESC;
 		struct ring_info *tx_skb = tp->tx_skb + entry;
+		struct sk_buff *skb = tx_skb->skb;
 		u32 status;
 
 		status = le32_to_cpu(tp->TxDescArray[entry].opts1);
@@ -4410,11 +4406,10 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 
 		rtl8169_unmap_tx_skb(tp_to_dev(tp), tx_skb,
 				     tp->TxDescArray + entry);
-		if (tx_skb->skb) {
+		if (skb) {
 			pkts_compl++;
-			bytes_compl += tx_skb->skb->len;
-			napi_consume_skb(tx_skb->skb, budget);
-			tx_skb->skb = NULL;
+			bytes_compl += skb->len;
+			napi_consume_skb(skb, budget);
 		}
 		dirty_tx++;
 	}
