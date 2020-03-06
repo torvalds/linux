@@ -459,8 +459,8 @@ static void fec_config(struct rkispp_params_vdev *params_vdev,
 
 	val = 0;
 	if (arg->mesh_density)
-		val = SW_MESH_DDENSITY;
-	rkispp_set_bits(base + RKISPP_FEC_CORE_CTRL, SW_MESH_DDENSITY, val);
+		val = SW_MESH_DENSITY;
+	rkispp_set_bits(base + RKISPP_FEC_CORE_CTRL, SW_MESH_DENSITY, val);
 
 	rkispp_write(base + RKISPP_FEC_MESH_SIZE, arg->mesh_size);
 
@@ -590,6 +590,7 @@ static void rkispp_params_vb2_buf_queue(struct vb2_buffer *vb)
 	struct rkispp_buffer *params_buf = to_rkispp_buffer(vbuf);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct rkispp_params_vdev *params_vdev = vq->drv_priv;
+	struct rkispp_stream_vdev *stream_vdev = &params_vdev->dev->stream_vdev;
 	struct rkispp_params_cfg *new_params;
 	unsigned long flags;
 
@@ -599,6 +600,8 @@ static void rkispp_params_vb2_buf_queue(struct vb2_buffer *vb)
 		vb2_buffer_done(&params_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		params_vdev->first_params = false;
 		params_vdev->cur_params = *new_params;
+		stream_vdev->module_ens = new_params->module_ens;
+		stream_vdev->tnr_mode = new_params->tnr_cfg.mode;
 		return;
 	}
 
@@ -789,6 +792,10 @@ void rkispp_params_configure(struct rkispp_params_vdev *params_vdev)
 	u32 module_en_update = params_vdev->cur_params.module_en_update;
 	u32 module_cfg_update = params_vdev->cur_params.module_cfg_update;
 	u32 module_ens = params_vdev->cur_params.module_ens;
+
+	if (!module_cfg_update && !module_en_update)
+		v4l2_warn(&params_vdev->dev->v4l2_dev,
+			  "can not get first iq setting in stream on\n");
 
 	if (module_cfg_update & ISPP_MODULE_TNR)
 		tnr_config(params_vdev,

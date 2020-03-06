@@ -101,8 +101,10 @@ static int rkispp_sd_get_fmt(struct v4l2_subdev *sd,
 	const struct isppsd_fmt *ispp_fmt;
 	int ret = 0;
 
-	if (dev->inp != INP_ISP)
+	if (dev->inp != INP_ISP) {
+		*fmt = ispp_sdev->in_fmt;
 		return 0;
+	}
 
 	ret = v4l2_subdev_call(ispp_sdev->remote_sd,
 			       pad, get_fmt, cfg, fmt);
@@ -127,8 +129,10 @@ static int rkispp_sd_set_fmt(struct v4l2_subdev *sd,
 	struct rkispp_device *dev = ispp_sdev->dev;
 	const struct isppsd_fmt *ispp_fmt;
 
-	if (dev->inp != INP_ISP)
+	if (dev->inp != INP_ISP) {
+		ispp_sdev->in_fmt = *fmt;
 		return 0;
+	}
 
 	ispp_fmt = find_fmt(fmt->format.code);
 	if (!ispp_fmt)
@@ -153,14 +157,14 @@ static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	if (on) {
 		void *buf, *size;
 
-		if (dev->module_en[ISPP_3DNR]) {
+		if (vdev->module_ens & ISPP_MODULE_TNR) {
 			buf = &vdev->tnr_buf.pic_cur.dma_addr;
 			size = &vdev->tnr_buf.pic_cur.size;
 			v4l2_subdev_call(ispp_sdev->remote_sd,
 				video, s_rx_buffer, buf, size);
 			buf = &vdev->tnr_buf.gain_cur.dma_addr;
 			size = &vdev->tnr_buf.gain_cur.size;
-			if (rkispp_tnr_3to1) {
+			if (vdev->tnr_mode) {
 				v4l2_subdev_call(ispp_sdev->remote_sd,
 					video, s_rx_buffer, buf, size);
 				buf = &vdev->tnr_buf.pic_next.dma_addr;

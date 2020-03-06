@@ -144,6 +144,8 @@ struct rkispp_stream_vdev {
 	struct in_nr_buf nr_buf;
 	struct in_fec_buf fec_buf;
 	atomic_t refcnt;
+	u32 module_ens;
+	u8 tnr_mode;
 };
 
 void rkispp_isr(u32 mis_val, struct rkispp_device *dev);

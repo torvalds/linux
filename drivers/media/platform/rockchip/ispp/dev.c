@@ -35,10 +35,6 @@ struct ispp_match_data {
 	int num_irqs;
 };
 
-int rkispp_tnr_3to1;
-module_param_named(tnr_3to1, rkispp_tnr_3to1, int, 0644);
-MODULE_PARM_DESC(tnr_3to1, "tnr 3to1 mode");
-
 int rkispp_debug;
 module_param_named(debug, rkispp_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-3)");
@@ -185,12 +181,10 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 	if (ret < 0)
 		return ret;
 
-	//TODO
-	ispp_dev->module_en[ISPP_3DNR] = true;
-	ispp_dev->module_en[ISPP_2DNR] = true;
-	ispp_dev->module_en[ISPP_SHP] = true;
-	ispp_dev->module_en[ISPP_FEC] = false;
-	ispp_dev->module_en[ISPP_SCL] = true;
+	/* default enable tnr (2to1), nr, sharp */
+	ispp_dev->stream_vdev.module_ens =
+		ISPP_MODULE_TNR | ISPP_MODULE_NR | ISPP_MODULE_SHP;
+	ispp_dev->stream_vdev.tnr_mode = 0;
 	return 0;
 }
 

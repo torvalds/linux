@@ -22,15 +22,6 @@ enum rkispp_ver {
 	ISPP_V10 = 0x00,
 };
 
-enum rkispp_module_id {
-	ISPP_3DNR,
-	ISPP_2DNR,
-	ISPP_SHP,
-	ISPP_FEC,
-	ISPP_SCL,
-	ISPP_MD_MAX,
-};
-
 enum rkispp_input {
 	INP_INVAL = 0,
 	INP_ISP,
@@ -60,8 +51,6 @@ struct rkispp_device {
 	struct mutex apilock;
 	/* lock for fec and ispp irq */
 	spinlock_t irq_lock;
-
-	u8 module_en[ISPP_MD_MAX];
 	enum rkispp_input inp;
 };
 #endif

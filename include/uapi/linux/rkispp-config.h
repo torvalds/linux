@@ -69,6 +69,7 @@
 #define FEC_MESH_XY_NUM			5120
 
 struct rkispp_tnr_config {
+	u8 mode;
 	u8 opty_en;
 	u8 optc_en;
 	u8 gain_en;

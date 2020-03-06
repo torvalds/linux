@@ -315,12 +315,13 @@
 #define RKISPP_FEC_DMA_STATUS		(RKISPP_FEC + 0x0090)
 #define RKISPP_FEC_CROP			(RKISPP_FEC + 0x0094)
 
-#define FMT_WR_MASK			GENMASK(7, 5)
-#define FMT_RD_MASK			GENMASK(3, 1)
+#define FMT_WR_MASK			GENMASK(7, 4)
+#define FMT_RD_MASK			GENMASK(3, 0)
+#define FMT_YUV420			0
 #define FMT_YC_SWAP			BIT(3)
 #define FMT_YUYV			BIT(2)
 #define FMT_YUV422			BIT(1)
-#define FMT_YUV420			0
+#define FMT_FBC				BIT(0)
 
 /* ISPP_STRT */
 #define FEC_ST				BIT(2)
@@ -375,8 +376,8 @@
 #define QUICK_INT			BIT(0)
 
 /* TNR CTRL */
-#define SW_TNR_WR_FORMAT_MASK		GENMASK(7, 5)
-#define SW_TNR_RD_FORMAT_MASK		GENMASK(3, 1)
+#define SW_TNR_WR_FORMAT_MASK		GENMASK(7, 4)
+#define SW_TNR_RD_FORMAT_MASK		GENMASK(3, 0)
 #define SW_TNR_THROUGH_MODE		BIT(10)
 #define SW_TNR_1ST_FRM			BIT(9)
 #define SW_TNR_RD_PINGPONG2TO1		BIT(8)
@@ -421,7 +422,7 @@
 #define SW_NR_EN			BIT(0)
 
 /* SHP CTRL*/
-#define SW_SHP_WR_FORMAT_MASK		GENMASK(3, 1)
+#define SW_SHP_WR_FORMAT_MASK		GENMASK(3, 0)
 #define SW_SHP_WR_ROT_MODE(a)		(((a) & 0x3) << 5)
 #define SW_SHP_WR_YUV_LIMIT		BIT(4)
 #define SW_SHP_WR_YUYV_YCSWAP		BIT(3)
@@ -463,7 +464,7 @@
 #define SW_FEC_EN_SHD			BIT(31)
 #define SW_MINBUF_NON_UPDATE_SHD	BIT(30)
 #define SW_MINBUF_NON_UPDATE		BIT(6)
-#define SW_MESH_DDENSITY		BIT(5)
+#define SW_MESH_DENSITY			BIT(5)
 #define SW_FEC2DDR_DIS			BIT(1)
 #define SW_FEC_EN			BIT(0)
 

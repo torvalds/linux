@@ -39,7 +39,6 @@ struct rkispp_dummy_buffer {
 	u32 size;
 };
 
-extern int rkispp_tnr_3to1;
 extern int rkispp_debug;
 
 static inline struct rkispp_vdev_node *vdev_to_node(struct video_device *vdev)
