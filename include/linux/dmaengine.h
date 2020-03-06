@@ -902,6 +902,7 @@ struct dma_device {
 	/* debugfs support */
 #ifdef CONFIG_DEBUG_FS
 	void (*dbg_summary_show)(struct seq_file *s, struct dma_device *dev);
+	struct dentry *dbg_dev_root;
 #endif
 };
 

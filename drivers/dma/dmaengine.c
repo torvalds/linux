@@ -62,6 +62,22 @@ static long dmaengine_ref_count;
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 
+static struct dentry *rootdir;
+
+static void dmaengine_debug_register(struct dma_device *dma_dev)
+{
+	dma_dev->dbg_dev_root = debugfs_create_dir(dev_name(dma_dev->dev),
+						   rootdir);
+	if (IS_ERR(dma_dev->dbg_dev_root))
+		dma_dev->dbg_dev_root = NULL;
+}
+
+static void dmaengine_debug_unregister(struct dma_device *dma_dev)
+{
+	debugfs_remove_recursive(dma_dev->dbg_dev_root);
+	dma_dev->dbg_dev_root = NULL;
+}
+
 static void dmaengine_dbg_summary_show(struct seq_file *s,
 				       struct dma_device *dma_dev)
 {
@@ -107,7 +123,7 @@ DEFINE_SHOW_ATTRIBUTE(dmaengine_summary);
 
 static void __init dmaengine_debugfs_init(void)
 {
-	struct dentry *rootdir = debugfs_create_dir("dmaengine", NULL);
+	rootdir = debugfs_create_dir("dmaengine", NULL);
 
 	/* /sys/kernel/debug/dmaengine/summary */
 	debugfs_create_file("summary", 0444, rootdir, NULL,
@@ -115,6 +131,12 @@ static void __init dmaengine_debugfs_init(void)
 }
 #else
 static inline void dmaengine_debugfs_init(void) { }
+static inline int dmaengine_debug_register(struct dma_device *dma_dev)
+{
+	return 0;
+}
+
+static inline void dmaengine_debug_unregister(struct dma_device *dma_dev) { }
 #endif	/* DEBUG_FS */
 
 /* --- sysfs implementation --- */
@@ -1265,6 +1287,8 @@ int dma_async_device_register(struct dma_device *device)
 	dma_channel_rebalance();
 	mutex_unlock(&dma_list_mutex);
 
+	dmaengine_debug_register(device);
+
 	return 0;
 
 err_out:
@@ -1297,6 +1321,8 @@ EXPORT_SYMBOL(dma_async_device_register);
 void dma_async_device_unregister(struct dma_device *device)
 {
 	struct dma_chan *chan, *n;
+
+	dmaengine_debug_unregister(device);
 
 	list_for_each_entry_safe(chan, n, &device->channels, device_node)
 		__dma_async_device_channel_unregister(device, chan);
