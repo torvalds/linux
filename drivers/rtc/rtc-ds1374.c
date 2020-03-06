@@ -164,7 +164,7 @@ static int ds1374_read_time(struct device *dev, struct rtc_time *time)
 
 	ret = ds1374_read_rtc(client, &itime, DS1374_REG_TOD0, 4);
 	if (!ret)
-		rtc_time_to_tm(itime, time);
+		rtc_time64_to_tm(itime, time);
 
 	return ret;
 }
@@ -172,9 +172,8 @@ static int ds1374_read_time(struct device *dev, struct rtc_time *time)
 static int ds1374_set_time(struct device *dev, struct rtc_time *time)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	unsigned long itime;
+	unsigned long itime = rtc_tm_to_time64(time);
 
-	rtc_tm_to_time(time, &itime);
 	return ds1374_write_rtc(client, itime, DS1374_REG_TOD0, 4);
 }
 
@@ -212,7 +211,7 @@ static int ds1374_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (ret)
 		goto out;
 
-	rtc_time_to_tm(now + cur_alarm, &alarm->time);
+	rtc_time64_to_tm(now + cur_alarm, &alarm->time);
 	alarm->enabled = !!(cr & DS1374_REG_CR_WACE);
 	alarm->pending = !!(sr & DS1374_REG_SR_AF);
 
@@ -237,8 +236,8 @@ static int ds1374_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (ret < 0)
 		return ret;
 
-	rtc_tm_to_time(&alarm->time, &new_alarm);
-	rtc_tm_to_time(&now, &itime);
+	new_alarm = rtc_tm_to_time64(&alarm->time);
+	itime = rtc_tm_to_time64(&now);
 
 	/* This can happen due to races, in addition to dates that are
 	 * truly in the past.  To avoid requiring the caller to check for
