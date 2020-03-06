@@ -92,6 +92,10 @@ OPTIONS
 --pid=<pid>::
 	limit statistics to one virtual machine (pid)
 
+-s::
+--set-delay::
+        set delay between refreshs (value range: 0.1-25.5 secs)
+
 -t::
 --tracepoints::
         retrieve statistics from tracepoints
