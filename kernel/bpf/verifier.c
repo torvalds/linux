@@ -3650,7 +3650,8 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		if (func_id != BPF_FUNC_perf_event_read &&
 		    func_id != BPF_FUNC_perf_event_output &&
 		    func_id != BPF_FUNC_skb_output &&
-		    func_id != BPF_FUNC_perf_event_read_value)
+		    func_id != BPF_FUNC_perf_event_read_value &&
+		    func_id != BPF_FUNC_xdp_output)
 			goto error;
 		break;
 	case BPF_MAP_TYPE_STACK_TRACE:
@@ -3740,6 +3741,7 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 	case BPF_FUNC_perf_event_output:
 	case BPF_FUNC_perf_event_read_value:
 	case BPF_FUNC_skb_output:
+	case BPF_FUNC_xdp_output:
 		if (map->map_type != BPF_MAP_TYPE_PERF_EVENT_ARRAY)
 			goto error;
 		break;
