@@ -780,13 +780,18 @@ static void igc_rar_set_index(struct igc_adapter *adapter, u32 index)
 	rar_low = le32_to_cpup((__le32 *)(addr));
 	rar_high = le16_to_cpup((__le16 *)(addr + 4));
 
+	if (adapter->mac_table[index].state & IGC_MAC_STATE_QUEUE_STEERING) {
+		u8 queue = adapter->mac_table[index].queue;
+		u32 qsel = IGC_RAH_QSEL_MASK & (queue << IGC_RAH_QSEL_SHIFT);
+
+		rar_high |= qsel;
+		rar_high |= IGC_RAH_QSEL_ENABLE;
+	}
+
 	/* Indicate to hardware the Address is Valid. */
 	if (adapter->mac_table[index].state & IGC_MAC_STATE_IN_USE) {
 		if (is_valid_ether_addr(addr))
 			rar_high |= IGC_RAH_AV;
-
-		rar_high |= IGC_RAH_POOL_1 <<
-			adapter->mac_table[index].queue;
 	}
 
 	wr32(IGC_RAL(index), rar_low);
