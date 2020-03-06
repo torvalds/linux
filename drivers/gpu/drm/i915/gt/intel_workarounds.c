@@ -1382,8 +1382,8 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
 
 		/* Wa_1408615072:tgl */
-		wa_masked_en(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
-			     VSUNIT_CLKGATE_DIS_TGL);
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
+			    VSUNIT_CLKGATE_DIS_TGL);
 	}
 
 	if (IS_TIGERLAKE(i915)) {
@@ -1472,12 +1472,12 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * Wa_1408615072:icl,ehl  (vsunit)
 		 * Wa_1407596294:icl,ehl  (hsunit)
 		 */
-		wa_masked_en(wal, UNSLICE_UNIT_LEVEL_CLKGATE,
-			     VSUNIT_CLKGATE_DIS | HSUNIT_CLKGATE_DIS);
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE,
+			    VSUNIT_CLKGATE_DIS | HSUNIT_CLKGATE_DIS);
 
 		/* Wa_1407352427:icl,ehl */
-		wa_masked_en(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
-			     PSDUNIT_CLKGATE_DIS);
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
+			    PSDUNIT_CLKGATE_DIS);
 	}
 
 	if (IS_GEN_RANGE(i915, 9, 12)) {
