@@ -283,6 +283,7 @@ const struct iwl_cfg iwl_ax101_cfg_qu_c0_hr_b0 = {
 	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
 	 */
 	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
+	.tx_with_siso_diversity = true,
 	.num_rbds = IWL_NUM_RBDS_22000_HE,
 };
 
@@ -309,6 +310,7 @@ const struct iwl_cfg iwl_ax101_cfg_quz_hr = {
 	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
 	 */
 	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
+	.tx_with_siso_diversity = true,
 	.num_rbds = IWL_NUM_RBDS_22000_HE,
 };
 
