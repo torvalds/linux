@@ -315,8 +315,8 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 	if (!rtc)
 		return -ENOMEM;
 
-	rtc->regs = of_iomap(op->dev.of_node, 0);
-	if (!rtc->regs) {
+	rtc->regs = devm_platform_ioremap_resource(op, 0);
+	if (IS_ERR(rtc->regs)) {
 		dev_err(&op->dev, "%s: couldn't map io space\n", __func__);
 		return -ENOSYS;
 	}
@@ -326,8 +326,8 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 	platform_set_drvdata(op, rtc);
 
 	rtc->irq = irq_of_parse_and_map(op->dev.of_node, 1);
-	err = request_irq(rtc->irq, mpc5121_rtc_handler, 0,
-						"mpc5121-rtc", &op->dev);
+	err = devm_request_irq(&op->dev, rtc->irq, mpc5121_rtc_handler, 0,
+			       "mpc5121-rtc", &op->dev);
 	if (err) {
 		dev_err(&op->dev, "%s: could not request irq: %i\n",
 							__func__, rtc->irq);
@@ -335,8 +335,9 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 	}
 
 	rtc->irq_periodic = irq_of_parse_and_map(op->dev.of_node, 0);
-	err = request_irq(rtc->irq_periodic, mpc5121_rtc_handler_upd,
-				0, "mpc5121-rtc_upd", &op->dev);
+	err = devm_request_irq(&op->dev, rtc->irq_periodic,
+			       mpc5121_rtc_handler_upd, 0, "mpc5121-rtc_upd",
+			       &op->dev);
 	if (err) {
 		dev_err(&op->dev, "%s: could not request irq: %i\n",
 						__func__, rtc->irq_periodic);
@@ -361,20 +362,16 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 
 	if (IS_ERR(rtc->rtc)) {
 		err = PTR_ERR(rtc->rtc);
-		goto out_free_irq;
+		goto out_dispose2;
 	}
 	rtc->rtc->uie_unsupported = 1;
 
 	return 0;
 
-out_free_irq:
-	free_irq(rtc->irq_periodic, &op->dev);
 out_dispose2:
 	irq_dispose_mapping(rtc->irq_periodic);
-	free_irq(rtc->irq, &op->dev);
 out_dispose:
 	irq_dispose_mapping(rtc->irq);
-	iounmap(rtc->regs);
 
 	return err;
 }
@@ -388,9 +385,6 @@ static int mpc5121_rtc_remove(struct platform_device *op)
 	out_8(&regs->alm_enable, 0);
 	out_8(&regs->int_enable, in_8(&regs->int_enable) & ~0x1);
 
-	iounmap(rtc->regs);
-	free_irq(rtc->irq, &op->dev);
-	free_irq(rtc->irq_periodic, &op->dev);
 	irq_dispose_mapping(rtc->irq);
 	irq_dispose_mapping(rtc->irq_periodic);
 
