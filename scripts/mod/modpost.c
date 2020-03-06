@@ -51,41 +51,33 @@ enum export {
 
 #define MODULE_NAME_LEN (64 - sizeof(Elf_Addr))
 
-#define PRINTF __attribute__ ((format (printf, 1, 2)))
-
-PRINTF void fatal(const char *fmt, ...)
+void __attribute__((format(printf, 2, 3)))
+modpost_log(enum loglevel loglevel, const char *fmt, ...)
 {
 	va_list arglist;
 
-	fprintf(stderr, "FATAL: ");
+	switch (loglevel) {
+	case LOG_WARN:
+		fprintf(stderr, "WARNING: ");
+		break;
+	case LOG_ERROR:
+		fprintf(stderr, "ERROR: ");
+		break;
+	case LOG_FATAL:
+		fprintf(stderr, "FATAL: ");
+		break;
+	default: /* invalid loglevel, ignore */
+		break;
+	}
+
+	fprintf(stderr, "modpost: ");
 
 	va_start(arglist, fmt);
 	vfprintf(stderr, fmt, arglist);
 	va_end(arglist);
 
-	exit(1);
-}
-
-PRINTF void warn(const char *fmt, ...)
-{
-	va_list arglist;
-
-	fprintf(stderr, "WARNING: ");
-
-	va_start(arglist, fmt);
-	vfprintf(stderr, fmt, arglist);
-	va_end(arglist);
-}
-
-PRINTF void merror(const char *fmt, ...)
-{
-	va_list arglist;
-
-	fprintf(stderr, "ERROR: ");
-
-	va_start(arglist, fmt);
-	vfprintf(stderr, fmt, arglist);
-	va_end(arglist);
+	if (loglevel == LOG_FATAL)
+		exit(1);
 }
 
 static inline bool strends(const char *str, const char *postfix)
@@ -113,7 +105,7 @@ static int is_vmlinux(const char *modname)
 void *do_nofail(void *ptr, const char *expr)
 {
 	if (!ptr)
-		fatal("modpost: Memory allocation failure: %s.\n", expr);
+		fatal("Memory allocation failure: %s.\n", expr);
 
 	return ptr;
 }
@@ -2021,7 +2013,7 @@ static void read_symbols(const char *modname)
 
 	license = get_modinfo(&info, "license");
 	if (!license && !is_vmlinux(modname))
-		warn("modpost: missing MODULE_LICENSE() in %s\n"
+		warn("missing MODULE_LICENSE() in %s\n"
 		     "see include/linux/module.h for "
 		     "more information\n", modname);
 	while (license) {
@@ -2152,15 +2144,15 @@ static void check_for_gpl_usage(enum export exp, const char *m, const char *s)
 
 	switch (exp) {
 	case export_gpl:
-		fatal("modpost: GPL-incompatible module %s%s "
+		fatal("GPL-incompatible module %s%s "
 		      "uses GPL-only symbol '%s'\n", m, e, s);
 		break;
 	case export_unused_gpl:
-		fatal("modpost: GPL-incompatible module %s%s "
+		fatal("GPL-incompatible module %s%s "
 		      "uses GPL-only symbol marked UNUSED '%s'\n", m, e, s);
 		break;
 	case export_gpl_future:
-		warn("modpost: GPL-incompatible module %s%s "
+		warn("GPL-incompatible module %s%s "
 		      "uses future GPL-only symbol '%s'\n", m, e, s);
 		break;
 	case export_plain:
@@ -2178,7 +2170,7 @@ static void check_for_unused(enum export exp, const char *m, const char *s)
 	switch (exp) {
 	case export_unused:
 	case export_unused_gpl:
-		warn("modpost: module %s%s "
+		warn("module %s%s "
 		      "uses symbol '%s' marked UNUSED\n", m, e, s);
 		break;
 	default:
@@ -2197,14 +2189,11 @@ static int check_exports(struct module *mod)
 		exp = find_symbol(s->name);
 		if (!exp || exp->module == mod) {
 			if (have_vmlinux && !s->weak) {
-				if (warn_unresolved) {
-					warn("\"%s\" [%s.ko] undefined!\n",
-					     s->name, mod->name);
-				} else {
-					merror("\"%s\" [%s.ko] undefined!\n",
-					       s->name, mod->name);
+				modpost_log(warn_unresolved ? LOG_WARN : LOG_ERROR,
+					    "\"%s\" [%s.ko] undefined!\n",
+					    s->name, mod->name);
+				if (!warn_unresolved)
 					err = 1;
-				}
 			}
 			continue;
 		}
@@ -2653,7 +2642,7 @@ int main(int argc, char **argv)
 	if (dump_write)
 		write_dump(dump_write);
 	if (sec_mismatch_count && sec_mismatch_fatal)
-		fatal("modpost: Section mismatches detected.\n"
+		fatal("Section mismatches detected.\n"
 		      "Set CONFIG_SECTION_MISMATCH_WARN_ONLY=y to allow them.\n");
 	for (n = 0; n < SYMBOL_HASH_SIZE; n++) {
 		struct symbol *s;
