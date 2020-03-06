@@ -1493,36 +1493,67 @@ static void rx_dma_timer_init(struct lpuart_port *sport)
 static void lpuart_tx_dma_startup(struct lpuart_port *sport)
 {
 	u32 uartbaud;
+	int ret;
 
-	if (sport->dma_tx_chan && !lpuart_dma_tx_request(&sport->port)) {
-		init_waitqueue_head(&sport->dma_wait);
-		sport->lpuart_dma_tx_use = true;
-		if (lpuart_is_32(sport)) {
-			uartbaud = lpuart32_read(&sport->port, UARTBAUD);
-			lpuart32_write(&sport->port,
-				       uartbaud | UARTBAUD_TDMAE, UARTBAUD);
-		} else {
-			writeb(readb(sport->port.membase + UARTCR5) |
-				UARTCR5_TDMAS, sport->port.membase + UARTCR5);
-		}
-	} else {
-		sport->lpuart_dma_tx_use = false;
+	sport->dma_tx_chan = dma_request_chan(sport->port.dev, "tx");
+	if (IS_ERR(sport->dma_tx_chan)) {
+		dev_info_once(sport->port.dev,
+			      "DMA tx channel request failed, operating without tx DMA (%ld)\n",
+			      PTR_ERR(sport->dma_tx_chan));
+		sport->dma_tx_chan = NULL;
+		goto err;
 	}
+
+	ret = lpuart_dma_tx_request(&sport->port);
+	if (!ret)
+		goto err;
+
+	init_waitqueue_head(&sport->dma_wait);
+	sport->lpuart_dma_tx_use = true;
+	if (lpuart_is_32(sport)) {
+		uartbaud = lpuart32_read(&sport->port, UARTBAUD);
+		lpuart32_write(&sport->port,
+			       uartbaud | UARTBAUD_TDMAE, UARTBAUD);
+	} else {
+		writeb(readb(sport->port.membase + UARTCR5) |
+		       UARTCR5_TDMAS, sport->port.membase + UARTCR5);
+	}
+
+	return;
+
+err:
+	sport->lpuart_dma_tx_use = false;
 }
 
 static void lpuart_rx_dma_startup(struct lpuart_port *sport)
 {
-	if (sport->dma_rx_chan && !lpuart_start_rx_dma(sport)) {
-		/* set Rx DMA timeout */
-		sport->dma_rx_timeout = msecs_to_jiffies(DMA_RX_TIMEOUT);
-		if (!sport->dma_rx_timeout)
-			sport->dma_rx_timeout = 1;
+	int ret;
 
-		sport->lpuart_dma_rx_use = true;
-		rx_dma_timer_init(sport);
-	} else {
-		sport->lpuart_dma_rx_use = false;
+	sport->dma_rx_chan = dma_request_chan(sport->port.dev, "rx");
+	if (IS_ERR(sport->dma_rx_chan)) {
+		dev_info_once(sport->port.dev,
+			      "DMA rx channel request failed, operating without rx DMA (%ld)\n",
+			      PTR_ERR(sport->dma_rx_chan));
+		sport->dma_rx_chan = NULL;
+		goto err;
 	}
+
+	ret = lpuart_start_rx_dma(sport);
+	if (ret)
+		goto err;
+
+	/* set Rx DMA timeout */
+	sport->dma_rx_timeout = msecs_to_jiffies(DMA_RX_TIMEOUT);
+	if (!sport->dma_rx_timeout)
+		sport->dma_rx_timeout = 1;
+
+	sport->lpuart_dma_rx_use = true;
+	rx_dma_timer_init(sport);
+
+	return;
+
+err:
+	sport->lpuart_dma_rx_use = false;
 }
 
 static int lpuart_startup(struct uart_port *port)
@@ -1615,6 +1646,11 @@ static void lpuart_dma_shutdown(struct lpuart_port *sport)
 			dmaengine_terminate_all(sport->dma_tx_chan);
 		}
 	}
+
+	if (sport->dma_tx_chan)
+		dma_release_channel(sport->dma_tx_chan);
+	if (sport->dma_rx_chan)
+		dma_release_channel(sport->dma_rx_chan);
 }
 
 static void lpuart_shutdown(struct uart_port *port)
@@ -2519,16 +2555,6 @@ static int lpuart_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "driver doesn't support RTS delays\n");
 
 	sport->port.rs485_config(&sport->port, &sport->port.rs485);
-
-	sport->dma_tx_chan = dma_request_slave_channel(sport->port.dev, "tx");
-	if (!sport->dma_tx_chan)
-		dev_info(sport->port.dev, "DMA tx channel request failed, "
-				"operating without tx DMA\n");
-
-	sport->dma_rx_chan = dma_request_slave_channel(sport->port.dev, "rx");
-	if (!sport->dma_rx_chan)
-		dev_info(sport->port.dev, "DMA rx channel request failed, "
-				"operating without rx DMA\n");
 
 	return 0;
 
