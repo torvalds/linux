@@ -855,14 +855,13 @@ void io_wq_cancel_all(struct io_wq *wq)
 }
 
 struct io_cb_cancel_data {
-	struct io_wqe *wqe;
-	work_cancel_fn *cancel;
-	void *caller_data;
+	work_cancel_fn *fn;
+	void *data;
 };
 
-static bool io_work_cancel(struct io_worker *worker, void *cancel_data)
+static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 {
-	struct io_cb_cancel_data *data = cancel_data;
+	struct io_cb_cancel_data *match = data;
 	unsigned long flags;
 	bool ret = false;
 
@@ -873,83 +872,7 @@ static bool io_work_cancel(struct io_worker *worker, void *cancel_data)
 	spin_lock_irqsave(&worker->lock, flags);
 	if (worker->cur_work &&
 	    !(worker->cur_work->flags & IO_WQ_WORK_NO_CANCEL) &&
-	    data->cancel(worker->cur_work, data->caller_data)) {
-		send_sig(SIGINT, worker->task, 1);
-		ret = true;
-	}
-	spin_unlock_irqrestore(&worker->lock, flags);
-
-	return ret;
-}
-
-static enum io_wq_cancel io_wqe_cancel_cb_work(struct io_wqe *wqe,
-					       work_cancel_fn *cancel,
-					       void *cancel_data)
-{
-	struct io_cb_cancel_data data = {
-		.wqe = wqe,
-		.cancel = cancel,
-		.caller_data = cancel_data,
-	};
-	struct io_wq_work_node *node, *prev;
-	struct io_wq_work *work;
-	unsigned long flags;
-	bool found = false;
-
-	spin_lock_irqsave(&wqe->lock, flags);
-	wq_list_for_each(node, prev, &wqe->work_list) {
-		work = container_of(node, struct io_wq_work, list);
-
-		if (cancel(work, cancel_data)) {
-			wq_node_del(&wqe->work_list, node, prev);
-			found = true;
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&wqe->lock, flags);
-
-	if (found) {
-		io_run_cancel(work, wqe);
-		return IO_WQ_CANCEL_OK;
-	}
-
-	rcu_read_lock();
-	found = io_wq_for_each_worker(wqe, io_work_cancel, &data);
-	rcu_read_unlock();
-	return found ? IO_WQ_CANCEL_RUNNING : IO_WQ_CANCEL_NOTFOUND;
-}
-
-enum io_wq_cancel io_wq_cancel_cb(struct io_wq *wq, work_cancel_fn *cancel,
-				  void *data)
-{
-	enum io_wq_cancel ret = IO_WQ_CANCEL_NOTFOUND;
-	int node;
-
-	for_each_node(node) {
-		struct io_wqe *wqe = wq->wqes[node];
-
-		ret = io_wqe_cancel_cb_work(wqe, cancel, data);
-		if (ret != IO_WQ_CANCEL_NOTFOUND)
-			break;
-	}
-
-	return ret;
-}
-
-struct work_match {
-	bool (*fn)(struct io_wq_work *, void *data);
-	void *data;
-};
-
-static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
-{
-	struct work_match *match = data;
-	unsigned long flags;
-	bool ret = false;
-
-	spin_lock_irqsave(&worker->lock, flags);
-	if (match->fn(worker->cur_work, match->data) &&
-	    !(worker->cur_work->flags & IO_WQ_WORK_NO_CANCEL)) {
+	    match->fn(worker->cur_work, match->data)) {
 		send_sig(SIGINT, worker->task, 1);
 		ret = true;
 	}
@@ -959,7 +882,7 @@ static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 }
 
 static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
-					    struct work_match *match)
+					    struct io_cb_cancel_data *match)
 {
 	struct io_wq_work_node *node, *prev;
 	struct io_wq_work *work;
@@ -1000,60 +923,49 @@ static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
 	return found ? IO_WQ_CANCEL_RUNNING : IO_WQ_CANCEL_NOTFOUND;
 }
 
-static bool io_wq_work_match(struct io_wq_work *work, void *data)
+enum io_wq_cancel io_wq_cancel_cb(struct io_wq *wq, work_cancel_fn *cancel,
+				  void *data)
+{
+	struct io_cb_cancel_data match = {
+		.fn	= cancel,
+		.data	= data,
+	};
+	enum io_wq_cancel ret = IO_WQ_CANCEL_NOTFOUND;
+	int node;
+
+	for_each_node(node) {
+		struct io_wqe *wqe = wq->wqes[node];
+
+		ret = io_wqe_cancel_work(wqe, &match);
+		if (ret != IO_WQ_CANCEL_NOTFOUND)
+			break;
+	}
+
+	return ret;
+}
+
+static bool io_wq_io_cb_cancel_data(struct io_wq_work *work, void *data)
 {
 	return work == data;
 }
 
 enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork)
 {
-	struct work_match match = {
-		.fn	= io_wq_work_match,
-		.data	= cwork
-	};
-	enum io_wq_cancel ret = IO_WQ_CANCEL_NOTFOUND;
-	int node;
-
-	cwork->flags |= IO_WQ_WORK_CANCEL;
-
-	for_each_node(node) {
-		struct io_wqe *wqe = wq->wqes[node];
-
-		ret = io_wqe_cancel_work(wqe, &match);
-		if (ret != IO_WQ_CANCEL_NOTFOUND)
-			break;
-	}
-
-	return ret;
+	return io_wq_cancel_cb(wq, io_wq_io_cb_cancel_data, (void *)cwork);
 }
 
 static bool io_wq_pid_match(struct io_wq_work *work, void *data)
 {
 	pid_t pid = (pid_t) (unsigned long) data;
 
-	if (work)
-		return work->task_pid == pid;
-	return false;
+	return work->task_pid == pid;
 }
 
 enum io_wq_cancel io_wq_cancel_pid(struct io_wq *wq, pid_t pid)
 {
-	struct work_match match = {
-		.fn	= io_wq_pid_match,
-		.data	= (void *) (unsigned long) pid
-	};
-	enum io_wq_cancel ret = IO_WQ_CANCEL_NOTFOUND;
-	int node;
+	void *data = (void *) (unsigned long) pid;
 
-	for_each_node(node) {
-		struct io_wqe *wqe = wq->wqes[node];
-
-		ret = io_wqe_cancel_work(wqe, &match);
-		if (ret != IO_WQ_CANCEL_NOTFOUND)
-			break;
-	}
-
-	return ret;
+	return io_wq_cancel_cb(wq, io_wq_pid_match, data);
 }
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
