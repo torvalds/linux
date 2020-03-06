@@ -111,7 +111,7 @@ static int mpc5121_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	 */
 	now = in_be32(&regs->actual_time) + in_be32(&regs->target_time);
 
-	rtc_time_to_tm(now, tm);
+	rtc_time64_to_tm(now, tm);
 
 	/*
 	 * update second minute hour registers
@@ -126,16 +126,14 @@ static int mpc5121_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct mpc5121_rtc_data *rtc = dev_get_drvdata(dev);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
-	int ret;
 	unsigned long now;
 
 	/*
 	 * The actual_time register is read only so we write the offset
 	 * between it and linux time to the target_time register.
 	 */
-	ret = rtc_tm_to_time(tm, &now);
-	if (ret == 0)
-		out_be32(&regs->target_time, now - in_be32(&regs->actual_time));
+	now = rtc_tm_to_time64(tm);
+	out_be32(&regs->target_time, now - in_be32(&regs->actual_time));
 
 	/*
 	 * update second minute hour registers
