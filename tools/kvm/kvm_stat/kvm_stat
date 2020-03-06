@@ -33,6 +33,8 @@ import struct
 import re
 import subprocess
 from collections import defaultdict, namedtuple
+from functools import reduce
+from datetime import datetime
 
 VMX_EXIT_REASONS = {
     'EXCEPTION_NMI':        0,
@@ -1489,28 +1491,49 @@ def batch(stats):
         pass
 
 
-def log(stats, opts):
+class StdFormat(object):
+    def __init__(self, keys):
+        self._banner = ''
+        for key in keys:
+            self._banner += key.split(' ')[0] + ' '
+
+    def get_banner(self):
+        return self._banner
+
+    @staticmethod
+    def get_statline(keys, s):
+        res = ''
+        for key in keys:
+            res += ' %9d' % s[key].delta
+        return res
+
+
+class CSVFormat(object):
+    def __init__(self, keys):
+        self._banner = 'timestamp'
+        self._banner += reduce(lambda res, key: "{},{!s}".format(res,
+                               key.split(' ')[0]), keys, '')
+
+    def get_banner(self):
+        return self._banner
+
+    @staticmethod
+    def get_statline(keys, s):
+        return reduce(lambda res, key: "{},{!s}".format(res, s[key].delta),
+                      keys, '')
+
+
+def log(stats, opts, frmt, keys):
     """Prints statistics as reiterating key block, multiple value blocks."""
-    keys = sorted(stats.get().keys())
-
-    def banner():
-        for key in keys:
-            print(key.split(' ')[0], end=' ')
-        print()
-
-    def statline():
-        s = stats.get()
-        for key in keys:
-            print(' %9d' % s[key].delta, end=' ')
-        print()
     line = 0
     banner_repeat = 20
     while True:
         try:
             time.sleep(opts.set_delay)
             if line % banner_repeat == 0:
-                banner()
-            statline()
+                print(frmt.get_banner())
+            print(datetime.now().strftime("%Y-%m-%d %H:%M:%S") +
+                  frmt.get_statline(keys, stats.get()))
             line += 1
         except KeyboardInterrupt:
             break
@@ -1584,6 +1607,11 @@ Press any other key to refresh statistics immediately.
                            default=False,
                            help='run in batch mode for one second',
                            )
+    argparser.add_argument('-c', '--csv',
+                           action='store_true',
+                           default=False,
+                           help='log in csv format - requires option -l/--log',
+                           )
     argparser.add_argument('-d', '--debugfs',
                            action='store_true',
                            default=False,
@@ -1628,6 +1656,8 @@ Press any other key to refresh statistics immediately.
                            help='retrieve statistics from tracepoints',
                            )
     options = argparser.parse_args()
+    if options.csv and not options.log:
+        sys.exit('Error: Option -c/--csv requires -l/--log')
     try:
         # verify that we were passed a valid regex up front
         re.compile(options.fields)
@@ -1708,7 +1738,12 @@ def main():
         sys.exit(0)
 
     if options.log:
-        log(stats, options)
+        keys = sorted(stats.get().keys())
+        if options.csv:
+            frmt = CSVFormat(keys)
+        else:
+            frmt = StdFormat(keys)
+        log(stats, options, frmt, keys)
     elif not options.once:
         with Tui(stats, options) as tui:
             tui.show_stats()

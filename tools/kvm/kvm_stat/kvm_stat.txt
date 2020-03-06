@@ -64,6 +64,10 @@ OPTIONS
 --batch::
 	run in batch mode for one second
 
+-c::
+--csv=<file>::
+        log in csv format - requires option -l/--log
+
 -d::
 --debugfs::
 	retrieve statistics from debugfs
