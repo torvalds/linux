@@ -65,16 +65,12 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtcdev;
 	unsigned long t;
-	int ret;
 
 	t = alchemy_rdsys(AU1000_SYS_CNTRCTRL);
 	if (!(t & CNTR_OK)) {
 		dev_err(&pdev->dev, "counters not working; aborting.\n");
-		ret = -ENODEV;
-		goto out_err;
+		return -ENODEV;
 	}
-
-	ret = -ETIMEDOUT;
 
 	/* set counter0 tickrate to 1Hz if necessary */
 	if (alchemy_rdsys(AU1000_SYS_TOYTRIM) != 32767) {
@@ -88,7 +84,7 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 			 * counters are unusable.
 			 */
 			dev_err(&pdev->dev, "timeout waiting for access\n");
-			goto out_err;
+			return -ETIMEDOUT;
 		}
 
 		/* set 1Hz TOY tick rate */
@@ -108,9 +104,6 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rtcdev);
 
 	return rtc_register_device(rtcdev);
-
-out_err:
-	return ret;
 }
 
 static struct platform_driver au1xrtc_driver = {
