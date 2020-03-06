@@ -25,7 +25,7 @@ import sys
 import locale
 import os
 import time
-import optparse
+import argparse
 import ctypes
 import fcntl
 import resource
@@ -873,7 +873,7 @@ class Stats(object):
 
         if options.debugfs:
             providers.append(DebugfsProvider(options.pid, options.fields,
-                                             options.dbgfs_include_past))
+                                             options.debugfs_include_past))
         if options.tracepoints or not providers:
             providers.append(TracepointProvider(options.pid, options.fields))
 
@@ -1550,84 +1550,66 @@ Interactive Commands:
 Press any other key to refresh statistics immediately.
 """ % (PATH_DEBUGFS_KVM, PATH_DEBUGFS_TRACING)
 
-    class PlainHelpFormatter(optparse.IndentedHelpFormatter):
-        def format_description(self, description):
-            if description:
-                return description + "\n"
-            else:
-                return ""
+    class Guest_to_pid(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            try:
+                pids = Tui.get_pid_from_gname(values)
+            except:
+                sys.exit('Error while searching for guest "{}". Use "-p" to '
+                         'specify a pid instead?'.format(values))
+            if len(pids) == 0:
+                sys.exit('Error: No guest by the name "{}" found'
+                         .format(values))
+            if len(pids) > 1:
+                sys.exit('Error: Multiple processes found (pids: {}). Use "-p"'
+                         ' to specify the desired pid'.format(" ".join(pids)))
+            namespace.pid = pids[0]
 
-    def cb_guest_to_pid(option, opt, val, parser):
-        try:
-            pids = Tui.get_pid_from_gname(val)
-        except:
-            sys.exit('Error while searching for guest "{}". Use "-p" to '
-                     'specify a pid instead?'.format(val))
-        if len(pids) == 0:
-            sys.exit('Error: No guest by the name "{}" found'.format(val))
-        if len(pids) > 1:
-            sys.exit('Error: Multiple processes found (pids: {}). Use "-p" '
-                     'to specify the desired pid'.format(" ".join(pids)))
-        parser.values.pid = pids[0]
-
-    optparser = optparse.OptionParser(description=description_text,
-                                      formatter=PlainHelpFormatter())
-    optparser.add_option('-1', '--once', '--batch',
-                         action='store_true',
-                         default=False,
-                         dest='once',
-                         help='run in batch mode for one second',
-                         )
-    optparser.add_option('-i', '--debugfs-include-past',
-                         action='store_true',
-                         default=False,
-                         dest='dbgfs_include_past',
-                         help='include all available data on past events for '
-                              'debugfs',
-                         )
-    optparser.add_option('-l', '--log',
-                         action='store_true',
-                         default=False,
-                         dest='log',
-                         help='run in logging mode (like vmstat)',
-                         )
-    optparser.add_option('-t', '--tracepoints',
-                         action='store_true',
-                         default=False,
-                         dest='tracepoints',
-                         help='retrieve statistics from tracepoints',
-                         )
-    optparser.add_option('-d', '--debugfs',
-                         action='store_true',
-                         default=False,
-                         dest='debugfs',
-                         help='retrieve statistics from debugfs',
-                         )
-    optparser.add_option('-f', '--fields',
-                         action='store',
-                         default='',
-                         dest='fields',
-                         help='''fields to display (regex)
-                                 "-f help" for a list of available events''',
-                         )
-    optparser.add_option('-p', '--pid',
-                         action='store',
-                         default=0,
-                         type='int',
-                         dest='pid',
-                         help='restrict statistics to pid',
-                         )
-    optparser.add_option('-g', '--guest',
-                         action='callback',
-                         type='string',
-                         dest='pid',
-                         metavar='GUEST',
-                         help='restrict statistics to guest by name',
-                         callback=cb_guest_to_pid,
-                         )
-    options, unkn = optparser.parse_args(sys.argv)
-    if len(unkn) != 1:
-        sys.exit('Error: Extra argument(s): ' + ' '.join(unkn[1:]))
+    argparser = argparse.ArgumentParser(description=description_text,
+                                        formatter_class=argparse
+                                        .RawTextHelpFormatter)
+    argparser.add_argument('-1', '--once', '--batch',
+                           action='store_true',
+                           default=False,
+                           help='run in batch mode for one second',
+                           )
+    argparser.add_argument('-d', '--debugfs',
+                           action='store_true',
+                           default=False,
+                           help='retrieve statistics from debugfs',
+                           )
+    argparser.add_argument('-f', '--fields',
+                           default='',
+                           help='''fields to display (regex)
+"-f help" for a list of available events''',
+                           )
+    argparser.add_argument('-g', '--guest',
+                           type=str,
+                           help='restrict statistics to guest by name',
+                           action=Guest_to_pid,
+                           )
+    argparser.add_argument('-i', '--debugfs-include-past',
+                           action='store_true',
+                           default=False,
+                           help='include all available data on past events for'
+                                ' debugfs',
+                           )
+    argparser.add_argument('-l', '--log',
+                           action='store_true',
+                           default=False,
+                           help='run in logging mode (like vmstat)',
+                           )
+    argparser.add_argument('-p', '--pid',
+                           type=int,
+                           default=0,
+                           help='restrict statistics to pid',
+                           )
+    argparser.add_argument('-t', '--tracepoints',
+                           action='store_true',
+                           default=False,
+                           help='retrieve statistics from tracepoints',
+                           )
+    options = argparser.parse_args()
     try:
         # verify that we were passed a valid regex up front
         re.compile(options.fields)
