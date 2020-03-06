@@ -57,6 +57,7 @@ applicable to all devices.
     ext-ctrls-fm-tx
     ext-ctrls-fm-rx
     ext-ctrls-detect
+    fourcc
     format
     planar-apis
     selection-api

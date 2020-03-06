@@ -31,7 +31,6 @@ For more details see the file COPYING in the source distribution of Linux.
 	:maxdepth: 5
 	:numbered:
 
-	fourcc
 	v4l-with-ir
 	tuners
 	cardlist
