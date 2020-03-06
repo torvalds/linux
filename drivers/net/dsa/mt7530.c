@@ -1222,6 +1222,64 @@ mt7530_port_vlan_del(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static int mt7530_port_mirror_add(struct dsa_switch *ds, int port,
+				  struct dsa_mall_mirror_tc_entry *mirror,
+				  bool ingress)
+{
+	struct mt7530_priv *priv = ds->priv;
+	u32 val;
+
+	/* Check for existent entry */
+	if ((ingress ? priv->mirror_rx : priv->mirror_tx) & BIT(port))
+		return -EEXIST;
+
+	val = mt7530_read(priv, MT7530_MFC);
+
+	/* MT7530 only supports one monitor port */
+	if (val & MIRROR_EN && MIRROR_PORT(val) != mirror->to_local_port)
+		return -EEXIST;
+
+	val |= MIRROR_EN;
+	val &= ~MIRROR_MASK;
+	val |= mirror->to_local_port;
+	mt7530_write(priv, MT7530_MFC, val);
+
+	val = mt7530_read(priv, MT7530_PCR_P(port));
+	if (ingress) {
+		val |= PORT_RX_MIR;
+		priv->mirror_rx |= BIT(port);
+	} else {
+		val |= PORT_TX_MIR;
+		priv->mirror_tx |= BIT(port);
+	}
+	mt7530_write(priv, MT7530_PCR_P(port), val);
+
+	return 0;
+}
+
+static void mt7530_port_mirror_del(struct dsa_switch *ds, int port,
+				   struct dsa_mall_mirror_tc_entry *mirror)
+{
+	struct mt7530_priv *priv = ds->priv;
+	u32 val;
+
+	val = mt7530_read(priv, MT7530_PCR_P(port));
+	if (mirror->ingress) {
+		val &= ~PORT_RX_MIR;
+		priv->mirror_rx &= ~BIT(port);
+	} else {
+		val &= ~PORT_TX_MIR;
+		priv->mirror_tx &= ~BIT(port);
+	}
+	mt7530_write(priv, MT7530_PCR_P(port), val);
+
+	if (!priv->mirror_rx && !priv->mirror_tx) {
+		val = mt7530_read(priv, MT7530_MFC);
+		val &= ~MIRROR_EN;
+		mt7530_write(priv, MT7530_MFC, val);
+	}
+}
+
 static enum dsa_tag_protocol
 mtk_get_tag_protocol(struct dsa_switch *ds, int port,
 		     enum dsa_tag_protocol mp)
@@ -1613,6 +1671,8 @@ static const struct dsa_switch_ops mt7530_switch_ops = {
 	.port_vlan_prepare	= mt7530_port_vlan_prepare,
 	.port_vlan_add		= mt7530_port_vlan_add,
 	.port_vlan_del		= mt7530_port_vlan_del,
+	.port_mirror_add	= mt7530_port_mirror_add,
+	.port_mirror_del	= mt7530_port_mirror_del,
 	.phylink_validate	= mt7530_phylink_validate,
 	.phylink_mac_link_state = mt7530_phylink_mac_link_state,
 	.phylink_mac_config	= mt7530_phylink_mac_config,
