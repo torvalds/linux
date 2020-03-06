@@ -491,6 +491,7 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc_dd->rtc);
 
 	rtc_dd->rtc->ops = &pm8xxx_rtc_ops;
+	rtc_dd->rtc->range_max = U32_MAX;
 
 	/* Request the alarm IRQ */
 	rc = devm_request_any_context_irq(&pdev->dev, rtc_dd->rtc_alarm_irq,
