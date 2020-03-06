@@ -4397,12 +4397,6 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 		if (status & DescOwn)
 			break;
 
-		/* This barrier is needed to keep us from reading
-		 * any other fields out of the Tx descriptor until
-		 * we know the status of DescOwn
-		 */
-		dma_rmb();
-
 		rtl8169_unmap_tx_skb(tp, entry);
 
 		if (skb) {
