@@ -968,8 +968,7 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	int i, pos;
-	u8 buf[8];
+	u64 dsn;
 
 	if (!info)
 		return -EINVAL;
@@ -985,17 +984,11 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 	/* Serial Number */
 
 	/* Get the PCI-e Device Serial Number Capability */
-	pos = pci_find_ext_capability(adapter->pdev, PCI_EXT_CAP_ID_DSN);
-	if (pos) {
-		pos += 4;
-		for (i = 0; i < 8; i++)
-			pci_read_config_byte(adapter->pdev, pos + i, &buf[i]);
-
+	dsn = pci_get_dsn(adapter->pdev);
+	if (dsn)
 		snprintf(info->serial_number, sizeof(info->serial_number),
-			 "%02X%02X%02X%02X%02X%02X%02X%02X",
-			 buf[7], buf[6], buf[5], buf[4],
-			 buf[3], buf[2], buf[1], buf[0]);
-	} else
+			 "%016llX", dsn);
+	else
 		snprintf(info->serial_number, sizeof(info->serial_number),
 			 "Unknown");
 

@@ -11751,20 +11751,16 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])
 {
 	struct pci_dev *pdev = bp->pdev;
-	int pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_DSN);
-	u32 dw;
+	u64 qword;
 
-	if (!pos) {
-		netdev_info(bp->dev, "Unable do read adapter's DSN\n");
+	qword = pci_get_dsn(pdev);
+	if (!qword) {
+		netdev_info(bp->dev, "Unable to read adapter's DSN\n");
 		return -EOPNOTSUPP;
 	}
 
-	/* DSN (two dw) is at an offset of 4 from the cap pos */
-	pos += 4;
-	pci_read_config_dword(pdev, pos, &dw);
-	put_unaligned_le32(dw, &dsn[0]);
-	pci_read_config_dword(pdev, pos + 4, &dw);
-	put_unaligned_le32(dw, &dsn[4]);
+	put_unaligned_le64(qword, dsn);
+
 	bp->flags |= BNXT_FLAG_DSN_VALID;
 	return 0;
 }
