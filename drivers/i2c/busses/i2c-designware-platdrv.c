@@ -219,28 +219,6 @@ static void i2c_dw_configure_slave(struct dw_i2c_dev *dev)
 	dev->mode = DW_IC_SLAVE;
 }
 
-static void dw_i2c_set_fifo_size(struct dw_i2c_dev *dev)
-{
-	u32 param, tx_fifo_depth, rx_fifo_depth;
-
-	/*
-	 * Try to detect the FIFO depth if not set by interface driver,
-	 * the depth could be from 2 to 256 from HW spec.
-	 */
-	param = i2c_dw_read_comp_param(dev);
-	tx_fifo_depth = ((param >> 16) & 0xff) + 1;
-	rx_fifo_depth = ((param >> 8)  & 0xff) + 1;
-	if (!dev->tx_fifo_depth) {
-		dev->tx_fifo_depth = tx_fifo_depth;
-		dev->rx_fifo_depth = rx_fifo_depth;
-	} else if (tx_fifo_depth >= 2) {
-		dev->tx_fifo_depth = min_t(u32, dev->tx_fifo_depth,
-				tx_fifo_depth);
-		dev->rx_fifo_depth = min_t(u32, dev->rx_fifo_depth,
-				rx_fifo_depth);
-	}
-}
-
 static void dw_i2c_plat_pm_cleanup(struct dw_i2c_dev *dev)
 {
 	pm_runtime_disable(dev->dev);
@@ -361,8 +339,6 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 			dev->sda_hold_time =
 				div_u64(clk_khz * t->sda_hold_ns + 500000, 1000000);
 	}
-
-	dw_i2c_set_fifo_size(dev);
 
 	adap = &dev->adapter;
 	adap->owner = THIS_MODULE;

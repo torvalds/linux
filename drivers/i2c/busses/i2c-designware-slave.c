@@ -260,6 +260,8 @@ int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 	if (ret)
 		return ret;
 
+	i2c_dw_set_fifo_size(dev);
+
 	ret = dev->init(dev);
 	if (ret)
 		return ret;
