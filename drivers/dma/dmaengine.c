@@ -58,6 +58,65 @@ static DEFINE_IDA(dma_ida);
 static LIST_HEAD(dma_device_list);
 static long dmaengine_ref_count;
 
+/* --- debugfs implementation --- */
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+
+static void dmaengine_dbg_summary_show(struct seq_file *s,
+				       struct dma_device *dma_dev)
+{
+	struct dma_chan *chan;
+
+	list_for_each_entry(chan, &dma_dev->channels, device_node) {
+		if (chan->client_count) {
+			seq_printf(s, " %-13s| %s", dma_chan_name(chan),
+				   chan->dbg_client_name ?: "in-use");
+
+			if (chan->router)
+				seq_printf(s, " (via router: %s)\n",
+					dev_name(chan->router->dev));
+			else
+				seq_puts(s, "\n");
+		}
+	}
+}
+
+static int dmaengine_summary_show(struct seq_file *s, void *data)
+{
+	struct dma_device *dma_dev = NULL;
+
+	mutex_lock(&dma_list_mutex);
+	list_for_each_entry(dma_dev, &dma_device_list, global_node) {
+		seq_printf(s, "dma%d (%s): number of channels: %u\n",
+			   dma_dev->dev_id, dev_name(dma_dev->dev),
+			   dma_dev->chancnt);
+
+		if (dma_dev->dbg_summary_show)
+			dma_dev->dbg_summary_show(s, dma_dev);
+		else
+			dmaengine_dbg_summary_show(s, dma_dev);
+
+		if (!list_is_last(&dma_dev->global_node, &dma_device_list))
+			seq_puts(s, "\n");
+	}
+	mutex_unlock(&dma_list_mutex);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(dmaengine_summary);
+
+static void __init dmaengine_debugfs_init(void)
+{
+	struct dentry *rootdir = debugfs_create_dir("dmaengine", NULL);
+
+	/* /sys/kernel/debug/dmaengine/summary */
+	debugfs_create_file("summary", 0444, rootdir, NULL,
+			    &dmaengine_summary_fops);
+}
+#else
+static inline void dmaengine_debugfs_init(void) { }
+#endif	/* DEBUG_FS */
+
 /* --- sysfs implementation --- */
 
 #define DMA_SLAVE_NAME	"slave"
@@ -760,6 +819,11 @@ struct dma_chan *dma_request_chan(struct device *dev, const char *name)
 		return chan ? chan : ERR_PTR(-EPROBE_DEFER);
 
 found:
+#ifdef CONFIG_DEBUG_FS
+	chan->dbg_client_name = kasprintf(GFP_KERNEL, "%s:%s", dev_name(dev),
+					  name);
+#endif
+
 	chan->name = kasprintf(GFP_KERNEL, "dma:%s", name);
 	if (!chan->name)
 		return chan;
@@ -837,6 +901,11 @@ void dma_release_channel(struct dma_chan *chan)
 		chan->name = NULL;
 		chan->slave = NULL;
 	}
+
+#ifdef CONFIG_DEBUG_FS
+	kfree(chan->dbg_client_name);
+	chan->dbg_client_name = NULL;
+#endif
 	mutex_unlock(&dma_list_mutex);
 }
 EXPORT_SYMBOL_GPL(dma_release_channel);
@@ -1559,6 +1628,11 @@ static int __init dma_bus_init(void)
 
 	if (err)
 		return err;
-	return class_register(&dma_devclass);
+
+	err = class_register(&dma_devclass);
+	if (!err)
+		dmaengine_debugfs_init();
+
+	return err;
 }
 arch_initcall(dma_bus_init);
