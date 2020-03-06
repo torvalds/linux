@@ -116,7 +116,7 @@ enum v4l2_mpeg_stream_vbi_fmt -
     * - ``V4L2_MPEG_STREAM_VBI_FMT_IVTV``
       - VBI in private packets, IVTV format (documented in the kernel
 	sources in the file
-	``Documentation/media/v4l-drivers/cx2341x-uapi.rst``)
+	``Documentation/userspace-api/media/drivers/cx2341x-uapi.rst``)
 
 
 

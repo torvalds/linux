@@ -2,7 +2,7 @@
 
 .. include:: <isonum.txt>
 
-.. _v4l-drivers:
+.. _v4l-drivers_uapi:
 
 ################################################
 Video4Linux (V4L)  driver-specific documentation
@@ -31,10 +31,9 @@ For more details see the file COPYING in the source distribution of Linux.
 	:maxdepth: 5
 	:numbered:
 
-	max2175
-	uvcvideo
-
 	cx2341x-uapi
 	imx-uapi
+	max2175
 	meye-uapi
 	omap3isp-uapi
+	uvcvideo

@@ -15,8 +15,6 @@ Linux Media Subsystem Documentation
    ../userspace-api/media/index
    ../driver-api/media/index
 
-   v4l-drivers/index
-
 .. only:: html and subproject
 
    Indices

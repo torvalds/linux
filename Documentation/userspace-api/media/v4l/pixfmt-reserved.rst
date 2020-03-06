@@ -58,7 +58,7 @@ please make a proposal on the linux-media mailing list.
       - YUV 4:2:0 format used by the IVTV driver.
 
 	The format is documented in the kernel sources in the file
-	``Documentation/media/v4l-drivers/cx2341x-uapi.rst``
+	``Documentation/userspace-api/media/drivers/cx2341x-uapi.rst``
     * .. _V4L2-PIX-FMT-CPIA1:
 
       - ``V4L2_PIX_FMT_CPIA1``

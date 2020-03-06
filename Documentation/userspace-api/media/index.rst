@@ -31,3 +31,5 @@ entitled "GNU Free Documentation License".
     cec/cec-api
     gen-errors
     fdl-appendix
+
+    drivers/index
