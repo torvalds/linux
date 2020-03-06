@@ -99,16 +99,15 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 	while (alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_C0S)
 		msleep(1);
 
-	rtcdev = devm_rtc_device_register(&pdev->dev, "rtc-au1xxx",
-				     &au1xtoy_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtcdev)) {
-		ret = PTR_ERR(rtcdev);
-		goto out_err;
-	}
+	rtcdev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtcdev))
+		return PTR_ERR(rtcdev);
+
+	rtcdev->ops = &au1xtoy_rtc_ops;
 
 	platform_set_drvdata(pdev, rtcdev);
 
-	return 0;
+	return rtc_register_device(rtcdev);
 
 out_err:
 	return ret;
