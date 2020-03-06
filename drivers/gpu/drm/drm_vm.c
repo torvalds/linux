@@ -102,7 +102,7 @@ static pgprot_t drm_dma_prot(uint32_t map_type, struct vm_area_struct *vma)
 	return tmp;
 }
 
-/**
+/*
  * \c fault method for AGP virtual memory.
  *
  * \param vma virtual memory area.
@@ -192,7 +192,7 @@ static vm_fault_t drm_vm_fault(struct vm_fault *vmf)
 }
 #endif
 
-/**
+/*
  * \c nopage method for shared virtual memory.
  *
  * \param vma virtual memory area.
@@ -225,7 +225,7 @@ static vm_fault_t drm_vm_shm_fault(struct vm_fault *vmf)
 	return 0;
 }
 
-/**
+/*
  * \c close method for shared virtual memory.
  *
  * \param vma virtual memory area.
@@ -294,7 +294,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-/**
+/*
  * \c fault method for DMA virtual memory.
  *
  * \param address access address.
@@ -329,7 +329,7 @@ static vm_fault_t drm_vm_dma_fault(struct vm_fault *vmf)
 	return 0;
 }
 
-/**
+/*
  * \c fault method for scatter-gather virtual memory.
  *
  * \param address access address.
@@ -435,7 +435,7 @@ static void drm_vm_close_locked(struct drm_device *dev,
 	}
 }
 
-/**
+/*
  * \c close method for all virtual memory types.
  *
  * \param vma virtual memory area.
@@ -453,7 +453,7 @@ static void drm_vm_close(struct vm_area_struct *vma)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-/**
+/*
  * mmap DMA memory.
  *
  * \param file_priv DRM file private.
@@ -513,7 +513,7 @@ static resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
 #endif
 }
 
-/**
+/*
  * mmap DMA memory.
  *
  * \param file_priv DRM file private.
