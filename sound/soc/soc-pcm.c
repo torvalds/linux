@@ -1202,7 +1202,6 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai;
 	struct snd_soc_dai *codec_dai;
-	bool playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	int i;
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
@@ -1226,11 +1225,9 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	/* apply codec digital mute */
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		int playback_active = codec_dai->stream_active[SNDRV_PCM_STREAM_PLAYBACK];
-		int capture_active  = codec_dai->stream_active[SNDRV_PCM_STREAM_CAPTURE];
+		int active = codec_dai->stream_active[substream->stream];
 
-		if ((playback && playback_active == 1) ||
-		    (!playback && capture_active == 1))
+		if (active == 1)
 			snd_soc_dai_digital_mute(codec_dai, 1,
 						 substream->stream);
 	}
