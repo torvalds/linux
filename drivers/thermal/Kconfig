@@ -265,7 +265,7 @@ config IMX_SC_THERMAL
 
 config IMX8MM_THERMAL
 	tristate "Temperature sensor driver for Freescale i.MX8MM SoC"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on OF
 	help
 	  Support for Thermal Monitoring Unit (TMU) found on Freescale i.MX8MM SoC.
