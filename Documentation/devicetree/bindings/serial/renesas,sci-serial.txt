@@ -128,9 +128,9 @@ Optional properties:
 	  transmission, and one for reception.
   - dma-names: Must contain a list of two DMA names, "tx" and "rx".
   - {cts,dsr,dcd,rng,rts,dtr}-gpios: Specify GPIOs for modem lines, cfr. the
-    generic serial DT bindings in serial.txt.
+    generic serial DT bindings in serial.yaml.
   - uart-has-rtscts: Indicates dedicated lines for RTS/CTS hardware flow
-    control, cfr. the generic serial DT bindings in serial.txt.
+    control, cfr. the generic serial DT bindings in serial.yaml.
 
 Example:
 	aliases {

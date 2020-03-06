@@ -15,7 +15,7 @@ Optional properties:
   the transceiver is actually CTS_B, not RTS_B. CTS_B is always output,
   and RTS_B is input, regardless of dte-mode.
 
-Please check Documentation/devicetree/bindings/serial/serial.txt
+Please check Documentation/devicetree/bindings/serial/serial.yaml
 for the complete list of generic properties.
 
 Note: Each uart controller should have an alias correctly numbered

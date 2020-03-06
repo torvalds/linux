@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/serial/serial.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Serial Interface Generic DT Bindings
+
+maintainers:
+  - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+description:
+  This document lists a set of generic properties for describing UARTs in a
+  device tree.  Whether these properties apply to a particular device depends
+  on the DT bindings for the actual device.
+
+properties:
+  $nodename:
+    pattern: "^serial(@.*)?$"
+
+  cts-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's CTS line.
+
+  dcd-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's DCD line.
+
+  dsr-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's DSR line.
+
+  dtr-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's DTR line.
+
+  rng-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's RNG line.
+
+  rts-gpios:
+    maxItems: 1
+    description:
+      Must contain a GPIO specifier, referring to the GPIO pin to be used as
+      the UART's RTS line.
+
+  uart-has-rtscts:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      The presence of this property indicates that the UART has dedicated lines
+      for RTS/CTS hardware flow control, and that they are available for use
+      (wired and enabled by pinmux configuration).  This depends on both the
+      UART hardware and the board wiring.
+
+if:
+  required:
+    - uart-has-rtscts
+then:
+  properties:
+    cts-gpios: false
+    rts-gpios: false
