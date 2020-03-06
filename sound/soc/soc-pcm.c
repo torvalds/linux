@@ -761,9 +761,6 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	snd_soc_runtime_deactivate(rtd, substream->stream);
 
 	for_each_rtd_cpu_dai(rtd, i, cpu_dai)
-		snd_soc_dai_digital_mute(cpu_dai, 1, substream->stream);
-
-	for_each_rtd_cpu_dai(rtd, i, cpu_dai)
 		snd_soc_dai_shutdown(cpu_dai, substream);
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai)
@@ -1229,6 +1226,14 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 
 		if (active == 1)
 			snd_soc_dai_digital_mute(codec_dai, 1,
+						 substream->stream);
+	}
+
+	for_each_rtd_cpu_dai(rtd, i, cpu_dai) {
+		int active = cpu_dai->stream_active[substream->stream];
+
+		if (active == 1)
+			snd_soc_dai_digital_mute(cpu_dai, 1,
 						 substream->stream);
 	}
 
