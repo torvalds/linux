@@ -344,6 +344,15 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 		goto out_dispose2;
 	}
 
+	rtc->rtc = devm_rtc_allocate_device(&op->dev);
+	if (IS_ERR(rtc->rtc)) {
+		err = PTR_ERR(rtc->rtc);
+		goto out_dispose2;
+	}
+
+	rtc->rtc->ops = &mpc5200_rtc_ops;
+	rtc->rtc->uie_unsupported = 1;
+
 	if (of_device_is_compatible(op->dev.of_node, "fsl,mpc5121-rtc")) {
 		u32 ka;
 		ka = in_be32(&rtc->regs->keep_alive);
@@ -352,19 +361,12 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 				"mpc5121-rtc: Battery or oscillator failure!\n");
 			out_be32(&rtc->regs->keep_alive, ka);
 		}
-
-		rtc->rtc = devm_rtc_device_register(&op->dev, "mpc5121-rtc",
-						&mpc5121_rtc_ops, THIS_MODULE);
-	} else {
-		rtc->rtc = devm_rtc_device_register(&op->dev, "mpc5200-rtc",
-						&mpc5200_rtc_ops, THIS_MODULE);
+		rtc->rtc->ops = &mpc5121_rtc_ops;
 	}
 
-	if (IS_ERR(rtc->rtc)) {
-		err = PTR_ERR(rtc->rtc);
+	err = rtc_register_device(rtc->rtc);
+	if (err)
 		goto out_dispose2;
-	}
-	rtc->rtc->uie_unsupported = 1;
 
 	return 0;
 
