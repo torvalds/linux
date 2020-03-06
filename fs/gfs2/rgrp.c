@@ -662,18 +662,17 @@ void gfs2_rs_deltree(struct gfs2_blkreserv *rs)
 }
 
 /**
- * gfs2_rsqa_delete - delete a multi-block reservation and quota allocation
+ * gfs2_rs_delete - delete a multi-block reservation
  * @ip: The inode for this reservation
  * @wcount: The inode's write count, or NULL
  *
  */
-void gfs2_rsqa_delete(struct gfs2_inode *ip, atomic_t *wcount)
+void gfs2_rs_delete(struct gfs2_inode *ip, atomic_t *wcount)
 {
 	down_write(&ip->i_rw_mutex);
 	if ((wcount == NULL) || (atomic_read(wcount) <= 1))
 		gfs2_rs_deltree(&ip->i_res);
 	up_write(&ip->i_rw_mutex);
-	gfs2_qa_put(ip);
 }
 
 /**

@@ -781,7 +781,8 @@ fail_free_inode:
 		glock_clear_object(ip->i_gl, ip);
 		gfs2_glock_put(ip->i_gl);
 	}
-	gfs2_rsqa_delete(ip, NULL);
+	gfs2_rs_delete(ip, NULL);
+	gfs2_qa_put(ip);
 fail_free_acls:
 	posix_acl_release(default_acl);
 	posix_acl_release(acl);
