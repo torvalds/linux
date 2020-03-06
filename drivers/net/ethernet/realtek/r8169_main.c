@@ -4392,9 +4392,8 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 
 	dirty_tx = tp->dirty_tx;
 	smp_rmb();
-	tx_left = tp->cur_tx - dirty_tx;
 
-	while (tx_left > 0) {
+	for (tx_left = tp->cur_tx - dirty_tx; tx_left > 0; tx_left--) {
 		unsigned int entry = dirty_tx % NUM_TX_DESC;
 		struct ring_info *tx_skb = tp->tx_skb + entry;
 		u32 status;
@@ -4418,7 +4417,6 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 			tx_skb->skb = NULL;
 		}
 		dirty_tx++;
-		tx_left--;
 	}
 
 	if (tp->dirty_tx != dirty_tx) {
