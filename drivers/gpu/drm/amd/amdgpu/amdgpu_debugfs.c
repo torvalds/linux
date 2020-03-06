@@ -1294,6 +1294,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_ib_preempt, NULL,
 DEFINE_SIMPLE_ATTRIBUTE(fops_sclk_set, NULL,
 			amdgpu_debugfs_sclk_set, "%llu\n");
 
+extern void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev);
 int amdgpu_debugfs_init(struct amdgpu_device *adev)
 {
 	int r, i;
@@ -1365,6 +1366,8 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 			DRM_ERROR("Failed to register debugfs file for rings !\n");
 		}
 	}
+
+	amdgpu_ras_debugfs_create_all(adev);
 
 	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_list,
 					ARRAY_SIZE(amdgpu_debugfs_list));

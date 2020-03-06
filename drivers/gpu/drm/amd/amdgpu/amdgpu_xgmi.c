@@ -598,7 +598,6 @@ int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 	};
 	struct ras_fs_if fs_info = {
 		.sysfs_name = "xgmi_wafl_err_count",
-		.debugfs_name = "xgmi_wafl_err_inject",
 	};
 
 	if (!adev->gmc.xgmi.supported ||

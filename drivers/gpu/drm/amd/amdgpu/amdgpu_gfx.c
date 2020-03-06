@@ -573,7 +573,6 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
 	int r;
 	struct ras_fs_if fs_info = {
 		.sysfs_name = "gfx_err_count",
-		.debugfs_name = "gfx_err_inject",
 	};
 	struct ras_ih_if ih_info = {
 		.cb = amdgpu_gfx_process_ras_data_cb,
