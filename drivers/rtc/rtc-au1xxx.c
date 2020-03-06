@@ -34,7 +34,7 @@ static int au1xtoy_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	t = alchemy_rdsys(AU1000_SYS_TOYREAD);
 
-	rtc_time_to_tm(t, tm);
+	rtc_time64_to_tm(t, tm);
 
 	return 0;
 }
@@ -43,7 +43,7 @@ static int au1xtoy_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long t;
 
-	rtc_tm_to_time(tm, &t);
+	t = rtc_tm_to_time64(tm);
 
 	alchemy_wrsys(t, AU1000_SYS_TOYWRITE);
 
