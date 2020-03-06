@@ -80,9 +80,6 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	 */
 	pcibios_claim_one_bus(phb->bus);
 
-	/* Finish EEH setup */
-	eeh_add_device_tree_late(phb->bus);
-
 	/* Add probed PCI devices to the device model */
 	pci_bus_add_devices(phb->bus);
 
