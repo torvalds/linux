@@ -46,7 +46,7 @@ int sys_renameat2(int olddirfd, const char *oldpath,
 
 int touchat(int dfd, const char *path)
 {
-	int fd = openat(dfd, path, O_CREAT);
+	int fd = openat(dfd, path, O_CREAT, 0700);
 	if (fd >= 0)
 		close(fd);
 	return fd;

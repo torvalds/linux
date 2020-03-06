@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/jz4740-cgu.h>
+#include <dt-bindings/clock/ingenic,tcu.h>
 
 / {
 	#address-cells = <1>;
@@ -45,14 +46,6 @@
 		#clock-cells = <1>;
 	};
 
-	watchdog: watchdog@10002000 {
-		compatible = "ingenic,jz4740-watchdog";
-		reg = <0x10002000 0x10>;
-
-		clocks = <&cgu JZ4740_CLK_RTC>;
-		clock-names = "rtc";
-	};
-
 	tcu: timer@10002000 {
 		compatible = "ingenic,jz4740-tcu", "simple-mfd";
 		reg = <0x10002000 0x1000>;
@@ -73,6 +66,14 @@
 
 		interrupt-parent = <&intc>;
 		interrupts = <23 22 21>;
+
+		watchdog: watchdog@0 {
+			compatible = "ingenic,jz4740-watchdog";
+			reg = <0x0 0xc>;
+
+			clocks = <&tcu TCU_CLK_WDT>;
+			clock-names = "wdt";
+		};
 	};
 
 	rtc_dev: rtc@10003000 {
