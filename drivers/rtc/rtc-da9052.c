@@ -303,6 +303,8 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc->rtc);
 
 	rtc->rtc->ops = &da9052_rtc_ops;
+	rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rtc->rtc->range_max = RTC_TIMESTAMP_END_2063;
 
 	ret = rtc_register_device(rtc->rtc);
 	if (ret)
