@@ -75,7 +75,7 @@ struct kvm_task_sleep_node {
 	struct swait_queue_head wq;
 	u32 token;
 	int cpu;
-	bool halted;
+	bool use_halt;
 };
 
 static struct kvm_task_sleep_head {
@@ -98,75 +98,145 @@ static struct kvm_task_sleep_node *_find_apf_task(struct kvm_task_sleep_head *b,
 	return NULL;
 }
 
-/*
- * @interrupt_kernel: Is this called from a routine which interrupts the kernel
- * 		      (other than user space)?
- */
-void kvm_async_pf_task_wait(u32 token, int interrupt_kernel)
+static bool kvm_async_pf_queue_task(u32 token, bool use_halt,
+				    struct kvm_task_sleep_node *n)
 {
 	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
 	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
-	struct kvm_task_sleep_node n, *e;
-	DECLARE_SWAITQUEUE(wait);
-
-	rcu_irq_enter();
+	struct kvm_task_sleep_node *e;
 
 	raw_spin_lock(&b->lock);
 	e = _find_apf_task(b, token);
 	if (e) {
 		/* dummy entry exist -> wake up was delivered ahead of PF */
 		hlist_del(&e->link);
-		kfree(e);
 		raw_spin_unlock(&b->lock);
-
-		rcu_irq_exit();
-		return;
+		kfree(e);
+		return false;
 	}
 
-	n.token = token;
-	n.cpu = smp_processor_id();
-	n.halted = is_idle_task(current) ||
-		   (IS_ENABLED(CONFIG_PREEMPT_COUNT)
-		    ? preempt_count() > 1 || rcu_preempt_depth()
-		    : interrupt_kernel);
-	init_swait_queue_head(&n.wq);
-	hlist_add_head(&n.link, &b->list);
+	n->token = token;
+	n->cpu = smp_processor_id();
+	n->use_halt = use_halt;
+	init_swait_queue_head(&n->wq);
+	hlist_add_head(&n->link, &b->list);
 	raw_spin_unlock(&b->lock);
+	return true;
+}
+
+/*
+ * kvm_async_pf_task_wait_schedule - Wait for pagefault to be handled
+ * @token:	Token to identify the sleep node entry
+ *
+ * Invoked from the async pagefault handling code or from the VM exit page
+ * fault handler. In both cases RCU is watching.
+ */
+void kvm_async_pf_task_wait_schedule(u32 token)
+{
+	struct kvm_task_sleep_node n;
+	DECLARE_SWAITQUEUE(wait);
+
+	lockdep_assert_irqs_disabled();
+
+	if (!kvm_async_pf_queue_task(token, false, &n))
+		return;
 
 	for (;;) {
-		if (!n.halted)
-			prepare_to_swait_exclusive(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_swait_exclusive(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
 		if (hlist_unhashed(&n.link))
 			break;
 
-		rcu_irq_exit();
-
-		if (!n.halted) {
-			local_irq_enable();
-			schedule();
-			local_irq_disable();
-		} else {
-			/*
-			 * We cannot reschedule. So halt.
-			 */
-			native_safe_halt();
-			local_irq_disable();
-		}
-
-		rcu_irq_enter();
+		local_irq_enable();
+		schedule();
+		local_irq_disable();
 	}
-	if (!n.halted)
-		finish_swait(&n.wq, &wait);
-
-	rcu_irq_exit();
-	return;
+	finish_swait(&n.wq, &wait);
 }
-EXPORT_SYMBOL_GPL(kvm_async_pf_task_wait);
+EXPORT_SYMBOL_GPL(kvm_async_pf_task_wait_schedule);
+
+/*
+ * Invoked from the async page fault handler.
+ */
+static void kvm_async_pf_task_wait_halt(u32 token)
+{
+	struct kvm_task_sleep_node n;
+
+	if (!kvm_async_pf_queue_task(token, true, &n))
+		return;
+
+	for (;;) {
+		if (hlist_unhashed(&n.link))
+			break;
+		/*
+		 * No point in doing anything about RCU here. Any RCU read
+		 * side critical section or RCU watching section can be
+		 * interrupted by VMEXITs and the host is free to keep the
+		 * vCPU scheduled out as long as it sees fit. This is not
+		 * any different just because of the halt induced voluntary
+		 * VMEXIT.
+		 *
+		 * Also the async page fault could have interrupted any RCU
+		 * watching context, so invoking rcu_irq_exit()/enter()
+		 * around this is not gaining anything.
+		 */
+		native_safe_halt();
+		local_irq_disable();
+	}
+}
+
+/* Invoked from the async page fault handler */
+static void kvm_async_pf_task_wait(u32 token, bool usermode)
+{
+	bool can_schedule;
+
+	/*
+	 * No need to check whether interrupts were disabled because the
+	 * host will (hopefully) only inject an async page fault into
+	 * interrupt enabled regions.
+	 *
+	 * If CONFIG_PREEMPTION is enabled then check whether the code
+	 * which triggered the page fault is preemptible. This covers user
+	 * mode as well because preempt_count() is obviously 0 there.
+	 *
+	 * The check for rcu_preempt_depth() is also required because
+	 * voluntary scheduling inside a rcu read locked section is not
+	 * allowed.
+	 *
+	 * The idle task is already covered by this because idle always
+	 * has a preempt count > 0.
+	 *
+	 * If CONFIG_PREEMPTION is disabled only allow scheduling when
+	 * coming from user mode as there is no indication whether the
+	 * context which triggered the page fault could schedule or not.
+	 */
+	if (IS_ENABLED(CONFIG_PREEMPTION))
+		can_schedule = preempt_count() + rcu_preempt_depth() == 0;
+	else
+		can_schedule = usermode;
+
+	/*
+	 * If the kernel context is allowed to schedule then RCU is
+	 * watching because no preemptible code in the kernel is inside RCU
+	 * idle state. So it can be treated like user mode. User mode is
+	 * safe because the #PF entry invoked enter_from_user_mode().
+	 *
+	 * For the non schedulable case invoke rcu_irq_enter() for
+	 * now. This will be moved out to the pagefault entry code later
+	 * and only invoked when really needed.
+	 */
+	if (can_schedule) {
+		kvm_async_pf_task_wait_schedule(token);
+	} else {
+		rcu_irq_enter();
+		kvm_async_pf_task_wait_halt(token);
+		rcu_irq_exit();
+	}
+}
 
 static void apf_task_wake_one(struct kvm_task_sleep_node *n)
 {
 	hlist_del_init(&n->link);
-	if (n->halted)
+	if (n->use_halt)
 		smp_send_reschedule(n->cpu);
 	else if (swq_has_sleeper(&n->wq))
 		swake_up_one(&n->wq);
@@ -177,12 +247,13 @@ static void apf_task_wake_all(void)
 	int i;
 
 	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++) {
-		struct hlist_node *p, *next;
 		struct kvm_task_sleep_head *b = &async_pf_sleepers[i];
+		struct kvm_task_sleep_node *n;
+		struct hlist_node *p, *next;
+
 		raw_spin_lock(&b->lock);
 		hlist_for_each_safe(p, next, &b->list) {
-			struct kvm_task_sleep_node *n =
-				hlist_entry(p, typeof(*n), link);
+			n = hlist_entry(p, typeof(*n), link);
 			if (n->cpu == smp_processor_id())
 				apf_task_wake_one(n);
 		}
@@ -223,8 +294,9 @@ again:
 		n->cpu = smp_processor_id();
 		init_swait_queue_head(&n->wq);
 		hlist_add_head(&n->link, &b->list);
-	} else
+	} else {
 		apf_task_wake_one(n);
+	}
 	raw_spin_unlock(&b->lock);
 	return;
 }
@@ -246,23 +318,33 @@ NOKPROBE_SYMBOL(kvm_read_and_reset_pf_reason);
 
 bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 {
-	/*
-	 * If we get a page fault right here, the pf_reason seems likely
-	 * to be clobbered.  Bummer.
-	 */
-	switch (kvm_read_and_reset_pf_reason()) {
+	u32 reason = kvm_read_and_reset_pf_reason();
+
+	switch (reason) {
+	case KVM_PV_REASON_PAGE_NOT_PRESENT:
+	case KVM_PV_REASON_PAGE_READY:
+		break;
 	default:
 		return false;
-	case KVM_PV_REASON_PAGE_NOT_PRESENT:
+	}
+
+	/*
+	 * If the host managed to inject an async #PF into an interrupt
+	 * disabled region, then die hard as this is not going to end well
+	 * and the host side is seriously broken.
+	 */
+	if (unlikely(!(regs->flags & X86_EFLAGS_IF)))
+		panic("Host injected async #PF in interrupt disabled region\n");
+
+	if (reason == KVM_PV_REASON_PAGE_NOT_PRESENT) {
 		/* page is swapped out by the host. */
-		kvm_async_pf_task_wait(token, !user_mode(regs));
-		return true;
-	case KVM_PV_REASON_PAGE_READY:
+		kvm_async_pf_task_wait(token, user_mode(regs));
+	} else {
 		rcu_irq_enter();
 		kvm_async_pf_task_wake(token);
 		rcu_irq_exit();
-		return true;
 	}
+	return true;
 }
 NOKPROBE_SYMBOL(__kvm_handle_async_pf);
 
@@ -326,12 +408,12 @@ static void kvm_guest_cpu_init(void)
 
 		wrmsrl(MSR_KVM_ASYNC_PF_EN, pa);
 		__this_cpu_write(apf_reason.enabled, 1);
-		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
-		       smp_processor_id());
+		pr_info("KVM setup async PF for cpu %d\n", smp_processor_id());
 	}
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI)) {
 		unsigned long pa;
+
 		/* Size alignment is implied but just to make it explicit. */
 		BUILD_BUG_ON(__alignof__(kvm_apic_eoi) < 4);
 		__this_cpu_write(kvm_apic_eoi, 0);
@@ -352,8 +434,7 @@ static void kvm_pv_disable_apf(void)
 	wrmsrl(MSR_KVM_ASYNC_PF_EN, 0);
 	__this_cpu_write(apf_reason.enabled, 0);
 
-	printk(KERN_INFO"Unregister pv shared memory for cpu %d\n",
-	       smp_processor_id());
+	pr_info("Unregister pv shared memory for cpu %d\n", smp_processor_id());
 }
 
 static void kvm_pv_guest_cpu_reboot(void *unused)
