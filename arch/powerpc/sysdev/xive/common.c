@@ -280,7 +280,10 @@ int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 		struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
 		u64 val = xive_esb_read(xd, XIVE_ESB_GET);
 
-		xmon_printf("PQ=%c%c",
+		xmon_printf("flags=%c%c%c PQ=%c%c",
+			    xd->flags & XIVE_IRQ_FLAG_STORE_EOI ? 'S' : ' ',
+			    xd->flags & XIVE_IRQ_FLAG_LSI ? 'L' : ' ',
+			    xd->flags & XIVE_IRQ_FLAG_H_INT_ESB ? 'H' : ' ',
 			    val & XIVE_ESB_VAL_P ? 'P' : '-',
 			    val & XIVE_ESB_VAL_Q ? 'Q' : '-');
 	}
