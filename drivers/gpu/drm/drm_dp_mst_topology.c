@@ -2309,7 +2309,7 @@ drm_dp_mst_handle_link_address_port(struct drm_dp_mst_branch *mstb,
 								port);
 			}
 		} else {
-			port->available_pbn = 0;
+			port->full_pbn = 0;
 		}
 	}
 
@@ -2404,7 +2404,7 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 		if (port->ddps) {
 			dowork = true;
 		} else {
-			port->available_pbn = 0;
+			port->full_pbn = 0;
 		}
 	}
 
@@ -2556,7 +2556,7 @@ static int drm_dp_check_and_send_link_address(struct drm_dp_mst_topology_mgr *mg
 		if (port->input || !port->ddps)
 			continue;
 
-		if (!port->available_pbn) {
+		if (!port->full_pbn) {
 			drm_modeset_lock(&mgr->base.lock, NULL);
 			drm_dp_send_enum_path_resources(mgr, mstb, port);
 			drm_modeset_unlock(&mgr->base.lock);
@@ -3002,8 +3002,7 @@ drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 				      path_res->port_number,
 				      path_res->full_payload_bw_number,
 				      path_res->avail_payload_bw_number);
-			port->available_pbn =
-				path_res->avail_payload_bw_number;
+			port->full_pbn = path_res->full_payload_bw_number;
 			port->fec_capable = path_res->fec_capable;
 		}
 	}
@@ -3598,7 +3597,7 @@ drm_dp_mst_topology_mgr_invalidate_mstb(struct drm_dp_mst_branch *mstb)
 
 	list_for_each_entry(port, &mstb->ports, next) {
 		/* The PBN for each port will also need to be re-probed */
-		port->available_pbn = 0;
+		port->full_pbn = 0;
 
 		if (port->mstb)
 			drm_dp_mst_topology_mgr_invalidate_mstb(port->mstb);
@@ -4842,8 +4841,8 @@ int drm_dp_mst_atomic_check_bw_limit(struct drm_dp_mst_branch *branch,
 			if (drm_dp_mst_atomic_check_bw_limit(port->mstb, mst_state))
 				return -ENOSPC;
 
-		if (port->available_pbn > 0)
-			pbn_limit = port->available_pbn;
+		if (port->full_pbn > 0)
+			pbn_limit = port->full_pbn;
 	}
 	DRM_DEBUG_ATOMIC("[MST BRANCH:%p] branch has %d PBN available\n",
 			 branch, pbn_limit);
