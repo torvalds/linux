@@ -646,6 +646,7 @@ static int ds1374_probe(struct i2c_client *client,
 	}
 
 	ds1374->rtc->ops = &ds1374_rtc_ops;
+	ds1374->rtc->range_max = U32_MAX;
 
 	ret = rtc_register_device(ds1374->rtc);
 	if (ret)
