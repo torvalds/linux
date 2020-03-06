@@ -2092,7 +2092,10 @@ static int drm_dp_check_mstb_guid(struct drm_dp_mst_branch *mstb, u8 *guid)
 		}
 	}
 
-	return ret;
+	if (ret < 16 && ret > 0)
+		return -EPROTO;
+
+	return ret == 16 ? 0 : ret;
 }
 
 static void build_mst_prop_path(const struct drm_dp_mst_branch *mstb,
@@ -2907,8 +2910,14 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 	drm_dp_dump_link_address(reply);
 
 	ret = drm_dp_check_mstb_guid(mstb, reply->guid);
-	if (ret)
+	if (ret) {
+		char buf[64];
+
+		drm_dp_mst_rad_to_str(mstb->rad, mstb->lct, buf, sizeof(buf));
+		DRM_ERROR("GUID check on %s failed: %d\n",
+			  buf, ret);
 		goto out;
+	}
 
 	for (i = 0; i < reply->nports; i++) {
 		port_mask |= BIT(reply->ports[i].port_number);
