@@ -172,8 +172,11 @@ restart:
 	}
 	spin_unlock(&sdp->sd_ail_lock);
 	blk_finish_plug(&plug);
-	if (ret)
+	if (ret) {
+		gfs2_lm(sdp, "gfs2_ail1_start_one (generic_writepages) "
+			"returned: %d\n", ret);
 		gfs2_withdraw(sdp);
+	}
 	trace_gfs2_ail_flush(sdp, wbc, 0);
 }
 
