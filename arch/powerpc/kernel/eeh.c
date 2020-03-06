@@ -1107,52 +1107,6 @@ static int eeh_init(void)
 core_initcall_sync(eeh_init);
 
 /**
- * eeh_add_device_early - Enable EEH for the indicated device node
- * @pdn: PCI device node for which to set up EEH
- *
- * This routine must be used to perform EEH initialization for PCI
- * devices that were added after system boot (e.g. hotplug, dlpar).
- * This routine must be called before any i/o is performed to the
- * adapter (inluding any config-space i/o).
- * Whether this actually enables EEH or not for this device depends
- * on the CEC architecture, type of the device, on earlier boot
- * command-line arguments & etc.
- */
-void eeh_add_device_early(struct pci_dn *pdn)
-{
-	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
-
-	if (!edev)
-		return;
-
-	if (!eeh_has_flag(EEH_PROBE_MODE_DEVTREE))
-		return;
-
-	eeh_ops->probe(pdn, NULL);
-}
-
-/**
- * eeh_add_device_tree_early - Enable EEH for the indicated device
- * @pdn: PCI device node
- *
- * This routine must be used to perform EEH initialization for the
- * indicated PCI device that was added after system boot (e.g.
- * hotplug, dlpar).
- */
-void eeh_add_device_tree_early(struct pci_dn *pdn)
-{
-	struct pci_dn *n;
-
-	if (!pdn)
-		return;
-
-	list_for_each_entry(n, &pdn->child_list, list)
-		eeh_add_device_tree_early(n);
-	eeh_add_device_early(pdn);
-}
-EXPORT_SYMBOL_GPL(eeh_add_device_tree_early);
-
-/**
  * eeh_add_device_late - Perform EEH initialization for the indicated pci device
  * @dev: pci device for which to set up EEH
  *

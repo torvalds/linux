@@ -301,8 +301,6 @@ int __exit eeh_ops_unregister(const char *name);
 int eeh_check_failure(const volatile void __iomem *token);
 int eeh_dev_check_failure(struct eeh_dev *edev);
 void eeh_addr_cache_init(void);
-void eeh_add_device_early(struct pci_dn *);
-void eeh_add_device_tree_early(struct pci_dn *);
 void eeh_add_device_late(struct pci_dev *);
 void eeh_remove_device(struct pci_dev *);
 int eeh_unfreeze_pe(struct eeh_pe *pe);
@@ -358,10 +356,6 @@ static inline int eeh_check_failure(const volatile void __iomem *token)
 
 static inline void eeh_addr_cache_init(void) { }
 
-static inline void eeh_add_device_early(struct pci_dn *pdn) { }
-
-static inline void eeh_add_device_tree_early(struct pci_dn *pdn) { }
-
 static inline void eeh_add_device_late(struct pci_dev *dev) { }
 
 static inline void eeh_remove_device(struct pci_dev *dev) { }
@@ -369,6 +363,14 @@ static inline void eeh_remove_device(struct pci_dev *dev) { }
 #define EEH_POSSIBLE_ERROR(val, type) (0)
 #define EEH_IO_ERROR_VALUE(size) (-1UL)
 #endif /* CONFIG_EEH */
+
+#if defined(CONFIG_PPC_PSERIES) && defined(CONFIG_EEH)
+void pseries_eeh_init_edev(struct pci_dn *pdn);
+void pseries_eeh_init_edev_recursive(struct pci_dn *pdn);
+#else
+static inline void pseries_eeh_add_device_early(struct pci_dn *pdn) { }
+static inline void pseries_eeh_add_device_tree_early(struct pci_dn *pdn) { }
+#endif
 
 #ifdef CONFIG_PPC64
 /*

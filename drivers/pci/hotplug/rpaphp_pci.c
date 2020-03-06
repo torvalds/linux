@@ -96,7 +96,7 @@ int rpaphp_enable_slot(struct slot *slot)
 		}
 
 		if (list_empty(&bus->devices)) {
-			eeh_add_device_tree_early(PCI_DN(slot->dn));
+			pseries_eeh_init_edev_recursive(PCI_DN(slot->dn));
 			pci_hp_add_devices(bus);
 		}
 

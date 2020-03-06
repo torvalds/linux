@@ -40,13 +40,7 @@ static int eeh_event_irq = -EINVAL;
 
 void pnv_pcibios_bus_add_device(struct pci_dev *pdev)
 {
-	struct pci_dn *pdn = pci_get_pdn(pdev);
-
-	if (!pdn || eeh_has_flag(EEH_FORCE_DISABLED))
-		return;
-
 	dev_dbg(&pdev->dev, "EEH: Setting up device\n");
-	eeh_add_device_early(pdn);
 	eeh_add_device_late(pdev);
 }
 
