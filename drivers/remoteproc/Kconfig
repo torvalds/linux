@@ -167,6 +167,12 @@ config QCOM_Q6V5_WCSS
 	  Say y here to support the Qualcomm Peripheral Image Loader for the
 	  Hexagon V5 based WCSS remote processors.
 
+config QCOM_Q6V5_IPA_NOTIFY
+	tristate
+	depends on QCOM_IPA
+	depends on QCOM_Q6V5_MSS
+	default QCOM_IPA
+
 config QCOM_SYSMON
 	tristate "Qualcomm sysmon driver"
 	depends on RPMSG
