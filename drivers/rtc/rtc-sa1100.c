@@ -212,6 +212,7 @@ int sa1100_rtc_init(struct platform_device *pdev, struct sa1100_rtc *info)
 
 	info->rtc->ops = &sa1100_rtc_ops;
 	info->rtc->max_user_freq = RTC_FREQ;
+	info->rtc->range_max = U32_MAX;
 
 	ret = rtc_register_device(info->rtc);
 	if (ret) {
