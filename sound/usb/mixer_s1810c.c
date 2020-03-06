@@ -175,8 +175,8 @@ static int
 snd_sc1810c_get_status_field(struct usb_device *dev,
 			     u32 *field, int field_idx, uint16_t *seqnum)
 {
-	struct s1810c_state_packet pkt_out = { 0 };
-	struct s1810c_state_packet pkt_in = { 0 };
+	struct s1810c_state_packet pkt_out = { { 0 } };
+	struct s1810c_state_packet pkt_in = { { 0 } };
 	int ret = 0;
 
 	pkt_out.fields[SC1810C_STATE_F1_IDX] = SC1810C_SET_STATE_F1;
