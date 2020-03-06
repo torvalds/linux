@@ -188,7 +188,7 @@
 #define CLKID_HDMI_SEL		  203
 #define CLKID_HDMI_DIV		  204
 
-#define NR_CLKS			  206
+#define NR_CLKS			  207
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>
