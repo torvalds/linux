@@ -84,7 +84,7 @@ static void update_shadow_pdps(struct intel_vgpu_workload *workload)
 static void sr_oa_regs(struct intel_vgpu_workload *workload,
 		u32 *reg_state, bool save)
 {
-	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
+	struct drm_i915_private *dev_priv = workload->vgpu->gvt->gt->i915;
 	u32 ctx_oactxctrl = dev_priv->perf.ctx_oactxctrl_offset;
 	u32 ctx_flexeu0 = dev_priv->perf.ctx_flexeu0_offset;
 	int i = 0;
@@ -181,7 +181,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	context_page_num = workload->engine->context_size;
 	context_page_num = context_page_num >> PAGE_SHIFT;
 
-	if (IS_BROADWELL(gvt->dev_priv) && workload->engine->id == RCS0)
+	if (IS_BROADWELL(gvt->gt->i915) && workload->engine->id == RCS0)
 		context_page_num = 19;
 
 	i = 2;
@@ -868,7 +868,7 @@ void intel_vgpu_clean_workloads(struct intel_vgpu *vgpu,
 				intel_engine_mask_t engine_mask)
 {
 	struct intel_vgpu_submission *s = &vgpu->submission;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 	struct intel_engine_cs *engine;
 	struct intel_vgpu_workload *pos, *n;
 	intel_engine_mask_t tmp;
@@ -1065,7 +1065,7 @@ void intel_gvt_clean_workload_scheduler(struct intel_gvt *gvt)
 
 	gvt_dbg_core("clean workload scheduler\n");
 
-	for_each_engine(engine, gvt->dev_priv, i) {
+	for_each_engine(engine, gvt->gt, i) {
 		atomic_notifier_chain_unregister(
 					&engine->context_status_notifier,
 					&gvt->shadow_ctx_notifier_block[i]);
@@ -1084,7 +1084,7 @@ int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt)
 
 	init_waitqueue_head(&scheduler->workload_complete_wq);
 
-	for_each_engine(engine, gvt->dev_priv, i) {
+	for_each_engine(engine, gvt->gt, i) {
 		init_waitqueue_head(&scheduler->waitq[i]);
 
 		scheduler->thread[i] = kthread_run(workload_thread, engine,
@@ -1142,7 +1142,7 @@ void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
 	intel_vgpu_select_submission_ops(vgpu, ALL_ENGINES, 0);
 
 	i915_context_ppgtt_root_restore(s, i915_vm_to_ppgtt(s->shadow[0]->vm));
-	for_each_engine(engine, vgpu->gvt->dev_priv, id)
+	for_each_engine(engine, vgpu->gvt->gt, id)
 		intel_context_unpin(s->shadow[id]);
 
 	kmem_cache_destroy(s->workloads);
@@ -1199,7 +1199,7 @@ i915_context_ppgtt_root_save(struct intel_vgpu_submission *s,
  */
 int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 {
-	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct intel_engine_cs *engine;
 	struct i915_ppgtt *ppgtt;
@@ -1212,7 +1212,7 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 
 	i915_context_ppgtt_root_save(s, ppgtt);
 
-	for_each_engine(engine, &i915->gt, i) {
+	for_each_engine(engine, vgpu->gvt->gt, i) {
 		struct intel_context *ce;
 
 		INIT_LIST_HEAD(&s->workload_q_head[i]);
@@ -1264,7 +1264,7 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 
 out_shadow_ctx:
 	i915_context_ppgtt_root_restore(s, ppgtt);
-	for_each_engine(engine, &i915->gt, i) {
+	for_each_engine(engine, vgpu->gvt->gt, i) {
 		if (IS_ERR(s->shadow[i]))
 			break;
 
@@ -1291,7 +1291,7 @@ int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
 				     intel_engine_mask_t engine_mask,
 				     unsigned int interface)
 {
-	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	const struct intel_vgpu_submission_ops *ops[] = {
 		[INTEL_VGPU_EXECLIST_SUBMISSION] =

@@ -157,12 +157,13 @@ static u32 gen9_mocs_mmio_offset_list[] = {
 	[VECS0] = 0xcb00,
 };
 
-static void load_render_mocs(struct drm_i915_private *dev_priv)
+static void load_render_mocs(const struct intel_engine_cs *engine)
 {
-	struct intel_gvt *gvt = dev_priv->gvt;
-	i915_reg_t offset;
+	struct intel_gvt *gvt = engine->i915->gvt;
+	struct intel_uncore *uncore = engine->uncore;
 	u32 cnt = gvt->engine_mmio_list.mocs_mmio_offset_list_cnt;
 	u32 *regs = gvt->engine_mmio_list.mocs_mmio_offset_list;
+	i915_reg_t offset;
 	int ring_id, i;
 
 	/* Platform doesn't have mocs mmios. */
@@ -170,12 +171,13 @@ static void load_render_mocs(struct drm_i915_private *dev_priv)
 		return;
 
 	for (ring_id = 0; ring_id < cnt; ring_id++) {
-		if (!HAS_ENGINE(dev_priv, ring_id))
+		if (!HAS_ENGINE(engine->i915, ring_id))
 			continue;
+
 		offset.reg = regs[ring_id];
 		for (i = 0; i < GEN9_MOCS_SIZE; i++) {
 			gen9_render_mocs.control_table[ring_id][i] =
-				I915_READ_FW(offset);
+				intel_uncore_read_fw(uncore, offset);
 			offset.reg += 4;
 		}
 	}
@@ -183,7 +185,7 @@ static void load_render_mocs(struct drm_i915_private *dev_priv)
 	offset.reg = 0xb020;
 	for (i = 0; i < GEN9_MOCS_SIZE / 2; i++) {
 		gen9_render_mocs.l3cc_table[i] =
-			I915_READ_FW(offset);
+			intel_uncore_read_fw(uncore, offset);
 		offset.reg += 4;
 	}
 	gen9_render_mocs.initialized = true;
@@ -410,7 +412,7 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 		return;
 
 	if (!pre && !gen9_render_mocs.initialized)
-		load_render_mocs(engine->i915);
+		load_render_mocs(engine);
 
 	offset.reg = regs[engine->id];
 	for (i = 0; i < GEN9_MOCS_SIZE; i++) {
@@ -577,7 +579,7 @@ void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt)
 {
 	struct engine_mmio *mmio;
 
-	if (INTEL_GEN(gvt->dev_priv) >= 9) {
+	if (INTEL_GEN(gvt->gt->i915) >= 9) {
 		gvt->engine_mmio_list.mmio = gen9_engine_mmio_list;
 		gvt->engine_mmio_list.tlb_mmio_offset_list = gen8_tlb_mmio_offset_list;
 		gvt->engine_mmio_list.tlb_mmio_offset_list_cnt = ARRAY_SIZE(gen8_tlb_mmio_offset_list);

@@ -37,7 +37,7 @@
 
 void populate_pvinfo_page(struct intel_vgpu *vgpu)
 {
-	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	/* setup the ballooning information */
 	vgpu_vreg64_t(vgpu, vgtif_reg(magic)) = VGT_MAGIC;
 	vgpu_vreg_t(vgpu, vgtif_reg(version_major)) = 1;
@@ -149,12 +149,12 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 		gvt->types[i].avail_instance = min(low_avail / vgpu_types[i].low_mm,
 						   high_avail / vgpu_types[i].high_mm);
 
-		if (IS_GEN(gvt->dev_priv, 8))
+		if (IS_GEN(gvt->gt->i915, 8))
 			sprintf(gvt->types[i].name, "GVTg_V4_%s",
-						vgpu_types[i].name);
-		else if (IS_GEN(gvt->dev_priv, 9))
+				vgpu_types[i].name);
+		else if (IS_GEN(gvt->gt->i915, 9))
 			sprintf(gvt->types[i].name, "GVTg_V5_%s",
-						vgpu_types[i].name);
+				vgpu_types[i].name);
 
 		gvt_dbg_core("type[%d]: %s avail %u low %u high %u fence %u weight %u res %s\n",
 			     i, gvt->types[i].name,
@@ -271,8 +271,8 @@ void intel_gvt_release_vgpu(struct intel_vgpu *vgpu)
  */
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 {
-	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_gvt *gvt = vgpu->gvt;
+	struct drm_i915_private *i915 = gvt->gt->i915;
 
 	mutex_lock(&vgpu->vgpu_lock);
 
