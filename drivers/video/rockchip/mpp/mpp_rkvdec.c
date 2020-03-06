@@ -1236,11 +1236,10 @@ static int rkvdec_devfreq_init(struct mpp_dev *mpp)
 
 	dec->parent_devfreq = devfreq_get_devfreq_by_phandle(mpp->dev, 0);
 	if (IS_ERR_OR_NULL(dec->parent_devfreq)) {
-		ret = PTR_ERR(dec->parent_devfreq);
-		if (ret == -EPROBE_DEFER) {
+		if (PTR_ERR(dec->parent_devfreq) == -EPROBE_DEFER) {
 			dev_warn(mpp->dev, "parent devfreq is not ready, retry\n");
 
-			return ret;
+			return -EPROBE_DEFER;
 		}
 	} else {
 		dec->devfreq_nb.notifier_call = devfreq_notifier_call;
@@ -1252,11 +1251,10 @@ static int rkvdec_devfreq_init(struct mpp_dev *mpp)
 
 	dec->vdd = devm_regulator_get_optional(mpp->dev, "vcodec");
 	if (IS_ERR_OR_NULL(dec->vdd)) {
-		ret = PTR_ERR(dec->vdd);
-		if (ret == -EPROBE_DEFER) {
+		if (PTR_ERR(dec->vdd) == -EPROBE_DEFER) {
 			dev_warn(mpp->dev, "vcodec regulator not ready, retry\n");
 
-			return ret;
+			return -EPROBE_DEFER;
 		}
 		dev_warn(mpp->dev, "no regulator for vcodec\n");
 
