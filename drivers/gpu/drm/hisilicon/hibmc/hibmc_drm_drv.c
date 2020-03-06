@@ -94,7 +94,7 @@ static int hibmc_kms_init(struct hibmc_drm_private *priv)
 	priv->dev->mode_config.max_height = 1200;
 
 	priv->dev->mode_config.fb_base = priv->fb_base;
-	priv->dev->mode_config.preferred_depth = 24;
+	priv->dev->mode_config.preferred_depth = 32;
 	priv->dev->mode_config.prefer_shadow = 1;
 
 	priv->dev->mode_config.funcs = (void *)&hibmc_mode_funcs;
@@ -307,7 +307,7 @@ static int hibmc_load(struct drm_device *dev)
 	/* reset all the states of crtc/plane/encoder/connector */
 	drm_mode_config_reset(dev);
 
-	ret = drm_fbdev_generic_setup(dev, 16);
+	ret = drm_fbdev_generic_setup(dev, dev->mode_config.preferred_depth);
 	if (ret) {
 		DRM_ERROR("failed to initialize fbdev: %d\n", ret);
 		goto err;
