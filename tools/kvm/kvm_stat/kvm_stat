@@ -1183,7 +1183,7 @@ class Tui(object):
 
         if not self._is_running_guest(self.stats.pid_filter):
             if self._gname:
-                try: # ...to identify the guest by name in case it's back
+                try:  # ...to identify the guest by name in case it's back
                     pids = self.get_pid_from_gname(self._gname)
                     if len(pids) == 1:
                         self._refresh_header(pids[0])
@@ -1336,8 +1336,8 @@ class Tui(object):
         msg = ''
         while True:
             self.screen.erase()
-            self.screen.addstr(0, 0, 'Set update interval (defaults to %.1fs).' %
-                               DELAY_DEFAULT, curses.A_BOLD)
+            self.screen.addstr(0, 0, 'Set update interval (defaults to %.1fs).'
+                               % DELAY_DEFAULT, curses.A_BOLD)
             self.screen.addstr(4, 0, msg)
             self.screen.addstr(2, 0, 'Change delay from %.1fs to ' %
                                self._delay_regular)
@@ -1545,7 +1545,7 @@ Interactive Commands:
    p     filter by PID
    q     quit
    r     reset stats
-   s     set update interval
+   s     set update interval (value range: 0.1-25.5 secs)
    x     toggle reporting of stats for individual child trace events
 Press any other key to refresh statistics immediately.
 """ % (PATH_DEBUGFS_KVM, PATH_DEBUGFS_TRACING)
@@ -1710,6 +1710,7 @@ def main():
             tui.show_stats()
     else:
         batch(stats)
+
 
 if __name__ == "__main__":
     main()
