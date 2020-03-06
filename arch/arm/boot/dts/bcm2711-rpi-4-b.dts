@@ -66,7 +66,7 @@
 				  "GLOBAL_RESET",
 				  "VDD_SD_IO_SEL",
 				  "CAM_GPIO",
-				  "",
+				  "SD_PWR_ON",
 				  "";
 		status = "okay";
 	};
