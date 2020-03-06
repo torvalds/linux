@@ -13,8 +13,6 @@ src := $(obj)
 PHONY := __dtbs_install
 __dtbs_install:
 
-export dtbinst_root ?= $(obj)
-
 include include/config/auto.conf
 include scripts/Kbuild.include
 include $(src)/Makefile
@@ -26,13 +24,11 @@ dtbinst-dirs	:= $(subdir-y) $(subdir-m)
 quiet_cmd_dtb_install =	INSTALL $<
       cmd_dtb_install =	mkdir -p $(2); cp $< $(2)
 
-install-dir = $(patsubst $(dtbinst_root)%,$(INSTALL_DTBS_PATH)%,$(obj))
-
 $(dtbinst-files): %.dtb: $(obj)/%.dtb
-	$(call cmd,dtb_install,$(install-dir))
+	$(call cmd,dtb_install,$(dst))
 
 $(dtbinst-dirs):
-	$(Q)$(MAKE) $(dtbinst)=$(obj)/$@
+	$(Q)$(MAKE) $(dtbinst)=$(obj)/$@ dst=$(dst)/$@
 
 PHONY += $(dtbinst-files) $(dtbinst-dirs)
 __dtbs_install: $(dtbinst-files) $(dtbinst-dirs)
