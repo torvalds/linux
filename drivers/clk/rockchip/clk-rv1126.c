@@ -74,10 +74,10 @@ static struct rockchip_pll_rate_table rv1126_pll_rates[] = {
 	{ /* sentinel */ },
 };
 
-#define RV1126_DIV_ACLK_CORE_MASK	0x7
-#define RV1126_DIV_ACLK_CORE_SHIFT	0
-#define RV1126_DIV_PCLK_DBG_MASK	0xf
-#define RV1126_DIV_PCLK_DBG_SHIFT	4
+#define RV1126_DIV_ACLK_CORE_MASK	0xf
+#define RV1126_DIV_ACLK_CORE_SHIFT	4
+#define RV1126_DIV_PCLK_DBG_MASK	0x7
+#define RV1126_DIV_PCLK_DBG_SHIFT	0
 
 #define RV1126_CLKSEL1(_aclk_core, _pclk_dbg)				\
 {									\
