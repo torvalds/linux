@@ -91,7 +91,7 @@ static int irq_sw_resend(struct irq_desc *desc)
  *
  * Is called with interrupts disabled and desc->lock held.
  */
-int check_irq_resend(struct irq_desc *desc)
+int check_irq_resend(struct irq_desc *desc, bool inject)
 {
 	int err = 0;
 
@@ -108,7 +108,7 @@ int check_irq_resend(struct irq_desc *desc)
 	if (desc->istate & IRQS_REPLAY)
 		return -EBUSY;
 
-	if (!(desc->istate & IRQS_PENDING))
+	if (!(desc->istate & IRQS_PENDING) && !inject)
 		return 0;
 
 	desc->istate &= ~IRQS_PENDING;
@@ -122,3 +122,52 @@ int check_irq_resend(struct irq_desc *desc)
 		desc->istate |= IRQS_REPLAY;
 	return err;
 }
+
+#ifdef CONFIG_GENERIC_IRQ_INJECTION
+/**
+ * irq_inject_interrupt - Inject an interrupt for testing/error injection
+ * @irq:	The interrupt number
+ *
+ * This function must only be used for debug and testing purposes!
+ *
+ * Especially on x86 this can cause a premature completion of an interrupt
+ * affinity change causing the interrupt line to become stale. Very
+ * unlikely, but possible.
+ *
+ * The injection can fail for various reasons:
+ * - Interrupt is not activated
+ * - Interrupt is NMI type or currently replaying
+ * - Interrupt is level type
+ * - Interrupt does not support hardware retrigger and software resend is
+ *   either not enabled or not possible for the interrupt.
+ */
+int irq_inject_interrupt(unsigned int irq)
+{
+	struct irq_desc *desc;
+	unsigned long flags;
+	int err;
+
+	/* Try the state injection hardware interface first */
+	if (!irq_set_irqchip_state(irq, IRQCHIP_STATE_PENDING, true))
+		return 0;
+
+	/* That failed, try via the resend mechanism */
+	desc = irq_get_desc_buslock(irq, &flags, 0);
+	if (!desc)
+		return -EINVAL;
+
+	/*
+	 * Only try to inject when the interrupt is:
+	 *  - not NMI type
+	 *  - activated
+	 */
+	if ((desc->istate & IRQS_NMI) || !irqd_is_activated(&desc->irq_data))
+		err = -EINVAL;
+	else
+		err = check_irq_resend(desc, true);
+
+	irq_put_desc_busunlock(desc, flags);
+	return err;
+}
+EXPORT_SYMBOL_GPL(irq_inject_interrupt);
+#endif
