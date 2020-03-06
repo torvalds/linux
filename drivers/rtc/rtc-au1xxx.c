@@ -100,6 +100,7 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtcdev);
 
 	rtcdev->ops = &au1xtoy_rtc_ops;
+	rtcdev->range_max = U32_MAX;
 
 	platform_set_drvdata(pdev, rtcdev);
 
