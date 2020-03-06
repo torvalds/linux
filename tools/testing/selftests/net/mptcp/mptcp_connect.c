@@ -34,8 +34,8 @@ extern int optind;
 #define TCP_ULP 31
 #endif
 
+static int  poll_timeout = 10 * 1000;
 static bool listen_mode;
-static int  poll_timeout;
 
 enum cfg_mode {
 	CFG_MODE_POLL,
@@ -50,11 +50,20 @@ static int cfg_sock_proto	= IPPROTO_MPTCP;
 static bool tcpulp_audit;
 static int pf = AF_INET;
 static int cfg_sndbuf;
+static int cfg_rcvbuf;
 
 static void die_usage(void)
 {
-	fprintf(stderr, "Usage: mptcp_connect [-6] [-u] [-s MPTCP|TCP] [-p port] -m mode]"
-		"[ -l ] [ -t timeout ] connect_address\n");
+	fprintf(stderr, "Usage: mptcp_connect [-6] [-u] [-s MPTCP|TCP] [-p port] [-m mode]"
+		"[-l] connect_address\n");
+	fprintf(stderr, "\t-6 use ipv6\n");
+	fprintf(stderr, "\t-t num -- set poll timeout to num\n");
+	fprintf(stderr, "\t-S num -- set SO_SNDBUF to num\n");
+	fprintf(stderr, "\t-R num -- set SO_RCVBUF to num\n");
+	fprintf(stderr, "\t-p num -- use port num\n");
+	fprintf(stderr, "\t-m [MPTCP|TCP] -- use tcp or mptcp sockets\n");
+	fprintf(stderr, "\t-s [mmap|poll] -- use poll (default) or mmap\n");
+	fprintf(stderr, "\t-u -- check mptcp ulp\n");
 	exit(1);
 }
 
@@ -93,6 +102,17 @@ static void xgetaddrinfo(const char *node, const char *service,
 
 		fprintf(stderr, "Fatal: getaddrinfo(%s:%s): %s\n",
 			node ? node : "", service ? service : "", errstr);
+		exit(1);
+	}
+}
+
+static void set_rcvbuf(int fd, unsigned int size)
+{
+	int err;
+
+	err = setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+	if (err) {
+		perror("set SO_RCVBUF");
 		exit(1);
 	}
 }
@@ -704,6 +724,8 @@ int main_loop(void)
 
 	check_getpeername_connect(fd);
 
+	if (cfg_rcvbuf)
+		set_rcvbuf(fd, cfg_rcvbuf);
 	if (cfg_sndbuf)
 		set_sndbuf(fd, cfg_sndbuf);
 
@@ -745,7 +767,7 @@ int parse_mode(const char *mode)
 	return 0;
 }
 
-int parse_sndbuf(const char *size)
+static int parse_int(const char *size)
 {
 	unsigned long s;
 
@@ -765,16 +787,14 @@ int parse_sndbuf(const char *size)
 		die_usage();
 	}
 
-	cfg_sndbuf = s;
-
-	return 0;
+	return (int)s;
 }
 
 static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6lp:s:hut:m:b:")) != -1) {
+	while ((c = getopt(argc, argv, "6lp:s:hut:m:S:R:")) != -1) {
 		switch (c) {
 		case 'l':
 			listen_mode = true;
@@ -802,8 +822,11 @@ static void parse_opts(int argc, char **argv)
 		case 'm':
 			cfg_mode = parse_mode(optarg);
 			break;
-		case 'b':
-			cfg_sndbuf = parse_sndbuf(optarg);
+		case 'S':
+			cfg_sndbuf = parse_int(optarg);
+			break;
+		case 'R':
+			cfg_rcvbuf = parse_int(optarg);
 			break;
 		}
 	}
@@ -831,6 +854,8 @@ int main(int argc, char *argv[])
 		if (fd < 0)
 			return 1;
 
+		if (cfg_rcvbuf)
+			set_rcvbuf(fd, cfg_rcvbuf);
 		if (cfg_sndbuf)
 			set_sndbuf(fd, cfg_sndbuf);
 
