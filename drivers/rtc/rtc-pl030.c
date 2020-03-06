@@ -116,6 +116,7 @@ static int pl030_probe(struct amba_device *dev, const struct amba_id *id)
 	}
 
 	rtc->rtc->ops = &pl030_ops;
+	rtc->rtc->range_max = U32_MAX;
 	rtc->base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!rtc->base) {
 		ret = -ENOMEM;
