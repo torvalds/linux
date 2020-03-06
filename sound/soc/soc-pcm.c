@@ -781,9 +781,6 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	snd_soc_runtime_deactivate(rtd, substream->stream);
 
 	for_each_rtd_cpu_dai(rtd, i, cpu_dai)
-		snd_soc_dai_digital_mute(cpu_dai, 1, substream->stream);
-
-	for_each_rtd_cpu_dai(rtd, i, cpu_dai)
 		snd_soc_dai_shutdown(cpu_dai, substream);
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai)
@@ -1222,7 +1219,6 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai;
 	struct snd_soc_dai *codec_dai;
-	bool playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	int i;
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
@@ -1246,12 +1242,18 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	/* apply codec digital mute */
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		int playback_active = codec_dai->stream_active[SNDRV_PCM_STREAM_PLAYBACK];
-		int capture_active  = codec_dai->stream_active[SNDRV_PCM_STREAM_CAPTURE];
+		int active = codec_dai->stream_active[substream->stream];
 
-		if ((playback && playback_active == 1) ||
-		    (!playback && capture_active == 1))
+		if (active == 1)
 			snd_soc_dai_digital_mute(codec_dai, 1,
+						 substream->stream);
+	}
+
+	for_each_rtd_cpu_dai(rtd, i, cpu_dai) {
+		int active = cpu_dai->stream_active[substream->stream];
+
+		if (active == 1)
+			snd_soc_dai_digital_mute(cpu_dai, 1,
 						 substream->stream);
 	}
 
@@ -2042,7 +2044,6 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai;
-	struct snd_soc_dai_driver *cpu_dai_drv;
 	int i;
 
 	for_each_rtd_cpu_dai(rtd, i, cpu_dai) {
@@ -2053,11 +2054,9 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 		if (!snd_soc_dai_stream_valid(cpu_dai, substream->stream))
 			continue;
 
-		cpu_dai_drv = cpu_dai->driver;
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			dpcm_init_runtime_hw(runtime, &cpu_dai_drv->playback);
-		else
-			dpcm_init_runtime_hw(runtime, &cpu_dai_drv->capture);
+		dpcm_init_runtime_hw(runtime,
+			snd_soc_dai_get_pcm_stream(cpu_dai,
+						   substream->stream));
 	}
 
 	dpcm_runtime_merge_format(substream, &runtime->hw.formats);
@@ -2185,17 +2184,13 @@ static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 	snd_pcm_limit_hw_rates(runtime);
 
 	ret = dpcm_apply_symmetry(fe_substream, stream);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(fe->dev, "ASoC: failed to apply dpcm symmetry %d\n",
 			ret);
-		goto unwind;
-	}
-
-	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
-	return 0;
 
 unwind:
-	dpcm_be_dai_startup_unwind(fe, stream);
+	if (ret < 0)
+		dpcm_be_dai_startup_unwind(fe, stream);
 be_err:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	return ret;
@@ -2998,10 +2993,38 @@ out:
 	return ret;
 }
 
-static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
+static void dpcm_fe_dai_cleanup(struct snd_pcm_substream *fe_substream)
 {
 	struct snd_soc_pcm_runtime *fe = fe_substream->private_data;
 	struct snd_soc_dpcm *dpcm;
+	int stream = fe_substream->stream;
+
+	/* mark FE's links ready to prune */
+	for_each_dpcm_be(fe, stream, dpcm)
+		dpcm->state = SND_SOC_DPCM_LINK_STATE_FREE;
+
+	dpcm_be_disconnect(fe, stream);
+
+	fe->dpcm[stream].runtime = NULL;
+}
+
+static int dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
+{
+	struct snd_soc_pcm_runtime *fe = fe_substream->private_data;
+	int ret;
+
+	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
+	ret = dpcm_fe_dai_shutdown(fe_substream);
+
+	dpcm_fe_dai_cleanup(fe_substream);
+
+	mutex_unlock(&fe->card->mutex);
+	return ret;
+}
+
+static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
+{
+	struct snd_soc_pcm_runtime *fe = fe_substream->private_data;
 	struct snd_soc_dapm_widget_list *list;
 	int ret;
 	int stream = fe_substream->stream;
@@ -3021,38 +3044,12 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 	dpcm_process_paths(fe, stream, &list, 1);
 
 	ret = dpcm_fe_dai_startup(fe_substream);
-	if (ret < 0) {
-		/* clean up all links */
-		for_each_dpcm_be(fe, stream, dpcm)
-			dpcm->state = SND_SOC_DPCM_LINK_STATE_FREE;
-
-		dpcm_be_disconnect(fe, stream);
-		fe->dpcm[stream].runtime = NULL;
-	}
+	if (ret < 0)
+		dpcm_fe_dai_cleanup(fe_substream);
 
 	dpcm_clear_pending_state(fe, stream);
 	dpcm_path_put(&list);
 open_end:
-	mutex_unlock(&fe->card->mutex);
-	return ret;
-}
-
-static int dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
-{
-	struct snd_soc_pcm_runtime *fe = fe_substream->private_data;
-	struct snd_soc_dpcm *dpcm;
-	int stream = fe_substream->stream, ret;
-
-	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
-	ret = dpcm_fe_dai_shutdown(fe_substream);
-
-	/* mark FE's links ready to prune */
-	for_each_dpcm_be(fe, stream, dpcm)
-		dpcm->state = SND_SOC_DPCM_LINK_STATE_FREE;
-
-	dpcm_be_disconnect(fe, stream);
-
-	fe->dpcm[stream].runtime = NULL;
 	mutex_unlock(&fe->card->mutex);
 	return ret;
 }
