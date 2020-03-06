@@ -320,10 +320,10 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 		return PTR_ERR(pctx);
 	}
 
-	GEM_BUG_ON(range_overflows_t(u64,
-				     i915->dsm.start,
-				     pctx->stolen->start,
-				     U32_MAX));
+	GEM_BUG_ON(range_overflows_end_t(u64,
+					 i915->dsm.start,
+					 pctx->stolen->start,
+					 U32_MAX));
 	pctx_paddr = i915->dsm.start + pctx->stolen->start;
 	intel_uncore_write(uncore, VLV_PCBR, pctx_paddr);
 
