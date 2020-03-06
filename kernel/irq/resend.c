@@ -72,8 +72,9 @@ void check_irq_resend(struct irq_desc *desc)
 		desc->istate &= ~IRQS_PENDING;
 		desc->istate |= IRQS_REPLAY;
 
-		if (!desc->irq_data.chip->irq_retrigger ||
-		    !desc->irq_data.chip->irq_retrigger(&desc->irq_data)) {
+		if ((!desc->irq_data.chip->irq_retrigger ||
+		    !desc->irq_data.chip->irq_retrigger(&desc->irq_data)) &&
+		    !handle_enforce_irqctx(&desc->irq_data)) {
 #ifdef CONFIG_HARDIRQS_SW_RESEND
 			unsigned int irq = irq_desc_get_irq(desc);
 
