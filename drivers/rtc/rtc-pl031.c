@@ -80,6 +80,8 @@ struct pl031_vendor_data {
 	bool clockwatch;
 	bool st_weekday;
 	unsigned long irqflags;
+	time64_t range_min;
+	timeu64_t range_max;
 };
 
 struct pl031_local {
@@ -375,6 +377,8 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 		return PTR_ERR(ldata->rtc);
 
 	ldata->rtc->ops = ops;
+	ldata->rtc->range_min = vendor->range_min;
+	ldata->rtc->range_max = vendor->range_max;
 
 	ret = rtc_register_device(ldata->rtc);
 	if (ret)
@@ -405,6 +409,7 @@ static struct pl031_vendor_data arm_pl031 = {
 		.set_alarm = pl031_set_alarm,
 		.alarm_irq_enable = pl031_alarm_irq_enable,
 	},
+	.range_max = U32_MAX,
 };
 
 /* The First ST derivative */
@@ -418,6 +423,7 @@ static struct pl031_vendor_data stv1_pl031 = {
 	},
 	.clockwatch = true,
 	.st_weekday = true,
+	.range_max = U32_MAX,
 };
 
 /* And the second ST derivative */
@@ -438,6 +444,8 @@ static struct pl031_vendor_data stv2_pl031 = {
 	 * remove IRQF_COND_SUSPEND
 	 */
 	.irqflags = IRQF_SHARED | IRQF_COND_SUSPEND,
+	.range_min = RTC_TIMESTAMP_BEGIN_0000,
+	.range_max = RTC_TIMESTAMP_END_9999,
 };
 
 static const struct amba_id pl031_ids[] = {
