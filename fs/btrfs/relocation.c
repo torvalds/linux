@@ -122,6 +122,12 @@ struct backref_node {
 	 * backref node.
 	 */
 	unsigned int detached:1;
+
+	/*
+	 * For generic purpose backref cache, where we only care if it's a reloc
+	 * root, doesn't care the source subvolid.
+	 */
+	unsigned int is_reloc_root:1;
 };
 
 /*
@@ -166,6 +172,14 @@ struct backref_cache {
 	struct list_head useless_node;
 
 	struct btrfs_fs_info *fs_info;
+
+	/*
+	 * Whether this cache is for relocation
+	 *
+	 * Reloction backref cache require more info for reloc root compared
+	 * to generic backref cache.
+	 */
+	unsigned int is_reloc;
 };
 
 /*
@@ -269,7 +283,7 @@ static void mapping_tree_init(struct mapping_tree *tree)
 }
 
 static void backref_cache_init(struct btrfs_fs_info *fs_info,
-			       struct backref_cache *cache)
+			       struct backref_cache *cache, int is_reloc)
 {
 	int i;
 	cache->rb_root = RB_ROOT;
@@ -281,6 +295,7 @@ static void backref_cache_init(struct btrfs_fs_info *fs_info,
 	INIT_LIST_HEAD(&cache->pending_edge);
 	INIT_LIST_HEAD(&cache->useless_node);
 	cache->fs_info = fs_info;
+	cache->is_reloc = is_reloc;
 }
 
 static void backref_cache_cleanup(struct backref_cache *cache)
@@ -653,13 +668,14 @@ static int should_ignore_root(struct btrfs_root *root)
 /*
  * find reloc tree by address of tree root
  */
-static struct btrfs_root *find_reloc_root(struct reloc_control *rc,
-					  u64 bytenr)
+struct btrfs_root *find_reloc_root(struct btrfs_fs_info *fs_info, u64 bytenr)
 {
+	struct reloc_control *rc = fs_info->reloc_ctl;
 	struct rb_node *rb_node;
 	struct mapping_node *node;
 	struct btrfs_root *root = NULL;
 
+	ASSERT(rc);
 	spin_lock(&rc->reloc_root_tree.lock);
 	rb_node = tree_search(&rc->reloc_root_tree.rb_root, bytenr);
 	if (rb_node) {
@@ -703,6 +719,7 @@ struct backref_node *build_backref_tree(struct reloc_control *rc,
 {
 	struct btrfs_backref_iter *iter;
 	struct backref_cache *cache = &rc->backref_cache;
+	struct btrfs_fs_info *fs_info = cache->fs_info;
 	/* For searching parent of TREE_BLOCK_REF */
 	struct btrfs_path *path;
 	struct btrfs_root *root;
@@ -825,13 +842,24 @@ again:
 		/* SHARED_BLOCK_REF means key.offset is the parent bytenr */
 		if (key.type == BTRFS_SHARED_BLOCK_REF_KEY) {
 			if (key.objectid == key.offset) {
-				/*
-				 * Only root blocks of reloc trees use backref
-				 * pointing to itself.
-				 */
-				root = find_reloc_root(rc, cur->bytenr);
-				ASSERT(root);
-				cur->root = root;
+				cur->is_reloc_root = 1;
+				/* Only reloc backref cache cares exact root */
+				if (cache->is_reloc) {
+					root = find_reloc_root(fs_info,
+							cur->bytenr);
+					if (WARN_ON(!root)) {
+						err = -ENOENT;
+						goto out;
+					}
+					cur->root = root;
+				} else {
+					/*
+					 * For generic purpose backref cache,
+					 * reloc root node is useless.
+					 */
+					list_add(&cur->list,
+						&cache->useless_node);
+				}
 				break;
 			}
 
@@ -4192,7 +4220,7 @@ static struct reloc_control *alloc_reloc_control(struct btrfs_fs_info *fs_info)
 
 	INIT_LIST_HEAD(&rc->reloc_roots);
 	INIT_LIST_HEAD(&rc->dirty_subvol_roots);
-	backref_cache_init(fs_info, &rc->backref_cache);
+	backref_cache_init(fs_info, &rc->backref_cache, 1);
 	mapping_tree_init(&rc->reloc_root_tree);
 	extent_io_tree_init(fs_info, &rc->processed_blocks,
 			    IO_TREE_RELOC_BLOCKS, NULL);
