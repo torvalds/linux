@@ -15001,7 +15001,7 @@ SERIAL DEVICE BUS
 M:	Rob Herring <robh@kernel.org>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/serial/slave-device.txt
+F:	Documentation/devicetree/bindings/serial/serial.yaml
 F:	drivers/tty/serdev/
 F:	include/linux/serdev.h
 
