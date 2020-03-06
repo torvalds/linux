@@ -77,7 +77,7 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 		eeh_add_to_parent_pe(edev);   /* Add as VF PE type */
 	}
 #endif
-	eeh_add_device_late(pdev);
+	eeh_probe_device(pdev);
 }
 
 /*
@@ -333,6 +333,26 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 
 	/* Save memory bars */
 	eeh_save_bars(edev);
+}
+
+static struct eeh_dev *pseries_eeh_probe(struct pci_dev *pdev)
+{
+	struct eeh_dev *edev;
+	struct pci_dn *pdn;
+
+	pdn = pci_get_pdn_by_devfn(pdev->bus, pdev->devfn);
+	if (!pdn)
+		return NULL;
+
+	/*
+	 * If the system supports EEH on this device then the eeh_dev was
+	 * configured and inserted into a PE in pseries_eeh_init_edev()
+	 */
+	edev = pdn_to_eeh_dev(pdn);
+	if (!edev || !edev->pe)
+		return NULL;
+
+	return edev;
 }
 
 /**
@@ -813,6 +833,7 @@ static int pseries_notify_resume(struct pci_dn *pdn)
 static struct eeh_ops pseries_eeh_ops = {
 	.name			= "pseries",
 	.init			= pseries_eeh_init,
+	.probe			= pseries_eeh_probe,
 	.set_option		= pseries_eeh_set_option,
 	.get_pe_addr		= pseries_eeh_get_pe_addr,
 	.get_state		= pseries_eeh_get_state,
