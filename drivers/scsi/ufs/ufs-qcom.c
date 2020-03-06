@@ -38,6 +38,7 @@ enum {
 
 static struct ufs_qcom_host *ufs_qcom_hosts[MAX_UFS_QCOM_HOSTS];
 
+static int ufs_qcom_set_bus_vote(struct ufs_qcom_host *host, int vote);
 static void ufs_qcom_get_default_testbus_cfg(struct ufs_qcom_host *host);
 static int ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(struct ufs_hba *hba,
 						       u32 clk_cycles);
@@ -673,7 +674,7 @@ static void ufs_qcom_get_speed_mode(struct ufs_pa_layer_attr *p, char *result)
 	}
 }
 
-static int __ufs_qcom_set_bus_vote(struct ufs_qcom_host *host, int vote)
+static int ufs_qcom_set_bus_vote(struct ufs_qcom_host *host, int vote)
 {
 	int err = 0;
 
@@ -704,7 +705,7 @@ static int ufs_qcom_update_bus_bw_vote(struct ufs_qcom_host *host)
 
 	vote = ufs_qcom_get_bus_vote(host, mode);
 	if (vote >= 0)
-		err = __ufs_qcom_set_bus_vote(host, vote);
+		err = ufs_qcom_set_bus_vote(host, vote);
 	else
 		err = vote;
 
@@ -712,35 +713,6 @@ static int ufs_qcom_update_bus_bw_vote(struct ufs_qcom_host *host)
 		dev_err(host->hba->dev, "%s: failed %d\n", __func__, err);
 	else
 		host->bus_vote.saved_vote = vote;
-	return err;
-}
-
-static int ufs_qcom_set_bus_vote(struct ufs_hba *hba, bool on)
-{
-	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-	int vote, err;
-
-	/*
-	 * In case ufs_qcom_init() is not yet done, simply ignore.
-	 * This ufs_qcom_set_bus_vote() shall be called from
-	 * ufs_qcom_init() after init is done.
-	 */
-	if (!host)
-		return 0;
-
-	if (on) {
-		vote = host->bus_vote.saved_vote;
-		if (vote == host->bus_vote.min_bw_vote)
-			ufs_qcom_update_bus_bw_vote(host);
-	} else {
-		vote = host->bus_vote.min_bw_vote;
-	}
-
-	err = __ufs_qcom_set_bus_vote(host, vote);
-	if (err)
-		dev_err(hba->dev, "%s: set bus vote failed %d\n",
-				 __func__, err);
-
 	return err;
 }
 
@@ -820,7 +792,7 @@ static int ufs_qcom_update_bus_bw_vote(struct ufs_qcom_host *host)
 	return 0;
 }
 
-static int ufs_qcom_set_bus_vote(struct ufs_hba *host, bool on)
+static int ufs_qcom_set_bus_vote(struct ufs_qcom_host *host, int vote)
 {
 	return 0;
 }
@@ -1082,7 +1054,8 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 				 enum ufs_notify_change_status status)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-	int err = 0;
+	int err;
+	int vote = 0;
 
 	/*
 	 * In case ufs_qcom_init() is not yet done, simply ignore.
@@ -1092,20 +1065,27 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 	if (!host)
 		return 0;
 
-	if (on && (status == PRE_CHANGE)) {
-		err = ufs_qcom_set_bus_vote(hba, true);
-	} else if (on && (status == POST_CHANGE)) {
+	if (on && (status == POST_CHANGE)) {
 		/* enable the device ref clock for HS mode*/
 		if (ufshcd_is_hs_mode(&hba->pwr_info))
 			ufs_qcom_dev_ref_clk_ctrl(host, true);
+		vote = host->bus_vote.saved_vote;
+		if (vote == host->bus_vote.min_bw_vote)
+			ufs_qcom_update_bus_bw_vote(host);
+
 	} else if (!on && (status == PRE_CHANGE)) {
 		if (!ufs_qcom_is_link_active(hba)) {
 			/* disable device ref_clk */
 			ufs_qcom_dev_ref_clk_ctrl(host, false);
 		}
-	} else if (!on && (status == POST_CHANGE)) {
-		err = ufs_qcom_set_bus_vote(hba, false);
+
+		vote = host->bus_vote.min_bw_vote;
 	}
+
+	err = ufs_qcom_set_bus_vote(host, vote);
+	if (err)
+		dev_err(hba->dev, "%s: set bus vote failed %d\n",
+				__func__, err);
 
 	return err;
 }
@@ -1282,7 +1262,6 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	ufs_qcom_set_caps(hba);
 	ufs_qcom_advertise_quirks(hba);
 
-	ufs_qcom_set_bus_vote(hba, true);
 	ufs_qcom_setup_clocks(hba, true, POST_CHANGE);
 
 	if (hba->dev->id < MAX_UFS_QCOM_HOSTS)
