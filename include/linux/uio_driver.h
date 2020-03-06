@@ -123,6 +123,15 @@ extern int __must_check
 extern void uio_unregister_device(struct uio_info *info);
 extern void uio_event_notify(struct uio_info *info);
 
+extern int __must_check
+	__devm_uio_register_device(struct module *owner,
+				   struct device *parent,
+				   struct uio_info *info);
+
+/* use a define to avoid include chaining to get THIS_MODULE */
+#define devm_uio_register_device(parent, info) \
+	__devm_uio_register_device(THIS_MODULE, parent, info)
+
 /* defines for uio_info->irq */
 #define UIO_IRQ_CUSTOM	-1
 #define UIO_IRQ_NONE	0
