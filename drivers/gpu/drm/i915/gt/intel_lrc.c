@@ -1622,6 +1622,7 @@ static bool can_merge_rq(const struct i915_request *prev,
 	if (!can_merge_ctx(prev->context, next->context))
 		return false;
 
+	GEM_BUG_ON(i915_seqno_passed(prev->fence.seqno, next->fence.seqno));
 	return true;
 }
 
@@ -2142,6 +2143,9 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				GEM_BUG_ON(last &&
 					   !can_merge_ctx(last->context,
 							  rq->context));
+				GEM_BUG_ON(last &&
+					   i915_seqno_passed(last->fence.seqno,
+							     rq->fence.seqno));
 
 				submit = true;
 				last = rq;

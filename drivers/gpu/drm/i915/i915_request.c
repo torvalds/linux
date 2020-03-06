@@ -737,6 +737,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	RCU_INIT_POINTER(rq->timeline, tl);
 	RCU_INIT_POINTER(rq->hwsp_cacheline, tl->hwsp_cacheline);
 	rq->hwsp_seqno = tl->hwsp_seqno;
+	GEM_BUG_ON(i915_request_completed(rq));
 
 	rq->rcustate = get_state_synchronize_rcu(); /* acts as smp_mb() */
 
@@ -1284,6 +1285,16 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 	prev = to_request(__i915_active_fence_set(&timeline->last_request,
 						  &rq->fence));
 	if (prev && !i915_request_completed(prev)) {
+		/*
+		 * The requests are supposed to be kept in order. However,
+		 * we need to be wary in case the timeline->last_request
+		 * is used as a barrier for external modification to this
+		 * context.
+		 */
+		GEM_BUG_ON(prev->context == rq->context &&
+			   i915_seqno_passed(prev->fence.seqno,
+					     rq->fence.seqno));
+
 		if (is_power_of_2(prev->engine->mask | rq->engine->mask))
 			i915_sw_fence_await_sw_fence(&rq->submit,
 						     &prev->submit,
