@@ -3464,6 +3464,10 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 	struct tc_action *act;
 	int i, j, k, err = 0;
 
+	BUILD_BUG_ON(TCA_ACT_HW_STATS_TYPE_ANY != FLOW_ACTION_HW_STATS_TYPE_ANY);
+	BUILD_BUG_ON(TCA_ACT_HW_STATS_TYPE_IMMEDIATE != FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE);
+	BUILD_BUG_ON(TCA_ACT_HW_STATS_TYPE_DELAYED != FLOW_ACTION_HW_STATS_TYPE_DELAYED);
+
 	if (!exts)
 		return 0;
 
@@ -3476,6 +3480,9 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 		err = tcf_act_get_cookie(entry, act);
 		if (err)
 			goto err_out_locked;
+
+		entry->hw_stats_type = act->hw_stats_type;
+
 		if (is_tcf_gact_ok(act)) {
 			entry->id = FLOW_ACTION_ACCEPT;
 		} else if (is_tcf_gact_shot(act)) {
