@@ -154,6 +154,8 @@ enum flow_action_mangle_base {
 	FLOW_ACT_MANGLE_HDR_TYPE_UDP,
 };
 
+#define FLOW_ACTION_HW_STATS_TYPE_ANY 0
+
 typedef void (*action_destr)(void *priv);
 
 struct flow_action_cookie {
@@ -168,6 +170,7 @@ void flow_action_cookie_destroy(struct flow_action_cookie *cookie);
 
 struct flow_action_entry {
 	enum flow_action_id		id;
+	u8				hw_stats_type;
 	action_destr			destructor;
 	void				*destructor_priv;
 	union {
