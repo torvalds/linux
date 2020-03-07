@@ -26,6 +26,8 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 
 	if (!flow_action_has_entries(flow_action))
 		return 0;
+	if (!flow_action_mixed_hw_stats_types_check(flow_action, extack))
+		return -EOPNOTSUPP;
 
 	/* Count action is inserted first */
 	err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei, extack);
