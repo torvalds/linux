@@ -86,7 +86,6 @@ static void ionic_get_drvinfo(struct net_device *netdev,
 	struct ionic *ionic = lif->ionic;
 
 	strlcpy(drvinfo->driver, IONIC_DRV_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, IONIC_DRV_VERSION, sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, ionic->idev.dev_info.fw_version,
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, ionic_bus_info(ionic),
