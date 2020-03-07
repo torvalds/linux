@@ -7617,11 +7617,17 @@ static int hclge_set_vf_mac(struct hnae3_handle *handle, int vf,
 	}
 
 	ether_addr_copy(vport->vf_info.mac, mac_addr);
-	dev_info(&hdev->pdev->dev,
-		 "MAC of VF %d has been set to %pM, and it will be reinitialized!\n",
-		 vf, mac_addr);
 
-	return hclge_inform_reset_assert_to_vf(vport);
+	if (test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state)) {
+		dev_info(&hdev->pdev->dev,
+			 "MAC of VF %d has been set to %pM, and it will be reinitialized!\n",
+			 vf, mac_addr);
+		return hclge_inform_reset_assert_to_vf(vport);
+	}
+
+	dev_info(&hdev->pdev->dev, "MAC of VF %d has been set to %pM\n",
+		 vf, mac_addr);
+	return 0;
 }
 
 static int hclge_add_mgr_tbl(struct hclge_dev *hdev,
