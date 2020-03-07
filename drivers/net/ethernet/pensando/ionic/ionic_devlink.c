@@ -82,7 +82,7 @@ int ionic_devlink_register(struct ionic *ionic)
 	err = devlink_port_register(dl, &ionic->dl_port, 0);
 	if (err)
 		dev_err(ionic->dev, "devlink_port_register failed: %d\n", err);
-	else
+	else if (!ionic->is_mgmt_nic)
 		devlink_port_type_eth_set(&ionic->dl_port,
 					  ionic->master_lif->netdev);
 

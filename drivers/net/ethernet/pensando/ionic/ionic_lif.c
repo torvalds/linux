@@ -1155,6 +1155,10 @@ static int ionic_init_nic_features(struct ionic_lif *lif)
 	netdev_features_t features;
 	int err;
 
+	/* no netdev features on the management device */
+	if (lif->ionic->is_mgmt_nic)
+		return 0;
+
 	/* set up what we expect to support by default */
 	features = NETIF_F_HW_VLAN_CTAG_TX |
 		   NETIF_F_HW_VLAN_CTAG_RX |
@@ -2382,6 +2386,12 @@ static int ionic_lif_notify(struct notifier_block *nb,
 int ionic_lifs_register(struct ionic *ionic)
 {
 	int err;
+
+	/* the netdev is not registered on the management device, it is
+	 * only used as a vehicle for napi operations on the adminq
+	 */
+	if (ionic->is_mgmt_nic)
+		return 0;
 
 	INIT_WORK(&ionic->nb_work, ionic_lif_notify_work);
 
