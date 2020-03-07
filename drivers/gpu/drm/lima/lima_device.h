@@ -6,8 +6,11 @@
 
 #include <drm/drm_device.h>
 #include <linux/delay.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
 
 #include "lima_sched.h"
+#include "lima_dump.h"
 
 enum lima_gpu_id {
 	lima_gpu_mali400 = 0,
@@ -94,6 +97,11 @@ struct lima_device {
 
 	u32 *dlbu_cpu;
 	dma_addr_t dlbu_dma;
+
+	/* debug info */
+	struct lima_dump_head dump;
+	struct list_head error_task_list;
+	struct mutex error_task_list_lock;
 };
 
 static inline struct lima_device *

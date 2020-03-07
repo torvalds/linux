@@ -4,6 +4,7 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/xarray.h>
+#include <linux/vmalloc.h>
 
 #include "lima_drv.h"
 #include "lima_sched.h"
@@ -256,6 +257,133 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	return task->fence;
 }
 
+static void lima_sched_build_error_task_list(struct lima_sched_task *task)
+{
+	struct lima_sched_error_task *et;
+	struct lima_sched_pipe *pipe = to_lima_pipe(task->base.sched);
+	struct lima_ip *ip = pipe->processor[0];
+	int pipe_id = ip->id == lima_ip_gp ? lima_pipe_gp : lima_pipe_pp;
+	struct lima_device *dev = ip->dev;
+	struct lima_sched_context *sched_ctx =
+		container_of(task->base.entity,
+			     struct lima_sched_context, base);
+	struct lima_ctx *ctx =
+		container_of(sched_ctx, struct lima_ctx, context[pipe_id]);
+	struct lima_dump_task *dt;
+	struct lima_dump_chunk *chunk;
+	struct lima_dump_chunk_pid *pid_chunk;
+	struct lima_dump_chunk_buffer *buffer_chunk;
+	u32 size, task_size, mem_size;
+	int i;
+
+	mutex_lock(&dev->error_task_list_lock);
+
+	if (dev->dump.num_tasks >= lima_max_error_tasks) {
+		dev_info(dev->dev, "fail to save task state: error task list is full\n");
+		goto out;
+	}
+
+	/* frame chunk */
+	size = sizeof(struct lima_dump_chunk) + pipe->frame_size;
+	/* process name chunk */
+	size += sizeof(struct lima_dump_chunk) + sizeof(ctx->pname);
+	/* pid chunk */
+	size += sizeof(struct lima_dump_chunk);
+	/* buffer chunks */
+	for (i = 0; i < task->num_bos; i++) {
+		struct lima_bo *bo = task->bos[i];
+
+		size += sizeof(struct lima_dump_chunk);
+		size += bo->heap_size ? bo->heap_size : lima_bo_size(bo);
+	}
+
+	task_size = size + sizeof(struct lima_dump_task);
+	mem_size = task_size + sizeof(*et);
+	et = kvmalloc(mem_size, GFP_KERNEL);
+	if (!et) {
+		dev_err(dev->dev, "fail to alloc task dump buffer of size %x\n",
+			mem_size);
+		goto out;
+	}
+
+	et->data = et + 1;
+	et->size = task_size;
+
+	dt = et->data;
+	memset(dt, 0, sizeof(*dt));
+	dt->id = pipe_id;
+	dt->size = size;
+
+	chunk = (struct lima_dump_chunk *)(dt + 1);
+	memset(chunk, 0, sizeof(*chunk));
+	chunk->id = LIMA_DUMP_CHUNK_FRAME;
+	chunk->size = pipe->frame_size;
+	memcpy(chunk + 1, task->frame, pipe->frame_size);
+	dt->num_chunks++;
+
+	chunk = (void *)(chunk + 1) + chunk->size;
+	memset(chunk, 0, sizeof(*chunk));
+	chunk->id = LIMA_DUMP_CHUNK_PROCESS_NAME;
+	chunk->size = sizeof(ctx->pname);
+	memcpy(chunk + 1, ctx->pname, sizeof(ctx->pname));
+	dt->num_chunks++;
+
+	pid_chunk = (void *)(chunk + 1) + chunk->size;
+	memset(pid_chunk, 0, sizeof(*pid_chunk));
+	pid_chunk->id = LIMA_DUMP_CHUNK_PROCESS_ID;
+	pid_chunk->pid = ctx->pid;
+	dt->num_chunks++;
+
+	buffer_chunk = (void *)(pid_chunk + 1) + pid_chunk->size;
+	for (i = 0; i < task->num_bos; i++) {
+		struct lima_bo *bo = task->bos[i];
+		void *data;
+
+		memset(buffer_chunk, 0, sizeof(*buffer_chunk));
+		buffer_chunk->id = LIMA_DUMP_CHUNK_BUFFER;
+		buffer_chunk->va = lima_vm_get_va(task->vm, bo);
+
+		if (bo->heap_size) {
+			buffer_chunk->size = bo->heap_size;
+
+			data = vmap(bo->base.pages, bo->heap_size >> PAGE_SHIFT,
+				    VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+			if (!data) {
+				kvfree(et);
+				goto out;
+			}
+
+			memcpy(buffer_chunk + 1, data, buffer_chunk->size);
+
+			vunmap(data);
+		} else {
+			buffer_chunk->size = lima_bo_size(bo);
+
+			data = drm_gem_shmem_vmap(&bo->base.base);
+			if (IS_ERR_OR_NULL(data)) {
+				kvfree(et);
+				goto out;
+			}
+
+			memcpy(buffer_chunk + 1, data, buffer_chunk->size);
+
+			drm_gem_shmem_vunmap(&bo->base.base, data);
+		}
+
+		buffer_chunk = (void *)(buffer_chunk + 1) + buffer_chunk->size;
+		dt->num_chunks++;
+	}
+
+	list_add(&et->list, &dev->error_task_list);
+	dev->dump.size += et->size;
+	dev->dump.num_tasks++;
+
+	dev_info(dev->dev, "save error task state success\n");
+
+out:
+	mutex_unlock(&dev->error_task_list_lock);
+}
+
 static void lima_sched_timedout_job(struct drm_sched_job *job)
 {
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
@@ -267,6 +395,8 @@ static void lima_sched_timedout_job(struct drm_sched_job *job)
 	drm_sched_stop(&pipe->base, &task->base);
 
 	drm_sched_increase_karma(&task->base);
+
+	lima_sched_build_error_task_list(task);
 
 	pipe->task_error(pipe);
 
