@@ -4673,11 +4673,23 @@ static void drm_dp_tx_work(struct work_struct *work)
 	mutex_unlock(&mgr->qlock);
 }
 
+static inline void drm_dp_destroy_connector(struct drm_dp_mst_port *port)
+{
+	if (!port->connector)
+		return;
+
+	if (port->mgr->cbs->destroy_connector) {
+		port->mgr->cbs->destroy_connector(port->mgr, port->connector);
+	} else {
+		drm_connector_unregister(port->connector);
+		drm_connector_put(port->connector);
+	}
+}
+
 static inline void
 drm_dp_delayed_destroy_port(struct drm_dp_mst_port *port)
 {
-	if (port->connector)
-		port->mgr->cbs->destroy_connector(port->mgr, port->connector);
+	drm_dp_destroy_connector(port);
 
 	drm_dp_port_set_pdt(port, DP_PEER_DEVICE_NONE, port->mcs);
 	drm_dp_mst_put_port_malloc(port);
