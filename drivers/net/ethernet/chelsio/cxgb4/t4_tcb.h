@@ -35,6 +35,11 @@
 #ifndef __T4_TCB_H
 #define __T4_TCB_H
 
+#define TCB_L2T_IX_W		0
+#define TCB_L2T_IX_S		12
+#define TCB_L2T_IX_M		0xfffULL
+#define TCB_L2T_IX_V(x)		((x) << TCB_L2T_IX_S)
+
 #define TCB_SMAC_SEL_W		0
 #define TCB_SMAC_SEL_S		24
 #define TCB_SMAC_SEL_M		0xffULL
@@ -44,11 +49,6 @@
 #define TCB_T_FLAGS_S		0
 #define TCB_T_FLAGS_M		0xffffffffffffffffULL
 #define TCB_T_FLAGS_V(x)	((__u64)(x) << TCB_T_FLAGS_S)
-
-#define TCB_RQ_START_W		30
-#define TCB_RQ_START_S		0
-#define TCB_RQ_START_M		0x3ffffffULL
-#define TCB_RQ_START_V(x)	((x) << TCB_RQ_START_S)
 
 #define TF_CCTRL_ECE_S		60
 #define TF_CCTRL_CWR_S		61
@@ -75,12 +75,39 @@
 #define TCB_RTT_TS_RECENT_AGE_V(x)	((x) << TCB_RTT_TS_RECENT_AGE_S)
 
 #define TCB_SND_UNA_RAW_W	10
+#define TCB_SND_UNA_RAW_S	0
+#define TCB_SND_UNA_RAW_M	0xfffffffULL
+#define TCB_SND_UNA_RAW_V(x)	((x) << TCB_SND_UNA_RAW_S)
+
+#define TCB_SND_NXT_RAW_W	10
+#define TCB_SND_NXT_RAW_S	28
+#define TCB_SND_NXT_RAW_M	0xfffffffULL
+#define TCB_SND_NXT_RAW_V(x)	((x) << TCB_SND_NXT_RAW_S)
+
+#define TCB_SND_MAX_RAW_W	11
+#define TCB_SND_MAX_RAW_S	24
+#define TCB_SND_MAX_RAW_M	0xfffffffULL
+#define TCB_SND_MAX_RAW_V(x)	((x) << TCB_SND_MAX_RAW_S)
+
 #define TCB_RX_FRAG2_PTR_RAW_W	27
 #define TCB_RX_FRAG3_LEN_RAW_W	29
 #define TCB_RX_FRAG3_START_IDX_OFFSET_RAW_W	30
 #define TCB_PDU_HDR_LEN_W	31
 
+#define TCB_RQ_START_W		30
+#define TCB_RQ_START_S		0
+#define TCB_RQ_START_M		0x3ffffffULL
+#define TCB_RQ_START_V(x)	((x) << TCB_RQ_START_S)
+
 #define TF_RX_PDU_OUT_S		49
 #define TF_RX_PDU_OUT_V(x)	((__u64)(x) << TF_RX_PDU_OUT_S)
+
+#define TF_CORE_BYPASS_S	63
+#define TF_CORE_BYPASS_V(x)	((__u64)(x) << TF_CORE_BYPASS_S)
+#define TF_CORE_BYPASS_F	TF_CORE_BYPASS_V(1)
+
+#define TF_NON_OFFLOAD_S	1
+#define TF_NON_OFFLOAD_V(x)	((x) << TF_NON_OFFLOAD_S)
+#define TF_NON_OFFLOAD_F	TF_NON_OFFLOAD_V(1)
 
 #endif /* __T4_TCB_H */

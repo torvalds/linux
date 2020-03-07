@@ -4,6 +4,143 @@
 #ifdef CONFIG_CHELSIO_TLS_DEVICE
 #include "chcr_ktls.h"
 
+static int chcr_init_tcb_fields(struct chcr_ktls_info *tx_info);
+/*
+ * chcr_ktls_save_keys: calculate and save crypto keys.
+ * @tx_info - driver specific tls info.
+ * @crypto_info - tls crypto information.
+ * @direction - TX/RX direction.
+ * return - SUCCESS/FAILURE.
+ */
+static int chcr_ktls_save_keys(struct chcr_ktls_info *tx_info,
+			       struct tls_crypto_info *crypto_info,
+			       enum tls_offload_ctx_dir direction)
+{
+	int ck_size, key_ctx_size, mac_key_size, keylen, ghash_size, ret;
+	unsigned char ghash_h[TLS_CIPHER_AES_GCM_256_TAG_SIZE];
+	struct tls12_crypto_info_aes_gcm_128 *info_128_gcm;
+	struct ktls_key_ctx *kctx = &tx_info->key_ctx;
+	struct crypto_cipher *cipher;
+	unsigned char *key, *salt;
+
+	switch (crypto_info->cipher_type) {
+	case TLS_CIPHER_AES_GCM_128:
+		info_128_gcm =
+			(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+		keylen = TLS_CIPHER_AES_GCM_128_KEY_SIZE;
+		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
+		tx_info->salt_size = TLS_CIPHER_AES_GCM_128_SALT_SIZE;
+		mac_key_size = CHCR_KEYCTX_MAC_KEY_SIZE_128;
+		tx_info->iv_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
+		tx_info->iv = be64_to_cpu(*(__be64 *)info_128_gcm->iv);
+
+		ghash_size = TLS_CIPHER_AES_GCM_128_TAG_SIZE;
+		key = info_128_gcm->key;
+		salt = info_128_gcm->salt;
+		tx_info->record_no = *(u64 *)info_128_gcm->rec_seq;
+
+		break;
+
+	default:
+		pr_err("GCM: cipher type 0x%x not supported\n",
+		       crypto_info->cipher_type);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	key_ctx_size = CHCR_KTLS_KEY_CTX_LEN +
+		       roundup(keylen, 16) + ghash_size;
+	/* Calculate the H = CIPH(K, 0 repeated 16 times).
+	 * It will go in key context
+	 */
+	cipher = crypto_alloc_cipher("aes", 0, 0);
+	if (IS_ERR(cipher)) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = crypto_cipher_setkey(cipher, key, keylen);
+	if (ret)
+		goto out1;
+
+	memset(ghash_h, 0, ghash_size);
+	crypto_cipher_encrypt_one(cipher, ghash_h, ghash_h);
+
+	/* fill the Key context */
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
+		kctx->ctx_hdr = FILL_KEY_CTX_HDR(ck_size,
+						 mac_key_size,
+						 key_ctx_size >> 4);
+	} else {
+		ret = -EINVAL;
+		goto out1;
+	}
+
+	memcpy(kctx->salt, salt, tx_info->salt_size);
+	memcpy(kctx->key, key, keylen);
+	memcpy(kctx->key + keylen, ghash_h, ghash_size);
+	tx_info->key_ctx_len = key_ctx_size;
+
+out1:
+	crypto_free_cipher(cipher);
+out:
+	return ret;
+}
+
+static int chcr_ktls_update_connection_state(struct chcr_ktls_info *tx_info,
+					     int new_state)
+{
+	unsigned long flags;
+
+	/* This function can be called from both rx (interrupt context) and tx
+	 * queue contexts.
+	 */
+	spin_lock_irqsave(&tx_info->lock, flags);
+	switch (tx_info->connection_state) {
+	case KTLS_CONN_CLOSED:
+		tx_info->connection_state = new_state;
+		break;
+
+	case KTLS_CONN_ACT_OPEN_REQ:
+		/* only go forward if state is greater than current state. */
+		if (new_state <= tx_info->connection_state)
+			break;
+		/* update to the next state and also initialize TCB */
+		tx_info->connection_state = new_state;
+		/* FALLTHRU */
+	case KTLS_CONN_ACT_OPEN_RPL:
+		/* if we are stuck in this state, means tcb init might not
+		 * received by HW, try sending it again.
+		 */
+		if (!chcr_init_tcb_fields(tx_info))
+			tx_info->connection_state = KTLS_CONN_SET_TCB_REQ;
+		break;
+
+	case KTLS_CONN_SET_TCB_REQ:
+		/* only go forward if state is greater than current state. */
+		if (new_state <= tx_info->connection_state)
+			break;
+		/* update to the next state and check if l2t_state is valid  */
+		tx_info->connection_state = new_state;
+		/* FALLTHRU */
+	case KTLS_CONN_SET_TCB_RPL:
+		/* Check if l2t state is valid, then move to ready state. */
+		if (cxgb4_check_l2t_valid(tx_info->l2te))
+			tx_info->connection_state = KTLS_CONN_TX_READY;
+		break;
+
+	case KTLS_CONN_TX_READY:
+		/* nothing to be done here */
+		break;
+
+	default:
+		pr_err("unknown KTLS connection state\n");
+		break;
+	}
+	spin_unlock_irqrestore(&tx_info->lock, flags);
+
+	return tx_info->connection_state;
+}
 /*
  * chcr_ktls_act_open_req: creates TCB entry for ipv4 connection.
  * @sk - tcp socket.
@@ -91,8 +228,12 @@ static int chcr_setup_connection(struct sock *sk,
 			ret = 0;
 		else
 			cxgb4_free_atid(t, atid);
+		goto out;
 	}
 
+	/* update the connection state */
+	chcr_ktls_update_connection_state(tx_info, KTLS_CONN_ACT_OPEN_REQ);
+out:
 	return ret;
 }
 
@@ -243,6 +384,11 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 	tx_info->prev_seq = start_offload_tcp_sn;
 	tx_info->tcp_start_seq_number = start_offload_tcp_sn;
 
+	/* save crypto keys */
+	ret = chcr_ktls_save_keys(tx_info, crypto_info, direction);
+	if (ret < 0)
+		goto out2;
+
 	/* get peer ip */
 	if (sk->sk_family == AF_INET ||
 	    (sk->sk_family == AF_INET6 && !sk->sk_ipv6only &&
@@ -325,5 +471,105 @@ void chcr_disable_ktls(struct adapter *adap)
 		netdev->hw_features &= ~NETIF_F_HW_TLS_TX;
 		netdev->tlsdev_ops = NULL;
 	}
+}
+
+/*
+ * chcr_init_tcb_fields:  Initialize tcb fields to handle TCP seq number
+ *			  handling.
+ * @tx_info - driver specific tls info.
+ * return: NET_TX_OK/NET_XMIT_DROP
+ */
+static int chcr_init_tcb_fields(struct chcr_ktls_info *tx_info)
+{
+	int  ret = 0;
+
+	/* set tcb in offload and bypass */
+	ret =
+	chcr_set_tcb_field(tx_info, TCB_T_FLAGS_W,
+			   TCB_T_FLAGS_V(TF_CORE_BYPASS_F | TF_NON_OFFLOAD_F),
+			   TCB_T_FLAGS_V(TF_CORE_BYPASS_F), 1);
+	if (ret)
+		return ret;
+	/* reset snd_una and snd_next fields in tcb */
+	ret = chcr_set_tcb_field(tx_info, TCB_SND_UNA_RAW_W,
+				 TCB_SND_NXT_RAW_V(TCB_SND_NXT_RAW_M) |
+				 TCB_SND_UNA_RAW_V(TCB_SND_UNA_RAW_M),
+				 0, 1);
+	if (ret)
+		return ret;
+
+	/* reset send max */
+	ret = chcr_set_tcb_field(tx_info, TCB_SND_MAX_RAW_W,
+				 TCB_SND_MAX_RAW_V(TCB_SND_MAX_RAW_M),
+				 0, 1);
+	if (ret)
+		return ret;
+
+	/* update l2t index and request for tp reply to confirm tcb is
+	 * initialised to handle tx traffic.
+	 */
+	ret = chcr_set_tcb_field(tx_info, TCB_L2T_IX_W,
+				 TCB_L2T_IX_V(TCB_L2T_IX_M),
+				 TCB_L2T_IX_V(tx_info->l2te->idx), 0);
+	return ret;
+}
+
+/*
+ * chcr_ktls_cpl_act_open_rpl: connection reply received from TP.
+ */
+int chcr_ktls_cpl_act_open_rpl(struct adapter *adap, unsigned char *input)
+{
+	const struct cpl_act_open_rpl *p = (void *)input;
+	struct chcr_ktls_info *tx_info = NULL;
+	unsigned int atid, tid, status;
+	struct tid_info *t;
+
+	tid = GET_TID(p);
+	status = AOPEN_STATUS_G(ntohl(p->atid_status));
+	atid = TID_TID_G(AOPEN_ATID_G(ntohl(p->atid_status)));
+
+	t = &adap->tids;
+	tx_info = lookup_atid(t, atid);
+
+	if (!tx_info || tx_info->atid != atid) {
+		pr_err("tx_info or atid is not correct\n");
+		return -1;
+	}
+
+	if (!status) {
+		tx_info->tid = tid;
+		cxgb4_insert_tid(t, tx_info, tx_info->tid, tx_info->ip_family);
+
+		cxgb4_free_atid(t, atid);
+		tx_info->atid = -1;
+		/* update the connection state */
+		chcr_ktls_update_connection_state(tx_info,
+						  KTLS_CONN_ACT_OPEN_RPL);
+	}
+	return 0;
+}
+
+/*
+ * chcr_ktls_cpl_set_tcb_rpl: TCB reply received from TP.
+ */
+int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input)
+{
+	const struct cpl_set_tcb_rpl *p = (void *)input;
+	struct chcr_ktls_info *tx_info = NULL;
+	struct tid_info *t;
+	u32 tid, status;
+
+	tid = GET_TID(p);
+	status = p->status;
+
+	t = &adap->tids;
+	tx_info = lookup_tid(t, tid);
+	if (!tx_info || tx_info->tid != tid) {
+		pr_err("tx_info or atid is not correct\n");
+		return -1;
+	}
+	/* update the connection state */
+	chcr_ktls_update_connection_state(tx_info, KTLS_CONN_SET_TCB_RPL);
+	return 0;
 }
 #endif /* CONFIG_CHELSIO_TLS_DEVICE */

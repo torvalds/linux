@@ -705,6 +705,14 @@ struct cpl_set_tcb_field {
 	__be64 val;
 };
 
+struct cpl_set_tcb_field_core {
+	union opcode_tid ot;
+	__be16 reply_ctrl;
+	__be16 word_cookie;
+	__be64 mask;
+	__be64 val;
+};
+
 /* cpl_set_tcb_field.word_cookie fields */
 #define TCB_WORD_S	0
 #define TCB_WORD_V(x)	((x) << TCB_WORD_S)

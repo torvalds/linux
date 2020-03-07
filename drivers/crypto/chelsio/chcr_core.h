@@ -225,5 +225,7 @@ void chcr_add_xfrmops(const struct cxgb4_lld_info *lld);
 #ifdef CONFIG_CHELSIO_TLS_DEVICE
 void chcr_enable_ktls(struct adapter *adap);
 void chcr_disable_ktls(struct adapter *adap);
+int chcr_ktls_cpl_act_open_rpl(struct adapter *adap, unsigned char *input);
+int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input);
 #endif
 #endif /* __CHCR_CORE_H__ */

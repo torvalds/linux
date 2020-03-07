@@ -13,21 +13,34 @@
 #include "chcr_common.h"
 
 #define CHCR_TCB_STATE_CLOSED	0
+#define CHCR_KTLS_KEY_CTX_LEN	16
+#define CHCR_SET_TCB_FIELD_LEN	sizeof(struct cpl_set_tcb_field)
 
 enum chcr_ktls_conn_state {
 	KTLS_CONN_CLOSED,
+	KTLS_CONN_ACT_OPEN_REQ,
+	KTLS_CONN_ACT_OPEN_RPL,
+	KTLS_CONN_SET_TCB_REQ,
+	KTLS_CONN_SET_TCB_RPL,
+	KTLS_CONN_TX_READY,
 };
 
 struct chcr_ktls_info {
 	struct sock *sk;
 	spinlock_t lock; /* state machine lock */
+	struct ktls_key_ctx key_ctx;
 	struct adapter *adap;
 	struct l2t_entry *l2te;
 	struct net_device *netdev;
+	u64 iv;
+	u64 record_no;
 	int tid;
 	int atid;
 	int rx_qid;
+	u32 iv_size;
 	u32 prev_seq;
+	u32 salt_size;
+	u32 key_ctx_len;
 	u32 tcp_start_seq_number;
 	enum chcr_ktls_conn_state connection_state;
 	u8 tx_chan;
@@ -63,5 +76,7 @@ static inline int chcr_get_first_rx_qid(struct adapter *adap)
 
 void chcr_enable_ktls(struct adapter *adap);
 void chcr_disable_ktls(struct adapter *adap);
+int chcr_ktls_cpl_act_open_rpl(struct adapter *adap, unsigned char *input);
+int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input);
 #endif /* CONFIG_CHELSIO_TLS_DEVICE */
 #endif /* __CHCR_KTLS_H__ */

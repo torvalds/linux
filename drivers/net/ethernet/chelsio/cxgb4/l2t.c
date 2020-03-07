@@ -700,6 +700,17 @@ static char l2e_state(const struct l2t_entry *e)
 	}
 }
 
+bool cxgb4_check_l2t_valid(struct l2t_entry *e)
+{
+	bool valid;
+
+	spin_lock(&e->lock);
+	valid = (e->state == L2T_STATE_VALID);
+	spin_unlock(&e->lock);
+	return valid;
+}
+EXPORT_SYMBOL(cxgb4_check_l2t_valid);
+
 static int l2t_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN)
