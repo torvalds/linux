@@ -84,7 +84,7 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 		netdev_info(netdev, "Link up - %d Gbps\n",
 			    le32_to_cpu(lif->info->status.link_speed) / 1000);
 
-		if (test_bit(IONIC_LIF_UP, lif->state)) {
+		if (test_bit(IONIC_LIF_F_UP, lif->state)) {
 			netif_tx_wake_all_queues(lif->netdev);
 			netif_carrier_on(netdev);
 		}
@@ -93,12 +93,12 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 
 		/* carrier off first to avoid watchdog timeout */
 		netif_carrier_off(netdev);
-		if (test_bit(IONIC_LIF_UP, lif->state))
+		if (test_bit(IONIC_LIF_F_UP, lif->state))
 			netif_tx_stop_all_queues(netdev);
 	}
 
 link_out:
-	clear_bit(IONIC_LIF_LINK_CHECK_REQUESTED, lif->state);
+	clear_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state);
 }
 
 static void ionic_link_status_check_request(struct ionic_lif *lif)
@@ -106,7 +106,7 @@ static void ionic_link_status_check_request(struct ionic_lif *lif)
 	struct ionic_deferred_work *work;
 
 	/* we only need one request outstanding at a time */
-	if (test_and_set_bit(IONIC_LIF_LINK_CHECK_REQUESTED, lif->state))
+	if (test_and_set_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state))
 		return;
 
 	if (in_interrupt()) {
@@ -1579,7 +1579,7 @@ int ionic_open(struct net_device *netdev)
 	netif_set_real_num_tx_queues(netdev, lif->nxqs);
 	netif_set_real_num_rx_queues(netdev, lif->nxqs);
 
-	set_bit(IONIC_LIF_UP, lif->state);
+	set_bit(IONIC_LIF_F_UP, lif->state);
 
 	ionic_link_status_check_request(lif);
 	if (netif_carrier_ok(netdev))
@@ -1599,13 +1599,13 @@ int ionic_stop(struct net_device *netdev)
 	struct ionic_lif *lif = netdev_priv(netdev);
 	int err = 0;
 
-	if (!test_bit(IONIC_LIF_UP, lif->state)) {
+	if (!test_bit(IONIC_LIF_F_UP, lif->state)) {
 		dev_dbg(lif->ionic->dev, "%s: %s state=DOWN\n",
 			__func__, lif->name);
 		return 0;
 	}
 	dev_dbg(lif->ionic->dev, "%s: %s state=UP\n", __func__, lif->name);
-	clear_bit(IONIC_LIF_UP, lif->state);
+	clear_bit(IONIC_LIF_F_UP, lif->state);
 
 	/* carrier off before disabling queues to avoid watchdog timeout */
 	netif_carrier_off(netdev);
@@ -1872,7 +1872,7 @@ int ionic_reset_queues(struct ionic_lif *lif)
 	/* Put off the next watchdog timeout */
 	netif_trans_update(lif->netdev);
 
-	err = ionic_wait_for_bit(lif, IONIC_LIF_QUEUE_RESET);
+	err = ionic_wait_for_bit(lif, IONIC_LIF_F_QUEUE_RESET);
 	if (err)
 		return err;
 
@@ -1882,7 +1882,7 @@ int ionic_reset_queues(struct ionic_lif *lif)
 	if (!err && running)
 		ionic_open(lif->netdev);
 
-	clear_bit(IONIC_LIF_QUEUE_RESET, lif->state);
+	clear_bit(IONIC_LIF_F_QUEUE_RESET, lif->state);
 
 	return err;
 }
@@ -2049,10 +2049,10 @@ void ionic_lifs_free(struct ionic *ionic)
 
 static void ionic_lif_deinit(struct ionic_lif *lif)
 {
-	if (!test_bit(IONIC_LIF_INITED, lif->state))
+	if (!test_bit(IONIC_LIF_F_INITED, lif->state))
 		return;
 
-	clear_bit(IONIC_LIF_INITED, lif->state);
+	clear_bit(IONIC_LIF_F_INITED, lif->state);
 
 	ionic_rx_filters_deinit(lif);
 	ionic_lif_rss_deinit(lif);
@@ -2288,7 +2288,7 @@ static int ionic_lif_init(struct ionic_lif *lif)
 
 	lif->rx_copybreak = IONIC_RX_COPYBREAK_DEFAULT;
 
-	set_bit(IONIC_LIF_INITED, lif->state);
+	set_bit(IONIC_LIF_F_INITED, lif->state);
 
 	INIT_WORK(&lif->tx_timeout_work, ionic_tx_timeout_work);
 
