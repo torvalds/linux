@@ -4,8 +4,6 @@
 #ifndef _IONIC_IF_H_
 #define _IONIC_IF_H_
 
-#pragma pack(push, 1)
-
 #define IONIC_DEV_INFO_SIGNATURE		0x44455649      /* 'DEVI' */
 #define IONIC_DEV_INFO_VERSION			1
 #define IONIC_IFNAMSIZ				16
@@ -366,7 +364,7 @@ union ionic_lif_config {
 		u8     rsvd2[2];
 		__le64 features;
 		__le32 queue_count[IONIC_QTYPE_MAX];
-	};
+	} __packed;
 	__le32 words[64];
 };
 
@@ -417,7 +415,7 @@ union ionic_lif_identity {
 			__le32 max_frame_size;
 			u8 rsvd2[106];
 			union ionic_lif_config config;
-		} eth;
+		} __packed eth;
 
 		struct {
 			u8 version;
@@ -439,8 +437,8 @@ union ionic_lif_identity {
 			struct ionic_lif_logical_qtype rq_qtype;
 			struct ionic_lif_logical_qtype cq_qtype;
 			struct ionic_lif_logical_qtype eq_qtype;
-		} rdma;
-	};
+		} __packed rdma;
+	} __packed;
 	__le32 words[512];
 };
 
@@ -526,7 +524,7 @@ struct ionic_q_init_cmd {
 	__le64 sg_ring_base;
 	__le32 eq_index;
 	u8     rsvd2[16];
-};
+} __packed;
 
 /**
  * struct ionic_q_init_comp - Queue init command completion
@@ -1095,7 +1093,7 @@ struct ionic_port_status {
 	u8     status;
 	u8     rsvd[51];
 	struct ionic_xcvr_status  xcvr;
-};
+} __packed;
 
 /**
  * struct ionic_port_identify_cmd - Port identify command
@@ -1251,7 +1249,7 @@ struct ionic_port_getattr_comp {
 		u8      pause_type;
 		u8      loopback_mode;
 		u8      rsvd2[11];
-	};
+	} __packed;
 	u8     color;
 };
 
@@ -1319,7 +1317,7 @@ struct ionic_dev_setattr_cmd {
 		char    name[IONIC_IFNAMSIZ];
 		__le64  features;
 		u8      rsvd2[60];
-	};
+	} __packed;
 };
 
 /**
@@ -1334,7 +1332,7 @@ struct ionic_dev_setattr_comp {
 	union {
 		__le64  features;
 		u8      rsvd2[11];
-	};
+	} __packed;
 	u8     color;
 };
 
@@ -1361,7 +1359,7 @@ struct ionic_dev_getattr_comp {
 	union {
 		__le64  features;
 		u8      rsvd2[11];
-	};
+	} __packed;
 	u8     color;
 };
 
@@ -1426,7 +1424,7 @@ struct ionic_lif_setattr_cmd {
 		} rss;
 		u8	stats_ctl;
 		u8      rsvd[60];
-	};
+	} __packed;
 };
 
 /**
@@ -1444,7 +1442,7 @@ struct ionic_lif_setattr_comp {
 	union {
 		__le64  features;
 		u8      rsvd2[11];
-	};
+	} __packed;
 	u8     color;
 };
 
@@ -1483,7 +1481,7 @@ struct ionic_lif_getattr_comp {
 		u8      mac[6];
 		__le64  features;
 		u8      rsvd2[11];
-	};
+	} __packed;
 	u8     color;
 };
 
@@ -1688,7 +1686,7 @@ struct ionic_vf_setattr_cmd {
 		u8     linkstate;
 		__le64 stats_pa;
 		u8     pad[60];
-	};
+	} __packed;
 };
 
 struct ionic_vf_setattr_comp {
@@ -1726,7 +1724,7 @@ struct ionic_vf_getattr_comp {
 		u8     linkstate;
 		__le64 stats_pa;
 		u8     pad[11];
-	};
+	} __packed;
 	u8     color;
 };
 
@@ -2472,7 +2470,7 @@ union ionic_dev_cmd_regs {
 		union ionic_dev_cmd_comp    comp;
 		u8                    rsvd[48];
 		u32                   data[478];
-	};
+	} __packed;
 	u32 words[512];
 };
 
@@ -2485,7 +2483,7 @@ union ionic_dev_regs {
 	struct {
 		union ionic_dev_info_regs info;
 		union ionic_dev_cmd_regs  devcmd;
-	};
+	} __packed;
 	__le32 words[1024];
 };
 
@@ -2574,7 +2572,5 @@ struct ionic_identity {
 	union ionic_port_identity port;
 	union ionic_qos_identity qos;
 };
-
-#pragma pack(pop)
 
 #endif /* _IONIC_IF_H_ */
