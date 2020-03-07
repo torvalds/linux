@@ -54,7 +54,9 @@ static inline pmd_t *pmd_ptr_k(unsigned long va)
 
 static inline pte_t *virt_to_kpte(unsigned long vaddr)
 {
-	return pte_offset_kernel(pmd_ptr_k(vaddr), vaddr);
+	pmd_t *pmd = pmd_ptr_k(vaddr);
+
+	return pmd_none(*pmd) ? NULL : pte_offset_kernel(pmd, vaddr);
 }
 #endif
 
