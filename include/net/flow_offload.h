@@ -155,7 +155,8 @@ enum flow_action_mangle_base {
 	FLOW_ACT_MANGLE_HDR_TYPE_UDP,
 };
 
-#define FLOW_ACTION_HW_STATS_TYPE_ANY 0
+#define FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE BIT(0)
+#define FLOW_ACTION_HW_STATS_TYPE_ANY FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE
 
 typedef void (*action_destr)(void *priv);
 

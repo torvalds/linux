@@ -30,7 +30,8 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		return -EOPNOTSUPP;
 
 	act = flow_action_first_entry_get(flow_action);
-	if (act->hw_stats_type == FLOW_ACTION_HW_STATS_TYPE_ANY) {
+	if (act->hw_stats_type == FLOW_ACTION_HW_STATS_TYPE_ANY ||
+	    act->hw_stats_type == FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE) {
 		/* Count action is inserted first */
 		err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei, extack);
 		if (err)
