@@ -2015,6 +2015,10 @@ static int gen7_ctx_switch_bb_init(struct intel_engine_cs *engine)
 	if (err)
 		goto err_private;
 
+	err = i915_vma_sync(vma);
+	if (err)
+		goto err_unpin;
+
 	err = gen7_ctx_switch_bb_setup(engine, vma);
 	if (err)
 		goto err_unpin;

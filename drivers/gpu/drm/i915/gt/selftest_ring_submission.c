@@ -29,6 +29,12 @@ static struct i915_vma *create_wally(struct intel_engine_cs *engine)
 		return ERR_PTR(err);
 	}
 
+	err = i915_vma_sync(vma);
+	if (err) {
+		i915_gem_object_put(obj);
+		return ERR_PTR(err);
+	}
+
 	cs = i915_gem_object_pin_map(obj, I915_MAP_WC);
 	if (IS_ERR(cs)) {
 		i915_gem_object_put(obj);
