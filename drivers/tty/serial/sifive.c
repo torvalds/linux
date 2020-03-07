@@ -618,16 +618,36 @@ static void sifive_serial_shutdown(struct uart_port *port)
  *
  * On the V0 SoC, the UART IP block is derived from the CPU clock source
  * after a synchronous divide-by-two divider, so any CPU clock rate change
- * requires the UART baud rate to be updated.  This presumably could corrupt any
- * serial word currently being transmitted or received.  It would probably
- * be better to stop receives and transmits, then complete the baud rate
- * change, then re-enable them.
+ * requires the UART baud rate to be updated.  This presumably corrupts any
+ * serial word currently being transmitted or received.  In order to avoid
+ * corrupting the output data stream, we drain the transmit queue before
+ * allowing the clock's rate to be changed.
  */
 static int sifive_serial_clk_notifier(struct notifier_block *nb,
 				      unsigned long event, void *data)
 {
 	struct clk_notifier_data *cnd = data;
 	struct sifive_serial_port *ssp = notifier_to_sifive_serial_port(nb);
+
+	if (event == PRE_RATE_CHANGE) {
+		/*
+		 * The TX watermark is always set to 1 by this driver, which
+		 * means that the TX busy bit will lower when there are 0 bytes
+		 * left in the TX queue -- in other words, when the TX FIFO is
+		 * empty.
+		 */
+		__ssp_wait_for_xmitr(ssp);
+		/*
+		 * On the cycle the TX FIFO goes empty there is still a full
+		 * UART frame left to be transmitted in the shift register.
+		 * The UART provides no way for software to directly determine
+		 * when that last frame has been transmitted, so we just sleep
+		 * here instead.  As we're not tracking the number of stop bits
+		 * they're just worst cased here.  The rest of the serial
+		 * framing parameters aren't configurable by software.
+		 */
+		udelay(DIV_ROUND_UP(12 * 1000 * 1000, ssp->baud_rate));
+	}
 
 	if (event == POST_RATE_CHANGE && ssp->clkin_rate != cnd->new_rate) {
 		ssp->clkin_rate = cnd->new_rate;
