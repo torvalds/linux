@@ -133,17 +133,64 @@ struct hd_struct {
 	struct rcu_work rcu_work;
 };
 
-#define GENHD_FL_REMOVABLE			1
-/* 2 is unused */
-#define GENHD_FL_MEDIA_CHANGE_NOTIFY		4
-#define GENHD_FL_CD				8
-#define GENHD_FL_UP				16
-#define GENHD_FL_SUPPRESS_PARTITION_INFO	32
-#define GENHD_FL_EXT_DEVT			64 /* allow extended devt */
-#define GENHD_FL_NATIVE_CAPACITY		128
-#define GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE	256
-#define GENHD_FL_NO_PART_SCAN			512
-#define GENHD_FL_HIDDEN				1024
+/**
+ * DOC: genhd capability flags
+ *
+ * ``GENHD_FL_REMOVABLE`` (0x0001): indicates that the block device
+ * gives access to removable media.
+ * When set, the device remains present even when media is not
+ * inserted.
+ * Must not be set for devices which are removed entirely when the
+ * media is removed.
+ *
+ * ``GENHD_FL_CD`` (0x0008): the block device is a CD-ROM-style
+ * device.
+ * Affects responses to the ``CDROM_GET_CAPABILITY`` ioctl.
+ *
+ * ``GENHD_FL_UP`` (0x0010): indicates that the block device is "up",
+ * with a similar meaning to network interfaces.
+ *
+ * ``GENHD_FL_SUPPRESS_PARTITION_INFO`` (0x0020): don't include
+ * partition information in ``/proc/partitions`` or in the output of
+ * printk_all_partitions().
+ * Used for the null block device and some MMC devices.
+ *
+ * ``GENHD_FL_EXT_DEVT`` (0x0040): the driver supports extended
+ * dynamic ``dev_t``, i.e. it wants extended device numbers
+ * (``BLOCK_EXT_MAJOR``).
+ * This affects the maximum number of partitions.
+ *
+ * ``GENHD_FL_NATIVE_CAPACITY`` (0x0080): based on information in the
+ * partition table, the device's capacity has been extended to its
+ * native capacity; i.e. the device has hidden capacity used by one
+ * of the partitions (this is a flag used so that native capacity is
+ * only ever unlocked once).
+ *
+ * ``GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE`` (0x0100): event polling is
+ * blocked whenever a writer holds an exclusive lock.
+ *
+ * ``GENHD_FL_NO_PART_SCAN`` (0x0200): partition scanning is disabled.
+ * Used for loop devices in their default settings and some MMC
+ * devices.
+ *
+ * ``GENHD_FL_HIDDEN`` (0x0400): the block device is hidden; it
+ * doesn't produce events, doesn't appear in sysfs, and doesn't have
+ * an associated ``bdev``.
+ * Implies ``GENHD_FL_SUPPRESS_PARTITION_INFO`` and
+ * ``GENHD_FL_NO_PART_SCAN``.
+ * Used for multipath devices.
+ */
+#define GENHD_FL_REMOVABLE			0x0001
+/* 2 is unused (used to be GENHD_FL_DRIVERFS) */
+/* 4 is unused (used to be GENHD_FL_MEDIA_CHANGE_NOTIFY) */
+#define GENHD_FL_CD				0x0008
+#define GENHD_FL_UP				0x0010
+#define GENHD_FL_SUPPRESS_PARTITION_INFO	0x0020
+#define GENHD_FL_EXT_DEVT			0x0040
+#define GENHD_FL_NATIVE_CAPACITY		0x0080
+#define GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE	0x0100
+#define GENHD_FL_NO_PART_SCAN			0x0200
+#define GENHD_FL_HIDDEN				0x0400
 
 enum {
 	DISK_EVENT_MEDIA_CHANGE			= 1 << 0, /* media changed */
