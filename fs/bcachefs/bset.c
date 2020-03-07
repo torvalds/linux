@@ -67,8 +67,8 @@ void bch2_dump_bset(struct btree *b, struct bset *i, unsigned set)
 		_n = bkey_next_skip_noops(_k, vstruct_last(i));
 
 		bch2_bkey_to_text(&PBUF(buf), &k);
-		printk(KERN_ERR "block %u key %5u: %s\n", set,
-		       __btree_node_key_to_offset(b, _k), buf);
+		printk(KERN_ERR "block %u key %5zu: %s\n", set,
+		       _k->_data - i->_data, buf);
 
 		if (_n == vstruct_last(i))
 			continue;
