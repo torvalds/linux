@@ -179,6 +179,7 @@ static void hclge_dbg_dump_dcb(struct hclge_dev *hdev, const char *cmd_buf)
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_dbg_bitmap_cmd *bitmap;
+	enum hclge_opcode_type cmd;
 	int rq_id, pri_id, qset_id;
 	int port_id, nq_id, pg_id;
 	struct hclge_desc desc[2];
@@ -193,10 +194,10 @@ static void hclge_dbg_dump_dcb(struct hclge_dev *hdev, const char *cmd_buf)
 		return;
 	}
 
-	ret = hclge_dbg_cmd_send(hdev, desc, qset_id, 1,
-				 HCLGE_OPC_QSET_DFX_STS);
+	cmd = HCLGE_OPC_QSET_DFX_STS;
+	ret = hclge_dbg_cmd_send(hdev, desc, qset_id, 1, cmd);
 	if (ret)
-		return;
+		goto err_dcb_cmd_send;
 
 	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc[0].data[1];
 	dev_info(dev, "roce_qset_mask: 0x%x\n", bitmap->bit0);
@@ -204,48 +205,53 @@ static void hclge_dbg_dump_dcb(struct hclge_dev *hdev, const char *cmd_buf)
 	dev_info(dev, "qs_shaping_pass: 0x%x\n", bitmap->bit2);
 	dev_info(dev, "qs_bp_sts: 0x%x\n", bitmap->bit3);
 
-	ret = hclge_dbg_cmd_send(hdev, desc, pri_id, 1, HCLGE_OPC_PRI_DFX_STS);
+	cmd = HCLGE_OPC_PRI_DFX_STS;
+	ret = hclge_dbg_cmd_send(hdev, desc, pri_id, 1, cmd);
 	if (ret)
-		return;
+		goto err_dcb_cmd_send;
 
 	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc[0].data[1];
 	dev_info(dev, "pri_mask: 0x%x\n", bitmap->bit0);
 	dev_info(dev, "pri_cshaping_pass: 0x%x\n", bitmap->bit1);
 	dev_info(dev, "pri_pshaping_pass: 0x%x\n", bitmap->bit2);
 
-	ret = hclge_dbg_cmd_send(hdev, desc, pg_id, 1, HCLGE_OPC_PG_DFX_STS);
+	cmd = HCLGE_OPC_PG_DFX_STS;
+	ret = hclge_dbg_cmd_send(hdev, desc, pg_id, 1, cmd);
 	if (ret)
-		return;
+		goto err_dcb_cmd_send;
 
 	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc[0].data[1];
 	dev_info(dev, "pg_mask: 0x%x\n", bitmap->bit0);
 	dev_info(dev, "pg_cshaping_pass: 0x%x\n", bitmap->bit1);
 	dev_info(dev, "pg_pshaping_pass: 0x%x\n", bitmap->bit2);
 
-	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1,
-				 HCLGE_OPC_PORT_DFX_STS);
+	cmd = HCLGE_OPC_PORT_DFX_STS;
+	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1, cmd);
 	if (ret)
-		return;
+		goto err_dcb_cmd_send;
 
 	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc[0].data[1];
 	dev_info(dev, "port_mask: 0x%x\n", bitmap->bit0);
 	dev_info(dev, "port_shaping_pass: 0x%x\n", bitmap->bit1);
 
-	ret = hclge_dbg_cmd_send(hdev, desc, nq_id, 1, HCLGE_OPC_SCH_NQ_CNT);
+	cmd = HCLGE_OPC_SCH_NQ_CNT;
+	ret = hclge_dbg_cmd_send(hdev, desc, nq_id, 1, cmd);
 	if (ret)
-		return;
+		goto err_dcb_cmd_send;
 
 	dev_info(dev, "sch_nq_cnt: 0x%x\n", le32_to_cpu(desc[0].data[1]));
 
-	ret = hclge_dbg_cmd_send(hdev, desc, nq_id, 1, HCLGE_OPC_SCH_RQ_CNT);
+	cmd = HCLGE_OPC_SCH_RQ_CNT;
+	ret = hclge_dbg_cmd_send(hdev, desc, nq_id, 1, cmd);
 	if (ret)
-		return;
+		goto err_dcb_cmd_send;
 
 	dev_info(dev, "sch_rq_cnt: 0x%x\n", le32_to_cpu(desc[0].data[1]));
 
-	ret = hclge_dbg_cmd_send(hdev, desc, 0, 2, HCLGE_OPC_TM_INTERNAL_STS);
+	cmd = HCLGE_OPC_TM_INTERNAL_STS;
+	ret = hclge_dbg_cmd_send(hdev, desc, 0, 2, cmd);
 	if (ret)
-		return;
+		goto err_dcb_cmd_send;
 
 	dev_info(dev, "pri_bp: 0x%x\n", le32_to_cpu(desc[0].data[1]));
 	dev_info(dev, "fifo_dfx_info: 0x%x\n", le32_to_cpu(desc[0].data[2]));
@@ -257,18 +263,18 @@ static void hclge_dbg_dump_dcb(struct hclge_dev *hdev, const char *cmd_buf)
 	dev_info(dev, "SSU_TM_BYPASS_EN: 0x%x\n", le32_to_cpu(desc[1].data[0]));
 	dev_info(dev, "SSU_RESERVE_CFG: 0x%x\n", le32_to_cpu(desc[1].data[1]));
 
-	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1,
-				 HCLGE_OPC_TM_INTERNAL_CNT);
+	cmd = HCLGE_OPC_TM_INTERNAL_CNT;
+	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1, cmd);
 	if (ret)
-		return;
+		goto err_dcb_cmd_send;
 
 	dev_info(dev, "SCH_NIC_NUM: 0x%x\n", le32_to_cpu(desc[0].data[1]));
 	dev_info(dev, "SCH_ROCE_NUM: 0x%x\n", le32_to_cpu(desc[0].data[2]));
 
-	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1,
-				 HCLGE_OPC_TM_INTERNAL_STS_1);
+	cmd = HCLGE_OPC_TM_INTERNAL_STS_1;
+	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1, cmd);
 	if (ret)
-		return;
+		goto err_dcb_cmd_send;
 
 	dev_info(dev, "TC_MAP_SEL: 0x%x\n", le32_to_cpu(desc[0].data[1]));
 	dev_info(dev, "IGU_PFC_PRI_EN: 0x%x\n", le32_to_cpu(desc[0].data[2]));
@@ -277,6 +283,12 @@ static void hclge_dbg_dump_dcb(struct hclge_dev *hdev, const char *cmd_buf)
 		 le32_to_cpu(desc[0].data[4]));
 	dev_info(dev, "IGU_TX_PRI_MAP_TC_CFG: 0x%x\n",
 		 le32_to_cpu(desc[0].data[5]));
+	return;
+
+err_dcb_cmd_send:
+	dev_err(&hdev->pdev->dev,
+		"failed to dump dcb dfx, cmd = %#x, ret = %d\n",
+		cmd, ret);
 }
 
 static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
