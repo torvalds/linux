@@ -348,10 +348,29 @@
 #define NFT_PIPAPO_MAX_BYTES		(sizeof(struct in6_addr))
 #define NFT_PIPAPO_MAX_BITS		(NFT_PIPAPO_MAX_BYTES * BITS_PER_BYTE)
 
-/* Number of bits to be grouped together in lookup table buckets, arbitrary */
-#define NFT_PIPAPO_GROUP_BITS		4
-
+/* Bits to be grouped together in table buckets depending on set size */
+#define NFT_PIPAPO_GROUP_BITS_INIT	NFT_PIPAPO_GROUP_BITS_SMALL_SET
+#define NFT_PIPAPO_GROUP_BITS_SMALL_SET	8
+#define NFT_PIPAPO_GROUP_BITS_LARGE_SET	4
+#define NFT_PIPAPO_GROUP_BITS_ARE_8_OR_4				\
+	BUILD_BUG_ON((NFT_PIPAPO_GROUP_BITS_SMALL_SET != 8) ||		\
+		     (NFT_PIPAPO_GROUP_BITS_LARGE_SET != 4))
 #define NFT_PIPAPO_GROUPS_PER_BYTE(f)	(BITS_PER_BYTE / (f)->bb)
+
+/* If a lookup table gets bigger than NFT_PIPAPO_LT_SIZE_HIGH, switch to the
+ * small group width, and switch to the big group width if the table gets
+ * smaller than NFT_PIPAPO_LT_SIZE_LOW.
+ *
+ * Picking 2MiB as threshold (for a single table) avoids as much as possible
+ * crossing page boundaries on most architectures (x86-64 and MIPS huge pages,
+ * ARMv7 supersections, POWER "large" pages, SPARC Level 1 regions, etc.), which
+ * keeps performance nice in case kvmalloc() gives us non-contiguous areas.
+ */
+#define NFT_PIPAPO_LT_SIZE_THRESHOLD	(1 << 21)
+#define NFT_PIPAPO_LT_SIZE_HYSTERESIS	(1 << 16)
+#define NFT_PIPAPO_LT_SIZE_HIGH		NFT_PIPAPO_LT_SIZE_THRESHOLD
+#define NFT_PIPAPO_LT_SIZE_LOW		NFT_PIPAPO_LT_SIZE_THRESHOLD -	\
+					NFT_PIPAPO_LT_SIZE_HYSTERESIS
 
 /* Fields are padded to 32 bits in input registers */
 #define NFT_PIPAPO_GROUPS_PADDED_SIZE(f)				\
@@ -551,6 +570,26 @@ static void pipapo_and_field_buckets_4bit(struct nft_pipapo_field *f,
 }
 
 /**
+ * pipapo_and_field_buckets_8bit() - Intersect buckets for 8-bit groups
+ * @f:		Field including lookup table
+ * @dst:	Area to store result
+ * @data:	Input data selecting table buckets
+ */
+static void pipapo_and_field_buckets_8bit(struct nft_pipapo_field *f,
+					  unsigned long *dst,
+					  const u8 *data)
+{
+	unsigned long *lt = f->lt;
+	int group;
+
+	for (group = 0; group < f->groups; group++, data++) {
+		__bitmap_and(dst, dst, lt + *data * f->bsize,
+			     f->bsize * BITS_PER_LONG);
+		lt += f->bsize * NFT_PIPAPO_BUCKETS(8);
+	}
+}
+
+/**
  * nft_pipapo_lookup() - Lookup function
  * @net:	Network namespace
  * @set:	nftables API set representation
@@ -594,8 +633,11 @@ static bool nft_pipapo_lookup(const struct net *net, const struct nft_set *set,
 		/* For each bit group: select lookup table bucket depending on
 		 * packet bytes value, then AND bucket value
 		 */
-		pipapo_and_field_buckets_4bit(f, res_map, rp);
-		BUILD_BUG_ON(NFT_PIPAPO_GROUP_BITS != 4);
+		if (likely(f->bb == 8))
+			pipapo_and_field_buckets_8bit(f, res_map, rp);
+		else
+			pipapo_and_field_buckets_4bit(f, res_map, rp);
+		NFT_PIPAPO_GROUP_BITS_ARE_8_OR_4;
 
 		rp += f->groups / NFT_PIPAPO_GROUPS_PER_BYTE(f);
 
@@ -693,7 +735,9 @@ static struct nft_pipapo_elem *pipapo_get(const struct net *net,
 		/* For each bit group: select lookup table bucket depending on
 		 * packet bytes value, then AND bucket value
 		 */
-		if (f->bb == 4)
+		if (f->bb == 8)
+			pipapo_and_field_buckets_8bit(f, res_map, data);
+		else if (f->bb == 4)
 			pipapo_and_field_buckets_4bit(f, res_map, data);
 		else
 			BUG();
@@ -846,6 +890,183 @@ static void pipapo_bucket_set(struct nft_pipapo_field *f, int rule, int group,
 }
 
 /**
+ * pipapo_lt_4b_to_8b() - Switch lookup table group width from 4 bits to 8 bits
+ * @old_groups:	Number of current groups
+ * @bsize:	Size of one bucket, in longs
+ * @old_lt:	Pointer to the current lookup table
+ * @new_lt:	Pointer to the new, pre-allocated lookup table
+ *
+ * Each bucket with index b in the new lookup table, belonging to group g, is
+ * filled with the bit intersection between:
+ * - bucket with index given by the upper 4 bits of b, from group g, and
+ * - bucket with index given by the lower 4 bits of b, from group g + 1
+ *
+ * That is, given buckets from the new lookup table N(x, y) and the old lookup
+ * table O(x, y), with x bucket index, and y group index:
+ *
+ *	N(b, g) := O(b / 16, g) & O(b % 16, g + 1)
+ *
+ * This ensures equivalence of the matching results on lookup. Two examples in
+ * pictures:
+ *
+ *              bucket
+ *  group  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 ... 254 255
+ *    0                ^
+ *    1                |                                                 ^
+ *   ...             ( & )                                               |
+ *                  /     \                                              |
+ *                 /       \                                         .-( & )-.
+ *                /  bucket \                                        |       |
+ *      group  0 / 1   2   3 \ 4   5   6   7   8   9  10  11  12  13 |14  15 |
+ *        0     /             \                                      |       |
+ *        1                    \                                     |       |
+ *        2                                                          |     --'
+ *        3                                                          '-
+ *       ...
+ */
+static void pipapo_lt_4b_to_8b(int old_groups, int bsize,
+			       unsigned long *old_lt, unsigned long *new_lt)
+{
+	int g, b, i;
+
+	for (g = 0; g < old_groups / 2; g++) {
+		int src_g0 = g * 2, src_g1 = g * 2 + 1;
+
+		for (b = 0; b < NFT_PIPAPO_BUCKETS(8); b++) {
+			int src_b0 = b / NFT_PIPAPO_BUCKETS(4);
+			int src_b1 = b % NFT_PIPAPO_BUCKETS(4);
+			int src_i0 = src_g0 * NFT_PIPAPO_BUCKETS(4) + src_b0;
+			int src_i1 = src_g1 * NFT_PIPAPO_BUCKETS(4) + src_b1;
+
+			for (i = 0; i < bsize; i++) {
+				*new_lt = old_lt[src_i0 * bsize + i] &
+					  old_lt[src_i1 * bsize + i];
+				new_lt++;
+			}
+		}
+	}
+}
+
+/**
+ * pipapo_lt_8b_to_4b() - Switch lookup table group width from 8 bits to 4 bits
+ * @old_groups:	Number of current groups
+ * @bsize:	Size of one bucket, in longs
+ * @old_lt:	Pointer to the current lookup table
+ * @new_lt:	Pointer to the new, pre-allocated lookup table
+ *
+ * Each bucket with index b in the new lookup table, belonging to group g, is
+ * filled with the bit union of:
+ * - all the buckets with index such that the upper four bits of the lower byte
+ *   equal b, from group g, with g odd
+ * - all the buckets with index such that the lower four bits equal b, from
+ *   group g, with g even
+ *
+ * That is, given buckets from the new lookup table N(x, y) and the old lookup
+ * table O(x, y), with x bucket index, and y group index:
+ *
+ *	- with g odd:  N(b, g) := U(O(x, g) for each x : x = (b & 0xf0) >> 4)
+ *	- with g even: N(b, g) := U(O(x, g) for each x : x = b & 0x0f)
+ *
+ * where U() denotes the arbitrary union operation (binary OR of n terms). This
+ * ensures equivalence of the matching results on lookup.
+ */
+static void pipapo_lt_8b_to_4b(int old_groups, int bsize,
+			       unsigned long *old_lt, unsigned long *new_lt)
+{
+	int g, b, bsrc, i;
+
+	memset(new_lt, 0, old_groups * 2 * NFT_PIPAPO_BUCKETS(4) * bsize *
+			  sizeof(unsigned long));
+
+	for (g = 0; g < old_groups * 2; g += 2) {
+		int src_g = g / 2;
+
+		for (b = 0; b < NFT_PIPAPO_BUCKETS(4); b++) {
+			for (bsrc = NFT_PIPAPO_BUCKETS(8) * src_g;
+			     bsrc < NFT_PIPAPO_BUCKETS(8) * (src_g + 1);
+			     bsrc++) {
+				if (((bsrc & 0xf0) >> 4) != b)
+					continue;
+
+				for (i = 0; i < bsize; i++)
+					new_lt[i] |= old_lt[bsrc * bsize + i];
+			}
+
+			new_lt += bsize;
+		}
+
+		for (b = 0; b < NFT_PIPAPO_BUCKETS(4); b++) {
+			for (bsrc = NFT_PIPAPO_BUCKETS(8) * src_g;
+			     bsrc < NFT_PIPAPO_BUCKETS(8) * (src_g + 1);
+			     bsrc++) {
+				if ((bsrc & 0x0f) != b)
+					continue;
+
+				for (i = 0; i < bsize; i++)
+					new_lt[i] |= old_lt[bsrc * bsize + i];
+			}
+
+			new_lt += bsize;
+		}
+	}
+}
+
+/**
+ * pipapo_lt_bits_adjust() - Adjust group size for lookup table if needed
+ * @f:		Field containing lookup table
+ */
+static void pipapo_lt_bits_adjust(struct nft_pipapo_field *f)
+{
+	unsigned long *new_lt;
+	int groups, bb;
+	size_t lt_size;
+
+	lt_size = f->groups * NFT_PIPAPO_BUCKETS(f->bb) * f->bsize *
+		  sizeof(*f->lt);
+
+	if (f->bb == NFT_PIPAPO_GROUP_BITS_SMALL_SET &&
+	    lt_size > NFT_PIPAPO_LT_SIZE_HIGH) {
+		groups = f->groups * 2;
+		bb = NFT_PIPAPO_GROUP_BITS_LARGE_SET;
+
+		lt_size = groups * NFT_PIPAPO_BUCKETS(bb) * f->bsize *
+			  sizeof(*f->lt);
+	} else if (f->bb == NFT_PIPAPO_GROUP_BITS_LARGE_SET &&
+		   lt_size < NFT_PIPAPO_LT_SIZE_LOW) {
+		groups = f->groups / 2;
+		bb = NFT_PIPAPO_GROUP_BITS_SMALL_SET;
+
+		lt_size = groups * NFT_PIPAPO_BUCKETS(bb) * f->bsize *
+			  sizeof(*f->lt);
+
+		/* Don't increase group width if the resulting lookup table size
+		 * would exceed the upper size threshold for a "small" set.
+		 */
+		if (lt_size > NFT_PIPAPO_LT_SIZE_HIGH)
+			return;
+	} else {
+		return;
+	}
+
+	new_lt = kvzalloc(lt_size, GFP_KERNEL);
+	if (!new_lt)
+		return;
+
+	NFT_PIPAPO_GROUP_BITS_ARE_8_OR_4;
+	if (f->bb == 4 && bb == 8)
+		pipapo_lt_4b_to_8b(f->groups, f->bsize, f->lt, new_lt);
+	else if (f->bb == 8 && bb == 4)
+		pipapo_lt_8b_to_4b(f->groups, f->bsize, f->lt, new_lt);
+	else
+		BUG();
+
+	f->groups = groups;
+	f->bb = bb;
+	kvfree(f->lt);
+	f->lt = new_lt;
+}
+
+/**
  * pipapo_insert() - Insert new rule in field given input key and mask length
  * @f:		Field containing lookup table
  * @k:		Input key for classification, without nftables padding
@@ -893,6 +1114,8 @@ static int pipapo_insert(struct nft_pipapo_field *f, const uint8_t *k,
 			}
 		}
 	}
+
+	pipapo_lt_bits_adjust(f);
 
 	return 1;
 }
@@ -1424,6 +1647,8 @@ static void pipapo_drop(struct nft_pipapo_match *m,
 			;
 		}
 		f->rules -= rulemap[i].n;
+
+		pipapo_lt_bits_adjust(f);
 	}
 }
 
@@ -1936,7 +2161,7 @@ static bool nft_pipapo_estimate(const struct nft_set_desc *desc, u32 features,
 		 */
 		rules = ilog2(desc->field_len[i] * BITS_PER_BYTE) * 2;
 		entry_size += rules *
-			      NFT_PIPAPO_BUCKETS(NFT_PIPAPO_GROUP_BITS) /
+			      NFT_PIPAPO_BUCKETS(NFT_PIPAPO_GROUP_BITS_INIT) /
 			      BITS_PER_BYTE;
 		entry_size += rules * sizeof(union nft_pipapo_map_bucket);
 	}
@@ -2001,7 +2226,7 @@ static int nft_pipapo_init(const struct nft_set *set,
 	rcu_head_init(&m->rcu);
 
 	nft_pipapo_for_each_field(f, i, m) {
-		f->bb = NFT_PIPAPO_GROUP_BITS;
+		f->bb = NFT_PIPAPO_GROUP_BITS_INIT;
 		f->groups = desc->field_len[i] * NFT_PIPAPO_GROUPS_PER_BYTE(f);
 
 		priv->width += round_up(desc->field_len[i], sizeof(u32));
