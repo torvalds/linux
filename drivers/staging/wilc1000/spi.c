@@ -189,7 +189,7 @@ static int wilc_bus_remove(struct spi_device *spi)
 }
 
 static const struct of_device_id wilc_of_match[] = {
-	{ .compatible = "microchip,wilc1000-spi", },
+	{ .compatible = "microchip,wilc1000", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, wilc_of_match);
