@@ -2178,7 +2178,7 @@ drm_dp_mst_port_add_connector(struct drm_dp_mst_branch *mstb,
 		drm_connector_set_tile_property(port->connector);
 	}
 
-	mgr->cbs->register_connector(port->connector);
+	drm_connector_register(port->connector);
 	return;
 
 error:
