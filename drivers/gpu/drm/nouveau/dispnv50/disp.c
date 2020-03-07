@@ -1256,17 +1256,6 @@ nv50_mstm_prepare(struct nv50_mstm *mstm)
 	}
 }
 
-static void
-nv50_mstm_destroy_connector(struct drm_dp_mst_topology_mgr *mgr,
-			    struct drm_connector *connector)
-{
-	struct nv50_mstc *mstc = nv50_mstc(connector);
-
-	drm_connector_unregister(&mstc->connector);
-
-	drm_connector_put(&mstc->connector);
-}
-
 static struct drm_connector *
 nv50_mstm_add_connector(struct drm_dp_mst_topology_mgr *mgr,
 			struct drm_dp_mst_port *port, const char *path)
@@ -1285,7 +1274,6 @@ nv50_mstm_add_connector(struct drm_dp_mst_topology_mgr *mgr,
 static const struct drm_dp_mst_topology_cbs
 nv50_mstm = {
 	.add_connector = nv50_mstm_add_connector,
-	.destroy_connector = nv50_mstm_destroy_connector,
 };
 
 void
