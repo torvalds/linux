@@ -185,7 +185,6 @@ struct igc_adapter {
 
 	/* RX network flow classification support */
 	struct hlist_head nfc_filter_list;
-	struct hlist_head cls_flower_list;
 	unsigned int nfc_filter_count;
 
 	/* lock for RX network flow classification filter */

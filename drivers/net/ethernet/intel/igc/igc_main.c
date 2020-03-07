@@ -3487,9 +3487,6 @@ static void igc_nfc_filter_exit(struct igc_adapter *adapter)
 	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
 		igc_erase_filter(adapter, rule);
 
-	hlist_for_each_entry(rule, &adapter->cls_flower_list, nfc_node)
-		igc_erase_filter(adapter, rule);
-
 	spin_unlock(&adapter->nfc_lock);
 }
 
