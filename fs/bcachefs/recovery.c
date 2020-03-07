@@ -424,6 +424,7 @@ static int __bch2_journal_replay_key(struct btree_trans *trans,
 		return PTR_ERR(iter);
 
 	bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
+	bch2_trans_iter_put(trans, iter);
 	return 0;
 }
 
