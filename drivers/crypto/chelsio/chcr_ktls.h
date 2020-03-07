@@ -11,6 +11,7 @@
 #include "t4_tcb.h"
 #include "l2t.h"
 #include "chcr_common.h"
+#include "cxgb4_uld.h"
 
 #define CHCR_TCB_STATE_CLOSED	0
 #define CHCR_KTLS_KEY_CTX_LEN	16
