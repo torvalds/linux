@@ -1087,7 +1087,8 @@ static int nft_pipapo_avx2_lookup_slow(unsigned long *map, unsigned long *fill,
 bool nft_pipapo_avx2_estimate(const struct nft_set_desc *desc, u32 features,
 			      struct nft_set_estimate *est)
 {
-	if (!(features & NFT_SET_INTERVAL) || desc->field_count <= 1)
+	if (!(features & NFT_SET_INTERVAL) ||
+	    desc->field_count < NFT_PIPAPO_MIN_FIELDS)
 		return false;
 
 	if (!boot_cpu_has(X86_FEATURE_AVX2) || !boot_cpu_has(X86_FEATURE_AVX))

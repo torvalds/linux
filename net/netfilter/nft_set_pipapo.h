@@ -8,6 +8,9 @@
 /* Count of concatenated fields depends on count of 32-bit nftables registers */
 #define NFT_PIPAPO_MAX_FIELDS		NFT_REG32_COUNT
 
+/* Restrict usage to multiple fields, make sure rbtree is used otherwise */
+#define NFT_PIPAPO_MIN_FIELDS		2
+
 /* Largest supported field size */
 #define NFT_PIPAPO_MAX_BYTES		(sizeof(struct in6_addr))
 #define NFT_PIPAPO_MAX_BITS		(NFT_PIPAPO_MAX_BYTES * BITS_PER_BYTE)

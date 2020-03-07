@@ -1983,7 +1983,8 @@ static u64 nft_pipapo_privsize(const struct nlattr * const nla[],
 static bool nft_pipapo_estimate(const struct nft_set_desc *desc, u32 features,
 				struct nft_set_estimate *est)
 {
-	if (!(features & NFT_SET_INTERVAL) || desc->field_count <= 1)
+	if (!(features & NFT_SET_INTERVAL) ||
+	    desc->field_count < NFT_PIPAPO_MIN_FIELDS)
 		return false;
 
 	est->size = pipapo_estimate_size(desc);
@@ -2016,17 +2017,19 @@ static int nft_pipapo_init(const struct nft_set *set,
 	struct nft_pipapo *priv = nft_set_priv(set);
 	struct nft_pipapo_match *m;
 	struct nft_pipapo_field *f;
-	int err, i;
+	int err, i, field_count;
 
-	if (desc->field_count > NFT_PIPAPO_MAX_FIELDS)
+	field_count = desc->field_count ? : 1;
+
+	if (field_count > NFT_PIPAPO_MAX_FIELDS)
 		return -EINVAL;
 
-	m = kmalloc(sizeof(*priv->match) + sizeof(*f) * desc->field_count,
+	m = kmalloc(sizeof(*priv->match) + sizeof(*f) * field_count,
 		    GFP_KERNEL);
 	if (!m)
 		return -ENOMEM;
 
-	m->field_count = desc->field_count;
+	m->field_count = field_count;
 	m->bsize_max = 0;
 
 	m->scratch = alloc_percpu(unsigned long *);
@@ -2050,10 +2053,12 @@ static int nft_pipapo_init(const struct nft_set *set,
 	rcu_head_init(&m->rcu);
 
 	nft_pipapo_for_each_field(f, i, m) {
-		f->bb = NFT_PIPAPO_GROUP_BITS_INIT;
-		f->groups = desc->field_len[i] * NFT_PIPAPO_GROUPS_PER_BYTE(f);
+		int len = desc->field_len[i] ? : set->klen;
 
-		priv->width += round_up(desc->field_len[i], sizeof(u32));
+		f->bb = NFT_PIPAPO_GROUP_BITS_INIT;
+		f->groups = len * NFT_PIPAPO_GROUPS_PER_BYTE(f);
+
+		priv->width += round_up(len, sizeof(u32));
 
 		f->bsize = 0;
 		f->rules = 0;
