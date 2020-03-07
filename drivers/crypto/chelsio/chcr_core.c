@@ -49,9 +49,9 @@ static struct cxgb4_uld_info chcr_uld_info = {
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
 	.rx_handler = chcr_uld_rx_handler,
-#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+#if defined(CONFIG_CHELSIO_IPSEC_INLINE) || defined(CONFIG_CHELSIO_TLS_DEVICE)
 	.tx_handler = chcr_uld_tx_handler,
-#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE || CONFIG_CHELSIO_TLS_DEVICE */
 };
 
 static void detach_work_fn(struct work_struct *work)
@@ -237,12 +237,22 @@ int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 	return 0;
 }
 
-#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+#if defined(CONFIG_CHELSIO_IPSEC_INLINE) || defined(CONFIG_CHELSIO_TLS_DEVICE)
 int chcr_uld_tx_handler(struct sk_buff *skb, struct net_device *dev)
 {
+	/* In case if skb's decrypted bit is set, it's nic tls packet, else it's
+	 * ipsec packet.
+	 */
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	if (skb->decrypted)
+		return chcr_ktls_xmit(skb, dev);
+#endif
+#ifdef CONFIG_CHELSIO_IPSEC_INLINE
 	return chcr_ipsec_xmit(skb, dev);
+#endif
+	return 0;
 }
-#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE || CONFIG_CHELSIO_TLS_DEVICE */
 
 static void chcr_detach_device(struct uld_ctx *u_ctx)
 {

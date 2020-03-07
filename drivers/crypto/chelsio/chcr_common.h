@@ -9,6 +9,11 @@
 #define CHCR_MAX_SALT                      4
 #define CHCR_KEYCTX_MAC_KEY_SIZE_128       0
 #define CHCR_KEYCTX_CIPHER_KEY_SIZE_128    0
+#define CHCR_SCMD_CIPHER_MODE_AES_GCM      2
+#define CHCR_CPL_TX_SEC_PDU_LEN_64BIT      2
+#define CHCR_SCMD_SEQ_NO_CTRL_64BIT        3
+#define CHCR_SCMD_PROTO_VERSION_TLS        0
+#define CHCR_SCMD_AUTH_MODE_GHASH          4
 
 enum chcr_state {
 	CHCR_INIT = 0,
@@ -92,5 +97,36 @@ static inline void *chcr_copy_to_txd(const void *src, const struct sge_txq *q,
 		return p + 1;
 	}
 	return p;
+}
+
+static inline unsigned int chcr_txq_avail(const struct sge_txq *q)
+{
+	return q->size - 1 - q->in_use;
+}
+
+static inline void chcr_txq_advance(struct sge_txq *q, unsigned int n)
+{
+	q->in_use += n;
+	q->pidx += n;
+	if (q->pidx >= q->size)
+		q->pidx -= q->size;
+}
+
+static inline void chcr_eth_txq_stop(struct sge_eth_txq *q)
+{
+	netif_tx_stop_queue(q->txq);
+	q->q.stops++;
+}
+
+static inline unsigned int chcr_sgl_len(unsigned int n)
+{
+	n--;
+	return (3 * n) / 2 + (n & 1) + 2;
+}
+
+static inline unsigned int chcr_flits_to_desc(unsigned int n)
+{
+	WARN_ON(n > SGE_MAX_WR_LEN / 8);
+	return DIV_ROUND_UP(n, 8);
 }
 #endif /* __CHCR_COMMON_H__ */

@@ -74,6 +74,16 @@
 #define TCB_RTT_TS_RECENT_AGE_M		0xffffffffULL
 #define TCB_RTT_TS_RECENT_AGE_V(x)	((x) << TCB_RTT_TS_RECENT_AGE_S)
 
+#define TCB_T_RTSEQ_RECENT_W    7
+#define TCB_T_RTSEQ_RECENT_S    0
+#define TCB_T_RTSEQ_RECENT_M    0xffffffffULL
+#define TCB_T_RTSEQ_RECENT_V(x) ((x) << TCB_T_RTSEQ_RECENT_S)
+
+#define TCB_TX_MAX_W		9
+#define TCB_TX_MAX_S		0
+#define TCB_TX_MAX_M		0xffffffffULL
+#define TCB_TX_MAX_V(x)		((x) << TCB_TX_MAX_S)
+
 #define TCB_SND_UNA_RAW_W	10
 #define TCB_SND_UNA_RAW_S	0
 #define TCB_SND_UNA_RAW_M	0xfffffffULL
@@ -88,6 +98,16 @@
 #define TCB_SND_MAX_RAW_S	24
 #define TCB_SND_MAX_RAW_M	0xfffffffULL
 #define TCB_SND_MAX_RAW_V(x)	((x) << TCB_SND_MAX_RAW_S)
+
+#define TCB_RCV_NXT_W		16
+#define TCB_RCV_NXT_S		10
+#define TCB_RCV_NXT_M		0xffffffffULL
+#define TCB_RCV_NXT_V(x)	((x) << TCB_RCV_NXT_S)
+
+#define TCB_RCV_WND_W		17
+#define TCB_RCV_WND_S		10
+#define TCB_RCV_WND_M		0xffffffULL
+#define TCB_RCV_WND_V(x)	((x) << TCB_RCV_WND_S)
 
 #define TCB_RX_FRAG2_PTR_RAW_W	27
 #define TCB_RX_FRAG3_LEN_RAW_W	29

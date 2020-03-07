@@ -227,5 +227,6 @@ void chcr_enable_ktls(struct adapter *adap);
 void chcr_disable_ktls(struct adapter *adap);
 int chcr_ktls_cpl_act_open_rpl(struct adapter *adap, unsigned char *input);
 int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input);
+int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev);
 #endif
 #endif /* __CHCR_CORE_H__ */

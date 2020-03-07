@@ -15,6 +15,13 @@
 #define CHCR_TCB_STATE_CLOSED	0
 #define CHCR_KTLS_KEY_CTX_LEN	16
 #define CHCR_SET_TCB_FIELD_LEN	sizeof(struct cpl_set_tcb_field)
+#define CHCR_PLAIN_TX_DATA_LEN	(sizeof(struct fw_ulptx_wr) +\
+				 sizeof(struct ulp_txpkt) +\
+				 sizeof(struct ulptx_idata) +\
+				 sizeof(struct cpl_tx_data))
+
+#define CHCR_KTLS_WR_SIZE	(CHCR_PLAIN_TX_DATA_LEN +\
+				 sizeof(struct cpl_tx_sec_pdu))
 
 enum chcr_ktls_conn_state {
 	KTLS_CONN_CLOSED,
@@ -39,14 +46,19 @@ struct chcr_ktls_info {
 	int rx_qid;
 	u32 iv_size;
 	u32 prev_seq;
+	u32 prev_ack;
 	u32 salt_size;
 	u32 key_ctx_len;
+	u32 scmd0_seqno_numivs;
+	u32 scmd0_ivgen_hdrlen;
 	u32 tcp_start_seq_number;
 	enum chcr_ktls_conn_state connection_state;
+	u16 prev_win;
 	u8 tx_chan;
 	u8 smt_idx;
 	u8 port_id;
 	u8 ip_family;
+	u8 first_qset;
 };
 
 struct chcr_ktls_ofld_ctx_tx {
@@ -78,5 +90,6 @@ void chcr_enable_ktls(struct adapter *adap);
 void chcr_disable_ktls(struct adapter *adap);
 int chcr_ktls_cpl_act_open_rpl(struct adapter *adap, unsigned char *input);
 int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input);
+int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev);
 #endif /* CONFIG_CHELSIO_TLS_DEVICE */
 #endif /* __CHCR_KTLS_H__ */
