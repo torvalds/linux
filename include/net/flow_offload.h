@@ -159,6 +159,7 @@ enum flow_action_mangle_base {
 #define FLOW_ACTION_HW_STATS_TYPE_DELAYED BIT(1)
 #define FLOW_ACTION_HW_STATS_TYPE_ANY (FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE | \
 				       FLOW_ACTION_HW_STATS_TYPE_DELAYED)
+#define FLOW_ACTION_HW_STATS_TYPE_DISABLED 0
 
 typedef void (*action_destr)(void *priv);
 
