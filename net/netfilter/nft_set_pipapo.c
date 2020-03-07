@@ -339,6 +339,7 @@
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 
+#include "nft_set_pipapo_avx2.h"
 #include "nft_set_pipapo.h"
 
 /* Current working bitmap index, toggled between field matches */
@@ -2174,3 +2175,26 @@ const struct nft_set_type nft_set_pipapo_type = {
 		.elemsize	= offsetof(struct nft_pipapo_elem, ext),
 	},
 };
+
+#if defined(CONFIG_X86_64) && defined(CONFIG_AS_AVX2)
+const struct nft_set_type nft_set_pipapo_avx2_type = {
+	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT |
+			  NFT_SET_TIMEOUT,
+	.ops		= {
+		.lookup		= nft_pipapo_avx2_lookup,
+		.insert		= nft_pipapo_insert,
+		.activate	= nft_pipapo_activate,
+		.deactivate	= nft_pipapo_deactivate,
+		.flush		= nft_pipapo_flush,
+		.remove		= nft_pipapo_remove,
+		.walk		= nft_pipapo_walk,
+		.get		= nft_pipapo_get,
+		.privsize	= nft_pipapo_privsize,
+		.estimate	= nft_pipapo_avx2_estimate,
+		.init		= nft_pipapo_init,
+		.destroy	= nft_pipapo_destroy,
+		.gc_init	= nft_pipapo_gc_init,
+		.elemsize	= offsetof(struct nft_pipapo_elem, ext),
+	},
+};
+#endif
