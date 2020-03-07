@@ -37,6 +37,9 @@ int ionic_bus_alloc_irq_vectors(struct ionic *ionic, unsigned int nintrs)
 
 void ionic_bus_free_irq_vectors(struct ionic *ionic)
 {
+	if (!ionic->nintrs)
+		return;
+
 	pci_free_irq_vectors(ionic->pdev);
 }
 
@@ -346,6 +349,11 @@ err_out_reset:
 	ionic_reset(ionic);
 err_out_teardown:
 	ionic_dev_teardown(ionic);
+	/* Don't fail the probe for these errors, keep
+	 * the hw interface around for inspection
+	 */
+	return 0;
+
 err_out_unmap_bars:
 	ionic_unmap_bars(ionic);
 	pci_release_regions(pdev);
@@ -369,11 +377,14 @@ static void ionic_remove(struct pci_dev *pdev)
 	if (!ionic)
 		return;
 
-	ionic_devlink_unregister(ionic);
-	ionic_lifs_unregister(ionic);
-	ionic_lifs_deinit(ionic);
-	ionic_lifs_free(ionic);
-	ionic_bus_free_irq_vectors(ionic);
+	if (ionic->master_lif) {
+		ionic_devlink_unregister(ionic);
+		ionic_lifs_unregister(ionic);
+		ionic_lifs_deinit(ionic);
+		ionic_lifs_free(ionic);
+		ionic_bus_free_irq_vectors(ionic);
+	}
+
 	ionic_port_reset(ionic);
 	ionic_reset(ionic);
 	ionic_dev_teardown(ionic);
