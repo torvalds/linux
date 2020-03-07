@@ -8477,7 +8477,6 @@ L:	dmaengine@vger.kernel.org
 S:	Supported
 F:	drivers/dma/idxd/*
 F:	include/uapi/linux/idxd.h
-F:	include/linux/idxd.h
 
 INTEL IDLE DRIVER
 M:	Jacob Pan <jacob.jun.pan@linux.intel.com>
