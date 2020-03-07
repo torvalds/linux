@@ -6,6 +6,7 @@
 
 #include <drm/gpu_scheduler.h>
 #include <linux/list.h>
+#include <linux/xarray.h>
 
 struct lima_vm;
 

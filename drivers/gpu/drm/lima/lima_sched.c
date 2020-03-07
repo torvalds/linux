@@ -3,7 +3,6 @@
 
 #include <linux/kthread.h>
 #include <linux/slab.h>
-#include <linux/xarray.h>
 #include <linux/vmalloc.h>
 
 #include "lima_drv.h"
@@ -12,6 +11,7 @@
 #include "lima_mmu.h"
 #include "lima_l2_cache.h"
 #include "lima_gem.h"
+#include "lima_trace.h"
 
 struct lima_fence {
 	struct dma_fence base;
@@ -177,6 +177,7 @@ struct dma_fence *lima_sched_context_queue_task(struct lima_sched_context *conte
 {
 	struct dma_fence *fence = dma_fence_get(&task->base.s_fence->finished);
 
+	trace_lima_task_submit(task);
 	drm_sched_entity_push_job(&task->base, &context->base);
 	return fence;
 }
@@ -250,6 +251,8 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 
 	if (last_vm)
 		lima_vm_put(last_vm);
+
+	trace_lima_task_run(task);
 
 	pipe->error = false;
 	pipe->task_run(pipe, task);
