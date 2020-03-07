@@ -222,4 +222,8 @@ int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 		     int err);
 int chcr_ipsec_xmit(struct sk_buff *skb, struct net_device *dev);
 void chcr_add_xfrmops(const struct cxgb4_lld_info *lld);
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+void chcr_enable_ktls(struct adapter *adap);
+void chcr_disable_ktls(struct adapter *adap);
+#endif
 #endif /* __CHCR_CORE_H__ */

@@ -205,6 +205,11 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 	if (lld->crypto & ULP_CRYPTO_IPSEC_INLINE)
 		chcr_add_xfrmops(lld);
 #endif /* CONFIG_CHELSIO_IPSEC_INLINE */
+
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	if (lld->ulp_crypto & ULP_CRYPTO_KTLS_INLINE)
+		chcr_enable_ktls(padap(&u_ctx->dev));
+#endif
 out:
 	return u_ctx;
 }
@@ -304,12 +309,20 @@ static void __exit chcr_crypto_exit(void)
 	list_for_each_entry_safe(u_ctx, tmp, &drv_data.act_dev, entry) {
 		adap = padap(&u_ctx->dev);
 		memset(&adap->chcr_stats, 0, sizeof(adap->chcr_stats));
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+		if (u_ctx->lldi.ulp_crypto & ULP_CRYPTO_KTLS_INLINE)
+			chcr_disable_ktls(adap);
+#endif
 		list_del(&u_ctx->entry);
 		kfree(u_ctx);
 	}
 	list_for_each_entry_safe(u_ctx, tmp, &drv_data.inact_dev, entry) {
 		adap = padap(&u_ctx->dev);
 		memset(&adap->chcr_stats, 0, sizeof(adap->chcr_stats));
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+		if (u_ctx->lldi.ulp_crypto & ULP_CRYPTO_KTLS_INLINE)
+			chcr_disable_ktls(adap);
+#endif
 		list_del(&u_ctx->entry);
 		kfree(u_ctx);
 	}

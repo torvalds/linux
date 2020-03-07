@@ -59,6 +59,11 @@
 #define TCB_RSS_INFO_M		0x3ffULL
 #define TCB_RSS_INFO_V(x)	((x) << TCB_RSS_INFO_S)
 
+#define TCB_T_STATE_W		3
+#define TCB_T_STATE_S		16
+#define TCB_T_STATE_M		0xfULL
+#define TCB_T_STATE_V(x)	((x) << TCB_T_STATE_S)
+
 #define TCB_TIMESTAMP_W		5
 #define TCB_TIMESTAMP_S		0
 #define TCB_TIMESTAMP_M		0xffffffffULL
