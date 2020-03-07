@@ -2878,7 +2878,8 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 	if (!flow_action_has_entries(flow_action))
 		return -EINVAL;
 
-	if (!flow_action_basic_hw_stats_types_check(flow_action, extack))
+	if (!flow_action_hw_stats_types_check(flow_action, extack,
+					      FLOW_ACTION_HW_STATS_TYPE_DELAYED))
 		return -EOPNOTSUPP;
 
 	attr->flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
@@ -3333,7 +3334,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	if (!flow_action_has_entries(flow_action))
 		return -EINVAL;
 
-	if (!flow_action_basic_hw_stats_types_check(flow_action, extack))
+	if (!flow_action_hw_stats_types_check(flow_action, extack,
+					      FLOW_ACTION_HW_STATS_TYPE_DELAYED))
 		return -EOPNOTSUPP;
 
 	flow_action_for_each(i, act, flow_action) {
