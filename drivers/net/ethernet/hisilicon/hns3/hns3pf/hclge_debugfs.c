@@ -145,10 +145,8 @@ static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 
 	buf_len	= sizeof(struct hclge_desc) * bd_num;
 	desc_src = kzalloc(buf_len, GFP_KERNEL);
-	if (!desc_src) {
-		dev_err(&hdev->pdev->dev, "call kzalloc failed\n");
+	if (!desc_src)
 		return;
-	}
 
 	desc = desc_src;
 	ret = hclge_dbg_cmd_send(hdev, desc, index, bd_num, reg_msg->cmd);
@@ -1082,11 +1080,8 @@ static void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)
 
 	buf_len	 = sizeof(struct hclge_desc) * bd_num;
 	desc_src = kzalloc(buf_len, GFP_KERNEL);
-	if (!desc_src) {
-		dev_err(&hdev->pdev->dev,
-			"allocate desc for get_m7_stats failed\n");
+	if (!desc_src)
 		return;
-	}
 
 	desc_tmp = desc_src;
 	ret  = hclge_dbg_cmd_send(hdev, desc_tmp, 0, bd_num,
