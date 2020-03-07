@@ -10,10 +10,13 @@
 #define CHCR_KEYCTX_MAC_KEY_SIZE_128       0
 #define CHCR_KEYCTX_CIPHER_KEY_SIZE_128    0
 #define CHCR_SCMD_CIPHER_MODE_AES_GCM      2
+#define CHCR_SCMD_CIPHER_MODE_AES_CTR      3
 #define CHCR_CPL_TX_SEC_PDU_LEN_64BIT      2
 #define CHCR_SCMD_SEQ_NO_CTRL_64BIT        3
 #define CHCR_SCMD_PROTO_VERSION_TLS        0
+#define CHCR_SCMD_PROTO_VERSION_GENERIC    4
 #define CHCR_SCMD_AUTH_MODE_GHASH          4
+#define AES_BLOCK_LEN                      16
 
 enum chcr_state {
 	CHCR_INIT = 0,
