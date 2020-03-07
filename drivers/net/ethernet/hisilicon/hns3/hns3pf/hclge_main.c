@@ -3442,7 +3442,7 @@ static void hclge_do_reset(struct hclge_dev *hdev)
 	u32 val;
 
 	if (hclge_get_hw_reset_stat(handle)) {
-		dev_info(&pdev->dev, "Hardware reset not finish\n");
+		dev_info(&pdev->dev, "hardware reset not finish\n");
 		dev_info(&pdev->dev, "func_rst_reg:0x%x, global_rst_reg:0x%x\n",
 			 hclge_read_dev(&hdev->hw, HCLGE_FUN_RST_ING),
 			 hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG));
@@ -3451,20 +3451,20 @@ static void hclge_do_reset(struct hclge_dev *hdev)
 
 	switch (hdev->reset_type) {
 	case HNAE3_GLOBAL_RESET:
+		dev_info(&pdev->dev, "global reset requested\n");
 		val = hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG);
 		hnae3_set_bit(val, HCLGE_GLOBAL_RESET_BIT, 1);
 		hclge_write_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG, val);
-		dev_info(&pdev->dev, "Global Reset requested\n");
 		break;
 	case HNAE3_FUNC_RESET:
-		dev_info(&pdev->dev, "PF Reset requested\n");
+		dev_info(&pdev->dev, "PF reset requested\n");
 		/* schedule again to check later */
 		set_bit(HNAE3_FUNC_RESET, &hdev->reset_pending);
 		hclge_reset_task_schedule(hdev);
 		break;
 	default:
 		dev_warn(&pdev->dev,
-			 "Unsupported reset type: %d\n", hdev->reset_type);
+			 "unsupported reset type: %d\n", hdev->reset_type);
 		break;
 	}
 }
