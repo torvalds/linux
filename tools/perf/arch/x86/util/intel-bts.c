@@ -413,20 +413,6 @@ out_err:
 	return err;
 }
 
-static int intel_bts_read_finish(struct auxtrace_record *itr, int idx)
-{
-	struct intel_bts_recording *btsr =
-			container_of(itr, struct intel_bts_recording, itr);
-	struct evsel *evsel;
-
-	evlist__for_each_entry(btsr->evlist, evsel) {
-		if (evsel->core.attr.type == btsr->intel_bts_pmu->type)
-			return perf_evlist__enable_event_idx(btsr->evlist,
-							     evsel, idx);
-	}
-	return -EINVAL;
-}
-
 struct auxtrace_record *intel_bts_recording_init(int *err)
 {
 	struct perf_pmu *intel_bts_pmu = perf_pmu__find(INTEL_BTS_PMU_NAME);
@@ -447,6 +433,7 @@ struct auxtrace_record *intel_bts_recording_init(int *err)
 	}
 
 	btsr->intel_bts_pmu = intel_bts_pmu;
+	btsr->itr.pmu = intel_bts_pmu;
 	btsr->itr.recording_options = intel_bts_recording_options;
 	btsr->itr.info_priv_size = intel_bts_info_priv_size;
 	btsr->itr.info_fill = intel_bts_info_fill;
@@ -456,7 +443,7 @@ struct auxtrace_record *intel_bts_recording_init(int *err)
 	btsr->itr.find_snapshot = intel_bts_find_snapshot;
 	btsr->itr.parse_snapshot_options = intel_bts_parse_snapshot_options;
 	btsr->itr.reference = intel_bts_reference;
-	btsr->itr.read_finish = intel_bts_read_finish;
+	btsr->itr.read_finish = auxtrace_record__read_finish;
 	btsr->itr.alignment = sizeof(struct branch);
 	return &btsr->itr;
 }

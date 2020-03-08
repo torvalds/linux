@@ -161,7 +161,7 @@ The regulator node houses sub-nodes for each regulator within the device. Each
 sub-node is identified using the node's name, with valid values listed for each
 of the PMICs below.
 
-pm8005:
+pm8004:
 	s2, s5
 
 pm8005:

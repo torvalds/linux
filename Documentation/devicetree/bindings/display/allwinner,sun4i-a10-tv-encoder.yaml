@@ -49,11 +49,7 @@ examples:
         resets = <&tcon_ch0_clk 0>;
 
         port {
-            #address-cells = <1>;
-            #size-cells = <0>;
-
-            tve0_in_tcon0: endpoint@0 {
-                reg = <0>;
+            tve0_in_tcon0: endpoint {
                 remote-endpoint = <&tcon0_out_tve0>;
             };
         };

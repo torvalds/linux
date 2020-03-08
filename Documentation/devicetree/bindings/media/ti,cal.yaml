@@ -177,7 +177,7 @@ examples:
         };
     };
 
-    i2c5: i2c@4807c000 {
+    i2c {
         clock-frequency = <400000>;
         #address-cells = <1>;
         #size-cells = <0>;

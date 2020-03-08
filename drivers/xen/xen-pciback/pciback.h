@@ -52,7 +52,7 @@ struct xen_pcibk_dev_data {
 	unsigned int ack_intr:1; /* .. and ACK-ing */
 	unsigned long handled;
 	unsigned int irq; /* Saved in case device transitions to MSI/MSI-X */
-	char irq_name[0]; /* xen-pcibk[000:04:00.0] */
+	char irq_name[]; /* xen-pcibk[000:04:00.0] */
 };
 
 /* Used by XenBus and xen_pcibk_ops.c */
