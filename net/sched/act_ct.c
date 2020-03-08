@@ -35,15 +35,15 @@
 
 static struct workqueue_struct *act_ct_wq;
 static struct rhashtable zones_ht;
-static DEFINE_SPINLOCK(zones_lock);
+static DEFINE_MUTEX(zones_mutex);
 
 struct tcf_ct_flow_table {
 	struct rhash_head node; /* In zones tables */
 
 	struct rcu_work rwork;
 	struct nf_flowtable nf_ft;
+	refcount_t ref;
 	u16 zone;
-	u32 ref;
 
 	bool dying;
 };
@@ -64,14 +64,15 @@ static int tcf_ct_flow_table_get(struct tcf_ct_params *params)
 	struct tcf_ct_flow_table *ct_ft;
 	int err = -ENOMEM;
 
-	spin_lock_bh(&zones_lock);
+	mutex_lock(&zones_mutex);
 	ct_ft = rhashtable_lookup_fast(&zones_ht, &params->zone, zones_params);
-	if (ct_ft)
-		goto take_ref;
+	if (ct_ft && refcount_inc_not_zero(&ct_ft->ref))
+		goto out_unlock;
 
-	ct_ft = kzalloc(sizeof(*ct_ft), GFP_ATOMIC);
+	ct_ft = kzalloc(sizeof(*ct_ft), GFP_KERNEL);
 	if (!ct_ft)
 		goto err_alloc;
+	refcount_set(&ct_ft->ref, 1);
 
 	ct_ft->zone = params->zone;
 	err = rhashtable_insert_fast(&zones_ht, &ct_ft->node, zones_params);
@@ -84,10 +85,9 @@ static int tcf_ct_flow_table_get(struct tcf_ct_params *params)
 		goto err_init;
 
 	__module_get(THIS_MODULE);
-take_ref:
+out_unlock:
 	params->ct_ft = ct_ft;
-	ct_ft->ref++;
-	spin_unlock_bh(&zones_lock);
+	mutex_unlock(&zones_mutex);
 
 	return 0;
 
@@ -96,7 +96,7 @@ err_init:
 err_insert:
 	kfree(ct_ft);
 err_alloc:
-	spin_unlock_bh(&zones_lock);
+	mutex_unlock(&zones_mutex);
 	return err;
 }
 
@@ -116,13 +116,11 @@ static void tcf_ct_flow_table_put(struct tcf_ct_params *params)
 {
 	struct tcf_ct_flow_table *ct_ft = params->ct_ft;
 
-	spin_lock_bh(&zones_lock);
-	if (--params->ct_ft->ref == 0) {
+	if (refcount_dec_and_test(&params->ct_ft->ref)) {
 		rhashtable_remove_fast(&zones_ht, &ct_ft->node, zones_params);
 		INIT_RCU_WORK(&ct_ft->rwork, tcf_ct_flow_table_cleanup_work);
 		queue_rcu_work(act_ct_wq, &ct_ft->rwork);
 	}
-	spin_unlock_bh(&zones_lock);
 }
 
 static void tcf_ct_flow_table_add(struct tcf_ct_flow_table *ct_ft,
