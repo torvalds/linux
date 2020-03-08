@@ -344,7 +344,8 @@ static void setup_graphics(struct boot_params *boot_params)
 static void __noreturn efi_exit(efi_handle_t handle, efi_status_t status)
 {
 	efi_bs_call(exit, handle, status, 0, NULL);
-	unreachable();
+	for(;;)
+		asm("hlt");
 }
 
 void startup_32(struct boot_params *boot_params);
