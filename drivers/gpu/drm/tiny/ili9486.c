@@ -45,7 +45,7 @@ static int waveshare_command(struct mipi_dbi *mipi, u8 *cmd, u8 *par,
 	void *data = par;
 	u32 speed_hz;
 	int i, ret;
-	u16 *buf;
+	__be16 *buf;
 
 	buf = kmalloc(32 * sizeof(u16), GFP_KERNEL);
 	if (!buf)
