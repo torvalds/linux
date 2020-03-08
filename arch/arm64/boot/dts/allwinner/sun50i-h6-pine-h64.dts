@@ -21,6 +21,13 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	ext_osc32k: ext_osc32k_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "ext_osc32k";
+	};
+
 	hdmi_connector: connector {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -277,6 +284,10 @@
 
 &r_pio {
 	vcc-pm-supply = <&reg_aldo1>;
+};
+
+&rtc {
+	clocks = <&ext_osc32k>;
 };
 
 /*
