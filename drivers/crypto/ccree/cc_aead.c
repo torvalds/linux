@@ -1800,12 +1800,6 @@ static int cc_gcm(struct aead_request *req, struct cc_hw_desc desc[],
 	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
 	unsigned int cipher_flow_mode;
 
-	if (req_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) {
-		cipher_flow_mode = AES_and_HASH;
-	} else { /* Encrypt */
-		cipher_flow_mode = AES_to_HASH_and_DOUT;
-	}
-
 	//in RFC4543 no data to encrypt. just copy data from src to dest.
 	if (req_ctx->plaintext_authenticate_only) {
 		cc_proc_cipher_desc(req, BYPASS, desc, seq_size);
@@ -1815,6 +1809,12 @@ static int cc_gcm(struct aead_request *req, struct cc_hw_desc desc[],
 		cc_set_gctr_desc(req, desc, seq_size);
 		cc_proc_gcm_result(req, desc, seq_size);
 		return 0;
+	}
+
+	if (req_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) {
+		cipher_flow_mode = AES_and_HASH;
+	} else { /* Encrypt */
+		cipher_flow_mode = AES_to_HASH_and_DOUT;
 	}
 
 	// for gcm and rfc4106.
