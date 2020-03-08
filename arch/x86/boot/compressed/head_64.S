@@ -672,7 +672,7 @@ SYM_FUNC_START(efi32_pe_entry)
 	/* Get the loaded image protocol pointer from the image handle */
 	subl	$12, %esp			// space for the loaded image pointer
 	pushl	%esp				// pass its address
-	leal	4f(%ebp), %eax
+	leal	loaded_image_proto(%ebp), %eax
 	pushl	%eax				// pass the GUID address
 	pushl	28(%esp)			// pass the image handle
 
@@ -695,9 +695,12 @@ SYM_FUNC_END(efi32_pe_entry)
 
 	.section ".rodata"
 	/* EFI loaded image protocol GUID */
-4:	.long	0x5B1B31A1
+	.balign 4
+SYM_DATA_START_LOCAL(loaded_image_proto)
+	.long	0x5b1b31a1
 	.word	0x9562, 0x11d2
-	.byte	0x8E, 0x3F, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B
+	.byte	0x8e, 0x3f, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b
+SYM_DATA_END(loaded_image_proto)
 #endif
 
 /*
