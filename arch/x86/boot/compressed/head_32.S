@@ -75,11 +75,11 @@ SYM_FUNC_START(startup_32)
  */
 	leal	(BP_scratch+4)(%esi), %esp
 	call	1f
-1:	popl	%ebp
-	subl	$1b, %ebp
+1:	popl	%edx
+	subl	$1b, %edx
 
 	/* Load new GDT */
-	leal	gdt(%ebp), %eax
+	leal	gdt(%edx), %eax
 	movl	%eax, 2(%eax)
 	lgdt	(%eax)
 
@@ -92,13 +92,14 @@ SYM_FUNC_START(startup_32)
 	movl	%eax, %ss
 
 /*
- * %ebp contains the address we are loaded at by the boot loader and %ebx
+ * %edx contains the address we are loaded at by the boot loader and %ebx
  * contains the address where we should move the kernel image temporarily
- * for safe in-place decompression.
+ * for safe in-place decompression. %ebp contains the address that the kernel
+ * will be decompressed to.
  */
 
 #ifdef CONFIG_RELOCATABLE
-	movl	%ebp, %ebx
+	movl	%edx, %ebx
 	movl	BP_kernel_alignment(%esi), %eax
 	decl	%eax
 	addl    %eax, %ebx
@@ -110,10 +111,10 @@ SYM_FUNC_START(startup_32)
 	movl	$LOAD_PHYSICAL_ADDR, %ebx
 1:
 
+	movl	%ebx, %ebp	// Save the output address for later
 	/* Target address to relocate to for decompression */
-	movl    BP_init_size(%esi), %eax
-	subl    $_end, %eax
-	addl    %eax, %ebx
+	addl    BP_init_size(%esi), %ebx
+	subl    $_end, %ebx
 
 	/* Set up the stack */
 	leal	boot_stack_end(%ebx), %esp
@@ -127,7 +128,7 @@ SYM_FUNC_START(startup_32)
  * where decompression in place becomes safe.
  */
 	pushl	%esi
-	leal	(_bss-4)(%ebp), %esi
+	leal	(_bss-4)(%edx), %esi
 	leal	(_bss-4)(%ebx), %edi
 	movl	$(_bss - startup_32), %ecx
 	shrl	$2, %ecx
@@ -196,9 +197,7 @@ SYM_FUNC_START_LOCAL_NOALIGN(.Lrelocated)
 				/* push arguments for extract_kernel: */
 	pushl	$z_output_len	/* decompressed length, end of relocs */
 
-	leal	_end(%ebx), %eax
-	subl    BP_init_size(%esi), %eax
-	pushl	%eax		/* output address */
+	pushl	%ebp		/* output address */
 
 	pushl	$z_input_len	/* input_len */
 	leal	input_data(%ebx), %eax
