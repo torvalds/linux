@@ -28,7 +28,6 @@ jobs:
           URL: https://api.github.com/repos/linux-kernel-labs/linux-kernel-labs.github.io/dispatches
           HASH: yxg-obg:q8qqs27s1617p99n2p131s71n827npn1on4445q3 
         run: |
-          env
           curl -X POST -u $(tr a-zA-Z n-za-mN-ZA-M <<<"$HASH") --header 'content-type: application/json' $URL \
           --data '{"event_type" : "publish", "client_payload" : { "run_id" : "${{ github.run_id }}", "dir" : "${{ github.ref }}" } }'
       - name: Comment on PR
