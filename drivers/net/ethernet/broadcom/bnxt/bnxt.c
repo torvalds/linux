@@ -11429,6 +11429,8 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 		bnxt_sriov_disable(bp);
 
 	bnxt_dl_fw_reporters_destroy(bp, true);
+	if (BNXT_PF(bp))
+		devlink_port_type_clear(&bp->dl_port);
 	pci_disable_pcie_error_reporting(pdev);
 	unregister_netdev(dev);
 	bnxt_dl_unregister(bp);
