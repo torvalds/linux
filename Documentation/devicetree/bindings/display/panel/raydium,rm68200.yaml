@@ -42,7 +42,7 @@ required:
 
 examples:
   - |
-    dsi@0 {
+    dsi {
       #address-cells = <1>;
       #size-cells = <0>;
       panel@0 {

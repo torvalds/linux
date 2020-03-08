@@ -50,7 +50,7 @@ required:
 
 examples:
   - |
-    mdss_dsi@fd922800 {
+    dsi {
       #address-cells = <1>;
       #size-cells = <0>;
       panel@0 {
