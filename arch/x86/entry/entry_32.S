@@ -1091,7 +1091,7 @@ restore_all:
 	TRACE_IRQS_IRET
 	SWITCH_TO_ENTRY_STACK
 	CHECK_AND_APPLY_ESPFIX
-.Lrestore_nocheck:
+
 	/* Switch back to user CR3 */
 	SWITCH_TO_USER_CR3 scratch_reg=%eax
 
