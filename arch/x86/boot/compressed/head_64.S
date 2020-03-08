@@ -658,42 +658,65 @@ SYM_DATA(efi_is64, .byte 1)
 	.text
 	.code32
 SYM_FUNC_START(efi32_pe_entry)
-	pushl	%ebp
+/*
+ * efi_status_t efi32_pe_entry(efi_handle_t image_handle,
+ *			       efi_system_table_32_t *sys_table)
+ */
 
-	pushl	%ebx
+	pushl	%ebp
+	movl	%esp, %ebp
+	pushl	%eax				// dummy push to allocate loaded_image
+
+	pushl	%ebx				// save callee-save registers
 	pushl	%edi
+
 	call	verify_cpu			// check for long mode support
-	popl	%edi
-	popl	%ebx
 	testl	%eax, %eax
 	movl	$0x80000003, %eax		// EFI_UNSUPPORTED
-	jnz	3f
-
-	call	1f
-1:	pop	%ebp
-	subl	$1b, %ebp
-
-	/* Get the loaded image protocol pointer from the image handle */
-	subl	$12, %esp			// space for the loaded image pointer
-	pushl	%esp				// pass its address
-	leal	loaded_image_proto(%ebp), %eax
-	pushl	%eax				// pass the GUID address
-	pushl	28(%esp)			// pass the image handle
-
-	movl	36(%esp), %eax			// sys_table
-	movl	ST32_boottime(%eax), %eax	// sys_table->boottime
-	call	*BS32_handle_protocol(%eax)	// sys_table->boottime->handle_protocol
-	cmp	$0, %eax
 	jnz	2f
 
-	movl	32(%esp), %ecx			// image_handle
-	movl	36(%esp), %edx			// sys_table
-	movl	12(%esp), %esi			// loaded_image
+	call	1f
+1:	pop	%ebx
+	subl	$1b, %ebx
+
+	/* Get the loaded image protocol pointer from the image handle */
+	leal	-4(%ebp), %eax
+	pushl	%eax				// &loaded_image
+	leal	loaded_image_proto(%ebx), %eax
+	pushl	%eax				// pass the GUID address
+	pushl	8(%ebp)				// pass the image handle
+
+	/*
+	 * Note the alignment of the stack frame.
+	 *   sys_table
+	 *   handle             <-- 16-byte aligned on entry by ABI
+	 *   return address
+	 *   frame pointer
+	 *   loaded_image       <-- local variable
+	 *   saved %ebx		<-- 16-byte aligned here
+	 *   saved %edi
+	 *   &loaded_image
+	 *   &loaded_image_proto
+	 *   handle             <-- 16-byte aligned for call to handle_protocol
+	 */
+
+	movl	12(%ebp), %eax			// sys_table
+	movl	ST32_boottime(%eax), %eax	// sys_table->boottime
+	call	*BS32_handle_protocol(%eax)	// sys_table->boottime->handle_protocol
+	addl	$12, %esp			// restore argument space
+	testl	%eax, %eax
+	jnz	2f
+
+	movl	8(%ebp), %ecx			// image_handle
+	movl	12(%ebp), %edx			// sys_table
+	movl	-4(%ebp), %esi			// loaded_image
 	movl	LI32_image_base(%esi), %esi	// loaded_image->image_base
+	movl	%ebx, %ebp			// startup_32 for efi32_pe_stub_entry
 	jmp	efi32_pe_stub_entry
 
-2:	addl	$24, %esp
-3:	popl	%ebp
+2:	popl	%edi				// restore callee-save registers
+	popl	%ebx
+	leave
 	ret
 SYM_FUNC_END(efi32_pe_entry)
 
