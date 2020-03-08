@@ -2424,14 +2424,6 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 	if (cpr->has_more_work) {
 		cpr->has_more_work = 0;
 		work_done = __bnxt_poll_cqs(bp, bnapi, budget);
-		if (cpr->has_more_work) {
-			__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ);
-			return work_done;
-		}
-		__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ_ARMALL);
-		if (napi_complete_done(napi, work_done))
-			BNXT_DB_NQ_ARM_P5(&cpr->cp_db, cpr->cp_raw_cons);
-		return work_done;
 	}
 	while (1) {
 		cons = RING_CMP(raw_cons);
@@ -2468,7 +2460,10 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 		raw_cons = NEXT_RAW_CMP(raw_cons);
 	}
 	__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ);
-	cpr->cp_raw_cons = raw_cons;
+	if (raw_cons != cpr->cp_raw_cons) {
+		cpr->cp_raw_cons = raw_cons;
+		BNXT_DB_NQ_P5(&cpr->cp_db, raw_cons);
+	}
 	return work_done;
 }
 
