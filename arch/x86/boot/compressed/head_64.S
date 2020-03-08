@@ -660,7 +660,11 @@ SYM_DATA(efi_is64, .byte 1)
 SYM_FUNC_START(efi32_pe_entry)
 	pushl	%ebp
 
+	pushl	%ebx
+	pushl	%edi
 	call	verify_cpu			// check for long mode support
+	popl	%edi
+	popl	%ebx
 	testl	%eax, %eax
 	movl	$0x80000003, %eax		// EFI_UNSUPPORTED
 	jnz	3f
