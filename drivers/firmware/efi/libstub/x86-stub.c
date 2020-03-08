@@ -19,6 +19,7 @@
 
 static efi_system_table_t *sys_table;
 extern const bool efi_is64;
+extern u32 image_offset;
 
 __pure efi_system_table_t *efi_system_table(void)
 {
@@ -365,6 +366,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	struct boot_params *boot_params;
 	struct setup_header *hdr;
 	efi_loaded_image_t *image;
+	void *image_base;
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	int options_size = 0;
 	efi_status_t status;
@@ -385,7 +387,10 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 		efi_exit(handle, status);
 	}
 
-	hdr = &((struct boot_params *)efi_table_attr(image, image_base))->hdr;
+	image_base = efi_table_attr(image, image_base);
+	image_offset = (void *)startup_32 - image_base;
+
+	hdr = &((struct boot_params *)image_base)->hdr;
 	above4g = hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G;
 
 	status = efi_allocate_pages(0x4000, (unsigned long *)&boot_params,
@@ -400,7 +405,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	hdr = &boot_params->hdr;
 
 	/* Copy the second sector to boot_params */
-	memcpy(&hdr->jump, efi_table_attr(image, image_base) + 512, 512);
+	memcpy(&hdr->jump, image_base + 512, 512);
 
 	/*
 	 * Fill out some of the header fields ourselves because the
@@ -727,7 +732,7 @@ unsigned long efi_main(efi_handle_t handle,
 	 * If the kernel isn't already loaded at the preferred load
 	 * address, relocate it.
 	 */
-	if (bzimage_addr != hdr->pref_address) {
+	if (bzimage_addr - image_offset != hdr->pref_address) {
 		status = efi_relocate_kernel(&bzimage_addr,
 					     hdr->init_size, hdr->init_size,
 					     hdr->pref_address,
@@ -737,6 +742,12 @@ unsigned long efi_main(efi_handle_t handle,
 			efi_printk("efi_relocate_kernel() failed!\n");
 			goto fail;
 		}
+		/*
+		 * Now that we've copied the kernel elsewhere, we no longer
+		 * have a set up block before startup_32(), so reset image_offset
+		 * to zero in case it was set earlier.
+		 */
+		image_offset = 0;
 	}
 
 	/*
