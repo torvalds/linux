@@ -54,7 +54,7 @@ SYM_FUNC_START(efi_call_svam)
 	orl	$0x80000000, %edx
 	movl	%edx, %cr0
 
-	pop	%ebx
+	movl	16(%esp), %ebx
 	leave
 	ret
 SYM_FUNC_END(efi_call_svam)
