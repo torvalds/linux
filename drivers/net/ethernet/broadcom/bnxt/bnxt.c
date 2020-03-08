@@ -2162,6 +2162,7 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	struct tx_cmp *txcmp;
 
 	cpr->has_more_work = 0;
+	cpr->had_work_done = 1;
 	while (1) {
 		int rc;
 
@@ -2175,7 +2176,6 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		 * reading any further.
 		 */
 		dma_rmb();
-		cpr->had_work_done = 1;
 		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_TX_L2_CMP) {
 			tx_pkts++;
 			/* return full budget so NAPI will complete. */
@@ -2392,7 +2392,7 @@ static int __bnxt_poll_cqs(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 }
 
 static void __bnxt_poll_cqs_done(struct bnxt *bp, struct bnxt_napi *bnapi,
-				 u64 dbr_type, bool all)
+				 u64 dbr_type)
 {
 	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 	int i;
@@ -2401,7 +2401,7 @@ static void __bnxt_poll_cqs_done(struct bnxt *bp, struct bnxt_napi *bnapi,
 		struct bnxt_cp_ring_info *cpr2 = cpr->cp_ring_arr[i];
 		struct bnxt_db_info *db;
 
-		if (cpr2 && (all || cpr2->had_work_done)) {
+		if (cpr2 && cpr2->had_work_done) {
 			db = &cpr2->cp_db;
 			writeq(db->db_key64 | dbr_type |
 			       RING_CMP(cpr2->cp_raw_cons), db->doorbell);
@@ -2425,10 +2425,10 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 		cpr->has_more_work = 0;
 		work_done = __bnxt_poll_cqs(bp, bnapi, budget);
 		if (cpr->has_more_work) {
-			__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ, false);
+			__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ);
 			return work_done;
 		}
-		__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ_ARMALL, true);
+		__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ_ARMALL);
 		if (napi_complete_done(napi, work_done))
 			BNXT_DB_NQ_ARM_P5(&cpr->cp_db, cpr->cp_raw_cons);
 		return work_done;
@@ -2441,8 +2441,7 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 			if (cpr->has_more_work)
 				break;
 
-			__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ_ARMALL,
-					     false);
+			__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ_ARMALL);
 			cpr->cp_raw_cons = raw_cons;
 			if (napi_complete_done(napi, work_done))
 				BNXT_DB_NQ_ARM_P5(&cpr->cp_db,
@@ -2468,7 +2467,7 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 		}
 		raw_cons = NEXT_RAW_CMP(raw_cons);
 	}
-	__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ, true);
+	__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ);
 	cpr->cp_raw_cons = raw_cons;
 	return work_done;
 }
