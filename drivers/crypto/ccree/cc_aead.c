@@ -1990,7 +1990,6 @@ static int cc_proc_aead(struct aead_request *req,
 	/* Load MLLI tables to SRAM if necessary */
 	cc_mlli_to_sram(req, desc, &seq_len);
 
-	/*TODO: move seq len by reference */
 	switch (ctx->auth_mode) {
 	case DRV_HASH_SHA1:
 	case DRV_HASH_SHA256:

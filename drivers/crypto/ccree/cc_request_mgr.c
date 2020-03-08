@@ -296,7 +296,6 @@ static void cc_do_send_request(struct cc_drvdata *drvdata,
 	req_mgr_h->req_queue[req_mgr_h->req_queue_head] = *cc_req;
 	req_mgr_h->req_queue_head = (req_mgr_h->req_queue_head + 1) &
 				    (MAX_REQUEST_QUEUE_SIZE - 1);
-	/* TODO: Use circ_buf.h ? */
 
 	dev_dbg(dev, "Enqueue request head=%u\n", req_mgr_h->req_queue_head);
 

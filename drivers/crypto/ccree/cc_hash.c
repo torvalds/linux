@@ -349,7 +349,6 @@ static int cc_fin_result(struct cc_hw_desc *desc, struct ahash_request *req,
 	/* Get final MAC result */
 	hw_desc_init(&desc[idx]);
 	set_hash_cipher_mode(&desc[idx], ctx->hw_mode, ctx->hash_mode);
-	/* TODO */
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr, digestsize,
 		      NS_BIT, 1);
 	set_queue_last_ind(ctx->drvdata, &desc[idx]);
@@ -1319,7 +1318,6 @@ static int cc_mac_final(struct ahash_request *req)
 
 	/* Get final MAC result */
 	hw_desc_init(&desc[idx]);
-	/* TODO */
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr,
 		      digestsize, NS_BIT, 1);
 	set_queue_last_ind(ctx->drvdata, &desc[idx]);
@@ -1401,7 +1399,6 @@ static int cc_mac_finup(struct ahash_request *req)
 
 	/* Get final MAC result */
 	hw_desc_init(&desc[idx]);
-	/* TODO */
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr,
 		      digestsize, NS_BIT, 1);
 	set_queue_last_ind(ctx->drvdata, &desc[idx]);

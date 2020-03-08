@@ -859,7 +859,6 @@ static int cc_cipher_process(struct skcipher_request *req,
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
-	/* TODO: check data length according to mode */
 	if (validate_data_size(ctx_p, nbytes)) {
 		dev_dbg(dev, "Unsupported data size %d.\n", nbytes);
 		rc = -EINVAL;

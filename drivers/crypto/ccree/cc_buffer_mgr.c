@@ -606,7 +606,6 @@ static int cc_aead_chain_iv(struct cc_drvdata *drvdata,
 
 	dev_dbg(dev, "Mapped iv %u B at va=%pK to dma=%pad\n",
 		hw_iv_size, req->iv, &areq_ctx->gen_ctx.iv_dma_addr);
-	// TODO: what about CTR?? ask Ron
 	if (do_chain && areq_ctx->plaintext_authenticate_only) {
 		struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 		unsigned int iv_size_to_authenc = crypto_aead_ivsize(tfm);
@@ -1225,7 +1224,6 @@ int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 		return 0;
 	}
 
-	/*TODO: copy data in case that buffer is enough for operation */
 	/* map the previous buffer */
 	if (*curr_buff_cnt) {
 		rc = cc_set_hash_buf(dev, areq_ctx, curr_buff, *curr_buff_cnt,
