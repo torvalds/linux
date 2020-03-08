@@ -8569,15 +8569,15 @@ M:	Ashutosh Dixit <ashutosh.dixit@intel.com>
 S:	Supported
 W:	https://github.com/sudeepdutt/mic
 W:	http://software.intel.com/en-us/mic-developer
+F:	Documentation/misc-devices/mic/
+F:	drivers/dma/mic_x100_dma.c
+F:	drivers/dma/mic_x100_dma.h
+F:	drivers/misc/mic/
 F:	include/linux/mic_bus.h
 F:	include/linux/scif.h
 F:	include/uapi/linux/mic_common.h
 F:	include/uapi/linux/mic_ioctl.h
 F:	include/uapi/linux/scif_ioctl.h
-F:	drivers/misc/mic/
-F:	drivers/dma/mic_x100_dma.c
-F:	drivers/dma/mic_x100_dma.h
-F:	Documentation/mic/
 
 INTEL PMC CORE DRIVER
 M:	Rajneesh Bhardwaj <rajneesh.bhardwaj@intel.com>

@@ -131,7 +131,6 @@ needed).
    usb/index
    PCI/index
    misc-devices/index
-   mic/index
    scheduler/index
 
 Architecture-agnostic documentation
