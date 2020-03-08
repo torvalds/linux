@@ -26,7 +26,6 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 
-/* Registers definitions from shared/hw/ree_include */
 #include "cc_host_regs.h"
 #include "cc_crypto_ctx.h"
 #include "cc_hw_queue_defs.h"
