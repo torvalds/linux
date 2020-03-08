@@ -376,7 +376,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	char *cmdline_ptr;
 	unsigned long ramdisk_addr;
 	unsigned long ramdisk_size;
-	bool above4g;
 
 	sys_table = sys_table_arg;
 
@@ -394,10 +393,8 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	image_offset = (void *)startup_32 - image_base;
 
 	hdr = &((struct boot_params *)image_base)->hdr;
-	above4g = hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G;
 
-	status = efi_allocate_pages(0x4000, (unsigned long *)&boot_params,
-				    above4g ? ULONG_MAX : UINT_MAX);
+	status = efi_allocate_pages(0x4000, (unsigned long *)&boot_params, ULONG_MAX);
 	if (status != EFI_SUCCESS) {
 		efi_printk("Failed to allocate lowmem for boot params\n");
 		efi_exit(handle, status);
@@ -421,8 +418,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	hdr->type_of_loader = 0x21;
 
 	/* Convert unicode cmdline to ascii */
-	cmdline_ptr = efi_convert_cmdline(image, &options_size,
-					  above4g ? ULONG_MAX : UINT_MAX);
+	cmdline_ptr = efi_convert_cmdline(image, &options_size, ULONG_MAX);
 	if (!cmdline_ptr)
 		goto fail;
 
@@ -442,8 +438,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 			status = efi_load_initrd(image, &ramdisk_addr,
 						 &ramdisk_size,
 						 hdr->initrd_addr_max,
-						 above4g ? ULONG_MAX
-							 : hdr->initrd_addr_max);
+						 ULONG_MAX);
 			if (status != EFI_SUCCESS)
 				goto fail2;
 			hdr->ramdisk_image = ramdisk_addr & 0xffffffff;
@@ -795,12 +790,8 @@ unsigned long efi_main(efi_handle_t handle,
 	 */
 	if (!noinitrd()) {
 		unsigned long addr, size;
-		unsigned long max_addr = hdr->initrd_addr_max;
 
-		if (hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G)
-			max_addr = ULONG_MAX;
-
-		status = efi_load_initrd_dev_path(&addr, &size, max_addr);
+		status = efi_load_initrd_dev_path(&addr, &size, ULONG_MAX);
 		if (status == EFI_SUCCESS) {
 			hdr->ramdisk_image		= (u32)addr;
 			hdr->ramdisk_size 		= (u32)size;
