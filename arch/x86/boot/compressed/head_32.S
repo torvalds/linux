@@ -156,9 +156,8 @@ SYM_FUNC_END(startup_32)
 SYM_FUNC_START(efi32_stub_entry)
 SYM_FUNC_START_ALIAS(efi_stub_entry)
 	add	$0x4, %esp
+	movl	8(%esp), %esi	/* save boot_params pointer */
 	call	efi_main
-	movl	%eax, %esi
-	movl	BP_code32_start(%esi), %eax
 	leal	startup_32(%eax), %eax
 	jmp	*%eax
 SYM_FUNC_END(efi32_stub_entry)

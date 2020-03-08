@@ -703,10 +703,11 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
 }
 
 /*
- * On success we return a pointer to a boot_params structure, and NULL
- * on failure.
+ * On success, we return the address of startup_32, which has potentially been
+ * relocated by efi_relocate_kernel.
+ * On failure, we exit to the firmware via efi_exit instead of returning.
  */
-struct boot_params *efi_main(efi_handle_t handle,
+unsigned long efi_main(efi_handle_t handle,
 			     efi_system_table_t *sys_table_arg,
 			     struct boot_params *boot_params)
 {
@@ -736,7 +737,6 @@ struct boot_params *efi_main(efi_handle_t handle,
 			goto fail;
 		}
 	}
-	hdr->code32_start = (u32)bzimage_addr;
 
 	/*
 	 * efi_pe_entry() may have been called before efi_main(), in which
@@ -799,7 +799,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 		goto fail;
 	}
 
-	return boot_params;
+	return bzimage_addr;
 fail:
 	efi_printk("efi_main() failed!\n");
 
