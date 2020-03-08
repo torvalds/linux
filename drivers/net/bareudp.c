@@ -801,6 +801,7 @@ static void __exit bareudp_cleanup_module(void)
 }
 module_exit(bareudp_cleanup_module);
 
+MODULE_ALIAS_RTNL_LINK("bareudp");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Varghese <martin.varghese@nokia.com>");
 MODULE_DESCRIPTION("Interface driver for UDP encapsulated traffic");
