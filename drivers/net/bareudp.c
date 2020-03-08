@@ -556,10 +556,17 @@ static int bareudp_validate(struct nlattr *tb[], struct nlattr *data[],
 	return 0;
 }
 
-static int bareudp2info(struct nlattr *data[], struct bareudp_conf *conf)
+static int bareudp2info(struct nlattr *data[], struct bareudp_conf *conf,
+			struct netlink_ext_ack *extack)
 {
-	if (!data[IFLA_BAREUDP_PORT] || !data[IFLA_BAREUDP_ETHERTYPE])
+	if (!data[IFLA_BAREUDP_PORT]) {
+		NL_SET_ERR_MSG(extack, "port not specified");
 		return -EINVAL;
+	}
+	if (!data[IFLA_BAREUDP_ETHERTYPE]) {
+		NL_SET_ERR_MSG(extack, "ethertype not specified");
+		return -EINVAL;
+	}
 
 	if (data[IFLA_BAREUDP_PORT])
 		conf->port =  nla_get_u16(data[IFLA_BAREUDP_PORT]);
@@ -635,7 +642,7 @@ static int bareudp_newlink(struct net *net, struct net_device *dev,
 	struct bareudp_conf conf;
 	int err;
 
-	err = bareudp2info(data, &conf);
+	err = bareudp2info(data, &conf, extack);
 	if (err)
 		return err;
 
