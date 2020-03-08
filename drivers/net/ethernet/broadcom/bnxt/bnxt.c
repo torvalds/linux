@@ -4161,6 +4161,7 @@ static int bnxt_hwrm_to_stderr(u32 hwrm_err)
 	case HWRM_ERR_CODE_NO_BUFFER:
 		return -ENOMEM;
 	case HWRM_ERR_CODE_HOT_RESET_PROGRESS:
+	case HWRM_ERR_CODE_BUSY:
 		return -EAGAIN;
 	case HWRM_ERR_CODE_CMD_NOT_SUPPORTED:
 		return -EOPNOTSUPP;
