@@ -2438,6 +2438,9 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 		nqcmp = &cpr->nq_desc_ring[CP_RING(cons)][CP_IDX(cons)];
 
 		if (!NQ_CMP_VALID(nqcmp, raw_cons)) {
+			if (cpr->has_more_work)
+				break;
+
 			__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ_ARMALL,
 					     false);
 			cpr->cp_raw_cons = raw_cons;
@@ -2459,13 +2462,11 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 			cpr2 = cpr->cp_ring_arr[idx];
 			work_done += __bnxt_poll_work(bp, cpr2,
 						      budget - work_done);
-			cpr->has_more_work = cpr2->has_more_work;
+			cpr->has_more_work |= cpr2->has_more_work;
 		} else {
 			bnxt_hwrm_handler(bp, (struct tx_cmp *)nqcmp);
 		}
 		raw_cons = NEXT_RAW_CMP(raw_cons);
-		if (cpr->has_more_work)
-			break;
 	}
 	__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ, true);
 	cpr->cp_raw_cons = raw_cons;
