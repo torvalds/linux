@@ -511,12 +511,6 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 	 *   0x2260 -> EISA HP, BusMaster (Shasta Chip)
 	 */
 
-#if 0
-	local_mode = 0x2270;
-	hp100_outw(0xfefe, OPTION_LSW);
-	hp100_outw(local_mode | HP100_SET_LB | HP100_SET_HB, OPTION_LSW);
-#endif
-
 	/* hp100_mode value maybe used in future by another card */
 	local_mode = hp100_mode;
 	if (local_mode < 1 || local_mode > 4)
