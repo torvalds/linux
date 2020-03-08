@@ -8787,6 +8787,7 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 			bnxt_free_ctx_mem(bp);
 			kfree(bp->ctx);
 			bp->ctx = NULL;
+			bnxt_dcb_free(bp);
 			rc = bnxt_fw_init_one(bp);
 			if (rc) {
 				set_bit(BNXT_STATE_ABORT_ERR, &bp->state);
