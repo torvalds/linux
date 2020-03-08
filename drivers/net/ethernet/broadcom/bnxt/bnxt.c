@@ -5838,8 +5838,7 @@ bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 	if (bp->hwrm_spec_code < 0x10601)
 		bp->hw_resc.resv_tx_rings = tx_rings;
 
-	rc = bnxt_hwrm_get_rings(bp);
-	return rc;
+	return bnxt_hwrm_get_rings(bp);
 }
 
 static int
@@ -5860,8 +5859,7 @@ bnxt_hwrm_reserve_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 	if (rc)
 		return rc;
 
-	rc = bnxt_hwrm_get_rings(bp);
-	return rc;
+	return bnxt_hwrm_get_rings(bp);
 }
 
 static int bnxt_hwrm_reserve_rings(struct bnxt *bp, int tx, int rx, int grp,
@@ -6021,7 +6019,6 @@ static int bnxt_hwrm_check_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 {
 	struct hwrm_func_vf_cfg_input req = {0};
 	u32 flags;
-	int rc;
 
 	if (!BNXT_NEW_RM(bp))
 		return 0;
@@ -6038,8 +6035,8 @@ static int bnxt_hwrm_check_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 		flags |= FUNC_VF_CFG_REQ_FLAGS_RING_GRP_ASSETS_TEST;
 
 	req.flags = cpu_to_le32(flags);
-	rc = hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	return rc;
+	return hwrm_send_message_silent(bp, &req, sizeof(req),
+					HWRM_CMD_TIMEOUT);
 }
 
 static int bnxt_hwrm_check_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
@@ -6048,7 +6045,6 @@ static int bnxt_hwrm_check_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 {
 	struct hwrm_func_cfg_input req = {0};
 	u32 flags;
-	int rc;
 
 	__bnxt_hwrm_reserve_pf_rings(bp, &req, tx_rings, rx_rings, ring_grps,
 				     cp_rings, stats, vnics);
@@ -6066,8 +6062,8 @@ static int bnxt_hwrm_check_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 	}
 
 	req.flags = cpu_to_le32(flags);
-	rc = hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	return rc;
+	return hwrm_send_message_silent(bp, &req, sizeof(req),
+					HWRM_CMD_TIMEOUT);
 }
 
 static int bnxt_hwrm_check_rings(struct bnxt *bp, int tx_rings, int rx_rings,
@@ -6539,8 +6535,8 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 	__le64 *pg_dir;
 	u32 flags = 0;
 	u8 *pg_attr;
-	int i, rc;
 	u32 ena;
+	int i;
 
 	if (!ctx)
 		return 0;
@@ -6627,8 +6623,7 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem, pg_attr, pg_dir);
 	}
 	req.flags = cpu_to_le32(flags);
-	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	return rc;
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
 static int bnxt_alloc_ctx_mem_blk(struct bnxt *bp,
@@ -7332,7 +7327,6 @@ int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 
 static int bnxt_hwrm_port_qstats(struct bnxt *bp)
 {
-	int rc;
 	struct bnxt_pf_info *pf = &bp->pf;
 	struct hwrm_port_qstats_input req = {0};
 
@@ -7343,8 +7337,7 @@ static int bnxt_hwrm_port_qstats(struct bnxt *bp)
 	req.port_id = cpu_to_le16(pf->port_id);
 	req.tx_stat_host_addr = cpu_to_le64(bp->hw_tx_port_stats_map);
 	req.rx_stat_host_addr = cpu_to_le64(bp->hw_rx_port_stats_map);
-	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	return rc;
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
 static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
@@ -7498,7 +7491,6 @@ static void bnxt_hwrm_resource_free(struct bnxt *bp, bool close_path,
 static int bnxt_hwrm_set_br_mode(struct bnxt *bp, u16 br_mode)
 {
 	struct hwrm_func_cfg_input req = {0};
-	int rc;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
 	req.fid = cpu_to_le16(0xffff);
@@ -7509,14 +7501,12 @@ static int bnxt_hwrm_set_br_mode(struct bnxt *bp, u16 br_mode)
 		req.evb_mode = FUNC_CFG_REQ_EVB_MODE_VEPA;
 	else
 		return -EINVAL;
-	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	return rc;
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
 static int bnxt_hwrm_set_cache_line_size(struct bnxt *bp, int size)
 {
 	struct hwrm_func_cfg_input req = {0};
-	int rc;
 
 	if (BNXT_VF(bp) || bp->hwrm_spec_code < 0x10803)
 		return 0;
@@ -7528,8 +7518,7 @@ static int bnxt_hwrm_set_cache_line_size(struct bnxt *bp, int size)
 	if (size == 128)
 		req.options = FUNC_CFG_REQ_OPTIONS_CACHE_LINESIZE_SIZE_128;
 
-	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	return rc;
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
 static int __bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
@@ -8883,14 +8872,12 @@ int bnxt_hwrm_alloc_wol_fltr(struct bnxt *bp)
 int bnxt_hwrm_free_wol_fltr(struct bnxt *bp)
 {
 	struct hwrm_wol_filter_free_input req = {0};
-	int rc;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_WOL_FILTER_FREE, -1, -1);
 	req.port_id = cpu_to_le16(bp->pf.port_id);
 	req.enables = cpu_to_le32(WOL_FILTER_FREE_REQ_ENABLES_WOL_FILTER_ID);
 	req.wol_filter_id = bp->wol_filter_id;
-	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	return rc;
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
 static u16 bnxt_hwrm_get_wol_fltrs(struct bnxt *bp, u16 handle)
