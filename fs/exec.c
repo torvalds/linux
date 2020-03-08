@@ -1093,12 +1093,6 @@ static int exec_mmap(struct mm_struct *mm)
 	return 0;
 }
 
-/*
- * This function makes sure the current process has its own signal table,
- * so that flush_signal_handlers can later reset the handlers without
- * disturbing other processes.  (Other processes might share the signal
- * table via the CLONE_SIGHAND option to clone().)
- */
 static int de_thread(struct task_struct *tsk)
 {
 	struct signal_struct *sig = tsk->signal;
@@ -1240,6 +1234,12 @@ killed:
 }
 
 
+/*
+ * This function makes sure the current process has its own signal table,
+ * so that flush_signal_handlers can later reset the handlers without
+ * disturbing other processes.  (Other processes might share the signal
+ * table via the CLONE_SIGHAND option to clone().)
+ */
 static int unshare_sighand(struct task_struct *me)
 {
 	struct sighand_struct *oldsighand = me->sighand;
