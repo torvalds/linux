@@ -6,6 +6,8 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/aead.h>
 #include <crypto/authenc.h>
+#include <crypto/gcm.h>
+#include <linux/rtnetlink.h>
 #include <crypto/internal/des.h>
 #include <linux/rtnetlink.h>
 #include "cc_driver.h"
@@ -59,11 +61,6 @@ struct cc_aead_ctx {
 	enum cc_flow_mode flow_mode;
 	enum drv_hash_mode auth_mode;
 };
-
-static inline bool valid_assoclen(struct aead_request *req)
-{
-	return ((req->assoclen == 16) || (req->assoclen == 20));
-}
 
 static void cc_aead_exit(struct crypto_aead *tfm)
 {
@@ -2050,15 +2047,11 @@ static int cc_rfc4309_ccm_encrypt(struct aead_request *req)
 	/* Very similar to cc_aead_encrypt() above. */
 
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
-	struct device *dev = drvdata_to_dev(ctx->drvdata);
-	int rc = -EINVAL;
+	int rc;
 
-	if (!valid_assoclen(req)) {
-		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
+	rc = crypto_ipsec_check_assoclen(req->assoclen);
+	if (rc)
 		goto out;
-	}
 
 	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
@@ -2099,16 +2092,12 @@ static int cc_aead_decrypt(struct aead_request *req)
 
 static int cc_rfc4309_ccm_decrypt(struct aead_request *req)
 {
-	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
-	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	int rc = -EINVAL;
+	int rc;
 
-	if (!valid_assoclen(req)) {
-		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
+	rc = crypto_ipsec_check_assoclen(req->assoclen);
+	if (rc)
 		goto out;
-	}
 
 	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
@@ -2216,18 +2205,12 @@ static int cc_rfc4543_gcm_setauthsize(struct crypto_aead *authenc,
 
 static int cc_rfc4106_gcm_encrypt(struct aead_request *req)
 {
-	/* Very similar to cc_aead_encrypt() above. */
-
-	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
-	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	int rc = -EINVAL;
+	int rc;
 
-	if (!valid_assoclen(req)) {
-		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
+	rc = crypto_ipsec_check_assoclen(req->assoclen);
+	if (rc)
 		goto out;
-	}
 
 	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
@@ -2248,17 +2231,12 @@ out:
 
 static int cc_rfc4543_gcm_encrypt(struct aead_request *req)
 {
-	/* Very similar to cc_aead_encrypt() above. */
-	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
-	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	int rc = -EINVAL;
+	int rc;
 
-	if (!valid_assoclen(req)) {
-		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
+	rc = crypto_ipsec_check_assoclen(req->assoclen);
+	if (rc)
 		goto out;
-	}
 
 	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
@@ -2281,18 +2259,12 @@ out:
 
 static int cc_rfc4106_gcm_decrypt(struct aead_request *req)
 {
-	/* Very similar to cc_aead_decrypt() above. */
-
-	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
-	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	int rc = -EINVAL;
+	int rc;
 
-	if (!valid_assoclen(req)) {
-		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
+	rc = crypto_ipsec_check_assoclen(req->assoclen);
+	if (rc)
 		goto out;
-	}
 
 	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
@@ -2313,17 +2285,12 @@ out:
 
 static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 {
-	/* Very similar to cc_aead_decrypt() above. */
-	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
-	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	int rc = -EINVAL;
+	int rc;
 
-	if (!valid_assoclen(req)) {
-		dev_dbg(dev, "invalid Assoclen:%u\n", req->assoclen);
+	rc = crypto_ipsec_check_assoclen(req->assoclen);
+	if (rc)
 		goto out;
-	}
 
 	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
