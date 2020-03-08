@@ -65,6 +65,8 @@ unsigned long efi_pe_entry;
 unsigned long efi32_pe_entry;
 unsigned long kernel_info;
 unsigned long startup_64;
+unsigned long _ehead;
+unsigned long _end;
 
 /*----------------------------------------------------------------------*/
 
@@ -232,7 +234,7 @@ static void update_pecoff_text(unsigned int text_start, unsigned int file_sz,
 {
 	unsigned int pe_header;
 	unsigned int text_sz = file_sz - text_start;
-	unsigned int bss_sz = init_sz + text_start - file_sz;
+	unsigned int bss_sz = init_sz - file_sz;
 
 	pe_header = get_unaligned_le32(&buf[0x3c]);
 
@@ -259,7 +261,7 @@ static void update_pecoff_text(unsigned int text_start, unsigned int file_sz,
 	put_unaligned_le32(file_sz - 512 + bss_sz, &buf[pe_header + 0x1c]);
 
 	/* Size of image */
-	put_unaligned_le32(init_sz + text_start, &buf[pe_header + 0x50]);
+	put_unaligned_le32(init_sz, &buf[pe_header + 0x50]);
 
 	/*
 	 * Address of entry point for PE/COFF executable
@@ -360,6 +362,8 @@ static void parse_zoffset(char *fname)
 		PARSE_ZOFS(p, efi32_pe_entry);
 		PARSE_ZOFS(p, kernel_info);
 		PARSE_ZOFS(p, startup_64);
+		PARSE_ZOFS(p, _ehead);
+		PARSE_ZOFS(p, _end);
 
 		p = strchr(p, '\n');
 		while (p && (*p == '\r' || *p == '\n'))
@@ -444,6 +448,26 @@ int main(int argc, char ** argv)
 	put_unaligned_le32(sys_size, &buf[0x1f4]);
 
 	init_sz = get_unaligned_le32(&buf[0x260]);
+#ifdef CONFIG_EFI_STUB
+	/*
+	 * The decompression buffer will start at ImageBase. When relocating
+	 * the compressed kernel to its end, we must ensure that the head
+	 * section does not get overwritten.  The head section occupies
+	 * [i, i + _ehead), and the destination is [init_sz - _end, init_sz).
+	 *
+	 * At present these should never overlap, because 'i' is at most 32k
+	 * because of SETUP_SECT_MAX, '_ehead' is less than 1k, and the
+	 * calculation of INIT_SIZE in boot/header.S ensures that
+	 * 'init_sz - _end' is at least 64k.
+	 *
+	 * For future-proofing, increase init_sz if necessary.
+	 */
+
+	if (init_sz - _end < i + _ehead) {
+		init_sz = (i + _ehead + _end + 4095) & ~4095;
+		put_unaligned_le32(init_sz, &buf[0x260]);
+	}
+#endif
 	update_pecoff_text(setup_sectors * 512, i + (sys_size * 16), init_sz);
 
 	efi_stub_entry_update();
