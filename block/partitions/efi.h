@@ -88,7 +88,7 @@ typedef struct _gpt_entry {
 	__le64 starting_lba;
 	__le64 ending_lba;
 	gpt_entry_attributes attributes;
-	efi_char16_t partition_name[72 / sizeof (efi_char16_t)];
+	__le16 partition_name[72/sizeof(__le16)];
 } __packed gpt_entry;
 
 typedef struct _gpt_mbr_record {
