@@ -1609,7 +1609,6 @@ static void cc_proc_rfc4309_ccm(struct aead_request *req)
 	memcpy(areq_ctx->ctr_iv + CCM_BLOCK_IV_OFFSET, req->iv,
 	       CCM_BLOCK_IV_SIZE);
 	req->iv = areq_ctx->ctr_iv;
-	areq_ctx->assoclen -= CCM_BLOCK_IV_SIZE;
 }
 
 static void cc_set_ghash_desc(struct aead_request *req,
@@ -1868,8 +1867,7 @@ static int config_gcm_context(struct aead_request *req)
 		 */
 		__be64 temp64;
 
-		temp64 = cpu_to_be64((req_ctx->assoclen +
-				      GCM_BLOCK_RFC4_IV_SIZE + cryptlen) * 8);
+		temp64 = cpu_to_be64((req_ctx->assoclen + cryptlen) * 8);
 		memcpy(&req_ctx->gcm_len_block.len_a, &temp64, sizeof(temp64));
 		temp64 = 0;
 		memcpy(&req_ctx->gcm_len_block.len_c, &temp64, 8);
@@ -1889,7 +1887,6 @@ static void cc_proc_rfc4_gcm(struct aead_request *req)
 	memcpy(areq_ctx->ctr_iv + GCM_BLOCK_RFC4_IV_OFFSET, req->iv,
 	       GCM_BLOCK_RFC4_IV_SIZE);
 	req->iv = areq_ctx->ctr_iv;
-	areq_ctx->assoclen -= GCM_BLOCK_RFC4_IV_SIZE;
 }
 
 static int cc_proc_aead(struct aead_request *req,
@@ -2031,9 +2028,6 @@ static int cc_aead_encrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->is_gcm4543 = false;
-
-	areq_ctx->plaintext_authenticate_only = false;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
 	if (rc != -EINPROGRESS && rc != -EBUSY)
@@ -2057,8 +2051,7 @@ static int cc_rfc4309_ccm_encrypt(struct aead_request *req)
 
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
-	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->is_gcm4543 = true;
+	areq_ctx->assoclen = req->assoclen - CCM_BLOCK_IV_SIZE;
 
 	cc_proc_rfc4309_ccm(req);
 
@@ -2079,9 +2072,6 @@ static int cc_aead_decrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->is_gcm4543 = false;
-
-	areq_ctx->plaintext_authenticate_only = false;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_DECRYPT);
 	if (rc != -EINPROGRESS && rc != -EBUSY)
@@ -2103,9 +2093,8 @@ static int cc_rfc4309_ccm_decrypt(struct aead_request *req)
 
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
-	areq_ctx->assoclen = req->assoclen;
+	areq_ctx->assoclen = req->assoclen - CCM_BLOCK_IV_SIZE;
 
-	areq_ctx->is_gcm4543 = true;
 	cc_proc_rfc4309_ccm(req);
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_DECRYPT);
@@ -2216,11 +2205,9 @@ static int cc_rfc4106_gcm_encrypt(struct aead_request *req)
 
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
-	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->plaintext_authenticate_only = false;
+	areq_ctx->assoclen = req->assoclen - GCM_BLOCK_RFC4_IV_SIZE;
 
 	cc_proc_rfc4_gcm(req);
-	areq_ctx->is_gcm4543 = true;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
 	if (rc != -EINPROGRESS && rc != -EBUSY)
@@ -2248,7 +2235,6 @@ static int cc_rfc4543_gcm_encrypt(struct aead_request *req)
 	areq_ctx->assoclen = req->assoclen;
 
 	cc_proc_rfc4_gcm(req);
-	areq_ctx->is_gcm4543 = true;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
 	if (rc != -EINPROGRESS && rc != -EBUSY)
@@ -2270,11 +2256,9 @@ static int cc_rfc4106_gcm_decrypt(struct aead_request *req)
 
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
-	areq_ctx->assoclen = req->assoclen;
-	areq_ctx->plaintext_authenticate_only = false;
+	areq_ctx->assoclen = req->assoclen - GCM_BLOCK_RFC4_IV_SIZE;
 
 	cc_proc_rfc4_gcm(req);
-	areq_ctx->is_gcm4543 = true;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_DECRYPT);
 	if (rc != -EINPROGRESS && rc != -EBUSY)
@@ -2302,7 +2286,6 @@ static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 	areq_ctx->assoclen = req->assoclen;
 
 	cc_proc_rfc4_gcm(req);
-	areq_ctx->is_gcm4543 = true;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_DECRYPT);
 	if (rc != -EINPROGRESS && rc != -EBUSY)
