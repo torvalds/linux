@@ -57,13 +57,13 @@
 #define RALINK_PCI_IOBASE		0x002C
 
 /* PCICFG virtual bridges */
-#define MT7621_BR0_MASK			GENMASK(19, 16)
-#define MT7621_BR1_MASK			GENMASK(23, 20)
-#define MT7621_BR2_MASK			GENMASK(27, 24)
-#define MT7621_BR_ALL_MASK		GENMASK(27, 16)
-#define MT7621_BR0_SHIFT		16
-#define MT7621_BR1_SHIFT		20
-#define MT7621_BR2_SHIFT		24
+#define PCIE_P2P_MAX			3
+#define PCIE_P2P_BR_DEVNUM_SHIFT(p)	(16 + (p) * 4)
+#define PCIE_P2P_BR_DEVNUM0_SHIFT	PCIE_P2P_BR_DEVNUM_SHIFT(0)
+#define PCIE_P2P_BR_DEVNUM1_SHIFT	PCIE_P2P_BR_DEVNUM_SHIFT(1)
+#define PCIE_P2P_BR_DEVNUM2_SHIFT	PCIE_P2P_BR_DEVNUM_SHIFT(2)
+#define PCIE_P2P_BR_DEVNUM_MASK		0xf
+#define PCIE_P2P_BR_DEVNUM_MASK_FULL	(0xfff << PCIE_P2P_BR_DEVNUM0_SHIFT)
 
 /* PCIe RC control registers */
 #define MT7621_PCIE_OFFSET		0x2000
@@ -151,6 +151,15 @@ static inline u32 pcie_read(struct mt7621_pcie *pcie, u32 reg)
 
 static inline void pcie_write(struct mt7621_pcie *pcie, u32 val, u32 reg)
 {
+	writel(val, pcie->base + reg);
+}
+
+static inline void pcie_rmw(struct mt7621_pcie *pcie, u32 reg, u32 clr, u32 set)
+{
+	u32 val = readl(pcie->base + reg);
+
+	val &= ~clr;
+	val |= set;
 	writel(val, pcie->base + reg);
 }
 
@@ -554,7 +563,9 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 {
 	u32 pcie_link_status = 0;
-	u32 val = 0;
+	u32 n;
+	int i;
+	u32 p2p_br_devnum[PCIE_P2P_MAX];
 	struct mt7621_pcie_port *port;
 
 	list_for_each_entry(port, &pcie->ports, list) {
@@ -567,50 +578,20 @@ static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 	if (pcie_link_status == 0)
 		return -1;
 
-	/*
-	 * pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
-	 * 3'b000			x		x		x
-	 * 3'b001			x		x		0
-	 * 3'b010			x		0		x
-	 * 3'b011			x		1		0
-	 * 3'b100			0		x		x
-	 * 3'b101			1		x		0
-	 * 3'b110			1		0		x
-	 * 3'b111			2		1		0
-	 */
-	switch (pcie_link_status) {
-	case 2:
-		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-		val &= ~(MT7621_BR0_MASK | MT7621_BR1_MASK);
-		val |= 0x1 << MT7621_BR0_SHIFT;
-		val |= 0x0 << MT7621_BR1_SHIFT;
-		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-		break;
-	case 4:
-		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-		val &= ~MT7621_BR_ALL_MASK;
-		val |= 0x1 << MT7621_BR0_SHIFT;
-		val |= 0x2 << MT7621_BR1_SHIFT;
-		val |= 0x0 << MT7621_BR2_SHIFT;
-		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-		break;
-	case 5:
-		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-		val &= ~MT7621_BR_ALL_MASK;
-		val |= 0x0 << MT7621_BR0_SHIFT;
-		val |= 0x2 << MT7621_BR1_SHIFT;
-		val |= 0x1 << MT7621_BR2_SHIFT;
-		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-		break;
-	case 6:
-		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-		val &= ~MT7621_BR_ALL_MASK;
-		val |= 0x2 << MT7621_BR0_SHIFT;
-		val |= 0x0 << MT7621_BR1_SHIFT;
-		val |= 0x1 << MT7621_BR2_SHIFT;
-		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-		break;
-	}
+	n = 0;
+	for (i = 0; i < PCIE_P2P_MAX; i++)
+		if (pcie_link_status & BIT(i))
+			p2p_br_devnum[i] = n++;
+
+	for (i = 0; i < PCIE_P2P_MAX; i++)
+		if ((pcie_link_status & BIT(i)) == 0)
+			p2p_br_devnum[i] = n++;
+
+	pcie_rmw(pcie, RALINK_PCI_CONFIG_ADDR,
+		 PCIE_P2P_BR_DEVNUM_MASK_FULL,
+		 (p2p_br_devnum[0] << PCIE_P2P_BR_DEVNUM0_SHIFT) |
+		 (p2p_br_devnum[1] << PCIE_P2P_BR_DEVNUM1_SHIFT) |
+		 (p2p_br_devnum[2] << PCIE_P2P_BR_DEVNUM2_SHIFT));
 
 	return 0;
 }
