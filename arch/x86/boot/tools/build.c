@@ -238,21 +238,17 @@ static void update_pecoff_text(unsigned int text_start, unsigned int file_sz,
 
 	pe_header = get_unaligned_le32(&buf[0x3c]);
 
-#ifdef CONFIG_EFI_MIXED
 	/*
-	 * In mixed mode, we will execute startup_32() at whichever offset in
-	 * memory it happened to land when the PE/COFF loader loaded the image,
-	 * which may be misaligned with respect to the kernel_alignment field
-	 * in the setup header.
+	 * The PE/COFF loader may load the image at an address which is
+	 * misaligned with respect to the kernel_alignment field in the setup
+	 * header.
 	 *
-	 * In order for startup_32 to safely execute in place at this offset,
-	 * we need to ensure that the CONFIG_PHYSICAL_ALIGN aligned allocation
-	 * it creates for the page tables does not extend beyond the declared
-	 * size of the image in the PE/COFF header. So add the required slack.
+	 * In order to avoid relocating the kernel to correct the misalignment,
+	 * add slack to allow the buffer to be aligned within the declared size
+	 * of the image.
 	 */
 	bss_sz	+= CONFIG_PHYSICAL_ALIGN;
 	init_sz	+= CONFIG_PHYSICAL_ALIGN;
-#endif
 
 	/*
 	 * Size of code: Subtract the size of the first sector (512 bytes)

@@ -17,6 +17,9 @@
 
 #include "efistub.h"
 
+/* Maximum physical address for 64-bit kernel with 4-level paging */
+#define MAXMEM_X86_64_4LEVEL (1ull << 46)
+
 static efi_system_table_t *sys_table;
 extern const bool efi_is64;
 extern u32 image_offset;
@@ -718,6 +721,7 @@ unsigned long efi_main(efi_handle_t handle,
 			     struct boot_params *boot_params)
 {
 	unsigned long bzimage_addr = (unsigned long)startup_32;
+	unsigned long buffer_start, buffer_end;
 	struct setup_header *hdr = &boot_params->hdr;
 	efi_status_t status;
 	unsigned long cmdline_paddr;
@@ -729,10 +733,33 @@ unsigned long efi_main(efi_handle_t handle,
 		efi_exit(handle, EFI_INVALID_PARAMETER);
 
 	/*
-	 * If the kernel isn't already loaded at the preferred load
-	 * address, relocate it.
+	 * If the kernel isn't already loaded at a suitable address,
+	 * relocate it.
+	 *
+	 * It must be loaded above LOAD_PHYSICAL_ADDR.
+	 *
+	 * The maximum address for 64-bit is 1 << 46 for 4-level paging. This
+	 * is defined as the macro MAXMEM, but unfortunately that is not a
+	 * compile-time constant if 5-level paging is configured, so we instead
+	 * define our own macro for use here.
+	 *
+	 * For 32-bit, the maximum address is complicated to figure out, for
+	 * now use KERNEL_IMAGE_SIZE, which will be 512MiB, the same as what
+	 * KASLR uses.
+	 *
+	 * Also relocate it if image_offset is zero, i.e. we weren't loaded by
+	 * LoadImage, but we are not aligned correctly.
 	 */
-	if (bzimage_addr - image_offset != hdr->pref_address) {
+
+	buffer_start = ALIGN(bzimage_addr - image_offset,
+			     hdr->kernel_alignment);
+	buffer_end = buffer_start + hdr->init_size;
+
+	if ((buffer_start < LOAD_PHYSICAL_ADDR)				     ||
+	    (IS_ENABLED(CONFIG_X86_32) && buffer_end > KERNEL_IMAGE_SIZE)    ||
+	    (IS_ENABLED(CONFIG_X86_64) && buffer_end > MAXMEM_X86_64_4LEVEL) ||
+	    (image_offset == 0 && !IS_ALIGNED(bzimage_addr,
+					      hdr->kernel_alignment))) {
 		status = efi_relocate_kernel(&bzimage_addr,
 					     hdr->init_size, hdr->init_size,
 					     hdr->pref_address,
