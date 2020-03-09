@@ -1121,10 +1121,9 @@ blk_qc_t direct_make_request(struct bio *bio)
 
 	if (unlikely(blk_queue_enter(q, nowait ? BLK_MQ_REQ_NOWAIT : 0))) {
 		if (nowait && !blk_queue_dying(q))
-			bio->bi_status = BLK_STS_AGAIN;
+			bio_wouldblock_error(bio);
 		else
-			bio->bi_status = BLK_STS_IOERR;
-		bio_endio(bio);
+			bio_io_error(bio);
 		return BLK_QC_T_NONE;
 	}
 
