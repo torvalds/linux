@@ -107,7 +107,20 @@ execlists_num_ports(const struct intel_engine_execlists * const execlists)
 static inline struct i915_request *
 execlists_active(const struct intel_engine_execlists *execlists)
 {
-	return *READ_ONCE(execlists->active);
+	struct i915_request * const *cur, * const *old, *active;
+
+	cur = READ_ONCE(execlists->active);
+	smp_rmb(); /* pairs with overwrite protection in process_csb() */
+	do {
+		old = cur;
+
+		active = READ_ONCE(*cur);
+		cur = READ_ONCE(execlists->active);
+
+		smp_rmb(); /* and complete the seqlock retry */
+	} while (unlikely(cur != old));
+
+	return active;
 }
 
 static inline void
