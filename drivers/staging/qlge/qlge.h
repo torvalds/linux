@@ -16,8 +16,8 @@
 /*
  * General definitions...
  */
-#define DRV_NAME  	"qlge"
-#define DRV_STRING 	"QLogic 10 Gigabit PCI-E Ethernet Driver "
+#define DRV_NAME	"qlge"
+#define DRV_STRING	"QLogic 10 Gigabit PCI-E Ethernet Driver "
 #define DRV_VERSION	"1.00.00.35"
 
 #define WQ_ADDR_ALIGN	0x3	/* 4 byte alignment */
@@ -1077,11 +1077,11 @@ struct tx_buf_desc {
  * IOCB Definitions...
  */
 
-#define OPCODE_OB_MAC_IOCB 			0x01
+#define OPCODE_OB_MAC_IOCB		0x01
 #define OPCODE_OB_MAC_TSO_IOCB		0x02
-#define OPCODE_IB_MAC_IOCB			0x20
-#define OPCODE_IB_MPI_IOCB			0x21
-#define OPCODE_IB_AE_IOCB			0x3f
+#define OPCODE_IB_MAC_IOCB		0x20
+#define OPCODE_IB_MPI_IOCB		0x21
+#define OPCODE_IB_AE_IOCB		0x3f
 
 struct ob_mac_iocb_req {
 	u8 opcode;
@@ -1173,15 +1173,15 @@ struct ib_mac_iocb_rsp {
 	u8 flags1;
 #define IB_MAC_IOCB_RSP_OI	0x01	/* Override intr delay */
 #define IB_MAC_IOCB_RSP_I	0x02	/* Disable Intr Generation */
-#define IB_MAC_CSUM_ERR_MASK 0x1c	/* A mask to use for csum errs */
+#define IB_MAC_CSUM_ERR_MASK	0x1c	/* A mask to use for csum errs */
 #define IB_MAC_IOCB_RSP_TE	0x04	/* Checksum error */
 #define IB_MAC_IOCB_RSP_NU	0x08	/* No checksum rcvd */
 #define IB_MAC_IOCB_RSP_IE	0x10	/* IPv4 checksum error */
 #define IB_MAC_IOCB_RSP_M_MASK	0x60	/* Multicast info */
 #define IB_MAC_IOCB_RSP_M_NONE	0x00	/* Not mcast frame */
 #define IB_MAC_IOCB_RSP_M_HASH	0x20	/* HASH mcast frame */
-#define IB_MAC_IOCB_RSP_M_REG 	0x40	/* Registered mcast frame */
-#define IB_MAC_IOCB_RSP_M_PROM 	0x60	/* Promiscuous mcast frame */
+#define IB_MAC_IOCB_RSP_M_REG	0x40	/* Registered mcast frame */
+#define IB_MAC_IOCB_RSP_M_PROM	0x60	/* Promiscuous mcast frame */
 #define IB_MAC_IOCB_RSP_B	0x80	/* Broadcast frame */
 	u8 flags2;
 #define IB_MAC_IOCB_RSP_P	0x01	/* Promiscuous frame */
@@ -1198,16 +1198,16 @@ struct ib_mac_iocb_rsp {
 #define IB_MAC_IOCB_RSP_FO	0x80	/* Failover port */
 	u8 flags3;
 #define IB_MAC_IOCB_RSP_RSS_MASK	0x07	/* RSS mask */
-#define IB_MAC_IOCB_RSP_M_NONE	0x00	/* No RSS match */
-#define IB_MAC_IOCB_RSP_M_IPV4	0x04	/* IPv4 RSS match */
-#define IB_MAC_IOCB_RSP_M_IPV6	0x02	/* IPv6 RSS match */
-#define IB_MAC_IOCB_RSP_M_TCP_V4 	0x05	/* TCP with IPv4 */
-#define IB_MAC_IOCB_RSP_M_TCP_V6 	0x03	/* TCP with IPv6 */
-#define IB_MAC_IOCB_RSP_V4	0x08	/* IPV4 */
-#define IB_MAC_IOCB_RSP_V6	0x10	/* IPV6 */
-#define IB_MAC_IOCB_RSP_IH	0x20	/* Split after IP header */
-#define IB_MAC_IOCB_RSP_DS	0x40	/* data is in small buffer */
-#define IB_MAC_IOCB_RSP_DL	0x80	/* data is in large buffer */
+#define IB_MAC_IOCB_RSP_M_NONE		0x00	/* No RSS match */
+#define IB_MAC_IOCB_RSP_M_IPV4		0x04	/* IPv4 RSS match */
+#define IB_MAC_IOCB_RSP_M_IPV6		0x02	/* IPv6 RSS match */
+#define IB_MAC_IOCB_RSP_M_TCP_V4	0x05	/* TCP with IPv4 */
+#define IB_MAC_IOCB_RSP_M_TCP_V6	0x03	/* TCP with IPv6 */
+#define IB_MAC_IOCB_RSP_V4		0x08	/* IPV4 */
+#define IB_MAC_IOCB_RSP_V6		0x10	/* IPV6 */
+#define IB_MAC_IOCB_RSP_IH		0x20	/* Split after IP header */
+#define IB_MAC_IOCB_RSP_DS		0x40	/* data is in small buffer */
+#define IB_MAC_IOCB_RSP_DL		0x80	/* data is in large buffer */
 	__le32 data_len;	/* */
 	__le64 data_addr;	/* */
 	__le32 rss;		/* */
@@ -1233,17 +1233,17 @@ struct ib_ae_iocb_rsp {
 #define IB_AE_IOCB_RSP_OI		0x01
 #define IB_AE_IOCB_RSP_I		0x02
 	u8 event;
-#define LINK_UP_EVENT              0x00
-#define LINK_DOWN_EVENT            0x01
-#define CAM_LOOKUP_ERR_EVENT       0x06
-#define SOFT_ECC_ERROR_EVENT       0x07
-#define MGMT_ERR_EVENT             0x08
-#define TEN_GIG_MAC_EVENT          0x09
-#define GPI0_H2L_EVENT       	0x10
-#define GPI0_L2H_EVENT       	0x20
-#define GPI1_H2L_EVENT       	0x11
-#define GPI1_L2H_EVENT       	0x21
-#define PCI_ERR_ANON_BUF_RD        0x40
+#define LINK_UP_EVENT			0x00
+#define LINK_DOWN_EVENT			0x01
+#define CAM_LOOKUP_ERR_EVENT		0x06
+#define SOFT_ECC_ERROR_EVENT		0x07
+#define MGMT_ERR_EVENT			0x08
+#define TEN_GIG_MAC_EVENT		0x09
+#define GPI0_H2L_EVENT			0x10
+#define GPI0_L2H_EVENT			0x20
+#define GPI1_H2L_EVENT			0x11
+#define GPI1_L2H_EVENT			0x21
+#define PCI_ERR_ANON_BUF_RD		0x40
 	u8 q_id;
 	__le32 reserved[15];
 } __packed;
