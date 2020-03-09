@@ -182,7 +182,7 @@ struct smb2_symlink_err_rsp {
 	__le16 PrintNameOffset;
 	__le16 PrintNameLength;
 	__le32 Flags;
-	__u8  PathBuffer[0];
+	__u8  PathBuffer[];
 } __packed;
 
 /* SMB 3.1.1 and later dialects. See MS-SMB2 section 2.2.2.1 */
@@ -210,7 +210,7 @@ struct share_redirect_error_context_rsp {
 	__le16 Flags;
 	__le16 TargetType;
 	__le32 IPAddrCount;
-	struct move_dst_ipaddr IpAddrMoveList[0];
+	struct move_dst_ipaddr IpAddrMoveList[];
 	/* __u8 ResourceName[] */ /* Name of share as counted Unicode string */
 } __packed;
 
@@ -326,7 +326,7 @@ struct smb2_netname_neg_context {
 	__le16	ContextType; /* 0x100 */
 	__le16	DataLength;
 	__le32	Reserved;
-	__le16	NetName[0]; /* hostname of target converted to UCS-2 */
+	__le16	NetName[]; /* hostname of target converted to UCS-2 */
 } __packed;
 
 #define POSIX_CTXT_DATA_LEN	16
@@ -421,13 +421,13 @@ struct tree_connect_contexts {
 	__le16 ContextType;
 	__le16 DataLength;
 	__le32 Reserved;
-	__u8   Data[0];
+	__u8   Data[];
 } __packed;
 
 /* Remoted identity tree connect context structures - see MS-SMB2 2.2.9.2.1 */
 struct smb3_blob_data {
 	__le16 BlobSize;
-	__u8   BlobData[0];
+	__u8   BlobData[];
 } __packed;
 
 /* Valid values for Attr */
@@ -477,14 +477,14 @@ struct remoted_identity_tcon_context {
 	__le16 DeviceGroups; /* offset to SID_ARRAY_DATA struct */
 	__le16 UserClaims; /* offset to BLOB_DATA struct */
 	__le16 DeviceClaims; /* offset to BLOB_DATA struct */
-	__u8   TicketInfo[0]; /* variable length buf - remoted identity data */
+	__u8   TicketInfo[]; /* variable length buf - remoted identity data */
 } __packed;
 
 struct smb2_tree_connect_req_extension {
 	__le32 TreeConnectContextOffset;
 	__le16 TreeConnectContextCount;
 	__u8  Reserved[10];
-	__u8  PathName[0]; /* variable sized array */
+	__u8  PathName[]; /* variable sized array */
 	/* followed by array of TreeConnectContexts */
 } __packed;
 
@@ -689,7 +689,7 @@ struct smb2_create_req {
 	__le16 NameLength;
 	__le32 CreateContextsOffset;
 	__le32 CreateContextsLength;
-	__u8   Buffer[0];
+	__u8   Buffer[];
 } __packed;
 
 /*
@@ -727,7 +727,7 @@ struct create_context {
 	__le16 Reserved;
 	__le16 DataOffset;
 	__le32 DataLength;
-	__u8 Buffer[0];
+	__u8 Buffer[];
 } __packed;
 
 #define SMB2_LEASE_READ_CACHING_HE	0x01
@@ -869,7 +869,7 @@ struct crt_sd_ctxt {
 struct resume_key_req {
 	char ResumeKey[COPY_CHUNK_RES_KEY_SIZE];
 	__le32	ContextLength;	/* MBZ */
-	char	Context[0];	/* ignored, Windows sets to 4 bytes of zero */
+	char	Context[];	/* ignored, Windows sets to 4 bytes of zero */
 } __packed;
 
 /* this goes in the ioctl buffer when doing a copychunk request */
@@ -931,7 +931,7 @@ struct reparse_data_buffer {
 	__le32	ReparseTag;
 	__le16	ReparseDataLength;
 	__u16	Reserved;
-	__u8	DataBuffer[0]; /* Variable Length */
+	__u8	DataBuffer[]; /* Variable Length */
 } __packed;
 
 struct reparse_guid_data_buffer {
@@ -939,7 +939,7 @@ struct reparse_guid_data_buffer {
 	__le16	ReparseDataLength;
 	__u16	Reserved;
 	__u8	ReparseGuid[16];
-	__u8	DataBuffer[0]; /* Variable Length */
+	__u8	DataBuffer[]; /* Variable Length */
 } __packed;
 
 struct reparse_mount_point_data_buffer {
@@ -950,7 +950,7 @@ struct reparse_mount_point_data_buffer {
 	__le16	SubstituteNameLength;
 	__le16	PrintNameOffset;
 	__le16	PrintNameLength;
-	__u8	PathBuffer[0]; /* Variable Length */
+	__u8	PathBuffer[]; /* Variable Length */
 } __packed;
 
 #define SYMLINK_FLAG_RELATIVE 0x00000001
@@ -964,7 +964,7 @@ struct reparse_symlink_data_buffer {
 	__le16	PrintNameOffset;
 	__le16	PrintNameLength;
 	__le32	Flags;
-	__u8	PathBuffer[0]; /* Variable Length */
+	__u8	PathBuffer[]; /* Variable Length */
 } __packed;
 
 /* See MS-FSCC 2.1.2.6 and cifspdu.h for struct reparse_posix_data */
@@ -1066,7 +1066,7 @@ struct smb2_ioctl_req {
 	__le32 MaxOutputResponse;
 	__le32 Flags;
 	__u32  Reserved2;
-	__u8   Buffer[0];
+	__u8   Buffer[];
 } __packed;
 
 struct smb2_ioctl_rsp {
@@ -1469,7 +1469,7 @@ struct smb3_fs_vol_info {
 	__le32	VolumeLabelLength; /* includes trailing null */
 	__u8	SupportsObjects; /* True if eg like NTFS, supports objects */
 	__u8	Reserved;
-	__u8	VolumeLabel[0]; /* variable len */
+	__u8	VolumeLabel[]; /* variable len */
 } __packed;
 
 /* partial list of QUERY INFO levels */
@@ -1531,7 +1531,7 @@ struct smb2_file_rename_info { /* encoding of request for level 10 */
 	__u8   Reserved[7];
 	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
 	__le32 FileNameLength;
-	char   FileName[0];     /* New name to be assigned */
+	char   FileName[];     /* New name to be assigned */
 } __packed; /* level 10 Set */
 
 struct smb2_file_link_info { /* encoding of request for level 11 */
@@ -1540,7 +1540,7 @@ struct smb2_file_link_info { /* encoding of request for level 11 */
 	__u8   Reserved[7];
 	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
 	__le32 FileNameLength;
-	char   FileName[0];     /* Name to be assigned to new link */
+	char   FileName[];     /* Name to be assigned to new link */
 } __packed; /* level 11 Set */
 
 struct smb2_file_full_ea_info { /* encoding of response for level 15 */
@@ -1548,7 +1548,7 @@ struct smb2_file_full_ea_info { /* encoding of response for level 15 */
 	__u8   flags;
 	__u8   ea_name_length;
 	__le16 ea_value_length;
-	char   ea_data[0]; /* \0 terminated name plus value */
+	char   ea_data[]; /* \0 terminated name plus value */
 } __packed; /* level 15 Set */
 
 /*
