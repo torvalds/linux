@@ -3343,7 +3343,7 @@ void dcn20_cap_soc_clocks(
 void dcn20_update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb,
 		struct pp_smu_nv_clock_table *max_clocks, unsigned int *uclk_states, unsigned int num_states)
 {
-	struct _vcs_dpi_voltage_scaling_st calculated_states[MAX_CLOCK_LIMIT_STATES];
+	struct _vcs_dpi_voltage_scaling_st calculated_states[DC__VOLTAGE_STATES];
 	int i;
 	int num_calculated_states = 0;
 	int min_dcfclk = 0;
