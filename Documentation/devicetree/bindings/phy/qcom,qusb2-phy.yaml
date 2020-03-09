@@ -15,10 +15,16 @@ description:
 
 properties:
   compatible:
-    enum:
-      - qcom,msm8996-qusb2-phy
-      - qcom,msm8998-qusb2-phy
-      - qcom,sdm845-qusb2-phy
+    oneOf:
+      - items:
+        - enum:
+          - qcom,msm8996-qusb2-phy
+          - qcom,msm8998-qusb2-phy
+      - items:
+        - enum:
+          - qcom,sc7180-qusb2-phy
+          - qcom,sdm845-qusb2-phy
+        - const: qcom,qusb2-v2-phy
   reg:
     maxItems: 1
 
