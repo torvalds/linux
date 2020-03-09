@@ -29,10 +29,13 @@ static struct regmap *regmap;
  */
 static void sc27xx_poweroff_shutdown(void)
 {
-#ifdef CONFIG_PM_SLEEP_SMP
-	int cpu = smp_processor_id();
+#ifdef CONFIG_HOTPLUG_CPU
+	int cpu;
 
-	freeze_secondary_cpus(cpu);
+	for_each_online_cpu(cpu) {
+		if (cpu != smp_processor_id())
+			cpu_down(cpu);
+	}
 #endif
 }
 
