@@ -259,38 +259,33 @@ static int clk_rpmh_bcm_send_cmd(struct clk_rpmh *c, bool enable)
 {
 	struct tcs_cmd cmd = { 0 };
 	u32 cmd_state;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&rpmh_clk_lock);
-
-	cmd_state = 0;
 	if (enable) {
 		cmd_state = 1;
 		if (c->aggr_state)
 			cmd_state = c->aggr_state;
+	} else {
+		cmd_state = 0;
 	}
 
-	if (c->last_sent_aggr_state == cmd_state) {
-		mutex_unlock(&rpmh_clk_lock);
-		return 0;
+	if (c->last_sent_aggr_state != cmd_state) {
+		cmd.addr = c->res_addr;
+		cmd.data = BCM_TCS_CMD(1, enable, 0, cmd_state);
+
+		ret = clk_rpmh_send(c, RPMH_ACTIVE_ONLY_STATE, &cmd, enable);
+		if (ret) {
+			dev_err(c->dev, "set active state of %s failed: (%d)\n",
+				c->res_name, ret);
+		} else {
+			c->last_sent_aggr_state = cmd_state;
+		}
 	}
-
-	cmd.addr = c->res_addr;
-	cmd.data = BCM_TCS_CMD(1, enable, 0, cmd_state);
-
-	ret = clk_rpmh_send(c, RPMH_ACTIVE_ONLY_STATE, &cmd, enable);
-	if (ret) {
-		dev_err(c->dev, "set active state of %s failed: (%d)\n",
-			c->res_name, ret);
-		mutex_unlock(&rpmh_clk_lock);
-		return ret;
-	}
-
-	c->last_sent_aggr_state = cmd_state;
 
 	mutex_unlock(&rpmh_clk_lock);
 
-	return 0;
+	return ret;
 }
 
 static int clk_rpmh_bcm_prepare(struct clk_hw *hw)
