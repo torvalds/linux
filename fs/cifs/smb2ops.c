@@ -2222,6 +2222,8 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 		goto qdf_free;
 	}
 
+	atomic_inc(&tcon->num_remote_opens);
+
 	qd_rsp = (struct smb2_query_directory_rsp *)rsp_iov[1].iov_base;
 	if (qd_rsp->sync_hdr.Status == STATUS_NO_MORE_FILES) {
 		trace_smb3_query_dir_done(xid, fid->persistent_fid,
