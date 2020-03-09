@@ -716,9 +716,9 @@ int multi_sector_write(struct super_block *sb, sector_t sec,
 void exfat_bdev_open(struct super_block *sb);
 void exfat_bdev_close(struct super_block *sb);
 int exfat_bdev_read(struct super_block *sb, sector_t secno,
-	      struct buffer_head **bh, u32 num_secs, bool read);
+		    struct buffer_head **bh, u32 num_secs, bool read);
 int exfat_bdev_write(struct super_block *sb, sector_t secno,
-	       struct buffer_head *bh, u32 num_secs, bool sync);
+		     struct buffer_head *bh, u32 num_secs, bool sync);
 int exfat_bdev_sync(struct super_block *sb);
 
 /* cluster operation functions */
