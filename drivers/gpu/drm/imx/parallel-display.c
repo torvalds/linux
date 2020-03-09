@@ -217,7 +217,7 @@ static int imx_pd_bridge_atomic_check(struct drm_bridge *bridge,
 
 	if (next_bridge_state)
 		bus_flags = next_bridge_state->input_bus_cfg.flags;
-	else if (!imxpd->bus_format && di->num_bus_formats)
+	else if (di->num_bus_formats)
 		bus_flags = di->bus_flags;
 	else
 		bus_flags = imxpd->bus_flags;
