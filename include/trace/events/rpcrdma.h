@@ -1687,6 +1687,7 @@ DECLARE_EVENT_CLASS(svcrdma_dma_map_class,
 				TP_ARGS(rdma, dma_addr, length))
 
 DEFINE_SVC_DMA_EVENT(dma_map_page);
+DEFINE_SVC_DMA_EVENT(dma_map_err);
 DEFINE_SVC_DMA_EVENT(dma_unmap_page);
 
 TRACE_EVENT(svcrdma_dma_map_rw_err,
