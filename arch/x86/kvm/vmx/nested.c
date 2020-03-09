@@ -1909,18 +1909,18 @@ static int copy_vmcs12_to_enlightened(struct vcpu_vmx *vmx)
  * This is an equivalent of the nested hypervisor executing the vmptrld
  * instruction.
  */
-static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
-						 bool from_launch)
+static enum nested_evmptrld_status nested_vmx_handle_enlightened_vmptrld(
+	struct kvm_vcpu *vcpu, bool from_launch)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	bool evmcs_gpa_changed = false;
 	u64 evmcs_gpa;
 
 	if (likely(!vmx->nested.enlightened_vmcs_enabled))
-		return 1;
+		return EVMPTRLD_DISABLED;
 
 	if (!nested_enlightened_vmentry(vcpu, &evmcs_gpa))
-		return 1;
+		return EVMPTRLD_DISABLED;
 
 	if (unlikely(!vmx->nested.hv_evmcs ||
 		     evmcs_gpa != vmx->nested.hv_evmcs_vmptr)) {
@@ -1931,7 +1931,7 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 
 		if (kvm_vcpu_map(vcpu, gpa_to_gfn(evmcs_gpa),
 				 &vmx->nested.hv_evmcs_map))
-			return 0;
+			return EVMPTRLD_ERROR;
 
 		vmx->nested.hv_evmcs = vmx->nested.hv_evmcs_map.hva;
 
@@ -1960,7 +1960,7 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 		if ((vmx->nested.hv_evmcs->revision_id != KVM_EVMCS_VERSION) &&
 		    (vmx->nested.hv_evmcs->revision_id != VMCS12_REVISION)) {
 			nested_release_evmcs(vcpu);
-			return 0;
+			return EVMPTRLD_VMFAIL;
 		}
 
 		vmx->nested.dirty_vmcs12 = true;
@@ -1989,7 +1989,7 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 		vmx->nested.hv_evmcs->hv_clean_fields &=
 			~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL;
 
-	return 1;
+	return EVMPTRLD_SUCCEEDED;
 }
 
 void nested_sync_vmcs12_to_shadow(struct kvm_vcpu *vcpu)
@@ -3059,8 +3059,21 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 	 * L2 was running), map it here to make sure vmcs12 changes are
 	 * properly reflected.
 	 */
-	if (vmx->nested.enlightened_vmcs_enabled && !vmx->nested.hv_evmcs)
-		nested_vmx_handle_enlightened_vmptrld(vcpu, false);
+	if (vmx->nested.enlightened_vmcs_enabled && !vmx->nested.hv_evmcs) {
+		enum nested_evmptrld_status evmptrld_status =
+			nested_vmx_handle_enlightened_vmptrld(vcpu, false);
+
+		if (evmptrld_status == EVMPTRLD_VMFAIL ||
+		    evmptrld_status == EVMPTRLD_ERROR) {
+			pr_debug_ratelimited("%s: enlightened vmptrld failed\n",
+					     __func__);
+			vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			vcpu->run->internal.suberror =
+				KVM_INTERNAL_ERROR_EMULATION;
+			vcpu->run->internal.ndata = 0;
+			return false;
+		}
+	}
 
 	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
 		/*
@@ -3325,12 +3338,18 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	enum nvmx_vmentry_status status;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 interrupt_shadow = vmx_get_interrupt_shadow(vcpu);
+	enum nested_evmptrld_status evmptrld_status;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
 
-	if (!nested_vmx_handle_enlightened_vmptrld(vcpu, launch))
+	evmptrld_status = nested_vmx_handle_enlightened_vmptrld(vcpu, launch);
+	if (evmptrld_status == EVMPTRLD_ERROR) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
+	} else if (evmptrld_status == EVMPTRLD_VMFAIL) {
+		return nested_vmx_failInvalid(vcpu);
+	}
 
 	if (!vmx->nested.hv_evmcs && vmx->nested.current_vmptr == -1ull)
 		return nested_vmx_failInvalid(vcpu);
