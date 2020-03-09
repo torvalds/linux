@@ -2409,8 +2409,7 @@ blk_mq_alloc_hctx(struct request_queue *q, struct blk_mq_tag_set *set,
 	init_waitqueue_func_entry(&hctx->dispatch_wait, blk_mq_dispatch_wake);
 	INIT_LIST_HEAD(&hctx->dispatch_wait.entry);
 
-	hctx->fq = blk_alloc_flush_queue(q, hctx->numa_node, set->cmd_size,
-			gfp);
+	hctx->fq = blk_alloc_flush_queue(hctx->numa_node, set->cmd_size, gfp);
 	if (!hctx->fq)
 		goto free_bitmap;
 
