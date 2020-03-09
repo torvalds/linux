@@ -340,6 +340,9 @@ static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
 				    "failed to validate link configuration for in-band status\n");
 			return -EINVAL;
 		}
+
+		/* Check if MAC/PCS also supports Autoneg. */
+		pl->link_config.an_enabled = phylink_test(pl->supported, Autoneg);
 	}
 
 	return 0;
