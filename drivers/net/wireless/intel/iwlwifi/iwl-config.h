@@ -465,8 +465,16 @@ struct iwl_dev_info {
  * This list declares the config structures for all devices.
  */
 extern const struct iwl_cfg_trans_params iwl9000_trans_cfg;
+extern const char iwl9260_name[];
+extern const char iwl9270_name[];
+extern const char iwl9461_name[];
+extern const char iwl9462_name[];
+extern const char iwl9560_name[];
 extern const char iwl9260_160_name[];
 extern const char iwl9560_160_name[];
+extern const char iwl9260_killer_1550_name[];
+extern const char iwl9560_killer_1550i_name[];
+extern const char iwl9560_killer_1550s_name[];
 
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;

@@ -190,8 +190,20 @@ const struct iwl_cfg iwl9260_2ac_cfg = {
 	IWL_DEVICE_9000,
 };
 
+const char iwl9260_name[] = "Intel(R) Wireless-AC 9260";
+const char iwl9270_name[] = "Intel(R) Wireless-AC 9270";
+const char iwl9461_name[] = "Intel(R) Wireless-AC 9461";
+const char iwl9462_name[] = "Intel(R) Wireless-AC 9462";
+const char iwl9560_name[] = "Intel(R) Wireless-AC 9560";
 const char iwl9260_160_name[] = "Intel(R) Wireless-AC 9260 160MHz";
 const char iwl9560_160_name[] = "Intel(R) Wireless-AC 9560 160MHz";
+
+const char iwl9260_killer_1550_name[] =
+	"Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW)";
+const char iwl9560_killer_1550i_name[] =
+	"Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW)";
+const char iwl9560_killer_1550s_name[] =
+	"Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)";
 
 const struct iwl_cfg iwl9260_2ac_160_cfg = {
 	.fw_name_pre = IWL9260_FW_PRE,
@@ -199,13 +211,11 @@ const struct iwl_cfg iwl9260_2ac_160_cfg = {
 };
 
 const struct iwl_cfg iwl9260_killer_2ac_cfg = {
-	.name = "Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW)",
 	.fw_name_pre = IWL9260_FW_PRE,
 	IWL_DEVICE_9000,
 };
 
 const struct iwl_cfg iwl9270_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 9270",
 	.fw_name_pre = IWL9260_FW_PRE,
 	IWL_DEVICE_9000,
 };
@@ -247,7 +257,6 @@ const struct iwl_cfg iwl9560_2ac_cfg = {
 };
 
 const struct iwl_cfg iwl9560_2ac_160_cfg = {
-	.name = "Intel(R) Wireless-AC 9560 160MHz",
 	.fw_name_pre = IWL9260_FW_PRE,
 	IWL_DEVICE_9000,
 };
