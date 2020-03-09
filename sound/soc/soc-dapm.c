@@ -1716,9 +1716,8 @@ static void dapm_seq_run(struct snd_soc_card *card,
 					i, cur_subseq);
 	}
 
-	list_for_each_entry(d, &card->dapm_list, list) {
+	for_each_card_dapms(card, d)
 		soc_dapm_async_complete(d);
-	}
 }
 
 static void dapm_widget_update(struct snd_soc_card *card)
@@ -1949,7 +1948,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 
 	trace_snd_soc_dapm_start(card);
 
-	list_for_each_entry(d, &card->dapm_list, list) {
+	for_each_card_dapms(card, d) {
 		if (dapm_idle_bias_off(d))
 			d->target_bias_level = SND_SOC_BIAS_OFF;
 		else
@@ -2013,10 +2012,10 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	 * they're not ground referenced.
 	 */
 	bias = SND_SOC_BIAS_OFF;
-	list_for_each_entry(d, &card->dapm_list, list)
+	for_each_card_dapms(card, d)
 		if (d->target_bias_level > bias)
 			bias = d->target_bias_level;
-	list_for_each_entry(d, &card->dapm_list, list)
+	for_each_card_dapms(card, d)
 		if (!dapm_idle_bias_off(d))
 			d->target_bias_level = bias;
 
@@ -2025,7 +2024,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	/* Run card bias changes at first */
 	dapm_pre_sequence_async(&card->dapm, 0);
 	/* Run other bias changes in parallel */
-	list_for_each_entry(d, &card->dapm_list, list) {
+	for_each_card_dapms(card, d) {
 		if (d != &card->dapm && d->bias_level != d->target_bias_level)
 			async_schedule_domain(dapm_pre_sequence_async, d,
 						&async_domain);
@@ -2049,7 +2048,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	dapm_seq_run(card, &up_list, event, true);
 
 	/* Run all the bias changes in parallel */
-	list_for_each_entry(d, &card->dapm_list, list) {
+	for_each_card_dapms(card, d) {
 		if (d != &card->dapm && d->bias_level != d->target_bias_level)
 			async_schedule_domain(dapm_post_sequence_async, d,
 						&async_domain);
@@ -2059,7 +2058,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	dapm_post_sequence_async(&card->dapm, 0);
 
 	/* do we need to notify any clients that DAPM event is complete */
-	list_for_each_entry(d, &card->dapm_list, list) {
+	for_each_card_dapms(card, d) {
 		if (!d->component)
 			continue;
 
@@ -4776,6 +4775,7 @@ void snd_soc_dapm_init(struct snd_soc_dapm_context *dapm,
 	}
 
 	INIT_LIST_HEAD(&dapm->list);
+	/* see for_each_card_dapms */
 	list_add(&dapm->list, &card->dapm_list);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_init);
@@ -4822,7 +4822,7 @@ void snd_soc_dapm_shutdown(struct snd_soc_card *card)
 {
 	struct snd_soc_dapm_context *dapm;
 
-	list_for_each_entry(dapm, &card->dapm_list, list) {
+	for_each_card_dapms(card, dapm) {
 		if (dapm != &card->dapm) {
 			soc_dapm_shutdown_dapm(dapm);
 			if (dapm->bias_level == SND_SOC_BIAS_STANDBY)
