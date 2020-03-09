@@ -610,7 +610,6 @@
 
 &spi1 {
 	status = "okay";
-	max-freq = <10000000>;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
