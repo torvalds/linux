@@ -472,7 +472,7 @@ static int kabylake_ssp0_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai;
 	int ret = 0, j;
 
-	for_each_rtd_codec_dai(rtd, j, codec_dai) {
+	for_each_rtd_codec_dais(rtd, j, codec_dai) {
 		if (!strcmp(codec_dai->component->name, MAXIM_DEV0_NAME)) {
 			/*
 			 * Use channel 4 and 5 for the first amp
