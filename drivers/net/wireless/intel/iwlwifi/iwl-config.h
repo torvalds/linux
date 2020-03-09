@@ -464,7 +464,11 @@ struct iwl_cfg {
 #define IWL_CFG_NO_160			0x0
 #define IWL_CFG_160			0x1
 
+#define IWL_CFG_CORES_BT		0x0
+#define IWL_CFG_CORES_BT_GNSS		0x5
+
 #define IWL_SUBDEVICE_NO_160(subdevice)	((u16)((subdevice) & 0x0100) >> 9)
+#define IWL_SUBDEVICE_CORES(subdevice)	((u16)((subdevice) & 0x1C00) >> 10)
 
 struct iwl_dev_info {
 	u16 device;
@@ -472,6 +476,7 @@ struct iwl_dev_info {
 	u16 mac_type;
 	u16 rf_type;
 	u8 no_160;
+	u8 cores;
 	const struct iwl_cfg *cfg;
 	const char *name;
 };
@@ -486,6 +491,7 @@ extern const char iwl9461_name[];
 extern const char iwl9462_name[];
 extern const char iwl9560_name[];
 extern const char iwl9260_160_name[];
+extern const char iwl9270_160_name[];
 extern const char iwl9560_160_name[];
 extern const char iwl9260_killer_1550_name[];
 extern const char iwl9560_killer_1550i_name[];

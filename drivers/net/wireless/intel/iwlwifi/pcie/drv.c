@@ -942,20 +942,17 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
 #define _IWL_DEV_INFO(_device, _subdevice, _mac_type, _rf_type, _no_160,   \
-		      _cfg, _name)					   \
+		      _cores, _cfg, _name)				   \
 	{ .device = (_device), .subdevice = (_subdevice), .cfg = &(_cfg),  \
 	  .name = _name, .mac_type = _mac_type, .rf_type = _rf_type,	   \
-	  .no_160 = _no_160, }
+	  .no_160 = _no_160, .cores = _cores }
 
 #define IWL_DEV_INFO(_device, _subdevice, _cfg, _name) \
 	_IWL_DEV_INFO(_device, _subdevice, IWL_CFG_ANY, IWL_CFG_ANY,	\
-		      IWL_CFG_ANY, _cfg, _name)
+		      IWL_CFG_ANY, IWL_CFG_ANY, _cfg, _name)
 
 static const struct iwl_dev_info iwl_dev_info_table[] = {
 #if IS_ENABLED(CONFIG_IWLMVM)
-	IWL_DEV_INFO(0x2526, 0x1410, iwl9260_2ac_cfg, iwl9270_name),
-	IWL_DEV_INFO(0x2526, 0x1610, iwl9260_2ac_cfg, iwl9270_name),
-
 	IWL_DEV_INFO(0x2526, 0x1550, iwl9260_2ac_cfg, iwl9260_killer_1550_name),
 
 	IWL_DEV_INFO(0x2526, 0x0030, iwl9560_2ac_cfg, iwl9560_160_name),
@@ -991,9 +988,20 @@ static const struct iwl_dev_info iwl_dev_info_table[] = {
 
 	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
 		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_160,
+		      IWL_CFG_CORES_BT_GNSS,
+		      iwl9260_2ac_cfg, iwl9270_160_name),
+	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_NO_160,
+		      IWL_CFG_CORES_BT_GNSS,
+		      iwl9260_2ac_cfg, iwl9270_name),
+
+	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_160,
+		      IWL_CFG_CORES_BT,
 		      iwl9260_2ac_cfg, iwl9260_160_name),
 	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
 		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_NO_160,
+		      IWL_CFG_CORES_BT,
 		      iwl9260_2ac_cfg, iwl9260_name),
 #endif /* CONFIG_IWLMVM */
 };
@@ -1046,7 +1054,10 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		     CSR_HW_RFID_TYPE(iwl_trans->hw_rf_id)) &&
 		    (dev_info->no_160 == (u8)IWL_CFG_ANY ||
 		     dev_info->no_160 ==
-		     IWL_SUBDEVICE_NO_160(pdev->subsystem_device))) {
+		     IWL_SUBDEVICE_NO_160(pdev->subsystem_device)) &&
+		    (dev_info->cores == (u8)IWL_CFG_ANY ||
+		     dev_info->cores ==
+		     IWL_SUBDEVICE_CORES(pdev->subsystem_device))) {
 			iwl_trans->cfg = dev_info->cfg;
 			iwl_trans->name = dev_info->name;
 			goto found;
