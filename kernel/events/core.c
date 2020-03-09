@@ -11184,9 +11184,6 @@ SYSCALL_DEFINE5(perf_event_open,
 	if (err)
 		return err;
 
-	if (perf_paranoid_any() && !capable(CAP_SYS_ADMIN))
-		return -EACCES;
-
 	err = perf_copy_attr(attr_uptr, &attr);
 	if (err)
 		return err;
