@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/netlink.h>
 #include <net/flow_dissector.h>
 #include <linux/rhashtable.h>
 
@@ -154,6 +155,12 @@ enum flow_action_mangle_base {
 	FLOW_ACT_MANGLE_HDR_TYPE_UDP,
 };
 
+#define FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE BIT(0)
+#define FLOW_ACTION_HW_STATS_TYPE_DELAYED BIT(1)
+#define FLOW_ACTION_HW_STATS_TYPE_ANY (FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE | \
+				       FLOW_ACTION_HW_STATS_TYPE_DELAYED)
+#define FLOW_ACTION_HW_STATS_TYPE_DISABLED 0
+
 typedef void (*action_destr)(void *priv);
 
 struct flow_action_cookie {
@@ -168,6 +175,7 @@ void flow_action_cookie_destroy(struct flow_action_cookie *cookie);
 
 struct flow_action_entry {
 	enum flow_action_id		id;
+	u8				hw_stats_type;
 	action_destr			destructor;
 	void				*destructor_priv;
 	union {
@@ -246,6 +254,66 @@ static inline bool flow_action_has_entries(const struct flow_action *action)
 static inline bool flow_offload_has_one_action(const struct flow_action *action)
 {
 	return action->num_entries == 1;
+}
+
+static inline bool
+flow_action_mixed_hw_stats_types_check(const struct flow_action *action,
+				       struct netlink_ext_ack *extack)
+{
+	const struct flow_action_entry *action_entry;
+	u8 uninitialized_var(last_hw_stats_type);
+	int i;
+
+	if (flow_offload_has_one_action(action))
+		return true;
+
+	for (i = 0; i < action->num_entries; i++) {
+		action_entry = &action->entries[i];
+		if (i && action_entry->hw_stats_type != last_hw_stats_type) {
+			NL_SET_ERR_MSG_MOD(extack, "Mixing HW stats types for actions is not supported");
+			return false;
+		}
+		last_hw_stats_type = action_entry->hw_stats_type;
+	}
+	return true;
+}
+
+static inline const struct flow_action_entry *
+flow_action_first_entry_get(const struct flow_action *action)
+{
+	WARN_ON(!flow_action_has_entries(action));
+	return &action->entries[0];
+}
+
+static inline bool
+flow_action_hw_stats_types_check(const struct flow_action *action,
+				 struct netlink_ext_ack *extack,
+				 u8 allowed_hw_stats_type)
+{
+	const struct flow_action_entry *action_entry;
+
+	if (!flow_action_has_entries(action))
+		return true;
+	if (!flow_action_mixed_hw_stats_types_check(action, extack))
+		return false;
+	action_entry = flow_action_first_entry_get(action);
+	if (allowed_hw_stats_type == 0 &&
+	    action_entry->hw_stats_type != FLOW_ACTION_HW_STATS_TYPE_ANY) {
+		NL_SET_ERR_MSG_MOD(extack, "Driver supports only default HW stats type \"any\"");
+		return false;
+	} else if (allowed_hw_stats_type != 0 &&
+		   action_entry->hw_stats_type != allowed_hw_stats_type) {
+		NL_SET_ERR_MSG_MOD(extack, "Driver does not support selected HW stats type");
+		return false;
+	}
+	return true;
+}
+
+static inline bool
+flow_action_basic_hw_stats_types_check(const struct flow_action *action,
+				       struct netlink_ext_ack *extack)
+{
+	return flow_action_hw_stats_types_check(action, extack, 0);
 }
 
 #define flow_action_for_each(__i, __act, __actions)			\

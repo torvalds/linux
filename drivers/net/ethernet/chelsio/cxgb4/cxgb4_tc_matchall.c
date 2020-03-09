@@ -286,7 +286,8 @@ int cxgb4_tc_matchall_replace(struct net_device *dev,
 		}
 
 		ret = cxgb4_validate_flow_actions(dev,
-						  &cls_matchall->rule->action);
+						  &cls_matchall->rule->action,
+						  extack);
 		if (ret)
 			return ret;
 
