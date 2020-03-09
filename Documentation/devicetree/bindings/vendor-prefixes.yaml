@@ -301,6 +301,8 @@ patternProperties:
     description: emtrion GmbH
   "^endless,.*":
     description: Endless Mobile, Inc.
+  "^ene,.*":
+    description: ENE Technology, Inc.
   "^energymicro,.*":
     description: Silicon Laboratories (formerly Energy Micro AS)
   "^engicam,.*":
