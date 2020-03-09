@@ -3007,7 +3007,7 @@
 		};
 
 		usb_1_hsphy: phy@88e2000 {
-			compatible = "qcom,sdm845-qusb2-phy";
+			compatible = "qcom,sdm845-qusb2-phy", "qcom,qusb2-v2-phy";
 			reg = <0 0x088e2000 0 0x400>;
 			status = "disabled";
 			#phy-cells = <0>;
@@ -3022,7 +3022,7 @@
 		};
 
 		usb_2_hsphy: phy@88e3000 {
-			compatible = "qcom,sdm845-qusb2-phy";
+			compatible = "qcom,sdm845-qusb2-phy", "qcom,qusb2-v2-phy";
 			reg = <0 0x088e3000 0 0x400>;
 			status = "disabled";
 			#phy-cells = <0>;
