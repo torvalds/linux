@@ -941,35 +941,19 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
-#define _IWL_DEV_INFO(_device, _subdevice, _mac_type, _rf_type, _no_160,   \
-		      _cores, _cfg, _name)				   \
+#define _IWL_DEV_INFO(_device, _subdevice, _mac_type, _rf_type, _rf_id,    \
+		      _no_160, _cores, _cfg, _name)			   \
 	{ .device = (_device), .subdevice = (_subdevice), .cfg = &(_cfg),  \
 	  .name = _name, .mac_type = _mac_type, .rf_type = _rf_type,	   \
-	  .no_160 = _no_160, .cores = _cores }
+	  .no_160 = _no_160, .cores = _cores, .rf_id = _rf_id, }
 
 #define IWL_DEV_INFO(_device, _subdevice, _cfg, _name) \
-	_IWL_DEV_INFO(_device, _subdevice, IWL_CFG_ANY, IWL_CFG_ANY,	\
-		      IWL_CFG_ANY, IWL_CFG_ANY, _cfg, _name)
+	_IWL_DEV_INFO(_device, _subdevice, IWL_CFG_ANY, IWL_CFG_ANY,	   \
+		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY, _cfg, _name)
 
 static const struct iwl_dev_info iwl_dev_info_table[] = {
 #if IS_ENABLED(CONFIG_IWLMVM)
 	IWL_DEV_INFO(0x2526, 0x1550, iwl9260_2ac_cfg, iwl9260_killer_1550_name),
-
-	IWL_DEV_INFO(0x2526, 0x0030, iwl9560_2ac_cfg, iwl9560_160_name),
-	IWL_DEV_INFO(0x2526, 0x0038, iwl9560_2ac_cfg, iwl9560_160_name),
-	IWL_DEV_INFO(0x2526, 0x003C, iwl9560_2ac_cfg, iwl9560_160_name),
-	IWL_DEV_INFO(0x2526, 0x4030, iwl9560_2ac_cfg, iwl9560_160_name),
-	IWL_DEV_INFO(0x2526, 0x2030, iwl9560_2ac_cfg_soc, iwl9560_160_name),
-	IWL_DEV_INFO(0x2526, 0x2034, iwl9560_2ac_cfg_soc, iwl9560_160_name),
-	IWL_DEV_INFO(0x2526, 0x4034, iwl9560_2ac_cfg_soc, iwl9560_160_name),
-
-	IWL_DEV_INFO(0x2526, 0x0034, iwl9560_2ac_cfg, iwl9560_name),
-	IWL_DEV_INFO(0x2526, 0x0230, iwl9560_2ac_cfg, iwl9560_name),
-	IWL_DEV_INFO(0x2526, 0x0234, iwl9560_2ac_cfg, iwl9560_name),
-	IWL_DEV_INFO(0x2526, 0x0238, iwl9560_2ac_cfg, iwl9560_name),
-	IWL_DEV_INFO(0x2526, 0x023C, iwl9560_2ac_cfg, iwl9560_name),
-	IWL_DEV_INFO(0x2526, 0x1030, iwl9560_2ac_cfg, iwl9560_name),
-	IWL_DEV_INFO(0x2526, 0x4234, iwl9560_2ac_cfg_soc, iwl9560_name),
 
 	IWL_DEV_INFO(0x2526, 0x0060, iwl9560_2ac_cfg_soc, iwl9461_name),
 	IWL_DEV_INFO(0x2526, 0x0064, iwl9560_2ac_cfg_soc, iwl9461_name),
@@ -987,21 +971,30 @@ static const struct iwl_dev_info iwl_dev_info_table[] = {
 	IWL_DEV_INFO(0x2526, 0x1552, iwl9560_2ac_cfg_soc, iwl9560_killer_1550i_name),
 
 	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
-		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_160,
-		      IWL_CFG_CORES_BT_GNSS,
+		      IWL_CFG_MAC_TYPE_PNJ, IWL_CFG_RF_TYPE_JF2, IWL_CFG_RF_ID_JF,
+		      IWL_CFG_160, IWL_CFG_CORES_BT,
+		      iwl9560_2ac_cfg, iwl9560_160_name),
+	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_PNJ, IWL_CFG_RF_TYPE_JF2, IWL_CFG_RF_ID_JF,
+		      IWL_CFG_NO_160, IWL_CFG_CORES_BT,
+		      iwl9560_2ac_cfg, iwl9560_name),
+
+	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_ANY,
+		      IWL_CFG_160, IWL_CFG_CORES_BT_GNSS,
 		      iwl9260_2ac_cfg, iwl9270_160_name),
 	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
-		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_NO_160,
-		      IWL_CFG_CORES_BT_GNSS,
+		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_ANY,
+		      IWL_CFG_NO_160, IWL_CFG_CORES_BT_GNSS,
 		      iwl9260_2ac_cfg, iwl9270_name),
 
 	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
-		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_160,
-		      IWL_CFG_CORES_BT,
+		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_ANY,
+		      IWL_CFG_160, IWL_CFG_CORES_BT,
 		      iwl9260_2ac_cfg, iwl9260_160_name),
 	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
-		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_NO_160,
-		      IWL_CFG_CORES_BT,
+		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_ANY,
+		      IWL_CFG_NO_160, IWL_CFG_CORES_BT,
 		      iwl9260_2ac_cfg, iwl9260_name),
 #endif /* CONFIG_IWLMVM */
 };
@@ -1052,6 +1045,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    (dev_info->rf_type == (u16)IWL_CFG_ANY ||
 		     dev_info->rf_type ==
 		     CSR_HW_RFID_TYPE(iwl_trans->hw_rf_id)) &&
+		    (dev_info->rf_id == (u8)IWL_CFG_ANY ||
+		     dev_info->rf_id ==
+		     IWL_SUBDEVICE_RF_ID(pdev->subsystem_device)) &&
 		    (dev_info->no_160 == (u8)IWL_CFG_ANY ||
 		     dev_info->no_160 ==
 		     IWL_SUBDEVICE_NO_160(pdev->subsystem_device)) &&
