@@ -1211,15 +1211,10 @@ int mlx5_load_one(struct mlx5_core_dev *dev, bool boot)
 			goto err_devlink_reg;
 	}
 
-	if (mlx5_device_registered(dev)) {
+	if (mlx5_device_registered(dev))
 		mlx5_attach_device(dev);
-	} else {
-		err = mlx5_register_device(dev);
-		if (err) {
-			mlx5_core_err(dev, "register device failed %d\n", err);
-			goto err_reg_dev;
-		}
-	}
+	else
+		mlx5_register_device(dev);
 
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
 out:
@@ -1227,9 +1222,6 @@ out:
 
 	return err;
 
-err_reg_dev:
-	if (boot)
-		mlx5_devlink_unregister(priv_to_devlink(dev));
 err_devlink_reg:
 	mlx5_unload(dev);
 err_load:
