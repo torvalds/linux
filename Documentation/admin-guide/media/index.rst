@@ -78,6 +78,8 @@ Linux Digital TV driver-specific documentation
 	ci
 	faq
 
+	dvb_intro
+
 	avermedia
 	bt8xx
 	lmedm04
