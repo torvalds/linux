@@ -467,6 +467,7 @@ struct iwl_cfg {
 #define IWL_CFG_RF_ID_TH1		0x1
 #define IWL_CFG_RF_ID_JF		0x3
 #define IWL_CFG_RF_ID_JF1		0x6
+#define IWL_CFG_RF_ID_JF1_DIV		0xA
 
 #define IWL_CFG_NO_160			0x0
 #define IWL_CFG_160			0x1
@@ -501,6 +502,8 @@ extern const char iwl9462_name[];
 extern const char iwl9560_name[];
 extern const char iwl9260_160_name[];
 extern const char iwl9270_160_name[];
+extern const char iwl9461_160_name[];
+extern const char iwl9462_160_name[];
 extern const char iwl9560_160_name[];
 extern const char iwl9260_killer_1550_name[];
 extern const char iwl9560_killer_1550i_name[];

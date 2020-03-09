@@ -197,6 +197,8 @@ const char iwl9462_name[] = "Intel(R) Wireless-AC 9462";
 const char iwl9560_name[] = "Intel(R) Wireless-AC 9560";
 const char iwl9260_160_name[] = "Intel(R) Wireless-AC 9260 160MHz";
 const char iwl9270_160_name[] = "Intel(R) Wireless-AC 9270 160MHz";
+const char iwl9461_160_name[] = "Intel(R) Wireless-AC 9461 160MHz";
+const char iwl9462_160_name[] = "Intel(R) Wireless-AC 9462 160MHz";
 const char iwl9560_160_name[] = "Intel(R) Wireless-AC 9560 160MHz";
 
 const char iwl9260_killer_1550_name[] =

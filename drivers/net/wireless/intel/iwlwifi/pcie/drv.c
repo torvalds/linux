@@ -954,21 +954,25 @@ MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 static const struct iwl_dev_info iwl_dev_info_table[] = {
 #if IS_ENABLED(CONFIG_IWLMVM)
 	IWL_DEV_INFO(0x2526, 0x1550, iwl9260_2ac_cfg, iwl9260_killer_1550_name),
-
-	IWL_DEV_INFO(0x2526, 0x0060, iwl9560_2ac_cfg_soc, iwl9461_name),
-	IWL_DEV_INFO(0x2526, 0x0064, iwl9560_2ac_cfg_soc, iwl9461_name),
-	IWL_DEV_INFO(0x2526, 0x0260, iwl9560_2ac_cfg_soc, iwl9461_name),
-	IWL_DEV_INFO(0x2526, 0x0264, iwl9560_2ac_cfg_soc, iwl9461_name),
-
-	IWL_DEV_INFO(0x2526, 0x00A0, iwl9560_2ac_cfg_soc, iwl9462_name),
-	IWL_DEV_INFO(0x2526, 0x00A4, iwl9560_2ac_cfg_soc, iwl9462_name),
-	IWL_DEV_INFO(0x2526, 0x02A0, iwl9560_2ac_cfg_soc, iwl9462_name),
-	IWL_DEV_INFO(0x2526, 0x02A4, iwl9560_2ac_cfg_soc, iwl9462_name),
-	IWL_DEV_INFO(0x2526, 0x40A4, iwl9560_2ac_cfg_soc, iwl9462_name),
-	IWL_DEV_INFO(0x2526, 0x42A4, iwl9560_2ac_cfg_soc, iwl9462_name),
-
 	IWL_DEV_INFO(0x2526, 0x1551, iwl9560_2ac_cfg_soc, iwl9560_killer_1550s_name),
 	IWL_DEV_INFO(0x2526, 0x1552, iwl9560_2ac_cfg_soc, iwl9560_killer_1550i_name),
+
+	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_PNJ, IWL_CFG_RF_TYPE_JF1, IWL_CFG_RF_ID_JF1,
+		      IWL_CFG_160, IWL_CFG_CORES_BT,
+		      iwl9560_2ac_cfg, iwl9461_160_name),
+	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_PNJ, IWL_CFG_RF_TYPE_JF1, IWL_CFG_RF_ID_JF1,
+		      IWL_CFG_NO_160, IWL_CFG_CORES_BT,
+		      iwl9560_2ac_cfg, iwl9461_name),
+	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_PNJ, IWL_CFG_RF_TYPE_JF1, IWL_CFG_RF_ID_JF1_DIV,
+		      IWL_CFG_160, IWL_CFG_CORES_BT,
+		      iwl9560_2ac_cfg, iwl9462_160_name),
+	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_PNJ, IWL_CFG_RF_TYPE_JF1, IWL_CFG_RF_ID_JF1_DIV,
+		      IWL_CFG_NO_160, IWL_CFG_CORES_BT,
+		      iwl9560_2ac_cfg, iwl9462_name),
 
 	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
 		      IWL_CFG_MAC_TYPE_PNJ, IWL_CFG_RF_TYPE_JF2, IWL_CFG_RF_ID_JF,
