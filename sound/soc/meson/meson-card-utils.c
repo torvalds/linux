@@ -23,7 +23,7 @@ int meson_card_i2s_set_sysclk(struct snd_pcm_substream *substream,
 
 	mclk = params_rate(params) * mclk_fs;
 
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 					     SND_SOC_CLOCK_IN);
 		if (ret && ret != -ENOTSUPP)
