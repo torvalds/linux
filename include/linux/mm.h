@@ -2715,6 +2715,10 @@ static inline bool debug_pagealloc_enabled_static(void)
 #if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_ARCH_HAS_SET_DIRECT_MAP)
 extern void __kernel_map_pages(struct page *page, int numpages, int enable);
 
+/*
+ * When called in DEBUG_PAGEALLOC context, the call should most likely be
+ * guarded by debug_pagealloc_enabled() or debug_pagealloc_enabled_static()
+ */
 static inline void
 kernel_map_pages(struct page *page, int numpages, int enable)
 {

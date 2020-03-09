@@ -147,24 +147,32 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 
 			fence = i915_active_fence_get(&tl->last_request);
 			if (fence) {
+				mutex_unlock(&tl->mutex);
+
 				timeout = dma_fence_wait_timeout(fence,
 								 interruptible,
 								 timeout);
 				dma_fence_put(fence);
+
+				/* Retirement is best effort */
+				if (!mutex_trylock(&tl->mutex)) {
+					active_count++;
+					goto out_active;
+				}
 			}
 		}
 
 		if (!retire_requests(tl) || flush_submission(gt))
 			active_count++;
+		mutex_unlock(&tl->mutex);
 
-		spin_lock(&timelines->lock);
+out_active:	spin_lock(&timelines->lock);
 
-		/* Resume iteration after dropping lock */
+		/* Resume list iteration after reacquiring spinlock */
 		list_safe_reset_next(tl, tn, link);
 		if (atomic_dec_and_test(&tl->active_count))
 			list_del(&tl->link);
 
-		mutex_unlock(&tl->mutex);
 
 		/* Defer the final release to after the spinlock */
 		if (refcount_dec_and_test(&tl->kref.refcount)) {
