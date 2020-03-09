@@ -191,7 +191,7 @@ bool load_vmcs(struct vmx_pages *vmx)
 		if (evmcs_vmptrld(vmx->enlightened_vmcs_gpa,
 				  vmx->enlightened_vmcs))
 			return false;
-		current_evmcs->revision_id = vmcs_revision();
+		current_evmcs->revision_id = EVMCS_VERSION;
 	}
 
 	return true;
