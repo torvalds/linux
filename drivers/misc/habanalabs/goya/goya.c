@@ -324,7 +324,11 @@ static u32 goya_all_events[] = {
 	GOYA_ASYNC_EVENT_ID_DMA_BM_CH1,
 	GOYA_ASYNC_EVENT_ID_DMA_BM_CH2,
 	GOYA_ASYNC_EVENT_ID_DMA_BM_CH3,
-	GOYA_ASYNC_EVENT_ID_DMA_BM_CH4
+	GOYA_ASYNC_EVENT_ID_DMA_BM_CH4,
+	GOYA_ASYNC_EVENT_ID_FIX_POWER_ENV_S,
+	GOYA_ASYNC_EVENT_ID_FIX_POWER_ENV_E,
+	GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_S,
+	GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_E
 };
 
 static int goya_mmu_clear_pgt_range(struct hl_device *hdev);
@@ -4389,6 +4393,14 @@ static const char *_goya_get_event_desc(u16 event_type)
 		return "TPC%d_bmon_spmu";
 	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH0 ... GOYA_ASYNC_EVENT_ID_DMA_BM_CH4:
 		return "DMA_bm_ch%d";
+	case GOYA_ASYNC_EVENT_ID_FIX_POWER_ENV_S:
+		return "POWER_ENV_S";
+	case GOYA_ASYNC_EVENT_ID_FIX_POWER_ENV_E:
+		return "POWER_ENV_E";
+	case GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_S:
+		return "THERMAL_ENV_S";
+	case GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_E:
+		return "THERMAL_ENV_E";
 	default:
 		return "N/A";
 	}
@@ -4619,6 +4631,33 @@ static int goya_unmask_irq(struct hl_device *hdev, u16 event_type)
 	return rc;
 }
 
+static void goya_print_clk_change_info(struct hl_device *hdev, u16 event_type)
+{
+	switch (event_type) {
+	case GOYA_ASYNC_EVENT_ID_FIX_POWER_ENV_S:
+		dev_info_ratelimited(hdev->dev,
+			"Clock throttling due to power consumption\n");
+		break;
+	case GOYA_ASYNC_EVENT_ID_FIX_POWER_ENV_E:
+		dev_info_ratelimited(hdev->dev,
+			"Power envelop is safe, back to optimal clock\n");
+		break;
+	case GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_S:
+		dev_info_ratelimited(hdev->dev,
+			"Clock throttling due to overheating\n");
+		break;
+	case GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_E:
+		dev_info_ratelimited(hdev->dev,
+			"Thermal envelop is safe, back to optimal clock\n");
+		break;
+
+	default:
+		dev_err(hdev->dev, "Received invalid clock change event %d\n",
+			event_type);
+		break;
+	}
+}
+
 void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 {
 	u32 ctl = le32_to_cpu(eq_entry->hdr.ctl);
@@ -4699,6 +4738,14 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	case GOYA_ASYNC_EVENT_ID_TPC7_BMON_SPMU:
 	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH0 ... GOYA_ASYNC_EVENT_ID_DMA_BM_CH4:
 		goya_print_irq_info(hdev, event_type, false);
+		goya_unmask_irq(hdev, event_type);
+		break;
+
+	case GOYA_ASYNC_EVENT_ID_FIX_POWER_ENV_S:
+	case GOYA_ASYNC_EVENT_ID_FIX_POWER_ENV_E:
+	case GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_S:
+	case GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_E:
+		goya_print_clk_change_info(hdev, event_type);
 		goya_unmask_irq(hdev, event_type);
 		break;
 
