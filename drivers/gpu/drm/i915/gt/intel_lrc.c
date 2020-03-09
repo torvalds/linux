@@ -1316,7 +1316,7 @@ __execlists_schedule_out(struct i915_request *rq,
 	 * If we have just completed this context, the engine may now be
 	 * idle and we want to re-enter powersaving.
 	 */
-	if (list_is_last(&rq->link, &ce->timeline->requests) &&
+	if (list_is_last_rcu(&rq->link, &ce->timeline->requests) &&
 	    i915_request_completed(rq))
 		intel_engine_add_retire(engine, ce->timeline);
 

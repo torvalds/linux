@@ -260,6 +260,12 @@ static inline void __list_del_many(struct list_head *head,
 	WRITE_ONCE(head->next, first);
 }
 
+static inline int list_is_last_rcu(const struct list_head *list,
+				   const struct list_head *head)
+{
+	return READ_ONCE(list->next) == head;
+}
+
 /*
  * Wait until the work is finally complete, even if it tries to postpone
  * by requeueing itself. Note, that if the worker never cancels itself,
