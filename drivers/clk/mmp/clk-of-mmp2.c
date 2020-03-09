@@ -127,16 +127,16 @@ static void mmp2_pll_init(struct mmp2_clk_unit *pxa_unit)
 static DEFINE_SPINLOCK(uart0_lock);
 static DEFINE_SPINLOCK(uart1_lock);
 static DEFINE_SPINLOCK(uart2_lock);
-static const char *uart_parent_names[] = {"uart_pll", "vctcxo"};
+static const char * const uart_parent_names[] = {"uart_pll", "vctcxo"};
 
 static DEFINE_SPINLOCK(ssp0_lock);
 static DEFINE_SPINLOCK(ssp1_lock);
 static DEFINE_SPINLOCK(ssp2_lock);
 static DEFINE_SPINLOCK(ssp3_lock);
-static const char *ssp_parent_names[] = {"vctcxo_4", "vctcxo_2", "vctcxo", "pll1_16"};
+static const char * const ssp_parent_names[] = {"vctcxo_4", "vctcxo_2", "vctcxo", "pll1_16"};
 
 static DEFINE_SPINLOCK(timer_lock);
-static const char *timer_parent_names[] = {"clk32", "vctcxo_4", "vctcxo_2", "vctcxo"};
+static const char * const timer_parent_names[] = {"clk32", "vctcxo_4", "vctcxo_2", "vctcxo"};
 
 static DEFINE_SPINLOCK(reset_lock);
 
@@ -190,7 +190,7 @@ static void mmp2_apb_periph_clk_init(struct mmp2_clk_unit *pxa_unit)
 }
 
 static DEFINE_SPINLOCK(sdh_lock);
-static const char *sdh_parent_names[] = {"pll1_4", "pll2", "usb_pll", "pll1"};
+static const char * const sdh_parent_names[] = {"pll1_4", "pll2", "usb_pll", "pll1"};
 static struct mmp_clk_mix_config sdh_mix_config = {
 	.reg_info = DEFINE_MIX_REG_INFO(4, 10, 2, 8, 32),
 };
@@ -201,11 +201,12 @@ static DEFINE_SPINLOCK(usbhsic1_lock);
 
 static DEFINE_SPINLOCK(disp0_lock);
 static DEFINE_SPINLOCK(disp1_lock);
-static const char *disp_parent_names[] = {"pll1", "pll1_16", "pll2", "vctcxo"};
+static const char * const disp_parent_names[] = {"pll1", "pll1_16", "pll2", "vctcxo"};
 
 static DEFINE_SPINLOCK(ccic0_lock);
 static DEFINE_SPINLOCK(ccic1_lock);
-static const char *ccic_parent_names[] = {"pll1_2", "pll1_16", "vctcxo"};
+static const char * const ccic_parent_names[] = {"pll1_2", "pll1_16", "vctcxo"};
+
 static struct mmp_clk_mix_config ccic0_mix_config = {
 	.reg_info = DEFINE_MIX_REG_INFO(4, 17, 2, 6, 32),
 };

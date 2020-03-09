@@ -97,7 +97,7 @@ struct mmp_clk_mix {
 extern const struct clk_ops mmp_clk_mix_ops;
 extern struct clk *mmp_clk_register_mix(struct device *dev,
 					const char *name,
-					const char **parent_names,
+					const char * const *parent_names,
 					u8 num_parents,
 					unsigned long flags,
 					struct mmp_clk_mix_config *config,
@@ -193,7 +193,7 @@ void mmp_register_gate_clks(struct mmp_clk_unit *unit,
 struct mmp_param_mux_clk {
 	unsigned int id;
 	char *name;
-	const char **parent_name;
+	const char * const *parent_name;
 	u8 num_parents;
 	unsigned long flags;
 	unsigned long offset;
