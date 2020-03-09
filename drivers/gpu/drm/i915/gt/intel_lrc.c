@@ -293,7 +293,7 @@ static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 
 static inline int rq_prio(const struct i915_request *rq)
 {
-	return rq->sched.attr.priority;
+	return READ_ONCE(rq->sched.attr.priority);
 }
 
 static int effective_prio(const struct i915_request *rq)
