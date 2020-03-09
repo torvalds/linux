@@ -1499,7 +1499,7 @@ int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
 
 		err = smp_generate_rpa(hdev, hdev->irk, &hdev->rpa);
 		if (err < 0) {
-			BT_ERR("%s failed to generate new RPA", hdev->name);
+			bt_dev_err(hdev, "failed to generate new RPA");
 			return err;
 		}
 
