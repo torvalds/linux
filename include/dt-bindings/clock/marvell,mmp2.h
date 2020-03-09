@@ -53,6 +53,10 @@
 #define MMP2_CLK_SSP2			79
 #define MMP2_CLK_SSP3			80
 #define MMP2_CLK_TIMER			81
+#define MMP2_CLK_THERMAL0		82
+#define MMP3_CLK_THERMAL1		83
+#define MMP3_CLK_THERMAL2		84
+#define MMP3_CLK_THERMAL3		85
 
 /* axi periphrals */
 #define MMP2_CLK_SDH0			101
