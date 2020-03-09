@@ -179,7 +179,6 @@ const struct iwl_cfg_trans_params iwl9000_trans_cfg = {
 };
 
 const struct iwl_cfg iwl9260_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 9260",
 	.fw_name_pre = IWL9260_FW_PRE,
 	IWL_DEVICE_9000,
 };
