@@ -8,6 +8,7 @@ Cards List
 
 	au0828-cardlist
 	bttv-cardlist
+	cx18-cardlist
 	cx23885-cardlist
 	cx88-cardlist
 	em28xx-cardlist
