@@ -21,9 +21,9 @@
 
 void l2_guest_code(void)
 {
-	GUEST_SYNC(6);
-
 	GUEST_SYNC(7);
+
+	GUEST_SYNC(8);
 
 	/* Done, exit to L1 and never come back.  */
 	vmcall();
@@ -50,12 +50,17 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 
 	GUEST_SYNC(5);
 	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
+	current_evmcs->revision_id = -1u;
+	GUEST_ASSERT(vmlaunch());
+	current_evmcs->revision_id = EVMCS_VERSION;
+	GUEST_SYNC(6);
+
 	GUEST_ASSERT(!vmlaunch());
 	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
-	GUEST_SYNC(8);
+	GUEST_SYNC(9);
 	GUEST_ASSERT(!vmresume());
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
-	GUEST_SYNC(9);
+	GUEST_SYNC(10);
 }
 
 void guest_code(struct vmx_pages *vmx_pages)
