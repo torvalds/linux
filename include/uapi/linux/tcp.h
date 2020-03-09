@@ -312,6 +312,7 @@ enum {
 	TCP_NLA_REORD_SEEN,	/* reordering events seen */
 	TCP_NLA_SRTT,		/* smoothed RTT in usecs */
 	TCP_NLA_TIMEOUT_REHASH, /* Timeout-triggered rehash attempts */
+	TCP_NLA_BYTES_NOTSENT,	/* Bytes in write queue not yet sent */
 };
 
 /* for TCP_MD5SIG socket option */
