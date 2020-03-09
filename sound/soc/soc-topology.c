@@ -2774,7 +2774,7 @@ void snd_soc_tplg_widget_remove_all(struct snd_soc_dapm_context *dapm,
 {
 	struct snd_soc_dapm_widget *w, *next_w;
 
-	list_for_each_entry_safe(w, next_w, &dapm->card->widgets, list) {
+	for_each_card_widgets_safe(dapm->card, w, next_w) {
 
 		/* make sure we are a widget with correct context */
 		if (w->dobj.type != SND_SOC_DOBJ_WIDGET || w->dapm != dapm)

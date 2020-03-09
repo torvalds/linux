@@ -1120,6 +1120,11 @@ struct snd_soc_card {
 #define for_each_card_dapms(card, dapm)					\
 	list_for_each_entry(dapm, &card->dapm_list, list)
 
+#define for_each_card_widgets(card, w)\
+	list_for_each_entry(w, &card->widgets, list)
+#define for_each_card_widgets_safe(card, w, _w)	\
+	list_for_each_entry_safe(w, _w, &card->widgets, list)
+
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
 struct snd_soc_pcm_runtime {
 	struct device *dev;
