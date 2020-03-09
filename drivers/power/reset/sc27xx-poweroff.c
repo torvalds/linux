@@ -6,6 +6,7 @@
 
 #include <linux/cpu.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/regmap.h>
@@ -71,4 +72,8 @@ static struct platform_driver sc27xx_poweroff_driver = {
 		.name = "sc27xx-poweroff",
 	},
 };
-builtin_platform_driver(sc27xx_poweroff_driver);
+module_platform_driver(sc27xx_poweroff_driver);
+
+MODULE_DESCRIPTION("Power off driver for SC27XX PMIC Device");
+MODULE_AUTHOR("Baolin Wang <baolin.wang@unisoc.com>");
+MODULE_LICENSE("GPL v2");
