@@ -396,7 +396,9 @@ static inline bool i915_seqno_passed(u32 seq1, u32 seq2)
 
 static inline u32 __hwsp_seqno(const struct i915_request *rq)
 {
-	return READ_ONCE(*rq->hwsp_seqno);
+	const u32 *hwsp = READ_ONCE(rq->hwsp_seqno);
+
+	return READ_ONCE(*hwsp);
 }
 
 /**
@@ -510,7 +512,8 @@ static inline bool i915_request_completed(const struct i915_request *rq)
 
 static inline void i915_request_mark_complete(struct i915_request *rq)
 {
-	rq->hwsp_seqno = (u32 *)&rq->fence.seqno; /* decouple from HWSP */
+	WRITE_ONCE(rq->hwsp_seqno, /* decouple from HWSP */
+		   (u32 *)&rq->fence.seqno);
 }
 
 static inline bool i915_request_has_waitboost(const struct i915_request *rq)
