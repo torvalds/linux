@@ -357,6 +357,26 @@ struct chcr_stats_debug {
 	atomic_t tls_pdu_tx;
 	atomic_t tls_pdu_rx;
 	atomic_t tls_key;
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	atomic64_t ktls_tx_connection_open;
+	atomic64_t ktls_tx_connection_fail;
+	atomic64_t ktls_tx_connection_close;
+	atomic64_t ktls_tx_send_records;
+	atomic64_t ktls_tx_end_pkts;
+	atomic64_t ktls_tx_start_pkts;
+	atomic64_t ktls_tx_middle_pkts;
+	atomic64_t ktls_tx_retransmit_pkts;
+	atomic64_t ktls_tx_complete_pkts;
+	atomic64_t ktls_tx_trimmed_pkts;
+	atomic64_t ktls_tx_encrypted_packets;
+	atomic64_t ktls_tx_encrypted_bytes;
+	atomic64_t ktls_tx_ctx;
+	atomic64_t ktls_tx_ooo;
+	atomic64_t ktls_tx_skip_no_sync_data;
+	atomic64_t ktls_tx_drop_no_sync_data;
+	atomic64_t ktls_tx_drop_bypass_req;
+
+#endif
 };
 
 #define OCQ_WIN_OFFSET(pdev, vres) \

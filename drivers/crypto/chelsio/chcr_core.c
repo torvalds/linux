@@ -28,13 +28,17 @@
 
 static struct chcr_driver_data drv_data;
 
-typedef int (*chcr_handler_func)(struct chcr_dev *dev, unsigned char *input);
-static int cpl_fw6_pld_handler(struct chcr_dev *dev, unsigned char *input);
+typedef int (*chcr_handler_func)(struct adapter *adap, unsigned char *input);
+static int cpl_fw6_pld_handler(struct adapter *adap, unsigned char *input);
 static void *chcr_uld_add(const struct cxgb4_lld_info *lld);
 static int chcr_uld_state_change(void *handle, enum cxgb4_state state);
 
 static chcr_handler_func work_handlers[NUM_CPL_CMDS] = {
 	[CPL_FW6_PLD] = cpl_fw6_pld_handler,
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	[CPL_ACT_OPEN_RPL] = chcr_ktls_cpl_act_open_rpl,
+	[CPL_SET_TCB_RPL] = chcr_ktls_cpl_set_tcb_rpl,
+#endif
 };
 
 static struct cxgb4_uld_info chcr_uld_info = {
@@ -45,9 +49,9 @@ static struct cxgb4_uld_info chcr_uld_info = {
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
 	.rx_handler = chcr_uld_rx_handler,
-#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+#if defined(CONFIG_CHELSIO_IPSEC_INLINE) || defined(CONFIG_CHELSIO_TLS_DEVICE)
 	.tx_handler = chcr_uld_tx_handler,
-#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE || CONFIG_CHELSIO_TLS_DEVICE */
 };
 
 static void detach_work_fn(struct work_struct *work)
@@ -150,14 +154,13 @@ static int chcr_dev_move(struct uld_ctx *u_ctx)
 	return 0;
 }
 
-static int cpl_fw6_pld_handler(struct chcr_dev *dev,
+static int cpl_fw6_pld_handler(struct adapter *adap,
 			       unsigned char *input)
 {
 	struct crypto_async_request *req;
 	struct cpl_fw6_pld *fw6_pld;
 	u32 ack_err_status = 0;
 	int error_status = 0;
-	struct adapter *adap = padap(dev);
 
 	fw6_pld = (struct cpl_fw6_pld *)input;
 	req = (struct crypto_async_request *)(uintptr_t)be64_to_cpu(
@@ -205,6 +208,11 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 	if (lld->crypto & ULP_CRYPTO_IPSEC_INLINE)
 		chcr_add_xfrmops(lld);
 #endif /* CONFIG_CHELSIO_IPSEC_INLINE */
+
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	if (lld->ulp_crypto & ULP_CRYPTO_KTLS_INLINE)
+		chcr_enable_ktls(padap(&u_ctx->dev));
+#endif
 out:
 	return u_ctx;
 }
@@ -214,26 +222,37 @@ int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 {
 	struct uld_ctx *u_ctx = (struct uld_ctx *)handle;
 	struct chcr_dev *dev = &u_ctx->dev;
+	struct adapter *adap = padap(dev);
 	const struct cpl_fw6_pld *rpl = (struct cpl_fw6_pld *)rsp;
 
-	if (rpl->opcode != CPL_FW6_PLD) {
-		pr_err("Unsupported opcode\n");
+	if (!work_handlers[rpl->opcode]) {
+		pr_err("Unsupported opcode %d received\n", rpl->opcode);
 		return 0;
 	}
 
 	if (!pgl)
-		work_handlers[rpl->opcode](dev, (unsigned char *)&rsp[1]);
+		work_handlers[rpl->opcode](adap, (unsigned char *)&rsp[1]);
 	else
-		work_handlers[rpl->opcode](dev, pgl->va);
+		work_handlers[rpl->opcode](adap, pgl->va);
 	return 0;
 }
 
-#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+#if defined(CONFIG_CHELSIO_IPSEC_INLINE) || defined(CONFIG_CHELSIO_TLS_DEVICE)
 int chcr_uld_tx_handler(struct sk_buff *skb, struct net_device *dev)
 {
+	/* In case if skb's decrypted bit is set, it's nic tls packet, else it's
+	 * ipsec packet.
+	 */
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+	if (skb->decrypted)
+		return chcr_ktls_xmit(skb, dev);
+#endif
+#ifdef CONFIG_CHELSIO_IPSEC_INLINE
 	return chcr_ipsec_xmit(skb, dev);
+#endif
+	return 0;
 }
-#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE || CONFIG_CHELSIO_TLS_DEVICE */
 
 static void chcr_detach_device(struct uld_ctx *u_ctx)
 {
@@ -304,12 +323,20 @@ static void __exit chcr_crypto_exit(void)
 	list_for_each_entry_safe(u_ctx, tmp, &drv_data.act_dev, entry) {
 		adap = padap(&u_ctx->dev);
 		memset(&adap->chcr_stats, 0, sizeof(adap->chcr_stats));
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+		if (u_ctx->lldi.ulp_crypto & ULP_CRYPTO_KTLS_INLINE)
+			chcr_disable_ktls(adap);
+#endif
 		list_del(&u_ctx->entry);
 		kfree(u_ctx);
 	}
 	list_for_each_entry_safe(u_ctx, tmp, &drv_data.inact_dev, entry) {
 		adap = padap(&u_ctx->dev);
 		memset(&adap->chcr_stats, 0, sizeof(adap->chcr_stats));
+#ifdef CONFIG_CHELSIO_TLS_DEVICE
+		if (u_ctx->lldi.ulp_crypto & ULP_CRYPTO_KTLS_INLINE)
+			chcr_disable_ktls(adap);
+#endif
 		list_del(&u_ctx->entry);
 		kfree(u_ctx);
 	}
