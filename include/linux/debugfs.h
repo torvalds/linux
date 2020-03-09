@@ -67,10 +67,10 @@ struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops);
 
-struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
-					struct dentry *parent, void *data,
-					const struct file_operations *fops,
-					loff_t file_size);
+void debugfs_create_file_size(const char *name, umode_t mode,
+			      struct dentry *parent, void *data,
+			      const struct file_operations *fops,
+			      loff_t file_size);
 
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent);
 
@@ -181,13 +181,11 @@ static inline struct dentry *debugfs_create_file_unsafe(const char *name,
 	return ERR_PTR(-ENODEV);
 }
 
-static inline struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
-					struct dentry *parent, void *data,
-					const struct file_operations *fops,
-					loff_t file_size)
-{
-	return ERR_PTR(-ENODEV);
-}
+static inline void debugfs_create_file_size(const char *name, umode_t mode,
+					    struct dentry *parent, void *data,
+					    const struct file_operations *fops,
+					    loff_t file_size)
+{ }
 
 static inline struct dentry *debugfs_create_dir(const char *name,
 						struct dentry *parent)
