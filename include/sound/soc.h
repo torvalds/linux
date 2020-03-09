@@ -1177,6 +1177,20 @@ struct snd_soc_pcm_runtime {
 #define for_each_rtd_cpu_dai_rollback(rtd, i, dai)		\
 	for (; (--(i) >= 0) && ((dai) = rtd->cpu_dais[i]);)
 
+#define for_each_rtd_cpu_dais(rtd, i, dai)				\
+	for ((i) = 0;							\
+	     ((i) < rtd->num_cpus) && ((dai) = rtd->cpu_dais[i]);	\
+	     (i)++)
+#define for_each_rtd_cpu_dais_rollback(rtd, i, dai)		\
+	for (; (--(i) >= 0) && ((dai) = rtd->cpu_dais[i]);)
+#define for_each_rtd_codec_dais(rtd, i, dai)				\
+	for ((i) = 0;							\
+	     ((i) < rtd->num_codecs) && ((dai) = rtd->codec_dais[i]);	\
+	     (i)++)
+#define for_each_rtd_codec_dais_rollback(rtd, i, dai)		\
+	for (; (--(i) >= 0) && ((dai) = rtd->codec_dais[i]);)
+
+
 void snd_soc_close_delayed_work(struct snd_soc_pcm_runtime *rtd);
 
 /* mixer control */
