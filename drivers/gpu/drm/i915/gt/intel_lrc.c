@@ -1782,12 +1782,13 @@ timeslice(const struct intel_engine_cs *engine)
 static unsigned long
 active_timeslice(const struct intel_engine_cs *engine)
 {
-	const struct i915_request *rq = *engine->execlists.active;
+	const struct intel_engine_execlists *execlists = &engine->execlists;
+	const struct i915_request *rq = *execlists->active;
 
 	if (!rq || i915_request_completed(rq))
 		return 0;
 
-	if (engine->execlists.switch_priority_hint < effective_prio(rq))
+	if (READ_ONCE(execlists->switch_priority_hint) < effective_prio(rq))
 		return 0;
 
 	return timeslice(engine);
@@ -1804,8 +1805,11 @@ static void set_timeslice(struct intel_engine_cs *engine)
 static void start_timeslice(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists *execlists = &engine->execlists;
+	int prio = queue_prio(execlists);
 
-	execlists->switch_priority_hint = execlists->queue_priority_hint;
+	WRITE_ONCE(execlists->switch_priority_hint, prio);
+	if (prio == INT_MIN)
+		return;
 
 	if (timer_pending(&execlists->timer))
 		return;
@@ -5330,10 +5334,10 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 
 	if (execlists->switch_priority_hint != INT_MIN)
 		drm_printf(m, "\t\tSwitch priority hint: %d\n",
-			   execlists->switch_priority_hint);
+			   READ_ONCE(execlists->switch_priority_hint));
 	if (execlists->queue_priority_hint != INT_MIN)
 		drm_printf(m, "\t\tQueue priority hint: %d\n",
-			   execlists->queue_priority_hint);
+			   READ_ONCE(execlists->queue_priority_hint));
 
 	last = NULL;
 	count = 0;
