@@ -233,7 +233,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	}
 
 	if (ring->funcs->emit_tmz)
-		amdgpu_ring_emit_tmz(ring, false);
+		amdgpu_ring_emit_tmz(ring, false, false);
 
 #ifdef CONFIG_X86_64
 	if (!(adev->flags & AMD_IS_APU))
