@@ -227,7 +227,7 @@ static int clk_rpmh_prepare(struct clk_hw *hw)
 	mutex_unlock(&rpmh_clk_lock);
 
 	return ret;
-};
+}
 
 static void clk_rpmh_unprepare(struct clk_hw *hw)
 {
@@ -293,14 +293,14 @@ static int clk_rpmh_bcm_prepare(struct clk_hw *hw)
 	struct clk_rpmh *c = to_clk_rpmh(hw);
 
 	return clk_rpmh_bcm_send_cmd(c, true);
-};
+}
 
 static void clk_rpmh_bcm_unprepare(struct clk_hw *hw)
 {
 	struct clk_rpmh *c = to_clk_rpmh(hw);
 
 	clk_rpmh_bcm_send_cmd(c, false);
-};
+}
 
 static int clk_rpmh_bcm_set_rate(struct clk_hw *hw, unsigned long rate,
 				 unsigned long parent_rate)
@@ -316,7 +316,7 @@ static int clk_rpmh_bcm_set_rate(struct clk_hw *hw, unsigned long rate,
 		clk_rpmh_bcm_send_cmd(c, true);
 
 	return 0;
-};
+}
 
 static long clk_rpmh_round_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long *parent_rate)
