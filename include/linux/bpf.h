@@ -1070,13 +1070,16 @@ struct bpf_link;
 
 struct bpf_link_ops {
 	void (*release)(struct bpf_link *link);
+	void (*dealloc)(struct bpf_link *link);
 };
 
 void bpf_link_init(struct bpf_link *link, const struct bpf_link_ops *ops,
 		   struct bpf_prog *prog);
+void bpf_link_defunct(struct bpf_link *link);
 void bpf_link_inc(struct bpf_link *link);
 void bpf_link_put(struct bpf_link *link);
 int bpf_link_new_fd(struct bpf_link *link);
+struct file *bpf_link_new_file(struct bpf_link *link, int *reserved_fd);
 struct bpf_link *bpf_link_get_from_fd(u32 ufd);
 
 int bpf_obj_pin_user(u32 ufd, const char __user *pathname);
