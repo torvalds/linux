@@ -72,6 +72,10 @@ void guest_code(struct vmx_pages *vmx_pages)
 		l1_guest_code(vmx_pages);
 
 	GUEST_DONE();
+
+	/* Try enlightened vmptrld with an incorrect GPA */
+	evmcs_vmptrld(0xdeadbeef, vmx_pages->enlightened_vmcs);
+	GUEST_ASSERT(vmlaunch());
 }
 
 int main(int argc, char *argv[])
@@ -120,7 +124,7 @@ int main(int argc, char *argv[])
 		case UCALL_SYNC:
 			break;
 		case UCALL_DONE:
-			goto done;
+			goto part1_done;
 		default:
 			TEST_FAIL("Unknown ucall %lu", uc.cmd);
 		}
@@ -152,6 +156,10 @@ int main(int argc, char *argv[])
 			    (ulong) regs2.rdi, (ulong) regs2.rsi);
 	}
 
-done:
+part1_done:
+	_vcpu_run(vm, VCPU_ID);
+	TEST_ASSERT(run->exit_reason == KVM_EXIT_SHUTDOWN,
+		    "Unexpected successful VMEnter with invalid eVMCS pointer!");
+
 	kvm_vm_free(vm);
 }
