@@ -100,7 +100,6 @@ struct vnt_rts_ab {
 	struct vnt_tx_datahead_ab data_head;
 } __packed;
 
-
 /* CTS buffer header */
 struct vnt_cts {
 	struct vnt_phy_field b;
