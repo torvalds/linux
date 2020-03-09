@@ -907,7 +907,7 @@ already_busywaiting(struct i915_request *rq)
 	 *
 	 * See the are-we-too-late? check in __i915_request_submit().
 	 */
-	return rq->sched.semaphores | rq->engine->saturated;
+	return rq->sched.semaphores | READ_ONCE(rq->engine->saturated);
 }
 
 static int
