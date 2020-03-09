@@ -1040,18 +1040,7 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 
 	btrfs_item_key_to_cpu(leaf, &key, slot);
 	extent_start = key.offset;
-
-	if (type == BTRFS_FILE_EXTENT_REG ||
-	    type == BTRFS_FILE_EXTENT_PREALLOC) {
-		extent_end = extent_start +
-			btrfs_file_extent_num_bytes(leaf, fi);
-	} else if (type == BTRFS_FILE_EXTENT_INLINE) {
-		size_t size;
-		size = btrfs_file_extent_ram_bytes(leaf, fi);
-		extent_end = ALIGN(extent_start + size,
-				   fs_info->sectorsize);
-	}
-
+	extent_end = btrfs_file_extent_end(path);
 	em->ram_bytes = btrfs_file_extent_ram_bytes(leaf, fi);
 	if (type == BTRFS_FILE_EXTENT_REG ||
 	    type == BTRFS_FILE_EXTENT_PREALLOC) {
@@ -1097,4 +1086,31 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 			  "root %llu", type, btrfs_ino(inode), extent_start,
 			  root->root_key.objectid);
 	}
+}
+
+/*
+ * Returns the end offset (non inclusive) of the file extent item the given path
+ * points to. If it points to an inline extent, the returned offset is rounded
+ * up to the sector size.
+ */
+u64 btrfs_file_extent_end(const struct btrfs_path *path)
+{
+	const struct extent_buffer *leaf = path->nodes[0];
+	const int slot = path->slots[0];
+	struct btrfs_file_extent_item *fi;
+	struct btrfs_key key;
+	u64 end;
+
+	btrfs_item_key_to_cpu(leaf, &key, slot);
+	ASSERT(key.type == BTRFS_EXTENT_DATA_KEY);
+	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
+
+	if (btrfs_file_extent_type(leaf, fi) == BTRFS_FILE_EXTENT_INLINE) {
+		end = btrfs_file_extent_ram_bytes(leaf, fi);
+		end = ALIGN(key.offset + end, leaf->fs_info->sectorsize);
+	} else {
+		end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
+	}
+
+	return end;
 }

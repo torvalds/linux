@@ -4555,9 +4555,7 @@ static int btrfs_log_holes(struct btrfs_trans_handle *trans,
 		return ret;
 
 	while (true) {
-		struct btrfs_file_extent_item *extent;
 		struct extent_buffer *leaf = path->nodes[0];
-		u64 len;
 
 		if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
 			ret = btrfs_next_leaf(root, path);
@@ -4606,18 +4604,7 @@ static int btrfs_log_holes(struct btrfs_trans_handle *trans,
 			leaf = path->nodes[0];
 		}
 
-		extent = btrfs_item_ptr(leaf, path->slots[0],
-					struct btrfs_file_extent_item);
-		if (btrfs_file_extent_type(leaf, extent) ==
-		    BTRFS_FILE_EXTENT_INLINE) {
-			len = btrfs_file_extent_ram_bytes(leaf, extent);
-			prev_extent_end = ALIGN(key.offset + len,
-						fs_info->sectorsize);
-		} else {
-			len = btrfs_file_extent_num_bytes(leaf, extent);
-			prev_extent_end = key.offset + len;
-		}
-
+		prev_extent_end = btrfs_file_extent_end(path);
 		path->slots[0]++;
 		cond_resched();
 	}
