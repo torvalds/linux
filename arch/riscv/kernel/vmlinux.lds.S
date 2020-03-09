@@ -58,6 +58,10 @@ SECTIONS
 		*(.srodata*)
 	}
 
+	EXCEPTION_TABLE(0x10)
+
+	_data = .;
+
 	RW_DATA(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 	.sdata : {
 		__global_pointer$ = . + 0x800;
@@ -67,8 +71,6 @@ SECTIONS
 	}
 
 	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, 0)
-
-	EXCEPTION_TABLE(0x10)
 
 	.rel.dyn : {
 		*(.rel.dyn*)
