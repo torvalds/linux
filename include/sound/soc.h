@@ -1163,20 +1163,6 @@ struct snd_soc_pcm_runtime {
 	for ((i) = 0;							\
 	     ((i) < rtd->num_components) && ((component) = rtd->components[i]);\
 	     (i)++)
-#define for_each_rtd_codec_dai(rtd, i, dai)\
-	for ((i) = 0;						       \
-	     ((i) < rtd->num_codecs) && ((dai) = rtd->codec_dais[i]); \
-	     (i)++)
-#define for_each_rtd_codec_dai_rollback(rtd, i, dai)		\
-	for (; (--(i) >= 0) && ((dai) = rtd->codec_dais[i]);)
-
-#define for_each_rtd_cpu_dai(rtd, i, dai)\
-	for ((i) = 0;						       \
-	     ((i) < rtd->num_cpus) && ((dai) = rtd->cpu_dais[i]); \
-	     (i)++)
-#define for_each_rtd_cpu_dai_rollback(rtd, i, dai)		\
-	for (; (--(i) >= 0) && ((dai) = rtd->cpu_dais[i]);)
-
 #define for_each_rtd_cpu_dais(rtd, i, dai)				\
 	for ((i) = 0;							\
 	     ((i) < rtd->num_cpus) && ((dai) = rtd->cpu_dais[i]);	\
