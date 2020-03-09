@@ -564,8 +564,10 @@ static struct sk_buff *taprio_dequeue_soft(struct Qdisc *sch)
 		prio = skb->priority;
 		tc = netdev_get_prio_tc_map(dev, prio);
 
-		if (!(gate_mask & BIT(tc)))
+		if (!(gate_mask & BIT(tc))) {
+			skb = NULL;
 			continue;
+		}
 
 		len = qdisc_pkt_len(skb);
 		guard = ktime_add_ns(taprio_get_time(q),
@@ -575,13 +577,17 @@ static struct sk_buff *taprio_dequeue_soft(struct Qdisc *sch)
 		 * guard band ...
 		 */
 		if (gate_mask != TAPRIO_ALL_GATES_OPEN &&
-		    ktime_after(guard, entry->close_time))
+		    ktime_after(guard, entry->close_time)) {
+			skb = NULL;
 			continue;
+		}
 
 		/* ... and no budget. */
 		if (gate_mask != TAPRIO_ALL_GATES_OPEN &&
-		    atomic_sub_return(len, &entry->budget) < 0)
+		    atomic_sub_return(len, &entry->budget) < 0) {
+			skb = NULL;
 			continue;
+		}
 
 		skb = child->ops->dequeue(child);
 		if (unlikely(!skb))
