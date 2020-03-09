@@ -537,7 +537,7 @@ static int svc_rdma_pages_write(struct svc_rdma_write_info *info,
 /**
  * svc_rdma_xb_write - Construct RDMA Writes to write an xdr_buf
  * @xdr: xdr_buf to write
- * @info: pointer to write arguments
+ * @data: pointer to write arguments
  *
  * Returns:
  *   On succes, returns zero
@@ -545,9 +545,9 @@ static int svc_rdma_pages_write(struct svc_rdma_write_info *info,
  *   %-ENOMEM if a resource has been exhausted
  *   %-EIO if an rdma-rw error occurred
  */
-static int svc_rdma_xb_write(const struct xdr_buf *xdr,
-			     struct svc_rdma_write_info *info)
+static int svc_rdma_xb_write(const struct xdr_buf *xdr, void *data)
 {
+	struct svc_rdma_write_info *info = data;
 	int ret;
 
 	if (xdr->head[0].iov_len) {
@@ -627,11 +627,11 @@ out_err:
  */
 int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 			      const struct svc_rdma_recv_ctxt *rctxt,
-			      struct xdr_buf *xdr)
+			      const struct xdr_buf *xdr)
 {
 	struct svc_rdma_write_info *info;
 	struct svc_rdma_chunk *chunk;
-	int consumed, ret;
+	int ret;
 
 	if (pcl_is_empty(&rctxt->rc_reply_pcl))
 		return 0;
@@ -641,35 +641,17 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 	if (!info)
 		return -ENOMEM;
 
-	ret = svc_rdma_iov_write(info, &xdr->head[0]);
+	ret = pcl_process_nonpayloads(&rctxt->rc_write_pcl, xdr,
+				      svc_rdma_xb_write, info);
 	if (ret < 0)
 		goto out_err;
-	consumed = xdr->head[0].iov_len;
-
-	/* Send the page list in the Reply chunk only if the
-	 * client did not provide Write chunks.
-	 */
-	if (pcl_is_empty(&rctxt->rc_write_pcl) && xdr->page_len) {
-		ret = svc_rdma_pages_write(info, xdr, xdr->head[0].iov_len,
-					   xdr->page_len);
-		if (ret < 0)
-			goto out_err;
-		consumed += xdr->page_len;
-	}
-
-	if (xdr->tail[0].iov_len) {
-		ret = svc_rdma_iov_write(info, &xdr->tail[0]);
-		if (ret < 0)
-			goto out_err;
-		consumed += xdr->tail[0].iov_len;
-	}
 
 	ret = svc_rdma_post_chunk_ctxt(&info->wi_cc);
 	if (ret < 0)
 		goto out_err;
 
-	trace_svcrdma_send_reply_chunk(consumed);
-	return consumed;
+	trace_svcrdma_send_reply_chunk(xdr->len);
+	return xdr->len;
 
 out_err:
 	svc_rdma_write_info_free(info);
