@@ -51,7 +51,7 @@ available at compile time.
 Setup
 ~~~~~
 
-Use 'modprobe cpia2' to load and 'modprobe -r cpia2' to unload. This
+Use ``modprobe cpia2`` to load and ``modprobe -r cpia2`` to unload. This
 may be done automatically by your distribution.
 
 Driver options
@@ -79,16 +79,12 @@ Setting the options
 ~~~~~~~~~~~~~~~~~~~
 
 If you are using modules, edit /etc/modules.conf and add an options
-line like this:
-
-.. code-block:: none
+line like this::
 
 	options cpia2 num_buffers=3 buffer_size=65535
 
 If the driver is compiled into the kernel, at boot time specify them
-like this:
-
-.. code-block:: none
+like this::
 
 	cpia2.num_buffers=3 cpia2.buffer_size=65535
 
