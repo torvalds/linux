@@ -72,14 +72,12 @@ Linux Digital TV driver-specific documentation
 	:maxdepth: 5
 	:numbered:
 
-	intro
-
-	cards
+	dvb_intro
 	ci
 	faq
+	dvb_references
 
-	dvb_intro
-
+	cards
 	avermedia
 	bt8xx
 	lmedm04
