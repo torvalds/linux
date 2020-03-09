@@ -13,6 +13,8 @@
 
 #define SC27XX_PWR_PD_HW	0xc2c
 #define SC27XX_PWR_OFF_EN	BIT(0)
+#define SC27XX_SLP_CTRL		0xdf0
+#define SC27XX_LDO_XTL_EN	BIT(3)
 
 static struct regmap *regmap;
 
@@ -40,6 +42,9 @@ static struct syscore_ops poweroff_syscore_ops = {
 
 static void sc27xx_poweroff_do_poweroff(void)
 {
+	/* Disable the external subsys connection's power firstly */
+	regmap_write(regmap, SC27XX_SLP_CTRL, SC27XX_LDO_XTL_EN);
+
 	regmap_write(regmap, SC27XX_PWR_PD_HW, SC27XX_PWR_OFF_EN);
 }
 
