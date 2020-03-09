@@ -1,16 +1,16 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-HOWTO: Get An Avermedia DVB-T working under Linux
--------------------------------------------------
+======================================
+Avermedia DVB-T on BT878 Release Notes
+======================================
 
 February 14th 2006
 
 .. note::
 
-   This documentation is outdated. Please check at the DVB wiki
-   at https://linuxtv.org/wiki for more updated info.
+   Several other Avermedia devices are supported. For a more
+   broader and updated content about that, please check:
 
-   There's a section there specific for Avermedia boards at:
    https://linuxtv.org/wiki/index.php/AVerMedia
 
 The Avermedia DVB-T
