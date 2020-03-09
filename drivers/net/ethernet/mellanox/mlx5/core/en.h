@@ -204,7 +204,7 @@ struct mlx5e_tx_wqe {
 
 struct mlx5e_rx_wqe_ll {
 	struct mlx5_wqe_srq_next_seg  next;
-	struct mlx5_wqe_data_seg      data[0];
+	struct mlx5_wqe_data_seg      data[];
 };
 
 struct mlx5e_rx_wqe_cyc {
