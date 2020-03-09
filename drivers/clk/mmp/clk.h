@@ -221,6 +221,30 @@ void mmp_register_div_clks(struct mmp_clk_unit *unit,
 			struct mmp_param_div_clk *clks,
 			void __iomem *base, int size);
 
+struct mmp_param_pll_clk {
+	unsigned int id;
+	char *name;
+	unsigned long default_rate;
+	unsigned long enable_offset;
+	u32 enable;
+	unsigned long offset;
+	u8 shift;
+	/* MMP3 specific: */
+	unsigned long input_rate;
+	unsigned long postdiv_offset;
+	unsigned long postdiv_shift;
+};
+void mmp_register_pll_clks(struct mmp_clk_unit *unit,
+			struct mmp_param_pll_clk *clks,
+			void __iomem *base, int size);
+
+extern struct clk *mmp_clk_register_pll(char *name,
+			unsigned long default_rate,
+			void __iomem *enable_reg, u32 enable,
+			void __iomem *reg, u8 shift,
+			unsigned long input_rate,
+			void __iomem *postdiv_reg, u8 postdiv_shift);
+
 #define DEFINE_MIX_REG_INFO(w_d, s_d, w_m, s_m, fc)	\
 {							\
 	.width_div = (w_d),				\
