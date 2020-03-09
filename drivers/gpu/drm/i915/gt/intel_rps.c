@@ -644,7 +644,7 @@ void intel_rps_mark_interactive(struct intel_rps *rps, bool interactive)
 {
 	mutex_lock(&rps->power.mutex);
 	if (interactive) {
-		if (!rps->power.interactive++ && rps->active)
+		if (!rps->power.interactive++ && READ_ONCE(rps->active))
 			rps_set_power(rps, HIGH_POWER);
 	} else {
 		GEM_BUG_ON(!rps->power.interactive);
@@ -721,11 +721,14 @@ void intel_rps_unpark(struct intel_rps *rps)
 	 * performance, jump directly to RPe as our starting frequency.
 	 */
 	mutex_lock(&rps->lock);
-	rps->active = true;
+
+	WRITE_ONCE(rps->active, true);
+
 	freq = max(rps->cur_freq, rps->efficient_freq),
 	freq = clamp(freq, rps->min_freq_softlimit, rps->max_freq_softlimit);
 	intel_rps_set(rps, freq);
 	rps->last_adj = 0;
+
 	mutex_unlock(&rps->lock);
 
 	if (INTEL_GEN(rps_to_i915(rps)) >= 6)
@@ -745,7 +748,7 @@ void intel_rps_park(struct intel_rps *rps)
 	if (INTEL_GEN(i915) >= 6)
 		rps_disable_interrupts(rps);
 
-	rps->active = false;
+	WRITE_ONCE(rps->active, false);
 	if (rps->last_freq <= rps->idle_freq)
 		return;
 
@@ -772,7 +775,7 @@ void intel_rps_boost(struct i915_request *rq)
 	struct intel_rps *rps = &rq->engine->gt->rps;
 	unsigned long flags;
 
-	if (i915_request_signaled(rq) || !rps->active)
+	if (i915_request_signaled(rq) || !READ_ONCE(rps->active))
 		return;
 
 	/* Serializes with i915_request_retire() */
