@@ -56,8 +56,8 @@
 #define MPTCP_DSS_FLAG_MASK	(0x1F)
 
 /* MPTCP socket flags */
-#define MPTCP_DATA_READY	BIT(0)
-#define MPTCP_SEND_SPACE	BIT(1)
+#define MPTCP_DATA_READY	0
+#define MPTCP_SEND_SPACE	1
 
 /* MPTCP connection sock */
 struct mptcp_sock {

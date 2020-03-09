@@ -1226,14 +1226,12 @@ endif
 
 config BOOT_CONFIG
 	bool "Boot config support"
-	depends on BLK_DEV_INITRD
-	select LIBXBC
-	default y
+	select BLK_DEV_INITRD
 	help
 	  Extra boot config allows system admin to pass a config file as
 	  complemental extension of kernel cmdline when booting.
 	  The boot config file must be attached at the end of initramfs
-	  with checksum and size.
+	  with checksum, size and magic word.
 	  See <file:Documentation/admin-guide/bootconfig.rst> for details.
 
 	  If unsure, say Y.

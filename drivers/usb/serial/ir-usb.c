@@ -448,7 +448,7 @@ static void ir_set_termios(struct tty_struct *tty,
 			usb_sndbulkpipe(udev, port->bulk_out_endpointAddress),
 			transfer_buffer, 1, &actual_length, 5000);
 	if (ret || actual_length != 1) {
-		if (actual_length != 1)
+		if (!ret)
 			ret = -EIO;
 		dev_err(&port->dev, "failed to change line speed: %d\n", ret);
 	}

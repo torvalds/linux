@@ -1954,9 +1954,10 @@ out:
 	return i915_vma_get(oa_bo->vma);
 }
 
-static int emit_oa_config(struct i915_perf_stream *stream,
-			  struct i915_oa_config *oa_config,
-			  struct intel_context *ce)
+static struct i915_request *
+emit_oa_config(struct i915_perf_stream *stream,
+	       struct i915_oa_config *oa_config,
+	       struct intel_context *ce)
 {
 	struct i915_request *rq;
 	struct i915_vma *vma;
@@ -1964,7 +1965,7 @@ static int emit_oa_config(struct i915_perf_stream *stream,
 
 	vma = get_oa_vma(stream, oa_config);
 	if (IS_ERR(vma))
-		return PTR_ERR(vma);
+		return ERR_CAST(vma);
 
 	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
@@ -1989,13 +1990,17 @@ static int emit_oa_config(struct i915_perf_stream *stream,
 	err = rq->engine->emit_bb_start(rq,
 					vma->node.start, 0,
 					I915_DISPATCH_SECURE);
+	if (err)
+		goto err_add_request;
+
+	i915_request_get(rq);
 err_add_request:
 	i915_request_add(rq);
 err_vma_unpin:
 	i915_vma_unpin(vma);
 err_vma_put:
 	i915_vma_put(vma);
-	return err;
+	return err ? ERR_PTR(err) : rq;
 }
 
 static struct intel_context *oa_context(struct i915_perf_stream *stream)
@@ -2003,7 +2008,8 @@ static struct intel_context *oa_context(struct i915_perf_stream *stream)
 	return stream->pinned_ctx ?: stream->engine->kernel_context;
 }
 
-static int hsw_enable_metric_set(struct i915_perf_stream *stream)
+static struct i915_request *
+hsw_enable_metric_set(struct i915_perf_stream *stream)
 {
 	struct intel_uncore *uncore = stream->uncore;
 
@@ -2406,7 +2412,8 @@ static int lrc_configure_all_contexts(struct i915_perf_stream *stream,
 	return oa_configure_all_contexts(stream, regs, ARRAY_SIZE(regs));
 }
 
-static int gen8_enable_metric_set(struct i915_perf_stream *stream)
+static struct i915_request *
+gen8_enable_metric_set(struct i915_perf_stream *stream)
 {
 	struct intel_uncore *uncore = stream->uncore;
 	struct i915_oa_config *oa_config = stream->oa_config;
@@ -2448,7 +2455,7 @@ static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 	 */
 	ret = lrc_configure_all_contexts(stream, oa_config);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	return emit_oa_config(stream, oa_config, oa_context(stream));
 }
@@ -2460,7 +2467,8 @@ static u32 oag_report_ctx_switches(const struct i915_perf_stream *stream)
 			     0 : GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
 }
 
-static int gen12_enable_metric_set(struct i915_perf_stream *stream)
+static struct i915_request *
+gen12_enable_metric_set(struct i915_perf_stream *stream)
 {
 	struct intel_uncore *uncore = stream->uncore;
 	struct i915_oa_config *oa_config = stream->oa_config;
@@ -2491,7 +2499,7 @@ static int gen12_enable_metric_set(struct i915_perf_stream *stream)
 	 */
 	ret = gen12_configure_all_contexts(stream, oa_config);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	/*
 	 * For Gen12, performance counters are context
@@ -2501,7 +2509,7 @@ static int gen12_enable_metric_set(struct i915_perf_stream *stream)
 	if (stream->ctx) {
 		ret = gen12_configure_oar_context(stream, true);
 		if (ret)
-			return ret;
+			return ERR_PTR(ret);
 	}
 
 	return emit_oa_config(stream, oa_config, oa_context(stream));
@@ -2696,6 +2704,20 @@ static const struct i915_perf_stream_ops i915_oa_stream_ops = {
 	.read = i915_oa_read,
 };
 
+static int i915_perf_stream_enable_sync(struct i915_perf_stream *stream)
+{
+	struct i915_request *rq;
+
+	rq = stream->perf->ops.enable_metric_set(stream);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
+	i915_request_put(rq);
+
+	return 0;
+}
+
 /**
  * i915_oa_stream_init - validate combined props for OA stream and init
  * @stream: An i915 perf stream
@@ -2829,7 +2851,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	stream->ops = &i915_oa_stream_ops;
 	perf->exclusive_stream = stream;
 
-	ret = perf->ops.enable_metric_set(stream);
+	ret = i915_perf_stream_enable_sync(stream);
 	if (ret) {
 		DRM_DEBUG("Unable to enable metric set\n");
 		goto err_enable;
@@ -3147,7 +3169,7 @@ static long i915_perf_config_locked(struct i915_perf_stream *stream,
 		return -EINVAL;
 
 	if (config != stream->oa_config) {
-		int err;
+		struct i915_request *rq;
 
 		/*
 		 * If OA is bound to a specific context, emit the
@@ -3158,11 +3180,13 @@ static long i915_perf_config_locked(struct i915_perf_stream *stream,
 		 * When set globally, we use a low priority kernel context,
 		 * so it will effectively take effect when idle.
 		 */
-		err = emit_oa_config(stream, config, oa_context(stream));
-		if (err == 0)
+		rq = emit_oa_config(stream, config, oa_context(stream));
+		if (!IS_ERR(rq)) {
 			config = xchg(&stream->oa_config, config);
-		else
-			ret = err;
+			i915_request_put(rq);
+		} else {
+			ret = PTR_ERR(rq);
+		}
 	}
 
 	i915_oa_config_put(config);

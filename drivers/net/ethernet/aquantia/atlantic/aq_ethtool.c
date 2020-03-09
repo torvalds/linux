@@ -722,6 +722,11 @@ static int aq_ethtool_set_priv_flags(struct net_device *ndev, u32 flags)
 	if (flags & ~AQ_PRIV_FLAGS_MASK)
 		return -EOPNOTSUPP;
 
+	if (hweight32((flags | priv_flags) & AQ_HW_LOOPBACK_MASK) > 1) {
+		netdev_info(ndev, "Can't enable more than one loopback simultaneously\n");
+		return -EINVAL;
+	}
+
 	cfg->priv_flags = flags;
 
 	if ((priv_flags ^ flags) & BIT(AQ_HW_LOOPBACK_DMA_NET)) {

@@ -151,8 +151,8 @@ The details of these operations are:
      Note that callbacks will always be invoked from the DMA
      engines tasklet, never from interrupt context.
 
-Optional: per descriptor metadata
----------------------------------
+  **Optional: per descriptor metadata**
+
   DMAengine provides two ways for metadata support.
 
   DESC_METADATA_CLIENT
@@ -199,12 +199,15 @@ Optional: per descriptor metadata
   DESC_METADATA_CLIENT
 
     - DMA_MEM_TO_DEV / DEV_MEM_TO_MEM:
+
       1. prepare the descriptor (dmaengine_prep_*)
          construct the metadata in the client's buffer
       2. use dmaengine_desc_attach_metadata() to attach the buffer to the
          descriptor
       3. submit the transfer
+
     - DMA_DEV_TO_MEM:
+
       1. prepare the descriptor (dmaengine_prep_*)
       2. use dmaengine_desc_attach_metadata() to attach the buffer to the
          descriptor
@@ -215,6 +218,7 @@ Optional: per descriptor metadata
   DESC_METADATA_ENGINE
 
     - DMA_MEM_TO_DEV / DEV_MEM_TO_MEM:
+
       1. prepare the descriptor (dmaengine_prep_*)
       2. use dmaengine_desc_get_metadata_ptr() to get the pointer to the
          engine's metadata area
@@ -222,7 +226,9 @@ Optional: per descriptor metadata
       4. use dmaengine_desc_set_metadata_len()  to tell the DMA engine the
          amount of data the client has placed into the metadata buffer
       5. submit the transfer
+
     - DMA_DEV_TO_MEM:
+
       1. prepare the descriptor (dmaengine_prep_*)
       2. submit the transfer
       3. on transfer completion, use dmaengine_desc_get_metadata_ptr() to get
@@ -278,8 +284,8 @@ Optional: per descriptor metadata
 
       void dma_async_issue_pending(struct dma_chan *chan);
 
-Further APIs:
--------------
+Further APIs
+------------
 
 1. Terminate APIs
 

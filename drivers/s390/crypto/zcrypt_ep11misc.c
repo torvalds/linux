@@ -887,7 +887,7 @@ static int ep11_unwrapkey(u16 card, u16 domain,
 	/* empty pin tag */
 	*p++ = 0x04;
 	*p++ = 0;
-	/* encrytped key value tag and bytes */
+	/* encrypted key value tag and bytes */
 	p += asn1tag_write(p, 0x04, enckey, enckeysize);
 
 	/* reply cprb and payload */
@@ -1095,7 +1095,7 @@ int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 
 	/* Step 1: generate AES 256 bit random kek key */
 	rc = ep11_genaeskey(card, domain, 256,
-			    0x00006c00, /* EN/DECRYTP, WRAP/UNWRAP */
+			    0x00006c00, /* EN/DECRYPT, WRAP/UNWRAP */
 			    kek, &keklen);
 	if (rc) {
 		DEBUG_ERR(

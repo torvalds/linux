@@ -40,5 +40,6 @@ bool intel_psr_enabled(struct intel_dp *intel_dp);
 void intel_psr_atomic_check(struct drm_connector *connector,
 			    struct drm_connector_state *old_state,
 			    struct drm_connector_state *new_state);
+void intel_psr_set_force_mode_changed(struct intel_dp *intel_dp);
 
 #endif /* __INTEL_PSR_H__ */

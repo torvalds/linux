@@ -99,8 +99,7 @@ EXPORT_SYMBOL(page_pool_create);
 static void __page_pool_return_page(struct page_pool *pool, struct page *page);
 
 noinline
-static struct page *page_pool_refill_alloc_cache(struct page_pool *pool,
-						 bool refill)
+static struct page *page_pool_refill_alloc_cache(struct page_pool *pool)
 {
 	struct ptr_ring *r = &pool->ring;
 	struct page *page;
@@ -141,8 +140,7 @@ static struct page *page_pool_refill_alloc_cache(struct page_pool *pool,
 			page = NULL;
 			break;
 		}
-	} while (pool->alloc.count < PP_ALLOC_CACHE_REFILL &&
-		 refill);
+	} while (pool->alloc.count < PP_ALLOC_CACHE_REFILL);
 
 	/* Return last page */
 	if (likely(pool->alloc.count > 0))
@@ -155,20 +153,16 @@ static struct page *page_pool_refill_alloc_cache(struct page_pool *pool,
 /* fast path */
 static struct page *__page_pool_get_cached(struct page_pool *pool)
 {
-	bool refill = false;
 	struct page *page;
 
-	/* Test for safe-context, caller should provide this guarantee */
-	if (likely(in_serving_softirq())) {
-		if (likely(pool->alloc.count)) {
-			/* Fast-path */
-			page = pool->alloc.cache[--pool->alloc.count];
-			return page;
-		}
-		refill = true;
+	/* Caller MUST guarantee safe non-concurrent access, e.g. softirq */
+	if (likely(pool->alloc.count)) {
+		/* Fast-path */
+		page = pool->alloc.cache[--pool->alloc.count];
+	} else {
+		page = page_pool_refill_alloc_cache(pool);
 	}
 
-	page = page_pool_refill_alloc_cache(pool, refill);
 	return page;
 }
 
