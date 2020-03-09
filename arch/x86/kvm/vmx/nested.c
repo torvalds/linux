@@ -1996,14 +1996,6 @@ void nested_sync_vmcs12_to_shadow(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	/*
-	 * hv_evmcs may end up being not mapped after migration (when
-	 * L2 was running), map it here to make sure vmcs12 changes are
-	 * properly reflected.
-	 */
-	if (vmx->nested.enlightened_vmcs_enabled && !vmx->nested.hv_evmcs)
-		nested_vmx_handle_enlightened_vmptrld(vcpu, false);
-
 	if (vmx->nested.hv_evmcs) {
 		copy_vmcs12_to_enlightened(vmx);
 		/* All fields are clean */
@@ -3061,6 +3053,14 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 	struct kvm_host_map *map;
 	struct page *page;
 	u64 hpa;
+
+	/*
+	 * hv_evmcs may end up being not mapped after migration (when
+	 * L2 was running), map it here to make sure vmcs12 changes are
+	 * properly reflected.
+	 */
+	if (vmx->nested.enlightened_vmcs_enabled && !vmx->nested.hv_evmcs)
+		nested_vmx_handle_enlightened_vmptrld(vcpu, false);
 
 	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
 		/*
@@ -5904,10 +5904,12 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		set_current_vmptr(vmx, kvm_state->hdr.vmx.vmcs12_pa);
 	} else if (kvm_state->flags & KVM_STATE_NESTED_EVMCS) {
 		/*
-		 * Sync eVMCS upon entry as we may not have
-		 * HV_X64_MSR_VP_ASSIST_PAGE set up yet.
+		 * nested_vmx_handle_enlightened_vmptrld() cannot be called
+		 * directly from here as HV_X64_MSR_VP_ASSIST_PAGE may not be
+		 * restored yet. EVMCS will be mapped from
+		 * nested_get_vmcs12_pages().
 		 */
-		vmx->nested.need_vmcs12_to_shadow_sync = true;
+		kvm_make_request(KVM_REQ_GET_VMCS12_PAGES, vcpu);
 	} else {
 		return -EINVAL;
 	}
