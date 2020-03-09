@@ -596,10 +596,6 @@ static void setup_sgmii_internal_phy_base_x(struct fman_mac *memac)
 
 static int check_init_parameters(struct fman_mac *memac)
 {
-	if (memac->addr == 0) {
-		pr_err("Ethernet MAC must have a valid MAC address\n");
-		return -EINVAL;
-	}
 	if (!memac->exception_cb) {
 		pr_err("Uninitialized exception handler\n");
 		return -EINVAL;
@@ -1057,8 +1053,10 @@ int memac_init(struct fman_mac *memac)
 	}
 
 	/* MAC Address */
-	MAKE_ENET_ADDR_FROM_UINT64(memac->addr, eth_addr);
-	add_addr_in_paddr(memac->regs, (u8 *)eth_addr, 0);
+	if (memac->addr != 0) {
+		MAKE_ENET_ADDR_FROM_UINT64(memac->addr, eth_addr);
+		add_addr_in_paddr(memac->regs, (u8 *)eth_addr, 0);
+	}
 
 	fixed_link = memac_drv_param->fixed_link;
 
