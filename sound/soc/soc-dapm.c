@@ -2437,7 +2437,7 @@ static ssize_t dapm_widget_show(struct device *dev,
 
 	mutex_lock(&rtd->card->dapm_mutex);
 
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		struct snd_soc_component *cmpnt = codec_dai->component;
 
 		count += dapm_widget_show_component(cmpnt, buf + count);
@@ -4362,11 +4362,11 @@ static void dapm_connect_dai_link_widgets(struct snd_soc_card *card,
 	int i;
 
 	if (rtd->num_cpus == 1) {
-		for_each_rtd_codec_dai(rtd, i, codec_dai)
+		for_each_rtd_codec_dais(rtd, i, codec_dai)
 			dapm_add_valid_dai_widget(card, rtd, codec_dai,
 						  rtd->cpu_dais[0]);
 	} else if (rtd->num_codecs == rtd->num_cpus) {
-		for_each_rtd_codec_dai(rtd, i, codec_dai)
+		for_each_rtd_codec_dais(rtd, i, codec_dai)
 			dapm_add_valid_dai_widget(card, rtd, codec_dai,
 						  rtd->cpu_dais[i]);
 	} else {
@@ -4437,9 +4437,9 @@ static void soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
 	struct snd_soc_dai *cpu_dai;
 	int i;
 
-	for_each_rtd_cpu_dai(rtd, i, cpu_dai)
+	for_each_rtd_cpu_dais(rtd, i, cpu_dai)
 		soc_dapm_dai_stream_event(cpu_dai, stream, event);
-	for_each_rtd_codec_dai(rtd, i, codec_dai)
+	for_each_rtd_codec_dais(rtd, i, codec_dai)
 		soc_dapm_dai_stream_event(codec_dai, stream, event);
 
 	dapm_power_widgets(rtd->card, event);
