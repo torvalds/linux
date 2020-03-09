@@ -1418,7 +1418,7 @@
 		};
 
 		usb_1_hsphy: phy@88e3000 {
-			compatible = "qcom,sc7180-qusb2-phy";
+			compatible = "qcom,sc7180-qusb2-phy", "qcom,qusb2-v2-phy";
 			reg = <0 0x088e3000 0 0x400>;
 			status = "disabled";
 			#phy-cells = <0>;
