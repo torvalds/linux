@@ -454,9 +454,24 @@ struct iwl_cfg {
 
 #define IWL_CFG_ANY (~0)
 
+#define IWL_CFG_MAC_TYPE_TH		0x32
+#define IWL_CFG_MAC_TYPE_QU		0x33
+
+#define IWL_CFG_RF_TYPE_TH		0x105
+#define IWL_CFG_RF_TYPE_JF2		0x105
+#define IWL_CFG_RF_TYPE_JF1		0x108
+
+#define IWL_CFG_NO_160			0x0
+#define IWL_CFG_160			0x1
+
+#define IWL_SUBDEVICE_NO_160(subdevice)	((u16)((subdevice) & 0x0100) >> 9)
+
 struct iwl_dev_info {
 	u16 device;
 	u16 subdevice;
+	u16 mac_type;
+	u16 rf_type;
+	u8 no_160;
 	const struct iwl_cfg *cfg;
 	const char *name;
 };
