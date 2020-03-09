@@ -460,6 +460,7 @@ struct iwl_cfg {
 #define IWL_CFG_MAC_TYPE_QU		0x33
 
 #define IWL_CFG_RF_TYPE_TH		0x105
+#define IWL_CFG_RF_TYPE_TH1		0x108
 #define IWL_CFG_RF_TYPE_JF2		0x105
 #define IWL_CFG_RF_TYPE_JF1		0x108
 
@@ -495,11 +496,13 @@ struct iwl_dev_info {
  * This list declares the config structures for all devices.
  */
 extern const struct iwl_cfg_trans_params iwl9000_trans_cfg;
+extern const char iwl9162_name[];
 extern const char iwl9260_name[];
 extern const char iwl9270_name[];
 extern const char iwl9461_name[];
 extern const char iwl9462_name[];
 extern const char iwl9560_name[];
+extern const char iwl9162_160_name[];
 extern const char iwl9260_160_name[];
 extern const char iwl9270_160_name[];
 extern const char iwl9461_160_name[];
@@ -574,7 +577,6 @@ extern const struct iwl_cfg iwl8260_2ac_cfg;
 extern const struct iwl_cfg iwl8265_2ac_cfg;
 extern const struct iwl_cfg iwl8275_2ac_cfg;
 extern const struct iwl_cfg iwl4165_2ac_cfg;
-extern const struct iwl_cfg iwl9160_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_160_cfg;
 extern const struct iwl_cfg iwl9260_killer_2ac_cfg;

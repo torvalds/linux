@@ -178,23 +178,19 @@ const struct iwl_cfg_trans_params iwl9000_trans_cfg = {
 	.rf_id = true,
 };
 
-const struct iwl_cfg iwl9160_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 9160",
-	.fw_name_pre = IWL9260_FW_PRE,
-	IWL_DEVICE_9000,
-};
-
 const struct iwl_cfg iwl9260_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 9260",
 	.fw_name_pre = IWL9260_FW_PRE,
 	IWL_DEVICE_9000,
 };
 
+const char iwl9162_name[] = "Intel(R) Wireless-AC 9162";
 const char iwl9260_name[] = "Intel(R) Wireless-AC 9260";
 const char iwl9270_name[] = "Intel(R) Wireless-AC 9270";
 const char iwl9461_name[] = "Intel(R) Wireless-AC 9461";
 const char iwl9462_name[] = "Intel(R) Wireless-AC 9462";
 const char iwl9560_name[] = "Intel(R) Wireless-AC 9560";
+const char iwl9162_160_name[] = "Intel(R) Wireless-AC 9162 160MHz";
 const char iwl9260_160_name[] = "Intel(R) Wireless-AC 9260 160MHz";
 const char iwl9270_160_name[] = "Intel(R) Wireless-AC 9270 160MHz";
 const char iwl9461_160_name[] = "Intel(R) Wireless-AC 9461 160MHz";

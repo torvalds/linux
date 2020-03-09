@@ -567,11 +567,8 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x06F0, 0x42A4, iwl9462_2ac_cfg_quz_a0_jf_b0_soc)},
 
 	{IWL_PCI_DEVICE(0x2526, PCI_ANY_ID, iwl9000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x271B, PCI_ANY_ID, iwl9000_trans_cfg)},
 
-	{IWL_PCI_DEVICE(0x271B, 0x0010, iwl9160_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x271B, 0x0014, iwl9160_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x271B, 0x0210, iwl9160_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x271B, 0x0214, iwl9260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x271C, 0x0214, iwl9260_2ac_cfg)},
 
 	{IWL_PCI_DEVICE(0x2720, 0x0034, iwl9560_2ac_cfg_qu_b0_jf_b0)},
@@ -991,6 +988,15 @@ static const struct iwl_dev_info iwl_dev_info_table[] = {
 		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_ANY,
 		      IWL_CFG_NO_160, IWL_CFG_CORES_BT_GNSS,
 		      iwl9260_2ac_cfg, iwl9270_name),
+
+	_IWL_DEV_INFO(0x271B, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH1, IWL_CFG_ANY,
+		      IWL_CFG_160, IWL_CFG_CORES_BT,
+		      iwl9260_2ac_cfg, iwl9162_160_name),
+	_IWL_DEV_INFO(0x271B, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH1, IWL_CFG_ANY,
+		      IWL_CFG_NO_160, IWL_CFG_CORES_BT,
+		      iwl9260_2ac_cfg, iwl9162_name),
 
 	_IWL_DEV_INFO(0x2526, IWL_CFG_ANY,
 		      IWL_CFG_MAC_TYPE_TH, IWL_CFG_RF_TYPE_TH, IWL_CFG_ANY,
