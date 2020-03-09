@@ -66,12 +66,24 @@
 #define IMP_RES_OFFSET_MASK			GENMASK(5, 0)
 #define IMP_RES_OFFSET_SHIFT			0x0
 
+/* QUSB2PHY_PLL_BIAS_CONTROL_2 register bits */
+#define BIAS_CTRL2_RES_OFFSET_MASK		GENMASK(5, 0)
+#define BIAS_CTRL2_RES_OFFSET_SHIFT		0x0
+
+/* QUSB2PHY_CHG_CONTROL_2 register bits */
+#define CHG_CTRL2_OFFSET_MASK			GENMASK(5, 4)
+#define CHG_CTRL2_OFFSET_SHIFT			0x4
+
 /* QUSB2PHY_PORT_TUNE1 register bits */
 #define HSTX_TRIM_MASK				GENMASK(7, 4)
 #define HSTX_TRIM_SHIFT				0x4
 #define PREEMPH_WIDTH_HALF_BIT			BIT(2)
 #define PREEMPHASIS_EN_MASK			GENMASK(1, 0)
 #define PREEMPHASIS_EN_SHIFT			0x0
+
+/* QUSB2PHY_PORT_TUNE2 register bits */
+#define HSDISC_TRIM_MASK			GENMASK(1, 0)
+#define HSDISC_TRIM_SHIFT			0x0
 
 #define QUSB2PHY_PLL_ANALOG_CONTROLS_TWO	0x04
 #define QUSB2PHY_PLL_CLOCK_INVERTERS		0x18c
@@ -291,12 +303,18 @@ struct override_param {
  * @hstx_trim: HSTX_TRIM to be updated in TUNE1 register
  * @preemphasis: Amplitude Pre-Emphasis to be updated in TUNE1 register
  * @preemphasis_width: half/full-width Pre-Emphasis updated via TUNE1
+ * @bias_ctrl: bias ctrl to be updated in BIAS_CONTROL_2 register
+ * @charge_ctrl: charge ctrl to be updated in CHG_CTRL2 register
+ * @hsdisc_trim: disconnect threshold to be updated in TUNE2 register
  */
 struct override_params {
 	struct override_param imp_res_offset;
 	struct override_param hstx_trim;
 	struct override_param preemphasis;
 	struct override_param preemphasis_width;
+	struct override_param bias_ctrl;
+	struct override_param charge_ctrl;
+	struct override_param hsdisc_trim;
 };
 
 /**
@@ -409,6 +427,16 @@ static void qusb2_phy_override_phy_params(struct qusb2_phy *qphy)
 		or->imp_res_offset.value << IMP_RES_OFFSET_SHIFT,
 			     IMP_RES_OFFSET_MASK);
 
+	if (or->bias_ctrl.override)
+		qusb2_write_mask(qphy->base, QUSB2PHY_PLL_BIAS_CONTROL_2,
+		or->bias_ctrl.value << BIAS_CTRL2_RES_OFFSET_SHIFT,
+			   BIAS_CTRL2_RES_OFFSET_MASK);
+
+	if (or->charge_ctrl.override)
+		qusb2_write_mask(qphy->base, QUSB2PHY_CHG_CTRL2,
+		or->charge_ctrl.value << CHG_CTRL2_OFFSET_SHIFT,
+			     CHG_CTRL2_OFFSET_MASK);
+
 	if (or->hstx_trim.override)
 		qusb2_write_mask(qphy->base, cfg->regs[QUSB2PHY_PORT_TUNE1],
 		or->hstx_trim.value << HSTX_TRIM_SHIFT,
@@ -430,6 +458,11 @@ static void qusb2_phy_override_phy_params(struct qusb2_phy *qphy)
 				      cfg->regs[QUSB2PHY_PORT_TUNE1],
 				      PREEMPH_WIDTH_HALF_BIT);
 	}
+
+	if (or->hsdisc_trim.override)
+		qusb2_write_mask(qphy->base, cfg->regs[QUSB2PHY_PORT_TUNE2],
+		or->hsdisc_trim.value << HSDISC_TRIM_SHIFT,
+				 HSDISC_TRIM_MASK);
 }
 
 /*
@@ -879,6 +912,18 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 		or->imp_res_offset.override = true;
 	}
 
+	if (!of_property_read_u32(dev->of_node, "qcom,bias-ctrl-value",
+				  &value)) {
+		or->bias_ctrl.value = (u8)value;
+		or->bias_ctrl.override = true;
+	}
+
+	if (!of_property_read_u32(dev->of_node, "qcom,charge-ctrl-value",
+				  &value)) {
+		or->charge_ctrl.value = (u8)value;
+		or->charge_ctrl.override = true;
+	}
+
 	if (!of_property_read_u32(dev->of_node, "qcom,hstx-trim-value",
 				  &value)) {
 		or->hstx_trim.value = (u8)value;
@@ -895,6 +940,12 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 				     &value)) {
 		or->preemphasis_width.value = (u8)value;
 		or->preemphasis_width.override = true;
+	}
+
+	if (!of_property_read_u32(dev->of_node, "qcom,hsdisc-trim-value",
+				  &value)) {
+		or->hsdisc_trim.value = (u8)value;
+		or->hsdisc_trim.override = true;
 	}
 
 	pm_runtime_set_active(dev);
