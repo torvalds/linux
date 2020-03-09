@@ -831,7 +831,7 @@ int isst_send_msr_command(unsigned int cpu, unsigned int msr, int write,
 		msr_cmds.msr_cmd[0].data = *req_resp;
 
 	if (ioctl(fd, ISST_IF_MSR_COMMAND, &msr_cmds) == -1) {
-		perror("ISST_IF_MSR_COMMAD");
+		perror("ISST_IF_MSR_COMMAND");
 		fprintf(outf, "Error: msr_cmd cpu:%d msr:%x read_write:%d\n",
 			cpu, msr, write);
 	} else {
