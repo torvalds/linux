@@ -300,8 +300,8 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 }
 
 static u8 wfx_tx_get_raw_link_id(struct wfx_vif *wvif,
-				      struct ieee80211_sta *sta,
-				      struct ieee80211_hdr *hdr)
+				 struct ieee80211_sta *sta,
+				 struct ieee80211_hdr *hdr)
 {
 	struct wfx_sta_priv *sta_priv =
 		sta ? (struct wfx_sta_priv *) &sta->drv_priv : NULL;
@@ -368,7 +368,7 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 }
 
 static u8 wfx_tx_get_rate_id(struct wfx_vif *wvif,
-				  struct ieee80211_tx_info *tx_info)
+			     struct ieee80211_tx_info *tx_info)
 {
 	bool tx_policy_renew = false;
 	u8 rate_id;
