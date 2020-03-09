@@ -62,7 +62,6 @@ static int wfx_drop_encrypt_data(struct wfx_dev *wdev,
 	memmove(skb->data + iv_len, skb->data, hdrlen);
 	skb_pull(skb, iv_len);
 	return 0;
-
 }
 
 void wfx_rx_cb(struct wfx_vif *wvif,
