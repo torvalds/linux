@@ -337,6 +337,14 @@ config DM_WRITECACHE
 	   The writecache target doesn't cache reads because reads are supposed
 	   to be cached in standard RAM.
 
+config DM_EBS
+	tristate "Emulated block size target (EXPERIMENTAL)"
+	depends on BLK_DEV_DM
+	select DM_BUFIO
+	help
+	  dm-ebs emulates smaller logical block size on backing devices
+	  with larger ones (e.g. 512 byte sectors on 4K native disks).
+
 config DM_ERA
        tristate "Era target (EXPERIMENTAL)"
        depends on BLK_DEV_DM
