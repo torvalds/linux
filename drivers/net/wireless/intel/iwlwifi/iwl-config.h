@@ -498,6 +498,7 @@ struct iwl_dev_info {
 extern const struct iwl_cfg_trans_params iwl9000_trans_cfg;
 extern const char iwl9162_name[];
 extern const char iwl9260_name[];
+extern const char iwl9260_1_name[];
 extern const char iwl9270_name[];
 extern const char iwl9461_name[];
 extern const char iwl9462_name[];

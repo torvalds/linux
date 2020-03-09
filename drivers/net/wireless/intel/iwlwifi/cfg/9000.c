@@ -186,6 +186,7 @@ const struct iwl_cfg iwl9260_2ac_cfg = {
 
 const char iwl9162_name[] = "Intel(R) Wireless-AC 9162";
 const char iwl9260_name[] = "Intel(R) Wireless-AC 9260";
+const char iwl9260_1_name[] = "Intel(R) Wireless-AC 9260-1";
 const char iwl9270_name[] = "Intel(R) Wireless-AC 9270";
 const char iwl9461_name[] = "Intel(R) Wireless-AC 9461";
 const char iwl9462_name[] = "Intel(R) Wireless-AC 9462";
