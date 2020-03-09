@@ -884,6 +884,7 @@
 			rcar_sound,ssi {
 				ssi0: ssi-0 { };
 				ssi1: ssi-1 { };
+				ssi2: ssi-2 { };
 			};
 		};
 
