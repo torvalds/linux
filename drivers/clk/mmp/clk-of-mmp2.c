@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2012 Marvell
  * Chao Xie <xiechao.mail@gmail.com>
+ * Copyright (C) 2020 Lubomir Rintel <lkundrak@v3.sk>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -55,7 +56,11 @@
 #define APMU_CCIC1	0xf4
 #define APMU_USBHSIC0	0xf8
 #define APMU_USBHSIC1	0xfc
+
+#define MPMU_FCCR	0x8
+#define MPMU_POSR	0x10
 #define MPMU_UART_PLL	0x14
+#define MPMU_PLL2_CR	0x34
 
 struct mmp2_clk_unit {
 	struct mmp_clk_unit unit;
@@ -67,9 +72,12 @@ struct mmp2_clk_unit {
 static struct mmp_param_fixed_rate_clk fixed_rate_clks[] = {
 	{MMP2_CLK_CLK32, "clk32", NULL, 0, 32768},
 	{MMP2_CLK_VCTCXO, "vctcxo", NULL, 0, 26000000},
-	{MMP2_CLK_PLL1, "pll1", NULL, 0, 800000000},
-	{MMP2_CLK_PLL2, "pll2", NULL, 0, 960000000},
 	{MMP2_CLK_USB_PLL, "usb_pll", NULL, 0, 480000000},
+};
+
+static struct mmp_param_pll_clk pll_clks[] = {
+	{MMP2_CLK_PLL1,   "pll1",   797330000, MPMU_FCCR,          0x4000, MPMU_POSR,     0},
+	{MMP2_CLK_PLL2,   "pll2",           0, MPMU_PLL2_CR,       0x0300, MPMU_PLL2_CR, 10},
 };
 
 static struct mmp_param_fixed_factor_clk fixed_factor_clks[] = {
@@ -112,6 +120,10 @@ static void mmp2_pll_init(struct mmp2_clk_unit *pxa_unit)
 
 	mmp_register_fixed_rate_clks(unit, fixed_rate_clks,
 					ARRAY_SIZE(fixed_rate_clks));
+
+	mmp_register_pll_clks(unit, pll_clks,
+				pxa_unit->mpmu_base,
+				ARRAY_SIZE(pll_clks));
 
 	mmp_register_fixed_factor_clks(unit, fixed_factor_clks,
 					ARRAY_SIZE(fixed_factor_clks));
