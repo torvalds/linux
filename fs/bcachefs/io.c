@@ -1222,7 +1222,8 @@ void bch2_write(struct closure *cl)
 
 	if (c->opts.nochanges ||
 	    !percpu_ref_tryget(&c->writes)) {
-		__bcache_io_error(c, "read only");
+		if (!(op->flags & BCH_WRITE_FROM_INTERNAL))
+			__bcache_io_error(c, "read only");
 		op->error = -EROFS;
 		goto err;
 	}

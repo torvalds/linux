@@ -242,7 +242,8 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 	m->op.flags |= BCH_WRITE_ONLY_SPECIFIED_DEVS|
 		BCH_WRITE_PAGES_STABLE|
 		BCH_WRITE_PAGES_OWNED|
-		BCH_WRITE_DATA_ENCODED;
+		BCH_WRITE_DATA_ENCODED|
+		BCH_WRITE_FROM_INTERNAL;
 
 	m->op.nr_replicas	= 1;
 	m->op.nr_replicas_required = 1;
