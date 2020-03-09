@@ -2656,7 +2656,7 @@ static int nvme_pci_get_address(struct nvme_ctrl *ctrl, char *buf, int size)
 {
 	struct pci_dev *pdev = to_pci_dev(to_nvme_dev(ctrl)->dev);
 
-	return snprintf(buf, size, "%s", dev_name(&pdev->dev));
+	return snprintf(buf, size, "%s\n", dev_name(&pdev->dev));
 }
 
 static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
