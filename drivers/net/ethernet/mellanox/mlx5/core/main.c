@@ -1235,7 +1235,7 @@ function_teardown:
 	return err;
 }
 
-int mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
+void mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
 {
 	if (cleanup) {
 		mlx5_unregister_device(dev);
@@ -1264,7 +1264,6 @@ int mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
 	mlx5_function_teardown(dev, cleanup);
 out:
 	mutex_unlock(&dev->intf_state_mutex);
-	return 0;
 }
 
 static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
@@ -1385,12 +1384,7 @@ static void remove_one(struct pci_dev *pdev)
 	mlx5_crdump_disable(dev);
 	mlx5_devlink_unregister(devlink);
 
-	if (mlx5_unload_one(dev, true)) {
-		mlx5_core_err(dev, "mlx5_unload_one failed\n");
-		mlx5_health_flush(dev);
-		return;
-	}
-
+	mlx5_unload_one(dev, true);
 	mlx5_pci_close(dev);
 	mlx5_mdev_uninit(dev);
 	mlx5_devlink_free(devlink);
