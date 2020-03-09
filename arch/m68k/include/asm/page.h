@@ -22,15 +22,25 @@
  * These are used to make use of C type-checking..
  */
 #if !defined(CONFIG_MMU) || CONFIG_PGTABLE_LEVELS == 3
-typedef struct { unsigned long pmd[16]; } pmd_t;
-#define pmd_val(x)	((&x)->pmd[0])
-#define __pmd(x)	((pmd_t) { { (x) }, })
+typedef struct { unsigned long pmd; } pmd_t;
+#define pmd_val(x)	((&x)->pmd)
+#define __pmd(x)	((pmd_t) { (x) } )
 #endif
 
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+
+#if defined(CONFIG_SUN3)
+/*
+ * Sun3 still uses the asm-generic/pgalloc.h code and thus needs this
+ * definition. It would be possible to unify Sun3 and ColdFire pgalloc and have
+ * all of m68k use the same type.
+ */
 typedef struct page *pgtable_t;
+#else
+typedef pte_t *pgtable_t;
+#endif
 
 #define pte_val(x)	((x).pte)
 #define pgd_val(x)	((x).pgd)
