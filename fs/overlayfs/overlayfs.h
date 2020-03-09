@@ -87,7 +87,7 @@ struct ovl_fb {
 	u8 flags;	/* OVL_FH_FLAG_* */
 	u8 type;	/* fid_type of fid */
 	uuid_t uuid;	/* uuid of filesystem */
-	u32 fid[0];	/* file identifier should be 32bit aligned in-memory */
+	u32 fid[];	/* file identifier should be 32bit aligned in-memory */
 } __packed;
 
 /* In-memory and on-wire format for overlay file handle */
