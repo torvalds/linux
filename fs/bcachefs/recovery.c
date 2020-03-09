@@ -417,15 +417,17 @@ static int __bch2_journal_replay_key(struct btree_trans *trans,
 				     enum btree_id id, struct bkey_i *k)
 {
 	struct btree_iter *iter;
+	int ret;
 
 	iter = bch2_trans_get_iter(trans, id, bkey_start_pos(&k->k),
 				   BTREE_ITER_INTENT);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
-	bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
+	ret   = bch2_btree_iter_traverse(iter) ?:
+		bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
 	bch2_trans_iter_put(trans, iter);
-	return 0;
+	return ret;
 }
 
 static int bch2_journal_replay_key(struct bch_fs *c, enum btree_id id,
