@@ -1033,7 +1033,6 @@
 		reset-names = "axi", "ahb", "dclk";
 		iommus = <&vopb_mmu>;
 		power-domains = <&power PX30_PD_VO>;
-		rockchip,grf = <&grf>;
 		status = "disabled";
 
 		vopb_out: port {
@@ -1075,7 +1074,6 @@
 		reset-names = "axi", "ahb", "dclk";
 		iommus = <&vopl_mmu>;
 		power-domains = <&power PX30_PD_VO>;
-		rockchip,grf = <&grf>;
 		status = "disabled";
 
 		vopl_out: port {
