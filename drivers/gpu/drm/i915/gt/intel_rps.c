@@ -727,6 +727,7 @@ void intel_rps_unpark(struct intel_rps *rps)
 	freq = max(rps->cur_freq, rps->efficient_freq),
 	freq = clamp(freq, rps->min_freq_softlimit, rps->max_freq_softlimit);
 	intel_rps_set(rps, freq);
+
 	rps->last_adj = 0;
 
 	mutex_unlock(&rps->lock);
