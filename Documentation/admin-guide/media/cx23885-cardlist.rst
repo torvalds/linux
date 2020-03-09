@@ -261,3 +261,7 @@ cx23885 cards list
    * - 61
      - Hauppauge WinTV-QuadHD-ATSC(885)
      -
+
+   * - 62
+     - AVerMedia CE310B
+     - 1461:3100

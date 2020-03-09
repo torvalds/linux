@@ -377,3 +377,7 @@ CX88 cards list
    * - 90
      - Leadtek TV2000 XP Global (XC4100)
      - 107d:6f43
+
+   * - 91
+     - NotOnlyTV LV3H
+     -

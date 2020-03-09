@@ -393,7 +393,7 @@ EM28xx cards list
    * - 94
      - PCTV tripleStick (292e)
      - em28178
-     - 2013:025f, 2013:0264, 2040:0264, 2040:8264, 2040:8268, 2040:8268
+     - 2013:025f, 2013:0264, 2040:0264, 2040:8264, 2040:8268
    * - 95
      - Leadtek VC100
      - em2861
@@ -426,3 +426,7 @@ EM28xx cards list
      - :ZOLID HYBRID TV STICK
      - em2882
      -
+   * - 103
+     - Magix USB Videowandler-2
+     - em2861
+     - 1b80:e349
