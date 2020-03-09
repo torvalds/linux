@@ -54,6 +54,10 @@
 #define APMU_DISP1	0x110
 #define APMU_CCIC0	0x50
 #define APMU_CCIC1	0xf4
+#define APBC_THERMAL0	0x90
+#define APBC_THERMAL1	0x98
+#define APBC_THERMAL2	0x9c
+#define APBC_THERMAL3	0xa0
 #define APMU_USBHSIC0	0xf8
 #define APMU_USBHSIC1	0xfc
 #define APMU_GPU	0xcc
@@ -215,6 +219,13 @@ static struct mmp_param_gate_clk apbc_gate_clks[] = {
 	{MMP2_CLK_SSP2, "ssp2_clk", "ssp2_mux", CLK_SET_RATE_PARENT, APBC_SSP2, 0x7, 0x3, 0x0, 0, &ssp2_lock},
 	{MMP2_CLK_SSP3, "ssp3_clk", "ssp3_mux", CLK_SET_RATE_PARENT, APBC_SSP3, 0x7, 0x3, 0x0, 0, &ssp3_lock},
 	{MMP2_CLK_TIMER, "timer_clk", "timer_mux", CLK_SET_RATE_PARENT, APBC_TIMER, 0x7, 0x3, 0x0, 0, &timer_lock},
+	{MMP2_CLK_THERMAL0, "thermal0_clk", "vctcxo", CLK_SET_RATE_PARENT, APBC_THERMAL0, 0x7, 0x3, 0x0, MMP_CLK_GATE_NEED_DELAY, &reset_lock},
+};
+
+static struct mmp_param_gate_clk mmp3_apbc_gate_clks[] = {
+	{MMP3_CLK_THERMAL1, "thermal1_clk", "vctcxo", CLK_SET_RATE_PARENT, APBC_THERMAL1, 0x7, 0x3, 0x0, MMP_CLK_GATE_NEED_DELAY, &reset_lock},
+	{MMP3_CLK_THERMAL2, "thermal2_clk", "vctcxo", CLK_SET_RATE_PARENT, APBC_THERMAL2, 0x7, 0x3, 0x0, MMP_CLK_GATE_NEED_DELAY, &reset_lock},
+	{MMP3_CLK_THERMAL3, "thermal3_clk", "vctcxo", CLK_SET_RATE_PARENT, APBC_THERMAL3, 0x7, 0x3, 0x0, MMP_CLK_GATE_NEED_DELAY, &reset_lock},
 };
 
 static void mmp2_apb_periph_clk_init(struct mmp2_clk_unit *pxa_unit)
@@ -226,6 +237,11 @@ static void mmp2_apb_periph_clk_init(struct mmp2_clk_unit *pxa_unit)
 
 	mmp_register_gate_clks(unit, apbc_gate_clks, pxa_unit->apbc_base,
 				ARRAY_SIZE(apbc_gate_clks));
+
+	if (pxa_unit->model == CLK_MODEL_MMP3) {
+		mmp_register_gate_clks(unit, mmp3_apbc_gate_clks, pxa_unit->apbc_base,
+					ARRAY_SIZE(mmp3_apbc_gate_clks));
+	}
 }
 
 static DEFINE_SPINLOCK(sdh_lock);
