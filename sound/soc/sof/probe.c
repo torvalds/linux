@@ -95,13 +95,17 @@ static int sof_ipc_probe_info(struct snd_sof_dev *sdev, unsigned int cmd,
 	if (!reply->num_elems)
 		goto exit;
 
-	bytes = reply->num_elems * sizeof(reply->dma[0]);
+	if (cmd == SOF_IPC_PROBE_DMA_INFO)
+		bytes = sizeof(reply->dma[0]);
+	else
+		bytes = sizeof(reply->desc[0]);
+	bytes *= reply->num_elems;
 	*params = kmemdup(&reply->dma[0], bytes, GFP_KERNEL);
 	if (!*params) {
 		ret = -ENOMEM;
 		goto exit;
 	}
-	*num_params = msg.num_elems;
+	*num_params = reply->num_elems;
 
 exit:
 	kfree(reply);
