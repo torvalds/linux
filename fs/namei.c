@@ -3128,10 +3128,7 @@ static const char *open_last_lookups(struct nameidata *nd,
 	if (nd->last_type != LAST_NORM) {
 		if (nd->depth)
 			put_link(nd);
-		res = handle_dots(nd, nd->last_type);
-		if (likely(!res))
-			res = ERR_PTR(complete_walk(nd));
-		return res;
+		return handle_dots(nd, nd->last_type);
 	}
 
 	if (!(open_flag & O_CREAT)) {
@@ -3196,13 +3193,9 @@ finish_lookup:
 	if (nd->depth)
 		put_link(nd);
 	res = step_into(nd, WALK_TRAILING, dentry, inode, seq);
-	if (unlikely(res)) {
+	if (unlikely(res))
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
-		return res;
-	}
-
-	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
-	return ERR_PTR(complete_walk(nd));
+	return res;
 }
 
 /*
@@ -3216,6 +3209,11 @@ static int do_open(struct nameidata *nd,
 	int acc_mode;
 	int error;
 
+	if (!(file->f_mode & (FMODE_OPENED | FMODE_CREATED))) {
+		error = complete_walk(nd);
+		if (error)
+			return error;
+	}
 	if (!(file->f_mode & FMODE_CREATED))
 		audit_inode(nd->name, nd->path.dentry, 0);
 	if (open_flag & O_CREAT) {
