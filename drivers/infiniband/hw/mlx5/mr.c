@@ -81,10 +81,10 @@ mlx5_ib_create_mkey_cb(struct mlx5_ib_dev *dev,
 		       u32 *in, int inlen, u32 *out, int outlen,
 		       struct mlx5_async_work *context)
 {
+	MLX5_SET(create_mkey_in, in, opcode, MLX5_CMD_OP_CREATE_MKEY);
 	assign_mkey_variant(dev, mkey, in);
-	return mlx5_core_create_mkey_cb(dev->mdev, mkey, async_ctx,
-					in, inlen, out, outlen,
-					create_mkey_callback, context);
+	return mlx5_cmd_exec_cb(async_ctx, in, inlen, out, outlen,
+				create_mkey_callback, context);
 }
 
 static void clean_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
