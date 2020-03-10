@@ -3889,6 +3889,7 @@ static inline void rtl8169_mark_to_asic(struct RxDesc *desc)
 {
 	u32 eor = le32_to_cpu(desc->opts1) & RingEnd;
 
+	desc->opts2 = 0;
 	/* Force memory writes to complete before releasing descriptor */
 	dma_wmb();
 
@@ -4543,7 +4544,6 @@ process_pkt:
 			u64_stats_update_end(&tp->rx_stats.syncp);
 		}
 release_descriptor:
-		desc->opts2 = 0;
 		rtl8169_mark_to_asic(desc);
 	}
 
