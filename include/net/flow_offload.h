@@ -300,9 +300,10 @@ flow_action_first_entry_get(const struct flow_action *action)
 }
 
 static inline bool
-flow_action_hw_stats_types_check(const struct flow_action *action,
-				 struct netlink_ext_ack *extack,
-				 u8 allowed_hw_stats_type)
+__flow_action_hw_stats_types_check(const struct flow_action *action,
+				   struct netlink_ext_ack *extack,
+				   bool check_allow_bit,
+				   enum flow_action_hw_stats_type_bit allow_bit)
 {
 	const struct flow_action_entry *action_entry;
 
@@ -311,12 +312,12 @@ flow_action_hw_stats_types_check(const struct flow_action *action,
 	if (!flow_action_mixed_hw_stats_types_check(action, extack))
 		return false;
 	action_entry = flow_action_first_entry_get(action);
-	if (allowed_hw_stats_type == 0 &&
+	if (!check_allow_bit &&
 	    action_entry->hw_stats_type != FLOW_ACTION_HW_STATS_TYPE_ANY) {
 		NL_SET_ERR_MSG_MOD(extack, "Driver supports only default HW stats type \"any\"");
 		return false;
-	} else if (allowed_hw_stats_type != 0 &&
-		   !(action_entry->hw_stats_type & allowed_hw_stats_type)) {
+	} else if (check_allow_bit &&
+		   !(action_entry->hw_stats_type & BIT(allow_bit))) {
 		NL_SET_ERR_MSG_MOD(extack, "Driver does not support selected HW stats type");
 		return false;
 	}
@@ -324,10 +325,19 @@ flow_action_hw_stats_types_check(const struct flow_action *action,
 }
 
 static inline bool
+flow_action_hw_stats_types_check(const struct flow_action *action,
+				 struct netlink_ext_ack *extack,
+				 enum flow_action_hw_stats_type_bit allow_bit)
+{
+	return __flow_action_hw_stats_types_check(action, extack,
+						  true, allow_bit);
+}
+
+static inline bool
 flow_action_basic_hw_stats_types_check(const struct flow_action *action,
 				       struct netlink_ext_ack *extack)
 {
-	return flow_action_hw_stats_types_check(action, extack, 0);
+	return __flow_action_hw_stats_types_check(action, extack, false, 0);
 }
 
 struct flow_rule {
