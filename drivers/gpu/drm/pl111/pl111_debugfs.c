@@ -51,12 +51,10 @@ static const struct drm_info_list pl111_debugfs_list[] = {
 	{"regs", pl111_debugfs_regs, 0},
 };
 
-int
+void
 pl111_debugfs_init(struct drm_minor *minor)
 {
 	drm_debugfs_create_files(pl111_debugfs_list,
 				 ARRAY_SIZE(pl111_debugfs_list),
 				 minor->debugfs_root, minor);
-
-	return 0;
 }

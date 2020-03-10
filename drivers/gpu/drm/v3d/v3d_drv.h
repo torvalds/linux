@@ -316,7 +316,7 @@ struct drm_gem_object *v3d_prime_import_sg_table(struct drm_device *dev,
 						 struct sg_table *sgt);
 
 /* v3d_debugfs.c */
-int v3d_debugfs_init(struct drm_minor *minor);
+void v3d_debugfs_init(struct drm_minor *minor);
 
 /* v3d_fence.c */
 extern const struct dma_fence_ops v3d_fence_ops;

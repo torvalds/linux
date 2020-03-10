@@ -207,7 +207,6 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 {
 	struct drm_device *dev = minor->dev;
 	char name[64];
-	int ret;
 
 	INIT_LIST_HEAD(&minor->debugfs_list);
 	mutex_init(&minor->debugfs_lock);
@@ -227,14 +226,9 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		drm_client_debugfs_init(minor);
 	}
 
-	if (dev->driver->debugfs_init) {
-		ret = dev->driver->debugfs_init(minor);
-		if (ret) {
-			DRM_ERROR("DRM: Driver failed to initialize "
-				  "/sys/kernel/debug/dri.\n");
-			return ret;
-		}
-	}
+	if (dev->driver->debugfs_init)
+		dev->driver->debugfs_init(minor);
+
 	return 0;
 }
 

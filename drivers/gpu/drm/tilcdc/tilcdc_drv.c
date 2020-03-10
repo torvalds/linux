@@ -478,7 +478,7 @@ static struct drm_info_list tilcdc_debugfs_list[] = {
 		{ "mm",   tilcdc_mm_show,   0 },
 };
 
-static int tilcdc_debugfs_init(struct drm_minor *minor)
+static void tilcdc_debugfs_init(struct drm_minor *minor)
 {
 	struct tilcdc_module *mod;
 
@@ -489,8 +489,6 @@ static int tilcdc_debugfs_init(struct drm_minor *minor)
 	list_for_each_entry(mod, &module_list, list)
 		if (mod->funcs->debugfs_init)
 			mod->funcs->debugfs_init(mod, minor);
-
-	return 0;
 }
 #endif
 

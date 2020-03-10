@@ -839,12 +839,11 @@ static struct drm_info_list tegra_debugfs_list[] = {
 	{ "iova", tegra_debugfs_iova, 0 },
 };
 
-static int tegra_debugfs_init(struct drm_minor *minor)
+static void tegra_debugfs_init(struct drm_minor *minor)
 {
 	drm_debugfs_create_files(tegra_debugfs_list,
 				 ARRAY_SIZE(tegra_debugfs_list),
 				 minor->debugfs_root, minor);
-	return 0;
 }
 #endif
 

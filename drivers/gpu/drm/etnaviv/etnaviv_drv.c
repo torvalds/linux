@@ -231,13 +231,11 @@ static struct drm_info_list etnaviv_debugfs_list[] = {
 		{"ring", show_each_gpu, 0, etnaviv_ring_show},
 };
 
-static int etnaviv_debugfs_init(struct drm_minor *minor)
+static void etnaviv_debugfs_init(struct drm_minor *minor)
 {
 	drm_debugfs_create_files(etnaviv_debugfs_list,
 				 ARRAY_SIZE(etnaviv_debugfs_list),
 				 minor->debugfs_root, minor);
-
-	return 0;
 }
 #endif
 

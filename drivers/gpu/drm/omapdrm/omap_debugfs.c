@@ -80,7 +80,7 @@ static struct drm_info_list omap_dmm_debugfs_list[] = {
 	{"tiler_map", tiler_map_show, 0},
 };
 
-int omap_debugfs_init(struct drm_minor *minor)
+void omap_debugfs_init(struct drm_minor *minor)
 {
 	drm_debugfs_create_files(omap_debugfs_list,
 				 ARRAY_SIZE(omap_debugfs_list),
@@ -90,8 +90,6 @@ int omap_debugfs_init(struct drm_minor *minor)
 		drm_debugfs_create_files(omap_dmm_debugfs_list,
 					 ARRAY_SIZE(omap_dmm_debugfs_list),
 					 minor->debugfs_root, minor);
-
-	return 0;
 }
 
 #endif

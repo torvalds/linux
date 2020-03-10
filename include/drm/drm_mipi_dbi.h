@@ -192,7 +192,7 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 })
 
 #ifdef CONFIG_DEBUG_FS
-int mipi_dbi_debugfs_init(struct drm_minor *minor);
+void mipi_dbi_debugfs_init(struct drm_minor *minor);
 #else
 #define mipi_dbi_debugfs_init		NULL
 #endif

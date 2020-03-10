@@ -323,7 +323,7 @@ struct drm_driver {
 	 *
 	 * Allows drivers to create driver-specific debugfs files.
 	 */
-	int (*debugfs_init)(struct drm_minor *minor);
+	void (*debugfs_init)(struct drm_minor *minor);
 
 	/**
 	 * @gem_free_object: deconstructor for drm_gem_objects

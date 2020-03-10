@@ -190,9 +190,6 @@ struct qxl_debugfs {
 	unsigned int num_files;
 };
 
-int qxl_debugfs_add_files(struct qxl_device *rdev,
-			     struct drm_info_list *files,
-			     unsigned int nfiles);
 int qxl_debugfs_fence_init(struct qxl_device *rdev);
 
 struct qxl_device;
@@ -442,8 +439,8 @@ int qxl_garbage_collect(struct qxl_device *qdev);
 
 /* debugfs */
 
-int qxl_debugfs_init(struct drm_minor *minor);
-int qxl_ttm_debugfs_init(struct qxl_device *qdev);
+void qxl_debugfs_init(struct drm_minor *minor);
+void qxl_ttm_debugfs_init(struct qxl_device *qdev);
 
 /* qxl_prime.c */
 int qxl_gem_prime_pin(struct drm_gem_object *obj);
@@ -461,9 +458,9 @@ int qxl_gem_prime_mmap(struct drm_gem_object *obj,
 int qxl_irq_init(struct qxl_device *qdev);
 irqreturn_t qxl_irq_handler(int irq, void *arg);
 
-int qxl_debugfs_add_files(struct qxl_device *qdev,
-			  struct drm_info_list *files,
-			  unsigned int nfiles);
+void qxl_debugfs_add_files(struct qxl_device *qdev,
+			   struct drm_info_list *files,
+			   unsigned int nfiles);
 
 int qxl_surface_id_alloc(struct qxl_device *qdev,
 			 struct qxl_bo *surf);

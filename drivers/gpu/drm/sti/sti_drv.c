@@ -92,7 +92,7 @@ static struct drm_info_list sti_drm_dbg_list[] = {
 	{"fps_get", sti_drm_fps_dbg_show, 0},
 };
 
-static int sti_drm_dbg_init(struct drm_minor *minor)
+static void sti_drm_dbg_init(struct drm_minor *minor)
 {
 	drm_debugfs_create_files(sti_drm_dbg_list,
 				 ARRAY_SIZE(sti_drm_dbg_list),
@@ -102,7 +102,6 @@ static int sti_drm_dbg_init(struct drm_minor *minor)
 			    minor->dev, &sti_drm_fps_fops);
 
 	DRM_INFO("%s: debugfs installed\n", DRIVER_NAME);
-	return 0;
 }
 
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {

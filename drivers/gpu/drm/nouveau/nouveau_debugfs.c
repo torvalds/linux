@@ -217,7 +217,7 @@ static const struct nouveau_debugfs_files {
 	{"pstate", &nouveau_pstate_fops},
 };
 
-int
+void
 nouveau_drm_debugfs_init(struct drm_minor *minor)
 {
 	struct nouveau_drm *drm = nouveau_drm(minor->dev);
@@ -240,12 +240,10 @@ nouveau_drm_debugfs_init(struct drm_minor *minor)
 	 */
 	dentry = debugfs_lookup("vbios.rom", minor->debugfs_root);
 	if (!dentry)
-		return 0;
+		return;
 
 	d_inode(dentry)->i_size = drm->vbios.length;
 	dput(dentry);
-
-	return 0;
 }
 
 int
