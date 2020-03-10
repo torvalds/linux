@@ -3147,15 +3147,11 @@ static const char *open_last_lookups(struct nameidata *nd,
 		BUG_ON(nd->flags & LOOKUP_RCU);
 	} else {
 		/* create side of things */
-		/*
-		 * This will *only* deal with leaving RCU mode - LOOKUP_JUMPED
-		 * has been cleared when we got to the last component we are
-		 * about to look up
-		 */
-		error = complete_walk(nd);
-		if (unlikely(error))
-			return ERR_PTR(error);
-
+		if (nd->flags & LOOKUP_RCU) {
+			error = unlazy_walk(nd);
+			if (unlikely(error))
+				return ERR_PTR(error);
+		}
 		audit_inode(nd->name, dir, AUDIT_INODE_PARENT);
 		/* trailing slashes? */
 		if (unlikely(nd->last.name[nd->last.len]))
