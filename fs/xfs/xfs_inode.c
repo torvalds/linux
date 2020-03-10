@@ -2117,7 +2117,7 @@ xfs_iunlink_update_bucket(
 	unsigned int		bucket_index,
 	xfs_agino_t		new_agino)
 {
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(agibp);
+	struct xfs_agi		*agi = agibp->b_addr;
 	xfs_agino_t		old_value;
 	int			offset;
 
@@ -2257,7 +2257,7 @@ xfs_iunlink(
 	error = xfs_read_agi(mp, tp, agno, &agibp);
 	if (error)
 		return error;
-	agi = XFS_BUF_TO_AGI(agibp);
+	agi = agibp->b_addr;
 
 	/*
 	 * Get the index into the agi hash table for the list this inode will
@@ -2441,7 +2441,7 @@ xfs_iunlink_remove(
 	error = xfs_read_agi(mp, tp, agno, &agibp);
 	if (error)
 		return error;
-	agi = XFS_BUF_TO_AGI(agibp);
+	agi = agibp->b_addr;
 
 	/*
 	 * Get the index into the agi hash table for the list this inode will

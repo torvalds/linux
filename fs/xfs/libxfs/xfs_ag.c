@@ -312,7 +312,7 @@ xfs_agiblock_init(
 	struct xfs_buf		*bp,
 	struct aghdr_init_data	*id)
 {
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(bp);
+	struct xfs_agi		*agi = bp->b_addr;
 	int			bucket;
 
 	agi->agi_magicnum = cpu_to_be32(XFS_AGI_MAGIC);
@@ -502,7 +502,7 @@ xfs_ag_extend_space(
 	if (error)
 		return error;
 
-	agi = XFS_BUF_TO_AGI(bp);
+	agi = bp->b_addr;
 	be32_add_cpu(&agi->agi_length, len);
 	ASSERT(id->agno == mp->m_sb.sb_agcount - 1 ||
 	       be32_to_cpu(agi->agi_length) == mp->m_sb.sb_agblocks);
@@ -569,7 +569,7 @@ xfs_ag_get_geometry(
 	memset(ageo, 0, sizeof(*ageo));
 	ageo->ag_number = agno;
 
-	agi = XFS_BUF_TO_AGI(agi_bp);
+	agi = agi_bp->b_addr;
 	ageo->ag_icount = be32_to_cpu(agi->agi_count);
 	ageo->ag_ifree = be32_to_cpu(agi->agi_freecount);
 

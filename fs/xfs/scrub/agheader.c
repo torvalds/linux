@@ -765,7 +765,7 @@ static inline void
 xchk_agi_xref_icounts(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
+	struct xfs_agi		*agi = sc->sa.agi_bp->b_addr;
 	xfs_agino_t		icount;
 	xfs_agino_t		freecount;
 	int			error;
@@ -834,7 +834,7 @@ xchk_agi(
 		goto out;
 	xchk_buffer_recheck(sc, sc->sa.agi_bp);
 
-	agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
+	agi = sc->sa.agi_bp->b_addr;
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agi->agi_length);

@@ -45,7 +45,7 @@ xfs_inobt_set_root(
 	int			inc)	/* level change */
 {
 	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(agbp);
+	struct xfs_agi		*agi = agbp->b_addr;
 
 	agi->agi_root = nptr->s;
 	be32_add_cpu(&agi->agi_level, inc);
@@ -59,7 +59,7 @@ xfs_finobt_set_root(
 	int			inc)	/* level change */
 {
 	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(agbp);
+	struct xfs_agi		*agi = agbp->b_addr;
 
 	agi->agi_free_root = nptr->s;
 	be32_add_cpu(&agi->agi_free_level, inc);
@@ -212,7 +212,7 @@ xfs_inobt_init_ptr_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr)
 {
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(cur->bc_private.a.agbp);
+	struct xfs_agi		*agi = cur->bc_private.a.agbp->b_addr;
 
 	ASSERT(cur->bc_private.a.agno == be32_to_cpu(agi->agi_seqno));
 
@@ -224,7 +224,7 @@ xfs_finobt_init_ptr_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr)
 {
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(cur->bc_private.a.agbp);
+	struct xfs_agi		*agi = cur->bc_private.a.agbp->b_addr;
 
 	ASSERT(cur->bc_private.a.agno == be32_to_cpu(agi->agi_seqno));
 	ptr->s = agi->agi_free_root;
@@ -410,7 +410,7 @@ xfs_inobt_init_cursor(
 	xfs_agnumber_t		agno,		/* allocation group number */
 	xfs_btnum_t		btnum)		/* ialloc or free ino btree */
 {
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(agbp);
+	struct xfs_agi		*agi = agbp->b_addr;
 	struct xfs_btree_cur	*cur;
 
 	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_NOFS);

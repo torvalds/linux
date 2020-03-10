@@ -4947,7 +4947,7 @@ xlog_recover_clear_agi_bucket(
 	if (error)
 		goto out_abort;
 
-	agi = XFS_BUF_TO_AGI(agibp);
+	agi = agibp->b_addr;
 	agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
 		 (sizeof(xfs_agino_t) * bucket);
@@ -5083,7 +5083,7 @@ xlog_recover_process_iunlinks(
 		 * buffer reference though, so that it stays pinned in memory
 		 * while we need the buffer.
 		 */
-		agi = XFS_BUF_TO_AGI(agibp);
+		agi = agibp->b_addr;
 		xfs_buf_unlock(agibp);
 
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++) {
@@ -5840,7 +5840,7 @@ xlog_recover_check_summary(
 			xfs_alert(mp, "%s agi read failed agno %d error %d",
 						__func__, agno, error);
 		} else {
-			struct xfs_agi	*agi = XFS_BUF_TO_AGI(agibp);
+			struct xfs_agi	*agi = agibp->b_addr;
 
 			itotal += be32_to_cpu(agi->agi_count);
 			ifree += be32_to_cpu(agi->agi_freecount);
