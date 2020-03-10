@@ -6582,9 +6582,6 @@ int qeth_open(struct net_device *dev)
 
 	QETH_CARD_TEXT(card, 4, "qethopen");
 
-	if (qdio_stop_irq(CARD_DDEV(card), 0) < 0)
-		return -EIO;
-
 	card->data.state = CH_STATE_UP;
 	netif_tx_start_all_queues(dev);
 
@@ -6634,6 +6631,8 @@ int qeth_stop(struct net_device *dev)
 	}
 
 	napi_disable(&card->napi);
+	qdio_stop_irq(CARD_DDEV(card), 0);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qeth_stop);
