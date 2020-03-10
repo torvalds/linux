@@ -135,12 +135,12 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	cmpb $0, %bl
 
 	/* Load guest registers.  Don't clobber flags. */
-	mov VCPU_RBX(%_ASM_AX), %_ASM_BX
 	mov VCPU_RCX(%_ASM_AX), %_ASM_CX
 	mov VCPU_RDX(%_ASM_AX), %_ASM_DX
+	mov VCPU_RBX(%_ASM_AX), %_ASM_BX
+	mov VCPU_RBP(%_ASM_AX), %_ASM_BP
 	mov VCPU_RSI(%_ASM_AX), %_ASM_SI
 	mov VCPU_RDI(%_ASM_AX), %_ASM_DI
-	mov VCPU_RBP(%_ASM_AX), %_ASM_BP
 #ifdef CONFIG_X86_64
 	mov VCPU_R8 (%_ASM_AX),  %r8
 	mov VCPU_R9 (%_ASM_AX),  %r9
@@ -168,12 +168,12 @@ SYM_FUNC_START(__vmx_vcpu_run)
 
 	/* Save all guest registers, including RAX from the stack */
 	__ASM_SIZE(pop) VCPU_RAX(%_ASM_AX)
-	mov %_ASM_BX,   VCPU_RBX(%_ASM_AX)
 	mov %_ASM_CX,   VCPU_RCX(%_ASM_AX)
 	mov %_ASM_DX,   VCPU_RDX(%_ASM_AX)
+	mov %_ASM_BX,   VCPU_RBX(%_ASM_AX)
+	mov %_ASM_BP,   VCPU_RBP(%_ASM_AX)
 	mov %_ASM_SI,   VCPU_RSI(%_ASM_AX)
 	mov %_ASM_DI,   VCPU_RDI(%_ASM_AX)
-	mov %_ASM_BP,   VCPU_RBP(%_ASM_AX)
 #ifdef CONFIG_X86_64
 	mov %r8,  VCPU_R8 (%_ASM_AX)
 	mov %r9,  VCPU_R9 (%_ASM_AX)
@@ -197,12 +197,12 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	 * free.  RSP and RAX are exempt as RSP is restored by hardware during
 	 * VM-Exit and RAX is explicitly loaded with 0 or 1 to return VM-Fail.
 	 */
-1:	xor %ebx, %ebx
-	xor %ecx, %ecx
+1:	xor %ecx, %ecx
 	xor %edx, %edx
+	xor %ebx, %ebx
+	xor %ebp, %ebp
 	xor %esi, %esi
 	xor %edi, %edi
-	xor %ebp, %ebp
 #ifdef CONFIG_X86_64
 	xor %r8d,  %r8d
 	xor %r9d,  %r9d
