@@ -21,7 +21,6 @@
  *
  */
 
-#include "pp_debug.h"
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
