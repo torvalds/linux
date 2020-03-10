@@ -109,7 +109,6 @@ needed).
    isdn/index
    infiniband/index
    leds/index
-   media/index
    netlabel/index
    networking/index
    pcmcia/index
