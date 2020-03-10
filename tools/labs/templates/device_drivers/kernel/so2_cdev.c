@@ -19,7 +19,7 @@ MODULE_DESCRIPTION("SO2 character device");
 MODULE_AUTHOR("SO2");
 MODULE_LICENSE("GPL");
 
-#define LOG_LEVEL	KERN_DEBUG
+#define LOG_LEVEL	KERN_INFO
 
 #define MY_MAJOR		42
 #define MY_MINOR		0
@@ -52,6 +52,9 @@ static int so2_cdev_open(struct inode *inode, struct file *file)
 {
 	struct so2_device_data *data;
 
+	/* TODO 2/1: print message when the device file is open. */
+	printk(LOG_LEVEL "open called!\n");
+
 	/* TODO 3/1: inode->i_cdev contains our cdev struct, use container_of to obtain a pointer to so2_device_data */
 	data = container_of(inode->i_cdev, struct so2_device_data, cdev);
 
@@ -70,6 +73,9 @@ static int so2_cdev_open(struct inode *inode, struct file *file)
 static int
 so2_cdev_release(struct inode *inode, struct file *file)
 {
+	/* TODO 2/1: print message when the device file is closed. */
+	printk(LOG_LEVEL "close called!\n");
+
 #ifndef EXTRA
 	struct so2_device_data *data =
 		(struct so2_device_data *) file->private_data;
@@ -173,11 +179,14 @@ so2_cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static const struct file_operations so2_fops = {
 	.owner = THIS_MODULE,
-/* TODO 2/4: add open, release, read, write functions */
+/* TODO 2/2: add open and release functions */
 	.open = so2_cdev_open,
 	.release = so2_cdev_release,
+/* TODO 4/1: add read function */
 	.read = so2_cdev_read,
+/* TODO 5/1: add write function */
 	.write = so2_cdev_write,
+/* TODO 6/1: add ioctl function */
 	.unlocked_ioctl = so2_cdev_ioctl,
 };
 
@@ -186,7 +195,7 @@ static int so2_cdev_init(void)
 	int err;
 	int i;
 
-        /* TODO 1/6: register char device region for MY_MAJOR and NUM_MINORS starting at MY_MINOR */
+	/* TODO 1/6: register char device region for MY_MAJOR and NUM_MINORS starting at MY_MINOR */
 	err = register_chrdev_region(MKDEV(MY_MAJOR, MY_MINOR),
 			NUM_MINORS, MODULE_NAME);
 	if (err != 0) {
