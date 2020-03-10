@@ -5809,7 +5809,6 @@ xlog_recover_check_summary(
 	struct xlog	*log)
 {
 	xfs_mount_t	*mp;
-	xfs_agf_t	*agfp;
 	xfs_buf_t	*agfbp;
 	xfs_buf_t	*agibp;
 	xfs_agnumber_t	agno;
@@ -5829,7 +5828,8 @@ xlog_recover_check_summary(
 			xfs_alert(mp, "%s agf read failed agno %d error %d",
 						__func__, agno, error);
 		} else {
-			agfp = XFS_BUF_TO_AGF(agfbp);
+			struct xfs_agf	*agfp = agfbp->b_addr;
+
 			freeblks += be32_to_cpu(agfp->agf_freeblks) +
 				    be32_to_cpu(agfp->agf_flcount);
 			xfs_buf_relse(agfbp);
