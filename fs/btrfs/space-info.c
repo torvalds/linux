@@ -389,6 +389,8 @@ again:
 							      space_info,
 							      ticket->bytes);
 			list_del_init(&ticket->list);
+			ASSERT(space_info->reclaim_size >= ticket->bytes);
+			space_info->reclaim_size -= ticket->bytes;
 			ticket->bytes = 0;
 			space_info->tickets_id++;
 			wake_up(&ticket->wait);
@@ -784,16 +786,12 @@ static inline u64
 btrfs_calc_reclaim_metadata_size(struct btrfs_fs_info *fs_info,
 				 struct btrfs_space_info *space_info)
 {
-	struct reserve_ticket *ticket;
 	u64 used;
 	u64 avail;
 	u64 expected;
-	u64 to_reclaim = 0;
+	u64 to_reclaim = space_info->reclaim_size;
 
-	list_for_each_entry(ticket, &space_info->tickets, list)
-		to_reclaim += ticket->bytes;
-	list_for_each_entry(ticket, &space_info->priority_tickets, list)
-		to_reclaim += ticket->bytes;
+	lockdep_assert_held(&space_info->lock);
 
 	avail = calc_available_free_space(fs_info, space_info,
 					  BTRFS_RESERVE_FLUSH_ALL);
@@ -1192,8 +1190,10 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	 * the list and we will do our own flushing further down.
 	 */
 	if (ret && flush != BTRFS_RESERVE_NO_FLUSH) {
+		ASSERT(space_info->reclaim_size >= 0);
 		ticket.bytes = orig_bytes;
 		ticket.error = 0;
+		space_info->reclaim_size += ticket.bytes;
 		init_waitqueue_head(&ticket.wait);
 		if (flush == BTRFS_RESERVE_FLUSH_ALL) {
 			list_add_tail(&ticket.list, &space_info->tickets);
