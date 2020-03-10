@@ -2427,9 +2427,9 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 
 	if (btrfs_header_backref_rev(root->node) <
 			BTRFS_MIXED_BACKREF_REV)
-		ret = btrfs_drop_snapshot(root, NULL, 0, 0);
+		ret = btrfs_drop_snapshot(root, 0, 0);
 	else
-		ret = btrfs_drop_snapshot(root, NULL, 1, 0);
+		ret = btrfs_drop_snapshot(root, 1, 0);
 
 	return (ret < 0) ? 0 : 1;
 }

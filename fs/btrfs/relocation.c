@@ -2276,7 +2276,7 @@ static int clean_dirty_subvols(struct reloc_control *rc)
 			root->reloc_root = NULL;
 			if (reloc_root) {
 
-				ret2 = btrfs_drop_snapshot(reloc_root, NULL, 0, 1);
+				ret2 = btrfs_drop_snapshot(reloc_root, 0, 1);
 				if (ret2 < 0 && !ret)
 					ret = ret2;
 			}
@@ -2289,7 +2289,7 @@ static int clean_dirty_subvols(struct reloc_control *rc)
 			btrfs_put_root(root);
 		} else {
 			/* Orphan reloc tree, just clean it up */
-			ret2 = btrfs_drop_snapshot(root, NULL, 0, 1);
+			ret2 = btrfs_drop_snapshot(root, 0, 1);
 			if (ret2 < 0 && !ret)
 				ret = ret2;
 		}
