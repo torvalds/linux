@@ -1812,10 +1812,14 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 				return r;
 			}
 		}
+	}
 
+	/* we need to send REQ_GPU here for legacy handshaker otherwise the vbios
+	 * will not be prepared by host for this VF */
+	if (amdgpu_sriov_vf(adev) && adev->virt.req_init_data_ver < 1) {
 		r = amdgpu_virt_request_full_gpu(adev, true);
 		if (r)
-			return -EAGAIN;
+			return r;
 	}
 
 	adev->pm.pp_feature = amdgpu_pp_feature_mask;
@@ -1974,6 +1978,12 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	r = amdgpu_ras_init(adev);
 	if (r)
 		return r;
+
+	if (amdgpu_sriov_vf(adev) && adev->virt.req_init_data_ver > 0) {
+		r = amdgpu_virt_request_full_gpu(adev, true);
+		if (r)
+			return -EAGAIN;
+	}
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
