@@ -111,8 +111,8 @@ static struct smu_12_0_cmn2aisc_mapping renoir_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(GFXCLK, CLOCK_GFXCLK),
 	CLK_MAP(SCLK,	CLOCK_GFXCLK),
 	CLK_MAP(SOCCLK, CLOCK_SOCCLK),
-	CLK_MAP(UCLK, CLOCK_UMCCLK),
-	CLK_MAP(MCLK, CLOCK_UMCCLK),
+	CLK_MAP(UCLK, CLOCK_FCLK),
+	CLK_MAP(MCLK, CLOCK_FCLK),
 };
 
 static struct smu_12_0_cmn2aisc_mapping renoir_table_map[SMU_TABLE_COUNT] = {
@@ -280,7 +280,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 		break;
 	case SMU_MCLK:
 		count = NUM_MEMCLK_DPM_LEVELS;
-		cur_value = metrics.ClockFrequency[CLOCK_UMCCLK];
+		cur_value = metrics.ClockFrequency[CLOCK_FCLK];
 		break;
 	case SMU_DCEFCLK:
 		count = NUM_DCFCLK_DPM_LEVELS;

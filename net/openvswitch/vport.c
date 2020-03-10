@@ -96,7 +96,8 @@ struct vport *ovs_vport_locate(const struct net *net, const char *name)
 	struct hlist_head *bucket = hash_bucket(net, name);
 	struct vport *vport;
 
-	hlist_for_each_entry_rcu(vport, bucket, hash_node)
+	hlist_for_each_entry_rcu(vport, bucket, hash_node,
+				lockdep_ovsl_is_held())
 		if (!strcmp(name, ovs_vport_name(vport)) &&
 		    net_eq(ovs_dp_get_net(vport->dp), net))
 			return vport;

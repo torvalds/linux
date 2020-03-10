@@ -181,14 +181,28 @@ ib_umem_odp_alloc_child(struct ib_umem_odp *root, unsigned long addr,
 	odp_data->page_shift = PAGE_SHIFT;
 	odp_data->notifier.ops = ops;
 
+	/*
+	 * A mmget must be held when registering a notifier, the owming_mm only
+	 * has a mm_grab at this point.
+	 */
+	if (!mmget_not_zero(umem->owning_mm)) {
+		ret = -EFAULT;
+		goto out_free;
+	}
+
 	odp_data->tgid = get_pid(root->tgid);
 	ret = ib_init_umem_odp(odp_data, ops);
-	if (ret) {
-		put_pid(odp_data->tgid);
-		kfree(odp_data);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto out_tgid;
+	mmput(umem->owning_mm);
 	return odp_data;
+
+out_tgid:
+	put_pid(odp_data->tgid);
+	mmput(umem->owning_mm);
+out_free:
+	kfree(odp_data);
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(ib_umem_odp_alloc_child);
 

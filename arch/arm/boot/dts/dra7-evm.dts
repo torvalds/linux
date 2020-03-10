@@ -61,10 +61,10 @@
 		regulator-max-microvolt = <1800000>;
 	};
 
-	evm_3v3: fixedregulator-evm3v3 {
+	vsys_3v3: fixedregulator-vsys3v3 {
 		/* Output of Cntlr A of TPS43351-Q1 on dra7-evm */
 		compatible = "regulator-fixed";
-		regulator-name = "evm_3v3";
+		regulator-name = "vsys_3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&evm_12v0>;

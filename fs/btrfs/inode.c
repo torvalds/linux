@@ -4103,8 +4103,9 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	path->reada = READA_BACK;
 
-	lock_extent_bits(&BTRFS_I(inode)->io_tree, lock_start, (u64)-1,
-			 &cached_state);
+	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID)
+		lock_extent_bits(&BTRFS_I(inode)->io_tree, lock_start, (u64)-1,
+				 &cached_state);
 
 	/*
 	 * We want to drop from the next block forward in case this new size is
@@ -4142,7 +4143,6 @@ search_again:
 		goto out;
 	}
 
-	path->leave_spinning = 1;
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0)
 		goto out;
@@ -4294,7 +4294,6 @@ delete:
 		     root == fs_info->tree_root)) {
 			struct btrfs_ref ref = { 0 };
 
-			btrfs_set_path_blocking(path);
 			bytes_deleted += extent_num_bytes;
 
 			btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF,
@@ -4370,10 +4369,9 @@ out:
 		if (!ret && last_size > new_size)
 			last_size = new_size;
 		btrfs_ordered_update_i_size(inode, last_size, NULL);
+		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lock_start,
+				     (u64)-1, &cached_state);
 	}
-
-	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lock_start, (u64)-1,
-			     &cached_state);
 
 	btrfs_free_path(path);
 	return ret;
@@ -7785,6 +7783,7 @@ static inline blk_status_t btrfs_lookup_and_bind_dio_csum(struct inode *inode,
 {
 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
 	struct btrfs_io_bio *orig_io_bio = btrfs_io_bio(dip->orig_bio);
+	u16 csum_size;
 	blk_status_t ret;
 
 	/*
@@ -7804,7 +7803,8 @@ static inline blk_status_t btrfs_lookup_and_bind_dio_csum(struct inode *inode,
 
 	file_offset -= dip->logical_offset;
 	file_offset >>= inode->i_sb->s_blocksize_bits;
-	io_bio->csum = (u8 *)(((u32 *)orig_io_bio->csum) + file_offset);
+	csum_size = btrfs_super_csum_size(btrfs_sb(inode->i_sb)->super_copy);
+	io_bio->csum = orig_io_bio->csum + csum_size * file_offset;
 
 	return 0;
 }
@@ -9826,6 +9826,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key ins;
 	u64 cur_offset = start;
+	u64 clear_offset = start;
 	u64 i_size;
 	u64 cur_bytes;
 	u64 last_alloc = (u64)-1;
@@ -9860,6 +9861,15 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 				btrfs_end_transaction(trans);
 			break;
 		}
+
+		/*
+		 * We've reserved this space, and thus converted it from
+		 * ->bytes_may_use to ->bytes_reserved.  Any error that happens
+		 * from here on out we will only need to clear our reservation
+		 * for the remaining unreserved area, so advance our
+		 * clear_offset by our extent size.
+		 */
+		clear_offset += ins.offset;
 		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 
 		last_alloc = ins.offset;
@@ -9939,9 +9949,9 @@ next:
 		if (own_trans)
 			btrfs_end_transaction(trans);
 	}
-	if (cur_offset < end)
-		btrfs_free_reserved_data_space(inode, NULL, cur_offset,
-			end - cur_offset + 1);
+	if (clear_offset < end)
+		btrfs_free_reserved_data_space(inode, NULL, clear_offset,
+			end - clear_offset + 1);
 	return ret;
 }
 

@@ -3526,6 +3526,47 @@ static void bond_fold_stats(struct rtnl_link_stats64 *_res,
 	}
 }
 
+#ifdef CONFIG_LOCKDEP
+static int bond_get_lowest_level_rcu(struct net_device *dev)
+{
+	struct net_device *ldev, *next, *now, *dev_stack[MAX_NEST_DEV + 1];
+	struct list_head *niter, *iter, *iter_stack[MAX_NEST_DEV + 1];
+	int cur = 0, max = 0;
+
+	now = dev;
+	iter = &dev->adj_list.lower;
+
+	while (1) {
+		next = NULL;
+		while (1) {
+			ldev = netdev_next_lower_dev_rcu(now, &iter);
+			if (!ldev)
+				break;
+
+			next = ldev;
+			niter = &ldev->adj_list.lower;
+			dev_stack[cur] = now;
+			iter_stack[cur++] = iter;
+			if (max <= cur)
+				max = cur;
+			break;
+		}
+
+		if (!next) {
+			if (!cur)
+				return max;
+			next = dev_stack[--cur];
+			niter = iter_stack[cur];
+		}
+
+		now = next;
+		iter = niter;
+	}
+
+	return max;
+}
+#endif
+
 static void bond_get_stats(struct net_device *bond_dev,
 			   struct rtnl_link_stats64 *stats)
 {
@@ -3533,11 +3574,17 @@ static void bond_get_stats(struct net_device *bond_dev,
 	struct rtnl_link_stats64 temp;
 	struct list_head *iter;
 	struct slave *slave;
+	int nest_level = 0;
 
-	spin_lock(&bond->stats_lock);
-	memcpy(stats, &bond->bond_stats, sizeof(*stats));
 
 	rcu_read_lock();
+#ifdef CONFIG_LOCKDEP
+	nest_level = bond_get_lowest_level_rcu(bond_dev);
+#endif
+
+	spin_lock_nested(&bond->stats_lock, nest_level);
+	memcpy(stats, &bond->bond_stats, sizeof(*stats));
+
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		const struct rtnl_link_stats64 *new =
 			dev_get_stats(slave->dev, &temp);
@@ -3547,10 +3594,10 @@ static void bond_get_stats(struct net_device *bond_dev,
 		/* save off the slave stats for the next run */
 		memcpy(&slave->slave_stats, new, sizeof(*new));
 	}
-	rcu_read_unlock();
 
 	memcpy(&bond->bond_stats, stats, sizeof(*stats));
 	spin_unlock(&bond->stats_lock);
+	rcu_read_unlock();
 }
 
 static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd)
@@ -3640,6 +3687,8 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	case BOND_RELEASE_OLD:
 	case SIOCBONDRELEASE:
 		res = bond_release(bond_dev, slave_dev);
+		if (!res)
+			netdev_update_lockdep_key(slave_dev);
 		break;
 	case BOND_SETHWADDR_OLD:
 	case SIOCBONDSETHWADDR:

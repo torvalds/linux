@@ -148,21 +148,19 @@ long arch_ptrace(struct task_struct *child, long request,
  * Allows PTRACE_SYSCALL to work.  These are called from entry.S in
  * {handle,ret_from}_syscall.
  */
-__visible void do_syscall_trace_enter(struct pt_regs *regs)
+__visible int do_syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		if (tracehook_report_syscall_entry(regs))
-			syscall_set_nr(current, regs, -1);
+			return -1;
 
 	/*
 	 * Do the secure computing after ptrace; failures should be fast.
 	 * If this fails we might have return value in a0 from seccomp
 	 * (via SECCOMP_RET_ERRNO/TRACE).
 	 */
-	if (secure_computing() == -1) {
-		syscall_set_nr(current, regs, -1);
-		return;
-	}
+	if (secure_computing() == -1)
+		return -1;
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
@@ -170,6 +168,7 @@ __visible void do_syscall_trace_enter(struct pt_regs *regs)
 #endif
 
 	audit_syscall_entry(regs->a7, regs->a0, regs->a1, regs->a2, regs->a3);
+	return 0;
 }
 
 __visible void do_syscall_trace_exit(struct pt_regs *regs)

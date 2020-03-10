@@ -5,7 +5,7 @@ where single bits in a certain register can turn on/off a
 single LED. The register bit LEDs appear as children to the
 syscon device, with the proper compatible string. For the
 syscon bindings see:
-Documentation/devicetree/bindings/mfd/syscon.txt
+Documentation/devicetree/bindings/mfd/syscon.yaml
 
 Each LED is represented as a sub-node of the syscon device. Each
 node's name represents the name of the corresponding LED.

@@ -1006,6 +1006,13 @@ static bool acpi_s2idle_wake(void)
 			return true;
 
 		/*
+		 * If the status bit of any enabled fixed event is set, the
+		 * wakeup is regarded as valid.
+		 */
+		if (acpi_any_fixed_event_status_set())
+			return true;
+
+		/*
 		 * If there are no EC events to process and at least one of the
 		 * other enabled GPEs is active, the wakeup is regarded as a
 		 * genuine one.

@@ -260,14 +260,26 @@ asmlinkage void post_ttbr_update_workaround(void)
 			CONFIG_CAVIUM_ERRATUM_27456));
 }
 
-static int asids_init(void)
+static int asids_update_limit(void)
 {
-	asid_bits = get_cpu_asid_bits();
+	unsigned long num_available_asids = NUM_USER_ASIDS;
+
+	if (arm64_kernel_unmapped_at_el0())
+		num_available_asids /= 2;
 	/*
 	 * Expect allocation after rollover to fail if we don't have at least
 	 * one more ASID than CPUs. ASID #0 is reserved for init_mm.
 	 */
-	WARN_ON(NUM_USER_ASIDS - 1 <= num_possible_cpus());
+	WARN_ON(num_available_asids - 1 <= num_possible_cpus());
+	pr_info("ASID allocator initialised with %lu entries\n",
+		num_available_asids);
+	return 0;
+}
+arch_initcall(asids_update_limit);
+
+static int asids_init(void)
+{
+	asid_bits = get_cpu_asid_bits();
 	atomic64_set(&asid_generation, ASID_FIRST_VERSION);
 	asid_map = kcalloc(BITS_TO_LONGS(NUM_USER_ASIDS), sizeof(*asid_map),
 			   GFP_KERNEL);
@@ -282,8 +294,6 @@ static int asids_init(void)
 	 */
 	if (IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0))
 		set_kpti_asid_bits();
-
-	pr_info("ASID allocator initialised with %lu entries\n", NUM_USER_ASIDS);
 	return 0;
 }
 early_initcall(asids_init);

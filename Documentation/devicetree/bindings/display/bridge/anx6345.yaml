@@ -79,21 +79,15 @@ examples:
           #size-cells = <0>;
 
           anx6345_in: port@0 {
-            #address-cells = <1>;
-            #size-cells = <0>;
             reg = <0>;
-            anx6345_in_tcon0: endpoint@0 {
-              reg = <0>;
+            anx6345_in_tcon0: endpoint {
               remote-endpoint = <&tcon0_out_anx6345>;
             };
           };
 
           anx6345_out: port@1 {
-            #address-cells = <1>;
-            #size-cells = <0>;
             reg = <1>;
-            anx6345_out_panel: endpoint@0 {
-              reg = <0>;
+            anx6345_out_panel: endpoint {
               remote-endpoint = <&panel_in_edp>;
             };
           };

@@ -150,7 +150,8 @@ static int tfp410_attach(struct drm_bridge *bridge,
 					  dvi->next_bridge->type,
 					  dvi->next_bridge->ddc);
 	if (ret) {
-		dev_err(dvi->dev, "drm_connector_init() failed: %d\n", ret);
+		dev_err(dvi->dev, "drm_connector_init_with_ddc() failed: %d\n",
+			ret);
 		return ret;
 	}
 
