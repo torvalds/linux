@@ -82,8 +82,7 @@
 
 #define HPRE_VIA_MSI_DSM		1
 
-static LIST_HEAD(hpre_list);
-static DEFINE_MUTEX(hpre_list_lock);
+static struct hisi_qm_list hpre_devices;
 static const char hpre_name[] = "hisi_hpre";
 static struct dentry *hpre_debugfs_root;
 static const struct pci_device_id hpre_dev_ids[] = {
@@ -196,43 +195,17 @@ static u32 hpre_pf_q_num = HPRE_PF_DEF_Q_NUM;
 module_param_cb(hpre_pf_q_num, &hpre_pf_q_num_ops, &hpre_pf_q_num, 0444);
 MODULE_PARM_DESC(hpre_pf_q_num, "Number of queues in PF of CS(1-1024)");
 
-static inline void hpre_add_to_list(struct hpre *hpre)
+struct hisi_qp *hpre_create_qp(void)
 {
-	mutex_lock(&hpre_list_lock);
-	list_add_tail(&hpre->list, &hpre_list);
-	mutex_unlock(&hpre_list_lock);
-}
+	int node = cpu_to_node(smp_processor_id());
+	struct hisi_qp *qp = NULL;
+	int ret;
 
-static inline void hpre_remove_from_list(struct hpre *hpre)
-{
-	mutex_lock(&hpre_list_lock);
-	list_del(&hpre->list);
-	mutex_unlock(&hpre_list_lock);
-}
+	ret = hisi_qm_alloc_qps_node(&hpre_devices, 1, 0, node, &qp);
+	if (!ret)
+		return qp;
 
-struct hpre *hpre_find_device(int node)
-{
-	struct hpre *hpre, *ret = NULL;
-	int min_distance = INT_MAX;
-	struct device *dev;
-	int dev_node = 0;
-
-	mutex_lock(&hpre_list_lock);
-	list_for_each_entry(hpre, &hpre_list, list) {
-		dev = &hpre->qm.pdev->dev;
-#ifdef CONFIG_NUMA
-		dev_node = dev->numa_node;
-		if (dev_node < 0)
-			dev_node = 0;
-#endif
-		if (node_distance(dev_node, node) < min_distance) {
-			ret = hpre;
-			min_distance = node_distance(dev_node, node);
-		}
-	}
-	mutex_unlock(&hpre_list_lock);
-
-	return ret;
+	return NULL;
 }
 
 static int hpre_cfg_by_dsm(struct hisi_qm *qm)
@@ -799,17 +772,17 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		dev_warn(&pdev->dev, "init debugfs fail!\n");
 
-	hpre_add_to_list(hpre);
+	hisi_qm_add_to_list(qm, &hpre_devices);
 
 	ret = hpre_algs_register();
 	if (ret < 0) {
-		hpre_remove_from_list(hpre);
 		pci_err(pdev, "fail to register algs to crypto!\n");
 		goto err_with_qm_start;
 	}
 	return 0;
 
 err_with_qm_start:
+	hisi_qm_del_from_list(qm, &hpre_devices);
 	hisi_qm_stop(qm);
 
 err_with_err_init:
@@ -929,7 +902,7 @@ static void hpre_remove(struct pci_dev *pdev)
 	int ret;
 
 	hpre_algs_unregister();
-	hpre_remove_from_list(hpre);
+	hisi_qm_del_from_list(qm, &hpre_devices);
 	if (qm->fun_type == QM_HW_PF && hpre->num_vfs != 0) {
 		ret = hpre_sriov_disable(pdev);
 		if (ret) {
@@ -979,6 +952,7 @@ static int __init hpre_init(void)
 {
 	int ret;
 
+	hisi_qm_init_list(&hpre_devices);
 	hpre_register_debugfs();
 
 	ret = pci_register_driver(&hpre_pci_driver);
