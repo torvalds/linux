@@ -259,17 +259,9 @@ static struct drm_info_list mdp5_debugfs_list[] = {
 
 static int mdp5_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 {
-	struct drm_device *dev = minor->dev;
-	int ret;
-
-	ret = drm_debugfs_create_files(mdp5_debugfs_list,
-			ARRAY_SIZE(mdp5_debugfs_list),
-			minor->debugfs_root, minor);
-
-	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not install mdp5_debugfs_list\n");
-		return ret;
-	}
+	drm_debugfs_create_files(mdp5_debugfs_list,
+				 ARRAY_SIZE(mdp5_debugfs_list),
+				 minor->debugfs_root, minor);
 
 	return 0;
 }
