@@ -611,7 +611,7 @@ http://lwn.net/Articles/119652/
 
 ``cmd`` is the command sent from user-space. If a value is being sent to the
 user-space call, it can be accessed directly. If a buffer is fetched, the arg
-value will be a pointer to it, and must be accessed through the ``copy_to_user`` 
+value will be a pointer to it, and must be accessed through the ``copy_to_user``
 or ``copy_from_user``.
 
 Before implementing the ``ioctl`` function, the numbers corresponding to the
@@ -837,7 +837,7 @@ Follow comments marked with TODO 2 and implement them.
 
    2. Implement the open and release functions in the driver.
    3. Display a message in the open and release functions.
-   4. Read again ``/dev/so2_cdev`` file. Follow the messages displayed by the kernel. 
+   4. Read again ``/dev/so2_cdev`` file. Follow the messages displayed by the kernel.
       We still get an error because ``read`` function is not yet implemented.
 
 .. note:: The prototype of a device driver's operations is in the ``file_operations``
@@ -948,46 +948,83 @@ For this:
    1. Implement the ioctl function in the driver.
    2. We need to use ``user/so2_cdev_test.c`` to call the
       ioctl function with the appropriate parameters.
+   3. To test, we will use an user-space program (``user/so2_cdev_test.c``)
+      which will call the ``ioctl`` function with the required arguments.
 
-.. note:: The macro definition ``MY_IOCTL_PRINT`` is defined in the ``include/so2_cdev.h`` file
+.. note:: The macro ``MY_IOCTL_PRINT`` is defined in the file ``include/so2_cdev.h``,
+          which is shared between the kernel module and the user-space program.
+
           Read the `ioctl`_ section in the lab.
 
-.. note:: Because we need to compile the program for qemu machine which is 32 bit, if your host is 64 bit
-          then you need to install ``gcc-multilib`` package.
+.. note:: The userspace code is compiled automatically at ``make build`` and
+          copied at ``make copy``.
 
-.. Extra
-   -----
+          Because we need to compile the program for qemu machine which is 32 bit,
+          if your host is 64 bit then you need to install ``gcc-multilib`` package.
 
-   Ioctl with messaging
-   --------------------
+Extra Exercises
+===============
 
-   Add two ioctl operations to modify the message associated with the 
-   driver. Use fixed-length buffer ( BUFFER_SIZE ).
+Ioctl with messaging
+--------------------
 
-      1. Add the ``ioctl`` function from the driver the following operations:
-         * ``MY_IOCTL_SET_BUFFER`` for writing a message to the device;
-         * ``MY_IOCTL_GET_BUFFER`` to read a message from your device.
-      2. Change the user-space program to allow testing.
+Add two ioctl operations to modify the message associated with the
+driver. Use fixed-length buffer ( BUFFER_SIZE ).
 
-   .. note:: Read the ioctl sections and Access to the address space of the lab process.
+  1. Add the ``ioctl`` function from the driver the following operations:
+     * ``MY_IOCTL_SET_BUFFER`` for writing a message to the device;
+     * ``MY_IOCTL_GET_BUFFER`` to read a message from your device.
+  2. Change the user-space program to allow testing.
 
-   Ioctl with waiting queues
-   -------------------------
+.. note:: Read the `ioctl`_ and `Access to the address space of the process`_
+   sections of the lab.
 
-   Add two ioctl to the device driver for queuing.
+Ioctl with waiting queues
+-------------------------
 
-       1. Add the ``ioctl`` function from the driver the following operations:
-          * MY_IOCTL_DOWN to add the process to a queue;
-          * MY_IOCTL_UP to remove the process from a queue.
-       2. Fill the device structure with a ``wait_queue_head_t`` field and a
-          ``wait_queue_head_t`` flag.
-       3. Do not forget to initialize the wait queue and flag.
-       4. Remove exclusive access condition from previous exercise
-       5. Change the user-space program to allow testing.
+Add two ioctl operations to the device driver for queuing.
 
-   When the process is added to the queue, it will remain blocked in execution; To
-   run the queue command open a new console in the virtual machine with Alt+F2 ;
-   You can return to the previous console with Alt+F1 . If you're connected via
-   SSH to the virtual machine, open a new console.
+   1. Add the ``ioctl`` function from the driver the following operations:
+      * ``MY_IOCTL_DOWN`` to add the process to a queue;
+      * ``MY_IOCTL_UP`` to remove the process from a queue.
+   2. Fill the device structure with a ``wait_queue_head_t`` field and a
+      ``wait_queue_head_t`` flag.
+   3. Do not forget to initialize the wait queue and flag.
+   4. Remove exclusive access condition from previous exercise
+   5. Change the user-space program to allow testing.
 
-   .. note:: Read the ioctl and Synchronization sections - waiting queues in the lab.
+When the process is added to the queue, it will remain blocked in execution; To
+run the queue command open a new console in the virtual machine with Alt+F2 ;
+You can return to the previous console with Alt+F1 . If you're connected via
+SSH to the virtual machine, open a new console.
+
+.. note:: Read the `ioctl`_ and `Waiting queues`_ sections in the lab.
+
+O_NONBLOCK implementation
+-------------------------
+
+.. note:: If a file is open with the ``O_NONBLOCK`` flag, then its
+          operations will be non-blocking.
+
+          In case data is not available when performing a read, the following
+          happens:
+
+           * if the file has been open with ``O_NONBLOCK``, the read call
+             will return ``-EWOULDBLOCK``.
+           * otherwise, the current task (process) will be placed in a waiting
+             queue and will be unblocked as soon as data becomes available
+             (in our case, at write).
+
+* Modify the userspace program to allow testing.
+* To allow unblocking the read operation, remove the exclusive access
+  condition from previous exercises.
+* You can use the queue defined for the previous exercise.
+* You can ignore the file offset.
+* Modify the initial size of data to ``0``, to allow testing.
+* Add a new operation in the user-space program which:
+
+  * changes open flags (using ``fcntl``).
+  * performs a read
+
+* What are the flags used to open the file when running ``cat /dev/so2_dev``?
+
