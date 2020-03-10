@@ -140,7 +140,7 @@ static void create_mkey_callback(int status, struct mlx5_async_work *context)
 		complete(&ent->compl);
 }
 
-static int add_keys(struct mlx5_cache_ent *ent, int num)
+static int add_keys(struct mlx5_cache_ent *ent, unsigned int num)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
 	struct mlx5_ib_mr *mr;
@@ -200,30 +200,54 @@ static int add_keys(struct mlx5_cache_ent *ent, int num)
 	return err;
 }
 
-static void remove_keys(struct mlx5_cache_ent *ent, int num)
+static void remove_cache_mr(struct mlx5_cache_ent *ent)
 {
-	struct mlx5_ib_mr *tmp_mr;
 	struct mlx5_ib_mr *mr;
-	LIST_HEAD(del_list);
-	int i;
 
-	for (i = 0; i < num; i++) {
-		spin_lock_irq(&ent->lock);
-		if (list_empty(&ent->head)) {
-			spin_unlock_irq(&ent->lock);
-			break;
-		}
-		mr = list_first_entry(&ent->head, struct mlx5_ib_mr, list);
-		list_move(&mr->list, &del_list);
-		ent->available_mrs--;
-		ent->total_mrs--;
+	spin_lock_irq(&ent->lock);
+	if (list_empty(&ent->head)) {
 		spin_unlock_irq(&ent->lock);
-		mlx5_core_destroy_mkey(ent->dev->mdev, &mr->mmkey);
+		return;
 	}
+	mr = list_first_entry(&ent->head, struct mlx5_ib_mr, list);
+	list_del(&mr->list);
+	ent->available_mrs--;
+	ent->total_mrs--;
+	spin_unlock_irq(&ent->lock);
+	mlx5_core_destroy_mkey(ent->dev->mdev, &mr->mmkey);
+	kfree(mr);
+}
 
-	list_for_each_entry_safe(mr, tmp_mr, &del_list, list) {
-		list_del(&mr->list);
-		kfree(mr);
+static int resize_available_mrs(struct mlx5_cache_ent *ent, unsigned int target,
+				bool limit_fill)
+{
+	int err;
+
+	lockdep_assert_held(&ent->lock);
+
+	while (true) {
+		if (limit_fill)
+			target = ent->limit * 2;
+		if (target == ent->available_mrs + ent->pending)
+			return 0;
+		if (target > ent->available_mrs + ent->pending) {
+			u32 todo = target - (ent->available_mrs + ent->pending);
+
+			spin_unlock_irq(&ent->lock);
+			err = add_keys(ent, todo);
+			if (err == -EAGAIN)
+				usleep_range(3000, 5000);
+			spin_lock_irq(&ent->lock);
+			if (err) {
+				if (err != -EAGAIN)
+					return err;
+			} else
+				return 0;
+		} else {
+			spin_unlock_irq(&ent->lock);
+			remove_cache_mr(ent);
+			spin_lock_irq(&ent->lock);
+		}
 	}
 }
 
@@ -231,33 +255,38 @@ static ssize_t size_write(struct file *filp, const char __user *buf,
 			  size_t count, loff_t *pos)
 {
 	struct mlx5_cache_ent *ent = filp->private_data;
-	char lbuf[20] = {0};
-	u32 var;
+	u32 target;
 	int err;
 
-	count = min(count, sizeof(lbuf) - 1);
-	if (copy_from_user(lbuf, buf, count))
-		return -EFAULT;
+	err = kstrtou32_from_user(buf, count, 0, &target);
+	if (err)
+		return err;
 
-	if (sscanf(lbuf, "%u", &var) != 1)
-		return -EINVAL;
-
-	if (var < ent->limit)
-		return -EINVAL;
-
-	if (var > ent->total_mrs) {
-		do {
-			err = add_keys(ent, var - ent->total_mrs);
-			if (err && err != -EAGAIN)
-				return err;
-
-			usleep_range(3000, 5000);
-		} while (err);
-	} else if (var < ent->total_mrs) {
-		remove_keys(ent, ent->total_mrs - var);
+	/*
+	 * Target is the new value of total_mrs the user requests, however we
+	 * cannot free MRs that are in use. Compute the target value for
+	 * available_mrs.
+	 */
+	spin_lock_irq(&ent->lock);
+	if (target < ent->total_mrs - ent->available_mrs) {
+		err = -EINVAL;
+		goto err_unlock;
 	}
+	target = target - (ent->total_mrs - ent->available_mrs);
+	if (target < ent->limit || target > ent->limit*2) {
+		err = -EINVAL;
+		goto err_unlock;
+	}
+	err = resize_available_mrs(ent, target, false);
+	if (err)
+		goto err_unlock;
+	spin_unlock_irq(&ent->lock);
 
 	return count;
+
+err_unlock:
+	spin_unlock_irq(&ent->lock);
+	return err;
 }
 
 static ssize_t size_read(struct file *filp, char __user *buf, size_t count,
@@ -285,28 +314,23 @@ static ssize_t limit_write(struct file *filp, const char __user *buf,
 			   size_t count, loff_t *pos)
 {
 	struct mlx5_cache_ent *ent = filp->private_data;
-	char lbuf[20] = {0};
 	u32 var;
 	int err;
 
-	count = min(count, sizeof(lbuf) - 1);
-	if (copy_from_user(lbuf, buf, count))
-		return -EFAULT;
+	err = kstrtou32_from_user(buf, count, 0, &var);
+	if (err)
+		return err;
 
-	if (sscanf(lbuf, "%u", &var) != 1)
-		return -EINVAL;
-
-	if (var > ent->total_mrs)
-		return -EINVAL;
-
+	/*
+	 * Upon set we immediately fill the cache to high water mark implied by
+	 * the limit.
+	 */
+	spin_lock_irq(&ent->lock);
 	ent->limit = var;
-
-	if (ent->available_mrs < ent->limit) {
-		err = add_keys(ent, 2 * ent->limit - ent->available_mrs);
-		if (err)
-			return err;
-	}
-
+	err = resize_available_mrs(ent, 0, true);
+	spin_unlock_irq(&ent->lock);
+	if (err)
+		return err;
 	return count;
 }
 
@@ -371,20 +395,20 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 		}
 	} else if (ent->available_mrs > 2 * ent->limit) {
 		/*
-		 * The remove_keys() logic is performed as garbage collection
-		 * task. Such task is intended to be run when no other active
-		 * processes are running.
+		 * The remove_cache_mr() logic is performed as garbage
+		 * collection task. Such task is intended to be run when no
+		 * other active processes are running.
 		 *
 		 * The need_resched() will return TRUE if there are user tasks
 		 * to be activated in near future.
 		 *
-		 * In such case, we don't execute remove_keys() and postpone
-		 * the garbage collection work to try to run in next cycle,
-		 * in order to free CPU resources to other tasks.
+		 * In such case, we don't execute remove_cache_mr() and postpone
+		 * the garbage collection work to try to run in next cycle, in
+		 * order to free CPU resources to other tasks.
 		 */
 		if (!need_resched() && !someone_adding(cache) &&
 		    time_after(jiffies, cache->last_add + 300 * HZ)) {
-			remove_keys(ent, 1);
+			remove_cache_mr(ent);
 			if (ent->available_mrs > ent->limit)
 				queue_work(cache->wq, &ent->work);
 		} else {
