@@ -104,7 +104,7 @@ static void i8xx_fbc_deactivate(struct drm_i915_private *dev_priv)
 	/* Wait for compressing bit to clear */
 	if (intel_de_wait_for_clear(dev_priv, FBC_STATUS,
 				    FBC_STAT_COMPRESSING, 10)) {
-		DRM_DEBUG_KMS("FBC idle timed out\n");
+		drm_dbg_kms(&dev_priv->drm, "FBC idle timed out\n");
 		return;
 	}
 }
@@ -485,7 +485,8 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 	if (!ret)
 		goto err_llb;
 	else if (ret > 1) {
-		DRM_INFO("Reducing the compressed framebuffer size. This may lead to less power savings than a non-reduced-size. Try to increase stolen memory size if available in BIOS.\n");
+		drm_info(&dev_priv->drm,
+			 "Reducing the compressed framebuffer size. This may lead to less power savings than a non-reduced-size. Try to increase stolen memory size if available in BIOS.\n");
 
 	}
 
@@ -521,8 +522,9 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 			       dev_priv->dsm.start + compressed_llb->start);
 	}
 
-	DRM_DEBUG_KMS("reserved %llu bytes of contiguous stolen space for FBC, threshold: %d\n",
-		      fbc->compressed_fb.size, fbc->threshold);
+	drm_dbg_kms(&dev_priv->drm,
+		    "reserved %llu bytes of contiguous stolen space for FBC, threshold: %d\n",
+		    fbc->compressed_fb.size, fbc->threshold);
 
 	return 0;
 
@@ -531,7 +533,7 @@ err_fb:
 	i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_fb);
 err_llb:
 	if (drm_mm_initialized(&dev_priv->mm.stolen))
-		pr_info_once("drm: not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
+		drm_info_once(&dev_priv->drm, "not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
 	return -ENOSPC;
 }
 
@@ -948,7 +950,8 @@ static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
 	drm_WARN_ON(&dev_priv->drm, !fbc->crtc);
 	drm_WARN_ON(&dev_priv->drm, fbc->active);
 
-	DRM_DEBUG_KMS("Disabling FBC on pipe %c\n", pipe_name(crtc->pipe));
+	drm_dbg_kms(&dev_priv->drm, "Disabling FBC on pipe %c\n",
+		    pipe_name(crtc->pipe));
 
 	__intel_fbc_cleanup_cfb(dev_priv);
 
@@ -1176,7 +1179,8 @@ void intel_fbc_enable(struct intel_atomic_state *state,
 	else
 		cache->gen9_wa_cfb_stride = 0;
 
-	DRM_DEBUG_KMS("Enabling FBC on pipe %c\n", pipe_name(crtc->pipe));
+	drm_dbg_kms(&dev_priv->drm, "Enabling FBC on pipe %c\n",
+		    pipe_name(crtc->pipe));
 	fbc->no_fbc_reason = "FBC enabled but not active yet\n";
 
 	fbc->crtc = crtc;
@@ -1238,7 +1242,7 @@ static void intel_fbc_underrun_work_fn(struct work_struct *work)
 	if (fbc->underrun_detected || !fbc->crtc)
 		goto out;
 
-	DRM_DEBUG_KMS("Disabling FBC due to FIFO underrun.\n");
+	drm_dbg_kms(&dev_priv->drm, "Disabling FBC due to FIFO underrun.\n");
 	fbc->underrun_detected = true;
 
 	intel_fbc_deactivate(dev_priv, "FIFO underrun");
@@ -1264,7 +1268,8 @@ int intel_fbc_reset_underrun(struct drm_i915_private *dev_priv)
 		return ret;
 
 	if (dev_priv->fbc.underrun_detected) {
-		DRM_DEBUG_KMS("Re-allowing FBC after fifo underrun\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "Re-allowing FBC after fifo underrun\n");
 		dev_priv->fbc.no_fbc_reason = "FIFO underrun cleared";
 	}
 
@@ -1335,7 +1340,8 @@ static bool need_fbc_vtd_wa(struct drm_i915_private *dev_priv)
 	/* WaFbcTurnOffFbcWhenHyperVisorIsUsed:skl,bxt */
 	if (intel_vtd_active() &&
 	    (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))) {
-		DRM_INFO("Disabling framebuffer compression (FBC) to prevent screen flicker with VT-d enabled\n");
+		drm_info(&dev_priv->drm,
+			 "Disabling framebuffer compression (FBC) to prevent screen flicker with VT-d enabled\n");
 		return true;
 	}
 
@@ -1363,8 +1369,8 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 		mkwrite_device_info(dev_priv)->display.has_fbc = false;
 
 	i915_modparams.enable_fbc = intel_sanitize_fbc_option(dev_priv);
-	DRM_DEBUG_KMS("Sanitized enable_fbc value: %d\n",
-		      i915_modparams.enable_fbc);
+	drm_dbg_kms(&dev_priv->drm, "Sanitized enable_fbc value: %d\n",
+		    i915_modparams.enable_fbc);
 
 	if (!HAS_FBC(dev_priv)) {
 		fbc->no_fbc_reason = "unsupported by this chipset";
