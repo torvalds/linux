@@ -85,6 +85,8 @@ static void cm_add_one(struct ib_device *device);
 static void cm_remove_one(struct ib_device *device, void *client_data);
 static int cm_send_dreq_locked(struct cm_id_private *cm_id_priv,
 			       const void *private_data, u8 private_data_len);
+static int cm_send_drep_locked(struct cm_id_private *cm_id_priv,
+			       void *private_data, u8 private_data_len);
 
 static struct ib_client cm_client = {
 	.name   = "cm",
@@ -1100,8 +1102,8 @@ retest:
 		spin_unlock_irq(&cm_id_priv->lock);
 		break;
 	case IB_CM_DREQ_RCVD:
+		cm_send_drep_locked(cm_id_priv, NULL, 0);
 		spin_unlock_irq(&cm_id_priv->lock);
-		ib_send_cm_drep(cm_id, NULL, 0);
 		break;
 	default:
 		spin_unlock_irq(&cm_id_priv->lock);
@@ -2685,51 +2687,60 @@ static void cm_format_drep(struct cm_drep_msg *drep_msg,
 			    private_data_len);
 }
 
-int ib_send_cm_drep(struct ib_cm_id *cm_id,
-		    const void *private_data,
-		    u8 private_data_len)
+static int cm_send_drep_locked(struct cm_id_private *cm_id_priv,
+			       void *private_data, u8 private_data_len)
 {
-	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	unsigned long flags;
-	void *data;
 	int ret;
+
+	lockdep_assert_held(&cm_id_priv->lock);
 
 	if (private_data && private_data_len > IB_CM_DREP_PRIVATE_DATA_SIZE)
 		return -EINVAL;
 
-	data = cm_copy_private_data(private_data, private_data_len);
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
-	spin_lock_irqsave(&cm_id_priv->lock, flags);
-	if (cm_id->state != IB_CM_DREQ_RCVD) {
-		pr_debug("%s: local_id %d, cm_idcm_id->state(%d) != IB_CM_DREQ_RCVD\n",
-			 __func__, be32_to_cpu(cm_id->local_id), cm_id->state);
-		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
-		kfree(data);
+	if (cm_id_priv->id.state != IB_CM_DREQ_RCVD) {
+		pr_debug(
+			"%s: local_id %d, cm_idcm_id->state(%d) != IB_CM_DREQ_RCVD\n",
+			__func__, be32_to_cpu(cm_id_priv->id.local_id),
+			cm_id_priv->id.state);
+		kfree(private_data);
 		return -EINVAL;
 	}
 
-	cm_set_private_data(cm_id_priv, data, private_data_len);
+	cm_set_private_data(cm_id_priv, private_data, private_data_len);
 	cm_enter_timewait(cm_id_priv);
 
 	ret = cm_alloc_msg(cm_id_priv, &msg);
 	if (ret)
-		goto out;
+		return ret;
 
 	cm_format_drep((struct cm_drep_msg *) msg->mad, cm_id_priv,
 		       private_data, private_data_len);
 
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
-		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_free_msg(msg);
 		return ret;
 	}
+	return 0;
+}
 
-out:	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+int ib_send_cm_drep(struct ib_cm_id *cm_id, const void *private_data,
+		    u8 private_data_len)
+{
+	struct cm_id_private *cm_id_priv =
+		container_of(cm_id, struct cm_id_private, id);
+	unsigned long flags;
+	void *data;
+	int ret;
+
+	data = cm_copy_private_data(private_data, private_data_len);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	spin_lock_irqsave(&cm_id_priv->lock, flags);
+	ret = cm_send_drep_locked(cm_id_priv, data, private_data_len);
+	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL(ib_send_cm_drep);
