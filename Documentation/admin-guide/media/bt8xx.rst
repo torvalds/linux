@@ -74,8 +74,6 @@ Exceptions are:
 - Old TwinHan DST cards or clones with or without CA slot and not
   containing an Eeprom.
 
-People running udev please see :doc:`udev`.
-
 In the following cases overriding the PCI type detection for bttv and
 for dvb-bt8xx drivers by passing modprobe parameters may be necessary.
 

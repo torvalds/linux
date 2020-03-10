@@ -84,7 +84,6 @@ Linux Digital TV driver-specific documentation
 	opera-firmware
 	technisat
 	ttusb-dec
-	udev
 	zr364xx
 
 #################################
