@@ -17,7 +17,7 @@ static int wfx_drop_encrypt_data(struct wfx_dev *wdev,
 				 const struct hif_ind_rx *arg,
 				 struct sk_buff *skb)
 {
-	struct ieee80211_hdr *frame = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *frame = (struct ieee80211_hdr *)skb->data;
 	size_t hdrlen = ieee80211_hdrlen(frame->frame_control);
 	size_t iv_len, icv_len;
 
