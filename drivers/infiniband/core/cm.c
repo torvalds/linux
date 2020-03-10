@@ -80,8 +80,11 @@ const char *__attribute_const__ ibcm_reject_msg(int reason)
 }
 EXPORT_SYMBOL(ibcm_reject_msg);
 
+struct cm_id_private;
 static void cm_add_one(struct ib_device *device);
 static void cm_remove_one(struct ib_device *device, void *client_data);
+static int cm_send_dreq_locked(struct cm_id_private *cm_id_priv,
+			       const void *private_data, u8 private_data_len);
 
 static struct ib_client cm_client = {
 	.name   = "cm",
@@ -1084,10 +1087,12 @@ retest:
 			       NULL, 0, NULL, 0);
 		break;
 	case IB_CM_ESTABLISHED:
-		spin_unlock_irq(&cm_id_priv->lock);
-		if (cm_id_priv->qp_type == IB_QPT_XRC_TGT)
+		if (cm_id_priv->qp_type == IB_QPT_XRC_TGT) {
+			spin_unlock_irq(&cm_id_priv->lock);
 			break;
-		ib_send_cm_dreq(cm_id, NULL, 0);
+		}
+		cm_send_dreq_locked(cm_id_priv, NULL, 0);
+		spin_unlock_irq(&cm_id_priv->lock);
 		goto retest;
 	case IB_CM_DREQ_SENT:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
@@ -2604,35 +2609,32 @@ static void cm_format_dreq(struct cm_dreq_msg *dreq_msg,
 			    private_data_len);
 }
 
-int ib_send_cm_dreq(struct ib_cm_id *cm_id,
-		    const void *private_data,
-		    u8 private_data_len)
+static int cm_send_dreq_locked(struct cm_id_private *cm_id_priv,
+			       const void *private_data, u8 private_data_len)
 {
-	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	unsigned long flags;
 	int ret;
+
+	lockdep_assert_held(&cm_id_priv->lock);
 
 	if (private_data && private_data_len > IB_CM_DREQ_PRIVATE_DATA_SIZE)
 		return -EINVAL;
 
-	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
-	spin_lock_irqsave(&cm_id_priv->lock, flags);
-	if (cm_id->state != IB_CM_ESTABLISHED) {
+	if (cm_id_priv->id.state != IB_CM_ESTABLISHED) {
 		pr_debug("%s: local_id %d, cm_id->state: %d\n", __func__,
-			 be32_to_cpu(cm_id->local_id), cm_id->state);
-		ret = -EINVAL;
-		goto out;
+			 be32_to_cpu(cm_id_priv->id.local_id),
+			 cm_id_priv->id.state);
+		return -EINVAL;
 	}
 
-	if (cm_id->lap_state == IB_CM_LAP_SENT ||
-	    cm_id->lap_state == IB_CM_MRA_LAP_RCVD)
+	if (cm_id_priv->id.lap_state == IB_CM_LAP_SENT ||
+	    cm_id_priv->id.lap_state == IB_CM_MRA_LAP_RCVD)
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 
 	ret = cm_alloc_msg(cm_id_priv, &msg);
 	if (ret) {
 		cm_enter_timewait(cm_id_priv);
-		goto out;
+		return ret;
 	}
 
 	cm_format_dreq((struct cm_dreq_msg *) msg->mad, cm_id_priv,
@@ -2643,14 +2645,26 @@ int ib_send_cm_dreq(struct ib_cm_id *cm_id,
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		cm_enter_timewait(cm_id_priv);
-		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_free_msg(msg);
 		return ret;
 	}
 
-	cm_id->state = IB_CM_DREQ_SENT;
+	cm_id_priv->id.state = IB_CM_DREQ_SENT;
 	cm_id_priv->msg = msg;
-out:	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+	return 0;
+}
+
+int ib_send_cm_dreq(struct ib_cm_id *cm_id, const void *private_data,
+		    u8 private_data_len)
+{
+	struct cm_id_private *cm_id_priv =
+		container_of(cm_id, struct cm_id_private, id);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&cm_id_priv->lock, flags);
+	ret = cm_send_dreq_locked(cm_id_priv, private_data, private_data_len);
+	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL(ib_send_cm_dreq);
