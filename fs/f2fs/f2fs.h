@@ -3824,8 +3824,8 @@ static inline u64 f2fs_disable_compressed_file(struct inode *inode)
 		return fi->i_compr_blocks;
 
 	fi->i_flags &= ~F2FS_COMPR_FL;
-	clear_inode_flag(inode, FI_COMPRESSED_FILE);
 	stat_dec_compr_inode(inode);
+	clear_inode_flag(inode, FI_COMPRESSED_FILE);
 	return 0;
 }
 
