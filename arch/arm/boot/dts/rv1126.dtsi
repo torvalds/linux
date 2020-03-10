@@ -33,6 +33,8 @@
 		serial3 = &uart3;
 		serial4 = &uart4;
 		serial5 = &uart5;
+		spi0 = &spi0;
+		spi1 = &spi1;
 	};
 
 	cpus {
@@ -590,6 +592,21 @@
 		status = "disabled";
 	};
 
+	spi0: spi@ff450000 {
+		compatible = "rockchip,rv1126-spi", "rockchip,rk3066-spi";
+		reg = <0xff450000 0x1000>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		clocks = <&cru CLK_SPI0>, <&cru PCLK_SPI0>;
+		clock-names = "spiclk", "apb_pclk";
+		dmas = <&dmac 1>, <&dmac 0>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default", "high_speed";
+		pinctrl-0 = <&spi0m0_clk &spi0m0_cs0n &spi0m0_cs1n &spi0m0_miso &spi0m0_mosi>;
+		pinctrl-1 = <&spi0m0_clk_hs &spi0m0_cs0n &spi0m0_cs1n &spi0m0_miso_hs &spi0m0_mosi_hs>;
+		status = "disabled";
+	};
+
 	pvtm@ff470000 {
 		compatible = "rockchip,rv1126-pmu-pvtm";
 		reg = <0xff470000 0x100>;
@@ -859,6 +876,21 @@
 		clock-names = "baudclk", "apb_pclk";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart5m0_xfer &uart5m0_ctsn &uart5m0_rtsn>;
+		status = "disabled";
+	};
+
+	spi1: spi@ff5b0000 {
+		compatible = "rockchip,rv1126-spi", "rockchip,rk3066-spi";
+		reg = <0xff5b0000 0x1000>;
+		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		clocks = <&cru CLK_SPI1>, <&cru PCLK_SPI1>;
+		clock-names = "spiclk", "apb_pclk";
+		dmas = <&dmac 3>, <&dmac 2>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default", "high_speed";
+		pinctrl-0 = <&spi1m0_clk &spi1m0_cs0n &spi1m0_cs1n &spi1m0_miso &spi1m0_mosi>;
+		pinctrl-1 = <&spi1m0_clk_hs &spi1m0_cs0n &spi1m0_cs1n &spi1m0_miso_hs &spi1m0_mosi_hs>;
 		status = "disabled";
 	};
 
