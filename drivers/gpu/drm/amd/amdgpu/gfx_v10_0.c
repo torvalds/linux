@@ -224,6 +224,49 @@ static const struct soc15_reg_golden golden_settings_gc_10_1_2[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmUTCL1_CTRL, 0xffffffff, 0x00800000)
 };
 
+static void gfx_v10_rlcg_wreg(struct amdgpu_device *adev, u32 offset, u32 v)
+{
+	static void *scratch_reg0;
+	static void *scratch_reg1;
+	static void *scratch_reg2;
+	static void *scratch_reg3;
+	static void *spare_int;
+	static uint32_t grbm_cntl;
+	static uint32_t grbm_idx;
+	uint32_t i = 0;
+	uint32_t retries = 50000;
+
+	scratch_reg0 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG0_BASE_IDX] + mmSCRATCH_REG0)*4;
+	scratch_reg1 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG1)*4;
+	scratch_reg2 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG2)*4;
+	scratch_reg3 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG3)*4;
+	spare_int = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmRLC_SPARE_INT_BASE_IDX] + mmRLC_SPARE_INT)*4;
+
+	grbm_cntl = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_CNTL_BASE_IDX] + mmGRBM_GFX_CNTL;
+	grbm_idx = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_INDEX_BASE_IDX] + mmGRBM_GFX_INDEX;
+
+	if (amdgpu_sriov_runtime(adev)) {
+		pr_err("shoudn't call rlcg write register during runtime\n");
+		return;
+	}
+
+	writel(v, scratch_reg0);
+	writel(offset | 0x80000000, scratch_reg1);
+	writel(1, spare_int);
+	for (i = 0; i < retries; i++) {
+		u32 tmp;
+
+		tmp = readl(scratch_reg1);
+		if (!(tmp & 0x80000000))
+			break;
+
+		udelay(10);
+	}
+
+	if (i >= retries)
+		pr_err("timeout: rlcg program reg:0x%05x failed !\n", offset);
+}
+
 static const struct soc15_reg_golden golden_settings_gc_10_1_nv14[] =
 {
 	/* Pending on emulation bring up */
@@ -4247,6 +4290,33 @@ static void gfx_v10_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
 	WREG32_SOC15(GC, 0, mmRLC_SPM_MC_CNTL, data);
 }
 
+static bool gfx_v10_0_check_rlcg_range(struct amdgpu_device *adev,
+					uint32_t offset,
+					struct soc15_reg_rlcg *entries, int arr_size)
+{
+	int i;
+	uint32_t reg;
+
+	if (!entries)
+		return false;
+
+	for (i = 0; i < arr_size; i++) {
+		const struct soc15_reg_rlcg *entry;
+
+		entry = &entries[i];
+		reg = adev->reg_offset[entry->hwip][entry->instance][entry->segment] + entry->reg;
+		if (offset == reg)
+			return true;
+	}
+
+	return false;
+}
+
+static bool gfx_v10_0_is_rlcg_access_range(struct amdgpu_device *adev, u32 offset)
+{
+	return gfx_v10_0_check_rlcg_range(adev, offset, NULL, 0);
+}
+
 static const struct amdgpu_rlc_funcs gfx_v10_0_rlc_funcs = {
 	.is_rlc_enabled = gfx_v10_0_is_rlc_enabled,
 	.set_safe_mode = gfx_v10_0_set_safe_mode,
@@ -4258,7 +4328,9 @@ static const struct amdgpu_rlc_funcs gfx_v10_0_rlc_funcs = {
 	.stop = gfx_v10_0_rlc_stop,
 	.reset = gfx_v10_0_rlc_reset,
 	.start = gfx_v10_0_rlc_start,
-	.update_spm_vmid = gfx_v10_0_update_spm_vmid
+	.update_spm_vmid = gfx_v10_0_update_spm_vmid,
+	.rlcg_wreg = gfx_v10_rlcg_wreg,
+	.is_rlcg_access_range = gfx_v10_0_is_rlcg_access_range,
 };
 
 static int gfx_v10_0_set_powergating_state(void *handle,
