@@ -127,7 +127,7 @@ static void set_extend_sge(struct hns_roce_qp *qp, const struct ib_send_wr *wr,
 	 * should calculate how many sges in the first page and the second
 	 * page.
 	 */
-	dseg = get_send_extend_sge(qp, (*sge_ind) & (qp->sge.sge_cnt - 1));
+	dseg = hns_roce_get_extend_sge(qp, (*sge_ind) & (qp->sge.sge_cnt - 1));
 	fi_sge_num = (round_up((uintptr_t)dseg, 1 << shift) -
 		      (uintptr_t)dseg) /
 		      sizeof(struct hns_roce_v2_wqe_data_seg);
@@ -137,7 +137,7 @@ static void set_extend_sge(struct hns_roce_qp *qp, const struct ib_send_wr *wr,
 			set_data_seg_v2(dseg++, sg + i);
 			(*sge_ind)++;
 		}
-		dseg = get_send_extend_sge(qp,
+		dseg = hns_roce_get_extend_sge(qp,
 					   (*sge_ind) & (qp->sge.sge_cnt - 1));
 		for (i = 0; i < se_sge_num; i++) {
 			set_data_seg_v2(dseg++, sg + fi_sge_num + i);
@@ -329,7 +329,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 			goto out;
 		}
 
-		wqe = get_send_wqe(qp, wqe_idx);
+		wqe = hns_roce_get_send_wqe(qp, wqe_idx);
 		qp->sq.wrid[wqe_idx] = wr->wr_id;
 		owner_bit =
 		       ~(((qp->sq.head + nreq) >> ilog2(qp->sq.wqe_cnt)) & 0x1);
@@ -676,7 +676,7 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 			goto out;
 		}
 
-		wqe = get_recv_wqe(hr_qp, wqe_idx);
+		wqe = hns_roce_get_recv_wqe(hr_qp, wqe_idx);
 		dseg = (struct hns_roce_v2_wqe_data_seg *)wqe;
 		for (i = 0; i < wr->num_sge; i++) {
 			if (!wr->sg_list[i].length)
@@ -2935,7 +2935,7 @@ static int hns_roce_handle_recv_inl_wqe(struct hns_roce_v2_cqe *cqe,
 
 	sge_list = (*cur_qp)->rq_inl_buf.wqe_list[wr_cnt].sg_list;
 	sge_num = (*cur_qp)->rq_inl_buf.wqe_list[wr_cnt].sge_cnt;
-	wqe_buf = get_recv_wqe(*cur_qp, wr_cnt);
+	wqe_buf = hns_roce_get_recv_wqe(*cur_qp, wr_cnt);
 	data_len = wc->byte_len;
 
 	for (sge_cnt = 0; (sge_cnt < sge_num) && (data_len); sge_cnt++) {

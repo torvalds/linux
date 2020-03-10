@@ -106,7 +106,7 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp,
 			goto out;
 		}
 
-		wqe = get_send_wqe(qp, wqe_idx);
+		wqe = hns_roce_get_send_wqe(qp, wqe_idx);
 		qp->sq.wrid[wqe_idx] = wr->wr_id;
 
 		/* Corresponding to the RC and RD type wqe process separately */
@@ -378,7 +378,7 @@ static int hns_roce_v1_post_recv(struct ib_qp *ibqp,
 			goto out;
 		}
 
-		ctrl = get_recv_wqe(hr_qp, wqe_idx);
+		ctrl = hns_roce_get_recv_wqe(hr_qp, wqe_idx);
 
 		roce_set_field(ctrl->rwqe_byte_12,
 			       RQ_WQE_CTRL_RWQE_BYTE_12_RWQE_SGE_NUM_M,
@@ -2284,9 +2284,10 @@ static int hns_roce_v1_poll_one(struct hns_roce_cq *hr_cq,
 
 	if (is_send) {
 		/* SQ conrespond to CQE */
-		sq_wqe = get_send_wqe(*cur_qp, roce_get_field(cqe->cqe_byte_4,
+		sq_wqe = hns_roce_get_send_wqe(*cur_qp,
+						roce_get_field(cqe->cqe_byte_4,
 						CQE_BYTE_4_WQE_INDEX_M,
-						CQE_BYTE_4_WQE_INDEX_S)&
+						CQE_BYTE_4_WQE_INDEX_S) &
 						((*cur_qp)->sq.wqe_cnt-1));
 		switch (le32_to_cpu(sq_wqe->flag) & HNS_ROCE_WQE_OPCODE_MASK) {
 		case HNS_ROCE_WQE_OPCODE_SEND:
