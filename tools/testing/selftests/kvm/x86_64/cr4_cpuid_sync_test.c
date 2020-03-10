@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 
 	entry = kvm_get_supported_cpuid_entry(1);
 	if (!(entry->ecx & X86_FEATURE_XSAVE)) {
-		printf("XSAVE feature not supported, skipping test\n");
+		print_skip("XSAVE feature not supported");
 		return 0;
 	}
 

@@ -381,7 +381,7 @@ void nested_vmx_check_supported(void)
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
 
 	if (!(entry->ecx & CPUID_VMX)) {
-		fprintf(stderr, "nested VMX not enabled, skipping test\n");
+		print_skip("nested VMX not enabled");
 		exit(KSFT_SKIP);
 	}
 }

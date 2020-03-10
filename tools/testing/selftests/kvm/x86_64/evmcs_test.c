@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 
 	if (!kvm_check_cap(KVM_CAP_NESTED_STATE) ||
 	    !kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
-		printf("capabilities not available, skipping test\n");
+		print_skip("capabilities not available");
 		exit(KSFT_SKIP);
 	}
 

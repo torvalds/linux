@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
 	have_evmcs = kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS);
 
 	if (!kvm_check_cap(KVM_CAP_NESTED_STATE)) {
-		printf("KVM_CAP_NESTED_STATE not available, skipping test\n");
+		print_skip("KVM_CAP_NESTED_STATE not available");
 		exit(KSFT_SKIP);
 	}
 

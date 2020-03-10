@@ -92,7 +92,7 @@ static void vm_open(struct kvm_vm *vm, int perm)
 		exit(KSFT_SKIP);
 
 	if (!kvm_check_cap(KVM_CAP_IMMEDIATE_EXIT)) {
-		fprintf(stderr, "immediate_exit not available, skipping test\n");
+		print_skip("immediate_exit not available");
 		exit(KSFT_SKIP);
 	}
 

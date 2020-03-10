@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <limits.h>
+#include <assert.h>
 #include "test_util.h"
 
 /*
@@ -68,4 +69,15 @@ struct timespec timespec_diff(struct timespec start, struct timespec end)
 	}
 
 	return temp;
+}
+
+void print_skip(const char *fmt, ...)
+{
+	va_list ap;
+
+	assert(fmt);
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+	puts(", skipping test");
 }

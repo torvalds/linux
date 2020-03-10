@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
 
 	cap = kvm_check_cap(KVM_CAP_SYNC_REGS);
 	if (!cap) {
-		fprintf(stderr, "CAP_SYNC_REGS not supported, skipping test\n");
+		print_skip("CAP_SYNC_REGS not supported");
 		exit(KSFT_SKIP);
 	}
 

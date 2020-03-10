@@ -660,8 +660,8 @@ int main(int argc, char *argv[])
 
 int main(void)
 {
-        printf("skip: Skipping userfaultfd test (missing __NR_userfaultfd)\n");
-        return KSFT_SKIP;
+	print_skip("__NR_userfaultfd must be present for userfaultfd test");
+	return KSFT_SKIP;
 }
 
 #endif /* __NR_userfaultfd */

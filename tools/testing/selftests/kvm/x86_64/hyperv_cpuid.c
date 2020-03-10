@@ -141,8 +141,7 @@ int main(int argc, char *argv[])
 
 	rv = kvm_check_cap(KVM_CAP_HYPERV_CPUID);
 	if (!rv) {
-		fprintf(stderr,
-			"KVM_CAP_HYPERV_CPUID not supported, skip test\n");
+		print_skip("KVM_CAP_HYPERV_CPUID not supported");
 		exit(KSFT_SKIP);
 	}
 
@@ -160,8 +159,7 @@ int main(int argc, char *argv[])
 	free(hv_cpuid_entries);
 
 	if (!kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
-		fprintf(stderr,
-			"Enlightened VMCS is unsupported, skip related test\n");
+		print_skip("Enlightened VMCS is unsupported");
 		goto vm_free;
 	}
 

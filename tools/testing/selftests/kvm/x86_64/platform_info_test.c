@@ -88,8 +88,7 @@ int main(int argc, char *argv[])
 
 	rv = kvm_check_cap(KVM_CAP_MSR_PLATFORM_INFO);
 	if (!rv) {
-		fprintf(stderr,
-			"KVM_CAP_MSR_PLATFORM_INFO not supported, skip test\n");
+		print_skip("KVM_CAP_MSR_PLATFORM_INFO not supported");
 		exit(KSFT_SKIP);
 	}
 

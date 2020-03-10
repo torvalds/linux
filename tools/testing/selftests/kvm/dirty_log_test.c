@@ -437,8 +437,7 @@ int main(int argc, char *argv[])
 	dirty_log_manual_caps =
 		kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2);
 	if (!dirty_log_manual_caps) {
-		fprintf(stderr, "KVM_CLEAR_DIRTY_LOG not available, "
-				"skipping tests\n");
+		print_skip("KVM_CLEAR_DIRTY_LOG not available");
 		exit(KSFT_SKIP);
 	}
 	dirty_log_manual_caps &= (KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE |
