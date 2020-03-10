@@ -491,9 +491,11 @@ static void wfx_set_mfp(struct wfx_vif *wvif,
 static void wfx_do_join(struct wfx_vif *wvif)
 {
 	int ret;
-	const u8 *ssidie;
 	struct ieee80211_bss_conf *conf = &wvif->vif->bss_conf;
 	struct cfg80211_bss *bss = NULL;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	const u8 *ssidie = NULL;
+	int ssidlen = 0;
 
 	wfx_tx_lock_flush(wvif->wdev);
 
@@ -514,11 +516,14 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	if (!wvif->beacon_int)
 		wvif->beacon_int = 1;
 
-	rcu_read_lock();
+	rcu_read_lock(); // protect ssidie
 	if (!conf->ibss_joined)
 		ssidie = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
-	else
-		ssidie = NULL;
+	if (ssidie) {
+		ssidlen = ssidie[1];
+		memcpy(ssid, &ssidie[2], ssidie[1]);
+	}
+	rcu_read_unlock();
 
 	wfx_tx_flush(wvif->wdev);
 
@@ -527,10 +532,8 @@ static void wfx_do_join(struct wfx_vif *wvif)
 
 	wfx_set_mfp(wvif, bss);
 
-	/* Perform actual join */
 	wvif->wdev->tx_burst_idx = -1;
-	ret = hif_join(wvif, conf, wvif->channel, ssidie);
-	rcu_read_unlock();
+	ret = hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
 	if (ret) {
 		ieee80211_connection_loss(wvif->vif);
 		wvif->join_complete_status = -1;
