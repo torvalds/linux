@@ -140,6 +140,7 @@ int hif_shutdown(struct wfx_dev *wdev)
 	else
 		control_reg_write(wdev, 0);
 	mutex_unlock(&wdev->hif_cmd.lock);
+	mutex_unlock(&wdev->hif_cmd.key_renew_lock);
 	kfree(hif);
 	return ret;
 }
