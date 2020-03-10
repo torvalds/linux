@@ -191,6 +191,7 @@ struct fixed_file_data {
 	struct llist_head		put_llist;
 	struct work_struct		ref_work;
 	struct completion		done;
+	struct rcu_head			rcu;
 };
 
 struct io_ring_ctx {
@@ -999,6 +1000,7 @@ static void io_kill_timeout(struct io_kiocb *req)
 	if (ret != -1) {
 		atomic_inc(&req->ctx->cq_timeouts);
 		list_del_init(&req->list);
+		req->flags |= REQ_F_COMP_LOCKED;
 		io_cqring_fill_event(req, 0);
 		io_put_req(req);
 	}
@@ -5329,6 +5331,26 @@ static void io_file_ref_kill(struct percpu_ref *ref)
 	complete(&data->done);
 }
 
+static void __io_file_ref_exit_and_free(struct rcu_head *rcu)
+{
+	struct fixed_file_data *data = container_of(rcu, struct fixed_file_data,
+							rcu);
+	percpu_ref_exit(&data->refs);
+	kfree(data);
+}
+
+static void io_file_ref_exit_and_free(struct rcu_head *rcu)
+{
+	/*
+	 * We need to order our exit+free call against the potentially
+	 * existing call_rcu() for switching to atomic. One way to do that
+	 * is to have this rcu callback queue the final put and free, as we
+	 * could otherwise have a pre-existing atomic switch complete _after_
+	 * the free callback we queued.
+	 */
+	call_rcu(rcu, __io_file_ref_exit_and_free);
+}
+
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
 	struct fixed_file_data *data = ctx->file_data;
@@ -5341,14 +5363,13 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	flush_work(&data->ref_work);
 	wait_for_completion(&data->done);
 	io_ring_file_ref_flush(data);
-	percpu_ref_exit(&data->refs);
 
 	__io_sqe_files_unregister(ctx);
 	nr_tables = DIV_ROUND_UP(ctx->nr_user_files, IORING_MAX_FILES_TABLE);
 	for (i = 0; i < nr_tables; i++)
 		kfree(data->table[i].files);
 	kfree(data->table);
-	kfree(data);
+	call_rcu(&data->rcu, io_file_ref_exit_and_free);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
 	return 0;

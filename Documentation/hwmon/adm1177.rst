@@ -20,8 +20,7 @@ Usage Notes
 -----------
 
 This driver does not auto-detect devices. You will have to instantiate the
-devices explicitly. Please see Documentation/i2c/instantiating-devices for
-details.
+devices explicitly. Please see :doc:`/i2c/instantiating-devices` for details.
 
 
 Sysfs entries
