@@ -37,6 +37,7 @@
 #include "smu_v11_0_pptable.h"
 #include "smu_v11_0_7_ppsmc.h"
 
+#include "nbio/nbio_2_3_sh_mask.h"
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
 
 #define FEATURE_MASK(feature) (1ULL << feature)
@@ -508,10 +509,16 @@ static bool sienna_cichlid_is_support_fine_grained_dpm(struct smu_context *smu, 
 static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
+	struct amdgpu_device *adev = smu->adev;
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	PPTable_t *pptable = (PPTable_t *)table_context->driver_pptable;
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t freq_values[3] = {0};
 	uint32_t mark_index = 0;
+	uint32_t gen_speed, lane_width;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -561,6 +568,30 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 			}
 
 		}
+		break;
+	case SMU_PCIE:
+		gen_speed = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
+			     PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
+			>> PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
+		lane_width = (RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL) &
+			      PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK)
+			>> PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT;
+		for (i = 0; i < NUM_LINK_LEVELS; i++)
+			size += sprintf(buf + size, "%d: %s %s %dMhz %s\n", i,
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 0) ? "2.5GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 1) ? "5.0GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 2) ? "8.0GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 3) ? "16.0GT/s," : "",
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 1) ? "x1" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 2) ? "x2" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 3) ? "x4" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 4) ? "x8" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 5) ? "x12" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 6) ? "x16" : "",
+					pptable->LclkFreq[i],
+					(gen_speed == dpm_context->dpm_tables.pcie_table.pcie_gen[i]) &&
+					(lane_width == dpm_context->dpm_tables.pcie_table.pcie_lane[i]) ?
+					"*" : "");
 		break;
 	default:
 		break;

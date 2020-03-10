@@ -25,4 +25,7 @@
 
 extern void sienna_cichlid_set_ppt_funcs(struct smu_context *smu);
 
+#define smnPCIE_LC_SPEED_CNTL                   0x11140290
+#define smnPCIE_LC_LINK_WIDTH_CNTL              0x11140288
+
 #endif
