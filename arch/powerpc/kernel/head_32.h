@@ -64,11 +64,25 @@
 .endm
 
 .macro EXCEPTION_PROLOG_2 handle_dar_dsisr=0
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S)
+BEGIN_MMU_FTR_SECTION
+	mtcr	r10
+FTR_SECTION_ELSE
+	stw	r10, _CCR(r11)
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
+#else
 	stw	r10,_CCR(r11)		/* save registers */
+#endif
+	mfspr	r10, SPRN_SPRG_SCRATCH0
 	stw	r12,GPR12(r11)
 	stw	r9,GPR9(r11)
-	mfspr	r10,SPRN_SPRG_SCRATCH0
 	stw	r10,GPR10(r11)
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S)
+BEGIN_MMU_FTR_SECTION
+	mfcr	r10
+	stw	r10, _CCR(r11)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
+#endif
 	mfspr	r12,SPRN_SPRG_SCRATCH1
 	stw	r12,GPR11(r11)
 	mflr	r10
@@ -83,6 +97,11 @@
 	stw	r10, _DSISR(r11)
 	.endif
 	lwz	r9, SRR1(r12)
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_PPC_BOOK3S)
+BEGIN_MMU_FTR_SECTION
+	andi.	r10, r9, MSR_PR
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
+#endif
 	lwz	r12, SRR0(r12)
 #else
 	mfspr	r12,SPRN_SRR0
