@@ -206,9 +206,9 @@ read_end:
 
 static void imx_ocotp_set_imx6_timing(struct ocotp_priv *priv)
 {
-	unsigned long clk_rate = 0;
+	unsigned long clk_rate;
 	unsigned long strobe_read, relax, strobe_prog;
-	u32 timing = 0;
+	u32 timing;
 
 	/* 47.3.1.3.1
 	 * Program HW_OCOTP_TIMING[STROBE_PROG] and HW_OCOTP_TIMING[RELAX]
@@ -258,9 +258,9 @@ static void imx_ocotp_set_imx6_timing(struct ocotp_priv *priv)
 
 static void imx_ocotp_set_imx7_timing(struct ocotp_priv *priv)
 {
-	unsigned long clk_rate = 0;
+	unsigned long clk_rate;
 	u64 fsource, strobe_prog;
-	u32 timing = 0;
+	u32 timing;
 
 	/* i.MX 7Solo Applications Processor Reference Manual, Rev. 0.1
 	 * 6.4.3.3
