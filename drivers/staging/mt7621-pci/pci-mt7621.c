@@ -45,8 +45,6 @@
 
 /* rt_sysc_membase relative registers */
 #define RALINK_CLKCFG1			0x30
-#define RALINK_PCIE_CLK_GEN		0x7c
-#define RALINK_PCIE_CLK_GEN1		0x80
 
 /* Host-PCI bridge registers */
 #define RALINK_PCI_PCICFG_ADDR		0x0000
@@ -85,10 +83,6 @@
 #define PCIE_PORT_CLK_EN(x)		BIT(24 + (x))
 #define PCIE_PORT_LINKUP		BIT(0)
 
-#define PCIE_CLK_GEN_EN			BIT(31)
-#define PCIE_CLK_GEN_DIS		0
-#define PCIE_CLK_GEN1_DIS		GENMASK(30, 24)
-#define PCIE_CLK_GEN1_EN		(BIT(27) | BIT(25))
 #define MEMORY_BASE			0x0
 #define PERST_MODE_MASK			GENMASK(11, 10)
 #define PERST_MODE_GPIO			BIT(10)
@@ -231,6 +225,11 @@ static inline void mt7621_perst_gpio_pcie_deassert(struct mt7621_pcie *pcie)
 static inline bool mt7621_pcie_port_is_linkup(struct mt7621_pcie_port *port)
 {
 	return (pcie_port_read(port, RALINK_PCI_STATUS) & PCIE_PORT_LINKUP) != 0;
+}
+
+static inline void mt7621_pcie_port_clk_enable(struct mt7621_pcie_port *port)
+{
+	rt_sysc_m32(0, PCIE_PORT_CLK_EN(port->slot), RALINK_CLKCFG1);
 }
 
 static inline void mt7621_pcie_port_clk_disable(struct mt7621_pcie_port *port)
@@ -501,11 +500,6 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 		}
 	}
 
-	rt_sysc_m32(0x30, 2 << 4, SYSC_REG_SYSTEM_CONFIG1);
-	rt_sysc_m32(PCIE_CLK_GEN_EN, PCIE_CLK_GEN_DIS, RALINK_PCIE_CLK_GEN);
-	rt_sysc_m32(PCIE_CLK_GEN1_DIS, PCIE_CLK_GEN1_EN, RALINK_PCIE_CLK_GEN1);
-	rt_sysc_m32(PCIE_CLK_GEN_DIS, PCIE_CLK_GEN_EN, RALINK_PCIE_CLK_GEN);
-	msleep(50);
 	reset_control_deassert(pcie->rst);
 }
 
@@ -542,6 +536,7 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 
 	list_for_each_entry(port, &pcie->ports, list) {
 		if (port->enabled) {
+			mt7621_pcie_port_clk_enable(port);
 			mt7621_pcie_enable_port(port);
 			dev_info(dev, "PCIE%d enabled\n", num_slots_enabled);
 			num_slots_enabled++;
