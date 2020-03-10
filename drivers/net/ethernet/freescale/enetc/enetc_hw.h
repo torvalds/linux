@@ -418,9 +418,6 @@ union enetc_rx_bd {
 	struct {
 		__le64 addr;
 		u8 reserved[8];
-#ifdef CONFIG_FSL_ENETC_HW_TIMESTAMPING
-		u8 reserved1[16];
-#endif
 	} w;
 	struct {
 		__le16 inet_csum;
@@ -435,11 +432,11 @@ union enetc_rx_bd {
 			};
 			__le32 lstatus;
 		};
-#ifdef CONFIG_FSL_ENETC_HW_TIMESTAMPING
+	} r;
+	struct {
 		__le32 tstamp;
 		u8 reserved[12];
-#endif
-	} r;
+	} ext;
 };
 
 #define ENETC_RXBD_LSTATUS_R	BIT(30)
