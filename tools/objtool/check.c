@@ -1975,6 +1975,41 @@ static int validate_sibling_call(struct instruction *insn, struct insn_state *st
 	return validate_call(insn, state);
 }
 
+static int validate_return(struct symbol *func, struct instruction *insn, struct insn_state *state)
+{
+	if (state->uaccess && !func_uaccess_safe(func)) {
+		WARN_FUNC("return with UACCESS enabled",
+			  insn->sec, insn->offset);
+		return 1;
+	}
+
+	if (!state->uaccess && func_uaccess_safe(func)) {
+		WARN_FUNC("return with UACCESS disabled from a UACCESS-safe function",
+			  insn->sec, insn->offset);
+		return 1;
+	}
+
+	if (state->df) {
+		WARN_FUNC("return with DF set",
+			  insn->sec, insn->offset);
+		return 1;
+	}
+
+	if (func && has_modified_stack_frame(state)) {
+		WARN_FUNC("return with modified stack frame",
+			  insn->sec, insn->offset);
+		return 1;
+	}
+
+	if (state->bp_scratch) {
+		WARN("%s uses BP as a scratch register",
+		     func->name);
+		return 1;
+	}
+
+	return 0;
+}
+
 /*
  * Follow the branch starting at the given instruction, and recursively follow
  * any other branches (jumps).  Meanwhile, track the frame pointer state at
@@ -2090,34 +2125,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 		switch (insn->type) {
 
 		case INSN_RETURN:
-			if (state.uaccess && !func_uaccess_safe(func)) {
-				WARN_FUNC("return with UACCESS enabled", sec, insn->offset);
-				return 1;
-			}
-
-			if (!state.uaccess && func_uaccess_safe(func)) {
-				WARN_FUNC("return with UACCESS disabled from a UACCESS-safe function", sec, insn->offset);
-				return 1;
-			}
-
-			if (state.df) {
-				WARN_FUNC("return with DF set", sec, insn->offset);
-				return 1;
-			}
-
-			if (func && has_modified_stack_frame(&state)) {
-				WARN_FUNC("return with modified stack frame",
-					  sec, insn->offset);
-				return 1;
-			}
-
-			if (state.bp_scratch) {
-				WARN("%s uses BP as a scratch register",
-				     func->name);
-				return 1;
-			}
-
-			return 0;
+			return validate_return(func, insn, &state);
 
 		case INSN_CALL:
 		case INSN_CALL_DYNAMIC:
