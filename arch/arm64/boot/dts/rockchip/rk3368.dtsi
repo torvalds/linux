@@ -1676,8 +1676,10 @@
 		reg = <0x0 0xff9a0000 0x0 0x400>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
-		clocks = <&cru ACLK_VIDEO>, <&cru HCLK_VIDEO>, <&cru SCLK_HEVC_CORE>;
-		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
+		clocks = <&cru ACLK_VIDEO>, <&cru HCLK_VIDEO>,
+			<&cru SCLK_HEVC_CORE>, <&cru SCLK_HEVC_CABAC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core",
+				"clk_cabac";
 		resets = <&cru SRST_VIDEO_AXI>, <&cru SRST_VIDEO_AHB>,
 			<&cru SRST_VIDEO>;
 		reset-names = "shared_video_a", "shared_video_h", "video_core";
