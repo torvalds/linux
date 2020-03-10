@@ -712,12 +712,13 @@ static int at24_probe(struct i2c_client *client)
 	 * chip is functional.
 	 */
 	err = at24_read(at24, 0, &test_byte, 1);
-	pm_runtime_idle(dev);
 	if (err) {
 		pm_runtime_disable(dev);
 		regulator_disable(at24->vcc_reg);
 		return -ENODEV;
 	}
+
+	pm_runtime_idle(dev);
 
 	if (writable)
 		dev_info(dev, "%u byte %s EEPROM, writable, %u bytes/write\n",
