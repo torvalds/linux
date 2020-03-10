@@ -407,6 +407,7 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
 	PPTable_t *driver_ppt = NULL;
+	int i;
 
         driver_ppt = table_context->driver_pptable;
 
@@ -436,6 +437,11 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 
         dpm_context->dpm_tables.phy_table.min = driver_ppt->FreqTablePhyclk[0];
         dpm_context->dpm_tables.phy_table.max = driver_ppt->FreqTablePhyclk[NUM_PHYCLK_DPM_LEVELS - 1];
+
+	for (i = 0; i < MAX_PCIE_CONF; i++) {
+		dpm_context->dpm_tables.pcie_table.pcie_gen[i] = driver_ppt->PcieGenSpeed[i];
+		dpm_context->dpm_tables.pcie_table.pcie_lane[i] = driver_ppt->PcieLaneCount[i];
+	}
 
 	return 0;
 }
@@ -1430,6 +1436,41 @@ static int sienna_cichlid_get_power_limit(struct smu_context *smu,
 	return 0;
 }
 
+static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
+					 uint32_t pcie_gen_cap,
+					 uint32_t pcie_width_cap)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+	int ret, i;
+	uint32_t smu_pcie_arg;
+
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+
+	for (i = 0; i < NUM_LINK_LEVELS; i++) {
+		smu_pcie_arg = (i << 16) |
+			((pptable->PcieGenSpeed[i] <= pcie_gen_cap) ?
+					(pptable->PcieGenSpeed[i] << 8) :
+					(pcie_gen_cap << 8)) |
+			((pptable->PcieLaneCount[i] <= pcie_width_cap) ?
+					pptable->PcieLaneCount[i] :
+					pcie_width_cap);
+
+		ret = smu_send_smc_msg_with_param(smu,
+						  SMU_MSG_OverridePcieParameters,
+						  smu_pcie_arg, NULL);
+		if (ret)
+			return ret;
+
+		if (pptable->PcieGenSpeed[i] > pcie_gen_cap)
+			dpm_context->dpm_tables.pcie_table.pcie_gen[i] = pcie_gen_cap;
+		if (pptable->PcieLaneCount[i] > pcie_width_cap)
+			dpm_context->dpm_tables.pcie_table.pcie_lane[i] = pcie_width_cap;
+	}
+
+	return 0;
+}
+
 static void sienna_cichlid_dump_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -2134,6 +2175,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_thermal_temperature_range = sienna_cichlid_get_thermal_temperature_range,
 	.display_disable_memory_clock_switch = sienna_cichlid_display_disable_memory_clock_switch,
 	.get_power_limit = sienna_cichlid_get_power_limit,
+	.update_pcie_parameters = sienna_cichlid_update_pcie_parameters,
 	.dump_pptable = sienna_cichlid_dump_pptable,
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
