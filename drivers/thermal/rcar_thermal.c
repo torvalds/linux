@@ -254,24 +254,20 @@ err_out_unlock:
 static int rcar_thermal_get_current_temp(struct rcar_thermal_priv *priv,
 					 int *temp)
 {
-	int ctemp, tmp;
+	int ctemp;
 
 	ctemp = rcar_thermal_update_temp(priv);
 	if (ctemp < 0)
 		return ctemp;
 
-	mutex_lock(&priv->lock);
-	if (priv->chip->ctemp_bands == 1)
-		tmp = MCELSIUS((ctemp * 5) - 65);
-	else if (ctemp < 24)
-		tmp = MCELSIUS(((ctemp * 55) - 720) / 10);
-	else
-		tmp = MCELSIUS((ctemp * 5) - 60);
-	mutex_unlock(&priv->lock);
-
 	/* Guaranteed operating range is -45C to 125C. */
 
-	*temp = tmp;
+	if (priv->chip->ctemp_bands == 1)
+		*temp = MCELSIUS((ctemp * 5) - 65);
+	else if (ctemp < 24)
+		*temp = MCELSIUS(((ctemp * 55) - 720) / 10);
+	else
+		*temp = MCELSIUS((ctemp * 5) - 60);
 
 	return 0;
 }
