@@ -3535,20 +3535,27 @@ static void cm_format_sidr_req_event(struct cm_work *work,
 
 static int cm_sidr_req_handler(struct cm_work *work)
 {
-	struct ib_cm_id *cm_id;
-	struct cm_id_private *cm_id_priv, *cur_cm_id_priv;
+	struct cm_id_private *cm_id_priv, *listen_cm_id_priv;
 	struct cm_sidr_req_msg *sidr_req_msg;
 	struct ib_wc *wc;
 	int ret;
 
-	cm_id = ib_create_cm_id(work->port->cm_dev->ib_device, NULL, NULL);
-	if (IS_ERR(cm_id))
-		return PTR_ERR(cm_id);
-	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
+	cm_id_priv =
+		cm_alloc_id_priv(work->port->cm_dev->ib_device, NULL, NULL);
+	if (IS_ERR(cm_id_priv))
+		return PTR_ERR(cm_id_priv);
 
 	/* Record SGID/SLID and request ID for lookup. */
 	sidr_req_msg = (struct cm_sidr_req_msg *)
 				work->mad_recv_wc->recv_buf.mad;
+
+	cm_id_priv->id.remote_id =
+		cpu_to_be32(IBA_GET(CM_SIDR_REQ_REQUESTID, sidr_req_msg));
+	cm_id_priv->id.service_id =
+		cpu_to_be64(IBA_GET(CM_SIDR_REQ_SERVICEID, sidr_req_msg));
+	cm_id_priv->id.service_mask = ~cpu_to_be64(0);
+	cm_id_priv->tid = sidr_req_msg->hdr.tid;
+
 	wc = work->mad_recv_wc->wc;
 	cm_id_priv->av.dgid.global.subnet_prefix = cpu_to_be64(wc->slid);
 	cm_id_priv->av.dgid.global.interface_id = 0;
@@ -3558,41 +3565,44 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	if (ret)
 		goto out;
 
-	cm_id_priv->id.remote_id =
-		cpu_to_be32(IBA_GET(CM_SIDR_REQ_REQUESTID, sidr_req_msg));
-	cm_id_priv->tid = sidr_req_msg->hdr.tid;
-	atomic_inc(&cm_id_priv->work_count);
-
 	spin_lock_irq(&cm.lock);
-	cur_cm_id_priv = cm_insert_remote_sidr(cm_id_priv);
-	if (cur_cm_id_priv) {
+	listen_cm_id_priv = cm_insert_remote_sidr(cm_id_priv);
+	if (listen_cm_id_priv) {
 		spin_unlock_irq(&cm.lock);
 		atomic_long_inc(&work->port->counter_group[CM_RECV_DUPLICATES].
 				counter[CM_SIDR_REQ_COUNTER]);
 		goto out; /* Duplicate message. */
 	}
 	cm_id_priv->id.state = IB_CM_SIDR_REQ_RCVD;
-	cur_cm_id_priv = cm_find_listen(
-		cm_id->device,
-		cpu_to_be64(IBA_GET(CM_SIDR_REQ_SERVICEID, sidr_req_msg)));
-	if (!cur_cm_id_priv) {
+	listen_cm_id_priv = cm_find_listen(cm_id_priv->id.device,
+					   cm_id_priv->id.service_id);
+	if (!listen_cm_id_priv) {
 		spin_unlock_irq(&cm.lock);
 		cm_reject_sidr_req(cm_id_priv, IB_SIDR_UNSUPPORTED);
 		goto out; /* No match. */
 	}
-	refcount_inc(&cur_cm_id_priv->refcount);
-	refcount_inc(&cm_id_priv->refcount);
+	refcount_inc(&listen_cm_id_priv->refcount);
 	spin_unlock_irq(&cm.lock);
 
-	cm_id_priv->id.cm_handler = cur_cm_id_priv->id.cm_handler;
-	cm_id_priv->id.context = cur_cm_id_priv->id.context;
-	cm_id_priv->id.service_id =
-		cpu_to_be64(IBA_GET(CM_SIDR_REQ_SERVICEID, sidr_req_msg));
-	cm_id_priv->id.service_mask = ~cpu_to_be64(0);
+	cm_id_priv->id.cm_handler = listen_cm_id_priv->id.cm_handler;
+	cm_id_priv->id.context = listen_cm_id_priv->id.context;
 
-	cm_format_sidr_req_event(work, cm_id_priv, &cur_cm_id_priv->id);
-	cm_process_work(cm_id_priv, work);
-	cm_deref_id(cur_cm_id_priv);
+	/*
+	 * A SIDR ID does not need to be in the xarray since it does not receive
+	 * mads, is not placed in the remote_id or remote_qpn rbtree, and does
+	 * not enter timewait.
+	 */
+
+	cm_format_sidr_req_event(work, cm_id_priv, &listen_cm_id_priv->id);
+	ret = cm_id_priv->id.cm_handler(&cm_id_priv->id, &work->cm_event);
+	cm_free_work(work);
+	/*
+	 * A pointer to the listen_cm_id is held in the event, so this deref
+	 * must be after the event is delivered above.
+	 */
+	cm_deref_id(listen_cm_id_priv);
+	if (ret)
+		cm_destroy_id(&cm_id_priv->id, ret);
 	return 0;
 out:
 	ib_destroy_cm_id(&cm_id_priv->id);
