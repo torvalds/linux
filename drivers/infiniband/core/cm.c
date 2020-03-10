@@ -83,6 +83,8 @@ EXPORT_SYMBOL(ibcm_reject_msg);
 struct cm_id_private;
 static void cm_add_one(struct ib_device *device);
 static void cm_remove_one(struct ib_device *device, void *client_data);
+static int cm_send_sidr_rep_locked(struct cm_id_private *cm_id_priv,
+				   struct ib_cm_sidr_rep_param *param);
 static int cm_send_dreq_locked(struct cm_id_private *cm_id_priv,
 			       const void *private_data, u8 private_data_len);
 static int cm_send_drep_locked(struct cm_id_private *cm_id_priv,
@@ -830,16 +832,6 @@ static struct cm_id_private * cm_insert_remote_sidr(struct cm_id_private
 	return NULL;
 }
 
-static void cm_reject_sidr_req(struct cm_id_private *cm_id_priv,
-			       enum ib_cm_sidr_status status)
-{
-	struct ib_cm_sidr_rep_param param;
-
-	memset(&param, 0, sizeof param);
-	param.status = status;
-	ib_send_cm_sidr_rep(&cm_id_priv->id, &param);
-}
-
 static struct cm_id_private *cm_alloc_id_priv(struct ib_device *device,
 					      ib_cm_handler cm_handler,
 					      void *context)
@@ -1058,8 +1050,10 @@ retest:
 		spin_unlock_irq(&cm_id_priv->lock);
 		break;
 	case IB_CM_SIDR_REQ_RCVD:
+		cm_send_sidr_rep_locked(cm_id_priv,
+					&(struct ib_cm_sidr_rep_param){
+						.status = IB_SIDR_REJECT });
 		spin_unlock_irq(&cm_id_priv->lock);
-		cm_reject_sidr_req(cm_id_priv, IB_SIDR_REJECT);
 		break;
 	case IB_CM_REQ_SENT:
 	case IB_CM_MRA_REQ_RCVD:
@@ -3640,7 +3634,9 @@ static int cm_sidr_req_handler(struct cm_work *work)
 					   cm_id_priv->id.service_id);
 	if (!listen_cm_id_priv) {
 		spin_unlock_irq(&cm.lock);
-		cm_reject_sidr_req(cm_id_priv, IB_SIDR_UNSUPPORTED);
+		ib_send_cm_sidr_rep(&cm_id_priv->id,
+				    &(struct ib_cm_sidr_rep_param){
+					    .status = IB_SIDR_UNSUPPORTED });
 		goto out; /* No match. */
 	}
 	refcount_inc(&listen_cm_id_priv->refcount);
@@ -3694,50 +3690,52 @@ static void cm_format_sidr_rep(struct cm_sidr_rep_msg *sidr_rep_msg,
 			    param->private_data, param->private_data_len);
 }
 
-int ib_send_cm_sidr_rep(struct ib_cm_id *cm_id,
-			struct ib_cm_sidr_rep_param *param)
+static int cm_send_sidr_rep_locked(struct cm_id_private *cm_id_priv,
+				   struct ib_cm_sidr_rep_param *param)
 {
-	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	unsigned long flags;
 	int ret;
+
+	lockdep_assert_held(&cm_id_priv->lock);
 
 	if ((param->info && param->info_length > IB_CM_SIDR_REP_INFO_LENGTH) ||
 	    (param->private_data &&
 	     param->private_data_len > IB_CM_SIDR_REP_PRIVATE_DATA_SIZE))
 		return -EINVAL;
 
-	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
-	spin_lock_irqsave(&cm_id_priv->lock, flags);
-	if (cm_id->state != IB_CM_SIDR_REQ_RCVD) {
-		ret = -EINVAL;
-		goto error;
-	}
+	if (cm_id_priv->id.state != IB_CM_SIDR_REQ_RCVD)
+		return -EINVAL;
 
 	ret = cm_alloc_msg(cm_id_priv, &msg);
 	if (ret)
-		goto error;
+		return ret;
 
 	cm_format_sidr_rep((struct cm_sidr_rep_msg *) msg->mad, cm_id_priv,
 			   param);
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
-		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_free_msg(msg);
 		return ret;
 	}
-	cm_id->state = IB_CM_IDLE;
-	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
-
-	spin_lock_irqsave(&cm.lock, flags);
+	cm_id_priv->id.state = IB_CM_IDLE;
 	if (!RB_EMPTY_NODE(&cm_id_priv->sidr_id_node)) {
 		rb_erase(&cm_id_priv->sidr_id_node, &cm.remote_sidr_table);
 		RB_CLEAR_NODE(&cm_id_priv->sidr_id_node);
 	}
-	spin_unlock_irqrestore(&cm.lock, flags);
 	return 0;
+}
 
-error:	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+int ib_send_cm_sidr_rep(struct ib_cm_id *cm_id,
+			struct ib_cm_sidr_rep_param *param)
+{
+	struct cm_id_private *cm_id_priv =
+		container_of(cm_id, struct cm_id_private, id);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&cm_id_priv->lock, flags);
+	ret = cm_send_sidr_rep_locked(cm_id_priv, param);
+	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL(ib_send_cm_sidr_rep);
