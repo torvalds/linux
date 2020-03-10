@@ -155,11 +155,21 @@ enum flow_action_mangle_base {
 	FLOW_ACT_MANGLE_HDR_TYPE_UDP,
 };
 
-#define FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE BIT(0)
-#define FLOW_ACTION_HW_STATS_TYPE_DELAYED BIT(1)
-#define FLOW_ACTION_HW_STATS_TYPE_ANY (FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE | \
-				       FLOW_ACTION_HW_STATS_TYPE_DELAYED)
-#define FLOW_ACTION_HW_STATS_TYPE_DISABLED 0
+enum flow_action_hw_stats_type_bit {
+	FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE_BIT,
+	FLOW_ACTION_HW_STATS_TYPE_DELAYED_BIT,
+};
+
+enum flow_action_hw_stats_type {
+	FLOW_ACTION_HW_STATS_TYPE_DISABLED = 0,
+	FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE =
+		BIT(FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE_BIT),
+	FLOW_ACTION_HW_STATS_TYPE_DELAYED =
+		BIT(FLOW_ACTION_HW_STATS_TYPE_DELAYED_BIT),
+	FLOW_ACTION_HW_STATS_TYPE_ANY =
+		FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE |
+		FLOW_ACTION_HW_STATS_TYPE_DELAYED,
+};
 
 typedef void (*action_destr)(void *priv);
 
@@ -175,7 +185,7 @@ void flow_action_cookie_destroy(struct flow_action_cookie *cookie);
 
 struct flow_action_entry {
 	enum flow_action_id		id;
-	u8				hw_stats_type;
+	enum flow_action_hw_stats_type	hw_stats_type;
 	action_destr			destructor;
 	void				*destructor_priv;
 	union {
