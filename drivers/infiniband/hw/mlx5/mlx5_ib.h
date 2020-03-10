@@ -700,6 +700,7 @@ struct mlx5_cache_ent {
 	u32			page;
 
 	u8 disabled:1;
+	u8 fill_to_high_water:1;
 
 	/*
 	 * - available_mrs is the length of list head, ie the number of MRs
