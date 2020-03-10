@@ -428,9 +428,9 @@ int hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	struct hif_msg *hif;
 	struct hif_req_start *body = wfx_alloc_hif(sizeof(*body), &hif);
 
-	body->dtim_period = conf->dtim_period,
-	body->short_preamble = conf->use_short_preamble,
-	body->channel_number = cpu_to_le16(channel->hw_value),
+	body->dtim_period = conf->dtim_period;
+	body->short_preamble = conf->use_short_preamble;
+	body->channel_number = cpu_to_le16(channel->hw_value);
 	body->beacon_interval = cpu_to_le32(conf->beacon_int);
 	body->basic_rate_set =
 		cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, conf->basic_rates));
