@@ -1919,6 +1919,8 @@ static void cxgb4vf_get_wol(struct net_device *dev,
 		   NETIF_F_GRO | NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 
 static const struct ethtool_ops cxgb4vf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_RX_MAX_FRAMES,
 	.get_link_ksettings	= cxgb4vf_get_link_ksettings,
 	.get_fecparam		= cxgb4vf_get_fecparam,
 	.get_drvinfo		= cxgb4vf_get_drvinfo,
