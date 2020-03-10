@@ -21,18 +21,15 @@
 #define ICE_PCI_CIAD_WAIT_COUNT		100
 #define ICE_PCI_CIAD_WAIT_DELAY_US	1
 
-/* VF resources default values and limitation */
+/* VF resource constraints */
 #define ICE_MAX_VF_COUNT		256
-#define ICE_MAX_QS_PER_VF		256
 #define ICE_MIN_QS_PER_VF		1
-#define ICE_DFLT_QS_PER_VF		4
 #define ICE_NONQ_VECS_VF		1
 #define ICE_MAX_SCATTER_QS_PER_VF	16
-#define ICE_MAX_BASE_QS_PER_VF		16
-#define ICE_MAX_INTR_PER_VF		65
-#define ICE_MAX_POLICY_INTR_PER_VF	33
+#define ICE_MAX_RSS_QS_PER_VF		16
+#define ICE_NUM_VF_MSIX_MED		17
+#define ICE_NUM_VF_MSIX_SMALL		5
 #define ICE_MIN_INTR_PER_VF		(ICE_MIN_QS_PER_VF + 1)
-#define ICE_DFLT_INTR_PER_VF		(ICE_DFLT_QS_PER_VF + 1)
 #define ICE_MAX_VF_RESET_TRIES		40
 #define ICE_MAX_VF_RESET_SLEEP_MS	20
 
@@ -75,8 +72,8 @@ struct ice_vf {
 	struct virtchnl_version_info vf_ver;
 	u32 driver_caps;		/* reported by VF driver */
 	struct virtchnl_ether_addr dflt_lan_addr;
-	DECLARE_BITMAP(txq_ena, ICE_MAX_BASE_QS_PER_VF);
-	DECLARE_BITMAP(rxq_ena, ICE_MAX_BASE_QS_PER_VF);
+	DECLARE_BITMAP(txq_ena, ICE_MAX_RSS_QS_PER_VF);
+	DECLARE_BITMAP(rxq_ena, ICE_MAX_RSS_QS_PER_VF);
 	u16 port_vlan_info;		/* Port VLAN ID and QoS */
 	u8 pf_set_mac:1;		/* VF MAC address set by VMM admin */
 	u8 trusted:1;
