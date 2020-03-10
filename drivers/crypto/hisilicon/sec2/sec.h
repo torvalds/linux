@@ -119,6 +119,7 @@ struct sec_ctx {
 	struct sec_qp_ctx *qp_ctx;
 	struct sec_dev *sec;
 	const struct sec_req_op *req_op;
+	struct hisi_qp **qps;
 
 	/* Half queues for encipher, and half for decipher */
 	u32 hlf_q_num;
@@ -168,7 +169,6 @@ struct sec_debug {
 
 struct sec_dev {
 	struct hisi_qm qm;
-	struct list_head list;
 	struct sec_debug debug;
 	u32 ctx_q_num;
 	bool iommu_used;
@@ -176,7 +176,8 @@ struct sec_dev {
 	unsigned long status;
 };
 
-struct sec_dev *sec_find_device(int node);
+void sec_destroy_qps(struct hisi_qp **qps, int qp_num);
+struct hisi_qp **sec_create_qps(void);
 int sec_register_to_crypto(void);
 void sec_unregister_from_crypto(void);
 #endif

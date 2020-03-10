@@ -355,11 +355,8 @@ static int sec_create_qp_ctx(struct hisi_qm *qm, struct sec_ctx *ctx,
 	struct hisi_qp *qp;
 	int ret = -ENOMEM;
 
-	qp = hisi_qm_create_qp(qm, alg_type);
-	if (IS_ERR(qp))
-		return PTR_ERR(qp);
-
 	qp_ctx = &ctx->qp_ctx[qp_ctx_id];
+	qp = ctx->qps[qp_ctx_id];
 	qp->req_type = 0;
 	qp->qp_ctx = qp_ctx;
 	qp->req_cb = sec_req_cb;
@@ -402,7 +399,6 @@ err_free_c_in_pool:
 	hisi_acc_free_sgl_pool(dev, qp_ctx->c_in_pool);
 err_destroy_idr:
 	idr_destroy(&qp_ctx->req_idr);
-	hisi_qm_release_qp(qp);
 
 	return ret;
 }
@@ -419,7 +415,6 @@ static void sec_release_qp_ctx(struct sec_ctx *ctx,
 	hisi_acc_free_sgl_pool(dev, qp_ctx->c_in_pool);
 
 	idr_destroy(&qp_ctx->req_idr);
-	hisi_qm_release_qp(qp_ctx->qp);
 }
 
 static int sec_ctx_base_init(struct sec_ctx *ctx)
@@ -427,11 +422,13 @@ static int sec_ctx_base_init(struct sec_ctx *ctx)
 	struct sec_dev *sec;
 	int i, ret;
 
-	sec = sec_find_device(cpu_to_node(smp_processor_id()));
-	if (!sec) {
-		pr_err("Can not find proper Hisilicon SEC device!\n");
+	ctx->qps = sec_create_qps();
+	if (!ctx->qps) {
+		pr_err("Can not create sec qps!\n");
 		return -ENODEV;
 	}
+
+	sec = container_of(ctx->qps[0]->qm, struct sec_dev, qm);
 	ctx->sec = sec;
 	ctx->hlf_q_num = sec->ctx_q_num >> 1;
 
@@ -455,6 +452,7 @@ err_sec_release_qp_ctx:
 	for (i = i - 1; i >= 0; i--)
 		sec_release_qp_ctx(ctx, &ctx->qp_ctx[i]);
 
+	sec_destroy_qps(ctx->qps, sec->ctx_q_num);
 	kfree(ctx->qp_ctx);
 	return ret;
 }
@@ -466,6 +464,7 @@ static void sec_ctx_base_uninit(struct sec_ctx *ctx)
 	for (i = 0; i < ctx->sec->ctx_q_num; i++)
 		sec_release_qp_ctx(ctx, &ctx->qp_ctx[i]);
 
+	sec_destroy_qps(ctx->qps, ctx->sec->ctx_q_num);
 	kfree(ctx->qp_ctx);
 }
 

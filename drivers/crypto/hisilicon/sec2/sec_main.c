@@ -90,8 +90,7 @@ struct sec_hw_error {
 
 static const char sec_name[] = "hisi_sec2";
 static struct dentry *sec_debugfs_root;
-static LIST_HEAD(sec_list);
-static DEFINE_MUTEX(sec_list_lock);
+static struct hisi_qm_list sec_devices;
 
 static const struct sec_hw_error sec_hw_errors[] = {
 	{.int_msk = BIT(0), .msg = "sec_axi_rresp_err_rint"},
@@ -105,37 +104,6 @@ static const struct sec_hw_error sec_hw_errors[] = {
 	{.int_msk = BIT(8), .msg = "sec_chain_buff_err_rint"},
 	{ /* sentinel */ }
 };
-
-struct sec_dev *sec_find_device(int node)
-{
-#define SEC_NUMA_MAX_DISTANCE	100
-	int min_distance = SEC_NUMA_MAX_DISTANCE;
-	int dev_node = 0, free_qp_num = 0;
-	struct sec_dev *sec, *ret = NULL;
-	struct hisi_qm *qm;
-	struct device *dev;
-
-	mutex_lock(&sec_list_lock);
-	list_for_each_entry(sec, &sec_list, list) {
-		qm = &sec->qm;
-		dev = &qm->pdev->dev;
-#ifdef CONFIG_NUMA
-		dev_node = dev->numa_node;
-		if (dev_node < 0)
-			dev_node = 0;
-#endif
-		if (node_distance(dev_node, node) < min_distance) {
-			free_qp_num = hisi_qm_get_free_qp_num(qm);
-			if (free_qp_num >= sec->ctx_q_num) {
-				ret = sec;
-				min_distance = node_distance(dev_node, node);
-			}
-		}
-	}
-	mutex_unlock(&sec_list_lock);
-
-	return ret;
-}
 
 static const char * const sec_dbg_file_name[] = {
 	[SEC_CURRENT_QM] = "current_qm",
@@ -239,26 +207,38 @@ static u32 ctx_q_num = SEC_CTX_Q_NUM_DEF;
 module_param_cb(ctx_q_num, &sec_ctx_q_num_ops, &ctx_q_num, 0444);
 MODULE_PARM_DESC(ctx_q_num, "Queue num in ctx (24 default, 2, 4, ..., 32)");
 
+void sec_destroy_qps(struct hisi_qp **qps, int qp_num)
+{
+	hisi_qm_free_qps(qps, qp_num);
+	kfree(qps);
+}
+
+struct hisi_qp **sec_create_qps(void)
+{
+	int node = cpu_to_node(smp_processor_id());
+	u32 ctx_num = ctx_q_num;
+	struct hisi_qp **qps;
+	int ret;
+
+	qps = kcalloc(ctx_num, sizeof(struct hisi_qp *), GFP_KERNEL);
+	if (!qps)
+		return NULL;
+
+	ret = hisi_qm_alloc_qps_node(&sec_devices, ctx_num, 0, node, qps);
+	if (!ret)
+		return qps;
+
+	kfree(qps);
+	return NULL;
+}
+
+
 static const struct pci_device_id sec_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, SEC_PF_PCI_DEVICE_ID) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, SEC_VF_PCI_DEVICE_ID) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sec_dev_ids);
-
-static inline void sec_add_to_list(struct sec_dev *sec)
-{
-	mutex_lock(&sec_list_lock);
-	list_add_tail(&sec->list, &sec_list);
-	mutex_unlock(&sec_list_lock);
-}
-
-static inline void sec_remove_from_list(struct sec_dev *sec)
-{
-	mutex_lock(&sec_list_lock);
-	list_del(&sec->list);
-	mutex_unlock(&sec_list_lock);
-}
 
 static u8 sec_get_endian(struct sec_dev *sec)
 {
@@ -889,7 +869,7 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		pci_warn(pdev, "Failed to init debugfs!\n");
 
-	sec_add_to_list(sec);
+	hisi_qm_add_to_list(qm, &sec_devices);
 
 	ret = sec_register_to_crypto();
 	if (ret < 0) {
@@ -900,7 +880,7 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_remove_from_list:
-	sec_remove_from_list(sec);
+	hisi_qm_del_from_list(qm, &sec_devices);
 	sec_debugfs_exit(sec);
 	hisi_qm_stop(qm);
 
@@ -1024,7 +1004,7 @@ static void sec_remove(struct pci_dev *pdev)
 
 	sec_unregister_from_crypto();
 
-	sec_remove_from_list(sec);
+	hisi_qm_del_from_list(qm, &sec_devices);
 
 	if (qm->fun_type == QM_HW_PF && sec->num_vfs)
 		(void)sec_sriov_disable(pdev);
@@ -1071,6 +1051,7 @@ static int __init sec_init(void)
 {
 	int ret;
 
+	hisi_qm_init_list(&sec_devices);
 	sec_register_debugfs();
 
 	ret = pci_register_driver(&sec_pci_driver);
