@@ -1985,11 +1985,11 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 	*match_inner = !needs_mapping;
 
 	if ((needs_mapping || sets_mapping) &&
-	    !mlx5_eswitch_vport_match_metadata_enabled(esw)) {
+	    !mlx5_eswitch_reg_c1_loopback_enabled(esw)) {
 		NL_SET_ERR_MSG(extack,
-			       "Chains on tunnel devices isn't supported without register metadata support");
+			       "Chains on tunnel devices isn't supported without register loopback support");
 		netdev_warn(priv->netdev,
-			    "Chains on tunnel devices isn't supported without register metadata support");
+			    "Chains on tunnel devices isn't supported without register loopback support");
 		return -EOPNOTSUPP;
 	}
 
