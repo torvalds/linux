@@ -3201,11 +3201,6 @@ finish_lookup:
 		return res;
 	}
 
-	if (unlikely((open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT))) {
-		audit_inode(nd->name, nd->path.dentry, 0);
-		return ERR_PTR(-EEXIST);
-	}
-
 	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
 	return ERR_PTR(complete_walk(nd));
 }
@@ -3224,6 +3219,8 @@ static int do_open(struct nameidata *nd,
 	if (!(file->f_mode & FMODE_CREATED))
 		audit_inode(nd->name, nd->path.dentry, 0);
 	if (open_flag & O_CREAT) {
+		if ((open_flag & O_EXCL) && !(file->f_mode & FMODE_CREATED))
+			return -EEXIST;
 		if (d_is_dir(nd->path.dentry))
 			return -EISDIR;
 		error = may_create_in_sticky(nd->dir_mode, nd->dir_uid,
