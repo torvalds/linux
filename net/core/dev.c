@@ -2875,6 +2875,7 @@ int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 			netif_setup_tc(dev, txq);
 
 		dev->real_num_tx_queues = txq;
+		dev_qdisc_set_real_num_tx_queues(dev);
 
 		if (disabling) {
 			synchronize_net();

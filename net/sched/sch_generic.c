@@ -1268,6 +1268,27 @@ int dev_qdisc_change_tx_queue_len(struct net_device *dev)
 	return ret;
 }
 
+void dev_qdisc_set_real_num_tx_queues(struct net_device *dev)
+{
+#ifdef CONFIG_NET_SCHED
+	struct Qdisc *sch = dev->qdisc;
+	unsigned int ntx;
+
+	if (!sch)
+		return;
+
+	ASSERT_RTNL();
+
+	for (ntx = 0; ntx < dev->real_num_tx_queues; ntx++) {
+		struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, ntx);
+		struct Qdisc *qdisc = dev_queue->qdisc;
+
+		if (qdisc && !qdisc_hashed(qdisc))
+			qdisc_hash_add(qdisc, false);
+	}
+#endif
+}
+
 static void dev_init_scheduler_queue(struct net_device *dev,
 				     struct netdev_queue *dev_queue,
 				     void *_qdisc)
