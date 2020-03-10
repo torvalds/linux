@@ -807,6 +807,22 @@
 		status = "disabled";
 	};
 
+	rng: rng@ff500000 {
+		compatible = "rockchip,cryptov2-rng";
+		reg = <0xff500000 0x4000>;
+		clocks = <&cru CLK_CRYPTO_CORE>, <&cru CLK_CRYPTO_PKA>,
+			<&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		clock-names = "clk_crypto", "clk_crypto_apk",
+				"aclk_crypto", "hclk_crypto";
+		assigned-clocks = <&cru CLK_CRYPTO_CORE>, <&cru CLK_CRYPTO_PKA>,
+					<&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		assigned-clock-rates = <150000000>, <150000000>,
+					<200000000>, <100000000>;
+		resets = <&cru SRST_CRYPTO_CORE>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
 	i2c1: i2c@ff510000 {
 		compatible = "rockchip,rv1126-i2c", "rockchip,rk3399-i2c";
 		reg = <0xff510000 0x1000>;
