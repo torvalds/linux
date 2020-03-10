@@ -101,12 +101,12 @@ int main(int argc, char *argv[])
 			vcpu_sregs_set(vm, VCPU_ID, &sregs);
 			break;
 		case UCALL_ABORT:
-			TEST_ASSERT(false, "Guest CR4 bit (OSXSAVE) unsynchronized with CPUID bit.");
+			TEST_FAIL("Guest CR4 bit (OSXSAVE) unsynchronized with CPUID bit.");
 			break;
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unknown ucall %lu", uc.cmd);
 		}
 	}
 

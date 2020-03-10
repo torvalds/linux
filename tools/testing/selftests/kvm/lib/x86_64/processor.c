@@ -506,8 +506,7 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	return (pte[index[0]].address * vm->page_size) + (gva & 0xfffu);
 
 unmapped_gva:
-	TEST_ASSERT(false, "No mapping for vm virtual address, "
-		    "gva: 0x%lx", gva);
+	TEST_FAIL("No mapping for vm virtual address, gva: 0x%lx", gva);
 	exit(EXIT_FAILURE);
 }
 
@@ -564,7 +563,7 @@ static void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_m
 		break;
 
 	default:
-		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", vm->mode);
+		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
 	}
 
 	sregs.cr3 = vm->pgd;

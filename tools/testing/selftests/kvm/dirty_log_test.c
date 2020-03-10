@@ -166,10 +166,9 @@ static void *vcpu_worker(void *data)
 			pages_count += TEST_PAGES_PER_LOOP;
 			generate_random_array(guest_array, TEST_PAGES_PER_LOOP);
 		} else {
-			TEST_ASSERT(false,
-				    "Invalid guest sync status: "
-				    "exit_reason=%s\n",
-				    exit_reason_str(run->exit_reason));
+			TEST_FAIL("Invalid guest sync status: "
+				  "exit_reason=%s\n",
+				  exit_reason_str(run->exit_reason));
 		}
 	}
 

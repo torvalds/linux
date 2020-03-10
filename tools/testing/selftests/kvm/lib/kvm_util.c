@@ -198,12 +198,11 @@ struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 			 vm->pa_bits);
 		vm->pgtable_levels = 4;
 #else
-		TEST_ASSERT(false, "VM_MODE_PXXV48_4K not supported on "
-			    "non-x86 platforms");
+		TEST_FAIL("VM_MODE_PXXV48_4K not supported on non-x86 platforms");
 #endif
 		break;
 	default:
-		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", mode);
+		TEST_FAIL("Unknown guest mode, mode: 0x%x", mode);
 	}
 
 #ifdef __aarch64__
@@ -603,7 +602,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	region = (struct userspace_mem_region *) userspace_mem_region_find(
 		vm, guest_paddr, (guest_paddr + npages * vm->page_size) - 1);
 	if (region != NULL)
-		TEST_ASSERT(false, "overlapping userspace_mem_region already "
+		TEST_FAIL("overlapping userspace_mem_region already "
 			"exists\n"
 			"  requested guest_paddr: 0x%lx npages: 0x%lx "
 			"page_size: 0x%x\n"
@@ -619,7 +618,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 			break;
 	}
 	if (region != NULL)
-		TEST_ASSERT(false, "A mem region with the requested slot "
+		TEST_FAIL("A mem region with the requested slot "
 			"already exists.\n"
 			"  requested slot: %u paddr: 0x%lx npages: 0x%lx\n"
 			"  existing slot: %u paddr: 0x%lx size: 0x%lx",
@@ -723,7 +722,7 @@ memslot2region(struct kvm_vm *vm, uint32_t memslot)
 			"  requested slot: %u\n", memslot);
 		fputs("---- vm dump ----\n", stderr);
 		vm_dump(stderr, vm, 2);
-		TEST_ASSERT(false, "Mem region not found");
+		TEST_FAIL("Mem region not found");
 	}
 
 	return region;
@@ -841,7 +840,7 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
 	/* Confirm a vcpu with the specified id doesn't already exist. */
 	vcpu = vcpu_find(vm, vcpuid);
 	if (vcpu != NULL)
-		TEST_ASSERT(false, "vcpu with the specified id "
+		TEST_FAIL("vcpu with the specified id "
 			"already exists,\n"
 			"  requested vcpuid: %u\n"
 			"  existing vcpuid: %u state: %p",
@@ -934,8 +933,7 @@ static vm_vaddr_t vm_vaddr_unused_gap(struct kvm_vm *vm, size_t sz,
 	} while (pgidx_start != 0);
 
 no_va_found:
-	TEST_ASSERT(false, "No vaddr of specified pages available, "
-		"pages: 0x%lx", pages);
+	TEST_FAIL("No vaddr of specified pages available, pages: 0x%lx", pages);
 
 	/* NOT REACHED */
 	return -1;
@@ -1070,7 +1068,7 @@ void *addr_gpa2hva(struct kvm_vm *vm, vm_paddr_t gpa)
 				+ (gpa - region->region.guest_phys_addr));
 	}
 
-	TEST_ASSERT(false, "No vm physical memory at 0x%lx", gpa);
+	TEST_FAIL("No vm physical memory at 0x%lx", gpa);
 	return NULL;
 }
 
@@ -1104,8 +1102,7 @@ vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva)
 				+ (hva - (uintptr_t) region->host_mem));
 	}
 
-	TEST_ASSERT(false, "No mapping to a guest physical address, "
-		"hva: %p", hva);
+	TEST_FAIL("No mapping to a guest physical address, hva: %p", hva);
 	return -1;
 }
 
