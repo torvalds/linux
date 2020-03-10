@@ -691,6 +691,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 			wfx_rate_mask_to_hw(wvif->wdev, sta->supp_rates[wvif->channel->band]);
 	else
 		wvif->bss_params.operational_rate_set = -1;
+	rcu_read_unlock();
 	if (sta &&
 	    info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT)
 		hif_dual_cts_protection(wvif, true);
@@ -703,8 +704,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	wvif->bss_params.beacon_lost_count = 20;
 	wvif->bss_params.aid = info->aid;
 
-	hif_set_association_mode(wvif, info, sta ? &sta->ht_cap : NULL);
-	rcu_read_unlock();
+	hif_set_association_mode(wvif, info);
 
 	if (!info->ibss_joined) {
 		hif_keep_alive_period(wvif, 30 /* sec */);
