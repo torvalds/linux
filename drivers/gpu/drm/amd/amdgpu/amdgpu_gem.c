@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/pci.h>
+#include <linux/dma-buf.h>
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_debugfs.h>
@@ -854,7 +855,8 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 	attachment = READ_ONCE(bo->tbo.base.import_attach);
 
 	if (attachment)
-		seq_printf(m, " imported from %p", dma_buf);
+		seq_printf(m, " imported from %p%s", dma_buf,
+			   attachment->peer2peer ? " P2P" : "");
 	else if (dma_buf)
 		seq_printf(m, " exported as %p", dma_buf);
 
