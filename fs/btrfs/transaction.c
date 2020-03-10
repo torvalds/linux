@@ -221,7 +221,7 @@ void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
 	WARN_ON_ONCE(!list_empty(&trans->new_bgs));
 
 	btrfs_block_rsv_release(fs_info, &fs_info->chunk_block_rsv,
-				trans->chunk_bytes_reserved);
+				trans->chunk_bytes_reserved, NULL);
 	trans->chunk_bytes_reserved = 0;
 }
 
@@ -675,7 +675,7 @@ join_fail:
 alloc_fail:
 	if (num_bytes)
 		btrfs_block_rsv_release(fs_info, &fs_info->trans_block_rsv,
-					num_bytes);
+					num_bytes, NULL);
 reserve_fail:
 	btrfs_qgroup_free_meta_pertrans(root, qgroup_reserved);
 	return ERR_PTR(ret);
@@ -898,7 +898,7 @@ static void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans)
 	trace_btrfs_space_reservation(fs_info, "transaction",
 				      trans->transid, trans->bytes_reserved, 0);
 	btrfs_block_rsv_release(fs_info, trans->block_rsv,
-				trans->bytes_reserved);
+				trans->bytes_reserved, NULL);
 	trans->bytes_reserved = 0;
 }
 

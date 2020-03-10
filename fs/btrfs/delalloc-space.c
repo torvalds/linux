@@ -330,8 +330,8 @@ static void btrfs_inode_rsv_release(struct btrfs_inode *inode, bool qgroup_free)
 	 * are releasing 0 bytes, and then we'll just get the reservation over
 	 * the size free'd.
 	 */
-	released = __btrfs_block_rsv_release(fs_info, block_rsv, 0,
-					     &qgroup_to_release);
+	released = btrfs_block_rsv_release(fs_info, block_rsv, 0,
+					   &qgroup_to_release);
 	if (released > 0)
 		trace_btrfs_space_reservation(fs_info, "delalloc",
 					      btrfs_ino(inode), released, 0);
