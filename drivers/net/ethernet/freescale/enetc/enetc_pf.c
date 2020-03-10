@@ -797,11 +797,6 @@ static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
 	struct device_node *mdio_np;
 	int err;
 
-	if (!np) {
-		dev_err(priv->dev, "missing ENETC port node\n");
-		return -ENODEV;
-	}
-
 	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
 	if (!priv->phy_node) {
 		if (!of_phy_is_fixed_link(np)) {
