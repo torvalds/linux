@@ -605,7 +605,9 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sta_priv->buffered); i++)
-		WARN(sta_priv->buffered[i], "release station while Tx is in progress");
+		if (sta_priv->buffered[i])
+			dev_warn(wvif->wdev->dev, "release station while %d pending frame on queue %d",
+				 sta_priv->buffered[i], i);
 	// FIXME: see note in wfx_sta_add()
 	if (vif->type == NL80211_IFTYPE_STATION)
 		return 0;
