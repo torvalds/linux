@@ -1576,6 +1576,10 @@ static int cxgb4_set_priv_flags(struct net_device *netdev, u32 flags)
 }
 
 static const struct ethtool_ops cxgb_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_RX_MAX_FRAMES |
+				     ETHTOOL_COALESCE_TX_USECS_IRQ |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_link_ksettings = get_link_ksettings,
 	.set_link_ksettings = set_link_ksettings,
 	.get_fecparam      = get_fecparam,

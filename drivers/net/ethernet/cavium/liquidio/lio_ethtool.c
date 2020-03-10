@@ -3097,7 +3097,17 @@ static int lio_set_fecparam(struct net_device *netdev,
 	return 0;
 }
 
+#define LIO_ETHTOOL_COALESCE	(ETHTOOL_COALESCE_RX_USECS |		\
+				 ETHTOOL_COALESCE_MAX_FRAMES |		\
+				 ETHTOOL_COALESCE_USE_ADAPTIVE |	\
+				 ETHTOOL_COALESCE_RX_MAX_FRAMES_LOW |	\
+				 ETHTOOL_COALESCE_TX_MAX_FRAMES_LOW |	\
+				 ETHTOOL_COALESCE_RX_MAX_FRAMES_HIGH |	\
+				 ETHTOOL_COALESCE_TX_MAX_FRAMES_HIGH |	\
+				 ETHTOOL_COALESCE_PKT_RATE_RX_USECS)
+
 static const struct ethtool_ops lio_ethtool_ops = {
+	.supported_coalesce_params = LIO_ETHTOOL_COALESCE,
 	.get_link_ksettings	= lio_get_link_ksettings,
 	.set_link_ksettings	= lio_set_link_ksettings,
 	.get_fecparam		= lio_get_fecparam,
@@ -3128,6 +3138,7 @@ static const struct ethtool_ops lio_ethtool_ops = {
 };
 
 static const struct ethtool_ops lio_vf_ethtool_ops = {
+	.supported_coalesce_params = LIO_ETHTOOL_COALESCE,
 	.get_link_ksettings	= lio_get_link_ksettings,
 	.get_link		= ethtool_op_get_link,
 	.get_drvinfo		= lio_get_vf_drvinfo,

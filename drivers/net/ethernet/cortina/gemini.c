@@ -2222,6 +2222,8 @@ static const struct net_device_ops gmac_351x_ops = {
 };
 
 static const struct ethtool_ops gmac_351x_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_sset_count	= gmac_get_sset_count,
 	.get_strings	= gmac_get_strings,
 	.get_ethtool_stats = gmac_get_ethtool_stats,
