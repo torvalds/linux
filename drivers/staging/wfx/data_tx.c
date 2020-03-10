@@ -304,7 +304,7 @@ static u8 wfx_tx_get_raw_link_id(struct wfx_vif *wvif,
 				 struct ieee80211_hdr *hdr)
 {
 	struct wfx_sta_priv *sta_priv =
-		sta ? (struct wfx_sta_priv *) &sta->drv_priv : NULL;
+		sta ? (struct wfx_sta_priv *)&sta->drv_priv : NULL;
 	const u8 *da = ieee80211_get_DA(hdr);
 
 	if (sta_priv && sta_priv->link_id)
@@ -430,7 +430,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int queue_id = tx_info->hw_queue;
-	size_t offset = (size_t) skb->data & 3;
+	size_t offset = (size_t)skb->data & 3;
 	int wmsg_len = sizeof(struct hif_msg) +
 			sizeof(struct hif_req_tx) + offset;
 
