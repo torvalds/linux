@@ -256,6 +256,11 @@ static inline bool flow_offload_has_one_action(const struct flow_action *action)
 	return action->num_entries == 1;
 }
 
+#define flow_action_for_each(__i, __act, __actions)			\
+        for (__i = 0, __act = &(__actions)->entries[0];			\
+	     __i < (__actions)->num_entries;				\
+	     __act = &(__actions)->entries[++__i])
+
 static inline bool
 flow_action_mixed_hw_stats_types_check(const struct flow_action *action,
 				       struct netlink_ext_ack *extack)
@@ -267,8 +272,7 @@ flow_action_mixed_hw_stats_types_check(const struct flow_action *action,
 	if (flow_offload_has_one_action(action))
 		return true;
 
-	for (i = 0; i < action->num_entries; i++) {
-		action_entry = &action->entries[i];
+	flow_action_for_each(i, action_entry, action) {
 		if (i && action_entry->hw_stats_type != last_hw_stats_type) {
 			NL_SET_ERR_MSG_MOD(extack, "Mixing HW stats types for actions is not supported");
 			return false;
@@ -315,9 +319,6 @@ flow_action_basic_hw_stats_types_check(const struct flow_action *action,
 {
 	return flow_action_hw_stats_types_check(action, extack, 0);
 }
-
-#define flow_action_for_each(__i, __act, __actions)			\
-        for (__i = 0, __act = &(__actions)->entries[0]; __i < (__actions)->num_entries; __act = &(__actions)->entries[++__i])
 
 struct flow_rule {
 	struct flow_match	match;
