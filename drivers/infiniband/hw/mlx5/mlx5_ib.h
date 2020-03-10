@@ -617,8 +617,8 @@ struct mlx5_ib_mr {
 	struct ib_umem	       *umem;
 	struct mlx5_shared_mr_info	*smr_info;
 	struct list_head	list;
-	int			order;
-	bool			allocated_from_cache;
+	unsigned int		order;
+	struct mlx5_cache_ent  *cache_ent;
 	int			npages;
 	struct mlx5_ib_dev     *dev;
 	u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
@@ -1274,7 +1274,8 @@ int mlx5_ib_get_cqe_size(struct ib_cq *ibcq);
 int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev);
 
-struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev, int entry);
+struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
+				       unsigned int entry);
 void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 int mlx5_mr_cache_invalidate(struct mlx5_ib_mr *mr);
 
