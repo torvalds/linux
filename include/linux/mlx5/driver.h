@@ -518,9 +518,11 @@ struct mlx5_rate_limit {
 };
 
 struct mlx5_rl_entry {
-	struct mlx5_rate_limit	rl;
-	u16                     index;
-	u16                     refcount;
+	u8 rl_raw[MLX5_ST_SZ_BYTES(set_pp_rate_limit_context)];
+	u16 index;
+	u64 refcount;
+	u16 uid;
+	u8 dedicated : 1;
 };
 
 struct mlx5_rl_table {
@@ -1008,6 +1010,9 @@ int mlx5_rl_add_rate(struct mlx5_core_dev *dev, u16 *index,
 		     struct mlx5_rate_limit *rl);
 void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, struct mlx5_rate_limit *rl);
 bool mlx5_rl_is_in_range(struct mlx5_core_dev *dev, u32 rate);
+int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
+			 bool dedicated_entry, u16 *index);
+void mlx5_rl_remove_rate_raw(struct mlx5_core_dev *dev, u16 index);
 bool mlx5_rl_are_equal(struct mlx5_rate_limit *rl_0,
 		       struct mlx5_rate_limit *rl_1);
 int mlx5_alloc_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg,

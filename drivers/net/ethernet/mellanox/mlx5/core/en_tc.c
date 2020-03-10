@@ -3313,6 +3313,45 @@ static bool is_duplicated_output_device(struct net_device *dev,
 	return false;
 }
 
+static int mlx5_validate_goto_chain(struct mlx5_eswitch *esw,
+				    struct mlx5e_tc_flow *flow,
+				    const struct flow_action_entry *act,
+				    u32 actions,
+				    struct netlink_ext_ack *extack)
+{
+	u32 max_chain = mlx5_esw_chains_get_chain_range(esw);
+	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
+	bool ft_flow = mlx5e_is_ft_flow(flow);
+	u32 dest_chain = act->chain_index;
+
+	if (ft_flow) {
+		NL_SET_ERR_MSG_MOD(extack, "Goto action is not supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (!mlx5_esw_chains_backwards_supported(esw) &&
+	    dest_chain <= attr->chain) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Goto lower numbered chain isn't supported");
+		return -EOPNOTSUPP;
+	}
+	if (dest_chain > max_chain) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Requested destination chain is out of supported range");
+		return -EOPNOTSUPP;
+	}
+
+	if (actions & (MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
+		       MLX5_FLOW_CONTEXT_ACTION_DECAP) &&
+	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, reformat_and_fwd_to_table)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Goto chain is not allowed if action has reformat or decap");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct flow_action *flow_action,
 				struct mlx5e_tc_flow *flow,
@@ -3534,29 +3573,15 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		case FLOW_ACTION_TUNNEL_DECAP:
 			action |= MLX5_FLOW_CONTEXT_ACTION_DECAP;
 			break;
-		case FLOW_ACTION_GOTO: {
-			u32 dest_chain = act->chain_index;
-			u32 max_chain = mlx5_esw_chains_get_chain_range(esw);
+		case FLOW_ACTION_GOTO:
+			err = mlx5_validate_goto_chain(esw, flow, act, action,
+						       extack);
+			if (err)
+				return err;
 
-			if (ft_flow) {
-				NL_SET_ERR_MSG_MOD(extack, "Goto action is not supported");
-				return -EOPNOTSUPP;
-			}
-			if (!mlx5_esw_chains_backwards_supported(esw) &&
-			    dest_chain <= attr->chain) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Goto earlier chain isn't supported");
-				return -EOPNOTSUPP;
-			}
-			if (dest_chain > max_chain) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Requested destination chain is out of supported range");
-				return -EOPNOTSUPP;
-			}
 			action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
-			attr->dest_chain = dest_chain;
+			attr->dest_chain = act->chain_index;
 			break;
-			}
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "The offload action is not supported");
 			return -EOPNOTSUPP;
