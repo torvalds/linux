@@ -23,6 +23,7 @@
 #ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
 static DECLARE_FAULT_ATTR(null_timeout_attr);
 static DECLARE_FAULT_ATTR(null_requeue_attr);
+static DECLARE_FAULT_ATTR(null_init_hctx_attr);
 #endif
 
 static inline u64 mb_per_tick(int mbps)
@@ -101,6 +102,9 @@ module_param_string(timeout, g_timeout_str, sizeof(g_timeout_str), 0444);
 
 static char g_requeue_str[80];
 module_param_string(requeue, g_requeue_str, sizeof(g_requeue_str), 0444);
+
+static char g_init_hctx_str[80];
+module_param_string(init_hctx, g_init_hctx_str, sizeof(g_init_hctx_str), 0444);
 #endif
 
 static int g_queue_mode = NULL_Q_MQ;
@@ -1451,6 +1455,11 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 	struct nullb *nullb = hctx->queue->queuedata;
 	struct nullb_queue *nq;
 
+#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
+	if (g_init_hctx_str[0] && should_fail(&null_init_hctx_attr, 1))
+		return -EFAULT;
+#endif
+
 	nq = &nullb->queues[hctx_idx];
 	hctx->driver_data = nq;
 	null_init_queue(nullb, nq);
@@ -1682,6 +1691,8 @@ static bool null_setup_fault(void)
 	if (!__null_setup_fault(&null_timeout_attr, g_timeout_str))
 		return false;
 	if (!__null_setup_fault(&null_requeue_attr, g_requeue_str))
+		return false;
+	if (!__null_setup_fault(&null_init_hctx_attr, g_init_hctx_str))
 		return false;
 #endif
 	return true;
