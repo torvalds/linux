@@ -7,23 +7,17 @@ site: http://royale.zerezo.com/zr364xx/
 
 mail: royale@zerezo.com
 
-.. note::
-
-   This documentation is outdated
 
 Introduction
 ------------
 
 
-This brings support under Linux for the Aiptek PocketDV 3300 in webcam
-mode. If you just want to get on your PC the pictures and movies on the
-camera, you should use the usb-storage module instead.
+This brings support under Linux for the Aiptek PocketDV 3300 and similar
+devices in webcam mode. If you just want to get on your PC the pictures
+and movies on the camera, you should use the usb-storage module instead.
 
 The driver works with several other cameras in webcam mode (see the list
 below).
-
-Maybe this code can work for other JPEG/USB cams based on the Coach
-chips from Zoran?
 
 Possible chipsets are : ZR36430 (ZR36430BGC) and
 maybe ZR36431, ZR36440, ZR36442...
@@ -34,20 +28,18 @@ at the source code).
 You can get these values by looking at /var/log/messages when you plug
 your camera, or by typing : cat /sys/kernel/debug/usb/devices.
 
-If you manage to use your cam with this code, you can send me a mail
-(royale@zerezo.com) with the name of your cam and a patch if needed.
-
-This is a beta release of the driver. Since version 0.70, this driver is
-only compatible with V4L2 API and 2.6.x kernels. If you need V4L1 or
-2.4x kernels support, please use an older version, but the code is not
-maintained anymore. Good luck!
 
 Install
 -------
 
-In order to use this driver, you must compile it with your kernel.
+In order to use this driver, you must compile it with your kernel,
+with the following config options::
 
-Location: Device Drivers -> Multimedia devices -> Video For Linux -> Video Capture Adapters -> V4L USB devices
+    ./scripts/config -e USB
+    ./scripts/config -m MEDIA_SUPPORT
+    ./scripts/config -e MEDIA_USB_SUPPORT
+    ./scripts/config -e MEDIA_CAMERA_SUPPORT
+    ./scripts/config -m USB_ZR364XX
 
 Usage
 -----
