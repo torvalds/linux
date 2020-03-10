@@ -575,24 +575,19 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
-	u32 val;
-
 	/* Wa_1409142259:tgl */
 	WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
 			  GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
 
-	/* Wa_1604555607:tgl */
-	val = intel_uncore_read(engine->uncore, FF_MODE2);
-	val &= ~FF_MODE2_TDS_TIMER_MASK;
-	val |= FF_MODE2_TDS_TIMER_128;
 	/*
-	 * FIXME: FF_MODE2 register is not readable till TGL B0. We can
-	 * enable verification of WA from the later steppings, which enables
-	 * the read of FF_MODE2.
+	 * Wa_1604555607:gen12 and Wa_1608008084:gen12
+	 * FF_MODE2 register will return the wrong value when read. The default
+	 * value for this register is zero for all fields and there are no bit
+	 * masks. So instead of doing a RMW we should just write the TDS timer
+	 * value for Wa_1604555607.
 	 */
-	wa_add(wal, FF_MODE2, FF_MODE2_TDS_TIMER_MASK, val,
-	       IS_TGL_REVID(engine->i915, TGL_REVID_A0, TGL_REVID_A0) ? 0 :
-			    FF_MODE2_TDS_TIMER_MASK);
+	wa_add(wal, FF_MODE2, FF_MODE2_TDS_TIMER_MASK,
+	       FF_MODE2_TDS_TIMER_128, 0);
 }
 
 static void

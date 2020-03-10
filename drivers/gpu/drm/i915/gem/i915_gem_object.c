@@ -225,6 +225,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 		/* But keep the pointer alive for RCU-protected lookups */
 		call_rcu(&obj->rcu, __i915_gem_free_object_rcu);
+		cond_resched();
 	}
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }

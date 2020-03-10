@@ -278,13 +278,13 @@ int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip,
 	switch (direction) {
 	case MV88E6XXX_EGRESS_DIR_INGRESS:
 		dest_port_chip = &chip->ingress_dest_port;
-		reg &= MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK;
+		reg &= ~MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK;
 		reg |= port <<
 		       __bf_shf(MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK);
 		break;
 	case MV88E6XXX_EGRESS_DIR_EGRESS:
 		dest_port_chip = &chip->egress_dest_port;
-		reg &= MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK;
+		reg &= ~MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK;
 		reg |= port <<
 		       __bf_shf(MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK);
 		break;

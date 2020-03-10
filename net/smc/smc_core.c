@@ -162,6 +162,18 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
 	conn->lgr = NULL;
 }
 
+void smc_lgr_cleanup_early(struct smc_connection *conn)
+{
+	struct smc_link_group *lgr = conn->lgr;
+
+	if (!lgr)
+		return;
+
+	smc_conn_free(conn);
+	smc_lgr_forget(lgr);
+	smc_lgr_schedule_free_work_fast(lgr);
+}
+
 /* Send delete link, either as client to request the initiation
  * of the DELETE LINK sequence from server; or as server to
  * initiate the delete processing. See smc_llc_rx_delete_link().
