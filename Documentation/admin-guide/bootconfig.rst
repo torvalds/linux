@@ -62,6 +62,30 @@ Or more shorter, written as following::
 In both styles, same key words are automatically merged when parsing it
 at boot time. So you can append similar trees or key-values.
 
+Same-key Values
+---------------
+
+It is prohibited that two or more values or arrays share a same-key.
+For example,::
+
+ foo = bar, baz
+ foo = qux  # !ERROR! we can not re-define same key
+
+If you want to append the value to existing key as an array member,
+you can use ``+=`` operator. For example::
+
+ foo = bar, baz
+ foo += qux
+
+In this case, the key ``foo`` has ``bar``, ``baz`` and ``qux``.
+
+However, a sub-key and a value can not co-exist under a parent key.
+For example, following config is NOT allowed.::
+
+ foo = value1
+ foo.bar = value2 # !ERROR! subkey "bar" and value "value1" can NOT co-exist
+
+
 Comments
 --------
 
@@ -102,9 +126,13 @@ Boot Kernel With a Boot Config
 ==============================
 
 Since the boot configuration file is loaded with initrd, it will be added
-to the end of the initrd (initramfs) image file. The Linux kernel decodes
-the last part of the initrd image in memory to get the boot configuration
-data.
+to the end of the initrd (initramfs) image file with size, checksum and
+12-byte magic word as below.
+
+[initrd][bootconfig][size(u32)][checksum(u32)][#BOOTCONFIG\n]
+
+The Linux kernel decodes the last part of the initrd image in memory to
+get the boot configuration data.
 Because of this "piggyback" method, there is no need to change or
 update the boot loader and the kernel image itself.
 

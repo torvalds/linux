@@ -52,7 +52,7 @@
  * 1. Primary ring
  * 2. Async ring
  */
-#define GFX10_NUM_GFX_RINGS	2
+#define GFX10_NUM_GFX_RINGS_NV1X	1
 #define GFX10_MEC_HPD_SIZE	2048
 
 #define F32_CE_PROGRAM_RAM_SIZE		65536
@@ -1304,7 +1304,7 @@ static int gfx_v10_0_sw_init(void *handle)
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:
 		adev->gfx.me.num_me = 1;
-		adev->gfx.me.num_pipe_per_me = 2;
+		adev->gfx.me.num_pipe_per_me = 1;
 		adev->gfx.me.num_queue_per_pipe = 1;
 		adev->gfx.mec.num_mec = 2;
 		adev->gfx.mec.num_pipe_per_mec = 4;
@@ -2710,18 +2710,20 @@ static int gfx_v10_0_cp_gfx_start(struct amdgpu_device *adev)
 	amdgpu_ring_commit(ring);
 
 	/* submit cs packet to copy state 0 to next available state */
-	ring = &adev->gfx.gfx_ring[1];
-	r = amdgpu_ring_alloc(ring, 2);
-	if (r) {
-		DRM_ERROR("amdgpu: cp failed to lock ring (%d).\n", r);
-		return r;
+	if (adev->gfx.num_gfx_rings > 1) {
+		/* maximum supported gfx ring is 2 */
+		ring = &adev->gfx.gfx_ring[1];
+		r = amdgpu_ring_alloc(ring, 2);
+		if (r) {
+			DRM_ERROR("amdgpu: cp failed to lock ring (%d).\n", r);
+			return r;
+		}
+
+		amdgpu_ring_write(ring, PACKET3(PACKET3_CLEAR_STATE, 0));
+		amdgpu_ring_write(ring, 0);
+
+		amdgpu_ring_commit(ring);
 	}
-
-	amdgpu_ring_write(ring, PACKET3(PACKET3_CLEAR_STATE, 0));
-	amdgpu_ring_write(ring, 0);
-
-	amdgpu_ring_commit(ring);
-
 	return 0;
 }
 
@@ -2818,39 +2820,41 @@ static int gfx_v10_0_cp_gfx_resume(struct amdgpu_device *adev)
 	mutex_unlock(&adev->srbm_mutex);
 
 	/* Init gfx ring 1 for pipe 1 */
-	mutex_lock(&adev->srbm_mutex);
-	gfx_v10_0_cp_gfx_switch_pipe(adev, PIPE_ID1);
-	ring = &adev->gfx.gfx_ring[1];
-	rb_bufsz = order_base_2(ring->ring_size / 8);
-	tmp = REG_SET_FIELD(0, CP_RB1_CNTL, RB_BUFSZ, rb_bufsz);
-	tmp = REG_SET_FIELD(tmp, CP_RB1_CNTL, RB_BLKSZ, rb_bufsz - 2);
-	WREG32_SOC15(GC, 0, mmCP_RB1_CNTL, tmp);
-	/* Initialize the ring buffer's write pointers */
-	ring->wptr = 0;
-	WREG32_SOC15(GC, 0, mmCP_RB1_WPTR, lower_32_bits(ring->wptr));
-	WREG32_SOC15(GC, 0, mmCP_RB1_WPTR_HI, upper_32_bits(ring->wptr));
-	/* Set the wb address wether it's enabled or not */
-	rptr_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
-	WREG32_SOC15(GC, 0, mmCP_RB1_RPTR_ADDR, lower_32_bits(rptr_addr));
-	WREG32_SOC15(GC, 0, mmCP_RB1_RPTR_ADDR_HI, upper_32_bits(rptr_addr) &
-		CP_RB1_RPTR_ADDR_HI__RB_RPTR_ADDR_HI_MASK);
-	wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
-	WREG32_SOC15(GC, 0, mmCP_RB_WPTR_POLL_ADDR_LO,
-		lower_32_bits(wptr_gpu_addr));
-	WREG32_SOC15(GC, 0, mmCP_RB_WPTR_POLL_ADDR_HI,
-		upper_32_bits(wptr_gpu_addr));
+	if (adev->gfx.num_gfx_rings > 1) {
+		mutex_lock(&adev->srbm_mutex);
+		gfx_v10_0_cp_gfx_switch_pipe(adev, PIPE_ID1);
+		/* maximum supported gfx ring is 2 */
+		ring = &adev->gfx.gfx_ring[1];
+		rb_bufsz = order_base_2(ring->ring_size / 8);
+		tmp = REG_SET_FIELD(0, CP_RB1_CNTL, RB_BUFSZ, rb_bufsz);
+		tmp = REG_SET_FIELD(tmp, CP_RB1_CNTL, RB_BLKSZ, rb_bufsz - 2);
+		WREG32_SOC15(GC, 0, mmCP_RB1_CNTL, tmp);
+		/* Initialize the ring buffer's write pointers */
+		ring->wptr = 0;
+		WREG32_SOC15(GC, 0, mmCP_RB1_WPTR, lower_32_bits(ring->wptr));
+		WREG32_SOC15(GC, 0, mmCP_RB1_WPTR_HI, upper_32_bits(ring->wptr));
+		/* Set the wb address wether it's enabled or not */
+		rptr_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
+		WREG32_SOC15(GC, 0, mmCP_RB1_RPTR_ADDR, lower_32_bits(rptr_addr));
+		WREG32_SOC15(GC, 0, mmCP_RB1_RPTR_ADDR_HI, upper_32_bits(rptr_addr) &
+			     CP_RB1_RPTR_ADDR_HI__RB_RPTR_ADDR_HI_MASK);
+		wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
+		WREG32_SOC15(GC, 0, mmCP_RB_WPTR_POLL_ADDR_LO,
+			     lower_32_bits(wptr_gpu_addr));
+		WREG32_SOC15(GC, 0, mmCP_RB_WPTR_POLL_ADDR_HI,
+			     upper_32_bits(wptr_gpu_addr));
 
-	mdelay(1);
-	WREG32_SOC15(GC, 0, mmCP_RB1_CNTL, tmp);
+		mdelay(1);
+		WREG32_SOC15(GC, 0, mmCP_RB1_CNTL, tmp);
 
-	rb_addr = ring->gpu_addr >> 8;
-	WREG32_SOC15(GC, 0, mmCP_RB1_BASE, rb_addr);
-	WREG32_SOC15(GC, 0, mmCP_RB1_BASE_HI, upper_32_bits(rb_addr));
-	WREG32_SOC15(GC, 0, mmCP_RB1_ACTIVE, 1);
+		rb_addr = ring->gpu_addr >> 8;
+		WREG32_SOC15(GC, 0, mmCP_RB1_BASE, rb_addr);
+		WREG32_SOC15(GC, 0, mmCP_RB1_BASE_HI, upper_32_bits(rb_addr));
+		WREG32_SOC15(GC, 0, mmCP_RB1_ACTIVE, 1);
 
-	gfx_v10_0_cp_gfx_set_doorbell(adev, ring);
-	mutex_unlock(&adev->srbm_mutex);
-
+		gfx_v10_0_cp_gfx_set_doorbell(adev, ring);
+		mutex_unlock(&adev->srbm_mutex);
+	}
 	/* Switch to pipe 0 */
 	mutex_lock(&adev->srbm_mutex);
 	gfx_v10_0_cp_gfx_switch_pipe(adev, PIPE_ID0);
@@ -3513,6 +3517,7 @@ static int gfx_v10_0_kcq_init_queue(struct amdgpu_ring *ring)
 
 		/* reset ring buffer */
 		ring->wptr = 0;
+		atomic64_set((atomic64_t *)&adev->wb.wb[ring->wptr_offs], 0);
 		amdgpu_ring_clear_ring(ring);
 	} else {
 		amdgpu_ring_clear_ring(ring);
@@ -3966,7 +3971,8 @@ static int gfx_v10_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	adev->gfx.num_gfx_rings = GFX10_NUM_GFX_RINGS;
+	adev->gfx.num_gfx_rings = GFX10_NUM_GFX_RINGS_NV1X;
+
 	adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
 
 	gfx_v10_0_set_kiq_pm4_funcs(adev);

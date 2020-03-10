@@ -37,6 +37,8 @@ examples:
     dsi@ff450000 {
         #address-cells = <1>;
         #size-cells = <0>;
+        reg = <0xff450000 0x1000>;
+
         panel@0 {
             compatible = "leadtek,ltk500hd1829";
             reg = <0>;
