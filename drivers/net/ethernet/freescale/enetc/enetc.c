@@ -451,7 +451,7 @@ static int enetc_refill_rx_ring(struct enetc_bdr *rx_ring, const int buff_cnt)
 
 	i = rx_ring->next_to_use;
 	rx_swbd = &rx_ring->rx_swbd[i];
-	rxbd = ENETC_RXBD(*rx_ring, i);
+	rxbd = enetc_rxbd(rx_ring, i);
 
 	for (j = 0; j < buff_cnt; j++) {
 		/* try reuse page */
@@ -468,13 +468,12 @@ static int enetc_refill_rx_ring(struct enetc_bdr *rx_ring, const int buff_cnt)
 		/* clear 'R" as well */
 		rxbd->r.lstatus = 0;
 
+		rxbd = enetc_rxbd_next(rx_ring, rxbd, i);
 		rx_swbd++;
-		rxbd++;
 		i++;
 		if (unlikely(i == rx_ring->bd_count)) {
 			i = 0;
 			rx_swbd = rx_ring->rx_swbd;
-			rxbd = ENETC_RXBD(*rx_ring, 0);
 		}
 	}
 
@@ -655,7 +654,7 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 			cleaned_cnt -= count;
 		}
 
-		rxbd = ENETC_RXBD(*rx_ring, i);
+		rxbd = enetc_rxbd(rx_ring, i);
 		bd_status = le32_to_cpu(rxbd->r.lstatus);
 		if (!bd_status)
 			break;
@@ -670,12 +669,10 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 		enetc_get_offloads(rx_ring, rxbd, skb);
 
 		cleaned_cnt++;
-		rxbd++;
-		i++;
-		if (unlikely(i == rx_ring->bd_count)) {
+
+		rxbd = enetc_rxbd_next(rx_ring, rxbd, i);
+		if (unlikely(++i == rx_ring->bd_count))
 			i = 0;
-			rxbd = ENETC_RXBD(*rx_ring, 0);
-		}
 
 		if (unlikely(bd_status &
 			     ENETC_RXBD_LSTATUS(ENETC_RXBD_ERR_MASK))) {
@@ -683,12 +680,10 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 			while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
 				dma_rmb();
 				bd_status = le32_to_cpu(rxbd->r.lstatus);
-				rxbd++;
-				i++;
-				if (unlikely(i == rx_ring->bd_count)) {
+
+				rxbd = enetc_rxbd_next(rx_ring, rxbd, i);
+				if (unlikely(++i == rx_ring->bd_count))
 					i = 0;
-					rxbd = ENETC_RXBD(*rx_ring, 0);
-				}
 			}
 
 			rx_ring->ndev->stats.rx_dropped++;
@@ -710,12 +705,10 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 			enetc_add_rx_buff_to_skb(rx_ring, i, size, skb);
 
 			cleaned_cnt++;
-			rxbd++;
-			i++;
-			if (unlikely(i == rx_ring->bd_count)) {
+
+			rxbd = enetc_rxbd_next(rx_ring, rxbd, i);
+			if (unlikely(++i == rx_ring->bd_count))
 				i = 0;
-				rxbd = ENETC_RXBD(*rx_ring, 0);
-			}
 		}
 
 		rx_byte_cnt += skb->len;

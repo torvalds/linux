@@ -104,7 +104,22 @@ struct enetc_cbdr {
 };
 
 #define ENETC_TXBD(BDR, i) (&(((union enetc_tx_bd *)((BDR).bd_base))[i]))
-#define ENETC_RXBD(BDR, i) (&(((union enetc_rx_bd *)((BDR).bd_base))[i]))
+
+static inline union enetc_rx_bd *enetc_rxbd(struct enetc_bdr *rx_ring, int i)
+{
+	return &(((union enetc_rx_bd *)rx_ring->bd_base)[i]);
+}
+
+static inline union enetc_rx_bd *enetc_rxbd_next(struct enetc_bdr *rx_ring,
+						 union enetc_rx_bd *rxbd,
+						 int i)
+{
+	rxbd++;
+	if (unlikely(++i == rx_ring->bd_count))
+		rxbd = rx_ring->bd_base;
+
+	return rxbd;
+}
 
 struct enetc_msg_swbd {
 	void *vaddr;
