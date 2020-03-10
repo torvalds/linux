@@ -54,8 +54,6 @@
 #include "core_priv.h"
 #include <trace/events/rdma_core.h>
 
-#include <trace/events/rdma_core.h>
-
 static int ib_resolve_eth_dmac(struct ib_device *device,
 			       struct rdma_ah_attr *ah_attr);
 
