@@ -2833,6 +2833,11 @@ int ceph_get_caps(struct file *filp, int need, int want,
 		}
 
 		if (ret < 0) {
+			if (ret == -EFBIG || ret == -ESTALE) {
+				int ret2 = ceph_wait_on_async_create(inode);
+				if (ret2 < 0)
+					return ret2;
+			}
 			if (ret == -EFBIG) {
 				check_max_size(inode, endoff);
 				continue;
