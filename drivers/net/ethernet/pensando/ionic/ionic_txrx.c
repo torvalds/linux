@@ -158,7 +158,7 @@ static void ionic_rx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_i
 	}
 
 	/* no packet processing while resetting */
-	if (unlikely(test_bit(IONIC_LIF_QUEUE_RESET, q->lif->state))) {
+	if (unlikely(test_bit(IONIC_LIF_F_QUEUE_RESET, q->lif->state))) {
 		stats->dropped++;
 		return;
 	}
@@ -1023,7 +1023,7 @@ netdev_tx_t ionic_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	int ndescs;
 	int err;
 
-	if (unlikely(!test_bit(IONIC_LIF_UP, lif->state))) {
+	if (unlikely(!test_bit(IONIC_LIF_F_UP, lif->state))) {
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}

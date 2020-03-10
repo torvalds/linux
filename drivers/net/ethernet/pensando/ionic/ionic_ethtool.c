@@ -86,7 +86,6 @@ static void ionic_get_drvinfo(struct net_device *netdev,
 	struct ionic *ionic = lif->ionic;
 
 	strlcpy(drvinfo->driver, IONIC_DRV_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, IONIC_DRV_VERSION, sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, ionic->idev.dev_info.fw_version,
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, ionic_bus_info(ionic),
@@ -440,7 +439,7 @@ static int ionic_set_coalesce(struct net_device *netdev,
 	if (coal != lif->rx_coalesce_hw) {
 		lif->rx_coalesce_hw = coal;
 
-		if (test_bit(IONIC_LIF_UP, lif->state)) {
+		if (test_bit(IONIC_LIF_F_UP, lif->state)) {
 			for (i = 0; i < lif->nxqs; i++) {
 				qcq = lif->rxqcqs[i].qcq;
 				ionic_intr_coal_init(lif->ionic->idev.intr_ctrl,
@@ -487,11 +486,11 @@ static int ionic_set_ringparam(struct net_device *netdev,
 	    ring->rx_pending == lif->nrxq_descs)
 		return 0;
 
-	err = ionic_wait_for_bit(lif, IONIC_LIF_QUEUE_RESET);
+	err = ionic_wait_for_bit(lif, IONIC_LIF_F_QUEUE_RESET);
 	if (err)
 		return err;
 
-	running = test_bit(IONIC_LIF_UP, lif->state);
+	running = test_bit(IONIC_LIF_F_UP, lif->state);
 	if (running)
 		ionic_stop(netdev);
 
@@ -500,7 +499,7 @@ static int ionic_set_ringparam(struct net_device *netdev,
 
 	if (running)
 		ionic_open(netdev);
-	clear_bit(IONIC_LIF_QUEUE_RESET, lif->state);
+	clear_bit(IONIC_LIF_F_QUEUE_RESET, lif->state);
 
 	return 0;
 }
@@ -531,11 +530,11 @@ static int ionic_set_channels(struct net_device *netdev,
 	if (ch->combined_count == lif->nxqs)
 		return 0;
 
-	err = ionic_wait_for_bit(lif, IONIC_LIF_QUEUE_RESET);
+	err = ionic_wait_for_bit(lif, IONIC_LIF_F_QUEUE_RESET);
 	if (err)
 		return err;
 
-	running = test_bit(IONIC_LIF_UP, lif->state);
+	running = test_bit(IONIC_LIF_F_UP, lif->state);
 	if (running)
 		ionic_stop(netdev);
 
@@ -543,7 +542,7 @@ static int ionic_set_channels(struct net_device *netdev,
 
 	if (running)
 		ionic_open(netdev);
-	clear_bit(IONIC_LIF_QUEUE_RESET, lif->state);
+	clear_bit(IONIC_LIF_F_QUEUE_RESET, lif->state);
 
 	return 0;
 }
@@ -553,7 +552,7 @@ static u32 ionic_get_priv_flags(struct net_device *netdev)
 	struct ionic_lif *lif = netdev_priv(netdev);
 	u32 priv_flags = 0;
 
-	if (test_bit(IONIC_LIF_SW_DEBUG_STATS, lif->state))
+	if (test_bit(IONIC_LIF_F_SW_DEBUG_STATS, lif->state))
 		priv_flags |= PRIV_F_SW_DBG_STATS;
 
 	return priv_flags;
@@ -562,14 +561,10 @@ static u32 ionic_get_priv_flags(struct net_device *netdev)
 static int ionic_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
-	u32 flags = lif->flags;
 
-	clear_bit(IONIC_LIF_SW_DEBUG_STATS, lif->state);
+	clear_bit(IONIC_LIF_F_SW_DEBUG_STATS, lif->state);
 	if (priv_flags & PRIV_F_SW_DBG_STATS)
-		set_bit(IONIC_LIF_SW_DEBUG_STATS, lif->state);
-
-	if (flags != lif->flags)
-		lif->flags = flags;
+		set_bit(IONIC_LIF_F_SW_DEBUG_STATS, lif->state);
 
 	return 0;
 }
