@@ -825,6 +825,8 @@ struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
 	cm_id_priv->id.context = context;
 	cm_id_priv->id.remote_cm_qpn = 1;
 
+	RB_CLEAR_NODE(&cm_id_priv->service_node);
+	RB_CLEAR_NODE(&cm_id_priv->sidr_id_node);
 	spin_lock_init(&cm_id_priv->lock);
 	init_completion(&cm_id_priv->comp);
 	INIT_LIST_HEAD(&cm_id_priv->work_list);
@@ -982,11 +984,13 @@ retest:
 		spin_lock_irq(&cm.lock);
 		if (--cm_id_priv->listen_sharecount > 0) {
 			/* The id is still shared. */
+			WARN_ON(refcount_read(&cm_id_priv->refcount) == 1);
 			cm_deref_id(cm_id_priv);
 			spin_unlock_irq(&cm.lock);
 			return;
 		}
 		rb_erase(&cm_id_priv->service_node, &cm.listen_service_table);
+		RB_CLEAR_NODE(&cm_id_priv->service_node);
 		spin_unlock_irq(&cm.lock);
 		break;
 	case IB_CM_SIDR_REQ_SENT:
@@ -997,11 +1001,6 @@ retest:
 	case IB_CM_SIDR_REQ_RCVD:
 		spin_unlock_irq(&cm_id_priv->lock);
 		cm_reject_sidr_req(cm_id_priv, IB_SIDR_REJECT);
-		spin_lock_irq(&cm.lock);
-		if (!RB_EMPTY_NODE(&cm_id_priv->sidr_id_node))
-			rb_erase(&cm_id_priv->sidr_id_node,
-				 &cm.remote_sidr_table);
-		spin_unlock_irq(&cm.lock);
 		break;
 	case IB_CM_REQ_SENT:
 	case IB_CM_MRA_REQ_RCVD:
@@ -1068,6 +1067,10 @@ retest:
 	if (!list_empty(&cm_id_priv->prim_list) &&
 	    (!cm_id_priv->prim_send_port_not_ready))
 		list_del(&cm_id_priv->prim_list);
+	WARN_ON(cm_id_priv->listen_sharecount);
+	WARN_ON(!RB_EMPTY_NODE(&cm_id_priv->service_node));
+	if (!RB_EMPTY_NODE(&cm_id_priv->sidr_id_node))
+		rb_erase(&cm_id_priv->sidr_id_node, &cm.remote_sidr_table);
 	spin_unlock(&cm.lock);
 	spin_unlock_irq(&cm_id_priv->lock);
 
