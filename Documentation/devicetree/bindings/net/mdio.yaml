@@ -56,7 +56,6 @@ patternProperties:
 examples:
   - |
     davinci_mdio: mdio@5c030000 {
-        compatible = "ti,davinci_mdio";
         reg = <0x5c030000 0x1000>;
         #address-cells = <1>;
         #size-cells = <0>;
