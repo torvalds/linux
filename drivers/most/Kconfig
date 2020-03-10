@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-menuconfig MOST_COMPONENTS
+menuconfig MOST
 	tristate "MOST support"
-	depends on HAS_DMA && CONFIGFS_FS && MOST
+	depends on HAS_DMA && CONFIGFS_FS
 	default n
 	help
 	  Say Y here if you want to enable MOST support.
@@ -13,23 +13,3 @@ menuconfig MOST_COMPONENTS
 	  module will be called most_core.
 
 	  If in doubt, say N here.
-
-
-
-if MOST_COMPONENTS
-
-source "drivers/staging/most/cdev/Kconfig"
-
-source "drivers/staging/most/net/Kconfig"
-
-source "drivers/staging/most/sound/Kconfig"
-
-source "drivers/staging/most/video/Kconfig"
-
-source "drivers/staging/most/dim2/Kconfig"
-
-source "drivers/staging/most/i2c/Kconfig"
-
-source "drivers/staging/most/usb/Kconfig"
-
-endif

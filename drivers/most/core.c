@@ -20,8 +20,7 @@
 #include <linux/kthread.h>
 #include <linux/dma-mapping.h>
 #include <linux/idr.h>
-
-#include "most.h"
+#include <linux/most.h>
 
 #define MAX_CHANNELS	64
 #define STRING_SIZE	80
