@@ -53,8 +53,56 @@ struct kvm_vm {
 };
 
 struct vcpu *vcpu_find(struct kvm_vm *vm, uint32_t vcpuid);
+
+/*
+ * Virtual Translation Tables Dump
+ *
+ * Input Args:
+ *   stream - Output FILE stream
+ *   vm     - Virtual Machine
+ *   indent - Left margin indent amount
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Dumps to the FILE stream given by @stream, the contents of all the
+ * virtual translation tables for the VM given by @vm.
+ */
 void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent);
+
+/*
+ * Register Dump
+ *
+ * Input Args:
+ *   stream - Output FILE stream
+ *   regs   - Registers
+ *   indent - Left margin indent amount
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Dumps the state of the registers given by @regs, to the FILE stream
+ * given by @stream.
+ */
 void regs_dump(FILE *stream, struct kvm_regs *regs, uint8_t indent);
+
+/*
+ * System Register Dump
+ *
+ * Input Args:
+ *   stream - Output FILE stream
+ *   sregs  - System registers
+ *   indent - Left margin indent amount
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Dumps the state of the system registers given by @sregs, to the FILE stream
+ * given by @stream.
+ */
 void sregs_dump(FILE *stream, struct kvm_sregs *sregs, uint8_t indent);
 
 struct userspace_mem_region *

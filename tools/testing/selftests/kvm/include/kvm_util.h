@@ -16,7 +16,8 @@
 #include "sparsebit.h"
 
 
-/* Callers of kvm_util only have an incomplete/opaque description of the
+/*
+ * Callers of kvm_util only have an incomplete/opaque description of the
  * structure kvm_util is using to maintain the state of a VM.
  */
 struct kvm_vm;
@@ -78,6 +79,23 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename,
 		     uint32_t data_memslot, uint32_t pgd_memslot);
 
 void vm_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent);
+
+/*
+ * VM VCPU Dump
+ *
+ * Input Args:
+ *   stream - Output FILE stream
+ *   vm     - Virtual Machine
+ *   vcpuid - VCPU ID
+ *   indent - Left margin indent amount
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Dumps the current state of the VCPU specified by @vcpuid, within the VM
+ * given by @vm, to the FILE stream given by @stream.
+ */
 void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid,
 	       uint8_t indent);
 
@@ -103,6 +121,22 @@ void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 void *addr_gpa2hva(struct kvm_vm *vm, vm_paddr_t gpa);
 void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva);
 vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva);
+
+/*
+ * Address Guest Virtual to Guest Physical
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   gva - VM virtual address
+ *
+ * Output Args: None
+ *
+ * Return:
+ *   Equivalent VM physical address
+ *
+ * Returns the VM physical address of the translated VM virtual
+ * address given by @gva.
+ */
 vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva);
 
 struct kvm_run *vcpu_state(struct kvm_vm *vm, uint32_t vcpuid);
@@ -113,7 +147,27 @@ void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
 		       struct kvm_mp_state *mp_state);
 void vcpu_regs_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs);
 void vcpu_regs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs);
+
+/*
+ * VM VCPU Args Set
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - VCPU ID
+ *   num - number of arguments
+ *   ... - arguments, each of type uint64_t
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Sets the first @num function input registers of the VCPU with @vcpuid,
+ * per the C calling convention of the architecture, to the values given
+ * as variable args. Each of the variable args is expected to be of type
+ * uint64_t. The maximum @num can be is specific to the architecture.
+ */
 void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...);
+
 void vcpu_sregs_get(struct kvm_vm *vm, uint32_t vcpuid,
 		    struct kvm_sregs *sregs);
 void vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid,
@@ -142,15 +196,57 @@ int vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
 const char *exit_reason_str(unsigned int exit_reason);
 
 void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot);
+
+/*
+ * VM Virtual Page Map
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vaddr - VM Virtual Address
+ *   paddr - VM Physical Address
+ *   memslot - Memory region slot for new virtual translation tables
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Within @vm, creates a virtual translation for the page starting
+ * at @vaddr to the page starting at @paddr.
+ */
 void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
-		 uint32_t pgd_memslot);
+		 uint32_t memslot);
+
 vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm, vm_paddr_t paddr_min,
 			     uint32_t memslot);
 vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
 			      vm_paddr_t paddr_min, uint32_t memslot);
 
+/*
+ * Create a VM with reasonable defaults
+ *
+ * Input Args:
+ *   vcpuid - The id of the single VCPU to add to the VM.
+ *   extra_mem_pages - The size of extra memories to add (this will
+ *                     decide how much extra space we will need to
+ *                     setup the page tables using memslot 0)
+ *   guest_code - The vCPU's entry point
+ *
+ * Output Args: None
+ *
+ * Return:
+ *   Pointer to opaque structure that describes the created VM.
+ */
 struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_size,
 				 void *guest_code);
+
+/*
+ * Adds a vCPU with reasonable defaults (e.g. a stack)
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - The id of the VCPU to add to the VM.
+ *   guest_code - The vCPU's entry point
+ */
 void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code);
 
 bool vm_is_unrestricted_guest(struct kvm_vm *vm);
