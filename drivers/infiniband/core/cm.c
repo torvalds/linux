@@ -1958,14 +1958,10 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 		cm_issue_rej(work->port, work->mad_recv_wc,
 			     IB_CM_REJ_INVALID_SERVICE_ID, CM_MSG_RESPONSE_REQ,
 			     NULL, 0);
-		goto out;
+		return NULL;
 	}
 	refcount_inc(&listen_cm_id_priv->refcount);
-	refcount_inc(&cm_id_priv->refcount);
-	cm_id_priv->id.state = IB_CM_REQ_RCVD;
-	atomic_inc(&cm_id_priv->work_count);
 	spin_unlock_irq(&cm.lock);
-out:
 	return listen_cm_id_priv;
 }
 
@@ -2007,7 +2003,6 @@ static void cm_process_routed_req(struct cm_req_msg *req_msg, struct ib_wc *wc)
 
 static int cm_req_handler(struct cm_work *work)
 {
-	struct ib_cm_id *cm_id;
 	struct cm_id_private *cm_id_priv, *listen_cm_id_priv;
 	struct cm_req_msg *req_msg;
 	const struct ib_global_route *grh;
@@ -2016,13 +2011,33 @@ static int cm_req_handler(struct cm_work *work)
 
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
 
-	cm_id = ib_create_cm_id(work->port->cm_dev->ib_device, NULL, NULL);
-	if (IS_ERR(cm_id))
-		return PTR_ERR(cm_id);
+	cm_id_priv =
+		cm_alloc_id_priv(work->port->cm_dev->ib_device, NULL, NULL);
+	if (IS_ERR(cm_id_priv))
+		return PTR_ERR(cm_id_priv);
 
-	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
 	cm_id_priv->id.remote_id =
 		cpu_to_be32(IBA_GET(CM_REQ_LOCAL_COMM_ID, req_msg));
+	cm_id_priv->id.service_id =
+		cpu_to_be64(IBA_GET(CM_REQ_SERVICE_ID, req_msg));
+	cm_id_priv->id.service_mask = ~cpu_to_be64(0);
+	cm_id_priv->tid = req_msg->hdr.tid;
+	cm_id_priv->timeout_ms = cm_convert_to_ms(
+		IBA_GET(CM_REQ_LOCAL_CM_RESPONSE_TIMEOUT, req_msg));
+	cm_id_priv->max_cm_retries = IBA_GET(CM_REQ_MAX_CM_RETRIES, req_msg);
+	cm_id_priv->remote_qpn =
+		cpu_to_be32(IBA_GET(CM_REQ_LOCAL_QPN, req_msg));
+	cm_id_priv->initiator_depth =
+		IBA_GET(CM_REQ_RESPONDER_RESOURCES, req_msg);
+	cm_id_priv->responder_resources =
+		IBA_GET(CM_REQ_INITIATOR_DEPTH, req_msg);
+	cm_id_priv->path_mtu = IBA_GET(CM_REQ_PATH_PACKET_PAYLOAD_MTU, req_msg);
+	cm_id_priv->pkey = cpu_to_be16(IBA_GET(CM_REQ_PARTITION_KEY, req_msg));
+	cm_id_priv->sq_psn = cpu_to_be32(IBA_GET(CM_REQ_STARTING_PSN, req_msg));
+	cm_id_priv->retry_count = IBA_GET(CM_REQ_RETRY_COUNT, req_msg);
+	cm_id_priv->rnr_retry_count = IBA_GET(CM_REQ_RNR_RETRY_COUNT, req_msg);
+	cm_id_priv->qp_type = cm_req_get_qp_type(req_msg);
+
 	ret = cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
 				      work->mad_recv_wc->recv_buf.grh,
 				      &cm_id_priv->av);
@@ -2034,26 +2049,25 @@ static int cm_req_handler(struct cm_work *work)
 		ret = PTR_ERR(cm_id_priv->timewait_info);
 		goto destroy;
 	}
-	cm_id_priv->timewait_info->work.remote_id =
-		cpu_to_be32(IBA_GET(CM_REQ_LOCAL_COMM_ID, req_msg));
+	cm_id_priv->timewait_info->work.remote_id = cm_id_priv->id.remote_id;
 	cm_id_priv->timewait_info->remote_ca_guid =
 		cpu_to_be64(IBA_GET(CM_REQ_LOCAL_CA_GUID, req_msg));
-	cm_id_priv->timewait_info->remote_qpn =
-		cpu_to_be32(IBA_GET(CM_REQ_LOCAL_QPN, req_msg));
+	cm_id_priv->timewait_info->remote_qpn = cm_id_priv->remote_qpn;
+
+	/*
+	 * Note that the ID pointer is not in the xarray at this point,
+	 * so this set is only visible to the local thread.
+	 */
+	cm_id_priv->id.state = IB_CM_REQ_RCVD;
 
 	listen_cm_id_priv = cm_match_req(work, cm_id_priv);
 	if (!listen_cm_id_priv) {
 		pr_debug("%s: local_id %d, no listen_cm_id_priv\n", __func__,
-			 be32_to_cpu(cm_id->local_id));
+			 be32_to_cpu(cm_id_priv->id.local_id));
+		cm_id_priv->id.state = IB_CM_IDLE;
 		ret = -EINVAL;
 		goto destroy;
 	}
-
-	cm_id_priv->id.cm_handler = listen_cm_id_priv->id.cm_handler;
-	cm_id_priv->id.context = listen_cm_id_priv->id.context;
-	cm_id_priv->id.service_id =
-		cpu_to_be64(IBA_GET(CM_REQ_SERVICE_ID, req_msg));
-	cm_id_priv->id.service_mask = ~cpu_to_be64(0);
 
 	cm_process_routed_req(req_msg, work->mad_recv_wc->wc);
 
@@ -2092,10 +2106,10 @@ static int cm_req_handler(struct cm_work *work)
 				     work->port->port_num, 0,
 				     &work->path[0].sgid);
 		if (err)
-			ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
+			ib_send_cm_rej(&cm_id_priv->id, IB_CM_REJ_INVALID_GID,
 				       NULL, 0, NULL, 0);
 		else
-			ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
+			ib_send_cm_rej(&cm_id_priv->id, IB_CM_REJ_INVALID_GID,
 				       &work->path[0].sgid,
 				       sizeof(work->path[0].sgid),
 				       NULL, 0);
@@ -2105,39 +2119,40 @@ static int cm_req_handler(struct cm_work *work)
 		ret = cm_init_av_by_path(&work->path[1], NULL,
 					 &cm_id_priv->alt_av, cm_id_priv);
 		if (ret) {
-			ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_ALT_GID,
+			ib_send_cm_rej(&cm_id_priv->id,
+				       IB_CM_REJ_INVALID_ALT_GID,
 				       &work->path[0].sgid,
 				       sizeof(work->path[0].sgid), NULL, 0);
 			goto rejected;
 		}
 	}
-	cm_id_priv->tid = req_msg->hdr.tid;
-	cm_id_priv->timeout_ms = cm_convert_to_ms(
-		IBA_GET(CM_REQ_LOCAL_CM_RESPONSE_TIMEOUT, req_msg));
-	cm_id_priv->max_cm_retries = IBA_GET(CM_REQ_MAX_CM_RETRIES, req_msg);
-	cm_id_priv->remote_qpn =
-		cpu_to_be32(IBA_GET(CM_REQ_LOCAL_QPN, req_msg));
-	cm_id_priv->initiator_depth =
-		IBA_GET(CM_REQ_RESPONDER_RESOURCES, req_msg);
-	cm_id_priv->responder_resources =
-		IBA_GET(CM_REQ_INITIATOR_DEPTH, req_msg);
-	cm_id_priv->path_mtu = IBA_GET(CM_REQ_PATH_PACKET_PAYLOAD_MTU, req_msg);
-	cm_id_priv->pkey = cpu_to_be16(IBA_GET(CM_REQ_PARTITION_KEY, req_msg));
-	cm_id_priv->sq_psn = cpu_to_be32(IBA_GET(CM_REQ_STARTING_PSN, req_msg));
-	cm_id_priv->retry_count = IBA_GET(CM_REQ_RETRY_COUNT, req_msg);
-	cm_id_priv->rnr_retry_count = IBA_GET(CM_REQ_RNR_RETRY_COUNT, req_msg);
-	cm_id_priv->qp_type = cm_req_get_qp_type(req_msg);
 
+	cm_id_priv->id.cm_handler = listen_cm_id_priv->id.cm_handler;
+	cm_id_priv->id.context = listen_cm_id_priv->id.context;
 	cm_format_req_event(work, cm_id_priv, &listen_cm_id_priv->id);
+
+	/* Now MAD handlers can see the new ID */
+	spin_lock_irq(&cm_id_priv->lock);
+	cm_finalize_id(cm_id_priv);
+
+	/* Refcount belongs to the event, pairs with cm_process_work() */
+	refcount_inc(&cm_id_priv->refcount);
+	atomic_inc(&cm_id_priv->work_count);
+	spin_unlock_irq(&cm_id_priv->lock);
 	cm_process_work(cm_id_priv, work);
+	/*
+	 * Since this ID was just created and was not made visible to other MAD
+	 * handlers until the cm_finalize_id() above we know that the
+	 * cm_process_work() will deliver the event and the listen_cm_id
+	 * embedded in the event can be derefed here.
+	 */
 	cm_deref_id(listen_cm_id_priv);
 	return 0;
 
 rejected:
-	refcount_dec(&cm_id_priv->refcount);
 	cm_deref_id(listen_cm_id_priv);
 destroy:
-	ib_destroy_cm_id(cm_id);
+	ib_destroy_cm_id(&cm_id_priv->id);
 	return ret;
 }
 
