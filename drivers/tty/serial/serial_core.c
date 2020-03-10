@@ -3187,22 +3187,19 @@ int uart_prepare_sysrq_char(struct uart_port *port, unsigned int ch)
 }
 EXPORT_SYMBOL_GPL(uart_prepare_sysrq_char);
 
-void uart_unlock_and_check_sysrq(struct uart_port *port, unsigned long irqflags)
+void uart_unlock_and_check_sysrq(struct uart_port *port, unsigned long flags)
+__releases(&port->lock)
 {
-	int sysrq_ch;
+	if (port->has_sysrq) {
+		int sysrq_ch = port->sysrq_ch;
 
-	if (!port->has_sysrq) {
-		spin_unlock_irqrestore(&port->lock, irqflags);
-		return;
+		port->sysrq_ch = 0;
+		spin_unlock_irqrestore(&port->lock, flags);
+		if (sysrq_ch)
+			handle_sysrq(sysrq_ch);
+	} else {
+		spin_unlock_irqrestore(&port->lock, flags);
 	}
-
-	sysrq_ch = port->sysrq_ch;
-	port->sysrq_ch = 0;
-
-	spin_unlock_irqrestore(&port->lock, irqflags);
-
-	if (sysrq_ch)
-		handle_sysrq(sysrq_ch);
 }
 EXPORT_SYMBOL_GPL(uart_unlock_and_check_sysrq);
 
