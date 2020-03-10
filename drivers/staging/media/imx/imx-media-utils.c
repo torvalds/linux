@@ -161,7 +161,11 @@ static const struct imx_media_pixfmt rgb_formats[] = {
 		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_GREY,
-		.codes = {MEDIA_BUS_FMT_Y8_1X8},
+		.codes = {
+			MEDIA_BUS_FMT_Y8_1X8,
+			MEDIA_BUS_FMT_Y10_1X10,
+			MEDIA_BUS_FMT_Y12_1X12,
+		},
 		.cs     = IPUV3_COLORSPACE_RGB,
 		.bpp    = 8,
 		.bayer  = true,
