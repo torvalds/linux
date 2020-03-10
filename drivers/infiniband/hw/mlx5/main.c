@@ -898,7 +898,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 			props->raw_packet_caps |=
 				IB_RAW_PACKET_CAP_CVLAN_STRIPPING;
 
-		if (field_avail(typeof(resp), tso_caps, uhw_outlen)) {
+		if (offsetofend(typeof(resp), tso_caps) <= uhw_outlen) {
 			max_tso = MLX5_CAP_ETH(mdev, max_lso_cap);
 			if (max_tso) {
 				resp.tso_caps.max_tso = 1 << max_tso;
@@ -908,7 +908,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 			}
 		}
 
-		if (field_avail(typeof(resp), rss_caps, uhw_outlen)) {
+		if (offsetofend(typeof(resp), rss_caps) <= uhw_outlen) {
 			resp.rss_caps.rx_hash_function =
 						MLX5_RX_HASH_FUNC_TOEPLITZ;
 			resp.rss_caps.rx_hash_fields_mask =
@@ -928,9 +928,9 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 			resp.response_length += sizeof(resp.rss_caps);
 		}
 	} else {
-		if (field_avail(typeof(resp), tso_caps, uhw_outlen))
+		if (offsetofend(typeof(resp), tso_caps) <= uhw_outlen)
 			resp.response_length += sizeof(resp.tso_caps);
-		if (field_avail(typeof(resp), rss_caps, uhw_outlen))
+		if (offsetofend(typeof(resp), rss_caps) <= uhw_outlen)
 			resp.response_length += sizeof(resp.rss_caps);
 	}
 
@@ -1072,7 +1072,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 						MLX5_MAX_CQ_PERIOD;
 	}
 
-	if (field_avail(typeof(resp), cqe_comp_caps, uhw_outlen)) {
+	if (offsetofend(typeof(resp), cqe_comp_caps) <= uhw_outlen) {
 		resp.response_length += sizeof(resp.cqe_comp_caps);
 
 		if (MLX5_CAP_GEN(dev->mdev, cqe_compression)) {
@@ -1090,7 +1090,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		}
 	}
 
-	if (field_avail(typeof(resp), packet_pacing_caps, uhw_outlen) &&
+	if (offsetofend(typeof(resp), packet_pacing_caps) <= uhw_outlen &&
 	    raw_support) {
 		if (MLX5_CAP_QOS(mdev, packet_pacing) &&
 		    MLX5_CAP_GEN(mdev, qos)) {
@@ -1108,8 +1108,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		resp.response_length += sizeof(resp.packet_pacing_caps);
 	}
 
-	if (field_avail(typeof(resp), mlx5_ib_support_multi_pkt_send_wqes,
-			uhw_outlen)) {
+	if (offsetofend(typeof(resp), mlx5_ib_support_multi_pkt_send_wqes) <=
+	    uhw_outlen) {
 		if (MLX5_CAP_ETH(mdev, multi_pkt_send_wqe))
 			resp.mlx5_ib_support_multi_pkt_send_wqes =
 				MLX5_IB_ALLOW_MPW;
@@ -1122,7 +1122,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 			sizeof(resp.mlx5_ib_support_multi_pkt_send_wqes);
 	}
 
-	if (field_avail(typeof(resp), flags, uhw_outlen)) {
+	if (offsetofend(typeof(resp), flags) <= uhw_outlen) {
 		resp.response_length += sizeof(resp.flags);
 
 		if (MLX5_CAP_GEN(mdev, cqe_compression_128))
@@ -1138,7 +1138,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		resp.flags |= MLX5_IB_QUERY_DEV_RESP_FLAGS_SCAT2CQE_DCT;
 	}
 
-	if (field_avail(typeof(resp), sw_parsing_caps, uhw_outlen)) {
+	if (offsetofend(typeof(resp), sw_parsing_caps) <= uhw_outlen) {
 		resp.response_length += sizeof(resp.sw_parsing_caps);
 		if (MLX5_CAP_ETH(mdev, swp)) {
 			resp.sw_parsing_caps.sw_parsing_offloads |=
@@ -1158,7 +1158,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		}
 	}
 
-	if (field_avail(typeof(resp), striding_rq_caps, uhw_outlen) &&
+	if (offsetofend(typeof(resp), striding_rq_caps) <= uhw_outlen &&
 	    raw_support) {
 		resp.response_length += sizeof(resp.striding_rq_caps);
 		if (MLX5_CAP_GEN(mdev, striding_rq)) {
@@ -1181,7 +1181,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		}
 	}
 
-	if (field_avail(typeof(resp), tunnel_offloads_caps, uhw_outlen)) {
+	if (offsetofend(typeof(resp), tunnel_offloads_caps) <= uhw_outlen) {
 		resp.response_length += sizeof(resp.tunnel_offloads_caps);
 		if (MLX5_CAP_ETH(mdev, tunnel_stateless_vxlan))
 			resp.tunnel_offloads_caps |=
@@ -1899,16 +1899,16 @@ static int mlx5_ib_alloc_ucontext(struct ib_ucontext *uctx,
 	resp.tot_bfregs = req.total_num_bfregs;
 	resp.num_ports = dev->num_ports;
 
-	if (field_avail(typeof(resp), cqe_version, udata->outlen))
+	if (offsetofend(typeof(resp), cqe_version) <= udata->outlen)
 		resp.response_length += sizeof(resp.cqe_version);
 
-	if (field_avail(typeof(resp), cmds_supp_uhw, udata->outlen)) {
+	if (offsetofend(typeof(resp), cmds_supp_uhw) <= udata->outlen) {
 		resp.cmds_supp_uhw |= MLX5_USER_CMDS_SUPP_UHW_QUERY_DEVICE |
 				      MLX5_USER_CMDS_SUPP_UHW_CREATE_AH;
 		resp.response_length += sizeof(resp.cmds_supp_uhw);
 	}
 
-	if (field_avail(typeof(resp), eth_min_inline, udata->outlen)) {
+	if (offsetofend(typeof(resp), eth_min_inline) <= udata->outlen) {
 		if (mlx5_ib_port_link_layer(ibdev, 1) == IB_LINK_LAYER_ETHERNET) {
 			mlx5_query_min_inline(dev->mdev, &resp.eth_min_inline);
 			resp.eth_min_inline++;
@@ -1916,7 +1916,7 @@ static int mlx5_ib_alloc_ucontext(struct ib_ucontext *uctx,
 		resp.response_length += sizeof(resp.eth_min_inline);
 	}
 
-	if (field_avail(typeof(resp), clock_info_versions, udata->outlen)) {
+	if (offsetofend(typeof(resp), clock_info_versions) <= udata->outlen) {
 		if (mdev->clock_info)
 			resp.clock_info_versions = BIT(MLX5_IB_CLOCK_INFO_V1);
 		resp.response_length += sizeof(resp.clock_info_versions);
@@ -1928,7 +1928,7 @@ static int mlx5_ib_alloc_ucontext(struct ib_ucontext *uctx,
 	 * pretend we don't support reading the HCA's core clock. This is also
 	 * forced by mmap function.
 	 */
-	if (field_avail(typeof(resp), hca_core_clock_offset, udata->outlen)) {
+	if (offsetofend(typeof(resp), hca_core_clock_offset) <= udata->outlen) {
 		if (PAGE_SIZE <= 4096) {
 			resp.comp_mask |=
 				MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_CORE_CLOCK_OFFSET;
@@ -1938,18 +1938,18 @@ static int mlx5_ib_alloc_ucontext(struct ib_ucontext *uctx,
 		resp.response_length += sizeof(resp.hca_core_clock_offset);
 	}
 
-	if (field_avail(typeof(resp), log_uar_size, udata->outlen))
+	if (offsetofend(typeof(resp), log_uar_size) <= udata->outlen)
 		resp.response_length += sizeof(resp.log_uar_size);
 
-	if (field_avail(typeof(resp), num_uars_per_page, udata->outlen))
+	if (offsetofend(typeof(resp), num_uars_per_page) <= udata->outlen)
 		resp.response_length += sizeof(resp.num_uars_per_page);
 
-	if (field_avail(typeof(resp), num_dyn_bfregs, udata->outlen)) {
+	if (offsetofend(typeof(resp), num_dyn_bfregs) <= udata->outlen) {
 		resp.num_dyn_bfregs = bfregi->num_dyn_bfregs;
 		resp.response_length += sizeof(resp.num_dyn_bfregs);
 	}
 
-	if (field_avail(typeof(resp), dump_fill_mkey, udata->outlen)) {
+	if (offsetofend(typeof(resp), dump_fill_mkey) <= udata->outlen) {
 		if (MLX5_CAP_GEN(dev->mdev, dump_fill_mkey)) {
 			resp.dump_fill_mkey = dump_fill_mkey;
 			resp.comp_mask |=

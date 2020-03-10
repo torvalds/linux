@@ -64,8 +64,6 @@
 	dev_warn(&(_dev)->ib_dev.dev, "%s:%d:(pid %d): " format, __func__,     \
 		 __LINE__, current->pid, ##arg)
 
-#define field_avail(type, fld, sz) (offsetof(type, fld) +		\
-				    sizeof(((type *)0)->fld) <= (sz))
 #define MLX5_IB_DEFAULT_UIDX 0xffffff
 #define MLX5_USER_ASSIGNED_UIDX_MASK __mlx5_mask(qpc, user_index)
 
@@ -1475,12 +1473,11 @@ static inline int get_qp_user_index(struct mlx5_ib_ucontext *ucontext,
 {
 	u8 cqe_version = ucontext->cqe_version;
 
-	if (field_avail(struct mlx5_ib_create_qp, uidx, inlen) &&
-	    !cqe_version && (ucmd->uidx == MLX5_IB_DEFAULT_UIDX))
+	if ((offsetofend(typeof(*ucmd), uidx) <= inlen) && !cqe_version &&
+	    (ucmd->uidx == MLX5_IB_DEFAULT_UIDX))
 		return 0;
 
-	if (!!(field_avail(struct mlx5_ib_create_qp, uidx, inlen) !=
-	       !!cqe_version))
+	if ((offsetofend(typeof(*ucmd), uidx) <= inlen) != !!cqe_version)
 		return -EINVAL;
 
 	return verify_assign_uidx(cqe_version, ucmd->uidx, user_index);
@@ -1493,12 +1490,11 @@ static inline int get_srq_user_index(struct mlx5_ib_ucontext *ucontext,
 {
 	u8 cqe_version = ucontext->cqe_version;
 
-	if (field_avail(struct mlx5_ib_create_srq, uidx, inlen) &&
-	    !cqe_version && (ucmd->uidx == MLX5_IB_DEFAULT_UIDX))
+	if ((offsetofend(typeof(*ucmd), uidx) <= inlen) && !cqe_version &&
+	    (ucmd->uidx == MLX5_IB_DEFAULT_UIDX))
 		return 0;
 
-	if (!!(field_avail(struct mlx5_ib_create_srq, uidx, inlen) !=
-	       !!cqe_version))
+	if ((offsetofend(typeof(*ucmd), uidx) <= inlen) != !!cqe_version)
 		return -EINVAL;
 
 	return verify_assign_uidx(cqe_version, ucmd->uidx, user_index);
