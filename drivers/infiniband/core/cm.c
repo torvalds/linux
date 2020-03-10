@@ -1026,34 +1026,34 @@ static void cm_destroy_id(struct ib_cm_id *cm_id, int err)
 	struct cm_work *work;
 
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
-retest:
 	spin_lock_irq(&cm_id_priv->lock);
+retest:
 	switch (cm_id->state) {
 	case IB_CM_LISTEN:
-		spin_unlock_irq(&cm_id_priv->lock);
-
-		spin_lock_irq(&cm.lock);
+		spin_lock(&cm.lock);
 		if (--cm_id_priv->listen_sharecount > 0) {
 			/* The id is still shared. */
 			WARN_ON(refcount_read(&cm_id_priv->refcount) == 1);
+			spin_unlock(&cm.lock);
+			spin_unlock_irq(&cm_id_priv->lock);
 			cm_deref_id(cm_id_priv);
-			spin_unlock_irq(&cm.lock);
 			return;
 		}
+		cm_id->state = IB_CM_IDLE;
 		rb_erase(&cm_id_priv->service_node, &cm.listen_service_table);
 		RB_CLEAR_NODE(&cm_id_priv->service_node);
-		spin_unlock_irq(&cm.lock);
+		spin_unlock(&cm.lock);
 		break;
 	case IB_CM_SIDR_REQ_SENT:
 		cm_id->state = IB_CM_IDLE;
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
-		spin_unlock_irq(&cm_id_priv->lock);
 		break;
 	case IB_CM_SIDR_REQ_RCVD:
 		cm_send_sidr_rep_locked(cm_id_priv,
 					&(struct ib_cm_sidr_rep_param){
 						.status = IB_SIDR_REJECT });
-		spin_unlock_irq(&cm_id_priv->lock);
+		/* cm_send_sidr_rep_locked will not move to IDLE if it fails */
+		cm_id->state = IB_CM_IDLE;
 		break;
 	case IB_CM_REQ_SENT:
 	case IB_CM_MRA_REQ_RCVD:
@@ -1062,18 +1062,15 @@ retest:
 				   &cm_id_priv->id.device->node_guid,
 				   sizeof(cm_id_priv->id.device->node_guid),
 				   NULL, 0);
-		spin_unlock_irq(&cm_id_priv->lock);
 		break;
 	case IB_CM_REQ_RCVD:
 		if (err == -ENOMEM) {
 			/* Do not reject to allow future retries. */
 			cm_reset_to_idle(cm_id_priv);
-			spin_unlock_irq(&cm_id_priv->lock);
 		} else {
 			cm_send_rej_locked(cm_id_priv,
 					   IB_CM_REJ_CONSUMER_DEFINED, NULL, 0,
 					   NULL, 0);
-			spin_unlock_irq(&cm_id_priv->lock);
 		}
 		break;
 	case IB_CM_REP_SENT:
@@ -1085,31 +1082,35 @@ retest:
 	case IB_CM_MRA_REP_SENT:
 		cm_send_rej_locked(cm_id_priv, IB_CM_REJ_CONSUMER_DEFINED, NULL,
 				   0, NULL, 0);
-		spin_unlock_irq(&cm_id_priv->lock);
 		break;
 	case IB_CM_ESTABLISHED:
 		if (cm_id_priv->qp_type == IB_QPT_XRC_TGT) {
-			spin_unlock_irq(&cm_id_priv->lock);
+			cm_id->state = IB_CM_IDLE;
 			break;
 		}
 		cm_send_dreq_locked(cm_id_priv, NULL, 0);
-		spin_unlock_irq(&cm_id_priv->lock);
 		goto retest;
 	case IB_CM_DREQ_SENT:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		cm_enter_timewait(cm_id_priv);
-		spin_unlock_irq(&cm_id_priv->lock);
-		break;
+		goto retest;
 	case IB_CM_DREQ_RCVD:
 		cm_send_drep_locked(cm_id_priv, NULL, 0);
-		spin_unlock_irq(&cm_id_priv->lock);
+		WARN_ON(cm_id->state != IB_CM_TIMEWAIT);
+		goto retest;
+	case IB_CM_TIMEWAIT:
+		/*
+		 * The cm_acquire_id in cm_timewait_handler will stop working
+		 * once we do cm_free_id() below, so just move to idle here for
+		 * consistency.
+		 */
+		cm_id->state = IB_CM_IDLE;
 		break;
-	default:
-		spin_unlock_irq(&cm_id_priv->lock);
+	case IB_CM_IDLE:
 		break;
 	}
+	WARN_ON(cm_id->state != IB_CM_IDLE);
 
-	spin_lock_irq(&cm_id_priv->lock);
 	spin_lock(&cm.lock);
 	/* Required for cleanup paths related cm_req_handler() */
 	if (cm_id_priv->timewait_info) {
