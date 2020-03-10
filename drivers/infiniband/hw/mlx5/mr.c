@@ -134,6 +134,10 @@ static void create_mkey_callback(int status, struct mlx5_async_work *context)
 	list_add_tail(&mr->list, &ent->head);
 	ent->available_mrs++;
 	ent->total_mrs++;
+	/*
+	 * Creating is always done in response to some demand, so do not call
+	 * queue_adjust_cache_locked().
+	 */
 	spin_unlock_irqrestore(&ent->lock, flags);
 
 	if (!completion_done(&ent->compl))
@@ -367,6 +371,20 @@ static int someone_adding(struct mlx5_mr_cache *cache)
 	return 0;
 }
 
+/*
+ * Check if the bucket is outside the high/low water mark and schedule an async
+ * update. The cache refill has hysteresis, once the low water mark is hit it is
+ * refilled up to the high mark.
+ */
+static void queue_adjust_cache_locked(struct mlx5_cache_ent *ent)
+{
+	lockdep_assert_held(&ent->lock);
+
+	if (ent->available_mrs < ent->limit ||
+	    ent->available_mrs > 2 * ent->limit)
+		queue_work(ent->dev->cache.wq, &ent->work);
+}
+
 static void __cache_work_func(struct mlx5_cache_ent *ent)
 {
 	struct mlx5_ib_dev *dev = ent->dev;
@@ -462,9 +480,8 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 					      list);
 			list_del(&mr->list);
 			ent->available_mrs--;
+			queue_adjust_cache_locked(ent);
 			spin_unlock_irq(&ent->lock);
-			if (ent->available_mrs < ent->limit)
-				queue_work(cache->wq, &ent->work);
 			return mr;
 		}
 	}
@@ -487,14 +504,12 @@ static struct mlx5_ib_mr *alloc_cached_mr(struct mlx5_cache_ent *req_ent)
 					      list);
 			list_del(&mr->list);
 			ent->available_mrs--;
+			queue_adjust_cache_locked(ent);
 			spin_unlock_irq(&ent->lock);
-			if (ent->available_mrs < ent->limit)
-				queue_work(dev->cache.wq, &ent->work);
 			break;
 		}
+		queue_adjust_cache_locked(ent);
 		spin_unlock_irq(&ent->lock);
-
-		queue_work(dev->cache.wq, &ent->work);
 	}
 
 	if (!mr)
@@ -516,7 +531,6 @@ static void detach_mr_from_cache(struct mlx5_ib_mr *mr)
 void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 {
 	struct mlx5_cache_ent *ent = mr->cache_ent;
-	int shrink = 0;
 
 	if (!ent)
 		return;
@@ -524,20 +538,14 @@ void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	if (mlx5_mr_cache_invalidate(mr)) {
 		detach_mr_from_cache(mr);
 		destroy_mkey(dev, mr);
-		if (ent->available_mrs < ent->limit)
-			queue_work(dev->cache.wq, &ent->work);
 		return;
 	}
 
 	spin_lock_irq(&ent->lock);
 	list_add_tail(&mr->list, &ent->head);
 	ent->available_mrs++;
-	if (ent->available_mrs > 2 * ent->limit)
-		shrink = 1;
+	queue_adjust_cache_locked(ent);
 	spin_unlock_irq(&ent->lock);
-
-	if (shrink)
-		queue_work(dev->cache.wq, &ent->work);
 }
 
 static void clean_keys(struct mlx5_ib_dev *dev, int c)
@@ -653,7 +661,9 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 			ent->limit = dev->mdev->profile->mr_cache[i].limit;
 		else
 			ent->limit = 0;
-		queue_work(cache->wq, &ent->work);
+		spin_lock_irq(&ent->lock);
+		queue_adjust_cache_locked(ent);
+		spin_unlock_irq(&ent->lock);
 	}
 
 	mlx5_mr_cache_debugfs_init(dev);
