@@ -302,7 +302,7 @@ void dapm_mark_endpoints_dirty(struct snd_soc_card *card)
 
 	mutex_lock(&card->dapm_mutex);
 
-	list_for_each_entry(w, &card->widgets, list) {
+	for_each_card_widgets(card, w) {
 		if (w->is_ep) {
 			dapm_mark_dirty(w, "Rechecking endpoints");
 			if (w->is_ep & SND_SOC_DAPM_EP_SINK)
@@ -589,7 +589,7 @@ static void dapm_reset(struct snd_soc_card *card)
 
 	memset(&card->dapm_stats, 0, sizeof(card->dapm_stats));
 
-	list_for_each_entry(w, &card->widgets, list) {
+	for_each_card_widgets(card, w) {
 		w->new_power = w->power;
 		w->power_checked = false;
 	}
@@ -833,7 +833,7 @@ static int dapm_is_shared_kcontrol(struct snd_soc_dapm_context *dapm,
 
 	*kcontrol = NULL;
 
-	list_for_each_entry(w, &dapm->card->widgets, list) {
+	for_each_card_widgets(dapm->card, w) {
 		if (w == kcontrolw || w->dapm != kcontrolw->dapm)
 			continue;
 		for (i = 0; i < w->num_kcontrols; i++) {
@@ -1716,9 +1716,8 @@ static void dapm_seq_run(struct snd_soc_card *card,
 					i, cur_subseq);
 	}
 
-	list_for_each_entry(d, &card->dapm_list, list) {
+	for_each_card_dapms(card, d)
 		soc_dapm_async_complete(d);
-	}
 }
 
 static void dapm_widget_update(struct snd_soc_card *card)
@@ -1949,7 +1948,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 
 	trace_snd_soc_dapm_start(card);
 
-	list_for_each_entry(d, &card->dapm_list, list) {
+	for_each_card_dapms(card, d) {
 		if (dapm_idle_bias_off(d))
 			d->target_bias_level = SND_SOC_BIAS_OFF;
 		else
@@ -1968,7 +1967,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 		dapm_power_one_widget(w, &up_list, &down_list);
 	}
 
-	list_for_each_entry(w, &card->widgets, list) {
+	for_each_card_widgets(card, w) {
 		switch (w->id) {
 		case snd_soc_dapm_pre:
 		case snd_soc_dapm_post:
@@ -2013,10 +2012,10 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	 * they're not ground referenced.
 	 */
 	bias = SND_SOC_BIAS_OFF;
-	list_for_each_entry(d, &card->dapm_list, list)
+	for_each_card_dapms(card, d)
 		if (d->target_bias_level > bias)
 			bias = d->target_bias_level;
-	list_for_each_entry(d, &card->dapm_list, list)
+	for_each_card_dapms(card, d)
 		if (!dapm_idle_bias_off(d))
 			d->target_bias_level = bias;
 
@@ -2025,7 +2024,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	/* Run card bias changes at first */
 	dapm_pre_sequence_async(&card->dapm, 0);
 	/* Run other bias changes in parallel */
-	list_for_each_entry(d, &card->dapm_list, list) {
+	for_each_card_dapms(card, d) {
 		if (d != &card->dapm && d->bias_level != d->target_bias_level)
 			async_schedule_domain(dapm_pre_sequence_async, d,
 						&async_domain);
@@ -2049,7 +2048,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	dapm_seq_run(card, &up_list, event, true);
 
 	/* Run all the bias changes in parallel */
-	list_for_each_entry(d, &card->dapm_list, list) {
+	for_each_card_dapms(card, d) {
 		if (d != &card->dapm && d->bias_level != d->target_bias_level)
 			async_schedule_domain(dapm_post_sequence_async, d,
 						&async_domain);
@@ -2059,7 +2058,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	dapm_post_sequence_async(&card->dapm, 0);
 
 	/* do we need to notify any clients that DAPM event is complete */
-	list_for_each_entry(d, &card->dapm_list, list) {
+	for_each_card_dapms(card, d) {
 		if (!d->component)
 			continue;
 
@@ -2377,7 +2376,7 @@ static ssize_t dapm_widget_show_component(struct snd_soc_component *cmpnt,
 	if (!cmpnt->card)
 		return 0;
 
-	list_for_each_entry(w, &cmpnt->card->widgets, list) {
+	for_each_card_widgets(cmpnt->card, w) {
 		if (w->dapm != dapm)
 			continue;
 
@@ -2437,7 +2436,7 @@ static ssize_t dapm_widget_show(struct device *dev,
 
 	mutex_lock(&rtd->card->dapm_mutex);
 
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		struct snd_soc_component *cmpnt = codec_dai->component;
 
 		count += dapm_widget_show_component(cmpnt, buf + count);
@@ -2497,7 +2496,7 @@ static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 {
 	struct snd_soc_dapm_widget *w, *next_w;
 
-	list_for_each_entry_safe(w, next_w, &dapm->card->widgets, list) {
+	for_each_card_widgets_safe(dapm->card, w, next_w) {
 		if (w->dapm != dapm)
 			continue;
 		snd_soc_dapm_free_widget(w);
@@ -2512,7 +2511,7 @@ static struct snd_soc_dapm_widget *dapm_find_widget(
 	struct snd_soc_dapm_widget *w;
 	struct snd_soc_dapm_widget *fallback = NULL;
 
-	list_for_each_entry(w, &dapm->card->widgets, list) {
+	for_each_card_widgets(dapm->card, w) {
 		if (!strcmp(w->name, pin)) {
 			if (w->dapm == dapm)
 				return w;
@@ -2911,7 +2910,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	 * find src and dest widgets over all widgets but favor a widget from
 	 * current DAPM context
 	 */
-	list_for_each_entry(w, &dapm->card->widgets, list) {
+	for_each_card_widgets(dapm->card, w) {
 		if (!wsink && !(strcmp(w->name, sink))) {
 			wtsink = w;
 			if (w->dapm == dapm) {
@@ -3190,7 +3189,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_INIT);
 
-	list_for_each_entry(w, &card->widgets, list)
+	for_each_card_widgets(card, w)
 	{
 		if (w->new)
 			continue;
@@ -3704,6 +3703,7 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 	w->dapm = dapm;
 	INIT_LIST_HEAD(&w->list);
 	INIT_LIST_HEAD(&w->dirty);
+	/* see for_each_card_widgets */
 	list_add_tail(&w->list, &dapm->card->widgets);
 
 	snd_soc_dapm_for_each_direction(dir) {
@@ -4228,7 +4228,7 @@ int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
 	struct snd_soc_dai *dai;
 
 	/* For each DAI widget... */
-	list_for_each_entry(dai_w, &card->widgets, list) {
+	for_each_card_widgets(card, dai_w) {
 		switch (dai_w->id) {
 		case snd_soc_dapm_dai_in:
 		case snd_soc_dapm_dai_out:
@@ -4247,7 +4247,7 @@ int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
 		dai = dai_w->priv;
 
 		/* ...find all widgets with the same stream and link them */
-		list_for_each_entry(w, &card->widgets, list) {
+		for_each_card_widgets(card, w) {
 			if (w->dapm != dai_w->dapm)
 				continue;
 
@@ -4362,11 +4362,11 @@ static void dapm_connect_dai_link_widgets(struct snd_soc_card *card,
 	int i;
 
 	if (rtd->num_cpus == 1) {
-		for_each_rtd_codec_dai(rtd, i, codec_dai)
+		for_each_rtd_codec_dais(rtd, i, codec_dai)
 			dapm_add_valid_dai_widget(card, rtd, codec_dai,
 						  rtd->cpu_dais[0]);
 	} else if (rtd->num_codecs == rtd->num_cpus) {
-		for_each_rtd_codec_dai(rtd, i, codec_dai)
+		for_each_rtd_codec_dais(rtd, i, codec_dai)
 			dapm_add_valid_dai_widget(card, rtd, codec_dai,
 						  rtd->cpu_dais[i]);
 	} else {
@@ -4437,9 +4437,9 @@ static void soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
 	struct snd_soc_dai *cpu_dai;
 	int i;
 
-	for_each_rtd_cpu_dai(rtd, i, cpu_dai)
+	for_each_rtd_cpu_dais(rtd, i, cpu_dai)
 		soc_dapm_dai_stream_event(cpu_dai, stream, event);
-	for_each_rtd_codec_dai(rtd, i, codec_dai)
+	for_each_rtd_codec_dais(rtd, i, codec_dai)
 		soc_dapm_dai_stream_event(codec_dai, stream, event);
 
 	dapm_power_widgets(rtd->card, event);
@@ -4776,6 +4776,7 @@ void snd_soc_dapm_init(struct snd_soc_dapm_context *dapm,
 	}
 
 	INIT_LIST_HEAD(&dapm->list);
+	/* see for_each_card_dapms */
 	list_add(&dapm->list, &card->dapm_list);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_init);
@@ -4789,7 +4790,7 @@ static void soc_dapm_shutdown_dapm(struct snd_soc_dapm_context *dapm)
 
 	mutex_lock(&card->dapm_mutex);
 
-	list_for_each_entry(w, &dapm->card->widgets, list) {
+	for_each_card_widgets(dapm->card, w) {
 		if (w->dapm != dapm)
 			continue;
 		if (w->power) {
@@ -4822,7 +4823,7 @@ void snd_soc_dapm_shutdown(struct snd_soc_card *card)
 {
 	struct snd_soc_dapm_context *dapm;
 
-	list_for_each_entry(dapm, &card->dapm_list, list) {
+	for_each_card_dapms(card, dapm) {
 		if (dapm != &card->dapm) {
 			soc_dapm_shutdown_dapm(dapm);
 			if (dapm->bias_level == SND_SOC_BIAS_STANDBY)

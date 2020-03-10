@@ -547,7 +547,7 @@ int snd_soc_suspend(struct device *dev)
 		if (rtd->dai_link->ignore_suspend)
 			continue;
 
-		for_each_rtd_codec_dai(rtd, i, dai) {
+		for_each_rtd_codec_dais(rtd, i, dai) {
 			if (dai->stream_active[playback])
 				snd_soc_dai_digital_mute(dai, 1, playback);
 		}
@@ -689,7 +689,7 @@ static void soc_resume_deferred(struct work_struct *work)
 		if (rtd->dai_link->ignore_suspend)
 			continue;
 
-		for_each_rtd_codec_dai(rtd, i, dai) {
+		for_each_rtd_codec_dais(rtd, i, dai) {
 			if (dai->stream_active[playback])
 				snd_soc_dai_digital_mute(dai, 0, playback);
 		}
@@ -1321,10 +1321,10 @@ static void soc_remove_link_dais(struct snd_soc_card *card)
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
 			/* remove the CODEC DAI */
-			for_each_rtd_codec_dai(rtd, i, codec_dai)
+			for_each_rtd_codec_dais(rtd, i, codec_dai)
 				soc_remove_dai(codec_dai, order);
 
-			for_each_rtd_cpu_dai(rtd, i, cpu_dai)
+			for_each_rtd_cpu_dais(rtd, i, cpu_dai)
 				soc_remove_dai(cpu_dai, order);
 		}
 	}
@@ -1344,14 +1344,14 @@ static int soc_probe_link_dais(struct snd_soc_card *card)
 				card->name, rtd->num, order);
 
 			/* probe the CPU DAI */
-			for_each_rtd_cpu_dai(rtd, i, cpu_dai) {
+			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 				ret = soc_probe_dai(cpu_dai, order);
 				if (ret)
 					return ret;
 			}
 
 			/* probe the CODEC DAI */
-			for_each_rtd_codec_dai(rtd, i, codec_dai) {
+			for_each_rtd_codec_dais(rtd, i, codec_dai) {
 				ret = soc_probe_dai(codec_dai, order);
 				if (ret)
 					return ret;
@@ -1486,7 +1486,7 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	unsigned int i;
 	int ret;
 
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
 		if (ret != 0 && ret != -ENOTSUPP) {
 			dev_warn(codec_dai->dev,
@@ -1514,7 +1514,7 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 		inv_dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
 		break;
 	}
-	for_each_rtd_cpu_dai(rtd, i, cpu_dai) {
+	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 		unsigned int fmt = dai_fmt;
 
 		if (cpu_dai->component->driver->non_legacy_dai_naming)

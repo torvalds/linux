@@ -399,7 +399,7 @@ static int kabylake_ssp0_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai;
 	int ret = 0, j;
 
-	for_each_rtd_codec_dai(rtd, j, codec_dai) {
+	for_each_rtd_codec_dais(rtd, j, codec_dai) {
 		if (!strcmp(codec_dai->component->name, RT5514_DEV_NAME)) {
 			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0xF, 0, 8, 16);
 			if (ret < 0) {
