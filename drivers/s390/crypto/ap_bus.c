@@ -360,7 +360,7 @@ void ap_wait(enum ap_wait wait)
 			wake_up(&ap_poll_wait);
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	case AP_WAIT_TIMEOUT:
 		spin_lock_bh(&ap_poll_timer_lock);
 		if (!hrtimer_is_queued(&ap_poll_timer)) {

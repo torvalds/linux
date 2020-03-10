@@ -152,7 +152,7 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 			ap_msg->receive(aq, ap_msg, aq->reply);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (!status.queue_empty || aq->queue_count <= 0)
 			break;
@@ -219,7 +219,7 @@ static enum ap_wait ap_sm_suspend_read(struct ap_queue *aq)
 	case AP_RESPONSE_NORMAL:
 		if (aq->queue_count > 0)
 			return AP_WAIT_AGAIN;
-		/* fall through */
+		fallthrough;
 	default:
 		return AP_WAIT_NONE;
 	}
@@ -254,7 +254,7 @@ static enum ap_wait ap_sm_write(struct ap_queue *aq)
 			aq->state = AP_STATE_WORKING;
 			return AP_WAIT_AGAIN;
 		}
-		/* fall through */
+		fallthrough;
 	case AP_RESPONSE_Q_FULL:
 		aq->state = AP_STATE_QUEUE_FULL;
 		return AP_WAIT_INTERRUPT;
@@ -380,7 +380,7 @@ static enum ap_wait ap_sm_setirq_wait(struct ap_queue *aq)
 	case AP_RESPONSE_NORMAL:
 		if (aq->queue_count > 0)
 			return AP_WAIT_AGAIN;
-		/* fallthrough */
+		fallthrough;
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		return AP_WAIT_TIMEOUT;
 	default:
