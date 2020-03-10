@@ -261,7 +261,6 @@ struct cm_id_private {
 	__be16 pkey;
 	u8 private_data_len;
 	u8 max_cm_retries;
-	u8 peer_to_peer;
 	u8 responder_resources;
 	u8 initiator_depth;
 	u8 retry_count;
@@ -1381,10 +1380,6 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 
 static int cm_validate_req_param(struct ib_cm_req_param *param)
 {
-	/* peer-to-peer not supported */
-	if (param->peer_to_peer)
-		return -EINVAL;
-
 	if (!param->primary_path)
 		return -EINVAL;
 
@@ -2436,8 +2431,6 @@ static int cm_rep_handler(struct cm_work *work)
 	cm_id_priv->alt_av.timeout =
 			cm_ack_timeout(cm_id_priv->target_ack_delay,
 				       cm_id_priv->alt_av.timeout - 1);
-
-	/* todo: handle peer_to_peer */
 
 	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 	ret = atomic_inc_and_test(&cm_id_priv->work_count);
