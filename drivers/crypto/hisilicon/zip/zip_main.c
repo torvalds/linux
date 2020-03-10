@@ -88,77 +88,7 @@
 
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
-static LIST_HEAD(hisi_zip_list);
-static DEFINE_MUTEX(hisi_zip_list_lock);
-
-struct hisi_zip_resource {
-	struct hisi_zip *hzip;
-	int distance;
-	struct list_head list;
-};
-
-static void free_list(struct list_head *head)
-{
-	struct hisi_zip_resource *res, *tmp;
-
-	list_for_each_entry_safe(res, tmp, head, list) {
-		list_del(&res->list);
-		kfree(res);
-	}
-}
-
-struct hisi_zip *find_zip_device(int node)
-{
-	struct hisi_zip_resource *res, *tmp;
-	struct hisi_zip *ret = NULL;
-	struct hisi_zip *hisi_zip;
-	struct list_head *n;
-	struct device *dev;
-	LIST_HEAD(head);
-
-	mutex_lock(&hisi_zip_list_lock);
-
-	if (IS_ENABLED(CONFIG_NUMA)) {
-		list_for_each_entry(hisi_zip, &hisi_zip_list, list) {
-			res = kzalloc(sizeof(*res), GFP_KERNEL);
-			if (!res)
-				goto err;
-
-			dev = &hisi_zip->qm.pdev->dev;
-			res->hzip = hisi_zip;
-			res->distance = node_distance(dev_to_node(dev), node);
-
-			n = &head;
-			list_for_each_entry(tmp, &head, list) {
-				if (res->distance < tmp->distance) {
-					n = &tmp->list;
-					break;
-				}
-			}
-			list_add_tail(&res->list, n);
-		}
-
-		list_for_each_entry(tmp, &head, list) {
-			if (hisi_qm_get_free_qp_num(&tmp->hzip->qm)) {
-				ret = tmp->hzip;
-				break;
-			}
-		}
-
-		free_list(&head);
-	} else {
-		ret = list_first_entry(&hisi_zip_list, struct hisi_zip, list);
-	}
-
-	mutex_unlock(&hisi_zip_list_lock);
-
-	return ret;
-
-err:
-	free_list(&head);
-	mutex_unlock(&hisi_zip_list_lock);
-	return NULL;
-}
+static struct hisi_qm_list zip_devices;
 
 struct hisi_zip_hw_error {
 	u32 int_msk;
@@ -313,18 +243,11 @@ static const struct pci_device_id hisi_zip_dev_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
 
-static inline void hisi_zip_add_to_list(struct hisi_zip *hisi_zip)
+int zip_create_qps(struct hisi_qp **qps, int qp_num)
 {
-	mutex_lock(&hisi_zip_list_lock);
-	list_add_tail(&hisi_zip->list, &hisi_zip_list);
-	mutex_unlock(&hisi_zip_list_lock);
-}
+	int node = cpu_to_node(smp_processor_id());
 
-static inline void hisi_zip_remove_from_list(struct hisi_zip *hisi_zip)
-{
-	mutex_lock(&hisi_zip_list_lock);
-	list_del(&hisi_zip->list);
-	mutex_unlock(&hisi_zip_list_lock);
+	return hisi_qm_alloc_qps_node(&zip_devices, qp_num, 0, node, qps);
 }
 
 static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
@@ -891,7 +814,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		dev_err(&pdev->dev, "Failed to init debugfs (%d)!\n", ret);
 
-	hisi_zip_add_to_list(hisi_zip);
+	hisi_qm_add_to_list(qm, &zip_devices);
 
 	if (qm->uacce) {
 		ret = uacce_register(qm->uacce);
@@ -908,7 +831,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_remove_from_list:
-	hisi_zip_remove_from_list(hisi_zip);
+	hisi_qm_del_from_list(qm, &zip_devices);
 	hisi_zip_debugfs_exit(hisi_zip);
 	hisi_qm_stop(qm);
 err_qm_uninit:
@@ -937,7 +860,7 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 
 	hisi_qm_dev_err_uninit(qm);
 	hisi_qm_uninit(qm);
-	hisi_zip_remove_from_list(hisi_zip);
+	hisi_qm_del_from_list(qm, &zip_devices);
 }
 
 static const struct pci_error_handlers hisi_zip_err_handler = {
@@ -971,6 +894,7 @@ static int __init hisi_zip_init(void)
 {
 	int ret;
 
+	hisi_qm_init_list(&zip_devices);
 	hisi_zip_register_debugfs();
 
 	ret = pci_register_driver(&hisi_zip_pci_driver);
