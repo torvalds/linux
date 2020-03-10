@@ -2229,6 +2229,12 @@ static int __init populate_kprobe_blacklist(unsigned long *start,
 	/* Symbols in __kprobes_text are blacklisted */
 	ret = kprobe_add_area_blacklist((unsigned long)__kprobes_text_start,
 					(unsigned long)__kprobes_text_end);
+	if (ret)
+		return ret;
+
+	/* Symbols in noinstr section are blacklisted */
+	ret = kprobe_add_area_blacklist((unsigned long)__noinstr_text_start,
+					(unsigned long)__noinstr_text_end);
 
 	return ret ? : arch_populate_kprobe_blacklist();
 }
@@ -2248,6 +2254,12 @@ static void add_module_kprobe_blacklist(struct module *mod)
 		end = start + mod->kprobes_text_size;
 		kprobe_add_area_blacklist(start, end);
 	}
+
+	start = (unsigned long)mod->noinstr_text_start;
+	if (start) {
+		end = start + mod->noinstr_text_size;
+		kprobe_add_area_blacklist(start, end);
+	}
 }
 
 static void remove_module_kprobe_blacklist(struct module *mod)
@@ -2263,6 +2275,12 @@ static void remove_module_kprobe_blacklist(struct module *mod)
 	start = (unsigned long)mod->kprobes_text_start;
 	if (start) {
 		end = start + mod->kprobes_text_size;
+		kprobe_remove_area_blacklist(start, end);
+	}
+
+	start = (unsigned long)mod->noinstr_text_start;
+	if (start) {
+		end = start + mod->noinstr_text_size;
 		kprobe_remove_area_blacklist(start, end);
 	}
 }

@@ -458,6 +458,8 @@ struct module {
 	void __percpu *percpu;
 	unsigned int percpu_size;
 #endif
+	void *noinstr_text_start;
+	unsigned int noinstr_text_size;
 
 #ifdef CONFIG_TRACEPOINTS
 	unsigned int num_tracepoints;
