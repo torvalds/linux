@@ -3820,6 +3820,8 @@ static inline u64 f2fs_disable_compressed_file(struct inode *inode)
 
 	if (!f2fs_compressed_file(inode))
 		return 0;
+	if (get_dirty_pages(inode))
+		return 1;
 	if (fi->i_compr_blocks)
 		return fi->i_compr_blocks;
 
