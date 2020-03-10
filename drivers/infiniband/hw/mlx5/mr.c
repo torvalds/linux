@@ -54,12 +54,8 @@ static void
 assign_mkey_variant(struct mlx5_ib_dev *dev, struct mlx5_core_mkey *mkey,
 		    u32 *in)
 {
+	u8 key = atomic_inc_return(&dev->mkey_var);
 	void *mkc;
-	u8 key;
-
-	spin_lock_irq(&dev->mkey_lock);
-	key = dev->mkey_key++;
-	spin_unlock_irq(&dev->mkey_lock);
 
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 	MLX5_SET(mkc, mkc, mkey_7_0, key);

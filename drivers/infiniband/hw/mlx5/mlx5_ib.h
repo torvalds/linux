@@ -993,10 +993,7 @@ struct mlx5_ib_dev {
 	 */
 	struct mlx5_ib_resources	devr;
 
-	/* protect mkey key part */
-	spinlock_t			mkey_lock;
-	u8				mkey_key;
-
+	atomic_t			mkey_var;
 	struct mlx5_mr_cache		cache;
 	struct timer_list		delay_timer;
 	/* Prevents soft lock on massive reg MRs */
