@@ -1036,6 +1036,20 @@ NMI.
 = ============================================
 
 
+softlockup_panic
+=================
+
+This parameter can be used to control whether the kernel panics
+when a soft lockup is detected.
+
+= ============================================
+0 Don't panic on soft lockup.
+1 Panic on soft lockup.
+= ============================================
+
+This can also be set using the softlockup_panic kernel parameter.
+
+
 soft_watchdog
 =============
 
