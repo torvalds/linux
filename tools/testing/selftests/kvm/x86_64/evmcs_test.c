@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
 
 		switch (get_ucall(vm, VCPU_ID, &uc)) {
 		case UCALL_ABORT:
-			TEST_ASSERT(false, "%s at %s:%d", (const char *)uc.args[0],
+			TEST_ASSERT(false, "%s at %s:%ld", (const char *)uc.args[0],
 				    __FILE__, uc.args[1]);
 			/* NOT REACHED */
 		case UCALL_SYNC:
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 
 		/* UCALL_SYNC is handled here.  */
 		TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&
-			    uc.args[1] == stage, "Unexpected register values vmexit #%lx, got %lx",
+			    uc.args[1] == stage, "Stage %d: Unexpected register values vmexit, got %lx",
 			    stage, (ulong)uc.args[1]);
 
 		state = vcpu_save_state(vm, VCPU_ID);

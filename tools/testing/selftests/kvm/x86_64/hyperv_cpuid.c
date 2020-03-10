@@ -66,7 +66,7 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 
 		TEST_ASSERT((entry->function >= 0x40000000) &&
 			    (entry->function <= 0x4000000A),
-			    "function %lx is our of supported range",
+			    "function %x is our of supported range",
 			    entry->function);
 
 		TEST_ASSERT(entry->index == 0,

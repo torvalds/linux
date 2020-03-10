@@ -384,7 +384,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	 */
 	TEST_ASSERT(guest_num_pages < vm_get_max_gfn(vm),
 		    "Requested more guest memory than address space allows.\n"
-		    "    guest pages: %lx max gfn: %lx vcpus: %d wss: %lx]\n",
+		    "    guest pages: %lx max gfn: %x vcpus: %d wss: %lx]\n",
 		    guest_num_pages, vm_get_max_gfn(vm), vcpus,
 		    vcpu_memory_bytes);
 

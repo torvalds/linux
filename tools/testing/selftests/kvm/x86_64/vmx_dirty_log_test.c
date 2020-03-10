@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
 
 		switch (get_ucall(vm, VCPU_ID, &uc)) {
 		case UCALL_ABORT:
-			TEST_ASSERT(false, "%s at %s:%d", (const char *)uc.args[0],
+			TEST_ASSERT(false, "%s at %s:%ld", (const char *)uc.args[0],
 				    __FILE__, uc.args[1]);
 			/* NOT REACHED */
 		case UCALL_SYNC:

@@ -61,8 +61,7 @@ static void *vcpu_worker(void *data)
 		    "Unexpected exit reason = %d", run->exit_reason);
 
 	cmd = get_ucall(vm, VCPU_ID, &uc);
-	TEST_ASSERT(cmd == UCALL_DONE, "Unexpected val in guest = %llu",
-		    uc.args[0]);
+	TEST_ASSERT(cmd == UCALL_DONE, "Unexpected val in guest = %lu", uc.args[0]);
 	return NULL;
 }
 

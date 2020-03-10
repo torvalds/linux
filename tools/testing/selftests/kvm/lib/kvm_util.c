@@ -265,7 +265,7 @@ void kvm_vm_restart(struct kvm_vm *vmp, int perm)
 		TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed,\n"
 			    "  rc: %i errno: %i\n"
 			    "  slot: %u flags: 0x%x\n"
-			    "  guest_phys_addr: 0x%lx size: 0x%lx",
+			    "  guest_phys_addr: 0x%llx size: 0x%llx",
 			    ret, errno, region->region.slot,
 			    region->region.flags,
 			    region->region.guest_phys_addr,
@@ -280,7 +280,7 @@ void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log)
 
 	ret = ioctl(vm->fd, KVM_GET_DIRTY_LOG, &args);
 	TEST_ASSERT(ret == 0, "%s: KVM_GET_DIRTY_LOG failed: %s",
-		    strerror(-ret));
+		    __func__, strerror(-ret));
 }
 
 void kvm_vm_clear_dirty_log(struct kvm_vm *vm, int slot, void *log,
@@ -293,7 +293,7 @@ void kvm_vm_clear_dirty_log(struct kvm_vm *vm, int slot, void *log,
 
 	ret = ioctl(vm->fd, KVM_CLEAR_DIRTY_LOG, &args);
 	TEST_ASSERT(ret == 0, "%s: KVM_CLEAR_DIRTY_LOG failed: %s",
-		    strerror(-ret));
+		    __func__, strerror(-ret));
 }
 
 /*
@@ -785,7 +785,7 @@ void vm_mem_region_move(struct kvm_vm *vm, uint32_t slot, uint64_t new_gpa)
 	ret = ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
 
 	TEST_ASSERT(!ret, "KVM_SET_USER_MEMORY_REGION failed\n"
-		    "ret: %i errno: %i slot: %u flags: 0x%x",
+		    "ret: %i errno: %i slot: %u flags: 0x%lx",
 		    ret, errno, slot, new_gpa);
 }
 
