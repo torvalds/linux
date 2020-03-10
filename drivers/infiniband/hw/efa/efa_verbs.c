@@ -144,9 +144,6 @@ static inline bool is_rdma_read_cap(struct efa_dev *dev)
 	return dev->dev_attr.device_caps & EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK;
 }
 
-#define field_avail(x, fld, sz) (offsetof(typeof(x), fld) + \
-				 sizeof_field(typeof(x), fld) <= (sz))
-
 #define is_reserved_cleared(reserved) \
 	!memchr_inv(reserved, 0, sizeof(reserved))
 
@@ -609,7 +606,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	if (err)
 		goto err_out;
 
-	if (!field_avail(cmd, driver_qp_type, udata->inlen)) {
+	if (offsetofend(typeof(cmd), driver_qp_type) > udata->inlen) {
 		ibdev_dbg(&dev->ibdev,
 			  "Incompatible ABI params, no input udata\n");
 		err = -EINVAL;
@@ -896,7 +893,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		goto err_out;
 	}
 
-	if (!field_avail(cmd, num_sub_cqs, udata->inlen)) {
+	if (offsetofend(typeof(cmd), num_sub_cqs) > udata->inlen) {
 		ibdev_dbg(ibdev,
 			  "Incompatible ABI params, no input udata\n");
 		err = -EINVAL;
