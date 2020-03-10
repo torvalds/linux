@@ -141,11 +141,13 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 	bool more_data_avail;
 	struct tcp_sock *tp;
 	bool done = false;
-	int rcvbuf;
 
-	rcvbuf = max(ssk->sk_rcvbuf, sk->sk_rcvbuf);
-	if (rcvbuf > sk->sk_rcvbuf)
-		sk->sk_rcvbuf = rcvbuf;
+	if (!(sk->sk_userlocks & SOCK_RCVBUF_LOCK)) {
+		int rcvbuf = max(ssk->sk_rcvbuf, sk->sk_rcvbuf);
+
+		if (rcvbuf > sk->sk_rcvbuf)
+			sk->sk_rcvbuf = rcvbuf;
+	}
 
 	tp = tcp_sk(ssk);
 	do {
