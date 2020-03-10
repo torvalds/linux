@@ -176,7 +176,6 @@
  * @cr2: Control register 2
  * @oar1: Own address 1 register
  * @oar2: Own address 2 register
- * @pecr: PEC register
  * @tmgr: Timing register
  */
 struct stm32f7_i2c_regs {
@@ -184,7 +183,6 @@ struct stm32f7_i2c_regs {
 	u32 cr2;
 	u32 oar1;
 	u32 oar2;
-	u32 pecr;
 	u32 tmgr;
 };
 
@@ -2196,7 +2194,6 @@ static int stm32f7_i2c_regs_backup(struct stm32f7_i2c_dev *i2c_dev)
 	backup_regs->cr2 = readl_relaxed(i2c_dev->base + STM32F7_I2C_CR2);
 	backup_regs->oar1 = readl_relaxed(i2c_dev->base + STM32F7_I2C_OAR1);
 	backup_regs->oar2 = readl_relaxed(i2c_dev->base + STM32F7_I2C_OAR2);
-	backup_regs->pecr = readl_relaxed(i2c_dev->base + STM32F7_I2C_PECR);
 	backup_regs->tmgr = readl_relaxed(i2c_dev->base + STM32F7_I2C_TIMINGR);
 	stm32f7_i2c_write_fm_plus_bits(i2c_dev, false);
 
@@ -2229,7 +2226,6 @@ static int stm32f7_i2c_regs_restore(struct stm32f7_i2c_dev *i2c_dev)
 	writel_relaxed(backup_regs->cr2, i2c_dev->base + STM32F7_I2C_CR2);
 	writel_relaxed(backup_regs->oar1, i2c_dev->base + STM32F7_I2C_OAR1);
 	writel_relaxed(backup_regs->oar2, i2c_dev->base + STM32F7_I2C_OAR2);
-	writel_relaxed(backup_regs->pecr, i2c_dev->base + STM32F7_I2C_PECR);
 	stm32f7_i2c_write_fm_plus_bits(i2c_dev, true);
 
 	pm_runtime_put_sync(i2c_dev->dev);
