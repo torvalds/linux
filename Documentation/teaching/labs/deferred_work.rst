@@ -339,7 +339,7 @@ Workqueues are used to schedule actions to run in process context. The
 base unit with which they work is called work. There are two types of
 work:
 
-* :c:type:`structure work_struct` - it schedules a task to run at
+* :c:type:`struct work_struct` - it schedules a task to run at
   a later time
 * :c:type:`struct delayed_work` - it schedules a task to run after at
   least a given time interval
@@ -469,7 +469,7 @@ use :c:func:`container_of`:
 
    void my_work_handler(struct work_struct *work)
    {
-      structure my_device_data * my_data;
+      struct my_device_data * my_data;
 
       my_data = container_of(work, struct my_device_data,  my_work);
       // ...
@@ -534,7 +534,7 @@ And to destroy the workqueue call :c:func:`destroy_workqueue`
 
 .. code-block:: c
 
-   void destroy_workqueue(structure workqueque_struct *queue);
+   void destroy_workqueue(struct workqueue_struct *queue);
 
 The next sequence declares and initializes an additional workqueue,
 declares and initializes a work item and adds it to the queue:
@@ -576,7 +576,7 @@ To create a thread kernel, use :c:func:`kthread_create`:
 
    #include <linux/kthread.h>
 
-   structure task_struct *kthread_create(int (*threadfn)(void *data),
+   struct task_struct *kthread_create(int (*threadfn)(void *data),
 					 void *data, const char namefmt[], ...);
 
 * *threadfn* is a function that will be run by the kernel thread
@@ -646,7 +646,7 @@ common mistakes:
    DECLARE_WAIT_QUEUE_HEAD(wq);
 
    // list events to be processed by kernel thread
-   structure list_head events_list;
+   struct list_head events_list;
    struct spin_lock events_lock;
 
 
@@ -698,8 +698,8 @@ with:
    void send_event(struct event *ev)
    {
        spin_lock(&events_lock);
-       list_add(&ev->lh, &list_events);
-       spin_unlock(events_lock);
+       list_add(&ev->lh, &events_list);
+       spin_unlock(&events_lock);
        wake_up(&wq);
    }
 
