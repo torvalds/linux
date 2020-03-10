@@ -53,7 +53,7 @@ static void test_one_reg(uint64_t id, uint64_t value)
 	reg.addr = (uintptr_t)&eval_reg;
 	reg.id = id;
 	vcpu_get_reg(vm, VCPU_ID, &reg);
-	TEST_ASSERT(eval_reg == value, "value == %s", value);
+	TEST_ASSERT(eval_reg == value, "value == 0x%lx", value);
 }
 
 static void assert_noirq(void)
