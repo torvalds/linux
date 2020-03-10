@@ -2530,10 +2530,11 @@ void ceph_take_cap_refs(struct ceph_inode_info *ci, int got,
  * Note that caller is responsible for ensuring max_size increases are
  * requested from the MDS.
  *
- * Returns 0 if caps were not able to be acquired (yet), a 1 if they were,
- * or a negative error code.
- *
- * FIXME: how does a 0 return differ from -EAGAIN?
+ * Returns 0 if caps were not able to be acquired (yet), 1 if succeed,
+ * or a negative error code. There are 3 speical error codes:
+ *  -EAGAIN: need to sleep but non-blocking is specified
+ *  -EFBIG:  ask caller to call check_max_size() and try again.
+ *  -ESTALE: ask caller to call ceph_renew_caps() and try again.
  */
 enum {
 	/* first 8 bits are reserved for CEPH_FILE_MODE_FOO */
@@ -2581,7 +2582,7 @@ again:
 			dout("get_cap_refs %p endoff %llu > maxsize %llu\n",
 			     inode, endoff, ci->i_max_size);
 			if (endoff > ci->i_requested_max_size)
-				ret = -EAGAIN;
+				ret = -EFBIG;
 			goto out_unlock;
 		}
 		/*
@@ -2743,7 +2744,10 @@ int ceph_try_get_caps(struct inode *inode, int need, int want,
 		flags |= NON_BLOCKING;
 
 	ret = try_get_cap_refs(inode, need, want, 0, flags, got);
-	return ret == -EAGAIN ? 0 : ret;
+	/* three special error codes */
+	if (ret == -EAGAIN || ret == -EFBIG || ret == -EAGAIN)
+		ret = 0;
+	return ret;
 }
 
 /*
@@ -2771,17 +2775,13 @@ int ceph_get_caps(struct file *filp, int need, int want,
 	flags = get_used_fmode(need | want);
 
 	while (true) {
-		if (endoff > 0)
-			check_max_size(inode, endoff);
-
 		flags &= CEPH_FILE_MODE_MASK;
 		if (atomic_read(&fi->num_locks))
 			flags |= CHECK_FILELOCK;
 		_got = 0;
 		ret = try_get_cap_refs(inode, need, want, endoff,
 				       flags, &_got);
-		if (ret == -EAGAIN)
-			continue;
+		WARN_ON_ONCE(ret == -EAGAIN);
 		if (!ret) {
 			struct ceph_mds_client *mdsc = fsc->mdsc;
 			struct cap_wait cw;
@@ -2829,6 +2829,10 @@ int ceph_get_caps(struct file *filp, int need, int want,
 		}
 
 		if (ret < 0) {
+			if (ret == -EFBIG) {
+				check_max_size(inode, endoff);
+				continue;
+			}
 			if (ret == -ESTALE) {
 				/* session was killed, try renew caps */
 				ret = ceph_renew_caps(inode, flags);
