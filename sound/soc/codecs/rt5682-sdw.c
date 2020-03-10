@@ -270,7 +270,7 @@ static const struct sdw_device_id rt5682_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt5682_id);
 
-static int rt5682_dev_suspend(struct device *dev)
+static int __maybe_unused rt5682_dev_suspend(struct device *dev)
 {
 	struct rt5682_priv *rt5682 = dev_get_drvdata(dev);
 
@@ -283,7 +283,7 @@ static int rt5682_dev_suspend(struct device *dev)
 	return 0;
 }
 
-static int rt5682_dev_resume(struct device *dev)
+static int __maybe_unused rt5682_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt5682_priv *rt5682 = dev_get_drvdata(dev);
