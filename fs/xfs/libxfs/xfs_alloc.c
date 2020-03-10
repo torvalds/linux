@@ -589,6 +589,7 @@ xfs_agfl_verify(
 {
 	struct xfs_mount *mp = bp->b_mount;
 	struct xfs_agfl	*agfl = XFS_BUF_TO_AGFL(bp);
+	__be32		*agfl_bno = xfs_buf_to_agfl_bno(bp);
 	int		i;
 
 	/*
@@ -614,8 +615,8 @@ xfs_agfl_verify(
 		return __this_address;
 
 	for (i = 0; i < xfs_agfl_size(mp); i++) {
-		if (be32_to_cpu(agfl->agfl_bno[i]) != NULLAGBLOCK &&
-		    be32_to_cpu(agfl->agfl_bno[i]) >= mp->m_sb.sb_agblocks)
+		if (be32_to_cpu(agfl_bno[i]) != NULLAGBLOCK &&
+		    be32_to_cpu(agfl_bno[i]) >= mp->m_sb.sb_agblocks)
 			return __this_address;
 	}
 
@@ -2684,7 +2685,7 @@ xfs_alloc_get_freelist(
 	/*
 	 * Get the block number and update the data structures.
 	 */
-	agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, agflbp);
+	agfl_bno = xfs_buf_to_agfl_bno(agflbp);
 	bno = be32_to_cpu(agfl_bno[be32_to_cpu(agf->agf_flfirst)]);
 	be32_add_cpu(&agf->agf_flfirst, 1);
 	xfs_trans_brelse(tp, agflbp);
@@ -2820,7 +2821,7 @@ xfs_alloc_put_freelist(
 
 	ASSERT(be32_to_cpu(agf->agf_flcount) <= xfs_agfl_size(mp));
 
-	agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, agflbp);
+	agfl_bno = xfs_buf_to_agfl_bno(agflbp);
 	blockp = &agfl_bno[be32_to_cpu(agf->agf_fllast)];
 	*blockp = cpu_to_be32(bno);
 	startoff = (char *)blockp - (char *)agflbp->b_addr;
@@ -3424,7 +3425,7 @@ xfs_agfl_walk(
 	unsigned int		i;
 	int			error;
 
-	agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, agflbp);
+	agfl_bno = xfs_buf_to_agfl_bno(agflbp);
 	i = be32_to_cpu(agf->agf_flfirst);
 
 	/* Nothing to walk in an empty AGFL. */

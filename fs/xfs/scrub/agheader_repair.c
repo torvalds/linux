@@ -602,7 +602,7 @@ xrep_agfl_init_header(
 	 * step.
 	 */
 	fl_off = 0;
-	agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, agfl_bp);
+	agfl_bno = xfs_buf_to_agfl_bno(agfl_bp);
 	for_each_xfs_bitmap_extent(br, n, agfl_extents) {
 		agbno = XFS_FSB_TO_AGBNO(mp, br->start);
 
