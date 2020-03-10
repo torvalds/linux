@@ -63,51 +63,51 @@ Instead, use the helper::
 
 	header = kzalloc(struct_size(header, item, count), GFP_KERNEL);
 
-See :c:func:`array_size`, :c:func:`array3_size`, and :c:func:`struct_size`,
-for more details as well as the related :c:func:`check_add_overflow` and
-:c:func:`check_mul_overflow` family of functions.
+See array_size(), array3_size(), and struct_size(),
+for more details as well as the related check_add_overflow() and
+check_mul_overflow() family of functions.
 
 simple_strtol(), simple_strtoll(), simple_strtoul(), simple_strtoull()
 ----------------------------------------------------------------------
-The :c:func:`simple_strtol`, :c:func:`simple_strtoll`,
-:c:func:`simple_strtoul`, and :c:func:`simple_strtoull` functions
+The simple_strtol(), simple_strtoll(),
+simple_strtoul(), and simple_strtoull() functions
 explicitly ignore overflows, which may lead to unexpected results
-in callers. The respective :c:func:`kstrtol`, :c:func:`kstrtoll`,
-:c:func:`kstrtoul`, and :c:func:`kstrtoull` functions tend to be the
+in callers. The respective kstrtol(), kstrtoll(),
+kstrtoul(), and kstrtoull() functions tend to be the
 correct replacements, though note that those require the string to be
 NUL or newline terminated.
 
 strcpy()
 --------
-:c:func:`strcpy` performs no bounds checking on the destination
+strcpy() performs no bounds checking on the destination
 buffer. This could result in linear overflows beyond the
 end of the buffer, leading to all kinds of misbehaviors. While
 `CONFIG_FORTIFY_SOURCE=y` and various compiler flags help reduce the
 risk of using this function, there is no good reason to add new uses of
-this function. The safe replacement is :c:func:`strscpy`.
+this function. The safe replacement is strscpy().
 
 strncpy() on NUL-terminated strings
 -----------------------------------
-Use of :c:func:`strncpy` does not guarantee that the destination buffer
+Use of strncpy() does not guarantee that the destination buffer
 will be NUL terminated. This can lead to various linear read overflows
 and other misbehavior due to the missing termination. It also NUL-pads the
 destination buffer if the source contents are shorter than the destination
 buffer size, which may be a needless performance penalty for callers using
-only NUL-terminated strings. The safe replacement is :c:func:`strscpy`.
-(Users of :c:func:`strscpy` still needing NUL-padding should instead
+only NUL-terminated strings. The safe replacement is strscpy().
+(Users of strscpy() still needing NUL-padding should instead
 use strscpy_pad().)
 
-If a caller is using non-NUL-terminated strings, :c:func:`strncpy()` can
+If a caller is using non-NUL-terminated strings, strncpy()() can
 still be used, but destinations should be marked with the `__nonstring
 <https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html>`_
 attribute to avoid future compiler warnings.
 
 strlcpy()
 ---------
-:c:func:`strlcpy` reads the entire source buffer first, possibly exceeding
+strlcpy() reads the entire source buffer first, possibly exceeding
 the given limit of bytes to copy. This is inefficient and can lead to
 linear read overflows if a source string is not NUL-terminated. The
-safe replacement is :c:func:`strscpy`.
+safe replacement is strscpy().
 
 %p format specifier
 -------------------
