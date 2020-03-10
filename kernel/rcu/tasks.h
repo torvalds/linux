@@ -798,9 +798,41 @@ static void rcu_tasks_trace_postscan(void)
 	// Any tasks that exit after this point will set ->trc_reader_checked.
 }
 
+/* Show the state of a task stalling the current RCU tasks trace GP. */
+static void show_stalled_task_trace(struct task_struct *t, bool *firstreport)
+{
+	int cpu;
+
+	if (*firstreport) {
+		pr_err("INFO: rcu_tasks_trace detected stalls on tasks:\n");
+		*firstreport = false;
+	}
+	// FIXME: This should attempt to use try_invoke_on_nonrunning_task().
+	cpu = task_cpu(t);
+	pr_alert("P%d: %c%c%c nesting: %d%c cpu: %d\n",
+		 t->pid,
+		 ".I"[READ_ONCE(t->trc_ipi_to_cpu) > 0],
+		 ".i"[is_idle_task(t)],
+		 ".N"[cpu > 0 && tick_nohz_full_cpu(cpu)],
+		 t->trc_reader_nesting,
+		 " N"[!!t->trc_reader_need_end],
+		 cpu);
+	sched_show_task(t);
+}
+
+/* List stalled IPIs for RCU tasks trace. */
+static void show_stalled_ipi_trace(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		if (per_cpu(trc_ipi_to_cpu, cpu))
+			pr_alert("\tIPI outstanding to CPU %d\n", cpu);
+}
+
 /* Do one scan of the holdout list. */
 static void check_all_holdout_tasks_trace(struct list_head *hop,
-					  bool ndrpt, bool *frptp)
+					  bool needreport, bool *firstreport)
 {
 	struct task_struct *g, *t;
 
@@ -813,21 +845,51 @@ static void check_all_holdout_tasks_trace(struct list_head *hop,
 		// If check succeeded, remove this task from the list.
 		if (READ_ONCE(t->trc_reader_checked))
 			trc_del_holdout(t);
+		else if (needreport)
+			show_stalled_task_trace(t, firstreport);
+	}
+	if (needreport) {
+		if (firstreport)
+			pr_err("INFO: rcu_tasks_trace detected stalls? (Late IPI?)\n");
+		show_stalled_ipi_trace();
 	}
 }
 
 /* Wait for grace period to complete and provide ordering. */
 static void rcu_tasks_trace_postgp(void)
 {
+	bool firstreport;
+	struct task_struct *g, *t;
+	LIST_HEAD(holdouts);
+	long ret;
+
 	// Remove the safety count.
 	smp_mb__before_atomic();  // Order vs. earlier atomics
 	atomic_dec(&trc_n_readers_need_end);
 	smp_mb__after_atomic();  // Order vs. later atomics
 
 	// Wait for readers.
-	wait_event_idle_exclusive(trc_wait,
-				  atomic_read(&trc_n_readers_need_end) == 0);
-
+	for (;;) {
+		ret = wait_event_idle_exclusive_timeout(
+				trc_wait,
+				atomic_read(&trc_n_readers_need_end) == 0,
+				READ_ONCE(rcu_task_stall_timeout));
+		if (ret)
+			break;  // Count reached zero.
+		for_each_process_thread(g, t)
+			if (READ_ONCE(t->trc_reader_need_end))
+				trc_add_holdout(t, &holdouts);
+		firstreport = true;
+		list_for_each_entry_safe(t, g, &holdouts, trc_holdout_list)
+			if (READ_ONCE(t->trc_reader_need_end)) {
+				show_stalled_task_trace(t, &firstreport);
+				trc_del_holdout(t);
+			}
+		if (firstreport)
+			pr_err("INFO: rcu_tasks_trace detected stalls? (Counter/taskslist mismatch?)\n");
+		show_stalled_ipi_trace();
+		pr_err("\t%d holdouts\n", atomic_read(&trc_n_readers_need_end));
+	}
 	smp_mb(); // Caller's code must be ordered after wakeup.
 }
 
