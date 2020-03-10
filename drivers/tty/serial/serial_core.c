@@ -3110,7 +3110,9 @@ static DECLARE_WORK(sysrq_enable_work, uart_sysrq_on);
  */
 static bool uart_try_toggle_sysrq(struct uart_port *port, unsigned int ch)
 {
-	if (ARRAY_SIZE(sysrq_toggle_seq) <= 1)
+	int sysrq_toggle_seq_len = strlen(sysrq_toggle_seq);
+
+	if (!sysrq_toggle_seq_len)
 		return false;
 
 	BUILD_BUG_ON(ARRAY_SIZE(sysrq_toggle_seq) >= U8_MAX);
@@ -3119,8 +3121,7 @@ static bool uart_try_toggle_sysrq(struct uart_port *port, unsigned int ch)
 		return false;
 	}
 
-	/* Without the last \0 */
-	if (++port->sysrq_seq < (ARRAY_SIZE(sysrq_toggle_seq) - 1)) {
+	if (++port->sysrq_seq < sysrq_toggle_seq_len) {
 		port->sysrq = jiffies + SYSRQ_TIMEOUT;
 		return true;
 	}
