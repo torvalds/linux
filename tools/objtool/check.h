@@ -18,6 +18,8 @@ struct insn_state {
 	unsigned int uaccess_stack;
 	bool uaccess;
 	bool df;
+	bool noinstr;
+	s8 instr;
 };
 
 struct instruction {
@@ -31,6 +33,7 @@ struct instruction {
 	bool alt_group, dead_end, ignore, ignore_alts;
 	bool hint;
 	bool retpoline_safe;
+	s8 instr;
 	u8 visited;
 	u8 ret_offset;
 	struct symbol *call_dest;
