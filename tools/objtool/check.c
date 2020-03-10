@@ -72,7 +72,7 @@ static struct instruction *next_insn_same_func(struct objtool_file *file,
 	return find_insn(file, func->cfunc->sec, func->cfunc->offset);
 }
 
-#define func_for_each_insn_all(file, func, insn)			\
+#define func_for_each_insn(file, func, insn)				\
 	for (insn = find_insn(file, func->sec, func->offset);		\
 	     insn;							\
 	     insn = next_insn_same_func(file, insn))
@@ -170,7 +170,7 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 	if (!insn->func)
 		return false;
 
-	func_for_each_insn_all(file, func, insn) {
+	func_for_each_insn(file, func, insn) {
 		empty = false;
 
 		if (insn->type == INSN_RETURN)
@@ -185,7 +185,7 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 	 * case, the function's dead-end status depends on whether the target
 	 * of the sibling call returns.
 	 */
-	func_for_each_insn_all(file, func, insn) {
+	func_for_each_insn(file, func, insn) {
 		if (is_sibling_call(insn)) {
 			struct instruction *dest = insn->jump_dest;
 
@@ -430,7 +430,7 @@ static void add_ignores(struct objtool_file *file)
 			continue;
 		}
 
-		func_for_each_insn_all(file, func, insn)
+		func_for_each_insn(file, func, insn)
 			insn->ignore = true;
 	}
 }
@@ -1122,7 +1122,7 @@ static void mark_func_jump_tables(struct objtool_file *file,
 	struct instruction *insn, *last = NULL;
 	struct rela *rela;
 
-	func_for_each_insn_all(file, func, insn) {
+	func_for_each_insn(file, func, insn) {
 		if (!last)
 			last = insn;
 
@@ -1157,7 +1157,7 @@ static int add_func_jump_tables(struct objtool_file *file,
 	struct instruction *insn;
 	int ret;
 
-	func_for_each_insn_all(file, func, insn) {
+	func_for_each_insn(file, func, insn) {
 		if (!insn->jump_table)
 			continue;
 
