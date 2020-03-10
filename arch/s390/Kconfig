@@ -953,7 +953,6 @@ config S390_GUEST
 	select TTY
 	select VIRTUALIZATION
 	select VIRTIO
-	select VIRTIO_CONSOLE
 	help
 	  Enabling this option adds support for virtio based paravirtual device
 	  drivers on s390.
