@@ -289,7 +289,19 @@ int qcom_icc_bcm_voter_commit(struct bcm_voter *voter)
 
 	ret = rpmh_write_batch(voter->dev, RPMH_ACTIVE_ONLY_STATE,
 			       cmds, commit_idx);
-	if (ret) {
+
+	/*
+	 * Ignore -EBUSY for AMC requests, since this can only happen for AMC
+	 * requests when the RSC is in solver mode. We can only be in solver
+	 * mode at the time of request for secondary RSCs (e.g. Display RSC),
+	 * since the primary Apps RSC is only in solver mode while
+	 * entering/exiting power collapse when SW isn't running. The -EBUSY
+	 * response is expected in solver and is a non-issue, since we just
+	 * want the request to apply to the WAKE set in that case instead.
+	 * Interconnect doesn't know when the RSC is in solver, so just always
+	 * send AMC and ignore the harmless error response.
+	 */
+	if (ret && ret != -EBUSY) {
 		pr_err("Error sending AMC RPMH requests (%d)\n", ret);
 		goto out;
 	}
