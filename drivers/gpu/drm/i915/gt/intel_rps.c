@@ -773,7 +773,7 @@ void intel_rps_park(struct intel_rps *rps)
 
 void intel_rps_boost(struct i915_request *rq)
 {
-	struct intel_rps *rps = &rq->engine->gt->rps;
+	struct intel_rps *rps = &READ_ONCE(rq->engine)->gt->rps;
 	unsigned long flags;
 
 	if (i915_request_signaled(rq) || !READ_ONCE(rps->active))

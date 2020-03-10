@@ -977,6 +977,8 @@ emit_semaphore_wait(struct i915_request *to,
 		    struct i915_request *from,
 		    gfp_t gfp)
 {
+	const intel_engine_mask_t mask = READ_ONCE(from->engine)->mask;
+
 	if (!intel_context_use_semaphores(to->context))
 		goto await_fence;
 
@@ -984,7 +986,7 @@ emit_semaphore_wait(struct i915_request *to,
 		goto await_fence;
 
 	/* Just emit the first semaphore we see as request space is limited. */
-	if (already_busywaiting(to) & from->engine->mask)
+	if (already_busywaiting(to) & mask)
 		goto await_fence;
 
 	if (i915_request_await_start(to, from) < 0)
@@ -997,7 +999,7 @@ emit_semaphore_wait(struct i915_request *to,
 	if (__emit_semaphore_wait(to, from, from->fence.seqno))
 		goto await_fence;
 
-	to->sched.semaphores |= from->engine->mask;
+	to->sched.semaphores |= mask;
 	to->sched.flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
 	return 0;
 
@@ -1338,7 +1340,7 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 			   i915_seqno_passed(prev->fence.seqno,
 					     rq->fence.seqno));
 
-		if (is_power_of_2(prev->engine->mask | rq->engine->mask))
+		if (is_power_of_2(READ_ONCE(prev->engine)->mask | rq->engine->mask))
 			i915_sw_fence_await_sw_fence(&rq->submit,
 						     &prev->submit,
 						     &rq->submitq);
