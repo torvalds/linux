@@ -1130,6 +1130,20 @@
 				qcom,remote-pid = <1>;
 
 				label = "hexagon";
+
+				fastrpc {
+					compatible = "qcom,fastrpc";
+					qcom,smd-channels = "fastrpcsmd-apps-dsp";
+					label = "adsp";
+
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					cb@1{
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <1>;
+					};
+				};
 			};
 		};
 
