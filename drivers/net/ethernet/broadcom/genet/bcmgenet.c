@@ -686,10 +686,6 @@ static int bcmgenet_set_coalesce(struct net_device *dev,
 	 * always generate an interrupt either after MBDONE packets have been
 	 * transmitted, or when the ring is empty.
 	 */
-	if (ec->tx_coalesce_usecs || ec->tx_coalesce_usecs_high ||
-	    ec->tx_coalesce_usecs_irq || ec->tx_coalesce_usecs_low ||
-	    ec->use_adaptive_tx_coalesce)
-		return -EOPNOTSUPP;
 
 	/* Program all TX queues with the same values, as there is no
 	 * ethtool knob to do coalescing on a per-queue basis
@@ -1113,6 +1109,9 @@ static int bcmgenet_set_eee(struct net_device *dev, struct ethtool_eee *e)
 
 /* standard ethtool support functions. */
 static const struct ethtool_ops bcmgenet_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.begin			= bcmgenet_begin,
 	.complete		= bcmgenet_complete,
 	.get_strings		= bcmgenet_get_strings,
