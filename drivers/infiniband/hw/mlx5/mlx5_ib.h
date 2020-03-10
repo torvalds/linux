@@ -128,10 +128,6 @@ enum mlx5_ib_mmap_type {
 	MLX5_IB_MMAP_TYPE_VAR = 2,
 };
 
-#define MLX5_LOG_SW_ICM_BLOCK_SIZE(dev)                                        \
-	(MLX5_CAP_DEV_MEM(dev, log_sw_icm_alloc_granularity))
-#define MLX5_SW_ICM_BLOCK_SIZE(dev) (1 << MLX5_LOG_SW_ICM_BLOCK_SIZE(dev))
-
 struct mlx5_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct list_head	db_page_list;
