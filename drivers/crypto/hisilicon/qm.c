@@ -272,6 +272,12 @@ struct qm_doorbell {
 	__le16 priority;
 };
 
+struct hisi_qm_resource {
+	struct hisi_qm *qm;
+	int distance;
+	struct list_head list;
+};
+
 struct hisi_qm_hw_ops {
 	int (*get_vft)(struct hisi_qm *qm, u32 *base, u32 *number);
 	void (*qm_db)(struct hisi_qm *qm, u16 qn,
@@ -2173,6 +2179,125 @@ void hisi_qm_dev_err_uninit(struct hisi_qm *qm)
 	qm->err_ini->hw_err_disable(qm);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_dev_err_uninit);
+
+/**
+ * hisi_qm_free_qps() - free multiple queue pairs.
+ * @qps: The queue pairs need to be freed.
+ * @qp_num: The num of queue pairs.
+ */
+void hisi_qm_free_qps(struct hisi_qp **qps, int qp_num)
+{
+	int i;
+
+	if (!qps || qp_num <= 0)
+		return;
+
+	for (i = qp_num - 1; i >= 0; i--)
+		hisi_qm_release_qp(qps[i]);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_free_qps);
+
+static void free_list(struct list_head *head)
+{
+	struct hisi_qm_resource *res, *tmp;
+
+	list_for_each_entry_safe(res, tmp, head, list) {
+		list_del(&res->list);
+		kfree(res);
+	}
+}
+
+static int hisi_qm_sort_devices(int node, struct list_head *head,
+				struct hisi_qm_list *qm_list)
+{
+	struct hisi_qm_resource *res, *tmp;
+	struct hisi_qm *qm;
+	struct list_head *n;
+	struct device *dev;
+	int dev_node = 0;
+
+	list_for_each_entry(qm, &qm_list->list, list) {
+		dev = &qm->pdev->dev;
+
+		if (IS_ENABLED(CONFIG_NUMA)) {
+			dev_node = dev_to_node(dev);
+			if (dev_node < 0)
+				dev_node = 0;
+		}
+
+		res = kzalloc(sizeof(*res), GFP_KERNEL);
+		if (!res)
+			return -ENOMEM;
+
+		res->qm = qm;
+		res->distance = node_distance(dev_node, node);
+		n = head;
+		list_for_each_entry(tmp, head, list) {
+			if (res->distance < tmp->distance) {
+				n = &tmp->list;
+				break;
+			}
+		}
+		list_add_tail(&res->list, n);
+	}
+
+	return 0;
+}
+
+/**
+ * hisi_qm_alloc_qps_node() - Create multiple queue pairs.
+ * @qm_list: The list of all available devices.
+ * @qp_num: The number of queue pairs need created.
+ * @alg_type: The algorithm type.
+ * @node: The numa node.
+ * @qps: The queue pairs need created.
+ *
+ * This function will sort all available device according to numa distance.
+ * Then try to create all queue pairs from one device, if all devices do
+ * not meet the requirements will return error.
+ */
+int hisi_qm_alloc_qps_node(struct hisi_qm_list *qm_list, int qp_num,
+			   u8 alg_type, int node, struct hisi_qp **qps)
+{
+	struct hisi_qm_resource *tmp;
+	int ret = -ENODEV;
+	LIST_HEAD(head);
+	int i;
+
+	if (!qps || !qm_list || qp_num <= 0)
+		return -EINVAL;
+
+	mutex_lock(&qm_list->lock);
+	if (hisi_qm_sort_devices(node, &head, qm_list)) {
+		mutex_unlock(&qm_list->lock);
+		goto err;
+	}
+
+	list_for_each_entry(tmp, &head, list) {
+		for (i = 0; i < qp_num; i++) {
+			qps[i] = hisi_qm_create_qp(tmp->qm, alg_type);
+			if (IS_ERR(qps[i])) {
+				hisi_qm_free_qps(qps, i);
+				break;
+			}
+		}
+
+		if (i == qp_num) {
+			ret = 0;
+			break;
+		}
+	}
+
+	mutex_unlock(&qm_list->lock);
+	if (ret)
+		pr_info("Failed to create qps, node[%d], alg[%d], qp[%d]!\n",
+			node, alg_type, qp_num);
+
+err:
+	free_list(&head);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(hisi_qm_alloc_qps_node);
 
 static pci_ers_result_t qm_dev_err_handle(struct hisi_qm *qm)
 {

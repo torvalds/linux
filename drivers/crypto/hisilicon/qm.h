@@ -145,6 +145,11 @@ struct hisi_qm_err_ini {
 	struct hisi_qm_err_info err_info;
 };
 
+struct hisi_qm_list {
+	struct mutex lock;
+	struct list_head list;
+};
+
 struct hisi_qm {
 	enum qm_hw_ver ver;
 	enum qm_fun_type fun_type;
@@ -156,6 +161,7 @@ struct hisi_qm {
 	u32 qp_num;
 	u32 qp_in_used;
 	u32 ctrl_qp_num;
+	struct list_head list;
 
 	struct qm_dma qdma;
 	struct qm_sqc *sqc;
@@ -228,6 +234,28 @@ struct hisi_qp {
 	struct uacce_queue *uacce_q;
 };
 
+static inline void hisi_qm_init_list(struct hisi_qm_list *qm_list)
+{
+	INIT_LIST_HEAD(&qm_list->list);
+	mutex_init(&qm_list->lock);
+}
+
+static inline void hisi_qm_add_to_list(struct hisi_qm *qm,
+				       struct hisi_qm_list *qm_list)
+{
+	mutex_lock(&qm_list->lock);
+	list_add_tail(&qm->list, &qm_list->list);
+	mutex_unlock(&qm_list->lock);
+}
+
+static inline void hisi_qm_del_from_list(struct hisi_qm *qm,
+					 struct hisi_qm_list *qm_list)
+{
+	mutex_lock(&qm_list->lock);
+	list_del(&qm->list);
+	mutex_unlock(&qm_list->lock);
+}
+
 int hisi_qm_init(struct hisi_qm *qm);
 void hisi_qm_uninit(struct hisi_qm *qm);
 int hisi_qm_start(struct hisi_qm *qm);
@@ -258,4 +286,7 @@ struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
 						   u32 count, u32 sge_nr);
 void hisi_acc_free_sgl_pool(struct device *dev,
 			    struct hisi_acc_sgl_pool *pool);
+int hisi_qm_alloc_qps_node(struct hisi_qm_list *qm_list, int qp_num,
+			   u8 alg_type, int node, struct hisi_qp **qps);
+void hisi_qm_free_qps(struct hisi_qp **qps, int qp_num);
 #endif
