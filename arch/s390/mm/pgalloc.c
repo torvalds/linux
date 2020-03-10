@@ -326,7 +326,7 @@ void __tlb_remove_table(void *_table)
 		mask >>= 24;
 		if (mask != 0)
 			break;
-		/* fallthrough */
+		fallthrough;
 	case 3:		/* 4K page table with pgstes */
 		if (mask & 3)
 			atomic_xor_bits(&page->_refcount, 3 << 24);

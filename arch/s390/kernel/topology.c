@@ -83,7 +83,7 @@ static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 		cpumask_copy(&mask, cpu_present_mask);
 		break;
 	default:
-		/* fallthrough */
+		fallthrough;
 	case TOPOLOGY_MODE_SINGLE:
 		cpumask_copy(&mask, cpumask_of(cpu));
 		break;

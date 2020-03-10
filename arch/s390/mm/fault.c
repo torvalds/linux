@@ -122,7 +122,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		if (*table & _REGION_ENTRY_INVALID)
 			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
-		/* fallthrough */
+		fallthrough;
 	case _ASCE_TYPE_REGION2:
 		table += (address & _REGION2_INDEX) >> _REGION2_SHIFT;
 		if (bad_address(table))
@@ -131,7 +131,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		if (*table & _REGION_ENTRY_INVALID)
 			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
-		/* fallthrough */
+		fallthrough;
 	case _ASCE_TYPE_REGION3:
 		table += (address & _REGION3_INDEX) >> _REGION3_SHIFT;
 		if (bad_address(table))
@@ -140,7 +140,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		if (*table & (_REGION_ENTRY_INVALID | _REGION3_ENTRY_LARGE))
 			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
-		/* fallthrough */
+		fallthrough;
 	case _ASCE_TYPE_SEGMENT:
 		table += (address & _SEGMENT_INDEX) >> _SEGMENT_SHIFT;
 		if (bad_address(table))
@@ -327,7 +327,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 	case VM_FAULT_BADACCESS:
 		if (access == VM_EXEC && signal_return(regs) == 0)
 			break;
-		/* fallthrough */
+		fallthrough;
 	case VM_FAULT_BADMAP:
 		/* Bad memory access. Check if it is kernel or user space. */
 		if (user_mode(regs)) {
@@ -337,9 +337,8 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 			do_sigsegv(regs, si_code);
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case VM_FAULT_BADCONTEXT:
-		/* fallthrough */
 	case VM_FAULT_PFAULT:
 		do_no_context(regs);
 		break;
