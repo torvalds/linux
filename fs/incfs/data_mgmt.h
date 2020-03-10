@@ -236,11 +236,10 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct data_file *df,
 int incfs_read_file_signature(struct data_file *df, struct mem_range dst);
 
 int incfs_process_new_data_block(struct data_file *df,
-				 struct incfs_new_data_block *block, u8 *data);
+				 struct incfs_fill_block *block, u8 *data);
 
 int incfs_process_new_hash_block(struct data_file *df,
-				 struct incfs_new_data_block *block, u8 *data);
-
+				 struct incfs_fill_block *block, u8 *data);
 
 bool incfs_fresh_pending_reads_exist(struct mount_info *mi, int last_number);
 

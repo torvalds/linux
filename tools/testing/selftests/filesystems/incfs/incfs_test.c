@@ -343,8 +343,12 @@ static int emit_test_blocks(char *mnt_dir, struct test_file *file,
 	uint8_t *data_buf = malloc(data_buf_size);
 	uint8_t *current_data = data_buf;
 	uint8_t *data_end = data_buf + data_buf_size;
-	struct incfs_new_data_block *block_buf =
-		calloc(block_count, sizeof(*block_buf));
+	struct incfs_fill_block *block_buf =
+		calloc(block_count, sizeof(struct incfs_fill_block));
+	struct incfs_fill_blocks fill_blocks = {
+		.count = block_count,
+		.fill_blocks = ptr_to_u64(block_buf),
+	};
 	ssize_t write_res = 0;
 	int fd;
 	int error = 0;
@@ -404,17 +408,15 @@ static int emit_test_blocks(char *mnt_dir, struct test_file *file,
 		block_buf[i].block_index = block_index;
 		block_buf[i].data_len = block_size;
 		block_buf[i].data = ptr_to_u64(current_data);
-		block_buf[i].compression =
-			compress ? COMPRESSION_LZ4 : COMPRESSION_NONE;
 		current_data += block_size;
 	}
 
 	if (!error) {
-		write_res = write(fd, block_buf, sizeof(*block_buf) * i);
+		write_res = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
 		if (write_res < 0)
 			error = -errno;
 		else
-			blocks_written = write_res / sizeof(*block_buf);
+			blocks_written = write_res;
 	}
 	if (error) {
 		ksft_print_msg(
@@ -813,21 +815,22 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 	int err;
 	int i;
 	int fd;
-
-	size_t blocks_size =
-		file->mtree_block_count * sizeof(struct incfs_new_data_block);
-	struct incfs_new_data_block *blocks = NULL;
 	char *file_path;
+	struct incfs_fill_blocks fill_blocks = {
+		.count = file->mtree_block_count,
+	};
+	struct incfs_fill_block *fill_block_array =
+		calloc(fill_blocks.count, sizeof(struct incfs_fill_block));
 
-	if (blocks_size == 0)
+	if (fill_blocks.count == 0)
 		return 0;
 
-	blocks = malloc(blocks_size);
-	if (!blocks)
+	if (!fill_block_array)
 		return -ENOMEM;
+	fill_blocks.fill_blocks = ptr_to_u64(fill_block_array);
 
-	for (i = 0; i < file->mtree_block_count; i++) {
-		blocks[i] = (struct incfs_new_data_block){
+	for (i = 0; i < fill_blocks.count; i++) {
+		fill_block_array[i] = (struct incfs_fill_block){
 			.block_index = i,
 			.data_len = INCFS_DATA_FILE_BLOCK_SIZE,
 			.data = ptr_to_u64(file->mtree[i].data),
@@ -843,10 +846,10 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 		goto failure;
 	}
 
-	err = write(fd, blocks, blocks_size);
+	err = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
 	close(fd);
 
-	if (err < blocks_size)
+	if (err < fill_blocks.count)
 		err = errno;
 	else {
 		err = 0;
@@ -854,7 +857,7 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 	}
 
 failure:
-	free(blocks);
+	free(fill_block_array);
 	return err;
 }
 
@@ -1274,13 +1277,6 @@ static int dynamic_files_and_data_test(char *mount_dir)
 		if (i == missing_file_idx)
 			continue;
 
-		res = load_hash_tree(mount_dir, file);
-		if (res) {
-			ksft_print_msg("Can't load hashes for %s. error: %s\n",
-				file->name, strerror(-res));
-			goto failure;
-		}
-
 		res = emit_test_file_data(mount_dir, file);
 		if (res) {
 			ksft_print_msg("Error %s emiting data for %s.\n",
@@ -1479,7 +1475,6 @@ static int work_after_remount_test(char *mount_dir)
 	/* Write first half of the data into the command file. (stage 1) */
 	for (i = 0; i < file_num_stage1; i++) {
 		struct test_file *file = &test.files[i];
-		int res;
 
 		build_mtree(file);
 		if (emit_file(cmd_fd, NULL, file->name, &file->id,
@@ -1488,14 +1483,7 @@ static int work_after_remount_test(char *mount_dir)
 
 		if (emit_test_file_data(mount_dir, file))
 			goto failure;
-
-		res = load_hash_tree(mount_dir, file);
-		if (res) {
-			ksft_print_msg("Can't load hashes for %s. error: %s\n",
-				file->name, strerror(-res));
-			goto failure;
-		}
-}
+	}
 
 	/* Unmount and mount again, to see that data is persistent. */
 	close(cmd_fd);

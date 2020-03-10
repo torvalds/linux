@@ -698,7 +698,7 @@ out:
 }
 
 int incfs_process_new_data_block(struct data_file *df,
-				 struct incfs_new_data_block *block, u8 *data)
+				 struct incfs_fill_block *block, u8 *data)
 {
 	struct mount_info *mi = NULL;
 	struct backing_file_context *bfc = NULL;
@@ -780,7 +780,7 @@ int incfs_read_file_signature(struct data_file *df, struct mem_range dst)
 }
 
 int incfs_process_new_hash_block(struct data_file *df,
-				 struct incfs_new_data_block *block, u8 *data)
+				 struct incfs_fill_block *block, u8 *data)
 {
 	struct backing_file_context *bfc = NULL;
 	struct mount_info *mi = NULL;

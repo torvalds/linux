@@ -49,8 +49,6 @@ static int dir_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 static int file_open(struct inode *inode, struct file *file);
 static int file_release(struct inode *inode, struct file *file);
-static ssize_t file_write(struct file *f, const char __user *buf,
-			     size_t size, loff_t *offset);
 static int read_single_page(struct file *f, struct page *page);
 static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg);
 
@@ -126,7 +124,6 @@ static const struct address_space_operations incfs_address_space_ops = {
 static const struct file_operations incfs_file_ops = {
 	.open = file_open,
 	.release = file_release,
-	.write = file_write,
 	.read_iter = generic_file_read_iter,
 	.mmap = generic_file_mmap,
 	.splice_read = generic_file_splice_read,
@@ -794,9 +791,6 @@ static int read_single_page(struct file *f, struct page *page)
 	size = df->df_size;
 	timeout_ms = df->df_mount_info->mi_options.read_timeout_ms;
 
-	pr_debug("incfs: %s %s %lld\n", __func__,
-		f->f_path.dentry->d_name.name, offset);
-
 	if (offset < size) {
 		struct mem_range tmp = {
 			.len = 2 * INCFS_DATA_FILE_BLOCK_SIZE
@@ -1356,6 +1350,72 @@ out:
 	return error;
 }
 
+static long ioctl_fill_blocks(struct file *f, void __user *arg)
+{
+	struct incfs_fill_blocks __user *usr_fill_blocks = arg;
+	struct incfs_fill_blocks fill_blocks;
+	struct incfs_fill_block *usr_fill_block_array;
+	struct data_file *df = get_incfs_data_file(f);
+	const ssize_t data_buf_size = 2 * INCFS_DATA_FILE_BLOCK_SIZE;
+	u8 *data_buf = NULL;
+	ssize_t error = 0;
+	int i = 0;
+
+	if (!df)
+		return -EBADF;
+
+	if (copy_from_user(&fill_blocks, usr_fill_blocks, sizeof(fill_blocks)))
+		return -EFAULT;
+
+	usr_fill_block_array = u64_to_user_ptr(fill_blocks.fill_blocks);
+	data_buf = (u8 *)__get_free_pages(GFP_NOFS, get_order(data_buf_size));
+	if (!data_buf)
+		return -ENOMEM;
+
+	for (i = 0; i < fill_blocks.count; i++) {
+		struct incfs_fill_block fill_block = {};
+
+		if (copy_from_user(&fill_block, &usr_fill_block_array[i],
+				   sizeof(fill_block)) > 0) {
+			error = -EFAULT;
+			break;
+		}
+
+		if (fill_block.data_len > data_buf_size) {
+			error = -E2BIG;
+			break;
+		}
+
+		if (copy_from_user(data_buf, u64_to_user_ptr(fill_block.data),
+				   fill_block.data_len) > 0) {
+			error = -EFAULT;
+			break;
+		}
+		fill_block.data = 0; /* To make sure nobody uses it. */
+		if (fill_block.flags & INCFS_BLOCK_FLAGS_HASH) {
+			error = incfs_process_new_hash_block(df, &fill_block,
+							     data_buf);
+		} else {
+			error = incfs_process_new_data_block(df, &fill_block,
+							     data_buf);
+		}
+		if (error)
+			break;
+	}
+
+	if (data_buf)
+		free_pages((unsigned long)data_buf, get_order(data_buf_size));
+
+	/*
+	 * Only report the error if no records were processed, otherwise
+	 * just return how many were processed successfully.
+	 */
+	if (i == 0)
+		return error;
+
+	return i;
+}
+
 static long ioctl_read_file_signature(struct file *f, void __user *arg)
 {
 	struct incfs_get_file_sig_args __user *args_usr_ptr = arg;
@@ -1411,6 +1471,8 @@ static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 	switch (req) {
 	case INCFS_IOC_CREATE_FILE:
 		return ioctl_create_file(mi, (void __user *)arg);
+	case INCFS_IOC_FILL_BLOCKS:
+		return ioctl_fill_blocks(f, (void __user *)arg);
 	case INCFS_IOC_READ_FILE_SIGNATURE:
 		return ioctl_read_file_signature(f, (void __user *)arg);
 	default:
@@ -1877,70 +1939,6 @@ static int file_release(struct inode *inode, struct file *file)
 
 	return 0;
 }
-
-static ssize_t file_write(struct file *f, const char __user *buf,
-			     size_t size, loff_t *offset)
-{
-	struct data_file *df = get_incfs_data_file(f);
-	const ssize_t data_buf_size = 2 * INCFS_DATA_FILE_BLOCK_SIZE;
-	size_t block_count = size / sizeof(struct incfs_new_data_block);
-	struct incfs_new_data_block __user *usr_blocks =
-		(struct incfs_new_data_block __user *)buf;
-	u8 *data_buf = NULL;
-	ssize_t error = 0;
-	int i = 0;
-
-	if (!df)
-		return -EBADF;
-
-	data_buf = (u8 *)__get_free_pages(GFP_NOFS, get_order(data_buf_size));
-	if (!data_buf)
-		return -ENOMEM;
-
-	for (i = 0; i < block_count; i++) {
-		struct incfs_new_data_block block = {};
-
-		if (copy_from_user(&block, &usr_blocks[i], sizeof(block)) > 0) {
-			error = -EFAULT;
-			break;
-		}
-
-		if (block.data_len > data_buf_size) {
-			error = -E2BIG;
-			break;
-		}
-
-		if (copy_from_user(data_buf, u64_to_user_ptr(block.data),
-				   block.data_len) > 0) {
-			error = -EFAULT;
-			break;
-		}
-		block.data = 0; /* To make sure nobody uses it. */
-		if (block.flags & INCFS_BLOCK_FLAGS_HASH) {
-			error = incfs_process_new_hash_block(df, &block,
-							     data_buf);
-		} else {
-			error = incfs_process_new_data_block(df, &block,
-							     data_buf);
-		}
-		if (error)
-			break;
-	}
-
-	if (data_buf)
-		free_pages((unsigned long)data_buf, get_order(data_buf_size));
-	*offset = 0;
-
-	/*
-	 * Only report the error if no records were processed, otherwise
-	 * just return how many were processed successfully.
-	 */
-	if (i == 0)
-		return error;
-
-	return i * sizeof(struct incfs_new_data_block);
-}
-
 
 static int dentry_revalidate(struct dentry *d, unsigned int flags)
 {
