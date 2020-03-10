@@ -1409,10 +1409,10 @@ static void free_leaf_list(struct ulist *blocks)
  *
  * returns 0 on success, <0 on error
  */
-static int btrfs_find_all_leafs(struct btrfs_trans_handle *trans,
-				struct btrfs_fs_info *fs_info, u64 bytenr,
-				u64 time_seq, struct ulist **leafs,
-				const u64 *extent_item_pos, bool ignore_offset)
+int btrfs_find_all_leafs(struct btrfs_trans_handle *trans,
+			 struct btrfs_fs_info *fs_info, u64 bytenr,
+			 u64 time_seq, struct ulist **leafs,
+			 const u64 *extent_item_pos, bool ignore_offset)
 {
 	int ret;
 
