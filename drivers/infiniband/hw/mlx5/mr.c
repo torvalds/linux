@@ -87,7 +87,6 @@ static void reg_mr_callback(int status, struct mlx5_async_work *context)
 	struct mlx5_mr_cache *cache = &dev->cache;
 	int c = order2idx(dev, mr->order);
 	struct mlx5_cache_ent *ent = &cache->ent[c];
-	u8 key;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ent->lock, flags);
@@ -102,10 +101,8 @@ static void reg_mr_callback(int status, struct mlx5_async_work *context)
 	}
 
 	mr->mmkey.type = MLX5_MKEY_MR;
-	spin_lock_irqsave(&dev->mdev->priv.mkey_lock, flags);
-	key = dev->mdev->priv.mkey_key++;
-	spin_unlock_irqrestore(&dev->mdev->priv.mkey_lock, flags);
-	mr->mmkey.key = mlx5_idx_to_mkey(MLX5_GET(create_mkey_out, mr->out, mkey_index)) | key;
+	mr->mmkey.key |= mlx5_idx_to_mkey(
+		MLX5_GET(create_mkey_out, mr->out, mkey_index));
 
 	cache->last_add = jiffies;
 
