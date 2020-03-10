@@ -306,7 +306,7 @@ flow_action_hw_stats_types_check(const struct flow_action *action,
 		NL_SET_ERR_MSG_MOD(extack, "Driver supports only default HW stats type \"any\"");
 		return false;
 	} else if (allowed_hw_stats_type != 0 &&
-		   action_entry->hw_stats_type != allowed_hw_stats_type) {
+		   !(action_entry->hw_stats_type & allowed_hw_stats_type)) {
 		NL_SET_ERR_MSG_MOD(extack, "Driver does not support selected HW stats type");
 		return false;
 	}
