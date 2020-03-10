@@ -974,6 +974,8 @@ static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 	unsigned long flags;
 	struct cm_device *cm_dev;
 
+	lockdep_assert_held(&cm_id_priv->lock);
+
 	cm_dev = ib_get_client_data(cm_id_priv->id.device, &cm_client);
 	if (!cm_dev)
 		return;
@@ -1004,6 +1006,8 @@ static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 static void cm_reset_to_idle(struct cm_id_private *cm_id_priv)
 {
 	unsigned long flags;
+
+	lockdep_assert_held(&cm_id_priv->lock);
 
 	cm_id_priv->id.state = IB_CM_IDLE;
 	if (cm_id_priv->timewait_info) {
@@ -1823,6 +1827,8 @@ static void cm_format_rej(struct cm_rej_msg *rej_msg,
 			  const void *private_data,
 			  u8 private_data_len)
 {
+	lockdep_assert_held(&cm_id_priv->lock);
+
 	cm_format_mad_hdr(&rej_msg->hdr, CM_REJ_ATTR_ID, cm_id_priv->tid);
 	IBA_SET(CM_REJ_REMOTE_COMM_ID, rej_msg,
 		be32_to_cpu(cm_id_priv->id.remote_id));
