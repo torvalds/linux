@@ -804,6 +804,14 @@ static int imx7_csi_configure(struct imx7_csi *csi)
 	case V4L2_PIX_FMT_YUYV:
 		cr18 |= BIT_MIPI_DATA_FORMAT_YUV422_8B;
 		break;
+	case V4L2_PIX_FMT_Y10:
+		cr18 |= BIT_MIPI_DATA_FORMAT_RAW10;
+		cr1 |= BIT_PIXEL_BIT;
+		break;
+	case V4L2_PIX_FMT_Y12:
+		cr18 |= BIT_MIPI_DATA_FORMAT_RAW12;
+		cr1 |= BIT_PIXEL_BIT;
+		break;
 	case V4L2_PIX_FMT_SBGGR8:
 		cr18 |= BIT_MIPI_DATA_FORMAT_RAW8;
 		break;
