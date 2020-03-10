@@ -23,25 +23,24 @@ struct kvm_run *run;
 struct kvm_sync_regs *regs;
 static uint64_t regs_null[16];
 
-static uint64_t crs[16] = { 0x40000ULL,
-			    0x42000ULL,
-			    0, 0, 0, 0, 0,
-			    0x43000ULL,
-			    0, 0, 0, 0, 0,
-			    0x44000ULL,
-			    0, 0
-};
-
 static void guest_code_initial(void)
 {
-	/* Round toward 0 */
-	uint32_t fpc = 0x11;
+	/* set several CRs to "safe" value */
+	unsigned long cr2_59 = 0x10;	/* enable guarded storage */
+	unsigned long cr8_63 = 0x1;	/* monitor mask = 1 */
+	unsigned long cr10 = 1;		/* PER START */
+	unsigned long cr11 = -1;	/* PER END */
+
 
 	/* Dirty registers */
 	asm volatile (
-		"	lctlg	0,15,%0\n"
-		"	sfpc	%1\n"
-		: : "Q" (crs), "d" (fpc));
+		"	lghi	2,0x11\n"	/* Round toward 0 */
+		"	sfpc	2\n"		/* set fpc to !=0 */
+		"	lctlg	2,2,%0\n"
+		"	lctlg	8,8,%1\n"
+		"	lctlg	10,10,%2\n"
+		"	lctlg	11,11,%3\n"
+		: : "m" (cr2_59), "m" (cr8_63), "m" (cr10), "m" (cr11) : "2");
 	GUEST_SYNC(0);
 }
 
