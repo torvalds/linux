@@ -37,7 +37,7 @@ enum {
 #define  CPU_PORT(x)			((x) << 4)
 #define  CPU_MASK			(0xf << 4)
 #define  MIRROR_EN			BIT(3)
-#define  MIRROR_PORT(x)			((x & 0x7))
+#define  MIRROR_PORT(x)			((x) & 0x7)
 #define  MIRROR_MASK			0x7
 
 /* Registers for address table access */
