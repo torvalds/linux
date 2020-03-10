@@ -27,7 +27,6 @@ struct section {
 	struct list_head list;
 	GElf_Shdr sh;
 	struct list_head symbol_list;
-	DECLARE_HASHTABLE(symbol_hash, 8);
 	struct list_head rela_list;
 	DECLARE_HASHTABLE(rela_hash, 16);
 	struct section *base, *rela;
@@ -71,7 +70,7 @@ struct elf {
 	int fd;
 	char *name;
 	struct list_head sections;
-	DECLARE_HASHTABLE(rela_hash, 16);
+	DECLARE_HASHTABLE(symbol_hash, 20);
 };
 
 

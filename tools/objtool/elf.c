@@ -46,13 +46,11 @@ static struct section *find_section_by_index(struct elf *elf,
 
 static struct symbol *find_symbol_by_index(struct elf *elf, unsigned int idx)
 {
-	struct section *sec;
 	struct symbol *sym;
 
-	list_for_each_entry(sec, &elf->sections, list)
-		hash_for_each_possible(sec->symbol_hash, sym, hash, idx)
-			if (sym->idx == idx)
-				return sym;
+	hash_for_each_possible(elf->symbol_hash, sym, hash, idx)
+		if (sym->idx == idx)
+			return sym;
 
 	return NULL;
 }
@@ -166,7 +164,6 @@ static int read_sections(struct elf *elf)
 		INIT_LIST_HEAD(&sec->symbol_list);
 		INIT_LIST_HEAD(&sec->rela_list);
 		hash_init(sec->rela_hash);
-		hash_init(sec->symbol_hash);
 
 		list_add_tail(&sec->list, &elf->sections);
 
@@ -299,7 +296,7 @@ static int read_symbols(struct elf *elf)
 		}
 		sym->alias = alias;
 		list_add(&sym->list, entry);
-		hash_add(sym->sec->symbol_hash, &sym->hash, sym->idx);
+		hash_add(elf->symbol_hash, &sym->hash, sym->idx);
 	}
 
 	/* Create parent/child links for any cold subfunctions */
@@ -425,6 +422,7 @@ struct elf *elf_read(const char *name, int flags)
 	}
 	memset(elf, 0, sizeof(*elf));
 
+	hash_init(elf->symbol_hash);
 	INIT_LIST_HEAD(&elf->sections);
 
 	elf->fd = open(name, flags);
@@ -486,7 +484,6 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	INIT_LIST_HEAD(&sec->symbol_list);
 	INIT_LIST_HEAD(&sec->rela_list);
 	hash_init(sec->rela_hash);
-	hash_init(sec->symbol_hash);
 
 	list_add_tail(&sec->list, &elf->sections);
 
