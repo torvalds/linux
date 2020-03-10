@@ -72,9 +72,9 @@ static int jz4780_efuse_read(void *context, unsigned int offset,
 	struct jz4780_efuse *efuse = context;
 
 	while (bytes > 0) {
-		unsigned int start = offset & ~(JZ_EFU_READ_SIZE - 1);
-		unsigned int chunk = min(bytes, (start + JZ_EFU_READ_SIZE)
-					 - offset);
+		size_t start = offset & ~(JZ_EFU_READ_SIZE - 1);
+		size_t chunk = min(bytes, (start + JZ_EFU_READ_SIZE)
+				    - offset);
 		char buf[JZ_EFU_READ_SIZE];
 		unsigned int tmp;
 		u32 ctrl;
