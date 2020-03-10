@@ -1181,7 +1181,8 @@ struct ib_cm_id *ib_cm_insert_listen(struct ib_device *device,
 	/* Find an existing ID */
 	cm_id_priv = cm_find_listen(device, service_id);
 	if (cm_id_priv) {
-		if (cm_id->cm_handler != cm_handler || cm_id->context) {
+		if (cm_id_priv->id.cm_handler != cm_handler ||
+		    cm_id_priv->id.context) {
 			/* Sharing an ib_cm_id with different handlers is not
 			 * supported */
 			spin_unlock_irqrestore(&cm.lock, flags);
