@@ -2394,13 +2394,13 @@ static int cm_rep_handler(struct cm_work *work)
 	case IB_CM_MRA_REQ_RCVD:
 		break;
 	default:
-		spin_unlock_irq(&cm_id_priv->lock);
 		ret = -EINVAL;
 		pr_debug(
 			"%s: cm_id_priv->id.state: %d, local_comm_id %d, remote_comm_id %d\n",
 			__func__, cm_id_priv->id.state,
 			IBA_GET(CM_REP_LOCAL_COMM_ID, rep_msg),
 			IBA_GET(CM_REP_REMOTE_COMM_ID, rep_msg));
+		spin_unlock_irq(&cm_id_priv->lock);
 		goto error;
 	}
 
@@ -2666,10 +2666,10 @@ int ib_send_cm_drep(struct ib_cm_id *cm_id,
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	if (cm_id->state != IB_CM_DREQ_RCVD) {
-		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
-		kfree(data);
 		pr_debug("%s: local_id %d, cm_idcm_id->state(%d) != IB_CM_DREQ_RCVD\n",
 			 __func__, be32_to_cpu(cm_id->local_id), cm_id->state);
+		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+		kfree(data);
 		return -EINVAL;
 	}
 
@@ -3005,10 +3005,10 @@ static int cm_rej_handler(struct cm_work *work)
 		}
 		/* fall through */
 	default:
-		spin_unlock_irq(&cm_id_priv->lock);
 		pr_debug("%s: local_id %d, cm_id_priv->id.state: %d\n",
 			 __func__, be32_to_cpu(cm_id_priv->id.local_id),
 			 cm_id_priv->id.state);
+		spin_unlock_irq(&cm_id_priv->lock);
 		ret = -EINVAL;
 		goto out;
 	}
