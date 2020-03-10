@@ -5636,7 +5636,7 @@ xlog_do_recover(
 
 	/* Convert superblock from on-disk format */
 	sbp = &mp->m_sb;
-	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(bp));
+	xfs_sb_from_disk(sbp, bp->b_addr);
 	xfs_buf_relse(bp);
 
 	/* re-initialise in-core superblock and geometry structures */

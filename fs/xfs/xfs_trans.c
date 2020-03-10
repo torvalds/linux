@@ -450,7 +450,7 @@ xfs_trans_apply_sb_deltas(
 	int		whole = 0;
 
 	bp = xfs_trans_getsb(tp, tp->t_mountp);
-	sbp = XFS_BUF_TO_SBP(bp);
+	sbp = bp->b_addr;
 
 	/*
 	 * Check that superblock mods match the mods made to AGF counters.
