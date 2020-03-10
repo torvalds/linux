@@ -1147,6 +1147,21 @@ int nvmem_cell_read_u32(struct device *dev, const char *cell_id, u32 *val)
 EXPORT_SYMBOL_GPL(nvmem_cell_read_u32);
 
 /**
+ * nvmem_cell_read_u64() - Read a cell value as an u64
+ *
+ * @dev: Device that requests the nvmem cell.
+ * @cell_id: Name of nvmem cell to read.
+ * @val: pointer to output value.
+ *
+ * Return: 0 on success or negative errno.
+ */
+int nvmem_cell_read_u64(struct device *dev, const char *cell_id, u64 *val)
+{
+	return nvmem_cell_read_common(dev, cell_id, val, sizeof(*val));
+}
+EXPORT_SYMBOL_GPL(nvmem_cell_read_u64);
+
+/**
  * nvmem_device_cell_read() - Read a given nvmem device and cell
  *
  * @nvmem: nvmem device to read from.
