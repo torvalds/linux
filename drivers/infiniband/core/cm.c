@@ -571,18 +571,6 @@ static int cm_init_av_by_path(struct sa_path_rec *path,
 	return 0;
 }
 
-static int cm_alloc_id(struct cm_id_private *cm_id_priv)
-{
-	int err;
-	u32 id;
-
-	err = xa_alloc_cyclic_irq(&cm.local_id_table, &id, cm_id_priv,
-			xa_limit_32b, &cm.local_id_next, GFP_KERNEL);
-
-	cm_id_priv->id.local_id = (__force __be32)id ^ cm.random_id_operand;
-	return err;
-}
-
 static u32 cm_local_id(__be32 local_id)
 {
 	return (__force u32) (local_id ^ cm.random_id_operand);
@@ -824,6 +812,7 @@ struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
 				 void *context)
 {
 	struct cm_id_private *cm_id_priv;
+	u32 id;
 	int ret;
 
 	cm_id_priv = kzalloc(sizeof *cm_id_priv, GFP_KERNEL);
@@ -835,9 +824,6 @@ struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
 	cm_id_priv->id.cm_handler = cm_handler;
 	cm_id_priv->id.context = context;
 	cm_id_priv->id.remote_cm_qpn = 1;
-	ret = cm_alloc_id(cm_id_priv);
-	if (ret)
-		goto error;
 
 	spin_lock_init(&cm_id_priv->lock);
 	init_completion(&cm_id_priv->comp);
@@ -846,11 +832,20 @@ struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
 	INIT_LIST_HEAD(&cm_id_priv->altr_list);
 	atomic_set(&cm_id_priv->work_count, -1);
 	refcount_set(&cm_id_priv->refcount, 1);
+
+	ret = xa_alloc_cyclic_irq(&cm.local_id_table, &id, NULL, xa_limit_32b,
+				  &cm.local_id_next, GFP_KERNEL);
+	if (ret)
+		goto error;
+	cm_id_priv->id.local_id = (__force __be32)id ^ cm.random_id_operand;
+	xa_store_irq(&cm.local_id_table, cm_local_id(cm_id_priv->id.local_id),
+		     cm_id_priv, GFP_KERNEL);
+
 	return &cm_id_priv->id;
 
 error:
 	kfree(cm_id_priv);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(ib_create_cm_id);
 
