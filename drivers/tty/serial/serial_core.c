@@ -3216,14 +3216,12 @@ int uart_handle_break(struct uart_port *port)
 	if (port->handle_break)
 		port->handle_break(port);
 
-	if (port->has_sysrq) {
-		if (port->cons && port->cons->index == port->line) {
-			if (!port->sysrq) {
-				port->sysrq = jiffies + SYSRQ_TIMEOUT;
-				return 1;
-			}
-			port->sysrq = 0;
+	if (port->has_sysrq && uart_console(port)) {
+		if (!port->sysrq) {
+			port->sysrq = jiffies + SYSRQ_TIMEOUT;
+			return 1;
 		}
+		port->sysrq = 0;
 	}
 
 	if (port->flags & UPF_SAK)
