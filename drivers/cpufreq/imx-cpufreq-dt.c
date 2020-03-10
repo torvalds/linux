@@ -19,6 +19,8 @@
 #define IMX8MN_OCOTP_CFG3_SPEED_GRADE_MASK	(0xf << 8)
 #define OCOTP_CFG3_MKT_SEGMENT_SHIFT    6
 #define OCOTP_CFG3_MKT_SEGMENT_MASK     (0x3 << 6)
+#define IMX8MP_OCOTP_CFG3_MKT_SEGMENT_SHIFT    5
+#define IMX8MP_OCOTP_CFG3_MKT_SEGMENT_MASK     (0x3 << 5)
 
 /* cpufreq-dt device registered by imx-cpufreq-dt */
 static struct platform_device *cpufreq_dt_pdev;
@@ -45,7 +47,13 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 	else
 		speed_grade = (cell_value & OCOTP_CFG3_SPEED_GRADE_MASK)
 			      >> OCOTP_CFG3_SPEED_GRADE_SHIFT;
-	mkt_segment = (cell_value & OCOTP_CFG3_MKT_SEGMENT_MASK) >> OCOTP_CFG3_MKT_SEGMENT_SHIFT;
+
+	if (of_machine_is_compatible("fsl,imx8mp"))
+		mkt_segment = (cell_value & IMX8MP_OCOTP_CFG3_MKT_SEGMENT_MASK)
+			       >> IMX8MP_OCOTP_CFG3_MKT_SEGMENT_SHIFT;
+	else
+		mkt_segment = (cell_value & OCOTP_CFG3_MKT_SEGMENT_MASK)
+			       >> OCOTP_CFG3_MKT_SEGMENT_SHIFT;
 
 	/*
 	 * Early samples without fuses written report "0 0" which may NOT
