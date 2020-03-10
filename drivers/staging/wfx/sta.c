@@ -293,7 +293,6 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	int old_uapsd = wvif->uapsd_mask;
-	int ret = 0;
 
 	WARN_ON(queue >= hw->queues);
 
@@ -307,7 +306,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		wfx_update_pm(wvif);
 	}
 	mutex_unlock(&wdev->conf_mutex);
-	return ret;
+	return 0;
 }
 
 int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
