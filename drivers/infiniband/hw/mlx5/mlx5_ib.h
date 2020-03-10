@@ -699,6 +699,8 @@ struct mlx5_cache_ent {
 	u32			access_mode;
 	u32			page;
 
+	u8 disabled:1;
+
 	/*
 	 * - available_mrs is the length of list head, ie the number of MRs
 	 *   available for immediate allocation.
@@ -725,7 +727,6 @@ struct mlx5_cache_ent {
 struct mlx5_mr_cache {
 	struct workqueue_struct *wq;
 	struct mlx5_cache_ent	ent[MAX_MR_CACHE_ENTRIES];
-	int			stopped;
 	struct dentry		*root;
 	unsigned long		last_add;
 };
@@ -995,10 +996,10 @@ struct mlx5_ib_dev {
 	 */
 	struct mutex			cap_mask_mutex;
 	u8				ib_active:1;
-	u8				fill_delay:1;
 	u8				is_rep:1;
 	u8				lag_active:1;
 	u8				wc_support:1;
+	u8				fill_delay;
 	struct umr_common		umrc;
 	/* sync used page count stats
 	 */
