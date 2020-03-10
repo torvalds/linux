@@ -6301,12 +6301,6 @@ F:	include/trace/events/mdio.h
 F:	include/uapi/linux/mdio.h
 F:	include/uapi/linux/mii.h
 
-EXFAT FILE SYSTEM
-M:	Valdis Kletnieks <valdis.kletnieks@vt.edu>
-L:	linux-fsdevel@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/exfat/
-
 EXT2 FILE SYSTEM
 M:	Jan Kara <jack@suse.com>
 L:	linux-ext4@vger.kernel.org
