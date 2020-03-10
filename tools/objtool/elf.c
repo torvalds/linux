@@ -38,7 +38,7 @@ static struct section *find_section_by_index(struct elf *elf,
 {
 	struct section *sec;
 
-	list_for_each_entry(sec, &elf->sections, list)
+	hash_for_each_possible(elf->section_hash, sec, hash, idx)
 		if (sec->idx == idx)
 			return sec;
 
@@ -166,8 +166,6 @@ static int read_sections(struct elf *elf)
 		INIT_LIST_HEAD(&sec->rela_list);
 		hash_init(sec->rela_hash);
 
-		list_add_tail(&sec->list, &elf->sections);
-
 		s = elf_getscn(elf->elf, i);
 		if (!s) {
 			WARN_ELF("elf_getscn");
@@ -201,6 +199,9 @@ static int read_sections(struct elf *elf)
 			}
 		}
 		sec->len = sec->sh.sh_size;
+
+		list_add_tail(&sec->list, &elf->sections);
+		hash_add(elf->section_hash, &sec->hash, sec->idx);
 	}
 
 	if (stats)
@@ -439,6 +440,7 @@ struct elf *elf_read(const char *name, int flags)
 	memset(elf, 0, sizeof(*elf));
 
 	hash_init(elf->symbol_hash);
+	hash_init(elf->section_hash);
 	INIT_LIST_HEAD(&elf->sections);
 
 	elf->fd = open(name, flags);
@@ -500,8 +502,6 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	INIT_LIST_HEAD(&sec->symbol_list);
 	INIT_LIST_HEAD(&sec->rela_list);
 	hash_init(sec->rela_hash);
-
-	list_add_tail(&sec->list, &elf->sections);
 
 	s = elf_newscn(elf->elf);
 	if (!s) {
@@ -578,6 +578,9 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 
 	shstrtab->len += strlen(name) + 1;
 	shstrtab->changed = true;
+
+	list_add_tail(&sec->list, &elf->sections);
+	hash_add(elf->section_hash, &sec->hash, sec->idx);
 
 	return sec;
 }
