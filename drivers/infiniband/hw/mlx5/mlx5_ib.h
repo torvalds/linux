@@ -699,15 +699,26 @@ struct mlx5_cache_ent {
 	u32			access_mode;
 	u32			page;
 
-	u32			size;
-	u32                     cur;
+	/*
+	 * - available_mrs is the length of list head, ie the number of MRs
+	 *   available for immediate allocation.
+	 * - total_mrs is available_mrs plus all in use MRs that could be
+	 *   returned to the cache.
+	 * - limit is the low water mark for available_mrs, 2* limit is the
+	 *   upper water mark.
+	 * - pending is the number of MRs currently being created
+	 */
+	u32 total_mrs;
+	u32 available_mrs;
+	u32 limit;
+	u32 pending;
+
+	/* Statistics */
 	u32                     miss;
-	u32			limit;
 
 	struct mlx5_ib_dev     *dev;
 	struct work_struct	work;
 	struct delayed_work	dwork;
-	int			pending;
 	struct completion	compl;
 };
 

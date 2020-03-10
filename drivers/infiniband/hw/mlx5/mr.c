@@ -144,8 +144,8 @@ static void create_mkey_callback(int status, struct mlx5_async_work *context)
 
 	spin_lock_irqsave(&ent->lock, flags);
 	list_add_tail(&mr->list, &ent->head);
-	ent->cur++;
-	ent->size++;
+	ent->available_mrs++;
+	ent->total_mrs++;
 	spin_unlock_irqrestore(&ent->lock, flags);
 
 	if (!completion_done(&ent->compl))
@@ -231,8 +231,8 @@ static void remove_keys(struct mlx5_ib_dev *dev, int c, int num)
 		}
 		mr = list_first_entry(&ent->head, struct mlx5_ib_mr, list);
 		list_move(&mr->list, &del_list);
-		ent->cur--;
-		ent->size--;
+		ent->available_mrs--;
+		ent->total_mrs--;
 		spin_unlock_irq(&ent->lock);
 		mlx5_core_destroy_mkey(dev->mdev, &mr->mmkey);
 	}
@@ -265,16 +265,16 @@ static ssize_t size_write(struct file *filp, const char __user *buf,
 	if (var < ent->limit)
 		return -EINVAL;
 
-	if (var > ent->size) {
+	if (var > ent->total_mrs) {
 		do {
-			err = add_keys(dev, c, var - ent->size);
+			err = add_keys(dev, c, var - ent->total_mrs);
 			if (err && err != -EAGAIN)
 				return err;
 
 			usleep_range(3000, 5000);
 		} while (err);
-	} else if (var < ent->size) {
-		remove_keys(dev, c, ent->size - var);
+	} else if (var < ent->total_mrs) {
+		remove_keys(dev, c, ent->total_mrs - var);
 	}
 
 	return count;
@@ -287,7 +287,7 @@ static ssize_t size_read(struct file *filp, char __user *buf, size_t count,
 	char lbuf[20];
 	int err;
 
-	err = snprintf(lbuf, sizeof(lbuf), "%d\n", ent->size);
+	err = snprintf(lbuf, sizeof(lbuf), "%d\n", ent->total_mrs);
 	if (err < 0)
 		return err;
 
@@ -320,13 +320,13 @@ static ssize_t limit_write(struct file *filp, const char __user *buf,
 	if (sscanf(lbuf, "%u", &var) != 1)
 		return -EINVAL;
 
-	if (var > ent->size)
+	if (var > ent->total_mrs)
 		return -EINVAL;
 
 	ent->limit = var;
 
-	if (ent->cur < ent->limit) {
-		err = add_keys(dev, c, 2 * ent->limit - ent->cur);
+	if (ent->available_mrs < ent->limit) {
+		err = add_keys(dev, c, 2 * ent->limit - ent->available_mrs);
 		if (err)
 			return err;
 	}
@@ -360,7 +360,7 @@ static int someone_adding(struct mlx5_mr_cache *cache)
 	int i;
 
 	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
-		if (cache->ent[i].cur < cache->ent[i].limit)
+		if (cache->ent[i].available_mrs < cache->ent[i].limit)
 			return 1;
 	}
 
@@ -378,9 +378,9 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 		return;
 
 	ent = &dev->cache.ent[i];
-	if (ent->cur < 2 * ent->limit && !dev->fill_delay) {
+	if (ent->available_mrs < 2 * ent->limit && !dev->fill_delay) {
 		err = add_keys(dev, i, 1);
-		if (ent->cur < 2 * ent->limit) {
+		if (ent->available_mrs < 2 * ent->limit) {
 			if (err == -EAGAIN) {
 				mlx5_ib_dbg(dev, "returned eagain, order %d\n",
 					    i + 2);
@@ -395,7 +395,7 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 				queue_work(cache->wq, &ent->work);
 			}
 		}
-	} else if (ent->cur > 2 * ent->limit) {
+	} else if (ent->available_mrs > 2 * ent->limit) {
 		/*
 		 * The remove_keys() logic is performed as garbage collection
 		 * task. Such task is intended to be run when no other active
@@ -411,7 +411,7 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 		if (!need_resched() && !someone_adding(cache) &&
 		    time_after(jiffies, cache->last_add + 300 * HZ)) {
 			remove_keys(dev, i, 1);
-			if (ent->cur > ent->limit)
+			if (ent->available_mrs > ent->limit)
 				queue_work(cache->wq, &ent->work);
 		} else {
 			queue_delayed_work(cache->wq, &ent->dwork, 300 * HZ);
@@ -462,9 +462,9 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev, int entry)
 			mr = list_first_entry(&ent->head, struct mlx5_ib_mr,
 					      list);
 			list_del(&mr->list);
-			ent->cur--;
+			ent->available_mrs--;
 			spin_unlock_irq(&ent->lock);
-			if (ent->cur < ent->limit)
+			if (ent->available_mrs < ent->limit)
 				queue_work(cache->wq, &ent->work);
 			return mr;
 		}
@@ -497,9 +497,9 @@ static struct mlx5_ib_mr *alloc_cached_mr(struct mlx5_ib_dev *dev, int order)
 			mr = list_first_entry(&ent->head, struct mlx5_ib_mr,
 					      list);
 			list_del(&mr->list);
-			ent->cur--;
+			ent->available_mrs--;
 			spin_unlock_irq(&ent->lock);
-			if (ent->cur < ent->limit)
+			if (ent->available_mrs < ent->limit)
 				queue_work(cache->wq, &ent->work);
 			break;
 		}
@@ -531,7 +531,7 @@ void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		mr->allocated_from_cache = false;
 		destroy_mkey(dev, mr);
 		ent = &cache->ent[c];
-		if (ent->cur < ent->limit)
+		if (ent->available_mrs < ent->limit)
 			queue_work(cache->wq, &ent->work);
 		return;
 	}
@@ -539,8 +539,8 @@ void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	ent = &cache->ent[c];
 	spin_lock_irq(&ent->lock);
 	list_add_tail(&mr->list, &ent->head);
-	ent->cur++;
-	if (ent->cur > 2 * ent->limit)
+	ent->available_mrs++;
+	if (ent->available_mrs > 2 * ent->limit)
 		shrink = 1;
 	spin_unlock_irq(&ent->lock);
 
@@ -565,8 +565,8 @@ static void clean_keys(struct mlx5_ib_dev *dev, int c)
 		}
 		mr = list_first_entry(&ent->head, struct mlx5_ib_mr, list);
 		list_move(&mr->list, &del_list);
-		ent->cur--;
-		ent->size--;
+		ent->available_mrs--;
+		ent->total_mrs--;
 		spin_unlock_irq(&ent->lock);
 		mlx5_core_destroy_mkey(dev->mdev, &mr->mmkey);
 	}
@@ -604,7 +604,7 @@ static void mlx5_mr_cache_debugfs_init(struct mlx5_ib_dev *dev)
 		dir = debugfs_create_dir(ent->name, cache->root);
 		debugfs_create_file("size", 0600, dir, ent, &size_fops);
 		debugfs_create_file("limit", 0600, dir, ent, &limit_fops);
-		debugfs_create_u32("cur", 0400, dir, &ent->cur);
+		debugfs_create_u32("cur", 0400, dir, &ent->available_mrs);
 		debugfs_create_u32("miss", 0600, dir, &ent->miss);
 	}
 }
