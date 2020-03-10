@@ -1383,6 +1383,7 @@ static int hem_list_alloc_root_bt(struct hns_roce_dev *hr_dev,
 	void *cpu_base;
 	u64 phy_base;
 	int ret = 0;
+	int ba_num;
 	int offset;
 	int total;
 	int step;
@@ -1393,12 +1394,16 @@ static int hem_list_alloc_root_bt(struct hns_roce_dev *hr_dev,
 	if (root_hem)
 		return 0;
 
+	ba_num = hns_roce_hem_list_calc_root_ba(regions, region_cnt, unit);
+	if (ba_num < 1)
+		return -ENOMEM;
+
 	INIT_LIST_HEAD(&temp_root);
-	total = r->offset;
+	offset = r->offset;
 	/* indicate to last region */
 	r = &regions[region_cnt - 1];
-	root_hem = hem_list_alloc_item(hr_dev, total, r->offset + r->count - 1,
-				       unit, true, 0);
+	root_hem = hem_list_alloc_item(hr_dev, offset, r->offset + r->count - 1,
+				       ba_num, true, 0);
 	if (!root_hem)
 		return -ENOMEM;
 	list_add(&root_hem->list, &temp_root);
@@ -1410,7 +1415,7 @@ static int hem_list_alloc_root_bt(struct hns_roce_dev *hr_dev,
 		INIT_LIST_HEAD(&temp_list[i]);
 
 	total = 0;
-	for (i = 0; i < region_cnt && total < unit; i++) {
+	for (i = 0; i < region_cnt && total < ba_num; i++) {
 		r = &regions[i];
 		if (!r->count)
 			continue;
@@ -1443,7 +1448,8 @@ static int hem_list_alloc_root_bt(struct hns_roce_dev *hr_dev,
 			/* if exist mid bt, link L1 to L0 */
 			list_for_each_entry_safe(hem, temp_hem,
 					  &hem_list->mid_bt[i][1], list) {
-				offset = hem->start / step * BA_BYTE_LEN;
+				offset = (hem->start - r->offset) / step *
+					  BA_BYTE_LEN;
 				hem_list_link_bt(hr_dev, cpu_base + offset,
 						 hem->dma_addr);
 				total++;

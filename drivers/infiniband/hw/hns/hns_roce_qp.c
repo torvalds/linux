@@ -579,30 +579,6 @@ static int split_wqe_buf_region(struct hns_roce_dev *hr_dev,
 	return region_cnt;
 }
 
-static int calc_wqe_bt_page_shift(struct hns_roce_dev *hr_dev,
-				  struct hns_roce_buf_region *regions,
-				  int region_cnt)
-{
-	int bt_pg_shift;
-	int ba_num;
-	int ret;
-
-	bt_pg_shift = PAGE_SHIFT + hr_dev->caps.mtt_ba_pg_sz;
-
-	/* all root ba entries must in one bt page */
-	do {
-		ba_num = (1 << bt_pg_shift) / BA_BYTE_LEN;
-		ret = hns_roce_hem_list_calc_root_ba(regions, region_cnt,
-						     ba_num);
-		if (ret <= ba_num)
-			break;
-
-		bt_pg_shift++;
-	} while (ret > ba_num);
-
-	return bt_pg_shift - PAGE_SHIFT;
-}
-
 static int set_extend_sge_param(struct hns_roce_dev *hr_dev,
 				struct hns_roce_qp *hr_qp)
 {
@@ -768,7 +744,10 @@ static void free_rq_inline_buf(struct hns_roce_qp *hr_qp)
 static int map_wqe_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		       u32 page_shift, bool is_user)
 {
-	dma_addr_t *buf_list[ARRAY_SIZE(hr_qp->regions)] = { NULL };
+/* WQE buffer include 3 parts: SQ, extend SGE and RQ. */
+#define HNS_ROCE_WQE_REGION_MAX	 3
+	struct hns_roce_buf_region regions[HNS_ROCE_WQE_REGION_MAX] = {};
+	dma_addr_t *buf_list[HNS_ROCE_WQE_REGION_MAX] = {};
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_buf_region *r;
 	int region_count;
@@ -776,18 +755,18 @@ static int map_wqe_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 	int ret;
 	int i;
 
-	region_count = split_wqe_buf_region(hr_dev, hr_qp, hr_qp->regions,
-					ARRAY_SIZE(hr_qp->regions), page_shift);
+	region_count = split_wqe_buf_region(hr_dev, hr_qp, regions,
+					    ARRAY_SIZE(regions), page_shift);
 
 	/* alloc a tmp list to store WQE buffers address */
-	ret = hns_roce_alloc_buf_list(hr_qp->regions, buf_list, region_count);
+	ret = hns_roce_alloc_buf_list(regions, buf_list, region_count);
 	if (ret) {
 		ibdev_err(ibdev, "Failed to alloc WQE buffer list\n");
 		return ret;
 	}
 
 	for (i = 0; i < region_count; i++) {
-		r = &hr_qp->regions[i];
+		r = &regions[i];
 		if (is_user)
 			buf_count = hns_roce_get_umem_bufs(hr_dev, buf_list[i],
 					r->count, r->offset, hr_qp->umem,
@@ -805,11 +784,10 @@ static int map_wqe_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		}
 	}
 
-	hr_qp->wqe_bt_pg_shift = calc_wqe_bt_page_shift(hr_dev, hr_qp->regions,
-							region_count);
+	hr_qp->wqe_bt_pg_shift = hr_dev->caps.mtt_ba_pg_sz;
 	hns_roce_mtr_init(&hr_qp->mtr, PAGE_SHIFT + hr_qp->wqe_bt_pg_shift,
 			  page_shift);
-	ret = hns_roce_mtr_attach(hr_dev, &hr_qp->mtr, buf_list, hr_qp->regions,
+	ret = hns_roce_mtr_attach(hr_dev, &hr_qp->mtr, buf_list, regions,
 				  region_count);
 	if (ret)
 		ibdev_err(ibdev, "Failed to attach WQE's mtr\n");
