@@ -40,6 +40,7 @@
 enum {
 	AHCI_PCI_BAR_STA2X11	= 0,
 	AHCI_PCI_BAR_CAVIUM	= 0,
+	AHCI_PCI_BAR_LOONGSON	= 0,
 	AHCI_PCI_BAR_ENMOTUS	= 2,
 	AHCI_PCI_BAR_CAVIUM_GEN5	= 4,
 	AHCI_PCI_BAR_STANDARD	= 5,
@@ -588,6 +589,9 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 
 	/* Enmotus */
 	{ PCI_DEVICE(0x1c44, 0x8000), board_ahci },
+
+	/* Loongson */
+	{ PCI_VDEVICE(LOONGSON, 0x7a08), board_ahci },
 
 	/* Generic, PCI class code for AHCI */
 	{ PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
@@ -1680,6 +1684,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			ahci_pci_bar = AHCI_PCI_BAR_CAVIUM;
 		if (pdev->device == 0xa084)
 			ahci_pci_bar = AHCI_PCI_BAR_CAVIUM_GEN5;
+	} else if (pdev->vendor == PCI_VENDOR_ID_LOONGSON) {
+		if (pdev->device == 0x7a08)
+			ahci_pci_bar = AHCI_PCI_BAR_LOONGSON;
 	}
 
 	/* acquire resources */
