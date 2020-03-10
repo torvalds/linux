@@ -922,30 +922,20 @@ static int gmc_v9_0_late_init(void *handle)
 	if (r)
 		return r;
 	/* Check if ecc is available */
-	if (!amdgpu_sriov_vf(adev)) {
-		switch (adev->asic_type) {
-		case CHIP_VEGA10:
-		case CHIP_VEGA20:
-		case CHIP_ARCTURUS:
-			r = amdgpu_atomfirmware_mem_ecc_supported(adev);
-			if (!r) {
-				DRM_INFO("ECC is not present.\n");
-				if (adev->df.funcs->enable_ecc_force_par_wr_rmw)
-					adev->df.funcs->enable_ecc_force_par_wr_rmw(adev, false);
-			} else {
-				DRM_INFO("ECC is active.\n");
-			}
+	if (!amdgpu_sriov_vf(adev) && (adev->asic_type == CHIP_VEGA10)) {
+		r = amdgpu_atomfirmware_mem_ecc_supported(adev);
+		if (!r) {
+			DRM_INFO("ECC is not present.\n");
+			if (adev->df.funcs->enable_ecc_force_par_wr_rmw)
+				adev->df.funcs->enable_ecc_force_par_wr_rmw(adev, false);
+		} else
+			DRM_INFO("ECC is active.\n");
 
-			r = amdgpu_atomfirmware_sram_ecc_supported(adev);
-			if (!r) {
-				DRM_INFO("SRAM ECC is not present.\n");
-			} else {
-				DRM_INFO("SRAM ECC is active.\n");
-			}
-			break;
-		default:
-			break;
-		}
+		r = amdgpu_atomfirmware_sram_ecc_supported(adev);
+		if (!r)
+			DRM_INFO("SRAM ECC is not present.\n");
+		else
+			DRM_INFO("SRAM ECC is active.\n");
 	}
 
 	if (adev->mmhub.funcs && adev->mmhub.funcs->reset_ras_error_count)

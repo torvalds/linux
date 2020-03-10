@@ -1765,18 +1765,30 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 	*hw_supported = 0;
 	*supported = 0;
 
-	if (amdgpu_sriov_vf(adev) ||
+	if (amdgpu_sriov_vf(adev) || !adev->is_atom_fw ||
 	    (adev->asic_type != CHIP_VEGA20 &&
 	     adev->asic_type != CHIP_ARCTURUS))
 		return;
 
-	if (adev->is_atom_fw &&
-			(amdgpu_atomfirmware_mem_ecc_supported(adev) ||
-			 amdgpu_atomfirmware_sram_ecc_supported(adev)))
-		*hw_supported = AMDGPU_RAS_BLOCK_MASK;
+	if (amdgpu_atomfirmware_mem_ecc_supported(adev)) {
+		DRM_INFO("HBM ECC is active.\n");
+		*hw_supported |= (1 << AMDGPU_RAS_BLOCK__UMC |
+				1 << AMDGPU_RAS_BLOCK__DF);
+	} else
+		DRM_INFO("HBM ECC is not presented.\n");
+
+	if (amdgpu_atomfirmware_sram_ecc_supported(adev)) {
+		DRM_INFO("SRAM ECC is active.\n");
+		*hw_supported |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
+				1 << AMDGPU_RAS_BLOCK__DF);
+	} else
+		DRM_INFO("SRAM ECC is not presented.\n");
+
+	/* hw_supported needs to be aligned with RAS block mask. */
+	*hw_supported &= AMDGPU_RAS_BLOCK_MASK;
 
 	*supported = amdgpu_ras_enable == 0 ?
-				0 : *hw_supported & amdgpu_ras_mask;
+			0 : *hw_supported & amdgpu_ras_mask;
 }
 
 int amdgpu_ras_init(struct amdgpu_device *adev)
