@@ -509,9 +509,6 @@ static ssize_t group_tokens_reserved_store(struct device *dev,
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
-	if (idxd->token_limit == 0)
-		return -EPERM;
-
 	if (val > idxd->max_tokens)
 		return -EINVAL;
 
@@ -557,8 +554,6 @@ static ssize_t group_tokens_allowed_store(struct device *dev,
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
-	if (idxd->token_limit == 0)
-		return -EPERM;
 	if (val < 4 * group->num_engines ||
 	    val > group->tokens_reserved + idxd->nr_tokens)
 		return -EINVAL;
