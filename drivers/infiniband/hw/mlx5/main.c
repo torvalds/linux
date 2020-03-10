@@ -6390,6 +6390,7 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	spin_lock_init(&dev->reset_flow_resource_lock);
 	xa_init(&dev->odp_mkeys);
 	xa_init(&dev->sig_mrs);
+	spin_lock_init(&dev->mkey_lock);
 
 	spin_lock_init(&dev->dm.lock);
 	dev->dm.dev = mdev;

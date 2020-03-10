@@ -575,10 +575,6 @@ struct mlx5_priv {
 	/* end: alloc staff */
 	struct dentry	       *dbg_root;
 
-	/* protect mkey key part */
-	spinlock_t		mkey_lock;
-	u8			mkey_key;
-
 	struct list_head        dev_list;
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
