@@ -461,6 +461,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 
 	mutex_lock(&dev->mt76.mutex);
 
+	dev->mcu_timeout = 0;
 	if (restart)
 		mt76x02_reset_state(dev);
 
@@ -543,10 +544,6 @@ static void mt76x02_check_tx_hang(struct mt76x02_dev *dev)
 
 restart:
 	mt76x02_watchdog_reset(dev);
-
-	mutex_lock(&dev->mt76.mcu.mutex);
-	dev->mcu_timeout = 0;
-	mutex_unlock(&dev->mt76.mcu.mutex);
 
 	dev->tx_hang_reset++;
 	dev->tx_hang_check = 0;
