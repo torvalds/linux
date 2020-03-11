@@ -4028,7 +4028,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	struct ext4_extent newex, *ex, *ex2;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	ext4_fsblk_t newblock = 0;
-	int free_on_err = 0, err = 0, depth, ret;
+	int err = 0, depth, ret;
 	unsigned int allocated = 0, offset = 0;
 	unsigned int allocated_clusters = 0;
 	struct ext4_allocation_request ar;
@@ -4226,7 +4226,6 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		goto out2;
 	ext_debug("allocate new block: goal %llu, found %llu/%u\n",
 		  ar.goal, newblock, allocated);
-	free_on_err = 1;
 	allocated_clusters = ar.len;
 	ar.len = EXT4_C2B(sbi, ar.len) - offset;
 	if (ar.len > allocated)
@@ -4237,23 +4236,28 @@ got_allocated_blocks:
 	ext4_ext_store_pblock(&newex, newblock + offset);
 	newex.ee_len = cpu_to_le16(ar.len);
 	/* Mark unwritten */
-	if (flags & EXT4_GET_BLOCKS_UNWRIT_EXT){
+	if (flags & EXT4_GET_BLOCKS_UNWRIT_EXT) {
 		ext4_ext_mark_unwritten(&newex);
 		map->m_flags |= EXT4_MAP_UNWRITTEN;
 	}
 
-	err = 0;
 	err = ext4_ext_insert_extent(handle, inode, &path, &newex, flags);
+	if (err) {
+		if (allocated_clusters) {
+			int fb_flags = 0;
 
-	if (err && free_on_err) {
-		int fb_flags = flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE ?
-			EXT4_FREE_BLOCKS_NO_QUOT_UPDATE : 0;
-		/* free data blocks we just allocated */
-		/* not a good idea to call discard here directly,
-		 * but otherwise we'd need to call it every free() */
-		ext4_discard_preallocations(inode);
-		ext4_free_blocks(handle, inode, NULL, newblock,
-				 EXT4_C2B(sbi, allocated_clusters), fb_flags);
+			/*
+			 * free data blocks we just allocated.
+			 * not a good idea to call discard here directly,
+			 * but otherwise we'd need to call it every free().
+			 */
+			ext4_discard_preallocations(inode);
+			if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
+				fb_flags = EXT4_FREE_BLOCKS_NO_QUOT_UPDATE;
+			ext4_free_blocks(handle, inode, NULL, newblock,
+					 EXT4_C2B(sbi, allocated_clusters),
+					 fb_flags);
+		}
 		goto out2;
 	}
 
