@@ -256,6 +256,13 @@ static const struct iio_info ad7476_info = {
 	.read_raw = &ad7476_read_raw,
 };
 
+static void ad7476_reg_disable(void *data)
+{
+	struct ad7476_state *st = data;
+
+	regulator_disable(st->reg);
+}
+
 static int ad7476_probe(struct spi_device *spi)
 {
 	struct ad7476_state *st;
@@ -275,6 +282,11 @@ static int ad7476_probe(struct spi_device *spi)
 		return PTR_ERR(st->reg);
 
 	ret = regulator_enable(st->reg);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&spi->dev, ad7476_reg_disable,
+				       st);
 	if (ret)
 		return ret;
 
@@ -328,18 +340,6 @@ error_disable_reg:
 	return ret;
 }
 
-static int ad7476_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad7476_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-	regulator_disable(st->reg);
-
-	return 0;
-}
-
 static const struct spi_device_id ad7476_id[] = {
 	{"ad7091", ID_AD7091R},
 	{"ad7091r", ID_AD7091R},
@@ -377,7 +377,6 @@ static struct spi_driver ad7476_driver = {
 		.name	= "ad7476",
 	},
 	.probe		= ad7476_probe,
-	.remove		= ad7476_remove,
 	.id_table	= ad7476_id,
 };
 module_spi_driver(ad7476_driver);
