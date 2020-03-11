@@ -1390,7 +1390,13 @@ static int hns3_set_fecparam(struct net_device *netdev,
 	return ops->set_fec(handle, fec_mode);
 }
 
+#define HNS3_ETHTOOL_COALESCE	(ETHTOOL_COALESCE_USECS |		\
+				 ETHTOOL_COALESCE_USE_ADAPTIVE |	\
+				 ETHTOOL_COALESCE_RX_USECS_HIGH |	\
+				 ETHTOOL_COALESCE_TX_USECS_HIGH)
+
 static const struct ethtool_ops hns3vf_ethtool_ops = {
+	.supported_coalesce_params = HNS3_ETHTOOL_COALESCE,
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_ringparam = hns3_get_ringparam,
 	.set_ringparam = hns3_set_ringparam,
@@ -1416,6 +1422,7 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 };
 
 static const struct ethtool_ops hns3_ethtool_ops = {
+	.supported_coalesce_params = HNS3_ETHTOOL_COALESCE,
 	.self_test = hns3_self_test,
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_link = hns3_get_link,
