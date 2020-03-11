@@ -27,6 +27,7 @@
 #include "xfs_log_recover.h"
 #include "xfs_filestream.h"
 #include "xfs_fsmap.h"
+#include "xfs_btree_staging.h"
 
 /*
  * We include this last to have the helpers above available for the trace
