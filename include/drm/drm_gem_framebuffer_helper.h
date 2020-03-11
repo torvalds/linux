@@ -18,6 +18,11 @@ void drm_gem_fb_destroy(struct drm_framebuffer *fb);
 int drm_gem_fb_create_handle(struct drm_framebuffer *fb, struct drm_file *file,
 			     unsigned int *handle);
 
+int drm_gem_fb_init_with_funcs(struct drm_device *dev,
+			       struct drm_framebuffer *fb,
+			       struct drm_file *file,
+			       const struct drm_mode_fb_cmd2 *mode_cmd,
+			       const struct drm_framebuffer_funcs *funcs);
 struct drm_framebuffer *
 drm_gem_fb_create_with_funcs(struct drm_device *dev, struct drm_file *file,
 			     const struct drm_mode_fb_cmd2 *mode_cmd,
