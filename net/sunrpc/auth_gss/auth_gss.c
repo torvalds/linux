@@ -1724,8 +1724,9 @@ bad_mic:
 	goto out;
 }
 
-static int gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-			      struct rpc_task *task, struct xdr_stream *xdr)
+static noinline_for_stack int
+gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
+		   struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_rqst *rqstp = task->tk_rqstp;
 	struct xdr_buf integ_buf, *snd_buf = &rqstp->rq_snd_buf;
@@ -1816,8 +1817,9 @@ out:
 	return -EAGAIN;
 }
 
-static int gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-			     struct rpc_task *task, struct xdr_stream *xdr)
+static noinline_for_stack int
+gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
+		  struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_rqst *rqstp = task->tk_rqstp;
 	struct xdr_buf	*snd_buf = &rqstp->rq_snd_buf;
@@ -1947,7 +1949,7 @@ gss_unwrap_resp_auth(struct rpc_cred *cred)
  *		proc_req_arg_t arg;
  *	};
  */
-static int
+static noinline_for_stack int
 gss_unwrap_resp_integ(struct rpc_task *task, struct rpc_cred *cred,
 		      struct gss_cl_ctx *ctx, struct rpc_rqst *rqstp,
 		      struct xdr_stream *xdr)
@@ -2021,7 +2023,7 @@ bad_mic:
 	goto out;
 }
 
-static int
+static noinline_for_stack int
 gss_unwrap_resp_priv(struct rpc_task *task, struct rpc_cred *cred,
 		     struct gss_cl_ctx *ctx, struct rpc_rqst *rqstp,
 		     struct xdr_stream *xdr)
