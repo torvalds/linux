@@ -1381,24 +1381,24 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			char hdr[160];
 			int len;
 
-			len = snprintf(hdr, sizeof(hdr),
-				       "\t\tActive[%d]: ",
-				       (int)(port - execlists->active));
+			len = scnprintf(hdr, sizeof(hdr),
+					"\t\tActive[%d]: ",
+					(int)(port - execlists->active));
 			if (!i915_request_signaled(rq)) {
 				struct intel_timeline *tl = get_timeline(rq);
 
-				len += snprintf(hdr + len, sizeof(hdr) - len,
-						"ring:{start:%08x, hwsp:%08x, seqno:%08x, runtime:%llums}, ",
-						i915_ggtt_offset(rq->ring->vma),
-						tl ? tl->hwsp_offset : 0,
-						hwsp_seqno(rq),
-						DIV_ROUND_CLOSEST_ULL(intel_context_get_total_runtime_ns(rq->context),
-								      1000 * 1000));
+				len += scnprintf(hdr + len, sizeof(hdr) - len,
+						 "ring:{start:%08x, hwsp:%08x, seqno:%08x, runtime:%llums}, ",
+						 i915_ggtt_offset(rq->ring->vma),
+						 tl ? tl->hwsp_offset : 0,
+						 hwsp_seqno(rq),
+						 DIV_ROUND_CLOSEST_ULL(intel_context_get_total_runtime_ns(rq->context),
+								       1000 * 1000));
 
 				if (tl)
 					intel_timeline_put(tl);
 			}
-			snprintf(hdr + len, sizeof(hdr) - len, "rq: ");
+			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
 		}
 		for (port = execlists->pending; (rq = *port); port++) {
