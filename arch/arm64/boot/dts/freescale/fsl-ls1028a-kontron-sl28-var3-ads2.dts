@@ -77,6 +77,14 @@
 	};
 };
 
+&i2c3 {
+	eeprom@57 {
+		compatible = "atmel,24c64";
+		reg = <0x57>;
+		pagesize = <32>;
+	};
+};
+
 &i2c4 {
 	status = "okay";
 
@@ -88,12 +96,6 @@
 		clock-names = "mclk";
 		assigned-clocks = <&mclk>;
 		assigned-clock-rates = <1250000>;
-	};
-
-	eeprom@50 {
-		compatible = "atmel,24c32";
-		reg = <0x50>;
-		pagesize = <32>;
 	};
 };
 

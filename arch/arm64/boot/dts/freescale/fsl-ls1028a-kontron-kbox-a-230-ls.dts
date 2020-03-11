@@ -18,10 +18,10 @@
 		     "kontron,sl28", "fsl,ls1028a";
 };
 
-&i2c4 {
-	eeprom@50 {
+&i2c3 {
+	eeprom@57 {
 		compatible = "atmel,24c32";
-		reg = <0x50>;
+		reg = <0x57>;
 		pagesize = <32>;
 	};
 };
