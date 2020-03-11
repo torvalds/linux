@@ -5998,45 +5998,7 @@ edp_detect(struct intel_dp *intel_dp)
 static bool ibx_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit;
-
-	switch (encoder->hpd_pin) {
-	case HPD_PORT_B:
-		bit = SDE_PORTB_HOTPLUG;
-		break;
-	case HPD_PORT_C:
-		bit = SDE_PORTC_HOTPLUG;
-		break;
-	case HPD_PORT_D:
-		bit = SDE_PORTD_HOTPLUG;
-		break;
-	default:
-		MISSING_CASE(encoder->hpd_pin);
-		return false;
-	}
-
-	return intel_de_read(dev_priv, SDEISR) & bit;
-}
-
-static bool cpt_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit;
-
-	switch (encoder->hpd_pin) {
-	case HPD_PORT_B:
-		bit = SDE_PORTB_HOTPLUG_CPT;
-		break;
-	case HPD_PORT_C:
-		bit = SDE_PORTC_HOTPLUG_CPT;
-		break;
-	case HPD_PORT_D:
-		bit = SDE_PORTD_HOTPLUG_CPT;
-		break;
-	default:
-		MISSING_CASE(encoder->hpd_pin);
-		return false;
-	}
+	u32 bit = dev_priv->hotplug.pch_hpd[encoder->hpd_pin];
 
 	return intel_de_read(dev_priv, SDEISR) & bit;
 }
@@ -6090,15 +6052,9 @@ static bool gm45_digital_port_connected(struct intel_encoder *encoder)
 static bool ilk_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	u32 bit = dev_priv->hotplug.hpd[encoder->hpd_pin];
 
-	return intel_de_read(dev_priv, DEISR) & DE_DP_A_HOTPLUG;
-}
-
-static bool ivb_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	return intel_de_read(dev_priv, DEISR) & DE_DP_A_HOTPLUG_IVB;
+	return intel_de_read(dev_priv, DEISR) & bit;
 }
 
 /*
@@ -8405,14 +8361,9 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 			intel_dig_port->connected = gm45_digital_port_connected;
 		else
 			intel_dig_port->connected = g4x_digital_port_connected;
-	} else if (port == PORT_A) {
-		if (IS_IVYBRIDGE(dev_priv))
-			intel_dig_port->connected = ivb_digital_port_connected;
-		else
-			intel_dig_port->connected = ilk_digital_port_connected;
 	} else {
-		if (HAS_PCH_CPT(dev_priv))
-			intel_dig_port->connected = cpt_digital_port_connected;
+		if (port == PORT_A)
+			intel_dig_port->connected = ilk_digital_port_connected;
 		else
 			intel_dig_port->connected = ibx_digital_port_connected;
 	}
