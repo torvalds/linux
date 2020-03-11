@@ -28,7 +28,6 @@ struct pm860x_rtc_info {
 
 	int			irq;
 	int			vrtc;
-	int			(*sync)(unsigned int ticks);
 };
 
 #define REG_VRTC_MEAS1		0x7D
@@ -155,8 +154,6 @@ static int pm860x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	pm860x_page_reg_write(info->i2c, REG2_DATA, (base >> 8) & 0xFF);
 	pm860x_page_reg_write(info->i2c, REG3_DATA, base & 0xFF);
 
-	if (info->sync)
-		info->sync(ticks);
 	return 0;
 }
 
@@ -317,8 +314,6 @@ static int pm860x_rtc_probe(struct platform_device *pdev)
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_rtc_pdata *pdata = NULL;
 	struct pm860x_rtc_info *info;
-	struct rtc_time tm;
-	unsigned long ticks = 0;
 	int ret;
 
 	pdata = dev_get_platdata(&pdev->dev);
@@ -355,18 +350,7 @@ static int pm860x_rtc_probe(struct platform_device *pdev)
 	pm860x_page_reg_write(info->i2c, REG2_ADDR, REG2_DATA);
 	pm860x_page_reg_write(info->i2c, REG3_ADDR, REG3_DATA);
 
-	ret = pm860x_rtc_read_time(&pdev->dev, &tm);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to read initial time.\n");
-		return ret;
-	}
-	rtc_tm_to_time(&tm, &ticks);
-	if (pm860x_rtc_dt_init(pdev, info)) {
-		if (pdata && pdata->sync) {
-			pdata->sync(ticks);
-			info->sync = pdata->sync;
-		}
-	}
+	pm860x_rtc_dt_init(pdev, info);
 
 	info->rtc_dev->ops = &pm860x_rtc_ops;
 
