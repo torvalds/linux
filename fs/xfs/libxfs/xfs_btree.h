@@ -188,6 +188,27 @@ union xfs_btree_cur_private {
 	} abt;
 };
 
+/* Per-AG btree information. */
+struct xfs_btree_cur_ag {
+	struct xfs_buf			*agbp;
+	xfs_agnumber_t			agno;
+	union xfs_btree_cur_private	priv;
+};
+
+/* Btree-in-inode cursor information */
+struct xfs_btree_cur_ino {
+	struct xfs_inode		*ip;
+	int				allocated;
+	short				forksize;
+	char				whichfork;
+	char				flags;
+/* We are converting a delalloc reservation */
+#define	XFS_BTCUR_BMBT_WASDEL		(1 << 0)
+
+/* For extent swap, ignore owner check in verifier */
+#define	XFS_BTCUR_BMBT_INVALID_OWNER	(1 << 1)
+};
+
 /*
  * Btree cursor structure.
  * This collects all information needed by the btree code in one place.
@@ -209,21 +230,9 @@ typedef struct xfs_btree_cur
 	xfs_btnum_t	bc_btnum;	/* identifies which btree type */
 	int		bc_statoff;	/* offset of btre stats array */
 	union {
-		struct {			/* needed for BNO, CNT, INO */
-			struct xfs_buf	*agbp;	/* agf/agi buffer pointer */
-			xfs_agnumber_t	agno;	/* ag number */
-			union xfs_btree_cur_private	priv;
-		} bc_ag;
-		struct {			/* needed for BMAP */
-			struct xfs_inode *ip;	/* pointer to our inode */
-			int		allocated;	/* count of alloced */
-			short		forksize;	/* fork's inode space */
-			char		whichfork;	/* data or attr fork */
-			char		flags;		/* flags */
-#define	XFS_BTCUR_BMBT_WASDEL	(1 << 0)		/* was delayed */
-#define	XFS_BTCUR_BMBT_INVALID_OWNER	(1 << 1)		/* for ext swap */
-		} bc_ino;
-	};				/* per-btree type data */
+		struct xfs_btree_cur_ag	bc_ag;
+		struct xfs_btree_cur_ino bc_ino;
+	};
 } xfs_btree_cur_t;
 
 /* cursor flags */
