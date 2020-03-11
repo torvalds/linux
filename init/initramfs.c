@@ -12,6 +12,7 @@
 #include <linux/file.h>
 #include <linux/memblock.h>
 #include <linux/namei.h>
+#include <linux/initramfs.h>
 #include <linux/init_syscalls.h>
 
 static ssize_t __init xwrite(struct file *file, const char *p, size_t count,
@@ -465,6 +466,9 @@ static char * __init unpack_to_rootfs(char *buf, unsigned long len)
 	state = Start;
 	this_header = 0;
 	message = NULL;
+#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_ROCKCHIP_HW_DECOMPRESS) && defined(CONFIG_INITRD_ASYNC)
+	wait_initrd_hw_decom_done();
+#endif
 	while (!message && len) {
 		loff_t saved_offset = this_header;
 		if (*buf == '0' && !(this_header & 3)) {
