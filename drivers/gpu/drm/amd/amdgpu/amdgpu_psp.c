@@ -200,6 +200,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	int ret;
 	int index;
 	int timeout = 2000;
+	bool ras_intr = false;
 
 	mutex_lock(&psp->mutex);
 
@@ -224,7 +225,8 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		 * because gpu reset thread triggered and lock resource should
 		 * be released for psp resume sequence.
 		 */
-		if (amdgpu_ras_intr_triggered())
+		ras_intr = amdgpu_ras_intr_triggered();
+		if (ras_intr)
 			break;
 		msleep(1);
 		amdgpu_asic_invalidate_hdp(psp->adev, NULL);
@@ -237,7 +239,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	 * during psp initialization to avoid breaking hw_init and it doesn't
 	 * return -EINVAL.
 	 */
-	if (psp->cmd_buf_mem->resp.status || !timeout) {
+	if ((psp->cmd_buf_mem->resp.status || !timeout) && !ras_intr) {
 		if (ucode)
 			DRM_WARN("failed to load ucode id (%d) ",
 				  ucode->ucode_id);
