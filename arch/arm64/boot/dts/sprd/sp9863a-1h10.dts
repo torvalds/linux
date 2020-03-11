@@ -26,7 +26,7 @@
 
 	chosen {
 		stdout-path = "serial1:115200n8";
-		bootargs = "earlycon";
+		bootargs = "earlycon console=ttyS1";
 	};
 };
 
