@@ -47,6 +47,9 @@ static inline void nf_hook_netdev_init(struct net_device *dev)
 #ifdef CONFIG_NETFILTER_INGRESS
 	RCU_INIT_POINTER(dev->nf_hooks_ingress, NULL);
 #endif
+#ifdef CONFIG_NETFILTER_EGRESS
+	RCU_INIT_POINTER(dev->nf_hooks_egress, NULL);
+#endif
 }
 
 #ifdef CONFIG_NETFILTER_INGRESS
@@ -72,4 +75,28 @@ static inline int nf_hook_ingress(struct sk_buff *skb)
 	return 0;
 }
 #endif /* CONFIG_NETFILTER_INGRESS */
+
+#ifdef CONFIG_NETFILTER_EGRESS
+static inline bool nf_hook_egress_active(const struct sk_buff *skb)
+{
+	return nf_hook_netdev_active(NF_NETDEV_EGRESS,
+				     skb->dev->nf_hooks_egress);
+}
+
+static inline int nf_hook_egress(struct sk_buff *skb)
+{
+	return nf_hook_netdev(skb, NF_NETDEV_EGRESS,
+			      skb->dev->nf_hooks_egress);
+}
+#else /* CONFIG_NETFILTER_EGRESS */
+static inline int nf_hook_egress_active(struct sk_buff *skb)
+{
+	return 0;
+}
+
+static inline int nf_hook_egress(struct sk_buff *skb)
+{
+	return 0;
+}
+#endif /* CONFIG_NETFILTER_EGRESS */
 #endif /* _NETFILTER_INGRESS_H_ */

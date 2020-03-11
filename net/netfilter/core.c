@@ -307,6 +307,12 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 			return &dev->nf_hooks_ingress;
 	}
 #endif
+#ifdef CONFIG_NETFILTER_EGRESS
+	if (hooknum == NF_NETDEV_EGRESS) {
+		if (dev && dev_net(dev) == net)
+			return &dev->nf_hooks_egress;
+	}
+#endif
 	WARN_ON_ONCE(1);
 	return NULL;
 }
@@ -318,11 +324,13 @@ static int __nf_register_net_hook(struct net *net, int pf,
 	struct nf_hook_entries __rcu **pp;
 
 	if (pf == NFPROTO_NETDEV) {
-#ifndef CONFIG_NETFILTER_INGRESS
-		if (reg->hooknum == NF_NETDEV_INGRESS)
+		if ((!IS_ENABLED(CONFIG_NETFILTER_INGRESS) &&
+		     reg->hooknum == NF_NETDEV_INGRESS) ||
+		    (!IS_ENABLED(CONFIG_NETFILTER_EGRESS) &&
+		     reg->hooknum == NF_NETDEV_EGRESS))
 			return -EOPNOTSUPP;
-#endif
-		if (reg->hooknum != NF_NETDEV_INGRESS ||
+		if ((reg->hooknum != NF_NETDEV_INGRESS &&
+		     reg->hooknum != NF_NETDEV_EGRESS) ||
 		    !reg->dev || dev_net(reg->dev) != net)
 			return -EINVAL;
 	}
@@ -347,6 +355,10 @@ static int __nf_register_net_hook(struct net *net, int pf,
 #ifdef CONFIG_NETFILTER_INGRESS
 	if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
 		net_inc_ingress_queue();
+#endif
+#ifdef CONFIG_NETFILTER_EGRESS
+	if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_EGRESS)
+		net_inc_egress_queue();
 #endif
 #ifdef CONFIG_JUMP_LABEL
 	static_key_slow_inc(&nf_hooks_needed[pf][reg->hooknum]);
@@ -405,6 +417,10 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 #ifdef CONFIG_NETFILTER_INGRESS
 		if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
 			net_dec_ingress_queue();
+#endif
+#ifdef CONFIG_NETFILTER_EGRESS
+		if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_EGRESS)
+			net_dec_egress_queue();
 #endif
 #ifdef CONFIG_JUMP_LABEL
 		static_key_slow_dec(&nf_hooks_needed[pf][reg->hooknum]);
