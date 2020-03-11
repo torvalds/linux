@@ -2360,6 +2360,7 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 				*iovec = NULL;
 				return PTR_ERR(buf);
 			}
+			req->rw.len = sqe_len;
 		}
 
 		ret = import_single_range(rw, buf, sqe_len, *iovec, iter);
@@ -2379,8 +2380,10 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		ret = io_iov_buffer_select(req, *iovec, needs_lock);
-		if (!ret)
-			iov_iter_init(iter, rw, *iovec, 1, (*iovec)->iov_len);
+		if (!ret) {
+			ret = (*iovec)->iov_len;
+			iov_iter_init(iter, rw, *iovec, 1, ret);
+		}
 		*iovec = NULL;
 		return ret;
 	}
