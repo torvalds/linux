@@ -472,7 +472,7 @@ static int print_links(struct device *dev, void *data)
 
 	list_for_each_entry(c, &iface->p->channel_list, list) {
 		if (c->pipe0.comp) {
-			offs += snprintf(buf + offs,
+			offs += scnprintf(buf + offs,
 					 PAGE_SIZE - offs,
 					 "%s:%s:%s\n",
 					 c->pipe0.comp->name,
@@ -480,7 +480,7 @@ static int print_links(struct device *dev, void *data)
 					 dev_name(&c->dev));
 		}
 		if (c->pipe1.comp) {
-			offs += snprintf(buf + offs,
+			offs += scnprintf(buf + offs,
 					 PAGE_SIZE - offs,
 					 "%s:%s:%s\n",
 					 c->pipe1.comp->name,
@@ -519,7 +519,7 @@ static ssize_t components_show(struct device_driver *drv, char *buf)
 	int offs = 0;
 
 	list_for_each_entry(comp, &comp_list, list) {
-		offs += snprintf(buf + offs, PAGE_SIZE - offs, "%s\n",
+		offs += scnprintf(buf + offs, PAGE_SIZE - offs, "%s\n",
 				 comp->name);
 	}
 	return offs;
