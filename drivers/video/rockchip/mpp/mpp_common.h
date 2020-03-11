@@ -128,7 +128,7 @@ struct mpp_hw_info {
 	/* register number */
 	u32 reg_num;
 	/* hardware id */
-	u32 reg_id;
+	int reg_id;
 	u32 hw_id;
 	/* start index of register */
 	u32 reg_start;
