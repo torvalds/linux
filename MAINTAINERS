@@ -11119,7 +11119,7 @@ M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
 L:	linux-mips@vger.kernel.org
 W:	http://www.linux-mips.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mips/linux.git
-Q:	http://patchwork.linux-mips.org/project/linux-mips/list/
+Q:	https://patchwork.kernel.org/project/linux-mips/list/
 S:	Maintained
 F:	Documentation/devicetree/bindings/mips/
 F:	Documentation/mips/
