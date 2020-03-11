@@ -29,6 +29,8 @@ struct ad7476_state;
 struct ad7476_chip_info {
 	unsigned int			int_vref_uv;
 	struct iio_chan_spec		channel[2];
+	/* channels used when convst gpio is defined */
+	struct iio_chan_spec		convst_channel[2];
 	void (*reset)(struct ad7476_state *);
 };
 
@@ -109,6 +111,8 @@ static int ad7476_scan_direct(struct ad7476_state *st)
 {
 	int ret;
 
+	ad7091_convst(st);
+
 	ret = spi_sync(st->spi, &st->msg);
 	if (ret)
 		return ret;
@@ -176,6 +180,8 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 #define AD7940_CHAN(bits) _AD7476_CHAN((bits), 15 - (bits), \
 		BIT(IIO_CHAN_INFO_RAW))
 #define AD7091R_CHAN(bits) _AD7476_CHAN((bits), 16 - (bits), 0)
+#define AD7091R_CONVST_CHAN(bits) _AD7476_CHAN((bits), 16 - (bits), \
+		BIT(IIO_CHAN_INFO_RAW))
 #define ADS786X_CHAN(bits) _AD7476_CHAN((bits), 12 - (bits), \
 		BIT(IIO_CHAN_INFO_RAW))
 
@@ -183,6 +189,8 @@ static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 	[ID_AD7091R] = {
 		.channel[0] = AD7091R_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+		.convst_channel[0] = AD7091R_CONVST_CHAN(12),
+		.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 		.reset = ad7091_reset,
 	},
 	[ID_AD7276] = {
@@ -288,6 +296,9 @@ static int ad7476_probe(struct spi_device *spi)
 	indio_dev->channels = st->chip_info->channel;
 	indio_dev->num_channels = 2;
 	indio_dev->info = &ad7476_info;
+
+	if (st->convst_gpio && st->chip_info->convst_channel)
+		indio_dev->channels = st->chip_info->convst_channel;
 	/* Setup default message */
 
 	st->xfer.rx_buf = &st->data;
