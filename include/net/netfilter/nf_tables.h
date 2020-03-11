@@ -666,6 +666,10 @@ static inline struct nft_object **nft_set_ext_obj(const struct nft_set_ext *ext)
 	return nft_set_ext(ext, NFT_SET_EXT_OBJREF);
 }
 
+struct nft_expr *nft_set_elem_expr_alloc(const struct nft_ctx *ctx,
+					 const struct nft_set *set,
+					 const struct nlattr *attr);
+
 void *nft_set_elem_init(const struct nft_set *set,
 			const struct nft_set_ext_tmpl *tmpl,
 			const u32 *key, const u32 *key_end, const u32 *data,
