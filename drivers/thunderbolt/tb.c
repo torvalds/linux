@@ -520,7 +520,7 @@ static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
 	if (down) {
 		if (WARN_ON(!tb_port_is_pcie_down(down)))
 			goto out;
-		if (WARN_ON(tb_pci_port_is_enabled(down)))
+		if (tb_pci_port_is_enabled(down))
 			goto out;
 
 		return down;

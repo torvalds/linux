@@ -728,7 +728,7 @@ struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
 		if (!tb_port_is_pcie_down(p))
 			continue;
 
-		if (pcie_idx == usb4_idx && !tb_pci_port_is_enabled(p))
+		if (pcie_idx == usb4_idx)
 			return p;
 
 		pcie_idx++;
