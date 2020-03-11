@@ -33,9 +33,12 @@
 #define CFFPS_INPUT_HISTORY_CMD			0xD6
 #define CFFPS_INPUT_HISTORY_SIZE		100
 
+#define CFFPS_CCIN_REVISION			GENMASK(7, 0)
+#define  CFFPS_CCIN_REVISION_LEGACY		 0xde
 #define CFFPS_CCIN_VERSION			GENMASK(15, 8)
 #define CFFPS_CCIN_VERSION_1			 0x2b
 #define CFFPS_CCIN_VERSION_2			 0x2e
+#define CFFPS_CCIN_VERSION_3			 0x51
 
 /* STATUS_MFR_SPECIFIC bits */
 #define CFFPS_MFR_FAN_FAULT			BIT(0)
@@ -486,11 +489,14 @@ static int ibm_cffps_probe(struct i2c_client *client,
 		vs = (enum versions)id->driver_data;
 
 	if (vs == cffps_unknown) {
+		u16 ccin_revision = 0;
 		u16 ccin_version = CFFPS_CCIN_VERSION_1;
 		int ccin = i2c_smbus_read_word_swapped(client, CFFPS_CCIN_CMD);
 
-		if (ccin > 0)
+		if (ccin > 0) {
+			ccin_revision = FIELD_GET(CFFPS_CCIN_REVISION, ccin);
 			ccin_version = FIELD_GET(CFFPS_CCIN_VERSION, ccin);
+		}
 
 		switch (ccin_version) {
 		default:
@@ -499,6 +505,12 @@ static int ibm_cffps_probe(struct i2c_client *client,
 			break;
 		case CFFPS_CCIN_VERSION_2:
 			vs = cffps2;
+			break;
+		case CFFPS_CCIN_VERSION_3:
+			if (ccin_revision == CFFPS_CCIN_REVISION_LEGACY)
+				vs = cffps1;
+			else
+				vs = cffps2;
 			break;
 		}
 
