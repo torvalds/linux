@@ -36,6 +36,7 @@ static long tscm_hwdep_read_locked(struct snd_tscm *tscm, char __user *buf,
 
 static long tscm_hwdep_read_queue(struct snd_tscm *tscm, char __user *buf,
 				  long remained, loff_t *offset)
+	__releases(&tscm->lock)
 {
 	char __user *pos = buf;
 	unsigned int type = SNDRV_FIREWIRE_EVENT_TASCAM_CONTROL;
