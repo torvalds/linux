@@ -221,6 +221,8 @@ static void remove_from_engine(struct i915_request *rq)
 		locked = engine;
 	}
 	list_del_init(&rq->sched.link);
+	clear_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
+	clear_bit(I915_FENCE_FLAG_HOLD, &rq->fence.flags);
 	spin_unlock_irq(&locked->active.lock);
 }
 
@@ -273,7 +275,7 @@ bool i915_request_retire(struct i915_request *rq)
 	spin_unlock_irq(&rq->lock);
 
 	remove_from_client(rq);
-	list_del(&rq->link);
+	list_del_rcu(&rq->link);
 
 	intel_context_exit(rq->context);
 	intel_context_unpin(rq->context);
@@ -408,8 +410,10 @@ bool __i915_request_submit(struct i915_request *request)
 xfer:	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
 
-	if (!test_and_set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags))
+	if (!test_and_set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags)) {
 		list_move_tail(&request->sched.link, &engine->active.requests);
+		clear_bit(I915_FENCE_FLAG_PQUEUE, &request->fence.flags);
+	}
 
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags) &&
 	    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &request->fence.flags) &&
@@ -591,6 +595,8 @@ static void __i915_request_ctor(void *arg)
 	i915_sw_fence_init(&rq->submit, submit_notify);
 	i915_sw_fence_init(&rq->semaphore, semaphore_notify);
 
+	dma_fence_init(&rq->fence, &i915_fence_ops, &rq->lock, 0, 0);
+
 	rq->file_priv = NULL;
 	rq->capture_list = NULL;
 
@@ -649,24 +655,29 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 		}
 	}
 
-	ret = intel_timeline_get_seqno(tl, rq, &seqno);
-	if (ret)
-		goto err_free;
-
 	rq->i915 = ce->engine->i915;
 	rq->context = ce;
 	rq->engine = ce->engine;
 	rq->ring = ce->ring;
 	rq->execution_mask = ce->engine->mask;
 
+	kref_init(&rq->fence.refcount);
+	rq->fence.flags = 0;
+	rq->fence.error = 0;
+	INIT_LIST_HEAD(&rq->fence.cb_list);
+
+	ret = intel_timeline_get_seqno(tl, rq, &seqno);
+	if (ret)
+		goto err_free;
+
+	rq->fence.context = tl->fence_context;
+	rq->fence.seqno = seqno;
+
 	RCU_INIT_POINTER(rq->timeline, tl);
 	RCU_INIT_POINTER(rq->hwsp_cacheline, tl->hwsp_cacheline);
 	rq->hwsp_seqno = tl->hwsp_seqno;
 
 	rq->rcustate = get_state_synchronize_rcu(); /* acts as smp_mb() */
-
-	dma_fence_init(&rq->fence, &i915_fence_ops, &rq->lock,
-		       tl->fence_context, seqno);
 
 	/* We bump the ref for the fence chain */
 	i915_sw_fence_reinit(&i915_request_get(rq)->submit);
@@ -710,6 +721,8 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->infix = rq->ring->emit; /* end of header; start of user payload */
 
 	intel_context_mark_active(ce);
+	list_add_tail_rcu(&rq->link, &tl->requests);
+
 	return rq;
 
 err_unwind:
@@ -766,13 +779,23 @@ i915_request_await_start(struct i915_request *rq, struct i915_request *signal)
 	GEM_BUG_ON(i915_request_timeline(rq) ==
 		   rcu_access_pointer(signal->timeline));
 
+	if (i915_request_started(signal))
+		return 0;
+
 	fence = NULL;
 	rcu_read_lock();
 	spin_lock_irq(&signal->lock);
-	if (!i915_request_started(signal) &&
-	    !list_is_first(&signal->link,
-			   &rcu_dereference(signal->timeline)->requests)) {
-		struct i915_request *prev = list_prev_entry(signal, link);
+	do {
+		struct list_head *pos = READ_ONCE(signal->link.prev);
+		struct i915_request *prev;
+
+		/* Confirm signal has not been retired, the link is valid */
+		if (unlikely(i915_request_started(signal)))
+			break;
+
+		/* Is signal the earliest request on its timeline? */
+		if (pos == &rcu_dereference(signal->timeline)->requests)
+			break;
 
 		/*
 		 * Peek at the request before us in the timeline. That
@@ -780,13 +803,18 @@ i915_request_await_start(struct i915_request *rq, struct i915_request *signal)
 		 * after acquiring a reference to it, confirm that it is
 		 * still part of the signaler's timeline.
 		 */
-		if (i915_request_get_rcu(prev)) {
-			if (list_next_entry(prev, link) == signal)
-				fence = &prev->fence;
-			else
-				i915_request_put(prev);
+		prev = list_entry(pos, typeof(*prev), link);
+		if (!i915_request_get_rcu(prev))
+			break;
+
+		/* After the strong barrier, confirm prev is still attached */
+		if (unlikely(READ_ONCE(prev->link.next) != &signal->link)) {
+			i915_request_put(prev);
+			break;
 		}
-	}
+
+		fence = &prev->fence;
+	} while (0);
 	spin_unlock_irq(&signal->lock);
 	rcu_read_unlock();
 	if (!fence)
@@ -1230,8 +1258,6 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 							 &rq->dep,
 							 0);
 	}
-
-	list_add_tail(&rq->link, &timeline->requests);
 
 	/*
 	 * Make sure that no request gazumped us - if it was allocated after

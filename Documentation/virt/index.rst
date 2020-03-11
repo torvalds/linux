@@ -8,7 +8,9 @@ Linux Virtualization Support
    :maxdepth: 2
 
    kvm/index
+   uml/user_mode_linux
    paravirt_ops
+   guest-halt-polling
 
 .. only:: html and subproject
 

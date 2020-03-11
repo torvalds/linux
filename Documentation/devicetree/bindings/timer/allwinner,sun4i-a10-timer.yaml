@@ -87,7 +87,7 @@ additionalProperties: false
 
 examples:
   - |
-    timer {
+    timer@1c20c00 {
         compatible = "allwinner,sun4i-a10-timer";
         reg = <0x01c20c00 0x400>;
         interrupts = <22>,

@@ -470,6 +470,8 @@ static void smc_switch_to_fallback(struct smc_sock *smc)
 	if (smc->sk.sk_socket && smc->sk.sk_socket->file) {
 		smc->clcsock->file = smc->sk.sk_socket->file;
 		smc->clcsock->file->private_data = smc->clcsock;
+		smc->clcsock->wq.fasync_list =
+			smc->sk.sk_socket->wq.fasync_list;
 	}
 }
 
@@ -510,15 +512,18 @@ static int smc_connect_decline_fallback(struct smc_sock *smc, int reason_code)
 static int smc_connect_abort(struct smc_sock *smc, int reason_code,
 			     int local_contact)
 {
+	bool is_smcd = smc->conn.lgr->is_smcd;
+
 	if (local_contact == SMC_FIRST_CONTACT)
-		smc_lgr_forget(smc->conn.lgr);
-	if (smc->conn.lgr->is_smcd)
+		smc_lgr_cleanup_early(&smc->conn);
+	else
+		smc_conn_free(&smc->conn);
+	if (is_smcd)
 		/* there is only one lgr role for SMC-D; use server lock */
 		mutex_unlock(&smc_server_lgr_pending);
 	else
 		mutex_unlock(&smc_client_lgr_pending);
 
-	smc_conn_free(&smc->conn);
 	smc->connect_nonblock = 0;
 	return reason_code;
 }
@@ -1089,7 +1094,6 @@ static void smc_listen_out_err(struct smc_sock *new_smc)
 	if (newsmcsk->sk_state == SMC_INIT)
 		sock_put(&new_smc->sk); /* passive closing */
 	newsmcsk->sk_state = SMC_CLOSED;
-	smc_conn_free(&new_smc->conn);
 
 	smc_listen_out(new_smc);
 }
@@ -1100,12 +1104,13 @@ static void smc_listen_decline(struct smc_sock *new_smc, int reason_code,
 {
 	/* RDMA setup failed, switch back to TCP */
 	if (local_contact == SMC_FIRST_CONTACT)
-		smc_lgr_forget(new_smc->conn.lgr);
+		smc_lgr_cleanup_early(&new_smc->conn);
+	else
+		smc_conn_free(&new_smc->conn);
 	if (reason_code < 0) { /* error, no fallback possible */
 		smc_listen_out_err(new_smc);
 		return;
 	}
-	smc_conn_free(&new_smc->conn);
 	smc_switch_to_fallback(new_smc);
 	new_smc->fallback_rsn = reason_code;
 	if (reason_code && reason_code != SMC_CLC_DECL_PEERDECL) {
@@ -1168,16 +1173,18 @@ static int smc_listen_ism_init(struct smc_sock *new_smc,
 			    new_smc->conn.lgr->vlan_id,
 			    new_smc->conn.lgr->smcd)) {
 		if (ini->cln_first_contact == SMC_FIRST_CONTACT)
-			smc_lgr_forget(new_smc->conn.lgr);
-		smc_conn_free(&new_smc->conn);
+			smc_lgr_cleanup_early(&new_smc->conn);
+		else
+			smc_conn_free(&new_smc->conn);
 		return SMC_CLC_DECL_SMCDNOTALK;
 	}
 
 	/* Create send and receive buffers */
 	if (smc_buf_create(new_smc, true)) {
 		if (ini->cln_first_contact == SMC_FIRST_CONTACT)
-			smc_lgr_forget(new_smc->conn.lgr);
-		smc_conn_free(&new_smc->conn);
+			smc_lgr_cleanup_early(&new_smc->conn);
+		else
+			smc_conn_free(&new_smc->conn);
 		return SMC_CLC_DECL_MEM;
 	}
 

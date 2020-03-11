@@ -14,8 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/bootconfig.h>
 
-int pr_output = 1;
-
 static int xbc_show_array(struct xbc_node *node)
 {
 	const char *val;
@@ -131,16 +129,27 @@ int load_xbc_from_initrd(int fd, char **buf)
 	struct stat stat;
 	int ret;
 	u32 size = 0, csum = 0, rcsum;
+	char magic[BOOTCONFIG_MAGIC_LEN];
 
 	ret = fstat(fd, &stat);
 	if (ret < 0)
 		return -errno;
 
-	if (stat.st_size < 8)
+	if (stat.st_size < 8 + BOOTCONFIG_MAGIC_LEN)
 		return 0;
 
-	if (lseek(fd, -8, SEEK_END) < 0) {
-		printf("Failed to lseek: %d\n", -errno);
+	if (lseek(fd, -BOOTCONFIG_MAGIC_LEN, SEEK_END) < 0) {
+		pr_err("Failed to lseek: %d\n", -errno);
+		return -errno;
+	}
+	if (read(fd, magic, BOOTCONFIG_MAGIC_LEN) < 0)
+		return -errno;
+	/* Check the bootconfig magic bytes */
+	if (memcmp(magic, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN) != 0)
+		return 0;
+
+	if (lseek(fd, -(8 + BOOTCONFIG_MAGIC_LEN), SEEK_END) < 0) {
+		pr_err("Failed to lseek: %d\n", -errno);
 		return -errno;
 	}
 
@@ -150,12 +159,15 @@ int load_xbc_from_initrd(int fd, char **buf)
 	if (read(fd, &csum, sizeof(u32)) < 0)
 		return -errno;
 
-	/* Wrong size, maybe no boot config here */
-	if (stat.st_size < size + 8)
-		return 0;
+	/* Wrong size error  */
+	if (stat.st_size < size + 8 + BOOTCONFIG_MAGIC_LEN) {
+		pr_err("bootconfig size is too big\n");
+		return -E2BIG;
+	}
 
-	if (lseek(fd, stat.st_size - 8 - size, SEEK_SET) < 0) {
-		printf("Failed to lseek: %d\n", -errno);
+	if (lseek(fd, stat.st_size - (size + 8 + BOOTCONFIG_MAGIC_LEN),
+		  SEEK_SET) < 0) {
+		pr_err("Failed to lseek: %d\n", -errno);
 		return -errno;
 	}
 
@@ -163,17 +175,17 @@ int load_xbc_from_initrd(int fd, char **buf)
 	if (ret < 0)
 		return ret;
 
-	/* Wrong Checksum, maybe no boot config here */
+	/* Wrong Checksum */
 	rcsum = checksum((unsigned char *)*buf, size);
 	if (csum != rcsum) {
-		printf("checksum error: %d != %d\n", csum, rcsum);
-		return 0;
+		pr_err("checksum error: %d != %d\n", csum, rcsum);
+		return -EINVAL;
 	}
 
 	ret = xbc_init(*buf);
-	/* Wrong data, maybe no boot config here */
+	/* Wrong data */
 	if (ret < 0)
-		return 0;
+		return ret;
 
 	return size;
 }
@@ -185,13 +197,13 @@ int show_xbc(const char *path)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		printf("Failed to open initrd %s: %d\n", path, fd);
+		pr_err("Failed to open initrd %s: %d\n", path, fd);
 		return -errno;
 	}
 
 	ret = load_xbc_from_initrd(fd, &buf);
 	if (ret < 0)
-		printf("Failed to load a boot config from initrd: %d\n", ret);
+		pr_err("Failed to load a boot config from initrd: %d\n", ret);
 	else
 		xbc_show_compact_tree();
 
@@ -209,24 +221,19 @@ int delete_xbc(const char *path)
 
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
-		printf("Failed to open initrd %s: %d\n", path, fd);
+		pr_err("Failed to open initrd %s: %d\n", path, fd);
 		return -errno;
 	}
 
-	/*
-	 * Suppress error messages in xbc_init() because it can be just a
-	 * data which concidentally matches the size and checksum footer.
-	 */
-	pr_output = 0;
 	size = load_xbc_from_initrd(fd, &buf);
-	pr_output = 1;
 	if (size < 0) {
 		ret = size;
-		printf("Failed to load a boot config from initrd: %d\n", ret);
+		pr_err("Failed to load a boot config from initrd: %d\n", ret);
 	} else if (size > 0) {
 		ret = fstat(fd, &stat);
 		if (!ret)
-			ret = ftruncate(fd, stat.st_size - size - 8);
+			ret = ftruncate(fd, stat.st_size
+					- size - 8 - BOOTCONFIG_MAGIC_LEN);
 		if (ret)
 			ret = -errno;
 	} /* Ignore if there is no boot config in initrd */
@@ -245,7 +252,7 @@ int apply_xbc(const char *path, const char *xbc_path)
 
 	ret = load_xbc_file(xbc_path, &buf);
 	if (ret < 0) {
-		printf("Failed to load %s : %d\n", xbc_path, ret);
+		pr_err("Failed to load %s : %d\n", xbc_path, ret);
 		return ret;
 	}
 	size = strlen(buf) + 1;
@@ -262,7 +269,7 @@ int apply_xbc(const char *path, const char *xbc_path)
 	/* Check the data format */
 	ret = xbc_init(buf);
 	if (ret < 0) {
-		printf("Failed to parse %s: %d\n", xbc_path, ret);
+		pr_err("Failed to parse %s: %d\n", xbc_path, ret);
 		free(data);
 		free(buf);
 		return ret;
@@ -279,20 +286,26 @@ int apply_xbc(const char *path, const char *xbc_path)
 	/* Remove old boot config if exists */
 	ret = delete_xbc(path);
 	if (ret < 0) {
-		printf("Failed to delete previous boot config: %d\n", ret);
+		pr_err("Failed to delete previous boot config: %d\n", ret);
 		return ret;
 	}
 
 	/* Apply new one */
 	fd = open(path, O_RDWR | O_APPEND);
 	if (fd < 0) {
-		printf("Failed to open %s: %d\n", path, fd);
+		pr_err("Failed to open %s: %d\n", path, fd);
 		return fd;
 	}
 	/* TODO: Ensure the @path is initramfs/initrd image */
 	ret = write(fd, data, size + 8);
 	if (ret < 0) {
-		printf("Failed to apply a boot config: %d\n", ret);
+		pr_err("Failed to apply a boot config: %d\n", ret);
+		return ret;
+	}
+	/* Write a magic word of the bootconfig */
+	ret = write(fd, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN);
+	if (ret < 0) {
+		pr_err("Failed to apply a boot config magic: %d\n", ret);
 		return ret;
 	}
 	close(fd);
@@ -334,12 +347,12 @@ int main(int argc, char **argv)
 	}
 
 	if (apply && delete) {
-		printf("Error: You can not specify both -a and -d at once.\n");
+		pr_err("Error: You can not specify both -a and -d at once.\n");
 		return usage();
 	}
 
 	if (optind >= argc) {
-		printf("Error: No initrd is specified.\n");
+		pr_err("Error: No initrd is specified.\n");
 		return usage();
 	}
 

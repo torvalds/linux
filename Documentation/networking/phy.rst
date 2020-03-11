@@ -487,8 +487,9 @@ phy_register_fixup_for_id()::
 The stubs set one of the two matching criteria, and set the other one to
 match anything.
 
-When phy_register_fixup() or \*_for_uid()/\*_for_id() is called at module,
-unregister fixup and free allocate memory are required.
+When phy_register_fixup() or \*_for_uid()/\*_for_id() is called at module load
+time, the module needs to unregister the fixup and free allocated memory when
+it's unloaded.
 
 Call one of following function before unloading module::
 

@@ -6,12 +6,13 @@
 
 #define pr_fmt(fmt)    "bootconfig: " fmt
 
+#include <linux/bootconfig.h>
 #include <linux/bug.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/memblock.h>
 #include <linux/printk.h>
-#include <linux/bootconfig.h>
 #include <linux/string.h>
 
 /*
@@ -23,7 +24,7 @@
  * node (for array).
  */
 
-static struct xbc_node xbc_nodes[XBC_NODE_MAX] __initdata;
+static struct xbc_node *xbc_nodes __initdata;
 static int xbc_node_num __initdata;
 static char *xbc_data __initdata;
 static size_t xbc_data_size __initdata;
@@ -532,7 +533,7 @@ struct xbc_node *find_match_node(struct xbc_node *node, char *k)
 
 static int __init __xbc_add_key(char *k)
 {
-	struct xbc_node *node;
+	struct xbc_node *node, *child;
 
 	if (!xbc_valid_keyword(k))
 		return xbc_parse_error("Invalid keyword", k);
@@ -542,8 +543,12 @@ static int __init __xbc_add_key(char *k)
 
 	if (!last_parent)	/* the first level */
 		node = find_match_node(xbc_nodes, k);
-	else
-		node = find_match_node(xbc_node_get_child(last_parent), k);
+	else {
+		child = xbc_node_get_child(last_parent);
+		if (child && xbc_node_is_value(child))
+			return xbc_parse_error("Subkey is mixed with value", k);
+		node = find_match_node(child, k);
+	}
 
 	if (node)
 		last_parent = node;
@@ -573,10 +578,10 @@ static int __init __xbc_parse_keys(char *k)
 	return __xbc_add_key(k);
 }
 
-static int __init xbc_parse_kv(char **k, char *v)
+static int __init xbc_parse_kv(char **k, char *v, int op)
 {
 	struct xbc_node *prev_parent = last_parent;
-	struct xbc_node *node;
+	struct xbc_node *child;
 	char *next;
 	int c, ret;
 
@@ -584,12 +589,19 @@ static int __init xbc_parse_kv(char **k, char *v)
 	if (ret)
 		return ret;
 
+	child = xbc_node_get_child(last_parent);
+	if (child) {
+		if (xbc_node_is_key(child))
+			return xbc_parse_error("Value is mixed with subkey", v);
+		else if (op == '=')
+			return xbc_parse_error("Value is redefined", v);
+	}
+
 	c = __xbc_parse_value(&v, &next);
 	if (c < 0)
 		return c;
 
-	node = xbc_add_sibling(v, XBC_VALUE);
-	if (!node)
+	if (!xbc_add_sibling(v, XBC_VALUE))
 		return -ENOMEM;
 
 	if (c == ',') {	/* Array */
@@ -719,7 +731,8 @@ void __init xbc_destroy_all(void)
 	xbc_data = NULL;
 	xbc_data_size = 0;
 	xbc_node_num = 0;
-	memset(xbc_nodes, 0, sizeof(xbc_nodes));
+	memblock_free(__pa(xbc_nodes), sizeof(struct xbc_node) * XBC_NODE_MAX);
+	xbc_nodes = NULL;
 }
 
 /**
@@ -748,13 +761,20 @@ int __init xbc_init(char *buf)
 		return -ERANGE;
 	}
 
+	xbc_nodes = memblock_alloc(sizeof(struct xbc_node) * XBC_NODE_MAX,
+				   SMP_CACHE_BYTES);
+	if (!xbc_nodes) {
+		pr_err("Failed to allocate memory for bootconfig nodes.\n");
+		return -ENOMEM;
+	}
+	memset(xbc_nodes, 0, sizeof(struct xbc_node) * XBC_NODE_MAX);
 	xbc_data = buf;
 	xbc_data_size = ret + 1;
 	last_parent = NULL;
 
 	p = buf;
 	do {
-		q = strpbrk(p, "{}=;\n#");
+		q = strpbrk(p, "{}=+;\n#");
 		if (!q) {
 			p = skip_spaces(p);
 			if (*p != '\0')
@@ -765,8 +785,15 @@ int __init xbc_init(char *buf)
 		c = *q;
 		*q++ = '\0';
 		switch (c) {
+		case '+':
+			if (*q++ != '=') {
+				ret = xbc_parse_error("Wrong '+' operator",
+							q - 2);
+				break;
+			}
+			/* Fall through */
 		case '=':
-			ret = xbc_parse_kv(&p, q);
+			ret = xbc_parse_kv(&p, q, c);
 			break;
 		case '{':
 			ret = xbc_open_brace(&p, q);

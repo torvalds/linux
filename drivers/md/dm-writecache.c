@@ -625,6 +625,12 @@ static void writecache_add_to_freelist(struct dm_writecache *wc, struct wc_entry
 	wc->freelist_size++;
 }
 
+static inline void writecache_verify_watermark(struct dm_writecache *wc)
+{
+	if (unlikely(wc->freelist_size + wc->writeback_size <= wc->freelist_high_watermark))
+		queue_work(wc->writeback_wq, &wc->writeback_work);
+}
+
 static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc, sector_t expected_sector)
 {
 	struct wc_entry *e;
@@ -650,8 +656,8 @@ static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc, s
 		list_del(&e->lru);
 	}
 	wc->freelist_size--;
-	if (unlikely(wc->freelist_size + wc->writeback_size <= wc->freelist_high_watermark))
-		queue_work(wc->writeback_wq, &wc->writeback_work);
+
+	writecache_verify_watermark(wc);
 
 	return e;
 }
@@ -842,7 +848,7 @@ static void writecache_suspend(struct dm_target *ti)
 	}
 	wc_unlock(wc);
 
-	flush_workqueue(wc->writeback_wq);
+	drain_workqueue(wc->writeback_wq);
 
 	wc_lock(wc);
 	if (flush_on_suspend)
@@ -964,6 +970,8 @@ erase_this:
 		writecache_flush_all_metadata(wc);
 		writecache_commit_flushed(wc, false);
 	}
+
+	writecache_verify_watermark(wc);
 
 	wc_unlock(wc);
 }
@@ -2312,7 +2320,7 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 
 static struct target_type writecache_target = {
 	.name			= "writecache",
-	.version		= {1, 1, 1},
+	.version		= {1, 2, 0},
 	.module			= THIS_MODULE,
 	.ctr			= writecache_ctr,
 	.dtr			= writecache_dtr,

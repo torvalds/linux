@@ -188,6 +188,12 @@ int i915_active_acquire(struct i915_active *ref);
 bool i915_active_acquire_if_busy(struct i915_active *ref);
 void i915_active_release(struct i915_active *ref);
 
+static inline void __i915_active_acquire(struct i915_active *ref)
+{
+	GEM_BUG_ON(!atomic_read(&ref->count));
+	atomic_inc(&ref->count);
+}
+
 static inline bool
 i915_active_is_idle(const struct i915_active *ref)
 {

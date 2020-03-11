@@ -393,19 +393,15 @@ int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
 
 static inline void qdio_stop_polling(struct qdio_q *q)
 {
-	if (!q->u.in.polling)
+	if (!q->u.in.ack_count)
 		return;
 
-	q->u.in.polling = 0;
 	qperf_inc(q, stop_polling);
 
 	/* show the card that we are not polling anymore */
-	if (is_qebsm(q)) {
-		set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
-			       q->u.in.ack_count);
-		q->u.in.ack_count = 0;
-	} else
-		set_buf_state(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT);
+	set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
+		       q->u.in.ack_count);
+	q->u.in.ack_count = 0;
 }
 
 static inline void account_sbals(struct qdio_q *q, unsigned int count)
@@ -451,8 +447,7 @@ static inline void inbound_primed(struct qdio_q *q, unsigned int start,
 
 	/* for QEBSM the ACK was already set by EQBS */
 	if (is_qebsm(q)) {
-		if (!q->u.in.polling) {
-			q->u.in.polling = 1;
+		if (!q->u.in.ack_count) {
 			q->u.in.ack_count = count;
 			q->u.in.ack_start = start;
 			return;
@@ -471,12 +466,12 @@ static inline void inbound_primed(struct qdio_q *q, unsigned int start,
 	 * or by the next inbound run.
 	 */
 	new = add_buf(start, count - 1);
-	if (q->u.in.polling) {
+	if (q->u.in.ack_count) {
 		/* reset the previous ACK but first set the new one */
 		set_buf_state(q, new, SLSB_P_INPUT_ACK);
 		set_buf_state(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT);
 	} else {
-		q->u.in.polling = 1;
+		q->u.in.ack_count = 1;
 		set_buf_state(q, new, SLSB_P_INPUT_ACK);
 	}
 
@@ -1479,13 +1474,12 @@ static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 
 	qperf_inc(q, inbound_call);
 
-	if (!q->u.in.polling)
+	if (!q->u.in.ack_count)
 		goto set;
 
 	/* protect against stop polling setting an ACK for an emptied slsb */
 	if (count == QDIO_MAX_BUFFERS_PER_Q) {
 		/* overwriting everything, just delete polling status */
-		q->u.in.polling = 0;
 		q->u.in.ack_count = 0;
 		goto set;
 	} else if (buf_in_between(q->u.in.ack_start, bufnr, count)) {
@@ -1495,15 +1489,14 @@ static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 			diff = sub_buf(diff, q->u.in.ack_start);
 			q->u.in.ack_count -= diff;
 			if (q->u.in.ack_count <= 0) {
-				q->u.in.polling = 0;
 				q->u.in.ack_count = 0;
 				goto set;
 			}
 			q->u.in.ack_start = add_buf(q->u.in.ack_start, diff);
+		} else {
+			/* the only ACK will be deleted */
+			q->u.in.ack_count = 0;
 		}
-		else
-			/* the only ACK will be deleted, so stop polling */
-			q->u.in.polling = 0;
 	}
 
 set:

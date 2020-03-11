@@ -355,7 +355,9 @@ static ssize_t show_str(struct device *dev,
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_power_meter_resource *resource = acpi_dev->driver_data;
 	acpi_string val;
+	int ret;
 
+	mutex_lock(&resource->lock);
 	switch (attr->index) {
 	case 0:
 		val = resource->model_number;
@@ -372,8 +374,9 @@ static ssize_t show_str(struct device *dev,
 		val = "";
 		break;
 	}
-
-	return sprintf(buf, "%s\n", val);
+	ret = sprintf(buf, "%s\n", val);
+	mutex_unlock(&resource->lock);
+	return ret;
 }
 
 static ssize_t show_val(struct device *dev,
@@ -817,11 +820,12 @@ static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 
 	resource = acpi_driver_data(device);
 
-	mutex_lock(&resource->lock);
 	switch (event) {
 	case METER_NOTIFY_CONFIG:
+		mutex_lock(&resource->lock);
 		free_capabilities(resource);
 		res = read_capabilities(resource);
+		mutex_unlock(&resource->lock);
 		if (res)
 			break;
 
@@ -830,15 +834,12 @@ static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 		break;
 	case METER_NOTIFY_TRIP:
 		sysfs_notify(&device->dev.kobj, NULL, POWER_AVERAGE_NAME);
-		update_meter(resource);
 		break;
 	case METER_NOTIFY_CAP:
 		sysfs_notify(&device->dev.kobj, NULL, POWER_CAP_NAME);
-		update_cap(resource);
 		break;
 	case METER_NOTIFY_INTERVAL:
 		sysfs_notify(&device->dev.kobj, NULL, POWER_AVG_INTERVAL_NAME);
-		update_avg_interval(resource);
 		break;
 	case METER_NOTIFY_CAPPING:
 		sysfs_notify(&device->dev.kobj, NULL, POWER_ALARM_NAME);
@@ -848,7 +849,6 @@ static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 		WARN(1, "Unexpected event %d\n", event);
 		break;
 	}
-	mutex_unlock(&resource->lock);
 
 	acpi_bus_generate_netlink_event(ACPI_POWER_METER_CLASS,
 					dev_name(&device->dev), event, 0);
@@ -912,8 +912,8 @@ static int acpi_power_meter_remove(struct acpi_device *device)
 	resource = acpi_driver_data(device);
 	hwmon_device_unregister(resource->hwmon_dev);
 
-	free_capabilities(resource);
 	remove_attrs(resource);
+	free_capabilities(resource);
 
 	kfree(resource);
 	return 0;

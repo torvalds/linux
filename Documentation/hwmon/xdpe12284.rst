@@ -24,6 +24,7 @@ This driver implements support for Infineon Multi-phase XDPE122 family
 dual loop voltage regulators.
 The family includes XDPE12284 and XDPE12254 devices.
 The devices from this family complaint with:
+
 - Intel VR13 and VR13HC rev 1.3, IMVP8 rev 1.2 and IMPVP9 rev 1.3 DC-DC
   converter specification.
 - Intel SVID rev 1.9. protocol.
