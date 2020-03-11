@@ -581,6 +581,9 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_write_masked_or(wal, IVB_FBC_RT_BASE_UPPER,
 			   0, /* write-only register; skip validation */
 			   0xFFFFFFFF);
+
+	/* Wa_1406306137:icl,ehl */
+	wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN11_DIS_PICK_2ND_EU);
 }
 
 static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
