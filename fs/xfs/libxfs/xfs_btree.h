@@ -213,7 +213,7 @@ typedef struct xfs_btree_cur
 			struct xfs_buf	*agbp;	/* agf/agi buffer pointer */
 			xfs_agnumber_t	agno;	/* ag number */
 			union xfs_btree_cur_private	priv;
-		} a;
+		} bc_ag;
 		struct {			/* needed for BMAP */
 			struct xfs_inode *ip;	/* pointer to our inode */
 			int		allocated;	/* count of alloced */
@@ -222,10 +222,8 @@ typedef struct xfs_btree_cur
 			char		flags;		/* flags */
 #define	XFS_BTCUR_BMBT_WASDEL	(1 << 0)		/* was delayed */
 #define	XFS_BTCUR_BMBT_INVALID_OWNER	(1 << 1)		/* for ext swap */
-		} b;
-	}		bc_private;	/* per-btree type data */
-#define bc_ag	bc_private.a
-#define bc_ino	bc_private.b
+		} bc_ino;
+	};				/* per-btree type data */
 } xfs_btree_cur_t;
 
 /* cursor flags */
