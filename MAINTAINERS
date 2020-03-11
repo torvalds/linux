@@ -14974,7 +14974,7 @@ X:	security/selinux/
 
 SELINUX SECURITY MODULE
 M:	Paul Moore <paul@paul-moore.com>
-M:	Stephen Smalley <sds@tycho.nsa.gov>
+M:	Stephen Smalley <stephen.smalley.work@gmail.com>
 M:	Eric Paris <eparis@parisplace.org>
 L:	selinux@vger.kernel.org
 W:	https://selinuxproject.org
