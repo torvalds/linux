@@ -352,6 +352,7 @@ out:
  * call __bpf_prog_exit
  */
 u64 notrace __bpf_prog_enter(void)
+	__acquires(RCU)
 {
 	u64 start = 0;
 
@@ -363,6 +364,7 @@ u64 notrace __bpf_prog_enter(void)
 }
 
 void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
+	__releases(RCU)
 {
 	struct bpf_prog_stats *stats;
 
