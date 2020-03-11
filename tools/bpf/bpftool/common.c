@@ -572,3 +572,10 @@ int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what)
 
 	return 0;
 }
+
+int __printf(2, 0)
+print_all_levels(__maybe_unused enum libbpf_print_level level,
+		 const char *format, va_list args)
+{
+	return vfprintf(stderr, format, args);
+}

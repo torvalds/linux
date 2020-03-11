@@ -1247,6 +1247,25 @@ free_data_in:
 	return err;
 }
 
+static int
+get_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
+		      enum bpf_attach_type *expected_attach_type)
+{
+	libbpf_print_fn_t print_backup;
+	int ret;
+
+	ret = libbpf_prog_type_by_name(name, prog_type, expected_attach_type);
+	if (!ret)
+		return ret;
+
+	/* libbpf_prog_type_by_name() failed, let's re-run with debug level */
+	print_backup = libbpf_set_print(print_all_levels);
+	ret = libbpf_prog_type_by_name(name, prog_type, expected_attach_type);
+	libbpf_set_print(print_backup);
+
+	return ret;
+}
+
 static int load_with_options(int argc, char **argv, bool first_prog_only)
 {
 	enum bpf_prog_type common_prog_type = BPF_PROG_TYPE_UNSPEC;
@@ -1296,8 +1315,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			strcat(type, *argv);
 			strcat(type, "/");
 
-			err = libbpf_prog_type_by_name(type, &common_prog_type,
-						       &expected_attach_type);
+			err = get_prog_type_by_name(type, &common_prog_type,
+						    &expected_attach_type);
 			free(type);
 			if (err < 0)
 				goto err_free_reuse_maps;
@@ -1396,8 +1415,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		if (prog_type == BPF_PROG_TYPE_UNSPEC) {
 			const char *sec_name = bpf_program__title(pos, false);
 
-			err = libbpf_prog_type_by_name(sec_name, &prog_type,
-						       &expected_attach_type);
+			err = get_prog_type_by_name(sec_name, &prog_type,
+						    &expected_attach_type);
 			if (err < 0)
 				goto err_close_obj;
 		}

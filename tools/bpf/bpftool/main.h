@@ -14,6 +14,8 @@
 #include <linux/hashtable.h>
 #include <tools/libc_compat.h>
 
+#include <bpf/libbpf.h>
+
 #include "json_writer.h"
 
 #define ptr_to_u64(ptr)	((__u64)(unsigned long)(ptr))
@@ -229,4 +231,7 @@ struct tcmsg;
 int do_xdp_dump(struct ifinfomsg *ifinfo, struct nlattr **tb);
 int do_filter_dump(struct tcmsg *ifinfo, struct nlattr **tb, const char *kind,
 		   const char *devname, int ifindex);
+
+int print_all_levels(__maybe_unused enum libbpf_print_level level,
+		     const char *format, va_list args);
 #endif

@@ -79,13 +79,6 @@ static int do_version(int argc, char **argv)
 	return 0;
 }
 
-static int __printf(2, 0)
-print_all_levels(__maybe_unused enum libbpf_print_level level,
-		 const char *format, va_list args)
-{
-	return vfprintf(stderr, format, args);
-}
-
 int cmd_select(const struct cmd *cmds, int argc, char **argv,
 	       int (*help)(int argc, char **argv))
 {
