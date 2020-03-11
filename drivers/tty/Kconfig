@@ -477,4 +477,10 @@ config LDISC_AUTOLOAD
 	  dev.tty.ldisc_autoload sysctl, this configuration option will
 	  only set the default value of this functionality.
 
+source "drivers/tty/hvc/Kconfig"
+
+source "drivers/tty/serial/Kconfig"
+
 endif # TTY
+
+source "drivers/tty/serdev/Kconfig"
