@@ -68,6 +68,15 @@
 	};
 };
 
+&dspi2 {
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		m25p,fast-read;
+		spi-max-frequency = <100000000>;
+		reg = <0>;
+	};
+};
+
 &i2c4 {
 	status = "okay";
 

@@ -17,11 +17,17 @@
 		crypto = &crypto;
 		serial0 = &duart0;
 		serial1 = &duart1;
+		spi0 = &fspi;
+		spi1 = &dspi2;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+};
+
+&dspi2 {
+	status = "okay";
 };
 
 &duart0 {
