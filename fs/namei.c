@@ -2933,7 +2933,6 @@ static int may_o_create(const struct path *dir, struct dentry *dentry, umode_t m
  */
 static struct dentry *atomic_open(struct nameidata *nd, struct dentry *dentry,
 				  struct file *file,
-				  const struct open_flags *op,
 				  int open_flag, umode_t mode)
 {
 	struct dentry *const DENTRY_NOT_SET = (void *) -1UL;
@@ -3066,7 +3065,7 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 	}
 
 	if (dir_inode->i_op->atomic_open) {
-		dentry = atomic_open(nd, dentry, file, op, open_flag, mode);
+		dentry = atomic_open(nd, dentry, file, open_flag, mode);
 		if (unlikely(create_error) && dentry == ERR_PTR(-ENOENT))
 			dentry = ERR_PTR(create_error);
 		return dentry;
