@@ -1630,7 +1630,6 @@ mt7615_mac_adjust_sensitivity(struct mt7615_phy *phy,
 				 MT_WF_PHY_PD_OFDM(ext_phy, val));
 		} else {
 			val = *sensitivity + 256;
-			if (!ext_phy)
 			mt76_rmw(dev, MT_WF_PHY_RXTD_CCK_PD(ext_phy),
 				 MT_WF_PHY_PD_CCK_MASK(ext_phy),
 				 MT_WF_PHY_PD_CCK(ext_phy, val));
