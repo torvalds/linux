@@ -551,7 +551,7 @@ static void __init init_cpu_ftr_reg(u32 sys_reg, u64 new)
 
 	BUG_ON(!reg);
 
-	for (ftrp  = reg->ftr_bits; ftrp->width; ftrp++) {
+	for (ftrp = reg->ftr_bits; ftrp->width; ftrp++) {
 		u64 ftr_mask = arm64_ftr_mask(ftrp);
 		s64 ftr_new = arm64_ftr_value(ftrp, new);
 
