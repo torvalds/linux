@@ -508,8 +508,7 @@ static int pca9685_pwm_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int pca9685_pwm_runtime_suspend(struct device *dev)
+static int __maybe_unused pca9685_pwm_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pca9685 *pca = i2c_get_clientdata(client);
@@ -518,7 +517,7 @@ static int pca9685_pwm_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int pca9685_pwm_runtime_resume(struct device *dev)
+static int __maybe_unused pca9685_pwm_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pca9685 *pca = i2c_get_clientdata(client);
@@ -526,7 +525,6 @@ static int pca9685_pwm_runtime_resume(struct device *dev)
 	pca9685_set_sleep_mode(pca, false);
 	return 0;
 }
-#endif
 
 static const struct i2c_device_id pca9685_id[] = {
 	{ "pca9685", 0 },
