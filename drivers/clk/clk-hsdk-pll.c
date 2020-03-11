@@ -81,6 +81,7 @@ static const struct hsdk_pll_cfg asdt_pll_cfg[] = {
 
 static const struct hsdk_pll_cfg hdmi_pll_cfg[] = {
 	{ 27000000,   0, 0,  0, 0, 1 },
+	{ 148500000,  0, 21, 3, 0, 0 },
 	{ 297000000,  0, 21, 2, 0, 0 },
 	{ 540000000,  0, 19, 1, 0, 0 },
 	{ 594000000,  0, 21, 1, 0, 0 },
