@@ -4891,6 +4891,7 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	struct nft_set_elem elem;
 	struct nft_set_binding *binding;
 	struct nft_object *obj = NULL;
+	struct nft_expr *expr = NULL;
 	struct nft_userdata *udata;
 	struct nft_data_desc desc;
 	struct nft_data data;
@@ -4958,10 +4959,17 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 			return err;
 	}
 
+	if (nla[NFTA_SET_ELEM_EXPR] != NULL) {
+		expr = nft_set_elem_expr_alloc(ctx, set,
+					       nla[NFTA_SET_ELEM_EXPR]);
+		if (IS_ERR(expr))
+			return PTR_ERR(expr);
+	}
+
 	err = nft_setelem_parse_key(ctx, set, &elem.key.val,
 				    nla[NFTA_SET_ELEM_KEY]);
 	if (err < 0)
-		return err;
+		goto err_set_elem_expr;
 
 	nft_set_ext_add_length(&tmpl, NFT_SET_EXT_KEY, set->klen);
 
@@ -4979,6 +4987,10 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		if (timeout != set->timeout)
 			nft_set_ext_add(&tmpl, NFT_SET_EXT_TIMEOUT);
 	}
+
+	if (expr)
+		nft_set_ext_add_length(&tmpl, NFT_SET_EXT_EXPR,
+				       expr->ops->size);
 
 	if (nla[NFTA_SET_ELEM_OBJREF] != NULL) {
 		if (!(set->flags & NFT_SET_OBJECT)) {
@@ -5064,6 +5076,10 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		*nft_set_ext_obj(ext) = obj;
 		obj->use++;
 	}
+	if (expr) {
+		memcpy(nft_set_ext_expr(ext), expr, expr->ops->size);
+		kfree(expr);
+	}
 
 	trans = nft_trans_elem_alloc(ctx, NFT_MSG_NEWSETELEM, set);
 	if (trans == NULL)
@@ -5119,6 +5135,9 @@ err_parse_key_end:
 	nft_data_release(&elem.key_end.val, NFT_DATA_VALUE);
 err_parse_key:
 	nft_data_release(&elem.key.val, NFT_DATA_VALUE);
+err_set_elem_expr:
+	if (expr != NULL)
+		nft_expr_destroy(ctx, expr);
 
 	return err;
 }
