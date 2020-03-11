@@ -26,6 +26,12 @@ config ROCKCHIP_GRF
 	  In a lot of cases there also need to be default settings initialized
 	  to make some of them conform to expectations of the kernel.
 
+config ROCKCHIP_HW_DECOMPRESS
+	bool "Rockchip HardWare Decompress Support"
+	help
+	  This driver support Decompress IP built-in Rockchip SoC, support
+	  LZ4, GZIP, ZLIB.
+
 config ROCKCHIP_IODOMAIN
 	tristate "Rockchip IO domain support"
 	depends on OF
