@@ -167,7 +167,7 @@ static int pca9685_pwm_gpio_get_direction(struct gpio_chip *chip,
 					  unsigned int offset)
 {
 	/* Always out */
-	return 0;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int pca9685_pwm_gpio_direction_input(struct gpio_chip *gpio,
