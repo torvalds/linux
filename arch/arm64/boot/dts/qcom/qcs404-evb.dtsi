@@ -44,6 +44,9 @@
 		pinctrl-0 = <&usb_vbus_boost_pin>;
 		vin-supply = <&vph_pwr>;
 		enable-active-high;
+
+		/* TODO: Drop this when introducing role switching */
+		regulator-always-on;
 	};
 };
 
@@ -318,6 +321,38 @@
 			power-source = <1>;
 		};
 	};
+};
+
+&usb2 {
+	status = "okay";
+};
+
+&usb2_phy_sec {
+	vdd-supply = <&vreg_l4_1p2>;
+	vdda1p8-supply = <&vreg_l5_1p8>;
+	vdda3p3-supply = <&vreg_l12_3p3>;
+	status = "okay";
+};
+
+&usb3 {
+	status = "okay";
+
+	dwc3@7580000 {
+		dr_mode = "host";
+	};
+};
+
+&usb2_phy_prim {
+	vdd-supply = <&vreg_l4_1p2>;
+	vdda1p8-supply = <&vreg_l5_1p8>;
+	vdda3p3-supply = <&vreg_l12_3p3>;
+	status = "okay";
+};
+
+&usb3_phy {
+	vdd-supply = <&vreg_l3_1p05>;
+	vdda1p8-supply = <&vreg_l5_1p8>;
+	status = "okay";
 };
 
 &wifi {
