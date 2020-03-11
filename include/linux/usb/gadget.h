@@ -314,6 +314,7 @@ struct usb_udc;
 struct usb_gadget_ops {
 	int	(*get_frame)(struct usb_gadget *);
 	int	(*wakeup)(struct usb_gadget *);
+	int	(*func_wakeup)(struct usb_gadget *g, int interface_id);
 	int	(*set_selfpowered) (struct usb_gadget *, int is_selfpowered);
 	int	(*vbus_session) (struct usb_gadget *, int is_active);
 	int	(*vbus_draw) (struct usb_gadget *, unsigned mA);
@@ -566,6 +567,7 @@ static inline int gadget_is_otg(struct usb_gadget *g)
 #if IS_ENABLED(CONFIG_USB_GADGET)
 int usb_gadget_frame_number(struct usb_gadget *gadget);
 int usb_gadget_wakeup(struct usb_gadget *gadget);
+int usb_gadget_func_wakeup(struct usb_gadget *gadget, int interface_id);
 int usb_gadget_set_selfpowered(struct usb_gadget *gadget);
 int usb_gadget_clear_selfpowered(struct usb_gadget *gadget);
 int usb_gadget_vbus_connect(struct usb_gadget *gadget);
@@ -579,6 +581,8 @@ int usb_gadget_activate(struct usb_gadget *gadget);
 static inline int usb_gadget_frame_number(struct usb_gadget *gadget)
 { return 0; }
 static inline int usb_gadget_wakeup(struct usb_gadget *gadget)
+{ return 0; }
+static int usb_gadget_func_wakeup(struct usb_gadget *gadget, int interface_id)
 { return 0; }
 static inline int usb_gadget_set_selfpowered(struct usb_gadget *gadget)
 { return 0; }
@@ -816,6 +820,11 @@ struct usb_descriptor_header *usb_otg_descriptor_alloc(
 				struct usb_gadget *gadget);
 int usb_otg_descriptor_init(struct usb_gadget *gadget,
 		struct usb_descriptor_header *otg_desc);
+/*-------------------------------------------------------------------------*/
+
+int usb_func_ep_queue(struct usb_function *func, struct usb_ep *ep,
+				struct usb_request *req, gfp_t gfp_flags);
+
 /*-------------------------------------------------------------------------*/
 
 /* utility to simplify map/unmap of usb_requests to/from DMA */
