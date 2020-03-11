@@ -21,6 +21,13 @@
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
+#define AFBC_HEADER_SIZE		16
+#define AFBC_TH_LAYOUT_ALIGNMENT	8
+#define AFBC_HDR_ALIGN			64
+#define AFBC_SUPERBLOCK_PIXELS		256
+#define AFBC_SUPERBLOCK_ALIGNMENT	128
+#define AFBC_TH_BODY_START_ALIGNMENT	4096
+
 /**
  * DOC: overview
  *
@@ -301,6 +308,107 @@ drm_gem_fb_create_with_dirty(struct drm_device *dev, struct drm_file *file,
 					    &drm_gem_fb_funcs_dirtyfb);
 }
 EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
+
+static int drm_gem_afbc_min_size(struct drm_device *dev,
+				 const struct drm_mode_fb_cmd2 *mode_cmd,
+				 struct drm_afbc_framebuffer *afbc_fb)
+{
+	const struct drm_format_info *info;
+	__u32 n_blocks, w_alignment, h_alignment, hdr_alignment;
+	/* remove bpp when all users properly encode cpp in drm_format_info */
+	__u32 bpp;
+
+	switch (mode_cmd->modifier[0] & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) {
+	case AFBC_FORMAT_MOD_BLOCK_SIZE_16x16:
+		afbc_fb->block_width = 16;
+		afbc_fb->block_height = 16;
+		break;
+	case AFBC_FORMAT_MOD_BLOCK_SIZE_32x8:
+		afbc_fb->block_width = 32;
+		afbc_fb->block_height = 8;
+		break;
+	/* no user exists yet - fall through */
+	case AFBC_FORMAT_MOD_BLOCK_SIZE_64x4:
+	case AFBC_FORMAT_MOD_BLOCK_SIZE_32x8_64x4:
+	default:
+		DRM_DEBUG_KMS("Invalid AFBC_FORMAT_MOD_BLOCK_SIZE: %lld.\n",
+			      mode_cmd->modifier[0]
+			      & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK);
+		return -EINVAL;
+	}
+
+	/* tiled header afbc */
+	w_alignment = afbc_fb->block_width;
+	h_alignment = afbc_fb->block_height;
+	hdr_alignment = AFBC_HDR_ALIGN;
+	if (mode_cmd->modifier[0] & AFBC_FORMAT_MOD_TILED) {
+		w_alignment *= AFBC_TH_LAYOUT_ALIGNMENT;
+		h_alignment *= AFBC_TH_LAYOUT_ALIGNMENT;
+		hdr_alignment = AFBC_TH_BODY_START_ALIGNMENT;
+	}
+
+	afbc_fb->aligned_width = ALIGN(mode_cmd->width, w_alignment);
+	afbc_fb->aligned_height = ALIGN(mode_cmd->height, h_alignment);
+	afbc_fb->offset = mode_cmd->offsets[0];
+
+	info = drm_get_format_info(dev, mode_cmd);
+	/*
+	 * Change to always using info->cpp[0]
+	 * when all users properly encode it
+	 */
+	bpp = info->cpp[0] ? info->cpp[0] * 8 : afbc_fb->bpp;
+
+	n_blocks = (afbc_fb->aligned_width * afbc_fb->aligned_height)
+		   / AFBC_SUPERBLOCK_PIXELS;
+	afbc_fb->afbc_size = ALIGN(n_blocks * AFBC_HEADER_SIZE, hdr_alignment);
+	afbc_fb->afbc_size += n_blocks * ALIGN(bpp * AFBC_SUPERBLOCK_PIXELS / 8,
+					       AFBC_SUPERBLOCK_ALIGNMENT);
+
+	return 0;
+}
+
+/**
+ * drm_gem_fb_afbc_init() - Helper function for drivers using afbc to
+ *			    fill and validate all the afbc-specific
+ *			    struct drm_afbc_framebuffer members
+ *
+ * @dev: DRM device
+ * @afbc_fb: afbc-specific framebuffer
+ * @mode_cmd: Metadata from the userspace framebuffer creation request
+ * @afbc_fb: afbc framebuffer
+ *
+ * This function can be used by drivers which support afbc to complete
+ * the preparation of struct drm_afbc_framebuffer. It must be called after
+ * allocating the said struct and calling drm_gem_fb_init_with_funcs().
+ * It is caller's responsibility to put afbc_fb->base.obj objects in case
+ * the call is unsuccessful.
+ *
+ * Returns:
+ * Zero on success or a negative error value on failure.
+ */
+int drm_gem_fb_afbc_init(struct drm_device *dev,
+			 const struct drm_mode_fb_cmd2 *mode_cmd,
+			 struct drm_afbc_framebuffer *afbc_fb)
+{
+	const struct drm_format_info *info;
+	struct drm_gem_object **objs;
+	int ret;
+
+	objs = afbc_fb->base.obj;
+	info = drm_get_format_info(dev, mode_cmd);
+	if (!info)
+		return -EINVAL;
+
+	ret = drm_gem_afbc_min_size(dev, mode_cmd, afbc_fb);
+	if (ret < 0)
+		return ret;
+
+	if (objs[0]->size < afbc_fb->afbc_size)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(drm_gem_fb_afbc_init);
 
 /**
  * drm_gem_fb_prepare_fb() - Prepare a GEM backed framebuffer

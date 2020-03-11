@@ -404,6 +404,21 @@ Contact: Laurent Pinchart, respective driver maintainers
 
 Level: Intermediate
 
+Encode cpp properly in malidp
+-----------------------------
+
+cpp (chars per pixel) is not encoded properly in malidp, zero is
+used instead. afbc implementation needs bpp or cpp, but if it is
+zero it needs to be provided elsewhere, and so the bpp field exists
+in struct drm_afbc_framebuffer.
+
+Properly encode cpp in malidp and remove the bpp field in struct
+drm_afbc_framebuffer.
+
+Contact: malidp maintainers
+
+Level: Intermediate
+
 Core refactorings
 =================
 
