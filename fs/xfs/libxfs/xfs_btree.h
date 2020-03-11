@@ -177,22 +177,19 @@ union xfs_btree_irec {
 	struct xfs_refcount_irec	rc;
 };
 
-/* Per-AG btree private information. */
-union xfs_btree_cur_private {
-	struct {
-		unsigned long	nr_ops;		/* # record updates */
-		int		shape_changes;	/* # of extent splits */
-	} refc;
-	struct {
-		bool		active;		/* allocation cursor state */
-	} abt;
-};
-
 /* Per-AG btree information. */
 struct xfs_btree_cur_ag {
-	struct xfs_buf			*agbp;
-	xfs_agnumber_t			agno;
-	union xfs_btree_cur_private	priv;
+	struct xfs_buf		*agbp;
+	xfs_agnumber_t		agno;
+	union {
+		struct {
+			unsigned long nr_ops;	/* # record updates */
+			int	shape_changes;	/* # of extent splits */
+		} refc;
+		struct {
+			bool	active;		/* allocation cursor state */
+		} abt;
+	};
 };
 
 /* Btree-in-inode cursor information */

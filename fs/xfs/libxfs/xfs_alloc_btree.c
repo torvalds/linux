@@ -507,7 +507,7 @@ xfs_allocbt_init_cursor(
 
 	cur->bc_ag.agbp = agbp;
 	cur->bc_ag.agno = agno;
-	cur->bc_ag.priv.abt.active = false;
+	cur->bc_ag.abt.active = false;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;

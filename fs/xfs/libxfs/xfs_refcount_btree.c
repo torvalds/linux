@@ -340,8 +340,8 @@ xfs_refcountbt_init_cursor(
 	cur->bc_ag.agno = agno;
 	cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
-	cur->bc_ag.priv.refc.nr_ops = 0;
-	cur->bc_ag.priv.refc.shape_changes = 0;
+	cur->bc_ag.refc.nr_ops = 0;
+	cur->bc_ag.refc.shape_changes = 0;
 
 	return cur;
 }
