@@ -4033,7 +4033,6 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	unsigned int allocated_clusters = 0;
 	struct ext4_allocation_request ar;
 	ext4_lblk_t cluster_offset;
-	bool map_from_cluster = false;
 
 	ext_debug("blocks %u/%u requested for inode %lu\n",
 		  map->m_lblk, map->m_len, inode->i_ino);
@@ -4148,7 +4147,6 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	    get_implied_cluster_alloc(inode->i_sb, map, ex, path)) {
 		ar.len = allocated = map->m_len;
 		newblock = map->m_pblk;
-		map_from_cluster = true;
 		goto got_allocated_blocks;
 	}
 
@@ -4169,7 +4167,6 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	    get_implied_cluster_alloc(inode->i_sb, map, ex2, path)) {
 		ar.len = allocated = map->m_len;
 		newblock = map->m_pblk;
-		map_from_cluster = true;
 		goto got_allocated_blocks;
 	}
 
@@ -4274,7 +4271,7 @@ got_allocated_blocks:
 	 * clusters discovered to be delayed allocated.  Once allocated, a
 	 * cluster is not included in the reserved count.
 	 */
-	if (test_opt(inode->i_sb, DELALLOC) && !map_from_cluster) {
+	if (test_opt(inode->i_sb, DELALLOC) && allocated_clusters) {
 		if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) {
 			/*
 			 * When allocating delayed allocated clusters, simply
