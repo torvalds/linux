@@ -611,7 +611,7 @@ ssize_t mtk_pctrl_show_one_pin(struct mtk_pinctrl *hw,
 	} else if (pullen != MTK_DISABLE && pullen != MTK_ENABLE) {
 		pullen = 0;
 	}
-	len += snprintf(buf + len, bufLen - len,
+	len += scnprintf(buf + len, bufLen - len,
 			"%03d: %1d%1d%1d%1d%02d%1d%1d%1d%1d",
 			gpio,
 			pinmux,
@@ -625,10 +625,10 @@ ssize_t mtk_pctrl_show_one_pin(struct mtk_pinctrl *hw,
 			pullup);
 
 	if (r1 != -1) {
-		len += snprintf(buf + len, bufLen - len, " (%1d %1d)\n",
+		len += scnprintf(buf + len, bufLen - len, " (%1d %1d)\n",
 			r1, r0);
 	} else {
-		len += snprintf(buf + len, bufLen - len, "\n");
+		len += scnprintf(buf + len, bufLen - len, "\n");
 	}
 
 	return len;
