@@ -1424,6 +1424,7 @@ struct intel_digital_port {
 			       const struct drm_connector_state *conn_state);
 	u32 (*infoframes_enabled)(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *pipe_config);
+	bool (*connected)(struct intel_encoder *encoder);
 };
 
 struct intel_dp_mst_encoder {

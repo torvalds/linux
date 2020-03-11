@@ -562,8 +562,9 @@ static bool intel_tc_port_needs_reset(struct intel_digital_port *dig_port)
  * connected ports are usable, and avoids exposing to the users objects they
  * can't really use.
  */
-bool intel_tc_port_connected(struct intel_digital_port *dig_port)
+bool intel_tc_port_connected(struct intel_encoder *encoder)
 {
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	bool is_connected;
 	intel_wakeref_t tc_cold_wref;
 
