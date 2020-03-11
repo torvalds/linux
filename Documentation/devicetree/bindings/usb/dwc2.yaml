@@ -25,6 +25,7 @@ properties:
             - rockchip,rk3228-usb
             - rockchip,rk3288-usb
             - rockchip,rk3328-usb
+            - rockchip,rk3368-usb
             - rockchip,rv1108-usb
           - const: rockchip,rk3066-usb
           - const: snps,dwc2
