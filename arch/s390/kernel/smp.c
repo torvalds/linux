@@ -703,6 +703,11 @@ int smp_cpu_get_polarization(int cpu)
 	return pcpu_devices[cpu].polarization;
 }
 
+int smp_cpu_get_cpu_address(int cpu)
+{
+	return pcpu_devices[cpu].address;
+}
+
 static void __ref smp_get_core_info(struct sclp_core_info *info, int early)
 {
 	static int use_sigp_detection;
