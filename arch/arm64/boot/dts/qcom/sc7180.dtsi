@@ -394,7 +394,7 @@
 			compatible = "qcom,sc7180-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0 0x7c4000 0 0x1000>,
 				<0 0x07c5000 0 0x1000>;
-			reg-names = "hc_mem", "cqhci_mem";
+			reg-names = "hc", "cqhci";
 
 			iommus = <&apps_smmu 0x60 0x0>;
 			interrupts = <GIC_SPI 641 IRQ_TYPE_LEVEL_HIGH>,
@@ -1297,7 +1297,6 @@
 		sdhc_2: sdhci@8804000 {
 			compatible = "qcom,sc7180-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0 0x08804000 0 0x1000>;
-			reg-names = "hc_mem";
 
 			iommus = <&apps_smmu 0x80 0>;
 			interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>,
