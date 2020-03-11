@@ -3325,10 +3325,8 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
 	audit_inode(nd->name, child, 0);
 	/* Don't check for other permissions, the inode was just created */
 	error = may_open(&path, 0, op->open_flag);
-	if (error)
-		goto out2;
-	file->f_path.mnt = path.mnt;
-	error = finish_open(file, child, NULL);
+	if (!error)
+		error = vfs_open(&path, file);
 out2:
 	mnt_drop_write(path.mnt);
 out:
