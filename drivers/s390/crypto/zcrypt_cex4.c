@@ -128,16 +128,18 @@ static ssize_t cca_mkvps_show(struct device *dev,
 		n = snprintf(buf, PAGE_SIZE, "AES NEW: - -\n");
 
 	if (ci.cur_mk_state >= '1' && ci.cur_mk_state <= '2')
-		n += snprintf(buf + n, PAGE_SIZE - n, "AES CUR: %s 0x%016llx\n",
-			      cao_state[ci.cur_mk_state - '1'], ci.cur_mkvp);
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "AES CUR: %s 0x%016llx\n",
+			       cao_state[ci.cur_mk_state - '1'], ci.cur_mkvp);
 	else
-		n += snprintf(buf + n, PAGE_SIZE - n, "AES CUR: - -\n");
+		n += scnprintf(buf + n, PAGE_SIZE - n, "AES CUR: - -\n");
 
 	if (ci.old_mk_state >= '1' && ci.old_mk_state <= '2')
-		n += snprintf(buf + n, PAGE_SIZE - n, "AES OLD: %s 0x%016llx\n",
-			      cao_state[ci.old_mk_state - '1'], ci.old_mkvp);
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "AES OLD: %s 0x%016llx\n",
+			       cao_state[ci.old_mk_state - '1'], ci.old_mkvp);
 	else
-		n += snprintf(buf + n, PAGE_SIZE - n, "AES OLD: - -\n");
+		n += scnprintf(buf + n, PAGE_SIZE - n, "AES OLD: - -\n");
 
 	return n;
 }
@@ -251,11 +253,11 @@ static ssize_t ep11_card_op_modes_show(struct device *dev,
 		if (ci.op_mode & (1 << ep11_op_modes[i].mode_bit)) {
 			if (n > 0)
 				buf[n++] = ' ';
-			n += snprintf(buf + n, PAGE_SIZE - n,
-				      "%s", ep11_op_modes[i].mode_txt);
+			n += scnprintf(buf + n, PAGE_SIZE - n,
+				       "%s", ep11_op_modes[i].mode_txt);
 		}
 	}
-	n += snprintf(buf + n, PAGE_SIZE - n, "\n");
+	n += scnprintf(buf + n, PAGE_SIZE - n, "\n");
 
 	return n;
 }
@@ -305,21 +307,21 @@ static ssize_t ep11_mkvps_show(struct device *dev,
 			     cwk_state[di.cur_wk_state - '0']);
 		bin2hex(buf + n, di.cur_wkvp, sizeof(di.cur_wkvp));
 		n += 2 * sizeof(di.cur_wkvp);
-		n += snprintf(buf + n, PAGE_SIZE - n, "\n");
+		n += scnprintf(buf + n, PAGE_SIZE - n, "\n");
 	} else
 		n = snprintf(buf, PAGE_SIZE, "WK CUR: - -\n");
 
 	if (di.new_wk_state == '0') {
-		n += snprintf(buf + n, PAGE_SIZE - n, "WK NEW: %s -\n",
-			      nwk_state[di.new_wk_state - '0']);
+		n += scnprintf(buf + n, PAGE_SIZE - n, "WK NEW: %s -\n",
+			       nwk_state[di.new_wk_state - '0']);
 	} else if (di.new_wk_state >= '1' && di.new_wk_state <= '2') {
-		n += snprintf(buf + n, PAGE_SIZE - n, "WK NEW: %s 0x",
-			      nwk_state[di.new_wk_state - '0']);
+		n += scnprintf(buf + n, PAGE_SIZE - n, "WK NEW: %s 0x",
+			       nwk_state[di.new_wk_state - '0']);
 		bin2hex(buf + n, di.new_wkvp, sizeof(di.new_wkvp));
 		n += 2 * sizeof(di.new_wkvp);
-		n += snprintf(buf + n, PAGE_SIZE - n, "\n");
+		n += scnprintf(buf + n, PAGE_SIZE - n, "\n");
 	} else
-		n += snprintf(buf + n, PAGE_SIZE - n, "WK NEW: - -\n");
+		n += scnprintf(buf + n, PAGE_SIZE - n, "WK NEW: - -\n");
 
 	return n;
 }
@@ -346,11 +348,11 @@ static ssize_t ep11_queue_op_modes_show(struct device *dev,
 		if (di.op_mode & (1 << ep11_op_modes[i].mode_bit)) {
 			if (n > 0)
 				buf[n++] = ' ';
-			n += snprintf(buf + n, PAGE_SIZE - n,
-				      "%s", ep11_op_modes[i].mode_txt);
+			n += scnprintf(buf + n, PAGE_SIZE - n,
+				       "%s", ep11_op_modes[i].mode_txt);
 		}
 	}
-	n += snprintf(buf + n, PAGE_SIZE - n, "\n");
+	n += scnprintf(buf + n, PAGE_SIZE - n, "\n");
 
 	return n;
 }
