@@ -972,9 +972,12 @@ Add two ioctl operations to modify the message associated with the
 driver. Use fixed-length buffer ( BUFFER_SIZE ).
 
   1. Add the ``ioctl`` function from the driver the following operations:
+
      * ``MY_IOCTL_SET_BUFFER`` for writing a message to the device;
      * ``MY_IOCTL_GET_BUFFER`` to read a message from your device.
-  2. Change the user-space program to allow testing.
+
+  2. For testing, pass the required command line arguments to the
+     user-space program.
 
 .. note:: Read the `ioctl`_ and `Access to the address space of the process`_
    sections of the lab.
@@ -985,13 +988,16 @@ Ioctl with waiting queues
 Add two ioctl operations to the device driver for queuing.
 
    1. Add the ``ioctl`` function from the driver the following operations:
+
       * ``MY_IOCTL_DOWN`` to add the process to a queue;
       * ``MY_IOCTL_UP`` to remove the process from a queue.
+
    2. Fill the device structure with a ``wait_queue_head_t`` field and a
       ``wait_queue_head_t`` flag.
    3. Do not forget to initialize the wait queue and flag.
    4. Remove exclusive access condition from previous exercise
-   5. Change the user-space program to allow testing.
+   5. For testing, pass the required command line arguments to the
+      user-space program.
 
 When the process is added to the queue, it will remain blocked in execution; To
 run the queue command open a new console in the virtual machine with Alt+F2 ;
@@ -1015,16 +1021,16 @@ O_NONBLOCK implementation
              queue and will be unblocked as soon as data becomes available
              (in our case, at write).
 
-* Modify the userspace program to allow testing.
 * To allow unblocking the read operation, remove the exclusive access
   condition from previous exercises.
 * You can use the queue defined for the previous exercise.
 * You can ignore the file offset.
 * Modify the initial size of data to ``0``, to allow testing.
-* Add a new operation in the user-space program which:
+* For testing, pass the required command line arguments to the
+  user-space program.
 
-  * changes open flags (using ``fcntl``).
-  * performs a read
+  * when using the ``n`` option, the test program will change the open flags
+    to ``O_NONBLOCK`` and then perform a ``read``.
 
 * What are the flags used to open the file when running ``cat /dev/so2_dev``?
 
