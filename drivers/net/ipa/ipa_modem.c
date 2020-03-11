@@ -293,7 +293,7 @@ static void ipa_modem_crashed(struct ipa *ipa)
 
 	ret = ipa_table_hash_flush(ipa);
 	if (ret)
-		dev_err(dev, "error %d flushing hash cahces\n", ret);
+		dev_err(dev, "error %d flushing hash caches\n", ret);
 
 	ret = ipa_endpoint_modem_exception_reset_all(ipa);
 	if (ret)
