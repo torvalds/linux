@@ -29,4 +29,8 @@ int __init default_rootfs(void);
 
 #endif
 
+#if defined(CONFIG_ROCKCHIP_HW_DECOMPRESS)
+void __init wait_initrd_hw_decom_done(void);
+#endif
+
 #endif /* _LINUX_INITRAMFS_H */
