@@ -360,19 +360,6 @@ static int pm860x_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to read initial time.\n");
 		return ret;
 	}
-	if ((tm.tm_year < 70) || (tm.tm_year > 138)) {
-		tm.tm_year = 70;
-		tm.tm_mon = 0;
-		tm.tm_mday = 1;
-		tm.tm_hour = 0;
-		tm.tm_min = 0;
-		tm.tm_sec = 0;
-		ret = pm860x_rtc_set_time(&pdev->dev, &tm);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Failed to set initial time.\n");
-			return ret;
-		}
-	}
 	rtc_tm_to_time(&tm, &ticks);
 	if (pm860x_rtc_dt_init(pdev, info)) {
 		if (pdata && pdata->sync) {
