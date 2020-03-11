@@ -1027,7 +1027,7 @@ xfs_btree_ptr_is_null(
 		return ptr->s == cpu_to_be32(NULLAGBLOCK);
 }
 
-STATIC void
+void
 xfs_btree_set_ptr_null(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr)
@@ -1063,7 +1063,7 @@ xfs_btree_get_sibling(
 	}
 }
 
-STATIC void
+void
 xfs_btree_set_sibling(
 	struct xfs_btree_cur	*cur,
 	struct xfs_btree_block	*block,
@@ -1141,7 +1141,7 @@ xfs_btree_init_block(
 				 btnum, level, numrecs, owner, 0);
 }
 
-STATIC void
+void
 xfs_btree_init_block_cur(
 	struct xfs_btree_cur	*cur,
 	struct xfs_buf		*bp,
@@ -1233,7 +1233,7 @@ xfs_btree_set_refs(
 	}
 }
 
-STATIC int
+int
 xfs_btree_get_buf_block(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr,
@@ -1293,7 +1293,7 @@ xfs_btree_read_buf_block(
 /*
  * Copy keys from one btree block to another.
  */
-STATIC void
+void
 xfs_btree_copy_keys(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*dst_key,
@@ -1321,11 +1321,11 @@ xfs_btree_copy_recs(
 /*
  * Copy block pointers from one btree block to another.
  */
-STATIC void
+void
 xfs_btree_copy_ptrs(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*dst_ptr,
-	union xfs_btree_ptr	*src_ptr,
+	const union xfs_btree_ptr *src_ptr,
 	int			numptrs)
 {
 	ASSERT(numptrs >= 0);

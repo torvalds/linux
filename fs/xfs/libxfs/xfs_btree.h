@@ -530,4 +530,20 @@ xfs_btree_islastblock(
 	return block->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK);
 }
 
+void xfs_btree_set_ptr_null(struct xfs_btree_cur *cur,
+		union xfs_btree_ptr *ptr);
+int xfs_btree_get_buf_block(struct xfs_btree_cur *cur, union xfs_btree_ptr *ptr,
+		struct xfs_btree_block **block, struct xfs_buf **bpp);
+void xfs_btree_set_sibling(struct xfs_btree_cur *cur,
+		struct xfs_btree_block *block, union xfs_btree_ptr *ptr,
+		int lr);
+void xfs_btree_init_block_cur(struct xfs_btree_cur *cur,
+		struct xfs_buf *bp, int level, int numrecs);
+void xfs_btree_copy_ptrs(struct xfs_btree_cur *cur,
+		union xfs_btree_ptr *dst_ptr,
+		const union xfs_btree_ptr *src_ptr, int numptrs);
+void xfs_btree_copy_keys(struct xfs_btree_cur *cur,
+		union xfs_btree_key *dst_key, union xfs_btree_key *src_key,
+		int numkeys);
+
 #endif	/* __XFS_BTREE_H__ */
