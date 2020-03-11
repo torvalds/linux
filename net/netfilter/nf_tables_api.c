@@ -2523,8 +2523,8 @@ static void nf_tables_expr_destroy(const struct nft_ctx *ctx,
 	module_put(type->owner);
 }
 
-struct nft_expr *nft_expr_init(const struct nft_ctx *ctx,
-			       const struct nlattr *nla)
+static struct nft_expr *nft_expr_init(const struct nft_ctx *ctx,
+				      const struct nlattr *nla)
 {
 	struct nft_expr_info info;
 	struct nft_expr *expr;
