@@ -144,8 +144,8 @@
 		ranges = <0x0 0x0 0x0 0x3e000000>;
 
 		aips1: bus@30000000 {
-			compatible = "simple-bus";
-			reg = <0x30000000 0x400000>;
+			compatible = "fsl,aips-bus", "simple-bus";
+			reg = <0x301f0000 0x10000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -315,8 +315,8 @@
 		};
 
 		aips2: bus@30400000 {
-			compatible = "simple-bus";
-			reg = <0x30400000 0x400000>;
+			compatible = "fsl,aips-bus", "simple-bus";
+			reg = <0x305f0000 0x400000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -375,8 +375,8 @@
 		};
 
 		aips3: bus@30800000 {
-			compatible = "simple-bus";
-			reg = <0x30800000 0x400000>;
+			compatible = "fsl,aips-bus", "simple-bus";
+			reg = <0x309f0000 0x400000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
