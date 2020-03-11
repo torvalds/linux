@@ -3325,16 +3325,31 @@ static int hci_suspend_notifier(struct notifier_block *nb, unsigned long action,
 		goto done;
 
 	if (action == PM_SUSPEND_PREPARE) {
-		hdev->suspend_state_next = BT_SUSPENDED;
+		/* Suspend consists of two actions:
+		 *  - First, disconnect everything and make the controller not
+		 *    connectable (disabling scanning)
+		 *  - Second, program event filter/whitelist and enable scan
+		 */
+		hdev->suspend_state_next = BT_SUSPEND_DISCONNECT;
 		set_bit(SUSPEND_PREPARE_NOTIFIER, hdev->suspend_tasks);
 		queue_work(hdev->req_workqueue, &hdev->suspend_prepare);
-
 		ret = hci_suspend_wait_event(hdev);
+
+		/* If the disconnect portion failed, don't attempt to complete
+		 * by configuring the whitelist. The suspend notifier will
+		 * follow a cancelled suspend with a PM_POST_SUSPEND
+		 * notification.
+		 */
+		if (!ret) {
+			hdev->suspend_state_next = BT_SUSPEND_COMPLETE;
+			set_bit(SUSPEND_PREPARE_NOTIFIER, hdev->suspend_tasks);
+			queue_work(hdev->req_workqueue, &hdev->suspend_prepare);
+			ret = hci_suspend_wait_event(hdev);
+		}
 	} else if (action == PM_POST_SUSPEND) {
 		hdev->suspend_state_next = BT_RUNNING;
 		set_bit(SUSPEND_PREPARE_NOTIFIER, hdev->suspend_tasks);
 		queue_work(hdev->req_workqueue, &hdev->suspend_prepare);
-
 		ret = hci_suspend_wait_event(hdev);
 	}
 
@@ -3399,6 +3414,7 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_LIST_HEAD(&hdev->mgmt_pending);
 	INIT_LIST_HEAD(&hdev->blacklist);
 	INIT_LIST_HEAD(&hdev->whitelist);
+	INIT_LIST_HEAD(&hdev->wakeable);
 	INIT_LIST_HEAD(&hdev->uuids);
 	INIT_LIST_HEAD(&hdev->link_keys);
 	INIT_LIST_HEAD(&hdev->long_term_keys);
