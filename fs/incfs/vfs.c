@@ -132,6 +132,11 @@ static const struct file_operations incfs_file_ops = {
 	.compat_ioctl = dispatch_ioctl
 };
 
+enum FILL_PERMISSION {
+	CANT_FILL = 0,
+	CAN_FILL = 1,
+};
+
 static const struct file_operations incfs_pending_read_file_ops = {
 	.read = pending_reads_read,
 	.poll = pending_reads_poll,
@@ -1281,6 +1286,9 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 	if (!df)
 		return -EBADF;
 
+	if ((uintptr_t)f->private_data != CAN_FILL)
+		return -EPERM;
+
 	if (copy_from_user(&fill_blocks, usr_fill_blocks, sizeof(fill_blocks)))
 		return -EFAULT;
 
@@ -1331,6 +1339,53 @@ static long ioctl_fill_blocks(struct file *f, void __user *arg)
 		return error;
 
 	return i;
+}
+
+static long ioctl_permit_fill(struct file *f, void __user *arg)
+{
+	struct incfs_permit_fill __user *usr_permit_fill = arg;
+	struct incfs_permit_fill permit_fill;
+	long error = 0;
+	struct file *file = 0;
+
+	if (f->f_op != &incfs_pending_read_file_ops)
+		return -EPERM;
+
+	if (copy_from_user(&permit_fill, usr_permit_fill, sizeof(permit_fill)))
+		return -EFAULT;
+
+	file = fget(permit_fill.file_descriptor);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	if (file->f_op != &incfs_file_ops) {
+		error = -EPERM;
+		goto out;
+	}
+
+	if (file->f_inode->i_sb != f->f_inode->i_sb) {
+		error = -EPERM;
+		goto out;
+	}
+
+	switch ((uintptr_t)file->private_data) {
+	case CANT_FILL:
+		file->private_data = (void *)CAN_FILL;
+		break;
+
+	case CAN_FILL:
+		pr_debug("CAN_FILL already set");
+		break;
+
+	default:
+		pr_warn("Invalid file private data");
+		error = -EFAULT;
+		goto out;
+	}
+
+out:
+	fput(file);
+	return error;
 }
 
 static long ioctl_read_file_signature(struct file *f, void __user *arg)
@@ -1390,6 +1445,8 @@ static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 		return ioctl_create_file(mi, (void __user *)arg);
 	case INCFS_IOC_FILL_BLOCKS:
 		return ioctl_fill_blocks(f, (void __user *)arg);
+	case INCFS_IOC_PERMIT_FILL:
+		return ioctl_permit_fill(f, (void __user *)arg);
 	case INCFS_IOC_READ_FILE_SIGNATURE:
 		return ioctl_read_file_signature(f, (void __user *)arg);
 	default:
@@ -1820,9 +1877,10 @@ static int file_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	if (S_ISREG(inode->i_mode))
+	if (S_ISREG(inode->i_mode)) {
 		err = make_inode_ready_for_data_ops(mi, inode, backing_file);
-	else if (S_ISDIR(inode->i_mode)) {
+		file->private_data = (void *)CANT_FILL;
+	} else if (S_ISDIR(inode->i_mode)) {
 		struct dir_file *dir = NULL;
 
 		dir = incfs_open_dir_file(mi, backing_file);

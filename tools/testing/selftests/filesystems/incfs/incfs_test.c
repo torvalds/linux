@@ -204,15 +204,43 @@ static char *get_index_filename(const char *mnt_dir, incfs_uuid_t id)
 	return strdup(path);
 }
 
-int open_file_by_id(char *mnt_dir, incfs_uuid_t id)
+int open_file_by_id(const char *mnt_dir, incfs_uuid_t id, bool use_ioctl)
 {
 	char *path = get_index_filename(mnt_dir, id);
+	int cmd_fd = open_commands_file(mnt_dir);
 	int fd = open(path, O_RDWR);
+	struct incfs_permit_fill permit_fill = {
+		.file_descriptor = fd,
+	};
+	int error = 0;
 
-	free(path);
 	if (fd < 0) {
 		print_error("Can't open file by id.");
+		error = -errno;
+		goto out;
+	}
+
+	if (use_ioctl && ioctl(cmd_fd, INCFS_IOC_PERMIT_FILL, &permit_fill)) {
+		print_error("Failed to call PERMIT_FILL");
+		error = -errno;
+		goto out;
+	}
+
+	if (ioctl(fd, INCFS_IOC_PERMIT_FILL, &permit_fill) != -1 ||
+	    errno != EPERM) {
+		print_error(
+			"Successfully called PERMIT_FILL on non pending_read file");
 		return -errno;
+		goto out;
+	}
+
+out:
+	free(path);
+	close(cmd_fd);
+
+	if (error) {
+		close(fd);
+		return error;
 	}
 
 	return fd;
@@ -257,12 +285,6 @@ static int emit_test_blocks(char *mnt_dir, struct test_file *file,
 	int error = 0;
 	int i = 0;
 	int blocks_written = 0;
-
-	fd = open_file_by_id(mnt_dir, file->id);
-	if (fd <= 0) {
-		error = -errno;
-		goto out;
-	}
 
 	for (i = 0; i < block_count; i++) {
 		int block_index = blocks[i];
@@ -315,6 +337,24 @@ static int emit_test_blocks(char *mnt_dir, struct test_file *file,
 	}
 
 	if (!error) {
+		fd = open_file_by_id(mnt_dir, file->id, false);
+		if (fd < 0) {
+			error = -errno;
+			goto out;
+		}
+		write_res = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
+		if (write_res >= 0) {
+			ksft_print_msg("Wrote to file via normal fd error\n");
+			error = -EPERM;
+			goto out;
+		}
+
+		close(fd);
+		fd = open_file_by_id(mnt_dir, file->id, true);
+		if (fd < 0) {
+			error = -errno;
+			goto out;
+		}
 		write_res = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
 		if (write_res < 0)
 			error = -errno;
@@ -706,7 +746,6 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 	int err;
 	int i;
 	int fd;
-	char *file_path;
 	struct incfs_fill_blocks fill_blocks = {
 		.count = file->mtree_block_count,
 	};
@@ -729,9 +768,7 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 		};
 	}
 
-	file_path  = concat_file_name(mount_dir, file->name);
-	fd = open(file_path, O_RDWR);
-	free(file_path);
+	fd = open_file_by_id(mount_dir, file->id, false);
 	if (fd < 0) {
 		err = errno;
 		goto failure;
@@ -739,7 +776,19 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 
 	err = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
 	close(fd);
+	if (err >= 0) {
+		err = -EPERM;
+		goto failure;
+	}
 
+	fd = open_file_by_id(mount_dir, file->id, true);
+	if (fd < 0) {
+		err = errno;
+		goto failure;
+	}
+
+	err = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
+	close(fd);
 	if (err < fill_blocks.count)
 		err = errno;
 	else {
