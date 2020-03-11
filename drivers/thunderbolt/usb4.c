@@ -759,7 +759,7 @@ struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 		if (!tb_port_is_usb3_down(p))
 			continue;
 
-		if (usb_idx == usb4_idx && !tb_usb3_port_is_enabled(p))
+		if (usb_idx == usb4_idx)
 			return p;
 
 		usb_idx++;

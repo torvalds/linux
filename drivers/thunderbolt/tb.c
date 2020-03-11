@@ -206,22 +206,14 @@ static struct tb_port *tb_find_unused_port(struct tb_switch *sw,
 }
 
 static struct tb_port *tb_find_usb3_down(struct tb_switch *sw,
-					const struct tb_port *port)
+					 const struct tb_port *port)
 {
 	struct tb_port *down;
 
 	down = usb4_switch_map_usb3_down(sw, port);
-	if (down) {
-		if (WARN_ON(!tb_port_is_usb3_down(down)))
-			goto out;
-		if (WARN_ON(tb_usb3_port_is_enabled(down)))
-			goto out;
-
+	if (down && !tb_usb3_port_is_enabled(down))
 		return down;
-	}
-
-out:
-	return tb_find_unused_port(sw, TB_TYPE_USB3_DOWN);
+	return NULL;
 }
 
 static int tb_tunnel_usb3(struct tb *tb, struct tb_switch *sw)
