@@ -1440,18 +1440,6 @@ static void follow_mount(struct path *path)
 	}
 }
 
-static struct dentry *path_parent_directory(struct path *path)
-{
-	/* rare case of legitimate dget_parent()... */
-	struct dentry *parent = dget_parent(path->dentry);
-
-	if (unlikely(!path_connected(path->mnt, parent))) {
-		dput(parent);
-		parent = NULL;
-	}
-	return parent;
-}
-
 static int follow_dotdot(struct nameidata *nd)
 {
 	struct dentry *parent;
@@ -1462,9 +1450,13 @@ static int follow_dotdot(struct nameidata *nd)
 			break;
 		}
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
-			parent = path_parent_directory(&nd->path);
-			if (!parent)
+			/* rare case of legitimate dget_parent()... */
+			parent = dget_parent(nd->path.dentry);
+
+			if (unlikely(!path_connected(nd->path.mnt, parent))) {
+				dput(parent);
 				return -ENOENT;
+			}
 			dput(nd->path.dentry);
 			nd->path.dentry = parent;
 			break;
@@ -2602,13 +2594,14 @@ int path_pts(struct path *path)
 	/* Find something mounted on "pts" in the same directory as
 	 * the input path.
 	 */
-	struct dentry *child, *parent;
+	struct dentry *parent = dget_parent(path->dentry);
+	struct dentry *child;
 	struct qstr this;
 
-	parent = path_parent_directory(path);
-	if (!parent)
+	if (unlikely(!path_connected(path->mnt, parent))) {
+		dput(parent);
 		return -ENOENT;
-
+	}
 	dput(path->dentry);
 	path->dentry = parent;
 	this.name = "pts";
