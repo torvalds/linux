@@ -992,22 +992,23 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	int srdy;
 	struct ifx_modem_platform_data *pl_data;
 	struct ifx_spi_device *ifx_dev;
+	struct device *dev = &spi->dev;
 
 	if (saved_ifx_dev) {
-		dev_dbg(&spi->dev, "ignoring subsequent detection");
+		dev_dbg(dev, "ignoring subsequent detection");
 		return -ENODEV;
 	}
 
-	pl_data = dev_get_platdata(&spi->dev);
+	pl_data = dev_get_platdata(dev);
 	if (!pl_data) {
-		dev_err(&spi->dev, "missing platform data!");
+		dev_err(dev, "missing platform data!");
 		return -ENODEV;
 	}
 
 	/* initialize structure to hold our device variables */
 	ifx_dev = kzalloc(sizeof(struct ifx_spi_device), GFP_KERNEL);
 	if (!ifx_dev) {
-		dev_err(&spi->dev, "spi device allocation failed");
+		dev_err(dev, "spi device allocation failed");
 		return -ENOMEM;
 	}
 	saved_ifx_dev = ifx_dev;
@@ -1026,7 +1027,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	spi->bits_per_word = spi_bpw;
 	ret = spi_setup(spi);
 	if (ret) {
-		dev_err(&spi->dev, "SPI setup wasn't successful %d", ret);
+		dev_err(dev, "SPI setup wasn't successful %d", ret);
 		kfree(ifx_dev);
 		return -ENODEV;
 	}
@@ -1049,7 +1050,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 				&ifx_dev->tx_bus,
 				GFP_KERNEL);
 	if (!ifx_dev->tx_buffer) {
-		dev_err(&spi->dev, "DMA-TX buffer allocation failed");
+		dev_err(dev, "DMA-TX buffer allocation failed");
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -1058,7 +1059,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 				&ifx_dev->rx_bus,
 				GFP_KERNEL);
 	if (!ifx_dev->rx_buffer) {
-		dev_err(&spi->dev, "DMA-RX buffer allocation failed");
+		dev_err(dev, "DMA-RX buffer allocation failed");
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -1075,7 +1076,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	/* create our tty port */
 	ret = ifx_spi_create_port(ifx_dev);
 	if (ret != 0) {
-		dev_err(&spi->dev, "create default tty port failed");
+		dev_err(dev, "create default tty port failed");
 		goto error_ret;
 	}
 
@@ -1085,21 +1086,21 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	ifx_dev->gpio.srdy = pl_data->srdy;
 	ifx_dev->gpio.reset_out = pl_data->rst_out;
 
-	dev_info(&spi->dev, "gpios %d, %d, %d, %d, %d",
+	dev_info(dev, "gpios %d, %d, %d, %d, %d",
 		 ifx_dev->gpio.reset, ifx_dev->gpio.po, ifx_dev->gpio.mrdy,
 		 ifx_dev->gpio.srdy, ifx_dev->gpio.reset_out);
 
 	/* Configure gpios */
 	ret = gpio_request(ifx_dev->gpio.reset, "ifxModem");
 	if (ret < 0) {
-		dev_err(&spi->dev, "Unable to allocate GPIO%d (RESET)",
+		dev_err(dev, "Unable to allocate GPIO%d (RESET)",
 			ifx_dev->gpio.reset);
 		goto error_ret;
 	}
 	ret += gpio_direction_output(ifx_dev->gpio.reset, 0);
 	ret += gpio_export(ifx_dev->gpio.reset, 1);
 	if (ret) {
-		dev_err(&spi->dev, "Unable to configure GPIO%d (RESET)",
+		dev_err(dev, "Unable to configure GPIO%d (RESET)",
 			ifx_dev->gpio.reset);
 		ret = -EBUSY;
 		goto error_ret2;
@@ -1109,7 +1110,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	ret += gpio_direction_output(ifx_dev->gpio.po, 0);
 	ret += gpio_export(ifx_dev->gpio.po, 1);
 	if (ret) {
-		dev_err(&spi->dev, "Unable to configure GPIO%d (ON)",
+		dev_err(dev, "Unable to configure GPIO%d (ON)",
 			ifx_dev->gpio.po);
 		ret = -EBUSY;
 		goto error_ret3;
@@ -1117,14 +1118,14 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 
 	ret = gpio_request(ifx_dev->gpio.mrdy, "ifxModem");
 	if (ret < 0) {
-		dev_err(&spi->dev, "Unable to allocate GPIO%d (MRDY)",
+		dev_err(dev, "Unable to allocate GPIO%d (MRDY)",
 			ifx_dev->gpio.mrdy);
 		goto error_ret3;
 	}
 	ret += gpio_export(ifx_dev->gpio.mrdy, 1);
 	ret += gpio_direction_output(ifx_dev->gpio.mrdy, 0);
 	if (ret) {
-		dev_err(&spi->dev, "Unable to configure GPIO%d (MRDY)",
+		dev_err(dev, "Unable to configure GPIO%d (MRDY)",
 			ifx_dev->gpio.mrdy);
 		ret = -EBUSY;
 		goto error_ret4;
@@ -1132,7 +1133,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 
 	ret = gpio_request(ifx_dev->gpio.srdy, "ifxModem");
 	if (ret < 0) {
-		dev_err(&spi->dev, "Unable to allocate GPIO%d (SRDY)",
+		dev_err(dev, "Unable to allocate GPIO%d (SRDY)",
 			ifx_dev->gpio.srdy);
 		ret = -EBUSY;
 		goto error_ret4;
@@ -1140,7 +1141,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	ret += gpio_export(ifx_dev->gpio.srdy, 1);
 	ret += gpio_direction_input(ifx_dev->gpio.srdy);
 	if (ret) {
-		dev_err(&spi->dev, "Unable to configure GPIO%d (SRDY)",
+		dev_err(dev, "Unable to configure GPIO%d (SRDY)",
 			ifx_dev->gpio.srdy);
 		ret = -EBUSY;
 		goto error_ret5;
@@ -1148,14 +1149,14 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 
 	ret = gpio_request(ifx_dev->gpio.reset_out, "ifxModem");
 	if (ret < 0) {
-		dev_err(&spi->dev, "Unable to allocate GPIO%d (RESET_OUT)",
+		dev_err(dev, "Unable to allocate GPIO%d (RESET_OUT)",
 			ifx_dev->gpio.reset_out);
 		goto error_ret5;
 	}
 	ret += gpio_export(ifx_dev->gpio.reset_out, 1);
 	ret += gpio_direction_input(ifx_dev->gpio.reset_out);
 	if (ret) {
-		dev_err(&spi->dev, "Unable to configure GPIO%d (RESET_OUT)",
+		dev_err(dev, "Unable to configure GPIO%d (RESET_OUT)",
 			ifx_dev->gpio.reset_out);
 		ret = -EBUSY;
 		goto error_ret6;
@@ -1166,7 +1167,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 			  IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING, DRVNAME,
 			  ifx_dev);
 	if (ret) {
-		dev_err(&spi->dev, "Unable to get irq %x\n",
+		dev_err(dev, "Unable to get irq %x\n",
 			gpio_to_irq(ifx_dev->gpio.reset_out));
 		goto error_ret6;
 	}
@@ -1177,14 +1178,14 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 			  ifx_spi_srdy_interrupt, IRQF_TRIGGER_RISING, DRVNAME,
 			  ifx_dev);
 	if (ret) {
-		dev_err(&spi->dev, "Unable to get irq %x",
+		dev_err(dev, "Unable to get irq %x",
 			gpio_to_irq(ifx_dev->gpio.srdy));
 		goto error_ret7;
 	}
 
 	/* set pm runtime power state and register with power system */
-	pm_runtime_set_active(&spi->dev);
-	pm_runtime_enable(&spi->dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	/* handle case that modem is already signaling SRDY */
 	/* no outgoing tty open at this point, this just satisfies the
