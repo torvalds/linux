@@ -1838,8 +1838,6 @@ enum {WALK_FOLLOW = 1, WALK_MORE = 2};
 static inline int step_into(struct nameidata *nd, struct path *path,
 			    int flags, struct inode *inode, unsigned seq)
 {
-	if (!(flags & WALK_MORE) && nd->depth)
-		put_link(nd);
 	if (likely(!d_is_symlink(path->dentry)) ||
 	   !(flags & WALK_FOLLOW || nd->flags & LOOKUP_FOLLOW)) {
 		/* not a symlink or should not follow */
@@ -1869,9 +1867,9 @@ static int walk_component(struct nameidata *nd, int flags)
 	 * parent relationships.
 	 */
 	if (unlikely(nd->last_type != LAST_NORM)) {
-		err = handle_dots(nd, nd->last_type);
 		if (!(flags & WALK_MORE) && nd->depth)
 			put_link(nd);
+		err = handle_dots(nd, nd->last_type);
 		return err;
 	}
 	dentry = lookup_fast(nd, &inode, &seq);
@@ -1882,6 +1880,8 @@ static int walk_component(struct nameidata *nd, int flags)
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
 	}
+	if (!(flags & WALK_MORE) && nd->depth)
+		put_link(nd);
 
 	err = handle_mounts(nd, dentry, &path, &inode, &seq);
 	if (unlikely(err < 0))
@@ -3291,6 +3291,8 @@ static int do_last(struct nameidata *nd,
 	nd->flags |= op->intent;
 
 	if (nd->last_type != LAST_NORM) {
+		if (nd->depth)
+			put_link(nd);
 		error = handle_dots(nd, nd->last_type);
 		if (unlikely(error))
 			return error;
@@ -3382,6 +3384,8 @@ static int do_last(struct nameidata *nd,
 	}
 
 finish_lookup:
+	if (nd->depth)
+		put_link(nd);
 	error = handle_mounts(nd, dentry, &path, &inode, &seq);
 	if (unlikely(error < 0))
 		return error;
