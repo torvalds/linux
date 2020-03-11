@@ -344,7 +344,7 @@ struct kvm_s390_sie_block {
 	__u64	itdba;			/* 0x01e8 */
 	__u64   riccbd;			/* 0x01f0 */
 	__u64	gvrd;			/* 0x01f8 */
-} __attribute__((packed));
+} __packed __aligned(512);
 
 struct kvm_s390_itdb {
 	__u8	data[256];
