@@ -95,7 +95,7 @@ static int pm860x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	dev_dbg(info->dev, "get base:0x%lx, RO count:0x%lx, ticks:0x%lx\n",
 		base, data, ticks);
 
-	rtc_time_to_tm(ticks, tm);
+	rtc_time64_to_tm(ticks, tm);
 
 	return 0;
 }
@@ -112,7 +112,7 @@ static int pm860x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 			1900 + tm->tm_year);
 		return -EINVAL;
 	}
-	rtc_tm_to_time(tm, &ticks);
+	ticks = rtc_tm_to_time64(tm);
 
 	/* load 32-bit read-only counter */
 	pm860x_bulk_read(info->i2c, PM8607_RTC_COUNTER1, 4, buf);
@@ -150,7 +150,7 @@ static int pm860x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	dev_dbg(info->dev, "get base:0x%lx, RO count:0x%lx, ticks:0x%lx\n",
 		base, data, ticks);
 
-	rtc_time_to_tm(ticks, &alrm->time);
+	rtc_time64_to_tm(ticks, &alrm->time);
 	ret = pm860x_reg_read(info->i2c, PM8607_RTC1);
 	alrm->enabled = (ret & ALARM_EN) ? 1 : 0;
 	alrm->pending = (ret & (ALARM | ALARM_WAKEUP)) ? 1 : 0;
@@ -172,7 +172,7 @@ static int pm860x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	base = ((unsigned long)buf[1] << 24) | (buf[3] << 16) |
 		(buf[5] << 8) | buf[7];
 
-	rtc_tm_to_time(&alrm->time, &ticks);
+	ticks = rtc_tm_to_time64(&alrm->time);
 	data = ticks - base;
 
 	buf[0] = data & 0xff;
