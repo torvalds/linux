@@ -2975,7 +2975,7 @@ isp_rawnr_config(struct rkisp_isp_params_vdev *params_vdev,
 	rkisp_iowrite32(params_vdev, arg->pix_diff, ISP_RAWNR_PIX_DIFF);
 	rkisp_iowrite32(params_vdev, arg->thld_diff, ISP_RAWNR_HILD_DIFF);
 
-	value = (arg->gas_weig_scl2 & 0x01) << 24 |
+	value = (arg->gas_weig_scl2 & 0xFF) << 24 |
 		 (arg->gas_weig_scl1 & 0xFF) << 16 |
 		 (arg->thld_chanelw & 0x07FF);
 	rkisp_iowrite32(params_vdev, value, ISP_RAWNR_THLD_CHANELW);
