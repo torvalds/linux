@@ -374,7 +374,7 @@ xchk_bmapbt_rec(
 	struct xfs_bmbt_irec	iext_irec;
 	struct xfs_iext_cursor	icur;
 	struct xchk_bmap_info	*info = bs->private;
-	struct xfs_inode	*ip = bs->cur->bc_private.b.ip;
+	struct xfs_inode	*ip = bs->cur->bc_ino.ip;
 	struct xfs_buf		*bp = NULL;
 	struct xfs_btree_block	*block;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, info->whichfork);
