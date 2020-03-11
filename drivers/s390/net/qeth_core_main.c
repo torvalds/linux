@@ -215,7 +215,6 @@ EXPORT_SYMBOL_GPL(qeth_clear_working_pool_list);
 static int qeth_alloc_buffer_pool(struct qeth_card *card)
 {
 	struct qeth_buffer_pool_entry *pool_entry;
-	void *ptr;
 	int i, j;
 
 	QETH_CARD_TEXT(card, 5, "alocpool");
@@ -225,17 +224,18 @@ static int qeth_alloc_buffer_pool(struct qeth_card *card)
 			qeth_free_buffer_pool(card);
 			return -ENOMEM;
 		}
+
 		for (j = 0; j < QETH_MAX_BUFFER_ELEMENTS(card); ++j) {
-			ptr = (void *) __get_free_page(GFP_KERNEL);
-			if (!ptr) {
+			struct page *page = alloc_page(GFP_KERNEL);
+
+			if (!page) {
 				while (j > 0)
-					free_page((unsigned long)
-						  pool_entry->elements[--j]);
+					__free_page(pool_entry->elements[--j]);
 				kfree(pool_entry);
 				qeth_free_buffer_pool(card);
 				return -ENOMEM;
 			}
-			pool_entry->elements[j] = ptr;
+			pool_entry->elements[j] = page;
 		}
 		list_add(&pool_entry->init_list,
 			 &card->qdio.init_pool.entry_list);
@@ -1177,7 +1177,7 @@ static void qeth_free_buffer_pool(struct qeth_card *card)
 	list_for_each_entry_safe(pool_entry, tmp,
 				 &card->qdio.init_pool.entry_list, init_list){
 		for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i)
-			free_page((unsigned long)pool_entry->elements[i]);
+			__free_page(pool_entry->elements[i]);
 		list_del(&pool_entry->init_list);
 		kfree(pool_entry);
 	}
@@ -2573,7 +2573,6 @@ static struct qeth_buffer_pool_entry *qeth_find_free_buffer_pool_entry(
 	struct list_head *plh;
 	struct qeth_buffer_pool_entry *entry;
 	int i, free;
-	struct page *page;
 
 	if (list_empty(&card->qdio.in_buf_pool.entry_list))
 		return NULL;
@@ -2582,7 +2581,7 @@ static struct qeth_buffer_pool_entry *qeth_find_free_buffer_pool_entry(
 		entry = list_entry(plh, struct qeth_buffer_pool_entry, list);
 		free = 1;
 		for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i) {
-			if (page_count(virt_to_page(entry->elements[i])) > 1) {
+			if (page_count(entry->elements[i]) > 1) {
 				free = 0;
 				break;
 			}
@@ -2597,15 +2596,15 @@ static struct qeth_buffer_pool_entry *qeth_find_free_buffer_pool_entry(
 	entry = list_entry(card->qdio.in_buf_pool.entry_list.next,
 			struct qeth_buffer_pool_entry, list);
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i) {
-		if (page_count(virt_to_page(entry->elements[i])) > 1) {
-			page = alloc_page(GFP_ATOMIC);
-			if (!page) {
+		if (page_count(entry->elements[i]) > 1) {
+			struct page *page = alloc_page(GFP_ATOMIC);
+
+			if (!page)
 				return NULL;
-			} else {
-				free_page((unsigned long)entry->elements[i]);
-				entry->elements[i] = page_address(page);
-				QETH_CARD_STAT_INC(card, rx_sg_alloc_page);
-			}
+
+			__free_page(entry->elements[i]);
+			entry->elements[i] = page;
+			QETH_CARD_STAT_INC(card, rx_sg_alloc_page);
 		}
 	}
 	list_del_init(&entry->list);
@@ -2641,7 +2640,7 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i) {
 		buf->buffer->element[i].length = PAGE_SIZE;
 		buf->buffer->element[i].addr =
-			virt_to_phys(pool_entry->elements[i]);
+			page_to_phys(pool_entry->elements[i]);
 		if (i == QETH_MAX_BUFFER_ELEMENTS(card) - 1)
 			buf->buffer->element[i].eflags = SBAL_EFLAGS_LAST_ENTRY;
 		else
