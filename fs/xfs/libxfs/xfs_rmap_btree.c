@@ -14,6 +14,7 @@
 #include "xfs_trans.h"
 #include "xfs_alloc.h"
 #include "xfs_btree.h"
+#include "xfs_btree_staging.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
 #include "xfs_trace.h"
@@ -448,9 +449,29 @@ static const struct xfs_btree_ops xfs_rmapbt_ops = {
 	.recs_inorder		= xfs_rmapbt_recs_inorder,
 };
 
-/*
- * Allocate a new allocation btree cursor.
- */
+static struct xfs_btree_cur *
+xfs_rmapbt_init_common(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	xfs_agnumber_t		agno)
+{
+	struct xfs_btree_cur	*cur;
+
+	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_NOFS);
+	cur->bc_tp = tp;
+	cur->bc_mp = mp;
+	/* Overlapping btree; 2 keys per pointer. */
+	cur->bc_btnum = XFS_BTNUM_RMAP;
+	cur->bc_flags = XFS_BTREE_CRC_BLOCKS | XFS_BTREE_OVERLAPPING;
+	cur->bc_blocklog = mp->m_sb.sb_blocklog;
+	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_rmap_2);
+	cur->bc_ag.agno = agno;
+	cur->bc_ops = &xfs_rmapbt_ops;
+
+	return cur;
+}
+
+/* Create a new reverse mapping btree cursor. */
 struct xfs_btree_cur *
 xfs_rmapbt_init_cursor(
 	struct xfs_mount	*mp,
@@ -461,21 +482,47 @@ xfs_rmapbt_init_cursor(
 	struct xfs_agf		*agf = agbp->b_addr;
 	struct xfs_btree_cur	*cur;
 
-	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_NOFS);
-	cur->bc_tp = tp;
-	cur->bc_mp = mp;
-	/* Overlapping btree; 2 keys per pointer. */
-	cur->bc_btnum = XFS_BTNUM_RMAP;
-	cur->bc_flags = XFS_BTREE_CRC_BLOCKS | XFS_BTREE_OVERLAPPING;
-	cur->bc_blocklog = mp->m_sb.sb_blocklog;
-	cur->bc_ops = &xfs_rmapbt_ops;
+	cur = xfs_rmapbt_init_common(mp, tp, agno);
 	cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]);
-	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_rmap_2);
-
 	cur->bc_ag.agbp = agbp;
-	cur->bc_ag.agno = agno;
-
 	return cur;
+}
+
+/* Create a new reverse mapping btree cursor with a fake root for staging. */
+struct xfs_btree_cur *
+xfs_rmapbt_stage_cursor(
+	struct xfs_mount	*mp,
+	struct xbtree_afakeroot	*afake,
+	xfs_agnumber_t		agno)
+{
+	struct xfs_btree_cur	*cur;
+
+	cur = xfs_rmapbt_init_common(mp, NULL, agno);
+	xfs_btree_stage_afakeroot(cur, afake);
+	return cur;
+}
+
+/*
+ * Install a new reverse mapping btree root.  Caller is responsible for
+ * invalidating and freeing the old btree blocks.
+ */
+void
+xfs_rmapbt_commit_staged_btree(
+	struct xfs_btree_cur	*cur,
+	struct xfs_trans	*tp,
+	struct xfs_buf		*agbp)
+{
+	struct xfs_agf		*agf = agbp->b_addr;
+	struct xbtree_afakeroot	*afake = cur->bc_ag.afake;
+
+	ASSERT(cur->bc_flags & XFS_BTREE_STAGING);
+
+	agf->agf_roots[cur->bc_btnum] = cpu_to_be32(afake->af_root);
+	agf->agf_levels[cur->bc_btnum] = cpu_to_be32(afake->af_levels);
+	agf->agf_rmap_blocks = cpu_to_be32(afake->af_blocks);
+	xfs_alloc_log_agf(tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS |
+				    XFS_AGF_RMAP_BLOCKS);
+	xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_rmapbt_ops);
 }
 
 /*
