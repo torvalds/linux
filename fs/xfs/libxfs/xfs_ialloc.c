@@ -105,7 +105,7 @@ xfs_inobt_get_rec(
 	int				*stat)
 {
 	struct xfs_mount		*mp = cur->bc_mp;
-	xfs_agnumber_t			agno = cur->bc_private.a.agno;
+	xfs_agnumber_t			agno = cur->bc_ag.agno;
 	union xfs_btree_rec		*rec;
 	int				error;
 	uint64_t			realfree;

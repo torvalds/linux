@@ -214,7 +214,7 @@ xfs_btree_check_sptr(
 {
 	if (level <= 0)
 		return false;
-	return xfs_verify_agbno(cur->bc_mp, cur->bc_private.a.agno, agbno);
+	return xfs_verify_agbno(cur->bc_mp, cur->bc_ag.agno, agbno);
 }
 
 /*
@@ -243,7 +243,7 @@ xfs_btree_check_ptr(
 			return 0;
 		xfs_err(cur->bc_mp,
 "AG %u: Corrupt btree %d pointer at level %d index %d.",
-				cur->bc_private.a.agno, cur->bc_btnum,
+				cur->bc_ag.agno, cur->bc_btnum,
 				level, index);
 	}
 
@@ -881,13 +881,13 @@ xfs_btree_readahead_sblock(
 
 
 	if ((lr & XFS_BTCUR_LEFTRA) && left != NULLAGBLOCK) {
-		xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
+		xfs_btree_reada_bufs(cur->bc_mp, cur->bc_ag.agno,
 				     left, 1, cur->bc_ops->buf_ops);
 		rval++;
 	}
 
 	if ((lr & XFS_BTCUR_RIGHTRA) && right != NULLAGBLOCK) {
-		xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
+		xfs_btree_reada_bufs(cur->bc_mp, cur->bc_ag.agno,
 				     right, 1, cur->bc_ops->buf_ops);
 		rval++;
 	}
@@ -945,7 +945,7 @@ xfs_btree_ptr_to_daddr(
 		*daddr = XFS_FSB_TO_DADDR(cur->bc_mp, fsbno);
 	} else {
 		agbno = be32_to_cpu(ptr->s);
-		*daddr = XFS_AGB_TO_DADDR(cur->bc_mp, cur->bc_private.a.agno,
+		*daddr = XFS_AGB_TO_DADDR(cur->bc_mp, cur->bc_ag.agno,
 				agbno);
 	}
 
@@ -1146,7 +1146,7 @@ xfs_btree_init_block_cur(
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
 		owner = cur->bc_private.b.ip->i_ino;
 	else
-		owner = cur->bc_private.a.agno;
+		owner = cur->bc_ag.agno;
 
 	xfs_btree_init_block_int(cur->bc_mp, XFS_BUF_TO_BLOCK(bp), bp->b_bn,
 				 cur->bc_btnum, level, numrecs,

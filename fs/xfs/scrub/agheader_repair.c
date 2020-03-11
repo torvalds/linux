@@ -453,7 +453,7 @@ xrep_agfl_walk_rmap(
 
 	/* Record all the OWN_AG blocks. */
 	if (rec->rm_owner == XFS_RMAP_OWN_AG) {
-		fsb = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_private.a.agno,
+		fsb = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_ag.agno,
 				rec->rm_startblock);
 		error = xfs_bitmap_set(ra->freesp, fsb, rec->rm_blockcount);
 		if (error)

@@ -34,7 +34,7 @@ xfs_inobt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
 	return xfs_inobt_init_cursor(cur->bc_mp, cur->bc_tp,
-			cur->bc_private.a.agbp, cur->bc_private.a.agno,
+			cur->bc_ag.agbp, cur->bc_ag.agno,
 			cur->bc_btnum);
 }
 
@@ -44,7 +44,7 @@ xfs_inobt_set_root(
 	union xfs_btree_ptr	*nptr,
 	int			inc)	/* level change */
 {
-	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
+	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agi		*agi = agbp->b_addr;
 
 	agi->agi_root = nptr->s;
@@ -58,7 +58,7 @@ xfs_finobt_set_root(
 	union xfs_btree_ptr	*nptr,
 	int			inc)	/* level change */
 {
-	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
+	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agi		*agi = agbp->b_addr;
 
 	agi->agi_free_root = nptr->s;
@@ -83,7 +83,7 @@ __xfs_inobt_alloc_block(
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
 	args.oinfo = XFS_RMAP_OINFO_INOBT;
-	args.fsbno = XFS_AGB_TO_FSB(args.mp, cur->bc_private.a.agno, sbno);
+	args.fsbno = XFS_AGB_TO_FSB(args.mp, cur->bc_ag.agno, sbno);
 	args.minlen = 1;
 	args.maxlen = 1;
 	args.prod = 1;
@@ -212,9 +212,9 @@ xfs_inobt_init_ptr_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr)
 {
-	struct xfs_agi		*agi = cur->bc_private.a.agbp->b_addr;
+	struct xfs_agi		*agi = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(cur->bc_private.a.agno == be32_to_cpu(agi->agi_seqno));
+	ASSERT(cur->bc_ag.agno == be32_to_cpu(agi->agi_seqno));
 
 	ptr->s = agi->agi_root;
 }
@@ -224,9 +224,9 @@ xfs_finobt_init_ptr_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr)
 {
-	struct xfs_agi		*agi = cur->bc_private.a.agbp->b_addr;
+	struct xfs_agi		*agi = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(cur->bc_private.a.agno == be32_to_cpu(agi->agi_seqno));
+	ASSERT(cur->bc_ag.agno == be32_to_cpu(agi->agi_seqno));
 	ptr->s = agi->agi_free_root;
 }
 
@@ -433,8 +433,8 @@ xfs_inobt_init_cursor(
 	if (xfs_sb_version_hascrc(&mp->m_sb))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
-	cur->bc_private.a.agbp = agbp;
-	cur->bc_private.a.agno = agno;
+	cur->bc_ag.agbp = agbp;
+	cur->bc_ag.agno = agno;
 
 	return cur;
 }

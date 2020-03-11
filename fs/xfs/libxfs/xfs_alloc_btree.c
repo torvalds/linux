@@ -25,7 +25,7 @@ xfs_allocbt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
 	return xfs_allocbt_init_cursor(cur->bc_mp, cur->bc_tp,
-			cur->bc_private.a.agbp, cur->bc_private.a.agno,
+			cur->bc_ag.agbp, cur->bc_ag.agno,
 			cur->bc_btnum);
 }
 
@@ -35,7 +35,7 @@ xfs_allocbt_set_root(
 	union xfs_btree_ptr	*ptr,
 	int			inc)
 {
-	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
+	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
 	xfs_agnumber_t		seqno = be32_to_cpu(agf->agf_seqno);
 	int			btnum = cur->bc_btnum;
@@ -62,7 +62,7 @@ xfs_allocbt_alloc_block(
 	xfs_agblock_t		bno;
 
 	/* Allocate the new block from the freelist. If we can't, give up.  */
-	error = xfs_alloc_get_freelist(cur->bc_tp, cur->bc_private.a.agbp,
+	error = xfs_alloc_get_freelist(cur->bc_tp, cur->bc_ag.agbp,
 				       &bno, 1);
 	if (error)
 		return error;
@@ -72,7 +72,7 @@ xfs_allocbt_alloc_block(
 		return 0;
 	}
 
-	xfs_extent_busy_reuse(cur->bc_mp, cur->bc_private.a.agno, bno, 1, false);
+	xfs_extent_busy_reuse(cur->bc_mp, cur->bc_ag.agno, bno, 1, false);
 
 	xfs_trans_agbtree_delta(cur->bc_tp, 1);
 	new->s = cpu_to_be32(bno);
@@ -86,7 +86,7 @@ xfs_allocbt_free_block(
 	struct xfs_btree_cur	*cur,
 	struct xfs_buf		*bp)
 {
-	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
+	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
 	xfs_agblock_t		bno;
 	int			error;
@@ -113,7 +113,7 @@ xfs_allocbt_update_lastrec(
 	int			ptr,
 	int			reason)
 {
-	struct xfs_agf		*agf = cur->bc_private.a.agbp->b_addr;
+	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
 	xfs_agnumber_t		seqno = be32_to_cpu(agf->agf_seqno);
 	struct xfs_perag	*pag;
 	__be32			len;
@@ -162,7 +162,7 @@ xfs_allocbt_update_lastrec(
 	pag = xfs_perag_get(cur->bc_mp, seqno);
 	pag->pagf_longest = be32_to_cpu(len);
 	xfs_perag_put(pag);
-	xfs_alloc_log_agf(cur->bc_tp, cur->bc_private.a.agbp, XFS_AGF_LONGEST);
+	xfs_alloc_log_agf(cur->bc_tp, cur->bc_ag.agbp, XFS_AGF_LONGEST);
 }
 
 STATIC int
@@ -226,9 +226,9 @@ xfs_allocbt_init_ptr_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr)
 {
-	struct xfs_agf		*agf = cur->bc_private.a.agbp->b_addr;
+	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(cur->bc_private.a.agno == be32_to_cpu(agf->agf_seqno));
+	ASSERT(cur->bc_ag.agno == be32_to_cpu(agf->agf_seqno));
 
 	ptr->s = agf->agf_roots[cur->bc_btnum];
 }
@@ -505,9 +505,9 @@ xfs_allocbt_init_cursor(
 		cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]);
 	}
 
-	cur->bc_private.a.agbp = agbp;
-	cur->bc_private.a.agno = agno;
-	cur->bc_private.a.priv.abt.active = false;
+	cur->bc_ag.agbp = agbp;
+	cur->bc_ag.agno = agno;
+	cur->bc_ag.priv.abt.active = false;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;

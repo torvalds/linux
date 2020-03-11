@@ -26,7 +26,7 @@ xchk_btree_cur_fsbno(
 		 cur->bc_flags & XFS_BTREE_LONG_PTRS)
 		return XFS_INO_TO_FSB(cur->bc_mp, cur->bc_private.b.ip->i_ino);
 	else if (!(cur->bc_flags & XFS_BTREE_LONG_PTRS))
-		return XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_private.a.agno, 0);
+		return XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_ag.agno, 0);
 	return NULLFSBLOCK;
 }
 
