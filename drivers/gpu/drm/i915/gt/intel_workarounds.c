@@ -1487,6 +1487,14 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_write_or(wal,
 			    SUBSLICE_UNIT_LEVEL_CLKGATE,
 			    GWUNIT_CLKGATE_DIS);
+
+		/*
+		 * Wa_1408767742:icl[a2..forever],ehl[all]
+		 * Wa_1605460711:icl[a0..c0]
+		 */
+		wa_write_or(wal,
+			    GEN7_FF_THREAD_MODE,
+			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 	}
 
 	if (IS_GEN_RANGE(i915, 9, 12)) {
