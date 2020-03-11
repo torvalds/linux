@@ -57,7 +57,7 @@ static u32 rps_pm_mask(struct intel_rps *rps, u8 val)
 	if (val < rps->max_freq_softlimit)
 		mask |= GEN6_PM_RP_UP_EI_EXPIRED | GEN6_PM_RP_UP_THRESHOLD;
 
-	mask &= rps->pm_events;
+	mask &= READ_ONCE(rps->pm_events);
 
 	return rps_pm_sanitize_mask(rps, ~mask);
 }
@@ -70,17 +70,19 @@ static void rps_reset_ei(struct intel_rps *rps)
 static void rps_enable_interrupts(struct intel_rps *rps)
 {
 	struct intel_gt *gt = rps_to_gt(rps);
+	u32 events;
 
 	rps_reset_ei(rps);
 
 	if (IS_VALLEYVIEW(gt->i915))
 		/* WaGsvRC0ResidencyMethod:vlv */
-		rps->pm_events = GEN6_PM_RP_UP_EI_EXPIRED;
+		events = GEN6_PM_RP_UP_EI_EXPIRED;
 	else
-		rps->pm_events = (GEN6_PM_RP_UP_THRESHOLD |
-				  GEN6_PM_RP_DOWN_THRESHOLD |
-				  GEN6_PM_RP_DOWN_TIMEOUT);
+		events = (GEN6_PM_RP_UP_THRESHOLD |
+			  GEN6_PM_RP_DOWN_THRESHOLD |
+			  GEN6_PM_RP_DOWN_TIMEOUT);
 
+	WRITE_ONCE(rps->pm_events, events);
 	spin_lock_irq(&gt->irq_lock);
 	gen6_gt_pm_enable_irq(gt, rps->pm_events);
 	spin_unlock_irq(&gt->irq_lock);
@@ -117,8 +119,7 @@ static void rps_disable_interrupts(struct intel_rps *rps)
 {
 	struct intel_gt *gt = rps_to_gt(rps);
 
-	rps->pm_events = 0;
-
+	WRITE_ONCE(rps->pm_events, 0);
 	set(gt->uncore, GEN6_PMINTRMSK, rps_pm_sanitize_mask(rps, ~0u));
 
 	spin_lock_irq(&gt->irq_lock);
@@ -1459,12 +1460,12 @@ static void rps_work(struct work_struct *work)
 	u32 pm_iir = 0;
 
 	spin_lock_irq(&gt->irq_lock);
-	pm_iir = fetch_and_zero(&rps->pm_iir);
+	pm_iir = fetch_and_zero(&rps->pm_iir) & READ_ONCE(rps->pm_events);
 	client_boost = atomic_read(&rps->num_waiters);
 	spin_unlock_irq(&gt->irq_lock);
 
 	/* Make sure we didn't queue anything we're not going to process. */
-	if ((pm_iir & rps->pm_events) == 0 && !client_boost)
+	if (!pm_iir && !client_boost)
 		goto out;
 
 	mutex_lock(&rps->lock);
@@ -1560,11 +1561,15 @@ void gen11_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 {
 	struct intel_gt *gt = rps_to_gt(rps);
+	u32 events;
 
-	if (pm_iir & rps->pm_events) {
+	events = pm_iir & READ_ONCE(rps->pm_events);
+	if (events) {
 		spin_lock(&gt->irq_lock);
-		gen6_gt_pm_mask_irq(gt, pm_iir & rps->pm_events);
-		rps->pm_iir |= pm_iir & rps->pm_events;
+
+		gen6_gt_pm_mask_irq(gt, events);
+		rps->pm_iir |= events;
+
 		schedule_work(&rps->work);
 		spin_unlock(&gt->irq_lock);
 	}
