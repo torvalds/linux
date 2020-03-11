@@ -13,19 +13,20 @@
 #include <asm/code-patching.h>
 
 #define IMM_L(i)		((uintptr_t)(i) & 0xffff)
+#define IMM_DS(i)		((uintptr_t)(i) & 0xfffc)
 
 /*
  * Defined with TEST_ prefix so it does not conflict with other
  * definitions.
  */
 #define TEST_LD(r, base, i)	(PPC_INST_LD | ___PPC_RT(r) |		\
-					___PPC_RA(base) | IMM_L(i))
+					___PPC_RA(base) | IMM_DS(i))
 #define TEST_LWZ(r, base, i)	(PPC_INST_LWZ | ___PPC_RT(r) |		\
 					___PPC_RA(base) | IMM_L(i))
 #define TEST_LWZX(t, a, b)	(PPC_INST_LWZX | ___PPC_RT(t) |		\
 					___PPC_RA(a) | ___PPC_RB(b))
 #define TEST_STD(r, base, i)	(PPC_INST_STD | ___PPC_RS(r) |		\
-					___PPC_RA(base) | ((i) & 0xfffc))
+					___PPC_RA(base) | IMM_DS(i))
 #define TEST_LDARX(t, a, b, eh)	(PPC_INST_LDARX | ___PPC_RT(t) |	\
 					___PPC_RA(a) | ___PPC_RB(b) |	\
 					__PPC_EH(eh))
