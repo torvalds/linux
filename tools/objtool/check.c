@@ -2458,23 +2458,6 @@ static int validate_reachable_instructions(struct objtool_file *file)
 	return 0;
 }
 
-static void cleanup(struct objtool_file *file)
-{
-	struct instruction *insn, *tmpinsn;
-	struct alternative *alt, *tmpalt;
-
-	list_for_each_entry_safe(insn, tmpinsn, &file->insn_list, list) {
-		list_for_each_entry_safe(alt, tmpalt, &insn->alts, list) {
-			list_del(&alt->list);
-			free(alt);
-		}
-		list_del(&insn->list);
-		hash_del(&insn->hash);
-		free(insn);
-	}
-	elf_close(file->elf);
-}
-
 static struct objtool_file file;
 
 int check(const char *_objname, bool orc)
@@ -2542,8 +2525,6 @@ int check(const char *_objname, bool orc)
 	}
 
 out:
-	cleanup(&file);
-
 	if (ret < 0) {
 		/*
 		 *  Fatal error.  The binary is corrupt or otherwise broken in
