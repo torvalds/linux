@@ -224,6 +224,8 @@ typedef struct xfs_btree_cur
 #define	XFS_BTCUR_BPRV_INVALID_OWNER	(1<<1)		/* for ext swap */
 		} b;
 	}		bc_private;	/* per-btree type data */
+#define bc_ag	bc_private.a
+#define bc_ino	bc_private.b
 } xfs_btree_cur_t;
 
 /* cursor flags */
