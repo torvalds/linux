@@ -25,7 +25,8 @@
 #define to_zynqmp_clk_divider(_hw)		\
 	container_of(_hw, struct zynqmp_clk_divider, hw)
 
-#define CLK_FRAC	BIT(13) /* has a fractional parent */
+#define CLK_FRAC		BIT(13) /* has a fractional parent */
+#define CUSTOM_FLAG_CLK_FRAC	BIT(0) /* has a fractional parent in custom type flag */
 
 /**
  * struct zynqmp_clk_divider - adjustable divider clock
@@ -320,7 +321,8 @@ struct clk_hw *zynqmp_clk_register_divider(const char *name,
 	init.num_parents = 1;
 
 	/* struct clk_divider assignments */
-	div->is_frac = !!(nodes->flag & CLK_FRAC);
+	div->is_frac = !!((nodes->flag & CLK_FRAC) |
+			  (nodes->custom_type_flag & CUSTOM_FLAG_CLK_FRAC));
 	div->flags = nodes->type_flag;
 	div->hw.init = &init;
 	div->clk_id = clk_id;
