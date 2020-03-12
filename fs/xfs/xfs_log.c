@@ -946,6 +946,18 @@ out_err:
 	}
 }
 
+static void
+xfs_log_unmount_verify_iclog(
+	struct xlog		*log)
+{
+	struct xlog_in_core	*iclog = log->l_iclog;
+
+	do {
+		ASSERT(iclog->ic_state == XLOG_STATE_ACTIVE);
+		ASSERT(iclog->ic_offset == 0);
+	} while ((iclog = iclog->ic_next) != log->l_iclog);
+}
+
 /*
  * Unmount record used to have a string "Unmount filesystem--" in the
  * data section where the "Un" was really a magic number (XLOG_UNMOUNT_TYPE).
@@ -954,13 +966,10 @@ out_err:
  * As far as I know, there weren't any dependencies on the old behaviour.
  */
 static void
-xfs_log_unmount_write(xfs_mount_t *mp)
+xfs_log_unmount_write(
+	struct xfs_mount	*mp)
 {
-	struct xlog	 *log = mp->m_log;
-	xlog_in_core_t	 *iclog;
-#ifdef DEBUG
-	xlog_in_core_t	 *first_iclog;
-#endif
+	struct xlog		*log = mp->m_log;
 
 	/*
 	 * Don't write out unmount record on norecovery mounts or ro devices.
@@ -974,18 +983,9 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
-#ifdef DEBUG
-	first_iclog = iclog = log->l_iclog;
-	do {
-		if (iclog->ic_state != XLOG_STATE_IOERROR) {
-			ASSERT(iclog->ic_state == XLOG_STATE_ACTIVE);
-			ASSERT(iclog->ic_offset == 0);
-		}
-		iclog = iclog->ic_next;
-	} while (iclog != first_iclog);
-#endif
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return;
+	xfs_log_unmount_verify_iclog(log);
 	xfs_log_write_unmount_record(mp);
 }
 
