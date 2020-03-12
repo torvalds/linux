@@ -929,37 +929,6 @@ void netdev_rss_key_fill(void *buffer, size_t len)
 }
 EXPORT_SYMBOL(netdev_rss_key_fill);
 
-static int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max)
-{
-	u32 dev_size, current_max = 0;
-	u32 *indir;
-	int ret;
-
-	if (!dev->ethtool_ops->get_rxfh_indir_size ||
-	    !dev->ethtool_ops->get_rxfh)
-		return -EOPNOTSUPP;
-	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
-	if (dev_size == 0)
-		return -EOPNOTSUPP;
-
-	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
-	if (!indir)
-		return -ENOMEM;
-
-	ret = dev->ethtool_ops->get_rxfh(dev, indir, NULL, NULL);
-	if (ret)
-		goto out;
-
-	while (dev_size--)
-		current_max = max(current_max, indir[dev_size]);
-
-	*max = current_max;
-
-out:
-	kfree(indir);
-	return ret;
-}
-
 static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {

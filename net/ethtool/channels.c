@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <net/xdp_sock.h>
+
 #include "netlink.h"
 #include "common.h"
 
@@ -106,3 +108,117 @@ const struct ethnl_request_ops ethnl_channels_request_ops = {
 	.reply_size		= channels_reply_size,
 	.fill_reply		= channels_fill_reply,
 };
+
+/* CHANNELS_SET */
+
+static const struct nla_policy
+channels_set_policy[ETHTOOL_A_CHANNELS_MAX + 1] = {
+	[ETHTOOL_A_CHANNELS_UNSPEC]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_CHANNELS_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_CHANNELS_RX_MAX]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_CHANNELS_TX_MAX]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_CHANNELS_OTHER_MAX]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_CHANNELS_COMBINED_MAX]	= { .type = NLA_REJECT },
+	[ETHTOOL_A_CHANNELS_RX_COUNT]		= { .type = NLA_U32 },
+	[ETHTOOL_A_CHANNELS_TX_COUNT]		= { .type = NLA_U32 },
+	[ETHTOOL_A_CHANNELS_OTHER_COUNT]	= { .type = NLA_U32 },
+	[ETHTOOL_A_CHANNELS_COMBINED_COUNT]	= { .type = NLA_U32 },
+};
+
+int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *tb[ETHTOOL_A_CHANNELS_MAX + 1];
+	unsigned int from_channel, old_total, i;
+	struct ethtool_channels channels = {};
+	struct ethnl_req_info req_info = {};
+	const struct nlattr *err_attr;
+	const struct ethtool_ops *ops;
+	struct net_device *dev;
+	u32 max_rx_in_use = 0;
+	bool mod = false;
+	int ret;
+
+	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
+			  ETHTOOL_A_CHANNELS_MAX, channels_set_policy,
+			  info->extack);
+	if (ret < 0)
+		return ret;
+	ret = ethnl_parse_header_dev_get(&req_info,
+					 tb[ETHTOOL_A_CHANNELS_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
+	if (ret < 0)
+		return ret;
+	dev = req_info.dev;
+	ops = dev->ethtool_ops;
+	ret = -EOPNOTSUPP;
+	if (!ops->get_channels || !ops->set_channels)
+		goto out_dev;
+
+	rtnl_lock();
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		goto out_rtnl;
+	ops->get_channels(dev, &channels);
+	old_total = channels.combined_count +
+		    max(channels.rx_count, channels.tx_count);
+
+	ethnl_update_u32(&channels.rx_count, tb[ETHTOOL_A_CHANNELS_RX_COUNT],
+			 &mod);
+	ethnl_update_u32(&channels.tx_count, tb[ETHTOOL_A_CHANNELS_TX_COUNT],
+			 &mod);
+	ethnl_update_u32(&channels.other_count,
+			 tb[ETHTOOL_A_CHANNELS_OTHER_COUNT], &mod);
+	ethnl_update_u32(&channels.combined_count,
+			 tb[ETHTOOL_A_CHANNELS_COMBINED_COUNT], &mod);
+	ret = 0;
+	if (!mod)
+		goto out_ops;
+
+	/* ensure new channel counts are within limits */
+	if (channels.rx_count > channels.max_rx)
+		err_attr = tb[ETHTOOL_A_CHANNELS_RX_COUNT];
+	else if (channels.tx_count > channels.max_tx)
+		err_attr = tb[ETHTOOL_A_CHANNELS_TX_COUNT];
+	else if (channels.other_count > channels.max_other)
+		err_attr = tb[ETHTOOL_A_CHANNELS_OTHER_COUNT];
+	else if (channels.combined_count > channels.max_combined)
+		err_attr = tb[ETHTOOL_A_CHANNELS_COMBINED_COUNT];
+	else
+		err_attr = NULL;
+	if (err_attr) {
+		ret = -EINVAL;
+		NL_SET_ERR_MSG_ATTR(info->extack, err_attr,
+				    "requested channel count exceeeds maximum");
+		goto out_ops;
+	}
+
+	/* ensure the new Rx count fits within the configured Rx flow
+	 * indirection table settings
+	 */
+	if (netif_is_rxfh_configured(dev) &&
+	    !ethtool_get_max_rxfh_channel(dev, &max_rx_in_use) &&
+	    (channels.combined_count + channels.rx_count) <= max_rx_in_use) {
+		GENL_SET_ERR_MSG(info, "requested channel counts are too low for existing indirection table settings");
+		return -EINVAL;
+	}
+
+	/* Disabling channels, query zero-copy AF_XDP sockets */
+	from_channel = channels.combined_count +
+		       min(channels.rx_count, channels.tx_count);
+	for (i = from_channel; i < old_total; i++)
+		if (xdp_get_umem_from_qid(dev, i)) {
+			GENL_SET_ERR_MSG(info, "requested channel counts are too low for existing zerocopy AF_XDP sockets");
+			return -EINVAL;
+		}
+
+	ret = dev->ethtool_ops->set_channels(dev, &channels);
+
+out_ops:
+	ethnl_ops_complete(dev);
+out_rtnl:
+	rtnl_unlock();
+out_dev:
+	dev_put(dev);
+	return ret;
+}

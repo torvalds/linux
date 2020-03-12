@@ -196,6 +196,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_RINGS_GET``             get ring sizes
   ``ETHTOOL_MSG_RINGS_SET``             set ring sizes
   ``ETHTOOL_MSG_CHANNELS_GET``          get channel counts
+  ``ETHTOOL_MSG_CHANNELS_SET``          set channel counts
   ===================================== ================================
 
 Kernel to userspace:
@@ -723,6 +724,26 @@ Kernel response contents:
   =====================================  ======  ==========================
 
 
+CHANNELS_SET
+============
+
+Sets channel counts like ``ETHTOOL_SCHANNELS`` ioctl request.
+
+Request contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_CHANNELS_HEADER``          nested  request header
+  ``ETHTOOL_A_CHANNELS_RX_COUNT``        u32     receive channel count
+  ``ETHTOOL_A_CHANNELS_TX_COUNT``        u32     transmit channel count
+  ``ETHTOOL_A_CHANNELS_OTHER_COUNT``     u32     other channel count
+  ``ETHTOOL_A_CHANNELS_COMBINED_COUNT``  u32     combined channel count
+  =====================================  ======  ==========================
+
+Kernel checks that requested channel counts do not exceed limits reported by
+driver. Driver may impose additional constraints and may not suspport all
+attributes.
+
+
 Request translation
 ===================
 
@@ -794,7 +815,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GFEATURES``               ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SFEATURES``               ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GCHANNELS``               ``ETHTOOL_MSG_CHANNELS_GET``
-  ``ETHTOOL_SCHANNELS``               n/a
+  ``ETHTOOL_SCHANNELS``               ``ETHTOOL_MSG_CHANNELS_SET``
   ``ETHTOOL_SET_DUMP``                n/a
   ``ETHTOOL_GET_DUMP_FLAG``           n/a
   ``ETHTOOL_GET_DUMP_DATA``           n/a
