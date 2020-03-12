@@ -8272,6 +8272,7 @@ void hclge_rm_vport_all_vlan_table(struct hclge_vport *vport, bool is_del_list)
 			kfree(vlan);
 		}
 	}
+	clear_bit(vport->vport_id, hdev->vf_vlan_full);
 }
 
 void hclge_uninit_vport_vlan_table(struct hclge_dev *hdev)
