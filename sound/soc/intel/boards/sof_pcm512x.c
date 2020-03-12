@@ -27,6 +27,8 @@
 #define SOF_PCM512X_SSP_CODEC(quirk)		((quirk) & GENMASK(3, 0))
 #define SOF_PCM512X_SSP_CODEC_MASK			(GENMASK(3, 0))
 
+#define IDISP_CODEC_MASK	0x4
+
 /* Default: SSP5 */
 static unsigned long sof_pcm512x_quirk = SOF_PCM512X_SSP_CODEC(5);
 
@@ -40,6 +42,7 @@ struct sof_hdmi_pcm {
 
 struct sof_card_private {
 	struct list_head hdmi_pcm_list;
+	bool idisp_codec;
 };
 
 static int sof_pcm512x_quirk_cb(const struct dmi_system_id *id)
@@ -136,6 +139,9 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 	if (list_empty(&ctx->hdmi_pcm_list))
 		return -EINVAL;
 
+	if (!ctx->idisp_codec)
+		return 0;
+
 	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct sof_hdmi_pcm, head);
 
 	return hda_dsp_hdmi_build_controls(card, pcm->codec_dai->component);
@@ -214,7 +220,8 @@ SND_SOC_DAILINK_DEF(dmic_component,
 static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 							  int ssp_codec,
 							  int dmic_be_num,
-							  int hdmi_num)
+							  int hdmi_num,
+							  bool idisp_codec)
 {
 	struct snd_soc_dai_link_component *idisp_components;
 	struct snd_soc_dai_link_component *cpus;
@@ -316,11 +323,19 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		if (!links[id].cpus->dai_name)
 			goto devm_err;
 
-		idisp_components[i - 1].name = "ehdaudio0D2";
-		idisp_components[i - 1].dai_name = devm_kasprintf(dev,
-								  GFP_KERNEL,
-								  "intel-hdmi-hifi%d",
-								  i);
+		/*
+		 * topology cannot be loaded if codec is missing, so
+		 * use the dummy codec if needed
+		 */
+		if (idisp_codec) {
+			idisp_components[i - 1].name = "ehdaudio0D2";
+			idisp_components[i - 1].dai_name =
+				devm_kasprintf(dev, GFP_KERNEL,
+					       "intel-hdmi-hifi%d", i);
+		} else {
+			idisp_components[i - 1].name = "snd-soc-dummy";
+			idisp_components[i - 1].dai_name = "snd-soc-dummy-dai";
+		}
 		if (!idisp_components[i - 1].dai_name)
 			goto devm_err;
 
@@ -341,8 +356,8 @@ devm_err:
 
 static int sof_audio_probe(struct platform_device *pdev)
 {
+	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
-	struct snd_soc_acpi_mach *mach;
 	struct sof_card_private *ctx;
 	int dmic_be_num, hdmi_num;
 	int ret, ssp_codec;
@@ -360,6 +375,11 @@ static int sof_audio_probe(struct platform_device *pdev)
 	} else {
 		dmic_be_num = 2;
 #if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
+		if (mach->mach_params.common_hdmi_codec_drv &&
+		    (mach->mach_params.codec_mask & IDISP_CODEC_MASK))
+			ctx->idisp_codec = true;
+
+		/* links are always present in topology */
 		hdmi_num = 3;
 #endif
 	}
@@ -374,7 +394,8 @@ static int sof_audio_probe(struct platform_device *pdev)
 	sof_audio_card_pcm512x.num_links = 1 + dmic_be_num + hdmi_num;
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ssp_codec,
-					      dmic_be_num, hdmi_num);
+					      dmic_be_num, hdmi_num,
+					      ctx->idisp_codec);
 	if (!dai_links)
 		return -ENOMEM;
 
@@ -383,7 +404,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	sof_audio_card_pcm512x.dev = &pdev->dev;
-	mach = (&pdev->dev)->platform_data;
 
 	/* set platform name for each dailink */
 	ret = snd_soc_fixup_dai_links_platform_name(&sof_audio_card_pcm512x,
