@@ -213,7 +213,7 @@ enum operation_mode {
 	COMMAND_MODE,
 };
 
-#define GRF_REG_FIELD(reg, lsb, msb)	(((reg) << 16) | ((lsb) << 8) | (msb))
+#define GRF_REG_FIELD(reg, lsb, msb)	(((reg) << 10) | ((lsb) << 5) | (msb))
 
 enum grf_reg_fields {
 	DPIUPDATECFG,
@@ -300,15 +300,15 @@ static void grf_field_write(struct dw_mipi_dsi *dsi, enum grf_reg_fields index,
 	const u32 field = dsi->id ?
 			  dsi->pdata->dsi1_grf_reg_fields[index] :
 			  dsi->pdata->dsi0_grf_reg_fields[index];
-	u16 reg;
+	u32 reg;
 	u8 msb, lsb;
 
 	if (!field)
 		return;
 
-	reg = (field >> 16) & 0xffff;
-	lsb = (field >>  8) & 0xff;
-	msb = (field >>  0) & 0xff;
+	reg = (field >> 10) & 0x3ffff;
+	lsb = (field >>  5) & 0x1f;
+	msb = (field >>  0) & 0x1f;
 
 	regmap_write(dsi->grf, reg, (val << lsb) | (GENMASK(msb, lsb) << 16));
 }
