@@ -1550,6 +1550,24 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	pipe_config->hw.adjusted_mode.private_flags &=
 					~I915_MODE_FLAG_DSI_PERIODIC_CMD_MODE;
 
+	/*
+	 * In case of TE GATE cmd mode, we
+	 * receive TE from the slave if
+	 * dual link is enabled
+	 */
+	if (is_cmd_mode(intel_dsi)) {
+		if (intel_dsi->ports == (BIT(PORT_B) | BIT(PORT_A)))
+			pipe_config->hw.adjusted_mode.private_flags |=
+						I915_MODE_FLAG_DSI_USE_TE1 |
+						I915_MODE_FLAG_DSI_USE_TE0;
+		else if (intel_dsi->ports == BIT(PORT_B))
+			pipe_config->hw.adjusted_mode.private_flags |=
+						I915_MODE_FLAG_DSI_USE_TE1;
+		else
+			pipe_config->hw.adjusted_mode.private_flags |=
+						I915_MODE_FLAG_DSI_USE_TE0;
+	}
+
 	return 0;
 }
 
