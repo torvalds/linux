@@ -113,14 +113,18 @@ struct v4l2_fwnode_endpoint {
  * struct v4l2_fwnode_link - a link between two endpoints
  * @local_node: pointer to device_node of this endpoint
  * @local_port: identifier of the port this endpoint belongs to
+ * @local_id: identifier of the id this endpoint belongs to
  * @remote_node: pointer to device_node of the remote endpoint
  * @remote_port: identifier of the port the remote endpoint belongs to
+ * @remote_id: identifier of the id the remote endpoint belongs to
  */
 struct v4l2_fwnode_link {
 	struct fwnode_handle *local_node;
 	unsigned int local_port;
+	unsigned int local_id;
 	struct fwnode_handle *remote_node;
 	unsigned int remote_port;
+	unsigned int remote_id;
 };
 
 /**

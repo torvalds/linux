@@ -565,6 +565,7 @@ int v4l2_fwnode_parse_link(struct fwnode_handle *fwnode,
 	memset(link, 0, sizeof(*link));
 
 	fwnode_graph_parse_endpoint(fwnode, &fwep);
+	link->local_id = fwep.id;
 	link->local_port = fwep.port;
 	link->local_node = fwnode_graph_get_port_parent(fwnode);
 
@@ -575,6 +576,7 @@ int v4l2_fwnode_parse_link(struct fwnode_handle *fwnode,
 	}
 
 	fwnode_graph_parse_endpoint(fwnode, &fwep);
+	link->remote_id = fwep.id;
 	link->remote_port = fwep.port;
 	link->remote_node = fwnode_graph_get_port_parent(fwnode);
 
