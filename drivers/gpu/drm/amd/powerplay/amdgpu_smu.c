@@ -932,6 +932,13 @@ static int smu_sw_init(void *handle)
 		return ret;
 	}
 
+	if (adev->smu.ppt_funcs->i2c_eeprom_init) {
+		ret = smu_i2c_eeprom_init(smu, &adev->pm.smu_i2c);
+
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -940,6 +947,9 @@ static int smu_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 	int ret;
+
+	if (adev->smu.ppt_funcs->i2c_eeprom_fini)
+		smu_i2c_eeprom_fini(smu, &adev->pm.smu_i2c);
 
 	kfree(smu->irq_source);
 	smu->irq_source = NULL;

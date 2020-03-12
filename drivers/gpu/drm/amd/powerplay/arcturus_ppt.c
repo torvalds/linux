@@ -41,7 +41,7 @@
 #include <linux/pci.h>
 #include "amdgpu_ras.h"
 
-#define to_amdgpu_device(x) (container_of(x, struct amdgpu_ras, eeprom_control.eeprom_accessor))->adev
+#define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
 #define CTF_OFFSET_EDGE			5
 #define CTF_OFFSET_HOTSPOT		5
@@ -2190,7 +2190,7 @@ static int arcturus_i2c_eeprom_control_init(struct i2c_adapter *control)
 	control->class = I2C_CLASS_SPD;
 	control->dev.parent = &adev->pdev->dev;
 	control->algo = &arcturus_i2c_eeprom_i2c_algo;
-	snprintf(control->name, sizeof(control->name), "RAS EEPROM");
+	snprintf(control->name, sizeof(control->name), "AMDGPU EEPROM");
 
 	res = i2c_add_adapter(control);
 	if (res)

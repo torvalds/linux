@@ -448,6 +448,8 @@ struct amdgpu_pm {
 	/* powerplay feature */
 	uint32_t pp_feature;
 
+	/* Used for I2C access to various EEPROMs on relevant ASICs */
+	struct i2c_adapter smu_i2c;
 };
 
 #define R600_SSTU_DFLT                               0
