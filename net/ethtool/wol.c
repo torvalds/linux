@@ -123,8 +123,9 @@ int ethnl_set_wol(struct sk_buff *skb, struct genl_info *info)
 			  wol_set_policy, info->extack);
 	if (ret < 0)
 		return ret;
-	ret = ethnl_parse_header(&req_info, tb[ETHTOOL_A_WOL_HEADER],
-				 genl_info_net(info), info->extack, true);
+	ret = ethnl_parse_header_dev_get(&req_info, tb[ETHTOOL_A_WOL_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
 	if (ret < 0)
 		return ret;
 	dev = req_info.dev;

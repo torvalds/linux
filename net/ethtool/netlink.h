@@ -10,9 +10,10 @@
 
 struct ethnl_req_info;
 
-int ethnl_parse_header(struct ethnl_req_info *req_info,
-		       const struct nlattr *nest, struct net *net,
-		       struct netlink_ext_ack *extack, bool require_dev);
+int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
+			       const struct nlattr *nest, struct net *net,
+			       struct netlink_ext_ack *extack,
+			       bool require_dev);
 int ethnl_fill_reply_header(struct sk_buff *skb, struct net_device *dev,
 			    u16 attrtype);
 struct sk_buff *ethnl_reply_init(size_t payload, struct net_device *dev, u8 cmd,

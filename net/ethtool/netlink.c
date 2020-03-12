@@ -18,7 +18,7 @@ static const struct nla_policy ethnl_header_policy[ETHTOOL_A_HEADER_MAX + 1] = {
 };
 
 /**
- * ethnl_parse_header() - parse request header
+ * ethnl_parse_header_dev_get() - parse request header
  * @req_info:    structure to put results into
  * @header:      nest attribute with request header
  * @net:         request netns
@@ -33,9 +33,9 @@ static const struct nla_policy ethnl_header_policy[ETHTOOL_A_HEADER_MAX + 1] = {
  *
  * Return: 0 on success or negative error code
  */
-int ethnl_parse_header(struct ethnl_req_info *req_info,
-		       const struct nlattr *header, struct net *net,
-		       struct netlink_ext_ack *extack, bool require_dev)
+int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
+			       const struct nlattr *header, struct net *net,
+			       struct netlink_ext_ack *extack, bool require_dev)
 {
 	struct nlattr *tb[ETHTOOL_A_HEADER_MAX + 1];
 	const struct nlattr *devname_attr;
@@ -253,8 +253,8 @@ static int ethnl_default_parse(struct ethnl_req_info *req_info,
 			  request_ops->request_policy, extack);
 	if (ret < 0)
 		goto out;
-	ret = ethnl_parse_header(req_info, tb[request_ops->hdr_attr], net,
-				 extack, require_dev);
+	ret = ethnl_parse_header_dev_get(req_info, tb[request_ops->hdr_attr],
+					 net, extack, require_dev);
 	if (ret < 0)
 		goto out;
 
