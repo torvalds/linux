@@ -194,6 +194,9 @@ int ethnl_set_privflags(struct sk_buff *skb, struct genl_info *info)
 	if (ret < 0 || !mod)
 		goto out_free;
 	ret = ops->set_priv_flags(dev, flags);
+	if (ret < 0)
+		goto out_free;
+	ethtool_notify(dev, ETHTOOL_MSG_PRIVFLAGS_NTF, NULL);
 
 out_free:
 	kfree(names);

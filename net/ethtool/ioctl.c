@@ -2716,6 +2716,8 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GPFLAGS:
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
 				       dev->ethtool_ops->get_priv_flags);
+		if (!rc)
+			ethtool_notify(dev, ETHTOOL_MSG_PRIVFLAGS_NTF, NULL);
 		break;
 	case ETHTOOL_SPFLAGS:
 		rc = ethtool_set_value(dev, useraddr,
