@@ -744,6 +744,18 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 				tmp |= VIDEO_MODE_SYNC_PULSE;
 				break;
 			}
+		} else {
+			/*
+			 * FIXME: Retrieve this info from VBT.
+			 * As per the spec when dsi transcoder is operating
+			 * in TE GATE mode, TE comes from GPIO
+			 * which is UTIL PIN for DSI 0.
+			 * Also this GPIO would not be used for other
+			 * purposes is an assumption.
+			 */
+			tmp &= ~OP_MODE_MASK;
+			tmp |= CMD_MODE_TE_GATE;
+			tmp |= TE_SOURCE_GPIO;
 		}
 
 		intel_de_write(dev_priv, DSI_TRANS_FUNC_CONF(dsi_trans), tmp);
@@ -1016,6 +1028,32 @@ static void gen11_dsi_setup_timeouts(struct intel_encoder *encoder,
 	}
 }
 
+static void gen11_dsi_config_util_pin(struct intel_encoder *encoder,
+				      bool enable)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+	u32 tmp;
+
+	/*
+	 * used as TE i/p for DSI0,
+	 * for dual link/DSI1 TE is from slave DSI1
+	 * through GPIO.
+	 */
+	if (is_vid_mode(intel_dsi) || (intel_dsi->ports & BIT(PORT_B)))
+		return;
+
+	tmp = intel_de_read(dev_priv, UTIL_PIN_CTL);
+
+	if (enable) {
+		tmp |= UTIL_PIN_DIRECTION_INPUT;
+		tmp |= UTIL_PIN_ENABLE;
+	} else {
+		tmp &= ~UTIL_PIN_ENABLE;
+	}
+	intel_de_write(dev_priv, UTIL_PIN_CTL, tmp);
+}
+
 static void
 gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state)
@@ -1036,6 +1074,9 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 
 	/* setup D-PHY timings */
 	gen11_dsi_setup_dphy_timings(encoder, crtc_state);
+
+	/* Since transcoder is configured to take events from GPIO */
+	gen11_dsi_config_util_pin(encoder, true);
 
 	/* step 4h: setup DSI protocol timeouts */
 	gen11_dsi_setup_timeouts(encoder, crtc_state);
@@ -1180,6 +1221,15 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 	enum transcoder dsi_trans;
 	u32 tmp;
 
+	/* disable periodic update mode */
+	if (is_cmd_mode(intel_dsi)) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			tmp = intel_de_read(dev_priv, DSI_CMD_FRMCTL(port));
+			tmp &= ~DSI_PERIODIC_FRAME_UPDATE_ENABLE;
+			intel_de_write(dev_priv, DSI_CMD_FRMCTL(port), tmp);
+		}
+	}
+
 	/* put dsi link in ULPS */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
@@ -1285,6 +1335,8 @@ static void gen11_dsi_disable(struct intel_encoder *encoder,
 
 	/* step3: disable port */
 	gen11_dsi_disable_port(encoder);
+
+	gen11_dsi_config_util_pin(encoder, false);
 
 	/* step4: disable IO power */
 	gen11_dsi_disable_io_power(encoder);
