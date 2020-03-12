@@ -34,6 +34,13 @@
 #define TVP5150_MBUS_FMT	MEDIA_BUS_FMT_UYVY8_2X8
 #define TVP5150_FIELD		V4L2_FIELD_ALTERNATE
 #define TVP5150_COLORSPACE	V4L2_COLORSPACE_SMPTE170M
+#define TVP5150_STD_MASK	(V4L2_STD_NTSC     | \
+				 V4L2_STD_NTSC_443 | \
+				 V4L2_STD_PAL      | \
+				 V4L2_STD_PAL_M    | \
+				 V4L2_STD_PAL_N    | \
+				 V4L2_STD_PAL_Nc   | \
+				 V4L2_STD_SECAM)
 
 #define TVP5150_MAX_CONNECTORS	3 /* Check dt-bindings for more information */
 
@@ -66,6 +73,7 @@ struct tvp5150 {
 
 	struct media_pad pads[TVP5150_NUM_PADS];
 	struct tvp5150_connector connectors[TVP5150_MAX_CONNECTORS];
+	struct tvp5150_connector *cur_connector;
 	unsigned int connectors_num;
 
 	struct v4l2_ctrl_handler hdl;
@@ -785,9 +793,24 @@ static int tvp5150_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
+	struct tvp5150_connector *cur_con = decoder->cur_connector;
+	v4l2_std_id supported_stds;
 
 	if (decoder->norm == std)
 		return 0;
+
+	/* In case of no of-connectors are available no limitations are made */
+	if (!decoder->connectors_num)
+		supported_stds = V4L2_STD_ALL;
+	else
+		supported_stds = cur_con->base.connector.analog.sdtv_stds;
+
+	/*
+	 * Check if requested std or group of std's is/are supported by the
+	 * connector.
+	 */
+	if ((supported_stds & std) == 0)
+		return -EINVAL;
 
 	/* Change cropping height limits */
 	if (std & V4L2_STD_525_60)
@@ -795,7 +818,8 @@ static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	else
 		decoder->rect.height = TVP5150_V_MAX_OTHERS;
 
-	decoder->norm = std;
+	/* Set only the specific supported std in case of group of std's. */
+	decoder->norm = supported_stds & std;
 
 	return tvp5150_set_std(sd, std);
 }
@@ -1335,6 +1359,9 @@ static int tvp5150_link_setup(struct media_entity *entity,
 			  TVP5150_BLACK_SCREEN, 0);
 
 	if (flags & MEDIA_LNK_FL_ENABLED) {
+		struct v4l2_fwnode_connector_analog *v4l2ca;
+		u32 new_norm;
+
 		/*
 		 * S-Video connector is conneted to both ports AIP1A and AIP1B.
 		 * Both links must be enabled in one-shot regardless which link
@@ -1346,6 +1373,28 @@ static int tvp5150_link_setup(struct media_entity *entity,
 			if (err)
 				return err;
 		}
+
+		if (!decoder->connectors_num)
+			return 0;
+
+		/* Update the current connector */
+		decoder->cur_connector =
+			container_of(remote, struct tvp5150_connector, pad);
+
+		/*
+		 * Do nothing if the new connector supports the same tv-norms as
+		 * the old one.
+		 */
+		v4l2ca = &decoder->cur_connector->base.connector.analog;
+		new_norm = decoder->norm & v4l2ca->sdtv_stds;
+		if (decoder->norm == new_norm)
+			return 0;
+
+		/*
+		 * Fallback to the new connector tv-norms if we can't find any
+		 * common between the current tv-norm and the new one.
+		 */
+		tvp5150_s_std(sd, new_norm ? new_norm : v4l2ca->sdtv_stds);
 	}
 
 	return 0;
@@ -1604,6 +1653,8 @@ static int tvp5150_registered(struct v4l2_subdev *sd)
 				TVP5150_COMPOSITE1;
 
 			tvp5150_selmux(sd);
+			decoder->cur_connector = &decoder->connectors[i];
+			tvp5150_s_std(sd, v4l2c->connector.analog.sdtv_stds);
 		}
 	}
 
@@ -1928,6 +1979,12 @@ static int tvp5150_validate_connectors(struct tvp5150 *decoder)
 				return -EINVAL;
 			}
 		}
+
+		if (!(v4l2c->connector.analog.sdtv_stds & TVP5150_STD_MASK)) {
+			dev_err(dev, "Unsupported tv-norm on connector %s\n",
+				v4l2c->name);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -2060,6 +2117,7 @@ static int tvp5150_probe(struct i2c_client *c)
 	struct v4l2_subdev *sd;
 	struct device_node *np = c->dev.of_node;
 	struct regmap *map;
+	unsigned int i;
 	int res;
 
 	/* Check if the adapter supports the needed features */
@@ -2104,7 +2162,21 @@ static int tvp5150_probe(struct i2c_client *c)
 	if (res < 0)
 		return res;
 
-	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
+	/*
+	 * Iterate over all available connectors in case they are supported and
+	 * successfully parsed. Fallback to default autodetect in case they
+	 * aren't supported.
+	 */
+	for (i = 0; i < core->connectors_num; i++) {
+		struct v4l2_fwnode_connector *v4l2c;
+
+		v4l2c = &core->connectors[i].base;
+		core->norm |= v4l2c->connector.analog.sdtv_stds;
+	}
+
+	if (!core->connectors_num)
+		core->norm = V4L2_STD_ALL;
+
 	core->detected_norm = V4L2_STD_UNKNOWN;
 	core->input = TVP5150_COMPOSITE1;
 	core->enable = true;
