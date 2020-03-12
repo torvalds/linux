@@ -106,3 +106,92 @@ const struct ethnl_request_ops ethnl_rings_request_ops = {
 	.reply_size		= rings_reply_size,
 	.fill_reply		= rings_fill_reply,
 };
+
+/* RINGS_SET */
+
+static const struct nla_policy
+rings_set_policy[ETHTOOL_A_RINGS_MAX + 1] = {
+	[ETHTOOL_A_RINGS_UNSPEC]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_RINGS_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_RINGS_RX_MAX]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_RINGS_RX_MINI_MAX]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_RINGS_RX_JUMBO_MAX]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_RINGS_TX_MAX]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_RINGS_RX]			= { .type = NLA_U32 },
+	[ETHTOOL_A_RINGS_RX_MINI]		= { .type = NLA_U32 },
+	[ETHTOOL_A_RINGS_RX_JUMBO]		= { .type = NLA_U32 },
+	[ETHTOOL_A_RINGS_TX]			= { .type = NLA_U32 },
+};
+
+int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *tb[ETHTOOL_A_RINGS_MAX + 1];
+	struct ethtool_ringparam ringparam = {};
+	struct ethnl_req_info req_info = {};
+	const struct nlattr *err_attr;
+	const struct ethtool_ops *ops;
+	struct net_device *dev;
+	bool mod = false;
+	int ret;
+
+	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
+			  ETHTOOL_A_RINGS_MAX, rings_set_policy,
+			  info->extack);
+	if (ret < 0)
+		return ret;
+	ret = ethnl_parse_header_dev_get(&req_info,
+					 tb[ETHTOOL_A_RINGS_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
+	if (ret < 0)
+		return ret;
+	dev = req_info.dev;
+	ops = dev->ethtool_ops;
+	ret = -EOPNOTSUPP;
+	if (!ops->get_ringparam || !ops->set_ringparam)
+		goto out_dev;
+
+	rtnl_lock();
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		goto out_rtnl;
+	ops->get_ringparam(dev, &ringparam);
+
+	ethnl_update_u32(&ringparam.rx_pending, tb[ETHTOOL_A_RINGS_RX], &mod);
+	ethnl_update_u32(&ringparam.rx_mini_pending,
+			 tb[ETHTOOL_A_RINGS_RX_MINI], &mod);
+	ethnl_update_u32(&ringparam.rx_jumbo_pending,
+			 tb[ETHTOOL_A_RINGS_RX_JUMBO], &mod);
+	ethnl_update_u32(&ringparam.tx_pending, tb[ETHTOOL_A_RINGS_TX], &mod);
+	ret = 0;
+	if (!mod)
+		goto out_ops;
+
+	/* ensure new ring parameters are within limits */
+	if (ringparam.rx_pending > ringparam.rx_max_pending)
+		err_attr = tb[ETHTOOL_A_RINGS_RX];
+	else if (ringparam.rx_mini_pending > ringparam.rx_mini_max_pending)
+		err_attr = tb[ETHTOOL_A_RINGS_RX_MINI];
+	else if (ringparam.rx_jumbo_pending > ringparam.rx_jumbo_max_pending)
+		err_attr = tb[ETHTOOL_A_RINGS_RX_JUMBO];
+	else if (ringparam.tx_pending > ringparam.tx_max_pending)
+		err_attr = tb[ETHTOOL_A_RINGS_TX];
+	else
+		err_attr = NULL;
+	if (err_attr) {
+		ret = -EINVAL;
+		NL_SET_ERR_MSG_ATTR(info->extack, err_attr,
+				    "requested ring size exceeeds maximum");
+		goto out_ops;
+	}
+
+	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam);
+
+out_ops:
+	ethnl_ops_complete(dev);
+out_rtnl:
+	rtnl_unlock();
+out_dev:
+	dev_put(dev);
+	return ret;
+}

@@ -194,6 +194,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_PRIVFLAGS_GET``         get private flags
   ``ETHTOOL_MSG_PRIVFLAGS_SET``         set private flags
   ``ETHTOOL_MSG_RINGS_GET``             get ring sizes
+  ``ETHTOOL_MSG_RINGS_SET``             set ring sizes
   ===================================== ================================
 
 Kernel to userspace:
@@ -673,6 +674,26 @@ Kernel response contents:
   ====================================  ======  ==========================
 
 
+RINGS_SET
+=========
+
+Sets ring sizes like ``ETHTOOL_SRINGPARAM`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_RINGS_HEADER``            nested  reply header
+  ``ETHTOOL_A_RINGS_RX``                u32     size of RX ring
+  ``ETHTOOL_A_RINGS_RX_MINI``           u32     size of RX mini ring
+  ``ETHTOOL_A_RINGS_RX_JUMBO``          u32     size of RX jumbo ring
+  ``ETHTOOL_A_RINGS_TX``                u32     size of TX ring
+  ====================================  ======  ==========================
+
+Kernel checks that requested ring sizes do not exceed limits reported by
+driver. Driver may impose additional constraints and may not suspport all
+attributes.
+
+
 Request translation
 ===================
 
@@ -700,7 +721,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GCOALESCE``               n/a
   ``ETHTOOL_SCOALESCE``               n/a
   ``ETHTOOL_GRINGPARAM``              ``ETHTOOL_MSG_RINGS_GET``
-  ``ETHTOOL_SRINGPARAM``              n/a
+  ``ETHTOOL_SRINGPARAM``              ``ETHTOOL_MSG_RINGS_SET``
   ``ETHTOOL_GPAUSEPARAM``             n/a
   ``ETHTOOL_SPAUSEPARAM``             n/a
   ``ETHTOOL_GRXCSUM``                 ``ETHTOOL_MSG_FEATURES_GET``
