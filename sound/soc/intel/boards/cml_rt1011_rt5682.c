@@ -446,7 +446,7 @@ static int snd_cml_rt1011_probe(struct platform_device *pdev)
 	const char *platform_name;
 	int ret;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
