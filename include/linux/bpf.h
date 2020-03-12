@@ -583,14 +583,8 @@ void bpf_trampoline_put(struct bpf_trampoline *tr);
 #define BPF_DISPATCHER_PTR(name) (&bpf_dispatcher_##name)
 void bpf_dispatcher_change_prog(struct bpf_dispatcher *d, struct bpf_prog *from,
 				struct bpf_prog *to);
-struct bpf_image {
-	struct latch_tree_node tnode;
-	unsigned char data[];
-};
-#define BPF_IMAGE_SIZE (PAGE_SIZE - sizeof(struct bpf_image))
-bool is_bpf_image_address(unsigned long address);
-void *bpf_image_alloc(void);
 /* Called only from JIT-enabled code, so there's no need for stubs. */
+void *bpf_jit_alloc_exec_page(void);
 void bpf_image_ksym_add(void *data, struct bpf_ksym *ksym);
 void bpf_image_ksym_del(struct bpf_ksym *ksym);
 void bpf_ksym_add(struct bpf_ksym *ksym);
