@@ -526,12 +526,6 @@ xlog_cil_force(struct xlog *log)
 }
 
 /*
- * Unmount record type is used as a pseudo transaction type for the ticket.
- * It's value must be outside the range of XFS_TRANS_* values.
- */
-#define XLOG_UNMOUNT_REC_TYPE	(-1U)
-
-/*
  * Wrapper function for waiting on a wait queue serialised against wakeups
  * by a spinlock. This matches the semantics of all the wait queues used in the
  * log code.
