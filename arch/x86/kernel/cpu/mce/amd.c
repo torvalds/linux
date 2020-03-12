@@ -192,7 +192,12 @@ EXPORT_SYMBOL_GPL(smca_banks);
 static char buf_mcatype[MAX_MCATYPE_NAME_LEN];
 
 static DEFINE_PER_CPU(struct threshold_bank **, threshold_banks);
-static DEFINE_PER_CPU(unsigned int, bank_map);	/* see which banks are on */
+
+/*
+ * A list of the banks enabled on each logical CPU. Controls which respective
+ * descriptors to initialize later in mce_threshold_create_device().
+ */
+static DEFINE_PER_CPU(unsigned int, bank_map);
 
 /* Map of banks that have more than MCA_MISC0 available. */
 static DEFINE_PER_CPU(u32, smca_misc_banks_map);
@@ -1016,13 +1021,22 @@ static void log_and_reset_block(struct threshold_block *block)
 static void amd_threshold_interrupt(void)
 {
 	struct threshold_block *first_block = NULL, *block = NULL, *tmp = NULL;
+	struct threshold_bank **bp = this_cpu_read(threshold_banks);
 	unsigned int bank, cpu = smp_processor_id();
+
+	/*
+	 * Validate that the threshold bank has been initialized already. The
+	 * handler is installed at boot time, but on a hotplug event the
+	 * interrupt might fire before the data has been initialized.
+	 */
+	if (!bp)
+		return;
 
 	for (bank = 0; bank < this_cpu_read(mce_num_banks); ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
 
-		first_block = per_cpu(threshold_banks, cpu)[bank]->blocks;
+		first_block = bp[bank]->blocks;
 		if (!first_block)
 			continue;
 
@@ -1247,6 +1261,7 @@ static int allocate_threshold_blocks(unsigned int cpu, struct threshold_bank *tb
 
 	INIT_LIST_HEAD(&b->miscj);
 
+	/* This is safe as @tb is not visible yet */
 	if (tb->blocks)
 		list_add(&b->miscj, &tb->blocks->miscj);
 	else
