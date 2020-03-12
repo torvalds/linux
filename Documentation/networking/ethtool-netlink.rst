@@ -195,6 +195,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_PRIVFLAGS_SET``         set private flags
   ``ETHTOOL_MSG_RINGS_GET``             get ring sizes
   ``ETHTOOL_MSG_RINGS_SET``             set ring sizes
+  ``ETHTOOL_MSG_CHANNELS_GET``          get channel counts
   ===================================== ================================
 
 Kernel to userspace:
@@ -217,6 +218,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_PRIVFLAGS_NTF``         private flags
   ``ETHTOOL_MSG_RINGS_GET_REPLY``       ring sizes
   ``ETHTOOL_MSG_RINGS_NTF``             ring sizes
+  ``ETHTOOL_MSG_CHANNELS_GET_REPLY``    channel counts
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -695,6 +697,32 @@ driver. Driver may impose additional constraints and may not suspport all
 attributes.
 
 
+CHANNELS_GET
+============
+
+Gets channel counts like ``ETHTOOL_GCHANNELS`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_CHANNELS_HEADER``         nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  =====================================  ======  ==========================
+  ``ETHTOOL_A_CHANNELS_HEADER``          nested  reply header
+  ``ETHTOOL_A_CHANNELS_RX_MAX``          u32     max receive channels
+  ``ETHTOOL_A_CHANNELS_TX_MAX``          u32     max transmit channels
+  ``ETHTOOL_A_CHANNELS_OTHER_MAX``       u32     max other channels
+  ``ETHTOOL_A_CHANNELS_COMBINED_MAX``    u32     max combined channels
+  ``ETHTOOL_A_CHANNELS_RX_COUNT``        u32     receive channel count
+  ``ETHTOOL_A_CHANNELS_TX_COUNT``        u32     transmit channel count
+  ``ETHTOOL_A_CHANNELS_OTHER_COUNT``     u32     other channel count
+  ``ETHTOOL_A_CHANNELS_COMBINED_COUNT``  u32     combined channel count
+  =====================================  ======  ==========================
+
+
 Request translation
 ===================
 
@@ -765,7 +793,7 @@ have their netlink replacement yet.
   ``ETHTOOL_SRXFHINDIR``              n/a
   ``ETHTOOL_GFEATURES``               ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SFEATURES``               ``ETHTOOL_MSG_FEATURES_SET``
-  ``ETHTOOL_GCHANNELS``               n/a
+  ``ETHTOOL_GCHANNELS``               ``ETHTOOL_MSG_CHANNELS_GET``
   ``ETHTOOL_SCHANNELS``               n/a
   ``ETHTOOL_SET_DUMP``                n/a
   ``ETHTOOL_GET_DUMP_FLAG``           n/a
