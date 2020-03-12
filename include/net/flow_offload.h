@@ -69,6 +69,10 @@ struct flow_match_enc_opts {
 	struct flow_dissector_key_enc_opts *key, *mask;
 };
 
+struct flow_match_ct {
+	struct flow_dissector_key_ct *key, *mask;
+};
+
 struct flow_rule;
 
 void flow_rule_match_meta(const struct flow_rule *rule,
@@ -111,6 +115,8 @@ void flow_rule_match_enc_keyid(const struct flow_rule *rule,
 			       struct flow_match_enc_keyid *out);
 void flow_rule_match_enc_opts(const struct flow_rule *rule,
 			      struct flow_match_enc_opts *out);
+void flow_rule_match_ct(const struct flow_rule *rule,
+			struct flow_match_ct *out);
 
 enum flow_action_id {
 	FLOW_ACTION_ACCEPT		= 0,
