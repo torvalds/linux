@@ -239,6 +239,7 @@ static int decode_instructions(struct objtool_file *file)
 	struct symbol *func;
 	unsigned long offset;
 	struct instruction *insn;
+	unsigned long nr_insns = 0;
 	int ret;
 
 	for_each_sec(file, sec) {
@@ -274,6 +275,7 @@ static int decode_instructions(struct objtool_file *file)
 
 			hash_add(file->insn_hash, &insn->hash, insn->offset);
 			list_add_tail(&insn->list, &file->insn_list);
+			nr_insns++;
 		}
 
 		list_for_each_entry(func, &sec->symbol_list, list) {
@@ -290,6 +292,9 @@ static int decode_instructions(struct objtool_file *file)
 				insn->func = func;
 		}
 	}
+
+	if (stats)
+		printf("nr_insns: %lu\n", nr_insns);
 
 	return 0;
 

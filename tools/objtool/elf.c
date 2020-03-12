@@ -15,6 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include "builtin.h"
 
 #include "elf.h"
 #include "warn.h"
@@ -202,6 +203,9 @@ static int read_sections(struct elf *elf)
 		sec->len = sec->sh.sh_size;
 	}
 
+	if (stats)
+		printf("nr_sections: %lu\n", (unsigned long)sections_nr);
+
 	/* sanity check, one more call to elf_nextscn() should return NULL */
 	if (elf_nextscn(elf->elf, s)) {
 		WARN("section entry mismatch");
@@ -299,6 +303,9 @@ static int read_symbols(struct elf *elf)
 		hash_add(elf->symbol_hash, &sym->hash, sym->idx);
 	}
 
+	if (stats)
+		printf("nr_symbols: %lu\n", (unsigned long)symbols_nr);
+
 	/* Create parent/child links for any cold subfunctions */
 	list_for_each_entry(sec, &elf->sections, list) {
 		list_for_each_entry(sym, &sec->symbol_list, list) {
@@ -360,6 +367,7 @@ static int read_relas(struct elf *elf)
 	struct rela *rela;
 	int i;
 	unsigned int symndx;
+	unsigned long nr_rela, max_rela = 0, tot_rela = 0;
 
 	list_for_each_entry(sec, &elf->sections, list) {
 		if (sec->sh.sh_type != SHT_RELA)
@@ -374,6 +382,7 @@ static int read_relas(struct elf *elf)
 
 		sec->base->rela = sec;
 
+		nr_rela = 0;
 		for (i = 0; i < sec->sh.sh_size / sec->sh.sh_entsize; i++) {
 			rela = malloc(sizeof(*rela));
 			if (!rela) {
@@ -401,8 +410,15 @@ static int read_relas(struct elf *elf)
 
 			list_add_tail(&rela->list, &sec->rela_list);
 			hash_add(sec->rela_hash, &rela->hash, rela->offset);
-
+			nr_rela++;
 		}
+		max_rela = max(max_rela, nr_rela);
+		tot_rela += nr_rela;
+	}
+
+	if (stats) {
+		printf("max_rela: %lu\n", max_rela);
+		printf("tot_rela: %lu\n", tot_rela);
 	}
 
 	return 0;
