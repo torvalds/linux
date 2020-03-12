@@ -143,6 +143,7 @@
 #define MIPI_CSIS_ISPCFG_FMT_RAW8		(0x2a << 2)
 #define MIPI_CSIS_ISPCFG_FMT_RAW10		(0x2b << 2)
 #define MIPI_CSIS_ISPCFG_FMT_RAW12		(0x2c << 2)
+#define MIPI_CSIS_ISPCFG_FMT_RAW14		(0x2d << 2)
 
 /* User defined formats, x = 1...4 */
 #define MIPI_CSIS_ISPCFG_FMT_USER(x)	((0x30 + (x) - 1) << 2)
@@ -264,34 +265,93 @@ struct csis_pix_format {
 };
 
 static const struct csis_pix_format mipi_csis_formats[] = {
+	/* YUV formats. */
 	{
-		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
-		.data_alignment = 16,
-	}, {
 		.code = MEDIA_BUS_FMT_VYUY8_2X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
 		.data_alignment = 16,
 	}, {
+		.code = MEDIA_BUS_FMT_YUYV8_2X8,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
+		.data_alignment = 16,
+	},
+	/* RAW (Bayer and greyscale) formats. */
+	{
 		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW8,
 		.data_alignment = 8,
 	}, {
-		.code = MEDIA_BUS_FMT_YUYV8_2X8,
-		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
-		.data_alignment = 16,
+		.code = MEDIA_BUS_FMT_SGBRG8_1X8,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW8,
+		.data_alignment = 8,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW8,
+		.data_alignment = 8,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB8_1X8,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW8,
+		.data_alignment = 8,
 	}, {
 		.code = MEDIA_BUS_FMT_Y8_1X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW8,
 		.data_alignment = 8,
 	}, {
+		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
+		.data_alignment = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
+		.data_alignment = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
+		.data_alignment = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
+		.data_alignment = 10,
+	}, {
 		.code = MEDIA_BUS_FMT_Y10_1X10,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
-		.data_alignment = 16,
+		.data_alignment = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW12,
+		.data_alignment = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW12,
+		.data_alignment = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW12,
+		.data_alignment = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW12,
+		.data_alignment = 12,
 	}, {
 		.code = MEDIA_BUS_FMT_Y12_1X12,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW12,
-		.data_alignment = 16,
+		.data_alignment = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SBGGR14_1X14,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW14,
+		.data_alignment = 14,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG14_1X14,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW14,
+		.data_alignment = 14,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG14_1X14,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW14,
+		.data_alignment = 14,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB14_1X14,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW14,
+		.data_alignment = 14,
 	}
 };
 
