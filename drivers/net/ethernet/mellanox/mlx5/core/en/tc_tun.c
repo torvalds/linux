@@ -66,6 +66,9 @@ static int get_route_and_out_devs(struct mlx5e_priv *priv,
 	      mlx5e_is_uplink_rep(netdev_priv(*out_dev))))
 		return -EOPNOTSUPP;
 
+	if (mlx5e_eswitch_uplink_rep(priv->netdev) && *out_dev != priv->netdev)
+		return -EOPNOTSUPP;
+
 	return 0;
 }
 
