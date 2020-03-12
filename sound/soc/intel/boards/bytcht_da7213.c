@@ -231,7 +231,7 @@ static int bytcht_da7213_probe(struct platform_device *pdev)
 	int ret_val = 0;
 	int i;
 
-	mach = (&pdev->dev)->platform_data;
+	mach = pdev->dev.platform_data;
 	card = &bytcht_da7213_card;
 	card->dev = &pdev->dev;
 

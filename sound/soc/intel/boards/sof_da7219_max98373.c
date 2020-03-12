@@ -335,7 +335,7 @@ static int audio_probe(struct platform_device *pdev)
 	card = (struct snd_soc_card *)pdev->id_entry->driver_data;
 	card->dev = &pdev->dev;
 
-	mach = (&pdev->dev)->platform_data;
+	mach = pdev->dev.platform_data;
 	ret = snd_soc_fixup_dai_links_platform_name(card,
 						    mach->mach_params.platform);
 	if (ret)

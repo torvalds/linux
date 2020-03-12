@@ -604,7 +604,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	dmi_check_system(sof_rt5682_quirk_table);
 
-	mach = (&pdev->dev)->platform_data;
+	mach = pdev->dev.platform_data;
 
 	/* A speaker amp might not be present when the quirk claims one is.
 	 * Detect this via whether the machine driver match includes quirk_data.
