@@ -10,6 +10,7 @@
 #include <gelf.h>
 #include <linux/list.h>
 #include <linux/hashtable.h>
+#include <linux/jhash.h>
 
 #ifdef LIBELF_USE_DEPRECATED
 # define elf_getshdrnum    elf_getshnum
@@ -26,6 +27,7 @@
 struct section {
 	struct list_head list;
 	struct hlist_node hash;
+	struct hlist_node name_hash;
 	GElf_Shdr sh;
 	struct list_head symbol_list;
 	struct list_head rela_list;
@@ -73,6 +75,7 @@ struct elf {
 	struct list_head sections;
 	DECLARE_HASHTABLE(symbol_hash, 20);
 	DECLARE_HASHTABLE(section_hash, 16);
+	DECLARE_HASHTABLE(section_name_hash, 16);
 };
 
 

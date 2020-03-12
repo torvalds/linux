@@ -22,11 +22,16 @@
 
 #define MAX_NAME_LEN 128
 
+static inline u32 str_hash(const char *str)
+{
+	return jhash(str, strlen(str), 0);
+}
+
 struct section *find_section_by_name(struct elf *elf, const char *name)
 {
 	struct section *sec;
 
-	list_for_each_entry(sec, &elf->sections, list)
+	hash_for_each_possible(elf->section_name_hash, sec, name_hash, str_hash(name))
 		if (!strcmp(sec->name, name))
 			return sec;
 
@@ -202,6 +207,7 @@ static int read_sections(struct elf *elf)
 
 		list_add_tail(&sec->list, &elf->sections);
 		hash_add(elf->section_hash, &sec->hash, sec->idx);
+		hash_add(elf->section_name_hash, &sec->name_hash, str_hash(sec->name));
 	}
 
 	if (stats)
@@ -441,6 +447,7 @@ struct elf *elf_read(const char *name, int flags)
 
 	hash_init(elf->symbol_hash);
 	hash_init(elf->section_hash);
+	hash_init(elf->section_name_hash);
 	INIT_LIST_HEAD(&elf->sections);
 
 	elf->fd = open(name, flags);
@@ -581,6 +588,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 
 	list_add_tail(&sec->list, &elf->sections);
 	hash_add(elf->section_hash, &sec->hash, sec->idx);
+	hash_add(elf->section_name_hash, &sec->name_hash, str_hash(sec->name));
 
 	return sec;
 }
