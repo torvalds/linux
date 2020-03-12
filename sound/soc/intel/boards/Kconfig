@@ -507,7 +507,7 @@ endif ## SND_SOC_SOF_COMETLAKE_LP && SND_SOC_SOF_HDA_LINK
 if SND_SOC_SOF_JASPERLAKE
 
 config SND_SOC_INTEL_SOF_DA7219_MAX98373_MACH
-	tristate "SOF with DA7219 and MAX98373 in I2S Mode"
+	tristate "SOF with DA7219 and MAX98373/MAX98360A in I2S Mode"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	depends on SND_HDA_CODEC_HDMI
@@ -516,7 +516,7 @@ config SND_SOC_INTEL_SOF_DA7219_MAX98373_MACH
 	select SND_SOC_DMIC
 	help
 	  This adds support for ASoC machine driver for SOF platforms
-	  with DA7219 + MAX98373 I2S audio codec.
+	  with DA7219 + MAX98373/MAX98360A I2S audio codec.
 	  Say Y if you have such a device.
 	  If unsure select "N".
 

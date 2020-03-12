@@ -2,7 +2,7 @@
 // Copyright(c) 2019 Intel Corporation.
 
 /*
- * Intel SOF Machine driver for DA7219 + MAX98373 codec
+ * Intel SOF Machine driver for DA7219 + MAX98373/MAX98360A codec
  */
 
 #include <linux/input.h>
@@ -69,11 +69,14 @@ static const struct snd_kcontrol_new controls[] = {
 	SOC_DAPM_PIN_SWITCH("Right Spk"),
 };
 
+static const struct snd_kcontrol_new m98360a_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+};
+
 static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_SPK("Left Spk", NULL),
-	SND_SOC_DAPM_SPK("Right Spk", NULL),
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			    platform_clock_control, SND_SOC_DAPM_POST_PMD |
 			    SND_SOC_DAPM_PRE_PMU),
@@ -83,13 +86,21 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{ "Headphone Jack", NULL, "HPL" },
 	{ "Headphone Jack", NULL, "HPR" },
 
-	{ "Left Spk", NULL, "Left BE_OUT" },
-	{ "Right Spk", NULL, "Right BE_OUT" },
-
 	{ "MIC", NULL, "Headset Mic" },
 
 	{ "Headphone Jack", NULL, "Platform Clock" },
 	{ "Headset Mic", NULL, "Platform Clock" },
+};
+
+/* For MAX98373 amp */
+static const struct snd_soc_dapm_widget max98373_widgets[] = {
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
+};
+
+static const struct snd_soc_dapm_route max98373_map[] = {
+	{ "Left Spk", NULL, "Left BE_OUT" },
+	{ "Right Spk", NULL, "Right BE_OUT" },
 };
 
 static struct snd_soc_jack headset;
@@ -131,6 +142,21 @@ static int da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	da7219_aad_jack_det(component, jack);
 
 	return ret;
+}
+
+static int speaker_amp_init(struct snd_soc_pcm_runtime *rtd)
+{
+	int ret;
+
+	/* Add widgets */
+	ret = snd_soc_dapm_new_controls(&rtd->card->dapm, max98373_widgets,
+					ARRAY_SIZE(max98373_widgets));
+	if (ret)
+		return ret;
+
+	/* Add routes */
+	return snd_soc_dapm_add_routes(&rtd->card->dapm, max98373_map,
+				       ARRAY_SIZE(max98373_map));
 }
 
 static int ssp1_hw_params(struct snd_pcm_substream *substream,
@@ -223,6 +249,8 @@ SND_SOC_DAILINK_DEF(ssp1_amps,
 	DAILINK_COMP_ARRAY(
 	/* Left */	COMP_CODEC(MAXIM_DEV0_NAME, MAX98373_CODEC_DAI),
 	/* Right */	COMP_CODEC(MAXIM_DEV1_NAME, MAX98373_CODEC_DAI)));
+/* For the driver-less spk amp */
+SND_SOC_DAILINK_DEF(dummy, DAILINK_COMP_ARRAY(COMP_DUMMY()));
 
 SND_SOC_DAILINK_DEF(dmic_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("DMIC01 Pin")));
@@ -254,6 +282,7 @@ static struct snd_soc_dai_link dais[] = {
 		.id = 0,
 		.ignore_pmdown_time = 1,
 		.no_pcm = 1,
+		.init = speaker_amp_init,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1, /* IV feedback */
 		.ops = &ssp1_ops,
@@ -320,6 +349,21 @@ static struct snd_soc_card card_da7219_m98373 = {
 	.late_probe = card_late_probe,
 };
 
+static struct snd_soc_card card_da7219_m98360a = {
+	.name = "da7219max98360a",
+	.owner = THIS_MODULE,
+	.dai_link = dais,
+	.num_links = ARRAY_SIZE(dais),
+	.controls = m98360a_controls,
+	.num_controls = ARRAY_SIZE(m98360a_controls),
+	.dapm_widgets = widgets,
+	.num_dapm_widgets = ARRAY_SIZE(widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
+	.fully_routed = true,
+	.late_probe = card_late_probe,
+};
+
 static int audio_probe(struct platform_device *pdev)
 {
 	static struct snd_soc_card *card;
@@ -330,6 +374,17 @@ static int audio_probe(struct platform_device *pdev)
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
 	if (!ctx)
 		return -ENOMEM;
+
+	/* By default dais[0] is configured for max98373 */
+	if (!strcmp(pdev->name, "sof_da7219_max98360a")) {
+		dais[0] = (struct snd_soc_dai_link) {
+			.name = "SSP1-Codec",
+			.id = 0,
+			.no_pcm = 1,
+			.dpcm_playback = 1,
+			.ignore_pmdown_time = 1,
+			SND_SOC_DAILINK_REG(ssp1_pin, dummy, platform) };
+	}
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 	card = (struct snd_soc_card *)pdev->id_entry->driver_data;
@@ -351,13 +406,17 @@ static const struct platform_device_id board_ids[] = {
 		.name = "sof_da7219_max98373",
 		.driver_data = (kernel_ulong_t)&card_da7219_m98373,
 	},
+	{
+		.name = "sof_da7219_max98360a",
+		.driver_data = (kernel_ulong_t)&card_da7219_m98360a,
+	},
 	{ }
 };
 
 static struct platform_driver audio = {
 	.probe = audio_probe,
 	.driver = {
-		.name = "sof_da7219_max98373",
+		.name = "sof_da7219_max98_360a_373",
 		.pm = &snd_soc_pm_ops,
 	},
 	.id_table = board_ids,
@@ -368,4 +427,5 @@ module_platform_driver(audio)
 MODULE_DESCRIPTION("ASoC Intel(R) SOF Machine driver");
 MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:sof_da7219_max98360a");
 MODULE_ALIAS("platform:sof_da7219_max98373");
