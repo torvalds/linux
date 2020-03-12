@@ -3901,14 +3901,11 @@ static void ql_release_adapter_resources(struct ql_adapter *qdev)
 
 static int ql_get_adapter_resources(struct ql_adapter *qdev)
 {
-	int status = 0;
-
 	if (ql_alloc_mem_resources(qdev)) {
 		netif_err(qdev, ifup, qdev->ndev, "Unable to  allocate memory.\n");
 		return -ENOMEM;
 	}
-	status = ql_request_irq(qdev);
-	return status;
+	return ql_request_irq(qdev);
 }
 
 static int qlge_close(struct net_device *ndev)
