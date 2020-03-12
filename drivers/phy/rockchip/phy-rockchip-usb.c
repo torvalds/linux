@@ -8,20 +8,25 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/delay.h>
+#include <linux/extcon-provider.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/power_supply.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/regmap.h>
-#include <linux/mfd/syscon.h>
-#include <linux/delay.h>
+#include <linux/wakelock.h>
 
 static int enable_usb_uart;
 
@@ -45,6 +50,65 @@ static int enable_usb_uart;
 #define UOC_CON3_UTMI_OPMODE_MASK			(3 << 1)
 #define UOC_CON3_UTMI_SUSPENDN				BIT(0)
 
+#define RK3288_UOC0_CON0				0x320
+#define RK3288_UOC0_CON0_COMMON_ON_N			BIT(0)
+#define RK3288_UOC0_CON0_DISABLE			BIT(4)
+
+#define RK3288_UOC0_CON2				0x328
+#define RK3288_UOC0_CON2_SOFT_CON_SEL			BIT(2)
+#define RK3288_UOC0_CON2_CHRGSEL			BIT(5)
+#define RK3288_UOC0_CON2_VDATDETENB			BIT(6)
+#define RK3288_UOC0_CON2_VDATSRCENB			BIT(7)
+#define RK3288_UOC0_CON2_DCDENB				BIT(14)
+
+#define RK3288_UOC0_CON3				0x32c
+#define RK3288_UOC0_CON3_UTMI_SUSPENDN			BIT(0)
+#define RK3288_UOC0_CON3_UTMI_OPMODE_NODRIVING		BIT(1)
+#define RK3288_UOC0_CON3_UTMI_OPMODE_MASK		(3 << 1)
+#define RK3288_UOC0_CON3_UTMI_XCVRSEELCT_FSTRANSC	BIT(3)
+#define RK3288_UOC0_CON3_UTMI_XCVRSEELCT_MASK		(3 << 3)
+#define RK3288_UOC0_CON3_UTMI_TERMSEL_FULLSPEED		BIT(5)
+#define RK3288_UOC0_CON3_BYPASSDMEN			BIT(6)
+#define RK3288_UOC0_CON3_BYPASSSEL			BIT(7)
+
+#define RK3288_UOC0_CON4				0x330
+#define RK3288_UOC0_CON4_BVALID_IRQ_EN			BIT(2)
+#define RK3288_UOC0_CON4_BVALID_IRQ_PD			BIT(3)
+
+#define RK3288_SOC_STATUS2				0x288
+#define RK3288_SOC_STATUS2_UTMISRP_BVALID		BIT(14)
+#define RK3288_SOC_STATUS2_UTMIOTG_IDDIG		BIT(17)
+
+#define RK3288_SOC_STATUS19				0x2cc
+#define RK3288_SOC_STATUS19_CHGDET			BIT(23)
+#define RK3288_SOC_STATUS19_FSVPLUS			BIT(24)
+#define RK3288_SOC_STATUS19_FSVMINUS			BIT(25)
+
+#define OTG_SCHEDULE_DELAY				(1 * HZ)
+#define CHG_DCD_POLL_TIME				(100 * HZ / 1000)
+#define CHG_DCD_MAX_RETRIES				6
+#define CHG_PRIMARY_DET_TIME				(40 * HZ / 1000)
+#define CHG_SECONDARY_DET_TIME				(40 * HZ / 1000)
+
+enum usb_chg_state {
+	USB_CHG_STATE_UNDEFINED = 0,
+	USB_CHG_STATE_WAIT_FOR_DCD,
+	USB_CHG_STATE_DCD_DONE,
+	USB_CHG_STATE_PRIMARY_DONE,
+	USB_CHG_STATE_SECONDARY_DONE,
+	USB_CHG_STATE_DETECTED,
+};
+
+static const unsigned int rockchip_usb_phy_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_USB_VBUS_EN,
+	EXTCON_CHG_USB_SDP,
+	EXTCON_CHG_USB_CDP,
+	EXTCON_CHG_USB_DCP,
+	EXTCON_NONE,
+};
+
 struct rockchip_usb_phys {
 	int reg;
 	const char *pll_name;
@@ -61,20 +125,28 @@ struct rockchip_usb_phy_pdata {
 struct rockchip_usb_phy_base {
 	struct device *dev;
 	struct regmap *reg_base;
+	struct extcon_dev *edev;
 	const struct rockchip_usb_phy_pdata *pdata;
 };
 
 struct rockchip_usb_phy {
 	struct rockchip_usb_phy_base *base;
-	struct device_node *np;
-	unsigned int	reg_offset;
-	struct clk	*clk;
-	struct clk      *clk480m;
-	struct clk_hw	clk480m_hw;
-	struct phy	*phy;
-	bool		uart_enabled;
-	struct reset_control *reset;
-	struct regulator *vbus;
+	struct device_node	*np;
+	unsigned int		reg_offset;
+	struct clk		*clk;
+	struct clk		*clk480m;
+	struct clk_hw		clk480m_hw;
+	struct phy		*phy;
+	bool			uart_enabled;
+	int			bvalid_irq;
+	struct reset_control	*reset;
+	struct regulator	*vbus;
+	struct mutex		mutex; /* protects registers of phy */
+	struct delayed_work	chg_work;
+	struct delayed_work	otg_sm_work;
+	struct wake_lock	wakelock;
+	enum usb_chg_state	chg_state;
+	enum power_supply_type	chg_type;
 };
 
 static int rockchip_usb_phy_power(struct rockchip_usb_phy *phy,
@@ -136,6 +208,46 @@ static const struct clk_ops rockchip_usb_phy480m_ops = {
 	.recalc_rate = rockchip_usb_phy480m_recalc_rate,
 };
 
+static int rk3288_usb_phy_init(struct phy *_phy)
+{
+	struct rockchip_usb_phy *phy = phy_get_drvdata(_phy);
+	int ret = 0;
+	unsigned int val;
+
+	if (phy->bvalid_irq > 0) {
+		mutex_lock(&phy->mutex);
+
+		/* clear bvalid status and enable bvalid detect irq */
+		val = HIWORD_UPDATE(RK3288_UOC0_CON4_BVALID_IRQ_EN
+					| RK3288_UOC0_CON4_BVALID_IRQ_PD,
+				    RK3288_UOC0_CON4_BVALID_IRQ_EN
+					| RK3288_UOC0_CON4_BVALID_IRQ_PD);
+		ret = regmap_write(phy->base->reg_base, RK3288_UOC0_CON4, val);
+		if (ret) {
+			dev_err(phy->base->dev,
+				"failed to enable bvalid irq\n");
+			goto out;
+		}
+
+		schedule_delayed_work(&phy->otg_sm_work, OTG_SCHEDULE_DELAY);
+
+out:
+		mutex_unlock(&phy->mutex);
+	}
+
+	return ret;
+}
+
+static int rk3288_usb_phy_exit(struct phy *_phy)
+{
+	struct rockchip_usb_phy *phy = phy_get_drvdata(_phy);
+
+	if (phy->bvalid_irq > 0)
+		flush_delayed_work(&phy->otg_sm_work);
+
+	return 0;
+}
+
 static int rockchip_usb_phy_power_off(struct phy *_phy)
 {
 	struct rockchip_usb_phy *phy = phy_get_drvdata(_phy);
@@ -179,7 +291,7 @@ static int rockchip_usb_phy_reset(struct phy *_phy)
 	return 0;
 }
 
-static const struct phy_ops ops = {
+static struct phy_ops ops = {
 	.power_on	= rockchip_usb_phy_power_on,
 	.power_off	= rockchip_usb_phy_power_off,
 	.reset		= rockchip_usb_phy_reset,
@@ -199,6 +311,363 @@ static void rockchip_usb_phy_action(void *data)
 		clk_put(rk_phy->clk);
 }
 
+static int rockchip_usb_phy_extcon_register(struct rockchip_usb_phy_base *base)
+{
+	int ret;
+	struct device_node *node = base->dev->of_node;
+	struct extcon_dev *edev;
+
+	if (of_property_read_bool(node, "extcon")) {
+		edev = extcon_get_edev_by_phandle(base->dev, 0);
+		if (IS_ERR(edev)) {
+			if (PTR_ERR(edev) != -EPROBE_DEFER)
+				dev_err(base->dev,
+					"Invalid or missing extcon\n");
+			return PTR_ERR(edev);
+		}
+	} else {
+		/* Initialize extcon device */
+		edev = devm_extcon_dev_allocate(base->dev,
+						rockchip_usb_phy_extcon_cable);
+
+		if (IS_ERR(edev))
+			return -ENOMEM;
+
+		ret = devm_extcon_dev_register(base->dev, edev);
+		if (ret) {
+			dev_err(base->dev,
+				"failed to register extcon device\n");
+			return ret;
+		}
+	}
+
+	base->edev = edev;
+
+	return 0;
+}
+
+static void rk3288_usb_phy_otg_sm_work(struct work_struct *work)
+{
+	struct rockchip_usb_phy *rk_phy = container_of(work,
+						       struct rockchip_usb_phy,
+						       otg_sm_work.work);
+	unsigned int val;
+	static unsigned int cable;
+	static bool chg_det_completed;
+	bool sch_work;
+	bool vbus_attached;
+	bool id;
+
+	mutex_lock(&rk_phy->mutex);
+
+	sch_work = false;
+
+	regmap_read(rk_phy->base->reg_base, RK3288_SOC_STATUS2, &val);
+	id = (val & RK3288_SOC_STATUS2_UTMIOTG_IDDIG) ? true : false;
+
+	regmap_read(rk_phy->base->reg_base, RK3288_SOC_STATUS2, &val);
+	vbus_attached =
+		(val & RK3288_SOC_STATUS2_UTMISRP_BVALID) ? true : false;
+
+	if (!vbus_attached || !id) {
+		dev_dbg(&rk_phy->phy->dev, "peripheral disconnected\n");
+		wake_unlock(&rk_phy->wakelock);
+		extcon_set_state_sync(rk_phy->base->edev, cable, false);
+		rk_phy->chg_state = USB_CHG_STATE_UNDEFINED;
+		chg_det_completed = false;
+		goto out;
+	}
+
+	if (chg_det_completed) {
+		sch_work = true;
+		goto out;
+	}
+
+	switch (rk_phy->chg_state) {
+	case USB_CHG_STATE_UNDEFINED:
+		mutex_unlock(&rk_phy->mutex);
+		schedule_delayed_work(&rk_phy->chg_work, 0);
+		return;
+	case USB_CHG_STATE_DETECTED:
+		switch (rk_phy->chg_type) {
+		case POWER_SUPPLY_TYPE_USB:
+			dev_dbg(&rk_phy->phy->dev, "sdp cable is connected\n");
+			wake_lock(&rk_phy->wakelock);
+			cable = EXTCON_CHG_USB_SDP;
+			sch_work = true;
+			break;
+		case POWER_SUPPLY_TYPE_USB_DCP:
+			dev_dbg(&rk_phy->phy->dev, "dcp cable is connected\n");
+			cable = EXTCON_CHG_USB_DCP;
+			sch_work = true;
+			break;
+		case POWER_SUPPLY_TYPE_USB_CDP:
+			dev_dbg(&rk_phy->phy->dev, "cdp cable is connected\n");
+			wake_lock(&rk_phy->wakelock);
+			cable = EXTCON_CHG_USB_CDP;
+			sch_work = true;
+			break;
+		default:
+			break;
+		}
+		chg_det_completed = true;
+		break;
+	default:
+		break;
+	}
+
+	if (extcon_get_state(rk_phy->base->edev, cable) != vbus_attached)
+		extcon_set_state_sync(rk_phy->base->edev, cable,
+				      vbus_attached);
+
+out:
+	if (sch_work)
+		schedule_delayed_work(&rk_phy->otg_sm_work, OTG_SCHEDULE_DELAY);
+
+	mutex_unlock(&rk_phy->mutex);
+}
+
+static const char *chg_to_string(enum power_supply_type chg_type)
+{
+	switch (chg_type) {
+	case POWER_SUPPLY_TYPE_USB:
+		return "USB_SDP_CHARGER";
+	case POWER_SUPPLY_TYPE_USB_DCP:
+		return "USB_DCP_CHARGER";
+	case POWER_SUPPLY_TYPE_USB_CDP:
+		return "USB_CDP_CHARGER";
+	default:
+		return "INVALID_CHARGER";
+	}
+}
+
+static void rk3288_chg_detect_work(struct work_struct *work)
+{
+	struct rockchip_usb_phy *rk_phy =
+		container_of(work, struct rockchip_usb_phy, chg_work.work);
+	unsigned int val;
+	static int dcd_retries;
+	static int primary_retries;
+	unsigned long delay;
+	bool fsvplus;
+	bool vout;
+	bool tmout;
+
+	dev_dbg(&rk_phy->phy->dev, "chg detection work state = %d\n",
+		rk_phy->chg_state);
+
+	switch (rk_phy->chg_state) {
+	case USB_CHG_STATE_UNDEFINED:
+		mutex_lock(&rk_phy->mutex);
+		/* put the controller in non-driving mode */
+		val = HIWORD_UPDATE(RK3288_UOC0_CON2_SOFT_CON_SEL,
+				    RK3288_UOC0_CON2_SOFT_CON_SEL);
+		regmap_write(rk_phy->base->reg_base, RK3288_UOC0_CON2, val);
+		val = HIWORD_UPDATE(RK3288_UOC0_CON3_UTMI_OPMODE_NODRIVING,
+				    RK3288_UOC0_CON3_UTMI_SUSPENDN
+					| RK3288_UOC0_CON3_UTMI_OPMODE_MASK);
+		regmap_write(rk_phy->base->reg_base, RK3288_UOC0_CON3, val);
+		/* Start DCD processing stage 1 */
+		val = HIWORD_UPDATE(RK3288_UOC0_CON2_DCDENB,
+				    RK3288_UOC0_CON2_DCDENB);
+		regmap_write(rk_phy->base->reg_base, RK3288_UOC0_CON2, val);
+		rk_phy->chg_state = USB_CHG_STATE_WAIT_FOR_DCD;
+		dcd_retries = 0;
+		primary_retries = 0;
+		delay = CHG_DCD_POLL_TIME;
+		break;
+	case USB_CHG_STATE_WAIT_FOR_DCD:
+		/* get data contact detection status */
+		regmap_read(rk_phy->base->reg_base, RK3288_SOC_STATUS19, &val);
+		fsvplus = (val & RK3288_SOC_STATUS19_FSVPLUS) ? true : false;
+		tmout = ++dcd_retries == CHG_DCD_MAX_RETRIES;
+		/* stage 2 */
+		if (!fsvplus || tmout) {
+vdpsrc:
+			/* stage 4 */
+			/* Turn off DCD circuitry */
+			val = HIWORD_UPDATE(0, RK3288_UOC0_CON2_DCDENB);
+			regmap_write(rk_phy->base->reg_base,
+				     RK3288_UOC0_CON2, val);
+			/* Voltage Source on DP, Probe on DM */
+			val = HIWORD_UPDATE(RK3288_UOC0_CON2_VDATSRCENB
+						| RK3288_UOC0_CON2_VDATDETENB,
+					    RK3288_UOC0_CON2_VDATSRCENB
+						| RK3288_UOC0_CON2_VDATDETENB
+						| RK3288_UOC0_CON2_CHRGSEL);
+			regmap_write(rk_phy->base->reg_base,
+				     RK3288_UOC0_CON2, val);
+			delay = CHG_PRIMARY_DET_TIME;
+			rk_phy->chg_state = USB_CHG_STATE_DCD_DONE;
+		} else {
+			/* stage 3 */
+			delay = CHG_DCD_POLL_TIME;
+		}
+		break;
+	case USB_CHG_STATE_DCD_DONE:
+		regmap_read(rk_phy->base->reg_base, RK3288_SOC_STATUS19, &val);
+		vout = (val & RK3288_SOC_STATUS19_CHGDET) ? true : false;
+
+		val = HIWORD_UPDATE(0, RK3288_UOC0_CON2_VDATSRCENB
+					| RK3288_UOC0_CON2_VDATDETENB);
+		regmap_write(rk_phy->base->reg_base, RK3288_UOC0_CON2, val);
+		if (vout) {
+			/* Voltage Source on DM, Probe on DP  */
+			val = HIWORD_UPDATE(RK3288_UOC0_CON2_VDATSRCENB
+						| RK3288_UOC0_CON2_VDATDETENB
+						| RK3288_UOC0_CON2_CHRGSEL,
+					    RK3288_UOC0_CON2_VDATSRCENB
+						| RK3288_UOC0_CON2_VDATDETENB
+						| RK3288_UOC0_CON2_CHRGSEL);
+			regmap_write(rk_phy->base->reg_base,
+				     RK3288_UOC0_CON2, val);
+			delay = CHG_SECONDARY_DET_TIME;
+			rk_phy->chg_state = USB_CHG_STATE_PRIMARY_DONE;
+		} else {
+			if (dcd_retries == CHG_DCD_MAX_RETRIES) {
+				/* floating charger found */
+				rk_phy->chg_type = POWER_SUPPLY_TYPE_USB_DCP;
+				rk_phy->chg_state = USB_CHG_STATE_DETECTED;
+				delay = 0;
+			} else if (primary_retries < 2) {
+				primary_retries++;
+				goto vdpsrc;
+			} else {
+				rk_phy->chg_type = POWER_SUPPLY_TYPE_USB;
+				rk_phy->chg_state = USB_CHG_STATE_DETECTED;
+				delay = 0;
+			}
+		}
+		break;
+	case USB_CHG_STATE_PRIMARY_DONE:
+		regmap_read(rk_phy->base->reg_base, RK3288_SOC_STATUS19, &val);
+		vout = (val & RK3288_SOC_STATUS19_CHGDET) ? true : false;
+
+		/* Turn off voltage source */
+		val = HIWORD_UPDATE(0, RK3288_UOC0_CON2_VDATSRCENB
+					| RK3288_UOC0_CON2_VDATDETENB
+					| RK3288_UOC0_CON2_CHRGSEL);
+		regmap_write(rk_phy->base->reg_base, RK3288_UOC0_CON2, val);
+		if (vout)
+			rk_phy->chg_type = POWER_SUPPLY_TYPE_USB_DCP;
+		else
+			rk_phy->chg_type = POWER_SUPPLY_TYPE_USB_CDP;
+		fallthrough;
+	case USB_CHG_STATE_SECONDARY_DONE:
+		rk_phy->chg_state = USB_CHG_STATE_DETECTED;
+		fallthrough;
+	case USB_CHG_STATE_DETECTED:
+		/* put the controller in normal mode */
+		val = HIWORD_UPDATE(0, RK3288_UOC0_CON2_SOFT_CON_SEL);
+		regmap_write(rk_phy->base->reg_base, RK3288_UOC0_CON2, val);
+		val = HIWORD_UPDATE(RK3288_UOC0_CON3_UTMI_SUSPENDN,
+				    RK3288_UOC0_CON3_UTMI_SUSPENDN
+					| RK3288_UOC0_CON3_UTMI_OPMODE_MASK);
+		regmap_write(rk_phy->base->reg_base, RK3288_UOC0_CON3, val);
+		mutex_unlock(&rk_phy->mutex);
+		rk3288_usb_phy_otg_sm_work(&rk_phy->otg_sm_work.work);
+		dev_info(&rk_phy->phy->dev, "charger = %s\n",
+			 chg_to_string(rk_phy->chg_type));
+		return;
+	default:
+		mutex_unlock(&rk_phy->mutex);
+		return;
+	}
+
+	/*
+	 * Hold the mutex lock during the whole charger
+	 * detection stage, and release it after detect
+	 * the charger type.
+	 */
+	schedule_delayed_work(&rk_phy->chg_work, delay);
+}
+
+static irqreturn_t rk3288_usb_phy_bvalid_irq(int irq, void *data)
+{
+	struct rockchip_usb_phy *rk_phy = data;
+	int ret;
+	unsigned int val;
+
+	ret = regmap_read(rk_phy->base->reg_base, RK3288_UOC0_CON4, &val);
+	if (ret < 0 || !(val & RK3288_UOC0_CON4_BVALID_IRQ_PD))
+		return IRQ_NONE;
+
+	mutex_lock(&rk_phy->mutex);
+
+	/* clear bvalid detect irq pending status */
+	val = HIWORD_UPDATE(RK3288_UOC0_CON4_BVALID_IRQ_PD,
+			    RK3288_UOC0_CON4_BVALID_IRQ_PD);
+	regmap_write(rk_phy->base->reg_base, RK3288_UOC0_CON4, val);
+
+	mutex_unlock(&rk_phy->mutex);
+
+	if (rk_phy->uart_enabled)
+		goto out;
+
+	cancel_delayed_work_sync(&rk_phy->otg_sm_work);
+	rk3288_usb_phy_otg_sm_work(&rk_phy->otg_sm_work.work);
+out:
+	return IRQ_HANDLED;
+}
+
+static int rk3288_usb_phy_probe_init(struct rockchip_usb_phy *rk_phy)
+{
+	int ret = 0;
+	unsigned int val;
+
+	if (rk_phy->reg_offset == 0x320) {
+		/* Enable Bvalid interrupt and charge detection */
+		ops.init = rk3288_usb_phy_init;
+		ops.exit = rk3288_usb_phy_exit;
+		rk_phy->bvalid_irq = of_irq_get_byname(rk_phy->np,
+						       "otg-bvalid");
+		regmap_read(rk_phy->base->reg_base, RK3288_UOC0_CON4, &val);
+		if (rk_phy->bvalid_irq <= 0) {
+			dev_err(&rk_phy->phy->dev,
+				"no vbus valid irq provided\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		ret = devm_request_threaded_irq(rk_phy->base->dev,
+						rk_phy->bvalid_irq,
+						NULL,
+						rk3288_usb_phy_bvalid_irq,
+						IRQF_ONESHOT,
+						"rockchip_usb_phy_bvalid",
+						rk_phy);
+		if (ret) {
+			dev_err(&rk_phy->phy->dev,
+				"failed to request otg-bvalid irq handle\n");
+			goto out;
+		}
+
+		rk_phy->chg_state = USB_CHG_STATE_UNDEFINED;
+		wake_lock_init(&rk_phy->wakelock, WAKE_LOCK_SUSPEND,
+			       "rockchip_otg");
+		INIT_DELAYED_WORK(&rk_phy->chg_work, rk3288_chg_detect_work);
+		INIT_DELAYED_WORK(&rk_phy->otg_sm_work,
+				  rk3288_usb_phy_otg_sm_work);
+	} else if (rk_phy->reg_offset == 0x334) {
+		/*
+		 * Setting the COMMONONN to 1'b0 for EHCI PHY on RK3288 SoC.
+		 *
+		 * EHCI (auto) suspend causes the corresponding usb-phy into
+		 * suspend mode which would power down the inner PLL blocks in
+		 * usb-phy if the COMMONONN is set to 1'b1. The PLL output
+		 * clocks contained CLK480M, CLK12MOHCI, CLK48MOHCI, PHYCLOCK0
+		 * and so on, these clocks are not only supplied for EHCI and
+		 * OHCI, but also supplied for GPU and other external modules,
+		 * so setting COMMONONN to 1'b0 to keep the inner PLL blocks in
+		 * usb-phy always powered.
+		 */
+		regmap_write(rk_phy->base->reg_base, rk_phy->reg_offset,
+			     BIT(16));
+	}
+out:
+	return ret;
+}
+
 static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 				 struct device_node *child)
 {
@@ -215,6 +684,7 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 
 	rk_phy->base = base;
 	rk_phy->np = child;
+	mutex_init(&rk_phy->mutex);
 
 	if (of_property_read_u32(child, "reg", &reg_offset)) {
 		dev_err(base->dev, "missing reg property in node %pOFn\n",
@@ -282,6 +752,12 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 	if (err)
 		return err;
 
+	if (of_device_is_compatible(np, "rockchip,rk3288-usb-phy")) {
+		err = rk3288_usb_phy_probe_init(rk_phy);
+		if (err)
+			return err;
+	}
+
 	rk_phy->phy = devm_phy_create(base->dev, child, &ops);
 	if (IS_ERR(rk_phy->phy)) {
 		dev_err(base->dev, "failed to create PHY\n");
@@ -295,21 +771,6 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 			return PTR_ERR(rk_phy->vbus);
 		rk_phy->vbus = NULL;
 	}
-
-	/*
-	 * Setting the COMMONONN to 1'b0 for EHCI PHY on RK3288 SoC.
-	 *
-	 * EHCI (auto) suspend causes the corresponding usb-phy into suspend
-	 * mode which would power down the inner PLL blocks in usb-phy if the
-	 * COMMONONN is set to 1'b1. The PLL output clocks contained CLK480M,
-	 * CLK12MOHCI, CLK48MOHCI, PHYCLOCK0 and so on, these clocks are not
-	 * only supplied for EHCI and OHCI, but also supplied for GPU and other
-	 * external modules, so setting COMMONONN to 1'b0 to keep the inner PLL
-	 * blocks in usb-phy always powered.
-	 */
-	if (of_device_is_compatible(np, "rockchip,rk3288-usb-phy") &&
-	    reg_offset == 0x334)
-		regmap_write(base->reg_base, reg_offset, BIT(16));
 
 	/*
 	 * When acting as uart-pipe, just keep clock on otherwise
@@ -418,10 +879,6 @@ static const struct rockchip_usb_phy_pdata rk3188_pdata = {
 	.usb_uart_phy = 0,
 };
 
-#define RK3288_UOC0_CON3				0x32c
-#define RK3288_UOC0_CON3_BYPASSDMEN			BIT(6)
-#define RK3288_UOC0_CON3_BYPASSSEL			BIT(7)
-
 /*
  * Enable the bypass of uart2 data through the otg usb phy.
  * Original description in the TRM.
@@ -502,6 +959,10 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Missing rockchip,grf property\n");
 		return PTR_ERR(phy_base->reg_base);
 	}
+
+	err = rockchip_usb_phy_extcon_register(phy_base);
+	if (err)
+		return err;
 
 	for_each_available_child_of_node(dev->of_node, child) {
 		err = rockchip_usb_phy_init(phy_base, child);
