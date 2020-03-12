@@ -213,6 +213,9 @@ int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info)
 		}
 
 	ret = dev->ethtool_ops->set_channels(dev, &channels);
+	if (ret < 0)
+		goto out_ops;
+	ethtool_notify(dev, ETHTOOL_MSG_CHANNELS_NTF, NULL);
 
 out_ops:
 	ethnl_ops_complete(dev);

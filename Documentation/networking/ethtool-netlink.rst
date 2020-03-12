@@ -220,6 +220,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_RINGS_GET_REPLY``       ring sizes
   ``ETHTOOL_MSG_RINGS_NTF``             ring sizes
   ``ETHTOOL_MSG_CHANNELS_GET_REPLY``    channel counts
+  ``ETHTOOL_MSG_CHANNELS_NTF``          channel counts
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
