@@ -254,7 +254,6 @@ struct csi_state {
 
 	struct csis_hw_reset hw_reset;
 	struct regulator *mipi_phy_regulator;
-	bool sink_linked;
 };
 
 struct csis_pix_format {
@@ -675,17 +674,7 @@ static int mipi_csis_link_setup(struct media_entity *entity,
 
 	mutex_lock(&state->lock);
 
-	if (local_pad->flags & MEDIA_PAD_FL_SOURCE) {
-		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (state->sink_linked) {
-				ret = -EBUSY;
-				goto out;
-			}
-			state->sink_linked = true;
-		} else {
-			state->sink_linked = false;
-		}
-	} else {
+	if (local_pad->flags & MEDIA_PAD_FL_SINK) {
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (state->src_sd) {
 				ret = -EBUSY;
