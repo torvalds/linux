@@ -849,14 +849,33 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	}
 
 	hactive = adjusted_mode->crtc_hdisplay;
-	htotal = DIV_ROUND_UP(adjusted_mode->crtc_htotal * mul, div);
+
+	if (is_vid_mode(intel_dsi))
+		htotal = DIV_ROUND_UP(adjusted_mode->crtc_htotal * mul, div);
+	else
+		htotal = DIV_ROUND_UP((hactive + 160) * mul, div);
+
 	hsync_start = DIV_ROUND_UP(adjusted_mode->crtc_hsync_start * mul, div);
 	hsync_end = DIV_ROUND_UP(adjusted_mode->crtc_hsync_end * mul, div);
 	hsync_size  = hsync_end - hsync_start;
 	hback_porch = (adjusted_mode->crtc_htotal -
 		       adjusted_mode->crtc_hsync_end);
 	vactive = adjusted_mode->crtc_vdisplay;
-	vtotal = adjusted_mode->crtc_vtotal;
+
+	if (is_vid_mode(intel_dsi)) {
+		vtotal = adjusted_mode->crtc_vtotal;
+	} else {
+		int bpp, line_time_us, byte_clk_period_ns;
+
+		if (crtc_state->dsc.compression_enable)
+			bpp = crtc_state->dsc.compressed_bpp;
+		else
+			bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
+
+		byte_clk_period_ns = 1000000 / afe_clk(encoder, crtc_state);
+		line_time_us = (htotal * (bpp / 8) * byte_clk_period_ns) / (1000 * intel_dsi->lane_count);
+		vtotal = vactive + DIV_ROUND_UP(400, line_time_us);
+	}
 	vsync_start = adjusted_mode->crtc_vsync_start;
 	vsync_end = adjusted_mode->crtc_vsync_end;
 	vsync_shift = hsync_start - htotal / 2;
@@ -885,7 +904,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	}
 
 	/* TRANS_HSYNC register to be programmed only for video mode */
-	if (intel_dsi->operation_mode == INTEL_DSI_VIDEO_MODE) {
+	if (is_vid_mode(intel_dsi)) {
 		if (intel_dsi->video_mode_format ==
 		    VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE) {
 			/* BSPEC: hsync size should be atleast 16 pixels */
@@ -928,22 +947,27 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (vsync_start < vactive)
 		drm_err(&dev_priv->drm, "vsync_start less than vactive\n");
 
-	/* program TRANS_VSYNC register */
-	for_each_dsi_port(port, intel_dsi->ports) {
-		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_write(dev_priv, VSYNC(dsi_trans),
-			       (vsync_start - 1) | ((vsync_end - 1) << 16));
+	/* program TRANS_VSYNC register for video mode only */
+	if (is_vid_mode(intel_dsi)) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			dsi_trans = dsi_port_to_transcoder(port);
+			intel_de_write(dev_priv, VSYNC(dsi_trans),
+				       (vsync_start - 1) | ((vsync_end - 1) << 16));
+		}
 	}
 
 	/*
-	 * FIXME: It has to be programmed only for interlaced
+	 * FIXME: It has to be programmed only for video modes and interlaced
 	 * modes. Put the check condition here once interlaced
 	 * info available as described above.
 	 * program TRANS_VSYNCSHIFT register
 	 */
-	for_each_dsi_port(port, intel_dsi->ports) {
-		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_write(dev_priv, VSYNCSHIFT(dsi_trans), vsync_shift);
+	if (is_vid_mode(intel_dsi)) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			dsi_trans = dsi_port_to_transcoder(port);
+			intel_de_write(dev_priv, VSYNCSHIFT(dsi_trans),
+				       vsync_shift);
+		}
 	}
 
 	/* program TRANS_VBLANK register, should be same as vtotal programmed */
