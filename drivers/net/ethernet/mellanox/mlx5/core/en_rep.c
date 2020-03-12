@@ -1607,6 +1607,7 @@ static int mlx5e_create_rep_root_ft(struct mlx5e_priv *priv)
 	}
 
 	ft_attr.max_fte = 0; /* Empty table, miss rule will always point to next table */
+	ft_attr.prio = 1;
 	ft_attr.level = 1;
 
 	rpriv->root_ft = mlx5_create_flow_table(ns, &ft_attr);
