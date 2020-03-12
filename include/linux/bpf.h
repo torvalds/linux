@@ -478,6 +478,7 @@ struct bpf_ksym {
 	char			 name[KSYM_NAME_LEN];
 	struct list_head	 lnode;
 	struct latch_tree_node	 tnode;
+	bool			 prog;
 };
 
 enum bpf_tramp_prog_type {

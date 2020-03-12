@@ -642,6 +642,7 @@ void bpf_prog_kallsyms_add(struct bpf_prog *fp)
 
 	bpf_prog_ksym_set_addr(fp);
 	bpf_prog_ksym_set_name(fp);
+	fp->aux->ksym.prog = true;
 
 	spin_lock_bh(&bpf_lock);
 	bpf_prog_ksym_node_add(fp->aux);
@@ -656,16 +657,6 @@ void bpf_prog_kallsyms_del(struct bpf_prog *fp)
 	spin_lock_bh(&bpf_lock);
 	bpf_prog_ksym_node_del(fp->aux);
 	spin_unlock_bh(&bpf_lock);
-}
-
-static struct bpf_prog *bpf_prog_kallsyms_find(unsigned long addr)
-{
-	struct latch_tree_node *n;
-
-	n = latch_tree_find((void *)addr, &bpf_tree, &bpf_tree_ops);
-	return n ?
-	       container_of(n, struct bpf_prog_aux, ksym.tnode)->prog :
-	       NULL;
 }
 
 static struct bpf_ksym *bpf_ksym_find(unsigned long addr)
@@ -712,13 +703,22 @@ bool is_bpf_text_address(unsigned long addr)
 	return ret;
 }
 
+static struct bpf_prog *bpf_prog_ksym_find(unsigned long addr)
+{
+	struct bpf_ksym *ksym = bpf_ksym_find(addr);
+
+	return ksym && ksym->prog ?
+	       container_of(ksym, struct bpf_prog_aux, ksym)->prog :
+	       NULL;
+}
+
 const struct exception_table_entry *search_bpf_extables(unsigned long addr)
 {
 	const struct exception_table_entry *e = NULL;
 	struct bpf_prog *prog;
 
 	rcu_read_lock();
-	prog = bpf_prog_kallsyms_find(addr);
+	prog = bpf_prog_ksym_find(addr);
 	if (!prog)
 		goto out;
 	if (!prog->aux->num_exentries)
