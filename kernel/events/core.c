@@ -1586,7 +1586,7 @@ perf_event_groups_less(struct perf_event *left, struct perf_event *right)
 			 */
 			return true;
 		}
-		if (!right->cgrp || right->cgrp->css.cgroup) {
+		if (!right->cgrp || !right->cgrp->css.cgroup) {
 			/*
 			 * Right has no cgroup but left does, no cgroups come
 			 * first.
