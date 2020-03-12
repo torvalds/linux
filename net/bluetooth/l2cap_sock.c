@@ -1024,7 +1024,7 @@ static int l2cap_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 			sk->sk_state = BT_CONNECTED;
 			pi->chan->state = BT_CONNECTED;
 			__l2cap_ecred_conn_rsp_defer(pi->chan);
-		} if (bdaddr_type_is_le(pi->chan->src_type)) {
+		} else if (bdaddr_type_is_le(pi->chan->src_type)) {
 			sk->sk_state = BT_CONNECTED;
 			pi->chan->state = BT_CONNECTED;
 			__l2cap_le_connect_rsp_defer(pi->chan);
