@@ -252,6 +252,19 @@ int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow)
 }
 EXPORT_SYMBOL_GPL(flow_offload_add);
 
+void flow_offload_refresh(struct nf_flowtable *flow_table,
+			  struct flow_offload *flow)
+{
+	flow->timeout = nf_flowtable_time_stamp + NF_FLOW_TIMEOUT;
+
+	if (likely(!nf_flowtable_hw_offload(flow_table) ||
+		   !test_and_clear_bit(NF_FLOW_HW_REFRESH, &flow->flags)))
+		return;
+
+	nf_flow_offload_add(flow_table, flow);
+}
+EXPORT_SYMBOL_GPL(flow_offload_refresh);
+
 static inline bool nf_flow_has_expired(const struct flow_offload *flow)
 {
 	return nf_flow_timeout_delta(flow->timeout) <= 0;

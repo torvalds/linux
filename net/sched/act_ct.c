@@ -531,6 +531,7 @@ static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
 	ctinfo = dir == FLOW_OFFLOAD_DIR_ORIGINAL ? IP_CT_ESTABLISHED :
 						    IP_CT_ESTABLISHED_REPLY;
 
+	flow_offload_refresh(nf_ft, flow);
 	nf_conntrack_get(&ct->ct_general);
 	nf_ct_set(skb, ct, ctinfo);
 
