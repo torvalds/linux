@@ -19,6 +19,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
+#include <media/v4l2-rect.h>
 
 #include "tvp5150_reg.h"
 
@@ -995,6 +996,25 @@ static void tvp5150_set_default(v4l2_std_id std, struct v4l2_rect *crop)
 		crop->height = TVP5150_V_MAX_OTHERS;
 }
 
+static struct v4l2_rect *
+tvp5150_get_pad_crop(struct tvp5150 *decoder,
+		     struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		     enum v4l2_subdev_format_whence which)
+{
+	switch (which) {
+	case V4L2_SUBDEV_FORMAT_ACTIVE:
+		return &decoder->rect;
+	case V4L2_SUBDEV_FORMAT_TRY:
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+		return v4l2_subdev_get_try_crop(&decoder->sd, cfg, pad);
+#else
+		return ERR_PTR(-EINVAL);
+#endif
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+}
+
 static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_pad_config *cfg,
 			    struct v4l2_subdev_format *format)
@@ -1019,25 +1039,10 @@ static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tvp5150_set_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
-				 struct v4l2_subdev_selection *sel)
+static unsigned int tvp5150_get_hmax(struct v4l2_subdev *sd)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	struct v4l2_rect *rect = &sel->r;
 	v4l2_std_id std;
-	int hmax;
-
-	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE ||
-	    sel->target != V4L2_SEL_TGT_CROP)
-		return -EINVAL;
-
-	dev_dbg_lvl(sd->dev, 1, debug, "%s left=%d, top=%d, width=%d, height=%d\n",
-		__func__, rect->left, rect->top, rect->width, rect->height);
-
-	/* tvp5150 has some special limits */
-	rect->left = clamp(rect->left, 0, TVP5150_MAX_CROP_LEFT);
-	rect->top = clamp(rect->top, 0, TVP5150_MAX_CROP_TOP);
 
 	/* Calculate height based on current standard */
 	if (decoder->norm == V4L2_STD_ALL)
@@ -1045,21 +1050,15 @@ static int tvp5150_set_selection(struct v4l2_subdev *sd,
 	else
 		std = decoder->norm;
 
-	if (std & V4L2_STD_525_60)
-		hmax = TVP5150_V_MAX_525_60;
-	else
-		hmax = TVP5150_V_MAX_OTHERS;
+	return (std & V4L2_STD_525_60) ?
+		TVP5150_V_MAX_525_60 : TVP5150_V_MAX_OTHERS;
+}
 
-	/*
-	 * alignments:
-	 *  - width = 2 due to UYVY colorspace
-	 *  - height, image = no special alignment
-	 */
-	v4l_bound_align_image(&rect->width,
-			      TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect->left,
-			      TVP5150_H_MAX - rect->left, 1, &rect->height,
-			      hmax - TVP5150_MAX_CROP_TOP - rect->top,
-			      hmax - rect->top, 0, 0);
+static void tvp5150_set_hw_selection(struct v4l2_subdev *sd,
+				     struct v4l2_rect *rect)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+	unsigned int hmax = tvp5150_get_hmax(sd);
 
 	regmap_write(decoder->regmap, TVP5150_VERT_BLANKING_START, rect->top);
 	regmap_write(decoder->regmap, TVP5150_VERT_BLANKING_STOP,
@@ -1073,8 +1072,56 @@ static int tvp5150_set_selection(struct v4l2_subdev *sd,
 		     TVP5150_CROP_SHIFT);
 	regmap_write(decoder->regmap, TVP5150_ACT_VD_CROP_STP_LSB,
 		     rect->left + rect->width - TVP5150_MAX_CROP_LEFT);
+}
 
-	decoder->rect = *rect;
+static int tvp5150_set_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_selection *sel)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+	struct v4l2_rect *rect = &sel->r;
+	struct v4l2_rect *crop;
+	unsigned int hmax;
+
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
+	dev_dbg_lvl(sd->dev, 1, debug, "%s left=%d, top=%d, width=%d, height=%d\n",
+		__func__, rect->left, rect->top, rect->width, rect->height);
+
+	/* tvp5150 has some special limits */
+	rect->left = clamp(rect->left, 0, TVP5150_MAX_CROP_LEFT);
+	rect->top = clamp(rect->top, 0, TVP5150_MAX_CROP_TOP);
+	hmax = tvp5150_get_hmax(sd);
+
+	/*
+	 * alignments:
+	 *  - width = 2 due to UYVY colorspace
+	 *  - height, image = no special alignment
+	 */
+	v4l_bound_align_image(&rect->width,
+			      TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect->left,
+			      TVP5150_H_MAX - rect->left, 1, &rect->height,
+			      hmax - TVP5150_MAX_CROP_TOP - rect->top,
+			      hmax - rect->top, 0, 0);
+
+	if (!IS_ENABLED(CONFIG_VIDEO_V4L2_SUBDEV_API) &&
+	    sel->which == V4L2_SUBDEV_FORMAT_TRY)
+		return 0;
+
+	crop = tvp5150_get_pad_crop(decoder, cfg, sel->pad, sel->which);
+	if (IS_ERR(crop))
+		return PTR_ERR(crop);
+
+	/*
+	 * Update output image size if the selection (crop) rectangle size or
+	 * position has been modified.
+	 */
+	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE &&
+	    !v4l2_rect_equal(rect, crop))
+		tvp5150_set_hw_selection(sd, rect);
+
+	*crop = *rect;
 
 	return 0;
 }
@@ -1084,10 +1131,8 @@ static int tvp5150_get_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct tvp5150 *decoder = container_of(sd, struct tvp5150, sd);
+	struct v4l2_rect *crop;
 	v4l2_std_id std;
-
-	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
@@ -1106,7 +1151,11 @@ static int tvp5150_get_selection(struct v4l2_subdev *sd,
 			sel->r.height = TVP5150_V_MAX_OTHERS;
 		return 0;
 	case V4L2_SEL_TGT_CROP:
-		sel->r = decoder->rect;
+		crop = tvp5150_get_pad_crop(decoder, cfg, sel->pad,
+					    sel->which);
+		if (IS_ERR(crop))
+			return PTR_ERR(crop);
+		sel->r = *crop;
 		return 0;
 	default:
 		return -EINVAL;
