@@ -10,7 +10,15 @@
  *
  * Description:
  *   This file is the core OMAP support for the generic, Linux
- *   PWM driver / controller, using the OMAP's dual-mode timers.
+ *   PWM driver / controller, using the OMAP's dual-mode timers
+ *   with a timer counter that goes up. When it overflows it gets
+ *   reloaded with the load value and the pwm output goes up.
+ *   When counter matches with match register, the output goes down.
+ *   Reference Manual: http://www.ti.com/lit/ug/spruh73q/spruh73q.pdf
+ *
+ * Limitations:
+ * - When PWM is stopped, timer counter gets stopped immediately. This
+ *   doesn't allow the current PWM period to complete and stops abruptly.
  */
 
 #include <linux/clk.h>
