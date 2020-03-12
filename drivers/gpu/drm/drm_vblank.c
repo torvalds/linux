@@ -592,8 +592,7 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
 /**
  * drm_crtc_vblank_helper_get_vblank_timestamp_internal - precise vblank
  *                                                        timestamp helper
- * @dev: DRM device
- * @pipe: index of CRTC whose vblank timestamp to retrieve
+ * @crtc: CRTC whose vblank timestamp to retrieve
  * @max_error: Desired maximum allowable error in timestamps (nanosecs)
  *             On return contains true maximum error of timestamp
  * @vblank_time: Pointer to time which should receive the timestamp

@@ -5022,7 +5022,7 @@ L:	dri-devel@lists.freedesktop.org
 L:	linaro-mm-sig@lists.linaro.org (moderated for non-subscribers)
 F:	drivers/dma-buf/
 F:	include/linux/dma-buf*
-F:	include/linux/reservation.h
+F:	include/linux/dma-resv.h
 F:	include/linux/*fence.h
 F:	Documentation/driver-api/dma-buf.rst
 K:	dma_(buf|fence|resv)
@@ -5335,6 +5335,13 @@ S:	Maintained
 F:	drivers/gpu/drm/msm/
 F:	include/uapi/drm/msm_drm.h
 F:	Documentation/devicetree/bindings/display/msm/
+
+DRM DRIVER FOR NOVATEK NT35510 PANELS
+M:	Linus Walleij <linus.walleij@linaro.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-novatek-nt35510.c
+F:	Documentation/devicetree/bindings/display/panel/novatek,nt35510.yaml
 
 DRM DRIVER FOR NVIDIA GEFORCE/QUADRO GPUS
 M:	Ben Skeggs <bskeggs@redhat.com>

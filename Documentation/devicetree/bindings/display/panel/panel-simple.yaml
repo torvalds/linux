@@ -177,6 +177,8 @@ properties:
       - nec,nl4827hc19-05b
         # Netron-DY E231732 7.0" WSVGA TFT LCD panel
       - netron-dy,e231732
+        # NewEast Optoelectronics CO., LTD WJFH116008A eDP TFT LCD panel
+      - neweast,wjfh116008a
         # Newhaven Display International 480 x 272 TFT LCD panel
       - newhaven,nhd-4.3-480272ef-atxl
         # NLT Technologies, Ltd. 15.6" FHD (1920x1080) LVDS TFT LCD panel

@@ -303,23 +303,13 @@ static struct drm_connector *radeon_dp_add_mst_connector(struct drm_dp_mst_topol
 
 static void radeon_dp_register_mst_connector(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
-	struct radeon_device *rdev = dev->dev_private;
-
-	radeon_fb_add_connector(rdev, connector);
-
 	drm_connector_register(connector);
 }
 
 static void radeon_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 					    struct drm_connector *connector)
 {
-	struct radeon_connector *master = container_of(mgr, struct radeon_connector, mst_mgr);
-	struct drm_device *dev = master->base.dev;
-	struct radeon_device *rdev = dev->dev_private;
-
 	drm_connector_unregister(connector);
-	radeon_fb_remove_connector(rdev, connector);
 	drm_connector_cleanup(connector);
 
 	kfree(connector);
