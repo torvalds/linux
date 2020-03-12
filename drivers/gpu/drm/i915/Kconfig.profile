@@ -41,6 +41,10 @@ config DRM_I915_PREEMPT_TIMEOUT
 
 	  May be 0 to disable the timeout.
 
+	  The compiled in default may get overridden at driver probe time on
+	  certain platforms and certain engines which will be reflected in the
+	  sysfs control.
+
 config DRM_I915_MAX_REQUEST_BUSYWAIT
 	int "Busywait for request completion limit (ns)"
 	default 8000 # nanoseconds
