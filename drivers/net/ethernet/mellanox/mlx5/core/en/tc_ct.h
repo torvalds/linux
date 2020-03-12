@@ -15,10 +15,13 @@ struct mlx5e_priv;
 
 struct mlx5_ct_flow;
 
+struct nf_flowtable;
+
 struct mlx5_ct_attr {
 	u16 zone;
 	u16 ct_action;
 	struct mlx5_ct_flow *ct_flow;
+	struct nf_flowtable *nf_ft;
 };
 
 #define zone_to_reg_ct {\
