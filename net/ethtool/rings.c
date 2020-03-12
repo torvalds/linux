@@ -186,6 +186,9 @@ int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam);
+	if (ret < 0)
+		goto out_ops;
+	ethtool_notify(dev, ETHTOOL_MSG_RINGS_NTF, NULL);
 
 out_ops:
 	ethnl_ops_complete(dev);

@@ -216,6 +216,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_PRIVFLAGS_GET_REPLY``   private flags
   ``ETHTOOL_MSG_PRIVFLAGS_NTF``         private flags
   ``ETHTOOL_MSG_RINGS_GET_REPLY``       ring sizes
+  ``ETHTOOL_MSG_RINGS_NTF``             ring sizes
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
