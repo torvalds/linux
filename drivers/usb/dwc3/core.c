@@ -199,8 +199,20 @@ static void __dwc3_set_mode(struct work_struct *work)
 runtime:
 	if (extcon_get_state(dwc->edev, EXTCON_USB) ||
 	    extcon_get_state(dwc->edev, EXTCON_USB_HOST)) {
-		if (dwc->drd_connected)
-			return;
+		if (dwc->drd_connected) {
+			/*
+			 *  If the connected flag is true, and the DWC3 is
+			 *  in device mode, it means that the Type-C cable
+			 *  is doing data role swap (UFP -> DFP), so we need
+			 *  to disconnect UFP first, and then switch DWC3 to
+			 *  DFP depends on the next extcon notifier.
+			 */
+			if (extcon_get_state(dwc->edev, EXTCON_USB_HOST) &&
+			    dwc->current_dr_role == DWC3_GCTL_PRTCAP_DEVICE)
+				goto disconnect;
+			else
+				return;
+		}
 
 		dwc->current_dr_role = dwc->desired_dr_role;
 		pm_runtime_get_sync(dwc->dev);
@@ -247,6 +259,7 @@ runtime:
 			break;
 		}
 	} else {
+disconnect:
 		switch (dwc->current_dr_role) {
 		case DWC3_GCTL_PRTCAP_HOST:
 			phy_power_off(dwc->usb3_generic_phy);
