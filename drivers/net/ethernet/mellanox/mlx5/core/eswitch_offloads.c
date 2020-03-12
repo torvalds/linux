@@ -763,14 +763,21 @@ void mlx5_eswitch_del_send_to_vport_rule(struct mlx5_flow_handle *rule)
 	mlx5_del_flow_rules(rule);
 }
 
+static bool mlx5_eswitch_reg_c1_loopback_supported(struct mlx5_eswitch *esw)
+{
+	return MLX5_CAP_ESW_FLOWTABLE(esw->dev, fdb_to_vport_reg_c_id) &
+	       MLX5_FDB_TO_VPORT_REG_C_1;
+}
+
 static int esw_set_passing_vport_metadata(struct mlx5_eswitch *esw, bool enable)
 {
 	u32 out[MLX5_ST_SZ_DW(query_esw_vport_context_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(modify_esw_vport_context_in)] = {};
-	u8 fdb_to_vport_reg_c_id;
+	u8 curr, wanted;
 	int err;
 
-	if (!mlx5_eswitch_vport_match_metadata_enabled(esw))
+	if (!mlx5_eswitch_reg_c1_loopback_supported(esw) &&
+	    !mlx5_eswitch_vport_match_metadata_enabled(esw))
 		return 0;
 
 	err = mlx5_eswitch_query_esw_vport_context(esw->dev, 0, false,
@@ -778,24 +785,33 @@ static int esw_set_passing_vport_metadata(struct mlx5_eswitch *esw, bool enable)
 	if (err)
 		return err;
 
-	fdb_to_vport_reg_c_id = MLX5_GET(query_esw_vport_context_out, out,
-					 esw_vport_context.fdb_to_vport_reg_c_id);
+	curr = MLX5_GET(query_esw_vport_context_out, out,
+			esw_vport_context.fdb_to_vport_reg_c_id);
+	wanted = MLX5_FDB_TO_VPORT_REG_C_0;
+	if (mlx5_eswitch_reg_c1_loopback_supported(esw))
+		wanted |= MLX5_FDB_TO_VPORT_REG_C_1;
 
 	if (enable)
-		fdb_to_vport_reg_c_id |= MLX5_FDB_TO_VPORT_REG_C_0 |
-					 MLX5_FDB_TO_VPORT_REG_C_1;
+		curr |= wanted;
 	else
-		fdb_to_vport_reg_c_id &= ~(MLX5_FDB_TO_VPORT_REG_C_0 |
-					   MLX5_FDB_TO_VPORT_REG_C_1);
+		curr &= ~wanted;
 
 	MLX5_SET(modify_esw_vport_context_in, in,
-		 esw_vport_context.fdb_to_vport_reg_c_id, fdb_to_vport_reg_c_id);
+		 esw_vport_context.fdb_to_vport_reg_c_id, curr);
 
 	MLX5_SET(modify_esw_vport_context_in, in,
 		 field_select.fdb_to_vport_reg_c_id, 1);
 
-	return mlx5_eswitch_modify_esw_vport_context(esw->dev, 0, false,
-						     in, sizeof(in));
+	err = mlx5_eswitch_modify_esw_vport_context(esw->dev, 0, false, in,
+						    sizeof(in));
+	if (!err) {
+		if (enable && (curr & MLX5_FDB_TO_VPORT_REG_C_1))
+			esw->flags |= MLX5_ESWITCH_REG_C1_LOOPBACK_ENABLED;
+		else
+			esw->flags &= ~MLX5_ESWITCH_REG_C1_LOOPBACK_ENABLED;
+	}
+
+	return err;
 }
 
 static void peer_miss_rules_setup(struct mlx5_eswitch *esw,
@@ -2830,6 +2846,12 @@ bool mlx5_eswitch_is_vf_vport(const struct mlx5_eswitch *esw, u16 vport_num)
 	return vport_num >= MLX5_VPORT_FIRST_VF &&
 	       vport_num <= esw->dev->priv.sriov.max_vfs;
 }
+
+bool mlx5_eswitch_reg_c1_loopback_enabled(const struct mlx5_eswitch *esw)
+{
+	return !!(esw->flags & MLX5_ESWITCH_REG_C1_LOOPBACK_ENABLED);
+}
+EXPORT_SYMBOL(mlx5_eswitch_reg_c1_loopback_enabled);
 
 bool mlx5_eswitch_vport_match_metadata_enabled(const struct mlx5_eswitch *esw)
 {
