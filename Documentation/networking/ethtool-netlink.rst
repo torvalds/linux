@@ -189,6 +189,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_DEBUG_SET``             set debugging settings
   ``ETHTOOL_MSG_WOL_GET``               get wake-on-lan settings
   ``ETHTOOL_MSG_WOL_SET``               set wake-on-lan settings
+  ``ETHTOOL_MSG_FEATURES_GET``          get device features
   ===================================== ================================
 
 Kernel to userspace:
@@ -204,6 +205,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_DEBUG_NTF``             debugging settings notification
   ``ETHTOOL_MSG_WOL_GET_REPLY``         wake-on-lan settings
   ``ETHTOOL_MSG_WOL_NTF``               wake-on-lan settings notification
+  ``ETHTOOL_MSG_FEATURES_GET_REPLY``    device features
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -521,6 +523,37 @@ Request contents:
 ``WAKE_MAGICSECURE`` mode.
 
 
+FEATURES_GET
+============
+
+Gets netdev features like ``ETHTOOL_GFEATURES`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_FEATURES_HEADER``         nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_FEATURES_HEADER``         nested  reply header
+  ``ETHTOOL_A_FEATURES_HW``             bitset  dev->hw_features
+  ``ETHTOOL_A_FEATURES_WANTED``         bitset  dev->wanted_features
+  ``ETHTOOL_A_FEATURES_ACTIVE``         bitset  dev->features
+  ``ETHTOOL_A_FEATURES_NOCHANGE``       bitset  NETIF_F_NEVER_CHANGE
+  ====================================  ======  ==========================
+
+Bitmaps in kernel response have the same meaning as bitmaps used in ioctl
+interference but attribute names are different (they are based on
+corresponding members of struct net_device). Legacy "flags" are not provided,
+if userspace needs them (most likely only ethtool for backward compatibility),
+it can calculate their values from related feature bits itself.
+ETHA_FEATURES_HW uses mask consisting of all features recognized by kernel (to
+provide all names when using verbose bitmap format), the other three use no
+mask (simple bit lists).
+
+
 Request translation
 ===================
 
@@ -551,30 +584,30 @@ have their netlink replacement yet.
   ``ETHTOOL_SRINGPARAM``              n/a
   ``ETHTOOL_GPAUSEPARAM``             n/a
   ``ETHTOOL_SPAUSEPARAM``             n/a
-  ``ETHTOOL_GRXCSUM``                 n/a
+  ``ETHTOOL_GRXCSUM``                 ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SRXCSUM``                 n/a
-  ``ETHTOOL_GTXCSUM``                 n/a
+  ``ETHTOOL_GTXCSUM``                 ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_STXCSUM``                 n/a
-  ``ETHTOOL_GSG``                     n/a
+  ``ETHTOOL_GSG``                     ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SSG``                     n/a
   ``ETHTOOL_TEST``                    n/a
   ``ETHTOOL_GSTRINGS``                ``ETHTOOL_MSG_STRSET_GET``
   ``ETHTOOL_PHYS_ID``                 n/a
   ``ETHTOOL_GSTATS``                  n/a
-  ``ETHTOOL_GTSO``                    n/a
+  ``ETHTOOL_GTSO``                    ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_STSO``                    n/a
   ``ETHTOOL_GPERMADDR``               rtnetlink ``RTM_GETLINK``
-  ``ETHTOOL_GUFO``                    n/a
+  ``ETHTOOL_GUFO``                    ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SUFO``                    n/a
-  ``ETHTOOL_GGSO``                    n/a
+  ``ETHTOOL_GGSO``                    ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SGSO``                    n/a
-  ``ETHTOOL_GFLAGS``                  n/a
+  ``ETHTOOL_GFLAGS``                  ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SFLAGS``                  n/a
   ``ETHTOOL_GPFLAGS``                 n/a
   ``ETHTOOL_SPFLAGS``                 n/a
   ``ETHTOOL_GRXFH``                   n/a
   ``ETHTOOL_SRXFH``                   n/a
-  ``ETHTOOL_GGRO``                    n/a
+  ``ETHTOOL_GGRO``                    ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SGRO``                    n/a
   ``ETHTOOL_GRXRINGS``                n/a
   ``ETHTOOL_GRXCLSRLCNT``             n/a
@@ -589,7 +622,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GSSET_INFO``              ``ETHTOOL_MSG_STRSET_GET``
   ``ETHTOOL_GRXFHINDIR``              n/a
   ``ETHTOOL_SRXFHINDIR``              n/a
-  ``ETHTOOL_GFEATURES``               n/a
+  ``ETHTOOL_GFEATURES``               ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SFEATURES``               n/a
   ``ETHTOOL_GCHANNELS``               n/a
   ``ETHTOOL_SCHANNELS``               n/a
