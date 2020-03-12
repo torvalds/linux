@@ -203,13 +203,11 @@ struct symbol *find_func_containing(struct section *sec, unsigned long offset)
 
 struct symbol *find_symbol_by_name(struct elf *elf, const char *name)
 {
-	struct section *sec;
 	struct symbol *sym;
 
-	list_for_each_entry(sec, &elf->sections, list)
-		list_for_each_entry(sym, &sec->symbol_list, list)
-			if (!strcmp(sym->name, name))
-				return sym;
+	hash_for_each_possible(elf->symbol_name_hash, sym, name_hash, str_hash(name))
+		if (!strcmp(sym->name, name))
+			return sym;
 
 	return NULL;
 }
@@ -386,6 +384,7 @@ static int read_symbols(struct elf *elf)
 			entry = &sym->sec->symbol_list;
 		list_add(&sym->list, entry);
 		hash_add(elf->symbol_hash, &sym->hash, sym->idx);
+		hash_add(elf->symbol_name_hash, &sym->name_hash, str_hash(sym->name));
 	}
 
 	if (stats)
@@ -524,6 +523,7 @@ struct elf *elf_read(const char *name, int flags)
 	memset(elf, 0, sizeof(*elf));
 
 	hash_init(elf->symbol_hash);
+	hash_init(elf->symbol_name_hash);
 	hash_init(elf->section_hash);
 	hash_init(elf->section_name_hash);
 	INIT_LIST_HEAD(&elf->sections);
