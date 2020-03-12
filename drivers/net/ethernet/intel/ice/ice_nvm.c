@@ -80,13 +80,14 @@ ice_check_sr_access_params(struct ice_hw *hw, u32 offset, u16 words)
  * @hw: pointer to the HW structure
  * @offset: offset in words from module start
  * @words: number of words to read
- * @data: buffer for words reads from Shadow RAM
+ * @data: storage for the words read from Shadow RAM (Little Endian)
  * @last_command: tells the AdminQ that this is the last command
  *
- * Reads 16-bit word buffers from the Shadow RAM using the admin command.
+ * Reads 16-bit Little Endian word buffers from the Shadow RAM using the admin
+ * command.
  */
 static enum ice_status
-ice_read_sr_aq(struct ice_hw *hw, u32 offset, u16 words, u16 *data,
+ice_read_sr_aq(struct ice_hw *hw, u32 offset, u16 words, __le16 *data,
 	       bool last_command)
 {
 	enum ice_status status;
@@ -116,10 +117,11 @@ static enum ice_status
 ice_read_sr_word_aq(struct ice_hw *hw, u16 offset, u16 *data)
 {
 	enum ice_status status;
+	__le16 data_local;
 
-	status = ice_read_sr_aq(hw, offset, 1, data, true);
+	status = ice_read_sr_aq(hw, offset, 1, &data_local, true);
 	if (!status)
-		*data = le16_to_cpu(*(__force __le16 *)data);
+		*data = le16_to_cpu(data_local);
 
 	return status;
 }
