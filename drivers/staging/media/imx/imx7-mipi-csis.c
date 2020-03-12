@@ -649,26 +649,6 @@ out:
 	return ret;
 }
 
-static int mipi_csis_init_cfg(struct v4l2_subdev *mipi_sd,
-			      struct v4l2_subdev_pad_config *cfg)
-{
-	struct v4l2_mbus_framefmt *mf;
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < CSIS_PADS_NUM; i++) {
-		mf = v4l2_subdev_get_try_format(mipi_sd, cfg, i);
-
-		ret = imx_media_init_mbus_fmt(mf, MIPI_CSIS_DEF_PIX_HEIGHT,
-					      MIPI_CSIS_DEF_PIX_WIDTH, 0,
-					      V4L2_FIELD_NONE, NULL);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
 static struct v4l2_mbus_framefmt *
 mipi_csis_get_format(struct csi_state *state,
 		     struct v4l2_subdev_pad_config *cfg,
@@ -679,6 +659,37 @@ mipi_csis_get_format(struct csi_state *state,
 		return v4l2_subdev_get_try_format(&state->mipi_sd, cfg, pad);
 
 	return &state->format_mbus;
+}
+
+static int mipi_csis_init_cfg(struct v4l2_subdev *mipi_sd,
+			      struct v4l2_subdev_pad_config *cfg)
+{
+	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
+	struct v4l2_mbus_framefmt *fmt_sink;
+	struct v4l2_mbus_framefmt *fmt_source;
+	enum v4l2_subdev_format_whence which;
+	int ret;
+
+	which = cfg ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
+	fmt_sink = mipi_csis_get_format(state, cfg, which, CSIS_PAD_SINK);
+	ret = imx_media_init_mbus_fmt(fmt_sink, MIPI_CSIS_DEF_PIX_WIDTH,
+				      MIPI_CSIS_DEF_PIX_HEIGHT, 0,
+				      V4L2_FIELD_NONE, NULL);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * When called from mipi_csis_subdev_init() to initialize the active
+	 * configuration, cfg is NULL, which indicates there's no source pad
+	 * configuration to set.
+	 */
+	if (!cfg)
+		return 0;
+
+	fmt_source = mipi_csis_get_format(state, cfg, which, CSIS_PAD_SOURCE);
+	*fmt_source = *fmt_sink;
+
+	return 0;
 }
 
 static int mipi_csis_get_fmt(struct v4l2_subdev *mipi_sd,
@@ -875,10 +886,7 @@ static int mipi_csis_subdev_init(struct v4l2_subdev *mipi_sd,
 	mipi_sd->dev = &pdev->dev;
 
 	state->csis_fmt = &mipi_csis_formats[0];
-	state->format_mbus.code = mipi_csis_formats[0].code;
-	state->format_mbus.width = MIPI_CSIS_DEF_PIX_WIDTH;
-	state->format_mbus.height = MIPI_CSIS_DEF_PIX_HEIGHT;
-	state->format_mbus.field = V4L2_FIELD_NONE;
+	mipi_csis_init_cfg(mipi_sd, NULL);
 
 	v4l2_set_subdevdata(mipi_sd, &pdev->dev);
 
