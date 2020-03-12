@@ -208,6 +208,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_WOL_NTF``               wake-on-lan settings notification
   ``ETHTOOL_MSG_FEATURES_GET_REPLY``    device features
   ``ETHTOOL_MSG_FEATURES_SET_REPLY``    optional reply to FEATURES_SET
+  ``ETHTOOL_MSG_FEATURES_NTF``          netdev features notification
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -590,6 +591,11 @@ after the operation), value consists of values of these bits in the request
 reports the difference between old and new dev->features: mask consists of
 bits which have changed, values are their values in new dev->features (after
 the operation).
+
+``ETHTOOL_MSG_FEATURES_NTF`` notification is sent not only if device features
+are modified using ``ETHTOOL_MSG_FEATURES_SET`` request or on of ethtool ioctl
+request but also each time features are modified with netdev_update_features()
+or netdev_change_features().
 
 
 Request translation

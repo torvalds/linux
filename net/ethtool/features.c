@@ -230,6 +230,7 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 	struct nlattr *tb[ETHTOOL_A_FEATURES_MAX + 1];
 	struct ethnl_req_info req_info = {};
 	struct net_device *dev;
+	bool mod;
 	int ret;
 
 	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
@@ -272,6 +273,7 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 	dev->wanted_features = ethnl_bitmap_to_features(req_wanted);
 	__netdev_update_features(dev);
 	ethnl_features_to_bitmap(new_active, dev->features);
+	mod = !bitmap_equal(old_active, new_active, NETDEV_FEATURE_COUNT);
 
 	ret = 0;
 	if (!(req_info.flags & ETHTOOL_FLAG_OMIT_REPLY)) {
@@ -292,6 +294,8 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 					  wanted_diff_mask, new_active,
 					  active_diff_mask, compact);
 	}
+	if (mod)
+		ethtool_notify(dev, ETHTOOL_MSG_FEATURES_NTF, NULL);
 
 out_rtnl:
 	rtnl_unlock();

@@ -528,6 +528,7 @@ ethnl_default_notify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
 	[ETHTOOL_MSG_LINKMODES_NTF]	= &ethnl_linkmodes_request_ops,
 	[ETHTOOL_MSG_DEBUG_NTF]		= &ethnl_debug_request_ops,
 	[ETHTOOL_MSG_WOL_NTF]		= &ethnl_wol_request_ops,
+	[ETHTOOL_MSG_FEATURES_NTF]	= &ethnl_features_request_ops,
 };
 
 /* default notification handler */
@@ -613,6 +614,7 @@ static const ethnl_notify_handler_t ethnl_notify_handlers[] = {
 	[ETHTOOL_MSG_LINKMODES_NTF]	= ethnl_default_notify,
 	[ETHTOOL_MSG_DEBUG_NTF]		= ethnl_default_notify,
 	[ETHTOOL_MSG_WOL_NTF]		= ethnl_default_notify,
+	[ETHTOOL_MSG_FEATURES_NTF]	= ethnl_default_notify,
 };
 
 void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
@@ -629,6 +631,29 @@ void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
 			  cmd, netdev_name(dev));
 }
 EXPORT_SYMBOL(ethtool_notify);
+
+static void ethnl_notify_features(struct netdev_notifier_info *info)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(info);
+
+	ethtool_notify(dev, ETHTOOL_MSG_FEATURES_NTF, NULL);
+}
+
+static int ethnl_netdev_event(struct notifier_block *this, unsigned long event,
+			      void *ptr)
+{
+	switch (event) {
+	case NETDEV_FEAT_CHANGE:
+		ethnl_notify_features(ptr);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ethnl_netdev_notifier = {
+	.notifier_call = ethnl_netdev_event,
+};
 
 /* genetlink setup */
 
@@ -736,7 +761,9 @@ static int __init ethnl_init(void)
 		return ret;
 	ethnl_ok = true;
 
-	return 0;
+	ret = register_netdevice_notifier(&ethnl_netdev_notifier);
+	WARN(ret < 0, "ethtool: net device notifier registration failed");
+	return ret;
 }
 
 subsys_initcall(ethnl_init);
