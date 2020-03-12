@@ -324,17 +324,6 @@ config SND_SOC_SOF_HDA_ALWAYS_ENABLE_DMI_L1
 	  Say Y if you want to enable DMI Link L1
 	  If unsure, select "N".
 
-config SND_SOC_SOF_HDA_COMMON_HDMI_CODEC
-	bool "SOF common HDA HDMI codec driver"
-	depends on SND_SOC_SOF_HDA_LINK
-	depends on SND_HDA_CODEC_HDMI
-	default SND_HDA_CODEC_HDMI
-	help
-	  This adds support for HDMI audio by using the common HDA
-	  HDMI/DisplayPort codec driver.
-	  Say Y if you want to use the common codec driver with SOF.
-	  If unsure select "Y".
-
 endif ## SND_SOC_SOF_HDA_COMMON
 
 config SND_SOC_SOF_HDA_LINK_BASELINE
