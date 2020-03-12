@@ -190,6 +190,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_WOL_GET``               get wake-on-lan settings
   ``ETHTOOL_MSG_WOL_SET``               set wake-on-lan settings
   ``ETHTOOL_MSG_FEATURES_GET``          get device features
+  ``ETHTOOL_MSG_FEATURES_SET``          set device features
   ===================================== ================================
 
 Kernel to userspace:
@@ -206,6 +207,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_WOL_GET_REPLY``         wake-on-lan settings
   ``ETHTOOL_MSG_WOL_NTF``               wake-on-lan settings notification
   ``ETHTOOL_MSG_FEATURES_GET_REPLY``    device features
+  ``ETHTOOL_MSG_FEATURES_SET_REPLY``    optional reply to FEATURES_SET
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -554,6 +556,42 @@ provide all names when using verbose bitmap format), the other three use no
 mask (simple bit lists).
 
 
+FEATURES_SET
+============
+
+Request to set netdev features like ``ETHTOOL_SFEATURES`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_FEATURES_HEADER``         nested  request header
+  ``ETHTOOL_A_FEATURES_WANTED``         bitset  requested features
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_FEATURES_HEADER``         nested  reply header
+  ``ETHTOOL_A_FEATURES_WANTED``         bitset  diff wanted vs. result
+  ``ETHTOOL_A_FEATURES_ACTIVE``         bitset  diff old vs. new active
+  ====================================  ======  ==========================
+
+Request constains only one bitset which can be either value/mask pair (request
+to change specific feature bits and leave the rest) or only a value (request
+to set all features to specified set).
+
+As request is subject to netdev_change_features() sanity checks, optional
+kernel reply (can be suppressed by ``ETHTOOL_FLAG_OMIT_REPLY`` flag in request
+header) informs client about the actual result. ``ETHTOOL_A_FEATURES_WANTED``
+reports the difference between client request and actual result: mask consists
+of bits which differ between requested features and result (dev->features
+after the operation), value consists of values of these bits in the request
+(i.e. negated values from resulting features). ``ETHTOOL_A_FEATURES_ACTIVE``
+reports the difference between old and new dev->features: mask consists of
+bits which have changed, values are their values in new dev->features (after
+the operation).
+
+
 Request translation
 ===================
 
@@ -585,30 +623,30 @@ have their netlink replacement yet.
   ``ETHTOOL_GPAUSEPARAM``             n/a
   ``ETHTOOL_SPAUSEPARAM``             n/a
   ``ETHTOOL_GRXCSUM``                 ``ETHTOOL_MSG_FEATURES_GET``
-  ``ETHTOOL_SRXCSUM``                 n/a
+  ``ETHTOOL_SRXCSUM``                 ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GTXCSUM``                 ``ETHTOOL_MSG_FEATURES_GET``
-  ``ETHTOOL_STXCSUM``                 n/a
+  ``ETHTOOL_STXCSUM``                 ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GSG``                     ``ETHTOOL_MSG_FEATURES_GET``
-  ``ETHTOOL_SSG``                     n/a
+  ``ETHTOOL_SSG``                     ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_TEST``                    n/a
   ``ETHTOOL_GSTRINGS``                ``ETHTOOL_MSG_STRSET_GET``
   ``ETHTOOL_PHYS_ID``                 n/a
   ``ETHTOOL_GSTATS``                  n/a
   ``ETHTOOL_GTSO``                    ``ETHTOOL_MSG_FEATURES_GET``
-  ``ETHTOOL_STSO``                    n/a
+  ``ETHTOOL_STSO``                    ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GPERMADDR``               rtnetlink ``RTM_GETLINK``
   ``ETHTOOL_GUFO``                    ``ETHTOOL_MSG_FEATURES_GET``
-  ``ETHTOOL_SUFO``                    n/a
+  ``ETHTOOL_SUFO``                    ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GGSO``                    ``ETHTOOL_MSG_FEATURES_GET``
-  ``ETHTOOL_SGSO``                    n/a
+  ``ETHTOOL_SGSO``                    ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GFLAGS``                  ``ETHTOOL_MSG_FEATURES_GET``
-  ``ETHTOOL_SFLAGS``                  n/a
+  ``ETHTOOL_SFLAGS``                  ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GPFLAGS``                 n/a
   ``ETHTOOL_SPFLAGS``                 n/a
   ``ETHTOOL_GRXFH``                   n/a
   ``ETHTOOL_SRXFH``                   n/a
   ``ETHTOOL_GGRO``                    ``ETHTOOL_MSG_FEATURES_GET``
-  ``ETHTOOL_SGRO``                    n/a
+  ``ETHTOOL_SGRO``                    ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GRXRINGS``                n/a
   ``ETHTOOL_GRXCLSRLCNT``             n/a
   ``ETHTOOL_GRXCLSRULE``              n/a
@@ -623,7 +661,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GRXFHINDIR``              n/a
   ``ETHTOOL_SRXFHINDIR``              n/a
   ``ETHTOOL_GFEATURES``               ``ETHTOOL_MSG_FEATURES_GET``
-  ``ETHTOOL_SFEATURES``               n/a
+  ``ETHTOOL_SFEATURES``               ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GCHANNELS``               n/a
   ``ETHTOOL_SCHANNELS``               n/a
   ``ETHTOOL_SET_DUMP``                n/a
