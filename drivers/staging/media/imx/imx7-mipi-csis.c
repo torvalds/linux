@@ -28,8 +28,6 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#include "imx-media.h"
-
 #define CSIS_DRIVER_NAME			"imx7-mipi-csis"
 #define CSIS_SUBDEV_NAME			CSIS_DRIVER_NAME
 
@@ -709,15 +707,21 @@ static int mipi_csis_init_cfg(struct v4l2_subdev *mipi_sd,
 	struct v4l2_mbus_framefmt *fmt_sink;
 	struct v4l2_mbus_framefmt *fmt_source;
 	enum v4l2_subdev_format_whence which;
-	int ret;
 
 	which = cfg ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
 	fmt_sink = mipi_csis_get_format(state, cfg, which, CSIS_PAD_SINK);
-	ret = imx_media_init_mbus_fmt(fmt_sink, MIPI_CSIS_DEF_PIX_WIDTH,
-				      MIPI_CSIS_DEF_PIX_HEIGHT, 0,
-				      V4L2_FIELD_NONE, NULL);
-	if (ret < 0)
-		return ret;
+
+	fmt_sink->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	fmt_sink->width = MIPI_CSIS_DEF_PIX_WIDTH;
+	fmt_sink->height = MIPI_CSIS_DEF_PIX_HEIGHT;
+	fmt_sink->field = V4L2_FIELD_NONE;
+
+	fmt_sink->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	fmt_sink->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt_sink->colorspace);
+	fmt_sink->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt_sink->colorspace);
+	fmt_sink->quantization =
+		V4L2_MAP_QUANTIZATION_DEFAULT(false, fmt_sink->colorspace,
+					      fmt_sink->ycbcr_enc);
 
 	/*
 	 * When called from mipi_csis_subdev_init() to initialize the active
