@@ -94,6 +94,7 @@ struct mixer_context {
 	struct platform_device *pdev;
 	struct device		*dev;
 	struct drm_device	*drm_dev;
+	void			*dma_priv;
 	struct exynos_drm_crtc	*crtc;
 	struct exynos_drm_plane	planes[MIXER_WIN_NR];
 	unsigned long		flags;
@@ -894,12 +895,14 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 		}
 	}
 
-	return exynos_drm_register_dma(drm_dev, mixer_ctx->dev);
+	return exynos_drm_register_dma(drm_dev, mixer_ctx->dev,
+				       &mixer_ctx->dma_priv);
 }
 
 static void mixer_ctx_remove(struct mixer_context *mixer_ctx)
 {
-	exynos_drm_unregister_dma(mixer_ctx->drm_dev, mixer_ctx->dev);
+	exynos_drm_unregister_dma(mixer_ctx->drm_dev, mixer_ctx->dev,
+				  &mixer_ctx->dma_priv);
 }
 
 static int mixer_enable_vblank(struct exynos_drm_crtc *crtc)
