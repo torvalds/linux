@@ -1647,6 +1647,62 @@ out:
 	port->connection_info_old = port->connection_info;
 }
 
+static void zfcp_fsf_log_security_error(const struct device *dev, u32 fsf_sqw0,
+					u64 wwpn)
+{
+	switch (fsf_sqw0) {
+
+	/*
+	 * Open Port command error codes
+	 */
+
+	case FSF_SQ_SECURITY_REQUIRED:
+		dev_warn_ratelimited(dev,
+				     "FC Endpoint Security error: FC security is required but not supported or configured on remote port 0x%016llx\n",
+				     wwpn);
+		break;
+	case FSF_SQ_SECURITY_TIMEOUT:
+		dev_warn_ratelimited(dev,
+				     "FC Endpoint Security error: a timeout prevented opening remote port 0x%016llx\n",
+				     wwpn);
+		break;
+	case FSF_SQ_SECURITY_KM_UNAVAILABLE:
+		dev_warn_ratelimited(dev,
+				     "FC Endpoint Security error: opening remote port 0x%016llx failed because local and external key manager cannot communicate\n",
+				     wwpn);
+		break;
+	case FSF_SQ_SECURITY_RKM_UNAVAILABLE:
+		dev_warn_ratelimited(dev,
+				     "FC Endpoint Security error: opening remote port 0x%016llx failed because it cannot communicate with the external key manager\n",
+				     wwpn);
+		break;
+	case FSF_SQ_SECURITY_AUTH_FAILURE:
+		dev_warn_ratelimited(dev,
+				     "FC Endpoint Security error: the device could not verify the identity of remote port 0x%016llx\n",
+				     wwpn);
+		break;
+
+	/*
+	 * Send FCP command error codes
+	 */
+
+	case FSF_SQ_SECURITY_ENC_FAILURE:
+		dev_warn_ratelimited(dev,
+				     "FC Endpoint Security error: FC connection to remote port 0x%016llx closed because encryption broke down\n",
+				     wwpn);
+		break;
+
+	/*
+	 * Unknown error codes
+	 */
+
+	default:
+		dev_warn_ratelimited(dev,
+				     "FC Endpoint Security error: the device issued an unknown error code 0x%08x related to the FC connection to remote port 0x%016llx\n",
+				     fsf_sqw0, wwpn);
+	}
+}
+
 static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
@@ -1671,6 +1727,9 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_SECURITY_ERROR:
+		zfcp_fsf_log_security_error(&req->adapter->ccw_device->dev,
+					    header->fsf_status_qual.word[0],
+					    port->wwpn);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_ADAPTER_STATUS_AVAILABLE:
@@ -2404,6 +2463,9 @@ static void zfcp_fsf_fcp_handler_common(struct zfcp_fsf_req *req,
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_SECURITY_ERROR:
+		zfcp_fsf_log_security_error(&req->adapter->ccw_device->dev,
+					    header->fsf_status_qual.word[0],
+					    zfcp_sdev->port->wwpn);
 		zfcp_erp_port_forced_reopen(zfcp_sdev->port, 0, "fssfch7");
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
