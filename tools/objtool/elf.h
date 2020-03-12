@@ -10,6 +10,7 @@
 #include <gelf.h>
 #include <linux/list.h>
 #include <linux/hashtable.h>
+#include <linux/rbtree.h>
 #include <linux/jhash.h>
 
 #ifdef LIBELF_USE_DEPRECATED
@@ -29,6 +30,7 @@ struct section {
 	struct hlist_node hash;
 	struct hlist_node name_hash;
 	GElf_Shdr sh;
+	struct rb_root symbol_tree;
 	struct list_head symbol_list;
 	struct list_head rela_list;
 	DECLARE_HASHTABLE(rela_hash, 16);
@@ -43,6 +45,7 @@ struct section {
 
 struct symbol {
 	struct list_head list;
+	struct rb_node node;
 	struct hlist_node hash;
 	GElf_Sym sym;
 	struct section *sec;
