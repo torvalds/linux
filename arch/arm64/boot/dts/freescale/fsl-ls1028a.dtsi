@@ -836,10 +836,11 @@
 				fsl,extts-fifo;
 			};
 
-			ethernet-switch@0,5 {
+			mscc_felix: ethernet-switch@0,5 {
 				reg = <0x000500 0 0 0 0>;
 				/* IEP INT_B */
 				interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
 
 				ports {
 					#address-cells = <1>;

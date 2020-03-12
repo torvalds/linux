@@ -214,6 +214,10 @@
 	status = "okay";
 };
 
+&mscc_felix {
+	status = "okay";
+};
+
 &mscc_felix_port0 {
 	label = "swp0";
 	managed = "in-band-status";

@@ -48,6 +48,10 @@
 	status = "okay";
 };
 
+&mscc_felix {
+	status = "okay";
+};
+
 &mscc_felix_port0 {
 	label = "gbe0";
 	phy-handle = <&phy0>;
