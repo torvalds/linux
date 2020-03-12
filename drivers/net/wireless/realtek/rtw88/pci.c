@@ -186,6 +186,11 @@ static int rtw_pci_init_tx_ring(struct rtw_dev *rtwdev,
 	dma_addr_t dma;
 	u8 *head;
 
+	if (len > TRX_BD_IDX_MASK) {
+		rtw_err(rtwdev, "len %d exceeds maximum TX entries\n", len);
+		return -EINVAL;
+	}
+
 	head = pci_zalloc_consistent(pdev, ring_sz, &dma);
 	if (!head) {
 		rtw_err(rtwdev, "failed to allocate tx ring\n");
@@ -258,6 +263,11 @@ static int rtw_pci_init_rx_ring(struct rtw_dev *rtwdev,
 	int buf_sz = RTK_PCI_RX_BUF_SIZE;
 	int i, allocated;
 	int ret = 0;
+
+	if (len > TRX_BD_IDX_MASK) {
+		rtw_err(rtwdev, "len %d exceeds maximum RX entries\n", len);
+		return -EINVAL;
+	}
 
 	head = pci_zalloc_consistent(pdev, ring_sz, &dma);
 	if (!head) {
@@ -405,56 +415,56 @@ static void rtw_pci_reset_buf_desc(struct rtw_dev *rtwdev)
 	dma = rtwpci->tx_rings[RTW_TX_QUEUE_H2C].r.dma;
 	rtwpci->tx_rings[RTW_TX_QUEUE_H2C].r.rp = 0;
 	rtwpci->tx_rings[RTW_TX_QUEUE_H2C].r.wp = 0;
-	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_H2CQ, len);
+	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_H2CQ, len & TRX_BD_IDX_MASK);
 	rtw_write32(rtwdev, RTK_PCI_TXBD_DESA_H2CQ, dma);
 
 	len = rtwpci->tx_rings[RTW_TX_QUEUE_BK].r.len;
 	dma = rtwpci->tx_rings[RTW_TX_QUEUE_BK].r.dma;
 	rtwpci->tx_rings[RTW_TX_QUEUE_BK].r.rp = 0;
 	rtwpci->tx_rings[RTW_TX_QUEUE_BK].r.wp = 0;
-	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_BKQ, len);
+	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_BKQ, len & TRX_BD_IDX_MASK);
 	rtw_write32(rtwdev, RTK_PCI_TXBD_DESA_BKQ, dma);
 
 	len = rtwpci->tx_rings[RTW_TX_QUEUE_BE].r.len;
 	dma = rtwpci->tx_rings[RTW_TX_QUEUE_BE].r.dma;
 	rtwpci->tx_rings[RTW_TX_QUEUE_BE].r.rp = 0;
 	rtwpci->tx_rings[RTW_TX_QUEUE_BE].r.wp = 0;
-	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_BEQ, len);
+	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_BEQ, len & TRX_BD_IDX_MASK);
 	rtw_write32(rtwdev, RTK_PCI_TXBD_DESA_BEQ, dma);
 
 	len = rtwpci->tx_rings[RTW_TX_QUEUE_VO].r.len;
 	dma = rtwpci->tx_rings[RTW_TX_QUEUE_VO].r.dma;
 	rtwpci->tx_rings[RTW_TX_QUEUE_VO].r.rp = 0;
 	rtwpci->tx_rings[RTW_TX_QUEUE_VO].r.wp = 0;
-	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_VOQ, len);
+	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_VOQ, len & TRX_BD_IDX_MASK);
 	rtw_write32(rtwdev, RTK_PCI_TXBD_DESA_VOQ, dma);
 
 	len = rtwpci->tx_rings[RTW_TX_QUEUE_VI].r.len;
 	dma = rtwpci->tx_rings[RTW_TX_QUEUE_VI].r.dma;
 	rtwpci->tx_rings[RTW_TX_QUEUE_VI].r.rp = 0;
 	rtwpci->tx_rings[RTW_TX_QUEUE_VI].r.wp = 0;
-	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_VIQ, len);
+	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_VIQ, len & TRX_BD_IDX_MASK);
 	rtw_write32(rtwdev, RTK_PCI_TXBD_DESA_VIQ, dma);
 
 	len = rtwpci->tx_rings[RTW_TX_QUEUE_MGMT].r.len;
 	dma = rtwpci->tx_rings[RTW_TX_QUEUE_MGMT].r.dma;
 	rtwpci->tx_rings[RTW_TX_QUEUE_MGMT].r.rp = 0;
 	rtwpci->tx_rings[RTW_TX_QUEUE_MGMT].r.wp = 0;
-	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_MGMTQ, len);
+	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_MGMTQ, len & TRX_BD_IDX_MASK);
 	rtw_write32(rtwdev, RTK_PCI_TXBD_DESA_MGMTQ, dma);
 
 	len = rtwpci->tx_rings[RTW_TX_QUEUE_HI0].r.len;
 	dma = rtwpci->tx_rings[RTW_TX_QUEUE_HI0].r.dma;
 	rtwpci->tx_rings[RTW_TX_QUEUE_HI0].r.rp = 0;
 	rtwpci->tx_rings[RTW_TX_QUEUE_HI0].r.wp = 0;
-	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_HI0Q, len);
+	rtw_write16(rtwdev, RTK_PCI_TXBD_NUM_HI0Q, len & TRX_BD_IDX_MASK);
 	rtw_write32(rtwdev, RTK_PCI_TXBD_DESA_HI0Q, dma);
 
 	len = rtwpci->rx_rings[RTW_RX_QUEUE_MPDU].r.len;
 	dma = rtwpci->rx_rings[RTW_RX_QUEUE_MPDU].r.dma;
 	rtwpci->rx_rings[RTW_RX_QUEUE_MPDU].r.rp = 0;
 	rtwpci->rx_rings[RTW_RX_QUEUE_MPDU].r.wp = 0;
-	rtw_write16(rtwdev, RTK_PCI_RXBD_NUM_MPDUQ, len & 0xfff);
+	rtw_write16(rtwdev, RTK_PCI_RXBD_NUM_MPDUQ, len & TRX_BD_IDX_MASK);
 	rtw_write32(rtwdev, RTK_PCI_RXBD_DESA_MPDUQ, dma);
 
 	/* reset read/write point */
@@ -743,7 +753,7 @@ static int rtw_pci_xmit(struct rtw_dev *rtwdev,
 		if (++ring->r.wp >= ring->r.len)
 			ring->r.wp = 0;
 		bd_idx = rtw_pci_tx_queue_idx_addr[queue];
-		rtw_write16(rtwdev, bd_idx, ring->r.wp & 0xfff);
+		rtw_write16(rtwdev, bd_idx, ring->r.wp & TRX_BD_IDX_MASK);
 	} else {
 		u32 reg_bcn_work;
 
@@ -821,7 +831,7 @@ static void rtw_pci_tx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 	bd_idx_addr = rtw_pci_tx_queue_idx_addr[hw_queue];
 	bd_idx = rtw_read32(rtwdev, bd_idx_addr);
 	cur_rp = bd_idx >> 16;
-	cur_rp &= 0xfff;
+	cur_rp &= TRX_BD_IDX_MASK;
 	if (cur_rp >= ring->r.rp)
 		count = cur_rp - ring->r.rp;
 	else
@@ -895,7 +905,7 @@ static void rtw_pci_rx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 
 	tmp = rtw_read32(rtwdev, RTK_PCI_RXBD_IDX_MPDUQ);
 	cur_wp = tmp >> 16;
-	cur_wp &= 0xfff;
+	cur_wp &= TRX_BD_IDX_MASK;
 	if (cur_wp >= ring->r.wp)
 		count = cur_wp - ring->r.wp;
 	else
