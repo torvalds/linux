@@ -203,6 +203,7 @@ struct tegra_xusb_soc {
 
 	bool scale_ss_clock;
 	bool has_ipfs;
+	bool lpm_support;
 };
 
 struct tegra_xusb_context {
@@ -1779,6 +1780,7 @@ static const struct tegra_xusb_soc tegra186_soc = {
 		.data_out = 0xec,
 		.owner = 0xf0,
 	},
+	.lpm_support = true,
 };
 
 static const char * const tegra194_supply_names[] = {
@@ -1808,6 +1810,7 @@ static const struct tegra_xusb_soc tegra194_soc = {
 		.data_out = 0x70,
 		.owner = 0x74,
 	},
+	.lpm_support = true,
 };
 MODULE_FIRMWARE("nvidia/tegra194/xusb.bin");
 
@@ -1832,7 +1835,11 @@ static struct platform_driver tegra_xusb_driver = {
 
 static void tegra_xhci_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
+	struct tegra_xusb *tegra = dev_get_drvdata(dev);
+
 	xhci->quirks |= XHCI_PLAT;
+	if (tegra && tegra->soc->lpm_support)
+		xhci->quirks |= XHCI_LPM_SUPPORT;
 }
 
 static int tegra_xhci_setup(struct usb_hcd *hcd)
