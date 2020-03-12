@@ -88,6 +88,15 @@ config GKI_HIDDEN_SOC_PM_CONFIGS
 	  Dummy config option used to enable all the hidden SOC specific power
 	  management add-in modules.
 
+config GKI_HIDDEN_VIDEOBUF2_CONFIGS
+	bool "Hidden v4l2 configs for GKI"
+	select VIDEOBUF2_CORE if VIDEO_V4L2
+	select VIDEOBUF2_V4L2 if VIDEO_V4L2
+	select VIDEOBUF2_MEMOPS if VIDEO_V4L2
+	select VIDEOBUF2_VMALLOC if VIDEO_V4L2
+	help
+	  Dummy config option used to enable all the hidden v4l2 media module.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -106,6 +115,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_LEGACY_WEXT_ALLCONFIG
 	select GKI_HIDDEN_VIRTUAL_CONFIGS
 	select GKI_HIDDEN_SOC_PM_CONFIGS
+	select GKI_HIDDEN_VIDEOBUF2_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
