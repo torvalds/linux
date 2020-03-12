@@ -47,6 +47,11 @@
 	rockchip,pins = <1 11 RK_FUNC_1 &pcfg_pull_none_4ma>;
 };
 
+&dmc {
+	vop-dclk-mode = <1>;
+	status = "okay";
+};
+
 &isp_dvp_d2d9 {
 	rockchip,pins =
 			/* cif_data4 ... cif_data9 */
