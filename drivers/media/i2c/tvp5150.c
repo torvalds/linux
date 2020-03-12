@@ -1618,6 +1618,26 @@ err:
 	return 0;
 }
 
+static int tvp5150_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	int ret;
+
+	ret = pm_runtime_get_sync(sd->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(sd->dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int tvp5150_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	pm_runtime_put(sd->dev);
+
+	return 0;
+}
+
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_ctrl_ops tvp5150_ctrl_ops = {
@@ -1675,6 +1695,8 @@ static const struct v4l2_subdev_ops tvp5150_ops = {
 
 static const struct v4l2_subdev_internal_ops tvp5150_internal_ops = {
 	.registered = tvp5150_registered,
+	.open = tvp5150_open,
+	.close = tvp5150_close,
 };
 
 /****************************************************************************
