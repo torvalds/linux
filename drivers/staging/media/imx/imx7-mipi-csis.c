@@ -258,7 +258,6 @@ struct csi_state {
 };
 
 struct csis_pix_format {
-	unsigned int pix_width_alignment;
 	u32 code;
 	u32 fmt_reg;
 	u8 width;
@@ -774,6 +773,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *mipi_sd,
 	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
 	struct csis_pix_format const *csis_fmt;
 	struct v4l2_mbus_framefmt *fmt;
+	unsigned int align;
 
 	/*
 	 * The CSIS can't transcode in any way, the source format can't be
@@ -798,8 +798,31 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *mipi_sd,
 	fmt->width = sdformat->format.width;
 	fmt->height = sdformat->format.height;
 
-	v4l_bound_align_image(&fmt->width, 1, CSIS_MAX_PIX_WIDTH,
-			      csis_fmt->pix_width_alignment,
+	/*
+	 * The total number of bits per line must be a multiple of 8. We thus
+	 * need to align the width for formats that are not multiples of 8
+	 * bits.
+	 */
+	switch (csis_fmt->width % 8) {
+	case 0:
+		align = 1;
+		break;
+	case 4:
+		align = 2;
+		break;
+	case 2:
+	case 6:
+		align = 4;
+		break;
+	case 1:
+	case 3:
+	case 5:
+	case 7:
+		align = 8;
+		break;
+	}
+
+	v4l_bound_align_image(&fmt->width, 1, CSIS_MAX_PIX_WIDTH, align,
 			      &fmt->height, 1, CSIS_MAX_PIX_HEIGHT, 1, 0);
 
 	sdformat->format = *fmt;
