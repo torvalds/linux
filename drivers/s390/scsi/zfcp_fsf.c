@@ -1405,7 +1405,8 @@ int zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 	req->qtcb->bottom.config.feature_selection =
 			FSF_FEATURE_NOTIFICATION_LOST |
 			FSF_FEATURE_UPDATE_ALERT |
-			FSF_FEATURE_REQUEST_SFP_DATA;
+			FSF_FEATURE_REQUEST_SFP_DATA |
+			FSF_FEATURE_FC_SECURITY;
 	req->erp_action = erp_action;
 	req->handler = zfcp_fsf_exchange_config_data_handler;
 	erp_action->fsf_req_id = req->req_id;
@@ -1459,7 +1460,8 @@ int zfcp_fsf_exchange_config_data_sync(struct zfcp_qdio *qdio,
 	req->qtcb->bottom.config.feature_selection =
 			FSF_FEATURE_NOTIFICATION_LOST |
 			FSF_FEATURE_UPDATE_ALERT |
-			FSF_FEATURE_REQUEST_SFP_DATA;
+			FSF_FEATURE_REQUEST_SFP_DATA |
+			FSF_FEATURE_FC_SECURITY;
 
 	if (data)
 		req->data = data;
@@ -1666,6 +1668,9 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 			 (unsigned long long)port->wwpn);
 		zfcp_erp_set_port_status(port,
 					 ZFCP_STATUS_COMMON_ERP_FAILED);
+		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
+		break;
+	case FSF_SECURITY_ERROR:
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_ADAPTER_STATUS_AVAILABLE:
@@ -2396,6 +2401,10 @@ static void zfcp_fsf_fcp_handler_common(struct zfcp_fsf_req *req,
 		if (header->fsf_status_qual.word[0] ==
 		    FSF_SQ_INVOKE_LINK_TEST_PROCEDURE)
 			zfcp_fc_test_link(zfcp_sdev->port);
+		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
+		break;
+	case FSF_SECURITY_ERROR:
+		zfcp_erp_port_forced_reopen(zfcp_sdev->port, 0, "fssfch7");
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	}
