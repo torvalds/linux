@@ -29,15 +29,13 @@ static int ql_write_other_func_reg(struct ql_adapter *qdev,
 				   u32 reg, u32 reg_val)
 {
 	u32 register_to_read;
-	int status = 0;
 
 	register_to_read = MPI_NIC_REG_BLOCK
 				| MPI_NIC_READ
 				| (qdev->alt_func << MPI_NIC_FUNCTION_SHIFT)
 				| reg;
-	status = ql_write_mpi_reg(qdev, register_to_read, reg_val);
 
-	return status;
+	return ql_write_mpi_reg(qdev, register_to_read, reg_val);
 }
 
 static int ql_wait_other_func_reg_rdy(struct ql_adapter *qdev, u32 reg,
