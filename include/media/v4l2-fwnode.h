@@ -128,6 +128,63 @@ struct v4l2_fwnode_link {
 };
 
 /**
+ * enum v4l2_connector_type - connector type
+ * @V4L2_CONN_UNKNOWN:   unknown connector type, no V4L2 connector configuration
+ * @V4L2_CONN_COMPOSITE: analog composite connector
+ * @V4L2_CONN_SVIDEO:    analog svideo connector
+ */
+enum v4l2_connector_type {
+	V4L2_CONN_UNKNOWN,
+	V4L2_CONN_COMPOSITE,
+	V4L2_CONN_SVIDEO,
+};
+
+/**
+ * struct v4l2_connector_link - connector link data structure
+ * @head: structure to be used to add the link to the
+ *        &struct v4l2_fwnode_connector
+ * @fwnode_link: &struct v4l2_fwnode_link link between the connector and the
+ *               device the connector belongs to.
+ */
+struct v4l2_connector_link {
+	struct list_head head;
+	struct v4l2_fwnode_link fwnode_link;
+};
+
+/**
+ * struct v4l2_fwnode_connector_analog - analog connector data structure
+ * @sdtv_stds: sdtv standards this connector supports, set to V4L2_STD_ALL
+ *             if no restrictions are specified.
+ */
+struct v4l2_fwnode_connector_analog {
+	v4l2_std_id sdtv_stds;
+};
+
+/**
+ * struct v4l2_fwnode_connector - the connector data structure
+ * @name: the connector device name
+ * @label: optional connector label
+ * @type: connector type
+ * @links: list of all connector &struct v4l2_connector_link links
+ * @nr_of_links: total number of links
+ * @connector: connector configuration
+ * @connector.analog: analog connector configuration
+ *                    &struct v4l2_fwnode_connector_analog
+ */
+struct v4l2_fwnode_connector {
+	const char *name;
+	const char *label;
+	enum v4l2_connector_type type;
+	struct list_head links;
+	unsigned int nr_of_links;
+
+	union {
+		struct v4l2_fwnode_connector_analog analog;
+		/* future connectors */
+	} connector;
+};
+
+/**
  * v4l2_fwnode_endpoint_parse() - parse all fwnode node properties
  * @fwnode: pointer to the endpoint's fwnode handle
  * @vep: pointer to the V4L2 fwnode data structure
