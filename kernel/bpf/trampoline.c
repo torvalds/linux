@@ -5,6 +5,7 @@
 #include <linux/filter.h>
 #include <linux/ftrace.h>
 #include <linux/rbtree_latch.h>
+#include <linux/perf_event.h>
 
 /* dummy _ops. The verifier will operate on target program's ops. */
 const struct bpf_verifier_ops bpf_extension_verifier_ops = {
@@ -96,6 +97,30 @@ bool is_bpf_image_address(unsigned long addr)
 	return ret;
 }
 
+void bpf_image_ksym_add(void *data, struct bpf_ksym *ksym)
+{
+	ksym->start = (unsigned long) data;
+	ksym->end = ksym->start + BPF_IMAGE_SIZE;
+	bpf_ksym_add(ksym);
+	perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_BPF, ksym->start,
+			   BPF_IMAGE_SIZE, false, ksym->name);
+}
+
+void bpf_image_ksym_del(struct bpf_ksym *ksym)
+{
+	bpf_ksym_del(ksym);
+	perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_BPF, ksym->start,
+			   BPF_IMAGE_SIZE, true, ksym->name);
+}
+
+static void bpf_trampoline_ksym_add(struct bpf_trampoline *tr)
+{
+	struct bpf_ksym *ksym = &tr->ksym;
+
+	snprintf(ksym->name, KSYM_NAME_LEN, "bpf_trampoline_%llu", tr->key);
+	bpf_image_ksym_add(tr->image, ksym);
+}
+
 struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 {
 	struct bpf_trampoline *tr;
@@ -131,6 +156,8 @@ struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 	for (i = 0; i < BPF_TRAMP_MAX; i++)
 		INIT_HLIST_HEAD(&tr->progs_hlist[i]);
 	tr->image = image;
+	INIT_LIST_HEAD_RCU(&tr->ksym.lnode);
+	bpf_trampoline_ksym_add(tr);
 out:
 	mutex_unlock(&trampoline_mutex);
 	return tr;
@@ -368,6 +395,7 @@ void bpf_trampoline_put(struct bpf_trampoline *tr)
 		goto out;
 	if (WARN_ON_ONCE(!hlist_empty(&tr->progs_hlist[BPF_TRAMP_FEXIT])))
 		goto out;
+	bpf_image_ksym_del(&tr->ksym);
 	image = container_of(tr->image, struct bpf_image, data);
 	latch_tree_erase(&image->tnode, &image_tree, &image_tree_ops);
 	/* wait for tasks to get out of trampoline before freeing it */
