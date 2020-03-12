@@ -120,6 +120,23 @@ static void zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *req)
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 }
 
+static void zfcp_fsf_fc_host_link_down(struct zfcp_adapter *adapter)
+{
+	struct Scsi_Host *shost = adapter->scsi_host;
+
+	fc_host_port_id(shost) = 0;
+	fc_host_fabric_name(shost) = 0;
+	fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
+	fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
+	adapter->hydra_version = 0;
+	snprintf(fc_host_model(shost), FC_SYMBOLIC_NAME_SIZE, "0x%04x", 0);
+	memset(fc_host_active_fc4s(shost), 0, FC_FC4_LIST_SIZE);
+
+	adapter->peer_wwpn = 0;
+	adapter->peer_wwnn = 0;
+	adapter->peer_d_id = 0;
+}
+
 static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req,
 					 struct fsf_link_down_info *link_down)
 {
@@ -131,6 +148,8 @@ static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req,
 	atomic_or(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED, &adapter->status);
 
 	zfcp_scsi_schedule_rports_block(adapter);
+
+	zfcp_fsf_fc_host_link_down(adapter);
 
 	if (!link_down)
 		goto out;
@@ -512,9 +531,6 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 	adapter->stat_read_buf_num = max(bottom->status_read_buf_num,
 					 (u16)FSF_STATUS_READS_RECOM);
 
-	if (fc_host_permanent_port_name(shost) == -1)
-		fc_host_permanent_port_name(shost) = fc_host_port_name(shost);
-
 	zfcp_scsi_set_prot(adapter);
 
 	/* no error return above here, otherwise must fix call chains */
@@ -608,16 +624,6 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 		zfcp_diag_update_xdata(diag_hdr, bottom, true);
 		req->status |= ZFCP_STATUS_FSFREQ_XDATAINCOMPLETE;
 
-		fc_host_node_name(shost) = 0;
-		fc_host_port_name(shost) = 0;
-		fc_host_port_id(shost) = 0;
-		fc_host_fabric_name(shost) = 0;
-		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
-		fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
-		adapter->hydra_version = 0;
-		snprintf(fc_host_model(shost), FC_SYMBOLIC_NAME_SIZE, "0x%04x",
-			 0);
-
 		/* avoids adapter shutdown to be able to recognize
 		 * events such as LINK UP */
 		atomic_or(ZFCP_STATUS_ADAPTER_XCONFIG_OK,
@@ -667,10 +673,7 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 	if (req->data)
 		memcpy(req->data, bottom, sizeof(*bottom));
 
-	if (adapter->connection_features & FSF_FEATURE_NPIV_MODE) {
-		fc_host_permanent_port_name(shost) = bottom->wwpn;
-	} else
-		fc_host_permanent_port_name(shost) = fc_host_port_name(shost);
+	fc_host_permanent_port_name(shost) = bottom->wwpn;
 	fc_host_maxframe_size(shost) = bottom->maximum_frame_size;
 	fc_host_supported_speeds(shost) =
 		zfcp_fsf_convert_portspeed(bottom->supported_speed);
@@ -704,9 +707,9 @@ static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 		zfcp_diag_update_xdata(diag_hdr, bottom, true);
 		req->status |= ZFCP_STATUS_FSFREQ_XDATAINCOMPLETE;
 
-		zfcp_fsf_exchange_port_evaluate(req);
 		zfcp_fsf_link_down_info_eval(req,
 			&qtcb->header.fsf_status_qual.link_down_info);
+		zfcp_fsf_exchange_port_evaluate(req);
 		break;
 	}
 }
