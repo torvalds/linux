@@ -217,6 +217,7 @@ ethnl_default_requests[__ETHTOOL_MSG_USER_CNT] = {
 	[ETHTOOL_MSG_WOL_GET]		= &ethnl_wol_request_ops,
 	[ETHTOOL_MSG_FEATURES_GET]	= &ethnl_features_request_ops,
 	[ETHTOOL_MSG_PRIVFLAGS_GET]	= &ethnl_privflags_request_ops,
+	[ETHTOOL_MSG_RINGS_GET]		= &ethnl_rings_request_ops,
 };
 
 static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
@@ -747,6 +748,13 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_PRIVFLAGS_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_privflags,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_RINGS_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
 	},
 };
 
