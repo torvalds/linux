@@ -2284,9 +2284,16 @@ static void bpf_object__sanitize_btf_ext(struct bpf_object *obj)
 	}
 }
 
-static bool bpf_object__is_btf_mandatory(const struct bpf_object *obj)
+static bool libbpf_needs_btf(const struct bpf_object *obj)
 {
-	return obj->efile.st_ops_shndx >= 0 || obj->nr_extern > 0;
+	return obj->efile.btf_maps_shndx >= 0 ||
+	       obj->efile.st_ops_shndx >= 0 ||
+	       obj->nr_extern > 0;
+}
+
+static bool kernel_needs_btf(const struct bpf_object *obj)
+{
+	return obj->efile.st_ops_shndx >= 0;
 }
 
 static int bpf_object__init_btf(struct bpf_object *obj,
@@ -2322,7 +2329,7 @@ static int bpf_object__init_btf(struct bpf_object *obj,
 		}
 	}
 out:
-	if (err && bpf_object__is_btf_mandatory(obj)) {
+	if (err && libbpf_needs_btf(obj)) {
 		pr_warn("BTF is required, but is missing or corrupted.\n");
 		return err;
 	}
@@ -2346,7 +2353,7 @@ static int bpf_object__finalize_btf(struct bpf_object *obj)
 	btf_ext__free(obj->btf_ext);
 	obj->btf_ext = NULL;
 
-	if (bpf_object__is_btf_mandatory(obj)) {
+	if (libbpf_needs_btf(obj)) {
 		pr_warn("BTF is required, but is missing or corrupted.\n");
 		return -ENOENT;
 	}
@@ -2410,7 +2417,7 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 			obj->btf_ext = NULL;
 		}
 
-		if (bpf_object__is_btf_mandatory(obj))
+		if (kernel_needs_btf(obj))
 			return err;
 	}
 	return 0;
