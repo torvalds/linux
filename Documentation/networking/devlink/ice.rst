@@ -19,6 +19,10 @@ The ``ice`` driver reports the following versions
       - Type
       - Example
       - Description
+    * - ``board.id``
+      - fixed
+      - K65390-000
+      - The Product Board Assembly (PBA) identifier of the board.
     * - ``fw.mgmt``
       - running
       - 2.1.7

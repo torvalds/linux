@@ -186,6 +186,131 @@ enum ice_status ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
 }
 
 /**
+ * ice_get_pfa_module_tlv - Reads sub module TLV from NVM PFA
+ * @hw: pointer to hardware structure
+ * @module_tlv: pointer to module TLV to return
+ * @module_tlv_len: pointer to module TLV length to return
+ * @module_type: module type requested
+ *
+ * Finds the requested sub module TLV type from the Preserved Field
+ * Area (PFA) and returns the TLV pointer and length. The caller can
+ * use these to read the variable length TLV value.
+ */
+enum ice_status
+ice_get_pfa_module_tlv(struct ice_hw *hw, u16 *module_tlv, u16 *module_tlv_len,
+		       u16 module_type)
+{
+	enum ice_status status;
+	u16 pfa_len, pfa_ptr;
+	u16 next_tlv;
+
+	status = ice_read_sr_word(hw, ICE_SR_PFA_PTR, &pfa_ptr);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Preserved Field Array pointer.\n");
+		return status;
+	}
+	status = ice_read_sr_word(hw, pfa_ptr, &pfa_len);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read PFA length.\n");
+		return status;
+	}
+	/* Starting with first TLV after PFA length, iterate through the list
+	 * of TLVs to find the requested one.
+	 */
+	next_tlv = pfa_ptr + 1;
+	while (next_tlv < pfa_ptr + pfa_len) {
+		u16 tlv_sub_module_type;
+		u16 tlv_len;
+
+		/* Read TLV type */
+		status = ice_read_sr_word(hw, next_tlv, &tlv_sub_module_type);
+		if (status) {
+			ice_debug(hw, ICE_DBG_INIT, "Failed to read TLV type.\n");
+			break;
+		}
+		/* Read TLV length */
+		status = ice_read_sr_word(hw, next_tlv + 1, &tlv_len);
+		if (status) {
+			ice_debug(hw, ICE_DBG_INIT, "Failed to read TLV length.\n");
+			break;
+		}
+		if (tlv_sub_module_type == module_type) {
+			if (tlv_len) {
+				*module_tlv = next_tlv;
+				*module_tlv_len = tlv_len;
+				return 0;
+			}
+			return ICE_ERR_INVAL_SIZE;
+		}
+		/* Check next TLV, i.e. current TLV pointer + length + 2 words
+		 * (for current TLV's type and length)
+		 */
+		next_tlv = next_tlv + tlv_len + 2;
+	}
+	/* Module does not exist */
+	return ICE_ERR_DOES_NOT_EXIST;
+}
+
+/**
+ * ice_read_pba_string - Reads part number string from NVM
+ * @hw: pointer to hardware structure
+ * @pba_num: stores the part number string from the NVM
+ * @pba_num_size: part number string buffer length
+ *
+ * Reads the part number string from the NVM.
+ */
+enum ice_status
+ice_read_pba_string(struct ice_hw *hw, u8 *pba_num, u32 pba_num_size)
+{
+	u16 pba_tlv, pba_tlv_len;
+	enum ice_status status;
+	u16 pba_word, pba_size;
+	u16 i;
+
+	status = ice_get_pfa_module_tlv(hw, &pba_tlv, &pba_tlv_len,
+					ICE_SR_PBA_BLOCK_PTR);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read PBA Block TLV.\n");
+		return status;
+	}
+
+	/* pba_size is the next word */
+	status = ice_read_sr_word(hw, (pba_tlv + 2), &pba_size);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read PBA Section size.\n");
+		return status;
+	}
+
+	if (pba_tlv_len < pba_size) {
+		ice_debug(hw, ICE_DBG_INIT, "Invalid PBA Block TLV size.\n");
+		return ICE_ERR_INVAL_SIZE;
+	}
+
+	/* Subtract one to get PBA word count (PBA Size word is included in
+	 * total size)
+	 */
+	pba_size--;
+	if (pba_num_size < (((u32)pba_size * 2) + 1)) {
+		ice_debug(hw, ICE_DBG_INIT, "Buffer too small for PBA data.\n");
+		return ICE_ERR_PARAM;
+	}
+
+	for (i = 0; i < pba_size; i++) {
+		status = ice_read_sr_word(hw, (pba_tlv + 2 + 1) + i, &pba_word);
+		if (status) {
+			ice_debug(hw, ICE_DBG_INIT, "Failed to read PBA Block word %d.\n", i);
+			return status;
+		}
+
+		pba_num[(i * 2)] = (pba_word >> 8) & 0xFF;
+		pba_num[(i * 2) + 1] = pba_word & 0xFF;
+	}
+	pba_num[(pba_size * 2)] = '\0';
+
+	return status;
+}
+
+/**
  * ice_get_orom_ver_info - Read Option ROM version information
  * @hw: pointer to the HW struct
  *

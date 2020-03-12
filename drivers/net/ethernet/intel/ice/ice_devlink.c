@@ -19,6 +19,18 @@ static int ice_info_get_dsn(struct ice_pf *pf, char *buf, size_t len)
 	return 0;
 }
 
+static int ice_info_pba(struct ice_pf *pf, char *buf, size_t len)
+{
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status status;
+
+	status = ice_read_pba_string(hw, (u8 *)buf, len);
+	if (status)
+		return -EIO;
+
+	return 0;
+}
+
 static int ice_info_fw_mgmt(struct ice_pf *pf, char *buf, size_t len)
 {
 	struct ice_hw *hw = &pf->hw;
@@ -93,6 +105,7 @@ static int ice_info_ddp_pkg_version(struct ice_pf *pf, char *buf, size_t len)
 	return 0;
 }
 
+#define fixed(key, getter) { ICE_VERSION_FIXED, key, getter }
 #define running(key, getter) { ICE_VERSION_RUNNING, key, getter }
 
 enum ice_version_type {
@@ -106,6 +119,7 @@ static const struct ice_devlink_version {
 	const char *key;
 	int (*getter)(struct ice_pf *pf, char *buf, size_t len);
 } ice_devlink_versions[] = {
+	fixed(DEVLINK_INFO_VERSION_GENERIC_BOARD_ID, ice_info_pba),
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, ice_info_fw_mgmt),
 	running("fw.mgmt.api", ice_info_fw_api),
 	running("fw.mgmt.build", ice_info_fw_build),
@@ -125,7 +139,7 @@ static const struct ice_devlink_version {
  * Callback for the devlink .info_get operation. Reports information about the
  * device.
  *
- * @returns zero on success or an error code on failure.
+ * Return: zero on success or an error code on failure.
  */
 static int ice_devlink_info_get(struct devlink *devlink,
 				struct devlink_info_req *req,
