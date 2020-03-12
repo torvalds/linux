@@ -224,7 +224,6 @@ static u32 gb_i2c_functionality(struct i2c_adapter *adap)
 
 static const struct i2c_algorithm gb_i2c_algorithm = {
 	.master_xfer	= gb_i2c_master_xfer,
-	/* .smbus_xfer	= gb_i2c_smbus_xfer, */
 	.functionality	= gb_i2c_functionality,
 };
 
@@ -267,7 +266,6 @@ static int gb_i2c_probe(struct gbphy_device *gbphy_dev,
 	adapter->owner = THIS_MODULE;
 	adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adapter->algo = &gb_i2c_algorithm;
-	/* adapter->algo_data = what? */
 
 	adapter->dev.parent = &gbphy_dev->dev;
 	snprintf(adapter->name, sizeof(adapter->name), "Greybus i2c adapter");
