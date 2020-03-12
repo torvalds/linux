@@ -1232,6 +1232,7 @@ static int avic_ga_log_notifier(u32 ga_tag)
 	u32 vcpu_id = AVIC_GATAG_TO_VCPUID(ga_tag);
 
 	pr_debug("SVM: %s: vm_id=%#x, vcpu_id=%#x\n", __func__, vm_id, vcpu_id);
+	trace_kvm_avic_ga_log(vm_id, vcpu_id);
 
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
 	hash_for_each_possible(svm_vm_data_hash, kvm_svm, hnode, vm_id) {
