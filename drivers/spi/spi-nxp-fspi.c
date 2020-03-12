@@ -1019,8 +1019,8 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 
 	/* find the resources - controller memory mapped space */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fspi_mmap");
-	if (IS_ERR(res)) {
-		ret = PTR_ERR(res);
+	if (!res) {
+		ret = -ENODEV;
 		goto err_put_ctrl;
 	}
 
