@@ -22,6 +22,9 @@
 #define HICR5_ENL2H	BIT(8)
 #define HICR5_ENFWH	BIT(10)
 
+#define HICR6 0x4
+#define SW_FWH2AHB	BIT(17)
+
 #define HICR7 0x8
 #define HICR8 0xc
 
@@ -33,6 +36,7 @@ struct aspeed_lpc_ctrl {
 	resource_size_t		mem_size;
 	u32		pnor_size;
 	u32		pnor_base;
+	bool			fwh2ahb;
 };
 
 static struct aspeed_lpc_ctrl *file_aspeed_lpc_ctrl(struct file *file)
@@ -178,6 +182,16 @@ static long aspeed_lpc_ctrl_ioctl(struct file *file, unsigned int cmd,
 			return rc;
 
 		/*
+		 * Switch to FWH2AHB mode, AST2600 only.
+		 *
+		 * The other bits in this register are interrupt status bits
+		 * that are cleared by writing 1. As we don't want to clear
+		 * them, set only the bit of interest.
+		 */
+		if (lpc_ctrl->fwh2ahb)
+			regmap_write(lpc_ctrl->regmap, HICR6, SW_FWH2AHB);
+
+		/*
 		 * Enable LPC FHW cycles. This is required for the host to
 		 * access the regions specified.
 		 */
@@ -273,6 +287,9 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 		dev_err(dev, "couldn't enable clock\n");
 		return rc;
 	}
+
+	if (of_device_is_compatible(dev->of_node, "aspeed,ast2600-lpc-ctrl"))
+		lpc_ctrl->fwh2ahb = true;
 
 	lpc_ctrl->miscdev.minor = MISC_DYNAMIC_MINOR;
 	lpc_ctrl->miscdev.name = DEVICE_NAME;
