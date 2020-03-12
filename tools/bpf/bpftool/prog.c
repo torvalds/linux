@@ -1545,6 +1545,7 @@ static int do_loadall(int argc, char **argv)
 
 static int do_profile(int argc, char **argv)
 {
+	p_err("bpftool prog profile command is not supported. Please build bpftool with clang >= 10.0.0");
 	return 0;
 }
 
