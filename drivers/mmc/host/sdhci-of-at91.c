@@ -189,8 +189,8 @@ static int sdhci_at91_set_clks_presets(struct device *dev)
 	/* Set capabilities in ro mode. */
 	writel(0, host->ioaddr + SDMMC_CACR);
 
-	dev_info(dev, "update clk mul to %u as gck rate is %u Hz and clk base is %u Hz\n",
-		 clk_mul, gck_rate, clk_base_rate);
+	dev_dbg(dev, "update clk mul to %u as gck rate is %u Hz and clk base is %u Hz\n",
+		clk_mul, gck_rate, clk_base_rate);
 
 	/*
 	 * We have to set preset values because it depends on the clk_mul
