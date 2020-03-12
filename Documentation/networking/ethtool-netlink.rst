@@ -192,6 +192,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_FEATURES_GET``          get device features
   ``ETHTOOL_MSG_FEATURES_SET``          set device features
   ``ETHTOOL_MSG_PRIVFLAGS_GET``         get private flags
+  ``ETHTOOL_MSG_PRIVFLAGS_SET``         set private flags
   ===================================== ================================
 
 Kernel to userspace:
@@ -211,6 +212,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_FEATURES_SET_REPLY``    optional reply to FEATURES_SET
   ``ETHTOOL_MSG_FEATURES_NTF``          netdev features notification
   ``ETHTOOL_MSG_PRIVFLAGS_GET_REPLY``   private flags
+  ``ETHTOOL_MSG_PRIVFLAGS_NTF``         private flags
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -626,6 +628,23 @@ response uses all private flags supported by the device as mask so that client
 gets the full information without having to fetch the string set with names.
 
 
+PRIVFLAGS_SET
+=============
+
+Sets or modifies values of device private flags like ``ETHTOOL_SPFLAGS``
+ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_PRIVFLAGS_HEADER``        nested  request header
+  ``ETHTOOL_A_PRIVFLAGS_FLAGS``         bitset  private flags
+  ====================================  ======  ==========================
+
+``ETHTOOL_A_PRIVFLAGS_FLAGS`` can either set the whole set of private flags or
+modify only values of some of them.
+
+
 Request translation
 ===================
 
@@ -676,7 +695,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GFLAGS``                  ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SFLAGS``                  ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GPFLAGS``                 ``ETHTOOL_MSG_PRIVFLAGS_GET``
-  ``ETHTOOL_SPFLAGS``                 n/a
+  ``ETHTOOL_SPFLAGS``                 ``ETHTOOL_MSG_PRIVFLAGS_SET``
   ``ETHTOOL_GRXFH``                   n/a
   ``ETHTOOL_SRXFH``                   n/a
   ``ETHTOOL_GGRO``                    ``ETHTOOL_MSG_FEATURES_GET``

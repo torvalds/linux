@@ -134,3 +134,73 @@ const struct ethnl_request_ops ethnl_privflags_request_ops = {
 	.fill_reply		= privflags_fill_reply,
 	.cleanup_data		= privflags_cleanup_data,
 };
+
+/* PRIVFLAGS_SET */
+
+static const struct nla_policy
+privflags_set_policy[ETHTOOL_A_PRIVFLAGS_MAX + 1] = {
+	[ETHTOOL_A_PRIVFLAGS_UNSPEC]		= { .type = NLA_REJECT },
+	[ETHTOOL_A_PRIVFLAGS_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_PRIVFLAGS_FLAGS]		= { .type = NLA_NESTED },
+};
+
+int ethnl_set_privflags(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *tb[ETHTOOL_A_PRIVFLAGS_MAX + 1];
+	const char (*names)[ETH_GSTRING_LEN] = NULL;
+	struct ethnl_req_info req_info = {};
+	const struct ethtool_ops *ops;
+	struct net_device *dev;
+	unsigned int nflags;
+	bool mod = false;
+	bool compact;
+	u32 flags;
+	int ret;
+
+	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
+			  ETHTOOL_A_PRIVFLAGS_MAX, privflags_set_policy,
+			  info->extack);
+	if (ret < 0)
+		return ret;
+	if (!tb[ETHTOOL_A_PRIVFLAGS_FLAGS])
+		return -EINVAL;
+	ret = ethnl_bitset_is_compact(tb[ETHTOOL_A_PRIVFLAGS_FLAGS], &compact);
+	if (ret < 0)
+		return ret;
+	ret = ethnl_parse_header_dev_get(&req_info,
+					 tb[ETHTOOL_A_PRIVFLAGS_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
+	if (ret < 0)
+		return ret;
+	dev = req_info.dev;
+	ops = dev->ethtool_ops;
+	if (!ops->get_priv_flags || !ops->set_priv_flags ||
+	    !ops->get_sset_count || !ops->get_strings)
+		return -EOPNOTSUPP;
+
+	rtnl_lock();
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		goto out_rtnl;
+	ret = ethnl_get_priv_flags_info(dev, &nflags, compact ? NULL : &names);
+	if (ret < 0)
+		goto out_ops;
+	flags = ops->get_priv_flags(dev);
+
+	ret = ethnl_update_bitset32(&flags, nflags,
+				    tb[ETHTOOL_A_PRIVFLAGS_FLAGS], names,
+				    info->extack, &mod);
+	if (ret < 0 || !mod)
+		goto out_free;
+	ret = ops->set_priv_flags(dev, flags);
+
+out_free:
+	kfree(names);
+out_ops:
+	ethnl_ops_complete(dev);
+out_rtnl:
+	rtnl_unlock();
+	dev_put(dev);
+	return ret;
+}
