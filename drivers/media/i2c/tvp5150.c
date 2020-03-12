@@ -2009,6 +2009,9 @@ static int tvp5150_probe(struct i2c_client *c)
 
 	core->regmap = map;
 	sd = &core->sd;
+	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
+	sd->internal_ops = &tvp5150_internal_ops;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	if (IS_ENABLED(CONFIG_OF) && np) {
 		res = tvp5150_parse_dt(core, np);
@@ -2020,10 +2023,6 @@ static int tvp5150_probe(struct i2c_client *c)
 		/* Default to BT.656 embedded sync */
 		core->mbus_type = V4L2_MBUS_BT656;
 	}
-
-	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
-	sd->internal_ops = &tvp5150_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	res = tvp5150_mc_init(core);
 	if (res)
