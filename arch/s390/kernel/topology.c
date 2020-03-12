@@ -88,6 +88,7 @@ static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 		cpumask_copy(&mask, cpumask_of(cpu));
 		break;
 	}
+	cpumask_and(&mask, &mask, cpu_online_mask);
 	return mask;
 }
 
@@ -103,6 +104,7 @@ static cpumask_t cpu_thread_map(unsigned int cpu)
 	for (i = 0; i <= smp_cpu_mtid; i++)
 		if (cpu_present(cpu + i))
 			cpumask_set_cpu(cpu + i, &mask);
+	cpumask_and(&mask, &mask, cpu_online_mask);
 	return mask;
 }
 
@@ -241,7 +243,7 @@ int topology_set_cpu_management(int fc)
 	return rc;
 }
 
-static void update_cpu_masks(void)
+void update_cpu_masks(void)
 {
 	struct cpu_topology_s390 *topo;
 	int cpu, id;
