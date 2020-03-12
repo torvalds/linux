@@ -466,9 +466,6 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	const char *fw_filename;
 	int ret;
 
-	/* set code loading condition to true */
-	sdev->code_loading = 1;
-
 	/* Don't request firmware again if firmware is already requested */
 	if (plat_data->fw)
 		return 0;

@@ -179,9 +179,6 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 	/* code loader is special case that reuses stream ops */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		wait_event_timeout(sdev->waitq, !sdev->code_loading,
-				   HDA_DSP_CL_TRIGGER_TIMEOUT);
-
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
 					1 << hstream->index,
 					1 << hstream->index);

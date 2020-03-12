@@ -421,10 +421,6 @@ struct snd_sof_dev {
 	int ipc_timeout;
 	int boot_timeout;
 
-	/* Wait queue for code loading */
-	wait_queue_head_t waitq;
-	int code_loading;
-
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
 	unsigned int extractor_stream_tag;
 #endif

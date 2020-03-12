@@ -585,9 +585,6 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	hda_dsp_ctrl_ppcap_enable(sdev, true);
 	hda_dsp_ctrl_ppcap_int_enable(sdev, true);
 
-	/* initialize waitq for code loading */
-	init_waitqueue_head(&sdev->waitq);
-
 	/* set default mailbox offset for FW ready message */
 	sdev->dsp_box.offset = HDA_DSP_MBOX_UPLINK_OFFSET;
 
