@@ -35,6 +35,7 @@ struct mlx5_tc_ct_priv {
 	struct mlx5_eswitch *esw;
 	const struct net_device *netdev;
 	struct idr fte_ids;
+	struct idr tuple_ids;
 	struct rhashtable zone_ht;
 	struct mlx5_flow_table *ct;
 	struct mlx5_flow_table *ct_nat;
@@ -55,6 +56,7 @@ struct mlx5_ct_flow {
 struct mlx5_ct_zone_rule {
 	struct mlx5_flow_handle *rule;
 	struct mlx5_esw_flow_attr attr;
+	int tupleid;
 	bool nat;
 };
 
@@ -76,6 +78,7 @@ struct mlx5_ct_entry {
 	struct mlx5_fc *counter;
 	unsigned long lastuse;
 	unsigned long cookie;
+	unsigned long restore_cookie;
 	struct mlx5_ct_zone_rule zone_rules[2];
 };
 
@@ -237,6 +240,7 @@ mlx5_tc_ct_entry_del_rule(struct mlx5_tc_ct_priv *ct_priv,
 
 	mlx5_eswitch_del_offloaded_rule(esw, zone_rule->rule, attr);
 	mlx5_modify_header_dealloc(esw->dev, attr->modify_hdr);
+	idr_remove(&ct_priv->tuple_ids, zone_rule->tupleid);
 }
 
 static void
@@ -269,7 +273,8 @@ mlx5_tc_ct_entry_set_registers(struct mlx5_tc_ct_priv *ct_priv,
 			       struct mlx5e_tc_mod_hdr_acts *mod_acts,
 			       u8 ct_state,
 			       u32 mark,
-			       u32 label)
+			       u32 label,
+			       u32 tupleid)
 {
 	struct mlx5_eswitch *esw = ct_priv->esw;
 	int err;
@@ -286,6 +291,11 @@ mlx5_tc_ct_entry_set_registers(struct mlx5_tc_ct_priv *ct_priv,
 
 	err = mlx5e_tc_match_to_reg_set(esw->dev, mod_acts,
 					LABELS_TO_REG, label);
+	if (err)
+		return err;
+
+	err = mlx5e_tc_match_to_reg_set(esw->dev, mod_acts,
+					TUPLEID_TO_REG, tupleid);
 	if (err)
 		return err;
 
@@ -412,6 +422,7 @@ static int
 mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 				struct mlx5_esw_flow_attr *attr,
 				struct flow_rule *flow_rule,
+				u32 tupleid,
 				bool nat)
 {
 	struct mlx5e_tc_mod_hdr_acts mod_acts = {};
@@ -442,7 +453,8 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 					     (MLX5_CT_STATE_ESTABLISHED_BIT |
 					      MLX5_CT_STATE_TRK_BIT),
 					     meta->ct_metadata.mark,
-					     meta->ct_metadata.labels[0]);
+					     meta->ct_metadata.labels[0],
+					     tupleid);
 	if (err)
 		goto err_mapping;
 
@@ -473,14 +485,26 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	struct mlx5_esw_flow_attr *attr = &zone_rule->attr;
 	struct mlx5_eswitch *esw = ct_priv->esw;
 	struct mlx5_flow_spec spec = {};
+	u32 tupleid = 1;
 	int err;
 
 	zone_rule->nat = nat;
 
-	err = mlx5_tc_ct_entry_create_mod_hdr(ct_priv, attr, flow_rule, nat);
+	/* Get tuple unique id */
+	err = idr_alloc_u32(&ct_priv->tuple_ids, zone_rule, &tupleid,
+			    TUPLE_ID_MAX, GFP_KERNEL);
+	if (err) {
+		netdev_warn(ct_priv->netdev,
+			    "Failed to allocate tuple id, err: %d\n", err);
+		return err;
+	}
+	zone_rule->tupleid = tupleid;
+
+	err = mlx5_tc_ct_entry_create_mod_hdr(ct_priv, attr, flow_rule,
+					      tupleid, nat);
 	if (err) {
 		ct_dbg("Failed to create ct entry mod hdr");
-		return err;
+		goto err_mod_hdr;
 	}
 
 	attr->action = MLX5_FLOW_CONTEXT_ACTION_MOD_HDR |
@@ -511,6 +535,8 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 
 err_rule:
 	mlx5_modify_header_dealloc(esw->dev, attr->modify_hdr);
+err_mod_hdr:
+	idr_remove(&ct_priv->tuple_ids, zone_rule->tupleid);
 	return err;
 }
 
@@ -573,6 +599,7 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 	entry->zone = ft->zone;
 	entry->flow_rule = flow_rule;
 	entry->cookie = flow->cookie;
+	entry->restore_cookie = meta_action->ct_metadata.cookie;
 
 	err = mlx5_tc_ct_entry_add_rules(ct_priv, flow_rule, entry);
 	if (err)
@@ -1188,6 +1215,7 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 	}
 
 	idr_init(&ct_priv->fte_ids);
+	idr_init(&ct_priv->tuple_ids);
 	mutex_init(&ct_priv->control_lock);
 	rhashtable_init(&ct_priv->zone_ht, &zone_params);
 
@@ -1222,8 +1250,31 @@ mlx5_tc_ct_clean(struct mlx5_rep_uplink_priv *uplink_priv)
 
 	rhashtable_destroy(&ct_priv->zone_ht);
 	mutex_destroy(&ct_priv->control_lock);
+	idr_destroy(&ct_priv->tuple_ids);
 	idr_destroy(&ct_priv->fte_ids);
 	kfree(ct_priv);
 
 	uplink_priv->ct_priv = NULL;
+}
+
+bool
+mlx5e_tc_ct_restore_flow(struct mlx5_rep_uplink_priv *uplink_priv,
+			 struct sk_buff *skb, u32 tupleid)
+{
+	struct mlx5_tc_ct_priv *ct_priv = uplink_priv->ct_priv;
+	struct mlx5_ct_zone_rule *zone_rule;
+	struct mlx5_ct_entry *entry;
+
+	if (!ct_priv || !tupleid)
+		return true;
+
+	zone_rule = idr_find(&ct_priv->tuple_ids, tupleid);
+	if (!zone_rule)
+		return false;
+
+	entry = container_of(zone_rule, struct mlx5_ct_entry,
+			     zone_rules[zone_rule->nat]);
+	tcf_ct_flow_table_restore_skb(skb, entry->restore_cookie);
+
+	return true;
 }

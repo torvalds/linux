@@ -99,6 +99,7 @@ enum mlx5e_tc_attr_to_reg {
 	MARK_TO_REG,
 	LABELS_TO_REG,
 	FTEID_TO_REG,
+	TUPLEID_TO_REG,
 };
 
 struct mlx5e_tc_attr_to_reg_mapping {
