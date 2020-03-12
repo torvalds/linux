@@ -270,6 +270,10 @@ static const struct csis_pix_format mipi_csis_formats[] = {
 		.code = MEDIA_BUS_FMT_UYVY8_2X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
 		.data_alignment = 8,
+	}, {
+		.code = MEDIA_BUS_FMT_UYVY10_2X10,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
+		.data_alignment = 10,
 	},
 	/* RAW (Bayer and greyscale) formats. */
 	{
