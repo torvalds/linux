@@ -477,6 +477,7 @@ struct bpf_ksym {
 	unsigned long		 end;
 	char			 name[KSYM_NAME_LEN];
 	struct list_head	 lnode;
+	struct latch_tree_node	 tnode;
 };
 
 enum bpf_tramp_prog_type {
@@ -659,7 +660,6 @@ struct bpf_prog_aux {
 	void *jit_data; /* JIT specific data. arch dependent */
 	struct bpf_jit_poke_descriptor *poke_tab;
 	u32 size_poke_tab;
-	struct latch_tree_node ksym_tnode;
 	struct bpf_ksym ksym;
 	const struct bpf_prog_ops *ops;
 	struct bpf_map **used_maps;

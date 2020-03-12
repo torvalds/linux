@@ -572,31 +572,27 @@ bpf_prog_ksym_set_name(struct bpf_prog *prog)
 		*sym = 0;
 }
 
-static __always_inline unsigned long
-bpf_get_prog_addr_start(struct latch_tree_node *n)
+static unsigned long bpf_get_ksym_start(struct latch_tree_node *n)
 {
-	const struct bpf_prog_aux *aux;
-
-	aux = container_of(n, struct bpf_prog_aux, ksym_tnode);
-	return aux->ksym.start;
+	return container_of(n, struct bpf_ksym, tnode)->start;
 }
 
 static __always_inline bool bpf_tree_less(struct latch_tree_node *a,
 					  struct latch_tree_node *b)
 {
-	return bpf_get_prog_addr_start(a) < bpf_get_prog_addr_start(b);
+	return bpf_get_ksym_start(a) < bpf_get_ksym_start(b);
 }
 
 static __always_inline int bpf_tree_comp(void *key, struct latch_tree_node *n)
 {
 	unsigned long val = (unsigned long)key;
-	const struct bpf_prog_aux *aux;
+	const struct bpf_ksym *ksym;
 
-	aux = container_of(n, struct bpf_prog_aux, ksym_tnode);
+	ksym = container_of(n, struct bpf_ksym, tnode);
 
-	if (val < aux->ksym.start)
+	if (val < ksym->start)
 		return -1;
-	if (val >= aux->ksym.end)
+	if (val >= ksym->end)
 		return  1;
 
 	return 0;
@@ -615,7 +611,7 @@ static void bpf_prog_ksym_node_add(struct bpf_prog_aux *aux)
 {
 	WARN_ON_ONCE(!list_empty(&aux->ksym.lnode));
 	list_add_tail_rcu(&aux->ksym.lnode, &bpf_kallsyms);
-	latch_tree_insert(&aux->ksym_tnode, &bpf_tree, &bpf_tree_ops);
+	latch_tree_insert(&aux->ksym.tnode, &bpf_tree, &bpf_tree_ops);
 }
 
 static void bpf_prog_ksym_node_del(struct bpf_prog_aux *aux)
@@ -623,7 +619,7 @@ static void bpf_prog_ksym_node_del(struct bpf_prog_aux *aux)
 	if (list_empty(&aux->ksym.lnode))
 		return;
 
-	latch_tree_erase(&aux->ksym_tnode, &bpf_tree, &bpf_tree_ops);
+	latch_tree_erase(&aux->ksym.tnode, &bpf_tree, &bpf_tree_ops);
 	list_del_rcu(&aux->ksym.lnode);
 }
 
@@ -668,7 +664,7 @@ static struct bpf_prog *bpf_prog_kallsyms_find(unsigned long addr)
 
 	n = latch_tree_find((void *)addr, &bpf_tree, &bpf_tree_ops);
 	return n ?
-	       container_of(n, struct bpf_prog_aux, ksym_tnode)->prog :
+	       container_of(n, struct bpf_prog_aux, ksym.tnode)->prog :
 	       NULL;
 }
 
