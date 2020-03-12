@@ -4,7 +4,7 @@
  *
  * Interface to the FSF support functions.
  *
- * Copyright IBM Corp. 2002, 2018
+ * Copyright IBM Corp. 2002, 2020
  */
 
 #ifndef FSF_H
@@ -165,6 +165,7 @@
 #define FSF_FEATURE_MEASUREMENT_DATA		0x00000200
 #define FSF_FEATURE_REQUEST_SFP_DATA		0x00000200
 #define FSF_FEATURE_REPORT_SFP_DATA		0x00000800
+#define FSF_FEATURE_FC_SECURITY			0x00001000
 #define FSF_FEATURE_DIF_PROT_TYPE1		0x00010000
 #define FSF_FEATURE_DIX_PROT_TCPIP		0x00020000
 
@@ -173,6 +174,11 @@
 
 /* option */
 #define FSF_OPEN_LUN_SUPPRESS_BOXING		0x00000001
+
+/* FC security algorithms */
+#define FSF_FC_SECURITY_AUTH			0x00000001
+#define FSF_FC_SECURITY_ENC_FCSP2		0x00000002
+#define FSF_FC_SECURITY_ENC_ERAS		0x00000004
 
 struct fsf_queue_designator {
 	u8  cssid;
@@ -338,7 +344,8 @@ struct fsf_qtcb_bottom_support {
 	u8  res3[3];
 	u8  timeout;
         u32 lun_access_info;
-        u8  res4[180];
+	u32 connection_info;
+	u8  res4[176];
 	u32 els1_length;
 	u32 els2_length;
 	u32 req_buf_length;
@@ -426,7 +433,8 @@ struct fsf_qtcb_bottom_port {
 			u16 port_tx_type	:4;
 		};
 	} sfp_flags;
-	u8 res3[240];
+	u32 fc_security_algorithms;
+	u8 res3[236];
 } __attribute__ ((packed));
 
 union fsf_qtcb_bottom {

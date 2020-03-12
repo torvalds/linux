@@ -664,6 +664,76 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 	}
 }
 
+/*
+ * Mapping of FC Endpoint Security flag masks to mnemonics
+ */
+static const struct {
+	u32	mask;
+	char	*name;
+} zfcp_fsf_fc_security_mnemonics[] = {
+	{ FSF_FC_SECURITY_AUTH,		"Authentication" },
+	{ FSF_FC_SECURITY_ENC_FCSP2 |
+	  FSF_FC_SECURITY_ENC_ERAS,	"Encryption" },
+};
+
+/**
+ * zfcp_fsf_scnprint_fc_security() - translate FC Endpoint Security flags into
+ *                                   mnemonics and place in a buffer
+ * @buf        : the buffer to place the translated FC Endpoint Security flag(s)
+ *               into
+ * @size       : the size of the buffer, including the trailing null space
+ * @fc_security: one or more FC Endpoint Security flags, or zero
+ * @fmt        : specifies whether a list or a single item is to be put into the
+ *               buffer
+ *
+ * The Fibre Channel (FC) Endpoint Security flags are translated into mnemonics.
+ * If the FC Endpoint Security flags are zero "none" is placed into the buffer.
+ *
+ * With ZFCP_FSF_PRINT_FMT_LIST the mnemonics are placed as a list separated by
+ * a comma followed by a space into the buffer. If one or more FC Endpoint
+ * Security flags cannot be translated into a mnemonic, as they are undefined
+ * in zfcp_fsf_fc_security_mnemonics, their bitwise ORed value in hexadecimal
+ * representation is placed into the buffer.
+ *
+ * With ZFCP_FSF_PRINT_FMT_SINGLEITEM only one single mnemonic is placed into
+ * the buffer. If the FC Endpoint Security flag cannot be translated, as it is
+ * undefined in zfcp_fsf_fc_security_mnemonics, its value in hexadecimal
+ * representation is placed into the buffer. If more than one FC Endpoint
+ * Security flag was specified, their value in hexadecimal representation is
+ * placed into the buffer.
+ *
+ * Return: The number of characters written into buf not including the trailing
+ *         '\0'. If size is == 0 the function returns 0.
+ */
+ssize_t zfcp_fsf_scnprint_fc_security(char *buf, size_t size, u32 fc_security,
+				      enum zfcp_fsf_print_fmt fmt)
+{
+	const char *prefix = "";
+	ssize_t len = 0;
+	int i;
+
+	if (fc_security == 0)
+		return scnprintf(buf, size, "none");
+	if (fmt == ZFCP_FSF_PRINT_FMT_SINGLEITEM && hweight32(fc_security) != 1)
+		return scnprintf(buf, size, "0x%08x", fc_security);
+
+	for (i = 0; i < ARRAY_SIZE(zfcp_fsf_fc_security_mnemonics); i++) {
+		if (!(fc_security & zfcp_fsf_fc_security_mnemonics[i].mask))
+			continue;
+
+		len += scnprintf(buf + len, size - len, "%s%s", prefix,
+				 zfcp_fsf_fc_security_mnemonics[i].name);
+		prefix = ", ";
+		fc_security &= ~zfcp_fsf_fc_security_mnemonics[i].mask;
+	}
+
+	if (fc_security != 0)
+		len += scnprintf(buf + len, size - len, "%s0x%08x",
+				 prefix, fc_security);
+
+	return len;
+}
+
 static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
@@ -681,6 +751,11 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 	       FC_FC4_LIST_SIZE);
 	memcpy(fc_host_active_fc4s(shost), bottom->active_fc4_types,
 	       FC_FC4_LIST_SIZE);
+	if (adapter->adapter_features & FSF_FEATURE_FC_SECURITY)
+		adapter->fc_security_algorithms =
+			bottom->fc_security_algorithms;
+	else
+		adapter->fc_security_algorithms = 0;
 }
 
 static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
@@ -1533,6 +1608,10 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_GOOD:
 		port->handle = header->port_handle;
+		if (adapter->adapter_features & FSF_FEATURE_FC_SECURITY)
+			port->connection_info = bottom->connection_info;
+		else
+			port->connection_info = 0;
 		atomic_or(ZFCP_STATUS_COMMON_OPEN |
 				ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
 		atomic_andnot(ZFCP_STATUS_COMMON_ACCESS_BOXED,

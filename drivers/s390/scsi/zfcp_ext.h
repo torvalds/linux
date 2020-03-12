@@ -4,7 +4,7 @@
  *
  * External function declarations.
  *
- * Copyright IBM Corp. 2002, 2018
+ * Copyright IBM Corp. 2002, 2020
  */
 
 #ifndef ZFCP_EXT_H
@@ -135,6 +135,13 @@ extern struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_device *sdev,
 						   u8 tm_flags);
 extern struct zfcp_fsf_req *zfcp_fsf_abort_fcp_cmnd(struct scsi_cmnd *);
 extern void zfcp_fsf_reqid_check(struct zfcp_qdio *, int);
+enum zfcp_fsf_print_fmt {
+	ZFCP_FSF_PRINT_FMT_LIST,
+	ZFCP_FSF_PRINT_FMT_SINGLEITEM,
+};
+extern ssize_t zfcp_fsf_scnprint_fc_security(char *buf, size_t size,
+					     u32 fc_security,
+					     enum zfcp_fsf_print_fmt fmt);
 
 /* zfcp_qdio.c */
 extern int zfcp_qdio_setup(struct zfcp_adapter *);
