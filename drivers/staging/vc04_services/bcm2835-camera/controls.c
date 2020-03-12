@@ -85,7 +85,6 @@ struct bm2835_mmal_v4l2_ctrl {
 	const s64 *imenu; /* integer menu array */
 	u32 mmal_id; /* mmal parameter id */
 	bm2835_mmal_v4l2_ctrl_cb *setter;
-	bool ignore_errors;
 };
 
 struct v4l2_to_mmal_effects_setting {
@@ -912,8 +911,6 @@ static int bm2835_mmal_s_ctrl(struct v4l2_ctrl *ctrl)
 	if (ret)
 		pr_warn("ctrl id:%d/MMAL param %08X- returned ret %d\n",
 			ctrl->id, mmal_ctrl->mmal_id, ret);
-	if (mmal_ctrl->ignore_errors)
-		ret = 0;
 	return ret;
 }
 
@@ -927,56 +924,48 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		-100, 100, 0, 1, NULL,
 		MMAL_PARAMETER_SATURATION,
 		ctrl_set_rational,
-		false
 	},
 	{
 		V4L2_CID_SHARPNESS, MMAL_CONTROL_TYPE_STD,
 		-100, 100, 0, 1, NULL,
 		MMAL_PARAMETER_SHARPNESS,
 		ctrl_set_rational,
-		false
 	},
 	{
 		V4L2_CID_CONTRAST, MMAL_CONTROL_TYPE_STD,
 		-100, 100, 0, 1, NULL,
 		MMAL_PARAMETER_CONTRAST,
 		ctrl_set_rational,
-		false
 	},
 	{
 		V4L2_CID_BRIGHTNESS, MMAL_CONTROL_TYPE_STD,
 		0, 100, 50, 1, NULL,
 		MMAL_PARAMETER_BRIGHTNESS,
 		ctrl_set_rational,
-		false
 	},
 	{
 		V4L2_CID_ISO_SENSITIVITY, MMAL_CONTROL_TYPE_INT_MENU,
 		0, ARRAY_SIZE(iso_qmenu) - 1, 0, 1, iso_qmenu,
 		MMAL_PARAMETER_ISO,
 		ctrl_set_iso,
-		false
 	},
 	{
 		V4L2_CID_ISO_SENSITIVITY_AUTO, MMAL_CONTROL_TYPE_STD_MENU,
 		0, V4L2_ISO_SENSITIVITY_AUTO, V4L2_ISO_SENSITIVITY_AUTO, 1,
 		NULL, MMAL_PARAMETER_ISO,
 		ctrl_set_iso,
-		false
 	},
 	{
 		V4L2_CID_IMAGE_STABILIZATION, MMAL_CONTROL_TYPE_STD,
 		0, 1, 0, 1, NULL,
 		MMAL_PARAMETER_VIDEO_STABILISATION,
 		ctrl_set_value,
-		false
 	},
 	{
 		V4L2_CID_EXPOSURE_AUTO, MMAL_CONTROL_TYPE_STD_MENU,
 		~0x03, V4L2_EXPOSURE_APERTURE_PRIORITY, V4L2_EXPOSURE_AUTO, 0,
 		NULL, MMAL_PARAMETER_EXPOSURE_MODE,
 		ctrl_set_exposure,
-		false
 	},
 	{
 		V4L2_CID_EXPOSURE_ABSOLUTE, MMAL_CONTROL_TYPE_STD,
@@ -984,7 +973,6 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		1, 1 * 1000 * 10, 100 * 10, 1, NULL,
 		MMAL_PARAMETER_SHUTTER_SPEED,
 		ctrl_set_exposure,
-		false
 	},
 	{
 		V4L2_CID_AUTO_EXPOSURE_BIAS, MMAL_CONTROL_TYPE_INT_MENU,
@@ -992,7 +980,6 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		(ARRAY_SIZE(ev_bias_qmenu) + 1) / 2 - 1, 0, ev_bias_qmenu,
 		MMAL_PARAMETER_EXPOSURE_COMP,
 		ctrl_set_value_ev,
-		false
 	},
 	{
 		V4L2_CID_EXPOSURE_AUTO_PRIORITY, MMAL_CONTROL_TYPE_STD,
@@ -1000,7 +987,6 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		0, 1, NULL,
 		0,	/* Dummy MMAL ID as it gets mapped into FPS range*/
 		ctrl_set_exposure,
-		false
 	},
 	{
 		V4L2_CID_EXPOSURE_METERING,
@@ -1009,7 +995,6 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		V4L2_EXPOSURE_METERING_AVERAGE, 0, NULL,
 		MMAL_PARAMETER_EXP_METERING_MODE,
 		ctrl_set_metering_mode,
-		false
 	},
 	{
 		V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
@@ -1018,56 +1003,48 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		NULL,
 		MMAL_PARAMETER_AWB_MODE,
 		ctrl_set_awb_mode,
-		false
 	},
 	{
 		V4L2_CID_RED_BALANCE, MMAL_CONTROL_TYPE_STD,
 		1, 7999, 1000, 1, NULL,
 		MMAL_PARAMETER_CUSTOM_AWB_GAINS,
 		ctrl_set_awb_gains,
-		false
 	},
 	{
 		V4L2_CID_BLUE_BALANCE, MMAL_CONTROL_TYPE_STD,
 		1, 7999, 1000, 1, NULL,
 		MMAL_PARAMETER_CUSTOM_AWB_GAINS,
 		ctrl_set_awb_gains,
-		false
 	},
 	{
 		V4L2_CID_COLORFX, MMAL_CONTROL_TYPE_STD_MENU,
 		0, V4L2_COLORFX_SET_CBCR, V4L2_COLORFX_NONE, 0, NULL,
 		MMAL_PARAMETER_IMAGE_EFFECT,
 		ctrl_set_image_effect,
-		false
 	},
 	{
 		V4L2_CID_COLORFX_CBCR, MMAL_CONTROL_TYPE_STD,
 		0, 0xffff, 0x8080, 1, NULL,
 		MMAL_PARAMETER_COLOUR_EFFECT,
 		ctrl_set_colfx,
-		false
 	},
 	{
 		V4L2_CID_ROTATE, MMAL_CONTROL_TYPE_STD,
 		0, 360, 0, 90, NULL,
 		MMAL_PARAMETER_ROTATION,
 		ctrl_set_rotate,
-		false
 	},
 	{
 		V4L2_CID_HFLIP, MMAL_CONTROL_TYPE_STD,
 		0, 1, 0, 1, NULL,
 		MMAL_PARAMETER_MIRROR,
 		ctrl_set_flip,
-		false
 	},
 	{
 		V4L2_CID_VFLIP, MMAL_CONTROL_TYPE_STD,
 		0, 1, 0, 1, NULL,
 		MMAL_PARAMETER_MIRROR,
 		ctrl_set_flip,
-		false
 	},
 	{
 		V4L2_CID_MPEG_VIDEO_BITRATE_MODE, MMAL_CONTROL_TYPE_STD_MENU,
@@ -1075,14 +1052,12 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		0, 0, NULL,
 		MMAL_PARAMETER_RATECONTROL,
 		ctrl_set_bitrate_mode,
-		false
 	},
 	{
 		V4L2_CID_MPEG_VIDEO_BITRATE, MMAL_CONTROL_TYPE_STD,
 		25 * 1000, 25 * 1000 * 1000, 10 * 1000 * 1000, 25 * 1000, NULL,
 		MMAL_PARAMETER_VIDEO_BIT_RATE,
 		ctrl_set_bitrate,
-		false
 	},
 	{
 		V4L2_CID_JPEG_COMPRESSION_QUALITY, MMAL_CONTROL_TYPE_STD,
@@ -1090,7 +1065,6 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		30, 1, NULL,
 		MMAL_PARAMETER_JPEG_Q_FACTOR,
 		ctrl_set_image_encode_output,
-		false
 	},
 	{
 		V4L2_CID_POWER_LINE_FREQUENCY, MMAL_CONTROL_TYPE_STD_MENU,
@@ -1098,7 +1072,6 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		1, 1, NULL,
 		MMAL_PARAMETER_FLICKER_AVOID,
 		ctrl_set_flicker_avoidance,
-		false
 	},
 	{
 		V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, MMAL_CONTROL_TYPE_STD,
@@ -1106,7 +1079,6 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		0, 1, NULL,
 		MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
 		ctrl_set_video_encode_param_output,
-		false
 	},
 	{
 		V4L2_CID_MPEG_VIDEO_H264_PROFILE,
@@ -1119,7 +1091,6 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		V4L2_MPEG_VIDEO_H264_PROFILE_HIGH, 1, NULL,
 		MMAL_PARAMETER_PROFILE,
 		ctrl_set_video_encode_profile_level,
-		false
 	},
 	{
 		V4L2_CID_MPEG_VIDEO_H264_LEVEL, MMAL_CONTROL_TYPE_STD_MENU,
@@ -1139,7 +1110,6 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		V4L2_MPEG_VIDEO_H264_LEVEL_4_0, 1, NULL,
 		MMAL_PARAMETER_PROFILE,
 		ctrl_set_video_encode_profile_level,
-		false
 	},
 	{
 		V4L2_CID_SCENE_MODE, MMAL_CONTROL_TYPE_STD_MENU,
@@ -1148,14 +1118,12 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		V4L2_SCENE_MODE_NONE, 1, NULL,
 		MMAL_PARAMETER_PROFILE,
 		ctrl_set_scene_mode,
-		false
 	},
 	{
 		V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, MMAL_CONTROL_TYPE_STD,
 		0, 0x7FFFFFFF, 60, 1, NULL,
 		MMAL_PARAMETER_INTRAPERIOD,
 		ctrl_set_video_encode_param_output,
-		false
 	},
 };
 
@@ -1168,7 +1136,7 @@ int bm2835_mmal_set_all_camera_controls(struct bm2835_mmal_dev *dev)
 		if ((dev->ctrls[c]) && (v4l2_ctrls[c].setter)) {
 			ret = v4l2_ctrls[c].setter(dev, dev->ctrls[c],
 						   &v4l2_ctrls[c]);
-			if (!v4l2_ctrls[c].ignore_errors && ret) {
+			if (ret) {
 				v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 					 "Failed when setting default values for ctrl %d\n",
 					 c);
