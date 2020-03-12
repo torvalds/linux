@@ -502,6 +502,8 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 	if (req->data)
 		memcpy(req->data, bottom, sizeof(*bottom));
 
+	snprintf(fc_host_manufacturer(shost), FC_SERIAL_NUMBER_SIZE, "%s",
+		 "IBM");
 	fc_host_port_name(shost) = be64_to_cpu(nsp->fl_wwpn);
 	fc_host_node_name(shost) = be64_to_cpu(nsp->fl_wwnn);
 	fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
@@ -525,6 +527,8 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 		zfcp_fsf_convert_portspeed(bottom->fc_link_speed);
 
 	adapter->hydra_version = bottom->adapter_type;
+	snprintf(fc_host_model(shost), FC_SYMBOLIC_NAME_SIZE, "0x%04x",
+		 bottom->adapter_type);
 
 	switch (bottom->fc_topology) {
 	case FSF_TOPO_P2P:
@@ -569,6 +573,8 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		return;
 
+	snprintf(fc_host_firmware_version(shost), FC_VERSION_STRING_SIZE,
+		 "0x%08x", bottom->lic_version);
 	adapter->fsf_lic_version = bottom->lic_version;
 	adapter->adapter_features = bottom->adapter_features;
 	adapter->connection_features = bottom->connection_features;
@@ -609,6 +615,8 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 		fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
 		adapter->hydra_version = 0;
+		snprintf(fc_host_model(shost), FC_SYMBOLIC_NAME_SIZE, "0x%04x",
+			 0);
 
 		/* avoids adapter shutdown to be able to recognize
 		 * events such as LINK UP */
@@ -626,6 +634,9 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 
 	if (adapter->adapter_features & FSF_FEATURE_HBAAPI_MANAGEMENT) {
 		adapter->hardware_version = bottom->hardware_version;
+		snprintf(fc_host_hardware_version(shost),
+			 FC_VERSION_STRING_SIZE,
+			 "0x%08x", bottom->hardware_version);
 		memcpy(fc_host_serial_number(shost), bottom->serial_number,
 		       min(FC_SERIAL_NUMBER_SIZE, 17));
 		EBCASC(fc_host_serial_number(shost),
