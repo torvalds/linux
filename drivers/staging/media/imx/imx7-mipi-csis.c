@@ -752,6 +752,38 @@ static int mipi_csis_get_fmt(struct v4l2_subdev *mipi_sd,
 	return 0;
 }
 
+static int mipi_csis_enum_mbus_code(struct v4l2_subdev *mipi_sd,
+				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_mbus_code_enum *code)
+{
+	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
+
+	/*
+	 * The CSIS can't transcode in any way, the source format is identical
+	 * to the sink format.
+	 */
+	if (code->pad == CSIS_PAD_SOURCE) {
+		struct v4l2_mbus_framefmt *fmt;
+
+		if (code->index > 0)
+			return -EINVAL;
+
+		fmt = mipi_csis_get_format(state, cfg, code->which, code->pad);
+		code->code = fmt->code;
+		return 0;
+	}
+
+	if (code->pad != CSIS_PAD_SINK)
+		return -EINVAL;
+
+	if (code->index >= ARRAY_SIZE(mipi_csis_formats))
+		return -EINVAL;
+
+	code->code = mipi_csis_formats[code->index].code;
+
+	return 0;
+}
+
 static int mipi_csis_set_fmt(struct v4l2_subdev *mipi_sd,
 			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_format *sdformat)
@@ -881,6 +913,7 @@ static const struct v4l2_subdev_video_ops mipi_csis_video_ops = {
 
 static const struct v4l2_subdev_pad_ops mipi_csis_pad_ops = {
 	.init_cfg		= mipi_csis_init_cfg,
+	.enum_mbus_code		= mipi_csis_enum_mbus_code,
 	.get_fmt		= mipi_csis_get_fmt,
 	.set_fmt		= mipi_csis_set_fmt,
 };
