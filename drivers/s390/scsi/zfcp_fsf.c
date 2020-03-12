@@ -4,7 +4,7 @@
  *
  * Implementation of FSF commands.
  *
- * Copyright IBM Corp. 2002, 2018
+ * Copyright IBM Corp. 2002, 2020
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -1499,8 +1499,10 @@ out_unlock:
 
 static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 {
+	struct zfcp_adapter *adapter = req->adapter;
 	struct zfcp_port *port = req->data;
 	struct fsf_qtcb_header *header = &req->qtcb->header;
+	struct fsf_qtcb_bottom_support *bottom = &req->qtcb->bottom.support;
 	struct fc_els_flogi *plogi;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
@@ -1510,7 +1512,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 	case FSF_PORT_ALREADY_OPEN:
 		break;
 	case FSF_MAXIMUM_NUMBER_OF_PORTS_EXCEEDED:
-		dev_warn(&req->adapter->ccw_device->dev,
+		dev_warn(&adapter->ccw_device->dev,
 			 "Not enough FCP adapter resources to open "
 			 "remote port 0x%016Lx\n",
 			 (unsigned long long)port->wwpn);
@@ -1550,10 +1552,9 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		 * another GID_PN straight after a port has been opened.
 		 * Alternately, an ADISC/PDISC ELS should suffice, as well.
 		 */
-		plogi = (struct fc_els_flogi *) req->qtcb->bottom.support.els;
-		if (req->qtcb->bottom.support.els1_length >=
-		    FSF_PLOGI_MIN_LEN)
-				zfcp_fc_plogi_evaluate(port, plogi);
+		plogi = (struct fc_els_flogi *) bottom->els;
+		if (bottom->els1_length >= FSF_PLOGI_MIN_LEN)
+			zfcp_fc_plogi_evaluate(port, plogi);
 		break;
 	case FSF_UNKNOWN_OP_SUBTYPE:
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
