@@ -692,7 +692,6 @@ static int ql_set_pauseparam(struct net_device *netdev,
 			     struct ethtool_pauseparam *pause)
 {
 	struct ql_adapter *qdev = netdev_priv(netdev);
-	int status = 0;
 
 	if ((pause->rx_pause) && (pause->tx_pause))
 		qdev->link_config |= CFG_PAUSE_STD;
@@ -701,8 +700,7 @@ static int ql_set_pauseparam(struct net_device *netdev,
 	else
 		return -EINVAL;
 
-	status = ql_mb_set_port_cfg(qdev);
-	return status;
+	return ql_mb_set_port_cfg(qdev);
 }
 
 static u32 ql_get_msglevel(struct net_device *ndev)
