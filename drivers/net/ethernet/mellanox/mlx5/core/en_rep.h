@@ -81,6 +81,11 @@ struct mlx5_rep_uplink_priv {
 	struct mutex                unready_flows_lock;
 	struct list_head            unready_flows;
 	struct work_struct          reoffload_flows_work;
+
+	/* maps tun_info to a unique id*/
+	struct mapping_ctx *tunnel_mapping;
+	/* maps tun_enc_opts to a unique id*/
+	struct mapping_ctx *tunnel_enc_opts_mapping;
 };
 
 struct mlx5e_rep_priv {
@@ -192,6 +197,8 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv);
 void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
 
 void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
+void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq,
+				   struct mlx5_cqe64 *cqe);
 
 int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
 				 struct mlx5e_encap_entry *e);
