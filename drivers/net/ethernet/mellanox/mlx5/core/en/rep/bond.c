@@ -164,8 +164,13 @@ void mlx5e_rep_bond_unslave(struct mlx5_eswitch *esw,
 	priv = netdev_priv(netdev);
 	rpriv = priv->ppriv;
 
+	/* Reset bond_metadata to zero first then reset all ingress/egress
+	 * acls and rx rules of unslave representor's vport
+	 */
 	mlx5_esw_acl_ingress_vport_bond_update(esw, rpriv->rep->vport, 0);
+	mlx5_esw_acl_egress_vport_unbond(esw, rpriv->rep->vport);
 	mlx5e_rep_bond_update(priv, false);
+
 	list_del(&s_entry->list);
 
 	netdev_dbg(netdev, "unslave rep vport(%d) lag_dev(%s) metadata(0x%x)\n",
@@ -253,22 +258,23 @@ static void mlx5e_rep_changeupper_event(struct net_device *netdev, void *ptr)
 {
 	struct netdev_notifier_changeupper_info *info = ptr;
 	struct mlx5e_rep_priv *rpriv;
+	struct net_device *lag_dev;
 	struct mlx5e_priv *priv;
 
 	if (!mlx5e_rep_is_lag_netdev(netdev))
 		return;
 
-	/* Nothing to setup for new enslaved representor */
-	if (info->linking)
-		return;
-
 	priv = netdev_priv(netdev);
 	rpriv = priv->ppriv;
-	netdev_dbg(netdev, "Unslave, reset vport(%d) egress acl\n", rpriv->rep->vport);
+	lag_dev = info->upper_dev;
 
-	/* Reset all egress acl rules of unslave representor's vport */
-	mlx5_esw_acl_egress_vport_unbond(priv->mdev->priv.eswitch,
-					 rpriv->rep->vport);
+	netdev_dbg(netdev, "%sslave vport(%d) lag(%s)\n",
+		   info->linking ? "en" : "un", rpriv->rep->vport, lag_dev->name);
+
+	if (info->linking)
+		mlx5e_rep_bond_enslave(priv->mdev->priv.eswitch, netdev, lag_dev);
+	else
+		mlx5e_rep_bond_unslave(priv->mdev->priv.eswitch, netdev, lag_dev);
 }
 
 /* Bond device of representors and netdev events are used here in specific way
