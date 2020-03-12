@@ -2651,6 +2651,87 @@
 			status = "disabled";
 		};
 
+		slim: slim@171c0000 {
+			compatible = "qcom,slim-ngd-v2.1.0";
+			reg = <0 0x171c0000 0 0x2c000>;
+			interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
+
+			qcom,apps-ch-pipes = <0x780000>;
+			qcom,ea-pc = <0x270>;
+			status = "okay";
+			dmas =	<&slimbam 3>, <&slimbam 4>,
+				<&slimbam 5>, <&slimbam 6>;
+			dma-names = "rx", "tx", "tx2", "rx2";
+
+			iommus = <&apps_smmu 0x1806 0x0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ngd@1 {
+				reg = <1>;
+				#address-cells = <2>;
+				#size-cells = <0>;
+
+				wcd9340_ifd: ifd@0{
+					compatible = "slim217,250";
+					reg  = <0 0>;
+				};
+
+				wcd9340: codec@1{
+					compatible = "slim217,250";
+					reg  = <1 0>;
+					slim-ifc-dev  = <&wcd9340_ifd>;
+
+					#sound-dai-cells = <1>;
+
+					interrupts-extended = <&tlmm 54 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-controller;
+					#interrupt-cells = <1>;
+
+					#clock-cells = <0>;
+					clock-frequency = <9600000>;
+					clock-output-names = "mclk";
+					qcom,micbias1-millivolt = <1800>;
+					qcom,micbias2-millivolt = <1800>;
+					qcom,micbias3-millivolt = <1800>;
+					qcom,micbias4-millivolt = <1800>;
+
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					wcdgpio: gpio-controller@42 {
+						compatible = "qcom,wcd9340-gpio";
+						gpio-controller;
+						#gpio-cells = <2>;
+						reg = <0x42 0x2>;
+					};
+
+					swm: swm@c85 {
+						compatible = "qcom,soundwire-v1.3.0";
+						reg = <0xc85 0x40>;
+						interrupts-extended = <&wcd9340 20>;
+
+						qcom,dout-ports	= <6>;
+						qcom,din-ports	= <2>;
+						qcom,ports-sinterval-low =/bits/ 8  <0x07 0x1F 0x3F 0x7 0x1F 0x3F 0x0F 0x0F>;
+						qcom,ports-offset1 = /bits/ 8 <0x01 0x02 0x0C 0x6 0x12 0x0D 0x07 0x0A >;
+						qcom,ports-offset2 = /bits/ 8 <0x00 0x00 0x1F 0x00 0x00 0x1F 0x00 0x00>;
+
+						#sound-dai-cells = <1>;
+						clocks = <&wcd9340>;
+						clock-names = "iface";
+						#address-cells = <2>;
+						#size-cells = <0>;
+
+
+					};
+				};
+			};
+		};
+
+		sound: sound {
+		};
+
 		usb_1_hsphy: phy@88e2000 {
 			compatible = "qcom,sdm845-qusb2-phy";
 			reg = <0 0x088e2000 0 0x400>;
@@ -3500,6 +3581,18 @@
 				reg = <0 0x17a40000 0 0x20000>;
 				status = "disabled";
 			};
+		};
+
+		slimbam: dma@17184000 {
+			compatible = "qcom,bam-v1.7.0";
+			qcom,controlled-remotely;
+			reg = <0 0x17184000 0 0x2a000>;
+			num-channels  = <31>;
+			interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			qcom,ee = <1>;
+			qcom,num-ees = <2>;
+			iommus = <&apps_smmu 0x1806 0x0>;
 		};
 
 		timer@17c90000 {
