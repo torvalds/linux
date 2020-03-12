@@ -741,6 +741,22 @@ ssize_t zfcp_fsf_scnprint_fc_security(char *buf, size_t size, u32 fc_security,
 	return len;
 }
 
+static void zfcp_fsf_dbf_adapter_fc_security(struct zfcp_adapter *adapter,
+					     struct zfcp_fsf_req *req)
+{
+	if (adapter->fc_security_algorithms ==
+	    adapter->fc_security_algorithms_old) {
+		/* no change, no trace */
+		return;
+	}
+
+	zfcp_dbf_hba_fsf_fces("fsfcesa", req, ZFCP_DBF_INVALID_WWPN,
+			      adapter->fc_security_algorithms_old,
+			      adapter->fc_security_algorithms);
+
+	adapter->fc_security_algorithms_old = adapter->fc_security_algorithms;
+}
+
 static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
@@ -763,6 +779,7 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 			bottom->fc_security_algorithms;
 	else
 		adapter->fc_security_algorithms = 0;
+	zfcp_fsf_dbf_adapter_fc_security(adapter, req);
 }
 
 static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
@@ -1579,15 +1596,20 @@ out_unlock:
 	return retval;
 }
 
-static void zfcp_fsf_log_port_fc_security(struct zfcp_port *port)
+static void zfcp_fsf_log_port_fc_security(struct zfcp_port *port,
+					  struct zfcp_fsf_req *req)
 {
 	char mnemonic_old[ZFCP_FSF_MAX_FC_SECURITY_MNEMONIC_LENGTH];
 	char mnemonic_new[ZFCP_FSF_MAX_FC_SECURITY_MNEMONIC_LENGTH];
 
 	if (port->connection_info == port->connection_info_old) {
-		/* no change, no log */
+		/* no change, no log nor trace */
 		return;
 	}
+
+	zfcp_dbf_hba_fsf_fces("fsfcesp", req, port->wwpn,
+			      port->connection_info_old,
+			      port->connection_info);
 
 	zfcp_fsf_scnprint_fc_security(mnemonic_old, sizeof(mnemonic_old),
 				      port->connection_info_old,
@@ -1663,7 +1685,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 			port->connection_info = bottom->connection_info;
 		else
 			port->connection_info = 0;
-		zfcp_fsf_log_port_fc_security(port);
+		zfcp_fsf_log_port_fc_security(port, req);
 		atomic_or(ZFCP_STATUS_COMMON_OPEN |
 				ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
 		atomic_andnot(ZFCP_STATUS_COMMON_ACCESS_BOXED,
