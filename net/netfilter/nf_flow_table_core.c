@@ -372,6 +372,50 @@ static void nf_flow_offload_work_gc(struct work_struct *work)
 	queue_delayed_work(system_power_efficient_wq, &flow_table->gc_work, HZ);
 }
 
+int nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
+				 flow_setup_cb_t *cb, void *cb_priv)
+{
+	struct flow_block *block = &flow_table->flow_block;
+	struct flow_block_cb *block_cb;
+	int err = 0;
+
+	mutex_lock(&flow_table->flow_block_lock);
+	block_cb = flow_block_cb_lookup(block, cb, cb_priv);
+	if (block_cb) {
+		err = -EEXIST;
+		goto unlock;
+	}
+
+	block_cb = flow_block_cb_alloc(cb, cb_priv, cb_priv, NULL);
+	if (IS_ERR(block_cb)) {
+		err = PTR_ERR(block_cb);
+		goto unlock;
+	}
+
+	list_add_tail(&block_cb->list, &block->cb_list);
+
+unlock:
+	mutex_unlock(&flow_table->flow_block_lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(nf_flow_table_offload_add_cb);
+
+void nf_flow_table_offload_del_cb(struct nf_flowtable *flow_table,
+				  flow_setup_cb_t *cb, void *cb_priv)
+{
+	struct flow_block *block = &flow_table->flow_block;
+	struct flow_block_cb *block_cb;
+
+	mutex_lock(&flow_table->flow_block_lock);
+	block_cb = flow_block_cb_lookup(block, cb, cb_priv);
+	if (block_cb)
+		list_del(&block_cb->list);
+	else
+		WARN_ON(true);
+	mutex_unlock(&flow_table->flow_block_lock);
+}
+EXPORT_SYMBOL_GPL(nf_flow_table_offload_del_cb);
+
 static int nf_flow_nat_port_tcp(struct sk_buff *skb, unsigned int thoff,
 				__be16 port, __be16 new_port)
 {
@@ -494,6 +538,7 @@ int nf_flow_table_init(struct nf_flowtable *flowtable)
 
 	INIT_DEFERRABLE_WORK(&flowtable->gc_work, nf_flow_offload_work_gc);
 	flow_block_init(&flowtable->flow_block);
+	mutex_init(&flowtable->flow_block_lock);
 
 	err = rhashtable_init(&flowtable->rhashtable,
 			      &nf_flow_offload_rhash_params);
@@ -550,11 +595,13 @@ void nf_flow_table_free(struct nf_flowtable *flow_table)
 	mutex_lock(&flowtable_lock);
 	list_del(&flow_table->list);
 	mutex_unlock(&flowtable_lock);
+
 	cancel_delayed_work_sync(&flow_table->gc_work);
 	nf_flow_table_iterate(flow_table, nf_flow_table_do_cleanup, NULL);
 	nf_flow_table_iterate(flow_table, nf_flow_offload_gc_step, flow_table);
 	nf_flow_table_offload_flush(flow_table);
 	rhashtable_destroy(&flow_table->rhashtable);
+	mutex_destroy(&flow_table->flow_block_lock);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_free);
 

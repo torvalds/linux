@@ -44,6 +44,7 @@ struct nf_flowtable {
 	struct delayed_work		gc_work;
 	unsigned int			flags;
 	struct flow_block		flow_block;
+	struct mutex			flow_block_lock; /* Guards flow_block */
 	possible_net_t			net;
 };
 
@@ -128,6 +129,11 @@ struct nf_flow_route {
 
 struct flow_offload *flow_offload_alloc(struct nf_conn *ct);
 void flow_offload_free(struct flow_offload *flow);
+
+int nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
+				 flow_setup_cb_t *cb, void *cb_priv);
+void nf_flow_table_offload_del_cb(struct nf_flowtable *flow_table,
+				  flow_setup_cb_t *cb, void *cb_priv);
 
 int flow_offload_route_init(struct flow_offload *flow,
 			    const struct nf_flow_route *route);
