@@ -62,8 +62,6 @@ static struct mask_info drawer_info;
 struct cpu_topology_s390 cpu_topology[NR_CPUS];
 EXPORT_SYMBOL_GPL(cpu_topology);
 
-cpumask_t cpus_with_topology;
-
 static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 {
 	cpumask_t mask;
@@ -137,7 +135,6 @@ static void add_cpus_to_mask(struct topology_core *tl_core,
 			cpumask_set_cpu(lcpu + i, &drawer->mask);
 			cpumask_set_cpu(lcpu + i, &book->mask);
 			cpumask_set_cpu(lcpu + i, &socket->mask);
-			cpumask_set_cpu(lcpu + i, &cpus_with_topology);
 			smp_cpu_set_polarization(lcpu + i, tl_core->pp);
 		}
 	}
@@ -262,8 +259,6 @@ static void update_cpu_masks(void)
 			topo->socket_id = id;
 			topo->book_id = id;
 			topo->drawer_id = id;
-			if (cpu_present(cpu))
-				cpumask_set_cpu(cpu, &cpus_with_topology);
 		}
 	}
 }
@@ -287,7 +282,6 @@ static int __arch_update_cpu_topology(void)
 	int rc = 0;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	cpumask_clear(&cpus_with_topology);
 	if (MACHINE_HAS_TOPOLOGY) {
 		rc = 1;
 		store_topology(info);

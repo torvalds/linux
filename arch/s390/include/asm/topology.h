@@ -24,7 +24,6 @@ struct cpu_topology_s390 {
 };
 
 extern struct cpu_topology_s390 cpu_topology[NR_CPUS];
-extern cpumask_t cpus_with_topology;
 
 #define topology_physical_package_id(cpu) (cpu_topology[cpu].socket_id)
 #define topology_thread_id(cpu)		  (cpu_topology[cpu].thread_id)
