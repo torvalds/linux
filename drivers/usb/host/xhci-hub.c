@@ -1309,20 +1309,34 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				goto error;
 			}
 
+			/*
+			 * set link to U0, steps depend on current link state.
+			 * U3: set link to U0 and wait for u3exit completion.
+			 * U1/U2:  no PLC complete event, only set link to U0.
+			 * Resume/Recovery: device initiated U0, only wait for
+			 * completion
+			 */
 			if (link_state == USB_SS_PORT_LS_U0) {
-				if ((temp & PORT_PLS_MASK) == XDEV_U0)
-					break;
+				u32 pls = temp & PORT_PLS_MASK;
+				bool wait_u0 = false;
 
-				if (!((temp & PORT_PLS_MASK) == XDEV_U1 ||
-				    (temp & PORT_PLS_MASK) == XDEV_U2 ||
-				    (temp & PORT_PLS_MASK) == XDEV_U3)) {
-					xhci_warn(xhci, "Can only set port %d to U0 from U state\n",
-							wIndex);
-					goto error;
+				/* already in U0 */
+				if (pls == XDEV_U0)
+					break;
+				if (pls == XDEV_U3 ||
+				    pls == XDEV_RESUME ||
+				    pls == XDEV_RECOVERY) {
+					wait_u0 = true;
+					reinit_completion(&bus_state->u3exit_done[wIndex]);
 				}
-				reinit_completion(&bus_state->u3exit_done[wIndex]);
-				xhci_set_link_state(xhci, ports[wIndex],
-						    USB_SS_PORT_LS_U0);
+				if (pls <= XDEV_U3) /* U1, U2, U3 */
+					xhci_set_link_state(xhci, ports[wIndex],
+							    USB_SS_PORT_LS_U0);
+				if (!wait_u0) {
+					if (pls > XDEV_U3)
+						goto error;
+					break;
+				}
 				spin_unlock_irqrestore(&xhci->lock, flags);
 				if (!wait_for_completion_timeout(&bus_state->u3exit_done[wIndex],
 								 msecs_to_jiffies(100)))
