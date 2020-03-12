@@ -760,21 +760,11 @@ static int rtw_pci_write_data_rsvd_page(struct rtw_dev *rtwdev, u8 *buf,
 					u32 size)
 {
 	struct sk_buff *skb;
-	struct rtw_tx_pkt_info pkt_info;
-	u32 tx_pkt_desc_sz;
-	u32 length;
+	struct rtw_tx_pkt_info pkt_info = {0};
 
-	tx_pkt_desc_sz = rtwdev->chip->tx_pkt_desc_sz;
-	length = size + tx_pkt_desc_sz;
-	skb = dev_alloc_skb(length);
+	skb = rtw_tx_write_data_rsvd_page_get(rtwdev, &pkt_info, buf, size);
 	if (!skb)
 		return -ENOMEM;
-
-	skb_reserve(skb, tx_pkt_desc_sz);
-	memcpy((u8 *)skb_put(skb, size), buf, size);
-	memset(&pkt_info, 0, sizeof(pkt_info));
-	pkt_info.tx_pkt_size = size;
-	pkt_info.offset = tx_pkt_desc_sz;
 
 	return rtw_pci_xmit(rtwdev, &pkt_info, skb, RTW_TX_QUEUE_BCN);
 }
@@ -782,20 +772,11 @@ static int rtw_pci_write_data_rsvd_page(struct rtw_dev *rtwdev, u8 *buf,
 static int rtw_pci_write_data_h2c(struct rtw_dev *rtwdev, u8 *buf, u32 size)
 {
 	struct sk_buff *skb;
-	struct rtw_tx_pkt_info pkt_info;
-	u32 tx_pkt_desc_sz;
-	u32 length;
+	struct rtw_tx_pkt_info pkt_info = {0};
 
-	tx_pkt_desc_sz = rtwdev->chip->tx_pkt_desc_sz;
-	length = size + tx_pkt_desc_sz;
-	skb = dev_alloc_skb(length);
+	skb = rtw_tx_write_data_h2c_get(rtwdev, &pkt_info, buf, size);
 	if (!skb)
 		return -ENOMEM;
-
-	skb_reserve(skb, tx_pkt_desc_sz);
-	memcpy((u8 *)skb_put(skb, size), buf, size);
-	memset(&pkt_info, 0, sizeof(pkt_info));
-	pkt_info.tx_pkt_size = size;
 
 	return rtw_pci_xmit(rtwdev, &pkt_info, skb, RTW_TX_QUEUE_H2C);
 }

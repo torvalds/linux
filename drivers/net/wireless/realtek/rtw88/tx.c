@@ -6,6 +6,7 @@
 #include "tx.h"
 #include "fw.h"
 #include "ps.h"
+#include "debug.h"
 
 static
 void rtw_tx_stats(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
@@ -367,6 +368,59 @@ void rtw_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
 	pkt_info->qsel = TX_DESC_QSEL_MGMT;
 	pkt_info->ls = true;
 }
+
+struct sk_buff *
+rtw_tx_write_data_rsvd_page_get(struct rtw_dev *rtwdev,
+				struct rtw_tx_pkt_info *pkt_info,
+				u8 *buf, u32 size)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct sk_buff *skb;
+	u32 tx_pkt_desc_sz;
+	u32 length;
+
+	tx_pkt_desc_sz = chip->tx_pkt_desc_sz;
+	length = size + tx_pkt_desc_sz;
+	skb = dev_alloc_skb(length);
+	if (!skb) {
+		rtw_err(rtwdev, "failed to alloc write data rsvd page skb\n");
+		return NULL;
+	}
+
+	skb_reserve(skb, tx_pkt_desc_sz);
+	skb_put_data(skb, buf, size);
+	pkt_info->tx_pkt_size = size;
+	pkt_info->offset = tx_pkt_desc_sz;
+
+	return skb;
+}
+EXPORT_SYMBOL(rtw_tx_write_data_rsvd_page_get);
+
+struct sk_buff *
+rtw_tx_write_data_h2c_get(struct rtw_dev *rtwdev,
+			  struct rtw_tx_pkt_info *pkt_info,
+			  u8 *buf, u32 size)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct sk_buff *skb;
+	u32 tx_pkt_desc_sz;
+	u32 length;
+
+	tx_pkt_desc_sz = chip->tx_pkt_desc_sz;
+	length = size + tx_pkt_desc_sz;
+	skb = dev_alloc_skb(length);
+	if (!skb) {
+		rtw_err(rtwdev, "failed to alloc write data h2c skb\n");
+		return NULL;
+	}
+
+	skb_reserve(skb, tx_pkt_desc_sz);
+	skb_put_data(skb, buf, size);
+	pkt_info->tx_pkt_size = size;
+
+	return skb;
+}
+EXPORT_SYMBOL(rtw_tx_write_data_h2c_get);
 
 void rtw_tx(struct rtw_dev *rtwdev,
 	    struct ieee80211_tx_control *control,
