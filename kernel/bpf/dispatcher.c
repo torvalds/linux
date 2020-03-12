@@ -143,6 +143,7 @@ void bpf_dispatcher_change_prog(struct bpf_dispatcher *d, struct bpf_prog *from,
 		d->image = bpf_image_alloc();
 		if (!d->image)
 			goto out;
+		bpf_image_ksym_add(d->image, &d->ksym);
 	}
 
 	prev_num_progs = d->num_progs;
