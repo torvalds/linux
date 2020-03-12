@@ -81,9 +81,9 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 	dev = &idxd->pdev->dev;
 	idxd_cdev = &wq->idxd_cdev;
 
-	dev_dbg(dev, "%s called\n", __func__);
+	dev_dbg(dev, "%s called: %d\n", __func__, idxd_wq_refcount(wq));
 
-	if (idxd_wq_refcount(wq) > 1 && wq_dedicated(wq))
+	if (idxd_wq_refcount(wq) > 0 && wq_dedicated(wq))
 		return -EBUSY;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
