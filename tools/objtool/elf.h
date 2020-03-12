@@ -33,7 +33,6 @@ struct section {
 	struct rb_root symbol_tree;
 	struct list_head symbol_list;
 	struct list_head rela_list;
-	DECLARE_HASHTABLE(rela_hash, 16);
 	struct section *base, *rela;
 	struct symbol *sym;
 	Elf_Data *data;
@@ -81,8 +80,22 @@ struct elf {
 	DECLARE_HASHTABLE(symbol_name_hash, 20);
 	DECLARE_HASHTABLE(section_hash, 16);
 	DECLARE_HASHTABLE(section_name_hash, 16);
+	DECLARE_HASHTABLE(rela_hash, 20);
 };
 
+static inline u32 sec_offset_hash(struct section *sec, unsigned long offset)
+{
+	u32 ol = offset, oh = offset >> 32, idx = sec->idx;
+
+	__jhash_mix(ol, oh, idx);
+
+	return ol;
+}
+
+static inline u32 rela_hash(struct rela *rela)
+{
+	return sec_offset_hash(rela->sec, rela->offset);
+}
 
 struct elf *elf_read(const char *name, int flags);
 struct section *find_section_by_name(struct elf *elf, const char *name);
@@ -90,9 +103,9 @@ struct symbol *find_func_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_name(struct elf *elf, const char *name);
 struct symbol *find_symbol_containing(struct section *sec, unsigned long offset);
-struct rela *find_rela_by_dest(struct section *sec, unsigned long offset);
-struct rela *find_rela_by_dest_range(struct section *sec, unsigned long offset,
-				     unsigned int len);
+struct rela *find_rela_by_dest(struct elf *elf, struct section *sec, unsigned long offset);
+struct rela *find_rela_by_dest_range(struct elf *elf, struct section *sec,
+				     unsigned long offset, unsigned int len);
 struct symbol *find_func_containing(struct section *sec, unsigned long offset);
 struct section *elf_create_section(struct elf *elf, const char *name, size_t
 				   entsize, int nr);

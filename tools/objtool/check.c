@@ -569,8 +569,8 @@ static int add_jump_destinations(struct objtool_file *file)
 		if (insn->ignore || insn->offset == FAKE_JUMP_OFFSET)
 			continue;
 
-		rela = find_rela_by_dest_range(insn->sec, insn->offset,
-					       insn->len);
+		rela = find_rela_by_dest_range(file->elf, insn->sec,
+					       insn->offset, insn->len);
 		if (!rela) {
 			dest_sec = insn->sec;
 			dest_off = insn->offset + insn->len + insn->immediate;
@@ -666,8 +666,8 @@ static int add_call_destinations(struct objtool_file *file)
 		if (insn->type != INSN_CALL)
 			continue;
 
-		rela = find_rela_by_dest_range(insn->sec, insn->offset,
-					       insn->len);
+		rela = find_rela_by_dest_range(file->elf, insn->sec,
+					       insn->offset, insn->len);
 		if (!rela) {
 			dest_off = insn->offset + insn->len + insn->immediate;
 			insn->call_dest = find_func_by_offset(insn->sec, dest_off);
@@ -796,7 +796,7 @@ static int handle_group_alt(struct objtool_file *file,
 		 */
 		if ((insn->offset != special_alt->new_off ||
 		    (insn->type != INSN_CALL && !is_static_jump(insn))) &&
-		    find_rela_by_dest_range(insn->sec, insn->offset, insn->len)) {
+		    find_rela_by_dest_range(file->elf, insn->sec, insn->offset, insn->len)) {
 
 			WARN_FUNC("unsupported relocation in alternatives section",
 				  insn->sec, insn->offset);
@@ -1066,8 +1066,8 @@ static struct rela *find_jump_table(struct objtool_file *file,
 		    break;
 
 		/* look for a relocation which references .rodata */
-		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
-						    insn->len);
+		text_rela = find_rela_by_dest_range(file->elf, insn->sec,
+						    insn->offset, insn->len);
 		if (!text_rela || text_rela->sym->type != STT_SECTION ||
 		    !text_rela->sym->sec->rodata)
 			continue;
@@ -1096,7 +1096,7 @@ static struct rela *find_jump_table(struct objtool_file *file,
 		 * should reference text in the same function as the original
 		 * instruction.
 		 */
-		table_rela = find_rela_by_dest(table_sec, table_offset);
+		table_rela = find_rela_by_dest(file->elf, table_sec, table_offset);
 		if (!table_rela)
 			continue;
 		dest_insn = find_insn(file, table_rela->sym->sec, table_rela->addend);
@@ -1232,7 +1232,7 @@ static int read_unwind_hints(struct objtool_file *file)
 	for (i = 0; i < sec->len / sizeof(struct unwind_hint); i++) {
 		hint = (struct unwind_hint *)sec->data->d_buf + i;
 
-		rela = find_rela_by_dest(sec, i * sizeof(*hint));
+		rela = find_rela_by_dest(file->elf, sec, i * sizeof(*hint));
 		if (!rela) {
 			WARN("can't find rela for unwind_hints[%d]", i);
 			return -1;
