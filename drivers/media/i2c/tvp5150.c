@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
@@ -1526,6 +1527,19 @@ static int tvp5150_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 }
 #endif
 
+static int tvp5150_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				   struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_SOURCE_CHANGE:
+		return v4l2_src_change_event_subdev_subscribe(sd, fh, sub);
+	case V4L2_EVENT_CTRL:
+		return v4l2_ctrl_subdev_subscribe_event(sd, fh, sub);
+	default:
+		return -EINVAL;
+	}
+}
+
 static int tvp5150_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 {
 	int status = tvp5150_read(sd, 0x88);
@@ -1617,6 +1631,8 @@ static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
 	.g_register = tvp5150_g_register,
 	.s_register = tvp5150_s_register,
 #endif
+	.subscribe_event = tvp5150_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
@@ -2045,7 +2061,7 @@ static int tvp5150_probe(struct i2c_client *c)
 	sd = &core->sd;
 	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
 	sd->internal_ops = &tvp5150_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	if (IS_ENABLED(CONFIG_OF) && np) {
 		res = tvp5150_parse_dt(core, np);
