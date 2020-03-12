@@ -251,6 +251,7 @@ struct ice_nvm_info {
 	struct ice_orom_info orom;	/* Option ROM version info */
 	u32 eetrack;			/* NVM data version */
 	u16 sr_words;			/* Shadow RAM size in words */
+	u32 flash_size;			/* Size of available flash in bytes */
 	u8 major_ver;			/* major version of NVM package */
 	u8 minor_ver;			/* minor version of dev starter */
 	u8 blank_nvm_mode;        /* is NVM empty (no FW present) */

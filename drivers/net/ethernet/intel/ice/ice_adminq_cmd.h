@@ -1232,6 +1232,7 @@ struct ice_aqc_sff_eeprom {
  * NVM Update commands (indirect 0x0703)
  */
 struct ice_aqc_nvm {
+#define ICE_AQC_NVM_MAX_OFFSET		0xFFFFFF
 	__le16 offset_low;
 	u8 offset_high;
 	u8 cmd_flags;
@@ -1766,6 +1767,7 @@ enum ice_aq_err {
 	ICE_AQ_RC_ENOMEM	= 9,  /* Out of memory */
 	ICE_AQ_RC_EBUSY		= 12, /* Device or resource busy */
 	ICE_AQ_RC_EEXIST	= 13, /* Object already exists */
+	ICE_AQ_RC_EINVAL	= 14, /* Invalid argument */
 	ICE_AQ_RC_ENOSPC	= 16, /* No space left or allocation failure */
 	ICE_AQ_RC_ENOSYS	= 17, /* Function not implemented */
 	ICE_AQ_RC_ENOSEC	= 24, /* Missing security manifest */

@@ -26,8 +26,7 @@ ice_aq_read_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset, u16 length,
 
 	cmd = &desc.params.nvm;
 
-	/* In offset the highest byte must be zeroed. */
-	if (offset & 0xFF000000)
+	if (offset > ICE_AQC_NVM_MAX_OFFSET)
 		return ICE_ERR_PARAM;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_read);
@@ -364,6 +363,58 @@ static enum ice_status ice_get_orom_ver_info(struct ice_hw *hw)
 }
 
 /**
+ * ice_discover_flash_size - Discover the available flash size.
+ * @hw: pointer to the HW struct
+ *
+ * The device flash could be up to 16MB in size. However, it is possible that
+ * the actual size is smaller. Use bisection to determine the accessible size
+ * of flash memory.
+ */
+static enum ice_status ice_discover_flash_size(struct ice_hw *hw)
+{
+	u32 min_size = 0, max_size = ICE_AQC_NVM_MAX_OFFSET + 1;
+	enum ice_status status;
+
+	status = ice_acquire_nvm(hw, ICE_RES_READ);
+	if (status)
+		return status;
+
+	while ((max_size - min_size) > 1) {
+		u32 offset = (max_size + min_size) / 2;
+		u32 len = 1;
+		u8 data;
+
+		status = ice_read_flat_nvm(hw, offset, &len, &data, false);
+		if (status == ICE_ERR_AQ_ERROR &&
+		    hw->adminq.sq_last_status == ICE_AQ_RC_EINVAL) {
+			ice_debug(hw, ICE_DBG_NVM,
+				  "%s: New upper bound of %u bytes\n",
+				  __func__, offset);
+			status = 0;
+			max_size = offset;
+		} else if (!status) {
+			ice_debug(hw, ICE_DBG_NVM,
+				  "%s: New lower bound of %u bytes\n",
+				  __func__, offset);
+			min_size = offset;
+		} else {
+			/* an unexpected error occurred */
+			goto err_read_flat_nvm;
+		}
+	}
+
+	ice_debug(hw, ICE_DBG_NVM,
+		  "Predicted flash size is %u bytes\n", max_size);
+
+	hw->nvm.flash_size = max_size;
+
+err_read_flat_nvm:
+	ice_release_nvm(hw);
+
+	return status;
+}
+
+/**
  * ice_init_nvm - initializes NVM setting
  * @hw: pointer to the HW struct
  *
@@ -420,6 +471,13 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 	}
 
 	nvm->eetrack = (eetrack_hi << 16) | eetrack_lo;
+
+	status = ice_discover_flash_size(hw);
+	if (status) {
+		ice_debug(hw, ICE_DBG_NVM,
+			  "NVM init error: failed to discover flash size.\n");
+		return status;
+	}
 
 	switch (hw->device_id) {
 	/* the following devices do not have boot_cfg_tlv yet */
