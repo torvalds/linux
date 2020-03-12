@@ -261,7 +261,7 @@ struct csis_pix_format {
 	unsigned int pix_width_alignment;
 	u32 code;
 	u32 fmt_reg;
-	u8 data_alignment;
+	u8 width;
 };
 
 static const struct csis_pix_format mipi_csis_formats[] = {
@@ -269,89 +269,89 @@ static const struct csis_pix_format mipi_csis_formats[] = {
 	{
 		.code = MEDIA_BUS_FMT_UYVY8_2X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
-		.data_alignment = 8,
+		.width = 8,
 	}, {
 		.code = MEDIA_BUS_FMT_UYVY10_2X10,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
-		.data_alignment = 10,
+		.width = 10,
 	},
 	/* RAW (Bayer and greyscale) formats. */
 	{
 		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW8,
-		.data_alignment = 8,
+		.width = 8,
 	}, {
 		.code = MEDIA_BUS_FMT_SGBRG8_1X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW8,
-		.data_alignment = 8,
+		.width = 8,
 	}, {
 		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW8,
-		.data_alignment = 8,
+		.width = 8,
 	}, {
 		.code = MEDIA_BUS_FMT_SRGGB8_1X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW8,
-		.data_alignment = 8,
+		.width = 8,
 	}, {
 		.code = MEDIA_BUS_FMT_Y8_1X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW8,
-		.data_alignment = 8,
+		.width = 8,
 	}, {
 		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
-		.data_alignment = 10,
+		.width = 10,
 	}, {
 		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
-		.data_alignment = 10,
+		.width = 10,
 	}, {
 		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
-		.data_alignment = 10,
+		.width = 10,
 	}, {
 		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
-		.data_alignment = 10,
+		.width = 10,
 	}, {
 		.code = MEDIA_BUS_FMT_Y10_1X10,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW10,
-		.data_alignment = 10,
+		.width = 10,
 	}, {
 		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW12,
-		.data_alignment = 12,
+		.width = 12,
 	}, {
 		.code = MEDIA_BUS_FMT_SGBRG12_1X12,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW12,
-		.data_alignment = 12,
+		.width = 12,
 	}, {
 		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW12,
-		.data_alignment = 12,
+		.width = 12,
 	}, {
 		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW12,
-		.data_alignment = 12,
+		.width = 12,
 	}, {
 		.code = MEDIA_BUS_FMT_Y12_1X12,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW12,
-		.data_alignment = 12,
+		.width = 12,
 	}, {
 		.code = MEDIA_BUS_FMT_SBGGR14_1X14,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW14,
-		.data_alignment = 14,
+		.width = 14,
 	}, {
 		.code = MEDIA_BUS_FMT_SGBRG14_1X14,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW14,
-		.data_alignment = 14,
+		.width = 14,
 	}, {
 		.code = MEDIA_BUS_FMT_SGRBG14_1X14,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW14,
-		.data_alignment = 14,
+		.width = 14,
 	}, {
 		.code = MEDIA_BUS_FMT_SRGGB14_1X14,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_RAW14,
-		.data_alignment = 14,
+		.width = 14,
 	}
 };
 
@@ -498,7 +498,7 @@ static void mipi_csis_set_params(struct csi_state *state)
 	mipi_csis_set_hsync_settle(state, state->hs_settle);
 
 	val = mipi_csis_read(state, MIPI_CSIS_ISPCONFIG_CH0);
-	if (state->csis_fmt->data_alignment == 32)
+	if (state->csis_fmt->width == 32)
 		val |= MIPI_CSIS_ISPCFG_ALIGN_32BIT;
 	else
 		val &= ~MIPI_CSIS_ISPCFG_ALIGN_32BIT;
