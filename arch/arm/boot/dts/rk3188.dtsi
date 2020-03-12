@@ -184,8 +184,8 @@
 		compatible = "rockchip,rk3188-spdif", "rockchip,rk3066-spdif";
 		reg = <0x1011e000 0x2000>;
 		#sound-dai-cells = <0>;
-		clock-names = "hclk", "mclk";
-		clocks = <&cru HCLK_SPDIF>, <&cru SCLK_SPDIF>;
+		clocks = <&cru SCLK_SPDIF>, <&cru HCLK_SPDIF>;
+		clock-names = "mclk", "hclk";
 		dmas = <&dmac1_s 8>;
 		dma-names = "tx";
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
