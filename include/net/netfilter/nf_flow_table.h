@@ -16,6 +16,29 @@ struct nf_flow_rule;
 struct flow_offload;
 enum flow_offload_tuple_dir;
 
+struct nf_flow_key {
+	struct flow_dissector_key_meta			meta;
+	struct flow_dissector_key_control		control;
+	struct flow_dissector_key_basic			basic;
+	union {
+		struct flow_dissector_key_ipv4_addrs	ipv4;
+		struct flow_dissector_key_ipv6_addrs	ipv6;
+	};
+	struct flow_dissector_key_tcp			tcp;
+	struct flow_dissector_key_ports			tp;
+} __aligned(BITS_PER_LONG / 8); /* Ensure that we can do comparisons as longs. */
+
+struct nf_flow_match {
+	struct flow_dissector	dissector;
+	struct nf_flow_key	key;
+	struct nf_flow_key	mask;
+};
+
+struct nf_flow_rule {
+	struct nf_flow_match	match;
+	struct flow_rule	*rule;
+};
+
 struct nf_flowtable_type {
 	struct list_head		list;
 	int				family;

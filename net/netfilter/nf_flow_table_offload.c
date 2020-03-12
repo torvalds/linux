@@ -23,29 +23,6 @@ struct flow_offload_work {
 	struct flow_offload	*flow;
 };
 
-struct nf_flow_key {
-	struct flow_dissector_key_meta			meta;
-	struct flow_dissector_key_control		control;
-	struct flow_dissector_key_basic			basic;
-	union {
-		struct flow_dissector_key_ipv4_addrs	ipv4;
-		struct flow_dissector_key_ipv6_addrs	ipv6;
-	};
-	struct flow_dissector_key_tcp			tcp;
-	struct flow_dissector_key_ports			tp;
-} __aligned(BITS_PER_LONG / 8); /* Ensure that we can do comparisons as longs. */
-
-struct nf_flow_match {
-	struct flow_dissector	dissector;
-	struct nf_flow_key	key;
-	struct nf_flow_key	mask;
-};
-
-struct nf_flow_rule {
-	struct nf_flow_match	match;
-	struct flow_rule	*rule;
-};
-
 #define NF_FLOW_DISSECTOR(__match, __type, __field)	\
 	(__match)->dissector.offset[__type] =		\
 		offsetof(struct nf_flow_key, __field)
