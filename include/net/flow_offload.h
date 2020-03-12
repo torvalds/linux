@@ -69,6 +69,10 @@ struct flow_match_enc_opts {
 	struct flow_dissector_key_enc_opts *key, *mask;
 };
 
+struct flow_match_ct {
+	struct flow_dissector_key_ct *key, *mask;
+};
+
 struct flow_rule;
 
 void flow_rule_match_meta(const struct flow_rule *rule,
@@ -111,6 +115,8 @@ void flow_rule_match_enc_keyid(const struct flow_rule *rule,
 			       struct flow_match_enc_keyid *out);
 void flow_rule_match_enc_opts(const struct flow_rule *rule,
 			      struct flow_match_enc_opts *out);
+void flow_rule_match_ct(const struct flow_rule *rule,
+			struct flow_match_ct *out);
 
 enum flow_action_id {
 	FLOW_ACTION_ACCEPT		= 0,
@@ -136,6 +142,7 @@ enum flow_action_id {
 	FLOW_ACTION_SAMPLE,
 	FLOW_ACTION_POLICE,
 	FLOW_ACTION_CT,
+	FLOW_ACTION_CT_METADATA,
 	FLOW_ACTION_MPLS_PUSH,
 	FLOW_ACTION_MPLS_POP,
 	FLOW_ACTION_MPLS_MANGLE,
@@ -224,7 +231,13 @@ struct flow_action_entry {
 		struct {				/* FLOW_ACTION_CT */
 			int action;
 			u16 zone;
+			struct nf_flowtable *flow_table;
 		} ct;
+		struct {
+			unsigned long cookie;
+			u32 mark;
+			u32 labels[4];
+		} ct_metadata;
 		struct {				/* FLOW_ACTION_MPLS_PUSH */
 			u32		label;
 			__be16		proto;

@@ -55,6 +55,7 @@ struct mlx5e_neigh_update_table {
 	unsigned long           min_interval; /* jiffies */
 };
 
+struct mlx5_tc_ct_priv;
 struct mlx5_rep_uplink_priv {
 	/* Filters DB - instantiated by the uplink representor and shared by
 	 * the uplink's VFs
@@ -86,6 +87,8 @@ struct mlx5_rep_uplink_priv {
 	struct mapping_ctx *tunnel_mapping;
 	/* maps tun_enc_opts to a unique id*/
 	struct mapping_ctx *tunnel_enc_opts_mapping;
+
+	struct mlx5_tc_ct_priv *ct_priv;
 };
 
 struct mlx5e_rep_priv {

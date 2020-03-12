@@ -42,6 +42,7 @@
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/fs.h>
 #include "lib/mpfs.h"
+#include "en/tc_ct.h"
 
 #define FDB_TC_MAX_CHAIN 3
 #define FDB_FT_CHAIN (FDB_TC_MAX_CHAIN + 1)
@@ -236,6 +237,7 @@ struct mlx5_esw_functions {
 
 enum {
 	MLX5_ESWITCH_VPORT_MATCH_METADATA = BIT(0),
+	MLX5_ESWITCH_REG_C1_LOOPBACK_ENABLED = BIT(1),
 };
 
 struct mlx5_eswitch {
@@ -390,6 +392,7 @@ enum {
 enum {
 	MLX5_ESW_ATTR_FLAG_VLAN_HANDLED  = BIT(0),
 	MLX5_ESW_ATTR_FLAG_SLOW_PATH     = BIT(1),
+	MLX5_ESW_ATTR_FLAG_NO_IN_PORT    = BIT(2),
 };
 
 struct mlx5_esw_flow_attr {
@@ -420,6 +423,9 @@ struct mlx5_esw_flow_attr {
 	u16	prio;
 	u32	dest_chain;
 	u32	flags;
+	struct mlx5_flow_table *fdb;
+	struct mlx5_flow_table *dest_ft;
+	struct mlx5_ct_attr ct_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 

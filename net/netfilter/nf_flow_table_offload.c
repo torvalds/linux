@@ -23,29 +23,6 @@ struct flow_offload_work {
 	struct flow_offload	*flow;
 };
 
-struct nf_flow_key {
-	struct flow_dissector_key_meta			meta;
-	struct flow_dissector_key_control		control;
-	struct flow_dissector_key_basic			basic;
-	union {
-		struct flow_dissector_key_ipv4_addrs	ipv4;
-		struct flow_dissector_key_ipv6_addrs	ipv6;
-	};
-	struct flow_dissector_key_tcp			tcp;
-	struct flow_dissector_key_ports			tp;
-} __aligned(BITS_PER_LONG / 8); /* Ensure that we can do comparisons as longs. */
-
-struct nf_flow_match {
-	struct flow_dissector	dissector;
-	struct nf_flow_key	key;
-	struct nf_flow_key	mask;
-};
-
-struct nf_flow_rule {
-	struct nf_flow_match	match;
-	struct flow_rule	*rule;
-};
-
 #define NF_FLOW_DISSECTOR(__match, __type, __field)	\
 	(__match)->dissector.offset[__type] =		\
 		offsetof(struct nf_flow_key, __field)
@@ -610,6 +587,7 @@ static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
 	if (cmd == FLOW_CLS_REPLACE)
 		cls_flow.rule = flow_rule->rule;
 
+	mutex_lock(&flowtable->flow_block_lock);
 	list_for_each_entry(block_cb, block_cb_list, list) {
 		err = block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow,
 				   block_cb->cb_priv);
@@ -618,6 +596,7 @@ static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
 
 		i++;
 	}
+	mutex_unlock(&flowtable->flow_block_lock);
 
 	return i;
 }
@@ -692,8 +671,10 @@ static void flow_offload_tuple_stats(struct flow_offload_work *offload,
 			     FLOW_CLS_STATS,
 			     &offload->flow->tuplehash[dir].tuple, &extack);
 
+	mutex_lock(&flowtable->flow_block_lock);
 	list_for_each_entry(block_cb, &flowtable->flow_block.cb_list, list)
 		block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow, block_cb->cb_priv);
+	mutex_unlock(&flowtable->flow_block_lock);
 	memcpy(stats, &cls_flow.stats, sizeof(*stats));
 }
 
