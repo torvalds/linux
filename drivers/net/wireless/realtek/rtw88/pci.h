@@ -198,7 +198,9 @@ struct rtw_pci_rx_ring {
 struct rtw_pci {
 	struct pci_dev *pdev;
 
-	/* used for pci interrupt */
+	/* Used for PCI interrupt. */
+	spinlock_t hwirq_lock;
+	/* Used for PCI TX queueing. */
 	spinlock_t irq_lock;
 	u32 irq_mask[4];
 	bool irq_enabled;
