@@ -5,12 +5,14 @@ The TVP5150 and TVP5151 are video decoders that convert baseband NTSC and PAL
 with discrete syncs or 8-bit ITU-R BT.656 with embedded syncs output formats.
 
 Required Properties:
-- compatible: value must be "ti,tvp5150"
-- reg: I2C slave address
+====================
+- compatible:	Value must be "ti,tvp5150".
+- reg:		I2C slave address.
 
 Optional Properties:
-- pdn-gpios: phandle for the GPIO connected to the PDN pin, if any.
-- reset-gpios: phandle for the GPIO connected to the RESETB pin, if any.
+====================
+- pdn-gpios:	Phandle for the GPIO connected to the PDN pin, if any.
+- reset-gpios:	Phandle for the GPIO connected to the RESETB pin, if any.
 
 The device node must contain one 'port' child node per device physical input
 and output port, in accordance with the video interface bindings defined in
@@ -24,9 +26,8 @@ are numbered as follows
 	  Y-OUT		src		2
 
 The device node must contain at least one sink port and the src port. Each input
-port must be linked to an endpoint defined in
-Documentation/devicetree/bindings/display/connector/analog-tv-connector.txt. The
-port/connector layout is as follows
+port must be linked to an endpoint defined in [1]. The port/connector layout is
+as follows
 
 tvp-5150 port@0 (AIP1A)
 	endpoint@0 -----------> Comp0-Con  port
@@ -38,14 +39,17 @@ tvp-5150 port@2
 	endpoint (video bitstream output at YOUT[0-7] parallel bus)
 
 Required Endpoint Properties for parallel synchronization on output port:
+=========================================================================
 
-- hsync-active: active state of the HSYNC signal. Must be <1> (HIGH).
-- vsync-active: active state of the VSYNC signal. Must be <1> (HIGH).
-- field-even-active: field signal level during the even field data
-  transmission. Must be <0>.
+- hsync-active:		Active state of the HSYNC signal. Must be <1> (HIGH).
+- vsync-active:		Active state of the VSYNC signal. Must be <1> (HIGH).
+- field-even-active:	Field signal level during the even field data
+			transmission. Must be <0>.
 
-If none of hsync-active, vsync-active and field-even-active is specified,
-the endpoint is assumed to use embedded BT.656 synchronization.
+Note: Do not specify any of these properties if you want to use the embedded
+      BT.656 synchronization.
+
+[1] Documentation/devicetree/bindings/display/connector/analog-tv-connector.txt.
 
 Example - three input sources:
 
