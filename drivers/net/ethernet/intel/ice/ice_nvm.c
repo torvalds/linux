@@ -308,6 +308,62 @@ enum ice_status ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
 }
 
 /**
+ * ice_get_orom_ver_info - Read Option ROM version information
+ * @hw: pointer to the HW struct
+ *
+ * Read the Combo Image version data from the Boot Configuration TLV and fill
+ * in the option ROM version data.
+ */
+static enum ice_status ice_get_orom_ver_info(struct ice_hw *hw)
+{
+	u16 combo_hi, combo_lo, boot_cfg_tlv, boot_cfg_tlv_len;
+	struct ice_orom_info *orom = &hw->nvm.orom;
+	enum ice_status status;
+	u32 combo_ver;
+
+	status = ice_get_pfa_module_tlv(hw, &boot_cfg_tlv, &boot_cfg_tlv_len,
+					ICE_SR_BOOT_CFG_PTR);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Failed to read Boot Configuration Block TLV.\n");
+		return status;
+	}
+
+	/* Boot Configuration Block must have length at least 2 words
+	 * (Combo Image Version High and Combo Image Version Low)
+	 */
+	if (boot_cfg_tlv_len < 2) {
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Invalid Boot Configuration Block TLV size.\n");
+		return ICE_ERR_INVAL_SIZE;
+	}
+
+	status = ice_read_sr_word(hw, (boot_cfg_tlv + ICE_NVM_OROM_VER_OFF),
+				  &combo_hi);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read OROM_VER hi.\n");
+		return status;
+	}
+
+	status = ice_read_sr_word(hw, (boot_cfg_tlv + ICE_NVM_OROM_VER_OFF + 1),
+				  &combo_lo);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read OROM_VER lo.\n");
+		return status;
+	}
+
+	combo_ver = ((u32)combo_hi << 16) | combo_lo;
+
+	orom->major = (u8)((combo_ver & ICE_OROM_VER_MASK) >>
+			   ICE_OROM_VER_SHIFT);
+	orom->patch = (u8)(combo_ver & ICE_OROM_VER_PATCH_MASK);
+	orom->build = (u16)((combo_ver & ICE_OROM_VER_BUILD_MASK) >>
+			    ICE_OROM_VER_BUILD_SHIFT);
+
+	return 0;
+}
+
+/**
  * ice_init_nvm - initializes NVM setting
  * @hw: pointer to the HW struct
  *
@@ -316,9 +372,8 @@ enum ice_status ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
  */
 enum ice_status ice_init_nvm(struct ice_hw *hw)
 {
-	u16 oem_hi, oem_lo, boot_cfg_tlv, boot_cfg_tlv_len;
 	struct ice_nvm_info *nvm = &hw->nvm;
-	u16 eetrack_lo, eetrack_hi;
+	u16 eetrack_lo, eetrack_hi, ver;
 	enum ice_status status;
 	u32 fla, gens_stat;
 	u8 sr_size;
@@ -344,12 +399,14 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 		return ICE_ERR_NVM_BLANK_MODE;
 	}
 
-	status = ice_read_sr_word(hw, ICE_SR_NVM_DEV_STARTER_VER, &nvm->ver);
+	status = ice_read_sr_word(hw, ICE_SR_NVM_DEV_STARTER_VER, &ver);
 	if (status) {
 		ice_debug(hw, ICE_DBG_INIT,
 			  "Failed to read DEV starter version.\n");
 		return status;
 	}
+	nvm->major_ver = (ver & ICE_NVM_VER_HI_MASK) >> ICE_NVM_VER_HI_SHIFT;
+	nvm->minor_ver = (ver & ICE_NVM_VER_LO_MASK) >> ICE_NVM_VER_LO_SHIFT;
 
 	status = ice_read_sr_word(hw, ICE_SR_NVM_EETRACK_LO, &eetrack_lo);
 	if (status) {
@@ -390,38 +447,11 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 		break;
 	}
 
-	status = ice_get_pfa_module_tlv(hw, &boot_cfg_tlv, &boot_cfg_tlv_len,
-					ICE_SR_BOOT_CFG_PTR);
+	status = ice_get_orom_ver_info(hw);
 	if (status) {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Failed to read Boot Configuration Block TLV.\n");
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read Option ROM info.\n");
 		return status;
 	}
-
-	/* Boot Configuration Block must have length at least 2 words
-	 * (Combo Image Version High and Combo Image Version Low)
-	 */
-	if (boot_cfg_tlv_len < 2) {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Invalid Boot Configuration Block TLV size.\n");
-		return ICE_ERR_INVAL_SIZE;
-	}
-
-	status = ice_read_sr_word(hw, (boot_cfg_tlv + ICE_NVM_OEM_VER_OFF),
-				  &oem_hi);
-	if (status) {
-		ice_debug(hw, ICE_DBG_INIT, "Failed to read OEM_VER hi.\n");
-		return status;
-	}
-
-	status = ice_read_sr_word(hw, (boot_cfg_tlv + ICE_NVM_OEM_VER_OFF + 1),
-				  &oem_lo);
-	if (status) {
-		ice_debug(hw, ICE_DBG_INIT, "Failed to read OEM_VER lo.\n");
-		return status;
-	}
-
-	nvm->oem_ver = ((u32)oem_hi << 16) | oem_lo;
 
 	return 0;
 }

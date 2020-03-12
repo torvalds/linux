@@ -615,29 +615,6 @@ static void ice_get_itr_intrl_gran(struct ice_hw *hw)
 }
 
 /**
- * ice_get_nvm_version - get cached NVM version data
- * @hw: pointer to the hardware structure
- * @oem_ver: 8 bit NVM version
- * @oem_build: 16 bit NVM build number
- * @oem_patch: 8 NVM patch number
- * @ver_hi: high 8 bits of the NVM version
- * @ver_lo: low 8 bits of the NVM version
- */
-void
-ice_get_nvm_version(struct ice_hw *hw, u8 *oem_ver, u16 *oem_build,
-		    u8 *oem_patch, u8 *ver_hi, u8 *ver_lo)
-{
-	struct ice_nvm_info *nvm = &hw->nvm;
-
-	*oem_ver = (u8)((nvm->oem_ver & ICE_OEM_VER_MASK) >> ICE_OEM_VER_SHIFT);
-	*oem_patch = (u8)(nvm->oem_ver & ICE_OEM_VER_PATCH_MASK);
-	*oem_build = (u16)((nvm->oem_ver & ICE_OEM_VER_BUILD_MASK) >>
-			   ICE_OEM_VER_BUILD_SHIFT);
-	*ver_hi = (nvm->ver & ICE_NVM_VER_HI_MASK) >> ICE_NVM_VER_HI_SHIFT;
-	*ver_lo = (nvm->ver & ICE_NVM_VER_LO_MASK) >> ICE_NVM_VER_LO_SHIFT;
-}
-
-/**
  * ice_init_hw - main hardware initialization routine
  * @hw: pointer to the hardware structure
  */
