@@ -69,6 +69,8 @@ struct q6asm_dai_rtd {
 };
 
 struct q6asm_dai_data {
+	struct snd_soc_dai_driver *dais;
+	int num_dais;
 	long long int sid;
 };
 
@@ -889,7 +891,7 @@ static const struct snd_soc_component_driver q6asm_fe_dai_component = {
 	.compr_ops	= &q6asm_dai_compr_ops,
 };
 
-static struct snd_soc_dai_driver q6asm_fe_dais[] = {
+static struct snd_soc_dai_driver q6asm_fe_dais_template[] = {
 	Q6ASM_FEDAI_DRIVER(1),
 	Q6ASM_FEDAI_DRIVER(2),
 	Q6ASM_FEDAI_DRIVER(3),
@@ -903,10 +905,22 @@ static struct snd_soc_dai_driver q6asm_fe_dais[] = {
 static int of_q6asm_parse_dai_data(struct device *dev,
 				    struct q6asm_dai_data *pdata)
 {
-	static struct snd_soc_dai_driver *dai_drv;
+	struct snd_soc_dai_driver *dai_drv;
 	struct snd_soc_pcm_stream empty_stream;
 	struct device_node *node;
-	int ret, id, dir;
+	int ret, id, dir, idx = 0;
+
+
+	pdata->num_dais = of_get_child_count(dev->of_node);
+	if (!pdata->num_dais) {
+		dev_err(dev, "No dais found in DT\n");
+		return -EINVAL;
+	}
+
+	pdata->dais = devm_kcalloc(dev, pdata->num_dais, sizeof(*dai_drv),
+				   GFP_KERNEL);
+	if (!pdata->dais)
+		return -ENOMEM;
 
 	memset(&empty_stream, 0, sizeof(empty_stream));
 
@@ -917,7 +931,8 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 			continue;
 		}
 
-		dai_drv = &q6asm_fe_dais[id];
+		dai_drv = &pdata->dais[idx++];
+		*dai_drv = q6asm_fe_dais_template[id];
 
 		ret = of_property_read_u32(node, "direction", &dir);
 		if (ret)
@@ -955,11 +970,12 @@ static int q6asm_dai_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, pdata);
 
-	of_q6asm_parse_dai_data(dev, pdata);
+	rc = of_q6asm_parse_dai_data(dev, pdata);
+	if (rc)
+		return rc;
 
 	return devm_snd_soc_register_component(dev, &q6asm_fe_dai_component,
-					q6asm_fe_dais,
-					ARRAY_SIZE(q6asm_fe_dais));
+					       pdata->dais, pdata->num_dais);
 }
 
 static const struct of_device_id q6asm_dai_device_id[] = {
