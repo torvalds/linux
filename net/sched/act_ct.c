@@ -292,6 +292,7 @@ static int tcf_ct_flow_table_get(struct tcf_ct_params *params)
 		goto err_insert;
 
 	ct_ft->nf_ft.type = &flowtable_ct;
+	ct_ft->nf_ft.flags |= NF_FLOWTABLE_HW_OFFLOAD;
 	err = nf_flow_table_init(&ct_ft->nf_ft);
 	if (err)
 		goto err_init;
@@ -299,6 +300,7 @@ static int tcf_ct_flow_table_get(struct tcf_ct_params *params)
 	__module_get(THIS_MODULE);
 out_unlock:
 	params->ct_ft = ct_ft;
+	params->nf_ft = &ct_ft->nf_ft;
 	mutex_unlock(&zones_mutex);
 
 	return 0;
