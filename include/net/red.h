@@ -209,6 +209,11 @@ static inline int red_get_flags(unsigned char qopt_flags,
 static inline int red_validate_flags(unsigned char flags,
 				     struct netlink_ext_ack *extack)
 {
+	if ((flags & TC_RED_NODROP) && !(flags & TC_RED_ECN)) {
+		NL_SET_ERR_MSG_MOD(extack, "nodrop mode is only meaningful with ECN");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

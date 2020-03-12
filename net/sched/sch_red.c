@@ -48,7 +48,7 @@ struct red_sched_data {
 	struct Qdisc		*qdisc;
 };
 
-static const u32 red_supported_flags = TC_RED_HISTORIC_FLAGS;
+static const u32 red_supported_flags = TC_RED_HISTORIC_FLAGS | TC_RED_NODROP;
 
 static inline int red_use_ecn(struct red_sched_data *q)
 {
@@ -58,6 +58,11 @@ static inline int red_use_ecn(struct red_sched_data *q)
 static inline int red_use_harddrop(struct red_sched_data *q)
 {
 	return q->flags & TC_RED_HARDDROP;
+}
+
+static int red_use_nodrop(struct red_sched_data *q)
+{
+	return q->flags & TC_RED_NODROP;
 }
 
 static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch,
@@ -80,23 +85,36 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 	case RED_PROB_MARK:
 		qdisc_qstats_overlimit(sch);
-		if (!red_use_ecn(q) || !INET_ECN_set_ce(skb)) {
+		if (!red_use_ecn(q)) {
 			q->stats.prob_drop++;
 			goto congestion_drop;
 		}
 
-		q->stats.prob_mark++;
+		if (INET_ECN_set_ce(skb)) {
+			q->stats.prob_mark++;
+		} else if (!red_use_nodrop(q)) {
+			q->stats.prob_drop++;
+			goto congestion_drop;
+		}
+
+		/* Non-ECT packet in ECN nodrop mode: queue it. */
 		break;
 
 	case RED_HARD_MARK:
 		qdisc_qstats_overlimit(sch);
-		if (red_use_harddrop(q) || !red_use_ecn(q) ||
-		    !INET_ECN_set_ce(skb)) {
+		if (red_use_harddrop(q) || !red_use_ecn(q)) {
 			q->stats.forced_drop++;
 			goto congestion_drop;
 		}
 
-		q->stats.forced_mark++;
+		if (INET_ECN_set_ce(skb)) {
+			q->stats.forced_mark++;
+		} else if (!red_use_nodrop(q)) {
+			q->stats.forced_drop++;
+			goto congestion_drop;
+		}
+
+		/* Non-ECT packet in ECN nodrop mode: queue it. */
 		break;
 	}
 
@@ -171,6 +189,7 @@ static int red_offload(struct Qdisc *sch, bool enable)
 		opt.set.limit = q->limit;
 		opt.set.is_ecn = red_use_ecn(q);
 		opt.set.is_harddrop = red_use_harddrop(q);
+		opt.set.is_nodrop = red_use_nodrop(q);
 		opt.set.qstats = &sch->qstats;
 	} else {
 		opt.command = TC_RED_DESTROY;
