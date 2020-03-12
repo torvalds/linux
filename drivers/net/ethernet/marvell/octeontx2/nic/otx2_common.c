@@ -227,14 +227,17 @@ int otx2_config_pause_frm(struct otx2_nic *pfvf)
 
 	otx2_mbox_lock(&pfvf->mbox);
 	req = otx2_mbox_alloc_msg_cgx_cfg_pause_frm(&pfvf->mbox);
-	if (!req)
-		return -ENOMEM;
+	if (!req) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	req->rx_pause = !!(pfvf->flags & OTX2_FLAG_RX_PAUSE_ENABLED);
 	req->tx_pause = !!(pfvf->flags & OTX2_FLAG_TX_PAUSE_ENABLED);
 	req->set = 1;
 
 	err = otx2_sync_mbox_msg(&pfvf->mbox);
+unlock:
 	otx2_mbox_unlock(&pfvf->mbox);
 	return err;
 }
