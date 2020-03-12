@@ -763,6 +763,35 @@ static int kvm_pmu_probe_pmuver(void)
 	return pmuver;
 }
 
+u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
+{
+	unsigned long *bmap = vcpu->kvm->arch.pmu_filter;
+	u64 val, mask = 0;
+	int base, i;
+
+	if (!pmceid1) {
+		val = read_sysreg(pmceid0_el0);
+		base = 0;
+	} else {
+		val = read_sysreg(pmceid1_el0);
+		base = 32;
+	}
+
+	if (!bmap)
+		return val;
+
+	for (i = 0; i < 32; i += 8) {
+		u64 byte;
+
+		byte = bitmap_get_value8(bmap, base + i);
+		mask |= byte << i;
+		byte = bitmap_get_value8(bmap, 0x4000 + base + i);
+		mask |= byte << (32 + i);
+	}
+
+	return val & mask;
+}
+
 bool kvm_arm_support_pmu_v3(void)
 {
 	/*
