@@ -799,6 +799,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			hclge_get_link_mode(vport, req);
 			break;
 		case HCLGE_MBX_GET_VF_FLR_STATUS:
+		case HCLGE_MBX_VF_UNINIT:
 			hclge_rm_vport_all_mac_table(vport, true,
 						     HCLGE_MAC_ADDR_UC);
 			hclge_rm_vport_all_mac_table(vport, true,
