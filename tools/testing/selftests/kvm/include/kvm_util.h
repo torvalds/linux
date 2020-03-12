@@ -164,7 +164,13 @@ unsigned int vm_num_guest_pages(enum vm_guest_mode mode, unsigned int num_host_p
 static inline unsigned int
 vm_adjust_num_guest_pages(enum vm_guest_mode mode, unsigned int num_guest_pages)
 {
-	return vm_num_guest_pages(mode, vm_num_host_pages(mode, num_guest_pages));
+	unsigned int n;
+	n = vm_num_guest_pages(mode, vm_num_host_pages(mode, num_guest_pages));
+#ifdef __s390x__
+	/* s390 requires 1M aligned guest sizes */
+	n = (n + 255) & ~255;
+#endif
+	return n;
 }
 
 struct kvm_userspace_memory_region *

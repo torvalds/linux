@@ -378,10 +378,6 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	guest_num_pages = (vcpus * vcpu_memory_bytes) / guest_page_size;
 	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
 
-#ifdef __s390x__
-	/* Round up to multiple of 1M (segment size) */
-	guest_num_pages = (guest_num_pages + 0xff) & ~0xffUL;
-#endif
 	/*
 	 * If there should be more memory in the guest test region than there
 	 * can be pages in the guest, it will definitely cause problems.

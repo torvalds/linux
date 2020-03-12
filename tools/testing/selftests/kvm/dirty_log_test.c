@@ -296,10 +296,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	guest_num_pages = (1ul << (DIRTY_MEM_BITS -
 				   vm_get_page_shift(vm))) + 3;
 	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
-#ifdef __s390x__
-	/* Round up to multiple of 1M (segment size) */
-	guest_num_pages = (guest_num_pages + 0xff) & ~0xffUL;
-#endif
+
 	host_page_size = getpagesize();
 	host_num_pages = vm_num_host_pages(mode, guest_num_pages);
 
