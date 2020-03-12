@@ -303,7 +303,7 @@ int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
 	if (!attrs)
 		return -ENOMEM;
 
-	return simple_xattr_set(&attrs->xattrs, name, value, size, flags);
+	return simple_xattr_set(&attrs->xattrs, name, value, size, flags, NULL);
 }
 
 static int kernfs_vfs_xattr_get(const struct xattr_handler *handler,
