@@ -35,7 +35,11 @@
 
 struct red_sched_data {
 	u32			limit;		/* HARD maximal queue length */
+
 	unsigned char		flags;
+	/* Non-flags in tc_red_qopt.flags. */
+	unsigned char		userbits;
+
 	struct timer_list	adapt_timer;
 	struct Qdisc		*sch;
 	struct red_parms	parms;
@@ -43,6 +47,8 @@ struct red_sched_data {
 	struct red_stats	stats;
 	struct Qdisc		*qdisc;
 };
+
+static const u32 red_supported_flags = TC_RED_HISTORIC_FLAGS;
 
 static inline int red_use_ecn(struct red_sched_data *q)
 {
@@ -183,9 +189,12 @@ static void red_destroy(struct Qdisc *sch)
 }
 
 static const struct nla_policy red_policy[TCA_RED_MAX + 1] = {
+	[TCA_RED_UNSPEC] = { .strict_start_type = TCA_RED_FLAGS },
 	[TCA_RED_PARMS]	= { .len = sizeof(struct tc_red_qopt) },
 	[TCA_RED_STAB]	= { .len = RED_STAB_SIZE },
 	[TCA_RED_MAX_P] = { .type = NLA_U32 },
+	[TCA_RED_FLAGS] = { .type = NLA_BITFIELD32,
+			    .validation_data = &red_supported_flags },
 };
 
 static int red_change(struct Qdisc *sch, struct nlattr *opt,
@@ -194,7 +203,10 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 	struct Qdisc *old_child = NULL, *child = NULL;
 	struct red_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_RED_MAX + 1];
+	struct nla_bitfield32 flags_bf;
 	struct tc_red_qopt *ctl;
+	unsigned char userbits;
+	unsigned char flags;
 	int err;
 	u32 max_P;
 
@@ -216,6 +228,12 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 	if (!red_check_params(ctl->qth_min, ctl->qth_max, ctl->Wlog))
 		return -EINVAL;
 
+	err = red_get_flags(ctl->flags, TC_RED_HISTORIC_FLAGS,
+			    tb[TCA_RED_FLAGS], red_supported_flags,
+			    &flags_bf, &userbits, extack);
+	if (err)
+		return err;
+
 	if (ctl->limit > 0) {
 		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, ctl->limit,
 					 extack);
@@ -227,7 +245,14 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	sch_tree_lock(sch);
-	q->flags = ctl->flags;
+
+	flags = (q->flags & ~flags_bf.selector) | flags_bf.value;
+	err = red_validate_flags(flags, extack);
+	if (err)
+		goto unlock_out;
+
+	q->flags = flags;
+	q->userbits = userbits;
 	q->limit = ctl->limit;
 	if (child) {
 		qdisc_tree_flush_backlog(q->qdisc);
@@ -256,6 +281,12 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 	if (old_child)
 		qdisc_put(old_child);
 	return 0;
+
+unlock_out:
+	sch_tree_unlock(sch);
+	if (child)
+		qdisc_put(child);
+	return err;
 }
 
 static inline void red_adaptative_timer(struct timer_list *t)
@@ -299,10 +330,15 @@ static int red_dump_offload_stats(struct Qdisc *sch)
 static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
+	struct nla_bitfield32 flags_bf = {
+		.selector = red_supported_flags,
+		.value = q->flags,
+	};
 	struct nlattr *opts = NULL;
 	struct tc_red_qopt opt = {
 		.limit		= q->limit,
-		.flags		= q->flags,
+		.flags		= (q->flags & TC_RED_HISTORIC_FLAGS) |
+				  q->userbits,
 		.qth_min	= q->parms.qth_min >> q->parms.Wlog,
 		.qth_max	= q->parms.qth_max >> q->parms.Wlog,
 		.Wlog		= q->parms.Wlog,
@@ -319,7 +355,8 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_RED_PARMS, sizeof(opt), &opt) ||
-	    nla_put_u32(skb, TCA_RED_MAX_P, q->parms.max_P))
+	    nla_put_u32(skb, TCA_RED_MAX_P, q->parms.max_P) ||
+	    nla_put(skb, TCA_RED_FLAGS, sizeof(flags_bf), &flags_bf))
 		goto nla_put_failure;
 	return nla_nest_end(skb, opts);
 
