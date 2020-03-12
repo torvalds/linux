@@ -541,6 +541,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 		/* OK, This is the point of no return */
 		set_personality(PER_LINUX_32BIT);
 		setup_new_exec(bprm);
+		install_exec_creds(bprm);
 	}
 
 	/*
@@ -962,8 +963,6 @@ static int load_flat_binary(struct linux_binprm *bprm)
 				return -EFAULT;
 		}
 	}
-
-	install_exec_creds(bprm);
 
 	set_binfmt(&flat_format);
 
