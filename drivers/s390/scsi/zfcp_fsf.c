@@ -532,8 +532,10 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 		adapter->peer_wwpn = be64_to_cpu(plogi->fl_wwpn);
 		adapter->peer_wwnn = be64_to_cpu(plogi->fl_wwnn);
 		fc_host_port_type(shost) = FC_PORTTYPE_PTP;
+		fc_host_fabric_name(shost) = 0;
 		break;
 	case FSF_TOPO_FABRIC:
+		fc_host_fabric_name(shost) = be64_to_cpu(plogi->fl_wwnn);
 		if (bottom->connection_features & FSF_FEATURE_NPIV_MODE)
 			fc_host_port_type(shost) = FC_PORTTYPE_NPIV;
 		else
@@ -541,8 +543,10 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 		break;
 	case FSF_TOPO_AL:
 		fc_host_port_type(shost) = FC_PORTTYPE_NLPORT;
+		fc_host_fabric_name(shost) = 0;
 		/* fall through */
 	default:
+		fc_host_fabric_name(shost) = 0;
 		dev_err(&adapter->ccw_device->dev,
 			"Unknown or unsupported arbitrated loop "
 			"fibre channel topology detected\n");
@@ -601,6 +605,7 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 		fc_host_node_name(shost) = 0;
 		fc_host_port_name(shost) = 0;
 		fc_host_port_id(shost) = 0;
+		fc_host_fabric_name(shost) = 0;
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 		fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
 		adapter->hydra_version = 0;
