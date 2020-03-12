@@ -215,7 +215,7 @@ struct symbol *find_symbol_by_name(struct elf *elf, const char *name)
 struct rela *find_rela_by_dest_range(struct elf *elf, struct section *sec,
 				     unsigned long offset, unsigned int len)
 {
-	struct rela *rela;
+	struct rela *rela, *r = NULL;
 	unsigned long o;
 
 	if (!sec->rela)
@@ -223,12 +223,19 @@ struct rela *find_rela_by_dest_range(struct elf *elf, struct section *sec,
 
 	sec = sec->rela;
 
-	for (o = offset; o < offset + len; o++) {
+	for_offset_range(o, offset, offset + len) {
 		hash_for_each_possible(elf->rela_hash, rela, hash,
 				       sec_offset_hash(sec, o)) {
-			if (rela->sec == sec && rela->offset == o)
-				return rela;
+			if (rela->sec != sec)
+				continue;
+
+			if (rela->offset >= offset && rela->offset < offset + len) {
+				if (!r || rela->offset < r->offset)
+					r = rela;
+			}
 		}
+		if (r)
+			return r;
 	}
 
 	return NULL;

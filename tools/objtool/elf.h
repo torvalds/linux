@@ -83,9 +83,23 @@ struct elf {
 	DECLARE_HASHTABLE(rela_hash, 20);
 };
 
+#define OFFSET_STRIDE_BITS	4
+#define OFFSET_STRIDE		(1UL << OFFSET_STRIDE_BITS)
+#define OFFSET_STRIDE_MASK	(~(OFFSET_STRIDE - 1))
+
+#define for_offset_range(_offset, _start, _end)		\
+	for (_offset = ((_start) & OFFSET_STRIDE_MASK);	\
+	     _offset <= ((_end) & OFFSET_STRIDE_MASK);	\
+	     _offset += OFFSET_STRIDE)
+
 static inline u32 sec_offset_hash(struct section *sec, unsigned long offset)
 {
-	u32 ol = offset, oh = offset >> 32, idx = sec->idx;
+	u32 ol, oh, idx = sec->idx;
+
+	offset &= OFFSET_STRIDE_MASK;
+
+	ol = offset;
+	oh = offset >> 32;
 
 	__jhash_mix(ol, oh, idx);
 
