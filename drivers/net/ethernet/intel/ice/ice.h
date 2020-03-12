@@ -34,6 +34,7 @@
 #include <linux/ctype.h>
 #include <linux/bpf.h>
 #include <linux/avf/virtchnl.h>
+#include <net/devlink.h>
 #include <net/ipv6.h>
 #include <net/xdp_sock.h>
 #include "ice_devids.h"
@@ -346,6 +347,9 @@ enum ice_pf_flags {
 
 struct ice_pf {
 	struct pci_dev *pdev;
+
+	/* devlink port data */
+	struct devlink_port devlink_port;
 
 	/* OS reserved IRQ details */
 	struct msix_entry *msix_entries;
