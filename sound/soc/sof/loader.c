@@ -95,9 +95,6 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 
 		/* process structure data */
 		switch (ext_hdr->type) {
-		case SOF_IPC_EXT_DMA_BUFFER:
-			ret = 0;
-			break;
 		case SOF_IPC_EXT_WINDOW:
 			ret = get_ext_windows(sdev, ext_hdr);
 			break;
