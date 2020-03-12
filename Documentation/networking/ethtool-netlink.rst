@@ -191,6 +191,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_WOL_SET``               set wake-on-lan settings
   ``ETHTOOL_MSG_FEATURES_GET``          get device features
   ``ETHTOOL_MSG_FEATURES_SET``          set device features
+  ``ETHTOOL_MSG_PRIVFLAGS_GET``         get private flags
   ===================================== ================================
 
 Kernel to userspace:
@@ -209,6 +210,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_FEATURES_GET_REPLY``    device features
   ``ETHTOOL_MSG_FEATURES_SET_REPLY``    optional reply to FEATURES_SET
   ``ETHTOOL_MSG_FEATURES_NTF``          netdev features notification
+  ``ETHTOOL_MSG_PRIVFLAGS_GET_REPLY``   private flags
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -598,6 +600,32 @@ request but also each time features are modified with netdev_update_features()
 or netdev_change_features().
 
 
+PRIVFLAGS_GET
+=============
+
+Gets private flags like ``ETHTOOL_GPFLAGS`` ioctl request.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_PRIVFLAGS_HEADER``        nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_PRIVFLAGS_HEADER``        nested  reply header
+  ``ETHTOOL_A_PRIVFLAGS_FLAGS``         bitset  private flags
+  ====================================  ======  ==========================
+
+``ETHTOOL_A_PRIVFLAGS_FLAGS`` is a bitset with values of device private flags.
+These flags are defined by driver, their number and names (and also meaning)
+are device dependent. For compact bitset format, names can be retrieved as
+``ETH_SS_PRIV_FLAGS`` string set. If verbose bitset format is requested,
+response uses all private flags supported by the device as mask so that client
+gets the full information without having to fetch the string set with names.
+
+
 Request translation
 ===================
 
@@ -647,7 +675,7 @@ have their netlink replacement yet.
   ``ETHTOOL_SGSO``                    ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GFLAGS``                  ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SFLAGS``                  ``ETHTOOL_MSG_FEATURES_SET``
-  ``ETHTOOL_GPFLAGS``                 n/a
+  ``ETHTOOL_GPFLAGS``                 ``ETHTOOL_MSG_PRIVFLAGS_GET``
   ``ETHTOOL_SPFLAGS``                 n/a
   ``ETHTOOL_GRXFH``                   n/a
   ``ETHTOOL_SRXFH``                   n/a
