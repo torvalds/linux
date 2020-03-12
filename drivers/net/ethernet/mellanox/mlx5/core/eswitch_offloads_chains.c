@@ -900,6 +900,19 @@ mlx5_esw_chains_destroy(struct mlx5_eswitch *esw)
 	mlx5_esw_chains_cleanup(esw);
 }
 
+int
+mlx5_esw_chains_get_chain_mapping(struct mlx5_eswitch *esw, u32 chain,
+				  u32 *chain_mapping)
+{
+	return mapping_add(esw_chains_mapping(esw), &chain, chain_mapping);
+}
+
+int
+mlx5_esw_chains_put_chain_mapping(struct mlx5_eswitch *esw, u32 chain_mapping)
+{
+	return mapping_remove(esw_chains_mapping(esw), chain_mapping);
+}
+
 int mlx5_eswitch_get_chain_for_tag(struct mlx5_eswitch *esw, u32 tag,
 				   u32 *chain)
 {

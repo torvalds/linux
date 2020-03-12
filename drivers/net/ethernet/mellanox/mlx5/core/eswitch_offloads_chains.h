@@ -31,6 +31,13 @@ void
 mlx5_esw_chains_destroy_global_table(struct mlx5_eswitch *esw,
 				     struct mlx5_flow_table *ft);
 
+int
+mlx5_esw_chains_get_chain_mapping(struct mlx5_eswitch *esw, u32 chain,
+				  u32 *chain_mapping);
+int
+mlx5_esw_chains_put_chain_mapping(struct mlx5_eswitch *esw,
+				  u32 chain_mapping);
+
 int mlx5_esw_chains_create(struct mlx5_eswitch *esw);
 void mlx5_esw_chains_destroy(struct mlx5_eswitch *esw);
 
