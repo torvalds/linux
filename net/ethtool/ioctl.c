@@ -56,8 +56,6 @@ EXPORT_SYMBOL(ethtool_op_get_ts_info);
 
 /* Handlers for each ethtool command */
 
-#define ETHTOOL_DEV_FEATURE_WORDS	((NETDEV_FEATURE_COUNT + 31) / 32)
-
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_gfeatures cmd = {
@@ -198,13 +196,14 @@ static netdev_features_t ethtool_get_feature_mask(u32 eth_cmd)
 	switch (eth_cmd) {
 	case ETHTOOL_GTXCSUM:
 	case ETHTOOL_STXCSUM:
-		return NETIF_F_CSUM_MASK | NETIF_F_SCTP_CRC;
+		return NETIF_F_CSUM_MASK | NETIF_F_FCOE_CRC_BIT |
+		       NETIF_F_SCTP_CRC;
 	case ETHTOOL_GRXCSUM:
 	case ETHTOOL_SRXCSUM:
 		return NETIF_F_RXCSUM;
 	case ETHTOOL_GSG:
 	case ETHTOOL_SSG:
-		return NETIF_F_SG;
+		return NETIF_F_SG | NETIF_F_FRAGLIST;
 	case ETHTOOL_GTSO:
 	case ETHTOOL_STSO:
 		return NETIF_F_ALL_TSO;
@@ -930,37 +929,6 @@ void netdev_rss_key_fill(void *buffer, size_t len)
 }
 EXPORT_SYMBOL(netdev_rss_key_fill);
 
-static int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max)
-{
-	u32 dev_size, current_max = 0;
-	u32 *indir;
-	int ret;
-
-	if (!dev->ethtool_ops->get_rxfh_indir_size ||
-	    !dev->ethtool_ops->get_rxfh)
-		return -EOPNOTSUPP;
-	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
-	if (dev_size == 0)
-		return -EOPNOTSUPP;
-
-	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
-	if (!indir)
-		return -ENOMEM;
-
-	ret = dev->ethtool_ops->get_rxfh(dev, indir, NULL, NULL);
-	if (ret)
-		goto out;
-
-	while (dev_size--)
-		current_max = max(current_max, indir[dev_size]);
-
-	*max = current_max;
-
-out:
-	kfree(indir);
-	return ret;
-}
-
 static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
@@ -1636,6 +1604,7 @@ static int ethtool_get_ringparam(struct net_device *dev, void __user *useraddr)
 static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_ringparam ringparam, max = { .cmd = ETHTOOL_GRINGPARAM };
+	int ret;
 
 	if (!dev->ethtool_ops->set_ringparam || !dev->ethtool_ops->get_ringparam)
 		return -EOPNOTSUPP;
@@ -1652,7 +1621,10 @@ static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 	    ringparam.tx_pending > max.tx_max_pending)
 		return -EINVAL;
 
-	return dev->ethtool_ops->set_ringparam(dev, &ringparam);
+	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam);
+	if (!ret)
+		ethtool_notify(dev, ETHTOOL_MSG_RINGS_NTF, NULL);
+	return ret;
 }
 
 static noinline_for_stack int ethtool_get_channels(struct net_device *dev,
@@ -1677,6 +1649,7 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 	u16 from_channel, to_channel;
 	u32 max_rx_in_use = 0;
 	unsigned int i;
+	int ret;
 
 	if (!dev->ethtool_ops->set_channels || !dev->ethtool_ops->get_channels)
 		return -EOPNOTSUPP;
@@ -1708,7 +1681,10 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 		if (xdp_get_umem_from_qid(dev, i))
 			return -EINVAL;
 
-	return dev->ethtool_ops->set_channels(dev, &channels);
+	ret = dev->ethtool_ops->set_channels(dev, &channels);
+	if (!ret)
+		ethtool_notify(dev, ETHTOOL_MSG_CHANNELS_NTF, NULL);
+	return ret;
 }
 
 static int ethtool_get_pauseparam(struct net_device *dev, void __user *useraddr)
@@ -2717,6 +2693,8 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GPFLAGS:
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
 				       dev->ethtool_ops->get_priv_flags);
+		if (!rc)
+			ethtool_notify(dev, ETHTOOL_MSG_PRIVFLAGS_NTF, NULL);
 		break;
 	case ETHTOOL_SPFLAGS:
 		rc = ethtool_set_value(dev, useraddr,

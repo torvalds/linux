@@ -6,6 +6,8 @@
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 
+#define ETHTOOL_DEV_FEATURE_WORDS	DIV_ROUND_UP(NETDEV_FEATURE_COUNT, 32)
+
 /* compose link mode index from speed, type and duplex */
 #define ETHTOOL_LINK_MODE(speed, type, duplex) \
 	ETHTOOL_LINK_MODE_ ## speed ## base ## type ## _ ## duplex ## _BIT
@@ -27,5 +29,6 @@ int __ethtool_get_link(struct net_device *dev);
 bool convert_legacy_settings_to_link_ksettings(
 	struct ethtool_link_ksettings *link_ksettings,
 	const struct ethtool_cmd *legacy_settings);
+int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max);
 
 #endif /* _ETHTOOL_COMMON_H */
