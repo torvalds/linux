@@ -1021,7 +1021,7 @@ EXPORT_SYMBOL(ap_parse_mask_str);
 
 static ssize_t ap_domain_show(struct bus_type *bus, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ap_domain_index);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ap_domain_index);
 }
 
 static ssize_t ap_domain_store(struct bus_type *bus,
@@ -1047,14 +1047,14 @@ static BUS_ATTR_RW(ap_domain);
 static ssize_t ap_control_domain_mask_show(struct bus_type *bus, char *buf)
 {
 	if (!ap_configuration)	/* QCI not supported */
-		return snprintf(buf, PAGE_SIZE, "not supported\n");
+		return scnprintf(buf, PAGE_SIZE, "not supported\n");
 
-	return snprintf(buf, PAGE_SIZE,
-			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
-			ap_configuration->adm[0], ap_configuration->adm[1],
-			ap_configuration->adm[2], ap_configuration->adm[3],
-			ap_configuration->adm[4], ap_configuration->adm[5],
-			ap_configuration->adm[6], ap_configuration->adm[7]);
+	return scnprintf(buf, PAGE_SIZE,
+			 "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+			 ap_configuration->adm[0], ap_configuration->adm[1],
+			 ap_configuration->adm[2], ap_configuration->adm[3],
+			 ap_configuration->adm[4], ap_configuration->adm[5],
+			 ap_configuration->adm[6], ap_configuration->adm[7]);
 }
 
 static BUS_ATTR_RO(ap_control_domain_mask);
@@ -1062,14 +1062,14 @@ static BUS_ATTR_RO(ap_control_domain_mask);
 static ssize_t ap_usage_domain_mask_show(struct bus_type *bus, char *buf)
 {
 	if (!ap_configuration)	/* QCI not supported */
-		return snprintf(buf, PAGE_SIZE, "not supported\n");
+		return scnprintf(buf, PAGE_SIZE, "not supported\n");
 
-	return snprintf(buf, PAGE_SIZE,
-			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
-			ap_configuration->aqm[0], ap_configuration->aqm[1],
-			ap_configuration->aqm[2], ap_configuration->aqm[3],
-			ap_configuration->aqm[4], ap_configuration->aqm[5],
-			ap_configuration->aqm[6], ap_configuration->aqm[7]);
+	return scnprintf(buf, PAGE_SIZE,
+			 "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+			 ap_configuration->aqm[0], ap_configuration->aqm[1],
+			 ap_configuration->aqm[2], ap_configuration->aqm[3],
+			 ap_configuration->aqm[4], ap_configuration->aqm[5],
+			 ap_configuration->aqm[6], ap_configuration->aqm[7]);
 }
 
 static BUS_ATTR_RO(ap_usage_domain_mask);
@@ -1077,29 +1077,29 @@ static BUS_ATTR_RO(ap_usage_domain_mask);
 static ssize_t ap_adapter_mask_show(struct bus_type *bus, char *buf)
 {
 	if (!ap_configuration)	/* QCI not supported */
-		return snprintf(buf, PAGE_SIZE, "not supported\n");
+		return scnprintf(buf, PAGE_SIZE, "not supported\n");
 
-	return snprintf(buf, PAGE_SIZE,
-			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
-			ap_configuration->apm[0], ap_configuration->apm[1],
-			ap_configuration->apm[2], ap_configuration->apm[3],
-			ap_configuration->apm[4], ap_configuration->apm[5],
-			ap_configuration->apm[6], ap_configuration->apm[7]);
+	return scnprintf(buf, PAGE_SIZE,
+			 "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+			 ap_configuration->apm[0], ap_configuration->apm[1],
+			 ap_configuration->apm[2], ap_configuration->apm[3],
+			 ap_configuration->apm[4], ap_configuration->apm[5],
+			 ap_configuration->apm[6], ap_configuration->apm[7]);
 }
 
 static BUS_ATTR_RO(ap_adapter_mask);
 
 static ssize_t ap_interrupts_show(struct bus_type *bus, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			ap_using_interrupts() ? 1 : 0);
+	return scnprintf(buf, PAGE_SIZE, "%d\n",
+			 ap_using_interrupts() ? 1 : 0);
 }
 
 static BUS_ATTR_RO(ap_interrupts);
 
 static ssize_t config_time_show(struct bus_type *bus, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ap_config_time);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ap_config_time);
 }
 
 static ssize_t config_time_store(struct bus_type *bus,
@@ -1118,7 +1118,7 @@ static BUS_ATTR_RW(config_time);
 
 static ssize_t poll_thread_show(struct bus_type *bus, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ap_poll_kthread ? 1 : 0);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ap_poll_kthread ? 1 : 0);
 }
 
 static ssize_t poll_thread_store(struct bus_type *bus,
@@ -1141,7 +1141,7 @@ static BUS_ATTR_RW(poll_thread);
 
 static ssize_t poll_timeout_show(struct bus_type *bus, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%llu\n", poll_timeout);
+	return scnprintf(buf, PAGE_SIZE, "%llu\n", poll_timeout);
 }
 
 static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
@@ -1176,7 +1176,7 @@ static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
 		max_domain_id = ap_max_domain_id ? : -1;
 	else
 		max_domain_id = 15;
-	return snprintf(buf, PAGE_SIZE, "%d\n", max_domain_id);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", max_domain_id);
 }
 
 static BUS_ATTR_RO(ap_max_domain_id);
@@ -1187,10 +1187,10 @@ static ssize_t apmask_show(struct bus_type *bus, char *buf)
 
 	if (mutex_lock_interruptible(&ap_perms_mutex))
 		return -ERESTARTSYS;
-	rc = snprintf(buf, PAGE_SIZE,
-		      "0x%016lx%016lx%016lx%016lx\n",
-		      ap_perms.apm[0], ap_perms.apm[1],
-		      ap_perms.apm[2], ap_perms.apm[3]);
+	rc = scnprintf(buf, PAGE_SIZE,
+		       "0x%016lx%016lx%016lx%016lx\n",
+		       ap_perms.apm[0], ap_perms.apm[1],
+		       ap_perms.apm[2], ap_perms.apm[3]);
 	mutex_unlock(&ap_perms_mutex);
 
 	return rc;
@@ -1218,10 +1218,10 @@ static ssize_t aqmask_show(struct bus_type *bus, char *buf)
 
 	if (mutex_lock_interruptible(&ap_perms_mutex))
 		return -ERESTARTSYS;
-	rc = snprintf(buf, PAGE_SIZE,
-		      "0x%016lx%016lx%016lx%016lx\n",
-		      ap_perms.aqm[0], ap_perms.aqm[1],
-		      ap_perms.aqm[2], ap_perms.aqm[3]);
+	rc = scnprintf(buf, PAGE_SIZE,
+		       "0x%016lx%016lx%016lx%016lx\n",
+		       ap_perms.aqm[0], ap_perms.aqm[1],
+		       ap_perms.aqm[2], ap_perms.aqm[3]);
 	mutex_unlock(&ap_perms_mutex);
 
 	return rc;

@@ -87,7 +87,7 @@ static ssize_t cca_serialnr_show(struct device *dev,
 	if (ap_domain_index >= 0)
 		cca_get_info(ac->id, ap_domain_index, &ci, zc->online);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", ci.serial);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", ci.serial);
 }
 
 static struct device_attribute dev_attr_cca_serialnr =
@@ -122,10 +122,10 @@ static ssize_t cca_mkvps_show(struct device *dev,
 		     &ci, zq->online);
 
 	if (ci.new_mk_state >= '1' && ci.new_mk_state <= '3')
-		n = snprintf(buf, PAGE_SIZE, "AES NEW: %s 0x%016llx\n",
-			     new_state[ci.new_mk_state - '1'], ci.new_mkvp);
+		n = scnprintf(buf, PAGE_SIZE, "AES NEW: %s 0x%016llx\n",
+			      new_state[ci.new_mk_state - '1'], ci.new_mkvp);
 	else
-		n = snprintf(buf, PAGE_SIZE, "AES NEW: - -\n");
+		n = scnprintf(buf, PAGE_SIZE, "AES NEW: - -\n");
 
 	if (ci.cur_mk_state >= '1' && ci.cur_mk_state <= '2')
 		n += scnprintf(buf + n, PAGE_SIZE - n,
@@ -172,9 +172,9 @@ static ssize_t ep11_api_ordinalnr_show(struct device *dev,
 	ep11_get_card_info(ac->id, &ci, zc->online);
 
 	if (ci.API_ord_nr > 0)
-		return snprintf(buf, PAGE_SIZE, "%u\n", ci.API_ord_nr);
+		return scnprintf(buf, PAGE_SIZE, "%u\n", ci.API_ord_nr);
 	else
-		return snprintf(buf, PAGE_SIZE, "\n");
+		return scnprintf(buf, PAGE_SIZE, "\n");
 }
 
 static struct device_attribute dev_attr_ep11_api_ordinalnr =
@@ -193,11 +193,11 @@ static ssize_t ep11_fw_version_show(struct device *dev,
 	ep11_get_card_info(ac->id, &ci, zc->online);
 
 	if (ci.FW_version > 0)
-		return snprintf(buf, PAGE_SIZE, "%d.%d\n",
-				(int)(ci.FW_version >> 8),
-				(int)(ci.FW_version & 0xFF));
+		return scnprintf(buf, PAGE_SIZE, "%d.%d\n",
+				 (int)(ci.FW_version >> 8),
+				 (int)(ci.FW_version & 0xFF));
 	else
-		return snprintf(buf, PAGE_SIZE, "\n");
+		return scnprintf(buf, PAGE_SIZE, "\n");
 }
 
 static struct device_attribute dev_attr_ep11_fw_version =
@@ -216,9 +216,9 @@ static ssize_t ep11_serialnr_show(struct device *dev,
 	ep11_get_card_info(ac->id, &ci, zc->online);
 
 	if (ci.serial[0])
-		return snprintf(buf, PAGE_SIZE, "%16.16s\n", ci.serial);
+		return scnprintf(buf, PAGE_SIZE, "%16.16s\n", ci.serial);
 	else
-		return snprintf(buf, PAGE_SIZE, "\n");
+		return scnprintf(buf, PAGE_SIZE, "\n");
 }
 
 static struct device_attribute dev_attr_ep11_serialnr =
@@ -300,16 +300,16 @@ static ssize_t ep11_mkvps_show(struct device *dev,
 				     &di);
 
 	if (di.cur_wk_state == '0') {
-		n = snprintf(buf, PAGE_SIZE, "WK CUR: %s -\n",
-			     cwk_state[di.cur_wk_state - '0']);
+		n = scnprintf(buf, PAGE_SIZE, "WK CUR: %s -\n",
+			      cwk_state[di.cur_wk_state - '0']);
 	} else if (di.cur_wk_state == '1') {
-		n = snprintf(buf, PAGE_SIZE, "WK CUR: %s 0x",
-			     cwk_state[di.cur_wk_state - '0']);
+		n = scnprintf(buf, PAGE_SIZE, "WK CUR: %s 0x",
+			      cwk_state[di.cur_wk_state - '0']);
 		bin2hex(buf + n, di.cur_wkvp, sizeof(di.cur_wkvp));
 		n += 2 * sizeof(di.cur_wkvp);
 		n += scnprintf(buf + n, PAGE_SIZE - n, "\n");
 	} else
-		n = snprintf(buf, PAGE_SIZE, "WK CUR: - -\n");
+		n = scnprintf(buf, PAGE_SIZE, "WK CUR: - -\n");
 
 	if (di.new_wk_state == '0') {
 		n += scnprintf(buf + n, PAGE_SIZE - n, "WK NEW: %s -\n",
