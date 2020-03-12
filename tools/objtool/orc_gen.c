@@ -130,8 +130,7 @@ static int create_orc_entry(struct elf *elf, struct section *u_sec, struct secti
 	rela->offset = idx * sizeof(int);
 	rela->sec = ip_relasec;
 
-	list_add_tail(&rela->list, &ip_relasec->rela_list);
-	hash_add(elf->rela_hash, &rela->hash, rela_hash(rela));
+	elf_add_rela(elf, rela);
 
 	return 0;
 }
