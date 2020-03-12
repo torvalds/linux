@@ -1098,6 +1098,8 @@
 				#clock-cells = <0>;
 				resets = <&cru SRST_USBOTG_PHY>;
 				reset-names = "phy-reset";
+				interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "otg-bvalid";
 			};
 
 			usbphy1: usb-phy@334 {
