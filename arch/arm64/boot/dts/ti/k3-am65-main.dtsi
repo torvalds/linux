@@ -189,6 +189,8 @@
 		power-domains = <&k3_pds 137 TI_SCI_PD_EXCLUSIVE>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		dmas = <&main_udmap 0xc500>, <&main_udmap 0x4500>;
+		dma-names = "tx0", "rx0";
 	};
 
 	main_spi1: spi@2110000 {
