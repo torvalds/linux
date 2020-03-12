@@ -388,7 +388,9 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 							attr->prio, 0);
 		else
 			fdb = attr->fdb;
-		mlx5_eswitch_set_rule_source_port(esw, spec, attr);
+
+		if (!(attr->flags & MLX5_ESW_ATTR_FLAG_NO_IN_PORT))
+			mlx5_eswitch_set_rule_source_port(esw, spec, attr);
 	}
 	if (IS_ERR(fdb)) {
 		rule = ERR_CAST(fdb);
