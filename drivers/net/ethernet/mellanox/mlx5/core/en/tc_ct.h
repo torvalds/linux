@@ -9,6 +9,7 @@
 #include <net/tc_act/tc_ct.h>
 
 struct mlx5_esw_flow_attr;
+struct mlx5e_tc_mod_hdr_acts;
 struct mlx5_rep_uplink_priv;
 struct mlx5e_tc_flow;
 struct mlx5e_priv;
@@ -97,7 +98,8 @@ struct mlx5_flow_handle *
 mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 			struct mlx5e_tc_flow *flow,
 			struct mlx5_flow_spec *spec,
-			struct mlx5_esw_flow_attr *attr);
+			struct mlx5_esw_flow_attr *attr,
+			struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts);
 void
 mlx5_tc_ct_delete_flow(struct mlx5e_priv *priv,
 		       struct mlx5e_tc_flow *flow,
@@ -142,7 +144,8 @@ static inline struct mlx5_flow_handle *
 mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 			struct mlx5e_tc_flow *flow,
 			struct mlx5_flow_spec *spec,
-			struct mlx5_esw_flow_attr *attr)
+			struct mlx5_esw_flow_attr *attr,
+			struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }

@@ -1048,12 +1048,79 @@ err_ft:
 	return err;
 }
 
+static int
+__mlx5_tc_ct_flow_offload_clear(struct mlx5e_priv *priv,
+				struct mlx5e_tc_flow *flow,
+				struct mlx5_flow_spec *orig_spec,
+				struct mlx5_esw_flow_attr *attr,
+				struct mlx5e_tc_mod_hdr_acts *mod_acts,
+				struct mlx5_flow_handle **flow_rule)
+{
+	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
+	struct mlx5_eswitch *esw = ct_priv->esw;
+	struct mlx5_esw_flow_attr *pre_ct_attr;
+	struct mlx5_modify_hdr *mod_hdr;
+	struct mlx5_flow_handle *rule;
+	struct mlx5_ct_flow *ct_flow;
+	int err;
+
+	ct_flow = kzalloc(sizeof(*ct_flow), GFP_KERNEL);
+	if (!ct_flow)
+		return -ENOMEM;
+
+	/* Base esw attributes on original rule attribute */
+	pre_ct_attr = &ct_flow->pre_ct_attr;
+	memcpy(pre_ct_attr, attr, sizeof(*attr));
+
+	err = mlx5_tc_ct_entry_set_registers(ct_priv, mod_acts, 0, 0, 0, 0);
+	if (err) {
+		ct_dbg("Failed to set register for ct clear");
+		goto err_set_registers;
+	}
+
+	mod_hdr = mlx5_modify_header_alloc(esw->dev,
+					   MLX5_FLOW_NAMESPACE_FDB,
+					   mod_acts->num_actions,
+					   mod_acts->actions);
+	if (IS_ERR(mod_hdr)) {
+		err = PTR_ERR(mod_hdr);
+		ct_dbg("Failed to add create ct clear mod hdr");
+		goto err_set_registers;
+	}
+
+	dealloc_mod_hdr_actions(mod_acts);
+	pre_ct_attr->modify_hdr = mod_hdr;
+	pre_ct_attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+
+	rule = mlx5_eswitch_add_offloaded_rule(esw, orig_spec, pre_ct_attr);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		ct_dbg("Failed to add ct clear rule");
+		goto err_insert;
+	}
+
+	attr->ct_attr.ct_flow = ct_flow;
+	ct_flow->pre_ct_rule = rule;
+	*flow_rule = rule;
+
+	return 0;
+
+err_insert:
+	mlx5_modify_header_dealloc(priv->mdev, mod_hdr);
+err_set_registers:
+	netdev_warn(priv->netdev,
+		    "Failed to offload ct clear flow, err %d\n", err);
+	return err;
+}
+
 struct mlx5_flow_handle *
 mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 			struct mlx5e_tc_flow *flow,
 			struct mlx5_flow_spec *spec,
-			struct mlx5_esw_flow_attr *attr)
+			struct mlx5_esw_flow_attr *attr,
+			struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts)
 {
+	bool clear_action = attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR;
 	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
 	struct mlx5_flow_handle *rule;
 	int err;
@@ -1062,7 +1129,12 @@ mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 		return ERR_PTR(-EOPNOTSUPP);
 
 	mutex_lock(&ct_priv->control_lock);
-	err = __mlx5_tc_ct_flow_offload(priv, flow, spec, attr, &rule);
+	if (clear_action)
+		err = __mlx5_tc_ct_flow_offload_clear(priv, flow, spec, attr,
+						      mod_hdr_acts, &rule);
+	else
+		err = __mlx5_tc_ct_flow_offload(priv, flow, spec, attr,
+						&rule);
 	mutex_unlock(&ct_priv->control_lock);
 	if (err)
 		return ERR_PTR(err);
@@ -1080,11 +1152,15 @@ __mlx5_tc_ct_delete_flow(struct mlx5_tc_ct_priv *ct_priv,
 	mlx5_eswitch_del_offloaded_rule(esw, ct_flow->pre_ct_rule,
 					pre_ct_attr);
 	mlx5_modify_header_dealloc(esw->dev, pre_ct_attr->modify_hdr);
-	mlx5_eswitch_del_offloaded_rule(esw, ct_flow->post_ct_rule,
-					&ct_flow->post_ct_attr);
-	mlx5_esw_chains_put_chain_mapping(esw, ct_flow->chain_mapping);
-	idr_remove(&ct_priv->fte_ids, ct_flow->fte_id);
-	mlx5_tc_ct_del_ft_cb(ct_priv, ct_flow->ft);
+
+	if (ct_flow->post_ct_rule) {
+		mlx5_eswitch_del_offloaded_rule(esw, ct_flow->post_ct_rule,
+						&ct_flow->post_ct_attr);
+		mlx5_esw_chains_put_chain_mapping(esw, ct_flow->chain_mapping);
+		idr_remove(&ct_priv->fte_ids, ct_flow->fte_id);
+		mlx5_tc_ct_del_ft_cb(ct_priv, ct_flow->ft);
+	}
+
 	kfree(ct_flow);
 }
 
