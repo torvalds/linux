@@ -712,6 +712,11 @@ unsigned int get_highest_allowed_voltage_level(uint32_t hw_internal_rev, uint32_
 		case PRID_DALI_DF:
 		case PRID_DALI_E3:
 		case PRID_DALI_E4:
+		case PRID_POLLOCK_94:
+		case PRID_POLLOCK_95:
+		case PRID_POLLOCK_E9:
+		case PRID_POLLOCK_EA:
+		case PRID_POLLOCK_EB:
 			return 0;
 		default:
 			break;

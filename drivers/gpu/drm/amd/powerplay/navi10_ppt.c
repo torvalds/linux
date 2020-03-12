@@ -661,14 +661,14 @@ static int navi10_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 	if (enable) {
 		/* vcn dpm on is a prerequisite for vcn power gate messages */
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1);
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1, NULL);
 			if (ret)
 				return ret;
 		}
 		power_gate->vcn_gated = false;
 	} else {
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
+			ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn, NULL);
 			if (ret)
 				return ret;
 		}
@@ -686,14 +686,14 @@ static int navi10_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 
 	if (enable) {
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
-			ret = smu_send_smc_msg(smu, SMU_MSG_PowerUpJpeg);
+			ret = smu_send_smc_msg(smu, SMU_MSG_PowerUpJpeg, NULL);
 			if (ret)
 				return ret;
 		}
 		power_gate->jpeg_gated = false;
 	} else {
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
-			ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownJpeg);
+			ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownJpeg, NULL);
 			if (ret)
 				return ret;
 		}
@@ -970,7 +970,7 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 		if (ret)
 			return size;
 
-		ret = smu_set_soft_freq_range(smu, clk_type, min_freq, max_freq);
+		ret = smu_set_soft_freq_range(smu, clk_type, min_freq, max_freq, false);
 		if (ret)
 			return size;
 		break;
@@ -1042,7 +1042,7 @@ static int navi10_pre_display_config_changed(struct smu_context *smu)
 	int ret = 0;
 	uint32_t max_freq = 0;
 
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0);
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0, NULL);
 	if (ret)
 		return ret;
 
@@ -1063,19 +1063,11 @@ static int navi10_display_config_changed(struct smu_context *smu)
 	int ret = 0;
 
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
-	    !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
-		ret = smu_write_watermarks_table(smu);
-		if (ret)
-			return ret;
-
-		smu->watermarks_bitmap |= WATERMARKS_LOADED;
-	}
-
-	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
 	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
 	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays,
-						  smu->display_config->num_display);
+						  smu->display_config->num_display,
+						  NULL);
 		if (ret)
 			return ret;
 	}
@@ -1102,7 +1094,7 @@ static int navi10_force_dpm_limit_value(struct smu_context *smu, bool highest)
 			return ret;
 
 		force_freq = highest ? max_freq : min_freq;
-		ret = smu_set_soft_freq_range(smu, clk_type, force_freq, force_freq);
+		ret = smu_set_soft_freq_range(smu, clk_type, force_freq, force_freq, false);
 		if (ret)
 			return ret;
 	}
@@ -1128,7 +1120,7 @@ static int navi10_unforce_dpm_levels(struct smu_context *smu)
 		if (ret)
 			return ret;
 
-		ret = smu_set_soft_freq_range(smu, clk_type, min_freq, max_freq);
+		ret = smu_set_soft_freq_range(smu, clk_type, min_freq, max_freq, false);
 		if (ret)
 			return ret;
 	}
@@ -1400,7 +1392,7 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 	if (workload_type < 0)
 		return -EINVAL;
 	smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
-				    1 << workload_type);
+				    1 << workload_type, NULL);
 
 	return ret;
 }
@@ -1465,7 +1457,8 @@ static int navi10_notify_smc_display_config(struct smu_context *smu)
 			if (smu_feature_is_supported(smu, SMU_FEATURE_DS_DCEFCLK_BIT)) {
 				ret = smu_send_smc_msg_with_param(smu,
 								  SMU_MSG_SetMinDeepSleepDcefclk,
-								  min_clocks.dcef_clock_in_sr/100);
+								  min_clocks.dcef_clock_in_sr/100,
+								  NULL);
 				if (ret) {
 					pr_err("Attempt to set divider for DCEFCLK Failed!");
 					return ret;
@@ -1493,6 +1486,7 @@ static int navi10_set_watermarks_table(struct smu_context *smu,
 				       *clock_ranges)
 {
 	int i;
+	int ret = 0;
 	Watermarks_t *table = watermarks;
 
 	if (!table || !clock_ranges)
@@ -1542,6 +1536,18 @@ static int navi10_set_watermarks_table(struct smu_context *smu,
 			1000));
 		table->WatermarkRow[0][i].WmSetting = (uint8_t)
 				clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
+	}
+
+	smu->watermarks_bitmap |= WATERMARKS_EXIST;
+
+	/* pass data to smu controller */
+	if (!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
+		ret = smu_write_watermarks_table(smu);
+		if (ret) {
+			pr_err("Failed to update WMTABLE!");
+			return ret;
+		}
+		smu->watermarks_bitmap |= WATERMARKS_LOADED;
 	}
 
 	return 0;
@@ -1674,10 +1680,10 @@ static int navi10_set_standard_performance_level(struct smu_context *smu)
 		return navi10_set_performance_level(smu, AMD_DPM_FORCED_LEVEL_AUTO);
 	}
 
-	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
+	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq, false);
 	if (ret)
 		return ret;
-	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
+	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq, false);
 	if (ret)
 		return ret;
 
@@ -1742,10 +1748,10 @@ static int navi10_set_peak_performance_level(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
+	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq, false);
 	if (ret)
 		return ret;
-	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
+	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq, false);
 	if (ret)
 		return ret;
 
@@ -1855,12 +1861,11 @@ static int navi10_get_power_limit(struct smu_context *smu,
 				return -EINVAL;
 
 			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
-				power_src << 16);
+				power_src << 16, &asic_default_power_limit);
 			if (ret) {
 				pr_err("[%s] get PPT limit failed!", __func__);
 				return ret;
 			}
-			smu_read_smc_arg(smu, &asic_default_power_limit);
 		} else {
 			/* the last hope to figure out the ppt limit */
 			if (!pptable) {
@@ -1900,7 +1905,8 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 					pptable->PcieLaneCount[i] : pcie_width_cap);
 		ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_OverridePcieParameters,
-					  smu_pcie_arg);
+					  smu_pcie_arg,
+					  NULL);
 
 		if (ret)
 			return ret;
@@ -1946,13 +1952,13 @@ static int navi10_overdrive_get_gfx_clk_base_voltage(struct smu_context *smu,
 
 	ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_GetVoltageByDpm,
-					  param);
+					  param,
+					  &value);
 	if (ret) {
 		pr_err("[GetBaseVoltage] failed to get GFXCLK AVFS voltage from SMU!");
 		return ret;
 	}
 
-	smu_read_smc_arg(smu, &value);
 	*voltage = (uint16_t)value;
 
 	return 0;
@@ -2209,7 +2215,7 @@ static int navi10_run_btc(struct smu_context *smu)
 {
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_RunBtc);
+	ret = smu_send_smc_msg(smu, SMU_MSG_RunBtc, NULL);
 	if (ret)
 		pr_err("RunBtc failed!\n");
 
@@ -2221,9 +2227,9 @@ static int navi10_dummy_pstate_control(struct smu_context *smu, bool enable)
 	int result = 0;
 
 	if (!enable)
-		result = smu_send_smc_msg(smu, SMU_MSG_DAL_DISABLE_DUMMY_PSTATE_CHANGE);
+		result = smu_send_smc_msg(smu, SMU_MSG_DAL_DISABLE_DUMMY_PSTATE_CHANGE, NULL);
 	else
-		result = smu_send_smc_msg(smu, SMU_MSG_DAL_ENABLE_DUMMY_PSTATE_CHANGE);
+		result = smu_send_smc_msg(smu, SMU_MSG_DAL_ENABLE_DUMMY_PSTATE_CHANGE, NULL);
 
 	return result;
 }
@@ -2332,7 +2338,6 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.system_features_control = smu_v11_0_system_features_control,
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
-	.read_smc_arg = smu_v11_0_read_arg,
 	.init_display_count = smu_v11_0_init_display_count,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,

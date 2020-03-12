@@ -207,7 +207,7 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 
 	if (!dc_dsc_parse_dsc_dpcd(aconnector->dc_link->ctx->dc,
 				   dsc_caps, NULL,
-				   &dc_sink->sink_dsc_caps.dsc_dec_caps))
+				   &dc_sink->dsc_caps.dsc_dec_caps))
 		return false;
 
 	return true;
@@ -262,8 +262,8 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 			if (!validate_dsc_caps_on_connector(aconnector))
-				memset(&aconnector->dc_sink->sink_dsc_caps,
-				       0, sizeof(aconnector->dc_sink->sink_dsc_caps));
+				memset(&aconnector->dc_sink->dsc_caps,
+				       0, sizeof(aconnector->dc_sink->dsc_caps));
 #endif
 		}
 	}
@@ -537,7 +537,7 @@ static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *p
 		memset(&params[i].timing->dsc_cfg, 0, sizeof(params[i].timing->dsc_cfg));
 		if (vars[i].dsc_enabled && dc_dsc_compute_config(
 					params[i].sink->ctx->dc->res_pool->dscs[0],
-					&params[i].sink->sink_dsc_caps.dsc_dec_caps,
+					&params[i].sink->dsc_caps.dsc_dec_caps,
 					params[i].sink->ctx->dc->debug.dsc_min_slice_height_override,
 					0,
 					params[i].timing,
@@ -558,7 +558,7 @@ static int bpp_x16_from_pbn(struct dsc_mst_fairness_params param, int pbn)
 	kbps = div_u64((u64)pbn * 994 * 8 * 54, 64);
 	dc_dsc_compute_config(
 			param.sink->ctx->dc->res_pool->dscs[0],
-			&param.sink->sink_dsc_caps.dsc_dec_caps,
+			&param.sink->dsc_caps.dsc_dec_caps,
 			param.sink->ctx->dc->debug.dsc_min_slice_height_override,
 			(int) kbps, param.timing, &dsc_config);
 
@@ -755,14 +755,14 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		params[count].sink = stream->sink;
 		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 		params[count].port = aconnector->port;
-		params[count].compression_possible = stream->sink->sink_dsc_caps.dsc_dec_caps.is_dsc_supported;
+		params[count].compression_possible = stream->sink->dsc_caps.dsc_dec_caps.is_dsc_supported;
 		dc_dsc_get_policy_for_timing(params[count].timing, &dsc_policy);
 		if (!dc_dsc_compute_bandwidth_range(
 				stream->sink->ctx->dc->res_pool->dscs[0],
 				stream->sink->ctx->dc->debug.dsc_min_slice_height_override,
 				dsc_policy.min_target_bpp,
 				dsc_policy.max_target_bpp,
-				&stream->sink->sink_dsc_caps.dsc_dec_caps,
+				&stream->sink->dsc_caps.dsc_dec_caps,
 				&stream->timing, &params[count].bw_range))
 			params[count].bw_range.stream_kbps = dc_bandwidth_in_kbps_from_timing(&stream->timing);
 
@@ -844,7 +844,7 @@ bool compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 		if (!aconnector || !aconnector->dc_sink)
 			continue;
 
-		if (!aconnector->dc_sink->sink_dsc_caps.dsc_dec_caps.is_dsc_supported)
+		if (!aconnector->dc_sink->dsc_caps.dsc_dec_caps.is_dsc_supported)
 			continue;
 
 		if (computed_streams[i])

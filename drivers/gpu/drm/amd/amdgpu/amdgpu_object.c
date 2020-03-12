@@ -1319,7 +1319,8 @@ void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 		amdgpu_amdkfd_unreserve_memory_limit(abo);
 
 	/* We only remove the fence if the resv has individualized. */
-	WARN_ON_ONCE(bo->base.resv != &bo->base._resv);
+	WARN_ON_ONCE(bo->type == ttm_bo_type_kernel
+			&& bo->base.resv != &bo->base._resv);
 	if (bo->base.resv == &bo->base._resv)
 		amdgpu_amdkfd_remove_fence_on_pt_pd_bos(abo);
 

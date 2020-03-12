@@ -21,17 +21,9 @@
  *
  */
 
-#ifndef __GFX_V9_4_H__
-#define __GFX_V9_4_H__
+#ifndef _wafl2_4_0_0_SMN_HEADER
+#define _wafl2_4_0_0_SMN_HEADER
 
-void gfx_v9_4_clear_ras_edc_counter(struct amdgpu_device *adev);
+#define	smnPCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS						0x11cf0210
 
-int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
-				   void *ras_error_status);
-
-int gfx_v9_4_ras_error_inject(struct amdgpu_device *adev,
-				     void *inject_if);
-
-void gfx_v9_4_reset_ras_error_count(struct amdgpu_device *adev);
-
-#endif /* __GFX_V9_4_H__ */
+#endif

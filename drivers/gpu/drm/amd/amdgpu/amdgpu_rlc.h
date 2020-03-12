@@ -126,6 +126,7 @@ struct amdgpu_rlc_funcs {
 	void (*stop)(struct amdgpu_device *adev);
 	void (*reset)(struct amdgpu_device *adev);
 	void (*start)(struct amdgpu_device *adev);
+	void (*update_spm_vmid)(struct amdgpu_device *adev, unsigned vmid);
 };
 
 struct amdgpu_rlc {

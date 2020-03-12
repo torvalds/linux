@@ -46,6 +46,7 @@
 /* Constants */
 
 #define LPDDR_MEM_RETRAIN_LATENCY 4.977 /* Number obtained from LPDDR4 Training Counter Requirement doc */
+#define SMU_VER_55_51_0 0x373300 /* SMU Version that is able to set DISPCLK below 100MHz */
 
 /* Macros */
 
@@ -719,6 +720,13 @@ void rn_clk_mgr_construct(
 		clk_mgr->base.dentist_vco_freq_khz = 3600000;
 	} else {
 		struct clk_log_info log_info = {0};
+
+		clk_mgr->smu_ver = rn_vbios_smu_get_smu_version(clk_mgr);
+
+		/* SMU Version 55.51.0 and up no longer have an issue
+		 * that needs to limit minimum dispclk */
+		if (clk_mgr->smu_ver >= SMU_VER_55_51_0)
+			debug->min_disp_clk_khz = 0;
 
 		/* TODO: Check we get what we expect during bringup */
 		clk_mgr->base.dentist_vco_freq_khz = get_vco_frequency_from_reg(clk_mgr);

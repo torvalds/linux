@@ -1080,7 +1080,11 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	struct dma_fence *fence = NULL;
 	bool pasid_mapping_needed = false;
 	unsigned patch_offset = 0;
+	bool update_spm_vmid_needed = (job->vm && (job->vm->reserved_vmid[vmhub] != NULL));
 	int r;
+
+	if (update_spm_vmid_needed && adev->gfx.rlc.funcs->update_spm_vmid)
+		adev->gfx.rlc.funcs->update_spm_vmid(adev, job->vmid);
 
 	if (amdgpu_vmid_had_gpu_reset(adev, id)) {
 		gds_switch_needed = true;
@@ -3209,6 +3213,7 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	union drm_amdgpu_vm *args = data;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
+	long timeout = msecs_to_jiffies(2000);
 	int r;
 
 	switch (args->in.op) {
@@ -3220,6 +3225,21 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return r;
 		break;
 	case AMDGPU_VM_OP_UNRESERVE_VMID:
+		if (amdgpu_sriov_runtime(adev))
+			timeout = 8 * timeout;
+
+		/* Wait vm idle to make sure the vmid set in SPM_VMID is
+		 * not referenced anymore.
+		 */
+		r = amdgpu_bo_reserve(fpriv->vm.root.base.bo, true);
+		if (r)
+			return r;
+
+		r = amdgpu_vm_wait_idle(&fpriv->vm, timeout);
+		if (r < 0)
+			return r;
+
+		amdgpu_bo_unreserve(fpriv->vm.root.base.bo);
 		amdgpu_vmid_free_reserved(adev, &fpriv->vm, AMDGPU_GFXHUB_0);
 		break;
 	default:

@@ -1028,7 +1028,7 @@ int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	int r;
 
-	if (abo->flags & AMDGPU_GEM_CREATE_MQD_GFX9) {
+	if (abo->flags & AMDGPU_GEM_CREATE_CP_MQD_GFX9) {
 		uint64_t page_idx = 1;
 
 		r = amdgpu_gart_bind(adev, gtt->offset, page_idx,
@@ -1036,7 +1036,10 @@ int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 		if (r)
 			goto gart_bind_fail;
 
-		/* Patch mtype of the second part BO */
+		/* The memory type of the first page defaults to UC. Now
+		 * modify the memory type to NC from the second page of
+		 * the BO onward.
+		 */
 		flags &= ~AMDGPU_PTE_MTYPE_VG10_MASK;
 		flags |= AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_NC);
 
@@ -2563,15 +2566,5 @@ int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 	return amdgpu_debugfs_add_files(adev, amdgpu_ttm_debugfs_list, count);
 #else
 	return 0;
-#endif
-}
-
-void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev)
-{
-#if defined(CONFIG_DEBUG_FS)
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(ttm_debugfs_entries); i++)
-		debugfs_remove(adev->mman.debugfs_entries[i]);
 #endif
 }

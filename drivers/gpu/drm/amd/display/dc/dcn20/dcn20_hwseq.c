@@ -307,7 +307,8 @@ void dcn20_init_blank(
 			COLOR_DEPTH_UNDEFINED,
 			&black_color,
 			otg_active_width,
-			otg_active_height);
+			otg_active_height,
+			0);
 
 	if (num_opps == 2) {
 		bottom_opp->funcs->opp_set_disp_pattern_generator(
@@ -317,7 +318,8 @@ void dcn20_init_blank(
 				COLOR_DEPTH_UNDEFINED,
 				&black_color,
 				otg_active_width,
-				otg_active_height);
+				otg_active_height,
+				0);
 	}
 
 	hws->funcs.wait_for_blank_complete(opp);
@@ -620,6 +622,13 @@ enum dc_status dcn20_enable_stream_timing(
 		return DC_OK;
 
 	/* TODO check if timing_changed, disable stream if timing changed */
+
+	/* Have to setup DSC here to make sure the bandwidth sent to DIG BE won't be bigger than
+	 * what the link and/or DIG BE can handle. VBID[6]/CompressedStream_flag will be automatically
+	 * set at a later time when the video is enabled (DP_VID_STREAM_EN = 1).
+	 */
+	if (pipe_ctx->stream->timing.flags.DSC)
+		dp_set_dsc_on_stream(pipe_ctx, true);
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 		opp_inst[opp_cnt] = odm_pipe->stream_res.opp->inst;
@@ -974,7 +983,8 @@ void dcn20_blank_pixel_data(
 			stream->timing.display_color_depth,
 			&black_color,
 			width,
-			height);
+			height,
+			0);
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 		odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
@@ -985,7 +995,8 @@ void dcn20_blank_pixel_data(
 				stream->timing.display_color_depth,
 				&black_color,
 				width,
-				height);
+				height,
+				0);
 	}
 
 	if (!blank)
@@ -1656,22 +1667,16 @@ void dcn20_optimize_bandwidth(
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 
-	if (dc->wm_optimized_required || IS_DIAG_DC(dc->ctx->dce_environment)) {
-		/* program dchubbub watermarks */
-		hubbub->funcs->program_watermarks(hubbub,
-						&context->bw_ctx.bw.dcn.watermarks,
-						dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
-						true);
-		dc->wm_optimized_required = false;
-	}
+	/* program dchubbub watermarks */
+	hubbub->funcs->program_watermarks(hubbub,
+					&context->bw_ctx.bw.dcn.watermarks,
+					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
+					true);
 
-	if (dc->clk_optimized_required || IS_DIAG_DC(dc->ctx->dce_environment)) {
-		dc->clk_mgr->funcs->update_clocks(
-				dc->clk_mgr,
-				context,
-				true);
-		dc->wm_optimized_required = false;
-	}
+	dc->clk_mgr->funcs->update_clocks(
+			dc->clk_mgr,
+			context,
+			true);
 }
 
 bool dcn20_update_bandwidth(

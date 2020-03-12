@@ -45,4 +45,13 @@ enum psr_version {
 	PSR_VERSION_2_1			= 0x21, // PSR Version 2, includes Y-coordinate support for SU
 };
 
+enum dmub_cmd_abm_type {
+	DMUB_CMD__ABM_INIT_CONFIG	= 0,
+	DMUB_CMD__ABM_SET_PIPE		= 1,
+	DMUB_CMD__ABM_SET_BACKLIGHT	= 2,
+	DMUB_CMD__ABM_SET_LEVEL		= 3,
+	DMUB_CMD__ABM_SET_AMBIENT_LEVEL	= 4,
+	DMUB_CMD__ABM_SET_PWM_FRAC	= 5,
+};
+
 #endif /* _DMUB_CMD_DAL_H_ */

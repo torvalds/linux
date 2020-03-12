@@ -1169,7 +1169,7 @@ static int kfd_ioctl_get_tile_config(struct file *filep,
 	if (!dev)
 		return -EINVAL;
 
-	dev->kfd2kgd->get_tile_config(dev->kgd, &config);
+	amdgpu_amdkfd_get_tile_config(dev->kgd, &config);
 
 	args->gb_addr_config = config.gb_addr_config;
 	args->num_banks = config.num_banks;

@@ -319,7 +319,6 @@ const struct kfd2kgd_calls arcturus_kfd2kgd = {
 	.address_watch_get_offset = kgd_gfx_v9_address_watch_get_offset,
 	.get_atc_vmid_pasid_mapping_info =
 			kgd_gfx_v9_get_atc_vmid_pasid_mapping_info,
-	.get_tile_config = kgd_gfx_v9_get_tile_config,
 	.set_vm_context_page_table_base = kgd_set_vm_context_page_table_base,
 	.get_hive_id = amdgpu_amdkfd_get_hive_id,
 };
