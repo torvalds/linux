@@ -2699,6 +2699,17 @@ enum wiphy_params_flags {
  * @cache_id: 2-octet cache identifier advertized by a FILS AP identifying the
  *	scope of PMKSA. This is valid only if @ssid_len is non-zero (may be
  *	%NULL).
+ * @pmk_lifetime: Maximum lifetime for PMKSA in seconds
+ *	(dot11RSNAConfigPMKLifetime) or 0 if not specified.
+ *	The configured PMKSA must not be used for PMKSA caching after
+ *	expiration and any keys derived from this PMK become invalid on
+ *	expiration, i.e., the current association must be dropped if the PMK
+ *	used for it expires.
+ * @pmk_reauth_threshold: Threshold time for reauthentication (percentage of
+ *	PMK lifetime, dot11RSNAConfigPMKReauthThreshold) or 0 if not specified.
+ *	Drivers are expected to trigger a full authentication instead of using
+ *	this PMKSA for caching when reassociating to a new BSS after this
+ *	threshold to generate a new PMK before the current one expires.
  */
 struct cfg80211_pmksa {
 	const u8 *bssid;
@@ -2708,6 +2719,8 @@ struct cfg80211_pmksa {
 	const u8 *ssid;
 	size_t ssid_len;
 	const u8 *cache_id;
+	u32 pmk_lifetime;
+	u8 pmk_reauth_threshold;
 };
 
 /**

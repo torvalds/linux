@@ -661,6 +661,8 @@ const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_TID_CONFIG] =
 		NLA_POLICY_NESTED_ARRAY(nl80211_tid_config_attr_policy),
 	[NL80211_ATTR_CONTROL_PORT_NO_PREAUTH] = { .type = NLA_FLAG },
+	[NL80211_ATTR_PMK_LIFETIME] = NLA_POLICY_MIN(NLA_U32, 1),
+	[NL80211_ATTR_PMK_REAUTH_THRESHOLD] = NLA_POLICY_RANGE(NLA_U8, 1, 100),
 };
 
 /* policy for the key attributes */
@@ -10513,6 +10515,15 @@ static int nl80211_setdel_pmksa(struct sk_buff *skb, struct genl_info *info)
 		pmksa.pmk = nla_data(info->attrs[NL80211_ATTR_PMK]);
 		pmksa.pmk_len = nla_len(info->attrs[NL80211_ATTR_PMK]);
 	}
+
+	if (info->attrs[NL80211_ATTR_PMK_LIFETIME])
+		pmksa.pmk_lifetime =
+			nla_get_u32(info->attrs[NL80211_ATTR_PMK_LIFETIME]);
+
+	if (info->attrs[NL80211_ATTR_PMK_REAUTH_THRESHOLD])
+		pmksa.pmk_reauth_threshold =
+			nla_get_u8(
+				info->attrs[NL80211_ATTR_PMK_REAUTH_THRESHOLD]);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT &&
