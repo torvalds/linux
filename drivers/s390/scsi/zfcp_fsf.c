@@ -666,6 +666,9 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 
 /*
  * Mapping of FC Endpoint Security flag masks to mnemonics
+ *
+ * NOTE: Update macro ZFCP_FSF_MAX_FC_SECURITY_MNEMONIC_LENGTH when making any
+ *       changes.
  */
 static const struct {
 	u32	mask;
@@ -675,6 +678,9 @@ static const struct {
 	{ FSF_FC_SECURITY_ENC_FCSP2 |
 	  FSF_FC_SECURITY_ENC_ERAS,	"Encryption" },
 };
+
+/* maximum strlen(zfcp_fsf_fc_security_mnemonics[...].name) + 1 */
+#define ZFCP_FSF_MAX_FC_SECURITY_MNEMONIC_LENGTH 15
 
 /**
  * zfcp_fsf_scnprint_fc_security() - translate FC Endpoint Security flags into
@@ -700,7 +706,8 @@ static const struct {
  * undefined in zfcp_fsf_fc_security_mnemonics, its value in hexadecimal
  * representation is placed into the buffer. If more than one FC Endpoint
  * Security flag was specified, their value in hexadecimal representation is
- * placed into the buffer.
+ * placed into the buffer. The macro ZFCP_FSF_MAX_FC_SECURITY_MNEMONIC_LENGTH
+ * can be used to define a buffer that is large enough to hold one mnemonic.
  *
  * Return: The number of characters written into buf not including the trailing
  *         '\0'. If size is == 0 the function returns 0.
@@ -1572,6 +1579,50 @@ out_unlock:
 	return retval;
 }
 
+static void zfcp_fsf_log_port_fc_security(struct zfcp_port *port)
+{
+	char mnemonic_old[ZFCP_FSF_MAX_FC_SECURITY_MNEMONIC_LENGTH];
+	char mnemonic_new[ZFCP_FSF_MAX_FC_SECURITY_MNEMONIC_LENGTH];
+
+	if (port->connection_info == port->connection_info_old) {
+		/* no change, no log */
+		return;
+	}
+
+	zfcp_fsf_scnprint_fc_security(mnemonic_old, sizeof(mnemonic_old),
+				      port->connection_info_old,
+				      ZFCP_FSF_PRINT_FMT_SINGLEITEM);
+	zfcp_fsf_scnprint_fc_security(mnemonic_new, sizeof(mnemonic_new),
+				      port->connection_info,
+				      ZFCP_FSF_PRINT_FMT_SINGLEITEM);
+
+	if (strncmp(mnemonic_old, mnemonic_new,
+		    ZFCP_FSF_MAX_FC_SECURITY_MNEMONIC_LENGTH) == 0) {
+		/* no change in string representation, no log */
+		goto out;
+	}
+
+	if (port->connection_info_old == 0) {
+		/* activation */
+		dev_info(&port->adapter->ccw_device->dev,
+			 "FC Endpoint Security of connection to remote port 0x%16llx enabled: %s\n",
+			 port->wwpn, mnemonic_new);
+	} else if (port->connection_info == 0) {
+		/* deactivation */
+		dev_warn(&port->adapter->ccw_device->dev,
+			 "FC Endpoint Security of connection to remote port 0x%16llx disabled: was %s\n",
+			 port->wwpn, mnemonic_old);
+	} else {
+		/* change */
+		dev_warn(&port->adapter->ccw_device->dev,
+			 "FC Endpoint Security of connection to remote port 0x%16llx changed: from %s to %s\n",
+			 port->wwpn, mnemonic_old, mnemonic_new);
+	}
+
+out:
+	port->connection_info_old = port->connection_info;
+}
+
 static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
@@ -1612,6 +1663,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 			port->connection_info = bottom->connection_info;
 		else
 			port->connection_info = 0;
+		zfcp_fsf_log_port_fc_security(port);
 		atomic_or(ZFCP_STATUS_COMMON_OPEN |
 				ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
 		atomic_andnot(ZFCP_STATUS_COMMON_ACCESS_BOXED,

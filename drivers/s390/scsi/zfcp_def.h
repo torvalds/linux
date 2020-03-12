@@ -220,6 +220,7 @@ struct zfcp_port {
 	u32                    maxframe_size;
 	u32                    supported_classes;
 	u32                    connection_info;
+	u32                    connection_info_old;
 	struct work_struct     gid_pn_work;
 	struct work_struct     test_link_work;
 	struct work_struct     rport_work;
