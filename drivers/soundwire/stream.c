@@ -313,9 +313,9 @@ static int sdw_enable_disable_slave_ports(struct sdw_bus *bus,
 	 * it is safe to reset this register
 	 */
 	if (en)
-		ret = sdw_update(s_rt->slave, addr, 0xFF, p_rt->ch_mask);
+		ret = sdw_write(s_rt->slave, addr, p_rt->ch_mask);
 	else
-		ret = sdw_update(s_rt->slave, addr, 0xFF, 0x0);
+		ret = sdw_write(s_rt->slave, addr, 0x0);
 
 	if (ret < 0)
 		dev_err(&s_rt->slave->dev,
@@ -464,10 +464,9 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 		addr = SDW_DPN_PREPARECTRL(p_rt->num);
 
 		if (prep)
-			ret = sdw_update(s_rt->slave, addr,
-					 0xFF, p_rt->ch_mask);
+			ret = sdw_write(s_rt->slave, addr, p_rt->ch_mask);
 		else
-			ret = sdw_update(s_rt->slave, addr, 0xFF, 0x0);
+			ret = sdw_write(s_rt->slave, addr, 0x0);
 
 		if (ret < 0) {
 			dev_err(&s_rt->slave->dev,
