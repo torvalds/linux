@@ -37,6 +37,7 @@ mlx5_core-$(CONFIG_MLX5_ESWITCH)     += en_rep.o en_tc.o en/tc_tun.o lib/port_tu
 					lib/geneve.o en/mapping.o en/tc_tun_vxlan.o en/tc_tun_gre.o \
 					en/tc_tun_geneve.o diag/en_tc_tracepoint.o
 mlx5_core-$(CONFIG_PCI_HYPERV_INTERFACE) += en/hv_vhca_stats.o
+mlx5_core-$(CONFIG_MLX5_TC_CT)	     += en/tc_ct.o
 
 #
 # Core extra

@@ -94,6 +94,11 @@ void mlx5e_tc_reoffload_flows_work(struct work_struct *work);
 enum mlx5e_tc_attr_to_reg {
 	CHAIN_TO_REG,
 	TUNNEL_TO_REG,
+	CTSTATE_TO_REG,
+	ZONE_TO_REG,
+	MARK_TO_REG,
+	LABELS_TO_REG,
+	FTEID_TO_REG,
 };
 
 struct mlx5e_tc_attr_to_reg_mapping {
@@ -138,6 +143,9 @@ int alloc_mod_hdr_actions(struct mlx5_core_dev *mdev,
 			  int namespace,
 			  struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts);
 void dealloc_mod_hdr_actions(struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts);
+
+struct mlx5e_tc_flow;
+u32 mlx5e_tc_get_flow_tun_id(struct mlx5e_tc_flow *flow);
 
 #else /* CONFIG_MLX5_ESWITCH */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }

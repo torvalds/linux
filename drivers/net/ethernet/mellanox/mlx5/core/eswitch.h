@@ -42,6 +42,7 @@
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/fs.h>
 #include "lib/mpfs.h"
+#include "en/tc_ct.h"
 
 #define FDB_TC_MAX_CHAIN 3
 #define FDB_FT_CHAIN (FDB_TC_MAX_CHAIN + 1)
@@ -424,6 +425,7 @@ struct mlx5_esw_flow_attr {
 	u32	flags;
 	struct mlx5_flow_table *fdb;
 	struct mlx5_flow_table *dest_ft;
+	struct mlx5_ct_attr ct_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 
