@@ -722,6 +722,36 @@ mlx5_esw_chains_get_tc_end_ft(struct mlx5_eswitch *esw)
 	return tc_end_fdb(esw);
 }
 
+struct mlx5_flow_table *
+mlx5_esw_chains_create_global_table(struct mlx5_eswitch *esw)
+{
+	int chain, prio, level, err;
+
+	if (!fdb_ignore_flow_level_supported(esw)) {
+		err = -EOPNOTSUPP;
+
+		esw_warn(esw->dev,
+			 "Couldn't create global flow table, ignore_flow_level not supported.");
+		goto err_ignore;
+	}
+
+	chain = mlx5_esw_chains_get_chain_range(esw),
+	prio = mlx5_esw_chains_get_prio_range(esw);
+	level = mlx5_esw_chains_get_level_range(esw);
+
+	return mlx5_esw_chains_create_fdb_table(esw, chain, prio, level);
+
+err_ignore:
+	return ERR_PTR(err);
+}
+
+void
+mlx5_esw_chains_destroy_global_table(struct mlx5_eswitch *esw,
+				     struct mlx5_flow_table *ft)
+{
+	mlx5_esw_chains_destroy_fdb_table(esw, ft);
+}
+
 static int
 mlx5_esw_chains_init(struct mlx5_eswitch *esw)
 {

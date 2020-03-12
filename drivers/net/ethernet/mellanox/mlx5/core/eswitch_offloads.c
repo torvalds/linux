@@ -324,7 +324,12 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		struct mlx5_flow_table *ft;
 
-		if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH) {
+		if (attr->dest_ft) {
+			flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+			dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+			dest[i].ft = attr->dest_ft;
+			i++;
+		} else if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH) {
 			flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 			dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 			dest[i].ft = mlx5_esw_chains_get_tc_end_ft(esw);
@@ -378,8 +383,11 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (split) {
 		fdb = esw_vport_tbl_get(esw, attr);
 	} else {
-		fdb = mlx5_esw_chains_get_table(esw, attr->chain, attr->prio,
-						0);
+		if (attr->chain || attr->prio)
+			fdb = mlx5_esw_chains_get_table(esw, attr->chain,
+							attr->prio, 0);
+		else
+			fdb = attr->fdb;
 		mlx5_eswitch_set_rule_source_port(esw, spec, attr);
 	}
 	if (IS_ERR(fdb)) {
@@ -402,7 +410,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 err_add_rule:
 	if (split)
 		esw_vport_tbl_put(esw, attr);
-	else
+	else if (attr->chain || attr->prio)
 		mlx5_esw_chains_put_table(esw, attr->chain, attr->prio, 0);
 err_esw_get:
 	if (!(attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH) && attr->dest_chain)
@@ -499,7 +507,7 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 	} else {
 		if (split)
 			esw_vport_tbl_put(esw, attr);
-		else
+		else if (attr->chain || attr->prio)
 			mlx5_esw_chains_put_table(esw, attr->chain, attr->prio,
 						  0);
 		if (attr->dest_chain)

@@ -25,6 +25,12 @@ mlx5_esw_chains_put_table(struct mlx5_eswitch *esw, u32 chain, u32 prio,
 struct mlx5_flow_table *
 mlx5_esw_chains_get_tc_end_ft(struct mlx5_eswitch *esw);
 
+struct mlx5_flow_table *
+mlx5_esw_chains_create_global_table(struct mlx5_eswitch *esw);
+void
+mlx5_esw_chains_destroy_global_table(struct mlx5_eswitch *esw,
+				     struct mlx5_flow_table *ft);
+
 int mlx5_esw_chains_create(struct mlx5_eswitch *esw);
 void mlx5_esw_chains_destroy(struct mlx5_eswitch *esw);
 

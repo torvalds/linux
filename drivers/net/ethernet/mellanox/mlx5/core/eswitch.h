@@ -421,6 +421,8 @@ struct mlx5_esw_flow_attr {
 	u16	prio;
 	u32	dest_chain;
 	u32	flags;
+	struct mlx5_flow_table *fdb;
+	struct mlx5_flow_table *dest_ft;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 
