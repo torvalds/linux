@@ -227,6 +227,7 @@ struct flow_action_entry {
 			u16 zone;
 		} ct;
 		struct {
+			unsigned long cookie;
 			u32 mark;
 			u32 labels[4];
 		} ct_metadata;

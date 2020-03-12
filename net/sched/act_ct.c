@@ -170,6 +170,7 @@ static void tcf_ct_flow_table_add_action_meta(struct nf_conn *ct,
 {
 	struct nf_conn_labels *ct_labels;
 	struct flow_action_entry *entry;
+	enum ip_conntrack_info ctinfo;
 	u32 *act_ct_labels;
 
 	entry = tcf_ct_flow_table_flow_action_get_next(action);
@@ -177,6 +178,10 @@ static void tcf_ct_flow_table_add_action_meta(struct nf_conn *ct,
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_MARK)
 	entry->ct_metadata.mark = ct->mark;
 #endif
+	ctinfo = dir == IP_CT_DIR_ORIGINAL ? IP_CT_ESTABLISHED :
+					     IP_CT_ESTABLISHED_REPLY;
+	/* aligns with the CT reference on the SKB nf_ct_set */
+	entry->ct_metadata.cookie = (unsigned long)ct | ctinfo;
 
 	act_ct_labels = entry->ct_metadata.labels;
 	ct_labels = nf_ct_labels_find(ct);
@@ -1529,6 +1534,17 @@ static void __exit ct_cleanup_module(void)
 	tcf_ct_flow_tables_uninit();
 	destroy_workqueue(act_ct_wq);
 }
+
+void tcf_ct_flow_table_restore_skb(struct sk_buff *skb, unsigned long cookie)
+{
+	enum ip_conntrack_info ctinfo = cookie & NFCT_INFOMASK;
+	struct nf_conn *ct;
+
+	ct = (struct nf_conn *)(cookie & NFCT_PTRMASK);
+	nf_conntrack_get(&ct->ct_general);
+	nf_ct_set(skb, ct, ctinfo);
+}
+EXPORT_SYMBOL_GPL(tcf_ct_flow_table_restore_skb);
 
 module_init(ct_init_module);
 module_exit(ct_cleanup_module);
