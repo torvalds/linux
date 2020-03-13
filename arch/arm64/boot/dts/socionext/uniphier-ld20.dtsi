@@ -248,8 +248,8 @@
 			interrupts = <0 216 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi1>;
-			clocks = <&peri_clk 11>;
-			resets = <&peri_rst 11>;
+			clocks = <&peri_clk 12>;
+			resets = <&peri_rst 12>;
 		};
 
 		spi2: spi@54006200 {
@@ -259,8 +259,8 @@
 			interrupts = <0 229 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi2>;
-			clocks = <&peri_clk 11>;
-			resets = <&peri_rst 11>;
+			clocks = <&peri_clk 13>;
+			resets = <&peri_rst 13>;
 		};
 
 		spi3: spi@54006300 {
@@ -270,8 +270,8 @@
 			interrupts = <0 230 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi3>;
-			clocks = <&peri_clk 11>;
-			resets = <&peri_rst 11>;
+			clocks = <&peri_clk 14>;
+			resets = <&peri_rst 14>;
 		};
 
 		serial0: serial@54006800 {
