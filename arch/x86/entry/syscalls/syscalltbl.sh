@@ -9,15 +9,7 @@ syscall_macro() {
     local nr="$2"
     local entry="$3"
 
-    # Entry can be either just a function name or "function/qualifier"
-    real_entry="${entry%%/*}"
-    if [ "$entry" = "$real_entry" ]; then
-        qualifier=
-    else
-        qualifier=${entry#*/}
-    fi
-
-    echo "__SYSCALL_${abi}($nr, $real_entry, $qualifier)"
+    echo "__SYSCALL_${abi}($nr, $entry)"
 }
 
 emit() {
