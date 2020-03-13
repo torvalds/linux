@@ -112,7 +112,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 
 	subflow->icsk_af_ops->sk_rx_dst_set(sk, skb);
 
-	if (subflow->conn && !subflow->conn_finished) {
+	if (!subflow->conn_finished) {
 		pr_debug("subflow=%p, remote_key=%llu", mptcp_subflow_ctx(sk),
 			 subflow->remote_key);
 		mptcp_finish_connect(sk);
@@ -439,9 +439,6 @@ static bool subflow_check_data_avail(struct sock *ssk)
 	if (subflow->data_avail)
 		return true;
 
-	if (!subflow->conn)
-		return false;
-
 	msk = mptcp_sk(subflow->conn);
 	for (;;) {
 		u32 map_remaining;
@@ -561,11 +558,10 @@ static void subflow_data_ready(struct sock *sk)
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct sock *parent = subflow->conn;
 
-	if (!parent || !subflow->mp_capable) {
+	if (!subflow->mp_capable) {
 		subflow->tcp_data_ready(sk);
 
-		if (parent)
-			parent->sk_data_ready(parent);
+		parent->sk_data_ready(parent);
 		return;
 	}
 
@@ -579,7 +575,7 @@ static void subflow_write_space(struct sock *sk)
 	struct sock *parent = subflow->conn;
 
 	sk_stream_write_space(sk);
-	if (parent && sk_stream_is_writeable(sk)) {
+	if (sk_stream_is_writeable(sk)) {
 		set_bit(MPTCP_SEND_SPACE, &mptcp_sk(parent)->flags);
 		smp_mb__after_atomic();
 		/* set SEND_SPACE before sk_stream_write_space clears NOSPACE */
@@ -694,7 +690,7 @@ static bool subflow_is_done(const struct sock *sk)
 static void subflow_state_change(struct sock *sk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
-	struct sock *parent = READ_ONCE(subflow->conn);
+	struct sock *parent = subflow->conn;
 
 	__subflow_state_change(sk);
 
@@ -702,10 +698,10 @@ static void subflow_state_change(struct sock *sk)
 	 * a fin packet carrying a DSS can be unnoticed if we don't trigger
 	 * the data available machinery here.
 	 */
-	if (parent && subflow->mp_capable && mptcp_subflow_data_available(sk))
+	if (subflow->mp_capable && mptcp_subflow_data_available(sk))
 		mptcp_data_ready(parent, sk);
 
-	if (parent && !(parent->sk_shutdown & RCV_SHUTDOWN) &&
+	if (!(parent->sk_shutdown & RCV_SHUTDOWN) &&
 	    !subflow->rx_eof && subflow_is_done(sk)) {
 		subflow->rx_eof = 1;
 		parent->sk_shutdown |= RCV_SHUTDOWN;
