@@ -121,12 +121,16 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, const u32 hw_ip, const
 		num_scheds = 1;
 		break;
 	case AMDGPU_HW_IP_VCN_DEC:
-		scheds = adev->vcn.vcn_dec_sched;
-		num_scheds =  adev->vcn.num_vcn_dec_sched;
+		sched = drm_sched_pick_best(adev->vcn.vcn_dec_sched,
+					    adev->vcn.num_vcn_dec_sched);
+		scheds = &sched;
+		num_scheds = 1;
 		break;
 	case AMDGPU_HW_IP_VCN_ENC:
-		scheds = adev->vcn.vcn_enc_sched;
-		num_scheds =  adev->vcn.num_vcn_enc_sched;
+		sched = drm_sched_pick_best(adev->vcn.vcn_enc_sched,
+					    adev->vcn.num_vcn_enc_sched);
+		scheds = &sched;
+		num_scheds = 1;
 		break;
 	case AMDGPU_HW_IP_VCN_JPEG:
 		scheds = adev->jpeg.jpeg_sched;
