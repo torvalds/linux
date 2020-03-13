@@ -616,8 +616,8 @@ struct mlx5_ib_mr {
 	struct ib_umem	       *umem;
 	struct mlx5_shared_mr_info	*smr_info;
 	struct list_head	list;
-	int			order;
-	bool			allocated_from_cache;
+	unsigned int		order;
+	struct mlx5_cache_ent  *cache_ent;
 	int			npages;
 	struct mlx5_ib_dev     *dev;
 	u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
@@ -699,22 +699,34 @@ struct mlx5_cache_ent {
 	u32			access_mode;
 	u32			page;
 
-	u32			size;
-	u32                     cur;
+	u8 disabled:1;
+	u8 fill_to_high_water:1;
+
+	/*
+	 * - available_mrs is the length of list head, ie the number of MRs
+	 *   available for immediate allocation.
+	 * - total_mrs is available_mrs plus all in use MRs that could be
+	 *   returned to the cache.
+	 * - limit is the low water mark for available_mrs, 2* limit is the
+	 *   upper water mark.
+	 * - pending is the number of MRs currently being created
+	 */
+	u32 total_mrs;
+	u32 available_mrs;
+	u32 limit;
+	u32 pending;
+
+	/* Statistics */
 	u32                     miss;
-	u32			limit;
 
 	struct mlx5_ib_dev     *dev;
 	struct work_struct	work;
 	struct delayed_work	dwork;
-	int			pending;
-	struct completion	compl;
 };
 
 struct mlx5_mr_cache {
 	struct workqueue_struct *wq;
 	struct mlx5_cache_ent	ent[MAX_MR_CACHE_ENTRIES];
-	int			stopped;
 	struct dentry		*root;
 	unsigned long		last_add;
 };
@@ -986,14 +998,16 @@ struct mlx5_ib_dev {
 	 */
 	struct mutex			cap_mask_mutex;
 	u8				ib_active:1;
-	u8				fill_delay:1;
 	u8				is_rep:1;
 	u8				lag_active:1;
 	u8				wc_support:1;
+	u8				fill_delay;
 	struct umr_common		umrc;
 	/* sync used page count stats
 	 */
 	struct mlx5_ib_resources	devr;
+
+	atomic_t			mkey_var;
 	struct mlx5_mr_cache		cache;
 	struct timer_list		delay_timer;
 	/* Prevents soft lock on massive reg MRs */
@@ -1263,7 +1277,8 @@ int mlx5_ib_get_cqe_size(struct ib_cq *ibcq);
 int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev);
 
-struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev, int entry);
+struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
+				       unsigned int entry);
 void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 int mlx5_mr_cache_invalidate(struct mlx5_ib_mr *mr);
 
