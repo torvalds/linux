@@ -11,6 +11,47 @@ struct pt_regs;
 extern asmlinkage long __x64_sys_ni_syscall(const struct pt_regs *regs);
 extern asmlinkage long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 
+/*
+ * Instead of the generic __SYSCALL_DEFINEx() definition, the x86 version takes
+ * struct pt_regs *regs as the only argument of the syscall stub(s) named as:
+ * __x64_sys_*()         - 64-bit native syscall
+ * __ia32_sys_*()        - 32-bit native syscall or common compat syscall
+ * __ia32_compat_sys_*() - 32-bit compat syscall
+ * __x32_compat_sys_*()  - 64-bit X32 compat syscall
+ *
+ * The registers are decoded according to the ABI:
+ * 64-bit: RDI, RSI, RDX, R10, R8, R9
+ * 32-bit: EBX, ECX, EDX, ESI, EDI, EBP
+ *
+ * The stub then passes the decoded arguments to the __se_sys_*() wrapper to
+ * perform sign-extension (omitted for zero-argument syscalls).  Finally the
+ * arguments are passed to the __do_sys_*() function which is the actual
+ * syscall.  These wrappers are marked as inline so the compiler can optimize
+ * the functions where appropriate.
+ *
+ * Example assembly (slightly re-ordered for better readability):
+ *
+ * <__x64_sys_recv>:		<-- syscall with 4 parameters
+ *	callq	<__fentry__>
+ *
+ *	mov	0x70(%rdi),%rdi	<-- decode regs->di
+ *	mov	0x68(%rdi),%rsi	<-- decode regs->si
+ *	mov	0x60(%rdi),%rdx	<-- decode regs->dx
+ *	mov	0x38(%rdi),%rcx	<-- decode regs->r10
+ *
+ *	xor	%r9d,%r9d	<-- clear %r9
+ *	xor	%r8d,%r8d	<-- clear %r8
+ *
+ *	callq	__sys_recvfrom	<-- do the actual work in __sys_recvfrom()
+ *				    which takes 6 arguments
+ *
+ *	cltq			<-- extend return value to 64-bit
+ *	retq			<-- return
+ *
+ * This approach avoids leaking random user-provided register content down
+ * the call chain.
+ */
+
 /* Mapping of registers to parameters for syscalls on x86-64 and x32 */
 #define SC_X86_64_REGS_TO_ARGS(x, ...)					\
 	__MAP(x,__SC_ARGS						\
@@ -68,6 +109,26 @@ extern asmlinkage long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 #define __X64_SYS_NI(name)
 #endif /* CONFIG_X86_64 */
 
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
+#define __IA32_SYS_STUB0(name)						\
+	__SYS_STUB0(ia32, sys_##name)
+
+#define __IA32_SYS_STUBx(x, name, ...)					\
+	__SYS_STUBx(ia32, sys##name,					\
+		    SC_IA32_REGS_TO_ARGS(x, __VA_ARGS__))
+
+#define __IA32_COND_SYSCALL(name)					\
+	__COND_SYSCALL(ia32, sys_##name)
+
+#define __IA32_SYS_NI(name)						\
+	__SYS_NI(ia32, sys_##name)
+#else /* CONFIG_X86_32 || CONFIG_IA32_EMULATION */
+#define __IA32_SYS_STUB0(name)
+#define __IA32_SYS_STUBx(x, name, ...)
+#define __IA32_COND_SYSCALL(name)
+#define __IA32_SYS_NI(name)
+#endif /* CONFIG_X86_32 || CONFIG_IA32_EMULATION */
+
 #ifdef CONFIG_IA32_EMULATION
 /*
  * For IA32 emulation, we need to handle "compat" syscalls *and* create
@@ -90,27 +151,11 @@ extern asmlinkage long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 #define __IA32_COMPAT_SYS_NI(name)					\
 	__SYS_NI(ia32, compat_sys_##name)
 
-#define __IA32_SYS_STUB0(name)						\
-	__SYS_STUB0(ia32, sys_##name)
-
-#define __IA32_SYS_STUBx(x, name, ...)					\
-	__SYS_STUBx(ia32, sys##name,					\
-		    SC_IA32_REGS_TO_ARGS(x, __VA_ARGS__))
-
-#define __IA32_COND_SYSCALL(name)					\
-	__COND_SYSCALL(ia32, sys_##name)
-
-#define __IA32_SYS_NI(name)						\
-	__SYS_NI(ia32, sys_##name)
 #else /* CONFIG_IA32_EMULATION */
 #define __IA32_COMPAT_SYS_STUB0(name)
 #define __IA32_COMPAT_SYS_STUBx(x, name, ...)
 #define __IA32_COMPAT_COND_SYSCALL(name)
 #define __IA32_COMPAT_SYS_NI(name)
-#define __IA32_SYS_STUB0(name)
-#define __IA32_SYS_STUBx(x, name, ...)
-#define __IA32_COND_SYSCALL(name)
-#define __IA32_SYS_NI(name)
 #endif /* CONFIG_IA32_EMULATION */
 
 
@@ -180,40 +225,6 @@ extern asmlinkage long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 
 #endif /* CONFIG_COMPAT */
 
-
-/*
- * Instead of the generic __SYSCALL_DEFINEx() definition, this macro takes
- * struct pt_regs *regs as the only argument of the syscall stub named
- * __x64_sys_*(). It decodes just the registers it needs and passes them on to
- * the __se_sys_*() wrapper performing sign extension and then to the
- * __do_sys_*() function doing the actual job. These wrappers and functions
- * are inlined (at least in very most cases), meaning that the assembly looks
- * as follows (slightly re-ordered for better readability):
- *
- * <__x64_sys_recv>:		<-- syscall with 4 parameters
- *	callq	<__fentry__>
- *
- *	mov	0x70(%rdi),%rdi	<-- decode regs->di
- *	mov	0x68(%rdi),%rsi	<-- decode regs->si
- *	mov	0x60(%rdi),%rdx	<-- decode regs->dx
- *	mov	0x38(%rdi),%rcx	<-- decode regs->r10
- *
- *	xor	%r9d,%r9d	<-- clear %r9
- *	xor	%r8d,%r8d	<-- clear %r8
- *
- *	callq	__sys_recvfrom	<-- do the actual work in __sys_recvfrom()
- *				    which takes 6 arguments
- *
- *	cltq			<-- extend return value to 64-bit
- *	retq			<-- return
- *
- * This approach avoids leaking random user-provided register content down
- * the call chain.
- *
- * If IA32_EMULATION is enabled, this macro generates an additional wrapper
- * named __ia32_sys_*() which decodes the struct pt_regs *regs according
- * to the i386 calling convention (bx, cx, dx, si, di, bp).
- */
 #define __SYSCALL_DEFINEx(x, name, ...)					\
 	static long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
