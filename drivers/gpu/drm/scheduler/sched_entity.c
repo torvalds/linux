@@ -138,38 +138,6 @@ bool drm_sched_entity_is_ready(struct drm_sched_entity *entity)
 }
 
 /**
- * drm_sched_entity_get_free_sched - Get the rq from rq_list with least load
- *
- * @entity: scheduler entity
- *
- * Return the pointer to the rq with least load.
- */
-static struct drm_sched_rq *
-drm_sched_entity_get_free_sched(struct drm_sched_entity *entity)
-{
-	struct drm_sched_rq *rq = NULL;
-	unsigned int min_jobs = UINT_MAX, num_jobs;
-	int i;
-
-	for (i = 0; i < entity->num_sched_list; ++i) {
-		struct drm_gpu_scheduler *sched = entity->sched_list[i];
-
-		if (!entity->sched_list[i]->ready) {
-			DRM_WARN("sched%s is not ready, skipping", sched->name);
-			continue;
-		}
-
-		num_jobs = atomic_read(&sched->num_jobs);
-		if (num_jobs < min_jobs) {
-			min_jobs = num_jobs;
-			rq = &entity->sched_list[i]->sched_rq[entity->priority];
-		}
-	}
-
-	return rq;
-}
-
-/**
  * drm_sched_entity_flush - Flush a context entity
  *
  * @entity: scheduler entity
@@ -479,6 +447,7 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 {
 	struct dma_fence *fence;
+	struct drm_gpu_scheduler *sched;
 	struct drm_sched_rq *rq;
 
 	if (spsc_queue_count(&entity->job_queue) || entity->num_sched_list <= 1)
@@ -489,7 +458,8 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 		return;
 
 	spin_lock(&entity->rq_lock);
-	rq = drm_sched_entity_get_free_sched(entity);
+	sched = drm_sched_pick_best(entity->sched_list, entity->num_sched_list);
+	rq = sched ? &sched->sched_rq[entity->priority] : NULL;
 	if (rq != entity->rq) {
 		drm_sched_rq_remove_entity(entity->rq, entity);
 		entity->rq = rq;
