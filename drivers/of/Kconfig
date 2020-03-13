@@ -12,6 +12,18 @@ menuconfig OF
 
 if OF
 
+config DTC_OMIT_DISABLED
+	bool "Fixup dtb by removing nodes with disabled status"
+	depends on DTC
+	help
+	  This option used for dtc to delete nodes with disabled status.
+
+config DTC_OMIT_EMPTY
+	bool "Fixup dtb by removing empty nodes"
+	depends on DTC
+	help
+	  This option used for dtc to delete empty nodes.
+
 config OF_UNITTEST
 	bool "Device Tree runtime unit tests"
 	depends on !SPARC

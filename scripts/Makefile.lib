@@ -249,6 +249,14 @@ ifeq ($(CONFIG_ANDROID),y)
 DTC_FLAGS += -@
 endif
 
+ifeq ($(CONFIG_DTC_OMIT_DISABLED),y)
+DTC_FLAGS += -Wnode_disabled
+endif
+
+ifeq ($(CONFIG_DTC_OMIT_EMPTY),y)
+DTC_FLAGS += -Wnode_empty
+endif
+
 # Disable noisy checks by default
 ifeq ($(findstring 1,$(KBUILD_ENABLE_EXTRA_GCC_CHECKS)),)
 DTC_FLAGS += -Wno-unit_address_vs_reg \
