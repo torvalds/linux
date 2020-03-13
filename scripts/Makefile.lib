@@ -322,6 +322,14 @@ ifeq ($(CONFIG_DTC_SYMBOLS),y)
 DTC_FLAGS += -@
 endif
 
+ifeq ($(CONFIG_DTC_OMIT_DISABLED),y)
+DTC_FLAGS += -Wnode_disabled
+endif
+
+ifeq ($(CONFIG_DTC_OMIT_EMPTY),y)
+DTC_FLAGS += -Wnode_empty
+endif
+
 # Disable noisy checks by default
 ifeq ($(findstring 1,$(KBUILD_EXTRA_WARN)),)
 DTC_FLAGS += $(call dtc-option,-Wno-unit_address_vs_reg) \
