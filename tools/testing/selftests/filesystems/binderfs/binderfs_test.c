@@ -139,29 +139,25 @@ static int __do_binderfs_test(void)
 	int fd, ret, saved_errno;
 	size_t len;
 	ssize_t wret;
-	bool keep = false;
 	struct binderfs_device device = { 0 };
 	struct binder_version version = { 0 };
+	char binderfs_mntpt[] = P_tmpdir "/binderfs_XXXXXX",
+		device_path[sizeof(P_tmpdir "/binderfs_XXXXXX/") + BINDERFS_MAX_NAME];
 
 	change_to_mountns();
 
-	ret = mkdir("/dev/binderfs", 0755);
-	if (ret < 0) {
-		if (errno != EEXIST)
-			ksft_exit_fail_msg(
-				"%s - Failed to create binderfs mountpoint\n",
-				strerror(errno));
+	if (!mkdtemp(binderfs_mntpt))
+		ksft_exit_fail_msg(
+			"%s - Failed to create binderfs mountpoint\n",
+			strerror(errno));
 
-		keep = true;
-	}
-
-	ret = mount(NULL, "/dev/binderfs", "binder", 0, 0);
+	ret = mount(NULL, binderfs_mntpt, "binder", 0, 0);
 	if (ret < 0) {
 		if (errno != ENODEV)
 			ksft_exit_fail_msg("%s - Failed to mount binderfs\n",
 					   strerror(errno));
 
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		rmdir_protect_errno(binderfs_mntpt);
 		return 1;
 	}
 
@@ -170,7 +166,8 @@ static int __do_binderfs_test(void)
 
 	memcpy(device.name, "my-binder", strlen("my-binder"));
 
-	fd = open("/dev/binderfs/binder-control", O_RDONLY | O_CLOEXEC);
+	snprintf(device_path, sizeof(device_path), "%s/binder-control", binderfs_mntpt);
+	fd = open(device_path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		ksft_exit_fail_msg(
 			"%s - Failed to open binder-control device\n",
@@ -181,7 +178,7 @@ static int __do_binderfs_test(void)
 	close(fd);
 	errno = saved_errno;
 	if (ret < 0) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		rmdir_protect_errno(binderfs_mntpt);
 		ksft_exit_fail_msg(
 			"%s - Failed to allocate new binder device\n",
 			strerror(errno));
@@ -194,9 +191,10 @@ static int __do_binderfs_test(void)
 	/* binder device allocation test passed */
 	ksft_inc_pass_cnt();
 
-	fd = open("/dev/binderfs/my-binder", O_CLOEXEC | O_RDONLY);
+	snprintf(device_path, sizeof(device_path), "%s/my-binder", binderfs_mntpt);
+	fd = open(device_path, O_CLOEXEC | O_RDONLY);
 	if (fd < 0) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		rmdir_protect_errno(binderfs_mntpt);
 		ksft_exit_fail_msg("%s - Failed to open my-binder device\n",
 				   strerror(errno));
 	}
@@ -206,7 +204,7 @@ static int __do_binderfs_test(void)
 	close(fd);
 	errno = saved_errno;
 	if (ret < 0) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		rmdir_protect_errno(binderfs_mntpt);
 		ksft_exit_fail_msg(
 			"%s - Failed to open perform BINDER_VERSION request\n",
 			strerror(errno));
@@ -218,9 +216,9 @@ static int __do_binderfs_test(void)
 	/* binder transaction with binderfs binder device passed */
 	ksft_inc_pass_cnt();
 
-	ret = unlink("/dev/binderfs/my-binder");
+	ret = unlink(device_path);
 	if (ret < 0) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		rmdir_protect_errno(binderfs_mntpt);
 		ksft_exit_fail_msg("%s - Failed to delete binder device\n",
 				   strerror(errno));
 	}
@@ -228,12 +226,13 @@ static int __do_binderfs_test(void)
 	/* binder device removal passed */
 	ksft_inc_pass_cnt();
 
-	ret = unlink("/dev/binderfs/binder-control");
+	snprintf(device_path, sizeof(device_path), "%s/binder-control", binderfs_mntpt);
+	ret = unlink(device_path);
 	if (!ret) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		rmdir_protect_errno(binderfs_mntpt);
 		ksft_exit_fail_msg("Managed to delete binder-control device\n");
 	} else if (errno != EPERM) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		rmdir_protect_errno(binderfs_mntpt);
 		ksft_exit_fail_msg(
 			"%s - Failed to delete binder-control device but exited with unexpected error code\n",
 			strerror(errno));
@@ -243,8 +242,8 @@ static int __do_binderfs_test(void)
 	ksft_inc_xfail_cnt();
 
 on_error:
-	ret = umount2("/dev/binderfs", MNT_DETACH);
-	keep ?: rmdir_protect_errno("/dev/binderfs");
+	ret = umount2(binderfs_mntpt, MNT_DETACH);
+	rmdir_protect_errno(binderfs_mntpt);
 	if (ret < 0)
 		ksft_exit_fail_msg("%s - Failed to unmount binderfs\n",
 				   strerror(errno));
