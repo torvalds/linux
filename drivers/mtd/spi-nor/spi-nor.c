@@ -568,14 +568,14 @@ static int spi_nor_read_cr(struct spi_nor *nor, u8 *cr)
 }
 
 /**
- * macronix_set_4byte() - Set 4-byte address mode for Macronix flashes.
+ * spi_nor_set_4byte_addr_mode() - Enter/Exit 4-byte address mode.
  * @nor:	pointer to 'struct spi_nor'.
  * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
  *		address mode.
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int macronix_set_4byte(struct spi_nor *nor, bool enable)
+static int spi_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 {
 	int ret;
 
@@ -604,14 +604,15 @@ static int macronix_set_4byte(struct spi_nor *nor, bool enable)
 }
 
 /**
- * st_micron_set_4byte() - Set 4-byte address mode for ST and Micron flashes.
+ * st_micron_set_4byte_addr_mode() - Set 4-byte address mode for ST and Micron
+ * flashes.
  * @nor:	pointer to 'struct spi_nor'.
  * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
  *		address mode.
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int st_micron_set_4byte(struct spi_nor *nor, bool enable)
+static int st_micron_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 {
 	int ret;
 
@@ -619,7 +620,7 @@ static int st_micron_set_4byte(struct spi_nor *nor, bool enable)
 	if (ret)
 		return ret;
 
-	ret = macronix_set_4byte(nor, enable);
+	ret = spi_nor_set_4byte_addr_mode(nor, enable);
 	if (ret)
 		return ret;
 
@@ -627,14 +628,15 @@ static int st_micron_set_4byte(struct spi_nor *nor, bool enable)
 }
 
 /**
- * spansion_set_4byte() - Set 4-byte address mode for Spansion flashes.
+ * spansion_set_4byte_addr_mode() - Set 4-byte address mode for Spansion
+ * flashes.
  * @nor:	pointer to 'struct spi_nor'.
  * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
  *		address mode.
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int spansion_set_4byte(struct spi_nor *nor, bool enable)
+static int spansion_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 {
 	int ret;
 
@@ -692,18 +694,18 @@ static int spi_nor_write_ear(struct spi_nor *nor, u8 ear)
 }
 
 /**
- * winbond_set_4byte() - Set 4-byte address mode for Winbond flashes.
+ * winbond_set_4byte_addr_mode() - Set 4-byte address mode for Winbond flashes.
  * @nor:	pointer to 'struct spi_nor'.
  * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
  *		address mode.
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int winbond_set_4byte(struct spi_nor *nor, bool enable)
+static int winbond_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 {
 	int ret;
 
-	ret = macronix_set_4byte(nor, enable);
+	ret = spi_nor_set_4byte_addr_mode(nor, enable);
 	if (ret || enable)
 		return ret;
 
@@ -4655,7 +4657,7 @@ static void issi_set_default_init(struct spi_nor *nor)
 static void macronix_set_default_init(struct spi_nor *nor)
 {
 	nor->params.quad_enable = spi_nor_sr1_bit6_quad_enable;
-	nor->params.set_4byte = macronix_set_4byte;
+	nor->params.set_4byte_addr_mode = spi_nor_set_4byte_addr_mode;
 }
 
 static void sst_set_default_init(struct spi_nor *nor)
@@ -4668,12 +4670,12 @@ static void st_micron_set_default_init(struct spi_nor *nor)
 	nor->flags |= SNOR_F_HAS_LOCK;
 	nor->flags &= ~SNOR_F_HAS_16BIT_SR;
 	nor->params.quad_enable = NULL;
-	nor->params.set_4byte = st_micron_set_4byte;
+	nor->params.set_4byte_addr_mode = st_micron_set_4byte_addr_mode;
 }
 
 static void winbond_set_default_init(struct spi_nor *nor)
 {
-	nor->params.set_4byte = winbond_set_4byte;
+	nor->params.set_4byte_addr_mode = winbond_set_4byte_addr_mode;
 }
 
 /**
@@ -4759,7 +4761,7 @@ static void spi_nor_info_init_params(struct spi_nor *nor)
 
 	/* Initialize legacy flash parameters and settings. */
 	params->quad_enable = spi_nor_sr2_bit1_quad_enable;
-	params->set_4byte = spansion_set_4byte;
+	params->set_4byte_addr_mode = spansion_set_4byte_addr_mode;
 	params->setup = spi_nor_default_setup;
 	/* Default to 16-bit Write Status (01h) Command */
 	nor->flags |= SNOR_F_HAS_16BIT_SR;
@@ -5011,7 +5013,7 @@ static int spi_nor_init(struct spi_nor *nor)
 		 */
 		WARN_ONCE(nor->flags & SNOR_F_BROKEN_RESET,
 			  "enabling reset hack; may not recover from unexpected reboots\n");
-		nor->params.set_4byte(nor, true);
+		nor->params.set_4byte_addr_mode(nor, true);
 	}
 
 	return 0;
@@ -5035,7 +5037,7 @@ void spi_nor_restore(struct spi_nor *nor)
 	/* restore the addressing mode */
 	if (nor->addr_width == 4 && !(nor->flags & SNOR_F_4B_OPCODES) &&
 	    nor->flags & SNOR_F_BROKEN_RESET)
-		nor->params.set_4byte(nor, false);
+		nor->params.set_4byte_addr_mode(nor, false);
 }
 EXPORT_SYMBOL_GPL(spi_nor_restore);
 
