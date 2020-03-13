@@ -91,47 +91,47 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, const u32 hw_ip, const
 	priority = (ctx->override_priority == DRM_SCHED_PRIORITY_UNSET) ?
 				ctx->init_priority : ctx->override_priority;
 	switch (hw_ip) {
-		case AMDGPU_HW_IP_GFX:
-			sched = &adev->gfx.gfx_ring[0].sched;
-			scheds = &sched;
-			num_scheds = 1;
-			break;
-		case AMDGPU_HW_IP_COMPUTE:
-			hw_prio = amdgpu_ctx_sched_prio_to_compute_prio(priority);
-			scheds = adev->gfx.compute_prio_sched[hw_prio];
-			num_scheds = adev->gfx.num_compute_sched[hw_prio];
-			break;
-		case AMDGPU_HW_IP_DMA:
-			scheds = adev->sdma.sdma_sched;
-			num_scheds = adev->sdma.num_sdma_sched;
-			break;
-		case AMDGPU_HW_IP_UVD:
-			sched = &adev->uvd.inst[0].ring.sched;
-			scheds = &sched;
-			num_scheds = 1;
-			break;
-		case AMDGPU_HW_IP_VCE:
-			sched = &adev->vce.ring[0].sched;
-			scheds = &sched;
-			num_scheds = 1;
-			break;
-		case AMDGPU_HW_IP_UVD_ENC:
-			sched = &adev->uvd.inst[0].ring_enc[0].sched;
-			scheds = &sched;
-			num_scheds = 1;
-			break;
-		case AMDGPU_HW_IP_VCN_DEC:
-			scheds = adev->vcn.vcn_dec_sched;
-			num_scheds =  adev->vcn.num_vcn_dec_sched;
-			break;
-		case AMDGPU_HW_IP_VCN_ENC:
-			scheds = adev->vcn.vcn_enc_sched;
-			num_scheds =  adev->vcn.num_vcn_enc_sched;
-			break;
-		case AMDGPU_HW_IP_VCN_JPEG:
-			scheds = adev->jpeg.jpeg_sched;
-			num_scheds =  adev->jpeg.num_jpeg_sched;
-			break;
+	case AMDGPU_HW_IP_GFX:
+		sched = &adev->gfx.gfx_ring[0].sched;
+		scheds = &sched;
+		num_scheds = 1;
+		break;
+	case AMDGPU_HW_IP_COMPUTE:
+		hw_prio = amdgpu_ctx_sched_prio_to_compute_prio(priority);
+		scheds = adev->gfx.compute_prio_sched[hw_prio];
+		num_scheds = adev->gfx.num_compute_sched[hw_prio];
+		break;
+	case AMDGPU_HW_IP_DMA:
+		scheds = adev->sdma.sdma_sched;
+		num_scheds = adev->sdma.num_sdma_sched;
+		break;
+	case AMDGPU_HW_IP_UVD:
+		sched = &adev->uvd.inst[0].ring.sched;
+		scheds = &sched;
+		num_scheds = 1;
+		break;
+	case AMDGPU_HW_IP_VCE:
+		sched = &adev->vce.ring[0].sched;
+		scheds = &sched;
+		num_scheds = 1;
+		break;
+	case AMDGPU_HW_IP_UVD_ENC:
+		sched = &adev->uvd.inst[0].ring_enc[0].sched;
+		scheds = &sched;
+		num_scheds = 1;
+		break;
+	case AMDGPU_HW_IP_VCN_DEC:
+		scheds = adev->vcn.vcn_dec_sched;
+		num_scheds =  adev->vcn.num_vcn_dec_sched;
+		break;
+	case AMDGPU_HW_IP_VCN_ENC:
+		scheds = adev->vcn.vcn_enc_sched;
+		num_scheds =  adev->vcn.num_vcn_enc_sched;
+		break;
+	case AMDGPU_HW_IP_VCN_JPEG:
+		scheds = adev->jpeg.jpeg_sched;
+		num_scheds =  adev->jpeg.num_jpeg_sched;
+		break;
 	}
 
 	r = drm_sched_entity_init(&entity->entity, priority, scheds, num_scheds,
