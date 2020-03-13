@@ -867,7 +867,7 @@ static bool steal_from_global_rsv(struct btrfs_fs_info *fs_info,
 		return false;
 
 	spin_lock(&global_rsv->lock);
-	min_bytes = div_factor(global_rsv->size, 5);
+	min_bytes = div_factor(global_rsv->size, 1);
 	if (global_rsv->reserved < min_bytes + ticket->bytes) {
 		spin_unlock(&global_rsv->lock);
 		return false;
