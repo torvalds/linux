@@ -340,18 +340,6 @@ static inline int cpucap_default_scope(const struct arm64_cpu_capabilities *cap)
 	return cap->type & ARM64_CPUCAP_SCOPE_MASK;
 }
 
-static inline bool
-cpucap_late_cpu_optional(const struct arm64_cpu_capabilities *cap)
-{
-	return !!(cap->type & ARM64_CPUCAP_OPTIONAL_FOR_LATE_CPU);
-}
-
-static inline bool
-cpucap_late_cpu_permitted(const struct arm64_cpu_capabilities *cap)
-{
-	return !!(cap->type & ARM64_CPUCAP_PERMITTED_FOR_LATE_CPU);
-}
-
 /*
  * Generic helper for handling capabilties with multiple (match,enable) pairs
  * of call backs, sharing the same capability bit.
