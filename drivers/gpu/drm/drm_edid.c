@@ -3222,7 +3222,8 @@ static u8 *drm_find_displayid_extension(const struct edid *edid,
 	if (!displayid)
 		return NULL;
 
-	*length = EDID_LENGTH;
+	/* EDID extensions block checksum isn't for us */
+	*length = EDID_LENGTH - 1;
 	*idx = 1;
 
 	ret = validate_displayid(displayid, *length, *idx);
