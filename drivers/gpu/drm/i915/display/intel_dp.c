@@ -7060,7 +7060,11 @@ static int intel_dp_connector_atomic_check(struct drm_connector *conn,
 	if (ret)
 		return ret;
 
-	if (INTEL_GEN(dev_priv) < 11)
+	/*
+	 * We don't enable port sync on BDW due to missing w/as and
+	 * due to not having adjusted the modeset sequence appropriately.
+	 */
+	if (INTEL_GEN(dev_priv) < 9)
 		return 0;
 
 	if (!intel_connector_needs_modeset(state, conn))

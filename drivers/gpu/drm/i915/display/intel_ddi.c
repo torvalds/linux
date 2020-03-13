@@ -1497,6 +1497,14 @@ void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 	intel_de_write(dev_priv, TRANS_MSA_MISC(cpu_transcoder), temp);
 }
 
+static u32 bdw_trans_port_sync_master_select(enum transcoder master_transcoder)
+{
+	if (master_transcoder == TRANSCODER_EDP)
+		return 0;
+	else
+		return master_transcoder + 1;
+}
+
 /*
  * Returns the TRANS_DDI_FUNC_CTL value based on CRTC state.
  *
@@ -1597,6 +1605,15 @@ intel_ddi_transcoder_func_reg_val_get(const struct intel_crtc_state *crtc_state)
 		temp |= DDI_PORT_WIDTH(crtc_state->lane_count);
 	}
 
+	if (IS_GEN_RANGE(dev_priv, 8, 10) &&
+	    crtc_state->master_transcoder != INVALID_TRANSCODER) {
+		u8 master_select =
+			bdw_trans_port_sync_master_select(crtc_state->master_transcoder);
+
+		temp |= TRANS_DDI_PORT_SYNC_ENABLE |
+			TRANS_DDI_PORT_SYNC_MASTER_SELECT(master_select);
+	}
+
 	return temp;
 }
 
@@ -1612,12 +1629,8 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 		u32 ctl2 = 0;
 
 		if (master_transcoder != INVALID_TRANSCODER) {
-			u8 master_select;
-
-			if (master_transcoder == TRANSCODER_EDP)
-				master_select = 0;
-			else
-				master_select = master_transcoder + 1;
+			u8 master_select =
+				bdw_trans_port_sync_master_select(master_transcoder);
 
 			ctl2 |= PORT_SYNC_MODE_ENABLE |
 				PORT_SYNC_MODE_MASTER_SELECT(master_select);
@@ -1662,7 +1675,12 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 			       TRANS_DDI_FUNC_CTL2(cpu_transcoder), 0);
 
 	ctl = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+
 	ctl &= ~TRANS_DDI_FUNC_ENABLE;
+
+	if (IS_GEN_RANGE(dev_priv, 8, 10))
+		ctl &= ~(TRANS_DDI_PORT_SYNC_ENABLE |
+			 TRANS_DDI_PORT_SYNC_MASTER_SELECT_MASK);
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		if (!intel_dp_mst_is_master_trans(crtc_state)) {
@@ -1672,6 +1690,7 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 	} else {
 		ctl &= ~(TRANS_DDI_PORT_MASK | TRANS_DDI_MODE_SELECT_MASK);
 	}
+
 	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder), ctl);
 
 	if (dev_priv->quirks & QUIRK_INCREASE_DDI_DISABLED_TIME &&
@@ -3916,17 +3935,26 @@ void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 		crtc_state->min_voltage_level = 2;
 }
 
-static enum transcoder transcoder_master_readout(struct drm_i915_private *dev_priv,
-						 enum transcoder cpu_transcoder)
+static enum transcoder bdw_transcoder_master_readout(struct drm_i915_private *dev_priv,
+						     enum transcoder cpu_transcoder)
 {
-	u32 ctl2, master_select;
+	u32 master_select;
 
-	ctl2 = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL2(cpu_transcoder));
+	if (INTEL_GEN(dev_priv) >= 11) {
+		u32 ctl2 = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL2(cpu_transcoder));
 
-	if ((ctl2 & PORT_SYNC_MODE_ENABLE) == 0)
-		return INVALID_TRANSCODER;
+		if ((ctl2 & PORT_SYNC_MODE_ENABLE) == 0)
+			return INVALID_TRANSCODER;
 
-	master_select = REG_FIELD_GET(PORT_SYNC_MODE_MASTER_SELECT_MASK, ctl2);
+		master_select = REG_FIELD_GET(PORT_SYNC_MODE_MASTER_SELECT_MASK, ctl2);
+	} else {
+		u32 ctl = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+
+		if ((ctl & TRANS_DDI_PORT_SYNC_ENABLE) == 0)
+			return INVALID_TRANSCODER;
+
+		master_select = REG_FIELD_GET(TRANS_DDI_PORT_SYNC_MASTER_SELECT_MASK, ctl);
+	}
 
 	if (master_select == 0)
 		return TRANSCODER_EDP;
@@ -3934,7 +3962,7 @@ static enum transcoder transcoder_master_readout(struct drm_i915_private *dev_pr
 		return master_select - 1;
 }
 
-static void icl_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
+static void bdw_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	u32 transcoders = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
@@ -3942,7 +3970,7 @@ static void icl_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 	enum transcoder cpu_transcoder;
 
 	crtc_state->master_transcoder =
-		transcoder_master_readout(dev_priv, crtc_state->cpu_transcoder);
+		bdw_transcoder_master_readout(dev_priv, crtc_state->cpu_transcoder);
 
 	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
 		enum intel_display_power_domain power_domain;
@@ -3955,7 +3983,7 @@ static void icl_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 		if (!trans_wakeref)
 			continue;
 
-		if (transcoder_master_readout(dev_priv, cpu_transcoder) ==
+		if (bdw_transcoder_master_readout(dev_priv, cpu_transcoder) ==
 		    crtc_state->cpu_transcoder)
 			crtc_state->sync_mode_slaves_mask |= BIT(cpu_transcoder);
 
@@ -4121,8 +4149,8 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 			     HDMI_INFOFRAME_TYPE_DRM,
 			     &pipe_config->infoframes.drm);
 
-	if (INTEL_GEN(dev_priv) >= 11)
-		icl_get_trans_port_sync_config(pipe_config);
+	if (INTEL_GEN(dev_priv) >= 8)
+		bdw_get_trans_port_sync_config(pipe_config);
 }
 
 static enum intel_output_type
@@ -4224,7 +4252,11 @@ intel_ddi_port_sync_transcoders(const struct intel_crtc_state *ref_crtc_state,
 	u8 transcoders = 0;
 	int i;
 
-	if (INTEL_GEN(dev_priv) < 11)
+	/*
+	 * We don't enable port sync on BDW due to missing w/as and
+	 * due to not having adjusted the modeset sequence appropriately.
+	 */
+	if (INTEL_GEN(dev_priv) < 9)
 		return 0;
 
 	if (!intel_crtc_has_type(ref_crtc_state, INTEL_OUTPUT_DP))
