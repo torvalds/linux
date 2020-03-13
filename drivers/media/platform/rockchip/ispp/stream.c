@@ -867,9 +867,9 @@ static int config_scl(struct rkispp_stream *stream)
 	set_vir_stride(stream, ALIGN(stream->out_fmt.width * mult, 16) >> 2);
 	set_scl_factor(stream, vy_fac << 16 | hy_fac);
 	value = SW_SCL_ENABLE | bypass | fmt->wr_fmt << 3 |
-		(fmt->fourcc != V4L2_PIX_FMT_GREY) ? 0 : SW_SCL_WR_UV_DIS |
-		(stream->out_fmt.quantization != V4L2_QUANTIZATION_LIM_RANGE) ?
-		0 : SW_SCL_WR_YUV_LIMIT;
+		((fmt->fourcc != V4L2_PIX_FMT_GREY) ? 0 : SW_SCL_WR_UV_DIS) |
+		((stream->out_fmt.quantization != V4L2_QUANTIZATION_LIM_RANGE) ?
+		 0 : SW_SCL_WR_YUV_LIMIT);
 	set_ctrl(stream, value);
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
