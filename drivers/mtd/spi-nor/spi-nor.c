@@ -755,13 +755,13 @@ static int spi_nor_xread_sr(struct spi_nor *nor, u8 *sr)
 }
 
 /**
- * s3an_sr_ready() - Query the Status Register of the S3AN flash to see if the
- * flash is ready for new commands.
+ * spi_nor_xsr_ready() - Query the Status Register of the S3AN flash to see if
+ * the flash is ready for new commands.
  * @nor:	pointer to 'struct spi_nor'.
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int s3an_sr_ready(struct spi_nor *nor)
+static int spi_nor_xsr_ready(struct spi_nor *nor)
 {
 	int ret;
 
@@ -892,7 +892,7 @@ static int spi_nor_ready(struct spi_nor *nor)
 	int sr, fsr;
 
 	if (nor->flags & SNOR_F_READY_XSR_RDY)
-		sr = s3an_sr_ready(nor);
+		sr = spi_nor_xsr_ready(nor);
 	else
 		sr = spi_nor_sr_ready(nor);
 	if (sr < 0)
@@ -1784,8 +1784,8 @@ erase_err:
 	return ret;
 }
 
-static void stm_get_locked_range(struct spi_nor *nor, u8 sr, loff_t *ofs,
-				 uint64_t *len)
+static void spi_nor_get_locked_range_sr(struct spi_nor *nor, u8 sr, loff_t *ofs,
+					uint64_t *len)
 {
 	struct mtd_info *mtd = &nor->mtd;
 	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
@@ -1813,8 +1813,8 @@ static void stm_get_locked_range(struct spi_nor *nor, u8 sr, loff_t *ofs,
  * Return 1 if the entire region is locked (if @locked is true) or unlocked (if
  * @locked is false); 0 otherwise
  */
-static int stm_check_lock_status_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
-				    u8 sr, bool locked)
+static int spi_nor_check_lock_status_sr(struct spi_nor *nor, loff_t ofs,
+					uint64_t len, u8 sr, bool locked)
 {
 	loff_t lock_offs;
 	uint64_t lock_len;
@@ -1822,7 +1822,7 @@ static int stm_check_lock_status_sr(struct spi_nor *nor, loff_t ofs, uint64_t le
 	if (!len)
 		return 1;
 
-	stm_get_locked_range(nor, sr, &lock_offs, &lock_len);
+	spi_nor_get_locked_range_sr(nor, sr, &lock_offs, &lock_len);
 
 	if (locked)
 		/* Requested range is a sub-range of locked range */
@@ -1832,16 +1832,16 @@ static int stm_check_lock_status_sr(struct spi_nor *nor, loff_t ofs, uint64_t le
 		return (ofs >= lock_offs + lock_len) || (ofs + len <= lock_offs);
 }
 
-static int stm_is_locked_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
-			    u8 sr)
+static int spi_nor_is_locked_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
+				u8 sr)
 {
-	return stm_check_lock_status_sr(nor, ofs, len, sr, true);
+	return spi_nor_check_lock_status_sr(nor, ofs, len, sr, true);
 }
 
-static int stm_is_unlocked_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
-			      u8 sr)
+static int spi_nor_is_unlocked_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
+				  u8 sr)
 {
-	return stm_check_lock_status_sr(nor, ofs, len, sr, false);
+	return spi_nor_check_lock_status_sr(nor, ofs, len, sr, false);
 }
 
 /*
@@ -1876,7 +1876,7 @@ static int stm_is_unlocked_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
  *
  * Returns negative on errors, 0 on success.
  */
-static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
+static int spi_nor_sr_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 {
 	struct mtd_info *mtd = &nor->mtd;
 	int ret, status_old, status_new;
@@ -1894,16 +1894,16 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	status_old = nor->bouncebuf[0];
 
 	/* If nothing in our range is unlocked, we don't need to do anything */
-	if (stm_is_locked_sr(nor, ofs, len, status_old))
+	if (spi_nor_is_locked_sr(nor, ofs, len, status_old))
 		return 0;
 
 	/* If anything below us is unlocked, we can't use 'bottom' protection */
-	if (!stm_is_locked_sr(nor, 0, ofs, status_old))
+	if (!spi_nor_is_locked_sr(nor, 0, ofs, status_old))
 		can_be_bottom = false;
 
 	/* If anything above us is unlocked, we can't use 'top' protection */
-	if (!stm_is_locked_sr(nor, ofs + len, mtd->size - (ofs + len),
-				status_old))
+	if (!spi_nor_is_locked_sr(nor, ofs + len, mtd->size - (ofs + len),
+				  status_old))
 		can_be_top = false;
 
 	if (!can_be_bottom && !can_be_top)
@@ -1958,11 +1958,11 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 }
 
 /*
- * Unlock a region of the flash. See stm_lock() for more info
+ * Unlock a region of the flash. See spi_nor_sr_lock() for more info
  *
  * Returns negative on errors, 0 on success.
  */
-static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
+static int spi_nor_sr_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 {
 	struct mtd_info *mtd = &nor->mtd;
 	int ret, status_old, status_new;
@@ -1980,16 +1980,16 @@ static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	status_old = nor->bouncebuf[0];
 
 	/* If nothing in our range is locked, we don't need to do anything */
-	if (stm_is_unlocked_sr(nor, ofs, len, status_old))
+	if (spi_nor_is_unlocked_sr(nor, ofs, len, status_old))
 		return 0;
 
 	/* If anything below us is locked, we can't use 'top' protection */
-	if (!stm_is_unlocked_sr(nor, 0, ofs, status_old))
+	if (!spi_nor_is_unlocked_sr(nor, 0, ofs, status_old))
 		can_be_top = false;
 
 	/* If anything above us is locked, we can't use 'bottom' protection */
-	if (!stm_is_unlocked_sr(nor, ofs + len, mtd->size - (ofs + len),
-				status_old))
+	if (!spi_nor_is_unlocked_sr(nor, ofs + len, mtd->size - (ofs + len),
+				    status_old))
 		can_be_bottom = false;
 
 	if (!can_be_bottom && !can_be_top)
@@ -2046,13 +2046,13 @@ static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 }
 
 /*
- * Check if a region of the flash is (completely) locked. See stm_lock() for
- * more info.
+ * Check if a region of the flash is (completely) locked. See spi_nor_sr_lock()
+ * for more info.
  *
  * Returns 1 if entire region is locked, 0 if any portion is unlocked, and
  * negative on errors.
  */
-static int stm_is_locked(struct spi_nor *nor, loff_t ofs, uint64_t len)
+static int spi_nor_sr_is_locked(struct spi_nor *nor, loff_t ofs, uint64_t len)
 {
 	int ret;
 
@@ -2060,13 +2060,13 @@ static int stm_is_locked(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	if (ret)
 		return ret;
 
-	return stm_is_locked_sr(nor, ofs, len, nor->bouncebuf[0]);
+	return spi_nor_is_locked_sr(nor, ofs, len, nor->bouncebuf[0]);
 }
 
-static const struct spi_nor_locking_ops stm_locking_ops = {
-	.lock = stm_lock,
-	.unlock = stm_unlock,
-	.is_locked = stm_is_locked,
+static const struct spi_nor_locking_ops spi_nor_sr_locking_ops = {
+	.lock = spi_nor_sr_lock,
+	.unlock = spi_nor_sr_unlock,
+	.is_locked = spi_nor_sr_is_locked,
 };
 
 static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
@@ -4895,7 +4895,7 @@ static void spi_nor_late_init_params(struct spi_nor *nor)
 	 * the default ones.
 	 */
 	if (nor->flags & SNOR_F_HAS_LOCK && !nor->params.locking_ops)
-		nor->params.locking_ops = &stm_locking_ops;
+		nor->params.locking_ops = &spi_nor_sr_locking_ops;
 }
 
 /**
