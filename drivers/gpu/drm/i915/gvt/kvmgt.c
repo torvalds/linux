@@ -131,6 +131,7 @@ struct kvmgt_vdev {
 	struct work_struct release_work;
 	atomic_t released;
 	struct vfio_device *vfio_device;
+	struct vfio_group *vfio_group;
 };
 
 static inline struct kvmgt_vdev *kvmgt_vdev(struct intel_vgpu *vgpu)
@@ -792,6 +793,7 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 	struct kvmgt_vdev *vdev = kvmgt_vdev(vgpu);
 	unsigned long events;
 	int ret;
+	struct vfio_group *vfio_group;
 
 	vdev->iommu_notifier.notifier_call = intel_vgpu_iommu_notifier;
 	vdev->group_notifier.notifier_call = intel_vgpu_group_notifier;
@@ -814,6 +816,14 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 		goto undo_iommu;
 	}
 
+	vfio_group = vfio_group_get_external_user_from_dev(mdev_dev(mdev));
+	if (IS_ERR_OR_NULL(vfio_group)) {
+		ret = !vfio_group ? -EFAULT : PTR_ERR(vfio_group);
+		gvt_vgpu_err("vfio_group_get_external_user_from_dev failed\n");
+		goto undo_register;
+	}
+	vdev->vfio_group = vfio_group;
+
 	/* Take a module reference as mdev core doesn't take
 	 * a reference for vendor driver.
 	 */
@@ -830,6 +840,10 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 	return ret;
 
 undo_group:
+	vfio_group_put_external_user(vdev->vfio_group);
+	vdev->vfio_group = NULL;
+
+undo_register:
 	vfio_unregister_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
 					&vdev->group_notifier);
 
@@ -884,6 +898,7 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 	kvmgt_guest_exit(info);
 
 	intel_vgpu_release_msi_eventfd_ctx(vgpu);
+	vfio_group_put_external_user(vdev->vfio_group);
 
 	vdev->kvm = NULL;
 	vgpu->handle = 0;
