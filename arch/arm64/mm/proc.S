@@ -408,30 +408,30 @@ SYM_FUNC_END(idmap_kpti_install_ng_mappings)
 /*
  *	__cpu_setup
  *
- *	Initialise the processor for turning the MMU on.  Return in x0 the
- *	value of the SCTLR_EL1 register.
+ *	Initialise the processor for turning the MMU on.
+ *
+ * Input:
+ *	x0 with a flag ARM64_CPU_BOOT_PRIMARY/ARM64_CPU_BOOT_SECONDARY/ARM64_CPU_RUNTIME.
+ * Output:
+ *	Return in x0 the value of the SCTLR_EL1 register.
  */
 	.pushsection ".idmap.text", "awx"
 SYM_FUNC_START(__cpu_setup)
 	tlbi	vmalle1				// Invalidate local TLB
 	dsb	nsh
 
-	mov	x0, #3 << 20
-	msr	cpacr_el1, x0			// Enable FP/ASIMD
-	mov	x0, #1 << 12			// Reset mdscr_el1 and disable
-	msr	mdscr_el1, x0			// access to the DCC from EL0
+	mov	x1, #3 << 20
+	msr	cpacr_el1, x1			// Enable FP/ASIMD
+	mov	x1, #1 << 12			// Reset mdscr_el1 and disable
+	msr	mdscr_el1, x1			// access to the DCC from EL0
 	isb					// Unmask debug exceptions now,
 	enable_dbg				// since this is per-cpu
-	reset_pmuserenr_el0 x0			// Disable PMU access from EL0
+	reset_pmuserenr_el0 x1			// Disable PMU access from EL0
 	/*
 	 * Memory region attributes
 	 */
 	mov_q	x5, MAIR_EL1_SET
 	msr	mair_el1, x5
-	/*
-	 * Prepare SCTLR
-	 */
-	mov_q	x0, SCTLR_EL1_SET
 	/*
 	 * Set/prepare TCR and TTBR. We use 512GB (39-bit) address range for
 	 * both user and kernel.
@@ -468,5 +468,9 @@ SYM_FUNC_START(__cpu_setup)
 1:
 #endif	/* CONFIG_ARM64_HW_AFDBM */
 	msr	tcr_el1, x10
+	/*
+	 * Prepare SCTLR
+	 */
+	mov_q	x0, SCTLR_EL1_SET
 	ret					// return to head.S
 SYM_FUNC_END(__cpu_setup)
