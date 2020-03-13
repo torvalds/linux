@@ -1970,6 +1970,8 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 	else
 		drm_reset_display_info(connector);
 
+	drm_update_tile_info(connector, edid);
+
 	drm_object_property_set_value(&connector->base,
 				      dev->mode_config.non_desktop_property,
 				      connector->display_info.non_desktop);

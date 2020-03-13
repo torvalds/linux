@@ -278,3 +278,4 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 void drm_mode_fixup_1366x768(struct drm_display_mode *mode);
 void drm_reset_display_info(struct drm_connector *connector);
 u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid);
+void drm_update_tile_info(struct drm_connector *connector, const struct edid *edid);
