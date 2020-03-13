@@ -458,10 +458,12 @@ static void io_impersonate_work(struct io_worker *worker,
 static void io_assign_current_work(struct io_worker *worker,
 				   struct io_wq_work *work)
 {
-	/* flush pending signals before assigning new work */
-	if (signal_pending(current))
-		flush_signals(current);
-	cond_resched();
+	if (work) {
+		/* flush pending signals before assigning new work */
+		if (signal_pending(current))
+			flush_signals(current);
+		cond_resched();
+	}
 
 	spin_lock_irq(&worker->lock);
 	worker->cur_work = work;
