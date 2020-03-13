@@ -2521,8 +2521,10 @@ xfs_dabuf_map(
 	 */
 	if (nirecs > 1) {
 		map = kmem_zalloc(nirecs * sizeof(struct xfs_buf_map), KM_NOFS);
-		if (!map)
+		if (!map) {
+			error = -ENOMEM;
 			goto out_free_irecs;
+		}
 		*mapp = map;
 	}
 
