@@ -149,8 +149,6 @@ int kernel_text_address(unsigned long addr)
 		goto out;
 	if (is_bpf_text_address(addr))
 		goto out;
-	if (is_bpf_image_address(addr))
-		goto out;
 	ret = 0;
 out:
 	if (no_rcu)
