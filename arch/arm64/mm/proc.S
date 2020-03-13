@@ -485,6 +485,10 @@ SYM_FUNC_START(__cpu_setup)
 	ubfx	x2, x2, #ID_AA64ISAR1_APA_SHIFT, #8
 	cbz	x2, 3f
 
+	/*
+	 * The primary cpu keys are reset here and can be
+	 * re-initialised with some proper values later.
+	 */
 	msr_s	SYS_APIAKEYLO_EL1, xzr
 	msr_s	SYS_APIAKEYHI_EL1, xzr
 
@@ -496,6 +500,14 @@ SYM_FUNC_START(__cpu_setup)
 alternative_if_not ARM64_HAS_ADDRESS_AUTH
 	b	3f
 alternative_else_nop_endif
+
+	/* Install ptrauth key for secondary cpus */
+	adr_l	x2, secondary_data
+	ldr	x3, [x2, #CPU_BOOT_TASK]	// get secondary_data.task
+	cbz	x3, 2f				// check for slow booting cpus
+	ldp	x3, x4, [x2, #CPU_BOOT_PTRAUTH_KEY]
+	msr_s	SYS_APIAKEYLO_EL1, x3
+	msr_s	SYS_APIAKEYHI_EL1, x4
 
 2:	/* Enable ptrauth instructions */
 	ldr	x2, =SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | \
