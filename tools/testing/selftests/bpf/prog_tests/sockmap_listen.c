@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <unistd.h>
 
 #include <bpf/bpf.h>
@@ -25,6 +26,7 @@
 #include "test_progs.h"
 #include "test_sockmap_listen.skel.h"
 
+#define IO_TIMEOUT_SEC 30
 #define MAX_STRERR_LEN 256
 #define MAX_TEST_NAME 80
 
@@ -44,9 +46,10 @@
 
 /* Wrappers that fail the test on error and report it. */
 
-#define xaccept(fd, addr, len)                                                 \
+#define xaccept_nonblock(fd, addr, len)                                        \
 	({                                                                     \
-		int __ret = accept((fd), (addr), (len));                       \
+		int __ret =                                                    \
+			accept_timeout((fd), (addr), (len), IO_TIMEOUT_SEC);   \
 		if (__ret == -1)                                               \
 			FAIL_ERRNO("accept");                                  \
 		__ret;                                                         \
@@ -116,9 +119,10 @@
 		__ret;                                                         \
 	})
 
-#define xrecv(fd, buf, len, flags)                                             \
+#define xrecv_nonblock(fd, buf, len, flags)                                    \
 	({                                                                     \
-		ssize_t __ret = recv((fd), (buf), (len), (flags));             \
+		ssize_t __ret = recv_timeout((fd), (buf), (len), (flags),      \
+					     IO_TIMEOUT_SEC);                  \
 		if (__ret == -1)                                               \
 			FAIL_ERRNO("recv");                                    \
 		__ret;                                                         \
@@ -190,6 +194,40 @@
 			FAIL_ERRNO("pthread_join");                            \
 		__ret;                                                         \
 	})
+
+static int poll_read(int fd, unsigned int timeout_sec)
+{
+	struct timeval timeout = { .tv_sec = timeout_sec };
+	fd_set rfds;
+	int r;
+
+	FD_ZERO(&rfds);
+	FD_SET(fd, &rfds);
+
+	r = select(fd + 1, &rfds, NULL, NULL, &timeout);
+	if (r == 0)
+		errno = ETIME;
+
+	return r == 1 ? 0 : -1;
+}
+
+static int accept_timeout(int fd, struct sockaddr *addr, socklen_t *len,
+			  unsigned int timeout_sec)
+{
+	if (poll_read(fd, timeout_sec))
+		return -1;
+
+	return accept(fd, addr, len);
+}
+
+static int recv_timeout(int fd, void *buf, size_t len, int flags,
+			unsigned int timeout_sec)
+{
+	if (poll_read(fd, timeout_sec))
+		return -1;
+
+	return recv(fd, buf, len, flags);
+}
 
 static void init_addr_loopback4(struct sockaddr_storage *ss, socklen_t *len)
 {
@@ -265,7 +303,7 @@ static int socket_loopback_reuseport(int family, int sotype, int progfd)
 	if (err)
 		goto close;
 
-	if (sotype == SOCK_DGRAM)
+	if (sotype & SOCK_DGRAM)
 		return s;
 
 	err = xlisten(s, SOMAXCONN);
@@ -589,7 +627,7 @@ static void test_accept_after_delete(int family, int sotype, int mapfd)
 	socklen_t len;
 	u64 value;
 
-	s = socket_loopback(family, sotype);
+	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
 	if (s == -1)
 		return;
 
@@ -617,7 +655,7 @@ static void test_accept_after_delete(int family, int sotype, int mapfd)
 	if (err)
 		goto close_cli;
 
-	p = xaccept(s, NULL, NULL);
+	p = xaccept_nonblock(s, NULL, NULL);
 	if (p == -1)
 		goto close_cli;
 
@@ -643,7 +681,7 @@ static void test_accept_before_delete(int family, int sotype, int mapfd)
 	socklen_t len;
 	u64 value;
 
-	s = socket_loopback(family, sotype);
+	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
 	if (s == -1)
 		return;
 
@@ -666,7 +704,7 @@ static void test_accept_before_delete(int family, int sotype, int mapfd)
 	if (err)
 		goto close_cli;
 
-	p = xaccept(s, NULL, NULL);
+	p = xaccept_nonblock(s, NULL, NULL);
 	if (p == -1)
 		goto close_cli;
 
@@ -730,7 +768,7 @@ static void *connect_accept_thread(void *arg)
 			break;
 		}
 
-		p = xaccept(s, NULL, NULL);
+		p = xaccept_nonblock(s, NULL, NULL);
 		if (p < 0) {
 			xclose(c);
 			break;
@@ -912,7 +950,7 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 	if (err)
 		goto close_cli0;
 
-	p0 = xaccept(s, NULL, NULL);
+	p0 = xaccept_nonblock(s, NULL, NULL);
 	if (p0 < 0)
 		goto close_cli0;
 
@@ -923,7 +961,7 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 	if (err)
 		goto close_cli1;
 
-	p1 = xaccept(s, NULL, NULL);
+	p1 = xaccept_nonblock(s, NULL, NULL);
 	if (p1 < 0)
 		goto close_cli1;
 
@@ -1044,7 +1082,7 @@ static void redir_to_listening(int family, int sotype, int sock_mapfd,
 	if (err)
 		goto close_cli;
 
-	p = xaccept(s, NULL, NULL);
+	p = xaccept_nonblock(s, NULL, NULL);
 	if (p < 0)
 		goto close_cli;
 
@@ -1139,7 +1177,8 @@ static void test_reuseport_select_listening(int family, int sotype,
 
 	zero_verdict_count(verd_map);
 
-	s = socket_loopback_reuseport(family, sotype, reuseport_prog);
+	s = socket_loopback_reuseport(family, sotype | SOCK_NONBLOCK,
+				      reuseport_prog);
 	if (s < 0)
 		return;
 
@@ -1164,7 +1203,7 @@ static void test_reuseport_select_listening(int family, int sotype,
 	if (sotype == SOCK_STREAM) {
 		int p;
 
-		p = xaccept(s, NULL, NULL);
+		p = xaccept_nonblock(s, NULL, NULL);
 		if (p < 0)
 			goto close_cli;
 		xclose(p);
@@ -1176,7 +1215,7 @@ static void test_reuseport_select_listening(int family, int sotype,
 		if (n == -1)
 			goto close_cli;
 
-		n = xrecv(s, &b, sizeof(b), 0);
+		n = xrecv_nonblock(s, &b, sizeof(b), 0);
 		if (n == -1)
 			goto close_cli;
 	}
@@ -1232,7 +1271,7 @@ static void test_reuseport_select_connected(int family, int sotype,
 		goto close_cli0;
 
 	if (sotype == SOCK_STREAM) {
-		p0 = xaccept(s, NULL, NULL);
+		p0 = xaccept_nonblock(s, NULL, NULL);
 		if (p0 < 0)
 			goto close_cli0;
 	} else {
@@ -1276,7 +1315,7 @@ static void test_reuseport_select_connected(int family, int sotype,
 		if (n == -1)
 			goto close_cli1;
 
-		n = recv(c1, &b, sizeof(b), 0);
+		n = recv_timeout(c1, &b, sizeof(b), 0, IO_TIMEOUT_SEC);
 		err = n == -1;
 	}
 	if (!err || errno != ECONNREFUSED)
@@ -1350,7 +1389,7 @@ static void test_reuseport_mixed_groups(int family, int sotype, int sock_map,
 		if (n == -1)
 			goto close_cli;
 
-		n = recv(c, &b, sizeof(b), 0);
+		n = recv_timeout(c, &b, sizeof(b), 0, IO_TIMEOUT_SEC);
 		err = n == -1;
 	}
 	if (!err || errno != ECONNREFUSED) {
