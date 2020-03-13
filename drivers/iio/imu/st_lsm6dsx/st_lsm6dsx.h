@@ -357,6 +357,7 @@ struct st_lsm6dsx_sensor {
 
 	struct {
 		const struct st_lsm6dsx_ext_dev_settings *settings;
+		u32 slv_odr;
 		u8 addr;
 	} ext_info;
 };
