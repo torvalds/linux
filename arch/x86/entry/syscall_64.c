@@ -9,6 +9,7 @@
 #include <asm/syscall.h>
 
 #define __SYSCALL_X32(nr, sym)
+#define __SYSCALL_COMMON(nr, sym) __SYSCALL_64(nr, sym)
 
 #define __SYSCALL_64(nr, sym) extern asmlinkage long sym(const struct pt_regs *);
 #include <asm/syscalls_64.h>

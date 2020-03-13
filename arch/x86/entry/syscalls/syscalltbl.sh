@@ -25,7 +25,7 @@ emit() {
     fi
 
     # For CONFIG_UML, we need to strip the __x64_sys prefix
-    if [ "$abi" = "64" -a "${entry}" != "${entry#__x64_sys}" ]; then
+    if [ "${entry}" != "${entry#__x64_sys}" ]; then
 	    umlentry="sys${entry#__x64_sys}"
     fi
 
@@ -53,24 +53,6 @@ emit() {
 grep '^[0-9]' "$in" | sort -n | (
     while read nr abi name entry compat; do
 	abi=`echo "$abi" | tr '[a-z]' '[A-Z]'`
-	if [ "$abi" = "COMMON" -o "$abi" = "64" ]; then
-	    emit 64 "$nr" "$entry" "$compat"
-	    if [ "$abi" = "COMMON" ]; then
-		# COMMON means that this syscall exists in the same form for
-		# 64-bit and X32.
-		echo "#ifdef CONFIG_X86_X32_ABI"
-		emit X32 "$nr" "$entry" "$compat"
-		echo "#endif"
-	    fi
-	elif [ "$abi" = "X32" ]; then
-	    echo "#ifdef CONFIG_X86_X32_ABI"
-	    emit X32 "$nr" "$entry" "$compat"
-	    echo "#endif"
-	elif [ "$abi" = "I386" ]; then
-	    emit "$abi" "$nr" "$entry" "$compat"
-	else
-	    echo "Unknown abi $abi" >&2
-	    exit 1
-	fi
+	emit "$abi" "$nr" "$entry" "$compat"
     done
 ) > "$out"

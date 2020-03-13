@@ -11,10 +11,13 @@
 #define __SYSCALL_64(nr, sym)
 
 #define __SYSCALL_X32(nr, sym) extern asmlinkage long sym(const struct pt_regs *);
+#define __SYSCALL_COMMON(nr, sym) extern asmlinkage long sym(const struct pt_regs *);
 #include <asm/syscalls_64.h>
 #undef __SYSCALL_X32
+#undef __SYSCALL_COMMON
 
 #define __SYSCALL_X32(nr, sym) [nr] = sym,
+#define __SYSCALL_COMMON(nr, sym) [nr] = sym,
 
 asmlinkage const sys_call_ptr_t x32_sys_call_table[__NR_x32_syscall_max+1] = {
 	/*
