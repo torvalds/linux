@@ -7,7 +7,7 @@
 #include <linux/linkage.h>
 #include <linux/sys.h>
 #include <linux/cache.h>
-#include <generated/user_constants.h>
+#include <asm/unistd.h>
 #include <asm/syscall.h>
 
 #define __NO_STUBS

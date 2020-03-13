@@ -5,11 +5,6 @@
 
 #include <asm/ucontext.h>
 
-#define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
-static char syscalls[] = {
-#include <asm/syscalls_32.h>
-};
-
 /* workaround for a warning with -Wmissing-prototypes */
 void foo(void);
 
@@ -60,8 +55,4 @@ void foo(void)
 	BLANK();
 	OFFSET(stack_canary_offset, stack_canary, canary);
 #endif
-
-	BLANK();
-	DEFINE(__NR_syscall_max, sizeof(syscalls) - 1);
-	DEFINE(NR_syscalls, sizeof(syscalls));
 }

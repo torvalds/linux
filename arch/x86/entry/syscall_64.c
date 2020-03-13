@@ -5,7 +5,7 @@
 #include <linux/sys.h>
 #include <linux/cache.h>
 #include <linux/syscalls.h>
-#include <asm/asm-offsets.h>
+#include <asm/unistd.h>
 #include <asm/syscall.h>
 
 #define __SYSCALL_X32(nr, sym, qual)
