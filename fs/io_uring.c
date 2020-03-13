@@ -191,7 +191,6 @@ struct fixed_file_data {
 	struct llist_head		put_llist;
 	struct work_struct		ref_work;
 	struct completion		done;
-	struct rcu_head			rcu;
 };
 
 struct io_ring_ctx {
@@ -5331,24 +5330,21 @@ static void io_file_ref_kill(struct percpu_ref *ref)
 	complete(&data->done);
 }
 
-static void __io_file_ref_exit_and_free(struct rcu_head *rcu)
+static void io_file_ref_exit_and_free(struct work_struct *work)
 {
-	struct fixed_file_data *data = container_of(rcu, struct fixed_file_data,
-							rcu);
+	struct fixed_file_data *data;
+
+	data = container_of(work, struct fixed_file_data, ref_work);
+
+	/*
+	 * Ensure any percpu-ref atomic switch callback has run, it could have
+	 * been in progress when the files were being unregistered. Once
+	 * that's done, we can safely exit and free the ref and containing
+	 * data structure.
+	 */
+	rcu_barrier();
 	percpu_ref_exit(&data->refs);
 	kfree(data);
-}
-
-static void io_file_ref_exit_and_free(struct rcu_head *rcu)
-{
-	/*
-	 * We need to order our exit+free call against the potentially
-	 * existing call_rcu() for switching to atomic. One way to do that
-	 * is to have this rcu callback queue the final put and free, as we
-	 * could otherwise have a pre-existing atomic switch complete _after_
-	 * the free callback we queued.
-	 */
-	call_rcu(rcu, __io_file_ref_exit_and_free);
 }
 
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
@@ -5369,7 +5365,8 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	for (i = 0; i < nr_tables; i++)
 		kfree(data->table[i].files);
 	kfree(data->table);
-	call_rcu(&data->rcu, io_file_ref_exit_and_free);
+	INIT_WORK(&data->ref_work, io_file_ref_exit_and_free);
+	queue_work(system_wq, &data->ref_work);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
 	return 0;
