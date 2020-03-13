@@ -15152,17 +15152,6 @@ static void intel_update_trans_port_sync_crtcs(struct intel_atomic_state *state,
 
 	usleep_range(200, 400);
 	intel_set_dp_tp_ctl_normal(state, crtc);
-
-	for_each_new_intel_crtc_in_state(state, slave_crtc,
-					 new_slave_crtc_state, i) {
-		if (new_slave_crtc_state->master_transcoder !=
-		    new_crtc_state->cpu_transcoder)
-			continue;
-
-		intel_update_crtc(state, slave_crtc);
-	}
-
-	intel_update_crtc(state, crtc);
 }
 
 static void icl_dbuf_slice_pre_update(struct intel_atomic_state *state)
@@ -15251,6 +15240,8 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 		}
 	}
 
+	update_pipes = modeset_pipes;
+
 	/*
 	 * Enable all pipes that needs a modeset and do not depends on other
 	 * pipes
@@ -15265,10 +15256,6 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 		    is_trans_port_sync_slave(new_crtc_state))
 			continue;
 
-		drm_WARN_ON(&dev_priv->drm, skl_ddb_allocation_overlaps(&new_crtc_state->wm.skl.ddb,
-									entries, I915_MAX_PIPES, pipe));
-
-		entries[pipe] = new_crtc_state->wm.skl.ddb;
 		modeset_pipes &= ~BIT(pipe);
 
 		if (is_trans_port_sync_mode(new_crtc_state)) {
@@ -15284,19 +15271,17 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 				    new_crtc_state->cpu_transcoder)
 					continue;
 
-				/* TODO: update entries[] of slave */
 				modeset_pipes &= ~BIT(slave_crtc->pipe);
 			}
 		} else {
 			intel_enable_crtc(state, crtc);
-			intel_update_crtc(state, crtc);
 		}
 	}
 
 	/*
-	 * Finally enable all pipes that needs a modeset and depends on
-	 * other pipes, right now it is only MST slaves as both port sync slave
-	 * and master are enabled together
+	 * Then we enable all remaining pipes that depend on other
+	 * pipes, right now it is only MST slaves as both port sync
+	 * slave and master are enabled together
 	 */
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		enum pipe pipe = crtc->pipe;
@@ -15304,18 +15289,31 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 		if ((modeset_pipes & BIT(pipe)) == 0)
 			continue;
 
+		modeset_pipes &= ~BIT(pipe);
+
+		intel_enable_crtc(state, crtc);
+	}
+
+	/*
+	 * Finally we do the plane updates/etc. for all pipes that got enabled.
+	 */
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		enum pipe pipe = crtc->pipe;
+
+		if ((update_pipes & BIT(pipe)) == 0)
+			continue;
+
 		drm_WARN_ON(&dev_priv->drm, skl_ddb_allocation_overlaps(&new_crtc_state->wm.skl.ddb,
 									entries, I915_MAX_PIPES, pipe));
 
 		entries[pipe] = new_crtc_state->wm.skl.ddb;
-		modeset_pipes &= ~BIT(pipe);
+		update_pipes &= ~BIT(pipe);
 
-		intel_enable_crtc(state, crtc);
 		intel_update_crtc(state, crtc);
 	}
 
 	drm_WARN_ON(&dev_priv->drm, modeset_pipes);
-
+	drm_WARN_ON(&dev_priv->drm, update_pipes);
 }
 
 static void intel_atomic_helper_free_state(struct drm_i915_private *dev_priv)
