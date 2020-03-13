@@ -3,4 +3,5 @@
 spi-nor-objs			:= core.o sfdp.o
 spi-nor-objs			+= atmel.o
 spi-nor-objs			+= eon.o
+spi-nor-objs			+= esmt.o
 obj-$(CONFIG_MTD_SPI_NOR)	+= spi-nor.o
