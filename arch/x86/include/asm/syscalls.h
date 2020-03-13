@@ -8,11 +8,6 @@
 #ifndef _ASM_X86_SYSCALLS_H
 #define _ASM_X86_SYSCALLS_H
 
-#include <linux/compiler.h>
-#include <linux/linkage.h>
-#include <linux/signal.h>
-#include <linux/types.h>
-
 /* Common in X86_32 and X86_64 */
 /* kernel/ioport.c */
 long ksys_ioperm(unsigned long from, unsigned long num, int turn_on);

@@ -42,8 +42,6 @@
 #endif /* CONFIG_X86_64 */
 
 #include <asm/syscall.h>
-#include <asm/syscalls.h>
-
 #include <asm/sigframe.h>
 #include <asm/signal.h>
 
