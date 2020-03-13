@@ -1805,20 +1805,30 @@ TRACE_EVENT(svcrdma_small_wrch_err,
 
 TRACE_EVENT(svcrdma_send_pullup,
 	TP_PROTO(
-		unsigned int len
+		const struct svc_rdma_send_ctxt *ctxt,
+		unsigned int msglen
 	),
 
-	TP_ARGS(len),
+	TP_ARGS(ctxt, msglen),
 
 	TP_STRUCT__entry(
-		__field(unsigned int, len)
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(unsigned int, hdrlen)
+		__field(unsigned int, msglen)
 	),
 
 	TP_fast_assign(
-		__entry->len = len;
+		__entry->cq_id = ctxt->sc_cid.ci_queue_id;
+		__entry->completion_id = ctxt->sc_cid.ci_completion_id;
+		__entry->hdrlen = ctxt->sc_hdrbuf.len,
+		__entry->msglen = msglen;
 	),
 
-	TP_printk("len=%u", __entry->len)
+	TP_printk("cq_id=%u cid=%d hdr=%u msg=%u (total %u)",
+		__entry->cq_id, __entry->completion_id,
+		__entry->hdrlen, __entry->msglen,
+		__entry->hdrlen + __entry->msglen)
 );
 
 TRACE_EVENT(svcrdma_send_err,
