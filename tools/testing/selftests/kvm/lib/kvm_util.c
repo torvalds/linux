@@ -1769,3 +1769,10 @@ vm_num_guest_pages(enum vm_guest_mode mode, unsigned int num_host_pages)
 	return vm_calc_num_pages(num_host_pages, getpageshift(),
 				 vm_guest_mode_params[mode].page_shift, false);
 }
+
+unsigned int vm_calc_num_guest_pages(enum vm_guest_mode mode, size_t size)
+{
+	unsigned int n;
+	n = DIV_ROUND_UP(size, vm_guest_mode_params[mode].page_size);
+	return vm_adjust_num_guest_pages(mode, n);
+}

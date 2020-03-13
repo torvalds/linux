@@ -71,6 +71,21 @@ struct timespec timespec_diff(struct timespec start, struct timespec end)
 	return temp;
 }
 
+struct timespec timespec_add_ns(struct timespec ts, int64_t ns)
+{
+	struct timespec res;
+
+	res.tv_sec = ts.tv_sec;
+	res.tv_nsec = ts.tv_nsec + ns;
+
+	if (res.tv_nsec > 1000000000UL) {
+		res.tv_sec += 1;
+		res.tv_nsec -= 1000000000UL;
+	}
+
+	return res;
+}
+
 void print_skip(const char *fmt, ...)
 {
 	va_list ap;

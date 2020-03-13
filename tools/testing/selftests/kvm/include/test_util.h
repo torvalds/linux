@@ -59,5 +59,6 @@ size_t parse_size(const char *size);
 
 int64_t timespec_to_ns(struct timespec ts);
 struct timespec timespec_diff(struct timespec start, struct timespec end);
+struct timespec timespec_add_ns(struct timespec ts, int64_t ns);
 
 #endif /* SELFTEST_KVM_TEST_UTIL_H */
