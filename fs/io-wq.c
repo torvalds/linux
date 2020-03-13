@@ -375,11 +375,17 @@ static bool __io_worker_idle(struct io_wqe *wqe, struct io_worker *worker)
 	return __io_worker_unuse(wqe, worker);
 }
 
-static struct io_wq_work *io_get_next_work(struct io_wqe *wqe, unsigned *hash)
+static inline unsigned int io_get_work_hash(struct io_wq_work *work)
+{
+	return work->flags >> IO_WQ_HASH_SHIFT;
+}
+
+static struct io_wq_work *io_get_next_work(struct io_wqe *wqe)
 	__must_hold(wqe->lock)
 {
 	struct io_wq_work_node *node, *prev;
 	struct io_wq_work *work;
+	unsigned int hash;
 
 	wq_list_for_each(node, prev, &wqe->work_list) {
 		work = container_of(node, struct io_wq_work, list);
@@ -391,9 +397,9 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe, unsigned *hash)
 		}
 
 		/* hashed, can run if not already running */
-		*hash = work->flags >> IO_WQ_HASH_SHIFT;
-		if (!(wqe->hash_map & BIT(*hash))) {
-			wqe->hash_map |= BIT(*hash);
+		hash = io_get_work_hash(work);
+		if (!(wqe->hash_map & BIT(hash))) {
+			wqe->hash_map |= BIT(hash);
 			wq_node_del(&wqe->work_list, node, prev);
 			return work;
 		}
@@ -470,15 +476,17 @@ static void io_assign_current_work(struct io_worker *worker,
 	spin_unlock_irq(&worker->lock);
 }
 
+static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work);
+
 static void io_worker_handle_work(struct io_worker *worker)
 	__releases(wqe->lock)
 {
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wq *wq = wqe->wq;
-	unsigned hash = -1U;
 
 	do {
 		struct io_wq_work *work;
+		unsigned int hash;
 get_next:
 		/*
 		 * If we got some work, mark us as busy. If we didn't, but
@@ -487,7 +495,7 @@ get_next:
 		 * can't make progress, any work completion or insertion will
 		 * clear the stalled flag.
 		 */
-		work = io_get_next_work(wqe, &hash);
+		work = io_get_next_work(wqe);
 		if (work)
 			__io_worker_busy(wqe, worker, work);
 		else if (!wq_list_empty(&wqe->work_list))
@@ -511,11 +519,16 @@ get_next:
 				work->flags |= IO_WQ_WORK_CANCEL;
 
 			old_work = work;
+			hash = io_get_work_hash(work);
 			work->func(&work);
 			work = (old_work == work) ? NULL : work;
 			io_assign_current_work(worker, work);
 			wq->free_work(old_work);
 
+			if (work && io_wq_is_hashed(work)) {
+				io_wqe_enqueue(wqe, work);
+				work = NULL;
+			}
 			if (hash != -1U) {
 				spin_lock_irq(&wqe->lock);
 				wqe->hash_map &= ~BIT_ULL(hash);
