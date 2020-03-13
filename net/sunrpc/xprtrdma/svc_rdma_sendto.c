@@ -468,11 +468,14 @@ svc_rdma_encode_write_list(const struct svc_rdma_recv_ctxt *rctxt,
 {
 	ssize_t len, ret;
 
-	ret = svc_rdma_encode_write_chunk(rctxt->rc_write_list, sctxt,
-					  rctxt->rc_read_payload_length);
-	if (ret < 0)
-		return ret;
-	len = ret;
+	len = 0;
+	if (rctxt->rc_write_list) {
+		ret = svc_rdma_encode_write_chunk(rctxt->rc_write_list, sctxt,
+						  rctxt->rc_read_payload_length);
+		if (ret < 0)
+			return ret;
+		len = ret;
+	}
 
 	/* Terminate the Write list */
 	ret = xdr_stream_encode_item_absent(&sctxt->sc_stream);
@@ -556,11 +559,13 @@ static bool svc_rdma_pull_up_needed(struct svcxprt_rdma *rdma,
 				    const struct svc_rdma_recv_ctxt *rctxt,
 				    struct xdr_buf *xdr)
 {
+	bool write_chunk_present = rctxt && rctxt->rc_write_list;
 	int elements;
 
 	/* For small messages, copying bytes is cheaper than DMA mapping.
 	 */
-	if (sctxt->sc_hdrbuf.len + xdr->len < RPCRDMA_PULLUP_THRESH)
+	if (!write_chunk_present &&
+	    sctxt->sc_hdrbuf.len + xdr->len < RPCRDMA_PULLUP_THRESH)
 		return true;
 
 	/* Check whether the xdr_buf has more elements than can
@@ -893,9 +898,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
 	struct svc_rdma_recv_ctxt *rctxt = rqstp->rq_xprt_ctxt;
 	__be32 *rdma_argp = rctxt->rc_recv_buf;
-	__be32 *wr_lst = rctxt->rc_write_list;
 	__be32 *rp_ch = rctxt->rc_reply_chunk;
-	struct xdr_buf *xdr = &rqstp->rq_res;
 	struct svc_rdma_send_ctxt *sctxt;
 	__be32 *p;
 	int ret;
@@ -920,19 +923,8 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 
 	if (svc_rdma_encode_read_list(sctxt) < 0)
 		goto err0;
-	if (wr_lst) {
-		/* XXX: Presume the client sent only one Write chunk */
-		ret = svc_rdma_send_write_chunk(rdma, wr_lst, xdr,
-						rctxt->rc_read_payload_offset,
-						rctxt->rc_read_payload_length);
-		if (ret < 0)
-			goto err2;
-		if (svc_rdma_encode_write_list(rctxt, sctxt) < 0)
-			goto err0;
-	} else {
-		if (xdr_stream_encode_item_absent(&sctxt->sc_stream) < 0)
-			goto err0;
-	}
+	if (svc_rdma_encode_write_list(rctxt, sctxt) < 0)
+		goto err0;
 	if (rp_ch) {
 		ret = svc_rdma_send_reply_chunk(rdma, rctxt, &rqstp->rq_res);
 		if (ret < 0)
@@ -974,16 +966,25 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
  * @offset: payload's byte offset in @xdr
  * @length: size of payload, in bytes
  *
- * Returns zero on success.
- *
- * For the moment, just record the xdr_buf location of the result
- * payload. svc_rdma_sendto will use that location later when
- * we actually send the payload.
+ * Return values:
+ *   %0 if successful or nothing needed to be done
+ *   %-EMSGSIZE on XDR buffer overflow
+ *   %-E2BIG if the payload was larger than the Write chunk
+ *   %-EINVAL if client provided too many segments
+ *   %-ENOMEM if rdma_rw context pool was exhausted
+ *   %-ENOTCONN if posting failed (connection is lost)
+ *   %-EIO if rdma_rw initialization failed (DMA mapping, etc)
  */
 int svc_rdma_result_payload(struct svc_rqst *rqstp, unsigned int offset,
 			    unsigned int length)
 {
 	struct svc_rdma_recv_ctxt *rctxt = rqstp->rq_xprt_ctxt;
+	struct svcxprt_rdma *rdma;
+	struct xdr_buf subbuf;
+	int ret;
+
+	if (!rctxt->rc_write_list || !length)
+		return 0;
 
 	/* XXX: Just one READ payload slot for now, since our
 	 * transport implementation currently supports only one
@@ -992,5 +993,12 @@ int svc_rdma_result_payload(struct svc_rqst *rqstp, unsigned int offset,
 	rctxt->rc_read_payload_offset = offset;
 	rctxt->rc_read_payload_length = length;
 
+	if (xdr_buf_subsegment(&rqstp->rq_res, &subbuf, offset, length))
+		return -EMSGSIZE;
+
+	rdma = container_of(rqstp->rq_xprt, struct svcxprt_rdma, sc_xprt);
+	ret = svc_rdma_send_write_chunk(rdma, rctxt->rc_write_list, &subbuf);
+	if (ret < 0)
+		return ret;
 	return 0;
 }

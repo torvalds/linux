@@ -539,12 +539,48 @@ static int svc_rdma_pages_write(struct svc_rdma_write_info *info,
 }
 
 /**
+ * svc_rdma_xb_write - Construct RDMA Writes to write an xdr_buf
+ * @xdr: xdr_buf to write
+ * @info: pointer to write arguments
+ *
+ * Returns:
+ *   On succes, returns zero
+ *   %-E2BIG if the client-provided Write chunk is too small
+ *   %-ENOMEM if a resource has been exhausted
+ *   %-EIO if an rdma-rw error occurred
+ */
+static int svc_rdma_xb_write(const struct xdr_buf *xdr,
+			     struct svc_rdma_write_info *info)
+{
+	int ret;
+
+	if (xdr->head[0].iov_len) {
+		ret = svc_rdma_iov_write(info, &xdr->head[0]);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (xdr->page_len) {
+		ret = svc_rdma_pages_write(info, xdr, xdr->head[0].iov_len,
+					   xdr->page_len);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (xdr->tail[0].iov_len) {
+		ret = svc_rdma_iov_write(info, &xdr->tail[0]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return xdr->len;
+}
+
+/**
  * svc_rdma_send_write_chunk - Write all segments in a Write chunk
  * @rdma: controlling RDMA transport
  * @wr_ch: Write chunk provided by client
  * @xdr: xdr_buf containing the data payload
- * @offset: payload's byte offset in @xdr
- * @length: size of payload, in bytes
  *
  * Returns a non-negative number of bytes the chunk consumed, or
  *	%-E2BIG if the payload was larger than the Write chunk,
@@ -554,21 +590,17 @@ static int svc_rdma_pages_write(struct svc_rdma_write_info *info,
  *	%-EIO if rdma_rw initialization failed (DMA mapping, etc).
  */
 int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma, __be32 *wr_ch,
-			      struct xdr_buf *xdr,
-			      unsigned int offset, unsigned long length)
+			      const struct xdr_buf *xdr)
 {
 	struct svc_rdma_write_info *info;
 	int ret;
-
-	if (!length)
-		return 0;
 
 	info = svc_rdma_write_info_alloc(rdma, wr_ch);
 	if (!info)
 		return -ENOMEM;
 
-	ret = svc_rdma_pages_write(info, xdr, offset, length);
-	if (ret < 0)
+	ret = svc_rdma_xb_write(xdr, info);
+	if (ret != xdr->len)
 		goto out_err;
 
 	ret = svc_rdma_post_chunk_ctxt(&info->wi_cc);
@@ -576,7 +608,7 @@ int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma, __be32 *wr_ch,
 		goto out_err;
 
 	trace_svcrdma_send_write_chunk(xdr->page_len);
-	return length;
+	return xdr->len;
 
 out_err:
 	svc_rdma_write_info_free(info);
