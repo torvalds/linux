@@ -3177,17 +3177,19 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 	if (!node)
 		return 0;
 
+	/*
+	 * If we fail here we want to drop our backref_node because we are going
+	 * to start over and regenerate the tree for it.
+	 */
+	ret = reserve_metadata_space(trans, rc, node);
+	if (ret)
+		goto out;
+
 	BUG_ON(node->processed);
 	root = select_one_root(node);
 	if (root == ERR_PTR(-ENOENT)) {
 		update_processed_blocks(rc, node);
 		goto out;
-	}
-
-	if (!root || test_bit(BTRFS_ROOT_REF_COWS, &root->state)) {
-		ret = reserve_metadata_space(trans, rc, node);
-		if (ret)
-			goto out;
 	}
 
 	if (root) {
