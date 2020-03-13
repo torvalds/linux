@@ -410,8 +410,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 				    guest_num_pages, 0);
 
 	/* Do mapping for the demand paging memory slot */
-	virt_map(vm, guest_test_virt_mem, guest_test_phys_mem,
-		 guest_num_pages * guest_page_size, 0);
+	virt_map(vm, guest_test_virt_mem, guest_test_phys_mem, guest_num_pages, 0);
 
 	ucall_init(vm, NULL);
 

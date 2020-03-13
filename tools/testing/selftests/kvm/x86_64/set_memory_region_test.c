@@ -87,7 +87,7 @@ static void test_move_memory_region(void)
 	gpa = vm_phy_pages_alloc(vm, 2, MEM_REGION_GPA, MEM_REGION_SLOT);
 	TEST_ASSERT(gpa == MEM_REGION_GPA, "Failed vm_phy_pages_alloc\n");
 
-	virt_map(vm, MEM_REGION_GPA, MEM_REGION_GPA, 2 * 4096, 0);
+	virt_map(vm, MEM_REGION_GPA, MEM_REGION_GPA, 2, 0);
 
 	/* Ditto for the host mapping so that both pages can be zeroed. */
 	hva = addr_gpa2hva(vm, MEM_REGION_GPA);

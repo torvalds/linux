@@ -117,7 +117,7 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid);
 vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
 			  uint32_t data_memslot, uint32_t pgd_memslot);
 void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
-	      size_t size, uint32_t pgd_memslot);
+	      unsigned int npages, uint32_t pgd_memslot);
 void *addr_gpa2hva(struct kvm_vm *vm, vm_paddr_t gpa);
 void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva);
 vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva);
@@ -226,7 +226,7 @@ vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
  *
  * Input Args:
  *   vcpuid - The id of the single VCPU to add to the VM.
- *   extra_mem_pages - The size of extra memories to add (this will
+ *   extra_mem_pages - The number of extra pages to add (this will
  *                     decide how much extra space we will need to
  *                     setup the page tables using memslot 0)
  *   guest_code - The vCPU's entry point
@@ -236,7 +236,7 @@ vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
  * Return:
  *   Pointer to opaque structure that describes the created VM.
  */
-struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_size,
+struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 				 void *guest_code);
 
 /*

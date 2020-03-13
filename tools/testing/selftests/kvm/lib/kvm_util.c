@@ -1015,21 +1015,21 @@ vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
  *   vm - Virtual Machine
  *   vaddr - Virtuall address to map
  *   paddr - VM Physical Address
- *   size - The size of the range to map
+ *   npages - The number of pages to map
  *   pgd_memslot - Memory region slot for new virtual translation tables
  *
  * Output Args: None
  *
  * Return: None
  *
- * Within the VM given by vm, creates a virtual translation for the
- * page range starting at vaddr to the page range starting at paddr.
+ * Within the VM given by @vm, creates a virtual translation for
+ * @npages starting at @vaddr to the page range starting at @paddr.
  */
 void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
-	      size_t size, uint32_t pgd_memslot)
+	      unsigned int npages, uint32_t pgd_memslot)
 {
 	size_t page_size = vm->page_size;
-	size_t npages = size / page_size;
+	size_t size = npages * page_size;
 
 	TEST_ASSERT(vaddr + size > vaddr, "Vaddr overflow");
 	TEST_ASSERT(paddr + size > paddr, "Paddr overflow");
