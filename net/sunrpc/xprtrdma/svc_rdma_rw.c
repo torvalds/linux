@@ -197,7 +197,7 @@ struct svc_rdma_write_info {
 	__be32			*wi_segs;
 
 	/* SGL constructor arguments */
-	struct xdr_buf		*wi_xdr;
+	const struct xdr_buf	*wi_xdr;
 	unsigned char		*wi_base;
 	unsigned int		wi_next_off;
 
@@ -405,7 +405,7 @@ static void svc_rdma_pagelist_to_sg(struct svc_rdma_write_info *info,
 				    struct svc_rdma_rw_ctxt *ctxt)
 {
 	unsigned int sge_no, sge_bytes, page_off, page_no;
-	struct xdr_buf *xdr = info->wi_xdr;
+	const struct xdr_buf *xdr = info->wi_xdr;
 	struct scatterlist *sg;
 	struct page **page;
 
