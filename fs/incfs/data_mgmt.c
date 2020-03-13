@@ -250,7 +250,7 @@ static int validate_hash_tree(struct file *bf, struct data_file *df,
 {
 	u8 digest[INCFS_MAX_HASH_SIZE] = {};
 	struct mtree *tree = NULL;
-	struct ondisk_signature *sig = NULL;
+	struct incfs_df_signature *sig = NULL;
 	struct mem_range calc_digest_rng;
 	struct mem_range saved_digest_rng;
 	struct mem_range root_hash_rng;
@@ -273,8 +273,8 @@ static int validate_hash_tree(struct file *bf, struct data_file *df,
 		return res;
 
 	for (lvl = 0; lvl < tree->depth; lvl++) {
-		loff_t lvl_off = tree->hash_level_suboffset[lvl] +
-					sig->mtree_offset;
+		loff_t lvl_off =
+			tree->hash_level_suboffset[lvl] + sig->hash_offset;
 		loff_t hash_block_off = lvl_off +
 			round_down(hash_block_index * digest_size,
 				INCFS_DATA_FILE_BLOCK_SIZE);
@@ -320,72 +320,6 @@ static int validate_hash_tree(struct file *bf, struct data_file *df,
 		return -EBADMSG;
 	}
 	return 0;
-}
-
-static int revalidate_signature(struct file *bf, struct data_file *df)
-{
-	struct ondisk_signature *sig = df->df_signature;
-	struct mem_range root_hash = {};
-	int result = 0;
-	u8 *sig_buf = NULL;
-	u8 *add_data_buf = NULL;
-	ssize_t read_res;
-
-	/* File has no signature. */
-	if (!sig || !df->df_hash_tree || sig->sig_size == 0)
-		return 0;
-
-	/* Signature has already been validated. */
-	if (df->df_signature_validated)
-		return 0;
-
-	add_data_buf = kzalloc(sig->add_data_size, GFP_NOFS);
-	if (!add_data_buf) {
-		result = -ENOMEM;
-		goto out;
-	}
-
-	read_res = incfs_kread(bf, add_data_buf, sig->add_data_size,
-				sig->add_data_offset);
-	if (read_res < 0) {
-		result = read_res;
-		goto out;
-	}
-	if (read_res != sig->add_data_size) {
-		result = -EIO;
-		goto out;
-	}
-
-	sig_buf = kzalloc(sig->sig_size, GFP_NOFS);
-	if (!sig_buf) {
-		result = -ENOMEM;
-		goto out;
-	}
-
-	read_res = incfs_kread(bf, sig_buf, sig->sig_size, sig->sig_offset);
-	if (read_res < 0) {
-		result = read_res;
-		goto out;
-	}
-	if (read_res != sig->sig_size) {
-		result = -EIO;
-		goto out;
-	}
-
-	root_hash = range(df->df_hash_tree->root_hash,
-		df->df_hash_tree->alg->digest_size);
-
-	result = incfs_validate_pkcs7_signature(
-		range(sig_buf, sig->sig_size),
-		root_hash,
-		range(add_data_buf, sig->add_data_size));
-
-	if (result == 0)
-		df->df_signature_validated = true;
-out:
-	kfree(sig_buf);
-	kfree(add_data_buf);
-	return result;
 }
 
 static struct data_file_segment *get_file_segment(struct data_file *df,
@@ -683,13 +617,6 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct data_file *df,
 			result = err;
 	}
 
-	if (result > 0) {
-		int err = revalidate_signature(bf, df);
-
-		if (err < 0)
-			result = err;
-	}
-
 	if (result >= 0)
 		log_block_read(mi, &df->df_id, index, false /*timed out*/);
 
@@ -755,7 +682,7 @@ unlock:
 int incfs_read_file_signature(struct data_file *df, struct mem_range dst)
 {
 	struct file *bf = df->df_backing_file_context->bc_file;
-	struct ondisk_signature *sig;
+	struct incfs_df_signature *sig;
 	int read_res = 0;
 
 	if (!dst.data)
@@ -785,7 +712,7 @@ int incfs_process_new_hash_block(struct data_file *df,
 	struct backing_file_context *bfc = NULL;
 	struct mount_info *mi = NULL;
 	struct mtree *hash_tree = NULL;
-	struct ondisk_signature *sig = NULL;
+	struct incfs_df_signature *sig = NULL;
 	loff_t hash_area_base = 0;
 	loff_t hash_area_size = 0;
 	int error = 0;
@@ -804,11 +731,11 @@ int incfs_process_new_hash_block(struct data_file *df,
 
 	hash_tree = df->df_hash_tree;
 	sig = df->df_signature;
-	if (!hash_tree || !sig || sig->mtree_offset == 0)
+	if (!hash_tree || !sig || sig->hash_offset == 0)
 		return -ENOTSUPP;
 
-	hash_area_base = sig->mtree_offset;
-	hash_area_size = sig->mtree_size;
+	hash_area_base = sig->hash_offset;
+	hash_area_size = sig->hash_size;
 	if (hash_area_size < block->block_index * INCFS_DATA_FILE_BLOCK_SIZE
 				+ block->data_len) {
 		/* Hash block goes beyond dedicated hash area of this file. */
@@ -866,58 +793,69 @@ static int process_file_signature_md(struct incfs_file_signature *sg,
 {
 	struct data_file *df = handler->context;
 	struct mtree *hash_tree = NULL;
-	struct ondisk_signature *signature = NULL;
 	int error = 0;
-	loff_t base_tree_off = le64_to_cpu(sg->sg_hash_tree_offset);
-	u32 tree_size = le32_to_cpu(sg->sg_hash_tree_size);
-	loff_t sig_off = le64_to_cpu(sg->sg_sig_offset);
-	u32 sig_size = le32_to_cpu(sg->sg_sig_size);
-	loff_t add_data_off = le64_to_cpu(sg->sg_add_data_offset);
-	u32 add_data_size = le32_to_cpu(sg->sg_add_data_size);
+	struct incfs_df_signature *signature =
+		kzalloc(sizeof(*signature), GFP_NOFS);
+	void *buf = 0;
+	ssize_t read;
 
-	if (!df)
-		return -ENOENT;
+	if (!df || !df->df_backing_file_context ||
+	    !df->df_backing_file_context->bc_file) {
+		error = -ENOENT;
+		goto out;
+	}
 
-	signature = kzalloc(sizeof(*signature), GFP_NOFS);
-	if (!signature) {
+	signature->hash_offset = le64_to_cpu(sg->sg_hash_tree_offset);
+	signature->hash_size = le32_to_cpu(sg->sg_hash_tree_size);
+	signature->sig_offset = le64_to_cpu(sg->sg_sig_offset);
+	signature->sig_size = le32_to_cpu(sg->sg_sig_size);
+
+	buf = kzalloc(signature->sig_size, GFP_NOFS);
+	if (!buf) {
 		error = -ENOMEM;
 		goto out;
 	}
 
-	signature->add_data_offset = add_data_off;
-	signature->add_data_size = add_data_size;
-	signature->sig_offset = sig_off;
-	signature->sig_size = sig_size;
-	signature->mtree_offset = base_tree_off;
-	signature->mtree_size = tree_size;
+	read = incfs_kread(df->df_backing_file_context->bc_file, buf,
+			   signature->sig_size, signature->sig_offset);
+	if (read < 0) {
+		error = read;
+		goto out;
+	}
 
-	hash_tree = incfs_alloc_mtree(sg->sg_hash_alg, df->df_block_count,
-			range(sg->sg_root_hash, sizeof(sg->sg_root_hash)));
+	if (read != signature->sig_size) {
+		error = -EINVAL;
+		goto out;
+	}
+
+	hash_tree = incfs_alloc_mtree(range(buf, signature->sig_size),
+				      df->df_block_count);
 	if (IS_ERR(hash_tree)) {
 		error = PTR_ERR(hash_tree);
 		hash_tree = NULL;
 		goto out;
 	}
-	if (hash_tree->hash_tree_area_size != tree_size) {
+	if (hash_tree->hash_tree_area_size != signature->hash_size) {
 		error = -EINVAL;
 		goto out;
 	}
-	if (tree_size > 0 && handler->md_record_offset <= base_tree_off) {
+	if (signature->hash_size > 0 &&
+	    handler->md_record_offset <= signature->hash_offset) {
 		error = -EINVAL;
 		goto out;
 	}
-	if (handler->md_record_offset <= signature->add_data_offset ||
-	    handler->md_record_offset <= signature->sig_offset) {
+	if (handler->md_record_offset <= signature->sig_offset) {
 		error = -EINVAL;
 		goto out;
 	}
 	df->df_hash_tree = hash_tree;
+	hash_tree = NULL;
 	df->df_signature = signature;
+	signature = NULL;
 out:
-	if (error) {
-		incfs_free_mtree(hash_tree);
-		kfree(signature);
-	}
+	incfs_free_mtree(hash_tree);
+	kfree(signature);
+	kfree(buf);
 
 	return error;
 }

@@ -217,26 +217,26 @@ struct incfs_file_attr {
 	__le32 fa_crc;
 } __packed;
 
-/* Metadata record for file attribute. Type = INCFS_MD_SIGNATURE */
+/* Metadata record for file signature. Type = INCFS_MD_SIGNATURE */
 struct incfs_file_signature {
 	struct incfs_md_header sg_header;
 
-	__u8 sg_hash_alg; /* Value from incfs_hash_tree_algorithm */
+	__le32 sg_sig_size; /* The size of the signature. */
+
+	__le64 sg_sig_offset; /* Signature's offset in the backing file */
 
 	__le32 sg_hash_tree_size; /* The size of the hash tree. */
 
 	__le64 sg_hash_tree_offset; /* Hash tree offset in the backing file */
-
-	__u8 sg_root_hash[INCFS_MAX_HASH_SIZE];
-
-	__le32 sg_sig_size; /* The size of the pkcs7 signature. */
-
-	__le64 sg_sig_offset; /* pkcs7 signature's offset in the backing file */
-
-	__le32 sg_add_data_size; /* The size of the additional data. */
-
-	__le64 sg_add_data_offset; /* Additional data's offset */
 } __packed;
+
+/* In memory version of above */
+struct incfs_df_signature {
+	u32 sig_size;
+	u64 sig_offset;
+	u32 hash_size;
+	u64 hash_offset;
+};
 
 /* State of the backing file. */
 struct backing_file_context {
@@ -251,23 +251,6 @@ struct backing_file_context {
 	 * 0 means there are no metadata records.
 	 */
 	loff_t bc_last_md_record_offset;
-};
-
-
-/* Backing file locations of things required for signature validation. */
-struct ondisk_signature {
-
-	loff_t add_data_offset; /* Additional data's offset */
-
-	loff_t sig_offset; /* pkcs7 signature's offset in the backing file */
-
-	loff_t mtree_offset; /* Backing file offset of the hash tree. */
-
-	u32 add_data_size; /* The size of the additional data. */
-
-	u32 sig_size; /* The size of the pkcs7 signature. */
-
-	u32 mtree_size; /* The size of the hash tree. */
 };
 
 struct metadata_handler {
@@ -319,9 +302,7 @@ int incfs_write_file_attr_to_backing_file(struct backing_file_context *bfc,
 		struct mem_range value, struct incfs_file_attr *attr);
 
 int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
-		u8 hash_alg, u32 tree_size,
-		struct mem_range root_hash, struct mem_range add_data,
-		struct mem_range sig);
+					  struct mem_range sig, u32 tree_size);
 
 int incfs_make_empty_backing_file(struct backing_file_context *bfc,
 				  incfs_uuid_t *uuid, u64 file_size);

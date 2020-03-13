@@ -23,7 +23,8 @@
 
 #include "utils.h"
 
-int mount_fs(char *mount_dir, char *backing_dir, int read_timeout_ms)
+int mount_fs(const char *mount_dir, const char *backing_dir,
+	     int read_timeout_ms)
 {
 	static const char fs_name[] = INCFS_NAME;
 	char mount_options[512];
@@ -39,7 +40,8 @@ int mount_fs(char *mount_dir, char *backing_dir, int read_timeout_ms)
 	return result;
 }
 
-int mount_fs_opt(char *mount_dir, char *backing_dir, char *opt)
+int mount_fs_opt(const char *mount_dir, const char *backing_dir,
+		 const char *opt)
 {
 	static const char fs_name[] = INCFS_NAME;
 	int result;
@@ -50,179 +52,94 @@ int mount_fs_opt(char *mount_dir, char *backing_dir, char *opt)
 	return result;
 }
 
-int unlink_node(int fd, int parent_ino, char *filename)
+struct hash_section {
+	uint32_t algorithm;
+	uint8_t log2_blocksize;
+	uint32_t salt_size;
+	/* no salt */
+	uint32_t hash_size;
+	uint8_t hash[SHA256_DIGEST_SIZE];
+} __packed;
+
+struct signature_blob {
+	uint32_t version;
+	uint32_t hash_section_size;
+	struct hash_section hash_section;
+	uint32_t signing_section_size;
+	uint8_t signing_section[];
+} __packed;
+
+size_t format_signature(void **buf, const char *root_hash, const char *add_data)
 {
-	return 0;
+	size_t size = sizeof(struct signature_blob) + strlen(add_data) + 1;
+	struct signature_blob *sb = malloc(size);
+
+	*sb = (struct signature_blob){
+		.version = INCFS_SIGNATURE_VERSION,
+		.hash_section_size = sizeof(struct hash_section),
+		.hash_section =
+			(struct hash_section){
+				.algorithm = INCFS_HASH_TREE_SHA256,
+				.log2_blocksize = 12,
+				.salt_size = 0,
+				.hash_size = SHA256_DIGEST_SIZE,
+			},
+		.signing_section_size = sizeof(uint32_t) + strlen(add_data) + 1,
+	};
+
+	memcpy(sb->hash_section.hash, root_hash, SHA256_DIGEST_SIZE);
+	memcpy((char *)sb->signing_section, add_data, strlen(add_data) + 1);
+	*buf = sb;
+	return size;
 }
 
-
-static EVP_PKEY *deserialize_private_key(const char *pem_key)
-{
-	BIO *bio = NULL;
-	EVP_PKEY *pkey = NULL;
-	int len = strlen(pem_key);
-
-	bio = BIO_new_mem_buf(pem_key, len);
-	if (!bio)
-		return NULL;
-
-	pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
-	BIO_free(bio);
-	return pkey;
-}
-
-static X509 *deserialize_cert(const char *pem_cert)
-{
-	BIO *bio = NULL;
-	X509 *cert = NULL;
-	int len = strlen(pem_cert);
-
-	bio = BIO_new_mem_buf(pem_cert, len);
-	if (!bio)
-		return NULL;
-
-	cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
-	BIO_free(bio);
-	return cert;
-}
-
-bool sign_pkcs7(const void *data_to_sign, size_t data_size,
-		       char *pkey_pem, char *cert_pem,
-		       void **sig_ret, size_t *sig_size_ret)
-{
-	/*
-	 * PKCS#7 signing flags:
-	 *
-	 * - PKCS7_BINARY	signing binary data, so skip MIME translation
-	 *
-	 * - PKCS7_NOATTR	omit extra authenticated attributes, such as
-	 *			SMIMECapabilities
-	 *
-	 * - PKCS7_PARTIAL	PKCS7_sign() creates a handle only, then
-	 *			PKCS7_sign_add_signer() can add a signer later.
-	 *			This is necessary to change the message digest
-	 *			algorithm from the default of SHA-1.  Requires
-	 *			OpenSSL 1.0.0 or later.
-	 */
-	int pkcs7_flags = PKCS7_BINARY | PKCS7_NOATTR | PKCS7_PARTIAL;
-	void *sig;
-	size_t sig_size;
-	BIO *bio = NULL;
-	PKCS7 *p7 = NULL;
-	EVP_PKEY *pkey = NULL;
-	X509 *cert = NULL;
-	bool ok = false;
-
-	const EVP_MD *md = EVP_sha256();
-
-	pkey = deserialize_private_key(pkey_pem);
-	if (!pkey) {
-		printf("deserialize_private_key failed\n");
-		goto out;
-	}
-
-	cert = deserialize_cert(cert_pem);
-	if (!cert) {
-		printf("deserialize_cert failed\n");
-		goto out;
-	}
-
-	bio = BIO_new_mem_buf(data_to_sign, data_size);
-	if (!bio)
-		goto out;
-
-	p7 = PKCS7_sign(NULL, NULL, NULL, bio, pkcs7_flags);
-	if (!p7) {
-		printf("failed to initialize PKCS#7 signature object\n");
-		goto out;
-	}
-
-	if (!PKCS7_sign_add_signer(p7, cert, pkey, md, pkcs7_flags)) {
-		printf("failed to add signer to PKCS#7 signature object\n");
-		goto out;
-	}
-
-	if (PKCS7_final(p7, bio, pkcs7_flags) != 1) {
-		printf("failed to finalize PKCS#7 signature\n");
-		goto out;
-	}
-
-	BIO_free(bio);
-	bio = BIO_new(BIO_s_mem());
-	if (!bio) {
-		printf("out of memory\n");
-		goto out;
-	}
-
-	if (i2d_PKCS7_bio(bio, p7) != 1) {
-		printf("failed to DER-encode PKCS#7 signature object\n");
-		goto out;
-	}
-
-	sig_size = BIO_get_mem_data(bio, &sig);
-	*sig_ret = malloc(sig_size);
-	memcpy(*sig_ret, sig, sig_size);
-	*sig_size_ret = sig_size;
-	ok = true;
-out:
-	PKCS7_free(p7);
-	BIO_free(bio);
-	return ok;
-}
-
-int crypto_emit_file(int fd, char *dir, char *filename, incfs_uuid_t *id_out,
-	size_t size, const char *root_hash, char *sig, size_t sig_size,
-	char *add_data)
+int crypto_emit_file(int fd, const char *dir, const char *filename,
+		     incfs_uuid_t *id_out, size_t size, const char *root_hash,
+		     const char *add_data)
 {
 	int mode = __S_IFREG | 0555;
-	struct incfs_file_signature_info sig_info = {
-		.hash_tree_alg = root_hash
-					? INCFS_HASH_TREE_SHA256
-					: 0,
-		.root_hash = ptr_to_u64(root_hash),
-		.additional_data = ptr_to_u64(add_data),
-		.additional_data_size = strlen(add_data),
-		.signature =  ptr_to_u64(sig),
-		.signature_size = sig_size,
-	};
+	void *signature;
+	int error = 0;
 
 	struct incfs_new_file_args args = {
 			.size = size,
 			.mode = mode,
 			.file_name = ptr_to_u64(filename),
 			.directory_path = ptr_to_u64(dir),
-			.signature_info = ptr_to_u64(&sig_info),
 			.file_attr = 0,
 			.file_attr_len = 0
 	};
 
+	args.signature_size = format_signature(&signature, root_hash, add_data);
+	args.signature_info = ptr_to_u64(signature);
+
 	md5(filename, strlen(filename), (char *)args.file_id.bytes);
 
-	if (ioctl(fd, INCFS_IOC_CREATE_FILE, &args) != 0)
-		return -errno;
+	if (ioctl(fd, INCFS_IOC_CREATE_FILE, &args) != 0) {
+		error = -errno;
+		goto out;
+	}
 
 	*id_out = args.file_id;
-	return 0;
+
+out:
+	free(signature);
+	return error;
 }
 
-
-int emit_file(int fd, char *dir, char *filename, incfs_uuid_t *id_out,
-		size_t size, char *attr)
+int emit_file(int fd, const char *dir, const char *filename,
+	      incfs_uuid_t *id_out, size_t size, const char *attr)
 {
 	int mode = __S_IFREG | 0555;
-	struct incfs_file_signature_info sig_info = {
-		.hash_tree_alg = 0,
-		.root_hash = ptr_to_u64(NULL)
-	};
-	struct incfs_new_file_args args = {
-			.size = size,
-			.mode = mode,
-			.file_name = ptr_to_u64(filename),
-			.directory_path = ptr_to_u64(dir),
-			.signature_info = ptr_to_u64(&sig_info),
-			.file_attr = ptr_to_u64(attr),
-			.file_attr_len = attr ? strlen(attr) : 0
-	};
+	struct incfs_new_file_args args = { .size = size,
+					    .mode = mode,
+					    .file_name = ptr_to_u64(filename),
+					    .directory_path = ptr_to_u64(dir),
+					    .signature_info = ptr_to_u64(NULL),
+					    .signature_size = 0,
+					    .file_attr = ptr_to_u64(attr),
+					    .file_attr_len =
+						    attr ? strlen(attr) : 0 };
 
 	md5(filename, strlen(filename), (char *)args.file_id.bytes);
 
@@ -250,7 +167,7 @@ int get_file_signature(int fd, unsigned char *buf, int buf_size)
 	return -errno;
 }
 
-loff_t get_file_size(char *name)
+loff_t get_file_size(const char *name)
 {
 	struct stat st;
 
@@ -259,7 +176,7 @@ loff_t get_file_size(char *name)
 	return -ENOENT;
 }
 
-int open_commands_file(char *mount_dir)
+int open_commands_file(const char *mount_dir)
 {
 	char cmd_file[255];
 	int cmd_fd;
@@ -273,7 +190,7 @@ int open_commands_file(char *mount_dir)
 	return cmd_fd;
 }
 
-int open_log_file(char *mount_dir)
+int open_log_file(const char *mount_dir)
 {
 	char cmd_file[255];
 	int cmd_fd;
@@ -358,7 +275,7 @@ out:
 	return result;
 }
 
-void sha256(char *data, size_t dsize, char *hash)
+void sha256(const char *data, size_t dsize, char *hash)
 {
 	SHA256_CTX ctx;
 
@@ -367,7 +284,7 @@ void sha256(char *data, size_t dsize, char *hash)
 	SHA256_Final((unsigned char *)hash, &ctx);
 }
 
-void md5(char *data, size_t dsize, char *hash)
+void md5(const char *data, size_t dsize, char *hash)
 {
 	MD5_CTX ctx;
 
