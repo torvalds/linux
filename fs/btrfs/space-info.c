@@ -1184,6 +1184,16 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
+/*
+ * This returns true if this flush state will go through the ordinary flushing
+ * code.
+ */
+static inline bool is_normal_flushing(enum btrfs_reserve_flush_enum flush)
+{
+	return	(flush == BTRFS_RESERVE_FLUSH_ALL) ||
+		(flush == BTRFS_RESERVE_FLUSH_ALL_STEAL);
+}
+
 /**
  * reserve_metadata_bytes - try to reserve bytes from the block_rsv's space
  * @root - the root we're allocating for
@@ -1214,8 +1224,17 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	spin_lock(&space_info->lock);
 	ret = -ENOSPC;
 	used = btrfs_space_info_used(space_info, true);
-	pending_tickets = !list_empty(&space_info->tickets) ||
-		!list_empty(&space_info->priority_tickets);
+
+	/*
+	 * We don't want NO_FLUSH allocations to jump everybody, they can
+	 * generally handle ENOSPC in a different way, so treat them the same as
+	 * normal flushers when it comes to skipping pending tickets.
+	 */
+	if (is_normal_flushing(flush) || (flush == BTRFS_RESERVE_NO_FLUSH))
+		pending_tickets = !list_empty(&space_info->tickets) ||
+			!list_empty(&space_info->priority_tickets);
+	else
+		pending_tickets = !list_empty(&space_info->priority_tickets);
 
 	/*
 	 * Carry on if we have enough space (short-circuit) OR call
