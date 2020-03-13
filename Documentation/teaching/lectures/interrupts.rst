@@ -85,8 +85,8 @@ A trap is a type of exception that is reported after the execution of the
 instruction in which the exception was detected. The saved EIP is the address
 of the instruction after the instuction that caused the trap. (e.g debug trap).
 
-Hardware
-========
+Hardware Concepts
+=================
 
 Programmable Interrupt Controller
 ---------------------------------
@@ -117,6 +117,7 @@ to CPU's INTR pin.
 
 A PIC usually has a set of ports used to exchange information with the CPU. When a device
 connected to one of the PIC's IRQ lines needs CPU attention the following flow happens:
+
    * device raises an interrupt on the corresponding IRQn pin
    * PIC converts the IRQ into a vector number and writes it to a port for CPU to read
    * PIC raises an interrupt on CPU INTR pin
@@ -176,26 +177,46 @@ I/O APIC is used to distribute IRQ from external devices to CPU cores.
 
 After discussing the hardware, now let's see how the processor handles an interrupt.
 
+Interrupt Control
+-----------------
+
+In order to synchronize access to shared data between the interrupt handler
+and other potential concurrent activities such as driver initialization or
+driver data processing, it is often required to enable and disable interrupts in
+a controlled fashion.
+
+This can be accomplished at several levels:
+
 .. slide:: Enabling/disabling the interrupts
    :inline-contents: True
    :level: 2
 
+   * at the device level
+
+     * by programming the device control registers
+
    * at the PIC level
 
-     * programming the PIC
      * PIC can be programmed to disable a given IRQ line
 
-   * at the CPU level
+   * at the CPU level; for example, on x86 one can use the following
+     instructions:
 
     * cli (CLear Interrupt flag)
     * sti (SeT Interrupt flag)
+
+
+Architecture specific interrupt handling in Linux
+=================================================
+
+In this section we will discuss how Linux handles interrupts for the x86 architecture.
 
 Interrupt Descriptor Table
 --------------------------
 
 The interrupt descriptor table (IDT) associates each interrupt or exception
 identifier with a descriptor for the instructions that service the associated
-event. We will name the identifier as vector number and the associated 
+event. We will name the identifier as vector number and the associated
 instructions as interrupt/exception handler.
 
 An IDT has the following characteristics:
@@ -375,15 +396,19 @@ debug the exception.
     v   +---------------------+                      +---------------------+
 
 
-Interrupt handler execution
----------------------------
+Handling an interrupt request
+-----------------------------
 
-.. slide:: Interrupt execution
+After an interrupt request has been generated the processor runs a sequence of
+events that eventually ends up with running the kernel interrupt handler:
+
+
+.. slide:: Handling an interrupt request
    :inline-contents: True
    :level: 2
 
 
-   * check current privilege level
+   * CPU checks the current privilege level
    * if need to change privilege level
 
       * change stack with the one associated with new privilege
@@ -391,68 +416,62 @@ Interrupt handler execution
 
    * save EFLAGS, CS, EIP on stack
    * save error code on stack in case of an abort
-   * execute interrupt handler
+   * execute the kernel interrupt handler
 
-Returning from an interrupt
----------------------------
+Returning from an interrupt handler
+-----------------------------------
 
-IRET is used to from an interrupt handler. IRET is similar with RET except
-that IRET increments ESP by extra four bytes (because of the flags on stack)
-and moves the saved flags into EFLAGS register.
+Most architectures offers special instructions to clean-up the stack and resume
+the execution after the interrupt handler has been executed. On x86 IRET is used
+to return from an interrupt handler. IRET is similar with RET except that IRET
+increments ESP by extra four bytes (because of the flags on stack) and moves the
+saved flags into EFLAGS register.
+
+To resume the execution after an interrupt the following sequence is used (x86):
 
 .. slide:: Returning from an interrupt
    :inline-contents: True
    :level: 2
 
    * pop the eror code (in case of an abort)
-   * use IRET
+   * call IRET
 
-     * pops CS, EIP, EFLAGS
+     * pops values from the stack and restore the following register: CS, EIP, EFLAGS
      * if privilege level changed returns to the old stack and old privilege level
 
-Nested interrupts and exceptions
---------------------------------
 
-An interrupt handler may preempt both other interrupt handlers and exception handlers.
-On the other hand, an exception handler never preempts an interrupt handler.
+Generic interrupt handling in Linux
+===================================
 
-.. slide:: Interrupt/Exception nesting
-   :inline-contents: True
-   :level: 2
+In Linux the interrupt handling is done in three phases: critical, immediate and
+deferred.
 
-   .. ditaa::
+In the first phase the kernel will run the generic interrupt handler that
+determines the interrupt number, the interrupt handler for this particular
+interrupt and the interrupt controller. At this point any timing critical
+actions will also be performed (e.g. acknowledge the interrupt at the interrupt
+controller level). Local processor interrupts are disabled for the duration of
+this phase and continue to be disabled in the next phase.
+
+In the second phase all of the device drivers handler associated with this
+interrupt will be executed [#f1]_. At the end of this phase the interrupt controller's
+"end of interrupt" method is called to allow the interrupt controller to
+reassert this interrupt. The local processor interrupts are enabled at this
+point.
+
+.. [#f1] Note that it is possible that one interrupt is associated with multiple
+	 devices and in this case it is said that the interrupt is
+	 shared. Usually, when using shared interrupts it is the responsibility
+	 of the device driver to determine if the interrupt is target to it's
+	 device or not.
+
+Finally, in the last phase of interrupt handling interrupt context deferrable
+actions will be run. These are also sometimes known as "bottom half" of the
+interrupt (the upper half being the part of the interrupt handling that runs
+with interrupts disabled). At this point interrupts are enabled on the local
+processor.
       
-                     +                                                 ^
-                     |                                                 |
-                     |                                                 |
-          User Mode  | IRQi                                            |
-                     |                                                 |
-                     |                                                 |
-                  +-------------------------------------------------------+
-                     |                                             iret|
-                     |                                                 |
-        Kernel Mode  v-------+      ^-------+                 ^--------+
-                             |      |       |                 |
-                         IRQj|  iret|   IRQk|             iret|
-                             |      |       |                 |
-                             v------+       v-----+     ^-----+
-                                                  |     |
-                                             IRQn | iret|
-                                                  v-----+
-
-.. slide:: Interrupt context
-   :inline-contents: True
-   :level: 2
-
-    * runs as a result of an IRQ (not of an exception)
-    * there is no 'process' context associated
-    * can't trigger a context switch
-      
-      * no sleep
-      * no schedule
-      * no user memory access
-
-.. slide:: Interrupt handling
+.. slide:: Interrupt handling in Linux
    :inline-contents: True
    :level: 2
 
@@ -468,21 +487,99 @@ On the other hand, an exception handler never preempts an interrupt handler.
         | - ACK IRQ      +-----+   |                 |          |   deferred     |
         |                |     +---> - IRQ disabled  |          +----------------+
         +----------------+         | - device handler|          |                |
-                                   |                 +-----+    | - IRQ enabled  |
+                                   | - EOI IRQ       +-----+    | - IRQ enabled  |
                                    +-----------------+     +----> - execute later|
                                                                 |                |
                                                                 +----------------+
 
-Deferrable actions
-==================
 
+Nested interrupts and exceptions
+--------------------------------
+
+Nesting interrupts is permitted on many architectures. Some architecture define
+interrupt levels that allow preemption of an interrupt only if the pending
+interrupt has a greater priority then the current (settable) level (e.g see
+ARM's priority mask).
+
+In order to support as many architectures as possible, Linux has a more
+restrictive interrupt nesting implementation:
+
+.. slide:: IRQ nesting in Linux
+   :inline-contents: True
+   :level: 2
+
+   * an exception (e.g. page fault, system call) can not preempt an interrupt;
+     if that occurs it is considered a bug
+
+   * an interrupt can preempt an exception or other interrupts; however, only
+     one level of interrupt nesting is allowed
+
+The diagram below shows the possible nesting scenarios:
+
+.. slide:: Interrupt/Exception nesting
+   :inline-contents: True
+   :level: 2
+
+   .. ditaa::
+
+                     +                                                 ^  +           ^
+                     |                                                 |  |           |
+                     | Syscall                                         |  | IRQi      |
+          User Mode  | Exception (e.g. page fault)                     |  |           |
+                     |                                                 |  |           |
+                     |                                                 |  |           |
+                  +-------------------------------------------------------+-----------+--
+                     |                                             iret|  |           |
+                     |                                                 |  |           |
+        Kernel Mode  v-------+      ^-------+                 ^--------+  +-----+     |
+                             |      |       |                 |                 |     |
+                         IRQi|  iret|   IRQj|             iret|             IRQj|     |
+                             v------+       v-----+     ^-----+                 v-----+
+                                                  |     |
+                                             IRQk | iret|
+                                                  v-----+
+
+Interrupt context
+-----------------
+
+While an interrupt is handled (from the time the CPU jumps to the interrupt
+handler until the interrupt handler returns - e.g.  IRET is issued) it is said
+that code runs in "interrupt context".
+
+Code that runs in interrupt context has the following properties:
+
+.. slide:: Interrupt context
+   :inline-contents: True
+   :level: 2
+
+    * it runs as a result of an IRQ (not of an exception)
+    * there is no well defined process context associated
+    * not allowed to trigger a context switch (no sleep, schedule, or user memory access)
+
+Deferrable actions
+------------------
+
+Deferrable actions are used to run callback functions at a later time. If
+deferrable actions scheduled from an interrupt handler, the associated callback
+function will run after the interrupt handler has completed.
+
+There are two large categories of deferrable actions: those that run in
+interrupt context and those that run in process context.
+
+The purpose of interrupt context deferrable actions is to avoid doing too much
+work in the interrupt handler function. Running for too long with interrupts
+disabled can have undesired effects such as increased latency or poor system
+performance due to missing other interrupts (e.g. dropping network packets
+because the CPU did not react in time to dequeue packets from the network
+interface and the network card buffer is full).
+
+In Linux there are three types of deferrable actions:
 
 .. slide:: Deferrable actions in Linux
    :inline-contents: True
    :level: 2
 
 
-    * implemented using deferrable functions
     * softIRQ
 
       * runs in interrupt context
@@ -494,21 +591,59 @@ Deferrable actions
       * runs in interrupt context
       * can be dinamically allocated
       * same handler runs are serialized
+
     * workqueues
-   
+
       * run in process context
 
-.. slide:: Soft IRQ
+Deferrable actions have APIs to: **initialize** an instance, **activate** or
+**schedule** the action and **mask/disable** and **unmask/enable** the execution
+of the callback function. The later is used for synchronization purposes between
+the callback function and other contexts.
+
+Soft IRQs
+---------
+
+Soft IRQs is the term used for the low level mechanism that implements deferring
+work from interrupt handlers but that still runs in interrupt context.
+
+.. slide:: Soft IRQs
    :inline-contents: True
    :level: 2
 
-    * init: open_softirq()
-    * activation: raise_softirq()
-    * execution: do_softirq()
-    * it runs
+    Soft IRQ APIs:
 
-      * after an interrupt handler
+      * initialize: :c:func:`open_softirq`
+      * activation: :c:func:`raise_softirq`
+      * masking: :c:func:`local_bh_disable`, :c:func:`local_bh_enable`
+
+    Once activated, the callback function :c:func:`do_softirq` runs either:
+
+      * after an interrupt handler or
       * from the ksoftirqd kernel thread
+
+
+.. slide:: ksoftirqd
+   :inline-contents: False
+   :level: 2
+
+    * minimum priority kernel thread
+    * runs softirqs after certain limits are reached
+    * tries to achieve good latency and avoid process starvation
+
+
+Since softirqs can reschedule themselves or other interrupts can occur that
+reschedules them, they can potentially lead to (temporary) process starvation if
+checks are not put into place. Currently, the Linux kernel does not allow
+running soft irqs for more than :c:macro:`MAX_SOFTIRQ_TIME` or rescheduling for
+more than :c:macro:`MAX_SOFTIRQ_RESTART` consecutive times.
+
+Once these limits are reached a special kernel thread, **ksoftirqd** is wake-up
+and all of the rest of pending soft irqs will be run from the context of this
+kernel thread.
+
+Soft irqs usage is restricted, they are use by a handful of subsystems that have
+low latency requirements. For 4.19 this is the full list of soft irqs:
 
 .. slide:: Types of soft IRQ
    :inline-contents: True
@@ -519,46 +654,63 @@ Deferrable actions
     * NET_TX_SOFTIRQ
     * NET_RX_SOFTIRQ
     * BLOCK_SOFTIRQ
+    * IRQ_POLL_SOFTIRQ
     * TASKLET_SOFTIRQ
-    * HRTIMER_SOFTIRQ
+    * SCHED_SOFTIRQ
+    * HRTIMER_SOFTIRQ,
+    * RCU_SOFTIRQ
 
-.. slide:: ksoftirqd
-   :inline-contents: True
-   :level: 2
-
-    * minimum priority kernel thread
-    * runs self raised softirqs
-    * trade-off between softirqs and process/kernel threads
+Tasklets
+--------
 
 .. slide:: Tasklets
    :inline-contents: True
    :level: 2
 
-    * implemented on top of soft IRQ
+   Tasklets are a dynamic type (not limited to a fixed number) of
+   deferred work running in interrupt context.
 
-      * TASKLET_SOFITIRQ, HI_SOFTIRQ
-    * init: tasklet_init
-    * activation: tasklet_schedule
-    * masking: tasklet_disable(), tasklet_enable()
+   Tasklets API:
 
-.. slide:: Workqueues
+    * initialization: :c:func:`tasklet_init`
+    * activation: :c:func:`tasklet_schedule`
+    * masking: :c:func:`tasklet_disable`, :c:func:`tasklet_enable`
+
+   Tasklets are implemented on top of two dedicated softirqs:
+   :c:macro:`TASKLET_SOFITIRQ` and :c:macro:`HI_SOFTIRQ`
+
+   Tasklets are also serialized, i.e. the same tasklet can only execute on one processor.
+
+
+Workqueues
+----------
+
+ .. slide:: Workqueues
    :inline-contents: True
    :level: 2
 
-    * implemented on top of kernel threads
+   Workqueues are a type of deferred work that runs in process context.
 
-      * TASKLET_SOFITIRQ, HI_SOFTIRQ
-    * init: INIT_WORK
-    * activation: schedule_work()
+   They are implemented on top of kernel threads.
+
+   Workqueues API:
+
+    * init: :c:macro:`INIT_WORK`
+    * activation: :c:func:`schedule_work`
+
+Timers
+------
 
 .. slide:: Timers
    :inline-contents: True
    :level: 2
 
-    * implemented on top of TIMER_SOFTIRQ
+    Timers are implemented on top of the :c:macro:`TIMER_SOFTIRQ`
 
-    * init: setup_timer
-    * activation: mod_timer
+    Timer API:
+
+    * initialization: :c:func:`setup_timer`
+    * activation: :c:func:`mod_timer`
 
 
 
