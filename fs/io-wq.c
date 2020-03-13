@@ -385,7 +385,7 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe, unsigned *hash)
 		work = container_of(node, struct io_wq_work, list);
 
 		/* not hashed, can run anytime */
-		if (!(work->flags & IO_WQ_WORK_HASHED)) {
+		if (!io_wq_is_hashed(work)) {
 			wq_node_del(&wqe->work_list, node, prev);
 			return work;
 		}
@@ -795,19 +795,15 @@ void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work)
 }
 
 /*
- * Enqueue work, hashed by some key. Work items that hash to the same value
- * will not be done in parallel. Used to limit concurrent writes, generally
- * hashed by inode.
+ * Work items that hash to the same value will not be done in parallel.
+ * Used to limit concurrent writes, generally hashed by inode.
  */
-void io_wq_enqueue_hashed(struct io_wq *wq, struct io_wq_work *work, void *val)
+void io_wq_hash_work(struct io_wq_work *work, void *val)
 {
-	struct io_wqe *wqe = wq->wqes[numa_node_id()];
-	unsigned bit;
-
+	unsigned int bit;
 
 	bit = hash_ptr(val, IO_WQ_HASH_ORDER);
 	work->flags |= (IO_WQ_WORK_HASHED | (bit << IO_WQ_HASH_SHIFT));
-	io_wqe_enqueue(wqe, work);
 }
 
 static bool io_wqe_worker_send_sig(struct io_worker *worker, void *data)

@@ -1040,15 +1040,14 @@ static inline void io_req_work_drop_env(struct io_kiocb *req)
 	}
 }
 
-static inline bool io_prep_async_work(struct io_kiocb *req,
+static inline void io_prep_async_work(struct io_kiocb *req,
 				      struct io_kiocb **link)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
-	bool do_hashed = false;
 
 	if (req->flags & REQ_F_ISREG) {
 		if (def->hash_reg_file)
-			do_hashed = true;
+			io_wq_hash_work(&req->work, file_inode(req->file));
 	} else {
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
@@ -1057,25 +1056,18 @@ static inline bool io_prep_async_work(struct io_kiocb *req,
 	io_req_work_grab_env(req, def);
 
 	*link = io_prep_linked_timeout(req);
-	return do_hashed;
 }
 
 static inline void io_queue_async_work(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *link;
-	bool do_hashed;
 
-	do_hashed = io_prep_async_work(req, &link);
+	io_prep_async_work(req, &link);
 
-	trace_io_uring_queue_async_work(ctx, do_hashed, req, &req->work,
-					req->flags);
-	if (!do_hashed) {
-		io_wq_enqueue(ctx->io_wq, &req->work);
-	} else {
-		io_wq_enqueue_hashed(ctx->io_wq, &req->work,
-					file_inode(req->file));
-	}
+	trace_io_uring_queue_async_work(ctx, io_wq_is_hashed(&req->work), req,
+					&req->work, req->flags);
+	io_wq_enqueue(ctx->io_wq, &req->work);
 
 	if (link)
 		io_queue_linked_timeout(link);
@@ -1582,6 +1574,10 @@ static void io_link_work_cb(struct io_wq_work **workptr)
 static void io_wq_assign_next(struct io_wq_work **workptr, struct io_kiocb *nxt)
 {
 	struct io_kiocb *link;
+	const struct io_op_def *def = &io_op_defs[nxt->opcode];
+
+	if ((nxt->flags & REQ_F_ISREG) && def->hash_reg_file)
+		io_wq_hash_work(&nxt->work, file_inode(nxt->file));
 
 	*workptr = &nxt->work;
 	link = io_prep_linked_timeout(nxt);

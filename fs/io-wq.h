@@ -94,7 +94,12 @@ bool io_wq_get(struct io_wq *wq, struct io_wq_data *data);
 void io_wq_destroy(struct io_wq *wq);
 
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work);
-void io_wq_enqueue_hashed(struct io_wq *wq, struct io_wq_work *work, void *val);
+void io_wq_hash_work(struct io_wq_work *work, void *val);
+
+static inline bool io_wq_is_hashed(struct io_wq_work *work)
+{
+	return work->flags & IO_WQ_WORK_HASHED;
+}
 
 void io_wq_cancel_all(struct io_wq *wq);
 enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork);
