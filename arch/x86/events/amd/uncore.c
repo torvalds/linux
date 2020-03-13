@@ -185,13 +185,16 @@ static void amd_uncore_del(struct perf_event *event, int flags)
  */
 static u64 l3_thread_slice_mask(int cpu)
 {
-	int thread = 2 * (cpu_data(cpu).cpu_core_id % 4);
+	u64 thread_mask, core = topology_core_id(cpu);
+	unsigned int shift, thread = 0;
 
-	if (smp_num_siblings > 1)
-		thread += cpu_data(cpu).apicid & 1;
+	if (topology_smt_supported() && !topology_is_primary_thread(cpu))
+		thread = 1;
 
-	return (1ULL << (AMD64_L3_THREAD_SHIFT + thread) &
-		AMD64_L3_THREAD_MASK) | AMD64_L3_SLICE_MASK;
+	shift = AMD64_L3_THREAD_SHIFT + 2 * (core % 4) + thread;
+	thread_mask = BIT_ULL(shift);
+
+	return AMD64_L3_SLICE_MASK | thread_mask;
 }
 
 static int amd_uncore_event_init(struct perf_event *event)
