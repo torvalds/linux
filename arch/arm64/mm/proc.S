@@ -16,6 +16,7 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/cpufeature.h>
 #include <asm/alternative.h>
+#include <asm/smp.h>
 
 #ifdef CONFIG_ARM64_64K_PAGES
 #define TCR_TG_FLAGS	TCR_TG0_64K | TCR_TG1_64K
@@ -468,9 +469,39 @@ SYM_FUNC_START(__cpu_setup)
 1:
 #endif	/* CONFIG_ARM64_HW_AFDBM */
 	msr	tcr_el1, x10
+	mov	x1, x0
 	/*
 	 * Prepare SCTLR
 	 */
 	mov_q	x0, SCTLR_EL1_SET
+
+#ifdef CONFIG_ARM64_PTR_AUTH
+	/* No ptrauth setup for run time cpus */
+	cmp	x1, #ARM64_CPU_RUNTIME
+	b.eq	3f
+
+	/* Check if the CPU supports ptrauth */
+	mrs	x2, id_aa64isar1_el1
+	ubfx	x2, x2, #ID_AA64ISAR1_APA_SHIFT, #8
+	cbz	x2, 3f
+
+	msr_s	SYS_APIAKEYLO_EL1, xzr
+	msr_s	SYS_APIAKEYHI_EL1, xzr
+
+	/* Just enable ptrauth for primary cpu */
+	cmp	x1, #ARM64_CPU_BOOT_PRIMARY
+	b.eq	2f
+
+	/* if !system_supports_address_auth() then skip enable */
+alternative_if_not ARM64_HAS_ADDRESS_AUTH
+	b	3f
+alternative_else_nop_endif
+
+2:	/* Enable ptrauth instructions */
+	ldr	x2, =SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | \
+		     SCTLR_ELx_ENDA | SCTLR_ELx_ENDB
+	orr	x0, x0, x2
+3:
+#endif
 	ret					// return to head.S
 SYM_FUNC_END(__cpu_setup)
