@@ -255,13 +255,6 @@ static inline void mt7621_control_deassert(struct mt7621_pcie_port *port)
 		reset_control_assert(port->pcie_rst);
 }
 
-static void mt7621_reset_port(struct mt7621_pcie_port *port)
-{
-	mt7621_control_assert(port);
-	msleep(100);
-	mt7621_control_deassert(port);
-}
-
 static void setup_cm_memory_region(struct mt7621_pcie *pcie)
 {
 	struct resource *mem_resource = &pcie->mem;
@@ -426,12 +419,6 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	struct device *dev = pcie->dev;
 	u32 slot = port->slot;
 	int err;
-
-	/*
-	 * Any MT7621 Ralink pcie controller that doesn't have 0x0101 at
-	 * the end of the chip_id has inverted PCI resets.
-	 */
-	mt7621_reset_port(port);
 
 	err = phy_init(port->phy);
 	if (err) {
