@@ -277,8 +277,7 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	    !sdata->sensor_settings->drdy_irq.int2.addr) {
 		if (pdata->drdy_int_pin)
 			dev_info(&indio_dev->dev,
-				 "DRDY on pin INT%d specified, but sensor "
-				 "does not support interrupts\n",
+				 "DRDY on pin INT%d specified, but sensor does not support interrupts\n",
 				 pdata->drdy_int_pin);
 		return 0;
 	}
