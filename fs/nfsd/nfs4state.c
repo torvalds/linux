@@ -2645,7 +2645,7 @@ static const struct file_operations client_ctl_fops = {
 static const struct tree_descr client_files[] = {
 	[0] = {"info", &client_info_fops, S_IRUSR},
 	[1] = {"states", &client_states_fops, S_IRUSR},
-	[2] = {"ctl", &client_ctl_fops, S_IRUSR|S_IWUSR},
+	[2] = {"ctl", &client_ctl_fops, S_IWUSR},
 	[3] = {""},
 };
 
