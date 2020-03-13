@@ -5097,7 +5097,7 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 
 static int validate_displayid(u8 *displayid, int length, int idx)
 {
-	int i;
+	int i, dispid_length;
 	u8 csum = 0;
 	struct displayid_hdr *base;
 
@@ -5106,15 +5106,18 @@ static int validate_displayid(u8 *displayid, int length, int idx)
 	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
 		      base->rev, base->bytes, base->prod_id, base->ext_count);
 
-	if (base->bytes + 5 > length - idx)
+	/* +1 for DispID checksum */
+	dispid_length = sizeof(*base) + base->bytes + 1;
+	if (dispid_length > length - idx)
 		return -EINVAL;
-	for (i = idx; i <= base->bytes + 5; i++) {
-		csum += displayid[i];
-	}
+
+	for (i = 0; i < dispid_length; i++)
+		csum += displayid[idx + i];
 	if (csum) {
 		DRM_NOTE("DisplayID checksum invalid, remainder is %d\n", csum);
 		return -EINVAL;
 	}
+
 	return 0;
 }
 
