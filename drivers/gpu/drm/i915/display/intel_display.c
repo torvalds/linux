@@ -14908,11 +14908,13 @@ static void intel_pipe_fastset(const struct intel_crtc_state *old_crtc_state,
 }
 
 static void commit_pipe_config(struct intel_atomic_state *state,
-			       struct intel_crtc_state *old_crtc_state,
-			       struct intel_crtc_state *new_crtc_state)
+			       struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	bool modeset = needs_modeset(new_crtc_state);
 
 	/*
@@ -14938,22 +14940,35 @@ static void commit_pipe_config(struct intel_atomic_state *state,
 		dev_priv->display.atomic_update_watermarks(state, crtc);
 }
 
-static void intel_update_crtc(struct intel_crtc *crtc,
-			      struct intel_atomic_state *state,
-			      struct intel_crtc_state *old_crtc_state,
-			      struct intel_crtc_state *new_crtc_state)
+static void intel_enable_crtc(struct intel_atomic_state *state,
+			      struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	if (!needs_modeset(new_crtc_state))
+		return;
+
+	intel_crtc_update_active_timings(new_crtc_state);
+
+	dev_priv->display.crtc_enable(state, crtc);
+
+	/* vblanks work again, re-enable pipe CRC. */
+	intel_crtc_enable_pipe_crc(crtc);
+}
+
+static void intel_update_crtc(struct intel_atomic_state *state,
+			      struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	bool modeset = needs_modeset(new_crtc_state);
 
-	if (modeset) {
-		intel_crtc_update_active_timings(new_crtc_state);
-
-		dev_priv->display.crtc_enable(state, crtc);
-
-		/* vblanks work again, re-enable pipe CRC. */
-		intel_crtc_enable_pipe_crc(crtc);
-	} else {
+	if (!modeset) {
 		if (new_crtc_state->preload_luts &&
 		    (new_crtc_state->uapi.color_mgmt_changed ||
 		     new_crtc_state->update_pipe))
@@ -14973,7 +14988,7 @@ static void intel_update_crtc(struct intel_crtc *crtc,
 	/* Perform vblank evasion around commit operation */
 	intel_pipe_update_start(new_crtc_state);
 
-	commit_pipe_config(state, old_crtc_state, new_crtc_state);
+	commit_pipe_config(state, crtc);
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		skl_update_planes_on_crtc(state, crtc);
@@ -15080,28 +15095,17 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 
 static void intel_commit_modeset_enables(struct intel_atomic_state *state)
 {
+	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
-	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
 	int i;
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (!new_crtc_state->hw.active)
 			continue;
 
-		intel_update_crtc(crtc, state, old_crtc_state,
-				  new_crtc_state);
+		intel_enable_crtc(state, crtc);
+		intel_update_crtc(state, crtc);
 	}
-}
-
-static void intel_crtc_enable_trans_port_sync(struct intel_crtc *crtc,
-					      struct intel_atomic_state *state,
-					      struct intel_crtc_state *new_crtc_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-
-	intel_crtc_update_active_timings(new_crtc_state);
-	dev_priv->display.crtc_enable(state, crtc);
-	intel_crtc_enable_pipe_crc(crtc);
 }
 
 static void intel_set_dp_tp_ctl_normal(struct intel_crtc *crtc,
@@ -15118,41 +15122,6 @@ static void intel_set_dp_tp_ctl_normal(struct intel_crtc *crtc,
 	}
 	intel_dp = intel_attached_dp(to_intel_connector(conn));
 	intel_dp_stop_link_train(intel_dp);
-}
-
-/*
- * TODO: This is only called from port sync and it is identical to what will be
- * executed again in intel_update_crtc() over port sync pipes
- */
-static void intel_post_crtc_enable_updates(struct intel_crtc *crtc,
-					   struct intel_atomic_state *state)
-{
-	struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_crtc_state *old_crtc_state =
-		intel_atomic_get_old_crtc_state(state, crtc);
-	bool modeset = needs_modeset(new_crtc_state);
-
-	if (new_crtc_state->update_pipe && !new_crtc_state->enable_fbc)
-		intel_fbc_disable(crtc);
-	else
-		intel_fbc_enable(state, crtc);
-
-	/* Perform vblank evasion around commit operation */
-	intel_pipe_update_start(new_crtc_state);
-	commit_pipe_config(state, old_crtc_state, new_crtc_state);
-	skl_update_planes_on_crtc(state, crtc);
-	intel_pipe_update_end(new_crtc_state);
-
-	/*
-	 * We usually enable FIFO underrun interrupts as part of the
-	 * CRTC enable sequence during modesets.  But when we inherit a
-	 * valid pipe configuration from the BIOS we need to take care
-	 * of enabling them on the CRTC's first fastset.
-	 */
-	if (new_crtc_state->update_pipe && !modeset &&
-	    old_crtc_state->hw.mode.private_flags & I915_MODE_FLAG_INHERITED)
-		intel_crtc_arm_fifo_underrun(crtc, new_crtc_state);
 }
 
 static void intel_update_trans_port_sync_crtcs(struct intel_crtc *crtc,
@@ -15178,14 +15147,10 @@ static void intel_update_trans_port_sync_crtcs(struct intel_crtc *crtc,
 	/* Enable seq for slave with with DP_TP_CTL left Idle until the
 	 * master is ready
 	 */
-	intel_crtc_enable_trans_port_sync(slave_crtc,
-					  state,
-					  new_slave_crtc_state);
+	intel_enable_crtc(state, slave_crtc);
 
 	/* Enable seq for master with with DP_TP_CTL left Idle */
-	intel_crtc_enable_trans_port_sync(crtc,
-					  state,
-					  new_crtc_state);
+	intel_enable_crtc(state, crtc);
 
 	/* Set Slave's DP_TP_CTL to Normal */
 	intel_set_dp_tp_ctl_normal(slave_crtc,
@@ -15197,10 +15162,8 @@ static void intel_update_trans_port_sync_crtcs(struct intel_crtc *crtc,
 				   state);
 
 	/* Now do the post crtc enable for all master and slaves */
-	intel_post_crtc_enable_updates(slave_crtc,
-				       state);
-	intel_post_crtc_enable_updates(crtc,
-				       state);
+	intel_update_crtc(state, slave_crtc);
+	intel_update_crtc(state, crtc);
 }
 
 static void icl_dbuf_slice_pre_update(struct intel_atomic_state *state)
@@ -15274,8 +15237,7 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 			entries[pipe] = new_crtc_state->wm.skl.ddb;
 			update_pipes &= ~BIT(pipe);
 
-			intel_update_crtc(crtc, state, old_crtc_state,
-					  new_crtc_state);
+			intel_update_crtc(state, crtc);
 
 			/*
 			 * If this is an already active pipe, it's DDB changed,
@@ -15323,8 +15285,8 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 			modeset_pipes &= ~BIT(slave_crtc->pipe);
 
 		} else {
-			intel_update_crtc(crtc, state, old_crtc_state,
-					  new_crtc_state);
+			intel_enable_crtc(state, crtc);
+			intel_update_crtc(state, crtc);
 		}
 	}
 
@@ -15333,8 +15295,7 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	 * other pipes, right now it is only MST slaves as both port sync slave
 	 * and master are enabled together
 	 */
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		enum pipe pipe = crtc->pipe;
 
 		if ((modeset_pipes & BIT(pipe)) == 0)
@@ -15346,7 +15307,8 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 		entries[pipe] = new_crtc_state->wm.skl.ddb;
 		modeset_pipes &= ~BIT(pipe);
 
-		intel_update_crtc(crtc, state, old_crtc_state, new_crtc_state);
+		intel_enable_crtc(state, crtc);
+		intel_update_crtc(state, crtc);
 	}
 
 	drm_WARN_ON(&dev_priv->drm, modeset_pipes);
