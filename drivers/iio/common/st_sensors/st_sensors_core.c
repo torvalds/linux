@@ -150,8 +150,7 @@ static int st_sensors_set_fullscale(struct iio_dev *indio_dev, unsigned int fs)
 	if (err < 0)
 		goto st_accel_set_fullscale_error;
 
-	sdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-					&sdata->sensor_settings->fs.fs_avl[i];
+	sdata->current_fullscale = &sdata->sensor_settings->fs.fs_avl[i];
 	return err;
 
 st_accel_set_fullscale_error:
