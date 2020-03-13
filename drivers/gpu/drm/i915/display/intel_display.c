@@ -15008,18 +15008,6 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 		intel_crtc_arm_fifo_underrun(crtc, new_crtc_state);
 }
 
-static struct intel_crtc *intel_get_slave_crtc(const struct intel_crtc_state *new_crtc_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(new_crtc_state->uapi.crtc->dev);
-	enum transcoder slave_transcoder;
-
-	drm_WARN_ON(&dev_priv->drm,
-		    !is_power_of_2(new_crtc_state->sync_mode_slaves_mask));
-
-	slave_transcoder = ffs(new_crtc_state->sync_mode_slaves_mask) - 1;
-	return intel_get_crtc_for_pipe(dev_priv,
-				       (enum pipe)slave_transcoder);
-}
 
 static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 					  struct intel_crtc_state *old_crtc_state,
@@ -15108,8 +15096,8 @@ static void intel_commit_modeset_enables(struct intel_atomic_state *state)
 	}
 }
 
-static void intel_set_dp_tp_ctl_normal(struct intel_crtc *crtc,
-				       struct intel_atomic_state *state)
+static void intel_set_dp_tp_ctl_normal(struct intel_atomic_state *state,
+				       struct intel_crtc *crtc)
 {
 	struct drm_connector *uninitialized_var(conn);
 	struct drm_connector_state *conn_state;
@@ -15124,45 +15112,56 @@ static void intel_set_dp_tp_ctl_normal(struct intel_crtc *crtc,
 	intel_dp_stop_link_train(intel_dp);
 }
 
-static void intel_update_trans_port_sync_crtcs(struct intel_crtc *crtc,
-					       struct intel_atomic_state *state,
-					       struct intel_crtc_state *old_crtc_state,
-					       struct intel_crtc_state *new_crtc_state)
+static void intel_update_trans_port_sync_crtcs(struct intel_atomic_state *state,
+					       struct intel_crtc *crtc)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct intel_crtc *slave_crtc = intel_get_slave_crtc(new_crtc_state);
-	struct intel_crtc_state *new_slave_crtc_state =
-		intel_atomic_get_new_crtc_state(state, slave_crtc);
-	struct intel_crtc_state *old_slave_crtc_state =
-		intel_atomic_get_old_crtc_state(state, slave_crtc);
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *new_slave_crtc_state;
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_crtc *slave_crtc;
+	int i;
 
-	drm_WARN_ON(&i915->drm, !slave_crtc || !new_slave_crtc_state ||
-		    !old_slave_crtc_state);
+	for_each_new_intel_crtc_in_state(state, slave_crtc,
+					 new_slave_crtc_state, i) {
+		if (new_slave_crtc_state->master_transcoder !=
+		    new_crtc_state->cpu_transcoder)
+			continue;
+
+		drm_dbg_kms(&i915->drm,
+			    "Updating transcoder port sync slave [CRTC:%d:%s]\n",
+			    slave_crtc->base.base.id, slave_crtc->base.name);
+
+		intel_enable_crtc(state, slave_crtc);
+	}
 
 	drm_dbg_kms(&i915->drm,
-		    "Updating Transcoder Port Sync Master CRTC = %d %s and Slave CRTC %d %s\n",
-		    crtc->base.base.id, crtc->base.name,
-		    slave_crtc->base.base.id, slave_crtc->base.name);
+		    "Updating transcoder port sync master [CRTC:%d:%s]\n",
+		    crtc->base.base.id, crtc->base.name);
 
-	/* Enable seq for slave with with DP_TP_CTL left Idle until the
-	 * master is ready
-	 */
-	intel_enable_crtc(state, slave_crtc);
-
-	/* Enable seq for master with with DP_TP_CTL left Idle */
 	intel_enable_crtc(state, crtc);
 
-	/* Set Slave's DP_TP_CTL to Normal */
-	intel_set_dp_tp_ctl_normal(slave_crtc,
-				   state);
+	for_each_new_intel_crtc_in_state(state, slave_crtc,
+					 new_slave_crtc_state, i) {
+		if (new_slave_crtc_state->master_transcoder !=
+		    new_crtc_state->cpu_transcoder)
+			continue;
 
-	/* Set Master's DP_TP_CTL To Normal */
+		intel_set_dp_tp_ctl_normal(state, slave_crtc);
+	}
+
 	usleep_range(200, 400);
-	intel_set_dp_tp_ctl_normal(crtc,
-				   state);
+	intel_set_dp_tp_ctl_normal(state, crtc);
 
-	/* Now do the post crtc enable for all master and slaves */
-	intel_update_crtc(state, slave_crtc);
+	for_each_new_intel_crtc_in_state(state, slave_crtc,
+					 new_slave_crtc_state, i) {
+		if (new_slave_crtc_state->master_transcoder !=
+		    new_crtc_state->cpu_transcoder)
+			continue;
+
+		intel_update_crtc(state, slave_crtc);
+	}
+
 	intel_update_crtc(state, crtc);
 }
 
@@ -15256,8 +15255,7 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	 * Enable all pipes that needs a modeset and do not depends on other
 	 * pipes
 	 */
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		enum pipe pipe = crtc->pipe;
 
 		if ((modeset_pipes & BIT(pipe)) == 0)
@@ -15274,16 +15272,21 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 		modeset_pipes &= ~BIT(pipe);
 
 		if (is_trans_port_sync_mode(new_crtc_state)) {
+			const struct intel_crtc_state *new_slave_crtc_state;
 			struct intel_crtc *slave_crtc;
+			int i;
 
-			intel_update_trans_port_sync_crtcs(crtc, state,
-							   old_crtc_state,
-							   new_crtc_state);
+			intel_update_trans_port_sync_crtcs(state, crtc);
 
-			slave_crtc = intel_get_slave_crtc(new_crtc_state);
-			/* TODO: update entries[] of slave */
-			modeset_pipes &= ~BIT(slave_crtc->pipe);
+			for_each_new_intel_crtc_in_state(state, slave_crtc,
+							 new_slave_crtc_state, i) {
+				if (new_slave_crtc_state->master_transcoder !=
+				    new_crtc_state->cpu_transcoder)
+					continue;
 
+				/* TODO: update entries[] of slave */
+				modeset_pipes &= ~BIT(slave_crtc->pipe);
+			}
 		} else {
 			intel_enable_crtc(state, crtc);
 			intel_update_crtc(state, crtc);
