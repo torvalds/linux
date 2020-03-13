@@ -4998,37 +4998,6 @@ static void icl_set_pipe_chicken(struct intel_crtc *crtc)
 	intel_de_write(dev_priv, PIPE_CHICKEN(pipe), tmp);
 }
 
-static void icl_enable_trans_port_sync(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 trans_ddi_func_ctl2_val;
-	u8 master_select;
-
-	/*
-	 * Configure the master select and enable Transcoder Port Sync for
-	 * Slave CRTCs transcoder.
-	 */
-	if (crtc_state->master_transcoder == INVALID_TRANSCODER)
-		return;
-
-	if (crtc_state->master_transcoder == TRANSCODER_EDP)
-		master_select = 0;
-	else
-		master_select = crtc_state->master_transcoder + 1;
-
-	/* Set the master select bits for Tranascoder Port Sync */
-	trans_ddi_func_ctl2_val = (PORT_SYNC_MODE_MASTER_SELECT(master_select) &
-				   PORT_SYNC_MODE_MASTER_SELECT_MASK) <<
-		PORT_SYNC_MODE_MASTER_SELECT_SHIFT;
-	/* Enable Transcoder Port Sync */
-	trans_ddi_func_ctl2_val |= PORT_SYNC_MODE_ENABLE;
-
-	intel_de_write(dev_priv,
-		       TRANS_DDI_FUNC_CTL2(crtc_state->cpu_transcoder),
-		       trans_ddi_func_ctl2_val);
-}
-
 static void intel_fdi_normal_train(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -7036,9 +7005,6 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_set_pipe_timings(new_crtc_state);
-
-	if (INTEL_GEN(dev_priv) >= 11)
-		icl_enable_trans_port_sync(new_crtc_state);
 
 	intel_set_pipe_src_size(new_crtc_state);
 

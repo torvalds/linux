@@ -1560,12 +1560,34 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	u32 temp;
+	u32 ctl;
 
-	temp = intel_ddi_transcoder_func_reg_val_get(crtc_state);
+	if (INTEL_GEN(dev_priv) >= 11) {
+		enum transcoder master_transcoder = crtc_state->master_transcoder;
+		u32 ctl2 = 0;
+
+		if (master_transcoder != INVALID_TRANSCODER) {
+			u8 master_select;
+
+			if (master_transcoder == TRANSCODER_EDP)
+				master_select = 0;
+			else
+				master_select = master_transcoder + 1;
+
+			ctl2 |= PORT_SYNC_MODE_ENABLE |
+				(PORT_SYNC_MODE_MASTER_SELECT(master_select) &
+				 PORT_SYNC_MODE_MASTER_SELECT_MASK) <<
+				PORT_SYNC_MODE_MASTER_SELECT_SHIFT;
+		}
+
+		intel_de_write(dev_priv,
+			       TRANS_DDI_FUNC_CTL2(cpu_transcoder), ctl2);
+	}
+
+	ctl = intel_ddi_transcoder_func_reg_val_get(crtc_state);
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
-		temp |= TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
-	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder), temp);
+		ctl |= TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
+	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder), ctl);
 }
 
 /*
@@ -1578,11 +1600,11 @@ intel_ddi_config_transcoder_func(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	u32 temp;
+	u32 ctl;
 
-	temp = intel_ddi_transcoder_func_reg_val_get(crtc_state);
-	temp &= ~TRANS_DDI_FUNC_ENABLE;
-	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder), temp);
+	ctl = intel_ddi_transcoder_func_reg_val_get(crtc_state);
+	ctl &= ~TRANS_DDI_FUNC_ENABLE;
+	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder), ctl);
 }
 
 void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state)
@@ -1590,20 +1612,24 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	u32 val;
+	u32 ctl;
 
-	val = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
-	val &= ~TRANS_DDI_FUNC_ENABLE;
+	if (INTEL_GEN(dev_priv) >= 11)
+		intel_de_write(dev_priv,
+			       TRANS_DDI_FUNC_CTL2(cpu_transcoder), 0);
+
+	ctl = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+	ctl &= ~TRANS_DDI_FUNC_ENABLE;
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		if (!intel_dp_mst_is_master_trans(crtc_state)) {
-			val &= ~(TGL_TRANS_DDI_PORT_MASK |
+			ctl &= ~(TGL_TRANS_DDI_PORT_MASK |
 				 TRANS_DDI_MODE_SELECT_MASK);
 		}
 	} else {
-		val &= ~(TRANS_DDI_PORT_MASK | TRANS_DDI_MODE_SELECT_MASK);
+		ctl &= ~(TRANS_DDI_PORT_MASK | TRANS_DDI_MODE_SELECT_MASK);
 	}
-	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder), val);
+	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder), ctl);
 
 	if (dev_priv->quirks & QUIRK_INCREASE_DDI_DISABLED_TIME &&
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
@@ -3419,22 +3445,6 @@ static void intel_ddi_post_disable_hdmi(struct intel_encoder *encoder,
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, false);
 }
 
-static void icl_disable_transcoder_port_sync(const struct intel_crtc_state *old_crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	if (old_crtc_state->master_transcoder == INVALID_TRANSCODER)
-		return;
-
-	drm_dbg_kms(&dev_priv->drm,
-		    "Disabling Transcoder Port Sync on Slave Transcoder %s\n",
-		    transcoder_name(old_crtc_state->cpu_transcoder));
-
-	intel_de_write(dev_priv,
-		       TRANS_DDI_FUNC_CTL2(old_crtc_state->cpu_transcoder), 0);
-}
-
 static void intel_ddi_post_disable(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *old_crtc_state,
 				   const struct drm_connector_state *old_conn_state)
@@ -3448,9 +3458,6 @@ static void intel_ddi_post_disable(struct intel_encoder *encoder,
 		intel_crtc_vblank_off(old_crtc_state);
 
 		intel_disable_pipe(old_crtc_state);
-
-		if (INTEL_GEN(dev_priv) >= 11)
-			icl_disable_transcoder_port_sync(old_crtc_state);
 
 		intel_ddi_disable_transcoder_func(old_crtc_state);
 
