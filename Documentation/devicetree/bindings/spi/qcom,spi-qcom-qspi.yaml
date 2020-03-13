@@ -40,6 +40,15 @@ properties:
       - description: AHB clock
       - description: QSPI core clock
 
+  interconnects:
+    minItems: 1
+    maxItems: 2
+
+  interconnect-names:
+    items:
+      - const: qspi-config
+      - const: qspi-memory
+
 required:
   - compatible
   - reg
