@@ -3619,6 +3619,41 @@ void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
 	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
 }
 
+static void trans_port_sync_stop_link_train(struct intel_atomic_state *state,
+					    struct intel_encoder *encoder,
+					    const struct intel_crtc_state *crtc_state)
+{
+	const struct drm_connector_state *conn_state;
+	struct drm_connector *conn;
+	int i;
+
+	if (!crtc_state->sync_mode_slaves_mask)
+		return;
+
+	for_each_new_connector_in_state(&state->base, conn, conn_state, i) {
+		struct intel_encoder *slave_encoder =
+			to_intel_encoder(conn_state->best_encoder);
+		struct intel_crtc *slave_crtc = to_intel_crtc(conn_state->crtc);
+		const struct intel_crtc_state *slave_crtc_state;
+
+		if (!slave_crtc)
+			continue;
+
+		slave_crtc_state =
+			intel_atomic_get_new_crtc_state(state, slave_crtc);
+
+		if (slave_crtc_state->master_transcoder !=
+		    crtc_state->cpu_transcoder)
+			continue;
+
+		intel_dp_stop_link_train(enc_to_intel_dp(slave_encoder));
+	}
+
+	usleep_range(200, 400);
+
+	intel_dp_stop_link_train(enc_to_intel_dp(encoder));
+}
+
 static void intel_enable_ddi_dp(struct intel_atomic_state *state,
 				struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
@@ -3639,6 +3674,8 @@ static void intel_enable_ddi_dp(struct intel_atomic_state *state,
 
 	if (crtc_state->has_audio)
 		intel_audio_codec_enable(encoder, crtc_state, conn_state);
+
+	trans_port_sync_stop_link_train(state, encoder, crtc_state);
 }
 
 static i915_reg_t
