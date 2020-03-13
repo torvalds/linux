@@ -1667,8 +1667,6 @@ static void bnxt_re_task(struct work_struct *work)
 		break;
 	}
 	ib_device_put(&rdev->ibdev);
-	smp_mb__before_atomic();
-	atomic_dec(&rdev->sched_count);
 exit:
 	put_device(&rdev->ibdev.dev);
 	kfree(re_work);
@@ -1720,11 +1718,6 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 		break;
 
 	case NETDEV_UNREGISTER:
-		/* netdev notifier will call NETDEV_UNREGISTER again later since
-		 * we are still holding the reference to the netdev
-		 */
-		if (atomic_read(&rdev->sched_count) > 0)
-			goto exit;
 		ib_unregister_device_queued(&rdev->ibdev);
 		break;
 
@@ -1742,7 +1735,6 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 			re_work->vlan_dev = (real_dev == netdev ?
 					     NULL : netdev);
 			INIT_WORK(&re_work->work, bnxt_re_task);
-			atomic_inc(&rdev->sched_count);
 			queue_work(bnxt_re_wq, &re_work->work);
 		}
 	}
