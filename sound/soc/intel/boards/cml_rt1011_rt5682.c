@@ -446,12 +446,12 @@ static int snd_cml_rt1011_probe(struct platform_device *pdev)
 	const char *platform_name;
 	int ret;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
-	mach = (&pdev->dev)->platform_data;
+	mach = pdev->dev.platform_data;
 	snd_soc_card_cml.dev = &pdev->dev;
 	platform_name = mach->mach_params.platform;
 
