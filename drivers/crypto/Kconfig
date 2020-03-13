@@ -233,20 +233,6 @@ config CRYPTO_CRC32_S390
 
 	  It is available with IBM z13 or later.
 
-config CRYPTO_DEV_MARVELL_CESA
-	tristate "Marvell's Cryptographic Engine driver"
-	depends on PLAT_ORION || ARCH_MVEBU
-	select CRYPTO_LIB_AES
-	select CRYPTO_LIB_DES
-	select CRYPTO_SKCIPHER
-	select CRYPTO_HASH
-	select SRAM
-	help
-	  This driver allows you to utilize the Cryptographic Engines and
-	  Security Accelerator (CESA) which can be found on MVEBU and ORION
-	  platforms.
-	  This driver supports CPU offload through DMA transfers.
-
 config CRYPTO_DEV_NIAGARA2
 	tristate "Niagara2 Stream Processing Unit driver"
 	select CRYPTO_LIB_DES
@@ -606,6 +592,7 @@ config CRYPTO_DEV_MXS_DCP
 source "drivers/crypto/qat/Kconfig"
 source "drivers/crypto/cavium/cpt/Kconfig"
 source "drivers/crypto/cavium/nitrox/Kconfig"
+source "drivers/crypto/marvell/Kconfig"
 
 config CRYPTO_DEV_CAVIUM_ZIP
 	tristate "Cavium ZIP driver"

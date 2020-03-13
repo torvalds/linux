@@ -106,8 +106,8 @@ static void mv_cesa_skcipher_std_step(struct skcipher_request *req)
 
 	mv_cesa_set_int_mask(engine, CESA_SA_INT_ACCEL0_DONE);
 	writel_relaxed(CESA_SA_CFG_PARA_DIS, engine->regs + CESA_SA_CFG);
-	BUG_ON(readl(engine->regs + CESA_SA_CMD) &
-	       CESA_SA_CMD_EN_CESA_SA_ACCL0);
+	WARN_ON(readl(engine->regs + CESA_SA_CMD) &
+		CESA_SA_CMD_EN_CESA_SA_ACCL0);
 	writel(CESA_SA_CMD_EN_CESA_SA_ACCL0, engine->regs + CESA_SA_CMD);
 }
 
@@ -178,6 +178,7 @@ static inline void mv_cesa_skcipher_prepare(struct crypto_async_request *req,
 {
 	struct skcipher_request *skreq = skcipher_request_cast(req);
 	struct mv_cesa_skcipher_req *creq = skcipher_request_ctx(skreq);
+
 	creq->base.engine = engine;
 
 	if (mv_cesa_req_get_type(&creq->base) == CESA_DMA_REQ)
@@ -336,7 +337,8 @@ static int mv_cesa_skcipher_dma_req_init(struct skcipher_request *req,
 	do {
 		struct mv_cesa_op_ctx *op;
 
-		op = mv_cesa_dma_add_op(&basereq->chain, op_templ, skip_ctx, flags);
+		op = mv_cesa_dma_add_op(&basereq->chain, op_templ, skip_ctx,
+					flags);
 		if (IS_ERR(op)) {
 			ret = PTR_ERR(op);
 			goto err_free_tdma;
@@ -365,9 +367,10 @@ static int mv_cesa_skcipher_dma_req_init(struct skcipher_request *req,
 	} while (mv_cesa_skcipher_req_iter_next_op(&iter));
 
 	/* Add output data for IV */
-	ret = mv_cesa_dma_add_result_op(&basereq->chain, CESA_SA_CFG_SRAM_OFFSET,
-				    CESA_SA_DATA_SRAM_OFFSET,
-				    CESA_TDMA_SRC_IN_SRAM, flags);
+	ret = mv_cesa_dma_add_result_op(&basereq->chain,
+					CESA_SA_CFG_SRAM_OFFSET,
+					CESA_SA_DATA_SRAM_OFFSET,
+					CESA_TDMA_SRC_IN_SRAM, flags);
 
 	if (ret)
 		goto err_free_tdma;

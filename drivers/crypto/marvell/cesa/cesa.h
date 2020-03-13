@@ -436,7 +436,7 @@ struct mv_cesa_dev {
  * @queue:		fifo of the pending crypto requests
  * @load:		engine load counter, useful for load balancing
  * @chain:		list of the current tdma descriptors being processed
- * 			by this engine.
+ *			by this engine.
  * @complete_queue:	fifo of the processed requests by the engine
  *
  * Structure storing CESA engine information.
@@ -467,7 +467,7 @@ struct mv_cesa_engine {
  * @step:	launch the crypto operation on the next chunk
  * @cleanup:	cleanup the crypto request (release associated data)
  * @complete:	complete the request, i.e copy result or context from sram when
- * 		needed.
+ *		needed.
  */
 struct mv_cesa_req_ops {
 	int (*process)(struct crypto_async_request *req, u32 status);
@@ -734,6 +734,7 @@ static inline struct mv_cesa_engine *mv_cesa_select_engine(int weight)
 	for (i = 0; i < cesa_dev->caps->nengines; i++) {
 		struct mv_cesa_engine *engine = cesa_dev->engines + i;
 		u32 load = atomic_read(&engine->load);
+
 		if (load < min_load) {
 			min_load = load;
 			selected = engine;
