@@ -2087,6 +2087,7 @@ err:
 }
 
 static const struct ethtool_ops qede_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_link_ksettings = qede_get_link_ksettings,
 	.set_link_ksettings = qede_set_link_ksettings,
 	.get_drvinfo = qede_get_drvinfo,
@@ -2133,6 +2134,7 @@ static const struct ethtool_ops qede_ethtool_ops = {
 };
 
 static const struct ethtool_ops qede_vf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_link_ksettings = qede_get_link_ksettings,
 	.get_drvinfo = qede_get_drvinfo,
 	.get_msglevel = qede_get_msglevel,
