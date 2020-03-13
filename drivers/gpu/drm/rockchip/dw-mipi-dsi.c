@@ -1867,9 +1867,9 @@ static const struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_plat_data = {
 };
 
 static const u32 rv1126_dsi_grf_reg_fields[MAX_FIELDS] = {
-	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0009,  5,  5),
-	[DPISHUTDN]		= GRF_REG_FIELD(0x0009,  4,  4),
-	[DPICOLORM]		= GRF_REG_FIELD(0x0009,  3,  3),
+	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0008,  5,  5),
+	[DPISHUTDN]		= GRF_REG_FIELD(0x0008,  4,  4),
+	[DPICOLORM]		= GRF_REG_FIELD(0x0008,  3,  3),
 	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x10220,  4,  7),
 	[TURNDISABLE]		= GRF_REG_FIELD(0x10220,  2,  2),
 	[FORCERXMODE]		= GRF_REG_FIELD(0x10220,  0,  0),
