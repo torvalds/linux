@@ -43,7 +43,6 @@ properties:
           - const: qcom,tsens-v2
 
   reg:
-    maxItems: 2
     items:
       - description: TM registers
       - description: SROT registers
