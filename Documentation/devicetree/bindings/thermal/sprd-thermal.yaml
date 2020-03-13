@@ -31,7 +31,6 @@ properties:
       Reference to nvmem nodes for the calibration data.
 
   nvmem-cell-names:
-    maxItems: 2
     items:
       - const: thm_sign_cal
       - const: thm_ratio_cal
