@@ -12,23 +12,6 @@
 #include <linux/spi/spi-mem.h>
 
 /*
- * Manufacturer IDs
- *
- * The first byte returned from the flash after sending opcode SPINOR_OP_RDID.
- * Sometimes these are the same as CFI IDs, but sometimes they aren't.
- */
-#define SNOR_MFR_ATMEL		CFI_MFR_ATMEL
-#define SNOR_MFR_GIGADEVICE	0xc8
-#define SNOR_MFR_INTEL		CFI_MFR_INTEL
-#define SNOR_MFR_ST		CFI_MFR_ST	/* ST Micro */
-#define SNOR_MFR_MICRON		CFI_MFR_MICRON	/* Micron */
-#define SNOR_MFR_ISSI		CFI_MFR_PMC
-#define SNOR_MFR_MACRONIX	CFI_MFR_MACRONIX
-#define SNOR_MFR_SPANSION	CFI_MFR_AMD
-#define SNOR_MFR_SST		CFI_MFR_SST
-#define SNOR_MFR_WINBOND	0xef /* Also used by some Spansion */
-
-/*
  * Note on opcode nomenclature: some opcodes have a format like
  * SPINOR_OP_FUNCTION{4,}_x_y_z. The numbers x, y, and z stand for the number
  * of I/O lines used for the opcode, address, and data (respectively). The

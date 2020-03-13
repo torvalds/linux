@@ -40,8 +40,6 @@
 
 #define SPI_NOR_MAX_ADDR_WIDTH	4
 
-#define JEDEC_MFR(info)        ((info)->id[0])
-
 /**
  * spi_nor_spimem_bounce() - check if a bounce buffer is needed for the data
  *                           transfer
