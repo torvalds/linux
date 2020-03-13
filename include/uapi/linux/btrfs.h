@@ -36,7 +36,12 @@ struct btrfs_ioctl_vol_args {
 #define BTRFS_DEVICE_PATH_NAME_MAX	1024
 #define BTRFS_SUBVOL_NAME_MAX 		4039
 
-#define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
+/*
+ * Deprecated since 5.7:
+ *
+ * BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
+ */
+
 #define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
 #define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
 
@@ -45,8 +50,7 @@ struct btrfs_ioctl_vol_args {
 #define BTRFS_SUBVOL_SPEC_BY_ID	(1ULL << 4)
 
 #define BTRFS_VOL_ARG_V2_FLAGS_SUPPORTED		\
-			(BTRFS_SUBVOL_CREATE_ASYNC |	\
-			BTRFS_SUBVOL_RDONLY |		\
+			(BTRFS_SUBVOL_RDONLY |		\
 			BTRFS_SUBVOL_QGROUP_INHERIT |	\
 			BTRFS_DEVICE_SPEC_BY_ID |	\
 			BTRFS_SUBVOL_SPEC_BY_ID)
@@ -116,8 +120,7 @@ struct btrfs_ioctl_qgroup_limit_args {
 
 /* Supported flags for BTRFS_IOC_SNAP_CREATE_V2 and BTRFS_IOC_SUBVOL_CREATE_V2 */
 #define BTRFS_SUBVOL_CREATE_ARGS_MASK					\
-	(BTRFS_SUBVOL_CREATE_ASYNC |					\
-	 BTRFS_SUBVOL_RDONLY |						\
+	 (BTRFS_SUBVOL_RDONLY |						\
 	 BTRFS_SUBVOL_QGROUP_INHERIT)
 
 /* Supported flags for BTRFS_IOC_SNAP_DESTROY_V2 */

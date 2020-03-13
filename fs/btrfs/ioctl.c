@@ -1818,8 +1818,6 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 {
 	struct btrfs_ioctl_vol_args_v2 *vol_args;
 	int ret;
-	u64 transid = 0;
-	u64 *ptr = NULL;
 	bool readonly = false;
 	struct btrfs_qgroup_inherit *inherit = NULL;
 
@@ -1836,15 +1834,6 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 		goto free_args;
 	}
 
-	if (vol_args->flags & BTRFS_SUBVOL_CREATE_ASYNC) {
-		struct inode *inode = file_inode(file);
-		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-
-		btrfs_warn(fs_info,
-"SNAP_CREATE_V2 ioctl with CREATE_ASYNC is deprecated and will be removed in kernel 5.7");
-
-		ptr = &transid;
-	}
 	if (vol_args->flags & BTRFS_SUBVOL_RDONLY)
 		readonly = true;
 	if (vol_args->flags & BTRFS_SUBVOL_QGROUP_INHERIT) {
@@ -1860,17 +1849,10 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 	}
 
 	ret = btrfs_ioctl_snap_create_transid(file, vol_args->name,
-					      vol_args->fd, subvol, ptr,
+					      vol_args->fd, subvol, NULL,
 					      readonly, inherit);
 	if (ret)
 		goto free_inherit;
-
-	if (ptr && copy_to_user(arg +
-				offsetof(struct btrfs_ioctl_vol_args_v2,
-					transid),
-				ptr, sizeof(*ptr)))
-		ret = -EFAULT;
-
 free_inherit:
 	kfree(inherit);
 free_args:
@@ -1926,11 +1908,6 @@ static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 
 	if (copy_from_user(&flags, arg, sizeof(flags))) {
 		ret = -EFAULT;
-		goto out_drop_write;
-	}
-
-	if (flags & BTRFS_SUBVOL_CREATE_ASYNC) {
-		ret = -EINVAL;
 		goto out_drop_write;
 	}
 
