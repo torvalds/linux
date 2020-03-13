@@ -189,7 +189,7 @@ int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info)
 	if (err_attr) {
 		ret = -EINVAL;
 		NL_SET_ERR_MSG_ATTR(info->extack, err_attr,
-				    "requested channel count exceeeds maximum");
+				    "requested channel count exceeds maximum");
 		goto out_ops;
 	}
 
