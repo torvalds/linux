@@ -9,7 +9,7 @@ All contributions are welcome, no matter if they are just fixes for typos or
 new sections in the documentation.
 
 All information required for making a contribution can be found in the
-`linux-lernel-labs Linux repo <https://github.com/linux-kernel-labs/linux>`_.
+`linux-kernel-labs Linux repo <https://github.com/linux-kernel-labs/linux>`_.
 In order to change anything, you need to create a Pull Request (``PR``)
 from your own fork to this repository.
 The PR will be reviewed by ther members of the team and will be merged once
@@ -19,7 +19,7 @@ any pottential issue is fixed.
 Repository structure
 ********************
 
-The `linux-lernel-labs repo <https://github.com/linux-kernel-labs/linux>`_ is
+The `linux-kernel-labs repo <https://github.com/linux-kernel-labs/linux>`_ is
 a fork of the Linux kernel repo, with the following additions:
 
   * ``/tools/labs``: contains the labs and the :ref:`virtual machine (VM) infrastructure<vm_link>`
@@ -64,7 +64,7 @@ Forking the repository
 ======================
 
 1. If you haven't done it already, clone the
-   `linux-lernel-labs repo <https://github.com/linux-kernel-labs/linux>`_
+   `linux-kernel-labs repo <https://github.com/linux-kernel-labs/linux>`_
    repository locally:
 
    .. code-block:: bash
