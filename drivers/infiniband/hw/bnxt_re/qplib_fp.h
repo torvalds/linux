@@ -402,6 +402,7 @@ struct bnxt_qplib_cq {
  * of the same QP while manipulating the flush list.
  */
 	spinlock_t			flush_lock; /* QP flush management */
+	u16				cnq_events;
 };
 
 #define BNXT_QPLIB_MAX_IRRQE_ENTRY_SIZE	sizeof(struct xrrq_irrq)

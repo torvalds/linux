@@ -43,6 +43,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/delay.h>
 #include <linux/prefetch.h>
 #include <linux/if_ether.h>
 
@@ -231,6 +232,70 @@ fail:
 	return rc;
 }
 
+static void clean_nq(struct bnxt_qplib_nq *nq, struct bnxt_qplib_cq *cq)
+{
+	struct bnxt_qplib_hwq *hwq = &nq->hwq;
+	struct nq_base *nqe, **nq_ptr;
+	int budget = nq->budget;
+	u32 sw_cons, raw_cons;
+	uintptr_t q_handle;
+	u16 type;
+
+	spin_lock_bh(&hwq->lock);
+	/* Service the NQ until empty */
+	raw_cons = hwq->cons;
+	while (budget--) {
+		sw_cons = HWQ_CMP(raw_cons, hwq);
+		nq_ptr = (struct nq_base **)hwq->pbl_ptr;
+		nqe = &nq_ptr[NQE_PG(sw_cons)][NQE_IDX(sw_cons)];
+		if (!NQE_CMP_VALID(nqe, raw_cons, hwq->max_elements))
+			break;
+
+		/*
+		 * The valid test of the entry must be done first before
+		 * reading any further.
+		 */
+		dma_rmb();
+
+		type = le16_to_cpu(nqe->info10_type) & NQ_BASE_TYPE_MASK;
+		switch (type) {
+		case NQ_BASE_TYPE_CQ_NOTIFICATION:
+		{
+			struct nq_cn *nqcne = (struct nq_cn *)nqe;
+
+			q_handle = le32_to_cpu(nqcne->cq_handle_low);
+			q_handle |= (u64)le32_to_cpu(nqcne->cq_handle_high)
+						     << 32;
+			if ((unsigned long)cq == q_handle) {
+				nqcne->cq_handle_low = 0;
+				nqcne->cq_handle_high = 0;
+				cq->cnq_events++;
+			}
+			break;
+		}
+		default:
+			break;
+		}
+		raw_cons++;
+	}
+	spin_unlock_bh(&hwq->lock);
+}
+
+/* Wait for receiving all NQEs for this CQ and clean the NQEs associated with
+ * this CQ.
+ */
+static void __wait_for_all_nqes(struct bnxt_qplib_cq *cq, u16 cnq_events)
+{
+	u32 retry_cnt = 100;
+
+	while (retry_cnt--) {
+		if (cnq_events == cq->cnq_events)
+			return;
+		usleep_range(50, 100);
+		clean_nq(cq->nq, cq);
+	}
+}
+
 static void bnxt_qplib_service_nq(unsigned long data)
 {
 	struct bnxt_qplib_nq *nq = (struct bnxt_qplib_nq *)data;
@@ -244,6 +309,7 @@ static void bnxt_qplib_service_nq(unsigned long data)
 	uintptr_t q_handle;
 	u16 type;
 
+	spin_lock_bh(&hwq->lock);
 	/* Service the NQ until empty */
 	raw_cons = hwq->cons;
 	while (budget--) {
@@ -269,6 +335,8 @@ static void bnxt_qplib_service_nq(unsigned long data)
 			q_handle |= (u64)le32_to_cpu(nqcne->cq_handle_high)
 						     << 32;
 			cq = (struct bnxt_qplib_cq *)(unsigned long)q_handle;
+			if (!cq)
+				break;
 			bnxt_qplib_armen_db(&cq->dbinfo,
 					    DBC_DBC_TYPE_CQ_ARMENA);
 			spin_lock_bh(&cq->compl_lock);
@@ -278,6 +346,7 @@ static void bnxt_qplib_service_nq(unsigned long data)
 			else
 				dev_warn(&nq->pdev->dev,
 					 "cqn - type 0x%x not handled\n", type);
+			cq->cnq_events++;
 			spin_unlock_bh(&cq->compl_lock);
 			break;
 		}
@@ -316,6 +385,7 @@ static void bnxt_qplib_service_nq(unsigned long data)
 		hwq->cons = raw_cons;
 		bnxt_qplib_ring_nq_db(&nq->nq_db.dbinfo, nq->res->cctx, true);
 	}
+	spin_unlock_bh(&hwq->lock);
 }
 
 static irqreturn_t bnxt_qplib_nq_irq(int irq, void *dev_instance)
@@ -2003,6 +2073,7 @@ int bnxt_qplib_destroy_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_destroy_cq req;
 	struct creq_destroy_cq_resp resp;
+	u16 total_cnq_events;
 	u16 cmd_flags = 0;
 	int rc;
 
@@ -2013,6 +2084,8 @@ int bnxt_qplib_destroy_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 					  (void *)&resp, NULL, 0);
 	if (rc)
 		return rc;
+	total_cnq_events = le16_to_cpu(resp.total_cnq_events);
+	__wait_for_all_nqes(cq, total_cnq_events);
 	bnxt_qplib_free_hwq(res, &cq->hwq);
 	return 0;
 }
