@@ -2371,6 +2371,33 @@ static const struct rtw_pwr_track_tbl rtw8822b_rtw_pwr_track_tbl = {
 	.pwrtrk_2g_ccka_p = rtw8822b_pwrtrk_2g_cck_a_p,
 };
 
+static const struct rtw_reg_domain coex_info_hw_regs_8822b[] = {
+	{0xcb0, MASKDWORD, RTW_REG_DOMAIN_MAC32},
+	{0xcb4, MASKDWORD, RTW_REG_DOMAIN_MAC32},
+	{0xcba, MASKBYTE0, RTW_REG_DOMAIN_MAC8},
+	{0xcbd, MASKBYTE0, RTW_REG_DOMAIN_MAC8},
+	{0xc58, MASKBYTE0, RTW_REG_DOMAIN_MAC8},
+	{0xcbd, BIT(0), RTW_REG_DOMAIN_MAC8},
+	{0, 0, RTW_REG_DOMAIN_NL},
+	{0x430, MASKDWORD, RTW_REG_DOMAIN_MAC32},
+	{0x434, MASKDWORD, RTW_REG_DOMAIN_MAC32},
+	{0x42a, MASKLWORD, RTW_REG_DOMAIN_MAC16},
+	{0x426, MASKBYTE0, RTW_REG_DOMAIN_MAC8},
+	{0x45e, BIT(3), RTW_REG_DOMAIN_MAC8},
+	{0x454, MASKLWORD, RTW_REG_DOMAIN_MAC16},
+	{0, 0, RTW_REG_DOMAIN_NL},
+	{0x4c, BIT(24) | BIT(23), RTW_REG_DOMAIN_MAC32},
+	{0x64, BIT(0), RTW_REG_DOMAIN_MAC8},
+	{0x4c6, BIT(4), RTW_REG_DOMAIN_MAC8},
+	{0x40, BIT(5), RTW_REG_DOMAIN_MAC8},
+	{0x1, RFREG_MASK, RTW_REG_DOMAIN_RF_B},
+	{0, 0, RTW_REG_DOMAIN_NL},
+	{0x550, MASKDWORD, RTW_REG_DOMAIN_MAC32},
+	{0x522, MASKBYTE0, RTW_REG_DOMAIN_MAC8},
+	{0x953, BIT(1), RTW_REG_DOMAIN_MAC8},
+	{0xc50,  MASKBYTE0, RTW_REG_DOMAIN_MAC8},
+};
+
 struct rtw_chip_info rtw8822b_hw_spec = {
 	.ops = &rtw8822b_ops,
 	.id = RTW_CHIP_TYPE_8822B,
@@ -2439,6 +2466,9 @@ struct rtw_chip_info rtw8822b_hw_spec = {
 	.bt_afh_span_bw40 = 0x36,
 	.afh_5g_num = ARRAY_SIZE(afh_5g_8822b),
 	.afh_5g = afh_5g_8822b,
+
+	.coex_info_hw_regs_num = ARRAY_SIZE(coex_info_hw_regs_8822b),
+	.coex_info_hw_regs = coex_info_hw_regs_8822b,
 };
 EXPORT_SYMBOL(rtw8822b_hw_spec);
 

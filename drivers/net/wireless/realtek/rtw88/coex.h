@@ -46,6 +46,14 @@
 	   (__rssi__ == COEX_RSSI_STATE_LOW || \
 	    __rssi__ == COEX_RSSI_STATE_STAY_LOW ? true : false); })
 
+#define GET_COEX_RESP_BT_SUPP_VER(payload)				\
+	le64_get_bits(*((__le64 *)(payload)), GENMASK_ULL(39, 32))
+#define GET_COEX_RESP_BT_SUPP_FEAT(payload)				\
+	le64_get_bits(*((__le64 *)(payload)), GENMASK_ULL(39, 24))
+#define GET_COEX_RESP_BT_PATCH_VER(payload)				\
+	le64_get_bits(*((__le64 *)(payload)), GENMASK_ULL(55, 24))
+#define GET_COEX_RESP_BT_REG_VAL(payload)				\
+	le64_get_bits(*((__le64 *)(payload)), GENMASK_ULL(39, 24))
 #define GET_COEX_RESP_BT_SCAN_TYPE(payload)				\
 	le64_get_bits(*((__le64 *)(payload)), GENMASK(31, 24))
 
@@ -366,5 +374,7 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 len);
 void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
 void rtw_coex_switchband_notify(struct rtw_dev *rtwdev, u8 type);
 void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev);
+
+void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m);
 
 #endif
