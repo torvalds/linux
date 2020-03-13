@@ -13,4 +13,5 @@ spi-nor-objs			+= macronix.o
 spi-nor-objs			+= micron-st.o
 spi-nor-objs			+= spansion.o
 spi-nor-objs			+= sst.o
+spi-nor-objs			+= winbond.o
 obj-$(CONFIG_MTD_SPI_NOR)	+= spi-nor.o
