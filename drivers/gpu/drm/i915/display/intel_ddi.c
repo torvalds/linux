@@ -3861,6 +3861,57 @@ void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 		crtc_state->min_voltage_level = 2;
 }
 
+static enum transcoder transcoder_master_readout(struct drm_i915_private *dev_priv,
+						 enum transcoder cpu_transcoder)
+{
+	u32 ctl2, master_select;
+
+	ctl2 = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL2(cpu_transcoder));
+
+	if ((ctl2 & PORT_SYNC_MODE_ENABLE) == 0)
+		return INVALID_TRANSCODER;
+
+	master_select = ctl2 & PORT_SYNC_MODE_MASTER_SELECT_MASK;
+
+	if (master_select == 0)
+		return TRANSCODER_EDP;
+	else
+		return master_select - 1;
+}
+
+static void icl_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+	u32 transcoders = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
+	enum transcoder cpu_transcoder;
+
+	crtc_state->master_transcoder =
+		transcoder_master_readout(dev_priv, crtc_state->cpu_transcoder);
+
+	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
+		enum intel_display_power_domain power_domain;
+		intel_wakeref_t trans_wakeref;
+
+		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
+		trans_wakeref = intel_display_power_get_if_enabled(dev_priv,
+								   power_domain);
+
+		if (!trans_wakeref)
+			continue;
+
+		if (transcoder_master_readout(dev_priv, cpu_transcoder) ==
+		    crtc_state->cpu_transcoder)
+			crtc_state->sync_mode_slaves_mask |= BIT(cpu_transcoder);
+
+		intel_display_power_put(dev_priv, power_domain, trans_wakeref);
+	}
+
+	drm_WARN_ON(&dev_priv->drm,
+		    crtc_state->master_transcoder != INVALID_TRANSCODER &&
+		    crtc_state->sync_mode_slaves_mask);
+}
+
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config)
 {
@@ -4014,6 +4065,9 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	intel_read_infoframe(encoder, pipe_config,
 			     HDMI_INFOFRAME_TYPE_DRM,
 			     &pipe_config->infoframes.drm);
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		icl_get_trans_port_sync_config(pipe_config);
 }
 
 static enum intel_output_type

@@ -11049,61 +11049,6 @@ static void hsw_get_ddi_port_state(struct intel_crtc *crtc,
 	}
 }
 
-static enum transcoder transcoder_master_readout(struct drm_i915_private *dev_priv,
-						 enum transcoder cpu_transcoder)
-{
-	u32 trans_port_sync, master_select;
-
-	trans_port_sync = intel_de_read(dev_priv,
-				        TRANS_DDI_FUNC_CTL2(cpu_transcoder));
-
-	if ((trans_port_sync & PORT_SYNC_MODE_ENABLE) == 0)
-		return INVALID_TRANSCODER;
-
-	master_select = trans_port_sync &
-			PORT_SYNC_MODE_MASTER_SELECT_MASK;
-	if (master_select == 0)
-		return TRANSCODER_EDP;
-	else
-		return master_select - 1;
-}
-
-static void icl_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	u32 transcoders;
-	enum transcoder cpu_transcoder;
-
-	crtc_state->master_transcoder = transcoder_master_readout(dev_priv,
-								  crtc_state->cpu_transcoder);
-
-	transcoders = BIT(TRANSCODER_A) |
-		BIT(TRANSCODER_B) |
-		BIT(TRANSCODER_C) |
-		BIT(TRANSCODER_D);
-	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
-		enum intel_display_power_domain power_domain;
-		intel_wakeref_t trans_wakeref;
-
-		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
-		trans_wakeref = intel_display_power_get_if_enabled(dev_priv,
-								   power_domain);
-
-		if (!trans_wakeref)
-			continue;
-
-		if (transcoder_master_readout(dev_priv, cpu_transcoder) ==
-		    crtc_state->cpu_transcoder)
-			crtc_state->sync_mode_slaves_mask |= BIT(cpu_transcoder);
-
-		intel_display_power_put(dev_priv, power_domain, trans_wakeref);
-	}
-
-	drm_WARN_ON(&dev_priv->drm,
-		    crtc_state->master_transcoder != INVALID_TRANSCODER &&
-		    crtc_state->sync_mode_slaves_mask);
-}
-
 static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 				struct intel_crtc_state *pipe_config)
 {
@@ -11234,10 +11179,6 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	} else {
 		pipe_config->pixel_multiplier = 1;
 	}
-
-	if (INTEL_GEN(dev_priv) >= 11 &&
-	    !transcoder_is_dsi(pipe_config->cpu_transcoder))
-		icl_get_trans_port_sync_config(pipe_config);
 
 out:
 	for_each_power_domain(power_domain, power_domain_mask)
