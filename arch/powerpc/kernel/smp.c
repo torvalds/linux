@@ -1197,11 +1197,8 @@ int get_physical_package_id(int cpu)
 	 */
 	if (pkg_id == -1 && firmware_has_feature(FW_FEATURE_LPAR)) {
 		struct device_node *np = of_get_cpu_node(cpu, NULL);
-
-		if (np) {
-			pkg_id = of_node_to_nid(np);
-			of_node_put(np);
-		}
+		pkg_id = of_node_to_nid(np);
+		of_node_put(np);
 	}
 #endif /* CONFIG_PPC_SPLPAR */
 
