@@ -134,6 +134,9 @@ struct snd_card {
 	const struct attribute_group *dev_groups[4]; /* assigned sysfs attr */
 	bool registered;		/* card_dev is registered? */
 	wait_queue_head_t remove_sleep;
+	int offline;			/* if this sound card is offline */
+	unsigned long offline_change;
+	wait_queue_head_t offline_poll_wait;
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
@@ -253,6 +256,7 @@ int snd_component_add(struct snd_card *card, const char *component);
 int snd_card_file_add(struct snd_card *card, struct file *file);
 int snd_card_file_remove(struct snd_card *card, struct file *file);
 #define snd_card_unref(card)	put_device(&(card)->card_dev)
+void snd_card_change_online_state(struct snd_card *card, int online);
 
 #define snd_card_set_dev(card, devptr) ((card)->dev = (devptr))
 
