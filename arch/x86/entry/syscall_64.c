@@ -8,13 +8,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/syscall.h>
 
-extern asmlinkage long sys_ni_syscall(void);
-
-SYSCALL_DEFINE0(ni_syscall)
-{
-	return sys_ni_syscall();
-}
-
 #define __SYSCALL_64(nr, sym, qual) extern asmlinkage long sym(const struct pt_regs *);
 #define __SYSCALL_X32(nr, sym, qual) __SYSCALL_64(nr, sym, qual)
 #include <asm/syscalls_64.h>

@@ -8,6 +8,9 @@
 
 struct pt_regs;
 
+extern asmlinkage long __x64_sys_ni_syscall(const struct pt_regs *regs);
+extern asmlinkage long __ia32_sys_ni_syscall(const struct pt_regs *regs);
+
 /* Mapping of registers to parameters for syscalls on x86-64 and x32 */
 #define SC_X86_64_REGS_TO_ARGS(x, ...)					\
 	__MAP(x,__SC_ARGS						\

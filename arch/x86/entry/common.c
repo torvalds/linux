@@ -438,3 +438,10 @@ __visible long do_fast_syscall_32(struct pt_regs *regs)
 #endif
 }
 #endif
+
+#ifdef CONFIG_X86_64
+SYSCALL_DEFINE0(ni_syscall)
+{
+	return -ENOSYS;
+}
+#endif
