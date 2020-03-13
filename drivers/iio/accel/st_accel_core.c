@@ -1170,8 +1170,7 @@ EXPORT_SYMBOL(st_accel_get_settings);
 int st_accel_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *adata = iio_priv(indio_dev);
-	struct st_sensors_platform_data *pdata =
-		(struct st_sensors_platform_data *)adata->dev->platform_data;
+	struct st_sensors_platform_data *pdata = dev_get_platdata(adata->dev);
 	struct iio_chan_spec *channels;
 	size_t channels_size;
 	int err;

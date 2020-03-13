@@ -44,7 +44,7 @@ static bool st_sensors_is_spi_3_wire(struct spi_device *spi)
 	if (device_property_read_bool(dev, "spi-3wire"))
 		return true;
 
-	pdata = (struct st_sensors_platform_data *)dev->platform_data;
+	pdata = dev_get_platdata(dev);
 	if (pdata && pdata->spi_3wire)
 		return true;
 
