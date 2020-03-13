@@ -174,8 +174,8 @@
 			interrupts = <0 216 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi1>;
-			clocks = <&peri_clk 11>;
-			resets = <&peri_rst 11>;
+			clocks = <&peri_clk 11>;	/* common with spi0 */
+			resets = <&peri_rst 12>;
 		};
 
 		serial0: serial@54006800 {
