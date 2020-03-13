@@ -1156,7 +1156,8 @@ static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
 	wait_for_cmds_dispatched_to_panel(encoder);
 }
 
-static void gen11_dsi_pre_pll_enable(struct intel_encoder *encoder,
+static void gen11_dsi_pre_pll_enable(struct intel_atomic_state *state,
+				     struct intel_encoder *encoder,
 				     const struct intel_crtc_state *crtc_state,
 				     const struct drm_connector_state *conn_state)
 {
@@ -1167,7 +1168,8 @@ static void gen11_dsi_pre_pll_enable(struct intel_encoder *encoder,
 	gen11_dsi_program_esc_clk_div(encoder, crtc_state);
 }
 
-static void gen11_dsi_pre_enable(struct intel_encoder *encoder,
+static void gen11_dsi_pre_enable(struct intel_atomic_state *state,
+				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *pipe_config,
 				 const struct drm_connector_state *conn_state)
 {
@@ -1186,7 +1188,8 @@ static void gen11_dsi_pre_enable(struct intel_encoder *encoder,
 	gen11_dsi_set_transcoder_timings(encoder, pipe_config);
 }
 
-static void gen11_dsi_enable(struct intel_encoder *encoder,
+static void gen11_dsi_enable(struct intel_atomic_state *state,
+			     struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
 {
@@ -1341,7 +1344,8 @@ static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 	}
 }
 
-static void gen11_dsi_disable(struct intel_encoder *encoder,
+static void gen11_dsi_disable(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 {
@@ -1369,7 +1373,8 @@ static void gen11_dsi_disable(struct intel_encoder *encoder,
 	gen11_dsi_disable_io_power(encoder);
 }
 
-static void gen11_dsi_post_disable(struct intel_encoder *encoder,
+static void gen11_dsi_post_disable(struct intel_atomic_state *state,
+				   struct intel_encoder *encoder,
 				   const struct intel_crtc_state *old_crtc_state,
 				   const struct drm_connector_state *old_conn_state)
 {

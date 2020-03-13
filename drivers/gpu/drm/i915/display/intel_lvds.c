@@ -220,7 +220,8 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 		       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, pps->divider) | REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(pps->t4, 1000) + 1));
 }
 
-static void intel_pre_enable_lvds(struct intel_encoder *encoder,
+static void intel_pre_enable_lvds(struct intel_atomic_state *state,
+				  struct intel_encoder *encoder,
 				  const struct intel_crtc_state *pipe_config,
 				  const struct drm_connector_state *conn_state)
 {
@@ -301,7 +302,8 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 /*
  * Sets the power state for the panel.
  */
-static void intel_enable_lvds(struct intel_encoder *encoder,
+static void intel_enable_lvds(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config,
 			      const struct drm_connector_state *conn_state)
 {
@@ -323,7 +325,8 @@ static void intel_enable_lvds(struct intel_encoder *encoder,
 	intel_panel_enable_backlight(pipe_config, conn_state);
 }
 
-static void intel_disable_lvds(struct intel_encoder *encoder,
+static void intel_disable_lvds(struct intel_atomic_state *state,
+			       struct intel_encoder *encoder,
 			       const struct intel_crtc_state *old_crtc_state,
 			       const struct drm_connector_state *old_conn_state)
 {
@@ -341,28 +344,31 @@ static void intel_disable_lvds(struct intel_encoder *encoder,
 	intel_de_posting_read(dev_priv, lvds_encoder->reg);
 }
 
-static void gmch_disable_lvds(struct intel_encoder *encoder,
+static void gmch_disable_lvds(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 
 {
 	intel_panel_disable_backlight(old_conn_state);
 
-	intel_disable_lvds(encoder, old_crtc_state, old_conn_state);
+	intel_disable_lvds(state, encoder, old_crtc_state, old_conn_state);
 }
 
-static void pch_disable_lvds(struct intel_encoder *encoder,
+static void pch_disable_lvds(struct intel_atomic_state *state,
+			     struct intel_encoder *encoder,
 			     const struct intel_crtc_state *old_crtc_state,
 			     const struct drm_connector_state *old_conn_state)
 {
 	intel_panel_disable_backlight(old_conn_state);
 }
 
-static void pch_post_disable_lvds(struct intel_encoder *encoder,
+static void pch_post_disable_lvds(struct intel_atomic_state *state,
+				  struct intel_encoder *encoder,
 				  const struct intel_crtc_state *old_crtc_state,
 				  const struct drm_connector_state *old_conn_state)
 {
-	intel_disable_lvds(encoder, old_crtc_state, old_conn_state);
+	intel_disable_lvds(state, encoder, old_crtc_state, old_conn_state);
 }
 
 static enum drm_mode_status

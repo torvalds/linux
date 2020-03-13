@@ -146,28 +146,35 @@ struct intel_encoder {
 	void (*update_prepare)(struct intel_atomic_state *,
 			       struct intel_encoder *,
 			       struct intel_crtc *);
-	void (*pre_pll_enable)(struct intel_encoder *,
+	void (*pre_pll_enable)(struct intel_atomic_state *,
+			       struct intel_encoder *,
 			       const struct intel_crtc_state *,
 			       const struct drm_connector_state *);
-	void (*pre_enable)(struct intel_encoder *,
+	void (*pre_enable)(struct intel_atomic_state *,
+			   struct intel_encoder *,
 			   const struct intel_crtc_state *,
 			   const struct drm_connector_state *);
-	void (*enable)(struct intel_encoder *,
+	void (*enable)(struct intel_atomic_state *,
+		       struct intel_encoder *,
 		       const struct intel_crtc_state *,
 		       const struct drm_connector_state *);
 	void (*update_complete)(struct intel_atomic_state *,
 				struct intel_encoder *,
 				struct intel_crtc *);
-	void (*disable)(struct intel_encoder *,
+	void (*disable)(struct intel_atomic_state *,
+			struct intel_encoder *,
 			const struct intel_crtc_state *,
 			const struct drm_connector_state *);
-	void (*post_disable)(struct intel_encoder *,
+	void (*post_disable)(struct intel_atomic_state *,
+			     struct intel_encoder *,
 			     const struct intel_crtc_state *,
 			     const struct drm_connector_state *);
-	void (*post_pll_disable)(struct intel_encoder *,
+	void (*post_pll_disable)(struct intel_atomic_state *,
+				 struct intel_encoder *,
 				 const struct intel_crtc_state *,
 				 const struct drm_connector_state *);
-	void (*update_pipe)(struct intel_encoder *,
+	void (*update_pipe)(struct intel_atomic_state *,
+			    struct intel_encoder *,
 			    const struct intel_crtc_state *,
 			    const struct drm_connector_state *);
 	/* Read out the current hw state of this connector, returning true if

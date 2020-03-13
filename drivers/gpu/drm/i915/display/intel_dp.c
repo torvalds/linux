@@ -3530,7 +3530,8 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	}
 }
 
-static void intel_disable_dp(struct intel_encoder *encoder,
+static void intel_disable_dp(struct intel_atomic_state *state,
+			     struct intel_encoder *encoder,
 			     const struct intel_crtc_state *old_crtc_state,
 			     const struct drm_connector_state *old_conn_state)
 {
@@ -3550,21 +3551,24 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 	intel_edp_panel_off(intel_dp);
 }
 
-static void g4x_disable_dp(struct intel_encoder *encoder,
+static void g4x_disable_dp(struct intel_atomic_state *state,
+			   struct intel_encoder *encoder,
 			   const struct intel_crtc_state *old_crtc_state,
 			   const struct drm_connector_state *old_conn_state)
 {
-	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
+	intel_disable_dp(state, encoder, old_crtc_state, old_conn_state);
 }
 
-static void vlv_disable_dp(struct intel_encoder *encoder,
+static void vlv_disable_dp(struct intel_atomic_state *state,
+			   struct intel_encoder *encoder,
 			   const struct intel_crtc_state *old_crtc_state,
 			   const struct drm_connector_state *old_conn_state)
 {
-	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
+	intel_disable_dp(state, encoder, old_crtc_state, old_conn_state);
 }
 
-static void g4x_post_disable_dp(struct intel_encoder *encoder,
+static void g4x_post_disable_dp(struct intel_atomic_state *state,
+				struct intel_encoder *encoder,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state)
 {
@@ -3584,14 +3588,16 @@ static void g4x_post_disable_dp(struct intel_encoder *encoder,
 		ilk_edp_pll_off(intel_dp, old_crtc_state);
 }
 
-static void vlv_post_disable_dp(struct intel_encoder *encoder,
+static void vlv_post_disable_dp(struct intel_atomic_state *state,
+				struct intel_encoder *encoder,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state)
 {
 	intel_dp_link_down(encoder, old_crtc_state);
 }
 
-static void chv_post_disable_dp(struct intel_encoder *encoder,
+static void chv_post_disable_dp(struct intel_atomic_state *state,
+				struct intel_encoder *encoder,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state)
 {
@@ -3717,7 +3723,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 }
 
-static void intel_enable_dp(struct intel_encoder *encoder,
+static void intel_enable_dp(struct intel_atomic_state *state,
+			    struct intel_encoder *encoder,
 			    const struct intel_crtc_state *pipe_config,
 			    const struct drm_connector_state *conn_state)
 {
@@ -3763,22 +3770,25 @@ static void intel_enable_dp(struct intel_encoder *encoder,
 	}
 }
 
-static void g4x_enable_dp(struct intel_encoder *encoder,
+static void g4x_enable_dp(struct intel_atomic_state *state,
+			  struct intel_encoder *encoder,
 			  const struct intel_crtc_state *pipe_config,
 			  const struct drm_connector_state *conn_state)
 {
-	intel_enable_dp(encoder, pipe_config, conn_state);
+	intel_enable_dp(state, encoder, pipe_config, conn_state);
 	intel_edp_backlight_on(pipe_config, conn_state);
 }
 
-static void vlv_enable_dp(struct intel_encoder *encoder,
+static void vlv_enable_dp(struct intel_atomic_state *state,
+			  struct intel_encoder *encoder,
 			  const struct intel_crtc_state *pipe_config,
 			  const struct drm_connector_state *conn_state)
 {
 	intel_edp_backlight_on(pipe_config, conn_state);
 }
 
-static void g4x_pre_enable_dp(struct intel_encoder *encoder,
+static void g4x_pre_enable_dp(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config,
 			      const struct drm_connector_state *conn_state)
 {
@@ -3898,16 +3908,18 @@ static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 	intel_dp_init_panel_power_sequencer_registers(intel_dp, true);
 }
 
-static void vlv_pre_enable_dp(struct intel_encoder *encoder,
+static void vlv_pre_enable_dp(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config,
 			      const struct drm_connector_state *conn_state)
 {
 	vlv_phy_pre_encoder_enable(encoder, pipe_config);
 
-	intel_enable_dp(encoder, pipe_config, conn_state);
+	intel_enable_dp(state, encoder, pipe_config, conn_state);
 }
 
-static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder,
+static void vlv_dp_pre_pll_enable(struct intel_atomic_state *state,
+				  struct intel_encoder *encoder,
 				  const struct intel_crtc_state *pipe_config,
 				  const struct drm_connector_state *conn_state)
 {
@@ -3916,19 +3928,21 @@ static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder,
 	vlv_phy_pre_pll_enable(encoder, pipe_config);
 }
 
-static void chv_pre_enable_dp(struct intel_encoder *encoder,
+static void chv_pre_enable_dp(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config,
 			      const struct drm_connector_state *conn_state)
 {
 	chv_phy_pre_encoder_enable(encoder, pipe_config);
 
-	intel_enable_dp(encoder, pipe_config, conn_state);
+	intel_enable_dp(state, encoder, pipe_config, conn_state);
 
 	/* Second common lane will stay alive on its own now */
 	chv_phy_release_cl2_override(encoder);
 }
 
-static void chv_dp_pre_pll_enable(struct intel_encoder *encoder,
+static void chv_dp_pre_pll_enable(struct intel_atomic_state *state,
+				  struct intel_encoder *encoder,
 				  const struct intel_crtc_state *pipe_config,
 				  const struct drm_connector_state *conn_state)
 {
@@ -3937,7 +3951,8 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder,
 	chv_phy_pre_pll_enable(encoder, pipe_config);
 }
 
-static void chv_dp_post_pll_disable(struct intel_encoder *encoder,
+static void chv_dp_post_pll_disable(struct intel_atomic_state *state,
+				    struct intel_encoder *encoder,
 				    const struct intel_crtc_state *old_crtc_state,
 				    const struct drm_connector_state *old_conn_state)
 {

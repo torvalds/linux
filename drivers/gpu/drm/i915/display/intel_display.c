@@ -6689,7 +6689,8 @@ static void intel_encoders_pre_pll_enable(struct intel_atomic_state *state,
 			continue;
 
 		if (encoder->pre_pll_enable)
-			encoder->pre_pll_enable(encoder, crtc_state, conn_state);
+			encoder->pre_pll_enable(state, encoder,
+						crtc_state, conn_state);
 	}
 }
 
@@ -6710,7 +6711,8 @@ static void intel_encoders_pre_enable(struct intel_atomic_state *state,
 			continue;
 
 		if (encoder->pre_enable)
-			encoder->pre_enable(encoder, crtc_state, conn_state);
+			encoder->pre_enable(state, encoder,
+					    crtc_state, conn_state);
 	}
 }
 
@@ -6731,7 +6733,8 @@ static void intel_encoders_enable(struct intel_atomic_state *state,
 			continue;
 
 		if (encoder->enable)
-			encoder->enable(encoder, crtc_state, conn_state);
+			encoder->enable(state, encoder,
+					crtc_state, conn_state);
 		intel_opregion_notify_encoder(encoder, true);
 	}
 }
@@ -6754,7 +6757,8 @@ static void intel_encoders_disable(struct intel_atomic_state *state,
 
 		intel_opregion_notify_encoder(encoder, false);
 		if (encoder->disable)
-			encoder->disable(encoder, old_crtc_state, old_conn_state);
+			encoder->disable(state, encoder,
+					 old_crtc_state, old_conn_state);
 	}
 }
 
@@ -6775,7 +6779,8 @@ static void intel_encoders_post_disable(struct intel_atomic_state *state,
 			continue;
 
 		if (encoder->post_disable)
-			encoder->post_disable(encoder, old_crtc_state, old_conn_state);
+			encoder->post_disable(state, encoder,
+					      old_crtc_state, old_conn_state);
 	}
 }
 
@@ -6796,7 +6801,8 @@ static void intel_encoders_post_pll_disable(struct intel_atomic_state *state,
 			continue;
 
 		if (encoder->post_pll_disable)
-			encoder->post_pll_disable(encoder, old_crtc_state, old_conn_state);
+			encoder->post_pll_disable(state, encoder,
+						  old_crtc_state, old_conn_state);
 	}
 }
 
@@ -6817,7 +6823,8 @@ static void intel_encoders_update_pipe(struct intel_atomic_state *state,
 			continue;
 
 		if (encoder->update_pipe)
-			encoder->update_pipe(encoder, crtc_state, conn_state);
+			encoder->update_pipe(state, encoder,
+					     crtc_state, conn_state);
 	}
 }
 
@@ -18126,11 +18133,12 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 			best_encoder = connector->base.state->best_encoder;
 			connector->base.state->best_encoder = &encoder->base;
 
+			/* FIXME NULL atomic state passed! */
 			if (encoder->disable)
-				encoder->disable(encoder, crtc_state,
+				encoder->disable(NULL, encoder, crtc_state,
 						 connector->base.state);
 			if (encoder->post_disable)
-				encoder->post_disable(encoder, crtc_state,
+				encoder->post_disable(NULL, encoder, crtc_state,
 						      connector->base.state);
 
 			connector->base.state->best_encoder = best_encoder;

@@ -318,7 +318,8 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	return ret;
 }
 
-static void intel_mst_disable_dp(struct intel_encoder *encoder,
+static void intel_mst_disable_dp(struct intel_atomic_state *state,
+				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *old_crtc_state,
 				 const struct drm_connector_state *old_conn_state)
 {
@@ -344,7 +345,8 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 					  old_crtc_state, old_conn_state);
 }
 
-static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
+static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
+				      struct intel_encoder *encoder,
 				      const struct intel_crtc_state *old_crtc_state,
 				      const struct drm_connector_state *old_conn_state)
 {
@@ -410,14 +412,15 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 
 	intel_mst->connector = NULL;
 	if (last_mst_stream)
-		intel_dig_port->base.post_disable(&intel_dig_port->base,
+		intel_dig_port->base.post_disable(state, &intel_dig_port->base,
 						  old_crtc_state, NULL);
 
 	drm_dbg_kms(&dev_priv->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
 }
 
-static void intel_mst_pre_pll_enable_dp(struct intel_encoder *encoder,
+static void intel_mst_pre_pll_enable_dp(struct intel_atomic_state *state,
+					struct intel_encoder *encoder,
 					const struct intel_crtc_state *pipe_config,
 					const struct drm_connector_state *conn_state)
 {
@@ -426,11 +429,12 @@ static void intel_mst_pre_pll_enable_dp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 
 	if (intel_dp->active_mst_links == 0)
-		intel_dig_port->base.pre_pll_enable(&intel_dig_port->base,
+		intel_dig_port->base.pre_pll_enable(state, &intel_dig_port->base,
 						    pipe_config, NULL);
 }
 
-static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
+static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
+				    struct intel_encoder *encoder,
 				    const struct intel_crtc_state *pipe_config,
 				    const struct drm_connector_state *conn_state)
 {
@@ -463,7 +467,7 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	drm_dp_send_power_updown_phy(&intel_dp->mst_mgr, connector->port, true);
 
 	if (first_mst_stream)
-		intel_dig_port->base.pre_enable(&intel_dig_port->base,
+		intel_dig_port->base.pre_enable(state, &intel_dig_port->base,
 						pipe_config, NULL);
 
 	ret = drm_dp_mst_allocate_vcpi(&intel_dp->mst_mgr,
@@ -494,7 +498,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	intel_dp_set_m_n(pipe_config, M1_N1);
 }
 
-static void intel_mst_enable_dp(struct intel_encoder *encoder,
+static void intel_mst_enable_dp(struct intel_atomic_state *state,
+				struct intel_encoder *encoder,
 				const struct intel_crtc_state *pipe_config,
 				const struct drm_connector_state *conn_state)
 {

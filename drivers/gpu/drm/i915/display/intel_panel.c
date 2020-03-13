@@ -1931,7 +1931,8 @@ static int pwm_setup_backlight(struct intel_connector *connector,
 	return 0;
 }
 
-void intel_panel_update_backlight(struct intel_encoder *encoder,
+void intel_panel_update_backlight(struct intel_atomic_state *state,
+				  struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
 {
