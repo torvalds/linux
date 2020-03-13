@@ -1095,26 +1095,6 @@ void spi_nor_unlock_and_unprep(struct spi_nor *nor)
 	mutex_unlock(&nor->lock);
 }
 
-/*
- * This code converts an address to the Default Address Mode, that has non
- * power of two page sizes. We must support this mode because it is the default
- * mode supported by Xilinx tools, it can access the whole flash area and
- * changing over to the Power-of-two mode is irreversible and corrupts the
- * original data.
- * Addr can safely be unsigned int, the biggest S3AN device is smaller than
- * 4 MiB.
- */
-static u32 s3an_convert_addr(struct spi_nor *nor, u32 addr)
-{
-	u32 offset, page;
-
-	offset = addr % nor->page_size;
-	page = addr / nor->page_size;
-	page <<= (nor->page_size > 512) ? 10 : 9;
-
-	return page | offset;
-}
-
 static u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr)
 {
 	if (!nor->params.convert_addr)
@@ -1963,13 +1943,6 @@ int spi_nor_sr2_bit7_quad_enable(struct spi_nor *nor)
  * old entries may be missing 4K flag.
  */
 static const struct flash_info spi_nor_ids[] = {
-	/* Xilinx S3AN Internal Flash */
-	{ "3S50AN", S3AN_INFO(0x1f2200, 64, 264) },
-	{ "3S200AN", S3AN_INFO(0x1f2400, 256, 264) },
-	{ "3S400AN", S3AN_INFO(0x1f2400, 256, 264) },
-	{ "3S700AN", S3AN_INFO(0x1f2500, 512, 264) },
-	{ "3S1400AN", S3AN_INFO(0x1f2600, 512, 528) },
-
 	/* XMC (Wuhan Xinxin Semiconductor Manufacturing Corp.) */
 	{ "XM25QH64A", INFO(0x207017, 0, 64 * 1024, 128, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "XM25QH128A", INFO(0x207018, 0, 64 * 1024, 256, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
@@ -1992,6 +1965,7 @@ static const struct spi_nor_manufacturer *manufacturers[] = {
 	&spi_nor_spansion,
 	&spi_nor_sst,
 	&spi_nor_winbond,
+	&spi_nor_xilinx,
 };
 
 static const struct flash_info *
@@ -2172,46 +2146,6 @@ static int spi_nor_check(struct spi_nor *nor)
 	if (nor->spimem && nor->controller_ops) {
 		dev_err(nor->dev, "nor->spimem and nor->controller_ops are mutually exclusive, please set just one of them.\n");
 		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int s3an_nor_setup(struct spi_nor *nor,
-			  const struct spi_nor_hwcaps *hwcaps)
-{
-	int ret;
-
-	ret = spi_nor_xread_sr(nor, nor->bouncebuf);
-	if (ret)
-		return ret;
-
-	nor->erase_opcode = SPINOR_OP_XSE;
-	nor->program_opcode = SPINOR_OP_XPP;
-	nor->read_opcode = SPINOR_OP_READ;
-	nor->flags |= SNOR_F_NO_OP_CHIP_ERASE;
-
-	/*
-	 * This flashes have a page size of 264 or 528 bytes (known as
-	 * Default addressing mode). It can be changed to a more standard
-	 * Power of two mode where the page size is 256/512. This comes
-	 * with a price: there is 3% less of space, the data is corrupted
-	 * and the page size cannot be changed back to default addressing
-	 * mode.
-	 *
-	 * The current addressing mode can be read from the XRDSR register
-	 * and should not be changed, because is a destructive operation.
-	 */
-	if (nor->bouncebuf[0] & XSR_PAGESIZE) {
-		/* Flash in Power of 2 mode */
-		nor->page_size = (nor->page_size == 264) ? 256 : 512;
-		nor->mtd.writebufsize = nor->page_size;
-		nor->mtd.size = 8 * nor->page_size * nor->info->n_sectors;
-		nor->mtd.erasesize = 8 * nor->page_size;
-	} else {
-		/* Flash in Default addressing mode */
-		nor->params.convert_addr = s3an_convert_addr;
-		nor->mtd.erasesize = nor->info->sector_size;
 	}
 
 	return 0;
@@ -2815,11 +2749,6 @@ static void spi_nor_info_init_params(struct spi_nor *nor)
 	spi_nor_init_uniform_erase_map(map, erase_mask, params->size);
 }
 
-static void s3an_post_sfdp_fixups(struct spi_nor *nor)
-{
-	nor->params.setup = s3an_nor_setup;
-}
-
 /**
  * spi_nor_post_sfdp_fixups() - Updates the flash's parameters and settings
  * after SFDP has been parsed (is also called for SPI NORs that do not
@@ -2832,9 +2761,6 @@ static void s3an_post_sfdp_fixups(struct spi_nor *nor)
  */
 static void spi_nor_post_sfdp_fixups(struct spi_nor *nor)
 {
-	if (nor->info->flags & SPI_S3AN)
-		s3an_post_sfdp_fixups(nor);
-
 	if (nor->manufacturer && nor->manufacturer->fixups &&
 	    nor->manufacturer->fixups->post_sfdp)
 		nor->manufacturer->fixups->post_sfdp(nor);
