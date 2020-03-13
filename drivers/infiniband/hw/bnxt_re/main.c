@@ -1171,12 +1171,13 @@ static int bnxt_re_update_gid(struct bnxt_re_dev *rdev)
 	u16 gid_idx, index;
 	int rc = 0;
 
-	if (!test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
+	if (!ib_device_try_get(&rdev->ibdev))
 		return 0;
 
 	if (!sgid_tbl) {
 		ibdev_err(&rdev->ibdev, "QPLIB: SGID table not allocated");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	for (index = 0; index < sgid_tbl->active; index++) {
@@ -1196,7 +1197,8 @@ static int bnxt_re_update_gid(struct bnxt_re_dev *rdev)
 		rc = bnxt_qplib_update_sgid(sgid_tbl, &gid, gid_idx,
 					    rdev->qplib_res.netdev->dev_addr);
 	}
-
+out:
+	ib_device_put(&rdev->ibdev);
 	return rc;
 }
 
@@ -1319,7 +1321,6 @@ int bnxt_re_ib_init(struct bnxt_re_dev *rdev)
 		pr_err("Failed to register with IB: %#x\n", rc);
 		return rc;
 	}
-	set_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags);
 	dev_info(rdev_to_dev(rdev), "Device registered successfully");
 	ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
 			 &rdev->active_width);
@@ -1612,7 +1613,6 @@ static void bnxt_re_dealloc_driver(struct ib_device *ib_dev)
 	struct bnxt_re_dev *rdev =
 		container_of(ib_dev, struct bnxt_re_dev, ibdev);
 
-	clear_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags);
 	dev_info(rdev_to_dev(rdev), "Unregistering Device");
 
 	rtnl_lock();
@@ -1630,12 +1630,7 @@ static void bnxt_re_task(struct work_struct *work)
 	re_work = container_of(work, struct bnxt_re_work, work);
 	rdev = re_work->rdev;
 
-	if (re_work->event != NETDEV_REGISTER &&
-	    !test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
-		goto done;
-
-	switch (re_work->event) {
-	case NETDEV_REGISTER:
+	if (re_work->event == NETDEV_REGISTER) {
 		rc = bnxt_re_ib_init(rdev);
 		if (rc) {
 			ibdev_err(&rdev->ibdev,
@@ -1645,7 +1640,13 @@ static void bnxt_re_task(struct work_struct *work)
 			rtnl_unlock();
 			goto exit;
 		}
-		break;
+		goto exit;
+	}
+
+	if (!ib_device_try_get(&rdev->ibdev))
+		goto exit;
+
+	switch (re_work->event) {
 	case NETDEV_UP:
 		bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
 				       IB_EVENT_PORT_ACTIVE);
@@ -1665,7 +1666,7 @@ static void bnxt_re_task(struct work_struct *work)
 	default:
 		break;
 	}
-done:
+	ib_device_put(&rdev->ibdev);
 	smp_mb__before_atomic();
 	atomic_dec(&rdev->sched_count);
 exit:
