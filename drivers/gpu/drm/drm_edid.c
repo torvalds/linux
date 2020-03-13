@@ -3212,13 +3212,15 @@ static u8 *drm_find_edid_extension(const struct edid *edid, int ext_id)
 }
 
 
-static u8 *drm_find_displayid_extension(const struct edid *edid, int *idx)
+static u8 *drm_find_displayid_extension(const struct edid *edid,
+					int *length, int *idx)
 {
 	u8 *displayid = drm_find_edid_extension(edid, DISPLAYID_EXT);
 
 	if (!displayid)
 		return NULL;
 
+	*length = EDID_LENGTH;
 	*idx = 1;
 
 	return displayid;
@@ -3227,8 +3229,7 @@ static u8 *drm_find_displayid_extension(const struct edid *edid, int *idx)
 static u8 *drm_find_cea_extension(const struct edid *edid)
 {
 	int ret;
-	int idx;
-	int length = EDID_LENGTH;
+	int length, idx;
 	struct displayid_block *block;
 	u8 *cea;
 	u8 *displayid;
@@ -3239,7 +3240,7 @@ static u8 *drm_find_cea_extension(const struct edid *edid)
 		return cea;
 
 	/* CEA blocks can also be found embedded in a DisplayID block */
-	displayid = drm_find_displayid_extension(edid, &idx);
+	displayid = drm_find_displayid_extension(edid, &length, &idx);
 	if (!displayid)
 		return NULL;
 
@@ -5188,12 +5189,11 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 {
 	u8 *displayid;
 	int ret;
-	int idx;
-	int length = EDID_LENGTH;
+	int length, idx;
 	struct displayid_block *block;
 	int num_modes = 0;
 
-	displayid = drm_find_displayid_extension(edid, &idx);
+	displayid = drm_find_displayid_extension(edid, &length, &idx);
 	if (!displayid)
 		return 0;
 
@@ -5881,17 +5881,17 @@ static void drm_get_displayid(struct drm_connector *connector,
 			      struct edid *edid)
 {
 	void *displayid = NULL;
-	int idx;
+	int length, idx;
 	int ret;
 
 	connector->has_tile = false;
-	displayid = drm_find_displayid_extension(edid, &idx);
+	displayid = drm_find_displayid_extension(edid, &length, &idx);
 	if (!displayid) {
 		/* drop reference to any tile group we had */
 		goto out_drop_ref;
 	}
 
-	ret = drm_parse_display_id(connector, displayid, EDID_LENGTH, idx);
+	ret = drm_parse_display_id(connector, displayid, length, idx);
 	if (ret < 0)
 		goto out_drop_ref;
 	if (!connector->has_tile)
