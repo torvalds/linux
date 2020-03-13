@@ -90,56 +90,10 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 	return 0;
 }
 
-/*
- * Iterate over all connectors and return the smallest transcoder in the MST
- * stream
- */
-static enum transcoder
-intel_dp_mst_master_trans_compute(struct intel_atomic_state *state,
-				  struct intel_dp *mst_port)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_digital_connector_state *conn_state;
-	struct intel_connector *connector;
-	enum pipe ret = I915_MAX_PIPES;
-	int i;
-
-	if (INTEL_GEN(dev_priv) < 12)
-		return INVALID_TRANSCODER;
-
-	for_each_new_intel_connector_in_state(state, connector, conn_state, i) {
-		struct intel_crtc_state *crtc_state;
-		struct intel_crtc *crtc;
-
-		if (connector->mst_port != mst_port || !conn_state->base.crtc)
-			continue;
-
-		crtc = to_intel_crtc(conn_state->base.crtc);
-		crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
-		if (!crtc_state->uapi.active)
-			continue;
-
-		/*
-		 * Using crtc->pipe because crtc_state->cpu_transcoder is
-		 * computed, so others CRTCs could have non-computed
-		 * cpu_transcoder
-		 */
-		if (crtc->pipe < ret)
-			ret = crtc->pipe;
-	}
-
-	if (ret == I915_MAX_PIPES)
-		return INVALID_TRANSCODER;
-
-	/* Simple cast works because TGL don't have a eDP transcoder */
-	return (enum transcoder)ret;
-}
-
 static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 				       struct intel_crtc_state *pipe_config,
 				       struct drm_connector_state *conn_state)
 {
-	struct intel_atomic_state *state = to_intel_atomic_state(conn_state->state);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
 	struct intel_dp *intel_dp = &intel_mst->primary->dp;
@@ -203,7 +157,56 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 
-	pipe_config->mst_master_transcoder = intel_dp_mst_master_trans_compute(state, intel_dp);
+	return 0;
+}
+
+/*
+ * Iterate over all connectors and return a mask of
+ * all CPU transcoders streaming over the same DP link.
+ */
+static unsigned int
+intel_dp_mst_transcoder_mask(struct intel_atomic_state *state,
+			     struct intel_dp *mst_port)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_digital_connector_state *conn_state;
+	struct intel_connector *connector;
+	u8 transcoders = 0;
+	int i;
+
+	if (INTEL_GEN(dev_priv) < 12)
+		return 0;
+
+	for_each_new_intel_connector_in_state(state, connector, conn_state, i) {
+		const struct intel_crtc_state *crtc_state;
+		struct intel_crtc *crtc;
+
+		if (connector->mst_port != mst_port || !conn_state->base.crtc)
+			continue;
+
+		crtc = to_intel_crtc(conn_state->base.crtc);
+		crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+
+		if (!crtc_state->hw.active)
+			continue;
+
+		transcoders |= BIT(crtc_state->cpu_transcoder);
+	}
+
+	return transcoders;
+}
+
+static int intel_dp_mst_compute_config_late(struct intel_encoder *encoder,
+					    struct intel_crtc_state *crtc_state,
+					    struct drm_connector_state *conn_state)
+{
+	struct intel_atomic_state *state = to_intel_atomic_state(conn_state->state);
+	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
+	struct intel_dp *intel_dp = &intel_mst->primary->dp;
+
+	/* lowest numbered transcoder will be designated master */
+	crtc_state->mst_master_transcoder =
+		ffs(intel_dp_mst_transcoder_mask(state, intel_dp)) - 1;
 
 	return 0;
 }
@@ -822,6 +825,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	intel_encoder->pipe_mask = ~0;
 
 	intel_encoder->compute_config = intel_dp_mst_compute_config;
+	intel_encoder->compute_config_late = intel_dp_mst_compute_config_late;
 	intel_encoder->disable = intel_mst_disable_dp;
 	intel_encoder->post_disable = intel_mst_post_disable_dp;
 	intel_encoder->pre_pll_enable = intel_mst_pre_pll_enable_dp;
