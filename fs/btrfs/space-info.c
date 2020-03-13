@@ -1164,11 +1164,17 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 	ret = ticket->error;
 	if (ticket->bytes || ticket->error) {
 		/*
-		 * Need to delete here for priority tickets. For regular tickets
-		 * either the async reclaim job deletes the ticket from the list
-		 * or we delete it ourselves at wait_reserve_ticket().
+		 * We were a priority ticket, so we need to delete ourselves
+		 * from the list.  Because we could have other priority tickets
+		 * behind us that require less space, run
+		 * btrfs_try_granting_tickets() to see if their reservations can
+		 * now be made.
 		 */
-		remove_ticket(space_info, ticket);
+		if (!list_empty(&ticket->list)) {
+			remove_ticket(space_info, ticket);
+			btrfs_try_granting_tickets(fs_info, space_info);
+		}
+
 		if (!ret)
 			ret = -ENOSPC;
 	}
