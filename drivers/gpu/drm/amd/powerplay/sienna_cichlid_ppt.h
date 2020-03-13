@@ -23,6 +23,12 @@
 #ifndef __SIENNA_CICHLID_PPT_H__
 #define __SIENNA_CICHLID_PPT_H__
 
+typedef enum {
+  POWER_SOURCE_AC,
+  POWER_SOURCE_DC,
+  POWER_SOURCE_COUNT,
+} POWER_SOURCE_e;
+
 extern void sienna_cichlid_set_ppt_funcs(struct smu_context *smu);
 
 #define smnPCIE_LC_SPEED_CNTL                   0x11140290

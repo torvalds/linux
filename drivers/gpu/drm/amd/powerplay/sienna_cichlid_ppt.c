@@ -176,6 +176,11 @@ static struct smu_11_0_cmn2aisc_mapping sienna_cichlid_table_map[SMU_TABLE_COUNT
 	TAB_MAP(PACE),
 };
 
+static struct smu_11_0_cmn2aisc_mapping sienna_cichlid_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
+	PWR_MAP(AC),
+	PWR_MAP(DC),
+};
+
 static struct smu_11_0_cmn2aisc_mapping sienna_cichlid_workload_map[PP_SMC_POWER_PROFILE_COUNT] = {
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT,	WORKLOAD_PPLIB_DEFAULT_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
@@ -239,6 +244,21 @@ static int sienna_cichlid_get_smu_table_index(struct smu_context *smc, uint32_t 
 		return -EINVAL;
 
 	mapping = sienna_cichlid_table_map[index];
+	if (!(mapping.valid_mapping)) {
+		return -EINVAL;
+	}
+
+	return mapping.map_to;
+}
+
+static int sienna_cichlid_get_pwr_src_index(struct smu_context *smc, uint32_t index)
+{
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
+	if (index >= SMU_POWER_SOURCE_COUNT)
+		return -EINVAL;
+
+	mapping = sienna_cichlid_pwr_src_map[index];
 	if (!(mapping.valid_mapping)) {
 		return -EINVAL;
 	}
@@ -2185,6 +2205,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_smu_clk_index = sienna_cichlid_get_smu_clk_index,
 	.get_smu_feature_index = sienna_cichlid_get_smu_feature_index,
 	.get_smu_table_index = sienna_cichlid_get_smu_table_index,
+	.get_smu_power_index = sienna_cichlid_get_pwr_src_index,
 	.get_workload_type = sienna_cichlid_get_workload_type,
 	.get_allowed_feature_mask = sienna_cichlid_get_allowed_feature_mask,
 	.set_default_dpm_table = sienna_cichlid_set_default_dpm_table,
