@@ -3216,6 +3216,7 @@ static u8 *drm_find_displayid_extension(const struct edid *edid,
 					int *length, int *idx)
 {
 	u8 *displayid = drm_find_edid_extension(edid, DISPLAYID_EXT);
+	struct displayid_hdr *base;
 	int ret;
 
 	if (!displayid)
@@ -3227,6 +3228,9 @@ static u8 *drm_find_displayid_extension(const struct edid *edid,
 	ret = validate_displayid(displayid, *length, *idx);
 	if (ret)
 		return NULL;
+
+	base = (struct displayid_hdr *)&displayid[*idx];
+	*length = *idx + sizeof(*base) + base->bytes;
 
 	return displayid;
 }
