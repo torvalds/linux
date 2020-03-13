@@ -129,7 +129,6 @@ $(OUTPUT)_bpftool: $(_OBJS) $(LIBBPF)
 skeleton/profiler.bpf.o: skeleton/profiler.bpf.c $(LIBBPF)
 	$(QUIET_CLANG)$(CLANG) \
 		-I$(srctree)/tools/include/uapi/ \
-		-I$(srctree)/tools/testing/selftests/bpf/include/uapi \
 		-I$(LIBBPF_PATH) -I$(srctree)/tools/lib \
 		-g -O2 -target bpf -c $< -o $@
 
