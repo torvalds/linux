@@ -175,7 +175,6 @@
  * value cannot be read back within the specified time.
  */
 #define HDA_DSP_STREAM_RUN_TIMEOUT		300
-#define HDA_DSP_CL_TRIGGER_TIMEOUT		300
 
 #define HDA_DSP_SPIB_ENABLE			1
 #define HDA_DSP_SPIB_DISABLE			0
