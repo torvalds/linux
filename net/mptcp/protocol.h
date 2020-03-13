@@ -193,6 +193,7 @@ void mptcp_proto_init(void);
 int mptcp_proto_v6_init(void);
 #endif
 
+struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req);
 void mptcp_get_options(const struct sk_buff *skb,
 		       struct tcp_options_received *opt_rx);
 
@@ -202,8 +203,7 @@ void mptcp_data_ready(struct sock *sk, struct sock *ssk);
 int mptcp_token_new_request(struct request_sock *req);
 void mptcp_token_destroy_request(u32 token);
 int mptcp_token_new_connect(struct sock *sk);
-int mptcp_token_new_accept(u32 token);
-void mptcp_token_update_accept(struct sock *sk, struct sock *conn);
+int mptcp_token_new_accept(u32 token, struct sock *conn);
 void mptcp_token_destroy(u32 token);
 
 void mptcp_crypto_key_sha(u64 key, u32 *token, u64 *idsn);

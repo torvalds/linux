@@ -182,6 +182,7 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 	struct mptcp_subflow_context *listener = mptcp_subflow_ctx(sk);
 	struct mptcp_subflow_request_sock *subflow_req;
 	struct tcp_options_received opt_rx;
+	struct sock *new_msk = NULL;
 	struct sock *child;
 
 	pr_debug("listener=%p, req=%p, conn=%p", listener, req, listener->conn);
@@ -197,7 +198,7 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 			 * out-of-order pkt, which will not carry the MP_CAPABLE
 			 * opt even on mptcp enabled paths
 			 */
-			goto create_child;
+			goto create_msk;
 		}
 
 		opt_rx.mptcp.mp_capable = 0;
@@ -207,7 +208,13 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 			subflow_req->remote_key_valid = 1;
 		} else {
 			subflow_req->mp_capable = 0;
+			goto create_child;
 		}
+
+create_msk:
+		new_msk = mptcp_sk_clone(listener->conn, req);
+		if (!new_msk)
+			subflow_req->mp_capable = 0;
 	}
 
 create_child:
@@ -221,22 +228,22 @@ create_child:
 		 * handshake
 		 */
 		if (!ctx)
-			return child;
+			goto out;
 
 		if (ctx->mp_capable) {
-			if (mptcp_token_new_accept(ctx->token))
-				goto close_child;
+			/* new mpc subflow takes ownership of the newly
+			 * created mptcp socket
+			 */
+			ctx->conn = new_msk;
+			new_msk = NULL;
 		}
 	}
 
+out:
+	/* dispose of the left over mptcp master, if any */
+	if (unlikely(new_msk))
+		sock_put(new_msk);
 	return child;
-
-close_child:
-	pr_debug("closing child socket");
-	tcp_send_active_reset(child, GFP_ATOMIC);
-	inet_csk_prepare_forced_close(child);
-	tcp_done(child);
-	return NULL;
 }
 
 static struct inet_connection_sock_af_ops subflow_specific;
@@ -793,6 +800,9 @@ static void subflow_ulp_clone(const struct request_sock *req,
 	new_ctx->tcp_data_ready = old_ctx->tcp_data_ready;
 	new_ctx->tcp_state_change = old_ctx->tcp_state_change;
 	new_ctx->tcp_write_space = old_ctx->tcp_write_space;
+	new_ctx->rel_write_seq = 1;
+	new_ctx->tcp_sock = newsk;
+
 	new_ctx->mp_capable = 1;
 	new_ctx->fourth_ack = subflow_req->remote_key_valid;
 	new_ctx->can_ack = subflow_req->remote_key_valid;
