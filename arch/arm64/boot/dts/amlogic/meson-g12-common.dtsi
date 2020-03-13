@@ -295,17 +295,9 @@
 						};
 					};
 
-					emmc_pins: emmc {
+					emmc_ctrl_pins: emmc-ctrl {
 						mux-0 {
-							groups = "emmc_nand_d0",
-								 "emmc_nand_d1",
-								 "emmc_nand_d2",
-								 "emmc_nand_d3",
-								 "emmc_nand_d4",
-								 "emmc_nand_d5",
-								 "emmc_nand_d6",
-								 "emmc_nand_d7",
-								 "emmc_cmd";
+							groups = "emmc_cmd";
 							function = "emmc";
 							bias-pull-up;
 							drive-strength-microamp = <4000>;
@@ -315,6 +307,34 @@
 							groups = "emmc_clk";
 							function = "emmc";
 							bias-disable;
+							drive-strength-microamp = <4000>;
+						};
+					};
+
+					emmc_data_4b_pins: emmc-data-4b {
+						mux-0 {
+							groups = "emmc_nand_d0",
+								 "emmc_nand_d1",
+								 "emmc_nand_d2",
+								 "emmc_nand_d3";
+							function = "emmc";
+							bias-pull-up;
+							drive-strength-microamp = <4000>;
+						};
+					};
+
+					emmc_data_8b_pins: emmc-data-8b {
+						mux-0 {
+							groups = "emmc_nand_d0",
+								 "emmc_nand_d1",
+								 "emmc_nand_d2",
+								 "emmc_nand_d3",
+								 "emmc_nand_d4",
+								 "emmc_nand_d5",
+								 "emmc_nand_d6",
+								 "emmc_nand_d7";
+							function = "emmc";
+							bias-pull-up;
 							drive-strength-microamp = <4000>;
 						};
 					};
