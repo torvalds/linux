@@ -10018,6 +10018,7 @@ F:	Documentation/devicetree/bindings/phy/phy-mvebu-utmi.txt
 MARVELL CRYPTO DRIVER
 M:	Boris Brezillon <bbrezillon@kernel.org>
 M:	Arnaud Ebalard <arno@natisbad.org>
+M:	Srujana Challa <schalla@marvell.com>
 F:	drivers/crypto/marvell/
 S:	Maintained
 L:	linux-crypto@vger.kernel.org
