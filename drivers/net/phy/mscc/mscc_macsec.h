@@ -8,6 +8,8 @@
 #ifndef _MSCC_OCELOT_MACSEC_H_
 #define _MSCC_OCELOT_MACSEC_H_
 
+#include <net/macsec.h>
+
 #define MSCC_MS_MAX_FLOWS		16
 
 #define CONTROL_TYPE_EGRESS		0x6
@@ -57,6 +59,62 @@ enum mscc_macsec_validate_levels {
 	MSCC_MS_VALIDATE_CHECK		= 1,
 	MSCC_MS_VALIDATE_STRICT		= 2,
 };
+
+enum macsec_bank {
+	FC_BUFFER   = 0x04,
+	HOST_MAC    = 0x05,
+	LINE_MAC    = 0x06,
+	IP_1588     = 0x0e,
+	MACSEC_INGR = 0x38,
+	MACSEC_EGR  = 0x3c,
+};
+
+struct macsec_flow {
+	struct list_head list;
+	enum mscc_macsec_destination_ports port;
+	enum macsec_bank bank;
+	u32 index;
+	int assoc_num;
+	bool has_transformation;
+
+	/* Highest takes precedence [0..15] */
+	u8 priority;
+
+	u8 key[MACSEC_KEYID_LEN];
+
+	union {
+		struct macsec_rx_sa *rx_sa;
+		struct macsec_tx_sa *tx_sa;
+	};
+
+	/* Matching */
+	struct {
+		u8 sci:1;
+		u8 tagged:1;
+		u8 untagged:1;
+		u8 etype:1;
+	} match;
+
+	u16 etype;
+
+	/* Action */
+	struct {
+		u8 bypass:1;
+		u8 drop:1;
+	} action;
+};
+
+#define MSCC_EXT_PAGE_MACSEC_17		17
+#define MSCC_EXT_PAGE_MACSEC_18		18
+
+#define MSCC_EXT_PAGE_MACSEC_19		19
+#define MSCC_PHY_MACSEC_19_REG_ADDR(x)	(x)
+#define MSCC_PHY_MACSEC_19_TARGET(x)	((x) << 12)
+#define MSCC_PHY_MACSEC_19_READ		BIT(14)
+#define MSCC_PHY_MACSEC_19_CMD		BIT(15)
+
+#define MSCC_EXT_PAGE_MACSEC_20		20
+#define MSCC_PHY_MACSEC_20_TARGET(x)	(x)
 
 #define MSCC_MS_XFORM_REC(x, y)		(((x) << 5) + (y))
 #define MSCC_MS_ENA_CFG			0x800
