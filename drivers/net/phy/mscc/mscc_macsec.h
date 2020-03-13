@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
 /*
- * Microsemi Ocelot Switch driver
+ * Driver for Microsemi VSC85xx PHYs
  *
  * Copyright (c) 2018 Microsemi Corporation
  */
 
-#ifndef _MSCC_OCELOT_MACSEC_H_
-#define _MSCC_OCELOT_MACSEC_H_
+#ifndef _MSCC_PHY_MACSEC_H_
+#define _MSCC_PHY_MACSEC_H_
 
 #include <net/macsec.h>
 
@@ -321,4 +321,4 @@ struct macsec_flow {
 #define MSCC_MS_INTR_CTRL_STATUS_INTR_ENABLE_M		GENMASK(31, 16)
 #define MACSEC_INTR_CTRL_STATUS_ROLLOVER		BIT(5)
 
-#endif
+#endif /* _MSCC_PHY_MACSEC_H_ */
