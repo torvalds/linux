@@ -554,6 +554,12 @@ static int resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out_free;
 	}
 
+	if (!path->search_commit_root &&
+	    test_bit(BTRFS_ROOT_DELETING, &root->state)) {
+		ret = -ENOENT;
+		goto out;
+	}
+
 	if (btrfs_is_testing(fs_info)) {
 		ret = -ENOENT;
 		goto out;
