@@ -245,8 +245,8 @@ int topology_set_cpu_management(int fc)
 
 void update_cpu_masks(void)
 {
-	struct cpu_topology_s390 *topo;
-	int cpu, id;
+	struct cpu_topology_s390 *topo, *topo_package, *topo_sibling;
+	int cpu, sibling, pkg_first, smt_first, id;
 
 	for_each_possible_cpu(cpu) {
 		topo = &cpu_topology[cpu];
@@ -254,6 +254,7 @@ void update_cpu_masks(void)
 		topo->core_mask = cpu_group_map(&socket_info, cpu);
 		topo->book_mask = cpu_group_map(&book_info, cpu);
 		topo->drawer_mask = cpu_group_map(&drawer_info, cpu);
+		topo->booted_cores = 0;
 		if (topology_mode != TOPOLOGY_MODE_HW) {
 			id = topology_mode == TOPOLOGY_MODE_PACKAGE ? 0 : cpu;
 			topo->thread_id = cpu;
@@ -261,6 +262,21 @@ void update_cpu_masks(void)
 			topo->socket_id = id;
 			topo->book_id = id;
 			topo->drawer_id = id;
+		}
+	}
+	for_each_online_cpu(cpu) {
+		topo = &cpu_topology[cpu];
+		pkg_first = cpumask_first(&topo->core_mask);
+		topo_package = &cpu_topology[pkg_first];
+		if (cpu == pkg_first) {
+			for_each_cpu(sibling, &topo->core_mask) {
+				topo_sibling = &cpu_topology[sibling];
+				smt_first = cpumask_first(&topo_sibling->thread_mask);
+				if (sibling == smt_first)
+					topo_package->booted_cores++;
+			}
+		} else {
+			topo->booted_cores = topo_package->booted_cores;
 		}
 	}
 }

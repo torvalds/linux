@@ -160,6 +160,7 @@ static void show_cpu_topology(struct seq_file *m, unsigned long n)
 	seq_printf(m, "drawer id       : %d\n", topology_drawer_id(n));
 	seq_printf(m, "dedicated       : %d\n", topology_cpu_dedicated(n));
 	seq_printf(m, "address         : %d\n", smp_cpu_get_cpu_address(n));
+	seq_printf(m, "cpu cores       : %d\n", topology_booted_cores(n));
 #endif /* CONFIG_SCHED_TOPOLOGY */
 }
 

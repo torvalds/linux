@@ -17,6 +17,7 @@ struct cpu_topology_s390 {
 	unsigned short book_id;
 	unsigned short drawer_id;
 	unsigned short dedicated : 1;
+	int booted_cores;
 	cpumask_t thread_mask;
 	cpumask_t core_mask;
 	cpumask_t book_mask;
@@ -35,6 +36,7 @@ extern struct cpu_topology_s390 cpu_topology[NR_CPUS];
 #define topology_drawer_id(cpu)		  (cpu_topology[cpu].drawer_id)
 #define topology_drawer_cpumask(cpu)	  (&cpu_topology[cpu].drawer_mask)
 #define topology_cpu_dedicated(cpu)	  (cpu_topology[cpu].dedicated)
+#define topology_booted_cores(cpu)	  (cpu_topology[cpu].booted_cores)
 
 #define mc_capable() 1
 
@@ -53,6 +55,7 @@ static inline void topology_init_early(void) { }
 static inline void topology_schedule_update(void) { }
 static inline int topology_cpu_init(struct cpu *cpu) { return 0; }
 static inline int topology_cpu_dedicated(int cpu_nr) { return 0; }
+static inline int topology_booted_cores(int cpu_nr) { return 1; }
 static inline void update_cpu_masks(void) { }
 static inline void topology_expect_change(void) { }
 
