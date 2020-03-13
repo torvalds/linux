@@ -2341,7 +2341,7 @@ void ocelot_configure_cpu(struct ocelot *ocelot, int npi,
 		else if (injection == OCELOT_TAG_PREFIX_LONG)
 			sdu += OCELOT_LONG_PREFIX_LEN;
 
-		ocelot_port_set_maxlen(ocelot, cpu, sdu);
+		ocelot_port_set_maxlen(ocelot, npi, sdu);
 
 		/* Enable NPI port */
 		ocelot_write_rix(ocelot,
