@@ -8,4 +8,5 @@ spi-nor-objs			+= everspin.o
 spi-nor-objs			+= fujitsu.o
 spi-nor-objs			+= gigadevice.o
 spi-nor-objs			+= intel.o
+spi-nor-objs			+= issi.o
 obj-$(CONFIG_MTD_SPI_NOR)	+= spi-nor.o
