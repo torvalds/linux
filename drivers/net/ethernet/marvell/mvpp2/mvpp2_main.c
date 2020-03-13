@@ -4384,6 +4384,8 @@ static const struct net_device_ops mvpp2_netdev_ops = {
 };
 
 static const struct ethtool_ops mvpp2_eth_tool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.nway_reset		= mvpp2_ethtool_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.set_coalesce		= mvpp2_ethtool_set_coalesce,
