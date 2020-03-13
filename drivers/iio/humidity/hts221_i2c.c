@@ -63,7 +63,7 @@ static struct i2c_driver hts221_driver = {
 	.driver = {
 		.name = "hts221_i2c",
 		.pm = &hts221_pm_ops,
-		.of_match_table = of_match_ptr(hts221_i2c_of_match),
+		.of_match_table = hts221_i2c_of_match,
 		.acpi_match_table = ACPI_PTR(hts221_acpi_match),
 	},
 	.probe = hts221_i2c_probe,
