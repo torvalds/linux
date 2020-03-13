@@ -10,4 +10,5 @@ spi-nor-objs			+= gigadevice.o
 spi-nor-objs			+= intel.o
 spi-nor-objs			+= issi.o
 spi-nor-objs			+= macronix.o
+spi-nor-objs			+= micron-st.o
 obj-$(CONFIG_MTD_SPI_NOR)	+= spi-nor.o
