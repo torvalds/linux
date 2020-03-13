@@ -12946,6 +12946,11 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 		    transcoder_name(pipe_config->cpu_transcoder),
 		    pipe_config->pipe_bpp, pipe_config->dither);
 
+	drm_dbg_kms(&dev_priv->drm,
+		    "port sync: master transcoder: %s, slave transcoder bitmask = 0x%x\n",
+		    transcoder_name(pipe_config->master_transcoder),
+		    pipe_config->sync_mode_slaves_mask);
+
 	if (pipe_config->has_pch_encoder)
 		intel_dump_m_n_config(pipe_config, "fdi",
 				      pipe_config->fdi_lanes,
