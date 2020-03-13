@@ -495,27 +495,42 @@ out_overflow:
 	return -E2BIG;
 }
 
-/* Send one of an xdr_buf's kvecs by itself. To send a Reply
- * chunk, the whole RPC Reply is written back to the client.
- * This function writes either the head or tail of the xdr_buf
- * containing the Reply.
+/**
+ * svc_rdma_iov_write - Construct RDMA Writes from an iov
+ * @info: pointer to write arguments
+ * @iov: kvec to write
+ *
+ * Returns:
+ *   On succes, returns zero
+ *   %-E2BIG if the client-provided Write chunk is too small
+ *   %-ENOMEM if a resource has been exhausted
+ *   %-EIO if an rdma-rw error occurred
  */
-static int svc_rdma_send_xdr_kvec(struct svc_rdma_write_info *info,
-				  struct kvec *vec)
+static int svc_rdma_iov_write(struct svc_rdma_write_info *info,
+			      const struct kvec *iov)
 {
-	info->wi_base = vec->iov_base;
+	info->wi_base = iov->iov_base;
 	return svc_rdma_build_writes(info, svc_rdma_vec_to_sg,
-				     vec->iov_len);
+				     iov->iov_len);
 }
 
-/* Send an xdr_buf's page list by itself. A Write chunk is just
- * the page list. A Reply chunk is @xdr's head, page list, and
- * tail. This function is shared between the two types of chunk.
+/**
+ * svc_rdma_pages_write - Construct RDMA Writes from pages
+ * @info: pointer to write arguments
+ * @xdr: xdr_buf with pages to write
+ * @offset: offset into the content of @xdr
+ * @length: number of bytes to write
+ *
+ * Returns:
+ *   On succes, returns zero
+ *   %-E2BIG if the client-provided Write chunk is too small
+ *   %-ENOMEM if a resource has been exhausted
+ *   %-EIO if an rdma-rw error occurred
  */
-static int svc_rdma_send_xdr_pagelist(struct svc_rdma_write_info *info,
-				      struct xdr_buf *xdr,
-				      unsigned int offset,
-				      unsigned long length)
+static int svc_rdma_pages_write(struct svc_rdma_write_info *info,
+				const struct xdr_buf *xdr,
+				unsigned int offset,
+				unsigned long length)
 {
 	info->wi_xdr = xdr;
 	info->wi_next_off = offset - xdr->head[0].iov_len;
@@ -552,7 +567,7 @@ int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma, __be32 *wr_ch,
 	if (!info)
 		return -ENOMEM;
 
-	ret = svc_rdma_send_xdr_pagelist(info, xdr, offset, length);
+	ret = svc_rdma_pages_write(info, xdr, offset, length);
 	if (ret < 0)
 		goto out_err;
 
@@ -592,7 +607,7 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 	if (!info)
 		return -ENOMEM;
 
-	ret = svc_rdma_send_xdr_kvec(info, &xdr->head[0]);
+	ret = svc_rdma_iov_write(info, &xdr->head[0]);
 	if (ret < 0)
 		goto out_err;
 	consumed = xdr->head[0].iov_len;
@@ -601,16 +616,15 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 	 * client did not provide Write chunks.
 	 */
 	if (!rctxt->rc_write_list && xdr->page_len) {
-		ret = svc_rdma_send_xdr_pagelist(info, xdr,
-						 xdr->head[0].iov_len,
-						 xdr->page_len);
+		ret = svc_rdma_pages_write(info, xdr, xdr->head[0].iov_len,
+					   xdr->page_len);
 		if (ret < 0)
 			goto out_err;
 		consumed += xdr->page_len;
 	}
 
 	if (xdr->tail[0].iov_len) {
-		ret = svc_rdma_send_xdr_kvec(info, &xdr->tail[0]);
+		ret = svc_rdma_iov_write(info, &xdr->tail[0]);
 		if (ret < 0)
 			goto out_err;
 		consumed += xdr->tail[0].iov_len;
