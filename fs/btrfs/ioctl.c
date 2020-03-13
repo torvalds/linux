@@ -551,7 +551,6 @@ int __pure btrfs_is_empty_uuid(u8 *uuid)
 static noinline int create_subvol(struct inode *dir,
 				  struct dentry *dentry,
 				  const char *name, int namelen,
-				  u64 *async_transid,
 				  struct btrfs_qgroup_inherit *inherit)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(dir->i_sb);
@@ -723,14 +722,7 @@ fail:
 	trans->bytes_reserved = 0;
 	btrfs_subvolume_release_metadata(fs_info, &block_rsv);
 
-	if (async_transid) {
-		*async_transid = trans->transid;
-		err = btrfs_commit_transaction_async(trans, 1);
-		if (err)
-			err = btrfs_commit_transaction(trans);
-	} else {
-		err = btrfs_commit_transaction(trans);
-	}
+	err = btrfs_commit_transaction(trans);
 	if (err && !ret)
 		ret = err;
 
@@ -748,8 +740,7 @@ fail_free:
 }
 
 static int create_snapshot(struct btrfs_root *root, struct inode *dir,
-			   struct dentry *dentry,
-			   u64 *async_transid, bool readonly,
+			   struct dentry *dentry, bool readonly,
 			   struct btrfs_qgroup_inherit *inherit)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(dir->i_sb);
@@ -833,14 +824,8 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	list_add(&pending_snapshot->list,
 		 &trans->transaction->pending_snapshots);
 	spin_unlock(&fs_info->trans_lock);
-	if (async_transid) {
-		*async_transid = trans->transid;
-		ret = btrfs_commit_transaction_async(trans, 1);
-		if (ret)
-			ret = btrfs_commit_transaction(trans);
-	} else {
-		ret = btrfs_commit_transaction(trans);
-	}
+
+	ret = btrfs_commit_transaction(trans);
 	if (ret)
 		goto fail;
 
@@ -946,7 +931,7 @@ static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
 static noinline int btrfs_mksubvol(const struct path *parent,
 				   const char *name, int namelen,
 				   struct btrfs_root *snap_src,
-				   u64 *async_transid, bool readonly,
+				   bool readonly,
 				   struct btrfs_qgroup_inherit *inherit)
 {
 	struct inode *dir = d_inode(parent->dentry);
@@ -982,13 +967,11 @@ static noinline int btrfs_mksubvol(const struct path *parent,
 	if (btrfs_root_refs(&BTRFS_I(dir)->root->root_item) == 0)
 		goto out_up_read;
 
-	if (snap_src) {
-		error = create_snapshot(snap_src, dir, dentry,
-					async_transid, readonly, inherit);
-	} else {
-		error = create_subvol(dir, dentry, name, namelen,
-				      async_transid, inherit);
-	}
+	if (snap_src)
+		error = create_snapshot(snap_src, dir, dentry, readonly, inherit);
+	else
+		error = create_subvol(dir, dentry, name, namelen, inherit);
+
 	if (!error)
 		fsnotify_mkdir(dir, dentry);
 out_up_read:
