@@ -15,7 +15,9 @@
 #include <unistd.h>
 #include <linux/android/binder.h>
 #include <linux/android/binderfs.h>
+
 #include "../../kselftest.h"
+#include "../../kselftest_harness.h"
 
 static ssize_t write_nointr(int fd, const void *buf, size_t count)
 {
@@ -132,7 +134,7 @@ static void rmdir_protect_errno(const char *dir)
 	errno = saved_errno;
 }
 
-static void __do_binderfs_test(void)
+static int __do_binderfs_test(void)
 {
 	int fd, ret, saved_errno;
 	size_t len;
@@ -160,8 +162,7 @@ static void __do_binderfs_test(void)
 					   strerror(errno));
 
 		keep ? : rmdir_protect_errno("/dev/binderfs");
-		ksft_exit_skip(
-			"The Android binderfs filesystem is not available\n");
+		return 1;
 	}
 
 	/* binderfs mount test passed */
@@ -250,26 +251,24 @@ on_error:
 
 	/* binderfs unmount test passed */
 	ksft_inc_pass_cnt();
+	return 0;
 }
 
-static void binderfs_test_privileged()
+TEST(binderfs_test_privileged)
 {
 	if (geteuid() != 0)
-		ksft_print_msg(
-			"Tests are not run as root. Skipping privileged tests\n");
-	else
-		__do_binderfs_test();
+		XFAIL(return, "Tests are not run as root. Skipping privileged tests");
+
+	if (__do_binderfs_test() == 1)
+		XFAIL(return, "The Android binderfs filesystem is not available");
 }
 
-static void binderfs_test_unprivileged()
+TEST(binderfs_test_unprivileged)
 {
 	change_to_userns();
-	__do_binderfs_test();
+
+	if (__do_binderfs_test() == 1)
+		XFAIL(return, "The Android binderfs filesystem is not available");
 }
 
-int main(int argc, char *argv[])
-{
-	binderfs_test_privileged();
-	binderfs_test_unprivileged();
-	ksft_exit_pass();
-}
+TEST_HARNESS_MAIN
