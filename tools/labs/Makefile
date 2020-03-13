@@ -32,8 +32,16 @@ copy: $(YOCTO_IMAGE)
 	rmdir $(TEMPDIR)
 
 docker-docs:
-	cd docs && docker-compose build
-	cd docs && docker-compose run docs-build bash -c "cd /linux/tools/labs && make docs"
+	cd docker && docker-compose build docs-build
+	cd docker && UID=$(shell id -u) GID=$(shell id -g) docker-compose run docs-build bash -c "cd /linux/tools/labs && make docs"
+
+docker-kernel:
+	cd docker && UID=$(shell id -u) GID=$(shell id -g) docker-compose build kernel-build
+	cd docker && docker-compose up -d kernel-build
+	cd docker && docker-compose exec -u ubuntu kernel-build bash
+
+stop-docker-kernel:
+	cd docker && docker-compose down
 
 docs:
 	$(MAKE) -C $(KDIR) DOCBOOKS= SPHINXDIRS="teaching" htmldocs
@@ -48,4 +56,4 @@ clean::
 clean_skels:
 	rm -rf skels
 
-.PHONY: skels build copy docs docker-docs clean clean_skels
+.PHONY: skels build copy docs docker-docs docker-kernel stop-docker-kernel clean clean_skels
