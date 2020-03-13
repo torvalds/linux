@@ -97,7 +97,7 @@ static int winbond_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 
 static void winbond_default_init(struct spi_nor *nor)
 {
-	nor->params.set_4byte_addr_mode = winbond_set_4byte_addr_mode;
+	nor->params->set_4byte_addr_mode = winbond_set_4byte_addr_mode;
 }
 
 static const struct spi_nor_fixups winbond_fixups = {

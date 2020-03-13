@@ -70,7 +70,7 @@ static int xilinx_nor_setup(struct spi_nor *nor,
 		nor->mtd.erasesize = 8 * nor->page_size;
 	} else {
 		/* Flash in Default addressing mode */
-		nor->params.convert_addr = s3an_convert_addr;
+		nor->params->convert_addr = s3an_convert_addr;
 		nor->mtd.erasesize = nor->info->sector_size;
 	}
 
@@ -79,7 +79,7 @@ static int xilinx_nor_setup(struct spi_nor *nor,
 
 static void xilinx_post_sfdp_fixups(struct spi_nor *nor)
 {
-	nor->params.setup = xilinx_nor_setup;
+	nor->params->setup = xilinx_nor_setup;
 }
 
 static const struct spi_nor_fixups xilinx_fixups = {

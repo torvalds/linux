@@ -68,7 +68,7 @@ static const struct flash_info issi_parts[] = {
 
 static void issi_default_init(struct spi_nor *nor)
 {
-	nor->params.quad_enable = spi_nor_sr1_bit6_quad_enable;
+	nor->params->quad_enable = spi_nor_sr1_bit6_quad_enable;
 }
 
 static const struct spi_nor_fixups issi_fixups = {

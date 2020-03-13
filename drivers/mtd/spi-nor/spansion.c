@@ -74,7 +74,7 @@ static const struct flash_info spansion_parts[] = {
 
 static void spansion_post_sfdp_fixups(struct spi_nor *nor)
 {
-	if (nor->params.size <= SZ_16M)
+	if (nor->params->size <= SZ_16M)
 		return;
 
 	nor->flags |= SNOR_F_4B_OPCODES;

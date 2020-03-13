@@ -130,8 +130,8 @@ static void micron_st_default_init(struct spi_nor *nor)
 {
 	nor->flags |= SNOR_F_HAS_LOCK;
 	nor->flags &= ~SNOR_F_HAS_16BIT_SR;
-	nor->params.quad_enable = NULL;
-	nor->params.set_4byte_addr_mode = st_micron_set_4byte_addr_mode;
+	nor->params->quad_enable = NULL;
+	nor->params->set_4byte_addr_mode = st_micron_set_4byte_addr_mode;
 }
 
 static const struct spi_nor_fixups micron_st_fixups = {

@@ -734,6 +734,16 @@ out:
 	return ret;
 }
 
+static void spi_nor_region_mark_end(struct spi_nor_erase_region *region)
+{
+	region->offset |= SNOR_LAST_REGION;
+}
+
+static void spi_nor_region_mark_overlay(struct spi_nor_erase_region *region)
+{
+	region->offset |= SNOR_OVERLAID_REGION;
+}
+
 /**
  * spi_nor_region_check_overlay() - set overlay bit when the region is overlaid
  * @region:	pointer to a structure that describes a SPI NOR erase region

@@ -778,7 +778,7 @@ static int spi_nor_write_16bit_sr_and_check(struct spi_nor *nor, u8 sr1)
 		ret = spi_nor_read_cr(nor, &sr_cr[1]);
 		if (ret)
 			return ret;
-	} else if (nor->params.quad_enable) {
+	} else if (nor->params->quad_enable) {
 		/*
 		 * If the Status Register 2 Read command (35h) is not
 		 * supported, we should at least be sure we don't
@@ -786,7 +786,7 @@ static int spi_nor_write_16bit_sr_and_check(struct spi_nor *nor, u8 sr1)
 		 *
 		 * We can safely assume that when the Quad Enable method is
 		 * set, the value of the QE bit is one, as a consequence of the
-		 * nor->params.quad_enable() call.
+		 * nor->params->quad_enable() call.
 		 *
 		 * We can safely assume that the Quad Enable bit is present in
 		 * the Status Register 2 at BIT(1). According to the JESD216
@@ -1051,6 +1051,11 @@ static u8 spi_nor_convert_3to4_erase(u8 opcode)
 				      ARRAY_SIZE(spi_nor_3to4_erase));
 }
 
+static bool spi_nor_has_uniform_erase(const struct spi_nor *nor)
+{
+	return !!nor->params->erase_map.uniform_erase_type;
+}
+
 static void spi_nor_set_4byte_opcodes(struct spi_nor *nor)
 {
 	nor->read_opcode = spi_nor_convert_3to4_read(nor->read_opcode);
@@ -1058,7 +1063,7 @@ static void spi_nor_set_4byte_opcodes(struct spi_nor *nor)
 	nor->erase_opcode = spi_nor_convert_3to4_erase(nor->erase_opcode);
 
 	if (!spi_nor_has_uniform_erase(nor)) {
-		struct spi_nor_erase_map *map = &nor->params.erase_map;
+		struct spi_nor_erase_map *map = &nor->params->erase_map;
 		struct spi_nor_erase_type *erase;
 		int i;
 
@@ -1095,10 +1100,10 @@ void spi_nor_unlock_and_unprep(struct spi_nor *nor)
 
 static u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr)
 {
-	if (!nor->params.convert_addr)
+	if (!nor->params->convert_addr)
 		return addr;
 
-	return nor->params.convert_addr(nor, addr);
+	return nor->params->convert_addr(nor, addr);
 }
 
 /*
@@ -1201,6 +1206,16 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 	}
 
 	return NULL;
+}
+
+static u64 spi_nor_region_is_last(const struct spi_nor_erase_region *region)
+{
+	return region->offset & SNOR_LAST_REGION;
+}
+
+static u64 spi_nor_region_end(const struct spi_nor_erase_region *region)
+{
+	return (region->offset & ~SNOR_ERASE_FLAGS_MASK) + region->size;
 }
 
 /**
@@ -1307,7 +1322,7 @@ static int spi_nor_init_erase_cmd_list(struct spi_nor *nor,
 				       struct list_head *erase_list,
 				       u64 addr, u32 len)
 {
-	const struct spi_nor_erase_map *map = &nor->params.erase_map;
+	const struct spi_nor_erase_map *map = &nor->params->erase_map;
 	const struct spi_nor_erase_type *erase, *prev_erase = NULL;
 	struct spi_nor_erase_region *region;
 	struct spi_nor_erase_command *cmd = NULL;
@@ -1793,7 +1808,7 @@ static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	if (ret)
 		return ret;
 
-	ret = nor->params.locking_ops->lock(nor, ofs, len);
+	ret = nor->params->locking_ops->lock(nor, ofs, len);
 
 	spi_nor_unlock_and_unprep(nor);
 	return ret;
@@ -1808,7 +1823,7 @@ static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	if (ret)
 		return ret;
 
-	ret = nor->params.locking_ops->unlock(nor, ofs, len);
+	ret = nor->params->locking_ops->unlock(nor, ofs, len);
 
 	spi_nor_unlock_and_unprep(nor);
 	return ret;
@@ -1823,7 +1838,7 @@ static int spi_nor_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	if (ret)
 		return ret;
 
-	ret = nor->params.locking_ops->is_locked(nor, ofs, len);
+	ret = nor->params->locking_ops->is_locked(nor, ofs, len);
 
 	spi_nor_unlock_and_unprep(nor);
 	return ret;
@@ -2288,7 +2303,7 @@ static int spi_nor_spimem_check_pp(struct spi_nor *nor,
 static void
 spi_nor_spimem_adjust_hwcaps(struct spi_nor *nor, u32 *hwcaps)
 {
-	struct spi_nor_flash_parameter *params =  &nor->params;
+	struct spi_nor_flash_parameter *params = nor->params;
 	unsigned int cap;
 
 	/* DTR modes are not supported yet, mask them all. */
@@ -2387,7 +2402,7 @@ static int spi_nor_select_read(struct spi_nor *nor,
 	if (cmd < 0)
 		return -EINVAL;
 
-	read = &nor->params.reads[cmd];
+	read = &nor->params->reads[cmd];
 	nor->read_opcode = read->opcode;
 	nor->read_proto = read->proto;
 
@@ -2418,7 +2433,7 @@ static int spi_nor_select_pp(struct spi_nor *nor,
 	if (cmd < 0)
 		return -EINVAL;
 
-	pp = &nor->params.page_programs[cmd];
+	pp = &nor->params->page_programs[cmd];
 	nor->program_opcode = pp->opcode;
 	nor->write_proto = pp->proto;
 	return 0;
@@ -2479,7 +2494,7 @@ spi_nor_select_uniform_erase(struct spi_nor_erase_map *map,
 
 static int spi_nor_select_erase(struct spi_nor *nor)
 {
-	struct spi_nor_erase_map *map = &nor->params.erase_map;
+	struct spi_nor_erase_map *map = &nor->params->erase_map;
 	const struct spi_nor_erase_type *erase = NULL;
 	struct mtd_info *mtd = &nor->mtd;
 	u32 wanted_size = nor->info->sector_size;
@@ -2528,7 +2543,7 @@ static int spi_nor_select_erase(struct spi_nor *nor)
 static int spi_nor_default_setup(struct spi_nor *nor,
 				 const struct spi_nor_hwcaps *hwcaps)
 {
-	struct spi_nor_flash_parameter *params = &nor->params;
+	struct spi_nor_flash_parameter *params = nor->params;
 	u32 ignored_mask, shared_mask;
 	int err;
 
@@ -2589,10 +2604,10 @@ static int spi_nor_default_setup(struct spi_nor *nor,
 static int spi_nor_setup(struct spi_nor *nor,
 			 const struct spi_nor_hwcaps *hwcaps)
 {
-	if (!nor->params.setup)
+	if (!nor->params->setup)
 		return 0;
 
-	return nor->params.setup(nor, hwcaps);
+	return nor->params->setup(nor, hwcaps);
 }
 
 /**
@@ -2622,13 +2637,13 @@ static void spi_nor_sfdp_init_params(struct spi_nor *nor)
 {
 	struct spi_nor_flash_parameter sfdp_params;
 
-	memcpy(&sfdp_params, &nor->params, sizeof(sfdp_params));
+	memcpy(&sfdp_params, nor->params, sizeof(sfdp_params));
 
 	if (spi_nor_parse_sfdp(nor, &sfdp_params)) {
 		nor->addr_width = 0;
 		nor->flags &= ~SNOR_F_4B_OPCODES;
 	} else {
-		memcpy(&nor->params, &sfdp_params, sizeof(nor->params));
+		memcpy(nor->params, &sfdp_params, sizeof(*nor->params));
 	}
 }
 
@@ -2639,7 +2654,7 @@ static void spi_nor_sfdp_init_params(struct spi_nor *nor)
  */
 static void spi_nor_info_init_params(struct spi_nor *nor)
 {
-	struct spi_nor_flash_parameter *params = &nor->params;
+	struct spi_nor_flash_parameter *params = nor->params;
 	struct spi_nor_erase_map *map = &params->erase_map;
 	const struct flash_info *info = nor->info;
 	struct device_node *np = spi_nor_get_flash_node(nor);
@@ -2758,8 +2773,8 @@ static void spi_nor_late_init_params(struct spi_nor *nor)
 	 * NOR protection support. When locking_ops are not provided, we pick
 	 * the default ones.
 	 */
-	if (nor->flags & SNOR_F_HAS_LOCK && !nor->params.locking_ops)
-		nor->params.locking_ops = &spi_nor_sr_locking_ops;
+	if (nor->flags & SNOR_F_HAS_LOCK && !nor->params->locking_ops)
+		nor->params->locking_ops = &spi_nor_sr_locking_ops;
 }
 
 /**
@@ -2799,8 +2814,12 @@ static void spi_nor_late_init_params(struct spi_nor *nor)
  * ->default_init() hook or the SFDP parser do not set specific params.
  *		spi_nor_late_init_params()
  */
-static void spi_nor_init_params(struct spi_nor *nor)
+static int spi_nor_init_params(struct spi_nor *nor)
 {
+	nor->params = devm_kzalloc(nor->dev, sizeof(*nor->params), GFP_KERNEL);
+	if (!nor->params)
+		return -ENOMEM;
+
 	spi_nor_info_init_params(nor);
 
 	spi_nor_manufacturer_init_params(nor);
@@ -2812,6 +2831,8 @@ static void spi_nor_init_params(struct spi_nor *nor)
 	spi_nor_post_sfdp_fixups(nor);
 
 	spi_nor_late_init_params(nor);
+
+	return 0;
 }
 
 /**
@@ -2822,14 +2843,14 @@ static void spi_nor_init_params(struct spi_nor *nor)
  */
 static int spi_nor_quad_enable(struct spi_nor *nor)
 {
-	if (!nor->params.quad_enable)
+	if (!nor->params->quad_enable)
 		return 0;
 
 	if (!(spi_nor_get_protocol_width(nor->read_proto) == 4 ||
 	      spi_nor_get_protocol_width(nor->write_proto) == 4))
 		return 0;
 
-	return nor->params.quad_enable(nor);
+	return nor->params->quad_enable(nor);
 }
 
 /**
@@ -2844,7 +2865,7 @@ static int spi_nor_quad_enable(struct spi_nor *nor)
 static int spi_nor_unlock_all(struct spi_nor *nor)
 {
 	if (nor->flags & SNOR_F_HAS_LOCK)
-		return spi_nor_unlock(&nor->mtd, 0, nor->params.size);
+		return spi_nor_unlock(&nor->mtd, 0, nor->params->size);
 
 	return 0;
 }
@@ -2875,7 +2896,7 @@ static int spi_nor_init(struct spi_nor *nor)
 		 */
 		WARN_ONCE(nor->flags & SNOR_F_BROKEN_RESET,
 			  "enabling reset hack; may not recover from unexpected reboots\n");
-		nor->params.set_4byte_addr_mode(nor, true);
+		nor->params->set_4byte_addr_mode(nor, true);
 	}
 
 	return 0;
@@ -2899,7 +2920,7 @@ void spi_nor_restore(struct spi_nor *nor)
 	/* restore the addressing mode */
 	if (nor->addr_width == 4 && !(nor->flags & SNOR_F_4B_OPCODES) &&
 	    nor->flags & SNOR_F_BROKEN_RESET)
-		nor->params.set_4byte_addr_mode(nor, false);
+		nor->params->set_4byte_addr_mode(nor, false);
 }
 EXPORT_SYMBOL_GPL(spi_nor_restore);
 
@@ -3004,7 +3025,6 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	struct device *dev = nor->dev;
 	struct mtd_info *mtd = &nor->mtd;
 	struct device_node *np = spi_nor_get_flash_node(nor);
-	struct spi_nor_flash_parameter *params = &nor->params;
 	int ret;
 	int i;
 
@@ -3055,7 +3075,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	mtd->_write = spi_nor_write;
 
 	/* Init flash parameters based on flash_info struct and SFDP */
-	spi_nor_init_params(nor);
+	ret = spi_nor_init_params(nor);
+	if (ret)
+		return ret;
 
 	if (!mtd->name)
 		mtd->name = dev_name(dev);
@@ -3063,12 +3085,12 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	mtd->type = MTD_NORFLASH;
 	mtd->writesize = 1;
 	mtd->flags = MTD_CAP_NORFLASH;
-	mtd->size = params->size;
+	mtd->size = nor->params->size;
 	mtd->_erase = spi_nor_erase;
 	mtd->_read = spi_nor_read;
 	mtd->_resume = spi_nor_resume;
 
-	if (nor->params.locking_ops) {
+	if (nor->params->locking_ops) {
 		mtd->_lock = spi_nor_lock;
 		mtd->_unlock = spi_nor_unlock;
 		mtd->_is_locked = spi_nor_is_locked;
@@ -3091,7 +3113,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 		mtd->flags |= MTD_NO_ERASE;
 
 	mtd->dev.parent = dev;
-	nor->page_size = params->page_size;
+	nor->page_size = nor->params->page_size;
 	mtd->writebufsize = nor->page_size;
 
 	if (of_property_read_bool(np, "broken-flash-reset"))

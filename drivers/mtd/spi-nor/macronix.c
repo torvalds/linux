@@ -82,8 +82,8 @@ static const struct flash_info macronix_parts[] = {
 
 static void macronix_default_init(struct spi_nor *nor)
 {
-	nor->params.quad_enable = spi_nor_sr1_bit6_quad_enable;
-	nor->params.set_4byte_addr_mode = spi_nor_set_4byte_addr_mode;
+	nor->params->quad_enable = spi_nor_sr1_bit6_quad_enable;
+	nor->params->set_4byte_addr_mode = spi_nor_set_4byte_addr_mode;
 }
 
 static const struct spi_nor_fixups macronix_fixups = {
