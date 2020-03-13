@@ -1575,9 +1575,7 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 				master_select = master_transcoder + 1;
 
 			ctl2 |= PORT_SYNC_MODE_ENABLE |
-				(PORT_SYNC_MODE_MASTER_SELECT(master_select) &
-				 PORT_SYNC_MODE_MASTER_SELECT_MASK) <<
-				PORT_SYNC_MODE_MASTER_SELECT_SHIFT;
+				PORT_SYNC_MODE_MASTER_SELECT(master_select);
 		}
 
 		intel_de_write(dev_priv,
@@ -3871,7 +3869,7 @@ static enum transcoder transcoder_master_readout(struct drm_i915_private *dev_pr
 	if ((ctl2 & PORT_SYNC_MODE_ENABLE) == 0)
 		return INVALID_TRANSCODER;
 
-	master_select = ctl2 & PORT_SYNC_MODE_MASTER_SELECT_MASK;
+	master_select = REG_FIELD_GET(PORT_SYNC_MODE_MASTER_SELECT_MASK, ctl2);
 
 	if (master_select == 0)
 		return TRANSCODER_EDP;
