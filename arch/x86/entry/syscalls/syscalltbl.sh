@@ -17,27 +17,15 @@ emit() {
     local nr="$2"
     local entry="$3"
     local compat="$4"
-    local umlentry=""
 
     if [ "$abi" != "I386" -a -n "$compat" ]; then
 	echo "a compat entry ($abi: $compat) for a 64-bit syscall makes no sense" >&2
 	exit 1
     fi
 
-    # For CONFIG_UML, we need to strip the __x64_sys prefix
-    if [ "${entry}" != "${entry#__x64_sys}" ]; then
-	    umlentry="sys${entry#__x64_sys}"
-    fi
-
     if [ -z "$compat" ]; then
-	if [ -n "$entry" -a -z "$umlentry" ]; then
+	if [ -n "$entry" ]; then
 	    syscall_macro "$abi" "$nr" "$entry"
-	elif [ -n "$umlentry" ]; then # implies -n "$entry"
-	    echo "#ifdef CONFIG_X86"
-	    syscall_macro "$abi" "$nr" "$entry"
-	    echo "#else /* CONFIG_UML */"
-	    syscall_macro "$abi" "$nr" "$umlentry"
-	    echo "#endif"
 	fi
     else
 	echo "#ifdef CONFIG_X86_32"
