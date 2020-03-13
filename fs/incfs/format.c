@@ -299,9 +299,7 @@ int incfs_write_file_attr_to_backing_file(struct backing_file_context *bfc,
 }
 
 int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
-		u8 hash_alg, u32 tree_size,
-		struct mem_range root_hash, struct mem_range add_data,
-		struct mem_range sig)
+					  struct mem_range sig, u32 tree_size)
 {
 	struct incfs_file_signature sg = {};
 	int result = 0;
@@ -311,8 +309,6 @@ int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 
 	if (!bfc)
 		return -EFAULT;
-	if (root_hash.len > sizeof(sg.sg_root_hash))
-		return -E2BIG;
 
 	LOCK_REQUIRED(bfc->bc_mutex);
 
@@ -321,7 +317,6 @@ int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 	sg.sg_header.h_md_entry_type = INCFS_MD_SIGNATURE;
 	sg.sg_header.h_record_size = cpu_to_le16(sizeof(sg));
 	sg.sg_header.h_next_md_offset = cpu_to_le64(0);
-	sg.sg_hash_alg = hash_alg;
 	if (sig.data != NULL && sig.len > 0) {
 		loff_t pos = incfs_get_end_offset(bfc->bc_file);
 
@@ -333,20 +328,8 @@ int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 			goto err;
 	}
 
-	if (add_data.len > 0) {
-		loff_t pos = incfs_get_end_offset(bfc->bc_file);
-
-		sg.sg_add_data_size = cpu_to_le32(add_data.len);
-		sg.sg_add_data_offset = cpu_to_le64(pos);
-
-		result = write_to_bf(bfc, add_data.data,
-			add_data.len, pos, false);
-		if (result)
-			goto err;
-	}
-
 	tree_area_pos = incfs_get_end_offset(bfc->bc_file);
-	if (hash_alg && tree_size > 0) {
+	if (tree_size > 0) {
 		if (tree_size > 5 * INCFS_DATA_FILE_BLOCK_SIZE) {
 			/*
 			 * If hash tree is big enough, it makes sense to
@@ -369,7 +352,6 @@ int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 		sg.sg_hash_tree_size = cpu_to_le32(tree_size);
 		sg.sg_hash_tree_offset = cpu_to_le64(tree_area_pos);
 	}
-	memcpy(sg.sg_root_hash, root_hash.data, root_hash.len);
 
 	/* Write a hash tree metadata record pointing to the hash tree above. */
 	result = append_md_to_backing_file(bfc, &sg.sg_header);

@@ -10,70 +10,6 @@
 
 #include "integrity.h"
 
-int incfs_validate_pkcs7_signature(struct mem_range pkcs7_blob,
-	struct mem_range root_hash, struct mem_range add_data)
-{
-	struct pkcs7_message *pkcs7 = NULL;
-	const void *data = NULL;
-	size_t data_len = 0;
-	const char *p;
-	int err;
-
-	pkcs7 = pkcs7_parse_message(pkcs7_blob.data, pkcs7_blob.len);
-	if (IS_ERR(pkcs7)) {
-		pr_debug("PKCS#7 parsing error. ptr=%p size=%ld err=%ld\n",
-			pkcs7_blob.data, pkcs7_blob.len, -PTR_ERR(pkcs7));
-		return PTR_ERR(pkcs7);
-	}
-
-	err = pkcs7_get_content_data(pkcs7, &data, &data_len, NULL);
-	if (err || data_len == 0 || data == NULL) {
-		pr_debug("PKCS#7 message does not contain data\n");
-		err = -EBADMSG;
-		goto out;
-	}
-
-	if (root_hash.len == 0) {
-		pr_debug("Root hash is empty.\n");
-		err = -EBADMSG;
-		goto out;
-	}
-
-	if (data_len != root_hash.len + add_data.len) {
-		pr_debug("PKCS#7 data size doesn't match arguments.\n");
-		err = -EKEYREJECTED;
-		goto out;
-	}
-
-	p = data;
-	if (memcmp(p, root_hash.data, root_hash.len) != 0) {
-		pr_debug("Root hash mismatch.\n");
-		err = -EKEYREJECTED;
-		goto out;
-	}
-	p += root_hash.len;
-	if (memcmp(p, add_data.data, add_data.len) != 0) {
-		pr_debug("Additional data mismatch.\n");
-		err = -EKEYREJECTED;
-		goto out;
-	}
-
-	err = pkcs7_verify(pkcs7, VERIFYING_UNSPECIFIED_SIGNATURE);
-	if (err)
-		pr_debug("PKCS#7 signature verification error: %d\n", -err);
-
-	/*
-	 * RSA signature verification sometimes returns unexpected error codes
-	 * when signature doesn't match.
-	 */
-	if (err == -ERANGE || err == -EINVAL)
-		err = -EBADMSG;
-
-out:
-	pkcs7_free_message(pkcs7);
-	return err;
-}
-
 struct incfs_hash_alg *incfs_get_hash_alg(enum incfs_hash_tree_algorithm id)
 {
 	static struct incfs_hash_alg sha256 = {
@@ -113,11 +49,90 @@ struct incfs_hash_alg *incfs_get_hash_alg(enum incfs_hash_tree_algorithm id)
 	return result;
 }
 
+struct signature_info {
+	u32 version;
+	enum incfs_hash_tree_algorithm hash_algorithm;
+	u8 log2_blocksize;
+	struct mem_range salt;
+	struct mem_range root_hash;
+};
 
-struct mtree *incfs_alloc_mtree(enum incfs_hash_tree_algorithm id,
-				int data_block_count,
-				struct mem_range root_hash)
+static u32 read_u32(u8 **p, u8 *top, u32 *result)
 {
+	if (*p + sizeof(u32) > top)
+		return false;
+
+	*result = le32_to_cpu(*(u32 *)*p);
+	*p += sizeof(u32);
+	return true;
+}
+
+static bool read_u8(u8 **p, u8 *top, u8 *result)
+{
+	if (*p + sizeof(u8) > top)
+		return false;
+
+	*result = *(u8 *)*p;
+	*p += sizeof(u8);
+	return true;
+}
+
+static bool read_mem_range(u8 **p, u8 *top, struct mem_range *range)
+{
+	u32 len;
+
+	if (!read_u32(p, top, &len) || *p + len > top)
+		return false;
+
+	range->len = len;
+	range->data = *p;
+	*p += len;
+	return true;
+}
+
+static int incfs_parse_signature(struct mem_range signature,
+				 struct signature_info *si)
+{
+	u8 *p = signature.data;
+	u8 *top = signature.data + signature.len;
+	u32 hash_section_size;
+
+	if (signature.len > INCFS_MAX_SIGNATURE_SIZE)
+		return -EINVAL;
+
+	if (!read_u32(&p, top, &si->version) ||
+	    si->version != INCFS_SIGNATURE_VERSION)
+		return -EINVAL;
+
+	if (!read_u32(&p, top, &hash_section_size) ||
+	    p + hash_section_size > top)
+		return -EINVAL;
+	top = p + hash_section_size;
+
+	if (!read_u32(&p, top, &si->hash_algorithm) ||
+	    si->hash_algorithm != INCFS_HASH_TREE_SHA256)
+		return -EINVAL;
+
+	if (!read_u8(&p, top, &si->log2_blocksize) || si->log2_blocksize != 12)
+		return -EINVAL;
+
+	if (!read_mem_range(&p, top, &si->salt))
+		return -EINVAL;
+
+	if (!read_mem_range(&p, top, &si->root_hash))
+		return -EINVAL;
+
+	if (p != top)
+		return -EINVAL;
+
+	return 0;
+}
+
+struct mtree *incfs_alloc_mtree(struct mem_range signature,
+				int data_block_count)
+{
+	int error;
+	struct signature_info si;
 	struct mtree *result = NULL;
 	struct incfs_hash_alg *hash_alg = NULL;
 	int hash_per_block;
@@ -129,11 +144,15 @@ struct mtree *incfs_alloc_mtree(enum incfs_hash_tree_algorithm id,
 	if (data_block_count <= 0)
 		return ERR_PTR(-EINVAL);
 
-	hash_alg = incfs_get_hash_alg(id);
+	error = incfs_parse_signature(signature, &si);
+	if (error)
+		return ERR_PTR(error);
+
+	hash_alg = incfs_get_hash_alg(si.hash_algorithm);
 	if (IS_ERR(hash_alg))
 		return ERR_PTR(PTR_ERR(hash_alg));
 
-	if (root_hash.len < hash_alg->digest_size)
+	if (si.root_hash.len < hash_alg->digest_size)
 		return ERR_PTR(-EINVAL);
 
 	result = kzalloc(sizeof(*result), GFP_NOFS);
@@ -173,7 +192,7 @@ struct mtree *incfs_alloc_mtree(enum incfs_hash_tree_algorithm id,
 	}
 
 	/* Root hash is stored separately from the rest of the tree. */
-	memcpy(result->root_hash, root_hash.data, hash_alg->digest_size);
+	memcpy(result->root_hash, si.root_hash.data, hash_alg->digest_size);
 	return result;
 
 err:
@@ -213,15 +232,5 @@ int incfs_calc_digest(struct incfs_hash_alg *alg, struct mem_range data,
 		return err;
 	}
 	return crypto_shash_digest(desc, data.data, data.len, digest.data);
-}
-
-void incfs_free_signature_info(struct signature_info *si)
-{
-	if (!si)
-		return;
-	kfree(si->root_hash.data);
-	kfree(si->additional_data.data);
-	kfree(si->signature.data);
-	kfree(si);
 }
 
