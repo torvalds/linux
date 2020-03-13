@@ -150,6 +150,7 @@ struct battery_chg_dev {
 	int				num_thermal_levels;
 	atomic_t			state;
 	struct work_struct		subsys_up_work;
+	int				fake_soc;
 };
 
 static const int battery_prop_map[BATT_PROP_MAX] = {
@@ -722,6 +723,9 @@ static int battery_psy_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		pval->intval = DIV_ROUND_CLOSEST(pst->prop[prop_id], 100);
+		if (IS_ENABLED(CONFIG_QTI_PMIC_GLINK_CLIENT_DEBUG) &&
+		   (bcdev->fake_soc >= 0 && bcdev->fake_soc <= 100))
+			pval->intval = bcdev->fake_soc;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		pval->intval = DIV_ROUND_CLOSEST((int)pst->prop[prop_id], 10);
@@ -838,6 +842,32 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 
 	return 0;
 }
+
+static ssize_t fake_soc_store(struct class *c, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	int val;
+
+	if (kstrtoint(buf, 0, &val))
+		return -EINVAL;
+
+	bcdev->fake_soc = val;
+	pr_debug("Set fake soc to %d\n", val);
+
+	return count;
+}
+
+static ssize_t fake_soc_show(struct class *c, struct class_attribute *attr,
+				char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", bcdev->fake_soc);
+}
+static CLASS_ATTR_RW(fake_soc);
 
 static ssize_t wireless_boost_en_store(struct class *c,
 					struct class_attribute *attr,
@@ -967,6 +997,7 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_moisture_detection_status.attr,
 	&class_attr_moisture_detection_en.attr,
 	&class_attr_wireless_boost_en.attr,
+	&class_attr_fake_soc.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(battery_class);
@@ -1081,6 +1112,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 		goto error;
 
 	platform_set_drvdata(pdev, bcdev);
+	bcdev->fake_soc = -EINVAL;
 	rc = battery_chg_init_psy(bcdev);
 	if (rc < 0)
 		goto error;
