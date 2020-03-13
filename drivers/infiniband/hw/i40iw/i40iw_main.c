@@ -1683,6 +1683,12 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 		status = i40iw_setup_ceqs(iwdev, ldev);
 		if (status)
 			break;
+
+		status = i40iw_get_rdma_features(dev);
+		if (status)
+			dev->feature_info[I40IW_FEATURE_FW_INFO] =
+				I40IW_FW_VER_DEFAULT;
+
 		iwdev->init_state = CEQ_CREATED;
 		status = i40iw_initialize_hw_resources(iwdev);
 		if (status)
