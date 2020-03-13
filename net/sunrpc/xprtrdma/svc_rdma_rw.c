@@ -635,6 +635,9 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 	struct svc_rdma_write_info *info;
 	int consumed, ret;
 
+	if (!rctxt->rc_reply_chunk)
+		return 0;
+
 	info = svc_rdma_write_info_alloc(rdma, rctxt->rc_reply_chunk);
 	if (!info)
 		return -ENOMEM;

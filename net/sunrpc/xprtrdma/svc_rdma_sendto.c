@@ -504,6 +504,9 @@ svc_rdma_encode_reply_chunk(const struct svc_rdma_recv_ctxt *rctxt,
 			    struct svc_rdma_send_ctxt *sctxt,
 			    unsigned int length)
 {
+	if (!rctxt->rc_reply_chunk)
+		return xdr_stream_encode_item_absent(&sctxt->sc_stream);
+
 	return svc_rdma_encode_write_chunk(rctxt->rc_reply_chunk, sctxt,
 					   length);
 }
@@ -898,7 +901,6 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
 	struct svc_rdma_recv_ctxt *rctxt = rqstp->rq_xprt_ctxt;
 	__be32 *rdma_argp = rctxt->rc_recv_buf;
-	__be32 *rp_ch = rctxt->rc_reply_chunk;
 	struct svc_rdma_send_ctxt *sctxt;
 	__be32 *p;
 	int ret;
@@ -916,25 +918,22 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 			      rpcrdma_fixed_maxsz * sizeof(*p));
 	if (!p)
 		goto err0;
+
+	ret = svc_rdma_send_reply_chunk(rdma, rctxt, &rqstp->rq_res);
+	if (ret < 0)
+		goto err2;
+
 	*p++ = *rdma_argp;
 	*p++ = *(rdma_argp + 1);
 	*p++ = rdma->sc_fc_credits;
-	*p   = rp_ch ? rdma_nomsg : rdma_msg;
+	*p = rctxt->rc_reply_chunk ? rdma_nomsg : rdma_msg;
 
 	if (svc_rdma_encode_read_list(sctxt) < 0)
 		goto err0;
 	if (svc_rdma_encode_write_list(rctxt, sctxt) < 0)
 		goto err0;
-	if (rp_ch) {
-		ret = svc_rdma_send_reply_chunk(rdma, rctxt, &rqstp->rq_res);
-		if (ret < 0)
-			goto err2;
-		if (svc_rdma_encode_reply_chunk(rctxt, sctxt, ret) < 0)
-			goto err0;
-	} else {
-		if (xdr_stream_encode_item_absent(&sctxt->sc_stream) < 0)
-			goto err0;
-	}
+	if (svc_rdma_encode_reply_chunk(rctxt, sctxt, ret) < 0)
+		goto err0;
 
 	ret = svc_rdma_send_reply_msg(rdma, sctxt, rctxt, rqstp);
 	if (ret < 0)
