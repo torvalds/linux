@@ -443,6 +443,16 @@ config SPI_MT7621
 	help
 	  This selects a driver for the MediaTek MT7621 SPI Controller.
 
+config SPI_MTK_NOR
+	tristate "MediaTek SPI NOR controller"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  This enables support for SPI NOR controller found on MediaTek
+	  ARM SoCs. This is a controller specifically for SPI-NOR flash.
+	  It can perform generic SPI transfers up to 6 bytes via generic
+	  SPI interface as well as several SPI-NOR specific instructions
+	  via SPI MEM interface.
+
 config SPI_NPCM_FIU
 	tristate "Nuvoton NPCM FLASH Interface Unit"
 	depends on ARCH_NPCM || COMPILE_TEST
