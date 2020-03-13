@@ -21,6 +21,7 @@
 #include "dev-replace.h"
 #include "qgroup.h"
 #include "block-group.h"
+#include "space-info.h"
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
@@ -523,6 +524,7 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 	u64 num_bytes = 0;
 	u64 qgroup_reserved = 0;
 	bool reloc_reserved = false;
+	bool do_chunk_alloc = false;
 	int ret;
 
 	/* Send isn't supposed to start transactions. */
@@ -585,6 +587,9 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 							  delayed_refs_bytes);
 			num_bytes -= delayed_refs_bytes;
 		}
+
+		if (rsv->space_info->force_alloc)
+			do_chunk_alloc = true;
 	} else if (num_items == 0 && flush == BTRFS_RESERVE_FLUSH_ALL &&
 		   !delayed_refs_rsv->full) {
 		/*
@@ -665,6 +670,19 @@ again:
 got_it:
 	if (!current->journal_info)
 		current->journal_info = h;
+
+	/*
+	 * If the space_info is marked ALLOC_FORCE then we'll get upgraded to
+	 * ALLOC_FORCE the first run through, and then we won't allocate for
+	 * anybody else who races in later.  We don't care about the return
+	 * value here.
+	 */
+	if (do_chunk_alloc && num_bytes) {
+		u64 flags = h->block_rsv->space_info->flags;
+
+		btrfs_chunk_alloc(h, btrfs_get_alloc_profile(fs_info, flags),
+				  CHUNK_ALLOC_NO_FORCE);
+	}
 
 	/*
 	 * btrfs_record_root_in_trans() needs to alloc new extents, and may
