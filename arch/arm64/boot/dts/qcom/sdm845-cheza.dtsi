@@ -614,6 +614,11 @@ ap_ts_i2c: &i2c14 {
 	};
 };
 
+&ipa {
+	status = "okay";
+	modem-init;
+};
+
 &lpasscc {
 	status = "okay";
 };
