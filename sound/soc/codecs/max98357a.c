@@ -133,6 +133,7 @@ MODULE_DEVICE_TABLE(of, max98357a_device_id);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id max98357a_acpi_match[] = {
 	{ "MX98357A", 0 },
+	{ "MX98360A", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, max98357a_acpi_match);
