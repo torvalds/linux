@@ -19,7 +19,6 @@ int ptrauth_prctl_reset_keys(struct task_struct *tsk, unsigned long arg)
 
 	if (!arg) {
 		ptrauth_keys_init_user(keys);
-		ptrauth_keys_switch_user(keys);
 		return 0;
 	}
 
@@ -40,8 +39,6 @@ int ptrauth_prctl_reset_keys(struct task_struct *tsk, unsigned long arg)
 		get_random_bytes(&keys->apdb, sizeof(keys->apdb));
 	if (arg & PR_PAC_APGAKEY)
 		get_random_bytes(&keys->apga, sizeof(keys->apga));
-
-	ptrauth_keys_switch_user(keys);
 
 	return 0;
 }
