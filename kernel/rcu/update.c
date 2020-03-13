@@ -284,13 +284,12 @@ struct lockdep_map rcu_callback_map =
 	STATIC_LOCKDEP_MAP_INIT("rcu_callback", &rcu_callback_key);
 EXPORT_SYMBOL_GPL(rcu_callback_map);
 
-int notrace debug_lockdep_rcu_enabled(void)
+noinstr int notrace debug_lockdep_rcu_enabled(void)
 {
 	return rcu_scheduler_active != RCU_SCHEDULER_INACTIVE && debug_locks &&
 	       current->lockdep_recursion == 0;
 }
 EXPORT_SYMBOL_GPL(debug_lockdep_rcu_enabled);
-NOKPROBE_SYMBOL(debug_lockdep_rcu_enabled);
 
 /**
  * rcu_read_lock_held() - might we be in RCU read-side critical section?
