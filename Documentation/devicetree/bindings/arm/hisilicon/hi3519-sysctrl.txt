@@ -1,7 +1,7 @@
 * Hisilicon Hi3519 System Controller Block
 
 This bindings use the following binding:
-Documentation/devicetree/bindings/mfd/syscon.txt
+Documentation/devicetree/bindings/mfd/syscon.yaml
 
 Required properties:
 - compatible: "hisilicon,hi3519-sysctrl".

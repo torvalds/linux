@@ -8,7 +8,6 @@ enum {
 	IO_WQ_WORK_HAS_MM	= 2,
 	IO_WQ_WORK_HASHED	= 4,
 	IO_WQ_WORK_UNBOUND	= 32,
-	IO_WQ_WORK_INTERNAL	= 64,
 	IO_WQ_WORK_CB		= 128,
 	IO_WQ_WORK_NO_CANCEL	= 256,
 	IO_WQ_WORK_CONCURRENT	= 512,
@@ -79,16 +78,10 @@ struct io_wq_work {
 	pid_t task_pid;
 };
 
-#define INIT_IO_WORK(work, _func)			\
-	do {						\
-		(work)->list.next = NULL;		\
-		(work)->func = _func;			\
-		(work)->files = NULL;			\
-		(work)->mm = NULL;			\
-		(work)->creds = NULL;			\
-		(work)->fs = NULL;			\
-		(work)->flags = 0;			\
-	} while (0)					\
+#define INIT_IO_WORK(work, _func)				\
+	do {							\
+		*(work) = (struct io_wq_work){ .func = _func };	\
+	} while (0)						\
 
 typedef void (get_work_fn)(struct io_wq_work *);
 typedef void (put_work_fn)(struct io_wq_work *);
@@ -106,7 +99,6 @@ void io_wq_destroy(struct io_wq *wq);
 
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work);
 void io_wq_enqueue_hashed(struct io_wq *wq, struct io_wq_work *work, void *val);
-void io_wq_flush(struct io_wq *wq);
 
 void io_wq_cancel_all(struct io_wq *wq);
 enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork);

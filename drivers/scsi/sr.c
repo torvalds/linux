@@ -688,7 +688,7 @@ static const struct block_device_operations sr_bdops =
 	.release	= sr_block_release,
 	.ioctl		= sr_block_ioctl,
 #ifdef CONFIG_COMPAT
-	.ioctl		= sr_block_compat_ioctl,
+	.compat_ioctl	= sr_block_compat_ioctl,
 #endif
 	.check_events	= sr_block_check_events,
 	.revalidate_disk = sr_block_revalidate_disk,

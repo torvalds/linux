@@ -127,9 +127,9 @@ struct dentry *debugfs_create_blob(const char *name, umode_t mode,
 				  struct dentry *parent,
 				  struct debugfs_blob_wrapper *blob);
 
-struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
-				     struct dentry *parent,
-				     struct debugfs_regset32 *regset);
+void debugfs_create_regset32(const char *name, umode_t mode,
+			     struct dentry *parent,
+			     struct debugfs_regset32 *regset);
 
 void debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
 			  int nregs, void __iomem *base, char *prefix);
@@ -304,11 +304,10 @@ static inline struct dentry *debugfs_create_blob(const char *name, umode_t mode,
 	return ERR_PTR(-ENODEV);
 }
 
-static inline struct dentry *debugfs_create_regset32(const char *name,
-				   umode_t mode, struct dentry *parent,
-				   struct debugfs_regset32 *regset)
+static inline void debugfs_create_regset32(const char *name, umode_t mode,
+					   struct dentry *parent,
+					   struct debugfs_regset32 *regset)
 {
-	return ERR_PTR(-ENODEV);
 }
 
 static inline void debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,

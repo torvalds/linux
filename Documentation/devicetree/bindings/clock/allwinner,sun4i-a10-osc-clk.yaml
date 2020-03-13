@@ -40,7 +40,7 @@ additionalProperties: false
 
 examples:
   - |
-    osc24M: clk@01c20050 {
+    osc24M: clk@1c20050 {
         #clock-cells = <0>;
         compatible = "allwinner,sun4i-a10-osc-clk";
         reg = <0x01c20050 0x4>;

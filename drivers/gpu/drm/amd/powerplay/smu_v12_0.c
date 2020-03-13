@@ -458,9 +458,6 @@ int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 {
 	int ret = 0;
 
-	if (max < min)
-		return -EINVAL;
-
 	switch (clk_type) {
 	case SMU_GFXCLK:
 	case SMU_SCLK:

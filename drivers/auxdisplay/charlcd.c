@@ -88,7 +88,7 @@ struct charlcd_priv {
 		int len;
 	} esc_seq;
 
-	unsigned long long drvdata[0];
+	unsigned long long drvdata[];
 };
 
 #define charlcd_to_priv(p)	container_of(p, struct charlcd_priv, lcd)

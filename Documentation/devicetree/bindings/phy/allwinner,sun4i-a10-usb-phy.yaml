@@ -86,7 +86,7 @@ examples:
     #include <dt-bindings/clock/sun4i-a10-ccu.h>
     #include <dt-bindings/reset/sun4i-a10-ccu.h>
 
-    usbphy: phy@01c13400 {
+    usbphy: phy@1c13400 {
         #phy-cells = <1>;
         compatible = "allwinner,sun4i-a10-usb-phy";
         reg = <0x01c13400 0x10>, <0x01c14800 0x4>, <0x01c1c800 0x4>;
