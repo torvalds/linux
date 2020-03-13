@@ -180,6 +180,20 @@ static void amd_uncore_del(struct perf_event *event, int flags)
 	hwc->idx = -1;
 }
 
+/*
+ * Convert logical CPU number to L3 PMC Config ThreadMask format
+ */
+static u64 l3_thread_slice_mask(int cpu)
+{
+	int thread = 2 * (cpu_data(cpu).cpu_core_id % 4);
+
+	if (smp_num_siblings > 1)
+		thread += cpu_data(cpu).apicid & 1;
+
+	return (1ULL << (AMD64_L3_THREAD_SHIFT + thread) &
+		AMD64_L3_THREAD_MASK) | AMD64_L3_SLICE_MASK;
+}
+
 static int amd_uncore_event_init(struct perf_event *event)
 {
 	struct amd_uncore *uncore;
@@ -209,15 +223,8 @@ static int amd_uncore_event_init(struct perf_event *event)
 	 * SliceMask and ThreadMask need to be set for certain L3 events in
 	 * Family 17h. For other events, the two fields do not affect the count.
 	 */
-	if (l3_mask && is_llc_event(event)) {
-		int thread = 2 * (cpu_data(event->cpu).cpu_core_id % 4);
-
-		if (smp_num_siblings > 1)
-			thread += cpu_data(event->cpu).apicid & 1;
-
-		hwc->config |= (1ULL << (AMD64_L3_THREAD_SHIFT + thread) &
-				AMD64_L3_THREAD_MASK) | AMD64_L3_SLICE_MASK;
-	}
+	if (l3_mask && is_llc_event(event))
+		hwc->config |= l3_thread_slice_mask(event->cpu);
 
 	uncore = event_to_amd_uncore(event);
 	if (!uncore)
