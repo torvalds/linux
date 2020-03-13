@@ -1729,9 +1729,9 @@ out:
 	return ret;
 }
 
-static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
+static noinline int __btrfs_ioctl_snap_create(struct file *file,
 				const char *name, unsigned long fd, int subvol,
-				u64 *transid, bool readonly,
+				bool readonly,
 				struct btrfs_qgroup_inherit *inherit)
 {
 	int namelen;
@@ -1758,7 +1758,7 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 
 	if (subvol) {
 		ret = btrfs_mksubvol(&file->f_path, name, namelen,
-				     NULL, transid, readonly, inherit);
+				     NULL, readonly, inherit);
 	} else {
 		struct fd src = fdget(fd);
 		struct inode *src_inode;
@@ -1781,7 +1781,7 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 		} else {
 			ret = btrfs_mksubvol(&file->f_path, name, namelen,
 					     BTRFS_I(src_inode)->root,
-					     transid, readonly, inherit);
+					     readonly, inherit);
 		}
 		fdput(src);
 	}
@@ -1805,9 +1805,8 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 		return PTR_ERR(vol_args);
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 
-	ret = btrfs_ioctl_snap_create_transid(file, vol_args->name,
-					      vol_args->fd, subvol,
-					      NULL, false, NULL);
+	ret = __btrfs_ioctl_snap_create(file, vol_args->name, vol_args->fd,
+					subvol, false, NULL);
 
 	kfree(vol_args);
 	return ret;
@@ -1848,9 +1847,8 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 		}
 	}
 
-	ret = btrfs_ioctl_snap_create_transid(file, vol_args->name,
-					      vol_args->fd, subvol, NULL,
-					      readonly, inherit);
+	ret = __btrfs_ioctl_snap_create(file, vol_args->name, vol_args->fd,
+					subvol, readonly, inherit);
 	if (ret)
 		goto free_inherit;
 free_inherit:
