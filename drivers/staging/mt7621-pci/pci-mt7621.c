@@ -484,6 +484,15 @@ static void mt7621_pcie_reset_ep_deassert(struct mt7621_pcie *pcie)
 	mdelay(PERST_DELAY_MS);
 }
 
+static void mt7621_pcie_release_gpios(struct mt7621_pcie *pcie)
+{
+	struct mt7621_pcie_port *port;
+
+	list_for_each_entry(port, &pcie->ports, list)
+		if (port->gpio_rst)
+			gpiod_put(port->gpio_rst);
+}
+
 static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
@@ -683,7 +692,8 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	err = mt7621_pcie_init_virtual_bridges(pcie);
 	if (err) {
 		dev_err(dev, "Nothing is connected in virtual bridges. Exiting...");
-		return 0;
+		err = 0;
+		goto out_release_gpios;
 	}
 
 	mt7621_pcie_enable_ports(pcie);
@@ -691,7 +701,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	err = mt7621_pci_parse_request_of_pci_ranges(pcie);
 	if (err) {
 		dev_err(dev, "Error requesting pci resources from ranges");
-		return err;
+		goto out_release_gpios;
 	}
 
 	setup_cm_memory_region(pcie);
@@ -699,16 +709,19 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	err = mt7621_pcie_request_resources(pcie, &res);
 	if (err) {
 		dev_err(dev, "Error requesting resources\n");
-		return err;
+		goto out_release_gpios;
 	}
 
 	err = mt7621_pcie_register_host(bridge, &res);
 	if (err) {
 		dev_err(dev, "Error registering host\n");
-		return err;
+		goto out_release_gpios;
 	}
 
-	return 0;
+out_release_gpios:
+	mt7621_pcie_release_gpios(pcie);
+
+	return err;
 }
 
 static const struct of_device_id mt7621_pci_ids[] = {
