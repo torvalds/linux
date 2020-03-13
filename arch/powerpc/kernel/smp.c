@@ -1189,18 +1189,17 @@ int get_physical_package_id(int cpu)
 {
 	int pkg_id = cpu_to_chip_id(cpu);
 
-#ifdef CONFIG_PPC_SPLPAR
 	/*
 	 * If the platform is PowerNV or Guest on KVM, ibm,chip-id is
 	 * defined. Hence we would return the chip-id as the result of
 	 * get_physical_package_id.
 	 */
-	if (pkg_id == -1 && firmware_has_feature(FW_FEATURE_LPAR)) {
+	if (pkg_id == -1 && firmware_has_feature(FW_FEATURE_LPAR) &&
+	    IS_ENABLED(CONFIG_PPC_SPLPAR)) {
 		struct device_node *np = of_get_cpu_node(cpu, NULL);
 		pkg_id = of_node_to_nid(np);
 		of_node_put(np);
 	}
-#endif /* CONFIG_PPC_SPLPAR */
 
 	return pkg_id;
 }
