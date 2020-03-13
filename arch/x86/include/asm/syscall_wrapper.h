@@ -35,6 +35,13 @@ struct pt_regs;
 		return __se_##name(__VA_ARGS__);			\
 	}
 
+#define __COND_SYSCALL(abi, name)					\
+	asmlinkage __weak long						\
+	__##abi##_##name(const struct pt_regs *__unused)		\
+	{								\
+		return sys_ni_syscall();				\
+	}
+
 #ifdef CONFIG_X86_64
 #define __X64_SYS_STUB0(name)						\
 	__SYS_STUB0(x64, sys_##name)
@@ -42,9 +49,13 @@ struct pt_regs;
 #define __X64_SYS_STUBx(x, name, ...)					\
 	__SYS_STUBx(x64, sys##name,					\
 		    SC_X86_64_REGS_TO_ARGS(x, __VA_ARGS__))
+
+#define __X64_COND_SYSCALL(name)					\
+	__COND_SYSCALL(x64, sys_##name)
 #else /* CONFIG_X86_64 */
 #define __X64_SYS_STUB0(name)
 #define __X64_SYS_STUBx(x, name, ...)
+#define __X64_COND_SYSCALL(name)
 #endif /* CONFIG_X86_64 */
 
 #ifdef CONFIG_IA32_EMULATION
@@ -63,6 +74,9 @@ struct pt_regs;
 	__SYS_STUBx(ia32, compat_sys##name,				\
 		    SC_IA32_REGS_TO_ARGS(x, __VA_ARGS__))
 
+#define __IA32_COMPAT_COND_SYSCALL(name)				\
+	__COND_SYSCALL(ia32, compat_sys_##name)
+
 #define __IA32_SYS_STUB0(name)						\
 	__SYS_STUB0(ia32, sys_##name)
 
@@ -70,15 +84,8 @@ struct pt_regs;
 	__SYS_STUBx(ia32, sys##name,					\
 		    SC_IA32_REGS_TO_ARGS(x, __VA_ARGS__))
 
-#define COND_SYSCALL(name)							\
-	asmlinkage __weak long __x64_sys_##name(const struct pt_regs *__unused)	\
-	{									\
-		return sys_ni_syscall();					\
-	}									\
-	asmlinkage __weak long __ia32_sys_##name(const struct pt_regs *__unused)\
-	{									\
-		return sys_ni_syscall();					\
-	}
+#define __IA32_COND_SYSCALL(name)					\
+	__COND_SYSCALL(ia32, sys_##name)
 
 #define SYS_NI(name)							\
 	SYSCALL_ALIAS(__x64_sys_##name, sys_ni_posix_timers);		\
@@ -87,8 +94,10 @@ struct pt_regs;
 #else /* CONFIG_IA32_EMULATION */
 #define __IA32_COMPAT_SYS_STUB0(name)
 #define __IA32_COMPAT_SYS_STUBx(x, name, ...)
+#define __IA32_COMPAT_COND_SYSCALL(name)
 #define __IA32_SYS_STUB0(name)
 #define __IA32_SYS_STUBx(x, name, ...)
+#define __IA32_COND_SYSCALL(name)
 #endif /* CONFIG_IA32_EMULATION */
 
 
@@ -105,9 +114,12 @@ struct pt_regs;
 	__SYS_STUBx(x32, compat_sys##name,				\
 		    SC_X86_64_REGS_TO_ARGS(x, __VA_ARGS__))
 
+#define __X32_COMPAT_COND_SYSCALL(name)					\
+	__COND_SYSCALL(x32, compat_sys_##name)
 #else /* CONFIG_X86_X32 */
 #define __X32_COMPAT_SYS_STUB0(name)
 #define __X32_COMPAT_SYS_STUBx(x, name, ...)
+#define __X32_COMPAT_COND_SYSCALL(name)
 #endif /* CONFIG_X86_X32 */
 
 
@@ -142,8 +154,8 @@ struct pt_regs;
  * kernel/time/posix-stubs.c to cover this case as well.
  */
 #define COND_SYSCALL_COMPAT(name) 					\
-	cond_syscall(__ia32_compat_sys_##name);				\
-	cond_syscall(__x32_compat_sys_##name)
+	__IA32_COMPAT_COND_SYSCALL(name)				\
+	__X32_COMPAT_COND_SYSCALL(name)
 
 #define COMPAT_SYS_NI(name)						\
 	SYSCALL_ALIAS(__ia32_compat_sys_##name, sys_ni_posix_timers);	\
@@ -215,13 +227,9 @@ struct pt_regs;
 	static asmlinkage long						\
 	__do_sys_##sname(const struct pt_regs *__unused)
 
-#ifndef COND_SYSCALL
-#define COND_SYSCALL(name) 							\
-	asmlinkage __weak long __x64_sys_##name(const struct pt_regs *__unused)	\
-	{									\
-		return sys_ni_syscall();					\
-	}
-#endif
+#define COND_SYSCALL(name)						\
+	__X64_COND_SYSCALL(name)					\
+	__IA32_COND_SYSCALL(name)
 
 #ifndef SYS_NI
 #define SYS_NI(name) SYSCALL_ALIAS(__x64_sys_##name, sys_ni_posix_timers);
