@@ -115,5 +115,5 @@ module_exit(list_exit);
 
 MODULE_DESCRIPTION("Linux kernel list API");
 /* TODO 5/0: Fill in your name / email address */
-MODULE_AUTHOR("FirstName LastName <your@email.com");
+MODULE_AUTHOR("FirstName LastName <your@email.com>");
 MODULE_LICENSE("GPL v2");
