@@ -397,6 +397,28 @@ static void mv88e6xxx_irq_poll_free(struct mv88e6xxx_chip *chip)
 	mv88e6xxx_reg_unlock(chip);
 }
 
+static int mv88e6xxx_port_config_interface(struct mv88e6xxx_chip *chip,
+					   int port, phy_interface_t interface)
+{
+	int err;
+
+	if (chip->info->ops->port_set_rgmii_delay) {
+		err = chip->info->ops->port_set_rgmii_delay(chip, port,
+							    interface);
+		if (err && err != -EOPNOTSUPP)
+			return err;
+	}
+
+	if (chip->info->ops->port_set_cmode) {
+		err = chip->info->ops->port_set_cmode(chip, port,
+						      interface);
+		if (err && err != -EOPNOTSUPP)
+			return err;
+	}
+
+	return 0;
+}
+
 int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 			     int speed, int duplex, int pause,
 			     phy_interface_t mode)
@@ -451,19 +473,7 @@ int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 			goto restore_link;
 	}
 
-	if (chip->info->ops->port_set_rgmii_delay) {
-		err = chip->info->ops->port_set_rgmii_delay(chip, port, mode);
-		if (err && err != -EOPNOTSUPP)
-			goto restore_link;
-	}
-
-	if (chip->info->ops->port_set_cmode) {
-		err = chip->info->ops->port_set_cmode(chip, port, mode);
-		if (err && err != -EOPNOTSUPP)
-			goto restore_link;
-	}
-
-	err = 0;
+	err = mv88e6xxx_port_config_interface(chip, port, mode);
 restore_link:
 	if (chip->info->ops->port_set_link(chip, port, link))
 		dev_err(chip->dev, "p%d: failed to restore MAC's link\n", port);
@@ -603,33 +613,26 @@ static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 				 const struct phylink_link_state *state)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	int speed, duplex, link, pause, err;
+	int err;
 
+	/* FIXME: is this the correct test? If we're in fixed mode on an
+	 * internal port, why should we process this any different from
+	 * PHY mode? On the other hand, the port may be automedia between
+	 * an internal PHY and the serdes...
+	 */
 	if ((mode == MLO_AN_PHY) && mv88e6xxx_phy_is_internal(ds, port))
 		return;
 
-	if (mode == MLO_AN_FIXED) {
-		link = LINK_FORCED_UP;
-		speed = state->speed;
-		duplex = state->duplex;
-	} else if (!mv88e6xxx_phy_is_internal(ds, port)) {
-		link = state->link;
-		speed = state->speed;
-		duplex = state->duplex;
-	} else {
-		speed = SPEED_UNFORCED;
-		duplex = DUPLEX_UNFORCED;
-		link = LINK_UNFORCED;
-	}
-	pause = !!phylink_test(state->advertising, Pause);
-
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_port_setup_mac(chip, port, link, speed, duplex, pause,
-				       state->interface);
+	/* FIXME: should we force the link down here - but if we do, how
+	 * do we restore the link force/unforce state? The driver layering
+	 * gets in the way.
+	 */
+	err = mv88e6xxx_port_config_interface(chip, port, state->interface);
 	mv88e6xxx_reg_unlock(chip);
 
 	if (err && err != -EOPNOTSUPP)
-		dev_err(ds->dev, "p%d: failed to configure MAC\n", port);
+		dev_err(ds->dev, "p%d: failed to configure MAC/PCS\n", port);
 }
 
 static void mv88e6xxx_mac_link_down(struct dsa_switch *ds, int port,
