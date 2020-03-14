@@ -35,16 +35,12 @@ struct prog_test_def {
  */
 int usleep(useconds_t usec)
 {
-	struct timespec ts;
+	struct timespec ts = {
+		.tv_sec = usec / 1000000,
+		.tv_nsec = (usec % 1000000) * 1000,
+	};
 
-	if (usec > 999999) {
-		ts.tv_sec = usec / 1000000;
-		ts.tv_nsec = usec % 1000000;
-	} else {
-		ts.tv_sec = 0;
-		ts.tv_nsec = usec;
-	}
-	return nanosleep(&ts, NULL);
+	return syscall(__NR_nanosleep, &ts, NULL);
 }
 
 static bool should_run(struct test_selector *sel, int num, const char *name)
