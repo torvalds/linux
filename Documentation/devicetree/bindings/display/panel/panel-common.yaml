@@ -63,9 +63,9 @@ properties:
 
   display-timings:
     description:
-      Some display panels supports several resolutions with different timing.
+      Some display panels support several resolutions with different timings.
       The display-timings bindings supports specifying several timings and
-      optional specify which is the native mode.
+      optionally specifying which is the native mode.
     allOf:
       - $ref: display-timings.yaml#
 
