@@ -458,9 +458,6 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_upstream_port)(struct mv88e6xxx_chip *chip, int port,
 				      int upstream_port);
-	/* Return the port link state, as required by phylink */
-	int (*port_link_state)(struct mv88e6xxx_chip *chip, int port,
-			       struct phylink_link_state *state);
 
 	/* Snapshot the statistics for a port. The statistics can then
 	 * be read back a leisure but still with a consistent view.
