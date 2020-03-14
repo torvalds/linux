@@ -659,10 +659,9 @@ int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input)
 	const struct cpl_set_tcb_rpl *p = (void *)input;
 	struct chcr_ktls_info *tx_info = NULL;
 	struct tid_info *t;
-	u32 tid, status;
+	u32 tid;
 
 	tid = GET_TID(p);
-	status = p->status;
 
 	t = &adap->tids;
 	tx_info = lookup_tid(t, tid);
