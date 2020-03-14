@@ -5845,7 +5845,7 @@ static inline int l2cap_ecred_conn_req(struct l2cap_conn *conn,
 		__le16 dcid[5];
 	} __packed pdu;
 	struct l2cap_chan *chan, *pchan;
-	u16 credits, mtu, mps;
+	u16 mtu, mps;
 	__le16 psm;
 	u8 result, len = 0;
 	int i, num_scid;
@@ -5868,7 +5868,6 @@ static inline int l2cap_ecred_conn_req(struct l2cap_conn *conn,
 	}
 
 	psm  = req->psm;
-	credits = 0;
 
 	BT_DBG("psm 0x%2.2x mtu %u mps %u", __le16_to_cpu(psm), mtu, mps);
 
