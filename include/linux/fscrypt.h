@@ -144,6 +144,7 @@ extern int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags);
 extern int fscrypt_ioctl_set_policy(struct file *, const void __user *);
 extern int fscrypt_ioctl_get_policy(struct file *, void __user *);
 extern int fscrypt_ioctl_get_policy_ex(struct file *, void __user *);
+extern int fscrypt_ioctl_get_nonce(struct file *filp, void __user *arg);
 extern int fscrypt_has_permitted_context(struct inode *, struct inode *);
 extern int fscrypt_inherit_context(struct inode *, struct inode *,
 					void *, bool);
@@ -303,6 +304,11 @@ static inline int fscrypt_ioctl_get_policy(struct file *filp, void __user *arg)
 
 static inline int fscrypt_ioctl_get_policy_ex(struct file *filp,
 					      void __user *arg)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int fscrypt_ioctl_get_nonce(struct file *filp, void __user *arg)
 {
 	return -EOPNOTSUPP;
 }
