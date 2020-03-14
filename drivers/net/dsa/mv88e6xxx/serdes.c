@@ -49,6 +49,52 @@ static int mv88e6390_serdes_write(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_phy_write(chip, lane, reg_c45, val);
 }
 
+static int mv88e6xxx_serdes_pcs_get_state(struct mv88e6xxx_chip *chip,
+					  u16 status, u16 lpa,
+					  struct phylink_link_state *state)
+{
+	if (status & MV88E6390_SGMII_PHY_STATUS_SPD_DPL_VALID) {
+		state->link = !!(status & MV88E6390_SGMII_PHY_STATUS_LINK);
+		state->duplex = status &
+				MV88E6390_SGMII_PHY_STATUS_DUPLEX_FULL ?
+			                         DUPLEX_FULL : DUPLEX_HALF;
+
+		if (status & MV88E6390_SGMII_PHY_STATUS_TX_PAUSE)
+			state->pause |= MLO_PAUSE_TX;
+		if (status & MV88E6390_SGMII_PHY_STATUS_RX_PAUSE)
+			state->pause |= MLO_PAUSE_RX;
+
+		switch (status & MV88E6390_SGMII_PHY_STATUS_SPEED_MASK) {
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_1000:
+			if (state->interface == PHY_INTERFACE_MODE_2500BASEX)
+				state->speed = SPEED_2500;
+			else
+				state->speed = SPEED_1000;
+			break;
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_100:
+			state->speed = SPEED_100;
+			break;
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_10:
+			state->speed = SPEED_10;
+			break;
+		default:
+			dev_err(chip->dev, "invalid PHY speed\n");
+			return -EINVAL;
+		}
+	} else {
+		state->link = false;
+	}
+
+	if (state->interface == PHY_INTERFACE_MODE_2500BASEX)
+		mii_lpa_mod_linkmode_x(state->lp_advertising, lpa,
+				       ETHTOOL_LINK_MODE_2500baseX_Full_BIT);
+	else if (state->interface == PHY_INTERFACE_MODE_1000BASEX)
+		mii_lpa_mod_linkmode_x(state->lp_advertising, lpa,
+				       ETHTOOL_LINK_MODE_1000baseX_Full_BIT);
+
+	return 0;
+}
+
 int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
 			   bool up)
 {
@@ -68,6 +114,120 @@ int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
 		err = mv88e6352_serdes_write(chip, MII_BMCR, new_val);
 
 	return err;
+}
+
+int mv88e6352_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
+				u8 lane, unsigned int mode,
+				phy_interface_t interface,
+				const unsigned long *advertise)
+{
+	u16 adv, bmcr, val;
+	bool changed;
+	int err;
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+		adv = 0x0001;
+		break;
+
+	case PHY_INTERFACE_MODE_1000BASEX:
+		adv = linkmode_adv_to_mii_adv_x(advertise,
+					ETHTOOL_LINK_MODE_1000baseX_Full_BIT);
+		break;
+
+	default:
+		return 0;
+	}
+
+	err = mv88e6352_serdes_read(chip, MII_ADVERTISE, &val);
+	if (err)
+		return err;
+
+	changed = val != adv;
+	if (changed) {
+		err = mv88e6352_serdes_write(chip, MII_ADVERTISE, adv);
+		if (err)
+			return err;
+	}
+
+	err = mv88e6352_serdes_read(chip, MII_BMCR, &val);
+	if (err)
+		return err;
+
+	if (phylink_autoneg_inband(mode))
+		bmcr = val | BMCR_ANENABLE;
+	else
+		bmcr = val & ~BMCR_ANENABLE;
+
+	if (bmcr == val)
+		return changed;
+
+	return mv88e6352_serdes_write(chip, MII_BMCR, bmcr);
+}
+
+int mv88e6352_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
+				   u8 lane, struct phylink_link_state *state)
+{
+	u16 lpa, status;
+	int err;
+
+	err = mv88e6352_serdes_read(chip, 0x11, &status);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes PHY status: %d\n", err);
+		return err;
+	}
+
+	err = mv88e6352_serdes_read(chip, MII_LPA, &lpa);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes PHY LPA: %d\n", err);
+		return err;
+	}
+
+	return mv88e6xxx_serdes_pcs_get_state(chip, status, lpa, state);
+}
+
+int mv88e6352_serdes_pcs_an_restart(struct mv88e6xxx_chip *chip, int port,
+				    u8 lane)
+{
+	u16 bmcr;
+	int err;
+
+	err = mv88e6352_serdes_read(chip, MII_BMCR, &bmcr);
+	if (err)
+		return err;
+
+	return mv88e6352_serdes_write(chip, MII_BMCR, bmcr | BMCR_ANRESTART);
+}
+
+int mv88e6352_serdes_pcs_link_up(struct mv88e6xxx_chip *chip, int port,
+				 u8 lane, int speed, int duplex)
+{
+	u16 val, bmcr;
+	int err;
+
+	err = mv88e6352_serdes_read(chip, MII_BMCR, &val);
+	if (err)
+		return err;
+
+	bmcr = val & ~(BMCR_SPEED100 | BMCR_FULLDPLX | BMCR_SPEED1000);
+	switch (speed) {
+	case SPEED_1000:
+		bmcr |= BMCR_SPEED1000;
+		break;
+	case SPEED_100:
+		bmcr |= BMCR_SPEED100;
+		break;
+	case SPEED_10:
+		break;
+	}
+
+	if (duplex == DUPLEX_FULL)
+		bmcr |= BMCR_FULLDPLX;
+
+	if (bmcr == val)
+		return 0;
+
+	return mv88e6352_serdes_write(chip, MII_BMCR, bmcr);
 }
 
 u8 mv88e6352_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
@@ -538,16 +698,143 @@ int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
 	return err;
 }
 
+int mv88e6390_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
+				u8 lane, unsigned int mode,
+				phy_interface_t interface,
+				const unsigned long *advertise)
+{
+	u16 val, bmcr, adv;
+	bool changed;
+	int err;
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+		adv = 0x0001;
+		break;
+
+	case PHY_INTERFACE_MODE_1000BASEX:
+		adv = linkmode_adv_to_mii_adv_x(advertise,
+					ETHTOOL_LINK_MODE_1000baseX_Full_BIT);
+		break;
+
+	case PHY_INTERFACE_MODE_2500BASEX:
+		adv = linkmode_adv_to_mii_adv_x(advertise,
+					ETHTOOL_LINK_MODE_2500baseX_Full_BIT);
+		break;
+
+	default:
+		return 0;
+	}
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_ADVERTISE, &val);
+	if (err)
+		return err;
+
+	changed = val != adv;
+	if (changed) {
+		err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+					     MV88E6390_SGMII_ADVERTISE, adv);
+		if (err)
+			return err;
+	}
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_BMCR, &val);
+	if (err)
+		return err;
+
+	if (phylink_autoneg_inband(mode))
+		bmcr = val | BMCR_ANENABLE;
+	else
+		bmcr = val & ~BMCR_ANENABLE;
+
+	/* setting ANENABLE triggers a restart of negotiation */
+	if (bmcr == val)
+		return changed;
+
+	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				      MV88E6390_SGMII_BMCR, bmcr);
+}
+
+int mv88e6390_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
+				   u8 lane, struct phylink_link_state *state)
+{
+	u16 lpa, status;
+	int err;
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_PHY_STATUS, &status);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes PHY status: %d\n", err);
+		return err;
+	}
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_LPA, &lpa);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes PHY LPA: %d\n", err);
+		return err;
+	}
+
+	return mv88e6xxx_serdes_pcs_get_state(chip, status, lpa, state);
+}
+
+int mv88e6390_serdes_pcs_an_restart(struct mv88e6xxx_chip *chip, int port,
+				    u8 lane)
+{
+	u16 bmcr;
+	int err;
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_BMCR, &bmcr);
+	if (err)
+		return err;
+
+	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				      MV88E6390_SGMII_BMCR,
+				      bmcr | BMCR_ANRESTART);
+}
+
+int mv88e6390_serdes_pcs_link_up(struct mv88e6xxx_chip *chip, int port,
+				 u8 lane, int speed, int duplex)
+{
+	u16 val, bmcr;
+	int err;
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_BMCR, &val);
+	if (err)
+		return err;
+
+	bmcr = val & ~(BMCR_SPEED100 | BMCR_FULLDPLX | BMCR_SPEED1000);
+	switch (speed) {
+	case SPEED_2500:
+	case SPEED_1000:
+		bmcr |= BMCR_SPEED1000;
+		break;
+	case SPEED_100:
+		bmcr |= BMCR_SPEED100;
+		break;
+	case SPEED_10:
+		break;
+	}
+
+	if (duplex == DUPLEX_FULL)
+		bmcr |= BMCR_FULLDPLX;
+
+	if (bmcr == val)
+		return 0;
+
+	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				      MV88E6390_SGMII_BMCR, bmcr);
+}
+
 static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
 					    int port, u8 lane)
 {
-	u8 cmode = chip->ports[port].cmode;
-	struct dsa_switch *ds = chip->ds;
-	int duplex = DUPLEX_UNKNOWN;
-	int speed = SPEED_UNKNOWN;
-	phy_interface_t mode;
-	int link, err;
 	u16 status;
+	int err;
 
 	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
 				    MV88E6390_SGMII_PHY_STATUS, &status);
@@ -556,53 +843,8 @@ static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
 		return;
 	}
 
-	link = status & MV88E6390_SGMII_PHY_STATUS_LINK ?
-	       LINK_FORCED_UP : LINK_FORCED_DOWN;
-
-	if (status & MV88E6390_SGMII_PHY_STATUS_SPD_DPL_VALID) {
-		duplex = status & MV88E6390_SGMII_PHY_STATUS_DUPLEX_FULL ?
-			 DUPLEX_FULL : DUPLEX_HALF;
-
-		switch (status & MV88E6390_SGMII_PHY_STATUS_SPEED_MASK) {
-		case MV88E6390_SGMII_PHY_STATUS_SPEED_1000:
-			if (cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
-				speed = SPEED_2500;
-			else
-				speed = SPEED_1000;
-			break;
-		case MV88E6390_SGMII_PHY_STATUS_SPEED_100:
-			speed = SPEED_100;
-			break;
-		case MV88E6390_SGMII_PHY_STATUS_SPEED_10:
-			speed = SPEED_10;
-			break;
-		default:
-			dev_err(chip->dev, "invalid PHY speed\n");
-			return;
-		}
-	}
-
-	switch (cmode) {
-	case MV88E6XXX_PORT_STS_CMODE_SGMII:
-		mode = PHY_INTERFACE_MODE_SGMII;
-		break;
-	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
-		mode = PHY_INTERFACE_MODE_1000BASEX;
-		break;
-	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
-		mode = PHY_INTERFACE_MODE_2500BASEX;
-		break;
-	default:
-		mode = PHY_INTERFACE_MODE_NA;
-	}
-
-	err = mv88e6xxx_port_setup_mac(chip, port, link, speed, duplex,
-				       PAUSE_OFF, mode);
-	if (err)
-		dev_err(chip->dev, "can't propagate PHY settings to MAC: %d\n",
-			err);
-	else
-		dsa_port_phylink_mac_change(ds, port, link == LINK_FORCED_UP);
+	dsa_port_phylink_mac_change(chip->ds, port,
+				!!(status & MV88E6390_SGMII_PHY_STATUS_LINK));
 }
 
 static int mv88e6390_serdes_irq_enable_sgmii(struct mv88e6xxx_chip *chip,

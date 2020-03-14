@@ -502,6 +502,17 @@ struct mv88e6xxx_ops {
 	/* SERDES lane mapping */
 	u8 (*serdes_get_lane)(struct mv88e6xxx_chip *chip, int port);
 
+	int (*serdes_pcs_get_state)(struct mv88e6xxx_chip *chip, int port,
+				    u8 lane, struct phylink_link_state *state);
+	int (*serdes_pcs_config)(struct mv88e6xxx_chip *chip, int port,
+				 u8 lane, unsigned int mode,
+				 phy_interface_t interface,
+				 const unsigned long *advertise);
+	int (*serdes_pcs_an_restart)(struct mv88e6xxx_chip *chip, int port,
+				     u8 lane);
+	int (*serdes_pcs_link_up)(struct mv88e6xxx_chip *chip, int port,
+				  u8 lane, int speed, int duplex);
+
 	/* SERDES interrupt handling */
 	unsigned int (*serdes_irq_mapping)(struct mv88e6xxx_chip *chip,
 					   int port);
@@ -669,9 +680,6 @@ int mv88e6xxx_wait_mask(struct mv88e6xxx_chip *chip, int addr, int reg,
 			u16 mask, u16 val);
 int mv88e6xxx_wait_bit(struct mv88e6xxx_chip *chip, int addr, int reg,
 		       int bit, int val);
-int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
-			     int speed, int duplex, int pause,
-			     phy_interface_t mode);
 struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip);
 
 static inline void mv88e6xxx_reg_lock(struct mv88e6xxx_chip *chip)

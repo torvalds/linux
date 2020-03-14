@@ -419,9 +419,9 @@ static int mv88e6xxx_port_config_interface(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
-			     int speed, int duplex, int pause,
-			     phy_interface_t mode)
+static int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port,
+				    int link, int speed, int duplex, int pause,
+				    phy_interface_t mode)
 {
 	struct phylink_link_state state;
 	int err;
@@ -486,6 +486,81 @@ static int mv88e6xxx_phy_is_internal(struct dsa_switch *ds, int port)
 	struct mv88e6xxx_chip *chip = ds->priv;
 
 	return port < chip->info->num_internal_phys;
+}
+
+static int mv88e6xxx_serdes_pcs_get_state(struct dsa_switch *ds, int port,
+					  struct phylink_link_state *state)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	u8 lane;
+	int err;
+
+	mv88e6xxx_reg_lock(chip);
+	lane = mv88e6xxx_serdes_get_lane(chip, port);
+	if (lane && chip->info->ops->serdes_pcs_get_state)
+		err = chip->info->ops->serdes_pcs_get_state(chip, port, lane,
+							    state);
+	else
+		err = -EOPNOTSUPP;
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
+				       unsigned int mode,
+				       phy_interface_t interface,
+				       const unsigned long *advertise)
+{
+	const struct mv88e6xxx_ops *ops = chip->info->ops;
+	u8 lane;
+
+	if (ops->serdes_pcs_config) {
+		lane = mv88e6xxx_serdes_get_lane(chip, port);
+		if (lane)
+			return ops->serdes_pcs_config(chip, port, lane, mode,
+						      interface, advertise);
+	}
+
+	return 0;
+}
+
+static void mv88e6xxx_serdes_pcs_an_restart(struct dsa_switch *ds, int port)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	const struct mv88e6xxx_ops *ops;
+	int err = 0;
+	u8 lane;
+
+	ops = chip->info->ops;
+
+	if (ops->serdes_pcs_an_restart) {
+		mv88e6xxx_reg_lock(chip);
+		lane = mv88e6xxx_serdes_get_lane(chip, port);
+		if (lane)
+			err = ops->serdes_pcs_an_restart(chip, port, lane);
+		mv88e6xxx_reg_unlock(chip);
+
+		if (err)
+			dev_err(ds->dev, "p%d: failed to restart AN\n", port);
+	}
+}
+
+static int mv88e6xxx_serdes_pcs_link_up(struct mv88e6xxx_chip *chip, int port,
+					unsigned int mode,
+					int speed, int duplex)
+{
+	const struct mv88e6xxx_ops *ops = chip->info->ops;
+	u8 lane;
+
+	if (!phylink_autoneg_inband(mode) && ops->serdes_pcs_link_up) {
+		lane = mv88e6xxx_serdes_get_lane(chip, port);
+		if (lane)
+			return ops->serdes_pcs_link_up(chip, port, lane,
+						       speed, duplex);
+	}
+
+	return 0;
 }
 
 static void mv88e6065_phylink_validate(struct mv88e6xxx_chip *chip, int port,
@@ -592,22 +667,6 @@ static void mv88e6xxx_validate(struct dsa_switch *ds, int port,
 	phylink_helper_basex_speed(state);
 }
 
-static int mv88e6xxx_link_state(struct dsa_switch *ds, int port,
-				struct phylink_link_state *state)
-{
-	struct mv88e6xxx_chip *chip = ds->priv;
-	int err;
-
-	mv88e6xxx_reg_lock(chip);
-	if (chip->info->ops->port_link_state)
-		err = chip->info->ops->port_link_state(chip, port, state);
-	else
-		err = -EOPNOTSUPP;
-	mv88e6xxx_reg_unlock(chip);
-
-	return err;
-}
-
 static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 				 unsigned int mode,
 				 const struct phylink_link_state *state)
@@ -629,6 +688,18 @@ static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 	 * gets in the way.
 	 */
 	err = mv88e6xxx_port_config_interface(chip, port, state->interface);
+	if (err && err != -EOPNOTSUPP)
+		goto err_unlock;
+
+	err = mv88e6xxx_serdes_pcs_config(chip, port, mode, state->interface,
+					  state->advertising);
+	/* FIXME: we should restart negotiation if something changed - which
+	 * is something we get if we convert to using phylinks PCS operations.
+	 */
+	if (err > 0)
+		err = 0;
+
+err_unlock:
 	mv88e6xxx_reg_unlock(chip);
 
 	if (err && err != -EOPNOTSUPP)
@@ -683,9 +754,14 @@ static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
 		/* FIXME: for an automedia port, should we force the link
 		 * down here - what if the link comes up due to "other" media
 		 * while we're bringing the port up, how is the exclusivity
-		 * handled in the Marvell hardware? E.g. port 4 on 88E6532
+		 * handled in the Marvell hardware? E.g. port 2 on 88E6390
 		 * shared between internal PHY and Serdes.
 		 */
+		err = mv88e6xxx_serdes_pcs_link_up(chip, port, mode, speed,
+						   duplex);
+		if (err)
+			goto error;
+
 		if (ops->port_set_speed) {
 			err = ops->port_set_speed(chip, port, speed);
 			if (err && err != -EOPNOTSUPP)
@@ -3557,6 +3633,11 @@ static const struct mv88e6xxx_ops mv88e6141_ops = {
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
 	.serdes_get_lane = mv88e6341_serdes_get_lane,
+	/* Check status register pause & lpa register */
+	.serdes_pcs_get_state = mv88e6390_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6390_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6390_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6390_serdes_pcs_link_up,
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
@@ -3729,6 +3810,10 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.serdes_get_lane = mv88e6352_serdes_get_lane,
+	.serdes_pcs_get_state = mv88e6352_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6352_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6352_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6352_serdes_pcs_link_up,
 	.serdes_power = mv88e6352_serdes_power,
 	.serdes_get_regs_len = mv88e6352_serdes_get_regs_len,
 	.serdes_get_regs = mv88e6352_serdes_get_regs,
@@ -3822,6 +3907,10 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.serdes_get_lane = mv88e6352_serdes_get_lane,
+	.serdes_pcs_get_state = mv88e6352_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6352_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6352_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6352_serdes_pcs_link_up,
 	.serdes_power = mv88e6352_serdes_power,
 	.serdes_irq_mapping = mv88e6352_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6352_serdes_irq_enable,
@@ -3912,6 +4001,11 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
 	.serdes_get_lane = mv88e6390_serdes_get_lane,
+	/* Check status register pause & lpa register */
+	.serdes_pcs_get_state = mv88e6390_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6390_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6390_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6390_serdes_pcs_link_up,
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
@@ -3968,6 +4062,11 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
 	.serdes_get_lane = mv88e6390x_serdes_get_lane,
+	/* Check status register pause & lpa register */
+	.serdes_pcs_get_state = mv88e6390_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6390_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6390_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6390_serdes_pcs_link_up,
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
@@ -4023,6 +4122,11 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
 	.serdes_get_lane = mv88e6390_serdes_get_lane,
+	/* Check status register pause & lpa register */
+	.serdes_pcs_get_state = mv88e6390_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6390_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6390_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6390_serdes_pcs_link_up,
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
@@ -4080,6 +4184,10 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.serdes_get_lane = mv88e6352_serdes_get_lane,
+	.serdes_pcs_get_state = mv88e6352_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6352_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6352_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6352_serdes_pcs_link_up,
 	.serdes_power = mv88e6352_serdes_power,
 	.serdes_irq_mapping = mv88e6352_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6352_serdes_irq_enable,
@@ -4176,6 +4284,11 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
 	.serdes_get_lane = mv88e6390_serdes_get_lane,
+	/* Check status register pause & lpa register */
+	.serdes_pcs_get_state = mv88e6390_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6390_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6390_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6390_serdes_pcs_link_up,
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
@@ -4319,6 +4432,11 @@ static const struct mv88e6xxx_ops mv88e6341_ops = {
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
 	.serdes_get_lane = mv88e6341_serdes_get_lane,
+	/* Check status register pause & lpa register */
+	.serdes_pcs_get_state = mv88e6390_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6390_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6390_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6390_serdes_pcs_link_up,
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
@@ -4458,6 +4576,10 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.serdes_get_lane = mv88e6352_serdes_get_lane,
+	.serdes_pcs_get_state = mv88e6352_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6352_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6352_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6352_serdes_pcs_link_up,
 	.serdes_power = mv88e6352_serdes_power,
 	.serdes_irq_mapping = mv88e6352_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6352_serdes_irq_enable,
@@ -4519,6 +4641,11 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
 	.serdes_get_lane = mv88e6390_serdes_get_lane,
+	/* Check status register pause & lpa register */
+	.serdes_pcs_get_state = mv88e6390_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6390_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6390_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6390_serdes_pcs_link_up,
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
@@ -4579,6 +4706,10 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
 	.serdes_get_lane = mv88e6390x_serdes_get_lane,
+	.serdes_pcs_get_state = mv88e6390_serdes_pcs_get_state,
+	.serdes_pcs_config = mv88e6390_serdes_pcs_config,
+	.serdes_pcs_an_restart = mv88e6390_serdes_pcs_an_restart,
+	.serdes_pcs_link_up = mv88e6390_serdes_pcs_link_up,
 	.serdes_irq_mapping = mv88e6390_serdes_irq_mapping,
 	.serdes_irq_enable = mv88e6390_serdes_irq_enable,
 	.serdes_irq_status = mv88e6390_serdes_irq_status,
@@ -5457,8 +5588,9 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.setup			= mv88e6xxx_setup,
 	.teardown		= mv88e6xxx_teardown,
 	.phylink_validate	= mv88e6xxx_validate,
-	.phylink_mac_link_state	= mv88e6xxx_link_state,
+	.phylink_mac_link_state	= mv88e6xxx_serdes_pcs_get_state,
 	.phylink_mac_config	= mv88e6xxx_mac_config,
+	.phylink_mac_an_restart	= mv88e6xxx_serdes_pcs_an_restart,
 	.phylink_mac_link_down	= mv88e6xxx_mac_link_down,
 	.phylink_mac_link_up	= mv88e6xxx_mac_link_up,
 	.get_strings		= mv88e6xxx_get_strings,
