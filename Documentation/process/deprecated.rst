@@ -29,6 +29,28 @@ a header file, it isn't the full solution. Such interfaces must either
 be fully removed from the kernel, or added to this file to discourage
 others from using them in the future.
 
+BUG() and BUG_ON()
+------------------
+Use WARN() and WARN_ON() instead, and handle the "impossible"
+error condition as gracefully as possible. While the BUG()-family
+of APIs were originally designed to act as an "impossible situation"
+assert and to kill a kernel thread "safely", they turn out to just be
+too risky. (e.g. "In what order do locks need to be released? Have
+various states been restored?") Very commonly, using BUG() will
+destabilize a system or entirely break it, which makes it impossible
+to debug or even get viable crash reports. Linus has `very strong
+<https://lore.kernel.org/lkml/CA+55aFy6jNLsywVYdGp83AMrXBo_P-pkjkphPGrO=82SPKCpLQ@mail.gmail.com/>`_
+feelings `about this
+<https://lore.kernel.org/lkml/CAHk-=whDHsbK3HTOpTF=ue_o04onRwTEaK_ZoJp_fjbqq4+=Jw@mail.gmail.com/>`_.
+
+Note that the WARN()-family should only be used for "expected to
+be unreachable" situations. If you want to warn about "reachable
+but undesirable" situations, please use the pr_warn()-family of
+functions. System owners may have set the *panic_on_warn* sysctl,
+to make sure their systems do not continue running in the face of
+"unreachable" conditions. (For example, see commits like `this one
+<https://git.kernel.org/linus/d4689846881d160a4d12a514e991a740bcb5d65a>`_.)
+
 open-coded arithmetic in allocator arguments
 --------------------------------------------
 Dynamic size calculations (especially multiplication) should not be
