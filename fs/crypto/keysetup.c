@@ -425,20 +425,8 @@ int fscrypt_get_encryption_info(struct inode *inode)
 		goto out;
 	}
 
-	switch (ctx.version) {
-	case FSCRYPT_CONTEXT_V1:
-		memcpy(crypt_info->ci_nonce, ctx.v1.nonce,
-		       FS_KEY_DERIVATION_NONCE_SIZE);
-		break;
-	case FSCRYPT_CONTEXT_V2:
-		memcpy(crypt_info->ci_nonce, ctx.v2.nonce,
-		       FS_KEY_DERIVATION_NONCE_SIZE);
-		break;
-	default:
-		WARN_ON(1);
-		res = -EINVAL;
-		goto out;
-	}
+	memcpy(crypt_info->ci_nonce, fscrypt_context_nonce(&ctx),
+	       FS_KEY_DERIVATION_NONCE_SIZE);
 
 	if (!fscrypt_supported_policy(&crypt_info->ci_policy, inode)) {
 		res = -EINVAL;
