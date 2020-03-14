@@ -464,6 +464,22 @@ static int mv88e6xxx_phy_is_internal(struct dsa_switch *ds, int port)
 	return port < chip->info->num_internal_phys;
 }
 
+static int mv88e6xxx_port_ppu_updates(struct mv88e6xxx_chip *chip, int port)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
+	if (err) {
+		dev_err(chip->dev,
+			"p%d: %s: failed to read port status\n",
+			port, __func__);
+		return err;
+	}
+
+	return !!(reg & MV88E6XXX_PORT_STS_PHY_DETECT);
+}
+
 static int mv88e6xxx_serdes_pcs_get_state(struct dsa_switch *ds, int port,
 					  struct phylink_link_state *state)
 {
@@ -692,20 +708,14 @@ static void mv88e6xxx_mac_link_down(struct dsa_switch *ds, int port,
 
 	ops = chip->info->ops;
 
-	/* Internal PHYs propagate their configuration directly to the MAC.
-	 * External PHYs depend on whether the PPU is enabled for this port.
-	 * FIXME: we should be using the PPU enable state here. What about
-	 * an automedia port?
-	 */
-	if (!mv88e6xxx_phy_is_internal(ds, port) && ops->port_set_link) {
-		mv88e6xxx_reg_lock(chip);
+	mv88e6xxx_reg_lock(chip);
+	if (!mv88e6xxx_port_ppu_updates(chip, port) && ops->port_set_link)
 		err = ops->port_set_link(chip, port, LINK_FORCED_DOWN);
-		mv88e6xxx_reg_unlock(chip);
+	mv88e6xxx_reg_unlock(chip);
 
-		if (err)
-			dev_err(chip->dev,
-				"p%d: failed to force MAC link down\n", port);
-	}
+	if (err)
+		dev_err(chip->dev,
+			"p%d: failed to force MAC link down\n", port);
 }
 
 static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
@@ -720,13 +730,8 @@ static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
 
 	ops = chip->info->ops;
 
-	/* Internal PHYs propagate their configuration directly to the MAC.
-	 * External PHYs depend on whether the PPU is enabled for this port.
-	 * FIXME: we should be using the PPU enable state here. What about
-	 * an automedia port?
-	 */
-	if (!mv88e6xxx_phy_is_internal(ds, port)) {
-		mv88e6xxx_reg_lock(chip);
+	mv88e6xxx_reg_lock(chip);
+	if (!mv88e6xxx_port_ppu_updates(chip, port)) {
 		/* FIXME: for an automedia port, should we force the link
 		 * down here - what if the link comes up due to "other" media
 		 * while we're bringing the port up, how is the exclusivity
@@ -747,13 +752,13 @@ static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
 
 		if (ops->port_set_link)
 			err = ops->port_set_link(chip, port, LINK_FORCED_UP);
-error:
-		mv88e6xxx_reg_unlock(chip);
-
-		if (err && err != -EOPNOTSUPP)
-			dev_err(ds->dev,
-				"p%d: failed to configure MAC link up\n", port);
 	}
+error:
+	mv88e6xxx_reg_unlock(chip);
+
+	if (err && err != -EOPNOTSUPP)
+		dev_err(ds->dev,
+			"p%d: failed to configure MAC link up\n", port);
 }
 
 static int mv88e6xxx_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
