@@ -246,16 +246,18 @@ static void gen6_rc6_enable(struct intel_rc6 *rc6)
 	ret = sandybridge_pcode_read(i915, GEN6_PCODE_READ_RC6VIDS,
 				     &rc6vids, NULL);
 	if (IS_GEN(i915, 6) && ret) {
-		DRM_DEBUG_DRIVER("Couldn't check for BIOS workaround\n");
+		drm_dbg(&i915->drm, "Couldn't check for BIOS workaround\n");
 	} else if (IS_GEN(i915, 6) &&
 		   (GEN6_DECODE_RC6_VID(rc6vids & 0xff) < 450)) {
-		DRM_DEBUG_DRIVER("You should update your BIOS. Correcting minimum rc6 voltage (%dmV->%dmV)\n",
-				 GEN6_DECODE_RC6_VID(rc6vids & 0xff), 450);
+		drm_dbg(&i915->drm,
+			"You should update your BIOS. Correcting minimum rc6 voltage (%dmV->%dmV)\n",
+			GEN6_DECODE_RC6_VID(rc6vids & 0xff), 450);
 		rc6vids &= 0xffff00;
 		rc6vids |= GEN6_ENCODE_RC6_VID(450);
 		ret = sandybridge_pcode_write(i915, GEN6_PCODE_WRITE_RC6VIDS, rc6vids);
 		if (ret)
-			DRM_ERROR("Couldn't fix incorrect rc6 voltage\n");
+			drm_err(&i915->drm,
+				"Couldn't fix incorrect rc6 voltage\n");
 	}
 }
 
@@ -263,14 +265,15 @@ static void gen6_rc6_enable(struct intel_rc6 *rc6)
 static int chv_rc6_init(struct intel_rc6 *rc6)
 {
 	struct intel_uncore *uncore = rc6_to_uncore(rc6);
+	struct drm_i915_private *i915 = rc6_to_i915(rc6);
 	resource_size_t pctx_paddr, paddr;
 	resource_size_t pctx_size = 32 * SZ_1K;
 	u32 pcbr;
 
 	pcbr = intel_uncore_read(uncore, VLV_PCBR);
 	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
-		DRM_DEBUG_DRIVER("BIOS didn't set up PCBR, fixing up\n");
-		paddr = rc6_to_i915(rc6)->dsm.end + 1 - pctx_size;
+		drm_dbg(&i915->drm, "BIOS didn't set up PCBR, fixing up\n");
+		paddr = i915->dsm.end + 1 - pctx_size;
 		GEM_BUG_ON(paddr > U32_MAX);
 
 		pctx_paddr = (paddr & ~4095);
@@ -304,7 +307,7 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 		goto out;
 	}
 
-	DRM_DEBUG_DRIVER("BIOS didn't set up PCBR, fixing up\n");
+	drm_dbg(&i915->drm, "BIOS didn't set up PCBR, fixing up\n");
 
 	/*
 	 * From the Gunit register HAS:
@@ -316,7 +319,8 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 	 */
 	pctx = i915_gem_object_create_stolen(i915, pctx_size);
 	if (IS_ERR(pctx)) {
-		DRM_DEBUG("not enough stolen space for PCTX, disabling\n");
+		drm_dbg(&i915->drm,
+			"not enough stolen space for PCTX, disabling\n");
 		return PTR_ERR(pctx);
 	}
 
@@ -398,14 +402,14 @@ static bool bxt_check_bios_rc6_setup(struct intel_rc6 *rc6)
 	rc_sw_target = intel_uncore_read(uncore, GEN6_RC_STATE);
 	rc_sw_target &= RC_SW_TARGET_STATE_MASK;
 	rc_sw_target >>= RC_SW_TARGET_STATE_SHIFT;
-	DRM_DEBUG_DRIVER("BIOS enabled RC states: "
+	drm_dbg(&i915->drm, "BIOS enabled RC states: "
 			 "HW_CTRL %s HW_RC6 %s SW_TARGET_STATE %x\n",
 			 onoff(rc_ctl & GEN6_RC_CTL_HW_ENABLE),
 			 onoff(rc_ctl & GEN6_RC_CTL_RC6_ENABLE),
 			 rc_sw_target);
 
 	if (!(intel_uncore_read(uncore, RC6_LOCATION) & RC6_CTX_IN_DRAM)) {
-		DRM_DEBUG_DRIVER("RC6 Base location not set properly.\n");
+		drm_dbg(&i915->drm, "RC6 Base location not set properly.\n");
 		enable_rc6 = false;
 	}
 
@@ -417,7 +421,7 @@ static bool bxt_check_bios_rc6_setup(struct intel_rc6 *rc6)
 		intel_uncore_read(uncore, RC6_CTX_BASE) & RC6_CTX_BASE_MASK;
 	if (!(rc6_ctx_base >= i915->dsm_reserved.start &&
 	      rc6_ctx_base + PAGE_SIZE < i915->dsm_reserved.end)) {
-		DRM_DEBUG_DRIVER("RC6 Base address not as expected.\n");
+		drm_dbg(&i915->drm, "RC6 Base address not as expected.\n");
 		enable_rc6 = false;
 	}
 
@@ -425,24 +429,25 @@ static bool bxt_check_bios_rc6_setup(struct intel_rc6 *rc6)
 	      (intel_uncore_read(uncore, PWRCTX_MAXCNT_VCSUNIT0) & IDLE_TIME_MASK) > 1 &&
 	      (intel_uncore_read(uncore, PWRCTX_MAXCNT_BCSUNIT) & IDLE_TIME_MASK) > 1 &&
 	      (intel_uncore_read(uncore, PWRCTX_MAXCNT_VECSUNIT) & IDLE_TIME_MASK) > 1)) {
-		DRM_DEBUG_DRIVER("Engine Idle wait time not set properly.\n");
+		drm_dbg(&i915->drm,
+			"Engine Idle wait time not set properly.\n");
 		enable_rc6 = false;
 	}
 
 	if (!intel_uncore_read(uncore, GEN8_PUSHBUS_CONTROL) ||
 	    !intel_uncore_read(uncore, GEN8_PUSHBUS_ENABLE) ||
 	    !intel_uncore_read(uncore, GEN8_PUSHBUS_SHIFT)) {
-		DRM_DEBUG_DRIVER("Pushbus not setup properly.\n");
+		drm_dbg(&i915->drm, "Pushbus not setup properly.\n");
 		enable_rc6 = false;
 	}
 
 	if (!intel_uncore_read(uncore, GEN6_GFXPAUSE)) {
-		DRM_DEBUG_DRIVER("GFX pause not setup properly.\n");
+		drm_dbg(&i915->drm, "GFX pause not setup properly.\n");
 		enable_rc6 = false;
 	}
 
 	if (!intel_uncore_read(uncore, GEN8_MISC_CTRL0)) {
-		DRM_DEBUG_DRIVER("GPM control not setup properly.\n");
+		drm_dbg(&i915->drm, "GPM control not setup properly.\n");
 		enable_rc6 = false;
 	}
 
