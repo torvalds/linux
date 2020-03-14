@@ -29,6 +29,24 @@ struct prog_test_def {
 	int old_error_cnt;
 };
 
+/* Override C runtime library's usleep() implementation to ensure nanosleep()
+ * is always called. Usleep is frequently used in selftests as a way to
+ * trigger kprobe and tracepoints.
+ */
+int usleep(useconds_t usec)
+{
+	struct timespec ts;
+
+	if (usec > 999999) {
+		ts.tv_sec = usec / 1000000;
+		ts.tv_nsec = usec % 1000000;
+	} else {
+		ts.tv_sec = 0;
+		ts.tv_nsec = usec;
+	}
+	return nanosleep(&ts, NULL);
+}
+
 static bool should_run(struct test_selector *sel, int num, const char *name)
 {
 	int i;
@@ -198,7 +216,7 @@ int bpf_find_map(const char *test, struct bpf_object *obj, const char *name)
 
 	map = bpf_object__find_map_by_name(obj, name);
 	if (!map) {
-		printf("%s:FAIL:map '%s' not found\n", test, name);
+		fprintf(stdout, "%s:FAIL:map '%s' not found\n", test, name);
 		test__fail();
 		return -1;
 	}
@@ -369,7 +387,7 @@ static int libbpf_print_fn(enum libbpf_print_level level,
 {
 	if (env.verbosity < VERBOSE_VERY && level == LIBBPF_DEBUG)
 		return 0;
-	vprintf(format, args);
+	vfprintf(stdout, format, args);
 	return 0;
 }
 
@@ -615,7 +633,7 @@ int cd_flavor_subdir(const char *exec_name)
 	if (!flavor)
 		return 0;
 	flavor++;
-	printf("Switching to flavor '%s' subdirectory...\n", flavor);
+	fprintf(stdout, "Switching to flavor '%s' subdirectory...\n", flavor);
 	return chdir(flavor);
 }
 
@@ -698,8 +716,8 @@ int main(int argc, char **argv)
 			cleanup_cgroup_environment();
 	}
 	stdio_restore();
-	printf("Summary: %d/%d PASSED, %d SKIPPED, %d FAILED\n",
-	       env.succ_cnt, env.sub_succ_cnt, env.skip_cnt, env.fail_cnt);
+	fprintf(stdout, "Summary: %d/%d PASSED, %d SKIPPED, %d FAILED\n",
+		env.succ_cnt, env.sub_succ_cnt, env.skip_cnt, env.fail_cnt);
 
 	free(env.test_selector.blacklist.strs);
 	free(env.test_selector.whitelist.strs);

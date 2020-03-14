@@ -14,6 +14,8 @@
 #include <linux/hashtable.h>
 #include <tools/libc_compat.h>
 
+#include <bpf/libbpf.h>
+
 #include "json_writer.h"
 
 #define ptr_to_u64(ptr)	((__u64)(unsigned long)(ptr))
@@ -146,7 +148,7 @@ char *get_fdinfo(int fd, const char *key);
 int open_obj_pinned(char *path, bool quiet);
 int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type);
 int mount_bpffs_for_pin(const char *name);
-int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32));
+int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(int *, char ***));
 int do_pin_fd(int fd, const char *name);
 
 int do_prog(int argc, char **arg);
@@ -229,4 +231,7 @@ struct tcmsg;
 int do_xdp_dump(struct ifinfomsg *ifinfo, struct nlattr **tb);
 int do_filter_dump(struct tcmsg *ifinfo, struct nlattr **tb, const char *kind,
 		   const char *devname, int ifindex);
+
+int print_all_levels(__maybe_unused enum libbpf_print_level level,
+		     const char *format, va_list args);
 #endif
