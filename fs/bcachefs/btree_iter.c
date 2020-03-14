@@ -1595,8 +1595,17 @@ __bch2_btree_iter_peek_slot_extents(struct btree_iter *iter)
 	struct bkey n;
 	int ret;
 
-recheck:
-	btree_iter_advance_to_pos(iter, l, -1);
+	/* keys & holes can't span inode numbers: */
+	if (iter->pos.offset == KEY_OFFSET_MAX) {
+		if (iter->pos.inode == KEY_INODE_MAX)
+			return bkey_s_c_null;
+
+		bch2_btree_iter_set_pos(iter, bkey_successor(iter->pos));
+
+		ret = bch2_btree_iter_traverse(iter);
+		if (unlikely(ret))
+			return bkey_s_c_err(ret);
+	}
 
 	/*
 	 * iterator is now at the correct position for inserting at iter->pos,
@@ -1610,46 +1619,16 @@ recheck:
 
 	if (k.k && bkey_cmp(bkey_start_pos(k.k), iter->pos) <= 0) {
 		/*
-		 * If there wasn't actually a hole, want the iterator to be
-		 * pointed at the key we found:
-		 *
-		 * XXX: actually, we shouldn't be changing the iterator here:
-		 * the iterator needs to be correct for inserting at iter->pos,
-		 * and there may be whiteouts between iter->pos and what this
-		 * iterator points at:
+		 * We're not setting iter->uptodate because the node iterator
+		 * doesn't necessarily point at the key we're returning:
 		 */
-		l->iter = node_iter;
 
 		EBUG_ON(bkey_cmp(k.k->p, iter->pos) <= 0);
-		iter->uptodate = BTREE_ITER_UPTODATE;
-
 		bch2_btree_iter_verify_level(iter, 0);
 		return k;
 	}
 
-	/*
-	 * If we got to the end of the node, check if we need to traverse to the
-	 * next node:
-	 */
-	if (unlikely(!k.k && btree_iter_pos_after_node(iter, l->b))) {
-		btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
-		ret = bch2_btree_iter_traverse(iter);
-		if (unlikely(ret))
-			return bkey_s_c_err(ret);
-
-		goto recheck;
-	}
-
 	/* hole */
-
-	/* holes can't span inode numbers: */
-	if (iter->pos.offset == KEY_OFFSET_MAX) {
-		if (iter->pos.inode == KEY_INODE_MAX)
-			return bkey_s_c_null;
-
-		iter->pos = bkey_successor(iter->pos);
-		goto recheck;
-	}
 
 	if (!k.k)
 		k.k = &l->b->key.k;
@@ -1672,11 +1651,20 @@ recheck:
 	return (struct bkey_s_c) { &iter->k, NULL };
 }
 
-static inline struct bkey_s_c
-__bch2_btree_iter_peek_slot(struct btree_iter *iter)
+struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 {
 	struct btree_iter_level *l = &iter->l[0];
 	struct bkey_s_c k;
+	int ret;
+
+	bch2_btree_iter_checks(iter, BTREE_ITER_KEYS);
+
+	if (iter->uptodate == BTREE_ITER_UPTODATE)
+		return btree_iter_peek_uptodate(iter);
+
+	ret = bch2_btree_iter_traverse(iter);
+	if (unlikely(ret))
+		return bkey_s_c_err(ret);
 
 	if (iter->flags & BTREE_ITER_IS_EXTENTS)
 		return __bch2_btree_iter_peek_slot_extents(iter);
@@ -1695,22 +1683,6 @@ __bch2_btree_iter_peek_slot(struct btree_iter *iter)
 	iter->uptodate = BTREE_ITER_UPTODATE;
 	bch2_btree_iter_verify_level(iter, 0);
 	return k;
-}
-
-struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
-{
-	int ret;
-
-	bch2_btree_iter_checks(iter, BTREE_ITER_KEYS);
-
-	if (iter->uptodate == BTREE_ITER_UPTODATE)
-		return btree_iter_peek_uptodate(iter);
-
-	ret = bch2_btree_iter_traverse(iter);
-	if (unlikely(ret))
-		return bkey_s_c_err(ret);
-
-	return __bch2_btree_iter_peek_slot(iter);
 }
 
 struct bkey_s_c bch2_btree_iter_next_slot(struct btree_iter *iter)
