@@ -537,6 +537,26 @@ static inline void mii_lpa_mod_linkmode_x(unsigned long *linkmodes, u16 lpa,
 }
 
 /**
+ * linkmode_adv_to_mii_adv_x - encode a linkmode to config_reg
+ * @linkmodes: linkmodes
+ * @fd_bit: full duplex bit
+ */
+static inline u16 linkmode_adv_to_mii_adv_x(const unsigned long *linkmodes,
+					    int fd_bit)
+{
+	u16 adv = 0;
+
+	if (linkmode_test_bit(fd_bit, linkmodes))
+		adv |= ADVERTISE_1000XFULL;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT, linkmodes))
+		adv |= ADVERTISE_1000XPAUSE;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, linkmodes))
+		adv |= ADVERTISE_1000XPSE_ASYM;
+
+	return adv;
+}
+
+/**
  * mii_advertise_flowctrl - get flow control advertisement flags
  * @cap: Flow control capabilities (FLOW_CTRL_RX, FLOW_CTRL_TX or both)
  */
