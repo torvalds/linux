@@ -183,8 +183,8 @@ static void gen5_rps_init(struct intel_rps *rps)
 	fmin = (rgvmodectl & MEMMODE_FMIN_MASK);
 	fstart = (rgvmodectl & MEMMODE_FSTART_MASK) >>
 		MEMMODE_FSTART_SHIFT;
-	DRM_DEBUG_DRIVER("fmax: %d, fmin: %d, fstart: %d\n",
-			 fmax, fmin, fstart);
+	drm_dbg(&i915->drm, "fmax: %d, fmin: %d, fstart: %d\n",
+		fmax, fmin, fstart);
 
 	rps->min_freq = fmax;
 	rps->max_freq = fmin;
@@ -453,7 +453,8 @@ static bool gen5_rps_enable(struct intel_rps *rps)
 
 	if (wait_for_atomic((intel_uncore_read(uncore, MEMSWCTL) &
 			     MEMCTL_CMD_STS) == 0, 10))
-		DRM_ERROR("stuck trying to change perf mode\n");
+		drm_err(&uncore->i915->drm,
+			"stuck trying to change perf mode\n");
 	mdelay(1);
 
 	gen5_rps_set(rps, rps->cur_freq);
@@ -880,12 +881,13 @@ static void gen6_rps_init(struct intel_rps *rps)
 
 static bool rps_reset(struct intel_rps *rps)
 {
+	struct drm_i915_private *i915 = rps_to_i915(rps);
 	/* force a reset */
 	rps->power.mode = -1;
 	rps->last_freq = -1;
 
 	if (rps_set(rps, rps->min_freq, true)) {
-		DRM_ERROR("Failed to reset RPS to initial values\n");
+		drm_err(&i915->drm, "Failed to reset RPS to initial values\n");
 		return false;
 	}
 
@@ -1036,8 +1038,8 @@ static bool chv_rps_enable(struct intel_rps *rps)
 	drm_WARN_ONCE(&i915->drm, (val & GPLLENABLE) == 0,
 		      "GPLL not enabled\n");
 
-	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", yesno(val & GPLLENABLE));
-	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
+	drm_dbg(&i915->drm, "GPLL enabled? %s\n", yesno(val & GPLLENABLE));
+	drm_dbg(&i915->drm, "GPU status: 0x%08x\n", val);
 
 	return rps_reset(rps);
 }
@@ -1134,8 +1136,8 @@ static bool vlv_rps_enable(struct intel_rps *rps)
 	drm_WARN_ONCE(&i915->drm, (val & GPLLENABLE) == 0,
 		      "GPLL not enabled\n");
 
-	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", yesno(val & GPLLENABLE));
-	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
+	drm_dbg(&i915->drm, "GPLL enabled? %s\n", yesno(val & GPLLENABLE));
+	drm_dbg(&i915->drm, "GPU status: 0x%08x\n", val);
 
 	return rps_reset(rps);
 }
@@ -1292,7 +1294,8 @@ static void vlv_init_gpll_ref_freq(struct intel_rps *rps)
 				  CCK_GPLL_CLOCK_CONTROL,
 				  i915->czclk_freq);
 
-	DRM_DEBUG_DRIVER("GPLL reference freq: %d kHz\n", rps->gpll_ref_freq);
+	drm_dbg(&i915->drm, "GPLL reference freq: %d kHz\n",
+		rps->gpll_ref_freq);
 }
 
 static void vlv_rps_init(struct intel_rps *rps)
@@ -1320,28 +1323,24 @@ static void vlv_rps_init(struct intel_rps *rps)
 		i915->mem_freq = 1333;
 		break;
 	}
-	DRM_DEBUG_DRIVER("DDR speed: %d MHz\n", i915->mem_freq);
+	drm_dbg(&i915->drm, "DDR speed: %d MHz\n", i915->mem_freq);
 
 	rps->max_freq = vlv_rps_max_freq(rps);
 	rps->rp0_freq = rps->max_freq;
-	DRM_DEBUG_DRIVER("max GPU freq: %d MHz (%u)\n",
-			 intel_gpu_freq(rps, rps->max_freq),
-			 rps->max_freq);
+	drm_dbg(&i915->drm, "max GPU freq: %d MHz (%u)\n",
+		intel_gpu_freq(rps, rps->max_freq), rps->max_freq);
 
 	rps->efficient_freq = vlv_rps_rpe_freq(rps);
-	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
-			 intel_gpu_freq(rps, rps->efficient_freq),
-			 rps->efficient_freq);
+	drm_dbg(&i915->drm, "RPe GPU freq: %d MHz (%u)\n",
+		intel_gpu_freq(rps, rps->efficient_freq), rps->efficient_freq);
 
 	rps->rp1_freq = vlv_rps_guar_freq(rps);
-	DRM_DEBUG_DRIVER("RP1(Guar Freq) GPU freq: %d MHz (%u)\n",
-			 intel_gpu_freq(rps, rps->rp1_freq),
-			 rps->rp1_freq);
+	drm_dbg(&i915->drm, "RP1(Guar Freq) GPU freq: %d MHz (%u)\n",
+		intel_gpu_freq(rps, rps->rp1_freq), rps->rp1_freq);
 
 	rps->min_freq = vlv_rps_min_freq(rps);
-	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
-			 intel_gpu_freq(rps, rps->min_freq),
-			 rps->min_freq);
+	drm_dbg(&i915->drm, "min GPU freq: %d MHz (%u)\n",
+		intel_gpu_freq(rps, rps->min_freq), rps->min_freq);
 
 	vlv_iosf_sb_put(i915,
 			BIT(VLV_IOSF_SB_PUNIT) |
@@ -1371,28 +1370,24 @@ static void chv_rps_init(struct intel_rps *rps)
 		i915->mem_freq = 1600;
 		break;
 	}
-	DRM_DEBUG_DRIVER("DDR speed: %d MHz\n", i915->mem_freq);
+	drm_dbg(&i915->drm, "DDR speed: %d MHz\n", i915->mem_freq);
 
 	rps->max_freq = chv_rps_max_freq(rps);
 	rps->rp0_freq = rps->max_freq;
-	DRM_DEBUG_DRIVER("max GPU freq: %d MHz (%u)\n",
-			 intel_gpu_freq(rps, rps->max_freq),
-			 rps->max_freq);
+	drm_dbg(&i915->drm, "max GPU freq: %d MHz (%u)\n",
+		intel_gpu_freq(rps, rps->max_freq), rps->max_freq);
 
 	rps->efficient_freq = chv_rps_rpe_freq(rps);
-	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
-			 intel_gpu_freq(rps, rps->efficient_freq),
-			 rps->efficient_freq);
+	drm_dbg(&i915->drm, "RPe GPU freq: %d MHz (%u)\n",
+		intel_gpu_freq(rps, rps->efficient_freq), rps->efficient_freq);
 
 	rps->rp1_freq = chv_rps_guar_freq(rps);
-	DRM_DEBUG_DRIVER("RP1(Guar) GPU freq: %d MHz (%u)\n",
-			 intel_gpu_freq(rps, rps->rp1_freq),
-			 rps->rp1_freq);
+	drm_dbg(&i915->drm, "RP1(Guar) GPU freq: %d MHz (%u)\n",
+		intel_gpu_freq(rps, rps->rp1_freq), rps->rp1_freq);
 
 	rps->min_freq = chv_rps_min_freq(rps);
-	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
-			 intel_gpu_freq(rps, rps->min_freq),
-			 rps->min_freq);
+	drm_dbg(&i915->drm, "min GPU freq: %d MHz (%u)\n",
+		intel_gpu_freq(rps, rps->min_freq), rps->min_freq);
 
 	vlv_iosf_sb_put(i915,
 			BIT(VLV_IOSF_SB_PUNIT) |
@@ -1455,6 +1450,7 @@ static void rps_work(struct work_struct *work)
 {
 	struct intel_rps *rps = container_of(work, typeof(*rps), work);
 	struct intel_gt *gt = rps_to_gt(rps);
+	struct drm_i915_private *i915 = rps_to_i915(rps);
 	bool client_boost = false;
 	int new_freq, adj, min, max;
 	u32 pm_iir = 0;
@@ -1530,7 +1526,7 @@ static void rps_work(struct work_struct *work)
 	new_freq = clamp_t(int, new_freq, min, max);
 
 	if (intel_rps_set(rps, new_freq)) {
-		DRM_DEBUG_DRIVER("Failed to set new GPU frequency\n");
+		drm_dbg(&i915->drm, "Failed to set new GPU frequency\n");
 		rps->last_adj = 0;
 	}
 
@@ -1652,9 +1648,10 @@ void intel_rps_init(struct intel_rps *rps)
 		sandybridge_pcode_read(i915, GEN6_READ_OC_PARAMS,
 				       &params, NULL);
 		if (params & BIT(31)) { /* OC supported */
-			DRM_DEBUG_DRIVER("Overclocking supported, max: %dMHz, overclock: %dMHz\n",
-					 (rps->max_freq & 0xff) * 50,
-					 (params & 0xff) * 50);
+			drm_dbg(&i915->drm,
+				"Overclocking supported, max: %dMHz, overclock: %dMHz\n",
+				(rps->max_freq & 0xff) * 50,
+				(params & 0xff) * 50);
 			rps->max_freq = params & 0xff;
 		}
 	}
