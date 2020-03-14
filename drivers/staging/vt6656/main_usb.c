@@ -21,6 +21,7 @@
  */
 #undef __NO_VERSION__
 
+#include <linux/bits.h>
 #include <linux/etherdevice.h>
 #include <linux/file.h>
 #include "device.h"
@@ -793,8 +794,7 @@ static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
 
 	netdev_hw_addr_list_for_each(ha, mc_list) {
 		bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
-
-		mc_filter |= 1ULL << (bit_nr & 0x3f);
+		mc_filter |= BIT_ULL(bit_nr);
 	}
 
 	priv->mc_list_count = mc_list->count;
