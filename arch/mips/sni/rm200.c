@@ -473,10 +473,10 @@ void __init sni_rm200_irq_init(void)
 	sni_hwint = sni_rm200_hwint;
 	change_c0_status(ST0_IM, IE_IRQ0);
 	if (request_irq(SNI_RM200_INT_START + 0, sni_rm200_i8259A_irq_handler,
-			IRQF_SHARED, "onboard ISA", NULL))
+			0, "onboard ISA", NULL))
 		pr_err("Failed to register onboard ISA interrupt\n");
-	if (request_irq(SNI_RM200_INT_START + 1, sni_isa_irq_handler,
-			IRQF_SHARED, "ISA", NULL))
+	if (request_irq(SNI_RM200_INT_START + 1, sni_isa_irq_handler, 0, "ISA",
+			NULL))
 		pr_err("Failed to register ISA interrupt\n");
 }
 

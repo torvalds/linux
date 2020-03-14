@@ -292,7 +292,8 @@ int r4k_clockevent_init(void)
 
 	cp0_timer_irq_installed = 1;
 
-	if (request_irq(irq, c0_compare_interrupt, flags, "timer", NULL))
+	if (request_irq(irq, c0_compare_interrupt, flags, "timer",
+			c0_compare_interrupt))
 		pr_err("Failed to request irq %d (timer)\n", irq);
 
 	return 0;
