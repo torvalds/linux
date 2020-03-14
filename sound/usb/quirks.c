@@ -1508,3 +1508,17 @@ void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
 		break;
 	}
 }
+
+int snd_usb_registration_quirk(struct snd_usb_audio *chip,
+			       int iface)
+{
+	switch (chip->usb_id) {
+	case USB_ID(0x0951, 0x16d8): /* Kingston HyperX AMP */
+		/* Register only when we reach interface 2 so that streams can
+		 * merge correctly into PCMs from interface 0
+		 */
+		return (iface != 2);
+	}
+	/* Register as normal */
+	return 0;
+}
