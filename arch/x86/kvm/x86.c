@@ -8049,19 +8049,26 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_update_apicv);
  */
 void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 {
+	unsigned long old, new, expected;
+
 	if (!kvm_x86_ops->check_apicv_inhibit_reasons ||
 	    !kvm_x86_ops->check_apicv_inhibit_reasons(bit))
 		return;
 
-	if (activate) {
-		if (!test_and_clear_bit(bit, &kvm->arch.apicv_inhibit_reasons) ||
-		    !kvm_apicv_activated(kvm))
-			return;
-	} else {
-		if (test_and_set_bit(bit, &kvm->arch.apicv_inhibit_reasons) ||
-		    kvm_apicv_activated(kvm))
-			return;
-	}
+	old = READ_ONCE(kvm->arch.apicv_inhibit_reasons);
+	do {
+		expected = new = old;
+		if (activate)
+			__clear_bit(bit, &new);
+		else
+			__set_bit(bit, &new);
+		if (new == old)
+			break;
+		old = cmpxchg(&kvm->arch.apicv_inhibit_reasons, expected, new);
+	} while (old != expected);
+
+	if (!!old == !!new)
+		return;
 
 	trace_kvm_apicv_update_request(activate, bit);
 	if (kvm_x86_ops->pre_update_apicv_exec_ctrl)
