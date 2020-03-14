@@ -340,26 +340,17 @@ int mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
 
 static void mv88e6352_serdes_irq_link(struct mv88e6xxx_chip *chip, int port)
 {
-	struct dsa_switch *ds = chip->ds;
-	u16 status;
-	bool up;
+	u16 bmsr;
 	int err;
 
-	err = mv88e6352_serdes_read(chip, MII_BMSR, &status);
-	if (err)
+	/* If the link has dropped, we want to know about it. */
+	err = mv88e6352_serdes_read(chip, MII_BMSR, &bmsr);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes BMSR: %d\n", err);
 		return;
+	}
 
-	/* Status must be read twice in order to give the current link
-	 * status. Otherwise the change in link status since the last
-	 * read of the register is returned.
-	 */
-	err = mv88e6352_serdes_read(chip, MII_BMSR, &status);
-	if (err)
-		return;
-
-	up = status & BMSR_LSTATUS;
-
-	dsa_port_phylink_mac_change(ds, port, up);
+	dsa_port_phylink_mac_change(chip->ds, port, !!(bmsr & BMSR_LSTATUS));
 }
 
 irqreturn_t mv88e6352_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
@@ -833,18 +824,18 @@ int mv88e6390_serdes_pcs_link_up(struct mv88e6xxx_chip *chip, int port,
 static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
 					    int port, u8 lane)
 {
-	u16 status;
+	u16 bmsr;
 	int err;
 
+	/* If the link has dropped, we want to know about it. */
 	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
-				    MV88E6390_SGMII_PHY_STATUS, &status);
+				    MV88E6390_SGMII_BMSR, &bmsr);
 	if (err) {
-		dev_err(chip->dev, "can't read SGMII PHY status: %d\n", err);
+		dev_err(chip->dev, "can't read Serdes BMSR: %d\n", err);
 		return;
 	}
 
-	dsa_port_phylink_mac_change(chip->ds, port,
-				!!(status & MV88E6390_SGMII_PHY_STATUS_LINK));
+	dsa_port_phylink_mac_change(chip->ds, port, !!(bmsr & BMSR_LSTATUS));
 }
 
 static int mv88e6390_serdes_irq_enable_sgmii(struct mv88e6xxx_chip *chip,
