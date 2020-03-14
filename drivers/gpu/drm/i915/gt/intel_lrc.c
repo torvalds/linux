@@ -3432,7 +3432,8 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 
 	ret = lrc_setup_wa_ctx(engine);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Failed to setup context WA page: %d\n", ret);
+		drm_dbg(&engine->i915->drm,
+			"Failed to setup context WA page: %d\n", ret);
 		return ret;
 	}
 
@@ -3539,7 +3540,8 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 	bool unexpected = false;
 
 	if (ENGINE_READ_FW(engine, RING_MI_MODE) & STOP_RING) {
-		DRM_DEBUG_DRIVER("STOP_RING still set in RING_MI_MODE\n");
+		drm_dbg(&engine->i915->drm,
+			"STOP_RING still set in RING_MI_MODE\n");
 		unexpected = true;
 	}
 
@@ -4483,7 +4485,7 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 		 * because we only expect rare glitches but nothing
 		 * critical to prevent us from using GPU
 		 */
-		DRM_ERROR("WA batch buffer initialization failed\n");
+		drm_err(&i915->drm, "WA batch buffer initialization failed\n");
 
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
 		execlists->submit_reg = uncore->regs +
@@ -4658,7 +4660,8 @@ populate_lr_context(struct intel_context *ce,
 	vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
-		DRM_DEBUG_DRIVER("Could not map object pages! (%d)\n", ret);
+		drm_dbg(&engine->i915->drm,
+			"Could not map object pages! (%d)\n", ret);
 		return ret;
 	}
 
@@ -4751,7 +4754,8 @@ static int __execlists_context_alloc(struct intel_context *ce,
 
 	ret = populate_lr_context(ce, ctx_obj, engine, ring);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Failed to populate LRC: %d\n", ret);
+		drm_dbg(&engine->i915->drm,
+			"Failed to populate LRC: %d\n", ret);
 		goto error_ring_free;
 	}
 
