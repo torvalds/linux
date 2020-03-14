@@ -226,7 +226,7 @@ static void *server_thread(void *arg)
 		return ERR_PTR(err);
 	}
 
-	while (!server_done) {
+	while (true) {
 		client_fd = accept(fd, (struct sockaddr *)&addr, &len);
 		if (client_fd == -1 && errno == EAGAIN) {
 			usleep(50);
@@ -272,7 +272,7 @@ void test_tcp_rtt(void)
 	CHECK_FAIL(run_test(cgroup_fd, server_fd));
 
 	server_done = true;
-	pthread_join(tid, &server_res);
+	CHECK_FAIL(pthread_join(tid, &server_res));
 	CHECK_FAIL(IS_ERR(server_res));
 
 close_server_fd:
