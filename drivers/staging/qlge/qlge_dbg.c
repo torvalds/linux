@@ -1620,9 +1620,9 @@ void ql_dump_wqicb(struct wqicb *wqicb)
 	       le16_to_cpu(wqicb->cq_id_rss));
 	pr_err("wqicb->rid = 0x%x\n", le16_to_cpu(wqicb->rid));
 	pr_err("wqicb->wq_addr = 0x%llx\n",
-	       (unsigned long long) le64_to_cpu(wqicb->addr));
+	       (unsigned long long)le64_to_cpu(wqicb->addr));
 	pr_err("wqicb->wq_cnsmr_idx_addr = 0x%llx\n",
-	       (unsigned long long) le64_to_cpu(wqicb->cnsmr_idx_addr));
+	       (unsigned long long)le64_to_cpu(wqicb->cnsmr_idx_addr));
 }
 
 void ql_dump_tx_ring(struct tx_ring *tx_ring)
@@ -1633,7 +1633,7 @@ void ql_dump_tx_ring(struct tx_ring *tx_ring)
 	       tx_ring->wq_id);
 	pr_err("tx_ring->base = %p\n", tx_ring->wq_base);
 	pr_err("tx_ring->base_dma = 0x%llx\n",
-	       (unsigned long long) tx_ring->wq_base_dma);
+	       (unsigned long long)tx_ring->wq_base_dma);
 	pr_err("tx_ring->cnsmr_idx_sh_reg, addr = 0x%p, value = %d\n",
 	       tx_ring->cnsmr_idx_sh_reg,
 	       tx_ring->cnsmr_idx_sh_reg
@@ -1686,21 +1686,21 @@ void ql_dump_cqicb(struct cqicb *cqicb)
 	pr_err("cqicb->flags = %x\n", cqicb->flags);
 	pr_err("cqicb->len = %d\n", le16_to_cpu(cqicb->len));
 	pr_err("cqicb->addr = 0x%llx\n",
-	       (unsigned long long) le64_to_cpu(cqicb->addr));
+	       (unsigned long long)le64_to_cpu(cqicb->addr));
 	pr_err("cqicb->prod_idx_addr = 0x%llx\n",
-	       (unsigned long long) le64_to_cpu(cqicb->prod_idx_addr));
+	       (unsigned long long)le64_to_cpu(cqicb->prod_idx_addr));
 	pr_err("cqicb->pkt_delay = 0x%.04x\n",
 	       le16_to_cpu(cqicb->pkt_delay));
 	pr_err("cqicb->irq_delay = 0x%.04x\n",
 	       le16_to_cpu(cqicb->irq_delay));
 	pr_err("cqicb->lbq_addr = 0x%llx\n",
-	       (unsigned long long) le64_to_cpu(cqicb->lbq_addr));
+	       (unsigned long long)le64_to_cpu(cqicb->lbq_addr));
 	pr_err("cqicb->lbq_buf_size = 0x%.04x\n",
 	       le16_to_cpu(cqicb->lbq_buf_size));
 	pr_err("cqicb->lbq_len = 0x%.04x\n",
 	       le16_to_cpu(cqicb->lbq_len));
 	pr_err("cqicb->sbq_addr = 0x%llx\n",
-	       (unsigned long long) le64_to_cpu(cqicb->sbq_addr));
+	       (unsigned long long)le64_to_cpu(cqicb->sbq_addr));
 	pr_err("cqicb->sbq_buf_size = 0x%.04x\n",
 	       le16_to_cpu(cqicb->sbq_buf_size));
 	pr_err("cqicb->sbq_len = 0x%.04x\n",
@@ -1728,7 +1728,7 @@ void ql_dump_rx_ring(struct rx_ring *rx_ring)
 	pr_err("rx_ring->cqicb = %p\n", &rx_ring->cqicb);
 	pr_err("rx_ring->cq_base = %p\n", rx_ring->cq_base);
 	pr_err("rx_ring->cq_base_dma = %llx\n",
-	       (unsigned long long) rx_ring->cq_base_dma);
+	       (unsigned long long)rx_ring->cq_base_dma);
 	pr_err("rx_ring->cq_size = %d\n", rx_ring->cq_size);
 	pr_err("rx_ring->cq_len = %d\n", rx_ring->cq_len);
 	pr_err("rx_ring->prod_idx_sh_reg, addr = 0x%p, value = %d\n",
@@ -1736,7 +1736,7 @@ void ql_dump_rx_ring(struct rx_ring *rx_ring)
 	       rx_ring->prod_idx_sh_reg
 			? ql_read_sh_reg(rx_ring->prod_idx_sh_reg) : 0);
 	pr_err("rx_ring->prod_idx_sh_reg_dma = %llx\n",
-	       (unsigned long long) rx_ring->prod_idx_sh_reg_dma);
+	       (unsigned long long)rx_ring->prod_idx_sh_reg_dma);
 	pr_err("rx_ring->cnsmr_idx_db_reg = %p\n",
 	       rx_ring->cnsmr_idx_db_reg);
 	pr_err("rx_ring->cnsmr_idx = %d\n", rx_ring->cnsmr_idx);
@@ -1959,7 +1959,7 @@ void ql_dump_ib_mac_rsp(struct ib_mac_iocb_rsp *ib_mac_rsp)
 	pr_err("data_len	= %d\n",
 	       le32_to_cpu(ib_mac_rsp->data_len));
 	pr_err("data_addr    = 0x%llx\n",
-	       (unsigned long long) le64_to_cpu(ib_mac_rsp->data_addr));
+	       (unsigned long long)le64_to_cpu(ib_mac_rsp->data_addr));
 	if (ib_mac_rsp->flags3 & IB_MAC_IOCB_RSP_RSS_MASK)
 		pr_err("rss    = %x\n",
 		       le32_to_cpu(ib_mac_rsp->rss));
@@ -1976,7 +1976,7 @@ void ql_dump_ib_mac_rsp(struct ib_mac_iocb_rsp *ib_mac_rsp)
 		pr_err("hdr length	= %d\n",
 		       le32_to_cpu(ib_mac_rsp->hdr_len));
 		pr_err("hdr addr    = 0x%llx\n",
-		       (unsigned long long) le64_to_cpu(ib_mac_rsp->hdr_addr));
+		       (unsigned long long)le64_to_cpu(ib_mac_rsp->hdr_addr));
 	}
 }
 #endif
