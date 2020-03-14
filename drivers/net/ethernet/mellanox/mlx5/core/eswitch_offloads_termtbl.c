@@ -49,7 +49,6 @@ mlx5_eswitch_termtbl_create(struct mlx5_core_dev *dev,
 			    struct mlx5_termtbl_handle *tt,
 			    struct mlx5_flow_act *flow_act)
 {
-	static const struct mlx5_flow_spec spec = {};
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_namespace *root_ns;
 	int err;
@@ -73,7 +72,7 @@ mlx5_eswitch_termtbl_create(struct mlx5_core_dev *dev,
 		return -EOPNOTSUPP;
 	}
 
-	tt->rule = mlx5_add_flow_rules(tt->termtbl, &spec, flow_act,
+	tt->rule = mlx5_add_flow_rules(tt->termtbl, NULL, flow_act,
 				       &tt->dest, 1);
 
 	if (IS_ERR(tt->rule)) {

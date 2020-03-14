@@ -965,6 +965,24 @@ struct mlx5dr_action *mlx5dr_action_create_drop(void)
 }
 
 struct mlx5dr_action *
+mlx5dr_action_create_dest_table_num(struct mlx5dr_domain *dmn, u32 table_num)
+{
+	struct mlx5dr_action *action;
+
+	action = dr_action_create_generic(DR_ACTION_TYP_FT);
+	if (!action)
+		return NULL;
+
+	action->dest_tbl.is_fw_tbl = true;
+	action->dest_tbl.fw_tbl.dmn = dmn;
+	action->dest_tbl.fw_tbl.id = table_num;
+	action->dest_tbl.fw_tbl.type = FS_FT_FDB;
+	refcount_inc(&dmn->refcount);
+
+	return action;
+}
+
+struct mlx5dr_action *
 mlx5dr_action_create_dest_table(struct mlx5dr_table *tbl)
 {
 	struct mlx5dr_action *action;
