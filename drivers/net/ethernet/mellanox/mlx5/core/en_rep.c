@@ -41,7 +41,7 @@
 #include <net/ipv6_stubs.h>
 
 #include "eswitch.h"
-#include "eswitch_offloads_chains.h"
+#include "esw/chains.h"
 #include "en.h"
 #include "en_rep.h"
 #include "en_tc.h"
