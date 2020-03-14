@@ -97,7 +97,7 @@ static struct clk_branch video_cc_vcodec0_axi_clk = {
 
 static struct clk_branch video_cc_vcodec0_core_clk = {
 	.halt_reg = 0x890,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x890,
 		.enable_mask = BIT(0),
