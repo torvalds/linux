@@ -137,6 +137,21 @@ struct smb2_transform_hdr {
 	__u64  SessionId;
 } __packed;
 
+/* See MS-SMB2 2.2.42.1 */
+struct compression_playload_header {
+	__le16	AlgorithmId;
+	__le16	Reserved;
+	__le32	Length;
+} __packed;
+
+/* See MS-SMB2 2.2.42.2 */
+struct compression_pattern_payload_v1 {
+	__le16	Pattern;
+	__le16	Reserved1;
+	__le16	Reserved2;
+	__le32	Repetitions;
+} __packed;
+
 /*
  *	SMB2 flag definitions
  */
@@ -1186,7 +1201,7 @@ struct smb2_write_req {
 	__le64 Offset;
 	__u64  PersistentFileId; /* opaque endianness */
 	__u64  VolatileFileId; /* opaque endianness */
-	__le32 Channel; /* Reserved MBZ */
+	__le32 Channel; /* MBZ unless SMB3.02 or later */
 	__le32 RemainingBytes;
 	__le16 WriteChannelInfoOffset;
 	__le16 WriteChannelInfoLength;
