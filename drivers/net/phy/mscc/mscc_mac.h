@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
 /*
- * Microsemi Ocelot Switch driver
+ * Driver for Microsemi VSC85xx PHYs
  *
  * Copyright (c) 2017 Microsemi Corporation
  */
 
-#ifndef _MSCC_OCELOT_LINE_MAC_H_
-#define _MSCC_OCELOT_LINE_MAC_H_
+#ifndef _MSCC_PHY_LINE_MAC_H_
+#define _MSCC_PHY_LINE_MAC_H_
 
 #define MSCC_MAC_CFG_ENA_CFG					0x00
 #define MSCC_MAC_CFG_MODE_CFG					0x01
@@ -156,4 +156,4 @@
 #define MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE(x)	(x)
 #define MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE_M	GENMASK(2, 0)
 
-#endif /* _MSCC_OCELOT_LINE_MAC_H_ */
+#endif /* _MSCC_PHY_LINE_MAC_H_ */
