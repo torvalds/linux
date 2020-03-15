@@ -261,7 +261,7 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 /* Btree iterator locking: */
 
 #ifdef CONFIG_BCACHEFS_DEBUG
-void bch2_btree_iter_verify_locks(struct btree_iter *iter)
+static void bch2_btree_iter_verify_locks(struct btree_iter *iter)
 {
 	unsigned l;
 
@@ -282,6 +282,8 @@ void bch2_btree_trans_verify_locks(struct btree_trans *trans)
 	trans_for_each_iter(trans, iter)
 		bch2_btree_iter_verify_locks(iter);
 }
+#else
+static inline void bch2_btree_iter_verify_locks(struct btree_iter *iter) {}
 #endif
 
 __flatten
@@ -515,7 +517,8 @@ void bch2_btree_trans_verify_iters(struct btree_trans *trans, struct btree *b)
 
 #else
 
-static inline void bch2_btree_iter_verify_level(struct btree_iter *iter, unsigned) {}
+static inline void bch2_btree_iter_verify_level(struct btree_iter *iter, unsigned l) {}
+static inline void bch2_btree_iter_verify(struct btree_iter *iter) {}
 
 #endif
 
