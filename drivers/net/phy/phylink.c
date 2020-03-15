@@ -326,6 +326,33 @@ static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
 			phylink_set(pl->supported, 10000baseER_Full);
 			break;
 
+		case PHY_INTERFACE_MODE_XLGMII:
+			phylink_set(pl->supported, 25000baseCR_Full);
+			phylink_set(pl->supported, 25000baseKR_Full);
+			phylink_set(pl->supported, 25000baseSR_Full);
+			phylink_set(pl->supported, 40000baseKR4_Full);
+			phylink_set(pl->supported, 40000baseCR4_Full);
+			phylink_set(pl->supported, 40000baseSR4_Full);
+			phylink_set(pl->supported, 40000baseLR4_Full);
+			phylink_set(pl->supported, 50000baseCR2_Full);
+			phylink_set(pl->supported, 50000baseKR2_Full);
+			phylink_set(pl->supported, 50000baseSR2_Full);
+			phylink_set(pl->supported, 50000baseKR_Full);
+			phylink_set(pl->supported, 50000baseSR_Full);
+			phylink_set(pl->supported, 50000baseCR_Full);
+			phylink_set(pl->supported, 50000baseLR_ER_FR_Full);
+			phylink_set(pl->supported, 50000baseDR_Full);
+			phylink_set(pl->supported, 100000baseKR4_Full);
+			phylink_set(pl->supported, 100000baseSR4_Full);
+			phylink_set(pl->supported, 100000baseCR4_Full);
+			phylink_set(pl->supported, 100000baseLR4_ER4_Full);
+			phylink_set(pl->supported, 100000baseKR2_Full);
+			phylink_set(pl->supported, 100000baseSR2_Full);
+			phylink_set(pl->supported, 100000baseCR2_Full);
+			phylink_set(pl->supported, 100000baseLR2_ER2_FR2_Full);
+			phylink_set(pl->supported, 100000baseDR2_Full);
+			break;
+
 		default:
 			phylink_err(pl,
 				    "incorrect link mode %s for in-band status\n",
