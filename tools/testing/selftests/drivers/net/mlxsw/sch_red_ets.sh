@@ -4,6 +4,7 @@
 ALL_TESTS="
 	ping_ipv4
 	ecn_test
+	ecn_nodrop_test
 	red_test
 	mc_backlog_test
 "
@@ -46,6 +47,16 @@ ecn_test()
 
 	do_ecn_test 10 $BACKLOG1
 	do_ecn_test 11 $BACKLOG2
+
+	uninstall_qdisc
+}
+
+ecn_nodrop_test()
+{
+	install_qdisc ecn nodrop
+
+	do_ecn_nodrop_test 10 $BACKLOG1
+	do_ecn_nodrop_test 11 $BACKLOG2
 
 	uninstall_qdisc
 }

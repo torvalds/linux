@@ -389,16 +389,13 @@ check_marking()
 	((pct $cond))
 }
 
-do_ecn_test()
+ecn_test_common()
 {
+	local name=$1; shift
 	local vlan=$1; shift
 	local limit=$1; shift
 	local backlog
 	local pct
-
-	# Main stream.
-	start_tcp_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) \
-			  $h3_mac tos=0x01
 
 	# Build the below-the-limit backlog using UDP. We could use TCP just
 	# fine, but this way we get a proof that UDP is accepted when queue
@@ -409,7 +406,7 @@ do_ecn_test()
 	check_err $? "Could not build the requested backlog"
 	pct=$(check_marking $vlan "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
-	log_test "TC $((vlan - 10)): ECN backlog < limit"
+	log_test "TC $((vlan - 10)): $name backlog < limit"
 
 	# Now push TCP, because non-TCP traffic would be early-dropped after the
 	# backlog crosses the limit, and we want to make sure that the backlog
@@ -419,7 +416,20 @@ do_ecn_test()
 	check_err $? "Could not build the requested backlog"
 	pct=$(check_marking $vlan ">= 95")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected >= 95."
-	log_test "TC $((vlan - 10)): ECN backlog > limit"
+	log_test "TC $((vlan - 10)): $name backlog > limit"
+}
+
+do_ecn_test()
+{
+	local vlan=$1; shift
+	local limit=$1; shift
+	local name=ECN
+
+	start_tcp_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) \
+			  $h3_mac tos=0x01
+	sleep 1
+
+	ecn_test_common "$name" $vlan $limit
 
 	# Up there we saw that UDP gets accepted when backlog is below the
 	# limit. Now that it is above, it should all get dropped, and backlog
@@ -427,7 +437,31 @@ do_ecn_test()
 	RET=0
 	build_backlog $vlan $((2 * limit)) udp >/dev/null
 	check_fail $? "UDP traffic went into backlog instead of being early-dropped"
-	log_test "TC $((vlan - 10)): ECN backlog > limit: UDP early-dropped"
+	log_test "TC $((vlan - 10)): $name backlog > limit: UDP early-dropped"
+
+	stop_traffic
+	sleep 1
+}
+
+do_ecn_nodrop_test()
+{
+	local vlan=$1; shift
+	local limit=$1; shift
+	local name="ECN nodrop"
+
+	start_tcp_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) \
+			  $h3_mac tos=0x01
+	sleep 1
+
+	ecn_test_common "$name" $vlan $limit
+
+	# Up there we saw that UDP gets accepted when backlog is below the
+	# limit. Now that it is above, in nodrop mode, make sure it goes to
+	# backlog as well.
+	RET=0
+	build_backlog $vlan $((2 * limit)) udp >/dev/null
+	check_err $? "UDP traffic was early-dropped instead of getting into backlog"
+	log_test "TC $((vlan - 10)): $name backlog > limit: UDP not dropped"
 
 	stop_traffic
 	sleep 1
