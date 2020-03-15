@@ -2839,6 +2839,9 @@ jme_set_eeprom(struct net_device *netdev,
 }
 
 static const struct ethtool_ops jme_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo            = jme_get_drvinfo,
 	.get_regs_len		= jme_get_regs_len,
 	.get_regs		= jme_get_regs,

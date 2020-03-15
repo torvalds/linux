@@ -368,17 +368,6 @@ static int otx2_set_coalesce(struct net_device *netdev,
 	struct otx2_hw *hw = &pfvf->hw;
 	int qidx;
 
-	if (ec->use_adaptive_rx_coalesce || ec->use_adaptive_tx_coalesce ||
-	    ec->rx_coalesce_usecs_irq || ec->rx_max_coalesced_frames_irq ||
-	    ec->tx_coalesce_usecs_irq || ec->tx_max_coalesced_frames_irq ||
-	    ec->stats_block_coalesce_usecs || ec->pkt_rate_low ||
-	    ec->rx_coalesce_usecs_low || ec->rx_max_coalesced_frames_low ||
-	    ec->tx_coalesce_usecs_low || ec->tx_max_coalesced_frames_low ||
-	    ec->pkt_rate_high || ec->rx_coalesce_usecs_high ||
-	    ec->rx_max_coalesced_frames_high || ec->tx_coalesce_usecs_high ||
-	    ec->tx_max_coalesced_frames_high || ec->rate_sample_interval)
-		return -EOPNOTSUPP;
-
 	if (!ec->rx_max_coalesced_frames || !ec->tx_max_coalesced_frames)
 		return 0;
 
@@ -674,6 +663,8 @@ static u32 otx2_get_link(struct net_device *netdev)
 }
 
 static const struct ethtool_ops otx2_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_link		= otx2_get_link,
 	.get_drvinfo		= otx2_get_drvinfo,
 	.get_strings		= otx2_get_strings,
