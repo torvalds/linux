@@ -390,7 +390,7 @@ ____##name(struct pt_regs *ctx, ##args)
 
 #define ___bpf_kretprobe_args0() ctx
 #define ___bpf_kretprobe_args1(x) \
-	___bpf_kretprobe_args0(), (void *)PT_REGS_RET(ctx)
+	___bpf_kretprobe_args0(), (void *)PT_REGS_RC(ctx)
 #define ___bpf_kretprobe_args(args...) \
 	___bpf_apply(___bpf_kretprobe_args, ___bpf_narg(args))(args)
 
