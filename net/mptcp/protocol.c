@@ -820,9 +820,12 @@ static struct ipv6_pinfo *mptcp_inet6_sk(const struct sock *sk)
 }
 #endif
 
-static struct sock *mptcp_sk_clone_lock(const struct sock *sk)
+struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req)
 {
+	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
 	struct sock *nsk = sk_clone_lock(sk, GFP_ATOMIC);
+	struct mptcp_sock *msk;
+	u64 ack_seq;
 
 	if (!nsk)
 		return NULL;
@@ -832,6 +835,36 @@ static struct sock *mptcp_sk_clone_lock(const struct sock *sk)
 		inet_sk(nsk)->pinet6 = mptcp_inet6_sk(nsk);
 #endif
 
+	__mptcp_init_sock(nsk);
+
+	msk = mptcp_sk(nsk);
+	msk->local_key = subflow_req->local_key;
+	msk->token = subflow_req->token;
+	msk->subflow = NULL;
+
+	if (unlikely(mptcp_token_new_accept(subflow_req->token, nsk))) {
+		bh_unlock_sock(nsk);
+
+		/* we can't call into mptcp_close() here - possible BH context
+		 * free the sock directly
+		 */
+		nsk->sk_prot->destroy(nsk);
+		sk_free(nsk);
+		return NULL;
+	}
+
+	msk->write_seq = subflow_req->idsn + 1;
+	if (subflow_req->remote_key_valid) {
+		msk->can_ack = true;
+		msk->remote_key = subflow_req->remote_key;
+		mptcp_crypto_key_sha(msk->remote_key, NULL, &ack_seq);
+		ack_seq++;
+		msk->ack_seq = ack_seq;
+	}
+	bh_unlock_sock(nsk);
+
+	/* keep a single reference */
+	__sock_put(nsk);
 	return nsk;
 }
 
@@ -859,40 +892,26 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		struct mptcp_subflow_context *subflow;
 		struct sock *new_mptcp_sock;
 		struct sock *ssk = newsk;
-		u64 ack_seq;
 
 		subflow = mptcp_subflow_ctx(newsk);
-		lock_sock(sk);
+		new_mptcp_sock = subflow->conn;
+
+		/* is_mptcp should be false if subflow->conn is missing, see
+		 * subflow_syn_recv_sock()
+		 */
+		if (WARN_ON_ONCE(!new_mptcp_sock)) {
+			tcp_sk(newsk)->is_mptcp = 0;
+			return newsk;
+		}
+
+		/* acquire the 2nd reference for the owning socket */
+		sock_hold(new_mptcp_sock);
 
 		local_bh_disable();
-		new_mptcp_sock = mptcp_sk_clone_lock(sk);
-		if (!new_mptcp_sock) {
-			*err = -ENOBUFS;
-			local_bh_enable();
-			release_sock(sk);
-			mptcp_subflow_shutdown(newsk, SHUT_RDWR + 1, 0, 0);
-			tcp_close(newsk, 0);
-			return NULL;
-		}
-
-		__mptcp_init_sock(new_mptcp_sock);
-
+		bh_lock_sock(new_mptcp_sock);
 		msk = mptcp_sk(new_mptcp_sock);
-		msk->local_key = subflow->local_key;
-		msk->token = subflow->token;
-		msk->subflow = NULL;
 		msk->first = newsk;
 
-		mptcp_token_update_accept(newsk, new_mptcp_sock);
-
-		msk->write_seq = subflow->idsn + 1;
-		if (subflow->can_ack) {
-			msk->can_ack = true;
-			msk->remote_key = subflow->remote_key;
-			mptcp_crypto_key_sha(msk->remote_key, NULL, &ack_seq);
-			ack_seq++;
-			msk->ack_seq = ack_seq;
-		}
 		newsk = new_mptcp_sock;
 		mptcp_copy_inaddrs(newsk, ssk);
 		list_add(&subflow->node, &msk->conn_list);
@@ -903,18 +922,6 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		inet_sk_state_store(new_mptcp_sock, TCP_SYN_RECV);
 		bh_unlock_sock(new_mptcp_sock);
 		local_bh_enable();
-		release_sock(sk);
-
-		/* the subflow can already receive packet, avoid racing with
-		 * the receive path and process the pending ones
-		 */
-		lock_sock(ssk);
-		subflow->rel_write_seq = 1;
-		subflow->tcp_sock = ssk;
-		subflow->conn = new_mptcp_sock;
-		if (unlikely(!skb_queue_empty(&ssk->sk_receive_queue)))
-			mptcp_subflow_data_available(ssk);
-		release_sock(ssk);
 	}
 
 	return newsk;

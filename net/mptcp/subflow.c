@@ -112,7 +112,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 
 	subflow->icsk_af_ops->sk_rx_dst_set(sk, skb);
 
-	if (subflow->conn && !subflow->conn_finished) {
+	if (!subflow->conn_finished) {
 		pr_debug("subflow=%p, remote_key=%llu", mptcp_subflow_ctx(sk),
 			 subflow->remote_key);
 		mptcp_finish_connect(sk);
@@ -182,6 +182,7 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 	struct mptcp_subflow_context *listener = mptcp_subflow_ctx(sk);
 	struct mptcp_subflow_request_sock *subflow_req;
 	struct tcp_options_received opt_rx;
+	struct sock *new_msk = NULL;
 	struct sock *child;
 
 	pr_debug("listener=%p, req=%p, conn=%p", listener, req, listener->conn);
@@ -197,7 +198,7 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 			 * out-of-order pkt, which will not carry the MP_CAPABLE
 			 * opt even on mptcp enabled paths
 			 */
-			goto create_child;
+			goto create_msk;
 		}
 
 		opt_rx.mptcp.mp_capable = 0;
@@ -207,7 +208,13 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 			subflow_req->remote_key_valid = 1;
 		} else {
 			subflow_req->mp_capable = 0;
+			goto create_child;
 		}
+
+create_msk:
+		new_msk = mptcp_sk_clone(listener->conn, req);
+		if (!new_msk)
+			subflow_req->mp_capable = 0;
 	}
 
 create_child:
@@ -221,22 +228,22 @@ create_child:
 		 * handshake
 		 */
 		if (!ctx)
-			return child;
+			goto out;
 
 		if (ctx->mp_capable) {
-			if (mptcp_token_new_accept(ctx->token))
-				goto close_child;
+			/* new mpc subflow takes ownership of the newly
+			 * created mptcp socket
+			 */
+			ctx->conn = new_msk;
+			new_msk = NULL;
 		}
 	}
 
+out:
+	/* dispose of the left over mptcp master, if any */
+	if (unlikely(new_msk))
+		sock_put(new_msk);
 	return child;
-
-close_child:
-	pr_debug("closing child socket");
-	tcp_send_active_reset(child, GFP_ATOMIC);
-	inet_csk_prepare_forced_close(child);
-	tcp_done(child);
-	return NULL;
 }
 
 static struct inet_connection_sock_af_ops subflow_specific;
@@ -432,9 +439,6 @@ static bool subflow_check_data_avail(struct sock *ssk)
 	if (subflow->data_avail)
 		return true;
 
-	if (!subflow->conn)
-		return false;
-
 	msk = mptcp_sk(subflow->conn);
 	for (;;) {
 		u32 map_remaining;
@@ -554,11 +558,10 @@ static void subflow_data_ready(struct sock *sk)
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct sock *parent = subflow->conn;
 
-	if (!parent || !subflow->mp_capable) {
+	if (!subflow->mp_capable) {
 		subflow->tcp_data_ready(sk);
 
-		if (parent)
-			parent->sk_data_ready(parent);
+		parent->sk_data_ready(parent);
 		return;
 	}
 
@@ -572,7 +575,7 @@ static void subflow_write_space(struct sock *sk)
 	struct sock *parent = subflow->conn;
 
 	sk_stream_write_space(sk);
-	if (parent && sk_stream_is_writeable(sk)) {
+	if (sk_stream_is_writeable(sk)) {
 		set_bit(MPTCP_SEND_SPACE, &mptcp_sk(parent)->flags);
 		smp_mb__after_atomic();
 		/* set SEND_SPACE before sk_stream_write_space clears NOSPACE */
@@ -687,7 +690,7 @@ static bool subflow_is_done(const struct sock *sk)
 static void subflow_state_change(struct sock *sk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
-	struct sock *parent = READ_ONCE(subflow->conn);
+	struct sock *parent = subflow->conn;
 
 	__subflow_state_change(sk);
 
@@ -695,10 +698,10 @@ static void subflow_state_change(struct sock *sk)
 	 * a fin packet carrying a DSS can be unnoticed if we don't trigger
 	 * the data available machinery here.
 	 */
-	if (parent && subflow->mp_capable && mptcp_subflow_data_available(sk))
+	if (subflow->mp_capable && mptcp_subflow_data_available(sk))
 		mptcp_data_ready(parent, sk);
 
-	if (parent && !(parent->sk_shutdown & RCV_SHUTDOWN) &&
+	if (!(parent->sk_shutdown & RCV_SHUTDOWN) &&
 	    !subflow->rx_eof && subflow_is_done(sk)) {
 		subflow->rx_eof = 1;
 		parent->sk_shutdown |= RCV_SHUTDOWN;
@@ -793,6 +796,9 @@ static void subflow_ulp_clone(const struct request_sock *req,
 	new_ctx->tcp_data_ready = old_ctx->tcp_data_ready;
 	new_ctx->tcp_state_change = old_ctx->tcp_state_change;
 	new_ctx->tcp_write_space = old_ctx->tcp_write_space;
+	new_ctx->rel_write_seq = 1;
+	new_ctx->tcp_sock = newsk;
+
 	new_ctx->mp_capable = 1;
 	new_ctx->fourth_ack = subflow_req->remote_key_valid;
 	new_ctx->can_ack = subflow_req->remote_key_valid;
