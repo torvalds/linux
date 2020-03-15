@@ -421,7 +421,7 @@ struct ast_vhub {
 	struct usb_device_descriptor	vhub_dev_desc;
 	struct ast_vhub_full_cdesc	vhub_conf_desc;
 	struct usb_hub_descriptor	vhub_hub_desc;
-	struct usb_gadget_strings	vhub_str_desc;
+	struct list_head		vhub_str_desc;
 };
 
 /* Standard request handlers result codes */
@@ -531,7 +531,7 @@ int __ast_vhub_simple_reply(struct ast_vhub_ep *ep, int len, ...);
 			       __VA_ARGS__)
 
 /* hub.c */
-void ast_vhub_init_hub(struct ast_vhub *vhub);
+int ast_vhub_init_hub(struct ast_vhub *vhub);
 enum std_req_rc ast_vhub_std_hub_request(struct ast_vhub_ep *ep,
 					 struct usb_ctrlrequest *crq);
 enum std_req_rc ast_vhub_class_hub_request(struct ast_vhub_ep *ep,
