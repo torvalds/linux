@@ -540,7 +540,7 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 		skb = wfx_tx_queue_get(wdev, queue, tx_allowed_mask);
 		if (!skb)
 			continue;
-		hif = (struct hif_msg *) skb->data;
+		hif = (struct hif_msg *)skb->data;
 		wvif = wdev_to_wvif(wdev, hif->interface);
 		WARN_ON(!wvif);
 
