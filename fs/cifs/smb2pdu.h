@@ -307,11 +307,17 @@ struct smb2_encryption_neg_context {
 #define SMB3_COMPRESS_LZNT1	cpu_to_le16(0x0001)
 #define SMB3_COMPRESS_LZ77	cpu_to_le16(0x0002)
 #define SMB3_COMPRESS_LZ77_HUFF	cpu_to_le16(0x0003)
+/* Pattern scanning algorithm See MS-SMB2 3.1.4.4.1 */
+#define SMB3_COMPRESS_PATTERN	cpu_to_le16(0x0004)
+
+/* Compression Flags */
+#define SMB2_COMPRESSION_CAPABILITIES_FLAG_NONE		cpu_to_le32(0x00000000)
+#define SMB2_COMPRESSION_CAPABILITIES_FLAG_CHAINED	cpu_to_le32(0x00000001)
 
 struct smb2_compression_capabilities_context {
 	__le16	ContextType; /* 3 */
 	__le16  DataLength;
-	__u32	Reserved;
+	__u32	Flags;
 	__le16	CompressionAlgorithmCount;
 	__u16	Padding;
 	__u32	Reserved1;
