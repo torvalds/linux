@@ -301,6 +301,9 @@ static struct gpio_desc *gpio_name_to_desc(const char * const name)
 	struct gpio_device *gdev;
 	unsigned long flags;
 
+	if (!name)
+		return NULL;
+
 	spin_lock_irqsave(&gpio_lock, flags);
 
 	list_for_each_entry(gdev, &gpio_devices, list) {
@@ -309,7 +312,7 @@ static struct gpio_desc *gpio_name_to_desc(const char * const name)
 		for (i = 0; i != gdev->ngpio; ++i) {
 			struct gpio_desc *desc = &gdev->descs[i];
 
-			if (!desc->name || !name)
+			if (!desc->name)
 				continue;
 
 			if (!strcmp(desc->name, name)) {
