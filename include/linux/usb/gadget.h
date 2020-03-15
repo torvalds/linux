@@ -773,6 +773,9 @@ struct usb_gadget_string_container {
 /* put descriptor for string with that id into buf (buflen >= 256) */
 int usb_gadget_get_string(const struct usb_gadget_strings *table, int id, u8 *buf);
 
+/* check if the given language identifier is valid */
+bool usb_validate_langid(u16 langid);
+
 /*-------------------------------------------------------------------------*/
 
 /* utility to simplify managing config descriptors */
