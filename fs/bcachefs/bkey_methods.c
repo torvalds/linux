@@ -134,7 +134,7 @@ const char *bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 
 const char *bch2_bkey_in_btree_node(struct btree *b, struct bkey_s_c k)
 {
-	if (bkey_cmp(bkey_start_pos(k.k), b->data->min_key) < 0)
+	if (bkey_cmp(k.k->p, b->data->min_key) < 0)
 		return "key before start of btree node";
 
 	if (bkey_cmp(k.k->p, b->data->max_key) > 0)

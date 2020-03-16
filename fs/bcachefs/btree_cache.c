@@ -589,6 +589,7 @@ err:
 static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 				struct btree_iter *iter,
 				const struct bkey_i *k,
+				enum btree_id btree_id,
 				unsigned level,
 				enum six_lock_type lock_type,
 				bool sync)
@@ -601,7 +602,7 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	 * Parent node must be locked, else we could read in a btree node that's
 	 * been freed:
 	 */
-	if (!bch2_btree_node_relock(iter, level + 1))
+	if (iter && !bch2_btree_node_relock(iter, level + 1))
 		return ERR_PTR(-EINTR);
 
 	b = bch2_btree_node_mem_alloc(c);
@@ -609,7 +610,7 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 		return b;
 
 	bkey_copy(&b->key, k);
-	if (bch2_btree_node_hash_insert(bc, b, level, iter->btree_id)) {
+	if (bch2_btree_node_hash_insert(bc, b, level, btree_id)) {
 		/* raced with another fill: */
 
 		/* mark as unhashed... */
@@ -629,7 +630,7 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	 *
 	 * XXX: ideally should be dropping all btree node locks here
 	 */
-	if (btree_node_read_locked(iter, level + 1))
+	if (iter && btree_node_read_locked(iter, level + 1))
 		btree_node_unlock(iter, level + 1);
 
 	bch2_btree_node_read(c, b, sync);
@@ -677,7 +678,8 @@ retry:
 		 * else we could read in a btree node from disk that's been
 		 * freed:
 		 */
-		b = bch2_btree_node_fill(c, iter, k, level, lock_type, true);
+		b = bch2_btree_node_fill(c, iter, k, iter->btree_id,
+					 level, lock_type, true);
 
 		/* We raced and found the btree node in the cache */
 		if (!b)
@@ -757,6 +759,74 @@ lock_node:
 	}
 
 	EBUG_ON(b->c.btree_id != iter->btree_id ||
+		BTREE_NODE_LEVEL(b->data) != level ||
+		bkey_cmp(b->data->max_key, k->k.p));
+
+	return b;
+}
+
+struct btree *bch2_btree_node_get_noiter(struct bch_fs *c,
+					 const struct bkey_i *k,
+					 enum btree_id btree_id,
+					 unsigned level)
+{
+	struct btree_cache *bc = &c->btree_cache;
+	struct btree *b;
+	struct bset_tree *t;
+
+	EBUG_ON(level >= BTREE_MAX_DEPTH);
+
+	b = btree_node_mem_ptr(k);
+	if (b)
+		goto lock_node;
+retry:
+	b = btree_cache_find(bc, k);
+	if (unlikely(!b)) {
+		b = bch2_btree_node_fill(c, NULL, k, btree_id,
+					 level, SIX_LOCK_read, true);
+
+		/* We raced and found the btree node in the cache */
+		if (!b)
+			goto retry;
+
+		if (IS_ERR(b))
+			return b;
+	} else {
+lock_node:
+		six_lock_read(&b->c.lock, NULL, NULL);
+
+		if (unlikely(b->hash_val != btree_ptr_hash_val(k) ||
+			     b->c.btree_id != btree_id ||
+			     b->c.level != level)) {
+			six_unlock_read(&b->c.lock);
+			goto retry;
+		}
+	}
+
+	/* XXX: waiting on IO with btree locks held: */
+	wait_on_bit_io(&b->flags, BTREE_NODE_read_in_flight,
+		       TASK_UNINTERRUPTIBLE);
+
+	prefetch(b->aux_data);
+
+	for_each_bset(b, t) {
+		void *p = (u64 *) b->aux_data + t->aux_data_offset;
+
+		prefetch(p + L1_CACHE_BYTES * 0);
+		prefetch(p + L1_CACHE_BYTES * 1);
+		prefetch(p + L1_CACHE_BYTES * 2);
+	}
+
+	/* avoid atomic set bit if it's not needed: */
+	if (!btree_node_accessed(b))
+		set_btree_node_accessed(b);
+
+	if (unlikely(btree_node_read_error(b))) {
+		six_unlock_read(&b->c.lock);
+		return ERR_PTR(-EIO);
+	}
+
+	EBUG_ON(b->c.btree_id != btree_id ||
 		BTREE_NODE_LEVEL(b->data) != level ||
 		bkey_cmp(b->data->max_key, k->k.p));
 
@@ -877,7 +947,8 @@ void bch2_btree_node_prefetch(struct bch_fs *c, struct btree_iter *iter,
 	if (b)
 		return;
 
-	bch2_btree_node_fill(c, iter, k, level, SIX_LOCK_read, false);
+	bch2_btree_node_fill(c, iter, k, iter->btree_id,
+			     level, SIX_LOCK_read, false);
 }
 
 void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,

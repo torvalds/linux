@@ -1630,7 +1630,7 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 			  unsigned flags)
 {
 	struct btree_trans *trans = iter->trans;
-	struct btree *b = iter->l[0].b;
+	struct btree *b = iter_l(iter)->b;
 	struct btree_update *as;
 	struct closure cl;
 	int ret = 0;

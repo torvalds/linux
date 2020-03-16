@@ -186,16 +186,8 @@ fsck_err:
 	return ret;
 }
 
-static bool pos_in_journal_keys(struct journal_keys *journal_keys,
-				enum btree_id id, struct bpos pos)
-{
-	struct journal_key *k = journal_key_search(journal_keys, id, pos);
-
-	return k && k->btree_id == id && !bkey_cmp(k->k->k.p, pos);
-}
-
 static int btree_gc_mark_node(struct bch_fs *c, struct btree *b, u8 *max_stale,
-			      struct journal_keys *journal_keys, bool initial)
+			      bool initial)
 {
 	struct btree_node_iter iter;
 	struct bkey unpacked;
@@ -209,10 +201,6 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b, u8 *max_stale,
 
 	for_each_btree_node_key_unpack(b, k, &iter,
 				       &unpacked) {
-		if (!b->c.level && journal_keys &&
-		    pos_in_journal_keys(journal_keys, b->c.btree_id, k.k->p))
-			continue;
-
 		bch2_bkey_debugcheck(c, b, k);
 
 		ret = bch2_gc_mark_key(c, k, max_stale, initial);
@@ -224,7 +212,6 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b, u8 *max_stale,
 }
 
 static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
-			 struct journal_keys *journal_keys,
 			 bool initial, bool metadata_only)
 {
 	struct btree_trans trans;
@@ -252,8 +239,7 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 		gc_pos_set(c, gc_pos_btree_node(b));
 
-		ret = btree_gc_mark_node(c, b, &max_stale,
-					 journal_keys, initial);
+		ret = btree_gc_mark_node(c, b, &max_stale, initial);
 		if (ret)
 			break;
 
@@ -289,6 +275,78 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 	return ret;
 }
 
+static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
+					 struct journal_keys *journal_keys,
+					 unsigned target_depth)
+{
+	struct btree_and_journal_iter iter;
+	struct bkey_s_c k;
+	u8 max_stale = 0;
+	int ret = 0;
+
+	bch2_btree_and_journal_iter_init_node_iter(&iter, journal_keys, b);
+
+	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
+		bch2_bkey_debugcheck(c, b, k);
+
+		ret = bch2_gc_mark_key(c, k, &max_stale, true);
+		if (ret)
+			break;
+
+		if (b->c.level > target_depth) {
+			struct btree *child;
+			BKEY_PADDED(k) tmp;
+
+			bkey_reassemble(&tmp.k, k);
+
+			child = bch2_btree_node_get_noiter(c, &tmp.k,
+						b->c.btree_id, b->c.level - 1);
+			ret = PTR_ERR_OR_ZERO(child);
+			if (ret)
+				break;
+
+			bch2_gc_btree_init_recurse(c, child,
+					journal_keys, target_depth);
+			six_unlock_read(&child->c.lock);
+		}
+
+		bch2_btree_and_journal_iter_advance(&iter);
+	}
+
+	return ret;
+}
+
+static int bch2_gc_btree_init(struct bch_fs *c,
+			      struct journal_keys *journal_keys,
+			      enum btree_id btree_id,
+			      bool metadata_only)
+{
+	struct btree *b;
+	unsigned target_depth = metadata_only		? 1
+		: expensive_debug_checks(c)		? 0
+		: !btree_node_type_needs_gc(btree_id)	? 1
+		: 0;
+	u8 max_stale = 0;
+	int ret = 0;
+
+	b = c->btree_roots[btree_id].b;
+
+	if (btree_node_fake(b))
+		return 0;
+
+	six_lock_read(&b->c.lock, NULL, NULL);
+	if (b->c.level >= target_depth)
+		ret = bch2_gc_btree_init_recurse(c, b,
+					journal_keys, target_depth);
+
+	if (!ret)
+		ret = bch2_gc_mark_key(c, bkey_i_to_s_c(&b->key),
+				       &max_stale, true);
+	six_unlock_read(&b->c.lock);
+
+	return ret;
+}
+
 static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
 {
 	return  (int) btree_id_to_gc_phase(l) -
@@ -307,27 +365,12 @@ static int bch2_gc_btrees(struct bch_fs *c, struct journal_keys *journal_keys,
 
 	for (i = 0; i < BTREE_ID_NR; i++) {
 		enum btree_id id = ids[i];
-		enum btree_node_type type = __btree_node_type(0, id);
-
-		int ret = bch2_gc_btree(c, id, journal_keys,
-					initial, metadata_only);
+		int ret = initial
+			? bch2_gc_btree_init(c, journal_keys,
+					     id, metadata_only)
+			: bch2_gc_btree(c, id, initial, metadata_only);
 		if (ret)
 			return ret;
-
-		if (journal_keys && !metadata_only &&
-		    btree_node_type_needs_gc(type)) {
-			struct journal_key *j;
-			u8 max_stale;
-			int ret;
-
-			for_each_journal_key(*journal_keys, j)
-				if (j->btree_id == id) {
-					ret = bch2_gc_mark_key(c, bkey_i_to_s_c(j->k),
-							       &max_stale, initial);
-					if (ret)
-						return ret;
-				}
-		}
 	}
 
 	return 0;

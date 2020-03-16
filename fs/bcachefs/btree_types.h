@@ -264,6 +264,11 @@ static inline enum btree_iter_type btree_iter_type(struct btree_iter *iter)
 	return iter->flags & BTREE_ITER_TYPE;
 }
 
+static inline struct btree_iter_level *iter_l(struct btree_iter *iter)
+{
+	return iter->l + iter->level;
+}
+
 struct btree_insert_entry {
 	unsigned		trigger_flags;
 	unsigned		trans_triggers_run:1;
