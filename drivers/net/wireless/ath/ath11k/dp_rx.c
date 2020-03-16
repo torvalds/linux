@@ -1499,6 +1499,29 @@ static void ath11k_htt_pktlog(struct ath11k_base *ab, struct sk_buff *skb)
 	trace_ath11k_htt_pktlog(ar, data->payload, hdr->size);
 }
 
+static void ath11k_htt_backpressure_event_handler(struct ath11k_base *ab,
+						  struct sk_buff *skb)
+{
+	u32 *data = (u32 *)skb->data;
+	u8 pdev_id, ring_type, ring_id;
+	u16 hp, tp;
+	u32 backpressure_time;
+
+	pdev_id = FIELD_GET(HTT_BACKPRESSURE_EVENT_PDEV_ID_M, *data);
+	ring_type = FIELD_GET(HTT_BACKPRESSURE_EVENT_RING_TYPE_M, *data);
+	ring_id = FIELD_GET(HTT_BACKPRESSURE_EVENT_RING_ID_M, *data);
+	++data;
+
+	hp = FIELD_GET(HTT_BACKPRESSURE_EVENT_HP_M, *data);
+	tp = FIELD_GET(HTT_BACKPRESSURE_EVENT_TP_M, *data);
+	++data;
+
+	backpressure_time = *data;
+
+	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "htt backpressure event, pdev %d, ring type %d,ring id %d, hp %d tp %d, backpressure time %d\n",
+		   pdev_id, ring_type, ring_id, hp, tp, backpressure_time);
+}
+
 void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
 				       struct sk_buff *skb)
 {
@@ -1547,6 +1570,9 @@ void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
 		break;
 	case HTT_T2H_MSG_TYPE_PKTLOG:
 		ath11k_htt_pktlog(ab, skb);
+		break;
+	case HTT_T2H_MSG_TYPE_BKPRESSURE_EVENT_IND:
+		ath11k_htt_backpressure_event_handler(ab, skb);
 		break;
 	default:
 		ath11k_warn(ab, "htt event %d not handled\n", type);

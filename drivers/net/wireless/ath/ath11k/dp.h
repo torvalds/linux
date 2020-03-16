@@ -936,6 +936,7 @@ enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_PEER_UNMAP	= 0x1f,
 	HTT_T2H_MSG_TYPE_PPDU_STATS_IND = 0x1d,
 	HTT_T2H_MSG_TYPE_EXT_STATS_CONF = 0x1c,
+	HTT_T2H_MSG_TYPE_BKPRESSURE_EVENT_IND = 0x24,
 };
 
 #define HTT_TARGET_VERSION_MAJOR 3
@@ -983,6 +984,13 @@ struct htt_resp_msg {
 		struct htt_t2h_peer_unmap_event peer_unmap_ev;
 	};
 } __packed;
+
+#define HTT_BACKPRESSURE_EVENT_PDEV_ID_M GENMASK(15, 8)
+#define HTT_BACKPRESSURE_EVENT_RING_TYPE_M GENMASK(23, 16)
+#define HTT_BACKPRESSURE_EVENT_RING_ID_M GENMASK(31, 24)
+
+#define HTT_BACKPRESSURE_EVENT_HP_M GENMASK(15, 0)
+#define HTT_BACKPRESSURE_EVENT_TP_M GENMASK(31, 16)
 
 /* ppdu stats
  *
