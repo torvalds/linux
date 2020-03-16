@@ -805,8 +805,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_extents_above_btree_updates;
-
 	ret = journal_replay_early(c, clean, &journal_entries);
 	if (ret)
 		goto err;

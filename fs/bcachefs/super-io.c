@@ -956,6 +956,7 @@ int bch2_fs_mark_dirty(struct bch_fs *c)
 	mutex_lock(&c->sb_lock);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
 	c->disk_sb.sb->compat[0] &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_METADATA);
+	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_extents_above_btree_updates;
 	ret = bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
@@ -1087,6 +1088,7 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 
 	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_FEAT_ALLOC_INFO;
 	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_FEAT_ALLOC_METADATA;
+	c->disk_sb.sb->features[0] &= ~(1ULL << BCH_FEATURE_extents_above_btree_updates);
 
 	u64s = sizeof(*sb_clean) / sizeof(u64) + c->journal.entry_u64s_reserved;
 
