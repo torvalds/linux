@@ -230,9 +230,9 @@ static int journal_sort_seq_cmp(const void *_l, const void *_r)
 	const struct journal_key *l = _l;
 	const struct journal_key *r = _r;
 
-	return  cmp_int(l->journal_seq, r->journal_seq) ?:
+	return  cmp_int(r->level,	l->level) ?:
+		cmp_int(l->journal_seq, r->journal_seq) ?:
 		cmp_int(l->btree_id,	r->btree_id) ?:
-		cmp_int(l->level,	r->level) ?:
 		bkey_cmp(l->k->k.p,	r->k->k.p);
 }
 
@@ -404,12 +404,15 @@ err:
 }
 
 static int __bch2_journal_replay_key(struct btree_trans *trans,
-				     enum btree_id id, struct bkey_i *k)
+				     enum btree_id id, unsigned level,
+				     struct bkey_i *k)
 {
 	struct btree_iter *iter;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, id, k->k.p, BTREE_ITER_INTENT);
+	iter = bch2_trans_get_node_iter(trans, id, k->k.p,
+					BTREE_MAX_DEPTH, level,
+					BTREE_ITER_INTENT);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
@@ -428,13 +431,13 @@ static int __bch2_journal_replay_key(struct btree_trans *trans,
 }
 
 static int bch2_journal_replay_key(struct bch_fs *c, enum btree_id id,
-				   struct bkey_i *k)
+				   unsigned level, struct bkey_i *k)
 {
 	return bch2_trans_do(c, NULL, NULL,
 			     BTREE_INSERT_NOFAIL|
 			     BTREE_INSERT_LAZY_RW|
 			     BTREE_INSERT_JOURNAL_REPLAY,
-			     __bch2_journal_replay_key(&trans, id, k));
+			     __bch2_journal_replay_key(&trans, id, level, k));
 }
 
 static int bch2_journal_replay(struct bch_fs *c,
@@ -446,15 +449,20 @@ static int bch2_journal_replay(struct bch_fs *c,
 
 	sort(keys.d, keys.nr, sizeof(keys.d[0]), journal_sort_seq_cmp, NULL);
 
-	for_each_journal_key(keys, i) {
-		replay_now_at(j, keys.journal_seq_base + i->journal_seq);
+	replay_now_at(j, keys.journal_seq_base);
 
+	for_each_journal_key(keys, i) {
+		if (!i->level)
+			replay_now_at(j, keys.journal_seq_base + i->journal_seq);
+
+		if (i->level)
+			ret = bch2_journal_replay_key(c, i->btree_id, i->level, i->k);
 		if (i->btree_id == BTREE_ID_ALLOC)
 			ret = bch2_alloc_replay_key(c, i->k);
 		else if (i->k->k.size)
 			ret = bch2_extent_replay_key(c, i->btree_id, i->k);
 		else
-			ret = bch2_journal_replay_key(c, i->btree_id, i->k);
+			ret = bch2_journal_replay_key(c, i->btree_id, i->level, i->k);
 
 		if (ret) {
 			bch_err(c, "journal replay: error %d while replaying key",
