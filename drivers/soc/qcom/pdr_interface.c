@@ -306,7 +306,7 @@ static void pdr_indication_cb(struct qmi_handle *qmi,
 	const struct servreg_state_updated_ind *ind_msg = data;
 	struct pdr_list_node *ind;
 	struct pdr_service *pds;
-	bool found;
+	bool found = false;
 
 	if (!ind_msg || !ind_msg->service_path[0] ||
 	    strlen(ind_msg->service_path) > SERVREG_NAME_LENGTH)
