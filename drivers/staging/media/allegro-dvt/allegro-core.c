@@ -532,6 +532,29 @@ union mcu_msg_response {
 	struct mcu_msg_encode_frame_response encode_frame;
 };
 
+static inline u32 to_mcu_addr(struct allegro_dev *dev, dma_addr_t phys)
+{
+	if (upper_32_bits(phys) || (lower_32_bits(phys) & MCU_CACHE_OFFSET))
+		v4l2_warn(&dev->v4l2_dev,
+			  "address %pad is outside mcu window\n", &phys);
+
+	return lower_32_bits(phys) | MCU_CACHE_OFFSET;
+}
+
+static inline u32 to_mcu_size(struct allegro_dev *dev, size_t size)
+{
+	return lower_32_bits(size);
+}
+
+static inline u32 to_codec_addr(struct allegro_dev *dev, dma_addr_t phys)
+{
+	if (upper_32_bits(phys))
+		v4l2_warn(&dev->v4l2_dev,
+			  "address %pad cannot be used by codec\n", &phys);
+
+	return lower_32_bits(phys);
+}
+
 /* Helper functions for channel and user operations */
 
 static unsigned long allegro_next_user_id(struct allegro_dev *dev)
@@ -947,8 +970,8 @@ static void allegro_mcu_send_init(struct allegro_dev *dev,
 	msg.header.type = MCU_MSG_TYPE_INIT;
 	msg.header.length = sizeof(msg) - sizeof(msg.header);
 
-	msg.suballoc_dma = lower_32_bits(suballoc_dma) | MCU_CACHE_OFFSET;
-	msg.suballoc_size = suballoc_size;
+	msg.suballoc_dma = to_mcu_addr(dev, suballoc_dma);
+	msg.suballoc_size = to_mcu_size(dev, suballoc_size);
 
 	/* disable L2 cache */
 	msg.l2_cache[0] = -1;
@@ -1173,8 +1196,8 @@ static int allegro_mcu_send_put_stream_buffer(struct allegro_dev *dev,
 	msg.header.length = sizeof(msg) - sizeof(msg.header);
 
 	msg.channel_id = channel->mcu_channel_id;
-	msg.dma_addr = paddr;
-	msg.mcu_addr = paddr | MCU_CACHE_OFFSET;
+	msg.dma_addr = to_codec_addr(dev, paddr);
+	msg.mcu_addr = to_mcu_addr(dev, paddr);
 	msg.size = size;
 	msg.offset = ENCODER_STREAM_OFFSET;
 	msg.stream_id = 0; /* copied to mcu_msg_encode_frame_response */
@@ -1201,11 +1224,11 @@ static int allegro_mcu_send_encode_frame(struct allegro_dev *dev,
 	msg.pps_qp = 26; /* qp are relative to 26 */
 	msg.user_param = 0; /* copied to mcu_msg_encode_frame_response */
 	msg.src_handle = 0; /* copied to mcu_msg_encode_frame_response */
-	msg.src_y = src_y;
-	msg.src_uv = src_uv;
+	msg.src_y = to_codec_addr(dev, src_y);
+	msg.src_uv = to_codec_addr(dev, src_uv);
 	msg.stride = channel->stride;
 	msg.ep2 = 0x0;
-	msg.ep2_v = msg.ep2 | MCU_CACHE_OFFSET;
+	msg.ep2_v = to_mcu_addr(dev, msg.ep2);
 
 	allegro_mbox_write(dev, &dev->mbox_command, &msg, sizeof(msg));
 	allegro_mcu_interrupt(dev);
@@ -1264,10 +1287,9 @@ static int allegro_mcu_push_buffer_internal(struct allegro_channel *channel,
 
 	buffer = msg->buffer;
 	list_for_each_entry(al_buffer, list, head) {
-		buffer->dma_addr = lower_32_bits(al_buffer->paddr);
-		buffer->mcu_addr =
-		    lower_32_bits(al_buffer->paddr) | MCU_CACHE_OFFSET;
-		buffer->size = al_buffer->size;
+		buffer->dma_addr = to_codec_addr(dev, al_buffer->paddr);
+		buffer->mcu_addr = to_mcu_addr(dev, al_buffer->paddr);
+		buffer->size = to_mcu_size(dev, al_buffer->size);
 		buffer++;
 	}
 
