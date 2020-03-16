@@ -484,11 +484,15 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	struct mlx5_ct_zone_rule *zone_rule = &entry->zone_rules[nat];
 	struct mlx5_esw_flow_attr *attr = &zone_rule->attr;
 	struct mlx5_eswitch *esw = ct_priv->esw;
-	struct mlx5_flow_spec spec = {};
+	struct mlx5_flow_spec *spec = NULL;
 	u32 tupleid = 1;
 	int err;
 
 	zone_rule->nat = nat;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
 
 	/* Get tuple unique id */
 	err = idr_alloc_u32(&ct_priv->tuple_ids, zone_rule, &tupleid,
@@ -496,7 +500,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	if (err) {
 		netdev_warn(ct_priv->netdev,
 			    "Failed to allocate tuple id, err: %d\n", err);
-		return err;
+		goto err_idr_alloc;
 	}
 	zone_rule->tupleid = tupleid;
 
@@ -517,18 +521,19 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	attr->counter = entry->counter;
 	attr->flags |= MLX5_ESW_ATTR_FLAG_NO_IN_PORT;
 
-	mlx5_tc_ct_set_tuple_match(&spec, flow_rule);
-	mlx5e_tc_match_to_reg_match(&spec, ZONE_TO_REG,
+	mlx5_tc_ct_set_tuple_match(spec, flow_rule);
+	mlx5e_tc_match_to_reg_match(spec, ZONE_TO_REG,
 				    entry->zone & MLX5_CT_ZONE_MASK,
 				    MLX5_CT_ZONE_MASK);
 
-	zone_rule->rule = mlx5_eswitch_add_offloaded_rule(esw, &spec, attr);
+	zone_rule->rule = mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 	if (IS_ERR(zone_rule->rule)) {
 		err = PTR_ERR(zone_rule->rule);
 		ct_dbg("Failed to add ct entry rule, nat: %d", nat);
 		goto err_rule;
 	}
 
+	kfree(spec);
 	ct_dbg("Offloaded ct entry rule in zone %d", entry->zone);
 
 	return 0;
@@ -537,6 +542,8 @@ err_rule:
 	mlx5_modify_header_dealloc(esw->dev, attr->modify_hdr);
 err_mod_hdr:
 	idr_remove(&ct_priv->tuple_ids, zone_rule->tupleid);
+err_idr_alloc:
+	kfree(spec);
 	return err;
 }
 
@@ -884,8 +891,8 @@ __mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
 	bool nat = attr->ct_attr.ct_action & TCA_CT_ACT_NAT;
 	struct mlx5e_tc_mod_hdr_acts pre_mod_acts = {};
+	struct mlx5_flow_spec *post_ct_spec = NULL;
 	struct mlx5_eswitch *esw = ct_priv->esw;
-	struct mlx5_flow_spec post_ct_spec = {};
 	struct mlx5_esw_flow_attr *pre_ct_attr;
 	struct  mlx5_modify_hdr *mod_hdr;
 	struct mlx5_flow_handle *rule;
@@ -894,9 +901,13 @@ __mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 	struct mlx5_ct_ft *ft;
 	u32 fte_id = 1;
 
+	post_ct_spec = kzalloc(sizeof(*post_ct_spec), GFP_KERNEL);
 	ct_flow = kzalloc(sizeof(*ct_flow), GFP_KERNEL);
-	if (!ct_flow)
+	if (!post_ct_spec || !ct_flow) {
+		kfree(post_ct_spec);
+		kfree(ct_flow);
 		return -ENOMEM;
+	}
 
 	/* Register for CT established events */
 	ft = mlx5_tc_ct_add_ft_cb(ct_priv, attr->ct_attr.zone,
@@ -991,7 +1002,7 @@ __mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 	/* Post ct rule matches on fte_id and executes original rule's
 	 * tc rule action
 	 */
-	mlx5e_tc_match_to_reg_match(&post_ct_spec, FTEID_TO_REG,
+	mlx5e_tc_match_to_reg_match(post_ct_spec, FTEID_TO_REG,
 				    fte_id, MLX5_FTE_ID_MASK);
 
 	/* Put post_ct rule on post_ct fdb */
@@ -1002,7 +1013,7 @@ __mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 	ct_flow->post_ct_attr.inner_match_level = MLX5_MATCH_NONE;
 	ct_flow->post_ct_attr.outer_match_level = MLX5_MATCH_NONE;
 	ct_flow->post_ct_attr.action &= ~(MLX5_FLOW_CONTEXT_ACTION_DECAP);
-	rule = mlx5_eswitch_add_offloaded_rule(esw, &post_ct_spec,
+	rule = mlx5_eswitch_add_offloaded_rule(esw, post_ct_spec,
 					       &ct_flow->post_ct_attr);
 	ct_flow->post_ct_rule = rule;
 	if (IS_ERR(ct_flow->post_ct_rule)) {
@@ -1026,6 +1037,7 @@ __mlx5_tc_ct_flow_offload(struct mlx5e_priv *priv,
 	attr->ct_attr.ct_flow = ct_flow;
 	*flow_rule = ct_flow->post_ct_rule;
 	dealloc_mod_hdr_actions(&pre_mod_acts);
+	kfree(post_ct_spec);
 
 	return 0;
 
@@ -1042,6 +1054,7 @@ err_get_chain:
 err_idr:
 	mlx5_tc_ct_del_ft_cb(ct_priv, ft);
 err_ft:
+	kfree(post_ct_spec);
 	kfree(ct_flow);
 	netdev_warn(priv->netdev, "Failed to offload ct flow, err %d\n", err);
 	return err;
