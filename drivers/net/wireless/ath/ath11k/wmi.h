@@ -442,6 +442,10 @@ enum wmi_tlv_cmd_id {
 	WMI_DBGLOG_TIME_STAMP_SYNC_CMDID,
 	WMI_SET_MULTIPLE_MCAST_FILTER_CMDID,
 	WMI_READ_DATA_FROM_FLASH_CMDID,
+	WMI_THERM_THROT_SET_CONF_CMDID,
+	WMI_RUNTIME_DPD_RECAL_CMDID,
+	WMI_GET_TPC_POWER_CMDID,
+	WMI_IDLE_TRIGGER_MONITOR_CMDID,
 	WMI_GPIO_CONFIG_CMDID = WMI_TLV_CMD(WMI_GRP_GPIO),
 	WMI_GPIO_OUTPUT_CMDID,
 	WMI_TXBF_CMDID,
@@ -3300,6 +3304,12 @@ struct wmi_request_stats_cmd {
 	u32 pdev_id;
 } __packed;
 
+struct wmi_get_pdev_temperature_cmd {
+	u32 tlv_header;
+	u32 param;
+	u32 pdev_id;
+} __packed;
+
 #define WMI_BEACON_TX_BUFFER_SIZE	512
 
 struct wmi_bcn_tmpl_cmd {
@@ -3603,6 +3613,39 @@ struct wmi_init_country_cmd {
 		u32 regdom_id;
 		u32 alpha2;
 	} cc_info;
+} __packed;
+
+#define THERMAL_LEVELS  1
+struct tt_level_config {
+	u32 tmplwm;
+	u32 tmphwm;
+	u32 dcoffpercent;
+	u32 priority;
+};
+
+struct thermal_mitigation_params {
+	u32 pdev_id;
+	u32 enable;
+	u32 dc;
+	u32 dc_per_event;
+	struct tt_level_config levelconf[THERMAL_LEVELS];
+};
+
+struct wmi_therm_throt_config_request_cmd {
+	u32 tlv_header;
+	u32 pdev_id;
+	u32 enable;
+	u32 dc;
+	u32 dc_per_event;
+	u32 therm_throt_levels;
+} __packed;
+
+struct wmi_therm_throt_level_config_info {
+	u32 tlv_header;
+	u32 temp_lwm;
+	u32 temp_hwm;
+	u32 dc_off_percent;
+	u32 prio;
 } __packed;
 
 struct wmi_pdev_pktlog_filter_info {
@@ -4093,6 +4136,12 @@ struct wmi_pdev_radar_ev {
 	u32 is_chirp;
 	s32 freq_offset;
 	s32 sidx;
+} __packed;
+
+struct wmi_pdev_temperature_event {
+	/* temperature value in Celcius degree */
+	s32 temp;
+	u32 pdev_id;
 } __packed;
 
 #define WMI_RX_STATUS_OK			0x00
@@ -4726,6 +4775,7 @@ int ath11k_wmi_pdev_bss_chan_info_request(struct ath11k *ar,
 					  enum wmi_bss_chan_info_req_type type);
 int ath11k_wmi_send_stats_request_cmd(struct ath11k *ar,
 				      struct stats_request_params *param);
+int ath11k_wmi_send_pdev_temperature_cmd(struct ath11k *ar);
 int ath11k_wmi_send_peer_flush_tids_cmd(struct ath11k *ar,
 					u8 peer_addr[ETH_ALEN],
 					struct peer_flush_params *param);
@@ -4740,6 +4790,9 @@ int ath11k_wmi_send_bcn_offload_control_cmd(struct ath11k *ar,
 int
 ath11k_wmi_send_init_country_cmd(struct ath11k *ar,
 				 struct wmi_init_country_params init_cc_param);
+int
+ath11k_wmi_send_thermal_mitigation_param_cmd(struct ath11k *ar,
+					     struct thermal_mitigation_params *param);
 int ath11k_wmi_pdev_pktlog_enable(struct ath11k *ar, u32 pktlog_filter);
 int ath11k_wmi_pdev_pktlog_disable(struct ath11k *ar);
 int ath11k_wmi_pdev_peer_pktlog_filter(struct ath11k *ar, u8 *addr, u8 enable);

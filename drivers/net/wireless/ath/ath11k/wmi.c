@@ -1471,6 +1471,34 @@ int ath11k_wmi_send_stats_request_cmd(struct ath11k *ar,
 	return ret;
 }
 
+int ath11k_wmi_send_pdev_temperature_cmd(struct ath11k *ar)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct wmi_get_pdev_temperature_cmd *cmd;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_get_pdev_temperature_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_PDEV_GET_TEMPERATURE_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+
+	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_PDEV_GET_TEMPERATURE_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to send WMI_PDEV_GET_TEMPERATURE cmd\n");
+		dev_kfree_skb(skb);
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI pdev get temperature for pdev_id %d\n", ar->pdev->pdev_id);
+
+	return ret;
+}
+
 int ath11k_wmi_send_bcn_offload_control_cmd(struct ath11k *ar,
 					    u32 vdev_id, u32 bcn_ctrl_op)
 {
@@ -2438,6 +2466,70 @@ out:
 			    ret);
 		dev_kfree_skb(skb);
 	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_send_thermal_mitigation_param_cmd(struct ath11k *ar,
+					     struct thermal_mitigation_params *param)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct wmi_therm_throt_config_request_cmd *cmd;
+	struct wmi_therm_throt_level_config_info *lvl_conf;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	int i, ret, len;
+
+	len = sizeof(*cmd) + TLV_HDR_SIZE +
+	      THERMAL_LEVELS * sizeof(struct wmi_therm_throt_level_config_info);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_therm_throt_config_request_cmd *)skb->data;
+
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_THERM_THROT_CONFIG_REQUEST) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	cmd->pdev_id = ar->pdev->pdev_id;
+	cmd->enable = param->enable;
+	cmd->dc = param->dc;
+	cmd->dc_per_event = param->dc_per_event;
+	cmd->therm_throt_levels = THERMAL_LEVELS;
+
+	tlv = (struct wmi_tlv *)(skb->data + sizeof(*cmd));
+	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_STRUCT) |
+		      FIELD_PREP(WMI_TLV_LEN,
+				 (THERMAL_LEVELS *
+				  sizeof(struct wmi_therm_throt_level_config_info)));
+
+	lvl_conf = (struct wmi_therm_throt_level_config_info *)(skb->data +
+								sizeof(*cmd) +
+								TLV_HDR_SIZE);
+	for (i = 0; i < THERMAL_LEVELS; i++) {
+		lvl_conf->tlv_header =
+			FIELD_PREP(WMI_TLV_TAG, WMI_TAG_THERM_THROT_LEVEL_CONFIG_INFO) |
+			FIELD_PREP(WMI_TLV_LEN, sizeof(*lvl_conf) - TLV_HDR_SIZE);
+
+		lvl_conf->temp_lwm = param->levelconf[i].tmplwm;
+		lvl_conf->temp_hwm = param->levelconf[i].tmphwm;
+		lvl_conf->dc_off_percent = param->levelconf[i].dcoffpercent;
+		lvl_conf->prio = param->levelconf[i].priority;
+		lvl_conf++;
+	}
+
+	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_THERM_THROT_SET_CONF_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to send THERM_THROT_SET_CONF cmd\n");
+		dev_kfree_skb(skb);
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI vdev set thermal throt pdev_id %d enable %d dc %d dc_per_event %x levels %d\n",
+		   ar->pdev->pdev_id, param->enable, param->dc,
+		   param->dc_per_event, THERMAL_LEVELS);
 
 	return ret;
 }
@@ -4168,6 +4260,31 @@ int ath11k_wmi_pull_fw_stats(struct ath11k_base *ab, struct sk_buff *skb,
 	return 0;
 }
 
+static int
+ath11k_pull_pdev_temp_ev(struct ath11k_base *ab, u8 *evt_buf,
+			 u32 len, const struct wmi_pdev_temperature_event *ev)
+{
+	const void **tb;
+	int ret;
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, evt_buf, len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath11k_warn(ab, "failed to parse tlv: %d\n", ret);
+		return ret;
+	}
+
+	ev = tb[WMI_TAG_PDEV_TEMPERATURE_EVENT];
+	if (!ev) {
+		ath11k_warn(ab, "failed to fetch pdev temp ev");
+		kfree(tb);
+		return -EPROTO;
+	}
+
+	kfree(tb);
+	return 0;
+}
+
 size_t ath11k_wmi_fw_stats_num_vdevs(struct list_head *head)
 {
 	struct ath11k_fw_stats_vdev *i;
@@ -5345,15 +5462,18 @@ static void ath11k_peer_assoc_conf_event(struct ath11k_base *ab, struct sk_buff 
 		   "peer assoc conf ev vdev id %d macaddr %pM\n",
 		   peer_assoc_conf.vdev_id, peer_assoc_conf.macaddr);
 
+	rcu_read_lock();
 	ar = ath11k_mac_get_ar_by_vdev_id(ab, peer_assoc_conf.vdev_id);
 
 	if (!ar) {
 		ath11k_warn(ab, "invalid vdev id in peer assoc conf ev %d",
 			    peer_assoc_conf.vdev_id);
+		rcu_read_unlock();
 		return;
 	}
 
 	complete(&ar->peer_assoc_done);
+	rcu_read_unlock();
 }
 
 static void ath11k_update_stats_event(struct ath11k_base *ab, struct sk_buff *skb)
@@ -5511,6 +5631,30 @@ exit:
 	kfree(tb);
 }
 
+static void
+ath11k_wmi_pdev_temperature_event(struct ath11k_base *ab,
+				  struct sk_buff *skb)
+{
+	struct ath11k *ar;
+	struct wmi_pdev_temperature_event ev = {0};
+
+	if (ath11k_pull_pdev_temp_ev(ab, skb->data, skb->len, &ev) != 0) {
+		ath11k_warn(ab, "failed to extract pdev temperature event");
+		return;
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "pdev temperature ev temp %d pdev_id %d\n", ev.temp, ev.pdev_id);
+
+	ar = ath11k_mac_get_ar_by_pdev_id(ab, ev.pdev_id);
+	if (!ar) {
+		ath11k_warn(ab, "invalid pdev id in pdev temperature ev %d", ev.pdev_id);
+		return;
+	}
+
+	ath11k_thermal_event_temperature(ar, ev.temp);
+}
+
 static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -5587,6 +5731,9 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_PDEV_CSA_SWITCH_COUNT_STATUS_EVENTID:
 		ath11k_wmi_pdev_csa_switch_count_status_event(ab, skb);
+		break;
+	case WMI_PDEV_TEMPERATURE_EVENTID:
+		ath11k_wmi_pdev_temperature_event(ab, skb);
 		break;
 	/* add Unsupported events here */
 	case WMI_TBTTOFFSET_EXT_UPDATE_EVENTID:

@@ -39,8 +39,9 @@ void ath11k_dp_peer_cleanup(struct ath11k *ar, int vdev_id, const u8 *addr)
 int ath11k_dp_peer_setup(struct ath11k *ar, int vdev_id, const u8 *addr)
 {
 	struct ath11k_base *ab = ar->ab;
+	struct ath11k_peer *peer;
 	u32 reo_dest;
-	int ret;
+	int ret = 0, tid;
 
 	/* NOTE: reo_dest ring id starts from 1 unlike mac_id which starts from 0 */
 	reo_dest = ar->dp.mac_id + 1;
@@ -54,24 +55,36 @@ int ath11k_dp_peer_setup(struct ath11k *ar, int vdev_id, const u8 *addr)
 		return ret;
 	}
 
-	ret = ath11k_peer_rx_tid_setup(ar, addr, vdev_id,
-				       HAL_DESC_REO_NON_QOS_TID, 1, 0);
-	if (ret) {
-		ath11k_warn(ab, "failed to setup rxd tid queue for non-qos tid %d\n",
-			    ret);
-		return ret;
-	}
-
-	ret = ath11k_peer_rx_tid_setup(ar, addr, vdev_id, 0, 1, 0);
-	if (ret) {
-		ath11k_warn(ab, "failed to setup rxd tid queue for tid 0 %d\n",
-			    ret);
-		return ret;
+	for (tid = 0; tid <= IEEE80211_NUM_TIDS; tid++) {
+		ret = ath11k_peer_rx_tid_setup(ar, addr, vdev_id,
+					       tid, 1, 0);
+		if (ret) {
+			ath11k_warn(ab, "failed to setup rxd tid queue for tid %d: %d\n",
+				    tid, ret);
+			goto peer_clean;
+		}
 	}
 
 	/* TODO: Setup other peer specific resource used in data path */
 
 	return 0;
+
+peer_clean:
+	spin_lock_bh(&ab->base_lock);
+
+	peer = ath11k_peer_find(ab, vdev_id, addr);
+	if (!peer) {
+		ath11k_warn(ab, "failed to find the peer to del rx tid\n");
+		spin_unlock_bh(&ab->base_lock);
+		return -ENOENT;
+	}
+
+	for (; tid >= 0; tid--)
+		ath11k_peer_rx_tid_delete(ar, peer, tid);
+
+	spin_unlock_bh(&ab->base_lock);
+
+	return ret;
 }
 
 void ath11k_dp_srng_cleanup(struct ath11k_base *ab, struct dp_srng *ring)

@@ -44,6 +44,8 @@ int ath11k_dp_rx_ampdu_start(struct ath11k *ar,
 int ath11k_dp_rx_ampdu_stop(struct ath11k *ar,
 			    struct ieee80211_ampdu_params *params);
 void ath11k_peer_rx_tid_cleanup(struct ath11k *ar, struct ath11k_peer *peer);
+void ath11k_peer_rx_tid_delete(struct ath11k *ar,
+			       struct ath11k_peer *peer, u8 tid);
 int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 			     u8 tid, u32 ba_win_sz, u16 ssn);
 void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
