@@ -267,17 +267,14 @@ static int pm860x_rtc_dt_init(struct platform_device *pdev,
 	return 0;
 }
 #else
-#define pm860x_rtc_dt_init(x, y)	(-1)
+#define pm860x_rtc_dt_init(x, y)	do { } while (0)
 #endif
 
 static int pm860x_rtc_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm860x_rtc_pdata *pdata = NULL;
 	struct pm860x_rtc_info *info;
 	int ret;
-
-	pdata = dev_get_platdata(&pdev->dev);
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_rtc_info),
 			    GFP_KERNEL);
@@ -328,12 +325,6 @@ static int pm860x_rtc_probe(struct platform_device *pdev)
 
 #ifdef VRTC_CALIBRATION
 	/* <00> -- 2.7V, <01> -- 2.9V, <10> -- 3.1V, <11> -- 3.3V */
-	if (pm860x_rtc_dt_init(pdev, info)) {
-		if (pdata && pdata->vrtc)
-			info->vrtc = pdata->vrtc & 0x3;
-		else
-			info->vrtc = 1;
-	}
 	pm860x_set_bits(info->i2c, PM8607_MEAS_EN2, MEAS2_VRTC, MEAS2_VRTC);
 
 	/* calibrate VRTC */
