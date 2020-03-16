@@ -34,10 +34,12 @@ struct pci_test {
 	bool		write;
 	bool		copy;
 	unsigned long	size;
+	bool		use_dma;
 };
 
 static int run_test(struct pci_test *test)
 {
+	struct pci_endpoint_test_xfer_param param;
 	int ret = -EINVAL;
 	int fd;
 
@@ -102,7 +104,10 @@ static int run_test(struct pci_test *test)
 	}
 
 	if (test->write) {
-		ret = ioctl(fd, PCITEST_WRITE, test->size);
+		param.size = test->size;
+		if (test->use_dma)
+			param.flags = PCITEST_FLAGS_USE_DMA;
+		ret = ioctl(fd, PCITEST_WRITE, &param);
 		fprintf(stdout, "WRITE (%7ld bytes):\t\t", test->size);
 		if (ret < 0)
 			fprintf(stdout, "TEST FAILED\n");
@@ -111,7 +116,10 @@ static int run_test(struct pci_test *test)
 	}
 
 	if (test->read) {
-		ret = ioctl(fd, PCITEST_READ, test->size);
+		param.size = test->size;
+		if (test->use_dma)
+			param.flags = PCITEST_FLAGS_USE_DMA;
+		ret = ioctl(fd, PCITEST_READ, &param);
 		fprintf(stdout, "READ (%7ld bytes):\t\t", test->size);
 		if (ret < 0)
 			fprintf(stdout, "TEST FAILED\n");
@@ -120,7 +128,10 @@ static int run_test(struct pci_test *test)
 	}
 
 	if (test->copy) {
-		ret = ioctl(fd, PCITEST_COPY, test->size);
+		param.size = test->size;
+		if (test->use_dma)
+			param.flags = PCITEST_FLAGS_USE_DMA;
+		ret = ioctl(fd, PCITEST_COPY, &param);
 		fprintf(stdout, "COPY (%7ld bytes):\t\t", test->size);
 		if (ret < 0)
 			fprintf(stdout, "TEST FAILED\n");
@@ -153,7 +164,7 @@ int main(int argc, char **argv)
 	/* set default endpoint device */
 	test->device = "/dev/pci-endpoint-test.0";
 
-	while ((c = getopt(argc, argv, "D:b:m:x:i:Ilhrwcs:")) != EOF)
+	while ((c = getopt(argc, argv, "D:b:m:x:i:dIlhrwcs:")) != EOF)
 	switch (c) {
 	case 'D':
 		test->device = optarg;
@@ -197,6 +208,9 @@ int main(int argc, char **argv)
 	case 's':
 		test->size = strtoul(optarg, NULL, 0);
 		continue;
+	case 'd':
+		test->use_dma = true;
+		continue;
 	case 'h':
 	default:
 usage:
@@ -209,6 +223,7 @@ usage:
 			"\t-x <msix num>	\tMSI-X test (msix number between 1..2048)\n"
 			"\t-i <irq type>	\tSet IRQ type (0 - Legacy, 1 - MSI, 2 - MSI-X)\n"
 			"\t-I			Get current IRQ type configured\n"
+			"\t-d			Use DMA\n"
 			"\t-l			Legacy IRQ test\n"
 			"\t-r			Read buffer test\n"
 			"\t-w			Write buffer test\n"
