@@ -589,6 +589,8 @@ static void netsec_et_set_msglevel(struct net_device *dev, u32 datum)
 }
 
 static const struct ethtool_ops netsec_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo		= netsec_et_get_drvinfo,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
