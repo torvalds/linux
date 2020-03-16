@@ -37,6 +37,7 @@ static int bmg160_spi_remove(struct spi_device *spi)
 static const struct spi_device_id bmg160_spi_id[] = {
 	{"bmg160", 0},
 	{"bmi055_gyro", 0},
+	{"bmi088_gyro", 0},
 	{}
 };
 
