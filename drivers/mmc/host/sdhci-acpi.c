@@ -23,6 +23,7 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/pm.h>
@@ -72,7 +73,13 @@ struct sdhci_acpi_host {
 	const struct sdhci_acpi_slot	*slot;
 	struct platform_device		*pdev;
 	bool				use_runtime_pm;
+	bool				is_intel;
+	bool				reset_signal_volt_on_suspend;
 	unsigned long			private[0] ____cacheline_aligned;
+};
+
+enum {
+	DMI_QUIRK_RESET_SD_SIGNAL_VOLT_ON_SUSP			= BIT(0),
 };
 
 static inline void *sdhci_acpi_priv(struct sdhci_acpi_host *c)
@@ -391,6 +398,8 @@ static int intel_probe_slot(struct platform_device *pdev, struct acpi_device *ad
 	host->mmc_host_ops.start_signal_voltage_switch =
 					intel_start_signal_voltage_switch;
 
+	c->is_intel = true;
+
 	return 0;
 }
 
@@ -647,6 +656,24 @@ static const struct acpi_device_id sdhci_acpi_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, sdhci_acpi_ids);
 
+static const struct dmi_system_id sdhci_acpi_quirks[] = {
+	{
+		/*
+		 * The Lenovo Miix 320-10ICR has a bug in the _PS0 method of
+		 * the SHC1 ACPI device, this bug causes it to reprogram the
+		 * wrong LDO (DLDO3) to 1.8V if 1.8V modes are used and the
+		 * card is (runtime) suspended + resumed. DLDO3 is used for
+		 * the LCD and setting it to 1.8V causes the LCD to go black.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
+		},
+		.driver_data = (void *)DMI_QUIRK_RESET_SD_SIGNAL_VOLT_ON_SUSP,
+	},
+	{} /* Terminating entry */
+};
+
 static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(struct acpi_device *adev)
 {
 	const struct sdhci_acpi_uid_slot *u;
@@ -663,16 +690,22 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct sdhci_acpi_slot *slot;
 	struct acpi_device *device, *child;
+	const struct dmi_system_id *id;
 	struct sdhci_acpi_host *c;
 	struct sdhci_host *host;
 	struct resource *iomem;
 	resource_size_t len;
 	size_t priv_size;
+	int quirks = 0;
 	int err;
 
 	device = ACPI_COMPANION(dev);
 	if (!device)
 		return -ENODEV;
+
+	id = dmi_first_match(sdhci_acpi_quirks);
+	if (id)
+		quirks = (long)id->driver_data;
 
 	slot = sdhci_acpi_get_slot(device);
 
@@ -759,6 +792,9 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 			dev_warn(dev, "failed to setup card detect gpio\n");
 			c->use_runtime_pm = false;
 		}
+
+		if (quirks & DMI_QUIRK_RESET_SD_SIGNAL_VOLT_ON_SUSP)
+			c->reset_signal_volt_on_suspend = true;
 	}
 
 	err = sdhci_setup_host(host);
@@ -823,17 +859,39 @@ static int sdhci_acpi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void __maybe_unused sdhci_acpi_reset_signal_voltage_if_needed(
+	struct device *dev)
+{
+	struct sdhci_acpi_host *c = dev_get_drvdata(dev);
+	struct sdhci_host *host = c->host;
+
+	if (c->is_intel && c->reset_signal_volt_on_suspend &&
+	    host->mmc->ios.signal_voltage != MMC_SIGNAL_VOLTAGE_330) {
+		struct intel_host *intel_host = sdhci_acpi_priv(c);
+		unsigned int fn = INTEL_DSM_V33_SWITCH;
+		u32 result = 0;
+
+		intel_dsm(intel_host, dev, fn, &result);
+	}
+}
+
 #ifdef CONFIG_PM_SLEEP
 
 static int sdhci_acpi_suspend(struct device *dev)
 {
 	struct sdhci_acpi_host *c = dev_get_drvdata(dev);
 	struct sdhci_host *host = c->host;
+	int ret;
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
 
-	return sdhci_suspend_host(host);
+	ret = sdhci_suspend_host(host);
+	if (ret)
+		return ret;
+
+	sdhci_acpi_reset_signal_voltage_if_needed(dev);
+	return 0;
 }
 
 static int sdhci_acpi_resume(struct device *dev)
@@ -853,11 +911,17 @@ static int sdhci_acpi_runtime_suspend(struct device *dev)
 {
 	struct sdhci_acpi_host *c = dev_get_drvdata(dev);
 	struct sdhci_host *host = c->host;
+	int ret;
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
 
-	return sdhci_runtime_suspend_host(host);
+	ret = sdhci_runtime_suspend_host(host);
+	if (ret)
+		return ret;
+
+	sdhci_acpi_reset_signal_voltage_if_needed(dev);
+	return 0;
 }
 
 static int sdhci_acpi_runtime_resume(struct device *dev)
