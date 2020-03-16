@@ -40,6 +40,7 @@ int ethnl_parse_header(struct ethnl_req_info *req_info,
 	struct nlattr *tb[ETHTOOL_A_HEADER_MAX + 1];
 	const struct nlattr *devname_attr;
 	struct net_device *dev = NULL;
+	u32 flags = 0;
 	int ret;
 
 	if (!header) {
@@ -50,8 +51,17 @@ int ethnl_parse_header(struct ethnl_req_info *req_info,
 			       ethnl_header_policy, extack);
 	if (ret < 0)
 		return ret;
-	devname_attr = tb[ETHTOOL_A_HEADER_DEV_NAME];
+	if (tb[ETHTOOL_A_HEADER_FLAGS]) {
+		flags = nla_get_u32(tb[ETHTOOL_A_HEADER_FLAGS]);
+		if (flags & ~ETHTOOL_FLAG_ALL) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_HEADER_FLAGS],
+					    "unrecognized request flags");
+			nl_set_extack_cookie_u32(extack, ETHTOOL_FLAG_ALL);
+			return -EOPNOTSUPP;
+		}
+	}
 
+	devname_attr = tb[ETHTOOL_A_HEADER_DEV_NAME];
 	if (tb[ETHTOOL_A_HEADER_DEV_INDEX]) {
 		u32 ifindex = nla_get_u32(tb[ETHTOOL_A_HEADER_DEV_INDEX]);
 
@@ -90,9 +100,7 @@ int ethnl_parse_header(struct ethnl_req_info *req_info,
 	}
 
 	req_info->dev = dev;
-	if (tb[ETHTOOL_A_HEADER_FLAGS])
-		req_info->flags = nla_get_u32(tb[ETHTOOL_A_HEADER_FLAGS]);
-
+	req_info->flags = flags;
 	return 0;
 }
 
