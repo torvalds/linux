@@ -40,9 +40,7 @@ struct mcu_msg_init_response {
 	u32 reserved0;
 } __attribute__ ((__packed__));
 
-struct mcu_msg_create_channel {
-	struct mcu_msg_header header;
-	u32 user_id;
+struct create_channel_param {
 	u16 width;
 	u16 height;
 	u32 format;
@@ -129,6 +127,12 @@ struct mcu_msg_create_channel {
 	u32 subframe_latency;
 	u32 lda_control_mode;
 	u32 unknown41;
+} __attribute__ ((__packed__));
+
+struct mcu_msg_create_channel {
+	struct mcu_msg_header header;
+	u32 user_id;
+	struct create_channel_param param;
 } __attribute__ ((__packed__));
 
 struct mcu_msg_create_channel_response {
