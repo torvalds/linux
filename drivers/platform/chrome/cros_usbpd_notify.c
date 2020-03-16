@@ -53,11 +53,90 @@ void cros_usbpd_unregister_notify(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(cros_usbpd_unregister_notify);
 
+/**
+ * cros_ec_pd_command - Send a command to the EC.
+ *
+ * @ec_dev: EC device
+ * @command: EC command
+ * @outdata: EC command output data
+ * @outsize: Size of outdata
+ * @indata: EC command input data
+ * @insize: Size of indata
+ *
+ * Return: >= 0 on success, negative error number on failure.
+ */
+static int cros_ec_pd_command(struct cros_ec_device *ec_dev,
+			      int command,
+			      uint8_t *outdata,
+			      int outsize,
+			      uint8_t *indata,
+			      int insize)
+{
+	struct cros_ec_command *msg;
+	int ret;
+
+	msg = kzalloc(sizeof(*msg) + max(insize, outsize), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	msg->command = command;
+	msg->outsize = outsize;
+	msg->insize = insize;
+
+	if (outsize)
+		memcpy(msg->data, outdata, outsize);
+
+	ret = cros_ec_cmd_xfer_status(ec_dev, msg);
+	if (ret < 0)
+		goto error;
+
+	if (insize)
+		memcpy(indata, msg->data, insize);
+error:
+	kfree(msg);
+	return ret;
+}
+
+static void cros_usbpd_get_event_and_notify(struct device  *dev,
+					    struct cros_ec_device *ec_dev)
+{
+	struct ec_response_host_event_status host_event_status;
+	u32 event = 0;
+	int ret;
+
+	/*
+	 * We still send a 0 event out to older devices which don't
+	 * have the updated device heirarchy.
+	 */
+	if (!ec_dev) {
+		dev_dbg(dev,
+			"EC device inaccessible; sending 0 event status.\n");
+		goto send_notify;
+	}
+
+	/* Check for PD host events on EC. */
+	ret = cros_ec_pd_command(ec_dev, EC_CMD_PD_HOST_EVENT_STATUS,
+				 NULL, 0,
+				 (uint8_t *)&host_event_status,
+				 sizeof(host_event_status));
+	if (ret < 0) {
+		dev_warn(dev, "Can't get host event status (err: %d)\n", ret);
+		goto send_notify;
+	}
+
+	event = host_event_status.status;
+
+send_notify:
+	blocking_notifier_call_chain(&cros_usbpd_notifier_list, event, NULL);
+}
+
 #ifdef CONFIG_ACPI
 
 static void cros_usbpd_notify_acpi(acpi_handle device, u32 event, void *data)
 {
-	blocking_notifier_call_chain(&cros_usbpd_notifier_list, event, NULL);
+	struct cros_usbpd_notify_data *pdnotify = data;
+
+	cros_usbpd_get_event_and_notify(pdnotify->dev, pdnotify->ec);
 }
 
 static int cros_usbpd_notify_probe_acpi(struct platform_device *pdev)
@@ -133,6 +212,8 @@ static int cros_usbpd_notify_plat(struct notifier_block *nb,
 				  unsigned long queued_during_suspend,
 				  void *data)
 {
+	struct cros_usbpd_notify_data *pdnotify = container_of(nb,
+			struct cros_usbpd_notify_data, nb);
 	struct cros_ec_device *ec_dev = (struct cros_ec_device *)data;
 	u32 host_event = cros_ec_get_host_event(ec_dev);
 
@@ -140,8 +221,7 @@ static int cros_usbpd_notify_plat(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	if (host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_PD_MCU)) {
-		blocking_notifier_call_chain(&cros_usbpd_notifier_list,
-					     host_event, NULL);
+		cros_usbpd_get_event_and_notify(pdnotify->dev, ec_dev);
 		return NOTIFY_OK;
 	}
 	return NOTIFY_DONE;
