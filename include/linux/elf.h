@@ -2,6 +2,7 @@
 #ifndef _LINUX_ELF_H
 #define _LINUX_ELF_H
 
+#include <linux/types.h>
 #include <asm/elf.h>
 #include <uapi/linux/elf.h>
 
@@ -56,4 +57,15 @@ static inline int elf_coredump_extra_notes_write(struct coredump_params *cprm) {
 extern int elf_coredump_extra_notes_size(void);
 extern int elf_coredump_extra_notes_write(struct coredump_params *cprm);
 #endif
+
+/*
+ * NT_GNU_PROPERTY_TYPE_0 header:
+ * Keep this internal until/unless there is an agreed UAPI definition.
+ * pr_type values (GNU_PROPERTY_*) are public and defined in the UAPI header.
+ */
+struct gnu_property {
+	u32 pr_type;
+	u32 pr_datasz;
+};
+
 #endif /* _LINUX_ELF_H */
