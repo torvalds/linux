@@ -1652,17 +1652,22 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 			 channel->mcu_channel_id, len);
 	}
 
-	len = nal_h264_write_filler(&dev->plat_dev->dev, curr, free);
-	if (len < 0) {
-		v4l2_err(&dev->v4l2_dev,
-			 "failed to write %zd filler data\n", free);
-		goto err;
+	if (msg->slice_type != AL_ENC_SLICE_TYPE_I && !msg->is_idr) {
+		dst_buf->vb2_buf.planes[0].data_offset = free;
+		free = 0;
+	} else {
+		len = nal_h264_write_filler(&dev->plat_dev->dev, curr, free);
+		if (len < 0) {
+			v4l2_err(&dev->v4l2_dev,
+				 "failed to write %zd filler data\n", free);
+			goto err;
+		}
+		curr += len;
+		free -= len;
+		v4l2_dbg(2, debug, &dev->v4l2_dev,
+			 "channel %d: wrote %zd bytes filler nal unit\n",
+			 channel->mcu_channel_id, len);
 	}
-	curr += len;
-	free -= len;
-	v4l2_dbg(2, debug, &dev->v4l2_dev,
-		 "channel %d: wrote %zd bytes filler nal unit\n",
-		 channel->mcu_channel_id, len);
 
 	if (free != 0) {
 		v4l2_err(&dev->v4l2_dev,
