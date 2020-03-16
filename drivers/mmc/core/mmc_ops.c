@@ -21,6 +21,7 @@
 
 #define MMC_BKOPS_TIMEOUT_MS		(120 * 1000) /* 120s */
 #define MMC_CACHE_FLUSH_TIMEOUT_MS	(30 * 1000) /* 30s */
+#define MMC_SANITIZE_TIMEOUT_MS		(240 * 1000) /* 240s */
 
 static const u8 tuning_blk_pattern_4bit[] = {
 	0xff, 0x0f, 0xff, 0x00, 0xff, 0xcc, 0xc3, 0xcc,
@@ -597,9 +598,6 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		cmd.flags |= MMC_RSP_SPI_R1 | MMC_RSP_R1;
 	}
 
-	if (index == EXT_CSD_SANITIZE_START)
-		cmd.sanitize_busy = true;
-
 	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
 	if (err)
 		goto out;
@@ -1032,3 +1030,37 @@ int mmc_cmdq_disable(struct mmc_card *card)
 	return mmc_cmdq_switch(card, false);
 }
 EXPORT_SYMBOL_GPL(mmc_cmdq_disable);
+
+int mmc_sanitize(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	int err;
+
+	if (!mmc_can_sanitize(card)) {
+		pr_warn("%s: Sanitize not supported\n", mmc_hostname(host));
+		return -EOPNOTSUPP;
+	}
+
+	pr_debug("%s: Sanitize in progress...\n", mmc_hostname(host));
+
+	mmc_retune_hold(host);
+
+	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_SANITIZE_START,
+			 1, MMC_SANITIZE_TIMEOUT_MS);
+	if (err)
+		pr_err("%s: Sanitize failed err=%d\n", mmc_hostname(host), err);
+
+	/*
+	 * If the sanitize operation timed out, the card is probably still busy
+	 * in the R1_STATE_PRG. Rather than continue to wait, let's try to abort
+	 * it with a HPI command to get back into R1_STATE_TRAN.
+	 */
+	if (err == -ETIMEDOUT && !mmc_interrupt_hpi(card))
+		pr_warn("%s: Sanitize aborted\n", mmc_hostname(host));
+
+	mmc_retune_release(host);
+
+	pr_debug("%s: Sanitize completed\n", mmc_hostname(host));
+	return err;
+}
+EXPORT_SYMBOL_GPL(mmc_sanitize);
