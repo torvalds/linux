@@ -390,7 +390,7 @@ struct mcu_msg_create_channel {
 
 	/* gop param */
 	u32 gop_ctrl_mode;
-	u32 freq_ird;
+	u32 freq_idr;
 	u32 freq_lt;
 	u32 gdr_mode;
 	u16 gop_length;
@@ -1115,7 +1115,7 @@ static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 	msg.rate_control_option = 0x00000000;
 
 	msg.gop_ctrl_mode = 0x00000000;
-	msg.freq_ird = 0x7fffffff;
+	msg.freq_idr = channel->gop_size;
 	msg.freq_lt = 0;
 	msg.gdr_mode = 0x00000000;
 	msg.gop_length = channel->gop_size;
