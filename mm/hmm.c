@@ -559,7 +559,6 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
 	bool fault, write_fault;
 	spinlock_t *ptl;
 	pte_t entry;
-	int ret = 0;
 
 	ptl = huge_pte_lock(hstate_vma(vma), walk->mm, pte);
 	entry = huge_ptep_get(pte);
@@ -572,8 +571,8 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
 	hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
 			   &fault, &write_fault);
 	if (fault || write_fault) {
-		ret = -ENOENT;
-		goto unlock;
+		spin_unlock(ptl);
+		return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
 	}
 
 	pfn = pte_pfn(entry) + ((start & ~hmask) >> PAGE_SHIFT);
@@ -581,14 +580,8 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
 		range->pfns[i] = hmm_device_entry_from_pfn(range, pfn) |
 				 cpu_flags;
 	hmm_vma_walk->last = end;
-
-unlock:
 	spin_unlock(ptl);
-
-	if (ret == -ENOENT)
-		return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
-
-	return ret;
+	return 0;
 }
 #else
 #define hmm_vma_walk_hugetlb_entry NULL
