@@ -251,6 +251,9 @@ static irqreturn_t pm8001_interrupt_handler_intx(int irq, void *dev_id)
 	return ret;
 }
 
+static u32 pm8001_setup_irq(struct pm8001_hba_info *pm8001_ha);
+static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha);
+
 /**
  * pm8001_alloc - initiate our hba structure and 6 DMAs area.
  * @pm8001_ha:our hba structure.
@@ -893,9 +896,7 @@ static int pm8001_configure_phy_settings(struct pm8001_hba_info *pm8001_ha)
  */
 static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 {
-	u32 i = 0, j = 0;
 	u32 number_of_intr;
-	int flag = 0;
 	int rc;
 
 	/* SPCv controllers supports 64 msi-x */
@@ -903,11 +904,11 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 		number_of_intr = 1;
 	} else {
 		number_of_intr = PM8001_MAX_MSIX_VEC;
-		flag &= ~IRQF_SHARED;
 	}
 
 	rc = pci_alloc_irq_vectors(pm8001_ha->pdev, number_of_intr,
 			number_of_intr, PCI_IRQ_MSIX);
+	number_of_intr = rc;
 	if (rc < 0)
 		return rc;
 	pm8001_ha->number_of_intr = number_of_intr;
@@ -915,8 +916,22 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 	PM8001_INIT_DBG(pm8001_ha, pm8001_printk(
 		"pci_alloc_irq_vectors request ret:%d no of intr %d\n",
 				rc, pm8001_ha->number_of_intr));
+	return 0;
+}
 
-	for (i = 0; i < number_of_intr; i++) {
+static u32 pm8001_request_msix(struct pm8001_hba_info *pm8001_ha)
+{
+	u32 i = 0, j = 0;
+	int flag = 0, rc = 0;
+
+	if (pm8001_ha->chip_id != chip_8001)
+		flag &= ~IRQF_SHARED;
+
+	PM8001_INIT_DBG(pm8001_ha,
+		pm8001_printk("pci_enable_msix request number of intr %d\n",
+		pm8001_ha->number_of_intr));
+
+	for (i = 0; i < pm8001_ha->number_of_intr; i++) {
 		snprintf(pm8001_ha->intr_drvname[i],
 			sizeof(pm8001_ha->intr_drvname[0]),
 			"%s-%d", pm8001_ha->name, i);
@@ -941,6 +956,21 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 }
 #endif
 
+static u32 pm8001_setup_irq(struct pm8001_hba_info *pm8001_ha)
+{
+	struct pci_dev *pdev;
+
+	pdev = pm8001_ha->pdev;
+
+#ifdef PM8001_USE_MSIX
+	if (pci_find_capability(pdev, PCI_CAP_ID_MSIX))
+		return pm8001_setup_msix(pm8001_ha);
+	PM8001_INIT_DBG(pm8001_ha,
+		pm8001_printk("MSIX not supported!!!\n"));
+#endif
+	return 0;
+}
+
 /**
  * pm8001_request_irq - register interrupt
  * @chip_info: our ha struct.
@@ -954,7 +984,7 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 
 #ifdef PM8001_USE_MSIX
 	if (pdev->msix_cap && pci_msi_enabled())
-		return pm8001_setup_msix(pm8001_ha);
+		return pm8001_request_msix(pm8001_ha);
 	else {
 		PM8001_INIT_DBG(pm8001_ha,
 			pm8001_printk("MSIX not supported!!!\n"));
@@ -1036,6 +1066,13 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 		rc = -ENOMEM;
 		goto err_out_free;
 	}
+	/* Setup Interrupt */
+	rc = pm8001_setup_irq(pm8001_ha);
+	if (rc)	{
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
+			"pm8001_setup_irq failed [ret: %d]\n", rc));
+		goto err_out_shost;
+	}
 	list_add_tail(&pm8001_ha->list, &hba_list);
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 	rc = PM8001_CHIP_DISP->chip_init(pm8001_ha);
@@ -1048,6 +1085,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha_free;
+	/* Request Interrupt */
 	rc = pm8001_request_irq(pm8001_ha);
 	if (rc)	{
 		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
