@@ -1437,8 +1437,11 @@ static irqreturn_t vsc8584_handle_interrupt(struct phy_device *phydev)
 	if (irq_status < 0 || !(irq_status & MII_VSC85XX_INT_MASK_MASK))
 		return IRQ_NONE;
 
-	vsc8584_handle_macsec_interrupt(phydev);
-	phy_mac_interrupt(phydev);
+	if (irq_status & MII_VSC85XX_INT_MASK_EXT)
+		vsc8584_handle_macsec_interrupt(phydev);
+
+	if (irq_status & MII_VSC85XX_INT_MASK_LINK_CHG)
+		phy_mac_interrupt(phydev);
 
 	return IRQ_HANDLED;
 }
