@@ -472,6 +472,8 @@ static int rkisp1_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, rkisp1);
 	rkisp1->dev = dev;
 
+	mutex_init(&rkisp1->stream_lock);
+
 	rkisp1->base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rkisp1->base_addr))
 		return PTR_ERR(rkisp1->base_addr);

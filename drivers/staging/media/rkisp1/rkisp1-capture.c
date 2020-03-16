@@ -880,6 +880,8 @@ static void rkisp1_vb2_stop_streaming(struct vb2_queue *queue)
 	struct rkisp1_device *rkisp1 = cap->rkisp1;
 	int ret;
 
+	mutex_lock(&cap->rkisp1->stream_lock);
+
 	rkisp1_stream_stop(cap);
 	media_pipeline_stop(&node->vdev.entity);
 	ret = rkisp1_pipeline_sink_walk(&node->vdev.entity, NULL,
@@ -896,6 +898,8 @@ static void rkisp1_vb2_stop_streaming(struct vb2_queue *queue)
 		dev_err(rkisp1->dev, "power down failed error:%d\n", ret);
 
 	rkisp1_dummy_buf_destroy(cap);
+
+	mutex_unlock(&cap->rkisp1->stream_lock);
 }
 
 /*
@@ -940,6 +944,8 @@ rkisp1_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct media_entity *entity = &cap->vnode.vdev.entity;
 	int ret;
 
+	mutex_lock(&cap->rkisp1->stream_lock);
+
 	ret = rkisp1_dummy_buf_create(cap);
 	if (ret)
 		goto err_ret_buffers;
@@ -969,6 +975,8 @@ rkisp1_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto err_pipe_disable;
 	}
 
+	mutex_unlock(&cap->rkisp1->stream_lock);
+
 	return 0;
 
 err_pipe_disable:
@@ -982,6 +990,7 @@ err_destroy_dummy:
 	rkisp1_dummy_buf_destroy(cap);
 err_ret_buffers:
 	rkisp1_return_all_buffers(cap, VB2_BUF_STATE_QUEUED);
+	mutex_unlock(&cap->rkisp1->stream_lock);
 
 	return ret;
 }
