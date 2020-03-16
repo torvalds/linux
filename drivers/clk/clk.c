@@ -5202,3 +5202,274 @@ void __init of_clk_init(const struct of_device_id *matches)
 	}
 }
 #endif
+
+#ifdef CONFIG_COMMON_CLK_PROCFS
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+
+static int clk_rate_show(struct seq_file *s, void *v)
+{
+	seq_puts(s, "set clk rate:\n");
+	seq_puts(s, "	echo [clk_name] [rate(Hz)] > /proc/clk/rate\n");
+
+	return 0;
+}
+
+static int clk_rate_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, clk_rate_show, NULL);
+}
+
+static ssize_t clk_rate_write(struct file *filp, const char __user *buf,
+			      size_t cnt, loff_t *ppos)
+{
+	char clk_name[40], input[55];
+	struct clk_core *core;
+	int argc, ret, val;
+
+	if (cnt >= sizeof(input))
+		return -EINVAL;
+
+	if (copy_from_user(input, buf, cnt))
+		return -EFAULT;
+
+	input[cnt] = '\0';
+
+	argc = sscanf(input, "%38s %10d", clk_name, &val);
+	if (argc != 2)
+		return -EINVAL;
+
+	core = clk_core_lookup(clk_name);
+	if (IS_ERR_OR_NULL(core)) {
+		pr_err("get %s error\n", clk_name);
+		return -EINVAL;
+	}
+
+	clk_prepare_lock();
+	ret = clk_core_set_rate_nolock(core, val);
+	clk_prepare_unlock();
+	if (ret) {
+		pr_err("set %s rate %d error\n", clk_name, val);
+		return ret;
+	}
+
+	return cnt;
+}
+
+static const struct proc_ops clk_rate_proc_ops = {
+	.proc_open	= clk_rate_open,
+	.proc_read	= seq_read,
+	.proc_write	= clk_rate_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
+
+static int clk_enable_show(struct seq_file *s, void *v)
+{
+	seq_puts(s, "enable clk:\n");
+	seq_puts(s, "	echo enable [clk_name] > /proc/clk/enable\n");
+	seq_puts(s, "disable clk:\n");
+	seq_puts(s, "	echo disable [clk_name] > /proc/clk/enable\n");
+
+	return 0;
+}
+
+static int clk_enable_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, clk_enable_show, NULL);
+}
+
+static ssize_t clk_enable_write(struct file *filp, const char __user *buf,
+				size_t cnt, loff_t *ppos)
+{
+	char cmd[10], clk_name[40], input[50];
+	struct clk_core *core;
+	int argc, ret;
+
+	if (cnt >= sizeof(input))
+		return -EINVAL;
+
+	if (copy_from_user(input, buf, cnt))
+		return -EFAULT;
+
+	input[cnt] = '\0';
+
+	argc = sscanf(input, "%8s %38s", cmd, clk_name);
+	if (argc != 2)
+		return -EINVAL;
+
+	core = clk_core_lookup(clk_name);
+	if (IS_ERR_OR_NULL(core)) {
+		pr_err("get %s error\n", clk_name);
+		return -EINVAL;
+	}
+
+	if (!strncmp(cmd, "enable", strlen("enable"))) {
+		ret = clk_core_prepare_enable(core);
+		if (ret)
+			pr_err("enable %s err\n", clk_name);
+	} else if (!strncmp(cmd, "disable", strlen("disable"))) {
+		clk_core_disable_unprepare(core);
+	} else {
+		pr_err("unsupported cmd(%s)\n", cmd);
+	}
+
+	return cnt;
+}
+
+static const struct proc_ops clk_enable_proc_ops = {
+	.proc_open	= clk_enable_open,
+	.proc_read	= seq_read,
+	.proc_write	= clk_enable_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
+
+static int clk_parent_show(struct seq_file *s, void *v)
+{
+	seq_puts(s, "echo [clk_name] [parent_name] > /proc/clk/parent\n");
+
+	return 0;
+}
+
+static int clk_parent_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, clk_parent_show, NULL);
+}
+
+static ssize_t clk_parent_write(struct file *filp, const char __user *buf,
+				size_t cnt, loff_t *ppos)
+{
+	char clk_name[40], p_name[40];
+	char input[80];
+	struct clk_core *core, *p;
+	int argc, ret;
+
+	if (cnt >= sizeof(input))
+		return -EINVAL;
+
+	if (copy_from_user(input, buf, cnt))
+		return -EFAULT;
+
+	input[cnt] = '\0';
+
+	argc = sscanf(input, "%38s %38s", clk_name, p_name);
+	if (argc != 2)
+		return -EINVAL;
+
+	core = clk_core_lookup(clk_name);
+	if (IS_ERR_OR_NULL(core)) {
+		pr_err("get %s error\n", clk_name);
+		return -EINVAL;
+	}
+	p = clk_core_lookup(p_name);
+	if (IS_ERR_OR_NULL(p)) {
+		pr_err("get %s error\n", p_name);
+		return -EINVAL;
+	}
+	clk_prepare_lock();
+	ret = clk_core_set_parent_nolock(core, p);
+	clk_prepare_unlock();
+	if (ret < 0)
+		pr_err("set clk(%s)'s parent(%s) error\n", clk_name, p_name);
+
+	return cnt;
+}
+
+static const struct proc_ops clk_parent_proc_ops = {
+	.proc_open	= clk_parent_open,
+	.proc_read	= seq_read,
+	.proc_write	= clk_parent_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
+
+static void clk_proc_summary_show_one(struct seq_file *s, struct clk_core *c,
+				      int level)
+{
+	if (!c)
+		return;
+
+	seq_printf(s, "%*s%-*s %7d %8d %8d %11lu %10lu %5d %6d\n",
+		   level * 3 + 1, "",
+		   30 - level * 3, c->name,
+		   c->enable_count, c->prepare_count, c->protect_count,
+		   clk_core_get_rate_recalc(c),
+		   clk_core_get_accuracy_recalc(c),
+		   clk_core_get_phase(c),
+		   clk_core_get_scaled_duty_cycle(c, 100000));
+}
+
+static void clk_proc_summary_show_subtree(struct seq_file *s,
+					  struct clk_core *c, int level)
+{
+	struct clk_core *child;
+
+	if (!c)
+		return;
+
+	clk_proc_summary_show_one(s, c, level);
+
+	hlist_for_each_entry(child, &c->children, child_node)
+		clk_proc_summary_show_subtree(s, child, level + 1);
+}
+
+static int clk_proc_summary_show(struct seq_file *s, void *v)
+{
+	struct clk_core *c;
+	struct hlist_head *all_lists[] = {
+		&clk_root_list,
+		&clk_orphan_list,
+		NULL,
+	};
+	struct hlist_head **lists = all_lists;
+
+	seq_puts(s, "                                 enable  prepare  protect                                duty\n");
+	seq_puts(s, "   clock                          count    count    count        rate   accuracy phase  cycle\n");
+	seq_puts(s, "---------------------------------------------------------------------------------------------\n");
+
+	clk_prepare_lock();
+
+	for (; *lists; lists++)
+		hlist_for_each_entry(c, *lists, child_node)
+			clk_proc_summary_show_subtree(s, c, 0);
+
+	clk_prepare_unlock();
+
+	return 0;
+}
+
+static int __init clk_create_procfs(void)
+{
+	struct proc_dir_entry *proc_clk_root;
+	struct proc_dir_entry *ent;
+
+	proc_clk_root = proc_mkdir("clk", NULL);
+	if (!proc_clk_root)
+		return -EINVAL;
+
+	ent = proc_create("rate", 0644, proc_clk_root, &clk_rate_proc_ops);
+	if (!ent)
+		goto fail;
+
+	ent = proc_create("enable", 0644, proc_clk_root, &clk_enable_proc_ops);
+	if (!ent)
+		goto fail;
+
+	ent = proc_create("parent", 0644, proc_clk_root, &clk_parent_proc_ops);
+	if (!ent)
+		goto fail;
+
+	ent = proc_create_single("summary", 0444, proc_clk_root,
+				 clk_proc_summary_show);
+	if (!ent)
+		goto fail;
+
+	return 0;
+
+fail:
+	proc_remove(proc_clk_root);
+	return -EINVAL;
+}
+late_initcall_sync(clk_create_procfs);
+#endif
