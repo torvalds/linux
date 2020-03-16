@@ -422,7 +422,7 @@ mlx5_esw_chains_add_miss_rule(struct fdb_chain *fdb_chain,
 	dest.type  = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest.ft = next_fdb;
 
-	if (fdb_chain->chain != mlx5_esw_chains_get_ft_chain(esw) &&
+	if (next_fdb == tc_end_fdb(esw) &&
 	    fdb_modify_header_fwd_to_table_supported(esw)) {
 		act.modify_hdr = fdb_chain->miss_modify_hdr;
 		act.action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
