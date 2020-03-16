@@ -2386,7 +2386,6 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
 	struct gfs2_rbm rbm = { .rgd = ip->i_res.rs_rgd, };
-	unsigned int ndata;
 	u64 block; /* block, within the file system scope */
 	int error;
 
@@ -2412,12 +2411,8 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 	rbm.rgd->rd_last_alloc = block - rbm.rgd->rd_data0;
 	if (gfs2_rs_active(&ip->i_res))
 		gfs2_adjust_reservation(ip, &rbm, *nblocks);
-	ndata = *nblocks;
-	if (dinode)
-		ndata--;
-
 	if (!dinode) {
-		ip->i_goal = block + ndata - 1;
+		ip->i_goal = block + *nblocks - 1;
 		error = gfs2_meta_inode_buffer(ip, &dibh);
 		if (error == 0) {
 			struct gfs2_dinode *di =
