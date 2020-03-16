@@ -77,7 +77,7 @@ int hammer_device(const char *device_name, unsigned int *lines, int nlines,
 
 		fprintf(stdout, "[%c] ", swirr[j]);
 		j++;
-		if (j == sizeof(swirr)-1)
+		if (j == sizeof(swirr) - 1)
 			j = 0;
 
 		fprintf(stdout, "[");
