@@ -459,12 +459,24 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	if (!p->tco_res)
 		return -ENODEV;
 
-	p->smi_res = platform_get_resource(pdev, IORESOURCE_IO, ICH_RES_IO_SMI);
-	if (!p->smi_res)
-		return -ENODEV;
-
 	p->iTCO_version = pdata->version;
 	p->pci_dev = to_pci_dev(dev->parent);
+
+	p->smi_res = platform_get_resource(pdev, IORESOURCE_IO, ICH_RES_IO_SMI);
+	if (p->smi_res) {
+		/* The TCO logic uses the TCO_EN bit in the SMI_EN register */
+		if (!devm_request_region(dev, p->smi_res->start,
+					 resource_size(p->smi_res),
+					 pdev->name)) {
+			pr_err("I/O address 0x%04llx already in use, device disabled\n",
+			       (u64)SMI_EN(p));
+			return -EBUSY;
+		}
+	} else if (iTCO_vendorsupport ||
+		   turn_SMI_watchdog_clear_off >= p->iTCO_version) {
+		pr_err("SMI I/O resource is missing\n");
+		return -ENODEV;
+	}
 
 	iTCO_wdt_no_reboot_bit_setup(p, pdata);
 
@@ -492,14 +504,6 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	/* Set the NO_REBOOT bit to prevent later reboots, just for sure */
 	p->update_no_reboot_bit(p->no_reboot_priv, true);
 
-	/* The TCO logic uses the TCO_EN bit in the SMI_EN register */
-	if (!devm_request_region(dev, p->smi_res->start,
-				 resource_size(p->smi_res),
-				 pdev->name)) {
-		pr_err("I/O address 0x%04llx already in use, device disabled\n",
-		       (u64)SMI_EN(p));
-		return -EBUSY;
-	}
 	if (turn_SMI_watchdog_clear_off >= p->iTCO_version) {
 		/*
 		 * Bit 13: TCO_EN -> 0

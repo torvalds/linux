@@ -1178,6 +1178,7 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 		qeth_l3_clear_ip_htable(card, 1);
 		qeth_clear_ipacmd_list(card);
 		qeth_drain_output_queues(card);
+		cancel_delayed_work_sync(&card->buffer_reclaim_work);
 		card->state = CARD_STATE_DOWN;
 	}
 

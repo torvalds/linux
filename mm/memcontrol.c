@@ -6682,19 +6682,9 @@ void mem_cgroup_sk_alloc(struct sock *sk)
 	if (!mem_cgroup_sockets_enabled)
 		return;
 
-	/*
-	 * Socket cloning can throw us here with sk_memcg already
-	 * filled. It won't however, necessarily happen from
-	 * process context. So the test for root memcg given
-	 * the current task's memcg won't help us in this case.
-	 *
-	 * Respecting the original socket's memcg is a better
-	 * decision in this case.
-	 */
-	if (sk->sk_memcg) {
-		css_get(&sk->sk_memcg->css);
+	/* Do not associate the sock with unrelated interrupted task's memcg. */
+	if (in_interrupt())
 		return;
-	}
 
 	rcu_read_lock();
 	memcg = mem_cgroup_from_task(current);

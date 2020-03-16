@@ -360,7 +360,6 @@ struct x86_emulate_ctxt {
 	u64 d;
 	unsigned long _eip;
 	struct operand memop;
-	/* Fields above regs are cleared together. */
 	unsigned long _regs[NR_VCPU_REGS];
 	struct operand *memopp;
 	struct fetch_cache fetch;

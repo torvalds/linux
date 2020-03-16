@@ -81,7 +81,7 @@ enum afs_call_state {
  * List of server addresses.
  */
 struct afs_addr_list {
-	struct rcu_head		rcu;		/* Must be first */
+	struct rcu_head		rcu;
 	refcount_t		usage;
 	u32			version;	/* Version */
 	unsigned char		max_addrs;
