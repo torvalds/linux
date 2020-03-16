@@ -128,10 +128,10 @@ next to each other in memory.
       - b\ :sub:`1`
       - b\ :sub:`0`
 
-      -
-      -
-      -
-      -
+      - `-`
+      - `-`
+      - `-`
+      - `-`
       - r\ :sub:`3`
       - r\ :sub:`2`
       - r\ :sub:`1`
@@ -169,10 +169,10 @@ next to each other in memory.
       - b\ :sub:`2`
       - b\ :sub:`1`
       - b\ :sub:`0`
-      -
-      -
-      -
-      -
+      - `-`
+      - `-`
+      - `-`
+      - `-`
 
       - r\ :sub:`3`
       - r\ :sub:`2`
@@ -220,10 +220,10 @@ next to each other in memory.
       - r\ :sub:`1`
       - r\ :sub:`0`
 
-      -
-      -
-      -
-      -
+      - `-`
+      - `-`
+      - `-`
+      - `-`
       - b\ :sub:`3`
       - b\ :sub:`2`
       - b\ :sub:`1`
@@ -261,10 +261,10 @@ next to each other in memory.
       - r\ :sub:`2`
       - r\ :sub:`1`
       - r\ :sub:`0`
-      -
-      -
-      -
-      -
+      - `-`
+      - `-`
+      - `-`
+      - `-`
 
       - b\ :sub:`3`
       - b\ :sub:`2`
@@ -312,7 +312,7 @@ next to each other in memory.
       - b\ :sub:`1`
       - b\ :sub:`0`
 
-      -
+      - `-`
       - r\ :sub:`4`
       - r\ :sub:`3`
       - r\ :sub:`2`
@@ -356,7 +356,7 @@ next to each other in memory.
       - b\ :sub:`2`
       - b\ :sub:`1`
       - b\ :sub:`0`
-      -
+      - `-`
 
       - r\ :sub:`4`
       - r\ :sub:`3`
@@ -404,7 +404,7 @@ next to each other in memory.
       - r\ :sub:`1`
       - r\ :sub:`0`
 
-      -
+      - `-`
       - b\ :sub:`4`
       - b\ :sub:`3`
       - b\ :sub:`2`
@@ -448,7 +448,7 @@ next to each other in memory.
       - r\ :sub:`2`
       - r\ :sub:`1`
       - r\ :sub:`0`
-      -
+      - `-`
 
       - b\ :sub:`4`
       - b\ :sub:`3`
@@ -510,7 +510,7 @@ next to each other in memory.
       - ``V4L2_PIX_FMT_XRGB555X``
       - 'XR15' | (1 << 31)
 
-      -
+      - `-`
       - r\ :sub:`4`
       - r\ :sub:`3`
       - r\ :sub:`2`
@@ -640,21 +640,21 @@ next to each other in memory.
 
       - r\ :sub:`1`
       - r\ :sub:`0`
-      -
-      -
-      -
-      -
-      -
-      -
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
 
-      -
-      -
-      -
-      -
-      -
-      -
-      -
-      -
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
     * .. _V4L2-PIX-FMT-ABGR32:
 
       - ``V4L2_PIX_FMT_ABGR32``
@@ -727,14 +727,14 @@ next to each other in memory.
       - r\ :sub:`1`
       - r\ :sub:`0`
 
-      -
-      -
-      -
-      -
-      -
-      -
-      -
-      -
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
     * .. _V4L2-PIX-FMT-BGRA32:
 
       - ``V4L2_PIX_FMT_BGRA32``
@@ -780,14 +780,14 @@ next to each other in memory.
       - ``V4L2_PIX_FMT_BGRX32``
       - 'RX24'
 
-      -
-      -
-      -
-      -
-      -
-      -
-      -
-      -
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
 
       - b\ :sub:`7`
       - b\ :sub:`6`
@@ -887,14 +887,14 @@ next to each other in memory.
       - b\ :sub:`1`
       - b\ :sub:`0`
 
-      -
-      -
-      -
-      -
-      -
-      -
-      -
-      -
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
     * .. _V4L2-PIX-FMT-ARGB32:
 
       - ``V4L2_PIX_FMT_ARGB32``
@@ -940,14 +940,14 @@ next to each other in memory.
       - ``V4L2_PIX_FMT_XRGB32``
       - 'BX24'
 
-      -
-      -
-      -
-      -
-      -
-      -
-      -
-      -
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
+      - `-`
 
       - r\ :sub:`7`
       - r\ :sub:`6`
