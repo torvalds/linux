@@ -1323,26 +1323,22 @@ static int soc_probe_dai(struct snd_soc_dai *dai, int order)
 static void soc_remove_link_dais(struct snd_soc_card *card)
 {
 	int i;
-	struct snd_soc_dai *codec_dai;
-	struct snd_soc_dai *cpu_dai;
+	struct snd_soc_dai *dai;
 	struct snd_soc_pcm_runtime *rtd;
 	int order;
 
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
-			/* remove the CODEC DAI */
-			for_each_rtd_codec_dais(rtd, i, codec_dai)
-				soc_remove_dai(codec_dai, order);
-
-			for_each_rtd_cpu_dais(rtd, i, cpu_dai)
-				soc_remove_dai(cpu_dai, order);
+			/* remove DAIs */
+			for_each_rtd_dais(rtd, i, dai)
+				soc_remove_dai(dai, order);
 		}
 	}
 }
 
 static int soc_probe_link_dais(struct snd_soc_card *card)
 {
-	struct snd_soc_dai *codec_dai, *cpu_dai;
+	struct snd_soc_dai *dai;
 	struct snd_soc_pcm_runtime *rtd;
 	int i, order, ret;
 
@@ -1354,15 +1350,8 @@ static int soc_probe_link_dais(struct snd_soc_card *card)
 				card->name, rtd->num, order);
 
 			/* probe the CPU DAI */
-			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
-				ret = soc_probe_dai(cpu_dai, order);
-				if (ret)
-					return ret;
-			}
-
-			/* probe the CODEC DAI */
-			for_each_rtd_codec_dais(rtd, i, codec_dai) {
-				ret = soc_probe_dai(codec_dai, order);
+			for_each_rtd_dais(rtd, i, dai) {
+				ret = soc_probe_dai(dai, order);
 				if (ret)
 					return ret;
 			}
