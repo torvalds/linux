@@ -613,6 +613,12 @@ static inline bool system_has_prio_mask_debugging(void)
 	       system_uses_irq_prio_masking();
 }
 
+static inline bool system_supports_bti(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_BTI) &&
+		cpus_have_const_cap(ARM64_BTI);
+}
+
 static inline bool system_capabilities_finalized(void)
 {
 	return static_branch_likely(&arm64_const_caps_ready);
