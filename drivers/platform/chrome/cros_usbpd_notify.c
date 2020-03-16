@@ -16,6 +16,12 @@
 
 static BLOCKING_NOTIFIER_HEAD(cros_usbpd_notifier_list);
 
+struct cros_usbpd_notify_data {
+	struct device *dev;
+	struct cros_ec_device *ec;
+	struct notifier_block nb;
+};
+
 /**
  * cros_usbpd_register_notify - Register a notifier callback for PD events.
  * @nb: Notifier block pointer to register
@@ -98,18 +104,21 @@ static int cros_usbpd_notify_probe_plat(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cros_ec_dev *ecdev = dev_get_drvdata(dev->parent);
-	struct notifier_block *nb;
+	struct cros_usbpd_notify_data *pdnotify;
 	int ret;
 
-	nb = devm_kzalloc(dev, sizeof(*nb), GFP_KERNEL);
-	if (!nb)
+	pdnotify = devm_kzalloc(dev, sizeof(*pdnotify), GFP_KERNEL);
+	if (!pdnotify)
 		return -ENOMEM;
 
-	nb->notifier_call = cros_usbpd_notify_plat;
-	dev_set_drvdata(dev, nb);
+	pdnotify->dev = dev;
+	pdnotify->ec = ecdev->ec_dev;
+	pdnotify->nb.notifier_call = cros_usbpd_notify_plat;
+
+	dev_set_drvdata(dev, pdnotify);
 
 	ret = blocking_notifier_chain_register(&ecdev->ec_dev->event_notifier,
-					       nb);
+					       &pdnotify->nb);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register notifier\n");
 		return ret;
@@ -122,10 +131,11 @@ static int cros_usbpd_notify_remove_plat(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cros_ec_dev *ecdev = dev_get_drvdata(dev->parent);
-	struct notifier_block *nb =
-		(struct notifier_block *)dev_get_drvdata(dev);
+	struct cros_usbpd_notify_data *pdnotify =
+		(struct cros_usbpd_notify_data *)dev_get_drvdata(dev);
 
-	blocking_notifier_chain_unregister(&ecdev->ec_dev->event_notifier, nb);
+	blocking_notifier_chain_unregister(&ecdev->ec_dev->event_notifier,
+					   &pdnotify->nb);
 
 	return 0;
 }
