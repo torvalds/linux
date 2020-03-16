@@ -197,7 +197,6 @@ struct allegro_channel {
 	unsigned int sizeimage_encoded;
 	unsigned int csequence;
 
-	enum v4l2_mpeg_video_bitrate_mode bitrate_mode;
 	bool frame_rc_enable;
 	unsigned int bitrate;
 	unsigned int bitrate_peak;
@@ -1119,6 +1118,7 @@ static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 	int i_frame_qp = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_i_frame_qp);
 	int p_frame_qp = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_p_frame_qp);
 	int b_frame_qp = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_b_frame_qp);
+	int bitrate_mode = v4l2_ctrl_g_ctrl(channel->mpeg_video_bitrate_mode);
 
 	memset(&msg, 0, sizeof(msg));
 
@@ -1156,7 +1156,7 @@ static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 
 	if (channel->frame_rc_enable)
 		msg.rate_control_mode =
-			v4l2_bitrate_mode_to_mcu_mode(channel->bitrate_mode);
+			v4l2_bitrate_mode_to_mcu_mode(bitrate_mode);
 	else
 		msg.rate_control_mode = 0;
 
@@ -2224,7 +2224,6 @@ static void allegro_set_default_params(struct allegro_channel *channel)
 	channel->sizeimage_encoded =
 		estimate_stream_size(channel->width, channel->height);
 
-	channel->bitrate_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_CBR;
 	channel->bitrate = maximum_bitrate(channel->level);
 	channel->bitrate_peak = maximum_bitrate(channel->level);
 	channel->cpb_size = maximum_cpb_size(channel->level);
@@ -2422,9 +2421,6 @@ static int allegro_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE:
 		channel->frame_rc_enable = ctrl->val;
 		break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
-		channel->bitrate_mode = ctrl->val;
-		break;
 	case V4L2_CID_MPEG_VIDEO_BITRATE:
 		channel->bitrate = ctrl->val;
 		break;
@@ -2520,7 +2516,7 @@ static int allegro_open(struct file *file)
 			&allegro_ctrl_ops,
 			V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
 			V4L2_MPEG_VIDEO_BITRATE_MODE_CBR, 0,
-			channel->bitrate_mode);
+			V4L2_MPEG_VIDEO_BITRATE_MODE_CBR);
 	channel->mpeg_video_bitrate = v4l2_ctrl_new_std(handler,
 			&allegro_ctrl_ops,
 			V4L2_CID_MPEG_VIDEO_BITRATE,
