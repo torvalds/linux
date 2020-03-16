@@ -639,22 +639,22 @@ static void pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 	if (pm8001_ha->chip_id == chip_8001) {
 		if (deviceid == 0x8081 || deviceid == 0x0042) {
 			payload.minor_function = 4;
-			payload.length = 4096;
+			payload.rd_length = 4096;
 		} else {
 			payload.minor_function = 0;
-			payload.length = 128;
+			payload.rd_length = 128;
 		}
 	} else if ((pm8001_ha->chip_id == chip_8070 ||
 			pm8001_ha->chip_id == chip_8072) &&
 			pm8001_ha->pdev->subsystem_vendor == PCI_VENDOR_ID_ATTO) {
 		payload.minor_function = 4;
-		payload.length = 4096;
+		payload.rd_length = 4096;
 	} else {
 		payload.minor_function = 1;
-		payload.length = 4096;
+		payload.rd_length = 4096;
 	}
 	payload.offset = 0;
-	payload.func_specific = kzalloc(payload.length, GFP_KERNEL);
+	payload.func_specific = kzalloc(payload.rd_length, GFP_KERNEL);
 	if (!payload.func_specific) {
 		PM8001_INIT_DBG(pm8001_ha, pm8001_printk("mem alloc fail\n"));
 		return;
@@ -724,7 +724,7 @@ static int pm8001_get_phy_settings_info(struct pm8001_hba_info *pm8001_ha)
 	/* SAS ADDRESS read from flash / EEPROM */
 	payload.minor_function = 6;
 	payload.offset = 0;
-	payload.length = 4096;
+	payload.rd_length = 4096;
 	payload.func_specific = kzalloc(4096, GFP_KERNEL);
 	if (!payload.func_specific)
 		return -ENOMEM;
