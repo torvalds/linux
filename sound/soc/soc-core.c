@@ -475,22 +475,22 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	INIT_DELAYED_WORK(&rtd->delayed_work, close_delayed_work);
 
 	/*
-	 * for rtd->codec_dais
+	 * for rtd->dais
 	 */
-	rtd->codec_dais = devm_kcalloc(dev, dai_link->num_codecs,
+	rtd->dais = devm_kcalloc(dev, dai_link->num_cpus + dai_link->num_codecs,
 					sizeof(struct snd_soc_dai *),
 					GFP_KERNEL);
-	if (!rtd->codec_dais)
+	if (!rtd->dais)
 		goto free_rtd;
 
 	/*
-	 * for rtd->cpu_dais
+	 * dais = [][][][][][][][][][][][][][][][][][]
+	 *	  ^cpu_dais         ^codec_dais
+	 *	  |--- num_cpus ---|--- num_codecs --|
 	 */
-	rtd->cpu_dais = devm_kcalloc(dev, dai_link->num_cpus,
-				     sizeof(struct snd_soc_dai *),
-				     GFP_KERNEL);
-	if (!rtd->cpu_dais)
-		goto free_rtd;
+	rtd->cpu_dais	= &rtd->dais[0];
+	rtd->codec_dais	= &rtd->dais[dai_link->num_cpus];
+
 	/*
 	 * rtd remaining settings
 	 */

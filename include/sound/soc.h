@@ -1145,6 +1145,7 @@ struct snd_soc_pcm_runtime {
 	struct snd_compr *compr;
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai;
+	struct snd_soc_dai **dais;
 
 	struct snd_soc_dai **codec_dais;
 	unsigned int num_codecs;
@@ -1184,7 +1185,11 @@ struct snd_soc_pcm_runtime {
 	     (i)++)
 #define for_each_rtd_codec_dais_rollback(rtd, i, dai)		\
 	for (; (--(i) >= 0) && ((dai) = rtd->codec_dais[i]);)
-
+#define for_each_rtd_dais(rtd, i, dai)					\
+	for ((i) = 0;							\
+	     ((i) < (rtd)->num_cpus + (rtd)->num_codecs) &&		\
+		     ((dai) = (rtd)->dais[i]);				\
+	     (i)++)
 
 void snd_soc_close_delayed_work(struct snd_soc_pcm_runtime *rtd);
 
