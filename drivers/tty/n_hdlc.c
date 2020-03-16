@@ -226,8 +226,7 @@ static int n_hdlc_tty_open(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 
-	pr_debug("%s(%d)%s() called (device=%s)\n",
-			__FILE__, __LINE__, __func__, tty->name);
+	pr_debug("%s() called (device=%s)\n", __func__, tty->name);
 
 	/* There should not be an existing table for this slot. */
 	if (n_hdlc) {
@@ -283,8 +282,7 @@ check_again:
 
 	tbuf = n_hdlc_buf_get(&n_hdlc->tx_buf_list);
 	while (tbuf) {
-		pr_debug("%s(%d)sending frame %p, count=%d\n",
-				__FILE__, __LINE__, tbuf, tbuf->count);
+		pr_debug("sending frame %p, count=%d\n", tbuf, tbuf->count);
 
 		/* Send the next block of data to device */
 		set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
@@ -301,8 +299,7 @@ check_again:
 			actual = tbuf->count;
 
 		if (actual == tbuf->count) {
-			pr_debug("%s(%d)frame %p completed\n",
-					__FILE__, __LINE__, tbuf);
+			pr_debug("frame %p completed\n", tbuf);
 
 			/* free current transmit buffer */
 			n_hdlc_buf_put(&n_hdlc->tx_free_buf_list, tbuf);
@@ -313,8 +310,7 @@ check_again:
 			/* get next pending transmit buffer */
 			tbuf = n_hdlc_buf_get(&n_hdlc->tx_buf_list);
 		} else {
-			pr_debug("%s(%d)frame %p pending\n",
-					__FILE__, __LINE__, tbuf);
+			pr_debug("frame %p pending\n", tbuf);
 
 			/*
 			 * the buffer was not accepted by driver,
@@ -366,19 +362,16 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	register struct n_hdlc *n_hdlc = tty->disc_data;
 	register struct n_hdlc_buf *buf;
 
-	pr_debug("%s(%d)%s() called count=%d\n",
-			__FILE__, __LINE__, __func__, count);
+	pr_debug("%s() called count=%d\n", __func__, count);
 
 	/* verify line is using HDLC discipline */
 	if (n_hdlc->magic != HDLC_MAGIC) {
-		pr_err("%s(%d) line not using HDLC discipline\n",
-				__FILE__, __LINE__);
+		pr_err("line not using HDLC discipline\n");
 		return;
 	}
 
 	if (count > maxframe) {
-		pr_debug("%s(%d) rx count>maxframesize, data discarded\n",
-				__FILE__, __LINE__);
+		pr_debug("rx count>maxframesize, data discarded\n");
 		return;
 	}
 
@@ -395,8 +388,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	}
 
 	if (!buf) {
-		pr_debug("%s(%d) no more rx buffers, data discarded\n",
-				__FILE__, __LINE__);
+		pr_debug("no more rx buffers, data discarded\n");
 		return;
 	}
 
@@ -509,8 +501,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 	DECLARE_WAITQUEUE(wait, current);
 	struct n_hdlc_buf *tbuf;
 
-	pr_debug("%s(%d)%s() called count=%zd\n", __FILE__, __LINE__, __func__,
-			count);
+	pr_debug("%s() called count=%zd\n", __func__, count);
 
 	if (n_hdlc->magic != HDLC_MAGIC)
 		return -EIO;
@@ -578,7 +569,7 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 	unsigned long flags;
 	struct n_hdlc_buf *buf = NULL;
 
-	pr_debug("%s(%d)%s() called %d\n", __FILE__, __LINE__, __func__, cmd);
+	pr_debug("%s() called %d\n", __func__, cmd);
 
 	/* Verify the status of the device */
 	if (n_hdlc->magic != HDLC_MAGIC)
@@ -677,8 +668,8 @@ static void n_hdlc_alloc_buf(struct n_hdlc_buf_list *list, unsigned int count,
 	for (i = 0; i < count; i++) {
 		buf = kmalloc(struct_size(buf, buf, maxframe), GFP_KERNEL);
 		if (!buf) {
-			pr_debug("%s(%d)%s(), kmalloc() failed for %s buffer %u\n",
-					__FILE__, __LINE__, __func__, name, i);
+			pr_debug("%s(), kmalloc() failed for %s buffer %u\n",
+					__func__, name, i);
 			return;
 		}
 		n_hdlc_buf_put(list, buf);
