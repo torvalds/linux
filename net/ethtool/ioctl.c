@@ -1519,9 +1519,6 @@ ethtool_set_coalesce_supported(struct net_device *dev,
 	u32 supported_params = dev->ethtool_ops->supported_coalesce_params;
 	u32 nonzero_params = 0;
 
-	if (!supported_params)
-		return true;
-
 	if (coalesce->rx_coalesce_usecs)
 		nonzero_params |= ETHTOOL_COALESCE_RX_USECS;
 	if (coalesce->rx_max_coalesced_frames)
