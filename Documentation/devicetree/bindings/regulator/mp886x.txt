@@ -1,7 +1,9 @@
-Monolithic Power Systems MP8869 voltage regulator
+Monolithic Power Systems MP8867/MP8869 voltage regulator
 
 Required properties:
-- compatible: "mps,mp8869";
+- compatible: Must be one of the following.
+	"mps,mp8867"
+	"mps,mp8869"
 - reg: I2C slave address.
 - enable-gpios: enable gpios.
 - mps,fb-voltage-divider: An array of two integers containing the resistor
