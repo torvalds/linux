@@ -233,9 +233,11 @@ static int fence_update(struct i915_fence_reg *fence,
 	int ret;
 
 	if (vma) {
-		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
 		GEM_BUG_ON(!i915_gem_object_get_stride(vma->obj) ||
 			   !i915_gem_object_get_tiling(vma->obj));
+
+		if (!i915_vma_is_map_and_fenceable(vma))
+			return -EINVAL;
 
 		ret = i915_vma_sync(vma);
 		if (ret)
