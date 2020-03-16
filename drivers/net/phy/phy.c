@@ -715,26 +715,24 @@ static int phy_disable_interrupts(struct phy_device *phydev)
 static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
 	struct phy_device *phydev = phy_dat;
+	struct phy_driver *drv = phydev->drv;
 
-	if (phydev->drv->did_interrupt && !phydev->drv->did_interrupt(phydev))
+	if (drv->handle_interrupt)
+		return drv->handle_interrupt(phydev);
+
+	if (drv->did_interrupt && !drv->did_interrupt(phydev))
 		return IRQ_NONE;
 
-	if (phydev->drv->handle_interrupt) {
-		if (phydev->drv->handle_interrupt(phydev))
-			goto phy_err;
-	} else {
-		/* reschedule state queue work to run as soon as possible */
-		phy_trigger_machine(phydev);
-	}
+	/* reschedule state queue work to run as soon as possible */
+	phy_trigger_machine(phydev);
 
 	/* did_interrupt() may have cleared the interrupt already */
-	if (!phydev->drv->did_interrupt && phy_clear_interrupt(phydev))
-		goto phy_err;
-	return IRQ_HANDLED;
+	if (!drv->did_interrupt && phy_clear_interrupt(phydev)) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
 
-phy_err:
-	phy_error(phydev);
-	return IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 /**
