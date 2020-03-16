@@ -33,8 +33,8 @@
  * frame.
  *
  * Note: For cache line sizes 256 or larger this value is going to end
- *       up negative.  In these cases we should fall back to the legacy
- *       receive path.
+ *	 up negative.  In these cases we should fall back to the legacy
+ *	 receive path.
  */
 #if (PAGE_SIZE < 8192)
 #define ICE_2K_TOO_SMALL_WITH_PADDING \

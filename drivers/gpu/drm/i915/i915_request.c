@@ -221,6 +221,8 @@ static void remove_from_engine(struct i915_request *rq)
 		locked = engine;
 	}
 	list_del_init(&rq->sched.link);
+	clear_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
+	clear_bit(I915_FENCE_FLAG_HOLD, &rq->fence.flags);
 	spin_unlock_irq(&locked->active.lock);
 }
 
@@ -408,8 +410,10 @@ bool __i915_request_submit(struct i915_request *request)
 xfer:	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
 
-	if (!test_and_set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags))
+	if (!test_and_set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags)) {
 		list_move_tail(&request->sched.link, &engine->active.requests);
+		clear_bit(I915_FENCE_FLAG_PQUEUE, &request->fence.flags);
+	}
 
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags) &&
 	    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &request->fence.flags) &&

@@ -166,6 +166,7 @@ panfrost_lookup_bos(struct drm_device *dev,
 			break;
 		}
 
+		atomic_inc(&bo->gpu_usecount);
 		job->mappings[i] = mapping;
 	}
 

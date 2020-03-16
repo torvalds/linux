@@ -2110,7 +2110,8 @@ Errors:
 
   ======   ============================================================
   ENOENT   no such register
-  EINVAL   invalid register ID, or no such register
+  EINVAL   invalid register ID, or no such register or used with VMs in
+           protected virtualization mode on s390
   EPERM    (arm64) register access not allowed before vcpu finalization
   ======   ============================================================
 
@@ -2545,7 +2546,8 @@ Errors include:
 
   ======== ============================================================
   ENOENT   no such register
-  EINVAL   invalid register ID, or no such register
+  EINVAL   invalid register ID, or no such register or used with VMs in
+           protected virtualization mode on s390
   EPERM    (arm64) register access not allowed before vcpu finalization
   ======== ============================================================
 
@@ -4635,6 +4637,54 @@ the clear cpu reset definition in the POP. However, the cpu is not put
 into ESA mode. This reset is a superset of the initial reset.
 
 
+4.125 KVM_S390_PV_COMMAND
+-------------------------
+
+:Capability: KVM_CAP_S390_PROTECTED
+:Architectures: s390
+:Type: vm ioctl
+:Parameters: struct kvm_pv_cmd
+:Returns: 0 on success, < 0 on error
+
+::
+
+  struct kvm_pv_cmd {
+	__u32 cmd;	/* Command to be executed */
+	__u16 rc;	/* Ultravisor return code */
+	__u16 rrc;	/* Ultravisor return reason code */
+	__u64 data;	/* Data or address */
+	__u32 flags;    /* flags for future extensions. Must be 0 for now */
+	__u32 reserved[3];
+  };
+
+cmd values:
+
+KVM_PV_ENABLE
+  Allocate memory and register the VM with the Ultravisor, thereby
+  donating memory to the Ultravisor that will become inaccessible to
+  KVM. All existing CPUs are converted to protected ones. After this
+  command has succeeded, any CPU added via hotplug will become
+  protected during its creation as well.
+
+KVM_PV_DISABLE
+
+  Deregister the VM from the Ultravisor and reclaim the memory that
+  had been donated to the Ultravisor, making it usable by the kernel
+  again.  All registered VCPUs are converted back to non-protected
+  ones.
+
+KVM_PV_VM_SET_SEC_PARMS
+  Pass the image header from VM memory to the Ultravisor in
+  preparation of image unpacking and verification.
+
+KVM_PV_VM_UNPACK
+  Unpack (protect and decrypt) a page of the encrypted boot image.
+
+KVM_PV_VM_VERIFY
+  Verify the integrity of the unpacked image. Only if this succeeds,
+  KVM is allowed to start protected VCPUs.
+
+
 5. The kvm_run structure
 ========================
 
@@ -6025,3 +6075,14 @@ Architectures: s390
 
 This capability indicates that the KVM_S390_NORMAL_RESET and
 KVM_S390_CLEAR_RESET ioctls are available.
+
+8.23 KVM_CAP_S390_PROTECTED
+
+Architecture: s390
+
+
+This capability indicates that the Ultravisor has been initialized and
+KVM can therefore start protected VMs.
+This capability governs the KVM_S390_PV_COMMAND ioctl and the
+KVM_MP_STATE_LOAD MP_STATE. KVM_SET_MP_STATE can fail for protected
+guests when the state change is invalid.

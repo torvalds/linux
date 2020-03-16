@@ -200,23 +200,24 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
 
-	if (fd) {
-		fd->rec_cpu_num = -1; /* no cpu affinity by default */
-		fd->mm = current->mm;
-		mmgrab(fd->mm);
-		fd->dd = dd;
-		kobject_get(&fd->dd->kobj);
-		fp->private_data = fd;
-	} else {
-		fp->private_data = NULL;
-
-		if (atomic_dec_and_test(&dd->user_refcount))
-			complete(&dd->user_comp);
-
-		return -ENOMEM;
-	}
-
+	if (!fd || init_srcu_struct(&fd->pq_srcu))
+		goto nomem;
+	spin_lock_init(&fd->pq_rcu_lock);
+	spin_lock_init(&fd->tid_lock);
+	spin_lock_init(&fd->invalid_lock);
+	fd->rec_cpu_num = -1; /* no cpu affinity by default */
+	fd->mm = current->mm;
+	mmgrab(fd->mm);
+	fd->dd = dd;
+	kobject_get(&fd->dd->kobj);
+	fp->private_data = fd;
 	return 0;
+nomem:
+	kfree(fd);
+	fp->private_data = NULL;
+	if (atomic_dec_and_test(&dd->user_refcount))
+		complete(&dd->user_comp);
+	return -ENOMEM;
 }
 
 static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
@@ -301,21 +302,30 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 {
 	struct hfi1_filedata *fd = kiocb->ki_filp->private_data;
-	struct hfi1_user_sdma_pkt_q *pq = fd->pq;
+	struct hfi1_user_sdma_pkt_q *pq;
 	struct hfi1_user_sdma_comp_q *cq = fd->cq;
 	int done = 0, reqs = 0;
 	unsigned long dim = from->nr_segs;
+	int idx;
 
-	if (!cq || !pq)
+	idx = srcu_read_lock(&fd->pq_srcu);
+	pq = srcu_dereference(fd->pq, &fd->pq_srcu);
+	if (!cq || !pq) {
+		srcu_read_unlock(&fd->pq_srcu, idx);
 		return -EIO;
+	}
 
-	if (!iter_is_iovec(from) || !dim)
+	if (!iter_is_iovec(from) || !dim) {
+		srcu_read_unlock(&fd->pq_srcu, idx);
 		return -EINVAL;
+	}
 
 	trace_hfi1_sdma_request(fd->dd, fd->uctxt->ctxt, fd->subctxt, dim);
 
-	if (atomic_read(&pq->n_reqs) == pq->n_max_reqs)
+	if (atomic_read(&pq->n_reqs) == pq->n_max_reqs) {
+		srcu_read_unlock(&fd->pq_srcu, idx);
 		return -ENOSPC;
+	}
 
 	while (dim) {
 		int ret;
@@ -333,6 +343,7 @@ static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 		reqs++;
 	}
 
+	srcu_read_unlock(&fd->pq_srcu, idx);
 	return reqs;
 }
 
@@ -707,6 +718,7 @@ done:
 	if (atomic_dec_and_test(&dd->user_refcount))
 		complete(&dd->user_comp);
 
+	cleanup_srcu_struct(&fdata->pq_srcu);
 	kfree(fdata);
 	return 0;
 }

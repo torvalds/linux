@@ -199,8 +199,7 @@ static void ice_dis_vf_mappings(struct ice_vf *vf)
 	if (vsi->rx_mapping_mode == ICE_VSI_MAP_CONTIG)
 		wr32(hw, VPLAN_RX_QBASE(vf->vf_id), 0);
 	else
-		dev_err(dev,
-			"Scattered mode for VF Rx queues is not yet implemented\n");
+		dev_err(dev, "Scattered mode for VF Rx queues is not yet implemented\n");
 }
 
 /**
@@ -402,8 +401,7 @@ static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr, bool is_pfr)
 		if ((reg & VF_TRANS_PENDING_M) == 0)
 			break;
 
-		dev_err(dev,
-			"VF %d PCI transactions stuck\n", vf->vf_id);
+		dev_err(dev, "VF %d PCI transactions stuck\n", vf->vf_id);
 		udelay(ICE_PCI_CIAD_WAIT_DELAY_US);
 	}
 }
@@ -462,7 +460,7 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 vid, bool enable)
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		dev_info(&vsi->back->pdev->dev, "update VSI for port VLAN failed, err %d aq_err %d\n",
+		dev_info(ice_pf_to_dev(vsi->back), "update VSI for port VLAN failed, err %d aq_err %d\n",
 			 status, hw->adminq.sq_last_status);
 		ret = -EIO;
 		goto out;
@@ -1095,7 +1093,6 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 	 * finished resetting.
 	 */
 	for (i = 0, v = 0; i < 10 && v < pf->num_alloc_vfs; i++) {
-
 		/* Check each VF in sequence */
 		while (v < pf->num_alloc_vfs) {
 			u32 reg;
@@ -1553,8 +1550,7 @@ ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
 		dev_info(dev, "VF %d failed opcode %d, retval: %d\n", vf->vf_id,
 			 v_opcode, v_retval);
 		if (vf->num_inval_msgs > ICE_DFLT_NUM_INVAL_MSGS_ALLOWED) {
-			dev_err(dev,
-				"Number of invalid messages exceeded for VF %d\n",
+			dev_err(dev, "Number of invalid messages exceeded for VF %d\n",
 				vf->vf_id);
 			dev_err(dev, "Use PF Control I/F to enable the VF\n");
 			set_bit(ICE_VF_STATE_DIS, vf->vf_states);
@@ -1569,8 +1565,7 @@ ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
 	aq_ret = ice_aq_send_msg_to_vf(&pf->hw, vf->vf_id, v_opcode, v_retval,
 				       msg, msglen, NULL);
 	if (aq_ret && pf->hw.mailboxq.sq_last_status != ICE_AQ_RC_ENOSYS) {
-		dev_info(dev,
-			 "Unable to send the message to VF %d ret %d aq_err %d\n",
+		dev_info(dev, "Unable to send the message to VF %d ret %d aq_err %d\n",
 			 vf->vf_id, aq_ret, pf->hw.mailboxq.sq_last_status);
 		return -EIO;
 	}
@@ -1914,8 +1909,7 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 	}
 
 	if (vf_vsi->type != ICE_VSI_VF) {
-		netdev_err(netdev,
-			   "Type %d of VSI %d for VF %d is no ICE_VSI_VF\n",
+		netdev_err(netdev, "Type %d of VSI %d for VF %d is no ICE_VSI_VF\n",
 			   vf_vsi->type, vf_vsi->vsi_num, vf->vf_id);
 		return -ENODEV;
 	}
@@ -1945,8 +1939,7 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 
 	status = ice_update_vsi(&pf->hw, vf_vsi->idx, ctx, NULL);
 	if (status) {
-		dev_err(dev,
-			"Failed to %sable spoofchk on VF %d VSI %d\n error %d",
+		dev_err(dev, "Failed to %sable spoofchk on VF %d VSI %d\n error %d",
 			ena ? "en" : "dis", vf->vf_id, vf_vsi->vsi_num, status);
 		ret = -EIO;
 		goto out;
@@ -2063,8 +2056,7 @@ static int ice_vc_ena_qs_msg(struct ice_vf *vf, u8 *msg)
 			continue;
 
 		if (ice_vsi_ctrl_rx_ring(vsi, true, vf_q_id)) {
-			dev_err(&vsi->back->pdev->dev,
-				"Failed to enable Rx ring %d on VSI %d\n",
+			dev_err(ice_pf_to_dev(vsi->back), "Failed to enable Rx ring %d on VSI %d\n",
 				vf_q_id, vsi->vsi_num);
 			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 			goto error_param;
@@ -2166,8 +2158,7 @@ static int ice_vc_dis_qs_msg(struct ice_vf *vf, u8 *msg)
 
 			if (ice_vsi_stop_tx_ring(vsi, ICE_NO_RESET, vf->vf_id,
 						 ring, &txq_meta)) {
-				dev_err(&vsi->back->pdev->dev,
-					"Failed to stop Tx ring %d on VSI %d\n",
+				dev_err(ice_pf_to_dev(vsi->back), "Failed to stop Tx ring %d on VSI %d\n",
 					vf_q_id, vsi->vsi_num);
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 				goto error_param;
@@ -2193,8 +2184,7 @@ static int ice_vc_dis_qs_msg(struct ice_vf *vf, u8 *msg)
 				continue;
 
 			if (ice_vsi_ctrl_rx_ring(vsi, false, vf_q_id)) {
-				dev_err(&vsi->back->pdev->dev,
-					"Failed to stop Rx ring %d on VSI %d\n",
+				dev_err(ice_pf_to_dev(vsi->back), "Failed to stop Rx ring %d on VSI %d\n",
 					vf_q_id, vsi->vsi_num);
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 				goto error_param;
@@ -2357,8 +2347,7 @@ static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 
 	if (qci->num_queue_pairs > ICE_MAX_BASE_QS_PER_VF ||
 	    qci->num_queue_pairs > min_t(u16, vsi->alloc_txq, vsi->alloc_rxq)) {
-		dev_err(ice_pf_to_dev(pf),
-			"VF-%d requesting more than supported number of queues: %d\n",
+		dev_err(ice_pf_to_dev(pf), "VF-%d requesting more than supported number of queues: %d\n",
 			vf->vf_id, min_t(u16, vsi->alloc_txq, vsi->alloc_rxq));
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 		goto error_param;
@@ -2570,8 +2559,7 @@ ice_vc_handle_mac_addr_msg(struct ice_vf *vf, u8 *msg, bool set)
 	 */
 	if (set && !ice_is_vf_trusted(vf) &&
 	    (vf->num_mac + al->num_elements) > ICE_MAX_MACADDR_PER_VF) {
-		dev_err(ice_pf_to_dev(pf),
-			"Can't add more MAC addresses, because VF-%d is not trusted, switch the VF to trusted mode in order to add more functionalities\n",
+		dev_err(ice_pf_to_dev(pf), "Can't add more MAC addresses, because VF-%d is not trusted, switch the VF to trusted mode in order to add more functionalities\n",
 			vf->vf_id);
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 		goto handle_mac_exit;
@@ -2648,8 +2636,8 @@ static int ice_vc_request_qs_msg(struct ice_vf *vf, u8 *msg)
 	struct ice_pf *pf = vf->pf;
 	u16 max_allowed_vf_queues;
 	u16 tx_rx_queue_left;
-	u16 cur_queues;
 	struct device *dev;
+	u16 cur_queues;
 
 	dev = ice_pf_to_dev(pf);
 	if (!test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states)) {
@@ -2670,8 +2658,7 @@ static int ice_vc_request_qs_msg(struct ice_vf *vf, u8 *msg)
 		vfres->num_queue_pairs = ICE_MAX_BASE_QS_PER_VF;
 	} else if (req_queues > cur_queues &&
 		   req_queues - cur_queues > tx_rx_queue_left) {
-		dev_warn(dev,
-			 "VF %d requested %u more queues, but only %u left.\n",
+		dev_warn(dev, "VF %d requested %u more queues, but only %u left.\n",
 			 vf->vf_id, req_queues - cur_queues, tx_rx_queue_left);
 		vfres->num_queue_pairs = min_t(u16, max_allowed_vf_queues,
 					       ICE_MAX_BASE_QS_PER_VF);
@@ -2821,8 +2808,8 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 	for (i = 0; i < vfl->num_elements; i++) {
 		if (vfl->vlan_id[i] > ICE_MAX_VLANID) {
 			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
-			dev_err(dev,
-				"invalid VF VLAN id %d\n", vfl->vlan_id[i]);
+			dev_err(dev, "invalid VF VLAN id %d\n",
+				vfl->vlan_id[i]);
 			goto error_param;
 		}
 	}
@@ -2836,8 +2823,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 
 	if (add_v && !ice_is_vf_trusted(vf) &&
 	    vsi->num_vlan >= ICE_MAX_VLAN_PER_VF) {
-		dev_info(dev,
-			 "VF-%d is not trusted, switch the VF to trusted mode, in order to add more VLAN addresses\n",
+		dev_info(dev, "VF-%d is not trusted, switch the VF to trusted mode, in order to add more VLAN addresses\n",
 			 vf->vf_id);
 		/* There is no need to let VF know about being not trusted,
 		 * so we can just return success message here
@@ -2860,8 +2846,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 
 			if (!ice_is_vf_trusted(vf) &&
 			    vsi->num_vlan >= ICE_MAX_VLAN_PER_VF) {
-				dev_info(dev,
-					 "VF-%d is not trusted, switch the VF to trusted mode, in order to add more VLAN addresses\n",
+				dev_info(dev, "VF-%d is not trusted, switch the VF to trusted mode, in order to add more VLAN addresses\n",
 					 vf->vf_id);
 				/* There is no need to let VF know about being
 				 * not trusted, so we can just return success
@@ -2889,8 +2874,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 				status = ice_cfg_vlan_pruning(vsi, true, false);
 				if (status) {
 					v_ret = VIRTCHNL_STATUS_ERR_PARAM;
-					dev_err(dev,
-						"Enable VLAN pruning on VLAN ID: %d failed error-%d\n",
+					dev_err(dev, "Enable VLAN pruning on VLAN ID: %d failed error-%d\n",
 						vid, status);
 					goto error_param;
 				}
@@ -2903,8 +2887,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 							     promisc_m, vid);
 				if (status) {
 					v_ret = VIRTCHNL_STATUS_ERR_PARAM;
-					dev_err(dev,
-						"Enable Unicast/multicast promiscuous mode on VLAN ID:%d failed error-%d\n",
+					dev_err(dev, "Enable Unicast/multicast promiscuous mode on VLAN ID:%d failed error-%d\n",
 						vid, status);
 				}
 			}
@@ -3140,8 +3123,7 @@ error_handler:
 	case VIRTCHNL_OP_GET_VF_RESOURCES:
 		err = ice_vc_get_vf_res_msg(vf, msg);
 		if (ice_vf_init_vlan_stripping(vf))
-			dev_err(dev,
-				"Failed to initialize VLAN stripping for VF %d\n",
+			dev_err(dev, "Failed to initialize VLAN stripping for VF %d\n",
 				vf->vf_id);
 		ice_vc_notify_vf_link_state(vf);
 		break;
@@ -3313,8 +3295,7 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	 */
 	ether_addr_copy(vf->dflt_lan_addr.addr, mac);
 	vf->pf_set_mac = true;
-	netdev_info(netdev,
-		    "MAC on VF %d set to %pM. VF driver will be reinitialized\n",
+	netdev_info(netdev, "MAC on VF %d set to %pM. VF driver will be reinitialized\n",
 		    vf_id, mac);
 
 	ice_vc_reset_vf(vf);
@@ -3332,10 +3313,8 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted)
 {
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
-	struct device *dev;
 	struct ice_vf *vf;
 
-	dev = ice_pf_to_dev(pf);
 	if (ice_validate_vf_id(pf, vf_id))
 		return -EINVAL;
 
@@ -3358,7 +3337,7 @@ int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted)
 
 	vf->trusted = trusted;
 	ice_vc_reset_vf(vf);
-	dev_info(dev, "VF %u is now %strusted\n",
+	dev_info(ice_pf_to_dev(pf), "VF %u is now %strusted\n",
 		 vf_id, trusted ? "" : "un");
 
 	return 0;

@@ -19,7 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
-#define MAX_MSG_LEN		128
+#define MAX_MSG_LEN		240
 #define IPMB_REQUEST_LEN_MIN	7
 #define NETFN_RSP_BIT_MASK	0x4
 #define REQUEST_QUEUE_MAX_LEN	256
@@ -63,6 +63,7 @@ struct ipmb_dev {
 	spinlock_t lock;
 	wait_queue_head_t wait_queue;
 	struct mutex file_mutex;
+	bool is_i2c_protocol;
 };
 
 static inline struct ipmb_dev *to_ipmb_dev(struct file *file)
@@ -112,6 +113,25 @@ static ssize_t ipmb_read(struct file *file, char __user *buf, size_t count,
 	return ret < 0 ? ret : count;
 }
 
+static int ipmb_i2c_write(struct i2c_client *client, u8 *msg, u8 addr)
+{
+	struct i2c_msg i2c_msg;
+
+	/*
+	 * subtract 1 byte (rq_sa) from the length of the msg passed to
+	 * raw i2c_transfer
+	 */
+	i2c_msg.len = msg[IPMB_MSG_LEN_IDX] - 1;
+
+	/* Assign message to buffer except first 2 bytes (length and address) */
+	i2c_msg.buf = msg + 2;
+
+	i2c_msg.addr = addr;
+	i2c_msg.flags = client->flags & I2C_CLIENT_PEC;
+
+	return i2c_transfer(client->adapter, &i2c_msg, 1);
+}
+
 static ssize_t ipmb_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
@@ -132,6 +152,12 @@ static ssize_t ipmb_write(struct file *file, const char __user *buf,
 
 	rq_sa = GET_7BIT_ADDR(msg[RQ_SA_8BIT_IDX]);
 	netf_rq_lun = msg[NETFN_LUN_IDX];
+
+	/* Check i2c block transfer vs smbus */
+	if (ipmb_dev->is_i2c_protocol) {
+		ret = ipmb_i2c_write(ipmb_dev->client, msg, rq_sa);
+		return (ret == 1) ? count : ret;
+	}
 
 	/*
 	 * subtract rq_sa and netf_rq_lun from the length of the msg passed to
@@ -253,7 +279,7 @@ static int ipmb_slave_cb(struct i2c_client *client,
 		break;
 
 	case I2C_SLAVE_WRITE_RECEIVED:
-		if (ipmb_dev->msg_idx >= sizeof(struct ipmb_msg))
+		if (ipmb_dev->msg_idx >= sizeof(struct ipmb_msg) - 1)
 			break;
 
 		buf[++ipmb_dev->msg_idx] = *val;
@@ -301,6 +327,9 @@ static int ipmb_probe(struct i2c_client *client,
 	ret = misc_register(&ipmb_dev->miscdev);
 	if (ret)
 		return ret;
+
+	ipmb_dev->is_i2c_protocol
+		= device_property_read_bool(&client->dev, "i2c-protocol");
 
 	ipmb_dev->client = client;
 	i2c_set_clientdata(client, ipmb_dev);
