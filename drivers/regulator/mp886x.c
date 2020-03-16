@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// MP8869 regulator driver
+// MP8867/MP8869 regulator driver
 //
 // Copyright (C) 2020 Synaptics Incorporated
 //
@@ -119,6 +119,62 @@ static const struct regulator_ops mp8869_regulator_ops = {
 	.get_mode = mp886x_get_mode,
 };
 
+static int mp8867_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
+{
+	struct mp886x_device_info *di = rdev_get_drvdata(rdev);
+	int ret, delta;
+
+	ret = mp8869_set_voltage_sel(rdev, sel);
+	if (ret < 0)
+		return ret;
+
+	delta = di->sel - sel;
+	if (abs(delta) <= 5)
+		ret = regmap_update_bits(rdev->regmap, MP886X_SYSCNTLREG1,
+					 MP886X_GO, 0);
+	di->sel = sel;
+
+	return ret;
+}
+
+static int mp8867_get_voltage_sel(struct regulator_dev *rdev)
+{
+	struct mp886x_device_info *di = rdev_get_drvdata(rdev);
+	int ret, uv;
+	unsigned int val;
+	bool fbloop;
+
+	ret = regmap_read(rdev->regmap, rdev->desc->vsel_reg, &val);
+	if (ret)
+		return ret;
+
+	fbloop = val & MP886X_V_BOOT;
+
+	val &= rdev->desc->vsel_mask;
+	val >>= ffs(rdev->desc->vsel_mask) - 1;
+
+	if (fbloop) {
+		uv = regulator_list_voltage_linear(rdev, val);
+		uv = mp8869_scale(uv, di->r[0], di->r[1]);
+		return regulator_map_voltage_linear(rdev, uv, uv);
+	}
+
+	return val;
+}
+
+static const struct regulator_ops mp8867_regulator_ops = {
+	.set_voltage_sel = mp8867_set_voltage_sel,
+	.get_voltage_sel = mp8867_get_voltage_sel,
+	.set_voltage_time_sel = regulator_set_voltage_time_sel,
+	.map_voltage = regulator_map_voltage_linear,
+	.list_voltage = regulator_list_voltage_linear,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
+	.set_mode = mp886x_set_mode,
+	.get_mode = mp886x_get_mode,
+};
+
 static int mp886x_regulator_register(struct mp886x_device_info *di,
 				     struct regulator_config *config)
 {
@@ -201,6 +257,10 @@ static int mp886x_i2c_probe(struct i2c_client *client,
 }
 
 static const struct of_device_id mp886x_dt_ids[] = {
+	{
+		.compatible = "mps,mp8867",
+		.data = &mp8867_regulator_ops
+	},
 	{
 		.compatible = "mps,mp8869",
 		.data = &mp8869_regulator_ops
