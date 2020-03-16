@@ -23,7 +23,7 @@ struct cec_notifier {
 	struct kref kref;
 	struct device *hdmi_dev;
 	struct cec_connector_info conn_info;
-	const char *conn_name;
+	const char *port_name;
 	struct cec_adapter *cec_adap;
 
 	u16 phys_addr;
@@ -33,15 +33,15 @@ static LIST_HEAD(cec_notifiers);
 static DEFINE_MUTEX(cec_notifiers_lock);
 
 struct cec_notifier *
-cec_notifier_get_conn(struct device *hdmi_dev, const char *conn_name)
+cec_notifier_get_conn(struct device *hdmi_dev, const char *port_name)
 {
 	struct cec_notifier *n;
 
 	mutex_lock(&cec_notifiers_lock);
 	list_for_each_entry(n, &cec_notifiers, head) {
 		if (n->hdmi_dev == hdmi_dev &&
-		    (!conn_name ||
-		     (n->conn_name && !strcmp(n->conn_name, conn_name)))) {
+		    (!port_name ||
+		     (n->port_name && !strcmp(n->port_name, port_name)))) {
 			kref_get(&n->kref);
 			mutex_unlock(&cec_notifiers_lock);
 			return n;
@@ -51,9 +51,9 @@ cec_notifier_get_conn(struct device *hdmi_dev, const char *conn_name)
 	if (!n)
 		goto unlock;
 	n->hdmi_dev = hdmi_dev;
-	if (conn_name) {
-		n->conn_name = kstrdup(conn_name, GFP_KERNEL);
-		if (!n->conn_name) {
+	if (port_name) {
+		n->port_name = kstrdup(port_name, GFP_KERNEL);
+		if (!n->port_name) {
 			kfree(n);
 			n = NULL;
 			goto unlock;
@@ -76,7 +76,7 @@ static void cec_notifier_release(struct kref *kref)
 		container_of(kref, struct cec_notifier, kref);
 
 	list_del(&n->head);
-	kfree(n->conn_name);
+	kfree(n->port_name);
 	kfree(n);
 }
 
@@ -88,10 +88,10 @@ static void cec_notifier_put(struct cec_notifier *n)
 }
 
 struct cec_notifier *
-cec_notifier_conn_register(struct device *hdmi_dev, const char *conn_name,
+cec_notifier_conn_register(struct device *hdmi_dev, const char *port_name,
 			   const struct cec_connector_info *conn_info)
 {
-	struct cec_notifier *n = cec_notifier_get_conn(hdmi_dev, conn_name);
+	struct cec_notifier *n = cec_notifier_get_conn(hdmi_dev, port_name);
 
 	if (!n)
 		return n;
@@ -129,7 +129,7 @@ void cec_notifier_conn_unregister(struct cec_notifier *n)
 EXPORT_SYMBOL_GPL(cec_notifier_conn_unregister);
 
 struct cec_notifier *
-cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *conn_name,
+cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *port_name,
 			       struct cec_adapter *adap)
 {
 	struct cec_notifier *n;
@@ -137,7 +137,7 @@ cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *conn_name,
 	if (WARN_ON(!adap))
 		return NULL;
 
-	n = cec_notifier_get_conn(hdmi_dev, conn_name);
+	n = cec_notifier_get_conn(hdmi_dev, port_name);
 	if (!n)
 		return n;
 
