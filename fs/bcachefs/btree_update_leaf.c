@@ -166,9 +166,9 @@ static inline void __btree_journal_key(struct btree_trans *trans,
 		*trans->journal_seq = seq;
 }
 
-void bch2_btree_journal_key(struct btree_trans *trans,
-			   struct btree_iter *iter,
-			   struct bkey_i *insert)
+static void bch2_btree_journal_key(struct btree_trans *trans,
+				   struct btree_iter *iter,
+				   struct bkey_i *insert)
 {
 	struct bch_fs *c = trans->c;
 	struct journal *j = &c->journal;
