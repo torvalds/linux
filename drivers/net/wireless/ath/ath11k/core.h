@@ -77,6 +77,7 @@ struct ath11k_skb_rxcb {
 	u8 err_code;
 	u8 mac_id;
 	u8 unmapped;
+	u8 is_frag;
 };
 
 enum ath11k_hw_rev {

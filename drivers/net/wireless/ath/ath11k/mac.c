@@ -2384,11 +2384,19 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	spin_lock_bh(&ab->base_lock);
 	peer = ath11k_peer_find(ab, arvif->vdev_id, peer_addr);
-	if (peer && cmd == SET_KEY)
+	if (peer && cmd == SET_KEY) {
 		peer->keys[key->keyidx] = key;
-	else if (peer && cmd == DISABLE_KEY)
+		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+			peer->ucast_keyidx = key->keyidx;
+		else
+			peer->mcast_keyidx = key->keyidx;
+	} else if (peer && cmd == DISABLE_KEY) {
 		peer->keys[key->keyidx] = NULL;
-	else if (!peer)
+		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+			peer->ucast_keyidx = 0;
+		else
+			peer->mcast_keyidx = 0;
+	} else if (!peer)
 		/* impossible unless FW goes crazy */
 		ath11k_warn(ab, "peer %pM disappeared!\n", peer_addr);
 	spin_unlock_bh(&ab->base_lock);

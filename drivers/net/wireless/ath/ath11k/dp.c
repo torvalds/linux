@@ -3,6 +3,7 @@
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  */
 
+#include <crypto/hash.h>
 #include "core.h"
 #include "dp_tx.h"
 #include "hal_tx.h"
@@ -33,6 +34,7 @@ void ath11k_dp_peer_cleanup(struct ath11k *ar, int vdev_id, const u8 *addr)
 	}
 
 	ath11k_peer_rx_tid_cleanup(ar, peer);
+	crypto_free_shash(peer->tfm_mmic);
 	spin_unlock_bh(&ab->base_lock);
 }
 
@@ -63,6 +65,12 @@ int ath11k_dp_peer_setup(struct ath11k *ar, int vdev_id, const u8 *addr)
 				    tid, ret);
 			goto peer_clean;
 		}
+	}
+
+	ret = ath11k_peer_rx_frag_setup(ar, addr, vdev_id);
+	if (ret) {
+		ath11k_warn(ab, "failed to setup rx defrag context\n");
+		return ret;
 	}
 
 	/* TODO: Setup other peer specific resource used in data path */
