@@ -267,6 +267,11 @@ struct amdgpu_ring {
 	int			hw_prio;
 	unsigned 		num_hw_submission;
 	atomic_t		*sched_score;
+
+	/* used for mes */
+	bool			is_mes_queue;
+	uint32_t		hw_queue_id;
+	struct amdgpu_mes_ctx_data *mes_ctx;
 };
 
 #define amdgpu_ring_parse_cs(r, p, job, ib) ((r)->funcs->parse_cs((p), (job), (ib)))
