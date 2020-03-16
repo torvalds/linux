@@ -1711,6 +1711,12 @@ allegro_handle_create_channel(struct allegro_dev *dev,
 	struct allegro_channel *channel;
 	int err = 0;
 
+	if (msg->header.length != sizeof(*msg) - sizeof(msg->header))
+		v4l2_warn(&dev->v4l2_dev,
+			  "received message has %d bytes, but expected %zu\n",
+			  msg->header.length,
+			  sizeof(*msg) - sizeof(msg->header));
+
 	channel = allegro_find_channel_by_user_id(dev, msg->user_id);
 	if (IS_ERR(channel)) {
 		v4l2_warn(&dev->v4l2_dev,
@@ -1803,6 +1809,12 @@ allegro_handle_encode_frame(struct allegro_dev *dev,
 			    struct mcu_msg_encode_frame_response *msg)
 {
 	struct allegro_channel *channel;
+
+	if (msg->header.length != sizeof(*msg) - sizeof(msg->header))
+		v4l2_warn(&dev->v4l2_dev,
+			  "received message has %d bytes, but expected %zu\n",
+			  msg->header.length,
+			  sizeof(*msg) - sizeof(msg->header));
 
 	channel = allegro_find_channel_by_channel_id(dev, msg->channel_id);
 	if (IS_ERR(channel)) {
