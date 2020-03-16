@@ -211,9 +211,11 @@ struct allegro_channel {
 	struct v4l2_ctrl *mpeg_video_h264_p_frame_qp;
 	struct v4l2_ctrl *mpeg_video_h264_b_frame_qp;
 	struct v4l2_ctrl *mpeg_video_frame_rc_enable;
-	struct v4l2_ctrl *mpeg_video_bitrate_mode;
-	struct v4l2_ctrl *mpeg_video_bitrate;
-	struct v4l2_ctrl *mpeg_video_bitrate_peak;
+	struct { /* video bitrate mode control cluster */
+		struct v4l2_ctrl *mpeg_video_bitrate_mode;
+		struct v4l2_ctrl *mpeg_video_bitrate;
+		struct v4l2_ctrl *mpeg_video_bitrate_peak;
+	};
 	struct v4l2_ctrl *mpeg_video_cpb_size;
 	struct v4l2_ctrl *mpeg_video_gop_size;
 
@@ -2404,6 +2406,34 @@ static int allegro_clamp_qp(struct allegro_channel *channel,
 	return allegro_clamp_qp(channel, next_ctrl);
 }
 
+static int allegro_clamp_bitrate(struct allegro_channel *channel,
+				 struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_ctrl *ctrl_bitrate = channel->mpeg_video_bitrate;
+	struct v4l2_ctrl *ctrl_bitrate_peak = channel->mpeg_video_bitrate_peak;
+
+	if (ctrl->val == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR &&
+	    ctrl_bitrate_peak->val < ctrl_bitrate->val)
+		ctrl_bitrate_peak->val = ctrl_bitrate->val;
+
+	return 0;
+}
+
+static int allegro_try_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct allegro_channel *channel = container_of(ctrl->handler,
+						       struct allegro_channel,
+						       ctrl_handler);
+
+	switch (ctrl->id) {
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		allegro_clamp_bitrate(channel, ctrl);
+		break;
+	}
+
+	return 0;
+}
+
 static int allegro_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct allegro_channel *channel = container_of(ctrl->handler,
@@ -2421,11 +2451,11 @@ static int allegro_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE:
 		channel->frame_rc_enable = ctrl->val;
 		break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE:
-		channel->bitrate = ctrl->val;
-		break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
-		channel->bitrate_peak = ctrl->val;
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		channel->bitrate = channel->mpeg_video_bitrate->val;
+		channel->bitrate_peak = channel->mpeg_video_bitrate_peak->val;
+		v4l2_ctrl_activate(channel->mpeg_video_bitrate_peak,
+				   ctrl->val == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE:
 		channel->cpb_size = ctrl->val;
@@ -2444,6 +2474,7 @@ static int allegro_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static const struct v4l2_ctrl_ops allegro_ctrl_ops = {
+	.try_ctrl = allegro_try_ctrl,
 	.s_ctrl = allegro_s_ctrl,
 };
 
@@ -2548,6 +2579,8 @@ static int allegro_open(struct file *file)
 	}
 
 	channel->fh.ctrl_handler = handler;
+
+	v4l2_ctrl_cluster(3, &channel->mpeg_video_bitrate_mode);
 
 	channel->mcu_channel_id = -1;
 	channel->user_id = -1;
