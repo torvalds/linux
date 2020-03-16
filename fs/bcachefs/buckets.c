@@ -1335,8 +1335,7 @@ int bch2_mark_update(struct btree_trans *trans,
 	    !bkey_deleted(&insert->k))
 		return 0;
 
-	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
-						      KEY_TYPE_discard))) {
+	while ((_k = bch2_btree_node_iter_peek(&node_iter, b))) {
 		struct bkey		unpacked;
 		struct bkey_s_c		k = bkey_disassemble(b, _k, &unpacked);
 
@@ -1382,8 +1381,7 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 		pr_err("overlapping with");
 
 		node_iter = iter->l[0].iter;
-		while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
-							KEY_TYPE_discard))) {
+		while ((_k = bch2_btree_node_iter_peek(&node_iter, b))) {
 			struct bkey		unpacked;
 			struct bkey_s_c		k;
 
@@ -1795,8 +1793,7 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 	if (unlikely(flags & BTREE_TRIGGER_NOOVERWRITES))
 		return 0;
 
-	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
-						      KEY_TYPE_discard))) {
+	while ((_k = bch2_btree_node_iter_peek(&node_iter, b))) {
 		struct bkey		unpacked;
 		struct bkey_s_c		k;
 		unsigned		offset = 0;

@@ -120,8 +120,7 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 	if (ret < 0)
 		return ret;
 
-	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
-						      KEY_TYPE_discard))) {
+	while ((_k = bch2_btree_node_iter_peek(&node_iter, b))) {
 		struct bkey	unpacked;
 		struct bkey_s_c	k = bkey_disassemble(b, _k, &unpacked);
 		unsigned offset = 0;
@@ -182,8 +181,7 @@ bch2_extent_can_insert(struct btree_trans *trans,
 	struct bkey unpacked;
 	int sectors;
 
-	_k = bch2_btree_node_iter_peek_filter(&node_iter, l->b,
-					      KEY_TYPE_discard);
+	_k = bch2_btree_node_iter_peek(&node_iter, l->b);
 	if (!_k)
 		return BTREE_INSERT_OK;
 
