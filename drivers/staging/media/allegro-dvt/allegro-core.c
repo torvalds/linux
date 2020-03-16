@@ -1990,6 +1990,14 @@ static int allegro_mcu_reset(struct allegro_dev *dev)
 {
 	int err;
 
+	/*
+	 * Ensure that the AL5_MCU_WAKEUP bit is set to 0 otherwise the mcu
+	 * does not go to sleep after the reset.
+	 */
+	err = regmap_write(dev->regmap, AL5_MCU_WAKEUP, 0);
+	if (err)
+		return err;
+
 	err = regmap_write(dev->regmap,
 			   AL5_MCU_RESET_MODE, AL5_MCU_RESET_MODE_SLEEP);
 	if (err < 0)
