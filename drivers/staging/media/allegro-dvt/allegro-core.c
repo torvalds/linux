@@ -7,6 +7,7 @@
 
 #include <linux/bits.h>
 #include <linux/firmware.h>
+#include <linux/gcd.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -40,6 +41,8 @@
 #define ALLEGRO_HEIGHT_MIN 64
 #define ALLEGRO_HEIGHT_DEFAULT 1080
 #define ALLEGRO_HEIGHT_MAX 2160
+
+#define ALLEGRO_FRAMERATE_DEFAULT ((struct v4l2_fract) { 30, 1 })
 
 #define ALLEGRO_GOP_SIZE_DEFAULT 25
 #define ALLEGRO_GOP_SIZE_MAX 1000
@@ -177,6 +180,7 @@ struct allegro_channel {
 	unsigned int width;
 	unsigned int height;
 	unsigned int stride;
+	struct v4l2_fract framerate;
 
 	enum v4l2_colorspace colorspace;
 	enum v4l2_ycbcr_encoding ycbcr_enc;
@@ -1138,8 +1142,9 @@ static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 					    channel->bitrate_peak);
 	/* Shall be ]0;cpb_size in 90 kHz units]. Use maximum value. */
 	msg.initial_rem_delay = msg.cpb_size;
-	msg.framerate = 25;
-	msg.clk_ratio = 1000;
+	msg.framerate = DIV_ROUND_UP(channel->framerate.numerator,
+				     channel->framerate.denominator);
+	msg.clk_ratio = channel->framerate.denominator == 1001 ? 1001 : 1000;
 	msg.target_bitrate = channel->bitrate;
 	msg.max_bitrate = channel->bitrate_peak;
 	msg.initial_qp = 25;
@@ -1448,9 +1453,11 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 	sps->vui.chroma_loc_info_present_flag = 1;
 	sps->vui.chroma_sample_loc_type_top_field = 0;
 	sps->vui.chroma_sample_loc_type_bottom_field = 0;
+
 	sps->vui.timing_info_present_flag = 1;
-	sps->vui.num_units_in_tick = 1;
-	sps->vui.time_scale = 50;
+	sps->vui.num_units_in_tick = channel->framerate.denominator;
+	sps->vui.time_scale = 2 * channel->framerate.numerator;
+
 	sps->vui.fixed_frame_rate_flag = 1;
 	sps->vui.nal_hrd_parameters_present_flag = 0;
 	sps->vui.vcl_hrd_parameters_present_flag = 1;
@@ -2117,7 +2124,9 @@ static int allegro_create_channel(struct allegro_channel *channel)
 	v4l2_dbg(1, debug, &dev->v4l2_dev,
 		 "user %d: creating channel (%4.4s, %dx%d@%d)\n",
 		 channel->user_id,
-		 (char *)&channel->codec, channel->width, channel->height, 25);
+		 (char *)&channel->codec, channel->width, channel->height,
+		 DIV_ROUND_UP(channel->framerate.numerator,
+			      channel->framerate.denominator));
 
 	min_level = select_minimum_h264_level(channel->width, channel->height);
 	if (channel->level < min_level) {
@@ -2163,6 +2172,7 @@ static void allegro_set_default_params(struct allegro_channel *channel)
 	channel->width = ALLEGRO_WIDTH_DEFAULT;
 	channel->height = ALLEGRO_HEIGHT_DEFAULT;
 	channel->stride = round_up(channel->width, 32);
+	channel->framerate = ALLEGRO_FRAMERATE_DEFAULT;
 
 	channel->colorspace = V4L2_COLORSPACE_REC709;
 	channel->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
@@ -2770,6 +2780,46 @@ static int allegro_ioctl_streamon(struct file *file, void *priv,
 	return v4l2_m2m_streamon(file, fh->m2m_ctx, type);
 }
 
+static int allegro_g_parm(struct file *file, void *fh,
+			  struct v4l2_streamparm *a)
+{
+	struct allegro_channel *channel = fh_to_channel(fh);
+	struct v4l2_fract *timeperframe;
+
+	if (a->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
+
+	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
+	timeperframe = &a->parm.output.timeperframe;
+	timeperframe->numerator = channel->framerate.denominator;
+	timeperframe->denominator = channel->framerate.numerator;
+
+	return 0;
+}
+
+static int allegro_s_parm(struct file *file, void *fh,
+			  struct v4l2_streamparm *a)
+{
+	struct allegro_channel *channel = fh_to_channel(fh);
+	struct v4l2_fract *timeperframe;
+	int div;
+
+	if (a->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
+
+	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
+	timeperframe = &a->parm.output.timeperframe;
+
+	if (timeperframe->numerator == 0 || timeperframe->denominator == 0)
+		return allegro_g_parm(file, fh, a);
+
+	div = gcd(timeperframe->denominator, timeperframe->numerator);
+	channel->framerate.numerator = timeperframe->denominator / div;
+	channel->framerate.denominator = timeperframe->numerator / div;
+
+	return 0;
+}
+
 static int allegro_subscribe_event(struct v4l2_fh *fh,
 				   const struct v4l2_event_subscription *sub)
 {
@@ -2807,6 +2857,9 @@ static const struct v4l2_ioctl_ops allegro_ioctl_ops = {
 	.vidioc_try_encoder_cmd = v4l2_m2m_ioctl_try_encoder_cmd,
 	.vidioc_encoder_cmd = allegro_encoder_cmd,
 	.vidioc_enum_framesizes = allegro_enum_framesizes,
+
+	.vidioc_g_parm		= allegro_g_parm,
+	.vidioc_s_parm		= allegro_s_parm,
 
 	.vidioc_subscribe_event = allegro_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
