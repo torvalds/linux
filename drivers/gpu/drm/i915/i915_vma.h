@@ -30,6 +30,7 @@
 
 #include <drm/drm_mm.h>
 
+#include "gt/intel_ggtt_fencing.h"
 #include "gem/i915_gem_object.h"
 
 #include "i915_gem_gtt.h"

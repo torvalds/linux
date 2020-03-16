@@ -64,6 +64,7 @@ void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 					 struct sg_table *pages);
 
 void intel_ggtt_init_fences(struct i915_ggtt *ggtt);
+void intel_ggtt_fini_fences(struct i915_ggtt *ggtt);
 
 void intel_gt_init_swizzling(struct intel_gt *gt);
 

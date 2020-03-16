@@ -857,6 +857,11 @@ void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 	if (intel_vgpu_active(i915))
 		num_fences = intel_uncore_read(uncore,
 					       vgtif_reg(avail_rs.fence_num));
+	ggtt->fence_regs = kcalloc(num_fences,
+				   sizeof(*ggtt->fence_regs),
+				   GFP_KERNEL);
+	if (!ggtt->fence_regs)
+		num_fences = 0;
 
 	/* Initialize fence registers to zero */
 	for (i = 0; i < num_fences; i++) {
@@ -869,6 +874,11 @@ void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 	ggtt->num_fences = num_fences;
 
 	intel_ggtt_restore_fences(ggtt);
+}
+
+void intel_ggtt_fini_fences(struct i915_ggtt *ggtt)
+{
+	kfree(ggtt->fence_regs);
 }
 
 void intel_gt_init_swizzling(struct intel_gt *gt)

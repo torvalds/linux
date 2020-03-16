@@ -698,11 +698,13 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
  */
 void i915_ggtt_driver_release(struct drm_i915_private *i915)
 {
+	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct pagevec *pvec;
 
-	fini_aliasing_ppgtt(&i915->ggtt);
+	fini_aliasing_ppgtt(ggtt);
 
-	ggtt_cleanup_hw(&i915->ggtt);
+	intel_ggtt_fini_fences(ggtt);
+	ggtt_cleanup_hw(ggtt);
 
 	pvec = &i915->mm.wc_stash.pvec;
 	if (pvec->nr) {
