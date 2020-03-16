@@ -478,9 +478,10 @@ static struct extcon_dev *dwc3_get_extcon(struct dwc3 *dwc)
 
 #if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
 #define ROLE_SWITCH 1
-static int dwc3_usb_role_switch_set(struct device *dev, enum usb_role role)
+static int dwc3_usb_role_switch_set(struct usb_role_switch *sw,
+				    enum usb_role role)
 {
-	struct dwc3 *dwc = dev_get_drvdata(dev);
+	struct dwc3 *dwc = usb_role_switch_get_drvdata(sw);
 	u32 mode;
 
 	switch (role) {
@@ -502,9 +503,9 @@ static int dwc3_usb_role_switch_set(struct device *dev, enum usb_role role)
 	return 0;
 }
 
-static enum usb_role dwc3_usb_role_switch_get(struct device *dev)
+static enum usb_role dwc3_usb_role_switch_get(struct usb_role_switch *sw)
 {
-	struct dwc3 *dwc = dev_get_drvdata(dev);
+	struct dwc3 *dwc = usb_role_switch_get_drvdata(sw);
 	unsigned long flags;
 	enum usb_role role;
 
@@ -550,6 +551,7 @@ static int dwc3_setup_role_switch(struct dwc3 *dwc)
 	dwc3_role_switch.fwnode = dev_fwnode(dwc->dev);
 	dwc3_role_switch.set = dwc3_usb_role_switch_set;
 	dwc3_role_switch.get = dwc3_usb_role_switch_get;
+	dwc3_role_switch.driver_data = dwc;
 	dwc->role_sw = usb_role_switch_register(dwc->dev, &dwc3_role_switch);
 	if (IS_ERR(dwc->role_sw))
 		return PTR_ERR(dwc->role_sw);
