@@ -397,10 +397,9 @@ struct mcu_msg_create_channel {
 	u8 num_b;
 	u8 freq_golden_ref;
 
-	u32 unknown39;
-
 	u32 subframe_latency;
 	u32 lda_control_mode;
+	u32 unknown41;
 } __attribute__ ((__packed__));
 
 struct mcu_msg_create_channel_response {
@@ -1121,7 +1120,6 @@ static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 	msg.gdr_mode = 0x00000000;
 	msg.gop_length = channel->gop_size;
 	msg.subframe_latency = 0x00000000;
-	msg.lda_control_mode = 0x700d0000;
 
 	allegro_mbox_write(dev, &dev->mbox_command, &msg, sizeof(msg));
 	allegro_mcu_interrupt(dev);
