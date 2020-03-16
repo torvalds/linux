@@ -567,6 +567,11 @@ static inline u32 to_codec_addr(struct allegro_dev *dev, dma_addr_t phys)
 	return lower_32_bits(phys);
 }
 
+static inline u64 ptr_to_u64(const void *ptr)
+{
+	return (uintptr_t)ptr;
+}
+
 /* Helper functions for channel and user operations */
 
 static unsigned long allegro_next_user_id(struct allegro_dev *dev)
@@ -1215,7 +1220,8 @@ static int allegro_mcu_send_destroy_channel(struct allegro_dev *dev,
 static int allegro_mcu_send_put_stream_buffer(struct allegro_dev *dev,
 					      struct allegro_channel *channel,
 					      dma_addr_t paddr,
-					      unsigned long size)
+					      unsigned long size,
+					      u64 stream_id)
 {
 	struct mcu_msg_put_stream_buffer msg;
 
@@ -1229,7 +1235,8 @@ static int allegro_mcu_send_put_stream_buffer(struct allegro_dev *dev,
 	msg.mcu_addr = to_mcu_addr(dev, paddr);
 	msg.size = size;
 	msg.offset = ENCODER_STREAM_OFFSET;
-	msg.stream_id = 0; /* copied to mcu_msg_encode_frame_response */
+	/* copied to mcu_msg_encode_frame_response */
+	msg.stream_id = stream_id;
 
 	allegro_mbox_write(dev, &dev->mbox_command, &msg, sizeof(msg));
 	allegro_mcu_interrupt(dev);
@@ -1239,7 +1246,8 @@ static int allegro_mcu_send_put_stream_buffer(struct allegro_dev *dev,
 
 static int allegro_mcu_send_encode_frame(struct allegro_dev *dev,
 					 struct allegro_channel *channel,
-					 dma_addr_t src_y, dma_addr_t src_uv)
+					 dma_addr_t src_y, dma_addr_t src_uv,
+					 u64 src_handle)
 {
 	struct mcu_msg_encode_frame msg;
 
@@ -1252,7 +1260,8 @@ static int allegro_mcu_send_encode_frame(struct allegro_dev *dev,
 	msg.encoding_options = AL_OPT_FORCE_LOAD;
 	msg.pps_qp = 26; /* qp are relative to 26 */
 	msg.user_param = 0; /* copied to mcu_msg_encode_frame_response */
-	msg.src_handle = 0; /* copied to mcu_msg_encode_frame_response */
+	/* src_handle is copied to mcu_msg_encode_frame_response */
+	msg.src_handle = src_handle;
 	msg.src_y = to_codec_addr(dev, src_y);
 	msg.src_uv = to_codec_addr(dev, src_uv);
 	msg.stride = channel->stride;
@@ -1602,8 +1611,17 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 	ssize_t free;
 
 	src_buf = v4l2_m2m_src_buf_remove(channel->fh.m2m_ctx);
+	if (ptr_to_u64(src_buf) != msg->src_handle)
+		v4l2_warn(&dev->v4l2_dev,
+			  "channel %d: invalid source buffer (0x%llx)\n",
+			  channel->mcu_channel_id, msg->src_handle);
 
 	dst_buf = v4l2_m2m_dst_buf_remove(channel->fh.m2m_ctx);
+	if (ptr_to_u64(dst_buf) != msg->stream_id)
+		v4l2_warn(&dev->v4l2_dev,
+			  "channel %d: invalid stream buffer (0x%llx)\n",
+			  channel->mcu_channel_id, msg->stream_id);
+
 	dst_buf->sequence = channel->csequence++;
 
 	if (msg->error_code & AL_ERROR) {
@@ -3026,14 +3044,16 @@ static void allegro_device_run(void *priv)
 	dst_buf = v4l2_m2m_next_dst_buf(channel->fh.m2m_ctx);
 	dst_addr = vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0);
 	dst_size = vb2_plane_size(&dst_buf->vb2_buf, 0);
-	allegro_mcu_send_put_stream_buffer(dev, channel, dst_addr, dst_size);
+	allegro_mcu_send_put_stream_buffer(dev, channel, dst_addr, dst_size,
+					   ptr_to_u64(dst_buf));
 
 	src_buf = v4l2_m2m_next_src_buf(channel->fh.m2m_ctx);
 	src_buf->sequence = channel->osequence++;
 
 	src_y = vb2_dma_contig_plane_dma_addr(&src_buf->vb2_buf, 0);
 	src_uv = src_y + (channel->stride * channel->height);
-	allegro_mcu_send_encode_frame(dev, channel, src_y, src_uv);
+	allegro_mcu_send_encode_frame(dev, channel, src_y, src_uv,
+				      ptr_to_u64(src_buf));
 }
 
 static const struct v4l2_m2m_ops allegro_m2m_ops = {
