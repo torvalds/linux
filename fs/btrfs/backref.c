@@ -2708,7 +2708,17 @@ static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
 	if (btrfs_root_level(&root->root_item) == cur->level) {
 		/* Tree root */
 		ASSERT(btrfs_root_bytenr(&root->root_item) == cur->bytenr);
-		if (btrfs_should_ignore_reloc_root(root)) {
+		/*
+		 * For reloc backref cache, we may ignore reloc root.  But for
+		 * general purpose backref cache, we can't rely on
+		 * btrfs_should_ignore_reloc_root() as it may conflict with
+		 * current running relocation and lead to missing root.
+		 *
+		 * For general purpose backref cache, reloc root detection is
+		 * completely relying on direct backref (key->offset is parent
+		 * bytenr), thus only do such check for reloc cache.
+		 */
+		if (btrfs_should_ignore_reloc_root(root) && cache->is_reloc) {
 			btrfs_put_root(root);
 			list_add(&cur->list, &cache->useless_node);
 		} else {
@@ -2749,7 +2759,9 @@ static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
 		if (!path->nodes[level]) {
 			ASSERT(btrfs_root_bytenr(&root->root_item) ==
 			       lower->bytenr);
-			if (btrfs_should_ignore_reloc_root(root)) {
+			/* Same as previous should_ignore_reloc_root() call */
+			if (btrfs_should_ignore_reloc_root(root) &&
+			    cache->is_reloc) {
 				btrfs_put_root(root);
 				list_add(&lower->list, &cache->useless_node);
 			} else {
