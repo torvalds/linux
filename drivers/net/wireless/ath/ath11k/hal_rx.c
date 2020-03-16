@@ -694,7 +694,7 @@ u32 ath11k_hal_reo_qdesc_size(u32 ba_window_size, u8 tid)
 }
 
 void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
-				u32 start_seq)
+				u32 start_seq, enum hal_pn_type type)
 {
 	struct hal_rx_reo_queue *qdesc = (struct hal_rx_reo_queue *)vaddr;
 	struct hal_rx_reo_queue_ext *ext_desc;
@@ -723,6 +723,18 @@ void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
 
 	qdesc->info0 |= FIELD_PREP(HAL_RX_REO_QUEUE_INFO0_BA_WINDOW_SIZE,
 				   ba_window_size - 1);
+	switch (type) {
+	case HAL_PN_TYPE_NONE:
+	case HAL_PN_TYPE_WAPI_EVEN:
+	case HAL_PN_TYPE_WAPI_UNEVEN:
+		break;
+	case HAL_PN_TYPE_WPA:
+		qdesc->info0 |=
+			FIELD_PREP(HAL_RX_REO_QUEUE_INFO0_PN_CHECK, 1) |
+			FIELD_PREP(HAL_RX_REO_QUEUE_INFO0_PN_SIZE,
+				   HAL_RX_REO_QUEUE_PN_SIZE_48);
+		break;
+	}
 
 	/* TODO: Set Ignore ampdu flags based on BA window size and/or
 	 * AMPDU capabilities

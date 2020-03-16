@@ -843,7 +843,8 @@ unlock_exit:
 }
 
 int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
-			     u8 tid, u32 ba_win_sz, u16 ssn)
+			     u8 tid, u32 ba_win_sz, u16 ssn,
+			     enum hal_pn_type pn_type)
 {
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_peer *peer;
@@ -904,7 +905,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 
 	addr_aligned = PTR_ALIGN(vaddr, HAL_LINK_DESC_ALIGN);
 
-	ath11k_hal_reo_qdesc_setup(addr_aligned, tid, ba_win_sz, ssn);
+	ath11k_hal_reo_qdesc_setup(addr_aligned, tid, ba_win_sz,
+				   ssn, pn_type);
 
 	paddr = dma_map_single(ab->dev, addr_aligned, hw_desc_sz,
 			       DMA_BIDIRECTIONAL);
@@ -948,7 +950,7 @@ int ath11k_dp_rx_ampdu_start(struct ath11k *ar,
 
 	ret = ath11k_peer_rx_tid_setup(ar, params->sta->addr, vdev_id,
 				       params->tid, params->buf_size,
-				       params->ssn);
+				       params->ssn, arsta->pn_type);
 	if (ret)
 		ath11k_warn(ab, "failed to setup rx tid %d\n", ret);
 
@@ -1001,8 +1003,80 @@ int ath11k_dp_rx_ampdu_stop(struct ath11k *ar,
 	return ret;
 }
 
-static int ath11k_get_ppdu_user_index(struct htt_ppdu_stats *ppdu_stats,
-				      u16 peer_id)
+int ath11k_dp_peer_rx_pn_replay_config(struct ath11k_vif *arvif,
+				       const u8 *peer_addr,
+				       enum set_key_cmd key_cmd,
+				       struct ieee80211_key_conf *key)
+{
+	struct ath11k *ar = arvif->ar;
+	struct ath11k_base *ab = ar->ab;
+	struct ath11k_hal_reo_cmd cmd = {0};
+	struct ath11k_peer *peer;
+	struct dp_rx_tid *rx_tid;
+	u8 tid;
+	int ret = 0;
+
+	/* NOTE: Enable PN/TSC replay check offload only for unicast frames.
+	 * We use mac80211 PN/TSC replay check functionality for bcast/mcast
+	 * for now.
+	 */
+	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		return 0;
+
+	cmd.flag |= HAL_REO_CMD_FLG_NEED_STATUS;
+	cmd.upd0 |= HAL_REO_CMD_UPD0_PN |
+		    HAL_REO_CMD_UPD0_PN_SIZE |
+		    HAL_REO_CMD_UPD0_PN_VALID |
+		    HAL_REO_CMD_UPD0_PN_CHECK |
+		    HAL_REO_CMD_UPD0_SVLD;
+
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		if (key_cmd == SET_KEY) {
+			cmd.upd1 |= HAL_REO_CMD_UPD1_PN_CHECK;
+			cmd.pn_size = 48;
+		}
+		break;
+	default:
+		break;
+	}
+
+	spin_lock_bh(&ab->base_lock);
+
+	peer = ath11k_peer_find(ab, arvif->vdev_id, peer_addr);
+	if (!peer) {
+		ath11k_warn(ab, "failed to find the peer to configure pn replay detection\n");
+		spin_unlock_bh(&ab->base_lock);
+		return -ENOENT;
+	}
+
+	for (tid = 0; tid <= IEEE80211_NUM_TIDS; tid++) {
+		rx_tid = &peer->rx_tid[tid];
+		if (!rx_tid->active)
+			continue;
+		cmd.addr_lo = lower_32_bits(rx_tid->paddr);
+		cmd.addr_hi = upper_32_bits(rx_tid->paddr);
+		ret = ath11k_dp_tx_send_reo_cmd(ab, rx_tid,
+						HAL_REO_CMD_UPDATE_RX_QUEUE,
+						&cmd, NULL);
+		if (ret) {
+			ath11k_warn(ab, "failed to configure rx tid %d queue for pn replay detection %d\n",
+				    tid, ret);
+			break;
+		}
+	}
+
+	spin_unlock_bh(&ar->ab->base_lock);
+
+	return ret;
+}
+
+static inline int ath11k_get_ppdu_user_index(struct htt_ppdu_stats *ppdu_stats,
+					     u16 peer_id)
 {
 	int i;
 
@@ -1974,7 +2048,7 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
 	struct sk_buff *last_msdu;
 	struct sk_buff *msdu;
 	struct ath11k_skb_rxcb *last_rxcb;
-	bool is_decrypted;
+	bool is_decrypted = false, fill_crypto_hdr;
 	u32 err_bitmap;
 	u8 *qos;
 
@@ -1990,6 +2064,9 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
 		qos = ieee80211_get_qos_ctl(hdr);
 		qos[0] &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 	}
+
+	/* PN for multicast packets will be checked in mac80211 */
+	fill_crypto_hdr = is_multicast_ether_addr(hdr->addr1);
 
 	is_decrypted = ath11k_dp_rx_h_attn_is_decrypted(rx_desc);
 	enctype = ath11k_dp_rx_h_mpdu_start_enctype(rx_desc);
@@ -2013,14 +2090,27 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
 	if (err_bitmap & DP_RX_MPDU_ERR_TKIP_MIC)
 		rx_status->flag |= RX_FLAG_MMIC_ERROR;
 
-	if (is_decrypted)
-		rx_status->flag |= RX_FLAG_DECRYPTED | RX_FLAG_MMIC_STRIPPED |
-				   RX_FLAG_MIC_STRIPPED | RX_FLAG_ICV_STRIPPED;
+	if (is_decrypted) {
+		rx_status->flag |= RX_FLAG_DECRYPTED | RX_FLAG_MMIC_STRIPPED;
+
+		if (fill_crypto_hdr)
+			rx_status->flag |= RX_FLAG_MIC_STRIPPED |
+					RX_FLAG_ICV_STRIPPED;
+		else
+			rx_status->flag |= RX_FLAG_IV_STRIPPED |
+					   RX_FLAG_PN_VALIDATED;
+	}
 
 	skb_queue_walk(amsdu_list, msdu) {
 		ath11k_dp_rx_h_csum_offload(msdu);
 		ath11k_dp_rx_h_undecap(ar, msdu, rx_desc,
 				       enctype, rx_status, is_decrypted);
+
+		if (!is_decrypted || fill_crypto_hdr)
+			continue;
+
+		hdr = (void *)msdu->data;
+		hdr->frame_control &= ~__cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 	}
 }
 
@@ -3603,6 +3693,13 @@ static bool ath11k_dp_rx_h_reo_err(struct ath11k *ar, struct sk_buff *msdu,
 		if (ath11k_dp_rx_h_null_q_desc(ar, msdu, status, msdu_list))
 			drop = true;
 		break;
+	case HAL_REO_DEST_RING_ERROR_CODE_PN_CHECK_FAILED:
+		/* TODO: Do not drop PN failed packets in the driver;
+		 * instead, it is good to drop such packets in mac80211
+		 * after incrementing the replay counters.
+		 */
+
+		/* fall through */
 	default:
 		/* TODO: Review other errors and process them to mac80211
 		 * as appropriate.

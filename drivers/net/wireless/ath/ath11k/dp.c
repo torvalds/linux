@@ -58,8 +58,8 @@ int ath11k_dp_peer_setup(struct ath11k *ar, int vdev_id, const u8 *addr)
 	}
 
 	for (tid = 0; tid <= IEEE80211_NUM_TIDS; tid++) {
-		ret = ath11k_peer_rx_tid_setup(ar, addr, vdev_id,
-					       tid, 1, 0);
+		ret = ath11k_peer_rx_tid_setup(ar, addr, vdev_id, tid, 1, 0,
+					       HAL_PN_TYPE_NONE);
 		if (ret) {
 			ath11k_warn(ab, "failed to setup rxd tid queue for tid %d: %d\n",
 				    tid, ret);
