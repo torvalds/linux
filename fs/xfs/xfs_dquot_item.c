@@ -315,17 +315,32 @@ xfs_qm_qoffend_logitem_committed(
 	return (xfs_lsn_t)-1;
 }
 
+STATIC void
+xfs_qm_qoff_logitem_release(
+	struct xfs_log_item	*lip)
+{
+	struct xfs_qoff_logitem	*qoff = QOFF_ITEM(lip);
+
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
+		if (qoff->qql_start_lip)
+			xfs_qm_qoff_logitem_relse(qoff->qql_start_lip);
+		xfs_qm_qoff_logitem_relse(qoff);
+	}
+}
+
 static const struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 	.iop_size	= xfs_qm_qoff_logitem_size,
 	.iop_format	= xfs_qm_qoff_logitem_format,
 	.iop_committed	= xfs_qm_qoffend_logitem_committed,
 	.iop_push	= xfs_qm_qoff_logitem_push,
+	.iop_release	= xfs_qm_qoff_logitem_release,
 };
 
 static const struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
 	.iop_size	= xfs_qm_qoff_logitem_size,
 	.iop_format	= xfs_qm_qoff_logitem_format,
 	.iop_push	= xfs_qm_qoff_logitem_push,
+	.iop_release	= xfs_qm_qoff_logitem_release,
 };
 
 /*
