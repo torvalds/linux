@@ -1701,33 +1701,39 @@ static void bch2_rbio_error(struct bch_read_bio *rbio, int retry,
 	}
 }
 
-static void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
+static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
+				   struct bch_read_bio *rbio)
 {
 	struct bch_fs *c = rbio->c;
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	struct bkey_s_c k;
-	struct bkey_on_stack new;
-	struct bch_extent_crc_unpacked new_crc;
 	u64 data_offset = rbio->pos.offset - rbio->pick.crc.offset;
-	int ret;
+	struct bch_extent_crc_unpacked new_crc;
+	struct btree_iter *iter = NULL;
+	struct bkey_i *new;
+	struct bkey_s_c k;
+	int ret = 0;
 
 	if (crc_is_compressed(rbio->pick.crc))
-		return;
+		return 0;
 
-	bkey_on_stack_init(&new);
-	bch2_trans_init(&trans, c, 0, 0);
-retry:
-	bch2_trans_begin(&trans);
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, rbio->pos,
+	iter = bch2_trans_get_iter(trans, BTREE_ID_EXTENTS, rbio->pos,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(iter);
-	if (IS_ERR_OR_NULL(k.k))
+	if ((ret = PTR_ERR_OR_ZERO(iter)))
 		goto out;
 
-	bkey_on_stack_reassemble(&new, c, k);
-	k = bkey_i_to_s_c(new.k);
+	k = bch2_btree_iter_peek_slot(iter);
+	if ((ret = bkey_err(k)))
+		goto out;
+
+	/*
+	 * going to be temporarily appending another checksum entry:
+	 */
+	new = bch2_trans_kmalloc(trans, bkey_bytes(k.k) +
+				 BKEY_EXTENT_U64s_MAX * 8);
+	if ((ret = PTR_ERR_OR_ZERO(new)))
+		goto out;
+
+	bkey_reassemble(new, k);
+	k = bkey_i_to_s_c(new);
 
 	if (bversion_cmp(k.k->version, rbio->version) ||
 	    !bch2_bkey_matches_ptr(c, k, rbio->pick.ptr, data_offset))
@@ -1743,21 +1749,23 @@ retry:
 			bkey_start_offset(k.k) - data_offset, k.k->size,
 			rbio->pick.crc.csum_type)) {
 		bch_err(c, "error verifying existing checksum while narrowing checksum (memory corruption?)");
+		ret = 0;
 		goto out;
 	}
 
-	if (!bch2_bkey_narrow_crcs(new.k, new_crc))
+	if (!bch2_bkey_narrow_crcs(new, new_crc))
 		goto out;
 
-	bch2_trans_update(&trans, iter, new.k, 0);
-	ret = bch2_trans_commit(&trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_NOWAIT);
-	if (ret == -EINTR)
-		goto retry;
+	bch2_trans_update(trans, iter, new, 0);
 out:
-	bch2_trans_exit(&trans);
-	bkey_on_stack_exit(&new, c);
+	bch2_trans_iter_put(trans, iter);
+	return ret;
+}
+
+static noinline void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
+{
+	bch2_trans_do(rbio->c, NULL, NULL, BTREE_INSERT_NOFAIL,
+		      __bch2_rbio_narrow_crcs(&trans, rbio));
 }
 
 /* Inner part that may run in process context */
