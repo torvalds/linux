@@ -1019,6 +1019,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	struct pm8001_hba_info *pm8001_ha;
 	struct Scsi_Host *shost = NULL;
 	const struct pm8001_chip_info *chip;
+	struct sas_ha_struct *sha;
 
 	dev_printk(KERN_INFO, &pdev->dev,
 		"pm80xx: driver version %s\n", DRV_VERSION);
@@ -1047,12 +1048,12 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 		goto err_out_regions;
 	}
 	chip = &pm8001_chips[ent->driver_data];
-	SHOST_TO_SAS_HA(shost) =
-		kzalloc(sizeof(struct sas_ha_struct), GFP_KERNEL);
-	if (!SHOST_TO_SAS_HA(shost)) {
+	sha = kzalloc(sizeof(struct sas_ha_struct), GFP_KERNEL);
+	if (!sha) {
 		rc = -ENOMEM;
 		goto err_out_free_host;
 	}
+	SHOST_TO_SAS_HA(shost) = sha;
 
 	rc = pm8001_prep_sas_ha_init(shost, chip);
 	if (rc) {
@@ -1073,7 +1074,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 			"pm8001_setup_irq failed [ret: %d]\n", rc));
 		goto err_out_shost;
 	}
-	list_add_tail(&pm8001_ha->list, &hba_list);
+
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 	rc = PM8001_CHIP_DISP->chip_init(pm8001_ha);
 	if (rc) {
@@ -1108,8 +1109,12 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 
 	pm8001_post_sas_ha_init(shost, chip);
 	rc = sas_register_ha(SHOST_TO_SAS_HA(shost));
-	if (rc)
+	if (rc) {
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
+			"sas_register_ha failed [ret: %d]\n", rc));
 		goto err_out_shost;
+	}
+	list_add_tail(&pm8001_ha->list, &hba_list);
 	scsi_scan_host(pm8001_ha->shost);
 	pm8001_ha->flags = PM8001F_RUN_TIME;
 	return 0;
@@ -1119,7 +1124,7 @@ err_out_shost:
 err_out_ha_free:
 	pm8001_free(pm8001_ha);
 err_out_free:
-	kfree(SHOST_TO_SAS_HA(shost));
+	kfree(sha);
 err_out_free_host:
 	scsi_host_put(shost);
 err_out_regions:
