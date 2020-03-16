@@ -228,6 +228,11 @@ struct allegro_channel {
 	struct list_head buffers_reference;
 	struct list_head buffers_intermediate;
 
+	struct list_head source_shadow_list;
+	struct list_head stream_shadow_list;
+	/* protect shadow lists of buffers passed to firmware */
+	struct mutex shadow_list_lock;
+
 	struct list_head list;
 	struct completion completion;
 
@@ -248,6 +253,14 @@ allegro_get_state(struct allegro_channel *channel)
 {
 	return channel->state;
 }
+
+struct allegro_m2m_buffer {
+	struct v4l2_m2m_buffer buf;
+	struct list_head head;
+};
+
+#define to_allegro_m2m_buffer(__buf) \
+	container_of(__buf, struct allegro_m2m_buffer, buf)
 
 struct fw_info {
 	unsigned int id;
@@ -1567,8 +1580,11 @@ static bool allegro_channel_is_at_eos(struct allegro_channel *channel)
 		break;
 	case ALLEGRO_STATE_DRAIN:
 	case ALLEGRO_STATE_WAIT_FOR_BUFFER:
-		if (v4l2_m2m_num_src_bufs_ready(channel->fh.m2m_ctx) == 0)
+		mutex_lock(&channel->shadow_list_lock);
+		if (v4l2_m2m_num_src_bufs_ready(channel->fh.m2m_ctx) == 0 &&
+		    list_empty(&channel->source_shadow_list))
 			is_at_eos = true;
+		mutex_unlock(&channel->shadow_list_lock);
 		break;
 	default:
 		break;
@@ -1595,6 +1611,41 @@ static void allegro_channel_buf_done(struct allegro_channel *channel,
 	v4l2_m2m_buf_done(buf, state);
 }
 
+static u64 allegro_put_buffer(struct allegro_channel *channel,
+			      struct list_head *list,
+			      struct vb2_v4l2_buffer *buffer)
+{
+	struct v4l2_m2m_buffer *b = container_of(buffer,
+						 struct v4l2_m2m_buffer, vb);
+	struct allegro_m2m_buffer *shadow = to_allegro_m2m_buffer(b);
+
+	mutex_lock(&channel->shadow_list_lock);
+	list_add_tail(&shadow->head, list);
+	mutex_unlock(&channel->shadow_list_lock);
+
+	return ptr_to_u64(buffer);
+}
+
+static struct vb2_v4l2_buffer *
+allegro_get_buffer(struct allegro_channel *channel,
+		   struct list_head *list, u64 handle)
+{
+	struct allegro_m2m_buffer *shadow, *tmp;
+	struct vb2_v4l2_buffer *buffer = NULL;
+
+	mutex_lock(&channel->shadow_list_lock);
+	list_for_each_entry_safe(shadow, tmp, list, head) {
+		if (handle == ptr_to_u64(&shadow->buf.vb)) {
+			buffer = &shadow->buf.vb;
+			list_del_init(&shadow->head);
+			break;
+		}
+	}
+	mutex_unlock(&channel->shadow_list_lock);
+
+	return buffer;
+}
+
 static void allegro_channel_finish_frame(struct allegro_channel *channel,
 		struct mcu_msg_encode_frame_response *msg)
 {
@@ -1610,17 +1661,22 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 	ssize_t len;
 	ssize_t free;
 
-	src_buf = v4l2_m2m_src_buf_remove(channel->fh.m2m_ctx);
-	if (ptr_to_u64(src_buf) != msg->src_handle)
+	src_buf = allegro_get_buffer(channel, &channel->source_shadow_list,
+				     msg->src_handle);
+	if (!src_buf)
 		v4l2_warn(&dev->v4l2_dev,
-			  "channel %d: invalid source buffer (0x%llx)\n",
-			  channel->mcu_channel_id, msg->src_handle);
+			  "channel %d: invalid source buffer\n",
+			  channel->mcu_channel_id);
 
-	dst_buf = v4l2_m2m_dst_buf_remove(channel->fh.m2m_ctx);
-	if (ptr_to_u64(dst_buf) != msg->stream_id)
+	dst_buf = allegro_get_buffer(channel, &channel->stream_shadow_list,
+				     msg->stream_id);
+	if (!dst_buf)
 		v4l2_warn(&dev->v4l2_dev,
-			  "channel %d: invalid stream buffer (0x%llx)\n",
-			  channel->mcu_channel_id, msg->stream_id);
+			  "channel %d: invalid stream buffer\n",
+			  channel->mcu_channel_id);
+
+	if (!src_buf || !dst_buf)
+		goto err;
 
 	dst_buf->sequence = channel->csequence++;
 
@@ -1744,11 +1800,11 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 		 msg->qp, partition->size);
 
 err:
-	v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
+	if (src_buf)
+		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 
-	allegro_channel_buf_done(channel, dst_buf, state);
-
-	v4l2_m2m_job_finish(dev->m2m_dev, channel->fh.m2m_ctx);
+	if (dst_buf)
+		allegro_channel_buf_done(channel, dst_buf, state);
 }
 
 static int allegro_handle_init(struct allegro_dev *dev,
@@ -2344,16 +2400,33 @@ static void allegro_stop_streaming(struct vb2_queue *q)
 	struct allegro_channel *channel = vb2_get_drv_priv(q);
 	struct allegro_dev *dev = channel->dev;
 	struct vb2_v4l2_buffer *buffer;
+	struct allegro_m2m_buffer *shadow, *tmp;
 
 	v4l2_dbg(2, debug, &dev->v4l2_dev,
 		 "%s: stop streaming\n",
 		 V4L2_TYPE_IS_OUTPUT(q->type) ? "output" : "capture");
 
 	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
+		mutex_lock(&channel->shadow_list_lock);
+		list_for_each_entry_safe(shadow, tmp,
+					 &channel->source_shadow_list, head) {
+			list_del(&shadow->head);
+			v4l2_m2m_buf_done(&shadow->buf.vb, VB2_BUF_STATE_ERROR);
+		}
+		mutex_unlock(&channel->shadow_list_lock);
+
 		allegro_set_state(channel, ALLEGRO_STATE_STOPPED);
 		while ((buffer = v4l2_m2m_src_buf_remove(channel->fh.m2m_ctx)))
 			v4l2_m2m_buf_done(buffer, VB2_BUF_STATE_ERROR);
 	} else if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		mutex_lock(&channel->shadow_list_lock);
+		list_for_each_entry_safe(shadow, tmp,
+					 &channel->stream_shadow_list, head) {
+			list_del(&shadow->head);
+			v4l2_m2m_buf_done(&shadow->buf.vb, VB2_BUF_STATE_ERROR);
+		}
+		mutex_unlock(&channel->shadow_list_lock);
+
 		allegro_destroy_channel(channel);
 		while ((buffer = v4l2_m2m_dst_buf_remove(channel->fh.m2m_ctx)))
 			v4l2_m2m_buf_done(buffer, VB2_BUF_STATE_ERROR);
@@ -2384,7 +2457,7 @@ static int allegro_queue_init(void *priv,
 	src_vq->drv_priv = channel;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->ops = &allegro_queue_ops;
-	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
+	src_vq->buf_struct_size = sizeof(struct allegro_m2m_buffer);
 	src_vq->lock = &channel->dev->lock;
 	err = vb2_queue_init(src_vq);
 	if (err)
@@ -2397,7 +2470,7 @@ static int allegro_queue_init(void *priv,
 	dst_vq->drv_priv = channel;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->ops = &allegro_queue_ops;
-	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
+	dst_vq->buf_struct_size = sizeof(struct allegro_m2m_buffer);
 	dst_vq->lock = &channel->dev->lock;
 	err = vb2_queue_init(dst_vq);
 	if (err)
@@ -2512,6 +2585,9 @@ static int allegro_open(struct file *file)
 	v4l2_fh_init(&channel->fh, vdev);
 
 	init_completion(&channel->completion);
+	INIT_LIST_HEAD(&channel->source_shadow_list);
+	INIT_LIST_HEAD(&channel->stream_shadow_list);
+	mutex_init(&channel->shadow_list_lock);
 
 	channel->dev = dev;
 
@@ -3040,20 +3116,26 @@ static void allegro_device_run(void *priv)
 	dma_addr_t src_uv;
 	dma_addr_t dst_addr;
 	unsigned long dst_size;
+	u64 src_handle;
+	u64 dst_handle;
 
-	dst_buf = v4l2_m2m_next_dst_buf(channel->fh.m2m_ctx);
+	dst_buf = v4l2_m2m_dst_buf_remove(channel->fh.m2m_ctx);
 	dst_addr = vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0);
 	dst_size = vb2_plane_size(&dst_buf->vb2_buf, 0);
+	dst_handle = allegro_put_buffer(channel, &channel->stream_shadow_list,
+					dst_buf);
 	allegro_mcu_send_put_stream_buffer(dev, channel, dst_addr, dst_size,
-					   ptr_to_u64(dst_buf));
+					   dst_handle);
 
-	src_buf = v4l2_m2m_next_src_buf(channel->fh.m2m_ctx);
+	src_buf = v4l2_m2m_src_buf_remove(channel->fh.m2m_ctx);
 	src_buf->sequence = channel->osequence++;
-
 	src_y = vb2_dma_contig_plane_dma_addr(&src_buf->vb2_buf, 0);
 	src_uv = src_y + (channel->stride * channel->height);
-	allegro_mcu_send_encode_frame(dev, channel, src_y, src_uv,
-				      ptr_to_u64(src_buf));
+	src_handle = allegro_put_buffer(channel, &channel->source_shadow_list,
+					src_buf);
+	allegro_mcu_send_encode_frame(dev, channel, src_y, src_uv, src_handle);
+
+	v4l2_m2m_job_finish(dev->m2m_dev, channel->fh.m2m_ctx);
 }
 
 static const struct v4l2_m2m_ops allegro_m2m_ops = {
