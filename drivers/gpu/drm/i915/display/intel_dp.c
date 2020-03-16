@@ -164,6 +164,17 @@ static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 	};
 	int i, max_rate;
 
+	if (drm_dp_has_quirk(&intel_dp->desc, 0,
+			     DP_DPCD_QUIRK_CAN_DO_MAX_LINK_RATE_3_24_GBPS)) {
+		/* Needed, e.g., for Apple MBP 2017, 15 inch eDP Retina panel */
+		static const int quirk_rates[] = { 162000, 270000, 324000 };
+
+		memcpy(intel_dp->sink_rates, quirk_rates, sizeof(quirk_rates));
+		intel_dp->num_sink_rates = ARRAY_SIZE(quirk_rates);
+
+		return;
+	}
+
 	max_rate = drm_dp_bw_code_to_link_rate(intel_dp->dpcd[DP_MAX_LINK_RATE]);
 
 	for (i = 0; i < ARRAY_SIZE(dp_rates); i++) {

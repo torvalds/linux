@@ -1545,6 +1545,13 @@ enum drm_dp_quirk {
 	 * capabilities advertised.
 	 */
 	DP_QUIRK_FORCE_DPCD_BACKLIGHT,
+	/**
+	 * @DP_DPCD_QUIRK_CAN_DO_MAX_LINK_RATE_3_24_GBPS:
+	 *
+	 * The device supports a link rate of 3.24 Gbps (multiplier 0xc) despite
+	 * the DP_MAX_LINK_RATE register reporting a lower max multiplier.
+	 */
+	DP_DPCD_QUIRK_CAN_DO_MAX_LINK_RATE_3_24_GBPS,
 };
 
 /**
