@@ -672,12 +672,6 @@ out:
 	return ret;
 }
 
-static inline bool
-nouveau_dmem_page(struct nouveau_drm *drm, struct page *page)
-{
-	return is_device_private_page(page) && drm->dmem == page_to_dmem(page);
-}
-
 void
 nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
 			 struct hmm_range *range)
@@ -695,12 +689,6 @@ nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
 
 		if (!is_device_private_page(page))
 			continue;
-
-		if (!nouveau_dmem_page(drm, page)) {
-			WARN(1, "Some unknown device memory !\n");
-			range->pfns[i] = 0;
-			continue;
-		}
 
 		addr = nouveau_dmem_page_addr(page);
 		range->pfns[i] &= ((1UL << range->pfn_shift) - 1);

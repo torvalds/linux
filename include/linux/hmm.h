@@ -132,6 +132,7 @@ enum hmm_pfn_value_e {
  * @pfn_flags_mask: allows to mask pfn flags so that only default_flags matter
  * @pfn_shifts: pfn shift value (should be <= PAGE_SHIFT)
  * @valid: pfns array did not change since it has been fill by an HMM function
+ * @dev_private_owner: owner of device private pages
  */
 struct hmm_range {
 	struct mmu_interval_notifier *notifier;
@@ -144,6 +145,7 @@ struct hmm_range {
 	uint64_t		default_flags;
 	uint64_t		pfn_flags_mask;
 	uint8_t			pfn_shift;
+	void			*dev_private_owner;
 };
 
 /*
