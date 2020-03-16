@@ -28,6 +28,7 @@
 
 #include <nvif/class.h>
 #include <nvif/object.h>
+#include <nvif/if000c.h>
 #include <nvif/if500b.h>
 #include <nvif/if900b.h>
 
@@ -692,9 +693,8 @@ nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
 		if (page == NULL)
 			continue;
 
-		if (!(range->pfns[i] & range->flags[HMM_PFN_DEVICE_PRIVATE])) {
+		if (!is_device_private_page(page))
 			continue;
-		}
 
 		if (!nouveau_dmem_page(drm, page)) {
 			WARN(1, "Some unknown device memory !\n");
@@ -705,5 +705,6 @@ nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
 		addr = nouveau_dmem_page_addr(page);
 		range->pfns[i] &= ((1UL << range->pfn_shift) - 1);
 		range->pfns[i] |= (addr >> PAGE_SHIFT) << range->pfn_shift;
+		range->pfns[i] |= NVIF_VMM_PFNMAP_V0_VRAM;
 	}
 }

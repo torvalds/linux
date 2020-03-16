@@ -74,7 +74,6 @@
  * Flags:
  * HMM_PFN_VALID: pfn is valid. It has, at least, read permission.
  * HMM_PFN_WRITE: CPU page table has write permission set
- * HMM_PFN_DEVICE_PRIVATE: private device memory (ZONE_DEVICE)
  *
  * The driver provides a flags array for mapping page protections to device
  * PTE bits. If the driver valid bit for an entry is bit 3,
@@ -86,7 +85,6 @@
 enum hmm_pfn_flag_e {
 	HMM_PFN_VALID = 0,
 	HMM_PFN_WRITE,
-	HMM_PFN_DEVICE_PRIVATE,
 	HMM_PFN_FLAG_MAX
 };
 

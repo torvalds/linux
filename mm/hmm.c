@@ -116,15 +116,6 @@ static inline void hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
 	/* We aren't ask to do anything ... */
 	if (!(pfns & range->flags[HMM_PFN_VALID]))
 		return;
-	/* If this is device memory then only fault if explicitly requested */
-	if ((cpu_flags & range->flags[HMM_PFN_DEVICE_PRIVATE])) {
-		/* Do we fault on device memory ? */
-		if (pfns & range->flags[HMM_PFN_DEVICE_PRIVATE]) {
-			*write_fault = pfns & range->flags[HMM_PFN_WRITE];
-			*fault = true;
-		}
-		return;
-	}
 
 	/* If CPU page table is not valid then we need to fault */
 	*fault = !(cpu_flags & range->flags[HMM_PFN_VALID]);
@@ -262,21 +253,15 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 		swp_entry_t entry = pte_to_swp_entry(pte);
 
 		/*
-		 * This is a special swap entry, ignore migration, use
-		 * device and report anything else as error.
+		 * Never fault in device private pages pages, but just report
+		 * the PFN even if not present.
 		 */
 		if (is_device_private_entry(entry)) {
-			cpu_flags = range->flags[HMM_PFN_VALID] |
-				range->flags[HMM_PFN_DEVICE_PRIVATE];
-			cpu_flags |= is_write_device_private_entry(entry) ?
-				range->flags[HMM_PFN_WRITE] : 0;
-			hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
-					   &fault, &write_fault);
-			if (fault || write_fault)
-				goto fault;
 			*pfn = hmm_device_entry_from_pfn(range,
 					    swp_offset(entry));
-			*pfn |= cpu_flags;
+			*pfn |= range->flags[HMM_PFN_VALID];
+			if (is_write_device_private_entry(entry))
+				*pfn |= range->flags[HMM_PFN_WRITE];
 			return 0;
 		}
 
