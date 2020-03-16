@@ -516,4 +516,15 @@ config USB_G_WEBCAM
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_webcam".
 
+config USB_RAW_GADGET
+	tristate "USB Raw Gadget"
+	help
+	  USB Raw Gadget is a kernel module that provides a userspace interface
+	  for the USB Gadget subsystem. Essentially it allows to emulate USB
+	  devices from userspace. See Documentation/usb/raw-gadget.rst for
+	  details.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "raw_gadget".
+
 endchoice
