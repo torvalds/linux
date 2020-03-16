@@ -200,6 +200,7 @@ config QCOM_APR
 	tristate "Qualcomm APR Bus (Asynchronous Packet Router)"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on RPMSG
+	depends on NET
 	select QCOM_PDR_HELPERS
 	help
 	  Enable APR IPC protocol support between
