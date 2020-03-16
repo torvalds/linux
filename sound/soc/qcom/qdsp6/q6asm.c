@@ -39,6 +39,8 @@
 #define ASM_MEDIA_FMT_MULTI_CHANNEL_PCM_V2	0x00010DA5
 #define ASM_MEDIA_FMT_MP3			0x00010BE9
 #define ASM_MEDIA_FMT_FLAC			0x00010C16
+#define ASM_MEDIA_FMT_WMA_V9			0x00010DA8
+#define ASM_MEDIA_FMT_WMA_V10			0x00010DA7
 #define ASM_DATA_CMD_WRITE_V2			0x00010DAB
 #define ASM_DATA_CMD_READ_V2			0x00010DAC
 #define ASM_SESSION_CMD_SUSPEND			0x00010DEC
@@ -102,6 +104,33 @@ struct asm_flac_fmt_blk_v2 {
 	u32 max_frame_size;
 	u16 sample_size;
 	u16 reserved;
+} __packed;
+
+struct asm_wmastdv9_fmt_blk_v2 {
+	struct asm_data_cmd_media_fmt_update_v2 fmt_blk;
+	u16          fmtag;
+	u16          num_channels;
+	u32          sample_rate;
+	u32          bytes_per_sec;
+	u16          blk_align;
+	u16          bits_per_sample;
+	u32          channel_mask;
+	u16          enc_options;
+	u16          reserved;
+} __packed;
+
+struct asm_wmaprov10_fmt_blk_v2 {
+	struct asm_data_cmd_media_fmt_update_v2 fmt_blk;
+	u16          fmtag;
+	u16          num_channels;
+	u32          sample_rate;
+	u32          bytes_per_sec;
+	u16          blk_align;
+	u16          bits_per_sample;
+	u32          channel_mask;
+	u16          enc_options;
+	u16          advanced_enc_options1;
+	u32          advanced_enc_options2;
 } __packed;
 
 struct asm_stream_cmd_set_encdec_param {
@@ -894,6 +923,24 @@ int q6asm_open_write(struct audio_client *ac, uint32_t format,
 	case SND_AUDIOCODEC_FLAC:
 		open->dec_fmt_id = ASM_MEDIA_FMT_FLAC;
 		break;
+	case SND_AUDIOCODEC_WMA:
+		switch (codec_profile) {
+		case SND_AUDIOPROFILE_WMA9:
+			open->dec_fmt_id = ASM_MEDIA_FMT_WMA_V9;
+			break;
+		case SND_AUDIOPROFILE_WMA10:
+		case SND_AUDIOPROFILE_WMA9_PRO:
+		case SND_AUDIOPROFILE_WMA9_LOSSLESS:
+		case SND_AUDIOPROFILE_WMA10_LOSSLESS:
+			open->dec_fmt_id = ASM_MEDIA_FMT_WMA_V10;
+			break;
+		default:
+			dev_err(ac->dev, "Invalid codec profile 0x%x\n",
+				codec_profile);
+			rc = -EINVAL;
+			goto err;
+		}
+		break;
 	default:
 		dev_err(ac->dev, "Invalid format 0x%x\n", format);
 		rc = -EINVAL;
@@ -1075,6 +1122,82 @@ int q6asm_stream_media_format_block_flac(struct audio_client *ac,
 	return rc;
 }
 EXPORT_SYMBOL_GPL(q6asm_stream_media_format_block_flac);
+
+int q6asm_stream_media_format_block_wma_v9(struct audio_client *ac,
+					   struct q6asm_wma_cfg *cfg)
+{
+	struct asm_wmastdv9_fmt_blk_v2 *fmt;
+	struct apr_pkt *pkt;
+	void *p;
+	int rc, pkt_size;
+
+	pkt_size = APR_HDR_SIZE + sizeof(*fmt);
+	p = kzalloc(pkt_size, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	pkt = p;
+	fmt = p + APR_HDR_SIZE;
+
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+
+	pkt->hdr.opcode = ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2;
+	fmt->fmt_blk.fmt_blk_size = sizeof(*fmt) - sizeof(fmt->fmt_blk);
+	fmt->fmtag = cfg->fmtag;
+	fmt->num_channels = cfg->num_channels;
+	fmt->sample_rate = cfg->sample_rate;
+	fmt->bytes_per_sec = cfg->bytes_per_sec;
+	fmt->blk_align = cfg->block_align;
+	fmt->bits_per_sample = cfg->bits_per_sample;
+	fmt->channel_mask = cfg->channel_mask;
+	fmt->enc_options = cfg->enc_options;
+	fmt->reserved = 0;
+
+	rc = q6asm_ac_send_cmd_sync(ac, pkt);
+	kfree(pkt);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(q6asm_stream_media_format_block_wma_v9);
+
+int q6asm_stream_media_format_block_wma_v10(struct audio_client *ac,
+					    struct q6asm_wma_cfg *cfg)
+{
+	struct asm_wmaprov10_fmt_blk_v2 *fmt;
+	struct apr_pkt *pkt;
+	void *p;
+	int rc, pkt_size;
+
+	pkt_size = APR_HDR_SIZE + sizeof(*fmt);
+	p = kzalloc(pkt_size, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	pkt = p;
+	fmt = p + APR_HDR_SIZE;
+
+	q6asm_add_hdr(ac, &pkt->hdr, pkt_size, true, ac->stream_id);
+
+	pkt->hdr.opcode = ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2;
+	fmt->fmt_blk.fmt_blk_size = sizeof(*fmt) - sizeof(fmt->fmt_blk);
+	fmt->fmtag = cfg->fmtag;
+	fmt->num_channels = cfg->num_channels;
+	fmt->sample_rate = cfg->sample_rate;
+	fmt->bytes_per_sec = cfg->bytes_per_sec;
+	fmt->blk_align = cfg->block_align;
+	fmt->bits_per_sample = cfg->bits_per_sample;
+	fmt->channel_mask = cfg->channel_mask;
+	fmt->enc_options = cfg->enc_options;
+	fmt->advanced_enc_options1 = cfg->adv_enc_options;
+	fmt->advanced_enc_options2 = cfg->adv_enc_options2;
+
+	rc = q6asm_ac_send_cmd_sync(ac, pkt);
+	kfree(pkt);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(q6asm_stream_media_format_block_wma_v10);
+
 /**
  * q6asm_enc_cfg_blk_pcm_format_support() - setup pcm configuration for capture
  *
