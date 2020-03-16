@@ -1037,20 +1037,20 @@ _err_defer:
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_pcm_runtime);
 
-static int soc_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
-			   struct snd_soc_pcm_runtime *rtd)
+static int soc_dai_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_dai *dai;
 	int i, ret = 0;
 
-	for (i = 0; i < num_dais; ++i) {
-		struct snd_soc_dai_driver *drv = dais[i]->driver;
+	for_each_rtd_dais(rtd, i, dai) {
+		struct snd_soc_dai_driver *drv = dai->driver;
 
 		if (drv->pcm_new)
-			ret = drv->pcm_new(rtd, dais[i]);
+			ret = drv->pcm_new(rtd, dai);
 		if (ret < 0) {
-			dev_err(dais[i]->dev,
+			dev_err(dai->dev,
 				"ASoC: Failed to bind %s with pcm device\n",
-				dais[i]->name);
+				dai->name);
 			return ret;
 		}
 	}
@@ -1121,13 +1121,8 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 			dai_link->stream_name, ret);
 		return ret;
 	}
-	ret = soc_dai_pcm_new(rtd->cpu_dais,
-			      rtd->num_cpus, rtd);
-	if (ret < 0)
-		return ret;
-	ret = soc_dai_pcm_new(rtd->codec_dais,
-			      rtd->num_codecs, rtd);
-	return ret;
+
+	return soc_dai_pcm_new(rtd);
 }
 
 static void soc_set_name_prefix(struct snd_soc_card *card,
