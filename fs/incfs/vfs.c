@@ -462,9 +462,6 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 	ssize_t result = 0;
 	int i = 0;
 
-	if (!access_ok(VERIFY_WRITE, buf, len))
-		return -EFAULT;
-
 	if (!incfs_fresh_pending_reads_exist(mi, last_known_read_sn))
 		return 0;
 
@@ -856,9 +853,6 @@ static struct signature_info *incfs_copy_signature_info_from_user(
 	if (!original)
 		return NULL;
 
-	if (!access_ok(VERIFY_READ, original, sizeof(usr_si)))
-		return ERR_PTR(-EFAULT);
-
 	if (copy_from_user(&usr_si, original, sizeof(usr_si)) > 0)
 		return ERR_PTR(-EFAULT);
 
@@ -1188,10 +1182,7 @@ static long ioctl_create_file(struct mount_info *mi,
 		error = -EFAULT;
 		goto out;
 	}
-	if (!access_ok(VERIFY_READ, usr_args, sizeof(args))) {
-		error = -EFAULT;
-		goto out;
-	}
+
 	if (copy_from_user(&args, usr_args, sizeof(args)) > 0) {
 		error = -EFAULT;
 		goto out;
@@ -1317,12 +1308,6 @@ static long ioctl_create_file(struct mount_info *mi,
 			goto delete_index_file;
 		}
 
-		if (!access_ok(VERIFY_READ, u64_to_user_ptr(args.file_attr),
-			       args.file_attr_len)) {
-			error = -EFAULT;
-			goto delete_index_file;
-		}
-
 		if (copy_from_user(attr_value,
 				u64_to_user_ptr(args.file_attr),
 				args.file_attr_len) > 0) {
@@ -1384,14 +1369,8 @@ static long ioctl_read_file_signature(struct file *f, void __user *arg)
 	if (!df)
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_READ, args_usr_ptr, sizeof(args)))
-		return -EFAULT;
 	if (copy_from_user(&args, args_usr_ptr, sizeof(args)) > 0)
 		return -EINVAL;
-
-	if (!access_ok(VERIFY_WRITE, u64_to_user_ptr(args.file_signature),
-			args.file_signature_buf_size))
-		return -EFAULT;
 
 	sig_buf_size = args.file_signature_buf_size;
 	if (sig_buf_size > INCFS_MAX_SIGNATURE_SIZE)
@@ -1914,9 +1893,6 @@ static ssize_t file_write(struct file *f, const char __user *buf,
 	if (!df)
 		return -EBADF;
 
-	if (!access_ok(VERIFY_READ, usr_blocks, size))
-		return -EFAULT;
-
 	data_buf = (u8 *)__get_free_pages(GFP_NOFS, get_order(data_buf_size));
 	if (!data_buf)
 		return -ENOMEM;
@@ -1933,11 +1909,7 @@ static ssize_t file_write(struct file *f, const char __user *buf,
 			error = -E2BIG;
 			break;
 		}
-		if (!access_ok(VERIFY_READ, u64_to_user_ptr(block.data),
-			       block.data_len)) {
-			error = -EFAULT;
-			break;
-		}
+
 		if (copy_from_user(data_buf, u64_to_user_ptr(block.data),
 				   block.data_len) > 0) {
 			error = -EFAULT;
