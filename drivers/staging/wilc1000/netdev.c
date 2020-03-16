@@ -794,8 +794,10 @@ void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 		u16 type = le16_to_cpup((__le16 *)buff);
 
 		if (vif->priv.p2p_listen_state &&
-		    ((type == vif->frame_reg[0].type && vif->frame_reg[0].reg) ||
-		     (type == vif->frame_reg[1].type && vif->frame_reg[1].reg)))
+		    ((type == vif->frame_reg[0].type &&
+		      vif->frame_reg[0].reg) ||
+		     (type == vif->frame_reg[1].type &&
+		      vif->frame_reg[1].reg)))
 			wilc_wfi_p2p_rx(vif, buff, size);
 
 		if (vif->monitor_flag)
