@@ -56,34 +56,29 @@ int64_t timespec_to_ns(struct timespec ts)
 	return (int64_t)ts.tv_nsec + 1000000000LL * (int64_t)ts.tv_sec;
 }
 
-struct timespec timespec_diff(struct timespec start, struct timespec end)
-{
-	struct timespec temp;
-
-	if ((end.tv_nsec - start.tv_nsec) < 0) {
-		temp.tv_sec = end.tv_sec - start.tv_sec - 1;
-		temp.tv_nsec = 1000000000LL + end.tv_nsec - start.tv_nsec;
-	} else {
-		temp.tv_sec = end.tv_sec - start.tv_sec;
-		temp.tv_nsec = end.tv_nsec - start.tv_nsec;
-	}
-
-	return temp;
-}
-
 struct timespec timespec_add_ns(struct timespec ts, int64_t ns)
 {
 	struct timespec res;
 
-	res.tv_sec = ts.tv_sec;
 	res.tv_nsec = ts.tv_nsec + ns;
-
-	if (res.tv_nsec > 1000000000UL) {
-		res.tv_sec += 1;
-		res.tv_nsec -= 1000000000UL;
-	}
+	res.tv_sec = ts.tv_sec + res.tv_nsec / 1000000000LL;
+	res.tv_nsec %= 1000000000LL;
 
 	return res;
+}
+
+struct timespec timespec_add(struct timespec ts1, struct timespec ts2)
+{
+	int64_t ns1 = timespec_to_ns(ts1);
+	int64_t ns2 = timespec_to_ns(ts2);
+	return timespec_add_ns((struct timespec){0}, ns1 + ns2);
+}
+
+struct timespec timespec_sub(struct timespec ts1, struct timespec ts2)
+{
+	int64_t ns1 = timespec_to_ns(ts1);
+	int64_t ns2 = timespec_to_ns(ts2);
+	return timespec_add_ns((struct timespec){0}, ns1 - ns2);
 }
 
 void print_skip(const char *fmt, ...)

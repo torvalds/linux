@@ -61,7 +61,8 @@ void test_assert(bool exp, const char *exp_str,
 size_t parse_size(const char *size);
 
 int64_t timespec_to_ns(struct timespec ts);
-struct timespec timespec_diff(struct timespec start, struct timespec end);
 struct timespec timespec_add_ns(struct timespec ts, int64_t ns);
+struct timespec timespec_add(struct timespec ts1, struct timespec ts2);
+struct timespec timespec_sub(struct timespec ts1, struct timespec ts2);
 
 #endif /* SELFTEST_KVM_TEST_UTIL_H */

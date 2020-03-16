@@ -117,8 +117,7 @@ static void *vcpu_worker(void *data)
 	struct kvm_vm *vm = args->vm;
 	int vcpu_id = args->vcpu_id;
 	struct kvm_run *run;
-	struct timespec start;
-	struct timespec end;
+	struct timespec start, end, ts_diff;
 
 	vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
 	run = vcpu_state(vm, vcpu_id);
@@ -135,9 +134,9 @@ static void *vcpu_worker(void *data)
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
-	PER_VCPU_DEBUG("vCPU %d execution time: %lld.%.9lds\n", vcpu_id,
-		       (long long)(timespec_diff(start, end).tv_sec),
-		       timespec_diff(start, end).tv_nsec);
+	ts_diff = timespec_sub(end, start);
+	PER_VCPU_DEBUG("vCPU %d execution time: %ld.%.9lds\n", vcpu_id,
+		       ts_diff.tv_sec, ts_diff.tv_nsec);
 
 	return NULL;
 }
@@ -201,8 +200,8 @@ static int handle_uffd_page_request(int uffd, uint64_t addr)
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
-	PER_PAGE_DEBUG("UFFDIO_COPY %d \t%lld ns\n", tid,
-		       (long long)timespec_to_ns(timespec_diff(start, end)));
+	PER_PAGE_DEBUG("UFFDIO_COPY %d \t%ld ns\n", tid,
+		       timespec_to_ns(timespec_sub(end, start)));
 	PER_PAGE_DEBUG("Paged in %ld bytes at 0x%lx from thread %d\n",
 		       host_page_size, addr, tid);
 
@@ -224,8 +223,7 @@ static void *uffd_handler_thread_fn(void *arg)
 	int pipefd = uffd_args->pipefd;
 	useconds_t delay = uffd_args->delay;
 	int64_t pages = 0;
-	struct timespec start;
-	struct timespec end;
+	struct timespec start, end, ts_diff;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	while (!quit_uffd_thread) {
@@ -295,11 +293,10 @@ static void *uffd_handler_thread_fn(void *arg)
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
-	PER_VCPU_DEBUG("userfaulted %ld pages over %lld.%.9lds. (%f/sec)\n",
-		       pages, (long long)(timespec_diff(start, end).tv_sec),
-		       timespec_diff(start, end).tv_nsec, pages /
-		       ((double)timespec_diff(start, end).tv_sec +
-			(double)timespec_diff(start, end).tv_nsec / 100000000.0));
+	ts_diff = timespec_sub(end, start);
+	PER_VCPU_DEBUG("userfaulted %ld pages over %ld.%.9lds. (%f/sec)\n",
+		       pages, ts_diff.tv_sec, ts_diff.tv_nsec,
+		       pages / ((double)ts_diff.tv_sec + (double)ts_diff.tv_nsec / 100000000.0));
 
 	return NULL;
 }
@@ -360,13 +357,12 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	pthread_t *vcpu_threads;
 	pthread_t *uffd_handler_threads = NULL;
 	struct uffd_handler_args *uffd_args = NULL;
+	struct timespec start, end, ts_diff;
 	int *pipefds = NULL;
 	struct kvm_vm *vm;
 	uint64_t guest_num_pages;
 	int vcpu_id;
 	int r;
-	struct timespec start;
-	struct timespec end;
 
 	vm = create_vm(mode, vcpus, vcpu_memory_bytes);
 
@@ -514,12 +510,11 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 		}
 	}
 
-	pr_info("Total guest execution time: %lld.%.9lds\n",
-		(long long)(timespec_diff(start, end).tv_sec),
-		timespec_diff(start, end).tv_nsec);
+	ts_diff = timespec_sub(end, start);
+	pr_info("Total guest execution time: %ld.%.9lds\n",
+		ts_diff.tv_sec, ts_diff.tv_nsec);
 	pr_info("Overall demand paging rate: %f pgs/sec\n",
-		guest_num_pages / ((double)timespec_diff(start, end).tv_sec +
-		(double)timespec_diff(start, end).tv_nsec / 100000000.0));
+		guest_num_pages / ((double)ts_diff.tv_sec + (double)ts_diff.tv_nsec / 100000000.0));
 
 	ucall_uninit(vm);
 	kvm_vm_free(vm);

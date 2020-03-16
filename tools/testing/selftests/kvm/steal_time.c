@@ -242,7 +242,7 @@ static void *do_steal_time(void *arg)
 
 	while (1) {
 		clock_gettime(CLOCK_MONOTONIC, &ts);
-		if (ts.tv_sec > stop.tv_sec || ts.tv_nsec >= stop.tv_nsec)
+		if (timespec_to_ns(timespec_sub(ts, stop)) >= 0)
 			break;
 	}
 
