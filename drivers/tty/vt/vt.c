@@ -1927,7 +1927,7 @@ static void setterm_command(struct vc_data *vc)
 			update_attr(vc);
 			break;
 		case 9:	/* set blanking interval */
-			blankinterval = ((vc->vc_par[1] < 60) ? vc->vc_par[1] : 60) * 60;
+			blankinterval = min(vc->vc_par[1], 60U) * 60;
 			poke_blanked_console();
 			break;
 		case 10: /* set bell frequency in Hz */
@@ -1951,7 +1951,7 @@ static void setterm_command(struct vc_data *vc)
 			poke_blanked_console();
 			break;
 		case 14: /* set vesa powerdown interval */
-			vesa_off_interval = ((vc->vc_par[1] < 60) ? vc->vc_par[1] : 60) * 60 * HZ;
+			vesa_off_interval = min(vc->vc_par[1], 60U) * 60 * HZ;
 			break;
 		case 15: /* activate the previous console */
 			set_console(last_console);
