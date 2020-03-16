@@ -3317,7 +3317,8 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 		break;
 
 	default:
-		netdev_warn(hw->wlandev->netdev, "Received frame on unsupported port=%d\n",
+		netdev_warn(hw->wlandev->netdev,
+			    "Received frame on unsupported port=%d\n",
 			    HFA384x_RXSTATUS_MACPORT_GET(usbin->rxfrm.desc.status));
 		break;
 	}
