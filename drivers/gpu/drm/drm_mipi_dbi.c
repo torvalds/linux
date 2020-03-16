@@ -169,7 +169,8 @@ int mipi_dbi_command_buf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len)
 EXPORT_SYMBOL(mipi_dbi_command_buf);
 
 /* This should only be used by mipi_dbi_command() */
-int mipi_dbi_command_stackbuf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len)
+int mipi_dbi_command_stackbuf(struct mipi_dbi *dbi, u8 cmd, const u8 *data,
+			      size_t len)
 {
 	u8 *buf;
 	int ret;
