@@ -1502,9 +1502,8 @@ int cpufreq_interactive_start(struct cpufreq_policy *policy)
 
 		down_write(&icpu->enable_sem);
 		icpu->ipolicy = ipolicy;
-		up_write(&icpu->enable_sem);
-
 		slack_timer_resched(icpu, cpu, false);
+		up_write(&icpu->enable_sem);
 	}
 
 	gov_set_update_util(ipolicy);
