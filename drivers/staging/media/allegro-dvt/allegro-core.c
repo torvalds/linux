@@ -1536,7 +1536,7 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 	dst_buf = v4l2_m2m_dst_buf_remove(channel->fh.m2m_ctx);
 	dst_buf->sequence = channel->csequence++;
 
-	if (msg->error_code) {
+	if (msg->error_code & AL_ERROR) {
 		v4l2_err(&dev->v4l2_dev,
 			 "channel %d: failed to encode frame: %s (%x)\n",
 			 channel->mcu_channel_id,
