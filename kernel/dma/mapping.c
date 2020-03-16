@@ -120,6 +120,7 @@ int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
 		sg_set_page(sgt->sgl, page, PAGE_ALIGN(size), 0);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dma_common_get_sgtable);
 
 /*
  * The whole dma_get_sgtable() idea is fundamentally unsafe - it seems
@@ -194,6 +195,7 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 	return -ENXIO;
 #endif /* CONFIG_MMU */
 }
+EXPORT_SYMBOL_GPL(dma_common_mmap);
 
 /**
  * dma_can_mmap - check if a given device supports dma_mmap_*
