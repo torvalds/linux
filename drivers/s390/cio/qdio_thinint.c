@@ -211,7 +211,7 @@ static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 	}
 
 	rc = chsc_sadc(irq_ptr->schid, scssc, summary_indicator_addr,
-		       subchannel_indicator_addr);
+		       subchannel_indicator_addr, tiqdio_airq.isc);
 	if (rc) {
 		DBF_ERROR("%4x SSI r:%4x", irq_ptr->schid.sch_no,
 			  scssc->response.code);
