@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 
 #define DRV_NAME "cros-usbpd-notify"
+#define DRV_NAME_PLAT_ACPI "cros-usbpd-notify-acpi"
 #define ACPI_DRV_NAME "GOOG0003"
 
 static BLOCKING_NOTIFIER_HEAD(cros_usbpd_notifier_list);
@@ -54,14 +55,61 @@ EXPORT_SYMBOL_GPL(cros_usbpd_unregister_notify);
 
 #ifdef CONFIG_ACPI
 
-static int cros_usbpd_notify_add_acpi(struct acpi_device *adev)
+static void cros_usbpd_notify_acpi(acpi_handle device, u32 event, void *data)
 {
+	blocking_notifier_call_chain(&cros_usbpd_notifier_list, event, NULL);
+}
+
+static int cros_usbpd_notify_probe_acpi(struct platform_device *pdev)
+{
+	struct cros_usbpd_notify_data *pdnotify;
+	struct device *dev = &pdev->dev;
+	struct acpi_device *adev;
+	struct cros_ec_device *ec_dev;
+	acpi_status status;
+
+	adev = ACPI_COMPANION(dev);
+
+	pdnotify = devm_kzalloc(dev, sizeof(*pdnotify), GFP_KERNEL);
+	if (!pdnotify)
+		return -ENOMEM;
+
+	/* Get the EC device pointer needed to talk to the EC. */
+	ec_dev = dev_get_drvdata(dev->parent);
+	if (!ec_dev) {
+		/*
+		 * We continue even for older devices which don't have the
+		 * correct device heirarchy, namely, GOOG0003 is a child
+		 * of GOOG0004.
+		 */
+		dev_warn(dev, "Couldn't get Chrome EC device pointer.\n");
+	}
+
+	pdnotify->dev = dev;
+	pdnotify->ec = ec_dev;
+
+	status = acpi_install_notify_handler(adev->handle,
+					     ACPI_ALL_NOTIFY,
+					     cros_usbpd_notify_acpi,
+					     pdnotify);
+	if (ACPI_FAILURE(status)) {
+		dev_warn(dev, "Failed to register notify handler %08x\n",
+			 status);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
-static void cros_usbpd_notify_acpi(struct acpi_device *adev, u32 event)
+static int cros_usbpd_notify_remove_acpi(struct platform_device *pdev)
 {
-	blocking_notifier_call_chain(&cros_usbpd_notifier_list, event, NULL);
+	struct device *dev = &pdev->dev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+
+	acpi_remove_notify_handler(adev->handle, ACPI_ALL_NOTIFY,
+				   cros_usbpd_notify_acpi);
+
+	return 0;
 }
 
 static const struct acpi_device_id cros_usbpd_notify_acpi_device_ids[] = {
@@ -70,14 +118,13 @@ static const struct acpi_device_id cros_usbpd_notify_acpi_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, cros_usbpd_notify_acpi_device_ids);
 
-static struct acpi_driver cros_usbpd_notify_acpi_driver = {
-	.name = DRV_NAME,
-	.class = DRV_NAME,
-	.ids = cros_usbpd_notify_acpi_device_ids,
-	.ops = {
-		.add = cros_usbpd_notify_add_acpi,
-		.notify = cros_usbpd_notify_acpi,
+static struct platform_driver cros_usbpd_notify_acpi_driver = {
+	.driver = {
+		.name = DRV_NAME_PLAT_ACPI,
+		.acpi_match_table = cros_usbpd_notify_acpi_device_ids,
 	},
+	.probe = cros_usbpd_notify_probe_acpi,
+	.remove = cros_usbpd_notify_remove_acpi,
 };
 
 #endif /* CONFIG_ACPI */
@@ -157,7 +204,7 @@ static int __init cros_usbpd_notify_init(void)
 		return ret;
 
 #ifdef CONFIG_ACPI
-	acpi_bus_register_driver(&cros_usbpd_notify_acpi_driver);
+	platform_driver_register(&cros_usbpd_notify_acpi_driver);
 #endif
 	return 0;
 }
@@ -165,7 +212,7 @@ static int __init cros_usbpd_notify_init(void)
 static void __exit cros_usbpd_notify_exit(void)
 {
 #ifdef CONFIG_ACPI
-	acpi_bus_unregister_driver(&cros_usbpd_notify_acpi_driver);
+	platform_driver_unregister(&cros_usbpd_notify_acpi_driver);
 #endif
 	platform_driver_unregister(&cros_usbpd_notify_plat_driver);
 }
