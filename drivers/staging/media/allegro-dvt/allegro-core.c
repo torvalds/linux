@@ -572,6 +572,56 @@ static inline bool channel_exists(struct allegro_channel *channel)
 	return channel->mcu_channel_id != -1;
 }
 
+#define AL_ERROR			0x80
+#define AL_ERR_INIT_FAILED		0x81
+#define AL_ERR_NO_FRAME_DECODED		0x82
+#define AL_ERR_RESOLUTION_CHANGE	0x85
+#define AL_ERR_NO_MEMORY		0x87
+#define AL_ERR_STREAM_OVERFLOW		0x88
+#define AL_ERR_TOO_MANY_SLICES		0x89
+#define AL_ERR_BUF_NOT_READY		0x8c
+#define AL_ERR_NO_CHANNEL_AVAILABLE	0x8d
+#define AL_ERR_RESOURCE_UNAVAILABLE	0x8e
+#define AL_ERR_NOT_ENOUGH_CORES		0x8f
+#define AL_ERR_REQUEST_MALFORMED	0x90
+#define AL_ERR_CMD_NOT_ALLOWED		0x91
+#define AL_ERR_INVALID_CMD_VALUE	0x92
+
+static inline const char *allegro_err_to_string(unsigned int err)
+{
+	switch (err) {
+	case AL_ERR_INIT_FAILED:
+		return "initialization failed";
+	case AL_ERR_NO_FRAME_DECODED:
+		return "no frame decoded";
+	case AL_ERR_RESOLUTION_CHANGE:
+		return "resolution change";
+	case AL_ERR_NO_MEMORY:
+		return "out of memory";
+	case AL_ERR_STREAM_OVERFLOW:
+		return "stream buffer overflow";
+	case AL_ERR_TOO_MANY_SLICES:
+		return "too many slices";
+	case AL_ERR_BUF_NOT_READY:
+		return "buffer not ready";
+	case AL_ERR_NO_CHANNEL_AVAILABLE:
+		return "no channel available";
+	case AL_ERR_RESOURCE_UNAVAILABLE:
+		return "resource unavailable";
+	case AL_ERR_NOT_ENOUGH_CORES:
+		return "not enough cores";
+	case AL_ERR_REQUEST_MALFORMED:
+		return "request malformed";
+	case AL_ERR_CMD_NOT_ALLOWED:
+		return "command not allowed";
+	case AL_ERR_INVALID_CMD_VALUE:
+		return "invalid command value";
+	case AL_ERROR:
+	default:
+		return "unknown error";
+	}
+}
+
 static unsigned int estimate_stream_size(unsigned int width,
 					 unsigned int height)
 {
@@ -1488,8 +1538,10 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 
 	if (msg->error_code) {
 		v4l2_err(&dev->v4l2_dev,
-			 "channel %d: error while encoding frame: %x\n",
-			 channel->mcu_channel_id, msg->error_code);
+			 "channel %d: failed to encode frame: %s (%x)\n",
+			 channel->mcu_channel_id,
+			 allegro_err_to_string(msg->error_code),
+			 msg->error_code);
 		goto err;
 	}
 
@@ -1632,8 +1684,10 @@ allegro_handle_create_channel(struct allegro_dev *dev,
 
 	if (msg->error_code) {
 		v4l2_err(&dev->v4l2_dev,
-			 "user %d: mcu failed to create channel: error %x\n",
-			 channel->user_id, msg->error_code);
+			 "user %d: mcu failed to create channel: %s (%x)\n",
+			 channel->user_id,
+			 allegro_err_to_string(msg->error_code),
+			 msg->error_code);
 		err = -EIO;
 		goto out;
 	}
