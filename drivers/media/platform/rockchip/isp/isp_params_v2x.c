@@ -4063,17 +4063,10 @@ rkisp_params_isr_v2x(struct rkisp_isp_params_vdev *params_vdev,
 
 	new_params = (struct isp2x_isp_params_cfg *)(cur_buf->vaddr[0]);
 	if (isp_mis & CIF_ISP_FRAME) {
-		u32 isp_ctrl;
-
 		list_del(&cur_buf->queue);
 
 		__isp_isr_other_config(params_vdev, new_params);
 		__isp_isr_meas_config(params_vdev, new_params);
-
-		/* update shadow register immediately */
-		isp_ctrl = rkisp_ioread32(params_vdev, CIF_ISP_CTRL);
-		isp_ctrl |= CIF_ISP_CTRL_ISP_CFG_UPD;
-		rkisp_iowrite32(params_vdev, isp_ctrl, CIF_ISP_CTRL);
 
 		cur_buf->vb.sequence = cur_frame_id;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
