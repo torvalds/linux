@@ -217,11 +217,6 @@ static inline uint64_t hmm_device_entry_from_pfn(const struct hmm_range *range,
 		range->flags[HMM_PFN_VALID];
 }
 
-/*
- * Retry fault if non-blocking, drop mmap_sem and return -EAGAIN in that case.
- */
-#define HMM_FAULT_ALLOW_RETRY		(1 << 0)
-
 /* Don't fault in missing PTEs, just snapshot the current state. */
 #define HMM_FAULT_SNAPSHOT		(1 << 1)
 

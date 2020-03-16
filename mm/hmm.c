@@ -45,16 +45,10 @@ static int hmm_vma_do_fault(struct mm_walk *walk, unsigned long addr,
 	if (!vma)
 		goto err;
 
-	if (hmm_vma_walk->flags & HMM_FAULT_ALLOW_RETRY)
-		flags |= FAULT_FLAG_ALLOW_RETRY;
 	if (write_fault)
 		flags |= FAULT_FLAG_WRITE;
 
 	ret = handle_mm_fault(vma, addr, flags);
-	if (ret & VM_FAULT_RETRY) {
-		/* Note, handle_mm_fault did up_read(&mm->mmap_sem)) */
-		return -EAGAIN;
-	}
 	if (ret & VM_FAULT_ERROR)
 		goto err;
 
@@ -662,7 +656,6 @@ static const struct mm_walk_ops hmm_walk_ops = {
  * -ENOMEM:	Out of memory.
  * -EPERM:	Invalid permission (e.g., asking for write and range is read
  *		only).
- * -EAGAIN:	A page fault needs to be retried and mmap_sem was dropped.
  * -EBUSY:	The range has been invalidated and the caller needs to wait for
  *		the invalidation to finish.
  * -EFAULT:	Invalid (i.e., either no valid vma or it is illegal to access
