@@ -20,23 +20,6 @@ struct cec_notifier;
 #if IS_REACHABLE(CONFIG_CEC_CORE) && IS_ENABLED(CONFIG_CEC_NOTIFIER)
 
 /**
- * cec_notifier_get_conn - find or create a new cec_notifier for the given
- * device and connector tuple.
- * @dev: device that sends the events.
- * @conn: the connector name from which the event occurs
- *
- * If a notifier for device @dev already exists, then increase the refcount
- * and return that notifier.
- *
- * If it doesn't exist, then allocate a new notifier struct and return a
- * pointer to that new struct.
- *
- * Return NULL if the memory could not be allocated.
- */
-struct cec_notifier *cec_notifier_get_conn(struct device *dev,
-					   const char *conn);
-
-/**
  * cec_notifier_conn_register - find or create a new cec_notifier for the given
  * HDMI device and connector tuple.
  * @hdmi_dev: HDMI device that sends the events.
@@ -125,12 +108,6 @@ void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
 struct device *cec_notifier_parse_hdmi_phandle(struct device *dev);
 
 #else
-static inline struct cec_notifier *cec_notifier_get_conn(struct device *dev,
-							 const char *conn)
-{
-	/* A non-NULL pointer is expected on success */
-	return (struct cec_notifier *)0xdeadfeed;
-}
 
 static inline struct cec_notifier *
 cec_notifier_conn_register(struct device *hdmi_dev, const char *port_name,

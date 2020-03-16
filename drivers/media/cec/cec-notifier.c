@@ -32,7 +32,21 @@ struct cec_notifier {
 static LIST_HEAD(cec_notifiers);
 static DEFINE_MUTEX(cec_notifiers_lock);
 
-struct cec_notifier *
+/**
+ * cec_notifier_get_conn - find or create a new cec_notifier for the given
+ * device and connector tuple.
+ * @hdmi_dev: device that sends the events.
+ * @port_name: the connector name from which the event occurs
+ *
+ * If a notifier for device @dev already exists, then increase the refcount
+ * and return that notifier.
+ *
+ * If it doesn't exist, then allocate a new notifier struct and return a
+ * pointer to that new struct.
+ *
+ * Return NULL if the memory could not be allocated.
+ */
+static struct cec_notifier *
 cec_notifier_get_conn(struct device *hdmi_dev, const char *port_name)
 {
 	struct cec_notifier *n;
@@ -68,7 +82,6 @@ unlock:
 	mutex_unlock(&cec_notifiers_lock);
 	return n;
 }
-EXPORT_SYMBOL_GPL(cec_notifier_get_conn);
 
 static void cec_notifier_release(struct kref *kref)
 {
