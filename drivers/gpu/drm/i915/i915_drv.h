@@ -92,7 +92,6 @@
 #include "intel_wopcm.h"
 
 #include "i915_gem.h"
-#include "i915_gem_fence_reg.h"
 #include "i915_gem_gtt.h"
 #include "i915_gpu_error.h"
 #include "i915_perf_types.h"

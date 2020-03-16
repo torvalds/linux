@@ -26,7 +26,7 @@
 #include <drm/drm_mm.h>
 
 #include "gt/intel_reset.h"
-#include "i915_gem_fence_reg.h"
+#include "gt/intel_ggtt_fencing.h"
 #include "i915_selftest.h"
 #include "i915_vma_types.h"
 

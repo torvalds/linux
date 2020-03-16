@@ -92,6 +92,7 @@ gt-y += \
 	gt/intel_engine_pool.o \
 	gt/intel_engine_user.o \
 	gt/intel_ggtt.o \
+	gt/intel_ggtt_fencing.o \
 	gt/intel_gt.o \
 	gt/intel_gt_irq.o \
 	gt/intel_gt_pm.o \
@@ -153,7 +154,6 @@ i915-y += \
 	  i915_buddy.o \
 	  i915_cmd_parser.o \
 	  i915_gem_evict.o \
-	  i915_gem_fence_reg.o \
 	  i915_gem_gtt.o \
 	  i915_gem.o \
 	  i915_globals.o \
