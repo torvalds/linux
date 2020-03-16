@@ -5,6 +5,7 @@
  * Allegro DVT video encoder driver
  */
 
+#include <linux/bits.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -1053,6 +1054,22 @@ v4l2_bitrate_mode_to_mcu_mode(enum v4l2_mpeg_video_bitrate_mode mode)
 	}
 }
 
+static u32 v4l2_cpb_size_to_mcu(unsigned int cpb_size, unsigned int bitrate)
+{
+	unsigned int cpb_size_kbit;
+	unsigned int bitrate_kbps;
+
+	/*
+	 * The mcu expects the CPB size in units of a 90 kHz clock, but the
+	 * channel follows the V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE and stores
+	 * the CPB size in kilobytes.
+	 */
+	cpb_size_kbit = cpb_size * BITS_PER_BYTE;
+	bitrate_kbps = bitrate / 1000;
+
+	return (cpb_size_kbit * 90000) / bitrate_kbps;
+}
+
 static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 					   struct allegro_channel *channel)
 {
@@ -1094,12 +1111,10 @@ static int allegro_mcu_send_create_channel(struct allegro_dev *dev,
 
 	msg.rate_control_mode =
 		v4l2_bitrate_mode_to_mcu_mode(channel->bitrate_mode);
+	msg.cpb_size = v4l2_cpb_size_to_mcu(channel->cpb_size,
+					    channel->bitrate_peak);
 	/* Shall be ]0;cpb_size in 90 kHz units]. Use maximum value. */
-	msg.initial_rem_delay =
-		((channel->cpb_size * 1000) / channel->bitrate_peak) * 90000;
-	/* Encoder expects cpb_size in units of a 90 kHz clock. */
-	msg.cpb_size =
-		((channel->cpb_size * 1000) / channel->bitrate_peak) * 90000;
+	msg.initial_rem_delay = msg.cpb_size;
 	msg.framerate = 25;
 	msg.clk_ratio = 1000;
 	msg.target_bitrate = channel->bitrate;
