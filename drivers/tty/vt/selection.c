@@ -252,9 +252,9 @@ static int __set_selection_kernel(struct tiocl_selection *v, struct tty_struct *
 		}
 		break;
 	case TIOCL_SELLINE:	/* line-by-line selection */
-		new_sel_start = ps - ps % vc->vc_size_row;
-		new_sel_end = pe + vc->vc_size_row
-			    - pe % vc->vc_size_row - 2;
+		new_sel_start = rounddown(ps, vc->vc_size_row);
+		new_sel_end = rounddown(pe, vc->vc_size_row) +
+			vc->vc_size_row - 2;
 		break;
 	case TIOCL_SELPOINTER:
 		highlight_pointer(pe);
