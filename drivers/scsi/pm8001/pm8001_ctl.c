@@ -554,6 +554,49 @@ static ssize_t pm8001_ctl_fatal_log_show(struct device *cdev,
 
 static DEVICE_ATTR(fatal_log, S_IRUGO, pm8001_ctl_fatal_log_show, NULL);
 
+/**
+ ** non_fatal_log_show - non fatal error logging
+ ** @cdev:pointer to embedded class device
+ ** @buf: the buffer returned
+ **
+ ** A sysfs 'read-only' shost attribute.
+ **/
+static ssize_t non_fatal_log_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	u32 count;
+
+	count = pm80xx_get_non_fatal_dump(cdev, attr, buf);
+	return count;
+}
+static DEVICE_ATTR_RO(non_fatal_log);
+
+static ssize_t non_fatal_count_show(struct device *cdev,
+		struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+
+	return snprintf(buf, PAGE_SIZE, "%08x",
+			pm8001_ha->non_fatal_count);
+}
+
+static ssize_t non_fatal_count_store(struct device *cdev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	int val = 0;
+
+	if (kstrtoint(buf, 16, &val) != 0)
+		return -EINVAL;
+
+	pm8001_ha->non_fatal_count = val;
+	return strlen(buf);
+}
+static DEVICE_ATTR_RW(non_fatal_count);
 
 /**
  ** pm8001_ctl_gsm_log_show - gsm dump collection
@@ -829,6 +872,8 @@ struct device_attribute *pm8001_host_attrs[] = {
 	&dev_attr_aap_log,
 	&dev_attr_iop_log,
 	&dev_attr_fatal_log,
+	&dev_attr_non_fatal_log,
+	&dev_attr_non_fatal_count,
 	&dev_attr_gsm_log,
 	&dev_attr_max_out_io,
 	&dev_attr_max_devices,
