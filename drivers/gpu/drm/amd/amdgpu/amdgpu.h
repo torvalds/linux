@@ -986,8 +986,6 @@ struct amdgpu_device {
 	uint64_t			unique_id;
 	uint64_t	df_perfmon_config_assign_mask[AMDGPU_MAX_DF_PERFMONS];
 
-	/* device pstate */
-	int				pstate;
 	/* enable runtime pm on the device */
 	bool                            runpm;
 	bool                            in_runpm;

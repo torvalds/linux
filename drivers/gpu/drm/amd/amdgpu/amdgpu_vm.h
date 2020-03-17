@@ -349,10 +349,6 @@ struct amdgpu_vm_manager {
 	 */
 	struct idr				pasid_idr;
 	spinlock_t				pasid_lock;
-
-	/* counter of mapped memory through xgmi */
-	uint32_t				xgmi_map_counter;
-	struct mutex				lock_pstate;
 };
 
 #define amdgpu_vm_copy_pte(adev, ib, pe, src, count) ((adev)->vm_manager.vm_pte_funcs->copy_pte((ib), (pe), (src), (count)))

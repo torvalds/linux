@@ -25,6 +25,7 @@
 #include <drm/task_barrier.h>
 #include "amdgpu_psp.h"
 
+
 struct amdgpu_hive_info {
 	uint64_t		hive_id;
 	struct list_head	device_list;
@@ -33,8 +34,14 @@ struct amdgpu_hive_info {
 	struct kobject *kobj;
 	struct device_attribute dev_attr;
 	struct amdgpu_device *adev;
-	int pstate; /*0 -- low , 1 -- high , -1 unknown*/
+	int hi_req_count;
+	struct amdgpu_device *hi_req_gpu;
 	struct task_barrier tb;
+	enum {
+		AMDGPU_XGMI_PSTATE_MIN,
+		AMDGPU_XGMI_PSTATE_MAX_VEGA20,
+		AMDGPU_XGMI_PSTATE_UNKNOWN
+	} pstate;
 };
 
 struct amdgpu_pcs_ras_field {

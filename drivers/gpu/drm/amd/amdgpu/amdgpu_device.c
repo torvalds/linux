@@ -2248,7 +2248,8 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 				if (gpu_instance->adev->flags & AMD_IS_APU)
 					continue;
 
-				r = amdgpu_xgmi_set_pstate(gpu_instance->adev, 0);
+				r = amdgpu_xgmi_set_pstate(gpu_instance->adev,
+						AMDGPU_XGMI_PSTATE_MIN);
 				if (r) {
 					DRM_ERROR("pstate setting failed (%d).\n", r);
 					break;
