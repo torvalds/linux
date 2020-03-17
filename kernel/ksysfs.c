@@ -268,4 +268,8 @@ exit:
 	return error;
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+pure_initcall(ksysfs_init);
+#else
 core_initcall(ksysfs_init);
+#endif
