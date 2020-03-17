@@ -5,6 +5,9 @@
 #ifndef __SDW_CADENCE_H
 #define __SDW_CADENCE_H
 
+#define SDW_CADENCE_GSYNC_KHZ		4 /* 4 kHz */
+#define SDW_CADENCE_GSYNC_HZ		(SDW_CADENCE_GSYNC_KHZ * 1000)
+
 /**
  * struct sdw_cdns_pdi: PDI (Physical Data Interface) instance
  *
