@@ -36,7 +36,8 @@ static void mobiveil_pcie_sel_page(struct mobiveil_pcie *pcie, u8 pg_idx)
 	writel(val, pcie->csr_axi_slave_base + PAB_CTRL);
 }
 
-static void *mobiveil_pcie_comp_addr(struct mobiveil_pcie *pcie, u32 off)
+static void __iomem *mobiveil_pcie_comp_addr(struct mobiveil_pcie *pcie,
+					     u32 off)
 {
 	if (off < PAGED_ADDR_BNDRY) {
 		/* For directly accessed registers, clear the pg_sel field */
@@ -97,7 +98,7 @@ static int mobiveil_pcie_write(void __iomem *addr, int size, u32 val)
 
 u32 mobiveil_csr_read(struct mobiveil_pcie *pcie, u32 off, size_t size)
 {
-	void *addr;
+	void __iomem *addr;
 	u32 val;
 	int ret;
 
@@ -113,7 +114,7 @@ u32 mobiveil_csr_read(struct mobiveil_pcie *pcie, u32 off, size_t size)
 void mobiveil_csr_write(struct mobiveil_pcie *pcie, u32 val, u32 off,
 			       size_t size)
 {
-	void *addr;
+	void __iomem *addr;
 	int ret;
 
 	addr = mobiveil_pcie_comp_addr(pcie, off);
