@@ -158,7 +158,7 @@ struct devfreq_stats {
  * functions except for the context of callbacks defined in struct
  * devfreq_governor, the governor should protect its access with the
  * struct mutex lock in struct devfreq. A governor may use this mutex
- * to protect its own private data in void *data as well.
+ * to protect its own private data in ``void *data`` as well.
  */
 struct devfreq {
 	struct list_head node;
@@ -256,7 +256,7 @@ struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev, int index);
 
 #if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 /**
- * struct devfreq_simple_ondemand_data - void *data fed to struct devfreq
+ * struct devfreq_simple_ondemand_data - ``void *data`` fed to struct devfreq
  *	and devfreq_add_device
  * @upthreshold:	If the load is over this value, the frequency jumps.
  *			Specify 0 to use the default. Valid value = 0 to 100.
@@ -276,7 +276,7 @@ struct devfreq_simple_ondemand_data {
 
 #if IS_ENABLED(CONFIG_DEVFREQ_GOV_PASSIVE)
 /**
- * struct devfreq_passive_data - void *data fed to struct devfreq
+ * struct devfreq_passive_data - ``void *data`` fed to struct devfreq
  *	and devfreq_add_device
  * @parent:	the devfreq instance of parent device.
  * @get_target_freq:	Optional callback, Returns desired operating frequency
