@@ -510,6 +510,7 @@ struct ring_buffer_iter {
 	u64				read_stamp;
 	u64				page_stamp;
 	struct ring_buffer_event	*event;
+	int				missed_events;
 };
 
 /**
@@ -1988,6 +1989,7 @@ rb_iter_head_event(struct ring_buffer_iter *iter)
 	iter->page_stamp = iter->read_stamp = iter->head_page->page->time_stamp;
 	iter->head = 0;
 	iter->next_event = 0;
+	iter->missed_events = 1;
 	return NULL;
 }
 
@@ -4190,6 +4192,20 @@ ring_buffer_peek(struct trace_buffer *buffer, int cpu, u64 *ts,
 
 	return event;
 }
+
+/** ring_buffer_iter_dropped - report if there are dropped events
+ * @iter: The ring buffer iterator
+ *
+ * Returns true if there was dropped events since the last peek.
+ */
+bool ring_buffer_iter_dropped(struct ring_buffer_iter *iter)
+{
+	bool ret = iter->missed_events != 0;
+
+	iter->missed_events = 0;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_iter_dropped);
 
 /**
  * ring_buffer_iter_peek - peek at the next event to be read

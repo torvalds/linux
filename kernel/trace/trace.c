@@ -3388,11 +3388,15 @@ peek_next_entry(struct trace_iterator *iter, int cpu, u64 *ts,
 	struct ring_buffer_event *event;
 	struct ring_buffer_iter *buf_iter = trace_buffer_iter(iter, cpu);
 
-	if (buf_iter)
+	if (buf_iter) {
 		event = ring_buffer_iter_peek(buf_iter, ts);
-	else
+		if (lost_events)
+			*lost_events = ring_buffer_iter_dropped(buf_iter) ?
+				(unsigned long)-1 : 0;
+	} else {
 		event = ring_buffer_peek(iter->array_buffer->buffer, cpu, ts,
 					 lost_events);
+	}
 
 	if (event) {
 		iter->ent_size = ring_buffer_event_length(event);
@@ -4005,8 +4009,12 @@ enum print_line_t print_trace_line(struct trace_iterator *iter)
 	enum print_line_t ret;
 
 	if (iter->lost_events) {
-		trace_seq_printf(&iter->seq, "CPU:%d [LOST %lu EVENTS]\n",
-				 iter->cpu, iter->lost_events);
+		if (iter->lost_events == (unsigned long)-1)
+			trace_seq_printf(&iter->seq, "CPU:%d [LOST EVENTS]\n",
+					 iter->cpu);
+		else
+			trace_seq_printf(&iter->seq, "CPU:%d [LOST %lu EVENTS]\n",
+					 iter->cpu, iter->lost_events);
 		if (trace_seq_has_overflowed(&iter->seq))
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
