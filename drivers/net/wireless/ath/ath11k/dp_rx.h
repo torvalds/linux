@@ -9,6 +9,8 @@
 #include "rx_desc.h"
 #include "debug.h"
 
+#define DP_MAX_NWIFI_HDR_LEN	30
+
 #define DP_RX_MPDU_ERR_FCS			BIT(0)
 #define DP_RX_MPDU_ERR_DECRYPT			BIT(1)
 #define DP_RX_MPDU_ERR_TKIP_MIC			BIT(2)
@@ -67,7 +69,7 @@ int ath11k_dp_rx_process_wbm_err(struct ath11k_base *ab,
 int ath11k_dp_process_rx_err(struct ath11k_base *ab, struct napi_struct *napi,
 			     int budget);
 int ath11k_dp_process_rx(struct ath11k_base *ab, int mac_id,
-			 struct napi_struct *napi, struct sk_buff_head *pending_q,
+			 struct napi_struct *napi,
 			 int budget);
 int ath11k_dp_rxbufs_replenish(struct ath11k_base *ab, int mac_id,
 			       struct dp_rxdma_ring *rx_ring,

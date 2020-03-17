@@ -24,6 +24,8 @@ struct ath11k_peer {
 	struct crypto_shash *tfm_mmic;
 	u8 mcast_keyidx;
 	u8 ucast_keyidx;
+	u16 sec_type;
+	u16 sec_type_grp;
 };
 
 void ath11k_peer_unmap_event(struct ath11k_base *ab, u16 peer_id);

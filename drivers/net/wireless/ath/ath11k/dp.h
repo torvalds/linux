@@ -140,7 +140,6 @@ struct ath11k_pdev_dp {
 	u32 mac_id;
 	atomic_t num_tx_pending;
 	wait_queue_head_t tx_empty_waitq;
-	struct dp_srng reo_dst_ring;
 	struct dp_rxdma_ring rx_refill_buf_ring;
 	struct dp_srng rxdma_err_dst_ring;
 	struct dp_srng rxdma_mon_dst_ring;
@@ -218,6 +217,7 @@ struct ath11k_dp {
 	struct dp_srng reo_except_ring;
 	struct dp_srng reo_cmd_ring;
 	struct dp_srng reo_status_ring;
+	struct dp_srng reo_dst_ring[DP_REO_DST_RING_MAX];
 	struct dp_tx_ring tx_ring[DP_TCL_NUM_RING_MAX];
 	struct hal_wbm_idle_scatter_list scatter_list[DP_IDLE_SCATTER_BUFS_MAX];
 	struct list_head reo_cmd_list;

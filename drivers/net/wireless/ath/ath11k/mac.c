@@ -2418,10 +2418,13 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	peer = ath11k_peer_find(ab, arvif->vdev_id, peer_addr);
 	if (peer && cmd == SET_KEY) {
 		peer->keys[key->keyidx] = key;
-		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
 			peer->ucast_keyidx = key->keyidx;
-		else
+			peer->sec_type = ath11k_dp_tx_get_encrypt_type(key->cipher);
+		} else {
 			peer->mcast_keyidx = key->keyidx;
+			peer->sec_type_grp = ath11k_dp_tx_get_encrypt_type(key->cipher);
+		}
 	} else if (peer && cmd == DISABLE_KEY) {
 		peer->keys[key->keyidx] = NULL;
 		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
@@ -2451,6 +2454,7 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			break;
 		}
 	}
+
 	spin_unlock_bh(&ab->base_lock);
 
 exit:
