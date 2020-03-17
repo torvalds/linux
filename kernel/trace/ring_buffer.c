@@ -4012,6 +4012,7 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
 	int nr_loops = 0;
+	bool failed = false;
 
 	if (ts)
 		*ts = 0;
@@ -4038,10 +4039,14 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	 * to a data event, we should never loop more than three times.
 	 * Once for going to next page, once on time extend, and
 	 * finally once to get the event.
-	 * (We never hit the following condition more than thrice).
+	 * We should never hit the following condition more than thrice,
+	 * unless the buffer is very small, and there's a writer
+	 * that is causing the reader to fail getting an event.
 	 */
-	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 3))
+	if (++nr_loops > 3) {
+		RB_WARN_ON(cpu_buffer, !failed);
 		return NULL;
+	}
 
 	if (rb_per_cpu_empty(cpu_buffer))
 		return NULL;
@@ -4052,8 +4057,10 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	}
 
 	event = rb_iter_head_event(iter);
-	if (!event)
+	if (!event) {
+		failed = true;
 		goto again;
+	}
 
 	switch (event->type_len) {
 	case RINGBUF_TYPE_PADDING:
