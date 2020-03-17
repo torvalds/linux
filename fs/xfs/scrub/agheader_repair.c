@@ -482,8 +482,6 @@ xrep_agfl_collect_blocks(
 	struct xrep_agfl	ra;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_btree_cur	*cur;
-	struct xbitmap_range	*br;
-	struct xbitmap_range	*n;
 	int			error;
 
 	ra.sc = sc;
@@ -527,14 +525,8 @@ xrep_agfl_collect_blocks(
 	 * Calculate the new AGFL size.  If we found more blocks than fit in
 	 * the AGFL we'll free them later.
 	 */
-	*flcount = 0;
-	for_each_xbitmap_extent(br, n, agfl_extents) {
-		*flcount += br->len;
-		if (*flcount > xfs_agfl_size(mp))
-			break;
-	}
-	if (*flcount > xfs_agfl_size(mp))
-		*flcount = xfs_agfl_size(mp);
+	*flcount = min_t(uint64_t, xbitmap_hweight(agfl_extents),
+			 xfs_agfl_size(mp));
 	return 0;
 
 err:

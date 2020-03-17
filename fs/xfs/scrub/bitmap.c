@@ -297,3 +297,18 @@ xbitmap_set_btblocks(
 	return xfs_btree_visit_blocks(cur, xbitmap_collect_btblock,
 			XFS_BTREE_VISIT_ALL, bitmap);
 }
+
+/* How many bits are set in this bitmap? */
+uint64_t
+xbitmap_hweight(
+	struct xbitmap		*bitmap)
+{
+	struct xbitmap_range	*bmr;
+	struct xbitmap_range	*n;
+	uint64_t		ret = 0;
+
+	for_each_xbitmap_extent(bmr, n, bitmap)
+		ret += bmr->len;
+
+	return ret;
+}

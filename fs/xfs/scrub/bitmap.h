@@ -32,5 +32,6 @@ int xbitmap_set_btcur_path(struct xbitmap *bitmap,
 		struct xfs_btree_cur *cur);
 int xbitmap_set_btblocks(struct xbitmap *bitmap,
 		struct xfs_btree_cur *cur);
+uint64_t xbitmap_hweight(struct xbitmap *bitmap);
 
 #endif	/* __XFS_SCRUB_BITMAP_H__ */
