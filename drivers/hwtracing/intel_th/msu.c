@@ -157,7 +157,8 @@ struct msc {
 	/* config */
 	unsigned int		enabled : 1,
 				wrap	: 1,
-				do_irq	: 1;
+				do_irq	: 1,
+				multi_is_broken : 1;
 	unsigned int		mode;
 	unsigned int		burst_len;
 	unsigned int		index;
@@ -1664,7 +1665,7 @@ static int intel_th_msc_init(struct msc *msc)
 {
 	atomic_set(&msc->user_count, -1);
 
-	msc->mode = MSC_MODE_MULTI;
+	msc->mode = msc->multi_is_broken ? MSC_MODE_SINGLE : MSC_MODE_MULTI;
 	mutex_init(&msc->buf_mutex);
 	INIT_LIST_HEAD(&msc->win_list);
 	INIT_LIST_HEAD(&msc->iter_list);
@@ -1876,6 +1877,9 @@ mode_store(struct device *dev, struct device_attribute *attr, const char *buf,
 	return -EINVAL;
 
 found:
+	if (i == MSC_MODE_MULTI && msc->multi_is_broken)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&msc->buf_mutex);
 	ret = 0;
 
@@ -2081,6 +2085,9 @@ static int intel_th_msc_probe(struct intel_th_device *thdev)
 	res = intel_th_device_get_resource(thdev, IORESOURCE_IRQ, 1);
 	if (!res)
 		msc->do_irq = 1;
+
+	if (INTEL_TH_CAP(to_intel_th(thdev), multi_is_broken))
+		msc->multi_is_broken = 1;
 
 	msc->index = thdev->id;
 
