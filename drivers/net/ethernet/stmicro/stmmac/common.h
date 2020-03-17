@@ -426,6 +426,12 @@ struct mac_link {
 		u32 speed5000;
 		u32 speed10000;
 	} xgmii;
+	struct {
+		u32 speed25000;
+		u32 speed40000;
+		u32 speed50000;
+		u32 speed100000;
+	} xlgmii;
 };
 
 struct mii_regs {

@@ -849,6 +849,38 @@ static void stmmac_validate(struct phylink_config *config,
 			phylink_set(mac_supported, 10000baseKX4_Full);
 			phylink_set(mac_supported, 10000baseKR_Full);
 		}
+		if (!max_speed || (max_speed >= 25000)) {
+			phylink_set(mac_supported, 25000baseCR_Full);
+			phylink_set(mac_supported, 25000baseKR_Full);
+			phylink_set(mac_supported, 25000baseSR_Full);
+		}
+		if (!max_speed || (max_speed >= 40000)) {
+			phylink_set(mac_supported, 40000baseKR4_Full);
+			phylink_set(mac_supported, 40000baseCR4_Full);
+			phylink_set(mac_supported, 40000baseSR4_Full);
+			phylink_set(mac_supported, 40000baseLR4_Full);
+		}
+		if (!max_speed || (max_speed >= 50000)) {
+			phylink_set(mac_supported, 50000baseCR2_Full);
+			phylink_set(mac_supported, 50000baseKR2_Full);
+			phylink_set(mac_supported, 50000baseSR2_Full);
+			phylink_set(mac_supported, 50000baseKR_Full);
+			phylink_set(mac_supported, 50000baseSR_Full);
+			phylink_set(mac_supported, 50000baseCR_Full);
+			phylink_set(mac_supported, 50000baseLR_ER_FR_Full);
+			phylink_set(mac_supported, 50000baseDR_Full);
+		}
+		if (!max_speed || (max_speed >= 100000)) {
+			phylink_set(mac_supported, 100000baseKR4_Full);
+			phylink_set(mac_supported, 100000baseSR4_Full);
+			phylink_set(mac_supported, 100000baseCR4_Full);
+			phylink_set(mac_supported, 100000baseLR4_ER4_Full);
+			phylink_set(mac_supported, 100000baseKR2_Full);
+			phylink_set(mac_supported, 100000baseSR2_Full);
+			phylink_set(mac_supported, 100000baseCR2_Full);
+			phylink_set(mac_supported, 100000baseLR2_ER2_FR2_Full);
+			phylink_set(mac_supported, 100000baseDR2_Full);
+		}
 	}
 
 	/* Half-Duplex can only work with single queue */
@@ -925,6 +957,32 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 			break;
 		case SPEED_2500:
 			ctrl |= priv->hw->link.xgmii.speed2500;
+			break;
+		default:
+			return;
+		}
+	} else if (interface == PHY_INTERFACE_MODE_XLGMII) {
+		switch (speed) {
+		case SPEED_100000:
+			ctrl |= priv->hw->link.xlgmii.speed100000;
+			break;
+		case SPEED_50000:
+			ctrl |= priv->hw->link.xlgmii.speed50000;
+			break;
+		case SPEED_40000:
+			ctrl |= priv->hw->link.xlgmii.speed40000;
+			break;
+		case SPEED_25000:
+			ctrl |= priv->hw->link.xlgmii.speed25000;
+			break;
+		case SPEED_10000:
+			ctrl |= priv->hw->link.xgmii.speed10000;
+			break;
+		case SPEED_2500:
+			ctrl |= priv->hw->link.speed2500;
+			break;
+		case SPEED_1000:
+			ctrl |= priv->hw->link.speed1000;
 			break;
 		default:
 			return;
