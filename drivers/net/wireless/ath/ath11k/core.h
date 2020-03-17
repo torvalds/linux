@@ -110,6 +110,7 @@ struct ath11k_ext_irq_grp {
 	u32 irqs[ATH11K_EXT_IRQ_NUM_MAX];
 	u32 num_irq;
 	u32 grp_id;
+	u64 timestamp;
 	struct napi_struct napi;
 	struct net_device napi_ndev;
 	/* Queue of pending packets, not expected to be accessed concurrently

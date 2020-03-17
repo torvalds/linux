@@ -681,6 +681,9 @@ static irqreturn_t ath11k_ahb_ce_interrupt_handler(int irq, void *arg)
 {
 	struct ath11k_ce_pipe *ce_pipe = arg;
 
+	/* last interrupt received for this CE */
+	ce_pipe->timestamp = jiffies;
+
 	ath11k_ahb_ce_irq_disable(ce_pipe->ab, ce_pipe->pipe_num);
 
 	tasklet_schedule(&ce_pipe->intr_tq);
@@ -711,6 +714,9 @@ static int ath11k_ahb_ext_grp_napi_poll(struct napi_struct *napi, int budget)
 static irqreturn_t ath11k_ahb_ext_interrupt_handler(int irq, void *arg)
 {
 	struct ath11k_ext_irq_grp *irq_grp = arg;
+
+	/* last interrupt received for this group */
+	irq_grp->timestamp = jiffies;
 
 	ath11k_ahb_ext_grp_disable(irq_grp);
 

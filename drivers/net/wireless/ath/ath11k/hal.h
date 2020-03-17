@@ -529,6 +529,8 @@ struct hal_srng {
 	 */
 	u32 hwreg_base[HAL_SRNG_NUM_REG_GRP];
 
+	u64 timestamp;
+
 	/* Source or Destination ring */
 	enum hal_srng_dir ring_dir;
 
@@ -554,6 +556,9 @@ struct hal_srng {
 
 			/* max transfer size */
 			u16 max_buffer_length;
+
+			/* head pointer at access end */
+			u32 last_hp;
 		} dst_ring;
 
 		struct {
@@ -577,6 +582,9 @@ struct hal_srng {
 
 			/* Low threshold - in number of ring entries */
 			u32 low_threshold;
+
+			/* tail pointer at access end */
+			u32 last_tp;
 		} src_ring;
 	} u;
 };
@@ -893,5 +901,6 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 			  struct hal_srng_params *params);
 int ath11k_hal_srng_init(struct ath11k_base *ath11k);
 void ath11k_hal_srng_deinit(struct ath11k_base *ath11k);
+void ath11k_hal_dump_srng_stats(struct ath11k_base *ab);
 
 #endif
