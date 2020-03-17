@@ -3527,7 +3527,7 @@ static void vmcs12_save_pending_event(struct kvm_vcpu *vcpu,
 }
 
 
-static void nested_mark_vmcs12_pages_dirty(struct kvm_vcpu *vcpu)
+void nested_mark_vmcs12_pages_dirty(struct kvm_vcpu *vcpu)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	gfn_t gfn;
@@ -5543,8 +5543,7 @@ bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 
-	if (vmx->nested.nested_run_pending)
-		return false;
+	WARN_ON_ONCE(vmx->nested.nested_run_pending);
 
 	if (unlikely(vmx->fail)) {
 		trace_kvm_nested_vmenter_failed(
@@ -5552,19 +5551,6 @@ bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 			vmcs_read32(VM_INSTRUCTION_ERROR));
 		return true;
 	}
-
-	/*
-	 * The host physical addresses of some pages of guest memory
-	 * are loaded into the vmcs02 (e.g. vmcs12's Virtual APIC
-	 * Page). The CPU may write to these pages via their host
-	 * physical address while L2 is running, bypassing any
-	 * address-translation-based dirty tracking (e.g. EPT write
-	 * protection).
-	 *
-	 * Mark them dirty on every exit from L2 to prevent them from
-	 * getting out of sync with dirty tracking.
-	 */
-	nested_mark_vmcs12_pages_dirty(vcpu);
 
 	trace_kvm_nested_vmexit(kvm_rip_read(vcpu), exit_reason,
 				vmcs_readl(EXIT_QUALIFICATION),

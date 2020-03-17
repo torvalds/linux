@@ -5851,8 +5851,23 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu,
 	if (vmx->emulation_required)
 		return handle_invalid_guest_state(vcpu);
 
-	if (is_guest_mode(vcpu) && nested_vmx_exit_reflected(vcpu, exit_reason))
-		return nested_vmx_reflect_vmexit(vcpu, exit_reason);
+	if (is_guest_mode(vcpu)) {
+		/*
+		 * The host physical addresses of some pages of guest memory
+		 * are loaded into the vmcs02 (e.g. vmcs12's Virtual APIC
+		 * Page). The CPU may write to these pages via their host
+		 * physical address while L2 is running, bypassing any
+		 * address-translation-based dirty tracking (e.g. EPT write
+		 * protection).
+		 *
+		 * Mark them dirty on every exit from L2 to prevent them from
+		 * getting out of sync with dirty tracking.
+		 */
+		nested_mark_vmcs12_pages_dirty(vcpu);
+
+		if (nested_vmx_exit_reflected(vcpu, exit_reason))
+			return nested_vmx_reflect_vmexit(vcpu, exit_reason);
+	}
 
 	if (exit_reason & VMX_EXIT_REASONS_FAILED_VMENTRY) {
 		dump_vmcs();
