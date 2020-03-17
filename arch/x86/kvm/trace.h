@@ -151,12 +151,14 @@ TRACE_EVENT(kvm_fast_mmio,
  * Tracepoint for cpuid.
  */
 TRACE_EVENT(kvm_cpuid,
-	TP_PROTO(unsigned int function, unsigned long rax, unsigned long rbx,
-		 unsigned long rcx, unsigned long rdx, bool found),
-	TP_ARGS(function, rax, rbx, rcx, rdx, found),
+	TP_PROTO(unsigned int function, unsigned int index, unsigned long rax,
+		 unsigned long rbx, unsigned long rcx, unsigned long rdx,
+		 bool found),
+	TP_ARGS(function, index, rax, rbx, rcx, rdx, found),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	function	)
+		__field(	unsigned int,	index		)
 		__field(	unsigned long,	rax		)
 		__field(	unsigned long,	rbx		)
 		__field(	unsigned long,	rcx		)
@@ -166,6 +168,7 @@ TRACE_EVENT(kvm_cpuid,
 
 	TP_fast_assign(
 		__entry->function	= function;
+		__entry->index		= index;
 		__entry->rax		= rax;
 		__entry->rbx		= rbx;
 		__entry->rcx		= rcx;
@@ -173,8 +176,8 @@ TRACE_EVENT(kvm_cpuid,
 		__entry->found		= found;
 	),
 
-	TP_printk("func %x rax %lx rbx %lx rcx %lx rdx %lx, cpuid entry %s",
-		  __entry->function, __entry->rax,
+	TP_printk("func %x idx %x rax %lx rbx %lx rcx %lx rdx %lx, cpuid entry %s",
+		  __entry->function, __entry->index, __entry->rax,
 		  __entry->rbx, __entry->rcx, __entry->rdx,
 		  __entry->found ? "found" : "not found")
 );

@@ -1026,7 +1026,7 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 			}
 		}
 	}
-	trace_kvm_cpuid(orig_function, *eax, *ebx, *ecx, *edx, exact);
+	trace_kvm_cpuid(orig_function, index, *eax, *ebx, *ecx, *edx, exact);
 	return exact;
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
