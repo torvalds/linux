@@ -955,6 +955,10 @@ static int __init param_sysfs_init(void)
 
 	return 0;
 }
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+arch_initcall_sync(param_sysfs_init);
+#else
 subsys_initcall(param_sysfs_init);
+#endif
 
 #endif /* CONFIG_SYSFS */
