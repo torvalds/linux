@@ -1503,6 +1503,7 @@ void sdw_cdns_config_stream(struct sdw_cdns *cdns,
 	cdns_updatel(cdns, offset, CDNS_PORTCTRL_DIRN, val);
 
 	val = pdi->num;
+	val |= CDNS_PDI_CONFIG_SOFT_RESET;
 	val |= ((1 << ch) - 1) << SDW_REG_SHIFT(CDNS_PDI_CONFIG_CHANNEL);
 	cdns_writel(cdns, CDNS_PDI_CONFIG(pdi->num), val);
 }
