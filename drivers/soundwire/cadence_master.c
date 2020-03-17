@@ -1097,20 +1097,22 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 	/* Configure mcp config */
 	val = cdns_readl(cdns, CDNS_MCP_CONFIG);
 
-	/* Set Max cmd retry to 15 */
-	val |= CDNS_MCP_CONFIG_MCMD_RETRY;
-
-	/* Set frame delay between PREQ and ping frame to 15 frames */
-	val |= 0xF << SDW_REG_SHIFT(CDNS_MCP_CONFIG_MPREQ_DELAY);
-
-	/* Disable auto bus release */
-	val &= ~CDNS_MCP_CONFIG_BUS_REL;
+	/* Set cmd mode for Tx and Rx cmds */
+	val &= ~CDNS_MCP_CONFIG_CMD;
 
 	/* Disable sniffer mode */
 	val &= ~CDNS_MCP_CONFIG_SNIFFER;
 
-	/* Set cmd mode for Tx and Rx cmds */
-	val &= ~CDNS_MCP_CONFIG_CMD;
+	/* Disable auto bus release */
+	val &= ~CDNS_MCP_CONFIG_BUS_REL;
+
+	/* Multi-master support to be added here */
+
+	/* Set frame delay between PREQ and ping frame to 15 frames */
+	val |= 0xF << SDW_REG_SHIFT(CDNS_MCP_CONFIG_MPREQ_DELAY);
+
+	/* Set Max cmd retry to 15 */
+	val |= CDNS_MCP_CONFIG_MCMD_RETRY;
 
 	cdns_writel(cdns, CDNS_MCP_CONFIG, val);
 
