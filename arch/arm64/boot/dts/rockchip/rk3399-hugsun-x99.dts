@@ -36,6 +36,19 @@
 		pinctrl-0 = <&ir_rx>;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&power_led_gpio>;
+
+		led-0 {
+			label = "blue:power";
+			gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			linux,default-trigger = "default-on";
+		};
+	};
+
 	vcc_sys: vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -496,6 +509,12 @@
 		};
 	};
 
+	leds {
+		power_led_gpio: power-led-gpio {
+			rockchip,pins = <4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins =
@@ -550,10 +569,6 @@
 				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
-};
-
-&pwm0 {
-	status = "okay";
 };
 
 &pwm2 {
