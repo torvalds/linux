@@ -243,23 +243,6 @@ i915-y += \
 	display/vlv_dsi.o \
 	display/vlv_dsi_pll.o
 
-# perf code
-i915-y += \
-	oa/i915_oa_hsw.o \
-	oa/i915_oa_bdw.o \
-	oa/i915_oa_chv.o \
-	oa/i915_oa_sklgt2.o \
-	oa/i915_oa_sklgt3.o \
-	oa/i915_oa_sklgt4.o \
-	oa/i915_oa_bxt.o \
-	oa/i915_oa_kblgt2.o \
-	oa/i915_oa_kblgt3.o \
-	oa/i915_oa_glk.o \
-	oa/i915_oa_cflgt2.o \
-	oa/i915_oa_cflgt3.o \
-	oa/i915_oa_cnl.o \
-	oa/i915_oa_icl.o \
-	oa/i915_oa_tgl.o
 i915-y += i915_perf.o
 
 # Post-mortem debug and GPU hang state capture

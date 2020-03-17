@@ -413,8 +413,6 @@ struct i915_perf {
 	 */
 	struct ratelimit_state spurious_report_rs;
 
-	struct i915_oa_config test_config;
-
 	u32 gen7_latched_oastatus1;
 	u32 ctx_oactxctrl_offset;
 	u32 ctx_flexeu0_offset;

@@ -204,21 +204,6 @@
 
 #include "i915_drv.h"
 #include "i915_perf.h"
-#include "oa/i915_oa_hsw.h"
-#include "oa/i915_oa_bdw.h"
-#include "oa/i915_oa_chv.h"
-#include "oa/i915_oa_sklgt2.h"
-#include "oa/i915_oa_sklgt3.h"
-#include "oa/i915_oa_sklgt4.h"
-#include "oa/i915_oa_bxt.h"
-#include "oa/i915_oa_kblgt2.h"
-#include "oa/i915_oa_kblgt3.h"
-#include "oa/i915_oa_glk.h"
-#include "oa/i915_oa_cflgt2.h"
-#include "oa/i915_oa_cflgt3.h"
-#include "oa/i915_oa_cnl.h"
-#include "oa/i915_oa_icl.h"
-#include "oa/i915_oa_tgl.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -409,10 +394,7 @@ i915_perf_get_oa_config(struct i915_perf *perf, int metrics_set)
 	struct i915_oa_config *oa_config;
 
 	rcu_read_lock();
-	if (metrics_set == 1)
-		oa_config = &perf->test_config;
-	else
-		oa_config = idr_find(&perf->metrics_idr, metrics_set);
+	oa_config = idr_find(&perf->metrics_idr, metrics_set);
 	if (oa_config)
 		oa_config = i915_oa_config_get(oa_config);
 	rcu_read_unlock();
@@ -3716,7 +3698,6 @@ int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 void i915_perf_register(struct drm_i915_private *i915)
 {
 	struct i915_perf *perf = &i915->perf;
-	int ret;
 
 	if (!perf->i915)
 		return;
@@ -3730,64 +3711,7 @@ void i915_perf_register(struct drm_i915_private *i915)
 	perf->metrics_kobj =
 		kobject_create_and_add("metrics",
 				       &i915->drm.primary->kdev->kobj);
-	if (!perf->metrics_kobj)
-		goto exit;
 
-	sysfs_attr_init(&perf->test_config.sysfs_metric_id.attr);
-
-	if (IS_TIGERLAKE(i915)) {
-		i915_perf_load_test_config_tgl(i915);
-	} else if (INTEL_GEN(i915) >= 11) {
-		i915_perf_load_test_config_icl(i915);
-	} else if (IS_CANNONLAKE(i915)) {
-		i915_perf_load_test_config_cnl(i915);
-	} else if (IS_COFFEELAKE(i915)) {
-		if (IS_CFL_GT2(i915))
-			i915_perf_load_test_config_cflgt2(i915);
-		if (IS_CFL_GT3(i915))
-			i915_perf_load_test_config_cflgt3(i915);
-	} else if (IS_GEMINILAKE(i915)) {
-		i915_perf_load_test_config_glk(i915);
-	} else if (IS_KABYLAKE(i915)) {
-		if (IS_KBL_GT2(i915))
-			i915_perf_load_test_config_kblgt2(i915);
-		else if (IS_KBL_GT3(i915))
-			i915_perf_load_test_config_kblgt3(i915);
-	} else if (IS_BROXTON(i915)) {
-		i915_perf_load_test_config_bxt(i915);
-	} else if (IS_SKYLAKE(i915)) {
-		if (IS_SKL_GT2(i915))
-			i915_perf_load_test_config_sklgt2(i915);
-		else if (IS_SKL_GT3(i915))
-			i915_perf_load_test_config_sklgt3(i915);
-		else if (IS_SKL_GT4(i915))
-			i915_perf_load_test_config_sklgt4(i915);
-	} else if (IS_CHERRYVIEW(i915)) {
-		i915_perf_load_test_config_chv(i915);
-	} else if (IS_BROADWELL(i915)) {
-		i915_perf_load_test_config_bdw(i915);
-	} else if (IS_HASWELL(i915)) {
-		i915_perf_load_test_config_hsw(i915);
-	}
-
-	if (perf->test_config.id == 0)
-		goto sysfs_error;
-
-	ret = sysfs_create_group(perf->metrics_kobj,
-				 &perf->test_config.sysfs_metric);
-	if (ret)
-		goto sysfs_error;
-
-	perf->test_config.perf = perf;
-	kref_init(&perf->test_config.ref);
-
-	goto exit;
-
-sysfs_error:
-	kobject_put(perf->metrics_kobj);
-	perf->metrics_kobj = NULL;
-
-exit:
 	mutex_unlock(&perf->lock);
 }
 
@@ -3806,9 +3730,6 @@ void i915_perf_unregister(struct drm_i915_private *i915)
 
 	if (!perf->metrics_kobj)
 		return;
-
-	sysfs_remove_group(perf->metrics_kobj,
-			   &perf->test_config.sysfs_metric);
 
 	kobject_put(perf->metrics_kobj);
 	perf->metrics_kobj = NULL;
