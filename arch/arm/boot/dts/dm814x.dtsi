@@ -4,6 +4,8 @@
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/bus/ti-sysc.h>
+#include <dt-bindings/clock/dm814.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/dm814x.h>
 
@@ -574,57 +576,73 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x4a000000 0x1b4040>;
-		};
 
-		/* REVISIT: Move to live under l4hs once driver is fixed */
-		mac: ethernet@4a100000 {
-			compatible = "ti,cpsw";
-			ti,hwmods = "cpgmac0";
-			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
-			clock-names = "fck", "cpts";
-			cpdma_channels = <8>;
-			ale_entries = <1024>;
-			bd_ram_size = <0x2000>;
-			mac_control = <0x20>;
-			slaves = <2>;
-			active_slave = <0>;
-			cpts_clock_mult = <0x80000000>;
-			cpts_clock_shift = <29>;
-			reg = <0x4a100000 0x800
-			       0x4a100900 0x100>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			interrupt-parent = <&intc>;
-			/*
-			 * c0_rx_thresh_pend
-			 * c0_rx_pend
-			 * c0_tx_pend
-			 * c0_misc_pend
-			 */
-			interrupts = <40 41 42 43>;
-			ranges;
-			syscon = <&scm_conf>;
-
-			davinci_mdio: mdio@4a100800 {
-				compatible = "ti,davinci_mdio";
+			target-module@100000 {
+				compatible = "ti,sysc-omap4-simple", "ti,sysc";
+				reg = <0x100900 0x4>,
+				      <0x100908 0x4>,
+				      <0x100904 0x4>;
+				reg-names = "rev", "sysc", "syss";
+				ti,sysc-mask = <0>;
+				ti,sysc-midle = <SYSC_IDLE_FORCE>,
+						<SYSC_IDLE_NO>;
+				ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+						<SYSC_IDLE_NO>;
+				ti,syss-mask = <1>;
+				clocks = <&alwon_ethernet_clkctrl DM814_ETHERNET_CPGMAC0_CLKCTRL 0>;
+				clock-names = "fck";
 				#address-cells = <1>;
-				#size-cells = <0>;
-				ti,hwmods = "davinci_mdio";
-				bus_freq = <1000000>;
-				reg = <0x4a100800 0x100>;
-			};
+				#size-cells = <1>;
+				ranges = <0 0x100000 0x8000>;
 
-			cpsw_emac0: slave@4a100200 {
-				/* Filled in by U-Boot */
-				mac-address = [ 00 00 00 00 00 00 ];
-				phys = <&phy_gmii_sel 1>;
+				mac: ethernet@0 {
+					compatible = "ti,cpsw";
+					clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
+					clock-names = "fck", "cpts";
+					cpdma_channels = <8>;
+					ale_entries = <1024>;
+					bd_ram_size = <0x2000>;
+					mac_control = <0x20>;
+					slaves = <2>;
+					active_slave = <0>;
+					cpts_clock_mult = <0x80000000>;
+					cpts_clock_shift = <29>;
+					reg = <0 0x800>,
+					      <0x900 0x100>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					/*
+					* c0_rx_thresh_pend
+					* c0_rx_pend
+					* c0_tx_pend
+					* c0_misc_pend
+					*/
+					interrupts = <40 41 42 43>;
+					ranges = <0 0 0x8000>;
+					syscon = <&scm_conf>;
 
-			};
+					davinci_mdio: mdio@800 {
+						compatible = "ti,cpsw-mdio", "ti,davinci_mdio";
+						clocks = <&alwon_ethernet_clkctrl DM814_ETHERNET_CPGMAC0_CLKCTRL 0>;
+						clock-names = "fck";
+						#address-cells = <1>;
+						#size-cells = <0>;
+						bus_freq = <1000000>;
+						reg = <0x800 0x100>;
+					};
 
-			cpsw_emac1: slave@4a100300 {
-				/* Filled in by U-Boot */
-				mac-address = [ 00 00 00 00 00 00 ];
-				phys = <&phy_gmii_sel 2>;
+					cpsw_emac0: slave@200 {
+						/* Filled in by U-Boot */
+						mac-address = [ 00 00 00 00 00 00 ];
+						phys = <&phy_gmii_sel 1>;
+					};
+
+					cpsw_emac1: slave@300 {
+						/* Filled in by U-Boot */
+						mac-address = [ 00 00 00 00 00 00 ];
+						phys = <&phy_gmii_sel 2>;
+					};
+				};
 			};
 		};
 
