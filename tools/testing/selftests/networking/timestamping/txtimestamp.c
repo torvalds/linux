@@ -49,6 +49,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#define NSEC_PER_USEC	1000L
+#define USEC_PER_SEC	1000000L
+#define NSEC_PER_SEC	1000000000LL
+
 /* command line parameters */
 static int cfg_proto = SOCK_STREAM;
 static int cfg_ipproto = IPPROTO_TCP;
@@ -67,6 +71,7 @@ static bool cfg_use_cmsg;
 static bool cfg_use_pf_packet;
 static bool cfg_do_listen;
 static uint16_t dest_port = 9000;
+static bool cfg_print_nsec;
 
 static struct sockaddr_in daddr;
 static struct sockaddr_in6 daddr6;
@@ -77,9 +82,14 @@ static int saved_tskey_type = -1;
 
 static bool test_failed;
 
+static int64_t timespec_to_ns64(struct timespec *ts)
+{
+	return ts->tv_sec * NSEC_PER_SEC + ts->tv_nsec;
+}
+
 static int64_t timespec_to_us64(struct timespec *ts)
 {
-	return ts->tv_sec * 1000 * 1000 + ts->tv_nsec / 1000;
+	return ts->tv_sec * USEC_PER_SEC + ts->tv_nsec / NSEC_PER_USEC;
 }
 
 static void validate_key(int tskey, int tstype)
@@ -113,25 +123,43 @@ static void validate_timestamp(struct timespec *cur, int min_delay)
 	start64 = timespec_to_us64(&ts_usr);
 
 	if (cur64 < start64 + min_delay || cur64 > start64 + max_delay) {
-		fprintf(stderr, "ERROR: delay %lu expected between %d and %d\n",
+		fprintf(stderr, "ERROR: %lu us expected between %d and %d\n",
 				cur64 - start64, min_delay, max_delay);
 		test_failed = true;
 	}
 }
 
+static void __print_ts_delta_formatted(int64_t ts_delta)
+{
+	if (cfg_print_nsec)
+		fprintf(stderr, "%lu ns", ts_delta);
+	else
+		fprintf(stderr, "%lu us", ts_delta / NSEC_PER_USEC);
+}
+
 static void __print_timestamp(const char *name, struct timespec *cur,
 			      uint32_t key, int payload_len)
 {
+	int64_t ts_delta;
+
 	if (!(cur->tv_sec | cur->tv_nsec))
 		return;
 
-	fprintf(stderr, "  %s: %lu s %lu us (seq=%u, len=%u)",
-			name, cur->tv_sec, cur->tv_nsec / 1000,
-			key, payload_len);
+	if (cfg_print_nsec)
+		fprintf(stderr, "  %s: %lu s %lu ns (seq=%u, len=%u)",
+				name, cur->tv_sec, cur->tv_nsec,
+				key, payload_len);
+	else
+		fprintf(stderr, "  %s: %lu s %lu us (seq=%u, len=%u)",
+				name, cur->tv_sec, cur->tv_nsec / NSEC_PER_USEC,
+				key, payload_len);
 
-	if (cur != &ts_usr)
-		fprintf(stderr, "  (USR %+" PRId64 " us)",
-			timespec_to_us64(cur) - timespec_to_us64(&ts_usr));
+	if (cur != &ts_usr) {
+		ts_delta = timespec_to_ns64(cur) - timespec_to_ns64(&ts_usr);
+		fprintf(stderr, "  (USR +");
+		__print_ts_delta_formatted(ts_delta);
+		fprintf(stderr, ")");
+	}
 
 	fprintf(stderr, "\n");
 }
@@ -526,7 +554,7 @@ static void do_test(int family, unsigned int report_opt)
 
 		/* wait for all errors to be queued, else ACKs arrive OOO */
 		if (!cfg_no_delay)
-			usleep(50 * 1000);
+			usleep(50 * NSEC_PER_USEC);
 
 		__poll(fd);
 
@@ -537,7 +565,7 @@ static void do_test(int family, unsigned int report_opt)
 		error(1, errno, "close");
 
 	free(buf);
-	usleep(100 * 1000);
+	usleep(100 * NSEC_PER_USEC);
 }
 
 static void __attribute__((noreturn)) usage(const char *filepath)
@@ -555,6 +583,7 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -l N: send N bytes at a time\n"
 			"  -L    listen on hostname and port\n"
 			"  -n:   set no-payload option\n"
+			"  -N:   print timestamps and durations in nsec (instead of usec)\n"
 			"  -p N: connect to port N\n"
 			"  -P:   use PF_PACKET\n"
 			"  -r:   use raw\n"
@@ -572,7 +601,7 @@ static void parse_opt(int argc, char **argv)
 	int proto_count = 0;
 	int c;
 
-	while ((c = getopt(argc, argv, "46c:CDFhIl:Lnp:PrRuv:V:x")) != -1) {
+	while ((c = getopt(argc, argv, "46c:CDFhIl:LnNp:PrRuv:V:x")) != -1) {
 		switch (c) {
 		case '4':
 			do_ipv6 = 0;
@@ -603,6 +632,9 @@ static void parse_opt(int argc, char **argv)
 			break;
 		case 'n':
 			cfg_loop_nodata = true;
+			break;
+		case 'N':
+			cfg_print_nsec = true;
 			break;
 		case 'p':
 			dest_port = strtoul(optarg, NULL, 10);
