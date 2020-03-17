@@ -219,6 +219,9 @@ static ssize_t ath11k_dbg_sta_dump_tx_stats(struct file *file,
 	const int size = 2 * 4096;
 	char *buf;
 
+	if (!arsta->tx_stats)
+		return -ENOENT;
+
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
