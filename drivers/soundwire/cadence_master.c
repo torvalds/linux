@@ -1018,22 +1018,12 @@ static u32 cdns_set_initial_frame_shape(int n_rows, int n_cols)
  * sdw_cdns_init() - Cadence initialization
  * @cdns: Cadence instance
  */
-int sdw_cdns_init(struct sdw_cdns *cdns, bool clock_stop_exit)
+int sdw_cdns_init(struct sdw_cdns *cdns)
 {
 	struct sdw_bus *bus = &cdns->bus;
 	struct sdw_master_prop *prop = &bus->prop;
 	u32 val;
 	int divider;
-	int ret;
-
-	if (clock_stop_exit) {
-		ret = cdns_clear_bit(cdns, CDNS_MCP_CONTROL,
-				     CDNS_MCP_CONTROL_CLK_STOP_CLR);
-		if (ret < 0) {
-			dev_err(cdns->dev, "Couldn't exit from clock stop\n");
-			return ret;
-		}
-	}
 
 	/* Set clock divider */
 	divider	= (prop->mclk_freq / prop->max_clk_freq) - 1;
