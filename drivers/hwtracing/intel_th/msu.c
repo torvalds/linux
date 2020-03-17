@@ -718,9 +718,6 @@ static int msc_win_set_lockout(struct msc_window *win,
 
 	if (old != expect) {
 		ret = -EINVAL;
-		dev_warn_ratelimited(msc_dev(win->msc),
-				     "expected lockout state %d, got %d\n",
-				     expect, old);
 		goto unlock;
 	}
 
@@ -741,6 +738,10 @@ unlock:
 		/* from intel_th_msc_window_unlock(), don't warn if not locked */
 		if (expect == WIN_LOCKED && old == new)
 			return 0;
+
+		dev_warn_ratelimited(msc_dev(win->msc),
+				     "expected lockout state %d, got %d\n",
+				     expect, old);
 	}
 
 	return ret;
