@@ -111,6 +111,7 @@ int of_fdt_get_ddrhbb(int channel, int rank)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(of_fdt_get_ddrhbb);
 
 /**
  * of_fdt_get_ddrrank - Return the rank of ddr on the current device
@@ -142,6 +143,7 @@ int of_fdt_get_ddrrank(int channel)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(of_fdt_get_ddrrank);
 
 /**
  * of_fdt_get_ddrtype - Return the type of ddr (4/5) on the current device
