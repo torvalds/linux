@@ -2,8 +2,31 @@
 #include <linux/module.h>
 
 #include "mt7615.h"
+#include "regs.h"
 #include "mac.h"
 #include "../trace.h"
+
+const u32 mt7615e_reg_map[] = {
+	[MT_TOP_CFG_BASE]	= 0x01000,
+	[MT_HW_BASE]		= 0x01000,
+	[MT_PCIE_REMAP_2]	= 0x02504,
+	[MT_HIF_BASE]		= 0x04000,
+	[MT_CSR_BASE]		= 0x07000,
+	[MT_PHY_BASE]		= 0x10000,
+	[MT_CFG_BASE]		= 0x20200,
+	[MT_AGG_BASE]		= 0x20a00,
+	[MT_TMAC_BASE]		= 0x21000,
+	[MT_RMAC_BASE]		= 0x21200,
+	[MT_DMA_BASE]		= 0x21800,
+	[MT_WTBL_BASE_ON]	= 0x23000,
+	[MT_WTBL_BASE_OFF]	= 0x23400,
+	[MT_LPON_BASE]		= 0x24200,
+	[MT_MIB_BASE]		= 0x24800,
+	[MT_WTBL_BASE_ADDR]	= 0x30000,
+	[MT_PCIE_REMAP_BASE2]	= 0x80000,
+	[MT_TOP_MISC_BASE]	= 0xc0000,
+	[MT_EFUSE_ADDR_BASE]	= 0x81070000,
+};
 
 u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr)
 {
@@ -66,7 +89,8 @@ static irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base, int irq)
+int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
+		      int irq, const u32 *map)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
@@ -95,6 +119,7 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base, int irq)
 	dev = container_of(mdev, struct mt7615_dev, mt76);
 	mt76_mmio_init(&dev->mt76, mem_base);
 
+	dev->reg_map = map;
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);

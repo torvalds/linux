@@ -4,15 +4,40 @@
 #ifndef __MT7615_REGS_H
 #define __MT7615_REGS_H
 
-#define MT_HW_REV			0x1000
-#define MT_HW_CHIPID			0x1008
-#define MT_TOP_STRAP_STA		0x1010
+enum mt7615_reg_base {
+	MT_TOP_CFG_BASE,
+	MT_HW_BASE,
+	MT_PCIE_REMAP_2,
+	MT_HIF_BASE,
+	MT_CSR_BASE,
+	MT_PHY_BASE,
+	MT_CFG_BASE,
+	MT_AGG_BASE,
+	MT_TMAC_BASE,
+	MT_RMAC_BASE,
+	MT_DMA_BASE,
+	MT_WTBL_BASE_ON,
+	MT_WTBL_BASE_OFF,
+	MT_LPON_BASE,
+	MT_MIB_BASE,
+	MT_WTBL_BASE_ADDR,
+	MT_PCIE_REMAP_BASE2,
+	MT_TOP_MISC_BASE,
+	MT_EFUSE_ADDR_BASE,
+	__MT_BASE_MAX,
+};
+
+#define MT_HW_INFO_BASE			((dev)->reg_map[MT_HW_BASE])
+#define MT_HW_INFO(ofs)			(MT_HW_INFO_BASE + (ofs))
+#define MT_HW_REV			MT_HW_INFO(0x000)
+#define MT_HW_CHIPID			MT_HW_INFO(0x008)
+#define MT_TOP_STRAP_STA		MT_HW_INFO(0x010)
 #define MT_TOP_3NSS			BIT(24)
 
 #define MT_TOP_OFF_RSV			0x1128
 #define MT_TOP_OFF_RSV_FW_STATE		GENMASK(18, 16)
 
-#define MT_TOP_MISC2			0x1134
+#define MT_TOP_MISC2			((dev)->reg_map[MT_TOP_CFG_BASE] + 0x134)
 #define MT_TOP_MISC2_FW_STATE		GENMASK(2, 0)
 
 #define MT_MCU_BASE			0x2000
@@ -23,13 +48,12 @@
 #define MT_MCU_PCIE_REMAP_1_BASE	GENMASK(31, 18)
 #define MT_PCIE_REMAP_BASE_1		0x40000
 
-#define MT_MCU_PCIE_REMAP_2		MT_MCU(0x504)
+#define MT_MCU_PCIE_REMAP_2		((dev)->reg_map[MT_PCIE_REMAP_2])
 #define MT_MCU_PCIE_REMAP_2_OFFSET	GENMASK(18, 0)
 #define MT_MCU_PCIE_REMAP_2_BASE	GENMASK(31, 19)
-#define MT_PCIE_REMAP_BASE_2		0x80000
+#define MT_PCIE_REMAP_BASE_2		((dev)->reg_map[MT_PCIE_REMAP_BASE2])
 
-#define MT_HIF_BASE			0x4000
-#define MT_HIF(ofs)			(MT_HIF_BASE + (ofs))
+#define MT_HIF(ofs)			((dev)->reg_map[MT_HIF_BASE] + (ofs))
 
 #define MT_CFG_LPCR_HOST		MT_HIF(0x1f0)
 #define MT_CFG_LPCR_HOST_FW_OWN		BIT(0)
@@ -95,6 +119,9 @@
 #define MT_WPDMA_ABT_CFG		MT_HIF(0x530)
 #define MT_WPDMA_ABT_CFG1		MT_HIF(0x534)
 
+#define MT_CSR(ofs)			((dev)->reg_map[MT_CSR_BASE] + (ofs))
+#define MT_CONN_HIF_ON_LPCTL		MT_CSR(0x000)
+
 #define MT_PLE_BASE			0x8000
 #define MT_PLE(ofs)			(MT_PLE_BASE + (ofs))
 
@@ -106,7 +133,7 @@
 #define MT_PLE_AC_QEMPTY(ac, n)		MT_PLE(0x300 + 0x10 * (ac) + \
 					       ((n) << 2))
 
-#define MT_WF_PHY_BASE			0x10000
+#define MT_WF_PHY_BASE			((dev)->reg_map[MT_PHY_BASE])
 #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))
 
 #define MT_WF_PHY_WF2_RFCTRL0(n)	MT_WF_PHY(0x1900 + (n) * 0x400)
@@ -139,7 +166,7 @@
 #define MT_WF_PHY_RXTD2_BASE		MT_WF_PHY(0x2a00)
 #define MT_WF_PHY_RXTD2(_n)		(MT_WF_PHY_RXTD2_BASE + ((_n) << 2))
 
-#define MT_WF_CFG_BASE			0x20200
+#define MT_WF_CFG_BASE			((dev)->reg_map[MT_CFG_BASE])
 #define MT_WF_CFG(ofs)			(MT_WF_CFG_BASE + (ofs))
 
 #define MT_CFG_CCR			MT_WF_CFG(0x000)
@@ -148,7 +175,7 @@
 #define MT_CFG_CCR_MAC_D1_2X_GC_EN	BIT(30)
 #define MT_CFG_CCR_MAC_D0_2X_GC_EN	BIT(31)
 
-#define MT_WF_AGG_BASE			0x20a00
+#define MT_WF_AGG_BASE			((dev)->reg_map[MT_AGG_BASE])
 #define MT_WF_AGG(ofs)			(MT_WF_AGG_BASE + (ofs))
 
 #define MT_AGG_ARCR			MT_WF_AGG(0x010)
@@ -188,7 +215,7 @@
 #define MT_ARB_SCR_TX1_DISABLE		BIT(10)
 #define MT_ARB_SCR_RX1_DISABLE		BIT(11)
 
-#define MT_WF_TMAC_BASE			0x21000
+#define MT_WF_TMAC_BASE			((dev)->reg_map[MT_TMAC_BASE])
 #define MT_WF_TMAC(ofs)			(MT_WF_TMAC_BASE + (ofs))
 
 #define MT_TMAC_CDTR			MT_WF_TMAC(0x090)
@@ -212,7 +239,7 @@
 #define MT_TMAC_CTCR0_INS_DDLMT_EN	BIT(17)
 #define MT_TMAC_CTCR0_INS_DDLMT_VHT_SMPDU_EN	BIT(18)
 
-#define MT_WF_RMAC_BASE			0x21200
+#define MT_WF_RMAC_BASE			((dev)->reg_map[MT_RMAC_BASE])
 #define MT_WF_RMAC(ofs)			(MT_WF_RMAC_BASE + (ofs))
 
 #define MT_WF_RFCR(_band)		MT_WF_RMAC((_band) ? 0x100 : 0x000)
@@ -257,7 +284,7 @@
 #define MT_WF_RMAC_MIB_TIME6		MT_WF_RMAC(0x03dc)
 #define MT_MIB_OBSSTIME_MASK		GENMASK(23, 0)
 
-#define MT_WF_DMA_BASE			0x21800
+#define MT_WF_DMA_BASE			((dev)->reg_map[MT_DMA_BASE])
 #define MT_WF_DMA(ofs)			(MT_WF_DMA_BASE + (ofs))
 
 #define MT_DMA_DCR0			MT_WF_DMA(0x000)
@@ -272,10 +299,10 @@
 #define MT_DMA_RCFR0_RX_DROPPED_UCAST	GENMASK(25, 24)
 #define MT_DMA_RCFR0_RX_DROPPED_MCAST	GENMASK(27, 26)
 
-#define MT_WTBL_BASE			0x30000
+#define MT_WTBL_BASE(dev)		((dev)->reg_map[MT_WTBL_BASE_ADDR])
 #define MT_WTBL_ENTRY_SIZE		256
 
-#define MT_WTBL_OFF_BASE		0x23400
+#define MT_WTBL_OFF_BASE		((dev)->reg_map[MT_WTBL_BASE_OFF])
 #define MT_WTBL_OFF(n)			(MT_WTBL_OFF_BASE + (n))
 
 #define MT_WTBL_W0_KEY_IDX		GENMASK(24, 23)
@@ -292,7 +319,11 @@
 #define MT_WTBL_UPDATE_TX_COUNT_CLEAR	BIT(14)
 #define MT_WTBL_UPDATE_BUSY		BIT(31)
 
-#define MT_WTBL_ON_BASE			0x23000
+#define MT_TOP_MISC(ofs)		((dev)->reg_map[MT_TOP_MISC_BASE] + (ofs))
+#define MT_CONN_ON_MISC			MT_TOP_MISC(0x1140)
+#define MT_TOP_MISC2_FW_N9_RDY		BIT(2)
+
+#define MT_WTBL_ON_BASE			((dev)->reg_map[MT_WTBL_BASE_ON])
 #define MT_WTBL_ON(_n)			(MT_WTBL_ON_BASE + (_n))
 
 #define MT_WTBL_RICR0			MT_WTBL_ON(0x010)
@@ -328,8 +359,7 @@
 
 #define MT_WTBL_W27_CC_BW_SEL		GENMASK(6, 5)
 
-#define MT_LPON_BASE			0x24200
-#define MT_LPON(_n)			(MT_LPON_BASE + (_n))
+#define MT_LPON(_n)			((dev)->reg_map[MT_LPON_BASE] + (_n))
 
 #define MT_LPON_T0CR			MT_LPON(0x010)
 #define MT_LPON_T0CR_MODE		GENMASK(1, 0)
@@ -337,7 +367,7 @@
 #define MT_LPON_UTTR0			MT_LPON(0x018)
 #define MT_LPON_UTTR1			MT_LPON(0x01c)
 
-#define MT_WF_MIB_BASE			0x24800
+#define MT_WF_MIB_BASE			(dev->reg_map[MT_MIB_BASE])
 #define MT_WF_MIB(ofs)			(MT_WF_MIB_BASE + (ofs))
 
 #define MT_MIB_M0_MISC_CR		MT_WF_MIB(0x00c)
@@ -406,7 +436,7 @@
 #define MT_LED_STATUS_ON		GENMASK(23, 16)
 #define MT_LED_STATUS_DURATION		GENMASK(15, 0)
 
-#define MT_EFUSE_BASE			0x81070000
+#define MT_EFUSE_BASE			((dev)->reg_map[MT_EFUSE_ADDR_BASE])
 #define MT_EFUSE_BASE_CTRL		0x000
 #define MT_EFUSE_BASE_CTRL_EMPTY	BIT(30)
 

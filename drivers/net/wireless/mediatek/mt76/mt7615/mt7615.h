@@ -185,6 +185,7 @@ struct mt7615_dev {
 
 	const struct mt7615_mcu_ops *mcu_ops;
 	struct regmap *infracfg;
+	const u32 *reg_map;
 
 	struct work_struct mcu_work;
 
@@ -285,6 +286,7 @@ mt7615_ext_phy(struct mt7615_dev *dev)
 }
 
 extern const struct ieee80211_ops mt7615_ops;
+extern const u32 mt7615e_reg_map[__MT_BASE_MAX];
 extern struct pci_driver mt7615_pci_driver;
 extern struct platform_driver mt7622_wmac_driver;
 
@@ -297,7 +299,8 @@ static inline int mt7622_wmac_init(struct mt7615_dev *dev)
 }
 #endif
 
-int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base, int irq);
+int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
+		      int irq, const u32 *map);
 u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
 
 void mt7615_init_device(struct mt7615_dev *dev);

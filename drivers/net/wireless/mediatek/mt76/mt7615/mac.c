@@ -703,9 +703,9 @@ void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 		mt7615_txp_skb_unmap_hw(dev, &txp->hw);
 }
 
-static u32 mt7615_mac_wtbl_addr(int wcid)
+static u32 mt7615_mac_wtbl_addr(struct mt7615_dev *dev, int wcid)
 {
-	return MT_WTBL_BASE + wcid * MT_WTBL_ENTRY_SIZE;
+	return MT_WTBL_BASE(dev) + wcid * MT_WTBL_ENTRY_SIZE;
 }
 
 bool mt7615_mac_wtbl_update(struct mt7615_dev *dev, int idx, u32 mask)
@@ -751,7 +751,7 @@ void mt7615_mac_sta_poll(struct mt7615_dev *dev)
 		list_del_init(&msta->poll_list);
 		spin_unlock_bh(&dev->sta_poll_lock);
 
-		addr = mt7615_mac_wtbl_addr(msta->wcid.idx) + 19 * 4;
+		addr = mt7615_mac_wtbl_addr(dev, msta->wcid.idx) + 19 * 4;
 
 		for (i = 0; i < 4; i++, addr += 8) {
 			u32 tx_last = msta->airtime_ac[i];
@@ -801,7 +801,7 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 	struct mt76_phy *mphy = phy->mt76;
 	struct ieee80211_tx_rate *ref;
 	int wcid = sta->wcid.idx;
-	u32 addr = mt7615_mac_wtbl_addr(wcid);
+	u32 addr = mt7615_mac_wtbl_addr(dev, wcid);
 	bool stbc = false;
 	int n_rates = sta->n_rates;
 	u8 bw, bw_prev, bw_idx = 0;
@@ -966,7 +966,7 @@ mt7615_mac_wtbl_update_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			   enum mt7615_cipher_type cipher,
 			   enum set_key_cmd cmd)
 {
-	u32 addr = mt7615_mac_wtbl_addr(wcid->idx) + 30 * 4;
+	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx) + 30 * 4;
 	u8 data[32] = {};
 
 	if (key->keylen > sizeof(data))
@@ -1004,7 +1004,7 @@ mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			  enum mt7615_cipher_type cipher, int keyidx,
 			  enum set_key_cmd cmd)
 {
-	u32 addr = mt7615_mac_wtbl_addr(wcid->idx), w0, w1;
+	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx), w0, w1;
 
 	if (!mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000))
 		return -ETIMEDOUT;
@@ -1040,7 +1040,7 @@ mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			      enum mt7615_cipher_type cipher,
 			      enum set_key_cmd cmd)
 {
-	u32 addr = mt7615_mac_wtbl_addr(wcid->idx);
+	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx);
 
 	if (cmd == SET_KEY) {
 		if (cipher != MT_CIPHER_BIP_CMAC_128 || !wcid->cipher)

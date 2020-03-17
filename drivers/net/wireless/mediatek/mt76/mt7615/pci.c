@@ -35,7 +35,8 @@ static int mt7615_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	return mt7615_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0], pdev->irq);
+	return mt7615_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0],
+				 pdev->irq, mt7615e_reg_map);
 }
 
 static void mt7615_pci_remove(struct pci_dev *pdev)
