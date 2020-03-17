@@ -613,13 +613,13 @@ static void rtl8192_proc_init_one(struct net_device *dev)
 	if (!dir)
 		return;
 
-	proc_create_single("stats-rx", S_IFREG | S_IRUGO, dir,
+	proc_create_single("stats-rx", S_IFREG | 0444, dir,
 			   proc_get_stats_rx);
-	proc_create_single("stats-tx", S_IFREG | S_IRUGO, dir,
+	proc_create_single("stats-tx", S_IFREG | 0444, dir,
 			   proc_get_stats_tx);
-	proc_create_single("stats-ap", S_IFREG | S_IRUGO, dir,
+	proc_create_single("stats-ap", S_IFREG | 0444, dir,
 			   proc_get_stats_ap);
-	proc_create_single("registers", S_IFREG | S_IRUGO, dir,
+	proc_create_single("registers", S_IFREG | 0444, dir,
 			   proc_get_registers);
 }
 
