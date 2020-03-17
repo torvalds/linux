@@ -144,6 +144,17 @@ struct mt7615_phy {
 	struct mib_stats mib;
 };
 
+#define mt7615_mcu_add_tx_ba(dev, ...)	(dev)->mcu_ops->add_tx_ba((dev), __VA_ARGS__)
+#define mt7615_mcu_add_rx_ba(dev, ...)	(dev)->mcu_ops->add_rx_ba((dev), __VA_ARGS__)
+struct mt7615_mcu_ops {
+	int (*add_tx_ba)(struct mt7615_dev *dev,
+			 struct ieee80211_ampdu_params *params,
+			 bool enable);
+	int (*add_rx_ba)(struct mt7615_dev *dev,
+			 struct ieee80211_ampdu_params *params,
+			 bool enable);
+};
+
 struct mt7615_dev {
 	union { /* must be first */
 		struct mt76_dev mt76;
@@ -156,6 +167,7 @@ struct mt7615_dev {
 
 	u16 chainmask;
 
+	const struct mt7615_mcu_ops *mcu_ops;
 	struct regmap *infracfg;
 
 	struct work_struct mcu_work;
@@ -302,12 +314,6 @@ int mt7615_mcu_set_bcn(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
 int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 		       const struct ieee80211_tx_queue_params *params);
-int mt7615_mcu_set_tx_ba(struct mt7615_dev *dev,
-			 struct ieee80211_ampdu_params *params,
-			 bool add);
-int mt7615_mcu_set_rx_ba(struct mt7615_dev *dev,
-			 struct ieee80211_ampdu_params *params,
-			 bool add);
 void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb);
 int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 		       enum mt7615_rdd_cmd cmd, u8 index,

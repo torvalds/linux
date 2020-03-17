@@ -274,6 +274,11 @@ enum {
 	__DBDC_TYPE_MAX,
 };
 
+struct tlv {
+	__le16 tag;
+	__le16 len;
+} __packed;
+
 struct bss_info_omac {
 	__le16 tag;
 	__le16 len;
@@ -496,6 +501,16 @@ struct wtbl_raw {
 				     sizeof(struct wtbl_pn) + \
 				     sizeof(struct wtbl_spe))
 
+#define MT7615_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
+					 sizeof(struct sta_rec_basic) +	\
+					 sizeof(struct sta_rec_ht) +	\
+					 sizeof(struct sta_rec_vht) +	\
+					 sizeof(struct sta_rec_wtbl) +	\
+					 MT7615_WTBL_UPDATE_MAX_SIZE)
+
+#define MT7615_WTBL_UPDATE_BA_SIZE	(sizeof(struct wtbl_req_hdr) +	\
+					 sizeof(struct wtbl_ba))
+
 enum {
 	WTBL_GENERIC,
 	WTBL_RX,
@@ -516,6 +531,11 @@ enum {
 	WTBL_SPE,
 	WTBL_MAX_NUM
 };
+
+struct sta_ntlv_hdr {
+	u8 rsv[2];
+	__le16 tlv_num;
+} __packed;
 
 struct sta_req_hdr {
 	u8 bss_idx;
