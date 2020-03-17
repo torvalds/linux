@@ -1208,6 +1208,17 @@ static const struct sdw_master_port_ops cdns_port_ops = {
 };
 
 /**
+ * sdw_cdns_is_clock_stop: Check clock status
+ *
+ * @cdns: Cadence instance
+ */
+bool sdw_cdns_is_clock_stop(struct sdw_cdns *cdns)
+{
+	return !!(cdns_readl(cdns, CDNS_MCP_STAT) & CDNS_MCP_STAT_CLK_STOP);
+}
+EXPORT_SYMBOL(sdw_cdns_is_clock_stop);
+
+/**
  * sdw_cdns_probe() - Cadence probe routine
  * @cdns: Cadence instance
  */
