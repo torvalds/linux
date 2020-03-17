@@ -180,7 +180,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 
 		/* Pick up any new callbacks. */
 		raw_spin_lock_irqsave(&rtp->cbs_lock, flags);
-		smp_mb__after_unlock_lock(); // Order updates vs. GP.
+		smp_mb__after_spinlock(); // Order updates vs. GP.
 		list = rtp->cbs_head;
 		rtp->cbs_head = NULL;
 		rtp->cbs_tail = &rtp->cbs_head;
@@ -874,7 +874,7 @@ static void rcu_tasks_trace_pertask(struct task_struct *t,
 				    struct list_head *hop)
 {
 	WRITE_ONCE(t->trc_reader_need_end, false);
-	t->trc_reader_checked = false;
+	WRITE_ONCE(t->trc_reader_checked, false);
 	t->trc_ipi_to_cpu = -1;
 	trc_wait_for_one_reader(t, hop);
 }
@@ -983,6 +983,7 @@ static void rcu_tasks_trace_postgp(struct rcu_tasks *rtp)
 		pr_err("\t%d holdouts\n", atomic_read(&trc_n_readers_need_end));
 	}
 	smp_mb(); // Caller's code must be ordered after wakeup.
+		  // Pairs with pretty much every ordering primitive.
 }
 
 /* Report any needed quiescent state for this exiting task. */
