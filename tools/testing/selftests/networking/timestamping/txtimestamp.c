@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -70,6 +71,8 @@ static int cfg_sleep_usec = 50 * 1000;
 static bool cfg_loop_nodata;
 static bool cfg_use_cmsg;
 static bool cfg_use_pf_packet;
+static bool cfg_use_epoll;
+static bool cfg_epollet;
 static bool cfg_do_listen;
 static uint16_t dest_port = 9000;
 static bool cfg_print_nsec;
@@ -225,6 +228,17 @@ static void print_pktinfo(int family, int ifindex, void *saddr, void *daddr)
 		ifindex,
 		saddr ? inet_ntop(family, saddr, sa, sizeof(sa)) : "unknown",
 		daddr ? inet_ntop(family, daddr, da, sizeof(da)) : "unknown");
+}
+
+static void __epoll(int epfd)
+{
+	struct epoll_event events;
+	int ret;
+
+	memset(&events, 0, sizeof(events));
+	ret = epoll_wait(epfd, &events, 1, cfg_poll_timeout);
+	if (ret != 1)
+		error(1, errno, "epoll_wait");
 }
 
 static void __poll(int fd)
@@ -420,7 +434,7 @@ static void do_test(int family, unsigned int report_opt)
 	struct msghdr msg;
 	struct iovec iov;
 	char *buf;
-	int fd, i, val = 1, total_len;
+	int fd, i, val = 1, total_len, epfd = 0;
 
 	total_len = cfg_payload_len;
 	if (cfg_use_pf_packet || cfg_proto == SOCK_RAW) {
@@ -446,6 +460,20 @@ static void do_test(int family, unsigned int report_opt)
 		    cfg_proto, cfg_ipproto);
 	if (fd < 0)
 		error(1, errno, "socket");
+
+	if (cfg_use_epoll) {
+		struct epoll_event ev;
+
+		memset(&ev, 0, sizeof(ev));
+		ev.data.fd = fd;
+		if (cfg_epollet)
+			ev.events |= EPOLLET;
+		epfd = epoll_create(1);
+		if (epfd <= 0)
+			error(1, errno, "epoll_create");
+		if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev))
+			error(1, errno, "epoll_ctl");
+	}
 
 	/* reset expected key on each new socket */
 	saved_tskey = -1;
@@ -557,8 +585,12 @@ static void do_test(int family, unsigned int report_opt)
 		if (cfg_sleep_usec)
 			usleep(cfg_sleep_usec);
 
-		if (!cfg_busy_poll)
-			__poll(fd);
+		if (!cfg_busy_poll) {
+			if (cfg_use_epoll)
+				__epoll(epfd);
+			else
+				__poll(fd);
+		}
 
 		while (!recv_errmsg(fd)) {}
 	}
@@ -580,7 +612,9 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -b:   busy poll to read from error queue\n"
 			"  -c N: number of packets for each test\n"
 			"  -C:   use cmsg to set tstamp recording options\n"
-			"  -F:   poll() waits forever for an event\n"
+			"  -e:   use level-triggered epoll() instead of poll()\n"
+			"  -E:   use event-triggered epoll() instead of poll()\n"
+			"  -F:   poll()/epoll() waits forever for an event\n"
 			"  -I:   request PKTINFO\n"
 			"  -l N: send N bytes at a time\n"
 			"  -L    listen on hostname and port\n"
@@ -604,7 +638,8 @@ static void parse_opt(int argc, char **argv)
 	int proto_count = 0;
 	int c;
 
-	while ((c = getopt(argc, argv, "46bc:CFhIl:LnNp:PrRS:uv:V:x")) != -1) {
+	while ((c = getopt(argc, argv,
+				"46bc:CeEFhIl:LnNp:PrRS:uv:V:x")) != -1) {
 		switch (c) {
 		case '4':
 			do_ipv6 = 0;
@@ -621,6 +656,12 @@ static void parse_opt(int argc, char **argv)
 		case 'C':
 			cfg_use_cmsg = true;
 			break;
+		case 'e':
+			cfg_use_epoll = true;
+			break;
+		case 'E':
+			cfg_use_epoll = true;
+			cfg_epollet = true;
 		case 'F':
 			cfg_poll_timeout = -1;
 			break;
@@ -691,6 +732,8 @@ static void parse_opt(int argc, char **argv)
 		error(1, 0, "pass -P, -r, -R or -u, not multiple");
 	if (cfg_do_pktinfo && cfg_use_pf_packet)
 		error(1, 0, "cannot ask for pktinfo over pf_packet");
+	if (cfg_busy_poll && cfg_use_epoll)
+		error(1, 0, "pass epoll or busy_poll, not both");
 
 	if (optind != argc - 1)
 		error(1, 0, "missing required hostname argument");
