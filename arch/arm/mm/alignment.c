@@ -1055,4 +1055,8 @@ static int __init alignment_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+fs_initcall_sync(alignment_init);
+#else
 fs_initcall(alignment_init);
+#endif
