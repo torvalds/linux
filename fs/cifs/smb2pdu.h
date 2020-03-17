@@ -91,6 +91,7 @@
 
 #define SMB2_PROTO_NUMBER cpu_to_le32(0x424d53fe)
 #define SMB2_TRANSFORM_PROTO_NUM cpu_to_le32(0x424d53fd)
+#define SMB2_COMPRESSION_TRANSFORM_ID cpu_to_le32(0x424d53fc)
 
 /*
  * SMB2 Header Definition
@@ -127,13 +128,15 @@ struct smb2_sync_pdu {
 #define SMB3_AES128CCM_NONCE 11
 #define SMB3_AES128GCM_NONCE 12
 
+/* Transform flags (for 3.0 dialect this flag indicates CCM */
+#define TRANSFORM_FLAG_ENCRYPTED	0x0001
 struct smb2_transform_hdr {
 	__le32 ProtocolId;	/* 0xFD 'S' 'M' 'B' */
 	__u8   Signature[16];
 	__u8   Nonce[16];
 	__le32 OriginalMessageSize;
 	__u16  Reserved1;
-	__le16 Flags; /* EncryptionAlgorithm */
+	__le16 Flags; /* EncryptionAlgorithm for 3.0, enc enabled for 3.1.1 */
 	__u64  SessionId;
 } __packed;
 
@@ -206,6 +209,10 @@ struct smb2_error_context_rsp {
 	__le32 ErrorId;
 	__u8  ErrorContextData; /* ErrorDataLength long array */
 } __packed;
+
+/* ErrorId values */
+#define SMB2_ERROR_ID_DEFAULT		0x00000000
+#define SMB2_ERROR_ID_SHARE_REDIRECT	cpu_to_le32(0x72645253)	/* "rdRS" */
 
 /* Defines for Type field below (see MS-SMB2 2.2.2.2.2.1) */
 #define MOVE_DST_IPADDR_V4	cpu_to_le32(0x00000001)
@@ -427,7 +434,7 @@ struct smb2_logoff_rsp {
 struct smb2_tree_connect_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 9 */
-	__le16 Reserved; /* Flags in SMB3.1.1 */
+	__le16 Flags; /* Reserved MBZ for dialects prior to SMB3.1.1 */
 	__le16 PathOffset;
 	__le16 PathLength;
 	__u8   Buffer[1];	/* variable length */
@@ -654,7 +661,7 @@ struct smb2_tree_disconnect_rsp {
 			| FILE_WRITE_EA_LE | FILE_WRITE_ATTRIBUTES_LE)
 #define FILE_EXEC_RIGHTS_LE (FILE_EXECUTE_LE)
 
-/* Impersonation Levels */
+/* Impersonation Levels. See MS-WPO section 9.7 and MSDN-IMPERS */
 #define IL_ANONYMOUS		cpu_to_le32(0x00000000)
 #define IL_IDENTIFICATION	cpu_to_le32(0x00000001)
 #define IL_IMPERSONATION	cpu_to_le32(0x00000002)
@@ -760,7 +767,7 @@ struct create_context {
 #define SMB2_LEASE_HANDLE_CACHING	cpu_to_le32(0x02)
 #define SMB2_LEASE_WRITE_CACHING	cpu_to_le32(0x04)
 
-#define SMB2_LEASE_FLAG_BREAK_IN_PROGRESS cpu_to_le32(0x02)
+#define SMB2_LEASE_FLAG_BREAK_IN_PROGRESS cpu_to_le32(0x00000002)
 #define SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET cpu_to_le32(0x00000004)
 
 #define SMB2_LEASE_KEY_SIZE 16
