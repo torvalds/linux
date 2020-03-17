@@ -1279,38 +1279,6 @@ TRACE_EVENT(xprtrdma_leaked_rep,
  ** Server-side RPC/RDMA events
  **/
 
-DECLARE_EVENT_CLASS(svcrdma_xprt_event,
-	TP_PROTO(
-		const struct svc_xprt *xprt
-	),
-
-	TP_ARGS(xprt),
-
-	TP_STRUCT__entry(
-		__field(const void *, xprt)
-		__string(addr, xprt->xpt_remotebuf)
-	),
-
-	TP_fast_assign(
-		__entry->xprt = xprt;
-		__assign_str(addr, xprt->xpt_remotebuf);
-	),
-
-	TP_printk("xprt=%p addr=%s",
-		__entry->xprt, __get_str(addr)
-	)
-);
-
-#define DEFINE_XPRT_EVENT(name)						\
-		DEFINE_EVENT(svcrdma_xprt_event, svcrdma_xprt_##name,	\
-				TP_PROTO(				\
-					const struct svc_xprt *xprt	\
-				),					\
-				TP_ARGS(xprt))
-
-DEFINE_XPRT_EVENT(accept);
-DEFINE_XPRT_EVENT(free);
-
 DECLARE_EVENT_CLASS(svcrdma_accept_class,
 	TP_PROTO(
 		const struct svcxprt_rdma *rdma,
