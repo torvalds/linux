@@ -861,8 +861,8 @@ static int dsa_slave_add_cls_matchall(struct net_device *dev,
 	if (!flow_offload_has_one_action(&cls->rule->action))
 		return err;
 
-	if (!flow_action_basic_hw_stats_types_check(&cls->rule->action,
-						    cls->common.extack))
+	if (!flow_action_basic_hw_stats_check(&cls->rule->action,
+					      cls->common.extack))
 		return err;
 
 	act = &cls->rule->action.entries[0];

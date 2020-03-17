@@ -17,8 +17,8 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 	if (!flow_offload_has_one_action(&f->rule->action))
 		return -EOPNOTSUPP;
 
-	if (!flow_action_basic_hw_stats_types_check(&f->rule->action,
-						    f->common.extack))
+	if (!flow_action_basic_hw_stats_check(&f->rule->action,
+					      f->common.extack))
 		return -EOPNOTSUPP;
 
 	flow_action_for_each(i, a, &f->rule->action) {

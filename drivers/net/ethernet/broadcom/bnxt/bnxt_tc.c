@@ -300,7 +300,7 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 		return -EINVAL;
 	}
 
-	if (!flow_action_basic_hw_stats_types_check(flow_action, extack))
+	if (!flow_action_basic_hw_stats_check(flow_action, extack))
 		return -EOPNOTSUPP;
 
 	flow_action_for_each(i, act, flow_action) {
