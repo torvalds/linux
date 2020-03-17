@@ -752,13 +752,13 @@ static int ovl_mount_dir(const char *name, struct path *path)
 		ovl_unescape(tmp);
 		err = ovl_mount_dir_noesc(tmp, path);
 
-		if (!err)
-			if (ovl_dentry_remote(path->dentry)) {
-				pr_err("filesystem on '%s' not supported as upperdir\n",
-				       tmp);
-				path_put_init(path);
-				err = -EINVAL;
-			}
+		if (!err && (ovl_dentry_remote(path->dentry) ||
+			     path->dentry->d_flags & DCACHE_OP_REAL)) {
+			pr_err("filesystem on '%s' not supported as upperdir\n",
+			       tmp);
+			path_put_init(path);
+			err = -EINVAL;
+		}
 		kfree(tmp);
 	}
 	return err;
