@@ -2779,4 +2779,8 @@ panic:
 	panic("netlink_init: Cannot allocate nl_table\n");
 }
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+core_initcall_sync(netlink_proto_init);
+#else
 core_initcall(netlink_proto_init);
+#endif
