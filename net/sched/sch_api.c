@@ -625,8 +625,13 @@ void qdisc_watchdog_schedule_range_ns(struct qdisc_watchdog *wd, u64 expires,
 		     &qdisc_root_sleeping(wd->qdisc)->state))
 		return;
 
-	if (wd->last_expires == expires)
-		return;
+	if (hrtimer_is_queued(&wd->timer)) {
+		/* If timer is already set in [expires, expires + delta_ns],
+		 * do not reprogram it.
+		 */
+		if (wd->last_expires - expires <= delta_ns)
+			return;
+	}
 
 	wd->last_expires = expires;
 	hrtimer_start_range_ns(&wd->timer,
