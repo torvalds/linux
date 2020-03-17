@@ -239,7 +239,7 @@ struct opa_veswport_mactable_entry {
  * @offset: mac table starting offset
  * @num_entries: Number of entries to get or set
  * @mac_tbl_digest: mac table digest
- * @tbl_entries[]: Array of table entries
+ * @tbl_entries: Array of table entries
  *
  * The EM sends down this structure in a MAD indicating
  * the starting offset in the forwarding table that this
