@@ -7,6 +7,7 @@ obj-$(CONFIG_PHY_ROCKCHIP_INNO_MIPI_DPHY)	+= phy-rockchip-inno-mipi-dphy.o
 obj-$(CONFIG_PHY_ROCKCHIP_INNO_USB2)	+= phy-rockchip-inno-usb2.o
 obj-$(CONFIG_PHY_ROCKCHIP_INNO_USB3)	+= phy-rockchip-inno-usb3.o
 obj-$(CONFIG_PHY_ROCKCHIP_INNO_VIDEO_COMBO_PHY)	+= phy-rockchip-inno-video-combo-phy.o
+obj-$(CONFIG_PHY_ROCKCHIP_INNO_VIDEO_PHY)	+= phy-rockchip-inno-video-phy.o
 obj-$(CONFIG_PHY_ROCKCHIP_MIPI_RX)	+= phy-rockchip-mipi-rx.o
 obj-$(CONFIG_PHY_ROCKCHIP_PCIE)		+= phy-rockchip-pcie.o
 obj-$(CONFIG_PHY_ROCKCHIP_TYPEC)	+= phy-rockchip-typec.o
