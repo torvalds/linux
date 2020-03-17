@@ -488,18 +488,18 @@ struct wtbl_raw {
 	__le32 val;
 } __packed;
 
-#define MT7615_WTBL_UPDATE_MAX_SIZE (sizeof(struct wtbl_req_hdr) + \
-				     sizeof(struct wtbl_generic) + \
-				     sizeof(struct wtbl_rx) + \
-				     sizeof(struct wtbl_ht) + \
-				     sizeof(struct wtbl_vht) + \
-				     sizeof(struct wtbl_tx_ps) + \
-				     sizeof(struct wtbl_hdr_trans) + \
-				     sizeof(struct wtbl_ba) + \
-				     sizeof(struct wtbl_bf) + \
-				     sizeof(struct wtbl_smps) + \
-				     sizeof(struct wtbl_pn) + \
-				     sizeof(struct wtbl_spe))
+#define MT7615_WTBL_UPDATE_MAX_SIZE	(sizeof(struct wtbl_req_hdr) +	\
+					 sizeof(struct wtbl_generic) +	\
+					 sizeof(struct wtbl_rx) +	\
+					 sizeof(struct wtbl_ht) +	\
+					 sizeof(struct wtbl_vht) +	\
+					 sizeof(struct wtbl_tx_ps) +	\
+					 sizeof(struct wtbl_hdr_trans) +\
+					 sizeof(struct wtbl_ba) +	\
+					 sizeof(struct wtbl_bf) +	\
+					 sizeof(struct wtbl_smps) +	\
+					 sizeof(struct wtbl_pn) +	\
+					 sizeof(struct wtbl_spe))
 
 #define MT7615_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct sta_rec_basic) +	\
