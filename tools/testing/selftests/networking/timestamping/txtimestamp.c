@@ -84,6 +84,17 @@ static struct timespec ts_usr;
 static int saved_tskey = -1;
 static int saved_tskey_type = -1;
 
+struct timing_event {
+	int64_t min;
+	int64_t max;
+	int64_t total;
+	int count;
+};
+
+static struct timing_event usr_enq;
+static struct timing_event usr_snd;
+static struct timing_event usr_ack;
+
 static bool test_failed;
 
 static int64_t timespec_to_ns64(struct timespec *ts)
@@ -94,6 +105,27 @@ static int64_t timespec_to_ns64(struct timespec *ts)
 static int64_t timespec_to_us64(struct timespec *ts)
 {
 	return ts->tv_sec * USEC_PER_SEC + ts->tv_nsec / NSEC_PER_USEC;
+}
+
+static void init_timing_event(struct timing_event *te)
+{
+	te->min = INT64_MAX;
+	te->max = 0;
+	te->total = 0;
+	te->count = 0;
+}
+
+static void add_timing_event(struct timing_event *te,
+		struct timespec *t_start, struct timespec *t_end)
+{
+	int64_t ts_delta = timespec_to_ns64(t_end) - timespec_to_ns64(t_start);
+
+	te->count++;
+	if (ts_delta < te->min)
+		te->min = ts_delta;
+	if (ts_delta > te->max)
+		te->max = ts_delta;
+	te->total += ts_delta;
 }
 
 static void validate_key(int tskey, int tstype)
@@ -187,20 +219,38 @@ static void print_timestamp(struct scm_timestamping *tss, int tstype,
 	case SCM_TSTAMP_SCHED:
 		tsname = "  ENQ";
 		validate_timestamp(&tss->ts[0], 0);
+		add_timing_event(&usr_enq, &ts_usr, &tss->ts[0]);
 		break;
 	case SCM_TSTAMP_SND:
 		tsname = "  SND";
 		validate_timestamp(&tss->ts[0], cfg_delay_snd);
+		add_timing_event(&usr_snd, &ts_usr, &tss->ts[0]);
 		break;
 	case SCM_TSTAMP_ACK:
 		tsname = "  ACK";
 		validate_timestamp(&tss->ts[0], cfg_delay_ack);
+		add_timing_event(&usr_ack, &ts_usr, &tss->ts[0]);
 		break;
 	default:
 		error(1, 0, "unknown timestamp type: %u",
 		tstype);
 	}
 	__print_timestamp(tsname, &tss->ts[0], tskey, payload_len);
+}
+
+static void print_timing_event(char *name, struct timing_event *te)
+{
+	if (!te->count)
+		return;
+
+	fprintf(stderr, "    %s: count=%d", name, te->count);
+	fprintf(stderr, ", avg=");
+	__print_ts_delta_formatted((int64_t)(te->total / te->count));
+	fprintf(stderr, ", min=");
+	__print_ts_delta_formatted(te->min);
+	fprintf(stderr, ", max=");
+	__print_ts_delta_formatted(te->max);
+	fprintf(stderr, "\n");
 }
 
 /* TODO: convert to check_and_print payload once API is stable */
@@ -436,6 +486,10 @@ static void do_test(int family, unsigned int report_opt)
 	char *buf;
 	int fd, i, val = 1, total_len, epfd = 0;
 
+	init_timing_event(&usr_enq);
+	init_timing_event(&usr_snd);
+	init_timing_event(&usr_ack);
+
 	total_len = cfg_payload_len;
 	if (cfg_use_pf_packet || cfg_proto == SOCK_RAW) {
 		total_len += sizeof(struct udphdr);
@@ -594,6 +648,10 @@ static void do_test(int family, unsigned int report_opt)
 
 		while (!recv_errmsg(fd)) {}
 	}
+
+	print_timing_event("USR-ENQ", &usr_enq);
+	print_timing_event("USR-SND", &usr_snd);
+	print_timing_event("USR-ACK", &usr_ack);
 
 	if (close(fd))
 		error(1, errno, "close");
