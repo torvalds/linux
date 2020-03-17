@@ -52,6 +52,7 @@ struct mt7615_fw_trailer {
 void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 			 int cmd, int *wait_seq)
 {
+	int mcu_cmd = cmd & MCU_CMD_MASK;
 	struct mt7615_mcu_txd *mcu_txd;
 	u8 seq, q_idx, pkt_fmt;
 	__le32 *txd;
@@ -63,7 +64,7 @@ void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 
 	mcu_txd = (struct mt7615_mcu_txd *)skb_push(skb, sizeof(*mcu_txd));
 
-	if (cmd != -MCU_CMD_FW_SCATTER) {
+	if (cmd != MCU_CMD_FW_SCATTER) {
 		q_idx = MT_TX_MCU_PORT_RX_Q0;
 		pkt_fmt = MT_TX_TYPE_CMD;
 	} else {
@@ -87,9 +88,9 @@ void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 	mcu_txd->pkt_type = MCU_PKT_ID;
 	mcu_txd->seq = seq;
 
-	if (cmd < 0) {
+	if (cmd & MCU_FW_PREFIX) {
 		mcu_txd->set_query = MCU_Q_NA;
-		mcu_txd->cid = -cmd;
+		mcu_txd->cid = mcu_cmd;
 	} else {
 		mcu_txd->cid = MCU_CMD_EXT_CID;
 		mcu_txd->set_query = MCU_Q_SET;
@@ -127,7 +128,7 @@ mt7615_mcu_parse_response(struct mt7615_dev *dev, int cmd,
 		return -EAGAIN;
 
 	switch (cmd) {
-	case -MCU_CMD_PATCH_SEM_CONTROL:
+	case MCU_CMD_PATCH_SEM_CONTROL:
 		skb_pull(skb, sizeof(*rxd) - 4);
 		ret = *skb->data;
 		break;
@@ -152,8 +153,8 @@ int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq)
 	while (true) {
 		skb = mt76_mcu_get_response(&dev->mt76, expires);
 		if (!skb) {
-			dev_err(dev->mt76.dev, "Message %d (seq %d) timeout\n",
-				cmd, seq);
+			dev_err(dev->mt76.dev, "Message %ld (seq %d) timeout\n",
+				cmd & MCU_CMD_MASK, seq);
 			return -ETIMEDOUT;
 		}
 
@@ -308,7 +309,7 @@ static int mt7615_mcu_init_download(struct mt7615_dev *dev, u32 addr,
 		.mode = cpu_to_le32(mode),
 	};
 
-	return __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_TARGET_ADDRESS_LEN_REQ,
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_TARGET_ADDRESS_LEN_REQ,
 				   &req, sizeof(req), true);
 }
 
@@ -1101,7 +1102,7 @@ static int mt7615_mcu_send_firmware(struct mt7615_dev *dev, const void *data,
 		cur_len = min_t(int, 4096 - sizeof(struct mt7615_mcu_txd),
 				len);
 
-		ret = __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_FW_SCATTER,
+		ret = __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_FW_SCATTER,
 					  data, cur_len, false);
 		if (ret)
 			break;
@@ -1127,13 +1128,13 @@ static int mt7615_mcu_start_firmware(struct mt7615_dev *dev, u32 addr,
 		.addr = cpu_to_le32(addr),
 	};
 
-	return __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_FW_START_REQ,
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_FW_START_REQ,
 				   &req, sizeof(req), true);
 }
 
 static int mt7615_mcu_restart(struct mt76_dev *dev)
 {
-	return __mt76_mcu_send_msg(dev, -MCU_CMD_RESTART_DL_REQ, NULL,
+	return __mt76_mcu_send_msg(dev, MCU_CMD_RESTART_DL_REQ, NULL,
 				   0, true);
 }
 
@@ -1145,7 +1146,7 @@ static int mt7615_mcu_patch_sem_ctrl(struct mt7615_dev *dev, bool get)
 		.op = cpu_to_le32(get ? PATCH_SEM_GET : PATCH_SEM_RELEASE),
 	};
 
-	return __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_PATCH_SEM_CONTROL,
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_PATCH_SEM_CONTROL,
 				   &req, sizeof(req), true);
 }
 
@@ -1158,7 +1159,7 @@ static int mt7615_mcu_start_patch(struct mt7615_dev *dev)
 		.check_crc = 0,
 	};
 
-	return __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_PATCH_FINISH_REQ,
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_PATCH_FINISH_REQ,
 				   &req, sizeof(req), true);
 }
 
