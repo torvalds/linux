@@ -7,11 +7,11 @@
 
 #include "br_private.h"
 
-/* check if the options between two vlans are equal */
-bool br_vlan_opts_eq(const struct net_bridge_vlan *v1,
-		     const struct net_bridge_vlan *v2)
+/* check if the options' state of v_curr allow it to enter the range */
+bool br_vlan_opts_eq_range(const struct net_bridge_vlan *v_curr,
+			   const struct net_bridge_vlan *range_end)
 {
-	return v1->state == v2->state;
+	return v_curr->state == range_end->state;
 }
 
 bool br_vlan_opts_fill(struct sk_buff *skb, const struct net_bridge_vlan *v)

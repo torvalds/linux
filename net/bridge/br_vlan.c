@@ -1694,7 +1694,7 @@ bool br_vlan_can_enter_range(const struct net_bridge_vlan *v_curr,
 {
 	return v_curr->vid - range_end->vid == 1 &&
 	       range_end->flags == v_curr->flags &&
-	       br_vlan_opts_eq(v_curr, range_end);
+	       br_vlan_opts_eq_range(v_curr, range_end);
 }
 
 static int br_vlan_dump_dev(const struct net_device *dev,
