@@ -66,6 +66,7 @@ enum ipl_type {
 	IPL_TYPE_FCP_DUMP	= 8,
 	IPL_TYPE_NSS		= 16,
 	IPL_TYPE_NVME		= 32,
+	IPL_TYPE_NVME_DUMP	= 64,
 };
 
 struct ipl_info
