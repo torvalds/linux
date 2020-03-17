@@ -29,6 +29,7 @@
 #define SMU11_DRIVER_IF_VERSION_VG20 0x13
 #define SMU11_DRIVER_IF_VERSION_ARCT 0x12
 #define SMU11_DRIVER_IF_VERSION_NV10 0x35
+#define SMU11_DRIVER_IF_VERSION_NV12 0x33
 #define SMU11_DRIVER_IF_VERSION_NV14 0x36
 
 /* MP Apertures */
@@ -182,9 +183,8 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 int
 smu_v11_0_send_msg_with_param(struct smu_context *smu,
 			      enum smu_message_type msg,
-			      uint32_t param);
-
-int smu_v11_0_read_arg(struct smu_context *smu, uint32_t *arg);
+			      uint32_t param,
+			      uint32_t *read_arg);
 
 int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count);
 

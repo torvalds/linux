@@ -2717,30 +2717,20 @@ void dcn10_optimize_bandwidth(
 		hws->funcs.verify_allow_pstate_change_high(dc);
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		if (context->stream_count == 0) {
+		if (context->stream_count == 0)
 			context->bw_ctx.bw.dcn.clk.phyclk_khz = 0;
 
-			dc->clk_mgr->funcs->update_clocks(
-					dc->clk_mgr,
-					context,
-					true);
-		} else if (dc->clk_optimized_required || IS_DIAG_DC(dc->ctx->dce_environment)) {
-			dc->clk_mgr->funcs->update_clocks(
-								dc->clk_mgr,
-								context,
-								true);
-		}
-	}
-
-	if (dc->wm_optimized_required || IS_DIAG_DC(dc->ctx->dce_environment)) {
-		hubbub->funcs->program_watermarks(hubbub,
-				&context->bw_ctx.bw.dcn.watermarks,
-				dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
+		dc->clk_mgr->funcs->update_clocks(
+				dc->clk_mgr,
+				context,
 				true);
 	}
 
-	dc->clk_optimized_required = false;
-	dc->wm_optimized_required = false;
+	hubbub->funcs->program_watermarks(hubbub,
+			&context->bw_ctx.bw.dcn.watermarks,
+			dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
+			true);
+
 	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)

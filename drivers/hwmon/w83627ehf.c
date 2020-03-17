@@ -1346,8 +1346,13 @@ w83627ehf_is_visible(const void *drvdata, enum hwmon_sensor_types type,
 		/* channel 0.., name 1.. */
 		if (!(data->have_temp & (1 << channel)))
 			return 0;
-		if (attr == hwmon_temp_input || attr == hwmon_temp_label)
+		if (attr == hwmon_temp_input)
 			return 0444;
+		if (attr == hwmon_temp_label) {
+			if (data->temp_label)
+				return 0444;
+			return 0;
+		}
 		if (channel == 2 && data->temp3_val_only)
 			return 0;
 		if (attr == hwmon_temp_max) {

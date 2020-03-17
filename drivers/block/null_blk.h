@@ -14,9 +14,6 @@
 #include <linux/fault-inject.h>
 
 struct nullb_cmd {
-	struct list_head list;
-	struct llist_node ll_list;
-	struct __call_single_data csd;
 	struct request *rq;
 	struct bio *bio;
 	unsigned int tag;

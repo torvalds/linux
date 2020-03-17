@@ -1378,6 +1378,10 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 		}
 
 	dc->hwss.optimize_bandwidth(dc, context);
+
+	dc->clk_optimized_required = false;
+	dc->wm_optimized_required = false;
+
 	return true;
 }
 

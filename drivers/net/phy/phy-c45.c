@@ -167,7 +167,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_restart_aneg);
  */
 int genphy_c45_check_and_restart_aneg(struct phy_device *phydev, bool restart)
 {
-	int ret = 0;
+	int ret;
 
 	if (!restart) {
 		/* Configure and restart aneg if it wasn't set before */
@@ -180,9 +180,9 @@ int genphy_c45_check_and_restart_aneg(struct phy_device *phydev, bool restart)
 	}
 
 	if (restart)
-		ret = genphy_c45_restart_aneg(phydev);
+		return genphy_c45_restart_aneg(phydev);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(genphy_c45_check_and_restart_aneg);
 

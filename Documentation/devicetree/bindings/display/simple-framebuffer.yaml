@@ -174,10 +174,6 @@ examples:
       };
     };
 
-    soc@1c00000 {
-      lcdc0: lcdc@1c0c000 {
-        compatible = "allwinner,sun4i-a10-lcdc";
-      };
-    };
+    lcdc0: lcdc { };
 
 ...

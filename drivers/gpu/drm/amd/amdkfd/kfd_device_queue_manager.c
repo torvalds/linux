@@ -1734,7 +1734,7 @@ static int allocate_hiq_sdma_mqd(struct device_queue_manager *dqm)
 
 	retval = amdgpu_amdkfd_alloc_gtt_mem(dev->kgd, size,
 		&(mem_obj->gtt_mem), &(mem_obj->gpu_addr),
-		(void *)&(mem_obj->cpu_ptr), true);
+		(void *)&(mem_obj->cpu_ptr), false);
 
 	return retval;
 }

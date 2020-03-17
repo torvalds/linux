@@ -410,7 +410,7 @@ struct fsf_qtcb_bottom_port {
 	u8 cb_util;
 	u8 a_util;
 	u8 res2;
-	u16 temperature;
+	s16 temperature;
 	u16 vcc;
 	u16 tx_bias;
 	u16 tx_power;

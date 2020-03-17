@@ -200,7 +200,7 @@ int mlx5e_health_report(struct mlx5e_priv *priv,
 	netdev_err(priv->netdev, err_str);
 
 	if (!reporter)
-		return err_ctx->recover(&err_ctx->ctx);
+		return err_ctx->recover(err_ctx->ctx);
 
 	return devlink_health_report(reporter, err_str, err_ctx);
 }
