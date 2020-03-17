@@ -842,11 +842,6 @@ int sdw_cdns_exit_reset(struct sdw_cdns *cdns)
 		     CDNS_MCP_CONTROL_HW_RST,
 		     CDNS_MCP_CONTROL_HW_RST);
 
-	/* enable bus operations with clock and data */
-	cdns_updatel(cdns, CDNS_MCP_CONFIG,
-		     CDNS_MCP_CONFIG_OP,
-		     CDNS_MCP_CONFIG_OP_NORMAL);
-
 	/* commit changes */
 	return cdns_config_update(cdns);
 }
@@ -1096,6 +1091,10 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 
 	/* Configure mcp config */
 	val = cdns_readl(cdns, CDNS_MCP_CONFIG);
+
+	/* enable bus operations with clock and data */
+	val &= ~CDNS_MCP_CONFIG_OP;
+	val |= CDNS_MCP_CONFIG_OP_NORMAL;
 
 	/* Set cmd mode for Tx and Rx cmds */
 	val &= ~CDNS_MCP_CONFIG_CMD;
