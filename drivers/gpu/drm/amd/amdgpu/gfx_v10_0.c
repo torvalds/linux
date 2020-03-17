@@ -1940,6 +1940,11 @@ static int gfx_v10_0_rlc_resume(struct amdgpu_device *adev)
 		if (!amdgpu_sriov_vf(adev)) /* enable RLC SRM */
 			gfx_v10_0_rlc_enable_srm(adev);
 	} else {
+		if (amdgpu_sriov_vf(adev)) {
+			gfx_v10_0_init_csb(adev);
+			return 0;
+		}
+
 		adev->gfx.rlc.funcs->stop(adev);
 
 		/* disable CG */
