@@ -26,6 +26,7 @@ int pci_proc_domain(struct pci_bus *);
 
 #define ZPCI_NR_DMA_SPACES		1
 #define ZPCI_NR_DEVICES			CONFIG_PCI_NR_FUNCTIONS
+#define ZPCI_DOMAIN_BITMAP_SIZE		(1 << 16)
 
 /* PCI Function Controls */
 #define ZPCI_FC_FN_ENABLED		0x80

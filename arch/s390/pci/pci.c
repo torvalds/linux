@@ -40,8 +40,9 @@
 static LIST_HEAD(zpci_list);
 static DEFINE_SPINLOCK(zpci_list_lock);
 
-static DECLARE_BITMAP(zpci_domain, ZPCI_NR_DEVICES);
+static DECLARE_BITMAP(zpci_domain, ZPCI_DOMAIN_BITMAP_SIZE);
 static DEFINE_SPINLOCK(zpci_domain_lock);
+static unsigned int zpci_num_domains_allocated;
 
 #define ZPCI_IOMAP_ENTRIES						\
 	min(((unsigned long) ZPCI_NR_DEVICES * PCI_STD_NUM_BARS / 2),	\
@@ -609,12 +610,16 @@ void pcibios_disable_device(struct pci_dev *pdev)
 
 static int zpci_alloc_domain(struct zpci_dev *zdev)
 {
+	spin_lock(&zpci_domain_lock);
+	if (zpci_num_domains_allocated > (ZPCI_NR_DEVICES - 1)) {
+		spin_unlock(&zpci_domain_lock);
+		pr_err("Adding PCI function %08x failed because the configured limit of %d is reached\n",
+			zdev->fid, ZPCI_NR_DEVICES);
+		return -ENOSPC;
+	}
+
 	if (zpci_unique_uid) {
 		zdev->domain = (u16) zdev->uid;
-		if (zdev->domain >= ZPCI_NR_DEVICES)
-			return 0;
-
-		spin_lock(&zpci_domain_lock);
 		if (test_bit(zdev->domain, zpci_domain)) {
 			spin_unlock(&zpci_domain_lock);
 			pr_err("Adding PCI function %08x failed because domain %04x is already assigned\n",
@@ -622,30 +627,27 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 			return -EEXIST;
 		}
 		set_bit(zdev->domain, zpci_domain);
+		zpci_num_domains_allocated++;
 		spin_unlock(&zpci_domain_lock);
 		return 0;
 	}
-
-	spin_lock(&zpci_domain_lock);
+	/*
+	 * We can always auto allocate domains below ZPCI_NR_DEVICES.
+	 * There is either a free domain or we have reached the maximum in
+	 * which case we would have bailed earlier.
+	 */
 	zdev->domain = find_first_zero_bit(zpci_domain, ZPCI_NR_DEVICES);
-	if (zdev->domain == ZPCI_NR_DEVICES) {
-		spin_unlock(&zpci_domain_lock);
-		pr_err("Adding PCI function %08x failed because the configured limit of %d is reached\n",
-			zdev->fid, ZPCI_NR_DEVICES);
-		return -ENOSPC;
-	}
 	set_bit(zdev->domain, zpci_domain);
+	zpci_num_domains_allocated++;
 	spin_unlock(&zpci_domain_lock);
 	return 0;
 }
 
 static void zpci_free_domain(struct zpci_dev *zdev)
 {
-	if (zdev->domain >= ZPCI_NR_DEVICES)
-		return;
-
 	spin_lock(&zpci_domain_lock);
 	clear_bit(zdev->domain, zpci_domain);
+	zpci_num_domains_allocated--;
 	spin_unlock(&zpci_domain_lock);
 }
 
