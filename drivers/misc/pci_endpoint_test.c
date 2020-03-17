@@ -652,6 +652,13 @@ err:
 	return ret;
 }
 
+static bool pci_endpoint_test_clear_irq(struct pci_endpoint_test *test)
+{
+	pci_endpoint_test_release_irq(test);
+	pci_endpoint_test_free_irq_vectors(test);
+	return true;
+}
+
 static bool pci_endpoint_test_set_irq(struct pci_endpoint_test *test,
 				      int req_irq_type)
 {
@@ -721,6 +728,9 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case PCITEST_GET_IRQTYPE:
 		ret = irq_type;
+		break;
+	case PCITEST_CLEAR_IRQ:
+		ret = pci_endpoint_test_clear_irq(test);
 		break;
 	}
 
