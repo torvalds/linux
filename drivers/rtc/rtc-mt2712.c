@@ -409,7 +409,9 @@ static struct platform_driver mt2712_rtc_driver = {
 	.driver = {
 		.name = "mt2712-rtc",
 		.of_match_table = mt2712_rtc_of_match,
+#ifdef CONFIG_PM_SLEEP
 		.pm = &mt2712_pm_ops,
+#endif
 	},
 	.probe  = mt2712_rtc_probe,
 };
