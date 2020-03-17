@@ -248,6 +248,50 @@ overlay filesystem (though an operation on the name of the file such as
 rename or unlink will of course be noticed and handled).
 
 
+Permission model
+----------------
+
+Permission checking in the overlay filesystem follows these principles:
+
+ 1) permission check SHOULD return the same result before and after copy up
+
+ 2) task creating the overlay mount MUST NOT gain additional privileges
+
+ 3) non-mounting task MAY gain additional privileges through the overlay,
+ compared to direct access on underlying lower or upper filesystems
+
+This is achieved by performing two permission checks on each access
+
+ a) check if current task is allowed access based on local DAC (owner,
+    group, mode and posix acl), as well as MAC checks
+
+ b) check if mounting task would be allowed real operation on lower or
+    upper layer based on underlying filesystem permissions, again including
+    MAC checks
+
+Check (a) ensures consistency (1) since owner, group, mode and posix acls
+are copied up.  On the other hand it can result in server enforced
+permissions (used by NFS, for example) being ignored (3).
+
+Check (b) ensures that no task gains permissions to underlying layers that
+the mounting task does not have (2).  This also means that it is possible
+to create setups where the consistency rule (1) does not hold; normally,
+however, the mounting task will have sufficient privileges to perform all
+operations.
+
+Another way to demonstrate this model is drawing parallels between
+
+  mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,... /merged
+
+and
+
+  cp -a /lower /upper
+  mount --bind /upper /merged
+
+The resulting access permissions should be the same.  The difference is in
+the time of copy (on-demand vs. up-front).
+
+
 Multiple lower layers
 ---------------------
 
