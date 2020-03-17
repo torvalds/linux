@@ -113,45 +113,46 @@ bug:
 	return dentry;
 }
 
-static int ovl_dentry_revalidate(struct dentry *dentry, unsigned int flags)
+static int ovl_revalidate_real(struct dentry *d, unsigned int flags, bool weak)
+{
+	int ret = 1;
+
+	if (weak) {
+		if (d->d_flags & DCACHE_OP_WEAK_REVALIDATE)
+			ret =  d->d_op->d_weak_revalidate(d, flags);
+	} else if (d->d_flags & DCACHE_OP_REVALIDATE) {
+		ret = d->d_op->d_revalidate(d, flags);
+		if (!ret) {
+			if (!(flags & LOOKUP_RCU))
+				d_invalidate(d);
+			ret = -ESTALE;
+		}
+	}
+	return ret;
+}
+
+static int ovl_dentry_revalidate_common(struct dentry *dentry,
+					unsigned int flags, bool weak)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
 	unsigned int i;
 	int ret = 1;
 
-	for (i = 0; i < oe->numlower; i++) {
-		struct dentry *d = oe->lowerstack[i].dentry;
-
-		if (d->d_flags & DCACHE_OP_REVALIDATE) {
-			ret = d->d_op->d_revalidate(d, flags);
-			if (ret < 0)
-				return ret;
-			if (!ret) {
-				if (!(flags & LOOKUP_RCU))
-					d_invalidate(d);
-				return -ESTALE;
-			}
-		}
+	for (i = 0; ret > 0 && i < oe->numlower; i++) {
+		ret = ovl_revalidate_real(oe->lowerstack[i].dentry, flags,
+					  weak);
 	}
-	return 1;
+	return ret;
+}
+
+static int ovl_dentry_revalidate(struct dentry *dentry, unsigned int flags)
+{
+	return ovl_dentry_revalidate_common(dentry, flags, false);
 }
 
 static int ovl_dentry_weak_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
-	unsigned int i;
-	int ret = 1;
-
-	for (i = 0; i < oe->numlower; i++) {
-		struct dentry *d = oe->lowerstack[i].dentry;
-
-		if (d->d_flags & DCACHE_OP_WEAK_REVALIDATE) {
-			ret = d->d_op->d_weak_revalidate(d, flags);
-			if (ret <= 0)
-				break;
-		}
-	}
-	return ret;
+	return ovl_dentry_revalidate_common(dentry, flags, true);
 }
 
 static const struct dentry_operations ovl_dentry_operations = {
