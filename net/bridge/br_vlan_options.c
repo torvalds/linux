@@ -4,25 +4,48 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <net/ip_tunnels.h>
 
 #include "br_private.h"
+#include "br_private_tunnel.h"
+
+static bool __vlan_tun_put(struct sk_buff *skb, const struct net_bridge_vlan *v)
+{
+	__be32 tid = tunnel_id_to_key32(v->tinfo.tunnel_id);
+
+	if (!v->tinfo.tunnel_dst)
+		return true;
+
+	return !nla_put_u32(skb, BRIDGE_VLANDB_ENTRY_TUNNEL_ID,
+			    be32_to_cpu(tid));
+}
+
+static bool __vlan_tun_can_enter_range(const struct net_bridge_vlan *v_curr,
+				       const struct net_bridge_vlan *range_end)
+{
+	return (!v_curr->tinfo.tunnel_dst && !range_end->tinfo.tunnel_dst) ||
+	       vlan_tunid_inrange(v_curr, range_end);
+}
 
 /* check if the options' state of v_curr allow it to enter the range */
 bool br_vlan_opts_eq_range(const struct net_bridge_vlan *v_curr,
 			   const struct net_bridge_vlan *range_end)
 {
-	return v_curr->state == range_end->state;
+	return v_curr->state == range_end->state &&
+	       __vlan_tun_can_enter_range(v_curr, range_end);
 }
 
 bool br_vlan_opts_fill(struct sk_buff *skb, const struct net_bridge_vlan *v)
 {
 	return !nla_put_u8(skb, BRIDGE_VLANDB_ENTRY_STATE,
-			   br_vlan_get_state(v));
+			   br_vlan_get_state(v)) &&
+	       __vlan_tun_put(skb, v);
 }
 
 size_t br_vlan_opts_nl_size(void)
 {
-	return nla_total_size(sizeof(u8)); /* BRIDGE_VLANDB_ENTRY_STATE */
+	return nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_ENTRY_STATE */
+	       + nla_total_size(sizeof(u32)); /* BRIDGE_VLANDB_ENTRY_TUNNEL_ID */
 }
 
 static int br_vlan_modify_state(struct net_bridge_vlan_group *vg,
