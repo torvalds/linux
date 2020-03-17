@@ -269,6 +269,10 @@ enum {
 	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
 };
 
+enum {
+	MCU_UNI_CMD_STA_REC_UPDATE = MCU_UNI_PREFIX | 0x03,
+};
+
 #define MCU_CMD_ACK		BIT(0)
 #define MCU_CMD_UNI		BIT(1)
 #define MCU_CMD_QUERY		BIT(2)
@@ -607,6 +611,15 @@ struct sta_req_hdr {
 	u8 rsv[2];
 } __packed;
 
+struct sta_rec_state {
+	__le16 tag;
+	__le16 len;
+	u8 state;
+	__le32 flags;
+	u8 vhtop;
+	u8 pad[2];
+} __packed;
+
 struct sta_rec_basic {
 	__le16 tag;
 	__le16 len;
@@ -659,7 +672,7 @@ enum {
 	STA_REC_BF,
 	STA_REC_AMSDU, /* for CR4 */
 	STA_REC_BA,
-	STA_REC_RED, /* not used */
+	STA_REC_STATE,
 	STA_REC_TX_PROC, /* for hdr trans and CSO in CR4 */
 	STA_REC_HT,
 	STA_REC_VHT,
