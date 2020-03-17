@@ -16,6 +16,7 @@
 #include <linux/uuid.h>
 #include <linux/wait.h>
 
+#include "gt/intel_sseu.h"
 #include "i915_reg.h"
 #include "intel_wakeref.h"
 
@@ -406,6 +407,12 @@ struct i915_perf {
 	 * descriptor.
 	 */
 	struct i915_perf_stream *exclusive_stream;
+
+	/**
+	 * @sseu: sseu configuration selected to run while perf is active,
+	 * applies to all contexts.
+	 */
+	struct intel_sseu sseu;
 
 	/**
 	 * For rate limiting any notifications of spurious

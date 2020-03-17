@@ -344,6 +344,10 @@ static const struct i915_oa_format gen12_oa_formats[I915_OA_FORMAT_MAX] = {
  * @oa_periodic: Whether to enable periodic OA unit sampling
  * @oa_period_exponent: The OA unit sampling period is derived from this
  * @engine: The engine (typically rcs0) being monitored by the OA unit
+ * @has_sseu: Whether @sseu was specified by userspace
+ * @sseu: internal SSEU configuration computed either from the userspace
+ *        specified configuration in the opening parameters or a default value
+ *        (see get_default_sseu_config())
  *
  * As read_properties_unlocked() enumerates and validates the properties given
  * to open a stream of metrics the configuration is built up in the structure
@@ -363,6 +367,9 @@ struct perf_open_properties {
 	int oa_period_exponent;
 
 	struct intel_engine_cs *engine;
+
+	bool has_sseu;
+	struct intel_sseu sseu;
 };
 
 struct i915_oa_config_bo {
@@ -2720,6 +2727,39 @@ static int i915_perf_stream_enable_sync(struct i915_perf_stream *stream)
 	return 0;
 }
 
+static void
+get_default_sseu_config(struct intel_sseu *out_sseu,
+			struct intel_engine_cs *engine)
+{
+	const struct sseu_dev_info *devinfo_sseu =
+		&RUNTIME_INFO(engine->i915)->sseu;
+
+	*out_sseu = intel_sseu_from_device_info(devinfo_sseu);
+
+	if (IS_GEN(engine->i915, 11)) {
+		/*
+		 * We only need subslice count so it doesn't matter which ones
+		 * we select - just turn off low bits in the amount of half of
+		 * all available subslices per slice.
+		 */
+		out_sseu->subslice_mask =
+			~(~0 << (hweight8(out_sseu->subslice_mask) / 2));
+		out_sseu->slice_mask = 0x1;
+	}
+}
+
+static int
+get_sseu_config(struct intel_sseu *out_sseu,
+		struct intel_engine_cs *engine,
+		const struct drm_i915_gem_context_param_sseu *drm_sseu)
+{
+	if (drm_sseu->engine.engine_class != engine->uabi_class ||
+	    drm_sseu->engine.engine_instance != engine->uabi_instance)
+		return -EINVAL;
+
+	return i915_gem_user_to_context_sseu(engine->i915, drm_sseu, out_sseu);
+}
+
 /**
  * i915_oa_stream_init - validate combined props for OA stream and init
  * @stream: An i915 perf stream
@@ -2852,6 +2892,8 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		goto err_oa_buf_alloc;
 
 	stream->ops = &i915_oa_stream_ops;
+
+	perf->sseu = props->sseu;
 	WRITE_ONCE(perf->exclusive_stream, stream);
 
 	ret = i915_perf_stream_enable_sync(stream);
@@ -3397,6 +3439,14 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 		privileged_op = true;
 	}
 
+	/*
+	 * Asking for SSEU configuration is a priviliged operation.
+	 */
+	if (props->has_sseu)
+		privileged_op = true;
+	else
+		get_default_sseu_config(&props->sseu, props->engine);
+
 	/* Similar to perf's kernel.perf_paranoid_cpu sysctl option
 	 * we check a dev.i915.perf_stream_paranoid sysctl option
 	 * to determine if it's ok to access system wide OA counters
@@ -3492,6 +3542,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 {
 	u64 __user *uprop = uprops;
 	u32 i;
+	int ret;
 
 	memset(props, 0, sizeof(struct perf_open_properties));
 
@@ -3523,7 +3574,6 @@ static int read_properties_unlocked(struct i915_perf *perf,
 	for (i = 0; i < n_props; i++) {
 		u64 oa_period, oa_freq_hz;
 		u64 id, value;
-		int ret;
 
 		ret = get_user(id, uprop);
 		if (ret)
@@ -3609,6 +3659,24 @@ static int read_properties_unlocked(struct i915_perf *perf,
 		case DRM_I915_PERF_PROP_HOLD_PREEMPTION:
 			props->hold_preemption = !!value;
 			break;
+		case DRM_I915_PERF_PROP_GLOBAL_SSEU: {
+			struct drm_i915_gem_context_param_sseu user_sseu;
+
+			if (copy_from_user(&user_sseu,
+					   u64_to_user_ptr(value),
+					   sizeof(user_sseu))) {
+				DRM_DEBUG("Unable to copy global sseu parameter\n");
+				return -EFAULT;
+			}
+
+			ret = get_sseu_config(&props->sseu, props->engine, &user_sseu);
+			if (ret) {
+				DRM_DEBUG("Invalid SSEU configuration\n");
+				return ret;
+			}
+			props->has_sseu = true;
+			break;
+		}
 		case DRM_I915_PERF_PROP_MAX:
 			MISSING_CASE(id);
 			return -EINVAL;
@@ -4382,8 +4450,12 @@ int i915_perf_ioctl_version(void)
 	 *    preemption on a particular context so that performance data is
 	 *    accessible from a delta of MI_RPC reports without looking at the
 	 *    OA buffer.
+	 *
+	 * 4: Add DRM_I915_PERF_PROP_ALLOWED_SSEU to limit what contexts can
+	 *    be run for the duration of the performance recording based on
+	 *    their SSEU configuration.
 	 */
-	return 3;
+	return 4;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
