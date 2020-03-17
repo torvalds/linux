@@ -154,6 +154,7 @@ struct freerunning_counters {
 	unsigned int box_offset;
 	unsigned int num_counters;
 	unsigned int bits;
+	unsigned *box_offsets;
 };
 
 struct pci2phy_map {
@@ -310,7 +311,9 @@ unsigned int uncore_freerunning_counter(struct intel_uncore_box *box,
 
 	return pmu->type->freerunning[type].counter_base +
 	       pmu->type->freerunning[type].counter_offset * idx +
-	       pmu->type->freerunning[type].box_offset * pmu->pmu_idx;
+	       (pmu->type->freerunning[type].box_offsets ?
+	        pmu->type->freerunning[type].box_offsets[pmu->pmu_idx] :
+	        pmu->type->freerunning[type].box_offset * pmu->pmu_idx);
 }
 
 static inline
