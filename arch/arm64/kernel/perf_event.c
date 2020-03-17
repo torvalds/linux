@@ -450,86 +450,74 @@ static inline void armv8pmu_write_event_type(struct perf_event *event)
 	}
 }
 
-static inline int armv8pmu_enable_counter(int idx)
+static u32 armv8pmu_event_cnten_mask(struct perf_event *event)
 {
-	u32 counter = ARMV8_IDX_TO_COUNTER(idx);
-	write_sysreg(BIT(counter), pmcntenset_el0);
-	return idx;
+	int counter = ARMV8_IDX_TO_COUNTER(event->hw.idx);
+	u32 mask = BIT(counter);
+
+	if (armv8pmu_event_is_chained(event))
+		mask |= BIT(counter - 1);
+	return mask;
+}
+
+static inline void armv8pmu_enable_counter(u32 mask)
+{
+	write_sysreg(mask, pmcntenset_el0);
 }
 
 static inline void armv8pmu_enable_event_counter(struct perf_event *event)
 {
 	struct perf_event_attr *attr = &event->attr;
-	int idx = event->hw.idx;
-	u32 counter_bits = BIT(ARMV8_IDX_TO_COUNTER(idx));
+	u32 mask = armv8pmu_event_cnten_mask(event);
 
-	if (armv8pmu_event_is_chained(event))
-		counter_bits |= BIT(ARMV8_IDX_TO_COUNTER(idx - 1));
-
-	kvm_set_pmu_events(counter_bits, attr);
+	kvm_set_pmu_events(mask, attr);
 
 	/* We rely on the hypervisor switch code to enable guest counters */
-	if (!kvm_pmu_counter_deferred(attr)) {
-		armv8pmu_enable_counter(idx);
-		if (armv8pmu_event_is_chained(event))
-			armv8pmu_enable_counter(idx - 1);
-	}
+	if (!kvm_pmu_counter_deferred(attr))
+		armv8pmu_enable_counter(mask);
 }
 
-static inline int armv8pmu_disable_counter(int idx)
+static inline void armv8pmu_disable_counter(u32 mask)
 {
-	u32 counter = ARMV8_IDX_TO_COUNTER(idx);
-	write_sysreg(BIT(counter), pmcntenclr_el0);
-	return idx;
+	write_sysreg(mask, pmcntenclr_el0);
 }
 
 static inline void armv8pmu_disable_event_counter(struct perf_event *event)
 {
-	struct hw_perf_event *hwc = &event->hw;
 	struct perf_event_attr *attr = &event->attr;
-	int idx = hwc->idx;
-	u32 counter_bits = BIT(ARMV8_IDX_TO_COUNTER(idx));
+	u32 mask = armv8pmu_event_cnten_mask(event);
 
-	if (armv8pmu_event_is_chained(event))
-		counter_bits |= BIT(ARMV8_IDX_TO_COUNTER(idx - 1));
-
-	kvm_clr_pmu_events(counter_bits);
+	kvm_clr_pmu_events(mask);
 
 	/* We rely on the hypervisor switch code to disable guest counters */
-	if (!kvm_pmu_counter_deferred(attr)) {
-		if (armv8pmu_event_is_chained(event))
-			armv8pmu_disable_counter(idx - 1);
-		armv8pmu_disable_counter(idx);
-	}
+	if (!kvm_pmu_counter_deferred(attr))
+		armv8pmu_disable_counter(mask);
 }
 
-static inline int armv8pmu_enable_intens(int idx)
+static inline void armv8pmu_enable_intens(u32 mask)
 {
-	u32 counter = ARMV8_IDX_TO_COUNTER(idx);
-	write_sysreg(BIT(counter), pmintenset_el1);
-	return idx;
+	write_sysreg(mask, pmintenset_el1);
 }
 
-static inline int armv8pmu_enable_event_irq(struct perf_event *event)
+static inline void armv8pmu_enable_event_irq(struct perf_event *event)
 {
-	return armv8pmu_enable_intens(event->hw.idx);
+	u32 counter = ARMV8_IDX_TO_COUNTER(event->hw.idx);
+	armv8pmu_enable_intens(BIT(counter));
 }
 
-static inline int armv8pmu_disable_intens(int idx)
+static inline void armv8pmu_disable_intens(u32 mask)
 {
-	u32 counter = ARMV8_IDX_TO_COUNTER(idx);
-	write_sysreg(BIT(counter), pmintenclr_el1);
+	write_sysreg(mask, pmintenclr_el1);
 	isb();
 	/* Clear the overflow flag in case an interrupt is pending. */
-	write_sysreg(BIT(counter), pmovsclr_el0);
+	write_sysreg(mask, pmovsclr_el0);
 	isb();
-
-	return idx;
 }
 
-static inline int armv8pmu_disable_event_irq(struct perf_event *event)
+static inline void armv8pmu_disable_event_irq(struct perf_event *event)
 {
-	return armv8pmu_disable_intens(event->hw.idx);
+	u32 counter = ARMV8_IDX_TO_COUNTER(event->hw.idx);
+	armv8pmu_disable_intens(BIT(counter));
 }
 
 static inline u32 armv8pmu_getreset_flags(void)
@@ -814,14 +802,9 @@ static int armv8pmu_filter_match(struct perf_event *event)
 
 static void armv8pmu_reset(void *info)
 {
-	struct arm_pmu *cpu_pmu = (struct arm_pmu *)info;
-	u32 idx, nb_cnt = cpu_pmu->num_events;
-
 	/* The counter and interrupt enable registers are unknown at reset. */
-	for (idx = ARMV8_IDX_CYCLE_COUNTER; idx < nb_cnt; ++idx) {
-		armv8pmu_disable_counter(idx);
-		armv8pmu_disable_intens(idx);
-	}
+	armv8pmu_disable_counter(U32_MAX);
+	armv8pmu_disable_intens(U32_MAX);
 
 	/* Clear the counters we flip at guest entry/exit */
 	kvm_clr_pmu_events(U32_MAX);
