@@ -429,10 +429,10 @@ out_revert:
 
 struct xrep_agfl {
 	/* Bitmap of other OWN_AG metadata blocks. */
-	struct xfs_bitmap	agmetablocks;
+	struct xbitmap		agmetablocks;
 
 	/* Bitmap of free space. */
-	struct xfs_bitmap	*freesp;
+	struct xbitmap		*freesp;
 
 	struct xfs_scrub	*sc;
 };
@@ -455,12 +455,12 @@ xrep_agfl_walk_rmap(
 	if (rec->rm_owner == XFS_RMAP_OWN_AG) {
 		fsb = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_ag.agno,
 				rec->rm_startblock);
-		error = xfs_bitmap_set(ra->freesp, fsb, rec->rm_blockcount);
+		error = xbitmap_set(ra->freesp, fsb, rec->rm_blockcount);
 		if (error)
 			return error;
 	}
 
-	return xfs_bitmap_set_btcur_path(&ra->agmetablocks, cur);
+	return xbitmap_set_btcur_path(&ra->agmetablocks, cur);
 }
 
 /*
@@ -476,19 +476,19 @@ STATIC int
 xrep_agfl_collect_blocks(
 	struct xfs_scrub	*sc,
 	struct xfs_buf		*agf_bp,
-	struct xfs_bitmap	*agfl_extents,
+	struct xbitmap		*agfl_extents,
 	xfs_agblock_t		*flcount)
 {
 	struct xrep_agfl	ra;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_btree_cur	*cur;
-	struct xfs_bitmap_range	*br;
-	struct xfs_bitmap_range	*n;
+	struct xbitmap_range	*br;
+	struct xbitmap_range	*n;
 	int			error;
 
 	ra.sc = sc;
 	ra.freesp = agfl_extents;
-	xfs_bitmap_init(&ra.agmetablocks);
+	xbitmap_init(&ra.agmetablocks);
 
 	/* Find all space used by the free space btrees & rmapbt. */
 	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno);
@@ -500,7 +500,7 @@ xrep_agfl_collect_blocks(
 	/* Find all blocks currently being used by the bnobt. */
 	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno,
 			XFS_BTNUM_BNO);
-	error = xfs_bitmap_set_btblocks(&ra.agmetablocks, cur);
+	error = xbitmap_set_btblocks(&ra.agmetablocks, cur);
 	if (error)
 		goto err;
 	xfs_btree_del_cursor(cur, error);
@@ -508,7 +508,7 @@ xrep_agfl_collect_blocks(
 	/* Find all blocks currently being used by the cntbt. */
 	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno,
 			XFS_BTNUM_CNT);
-	error = xfs_bitmap_set_btblocks(&ra.agmetablocks, cur);
+	error = xbitmap_set_btblocks(&ra.agmetablocks, cur);
 	if (error)
 		goto err;
 
@@ -518,8 +518,8 @@ xrep_agfl_collect_blocks(
 	 * Drop the freesp meta blocks that are in use by btrees.
 	 * The remaining blocks /should/ be AGFL blocks.
 	 */
-	error = xfs_bitmap_disunion(agfl_extents, &ra.agmetablocks);
-	xfs_bitmap_destroy(&ra.agmetablocks);
+	error = xbitmap_disunion(agfl_extents, &ra.agmetablocks);
+	xbitmap_destroy(&ra.agmetablocks);
 	if (error)
 		return error;
 
@@ -528,7 +528,7 @@ xrep_agfl_collect_blocks(
 	 * the AGFL we'll free them later.
 	 */
 	*flcount = 0;
-	for_each_xfs_bitmap_extent(br, n, agfl_extents) {
+	for_each_xbitmap_extent(br, n, agfl_extents) {
 		*flcount += br->len;
 		if (*flcount > xfs_agfl_size(mp))
 			break;
@@ -538,7 +538,7 @@ xrep_agfl_collect_blocks(
 	return 0;
 
 err:
-	xfs_bitmap_destroy(&ra.agmetablocks);
+	xbitmap_destroy(&ra.agmetablocks);
 	xfs_btree_del_cursor(cur, error);
 	return error;
 }
@@ -573,13 +573,13 @@ STATIC void
 xrep_agfl_init_header(
 	struct xfs_scrub	*sc,
 	struct xfs_buf		*agfl_bp,
-	struct xfs_bitmap	*agfl_extents,
+	struct xbitmap		*agfl_extents,
 	xfs_agblock_t		flcount)
 {
 	struct xfs_mount	*mp = sc->mp;
 	__be32			*agfl_bno;
-	struct xfs_bitmap_range	*br;
-	struct xfs_bitmap_range	*n;
+	struct xbitmap_range	*br;
+	struct xbitmap_range	*n;
 	struct xfs_agfl		*agfl;
 	xfs_agblock_t		agbno;
 	unsigned int		fl_off;
@@ -603,7 +603,7 @@ xrep_agfl_init_header(
 	 */
 	fl_off = 0;
 	agfl_bno = xfs_buf_to_agfl_bno(agfl_bp);
-	for_each_xfs_bitmap_extent(br, n, agfl_extents) {
+	for_each_xbitmap_extent(br, n, agfl_extents) {
 		agbno = XFS_FSB_TO_AGBNO(mp, br->start);
 
 		trace_xrep_agfl_insert(mp, sc->sa.agno, agbno, br->len);
@@ -637,7 +637,7 @@ int
 xrep_agfl(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_bitmap	agfl_extents;
+	struct xbitmap		agfl_extents;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_buf		*agf_bp;
 	struct xfs_buf		*agfl_bp;
@@ -649,7 +649,7 @@ xrep_agfl(
 		return -EOPNOTSUPP;
 
 	xchk_perag_get(sc->mp, &sc->sa);
-	xfs_bitmap_init(&agfl_extents);
+	xbitmap_init(&agfl_extents);
 
 	/*
 	 * Read the AGF so that we can query the rmapbt.  We hope that there's
@@ -699,7 +699,7 @@ xrep_agfl(
 	error = xrep_reap_extents(sc, &agfl_extents, &XFS_RMAP_OINFO_AG,
 			XFS_AG_RESV_AGFL);
 err:
-	xfs_bitmap_destroy(&agfl_extents);
+	xbitmap_destroy(&agfl_extents);
 	return error;
 }
 

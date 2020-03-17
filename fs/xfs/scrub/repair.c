@@ -436,10 +436,10 @@ xrep_init_btblock(
 int
 xrep_invalidate_blocks(
 	struct xfs_scrub	*sc,
-	struct xfs_bitmap	*bitmap)
+	struct xbitmap		*bitmap)
 {
-	struct xfs_bitmap_range	*bmr;
-	struct xfs_bitmap_range	*n;
+	struct xbitmap_range	*bmr;
+	struct xbitmap_range	*n;
 	struct xfs_buf		*bp;
 	xfs_fsblock_t		fsbno;
 
@@ -451,7 +451,7 @@ xrep_invalidate_blocks(
 	 * because we never own those; and if we can't TRYLOCK the buffer we
 	 * assume it's owned by someone else.
 	 */
-	for_each_xfs_bitmap_block(fsbno, bmr, n, bitmap) {
+	for_each_xbitmap_block(fsbno, bmr, n, bitmap) {
 		/* Skip AG headers and post-EOFS blocks */
 		if (!xfs_verify_fsbno(sc->mp, fsbno))
 			continue;
@@ -597,18 +597,18 @@ out_free:
 int
 xrep_reap_extents(
 	struct xfs_scrub		*sc,
-	struct xfs_bitmap		*bitmap,
+	struct xbitmap			*bitmap,
 	const struct xfs_owner_info	*oinfo,
 	enum xfs_ag_resv_type		type)
 {
-	struct xfs_bitmap_range		*bmr;
-	struct xfs_bitmap_range		*n;
+	struct xbitmap_range		*bmr;
+	struct xbitmap_range		*n;
 	xfs_fsblock_t			fsbno;
 	int				error = 0;
 
 	ASSERT(xfs_sb_version_hasrmapbt(&sc->mp->m_sb));
 
-	for_each_xfs_bitmap_block(fsbno, bmr, n, bitmap) {
+	for_each_xbitmap_block(fsbno, bmr, n, bitmap) {
 		ASSERT(sc->ip != NULL ||
 		       XFS_FSB_TO_AGNO(sc->mp, fsbno) == sc->sa.agno);
 		trace_xrep_dispose_btree_extent(sc->mp,
