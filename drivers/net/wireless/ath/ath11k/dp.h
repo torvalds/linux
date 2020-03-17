@@ -160,7 +160,7 @@ struct ath11k_pdev_dp {
 #define DP_AVG_MPDUS_PER_TID_MAX 128
 #define DP_AVG_MSDUS_PER_MPDU 4
 
-#define DP_RX_HASH_ENABLE	0 /* Disable hash based Rx steering */
+#define DP_RX_HASH_ENABLE	1 /* Enable hash based Rx steering */
 
 #define DP_BA_WIN_SZ_MAX	256
 

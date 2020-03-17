@@ -2995,6 +2995,41 @@ static int ath11k_init_cmd_send(struct ath11k_pdev_wmi *wmi,
 	return ret;
 }
 
+int ath11k_wmi_pdev_lro_cfg(struct ath11k *ar,
+			    int pdev_id)
+{
+	struct ath11k_wmi_pdev_lro_config_cmd *cmd;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct ath11k_wmi_pdev_lro_config_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_LRO_INFO_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	get_random_bytes(cmd->th_4, sizeof(uint32_t) * ATH11K_IPV4_TH_SEED_SIZE);
+	get_random_bytes(cmd->th_6, sizeof(uint32_t) * ATH11K_IPV6_TH_SEED_SIZE);
+
+	cmd->pdev_id = pdev_id;
+
+	ret = ath11k_wmi_cmd_send(ar->wmi, skb, WMI_LRO_CONFIG_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "failed to send lro cfg req wmi cmd\n");
+		goto err;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI lro cfg cmd pdev_id 0x%x\n", pdev_id);
+	return 0;
+err:
+	dev_kfree_skb(skb);
+	return ret;
+}
+
 int ath11k_wmi_wait_for_service_ready(struct ath11k_base *ab)
 {
 	unsigned long time_left;

@@ -3974,6 +3974,9 @@ static int ath11k_mac_op_start(struct ieee80211_hw *hw)
 		goto err;
 	}
 
+	/* Configure the hash seed for hash based reo dest ring selection */
+	ath11k_wmi_pdev_lro_cfg(ar, ar->pdev->pdev_id);
+
 	mutex_unlock(&ar->conf_mutex);
 
 	rcu_assign_pointer(ab->pdevs_active[ar->pdev_idx],
@@ -5791,6 +5794,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 		ieee80211_hw_set(ar->hw, TX_AMPDU_SETUP_IN_HW);
 		ieee80211_hw_set(ar->hw, SUPPORTS_REORDERING_BUFFER);
 		ieee80211_hw_set(ar->hw, SUPPORTS_AMSDU_IN_AMPDU);
+		ieee80211_hw_set(ar->hw, USES_RSS);
 	}
 
 	ar->hw->wiphy->features |= NL80211_FEATURE_STATIC_SMPS;
