@@ -1262,28 +1262,26 @@ int mt7615_mcu_set_eeprom(struct mt7615_dev *dev)
 	} __packed req_hdr = {
 		.buffer_mode = 1,
 	};
-	int ret, len, eep_len;
-	u8 *req, *eep = (u8 *)dev->mt76.eeprom.data;
+	u8 *eep = (u8 *)dev->mt76.eeprom.data;
+	struct sk_buff *skb;
+	int eep_len;
 
 	if (is_mt7622(&dev->mt76))
 		eep_len = MT7622_EE_MAX - MT_EE_NIC_CONF_0;
 	else
 		eep_len = MT7615_EE_MAX - MT_EE_NIC_CONF_0;
 
-	len = sizeof(req_hdr) + eep_len;
-	req = kzalloc(len, GFP_KERNEL);
-	if (!req)
+	req_hdr.len = cpu_to_le16(eep_len);
+
+	skb = mt7615_mcu_msg_alloc(NULL, sizeof(req_hdr) + eep_len);
+	if (!skb)
 		return -ENOMEM;
 
-	req_hdr.len = cpu_to_le16(eep_len);
-	memcpy(req, &req_hdr, sizeof(req_hdr));
-	memcpy(req + sizeof(req_hdr), eep + MT_EE_NIC_CONF_0, eep_len);
+	skb_put_data(skb, &req_hdr, sizeof(req_hdr));
+	skb_put_data(skb, eep + MT_EE_NIC_CONF_0, eep_len);
 
-	ret = __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EFUSE_BUFFER_MODE,
-				  req, len, true);
-	kfree(req);
-
-	return ret;
+	return __mt76_mcu_skb_send_msg(&dev->mt76, skb,
+				       MCU_EXT_CMD_EFUSE_BUFFER_MODE, true);
 }
 
 int mt7615_mcu_set_mac_enable(struct mt7615_dev *dev, int band, bool enable)
