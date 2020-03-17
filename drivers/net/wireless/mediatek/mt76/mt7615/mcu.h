@@ -577,7 +577,7 @@ struct wtbl_raw {
 					 sizeof(struct sta_rec_basic) +	\
 					 sizeof(struct sta_rec_ht) +	\
 					 sizeof(struct sta_rec_vht) +	\
-					 sizeof(struct sta_rec_wtbl) +	\
+					 sizeof(struct tlv) +	\
 					 MT7615_WTBL_UPDATE_MAX_SIZE)
 
 #define MT7615_WTBL_UPDATE_BA_SIZE	(sizeof(struct wtbl_req_hdr) +	\
@@ -664,11 +664,6 @@ struct sta_rec_ba {
 	u8 ba_en;
 	__le16 ssn;
 	__le16 winsize;
-} __packed;
-
-struct sta_rec_wtbl {
-	__le16 tag;
-	__le16 len;
 } __packed;
 
 enum {
