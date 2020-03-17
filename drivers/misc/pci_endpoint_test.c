@@ -109,6 +109,7 @@ struct pci_endpoint_test {
 	struct miscdevice miscdev;
 	enum pci_barno test_reg_bar;
 	size_t alignment;
+	const char *name;
 };
 
 struct pci_endpoint_test_data {
@@ -227,7 +228,7 @@ static bool pci_endpoint_test_request_irq(struct pci_endpoint_test *test)
 	for (i = 0; i < test->num_irqs; i++) {
 		err = devm_request_irq(dev, pci_irq_vector(pdev, i),
 				       pci_endpoint_test_irqhandler,
-				       IRQF_SHARED, DRV_MODULE_NAME, test);
+				       IRQF_SHARED, test->name, test);
 		if (err)
 			goto fail;
 	}
@@ -807,9 +808,6 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	if (!pci_endpoint_test_alloc_irq_vectors(test, irq_type))
 		goto err_disable_irq;
 
-	if (!pci_endpoint_test_request_irq(test))
-		goto err_disable_irq;
-
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
 		if (pci_resource_flags(pdev, bar) & IORESOURCE_MEM) {
 			base = pci_ioremap_bar(pdev, bar);
@@ -839,12 +837,21 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	}
 
 	snprintf(name, sizeof(name), DRV_MODULE_NAME ".%d", id);
+	test->name = kstrdup(name, GFP_KERNEL);
+	if (!test->name) {
+		err = -ENOMEM;
+		goto err_ida_remove;
+	}
+
+	if (!pci_endpoint_test_request_irq(test))
+		goto err_kfree_test_name;
+
 	misc_device = &test->miscdev;
 	misc_device->minor = MISC_DYNAMIC_MINOR;
 	misc_device->name = kstrdup(name, GFP_KERNEL);
 	if (!misc_device->name) {
 		err = -ENOMEM;
-		goto err_ida_remove;
+		goto err_release_irq;
 	}
 	misc_device->fops = &pci_endpoint_test_fops,
 
@@ -859,6 +866,12 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 err_kfree_name:
 	kfree(misc_device->name);
 
+err_release_irq:
+	pci_endpoint_test_release_irq(test);
+
+err_kfree_test_name:
+	kfree(test->name);
+
 err_ida_remove:
 	ida_simple_remove(&pci_endpoint_test_ida, id);
 
@@ -867,7 +880,6 @@ err_iounmap:
 		if (test->bar[bar])
 			pci_iounmap(pdev, test->bar[bar]);
 	}
-	pci_endpoint_test_release_irq(test);
 
 err_disable_irq:
 	pci_endpoint_test_free_irq_vectors(test);
@@ -893,6 +905,7 @@ static void pci_endpoint_test_remove(struct pci_dev *pdev)
 
 	misc_deregister(&test->miscdev);
 	kfree(misc_device->name);
+	kfree(test->name);
 	ida_simple_remove(&pci_endpoint_test_ida, id);
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
 		if (test->bar[bar])
