@@ -43,6 +43,9 @@ int rkispp_fh_release(struct file *filp)
 int rkispp_allow_buffer(struct rkispp_device *dev,
 			struct rkispp_dummy_buffer *buf)
 {
+	if (!buf->size)
+		return -EINVAL;
+
 	buf->vaddr = dma_alloc_coherent(dev->dev, buf->size,
 					&buf->dma_addr, GFP_KERNEL);
 	if (!buf->vaddr)

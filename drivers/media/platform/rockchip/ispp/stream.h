@@ -146,6 +146,7 @@ struct rkispp_stream_vdev {
 	atomic_t refcnt;
 	u32 module_ens;
 	u8 tnr_mode;
+	u8 is_update_manual;
 };
 
 void rkispp_isr(u32 mis_val, struct rkispp_device *dev);

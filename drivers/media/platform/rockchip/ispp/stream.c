@@ -207,6 +207,64 @@ struct capture_fmt *find_fmt(struct rkispp_stream *stream,
 	return NULL;
 }
 
+static void check_to_force_update(struct rkispp_device *dev, u32 mis_val)
+{
+	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+	struct rkispp_stream *stream = &vdev->stream[STREAM_MB];
+	void __iomem *base = dev->base_addr;
+	u32 reg_y, reg_uv, is_switch = false;
+
+	if (!stream->streaming)
+		return;
+
+	/* nr or fec input buffer is pingpong when work on frame mode
+	 * need to keep address static after force update
+	 */
+	if (dev->inp == INP_DDR &&
+	    (!(vdev->module_ens & ISPP_MODULE_TNR) ||
+	     vdev->module_ens == ISPP_MODULE_FEC))
+		is_switch = true;
+
+	if ((stream->last_module == ISPP_MODULE_SHP ||
+	     stream->last_module == ISPP_MODULE_NR) &&
+	    mis_val & NR_INT) {
+		if (is_switch) {
+			reg_y = readl(base + RKISPP_NR_ADDR_BASE_Y);
+			reg_uv = readl(base + RKISPP_NR_ADDR_BASE_UV);
+
+			writel(readl(base + RKISPP_NR_ADDR_BASE_Y_SHD),
+				base + RKISPP_NR_ADDR_BASE_Y);
+			writel(readl(base + RKISPP_NR_ADDR_BASE_UV_SHD),
+				base + RKISPP_NR_ADDR_BASE_UV);
+		}
+
+		writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
+
+		if (is_switch) {
+			writel(reg_y, base + RKISPP_NR_ADDR_BASE_Y);
+			writel(reg_uv, base + RKISPP_NR_ADDR_BASE_UV);
+		}
+	} else if (stream->last_module == ISPP_MODULE_FEC &&
+		   mis_val & FEC_INT) {
+		if (is_switch) {
+			reg_y = readl(base + RKISPP_FEC_RD_Y_BASE);
+			reg_uv = readl(base + RKISPP_FEC_RD_UV_BASE);
+
+			writel(readl(base + RKISPP_FEC_RD_Y_BASE_SHD),
+				base + RKISPP_FEC_RD_Y_BASE);
+			writel(readl(base + RKISPP_FEC_RD_UV_BASE_SHD),
+				base + RKISPP_FEC_RD_UV_BASE);
+		}
+
+		writel(FEC_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
+
+		if (is_switch) {
+			writel(reg_y, base + RKISPP_FEC_RD_Y_BASE);
+			writel(reg_uv, base + RKISPP_FEC_RD_UV_BASE);
+		}
+	}
+}
+
 static void update_mi(struct rkispp_stream *stream)
 {
 	struct rkispp_stream_vdev *vdev = &stream->isppdev->stream_vdev;
@@ -239,6 +297,10 @@ static void update_mi(struct rkispp_stream *stream)
 		set_y_addr(stream, dummy_buf->dma_addr);
 		set_uv_addr(stream, dummy_buf->dma_addr);
 	}
+
+	if (vdev->is_update_manual &&
+	    stream->type == STREAM_OUTPUT)
+		stream->curr_buf = stream->next_buf;
 
 	if (stream->id == STREAM_MB &&
 	    stream->isppdev->inp == INP_DDR &&
@@ -696,6 +758,9 @@ static int config_modules(struct rkispp_device *dev)
 	if (dev->inp == INP_ISP)
 		dev->stream_vdev.module_ens |= ISPP_MODULE_NR;
 
+	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+		 "stream module ens:0x%x\n", dev->stream_vdev.module_ens);
+
 	ret = config_tnr(dev);
 	if (ret < 0)
 		return ret;
@@ -723,12 +788,20 @@ static int start_ii(struct rkispp_stream *stream)
 
 	rkispp_clear_bits(base + RKISPP_CTRL_QUICK, GLB_QUICK_EN);
 	writel(ALL_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
-	for (i = STREAM_S2; i >= STREAM_II; i--) {
+	if (vdev->is_update_manual)
+		i = (vdev->module_ens & ISPP_MODULE_FEC) ?
+			STREAM_S0 : STREAM_MAX;
+	else
+		i = STREAM_MB;
+
+	for (; i < STREAM_MAX; i++) {
 		st = &vdev->stream[i];
-		if (i == STREAM_II)
-			stream->streaming = true;
 		rkispp_frame_end(st);
 	}
+
+	stream->streaming = true;
+	rkispp_frame_end(stream);
+
 	return 0;
 }
 
@@ -1016,6 +1089,7 @@ static void rkispp_destroy_dummy_buf(struct rkispp_stream *stream)
 	rkispp_free_buffer(dev, buf);
 
 	if (atomic_read(&vdev->refcnt) == 1) {
+		vdev->is_update_manual = false;
 		for (i = 0; i < sizeof(vdev->tnr_buf) /
 		     sizeof(struct rkispp_dummy_buffer); i++)
 			rkispp_free_buffer(dev, &vdev->tnr_buf.pic_cur + i);
@@ -1068,6 +1142,8 @@ static void destroy_buf_queue(struct rkispp_stream *stream,
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->curr_buf) {
 		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
+		if (stream->next_buf == stream->curr_buf)
+			stream->next_buf = NULL;
 		stream->curr_buf = NULL;
 	}
 	if (stream->next_buf) {
@@ -1097,7 +1173,7 @@ static void rkispp_stop_streaming(struct vb2_queue *queue)
 	atomic_dec(&dev->stream_vdev.refcnt);
 }
 
-static int trigger_isp(struct rkispp_device *dev)
+static int start_isp(struct rkispp_device *dev)
 {
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkispp_stream *stream;
@@ -1118,7 +1194,12 @@ static int trigger_isp(struct rkispp_device *dev)
 	rkispp_set_bits(dev->base_addr + RKISPP_CTRL_QUICK,
 			0, GLB_QUICK_EN);
 	writel(ALL_FORCE_UPD, dev->base_addr + RKISPP_CTRL_UPDATE);
-	for (i = STREAM_MB; i < STREAM_MAX; i++) {
+	if (vdev->is_update_manual)
+		i = (vdev->module_ens & ISPP_MODULE_FEC) ?
+			STREAM_S0 : STREAM_MAX;
+	else
+		i = STREAM_MB;
+	for (; i < STREAM_MAX; i++) {
 		stream = &vdev->stream[i];
 		rkispp_frame_end(stream);
 	}
@@ -1166,7 +1247,7 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 	stream->streaming = true;
 
 	/* start from isp */
-	ret = trigger_isp(dev);
+	ret = start_isp(dev);
 	if (ret)
 		goto free_dummy_buf;
 	return 0;
@@ -1243,6 +1324,9 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 	pixm->field = V4L2_FIELD_NONE;
 	if (!pixm->quantization)
 		pixm->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+
+	if (fmt->wr_fmt & FMT_FBC)
+		dev->stream_vdev.is_update_manual = true;
 
 	/* calculate size */
 	fcc_xysubs(fmt->fourcc, &xsubs, &ysubs);
@@ -1507,6 +1591,9 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 			rkispp_frame_end(stream);
 		}
 	}
+
+	if (vdev->is_update_manual)
+		check_to_force_update(dev, mis_val);
 }
 
 int rkispp_register_stream_vdevs(struct rkispp_device *dev)
