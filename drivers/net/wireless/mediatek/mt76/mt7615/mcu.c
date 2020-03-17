@@ -166,16 +166,11 @@ int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq)
 }
 
 static int
-mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
-		    int len, bool wait_resp)
+mt7615_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+			int cmd, bool wait_resp)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	struct sk_buff *skb;
 	int ret, seq;
-
-	skb = mt7615_mcu_msg_alloc(data, len);
-	if (!skb)
-		return -ENOMEM;
 
 	mutex_lock(&mdev->mcu.mutex);
 
@@ -190,6 +185,19 @@ out:
 	mutex_unlock(&mdev->mcu.mutex);
 
 	return ret;
+}
+
+static int
+mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
+		    int len, bool wait_resp)
+{
+	struct sk_buff *skb;
+
+	skb = mt7615_mcu_msg_alloc(data, len);
+	if (!skb)
+		return -ENOMEM;
+
+	return __mt76_mcu_skb_send_msg(mdev, skb, cmd, wait_resp);
 }
 
 static void
@@ -704,6 +712,7 @@ int mt7615_mcu_fw_log_2_host(struct mt7615_dev *dev, u8 ctrl)
 int mt7615_mcu_init(struct mt7615_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7615_mcu_ops = {
+		.mcu_skb_send_msg = mt7615_mcu_send_message,
 		.mcu_send_msg = mt7615_mcu_msg_send,
 		.mcu_restart = mt7615_mcu_restart,
 	};
