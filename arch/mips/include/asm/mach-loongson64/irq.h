@@ -36,5 +36,5 @@
 extern void fixup_irqs(void);
 extern void loongson3_ipi_interrupt(struct pt_regs *regs);
 
-#include_next <irq.h>
+#include <asm/mach-generic/irq.h>
 #endif /* __ASM_MACH_LOONGSON64_IRQ_H_ */
