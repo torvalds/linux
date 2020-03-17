@@ -5,13 +5,24 @@
 #include <errno.h>
 #include <stdio.h>
 #include <linux/kernel.h>
-
+#include <linux/zalloc.h>
 #include "debug.h"
 #include "../pmu-events/pmu-events.h"
 
 struct perf_pmu_test_event {
 	struct pmu_event event;
+
+	/* extra events for aliases */
+	const char *alias_str;
+
+	/*
+	 * Note: For when PublicDescription does not exist in the JSON, we
+	 * will have no long_desc in pmu_event.long_desc, but long_desc may
+	 * be set in the alias.
+	 */
+	const char *alias_long_desc;
 };
+
 static struct perf_pmu_test_event test_cpu_events[] = {
 	{
 		.event = {
@@ -20,6 +31,8 @@ static struct perf_pmu_test_event test_cpu_events[] = {
 			.desc = "L1 BTB Correction",
 			.topic = "branch",
 		},
+		.alias_str = "event=0x8a",
+		.alias_long_desc = "L1 BTB Correction",
 	},
 	{
 		.event = {
@@ -28,6 +41,8 @@ static struct perf_pmu_test_event test_cpu_events[] = {
 			.desc = "L2 BTB Correction",
 			.topic = "branch",
 		},
+		.alias_str = "event=0x8b",
+		.alias_long_desc = "L2 BTB Correction",
 	},
 	{
 		.event = {
@@ -36,6 +51,8 @@ static struct perf_pmu_test_event test_cpu_events[] = {
 			.desc = "Number of segment register loads",
 			.topic = "other",
 		},
+		.alias_str = "umask=0x80,(null)=0x30d40,event=0x6",
+		.alias_long_desc = "Number of segment register loads",
 	},
 	{
 		.event = {
@@ -44,6 +61,8 @@ static struct perf_pmu_test_event test_cpu_events[] = {
 			.desc = "Memory cluster signals to block micro-op dispatch for any reason",
 			.topic = "other",
 		},
+		.alias_str = "umask=0x20,(null)=0x30d40,event=0x9",
+		.alias_long_desc = "Memory cluster signals to block micro-op dispatch for any reason",
 	},
 	{
 		.event = {
@@ -52,6 +71,8 @@ static struct perf_pmu_test_event test_cpu_events[] = {
 			.desc = "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions",
 			.topic = "other",
 		},
+		.alias_str = "umask=0,(null)=0x30d40,event=0x3a",
+		.alias_long_desc = "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions",
 	},
 	{ /* sentinel */
 		.event = {
@@ -70,6 +91,8 @@ static struct perf_pmu_test_event test_uncore_events[] = {
 			.long_desc = "DDRC write commands",
 			.pmu = "hisi_sccl,ddrc",
 		},
+		.alias_str = "event=0x2",
+		.alias_long_desc = "DDRC write commands",
 	},
 	{
 		.event = {
@@ -80,6 +103,8 @@ static struct perf_pmu_test_event test_uncore_events[] = {
 			.long_desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
 			.pmu = "uncore_cbox",
 		},
+		.alias_str = "umask=0x81,event=0x22",
+		.alias_long_desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
 	},
 	{ /* sentinel */
 		.event = {
@@ -223,11 +248,132 @@ static int __test_pmu_event_table(void)
 
 	return 0;
 }
+
+static struct perf_pmu_alias *find_alias(const char *test_event, struct list_head *aliases)
+{
+	struct perf_pmu_alias *alias;
+
+	list_for_each_entry(alias, aliases, list)
+		if (!strcmp(test_event, alias->name))
+			return alias;
+
+	return NULL;
+}
+
+/* Verify aliases are as expected */
+static int __test__pmu_event_aliases(char *pmu_name, int *count)
+{
+	struct perf_pmu_test_event *test;
+	struct pmu_event *te;
+	struct perf_pmu *pmu;
+	LIST_HEAD(aliases);
+	int res = 0;
+	bool use_uncore_table;
+	struct pmu_events_map *map = __test_pmu_get_events_map();
+
+	if (!map)
+		return -1;
+
+	if (is_pmu_core(pmu_name)) {
+		test = &test_cpu_events[0];
+		use_uncore_table = false;
+	} else {
+		test = &test_uncore_events[0];
+		use_uncore_table = true;
+	}
+
+	pmu = zalloc(sizeof(*pmu));
+	if (!pmu)
+		return -1;
+
+	pmu->name = pmu_name;
+
+	pmu_add_cpu_aliases_map(&aliases, pmu, map);
+
+	for (te = &test->event; te->name; test++, te = &test->event) {
+		struct perf_pmu_alias *alias = find_alias(te->name, &aliases);
+
+		if (!alias) {
+			bool uncore_match = pmu_uncore_alias_match(pmu_name,
+								   te->pmu);
+
+			if (use_uncore_table && !uncore_match) {
+				pr_debug3("testing aliases PMU %s: skip matching alias %s\n",
+					  pmu_name, te->name);
+				continue;
+			}
+
+			pr_debug2("testing aliases PMU %s: no alias, alias_table->name=%s\n",
+				  pmu_name, te->name);
+			res = -1;
+			break;
+		}
+
+		if (!is_same(alias->desc, te->desc)) {
+			pr_debug2("testing aliases PMU %s: mismatched desc, %s vs %s\n",
+				  pmu_name, alias->desc, te->desc);
+			res = -1;
+			break;
+		}
+
+		if (!is_same(alias->long_desc, test->alias_long_desc)) {
+			pr_debug2("testing aliases PMU %s: mismatched long_desc, %s vs %s\n",
+				  pmu_name, alias->long_desc,
+				  test->alias_long_desc);
+			res = -1;
+			break;
+		}
+
+		if (!is_same(alias->str, test->alias_str)) {
+			pr_debug2("testing aliases PMU %s: mismatched str, %s vs %s\n",
+				  pmu_name, alias->str, test->alias_str);
+			res = -1;
+			break;
+		}
+
+		if (!is_same(alias->topic, te->topic)) {
+			pr_debug2("testing aliases PMU %s: mismatched topic, %s vs %s\n",
+				  pmu_name, alias->topic, te->topic);
+			res = -1;
+			break;
+		}
+
+		(*count)++;
+		pr_debug2("testing aliases PMU %s: matched event %s\n",
+			  pmu_name, alias->name);
+	}
+
+	free(pmu);
+	return res;
+}
+
 int test__pmu_events(struct test *test __maybe_unused,
 		     int subtest __maybe_unused)
 {
+	struct perf_pmu *pmu = NULL;
+
 	if (__test_pmu_event_table())
 		return -1;
+
+	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		int count = 0;
+
+		if (list_empty(&pmu->format)) {
+			pr_debug2("skipping testing PMU %s\n", pmu->name);
+			continue;
+		}
+
+		if (__test__pmu_event_aliases(pmu->name, &count)) {
+			pr_debug("testing PMU %s aliases: failed\n", pmu->name);
+			return -1;
+		}
+
+		if (count == 0)
+			pr_debug3("testing PMU %s aliases: no events to match\n",
+				  pmu->name);
+		else
+			pr_debug("testing PMU %s aliases: pass\n", pmu->name);
+	}
 
 	return 0;
 }
