@@ -65,8 +65,9 @@ static int cfg_delay_snd;
 static int cfg_delay_ack;
 static bool cfg_show_payload;
 static bool cfg_do_pktinfo;
+static bool cfg_busy_poll;
+static int cfg_sleep_usec = 50 * 1000;
 static bool cfg_loop_nodata;
-static bool cfg_no_delay;
 static bool cfg_use_cmsg;
 static bool cfg_use_pf_packet;
 static bool cfg_do_listen;
@@ -553,10 +554,11 @@ static void do_test(int family, unsigned int report_opt)
 			error(1, errno, "send");
 
 		/* wait for all errors to be queued, else ACKs arrive OOO */
-		if (!cfg_no_delay)
-			usleep(50 * NSEC_PER_USEC);
+		if (cfg_sleep_usec)
+			usleep(cfg_sleep_usec);
 
-		__poll(fd);
+		if (!cfg_busy_poll)
+			__poll(fd);
 
 		while (!recv_errmsg(fd)) {}
 	}
@@ -575,9 +577,9 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -4:   only IPv4\n"
 			"  -6:   only IPv6\n"
 			"  -h:   show this message\n"
+			"  -b:   busy poll to read from error queue\n"
 			"  -c N: number of packets for each test\n"
 			"  -C:   use cmsg to set tstamp recording options\n"
-			"  -D:   no delay between packets\n"
 			"  -F:   poll() waits forever for an event\n"
 			"  -I:   request PKTINFO\n"
 			"  -l N: send N bytes at a time\n"
@@ -588,6 +590,7 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -P:   use PF_PACKET\n"
 			"  -r:   use raw\n"
 			"  -R:   use raw (IP_HDRINCL)\n"
+			"  -S N: usec to sleep before reading error queue\n"
 			"  -u:   use udp\n"
 			"  -v:   validate SND delay (usec)\n"
 			"  -V:   validate ACK delay (usec)\n"
@@ -601,7 +604,7 @@ static void parse_opt(int argc, char **argv)
 	int proto_count = 0;
 	int c;
 
-	while ((c = getopt(argc, argv, "46c:CDFhIl:LnNp:PrRuv:V:x")) != -1) {
+	while ((c = getopt(argc, argv, "46bc:CFhIl:LnNp:PrRS:uv:V:x")) != -1) {
 		switch (c) {
 		case '4':
 			do_ipv6 = 0;
@@ -609,14 +612,14 @@ static void parse_opt(int argc, char **argv)
 		case '6':
 			do_ipv4 = 0;
 			break;
+		case 'b':
+			cfg_busy_poll = true;
+			break;
 		case 'c':
 			cfg_num_pkts = strtoul(optarg, NULL, 10);
 			break;
 		case 'C':
 			cfg_use_cmsg = true;
-			break;
-		case 'D':
-			cfg_no_delay = true;
 			break;
 		case 'F':
 			cfg_poll_timeout = -1;
@@ -654,6 +657,9 @@ static void parse_opt(int argc, char **argv)
 			proto_count++;
 			cfg_proto = SOCK_RAW;
 			cfg_ipproto = IPPROTO_RAW;
+			break;
+		case 'S':
+			cfg_sleep_usec = strtoul(optarg, NULL, 10);
 			break;
 		case 'u':
 			proto_count++;
