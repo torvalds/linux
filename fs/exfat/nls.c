@@ -535,22 +535,9 @@ static int exfat_utf8_to_utf16(struct super_block *sb,
 	return unilen;
 }
 
-#define PLANE_SIZE	0x00010000
 #define SURROGATE_MASK	0xfffff800
 #define SURROGATE_PAIR	0x0000d800
 #define SURROGATE_LOW	0x00000400
-#define SURROGATE_BITS	0x000003ff
-
-unsigned short exfat_high_surrogate(unicode_t u)
-{
-	return ((u - PLANE_SIZE) >> 10) + SURROGATE_PAIR;
-}
-
-unsigned short exfat_low_surrogate(unicode_t u)
-{
-	return ((u - PLANE_SIZE) & SURROGATE_BITS) | SURROGATE_PAIR |
-		SURROGATE_LOW;
-}
 
 static int __exfat_utf16_to_nls(struct super_block *sb,
 		struct exfat_uni_name *p_uniname, unsigned char *p_cstring,
