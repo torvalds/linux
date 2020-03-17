@@ -552,6 +552,7 @@ void verity_fec_dtr(struct dm_verity *v)
 	mempool_exit(&f->rs_pool);
 	mempool_exit(&f->prealloc_pool);
 	mempool_exit(&f->extra_pool);
+	mempool_exit(&f->output_pool);
 	kmem_cache_destroy(f->cache);
 
 	if (f->data_bufio)
