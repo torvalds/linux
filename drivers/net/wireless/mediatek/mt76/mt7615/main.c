@@ -39,13 +39,13 @@ static int mt7615_start(struct ieee80211_hw *hw)
 	running = mt7615_dev_running(dev);
 
 	if (!running) {
-		mt7615_mcu_ctrl_pm_state(dev, 0, 0);
+		mt7615_mcu_set_pm(dev, 0, 0);
 		mt7615_mcu_set_mac_enable(dev, 0, true);
 		mt7615_mac_enable_nf(dev, 0);
 	}
 
 	if (phy != &dev->phy) {
-		mt7615_mcu_ctrl_pm_state(dev, 1, 0);
+		mt7615_mcu_set_pm(dev, 1, 0);
 		mt7615_mcu_set_mac_enable(dev, 1, true);
 		mt7615_mac_enable_nf(dev, 1);
 	}
@@ -78,14 +78,14 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
 	if (phy != &dev->phy) {
-		mt7615_mcu_ctrl_pm_state(dev, 1, 1);
+		mt7615_mcu_set_pm(dev, 1, 1);
 		mt7615_mcu_set_mac_enable(dev, 1, false);
 	}
 
 	if (!mt7615_dev_running(dev)) {
 		cancel_delayed_work_sync(&dev->mt76.mac_work);
 
-		mt7615_mcu_ctrl_pm_state(dev, 0, 1);
+		mt7615_mcu_set_pm(dev, 0, 1);
 		mt7615_mcu_set_mac_enable(dev, 0, false);
 	}
 
@@ -157,7 +157,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 	else
 		mvif->wmm_idx = mvif->idx % MT7615_MAX_WMM_SETS;
 
-	ret = mt7615_mcu_set_dev_info(dev, vif, 1);
+	ret = mt7615_mcu_add_dev_info(dev, vif, true);
 	if (ret)
 		goto out;
 
@@ -200,7 +200,7 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 
 	/* TODO: disable beacon for the bss */
 
-	mt7615_mcu_set_dev_info(dev, vif, 0);
+	mt7615_mcu_add_dev_info(dev, vif, false);
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 	if (vif->txq)
@@ -412,7 +412,7 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & BSS_CHANGED_ASSOC)
-		mt7615_mcu_set_bss_info(dev, vif, info->assoc);
+		mt7615_mcu_add_bss_info(dev, vif, info->assoc);
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		int slottime = info->use_short_slot ? 9 : 20;
@@ -425,13 +425,13 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		mt7615_mcu_set_bss_info(dev, vif, info->enable_beacon);
+		mt7615_mcu_add_bss_info(dev, vif, info->enable_beacon);
 		mt7615_mcu_sta_add(dev, vif, NULL, info->enable_beacon);
 	}
 
 	if (changed & (BSS_CHANGED_BEACON |
 		       BSS_CHANGED_BEACON_ENABLED))
-		mt7615_mcu_set_bcn(hw, vif, info->enable_beacon);
+		mt7615_mcu_add_beacon(dev, hw, vif, info->enable_beacon);
 
 	mutex_unlock(&dev->mt76.mutex);
 }
@@ -444,7 +444,7 @@ mt7615_channel_switch_beacon(struct ieee80211_hw *hw,
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 
 	mutex_lock(&dev->mt76.mutex);
-	mt7615_mcu_set_bcn(hw, vif, true);
+	mt7615_mcu_add_beacon(dev, hw, vif, true);
 	mutex_unlock(&dev->mt76.mutex);
 }
 
