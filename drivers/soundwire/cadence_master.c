@@ -1107,8 +1107,7 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 
 	/* Multi-master support to be added here */
 
-	/* Set frame delay between PREQ and ping frame to 15 frames */
-	val |= 0xF << SDW_REG_SHIFT(CDNS_MCP_CONFIG_MPREQ_DELAY);
+	/* leave frame delay to hardware default of 0x1F */
 
 	/* Set Max cmd retry to 15 */
 	val |= CDNS_MCP_CONFIG_MCMD_RETRY;
