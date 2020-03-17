@@ -110,6 +110,8 @@ struct kvm_arch {
 	 * supported.
 	 */
 	bool return_nisv_io_abort_to_user;
+
+	unsigned int pmuver;
 };
 
 struct kvm_vcpu_fault_info {

@@ -20,6 +20,21 @@ static void kvm_pmu_stop_counter(struct kvm_vcpu *vcpu, struct kvm_pmc *pmc);
 
 #define PERF_ATTR_CFG1_KVM_PMU_CHAINED 0x1
 
+static u32 kvm_pmu_event_mask(struct kvm *kvm)
+{
+	switch (kvm->arch.pmuver) {
+	case 1:			/* ARMv8.0 */
+		return GENMASK(9, 0);
+	case 4:			/* ARMv8.1 */
+	case 5:			/* ARMv8.4 */
+	case 6:			/* ARMv8.5 */
+		return GENMASK(15, 0);
+	default:		/* Shouldn't be here, just for sanity */
+		WARN_ONCE(1, "Unknown PMU version %d\n", kvm->arch.pmuver);
+		return 0;
+	}
+}
+
 /**
  * kvm_pmu_idx_is_64bit - determine if select_idx is a 64bit counter
  * @vcpu: The vcpu pointer
@@ -100,7 +115,7 @@ static bool kvm_pmu_idx_has_chain_evtype(struct kvm_vcpu *vcpu, u64 select_idx)
 		return false;
 
 	reg = PMEVTYPER0_EL0 + select_idx;
-	eventsel = __vcpu_sys_reg(vcpu, reg) & ARMV8_PMU_EVTYPE_EVENT;
+	eventsel = __vcpu_sys_reg(vcpu, reg) & kvm_pmu_event_mask(vcpu->kvm);
 
 	return eventsel == ARMV8_PMUV3_PERFCTR_CHAIN;
 }
@@ -495,7 +510,7 @@ void kvm_pmu_software_increment(struct kvm_vcpu *vcpu, u64 val)
 
 		/* PMSWINC only applies to ... SW_INC! */
 		type = __vcpu_sys_reg(vcpu, PMEVTYPER0_EL0 + i);
-		type &= ARMV8_PMU_EVTYPE_EVENT;
+		type &= kvm_pmu_event_mask(vcpu->kvm);
 		if (type != ARMV8_PMUV3_PERFCTR_SW_INCR)
 			continue;
 
@@ -578,7 +593,7 @@ static void kvm_pmu_create_perf_event(struct kvm_vcpu *vcpu, u64 select_idx)
 	data = __vcpu_sys_reg(vcpu, reg);
 
 	kvm_pmu_stop_counter(vcpu, pmc);
-	eventsel = data & ARMV8_PMU_EVTYPE_EVENT;
+	eventsel = data & kvm_pmu_event_mask(vcpu->kvm);;
 
 	/* Software increment event does't need to be backed by a perf event */
 	if (eventsel == ARMV8_PMUV3_PERFCTR_SW_INCR &&
@@ -679,15 +694,64 @@ static void kvm_pmu_update_pmc_chained(struct kvm_vcpu *vcpu, u64 select_idx)
 void kvm_pmu_set_counter_event_type(struct kvm_vcpu *vcpu, u64 data,
 				    u64 select_idx)
 {
-	u64 reg, event_type = data & ARMV8_PMU_EVTYPE_MASK;
+	u64 reg, mask;
+
+	mask  =  ARMV8_PMU_EVTYPE_MASK;
+	mask &= ~ARMV8_PMU_EVTYPE_EVENT;
+	mask |= kvm_pmu_event_mask(vcpu->kvm);
 
 	reg = (select_idx == ARMV8_PMU_CYCLE_IDX)
 	      ? PMCCFILTR_EL0 : PMEVTYPER0_EL0 + select_idx;
 
-	__vcpu_sys_reg(vcpu, reg) = event_type;
+	__vcpu_sys_reg(vcpu, reg) = data & mask;
 
 	kvm_pmu_update_pmc_chained(vcpu, select_idx);
 	kvm_pmu_create_perf_event(vcpu, select_idx);
+}
+
+static int kvm_pmu_probe_pmuver(void)
+{
+	struct perf_event_attr attr = { };
+	struct perf_event *event;
+	struct arm_pmu *pmu;
+	int pmuver = 0xf;
+
+	/*
+	 * Create a dummy event that only counts user cycles. As we'll never
+	 * leave this function with the event being live, it will never
+	 * count anything. But it allows us to probe some of the PMU
+	 * details. Yes, this is terrible.
+	 */
+	attr.type = PERF_TYPE_RAW;
+	attr.size = sizeof(attr);
+	attr.pinned = 1;
+	attr.disabled = 0;
+	attr.exclude_user = 0;
+	attr.exclude_kernel = 1;
+	attr.exclude_hv = 1;
+	attr.exclude_host = 1;
+	attr.config = ARMV8_PMUV3_PERFCTR_CPU_CYCLES;
+	attr.sample_period = GENMASK(63, 0);
+
+	event = perf_event_create_kernel_counter(&attr, -1, current,
+						 kvm_pmu_perf_overflow, &attr);
+
+	if (IS_ERR(event)) {
+		pr_err_once("kvm: pmu event creation failed %ld\n",
+			    PTR_ERR(event));
+		return 0xf;
+	}
+
+	if (event->pmu) {
+		pmu = to_arm_pmu(event->pmu);
+		if (pmu->pmuver)
+			pmuver = pmu->pmuver;
+	}
+
+	perf_event_disable(event);
+	perf_event_release_kernel(event);
+
+	return pmuver;
 }
 
 bool kvm_arm_support_pmu_v3(void)
@@ -793,6 +857,12 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 
 	if (vcpu->arch.pmu.created)
 		return -EBUSY;
+
+	if (!vcpu->kvm->arch.pmuver)
+		vcpu->kvm->arch.pmuver = kvm_pmu_probe_pmuver();
+
+	if (vcpu->kvm->arch.pmuver == 0xf)
+		return -ENODEV;
 
 	switch (attr->attr) {
 	case KVM_ARM_VCPU_PMU_V3_IRQ: {
