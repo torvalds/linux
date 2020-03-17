@@ -617,21 +617,18 @@ int trace_print_context(struct trace_iterator *iter)
 
 int trace_print_lat_context(struct trace_iterator *iter)
 {
+	struct trace_entry *entry, *next_entry;
 	struct trace_array *tr = iter->tr;
-	/* trace_find_next_entry will reset ent_size */
-	int ent_size = iter->ent_size;
 	struct trace_seq *s = &iter->seq;
-	u64 next_ts;
-	struct trace_entry *entry = iter->ent,
-			   *next_entry = trace_find_next_entry(iter, NULL,
-							       &next_ts);
 	unsigned long verbose = (tr->trace_flags & TRACE_ITER_VERBOSE);
+	u64 next_ts;
 
-	/* Restore the original ent_size */
-	iter->ent_size = ent_size;
-
+	next_entry = trace_find_next_entry(iter, NULL, &next_ts);
 	if (!next_entry)
 		next_ts = iter->ts;
+
+	/* trace_find_next_entry() may change iter->ent */
+	entry = iter->ent;
 
 	if (verbose) {
 		char comm[TASK_COMM_LEN];
