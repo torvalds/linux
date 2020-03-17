@@ -153,8 +153,8 @@ TRACE_EVENT(kvm_fast_mmio,
 TRACE_EVENT(kvm_cpuid,
 	TP_PROTO(unsigned int function, unsigned int index, unsigned long rax,
 		 unsigned long rbx, unsigned long rcx, unsigned long rdx,
-		 bool found),
-	TP_ARGS(function, index, rax, rbx, rcx, rdx, found),
+		 bool found, bool used_max_basic),
+	TP_ARGS(function, index, rax, rbx, rcx, rdx, found, used_max_basic),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	function	)
@@ -164,6 +164,7 @@ TRACE_EVENT(kvm_cpuid,
 		__field(	unsigned long,	rcx		)
 		__field(	unsigned long,	rdx		)
 		__field(	bool,		found		)
+		__field(	bool,		used_max_basic	)
 	),
 
 	TP_fast_assign(
@@ -174,12 +175,14 @@ TRACE_EVENT(kvm_cpuid,
 		__entry->rcx		= rcx;
 		__entry->rdx		= rdx;
 		__entry->found		= found;
+		__entry->used_max_basic	= used_max_basic;
 	),
 
-	TP_printk("func %x idx %x rax %lx rbx %lx rcx %lx rdx %lx, cpuid entry %s",
+	TP_printk("func %x idx %x rax %lx rbx %lx rcx %lx rdx %lx, cpuid entry %s%s",
 		  __entry->function, __entry->index, __entry->rax,
 		  __entry->rbx, __entry->rcx, __entry->rdx,
-		  __entry->found ? "found" : "not found")
+		  __entry->found ? "found" : "not found",
+		  __entry->used_max_basic ? ", used max basic" : "")
 );
 
 #define AREG(x) { APIC_##x, "APIC_" #x }

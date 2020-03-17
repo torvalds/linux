@@ -990,13 +990,15 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 {
 	u32 orig_function = *eax, function = *eax, index = *ecx;
 	struct kvm_cpuid_entry2 *entry;
-	bool exact;
+	bool exact, used_max_basic = false;
 
 	entry = kvm_find_cpuid_entry(vcpu, function, index);
 	exact = !!entry;
 
-	if (!entry && !exact_only)
+	if (!entry && !exact_only) {
 		entry = get_out_of_range_cpuid_entry(vcpu, &function, index);
+		used_max_basic = !!entry;
+	}
 
 	if (entry) {
 		*eax = entry->eax;
@@ -1026,7 +1028,8 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 			}
 		}
 	}
-	trace_kvm_cpuid(orig_function, index, *eax, *ebx, *ecx, *edx, exact);
+	trace_kvm_cpuid(orig_function, index, *eax, *ebx, *ecx, *edx, exact,
+			used_max_basic);
 	return exact;
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
