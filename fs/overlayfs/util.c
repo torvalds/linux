@@ -102,6 +102,8 @@ void ovl_dentry_update_reval(struct dentry *dentry, struct dentry *upperdentry,
 	struct ovl_entry *oe = OVL_E(dentry);
 	unsigned int i, flags = 0;
 
+	if (upperdentry)
+		flags |= upperdentry->d_flags;
 	for (i = 0; i < oe->numlower; i++)
 		flags |= oe->lowerstack[i].dentry->d_flags;
 

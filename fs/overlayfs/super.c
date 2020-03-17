@@ -135,8 +135,13 @@ static int ovl_dentry_revalidate_common(struct dentry *dentry,
 					unsigned int flags, bool weak)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
+	struct dentry *upper;
 	unsigned int i;
 	int ret = 1;
+
+	upper = ovl_dentry_upper(dentry);
+	if (upper)
+		ret = ovl_revalidate_real(upper, flags, weak);
 
 	for (i = 0; ret > 0 && i < oe->numlower; i++) {
 		ret = ovl_revalidate_real(oe->lowerstack[i].dentry, flags,
@@ -747,8 +752,7 @@ static int ovl_mount_dir(const char *name, struct path *path)
 		ovl_unescape(tmp);
 		err = ovl_mount_dir_noesc(tmp, path);
 
-		if (!err && (ovl_dentry_remote(path->dentry) ||
-			     path->dentry->d_flags & DCACHE_OP_REAL)) {
+		if (!err && path->dentry->d_flags & DCACHE_OP_REAL) {
 			pr_err("filesystem on '%s' not supported as upperdir\n",
 			       tmp);
 			path_put_init(path);
