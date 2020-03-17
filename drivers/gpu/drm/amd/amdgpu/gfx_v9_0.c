@@ -746,7 +746,7 @@ void gfx_v9_0_rlcg_wreg(struct amdgpu_device *adev, u32 offset, u32 v)
 	grbm_idx = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_INDEX_BASE_IDX] + mmGRBM_GFX_INDEX;
 
 	if (amdgpu_sriov_runtime(adev)) {
-		pr_err("shoudn't call rlcg write register during runtime\n");
+		pr_err("shouldn't call rlcg write register during runtime\n");
 		return;
 	}
 
