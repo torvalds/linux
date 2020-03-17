@@ -250,26 +250,12 @@ static int rkisp1_fwnode_parse(struct device *dev,
 		return -EINVAL;
 	}
 
-	s_asd->mbus.type = vep->bus_type;
-	s_asd->mbus.flags = vep->bus.mipi_csi2.flags;
+	s_asd->mbus_type = vep->bus_type;
+	s_asd->mbus_flags = vep->bus.mipi_csi2.flags;
 	s_asd->lanes = vep->bus.mipi_csi2.num_data_lanes;
 
-	switch (vep->bus.mipi_csi2.num_data_lanes) {
-	case 1:
-		s_asd->mbus.flags |= V4L2_MBUS_CSI2_1_LANE;
-		break;
-	case 2:
-		s_asd->mbus.flags |= V4L2_MBUS_CSI2_2_LANE;
-		break;
-	case 3:
-		s_asd->mbus.flags |= V4L2_MBUS_CSI2_3_LANE;
-		break;
-	case 4:
-		s_asd->mbus.flags |= V4L2_MBUS_CSI2_4_LANE;
-		break;
-	default:
+	if (s_asd->lanes < 1 || s_asd->lanes > 4)
 		return -EINVAL;
-	}
 
 	return 0;
 }
