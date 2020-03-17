@@ -7,7 +7,9 @@
 enum mt7615_reg_base {
 	MT_TOP_CFG_BASE,
 	MT_HW_BASE,
+	MT_DMA_SHDL_BASE,
 	MT_PCIE_REMAP_2,
+	MT_ARB_BASE,
 	MT_HIF_BASE,
 	MT_CSR_BASE,
 	MT_PHY_BASE,
@@ -40,6 +42,8 @@ enum mt7615_reg_base {
 #define MT_TOP_MISC2			((dev)->reg_map[MT_TOP_CFG_BASE] + 0x134)
 #define MT_TOP_MISC2_FW_STATE		GENMASK(2, 0)
 
+#define MT7663_TOP_MISC2_FW_STATE	GENMASK(3, 1)
+
 #define MT_MCU_BASE			0x2000
 #define MT_MCU(ofs)			(MT_MCU_BASE + (ofs))
 
@@ -57,6 +61,10 @@ enum mt7615_reg_base {
 
 #define MT7663_MCU_PCIE_REMAP_2_OFFSET	GENMASK(15, 0)
 #define MT7663_MCU_PCIE_REMAP_2_BASE	GENMASK(31, 16)
+
+#define MT_HIF2_BASE			0xf0000
+#define MT_HIF2(ofs)			(MT_HIF2_BASE + (ofs))
+#define MT_PCIE_IRQ_ENABLE		MT_HIF2(0x188)
 
 #define MT_CFG_LPCR_HOST		MT_HIF(0x1f0)
 #define MT_CFG_LPCR_HOST_FW_OWN		BIT(0)
@@ -209,7 +217,7 @@ enum mt7615_reg_base {
 #define MT_AGG_SCR			MT_WF_AGG(0x0fc)
 #define MT_AGG_SCR_NLNAV_MID_PTEC_DIS	BIT(3)
 
-#define MT_WF_ARB_BASE			0x20c00
+#define MT_WF_ARB_BASE			((dev)->reg_map[MT_ARB_BASE])
 #define MT_WF_ARB(ofs)			(MT_WF_ARB_BASE + (ofs))
 
 #define MT_ARB_SCR			MT_WF_ARB(0x080)
@@ -399,6 +407,8 @@ enum mt7615_reg_base {
 #define MT_MIB_ACK_FAIL_COUNT_MASK	GENMASK(31, 16)
 
 #define MT_TX_AGG_CNT(n)		MT_WF_MIB(0xa8 + ((n) << 2))
+
+#define MT_DMA_SHDL(ofs)		(dev->reg_map[MT_DMA_SHDL_BASE] + (ofs))
 
 #define MT_DMASHDL_BASE			0x5000a000
 #define MT_DMASHDL_OPTIONAL		0x008

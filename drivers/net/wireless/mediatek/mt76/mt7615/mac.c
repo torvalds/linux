@@ -1524,6 +1524,9 @@ void mt7615_mac_set_scs(struct mt7615_dev *dev, bool enable)
 	if (dev->scs_en == enable)
 		goto out;
 
+	if (is_mt7663(&dev->mt76))
+		goto out;
+
 	if (enable) {
 		mt76_set(dev, MT_WF_PHY_MIN_PRI_PWR(0),
 			 MT_WF_PHY_PD_BLK(0));
@@ -1554,6 +1557,9 @@ out:
 void mt7615_mac_enable_nf(struct mt7615_dev *dev, bool ext_phy)
 {
 	u32 rxtd;
+
+	if (is_mt7663(&dev->mt76))
+		return;
 
 	if (ext_phy)
 		rxtd = MT_WF_PHY_RXTD2(10);

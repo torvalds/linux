@@ -38,6 +38,10 @@
 
 #define MT7615_FIRMWARE_V1		1
 #define MT7615_FIRMWARE_V2		2
+#define MT7615_FIRMWARE_V3		3
+
+#define MT7663_ROM_PATCH		"mediatek/mt7663pr2h_v3.bin"
+#define MT7663_FIRMWARE_N9              "mediatek/mt7663_n9_v3.bin"
 
 #define MT7615_EEPROM_SIZE		1024
 #define MT7615_TOKEN_SIZE		4096
@@ -287,6 +291,7 @@ mt7615_ext_phy(struct mt7615_dev *dev)
 
 extern const struct ieee80211_ops mt7615_ops;
 extern const u32 mt7615e_reg_map[__MT_BASE_MAX];
+extern const u32 mt7663e_reg_map[__MT_BASE_MAX];
 extern struct pci_driver mt7615_pci_driver;
 extern struct platform_driver mt7622_wmac_driver;
 

@@ -10,6 +10,7 @@ const u32 mt7615e_reg_map[] = {
 	[MT_TOP_CFG_BASE]	= 0x01000,
 	[MT_HW_BASE]		= 0x01000,
 	[MT_PCIE_REMAP_2]	= 0x02504,
+	[MT_ARB_BASE]		= 0x20c00,
 	[MT_HIF_BASE]		= 0x04000,
 	[MT_CSR_BASE]		= 0x07000,
 	[MT_PHY_BASE]		= 0x10000,
@@ -26,6 +27,30 @@ const u32 mt7615e_reg_map[] = {
 	[MT_PCIE_REMAP_BASE2]	= 0x80000,
 	[MT_TOP_MISC_BASE]	= 0xc0000,
 	[MT_EFUSE_ADDR_BASE]	= 0x81070000,
+};
+
+const u32 mt7663e_reg_map[] = {
+	[MT_TOP_CFG_BASE]	= 0x01000,
+	[MT_HW_BASE]		= 0x02000,
+	[MT_DMA_SHDL_BASE]	= 0x06000,
+	[MT_PCIE_REMAP_2]	= 0x0700c,
+	[MT_ARB_BASE]		= 0x20c00,
+	[MT_HIF_BASE]		= 0x04000,
+	[MT_CSR_BASE]		= 0x07000,
+	[MT_PHY_BASE]		= 0x10000,
+	[MT_CFG_BASE]		= 0x20000,
+	[MT_AGG_BASE]		= 0x22000,
+	[MT_TMAC_BASE]		= 0x24000,
+	[MT_RMAC_BASE]		= 0x25000,
+	[MT_DMA_BASE]		= 0x27000,
+	[MT_WTBL_BASE_ON]	= 0x29000,
+	[MT_WTBL_BASE_OFF]	= 0x29800,
+	[MT_LPON_BASE]		= 0x2b000,
+	[MT_MIB_BASE]		= 0x2d000,
+	[MT_WTBL_BASE_ADDR]	= 0x30000,
+	[MT_PCIE_REMAP_BASE2]	= 0x90000,
+	[MT_TOP_MISC_BASE]	= 0xc0000,
+	[MT_EFUSE_ADDR_BASE]	= 0x78011000,
 };
 
 u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr)
@@ -134,6 +159,9 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret)
 		goto error;
+
+	if (is_mt7663(mdev))
+		mt76_wr(dev, MT_PCIE_IRQ_ENABLE, 1);
 
 	ret = mt7615_register_device(dev);
 	if (ret)

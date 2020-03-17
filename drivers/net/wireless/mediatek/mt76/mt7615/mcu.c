@@ -29,8 +29,37 @@ struct mt7615_fw_trailer {
 	__le32 len;
 } __packed;
 
+#define FW_V3_COMMON_TAILER_SIZE	36
+#define FW_V3_REGION_TAILER_SIZE	40
+#define FW_START_OVERRIDE		BIT(0)
+#define FW_START_DLYCAL                 BIT(1)
+#define FW_START_WORKING_PDA_CR4	BIT(2)
+
+struct mt7663_fw_trailer {
+	u8 chip_id;
+	u8 eco_code;
+	u8 n_region;
+	u8 format_ver;
+	u8 format_flag;
+	u8 reserv[2];
+	char fw_ver[10];
+	char build_date[15];
+	u32 crc;
+} __packed;
+
+struct mt7663_fw_buf {
+	u32 crc;
+	u32 d_img_size;
+	u32 block_size;
+	u8 rsv[4];
+	u32 img_dest_addr;
+	u32 img_size;
+	u8 feature_set;
+};
+
 #define MT7615_PATCH_ADDRESS		0x80000
 #define MT7622_PATCH_ADDRESS		0x9c000
+#define MT7663_PATCH_ADDRESS		0xdc000
 
 #define N9_REGION_NUM			2
 #define CR4_REGION_NUM			1
@@ -44,6 +73,7 @@ struct mt7615_fw_trailer {
 #define DL_MODE_KEY_IDX			GENMASK(2, 1)
 #define DL_MODE_RESET_SEC_IV		BIT(3)
 #define DL_MODE_WORKING_PDA_CR4		BIT(4)
+#define DL_MODE_VALID_RAM_ENTRY         BIT(5)
 #define DL_MODE_NEED_RSP		BIT(31)
 
 #define FW_START_OVERRIDE		BIT(0)
@@ -1816,6 +1846,121 @@ int mt7615_mcu_fw_log_2_host(struct mt7615_dev *dev, u8 ctrl)
 				   &data, sizeof(data), true);
 }
 
+static int mt7663_load_n9(struct mt7615_dev *dev, const char *name)
+{
+	u32 offset = 0, override_addr = 0, flag = 0;
+	const struct mt7663_fw_trailer *hdr;
+	const struct mt7663_fw_buf *buf;
+	const struct firmware *fw;
+	const u8 *base_addr;
+	int i, ret;
+
+	ret = request_firmware(&fw, name, dev->mt76.dev);
+	if (ret)
+		return ret;
+
+	if (!fw || !fw->data || fw->size < FW_V3_COMMON_TAILER_SIZE) {
+		dev_err(dev->mt76.dev, "Invalid firmware\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hdr = (const struct mt7663_fw_trailer *)(fw->data + fw->size -
+						 FW_V3_COMMON_TAILER_SIZE);
+
+	dev_info(dev->mt76.dev, "N9 Firmware Version: %.10s, Build Time: %.15s\n",
+		 hdr->fw_ver, hdr->build_date);
+	dev_info(dev->mt76.dev, "Region number: 0x%x\n", hdr->n_region);
+
+	base_addr = fw->data + fw->size - FW_V3_COMMON_TAILER_SIZE;
+	for (i = 0; i < hdr->n_region; i++) {
+		u32 shift = (hdr->n_region - i) * FW_V3_REGION_TAILER_SIZE;
+		u32 len, addr, mode;
+
+		dev_info(dev->mt76.dev, "Parsing tailer Region: %d\n", i);
+
+		buf = (const struct mt7663_fw_buf *)(base_addr - shift);
+		mode = mt7615_mcu_gen_dl_mode(buf->feature_set, false);
+		addr = le32_to_cpu(buf->img_dest_addr);
+		len = le32_to_cpu(buf->img_size);
+
+		ret = mt7615_mcu_init_download(dev, addr, len, mode);
+		if (ret) {
+			dev_err(dev->mt76.dev, "Download request failed\n");
+			goto out;
+		}
+
+		ret = mt7615_mcu_send_firmware(dev, fw->data + offset, len);
+		if (ret) {
+			dev_err(dev->mt76.dev, "Failed to send firmware\n");
+			goto out;
+		}
+
+		offset += buf->img_size;
+		if (buf->feature_set & DL_MODE_VALID_RAM_ENTRY) {
+			override_addr = le32_to_cpu(buf->img_dest_addr);
+			dev_info(dev->mt76.dev, "Region %d, override_addr = 0x%08x\n",
+				 i, override_addr);
+		}
+	}
+
+	if (is_mt7663(&dev->mt76)) {
+		flag |= FW_START_DLYCAL;
+		if (override_addr)
+			flag |= FW_START_OVERRIDE;
+
+		dev_info(dev->mt76.dev, "override_addr = 0x%08x, option = %d\n",
+			 override_addr, flag);
+	}
+
+	ret = mt7615_mcu_start_firmware(dev, override_addr, flag);
+	if (ret)
+		dev_err(dev->mt76.dev, "Failed to start N9 firmware\n");
+
+out:
+	release_firmware(fw);
+
+	return ret;
+}
+
+static int mt7663_load_firmware(struct mt7615_dev *dev)
+{
+	int ret;
+
+	mt76_set(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_BYPASS_TX_SCH);
+
+	ret = mt76_get_field(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_N9_RDY);
+	if (ret) {
+		dev_dbg(dev->mt76.dev, "Firmware is already download\n");
+		return -EIO;
+	}
+
+	ret = mt7615_load_patch(dev, MT7663_PATCH_ADDRESS, MT7663_ROM_PATCH);
+	if (ret)
+		return ret;
+
+	dev->fw_ver = MT7615_FIRMWARE_V3;
+	dev->mcu_ops = &uni_update_ops;
+
+	ret = mt7663_load_n9(dev, MT7663_FIRMWARE_N9);
+	if (ret)
+		return ret;
+
+	if (!mt76_poll_msec(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_N9_RDY,
+			    MT_TOP_MISC2_FW_N9_RDY, 1500)) {
+		ret = mt76_get_field(dev, MT_CONN_ON_MISC,
+				     MT7663_TOP_MISC2_FW_STATE);
+		dev_err(dev->mt76.dev, "Timeout for initializing firmware\n");
+		return -EIO;
+	}
+
+	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_BYPASS_TX_SCH);
+
+	dev_dbg(dev->mt76.dev, "Firmware init done\n");
+
+	return 0;
+}
+
 int mt7615_mcu_init(struct mt7615_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7615_mcu_ops = {
@@ -1831,10 +1976,17 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
-	if (is_mt7622(&dev->mt76))
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7622:
 		ret = mt7622_load_firmware(dev);
-	else
+		break;
+	case 0x7663:
+		ret = mt7663_load_firmware(dev);
+		break;
+	default:
 		ret = mt7615_load_firmware(dev);
+		break;
+	}
 	if (ret)
 		return ret;
 

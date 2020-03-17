@@ -4,6 +4,7 @@
  * Author: Roy Luo <royluo@google.com>
  *         Ryder Lee <ryder.lee@mediatek.com>
  *         Felix Fietkau <nbd@nbd.name>
+ *         Lorenzo Bianconi <lorenzo@kernel.org>
  */
 
 #include <linux/etherdevice.h>
@@ -77,7 +78,6 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 	int i;
 
 	mt7615_init_mac_chain(dev, 0);
-	mt7615_init_mac_chain(dev, 1);
 
 	mt76_rmw_field(dev, MT_TMAC_CTCR0,
 		       MT_TMAC_CTCR0_INS_DDLMT_REFTIME, 0x3f);
@@ -101,15 +101,25 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 		FIELD_PREP(MT_AGG_ARCR_RATE_DOWN_RATIO, 1) |
 		FIELD_PREP(MT_AGG_ARCR_RATE_UP_EXTRA_TH, 4));
 
-	mt76_wr(dev, MT_DMA_DCR0, MT_DMA_DCR0_RX_VEC_DROP |
-		FIELD_PREP(MT_DMA_DCR0_MAX_RX_LEN, 3072));
-
 	for (i = 0; i < MT7615_WTBL_SIZE; i++)
 		mt7615_mac_wtbl_update(dev, i,
 				       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
 	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_EN);
 	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0, MT_WF_RMAC_MIB_RXTIME_EN);
+
+	/* disable hdr translation and hw AMSDU */
+	mt76_wr(dev, MT_DMA_DCR0,
+		FIELD_PREP(MT_DMA_DCR0_MAX_RX_LEN, 3072) |
+		MT_DMA_DCR0_RX_VEC_DROP);
+	if (is_mt7663(&dev->mt76)) {
+		mt76_wr(dev, MT_CSR(0x010), 0x8208);
+		mt76_wr(dev, 0x44064, 0x2000000);
+		mt76_wr(dev, MT_WF_AGG(0x160), 0x5c341c02);
+		mt76_wr(dev, MT_WF_AGG(0x164), 0x70708040);
+	} else {
+		mt7615_init_mac_chain(dev, 1);
+	}
 }
 
 bool mt7615_wait_for_mcu_init(struct mt7615_dev *dev)
