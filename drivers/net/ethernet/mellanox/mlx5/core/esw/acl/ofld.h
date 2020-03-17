@@ -9,6 +9,16 @@
 /* Eswitch acl egress external APIs */
 int esw_acl_egress_ofld_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport);
 void esw_acl_egress_ofld_cleanup(struct mlx5_vport *vport);
+int mlx5_esw_acl_egress_vport_bond(struct mlx5_eswitch *esw, u16 active_vport_num,
+				   u16 passive_vport_num);
+int mlx5_esw_acl_egress_vport_unbond(struct mlx5_eswitch *esw, u16 vport_num);
+
+static inline bool mlx5_esw_acl_egress_fwd2vport_supported(struct mlx5_eswitch *esw)
+{
+	return esw && esw->mode == MLX5_ESWITCH_OFFLOADS &&
+		mlx5_eswitch_vport_match_metadata_enabled(esw) &&
+		MLX5_CAP_ESW_FLOWTABLE(esw->dev, egress_acl_forward_to_vport);
+}
 
 /* Eswitch acl ingress external APIs */
 int esw_acl_ingress_ofld_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport);
