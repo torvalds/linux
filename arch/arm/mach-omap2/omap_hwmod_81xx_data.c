@@ -129,13 +129,6 @@ static struct omap_hwmod dm81xx_alwon_l3_med_hwmod = {
 	.flags		= HWMOD_NO_IDLEST,
 };
 
-static struct omap_hwmod dm81xx_alwon_l3_fast_hwmod = {
-	.name		= "l3_fast",
-	.clkdm_name	= "alwon_l3_fast_clkdm",
-	.class		= &l3_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
-};
-
 /*
  * L4 standard peripherals, see TRM table 1-12 for devices using this.
  * See TRM table 1-73 for devices using the 125MHz SYSCLK6 clock.
@@ -1265,154 +1258,6 @@ static struct omap_hwmod_ocp_if dm81xx_l4_ls__spinbox = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_class dm81xx_tpcc_hwmod_class = {
-	.name		= "tpcc",
-};
-
-static struct omap_hwmod dm81xx_tpcc_hwmod = {
-	.name		= "tpcc",
-	.class		= &dm81xx_tpcc_hwmod_class,
-	.clkdm_name	= "alwon_l3s_clkdm",
-	.main_clk	= "sysclk4_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= DM81XX_CM_ALWON_TPCC_CLKCTRL,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod_ocp_if dm81xx_alwon_l3_fast__tpcc = {
-	.master		= &dm81xx_alwon_l3_fast_hwmod,
-	.slave		= &dm81xx_tpcc_hwmod,
-	.clk		= "sysclk4_ck",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_class dm81xx_tptc0_hwmod_class = {
-	.name		= "tptc0",
-};
-
-static struct omap_hwmod dm81xx_tptc0_hwmod = {
-	.name		= "tptc0",
-	.class		= &dm81xx_tptc0_hwmod_class,
-	.clkdm_name	= "alwon_l3s_clkdm",
-	.main_clk	= "sysclk4_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= DM81XX_CM_ALWON_TPTC0_CLKCTRL,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod_ocp_if dm81xx_alwon_l3_fast__tptc0 = {
-	.master		= &dm81xx_alwon_l3_fast_hwmod,
-	.slave		= &dm81xx_tptc0_hwmod,
-	.clk		= "sysclk4_ck",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_ocp_if dm81xx_tptc0__alwon_l3_fast = {
-	.master		= &dm81xx_tptc0_hwmod,
-	.slave		= &dm81xx_alwon_l3_fast_hwmod,
-	.clk		= "sysclk4_ck",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_class dm81xx_tptc1_hwmod_class = {
-	.name		= "tptc1",
-};
-
-static struct omap_hwmod dm81xx_tptc1_hwmod = {
-	.name		= "tptc1",
-	.class		= &dm81xx_tptc1_hwmod_class,
-	.clkdm_name	= "alwon_l3s_clkdm",
-	.main_clk	= "sysclk4_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= DM81XX_CM_ALWON_TPTC1_CLKCTRL,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod_ocp_if dm81xx_alwon_l3_fast__tptc1 = {
-	.master		= &dm81xx_alwon_l3_fast_hwmod,
-	.slave		= &dm81xx_tptc1_hwmod,
-	.clk		= "sysclk4_ck",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_ocp_if dm81xx_tptc1__alwon_l3_fast = {
-	.master		= &dm81xx_tptc1_hwmod,
-	.slave		= &dm81xx_alwon_l3_fast_hwmod,
-	.clk		= "sysclk4_ck",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_class dm81xx_tptc2_hwmod_class = {
-	.name		= "tptc2",
-};
-
-static struct omap_hwmod dm81xx_tptc2_hwmod = {
-	.name		= "tptc2",
-	.class		= &dm81xx_tptc2_hwmod_class,
-	.clkdm_name	= "alwon_l3s_clkdm",
-	.main_clk	= "sysclk4_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= DM81XX_CM_ALWON_TPTC2_CLKCTRL,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod_ocp_if dm81xx_alwon_l3_fast__tptc2 = {
-	.master		= &dm81xx_alwon_l3_fast_hwmod,
-	.slave		= &dm81xx_tptc2_hwmod,
-	.clk		= "sysclk4_ck",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_ocp_if dm81xx_tptc2__alwon_l3_fast = {
-	.master		= &dm81xx_tptc2_hwmod,
-	.slave		= &dm81xx_alwon_l3_fast_hwmod,
-	.clk		= "sysclk4_ck",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_class dm81xx_tptc3_hwmod_class = {
-	.name		= "tptc3",
-};
-
-static struct omap_hwmod dm81xx_tptc3_hwmod = {
-	.name		= "tptc3",
-	.class		= &dm81xx_tptc3_hwmod_class,
-	.clkdm_name	= "alwon_l3s_clkdm",
-	.main_clk	= "sysclk4_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= DM81XX_CM_ALWON_TPTC3_CLKCTRL,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod_ocp_if dm81xx_alwon_l3_fast__tptc3 = {
-	.master		= &dm81xx_alwon_l3_fast_hwmod,
-	.slave		= &dm81xx_tptc3_hwmod,
-	.clk		= "sysclk4_ck",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_ocp_if dm81xx_tptc3__alwon_l3_fast = {
-	.master		= &dm81xx_tptc3_hwmod,
-	.slave		= &dm81xx_alwon_l3_fast_hwmod,
-	.clk		= "sysclk4_ck",
-	.user		= OCP_USER_MPU,
-};
-
 /*
  * REVISIT: Test and enable the following once clocks work:
  * dm81xx_l4_ls__mailbox
@@ -1443,15 +1288,6 @@ static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {
 	&dm814x_l4_ls__mmc1,
 	&dm814x_l4_ls__mmc2,
 	&ti81xx_l4_ls__rtc,
-	&dm81xx_alwon_l3_fast__tpcc,
-	&dm81xx_alwon_l3_fast__tptc0,
-	&dm81xx_alwon_l3_fast__tptc1,
-	&dm81xx_alwon_l3_fast__tptc2,
-	&dm81xx_alwon_l3_fast__tptc3,
-	&dm81xx_tptc0__alwon_l3_fast,
-	&dm81xx_tptc1__alwon_l3_fast,
-	&dm81xx_tptc2__alwon_l3_fast,
-	&dm81xx_tptc3__alwon_l3_fast,
 	&dm814x_l4_ls__timer1,
 	&dm814x_l4_ls__timer2,
 	&dm81xx_alwon_l3_slow__gpmc,
@@ -1496,15 +1332,6 @@ static struct omap_hwmod_ocp_if *dm816x_hwmod_ocp_ifs[] __initdata = {
 	&dm81xx_emac0__mdio,
 	&dm816x_l4_hs__emac1,
 	&dm81xx_l4_hs__sata,
-	&dm81xx_alwon_l3_fast__tpcc,
-	&dm81xx_alwon_l3_fast__tptc0,
-	&dm81xx_alwon_l3_fast__tptc1,
-	&dm81xx_alwon_l3_fast__tptc2,
-	&dm81xx_alwon_l3_fast__tptc3,
-	&dm81xx_tptc0__alwon_l3_fast,
-	&dm81xx_tptc1__alwon_l3_fast,
-	&dm81xx_tptc2__alwon_l3_fast,
-	&dm81xx_tptc3__alwon_l3_fast,
 	&dm81xx_alwon_l3_slow__gpmc,
 	&dm816x_default_l3_slow__usbss,
 	NULL,
