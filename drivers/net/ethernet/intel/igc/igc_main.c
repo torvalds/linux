@@ -2284,9 +2284,7 @@ static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	igc_del_mac_filter(adapter, addr, adapter->num_rx_queues, 0);
-
-	return 0;
+	return igc_del_mac_filter(adapter, addr, adapter->num_rx_queues, 0);
 }
 
 /**
