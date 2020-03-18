@@ -1174,7 +1174,7 @@ static int vcn_v3_0_set_clockgating_state(void *handle,
 			continue;
 
 		if (enable) {
-			if (RREG32_SOC15(VCN, i, mmUVD_STATUS) == UVD_STATUS__IDLE)
+			if (RREG32_SOC15(VCN, i, mmUVD_STATUS) != UVD_STATUS__IDLE)
 				return -EBUSY;
 			vcn_v3_0_enable_clock_gating(adev, i);
 		} else {

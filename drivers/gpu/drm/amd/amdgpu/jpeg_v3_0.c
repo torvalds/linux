@@ -479,7 +479,7 @@ static int jpeg_v3_0_set_clockgating_state(void *handle,
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 
 	if (enable) {
-		if (jpeg_v3_0_is_idle(handle))
+		if (!jpeg_v3_0_is_idle(handle))
 			return -EBUSY;
 		jpeg_v3_0_enable_clock_gating(adev);
 	} else {
