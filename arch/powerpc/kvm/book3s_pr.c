@@ -2087,7 +2087,6 @@ static struct kvmppc_ops kvm_ops_pr = {
 	.age_hva  = kvm_age_hva_pr,
 	.test_age_hva = kvm_test_age_hva_pr,
 	.set_spte_hva = kvm_set_spte_hva_pr,
-	.mmu_destroy  = kvmppc_mmu_destroy_pr,
 	.free_memslot = kvmppc_core_free_memslot_pr,
 	.init_vm = kvmppc_core_init_vm_pr,
 	.destroy_vm = kvmppc_core_destroy_vm_pr,

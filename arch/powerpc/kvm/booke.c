@@ -2073,11 +2073,6 @@ void kvmppc_booke_vcpu_put(struct kvm_vcpu *vcpu)
 	kvmppc_clear_dbsr();
 }
 
-void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
-{
-	vcpu->kvm->arch.kvm_ops->mmu_destroy(vcpu);
-}
-
 int kvmppc_core_init_vm(struct kvm *kvm)
 {
 	return kvm->arch.kvm_ops->init_vm(kvm);

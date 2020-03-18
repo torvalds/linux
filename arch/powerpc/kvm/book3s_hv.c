@@ -4555,11 +4555,6 @@ void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr, unsigned long mask)
 	}
 }
 
-static void kvmppc_mmu_destroy_hv(struct kvm_vcpu *vcpu)
-{
-	return;
-}
-
 void kvmppc_setup_partition_table(struct kvm *kvm)
 {
 	unsigned long dw0, dw1;
@@ -5523,7 +5518,6 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.age_hva  = kvm_age_hva_hv,
 	.test_age_hva = kvm_test_age_hva_hv,
 	.set_spte_hva = kvm_set_spte_hva_hv,
-	.mmu_destroy  = kvmppc_mmu_destroy_hv,
 	.free_memslot = kvmppc_core_free_memslot_hv,
 	.init_vm =  kvmppc_core_init_vm_hv,
 	.destroy_vm = kvmppc_core_destroy_vm_hv,
