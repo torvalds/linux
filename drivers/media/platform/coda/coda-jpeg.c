@@ -1428,6 +1428,12 @@ static void coda9_jpeg_finish_decode(struct coda_ctx *ctx)
 
 	coda_write(dev, 0, CODA9_REG_JPEG_BBC_FLUSH_CMD);
 
+	/*
+	 * Lock to make sure that a decoder stop command running in parallel
+	 * will either already have marked src_buf as last, or it will wake up
+	 * the capture queue after the buffers are returned.
+	 */
+	mutex_lock(&ctx->wakeup_mutex);
 	src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 	dst_buf->sequence = ctx->osequence++;
@@ -1446,6 +1452,8 @@ static void coda9_jpeg_finish_decode(struct coda_ctx *ctx)
 	v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 	coda_m2m_buf_done(ctx, dst_buf, err_mb ? VB2_BUF_STATE_ERROR :
 						 VB2_BUF_STATE_DONE);
+
+	mutex_unlock(&ctx->wakeup_mutex);
 
 	coda_dbg(1, ctx, "job finished: decoded frame (%u)%s\n",
 		 dst_buf->sequence,

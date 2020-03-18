@@ -1230,6 +1230,8 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 		stream_end = false;
 		wakeup = false;
 
+		mutex_lock(&ctx->wakeup_mutex);
+
 		buf = v4l2_m2m_last_src_buf(ctx->fh.m2m_ctx);
 		if (buf) {
 			coda_dbg(1, ctx, "marking last pending buffer\n");
@@ -1266,6 +1268,7 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 			coda_wake_up_capture_queue(ctx);
 		}
 
+		mutex_unlock(&ctx->wakeup_mutex);
 		break;
 	default:
 		return -EINVAL;
