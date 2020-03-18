@@ -69,7 +69,7 @@ struct coda_aux_buf {
 
 struct coda_dev {
 	struct v4l2_device	v4l2_dev;
-	struct video_device	vfd[5];
+	struct video_device	vfd[6];
 	struct device		*dev;
 	const struct coda_devtype *devtype;
 	int			firmware;
@@ -123,10 +123,15 @@ struct coda_params {
 	u8			mpeg4_inter_qp;
 	u8			gop_size;
 	int			intra_refresh;
+	enum v4l2_jpeg_chroma_subsampling jpeg_chroma_subsampling;
 	u8			jpeg_quality;
 	u8			jpeg_restart_interval;
 	u8			*jpeg_qmat_tab[3];
+	int			jpeg_qmat_index[3];
+	int			jpeg_huff_dc_index[3];
+	int			jpeg_huff_ac_index[3];
 	u32			*jpeg_huff_data;
+	struct coda_huff_tab	*jpeg_huff_tab;
 	int			codec_mode;
 	int			codec_mode_aux;
 	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
@@ -238,6 +243,7 @@ struct coda_ctx {
 	struct v4l2_fh			fh;
 	int				gopcounter;
 	int				runcounter;
+	int				jpeg_ecs_offset;
 	char				vpu_header[3][64];
 	int				vpu_header_size[3];
 	struct kfifo			bitstream_fifo;
@@ -362,12 +368,14 @@ void coda_update_profile_level_ctrls(struct coda_ctx *ctx, u8 profile_idc,
 				     u8 level_idc);
 
 bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb);
+int coda_jpeg_decode_header(struct coda_ctx *ctx, struct vb2_buffer *vb);
 int coda_jpeg_write_tables(struct coda_ctx *ctx);
 void coda_set_jpeg_compression_quality(struct coda_ctx *ctx, int quality);
 
 extern const struct coda_context_ops coda_bit_encode_ops;
 extern const struct coda_context_ops coda_bit_decode_ops;
 extern const struct coda_context_ops coda9_jpeg_encode_ops;
+extern const struct coda_context_ops coda9_jpeg_decode_ops;
 
 irqreturn_t coda_irq_handler(int irq, void *data);
 irqreturn_t coda9_jpeg_irq_handler(int irq, void *data);
