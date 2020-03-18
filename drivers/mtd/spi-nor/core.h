@@ -24,6 +24,8 @@ enum spi_nor_option_flags {
 	SNOR_F_HAS_16BIT_SR	= BIT(9),
 	SNOR_F_NO_READ_CR	= BIT(10),
 	SNOR_F_HAS_SR_TB_BIT6	= BIT(11),
+	SNOR_F_HAS_4BIT_BP      = BIT(12),
+	SNOR_F_HAS_SR_BP3_BIT6  = BIT(13),
 };
 
 struct spi_nor_read_command {
@@ -300,6 +302,14 @@ struct flash_info {
 					 * Top/Bottom (TB) is bit 6 of
 					 * status register. Must be used with
 					 * SPI_NOR_HAS_TB.
+					 */
+#define SPI_NOR_4BIT_BP		BIT(17) /*
+					 * Flash SR has 4 bit fields (BP0-3)
+					 * for block protection.
+					 */
+#define SPI_NOR_BP3_SR_BIT6	BIT(18) /*
+					 * BP3 is bit 6 of status register.
+					 * Must be used with SPI_NOR_4BIT_BP.
 					 */
 
 	/* Part specific fixup hooks. */
