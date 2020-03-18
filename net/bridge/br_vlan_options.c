@@ -4,25 +4,48 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <net/ip_tunnels.h>
 
 #include "br_private.h"
+#include "br_private_tunnel.h"
 
-/* check if the options between two vlans are equal */
-bool br_vlan_opts_eq(const struct net_bridge_vlan *v1,
-		     const struct net_bridge_vlan *v2)
+static bool __vlan_tun_put(struct sk_buff *skb, const struct net_bridge_vlan *v)
 {
-	return v1->state == v2->state;
+	__be32 tid = tunnel_id_to_key32(v->tinfo.tunnel_id);
+
+	if (!v->tinfo.tunnel_dst)
+		return true;
+
+	return !nla_put_u32(skb, BRIDGE_VLANDB_ENTRY_TUNNEL_ID,
+			    be32_to_cpu(tid));
+}
+
+static bool __vlan_tun_can_enter_range(const struct net_bridge_vlan *v_curr,
+				       const struct net_bridge_vlan *range_end)
+{
+	return (!v_curr->tinfo.tunnel_dst && !range_end->tinfo.tunnel_dst) ||
+	       vlan_tunid_inrange(v_curr, range_end);
+}
+
+/* check if the options' state of v_curr allow it to enter the range */
+bool br_vlan_opts_eq_range(const struct net_bridge_vlan *v_curr,
+			   const struct net_bridge_vlan *range_end)
+{
+	return v_curr->state == range_end->state &&
+	       __vlan_tun_can_enter_range(v_curr, range_end);
 }
 
 bool br_vlan_opts_fill(struct sk_buff *skb, const struct net_bridge_vlan *v)
 {
 	return !nla_put_u8(skb, BRIDGE_VLANDB_ENTRY_STATE,
-			   br_vlan_get_state(v));
+			   br_vlan_get_state(v)) &&
+	       __vlan_tun_put(skb, v);
 }
 
 size_t br_vlan_opts_nl_size(void)
 {
-	return nla_total_size(sizeof(u8)); /* BRIDGE_VLANDB_ENTRY_STATE */
+	return nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_ENTRY_STATE */
+	       + nla_total_size(sizeof(u32)); /* BRIDGE_VLANDB_ENTRY_TUNNEL_ID */
 }
 
 static int br_vlan_modify_state(struct net_bridge_vlan_group *vg,
@@ -62,6 +85,40 @@ static int br_vlan_modify_state(struct net_bridge_vlan_group *vg,
 	return 0;
 }
 
+static int br_vlan_modify_tunnel(const struct net_bridge_port *p,
+				 struct net_bridge_vlan *v,
+				 struct nlattr **tb,
+				 bool *changed,
+				 struct netlink_ext_ack *extack)
+{
+	struct bridge_vlan_info *vinfo;
+	int cmdmap;
+	u32 tun_id;
+
+	if (!p) {
+		NL_SET_ERR_MSG_MOD(extack, "Can't modify tunnel mapping of non-port vlans");
+		return -EINVAL;
+	}
+	if (!(p->flags & BR_VLAN_TUNNEL)) {
+		NL_SET_ERR_MSG_MOD(extack, "Port doesn't have tunnel flag set");
+		return -EINVAL;
+	}
+
+	/* vlan info attribute is guaranteed by br_vlan_rtm_process_one */
+	vinfo = nla_data(tb[BRIDGE_VLANDB_ENTRY_INFO]);
+	cmdmap = vinfo->flags & BRIDGE_VLAN_INFO_REMOVE_TUN ? RTM_DELLINK :
+							      RTM_SETLINK;
+	/* when working on vlan ranges this represents the starting tunnel id */
+	tun_id = nla_get_u32(tb[BRIDGE_VLANDB_ENTRY_TUNNEL_ID]);
+	/* tunnel ids are mapped to each vlan in increasing order,
+	 * the starting vlan is in BRIDGE_VLANDB_ENTRY_INFO and v is the
+	 * current vlan, so we compute: tun_id + v - vinfo->vid
+	 */
+	tun_id += v->vid - vinfo->vid;
+
+	return br_vlan_tunnel_info(p, cmdmap, v->vid, tun_id, changed);
+}
+
 static int br_vlan_process_one_opts(const struct net_bridge *br,
 				    const struct net_bridge_port *p,
 				    struct net_bridge_vlan_group *vg,
@@ -77,6 +134,11 @@ static int br_vlan_process_one_opts(const struct net_bridge *br,
 		u8 state = nla_get_u8(tb[BRIDGE_VLANDB_ENTRY_STATE]);
 
 		err = br_vlan_modify_state(vg, v, state, changed, extack);
+		if (err)
+			return err;
+	}
+	if (tb[BRIDGE_VLANDB_ENTRY_TUNNEL_ID]) {
+		err = br_vlan_modify_tunnel(p, v, tb, changed, extack);
 		if (err)
 			return err;
 	}
