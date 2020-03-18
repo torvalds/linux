@@ -205,6 +205,7 @@ struct btf_dumper {
 	const struct btf *btf;
 	json_writer_t *jw;
 	bool is_plain_text;
+	bool prog_id_as_func_ptr;
 };
 
 /* btf_dumper_type - print data along with type information
