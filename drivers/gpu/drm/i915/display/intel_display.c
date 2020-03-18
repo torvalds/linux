@@ -10855,7 +10855,7 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 		panel_transcoder_mask |=
 			BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1);
 
-	if (HAS_TRANSCODER_EDP(dev_priv))
+	if (HAS_TRANSCODER(dev_priv, TRANSCODER_EDP))
 		panel_transcoder_mask |= BIT(TRANSCODER_EDP);
 
 	/*
@@ -18704,15 +18704,6 @@ void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915)
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 
-static bool
-has_transcoder(struct drm_i915_private *dev_priv, enum transcoder cpu_transcoder)
-{
-	if (cpu_transcoder == TRANSCODER_EDP)
-		return HAS_TRANSCODER_EDP(dev_priv);
-	else
-		return INTEL_INFO(dev_priv)->pipe_mask & BIT(cpu_transcoder);
-}
-
 struct intel_display_error_state {
 
 	u32 power_well_driver;
@@ -18821,7 +18812,7 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv)
 	for (i = 0; i < ARRAY_SIZE(error->transcoder); i++) {
 		enum transcoder cpu_transcoder = transcoders[i];
 
-		if (!has_transcoder(dev_priv, cpu_transcoder))
+		if (!HAS_TRANSCODER(dev_priv, cpu_transcoder))
 			continue;
 
 		error->transcoder[i].available = true;

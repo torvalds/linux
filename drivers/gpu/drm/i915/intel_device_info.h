@@ -168,6 +168,7 @@ struct intel_device_info {
 	u32 display_mmio_offset;
 
 	u8 pipe_mask;
+	u8 cpu_transcoder_mask;
 
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
