@@ -4326,16 +4326,22 @@ static int nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 /**
  * nand_suspend - [MTD Interface] Suspend the NAND flash
  * @mtd: MTD device structure
+ *
+ * Returns 0 for success or negative error code otherwise.
  */
 static int nand_suspend(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
+	int ret = 0;
 
 	mutex_lock(&chip->lock);
-	chip->suspended = 1;
+	if (chip->suspend)
+		ret = chip->suspend(chip);
+	if (!ret)
+		chip->suspended = 1;
 	mutex_unlock(&chip->lock);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -4347,11 +4353,14 @@ static void nand_resume(struct mtd_info *mtd)
 	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	mutex_lock(&chip->lock);
-	if (chip->suspended)
+	if (chip->suspended) {
+		if (chip->resume)
+			chip->resume(chip);
 		chip->suspended = 0;
-	else
+	} else {
 		pr_err("%s called for a chip which is not in suspended state\n",
 			__func__);
+	}
 	mutex_unlock(&chip->lock);
 }
 
