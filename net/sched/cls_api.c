@@ -3613,8 +3613,8 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 				entry->mangle.mask = tcf_pedit_mask(act, k);
 				entry->mangle.val = tcf_pedit_val(act, k);
 				entry->mangle.offset = tcf_pedit_offset(act, k);
-				entry = &flow_action->entries[++j];
 				entry->hw_stats_type = act->hw_stats_type;
+				entry = &flow_action->entries[++j];
 			}
 		} else if (is_tcf_csum(act)) {
 			entry->id = FLOW_ACTION_CSUM;
