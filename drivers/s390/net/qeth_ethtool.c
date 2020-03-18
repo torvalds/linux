@@ -175,6 +175,22 @@ static void qeth_get_channels(struct net_device *dev,
 	channels->combined_count = 0;
 }
 
+static int qeth_set_channels(struct net_device *dev,
+			     struct ethtool_channels *channels)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	if (IS_IQD(card) || !IS_VM_NIC(card))
+		return -EOPNOTSUPP;
+
+	if (channels->rx_count == 0 || channels->tx_count == 0)
+		return -EINVAL;
+	if (channels->tx_count > card->qdio.no_out_queues)
+		return -EINVAL;
+
+	return netif_set_real_num_tx_queues(dev, channels->tx_count);
+}
+
 static int qeth_get_tunable(struct net_device *dev,
 			    const struct ethtool_tunable *tuna, void *data)
 {
@@ -410,6 +426,7 @@ const struct ethtool_ops qeth_ethtool_ops = {
 	.get_sset_count = qeth_get_sset_count,
 	.get_drvinfo = qeth_get_drvinfo,
 	.get_channels = qeth_get_channels,
+	.set_channels = qeth_set_channels,
 	.get_tunable = qeth_get_tunable,
 	.set_tunable = qeth_set_tunable,
 	.get_link_ksettings = qeth_get_link_ksettings,
