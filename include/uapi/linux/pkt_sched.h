@@ -911,6 +911,8 @@ enum {
 
 	TCA_FQ_CE_THRESHOLD,	/* DCTCP-like CE-marking threshold */
 
+	TCA_FQ_TIMER_SLACK,	/* timer slack */
+
 	__TCA_FQ_MAX
 };
 
