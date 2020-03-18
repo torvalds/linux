@@ -163,19 +163,17 @@ enum flow_action_mangle_base {
 };
 
 enum flow_action_hw_stats_type_bit {
-	FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE_BIT,
-	FLOW_ACTION_HW_STATS_TYPE_DELAYED_BIT,
+	FLOW_ACTION_HW_STATS_IMMEDIATE_BIT,
+	FLOW_ACTION_HW_STATS_DELAYED_BIT,
 };
 
 enum flow_action_hw_stats_type {
-	FLOW_ACTION_HW_STATS_TYPE_DISABLED = 0,
-	FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE =
-		BIT(FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE_BIT),
-	FLOW_ACTION_HW_STATS_TYPE_DELAYED =
-		BIT(FLOW_ACTION_HW_STATS_TYPE_DELAYED_BIT),
-	FLOW_ACTION_HW_STATS_TYPE_ANY =
-		FLOW_ACTION_HW_STATS_TYPE_IMMEDIATE |
-		FLOW_ACTION_HW_STATS_TYPE_DELAYED,
+	FLOW_ACTION_HW_STATS_DISABLED = 0,
+	FLOW_ACTION_HW_STATS_IMMEDIATE =
+		BIT(FLOW_ACTION_HW_STATS_IMMEDIATE_BIT),
+	FLOW_ACTION_HW_STATS_DELAYED = BIT(FLOW_ACTION_HW_STATS_DELAYED_BIT),
+	FLOW_ACTION_HW_STATS_ANY = FLOW_ACTION_HW_STATS_IMMEDIATE |
+				   FLOW_ACTION_HW_STATS_DELAYED,
 };
 
 typedef void (*action_destr)(void *priv);
@@ -285,8 +283,8 @@ static inline bool flow_offload_has_one_action(const struct flow_action *action)
 	     __act = &(__actions)->entries[++__i])
 
 static inline bool
-flow_action_mixed_hw_stats_types_check(const struct flow_action *action,
-				       struct netlink_ext_ack *extack)
+flow_action_mixed_hw_stats_check(const struct flow_action *action,
+				 struct netlink_ext_ack *extack)
 {
 	const struct flow_action_entry *action_entry;
 	u8 uninitialized_var(last_hw_stats_type);
@@ -313,20 +311,20 @@ flow_action_first_entry_get(const struct flow_action *action)
 }
 
 static inline bool
-__flow_action_hw_stats_types_check(const struct flow_action *action,
-				   struct netlink_ext_ack *extack,
-				   bool check_allow_bit,
-				   enum flow_action_hw_stats_type_bit allow_bit)
+__flow_action_hw_stats_check(const struct flow_action *action,
+			     struct netlink_ext_ack *extack,
+			     bool check_allow_bit,
+			     enum flow_action_hw_stats_type_bit allow_bit)
 {
 	const struct flow_action_entry *action_entry;
 
 	if (!flow_action_has_entries(action))
 		return true;
-	if (!flow_action_mixed_hw_stats_types_check(action, extack))
+	if (!flow_action_mixed_hw_stats_check(action, extack))
 		return false;
 	action_entry = flow_action_first_entry_get(action);
 	if (!check_allow_bit &&
-	    action_entry->hw_stats_type != FLOW_ACTION_HW_STATS_TYPE_ANY) {
+	    action_entry->hw_stats_type != FLOW_ACTION_HW_STATS_ANY) {
 		NL_SET_ERR_MSG_MOD(extack, "Driver supports only default HW stats type \"any\"");
 		return false;
 	} else if (check_allow_bit &&
@@ -338,19 +336,18 @@ __flow_action_hw_stats_types_check(const struct flow_action *action,
 }
 
 static inline bool
-flow_action_hw_stats_types_check(const struct flow_action *action,
-				 struct netlink_ext_ack *extack,
-				 enum flow_action_hw_stats_type_bit allow_bit)
+flow_action_hw_stats_check(const struct flow_action *action,
+			   struct netlink_ext_ack *extack,
+			   enum flow_action_hw_stats_type_bit allow_bit)
 {
-	return __flow_action_hw_stats_types_check(action, extack,
-						  true, allow_bit);
+	return __flow_action_hw_stats_check(action, extack, true, allow_bit);
 }
 
 static inline bool
-flow_action_basic_hw_stats_types_check(const struct flow_action *action,
-				       struct netlink_ext_ack *extack)
+flow_action_basic_hw_stats_check(const struct flow_action *action,
+				 struct netlink_ext_ack *extack)
 {
-	return __flow_action_hw_stats_types_check(action, extack, false, 0);
+	return __flow_action_hw_stats_check(action, extack, false, 0);
 }
 
 struct flow_rule {

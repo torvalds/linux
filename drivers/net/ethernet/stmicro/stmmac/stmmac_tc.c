@@ -376,7 +376,7 @@ static int tc_parse_flow_actions(struct stmmac_priv *priv,
 	if (!flow_action_has_entries(action))
 		return -EINVAL;
 
-	if (!flow_action_basic_hw_stats_types_check(action, extack))
+	if (!flow_action_basic_hw_stats_check(action, extack))
 		return -EOPNOTSUPP;
 
 	flow_action_for_each(i, act, action) {

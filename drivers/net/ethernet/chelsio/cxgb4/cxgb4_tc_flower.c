@@ -553,7 +553,7 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 	bool act_vlan = false;
 	int i;
 
-	if (!flow_action_basic_hw_stats_types_check(actions, extack))
+	if (!flow_action_basic_hw_stats_check(actions, extack))
 		return -EOPNOTSUPP;
 
 	flow_action_for_each(i, act, actions) {
