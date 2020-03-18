@@ -44,16 +44,16 @@ struct mt7663_fw_trailer {
 	u8 reserv[2];
 	char fw_ver[10];
 	char build_date[15];
-	u32 crc;
+	__le32 crc;
 } __packed;
 
 struct mt7663_fw_buf {
-	u32 crc;
-	u32 d_img_size;
-	u32 block_size;
+	__le32 crc;
+	__le32 d_img_size;
+	__le32 block_size;
 	u8 rsv[4];
-	u32 img_dest_addr;
-	u32 img_size;
+	__le32 img_dest_addr;
+	__le32 img_size;
 	u8 feature_set;
 };
 
@@ -1896,7 +1896,7 @@ static int mt7663_load_n9(struct mt7615_dev *dev, const char *name)
 			goto out;
 		}
 
-		offset += buf->img_size;
+		offset += le32_to_cpu(buf->img_size);
 		if (buf->feature_set & DL_MODE_VALID_RAM_ENTRY) {
 			override_addr = le32_to_cpu(buf->img_dest_addr);
 			dev_info(dev->mt76.dev, "Region %d, override_addr = 0x%08x\n",
