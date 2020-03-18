@@ -10,6 +10,7 @@
 struct mlxsw_sp_counter_sub_pool {
 	unsigned int base_index;
 	unsigned int size;
+	enum mlxsw_res_id entry_size_res_id;
 	unsigned int entry_size;
 	unsigned int bank_count;
 };
@@ -24,9 +25,11 @@ struct mlxsw_sp_counter_pool {
 
 static const struct mlxsw_sp_counter_sub_pool mlxsw_sp_counter_sub_pools[] = {
 	[MLXSW_SP_COUNTER_SUB_POOL_FLOW] = {
+		.entry_size_res_id = MLXSW_RES_ID_COUNTER_SIZE_PACKETS_BYTES,
 		.bank_count = 6,
 	},
 	[MLXSW_SP_COUNTER_SUB_POOL_RIF] = {
+		.entry_size_res_id = MLXSW_RES_ID_COUNTER_SIZE_ROUTER_BASIC,
 		.bank_count = 2,
 	}
 };
@@ -53,19 +56,18 @@ static int mlxsw_sp_counter_sub_pools_prepare(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_counter_pool *pool = mlxsw_sp->counter_pool;
 	struct mlxsw_sp_counter_sub_pool *sub_pool;
+	enum mlxsw_res_id res_id;
+	int i;
 
-	/* Prepare generic flow pool*/
-	sub_pool = &pool->sub_pools[MLXSW_SP_COUNTER_SUB_POOL_FLOW];
-	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, COUNTER_SIZE_PACKETS_BYTES))
-		return -EIO;
-	sub_pool->entry_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
-						  COUNTER_SIZE_PACKETS_BYTES);
-	/* Prepare erif pool*/
-	sub_pool = &pool->sub_pools[MLXSW_SP_COUNTER_SUB_POOL_RIF];
-	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, COUNTER_SIZE_ROUTER_BASIC))
-		return -EIO;
-	sub_pool->entry_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
-						  COUNTER_SIZE_ROUTER_BASIC);
+	for (i = 0; i < pool->sub_pools_count; i++) {
+		sub_pool = &pool->sub_pools[i];
+		res_id = sub_pool->entry_size_res_id;
+
+		if (!mlxsw_core_res_valid(mlxsw_sp->core, res_id))
+			return -EIO;
+		sub_pool->entry_size = mlxsw_core_res_get(mlxsw_sp->core,
+							  res_id);
+	}
 	return 0;
 }
 
