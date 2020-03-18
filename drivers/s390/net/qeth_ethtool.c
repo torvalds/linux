@@ -204,6 +204,17 @@ static int qeth_set_channels(struct net_device *dev,
 	return qeth_set_real_num_tx_queues(card, channels->tx_count);
 }
 
+static int qeth_get_ts_info(struct net_device *dev,
+			    struct ethtool_ts_info *info)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	if (!IS_IQD(card))
+		return -EOPNOTSUPP;
+
+	return ethtool_op_get_ts_info(dev, info);
+}
+
 static int qeth_get_tunable(struct net_device *dev,
 			    const struct ethtool_tunable *tuna, void *data)
 {
@@ -440,6 +451,7 @@ const struct ethtool_ops qeth_ethtool_ops = {
 	.get_drvinfo = qeth_get_drvinfo,
 	.get_channels = qeth_get_channels,
 	.set_channels = qeth_set_channels,
+	.get_ts_info = qeth_get_ts_info,
 	.get_tunable = qeth_get_tunable,
 	.set_tunable = qeth_set_tunable,
 	.get_link_ksettings = qeth_get_link_ksettings,

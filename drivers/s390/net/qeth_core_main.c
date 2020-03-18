@@ -3355,6 +3355,7 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 
 	for (i = index; i < index + count; ++i) {
 		unsigned int bidx = QDIO_BUFNR(i);
+		struct sk_buff *skb;
 
 		buf = queue->bufs[bidx];
 		buf->buffer->element[buf->next_element_to_fill - 1].eflags |=
@@ -3363,8 +3364,11 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		if (queue->bufstates)
 			queue->bufstates[bidx].user = buf;
 
-		if (IS_IQD(queue->card))
+		if (IS_IQD(card)) {
+			skb_queue_walk(&buf->skb_list, skb)
+				skb_tx_timestamp(skb);
 			continue;
+		}
 
 		if (!queue->do_pack) {
 			if ((atomic_read(&queue->used_buffers) >=
