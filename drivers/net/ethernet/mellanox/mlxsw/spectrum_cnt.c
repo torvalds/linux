@@ -40,11 +40,14 @@ static const struct mlxsw_sp_counter_sub_pool mlxsw_sp_counter_sub_pools[] = {
 	}
 };
 
-static int mlxsw_sp_counter_sub_pools_prepare(struct mlxsw_sp *mlxsw_sp)
+static int mlxsw_sp_counter_sub_pools_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_counter_pool *pool = mlxsw_sp->counter_pool;
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	struct mlxsw_sp_counter_sub_pool *sub_pool;
+	unsigned int base_index = 0;
 	enum mlxsw_res_id res_id;
+	int err;
 	int i;
 
 	for (i = 0; i < pool->sub_pools_count; i++) {
@@ -55,6 +58,14 @@ static int mlxsw_sp_counter_sub_pools_prepare(struct mlxsw_sp *mlxsw_sp)
 			return -EIO;
 		sub_pool->entry_size = mlxsw_core_res_get(mlxsw_sp->core,
 							  res_id);
+		err = devlink_resource_size_get(devlink,
+						sub_pool->resource_id,
+						&sub_pool->size);
+		if (err)
+			return err;
+
+		sub_pool->base_index = base_index;
+		base_index += sub_pool->size;
 	}
 	return 0;
 }
@@ -65,9 +76,7 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	struct mlxsw_sp_counter_sub_pool *sub_pool;
 	struct mlxsw_sp_counter_pool *pool;
-	unsigned int base_index;
 	unsigned int map_size;
-	int i;
 	int err;
 
 	pool = kzalloc(struct_size(pool, sub_pools, sub_pools_count),
@@ -79,10 +88,6 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	       sub_pools_count * sizeof(*sub_pool));
 	pool->sub_pools_count = sub_pools_count;
 	spin_lock_init(&pool->counter_pool_lock);
-
-	err = mlxsw_sp_counter_sub_pools_prepare(mlxsw_sp);
-	if (err)
-		goto err_sub_pools_prepare;
 
 	err = devlink_resource_size_get(devlink, MLXSW_SP_RESOURCE_COUNTERS,
 					&pool->pool_size);
@@ -97,27 +102,16 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 		goto err_usage_alloc;
 	}
 
-	base_index = 0;
-	for (i = 0; i < pool->sub_pools_count; i++) {
-		sub_pool = &pool->sub_pools[i];
-
-		err = devlink_resource_size_get(devlink,
-						sub_pool->resource_id,
-						&sub_pool->size);
-		if (err)
-			goto err_sub_pool_resource_size_get;
-
-		sub_pool->base_index = base_index;
-		base_index += sub_pool->size;
-	}
+	err = mlxsw_sp_counter_sub_pools_init(mlxsw_sp);
+	if (err)
+		goto err_sub_pools_init;
 
 	return 0;
 
-err_sub_pool_resource_size_get:
+err_sub_pools_init:
 	kfree(pool->usage);
 err_usage_alloc:
 err_pool_resource_size_get:
-err_sub_pools_prepare:
 	kfree(pool);
 	return err;
 }
