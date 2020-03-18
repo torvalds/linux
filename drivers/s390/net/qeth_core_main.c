@@ -3705,6 +3705,7 @@ static int qeth_add_hw_header(struct qeth_qdio_out_q *queue,
 			      unsigned int hdr_len, unsigned int proto_len,
 			      unsigned int *elements)
 {
+	gfp_t gfp = GFP_ATOMIC | (skb_pfmemalloc(skb) ? __GFP_MEMALLOC : 0);
 	const unsigned int contiguous = proto_len ? proto_len : 1;
 	const unsigned int max_elements = queue->max_elements;
 	unsigned int __elements;
@@ -3760,10 +3761,11 @@ check_layout:
 		*hdr = skb_push(skb, hdr_len);
 		return hdr_len;
 	}
-	/* fall back */
+
+	/* Fall back to cache element with known-good alignment: */
 	if (hdr_len + proto_len > QETH_HDR_CACHE_OBJ_SIZE)
 		return -E2BIG;
-	*hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
+	*hdr = kmem_cache_alloc(qeth_core_header_cache, gfp);
 	if (!*hdr)
 		return -ENOMEM;
 	/* Copy protocol headers behind HW header: */

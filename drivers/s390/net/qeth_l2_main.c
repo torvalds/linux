@@ -499,6 +499,7 @@ static void qeth_l2_rx_mode_work(struct work_struct *work)
 static int qeth_l2_xmit_osn(struct qeth_card *card, struct sk_buff *skb,
 			    struct qeth_qdio_out_q *queue)
 {
+	gfp_t gfp = GFP_ATOMIC | (skb_pfmemalloc(skb) ? __GFP_MEMALLOC : 0);
 	struct qeth_hdr *hdr = (struct qeth_hdr *)skb->data;
 	addr_t end = (addr_t)(skb->data + sizeof(*hdr));
 	addr_t start = (addr_t)skb->data;
@@ -511,7 +512,7 @@ static int qeth_l2_xmit_osn(struct qeth_card *card, struct sk_buff *skb,
 
 	if (qeth_get_elements_for_range(start, end) > 1) {
 		/* Misaligned HW header, move it to its own buffer element. */
-		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
+		hdr = kmem_cache_alloc(qeth_core_header_cache, gfp);
 		if (!hdr)
 			return -ENOMEM;
 		hd_len = sizeof(*hdr);
