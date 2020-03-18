@@ -48,6 +48,7 @@
 #include <net/pkt_cls.h>
 #include "stmmac_ptp.h"
 #include "stmmac.h"
+#include "dwmac-rk-tool.h"
 #include <linux/reset.h>
 #include <linux/of_mdio.h>
 #include "dwmac1000.h"
@@ -4445,6 +4446,14 @@ int stmmac_dvr_probe(struct device *device,
 		netdev_warn(priv->dev, "%s: failed debugFS registration\n",
 			    __func__);
 #endif
+
+	ret = dwmac_rk_create_loopback_sysfs(device);
+	if (ret) {
+		netdev_err(priv->dev, "%s: ERROR %i create loopback sysfs\n",
+			   __func__, ret);
+		unregister_netdev(ndev);
+		goto error_netdev_register;
+	}
 
 	return ret;
 
