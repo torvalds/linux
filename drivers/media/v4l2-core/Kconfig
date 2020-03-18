@@ -44,6 +44,10 @@ config VIDEO_FIXED_MINOR_RANGES
 config VIDEO_TUNER
 	tristate
 
+# Used by drivers that need v4l2-jpeg.ko
+config V4L2_JPEG_HELPER
+	tristate
+
 # Used by drivers that need v4l2-mem2mem.ko
 config V4L2_MEM2MEM_DEV
 	tristate
