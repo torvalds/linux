@@ -954,6 +954,55 @@ bool f2fs_compress_write_end(struct inode *inode, void *fsdata,
 	return first_index;
 }
 
+int f2fs_truncate_partial_cluster(struct inode *inode, u64 from, bool lock)
+{
+	void *fsdata = NULL;
+	struct page *pagep;
+	int log_cluster_size = F2FS_I(inode)->i_log_cluster_size;
+	pgoff_t start_idx = from >> (PAGE_SHIFT + log_cluster_size) <<
+							log_cluster_size;
+	int err;
+
+	err = f2fs_is_compressed_cluster(inode, start_idx);
+	if (err < 0)
+		return err;
+
+	/* truncate normal cluster */
+	if (!err)
+		return f2fs_do_truncate_blocks(inode, from, lock);
+
+	/* truncate compressed cluster */
+	err = f2fs_prepare_compress_overwrite(inode, &pagep,
+						start_idx, &fsdata);
+
+	/* should not be a normal cluster */
+	f2fs_bug_on(F2FS_I_SB(inode), err == 0);
+
+	if (err <= 0)
+		return err;
+
+	if (err > 0) {
+		struct page **rpages = fsdata;
+		int cluster_size = F2FS_I(inode)->i_cluster_size;
+		int i;
+
+		for (i = cluster_size - 1; i >= 0; i--) {
+			loff_t start = rpages[i]->index << PAGE_SHIFT;
+
+			if (from <= start) {
+				zero_user_segment(rpages[i], 0, PAGE_SIZE);
+			} else {
+				zero_user_segment(rpages[i], from - start,
+								PAGE_SIZE);
+				break;
+			}
+		}
+
+		f2fs_compress_write_end(inode, fsdata, start_idx, true);
+	}
+	return 0;
+}
+
 static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 					int *submitted,
 					struct writeback_control *wbc,
