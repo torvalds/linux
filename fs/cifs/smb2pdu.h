@@ -325,6 +325,8 @@ struct smb2_preauth_neg_context {
 /* Encryption Algorithms Ciphers */
 #define SMB2_ENCRYPTION_AES128_CCM	cpu_to_le16(0x0001)
 #define SMB2_ENCRYPTION_AES128_GCM	cpu_to_le16(0x0002)
+#define SMB2_ENCRYPTION_AES256_CCM      cpu_to_le16(0x0003)
+#define SMB2_ENCRYPTION_AES256_GCM      cpu_to_le16(0x0004)
 
 /* Min encrypt context data is one cipher so 2 bytes + 2 byte count field */
 #define MIN_ENCRYPT_CTXT_DATA_LEN	4
