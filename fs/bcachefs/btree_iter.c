@@ -1068,7 +1068,14 @@ retry_all:
 			goto retry_all;
 	}
 
-	ret = hweight64(trans->iters_live) > 1 ? -EINTR : 0;
+	if (hweight64(trans->iters_live) > 1)
+		ret = -EINTR;
+	else
+		trans_for_each_iter(trans, iter)
+			if (iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT) {
+				ret = -EINTR;
+				break;
+			}
 out:
 	bch2_btree_cache_cannibalize_unlock(c);
 	return ret;
