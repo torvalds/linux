@@ -184,6 +184,11 @@ struct usb_ep_caps {
 		.dir_out = !!(_dir & USB_EP_CAPS_DIR_OUT), \
 	}
 
+enum ep_type {
+	EP_TYPE_NORMAL = 0,
+	EP_TYPE_GSI,
+};
+
 /**
  * struct usb_ep - device side representation of USB endpoint
  * @name:identifier for the endpoint, such as "ep-a" or "ep9in-bulk"
@@ -209,6 +214,11 @@ struct usb_ep_caps {
  *	enabled and remains valid until the endpoint is disabled.
  * @comp_desc: In case of SuperSpeed support, this is the endpoint companion
  *	descriptor that is used to configure the endpoint
+ * @ep_type: Used to specify type of EP eg. normal vs h/w accelerated.
+ * @ep_num: Used EP number
+ * @ep_intr_num: Interrupter number for EP.
+ * @endless: In case where endless transfer is being initiated, this is set
+ *      to disable usb event interrupt for few events.
  *
  * the bus controller driver lists all the general purpose endpoints in
  * gadget->ep_list.  the control endpoint (gadget->ep0) is not in that list,
@@ -232,6 +242,10 @@ struct usb_ep {
 	u8			address;
 	const struct usb_endpoint_descriptor	*desc;
 	const struct usb_ss_ep_comp_descriptor	*comp_desc;
+	enum ep_type            ep_type;
+	u8                      ep_num;
+	u8                      ep_intr_num;
+	bool                    endless;
 };
 
 /*-------------------------------------------------------------------------*/
@@ -883,5 +897,8 @@ extern struct usb_ep *usb_ep_autoconfig_ss(struct usb_gadget *,
 extern void usb_ep_autoconfig_release(struct usb_ep *);
 
 extern void usb_ep_autoconfig_reset(struct usb_gadget *);
+extern struct usb_ep *usb_ep_autoconfig_by_name(struct usb_gadget *gadget,
+			struct usb_endpoint_descriptor *desc,
+			const char *ep_name);
 
 #endif /* __LINUX_USB_GADGET_H */
