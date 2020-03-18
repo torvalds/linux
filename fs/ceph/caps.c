@@ -1740,30 +1740,33 @@ static u64 __get_oldest_flush_tid(struct ceph_mds_client *mdsc)
  * Remove cap_flush from the mdsc's or inode's flushing cap list.
  * Return true if caller needs to wake up flush waiters.
  */
-static bool __finish_cap_flush(struct ceph_mds_client *mdsc,
-			       struct ceph_inode_info *ci,
-			       struct ceph_cap_flush *cf)
+static bool __detach_cap_flush_from_mdsc(struct ceph_mds_client *mdsc,
+					 struct ceph_cap_flush *cf)
 {
 	struct ceph_cap_flush *prev;
 	bool wake = cf->wake;
-	if (mdsc) {
-		/* are there older pending cap flushes? */
-		if (wake && cf->g_list.prev != &mdsc->cap_flush_list) {
-			prev = list_prev_entry(cf, g_list);
-			prev->wake = true;
-			wake = false;
-		}
-		list_del(&cf->g_list);
-	} else if (ci) {
-		if (wake && cf->i_list.prev != &ci->i_cap_flush_list) {
-			prev = list_prev_entry(cf, i_list);
-			prev->wake = true;
-			wake = false;
-		}
-		list_del(&cf->i_list);
-	} else {
-		BUG_ON(1);
+
+	if (wake && cf->g_list.prev != &mdsc->cap_flush_list) {
+		prev = list_prev_entry(cf, g_list);
+		prev->wake = true;
+		wake = false;
 	}
+	list_del(&cf->g_list);
+	return wake;
+}
+
+static bool __detach_cap_flush_from_ci(struct ceph_inode_info *ci,
+				       struct ceph_cap_flush *cf)
+{
+	struct ceph_cap_flush *prev;
+	bool wake = cf->wake;
+
+	if (wake && cf->i_list.prev != &ci->i_cap_flush_list) {
+		prev = list_prev_entry(cf, i_list);
+		prev->wake = true;
+		wake = false;
+	}
+	list_del(&cf->i_list);
 	return wake;
 }
 
@@ -3473,8 +3476,7 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 		if (cf->caps == 0) /* capsnap */
 			continue;
 		if (cf->tid <= flush_tid) {
-			if (__finish_cap_flush(NULL, ci, cf))
-				wake_ci = true;
+			wake_ci |= __detach_cap_flush_from_ci(ci, cf);
 			list_add_tail(&cf->i_list, &to_remove);
 		} else {
 			cleaned &= ~cf->caps;
@@ -3496,10 +3498,8 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 
 	spin_lock(&mdsc->cap_dirty_lock);
 
-	list_for_each_entry(cf, &to_remove, i_list) {
-		if (__finish_cap_flush(mdsc, NULL, cf))
-			wake_mdsc = true;
-	}
+	list_for_each_entry(cf, &to_remove, i_list)
+		wake_mdsc |= __detach_cap_flush_from_mdsc(mdsc, cf);
 
 	if (ci->i_flushing_caps == 0) {
 		if (list_empty(&ci->i_cap_flush_list)) {
@@ -3591,17 +3591,15 @@ static void handle_cap_flushsnap_ack(struct inode *inode, u64 flush_tid,
 		dout(" removing %p cap_snap %p follows %lld\n",
 		     inode, capsnap, follows);
 		list_del(&capsnap->ci_item);
-		if (__finish_cap_flush(NULL, ci, &capsnap->cap_flush))
-			wake_ci = true;
+		wake_ci |= __detach_cap_flush_from_ci(ci, &capsnap->cap_flush);
 
 		spin_lock(&mdsc->cap_dirty_lock);
 
 		if (list_empty(&ci->i_cap_flush_list))
 			list_del_init(&ci->i_flushing_item);
 
-		if (__finish_cap_flush(mdsc, NULL, &capsnap->cap_flush))
-			wake_mdsc = true;
-
+		wake_mdsc |= __detach_cap_flush_from_mdsc(mdsc,
+							  &capsnap->cap_flush);
 		spin_unlock(&mdsc->cap_dirty_lock);
 	}
 	spin_unlock(&ci->i_ceph_lock);
