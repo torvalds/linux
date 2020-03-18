@@ -39,9 +39,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/bitmap.h>
-#if defined(CONFIG_X86)
-#include <asm/memtype.h>
-#endif
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/task.h>
@@ -2145,14 +2142,6 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 	switch (cmd) {
 	case MLX5_IB_MMAP_WC_PAGE:
 	case MLX5_IB_MMAP_ALLOC_WC:
-/* Some architectures don't support WC memory */
-#if defined(CONFIG_X86)
-		if (!pat_enabled())
-			return -EPERM;
-#elif !(defined(CONFIG_PPC) || (defined(CONFIG_ARM) && defined(CONFIG_MMU)))
-			return -EPERM;
-#endif
-	/* fall through */
 	case MLX5_IB_MMAP_REGULAR_PAGE:
 		/* For MLX5_IB_MMAP_REGULAR_PAGE do the best effort to get WC */
 		prot = pgprot_writecombine(vma->vm_page_prot);
@@ -2298,9 +2287,12 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 	command = get_command(vma->vm_pgoff);
 	switch (command) {
 	case MLX5_IB_MMAP_WC_PAGE:
+	case MLX5_IB_MMAP_ALLOC_WC:
+		if (!dev->wc_support)
+			return -EPERM;
+		fallthrough;
 	case MLX5_IB_MMAP_NC_PAGE:
 	case MLX5_IB_MMAP_REGULAR_PAGE:
-	case MLX5_IB_MMAP_ALLOC_WC:
 		return uar_mmap(dev, command, vma, context);
 
 	case MLX5_IB_MMAP_GET_CONTIGUOUS_PAGES:
