@@ -848,6 +848,14 @@ static void free_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg);
 static void mlx5_free_cmd_msg(struct mlx5_core_dev *dev,
 			      struct mlx5_cmd_msg *msg);
 
+static bool opcode_allowed(struct mlx5_cmd *cmd, u16 opcode)
+{
+	if (cmd->allowed_opcode == CMD_ALLOWED_OPCODE_ALL)
+		return true;
+
+	return cmd->allowed_opcode == opcode;
+}
+
 static void cmd_work_handler(struct work_struct *work)
 {
 	struct mlx5_cmd_work_ent *ent = container_of(work, struct mlx5_cmd_work_ent, work);
@@ -914,7 +922,8 @@ static void cmd_work_handler(struct work_struct *work)
 
 	/* Skip sending command to fw if internal error */
 	if (pci_channel_offline(dev->pdev) ||
-	    dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+	    dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR ||
+	    !opcode_allowed(&dev->cmd, ent->op)) {
 		u8 status = 0;
 		u32 drv_synd;
 
@@ -1405,6 +1414,22 @@ static void create_debugfs_files(struct mlx5_core_dev *dev)
 	mlx5_cmdif_debugfs_init(dev);
 }
 
+void mlx5_cmd_allowed_opcode(struct mlx5_core_dev *dev, u16 opcode)
+{
+	struct mlx5_cmd *cmd = &dev->cmd;
+	int i;
+
+	for (i = 0; i < cmd->max_reg_cmds; i++)
+		down(&cmd->sem);
+	down(&cmd->pages_sem);
+
+	cmd->allowed_opcode = opcode;
+
+	up(&cmd->pages_sem);
+	for (i = 0; i < cmd->max_reg_cmds; i++)
+		up(&cmd->sem);
+}
+
 static void mlx5_cmd_change_mod(struct mlx5_core_dev *dev, int mode)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
@@ -1681,12 +1706,13 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 	int err;
 	u8 status = 0;
 	u32 drv_synd;
+	u16 opcode;
 	u8 token;
 
+	opcode = MLX5_GET(mbox_in, in, opcode);
 	if (pci_channel_offline(dev->pdev) ||
-	    dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-		u16 opcode = MLX5_GET(mbox_in, in, opcode);
-
+	    dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR ||
+	    !opcode_allowed(&dev->cmd, opcode)) {
 		err = mlx5_internal_err_ret_value(dev, opcode, &drv_synd, &status);
 		MLX5_SET(mbox_out, out, status, status);
 		MLX5_SET(mbox_out, out, syndrome, drv_synd);
@@ -1988,6 +2014,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	mlx5_core_dbg(dev, "descriptor at dma 0x%llx\n", (unsigned long long)(cmd->dma));
 
 	cmd->mode = CMD_MODE_POLLING;
+	cmd->allowed_opcode = CMD_ALLOWED_OPCODE_ALL;
 
 	create_msg_cache(dev);
 
