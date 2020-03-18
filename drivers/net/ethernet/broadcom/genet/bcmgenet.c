@@ -1965,6 +1965,8 @@ static void umac_enable_set(struct bcmgenet_priv *priv, u32 mask, bool enable)
 	u32 reg;
 
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
+	if (reg & CMD_SW_RESET)
+		return;
 	if (enable)
 		reg |= mask;
 	else
@@ -1984,11 +1986,9 @@ static void reset_umac(struct bcmgenet_priv *priv)
 	bcmgenet_rbuf_ctrl_set(priv, 0);
 	udelay(10);
 
-	/* disable MAC while updating its registers */
-	bcmgenet_umac_writel(priv, 0, UMAC_CMD);
-
-	/* issue soft reset with (rg)mii loopback to ensure a stable rxclk */
-	bcmgenet_umac_writel(priv, CMD_SW_RESET | CMD_LCL_LOOP_EN, UMAC_CMD);
+	/* issue soft reset and disable MAC while updating its registers */
+	bcmgenet_umac_writel(priv, CMD_SW_RESET, UMAC_CMD);
+	udelay(2);
 }
 
 static void bcmgenet_intr_disable(struct bcmgenet_priv *priv)
