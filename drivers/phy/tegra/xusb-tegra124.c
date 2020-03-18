@@ -1422,6 +1422,7 @@ tegra124_usb2_port_map(struct tegra_xusb_port *port)
 }
 
 static const struct tegra_xusb_port_ops tegra124_usb2_port_ops = {
+	.remove = tegra_xusb_usb2_port_remove,
 	.enable = tegra124_usb2_port_enable,
 	.disable = tegra124_usb2_port_disable,
 	.map = tegra124_usb2_port_map,
@@ -1647,6 +1648,7 @@ tegra124_usb3_port_map(struct tegra_xusb_port *port)
 }
 
 static const struct tegra_xusb_port_ops tegra124_usb3_port_ops = {
+	.remove = tegra_xusb_usb3_port_remove,
 	.enable = tegra124_usb3_port_enable,
 	.disable = tegra124_usb3_port_disable,
 	.map = tegra124_usb3_port_map,

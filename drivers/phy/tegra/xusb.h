@@ -308,6 +308,7 @@ to_usb2_port(struct tegra_xusb_port *port)
 struct tegra_xusb_usb2_port *
 tegra_xusb_find_usb2_port(struct tegra_xusb_padctl *padctl,
 			  unsigned int index);
+void tegra_xusb_usb2_port_remove(struct tegra_xusb_port *port);
 
 struct tegra_xusb_ulpi_port {
 	struct tegra_xusb_port base;
@@ -355,8 +356,10 @@ to_usb3_port(struct tegra_xusb_port *port)
 struct tegra_xusb_usb3_port *
 tegra_xusb_find_usb3_port(struct tegra_xusb_padctl *padctl,
 			  unsigned int index);
+void tegra_xusb_usb3_port_remove(struct tegra_xusb_port *port);
 
 struct tegra_xusb_port_ops {
+	void (*remove)(struct tegra_xusb_port *port);
 	int (*enable)(struct tegra_xusb_port *port);
 	void (*disable)(struct tegra_xusb_port *port);
 	struct tegra_xusb_lane *(*map)(struct tegra_xusb_port *port);
