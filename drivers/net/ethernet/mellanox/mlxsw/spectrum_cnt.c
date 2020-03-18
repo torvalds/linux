@@ -40,24 +40,6 @@ static const struct mlxsw_sp_counter_sub_pool mlxsw_sp_counter_sub_pools[] = {
 	}
 };
 
-static int mlxsw_sp_counter_pool_validate(struct mlxsw_sp *mlxsw_sp)
-{
-	struct mlxsw_sp_counter_pool *pool = mlxsw_sp->counter_pool;
-	unsigned int total_bank_config = 0;
-	unsigned int pool_size;
-	unsigned int bank_size;
-	int i;
-
-	pool_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, COUNTER_POOL_SIZE);
-	bank_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, COUNTER_BANK_SIZE);
-	/* Check config is valid, no bank over subscription */
-	for (i = 0; i < pool->sub_pools_count; i++)
-		total_bank_config += pool->sub_pools[i].bank_count;
-	if (total_bank_config > pool_size / bank_size + 1)
-		return -EINVAL;
-	return 0;
-}
-
 static int mlxsw_sp_counter_sub_pools_prepare(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_counter_pool *pool = mlxsw_sp->counter_pool;
@@ -98,10 +80,6 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	pool->sub_pools_count = sub_pools_count;
 	spin_lock_init(&pool->counter_pool_lock);
 
-	err = mlxsw_sp_counter_pool_validate(mlxsw_sp);
-	if (err)
-		goto err_pool_validate;
-
 	err = mlxsw_sp_counter_sub_pools_prepare(mlxsw_sp);
 	if (err)
 		goto err_sub_pools_prepare;
@@ -140,7 +118,6 @@ err_sub_pool_resource_size_get:
 err_usage_alloc:
 err_pool_resource_size_get:
 err_sub_pools_prepare:
-err_pool_validate:
 	kfree(pool);
 	return err;
 }
@@ -216,6 +193,7 @@ int mlxsw_sp_counter_resources_register(struct mlxsw_core *mlxsw_core)
 	static struct devlink_resource_size_params size_params;
 	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 	const struct mlxsw_sp_counter_sub_pool *sub_pool;
+	unsigned int total_bank_config;
 	u64 sub_pool_size;
 	u64 base_index;
 	u64 pool_size;
@@ -245,6 +223,7 @@ int mlxsw_sp_counter_resources_register(struct mlxsw_core *mlxsw_core)
 	/* Allocation is based on bank count which should be
 	 * specified for each sub pool statically.
 	 */
+	total_bank_config = 0;
 	base_index = 0;
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_counter_sub_pools); i++) {
 		sub_pool = &mlxsw_sp_counter_sub_pools[i];
@@ -265,6 +244,12 @@ int mlxsw_sp_counter_resources_register(struct mlxsw_core *mlxsw_core)
 						&size_params);
 		if (err)
 			return err;
+		total_bank_config += sub_pool->bank_count;
 	}
+
+	/* Check config is valid, no bank over subscription */
+	if (WARN_ON(total_bank_config > pool_size / bank_size + 1))
+		return -EINVAL;
+
 	return 0;
 }
