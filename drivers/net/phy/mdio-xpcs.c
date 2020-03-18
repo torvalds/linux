@@ -14,6 +14,7 @@
 
 #define SYNOPSYS_XPCS_USXGMII_ID	0x7996ced0
 #define SYNOPSYS_XPCS_10GKR_ID		0x7996ced0
+#define SYNOPSYS_XPCS_XLGMII_ID		0x7996ced0
 #define SYNOPSYS_XPCS_MASK		0xffffffff
 
 /* Vendor regs access */
@@ -74,6 +75,36 @@ static const int xpcs_10gkr_features[] = {
 	__ETHTOOL_LINK_MODE_MASK_NBITS,
 };
 
+static const int xpcs_xlgmii_features[] = {
+	ETHTOOL_LINK_MODE_Pause_BIT,
+	ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+	ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
+	ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseDR_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseDR2_Full_BIT,
+	__ETHTOOL_LINK_MODE_MASK_NBITS,
+};
+
 static const phy_interface_t xpcs_usxgmii_interfaces[] = {
 	PHY_INTERFACE_MODE_USXGMII,
 	PHY_INTERFACE_MODE_MAX,
@@ -81,6 +112,11 @@ static const phy_interface_t xpcs_usxgmii_interfaces[] = {
 
 static const phy_interface_t xpcs_10gkr_interfaces[] = {
 	PHY_INTERFACE_MODE_10GKR,
+	PHY_INTERFACE_MODE_MAX,
+};
+
+static const phy_interface_t xpcs_xlgmii_interfaces[] = {
+	PHY_INTERFACE_MODE_XLGMII,
 	PHY_INTERFACE_MODE_MAX,
 };
 
@@ -100,6 +136,11 @@ static struct xpcs_id {
 		.mask = SYNOPSYS_XPCS_MASK,
 		.supported = xpcs_10gkr_features,
 		.interface = xpcs_10gkr_interfaces,
+	}, {
+		.id = SYNOPSYS_XPCS_XLGMII_ID,
+		.mask = SYNOPSYS_XPCS_MASK,
+		.supported = xpcs_xlgmii_features,
+		.interface = xpcs_xlgmii_interfaces,
 	},
 };
 
@@ -458,6 +499,60 @@ static void xpcs_resolve_lpa(struct mdio_xpcs_args *xpcs,
 	state->duplex = DUPLEX_FULL;
 }
 
+static int xpcs_get_max_xlgmii_speed(struct mdio_xpcs_args *xpcs,
+				     struct phylink_link_state *state)
+{
+	unsigned long *adv = state->advertising;
+	int speed = SPEED_UNKNOWN;
+	int bit;
+
+	for_each_set_bit(bit, adv, __ETHTOOL_LINK_MODE_MASK_NBITS) {
+		int new_speed = SPEED_UNKNOWN;
+
+		switch (bit) {
+		case ETHTOOL_LINK_MODE_25000baseCR_Full_BIT:
+		case ETHTOOL_LINK_MODE_25000baseKR_Full_BIT:
+		case ETHTOOL_LINK_MODE_25000baseSR_Full_BIT:
+			new_speed = SPEED_25000;
+			break;
+		case ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT:
+		case ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT:
+		case ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT:
+		case ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT:
+			new_speed = SPEED_40000;
+			break;
+		case ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT:
+		case ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT:
+		case ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT:
+		case ETHTOOL_LINK_MODE_50000baseKR_Full_BIT:
+		case ETHTOOL_LINK_MODE_50000baseSR_Full_BIT:
+		case ETHTOOL_LINK_MODE_50000baseCR_Full_BIT:
+		case ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT:
+		case ETHTOOL_LINK_MODE_50000baseDR_Full_BIT:
+			new_speed = SPEED_50000;
+			break;
+		case ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT:
+		case ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT:
+		case ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT:
+		case ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT:
+		case ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT:
+		case ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT:
+		case ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT:
+		case ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT:
+		case ETHTOOL_LINK_MODE_100000baseDR2_Full_BIT:
+			new_speed = SPEED_100000;
+			break;
+		default:
+			continue;
+		}
+
+		if (new_speed > speed)
+			speed = new_speed;
+	}
+
+	return speed;
+}
+
 static void xpcs_resolve_pma(struct mdio_xpcs_args *xpcs,
 			     struct phylink_link_state *state)
 {
@@ -467,6 +562,9 @@ static void xpcs_resolve_pma(struct mdio_xpcs_args *xpcs,
 	switch (state->interface) {
 	case PHY_INTERFACE_MODE_10GKR:
 		state->speed = SPEED_10000;
+		break;
+	case PHY_INTERFACE_MODE_XLGMII:
+		state->speed = xpcs_get_max_xlgmii_speed(xpcs, state);
 		break;
 	default:
 		state->speed = SPEED_UNKNOWN;
