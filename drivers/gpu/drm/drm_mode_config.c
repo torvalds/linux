@@ -608,6 +608,9 @@ void drm_mode_config_validate(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
 	drm_for_each_encoder(encoder, dev)
 		fixup_encoder_possible_clones(encoder);
 
