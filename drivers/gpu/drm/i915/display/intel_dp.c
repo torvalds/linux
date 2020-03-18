@@ -7097,19 +7097,34 @@ static const struct drm_encoder_funcs intel_dp_enc_funcs = {
 	.destroy = intel_dp_encoder_destroy,
 };
 
+static bool intel_edp_have_power(struct intel_dp *intel_dp)
+{
+	intel_wakeref_t wakeref;
+	bool have_power = false;
+
+	with_pps_lock(intel_dp, wakeref) {
+		have_power = edp_have_panel_power(intel_dp) &&
+						  edp_have_panel_vdd(intel_dp);
+	}
+
+	return have_power;
+}
+
 enum irqreturn
 intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 {
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 
-	if (long_hpd && intel_dig_port->base.type == INTEL_OUTPUT_EDP) {
+	if (intel_dig_port->base.type == INTEL_OUTPUT_EDP &&
+	    (long_hpd || !intel_edp_have_power(intel_dp))) {
 		/*
-		 * vdd off can generate a long pulse on eDP which
+		 * vdd off can generate a long/short pulse on eDP which
 		 * would require vdd on to handle it, and thus we
 		 * would end up in an endless cycle of
-		 * "vdd off -> long hpd -> vdd on -> detect -> vdd off -> ..."
+		 * "vdd off -> long/short hpd -> vdd on -> detect -> vdd off -> ..."
 		 */
-		DRM_DEBUG_KMS("ignoring long hpd on eDP [ENCODER:%d:%s]\n",
+		DRM_DEBUG_KMS("ignoring %s hpd on eDP [ENCODER:%d:%s]\n",
+			      long_hpd ? "long" : "short",
 			      intel_dig_port->base.base.base.id,
 			      intel_dig_port->base.base.name);
 		return IRQ_HANDLED;
