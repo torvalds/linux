@@ -248,42 +248,42 @@ struct rkisp_isp_params_v2x_ops {
 			     const struct isp2x_rawaf_meas_cfg *arg);
 	void (*rawaf_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			     bool en);
-	void (*rawaelite_config)(struct rkisp_isp_params_vdev *params_vdev,
-				 const struct isp2x_rawaelite_meas_cfg *arg);
-	void (*rawaelite_enable)(struct rkisp_isp_params_vdev *params_vdev,
-				 bool en);
-	void (*rawaebig1_config)(struct rkisp_isp_params_vdev *params_vdev,
-				 const struct isp2x_rawaebig_meas_cfg *arg);
-	void (*rawaebig1_enable)(struct rkisp_isp_params_vdev *params_vdev,
-				 bool en);
-	void (*rawaebig2_config)(struct rkisp_isp_params_vdev *params_vdev,
-				 const struct isp2x_rawaebig_meas_cfg *arg);
-	void (*rawaebig2_enable)(struct rkisp_isp_params_vdev *params_vdev,
-				 bool en);
-	void (*rawaebig3_config)(struct rkisp_isp_params_vdev *params_vdev,
-				 const struct isp2x_rawaebig_meas_cfg *arg);
-	void (*rawaebig3_enable)(struct rkisp_isp_params_vdev *params_vdev,
-				 bool en);
+	void (*rawae0_config)(struct rkisp_isp_params_vdev *params_vdev,
+			      const struct isp2x_rawaelite_meas_cfg *arg);
+	void (*rawae0_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			      bool en);
+	void (*rawae1_config)(struct rkisp_isp_params_vdev *params_vdev,
+			      const struct isp2x_rawaebig_meas_cfg *arg);
+	void (*rawae1_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			      bool en);
+	void (*rawae2_config)(struct rkisp_isp_params_vdev *params_vdev,
+			      const struct isp2x_rawaebig_meas_cfg *arg);
+	void (*rawae2_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			      bool en);
+	void (*rawae3_config)(struct rkisp_isp_params_vdev *params_vdev,
+			      const struct isp2x_rawaebig_meas_cfg *arg);
+	void (*rawae3_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			      bool en);
 	void (*rawawb_config)(struct rkisp_isp_params_vdev *params_vdev,
 			      const struct isp2x_rawawb_meas_cfg *arg);
 	void (*rawawb_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			      bool en);
-	void (*rawhstlite_config)(struct rkisp_isp_params_vdev *params_vdev,
-				  const struct isp2x_rawhistlite_cfg *arg);
-	void (*rawhstlite_enable)(struct rkisp_isp_params_vdev *params_vdev,
-				  bool en);
-	void (*rawhstbig1_config)(struct rkisp_isp_params_vdev *params_vdev,
-				  const struct isp2x_rawhistbig_cfg *arg);
-	void (*rawhstbig1_enable)(struct rkisp_isp_params_vdev *params_vdev,
-				  bool en);
-	void (*rawhstbig2_config)(struct rkisp_isp_params_vdev *params_vdev,
-				  const struct isp2x_rawhistbig_cfg *arg);
-	void (*rawhstbig2_enable)(struct rkisp_isp_params_vdev *params_vdev,
-				  bool en);
-	void (*rawhstbig3_config)(struct rkisp_isp_params_vdev *params_vdev,
-				  const struct isp2x_rawhistbig_cfg *arg);
-	void (*rawhstbig3_enable)(struct rkisp_isp_params_vdev *params_vdev,
-				  bool en);
+	void (*rawhst0_config)(struct rkisp_isp_params_vdev *params_vdev,
+			       const struct isp2x_rawhistlite_cfg *arg);
+	void (*rawhst0_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			       bool en);
+	void (*rawhst1_config)(struct rkisp_isp_params_vdev *params_vdev,
+			       const struct isp2x_rawhistbig_cfg *arg);
+	void (*rawhst1_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			       bool en);
+	void (*rawhst2_config)(struct rkisp_isp_params_vdev *params_vdev,
+			       const struct isp2x_rawhistbig_cfg *arg);
+	void (*rawhst2_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			       bool en);
+	void (*rawhst3_config)(struct rkisp_isp_params_vdev *params_vdev,
+			       const struct isp2x_rawhistbig_cfg *arg);
+	void (*rawhst3_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			       bool en);
 	void (*hdrmge_config)(struct rkisp_isp_params_vdev *params_vdev,
 			      const struct isp2x_hdrmge_cfg *arg);
 	void (*hdrmge_enable)(struct rkisp_isp_params_vdev *params_vdev,

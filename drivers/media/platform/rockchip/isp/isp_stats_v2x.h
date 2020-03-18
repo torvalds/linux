@@ -29,25 +29,25 @@ struct rkisp_stats_v2x_ops {
 	void (*get_sihst_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
 			       struct rkisp_isp2x_stat_buffer *pbuf);
 
-	void (*get_rawaebig1_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct rkisp_isp2x_stat_buffer *pbuf);
-	void (*get_rawhstbig1_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-				    struct rkisp_isp2x_stat_buffer *pbuf);
+	void (*get_rawae0_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
+				struct rkisp_isp2x_stat_buffer *pbuf);
+	void (*get_rawhst0_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
+				 struct rkisp_isp2x_stat_buffer *pbuf);
 
-	void (*get_rawaebig2_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct rkisp_isp2x_stat_buffer *pbuf);
-	void (*get_rawhstbig2_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-				    struct rkisp_isp2x_stat_buffer *pbuf);
+	void (*get_rawae1_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
+				struct rkisp_isp2x_stat_buffer *pbuf);
+	void (*get_rawhst1_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
+				 struct rkisp_isp2x_stat_buffer *pbuf);
 
-	void (*get_rawaebig3_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct rkisp_isp2x_stat_buffer *pbuf);
-	void (*get_rawhstbig3_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-				    struct rkisp_isp2x_stat_buffer *pbuf);
+	void (*get_rawae2_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
+				struct rkisp_isp2x_stat_buffer *pbuf);
+	void (*get_rawhst2_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
+				 struct rkisp_isp2x_stat_buffer *pbuf);
 
-	void (*get_rawaelite_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct rkisp_isp2x_stat_buffer *pbuf);
-	void (*get_rawhstlite_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-				    struct rkisp_isp2x_stat_buffer *pbuf);
+	void (*get_rawae3_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
+				struct rkisp_isp2x_stat_buffer *pbuf);
+	void (*get_rawhst3_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
+				 struct rkisp_isp2x_stat_buffer *pbuf);
 
 	void (*get_bls_stats)(struct rkisp_isp_stats_vdev *stats_vdev,
 			      struct rkisp_isp2x_stat_buffer *pbuf);

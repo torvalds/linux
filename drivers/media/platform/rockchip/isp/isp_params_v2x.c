@@ -1804,45 +1804,45 @@ isp_rawaebig_enable(struct rkisp_isp_params_vdev *params_vdev,
 }
 
 static void
-isp_rawaebig1_config(struct rkisp_isp_params_vdev *params_vdev,
-		     const struct isp2x_rawaebig_meas_cfg *arg)
-{
-	isp_rawaebig_config(params_vdev, arg, 0);
-}
-
-static void
-isp_rawaebig1_enable(struct rkisp_isp_params_vdev *params_vdev,
-		     bool en)
-{
-	isp_rawaebig_enable(params_vdev, en, 0);
-}
-
-static void
-isp_rawaebig2_config(struct rkisp_isp_params_vdev *params_vdev,
-		     const struct isp2x_rawaebig_meas_cfg *arg)
+isp_rawae1_config(struct rkisp_isp_params_vdev *params_vdev,
+		  const struct isp2x_rawaebig_meas_cfg *arg)
 {
 	isp_rawaebig_config(params_vdev, arg, 1);
 }
 
 static void
-isp_rawaebig2_enable(struct rkisp_isp_params_vdev *params_vdev,
-		     bool en)
+isp_rawae1_enable(struct rkisp_isp_params_vdev *params_vdev,
+		  bool en)
 {
 	isp_rawaebig_enable(params_vdev, en, 1);
 }
 
 static void
-isp_rawaebig3_config(struct rkisp_isp_params_vdev *params_vdev,
-		     const struct isp2x_rawaebig_meas_cfg *arg)
+isp_rawae2_config(struct rkisp_isp_params_vdev *params_vdev,
+		  const struct isp2x_rawaebig_meas_cfg *arg)
 {
 	isp_rawaebig_config(params_vdev, arg, 2);
 }
 
 static void
-isp_rawaebig3_enable(struct rkisp_isp_params_vdev *params_vdev,
-		     bool en)
+isp_rawae2_enable(struct rkisp_isp_params_vdev *params_vdev,
+		  bool en)
 {
 	isp_rawaebig_enable(params_vdev, en, 2);
+}
+
+static void
+isp_rawae3_config(struct rkisp_isp_params_vdev *params_vdev,
+		  const struct isp2x_rawaebig_meas_cfg *arg)
+{
+	isp_rawaebig_config(params_vdev, arg, 0);
+}
+
+static void
+isp_rawae3_enable(struct rkisp_isp_params_vdev *params_vdev,
+		  bool en)
+{
+	isp_rawaebig_enable(params_vdev, en, 0);
 }
 
 static void
@@ -2862,45 +2862,45 @@ isp_rawhstbig_enable(struct rkisp_isp_params_vdev *params_vdev,
 }
 
 static void
-isp_rawhstbig1_config(struct rkisp_isp_params_vdev *params_vdev,
-		      const struct isp2x_rawhistbig_cfg *arg)
-{
-	isp_rawhstbig_config(params_vdev, arg, 0);
-}
-
-static void
-isp_rawhstbig1_enable(struct rkisp_isp_params_vdev *params_vdev,
-		      bool en)
-{
-	isp_rawhstbig_enable(params_vdev, en, 0);
-}
-
-static void
-isp_rawhstbig2_config(struct rkisp_isp_params_vdev *params_vdev,
-		      const struct isp2x_rawhistbig_cfg *arg)
+isp_rawhst1_config(struct rkisp_isp_params_vdev *params_vdev,
+		   const struct isp2x_rawhistbig_cfg *arg)
 {
 	isp_rawhstbig_config(params_vdev, arg, 1);
 }
 
 static void
-isp_rawhstbig2_enable(struct rkisp_isp_params_vdev *params_vdev,
-		      bool en)
+isp_rawhst1_enable(struct rkisp_isp_params_vdev *params_vdev,
+		   bool en)
 {
 	isp_rawhstbig_enable(params_vdev, en, 1);
 }
 
 static void
-isp_rawhstbig3_config(struct rkisp_isp_params_vdev *params_vdev,
-		      const struct isp2x_rawhistbig_cfg *arg)
+isp_rawhst2_config(struct rkisp_isp_params_vdev *params_vdev,
+		   const struct isp2x_rawhistbig_cfg *arg)
 {
 	isp_rawhstbig_config(params_vdev, arg, 2);
 }
 
 static void
-isp_rawhstbig3_enable(struct rkisp_isp_params_vdev *params_vdev,
-		      bool en)
+isp_rawhst2_enable(struct rkisp_isp_params_vdev *params_vdev,
+		   bool en)
 {
 	isp_rawhstbig_enable(params_vdev, en, 2);
+}
+
+static void
+isp_rawhst3_config(struct rkisp_isp_params_vdev *params_vdev,
+		   const struct isp2x_rawhistbig_cfg *arg)
+{
+	isp_rawhstbig_config(params_vdev, arg, 0);
+}
+
+static void
+isp_rawhst3_enable(struct rkisp_isp_params_vdev *params_vdev,
+		   bool en)
+{
+	isp_rawhstbig_enable(params_vdev, en, 0);
 }
 
 static void
@@ -3470,24 +3470,24 @@ struct rkisp_isp_params_v2x_ops rkisp_v2x_isp_params_ops = {
 	.iesharp_enable = isp_iesharp_enable,
 	.rawaf_config = isp_rawaf_config,
 	.rawaf_enable = isp_rawaf_enable,
-	.rawaelite_config = isp_rawaelite_config,
-	.rawaelite_enable = isp_rawaelite_enable,
-	.rawaebig1_config = isp_rawaebig1_config,
-	.rawaebig1_enable = isp_rawaebig1_enable,
-	.rawaebig2_config = isp_rawaebig2_config,
-	.rawaebig2_enable = isp_rawaebig2_enable,
-	.rawaebig3_config = isp_rawaebig3_config,
-	.rawaebig3_enable = isp_rawaebig3_enable,
+	.rawae0_config = isp_rawaelite_config,
+	.rawae0_enable = isp_rawaelite_enable,
+	.rawae1_config = isp_rawae1_config,
+	.rawae1_enable = isp_rawae1_enable,
+	.rawae2_config = isp_rawae2_config,
+	.rawae2_enable = isp_rawae2_enable,
+	.rawae3_config = isp_rawae3_config,
+	.rawae3_enable = isp_rawae3_enable,
 	.rawawb_config = isp_rawawb_config,
 	.rawawb_enable = isp_rawawb_enable,
-	.rawhstlite_config = isp_rawhstlite_config,
-	.rawhstlite_enable = isp_rawhstlite_enable,
-	.rawhstbig1_config = isp_rawhstbig1_config,
-	.rawhstbig1_enable = isp_rawhstbig1_enable,
-	.rawhstbig2_config = isp_rawhstbig2_config,
-	.rawhstbig2_enable = isp_rawhstbig2_enable,
-	.rawhstbig3_config = isp_rawhstbig3_config,
-	.rawhstbig3_enable = isp_rawhstbig3_enable,
+	.rawhst0_config = isp_rawhstlite_config,
+	.rawhst0_enable = isp_rawhstlite_enable,
+	.rawhst1_config = isp_rawhst1_config,
+	.rawhst1_enable = isp_rawhst1_enable,
+	.rawhst2_config = isp_rawhst2_config,
+	.rawhst2_enable = isp_rawhst2_enable,
+	.rawhst3_config = isp_rawhst3_config,
+	.rawhst3_enable = isp_rawhst3_enable,
 	.hdrmge_config = isp_hdrmge_config,
 	.hdrmge_enable = isp_hdrmge_enable,
 	.rawnr_config = isp_rawnr_config,
@@ -3763,48 +3763,48 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 				!!(module_ens & ISP2X_MODULE_YUVAE));
 	}
 
-	if ((module_en_update & ISP2X_MODULE_RAWAE_LITE) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWAE_LITE)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWAE_LITE))
-			ops->rawaelite_config(params_vdev,
-				&new_params->meas.rawaelite);
+	if ((module_en_update & ISP2X_MODULE_RAWAE0) ||
+	    (module_cfg_update & ISP2X_MODULE_RAWAE0)) {
+		if ((module_cfg_update & ISP2X_MODULE_RAWAE0))
+			ops->rawae0_config(params_vdev,
+				&new_params->meas.rawae0);
 
-		if (module_en_update & ISP2X_MODULE_RAWAE_LITE)
-			ops->rawaelite_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWAE_LITE));
+		if (module_en_update & ISP2X_MODULE_RAWAE0)
+			ops->rawae0_enable(params_vdev,
+				!!(module_ens & ISP2X_MODULE_RAWAE0));
 	}
 
-	if ((module_en_update & ISP2X_MODULE_RAWAE_BIG1) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWAE_BIG1)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWAE_BIG1))
-			ops->rawaebig1_config(params_vdev,
-				&new_params->meas.rawaebig1);
+	if ((module_en_update & ISP2X_MODULE_RAWAE1) ||
+	    (module_cfg_update & ISP2X_MODULE_RAWAE1)) {
+		if ((module_cfg_update & ISP2X_MODULE_RAWAE1))
+			ops->rawae1_config(params_vdev,
+				&new_params->meas.rawae1);
 
-		if (module_en_update & ISP2X_MODULE_RAWAE_BIG1)
-			ops->rawaebig1_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWAE_BIG1));
+		if (module_en_update & ISP2X_MODULE_RAWAE1)
+			ops->rawae1_enable(params_vdev,
+				!!(module_ens & ISP2X_MODULE_RAWAE1));
 	}
 
-	if ((module_en_update & ISP2X_MODULE_RAWAE_BIG2) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWAE_BIG2)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWAE_BIG2))
-			ops->rawaebig2_config(params_vdev,
-				&new_params->meas.rawaebig2);
+	if ((module_en_update & ISP2X_MODULE_RAWAE2) ||
+	    (module_cfg_update & ISP2X_MODULE_RAWAE2)) {
+		if ((module_cfg_update & ISP2X_MODULE_RAWAE2))
+			ops->rawae2_config(params_vdev,
+				&new_params->meas.rawae2);
 
-		if (module_en_update & ISP2X_MODULE_RAWAE_BIG2)
-			ops->rawaebig2_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWAE_BIG2));
+		if (module_en_update & ISP2X_MODULE_RAWAE2)
+			ops->rawae2_enable(params_vdev,
+				!!(module_ens & ISP2X_MODULE_RAWAE2));
 	}
 
-	if ((module_en_update & ISP2X_MODULE_RAWAE_BIG3) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWAE_BIG3)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWAE_BIG3))
-			ops->rawaebig3_config(params_vdev,
-				&new_params->meas.rawaebig3);
+	if ((module_en_update & ISP2X_MODULE_RAWAE3) ||
+	    (module_cfg_update & ISP2X_MODULE_RAWAE3)) {
+		if ((module_cfg_update & ISP2X_MODULE_RAWAE3))
+			ops->rawae3_config(params_vdev,
+				&new_params->meas.rawae3);
 
-		if (module_en_update & ISP2X_MODULE_RAWAE_BIG3)
-			ops->rawaebig3_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWAE_BIG3));
+		if (module_en_update & ISP2X_MODULE_RAWAE3)
+			ops->rawae3_enable(params_vdev,
+				!!(module_ens & ISP2X_MODULE_RAWAE3));
 	}
 
 	if ((module_en_update & ISP2X_MODULE_SIHST) ||
@@ -3818,48 +3818,48 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 				!!(module_ens & ISP2X_MODULE_SIHST));
 	}
 
-	if ((module_en_update & ISP2X_MODULE_RAWHIST_LITE) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWHIST_LITE)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWHIST_LITE))
-			ops->rawhstlite_config(params_vdev,
-				&new_params->meas.rawhstlite);
+	if ((module_en_update & ISP2X_MODULE_RAWHIST0) ||
+	    (module_cfg_update & ISP2X_MODULE_RAWHIST0)) {
+		if ((module_cfg_update & ISP2X_MODULE_RAWHIST0))
+			ops->rawhst0_config(params_vdev,
+				&new_params->meas.rawhist0);
 
-		if (module_en_update & ISP2X_MODULE_RAWHIST_LITE)
-			ops->rawhstlite_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWHIST_LITE));
+		if (module_en_update & ISP2X_MODULE_RAWHIST0)
+			ops->rawhst0_enable(params_vdev,
+				!!(module_ens & ISP2X_MODULE_RAWHIST0));
 	}
 
-	if ((module_en_update & ISP2X_MODULE_RAWHIST_BIG1) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWHIST_BIG1)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWHIST_BIG1))
-			ops->rawhstbig1_config(params_vdev,
-				&new_params->meas.rawhstbig1);
+	if ((module_en_update & ISP2X_MODULE_RAWHIST1) ||
+	    (module_cfg_update & ISP2X_MODULE_RAWHIST1)) {
+		if ((module_cfg_update & ISP2X_MODULE_RAWHIST1))
+			ops->rawhst1_config(params_vdev,
+				&new_params->meas.rawhist1);
 
-		if (module_en_update & ISP2X_MODULE_RAWHIST_BIG1)
-			ops->rawhstbig1_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWHIST_BIG1));
+		if (module_en_update & ISP2X_MODULE_RAWHIST1)
+			ops->rawhst1_enable(params_vdev,
+				!!(module_ens & ISP2X_MODULE_RAWHIST1));
 	}
 
-	if ((module_en_update & ISP2X_MODULE_RAWHIST_BIG2) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWHIST_BIG2)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWHIST_BIG2))
-			ops->rawhstbig2_config(params_vdev,
-				&new_params->meas.rawhstbig2);
+	if ((module_en_update & ISP2X_MODULE_RAWHIST2) ||
+	    (module_cfg_update & ISP2X_MODULE_RAWHIST2)) {
+		if ((module_cfg_update & ISP2X_MODULE_RAWHIST2))
+			ops->rawhst2_config(params_vdev,
+				&new_params->meas.rawhist2);
 
-		if (module_en_update & ISP2X_MODULE_RAWHIST_BIG2)
-			ops->rawhstbig2_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWHIST_BIG2));
+		if (module_en_update & ISP2X_MODULE_RAWHIST2)
+			ops->rawhst2_enable(params_vdev,
+				!!(module_ens & ISP2X_MODULE_RAWHIST2));
 	}
 
-	if ((module_en_update & ISP2X_MODULE_RAWHIST_BIG3) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWHIST_BIG3)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWHIST_BIG3))
-			ops->rawhstbig3_config(params_vdev,
-				&new_params->meas.rawhstbig3);
+	if ((module_en_update & ISP2X_MODULE_RAWHIST3) ||
+	    (module_cfg_update & ISP2X_MODULE_RAWHIST3)) {
+		if ((module_cfg_update & ISP2X_MODULE_RAWHIST3))
+			ops->rawhst3_config(params_vdev,
+				&new_params->meas.rawhist3);
 
-		if (module_en_update & ISP2X_MODULE_RAWHIST_BIG3)
-			ops->rawhstbig3_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWHIST_BIG3));
+		if (module_en_update & ISP2X_MODULE_RAWHIST3)
+			ops->rawhst3_enable(params_vdev,
+				!!(module_ens & ISP2X_MODULE_RAWHIST3));
 	}
 
 	if ((module_en_update & ISP2X_MODULE_SIAWB) ||
@@ -4024,15 +4024,15 @@ rkisp_params_disable_isp_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	ops->wdr_enable(params_vdev, false);
 	ops->iesharp_enable(params_vdev, false);
 	ops->rawaf_enable(params_vdev, false);
-	ops->rawaelite_enable(params_vdev, false);
-	ops->rawaebig1_enable(params_vdev, false);
-	ops->rawaebig2_enable(params_vdev, false);
-	ops->rawaebig3_enable(params_vdev, false);
+	ops->rawae0_enable(params_vdev, false);
+	ops->rawae1_enable(params_vdev, false);
+	ops->rawae2_enable(params_vdev, false);
+	ops->rawae3_enable(params_vdev, false);
 	ops->rawawb_enable(params_vdev, false);
-	ops->rawhstlite_enable(params_vdev, false);
-	ops->rawhstbig1_enable(params_vdev, false);
-	ops->rawhstbig2_enable(params_vdev, false);
-	ops->rawhstbig3_enable(params_vdev, false);
+	ops->rawhst0_enable(params_vdev, false);
+	ops->rawhst1_enable(params_vdev, false);
+	ops->rawhst2_enable(params_vdev, false);
+	ops->rawhst3_enable(params_vdev, false);
 	ops->hdrmge_enable(params_vdev, false);
 	ops->rawnr_enable(params_vdev, false);
 	ops->hdrtmo_enable(params_vdev, false);

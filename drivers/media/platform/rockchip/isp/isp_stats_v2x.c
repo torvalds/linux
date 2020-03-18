@@ -367,63 +367,63 @@ out:
 }
 
 static void
-rkisp_stats_get_rawaebig1_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct rkisp_isp2x_stat_buffer *pbuf)
-{
-	if (!pbuf)
-		rkisp_stats_get_rawaebig_meas_reg(stats_vdev, NULL, 0);
-	else
-		rkisp_stats_get_rawaebig_meas_reg(stats_vdev, &pbuf->params.rawaebig1, 0);
-}
-
-static void
-rkisp_stats_get_rawhstbig1_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
-				    struct rkisp_isp2x_stat_buffer *pbuf)
-{
-	if (!pbuf)
-		rkisp_stats_get_rawhstbig_meas_reg(stats_vdev, NULL, 0);
-	else
-		rkisp_stats_get_rawhstbig_meas_reg(stats_vdev, &pbuf->params.rawhistbig1, 0);
-}
-
-static void
-rkisp_stats_get_rawaebig2_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct rkisp_isp2x_stat_buffer *pbuf)
+rkisp_stats_get_rawae1_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
+				struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	if (!pbuf)
 		rkisp_stats_get_rawaebig_meas_reg(stats_vdev, NULL, 1);
 	else
-		rkisp_stats_get_rawaebig_meas_reg(stats_vdev, &pbuf->params.rawaebig2, 1);
+		rkisp_stats_get_rawaebig_meas_reg(stats_vdev, &pbuf->params.rawae1, 1);
 }
 
 static void
-rkisp_stats_get_rawhstbig2_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
-				    struct rkisp_isp2x_stat_buffer *pbuf)
+rkisp_stats_get_rawhst1_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
+				 struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	if (!pbuf)
 		rkisp_stats_get_rawhstbig_meas_reg(stats_vdev, NULL, 1);
 	else
-		rkisp_stats_get_rawhstbig_meas_reg(stats_vdev, &pbuf->params.rawhistbig2, 1);
+		rkisp_stats_get_rawhstbig_meas_reg(stats_vdev, &pbuf->params.rawhist1, 1);
 }
 
 static void
-rkisp_stats_get_rawaebig3_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct rkisp_isp2x_stat_buffer *pbuf)
+rkisp_stats_get_rawae2_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
+				struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	if (!pbuf)
 		rkisp_stats_get_rawaebig_meas_reg(stats_vdev, NULL, 2);
 	else
-		rkisp_stats_get_rawaebig_meas_reg(stats_vdev, &pbuf->params.rawaebig3, 2);
+		rkisp_stats_get_rawaebig_meas_reg(stats_vdev, &pbuf->params.rawae2, 2);
 }
 
 static void
-rkisp_stats_get_rawhstbig3_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
-				    struct rkisp_isp2x_stat_buffer *pbuf)
+rkisp_stats_get_rawhst2_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
+				 struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	if (!pbuf)
 		rkisp_stats_get_rawhstbig_meas_reg(stats_vdev, NULL, 2);
 	else
-		rkisp_stats_get_rawhstbig_meas_reg(stats_vdev, &pbuf->params.rawhistbig3, 2);
+		rkisp_stats_get_rawhstbig_meas_reg(stats_vdev, &pbuf->params.rawhist2, 2);
+}
+
+static void
+rkisp_stats_get_rawae3_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
+				struct rkisp_isp2x_stat_buffer *pbuf)
+{
+	if (!pbuf)
+		rkisp_stats_get_rawaebig_meas_reg(stats_vdev, NULL, 0);
+	else
+		rkisp_stats_get_rawaebig_meas_reg(stats_vdev, &pbuf->params.rawae3, 0);
+}
+
+static void
+rkisp_stats_get_rawhst3_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
+				 struct rkisp_isp2x_stat_buffer *pbuf)
+{
+	if (!pbuf)
+		rkisp_stats_get_rawhstbig_meas_reg(stats_vdev, NULL, 0);
+	else
+		rkisp_stats_get_rawhstbig_meas_reg(stats_vdev, &pbuf->params.rawhist3, 0);
 }
 
 static void
@@ -438,7 +438,7 @@ rkisp_stats_get_rawaelite_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	if (!pbuf)
 		goto out;
 
-	ae = &pbuf->params.rawaelite;
+	ae = &pbuf->params.rawae0;
 	value = readl(addr + ISP_RAWAE_LITE_CTRL);
 
 	if ((value & ISP2X_3A_MEAS_DONE) == 0)
@@ -469,7 +469,7 @@ rkisp_stats_get_rawhstlite_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	if (!pbuf)
 		goto out;
 
-	hst = &pbuf->params.rawhistlite;
+	hst = &pbuf->params.rawhist0;
 	for (i = 0; i < ISP2X_HIST_BIN_N_MAX; i++)
 		hst->hist_bin[i] = readl(addr + ISP_RAWHIST_LITE_RO_BASE_BIN);
 
@@ -481,7 +481,7 @@ out:
 
 static void
 rkisp_stats_get_bls_stats(struct rkisp_isp_stats_vdev *stats_vdev,
-			 struct rkisp_isp2x_stat_buffer *pbuf)
+			  struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	void __iomem *addr = stats_vdev->dev->base_addr;
 	struct ispsd_in_fmt in_fmt = stats_vdev->dev->isp_sdev.in_fmt;
@@ -625,14 +625,14 @@ static struct rkisp_stats_v2x_ops __maybe_unused rkisp_stats_reg_ops_v2x = {
 	.get_rawaf_meas = rkisp_stats_get_rawaf_meas_reg,
 	.get_yuvae_meas = rkisp_stats_get_yuvae_meas_reg,
 	.get_sihst_meas = rkisp_stats_get_sihst_meas_reg,
-	.get_rawaebig1_meas = rkisp_stats_get_rawaebig1_meas_reg,
-	.get_rawhstbig1_meas = rkisp_stats_get_rawhstbig1_meas_reg,
-	.get_rawaebig2_meas = rkisp_stats_get_rawaebig2_meas_reg,
-	.get_rawhstbig2_meas = rkisp_stats_get_rawhstbig2_meas_reg,
-	.get_rawaebig3_meas = rkisp_stats_get_rawaebig3_meas_reg,
-	.get_rawhstbig3_meas = rkisp_stats_get_rawhstbig3_meas_reg,
-	.get_rawaelite_meas = rkisp_stats_get_rawaelite_meas_reg,
-	.get_rawhstlite_meas = rkisp_stats_get_rawhstlite_meas_reg,
+	.get_rawae0_meas = rkisp_stats_get_rawaelite_meas_reg,
+	.get_rawhst0_meas = rkisp_stats_get_rawhstlite_meas_reg,
+	.get_rawae1_meas = rkisp_stats_get_rawae1_meas_reg,
+	.get_rawhst1_meas = rkisp_stats_get_rawhst1_meas_reg,
+	.get_rawae2_meas = rkisp_stats_get_rawae2_meas_reg,
+	.get_rawhst2_meas = rkisp_stats_get_rawhst2_meas_reg,
+	.get_rawae3_meas = rkisp_stats_get_rawae3_meas_reg,
+	.get_rawhst3_meas = rkisp_stats_get_rawhst3_meas_reg,
 	.get_bls_stats = rkisp_stats_get_bls_stats,
 	.get_tmo_stats = rkisp_stats_get_tmo_stats,
 	.get_dhaz_stats = rkisp_stats_get_dhaz_stats,
@@ -983,63 +983,63 @@ OUT:
 }
 
 static void
-rkisp_stats_get_rawaebig1_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct rkisp_isp2x_stat_buffer *pbuf)
-{
-	if (!pbuf)
-		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, NULL, 0);
-	else
-		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, &pbuf->params.rawaebig1, 0);
-}
-
-static void
-rkisp_stats_get_rawhstbig1_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
-				    struct rkisp_isp2x_stat_buffer *pbuf)
-{
-	if (!pbuf)
-		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, NULL, 0);
-	else
-		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, &pbuf->params.rawhistbig1, 0);
-}
-
-static void
-rkisp_stats_get_rawaebig2_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct rkisp_isp2x_stat_buffer *pbuf)
+rkisp_stats_get_rawae1_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
+				struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	if (!pbuf)
 		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, NULL, 1);
 	else
-		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, &pbuf->params.rawaebig2, 1);
+		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, &pbuf->params.rawae1, 1);
 }
 
 static void
-rkisp_stats_get_rawhstbig2_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
-				    struct rkisp_isp2x_stat_buffer *pbuf)
+rkisp_stats_get_rawhst1_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
+				 struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	if (!pbuf)
 		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, NULL, 1);
 	else
-		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, &pbuf->params.rawhistbig2, 1);
+		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, &pbuf->params.rawhist1, 1);
 }
 
 static void
-rkisp_stats_get_rawaebig3_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct rkisp_isp2x_stat_buffer *pbuf)
+rkisp_stats_get_rawae2_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
+				struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	if (!pbuf)
 		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, NULL, 2);
 	else
-		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, &pbuf->params.rawaebig3, 2);
+		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, &pbuf->params.rawae2, 2);
 }
 
 static void
-rkisp_stats_get_rawhstbig3_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
-				    struct rkisp_isp2x_stat_buffer *pbuf)
+rkisp_stats_get_rawhst2_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
+				 struct rkisp_isp2x_stat_buffer *pbuf)
 {
 	if (!pbuf)
 		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, NULL, 2);
 	else
-		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, &pbuf->params.rawhistbig3, 2);
+		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, &pbuf->params.rawhist2, 2);
+}
+
+static void
+rkisp_stats_get_rawae3_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
+				struct rkisp_isp2x_stat_buffer *pbuf)
+{
+	if (!pbuf)
+		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, NULL, 0);
+	else
+		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, &pbuf->params.rawae3, 0);
+}
+
+static void
+rkisp_stats_get_rawhst3_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
+				 struct rkisp_isp2x_stat_buffer *pbuf)
+{
+	if (!pbuf)
+		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, NULL, 0);
+	else
+		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, &pbuf->params.rawhist3, 0);
 }
 
 static void
@@ -1055,7 +1055,7 @@ rkisp_stats_get_rawaelite_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	if (!pbuf)
 		goto OUT;
 
-	ae = &pbuf->params.rawaelite;
+	ae = &pbuf->params.rawae0;
 	value = readl(addr + ISP_RAWAE_LITE_CTRL);
 	if ((value & ISP2X_3A_MEAS_DONE) == 0)
 		return;
@@ -1088,7 +1088,7 @@ rkisp_stats_get_rawhstlite_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	if (!pbuf)
 		goto OUT;
 
-	hst = &pbuf->params.rawhistlite;
+	hst = &pbuf->params.rawhist0;
 
 	rd_buf_idx = stats_vdev->rd_buf_idx;
 	ddr_addr = stats_vdev->stats_buf[rd_buf_idx].vaddr + 0x0C00 + 0x0400;
@@ -1109,14 +1109,14 @@ static struct rkisp_stats_v2x_ops __maybe_unused rkisp_stats_ddr_ops_v2x = {
 	.get_rawaf_meas = rkisp_stats_get_rawaf_meas_ddr,
 	.get_yuvae_meas = rkisp_stats_get_yuvae_meas_ddr,
 	.get_sihst_meas = rkisp_stats_get_sihst_meas_ddr,
-	.get_rawaebig1_meas = rkisp_stats_get_rawaebig1_meas_ddr,
-	.get_rawhstbig1_meas = rkisp_stats_get_rawhstbig1_meas_ddr,
-	.get_rawaebig2_meas = rkisp_stats_get_rawaebig2_meas_ddr,
-	.get_rawhstbig2_meas = rkisp_stats_get_rawhstbig2_meas_ddr,
-	.get_rawaebig3_meas = rkisp_stats_get_rawaebig3_meas_ddr,
-	.get_rawhstbig3_meas = rkisp_stats_get_rawhstbig3_meas_ddr,
-	.get_rawaelite_meas = rkisp_stats_get_rawaelite_meas_ddr,
-	.get_rawhstlite_meas = rkisp_stats_get_rawhstlite_meas_ddr,
+	.get_rawae0_meas = rkisp_stats_get_rawaelite_meas_ddr,
+	.get_rawhst0_meas = rkisp_stats_get_rawhstlite_meas_ddr,
+	.get_rawae1_meas = rkisp_stats_get_rawae1_meas_ddr,
+	.get_rawhst1_meas = rkisp_stats_get_rawhst1_meas_ddr,
+	.get_rawae2_meas = rkisp_stats_get_rawae2_meas_ddr,
+	.get_rawhst2_meas = rkisp_stats_get_rawhst2_meas_ddr,
+	.get_rawae3_meas = rkisp_stats_get_rawae3_meas_ddr,
+	.get_rawhst3_meas = rkisp_stats_get_rawhst3_meas_ddr,
 	.get_bls_stats = rkisp_stats_get_bls_stats,
 	.get_tmo_stats = rkisp_stats_get_tmo_stats,
 	.get_dhaz_stats = rkisp_stats_get_dhaz_stats,
@@ -1209,51 +1209,51 @@ rkisp_stats_send_meas_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 			  "ISP2X_3A_RAWAF_LUM\n");
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAE_BIG) {
-		ops->get_rawaebig1_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawae3_meas(stats_vdev, cur_stat_buf);
 		if (cur_stat_buf)
-			cur_stat_buf->meas_type |= ISP2X_STAT_RAWAEBIG;
+			cur_stat_buf->meas_type |= ISP2X_STAT_RAWAE3;
 	}
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWHIST_BIG) {
-		ops->get_rawhstbig1_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawhst3_meas(stats_vdev, cur_stat_buf);
 		if (cur_stat_buf)
-			cur_stat_buf->meas_type |= ISP2X_STAT_RAWHSTBIG;
+			cur_stat_buf->meas_type |= ISP2X_STAT_RAWHST3;
 	}
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAE_CH0) {
-		ops->get_rawaelite_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawae0_meas(stats_vdev, cur_stat_buf);
 		if (cur_stat_buf)
-			cur_stat_buf->meas_type |= ISP2X_STAT_RAWAECH0;
+			cur_stat_buf->meas_type |= ISP2X_STAT_RAWAE0;
 	}
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAE_CH1) {
-		ops->get_rawaebig2_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawae1_meas(stats_vdev, cur_stat_buf);
 		if (cur_stat_buf)
-			cur_stat_buf->meas_type |= ISP2X_STAT_RAWAECH1;
+			cur_stat_buf->meas_type |= ISP2X_STAT_RAWAE1;
 	}
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAE_CH2) {
-		ops->get_rawaebig3_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawae2_meas(stats_vdev, cur_stat_buf);
 		if (cur_stat_buf)
-			cur_stat_buf->meas_type |= ISP2X_STAT_RAWAECH2;
+			cur_stat_buf->meas_type |= ISP2X_STAT_RAWAE2;
 	}
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWHIST_CH0) {
-		ops->get_rawhstlite_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawhst0_meas(stats_vdev, cur_stat_buf);
 		if (cur_stat_buf)
-			cur_stat_buf->meas_type |= ISP2X_STAT_RAWHSTCH0;
+			cur_stat_buf->meas_type |= ISP2X_STAT_RAWHST0;
 	}
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWHIST_CH1) {
-		ops->get_rawhstbig2_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawhst1_meas(stats_vdev, cur_stat_buf);
 		if (cur_stat_buf)
-			cur_stat_buf->meas_type |= ISP2X_STAT_RAWHSTCH1;
+			cur_stat_buf->meas_type |= ISP2X_STAT_RAWHST1;
 	}
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWHIST_CH2) {
-		ops->get_rawhstbig3_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawhst2_meas(stats_vdev, cur_stat_buf);
 		if (cur_stat_buf)
-			cur_stat_buf->meas_type |= ISP2X_STAT_RAWHSTCH2;
+			cur_stat_buf->meas_type |= ISP2X_STAT_RAWHST2;
 	}
 
 	if (meas_work->isp_ris & ISP2X_FRAME) {
@@ -1297,28 +1297,28 @@ rkisp_stats_clr_3a_isr(struct rkisp_isp_stats_vdev *stats_vdev,
 		ops->get_rawaf_meas(stats_vdev, NULL);
 
 	if (isp3a_ris & ISP2X_3A_RAWAE_BIG)
-		ops->get_rawaebig1_meas(stats_vdev, NULL);
+		ops->get_rawae3_meas(stats_vdev, NULL);
 
 	if (isp3a_ris & ISP2X_3A_RAWHIST_BIG)
-		ops->get_rawhstbig1_meas(stats_vdev, NULL);
+		ops->get_rawhst3_meas(stats_vdev, NULL);
 
 	if (isp3a_ris & ISP2X_3A_RAWAE_CH0)
-		ops->get_rawaelite_meas(stats_vdev, NULL);
+		ops->get_rawae0_meas(stats_vdev, NULL);
 
 	if (isp3a_ris & ISP2X_3A_RAWAE_CH1)
-		ops->get_rawaebig2_meas(stats_vdev, NULL);
+		ops->get_rawae1_meas(stats_vdev, NULL);
 
 	if (isp3a_ris & ISP2X_3A_RAWAE_CH2)
-		ops->get_rawaebig3_meas(stats_vdev, NULL);
+		ops->get_rawae2_meas(stats_vdev, NULL);
 
 	if (isp3a_ris & ISP2X_3A_RAWHIST_CH0)
-		ops->get_rawhstlite_meas(stats_vdev, NULL);
+		ops->get_rawhst0_meas(stats_vdev, NULL);
 
 	if (isp3a_ris & ISP2X_3A_RAWHIST_CH1)
-		ops->get_rawhstbig2_meas(stats_vdev, NULL);
+		ops->get_rawhst1_meas(stats_vdev, NULL);
 
 	if (isp3a_ris & ISP2X_3A_RAWHIST_CH2)
-		ops->get_rawhstbig3_meas(stats_vdev, NULL);
+		ops->get_rawhst2_meas(stats_vdev, NULL);
 }
 
 static void

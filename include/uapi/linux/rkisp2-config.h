@@ -33,15 +33,15 @@
 #define ISP2X_MODULE_WDR		BIT_ULL(15)
 #define ISP2X_MODULE_RK_IESHARP		BIT_ULL(16)
 #define ISP2X_MODULE_RAWAF		BIT_ULL(17)
-#define ISP2X_MODULE_RAWAE_LITE		BIT_ULL(18)
-#define ISP2X_MODULE_RAWAE_BIG1		BIT_ULL(19)
-#define ISP2X_MODULE_RAWAE_BIG2		BIT_ULL(20)
-#define ISP2X_MODULE_RAWAE_BIG3		BIT_ULL(21)
+#define ISP2X_MODULE_RAWAE0		BIT_ULL(18)
+#define ISP2X_MODULE_RAWAE1		BIT_ULL(19)
+#define ISP2X_MODULE_RAWAE2		BIT_ULL(20)
+#define ISP2X_MODULE_RAWAE3		BIT_ULL(21)
 #define ISP2X_MODULE_RAWAWB		BIT_ULL(22)
-#define ISP2X_MODULE_RAWHIST_LITE	BIT_ULL(23)
-#define ISP2X_MODULE_RAWHIST_BIG1	BIT_ULL(24)
-#define ISP2X_MODULE_RAWHIST_BIG2	BIT_ULL(25)
-#define ISP2X_MODULE_RAWHIST_BIG3	BIT_ULL(26)
+#define ISP2X_MODULE_RAWHIST0		BIT_ULL(23)
+#define ISP2X_MODULE_RAWHIST1		BIT_ULL(24)
+#define ISP2X_MODULE_RAWHIST2		BIT_ULL(25)
+#define ISP2X_MODULE_RAWHIST3		BIT_ULL(26)
 #define ISP2X_MODULE_HDRMGE		BIT_ULL(27)
 #define ISP2X_MODULE_RAWNR		BIT_ULL(28)
 #define ISP2X_MODULE_HDRTMO		BIT_ULL(29)
@@ -62,14 +62,14 @@
 #define ISP2X_STAT_EMB_DATA		BIT(4)
 #define ISP2X_STAT_RAWAWB		BIT(5)
 #define ISP2X_STAT_RAWAF		BIT(6)
-#define ISP2X_STAT_RAWAEBIG		BIT(7)
-#define ISP2X_STAT_RAWHSTBIG		BIT(8)
-#define ISP2X_STAT_RAWAECH0		BIT(9)
-#define ISP2X_STAT_RAWAECH1		BIT(10)
-#define ISP2X_STAT_RAWAECH2		BIT(11)
-#define ISP2X_STAT_RAWHSTCH0		BIT(12)
-#define ISP2X_STAT_RAWHSTCH1		BIT(13)
-#define ISP2X_STAT_RAWHSTCH2		BIT(14)
+#define ISP2X_STAT_RAWAE0		BIT(7)
+#define ISP2X_STAT_RAWAE1		BIT(8)
+#define ISP2X_STAT_RAWAE2		BIT(9)
+#define ISP2X_STAT_RAWAE3		BIT(10)
+#define ISP2X_STAT_RAWHST0		BIT(11)
+#define ISP2X_STAT_RAWHST1		BIT(12)
+#define ISP2X_STAT_RAWHST2		BIT(13)
+#define ISP2X_STAT_RAWHST3		BIT(14)
 #define ISP2X_STAT_BLS			BIT(15)
 #define ISP2X_STAT_HDRTMO		BIT(16)
 #define ISP2X_STAT_DHAZ			BIT(17)
@@ -1359,17 +1359,17 @@ struct isp2x_isp_other_cfg {
 struct isp2x_isp_meas_cfg {
 	struct isp2x_siawb_meas_cfg siawb;
 	struct isp2x_rawawb_meas_cfg rawawb;
-	struct isp2x_rawaebig_meas_cfg rawaebig1;
-	struct isp2x_rawaebig_meas_cfg rawaebig2;
-	struct isp2x_rawaebig_meas_cfg rawaebig3;
-	struct isp2x_rawaelite_meas_cfg rawaelite;
+	struct isp2x_rawaelite_meas_cfg rawae0;
+	struct isp2x_rawaebig_meas_cfg rawae1;
+	struct isp2x_rawaebig_meas_cfg rawae2;
+	struct isp2x_rawaebig_meas_cfg rawae3;
 	struct isp2x_yuvae_meas_cfg yuvae;
 	struct isp2x_rawaf_meas_cfg rawaf;
 	struct isp2x_siaf_cfg siaf;
-	struct isp2x_rawhistbig_cfg rawhstbig1;
-	struct isp2x_rawhistbig_cfg rawhstbig2;
-	struct isp2x_rawhistbig_cfg rawhstbig3;
-	struct isp2x_rawhistlite_cfg rawhstlite;
+	struct isp2x_rawhistlite_cfg rawhist0;
+	struct isp2x_rawhistbig_cfg rawhist1;
+	struct isp2x_rawhistbig_cfg rawhist2;
+	struct isp2x_rawhistbig_cfg rawhist3;
 	struct isp2x_sihst_cfg sihst;
 } __attribute__ ((packed));
 
@@ -1489,17 +1489,17 @@ struct isp2x_sihst_stat {
 struct isp2x_stat {
 	struct isp2x_siawb_stat siawb;
 	struct isp2x_rawawb_meas_stat rawawb;
-	struct isp2x_rawaebig_stat rawaebig1;
-	struct isp2x_rawaebig_stat rawaebig2;
-	struct isp2x_rawaebig_stat rawaebig3;
-	struct isp2x_rawaelite_stat rawaelite;
+	struct isp2x_rawaelite_stat rawae0;
+	struct isp2x_rawaebig_stat rawae1;
+	struct isp2x_rawaebig_stat rawae2;
+	struct isp2x_rawaebig_stat rawae3;
 	struct isp2x_yuvae_stat yuvae;
 	struct isp2x_rawaf_stat rawaf;
 	struct isp2x_siaf_stat siaf;
-	struct isp2x_rawhistbig_stat rawhistbig1;
-	struct isp2x_rawhistbig_stat rawhistbig2;
-	struct isp2x_rawhistbig_stat rawhistbig3;
-	struct isp2x_rawhistlite_stat rawhistlite;
+	struct isp2x_rawhistlite_stat rawhist0;
+	struct isp2x_rawhistbig_stat rawhist1;
+	struct isp2x_rawhistbig_stat rawhist2;
+	struct isp2x_rawhistbig_stat rawhist3;
 	struct isp2x_sihst_stat sihst;
 
 	struct isp2x_bls_stat bls;
