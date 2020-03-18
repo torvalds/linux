@@ -9,7 +9,6 @@
 #include <crypto/gcm.h>
 #include <linux/rtnetlink.h>
 #include <crypto/internal/des.h>
-#include <linux/rtnetlink.h>
 #include "cc_driver.h"
 #include "cc_buffer_mgr.h"
 #include "cc_aead.h"
