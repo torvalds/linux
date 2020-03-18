@@ -2099,6 +2099,347 @@ failure:
 	return TEST_FAILURE;
 }
 
+static int emit_partial_test_file_data(char *mount_dir, struct test_file *file)
+{
+	int i, j;
+	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
+	int *block_indexes = NULL;
+	int result = 0;
+	int blocks_written = 0;
+
+	if (file->size == 0)
+		return 0;
+
+	/* Emit 2 blocks, skip 2 blocks etc*/
+	block_indexes = calloc(block_cnt, sizeof(*block_indexes));
+	for (i = 0, j = 0; i < block_cnt; ++i)
+		if ((i & 2) == 0) {
+			block_indexes[j] = i;
+			++j;
+		}
+
+	for (i = 0; i < j; i += blocks_written) {
+		blocks_written = emit_test_blocks(mount_dir, file,
+						  block_indexes + i, j - i);
+		if (blocks_written < 0) {
+			result = blocks_written;
+			goto out;
+		}
+		if (blocks_written == 0) {
+			result = -EIO;
+			goto out;
+		}
+	}
+out:
+	free(block_indexes);
+	return result;
+}
+
+static int validate_ranges(const char *mount_dir, struct test_file *file)
+{
+	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
+	char *filename = concat_file_name(mount_dir, file->name);
+	int fd;
+	struct incfs_filled_range ranges[128];
+	struct incfs_get_filled_blocks_args fba = {
+		.range_buffer = ptr_to_u64(ranges),
+		.range_buffer_size = sizeof(ranges),
+	};
+	int error = TEST_SUCCESS;
+	int i;
+	int range_cnt;
+
+	fd = open(filename, O_RDONLY);
+	free(filename);
+	if (fd <= 0)
+		return TEST_FAILURE;
+
+	error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
+	if (error && errno != ERANGE)
+		goto out;
+
+	if (error && errno == ERANGE && block_cnt < 509)
+		goto out;
+
+	if (!error && block_cnt >= 509) {
+		error = -ERANGE;
+		goto out;
+	}
+
+	if (fba.total_blocks_out != block_cnt) {
+		error = -EINVAL;
+		goto out;
+	}
+
+	range_cnt = (block_cnt + 3) / 4;
+	if (range_cnt > 128)
+		range_cnt = 128;
+	if (range_cnt != fba.range_buffer_size_out / sizeof(*ranges)) {
+		error = -ERANGE;
+		goto out;
+	}
+
+	error = TEST_SUCCESS;
+	for (i = 0; i < fba.range_buffer_size_out / sizeof(*ranges) - 1; ++i)
+		if (ranges[i].begin != i * 4 || ranges[i].end != i * 4 + 2) {
+			error = -EINVAL;
+			goto out;
+		}
+
+	if (ranges[i].begin != i * 4 ||
+	    (ranges[i].end != i * 4 + 1 && ranges[i].end != i * 4 + 2)) {
+		error = -EINVAL;
+		goto out;
+	}
+
+	for (i = 0; i < 64; ++i) {
+		fba.start_index = i * 2;
+		fba.end_index = i * 2 + 2;
+		error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
+		if (error)
+			goto out;
+
+		if (fba.total_blocks_out != block_cnt) {
+			error = -EINVAL;
+			goto out;
+		}
+
+		if (fba.start_index >= block_cnt) {
+			if (fba.index_out != fba.start_index) {
+				printf("Paul: %d, %d\n", (int)fba.index_out,
+				       (int)fba.start_index);
+				error = -EINVAL;
+				goto out;
+			}
+
+			break;
+		}
+
+		if (i % 2) {
+			if (fba.range_buffer_size_out != 0) {
+				error = -EINVAL;
+				goto out;
+			}
+		} else {
+			if (fba.range_buffer_size_out != sizeof(*ranges)) {
+				error = -EINVAL;
+				goto out;
+			}
+
+			if (ranges[0].begin != i * 2) {
+				error = -EINVAL;
+				goto out;
+			}
+
+			if (ranges[0].end != i * 2 + 1 &&
+			    ranges[0].end != i * 2 + 2) {
+				error = -EINVAL;
+				goto out;
+			}
+		}
+	}
+
+out:
+	close(fd);
+	return error;
+}
+
+static int get_blocks_test(char *mount_dir)
+{
+	char *backing_dir;
+	int cmd_fd = -1;
+	int i;
+	struct test_files_set test = get_test_files_set();
+	const int file_num = test.files_count;
+
+	backing_dir = create_backing_dir(mount_dir);
+	if (!backing_dir)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0") != 0)
+		goto failure;
+
+	cmd_fd = open_commands_file(mount_dir);
+	if (cmd_fd < 0)
+		goto failure;
+
+	/* Write data. */
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (emit_file(cmd_fd, NULL, file->name, &file->id, file->size,
+			      NULL))
+			goto failure;
+
+		if (emit_partial_test_file_data(mount_dir, file))
+			goto failure;
+	}
+
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (validate_ranges(mount_dir, file))
+			goto failure;
+
+		/*
+		 * The smallest files are filled completely, so this checks that
+		 * the fast get_filled_blocks path is not causing issues
+		 */
+		if (validate_ranges(mount_dir, file))
+			goto failure;
+	}
+
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return TEST_SUCCESS;
+
+failure:
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return TEST_FAILURE;
+}
+
+static int emit_partial_test_file_hash(char *mount_dir, struct test_file *file)
+{
+	int err;
+	int fd;
+	struct incfs_fill_blocks fill_blocks = {
+		.count = 1,
+	};
+	struct incfs_fill_block *fill_block_array =
+		calloc(fill_blocks.count, sizeof(struct incfs_fill_block));
+	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
+
+	if (file->size <= 4096 / 32 * 4096)
+		return 0;
+
+	if (fill_blocks.count == 0)
+		return 0;
+
+	if (!fill_block_array)
+		return -ENOMEM;
+	fill_blocks.fill_blocks = ptr_to_u64(fill_block_array);
+
+	rnd_buf(data, sizeof(data), 0);
+
+	fill_block_array[0] =
+		(struct incfs_fill_block){ .block_index = 1,
+					   .data_len =
+						   INCFS_DATA_FILE_BLOCK_SIZE,
+					   .data = ptr_to_u64(data),
+					   .flags = INCFS_BLOCK_FLAGS_HASH };
+
+	fd = open_file_by_id(mount_dir, file->id, true);
+	if (fd < 0) {
+		err = errno;
+		goto failure;
+	}
+
+	err = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
+	close(fd);
+	if (err < fill_blocks.count)
+		err = errno;
+	else
+		err = 0;
+
+failure:
+	free(fill_block_array);
+	return err;
+}
+
+static int validate_hash_ranges(const char *mount_dir, struct test_file *file)
+{
+	char *filename = concat_file_name(mount_dir, file->name);
+	int fd;
+	struct incfs_filled_range ranges[128];
+	struct incfs_get_filled_blocks_args fba = {
+		.range_buffer = ptr_to_u64(ranges),
+		.range_buffer_size = sizeof(ranges),
+	};
+	int error = TEST_SUCCESS;
+	int file_blocks = (file->size + INCFS_DATA_FILE_BLOCK_SIZE - 1) /
+			  INCFS_DATA_FILE_BLOCK_SIZE;
+
+	if (file->size <= 4096 / 32 * 4096)
+		return 0;
+
+	fd = open(filename, O_RDONLY);
+	free(filename);
+	if (fd <= 0)
+		return TEST_FAILURE;
+
+	error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
+	if (error)
+		goto out;
+
+	if (fba.range_buffer_size_out != sizeof(struct incfs_filled_range)) {
+		error = -EINVAL;
+		goto out;
+	}
+
+	if (ranges[0].begin != file_blocks + 1 ||
+	    ranges[0].end != file_blocks + 2) {
+		error = -EINVAL;
+		goto out;
+	}
+
+out:
+	close(fd);
+	return error;
+}
+
+static int get_hash_blocks_test(char *mount_dir)
+{
+	char *backing_dir;
+	int cmd_fd = -1;
+	int i;
+	struct test_files_set test = get_test_files_set();
+	const int file_num = test.files_count;
+
+	backing_dir = create_backing_dir(mount_dir);
+	if (!backing_dir)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0") != 0)
+		goto failure;
+
+	cmd_fd = open_commands_file(mount_dir);
+	if (cmd_fd < 0)
+		goto failure;
+
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (crypto_emit_file(cmd_fd, NULL, file->name, &file->id,
+				     file->size, file->root_hash,
+				     file->sig.add_data))
+			goto failure;
+
+		if (emit_partial_test_file_hash(mount_dir, file))
+			goto failure;
+	}
+
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (validate_hash_ranges(mount_dir, file))
+			goto failure;
+	}
+
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return TEST_SUCCESS;
+
+failure:
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return TEST_FAILURE;
+}
+
 static char *setup_mount_dir()
 {
 	struct stat st;
@@ -2166,6 +2507,8 @@ int main(int argc, char *argv[])
 		MAKE_TEST(multiple_providers_test),
 		MAKE_TEST(hash_tree_test),
 		MAKE_TEST(read_log_test),
+		MAKE_TEST(get_blocks_test),
+		MAKE_TEST(get_hash_blocks_test),
 	};
 #undef MAKE_TEST
 
