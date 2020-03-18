@@ -308,7 +308,8 @@ static const char *sec_name(struct elf_info *elf, int secindex)
 
 static void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym)
 {
-	Elf_Shdr *sechdr = &info->sechdrs[sym->st_shndx];
+	unsigned int secindex = get_secindex(info, sym);
+	Elf_Shdr *sechdr = &info->sechdrs[secindex];
 	unsigned long offset;
 
 	offset = sym->st_value;
