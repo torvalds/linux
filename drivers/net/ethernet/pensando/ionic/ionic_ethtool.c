@@ -3,6 +3,7 @@
 
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/sfp.h>
 
 #include "ionic.h"
 #include "ionic_bus.h"
@@ -677,23 +678,27 @@ static int ionic_get_module_info(struct net_device *netdev,
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic_dev *idev = &lif->ionic->idev;
 	struct ionic_xcvr_status *xcvr;
+	struct sfp_eeprom_base *sfp;
 
 	xcvr = &idev->port_info->status.xcvr;
+	sfp = (struct sfp_eeprom_base *) xcvr->sprom;
 
 	/* report the module data type and length */
-	switch (xcvr->sprom[0]) {
-	case 0x03: /* SFP */
+	switch (sfp->phys_id) {
+	case SFF8024_ID_SFP:
 		modinfo->type = ETH_MODULE_SFF_8079;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
 		break;
-	case 0x0D: /* QSFP */
-	case 0x11: /* QSFP28 */
+	case SFF8024_ID_QSFP_8436_8636:
+	case SFF8024_ID_QSFP28_8636:
 		modinfo->type = ETH_MODULE_SFF_8436;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
 		break;
 	default:
 		netdev_info(netdev, "unknown xcvr type 0x%02x\n",
 			    xcvr->sprom[0]);
+		modinfo->type = 0;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
 		break;
 	}
 
