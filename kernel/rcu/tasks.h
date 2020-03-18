@@ -30,6 +30,8 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
  * @gp_state: Grace period's most recent state transition (debugging).
  * @gp_jiffies: Time of last @gp_state transition.
  * @gp_start: Most recent grace-period start in jiffies.
+ * @n_gps: Number of grace periods completed since boot.
+ * @n_ipis: Number of IPIs sent to encourage grace periods to end.
  * @pregp_func: This flavor's pre-grace-period function (optional).
  * @pertask_func: This flavor's per-task scan function (optional).
  * @postscan_func: This flavor's post-task scan function (optional).
@@ -47,6 +49,8 @@ struct rcu_tasks {
 	int gp_state;
 	unsigned long gp_jiffies;
 	unsigned long gp_start;
+	unsigned long n_gps;
+	unsigned long n_ipis;
 	struct task_struct *kthread_ptr;
 	rcu_tasks_gp_func_t gp_func;
 	pregp_func_t pregp_func;
@@ -208,6 +212,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		set_tasks_gp_state(rtp, RTGS_WAIT_GP);
 		rtp->gp_start = jiffies;
 		rtp->gp_func(rtp);
+		rtp->n_gps++;
 
 		/* Invoke the callbacks. */
 		set_tasks_gp_state(rtp, RTGS_INVOKE_CBS);
@@ -285,11 +290,12 @@ static void __init rcu_tasks_bootup_oddness(void)
 /* Dump out rcutorture-relevant state common to all RCU-tasks flavors. */
 static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 {
-	pr_info("%s: %s(%d) since %lu %c%c %s\n",
+	pr_info("%s: %s(%d) since %lu g:%lu i:%lu %c%c %s\n",
 		rtp->kname,
 		tasks_gp_state_getname(rtp),
 		data_race(rtp->gp_state),
 		jiffies - data_race(rtp->gp_jiffies),
+		data_race(rtp->n_gps), data_race(rtp->n_ipis),
 		".k"[!!data_race(rtp->kthread_ptr)],
 		".C"[!!data_race(rtp->cbs_head)],
 		s);
@@ -592,6 +598,7 @@ static void rcu_tasks_be_rude(struct work_struct *work)
 // Wait for one rude RCU-tasks grace period.
 static void rcu_tasks_rude_wait_gp(struct rcu_tasks *rtp)
 {
+	rtp->n_ipis += cpumask_weight(cpu_online_mask);
 	schedule_on_each_cpu(rcu_tasks_be_rude);
 }
 
@@ -856,6 +863,7 @@ static void trc_wait_for_one_reader(struct task_struct *t,
 		atomic_inc(&trc_n_readers_need_end);
 		per_cpu(trc_ipi_to_cpu, cpu) = true;
 		t->trc_ipi_to_cpu = cpu;
+		rcu_tasks_trace.n_ipis++;
 		if (smp_call_function_single(cpu,
 					     trc_read_check_handler, t, 0)) {
 			// Just in case there is some other reason for
