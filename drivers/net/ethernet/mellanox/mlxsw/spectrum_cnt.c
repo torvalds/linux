@@ -7,8 +7,6 @@
 
 #include "spectrum_cnt.h"
 
-#define MLXSW_SP_COUNTER_POOL_BANK_SIZE 4096
-
 struct mlxsw_sp_counter_sub_pool {
 	unsigned int base_index;
 	unsigned int size;
@@ -36,13 +34,15 @@ static int mlxsw_sp_counter_pool_validate(struct mlxsw_sp *mlxsw_sp)
 {
 	unsigned int total_bank_config = 0;
 	unsigned int pool_size;
+	unsigned int bank_size;
 	int i;
 
 	pool_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, COUNTER_POOL_SIZE);
+	bank_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, COUNTER_BANK_SIZE);
 	/* Check config is valid, no bank over subscription */
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_counter_sub_pools); i++)
 		total_bank_config += mlxsw_sp_counter_sub_pools[i].bank_count;
-	if (total_bank_config > pool_size / MLXSW_SP_COUNTER_POOL_BANK_SIZE + 1)
+	if (total_bank_config > pool_size / bank_size + 1)
 		return -EINVAL;
 	return 0;
 }
@@ -71,11 +71,13 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	struct mlxsw_sp_counter_sub_pool *sub_pool;
 	struct mlxsw_sp_counter_pool *pool;
 	unsigned int base_index;
+	unsigned int bank_size;
 	unsigned int map_size;
 	int i;
 	int err;
 
-	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, COUNTER_POOL_SIZE))
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, COUNTER_POOL_SIZE) ||
+	    !MLXSW_CORE_RES_VALID(mlxsw_sp->core, COUNTER_BANK_SIZE))
 		return -EIO;
 
 	err = mlxsw_sp_counter_pool_validate(mlxsw_sp);
@@ -94,6 +96,8 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	pool->pool_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, COUNTER_POOL_SIZE);
 	map_size = BITS_TO_LONGS(pool->pool_size) * sizeof(unsigned long);
 
+	bank_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, COUNTER_BANK_SIZE);
+
 	pool->usage = kzalloc(map_size, GFP_KERNEL);
 	if (!pool->usage) {
 		err = -ENOMEM;
@@ -107,8 +111,7 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	base_index = 0;
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_counter_sub_pools); i++) {
 		sub_pool = &pool->sub_pools[i];
-		sub_pool->size = sub_pool->bank_count *
-				 MLXSW_SP_COUNTER_POOL_BANK_SIZE;
+		sub_pool->size = sub_pool->bank_count * bank_size;
 		sub_pool->base_index = base_index;
 		base_index += sub_pool->size;
 		/* The last bank can't be fully used */
