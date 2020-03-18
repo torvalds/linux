@@ -35,6 +35,8 @@
 		serial5 = &uart5;
 		spi0 = &spi0;
 		spi1 = &spi1;
+		dphy0 = &csi_dphy0;
+		dphy1 = &csi_dphy1;
 	};
 
 	cpus {
@@ -649,6 +651,24 @@
 			<200000000>;
 		assigned-clock-parents =
 			<&pmucru CLK_OSC0_DIV32K>;
+	};
+
+	csi_dphy0: csi-dphy@ff4b0000 {
+		compatible = "rockchip,rv1126-csi-dphy";
+		reg = <0xff4b0000 0x8000>;
+		clocks = <&cru PCLK_CSIPHY0>;
+		clock-names = "pclk";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
+	csi_dphy1: csi-dphy@ff4b8000 {
+		compatible = "rockchip,rv1126-csi-dphy";
+		reg = <0xff4b8000 0x8000>;
+		clocks = <&cru PCLK_CSIPHY1>;
+		clock-names = "pclk";
+		rockchip,grf = <&grf>;
+		status = "disabled";
 	};
 
 	u2phy0: usb2-phy@ff4c0000 {
