@@ -88,6 +88,12 @@ struct hclgevf_mbx_resp_status {
 	u8 additional_info[HCLGE_MBX_MAX_RESP_DATA_SIZE];
 };
 
+struct hclge_respond_to_vf_msg {
+	int status;
+	u8 data[HCLGE_MBX_MAX_RESP_DATA_SIZE];
+	u16 len;
+};
+
 struct hclge_vf_to_pf_msg {
 	u8 code;
 	union {
@@ -127,7 +133,7 @@ struct hclge_mbx_vf_to_pf_cmd {
 	struct hclge_vf_to_pf_msg msg;
 };
 
-#define HCLGE_MBX_NEED_RESP_BIT		BIT(0)
+#define HCLGE_MBX_NEED_RESP_B		0
 
 struct hclge_mbx_pf_to_vf_cmd {
 	u8 dest_vfid;

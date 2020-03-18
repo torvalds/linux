@@ -101,8 +101,9 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
 	}
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_VF_TO_PF, false);
-	req->mbx_need_resp |= need_resp ? HCLGE_MBX_NEED_RESP_BIT :
-					  ~HCLGE_MBX_NEED_RESP_BIT;
+	if (need_resp)
+		hnae3_set_bit(req->mbx_need_resp, HCLGE_MBX_NEED_RESP_B, 1);
+
 	memcpy(&req->msg, send_msg, sizeof(struct hclge_vf_to_pf_msg));
 
 	/* synchronous send */
