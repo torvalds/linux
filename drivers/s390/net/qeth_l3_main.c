@@ -1880,7 +1880,8 @@ static u16 qeth_l3_osa_select_queue(struct net_device *dev, struct sk_buff *skb,
 {
 	struct qeth_card *card = dev->ml_priv;
 
-	return qeth_get_priority_queue(card, skb);
+	return IS_VM_NIC(card) ? netdev_pick_tx(dev, skb, sb_dev) :
+				 qeth_get_priority_queue(card, skb);
 }
 
 static const struct net_device_ops qeth_l3_netdev_ops = {
@@ -1921,6 +1922,10 @@ static int qeth_l3_setup_netdev(struct qeth_card *card, bool carrier_ok)
 {
 	unsigned int headroom;
 	int rc;
+
+	rc = qeth_setup_netdev(card);
+	if (rc)
+		return rc;
 
 	if (IS_OSD(card) || IS_OSX(card)) {
 		if ((card->info.link_type == QETH_LINK_TYPE_LANE_TR) ||

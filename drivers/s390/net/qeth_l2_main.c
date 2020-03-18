@@ -571,7 +571,9 @@ static u16 qeth_l2_select_queue(struct net_device *dev, struct sk_buff *skb,
 		return qeth_iqd_select_queue(dev, skb,
 					     qeth_get_ether_cast_type(skb),
 					     sb_dev);
-	return qeth_get_priority_queue(card, skb);
+
+	return IS_VM_NIC(card) ? netdev_pick_tx(dev, skb, sb_dev) :
+				 qeth_get_priority_queue(card, skb);
 }
 
 static const struct device_type qeth_l2_devtype = {
@@ -658,6 +660,10 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 		card->dev->flags |= IFF_NOARP;
 		goto add_napi;
 	}
+
+	rc = qeth_setup_netdev(card);
+	if (rc)
+		return rc;
 
 	card->dev->needed_headroom = sizeof(struct qeth_hdr);
 	card->dev->netdev_ops = &qeth_l2_netdev_ops;
