@@ -1266,18 +1266,16 @@ int igc_add_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
 	}
 
 	if (input->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR) {
-		err = igc_add_mac_steering_filter(adapter,
-						  input->filter.dst_addr,
-						  input->action, 0);
+		err = igc_add_mac_filter(adapter, input->filter.dst_addr,
+					 input->action, 0);
 		if (err)
 			return err;
 	}
 
 	if (input->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR) {
-		err = igc_add_mac_steering_filter(adapter,
-						  input->filter.src_addr,
-						  input->action,
-						  IGC_MAC_STATE_SRC_ADDR);
+		err = igc_add_mac_filter(adapter, input->filter.src_addr,
+					 input->action,
+					 IGC_MAC_STATE_SRC_ADDR);
 		if (err)
 			return err;
 	}
@@ -1331,13 +1329,11 @@ int igc_erase_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
 					   ntohs(input->filter.vlan_tci));
 
 	if (input->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR)
-		igc_del_mac_steering_filter(adapter, input->filter.src_addr,
-					    input->action,
-					    IGC_MAC_STATE_SRC_ADDR);
+		igc_del_mac_filter(adapter, input->filter.src_addr,
+				   IGC_MAC_STATE_SRC_ADDR);
 
 	if (input->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR)
-		igc_del_mac_steering_filter(adapter, input->filter.dst_addr,
-					    input->action, 0);
+		igc_del_mac_filter(adapter, input->filter.dst_addr, 0);
 
 	return 0;
 }
