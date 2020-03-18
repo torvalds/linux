@@ -1270,10 +1270,19 @@ struct pnfs_commit_bucket {
 	struct nfs_writeverf direct_verf;
 };
 
+struct pnfs_commit_array {
+	struct list_head cinfo_list;
+	struct list_head lseg_list;
+	struct pnfs_layout_segment *lseg;
+	struct rcu_head rcu;
+	unsigned int nbuckets;
+	struct pnfs_commit_bucket buckets[];
+};
+
 struct pnfs_ds_commit_info {
-	int nwritten;
-	int ncommitting;
-	int nbuckets;
+	unsigned int nwritten;
+	unsigned int ncommitting;
+	unsigned int nbuckets;
 	struct pnfs_commit_bucket *buckets;
 };
 

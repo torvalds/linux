@@ -366,6 +366,9 @@ bool nfs4_test_deviceid_unavailable(struct nfs4_deviceid_node *node);
 void nfs4_deviceid_purge_client(const struct nfs_client *);
 
 /* pnfs_nfs.c */
+struct pnfs_commit_array *pnfs_alloc_commit_array(size_t n, gfp_t gfp_flags);
+void pnfs_free_commit_array(struct pnfs_commit_array *p);
+
 void pnfs_generic_clear_request_commit(struct nfs_page *req,
 				       struct nfs_commit_info *cinfo);
 void pnfs_generic_commit_release(void *calldata);
