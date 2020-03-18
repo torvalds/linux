@@ -5,6 +5,11 @@
 #include "hclge_mbx.h"
 #include "hnae3.h"
 
+static u16 hclge_errno_to_resp(int errno)
+{
+	return abs(errno);
+}
+
 /* hclge_gen_resp_to_vf: used to generate a synchronous response to VF when PF
  * receives a mailbox message from VF.
  * @vport: pointer to struct hclge_vport
@@ -21,6 +26,7 @@ static int hclge_gen_resp_to_vf(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	enum hclge_cmd_status status;
 	struct hclge_desc desc;
+	u16 resp;
 
 	resp_pf_to_vf = (struct hclge_mbx_pf_to_vf_cmd *)desc.data;
 
@@ -43,7 +49,15 @@ static int hclge_gen_resp_to_vf(struct hclge_vport *vport,
 	resp_pf_to_vf->msg[0] = HCLGE_MBX_PF_VF_RESP;
 	resp_pf_to_vf->msg[1] = vf_to_pf_req->msg[0];
 	resp_pf_to_vf->msg[2] = vf_to_pf_req->msg[1];
-	resp_pf_to_vf->msg[3] = (resp_status == 0) ? 0 : 1;
+	resp = hclge_errno_to_resp(resp_status);
+	if (resp < SHRT_MAX) {
+		resp_pf_to_vf->msg[3] = resp;
+	} else {
+		dev_warn(&hdev->pdev->dev,
+			 "failed to send response to VF, response status %d is out-of-bound\n",
+			 resp);
+		resp_pf_to_vf->msg[3] = EIO;
+	}
 
 	if (resp_data && resp_data_len > 0)
 		memcpy(&resp_pf_to_vf->msg[4], resp_data, resp_data_len);
