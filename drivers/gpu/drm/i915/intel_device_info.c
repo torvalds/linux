@@ -998,17 +998,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		    (dfsm & TGL_DFSM_PIPE_D_DISABLE))
 			enabled_mask &= ~BIT(PIPE_D);
 
-		/*
-		 * At least one pipe should be enabled and if there are
-		 * disabled pipes, they should be the last ones, with no holes
-		 * in the mask.
-		 */
-		if (enabled_mask == 0 || !is_power_of_2(enabled_mask + 1))
-			drm_err(&dev_priv->drm,
-				"invalid pipe fuse configuration: enabled_mask=0x%x\n",
-				enabled_mask);
-		else
-			info->pipe_mask = enabled_mask;
+		info->pipe_mask = enabled_mask;
 
 		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
 			info->display.has_hdcp = 0;
