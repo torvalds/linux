@@ -1173,6 +1173,31 @@ static bool coda_mark_last_meta(struct coda_ctx *ctx)
 	return true;
 }
 
+static bool coda_mark_last_dst_buf(struct coda_ctx *ctx)
+{
+	struct vb2_v4l2_buffer *buf;
+	struct vb2_buffer *dst_vb;
+	struct vb2_queue *dst_vq;
+	unsigned long flags;
+
+	coda_dbg(1, ctx, "marking last capture buffer\n");
+
+	dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	spin_lock_irqsave(&dst_vq->done_lock, flags);
+	if (list_empty(&dst_vq->done_list)) {
+		spin_unlock_irqrestore(&dst_vq->done_lock, flags);
+		return false;
+	}
+
+	dst_vb = list_last_entry(&dst_vq->done_list, struct vb2_buffer,
+				 done_entry);
+	buf = to_vb2_v4l2_buffer(dst_vb);
+	buf->flags |= V4L2_BUF_FLAG_LAST;
+
+	spin_unlock_irqrestore(&dst_vq->done_lock, flags);
+	return true;
+}
+
 static int coda_decoder_cmd(struct file *file, void *fh,
 			    struct v4l2_decoder_cmd *dc)
 {
@@ -1217,10 +1242,14 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 				stream_end = true;
 			}
 		} else {
-			if (coda_mark_last_meta(ctx))
-				stream_end = true;
+			if (ctx->use_bit)
+				if (coda_mark_last_meta(ctx))
+					stream_end = true;
+				else
+					wakeup = true;
 			else
-				wakeup = true;
+				if (!coda_mark_last_dst_buf(ctx))
+					wakeup = true;
 		}
 
 		if (stream_end) {
