@@ -1069,6 +1069,9 @@ esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 	struct mlx5_flow_spec *spec;
 	void *misc;
 
+	if (!mlx5_eswitch_reg_c1_loopback_supported(esw))
+		return ERR_PTR(-EOPNOTSUPP);
+
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
@@ -1477,6 +1480,9 @@ static void esw_destroy_restore_table(struct mlx5_eswitch *esw)
 {
 	struct mlx5_esw_offload *offloads = &esw->offloads;
 
+	if (!mlx5_eswitch_reg_c1_loopback_supported(esw))
+		return;
+
 	mlx5_modify_header_dealloc(esw->dev, offloads->restore_copy_hdr_id);
 	mlx5_destroy_flow_group(offloads->restore_group);
 	mlx5_destroy_flow_table(offloads->ft_offloads_restore);
@@ -1495,6 +1501,9 @@ static int esw_create_restore_table(struct mlx5_eswitch *esw)
 	struct mlx5_flow_group *g;
 	u32 *flow_group_in;
 	int err = 0;
+
+	if (!mlx5_eswitch_reg_c1_loopback_supported(esw))
+		return 0;
 
 	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_OFFLOADS);
 	if (!ns) {
