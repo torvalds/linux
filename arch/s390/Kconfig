@@ -102,7 +102,6 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_IRQ
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
 	select ARCH_KEEP_MEMBLOCK
-	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
 	select ARCH_STACKWALK
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_NUMA_BALANCING
@@ -809,15 +808,6 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y.
-
-menu "Power Management"
-
-config ARCH_HIBERNATION_POSSIBLE
-	def_bool y
-
-source "kernel/power/Kconfig"
-
-endmenu
 
 config CCW
 	def_bool y

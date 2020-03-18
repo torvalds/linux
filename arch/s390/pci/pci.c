@@ -607,49 +607,6 @@ void pcibios_disable_device(struct pci_dev *pdev)
 	zpci_debug_exit_device(zdev);
 }
 
-#ifdef CONFIG_HIBERNATE_CALLBACKS
-static int zpci_restore(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct zpci_dev *zdev = to_zpci(pdev);
-	int ret = 0;
-
-	if (zdev->state != ZPCI_FN_STATE_ONLINE)
-		goto out;
-
-	ret = clp_enable_fh(zdev, ZPCI_NR_DMA_SPACES);
-	if (ret)
-		goto out;
-
-	zpci_map_resources(pdev);
-	zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-			   (u64) zdev->dma_table);
-
-out:
-	return ret;
-}
-
-static int zpci_freeze(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct zpci_dev *zdev = to_zpci(pdev);
-
-	if (zdev->state != ZPCI_FN_STATE_ONLINE)
-		return 0;
-
-	zpci_unregister_ioat(zdev, 0);
-	zpci_unmap_resources(pdev);
-	return clp_disable_fh(zdev);
-}
-
-struct dev_pm_ops pcibios_pm_ops = {
-	.thaw_noirq = zpci_restore,
-	.freeze_noirq = zpci_freeze,
-	.restore_noirq = zpci_restore,
-	.poweroff_noirq = zpci_freeze,
-};
-#endif /* CONFIG_HIBERNATE_CALLBACKS */
-
 static int zpci_alloc_domain(struct zpci_dev *zdev)
 {
 	if (zpci_unique_uid) {
