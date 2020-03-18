@@ -81,7 +81,6 @@ void nft_dynset_eval(const struct nft_expr *expr,
 	const struct nft_dynset *priv = nft_expr_priv(expr);
 	struct nft_set *set = priv->set;
 	const struct nft_set_ext *ext;
-	const struct nft_expr *sexpr;
 	u64 timeout;
 
 	if (priv->op == NFT_DYNSET_OP_DELETE) {
@@ -91,18 +90,13 @@ void nft_dynset_eval(const struct nft_expr *expr,
 
 	if (set->ops->update(set, &regs->data[priv->sreg_key], nft_dynset_new,
 			     expr, regs, &ext)) {
-		sexpr = NULL;
-		if (nft_set_ext_exists(ext, NFT_SET_EXT_EXPR))
-			sexpr = nft_set_ext_expr(ext);
-
 		if (priv->op == NFT_DYNSET_OP_UPDATE &&
 		    nft_set_ext_exists(ext, NFT_SET_EXT_EXPIRATION)) {
 			timeout = priv->timeout ? : set->timeout;
 			*nft_set_ext_expiration(ext) = get_jiffies_64() + timeout;
 		}
 
-		if (sexpr != NULL)
-			sexpr->ops->eval(sexpr, regs, pkt);
+		nft_set_elem_update_expr(ext, regs, pkt);
 
 		if (priv->invert)
 			regs->verdict.code = NFT_BREAK;
@@ -206,21 +200,10 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 		if (!(set->flags & NFT_SET_EVAL))
 			return -EINVAL;
 
-		priv->expr = nft_expr_init(ctx, tb[NFTA_DYNSET_EXPR]);
+		priv->expr = nft_set_elem_expr_alloc(ctx, set,
+						     tb[NFTA_DYNSET_EXPR]);
 		if (IS_ERR(priv->expr))
 			return PTR_ERR(priv->expr);
-
-		err = -EOPNOTSUPP;
-		if (!(priv->expr->ops->type->flags & NFT_EXPR_STATEFUL))
-			goto err1;
-
-		if (priv->expr->ops->type->flags & NFT_EXPR_GC) {
-			if (set->flags & NFT_SET_TIMEOUT)
-				goto err1;
-			if (!set->ops->gc_init)
-				goto err1;
-			set->ops->gc_init(set);
-		}
 	}
 
 	nft_set_ext_prepare(&priv->tmpl);
