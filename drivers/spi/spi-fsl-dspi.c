@@ -669,55 +669,10 @@ static void dspi_pushr_txdata_write(struct fsl_dspi *dspi, u16 txdata)
 	regmap_write(dspi->regmap_pushr, dspi->pushr_tx, txdata);
 }
 
-static void dspi_xspi_write(struct fsl_dspi *dspi, int cnt, bool eoq)
+static void dspi_xspi_fifo_write(struct fsl_dspi *dspi, int num_words)
 {
+	int num_bytes = num_words * dspi->oper_word_size;
 	u16 tx_cmd = dspi->tx_cmd;
-
-	if (eoq)
-		tx_cmd |= SPI_PUSHR_CMD_EOQ;
-
-	/* Update CTARE */
-	regmap_write(dspi->regmap, SPI_CTARE(0),
-		     SPI_FRAME_EBITS(dspi->oper_bits_per_word) |
-		     SPI_CTARE_DTCP(cnt));
-
-	/*
-	 * Write the CMD FIFO entry first, and then the two
-	 * corresponding TX FIFO entries (or one...).
-	 */
-	dspi_pushr_cmd_write(dspi, tx_cmd);
-
-	/* Fill TX FIFO with as many transfers as possible */
-	while (cnt--) {
-		u32 data = dspi_pop_tx(dspi);
-
-		dspi_pushr_txdata_write(dspi, data & 0xFFFF);
-		if (dspi->oper_bits_per_word > 16)
-			dspi_pushr_txdata_write(dspi, data >> 16);
-	}
-}
-
-static void dspi_xspi_fifo_write(struct fsl_dspi *dspi)
-{
-	int num_fifo_entries = dspi->devtype_data->fifo_size;
-	int bytes_in_flight;
-	bool eoq = false;
-
-	/* In XSPI mode each 32-bit word occupies 2 TX FIFO entries */
-	if (dspi->oper_word_size == 4)
-		num_fifo_entries /= 2;
-
-	/*
-	 * Integer division intentionally trims off odd (or non-multiple of 4)
-	 * numbers of bytes at the end of the buffer, which will be sent next
-	 * time using a smaller oper_word_size.
-	 */
-	dspi->words_in_flight = dspi->len / dspi->oper_word_size;
-
-	if (dspi->words_in_flight > num_fifo_entries)
-		dspi->words_in_flight = num_fifo_entries;
-
-	bytes_in_flight = dspi->words_in_flight * dspi->oper_word_size;
 
 	/*
 	 * If the PCS needs to de-assert (i.e. we're at the end of the buffer
@@ -727,28 +682,39 @@ static void dspi_xspi_fifo_write(struct fsl_dspi *dspi)
 	 * So send one word less during this go, to force a split and a command
 	 * with a single word next time, when CONT will be unset.
 	 */
-	if (!(dspi->tx_cmd & SPI_PUSHR_CMD_CONT) &&
-	    bytes_in_flight == dspi->len)
-		eoq = true;
+	if (!(dspi->tx_cmd & SPI_PUSHR_CMD_CONT) && num_bytes == dspi->len)
+		tx_cmd |= SPI_PUSHR_CMD_EOQ;
 
-	dspi_xspi_write(dspi, dspi->words_in_flight, eoq);
-}
+	/* Update CTARE */
+	regmap_write(dspi->regmap, SPI_CTARE(0),
+		     SPI_FRAME_EBITS(dspi->oper_bits_per_word) |
+		     SPI_CTARE_DTCP(num_words));
 
-static void dspi_eoq_fifo_write(struct fsl_dspi *dspi)
-{
-	int num_fifo_entries = dspi->devtype_data->fifo_size;
-	u16 xfer_cmd = dspi->tx_cmd;
-
-	if (num_fifo_entries * dspi->oper_word_size > dspi->len)
-		num_fifo_entries = dspi->len / dspi->oper_word_size;
-
-	dspi->words_in_flight = num_fifo_entries;
+	/*
+	 * Write the CMD FIFO entry first, and then the two
+	 * corresponding TX FIFO entries (or one...).
+	 */
+	dspi_pushr_cmd_write(dspi, tx_cmd);
 
 	/* Fill TX FIFO with as many transfers as possible */
-	while (num_fifo_entries--) {
+	while (num_words--) {
+		u32 data = dspi_pop_tx(dspi);
+
+		dspi_pushr_txdata_write(dspi, data & 0xFFFF);
+		if (dspi->oper_bits_per_word > 16)
+			dspi_pushr_txdata_write(dspi, data >> 16);
+	}
+}
+
+static void dspi_eoq_fifo_write(struct fsl_dspi *dspi, int num_words)
+{
+	u16 xfer_cmd = dspi->tx_cmd;
+
+	/* Fill TX FIFO with as many transfers as possible */
+	while (num_words--) {
 		dspi->tx_cmd = xfer_cmd;
 		/* Request EOQF for last transfer in FIFO */
-		if (num_fifo_entries == 0)
+		if (num_words == 0)
 			dspi->tx_cmd |= SPI_PUSHR_CMD_EOQ;
 		/* Write combined TX FIFO and CMD FIFO entry */
 		dspi_pushr_write(dspi);
@@ -765,8 +731,10 @@ static u32 dspi_popr_read(struct fsl_dspi *dspi)
 
 static void dspi_fifo_read(struct fsl_dspi *dspi)
 {
+	int num_fifo_entries = dspi->words_in_flight;
+
 	/* Read one FIFO entry and push to rx buffer */
-	while (dspi->words_in_flight--)
+	while (num_fifo_entries--)
 		dspi_push_rx(dspi, dspi_popr_read(dspi));
 }
 
@@ -832,23 +800,48 @@ no_accel:
 
 static void dspi_fifo_write(struct fsl_dspi *dspi)
 {
+	int num_fifo_entries = dspi->devtype_data->fifo_size;
 	struct spi_transfer *xfer = dspi->cur_transfer;
 	struct spi_message *msg = dspi->cur_msg;
-	int bytes_sent;
+	int num_words, num_bytes;
 
 	dspi_setup_accel(dspi);
+
+	/* In XSPI mode each 32-bit word occupies 2 TX FIFO entries */
+	if (dspi->oper_word_size == 4)
+		num_fifo_entries /= 2;
+
+	/*
+	 * Integer division intentionally trims off odd (or non-multiple of 4)
+	 * numbers of bytes at the end of the buffer, which will be sent next
+	 * time using a smaller oper_word_size.
+	 */
+	num_words = dspi->len / dspi->oper_word_size;
+	if (num_words > num_fifo_entries)
+		num_words = num_fifo_entries;
+
+	/* Update total number of bytes that were transferred */
+	num_bytes = num_words * dspi->oper_word_size;
+	msg->actual_length += num_bytes;
+	dspi->progress += num_bytes / DIV_ROUND_UP(xfer->bits_per_word, 8);
+
+	/*
+	 * Update shared variable for use in the next interrupt (both in
+	 * dspi_fifo_read and in dspi_fifo_write).
+	 */
+	dspi->words_in_flight = num_words;
 
 	spi_take_timestamp_pre(dspi->ctlr, xfer, dspi->progress, !dspi->irq);
 
 	if (dspi->devtype_data->trans_mode == DSPI_EOQ_MODE)
-		dspi_eoq_fifo_write(dspi);
+		dspi_eoq_fifo_write(dspi, num_words);
 	else
-		dspi_xspi_fifo_write(dspi);
-
-	/* Update total number of bytes that were transferred */
-	bytes_sent = dspi->words_in_flight * dspi->oper_word_size;
-	msg->actual_length += bytes_sent;
-	dspi->progress += bytes_sent / DIV_ROUND_UP(xfer->bits_per_word, 8);
+		dspi_xspi_fifo_write(dspi, num_words);
+	/*
+	 * Everything after this point is in a potential race with the next
+	 * interrupt, so we must never use dspi->words_in_flight again since it
+	 * might already be modified by the next dspi_fifo_write.
+	 */
 
 	spi_take_timestamp_post(dspi->ctlr, dspi->cur_transfer,
 				dspi->progress, !dspi->irq);
