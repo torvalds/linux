@@ -153,7 +153,6 @@ static void qeth_get_drvinfo(struct net_device *dev,
 
 	strlcpy(info->driver, IS_LAYER2(card) ? "qeth_l2" : "qeth_l3",
 		sizeof(info->driver));
-	strlcpy(info->version, "1.0", sizeof(info->version));
 	strlcpy(info->fw_version, card->info.mcl_level,
 		sizeof(info->fw_version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "%s/%s/%s",
@@ -173,6 +172,46 @@ static void qeth_get_channels(struct net_device *dev,
 	channels->tx_count = dev->real_num_tx_queues;
 	channels->other_count = 0;
 	channels->combined_count = 0;
+}
+
+static int qeth_set_channels(struct net_device *dev,
+			     struct ethtool_channels *channels)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	if (channels->rx_count == 0 || channels->tx_count == 0)
+		return -EINVAL;
+	if (channels->tx_count > card->qdio.no_out_queues)
+		return -EINVAL;
+
+	if (IS_IQD(card)) {
+		if (channels->tx_count < QETH_IQD_MIN_TXQ)
+			return -EINVAL;
+
+		/* Reject downgrade while running. It could push displaced
+		 * ucast flows onto txq0, which is reserved for mcast.
+		 */
+		if (netif_running(dev) &&
+		    channels->tx_count < dev->real_num_tx_queues)
+			return -EPERM;
+	} else {
+		/* OSA still uses the legacy prio-queue mechanism: */
+		if (!IS_VM_NIC(card))
+			return -EOPNOTSUPP;
+	}
+
+	return qeth_set_real_num_tx_queues(card, channels->tx_count);
+}
+
+static int qeth_get_ts_info(struct net_device *dev,
+			    struct ethtool_ts_info *info)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	if (!IS_IQD(card))
+		return -EOPNOTSUPP;
+
+	return ethtool_op_get_ts_info(dev, info);
 }
 
 static int qeth_get_tunable(struct net_device *dev,
@@ -410,6 +449,8 @@ const struct ethtool_ops qeth_ethtool_ops = {
 	.get_sset_count = qeth_get_sset_count,
 	.get_drvinfo = qeth_get_drvinfo,
 	.get_channels = qeth_get_channels,
+	.set_channels = qeth_set_channels,
+	.get_ts_info = qeth_get_ts_info,
 	.get_tunable = qeth_get_tunable,
 	.set_tunable = qeth_set_tunable,
 	.get_link_ksettings = qeth_get_link_ksettings,
