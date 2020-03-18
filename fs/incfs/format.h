@@ -121,6 +121,10 @@ enum incfs_metadata_type {
 	INCFS_MD_SIGNATURE = 3
 };
 
+enum incfs_file_header_flags {
+	INCFS_FILE_COMPLETE = 1 << 0,
+};
+
 /* Header included at the beginning of all metadata records on the disk. */
 struct incfs_md_header {
 	__u8 h_md_entry_type;
@@ -159,8 +163,8 @@ struct incfs_file_header {
 	/* INCFS_DATA_FILE_BLOCK_SIZE */
 	__le16 fh_data_block_size;
 
-	/* Padding, also reserved for future use. */
-	__le32 fh_dummy;
+	/* File flags, from incfs_file_header_flags */
+	__le32 fh_file_header_flags;
 
 	/* Offset of the first metadata record */
 	__le64 fh_first_md_offset;
@@ -178,6 +182,7 @@ struct incfs_file_header {
 
 enum incfs_block_map_entry_flags {
 	INCFS_BLOCK_COMPRESSED_LZ4 = (1 << 0),
+	INCFS_BLOCK_HASH = (1 << 1),
 };
 
 /* Block map entry pointing to an actual location of the data block. */
@@ -284,7 +289,7 @@ void incfs_free_bfc(struct backing_file_context *bfc);
 
 /* Writing stuff */
 int incfs_write_blockmap_to_backing_file(struct backing_file_context *bfc,
-					 u32 block_count, loff_t *map_base_off);
+					 u32 block_count);
 
 int incfs_write_fh_to_backing_file(struct backing_file_context *bfc,
 				   incfs_uuid_t *uuid, u64 file_size);
@@ -295,8 +300,10 @@ int incfs_write_data_block_to_backing_file(struct backing_file_context *bfc,
 					   u16 flags);
 
 int incfs_write_hash_block_to_backing_file(struct backing_file_context *bfc,
-					struct mem_range block,
-					int block_index, loff_t hash_area_off);
+					   struct mem_range block,
+					   int block_index,
+					   loff_t hash_area_off,
+					   loff_t bm_base_off, int file_size);
 
 int incfs_write_file_attr_to_backing_file(struct backing_file_context *bfc,
 		struct mem_range value, struct incfs_file_attr *attr);
@@ -304,13 +311,15 @@ int incfs_write_file_attr_to_backing_file(struct backing_file_context *bfc,
 int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
 					  struct mem_range sig, u32 tree_size);
 
+int incfs_update_file_header_flags(struct backing_file_context *bfc, u32 flags);
+
 int incfs_make_empty_backing_file(struct backing_file_context *bfc,
 				  incfs_uuid_t *uuid, u64 file_size);
 
 /* Reading stuff */
 int incfs_read_file_header(struct backing_file_context *bfc,
 			   loff_t *first_md_off, incfs_uuid_t *uuid,
-			   u64 *file_size);
+			   u64 *file_size, u32 *flags);
 
 int incfs_read_blockmap_entry(struct backing_file_context *bfc, int block_index,
 			      loff_t bm_base_off,

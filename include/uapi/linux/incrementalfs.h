@@ -68,6 +68,30 @@
 #define INCFS_IOC_PERMIT_FILL                                                  \
 	_IOW(INCFS_IOCTL_BASE_CODE, 33, struct incfs_permit_fill)
 
+/*
+ * Fills buffer with ranges of populated blocks
+ *
+ * Returns 0 if all ranges written
+ *	   error otherwise
+ *
+ *	   Either way, range_buffer_size_out is set to the number
+ *	   of bytes written. Should be set to 0 by caller. The ranges
+ *	   filled are valid, but if an error was returned there might
+ *	   be more ranges to come.
+ *
+ *	   Ranges are ranges of filled blocks:
+ *
+ *	   1 2 7 9
+ *
+ *	   means blocks 1, 2, 7, 8, 9 are filled, 0, 3, 4, 5, 6 and 10 on
+ *	   are not
+ *
+ *	   If hashing is enabled for the file, the hash blocks are simply
+ *	   treated as though they immediately followed the data blocks.
+ */
+#define INCFS_IOC_GET_FILLED_BLOCKS                                            \
+	_IOR(INCFS_IOCTL_BASE_CODE, 34, struct incfs_get_filled_blocks_args)
+
 enum incfs_compression_alg {
 	COMPRESSION_NONE = 0,
 	COMPRESSION_LZ4 = 1
@@ -263,6 +287,45 @@ struct incfs_get_file_sig_args {
 	 * It is set after ioctl done.
 	 */
 	__u32 file_signature_len_out;
+};
+
+struct incfs_filled_range {
+	__u32 begin;
+	__u32 end;
+};
+
+/*
+ * Request ranges of filled blocks
+ * Argument for INCFS_IOC_GET_FILLED_BLOCKS
+ */
+struct incfs_get_filled_blocks_args {
+	/*
+	 * A buffer to populate with ranges of filled blocks
+	 *
+	 * Equivalent to struct incfs_filled_ranges *range_buffer
+	 */
+	__aligned_u64 range_buffer;
+
+	/* Size of range_buffer */
+	__u32 range_buffer_size;
+
+	/* Start index to read from */
+	__u32 start_index;
+
+	/*
+	 * End index to read to. 0 means read to end. This is a range,
+	 * so incfs will read from start_index to end_index - 1
+	 */
+	__u32 end_index;
+
+	/* Actual number of blocks in file */
+	__u32 total_blocks_out;
+
+	/* Number of bytes written to range buffer */
+	__u32 range_buffer_size_out;
+
+	/* Sector scanned up to, if the call was interrupted */
+	__u32 index_out;
 };
 
 #endif /* _UAPI_LINUX_INCREMENTALFS_H */
