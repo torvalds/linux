@@ -30,9 +30,7 @@ struct access_info {
 
 /*
  * Other thread info: communicated from other racing thread to thread that set
- * up the watchpoint, which then prints the complete report atomically. Only
- * need one struct, as all threads should to be serialized regardless to print
- * the reports, with reporting being in the slow-path.
+ * up the watchpoint, which then prints the complete report atomically.
  */
 struct other_info {
 	struct access_info	ai;
@@ -59,7 +57,11 @@ struct other_info {
 	struct task_struct	*task;
 };
 
-static struct other_info other_infos[1];
+/*
+ * To never block any producers of struct other_info, we need as many elements
+ * as we have watchpoints (upper bound on concurrent races to report).
+ */
+static struct other_info other_infos[CONFIG_KCSAN_NUM_WATCHPOINTS + NUM_SLOTS-1];
 
 /*
  * Information about reported races; used to rate limit reporting.
@@ -96,10 +98,11 @@ struct report_time {
 static struct report_time report_times[REPORT_TIMES_SIZE];
 
 /*
- * This spinlock protects reporting and other_info, since other_info is usually
- * required when reporting.
+ * Spinlock serializing report generation, and access to @other_infos. Although
+ * it could make sense to have a finer-grained locking story for @other_infos,
+ * report generation needs to be serialized either way, so not much is gained.
  */
-static DEFINE_SPINLOCK(report_lock);
+static DEFINE_RAW_SPINLOCK(report_lock);
 
 /*
  * Checks if the race identified by thread frames frame1 and frame2 has
@@ -395,9 +398,13 @@ static bool print_report(enum kcsan_value_change value_change,
 static void release_report(unsigned long *flags, struct other_info *other_info)
 {
 	if (other_info)
-		other_info->ai.ptr = NULL; /* Mark for reuse. */
+		/*
+		 * Use size to denote valid/invalid, since KCSAN entirely
+		 * ignores 0-sized accesses.
+		 */
+		other_info->ai.size = 0;
 
-	spin_unlock_irqrestore(&report_lock, *flags);
+	raw_spin_unlock_irqrestore(&report_lock, *flags);
 }
 
 /*
@@ -435,14 +442,14 @@ static void set_other_info_task_blocking(unsigned long *flags,
 			 */
 			set_current_state(TASK_UNINTERRUPTIBLE);
 		}
-		spin_unlock_irqrestore(&report_lock, *flags);
+		raw_spin_unlock_irqrestore(&report_lock, *flags);
 		/*
 		 * We cannot call schedule() since we also cannot reliably
 		 * determine if sleeping here is permitted -- see in_atomic().
 		 */
 
 		udelay(1);
-		spin_lock_irqsave(&report_lock, *flags);
+		raw_spin_lock_irqsave(&report_lock, *flags);
 		if (timeout-- < 0) {
 			/*
 			 * Abort. Reset @other_info->task to NULL, since it
@@ -454,128 +461,107 @@ static void set_other_info_task_blocking(unsigned long *flags,
 			break;
 		}
 		/*
-		 * If @ptr nor @current matches, then our information has been
-		 * consumed and we may continue. If not, retry.
+		 * If invalid, or @ptr nor @current matches, then @other_info
+		 * has been consumed and we may continue. If not, retry.
 		 */
-	} while (other_info->ai.ptr == ai->ptr && other_info->task == current);
+	} while (other_info->ai.size && other_info->ai.ptr == ai->ptr &&
+		 other_info->task == current);
 	if (is_running)
 		set_current_state(TASK_RUNNING);
 }
 
-/*
- * Depending on the report type either sets other_info and returns false, or
- * acquires the matching other_info and returns true. If other_info is not
- * required for the report type, simply acquires report_lock and returns true.
- */
-static bool prepare_report(unsigned long *flags, enum kcsan_report_type type,
-			   const struct access_info *ai, struct other_info *other_info)
+/* Populate @other_info; requires that the provided @other_info not in use. */
+static void prepare_report_producer(unsigned long *flags,
+				    const struct access_info *ai,
+				    struct other_info *other_info)
 {
-	if (type != KCSAN_REPORT_CONSUMED_WATCHPOINT &&
-	    type != KCSAN_REPORT_RACE_SIGNAL) {
-		/* other_info not required; just acquire report_lock */
-		spin_lock_irqsave(&report_lock, *flags);
-		return true;
+	raw_spin_lock_irqsave(&report_lock, *flags);
+
+	/*
+	 * The same @other_infos entry cannot be used concurrently, because
+	 * there is a one-to-one mapping to watchpoint slots (@watchpoints in
+	 * core.c), and a watchpoint is only released for reuse after reporting
+	 * is done by the consumer of @other_info. Therefore, it is impossible
+	 * for another concurrent prepare_report_producer() to set the same
+	 * @other_info, and are guaranteed exclusivity for the @other_infos
+	 * entry pointed to by @other_info.
+	 *
+	 * To check this property holds, size should never be non-zero here,
+	 * because every consumer of struct other_info resets size to 0 in
+	 * release_report().
+	 */
+	WARN_ON(other_info->ai.size);
+
+	other_info->ai = *ai;
+	other_info->num_stack_entries = stack_trace_save(other_info->stack_entries, NUM_STACK_ENTRIES, 2);
+
+	if (IS_ENABLED(CONFIG_KCSAN_VERBOSE))
+		set_other_info_task_blocking(flags, ai, other_info);
+
+	raw_spin_unlock_irqrestore(&report_lock, *flags);
+}
+
+/* Awaits producer to fill @other_info and then returns. */
+static bool prepare_report_consumer(unsigned long *flags,
+				    const struct access_info *ai,
+				    struct other_info *other_info)
+{
+
+	raw_spin_lock_irqsave(&report_lock, *flags);
+	while (!other_info->ai.size) { /* Await valid @other_info. */
+		raw_spin_unlock_irqrestore(&report_lock, *flags);
+		cpu_relax();
+		raw_spin_lock_irqsave(&report_lock, *flags);
 	}
 
-retry:
-	spin_lock_irqsave(&report_lock, *flags);
+	/* Should always have a matching access based on watchpoint encoding. */
+	if (WARN_ON(!matching_access((unsigned long)other_info->ai.ptr & WATCHPOINT_ADDR_MASK, other_info->ai.size,
+				     (unsigned long)ai->ptr & WATCHPOINT_ADDR_MASK, ai->size)))
+		goto discard;
 
+	if (!matching_access((unsigned long)other_info->ai.ptr, other_info->ai.size,
+			     (unsigned long)ai->ptr, ai->size)) {
+		/*
+		 * If the actual accesses to not match, this was a false
+		 * positive due to watchpoint encoding.
+		 */
+		kcsan_counter_inc(KCSAN_COUNTER_ENCODING_FALSE_POSITIVES);
+		goto discard;
+	}
+
+	return true;
+
+discard:
+	release_report(flags, other_info);
+	return false;
+}
+
+/*
+ * Depending on the report type either sets @other_info and returns false, or
+ * awaits @other_info and returns true. If @other_info is not required for the
+ * report type, simply acquires @report_lock and returns true.
+ */
+static noinline bool prepare_report(unsigned long *flags,
+				    enum kcsan_report_type type,
+				    const struct access_info *ai,
+				    struct other_info *other_info)
+{
 	switch (type) {
 	case KCSAN_REPORT_CONSUMED_WATCHPOINT:
-		if (other_info->ai.ptr)
-			break; /* still in use, retry */
-
-		other_info->ai = *ai;
-		other_info->num_stack_entries = stack_trace_save(other_info->stack_entries, NUM_STACK_ENTRIES, 1);
-
-		if (IS_ENABLED(CONFIG_KCSAN_VERBOSE))
-			set_other_info_task_blocking(flags, ai, other_info);
-
-		spin_unlock_irqrestore(&report_lock, *flags);
-
-		/*
-		 * The other thread will print the summary; other_info may now
-		 * be consumed.
-		 */
+		prepare_report_producer(flags, ai, other_info);
 		return false;
-
 	case KCSAN_REPORT_RACE_SIGNAL:
-		if (!other_info->ai.ptr)
-			break; /* no data available yet, retry */
-
-		/*
-		 * First check if this is the other_info we are expecting, i.e.
-		 * matches based on how watchpoint was encoded.
-		 */
-		if (!matching_access((unsigned long)other_info->ai.ptr & WATCHPOINT_ADDR_MASK, other_info->ai.size,
-				     (unsigned long)ai->ptr & WATCHPOINT_ADDR_MASK, ai->size))
-			break; /* mismatching watchpoint, retry */
-
-		if (!matching_access((unsigned long)other_info->ai.ptr, other_info->ai.size,
-				     (unsigned long)ai->ptr, ai->size)) {
-			/*
-			 * If the actual accesses to not match, this was a false
-			 * positive due to watchpoint encoding.
-			 */
-			kcsan_counter_inc(KCSAN_COUNTER_ENCODING_FALSE_POSITIVES);
-
-			/* discard this other_info */
-			release_report(flags, other_info);
-			return false;
-		}
-
-		if (!((ai->access_type | other_info->ai.access_type) & KCSAN_ACCESS_WRITE)) {
-			/*
-			 * While the address matches, this is not the other_info
-			 * from the thread that consumed our watchpoint, since
-			 * neither this nor the access in other_info is a write.
-			 * It is invalid to continue with the report, since we
-			 * only have information about reads.
-			 *
-			 * This can happen due to concurrent races on the same
-			 * address, with at least 4 threads. To avoid locking up
-			 * other_info and all other threads, we have to consume
-			 * it regardless.
-			 *
-			 * A concrete case to illustrate why we might lock up if
-			 * we do not consume other_info:
-			 *
-			 *   We have 4 threads, all accessing the same address
-			 *   (or matching address ranges). Assume the following
-			 *   watcher and watchpoint consumer pairs:
-			 *   write1-read1, read2-write2. The first to populate
-			 *   other_info is write2, however, write1 consumes it,
-			 *   resulting in a report of write1-write2. This report
-			 *   is valid, however, now read1 populates other_info;
-			 *   read2-read1 is an invalid conflict, yet, no other
-			 *   conflicting access is left. Therefore, we must
-			 *   consume read1's other_info.
-			 *
-			 * Since this case is assumed to be rare, it is
-			 * reasonable to omit this report: one of the other
-			 * reports includes information about the same shared
-			 * data, and at this point the likelihood that we
-			 * re-report the same race again is high.
-			 */
-			release_report(flags, other_info);
-			return false;
-		}
-
-		/* Matching access in other_info. */
-		return true;
-
+		return prepare_report_consumer(flags, ai, other_info);
 	default:
-		BUG();
+		/* @other_info not required; just acquire @report_lock. */
+		raw_spin_lock_irqsave(&report_lock, *flags);
+		return true;
 	}
-
-	spin_unlock_irqrestore(&report_lock, *flags);
-
-	goto retry;
 }
 
 void kcsan_report(const volatile void *ptr, size_t size, int access_type,
 		  enum kcsan_value_change value_change,
-		  enum kcsan_report_type type)
+		  enum kcsan_report_type type, int watchpoint_idx)
 {
 	unsigned long flags = 0;
 	const struct access_info ai = {
@@ -586,7 +572,11 @@ void kcsan_report(const volatile void *ptr, size_t size, int access_type,
 		.cpu_id		= raw_smp_processor_id()
 	};
 	struct other_info *other_info = type == KCSAN_REPORT_RACE_UNKNOWN_ORIGIN
-					? NULL : &other_infos[0];
+					? NULL : &other_infos[watchpoint_idx];
+
+	kcsan_disable_current();
+	if (WARN_ON(watchpoint_idx < 0 || watchpoint_idx >= ARRAY_SIZE(other_infos)))
+		goto out;
 
 	/*
 	 * With TRACE_IRQFLAGS, lockdep's IRQ trace state becomes corrupted if
@@ -596,7 +586,6 @@ void kcsan_report(const volatile void *ptr, size_t size, int access_type,
 	 */
 	lockdep_off();
 
-	kcsan_disable_current();
 	if (prepare_report(&flags, type, &ai, other_info)) {
 		/*
 		 * Never report if value_change is FALSE, only if we it is
@@ -611,7 +600,8 @@ void kcsan_report(const volatile void *ptr, size_t size, int access_type,
 
 		release_report(&flags, other_info);
 	}
-	kcsan_enable_current();
 
 	lockdep_on();
+out:
+	kcsan_enable_current();
 }
