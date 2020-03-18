@@ -201,7 +201,7 @@ static int qeth_set_channels(struct net_device *dev,
 			return -EOPNOTSUPP;
 	}
 
-	return netif_set_real_num_tx_queues(dev, channels->tx_count);
+	return qeth_set_real_num_tx_queues(card, channels->tx_count);
 }
 
 static int qeth_get_tunable(struct net_device *dev,

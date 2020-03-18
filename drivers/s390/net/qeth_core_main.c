@@ -6025,7 +6025,7 @@ int qeth_setup_netdev(struct qeth_card *card)
 		num_tx_queues = dev->real_num_tx_queues;
 	}
 
-	return netif_set_real_num_tx_queues(dev, num_tx_queues);
+	return qeth_set_real_num_tx_queues(card, num_tx_queues);
 }
 EXPORT_SYMBOL_GPL(qeth_setup_netdev);
 
@@ -6641,6 +6641,47 @@ void qeth_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 }
 EXPORT_SYMBOL_GPL(qeth_get_stats64);
 
+#define TC_IQD_UCAST   0
+static void qeth_iqd_set_prio_tc_map(struct net_device *dev,
+				     unsigned int ucast_txqs)
+{
+	unsigned int prio;
+
+	/* IQD requires mcast traffic to be placed on a dedicated queue, and
+	 * qeth_iqd_select_queue() deals with this.
+	 * For unicast traffic, we defer the queue selection to the stack.
+	 * By installing a trivial prio map that spans over only the unicast
+	 * queues, we can encourage the stack to spread the ucast traffic evenly
+	 * without selecting the mcast queue.
+	 */
+
+	/* One traffic class, spanning over all active ucast queues: */
+	netdev_set_num_tc(dev, 1);
+	netdev_set_tc_queue(dev, TC_IQD_UCAST, ucast_txqs,
+			    QETH_IQD_MIN_UCAST_TXQ);
+
+	/* Map all priorities to this traffic class: */
+	for (prio = 0; prio <= TC_BITMASK; prio++)
+		netdev_set_prio_tc_map(dev, prio, TC_IQD_UCAST);
+}
+
+int qeth_set_real_num_tx_queues(struct qeth_card *card, unsigned int count)
+{
+	struct net_device *dev = card->dev;
+	int rc;
+
+	/* Per netif_setup_tc(), adjust the mapping first: */
+	if (IS_IQD(card))
+		qeth_iqd_set_prio_tc_map(dev, count - 1);
+
+	rc = netif_set_real_num_tx_queues(dev, count);
+
+	if (rc && IS_IQD(card))
+		qeth_iqd_set_prio_tc_map(dev, dev->real_num_tx_queues - 1);
+
+	return rc;
+}
+
 u16 qeth_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
 			  u8 cast_type, struct net_device *sb_dev)
 {
@@ -6648,6 +6689,8 @@ u16 qeth_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 	if (cast_type != RTN_UNICAST)
 		return QETH_IQD_MCAST_TXQ;
+	if (dev->real_num_tx_queues == QETH_IQD_MIN_TXQ)
+		return QETH_IQD_MIN_UCAST_TXQ;
 
 	txq = netdev_pick_tx(dev, skb, sb_dev);
 	return (txq == QETH_IQD_MCAST_TXQ) ? QETH_IQD_MIN_UCAST_TXQ : txq;
