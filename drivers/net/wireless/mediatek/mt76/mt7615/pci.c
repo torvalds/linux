@@ -13,12 +13,14 @@
 
 static const struct pci_device_id mt7615_pci_device_table[] = {
 	{ PCI_DEVICE(0x14c3, 0x7615) },
+	{ PCI_DEVICE(0x14c3, 0x7663) },
 	{ },
 };
 
 static int mt7615_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
+	const u32 *map;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -35,7 +37,9 @@ static int mt7615_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	return mt7615_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0], pdev->irq);
+	map = id->device == 0x7663 ? mt7663e_reg_map : mt7615e_reg_map;
+	return mt7615_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0],
+				 pdev->irq, map);
 }
 
 static void mt7615_pci_remove(struct pci_dev *pdev)
@@ -57,3 +61,5 @@ MODULE_DEVICE_TABLE(pci, mt7615_pci_device_table);
 MODULE_FIRMWARE(MT7615_FIRMWARE_CR4);
 MODULE_FIRMWARE(MT7615_FIRMWARE_N9);
 MODULE_FIRMWARE(MT7615_ROM_PATCH);
+MODULE_FIRMWARE(MT7663_FIRMWARE_N9);
+MODULE_FIRMWARE(MT7663_ROM_PATCH);

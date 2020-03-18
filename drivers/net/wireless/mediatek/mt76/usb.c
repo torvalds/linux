@@ -70,10 +70,10 @@ static u32 ___mt76u_rr(struct mt76_dev *dev, u8 req, u32 addr)
 
 	ret = __mt76u_vendor_request(dev, req,
 				     USB_DIR_IN | USB_TYPE_VENDOR,
-				     addr >> 16, addr, &usb->reg_val,
+				     addr >> 16, addr, usb->data,
 				     sizeof(__le32));
 	if (ret == sizeof(__le32))
-		data = le32_to_cpu(usb->reg_val);
+		data = get_unaligned_le32(usb->data);
 	trace_usb_reg_rr(dev, addr, data);
 
 	return data;
@@ -125,10 +125,10 @@ static void ___mt76u_wr(struct mt76_dev *dev, u8 req,
 {
 	struct mt76_usb *usb = &dev->usb;
 
-	usb->reg_val = cpu_to_le32(val);
+	put_unaligned_le32(val, usb->data);
 	__mt76u_vendor_request(dev, req,
 			       USB_DIR_OUT | USB_TYPE_VENDOR,
-			       addr >> 16, addr, &usb->reg_val,
+			       addr >> 16, addr, usb->data,
 			       sizeof(__le32));
 	trace_usb_reg_wr(dev, addr, val);
 }
@@ -672,10 +672,17 @@ mt76u_process_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 static void mt76u_rx_tasklet(unsigned long data)
 {
 	struct mt76_dev *dev = (struct mt76_dev *)data;
-	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
+	struct mt76_queue *q;
+	int i;
 
 	rcu_read_lock();
-	mt76u_process_rx_queue(dev, q);
+	for (i = 0; i < __MT_RXQ_MAX; i++) {
+		q = &dev->q_rx[i];
+		if (!q->ndesc)
+			continue;
+
+		mt76u_process_rx_queue(dev, q);
+	}
 	rcu_read_unlock();
 }
 
@@ -1150,6 +1157,7 @@ int mt76u_init(struct mt76_dev *dev,
 	};
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct mt76_usb *usb = &dev->usb;
+	int err = -ENOMEM;
 
 	mt76u_ops.rr = ext ? mt76u_rr_ext : mt76u_rr;
 	mt76u_ops.wr = ext ? mt76u_wr_ext : mt76u_wr;
@@ -1169,10 +1177,8 @@ int mt76u_init(struct mt76_dev *dev,
 		usb->data_len = 32;
 
 	usb->data = devm_kmalloc(dev->dev, usb->data_len, GFP_KERNEL);
-	if (!usb->data) {
-		mt76u_deinit(dev);
-		return -ENOMEM;
-	}
+	if (!usb->data)
+		goto error;
 
 	mutex_init(&usb->usb_ctrl_mtx);
 	dev->bus = &mt76u_ops;
@@ -1182,7 +1188,15 @@ int mt76u_init(struct mt76_dev *dev,
 
 	usb->sg_en = mt76u_check_sg(dev);
 
-	return mt76u_set_endpoints(intf, usb);
+	err = mt76u_set_endpoints(intf, usb);
+	if (err < 0)
+		goto error;
+
+	return 0;
+
+error:
+	mt76u_deinit(dev);
+	return err;
 }
 EXPORT_SYMBOL_GPL(mt76u_init);
 

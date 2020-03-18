@@ -503,7 +503,7 @@ mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
 int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta, int pid,
-			  struct ieee80211_key_conf *key)
+			  struct ieee80211_key_conf *key, bool beacon)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
@@ -541,7 +541,7 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 		q_idx = wmm_idx * MT7615_MAX_WMM_SETS +
 			skb_get_queue_mapping(skb);
 		p_fmt = MT_TX_TYPE_CT;
-	} else if (ieee80211_is_beacon(fc)) {
+	} else if (beacon) {
 		if (ext_phy)
 			q_idx = MT_LMAC_BCN1;
 		else
@@ -703,9 +703,9 @@ void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 		mt7615_txp_skb_unmap_hw(dev, &txp->hw);
 }
 
-static u32 mt7615_mac_wtbl_addr(int wcid)
+static u32 mt7615_mac_wtbl_addr(struct mt7615_dev *dev, int wcid)
 {
-	return MT_WTBL_BASE + wcid * MT_WTBL_ENTRY_SIZE;
+	return MT_WTBL_BASE(dev) + wcid * MT_WTBL_ENTRY_SIZE;
 }
 
 bool mt7615_mac_wtbl_update(struct mt7615_dev *dev, int idx, u32 mask)
@@ -751,7 +751,7 @@ void mt7615_mac_sta_poll(struct mt7615_dev *dev)
 		list_del_init(&msta->poll_list);
 		spin_unlock_bh(&dev->sta_poll_lock);
 
-		addr = mt7615_mac_wtbl_addr(msta->wcid.idx) + 19 * 4;
+		addr = mt7615_mac_wtbl_addr(dev, msta->wcid.idx) + 19 * 4;
 
 		for (i = 0; i < 4; i++, addr += 8) {
 			u32 tx_last = msta->airtime_ac[i];
@@ -801,7 +801,7 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 	struct mt76_phy *mphy = phy->mt76;
 	struct ieee80211_tx_rate *ref;
 	int wcid = sta->wcid.idx;
-	u32 addr = mt7615_mac_wtbl_addr(wcid);
+	u32 addr = mt7615_mac_wtbl_addr(dev, wcid);
 	bool stbc = false;
 	int n_rates = sta->n_rates;
 	u8 bw, bw_prev, bw_idx = 0;
@@ -966,7 +966,7 @@ mt7615_mac_wtbl_update_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			   enum mt7615_cipher_type cipher,
 			   enum set_key_cmd cmd)
 {
-	u32 addr = mt7615_mac_wtbl_addr(wcid->idx) + 30 * 4;
+	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx) + 30 * 4;
 	u8 data[32] = {};
 
 	if (key->keylen > sizeof(data))
@@ -1004,7 +1004,7 @@ mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			  enum mt7615_cipher_type cipher, int keyidx,
 			  enum set_key_cmd cmd)
 {
-	u32 addr = mt7615_mac_wtbl_addr(wcid->idx), w0, w1;
+	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx), w0, w1;
 
 	if (!mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000))
 		return -ETIMEDOUT;
@@ -1040,7 +1040,7 @@ mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			      enum mt7615_cipher_type cipher,
 			      enum set_key_cmd cmd)
 {
-	u32 addr = mt7615_mac_wtbl_addr(wcid->idx);
+	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx);
 
 	if (cmd == SET_KEY) {
 		if (cipher != MT_CIPHER_BIP_CMAC_128 || !wcid->cipher)
@@ -1208,7 +1208,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		return id;
 
 	mt7615_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, sta,
-			      pid, key);
+			      pid, key, false);
 
 	txp = txwi + MT_TXD_SIZE;
 	memset(txp, 0, sizeof(struct mt7615_txp_common));
@@ -1524,6 +1524,9 @@ void mt7615_mac_set_scs(struct mt7615_dev *dev, bool enable)
 	if (dev->scs_en == enable)
 		goto out;
 
+	if (is_mt7663(&dev->mt76))
+		goto out;
+
 	if (enable) {
 		mt76_set(dev, MT_WF_PHY_MIN_PRI_PWR(0),
 			 MT_WF_PHY_PD_BLK(0));
@@ -1554,6 +1557,9 @@ out:
 void mt7615_mac_enable_nf(struct mt7615_dev *dev, bool ext_phy)
 {
 	u32 rxtd;
+
+	if (is_mt7663(&dev->mt76))
+		return;
 
 	if (ext_phy)
 		rxtd = MT_WF_PHY_RXTD2(10);
@@ -1630,7 +1636,6 @@ mt7615_mac_adjust_sensitivity(struct mt7615_phy *phy,
 				 MT_WF_PHY_PD_OFDM(ext_phy, val));
 		} else {
 			val = *sensitivity + 256;
-			if (!ext_phy)
 			mt76_rmw(dev, MT_WF_PHY_RXTD_CCK_PD(ext_phy),
 				 MT_WF_PHY_PD_CCK_MASK(ext_phy),
 				 MT_WF_PHY_PD_CCK(ext_phy, val));
@@ -1823,8 +1828,9 @@ static void
 mt7615_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct ieee80211_hw *hw = priv;
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 
-	mt7615_mcu_set_bcn(hw, vif, vif->bss_conf.enable_beacon);
+	mt7615_mcu_add_beacon(dev, hw, vif, vif->bss_conf.enable_beacon);
 }
 
 static void
