@@ -538,9 +538,10 @@ static void qeth_qdio_handle_aob(struct qeth_card *card,
 	for (i = 0;
 	     i < aob->sb_count && i < QETH_MAX_BUFFER_ELEMENTS(card);
 	     i++) {
-		if (aob->sba[i] && buffer->is_header[i])
-			kmem_cache_free(qeth_core_header_cache,
-					(void *) aob->sba[i]);
+		void *data = phys_to_virt(aob->sba[i]);
+
+		if (data && buffer->is_header[i])
+			kmem_cache_free(qeth_core_header_cache, data);
 	}
 	atomic_set(&buffer->state, QETH_QDIO_BUF_HANDLED_DELAYED);
 
