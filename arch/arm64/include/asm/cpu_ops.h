@@ -55,8 +55,8 @@ struct cpu_operations {
 #endif
 };
 
-extern const struct cpu_operations *cpu_ops[NR_CPUS];
 int __init init_cpu_ops(int cpu);
+extern const struct cpu_operations *get_cpu_ops(int cpu);
 
 static inline void __init init_bootcpu_ops(void)
 {
