@@ -627,3 +627,10 @@ in your dentry operations instead.
 	DCACHE_RCUACCESS is gone; having an RCU delay on dentry freeing is the
 	default.  DCACHE_NORCU opts out, and only d_alloc_pseudo() has any
 	business doing so.
+--
+[mandatory]
+
+	[should've been added in 2016] stale comment in finish_open()
+	nonwithstanding, failure exits in ->atomic_open() instances should
+	*NOT* fput() the file, no matter what.  Everything is handled by the
+	caller.

@@ -121,9 +121,16 @@ static const struct i2c_device_id wf_max6690_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wf_max6690_id);
 
+static const struct of_device_id wf_max6690_of_id[] = {
+	{ .compatible = "max6690", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wf_max6690_of_id);
+
 static struct i2c_driver wf_max6690_driver = {
 	.driver = {
 		.name		= "wf_max6690",
+		.of_match_table = wf_max6690_of_id,
 	},
 	.probe		= wf_max6690_probe,
 	.remove		= wf_max6690_remove,
