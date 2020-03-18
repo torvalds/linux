@@ -1795,7 +1795,7 @@ static int kvmppc_core_vcpu_create_pr(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.shadow_msr = MSR_USER64 & ~MSR_LE;
 
-	err = kvmppc_mmu_init(vcpu);
+	err = kvmppc_mmu_init_pr(vcpu);
 	if (err < 0)
 		goto free_shared_page;
 
