@@ -458,6 +458,8 @@ struct ethtool_ops {
 					 struct ethtool_stats *, u64 *);
 };
 
+int ethtool_check_ops(const struct ethtool_ops *ops);
+
 struct ethtool_rx_flow_rule {
 	struct flow_rule	*rule;
 	unsigned long		priv[0];
