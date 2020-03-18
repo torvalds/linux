@@ -81,6 +81,42 @@ static int btf_dumper_enum(const struct btf_dumper *d,
 	return 0;
 }
 
+static bool is_str_array(const struct btf *btf, const struct btf_array *arr,
+			 const char *s)
+{
+	const struct btf_type *elem_type;
+	const char *end_s;
+
+	if (!arr->nelems)
+		return false;
+
+	elem_type = btf__type_by_id(btf, arr->type);
+	/* Not skipping typedef.  typedef to char does not count as
+	 * a string now.
+	 */
+	while (elem_type && btf_is_mod(elem_type))
+		elem_type = btf__type_by_id(btf, elem_type->type);
+
+	if (!elem_type || !btf_is_int(elem_type) || elem_type->size != 1)
+		return false;
+
+	if (btf_int_encoding(elem_type) != BTF_INT_CHAR &&
+	    strcmp("char", btf__name_by_offset(btf, elem_type->name_off)))
+		return false;
+
+	end_s = s + arr->nelems;
+	while (s < end_s) {
+		if (!*s)
+			return true;
+		if (*s <= 0x1f || *s >= 0x7f)
+			return false;
+		s++;
+	}
+
+	/* '\0' is not found */
+	return false;
+}
+
 static int btf_dumper_array(const struct btf_dumper *d, __u32 type_id,
 			    const void *data)
 {
@@ -89,6 +125,11 @@ static int btf_dumper_array(const struct btf_dumper *d, __u32 type_id,
 	long long elem_size;
 	int ret = 0;
 	__u32 i;
+
+	if (is_str_array(d->btf, arr, data)) {
+		jsonw_string(d->jw, data);
+		return 0;
+	}
 
 	elem_size = btf__resolve_size(d->btf, arr->type);
 	if (elem_size < 0)
