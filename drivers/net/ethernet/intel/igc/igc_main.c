@@ -2267,40 +2267,33 @@ update_queue_assignment:
 int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 		       const u8 flags)
 {
-	struct igc_hw *hw = &adapter->hw;
-	int rar_entries = hw->mac.rar_entry_count;
-	int i;
+	struct igc_mac_addr *entry;
+	int index;
 
 	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
 
-	for (i = 0; i < rar_entries; i++) {
-		if (!(adapter->mac_table[i].state & IGC_MAC_STATE_IN_USE))
-			continue;
-		if (flags && (adapter->mac_table[i].state & flags) != flags)
-			continue;
-		if (!ether_addr_equal(adapter->mac_table[i].addr, addr))
-			continue;
+	index = igc_find_mac_filter(adapter, addr, flags);
+	if (index < 0)
+		return -ENOENT;
 
-		/* When a filter for the default address is "deleted",
-		 * we return it to its initial configuration
+	entry = &adapter->mac_table[index];
+
+	if (entry->state & IGC_MAC_STATE_DEFAULT) {
+		/* If this is the default filter, we don't actually delete it.
+		 * We just reset to its default value i.e. disable queue
+		 * assignment.
 		 */
-		if (adapter->mac_table[i].state & IGC_MAC_STATE_DEFAULT) {
-			adapter->mac_table[i].state =
-				IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
-			adapter->mac_table[i].queue = -1;
-			igc_set_mac_filter_hw(adapter, 0, addr, -1);
-		} else {
-			adapter->mac_table[i].state = 0;
-			adapter->mac_table[i].queue = -1;
-			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
-			igc_clear_mac_filter_hw(adapter, i);
-		}
-
-		return 0;
+		entry->queue = -1;
+		igc_set_mac_filter_hw(adapter, 0, addr, entry->queue);
+	} else {
+		entry->state = 0;
+		entry->queue = -1;
+		memset(entry->addr, 0, ETH_ALEN);
+		igc_clear_mac_filter_hw(adapter, index);
 	}
 
-	return -ENOENT;
+	return 0;
 }
 
 static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
