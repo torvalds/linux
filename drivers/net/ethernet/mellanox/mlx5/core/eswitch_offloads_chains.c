@@ -280,7 +280,8 @@ create_fdb_chain_restore(struct fdb_chain *fdb_chain)
 	u32 index;
 	int err;
 
-	if (fdb_chain->chain == mlx5_esw_chains_get_ft_chain(esw))
+	if (fdb_chain->chain == mlx5_esw_chains_get_ft_chain(esw) ||
+	    !mlx5_esw_chains_prios_supported(esw))
 		return 0;
 
 	err = mapping_add(esw_chains_mapping(esw), &fdb_chain->chain, &index);
@@ -335,6 +336,18 @@ err_mod_hdr:
 	return err;
 }
 
+static void destroy_fdb_chain_restore(struct fdb_chain *fdb_chain)
+{
+	struct mlx5_eswitch *esw = fdb_chain->esw;
+
+	if (!fdb_chain->miss_modify_hdr)
+		return;
+
+	mlx5_del_flow_rules(fdb_chain->restore_rule);
+	mlx5_modify_header_dealloc(esw->dev, fdb_chain->miss_modify_hdr);
+	mapping_remove(esw_chains_mapping(esw), fdb_chain->id);
+}
+
 static struct fdb_chain *
 mlx5_esw_chains_create_fdb_chain(struct mlx5_eswitch *esw, u32 chain)
 {
@@ -361,11 +374,7 @@ mlx5_esw_chains_create_fdb_chain(struct mlx5_eswitch *esw, u32 chain)
 	return fdb_chain;
 
 err_insert:
-	if (fdb_chain->chain != mlx5_esw_chains_get_ft_chain(esw)) {
-		mlx5_del_flow_rules(fdb_chain->restore_rule);
-		mlx5_modify_header_dealloc(esw->dev,
-					   fdb_chain->miss_modify_hdr);
-	}
+	destroy_fdb_chain_restore(fdb_chain);
 err_restore:
 	kvfree(fdb_chain);
 	return ERR_PTR(err);
@@ -379,14 +388,7 @@ mlx5_esw_chains_destroy_fdb_chain(struct fdb_chain *fdb_chain)
 	rhashtable_remove_fast(&esw_chains_ht(esw), &fdb_chain->node,
 			       chain_params);
 
-	if (fdb_chain->chain != mlx5_esw_chains_get_ft_chain(esw)) {
-		mlx5_del_flow_rules(fdb_chain->restore_rule);
-		mlx5_modify_header_dealloc(esw->dev,
-					   fdb_chain->miss_modify_hdr);
-
-		mapping_remove(esw_chains_mapping(esw), fdb_chain->id);
-	}
-
+	destroy_fdb_chain_restore(fdb_chain);
 	kvfree(fdb_chain);
 }
 
@@ -423,7 +425,7 @@ mlx5_esw_chains_add_miss_rule(struct fdb_chain *fdb_chain,
 	dest.ft = next_fdb;
 
 	if (next_fdb == tc_end_fdb(esw) &&
-	    fdb_modify_header_fwd_to_table_supported(esw)) {
+	    mlx5_esw_chains_prios_supported(esw)) {
 		act.modify_hdr = fdb_chain->miss_modify_hdr;
 		act.action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 	}
@@ -783,6 +785,9 @@ mlx5_esw_chains_init(struct mlx5_eswitch *esw)
 	    esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE) {
 		esw->fdb_table.flags &= ~ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED;
 		esw_warn(dev, "Tc chains and priorities offload aren't supported, update firmware if needed\n");
+	} else if (!mlx5_eswitch_reg_c1_loopback_enabled(esw)) {
+		esw->fdb_table.flags &= ~ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED;
+		esw_warn(dev, "Tc chains and priorities offload aren't supported\n");
 	} else if (!fdb_modify_header_fwd_to_table_supported(esw)) {
 		/* Disabled when ttl workaround is needed, e.g
 		 * when ESWITCH_IPV4_TTL_MODIFY_ENABLE = true in mlxconfig
