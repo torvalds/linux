@@ -3265,6 +3265,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:	/* DNV */
+	case INTEL_FAM6_ATOM_TREMONT:	/* EHL */
 		pkg_cstate_limits = glm_pkg_cstate_limits;
 		break;
 	default:
@@ -3332,6 +3333,17 @@ int is_skx(unsigned int family, unsigned int model)
 
 	switch (model) {
 	case INTEL_FAM6_SKYLAKE_X:
+		return 1;
+	}
+	return 0;
+}
+int is_ehl(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+
+	switch (model) {
+	case INTEL_FAM6_ATOM_TREMONT:
 		return 1;
 	}
 	return 0;
@@ -3894,6 +3906,20 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 		else
 			BIC_PRESENT(BIC_PkgWatt);
 		break;
+	case INTEL_FAM6_ATOM_TREMONT:	/* EHL */
+		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_GFX | RAPL_PKG_POWER_INFO;
+		if (rapl_joules) {
+			BIC_PRESENT(BIC_Pkg_J);
+			BIC_PRESENT(BIC_Cor_J);
+			BIC_PRESENT(BIC_RAM_J);
+			BIC_PRESENT(BIC_GFX_J);
+		} else {
+			BIC_PRESENT(BIC_PkgWatt);
+			BIC_PRESENT(BIC_CorWatt);
+			BIC_PRESENT(BIC_RAMWatt);
+			BIC_PRESENT(BIC_GFXWatt);
+		}
+		break;
 	case INTEL_FAM6_SKYLAKE_L:	/* SKL */
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
 		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_GFX | RAPL_PKG_POWER_INFO;
@@ -4295,6 +4321,7 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_ATOM_GOLDMONT:		/* BXT */
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:	/* DNV */
+	case INTEL_FAM6_ATOM_TREMONT:		/* EHL */
 		return 1;
 	}
 	return 0;
@@ -4324,6 +4351,7 @@ int has_c8910_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
+	case INTEL_FAM6_ATOM_TREMONT:	/* EHL */
 		return 1;
 	}
 	return 0;
@@ -4882,7 +4910,8 @@ void process_cpuid()
 	do_slm_cstates = is_slm(family, model);
 	do_knl_cstates  = is_knl(family, model);
 
-	if (do_slm_cstates || do_knl_cstates || is_cnl(family, model))
+	if (do_slm_cstates || do_knl_cstates || is_cnl(family, model) ||
+	    is_ehl(family, model))
 		BIC_NOT_PRESENT(BIC_CPU_c3);
 
 	if (!quiet)
