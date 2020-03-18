@@ -613,7 +613,7 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 		qeth_set_offline(card, false);
 
 	cancel_work_sync(&card->close_dev_work);
-	if (qeth_netdev_is_registered(card->dev))
+	if (card->dev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(card->dev);
 }
 
@@ -651,7 +651,7 @@ static const struct net_device_ops qeth_osn_netdev_ops = {
 	.ndo_tx_timeout		= qeth_tx_timeout,
 };
 
-static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
+static int qeth_l2_setup_netdev(struct qeth_card *card)
 {
 	int rc;
 
@@ -711,13 +711,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 
 add_napi:
 	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
-	rc = register_netdev(card->dev);
-	if (!rc && carrier_ok)
-		netif_carrier_on(card->dev);
-
-	if (rc)
-		card->dev->netdev_ops = NULL;
-	return rc;
+	return register_netdev(card->dev);
 }
 
 static void qeth_l2_trace_features(struct qeth_card *card)
@@ -790,10 +784,13 @@ static int qeth_l2_set_online(struct qeth_card *card)
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 
-	if (!qeth_netdev_is_registered(dev)) {
-		rc = qeth_l2_setup_netdev(card, carrier_ok);
+	if (dev->reg_state != NETREG_REGISTERED) {
+		rc = qeth_l2_setup_netdev(card);
 		if (rc)
 			goto out_remove;
+
+		if (carrier_ok)
+			netif_carrier_on(dev);
 	} else {
 		rtnl_lock();
 		if (carrier_ok)
