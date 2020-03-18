@@ -2200,6 +2200,8 @@ static int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 
 	if (is_zero_ether_addr(addr))
 		return -EINVAL;
+	if (flags & IGC_MAC_STATE_SRC_ADDR)
+		return -ENOTSUPP;
 
 	/* Search for the first empty entry in the MAC table.
 	 * Do not touch entries at the end of the table reserved for the VF MAC
