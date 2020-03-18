@@ -148,6 +148,8 @@ struct coda_params {
 	bool			h264_intra_qp_changed;
 	bool			intra_refresh_changed;
 	bool			slice_mode_changed;
+	bool			frame_rc_enable;
+	bool			mb_rc_enable;
 };
 
 struct coda_buffer_meta {
