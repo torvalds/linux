@@ -739,13 +739,16 @@ static void dspi_eoq_fifo_write(struct fsl_dspi *dspi)
 	int num_fifo_entries = dspi->devtype_data->fifo_size;
 	u16 xfer_cmd = dspi->tx_cmd;
 
+	if (num_fifo_entries * dspi->oper_word_size > dspi->len)
+		num_fifo_entries = dspi->len / dspi->oper_word_size;
+
 	dspi->words_in_flight = num_fifo_entries;
 
 	/* Fill TX FIFO with as many transfers as possible */
-	while (dspi->len && num_fifo_entries--) {
+	while (num_fifo_entries--) {
 		dspi->tx_cmd = xfer_cmd;
 		/* Request EOQF for last transfer in FIFO */
-		if (dspi->len == dspi->oper_word_size || num_fifo_entries == 0)
+		if (num_fifo_entries == 0)
 			dspi->tx_cmd |= SPI_PUSHR_CMD_EOQ;
 		/* Write combined TX FIFO and CMD FIFO entry */
 		dspi_pushr_write(dspi);
