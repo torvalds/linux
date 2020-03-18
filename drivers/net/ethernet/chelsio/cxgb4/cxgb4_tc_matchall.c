@@ -198,22 +198,14 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 	struct ch_filter_specification *fs;
 	int ret, fidx;
 
-	/* Note that TC uses prio 0 to indicate stack to generate
-	 * automatic prio and hence doesn't pass prio 0 to driver.
-	 * However, the hardware TCAM index starts from 0. Hence, the
-	 * -1 here. 1 slot is enough to create a wildcard matchall
-	 * VIID rule.
+	/* Get a free filter entry TID, where we can insert this new
+	 * rule. Only insert rule if its prio doesn't conflict with
+	 * existing rules.
+	 *
+	 * 1 slot is enough to create a wildcard matchall VIID rule.
 	 */
-	if (cls->common.prio <= (adap->tids.nftids + adap->tids.nhpftids))
-		fidx = cls->common.prio - 1;
-	else
-		fidx = cxgb4_get_free_ftid(dev, PF_INET);
-
-	/* Only insert MATCHALL rule if its priority doesn't conflict
-	 * with existing rules in the LETCAM.
-	 */
-	if (fidx < 0 ||
-	    !cxgb4_filter_prio_in_range(dev, fidx, cls->common.prio)) {
+	fidx = cxgb4_get_free_ftid(dev, PF_INET, false, cls->common.prio);
+	if (fidx < 0) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "No free LETCAM index available");
 		return -ENOMEM;

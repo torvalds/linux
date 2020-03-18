@@ -149,6 +149,8 @@ struct tid_info {
 	atomic_t conns_in_use;
 	/* lock for setting/clearing filter bitmap */
 	spinlock_t ftid_lock;
+
+	unsigned int tc_hash_tids_max_prio;
 };
 
 static inline void *lookup_tid(const struct tid_info *t, unsigned int tid)
@@ -263,7 +265,8 @@ struct filter_ctx {
 
 struct ch_filter_specification;
 
-int cxgb4_get_free_ftid(struct net_device *dev, int family);
+int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
+			u32 tc_prio);
 int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		       struct ch_filter_specification *fs,
 		       struct filter_ctx *ctx);
