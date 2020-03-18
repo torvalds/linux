@@ -1338,7 +1338,9 @@ static const struct snd_soc_dapm_route rt5640_dapm_routes[] = {
 	{ "I2S2", NULL, "I2S2 Filter ASRC", is_using_asrc },
 	{ "DMIC1", NULL, "DMIC1 ASRC", is_using_asrc },
 	{ "DMIC2", NULL, "DMIC2 ASRC", is_using_asrc },
-
+	{"IN1P", NULL, "MICBIAS1"},
+	{"IN2P", NULL, "MICBIAS1"},
+	{"IN3P", NULL, "MICBIAS1"},
 	{"IN1P", NULL, "LDO2"},
 	{"IN2P", NULL, "LDO2"},
 	{"IN3P", NULL, "LDO2"},
