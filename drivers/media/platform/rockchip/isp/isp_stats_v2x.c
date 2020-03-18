@@ -1256,9 +1256,11 @@ rkisp_stats_send_meas_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 			cur_stat_buf->meas_type |= ISP2X_STAT_RAWHSTCH2;
 	}
 
-	ops->get_bls_stats(stats_vdev, cur_stat_buf);
-	ops->get_tmo_stats(stats_vdev, cur_stat_buf);
-	ops->get_dhaz_stats(stats_vdev, cur_stat_buf);
+	if (meas_work->isp_ris & ISP2X_FRAME) {
+		ops->get_bls_stats(stats_vdev, cur_stat_buf);
+		ops->get_tmo_stats(stats_vdev, cur_stat_buf);
+		ops->get_dhaz_stats(stats_vdev, cur_stat_buf);
+	}
 
 	if (cur_buf) {
 		vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0,
