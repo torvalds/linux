@@ -189,6 +189,9 @@ int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);
 int clp_get_state(u32 fid, enum zpci_state *state);
 
+/* UID */
+void update_uid_checking(bool new);
+
 /* IOMMU Interface */
 int zpci_init_iommu(struct zpci_dev *zdev);
 void zpci_destroy_iommu(struct zpci_dev *zdev);

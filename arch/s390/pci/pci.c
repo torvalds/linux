@@ -620,6 +620,13 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 
 	if (zpci_unique_uid) {
 		zdev->domain = (u16) zdev->uid;
+		if (zdev->domain == 0) {
+			pr_warn("UID checking is active but no UID is set for PCI function %08x, so automatic domain allocation is used instead\n",
+				zdev->fid);
+			update_uid_checking(false);
+			goto auto_allocate;
+		}
+
 		if (test_bit(zdev->domain, zpci_domain)) {
 			spin_unlock(&zpci_domain_lock);
 			pr_err("Adding PCI function %08x failed because domain %04x is already assigned\n",
@@ -631,6 +638,7 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 		spin_unlock(&zpci_domain_lock);
 		return 0;
 	}
+auto_allocate:
 	/*
 	 * We can always auto allocate domains below ZPCI_NR_DEVICES.
 	 * There is either a free domain or we have reached the maximum in
