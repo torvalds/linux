@@ -24,6 +24,7 @@
 #include <linux/bits.h>
 #include <linux/etherdevice.h>
 #include <linux/file.h>
+#include <linux/kernel.h>
 #include "device.h"
 #include "card.h"
 #include "baseband.h"
@@ -143,7 +144,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 
 	init_cmd->init_class = DEVICE_INIT_COLD;
 	init_cmd->exist_sw_net_addr = priv->exist_sw_net_addr;
-	for (ii = 0; ii < 6; ii++)
+	for (ii = 0; ii < ARRAY_SIZE(init_cmd->sw_net_addr); ii++)
 		init_cmd->sw_net_addr[ii] = priv->current_net_addr[ii];
 	init_cmd->short_retry_limit = priv->short_retry_limit;
 	init_cmd->long_retry_limit = priv->long_retry_limit;
@@ -182,7 +183,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 	priv->cck_pwr = priv->eeprom[EEP_OFS_PWR_CCK];
 	priv->ofdm_pwr_g = priv->eeprom[EEP_OFS_PWR_OFDMG];
 	/* load power table */
-	for (ii = 0; ii < 14; ii++) {
+	for (ii = 0; ii < ARRAY_SIZE(priv->cck_pwr_tbl); ii++) {
 		priv->cck_pwr_tbl[ii] =
 			priv->eeprom[ii + EEP_OFS_CCK_PWR_TBL];
 		if (priv->cck_pwr_tbl[ii] == 0)
@@ -198,7 +199,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 	 * original zonetype is USA, but custom zonetype is Europe,
 	 * then need to recover 12, 13, 14 channels with 11 channel
 	 */
-	for (ii = 11; ii < 14; ii++) {
+	for (ii = 11; ii < ARRAY_SIZE(priv->cck_pwr_tbl); ii++) {
 		priv->cck_pwr_tbl[ii] = priv->cck_pwr_tbl[10];
 		priv->ofdm_pwr_tbl[ii] = priv->ofdm_pwr_tbl[10];
 	}
