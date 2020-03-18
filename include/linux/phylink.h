@@ -317,4 +317,12 @@ int phylink_mii_ioctl(struct phylink *, struct ifreq *, int);
 void phylink_set_port_modes(unsigned long *bits);
 void phylink_helper_basex_speed(struct phylink_link_state *state);
 
+void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
+				   struct phylink_link_state *state);
+int phylink_mii_c22_pcs_set_advertisement(struct mdio_device *pcs,
+					const struct phylink_link_state *state);
+void phylink_mii_c22_pcs_an_restart(struct mdio_device *pcs);
+
+void phylink_mii_c45_pcs_get_state(struct mdio_device *pcs,
+				   struct phylink_link_state *state);
 #endif
