@@ -118,6 +118,7 @@ struct mt7621_pcie_port {
  * @busn: bus range
  * @offset: IO / Memory offset
  * @dev: Pointer to PCIe device
+ * @io_map_base: virtual memory base address for io
  * @ports: pointer to PCIe port information
  * @resets_inverted: depends on chip revision
  * reset lines are inverted.
@@ -132,6 +133,7 @@ struct mt7621_pcie {
 		resource_size_t mem;
 		resource_size_t io;
 	} offset;
+	unsigned long io_map_base;
 	struct list_head ports;
 	bool resets_inverted;
 };
@@ -291,22 +293,21 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 	}
 
 	for_each_of_pci_range(&parser, &range) {
-		struct resource *res = NULL;
-
 		switch (range.flags & IORESOURCE_TYPE_BITS) {
 		case IORESOURCE_IO:
-			ioremap(range.cpu_addr, range.size);
-			res = &pcie->io;
+			pcie->io_map_base =
+				(unsigned long)ioremap(range.cpu_addr,
+						       range.size);
+			of_pci_range_to_resource(&range, node, &pcie->io);
+			pcie->io.start = range.cpu_addr;
+			pcie->io.end = range.cpu_addr + range.size - 1;
 			pcie->offset.io = 0x00000000UL;
 			break;
 		case IORESOURCE_MEM:
-			res = &pcie->mem;
+			of_pci_range_to_resource(&range, node, &pcie->mem);
 			pcie->offset.mem = 0x00000000UL;
 			break;
 		}
-
-		if (res)
-			of_pci_range_to_resource(&range, node, res);
 	}
 
 	err = of_pci_parse_bus_range(node, &pcie->busn);
@@ -317,6 +318,8 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 		pcie->busn.end = 0xff;
 		pcie->busn.flags = IORESOURCE_BUS;
 	}
+
+	set_io_port_base(pcie->io_map_base);
 
 	return 0;
 }
@@ -548,6 +551,10 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 	u32 slot;
 	u32 val;
 
+	/* Setup MEMWIN and IOWIN */
+	pcie_write(pcie, 0xffffffff, RALINK_PCI_MEMBASE);
+	pcie_write(pcie, pcie->io.start, RALINK_PCI_IOBASE);
+
 	list_for_each_entry(port, &pcie->ports, list) {
 		if (port->enabled) {
 			mt7621_pcie_port_clk_enable(port);
@@ -668,11 +675,17 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	err = mt7621_pci_parse_request_of_pci_ranges(pcie);
+	if (err) {
+		dev_err(dev, "Error requesting pci resources from ranges");
+		goto out_release_gpios;
+	}
+
 	/* set resources limits */
-	iomem_resource.start = 0;
-	iomem_resource.end = ~0UL; /* no limit */
-	ioport_resource.start = 0;
-	ioport_resource.end = ~0UL; /* no limit */
+	iomem_resource.start = pcie->mem.start;
+	iomem_resource.end = pcie->mem.end;
+	ioport_resource.start = pcie->io.start;
+	ioport_resource.end = pcie->io.end;
 
 	mt7621_pcie_init_ports(pcie);
 
@@ -684,12 +697,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	}
 
 	mt7621_pcie_enable_ports(pcie);
-
-	err = mt7621_pci_parse_request_of_pci_ranges(pcie);
-	if (err) {
-		dev_err(dev, "Error requesting pci resources from ranges");
-		goto out_release_gpios;
-	}
 
 	setup_cm_memory_region(pcie);
 
