@@ -1070,6 +1070,12 @@ again:
 					BKEY_EXTENT_U64s_MAX))
 			goto flush_io;
 
+		if ((op->flags & BCH_WRITE_FROM_INTERNAL) &&
+		    percpu_ref_is_dying(&c->writes)) {
+			ret = -EROFS;
+			goto err;
+		}
+
 		wp = bch2_alloc_sectors_start(c,
 			op->target,
 			op->opts.erasure_code,
