@@ -1236,10 +1236,8 @@ static int sprd_probe(struct platform_device *pdev)
 	sprd_ports_num++;
 
 	ret = uart_add_one_port(&sprd_uart_driver, up);
-	if (ret) {
-		sprd_port[index] = NULL;
+	if (ret)
 		sprd_remove(pdev);
-	}
 
 	platform_set_drvdata(pdev, up);
 
