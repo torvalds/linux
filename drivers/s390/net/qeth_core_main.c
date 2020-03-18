@@ -244,7 +244,7 @@ static struct qeth_buffer_pool_entry *qeth_alloc_pool_entry(unsigned int pages)
 		return NULL;
 
 	for (i = 0; i < pages; i++) {
-		entry->elements[i] = alloc_page(GFP_KERNEL);
+		entry->elements[i] = __dev_alloc_page(GFP_KERNEL);
 
 		if (!entry->elements[i]) {
 			qeth_free_pool_entry(entry);
@@ -2654,7 +2654,7 @@ static struct qeth_buffer_pool_entry *qeth_find_free_buffer_pool_entry(
 			struct qeth_buffer_pool_entry, list);
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i) {
 		if (page_count(entry->elements[i]) > 1) {
-			struct page *page = alloc_page(GFP_ATOMIC);
+			struct page *page = dev_alloc_page();
 
 			if (!page)
 				return NULL;
