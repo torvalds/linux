@@ -6,6 +6,7 @@
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
  */
 
+#include "linux/delay.h"
 #include "internals.h"
 
 #define MACRONIX_READ_RETRY_BIT BIT(0)
@@ -27,6 +28,8 @@
 #define MACRONIX_RANDOMIZER_MODE_EXIT	\
 	(MACRONIX_RANDOMIZER_RANDEN |	\
 	 MACRONIX_RANDOMIZER_RANDOPT)
+
+#define MXIC_CMD_POWER_DOWN 0xB9
 
 struct nand_onfi_vendor_macronix {
 	u8 reserved;
@@ -243,6 +246,76 @@ static void macronix_nand_block_protection_support(struct nand_chip *chip)
 	chip->unlock_area = mxic_nand_unlock;
 }
 
+static int nand_power_down_op(struct nand_chip *chip)
+{
+	int ret;
+
+	if (nand_has_exec_op(chip)) {
+		struct nand_op_instr instrs[] = {
+			NAND_OP_CMD(MXIC_CMD_POWER_DOWN, 0),
+		};
+
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
+
+		ret = nand_exec_op(chip, &op);
+		if (ret)
+			return ret;
+
+	} else {
+		chip->legacy.cmdfunc(chip, MXIC_CMD_POWER_DOWN, -1, -1);
+	}
+
+	return 0;
+}
+
+static int mxic_nand_suspend(struct nand_chip *chip)
+{
+	int ret;
+
+	nand_select_target(chip, 0);
+	ret = nand_power_down_op(chip);
+	if (ret < 0)
+		pr_err("Suspending MXIC NAND chip failed (%d)\n", ret);
+	nand_deselect_target(chip);
+
+	return ret;
+}
+
+static void mxic_nand_resume(struct nand_chip *chip)
+{
+	/*
+	 * Toggle #CS pin to resume NAND device and don't care
+	 * of the others CLE, #WE, #RE pins status.
+	 * A NAND controller ensure it is able to assert/de-assert #CS
+	 * by sending any byte over the NAND bus.
+	 * i.e.,
+	 * NAND power down command or reset command w/o R/B# status checking.
+	 */
+	nand_select_target(chip, 0);
+	nand_power_down_op(chip);
+	/* The minimum of a recovery time tRDP is 35 us */
+	usleep_range(35, 100);
+	nand_deselect_target(chip);
+}
+
+static void macronix_nand_deep_power_down_support(struct nand_chip *chip)
+{
+	int i;
+	static const char * const deep_power_down_dev[] = {
+		"MX30UF1G28AD",
+		"MX30UF2G28AD",
+		"MX30UF4G28AD",
+	};
+
+	i = match_string(deep_power_down_dev, ARRAY_SIZE(deep_power_down_dev),
+			 chip->parameters.model);
+	if (i < 0)
+		return;
+
+	chip->suspend = mxic_nand_suspend;
+	chip->resume = mxic_nand_resume;
+}
+
 static int macronix_nand_init(struct nand_chip *chip)
 {
 	if (nand_is_slc(chip))
@@ -251,6 +324,7 @@ static int macronix_nand_init(struct nand_chip *chip)
 	macronix_nand_fix_broken_get_timings(chip);
 	macronix_nand_onfi_init(chip);
 	macronix_nand_block_protection_support(chip);
+	macronix_nand_deep_power_down_support(chip);
 
 	return 0;
 }
