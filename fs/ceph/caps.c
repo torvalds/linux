@@ -3471,14 +3471,26 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 	bool wake_mdsc = false;
 
 	list_for_each_entry_safe(cf, tmp_cf, &ci->i_cap_flush_list, i_list) {
+		/* Is this the one that was flushed? */
 		if (cf->tid == flush_tid)
 			cleaned = cf->caps;
-		if (cf->caps == 0) /* capsnap */
+
+		/* Is this a capsnap? */
+		if (cf->caps == 0)
 			continue;
+
 		if (cf->tid <= flush_tid) {
+			/*
+			 * An earlier or current tid. The FLUSH_ACK should
+			 * represent a superset of this flush's caps.
+			 */
 			wake_ci |= __detach_cap_flush_from_ci(ci, cf);
 			list_add_tail(&cf->i_list, &to_remove);
 		} else {
+			/*
+			 * This is a later one. Any caps in it are still dirty
+			 * so don't count them as cleaned.
+			 */
 			cleaned &= ~cf->caps;
 			if (!cleaned)
 				break;
