@@ -637,8 +637,8 @@ static int coda_try_fmt_vid_cap(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	/* The h.264 decoder only returns complete 16x16 macroblocks */
-	if (codec && codec->src_fourcc == V4L2_PIX_FMT_H264) {
+	/* The decoders always write complete macroblocks */
+	if (ctx->inst_type == CODA_INST_DECODER) {
 		f->fmt.pix.height = round_up(f->fmt.pix.height, 16);
 		f->fmt.pix.bytesperline = round_up(f->fmt.pix.width, 16);
 		f->fmt.pix.sizeimage = f->fmt.pix.bytesperline *
