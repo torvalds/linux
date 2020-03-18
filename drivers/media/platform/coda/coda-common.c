@@ -1153,6 +1153,26 @@ static int coda_try_decoder_cmd(struct file *file, void *fh,
 	return v4l2_m2m_ioctl_try_decoder_cmd(file, fh, dc);
 }
 
+static bool coda_mark_last_meta(struct coda_ctx *ctx)
+{
+	struct coda_buffer_meta *meta;
+
+	coda_dbg(1, ctx, "marking last meta\n");
+
+	spin_lock(&ctx->buffer_meta_lock);
+	if (list_empty(&ctx->buffer_meta_list)) {
+		spin_unlock(&ctx->buffer_meta_lock);
+		return false;
+	}
+
+	meta = list_last_entry(&ctx->buffer_meta_list, struct coda_buffer_meta,
+			       list);
+	meta->last = true;
+
+	spin_unlock(&ctx->buffer_meta_lock);
+	return true;
+}
+
 static int coda_decoder_cmd(struct file *file, void *fh,
 			    struct v4l2_decoder_cmd *dc)
 {
@@ -1197,22 +1217,10 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 				stream_end = true;
 			}
 		} else {
-			coda_dbg(1, ctx, "marking last meta\n");
-
-			/* Mark last meta */
-			spin_lock(&ctx->buffer_meta_lock);
-			if (!list_empty(&ctx->buffer_meta_list)) {
-				struct coda_buffer_meta *meta;
-
-				meta = list_last_entry(&ctx->buffer_meta_list,
-						       struct coda_buffer_meta,
-						       list);
-				meta->last = true;
+			if (coda_mark_last_meta(ctx))
 				stream_end = true;
-			} else {
+			else
 				wakeup = true;
-			}
-			spin_unlock(&ctx->buffer_meta_lock);
 		}
 
 		if (stream_end) {
