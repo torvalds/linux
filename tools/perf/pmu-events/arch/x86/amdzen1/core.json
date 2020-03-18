@@ -62,7 +62,6 @@
     "EventName": "ex_ret_brn_ind_misp",
     "EventCode": "0xca",
     "BriefDescription": "Retired Indirect Branch Instructions Mispredicted.",
-    "PublicDescription": "Retired Indirect Branch Instructions Mispredicted."
   },
   {
     "EventName": "ex_ret_mmx_fp_instr.sse_instr",
@@ -91,11 +90,6 @@
     "BriefDescription": "Retired Conditional Branch Instructions."
   },
   {
-    "EventName": "ex_ret_cond_misp",
-    "EventCode": "0xd2",
-    "BriefDescription": "Retired Conditional Branch Instructions Mispredicted."
-  },
-  {
     "EventName": "ex_div_busy",
     "EventCode": "0xd3",
     "BriefDescription": "Div Cycles Busy count."
@@ -108,22 +102,19 @@
   {
     "EventName": "ex_tagged_ibs_ops.ibs_count_rollover",
     "EventCode": "0x1cf",
-    "BriefDescription": "Number of times an op could not be tagged by IBS because of a previous tagged op that has not retired.",
-    "PublicDescription": "Tagged IBS Ops. Number of times an op could not be tagged by IBS because of a previous tagged op that has not retired.",
+    "BriefDescription": "Tagged IBS Ops. Number of times an op could not be tagged by IBS because of a previous tagged op that has not retired.",
     "UMask": "0x4"
   },
   {
     "EventName": "ex_tagged_ibs_ops.ibs_tagged_ops_ret",
     "EventCode": "0x1cf",
-    "BriefDescription": "Number of Ops tagged by IBS that retired.",
-    "PublicDescription": "Tagged IBS Ops. Number of Ops tagged by IBS that retired.",
+    "BriefDescription": "Tagged IBS Ops. Number of Ops tagged by IBS that retired.",
     "UMask": "0x2"
   },
   {
     "EventName": "ex_tagged_ibs_ops.ibs_tagged_ops",
     "EventCode": "0x1cf",
-    "BriefDescription": "Number of Ops tagged by IBS.",
-    "PublicDescription": "Tagged IBS Ops. Number of Ops tagged by IBS.",
+    "BriefDescription": "Tagged IBS Ops. Number of Ops tagged by IBS.",
     "UMask": "0x1"
   },
   {
