@@ -2246,7 +2246,7 @@ static int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 	int rar_entries = hw->mac.rar_entry_count;
 	int i;
 
-	if (is_zero_ether_addr(addr))
+	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
 
 	/* Search for matching entry in the MAC table based on given address
