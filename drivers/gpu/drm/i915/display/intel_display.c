@@ -12377,10 +12377,8 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	 * only combine the results from all planes in the current place?
 	 */
 	if (!is_crtc_enabled) {
-		plane_state->uapi.visible = visible = false;
-		crtc_state->active_planes &= ~BIT(plane->id);
-		crtc_state->data_rate[plane->id] = 0;
-		crtc_state->min_cdclk[plane->id] = 0;
+		intel_plane_set_invisible(crtc_state, plane_state);
+		visible = false;
 	}
 
 	if (!was_visible && !visible)
