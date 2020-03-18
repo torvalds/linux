@@ -4358,6 +4358,7 @@ static void __exit nvme_core_exit(void)
 	destroy_workqueue(nvme_delete_wq);
 	destroy_workqueue(nvme_reset_wq);
 	destroy_workqueue(nvme_wq);
+	ida_destroy(&nvme_instance_ida);
 }
 
 MODULE_LICENSE("GPL");
