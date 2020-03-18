@@ -968,7 +968,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 {
 	struct battery_chg_dev *bcdev;
 	struct device *dev = &pdev->dev;
-	struct pmic_glink_client_data client_data;
+	struct pmic_glink_client_data client_data = { };
 	struct battery_charger_set_notify_msg req_msg = { { 0 } };
 	int rc, i;
 
