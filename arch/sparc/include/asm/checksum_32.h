@@ -83,8 +83,10 @@ csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 	return (__force __wsum)ret;
 }
 
+#define HAVE_CSUM_COPY_USER
+
 static inline __wsum
-csum_partial_copy_to_user(const void *src, void __user *dst, int len,
+csum_and_copy_to_user(const void *src, void __user *dst, int len,
 			  __wsum sum, int *err)
 {
 	if (!access_ok(dst, len)) {
@@ -112,9 +114,6 @@ csum_partial_copy_to_user(const void *src, void __user *dst, int len,
 		return (__force __wsum)ret;
 	}
 }
-
-#define HAVE_CSUM_COPY_USER
-#define csum_and_copy_to_user csum_partial_copy_to_user
 
 /* ihl is always 5 or greater, almost always is 5, and iph is word aligned
  * the majority of the time.
