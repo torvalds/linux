@@ -33,6 +33,7 @@
 #include "util/map.h"
 #include "util/mmap.h"
 #include "util/session.h"
+#include "util/thread.h"
 #include "util/symbol.h"
 #include "util/synthetic-events.h"
 #include "util/top.h"
@@ -774,6 +775,9 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 	if (machine__resolve(machine, &al, sample) < 0)
 		return;
+
+	if (top->stitch_lbr)
+		al.thread->lbr_stitch_enable = true;
 
 	if (!machine->kptr_restrict_warned &&
 	    symbol_conf.kptr_restrict &&
@@ -1571,6 +1575,8 @@ int cmd_top(int argc, const char **argv)
 		    "Sort the output by the event at the index n in group. "
 		    "If n is invalid, sort by the first event. "
 		    "WARNING: should be used on grouped events."),
+	OPT_BOOLEAN(0, "stitch-lbr", &top.stitch_lbr,
+		    "Enable LBR callgraph stitching approach"),
 	OPTS_EVSWITCH(&top.evswitch),
 	OPT_END()
 	};
@@ -1638,6 +1644,11 @@ int cmd_top(int argc, const char **argv)
 			parse_options_usage(NULL, options, "hierarchy", 0);
 			goto out_delete_evlist;
 		}
+	}
+
+	if (top.stitch_lbr && !(callchain_param.record_mode == CALLCHAIN_LBR)) {
+		pr_err("Error: --stitch-lbr must be used with --call-graph lbr\n");
+		goto out_delete_evlist;
 	}
 
 	if (opts->branch_stack && callchain_param.enabled)
