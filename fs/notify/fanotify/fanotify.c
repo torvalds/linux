@@ -235,9 +235,9 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 	test_mask = event_mask & marks_mask & ~marks_ignored_mask;
 
 	/*
-	 * dirent modification events (create/delete/move) do not carry the
-	 * child entry name/inode information. Instead, we report FAN_ONDIR
-	 * for mkdir/rmdir so user can differentiate them from creat/unlink.
+	 * For dirent modification events (create/delete/move) that do not carry
+	 * the child entry name information, we report FAN_ONDIR for mkdir/rmdir
+	 * so user can differentiate them from creat/unlink.
 	 *
 	 * For backward compatibility and consistency, do not report FAN_ONDIR
 	 * to user in legacy fanotify mode (reporting fd) and report FAN_ONDIR
@@ -463,6 +463,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	BUILD_BUG_ON(FAN_MOVED_FROM != FS_MOVED_FROM);
 	BUILD_BUG_ON(FAN_CREATE != FS_CREATE);
 	BUILD_BUG_ON(FAN_DELETE != FS_DELETE);
+	BUILD_BUG_ON(FAN_DIR_MODIFY != FS_DIR_MODIFY);
 	BUILD_BUG_ON(FAN_DELETE_SELF != FS_DELETE_SELF);
 	BUILD_BUG_ON(FAN_MOVE_SELF != FS_MOVE_SELF);
 	BUILD_BUG_ON(FAN_EVENT_ON_CHILD != FS_EVENT_ON_CHILD);
