@@ -587,24 +587,6 @@ static int ap_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return retval;
 }
 
-static int ap_dev_suspend(struct device *dev)
-{
-	struct ap_device *ap_dev = to_ap_dev(dev);
-
-	if (ap_dev->drv && ap_dev->drv->suspend)
-		ap_dev->drv->suspend(ap_dev);
-	return 0;
-}
-
-static int ap_dev_resume(struct device *dev)
-{
-	struct ap_device *ap_dev = to_ap_dev(dev);
-
-	if (ap_dev->drv && ap_dev->drv->resume)
-		ap_dev->drv->resume(ap_dev);
-	return 0;
-}
-
 static void ap_bus_suspend(void)
 {
 	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
@@ -694,13 +676,10 @@ static struct notifier_block ap_power_notifier = {
 	.notifier_call = ap_power_event,
 };
 
-static SIMPLE_DEV_PM_OPS(ap_bus_pm_ops, ap_dev_suspend, ap_dev_resume);
-
 static struct bus_type ap_bus_type = {
 	.name = "ap",
 	.match = &ap_bus_match,
 	.uevent = &ap_uevent,
-	.pm = &ap_bus_pm_ops,
 };
 
 static int __ap_revise_reserved(struct device *dev, void *dummy)
