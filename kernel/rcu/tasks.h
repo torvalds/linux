@@ -806,22 +806,38 @@ reset_ipi:
 /* Callback function for scheduler to check locked-down task.  */
 static bool trc_inspect_reader(struct task_struct *t, void *arg)
 {
-	if (task_curr(t))
-		return false;  // It is running, so decline to inspect it.
+	int cpu = task_cpu(t);
+	bool in_qs = false;
+
+	if (task_curr(t)) {
+		// If no chance of heavyweight readers, do it the hard way.
+		if (!IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB))
+			return false;
+
+		// If heavyweight readers are enabled on the remote task,
+		// we can inspect its state despite its currently running.
+		// However, we cannot safely change its state.
+		if (!rcu_dynticks_zero_in_eqs(cpu, &t->trc_reader_nesting))
+			return false; // No quiescent state, do it the hard way.
+		in_qs = true;
+	} else {
+		in_qs = likely(!t->trc_reader_nesting);
+	}
 
 	// Mark as checked.  Because this is called from the grace-period
 	// kthread, also remove the task from the holdout list.
 	t->trc_reader_checked = true;
 	trc_del_holdout(t);
 
-	// If the task is in a read-side critical section, set up its
-	// its state so that it will awaken the grace-period kthread upon
-	// exit from that critical section.
-	if (unlikely(t->trc_reader_nesting)) {
-		atomic_inc(&trc_n_readers_need_end); // One more to wait on.
-		WARN_ON_ONCE(t->trc_reader_special.b.need_qs);
-		WRITE_ONCE(t->trc_reader_special.b.need_qs, true);
-	}
+	if (in_qs)
+		return true;  // Already in quiescent state, done!!!
+
+	// The task is in a read-side critical section, so set up its
+	// state so that it will awaken the grace-period kthread upon exit
+	// from that critical section.
+	atomic_inc(&trc_n_readers_need_end); // One more to wait on.
+	WARN_ON_ONCE(t->trc_reader_special.b.need_qs);
+	WRITE_ONCE(t->trc_reader_special.b.need_qs, true);
 	return true;
 }
 
