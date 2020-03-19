@@ -301,20 +301,26 @@ static void veth_stats_rx(struct veth_stats *result, struct net_device *dev)
 	struct veth_priv *priv = netdev_priv(dev);
 	int i;
 
+	result->xdp_xmit_err = 0;
 	result->xdp_packets = 0;
+	result->xdp_tx_err = 0;
 	result->xdp_bytes = 0;
 	result->rx_drops = 0;
 	for (i = 0; i < dev->num_rx_queues; i++) {
+		u64 packets, bytes, drops, xdp_tx_err, xdp_xmit_err;
 		struct veth_rq_stats *stats = &priv->rq[i].stats;
-		u64 packets, bytes, drops;
 		unsigned int start;
 
 		do {
 			start = u64_stats_fetch_begin_irq(&stats->syncp);
+			xdp_xmit_err = stats->vs.xdp_xmit_err;
+			xdp_tx_err = stats->vs.xdp_tx_err;
 			packets = stats->vs.xdp_packets;
 			bytes = stats->vs.xdp_bytes;
 			drops = stats->vs.rx_drops;
 		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+		result->xdp_xmit_err += xdp_xmit_err;
+		result->xdp_tx_err += xdp_tx_err;
 		result->xdp_packets += packets;
 		result->xdp_bytes += bytes;
 		result->rx_drops += drops;
@@ -334,6 +340,7 @@ static void veth_get_stats64(struct net_device *dev,
 	tot->tx_packets = packets;
 
 	veth_stats_rx(&rx, dev);
+	tot->tx_dropped += rx.xdp_xmit_err + rx.xdp_tx_err;
 	tot->rx_dropped = rx.rx_drops;
 	tot->rx_bytes = rx.xdp_bytes;
 	tot->rx_packets = rx.xdp_packets;
@@ -346,6 +353,7 @@ static void veth_get_stats64(struct net_device *dev,
 		tot->rx_packets += packets;
 
 		veth_stats_rx(&rx, peer);
+		tot->rx_dropped += rx.xdp_xmit_err + rx.xdp_tx_err;
 		tot->tx_bytes += rx.xdp_bytes;
 		tot->tx_packets += rx.xdp_packets;
 	}
@@ -393,14 +401,16 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 
 	rcu_read_lock();
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK)) {
-		ret = -EINVAL;
-		goto drop;
+		rcu_read_unlock();
+		atomic64_add(drops, &priv->dropped);
+		return -EINVAL;
 	}
 
 	rcv = rcu_dereference(priv->peer);
 	if (unlikely(!rcv)) {
-		ret = -ENXIO;
-		goto drop;
+		rcu_read_unlock();
+		atomic64_add(drops, &priv->dropped);
+		return -ENXIO;
 	}
 
 	rcv_priv = netdev_priv(rcv);
@@ -434,6 +444,8 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 	if (flags & XDP_XMIT_FLUSH)
 		__veth_xdp_flush(rq);
 
+	ret = n - drops;
+drop:
 	rq = &priv->rq[qidx];
 	u64_stats_update_begin(&rq->stats.syncp);
 	if (ndo_xmit) {
@@ -445,15 +457,7 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 	}
 	u64_stats_update_end(&rq->stats.syncp);
 
-	if (likely(!drops)) {
-		rcu_read_unlock();
-		return n;
-	}
-
-	ret = n - drops;
-drop:
 	rcu_read_unlock();
-	atomic64_add(drops, &priv->dropped);
 
 	return ret;
 }
