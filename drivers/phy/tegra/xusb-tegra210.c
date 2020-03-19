@@ -1953,6 +1953,7 @@ tegra210_usb2_port_map(struct tegra_xusb_port *port)
 }
 
 static const struct tegra_xusb_port_ops tegra210_usb2_port_ops = {
+	.release = tegra_xusb_usb2_port_release,
 	.remove = tegra_xusb_usb2_port_remove,
 	.enable = tegra210_usb2_port_enable,
 	.disable = tegra210_usb2_port_disable,
@@ -1975,6 +1976,7 @@ tegra210_hsic_port_map(struct tegra_xusb_port *port)
 }
 
 static const struct tegra_xusb_port_ops tegra210_hsic_port_ops = {
+	.release = tegra_xusb_hsic_port_release,
 	.enable = tegra210_hsic_port_enable,
 	.disable = tegra210_hsic_port_disable,
 	.map = tegra210_hsic_port_map,
@@ -2120,6 +2122,7 @@ tegra210_usb3_port_map(struct tegra_xusb_port *port)
 }
 
 static const struct tegra_xusb_port_ops tegra210_usb3_port_ops = {
+	.release = tegra_xusb_usb3_port_release,
 	.remove = tegra_xusb_usb3_port_remove,
 	.enable = tegra210_usb3_port_enable,
 	.disable = tegra210_usb3_port_disable,
