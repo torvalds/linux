@@ -34,6 +34,7 @@
 
 #include <linux/clk.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -992,9 +993,21 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 		dev_warn(dev, "Missing rockchip,grf property\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "get resource failed\n");
+		return -EINVAL;
+	}
 	isp_dev->base_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(isp_dev->base_addr))
+	if (PTR_ERR(isp_dev->base_addr) == -EBUSY) {
+		resource_size_t offset = res->start;
+		resource_size_t size = resource_size(res);
+
+		isp_dev->base_addr = devm_ioremap(dev, offset, size);
+	}
+	if (IS_ERR(isp_dev->base_addr)) {
+		dev_err(dev, "ioremap failed\n");
 		return PTR_ERR(isp_dev->base_addr);
+	}
 
 	match_data = match->data;
 	isp_dev->mipi_irq = -1;

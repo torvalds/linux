@@ -4,6 +4,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
@@ -324,9 +325,19 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 	match_data = match->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ispp_dev->base_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ispp_dev->base_addr)) {
+	if (!res) {
 		dev_err(dev, "get resource failed\n");
+		return -EINVAL;
+	}
+	ispp_dev->base_addr = devm_ioremap_resource(dev, res);
+	if (PTR_ERR(ispp_dev->base_addr) == -EBUSY) {
+		resource_size_t offset = res->start;
+		resource_size_t size = resource_size(res);
+
+		ispp_dev->base_addr = devm_ioremap(dev, offset, size);
+	}
+	if (IS_ERR(ispp_dev->base_addr)) {
+		dev_err(dev, "ioremap failed\n");
 		return PTR_ERR(ispp_dev->base_addr);
 	}
 
