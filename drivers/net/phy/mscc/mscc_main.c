@@ -525,7 +525,7 @@ static int vsc85xx_default_config(struct phy_device *phydev)
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
 	mutex_lock(&phydev->lock);
 
-	reg_val = RGMII_RX_CLK_DELAY_1_1_NS << RGMII_RX_CLK_DELAY_POS;
+	reg_val = RGMII_CLK_DELAY_1_1_NS << RGMII_RX_CLK_DELAY_POS;
 
 	rc = phy_modify_paged(phydev, MSCC_PHY_PAGE_EXTENDED_2,
 			      MSCC_PHY_RGMII_CNTL, RGMII_RX_CLK_DELAY_MASK,

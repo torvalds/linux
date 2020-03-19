@@ -12,15 +12,15 @@
 #include "mscc_macsec.h"
 #endif
 
-enum rgmii_rx_clock_delay {
-	RGMII_RX_CLK_DELAY_0_2_NS = 0,
-	RGMII_RX_CLK_DELAY_0_8_NS = 1,
-	RGMII_RX_CLK_DELAY_1_1_NS = 2,
-	RGMII_RX_CLK_DELAY_1_7_NS = 3,
-	RGMII_RX_CLK_DELAY_2_0_NS = 4,
-	RGMII_RX_CLK_DELAY_2_3_NS = 5,
-	RGMII_RX_CLK_DELAY_2_6_NS = 6,
-	RGMII_RX_CLK_DELAY_3_4_NS = 7
+enum rgmii_clock_delay {
+	RGMII_CLK_DELAY_0_2_NS = 0,
+	RGMII_CLK_DELAY_0_8_NS = 1,
+	RGMII_CLK_DELAY_1_1_NS = 2,
+	RGMII_CLK_DELAY_1_7_NS = 3,
+	RGMII_CLK_DELAY_2_0_NS = 4,
+	RGMII_CLK_DELAY_2_3_NS = 5,
+	RGMII_CLK_DELAY_2_6_NS = 6,
+	RGMII_CLK_DELAY_3_4_NS = 7
 };
 
 /* Microsemi VSC85xx PHY registers */
