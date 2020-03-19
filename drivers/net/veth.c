@@ -40,10 +40,14 @@
 
 #define VETH_XDP_TX_BULK_SIZE	16
 
+struct veth_stats {
+	u64	xdp_packets;
+	u64	xdp_bytes;
+	u64	xdp_drops;
+};
+
 struct veth_rq_stats {
-	u64			xdp_packets;
-	u64			xdp_bytes;
-	u64			xdp_drops;
+	struct veth_stats	vs;
 	struct u64_stats_sync	syncp;
 };
 
@@ -80,7 +84,7 @@ struct veth_q_stat_desc {
 	size_t	offset;
 };
 
-#define VETH_RQ_STAT(m)	offsetof(struct veth_rq_stats, m)
+#define VETH_RQ_STAT(m)	offsetof(struct veth_stats, m)
 
 static const struct veth_q_stat_desc veth_rq_stats_desc[] = {
 	{ "xdp_packets",	VETH_RQ_STAT(xdp_packets) },
@@ -155,7 +159,7 @@ static void veth_get_ethtool_stats(struct net_device *dev,
 	idx = 1;
 	for (i = 0; i < dev->real_num_rx_queues; i++) {
 		const struct veth_rq_stats *rq_stats = &priv->rq[i].stats;
-		const void *stats_base = (void *)rq_stats;
+		const void *stats_base = (void *)&rq_stats->vs;
 		unsigned int start;
 		size_t offset;
 
@@ -283,7 +287,7 @@ static u64 veth_stats_tx(struct net_device *dev, u64 *packets, u64 *bytes)
 	return atomic64_read(&priv->dropped);
 }
 
-static void veth_stats_rx(struct veth_rq_stats *result, struct net_device *dev)
+static void veth_stats_rx(struct veth_stats *result, struct net_device *dev)
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	int i;
@@ -298,9 +302,9 @@ static void veth_stats_rx(struct veth_rq_stats *result, struct net_device *dev)
 
 		do {
 			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			packets = stats->xdp_packets;
-			bytes = stats->xdp_bytes;
-			drops = stats->xdp_drops;
+			packets = stats->vs.xdp_packets;
+			bytes = stats->vs.xdp_bytes;
+			drops = stats->vs.xdp_drops;
 		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
 		result->xdp_packets += packets;
 		result->xdp_bytes += bytes;
@@ -313,7 +317,7 @@ static void veth_get_stats64(struct net_device *dev,
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	struct net_device *peer;
-	struct veth_rq_stats rx;
+	struct veth_stats rx;
 	u64 packets, bytes;
 
 	tot->tx_dropped = veth_stats_tx(dev, &packets, &bytes);
@@ -740,9 +744,9 @@ static int veth_xdp_rcv(struct veth_rq *rq, int budget, unsigned int *xdp_xmit,
 	}
 
 	u64_stats_update_begin(&rq->stats.syncp);
-	rq->stats.xdp_packets += done;
-	rq->stats.xdp_bytes += bytes;
-	rq->stats.xdp_drops += drops;
+	rq->stats.vs.xdp_packets += done;
+	rq->stats.vs.xdp_bytes += bytes;
+	rq->stats.vs.xdp_drops += drops;
 	u64_stats_update_end(&rq->stats.syncp);
 
 	return done;
