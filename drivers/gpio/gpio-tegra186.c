@@ -839,11 +839,19 @@ static const struct tegra_gpio_port tegra194_main_ports[] = {
 	TEGRA194_MAIN_GPIO_PORT(GG, 0, 0, 2)
 };
 
+static const struct tegra186_pin_range tegra194_main_pin_ranges[] = {
+	{ TEGRA194_MAIN_GPIO(GG, 0), "pex_l5_clkreq_n_pgg0" },
+	{ TEGRA194_MAIN_GPIO(GG, 1), "pex_l5_rst_n_pgg1" },
+};
+
 static const struct tegra_gpio_soc tegra194_main_soc = {
 	.num_ports = ARRAY_SIZE(tegra194_main_ports),
 	.ports = tegra194_main_ports,
 	.name = "tegra194-gpio",
 	.instance = 0,
+	.num_pin_ranges = ARRAY_SIZE(tegra194_main_pin_ranges),
+	.pin_ranges = tegra194_main_pin_ranges,
+	.pinmux = "nvidia,tegra194-pinmux",
 };
 
 #define TEGRA194_AON_GPIO_PORT(_name, _bank, _port, _pins)	\
