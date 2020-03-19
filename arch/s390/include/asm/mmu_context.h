@@ -42,11 +42,11 @@ static inline int init_new_context(struct task_struct *tsk,
 		 */
 	case 0:
 		/* context created by exec, set asce limit to 4TB */
-		mm->context.asce_limit = STACK_TOP_MAX;
+		mm->context.asce_limit = _REGION2_SIZE;
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
 		break;
-	case -PAGE_SIZE:
+	case TASK_SIZE_MAX:
 		/* forked 5-level task, set new asce with new_mm->pgd */
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 			_ASCE_USER_BITS | _ASCE_TYPE_REGION1;

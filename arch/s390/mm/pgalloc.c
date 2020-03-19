@@ -121,7 +121,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 		__pgd = (unsigned long *) mm->pgd;
 		pgd_populate(mm, (pgd_t *) pgd, (p4d_t *) __pgd);
 		mm->pgd = (pgd_t *) pgd;
-		mm->context.asce_limit = -PAGE_SIZE;
+		mm->context.asce_limit = TASK_SIZE_MAX;
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 			_ASCE_USER_BITS | _ASCE_TYPE_REGION1;
 	}
@@ -527,7 +527,7 @@ void base_asce_free(unsigned long asce)
 		base_region2_walk(table, 0, _REGION1_SIZE, 0);
 		break;
 	case _ASCE_TYPE_REGION1:
-		base_region1_walk(table, 0, -_PAGE_SIZE, 0);
+		base_region1_walk(table, 0, TASK_SIZE_MAX, 0);
 		break;
 	}
 	base_crst_free(table);

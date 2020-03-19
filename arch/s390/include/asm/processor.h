@@ -93,15 +93,15 @@ extern void __bpon(void);
  */
 
 #define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_31BIT) ? \
-					(1UL << 31) : -PAGE_SIZE)
+					_REGION3_SIZE : TASK_SIZE_MAX)
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
-					(1UL << 30) : (1UL << 41))
+					(_REGION3_SIZE >> 1) : (_REGION2_SIZE >> 1))
 #define TASK_SIZE		TASK_SIZE_OF(current)
 #define TASK_SIZE_MAX		(-PAGE_SIZE)
 
 #define STACK_TOP		(test_thread_flag(TIF_31BIT) ? \
-					(1UL << 31) : (1UL << 42))
-#define STACK_TOP_MAX		(1UL << 42)
+					_REGION3_SIZE : _REGION2_SIZE)
+#define STACK_TOP_MAX		_REGION2_SIZE
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
