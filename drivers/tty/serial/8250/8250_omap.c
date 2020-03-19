@@ -699,14 +699,12 @@ static void omap_8250_shutdown(struct uart_port *port)
 static void omap_8250_throttle(struct uart_port *port)
 {
 	struct omap8250_priv *priv = port->private_data;
-	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
 
 	pm_runtime_get_sync(port->dev);
 
 	spin_lock_irqsave(&port->lock, flags);
-	up->ier &= ~(UART_IER_RLSI | UART_IER_RDI);
-	serial_out(up, UART_IER, up->ier);
+	port->ops->stop_rx(port);
 	priv->throttled = true;
 	spin_unlock_irqrestore(&port->lock, flags);
 
@@ -727,6 +725,7 @@ static void omap_8250_unthrottle(struct uart_port *port)
 	if (up->dma)
 		up->dma->rx_dma(up);
 	up->ier |= UART_IER_RLSI | UART_IER_RDI;
+	port->read_status_mask |= UART_LSR_DR;
 	serial_out(up, UART_IER, up->ier);
 	spin_unlock_irqrestore(&port->lock, flags);
 
