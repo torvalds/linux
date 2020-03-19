@@ -30,8 +30,8 @@ struct req_get_temp {
 } __packed __aligned(4);
 
 struct resp_get_temp {
-	u16 celsius;
-	u8 tenths;
+	s16 celsius;
+	s8 tenths;
 } __packed __aligned(4);
 
 struct imx_sc_msg_misc_get_temp {
