@@ -95,6 +95,7 @@ static struct tegra_function tegra194_functions[] = {
 		.tri_bit = 4,					\
 		.einput_bit = e_input,				\
 		.odrain_bit = e_od,				\
+		.sfsel_bit = 10,				\
 		.schmitt_bit = schmitt_b,			\
 		.drvtype_bit = 13,				\
 		.drv_reg = -1,					\
@@ -140,6 +141,7 @@ static const struct tegra_pinctrl_soc_data tegra194_pinctrl = {
 	.hsm_in_mux = true,
 	.schmitt_in_mux = true,
 	.drvtype_in_mux = true,
+	.sfsel_in_mux = true,
 };
 
 static int tegra194_pinctrl_probe(struct platform_device *pdev)

@@ -275,11 +275,57 @@ static int tegra_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static int tegra_pinctrl_gpio_request_enable(struct pinctrl_dev *pctldev,
+					     struct pinctrl_gpio_range *range,
+					     unsigned int offset)
+{
+	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
+	const struct tegra_pingroup *group;
+	u32 value;
+
+	if (!pmx->soc->sfsel_in_mux)
+		return 0;
+
+	group = &pmx->soc->groups[offset];
+
+	if (group->mux_reg < 0 || group->sfsel_bit < 0)
+		return -EINVAL;
+
+	value = pmx_readl(pmx, group->mux_bank, group->mux_reg);
+	value &= ~BIT(group->sfsel_bit);
+	pmx_writel(pmx, value, group->mux_bank, group->mux_reg);
+
+	return 0;
+}
+
+static void tegra_pinctrl_gpio_disable_free(struct pinctrl_dev *pctldev,
+					    struct pinctrl_gpio_range *range,
+					    unsigned int offset)
+{
+	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
+	const struct tegra_pingroup *group;
+	u32 value;
+
+	if (!pmx->soc->sfsel_in_mux)
+		return;
+
+	group = &pmx->soc->groups[offset];
+
+	if (group->mux_reg < 0 || group->sfsel_bit < 0)
+		return;
+
+	value = pmx_readl(pmx, group->mux_bank, group->mux_reg);
+	value |= BIT(group->sfsel_bit);
+	pmx_writel(pmx, value, group->mux_bank, group->mux_reg);
+}
+
 static const struct pinmux_ops tegra_pinmux_ops = {
 	.get_functions_count = tegra_pinctrl_get_funcs_count,
 	.get_function_name = tegra_pinctrl_get_func_name,
 	.get_function_groups = tegra_pinctrl_get_func_groups,
 	.set_mux = tegra_pinctrl_set_mux,
+	.gpio_request_enable = tegra_pinctrl_gpio_request_enable,
+	.gpio_disable_free = tegra_pinctrl_gpio_disable_free,
 };
 
 static int tegra_pinconf_reg(struct tegra_pmx *pmx,
