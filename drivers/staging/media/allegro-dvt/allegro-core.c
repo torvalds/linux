@@ -2276,6 +2276,8 @@ static int allegro_open(struct file *file)
 	if (!channel)
 		return -ENOMEM;
 
+	v4l2_fh_init(&channel->fh, vdev);
+
 	init_completion(&channel->completion);
 
 	channel->dev = dev;
@@ -2348,7 +2350,6 @@ static int allegro_open(struct file *file)
 		goto error;
 	}
 
-	v4l2_fh_init(&channel->fh, vdev);
 	file->private_data = &channel->fh;
 	v4l2_fh_add(&channel->fh);
 
