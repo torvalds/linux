@@ -248,18 +248,10 @@ static void ff_layout_put_mirror(struct nfs4_ff_layout_mirror *mirror)
 
 static void ff_layout_free_mirror_array(struct nfs4_ff_layout_segment *fls)
 {
-	int i;
+	u32 i;
 
-	if (fls->mirror_array) {
-		for (i = 0; i < fls->mirror_array_cnt; i++) {
-			/* normally mirror_ds is freed in
-			 * .free_deviceid_node but we still do it here
-			 * for .alloc_lseg error path */
-			ff_layout_put_mirror(fls->mirror_array[i]);
-		}
-		kfree(fls->mirror_array);
-		fls->mirror_array = NULL;
-	}
+	for (i = 0; i < fls->mirror_array_cnt; i++)
+		ff_layout_put_mirror(fls->mirror_array[i]);
 }
 
 static int ff_layout_check_layout(struct nfs4_layoutget_res *lgr)
@@ -400,16 +392,13 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		goto out_err_free;
 
 	rc = -ENOMEM;
-	fls = kzalloc(sizeof(*fls), gfp_flags);
+	fls = kzalloc(struct_size(fls, mirror_array, mirror_array_cnt),
+			gfp_flags);
 	if (!fls)
 		goto out_err_free;
 
 	fls->mirror_array_cnt = mirror_array_cnt;
 	fls->stripe_unit = stripe_unit;
-	fls->mirror_array = kcalloc(fls->mirror_array_cnt,
-				    sizeof(fls->mirror_array[0]), gfp_flags);
-	if (fls->mirror_array == NULL)
-		goto out_err_free;
 
 	for (i = 0; i < fls->mirror_array_cnt; i++) {
 		struct nfs4_ff_layout_mirror *mirror;
