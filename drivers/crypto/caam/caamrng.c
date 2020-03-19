@@ -22,9 +22,7 @@
 #include "jr.h"
 #include "error.h"
 
-#define CAAM_RNG_MAX_FIFO_STORE_SIZE	U16_MAX
-
-#define CAAM_RNG_FIFO_LEN		SZ_32K /* Must be a multiple of 2 */
+#define CAAM_RNG_MAX_FIFO_STORE_SIZE	16
 
 /*
  * Length of used descriptors, see caam_init_desc()
@@ -65,14 +63,15 @@ static void caam_rng_done(struct device *jrdev, u32 *desc, u32 err,
 	complete(jctx->done);
 }
 
-static u32 *caam_init_desc(u32 *desc, dma_addr_t dst_dma, int len)
+static u32 *caam_init_desc(u32 *desc, dma_addr_t dst_dma)
 {
 	init_job_desc(desc, 0);	/* + 1 cmd_sz */
 	/* Generate random bytes: + 1 cmd_sz */
 	append_operation(desc, OP_ALG_ALGSEL_RNG | OP_TYPE_CLASS1_ALG |
 			 OP_ALG_PR_ON);
 	/* Store bytes: + 1 cmd_sz + caam_ptr_sz  */
-	append_fifo_store(desc, dst_dma, len, FIFOST_TYPE_RNGSTORE);
+	append_fifo_store(desc, dst_dma,
+			  CAAM_RNG_MAX_FIFO_STORE_SIZE, FIFOST_TYPE_RNGSTORE);
 
 	print_hex_dump_debug("rng job desc@: ", DUMP_PREFIX_ADDRESS,
 			     16, 4, desc, desc_bytes(desc), 1);
@@ -92,7 +91,7 @@ static int caam_rng_read_one(struct device *jrdev,
 		.err  = &ret,
 	};
 
-	len = min_t(int, len, CAAM_RNG_MAX_FIFO_STORE_SIZE);
+	len = CAAM_RNG_MAX_FIFO_STORE_SIZE;
 
 	dst_dma = dma_map_single(jrdev, dst, len, DMA_FROM_DEVICE);
 	if (dma_mapping_error(jrdev, dst_dma)) {
@@ -102,7 +101,7 @@ static int caam_rng_read_one(struct device *jrdev,
 
 	init_completion(done);
 	err = caam_jr_enqueue(jrdev,
-			      caam_init_desc(desc, dst_dma, len),
+			      caam_init_desc(desc, dst_dma),
 			      caam_rng_done, &jctx);
 	if (err == -EINPROGRESS) {
 		wait_for_completion(done);
@@ -122,7 +121,7 @@ static void caam_rng_fill_async(struct caam_rng_ctx *ctx)
 
 	sg_init_table(sg, ARRAY_SIZE(sg));
 	nents = kfifo_dma_in_prepare(&ctx->fifo, sg, ARRAY_SIZE(sg),
-				     CAAM_RNG_FIFO_LEN);
+				     CAAM_RNG_MAX_FIFO_STORE_SIZE);
 	if (!nents)
 		return;
 
@@ -156,7 +155,7 @@ static int caam_read(struct hwrng *rng, void *dst, size_t max, bool wait)
 	}
 
 	out = kfifo_out(&ctx->fifo, dst, max);
-	if (kfifo_len(&ctx->fifo) <= CAAM_RNG_FIFO_LEN / 2)
+	if (kfifo_is_empty(&ctx->fifo))
 		schedule_work(&ctx->worker);
 
 	return out;
@@ -186,7 +185,8 @@ static int caam_init(struct hwrng *rng)
 	if (!ctx->desc_async)
 		return -ENOMEM;
 
-	if (kfifo_alloc(&ctx->fifo, CAAM_RNG_FIFO_LEN, GFP_DMA | GFP_KERNEL))
+	if (kfifo_alloc(&ctx->fifo, CAAM_RNG_MAX_FIFO_STORE_SIZE,
+			GFP_DMA | GFP_KERNEL))
 		return -ENOMEM;
 
 	INIT_WORK(&ctx->worker, caam_rng_worker);
@@ -246,6 +246,7 @@ int caam_rng_init(struct device *ctrldev)
 	ctx->rng.cleanup = caam_cleanup;
 	ctx->rng.read    = caam_read;
 	ctx->rng.priv    = (unsigned long)ctx;
+	ctx->rng.quality = 1024;
 
 	dev_info(ctrldev, "registering rng-caam\n");
 
