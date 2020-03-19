@@ -1976,7 +1976,7 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 		goto skip_write;
 
 	/* balancing f2fs's metadata in background */
-	f2fs_balance_fs_bg(sbi);
+	f2fs_balance_fs_bg(sbi, true);
 
 	/* collect a number of dirty node pages and write together */
 	if (wbc->sync_mode != WB_SYNC_ALL &&
