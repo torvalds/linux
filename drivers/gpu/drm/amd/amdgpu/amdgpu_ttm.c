@@ -305,21 +305,21 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 				 unsigned window, struct amdgpu_ring *ring,
 				 bool tmz, uint64_t *addr)
 {
-	struct ttm_dma_tt *dma = container_of(bo->ttm, struct ttm_dma_tt, ttm);
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_job *job;
 	unsigned num_dw, num_bytes;
-	dma_addr_t *dma_address;
 	struct dma_fence *fence;
 	uint64_t src_addr, dst_addr;
+	void *cpu_addr;
 	uint64_t flags;
+	unsigned int i;
 	int r;
 
 	BUG_ON(adev->mman.buffer_funcs->copy_max_bytes <
 	       AMDGPU_GTT_MAX_TRANSFER_SIZE * 8);
 
 	/* Map only what can't be accessed directly */
-	if (mem->start != AMDGPU_BO_INVALID_OFFSET) {
+	if (!tmz && mem->start != AMDGPU_BO_INVALID_OFFSET) {
 		*addr = amdgpu_mm_node_addr(bo, mm_node, mem) + offset;
 		return 0;
 	}
@@ -348,15 +348,37 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
 
-	dma_address = &dma->dma_address[offset >> PAGE_SHIFT];
 	flags = amdgpu_ttm_tt_pte_flags(adev, bo->ttm, mem);
 	if (tmz)
 		flags |= AMDGPU_PTE_TMZ;
 
-	r = amdgpu_gart_map(adev, 0, num_pages, dma_address, flags,
-			    &job->ibs[0].ptr[num_dw]);
-	if (r)
-		goto error_free;
+	cpu_addr = &job->ibs[0].ptr[num_dw];
+
+	if (mem->mem_type == TTM_PL_TT) {
+		struct ttm_dma_tt *dma;
+		dma_addr_t *dma_address;
+
+		dma = container_of(bo->ttm, struct ttm_dma_tt, ttm);
+		dma_address = &dma->dma_address[offset >> PAGE_SHIFT];
+		r = amdgpu_gart_map(adev, 0, num_pages, dma_address, flags,
+				    cpu_addr);
+		if (r)
+			goto error_free;
+	} else {
+		dma_addr_t dma_address;
+
+		dma_address = (mm_node->start << PAGE_SHIFT) + offset;
+		dma_address += adev->vm_manager.vram_base_offset;
+
+		for (i = 0; i < num_pages; ++i) {
+			r = amdgpu_gart_map(adev, i << PAGE_SHIFT, 1,
+					    &dma_address, flags, cpu_addr);
+			if (r)
+				goto error_free;
+
+			dma_address += PAGE_SIZE;
+		}
+	}
 
 	r = amdgpu_job_submit(job, &adev->mman.entity,
 			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
