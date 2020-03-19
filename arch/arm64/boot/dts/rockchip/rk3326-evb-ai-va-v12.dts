@@ -15,8 +15,8 @@
 #include "px30-android.dtsi"
 
 / {
-	model = "Rockchip rk3326 ai voice assistant evb board";
-	compatible = "rockchip,rk3326-evb-ai-va-v10", "rockchip,rk3326";
+	model = "Rockchip rk3326 ai voice assistant evb v12 board";
+	compatible = "rockchip,rk3326-evb-ai-va-v12", "rockchip,rk3326";
 
 	adc-keys {
 		compatible = "adc-keys";
@@ -168,7 +168,7 @@
 		 * - SDIO_RESET_L_WL_REG_ON
 		 * - PDN (power down when low)
 		 */
-		reset-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_LOW>; /* GPIO3_A4 */
+		reset-gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>; /* GPIO3_A4 */
 	};
 
 	test-power {
@@ -186,8 +186,8 @@
 
 	wireless-wlan {
 		compatible = "wlan-platdata";
-		wifi_chip_type = "AP6210";
-		WIFI,host_wake_irq = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+		wifi_chip_type = "AP6256";
+		WIFI,host_wake_irq = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -199,9 +199,9 @@
 		pinctrl-names = "default","rts_gpio";
 		pinctrl-0 = <&uart1_rts>;
 		pinctrl-1 = <&uart1_rts_gpio>;
-		BT,reset_gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
+		BT,reset_gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio0 RK_PA7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
@@ -360,7 +360,7 @@
 		compatible = "rockchip,rk809";
 		reg = <0x20>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default", "pmic-sleep",
 				"pmic-power-off", "pmic-reset";
 		pinctrl-0 = <&pmic_int>;
@@ -594,7 +594,6 @@
 				};
 			};
 
-
 			vcc5v0_host: SWITCH_REG1 {
 				regulator-name = "vcc5v0_host";
 			};
@@ -615,7 +614,7 @@
 			pdmdata-out-enable;
 			use-ext-amplifier;
 			adc-for-loopback;
-			spk-ctl-gpios = <&gpio3 RK_PB2 GPIO_ACTIVE_HIGH>;
+			spk-ctl-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 			hp-volume = <20>;
 			spk-volume = <20>;
 		};
@@ -632,7 +631,7 @@
 	      compatible = "goodix,gt1x";
 	      reg = <0x14>;
 	      goodix,rst-gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-	      goodix,irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+	      goodix,irq-gpio = <&gpio0 RK_PB3 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	is31fl3236: led-controller@3c {
@@ -1074,6 +1073,9 @@
 };
 
 &pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&tp_int>;
+
 	headphone {
 		hp_det: hp-det {
 			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -1083,7 +1085,7 @@
 	pmic {
 		pmic_int: pmic_int {
 			rockchip,pins =
-				<0 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
+				<0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		soc_slppin_gpio: soc_slppin_gpio {
@@ -1104,7 +1106,13 @@
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	touchscreen-int {
+		tp_int: tp-int {
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
@@ -1178,6 +1186,7 @@
 	};
 
 	u2phy_otg: otg-port {
+		vbus-supply = <&vcc5v0_host>;
 		status = "okay";
 	};
 };

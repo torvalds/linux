@@ -107,7 +107,7 @@
 	rk809-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,rk809-codec";
-		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,mclk-fs = <512>;
 		simple-audio-card,widgets =
 			"Microphone", "Mic Jack",
 			"Headphone", "Headphone Jack";
@@ -139,7 +139,7 @@
 	bt-sound {
 		compatible = "simple-audio-card";
 		status = "disabled";
-		simple-audio-card,format = "dsp_b";
+		simple-audio-card,format = "dsp_a";
 		simple-audio-card,bitclock-inversion = <1>;
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "rockchip,bt";
@@ -179,6 +179,10 @@
 		 * - PDN (power down when low)
 		 */
 		reset-gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>; /* GPIO3_A4 */
+	};
+
+	test-power {
+		status = "okay";
 	};
 
 	vcc5v0_sys: vccsys {
@@ -1005,12 +1009,38 @@
 
 &i2c2 {
 	status = "okay";
+
+	clock-frequency = <100000>;
+
+	/* These are relatively safe rise/fall times; TODO: measure */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	ov5695: ov5695@36 {
+		compatible = "ovti,ov5695";
+		reg = <0x36>;
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+		/*reset-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;*/
+		pwdn-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&cif_clkout_m0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+		port {
+			ov5695_out: endpoint {
+				remote-endpoint = <&mipi_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
 };
 
 &i2s0_8ch {
 	status = "okay";
 	#sound-dai-cells = <0>;
-	rockchip,clk-trcm = <2>;
 	rockchip,no-dmaengine;
 };
 
@@ -1108,10 +1138,6 @@
 };
 
 &pwm1 {
-	status = "okay";
-};
-
-&rk_isp {
 	status = "okay";
 };
 
@@ -1228,23 +1254,50 @@
 	status = "okay";
 };
 
-&firmware_android {
-	compatible = "android,firmware";
-	fstab {
-		compatible = "android,fstab";
-		system {
-			compatible = "android,system";
-			dev = "/dev/block/by-name/system";
-			type = "ext4";
-			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-			fsmgr_flags = "wait";
+&mipi_dphy_rx0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov5695_out>;
+				data-lanes = <1 2>;
+			};
 		};
-		vendor {
-			compatible = "android,vendor";
-			dev = "/dev/block/by-name/vendor";
-			type = "ext4";
-			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-			fsmgr_flags = "wait";
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp_mipi_in>;
+			};
 		};
+	};
+};
+
+&rkisp1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&cif_clkout_m0 &dvp_d0d1_m0 &dvp_d2d9_m0>;
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx_out>;
+		};
+
 	};
 };
