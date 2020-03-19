@@ -1273,6 +1273,24 @@ mlxsw_afa_qos_switch_prio_pack(char *payload,
 	mlxsw_afa_qos_switch_prio_set(payload, prio);
 }
 
+int mlxsw_afa_block_append_qos_switch_prio(struct mlxsw_afa_block *block,
+					   u8 prio,
+					   struct netlink_ext_ack *extack)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_QOS_CODE,
+						  MLXSW_AFA_QOS_SIZE);
+
+	if (IS_ERR(act)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append QOS action");
+		return PTR_ERR(act);
+	}
+	mlxsw_afa_qos_switch_prio_pack(act, MLXSW_AFA_QOS_CMD_SET,
+				       prio);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_qos_switch_prio);
+
 /* Forwarding Action
  * -----------------
  * Forwarding Action can be used to implement Policy Based Switching (PBS)
