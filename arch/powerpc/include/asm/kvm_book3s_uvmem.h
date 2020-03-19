@@ -5,6 +5,7 @@
 #ifdef CONFIG_PPC_UV
 int kvmppc_uvmem_init(void);
 void kvmppc_uvmem_free(void);
+bool kvmppc_uvmem_available(void);
 int kvmppc_uvmem_slot_init(struct kvm *kvm, const struct kvm_memory_slot *slot);
 void kvmppc_uvmem_slot_free(struct kvm *kvm,
 			    const struct kvm_memory_slot *slot);
@@ -29,6 +30,11 @@ static inline int kvmppc_uvmem_init(void)
 }
 
 static inline void kvmppc_uvmem_free(void) { }
+
+static inline bool kvmppc_uvmem_available(void)
+{
+	return false;
+}
 
 static inline int
 kvmppc_uvmem_slot_init(struct kvm *kvm, const struct kvm_memory_slot *slot)

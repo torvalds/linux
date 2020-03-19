@@ -113,6 +113,15 @@ struct kvmppc_uvmem_page_pvt {
 	bool skip_page_out;
 };
 
+bool kvmppc_uvmem_available(void)
+{
+	/*
+	 * If kvmppc_uvmem_bitmap != NULL, then there is an ultravisor
+	 * and our data structures have been initialized successfully.
+	 */
+	return !!kvmppc_uvmem_bitmap;
+}
+
 int kvmppc_uvmem_slot_init(struct kvm *kvm, const struct kvm_memory_slot *slot)
 {
 	struct kvmppc_uvmem_slot *p;
@@ -217,6 +226,10 @@ unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
 	/* Only radix guests can be secure guests */
 	if (!kvm_is_radix(kvm))
 		return H_UNSUPPORTED;
+
+	/* NAK the transition to secure if not enabled */
+	if (!kvm->arch.svm_enabled)
+		return H_AUTHORITY;
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
 	slots = kvm_memslots(kvm);

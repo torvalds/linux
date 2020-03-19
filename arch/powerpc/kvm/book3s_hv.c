@@ -5429,6 +5429,21 @@ static void unpin_vpa_reset(struct kvm *kvm, struct kvmppc_vpa *vpa)
 }
 
 /*
+ * Enable a guest to become a secure VM, or test whether
+ * that could be enabled.
+ * Called when the KVM_CAP_PPC_SECURE_GUEST capability is
+ * tested (kvm == NULL) or enabled (kvm != NULL).
+ */
+static int kvmhv_enable_svm(struct kvm *kvm)
+{
+	if (!kvmppc_uvmem_available())
+		return -EINVAL;
+	if (kvm)
+		kvm->arch.svm_enabled = 1;
+	return 0;
+}
+
+/*
  *  IOCTL handler to turn off secure mode of guest
  *
  * - Release all device pages
@@ -5548,6 +5563,7 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.enable_nested = kvmhv_enable_nested,
 	.load_from_eaddr = kvmhv_load_from_eaddr,
 	.store_to_eaddr = kvmhv_store_to_eaddr,
+	.enable_svm = kvmhv_enable_svm,
 	.svm_off = kvmhv_svm_off,
 };
 
