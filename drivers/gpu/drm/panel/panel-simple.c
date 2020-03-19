@@ -2800,6 +2800,7 @@ static const struct of_device_id platform_of_match[] = {
 	{
 		.compatible = "simple-panel",
 		.data = NULL,
+#ifndef CONFIG_DRM_PANEL_SIMPLE_OF_ONLY
 	}, {
 		.compatible = "ampire,am-480272h3tmqw-t01h",
 		.data = &ampire_am_480272h3tmqw_t01h,
@@ -3052,6 +3053,7 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "winstar,wf35ltiacd",
 		.data = &winstar_wf35ltiacd,
+#endif /* !CONFIG_DRM_PANEL_SIMPLE_OF_ONLY */
 	}, {
 		/* sentinel */
 	}
@@ -3328,6 +3330,7 @@ static const struct of_device_id dsi_of_match[] = {
 	{
 		.compatible = "simple-panel-dsi",
 		.data = NULL,
+#ifndef CONFIG_DRM_PANEL_SIMPLE_OF_ONLY
 	}, {
 		.compatible = "auo,b080uan01",
 		.data = &auo_b080uan01
@@ -3343,6 +3346,7 @@ static const struct of_device_id dsi_of_match[] = {
 	}, {
 		.compatible = "panasonic,vvx10f004b00",
 		.data = &panasonic_vvx10f004b00
+#endif /* !CONFIG_DRM_PANEL_SIMPLE_OF_ONLY */
 	}, {
 		/* sentinel */
 	}

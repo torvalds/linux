@@ -38,6 +38,12 @@ config DRM_PANEL_SIMPLE
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
 
+config DRM_PANEL_SIMPLE_OF_ONLY
+	bool "compatible is simple-panel or simple-panel-dsi only"
+	depends on DRM_PANEL_SIMPLE
+	help
+	  Only support panels which all parameters from device tree.
+
 config DRM_PANEL_ILITEK_IL9322
 	tristate "Ilitek ILI9322 320x240 QVGA panels"
 	depends on OF && SPI
