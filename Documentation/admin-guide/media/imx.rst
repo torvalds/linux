@@ -102,6 +102,35 @@ Some of the features of this driver include:
   problems with the ADV718x video decoders.
 
 
+Topology
+--------
+
+The following shows the media topologies for the i.MX6Q SabreSD and
+i.MX6Q SabreAuto. Refer to these diagrams in the entity descriptions
+in the next section.
+
+The i.MX5/6 topologies can differ upstream from the IPUv3 CSI video
+multiplexers, but the internal IPUv3 topology downstream from there
+is common to all i.MX5/6 platforms. For example, the SabreSD, with the
+MIPI CSI-2 OV5640 sensor, requires the i.MX6 MIPI CSI-2 receiver. But
+the SabreAuto has only the ADV7180 decoder on a parallel bt.656 bus, and
+therefore does not require the MIPI CSI-2 receiver, so it is missing in
+its graph.
+
+.. _imx6q_topology_graph:
+
+.. kernel-figure:: imx6q-sabresd.dot
+    :alt:   Diagram of the i.MX6Q SabreSD media pipeline topology
+    :align: center
+
+    Media pipeline graph on i.MX6Q SabreSD
+
+.. kernel-figure:: imx6q-sabreauto.dot
+    :alt:   Diagram of the i.MX6Q SabreAuto media pipeline topology
+    :align: center
+
+    Media pipeline graph on i.MX6Q SabreAuto
+
 Entities
 --------
 
@@ -377,8 +406,8 @@ The following are specific usage notes for the Sabre* reference
 boards:
 
 
-SabreLite with OV5642 and OV5640
---------------------------------
+i.MX6Q SabreLite with OV5642 and OV5640
+---------------------------------------
 
 This platform requires the OmniVision OV5642 module with a parallel
 camera interface, and the OV5640 module with a MIPI CSI-2
@@ -547,12 +576,12 @@ used to select any supported YUV pixelformat on /dev/video2.
 This platform accepts Composite Video analog inputs to the ADV7180 on
 Ain1 (connector J42).
 
-SabreSD with MIPI CSI-2 OV5640
-------------------------------
+i.MX6Q SabreSD with MIPI CSI-2 OV5640
+-------------------------------------
 
-Similarly to SabreLite, the SabreSD supports a parallel interface
-OV5642 module on IPU1 CSI0, and a MIPI CSI-2 OV5640 module. The OV5642
-connects to i2c bus 1 and the OV5640 to i2c bus 2.
+Similarly to i.MX6Q SabreLite, the i.MX6Q SabreSD supports a parallel
+interface OV5642 module on IPU1 CSI0, and a MIPI CSI-2 OV5640
+module. The OV5642 connects to i2c bus 1 and the OV5640 to i2c bus 2.
 
 The device tree for SabreSD includes OF graphs for both the parallel
 OV5642 and the MIPI CSI-2 OV5640, but as of this writing only the MIPI
