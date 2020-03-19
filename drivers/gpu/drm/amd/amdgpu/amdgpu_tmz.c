@@ -18,22 +18,32 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
  */
 
-#ifndef __AMDGPU_TMZ_H__
-#define __AMDGPU_TMZ_H__
-
+#include <drm/drmP.h>
 #include "amdgpu.h"
+#include "amdgpu_tmz.h"
 
-/*
- * Trust memory zone stuff
+
+/**
+ * amdgpu_is_tmz - validate trust memory zone
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Return true if @dev supports trusted memory zones (TMZ), and return false if
+ * @dev does not support TMZ.
  */
-struct amdgpu_tmz {
-	bool	enabled;
-};
+bool amdgpu_is_tmz(struct amdgpu_device *adev)
+{
+	if (!amdgpu_tmz)
+		return false;
 
+	if (adev->asic_type < CHIP_RAVEN || adev->asic_type == CHIP_ARCTURUS) {
+		dev_warn(adev->dev, "doesn't support trusted memory zones (TMZ)\n");
+		return false;
+	}
 
-extern bool amdgpu_is_tmz(struct amdgpu_device *adev);
+	dev_info(adev->dev, "TMZ feature is enabled\n");
 
-#endif
+	return true;
+}
