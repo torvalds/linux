@@ -806,6 +806,9 @@ out:
 
 void kvmppc_uvmem_free(void)
 {
+	if (!kvmppc_uvmem_bitmap)
+		return;
+
 	memunmap_pages(&kvmppc_uvmem_pgmap);
 	release_mem_region(kvmppc_uvmem_pgmap.res.start,
 			   resource_size(&kvmppc_uvmem_pgmap.res));
