@@ -207,7 +207,6 @@ static inline void
 i915_gem_engines_iter_init(struct i915_gem_engines_iter *it,
 			   struct i915_gem_engines *engines)
 {
-	GEM_BUG_ON(!engines);
 	it->engines = engines;
 	it->idx = 0;
 }

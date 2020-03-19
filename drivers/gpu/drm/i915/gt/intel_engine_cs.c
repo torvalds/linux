@@ -275,6 +275,7 @@ static void intel_engine_sanitize_mmio(struct intel_engine_cs *engine)
 static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 {
 	const struct engine_info *info = &intel_engines[id];
+	struct drm_i915_private *i915 = gt->i915;
 	struct intel_engine_cs *engine;
 
 	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
@@ -301,11 +302,11 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->id = id;
 	engine->legacy_idx = INVALID_ENGINE;
 	engine->mask = BIT(id);
-	engine->i915 = gt->i915;
+	engine->i915 = i915;
 	engine->gt = gt;
 	engine->uncore = gt->uncore;
 	engine->hw_id = engine->guc_id = info->hw_id;
-	engine->mmio_base = __engine_mmio_base(gt->i915, info->mmio_bases);
+	engine->mmio_base = __engine_mmio_base(i915, info->mmio_bases);
 
 	engine->class = info->class;
 	engine->instance = info->instance;
@@ -313,6 +314,8 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 
 	engine->props.heartbeat_interval_ms =
 		CONFIG_DRM_I915_HEARTBEAT_INTERVAL;
+	engine->props.max_busywait_duration_ns =
+		CONFIG_DRM_I915_MAX_REQUEST_BUSYWAIT;
 	engine->props.preempt_timeout_ms =
 		CONFIG_DRM_I915_PREEMPT_TIMEOUT;
 	engine->props.stop_timeout_ms =
@@ -320,11 +323,15 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->props.timeslice_duration_ms =
 		CONFIG_DRM_I915_TIMESLICE_DURATION;
 
+	/* Override to uninterruptible for OpenCL workloads. */
+	if (INTEL_GEN(i915) == 12 && engine->class == RENDER_CLASS)
+		engine->props.preempt_timeout_ms = 0;
+
 	engine->context_size = intel_engine_context_size(gt, engine->class);
 	if (WARN_ON(engine->context_size > BIT(20)))
 		engine->context_size = 0;
 	if (engine->context_size)
-		DRIVER_CAPS(gt->i915)->has_logical_contexts = true;
+		DRIVER_CAPS(i915)->has_logical_contexts = true;
 
 	/* Nothing to do here, execute in order of dependencies */
 	engine->schedule = NULL;
@@ -340,7 +347,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	gt->engine_class[info->class][info->instance] = engine;
 	gt->engine[id] = engine;
 
-	gt->i915->engine[id] = engine;
+	i915->engine[id] = engine;
 
 	return 0;
 }
@@ -1379,24 +1386,24 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			char hdr[160];
 			int len;
 
-			len = snprintf(hdr, sizeof(hdr),
-				       "\t\tActive[%d]: ",
-				       (int)(port - execlists->active));
+			len = scnprintf(hdr, sizeof(hdr),
+					"\t\tActive[%d]: ",
+					(int)(port - execlists->active));
 			if (!i915_request_signaled(rq)) {
 				struct intel_timeline *tl = get_timeline(rq);
 
-				len += snprintf(hdr + len, sizeof(hdr) - len,
-						"ring:{start:%08x, hwsp:%08x, seqno:%08x, runtime:%llums}, ",
-						i915_ggtt_offset(rq->ring->vma),
-						tl ? tl->hwsp_offset : 0,
-						hwsp_seqno(rq),
-						DIV_ROUND_CLOSEST_ULL(intel_context_get_total_runtime_ns(rq->context),
-								      1000 * 1000));
+				len += scnprintf(hdr + len, sizeof(hdr) - len,
+						 "ring:{start:%08x, hwsp:%08x, seqno:%08x, runtime:%llums}, ",
+						 i915_ggtt_offset(rq->ring->vma),
+						 tl ? tl->hwsp_offset : 0,
+						 hwsp_seqno(rq),
+						 DIV_ROUND_CLOSEST_ULL(intel_context_get_total_runtime_ns(rq->context),
+								       1000 * 1000));
 
 				if (tl)
 					intel_timeline_put(tl);
 			}
-			snprintf(hdr + len, sizeof(hdr) - len, "rq: ");
+			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
 		}
 		for (port = execlists->pending; (rq = *port); port++) {

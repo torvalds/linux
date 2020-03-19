@@ -456,9 +456,7 @@ static void guc_reset_cancel(struct intel_engine_cs *engine)
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->active.requests, sched.link) {
-		if (!i915_request_signaled(rq))
-			dma_fence_set_error(&rq->fence, -EIO);
-
+		i915_request_set_error_once(rq, -EIO);
 		i915_request_mark_complete(rq);
 	}
 

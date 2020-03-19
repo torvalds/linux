@@ -50,7 +50,7 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	void *port = connector->port;
-	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
+	bool constant_n = drm_dp_has_quirk(&intel_dp->desc, 0,
 					   DP_DPCD_QUIRK_CONSTANT_N);
 	int bpp, slots = -EINVAL;
 
@@ -548,12 +548,41 @@ static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
 	return ret;
 }
 
+static int
+intel_dp_mst_connector_late_register(struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	int ret;
+
+	ret = drm_dp_mst_connector_late_register(connector,
+						 intel_connector->port);
+	if (ret < 0)
+		return ret;
+
+	ret = intel_connector_register(connector);
+	if (ret < 0)
+		drm_dp_mst_connector_early_unregister(connector,
+						      intel_connector->port);
+
+	return ret;
+}
+
+static void
+intel_dp_mst_connector_early_unregister(struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+
+	intel_connector_unregister(connector);
+	drm_dp_mst_connector_early_unregister(connector,
+					      intel_connector->port);
+}
+
 static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
-	.late_register = intel_connector_register,
-	.early_unregister = intel_connector_unregister,
+	.late_register = intel_dp_mst_connector_late_register,
+	.early_unregister = intel_dp_mst_connector_early_unregister,
 	.destroy = intel_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,

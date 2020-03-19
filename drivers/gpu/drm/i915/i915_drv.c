@@ -44,7 +44,6 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_irq.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/i915_drm.h>
 
 #include "display/intel_acpi.h"
 #include "display/intel_audio.h"
@@ -71,6 +70,7 @@
 
 #include "i915_debugfs.h"
 #include "i915_drv.h"
+#include "i915_ioc32.h"
 #include "i915_irq.h"
 #include "i915_memcpy.h"
 #include "i915_perf.h"
@@ -80,6 +80,8 @@
 #include "i915_sysfs.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "intel_dram.h"
+#include "intel_gvt.h"
 #include "intel_memory_region.h"
 #include "intel_pm.h"
 #include "vlv_suspend.h"
@@ -238,8 +240,14 @@ static int i915_driver_modeset_probe_noirq(struct drm_i915_private *i915)
 
 	intel_csr_ucode_init(i915);
 
+	ret = intel_modeset_init_noirq(i915);
+	if (ret)
+		goto cleanup_vga_client;
+
 	return 0;
 
+cleanup_vga_client:
+	intel_vga_unregister(i915);
 out:
 	return ret;
 }
@@ -381,6 +389,7 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 	pre |= IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0);
 	pre |= IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST);
 	pre |= IS_KBL_REVID(dev_priv, 0, KBL_REVID_A0);
+	pre |= IS_GLK_REVID(dev_priv, 0, GLK_REVID_A2);
 
 	if (pre) {
 		drm_err(&dev_priv->drm, "This is a pre-production stepping. "
@@ -459,7 +468,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
 	intel_init_audio_hooks(dev_priv);
-	intel_display_crc_init(dev_priv);
 
 	intel_detect_preproduction_hw(dev_priv);
 
@@ -558,494 +566,6 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	intel_gvt_sanitize_options(dev_priv);
 }
 
-#define DRAM_TYPE_STR(type) [INTEL_DRAM_ ## type] = #type
-
-static const char *intel_dram_type_str(enum intel_dram_type type)
-{
-	static const char * const str[] = {
-		DRAM_TYPE_STR(UNKNOWN),
-		DRAM_TYPE_STR(DDR3),
-		DRAM_TYPE_STR(DDR4),
-		DRAM_TYPE_STR(LPDDR3),
-		DRAM_TYPE_STR(LPDDR4),
-	};
-
-	if (type >= ARRAY_SIZE(str))
-		type = INTEL_DRAM_UNKNOWN;
-
-	return str[type];
-}
-
-#undef DRAM_TYPE_STR
-
-static int intel_dimm_num_devices(const struct dram_dimm_info *dimm)
-{
-	return dimm->ranks * 64 / (dimm->width ?: 1);
-}
-
-/* Returns total GB for the whole DIMM */
-static int skl_get_dimm_size(u16 val)
-{
-	return val & SKL_DRAM_SIZE_MASK;
-}
-
-static int skl_get_dimm_width(u16 val)
-{
-	if (skl_get_dimm_size(val) == 0)
-		return 0;
-
-	switch (val & SKL_DRAM_WIDTH_MASK) {
-	case SKL_DRAM_WIDTH_X8:
-	case SKL_DRAM_WIDTH_X16:
-	case SKL_DRAM_WIDTH_X32:
-		val = (val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
-		return 8 << val;
-	default:
-		MISSING_CASE(val);
-		return 0;
-	}
-}
-
-static int skl_get_dimm_ranks(u16 val)
-{
-	if (skl_get_dimm_size(val) == 0)
-		return 0;
-
-	val = (val & SKL_DRAM_RANK_MASK) >> SKL_DRAM_RANK_SHIFT;
-
-	return val + 1;
-}
-
-/* Returns total GB for the whole DIMM */
-static int cnl_get_dimm_size(u16 val)
-{
-	return (val & CNL_DRAM_SIZE_MASK) / 2;
-}
-
-static int cnl_get_dimm_width(u16 val)
-{
-	if (cnl_get_dimm_size(val) == 0)
-		return 0;
-
-	switch (val & CNL_DRAM_WIDTH_MASK) {
-	case CNL_DRAM_WIDTH_X8:
-	case CNL_DRAM_WIDTH_X16:
-	case CNL_DRAM_WIDTH_X32:
-		val = (val & CNL_DRAM_WIDTH_MASK) >> CNL_DRAM_WIDTH_SHIFT;
-		return 8 << val;
-	default:
-		MISSING_CASE(val);
-		return 0;
-	}
-}
-
-static int cnl_get_dimm_ranks(u16 val)
-{
-	if (cnl_get_dimm_size(val) == 0)
-		return 0;
-
-	val = (val & CNL_DRAM_RANK_MASK) >> CNL_DRAM_RANK_SHIFT;
-
-	return val + 1;
-}
-
-static bool
-skl_is_16gb_dimm(const struct dram_dimm_info *dimm)
-{
-	/* Convert total GB to Gb per DRAM device */
-	return 8 * dimm->size / (intel_dimm_num_devices(dimm) ?: 1) == 16;
-}
-
-static void
-skl_dram_get_dimm_info(struct drm_i915_private *dev_priv,
-		       struct dram_dimm_info *dimm,
-		       int channel, char dimm_name, u16 val)
-{
-	if (INTEL_GEN(dev_priv) >= 10) {
-		dimm->size = cnl_get_dimm_size(val);
-		dimm->width = cnl_get_dimm_width(val);
-		dimm->ranks = cnl_get_dimm_ranks(val);
-	} else {
-		dimm->size = skl_get_dimm_size(val);
-		dimm->width = skl_get_dimm_width(val);
-		dimm->ranks = skl_get_dimm_ranks(val);
-	}
-
-	drm_dbg_kms(&dev_priv->drm,
-		    "CH%u DIMM %c size: %u GB, width: X%u, ranks: %u, 16Gb DIMMs: %s\n",
-		    channel, dimm_name, dimm->size, dimm->width, dimm->ranks,
-		    yesno(skl_is_16gb_dimm(dimm)));
-}
-
-static int
-skl_dram_get_channel_info(struct drm_i915_private *dev_priv,
-			  struct dram_channel_info *ch,
-			  int channel, u32 val)
-{
-	skl_dram_get_dimm_info(dev_priv, &ch->dimm_l,
-			       channel, 'L', val & 0xffff);
-	skl_dram_get_dimm_info(dev_priv, &ch->dimm_s,
-			       channel, 'S', val >> 16);
-
-	if (ch->dimm_l.size == 0 && ch->dimm_s.size == 0) {
-		drm_dbg_kms(&dev_priv->drm, "CH%u not populated\n", channel);
-		return -EINVAL;
-	}
-
-	if (ch->dimm_l.ranks == 2 || ch->dimm_s.ranks == 2)
-		ch->ranks = 2;
-	else if (ch->dimm_l.ranks == 1 && ch->dimm_s.ranks == 1)
-		ch->ranks = 2;
-	else
-		ch->ranks = 1;
-
-	ch->is_16gb_dimm =
-		skl_is_16gb_dimm(&ch->dimm_l) ||
-		skl_is_16gb_dimm(&ch->dimm_s);
-
-	drm_dbg_kms(&dev_priv->drm, "CH%u ranks: %u, 16Gb DIMMs: %s\n",
-		    channel, ch->ranks, yesno(ch->is_16gb_dimm));
-
-	return 0;
-}
-
-static bool
-intel_is_dram_symmetric(const struct dram_channel_info *ch0,
-			const struct dram_channel_info *ch1)
-{
-	return !memcmp(ch0, ch1, sizeof(*ch0)) &&
-		(ch0->dimm_s.size == 0 ||
-		 !memcmp(&ch0->dimm_l, &ch0->dimm_s, sizeof(ch0->dimm_l)));
-}
-
-static int
-skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
-{
-	struct dram_info *dram_info = &dev_priv->dram_info;
-	struct dram_channel_info ch0 = {}, ch1 = {};
-	u32 val;
-	int ret;
-
-	val = I915_READ(SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(dev_priv, &ch0, 0, val);
-	if (ret == 0)
-		dram_info->num_channels++;
-
-	val = I915_READ(SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(dev_priv, &ch1, 1, val);
-	if (ret == 0)
-		dram_info->num_channels++;
-
-	if (dram_info->num_channels == 0) {
-		drm_info(&dev_priv->drm,
-			 "Number of memory channels is zero\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * If any of the channel is single rank channel, worst case output
-	 * will be same as if single rank memory, so consider single rank
-	 * memory.
-	 */
-	if (ch0.ranks == 1 || ch1.ranks == 1)
-		dram_info->ranks = 1;
-	else
-		dram_info->ranks = max(ch0.ranks, ch1.ranks);
-
-	if (dram_info->ranks == 0) {
-		drm_info(&dev_priv->drm,
-			 "couldn't get memory rank information\n");
-		return -EINVAL;
-	}
-
-	dram_info->is_16gb_dimm = ch0.is_16gb_dimm || ch1.is_16gb_dimm;
-
-	dram_info->symmetric_memory = intel_is_dram_symmetric(&ch0, &ch1);
-
-	drm_dbg_kms(&dev_priv->drm, "Memory configuration is symmetric? %s\n",
-		    yesno(dram_info->symmetric_memory));
-	return 0;
-}
-
-static enum intel_dram_type
-skl_get_dram_type(struct drm_i915_private *dev_priv)
-{
-	u32 val;
-
-	val = I915_READ(SKL_MAD_INTER_CHANNEL_0_0_0_MCHBAR_MCMAIN);
-
-	switch (val & SKL_DRAM_DDR_TYPE_MASK) {
-	case SKL_DRAM_DDR_TYPE_DDR3:
-		return INTEL_DRAM_DDR3;
-	case SKL_DRAM_DDR_TYPE_DDR4:
-		return INTEL_DRAM_DDR4;
-	case SKL_DRAM_DDR_TYPE_LPDDR3:
-		return INTEL_DRAM_LPDDR3;
-	case SKL_DRAM_DDR_TYPE_LPDDR4:
-		return INTEL_DRAM_LPDDR4;
-	default:
-		MISSING_CASE(val);
-		return INTEL_DRAM_UNKNOWN;
-	}
-}
-
-static int
-skl_get_dram_info(struct drm_i915_private *dev_priv)
-{
-	struct dram_info *dram_info = &dev_priv->dram_info;
-	u32 mem_freq_khz, val;
-	int ret;
-
-	dram_info->type = skl_get_dram_type(dev_priv);
-	drm_dbg_kms(&dev_priv->drm, "DRAM type: %s\n",
-		    intel_dram_type_str(dram_info->type));
-
-	ret = skl_dram_get_channels_info(dev_priv);
-	if (ret)
-		return ret;
-
-	val = I915_READ(SKL_MC_BIOS_DATA_0_0_0_MCHBAR_PCU);
-	mem_freq_khz = DIV_ROUND_UP((val & SKL_REQ_DATA_MASK) *
-				    SKL_MEMORY_FREQ_MULTIPLIER_HZ, 1000);
-
-	dram_info->bandwidth_kbps = dram_info->num_channels *
-							mem_freq_khz * 8;
-
-	if (dram_info->bandwidth_kbps == 0) {
-		drm_info(&dev_priv->drm,
-			 "Couldn't get system memory bandwidth\n");
-		return -EINVAL;
-	}
-
-	dram_info->valid = true;
-	return 0;
-}
-
-/* Returns Gb per DRAM device */
-static int bxt_get_dimm_size(u32 val)
-{
-	switch (val & BXT_DRAM_SIZE_MASK) {
-	case BXT_DRAM_SIZE_4GBIT:
-		return 4;
-	case BXT_DRAM_SIZE_6GBIT:
-		return 6;
-	case BXT_DRAM_SIZE_8GBIT:
-		return 8;
-	case BXT_DRAM_SIZE_12GBIT:
-		return 12;
-	case BXT_DRAM_SIZE_16GBIT:
-		return 16;
-	default:
-		MISSING_CASE(val);
-		return 0;
-	}
-}
-
-static int bxt_get_dimm_width(u32 val)
-{
-	if (!bxt_get_dimm_size(val))
-		return 0;
-
-	val = (val & BXT_DRAM_WIDTH_MASK) >> BXT_DRAM_WIDTH_SHIFT;
-
-	return 8 << val;
-}
-
-static int bxt_get_dimm_ranks(u32 val)
-{
-	if (!bxt_get_dimm_size(val))
-		return 0;
-
-	switch (val & BXT_DRAM_RANK_MASK) {
-	case BXT_DRAM_RANK_SINGLE:
-		return 1;
-	case BXT_DRAM_RANK_DUAL:
-		return 2;
-	default:
-		MISSING_CASE(val);
-		return 0;
-	}
-}
-
-static enum intel_dram_type bxt_get_dimm_type(u32 val)
-{
-	if (!bxt_get_dimm_size(val))
-		return INTEL_DRAM_UNKNOWN;
-
-	switch (val & BXT_DRAM_TYPE_MASK) {
-	case BXT_DRAM_TYPE_DDR3:
-		return INTEL_DRAM_DDR3;
-	case BXT_DRAM_TYPE_LPDDR3:
-		return INTEL_DRAM_LPDDR3;
-	case BXT_DRAM_TYPE_DDR4:
-		return INTEL_DRAM_DDR4;
-	case BXT_DRAM_TYPE_LPDDR4:
-		return INTEL_DRAM_LPDDR4;
-	default:
-		MISSING_CASE(val);
-		return INTEL_DRAM_UNKNOWN;
-	}
-}
-
-static void bxt_get_dimm_info(struct dram_dimm_info *dimm,
-			      u32 val)
-{
-	dimm->width = bxt_get_dimm_width(val);
-	dimm->ranks = bxt_get_dimm_ranks(val);
-
-	/*
-	 * Size in register is Gb per DRAM device. Convert to total
-	 * GB to match the way we report this for non-LP platforms.
-	 */
-	dimm->size = bxt_get_dimm_size(val) * intel_dimm_num_devices(dimm) / 8;
-}
-
-static int
-bxt_get_dram_info(struct drm_i915_private *dev_priv)
-{
-	struct dram_info *dram_info = &dev_priv->dram_info;
-	u32 dram_channels;
-	u32 mem_freq_khz, val;
-	u8 num_active_channels;
-	int i;
-
-	val = I915_READ(BXT_P_CR_MC_BIOS_REQ_0_0_0);
-	mem_freq_khz = DIV_ROUND_UP((val & BXT_REQ_DATA_MASK) *
-				    BXT_MEMORY_FREQ_MULTIPLIER_HZ, 1000);
-
-	dram_channels = val & BXT_DRAM_CHANNEL_ACTIVE_MASK;
-	num_active_channels = hweight32(dram_channels);
-
-	/* Each active bit represents 4-byte channel */
-	dram_info->bandwidth_kbps = (mem_freq_khz * num_active_channels * 4);
-
-	if (dram_info->bandwidth_kbps == 0) {
-		drm_info(&dev_priv->drm,
-			 "Couldn't get system memory bandwidth\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * Now read each DUNIT8/9/10/11 to check the rank of each dimms.
-	 */
-	for (i = BXT_D_CR_DRP0_DUNIT_START; i <= BXT_D_CR_DRP0_DUNIT_END; i++) {
-		struct dram_dimm_info dimm;
-		enum intel_dram_type type;
-
-		val = I915_READ(BXT_D_CR_DRP0_DUNIT(i));
-		if (val == 0xFFFFFFFF)
-			continue;
-
-		dram_info->num_channels++;
-
-		bxt_get_dimm_info(&dimm, val);
-		type = bxt_get_dimm_type(val);
-
-		drm_WARN_ON(&dev_priv->drm, type != INTEL_DRAM_UNKNOWN &&
-			    dram_info->type != INTEL_DRAM_UNKNOWN &&
-			    dram_info->type != type);
-
-		drm_dbg_kms(&dev_priv->drm,
-			    "CH%u DIMM size: %u GB, width: X%u, ranks: %u, type: %s\n",
-			    i - BXT_D_CR_DRP0_DUNIT_START,
-			    dimm.size, dimm.width, dimm.ranks,
-			    intel_dram_type_str(type));
-
-		/*
-		 * If any of the channel is single rank channel,
-		 * worst case output will be same as if single rank
-		 * memory, so consider single rank memory.
-		 */
-		if (dram_info->ranks == 0)
-			dram_info->ranks = dimm.ranks;
-		else if (dimm.ranks == 1)
-			dram_info->ranks = 1;
-
-		if (type != INTEL_DRAM_UNKNOWN)
-			dram_info->type = type;
-	}
-
-	if (dram_info->type == INTEL_DRAM_UNKNOWN ||
-	    dram_info->ranks == 0) {
-		drm_info(&dev_priv->drm, "couldn't get memory information\n");
-		return -EINVAL;
-	}
-
-	dram_info->valid = true;
-	return 0;
-}
-
-static void
-intel_get_dram_info(struct drm_i915_private *dev_priv)
-{
-	struct dram_info *dram_info = &dev_priv->dram_info;
-	int ret;
-
-	/*
-	 * Assume 16Gb DIMMs are present until proven otherwise.
-	 * This is only used for the level 0 watermark latency
-	 * w/a which does not apply to bxt/glk.
-	 */
-	dram_info->is_16gb_dimm = !IS_GEN9_LP(dev_priv);
-
-	if (INTEL_GEN(dev_priv) < 9 || !HAS_DISPLAY(dev_priv))
-		return;
-
-	if (IS_GEN9_LP(dev_priv))
-		ret = bxt_get_dram_info(dev_priv);
-	else
-		ret = skl_get_dram_info(dev_priv);
-	if (ret)
-		return;
-
-	drm_dbg_kms(&dev_priv->drm, "DRAM bandwidth: %u kBps, channels: %u\n",
-		    dram_info->bandwidth_kbps,
-		    dram_info->num_channels);
-
-	drm_dbg_kms(&dev_priv->drm, "DRAM ranks: %u, 16Gb DIMMs: %s\n",
-		    dram_info->ranks, yesno(dram_info->is_16gb_dimm));
-}
-
-static u32 gen9_edram_size_mb(struct drm_i915_private *dev_priv, u32 cap)
-{
-	static const u8 ways[8] = { 4, 8, 12, 16, 16, 16, 16, 16 };
-	static const u8 sets[4] = { 1, 1, 2, 2 };
-
-	return EDRAM_NUM_BANKS(cap) *
-		ways[EDRAM_WAYS_IDX(cap)] *
-		sets[EDRAM_SETS_IDX(cap)];
-}
-
-static void edram_detect(struct drm_i915_private *dev_priv)
-{
-	u32 edram_cap = 0;
-
-	if (!(IS_HASWELL(dev_priv) ||
-	      IS_BROADWELL(dev_priv) ||
-	      INTEL_GEN(dev_priv) >= 9))
-		return;
-
-	edram_cap = __raw_uncore_read32(&dev_priv->uncore, HSW_EDRAM_CAP);
-
-	/* NB: We can't write IDICR yet because we don't have gt funcs set up */
-
-	if (!(edram_cap & EDRAM_ENABLED))
-		return;
-
-	/*
-	 * The needed capability bits for size calculation are not there with
-	 * pre gen9 so return 128MB always.
-	 */
-	if (INTEL_GEN(dev_priv) < 9)
-		dev_priv->edram_size_mb = 128;
-	else
-		dev_priv->edram_size_mb =
-			gen9_edram_size_mb(dev_priv, edram_cap);
-
-	dev_info(dev_priv->drm.dev,
-		 "Found %uMB of eDRAM\n", dev_priv->edram_size_mb);
-}
-
 /**
  * i915_driver_hw_probe - setup state requiring device access
  * @dev_priv: device private
@@ -1089,7 +609,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	intel_sanitize_options(dev_priv);
 
 	/* needs to be done before ggtt probe */
-	edram_detect(dev_priv);
+	intel_dram_edram_detect(dev_priv);
 
 	i915_perf_init(dev_priv);
 
@@ -1191,7 +711,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	 * Fill the dram structure to get the system raw bandwidth and
 	 * dram info. This will be used for memory latency calculation.
 	 */
-	intel_get_dram_info(dev_priv);
+	intel_dram_detect(dev_priv);
 
 	intel_bw_init_hw(dev_priv);
 
@@ -1240,12 +760,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	i915_gem_driver_register(dev_priv);
 	i915_pmu_register(dev_priv);
 
-	/*
-	 * Notify a valid surface after modesetting,
-	 * when running inside a VM.
-	 */
-	if (intel_vgpu_active(dev_priv))
-		I915_WRITE(vgtif_reg(display_ready), VGT_DRV_DISPLAY_READY);
+	intel_vgpu_register(dev_priv);
 
 	/* Reveal our presence to userspace */
 	if (drm_dev_register(dev, 0) == 0) {
@@ -1375,8 +890,6 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ERR_PTR(err);
 	}
 
-	i915->drm.dev_private = i915;
-
 	i915->drm.pdev = pdev;
 	pci_set_drvdata(pdev, i915);
 
@@ -1454,7 +967,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	disable_rpm_wakeref_asserts(&i915->runtime_pm);
 
-	i915_detect_vgpu(i915);
+	intel_vgpu_detect(i915);
 
 	ret = i915_driver_mmio_probe(i915);
 	if (ret < 0)
@@ -2245,7 +1758,7 @@ static const struct file_operations i915_driver_fops = {
 	.mmap = i915_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
-	.compat_ioctl = i915_compat_ioctl,
+	.compat_ioctl = i915_ioc32_compat_ioctl,
 	.llseek = noop_llseek,
 };
 

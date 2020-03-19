@@ -441,15 +441,11 @@ display_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *s)
 	return 0;
 }
 
-void intel_display_crc_init(struct drm_i915_private *dev_priv)
+void intel_crtc_crc_init(struct intel_crtc *crtc)
 {
-	enum pipe pipe;
+	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
 
-	for_each_pipe(dev_priv, pipe) {
-		struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
-
-		spin_lock_init(&pipe_crc->lock);
-	}
+	spin_lock_init(&pipe_crc->lock);
 }
 
 static int i8xx_crc_source_valid(struct drm_i915_private *dev_priv,
@@ -587,7 +583,8 @@ int intel_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_pipe_crc *pipe_crc = &intel_crtc->pipe_crc;
 	enum intel_display_power_domain power_domain;
 	enum intel_pipe_crc_source source;
 	intel_wakeref_t wakeref;
@@ -640,7 +637,7 @@ void intel_crtc_enable_pipe_crc(struct intel_crtc *intel_crtc)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
+	struct intel_pipe_crc *pipe_crc = &intel_crtc->pipe_crc;
 	u32 val = 0;
 
 	if (!crtc->crc.opened)
@@ -660,7 +657,7 @@ void intel_crtc_disable_pipe_crc(struct intel_crtc *intel_crtc)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
+	struct intel_pipe_crc *pipe_crc = &intel_crtc->pipe_crc;
 
 	/* Swallow crc's until we stop generating them. */
 	spin_lock_irq(&pipe_crc->lock);

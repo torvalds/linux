@@ -920,8 +920,13 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 	int i;
 
 	drm_modeset_lock_all(dev);
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
+
+	seq_printf(m, "PLL refclks: non-SSC: %d kHz, SSC: %d kHz\n",
+		   dev_priv->dpll.ref_clks.nssc,
+		   dev_priv->dpll.ref_clks.ssc);
+
+	for (i = 0; i < dev_priv->dpll.num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &dev_priv->dpll.shared_dplls[i];
 
 		seq_printf(m, "DPLL%i: %s, id: %i\n", i, pll->info->name,
 			   pll->info->id);

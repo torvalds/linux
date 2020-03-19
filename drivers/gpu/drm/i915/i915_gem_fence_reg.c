@@ -21,10 +21,9 @@
  * IN THE SOFTWARE.
  */
 
-#include <drm/i915_drm.h>
-
 #include "i915_drv.h"
 #include "i915_scatterlist.h"
+#include "i915_pvinfo.h"
 #include "i915_vgpu.h"
 
 /**

@@ -575,12 +575,29 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	/* allow headerless messages for preemptible GPGPU context */
 	WA_SET_BIT_MASKED(GEN10_SAMPLER_MODE,
 			  GEN11_SAMPLER_ENABLE_HEADLESS_MSG);
+
+	/* Wa_1604278689:icl,ehl */
+	wa_write(wal, IVB_FBC_RT_BASE, 0xFFFFFFFF & ~ILK_FBC_RT_VALID);
+	wa_write_masked_or(wal, IVB_FBC_RT_BASE_UPPER,
+			   0, /* write-only register; skip validation */
+			   0xFFFFFFFF);
+
+	/* Wa_1406306137:icl,ehl */
+	wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN11_DIS_PICK_2ND_EU);
 }
 
 static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
-	/* Wa_1409142259:tgl */
+	/*
+	 * Wa_1409142259:tgl
+	 * Wa_1409347922:tgl
+	 * Wa_1409252684:tgl
+	 * Wa_1409217633:tgl
+	 * Wa_1409207793:tgl
+	 * Wa_1409178076:tgl
+	 * Wa_1408979724:tgl
+	 */
 	WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
 			  GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
 
@@ -593,6 +610,11 @@ static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 */
 	wa_add(wal, FF_MODE2, FF_MODE2_TDS_TIMER_MASK,
 	       FF_MODE2_TDS_TIMER_128, 0);
+
+	/* WaDisableGPGPUMidThreadPreemption:tgl */
+	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
+			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
+			    GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL);
 }
 
 static void
@@ -898,11 +920,6 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 			    SLICE_UNIT_LEVEL_CLKGATE,
 			    MSCUNIT_CLKGATE_DIS);
 
-	/* Wa_1406680159:icl */
-	wa_write_or(wal,
-		    SUBSLICE_UNIT_LEVEL_CLKGATE,
-		    GWUNIT_CLKGATE_DIS);
-
 	/* Wa_1406838659:icl (pre-prod) */
 	if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_B0))
 		wa_write_or(wal,
@@ -931,7 +948,7 @@ tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 			    SUBSLICE_UNIT_LEVEL_CLKGATE2,
 			    CPSSUNIT_CLKGATE_DIS);
 
-	/* Wa_1409180338:tgl */
+	/* Wa_1607087056:tgl also know as BUG:1409180338 */
 	if (IS_TGL_REVID(i915, TGL_REVID_A0, TGL_REVID_A0))
 		wa_write_or(wal,
 			    SLICE_UNIT_LEVEL_CLKGATE,
@@ -1246,6 +1263,7 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 	case RENDER_CLASS:
 		/*
 		 * WaAllowPMDepthAndInvocationCountAccessFromUMD:tgl
+		 * Wa_1408556865:tgl
 		 *
 		 * This covers 4 registers which are next to one another :
 		 *   - PS_INVOCATION_COUNT
@@ -1259,6 +1277,9 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 
 		/* Wa_1808121037:tgl */
 		whitelist_reg(w, GEN7_COMMON_SLICE_CHICKEN1);
+
+		/* Wa_1806527549:tgl */
+		whitelist_reg(w, HIZ_CHICKEN);
 		break;
 	default:
 		break;
@@ -1325,19 +1346,21 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	struct drm_i915_private *i915 = engine->i915;
 
 	if (IS_TGL_REVID(i915, TGL_REVID_A0, TGL_REVID_A0)) {
-		/* Wa_1606700617:tgl */
-		wa_masked_en(wal,
-			     GEN9_CS_DEBUG_MODE1,
-			     FF_DOP_CLOCK_GATE_DISABLE);
-
-		/* Wa_1607138336:tgl */
+		/*
+		 * Wa_1607138336:tgl
+		 * Wa_1607063988:tgl
+		 */
 		wa_write_or(wal,
 			    GEN9_CTX_PREEMPT_REG,
 			    GEN12_DISABLE_POSH_BUSY_FF_DOP_CG);
 
-		/* Wa_1607030317:tgl */
-		/* Wa_1607186500:tgl */
-		/* Wa_1607297627:tgl */
+		/*
+		 * Wa_1607030317:tgl
+		 * Wa_1607186500:tgl
+		 * Wa_1607297627:tgl there is 3 entries for this WA on BSpec, 2
+		 * of then says it is fixed on B0 the other one says it is
+		 * permanent
+		 */
 		wa_masked_en(wal,
 			     GEN6_RC_SLEEP_PSMI_CONTROL,
 			     GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE |
@@ -1356,10 +1379,29 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN7_FF_THREAD_MODE,
 			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 
+		/*
+		 * Wa_1409085225:tgl
+		 * Wa_14010229206:tgl
+		 */
+		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
+
+		/* Wa_1408615072:tgl */
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
+			    VSUNIT_CLKGATE_DIS_TGL);
+	}
+
+	if (IS_TIGERLAKE(i915)) {
 		/* Wa_1606931601:tgl */
+		wa_masked_en(wal, GEN7_ROW_CHICKEN2, GEN12_DISABLE_EARLY_READ);
+
+		/* Wa_1409804808:tgl */
+		wa_masked_en(wal, GEN7_ROW_CHICKEN2,
+			     GEN12_PUSH_CONST_DEREF_HOLD_DIS);
+
+		/* Wa_1606700617:tgl */
 		wa_masked_en(wal,
-			     GEN7_ROW_CHICKEN2,
-			     GEN12_DISABLE_EARLY_READ);
+			     GEN9_CS_DEBUG_MODE1,
+			     FF_DOP_CLOCK_GATE_DISABLE);
 	}
 
 	if (IS_GEN(i915, 11)) {
@@ -1425,10 +1467,38 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 				   GEN11_SCRATCH2,
 				   GEN11_COHERENT_PARTIAL_WRITE_MERGE_ENABLE,
 				   0);
+
+		/* WaEnable32PlaneMode:icl */
+		wa_masked_en(wal, GEN9_CSFE_CHICKEN1_RCS,
+			     GEN11_ENABLE_32_PLANE_MODE);
+
+		/*
+		 * Wa_1408615072:icl,ehl  (vsunit)
+		 * Wa_1407596294:icl,ehl  (hsunit)
+		 */
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE,
+			    VSUNIT_CLKGATE_DIS | HSUNIT_CLKGATE_DIS);
+
+		/* Wa_1407352427:icl,ehl */
+		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
+			    PSDUNIT_CLKGATE_DIS);
+
+		/* Wa_1406680159:icl,ehl */
+		wa_write_or(wal,
+			    SUBSLICE_UNIT_LEVEL_CLKGATE,
+			    GWUNIT_CLKGATE_DIS);
+
+		/*
+		 * Wa_1408767742:icl[a2..forever],ehl[all]
+		 * Wa_1605460711:icl[a0..c0]
+		 */
+		wa_write_or(wal,
+			    GEN7_FF_THREAD_MODE,
+			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 	}
 
-	if (IS_GEN_RANGE(i915, 9, 11)) {
-		/* FtrPerCtxtPreemptionGranularityControl:skl,bxt,kbl,cfl,cnl,icl */
+	if (IS_GEN_RANGE(i915, 9, 12)) {
+		/* FtrPerCtxtPreemptionGranularityControl:skl,bxt,kbl,cfl,cnl,icl,tgl */
 		wa_masked_en(wal,
 			     GEN7_FF_SLICE_CS_CHICKEN1,
 			     GEN9_FFSC_PERCTX_PREEMPT_CTRL);
@@ -1595,15 +1665,34 @@ err_obj:
 	return ERR_PTR(err);
 }
 
+static const struct {
+	u32 start;
+	u32 end;
+} mcr_ranges_gen8[] = {
+	{ .start = 0x5500, .end = 0x55ff },
+	{ .start = 0x7000, .end = 0x7fff },
+	{ .start = 0x9400, .end = 0x97ff },
+	{ .start = 0xb000, .end = 0xb3ff },
+	{ .start = 0xe000, .end = 0xe7ff },
+	{},
+};
+
 static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 {
+	int i;
+
+	if (INTEL_GEN(i915) < 8)
+		return false;
+
 	/*
-	 * Registers in this range are affected by the MCR selector
+	 * Registers in these ranges are affected by the MCR selector
 	 * which only controls CPU initiated MMIO. Routing does not
 	 * work for CS access so we cannot verify them on this path.
 	 */
-	if (INTEL_GEN(i915) >= 8 && (offset >= 0xb000 && offset <= 0xb4ff))
-		return true;
+	for (i = 0; mcr_ranges_gen8[i].start; i++)
+		if (offset >= mcr_ranges_gen8[i].start &&
+		    offset <= mcr_ranges_gen8[i].end)
+			return true;
 
 	return false;
 }

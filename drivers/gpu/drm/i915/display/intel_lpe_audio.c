@@ -127,7 +127,8 @@ lpe_audio_platdev_create(struct drm_i915_private *dev_priv)
 	kfree(pdata);
 
 	if (IS_ERR(platdev)) {
-		DRM_ERROR("Failed to allocate LPE audio platform device\n");
+		drm_err(&dev_priv->drm,
+			"Failed to allocate LPE audio platform device\n");
 		return platdev;
 	}
 
@@ -190,7 +191,8 @@ static bool lpe_audio_detect(struct drm_i915_private *dev_priv)
 		};
 
 		if (!pci_dev_present(atom_hdaudio_ids)) {
-			DRM_INFO("HDaudio controller not detected, using LPE audio instead\n");
+			drm_info(&dev_priv->drm,
+				 "HDaudio controller not detected, using LPE audio instead\n");
 			lpe_present = true;
 		}
 	}
@@ -203,18 +205,19 @@ static int lpe_audio_setup(struct drm_i915_private *dev_priv)
 
 	dev_priv->lpe_audio.irq = irq_alloc_desc(0);
 	if (dev_priv->lpe_audio.irq < 0) {
-		DRM_ERROR("Failed to allocate IRQ desc: %d\n",
+		drm_err(&dev_priv->drm, "Failed to allocate IRQ desc: %d\n",
 			dev_priv->lpe_audio.irq);
 		ret = dev_priv->lpe_audio.irq;
 		goto err;
 	}
 
-	DRM_DEBUG("irq = %d\n", dev_priv->lpe_audio.irq);
+	drm_dbg(&dev_priv->drm, "irq = %d\n", dev_priv->lpe_audio.irq);
 
 	ret = lpe_audio_irq_init(dev_priv);
 
 	if (ret) {
-		DRM_ERROR("Failed to initialize irqchip for lpe audio: %d\n",
+		drm_err(&dev_priv->drm,
+			"Failed to initialize irqchip for lpe audio: %d\n",
 			ret);
 		goto err_free_irq;
 	}
@@ -223,7 +226,8 @@ static int lpe_audio_setup(struct drm_i915_private *dev_priv)
 
 	if (IS_ERR(dev_priv->lpe_audio.platdev)) {
 		ret = PTR_ERR(dev_priv->lpe_audio.platdev);
-		DRM_ERROR("Failed to create lpe audio platform device: %d\n",
+		drm_err(&dev_priv->drm,
+			"Failed to create lpe audio platform device: %d\n",
 			ret);
 		goto err_free_irq;
 	}
@@ -259,8 +263,8 @@ void intel_lpe_audio_irq_handler(struct drm_i915_private *dev_priv)
 
 	ret = generic_handle_irq(dev_priv->lpe_audio.irq);
 	if (ret)
-		DRM_ERROR_RATELIMITED("error handling LPE audio irq: %d\n",
-				ret);
+		drm_err_ratelimited(&dev_priv->drm,
+				    "error handling LPE audio irq: %d\n", ret);
 }
 
 /**
@@ -278,7 +282,8 @@ int intel_lpe_audio_init(struct drm_i915_private *dev_priv)
 	if (lpe_audio_detect(dev_priv)) {
 		ret = lpe_audio_setup(dev_priv);
 		if (ret < 0)
-			DRM_ERROR("failed to setup LPE Audio bridge\n");
+			drm_err(&dev_priv->drm,
+				"failed to setup LPE Audio bridge\n");
 	}
 	return ret;
 }

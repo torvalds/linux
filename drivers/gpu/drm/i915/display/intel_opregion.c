@@ -30,8 +30,6 @@
 #include <linux/firmware.h>
 #include <acpi/video.h>
 
-#include <drm/i915_drm.h>
-
 #include "display/intel_panel.h"
 
 #include "i915_drv.h"

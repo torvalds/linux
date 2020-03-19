@@ -51,6 +51,11 @@ int intel_context_alloc_state(struct intel_context *ce)
 		return -EINTR;
 
 	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags)) {
+		if (intel_context_is_banned(ce)) {
+			err = -EIO;
+			goto unlock;
+		}
+
 		err = ce->ops->alloc(ce);
 		if (unlikely(err))
 			goto unlock;

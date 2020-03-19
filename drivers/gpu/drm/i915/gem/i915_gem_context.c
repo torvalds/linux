@@ -67,10 +67,9 @@
 #include <linux/log2.h>
 #include <linux/nospec.h>
 
-#include <drm/i915_drm.h>
-
 #include "gt/gen6_ppgtt.h"
 #include "gt/intel_context.h"
+#include "gt/intel_context_param.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_ring.h"
@@ -243,7 +242,6 @@ static void __free_engines(struct i915_gem_engines *e, unsigned int count)
 		if (!e->engines[count])
 			continue;
 
-		RCU_INIT_POINTER(e->engines[count]->gem_context, NULL);
 		intel_context_put(e->engines[count]);
 	}
 	kfree(e);
@@ -256,7 +254,51 @@ static void free_engines(struct i915_gem_engines *e)
 
 static void free_engines_rcu(struct rcu_head *rcu)
 {
-	free_engines(container_of(rcu, struct i915_gem_engines, rcu));
+	struct i915_gem_engines *engines =
+		container_of(rcu, struct i915_gem_engines, rcu);
+
+	i915_sw_fence_fini(&engines->fence);
+	free_engines(engines);
+}
+
+static int __i915_sw_fence_call
+engines_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+{
+	struct i915_gem_engines *engines =
+		container_of(fence, typeof(*engines), fence);
+
+	switch (state) {
+	case FENCE_COMPLETE:
+		if (!list_empty(&engines->link)) {
+			struct i915_gem_context *ctx = engines->ctx;
+			unsigned long flags;
+
+			spin_lock_irqsave(&ctx->stale.lock, flags);
+			list_del(&engines->link);
+			spin_unlock_irqrestore(&ctx->stale.lock, flags);
+		}
+		i915_gem_context_put(engines->ctx);
+		break;
+
+	case FENCE_FREE:
+		init_rcu_head(&engines->rcu);
+		call_rcu(&engines->rcu, free_engines_rcu);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct i915_gem_engines *alloc_engines(unsigned int count)
+{
+	struct i915_gem_engines *e;
+
+	e = kzalloc(struct_size(e, engines, count), GFP_KERNEL);
+	if (!e)
+		return NULL;
+
+	i915_sw_fence_init(&e->fence, engines_notify);
+	return e;
 }
 
 static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
@@ -266,11 +308,9 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 	struct i915_gem_engines *e;
 	enum intel_engine_id id;
 
-	e = kzalloc(struct_size(e, engines, I915_NUM_ENGINES), GFP_KERNEL);
+	e = alloc_engines(I915_NUM_ENGINES);
 	if (!e)
 		return ERR_PTR(-ENOMEM);
-
-	e->ctx = ctx;
 
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
@@ -305,7 +345,6 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	list_del(&ctx->link);
 	spin_unlock(&ctx->i915->gem.contexts.lock);
 
-	free_engines(rcu_access_pointer(ctx->engines));
 	mutex_destroy(&ctx->engines_mutex);
 
 	if (ctx->timeline)
@@ -492,30 +531,75 @@ static void kill_engines(struct i915_gem_engines *engines)
 static void kill_stale_engines(struct i915_gem_context *ctx)
 {
 	struct i915_gem_engines *pos, *next;
-	unsigned long flags;
 
-	spin_lock_irqsave(&ctx->stale.lock, flags);
+	spin_lock_irq(&ctx->stale.lock);
+	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 	list_for_each_entry_safe(pos, next, &ctx->stale.engines, link) {
-		if (!i915_sw_fence_await(&pos->fence))
+		if (!i915_sw_fence_await(&pos->fence)) {
+			list_del_init(&pos->link);
 			continue;
+		}
 
-		spin_unlock_irqrestore(&ctx->stale.lock, flags);
+		spin_unlock_irq(&ctx->stale.lock);
 
 		kill_engines(pos);
 
-		spin_lock_irqsave(&ctx->stale.lock, flags);
+		spin_lock_irq(&ctx->stale.lock);
+		GEM_BUG_ON(i915_sw_fence_signaled(&pos->fence));
 		list_safe_reset_next(pos, next, link);
 		list_del_init(&pos->link); /* decouple from FENCE_COMPLETE */
 
 		i915_sw_fence_complete(&pos->fence);
 	}
-	spin_unlock_irqrestore(&ctx->stale.lock, flags);
+	spin_unlock_irq(&ctx->stale.lock);
 }
 
 static void kill_context(struct i915_gem_context *ctx)
 {
 	kill_stale_engines(ctx);
-	kill_engines(__context_engines_static(ctx));
+}
+
+static void engines_idle_release(struct i915_gem_context *ctx,
+				 struct i915_gem_engines *engines)
+{
+	struct i915_gem_engines_iter it;
+	struct intel_context *ce;
+
+	INIT_LIST_HEAD(&engines->link);
+
+	engines->ctx = i915_gem_context_get(ctx);
+
+	for_each_gem_engine(ce, engines, it) {
+		struct dma_fence *fence;
+		int err = 0;
+
+		/* serialises with execbuf */
+		RCU_INIT_POINTER(ce->gem_context, NULL);
+		if (!intel_context_pin_if_active(ce))
+			continue;
+
+		fence = i915_active_fence_get(&ce->timeline->last_request);
+		if (fence) {
+			err = i915_sw_fence_await_dma_fence(&engines->fence,
+							    fence, 0,
+							    GFP_KERNEL);
+			dma_fence_put(fence);
+		}
+		intel_context_unpin(ce);
+		if (err < 0)
+			goto kill;
+	}
+
+	spin_lock_irq(&ctx->stale.lock);
+	if (!i915_gem_context_is_closed(ctx))
+		list_add_tail(&engines->link, &ctx->stale.engines);
+	spin_unlock_irq(&ctx->stale.lock);
+
+kill:
+	if (list_empty(&engines->link)) /* raced, already closed */
+		kill_engines(engines);
+
+	i915_sw_fence_commit(&engines->fence);
 }
 
 static void set_closed_name(struct i915_gem_context *ctx)
@@ -539,10 +623,15 @@ static void context_close(struct i915_gem_context *ctx)
 {
 	struct i915_address_space *vm;
 
+	/* Flush any concurrent set_engines() */
+	mutex_lock(&ctx->engines_mutex);
+	engines_idle_release(ctx, rcu_replace_pointer(ctx->engines, NULL, 1));
 	i915_gem_context_set_closed(ctx);
-	set_closed_name(ctx);
+	mutex_unlock(&ctx->engines_mutex);
 
 	mutex_lock(&ctx->mutex);
+
+	set_closed_name(ctx);
 
 	vm = i915_gem_context_vm(ctx);
 	if (vm)
@@ -668,23 +757,30 @@ err_free:
 	return ERR_PTR(err);
 }
 
-static void
+static int
 context_apply_all(struct i915_gem_context *ctx,
-		  void (*fn)(struct intel_context *ce, void *data),
+		  int (*fn)(struct intel_context *ce, void *data),
 		  void *data)
 {
 	struct i915_gem_engines_iter it;
 	struct intel_context *ce;
+	int err = 0;
 
-	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it)
-		fn(ce, data);
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		err = fn(ce, data);
+		if (err)
+			break;
+	}
 	i915_gem_context_unlock_engines(ctx);
+
+	return err;
 }
 
-static void __apply_ppgtt(struct intel_context *ce, void *vm)
+static int __apply_ppgtt(struct intel_context *ce, void *vm)
 {
 	i915_vm_put(ce->vm);
 	ce->vm = i915_vm_get(vm);
+	return 0;
 }
 
 static struct i915_address_space *
@@ -722,9 +818,10 @@ static void __set_timeline(struct intel_timeline **dst,
 		intel_timeline_put(old);
 }
 
-static void __apply_timeline(struct intel_context *ce, void *timeline)
+static int __apply_timeline(struct intel_context *ce, void *timeline)
 {
 	__set_timeline(&ce->timeline, timeline);
+	return 0;
 }
 
 static void __assign_timeline(struct i915_gem_context *ctx,
@@ -806,6 +903,7 @@ void i915_gem_init__contexts(struct drm_i915_private *i915)
 void i915_gem_driver_release__contexts(struct drm_i915_private *i915)
 {
 	flush_work(&i915->gem.contexts.free_work);
+	rcu_barrier(); /* and flush the left over RCU frees */
 }
 
 static int gem_context_register(struct i915_gem_context *ctx,
@@ -971,6 +1069,30 @@ static void cb_retire(struct i915_active *base)
 	kfree(cb);
 }
 
+static inline struct i915_gem_engines *
+__context_engines_await(const struct i915_gem_context *ctx)
+{
+	struct i915_gem_engines *engines;
+
+	rcu_read_lock();
+	do {
+		engines = rcu_dereference(ctx->engines);
+		if (unlikely(!engines))
+			break;
+
+		if (unlikely(!i915_sw_fence_await(&engines->fence)))
+			continue;
+
+		if (likely(engines == rcu_access_pointer(ctx->engines)))
+			break;
+
+		i915_sw_fence_complete(&engines->fence);
+	} while (1);
+	rcu_read_unlock();
+
+	return engines;
+}
+
 I915_SELFTEST_DECLARE(static intel_engine_mask_t context_barrier_inject_fault);
 static int context_barrier_task(struct i915_gem_context *ctx,
 				intel_engine_mask_t engines,
@@ -981,6 +1103,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 {
 	struct context_barrier_task *cb;
 	struct i915_gem_engines_iter it;
+	struct i915_gem_engines *e;
 	struct intel_context *ce;
 	int err = 0;
 
@@ -997,7 +1120,13 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 		return err;
 	}
 
-	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+	e = __context_engines_await(ctx);
+	if (!e) {
+		i915_active_release(&cb->base);
+		return -ENOENT;
+	}
+
+	for_each_gem_engine(ce, e, it) {
 		struct i915_request *rq;
 
 		if (I915_SELFTEST_ONLY(context_barrier_inject_fault &
@@ -1028,7 +1157,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 		if (err)
 			break;
 	}
-	i915_gem_context_unlock_engines(ctx);
+	i915_sw_fence_complete(&e->fence);
 
 	cb->task = err ? NULL : task; /* caller needs to unwind instead */
 	cb->data = data;
@@ -1213,6 +1342,63 @@ unlock:
 out:
 	i915_vm_put(vm);
 	return err;
+}
+
+static int __apply_ringsize(struct intel_context *ce, void *sz)
+{
+	return intel_context_set_ring_size(ce, (unsigned long)sz);
+}
+
+static int set_ringsize(struct i915_gem_context *ctx,
+			struct drm_i915_gem_context_param *args)
+{
+	if (!HAS_LOGICAL_RING_CONTEXTS(ctx->i915))
+		return -ENODEV;
+
+	if (args->size)
+		return -EINVAL;
+
+	if (!IS_ALIGNED(args->value, I915_GTT_PAGE_SIZE))
+		return -EINVAL;
+
+	if (args->value < I915_GTT_PAGE_SIZE)
+		return -EINVAL;
+
+	if (args->value > 128 * I915_GTT_PAGE_SIZE)
+		return -EINVAL;
+
+	return context_apply_all(ctx,
+				 __apply_ringsize,
+				 __intel_context_ring_size(args->value));
+}
+
+static int __get_ringsize(struct intel_context *ce, void *arg)
+{
+	long sz;
+
+	sz = intel_context_get_ring_size(ce);
+	GEM_BUG_ON(sz > INT_MAX);
+
+	return sz; /* stop on first engine */
+}
+
+static int get_ringsize(struct i915_gem_context *ctx,
+			struct drm_i915_gem_context_param *args)
+{
+	int sz;
+
+	if (!HAS_LOGICAL_RING_CONTEXTS(ctx->i915))
+		return -ENODEV;
+
+	if (args->size)
+		return -EINVAL;
+
+	sz = context_apply_all(ctx, __get_ringsize, NULL);
+	if (sz < 0)
+		return sz;
+
+	args->value = sz;
+	return 0;
 }
 
 static int
@@ -1562,77 +1748,6 @@ static const i915_user_extension_fn set_engines__extensions[] = {
 	[I915_CONTEXT_ENGINES_EXT_BOND] = set_engines__bond,
 };
 
-static int engines_notify(struct i915_sw_fence *fence,
-			  enum i915_sw_fence_notify state)
-{
-	struct i915_gem_engines *engines =
-		container_of(fence, typeof(*engines), fence);
-
-	switch (state) {
-	case FENCE_COMPLETE:
-		if (!list_empty(&engines->link)) {
-			struct i915_gem_context *ctx = engines->ctx;
-			unsigned long flags;
-
-			spin_lock_irqsave(&ctx->stale.lock, flags);
-			list_del(&engines->link);
-			spin_unlock_irqrestore(&ctx->stale.lock, flags);
-		}
-		break;
-
-	case FENCE_FREE:
-		init_rcu_head(&engines->rcu);
-		call_rcu(&engines->rcu, free_engines_rcu);
-		break;
-	}
-
-	return NOTIFY_DONE;
-}
-
-static void engines_idle_release(struct i915_gem_engines *engines)
-{
-	struct i915_gem_engines_iter it;
-	struct intel_context *ce;
-	unsigned long flags;
-
-	GEM_BUG_ON(!engines);
-	i915_sw_fence_init(&engines->fence, engines_notify);
-
-	INIT_LIST_HEAD(&engines->link);
-	spin_lock_irqsave(&engines->ctx->stale.lock, flags);
-	if (!i915_gem_context_is_closed(engines->ctx))
-		list_add(&engines->link, &engines->ctx->stale.engines);
-	spin_unlock_irqrestore(&engines->ctx->stale.lock, flags);
-	if (list_empty(&engines->link)) /* raced, already closed */
-		goto kill;
-
-	for_each_gem_engine(ce, engines, it) {
-		struct dma_fence *fence;
-		int err;
-
-		if (!ce->timeline)
-			continue;
-
-		fence = i915_active_fence_get(&ce->timeline->last_request);
-		if (!fence)
-			continue;
-
-		err = i915_sw_fence_await_dma_fence(&engines->fence,
-						    fence, 0,
-						    GFP_KERNEL);
-
-		dma_fence_put(fence);
-		if (err < 0)
-			goto kill;
-	}
-	goto out;
-
-kill:
-	kill_engines(engines);
-out:
-	i915_sw_fence_commit(&engines->fence);
-}
-
 static int
 set_engines(struct i915_gem_context *ctx,
 	    const struct drm_i915_gem_context_param *args)
@@ -1669,13 +1784,9 @@ set_engines(struct i915_gem_context *ctx,
 	 * first 64 engines defined here.
 	 */
 	num_engines = (args->size - sizeof(*user)) / sizeof(*user->engines);
-
-	set.engines = kmalloc(struct_size(set.engines, engines, num_engines),
-			      GFP_KERNEL);
+	set.engines = alloc_engines(num_engines);
 	if (!set.engines)
 		return -ENOMEM;
-
-	set.engines->ctx = ctx;
 
 	for (n = 0; n < num_engines; n++) {
 		struct i915_engine_class_instance ci;
@@ -1729,6 +1840,11 @@ set_engines(struct i915_gem_context *ctx,
 
 replace:
 	mutex_lock(&ctx->engines_mutex);
+	if (i915_gem_context_is_closed(ctx)) {
+		mutex_unlock(&ctx->engines_mutex);
+		free_engines(set.engines);
+		return -ENOENT;
+	}
 	if (args->size)
 		i915_gem_context_set_user_engines(ctx);
 	else
@@ -1737,7 +1853,7 @@ replace:
 	mutex_unlock(&ctx->engines_mutex);
 
 	/* Keep track of old engine sets for kill_context() */
-	engines_idle_release(set.engines);
+	engines_idle_release(ctx, set.engines);
 
 	return 0;
 }
@@ -1748,7 +1864,7 @@ __copy_engines(struct i915_gem_engines *e)
 	struct i915_gem_engines *copy;
 	unsigned int n;
 
-	copy = kmalloc(struct_size(e, engines, e->num_engines), GFP_KERNEL);
+	copy = alloc_engines(e->num_engines);
 	if (!copy)
 		return ERR_PTR(-ENOMEM);
 
@@ -1852,17 +1968,19 @@ set_persistence(struct i915_gem_context *ctx,
 	return __context_set_persistence(ctx, args->value);
 }
 
-static void __apply_priority(struct intel_context *ce, void *arg)
+static int __apply_priority(struct intel_context *ce, void *arg)
 {
 	struct i915_gem_context *ctx = arg;
 
 	if (!intel_engine_has_semaphores(ce->engine))
-		return;
+		return 0;
 
 	if (ctx->sched.priority >= I915_PRIORITY_NORMAL)
 		intel_context_set_use_semaphores(ce);
 	else
 		intel_context_clear_use_semaphores(ce);
+
+	return 0;
 }
 
 static int set_priority(struct i915_gem_context *ctx,
@@ -1955,6 +2073,10 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 		ret = set_persistence(ctx, args);
 		break;
 
+	case I915_CONTEXT_PARAM_RINGSIZE:
+		ret = set_ringsize(ctx, args);
+		break;
+
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 	default:
 		ret = -EINVAL;
@@ -1983,6 +2105,18 @@ static int create_setparam(struct i915_user_extension __user *ext, void *data)
 	return ctx_setparam(arg->fpriv, arg->ctx, &local.param);
 }
 
+static int copy_ring_size(struct intel_context *dst,
+			  struct intel_context *src)
+{
+	long sz;
+
+	sz = intel_context_get_ring_size(src);
+	if (sz < 0)
+		return sz;
+
+	return intel_context_set_ring_size(dst, sz);
+}
+
 static int clone_engines(struct i915_gem_context *dst,
 			 struct i915_gem_context *src)
 {
@@ -1991,11 +2125,9 @@ static int clone_engines(struct i915_gem_context *dst,
 	bool user_engines;
 	unsigned long n;
 
-	clone = kmalloc(struct_size(e, engines, e->num_engines), GFP_KERNEL);
+	clone = alloc_engines(e->num_engines);
 	if (!clone)
 		goto err_unlock;
-
-	clone->ctx = dst;
 
 	for (n = 0; n < e->num_engines; n++) {
 		struct intel_engine_cs *engine;
@@ -2026,6 +2158,12 @@ static int clone_engines(struct i915_gem_context *dst,
 		}
 
 		intel_context_set_gem(clone->engines[n], dst);
+
+		/* Copy across the preferred ringsize */
+		if (copy_ring_size(clone->engines[n], e->engines[n])) {
+			__free_engines(clone, n + 1);
+			goto err_unlock;
+		}
 	}
 	clone->num_engines = n;
 
@@ -2033,8 +2171,7 @@ static int clone_engines(struct i915_gem_context *dst,
 	i915_gem_context_unlock_engines(src);
 
 	/* Serialised by constructor */
-	free_engines(__context_engines_static(dst));
-	RCU_INIT_POINTER(dst->engines, clone);
+	engines_idle_release(dst, rcu_replace_pointer(dst->engines, clone, 1));
 	if (user_engines)
 		i915_gem_context_set_user_engines(dst);
 	else
@@ -2388,6 +2525,10 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		args->value = i915_gem_context_is_persistent(ctx);
 		break;
 
+	case I915_CONTEXT_PARAM_RINGSIZE:
+		ret = get_ringsize(ctx, args);
+		break;
+
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 	default:
 		ret = -EINVAL;
@@ -2460,6 +2601,9 @@ i915_gem_engines_iter_next(struct i915_gem_engines_iter *it)
 {
 	const struct i915_gem_engines *e = it->engines;
 	struct intel_context *ctx;
+
+	if (unlikely(!e))
+		return NULL;
 
 	do {
 		if (it->idx >= e->num_engines)

@@ -37,10 +37,10 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_rect.h>
-#include <drm/i915_drm.h>
 
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include "i915_vgpu.h"
 #include "intel_atomic_plane.h"
 #include "intel_display_types.h"
 #include "intel_frontbuffer.h"
@@ -284,6 +284,16 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	bool rotated = drm_rotation_90_or_270(plane_state->hw.rotation);
 
 	/*
+	 * FIXME hsub/vsub vs. block size is a mess. Pre-tgl CCS
+	 * abuses hsub/vsub so we can't use them here. But as they
+	 * are limited to 32bpp RGB formats we don't actually need
+	 * to check anything.
+	 */
+	if (fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
+	    fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS)
+		return 0;
+
+	/*
 	 * Hardware doesn't handle subpixel coordinates.
 	 * Adjust to (macro)pixel boundary, but be careful not to
 	 * increase the source viewport size, because that could
@@ -297,26 +307,26 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	drm_rect_init(src, src_x << 16, src_y << 16,
 		      src_w << 16, src_h << 16);
 
-	if (!fb->format->is_yuv)
-		return 0;
-
-	/* YUV specific checks */
-	if (!rotated) {
+	if (fb->format->format == DRM_FORMAT_RGB565 && rotated) {
+		hsub = 2;
+		vsub = 2;
+	} else {
 		hsub = fb->format->hsub;
 		vsub = fb->format->vsub;
-	} else {
-		hsub = vsub = max(fb->format->hsub, fb->format->vsub);
 	}
 
+	if (rotated)
+		hsub = vsub = max(hsub, vsub);
+
 	if (src_x % hsub || src_w % hsub) {
-		DRM_DEBUG_KMS("src x/w (%u, %u) must be a multiple of %u for %sYUV planes\n",
-			      src_x, src_w, hsub, rotated ? "rotated " : "");
+		DRM_DEBUG_KMS("src x/w (%u, %u) must be a multiple of %u (rotated: %s)\n",
+			      src_x, src_w, hsub, yesno(rotated));
 		return -EINVAL;
 	}
 
 	if (src_y % vsub || src_h % vsub) {
-		DRM_DEBUG_KMS("src y/h (%u, %u) must be a multiple of %u for %sYUV planes\n",
-			      src_y, src_h, vsub, rotated ? "rotated " : "");
+		DRM_DEBUG_KMS("src y/h (%u, %u) must be a multiple of %u (rotated: %s)\n",
+			      src_y, src_h, vsub, yesno(rotated));
 		return -EINVAL;
 	}
 
@@ -355,9 +365,8 @@ static int skl_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 			       const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane_state->uapi.plane->dev);
-	unsigned int pixel_rate = crtc_state->pixel_rate;
-	unsigned int src_w, src_h, dst_w, dst_h;
 	unsigned int num, den;
+	unsigned int pixel_rate = intel_plane_pixel_rate(crtc_state, plane_state);
 
 	skl_plane_ratio(crtc_state, plane_state, &num, &den);
 
@@ -365,17 +374,7 @@ static int skl_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		den *= 2;
 
-	src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
-	src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
-	dst_w = drm_rect_width(&plane_state->uapi.dst);
-	dst_h = drm_rect_height(&plane_state->uapi.dst);
-
-	/* Downscaling limits the maximum pixel rate */
-	dst_w = min(src_w, dst_w);
-	dst_h = min(src_h, dst_h);
-
-	return DIV64_U64_ROUND_UP(mul_u32_u32(pixel_rate * num, src_w * src_h),
-				  mul_u32_u32(den, dst_w * dst_h));
+	return DIV_ROUND_UP(pixel_rate * num, den);
 }
 
 static unsigned int
@@ -2077,6 +2076,18 @@ vlv_sprite_check(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+static bool intel_format_is_p01x(u32 format)
+{
+	switch (format) {
+	case DRM_FORMAT_P010:
+	case DRM_FORMAT_P012:
+	case DRM_FORMAT_P016:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
@@ -2152,6 +2163,15 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	     fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Y/Yf tiling not supported in IF-ID mode\n");
+		return -EINVAL;
+	}
+
+	/* Wa_1606054188:tgl */
+	if (IS_TIGERLAKE(dev_priv) &&
+	    plane_state->ckey.flags & I915_SET_COLORKEY_SOURCE &&
+	    intel_format_is_p01x(fb->format->format)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "Source color keying not supported with P01x formats\n");
 		return -EINVAL;
 	}
 
@@ -3011,7 +3031,6 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	struct intel_plane *plane;
 	enum drm_plane_type plane_type;
 	unsigned int supported_rotations;
-	unsigned int possible_crtcs;
 	const u64 *modifiers;
 	const u32 *formats;
 	int num_formats;
@@ -3066,10 +3085,8 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	else
 		plane_type = DRM_PLANE_TYPE_OVERLAY;
 
-	possible_crtcs = BIT(pipe);
-
 	ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
-				       possible_crtcs, plane_funcs,
+				       0, plane_funcs,
 				       formats, num_formats, modifiers,
 				       plane_type,
 				       "plane %d%c", plane_id + 1,
@@ -3120,7 +3137,6 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 {
 	struct intel_plane *plane;
 	const struct drm_plane_funcs *plane_funcs;
-	unsigned long possible_crtcs;
 	unsigned int supported_rotations;
 	const u64 *modifiers;
 	const u32 *formats;
@@ -3205,10 +3221,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	plane->id = PLANE_SPRITE0 + sprite;
 	plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, plane->id);
 
-	possible_crtcs = BIT(pipe);
-
 	ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
-				       possible_crtcs, plane_funcs,
+				       0, plane_funcs,
 				       formats, num_formats, modifiers,
 				       DRM_PLANE_TYPE_OVERLAY,
 				       "sprite %c", sprite_name(pipe, sprite));
