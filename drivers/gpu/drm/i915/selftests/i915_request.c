@@ -1233,7 +1233,7 @@ static int live_parallel_engines(void *arg)
 		struct igt_live_test t;
 		unsigned int idx;
 
-		snprintf(name, sizeof(name), "%pS", fn);
+		snprintf(name, sizeof(name), "%ps", fn);
 		err = igt_live_test_begin(&t, i915, __func__, name);
 		if (err)
 			break;
