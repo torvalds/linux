@@ -18,16 +18,24 @@
 #include <linux/bug.h>
 
 /*
- * Notify this @dir inode about a change in the directory entry @dentry.
+ * Notify this @dir inode about a change in a child directory entry.
+ * The directory entry may have turned positive or negative or its inode may
+ * have changed (i.e. renamed over).
  *
  * Unlike fsnotify_parent(), the event will be reported regardless of the
  * FS_EVENT_ON_CHILD mask on the parent inode.
  */
-static inline int fsnotify_dirent(struct inode *dir, struct dentry *dentry,
-				  __u32 mask)
+static inline void fsnotify_name(struct inode *dir, __u32 mask,
+				 struct inode *child,
+				 const struct qstr *name, u32 cookie)
 {
-	return fsnotify(dir, mask, d_inode(dentry), FSNOTIFY_EVENT_INODE,
-			&dentry->d_name, 0);
+	fsnotify(dir, mask, child, FSNOTIFY_EVENT_INODE, name, cookie);
+}
+
+static inline void fsnotify_dirent(struct inode *dir, struct dentry *dentry,
+				   __u32 mask)
+{
+	fsnotify_name(dir, mask, d_inode(dentry), &dentry->d_name, 0);
 }
 
 /* Notify this dentry's parent about a child's events. */
@@ -136,10 +144,8 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 		mask |= FS_ISDIR;
 	}
 
-	fsnotify(old_dir, old_dir_mask, source, FSNOTIFY_EVENT_INODE, old_name,
-		 fs_cookie);
-	fsnotify(new_dir, new_dir_mask, source, FSNOTIFY_EVENT_INODE, new_name,
-		 fs_cookie);
+	fsnotify_name(old_dir, old_dir_mask, source, old_name, fs_cookie);
+	fsnotify_name(new_dir, new_dir_mask, source, new_name, fs_cookie);
 
 	if (target)
 		fsnotify_link_count(target);
@@ -194,12 +200,13 @@ static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
  * Note: We have to pass also the linked inode ptr as some filesystems leave
  *   new_dentry->d_inode NULL and instantiate inode pointer later
  */
-static inline void fsnotify_link(struct inode *dir, struct inode *inode, struct dentry *new_dentry)
+static inline void fsnotify_link(struct inode *dir, struct inode *inode,
+				 struct dentry *new_dentry)
 {
 	fsnotify_link_count(inode);
 	audit_inode_child(dir, new_dentry, AUDIT_TYPE_CHILD_CREATE);
 
-	fsnotify(dir, FS_CREATE, inode, FSNOTIFY_EVENT_INODE, &new_dentry->d_name, 0);
+	fsnotify_name(dir, FS_CREATE, inode, &new_dentry->d_name, 0);
 }
 
 /*
