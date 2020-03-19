@@ -518,6 +518,36 @@ st_lsm6dsx_shub_read_raw(struct iio_dev *iio_dev,
 }
 
 static int
+st_lsm6dsx_shub_set_full_scale(struct st_lsm6dsx_sensor *sensor,
+			       u32 gain)
+{
+	const struct st_lsm6dsx_fs_table_entry *fs_table;
+	int i, err;
+
+	fs_table = &sensor->ext_info.settings->fs_table;
+	if (!fs_table->reg.addr)
+		return -ENOTSUPP;
+
+	for (i = 0; i < fs_table->fs_len; i++) {
+		if (fs_table->fs_avl[i].gain == gain)
+			break;
+	}
+
+	if (i == fs_table->fs_len)
+		return -EINVAL;
+
+	err = st_lsm6dsx_shub_write_with_mask(sensor, fs_table->reg.addr,
+					      fs_table->reg.mask,
+					      fs_table->fs_avl[i].val);
+	if (err < 0)
+		return err;
+
+	sensor->gain = gain;
+
+	return 0;
+}
+
+static int
 st_lsm6dsx_shub_write_raw(struct iio_dev *iio_dev,
 			  struct iio_chan_spec const *chan,
 			  int val, int val2, long mask)
@@ -539,6 +569,9 @@ st_lsm6dsx_shub_write_raw(struct iio_dev *iio_dev,
 			sensor->odr = val;
 		break;
 	}
+	case IIO_CHAN_INFO_SCALE:
+		err = st_lsm6dsx_shub_set_full_scale(sensor, val2);
+		break;
 	default:
 		err = -EINVAL;
 		break;
