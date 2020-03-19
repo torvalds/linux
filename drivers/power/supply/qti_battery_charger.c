@@ -148,6 +148,8 @@ struct battery_chg_dev {
 	u32				*thermal_levels;
 	int				curr_thermal_level;
 	int				num_thermal_levels;
+	atomic_t			state;
+	struct work_struct		subsys_up_work;
 };
 
 static const int battery_prop_map[BATT_PROP_MAX] = {
@@ -197,6 +199,16 @@ static int battery_chg_write(struct battery_chg_dev *bcdev, void *data,
 				int len)
 {
 	int rc;
+
+	/*
+	 * When the subsystem goes down, it's better to return the last
+	 * known values until it comes back up. Hence, return 0 so that
+	 * pmic_glink_write() is not attempted until pmic glink is up.
+	 */
+	if (atomic_read(&bcdev->state) == PMIC_GLINK_STATE_DOWN) {
+		pr_debug("glink state is down\n");
+		return 0;
+	}
 
 	mutex_lock(&bcdev->rw_lock);
 	reinit_completion(&bcdev->ack);
@@ -266,6 +278,40 @@ static int get_property_id(struct psy_state *pst,
 		pst->psy->desc->name);
 
 	return -ENOENT;
+}
+
+static void battery_chg_notify_enable(struct battery_chg_dev *bcdev)
+{
+	struct battery_charger_set_notify_msg req_msg = { { 0 } };
+	int rc;
+
+	/* Send request to enable notification */
+	req_msg.hdr.owner = MSG_OWNER_BC;
+	req_msg.hdr.type = MSG_TYPE_NOTIFY;
+	req_msg.hdr.opcode = BC_SET_NOTIFY_REQ;
+
+	rc = battery_chg_write(bcdev, &req_msg, sizeof(req_msg));
+	if (rc < 0)
+		pr_err("Failed to enable notification rc=%d\n", rc);
+}
+
+static void battery_chg_subsys_up_work(struct work_struct *work)
+{
+	struct battery_chg_dev *bcdev = container_of(work,
+					struct battery_chg_dev, subsys_up_work);
+
+	battery_chg_notify_enable(bcdev);
+}
+
+static void battery_chg_state_cb(void *priv, enum pmic_glink_state state)
+{
+	struct battery_chg_dev *bcdev = priv;
+
+	pr_debug("state: %d\n", state);
+
+	atomic_set(&bcdev->state, state);
+	if (state == PMIC_GLINK_STATE_UP)
+		schedule_work(&bcdev->subsys_up_work);
 }
 
 /**
@@ -977,7 +1023,6 @@ static int battery_chg_probe(struct platform_device *pdev)
 	struct battery_chg_dev *bcdev;
 	struct device *dev = &pdev->dev;
 	struct pmic_glink_client_data client_data = { };
-	struct battery_charger_set_notify_msg req_msg = { { 0 } };
 	int rc, i;
 
 	bcdev = devm_kzalloc(&pdev->dev, sizeof(*bcdev), GFP_KERNEL);
@@ -1012,12 +1057,15 @@ static int battery_chg_probe(struct platform_device *pdev)
 
 	mutex_init(&bcdev->rw_lock);
 	init_completion(&bcdev->ack);
+	INIT_WORK(&bcdev->subsys_up_work, battery_chg_subsys_up_work);
+	atomic_set(&bcdev->state, PMIC_GLINK_STATE_UP);
 	bcdev->dev = dev;
 
 	client_data.id = MSG_OWNER_BC;
 	client_data.name = "battery_charger";
 	client_data.msg_cb = battery_chg_callback;
 	client_data.priv = bcdev;
+	client_data.state_cb = battery_chg_state_cb;
 
 	bcdev->client = pmic_glink_register_client(dev, &client_data);
 	if (IS_ERR(bcdev->client)) {
@@ -1045,14 +1093,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	/* Send request to enable notification */
-	req_msg.hdr.owner = MSG_OWNER_BC;
-	req_msg.hdr.type = MSG_TYPE_NOTIFY;
-	req_msg.hdr.opcode = BC_SET_NOTIFY_REQ;
-
-	rc = battery_chg_write(bcdev, &req_msg, sizeof(req_msg));
-	if (rc < 0)
-		pr_err("Failed to enable notification rc=%d\n", rc);
+	battery_chg_notify_enable(bcdev);
 
 	return 0;
 error:
