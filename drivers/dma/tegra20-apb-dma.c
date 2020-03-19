@@ -670,10 +670,9 @@ static void tegra_dma_tasklet(unsigned long data)
 static irqreturn_t tegra_dma_isr(int irq, void *dev_id)
 {
 	struct tegra_dma_channel *tdc = dev_id;
-	unsigned long flags;
 	u32 status;
 
-	spin_lock_irqsave(&tdc->lock, flags);
+	spin_lock(&tdc->lock);
 
 	trace_tegra_dma_isr(&tdc->dma_chan, irq);
 	status = tdc_read(tdc, TEGRA_APBDMA_CHAN_STATUS);
@@ -681,11 +680,11 @@ static irqreturn_t tegra_dma_isr(int irq, void *dev_id)
 		tdc_write(tdc, TEGRA_APBDMA_CHAN_STATUS, status);
 		tdc->isr_handler(tdc, false);
 		tasklet_schedule(&tdc->tasklet);
-		spin_unlock_irqrestore(&tdc->lock, flags);
+		spin_unlock(&tdc->lock);
 		return IRQ_HANDLED;
 	}
 
-	spin_unlock_irqrestore(&tdc->lock, flags);
+	spin_unlock(&tdc->lock);
 	dev_info(tdc2dev(tdc), "Interrupt already served status 0x%08x\n",
 		 status);
 
