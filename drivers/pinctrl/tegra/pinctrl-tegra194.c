@@ -24,17 +24,14 @@
 
 /* Define unique ID for each pins */
 enum pin_id {
-	TEGRA_PIN_PEX_L5_CLKREQ_N_PGG0 = 256,
-	TEGRA_PIN_PEX_L5_RST_N_PGG1 = 257,
-	TEGRA_PIN_NUM_GPIOS = 258,
+	TEGRA_PIN_PEX_L5_CLKREQ_N_PGG0,
+	TEGRA_PIN_PEX_L5_RST_N_PGG1,
 };
 
 /* Table for pin descriptor */
 static const struct pinctrl_pin_desc tegra194_pins[] = {
-	PINCTRL_PIN(TEGRA_PIN_PEX_L5_CLKREQ_N_PGG0,
-		    "TEGRA_PIN_PEX_L5_CLKREQ_N_PGG0"),
-	PINCTRL_PIN(TEGRA_PIN_PEX_L5_RST_N_PGG1,
-		    "TEGRA_PIN_PEX_L5_RST_N_PGG1"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L5_CLKREQ_N_PGG0, "PEX_L5_CLKREQ_N_PGG0"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L5_RST_N_PGG1, "PEX_L5_RST_N_PGG1"),
 };
 
 static const unsigned int pex_l5_clkreq_n_pgg0_pins[] = {
