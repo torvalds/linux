@@ -245,7 +245,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 
 	if (dev->master) {
-		ret = -EINVAL;
+		ret = -EBUSY;
 		goto out_unlock;
 	}
 
