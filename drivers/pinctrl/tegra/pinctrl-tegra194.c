@@ -134,7 +134,6 @@ static const struct tegra_pingroup tegra194_groups[] = {
 };
 
 static const struct tegra_pinctrl_soc_data tegra194_pinctrl = {
-	.ngpios = TEGRA_PIN_NUM_GPIOS,
 	.pins = tegra194_pins,
 	.npins = ARRAY_SIZE(tegra194_pins),
 	.functions = tegra194_functions,
