@@ -241,6 +241,7 @@ enum rgmii_rx_clock_delay {
 #define MAC_CFG_MASK			  0xc000
 #define MAC_CFG_SGMII			  0x0000
 #define MAC_CFG_QSGMII			  0x4000
+#define MAC_CFG_RGMII			  0x8000
 
 /* Test page Registers */
 #define MSCC_PHY_TEST_PAGE_5		  5

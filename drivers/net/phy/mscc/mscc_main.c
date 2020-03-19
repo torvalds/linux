@@ -1360,27 +1360,35 @@ static int vsc8584_config_init(struct phy_device *phydev)
 
 	val = phy_base_read(phydev, MSCC_PHY_MAC_CFG_FASTLINK);
 	val &= ~MAC_CFG_MASK;
-	if (phydev->interface == PHY_INTERFACE_MODE_QSGMII)
+	if (phydev->interface == PHY_INTERFACE_MODE_QSGMII) {
 		val |= MAC_CFG_QSGMII;
-	else
+	} else if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
 		val |= MAC_CFG_SGMII;
+	} else if (phy_interface_is_rgmii(phydev)) {
+		val |= MAC_CFG_RGMII;
+	} else {
+		ret = -EINVAL;
+		goto err;
+	}
 
 	ret = phy_base_write(phydev, MSCC_PHY_MAC_CFG_FASTLINK, val);
 	if (ret)
 		goto err;
 
-	val = PROC_CMD_MCB_ACCESS_MAC_CONF | PROC_CMD_RST_CONF_PORT |
-		PROC_CMD_READ_MOD_WRITE_PORT;
-	if (phydev->interface == PHY_INTERFACE_MODE_QSGMII)
-		val |= PROC_CMD_QSGMII_MAC;
-	else
-		val |= PROC_CMD_SGMII_MAC;
+	if (!phy_interface_is_rgmii(phydev)) {
+		val = PROC_CMD_MCB_ACCESS_MAC_CONF | PROC_CMD_RST_CONF_PORT |
+			PROC_CMD_READ_MOD_WRITE_PORT;
+		if (phydev->interface == PHY_INTERFACE_MODE_QSGMII)
+			val |= PROC_CMD_QSGMII_MAC;
+		else
+			val |= PROC_CMD_SGMII_MAC;
 
-	ret = vsc8584_cmd(phydev, val);
-	if (ret)
-		goto err;
+		ret = vsc8584_cmd(phydev, val);
+		if (ret)
+			goto err;
 
-	usleep_range(10000, 20000);
+		usleep_range(10000, 20000);
+	}
 
 	/* Disable SerDes for 100Base-FX */
 	ret = vsc8584_cmd(phydev, PROC_CMD_FIBER_MEDIA_CONF |
