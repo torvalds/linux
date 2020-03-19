@@ -11,6 +11,7 @@
 
 #include "lima_sched.h"
 #include "lima_dump.h"
+#include "lima_devfreq.h"
 
 enum lima_gpu_id {
 	lima_gpu_mali400 = 0,
@@ -97,6 +98,8 @@ struct lima_device {
 
 	u32 *dlbu_cpu;
 	dma_addr_t dlbu_dma;
+
+	struct lima_devfreq devfreq;
 
 	/* debug info */
 	struct lima_dump_head dump;
