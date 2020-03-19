@@ -117,6 +117,7 @@ struct fanotify_event_metadata {
 };
 
 #define FAN_EVENT_INFO_TYPE_FID		1
+#define FAN_EVENT_INFO_TYPE_DFID_NAME	2
 
 /* Variable length info record following event metadata */
 struct fanotify_event_info_header {
@@ -125,7 +126,12 @@ struct fanotify_event_info_header {
 	__u16 len;
 };
 
-/* Unique file identifier info record */
+/*
+ * Unique file identifier info record. This is used both for
+ * FAN_EVENT_INFO_TYPE_FID records and for FAN_EVENT_INFO_TYPE_DFID_NAME
+ * records. For FAN_EVENT_INFO_TYPE_DFID_NAME there is additionally a null
+ * terminated name immediately after the file handle.
+ */
 struct fanotify_event_info_fid {
 	struct fanotify_event_info_header hdr;
 	__kernel_fsid_t fsid;
