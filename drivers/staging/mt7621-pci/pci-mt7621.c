@@ -603,7 +603,7 @@ static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 		if ((pcie_link_status & BIT(i)) == 0)
 			p2p_br_devnum[i] = n++;
 
-	pcie_rmw(pcie, RALINK_PCI_CONFIG_ADDR,
+	pcie_rmw(pcie, RALINK_PCI_PCICFG_ADDR,
 		 PCIE_P2P_BR_DEVNUM_MASK_FULL,
 		 (p2p_br_devnum[0] << PCIE_P2P_BR_DEVNUM0_SHIFT) |
 		 (p2p_br_devnum[1] << PCIE_P2P_BR_DEVNUM1_SHIFT) |
