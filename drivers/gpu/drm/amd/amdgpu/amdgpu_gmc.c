@@ -373,3 +373,28 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 
 	return 0;
 }
+
+/**
+ * amdgpu_tmz_set -- check and set if a device supports TMZ
+ * @adev: amdgpu_device pointer
+ *
+ * Check and set if an the device @adev supports Trusted Memory
+ * Zones (TMZ).
+ */
+void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
+{
+	if (!amdgpu_tmz)
+		return;
+
+	if (adev->asic_type < CHIP_RAVEN ||
+	    adev->asic_type == CHIP_ARCTURUS) {
+		adev->gmc.tmz_enabled = false;
+		dev_warn(adev->dev,
+			 "Trusted Memory Zone (TMZ) feature not supported\n");
+	} else {
+
+		adev->gmc.tmz_enabled = true;
+		dev_info(adev->dev,
+			 "Trusted Memory Zone (TMZ) feature supported and enabled\n");
+	}
+}

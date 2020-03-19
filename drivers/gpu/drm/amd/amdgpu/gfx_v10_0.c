@@ -7612,7 +7612,7 @@ static void gfx_v10_0_ring_emit_tmz(struct amdgpu_ring *ring, bool start,
 	 * cmd = 1: frame end
 	 */
 	amdgpu_ring_write(ring,
-			  ((ring->adev->tmz.enabled && trusted) ? FRAME_TMZ : 0)
+			  ((amdgpu_is_tmz(ring->adev) && trusted) ? FRAME_TMZ : 0)
 			  | FRAME_CMD(start ? 0 : 1));
 }
 
