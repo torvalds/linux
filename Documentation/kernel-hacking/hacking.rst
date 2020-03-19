@@ -601,7 +601,7 @@ Defined in ``include/linux/export.h``
 
 This is the variant of `EXPORT_SYMBOL()` that allows specifying a symbol
 namespace. Symbol Namespaces are documented in
-``Documentation/core-api/symbol-namespaces.rst``.
+:ref:`Documentation/core-api/symbol-namespaces.rst <Symbol Namespaces>`
 
 :c:func:`EXPORT_SYMBOL_NS_GPL()`
 --------------------------------
@@ -610,7 +610,7 @@ Defined in ``include/linux/export.h``
 
 This is the variant of `EXPORT_SYMBOL_GPL()` that allows specifying a symbol
 namespace. Symbol Namespaces are documented in
-``Documentation/core-api/symbol-namespaces.rst``.
+:ref:`Documentation/core-api/symbol-namespaces.rst <Symbol Namespaces>`
 
 Routines and Conventions
 ========================
