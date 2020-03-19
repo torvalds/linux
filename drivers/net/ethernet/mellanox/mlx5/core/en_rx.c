@@ -505,9 +505,12 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 			    MLX5_OPCODE_UMR);
 	umr_wqe->uctrl.xlt_offset = cpu_to_be16(xlt_offset);
 
-	sq->db.wqe_info[pi].opcode = MLX5_OPCODE_UMR;
-	sq->db.wqe_info[pi].num_wqebbs = MLX5E_UMR_WQEBBS;
-	sq->db.wqe_info[pi].umr.rq = rq;
+	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
+		.opcode     = MLX5_OPCODE_UMR,
+		.num_wqebbs = MLX5E_UMR_WQEBBS,
+		.umr.rq     = rq,
+	};
+
 	sq->pc += MLX5E_UMR_WQEBBS;
 
 	sq->doorbell_cseg = &umr_wqe->ctrl;

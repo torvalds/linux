@@ -108,10 +108,11 @@ static void tx_fill_wi(struct mlx5e_txqsq *sq,
 {
 	struct mlx5e_tx_wqe_info *wi = &sq->db.wqe_info[pi];
 
-	memset(wi, 0, sizeof(*wi));
-	wi->num_wqebbs = num_wqebbs;
-	wi->num_bytes  = num_bytes;
-	wi->resync_dump_frag_page = page;
+	*wi = (struct mlx5e_tx_wqe_info) {
+		.num_wqebbs = num_wqebbs,
+		.num_bytes  = num_bytes,
+		.resync_dump_frag_page = page,
+	};
 }
 
 void mlx5e_ktls_tx_offload_set_pending(struct mlx5e_ktls_offload_context_tx *priv_tx)
