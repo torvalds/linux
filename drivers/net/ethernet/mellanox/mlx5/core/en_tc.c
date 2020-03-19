@@ -1985,11 +1985,11 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 	*match_inner = !needs_mapping;
 
 	if ((needs_mapping || sets_mapping) &&
-	    !mlx5_eswitch_vport_match_metadata_enabled(esw)) {
+	    !mlx5_eswitch_reg_c1_loopback_enabled(esw)) {
 		NL_SET_ERR_MSG(extack,
-			       "Chains on tunnel devices isn't supported without register metadata support");
+			       "Chains on tunnel devices isn't supported without register loopback support");
 		netdev_warn(priv->netdev,
-			    "Chains on tunnel devices isn't supported without register metadata support");
+			    "Chains on tunnel devices isn't supported without register loopback support");
 		return -EOPNOTSUPP;
 	}
 
@@ -3044,8 +3044,7 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 				    struct mlx5e_tc_flow *flow,
 				    struct netlink_ext_ack *extack)
 {
-	struct net_device *filter_dev = parse_attr->filter_dev;
-	bool drop_action, pop_action, ct_flow;
+	bool ct_flow;
 	u32 actions;
 
 	ct_flow = flow_flag_test(flow, CT);
@@ -3062,18 +3061,6 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 		}
 	} else {
 		actions = flow->nic_attr->action;
-	}
-
-	drop_action = actions & MLX5_FLOW_CONTEXT_ACTION_DROP;
-	pop_action = actions & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
-
-	if (flow_flag_test(flow, EGRESS) && !drop_action) {
-		/* We only support filters on tunnel device, or on vlan
-		 * devices if they have pop/drop action
-		 */
-		if (!mlx5e_get_tc_tun(filter_dev) ||
-		    (is_vlan_dev(filter_dev) && !pop_action))
-			return false;
 	}
 
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
@@ -3654,6 +3641,46 @@ static int mlx5_validate_goto_chain(struct mlx5_eswitch *esw,
 	return 0;
 }
 
+static int verify_uplink_forwarding(struct mlx5e_priv *priv,
+				    struct mlx5e_tc_flow *flow,
+				    struct net_device *out_dev,
+				    struct netlink_ext_ack *extack)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
+	struct mlx5e_rep_priv *rep_priv;
+
+	/* Forwarding non encapsulated traffic between
+	 * uplink ports is allowed only if
+	 * termination_table_raw_traffic cap is set.
+	 *
+	 * Input vport was stored esw_attr->in_rep.
+	 * In LAG case, *priv* is the private data of
+	 * uplink which may be not the input vport.
+	 */
+	rep_priv = mlx5e_rep_to_rep_priv(attr->in_rep);
+
+	if (!(mlx5e_eswitch_uplink_rep(rep_priv->netdev) &&
+	      mlx5e_eswitch_uplink_rep(out_dev)))
+		return 0;
+
+	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev,
+					termination_table_raw_traffic)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "devices are both uplink, can't offload forwarding");
+			pr_err("devices %s %s are both uplink, can't offload forwarding\n",
+			       priv->netdev->name, out_dev->name);
+			return -EOPNOTSUPP;
+	} else if (out_dev != rep_priv->netdev) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "devices are not the same uplink, can't offload forwarding");
+		pr_err("devices %s %s are both uplink but not the same, can't offload forwarding\n",
+		       priv->netdev->name, out_dev->name);
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct flow_action *flow_action,
 				struct mlx5e_tc_flow *flow,
@@ -3751,7 +3778,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 				struct net_device *uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
 				struct net_device *uplink_upper;
-				struct mlx5e_rep_priv *rep_priv;
 
 				if (is_duplicated_output_device(priv->netdev,
 								out_dev,
@@ -3787,21 +3813,9 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 						return err;
 				}
 
-				/* Don't allow forwarding between uplink.
-				 *
-				 * Input vport was stored esw_attr->in_rep.
-				 * In LAG case, *priv* is the private data of
-				 * uplink which may be not the input vport.
-				 */
-				rep_priv = mlx5e_rep_to_rep_priv(attr->in_rep);
-				if (mlx5e_eswitch_uplink_rep(rep_priv->netdev) &&
-				    mlx5e_eswitch_uplink_rep(out_dev)) {
-					NL_SET_ERR_MSG_MOD(extack,
-							   "devices are both uplink, can't offload forwarding");
-					pr_err("devices %s %s are both uplink, can't offload forwarding\n",
-					       priv->netdev->name, out_dev->name);
-					return -EOPNOTSUPP;
-				}
+				err = verify_uplink_forwarding(priv, flow, out_dev, extack);
+				if (err)
+					return err;
 
 				if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
 					NL_SET_ERR_MSG_MOD(extack,
@@ -4534,7 +4548,13 @@ static int scan_tc_matchall_fdb_actions(struct mlx5e_priv *priv,
 int mlx5e_tc_configure_matchall(struct mlx5e_priv *priv,
 				struct tc_cls_matchall_offload *ma)
 {
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct netlink_ext_ack *extack = ma->common.extack;
+
+	if (!mlx5_esw_qos_enabled(esw)) {
+		NL_SET_ERR_MSG_MOD(extack, "QoS is not supported on this device");
+		return -EOPNOTSUPP;
+	}
 
 	if (ma->common.prio != 1) {
 		NL_SET_ERR_MSG_MOD(extack, "only priority 1 is supported");

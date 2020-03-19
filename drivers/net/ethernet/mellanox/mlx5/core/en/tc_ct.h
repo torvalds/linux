@@ -8,6 +8,8 @@
 #include <linux/mlx5/fs.h>
 #include <net/tc_act/tc_ct.h>
 
+#include "en.h"
+
 struct mlx5_esw_flow_attr;
 struct mlx5e_tc_mod_hdr_acts;
 struct mlx5_rep_uplink_priv;
@@ -128,6 +130,11 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 		       struct flow_cls_offload *f,
 		       struct netlink_ext_ack *extack)
 {
+	if (!flow_rule_match_key(f->rule, FLOW_DISSECTOR_KEY_CT))
+		return 0;
+
+	NL_SET_ERR_MSG_MOD(extack, "mlx5 tc ct offload isn't enabled.");
+	netdev_warn(priv->netdev, "mlx5 tc ct offload isn't enabled.\n");
 	return -EOPNOTSUPP;
 }
 
@@ -137,6 +144,8 @@ mlx5_tc_ct_parse_action(struct mlx5e_priv *priv,
 			const struct flow_action_entry *act,
 			struct netlink_ext_ack *extack)
 {
+	NL_SET_ERR_MSG_MOD(extack, "mlx5 tc ct offload isn't enabled.");
+	netdev_warn(priv->netdev, "mlx5 tc ct offload isn't enabled.\n");
 	return -EOPNOTSUPP;
 }
 

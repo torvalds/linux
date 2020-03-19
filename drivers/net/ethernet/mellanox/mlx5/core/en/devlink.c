@@ -3,20 +3,14 @@
 
 #include "en/devlink.h"
 
-int mlx5e_devlink_port_register(struct net_device *netdev)
+int mlx5e_devlink_port_register(struct mlx5e_priv *priv)
 {
-	struct mlx5_core_dev *dev;
-	struct mlx5e_priv *priv;
-	struct devlink *devlink;
-	int err;
+	struct devlink *devlink = priv_to_devlink(priv->mdev);
 
-	priv = netdev_priv(netdev);
-	dev = priv->mdev;
-
-	if (mlx5_core_is_pf(dev))
+	if (mlx5_core_is_pf(priv->mdev))
 		devlink_port_attrs_set(&priv->dl_port,
 				       DEVLINK_PORT_FLAVOUR_PHYSICAL,
-				       PCI_FUNC(dev->pdev->devfn),
+				       PCI_FUNC(priv->mdev->pdev->devfn),
 				       false, 0,
 				       NULL, 0);
 	else
@@ -24,12 +18,12 @@ int mlx5e_devlink_port_register(struct net_device *netdev)
 				       DEVLINK_PORT_FLAVOUR_VIRTUAL,
 				       0, false, 0, NULL, 0);
 
-	devlink = priv_to_devlink(dev);
-	err = devlink_port_register(devlink, &priv->dl_port, 1);
-	if (err)
-		return err;
-	devlink_port_type_eth_set(&priv->dl_port, netdev);
-	return 0;
+	return devlink_port_register(devlink, &priv->dl_port, 1);
+}
+
+void mlx5e_devlink_port_type_eth_set(struct mlx5e_priv *priv)
+{
+	devlink_port_type_eth_set(&priv->dl_port, priv->netdev);
 }
 
 void mlx5e_devlink_port_unregister(struct mlx5e_priv *priv)

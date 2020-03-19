@@ -332,6 +332,7 @@ struct mlx5_termtbl_handle;
 
 bool
 mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
+			      struct mlx5_esw_flow_attr *attr,
 			      struct mlx5_flow_act *flow_act,
 			      struct mlx5_flow_spec *spec);
 
@@ -393,6 +394,7 @@ enum {
 	MLX5_ESW_ATTR_FLAG_VLAN_HANDLED  = BIT(0),
 	MLX5_ESW_ATTR_FLAG_SLOW_PATH     = BIT(1),
 	MLX5_ESW_ATTR_FLAG_NO_IN_PORT    = BIT(2),
+	MLX5_ESW_ATTR_FLAG_HAIRPIN	 = BIT(3),
 };
 
 struct mlx5_esw_flow_attr {
@@ -452,6 +454,11 @@ int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 int mlx5_esw_create_vport_egress_acl_vlan(struct mlx5_eswitch *esw,
 					  struct mlx5_vport *vport,
 					  u16 vlan_id, u32 flow_action);
+
+static inline bool mlx5_esw_qos_enabled(struct mlx5_eswitch *esw)
+{
+	return esw->qos.enabled;
+}
 
 static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev,
 						       u8 vlan_depth)
@@ -677,7 +684,7 @@ static inline const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev)
 
 static inline void mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, const int num_vfs) {}
 
-static struct mlx5_flow_handle *
+static inline struct mlx5_flow_handle *
 esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 {
 	return ERR_PTR(-EOPNOTSUPP);
