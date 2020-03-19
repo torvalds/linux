@@ -141,6 +141,7 @@ static struct smu_11_0_cmn2aisc_mapping sienna_cichlid_feature_mask_map[SMU_FEAT
 	FEA_MAP(FW_DSTATE),
 	FEA_MAP(GFXOFF),
 	FEA_MAP(BACO),
+	FEA_MAP(MM_DPM_PG),
 	FEA_MAP(RSMU_SMN_CG),
 	FEA_MAP(PPT),
 	FEA_MAP(TDC),
@@ -327,6 +328,10 @@ sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 	if (adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_GFXCLK_BIT);
 
+	if (smu->adev->pg_flags & AMD_PG_SUPPORT_VCN ||
+	    smu->adev->pg_flags & AMD_PG_SUPPORT_JPEG)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_MM_DPM_PG_BIT);
+
 	return 0;
 }
 
@@ -485,19 +490,56 @@ static int sienna_cichlid_dpm_set_uvd_enable(struct smu_context *smu, bool enabl
 
 	if (enable) {
 		/* vcn dpm on is a prerequisite for vcn power gate messages */
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1, NULL);
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0, NULL);
+			if (ret)
+				return ret;
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0x10000, NULL);
 			if (ret)
 				return ret;
 		}
 		power_gate->vcn_gated = false;
 	} else {
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn, NULL);
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn, 0, NULL);
+			if (ret)
+				return ret;
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn, 0x10000, NULL);
 			if (ret)
 				return ret;
 		}
 		power_gate->vcn_gated = true;
+	}
+
+	return ret;
+}
+
+static int sienna_cichlid_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int ret = 0;
+
+	if (enable) {
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0, NULL);
+			if (ret)
+				return ret;
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0x10000, NULL);
+			if (ret)
+				return ret;
+		}
+		power_gate->jpeg_gated = false;
+	} else {
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownJpeg, 0, NULL);
+			if (ret)
+				return ret;
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownJpeg, 0x10000, NULL);
+			if (ret)
+				return ret;
+		}
+		power_gate->jpeg_gated = true;
 	}
 
 	return ret;
@@ -2214,6 +2256,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_allowed_feature_mask = sienna_cichlid_get_allowed_feature_mask,
 	.set_default_dpm_table = sienna_cichlid_set_default_dpm_table,
 	.dpm_set_uvd_enable = sienna_cichlid_dpm_set_uvd_enable,
+	.dpm_set_jpeg_enable = sienna_cichlid_dpm_set_jpeg_enable,
 	.get_current_clk_freq_by_table = sienna_cichlid_get_current_clk_freq_by_table,
 	.print_clk_levels = sienna_cichlid_print_clk_levels,
 	.force_clk_levels = sienna_cichlid_force_clk_levels,

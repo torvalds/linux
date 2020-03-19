@@ -247,6 +247,7 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(FW_DSTATE),                     	\
        __SMU_DUMMY_MAP(BACO),                          	\
        __SMU_DUMMY_MAP(VCN_PG),                        	\
+       __SMU_DUMMY_MAP(MM_DPM_PG),                     	\
        __SMU_DUMMY_MAP(JPEG_PG),                       	\
        __SMU_DUMMY_MAP(USB_PG),                        	\
        __SMU_DUMMY_MAP(RSMU_SMN_CG),                   	\
