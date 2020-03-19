@@ -256,6 +256,7 @@ static void caam_cleanup(struct hwrng *rng)
 	}
 
 	rng_unmap_ctx(rng_ctx);
+	caam_jr_free(rng_ctx->jrdev);
 }
 
 static int caam_init_buf(struct caam_rng_ctx *ctx, int buf_id)
@@ -274,28 +275,43 @@ static int caam_init_buf(struct caam_rng_ctx *ctx, int buf_id)
 	return 0;
 }
 
-static int caam_init_rng(struct caam_rng_ctx *ctx, struct device *jrdev)
+static int caam_init(struct hwrng *rng)
 {
+	struct caam_rng_ctx *ctx = rng_ctx;
 	int err;
 
-	ctx->jrdev = jrdev;
+	ctx->jrdev = caam_jr_alloc();
+	err = PTR_ERR_OR_ZERO(ctx->jrdev);
+	if (err) {
+		pr_err("Job Ring Device allocation for transform failed\n");
+		return err;
+	}
 
 	err = rng_create_sh_desc(ctx);
 	if (err)
-		return err;
+		goto free_jrdev;
 
 	ctx->current_buf = 0;
 	ctx->cur_buf_idx = 0;
 
 	err = caam_init_buf(ctx, 0);
 	if (err)
-		return err;
+		goto free_jrdev;
 
-	return caam_init_buf(ctx, 1);
+	err = caam_init_buf(ctx, 1);
+	if (err)
+		goto free_jrdev;
+
+	return 0;
+
+free_jrdev:
+	caam_jr_free(ctx->jrdev);
+	return err;
 }
 
 static struct hwrng caam_rng = {
 	.name		= "rng-caam",
+	.init           = caam_init,
 	.cleanup	= caam_cleanup,
 	.read		= caam_read,
 };
@@ -305,14 +321,12 @@ void caam_rng_exit(void)
 	if (!init_done)
 		return;
 
-	caam_jr_free(rng_ctx->jrdev);
 	hwrng_unregister(&caam_rng);
 	kfree(rng_ctx);
 }
 
 int caam_rng_init(struct device *ctrldev)
 {
-	struct device *dev;
 	u32 rng_inst;
 	struct caam_drv_private *priv = dev_get_drvdata(ctrldev);
 	int err;
@@ -328,21 +342,11 @@ int caam_rng_init(struct device *ctrldev)
 	if (!rng_inst)
 		return 0;
 
-	dev = caam_jr_alloc();
-	if (IS_ERR(dev)) {
-		pr_err("Job Ring Device allocation for transform failed\n");
-		return PTR_ERR(dev);
-	}
 	rng_ctx = kmalloc(sizeof(*rng_ctx), GFP_DMA | GFP_KERNEL);
-	if (!rng_ctx) {
-		err = -ENOMEM;
-		goto free_caam_alloc;
-	}
-	err = caam_init_rng(rng_ctx, dev);
-	if (err)
-		goto free_rng_ctx;
+	if (!rng_ctx)
+		return -ENOMEM;
 
-	dev_info(dev, "registering rng-caam\n");
+	dev_info(ctrldev, "registering rng-caam\n");
 
 	err = hwrng_register(&caam_rng);
 	if (!err) {
@@ -350,9 +354,6 @@ int caam_rng_init(struct device *ctrldev)
 		return err;
 	}
 
-free_rng_ctx:
 	kfree(rng_ctx);
-free_caam_alloc:
-	caam_jr_free(dev);
 	return err;
 }
