@@ -2063,7 +2063,7 @@ ssize_t drm_dp_mst_dpcd_read(struct drm_dp_aux *aux,
  * sideband messaging as drm_dp_dpcd_write() does for local
  * devices via actual AUX CH.
  *
- * Return: 0 on success, negative error code on failure.
+ * Return: number of bytes written on success, negative error code on failure.
  */
 ssize_t drm_dp_mst_dpcd_write(struct drm_dp_aux *aux,
 			      unsigned int offset, void *buffer, size_t size)
@@ -2092,7 +2092,10 @@ static int drm_dp_check_mstb_guid(struct drm_dp_mst_branch *mstb, u8 *guid)
 		}
 	}
 
-	return ret;
+	if (ret < 16 && ret > 0)
+		return -EPROTO;
+
+	return ret == 16 ? 0 : ret;
 }
 
 static void build_mst_prop_path(const struct drm_dp_mst_branch *mstb,
@@ -2175,7 +2178,7 @@ drm_dp_mst_port_add_connector(struct drm_dp_mst_branch *mstb,
 		drm_connector_set_tile_property(port->connector);
 	}
 
-	mgr->cbs->register_connector(port->connector);
+	drm_connector_register(port->connector);
 	return;
 
 error:
@@ -2907,8 +2910,14 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 	drm_dp_dump_link_address(reply);
 
 	ret = drm_dp_check_mstb_guid(mstb, reply->guid);
-	if (ret)
+	if (ret) {
+		char buf[64];
+
+		drm_dp_mst_rad_to_str(mstb->rad, mstb->lct, buf, sizeof(buf));
+		DRM_ERROR("GUID check on %s failed: %d\n",
+			  buf, ret);
 		goto out;
+	}
 
 	for (i = 0; i < reply->nports; i++) {
 		port_mask |= BIT(reply->ports[i].port_number);
@@ -3428,12 +3437,9 @@ static int drm_dp_send_dpcd_write(struct drm_dp_mst_topology_mgr *mgr,
 	drm_dp_queue_down_tx(mgr, txmsg);
 
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
-	if (ret > 0) {
-		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
-			ret = -EIO;
-		else
-			ret = 0;
-	}
+	if (ret > 0 && txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
+		ret = -EIO;
+
 	kfree(txmsg);
 fail_put:
 	drm_dp_mst_topology_put_mstb(mstb);
@@ -4667,11 +4673,23 @@ static void drm_dp_tx_work(struct work_struct *work)
 	mutex_unlock(&mgr->qlock);
 }
 
+static inline void drm_dp_destroy_connector(struct drm_dp_mst_port *port)
+{
+	if (!port->connector)
+		return;
+
+	if (port->mgr->cbs->destroy_connector) {
+		port->mgr->cbs->destroy_connector(port->mgr, port->connector);
+	} else {
+		drm_connector_unregister(port->connector);
+		drm_connector_put(port->connector);
+	}
+}
+
 static inline void
 drm_dp_delayed_destroy_port(struct drm_dp_mst_port *port)
 {
-	if (port->connector)
-		port->mgr->cbs->destroy_connector(port->mgr, port->connector);
+	drm_dp_destroy_connector(port);
 
 	drm_dp_port_set_pdt(port, DP_PEER_DEVICE_NONE, port->mcs);
 	drm_dp_mst_put_port_malloc(port);

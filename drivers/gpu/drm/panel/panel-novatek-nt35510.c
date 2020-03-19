@@ -1019,7 +1019,7 @@ static const struct nt35510_config nt35510_hydis_hva40wv1 = {
 	 */
 	.mode = {
 		/* The internal pixel clock of the NT35510 is 20 MHz */
-		.clock = 20000000,
+		.clock = 20000,
 		.hdisplay = 480,
 		.hsync_start = 480 + 2, /* HFP = 2 */
 		.hsync_end = 480 + 2 + 0, /* HSync = 0 */

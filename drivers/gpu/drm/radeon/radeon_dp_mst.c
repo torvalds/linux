@@ -301,25 +301,8 @@ static struct drm_connector *radeon_dp_add_mst_connector(struct drm_dp_mst_topol
 	return connector;
 }
 
-static void radeon_dp_register_mst_connector(struct drm_connector *connector)
-{
-	drm_connector_register(connector);
-}
-
-static void radeon_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
-					    struct drm_connector *connector)
-{
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-
-	kfree(connector);
-	DRM_DEBUG_KMS("\n");
-}
-
 static const struct drm_dp_mst_topology_cbs mst_cbs = {
 	.add_connector = radeon_dp_add_mst_connector,
-	.register_connector = radeon_dp_register_mst_connector,
-	.destroy_connector = radeon_dp_destroy_mst_connector,
 };
 
 static struct

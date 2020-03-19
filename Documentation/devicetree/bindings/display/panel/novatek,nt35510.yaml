@@ -40,10 +40,10 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
 
-    dsi@a0351000 {
+    dsi {
         #address-cells = <1>;
         #size-cells = <0>;
-        panel {
+        panel@0 {
             compatible = "hydis,hva40wv1", "novatek,nt35510";
             reg = <0>;
             vdd-supply = <&ab8500_ldo_aux4_reg>;

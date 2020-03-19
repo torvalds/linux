@@ -2277,7 +2277,7 @@ static const struct drm_display_mode mitsubishi_aa070mc01_mode = {
 };
 
 static const struct drm_display_mode logicpd_type_28_mode = {
-	.clock = 9000,
+	.clock = 9107,
 	.hdisplay = 480,
 	.hsync_start = 480 + 3,
 	.hsync_end = 480 + 3 + 42,
@@ -2617,15 +2617,15 @@ static const struct panel_desc ontat_yx700wv03 = {
 };
 
 static const struct drm_display_mode ortustech_com37h3m_mode  = {
-	.clock = 22153,
+	.clock = 22230,
 	.hdisplay = 480,
-	.hsync_start = 480 + 8,
-	.hsync_end = 480 + 8 + 10,
-	.htotal = 480 + 8 + 10 + 10,
+	.hsync_start = 480 + 40,
+	.hsync_end = 480 + 40 + 10,
+	.htotal = 480 + 40 + 10 + 40,
 	.vdisplay = 640,
 	.vsync_start = 640 + 4,
-	.vsync_end = 640 + 4 + 3,
-	.vtotal = 640 + 4 + 3 + 4,
+	.vsync_end = 640 + 4 + 2,
+	.vtotal = 640 + 4 + 2 + 4,
 	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
@@ -2666,6 +2666,7 @@ static const struct panel_desc ortustech_com43h4m85ulc = {
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
+	.connector_type = DRM_MODE_CONNECTOR_DPI,
 };
 
 static const struct drm_display_mode osddisplays_osd070t1718_19ts_mode  = {
