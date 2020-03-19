@@ -43,6 +43,8 @@ extern void fpu_init_task(struct pt_regs *regs);
 
 #endif	/* !CONFIG_ISA_ARCOMPACT */
 
+struct task_struct;
+
 extern void fpu_save_restore(struct task_struct *p, struct task_struct *n);
 
 #else	/* !CONFIG_ARC_FPU_SAVE_RESTORE */

@@ -112,7 +112,8 @@ static struct caif_device_entry *caif_get(struct net_device *dev)
 	    caif_device_list(dev_net(dev));
 	struct caif_device_entry *caifd;
 
-	list_for_each_entry_rcu(caifd, &caifdevs->list, list) {
+	list_for_each_entry_rcu(caifd, &caifdevs->list, list,
+				lockdep_rtnl_is_held()) {
 		if (caifd->netdev == dev)
 			return caifd;
 	}

@@ -796,16 +796,6 @@
 		clock-div = <1>;
 	};
 
-	ipu1_gfclk_mux: ipu1_gfclk_mux@520 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&dpll_abe_m2x2_ck>, <&dpll_core_h22x2_ck>;
-		ti,bit-shift = <24>;
-		reg = <0x0520>;
-		assigned-clocks = <&ipu1_gfclk_mux>;
-		assigned-clock-parents = <&dpll_core_h22x2_ck>;
-	};
-
 	dummy_ck: dummy_ck {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
@@ -1564,6 +1554,8 @@
 			compatible = "ti,clkctrl";
 			reg = <0x20 0x4>;
 			#clock-cells = <2>;
+			assigned-clocks = <&ipu1_clkctrl DRA7_IPU1_MMU_IPU1_CLKCTRL 24>;
+			assigned-clock-parents = <&dpll_core_h22x2_ck>;
 		};
 
 		ipu_clkctrl: ipu-clkctrl@50 {

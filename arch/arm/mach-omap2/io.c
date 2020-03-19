@@ -431,7 +431,6 @@ void __init omap2420_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap_clk_soc_init = omap2420_dt_clk_init;
 	rate_table = omap2420_rate_table;
-	omap_secure_init();
 }
 
 void __init omap2420_init_late(void)
@@ -456,7 +455,6 @@ void __init omap2430_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap_clk_soc_init = omap2430_dt_clk_init;
 	rate_table = omap2430_rate_table;
-	omap_secure_init();
 }
 
 void __init omap2430_init_late(void)

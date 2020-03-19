@@ -1741,7 +1741,8 @@ static void sja1105_teardown(struct dsa_switch *ds)
 		if (!dsa_is_user_port(ds, port))
 			continue;
 
-		kthread_destroy_worker(sp->xmit_worker);
+		if (sp->xmit_worker)
+			kthread_destroy_worker(sp->xmit_worker);
 	}
 
 	sja1105_tas_teardown(ds);

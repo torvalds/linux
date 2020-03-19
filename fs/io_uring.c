@@ -999,6 +999,7 @@ static void io_kill_timeout(struct io_kiocb *req)
 	if (ret != -1) {
 		atomic_inc(&req->ctx->cq_timeouts);
 		list_del_init(&req->list);
+		req->flags |= REQ_F_COMP_LOCKED;
 		io_cqring_fill_event(req, 0);
 		io_put_req(req);
 	}
@@ -5329,6 +5330,23 @@ static void io_file_ref_kill(struct percpu_ref *ref)
 	complete(&data->done);
 }
 
+static void io_file_ref_exit_and_free(struct work_struct *work)
+{
+	struct fixed_file_data *data;
+
+	data = container_of(work, struct fixed_file_data, ref_work);
+
+	/*
+	 * Ensure any percpu-ref atomic switch callback has run, it could have
+	 * been in progress when the files were being unregistered. Once
+	 * that's done, we can safely exit and free the ref and containing
+	 * data structure.
+	 */
+	rcu_barrier();
+	percpu_ref_exit(&data->refs);
+	kfree(data);
+}
+
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
 	struct fixed_file_data *data = ctx->file_data;
@@ -5341,14 +5359,14 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	flush_work(&data->ref_work);
 	wait_for_completion(&data->done);
 	io_ring_file_ref_flush(data);
-	percpu_ref_exit(&data->refs);
 
 	__io_sqe_files_unregister(ctx);
 	nr_tables = DIV_ROUND_UP(ctx->nr_user_files, IORING_MAX_FILES_TABLE);
 	for (i = 0; i < nr_tables; i++)
 		kfree(data->table[i].files);
 	kfree(data->table);
-	kfree(data);
+	INIT_WORK(&data->ref_work, io_file_ref_exit_and_free);
+	queue_work(system_wq, &data->ref_work);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
 	return 0;
