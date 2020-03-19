@@ -572,7 +572,7 @@ struct tsens_priv {
 	struct dentry			*debug_root;
 	struct dentry			*debug;
 
-	struct tsens_sensor		sensor[0];
+	struct tsens_sensor		sensor[];
 };
 
 char *qfprom_read(struct device *dev, const char *cname);
