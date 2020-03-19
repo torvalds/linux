@@ -49,15 +49,14 @@
 #define FS_OPEN_EXEC_PERM	0x00040000	/* open/exec event in a permission hook */
 
 #define FS_EXCL_UNLINK		0x04000000	/* do not send events if object is unlinked */
-#define FS_ISDIR		0x40000000	/* event occurred against dir */
-#define FS_IN_ONESHOT		0x80000000	/* only send event once */
-
-#define FS_DN_RENAME		0x10000000	/* file renamed */
-#define FS_DN_MULTISHOT		0x20000000	/* dnotify multishot */
-
 /* This inode cares about things that happen to its children.  Always set for
  * dnotify and inotify. */
 #define FS_EVENT_ON_CHILD	0x08000000
+
+#define FS_DN_RENAME		0x10000000	/* file renamed */
+#define FS_DN_MULTISHOT		0x20000000	/* dnotify multishot */
+#define FS_ISDIR		0x40000000	/* event occurred against dir */
+#define FS_IN_ONESHOT		0x80000000	/* only send event once */
 
 #define FS_MOVE			(FS_MOVED_FROM | FS_MOVED_TO)
 
