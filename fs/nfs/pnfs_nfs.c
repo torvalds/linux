@@ -322,6 +322,20 @@ out_error:
 	return nreq;
 }
 
+static unsigned int
+pnfs_alloc_ds_commits_list(struct list_head *list,
+			   struct pnfs_ds_commit_info *fl_cinfo,
+			   struct nfs_commit_info *cinfo)
+{
+	struct pnfs_commit_array *array;
+	unsigned int ret = 0;
+
+	list_for_each_entry(array, &fl_cinfo->commits, cinfo_list)
+		ret += pnfs_bucket_alloc_ds_commits(list, array->buckets,
+				array->nbuckets, cinfo);
+	return ret;
+}
+
 /* This follows nfs_commit_list pretty closely */
 int
 pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
@@ -345,6 +359,8 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 
 	nreq += pnfs_bucket_alloc_ds_commits(&list, fl_cinfo->buckets,
 			fl_cinfo->nbuckets, cinfo);
+
+	nreq += pnfs_alloc_ds_commits_list(&list, fl_cinfo, cinfo);
 	if (nreq == 0)
 		goto out;
 
