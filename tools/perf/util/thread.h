@@ -5,6 +5,7 @@
 #include <linux/refcount.h>
 #include <linux/rbtree.h>
 #include <linux/list.h>
+#include <linux/zalloc.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -13,12 +14,17 @@
 #include <strlist.h>
 #include <intlist.h>
 #include "rwsem.h"
+#include "event.h"
 
 struct addr_location;
 struct map;
 struct perf_record_namespaces;
 struct thread_stack;
 struct unwind_libunwind_ops;
+
+struct lbr_stitch {
+	struct perf_sample		prev_sample;
+};
 
 struct thread {
 	union {
@@ -49,6 +55,7 @@ struct thread {
 
 	/* LBR call stack stitch */
 	bool			lbr_stitch_enable;
+	struct lbr_stitch	*lbr_stitch;
 };
 
 struct machine;
@@ -143,6 +150,11 @@ static inline bool thread__is_filtered(struct thread *thread)
 	}
 
 	return false;
+}
+
+static inline void thread__free_stitch_list(struct thread *thread)
+{
+	zfree(&thread->lbr_stitch);
 }
 
 #endif	/* __PERF_THREAD_H */
