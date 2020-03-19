@@ -2344,7 +2344,11 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
 	int rval;
 
-	if (mode == QEDI_MODE_NORMAL) {
+	if (mode == QEDI_MODE_SHUTDOWN)
+		iscsi_host_for_each_session(qedi->shost,
+					    qedi_clear_session_ctx);
+
+	if (mode == QEDI_MODE_NORMAL || mode == QEDI_MODE_SHUTDOWN) {
 		if (qedi->tmf_thread) {
 			flush_workqueue(qedi->tmf_thread);
 			destroy_workqueue(qedi->tmf_thread);
@@ -2384,7 +2388,7 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 
 	qedi_destroy_fp(qedi);
 
-	if (mode == QEDI_MODE_NORMAL) {
+	if (mode == QEDI_MODE_NORMAL || mode == QEDI_MODE_SHUTDOWN) {
 		qedi_release_cid_que(qedi);
 		qedi_cm_free_mem(qedi);
 		qedi_free_uio(qedi->udev);
@@ -2402,6 +2406,16 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 		iscsi_host_remove(qedi->shost);
 		iscsi_host_free(qedi->shost);
 	}
+}
+
+static void qedi_shutdown(struct pci_dev *pdev)
+{
+	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
+
+	QEDI_ERR(&qedi->dbg_ctx, "%s: Shutdown qedi\n", __func__);
+	if (test_and_set_bit(QEDI_IN_SHUTDOWN, &qedi->flags))
+		return;
+	__qedi_remove(pdev, QEDI_MODE_SHUTDOWN);
 }
 
 static int __qedi_probe(struct pci_dev *pdev, int mode)
@@ -2740,6 +2754,7 @@ static struct pci_driver qedi_pci_driver = {
 	.id_table = qedi_pci_tbl,
 	.probe = qedi_probe,
 	.remove = qedi_remove,
+	.shutdown = qedi_shutdown,
 };
 
 static int __init qedi_init(void)
