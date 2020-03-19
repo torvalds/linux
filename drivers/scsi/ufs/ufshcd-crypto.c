@@ -456,6 +456,14 @@ int ufshcd_prepare_lrbp_crypto(struct ufs_hba *hba,
 	return ufshcd_prepare_lrbp_crypto_spec(hba, cmd, lrbp);
 }
 
+int ufshcd_map_sg_crypto(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+{
+	if (hba->crypto_vops && hba->crypto_vops->map_sg_crypto)
+		return hba->crypto_vops->map_sg_crypto(hba, lrbp);
+
+	return 0;
+}
+
 int ufshcd_complete_lrbp_crypto(struct ufs_hba *hba,
 				struct scsi_cmnd *cmd,
 				struct ufshcd_lrb *lrbp)
