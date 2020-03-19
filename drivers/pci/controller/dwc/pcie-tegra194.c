@@ -1160,17 +1160,31 @@ static int tegra_pcie_dw_parse_dt(struct tegra_pcie_dw *pcie)
 	/* Endpoint mode specific DT entries */
 	pcie->pex_rst_gpiod = devm_gpiod_get(pcie->dev, "reset", GPIOD_IN);
 	if (IS_ERR(pcie->pex_rst_gpiod)) {
-		dev_err(pcie->dev, "Failed to get PERST GPIO: %ld\n",
-			PTR_ERR(pcie->pex_rst_gpiod));
-		return PTR_ERR(pcie->pex_rst_gpiod);
+		int err = PTR_ERR(pcie->pex_rst_gpiod);
+		const char *level = KERN_ERR;
+
+		if (err == -EPROBE_DEFER)
+			level = KERN_DEBUG;
+
+		dev_printk(level, pcie->dev,
+			   dev_fmt("Failed to get PERST GPIO: %d\n"),
+			   err);
+		return err;
 	}
 
 	pcie->pex_refclk_sel_gpiod = devm_gpiod_get(pcie->dev,
 						    "nvidia,refclk-select",
 						    GPIOD_OUT_HIGH);
 	if (IS_ERR(pcie->pex_refclk_sel_gpiod)) {
-		dev_info(pcie->dev, "Failed to get REFCLK select GPIOs: %ld\n",
-			 PTR_ERR(pcie->pex_refclk_sel_gpiod));
+		int err = PTR_ERR(pcie->pex_refclk_sel_gpiod);
+		const char *level = KERN_ERR;
+
+		if (err == -EPROBE_DEFER)
+			level = KERN_DEBUG;
+
+		dev_printk(level, pcie->dev,
+			   dev_fmt("Failed to get REFCLK select GPIOs: %d\n"),
+			   err);
 		pcie->pex_refclk_sel_gpiod = NULL;
 	}
 
@@ -2059,13 +2073,27 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 
 	ret = tegra_pcie_dw_parse_dt(pcie);
 	if (ret < 0) {
-		dev_err(dev, "Failed to parse device tree: %d\n", ret);
+		const char *level = KERN_ERR;
+
+		if (ret == -EPROBE_DEFER)
+			level = KERN_DEBUG;
+
+		dev_printk(level, dev,
+			   dev_fmt("Failed to parse device tree: %d\n"),
+			   ret);
 		return ret;
 	}
 
 	ret = tegra_pcie_get_slot_regulators(pcie);
 	if (ret < 0) {
-		dev_err(dev, "Failed to get slot regulators: %d\n", ret);
+		const char *level = KERN_ERR;
+
+		if (ret == -EPROBE_DEFER)
+			level = KERN_DEBUG;
+
+		dev_printk(level, dev,
+			   dev_fmt("Failed to get slot regulators: %d\n"),
+			   ret);
 		return ret;
 	}
 
