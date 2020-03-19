@@ -9028,10 +9028,15 @@ bool __init chacha20poly1305_selftest(void)
 	     && total_len <= 1 << 10; ++total_len) {
 		for (i = 0; i <= total_len; ++i) {
 			for (j = i; j <= total_len; ++j) {
+				k = 0;
 				sg_init_table(sg_src, 3);
-				sg_set_buf(&sg_src[0], input, i);
-				sg_set_buf(&sg_src[1], input + i, j - i);
-				sg_set_buf(&sg_src[2], input + j, total_len - j);
+				if (i)
+					sg_set_buf(&sg_src[k++], input, i);
+				if (j - i)
+					sg_set_buf(&sg_src[k++], input + i, j - i);
+				if (total_len - j)
+					sg_set_buf(&sg_src[k++], input + j, total_len - j);
+				sg_init_marker(sg_src, k);
 				memset(computed_output, 0, total_len);
 				memset(input, 0, total_len);
 
