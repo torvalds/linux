@@ -803,7 +803,7 @@ First, define an empty interrupt handling routine.
 
 .. note:: Since we already have a driver that uses this interrupt we
 	  should report the interrupt as not handled (i.e. return
-	  :c:type:`IRQF_NONE`) so that the original driver still has a
+	  :c:type:`IRQ_NONE`) so that the original driver still has a
 	  chance to process it.
 
 Then register the interrupt handler routine using
