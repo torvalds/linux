@@ -109,8 +109,14 @@ static void subflow_v6_init_req(struct request_sock *req,
 static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	struct sock *parent = subflow->conn;
 
 	subflow->icsk_af_ops->sk_rx_dst_set(sk, skb);
+
+	if (inet_sk_state_load(parent) != TCP_ESTABLISHED) {
+		inet_sk_state_store(parent, TCP_ESTABLISHED);
+		parent->sk_state_change(parent);
+	}
 
 	if (!subflow->conn_finished) {
 		pr_debug("subflow=%p, remote_key=%llu", mptcp_subflow_ctx(sk),
