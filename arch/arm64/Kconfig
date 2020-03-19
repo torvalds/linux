@@ -1500,6 +1500,7 @@ config ARM64_PTR_AUTH
 	default y
 	depends on !KVM || ARM64_VHE
 	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_PAC
+	depends on CC_IS_GCC || (CC_IS_CLANG && AS_HAS_CFI_NEGATE_RA_STATE)
 	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
 	help
 	  Pointer authentication (part of the ARMv8.3 Extensions) provides
@@ -1543,6 +1544,9 @@ config CC_HAS_SIGN_RETURN_ADDRESS
 
 config AS_HAS_PAC
 	def_bool $(as-option,-Wa$(comma)-march=armv8.3-a)
+
+config AS_HAS_CFI_NEGATE_RA_STATE
+	def_bool $(as-instr,.cfi_startproc\n.cfi_negate_ra_state\n.cfi_endproc\n)
 
 endmenu
 
