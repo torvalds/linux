@@ -1717,15 +1717,14 @@ static u64 intel_pt_lbr_flags(u64 info)
 	union {
 		struct branch_flags flags;
 		u64 result;
-	} u = {
-		.flags = {
-			.mispred	= !!(info & LBR_INFO_MISPRED),
-			.predicted	= !(info & LBR_INFO_MISPRED),
-			.in_tx		= !!(info & LBR_INFO_IN_TX),
-			.abort		= !!(info & LBR_INFO_ABORT),
-			.cycles		= info & LBR_INFO_CYCLES,
-		}
-	};
+	} u;
+
+	u.result	  = 0;
+	u.flags.mispred	  = !!(info & LBR_INFO_MISPRED);
+	u.flags.predicted = !(info & LBR_INFO_MISPRED);
+	u.flags.in_tx	  = !!(info & LBR_INFO_IN_TX);
+	u.flags.abort	  = !!(info & LBR_INFO_ABORT);
+	u.flags.cycles	  = info & LBR_INFO_CYCLES;
 
 	return u.result;
 }

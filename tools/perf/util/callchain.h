@@ -154,6 +154,11 @@ struct callchain_cursor_node {
 	struct callchain_cursor_node	*next;
 };
 
+struct stitch_list {
+	struct list_head		node;
+	struct callchain_cursor_node	cursor;
+};
+
 struct callchain_cursor {
 	u64				nr;
 	struct callchain_cursor_node	*first;

@@ -5,7 +5,6 @@
 #include <linux/refcount.h>
 #include <linux/rbtree.h>
 #include <linux/list.h>
-#include <linux/zalloc.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -24,6 +23,8 @@ struct thread_stack;
 struct unwind_libunwind_ops;
 
 struct lbr_stitch {
+	struct list_head		lists;
+	struct list_head		free_lists;
 	struct perf_sample		prev_sample;
 	struct callchain_cursor_node	*prev_lbr_cursor;
 };
@@ -154,15 +155,6 @@ static inline bool thread__is_filtered(struct thread *thread)
 	return false;
 }
 
-static inline void thread__free_stitch_list(struct thread *thread)
-{
-	struct lbr_stitch *lbr_stitch = thread->lbr_stitch;
-
-	if (!lbr_stitch)
-		return;
-
-	zfree(&lbr_stitch->prev_lbr_cursor);
-	zfree(&thread->lbr_stitch);
-}
+void thread__free_stitch_list(struct thread *thread);
 
 #endif	/* __PERF_THREAD_H */

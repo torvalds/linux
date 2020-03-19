@@ -454,3 +454,25 @@ int thread__memcpy(struct thread *thread, struct machine *machine,
 
        return dso__data_read_offset(al.map->dso, machine, offset, buf, len);
 }
+
+void thread__free_stitch_list(struct thread *thread)
+{
+	struct lbr_stitch *lbr_stitch = thread->lbr_stitch;
+	struct stitch_list *pos, *tmp;
+
+	if (!lbr_stitch)
+		return;
+
+	list_for_each_entry_safe(pos, tmp, &lbr_stitch->lists, node) {
+		list_del_init(&pos->node);
+		free(pos);
+	}
+
+	list_for_each_entry_safe(pos, tmp, &lbr_stitch->free_lists, node) {
+		list_del_init(&pos->node);
+		free(pos);
+	}
+
+	zfree(&lbr_stitch->prev_lbr_cursor);
+	zfree(&thread->lbr_stitch);
+}
