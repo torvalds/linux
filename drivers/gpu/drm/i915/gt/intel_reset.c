@@ -88,6 +88,11 @@ static bool mark_guilty(struct i915_request *rq)
 	bool banned;
 	int i;
 
+	if (intel_context_is_closed(rq->context)) {
+		intel_context_set_banned(rq->context);
+		return true;
+	}
+
 	rcu_read_lock();
 	ctx = rcu_dereference(rq->context->gem_context);
 	if (ctx && !kref_get_unless_zero(&ctx->ref))
