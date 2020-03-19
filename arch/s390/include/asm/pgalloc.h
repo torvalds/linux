@@ -34,17 +34,6 @@ static inline void crst_table_init(unsigned long *crst, unsigned long entry)
 	memset64((u64 *)crst, entry, _CRST_ENTRIES);
 }
 
-static inline unsigned long pgd_entry_type(struct mm_struct *mm)
-{
-	if (mm_pmd_folded(mm))
-		return _SEGMENT_ENTRY_EMPTY;
-	if (mm_pud_folded(mm))
-		return _REGION3_ENTRY_EMPTY;
-	if (mm_p4d_folded(mm))
-		return _REGION2_ENTRY_EMPTY;
-	return _REGION1_ENTRY_EMPTY;
-}
-
 int crst_table_upgrade(struct mm_struct *mm, unsigned long limit);
 
 static inline unsigned long check_asce_limit(struct mm_struct *mm, unsigned long addr,
