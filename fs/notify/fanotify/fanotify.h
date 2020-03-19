@@ -59,7 +59,8 @@ static inline void *fanotify_fh_buf(struct fanotify_fh *fh)
  * be freed and which concrete struct it may be cast to.
  */
 enum fanotify_event_type {
-	FANOTIFY_EVENT_TYPE_FID,
+	FANOTIFY_EVENT_TYPE_FID, /* fixed length */
+	FANOTIFY_EVENT_TYPE_FID_NAME, /* variable length */
 	FANOTIFY_EVENT_TYPE_PATH,
 	FANOTIFY_EVENT_TYPE_PATH_PERM,
 };
@@ -83,10 +84,26 @@ FANOTIFY_FE(struct fanotify_event *event)
 	return container_of(event, struct fanotify_fid_event, fae);
 }
 
+struct fanotify_name_event {
+	struct fanotify_event fae;
+	__kernel_fsid_t fsid;
+	struct fanotify_fh dir_fh;
+	u8 name_len;
+	char name[0];
+};
+
+static inline struct fanotify_name_event *
+FANOTIFY_NE(struct fanotify_event *event)
+{
+	return container_of(event, struct fanotify_name_event, fae);
+}
+
 static inline __kernel_fsid_t *fanotify_event_fsid(struct fanotify_event *event)
 {
 	if (event->type == FANOTIFY_EVENT_TYPE_FID)
 		return &FANOTIFY_FE(event)->fsid;
+	else if (event->type == FANOTIFY_EVENT_TYPE_FID_NAME)
+		return &FANOTIFY_NE(event)->fsid;
 	else
 		return NULL;
 }
@@ -100,11 +117,31 @@ static inline struct fanotify_fh *fanotify_event_object_fh(
 		return NULL;
 }
 
+static inline struct fanotify_fh *fanotify_event_dir_fh(
+						struct fanotify_event *event)
+{
+	if (event->type == FANOTIFY_EVENT_TYPE_FID_NAME)
+		return &FANOTIFY_NE(event)->dir_fh;
+	else
+		return NULL;
+}
+
 static inline int fanotify_event_object_fh_len(struct fanotify_event *event)
 {
 	struct fanotify_fh *fh = fanotify_event_object_fh(event);
 
 	return fh ? fh->len : 0;
+}
+
+static inline bool fanotify_event_has_name(struct fanotify_event *event)
+{
+	return event->type == FANOTIFY_EVENT_TYPE_FID_NAME;
+}
+
+static inline int fanotify_event_name_len(struct fanotify_event *event)
+{
+	return fanotify_event_has_name(event) ?
+		FANOTIFY_NE(event)->name_len : 0;
 }
 
 struct fanotify_path_event {
@@ -169,4 +206,5 @@ static inline struct path *fanotify_event_path(struct fanotify_event *event)
 struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 					    struct inode *inode, u32 mask,
 					    const void *data, int data_type,
+					    const struct qstr *file_name,
 					    __kernel_fsid_t *fsid);

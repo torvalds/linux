@@ -210,7 +210,7 @@ static int copy_fid_to_user(__kernel_fsid_t *fsid, struct fanotify_fh *fh,
 	struct fanotify_event_info_fid info = { };
 	struct file_handle handle = { };
 	unsigned char bounce[FANOTIFY_INLINE_FH_LEN], *fh_buf;
-	size_t fh_len = fh->len;
+	size_t fh_len = fh ? fh->len : 0;
 	size_t len = fanotify_fid_info_len(fh_len);
 
 	if (!len)
@@ -828,7 +828,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	group->memcg = get_mem_cgroup_from_mm(current->mm);
 
 	oevent = fanotify_alloc_event(group, NULL, FS_Q_OVERFLOW, NULL,
-				      FSNOTIFY_EVENT_NONE, NULL);
+				      FSNOTIFY_EVENT_NONE, NULL, NULL);
 	if (unlikely(!oevent)) {
 		fd = -ENOMEM;
 		goto out_destroy_group;
