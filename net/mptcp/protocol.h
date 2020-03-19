@@ -119,7 +119,7 @@ struct mptcp_subflow_context {
 	u32	map_data_len;
 	u32	request_mptcp : 1,  /* send MP_CAPABLE */
 		mp_capable : 1,	    /* remote is MPTCP capable */
-		fourth_ack : 1,	    /* send initial DSS */
+		fully_established : 1,	    /* path validated */
 		conn_finished : 1,
 		map_valid : 1,
 		mpc_map : 1,
