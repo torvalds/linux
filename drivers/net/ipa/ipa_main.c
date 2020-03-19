@@ -942,7 +942,6 @@ static struct platform_driver ipa_driver = {
 	.remove	= ipa_remove,
 	.driver	= {
 		.name		= "ipa",
-		.owner		= THIS_MODULE,
 		.pm		= &ipa_pm_ops,
 		.of_match_table	= ipa_match,
 	},
