@@ -79,7 +79,7 @@ struct vmw_surface_dirty {
 	struct svga3dsurface_cache cache;
 	size_t size;
 	u32 num_subres;
-	SVGA3dBox boxes[0];
+	SVGA3dBox boxes[];
 };
 
 static void vmw_user_surface_free(struct vmw_resource *res);

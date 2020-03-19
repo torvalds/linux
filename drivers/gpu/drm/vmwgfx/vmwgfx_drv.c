@@ -29,6 +29,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/mem_encrypt.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drm_ioctl.h>
@@ -575,6 +576,10 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 		[vmw_dma_map_populate] = "Caching DMA mappings.",
 		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
 
+	/* TTM currently doesn't fully support SEV encryption. */
+	if (mem_encrypt_active())
+		return -EINVAL;
+
 	if (vmw_force_coherent)
 		dev_priv->map_mode = vmw_dma_alloc_coherent;
 	else if (vmw_restrict_iommu)
@@ -682,8 +687,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	ret = vmw_dma_select_mode(dev_priv);
 	if (unlikely(ret != 0)) {
-		DRM_INFO("Restricting capabilities due to IOMMU setup.\n");
+		DRM_INFO("Restricting capabilities since DMA not available.\n");
 		refuse_dma = true;
+		if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS)
+			DRM_INFO("Disabling 3D acceleration.\n");
 	}
 
 	dev_priv->vram_size = vmw_read(dev_priv, SVGA_REG_VRAM_SIZE);
@@ -866,7 +873,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->has_gmr = false;
 	}
 
-	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS) {
+	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS && !refuse_dma) {
 		dev_priv->has_mob = true;
 		if (ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_MOB,
 				   VMW_PL_MOB) != 0) {
