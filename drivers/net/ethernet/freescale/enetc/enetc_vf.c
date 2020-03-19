@@ -5,7 +5,6 @@
 #include "enetc.h"
 
 #define ENETC_DRV_NAME_STR "ENETC VF driver"
-static const char enetc_drv_name[] = ENETC_DRV_NAME_STR;
 
 /* Messaging */
 static void enetc_msg_vsi_write_msg(struct enetc_hw *hw,

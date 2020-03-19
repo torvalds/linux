@@ -8,7 +8,6 @@
 #include "enetc_pf.h"
 
 #define ENETC_DRV_NAME_STR "ENETC PF driver"
-static const char enetc_drv_name[] = ENETC_DRV_NAME_STR;
 
 static void enetc_pf_get_primary_mac_addr(struct enetc_hw *hw, int si, u8 *addr)
 {
