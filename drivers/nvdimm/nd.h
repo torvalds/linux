@@ -39,7 +39,7 @@ struct nd_region_data {
 	int ns_count;
 	int ns_active;
 	unsigned int hints_shift;
-	void __iomem *flush_wpq[0];
+	void __iomem *flush_wpq[];
 };
 
 static inline void __iomem *ndrd_get_flush_wpq(struct nd_region_data *ndrd,
@@ -156,7 +156,7 @@ struct nd_region {
 	struct nd_interleave_set *nd_set;
 	struct nd_percpu_lane __percpu *lane;
 	int (*flush)(struct nd_region *nd_region, struct bio *bio);
-	struct nd_mapping mapping[0];
+	struct nd_mapping mapping[];
 };
 
 struct nd_blk_region {
