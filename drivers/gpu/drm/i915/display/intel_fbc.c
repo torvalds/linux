@@ -608,6 +608,19 @@ static bool pixel_format_is_valid(struct drm_i915_private *dev_priv,
 	}
 }
 
+static bool rotation_is_valid(struct drm_i915_private *dev_priv,
+			      u32 pixel_format, unsigned int rotation)
+{
+	if (INTEL_GEN(dev_priv) >= 9 && pixel_format == DRM_FORMAT_RGB565 &&
+	    drm_rotation_90_or_270(rotation))
+		return false;
+	else if (INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv) &&
+		 rotation != DRM_MODE_ROTATE_0)
+		return false;
+
+	return true;
+}
+
 /*
  * For some reason, the hardware tracking starts looking at whatever we
  * programmed as the display plane base address register. It does not look at
@@ -640,6 +653,22 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 	effective_h += fbc->state_cache.plane.adjusted_y;
 
 	return effective_w <= max_w && effective_h <= max_h;
+}
+
+static bool tiling_is_valid(struct drm_i915_private *dev_priv,
+			    uint64_t modifier)
+{
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+		if (INTEL_GEN(dev_priv) >= 9)
+			return true;
+		return false;
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
@@ -675,6 +704,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 
 	cache->fb.format = fb->format;
 	cache->fb.stride = fb->pitches[0];
+	cache->fb.modifier = fb->modifier;
 
 	drm_WARN_ON(&dev_priv->drm, plane_state->flags & PLANE_HAS_FENCE &&
 		    !plane_state->vma->fence);
@@ -748,26 +778,36 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 
-	/* The use of a CPU fence is mandatory in order to detect writes
-	 * by the CPU to the scanout and trigger updates to the FBC.
+	/* The use of a CPU fence is one of two ways to detect writes by the
+	 * CPU to the scanout and trigger updates to the FBC.
+	 *
+	 * The other method is by software tracking (see
+	 * intel_fbc_invalidate/flush()), it will manually notify FBC and nuke
+	 * the current compressed buffer and recompress it.
 	 *
 	 * Note that is possible for a tiled surface to be unmappable (and
-	 * so have no fence associated with it) due to aperture constaints
+	 * so have no fence associated with it) due to aperture constraints
 	 * at the time of pinning.
 	 *
 	 * FIXME with 90/270 degree rotation we should use the fence on
 	 * the normal GTT view (the rotated view doesn't even have a
 	 * fence). Would need changes to the FBC fence Y offset as well.
-	 * For now this will effecively disable FBC with 90/270 degree
+	 * For now this will effectively disable FBC with 90/270 degree
 	 * rotation.
 	 */
-	if (cache->fence_id < 0) {
+	if (INTEL_GEN(dev_priv) < 9 && cache->fence_id < 0) {
 		fbc->no_fbc_reason = "framebuffer not tiled or fenced";
 		return false;
 	}
-	if (INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv) &&
-	    cache->plane.rotation != DRM_MODE_ROTATE_0) {
+
+	if (!rotation_is_valid(dev_priv, cache->fb.format->format,
+			       cache->plane.rotation)) {
 		fbc->no_fbc_reason = "rotation unsupported";
+		return false;
+	}
+
+	if (!tiling_is_valid(dev_priv, cache->fb.modifier)) {
+		fbc->no_fbc_reason = "tiling unsupported";
 		return false;
 	}
 

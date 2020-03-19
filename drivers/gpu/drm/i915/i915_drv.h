@@ -416,6 +416,7 @@ struct intel_fbc {
 		struct {
 			const struct drm_format_info *format;
 			unsigned int stride;
+			u64 modifier;
 		} fb;
 		u16 gen9_wa_cfb_stride;
 		s8 fence_id;
