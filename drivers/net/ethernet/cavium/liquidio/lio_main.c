@@ -1375,7 +1375,6 @@ static int octeon_chip_specific_setup(struct octeon_device *oct)
 {
 	u32 dev_id, rev_id;
 	int ret = 1;
-	char *s;
 
 	pci_read_config_dword(oct->pci_dev, 0, &dev_id);
 	pci_read_config_dword(oct->pci_dev, 8, &rev_id);
@@ -1385,13 +1384,11 @@ static int octeon_chip_specific_setup(struct octeon_device *oct)
 	case OCTEON_CN68XX_PCIID:
 		oct->chip_id = OCTEON_CN68XX;
 		ret = lio_setup_cn68xx_octeon_device(oct);
-		s = "CN68XX";
 		break;
 
 	case OCTEON_CN66XX_PCIID:
 		oct->chip_id = OCTEON_CN66XX;
 		ret = lio_setup_cn66xx_octeon_device(oct);
-		s = "CN66XX";
 		break;
 
 	case OCTEON_CN23XX_PCIID_PF:
@@ -1404,11 +1401,9 @@ static int octeon_chip_specific_setup(struct octeon_device *oct)
 			pci_sriov_set_totalvfs(oct->pci_dev,
 					       oct->sriov_info.max_vfs);
 #endif
-		s = "CN23XX";
 		break;
 
 	default:
-		s = "?";
 		dev_err(&oct->pci_dev->dev, "Unknown device found (dev_id: %x)\n",
 			dev_id);
 	}
