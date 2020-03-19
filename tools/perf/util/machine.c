@@ -2224,6 +2224,74 @@ static int lbr_callchain_add_kernel_ip(struct thread *thread,
 	return 0;
 }
 
+static int lbr_callchain_add_lbr_ip(struct thread *thread,
+				    struct callchain_cursor *cursor,
+				    struct perf_sample *sample,
+				    struct symbol **parent,
+				    struct addr_location *root_al,
+				    u64 *branch_from,
+				    bool callee)
+{
+	struct branch_stack *lbr_stack = sample->branch_stack;
+	struct branch_entry *entries = perf_sample__branch_entries(sample);
+	u8 cpumode = PERF_RECORD_MISC_USER;
+	int lbr_nr = lbr_stack->nr;
+	struct branch_flags *flags;
+	int err, i;
+	u64 ip;
+
+	if (callee) {
+		/* Add LBR ip from first entries.to */
+		ip = entries[0].to;
+		flags = &entries[0].flags;
+		*branch_from = entries[0].from;
+		err = add_callchain_ip(thread, cursor, parent,
+				       root_al, &cpumode, ip,
+				       true, flags, NULL,
+				       *branch_from);
+		if (err)
+			return err;
+
+		/* Add LBR ip from entries.from one by one. */
+		for (i = 0; i < lbr_nr; i++) {
+			ip = entries[i].from;
+			flags = &entries[i].flags;
+			err = add_callchain_ip(thread, cursor, parent,
+					       root_al, &cpumode, ip,
+					       true, flags, NULL,
+					       *branch_from);
+			if (err)
+				return err;
+		}
+		return 0;
+	}
+
+	/* Add LBR ip from entries.from one by one. */
+	for (i = lbr_nr - 1; i >= 0; i--) {
+		ip = entries[i].from;
+		flags = &entries[i].flags;
+		err = add_callchain_ip(thread, cursor, parent,
+				       root_al, &cpumode, ip,
+				       true, flags, NULL,
+				       *branch_from);
+		if (err)
+			return err;
+	}
+
+	/* Add LBR ip from first entries.to */
+	ip = entries[0].to;
+	flags = &entries[0].flags;
+	*branch_from = entries[0].from;
+	err = add_callchain_ip(thread, cursor, parent,
+			       root_al, &cpumode, ip,
+			       true, flags, NULL,
+			       *branch_from);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 /*
  * Recolve LBR callstack chain sample
  * Return:
@@ -2240,14 +2308,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 {
 	struct ip_callchain *chain = sample->callchain;
 	int chain_nr = min(max_stack, (int)chain->nr), i;
-	u8 cpumode = PERF_RECORD_MISC_USER;
-	u64 ip, branch_from = 0;
-	struct branch_stack *lbr_stack;
-	struct branch_entry *entries;
-	int lbr_nr, j, k;
-	bool branch;
-	struct branch_flags *flags;
-	int mix_chain_nr;
+	u64 branch_from = 0;
 	int err;
 
 	for (i = 0; i < chain_nr; i++) {
@@ -2259,21 +2320,6 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 	if (i == chain_nr)
 		return 0;
 
-	lbr_stack = sample->branch_stack;
-	entries = perf_sample__branch_entries(sample);
-	lbr_nr = lbr_stack->nr;
-	/*
-	 * LBR callstack can only get user call chain.
-	 * The mix_chain_nr is kernel call chain
-	 * number plus LBR user call chain number.
-	 * i is kernel call chain number,
-	 * 1 is PERF_CONTEXT_USER,
-	 * lbr_nr + 1 is the user call chain number.
-	 * For details, please refer to the comments
-	 * in callchain__printf
-	 */
-	mix_chain_nr = i + 1 + lbr_nr + 1;
-
 	if (callchain_param.order == ORDER_CALLEE) {
 		/* Add kernel ip */
 		err = lbr_callchain_add_kernel_ip(thread, cursor, sample,
@@ -2282,57 +2328,14 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 		if (err)
 			goto error;
 
-		/* Add LBR ip from first entries.to */
-		ip = entries[0].to;
-		branch = true;
-		flags = &entries[0].flags;
-		branch_from = entries[0].from;
-		err = add_callchain_ip(thread, cursor, parent,
-				       root_al, &cpumode, ip,
-				       branch, flags, NULL,
-				       branch_from);
+		err = lbr_callchain_add_lbr_ip(thread, cursor, sample, parent,
+					       root_al, &branch_from, true);
 		if (err)
 			goto error;
 
-		/* Add LBR ip from entries.from one by one. */
-		for (j = i + 2; j < mix_chain_nr; j++) {
-			k = j - i - 2;
-			ip = entries[k].from;
-			branch = true;
-			flags = &entries[k].flags;
-
-			err = add_callchain_ip(thread, cursor, parent,
-					       root_al, &cpumode, ip,
-					       branch, flags, NULL,
-					       branch_from);
-			if (err)
-				goto error;
-		}
 	} else {
-		/* Add LBR ip from entries.from one by one. */
-		for (j = 0; j < lbr_nr; j++) {
-			k = lbr_nr - j - 1;
-			ip = entries[k].from;
-			branch = true;
-			flags = &entries[k].flags;
-
-			err = add_callchain_ip(thread, cursor, parent,
-					       root_al, &cpumode, ip,
-					       branch, flags, NULL,
-					       branch_from);
-			if (err)
-				goto error;
-		}
-
-		/* Add LBR ip from first entries.to */
-		ip = entries[0].to;
-		branch = true;
-		flags = &entries[0].flags;
-		branch_from = entries[0].from;
-		err = add_callchain_ip(thread, cursor, parent,
-				       root_al, &cpumode, ip,
-				       branch, flags, NULL,
-				       branch_from);
+		err = lbr_callchain_add_lbr_ip(thread, cursor, sample, parent,
+					       root_al, &branch_from, false);
 		if (err)
 			goto error;
 
