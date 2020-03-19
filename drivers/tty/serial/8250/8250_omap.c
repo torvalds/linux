@@ -1051,7 +1051,7 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 	iir = serial_port_in(port, UART_IIR);
 	if (iir & UART_IIR_NO_INT) {
 		serial8250_rpm_put(up);
-		return 0;
+		return IRQ_HANDLED;
 	}
 
 	spin_lock_irqsave(&port->lock, flags);
