@@ -1238,6 +1238,41 @@ err_append_allocated_mirror:
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_mirror);
 
+/* QoS Action
+ * ----------
+ * The QOS_ACTION is used for manipulating the QoS attributes of a packet. It
+ * can be used to change the DCSP, ECN, Color and Switch Priority of the packet.
+ * Note that PCP field can be changed using the VLAN action.
+ */
+
+#define MLXSW_AFA_QOS_CODE 0x06
+#define MLXSW_AFA_QOS_SIZE 1
+
+enum mlxsw_afa_qos_cmd {
+	/* Do nothing */
+	MLXSW_AFA_QOS_CMD_NOP,
+	/* Set a field */
+	MLXSW_AFA_QOS_CMD_SET,
+};
+
+/* afa_qos_switch_prio_cmd
+ * Switch Priority command as per mlxsw_afa_qos_cmd.
+ */
+MLXSW_ITEM32(afa, qos, switch_prio_cmd, 0x08, 14, 2);
+
+/* afa_qos_switch_prio
+ * Switch Priority.
+ */
+MLXSW_ITEM32(afa, qos, switch_prio, 0x08, 0, 4);
+
+static inline void
+mlxsw_afa_qos_switch_prio_pack(char *payload,
+			       enum mlxsw_afa_qos_cmd prio_cmd, u8 prio)
+{
+	mlxsw_afa_qos_switch_prio_cmd_set(payload, prio_cmd);
+	mlxsw_afa_qos_switch_prio_set(payload, prio);
+}
+
 /* Forwarding Action
  * -----------------
  * Forwarding Action can be used to implement Policy Based Switching (PBS)
