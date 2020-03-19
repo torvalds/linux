@@ -1566,6 +1566,8 @@ static int esw_create_restore_table(struct mlx5_eswitch *esw)
 	esw->offloads.restore_group = g;
 	esw->offloads.restore_copy_hdr_id = mod_hdr;
 
+	kvfree(flow_group_in);
+
 	return 0;
 
 err_mod_hdr:
