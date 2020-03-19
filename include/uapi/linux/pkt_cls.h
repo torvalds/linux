@@ -17,7 +17,7 @@ enum {
 	TCA_ACT_PAD,
 	TCA_ACT_COOKIE,
 	TCA_ACT_FLAGS,
-	TCA_ACT_HW_STATS_TYPE,
+	TCA_ACT_HW_STATS,
 	__TCA_ACT_MAX
 };
 
@@ -31,20 +31,19 @@ enum {
  * all supported bits set.
  * In case no bits are set, user is not interested in getting any HW statistics.
  */
-#define TCA_ACT_HW_STATS_TYPE_IMMEDIATE (1 << 0) /* Means that in dump, user
-						  * gets the current HW stats
-						  * state from the device
-						  * queried at the dump time.
-						  */
-#define TCA_ACT_HW_STATS_TYPE_DELAYED (1 << 1) /* Means that in dump, user gets
-						* HW stats that might be out
-						* of date for some time, maybe
-						* couple of seconds. This is
-						* the case when driver polls
-						* stats updates periodically
-						* or when it gets async stats update
-						* from the device.
-						*/
+#define TCA_ACT_HW_STATS_IMMEDIATE (1 << 0) /* Means that in dump, user
+					     * gets the current HW stats
+					     * state from the device
+					     * queried at the dump time.
+					     */
+#define TCA_ACT_HW_STATS_DELAYED (1 << 1) /* Means that in dump, user gets
+					   * HW stats that might be out of date
+					   * for some time, maybe couple of
+					   * seconds. This is the case when
+					   * driver polls stats updates
+					   * periodically or when it gets async
+					   * stats update from the device.
+					   */
 
 #define TCA_ACT_MAX __TCA_ACT_MAX
 #define TCA_OLD_COMPAT (TCA_ACT_MAX+1)

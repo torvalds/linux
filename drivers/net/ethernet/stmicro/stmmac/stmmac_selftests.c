@@ -1387,7 +1387,7 @@ static int __stmmac_test_l3filt(struct stmmac_priv *priv, u32 dst, u32 src,
 	cls->rule = rule;
 
 	rule->action.entries[0].id = FLOW_ACTION_DROP;
-	rule->action.entries[0].hw_stats_type = FLOW_ACTION_HW_STATS_ANY;
+	rule->action.entries[0].hw_stats = FLOW_ACTION_HW_STATS_ANY;
 	rule->action.num_entries = 1;
 
 	attr.dst = priv->dev->dev_addr;
@@ -1516,7 +1516,7 @@ static int __stmmac_test_l4filt(struct stmmac_priv *priv, u32 dst, u32 src,
 	cls->rule = rule;
 
 	rule->action.entries[0].id = FLOW_ACTION_DROP;
-	rule->action.entries[0].hw_stats_type = FLOW_ACTION_HW_STATS_ANY;
+	rule->action.entries[0].hw_stats = FLOW_ACTION_HW_STATS_ANY;
 	rule->action.num_entries = 1;
 
 	attr.dst = priv->dev->dev_addr;

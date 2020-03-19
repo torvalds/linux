@@ -41,7 +41,7 @@ struct tc_action {
 	struct tc_cookie	__rcu *act_cookie;
 	struct tcf_chain	__rcu *goto_chain;
 	u32			tcfa_flags;
-	u8			hw_stats_type;
+	u8			hw_stats;
 };
 #define tcf_index	common.tcfa_index
 #define tcf_refcnt	common.tcfa_refcnt
@@ -53,8 +53,8 @@ struct tc_action {
 #define tcf_rate_est	common.tcfa_rate_est
 #define tcf_lock	common.tcfa_lock
 
-#define TCA_ACT_HW_STATS_TYPE_ANY (TCA_ACT_HW_STATS_TYPE_IMMEDIATE | \
-				   TCA_ACT_HW_STATS_TYPE_DELAYED)
+#define TCA_ACT_HW_STATS_ANY (TCA_ACT_HW_STATS_IMMEDIATE | \
+			      TCA_ACT_HW_STATS_DELAYED)
 
 /* Update lastuse only if needed, to avoid dirtying a cache line.
  * We use a temp variable to avoid fetching jiffies twice.
