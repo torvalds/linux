@@ -102,7 +102,7 @@ int i2c_dw_set_reg_access(struct dw_i2c_dev *dev)
 	i2c_dw_release_lock(dev);
 
 	if (reg == swab32(DW_IC_COMP_TYPE_VALUE)) {
-		/* Configure register endianess access */
+		/* Configure register endianness access */
 		dev->flags |= ACCESS_SWAP;
 	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
 		/* Configure register access mode 16bit */
@@ -190,10 +190,10 @@ int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 
 		/*
 		 * Workaround for avoiding TX arbitration lost in case I2C
-		 * slave pulls SDA down "too quickly" after falling egde of
+		 * slave pulls SDA down "too quickly" after falling edge of
 		 * SCL by enabling non-zero SDA RX hold. Specification says it
 		 * extends incoming SDA low to high transition while SCL is
-		 * high but it apprears to help also above issue.
+		 * high but it appears to help also above issue.
 		 */
 		if (!(dev->sda_hold_time & DW_IC_SDA_HOLD_RX_MASK))
 			dev->sda_hold_time |= 1 << DW_IC_SDA_HOLD_RX_SHIFT;
@@ -378,7 +378,7 @@ void i2c_dw_disable(struct dw_i2c_dev *dev)
 	/* Disable controller */
 	__i2c_dw_disable(dev);
 
-	/* Disable all interupts */
+	/* Disable all interrupts */
 	dw_writel(dev, 0, DW_IC_INTR_MASK);
 	dw_readl(dev, DW_IC_CLR_INTR);
 }
