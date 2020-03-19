@@ -24,6 +24,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
+#include <linux/wait.h>
 
 #include "dmaengine.h"
 
@@ -202,6 +203,8 @@ struct tegra_dma_channel {
 	unsigned int slave_id;
 	struct dma_slave_config dma_sconfig;
 	struct tegra_dma_channel_regs channel_reg;
+
+	struct wait_queue_head wq;
 };
 
 /* tegra_dma: Tegra DMA specific information */
@@ -680,6 +683,7 @@ static irqreturn_t tegra_dma_isr(int irq, void *dev_id)
 		tdc_write(tdc, TEGRA_APBDMA_CHAN_STATUS, status);
 		tdc->isr_handler(tdc, false);
 		tasklet_schedule(&tdc->tasklet);
+		wake_up_all(&tdc->wq);
 		spin_unlock(&tdc->lock);
 		return IRQ_HANDLED;
 	}
@@ -785,6 +789,7 @@ static int tegra_dma_terminate_all(struct dma_chan *dc)
 	tegra_dma_resume(tdc);
 
 	pm_runtime_put(tdc->tdma->dev);
+	wake_up_all(&tdc->wq);
 
 skip_dma_stop:
 	tegra_dma_abort_all(tdc);
@@ -800,9 +805,28 @@ skip_dma_stop:
 	return 0;
 }
 
+static bool tegra_dma_eoc_interrupt_deasserted(struct tegra_dma_channel *tdc)
+{
+	unsigned long flags;
+	u32 status;
+
+	spin_lock_irqsave(&tdc->lock, flags);
+	status = tdc_read(tdc, TEGRA_APBDMA_CHAN_STATUS);
+	spin_unlock_irqrestore(&tdc->lock, flags);
+
+	return !(status & TEGRA_APBDMA_STATUS_ISE_EOC);
+}
+
 static void tegra_dma_synchronize(struct dma_chan *dc)
 {
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
+
+	/*
+	 * CPU, which handles interrupt, could be busy in
+	 * uninterruptible state, in this case sibling CPU
+	 * should wait until interrupt is handled.
+	 */
+	wait_event(tdc->wq, tegra_dma_eoc_interrupt_deasserted(tdc));
 
 	tasklet_kill(&tdc->tasklet);
 }
@@ -1498,6 +1522,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		tasklet_init(&tdc->tasklet, tegra_dma_tasklet,
 			     (unsigned long)tdc);
 		spin_lock_init(&tdc->lock);
+		init_waitqueue_head(&tdc->wq);
 
 		INIT_LIST_HEAD(&tdc->pending_sg_req);
 		INIT_LIST_HEAD(&tdc->free_sg_req);
