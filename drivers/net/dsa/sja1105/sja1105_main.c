@@ -162,6 +162,9 @@ static int sja1105_init_mii_settings(struct sja1105_private *priv,
 	mii = table->entries;
 
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
+		if (dsa_is_unused_port(priv->ds, i))
+			continue;
+
 		switch (ports[i].phy_mode) {
 		case PHY_INTERFACE_MODE_MII:
 			mii->xmii_mode[i] = XMII_MODE_MII;
