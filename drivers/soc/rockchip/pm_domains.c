@@ -499,6 +499,65 @@ static int rockchip_pd_power_off(struct generic_pm_domain *domain)
 	return rockchip_pd_power(pd, false);
 }
 
+int rockchip_pmu_pd_on(struct device *dev)
+{
+	struct generic_pm_domain *genpd;
+	struct rockchip_pm_domain *pd;
+
+	if (IS_ERR_OR_NULL(dev))
+		return -EINVAL;
+
+	if (IS_ERR_OR_NULL(dev->pm_domain))
+		return -EINVAL;
+
+	genpd = pd_to_genpd(dev->pm_domain);
+	pd = to_rockchip_pd(genpd);
+
+	return rockchip_pd_power(pd, true);
+}
+EXPORT_SYMBOL(rockchip_pmu_pd_on);
+
+int rockchip_pmu_pd_off(struct device *dev)
+{
+	struct generic_pm_domain *genpd;
+	struct rockchip_pm_domain *pd;
+
+	if (IS_ERR_OR_NULL(dev))
+		return -EINVAL;
+
+	if (IS_ERR_OR_NULL(dev->pm_domain))
+		return -EINVAL;
+
+	genpd = pd_to_genpd(dev->pm_domain);
+	pd = to_rockchip_pd(genpd);
+
+	return rockchip_pd_power(pd, false);
+}
+EXPORT_SYMBOL(rockchip_pmu_pd_off);
+
+bool rockchip_pmu_pd_is_on(struct device *dev)
+{
+	struct generic_pm_domain *genpd;
+	struct rockchip_pm_domain *pd;
+	bool is_on;
+
+	if (IS_ERR_OR_NULL(dev))
+		return false;
+
+	if (IS_ERR_OR_NULL(dev->pm_domain))
+		return false;
+
+	genpd = pd_to_genpd(dev->pm_domain);
+	pd = to_rockchip_pd(genpd);
+
+	rockchip_pmu_lock(pd);
+	is_on = rockchip_pmu_domain_is_on(pd);
+	rockchip_pmu_unlock(pd);
+
+	return is_on;
+}
+EXPORT_SYMBOL(rockchip_pmu_pd_is_on);
+
 static int rockchip_pd_attach_dev(struct generic_pm_domain *genpd,
 				  struct device *dev)
 {
