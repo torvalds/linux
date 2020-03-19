@@ -34,7 +34,7 @@ struct sa_subdev_info {
 struct sa_info {
 	struct mtd_info		*mtd;
 	int			num_subdev;
-	struct sa_subdev_info	subdev[0];
+	struct sa_subdev_info	subdev[];
 };
 
 static DEFINE_SPINLOCK(sa1100_vpp_lock);
