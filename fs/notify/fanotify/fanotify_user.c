@@ -52,6 +52,13 @@ struct kmem_cache *fanotify_perm_event_cachep __read_mostly;
 
 #define FANOTIFY_EVENT_ALIGN 4
 
+static int fanotify_fid_info_len(int fh_len)
+{
+	return roundup(sizeof(struct fanotify_event_info_fid) +
+		       sizeof(struct file_handle) + fh_len,
+		       FANOTIFY_EVENT_ALIGN);
+}
+
 static int fanotify_event_info_len(struct fanotify_event *event)
 {
 	int fh_len = fanotify_event_object_fh_len(event);
@@ -59,9 +66,7 @@ static int fanotify_event_info_len(struct fanotify_event *event)
 	if (!fh_len)
 		return 0;
 
-	return roundup(sizeof(struct fanotify_event_info_fid) +
-		       sizeof(struct file_handle) + fh_len,
-		       FANOTIFY_EVENT_ALIGN);
+	return fanotify_fid_info_len(fh_len);
 }
 
 /*
@@ -199,14 +204,14 @@ static int process_access_response(struct fsnotify_group *group,
 	return -ENOENT;
 }
 
-static int copy_fid_to_user(struct fanotify_event *event, char __user *buf)
+static int copy_fid_to_user(__kernel_fsid_t *fsid, struct fanotify_fh *fh,
+			    char __user *buf)
 {
 	struct fanotify_event_info_fid info = { };
 	struct file_handle handle = { };
 	unsigned char bounce[FANOTIFY_INLINE_FH_LEN], *fh_buf;
-	struct fanotify_fh *fh = fanotify_event_object_fh(event);
 	size_t fh_len = fh->len;
-	size_t len = fanotify_event_info_len(event);
+	size_t len = fanotify_fid_info_len(fh_len);
 
 	if (!len)
 		return 0;
@@ -217,7 +222,7 @@ static int copy_fid_to_user(struct fanotify_event *event, char __user *buf)
 	/* Copy event info fid header followed by vaiable sized file handle */
 	info.hdr.info_type = FAN_EVENT_INFO_TYPE_FID;
 	info.hdr.len = len;
-	info.fsid = *fanotify_event_fsid(event);
+	info.fsid = *fsid;
 	if (copy_to_user(buf, &info, sizeof(info)))
 		return -EFAULT;
 
@@ -296,7 +301,9 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	if (f) {
 		fd_install(fd, f);
 	} else if (fanotify_event_has_fid(event)) {
-		ret = copy_fid_to_user(event, buf + FAN_EVENT_METADATA_LEN);
+		ret = copy_fid_to_user(fanotify_event_fsid(event),
+				       fanotify_event_object_fh(event),
+				       buf + FAN_EVENT_METADATA_LEN);
 		if (ret < 0)
 			return ret;
 	}
