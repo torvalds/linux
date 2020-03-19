@@ -522,16 +522,26 @@ out_unlock:
 
 static int vsc85xx_default_config(struct phy_device *phydev)
 {
+	u16 reg_val = 0;
 	int rc;
-	u16 reg_val;
 
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+
+	if (!phy_interface_mode_is_rgmii(phydev->interface))
+		return 0;
+
 	mutex_lock(&phydev->lock);
 
-	reg_val = RGMII_CLK_DELAY_1_1_NS << RGMII_RX_CLK_DELAY_POS;
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID ||
+	    phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
+		reg_val |= RGMII_CLK_DELAY_2_0_NS << RGMII_RX_CLK_DELAY_POS;
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID ||
+	    phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
+		reg_val |= RGMII_CLK_DELAY_2_0_NS << RGMII_TX_CLK_DELAY_POS;
 
 	rc = phy_modify_paged(phydev, MSCC_PHY_PAGE_EXTENDED_2,
-			      MSCC_PHY_RGMII_CNTL, RGMII_RX_CLK_DELAY_MASK,
+			      MSCC_PHY_RGMII_CNTL,
+			      RGMII_RX_CLK_DELAY_MASK | RGMII_TX_CLK_DELAY_MASK,
 			      reg_val);
 
 	mutex_unlock(&phydev->lock);

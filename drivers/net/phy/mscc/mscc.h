@@ -178,6 +178,8 @@ enum rgmii_clock_delay {
 #define MSCC_PHY_RGMII_CNTL		  20
 #define RGMII_RX_CLK_DELAY_MASK		  0x0070
 #define RGMII_RX_CLK_DELAY_POS		  4
+#define RGMII_TX_CLK_DELAY_MASK		  0x0007
+#define RGMII_TX_CLK_DELAY_POS		  0
 
 #define MSCC_PHY_WOL_LOWER_MAC_ADDR	  21
 #define MSCC_PHY_WOL_MID_MAC_ADDR	  22
