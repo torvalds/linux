@@ -24,8 +24,6 @@
 #define USBC_CMD_WRITE_REQ	0x15
 #define USBC_NOTIFY_IND		0x16
 
-#define ALTMODE_NAME_MAX_LEN	10
-
 #define MAX_NUM_PORTS		4
 
 #define IDR_KEY_GEN(svid, ind)	(((svid) << 8) | (ind))
@@ -49,7 +47,6 @@ struct usbc_write_buffer_req_msg {
  *	Definition of an altmode device.
  *
  * @dev:		Altmode parent device for all client devices
- * @name:		Short descriptive name of this altmode device
  * @pgclient:		PMIC GLINK client to talk to remote subsystem
  * @client_idr:		idr list for altmode clients
  * @client_lock:	mutex protecting changes to client_idr
@@ -60,7 +57,6 @@ struct usbc_write_buffer_req_msg {
  */
 struct altmode_dev {
 	struct device			*dev;
-	char				name[ALTMODE_NAME_MAX_LEN];
 	struct pmic_glink_client	*pgclient;
 	struct idr			client_idr;
 	struct mutex			client_lock;
@@ -535,7 +531,6 @@ static void altmode_notify_clients(struct altmode_dev *amdev)
 static int altmode_probe(struct platform_device *pdev)
 {
 	int rc;
-	const char *str = NULL;
 	struct altmode_dev *amdev;
 	struct pmic_glink_client_data pgclient_data = { };
 	struct device *dev = &pdev->dev;
@@ -544,21 +539,7 @@ static int altmode_probe(struct platform_device *pdev)
 	if (!amdev)
 		return -ENOMEM;
 
-	rc = of_property_read_string(dev->of_node, "qcom,altmode-name",
-				     &str);
-	if (rc < 0) {
-		dev_err(dev, "No altmode device name specified: %d\n", rc);
-		return rc;
-	}
-
-	if (!str || (strlen(str) >= ALTMODE_NAME_MAX_LEN) ||
-			!str_has_prefix(str, "altmode_")) {
-		dev_err(dev, "Incorrect altmode device name format\n");
-		return -EINVAL;
-	}
-
 	amdev->dev = dev;
-	strlcpy(amdev->name, str, ALTMODE_NAME_MAX_LEN);
 
 	mutex_init(&amdev->client_lock);
 	idr_init(&amdev->client_idr);
