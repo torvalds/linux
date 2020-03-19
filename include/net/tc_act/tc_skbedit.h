@@ -77,4 +77,21 @@ static inline u32 tcf_skbedit_ptype(const struct tc_action *a)
 	return ptype;
 }
 
+/* Return true iff action is priority */
+static inline bool is_tcf_skbedit_priority(const struct tc_action *a)
+{
+	return is_tcf_skbedit_with_flag(a, SKBEDIT_F_PRIORITY);
+}
+
+static inline u32 tcf_skbedit_priority(const struct tc_action *a)
+{
+	u32 priority;
+
+	rcu_read_lock();
+	priority = rcu_dereference(to_skbedit(a)->params)->priority;
+	rcu_read_unlock();
+
+	return priority;
+}
+
 #endif /* __NET_TC_SKBEDIT_H */
