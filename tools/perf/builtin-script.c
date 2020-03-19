@@ -1697,6 +1697,7 @@ struct perf_script {
 	bool			show_cgroup_events;
 	bool			allocated;
 	bool			per_event_dump;
+	bool			stitch_lbr;
 	struct evswitch		evswitch;
 	struct perf_cpu_map	*cpus;
 	struct perf_thread_map *threads;
@@ -1922,6 +1923,9 @@ static void process_event(struct perf_script *script,
 
 	if (PRINT_FIELD(IP)) {
 		struct callchain_cursor *cursor = NULL;
+
+		if (script->stitch_lbr)
+			al->thread->lbr_stitch_enable = true;
 
 		if (symbol_conf.use_callchain && sample->callchain &&
 		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
@@ -3170,6 +3174,12 @@ static void script__setup_sample_type(struct perf_script *script)
 		else
 			callchain_param.record_mode = CALLCHAIN_FP;
 	}
+
+	if (script->stitch_lbr && (callchain_param.record_mode != CALLCHAIN_LBR)) {
+		pr_warning("Can't find LBR callchain. Switch off --stitch-lbr.\n"
+			   "Please apply --call-graph lbr when recording.\n");
+		script->stitch_lbr = false;
+	}
 }
 
 static int process_stat_round_event(struct perf_session *session,
@@ -3481,6 +3491,8 @@ int cmd_script(int argc, const char **argv)
 		   "file", "file saving guest os /proc/kallsyms"),
 	OPT_STRING(0, "guestmodules", &symbol_conf.default_guest_modules,
 		   "file", "file saving guest os /proc/modules"),
+	OPT_BOOLEAN('\0', "stitch-lbr", &script.stitch_lbr,
+		    "Enable LBR callgraph stitching approach"),
 	OPTS_EVSWITCH(&script.evswitch),
 	OPT_END()
 	};
