@@ -151,7 +151,7 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 {
 	__u32 marks_mask = 0, marks_ignored_mask = 0;
 	__u32 test_mask, user_mask = FANOTIFY_OUTGOING_EVENTS;
-	const struct path *path = data;
+	const struct path *path = fsnotify_data_path(data, data_type);
 	struct fsnotify_mark *mark;
 	int type;
 
@@ -160,7 +160,7 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 
 	if (!FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
 		/* Do we have path to open a file descriptor? */
-		if (data_type != FSNOTIFY_EVENT_PATH)
+		if (!path)
 			return 0;
 		/* Path type events are only relevant for files and dirs */
 		if (!d_is_reg(path->dentry) && !d_can_lookup(path->dentry))
@@ -269,11 +269,8 @@ static struct inode *fanotify_fid_inode(struct inode *to_tell, u32 event_mask,
 {
 	if (event_mask & ALL_FSNOTIFY_DIRENT_EVENTS)
 		return to_tell;
-	else if (data_type == FSNOTIFY_EVENT_INODE)
-		return (struct inode *)data;
-	else if (data_type == FSNOTIFY_EVENT_PATH)
-		return d_inode(((struct path *)data)->dentry);
-	return NULL;
+
+	return (struct inode *)fsnotify_data_inode(data, data_type);
 }
 
 struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
@@ -284,6 +281,7 @@ struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	struct fanotify_event *event = NULL;
 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
 	struct inode *id = fanotify_fid_inode(inode, mask, data, data_type);
+	const struct path *path = fsnotify_data_path(data, data_type);
 
 	/*
 	 * For queues with unlimited length lost events are not expected and
@@ -324,10 +322,10 @@ init: __maybe_unused
 	if (id && FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
 		/* Report the event without a file identifier on encode error */
 		event->fh_type = fanotify_encode_fid(event, id, gfp, fsid);
-	} else if (data_type == FSNOTIFY_EVENT_PATH) {
+	} else if (path) {
 		event->fh_type = FILEID_ROOT;
-		event->path = *((struct path *)data);
-		path_get(&event->path);
+		event->path = *path;
+		path_get(path);
 	} else {
 		event->fh_type = FILEID_INVALID;
 		event->path.mnt = NULL;

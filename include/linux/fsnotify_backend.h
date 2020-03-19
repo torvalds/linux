@@ -212,10 +212,36 @@ struct fsnotify_group {
 	};
 };
 
-/* when calling fsnotify tell it if the data is a path or inode */
-#define FSNOTIFY_EVENT_NONE	0
-#define FSNOTIFY_EVENT_PATH	1
-#define FSNOTIFY_EVENT_INODE	2
+/* When calling fsnotify tell it if the data is a path or inode */
+enum fsnotify_data_type {
+	FSNOTIFY_EVENT_NONE,
+	FSNOTIFY_EVENT_PATH,
+	FSNOTIFY_EVENT_INODE,
+};
+
+static inline const struct inode *fsnotify_data_inode(const void *data,
+						      int data_type)
+{
+	switch (data_type) {
+	case FSNOTIFY_EVENT_INODE:
+		return data;
+	case FSNOTIFY_EVENT_PATH:
+		return d_inode(((const struct path *)data)->dentry);
+	default:
+		return NULL;
+	}
+}
+
+static inline const struct path *fsnotify_data_path(const void *data,
+						    int data_type)
+{
+	switch (data_type) {
+	case FSNOTIFY_EVENT_PATH:
+		return data;
+	default:
+		return NULL;
+	}
+}
 
 enum fsnotify_obj_type {
 	FSNOTIFY_OBJ_TYPE_INODE,

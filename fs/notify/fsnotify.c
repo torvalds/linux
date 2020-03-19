@@ -318,6 +318,7 @@ static void fsnotify_iter_next(struct fsnotify_iter_info *iter_info)
 int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	     const struct qstr *file_name, u32 cookie)
 {
+	const struct path *path = fsnotify_data_path(data, data_is);
 	struct fsnotify_iter_info iter_info = {};
 	struct super_block *sb = to_tell->i_sb;
 	struct mount *mnt = NULL;
@@ -325,8 +326,8 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	int ret = 0;
 	__u32 test_mask = (mask & ALL_FSNOTIFY_EVENTS);
 
-	if (data_is == FSNOTIFY_EVENT_PATH) {
-		mnt = real_mount(((const struct path *)data)->mnt);
+	if (path) {
+		mnt = real_mount(path->mnt);
 		mnt_or_sb_mask |= mnt->mnt_fsnotify_mask;
 	}
 	/* An event "on child" is not intended for a mount/sb mark */

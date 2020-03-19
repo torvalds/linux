@@ -61,6 +61,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 			 const struct qstr *file_name, u32 cookie,
 			 struct fsnotify_iter_info *iter_info)
 {
+	const struct path *path = fsnotify_data_path(data, data_type);
 	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct inotify_inode_mark *i_mark;
 	struct inotify_event_info *event;
@@ -73,12 +74,9 @@ int inotify_handle_event(struct fsnotify_group *group,
 		return 0;
 
 	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
-	    (data_type == FSNOTIFY_EVENT_PATH)) {
-		const struct path *path = data;
+	    path && d_unlinked(path->dentry))
+		return 0;
 
-		if (d_unlinked(path->dentry))
-			return 0;
-	}
 	if (file_name) {
 		len = file_name->len;
 		alloc_len += len + 1;
