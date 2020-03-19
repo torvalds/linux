@@ -1411,6 +1411,8 @@ static int vsc8584_config_init(struct phy_device *phydev)
 	val |= (MEDIA_OP_MODE_COPPER << MEDIA_OP_MODE_POS) |
 	       (VSC8584_MAC_IF_SELECTION_SGMII << VSC8584_MAC_IF_SELECTION_POS);
 	ret = phy_write(phydev, MSCC_PHY_EXT_PHY_CNTL_1, val);
+	if (ret)
+		return ret;
 
 	ret = genphy_soft_reset(phydev);
 	if (ret)
