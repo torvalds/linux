@@ -2161,17 +2161,17 @@ int vchiq_dump_platform_service_state(void *dump_context,
 	char buf[80];
 	int len;
 
-	len = snprintf(buf, sizeof(buf), "  instance %pK", service->instance);
+	len = scnprintf(buf, sizeof(buf), "  instance %pK", service->instance);
 
 	if ((service->base.callback == service_callback) &&
 		user_service->is_vchi) {
-		len += snprintf(buf + len, sizeof(buf) - len,
+		len += scnprintf(buf + len, sizeof(buf) - len,
 			", %d/%d messages",
 			user_service->msg_insert - user_service->msg_remove,
 			MSG_QUEUE_SIZE);
 
 		if (user_service->dequeue_pending)
-			len += snprintf(buf + len, sizeof(buf) - len,
+			len += scnprintf(buf + len, sizeof(buf) - len,
 				" (dequeue pending)");
 	}
 
