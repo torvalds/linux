@@ -463,6 +463,12 @@ pnfs_get_ds_info(struct inode *inode)
 }
 
 static inline void
+pnfs_init_ds_commit_info(struct pnfs_ds_commit_info *fl_cinfo)
+{
+	INIT_LIST_HEAD(&fl_cinfo->commits);
+}
+
+static inline void
 pnfs_generic_mark_devid_invalid(struct nfs4_deviceid_node *node)
 {
 	set_bit(NFS_DEVICEID_INVALID, &node->flags);
@@ -757,6 +763,11 @@ static inline struct pnfs_ds_commit_info *
 pnfs_get_ds_info(struct inode *inode)
 {
 	return NULL;
+}
+
+static inline void
+pnfs_init_ds_commit_info(struct pnfs_ds_commit_info *fl_cinfo)
+{
 }
 
 static inline bool
