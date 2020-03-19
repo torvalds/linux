@@ -189,28 +189,53 @@ int pnfs_generic_scan_commit_lists(struct nfs_commit_info *cinfo, int max)
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_scan_commit_lists);
 
-/* Pull everything off the committing lists and dump into @dst.  */
-void pnfs_generic_recover_commit_reqs(struct list_head *dst,
-				      struct nfs_commit_info *cinfo)
+static unsigned int
+pnfs_bucket_recover_commit_reqs(struct list_head *dst,
+			        struct pnfs_commit_bucket *buckets,
+				unsigned int nbuckets,
+				struct nfs_commit_info *cinfo)
 {
 	struct pnfs_commit_bucket *b;
 	struct pnfs_layout_segment *freeme;
-	int nwritten;
-	int i;
+	unsigned int nwritten, ret = 0;
+	unsigned int i;
 
-	lockdep_assert_held(&NFS_I(cinfo->inode)->commit_mutex);
 restart:
-	for (i = 0, b = cinfo->ds->buckets; i < cinfo->ds->nbuckets; i++, b++) {
+	for (i = 0, b = buckets; i < nbuckets; i++, b++) {
 		nwritten = nfs_scan_commit_list(&b->written, dst, cinfo, 0);
 		if (!nwritten)
 			continue;
-		cinfo->ds->nwritten -= nwritten;
+		ret += nwritten;
 		if (list_empty(&b->written)) {
 			freeme = b->wlseg;
 			b->wlseg = NULL;
 			pnfs_put_lseg(freeme);
 			goto restart;
 		}
+	}
+	return ret;
+}
+
+/* Pull everything off the committing lists and dump into @dst.  */
+void pnfs_generic_recover_commit_reqs(struct list_head *dst,
+				      struct nfs_commit_info *cinfo)
+{
+	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
+	struct pnfs_commit_array *array;
+	unsigned int nwritten;
+
+	lockdep_assert_held(&NFS_I(cinfo->inode)->commit_mutex);
+	nwritten = pnfs_bucket_recover_commit_reqs(dst,
+						   fl_cinfo->buckets,
+						   fl_cinfo->nbuckets,
+						   cinfo);
+	fl_cinfo->nwritten -= nwritten;
+	list_for_each_entry(array, &fl_cinfo->commits, cinfo_list) {
+		nwritten = pnfs_bucket_recover_commit_reqs(dst,
+							   array->buckets,
+							   array->nbuckets,
+							   cinfo);
+		fl_cinfo->nwritten -= nwritten;
 	}
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_recover_commit_reqs);
