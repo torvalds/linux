@@ -69,7 +69,8 @@ static u32 *caam_init_desc(u32 *desc, dma_addr_t dst_dma, int len)
 {
 	init_job_desc(desc, 0);	/* + 1 cmd_sz */
 	/* Generate random bytes: + 1 cmd_sz */
-	append_operation(desc, OP_ALG_ALGSEL_RNG | OP_TYPE_CLASS1_ALG);
+	append_operation(desc, OP_ALG_ALGSEL_RNG | OP_TYPE_CLASS1_ALG |
+			 OP_ALG_PR_ON);
 	/* Store bytes: + 1 cmd_sz + caam_ptr_sz  */
 	append_fifo_store(desc, dst_dma, len, FIFOST_TYPE_RNGSTORE);
 
