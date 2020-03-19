@@ -1288,6 +1288,32 @@ static bool vsc8584_is_pkg_init(struct phy_device *phydev, bool reversed)
 	return false;
 }
 
+static void vsc8584_rgmii_set_skews(struct phy_device *phydev)
+{
+	u32 skew_rx, skew_tx;
+
+	/* We first set the Rx and Tx skews to their default value in h/w
+	 * (0.2 ns).
+	 */
+	skew_rx = VSC8584_RGMII_SKEW_0_2;
+	skew_tx = VSC8584_RGMII_SKEW_0_2;
+
+	/* We then set the skews based on the interface mode. */
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+	    phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID)
+		skew_rx = VSC8584_RGMII_SKEW_2_0;
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+	    phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
+		skew_tx = VSC8584_RGMII_SKEW_2_0;
+
+	/* Finally we apply the skews configuration. */
+	phy_modify_paged(phydev, MSCC_PHY_PAGE_EXTENDED_2,
+			 MSCC_PHY_RGMII_SETTINGS,
+			 (0x7 << RGMII_SKEW_RX_POS) | (0x7 << RGMII_SKEW_TX_POS),
+			 (skew_rx << RGMII_SKEW_RX_POS) |
+			 (skew_tx << RGMII_SKEW_TX_POS));
+}
+
 static int vsc8584_config_init(struct phy_device *phydev)
 {
 	struct vsc8531_private *vsc8531 = phydev->priv;
@@ -1421,6 +1447,9 @@ static int vsc8584_config_init(struct phy_device *phydev)
 	ret = phy_write(phydev, MSCC_PHY_EXT_PHY_CNTL_1, val);
 	if (ret)
 		return ret;
+
+	if (phy_interface_is_rgmii(phydev))
+		vsc8584_rgmii_set_skews(phydev);
 
 	ret = genphy_soft_reset(phydev);
 	if (ret)
