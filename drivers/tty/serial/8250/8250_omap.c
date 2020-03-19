@@ -736,22 +736,19 @@ static void omap_8250_unthrottle(struct uart_port *port)
 #ifdef CONFIG_SERIAL_8250_DMA
 static int omap_8250_rx_dma(struct uart_8250_port *p);
 
+/* Must be called while priv->rx_dma_lock is held */
 static void __dma_rx_do_complete(struct uart_8250_port *p)
 {
-	struct omap8250_priv	*priv = p->port.private_data;
 	struct uart_8250_dma    *dma = p->dma;
 	struct tty_port         *tty_port = &p->port.state->port;
 	struct dma_chan		*rxchan = dma->rxchan;
 	dma_cookie_t		cookie;
 	struct dma_tx_state     state;
 	int                     count;
-	unsigned long		flags;
 	int			ret;
 
-	spin_lock_irqsave(&priv->rx_dma_lock, flags);
-
 	if (!dma->rx_running)
-		goto unlock;
+		goto out;
 
 	cookie = dma->rx_cookie;
 	dma->rx_running = 0;
@@ -777,13 +774,12 @@ static void __dma_rx_do_complete(struct uart_8250_port *p)
 		}
 	}
 	if (!count)
-		goto unlock;
+		goto out;
 	ret = tty_insert_flip_string(tty_port, dma->rx_buf, count);
 
 	p->port.icount.rx += ret;
 	p->port.icount.buf_overrun += count - ret;
-unlock:
-	spin_unlock_irqrestore(&priv->rx_dma_lock, flags);
+out:
 
 	tty_flip_buffer_push(tty_port);
 }
@@ -836,9 +832,8 @@ static void omap_8250_rx_dma_flush(struct uart_8250_port *p)
 		if (WARN_ON_ONCE(ret))
 			priv->rx_dma_broken = true;
 	}
-	spin_unlock_irqrestore(&priv->rx_dma_lock, flags);
-
 	__dma_rx_do_complete(p);
+	spin_unlock_irqrestore(&priv->rx_dma_lock, flags);
 }
 
 static int omap_8250_rx_dma(struct uart_8250_port *p)
