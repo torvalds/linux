@@ -280,6 +280,15 @@ config SC_GPUCC_7180
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SC_MSS_7180
+	tristate "SC7180 Modem Clock Controller"
+	select SC_GCC_7180
+	help
+	  Support for the Modem Subsystem clock controller on Qualcomm
+	  Technologies, Inc on SC7180 devices.
+	  Say Y if you want to use the Modem branch clocks of the Modem
+	  subsystem clock controller to reset the MSS subsystem.
+
 config SC_VIDEOCC_7180
 	tristate "SC7180 Video Clock Controller"
 	select SC_GCC_7180
