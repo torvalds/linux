@@ -689,12 +689,12 @@ const struct dev_pm_ops tegra_pinctrl_pm = {
 	.resume = &tegra_pinctrl_resume
 };
 
-static bool gpio_node_has_range(const char *compatible)
+static bool tegra_pinctrl_gpio_node_has_range(struct tegra_pmx *pmx)
 {
 	struct device_node *np;
 	bool has_prop = false;
 
-	np = of_find_compatible_node(NULL, NULL, compatible);
+	np = of_find_compatible_node(NULL, NULL, pmx->soc->gpio_compatible);
 	if (!np)
 		return has_prop;
 
@@ -794,7 +794,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 
 	tegra_pinctrl_clear_parked_bits(pmx);
 
-	if (!gpio_node_has_range(pmx->soc->gpio_compatible))
+	if (!tegra_pinctrl_gpio_node_has_range(pmx))
 		pinctrl_add_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
 
 	platform_set_drvdata(pdev, pmx);
