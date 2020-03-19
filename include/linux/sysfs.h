@@ -562,8 +562,8 @@ static inline int sysfs_groups_change_owner(struct kobject *kobj,
 }
 
 static inline int sysfs_group_change_owner(struct kobject *kobj,
-			 const struct attribute_group **groups,
-			 kuid_t kuid, kgid_t kgid)
+					   const struct attribute_group *groups,
+					   kuid_t kuid, kgid_t kgid)
 {
 	return 0;
 }
