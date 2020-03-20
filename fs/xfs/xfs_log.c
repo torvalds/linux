@@ -2632,8 +2632,7 @@ xlog_state_clean_iclog(
 {
 	int			iclogs_changed = 0;
 
-	if (dirty_iclog->ic_state != XLOG_STATE_IOERROR)
-		dirty_iclog->ic_state = XLOG_STATE_DIRTY;
+	dirty_iclog->ic_state = XLOG_STATE_DIRTY;
 
 	xlog_state_activate_iclogs(log, &iclogs_changed);
 	wake_up_all(&dirty_iclog->ic_force_wait);
@@ -2838,8 +2837,10 @@ xlog_state_do_callback(
 			 */
 			cycled_icloglock = true;
 			xlog_state_do_iclog_callbacks(log, iclog);
-
-			xlog_state_clean_iclog(log, iclog);
+			if (XLOG_FORCED_SHUTDOWN(log))
+				wake_up_all(&iclog->ic_force_wait);
+			else
+				xlog_state_clean_iclog(log, iclog);
 			iclog = iclog->ic_next;
 		} while (first_iclog != iclog);
 
