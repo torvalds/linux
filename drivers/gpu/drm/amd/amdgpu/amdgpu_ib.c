@@ -390,6 +390,10 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		if (!ring->sched.ready || !ring->funcs->test_ib)
 			continue;
 
+		if (adev->enable_mes &&
+		    ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
+			continue;
+
 		/* MM engine need more time */
 		if (ring->funcs->type == AMDGPU_RING_TYPE_UVD ||
 			ring->funcs->type == AMDGPU_RING_TYPE_VCE ||
