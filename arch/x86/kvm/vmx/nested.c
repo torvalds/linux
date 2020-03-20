@@ -1152,8 +1152,8 @@ static void nested_vmx_transition_tlb_flush(struct kvm_vcpu *vcpu,
 	 *
 	 * If VPID is enabled and used by vmc12, but L2 does not have a unique
 	 * TLB tag (ASID), i.e. EPT is disabled and KVM was unable to allocate
-	 * a VPID for L2, flush the TLB as the effective ASID is common to both
-	 * L1 and L2.
+	 * a VPID for L2, flush the current context as the effective ASID is
+	 * common to both L1 and L2.
 	 *
 	 * Defer the flush so that it runs after vmcs02.EPTP has been set by
 	 * KVM_REQ_LOAD_MMU_PGD (if nested EPT is enabled) and to avoid
@@ -1165,8 +1165,10 @@ static void nested_vmx_transition_tlb_flush(struct kvm_vcpu *vcpu,
 	 * mapping between vpid02 and vpid12, vpid02 is per-vCPU and reused for
 	 * all nested vCPUs.
 	 */
-	if (!nested_cpu_has_vpid(vmcs12) || !nested_has_guest_tlb_tag(vcpu)) {
+	if (!nested_cpu_has_vpid(vmcs12)) {
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	} else if (!nested_has_guest_tlb_tag(vcpu)) {
+		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
 	} else if (is_vmenter &&
 		   vmcs12->virtual_processor_id != vmx->nested.last_vpid) {
 		vmx->nested.last_vpid = vmcs12->virtual_processor_id;
