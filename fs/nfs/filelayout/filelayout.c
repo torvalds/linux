@@ -1083,36 +1083,6 @@ out_err:
 	return -EAGAIN;
 }
 
-/* filelayout_search_commit_reqs - Search lists in @cinfo for the head reqest
- *				   for @page
- * @cinfo - commit info for current inode
- * @page - page to search for matching head request
- *
- * Returns a the head request if one is found, otherwise returns NULL.
- */
-static struct nfs_page *
-filelayout_search_commit_reqs(struct nfs_commit_info *cinfo, struct page *page)
-{
-	struct nfs_page *freq, *t;
-	struct pnfs_commit_bucket *b;
-	int i;
-
-	/* Linearly search the commit lists for each bucket until a matching
-	 * request is found */
-	for (i = 0, b = cinfo->ds->buckets; i < cinfo->ds->nbuckets; i++, b++) {
-		list_for_each_entry_safe(freq, t, &b->written, wb_list) {
-			if (freq->wb_page == page)
-				return freq->wb_head;
-		}
-		list_for_each_entry_safe(freq, t, &b->committing, wb_list) {
-			if (freq->wb_page == page)
-				return freq->wb_head;
-		}
-	}
-
-	return NULL;
-}
-
 static int
 filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 			   int how, struct nfs_commit_info *cinfo)
@@ -1217,7 +1187,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.clear_request_commit	= pnfs_generic_clear_request_commit,
 	.scan_commit_lists	= pnfs_generic_scan_commit_lists,
 	.recover_commit_reqs	= pnfs_generic_recover_commit_reqs,
-	.search_commit_reqs	= filelayout_search_commit_reqs,
+	.search_commit_reqs	= pnfs_generic_search_commit_reqs,
 	.commit_pagelist	= filelayout_commit_pagelist,
 	.read_pagelist		= filelayout_read_pagelist,
 	.write_pagelist		= filelayout_write_pagelist,

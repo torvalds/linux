@@ -375,6 +375,57 @@ void pnfs_generic_recover_commit_reqs(struct list_head *dst,
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_recover_commit_reqs);
 
+static struct nfs_page *
+pnfs_bucket_search_commit_reqs(struct pnfs_commit_bucket *buckets,
+		unsigned int nbuckets, struct page *page)
+{
+	struct nfs_page *req;
+	struct pnfs_commit_bucket *b;
+	unsigned int i;
+
+	/* Linearly search the commit lists for each bucket until a matching
+	 * request is found */
+	for (i = 0, b = buckets; i < nbuckets; i++, b++) {
+		list_for_each_entry(req, &b->written, wb_list) {
+			if (req->wb_page == page)
+				return req->wb_head;
+		}
+		list_for_each_entry(req, &b->committing, wb_list) {
+			if (req->wb_page == page)
+				return req->wb_head;
+		}
+	}
+	return NULL;
+}
+
+/* pnfs_generic_search_commit_reqs - Search lists in @cinfo for the head reqest
+ *				   for @page
+ * @cinfo - commit info for current inode
+ * @page - page to search for matching head request
+ *
+ * Returns a the head request if one is found, otherwise returns NULL.
+ */
+struct nfs_page *
+pnfs_generic_search_commit_reqs(struct nfs_commit_info *cinfo, struct page *page)
+{
+	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
+	struct pnfs_commit_array *array;
+	struct nfs_page *req;
+
+	req = pnfs_bucket_search_commit_reqs(fl_cinfo->buckets,
+			fl_cinfo->nbuckets, page);
+	if (req)
+		return req;
+	list_for_each_entry(array, &fl_cinfo->commits, cinfo_list) {
+		req = pnfs_bucket_search_commit_reqs(array->buckets,
+				array->nbuckets, page);
+		if (req)
+			return req;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(pnfs_generic_search_commit_reqs);
+
 static struct pnfs_layout_segment *
 pnfs_bucket_get_committing(struct list_head *head,
 			   struct pnfs_commit_bucket *bucket,
