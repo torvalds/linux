@@ -89,12 +89,9 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 			      unsigned long size, void **handles)
 {
 	efi_graphics_output_protocol_t *gop, *first_gop;
-	u16 width, height;
-	u32 pixels_per_scan_line;
-	u32 ext_lfb_base;
+	efi_graphics_output_protocol_mode_t *mode;
+	efi_graphics_output_mode_info_t *info = NULL;
 	efi_physical_addr_t fb_base;
-	efi_pixel_bitmask_t pixel_info;
-	int pixel_format;
 	efi_status_t status;
 	efi_handle_t h;
 	int i;
@@ -103,8 +100,6 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 	gop = NULL;
 
 	for_each_efi_handle(h, handles, size, i) {
-		efi_graphics_output_protocol_mode_t *mode;
-		efi_graphics_output_mode_info_t *info = NULL;
 		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
 		bool conout_found = false;
 		void *dummy = NULL;
@@ -129,15 +124,7 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 			 * backed by real hardware. The workaround is to search
 			 * for a GOP implementing the ConOut protocol, and if
 			 * one isn't found, to just fall back to the first GOP.
-			 */
-			width = info->horizontal_resolution;
-			height = info->vertical_resolution;
-			pixel_format = info->pixel_format;
-			pixel_info = info->pixel_information;
-			pixels_per_scan_line = info->pixels_per_scan_line;
-			fb_base = efi_table_attr(mode, frame_buffer_base);
-
-			/*
+			 *
 			 * Once we've found a GOP supporting ConOut,
 			 * don't bother looking any further.
 			 */
@@ -152,21 +139,24 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 		return EFI_NOT_FOUND;
 
 	/* EFI framebuffer */
+	mode = efi_table_attr(first_gop, mode);
+	info = efi_table_attr(mode, info);
+
 	si->orig_video_isVGA = VIDEO_TYPE_EFI;
 
-	si->lfb_width = width;
-	si->lfb_height = height;
-	si->lfb_base = fb_base;
+	si->lfb_width  = info->horizontal_resolution;
+	si->lfb_height = info->vertical_resolution;
 
-	ext_lfb_base = (u64)(unsigned long)fb_base >> 32;
-	if (ext_lfb_base) {
+	fb_base		 = efi_table_attr(mode, frame_buffer_base);
+	si->lfb_base	 = fb_base;
+	si->ext_lfb_base = (u64)(unsigned long)fb_base >> 32;
+	if (si->ext_lfb_base)
 		si->capabilities |= VIDEO_CAPABILITY_64BIT_BASE;
-		si->ext_lfb_base = ext_lfb_base;
-	}
 
 	si->pages = 1;
 
-	setup_pixel_info(si, pixels_per_scan_line, pixel_info, pixel_format);
+	setup_pixel_info(si, info->pixels_per_scan_line,
+			     info->pixel_information, info->pixel_format);
 
 	si->lfb_size = si->lfb_linelength * si->lfb_height;
 
