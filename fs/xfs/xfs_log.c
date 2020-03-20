@@ -2540,111 +2540,107 @@ next_lv:
  *****************************************************************************
  */
 
+static void
+xlog_state_activate_iclog(
+	struct xlog_in_core	*iclog,
+	int			*iclogs_changed)
+{
+	ASSERT(list_empty_careful(&iclog->ic_callbacks));
+
+	/*
+	 * If the number of ops in this iclog indicate it just contains the
+	 * dummy transaction, we can change state into IDLE (the second time
+	 * around). Otherwise we should change the state into NEED a dummy.
+	 * We don't need to cover the dummy.
+	 */
+	if (*iclogs_changed == 0 &&
+	    iclog->ic_header.h_num_logops == cpu_to_be32(XLOG_COVER_OPS)) {
+		*iclogs_changed = 1;
+	} else {
+		/*
+		 * We have two dirty iclogs so start over.  This could also be
+		 * num of ops indicating this is not the dummy going out.
+		 */
+		*iclogs_changed = 2;
+	}
+
+	iclog->ic_state	= XLOG_STATE_ACTIVE;
+	iclog->ic_offset = 0;
+	iclog->ic_header.h_num_logops = 0;
+	memset(iclog->ic_header.h_cycle_data, 0,
+		sizeof(iclog->ic_header.h_cycle_data));
+	iclog->ic_header.h_lsn = 0;
+}
+
 /*
- * An iclog has just finished IO completion processing, so we need to update
- * the iclog state and propagate that up into the overall log state. Hence we
- * prepare the iclog for cleaning, and then clean all the pending dirty iclogs
- * starting from the head, and then wake up any threads that are waiting for the
- * iclog to be marked clean.
- *
- * The ordering of marking iclogs ACTIVE must be maintained, so an iclog
- * doesn't become ACTIVE beyond one that is SYNCING.  This is also required to
- * maintain the notion that we use a ordered wait queue to hold off would be
- * writers to the log when every iclog is trying to sync to disk.
- *
- * Caller must hold the icloglock before calling us.
- *
- * State Change: !IOERROR -> DIRTY -> ACTIVE
+ * Loop through all iclogs and mark all iclogs currently marked DIRTY as
+ * ACTIVE after iclog I/O has completed.
  */
+static void
+xlog_state_activate_iclogs(
+	struct xlog		*log,
+	int			*iclogs_changed)
+{
+	struct xlog_in_core	*iclog = log->l_iclog;
+
+	do {
+		if (iclog->ic_state == XLOG_STATE_DIRTY)
+			xlog_state_activate_iclog(iclog, iclogs_changed);
+		/*
+		 * The ordering of marking iclogs ACTIVE must be maintained, so
+		 * an iclog doesn't become ACTIVE beyond one that is SYNCING.
+		 */
+		else if (iclog->ic_state != XLOG_STATE_ACTIVE)
+			break;
+	} while ((iclog = iclog->ic_next) != log->l_iclog);
+}
+
+static int
+xlog_covered_state(
+	int			prev_state,
+	int			iclogs_changed)
+{
+	/*
+	 * We usually go to NEED. But we go to NEED2 if the changed indicates we
+	 * are done writing the dummy record.  If we are done with the second
+	 * dummy recored (DONE2), then we go to IDLE.
+	 */
+	switch (prev_state) {
+	case XLOG_STATE_COVER_IDLE:
+	case XLOG_STATE_COVER_NEED:
+	case XLOG_STATE_COVER_NEED2:
+		break;
+	case XLOG_STATE_COVER_DONE:
+		if (iclogs_changed == 1)
+			return XLOG_STATE_COVER_NEED2;
+		break;
+	case XLOG_STATE_COVER_DONE2:
+		if (iclogs_changed == 1)
+			return XLOG_STATE_COVER_IDLE;
+		break;
+	default:
+		ASSERT(0);
+	}
+
+	return XLOG_STATE_COVER_NEED;
+}
+
 STATIC void
 xlog_state_clean_iclog(
 	struct xlog		*log,
 	struct xlog_in_core	*dirty_iclog)
 {
-	struct xlog_in_core	*iclog;
-	int			changed = 0;
+	int			iclogs_changed = 0;
 
-	/* Prepare the completed iclog. */
 	if (dirty_iclog->ic_state != XLOG_STATE_IOERROR)
 		dirty_iclog->ic_state = XLOG_STATE_DIRTY;
 
-	/* Walk all the iclogs to update the ordered active state. */
-	iclog = log->l_iclog;
-	do {
-		if (iclog->ic_state == XLOG_STATE_DIRTY) {
-			iclog->ic_state	= XLOG_STATE_ACTIVE;
-			iclog->ic_offset       = 0;
-			ASSERT(list_empty_careful(&iclog->ic_callbacks));
-			/*
-			 * If the number of ops in this iclog indicate it just
-			 * contains the dummy transaction, we can
-			 * change state into IDLE (the second time around).
-			 * Otherwise we should change the state into
-			 * NEED a dummy.
-			 * We don't need to cover the dummy.
-			 */
-			if (!changed &&
-			   (be32_to_cpu(iclog->ic_header.h_num_logops) ==
-			   		XLOG_COVER_OPS)) {
-				changed = 1;
-			} else {
-				/*
-				 * We have two dirty iclogs so start over
-				 * This could also be num of ops indicates
-				 * this is not the dummy going out.
-				 */
-				changed = 2;
-			}
-			iclog->ic_header.h_num_logops = 0;
-			memset(iclog->ic_header.h_cycle_data, 0,
-			      sizeof(iclog->ic_header.h_cycle_data));
-			iclog->ic_header.h_lsn = 0;
-		} else if (iclog->ic_state == XLOG_STATE_ACTIVE)
-			/* do nothing */;
-		else
-			break;	/* stop cleaning */
-		iclog = iclog->ic_next;
-	} while (iclog != log->l_iclog);
-
-
-	/*
-	 * Wake up threads waiting in xfs_log_force() for the dirty iclog
-	 * to be cleaned.
-	 */
+	xlog_state_activate_iclogs(log, &iclogs_changed);
 	wake_up_all(&dirty_iclog->ic_force_wait);
 
-	/*
-	 * Change state for the dummy log recording.
-	 * We usually go to NEED. But we go to NEED2 if the changed indicates
-	 * we are done writing the dummy record.
-	 * If we are done with the second dummy recored (DONE2), then
-	 * we go to IDLE.
-	 */
-	if (changed) {
-		switch (log->l_covered_state) {
-		case XLOG_STATE_COVER_IDLE:
-		case XLOG_STATE_COVER_NEED:
-		case XLOG_STATE_COVER_NEED2:
-			log->l_covered_state = XLOG_STATE_COVER_NEED;
-			break;
-
-		case XLOG_STATE_COVER_DONE:
-			if (changed == 1)
-				log->l_covered_state = XLOG_STATE_COVER_NEED2;
-			else
-				log->l_covered_state = XLOG_STATE_COVER_NEED;
-			break;
-
-		case XLOG_STATE_COVER_DONE2:
-			if (changed == 1)
-				log->l_covered_state = XLOG_STATE_COVER_IDLE;
-			else
-				log->l_covered_state = XLOG_STATE_COVER_NEED;
-			break;
-
-		default:
-			ASSERT(0);
-		}
+	if (iclogs_changed) {
+		log->l_covered_state = xlog_covered_state(log->l_covered_state,
+				iclogs_changed);
 	}
 }
 
