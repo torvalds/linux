@@ -1143,10 +1143,12 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 	}
 
 	/*
-	 * See nested_vmx_transition_mmu_sync for details on skipping the MMU sync.
+	 * Unconditionally skip the TLB flush on fast CR3 switch, all TLB
+	 * flushes are handled by nested_vmx_transition_tlb_flush().  See
+	 * nested_vmx_transition_mmu_sync for details on skipping the MMU sync.
 	 */
 	if (!nested_ept)
-		kvm_mmu_new_cr3(vcpu, cr3, false,
+		kvm_mmu_new_cr3(vcpu, cr3, true,
 				!nested_vmx_transition_mmu_sync(vcpu));
 
 	vcpu->arch.cr3 = cr3;
