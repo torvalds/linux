@@ -602,24 +602,16 @@ xfs_log_release_iclog(
 	struct xlog_in_core	*iclog)
 {
 	struct xlog		*log = iclog->ic_log;
-	bool			sync;
-
-	if (iclog->ic_state == XLOG_STATE_IOERROR)
-		goto error;
+	bool			sync = false;
 
 	if (atomic_dec_and_lock(&iclog->ic_refcnt, &log->l_icloglock)) {
-		if (iclog->ic_state == XLOG_STATE_IOERROR) {
-			spin_unlock(&log->l_icloglock);
-			goto error;
-		}
-		sync = __xlog_state_release_iclog(log, iclog);
+		if (iclog->ic_state != XLOG_STATE_IOERROR)
+			sync = __xlog_state_release_iclog(log, iclog);
 		spin_unlock(&log->l_icloglock);
-		if (sync)
-			xlog_sync(log, iclog);
 	}
-	return;
-error:
-	xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+
+	if (sync)
+		xlog_sync(log, iclog);
 }
 
 /*
