@@ -6,6 +6,7 @@
  * ----------------------------------------------------------------------- */
 
 #include <linux/bitops.h>
+#include <linux/ctype.h>
 #include <linux/efi.h>
 #include <linux/screen_info.h>
 #include <linux/string.h>
@@ -17,11 +18,17 @@
 enum efi_cmdline_option {
 	EFI_CMDLINE_NONE,
 	EFI_CMDLINE_MODE_NUM,
+	EFI_CMDLINE_RES
 };
 
 static struct {
 	enum efi_cmdline_option option;
-	u32 mode;
+	union {
+		u32 mode;
+		struct {
+			u32 width, height;
+		} res;
+	};
 } cmdline __efistub_global = { .option = EFI_CMDLINE_NONE };
 
 static bool parse_modenum(char *option, char **next)
@@ -41,10 +48,32 @@ static bool parse_modenum(char *option, char **next)
 	return true;
 }
 
+static bool parse_res(char *option, char **next)
+{
+	u32 w, h;
+
+	if (!isdigit(*option))
+		return false;
+	w = simple_strtoull(option, &option, 10);
+	if (*option++ != 'x' || !isdigit(*option))
+		return false;
+	h = simple_strtoull(option, &option, 10);
+	if (*option && *option++ != ',')
+		return false;
+	cmdline.option     = EFI_CMDLINE_RES;
+	cmdline.res.width  = w;
+	cmdline.res.height = h;
+
+	*next = option;
+	return true;
+}
+
 void efi_parse_option_graphics(char *option)
 {
 	while (*option) {
 		if (parse_modenum(option, &option))
+			continue;
+		if (parse_res(option, &option))
 			continue;
 
 		while (*option && *option++ != ',')
@@ -94,6 +123,56 @@ static u32 choose_mode_modenum(efi_graphics_output_protocol_t *gop)
 	return cmdline.mode;
 }
 
+static u32 choose_mode_res(efi_graphics_output_protocol_t *gop)
+{
+	efi_status_t status;
+
+	efi_graphics_output_protocol_mode_t *mode;
+	efi_graphics_output_mode_info_t *info;
+	unsigned long info_size;
+
+	u32 max_mode, cur_mode;
+	int pf;
+	u32 m, w, h;
+
+	mode = efi_table_attr(gop, mode);
+
+	cur_mode = efi_table_attr(mode, mode);
+	info = efi_table_attr(mode, info);
+	w = info->horizontal_resolution;
+	h = info->vertical_resolution;
+
+	if (w == cmdline.res.width && h == cmdline.res.height)
+		return cur_mode;
+
+	max_mode = efi_table_attr(mode, max_mode);
+
+	for (m = 0; m < max_mode; m++) {
+		if (m == cur_mode)
+			continue;
+
+		status = efi_call_proto(gop, query_mode, m,
+					&info_size, &info);
+		if (status != EFI_SUCCESS)
+			continue;
+
+		pf = info->pixel_format;
+		w  = info->horizontal_resolution;
+		h  = info->vertical_resolution;
+
+		efi_bs_call(free_pool, info);
+
+		if (pf == PIXEL_BLT_ONLY || pf >= PIXEL_FORMAT_MAX)
+			continue;
+		if (w == cmdline.res.width && h == cmdline.res.height)
+			return m;
+	}
+
+	efi_printk("Couldn't find requested mode\n");
+
+	return cur_mode;
+}
+
 static void set_mode(efi_graphics_output_protocol_t *gop)
 {
 	efi_graphics_output_protocol_mode_t *mode;
@@ -102,6 +181,9 @@ static void set_mode(efi_graphics_output_protocol_t *gop)
 	switch (cmdline.option) {
 	case EFI_CMDLINE_MODE_NUM:
 		new_mode = choose_mode_modenum(gop);
+		break;
+	case EFI_CMDLINE_RES:
+		new_mode = choose_mode_res(gop);
 		break;
 	default:
 		return;

@@ -50,4 +50,9 @@ mode=n
         The EFI stub will set the mode of the display to mode number n if
         possible.
 
+<xres>x<yres>
+        The EFI stub will search for a display mode that matches the specified
+        horizontal and vertical resolution, and set the mode of the display to
+        it if one is found.
+
 Edgar Hucek <gimli@dark-green.com>
