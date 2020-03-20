@@ -212,8 +212,6 @@ int otx2_hw_set_mtu(struct otx2_nic *pfvf, int mtu)
 		return -ENOMEM;
 	}
 
-	/* SMQ config limits maximum pkt size that can be transmitted */
-	req->update_smq = true;
 	pfvf->max_frs = mtu +  OTX2_ETH_HLEN;
 	req->maxlen = pfvf->max_frs;
 
@@ -472,7 +470,7 @@ int otx2_txschq_config(struct otx2_nic *pfvf, int lvl)
 	/* Set topology e.t.c configuration */
 	if (lvl == NIX_TXSCH_LVL_SMQ) {
 		req->reg[0] = NIX_AF_SMQX_CFG(schq);
-		req->regval[0] = ((pfvf->netdev->mtu  + OTX2_ETH_HLEN) << 8) |
+		req->regval[0] = ((OTX2_MAX_MTU + OTX2_ETH_HLEN) << 8) |
 				   OTX2_MIN_MTU;
 
 		req->regval[0] |= (0x20ULL << 51) | (0x80ULL << 39) |
@@ -582,17 +580,19 @@ void otx2_sqb_flush(struct otx2_nic *pfvf)
 {
 	int qidx, sqe_tail, sqe_head;
 	u64 incr, *ptr, val;
+	int timeout = 1000;
 
 	ptr = (u64 *)otx2_get_regaddr(pfvf, NIX_LF_SQ_OP_STATUS);
 	for (qidx = 0; qidx < pfvf->hw.tx_queues; qidx++) {
 		incr = (u64)qidx << 32;
-		while (1) {
+		while (timeout) {
 			val = otx2_atomic64_add(incr, ptr);
 			sqe_head = (val >> 20) & 0x3F;
 			sqe_tail = (val >> 28) & 0x3F;
 			if (sqe_head == sqe_tail)
 				break;
 			usleep_range(1, 3);
+			timeout--;
 		}
 	}
 }
@@ -988,6 +988,7 @@ void otx2_aura_pool_free(struct otx2_nic *pfvf)
 		qmem_free(pfvf->dev, pool->fc_addr);
 	}
 	devm_kfree(pfvf->dev, pfvf->qset.pool);
+	pfvf->qset.pool = NULL;
 }
 
 static int otx2_aura_init(struct otx2_nic *pfvf, int aura_id,
