@@ -12,19 +12,9 @@
 #include <linux/time64.h>
 #include <linux/timex.h>
 
+#include <vdso/time32.h>
+
 #define TIME_T_MAX	(__kernel_old_time_t)((1UL << ((sizeof(__kernel_old_time_t) << 3) - 1)) - 1)
-
-typedef s32		old_time32_t;
-
-struct old_timespec32 {
-	old_time32_t	tv_sec;
-	s32		tv_nsec;
-};
-
-struct old_timeval32 {
-	old_time32_t	tv_sec;
-	s32		tv_usec;
-};
 
 struct old_itimerspec32 {
 	struct old_timespec32 it_interval;
