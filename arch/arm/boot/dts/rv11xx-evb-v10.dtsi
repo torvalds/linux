@@ -437,3 +437,13 @@
 	supports-sdio;
 	status = "okay";
 };
+
+&usbdrd {
+	status = "okay";
+
+	usbdrd_dwc3 {
+		status = "okay";
+		/delete-property/ phys;
+		dr_mode = "peripheral";
+	};
+};
