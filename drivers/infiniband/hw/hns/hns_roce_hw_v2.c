@@ -583,13 +583,6 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 			ret = set_ud_wqe(qp, wr, wqe, &sge_idx, owner_bit);
 		else if (ibqp->qp_type == IB_QPT_RC)
 			ret = set_rc_wqe(qp, wr, wqe, &sge_idx, owner_bit);
-		else {
-			ibdev_err(ibdev, "Illegal qp_type(0x%x)\n",
-				  ibqp->qp_type);
-			spin_unlock_irqrestore(&qp->sq.lock, flags);
-			*bad_wr = wr;
-			return -EOPNOTSUPP;
-		}
 
 		if (ret) {
 			*bad_wr = wr;
