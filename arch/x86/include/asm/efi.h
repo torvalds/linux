@@ -307,6 +307,10 @@ static inline u32 efi64_convert_status(efi_status_t status)
 #define __efi64_argmap_load_file(protocol, path, policy, bufsize, buf)	\
 	((protocol), (path), (policy), efi64_zero_upper(bufsize), (buf))
 
+/* Graphics Output Protocol */
+#define __efi64_argmap_query_mode(gop, mode, size, info)		\
+	((gop), (mode), efi64_zero_upper(size), efi64_zero_upper(info))
+
 /*
  * The macros below handle the plumbing for the argument mapping. To add a
  * mapping for a specific EFI method, simply define a macro
