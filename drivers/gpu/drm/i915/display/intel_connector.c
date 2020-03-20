@@ -290,7 +290,7 @@ intel_attach_colorspace_property(struct drm_connector *connector)
 			return;
 		break;
 	default:
-		DRM_DEBUG_KMS("Colorspace property not supported\n");
+		MISSING_CASE(connector->connector_type);
 		return;
 	}
 
