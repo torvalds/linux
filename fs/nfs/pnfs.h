@@ -150,6 +150,8 @@ struct pnfs_layoutdriver_type {
 	const struct nfs_pageio_ops *pg_write_ops;
 
 	struct pnfs_ds_commit_info *(*get_ds_info) (struct inode *inode);
+	void (*setup_ds_info)(struct pnfs_ds_commit_info *,
+			      struct pnfs_layout_segment *);
 	void (*release_ds_info)(struct pnfs_ds_commit_info *,
 				struct inode *inode);
 	void (*mark_request_commit) (struct nfs_page *req,
@@ -371,6 +373,10 @@ void nfs4_deviceid_purge_client(const struct nfs_client *);
 /* pnfs_nfs.c */
 struct pnfs_commit_array *pnfs_alloc_commit_array(size_t n, gfp_t gfp_flags);
 void pnfs_free_commit_array(struct pnfs_commit_array *p);
+struct pnfs_commit_array *pnfs_add_commit_array(struct pnfs_ds_commit_info *,
+						struct pnfs_commit_array *,
+						struct pnfs_layout_segment *);
+
 void pnfs_generic_ds_cinfo_release_lseg(struct pnfs_ds_commit_info *fl_cinfo,
 		struct pnfs_layout_segment *lseg);
 void pnfs_generic_ds_cinfo_destroy(struct pnfs_ds_commit_info *fl_cinfo);
