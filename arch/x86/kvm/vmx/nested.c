@@ -5163,17 +5163,27 @@ static int handle_vmptrst(struct kvm_vcpu *vcpu)
 	return nested_vmx_succeed(vcpu);
 }
 
+#define EPTP_PA_MASK   GENMASK_ULL(51, 12)
+
+static bool nested_ept_root_matches(hpa_t root_hpa, u64 root_eptp, u64 eptp)
+{
+	return VALID_PAGE(root_hpa) &&
+		((root_eptp & EPTP_PA_MASK) == (eptp & EPTP_PA_MASK));
+}
+
 /* Emulate the INVEPT instruction */
 static int handle_invept(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 vmx_instruction_info, types;
-	unsigned long type;
+	unsigned long type, roots_to_free;
+	struct kvm_mmu *mmu;
 	gva_t gva;
 	struct x86_exception e;
 	struct {
 		u64 eptp, gpa;
 	} operand;
+	int i;
 
 	if (!(vmx->nested.msrs.secondary_ctls_high &
 	      SECONDARY_EXEC_ENABLE_EPT) ||
@@ -5205,26 +5215,40 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
+	/*
+	 * Nested EPT roots are always held through guest_mmu,
+	 * not root_mmu.
+	 */
+	mmu = &vcpu->arch.guest_mmu;
+
 	switch (type) {
 	case VMX_EPT_EXTENT_CONTEXT:
 		if (!nested_vmx_check_eptp(vcpu, operand.eptp))
 			return nested_vmx_failValid(vcpu,
 				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
 
-		/* TODO: sync only the target EPTP context. */
-		fallthrough;
+		roots_to_free = 0;
+		if (nested_ept_root_matches(mmu->root_hpa, mmu->root_cr3,
+					    operand.eptp))
+			roots_to_free |= KVM_MMU_ROOT_CURRENT;
+
+		for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
+			if (nested_ept_root_matches(mmu->prev_roots[i].hpa,
+						    mmu->prev_roots[i].cr3,
+						    operand.eptp))
+				roots_to_free |= KVM_MMU_ROOT_PREVIOUS(i);
+		}
+		break;
 	case VMX_EPT_EXTENT_GLOBAL:
-		/*
-		 * Nested EPT roots are always held through guest_mmu,
-		 * not root_mmu.
-		 */
-		kvm_mmu_free_roots(vcpu, &vcpu->arch.guest_mmu,
-				   KVM_MMU_ROOTS_ALL);
+		roots_to_free = KVM_MMU_ROOTS_ALL;
 		break;
 	default:
 		BUG_ON(1);
 		break;
 	}
+
+	if (roots_to_free)
+		kvm_mmu_free_roots(vcpu, mmu, roots_to_free);
 
 	return nested_vmx_succeed(vcpu);
 }
