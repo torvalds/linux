@@ -16,6 +16,7 @@
 #ifndef __DEVICE_H__
 #define __DEVICE_H__
 
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -129,12 +130,12 @@
 #define EEP_OFS_OFDMA_PWR_TBL	0x50
 
 /* Bits in EEP_OFS_ANTENNA */
-#define EEP_ANTENNA_MAIN	0x1
-#define EEP_ANTENNA_AUX		0x2
-#define EEP_ANTINV		0x4
+#define EEP_ANTENNA_MAIN	BIT(0)
+#define EEP_ANTENNA_AUX		BIT(1)
+#define EEP_ANTINV		BIT(2)
 
 /* Bits in EEP_OFS_RADIOCTL */
-#define EEP_RADIOCTL_ENABLE	0x80
+#define EEP_RADIOCTL_ENABLE	BIT(7)
 
 /* control commands */
 #define MESSAGE_TYPE_READ		0x1
