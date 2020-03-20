@@ -186,16 +186,19 @@ static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
 static int dsi_send_pkt_payld(struct intel_dsi_host *host,
 			      struct mipi_dsi_packet pkt)
 {
+	struct intel_dsi *intel_dsi = host->intel_dsi;
+	struct drm_i915_private *i915 = to_i915(intel_dsi->base.base.dev);
+
 	/* payload queue can accept *256 bytes*, check limit */
 	if (pkt.payload_length > MAX_PLOAD_CREDIT * 4) {
-		DRM_ERROR("payload size exceeds max queue limit\n");
+		drm_err(&i915->drm, "payload size exceeds max queue limit\n");
 		return -1;
 	}
 
 	/* load data into command payload queue */
 	if (!add_payld_to_queue(host, pkt.payload,
 				pkt.payload_length)) {
-		DRM_ERROR("adding payload to queue failed\n");
+		drm_err(&i915->drm, "adding payload to queue failed\n");
 		return -1;
 	}
 
@@ -1513,6 +1516,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 				    struct intel_crtc_state *pipe_config,
 				    struct drm_connector_state *conn_state)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
@@ -1542,7 +1546,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	pipe_config->clock_set = true;
 
 	if (gen11_dsi_dsc_compute_config(encoder, pipe_config))
-		DRM_DEBUG_KMS("Attempting to use DSC failed\n");
+		drm_dbg_kms(&i915->drm, "Attempting to use DSC failed\n");
 
 	pipe_config->port_clock = afe_clk(encoder, pipe_config) / 5;
 

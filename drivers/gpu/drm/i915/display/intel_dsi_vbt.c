@@ -453,8 +453,7 @@ static inline void i2c_acpi_find_adapter(struct intel_dsi *intel_dsi,
 
 static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	struct drm_device *drm_dev = intel_dsi->base.base.dev;
-	struct device *dev = &drm_dev->pdev->dev;
+	struct drm_i915_private *i915 = to_i915(intel_dsi->base.base.dev);
 	struct i2c_adapter *adapter;
 	struct i2c_msg msg;
 	int ret;
@@ -471,7 +470,7 @@ static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 
 	adapter = i2c_get_adapter(intel_dsi->i2c_bus_num);
 	if (!adapter) {
-		DRM_DEV_ERROR(dev, "Cannot find a valid i2c bus for xfer\n");
+		drm_err(&i915->drm, "Cannot find a valid i2c bus for xfer\n");
 		goto err_bus;
 	}
 
@@ -489,9 +488,9 @@ static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 
 	ret = i2c_transfer(adapter, &msg, 1);
 	if (ret < 0)
-		DRM_DEV_ERROR(dev,
-			      "Failed to xfer payload of size (%u) to reg (%u)\n",
-			      payload_size, reg_offset);
+		drm_err(&i915->drm,
+			"Failed to xfer payload of size (%u) to reg (%u)\n",
+			payload_size, reg_offset);
 
 	kfree(payload_data);
 err_alloc:
