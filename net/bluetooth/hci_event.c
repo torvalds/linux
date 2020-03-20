@@ -2539,16 +2539,17 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 				bt_dev_err(hdev, "no memory for new conn");
 				goto unlock;
 			}
+		} else {
+			if (ev->link_type != SCO_LINK)
+				goto unlock;
+
+			conn = hci_conn_hash_lookup_ba(hdev, ESCO_LINK,
+						       &ev->bdaddr);
+			if (!conn)
+				goto unlock;
+
+			conn->type = SCO_LINK;
 		}
-
-		if (ev->link_type != SCO_LINK)
-			goto unlock;
-
-		conn = hci_conn_hash_lookup_ba(hdev, ESCO_LINK, &ev->bdaddr);
-		if (!conn)
-			goto unlock;
-
-		conn->type = SCO_LINK;
 	}
 
 	if (!ev->status) {
