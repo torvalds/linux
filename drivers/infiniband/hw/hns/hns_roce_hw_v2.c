@@ -4281,8 +4281,7 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	}
 
 	/* Not support alternate path and path migration */
-	if ((attr_mask & IB_QP_ALT_PATH) ||
-	    (attr_mask & IB_QP_PATH_MIG_STATE)) {
+	if (attr_mask & (IB_QP_ALT_PATH | IB_QP_PATH_MIG_STATE)) {
 		ibdev_err(ibdev, "RTR2RTS attr_mask (0x%x)error\n", attr_mask);
 		return -EINVAL;
 	}
