@@ -1637,6 +1637,34 @@ TRACE_EVENT(svcrdma_no_rwctx_err,
 	)
 );
 
+TRACE_EVENT(svcrdma_page_overrun_err,
+	TP_PROTO(
+		const struct svcxprt_rdma *rdma,
+		const struct svc_rqst *rqst,
+		unsigned int pageno
+	),
+
+	TP_ARGS(rdma, rqst, pageno),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, pageno)
+		__field(u32, xid)
+		__string(device, rdma->sc_cm_id->device->name)
+		__string(addr, rdma->sc_xprt.xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->pageno = pageno;
+		__entry->xid = __be32_to_cpu(rqst->rq_xid);
+		__assign_str(device, rdma->sc_cm_id->device->name);
+		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s device=%s xid=0x%08x pageno=%u", __get_str(addr),
+		__get_str(device), __entry->xid, __entry->pageno
+	)
+);
+
 TRACE_EVENT(svcrdma_send_pullup,
 	TP_PROTO(
 		unsigned int len

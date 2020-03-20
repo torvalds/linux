@@ -676,7 +676,7 @@ static int svc_rdma_build_read_segment(struct svc_rdma_read_info *info,
 	return 0;
 
 out_overrun:
-	dprintk("svcrdma: request overruns rq_pages\n");
+	trace_svcrdma_page_overrun_err(cc->cc_rdma, rqstp, info->ri_pageno);
 	return -EINVAL;
 }
 
