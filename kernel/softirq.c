@@ -224,7 +224,7 @@ static inline bool lockdep_softirq_start(void)
 {
 	bool in_hardirq = false;
 
-	if (trace_hardirq_context(current)) {
+	if (lockdep_hardirq_context(current)) {
 		in_hardirq = true;
 		lockdep_hardirq_exit();
 	}

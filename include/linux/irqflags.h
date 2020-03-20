@@ -31,10 +31,10 @@
 #ifdef CONFIG_TRACE_IRQFLAGS
   extern void trace_hardirqs_on(void);
   extern void trace_hardirqs_off(void);
-# define trace_hardirq_context(p)	((p)->hardirq_context)
-# define trace_softirq_context(p)	((p)->softirq_context)
-# define trace_hardirqs_enabled(p)	((p)->hardirqs_enabled)
-# define trace_softirqs_enabled(p)	((p)->softirqs_enabled)
+# define lockdep_hardirq_context(p)	((p)->hardirq_context)
+# define lockdep_softirq_context(p)	((p)->softirq_context)
+# define lockdep_hardirqs_enabled(p)	((p)->hardirqs_enabled)
+# define lockdep_softirqs_enabled(p)	((p)->softirqs_enabled)
 # define lockdep_hardirq_enter()		\
 do {						\
 	current->hardirq_context++;		\
@@ -54,10 +54,10 @@ do {						\
 #else
 # define trace_hardirqs_on()		do { } while (0)
 # define trace_hardirqs_off()		do { } while (0)
-# define trace_hardirq_context(p)	0
-# define trace_softirq_context(p)	0
-# define trace_hardirqs_enabled(p)	0
-# define trace_softirqs_enabled(p)	0
+# define lockdep_hardirq_context(p)	0
+# define lockdep_softirq_context(p)	0
+# define lockdep_hardirqs_enabled(p)	0
+# define lockdep_softirqs_enabled(p)	0
 # define lockdep_hardirq_enter()	do { } while (0)
 # define lockdep_hardirq_exit()		do { } while (0)
 # define lockdep_softirq_enter()	do { } while (0)
