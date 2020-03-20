@@ -61,6 +61,223 @@ static int otx2_change_mtu(struct net_device *netdev, int new_mtu)
 	return err;
 }
 
+static void otx2_disable_flr_me_intr(struct otx2_nic *pf)
+{
+	int irq, vfs = pf->total_vfs;
+
+	/* Disable VFs ME interrupts */
+	otx2_write64(pf, RVU_PF_VFME_INT_ENA_W1CX(0), INTR_MASK(vfs));
+	irq = pci_irq_vector(pf->pdev, RVU_PF_INT_VEC_VFME0);
+	free_irq(irq, pf);
+
+	/* Disable VFs FLR interrupts */
+	otx2_write64(pf, RVU_PF_VFFLR_INT_ENA_W1CX(0), INTR_MASK(vfs));
+	irq = pci_irq_vector(pf->pdev, RVU_PF_INT_VEC_VFFLR0);
+	free_irq(irq, pf);
+
+	if (vfs <= 64)
+		return;
+
+	otx2_write64(pf, RVU_PF_VFME_INT_ENA_W1CX(1), INTR_MASK(vfs - 64));
+	irq = pci_irq_vector(pf->pdev, RVU_PF_INT_VEC_VFME1);
+	free_irq(irq, pf);
+
+	otx2_write64(pf, RVU_PF_VFFLR_INT_ENA_W1CX(1), INTR_MASK(vfs - 64));
+	irq = pci_irq_vector(pf->pdev, RVU_PF_INT_VEC_VFFLR1);
+	free_irq(irq, pf);
+}
+
+static void otx2_flr_wq_destroy(struct otx2_nic *pf)
+{
+	if (!pf->flr_wq)
+		return;
+	destroy_workqueue(pf->flr_wq);
+	pf->flr_wq = NULL;
+	devm_kfree(pf->dev, pf->flr_wrk);
+}
+
+static void otx2_flr_handler(struct work_struct *work)
+{
+	struct flr_work *flrwork = container_of(work, struct flr_work, work);
+	struct otx2_nic *pf = flrwork->pf;
+	struct msg_req *req;
+	int vf, reg = 0;
+
+	vf = flrwork - pf->flr_wrk;
+
+	otx2_mbox_lock(&pf->mbox);
+	req = otx2_mbox_alloc_msg_vf_flr(&pf->mbox);
+	if (!req) {
+		otx2_mbox_unlock(&pf->mbox);
+		return;
+	}
+	req->hdr.pcifunc &= RVU_PFVF_FUNC_MASK;
+	req->hdr.pcifunc |= (vf + 1) & RVU_PFVF_FUNC_MASK;
+
+	if (!otx2_sync_mbox_msg(&pf->mbox)) {
+		if (vf >= 64) {
+			reg = 1;
+			vf = vf - 64;
+		}
+		/* clear transcation pending bit */
+		otx2_write64(pf, RVU_PF_VFTRPENDX(reg), BIT_ULL(vf));
+		otx2_write64(pf, RVU_PF_VFFLR_INT_ENA_W1SX(reg), BIT_ULL(vf));
+	}
+
+	otx2_mbox_unlock(&pf->mbox);
+}
+
+static irqreturn_t otx2_pf_flr_intr_handler(int irq, void *pf_irq)
+{
+	struct otx2_nic *pf = (struct otx2_nic *)pf_irq;
+	int reg, dev, vf, start_vf, num_reg = 1;
+	u64 intr;
+
+	if (pf->total_vfs > 64)
+		num_reg = 2;
+
+	for (reg = 0; reg < num_reg; reg++) {
+		intr = otx2_read64(pf, RVU_PF_VFFLR_INTX(reg));
+		if (!intr)
+			continue;
+		start_vf = 64 * reg;
+		for (vf = 0; vf < 64; vf++) {
+			if (!(intr & BIT_ULL(vf)))
+				continue;
+			dev = vf + start_vf;
+			queue_work(pf->flr_wq, &pf->flr_wrk[dev].work);
+			/* Clear interrupt */
+			otx2_write64(pf, RVU_PF_VFFLR_INTX(reg), BIT_ULL(vf));
+			/* Disable the interrupt */
+			otx2_write64(pf, RVU_PF_VFFLR_INT_ENA_W1CX(reg),
+				     BIT_ULL(vf));
+		}
+	}
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t otx2_pf_me_intr_handler(int irq, void *pf_irq)
+{
+	struct otx2_nic *pf = (struct otx2_nic *)pf_irq;
+	int vf, reg, num_reg = 1;
+	u64 intr;
+
+	if (pf->total_vfs > 64)
+		num_reg = 2;
+
+	for (reg = 0; reg < num_reg; reg++) {
+		intr = otx2_read64(pf, RVU_PF_VFME_INTX(reg));
+		if (!intr)
+			continue;
+		for (vf = 0; vf < 64; vf++) {
+			if (!(intr & BIT_ULL(vf)))
+				continue;
+			/* clear trpend bit */
+			otx2_write64(pf, RVU_PF_VFTRPENDX(reg), BIT_ULL(vf));
+			/* clear interrupt */
+			otx2_write64(pf, RVU_PF_VFME_INTX(reg), BIT_ULL(vf));
+		}
+	}
+	return IRQ_HANDLED;
+}
+
+static int otx2_register_flr_me_intr(struct otx2_nic *pf, int numvfs)
+{
+	struct otx2_hw *hw = &pf->hw;
+	char *irq_name;
+	int ret;
+
+	/* Register ME interrupt handler*/
+	irq_name = &hw->irq_name[RVU_PF_INT_VEC_VFME0 * NAME_SIZE];
+	snprintf(irq_name, NAME_SIZE, "RVUPF%d_ME0", rvu_get_pf(pf->pcifunc));
+	ret = request_irq(pci_irq_vector(pf->pdev, RVU_PF_INT_VEC_VFME0),
+			  otx2_pf_me_intr_handler, 0, irq_name, pf);
+	if (ret) {
+		dev_err(pf->dev,
+			"RVUPF: IRQ registration failed for ME0\n");
+	}
+
+	/* Register FLR interrupt handler */
+	irq_name = &hw->irq_name[RVU_PF_INT_VEC_VFFLR0 * NAME_SIZE];
+	snprintf(irq_name, NAME_SIZE, "RVUPF%d_FLR0", rvu_get_pf(pf->pcifunc));
+	ret = request_irq(pci_irq_vector(pf->pdev, RVU_PF_INT_VEC_VFFLR0),
+			  otx2_pf_flr_intr_handler, 0, irq_name, pf);
+	if (ret) {
+		dev_err(pf->dev,
+			"RVUPF: IRQ registration failed for FLR0\n");
+		return ret;
+	}
+
+	if (numvfs > 64) {
+		irq_name = &hw->irq_name[RVU_PF_INT_VEC_VFME1 * NAME_SIZE];
+		snprintf(irq_name, NAME_SIZE, "RVUPF%d_ME1",
+			 rvu_get_pf(pf->pcifunc));
+		ret = request_irq(pci_irq_vector
+				  (pf->pdev, RVU_PF_INT_VEC_VFME1),
+				  otx2_pf_me_intr_handler, 0, irq_name, pf);
+		if (ret) {
+			dev_err(pf->dev,
+				"RVUPF: IRQ registration failed for ME1\n");
+		}
+		irq_name = &hw->irq_name[RVU_PF_INT_VEC_VFFLR1 * NAME_SIZE];
+		snprintf(irq_name, NAME_SIZE, "RVUPF%d_FLR1",
+			 rvu_get_pf(pf->pcifunc));
+		ret = request_irq(pci_irq_vector
+				  (pf->pdev, RVU_PF_INT_VEC_VFFLR1),
+				  otx2_pf_flr_intr_handler, 0, irq_name, pf);
+		if (ret) {
+			dev_err(pf->dev,
+				"RVUPF: IRQ registration failed for FLR1\n");
+			return ret;
+		}
+	}
+
+	/* Enable ME interrupt for all VFs*/
+	otx2_write64(pf, RVU_PF_VFME_INTX(0), INTR_MASK(numvfs));
+	otx2_write64(pf, RVU_PF_VFME_INT_ENA_W1SX(0), INTR_MASK(numvfs));
+
+	/* Enable FLR interrupt for all VFs*/
+	otx2_write64(pf, RVU_PF_VFFLR_INTX(0), INTR_MASK(numvfs));
+	otx2_write64(pf, RVU_PF_VFFLR_INT_ENA_W1SX(0), INTR_MASK(numvfs));
+
+	if (numvfs > 64) {
+		numvfs -= 64;
+
+		otx2_write64(pf, RVU_PF_VFME_INTX(1), INTR_MASK(numvfs));
+		otx2_write64(pf, RVU_PF_VFME_INT_ENA_W1SX(1),
+			     INTR_MASK(numvfs));
+
+		otx2_write64(pf, RVU_PF_VFFLR_INTX(1), INTR_MASK(numvfs));
+		otx2_write64(pf, RVU_PF_VFFLR_INT_ENA_W1SX(1),
+			     INTR_MASK(numvfs));
+	}
+	return 0;
+}
+
+static int otx2_pf_flr_init(struct otx2_nic *pf, int num_vfs)
+{
+	int vf;
+
+	pf->flr_wq = alloc_workqueue("otx2_pf_flr_wq",
+				     WQ_UNBOUND | WQ_HIGHPRI, 1);
+	if (!pf->flr_wq)
+		return -ENOMEM;
+
+	pf->flr_wrk = devm_kcalloc(pf->dev, num_vfs,
+				   sizeof(struct flr_work), GFP_KERNEL);
+	if (!pf->flr_wrk) {
+		destroy_workqueue(pf->flr_wq);
+		return -ENOMEM;
+	}
+
+	for (vf = 0; vf < num_vfs; vf++) {
+		pf->flr_wrk[vf].pf = pf;
+		INIT_WORK(&pf->flr_wrk[vf].work, otx2_flr_handler);
+	}
+
+	return 0;
+}
+
 static void otx2_queue_work(struct mbox *mw, struct workqueue_struct *mbox_wq,
 			    int first, int mdevs, u64 intr, int type)
 {
@@ -406,7 +623,6 @@ static void otx2_pfvf_mbox_destroy(struct otx2_nic *pf)
 		return;
 
 	if (pf->mbox_pfvf_wq) {
-		flush_workqueue(pf->mbox_pfvf_wq);
 		destroy_workqueue(pf->mbox_pfvf_wq);
 		pf->mbox_pfvf_wq = NULL;
 	}
@@ -749,7 +965,6 @@ static void otx2_pfaf_mbox_destroy(struct otx2_nic *pf)
 	struct mbox *mbox = &pf->mbox;
 
 	if (pf->mbox_wq) {
-		flush_workqueue(pf->mbox_wq);
 		destroy_workqueue(pf->mbox_wq);
 		pf->mbox_wq = NULL;
 	}
@@ -1716,11 +1931,23 @@ static int otx2_sriov_enable(struct pci_dev *pdev, int numvfs)
 	if (ret)
 		goto free_mbox;
 
-	ret = pci_enable_sriov(pdev, numvfs);
+	ret = otx2_pf_flr_init(pf, numvfs);
 	if (ret)
 		goto free_intr;
 
+	ret = otx2_register_flr_me_intr(pf, numvfs);
+	if (ret)
+		goto free_flr;
+
+	ret = pci_enable_sriov(pdev, numvfs);
+	if (ret)
+		goto free_flr_intr;
+
 	return numvfs;
+free_flr_intr:
+	otx2_disable_flr_me_intr(pf);
+free_flr:
+	otx2_flr_wq_destroy(pf);
 free_intr:
 	otx2_disable_pfvf_mbox_intr(pf, numvfs);
 free_mbox:
@@ -1739,6 +1966,8 @@ static int otx2_sriov_disable(struct pci_dev *pdev)
 
 	pci_disable_sriov(pdev);
 
+	otx2_disable_flr_me_intr(pf);
+	otx2_flr_wq_destroy(pf);
 	otx2_disable_pfvf_mbox_intr(pf, numvfs);
 	otx2_pfvf_mbox_destroy(pf);
 
