@@ -26,8 +26,8 @@
 
 #define IPA_REPLENISH_BATCH	16
 
-#define IPA_RX_BUFFER_SIZE	(PAGE_SIZE << IPA_RX_BUFFER_ORDER)
-#define IPA_RX_BUFFER_ORDER	1	/* 8KB endpoint RX buffers (2 pages) */
+/* RX buffer is 1 page (or a power-of-2 contiguous pages) */
+#define IPA_RX_BUFFER_SIZE	8192	/* PAGE_SIZE > 4096 wastes a LOT */
 
 /* The amount of RX buffer space consumed by standard skb overhead */
 #define IPA_RX_BUFFER_OVERHEAD	(PAGE_SIZE - SKB_MAX_ORDER(NET_SKB_PAD, 0))
@@ -758,7 +758,7 @@ static int ipa_endpoint_replenish_one(struct ipa_endpoint *endpoint)
 	u32 len;
 	int ret;
 
-	page = dev_alloc_pages(IPA_RX_BUFFER_ORDER);
+	page = dev_alloc_pages(get_order(IPA_RX_BUFFER_SIZE));
 	if (!page)
 		return -ENOMEM;
 
@@ -787,7 +787,7 @@ static int ipa_endpoint_replenish_one(struct ipa_endpoint *endpoint)
 err_trans_free:
 	gsi_trans_free(trans);
 err_free_pages:
-	__free_pages(page, IPA_RX_BUFFER_ORDER);
+	__free_pages(page, get_order(IPA_RX_BUFFER_SIZE));
 
 	return -ENOMEM;
 }
@@ -1073,7 +1073,7 @@ void ipa_endpoint_trans_release(struct ipa_endpoint *endpoint,
 		struct page *page = trans->data;
 
 		if (page)
-			__free_pages(page, IPA_RX_BUFFER_ORDER);
+			__free_pages(page, get_order(IPA_RX_BUFFER_SIZE));
 	}
 }
 
