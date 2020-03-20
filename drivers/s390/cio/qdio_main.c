@@ -1229,10 +1229,11 @@ EXPORT_SYMBOL_GPL(qdio_free);
  */
 int qdio_allocate(struct qdio_initialize *init_data)
 {
+	struct ccw_device *cdev = init_data->cdev;
 	struct subchannel_id schid;
 	struct qdio_irq *irq_ptr;
 
-	ccw_device_get_schid(init_data->cdev, &schid);
+	ccw_device_get_schid(cdev, &schid);
 	DBF_EVENT("qallocate:%4x", schid.sch_no);
 
 	if ((init_data->no_input_qs && !init_data->input_handler) ||
@@ -1252,6 +1253,7 @@ int qdio_allocate(struct qdio_initialize *init_data)
 	if (!irq_ptr)
 		goto out_err;
 
+	irq_ptr->cdev = cdev;
 	mutex_init(&irq_ptr->setup_mutex);
 	if (qdio_allocate_dbf(init_data, irq_ptr))
 		goto out_rel;
@@ -1276,7 +1278,7 @@ int qdio_allocate(struct qdio_initialize *init_data)
 		goto out_rel;
 
 	INIT_LIST_HEAD(&irq_ptr->entry);
-	init_data->cdev->private->qdio_data = irq_ptr;
+	cdev->private->qdio_data = irq_ptr;
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
 	return 0;
 out_rel:
@@ -1372,8 +1374,8 @@ int qdio_establish(struct qdio_initialize *init_data)
 	qdio_init_buf_states(irq_ptr);
 
 	mutex_unlock(&irq_ptr->setup_mutex);
-	qdio_print_subchannel_info(irq_ptr, cdev);
-	qdio_setup_debug_entries(irq_ptr, cdev);
+	qdio_print_subchannel_info(irq_ptr);
+	qdio_setup_debug_entries(irq_ptr);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qdio_establish);

@@ -452,8 +452,8 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 
 int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 {
+	struct ccw_device *cdev = irq_ptr->cdev;
 	struct ciw *ciw;
-	struct ccw_device *cdev = init_data->cdev;
 
 	memset(&irq_ptr->qib, 0, sizeof(irq_ptr->qib));
 	memset(&irq_ptr->siga_flag, 0, sizeof(irq_ptr->siga_flag));
@@ -471,7 +471,6 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
 	irq_ptr->nr_output_qs = init_data->no_output_qs;
-	irq_ptr->cdev = cdev;
 	irq_ptr->scan_threshold = init_data->scan_threshold;
 	ccw_device_get_schid(cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
@@ -511,14 +510,13 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	return 0;
 }
 
-void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
-				struct ccw_device *cdev)
+void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 {
 	char s[80];
 
 	snprintf(s, 80, "qdio: %s %s on SC %x using "
 		 "AI:%d QEBSM:%d PRI:%d TDD:%d SIGA:%s%s%s%s%s\n",
-		 dev_name(&cdev->dev),
+		 dev_name(&irq_ptr->cdev->dev),
 		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
 			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),
 		 irq_ptr->schid.sch_no,
