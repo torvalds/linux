@@ -97,6 +97,7 @@ static int br_vlan_modify_state(struct net_bridge_vlan_group *vg,
 
 static const struct nla_policy br_vlandb_tinfo_pol[BRIDGE_VLANDB_TINFO_MAX + 1] = {
 	[BRIDGE_VLANDB_TINFO_ID]	= { .type = NLA_U32 },
+	[BRIDGE_VLANDB_TINFO_CMD]	= { .type = NLA_U32 },
 };
 
 static int br_vlan_modify_tunnel(const struct net_bridge_port *p,
@@ -107,8 +108,8 @@ static int br_vlan_modify_tunnel(const struct net_bridge_port *p,
 {
 	struct nlattr *tun_tb[BRIDGE_VLANDB_TINFO_MAX + 1], *attr;
 	struct bridge_vlan_info *vinfo;
-	int cmdmap, err;
-	u32 tun_id;
+	u32 tun_id = 0;
+	int cmd, err;
 
 	if (!p) {
 		NL_SET_ERR_MSG_MOD(extack, "Can't modify tunnel mapping of non-port vlans");
@@ -125,23 +126,35 @@ static int br_vlan_modify_tunnel(const struct net_bridge_port *p,
 	if (err)
 		return err;
 
-	if (!tun_tb[BRIDGE_VLANDB_TINFO_ID]) {
-		NL_SET_ERR_MSG_MOD(extack, "Missing tunnel id attribute");
+	if (!tun_tb[BRIDGE_VLANDB_TINFO_CMD]) {
+		NL_SET_ERR_MSG_MOD(extack, "Missing tunnel command attribute");
 		return -ENOENT;
 	}
-	/* vlan info attribute is guaranteed by br_vlan_rtm_process_one */
-	vinfo = nla_data(tb[BRIDGE_VLANDB_ENTRY_INFO]);
-	cmdmap = vinfo->flags & BRIDGE_VLAN_INFO_REMOVE_TUN ? RTM_DELLINK :
-							      RTM_SETLINK;
-	/* when working on vlan ranges this represents the starting tunnel id */
-	tun_id = nla_get_u32(tun_tb[BRIDGE_VLANDB_TINFO_ID]);
-	/* tunnel ids are mapped to each vlan in increasing order,
-	 * the starting vlan is in BRIDGE_VLANDB_ENTRY_INFO and v is the
-	 * current vlan, so we compute: tun_id + v - vinfo->vid
-	 */
-	tun_id += v->vid - vinfo->vid;
+	cmd = nla_get_u32(tun_tb[BRIDGE_VLANDB_TINFO_CMD]);
+	switch (cmd) {
+	case RTM_SETLINK:
+		if (!tun_tb[BRIDGE_VLANDB_TINFO_ID]) {
+			NL_SET_ERR_MSG_MOD(extack, "Missing tunnel id attribute");
+			return -ENOENT;
+		}
+		/* when working on vlan ranges this is the starting tunnel id */
+		tun_id = nla_get_u32(tun_tb[BRIDGE_VLANDB_TINFO_ID]);
+		/* vlan info attr is guaranteed by br_vlan_rtm_process_one */
+		vinfo = nla_data(tb[BRIDGE_VLANDB_ENTRY_INFO]);
+		/* tunnel ids are mapped to each vlan in increasing order,
+		 * the starting vlan is in BRIDGE_VLANDB_ENTRY_INFO and v is the
+		 * current vlan, so we compute: tun_id + v - vinfo->vid
+		 */
+		tun_id += v->vid - vinfo->vid;
+		break;
+	case RTM_DELLINK:
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported tunnel command");
+		return -EINVAL;
+	}
 
-	return br_vlan_tunnel_info(p, cmdmap, v->vid, tun_id, changed);
+	return br_vlan_tunnel_info(p, cmd, v->vid, tun_id, changed);
 }
 
 static int br_vlan_process_one_opts(const struct net_bridge *br,
