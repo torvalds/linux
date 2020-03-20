@@ -433,8 +433,10 @@ static int xpcs_aneg_done(struct mdio_xpcs_args *xpcs,
 			return ret;
 
 		/* Check if Aneg outcome is valid */
-		if (!(ret & DW_C73_AN_ADV_SF))
+		if (!(ret & DW_C73_AN_ADV_SF)) {
+			xpcs_config_aneg(xpcs);
 			return 0;
+		}
 
 		return 1;
 	}
