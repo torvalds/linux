@@ -1525,6 +1525,13 @@ int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v11_0_ack_ac_dc_interrupt(struct smu_context *smu)
+{
+	return smu_send_smc_msg(smu,
+				SMU_MSG_ReenableAcDcInterrupt,
+				NULL);
+}
+
 #define THM_11_0__SRCID__THM_DIG_THERM_L2H		0		/* ASIC_TEMP > CG_THERMAL_INT.DIG_THERM_INTH  */
 #define THM_11_0__SRCID__THM_DIG_THERM_H2L		1		/* ASIC_TEMP < CG_THERMAL_INT.DIG_THERM_INTL  */
 
@@ -1558,6 +1565,9 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 		break;
 
 		}
+	} else if (client_id == SOC15_IH_CLIENTID_MP1) {
+		if (src_id == 0xfe)
+			smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
 	}
 
 	return 0;
@@ -1593,6 +1603,12 @@ int smu_v11_0_register_irq_handler(struct smu_context *smu)
 
 	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_THM,
 				THM_11_0__SRCID__THM_DIG_THERM_H2L,
+				irq_src);
+	if (ret)
+		return ret;
+
+	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_MP1,
+				0xfe,
 				irq_src);
 	if (ret)
 		return ret;
