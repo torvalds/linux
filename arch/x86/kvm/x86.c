@@ -2719,7 +2719,7 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 	trace_kvm_pv_tlb_flush(vcpu->vcpu_id,
 		st->preempted & KVM_VCPU_FLUSH_TLB);
 	if (xchg(&st->preempted, 0) & KVM_VCPU_FLUSH_TLB)
-		kvm_vcpu_flush_tlb(vcpu, false);
+		kvm_x86_ops.tlb_flush_guest(vcpu);
 
 	vcpu->arch.st.preempted = 0;
 

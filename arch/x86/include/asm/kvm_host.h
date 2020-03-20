@@ -1114,6 +1114,12 @@ struct kvm_x86_ops {
 	 */
 	void (*tlb_flush_gva)(struct kvm_vcpu *vcpu, gva_t addr);
 
+	/*
+	 * Flush any TLB entries created by the guest.  Like tlb_flush_gva(),
+	 * does not need to flush GPA->HPA mappings.
+	 */
+	void (*tlb_flush_guest)(struct kvm_vcpu *vcpu);
+
 	void (*run)(struct kvm_vcpu *vcpu);
 	int (*handle_exit)(struct kvm_vcpu *vcpu,
 		enum exit_fastpath_completion exit_fastpath);
