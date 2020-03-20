@@ -92,17 +92,12 @@ static inline int references_shared_dsci(struct qdio_irq *irq_ptr)
 	return irq_ptr->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
 }
 
-static inline int shared_ind(struct qdio_irq *irq_ptr)
-{
-	return references_shared_dsci(irq_ptr) ||
-		has_multiple_inq_on_dsci(irq_ptr);
-}
-
 void clear_nonshared_ind(struct qdio_irq *irq_ptr)
 {
 	if (!is_thinint_irq(irq_ptr))
 		return;
-	if (shared_ind(irq_ptr))
+	if (references_shared_dsci(irq_ptr) ||
+	    has_multiple_inq_on_dsci(irq_ptr))
 		return;
 	xchg(irq_ptr->dsci, 0);
 }
@@ -111,7 +106,8 @@ int test_nonshared_ind(struct qdio_irq *irq_ptr)
 {
 	if (!is_thinint_irq(irq_ptr))
 		return 0;
-	if (shared_ind(irq_ptr))
+	if (references_shared_dsci(irq_ptr) ||
+	    has_multiple_inq_on_dsci(irq_ptr))
 		return 0;
 	if (*irq_ptr->dsci)
 		return 1;
@@ -144,10 +140,11 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 		return;
 	}
 
-	for_each_input_queue(irq, q, i) {
-		if (!shared_ind(irq))
-			xchg(irq->dsci, 0);
+	if (!references_shared_dsci(irq) &&
+	    !has_multiple_inq_on_dsci(irq))
+		xchg(irq->dsci, 0);
 
+	for_each_input_queue(irq, q, i) {
 		/*
 		 * Call inbound processing but not directly
 		 * since that could starve other thinint queues.
