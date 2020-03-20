@@ -85,19 +85,17 @@ setup_pixel_info(struct screen_info *si, u32 pixels_per_scan_line,
 	}
 }
 
-static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
-			      unsigned long size, void **handles)
+static efi_graphics_output_protocol_t *
+find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 {
 	efi_graphics_output_protocol_t *gop, *first_gop;
 	efi_graphics_output_protocol_mode_t *mode;
 	efi_graphics_output_mode_info_t *info = NULL;
-	efi_physical_addr_t fb_base;
 	efi_status_t status;
 	efi_handle_t h;
 	int i;
 
 	first_gop = NULL;
-	gop = NULL;
 
 	for_each_efi_handle(h, handles, size, i) {
 		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
@@ -134,12 +132,25 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 		}
 	}
 
+	return first_gop;
+}
+
+static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
+			      unsigned long size, void **handles)
+{
+	efi_graphics_output_protocol_t *gop;
+	efi_graphics_output_protocol_mode_t *mode;
+	efi_graphics_output_mode_info_t *info = NULL;
+	efi_physical_addr_t fb_base;
+
+	gop = find_gop(proto, size, handles);
+
 	/* Did we find any GOPs? */
-	if (!first_gop)
+	if (!gop)
 		return EFI_NOT_FOUND;
 
 	/* EFI framebuffer */
-	mode = efi_table_attr(first_gop, mode);
+	mode = efi_table_attr(gop, mode);
 	info = efi_table_attr(mode, info);
 
 	si->orig_video_isVGA = VIDEO_TYPE_EFI;
