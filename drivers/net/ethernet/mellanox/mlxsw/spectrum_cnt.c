@@ -303,7 +303,7 @@ int mlxsw_sp_counter_resources_register(struct mlxsw_core *mlxsw_core)
 	}
 
 	/* Check config is valid, no bank over subscription */
-	if (WARN_ON(total_bank_config > pool_size / bank_size + 1))
+	if (WARN_ON(total_bank_config > div64_u64(pool_size, bank_size) + 1))
 		return -EINVAL;
 
 	return 0;
