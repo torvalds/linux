@@ -90,7 +90,25 @@ Efault:
 static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 						u32 oldval, u32 newval)
 {
-	return user_atomic_cmpxchg_inatomic(uval, uaddr, oldval, newval);
+	int ret = 0;
+
+	if (!user_access_begin(uaddr, sizeof(u32)))
+		return -EFAULT;
+	asm volatile("\n"
+		"1:\t" LOCK_PREFIX "cmpxchgl %4, %2\n"
+		"2:\n"
+		"\t.section .fixup, \"ax\"\n"
+		"3:\tmov     %3, %0\n"
+		"\tjmp     2b\n"
+		"\t.previous\n"
+		_ASM_EXTABLE_UA(1b, 3b)
+		: "+r" (ret), "=a" (oldval), "+m" (*uaddr)
+		: "i" (-EFAULT), "r" (newval), "1" (oldval)
+		: "memory"
+	);
+	user_access_end();
+	*uval = oldval;
+	return ret;
 }
 
 #endif
