@@ -1275,6 +1275,7 @@ struct pnfs_commit_array {
 	struct list_head lseg_list;
 	struct pnfs_layout_segment *lseg;
 	struct rcu_head rcu;
+	refcount_t refcount;
 	unsigned int nbuckets;
 	struct pnfs_commit_bucket buckets[];
 };
