@@ -2863,6 +2863,22 @@ static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
 	}
 }
 
+static void vmx_flush_tlb_current(struct kvm_vcpu *vcpu)
+{
+	u64 root_hpa = vcpu->arch.mmu->root_hpa;
+
+	/* No flush required if the current context is invalid. */
+	if (!VALID_PAGE(root_hpa))
+		return;
+
+	if (enable_ept)
+		ept_sync_context(construct_eptp(vcpu, root_hpa));
+	else if (!is_guest_mode(vcpu))
+		vpid_sync_context(to_vmx(vcpu)->vpid);
+	else
+		vpid_sync_context(nested_get_vpid02(vcpu));
+}
+
 static void vmx_flush_tlb_gva(struct kvm_vcpu *vcpu, gva_t addr)
 {
 	/*
@@ -6108,7 +6124,7 @@ void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 		if (flexpriority_enabled) {
 			sec_exec_control |=
 				SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
-			vmx_flush_tlb(vcpu);
+			vmx_flush_tlb_current(vcpu);
 		}
 		break;
 	case LAPIC_MODE_X2APIC:
@@ -6126,7 +6142,7 @@ static void vmx_set_apic_access_page_addr(struct kvm_vcpu *vcpu, hpa_t hpa)
 {
 	if (!is_guest_mode(vcpu)) {
 		vmcs_write64(APIC_ACCESS_ADDR, hpa);
-		vmx_flush_tlb(vcpu);
+		vmx_flush_tlb_current(vcpu);
 	}
 }
 
