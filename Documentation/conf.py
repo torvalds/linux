@@ -40,6 +40,10 @@ extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include', 'cdomain',
               'kfigure', 'sphinx.ext.ifconfig', 'automarkup',
               'maintainers_include', 'sphinx.ext.autosectionlabel' ]
 
+# Ensure that autosectionlabel will produce unique names
+autosectionlabel_prefix_document = True
+autosectionlabel_maxdepth = 2
+
 # The name of the math extension changed on Sphinx 1.4
 if (major == 1 and minor > 3) or (major > 1):
     extensions.append("sphinx.ext.imgmath")
