@@ -682,7 +682,7 @@ static void __device_links_queue_sync_state(struct device *dev,
 		return;
 
 	list_for_each_entry(link, &dev->links.consumers, s_node) {
-		if (link->flags & DL_FLAG_STATELESS)
+		if (!(link->flags & DL_FLAG_MANAGED))
 			continue;
 		if (link->status != DL_STATE_ACTIVE)
 			return;
