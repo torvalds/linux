@@ -300,7 +300,7 @@ static inline void vpid_sync_context(int vpid)
 {
 	if (cpu_has_vmx_invvpid_single())
 		vpid_sync_vcpu_single(vpid);
-	else
+	else if (vpid != 0)
 		vpid_sync_vcpu_global();
 }
 
