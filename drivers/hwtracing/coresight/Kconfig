@@ -110,4 +110,16 @@ config CORESIGHT_CPU_DEBUG
 	  properly, please refer Documentation/trace/coresight-cpu-debug.rst
 	  for detailed description and the example for usage.
 
+config CORESIGHT_CTI
+	bool "CoreSight Cross Trigger Interface (CTI) driver"
+	depends on ARM || ARM64
+	help
+	  This driver provides support for CoreSight CTI and CTM components.
+	  These provide hardware triggering events between CoreSight trace
+	  source and sink components. These can be used to halt trace or
+	  inject events into the trace stream. CTI also provides a software
+	  control to trigger the same halt events. This can provide fast trace
+	  halt compared to disabling sources and sinks normally in driver
+	  software.
+
 endif
