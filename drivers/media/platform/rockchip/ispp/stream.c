@@ -919,6 +919,26 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 	return !(val & en);
 }
 
+static int limit_check_mb(struct rkispp_stream *stream)
+{
+	struct rkispp_device *dev = stream->isppdev;
+	struct rkispp_subdev *sdev = &dev->ispp_sdev;
+
+	if (stream->out_fmt.width != sdev->out_fmt.width ||
+	    stream->out_fmt.height != sdev->out_fmt.height) {
+		v4l2_err(&dev->v4l2_dev,
+			 "output %dx%d should euqal to input %dx%d\n",
+			 stream->out_fmt.width, stream->out_fmt.height,
+			 sdev->out_fmt.width, sdev->out_fmt.height);
+		return -EINVAL;
+	}
+
+	if (stream->out_cap_fmt.wr_fmt & FMT_FBC)
+		dev->stream_vdev.is_update_manual = true;
+
+	return 0;
+}
+
 static int config_scl(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
@@ -968,6 +988,34 @@ static int is_stopped_scl(struct rkispp_stream *stream)
 	return !(readl(base + stream->config->reg.ctrl) & SW_SCL_ENABLE_SHD);
 }
 
+static int limit_check_scl(struct rkispp_stream *stream)
+{
+	struct rkispp_device *dev = stream->isppdev;
+	struct rkispp_subdev *sdev = &dev->ispp_sdev;
+	u32 max_width = 1280, max_ratio = 8, min_ratio = 2;
+	int ret = 0;
+
+	if (stream->id == STREAM_S0) {
+		max_width = 3264;
+		min_ratio = 1;
+	}
+
+	if (stream->out_fmt.width > max_width ||
+	    stream->out_fmt.width * max_ratio < sdev->out_fmt.width ||
+	    stream->out_fmt.height * max_ratio < sdev->out_fmt.height ||
+	    stream->out_fmt.width * min_ratio > sdev->out_fmt.width ||
+	    stream->out_fmt.height * min_ratio > sdev->out_fmt.height) {
+		ret = -EINVAL;
+		v4l2_err(&dev->v4l2_dev,
+			 "scale%d:%dx%d out of range [width max:%d ratio max:%d min:%d]\n",
+			 stream->id - STREAM_S0,
+			 stream->out_fmt.width, stream->out_fmt.height,
+			 max_width, max_ratio, min_ratio);
+	}
+
+	return ret;
+}
+
 static struct streams_ops input_stream_ops = {
 	.config = config_ii,
 	.start = start_ii,
@@ -977,12 +1025,14 @@ static struct streams_ops mb_stream_ops = {
 	.config = config_mb,
 	.stop = stop_mb,
 	.is_stopped = is_stopped_mb,
+	.limit_check = limit_check_mb,
 };
 
 static struct streams_ops scal_stream_ops = {
 	.config = config_scl,
 	.stop = stop_scl,
 	.is_stopped = is_stopped_scl,
+	.limit_check = limit_check_scl,
 };
 
 /***************************** vb2 operations*******************************/
@@ -1312,21 +1362,10 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 		return -EINVAL;
 	}
 
-	if (stream->id == STREAM_MB &&
-	    (pixm->width != sdev->out_fmt.width &&
-	     pixm->height != sdev->out_fmt.height)) {
-		v4l2_err(&dev->v4l2_dev,
-			 "resolution should euqal to input\n");
-		return -EINVAL;
-	}
-
 	pixm->num_planes = fmt->mplanes;
 	pixm->field = V4L2_FIELD_NONE;
 	if (!pixm->quantization)
 		pixm->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-
-	if (fmt->wr_fmt & FMT_FBC)
-		dev->stream_vdev.is_update_manual = true;
 
 	/* calculate size */
 	fcc_xysubs(fmt->fourcc, &xsubs, &ysubs);
@@ -1375,11 +1414,26 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 			sdev->out_fmt.width = pixm->width;
 			sdev->out_fmt.height = pixm->height;
 		}
-		v4l2_dbg(1, rkispp_debug, &stream->isppdev->v4l2_dev,
+		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 			 "%s: stream: %d req(%d, %d) out(%d, %d)\n", __func__,
 			 stream->id, pixm->width, pixm->height,
 			 stream->out_fmt.width, stream->out_fmt.height);
 	}
+
+	if (sdev->out_fmt.width > RKISPP_MAX_WIDTH ||
+	    sdev->out_fmt.height > RKISPP_MAX_HEIGHT ||
+	    sdev->out_fmt.width < RKISPP_MIN_WIDTH ||
+	    sdev->out_fmt.height < RKISPP_MIN_HEIGHT) {
+		v4l2_err(&dev->v4l2_dev,
+			 "ispp input max:%dx%d min:%dx%d\n",
+			 RKISPP_MIN_WIDTH, RKISPP_MIN_HEIGHT,
+			 RKISPP_MAX_WIDTH, RKISPP_MAX_HEIGHT);
+		return -EINVAL;
+	}
+
+	if (stream->ops->limit_check)
+		return stream->ops->limit_check(stream);
+
 	return 0;
 }
 

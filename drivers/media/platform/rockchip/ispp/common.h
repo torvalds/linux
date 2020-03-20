@@ -11,8 +11,13 @@
 #include <media/v4l2-device.h>
 #include <media/videobuf2-v4l2.h>
 
-#define RKISPP_PLANE_Y	0
-#define RKISPP_PLANE_UV 1
+#define RKISPP_PLANE_Y		0
+#define RKISPP_PLANE_UV		1
+
+#define RKISPP_MAX_WIDTH	4416
+#define RKISPP_MAX_HEIGHT	3312
+#define RKISPP_MIN_WIDTH	66
+#define RKISPP_MIN_HEIGHT	258
 
 struct rkispp_device;
 

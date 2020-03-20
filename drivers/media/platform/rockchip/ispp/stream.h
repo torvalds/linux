@@ -63,6 +63,7 @@ struct streams_ops {
 	void (*stop)(struct rkispp_stream *stream);
 	int (*start)(struct rkispp_stream *stream);
 	int (*is_stopped)(struct rkispp_stream *stream);
+	int (*limit_check)(struct rkispp_stream *stream);
 };
 
 /* stream input/out flag */
