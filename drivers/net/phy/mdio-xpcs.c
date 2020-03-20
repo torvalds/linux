@@ -255,8 +255,10 @@ static int xpcs_read_fault(struct mdio_xpcs_args *xpcs,
 	if (ret < 0)
 		return ret;
 
-	if (ret & MDIO_PCS_10GBRT_STAT2_ERR)
+	if (ret & MDIO_PCS_10GBRT_STAT2_ERR) {
 		xpcs_warn(xpcs, state, "Link has errors!\n");
+		return -EFAULT;
+	}
 
 	return 0;
 }
