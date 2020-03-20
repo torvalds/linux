@@ -243,6 +243,7 @@ int __init efi_memblock_x86_reserve_range(void)
 	     efi.memmap.desc_version);
 
 	memblock_reserve(pmap, efi.memmap.nr_map * efi.memmap.desc_size);
+	set_bit(EFI_PRESERVE_BS_REGIONS, &efi.flags);
 
 	return 0;
 }
@@ -943,6 +944,7 @@ static void __init __efi_enter_virtual_mode(void)
 		goto err;
 	}
 
+	efi_check_for_embedded_firmwares();
 	efi_free_boot_services();
 
 	/*
