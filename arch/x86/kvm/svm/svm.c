@@ -3944,7 +3944,7 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
 
-	.tlb_flush = svm_flush_tlb,
+	.tlb_flush_all = svm_flush_tlb,
 	.tlb_flush_gva = svm_flush_tlb_gva,
 	.tlb_flush_guest = svm_flush_tlb,
 
