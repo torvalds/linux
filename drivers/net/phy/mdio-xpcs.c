@@ -617,10 +617,12 @@ static int xpcs_get_state(struct mdio_xpcs_args *xpcs,
 		return xpcs_config(xpcs, state);
 	}
 
-	if (state->link && state->an_enabled && xpcs_aneg_done(xpcs, state)) {
+	if (state->an_enabled && xpcs_aneg_done(xpcs, state)) {
 		state->an_complete = true;
 		xpcs_read_lpa(xpcs, state);
 		xpcs_resolve_lpa(xpcs, state);
+	} else if (state->an_enabled) {
+		state->link = 0;
 	} else if (state->link) {
 		xpcs_resolve_pma(xpcs, state);
 	}
