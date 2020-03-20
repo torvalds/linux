@@ -55,7 +55,7 @@
 				interrupts = <13>;
 			};
 
-			uart1: uart@d4017000 {
+			uart1: serial@d4017000 {
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4017000 0x1000>;
 				interrupts = <27>;
@@ -64,7 +64,7 @@
 				status = "disabled";
 			};
 
-			uart2: uart@d4018000 {
+			uart2: serial@d4018000 {
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4018000 0x1000>;
 				interrupts = <28>;
@@ -73,7 +73,7 @@
 				status = "disabled";
 			};
 
-			uart3: uart@d4026000 {
+			uart3: serial@d4026000 {
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4026000 0x1000>;
 				interrupts = <29>;
