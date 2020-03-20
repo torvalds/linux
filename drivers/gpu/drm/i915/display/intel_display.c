@@ -2908,6 +2908,7 @@ intel_fb_plane_get_subsampling(int *hsub, int *vsub,
 static int
 intel_fb_check_ccs_xy(struct drm_framebuffer *fb, int ccs_plane, int x, int y)
 {
+	struct drm_i915_private *i915 = to_i915(fb->dev);
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	int main_plane;
 	int hsub, vsub;
@@ -2936,7 +2937,8 @@ intel_fb_check_ccs_xy(struct drm_framebuffer *fb, int ccs_plane, int x, int y)
 	 * x/y offsets must match between CCS and the main surface.
 	 */
 	if (main_x != ccs_x || main_y != ccs_y) {
-		DRM_DEBUG_KMS("Bad CCS x/y (main %d,%d ccs %d,%d) full (main %d,%d ccs %d,%d)\n",
+		drm_dbg_kms(&i915->drm,
+			      "Bad CCS x/y (main %d,%d ccs %d,%d) full (main %d,%d ccs %d,%d)\n",
 			      main_x, main_y,
 			      ccs_x, ccs_y,
 			      intel_fb->normal[main_plane].x,
@@ -12882,16 +12884,17 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 	return 0;
 }
 
-static void intel_dump_crtc_timings(const struct drm_display_mode *mode)
+static void intel_dump_crtc_timings(struct drm_i915_private *i915,
+				    const struct drm_display_mode *mode)
 {
-	DRM_DEBUG_KMS("crtc timings: %d %d %d %d %d %d %d %d %d, "
-		      "type: 0x%x flags: 0x%x\n",
-		      mode->crtc_clock,
-		      mode->crtc_hdisplay, mode->crtc_hsync_start,
-		      mode->crtc_hsync_end, mode->crtc_htotal,
-		      mode->crtc_vdisplay, mode->crtc_vsync_start,
-		      mode->crtc_vsync_end, mode->crtc_vtotal,
-		      mode->type, mode->flags);
+	drm_dbg_kms(&i915->drm, "crtc timings: %d %d %d %d %d %d %d %d %d, "
+		    "type: 0x%x flags: 0x%x\n",
+		    mode->crtc_clock,
+		    mode->crtc_hdisplay, mode->crtc_hsync_start,
+		    mode->crtc_hsync_end, mode->crtc_htotal,
+		    mode->crtc_vdisplay, mode->crtc_vsync_start,
+		    mode->crtc_vsync_end, mode->crtc_vtotal,
+		    mode->type, mode->flags);
 }
 
 static inline void
@@ -13075,7 +13078,7 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 	drm_mode_debug_printmodeline(&pipe_config->hw.mode);
 	drm_dbg_kms(&dev_priv->drm, "adjusted mode:\n");
 	drm_mode_debug_printmodeline(&pipe_config->hw.adjusted_mode);
-	intel_dump_crtc_timings(&pipe_config->hw.adjusted_mode);
+	intel_dump_crtc_timings(dev_priv, &pipe_config->hw.adjusted_mode);
 	drm_dbg_kms(&dev_priv->drm,
 		    "port clock: %d, pipe src size: %dx%d, pixel rate %d\n",
 		    pipe_config->port_clock,
