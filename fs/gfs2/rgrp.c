@@ -2048,12 +2048,13 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 	struct gfs2_blkreserv *rs = &ip->i_res;
 	int error = 0, rg_locked, flags = 0;
 	u64 last_unlinked = NO_BLOCK;
+	u32 target = ap->target;
 	int loops = 0;
 	u32 free_blocks, skip = 0;
 
 	if (sdp->sd_args.ar_rgrplvb)
 		flags |= GL_SKIP;
-	if (gfs2_assert_warn(sdp, ap->target))
+	if (gfs2_assert_warn(sdp, target))
 		return -EINVAL;
 	if (gfs2_rs_active(rs)) {
 		begin = rs->rs_rgd;
@@ -2105,7 +2106,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 		/* Skip unusable resource groups */
 		if ((rs->rs_rgd->rd_flags & (GFS2_RGF_NOALLOC |
 						 GFS2_RDF_ERROR)) ||
-		    (loops == 0 && ap->target > rs->rs_rgd->rd_extfail_pt))
+		    (loops == 0 && target > rs->rs_rgd->rd_extfail_pt))
 			goto skip_rgrp;
 
 		if (sdp->sd_args.ar_rgrplvb)
@@ -2121,9 +2122,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 
 		/* If rgrp has enough free space, use it */
 		free_blocks = rgd_free(rs->rs_rgd, rs);
-		if (free_blocks >= ap->target ||
-		    (loops == 2 && ap->min_target &&
-		     free_blocks >= ap->min_target)) {
+		if (free_blocks >= target) {
 			ap->allowed = free_blocks;
 			return 0;
 		}
@@ -2159,9 +2158,12 @@ next_rgrp:
 				return error;
 		}
 		/* Flushing the log may release space */
-		if (loops == 2)
+		if (loops == 2) {
+			if (ap->min_target)
+				target = ap->min_target;
 			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
 				       GFS2_LFC_INPLACE_RESERVE);
+		}
 	}
 
 	return -ENOSPC;
