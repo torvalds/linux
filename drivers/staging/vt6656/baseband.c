@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/bits.h>
 #include "mac.h"
 #include "baseband.h"
 #include "rf.h"
@@ -454,7 +455,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		if (ret)
 			goto end;
 
-		ret = vnt_mac_reg_bits_on(priv, MAC_REG_PAPEDELAY, 0x01);
+		ret = vnt_mac_reg_bits_on(priv, MAC_REG_PAPEDELAY, BIT(0));
 		if (ret)
 			goto end;
 	} else if (priv->rf_type == RF_VT3226D0) {
@@ -463,7 +464,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		if (ret)
 			goto end;
 
-		ret = vnt_mac_reg_bits_on(priv, MAC_REG_PAPEDELAY, 0x01);
+		ret = vnt_mac_reg_bits_on(priv, MAC_REG_PAPEDELAY, BIT(0));
 		if (ret)
 			goto end;
 	}

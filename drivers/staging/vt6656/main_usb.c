@@ -366,7 +366,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 	if (ret)
 		goto end;
 
-	ret = vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL0, 0x01);
+	ret = vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL0, BIT(0));
 	if (ret)
 		goto end;
 
