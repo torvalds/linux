@@ -620,45 +620,43 @@ int chv_calc_dpll_params(int refclk, struct dpll *clock)
 	return clock->dot / 5;
 }
 
-#define INTELPllInvalid(s)   do { /* DRM_DEBUG(s); */ return false; } while (0)
-
 /*
  * Returns whether the given set of divisors are valid for a given refclk with
  * the given connectors.
  */
-static bool intel_PLL_is_valid(struct drm_i915_private *dev_priv,
+static bool intel_pll_is_valid(struct drm_i915_private *dev_priv,
 			       const struct intel_limit *limit,
 			       const struct dpll *clock)
 {
-	if (clock->n   < limit->n.min   || limit->n.max   < clock->n)
-		INTELPllInvalid("n out of range\n");
-	if (clock->p1  < limit->p1.min  || limit->p1.max  < clock->p1)
-		INTELPllInvalid("p1 out of range\n");
-	if (clock->m2  < limit->m2.min  || limit->m2.max  < clock->m2)
-		INTELPllInvalid("m2 out of range\n");
-	if (clock->m1  < limit->m1.min  || limit->m1.max  < clock->m1)
-		INTELPllInvalid("m1 out of range\n");
+	if (clock->n < limit->n.min || limit->n.max < clock->n)
+		return false;
+	if (clock->p1 < limit->p1.min || limit->p1.max < clock->p1)
+		return false;
+	if (clock->m2 < limit->m2.min || limit->m2.max < clock->m2)
+		return false;
+	if (clock->m1 < limit->m1.min || limit->m1.max < clock->m1)
+		return false;
 
 	if (!IS_PINEVIEW(dev_priv) && !IS_VALLEYVIEW(dev_priv) &&
 	    !IS_CHERRYVIEW(dev_priv) && !IS_GEN9_LP(dev_priv))
 		if (clock->m1 <= clock->m2)
-			INTELPllInvalid("m1 <= m2\n");
+			return false;
 
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
 	    !IS_GEN9_LP(dev_priv)) {
 		if (clock->p < limit->p.min || limit->p.max < clock->p)
-			INTELPllInvalid("p out of range\n");
+			return false;
 		if (clock->m < limit->m.min || limit->m.max < clock->m)
-			INTELPllInvalid("m out of range\n");
+			return false;
 	}
 
 	if (clock->vco < limit->vco.min || limit->vco.max < clock->vco)
-		INTELPllInvalid("vco out of range\n");
+		return false;
 	/* XXX: We may need to be checking "Dot clock" depending on the multiplier,
 	 * connector, etc., rather than just a single range.
 	 */
 	if (clock->dot < limit->dot.min || limit->dot.max < clock->dot)
-		INTELPllInvalid("dot out of range\n");
+		return false;
 
 	return true;
 }
@@ -725,7 +723,7 @@ i9xx_find_best_dpll(const struct intel_limit *limit,
 					int this_err;
 
 					i9xx_calc_dpll_params(refclk, &clock);
-					if (!intel_PLL_is_valid(to_i915(dev),
+					if (!intel_pll_is_valid(to_i915(dev),
 								limit,
 								&clock))
 						continue;
@@ -781,7 +779,7 @@ pnv_find_best_dpll(const struct intel_limit *limit,
 					int this_err;
 
 					pnv_calc_dpll_params(refclk, &clock);
-					if (!intel_PLL_is_valid(to_i915(dev),
+					if (!intel_pll_is_valid(to_i915(dev),
 								limit,
 								&clock))
 						continue;
@@ -842,7 +840,7 @@ g4x_find_best_dpll(const struct intel_limit *limit,
 					int this_err;
 
 					i9xx_calc_dpll_params(refclk, &clock);
-					if (!intel_PLL_is_valid(to_i915(dev),
+					if (!intel_pll_is_valid(to_i915(dev),
 								limit,
 								&clock))
 						continue;
@@ -939,7 +937,7 @@ vlv_find_best_dpll(const struct intel_limit *limit,
 
 					vlv_calc_dpll_params(refclk, &clock);
 
-					if (!intel_PLL_is_valid(to_i915(dev),
+					if (!intel_pll_is_valid(to_i915(dev),
 								limit,
 								&clock))
 						continue;
@@ -1008,7 +1006,7 @@ chv_find_best_dpll(const struct intel_limit *limit,
 
 			chv_calc_dpll_params(refclk, &clock);
 
-			if (!intel_PLL_is_valid(to_i915(dev), limit, &clock))
+			if (!intel_pll_is_valid(to_i915(dev), limit, &clock))
 				continue;
 
 			if (!vlv_PLL_is_optimal(dev, target, &clock, best_clock,
