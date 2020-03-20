@@ -860,6 +860,31 @@ xfs_log_mount_cancel(
 }
 
 /*
+ * Wait for the iclog to be written disk, or return an error if the log has been
+ * shut down.
+ */
+static int
+xlog_wait_on_iclog(
+	struct xlog_in_core	*iclog)
+		__releases(iclog->ic_log->l_icloglock)
+{
+	struct xlog		*log = iclog->ic_log;
+
+	if (!XLOG_FORCED_SHUTDOWN(log) &&
+	    iclog->ic_state != XLOG_STATE_ACTIVE &&
+	    iclog->ic_state != XLOG_STATE_DIRTY) {
+		XFS_STATS_INC(log->l_mp, xs_log_force_sleep);
+		xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
+	} else {
+		spin_unlock(&log->l_icloglock);
+	}
+
+	if (XLOG_FORCED_SHUTDOWN(log))
+		return -EIO;
+	return 0;
+}
+
+/*
  * Final log writes as part of unmount.
  *
  * Mark the filesystem clean as unmount happens.  Note that during relocation
@@ -926,18 +951,7 @@ out_err:
 	atomic_inc(&iclog->ic_refcnt);
 	xlog_state_want_sync(log, iclog);
 	error = xlog_state_release_iclog(log, iclog);
-	switch (iclog->ic_state) {
-	default:
-		if (!XLOG_FORCED_SHUTDOWN(log)) {
-			xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
-			break;
-		}
-		/* fall through */
-	case XLOG_STATE_ACTIVE:
-	case XLOG_STATE_DIRTY:
-		spin_unlock(&log->l_icloglock);
-		break;
-	}
+	xlog_wait_on_iclog(iclog);
 
 	if (tic) {
 		trace_xfs_log_umount_write(log, tic);
@@ -3230,9 +3244,6 @@ xfs_log_force(
 		 * previous iclog and go to sleep.
 		 */
 		iclog = iclog->ic_prev;
-		if (iclog->ic_state == XLOG_STATE_ACTIVE ||
-		    iclog->ic_state == XLOG_STATE_DIRTY)
-			goto out_unlock;
 	} else if (iclog->ic_state == XLOG_STATE_ACTIVE) {
 		if (atomic_read(&iclog->ic_refcnt) == 0) {
 			/*
@@ -3248,8 +3259,7 @@ xfs_log_force(
 			if (xlog_state_release_iclog(log, iclog))
 				goto out_error;
 
-			if (be64_to_cpu(iclog->ic_header.h_lsn) != lsn ||
-			    iclog->ic_state == XLOG_STATE_DIRTY)
+			if (be64_to_cpu(iclog->ic_header.h_lsn) != lsn)
 				goto out_unlock;
 		} else {
 			/*
@@ -3269,17 +3279,8 @@ xfs_log_force(
 		;
 	}
 
-	if (!(flags & XFS_LOG_SYNC))
-		goto out_unlock;
-
-	if (iclog->ic_state == XLOG_STATE_IOERROR)
-		goto out_error;
-	XFS_STATS_INC(mp, xs_log_force_sleep);
-	xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
-	if (iclog->ic_state == XLOG_STATE_IOERROR)
-		return -EIO;
-	return 0;
-
+	if (flags & XFS_LOG_SYNC)
+		return xlog_wait_on_iclog(iclog);
 out_unlock:
 	spin_unlock(&log->l_icloglock);
 	return 0;
@@ -3309,9 +3310,6 @@ __xfs_log_force_lsn(
 		if (iclog == log->l_iclog)
 			goto out_unlock;
 	}
-
-	if (iclog->ic_state == XLOG_STATE_DIRTY)
-		goto out_unlock;
 
 	if (iclog->ic_state == XLOG_STATE_ACTIVE) {
 		/*
@@ -3346,20 +3344,8 @@ __xfs_log_force_lsn(
 			*log_flushed = 1;
 	}
 
-	if (!(flags & XFS_LOG_SYNC) ||
-	    (iclog->ic_state == XLOG_STATE_ACTIVE ||
-	     iclog->ic_state == XLOG_STATE_DIRTY))
-		goto out_unlock;
-
-	if (iclog->ic_state == XLOG_STATE_IOERROR)
-		goto out_error;
-
-	XFS_STATS_INC(mp, xs_log_force_sleep);
-	xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
-	if (iclog->ic_state == XLOG_STATE_IOERROR)
-		return -EIO;
-	return 0;
-
+	if (flags & XFS_LOG_SYNC)
+		return xlog_wait_on_iclog(iclog);
 out_unlock:
 	spin_unlock(&log->l_icloglock);
 	return 0;
