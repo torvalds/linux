@@ -66,10 +66,20 @@ static ssize_t powered_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(powered);
 
+static ssize_t ctmid_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	return sprintf(buf, "%d\n", drvdata->ctidev.ctm_id);
+}
+static DEVICE_ATTR_RO(ctmid);
+
 /* attribute and group sysfs tables. */
 static struct attribute *coresight_cti_attrs[] = {
 	&dev_attr_enable.attr,
 	&dev_attr_powered.attr,
+	&dev_attr_ctmid.attr,
 	NULL,
 };
 
