@@ -67,19 +67,22 @@ svc_rdma_get_rw_ctxt(struct svcxprt_rdma *rdma, unsigned int sges)
 		ctxt = kmalloc(struct_size(ctxt, rw_first_sgl, SG_CHUNK_SIZE),
 			       GFP_KERNEL);
 		if (!ctxt)
-			goto out;
+			goto out_noctx;
 		INIT_LIST_HEAD(&ctxt->rw_list);
 	}
 
 	ctxt->rw_sg_table.sgl = ctxt->rw_first_sgl;
 	if (sg_alloc_table_chained(&ctxt->rw_sg_table, sges,
 				   ctxt->rw_sg_table.sgl,
-				   SG_CHUNK_SIZE)) {
-		kfree(ctxt);
-		ctxt = NULL;
-	}
-out:
+				   SG_CHUNK_SIZE))
+		goto out_free;
 	return ctxt;
+
+out_free:
+	kfree(ctxt);
+out_noctx:
+	trace_svcrdma_no_rwctx_err(rdma, sges);
+	return NULL;
 }
 
 static void svc_rdma_put_rw_ctxt(struct svcxprt_rdma *rdma,
@@ -456,7 +459,7 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 		ctxt = svc_rdma_get_rw_ctxt(rdma,
 					    (write_len >> PAGE_SHIFT) + 2);
 		if (!ctxt)
-			goto out_noctx;
+			return -ENOMEM;
 
 		constructor(info, write_len, ctxt);
 		ret = svc_rdma_rw_ctx_init(rdma, ctxt, seg_offset, seg_handle,
@@ -484,10 +487,6 @@ out_overflow:
 	dprintk("svcrdma: inadequate space in Write chunk (%u)\n",
 		info->wi_nsegs);
 	return -E2BIG;
-
-out_noctx:
-	dprintk("svcrdma: no R/W ctxs available\n");
-	return -ENOMEM;
 }
 
 /* Send one of an xdr_buf's kvecs by itself. To send a Reply
@@ -637,7 +636,7 @@ static int svc_rdma_build_read_segment(struct svc_rdma_read_info *info,
 	sge_no = PAGE_ALIGN(info->ri_pageoff + len) >> PAGE_SHIFT;
 	ctxt = svc_rdma_get_rw_ctxt(cc->cc_rdma, sge_no);
 	if (!ctxt)
-		goto out_noctx;
+		return -ENOMEM;
 	ctxt->rw_nents = sge_no;
 
 	sg = ctxt->rw_sg_table.sgl;
@@ -675,10 +674,6 @@ static int svc_rdma_build_read_segment(struct svc_rdma_read_info *info,
 	list_add(&ctxt->rw_list, &cc->cc_rwctxts);
 	cc->cc_sqecount += ret;
 	return 0;
-
-out_noctx:
-	dprintk("svcrdma: no R/W ctxs available\n");
-	return -ENOMEM;
 
 out_overrun:
 	dprintk("svcrdma: request overruns rq_pages\n");

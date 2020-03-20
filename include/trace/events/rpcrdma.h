@@ -1612,6 +1612,31 @@ TRACE_EVENT(svcrdma_dma_map_rw_err,
 	)
 );
 
+TRACE_EVENT(svcrdma_no_rwctx_err,
+	TP_PROTO(
+		const struct svcxprt_rdma *rdma,
+		unsigned int num_sges
+	),
+
+	TP_ARGS(rdma, num_sges),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, num_sges)
+		__string(device, rdma->sc_cm_id->device->name)
+		__string(addr, rdma->sc_xprt.xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->num_sges = num_sges;
+		__assign_str(device, rdma->sc_cm_id->device->name);
+		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s device=%s num_sges=%d",
+		__get_str(addr), __get_str(device), __entry->num_sges
+	)
+);
+
 TRACE_EVENT(svcrdma_send_pullup,
 	TP_PROTO(
 		unsigned int len
