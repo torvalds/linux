@@ -82,6 +82,9 @@ struct amdgpu_mes {
 	uint32_t                        sch_ctx_offs;
 	uint64_t			sch_ctx_gpu_addr;
 	uint64_t			*sch_ctx_ptr;
+	uint32_t			query_status_fence_offs;
+	uint64_t			query_status_fence_gpu_addr;
+	uint64_t			*query_status_fence_ptr;
 
 	/* ip specific functions */
 	const struct amdgpu_mes_funcs   *funcs;
