@@ -1446,7 +1446,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 		uint64_t incr, entry_end, pe_start;
 		struct amdgpu_bo *pt;
 
-		if (flags & AMDGPU_PTE_VALID) {
+		if (flags & (AMDGPU_PTE_VALID | AMDGPU_PTE_PRT)) {
 			/* make sure that the page tables covering the
 			 * address range are actually allocated
 			 */
@@ -1603,14 +1603,11 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		goto error_unlock;
 	}
 
-	if (flags & AMDGPU_PTE_VALID) {
+	if (flags & (AMDGPU_PTE_VALID | AMDGPU_PTE_PRT)) {
 		struct amdgpu_bo *root = vm->root.base.bo;
 
 		if (!dma_fence_is_signaled(vm->last_direct))
 			amdgpu_bo_fence(root, vm->last_direct, true);
-
-		if (!dma_fence_is_signaled(vm->last_delayed))
-			amdgpu_bo_fence(root, vm->last_delayed, true);
 	}
 
 	r = vm->update_funcs->prepare(&params, resv, sync_mode);
@@ -1718,7 +1715,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 					AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 			}
 
-		} else if (flags & AMDGPU_PTE_VALID) {
+		} else if (flags & (AMDGPU_PTE_VALID | AMDGPU_PTE_PRT)) {
 			addr += bo_adev->vm_manager.vram_base_offset;
 			addr += pfn << PAGE_SHIFT;
 		}
@@ -2588,8 +2585,7 @@ bool amdgpu_vm_evictable(struct amdgpu_bo *bo)
 		return false;
 
 	/* Don't evict VM page tables while they are updated */
-	if (!dma_fence_is_signaled(bo_base->vm->last_direct) ||
-	    !dma_fence_is_signaled(bo_base->vm->last_delayed)) {
+	if (!dma_fence_is_signaled(bo_base->vm->last_direct)) {
 		amdgpu_vm_eviction_unlock(bo_base->vm);
 		return false;
 	}
@@ -2766,11 +2762,7 @@ long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout)
 	if (timeout <= 0)
 		return timeout;
 
-	timeout = dma_fence_wait_timeout(vm->last_direct, true, timeout);
-	if (timeout <= 0)
-		return timeout;
-
-	return dma_fence_wait_timeout(vm->last_delayed, true, timeout);
+	return dma_fence_wait_timeout(vm->last_direct, true, timeout);
 }
 
 /**
@@ -2843,7 +2835,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		vm->update_funcs = &amdgpu_vm_sdma_funcs;
 	vm->last_update = NULL;
 	vm->last_direct = dma_fence_get_stub();
-	vm->last_delayed = dma_fence_get_stub();
 
 	mutex_init(&vm->eviction_lock);
 	vm->evicting = false;
@@ -2898,7 +2889,6 @@ error_free_root:
 
 error_free_delayed:
 	dma_fence_put(vm->last_direct);
-	dma_fence_put(vm->last_delayed);
 	drm_sched_entity_destroy(&vm->delayed);
 
 error_free_direct:
@@ -3101,8 +3091,6 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	dma_fence_wait(vm->last_direct, false);
 	dma_fence_put(vm->last_direct);
-	dma_fence_wait(vm->last_delayed, false);
-	dma_fence_put(vm->last_delayed);
 
 	list_for_each_entry_safe(mapping, tmp, &vm->freed, list) {
 		if (mapping->flags & AMDGPU_PTE_PRT && prt_fini_needed) {

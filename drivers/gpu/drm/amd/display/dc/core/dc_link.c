@@ -3069,14 +3069,9 @@ void core_link_enable_stream(
 
 		if (pipe_ctx->stream->timing.flags.DSC) {
 			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
-					dc_is_virtual_signal(pipe_ctx->stream->signal)) {
-				/* Here we only need to enable DSC on RX. DSC HW programming
-				 * was done earlier, as part of timing programming.
-				 */
-				dp_set_dsc_on_rx(pipe_ctx, true);
-			}
+					dc_is_virtual_signal(pipe_ctx->stream->signal))
+				dp_set_dsc_enable(pipe_ctx, true);
 		}
-
 		dc->hwss.enable_stream(pipe_ctx);
 
 		/* Set DPS PPS SDP (AKA "info frames") */
@@ -3103,7 +3098,7 @@ void core_link_enable_stream(
 	} else { // if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
 				dc_is_virtual_signal(pipe_ctx->stream->signal))
-			dp_set_dsc_on_rx(pipe_ctx, true);
+			dp_set_dsc_enable(pipe_ctx, true);
 
 	}
 }

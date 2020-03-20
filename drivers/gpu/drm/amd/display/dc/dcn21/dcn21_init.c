@@ -119,7 +119,6 @@ static const struct hwseq_private_funcs dcn21_private_funcs = {
 	.enable_power_gating_plane = dcn20_enable_power_gating_plane,
 	.dpp_pg_control = dcn20_dpp_pg_control,
 	.hubp_pg_control = dcn20_hubp_pg_control,
-	.dsc_pg_control = NULL,
 	.update_odm = dcn20_update_odm,
 	.dsc_pg_control = dcn20_dsc_pg_control,
 	.get_surface_visual_confirm_color = dcn10_get_surface_visual_confirm_color,
@@ -131,6 +130,7 @@ static const struct hwseq_private_funcs dcn21_private_funcs = {
 	.dccg_init = dcn20_dccg_init,
 	.set_blend_lut = dcn20_set_blend_lut,
 	.set_shaper_3dlut = dcn20_set_shaper_3dlut,
+	.PLAT_58856_wa = dcn21_PLAT_58856_wa,
 };
 
 void dcn21_hw_sequencer_construct(struct dc *dc)

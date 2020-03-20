@@ -26,7 +26,6 @@
 
 #define SMU_11_0_PARTIAL_PPTABLE
 
-#include "pp_debug.h"
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
 #include "smu_internal.h"

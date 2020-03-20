@@ -26,6 +26,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
+#include "amdgpu_ras.h"
 #include "amdgpu_ucode.h"
 #include "soc15_common.h"
 #include "psp_v11_0.h"
@@ -867,6 +868,11 @@ static int psp_v11_0_ras_trigger_error(struct psp_context *psp,
 	ret = psp_ras_invoke(psp, ras_cmd->cmd_id);
 	if (ret)
 		return -EINVAL;
+
+	/* If err_event_athub occurs error inject was successful, however
+	   return status from TA is no long reliable */
+	if (amdgpu_ras_intr_triggered())
+		return 0;
 
 	return ras_cmd->ras_status;
 }

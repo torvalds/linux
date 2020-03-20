@@ -104,7 +104,7 @@ enum dmub_window_id {
 	DMUB_WINDOW_4_MAILBOX,
 	DMUB_WINDOW_5_TRACEBUFF,
 	DMUB_WINDOW_6_FW_STATE,
-	DMUB_WINDOW_7_RESERVED,
+	DMUB_WINDOW_7_SCRATCH_MEM,
 	DMUB_WINDOW_TOTAL,
 };
 
@@ -316,6 +316,7 @@ struct dmub_srv {
 	enum dmub_asic asic;
 	void *user_ctx;
 	bool is_virtual;
+	struct dmub_fb scratch_mem_fb;
 	volatile const struct dmub_fw_state *fw_state;
 
 	/* private: internal use only */

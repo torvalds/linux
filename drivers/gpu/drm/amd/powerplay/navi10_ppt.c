@@ -21,7 +21,6 @@
  *
  */
 
-#include "pp_debug.h"
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include "amdgpu.h"
@@ -31,7 +30,6 @@
 #include "amdgpu_atomfirmware.h"
 #include "smu_v11_0.h"
 #include "smu11_driver_if_navi10.h"
-#include "soc15_common.h"
 #include "atom.h"
 #include "navi10_ppt.h"
 #include "smu_v11_0_pptable.h"
