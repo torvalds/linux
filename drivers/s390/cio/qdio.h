@@ -394,8 +394,6 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data);
 void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 				struct ccw_device *cdev);
 void qdio_release_memory(struct qdio_irq *irq_ptr);
-int qdio_setup_create_sysfs(struct ccw_device *cdev);
-void qdio_setup_destroy_sysfs(struct ccw_device *cdev);
 int qdio_setup_init(void);
 void qdio_setup_exit(void);
 int qdio_enable_async_operation(struct qdio_output_q *q);
