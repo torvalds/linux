@@ -267,4 +267,7 @@ uint32_t smu_v11_0_get_max_power_limit(struct smu_context *smu);
 int smu_v11_0_set_performance_level(struct smu_context *smu,
 				    enum amd_dpm_forced_level level);
 
+int smu_v11_0_set_power_source(struct smu_context *smu,
+			       enum smu_power_src_type power_src);
+
 #endif

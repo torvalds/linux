@@ -1939,3 +1939,18 @@ int smu_v11_0_set_performance_level(struct smu_context *smu,
 	return ret;
 }
 
+int smu_v11_0_set_power_source(struct smu_context *smu,
+			       enum smu_power_src_type power_src)
+{
+	int pwr_source;
+
+	pwr_source = smu_power_get_index(smu, (uint32_t)power_src);
+	if (pwr_source < 0)
+		return -EINVAL;
+
+	return smu_send_smc_msg_with_param(smu,
+					SMU_MSG_NotifyPowerSource,
+					pwr_source,
+					NULL);
+}
+
