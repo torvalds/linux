@@ -227,6 +227,12 @@ serial_number
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
    :doc: serial_number
 
+unique_id
+---------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_pm.c
+   :doc: unique_id
+
 GPU Memory Usage Information
 ============================
 
