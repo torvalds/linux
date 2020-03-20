@@ -597,12 +597,11 @@ xlog_state_release_iclog(
 	return 0;
 }
 
-int
+void
 xfs_log_release_iclog(
-	struct xfs_mount        *mp,
 	struct xlog_in_core	*iclog)
 {
-	struct xlog		*log = mp->m_log;
+	struct xlog		*log = iclog->ic_log;
 	bool			sync;
 
 	if (iclog->ic_state == XLOG_STATE_IOERROR)
@@ -618,10 +617,9 @@ xfs_log_release_iclog(
 		if (sync)
 			xlog_sync(log, iclog);
 	}
-	return 0;
+	return;
 error:
-	xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
-	return -EIO;
+	xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 }
 
 /*

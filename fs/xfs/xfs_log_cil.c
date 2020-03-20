@@ -866,7 +866,7 @@ restart:
 	spin_unlock(&cil->xc_push_lock);
 
 	/* release the hounds! */
-	xfs_log_release_iclog(log->l_mp, commit_iclog);
+	xfs_log_release_iclog(commit_iclog);
 	return;
 
 out_skip:
