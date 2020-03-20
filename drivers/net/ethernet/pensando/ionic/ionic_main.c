@@ -360,7 +360,10 @@ try_again:
 		done, duration / HZ, duration);
 
 	if (!done && hb) {
-		ionic_dev_cmd_clean(ionic);
+		/* It is possible (but unlikely) that FW was busy and missed a
+		 * heartbeat check but is still alive and will process this
+		 * request, so don't clean the dev_cmd in this case.
+		 */
 		dev_warn(ionic->dev, "DEVCMD %s (%d) failed - FW halted\n",
 			 ionic_opcode_to_str(opcode), opcode);
 		return -ENXIO;
