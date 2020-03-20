@@ -113,15 +113,16 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 		if (status != EFI_SUCCESS)
 			continue;
 
+		mode = efi_table_attr(gop, mode);
+		info = efi_table_attr(mode, info);
+		if (info->pixel_format == PIXEL_BLT_ONLY)
+			continue;
+
 		status = efi_bs_call(handle_protocol, h, &conout_proto, &dummy);
 		if (status == EFI_SUCCESS)
 			conout_found = true;
 
-		mode = efi_table_attr(gop, mode);
-		info = efi_table_attr(mode, info);
-
-		if ((!first_gop || conout_found) &&
-		    info->pixel_format != PIXEL_BLT_ONLY) {
+		if (!first_gop || conout_found) {
 			/*
 			 * Systems that use the UEFI Console Splitter may
 			 * provide multiple GOP devices, not all of which are
