@@ -30,13 +30,12 @@ Userspace requirements include:
 - Libgcrypt
 
 
-Notes
-=====
+.. note::
 
-In the beta/experimental releases of eCryptfs, when you upgrade
-eCryptfs, you should copy the files to an unencrypted location and
-then copy the files back into the new eCryptfs mount to migrate the
-files.
+   In the beta/experimental releases of eCryptfs, when you upgrade
+   eCryptfs, you should copy the files to an unencrypted location and
+   then copy the files back into the new eCryptfs mount to migrate the
+   files.
 
 
 Mount-wide Passphrase
