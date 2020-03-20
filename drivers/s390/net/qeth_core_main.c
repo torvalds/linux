@@ -4840,7 +4840,6 @@ static int qeth_qdio_establish(struct qeth_card *card)
 		out_sbal_ptrs[i] = card->qdio.out_qs[i]->qdio_bufs;
 
 	memset(&init_data, 0, sizeof(struct qdio_initialize));
-	init_data.cdev                   = CARD_DDEV(card);
 	init_data.q_format		 = IS_IQD(card) ? QDIO_IQDIO_QFMT :
 							  QDIO_QETH_QFMT;
 	init_data.qib_param_field_format = 0;
@@ -4864,7 +4863,7 @@ static int qeth_qdio_establish(struct qeth_card *card)
 			atomic_set(&card->qdio.state, QETH_QDIO_ALLOCATED);
 			goto out;
 		}
-		rc = qdio_establish(&init_data);
+		rc = qdio_establish(CARD_DDEV(card), &init_data);
 		if (rc) {
 			atomic_set(&card->qdio.state, QETH_QDIO_ALLOCATED);
 			qdio_free(CARD_DDEV(card));

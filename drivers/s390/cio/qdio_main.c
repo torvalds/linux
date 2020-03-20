@@ -1322,11 +1322,12 @@ static void qdio_trace_init_data(struct qdio_irq *irq,
 
 /**
  * qdio_establish - establish queues on a qdio subchannel
+ * @cdev: associated ccw device
  * @init_data: initialization data
  */
-int qdio_establish(struct qdio_initialize *init_data)
+int qdio_establish(struct ccw_device *cdev,
+		   struct qdio_initialize *init_data)
 {
-	struct ccw_device *cdev = init_data->cdev;
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
 	int rc;

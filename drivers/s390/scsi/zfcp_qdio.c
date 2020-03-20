@@ -364,7 +364,6 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	atomic_andnot(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
 			  &qdio->adapter->status);
 
-	init_data.cdev = cdev;
 	init_data.q_format = QDIO_ZFCP_QFMT;
 	memcpy(init_data.adapter_name, dev_name(&cdev->dev), 8);
 	ASCEBC(init_data.adapter_name, 8);
@@ -381,10 +380,10 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	init_data.scan_threshold =
 		QDIO_MAX_BUFFERS_PER_Q - ZFCP_QDIO_MAX_SBALS_PER_REQ * 2;
 
-	if (qdio_establish(&init_data))
+	if (qdio_establish(cdev, &init_data))
 		goto failed_establish;
 
-	if (qdio_get_ssqd_desc(init_data.cdev, &ssqd))
+	if (qdio_get_ssqd_desc(cdev, &ssqd))
 		goto failed_qdio;
 
 	if (ssqd.qdioac2 & CHSC_AC2_DATA_DIV_ENABLED)

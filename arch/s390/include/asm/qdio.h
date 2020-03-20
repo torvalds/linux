@@ -325,7 +325,6 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 
 /**
  * struct qdio_initialize - qdio initialization data
- * @cdev: associated ccw device
  * @q_format: queue format
  * @qdr_ac: feature flags to set
  * @adapter_name: name for the adapter
@@ -346,7 +345,6 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @output_sbal_state_array: no_output_qs * 128 state info (for CQ or NULL)
  */
 struct qdio_initialize {
-	struct ccw_device *cdev;
 	unsigned char q_format;
 	unsigned char qdr_ac;
 	unsigned char adapter_name[8];
@@ -410,7 +408,8 @@ void qdio_reset_buffers(struct qdio_buffer **buf, unsigned int count);
 
 extern int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
 			 unsigned int no_output_qs);
-extern int qdio_establish(struct qdio_initialize *);
+extern int qdio_establish(struct ccw_device *cdev,
+			  struct qdio_initialize *init_data);
 extern int qdio_activate(struct ccw_device *);
 extern void qdio_release_aob(struct qaob *);
 extern int do_QDIO(struct ccw_device *, unsigned int, int, unsigned int,
