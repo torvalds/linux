@@ -149,6 +149,8 @@ struct pnfs_layoutdriver_type {
 	const struct nfs_pageio_ops *pg_write_ops;
 
 	struct pnfs_ds_commit_info *(*get_ds_info) (struct inode *inode);
+	void (*release_ds_info)(struct pnfs_ds_commit_info *,
+				struct inode *inode);
 	void (*mark_request_commit) (struct nfs_page *req,
 				     struct pnfs_layout_segment *lseg,
 				     struct nfs_commit_info *cinfo,
@@ -469,6 +471,15 @@ pnfs_init_ds_commit_info(struct pnfs_ds_commit_info *fl_cinfo)
 }
 
 static inline void
+pnfs_release_ds_info(struct pnfs_ds_commit_info *fl_cinfo, struct inode *inode)
+{
+	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
+
+	if (ld != NULL && ld->release_ds_info != NULL)
+		ld->release_ds_info(fl_cinfo, inode);
+}
+
+static inline void
 pnfs_generic_mark_devid_invalid(struct nfs4_deviceid_node *node)
 {
 	set_bit(NFS_DEVICEID_INVALID, &node->flags);
@@ -767,6 +778,11 @@ pnfs_get_ds_info(struct inode *inode)
 
 static inline void
 pnfs_init_ds_commit_info(struct pnfs_ds_commit_info *fl_cinfo)
+{
+}
+
+static inline void
+pnfs_release_ds_info(struct pnfs_ds_commit_info *fl_cinfo, struct inode *inode)
 {
 }
 
