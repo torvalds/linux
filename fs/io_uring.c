@@ -343,6 +343,7 @@ struct io_accept {
 	struct sockaddr __user		*addr;
 	int __user			*addr_len;
 	int				flags;
+	unsigned long			nofile;
 };
 
 struct io_sync {
@@ -3324,6 +3325,7 @@ static int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	accept->addr = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	accept->addr_len = u64_to_user_ptr(READ_ONCE(sqe->addr2));
 	accept->flags = READ_ONCE(sqe->accept_flags);
+	accept->nofile = rlimit(RLIMIT_NOFILE);
 	return 0;
 #else
 	return -EOPNOTSUPP;
@@ -3340,7 +3342,8 @@ static int __io_accept(struct io_kiocb *req, struct io_kiocb **nxt,
 
 	file_flags = force_nonblock ? O_NONBLOCK : 0;
 	ret = __sys_accept4_file(req->file, file_flags, accept->addr,
-					accept->addr_len, accept->flags);
+					accept->addr_len, accept->flags,
+					accept->nofile);
 	if (ret == -EAGAIN && force_nonblock)
 		return -EAGAIN;
 	if (ret == -ERESTARTSYS)
