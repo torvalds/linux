@@ -356,7 +356,7 @@ static int afs_store_data(struct address_space *mapping,
 			  unsigned offset, unsigned to)
 {
 	struct afs_vnode *vnode = AFS_FS_I(mapping->host);
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_wb_key *wbk = NULL;
 	struct list_head *p;

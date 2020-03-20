@@ -42,7 +42,7 @@ static int afs_xattr_get_acl(const struct xattr_handler *handler,
 			     struct inode *inode, const char *name,
 			     void *buffer, size_t size)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct afs_acl *acl = NULL;
@@ -100,7 +100,7 @@ static int afs_xattr_set_acl(const struct xattr_handler *handler,
                              struct inode *inode, const char *name,
                              const void *buffer, size_t size, int flags)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct afs_acl *acl = NULL;
@@ -165,7 +165,7 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 			     struct inode *inode, const char *name,
 			     void *buffer, size_t size)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct yfs_acl *yacl = NULL;
@@ -270,7 +270,7 @@ static int afs_xattr_set_yfs(const struct xattr_handler *handler,
                              struct inode *inode, const char *name,
                              const void *buffer, size_t size, int flags)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct afs_acl *acl = NULL;

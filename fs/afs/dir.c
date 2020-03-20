@@ -643,7 +643,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	struct afs_super_info *as = dir->i_sb->s_fs_info;
 	struct afs_status_cb *scb;
 	struct afs_iget_data iget_data;
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_server *server;
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
 	struct inode *inode = NULL, *ti;
@@ -1220,7 +1220,7 @@ void afs_d_release(struct dentry *dentry)
 /*
  * Create a new inode for create/mkdir/symlink
  */
-static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
+static void afs_vnode_new_inode(struct afs_operation *fc,
 				struct dentry *new_dentry,
 				struct afs_iget_data *new_data,
 				struct afs_status_cb *new_scb)
@@ -1248,7 +1248,7 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 	d_instantiate(new_dentry, inode);
 }
 
-static void afs_prep_for_new_inode(struct afs_fs_cursor *fc,
+static void afs_prep_for_new_inode(struct afs_operation *fc,
 				   struct afs_iget_data *iget_data)
 {
 	iget_data->volume = fc->vnode->volume;
@@ -1261,7 +1261,7 @@ static void afs_prep_for_new_inode(struct afs_fs_cursor *fc,
  * number derived from the result of the operation.  It doesn't matter if
  * d_fsdata goes backwards as we'll just revalidate.
  */
-static void afs_update_dentry_version(struct afs_fs_cursor *fc,
+static void afs_update_dentry_version(struct afs_operation *fc,
 				      struct dentry *dentry,
 				      struct afs_status_cb *scb)
 {
@@ -1277,7 +1277,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct afs_iget_data iget_data;
 	struct afs_status_cb *scb;
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
 	struct key *key;
 	afs_dataversion_t data_version;
@@ -1367,7 +1367,7 @@ static void afs_dir_remove_subdir(struct dentry *dentry)
 static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct afs_status_cb *scb;
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode = NULL;
 	struct key *key;
 	afs_dataversion_t data_version;
@@ -1483,7 +1483,7 @@ static int afs_dir_remove_link(struct afs_vnode *dvnode, struct dentry *dentry,
  */
 static int afs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
 	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
@@ -1588,7 +1588,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		      bool excl)
 {
 	struct afs_iget_data iget_data;
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
 	struct key *key;
@@ -1666,7 +1666,7 @@ error:
 static int afs_link(struct dentry *from, struct inode *dir,
 		    struct dentry *dentry)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
 	struct afs_vnode *vnode = AFS_FS_I(d_inode(from));
@@ -1755,7 +1755,7 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 		       const char *content)
 {
 	struct afs_iget_data iget_data;
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
 	struct key *key;
@@ -1837,7 +1837,7 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		      struct inode *new_dir, struct dentry *new_dentry,
 		      unsigned int flags)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *orig_dvnode, *new_dvnode, *vnode;
 	struct dentry *tmp = NULL, *rehash = NULL;

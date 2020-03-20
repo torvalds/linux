@@ -766,7 +766,7 @@ struct afs_vl_cursor {
 /*
  * Cursor for iterating over a set of fileservers.
  */
-struct afs_fs_cursor {
+struct afs_operation {
 	const struct afs_call_type *type;	/* Type of call done */
 	struct afs_addr_cursor	ac;
 	struct afs_vnode	*vnode;
@@ -779,13 +779,13 @@ struct afs_fs_cursor {
 	short			index;		/* Current server */
 	short			error;
 	unsigned short		flags;
-#define AFS_FS_CURSOR_STOP	0x0001		/* Set to cease iteration */
-#define AFS_FS_CURSOR_VBUSY	0x0002		/* Set if seen VBUSY */
-#define AFS_FS_CURSOR_VMOVED	0x0004		/* Set if seen VMOVED */
-#define AFS_FS_CURSOR_VNOVOL	0x0008		/* Set if seen VNOVOL */
-#define AFS_FS_CURSOR_CUR_ONLY	0x0010		/* Set if current server only (file lock held) */
-#define AFS_FS_CURSOR_NO_VSLEEP	0x0020		/* Set to prevent sleep on VBUSY, VOFFLINE, ... */
-#define AFS_FS_CURSOR_INTR	0x0040		/* Set if op is interruptible */
+#define AFS_OPERATION_STOP	0x0001		/* Set to cease iteration */
+#define AFS_OPERATION_VBUSY	0x0002		/* Set if seen VBUSY */
+#define AFS_OPERATION_VMOVED	0x0004		/* Set if seen VMOVED */
+#define AFS_OPERATION_VNOVOL	0x0008		/* Set if seen VNOVOL */
+#define AFS_OPERATION_CUR_ONLY	0x0010		/* Set if current server only (file lock held) */
+#define AFS_OPERATION_NO_VSLEEP	0x0020		/* Set to prevent sleep on VBUSY, VOFFLINE, ... */
+#define AFS_OPERATION_INTR	0x0040		/* Set if op is interruptible */
 	unsigned short		nr_iterations;	/* Number of server iterations */
 };
 
@@ -958,35 +958,35 @@ extern int afs_flock(struct file *, int, struct file_lock *);
 /*
  * fsclient.c
  */
-extern int afs_fs_fetch_file_status(struct afs_fs_cursor *, struct afs_status_cb *,
+extern int afs_fs_fetch_file_status(struct afs_operation *, struct afs_status_cb *,
 				    struct afs_volsync *);
-extern int afs_fs_fetch_data(struct afs_fs_cursor *, struct afs_status_cb *, struct afs_read *);
-extern int afs_fs_create(struct afs_fs_cursor *, const char *, umode_t,
+extern int afs_fs_fetch_data(struct afs_operation *, struct afs_status_cb *, struct afs_read *);
+extern int afs_fs_create(struct afs_operation *, const char *, umode_t,
 			 struct afs_status_cb *, struct afs_fid *, struct afs_status_cb *);
-extern int afs_fs_remove(struct afs_fs_cursor *, struct afs_vnode *, const char *, bool,
+extern int afs_fs_remove(struct afs_operation *, struct afs_vnode *, const char *, bool,
 			 struct afs_status_cb *);
-extern int afs_fs_link(struct afs_fs_cursor *, struct afs_vnode *, const char *,
+extern int afs_fs_link(struct afs_operation *, struct afs_vnode *, const char *,
 		       struct afs_status_cb *, struct afs_status_cb *);
-extern int afs_fs_symlink(struct afs_fs_cursor *, const char *, const char *,
+extern int afs_fs_symlink(struct afs_operation *, const char *, const char *,
 			  struct afs_status_cb *, struct afs_fid *, struct afs_status_cb *);
-extern int afs_fs_rename(struct afs_fs_cursor *, const char *,
+extern int afs_fs_rename(struct afs_operation *, const char *,
 			 struct afs_vnode *, const char *,
 			 struct afs_status_cb *, struct afs_status_cb *);
-extern int afs_fs_store_data(struct afs_fs_cursor *, struct address_space *,
+extern int afs_fs_store_data(struct afs_operation *, struct address_space *,
 			     pgoff_t, pgoff_t, unsigned, unsigned, struct afs_status_cb *);
-extern int afs_fs_setattr(struct afs_fs_cursor *, struct iattr *, struct afs_status_cb *);
-extern int afs_fs_get_volume_status(struct afs_fs_cursor *, struct afs_volume_status *);
-extern int afs_fs_set_lock(struct afs_fs_cursor *, afs_lock_type_t, struct afs_status_cb *);
-extern int afs_fs_extend_lock(struct afs_fs_cursor *, struct afs_status_cb *);
-extern int afs_fs_release_lock(struct afs_fs_cursor *, struct afs_status_cb *);
+extern int afs_fs_setattr(struct afs_operation *, struct iattr *, struct afs_status_cb *);
+extern int afs_fs_get_volume_status(struct afs_operation *, struct afs_volume_status *);
+extern int afs_fs_set_lock(struct afs_operation *, afs_lock_type_t, struct afs_status_cb *);
+extern int afs_fs_extend_lock(struct afs_operation *, struct afs_status_cb *);
+extern int afs_fs_release_lock(struct afs_operation *, struct afs_status_cb *);
 extern int afs_fs_give_up_all_callbacks(struct afs_net *, struct afs_server *,
 					struct afs_addr_cursor *, struct key *);
 extern bool afs_fs_get_capabilities(struct afs_net *, struct afs_server *,
 				    struct afs_addr_cursor *, struct key *);
-extern int afs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
+extern int afs_fs_inline_bulk_status(struct afs_operation *, struct afs_net *,
 				     struct afs_fid *, struct afs_status_cb *,
 				     unsigned int, struct afs_volsync *);
-extern int afs_fs_fetch_status(struct afs_fs_cursor *, struct afs_net *,
+extern int afs_fs_fetch_status(struct afs_operation *, struct afs_net *,
 			       struct afs_fid *, struct afs_status_cb *,
 			       struct afs_volsync *);
 
@@ -995,8 +995,8 @@ struct afs_acl {
 	u8	data[];
 };
 
-extern struct afs_acl *afs_fs_fetch_acl(struct afs_fs_cursor *, struct afs_status_cb *);
-extern int afs_fs_store_acl(struct afs_fs_cursor *, const struct afs_acl *,
+extern struct afs_acl *afs_fs_fetch_acl(struct afs_operation *, struct afs_status_cb *);
+extern int afs_fs_store_acl(struct afs_operation *, const struct afs_acl *,
 			    struct afs_status_cb *);
 
 /*
@@ -1010,7 +1010,7 @@ extern void afs_fs_probe_dispatcher(struct work_struct *);
 /*
  * inode.c
  */
-extern void afs_vnode_commit_status(struct afs_fs_cursor *,
+extern void afs_vnode_commit_status(struct afs_operation *,
 				    struct afs_vnode *,
 				    unsigned int,
 				    const afs_dataversion_t *,
@@ -1109,11 +1109,11 @@ static inline void afs_put_sysnames(struct afs_sysnames *sysnames) {}
 /*
  * rotate.c
  */
-extern bool afs_begin_vnode_operation(struct afs_fs_cursor *, struct afs_vnode *,
+extern bool afs_begin_vnode_operation(struct afs_operation *, struct afs_vnode *,
 				      struct key *, bool);
-extern bool afs_select_fileserver(struct afs_fs_cursor *);
-extern bool afs_select_current_fileserver(struct afs_fs_cursor *);
-extern int afs_end_vnode_operation(struct afs_fs_cursor *);
+extern bool afs_select_fileserver(struct afs_operation *);
+extern bool afs_select_current_fileserver(struct afs_operation *);
+extern int afs_end_vnode_operation(struct afs_operation *);
 
 /*
  * rxrpc.c
@@ -1135,10 +1135,10 @@ extern void afs_send_simple_reply(struct afs_call *, const void *, size_t);
 extern int afs_extract_data(struct afs_call *, bool);
 extern int afs_protocol_error(struct afs_call *, enum afs_eproto_cause);
 
-static inline void afs_set_fc_call(struct afs_call *call, struct afs_fs_cursor *fc)
+static inline void afs_set_fc_call(struct afs_call *call, struct afs_operation *op)
 {
-	call->intr = fc->flags & AFS_FS_CURSOR_INTR;
-	fc->type = call->type;
+	call->intr = op->flags & AFS_OPERATION_INTR;
+	op->type = call->type;
 }
 
 static inline void afs_extract_begin(struct afs_call *call, void *buf, size_t size)
@@ -1256,7 +1256,7 @@ extern void afs_manage_servers(struct work_struct *);
 extern void afs_servers_timer(struct timer_list *);
 extern void afs_fs_probe_timer(struct timer_list *);
 extern void __net_exit afs_purge_servers(struct afs_net *);
-extern bool afs_check_server_record(struct afs_fs_cursor *, struct afs_server *);
+extern bool afs_check_server_record(struct afs_operation *, struct afs_server *);
 
 static inline void afs_inc_servers_outstanding(struct afs_net *net)
 {
@@ -1358,7 +1358,7 @@ extern struct afs_volume *afs_create_volume(struct afs_fs_context *);
 extern void afs_activate_volume(struct afs_volume *);
 extern void afs_deactivate_volume(struct afs_volume *);
 extern void afs_put_volume(struct afs_cell *, struct afs_volume *);
-extern int afs_check_volume_status(struct afs_volume *, struct afs_fs_cursor *);
+extern int afs_check_volume_status(struct afs_volume *, struct afs_operation *);
 
 /*
  * write.c
@@ -1387,34 +1387,34 @@ extern ssize_t afs_listxattr(struct dentry *, char *, size_t);
 /*
  * yfsclient.c
  */
-extern int yfs_fs_fetch_file_status(struct afs_fs_cursor *, struct afs_status_cb *,
+extern int yfs_fs_fetch_file_status(struct afs_operation *, struct afs_status_cb *,
 				    struct afs_volsync *);
-extern int yfs_fs_fetch_data(struct afs_fs_cursor *, struct afs_status_cb *, struct afs_read *);
-extern int yfs_fs_create_file(struct afs_fs_cursor *, const char *, umode_t, struct afs_status_cb *,
+extern int yfs_fs_fetch_data(struct afs_operation *, struct afs_status_cb *, struct afs_read *);
+extern int yfs_fs_create_file(struct afs_operation *, const char *, umode_t, struct afs_status_cb *,
 			      struct afs_fid *, struct afs_status_cb *);
-extern int yfs_fs_make_dir(struct afs_fs_cursor *, const char *, umode_t, struct afs_status_cb *,
+extern int yfs_fs_make_dir(struct afs_operation *, const char *, umode_t, struct afs_status_cb *,
 			   struct afs_fid *, struct afs_status_cb *);
-extern int yfs_fs_remove_file2(struct afs_fs_cursor *, struct afs_vnode *, const char *,
+extern int yfs_fs_remove_file2(struct afs_operation *, struct afs_vnode *, const char *,
 			       struct afs_status_cb *, struct afs_status_cb *);
-extern int yfs_fs_remove(struct afs_fs_cursor *, struct afs_vnode *, const char *, bool,
+extern int yfs_fs_remove(struct afs_operation *, struct afs_vnode *, const char *, bool,
 			 struct afs_status_cb *);
-extern int yfs_fs_link(struct afs_fs_cursor *, struct afs_vnode *, const char *,
+extern int yfs_fs_link(struct afs_operation *, struct afs_vnode *, const char *,
 		       struct afs_status_cb *, struct afs_status_cb *);
-extern int yfs_fs_symlink(struct afs_fs_cursor *, const char *, const char *,
+extern int yfs_fs_symlink(struct afs_operation *, const char *, const char *,
 			  struct afs_status_cb *, struct afs_fid *, struct afs_status_cb *);
-extern int yfs_fs_rename(struct afs_fs_cursor *, const char *, struct afs_vnode *, const char *,
+extern int yfs_fs_rename(struct afs_operation *, const char *, struct afs_vnode *, const char *,
 			 struct afs_status_cb *, struct afs_status_cb *);
-extern int yfs_fs_store_data(struct afs_fs_cursor *, struct address_space *,
+extern int yfs_fs_store_data(struct afs_operation *, struct address_space *,
 			     pgoff_t, pgoff_t, unsigned, unsigned, struct afs_status_cb *);
-extern int yfs_fs_setattr(struct afs_fs_cursor *, struct iattr *, struct afs_status_cb *);
-extern int yfs_fs_get_volume_status(struct afs_fs_cursor *, struct afs_volume_status *);
-extern int yfs_fs_set_lock(struct afs_fs_cursor *, afs_lock_type_t, struct afs_status_cb *);
-extern int yfs_fs_extend_lock(struct afs_fs_cursor *, struct afs_status_cb *);
-extern int yfs_fs_release_lock(struct afs_fs_cursor *, struct afs_status_cb *);
-extern int yfs_fs_fetch_status(struct afs_fs_cursor *, struct afs_net *,
+extern int yfs_fs_setattr(struct afs_operation *, struct iattr *, struct afs_status_cb *);
+extern int yfs_fs_get_volume_status(struct afs_operation *, struct afs_volume_status *);
+extern int yfs_fs_set_lock(struct afs_operation *, afs_lock_type_t, struct afs_status_cb *);
+extern int yfs_fs_extend_lock(struct afs_operation *, struct afs_status_cb *);
+extern int yfs_fs_release_lock(struct afs_operation *, struct afs_status_cb *);
+extern int yfs_fs_fetch_status(struct afs_operation *, struct afs_net *,
 			       struct afs_fid *, struct afs_status_cb *,
 			       struct afs_volsync *);
-extern int yfs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
+extern int yfs_fs_inline_bulk_status(struct afs_operation *, struct afs_net *,
 				     struct afs_fid *, struct afs_status_cb *,
 				     unsigned int, struct afs_volsync *);
 
@@ -1429,9 +1429,9 @@ struct yfs_acl {
 };
 
 extern void yfs_free_opaque_acl(struct yfs_acl *);
-extern struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *, struct yfs_acl *,
+extern struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_operation *, struct yfs_acl *,
 					       struct afs_status_cb *);
-extern int yfs_fs_store_opaque_acl2(struct afs_fs_cursor *, const struct afs_acl *,
+extern int yfs_fs_store_opaque_acl2(struct afs_operation *, const struct afs_acl *,
 				    struct afs_status_cb *);
 
 /*
@@ -1447,10 +1447,10 @@ static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 	return &vnode->vfs_inode;
 }
 
-static inline void afs_check_for_remote_deletion(struct afs_fs_cursor *fc,
+static inline void afs_check_for_remote_deletion(struct afs_operation *op,
 						 struct afs_vnode *vnode)
 {
-	if (fc->ac.error == -ENOENT) {
+	if (op->ac.error == -ENOENT) {
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
 		afs_break_callback(vnode, afs_cb_break_for_deleted);
 	}

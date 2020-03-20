@@ -280,7 +280,7 @@ error:
 /*
  * Make sure the volume record is up to date.
  */
-int afs_check_volume_status(struct afs_volume *volume, struct afs_fs_cursor *fc)
+int afs_check_volume_status(struct afs_volume *volume, struct afs_operation *fc)
 {
 	int ret, retries = 0;
 
@@ -315,7 +315,7 @@ wait:
 	}
 
 	ret = wait_on_bit(&volume->flags, AFS_VOLUME_WAIT,
-			  (fc->flags & AFS_FS_CURSOR_INTR) ?
+			  (fc->flags & AFS_OPERATION_INTR) ?
 			  TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 	if (ret == -ERESTARTSYS) {
 		_leave(" = %d", ret);

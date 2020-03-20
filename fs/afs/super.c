@@ -715,7 +715,7 @@ static void afs_destroy_inode(struct inode *inode)
 static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct afs_super_info *as = AFS_FS_S(dentry->d_sb);
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_volume_status vs;
 	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 	struct key *key;
@@ -738,7 +738,7 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-		fc.flags |= AFS_FS_CURSOR_NO_VSLEEP;
+		fc.flags |= AFS_OPERATION_NO_VSLEEP;
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_get_volume_status(&fc, &vs);

@@ -161,7 +161,7 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key,
 /*
  * Update the core inode struct from a returned status record.
  */
-static void afs_apply_status(struct afs_fs_cursor *fc,
+static void afs_apply_status(struct afs_operation *fc,
 			     struct afs_vnode *vnode,
 			     struct afs_status_cb *scb,
 			     const afs_dataversion_t *expected_version)
@@ -243,7 +243,7 @@ static void afs_apply_status(struct afs_fs_cursor *fc,
 /*
  * Apply a callback to a vnode.
  */
-static void afs_apply_callback(struct afs_fs_cursor *fc,
+static void afs_apply_callback(struct afs_operation *fc,
 			       struct afs_vnode *vnode,
 			       struct afs_status_cb *scb,
 			       unsigned int cb_break)
@@ -267,7 +267,7 @@ static void afs_apply_callback(struct afs_fs_cursor *fc,
  * Apply the received status and callback to an inode all in the same critical
  * section to avoid races with afs_validate().
  */
-void afs_vnode_commit_status(struct afs_fs_cursor *fc,
+void afs_vnode_commit_status(struct afs_operation *fc,
 			     struct afs_vnode *vnode,
 			     unsigned int cb_break,
 			     const afs_dataversion_t *expected_version,
@@ -304,7 +304,7 @@ int afs_fetch_status(struct afs_vnode *vnode, struct key *key, bool is_new,
 		     afs_access_t *_caller_access)
 {
 	struct afs_status_cb *scb;
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	int ret;
 
 	_enter("%s,{%llx:%llu.%u,S=%lx}",
@@ -813,7 +813,7 @@ void afs_evict_inode(struct inode *inode)
  */
 int afs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 	struct key *key;

@@ -225,7 +225,7 @@ static void afs_file_readpage_read_complete(struct page *page,
  */
 int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *req)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	int ret;
 

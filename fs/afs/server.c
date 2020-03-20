@@ -571,7 +571,7 @@ void afs_purge_servers(struct afs_net *net)
 /*
  * Get an update for a server's address list.
  */
-static noinline bool afs_update_server_record(struct afs_fs_cursor *fc, struct afs_server *server)
+static noinline bool afs_update_server_record(struct afs_operation *fc, struct afs_server *server)
 {
 	struct afs_addr_list *alist, *discard;
 
@@ -585,7 +585,7 @@ static noinline bool afs_update_server_record(struct afs_fs_cursor *fc, struct a
 	if (IS_ERR(alist)) {
 		if ((PTR_ERR(alist) == -ERESTARTSYS ||
 		     PTR_ERR(alist) == -EINTR) &&
-		    !(fc->flags & AFS_FS_CURSOR_INTR) &&
+		    !(fc->flags & AFS_OPERATION_INTR) &&
 		    server->addresses) {
 			_leave(" = t [intr]");
 			return true;
@@ -613,7 +613,7 @@ static noinline bool afs_update_server_record(struct afs_fs_cursor *fc, struct a
 /*
  * See if a server's address list needs updating.
  */
-bool afs_check_server_record(struct afs_fs_cursor *fc, struct afs_server *server)
+bool afs_check_server_record(struct afs_operation *fc, struct afs_server *server)
 {
 	bool success;
 	int ret, retries = 0;
@@ -642,7 +642,7 @@ update:
 
 wait:
 	ret = wait_on_bit(&server->flags, AFS_SERVER_FL_UPDATING,
-			  (fc->flags & AFS_FS_CURSOR_INTR) ?
+			  (fc->flags & AFS_OPERATION_INTR) ?
 			  TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 	if (ret == -ERESTARTSYS) {
 		fc->error = ret;

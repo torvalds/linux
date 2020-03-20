@@ -179,7 +179,7 @@ static int afs_set_lock(struct afs_vnode *vnode, struct key *key,
 			afs_lock_type_t type)
 {
 	struct afs_status_cb *scb;
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	int ret;
 
 	_enter("%s{%llx:%llu.%u},%x,%u",
@@ -216,7 +216,7 @@ static int afs_set_lock(struct afs_vnode *vnode, struct key *key,
 static int afs_extend_lock(struct afs_vnode *vnode, struct key *key)
 {
 	struct afs_status_cb *scb;
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	int ret;
 
 	_enter("%s{%llx:%llu.%u},%x",
@@ -253,7 +253,7 @@ static int afs_extend_lock(struct afs_vnode *vnode, struct key *key)
 static int afs_release_lock(struct afs_vnode *vnode, struct key *key)
 {
 	struct afs_status_cb *scb;
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	int ret;
 
 	_enter("%s{%llx:%llu.%u},%x",

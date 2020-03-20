@@ -19,7 +19,7 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 			       struct dentry *old, struct dentry *new,
 			       struct key *key)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	afs_dataversion_t dir_data_version;
 	int ret = -ERESTARTSYS;
@@ -145,7 +145,7 @@ out:
 static int afs_do_silly_unlink(struct afs_vnode *dvnode, struct afs_vnode *vnode,
 			       struct dentry *dentry, struct key *key)
 {
-	struct afs_fs_cursor fc;
+	struct afs_operation fc;
 	struct afs_status_cb *scb;
 	int ret = -ERESTARTSYS;
 

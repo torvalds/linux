@@ -272,7 +272,7 @@ static const struct afs_call_type afs_RXFSFetchStatus_vnode = {
 /*
  * fetch the status information for a file
  */
-int afs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
+int afs_fs_fetch_file_status(struct afs_operation *fc, struct afs_status_cb *scb,
 			     struct afs_volsync *volsync)
 {
 	struct afs_vnode *vnode = fc->vnode;
@@ -470,7 +470,7 @@ static const struct afs_call_type afs_RXFSFetchData64 = {
 /*
  * fetch data from a very large file
  */
-static int afs_fs_fetch_data64(struct afs_fs_cursor *fc,
+static int afs_fs_fetch_data64(struct afs_operation *fc,
 			       struct afs_status_cb *scb,
 			       struct afs_read *req)
 {
@@ -511,7 +511,7 @@ static int afs_fs_fetch_data64(struct afs_fs_cursor *fc,
 /*
  * fetch data from a file
  */
-int afs_fs_fetch_data(struct afs_fs_cursor *fc,
+int afs_fs_fetch_data(struct afs_operation *fc,
 		      struct afs_status_cb *scb,
 		      struct afs_read *req)
 {
@@ -599,7 +599,7 @@ static const struct afs_call_type afs_RXFSMakeDir = {
 /*
  * create a file or make a directory
  */
-int afs_fs_create(struct afs_fs_cursor *fc,
+int afs_fs_create(struct afs_operation *fc,
 		  const char *name,
 		  umode_t mode,
 		  struct afs_status_cb *dvnode_scb,
@@ -707,7 +707,7 @@ static const struct afs_call_type afs_RXFSRemoveDir = {
 /*
  * remove a file or directory
  */
-int afs_fs_remove(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
+int afs_fs_remove(struct afs_operation *fc, struct afs_vnode *vnode,
 		  const char *name, bool isdir, struct afs_status_cb *dvnode_scb)
 {
 	struct afs_vnode *dvnode = fc->vnode;
@@ -792,7 +792,7 @@ static const struct afs_call_type afs_RXFSLink = {
 /*
  * make a hard link
  */
-int afs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
+int afs_fs_link(struct afs_operation *fc, struct afs_vnode *vnode,
 		const char *name,
 		struct afs_status_cb *dvnode_scb,
 		struct afs_status_cb *vnode_scb)
@@ -882,7 +882,7 @@ static const struct afs_call_type afs_RXFSSymlink = {
 /*
  * create a symbolic link
  */
-int afs_fs_symlink(struct afs_fs_cursor *fc,
+int afs_fs_symlink(struct afs_operation *fc,
 		   const char *name,
 		   const char *contents,
 		   struct afs_status_cb *dvnode_scb,
@@ -990,7 +990,7 @@ static const struct afs_call_type afs_RXFSRename = {
 /*
  * Rename/move a file or directory.
  */
-int afs_fs_rename(struct afs_fs_cursor *fc,
+int afs_fs_rename(struct afs_operation *fc,
 		  const char *orig_name,
 		  struct afs_vnode *new_dvnode,
 		  const char *new_name,
@@ -1105,7 +1105,7 @@ static const struct afs_call_type afs_RXFSStoreData64 = {
 /*
  * store a set of pages to a very large file
  */
-static int afs_fs_store_data64(struct afs_fs_cursor *fc,
+static int afs_fs_store_data64(struct afs_operation *fc,
 			       struct address_space *mapping,
 			       pgoff_t first, pgoff_t last,
 			       unsigned offset, unsigned to,
@@ -1165,7 +1165,7 @@ static int afs_fs_store_data64(struct afs_fs_cursor *fc,
 /*
  * store a set of pages
  */
-int afs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
+int afs_fs_store_data(struct afs_operation *fc, struct address_space *mapping,
 		      pgoff_t first, pgoff_t last,
 		      unsigned offset, unsigned to,
 		      struct afs_status_cb *scb)
@@ -1291,7 +1291,7 @@ static const struct afs_call_type afs_RXFSStoreData64_as_Status = {
  * set the attributes on a very large file, using FS.StoreData rather than
  * FS.StoreStatus so as to alter the file size also
  */
-static int afs_fs_setattr_size64(struct afs_fs_cursor *fc, struct iattr *attr,
+static int afs_fs_setattr_size64(struct afs_operation *fc, struct iattr *attr,
 				 struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
@@ -1340,7 +1340,7 @@ static int afs_fs_setattr_size64(struct afs_fs_cursor *fc, struct iattr *attr,
  * set the attributes on a file, using FS.StoreData rather than FS.StoreStatus
  * so as to alter the file size also
  */
-static int afs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr,
+static int afs_fs_setattr_size(struct afs_operation *fc, struct iattr *attr,
 			       struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
@@ -1388,7 +1388,7 @@ static int afs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr,
  * set the attributes on a file, using FS.StoreData if there's a change in file
  * size, and FS.StoreStatus otherwise
  */
-int afs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr,
+int afs_fs_setattr(struct afs_operation *fc, struct iattr *attr,
 		   struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
@@ -1569,7 +1569,7 @@ static const struct afs_call_type afs_RXFSGetVolumeStatus = {
 /*
  * fetch the status of a volume
  */
-int afs_fs_get_volume_status(struct afs_fs_cursor *fc,
+int afs_fs_get_volume_status(struct afs_operation *fc,
 			     struct afs_volume_status *vs)
 {
 	struct afs_vnode *vnode = fc->vnode;
@@ -1659,7 +1659,7 @@ static const struct afs_call_type afs_RXFSReleaseLock = {
 /*
  * Set a lock on a file
  */
-int afs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type,
+int afs_fs_set_lock(struct afs_operation *fc, afs_lock_type_t type,
 		    struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
@@ -1698,7 +1698,7 @@ int afs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type,
 /*
  * extend a lock on a file
  */
-int afs_fs_extend_lock(struct afs_fs_cursor *fc, struct afs_status_cb *scb)
+int afs_fs_extend_lock(struct afs_operation *fc, struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -1735,7 +1735,7 @@ int afs_fs_extend_lock(struct afs_fs_cursor *fc, struct afs_status_cb *scb)
 /*
  * release a lock on a file
  */
-int afs_fs_release_lock(struct afs_fs_cursor *fc, struct afs_status_cb *scb)
+int afs_fs_release_lock(struct afs_operation *fc, struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -1941,7 +1941,7 @@ static const struct afs_call_type afs_RXFSFetchStatus = {
 /*
  * Fetch the status information for a fid without needing a vnode handle.
  */
-int afs_fs_fetch_status(struct afs_fs_cursor *fc,
+int afs_fs_fetch_status(struct afs_operation *fc,
 			struct afs_net *net,
 			struct afs_fid *fid,
 			struct afs_status_cb *scb,
@@ -2101,7 +2101,7 @@ static const struct afs_call_type afs_RXFSInlineBulkStatus = {
 /*
  * Fetch the status information for up to 50 files
  */
-int afs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
+int afs_fs_inline_bulk_status(struct afs_operation *fc,
 			      struct afs_net *net,
 			      struct afs_fid *fids,
 			      struct afs_status_cb *statuses,
@@ -2234,7 +2234,7 @@ static const struct afs_call_type afs_RXFSFetchACL = {
 /*
  * Fetch the ACL for a file.
  */
-struct afs_acl *afs_fs_fetch_acl(struct afs_fs_cursor *fc,
+struct afs_acl *afs_fs_fetch_acl(struct afs_operation *fc,
 				 struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
@@ -2303,7 +2303,7 @@ static const struct afs_call_type afs_RXFSStoreACL = {
 /*
  * Fetch the ACL for a file.
  */
-int afs_fs_store_acl(struct afs_fs_cursor *fc, const struct afs_acl *acl,
+int afs_fs_store_acl(struct afs_operation *fc, const struct afs_acl *acl,
 		     struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;

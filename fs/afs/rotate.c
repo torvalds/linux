@@ -20,20 +20,20 @@
  * Fileserver operations are serialised on the server by vnode, so we serialise
  * them here also using the io_lock.
  */
-bool afs_begin_vnode_operation(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
+bool afs_begin_vnode_operation(struct afs_operation *op, struct afs_vnode *vnode,
 			       struct key *key, bool intr)
 {
-	memset(fc, 0, sizeof(*fc));
-	fc->vnode = vnode;
-	fc->key = key;
-	fc->ac.error = SHRT_MAX;
-	fc->error = -EDESTADDRREQ;
+	memset(op, 0, sizeof(*op));
+	op->vnode = vnode;
+	op->key = key;
+	op->ac.error = SHRT_MAX;
+	op->error = -EDESTADDRREQ;
 
 	if (intr) {
-		fc->flags |= AFS_FS_CURSOR_INTR;
+		op->flags |= AFS_OPERATION_INTR;
 		if (mutex_lock_interruptible(&vnode->io_lock) < 0) {
-			fc->error = -EINTR;
-			fc->flags |= AFS_FS_CURSOR_STOP;
+			op->error = -EINTR;
+			op->flags |= AFS_OPERATION_STOP;
 			return false;
 		}
 	} else {
@@ -41,7 +41,7 @@ bool afs_begin_vnode_operation(struct afs_fs_cursor *fc, struct afs_vnode *vnode
 	}
 
 	if (vnode->lock_state != AFS_VNODE_LOCK_NONE)
-		fc->flags |= AFS_FS_CURSOR_CUR_ONLY;
+		op->flags |= AFS_OPERATION_CUR_ONLY;
 	return true;
 }
 
@@ -49,26 +49,26 @@ bool afs_begin_vnode_operation(struct afs_fs_cursor *fc, struct afs_vnode *vnode
  * Begin iteration through a server list, starting with the vnode's last used
  * server if possible, or the last recorded good server if not.
  */
-static bool afs_start_fs_iteration(struct afs_fs_cursor *fc,
+static bool afs_start_fs_iteration(struct afs_operation *op,
 				   struct afs_vnode *vnode)
 {
 	struct afs_cb_interest *cbi;
 	int i;
 
 	read_lock(&vnode->volume->servers_lock);
-	fc->server_list = afs_get_serverlist(vnode->volume->servers);
+	op->server_list = afs_get_serverlist(vnode->volume->servers);
 	read_unlock(&vnode->volume->servers_lock);
 
-	fc->untried = (1UL << fc->server_list->nr_servers) - 1;
-	fc->index = READ_ONCE(fc->server_list->preferred);
+	op->untried = (1UL << op->server_list->nr_servers) - 1;
+	op->index = READ_ONCE(op->server_list->preferred);
 
 	cbi = rcu_dereference_protected(vnode->cb_interest,
 					lockdep_is_held(&vnode->io_lock));
 	if (cbi) {
 		/* See if the vnode's preferred record is still available */
-		for (i = 0; i < fc->server_list->nr_servers; i++) {
-			if (fc->server_list->servers[i].cb_interest == cbi) {
-				fc->index = i;
+		for (i = 0; i < op->server_list->nr_servers; i++) {
+			if (op->server_list->servers[i].cb_interest == cbi) {
+				op->index = i;
 				goto found_interest;
 			}
 		}
@@ -77,8 +77,8 @@ static bool afs_start_fs_iteration(struct afs_fs_cursor *fc,
 		 * serving this vnode, then we can't switch to another server
 		 * and have to return an error.
 		 */
-		if (fc->flags & AFS_FS_CURSOR_CUR_ONLY) {
-			fc->error = -ESTALE;
+		if (op->flags & AFS_OPERATION_CUR_ONLY) {
+			op->error = -ESTALE;
 			return false;
 		}
 
@@ -118,12 +118,12 @@ static void afs_busy(struct afs_volume *volume, u32 abort_code)
 /*
  * Sleep and retry the operation to the same fileserver.
  */
-static bool afs_sleep_and_retry(struct afs_fs_cursor *fc)
+static bool afs_sleep_and_retry(struct afs_operation *op)
 {
-	if (fc->flags & AFS_FS_CURSOR_INTR) {
+	if (op->flags & AFS_OPERATION_INTR) {
 		msleep_interruptible(1000);
 		if (signal_pending(current)) {
-			fc->error = -ERESTARTSYS;
+			op->error = -ERESTARTSYS;
 			return false;
 		}
 	} else {
@@ -137,26 +137,26 @@ static bool afs_sleep_and_retry(struct afs_fs_cursor *fc)
  * Select the fileserver to use.  May be called multiple times to rotate
  * through the fileservers.
  */
-bool afs_select_fileserver(struct afs_fs_cursor *fc)
+bool afs_select_fileserver(struct afs_operation *op)
 {
 	struct afs_addr_list *alist;
 	struct afs_server *server;
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vnode *vnode = op->vnode;
 	struct afs_error e;
 	u32 rtt;
-	int error = fc->ac.error, i;
+	int error = op->ac.error, i;
 
 	_enter("%lx[%d],%lx[%d],%d,%d",
-	       fc->untried, fc->index,
-	       fc->ac.tried, fc->ac.index,
-	       error, fc->ac.abort_code);
+	       op->untried, op->index,
+	       op->ac.tried, op->ac.index,
+	       error, op->ac.abort_code);
 
-	if (fc->flags & AFS_FS_CURSOR_STOP) {
+	if (op->flags & AFS_OPERATION_STOP) {
 		_leave(" = f [stopped]");
 		return false;
 	}
 
-	fc->nr_iterations++;
+	op->nr_iterations++;
 
 	/* Evaluate the result of the previous operation, if there was one. */
 	switch (error) {
@@ -166,8 +166,8 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 	case 0:
 	default:
 		/* Success or local failure.  Stop. */
-		fc->error = error;
-		fc->flags |= AFS_FS_CURSOR_STOP;
+		op->error = error;
+		op->flags |= AFS_OPERATION_STOP;
 		_leave(" = f [okay/local %d]", error);
 		return false;
 
@@ -175,42 +175,42 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 		/* The far side rejected the operation on some grounds.  This
 		 * might involve the server being busy or the volume having been moved.
 		 */
-		switch (fc->ac.abort_code) {
+		switch (op->ac.abort_code) {
 		case VNOVOL:
 			/* This fileserver doesn't know about the volume.
 			 * - May indicate that the VL is wrong - retry once and compare
 			 *   the results.
 			 * - May indicate that the fileserver couldn't attach to the vol.
 			 */
-			if (fc->flags & AFS_FS_CURSOR_VNOVOL) {
-				fc->error = -EREMOTEIO;
+			if (op->flags & AFS_OPERATION_VNOVOL) {
+				op->error = -EREMOTEIO;
 				goto next_server;
 			}
 
 			write_lock(&vnode->volume->servers_lock);
-			fc->server_list->vnovol_mask |= 1 << fc->index;
+			op->server_list->vnovol_mask |= 1 << op->index;
 			write_unlock(&vnode->volume->servers_lock);
 
 			set_bit(AFS_VOLUME_NEEDS_UPDATE, &vnode->volume->flags);
-			error = afs_check_volume_status(vnode->volume, fc);
+			error = afs_check_volume_status(vnode->volume, op);
 			if (error < 0)
 				goto failed_set_error;
 
 			if (test_bit(AFS_VOLUME_DELETED, &vnode->volume->flags)) {
-				fc->error = -ENOMEDIUM;
+				op->error = -ENOMEDIUM;
 				goto failed;
 			}
 
 			/* If the server list didn't change, then assume that
 			 * it's the fileserver having trouble.
 			 */
-			if (vnode->volume->servers == fc->server_list) {
-				fc->error = -EREMOTEIO;
+			if (vnode->volume->servers == op->server_list) {
+				op->error = -EREMOTEIO;
 				goto next_server;
 			}
 
 			/* Try again */
-			fc->flags |= AFS_FS_CURSOR_VNOVOL;
+			op->flags |= AFS_OPERATION_VNOVOL;
 			_leave(" = t [vnovol]");
 			return true;
 
@@ -220,20 +220,20 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 		case VONLINE:
 		case VDISKFULL:
 		case VOVERQUOTA:
-			fc->error = afs_abort_to_error(fc->ac.abort_code);
+			op->error = afs_abort_to_error(op->ac.abort_code);
 			goto next_server;
 
 		case VOFFLINE:
 			if (!test_and_set_bit(AFS_VOLUME_OFFLINE, &vnode->volume->flags)) {
-				afs_busy(vnode->volume, fc->ac.abort_code);
+				afs_busy(vnode->volume, op->ac.abort_code);
 				clear_bit(AFS_VOLUME_BUSY, &vnode->volume->flags);
 			}
-			if (fc->flags & AFS_FS_CURSOR_NO_VSLEEP) {
-				fc->error = -EADV;
+			if (op->flags & AFS_OPERATION_NO_VSLEEP) {
+				op->error = -EADV;
 				goto failed;
 			}
-			if (fc->flags & AFS_FS_CURSOR_CUR_ONLY) {
-				fc->error = -ESTALE;
+			if (op->flags & AFS_OPERATION_CUR_ONLY) {
+				op->error = -ESTALE;
 				goto failed;
 			}
 			goto busy;
@@ -244,17 +244,17 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			/* Retry after going round all the servers unless we
 			 * have a file lock we need to maintain.
 			 */
-			if (fc->flags & AFS_FS_CURSOR_NO_VSLEEP) {
-				fc->error = -EBUSY;
+			if (op->flags & AFS_OPERATION_NO_VSLEEP) {
+				op->error = -EBUSY;
 				goto failed;
 			}
 			if (!test_and_set_bit(AFS_VOLUME_BUSY, &vnode->volume->flags)) {
-				afs_busy(vnode->volume, fc->ac.abort_code);
+				afs_busy(vnode->volume, op->ac.abort_code);
 				clear_bit(AFS_VOLUME_OFFLINE, &vnode->volume->flags);
 			}
 		busy:
-			if (fc->flags & AFS_FS_CURSOR_CUR_ONLY) {
-				if (!afs_sleep_and_retry(fc))
+			if (op->flags & AFS_OPERATION_CUR_ONLY) {
+				if (!afs_sleep_and_retry(op))
 					goto failed;
 
 				 /* Retry with same server & address */
@@ -262,7 +262,7 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 				return true;
 			}
 
-			fc->flags |= AFS_FS_CURSOR_VBUSY;
+			op->flags |= AFS_OPERATION_VBUSY;
 			goto next_server;
 
 		case VMOVED:
@@ -273,15 +273,15 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			 * We also limit the number of VMOVED hops we will
 			 * honour, just in case someone sets up a loop.
 			 */
-			if (fc->flags & AFS_FS_CURSOR_VMOVED) {
-				fc->error = -EREMOTEIO;
+			if (op->flags & AFS_OPERATION_VMOVED) {
+				op->error = -EREMOTEIO;
 				goto failed;
 			}
-			fc->flags |= AFS_FS_CURSOR_VMOVED;
+			op->flags |= AFS_OPERATION_VMOVED;
 
 			set_bit(AFS_VOLUME_WAIT, &vnode->volume->flags);
 			set_bit(AFS_VOLUME_NEEDS_UPDATE, &vnode->volume->flags);
-			error = afs_check_volume_status(vnode->volume, fc);
+			error = afs_check_volume_status(vnode->volume, op);
 			if (error < 0)
 				goto failed_set_error;
 
@@ -294,8 +294,8 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			 *
 			 * TODO: Retry a few times with sleeps.
 			 */
-			if (vnode->volume->servers == fc->server_list) {
-				fc->error = -ENOMEDIUM;
+			if (vnode->volume->servers == op->server_list) {
+				op->error = -ENOMEDIUM;
 				goto failed;
 			}
 
@@ -304,13 +304,13 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 		default:
 			clear_bit(AFS_VOLUME_OFFLINE, &vnode->volume->flags);
 			clear_bit(AFS_VOLUME_BUSY, &vnode->volume->flags);
-			fc->error = afs_abort_to_error(fc->ac.abort_code);
+			op->error = afs_abort_to_error(op->ac.abort_code);
 			goto failed;
 		}
 
 	case -ETIMEDOUT:
 	case -ETIME:
-		if (fc->error != -EDESTADDRREQ)
+		if (op->error != -EDESTADDRREQ)
 			goto iterate_address;
 		/* Fall through */
 	case -ERFKILL:
@@ -320,83 +320,83 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 	case -EHOSTDOWN:
 	case -ECONNREFUSED:
 		_debug("no conn");
-		fc->error = error;
+		op->error = error;
 		goto iterate_address;
 
 	case -ECONNRESET:
 		_debug("call reset");
-		fc->error = error;
+		op->error = error;
 		goto failed;
 	}
 
 restart_from_beginning:
 	_debug("restart");
-	afs_end_cursor(&fc->ac);
-	afs_put_cb_interest(afs_v2net(vnode), fc->cbi);
-	fc->cbi = NULL;
-	afs_put_serverlist(afs_v2net(vnode), fc->server_list);
-	fc->server_list = NULL;
+	afs_end_cursor(&op->ac);
+	afs_put_cb_interest(afs_v2net(vnode), op->cbi);
+	op->cbi = NULL;
+	afs_put_serverlist(afs_v2net(vnode), op->server_list);
+	op->server_list = NULL;
 start:
 	_debug("start");
 	/* See if we need to do an update of the volume record.  Note that the
 	 * volume may have moved or even have been deleted.
 	 */
-	error = afs_check_volume_status(vnode->volume, fc);
+	error = afs_check_volume_status(vnode->volume, op);
 	if (error < 0)
 		goto failed_set_error;
 
-	if (!afs_start_fs_iteration(fc, vnode))
+	if (!afs_start_fs_iteration(op, vnode))
 		goto failed;
 
 	_debug("__ VOL %llx __", vnode->volume->vid);
 
 pick_server:
-	_debug("pick [%lx]", fc->untried);
+	_debug("pick [%lx]", op->untried);
 
-	error = afs_wait_for_fs_probes(fc->server_list, fc->untried);
+	error = afs_wait_for_fs_probes(op->server_list, op->untried);
 	if (error < 0)
 		goto failed_set_error;
 
 	/* Pick the untried server with the lowest RTT.  If we have outstanding
 	 * callbacks, we stick with the server we're already using if we can.
 	 */
-	if (fc->cbi) {
-		_debug("cbi %u", fc->index);
-		if (test_bit(fc->index, &fc->untried))
+	if (op->cbi) {
+		_debug("cbi %u", op->index);
+		if (test_bit(op->index, &op->untried))
 			goto selected_server;
-		afs_put_cb_interest(afs_v2net(vnode), fc->cbi);
-		fc->cbi = NULL;
+		afs_put_cb_interest(afs_v2net(vnode), op->cbi);
+		op->cbi = NULL;
 		_debug("nocbi");
 	}
 
-	fc->index = -1;
+	op->index = -1;
 	rtt = U32_MAX;
-	for (i = 0; i < fc->server_list->nr_servers; i++) {
-		struct afs_server *s = fc->server_list->servers[i].server;
+	for (i = 0; i < op->server_list->nr_servers; i++) {
+		struct afs_server *s = op->server_list->servers[i].server;
 
-		if (!test_bit(i, &fc->untried) || !s->probe.responded)
+		if (!test_bit(i, &op->untried) || !s->probe.responded)
 			continue;
 		if (s->probe.rtt < rtt) {
-			fc->index = i;
+			op->index = i;
 			rtt = s->probe.rtt;
 		}
 	}
 
-	if (fc->index == -1)
+	if (op->index == -1)
 		goto no_more_servers;
 
 selected_server:
-	_debug("use %d", fc->index);
-	__clear_bit(fc->index, &fc->untried);
+	_debug("use %d", op->index);
+	__clear_bit(op->index, &op->untried);
 
 	/* We're starting on a different fileserver from the list.  We need to
 	 * check it, create a callback intercept, find its address list and
 	 * probe its capabilities before we use it.
 	 */
-	ASSERTCMP(fc->ac.alist, ==, NULL);
-	server = fc->server_list->servers[fc->index].server;
+	ASSERTCMP(op->ac.alist, ==, NULL);
+	server = op->server_list->servers[op->index].server;
 
-	if (!afs_check_server_record(fc, server))
+	if (!afs_check_server_record(op, server))
 		goto failed;
 
 	_debug("USING SERVER: %pU", &server->uuid);
@@ -406,12 +406,12 @@ selected_server:
 	 * break request before we've finished decoding the reply and
 	 * installing the vnode.
 	 */
-	error = afs_register_server_cb_interest(vnode, fc->server_list,
-						fc->index);
+	error = afs_register_server_cb_interest(vnode, op->server_list,
+						op->index);
 	if (error < 0)
 		goto failed_set_error;
 
-	fc->cbi = afs_get_cb_interest(
+	op->cbi = afs_get_cb_interest(
 		rcu_dereference_protected(vnode->cb_interest,
 					  lockdep_is_held(&vnode->io_lock)));
 
@@ -421,44 +421,44 @@ selected_server:
 	afs_get_addrlist(alist);
 	read_unlock(&server->fs_lock);
 
-	memset(&fc->ac, 0, sizeof(fc->ac));
+	memset(&op->ac, 0, sizeof(op->ac));
 
-	if (!fc->ac.alist)
-		fc->ac.alist = alist;
+	if (!op->ac.alist)
+		op->ac.alist = alist;
 	else
 		afs_put_addrlist(alist);
 
-	fc->ac.index = -1;
+	op->ac.index = -1;
 
 iterate_address:
-	ASSERT(fc->ac.alist);
+	ASSERT(op->ac.alist);
 	/* Iterate over the current server's address list to try and find an
 	 * address on which it will respond to us.
 	 */
-	if (!afs_iterate_addresses(&fc->ac))
+	if (!afs_iterate_addresses(&op->ac))
 		goto next_server;
 
-	_debug("address [%u] %u/%u", fc->index, fc->ac.index, fc->ac.alist->nr_addrs);
+	_debug("address [%u] %u/%u", op->index, op->ac.index, op->ac.alist->nr_addrs);
 
 	_leave(" = t");
 	return true;
 
 next_server:
 	_debug("next");
-	afs_end_cursor(&fc->ac);
+	afs_end_cursor(&op->ac);
 	goto pick_server;
 
 no_more_servers:
 	/* That's all the servers poked to no good effect.  Try again if some
 	 * of them were busy.
 	 */
-	if (fc->flags & AFS_FS_CURSOR_VBUSY)
+	if (op->flags & AFS_OPERATION_VBUSY)
 		goto restart_from_beginning;
 
 	e.error = -EDESTADDRREQ;
 	e.responded = false;
-	for (i = 0; i < fc->server_list->nr_servers; i++) {
-		struct afs_server *s = fc->server_list->servers[i].server;
+	for (i = 0; i < op->server_list->nr_servers; i++) {
+		struct afs_server *s = op->server_list->servers[i].server;
 
 		afs_prioritise_error(&e, READ_ONCE(s->probe.error),
 				     s->probe.abort_code);
@@ -467,11 +467,11 @@ no_more_servers:
 	error = e.error;
 
 failed_set_error:
-	fc->error = error;
+	op->error = error;
 failed:
-	fc->flags |= AFS_FS_CURSOR_STOP;
-	afs_end_cursor(&fc->ac);
-	_leave(" = f [failed %d]", fc->error);
+	op->flags |= AFS_OPERATION_STOP;
+	afs_end_cursor(&op->ac);
+	_leave(" = f [failed %d]", op->error);
 	return false;
 }
 
@@ -480,12 +480,12 @@ failed:
  * fileserver.  We use this when we have a lock on that file, which is backed
  * only by the fileserver we obtained it from.
  */
-bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
+bool afs_select_current_fileserver(struct afs_operation *op)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vnode *vnode = op->vnode;
 	struct afs_cb_interest *cbi;
 	struct afs_addr_list *alist;
-	int error = fc->ac.error;
+	int error = op->ac.error;
 
 	_enter("");
 
@@ -495,12 +495,12 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 	switch (error) {
 	case SHRT_MAX:
 		if (!cbi) {
-			fc->error = -ESTALE;
-			fc->flags |= AFS_FS_CURSOR_STOP;
+			op->error = -ESTALE;
+			op->flags |= AFS_OPERATION_STOP;
 			return false;
 		}
 
-		fc->cbi = afs_get_cb_interest(cbi);
+		op->cbi = afs_get_cb_interest(cbi);
 
 		read_lock(&cbi->server->fs_lock);
 		alist = rcu_dereference_protected(cbi->server->addresses,
@@ -508,27 +508,27 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 		afs_get_addrlist(alist);
 		read_unlock(&cbi->server->fs_lock);
 		if (!alist) {
-			fc->error = -ESTALE;
-			fc->flags |= AFS_FS_CURSOR_STOP;
+			op->error = -ESTALE;
+			op->flags |= AFS_OPERATION_STOP;
 			return false;
 		}
 
-		memset(&fc->ac, 0, sizeof(fc->ac));
-		fc->ac.alist = alist;
-		fc->ac.index = -1;
+		memset(&op->ac, 0, sizeof(op->ac));
+		op->ac.alist = alist;
+		op->ac.index = -1;
 		goto iterate_address;
 
 	case 0:
 	default:
 		/* Success or local failure.  Stop. */
-		fc->error = error;
-		fc->flags |= AFS_FS_CURSOR_STOP;
+		op->error = error;
+		op->flags |= AFS_OPERATION_STOP;
 		_leave(" = f [okay/local %d]", error);
 		return false;
 
 	case -ECONNABORTED:
-		fc->error = afs_abort_to_error(fc->ac.abort_code);
-		fc->flags |= AFS_FS_CURSOR_STOP;
+		op->error = afs_abort_to_error(op->ac.abort_code);
+		op->flags |= AFS_OPERATION_STOP;
 		_leave(" = f [abort]");
 		return false;
 
@@ -541,7 +541,7 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 	case -ETIMEDOUT:
 	case -ETIME:
 		_debug("no conn");
-		fc->error = error;
+		op->error = error;
 		goto iterate_address;
 	}
 
@@ -549,19 +549,19 @@ iterate_address:
 	/* Iterate over the current server's address list to try and find an
 	 * address on which it will respond to us.
 	 */
-	if (afs_iterate_addresses(&fc->ac)) {
+	if (afs_iterate_addresses(&op->ac)) {
 		_leave(" = t");
 		return true;
 	}
 
-	afs_end_cursor(&fc->ac);
+	afs_end_cursor(&op->ac);
 	return false;
 }
 
 /*
  * Dump cursor state in the case of the error being EDESTADDRREQ.
  */
-static void afs_dump_edestaddrreq(const struct afs_fs_cursor *fc)
+static void afs_dump_edestaddrreq(const struct afs_operation *op)
 {
 	static int count;
 	int i;
@@ -574,12 +574,12 @@ static void afs_dump_edestaddrreq(const struct afs_fs_cursor *fc)
 
 	pr_notice("EDESTADDR occurred\n");
 	pr_notice("FC: cbb=%x cbb2=%x fl=%hx err=%hd\n",
-		  fc->cb_break, fc->cb_break_2, fc->flags, fc->error);
+		  op->cb_break, op->cb_break_2, op->flags, op->error);
 	pr_notice("FC: ut=%lx ix=%d ni=%u\n",
-		  fc->untried, fc->index, fc->nr_iterations);
+		  op->untried, op->index, op->nr_iterations);
 
-	if (fc->server_list) {
-		const struct afs_server_list *sl = fc->server_list;
+	if (op->server_list) {
+		const struct afs_server_list *sl = op->server_list;
 		pr_notice("FC: SL nr=%u pr=%u vnov=%hx\n",
 			  sl->nr_servers, sl->preferred, sl->vnovol_mask);
 		for (i = 0; i < sl->nr_servers; i++) {
@@ -595,39 +595,39 @@ static void afs_dump_edestaddrreq(const struct afs_fs_cursor *fc)
 					  a->preferred);
 				pr_notice("FC:  - R=%lx F=%lx\n",
 					  a->responded, a->failed);
-				if (a == fc->ac.alist)
+				if (a == op->ac.alist)
 					pr_notice("FC:  - current\n");
 			}
 		}
 	}
 
 	pr_notice("AC: t=%lx ax=%u ac=%d er=%d r=%u ni=%u\n",
-		  fc->ac.tried, fc->ac.index, fc->ac.abort_code, fc->ac.error,
-		  fc->ac.responded, fc->ac.nr_iterations);
+		  op->ac.tried, op->ac.index, op->ac.abort_code, op->ac.error,
+		  op->ac.responded, op->ac.nr_iterations);
 	rcu_read_unlock();
 }
 
 /*
  * Tidy up a filesystem cursor and unlock the vnode.
  */
-int afs_end_vnode_operation(struct afs_fs_cursor *fc)
+int afs_end_vnode_operation(struct afs_operation *op)
 {
-	struct afs_net *net = afs_v2net(fc->vnode);
+	struct afs_net *net = afs_v2net(op->vnode);
 
-	if (fc->error == -EDESTADDRREQ ||
-	    fc->error == -EADDRNOTAVAIL ||
-	    fc->error == -ENETUNREACH ||
-	    fc->error == -EHOSTUNREACH)
-		afs_dump_edestaddrreq(fc);
+	if (op->error == -EDESTADDRREQ ||
+	    op->error == -EADDRNOTAVAIL ||
+	    op->error == -ENETUNREACH ||
+	    op->error == -EHOSTUNREACH)
+		afs_dump_edestaddrreq(op);
 
-	mutex_unlock(&fc->vnode->io_lock);
+	mutex_unlock(&op->vnode->io_lock);
 
-	afs_end_cursor(&fc->ac);
-	afs_put_cb_interest(net, fc->cbi);
-	afs_put_serverlist(net, fc->server_list);
+	afs_end_cursor(&op->ac);
+	afs_put_cb_interest(net, op->cbi);
+	afs_put_serverlist(net, op->server_list);
 
-	if (fc->error == -ECONNABORTED)
-		fc->error = afs_abort_to_error(fc->ac.abort_code);
+	if (op->error == -ECONNABORTED)
+		op->error = afs_abort_to_error(op->ac.abort_code);
 
-	return fc->error;
+	return op->error;
 }
