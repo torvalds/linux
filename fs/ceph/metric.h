@@ -28,6 +28,13 @@ struct ceph_client_metric {
 	ktime_t write_latency_sq_sum;
 	ktime_t write_latency_min;
 	ktime_t write_latency_max;
+
+	spinlock_t metadata_latency_lock;
+	u64 total_metadatas;
+	ktime_t metadata_latency_sum;
+	ktime_t metadata_latency_sq_sum;
+	ktime_t metadata_latency_min;
+	ktime_t metadata_latency_max;
 };
 
 extern int ceph_metric_init(struct ceph_client_metric *m);
@@ -49,4 +56,7 @@ extern void ceph_update_read_latency(struct ceph_client_metric *m,
 extern void ceph_update_write_latency(struct ceph_client_metric *m,
 				      ktime_t r_start, ktime_t r_end,
 				      int rc);
+extern void ceph_update_metadata_latency(struct ceph_client_metric *m,
+				         ktime_t r_start, ktime_t r_end,
+					 int rc);
 #endif /* _FS_CEPH_MDS_METRIC_H */

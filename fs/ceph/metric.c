@@ -44,6 +44,13 @@ int ceph_metric_init(struct ceph_client_metric *m)
 	m->total_writes = 0;
 	m->write_latency_sum = 0;
 
+	spin_lock_init(&m->metadata_latency_lock);
+	m->metadata_latency_sq_sum = 0;
+	m->metadata_latency_min = KTIME_MAX;
+	m->metadata_latency_max = 0;
+	m->total_metadatas = 0;
+	m->metadata_latency_sum = 0;
+
 	return 0;
 
 err_i_caps_mis:
@@ -122,4 +129,20 @@ void ceph_update_write_latency(struct ceph_client_metric *m,
 			 &m->write_latency_min, &m->write_latency_max,
 			 &m->write_latency_sq_sum, lat);
 	spin_unlock(&m->write_latency_lock);
+}
+
+void ceph_update_metadata_latency(struct ceph_client_metric *m,
+				  ktime_t r_start, ktime_t r_end,
+				  int rc)
+{
+	ktime_t lat = ktime_sub(r_end, r_start);
+
+	if (unlikely(rc && rc != -ENOENT))
+		return;
+
+	spin_lock(&m->metadata_latency_lock);
+	__update_latency(&m->total_metadatas, &m->metadata_latency_sum,
+			 &m->metadata_latency_min, &m->metadata_latency_max,
+			 &m->metadata_latency_sq_sum, lat);
+	spin_unlock(&m->metadata_latency_lock);
 }
