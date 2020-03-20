@@ -29,49 +29,34 @@ static void
 setup_pixel_info(struct screen_info *si, u32 pixels_per_scan_line,
 		 efi_pixel_bitmask_t pixel_info, int pixel_format)
 {
-	if (pixel_format == PIXEL_RGB_RESERVED_8BIT_PER_COLOR) {
-		si->lfb_depth = 32;
-		si->lfb_linelength = pixels_per_scan_line * 4;
-		si->red_size = 8;
-		si->red_pos = 0;
-		si->green_size = 8;
-		si->green_pos = 8;
-		si->blue_size = 8;
-		si->blue_pos = 16;
-		si->rsvd_size = 8;
-		si->rsvd_pos = 24;
-	} else if (pixel_format == PIXEL_BGR_RESERVED_8BIT_PER_COLOR) {
-		si->lfb_depth = 32;
-		si->lfb_linelength = pixels_per_scan_line * 4;
-		si->red_size = 8;
-		si->red_pos = 16;
-		si->green_size = 8;
-		si->green_pos = 8;
-		si->blue_size = 8;
-		si->blue_pos = 0;
-		si->rsvd_size = 8;
-		si->rsvd_pos = 24;
-	} else if (pixel_format == PIXEL_BIT_MASK) {
-		find_bits(pixel_info.red_mask, &si->red_pos, &si->red_size);
-		find_bits(pixel_info.green_mask, &si->green_pos,
-			  &si->green_size);
-		find_bits(pixel_info.blue_mask, &si->blue_pos, &si->blue_size);
-		find_bits(pixel_info.reserved_mask, &si->rsvd_pos,
-			  &si->rsvd_size);
+	if (pixel_format == PIXEL_BIT_MASK) {
+		find_bits(pixel_info.red_mask,
+			  &si->red_pos, &si->red_size);
+		find_bits(pixel_info.green_mask,
+			  &si->green_pos, &si->green_size);
+		find_bits(pixel_info.blue_mask,
+			  &si->blue_pos, &si->blue_size);
+		find_bits(pixel_info.reserved_mask,
+			  &si->rsvd_pos, &si->rsvd_size);
 		si->lfb_depth = si->red_size + si->green_size +
 			si->blue_size + si->rsvd_size;
 		si->lfb_linelength = (pixels_per_scan_line * si->lfb_depth) / 8;
 	} else {
-		si->lfb_depth = 4;
-		si->lfb_linelength = si->lfb_width / 2;
-		si->red_size = 0;
-		si->red_pos = 0;
-		si->green_size = 0;
-		si->green_pos = 0;
-		si->blue_size = 0;
-		si->blue_pos = 0;
-		si->rsvd_size = 0;
-		si->rsvd_pos = 0;
+		if (pixel_format == PIXEL_RGB_RESERVED_8BIT_PER_COLOR) {
+			si->red_pos   = 0;
+			si->blue_pos  = 16;
+		} else /* PIXEL_BGR_RESERVED_8BIT_PER_COLOR */ {
+			si->blue_pos  = 0;
+			si->red_pos   = 16;
+		}
+
+		si->green_pos = 8;
+		si->rsvd_pos  = 24;
+		si->red_size = si->green_size =
+			si->blue_size = si->rsvd_size = 8;
+
+		si->lfb_depth = 32;
+		si->lfb_linelength = pixels_per_scan_line * 4;
 	}
 }
 
@@ -100,7 +85,8 @@ find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 
 		mode = efi_table_attr(gop, mode);
 		info = efi_table_attr(mode, info);
-		if (info->pixel_format == PIXEL_BLT_ONLY)
+		if (info->pixel_format == PIXEL_BLT_ONLY ||
+		    info->pixel_format >= PIXEL_FORMAT_MAX)
 			continue;
 
 		/*
