@@ -16,6 +16,8 @@
 #include <linux/ceph/mdsmap.h>
 #include <linux/ceph/auth.h>
 
+#include "metric.h"
+
 /* The first 8 bits are reserved for old ceph releases */
 enum ceph_feature_type {
 	CEPHFS_FEATURE_MIMIC = 8,
@@ -453,6 +455,8 @@ struct ceph_mds_client {
 	spinlock_t	  dentry_list_lock;
 	struct list_head  dentry_leases;     /* fifo list */
 	struct list_head  dentry_dir_leases; /* lru list */
+
+	struct ceph_client_metric metric;
 
 	spinlock_t		snapid_map_lock;
 	struct rb_root		snapid_map_tree;
