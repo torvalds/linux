@@ -3034,16 +3034,15 @@ u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
 	return eptp;
 }
 
-void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long cr3)
+void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long pgd)
 {
 	struct kvm *kvm = vcpu->kvm;
 	bool update_guest_cr3 = true;
 	unsigned long guest_cr3;
 	u64 eptp;
 
-	guest_cr3 = cr3;
 	if (enable_ept) {
-		eptp = construct_eptp(vcpu, cr3);
+		eptp = construct_eptp(vcpu, pgd);
 		vmcs_write64(EPT_POINTER, eptp);
 
 		if (kvm_x86_ops.tlb_remote_flush) {
@@ -3064,6 +3063,8 @@ void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long cr3)
 		else /* vmcs01.GUEST_CR3 is already up-to-date. */
 			update_guest_cr3 = false;
 		ept_load_pdptrs(vcpu);
+	} else {
+		guest_cr3 = pgd;
 	}
 
 	if (update_guest_cr3)
