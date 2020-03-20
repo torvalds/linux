@@ -8,10 +8,114 @@
 #include <linux/bitops.h>
 #include <linux/efi.h>
 #include <linux/screen_info.h>
+#include <linux/string.h>
 #include <asm/efi.h>
 #include <asm/setup.h>
 
 #include "efistub.h"
+
+enum efi_cmdline_option {
+	EFI_CMDLINE_NONE,
+	EFI_CMDLINE_MODE_NUM,
+};
+
+static struct {
+	enum efi_cmdline_option option;
+	u32 mode;
+} cmdline __efistub_global = { .option = EFI_CMDLINE_NONE };
+
+static bool parse_modenum(char *option, char **next)
+{
+	u32 m;
+
+	if (!strstarts(option, "mode="))
+		return false;
+	option += strlen("mode=");
+	m = simple_strtoull(option, &option, 0);
+	if (*option && *option++ != ',')
+		return false;
+	cmdline.option = EFI_CMDLINE_MODE_NUM;
+	cmdline.mode   = m;
+
+	*next = option;
+	return true;
+}
+
+void efi_parse_option_graphics(char *option)
+{
+	while (*option) {
+		if (parse_modenum(option, &option))
+			continue;
+
+		while (*option && *option++ != ',')
+			;
+	}
+}
+
+static u32 choose_mode_modenum(efi_graphics_output_protocol_t *gop)
+{
+	efi_status_t status;
+
+	efi_graphics_output_protocol_mode_t *mode;
+	efi_graphics_output_mode_info_t *info;
+	unsigned long info_size;
+
+	u32 max_mode, cur_mode;
+	int pf;
+
+	mode = efi_table_attr(gop, mode);
+
+	cur_mode = efi_table_attr(mode, mode);
+	if (cmdline.mode == cur_mode)
+		return cur_mode;
+
+	max_mode = efi_table_attr(mode, max_mode);
+	if (cmdline.mode >= max_mode) {
+		efi_printk("Requested mode is invalid\n");
+		return cur_mode;
+	}
+
+	status = efi_call_proto(gop, query_mode, cmdline.mode,
+				&info_size, &info);
+	if (status != EFI_SUCCESS) {
+		efi_printk("Couldn't get mode information\n");
+		return cur_mode;
+	}
+
+	pf = info->pixel_format;
+
+	efi_bs_call(free_pool, info);
+
+	if (pf == PIXEL_BLT_ONLY || pf >= PIXEL_FORMAT_MAX) {
+		efi_printk("Invalid PixelFormat\n");
+		return cur_mode;
+	}
+
+	return cmdline.mode;
+}
+
+static void set_mode(efi_graphics_output_protocol_t *gop)
+{
+	efi_graphics_output_protocol_mode_t *mode;
+	u32 cur_mode, new_mode;
+
+	switch (cmdline.option) {
+	case EFI_CMDLINE_MODE_NUM:
+		new_mode = choose_mode_modenum(gop);
+		break;
+	default:
+		return;
+	}
+
+	mode = efi_table_attr(gop, mode);
+	cur_mode = efi_table_attr(mode, mode);
+
+	if (new_mode == cur_mode)
+		return;
+
+	if (efi_call_proto(gop, set_mode, new_mode) != EFI_SUCCESS)
+		efi_printk("Failed to set requested mode\n");
+}
 
 static void find_bits(u32 mask, u8 *pos, u8 *size)
 {
@@ -123,6 +227,9 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 	/* Did we find any GOPs? */
 	if (!gop)
 		return EFI_NOT_FOUND;
+
+	/* Change mode if requested */
+	set_mode(gop);
 
 	/* EFI framebuffer */
 	mode = efi_table_attr(gop, mode);

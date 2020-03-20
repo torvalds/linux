@@ -105,6 +105,9 @@ efi_status_t efi_parse_options(char const *cmdline)
 				efi_disable_pci_dma = true;
 			if (parse_option_str(val, "no_disable_early_pci_dma"))
 				efi_disable_pci_dma = false;
+		} else if (!strcmp(param, "video") &&
+			   val && strstarts(val, "efifb:")) {
+			efi_parse_option_graphics(val + strlen("efifb:"));
 		}
 	}
 	efi_bs_call(free_pool, buf);
