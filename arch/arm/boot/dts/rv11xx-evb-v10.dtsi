@@ -102,16 +102,21 @@
 &gmac {
 	phy-mode = "rgmii";
 	clock_in_out = "input";
+
 	snps,reset-gpio = <&gpio2 RK_PC0 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	/* Reset time is 20ms, 100ms for rtl8211f */
 	snps,reset-delays-us = <0 20000 100000>;
+
 	assigned-clocks = <&cru CLK_GMAC_SRC>;
 	assigned-clock-parents = <&cru CLK_GMAC_RGMII_M1>;
 	assigned-clocks = <&cru CLK_GMAC_ETHERNET_OUT>;
 	assigned-clock-rates = <25000000>;
+
 	tx_delay = <0x40>;
 	rx_delay = <0x3a>;
+
+	phy-handle = <&phy>;
 	status = "okay";
 };
 
@@ -372,6 +377,13 @@
 		     &i2s0m0_lrck_tx
 		     &i2s0m0_sdo0
 		     &i2s0m0_sdo1_sdi3>;
+};
+
+&mdio {
+	phy: phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x0>;
+	};
 };
 
 &mpp_srv {

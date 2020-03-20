@@ -1294,18 +1294,12 @@
 		snps,axi-config = <&stmmac_axi_setup>;
 		snps,mtl-rx-config = <&mtl_rx_setup>;
 		snps,mtl-tx-config = <&mtl_tx_setup>;
-		phy-handle = <&phy>;
 		status = "disabled";
 
-		mdio {
+		mdio: mdio {
+			compatible = "snps,dwmac-mdio";
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
-			compatible = "snps,dwmac-mdio";
-			phy: phy@0 {
-				compatible = "ethernet-phy-ieee802.3-c22";
-				device_type = "ethernet-phy";
-				reg = <0x0>;
-			};
 		};
 
 		stmmac_axi_setup: stmmac-axi-config {
