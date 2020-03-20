@@ -1425,10 +1425,15 @@ static void ionic_lif_rss_deinit(struct ionic_lif *lif)
 static void ionic_txrx_disable(struct ionic_lif *lif)
 {
 	unsigned int i;
+	int err;
 
 	for (i = 0; i < lif->nxqs; i++) {
-		ionic_qcq_disable(lif->txqcqs[i].qcq);
-		ionic_qcq_disable(lif->rxqcqs[i].qcq);
+		err = ionic_qcq_disable(lif->txqcqs[i].qcq);
+		if (err == -ETIMEDOUT)
+			break;
+		err = ionic_qcq_disable(lif->rxqcqs[i].qcq);
+		if (err == -ETIMEDOUT)
+			break;
 	}
 }
 
@@ -1552,7 +1557,8 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 		ionic_rx_fill(&lif->rxqcqs[i].qcq->q);
 		err = ionic_qcq_enable(lif->rxqcqs[i].qcq);
 		if (err) {
-			ionic_qcq_disable(lif->txqcqs[i].qcq);
+			if (err != -ETIMEDOUT)
+				ionic_qcq_disable(lif->txqcqs[i].qcq);
 			goto err_out;
 		}
 	}
@@ -1561,8 +1567,12 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 
 err_out:
 	while (i--) {
-		ionic_qcq_disable(lif->rxqcqs[i].qcq);
-		ionic_qcq_disable(lif->txqcqs[i].qcq);
+		err = ionic_qcq_disable(lif->rxqcqs[i].qcq);
+		if (err == -ETIMEDOUT)
+			break;
+		err = ionic_qcq_disable(lif->txqcqs[i].qcq);
+		if (err == -ETIMEDOUT)
+			break;
 	}
 
 	return err;
