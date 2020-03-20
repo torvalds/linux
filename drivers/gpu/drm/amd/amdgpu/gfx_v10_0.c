@@ -9188,31 +9188,51 @@ static int gfx_v10_0_eop_irq(struct amdgpu_device *adev,
 	int i;
 	u8 me_id, pipe_id, queue_id;
 	struct amdgpu_ring *ring;
+	uint32_t mes_queue_id = entry->src_data[0];
 
 	DRM_DEBUG("IH: CP EOP\n");
-	me_id = (entry->ring_id & 0x0c) >> 2;
-	pipe_id = (entry->ring_id & 0x03) >> 0;
-	queue_id = (entry->ring_id & 0x70) >> 4;
 
-	switch (me_id) {
-	case 0:
-		if (pipe_id == 0)
-			amdgpu_fence_process(&adev->gfx.gfx_ring[0]);
-		else
-			amdgpu_fence_process(&adev->gfx.gfx_ring[1]);
-		break;
-	case 1:
-	case 2:
-		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-			ring = &adev->gfx.compute_ring[i];
-			/* Per-queue interrupt is supported for MEC starting from VI.
-			  * The interrupt can only be enabled/disabled per pipe instead of per queue.
-			  */
-			if ((ring->me == me_id) && (ring->pipe == pipe_id) && (ring->queue == queue_id))
-				amdgpu_fence_process(ring);
+	if (adev->enable_mes && (mes_queue_id & AMDGPU_FENCE_MES_QUEUE_FLAG)) {
+		struct amdgpu_mes_queue *queue;
+
+		mes_queue_id &= AMDGPU_FENCE_MES_QUEUE_ID_MASK;
+
+		spin_lock(&adev->mes.queue_id_lock);
+		queue = idr_find(&adev->mes.queue_id_idr, mes_queue_id);
+		if (queue) {
+			DRM_DEBUG("process mes queue id = %d\n", mes_queue_id);
+			amdgpu_fence_process(queue->ring);
 		}
-		break;
+		spin_unlock(&adev->mes.queue_id_lock);
+	} else {
+		me_id = (entry->ring_id & 0x0c) >> 2;
+		pipe_id = (entry->ring_id & 0x03) >> 0;
+		queue_id = (entry->ring_id & 0x70) >> 4;
+
+		switch (me_id) {
+		case 0:
+			if (pipe_id == 0)
+				amdgpu_fence_process(&adev->gfx.gfx_ring[0]);
+			else
+				amdgpu_fence_process(&adev->gfx.gfx_ring[1]);
+			break;
+		case 1:
+		case 2:
+			for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+				ring = &adev->gfx.compute_ring[i];
+				/* Per-queue interrupt is supported for MEC starting from VI.
+				 * The interrupt can only be enabled/disabled per pipe instead
+				 * of per queue.
+				 */
+				if ((ring->me == me_id) &&
+				    (ring->pipe == pipe_id) &&
+				    (ring->queue == queue_id))
+					amdgpu_fence_process(ring);
+			}
+			break;
+		}
 	}
+
 	return 0;
 }
 
