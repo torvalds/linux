@@ -36,6 +36,7 @@ struct sja1105_regs {
 	u64 port_control;
 	u64 rgu;
 	u64 config;
+	u64 sgmii;
 	u64 rmii_pll1;
 	u64 ptp_control;
 	u64 ptpclkval;
@@ -159,6 +160,7 @@ typedef enum {
 	XMII_MODE_MII		= 0,
 	XMII_MODE_RMII		= 1,
 	XMII_MODE_RGMII		= 2,
+	XMII_MODE_SGMII		= 3,
 } sja1105_phy_interface_t;
 
 typedef enum {
