@@ -3468,7 +3468,7 @@ NOKPROBE_SYMBOL(lockdep_hardirqs_off);
 /*
  * Softirqs will be enabled:
  */
-void trace_softirqs_on(unsigned long ip)
+void lockdep_softirqs_on(unsigned long ip)
 {
 	struct task_struct *curr = current;
 
@@ -3508,7 +3508,7 @@ void trace_softirqs_on(unsigned long ip)
 /*
  * Softirqs were disabled:
  */
-void trace_softirqs_off(unsigned long ip)
+void lockdep_softirqs_off(unsigned long ip)
 {
 	struct task_struct *curr = current;
 

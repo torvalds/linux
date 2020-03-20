@@ -15,15 +15,15 @@
 #include <linux/typecheck.h>
 #include <asm/irqflags.h>
 
-/* Currently trace_softirqs_on/off is used only by lockdep */
+/* Currently lockdep_softirqs_on/off is used only by lockdep */
 #ifdef CONFIG_PROVE_LOCKING
-  extern void trace_softirqs_on(unsigned long ip);
-  extern void trace_softirqs_off(unsigned long ip);
+  extern void lockdep_softirqs_on(unsigned long ip);
+  extern void lockdep_softirqs_off(unsigned long ip);
   extern void lockdep_hardirqs_on(unsigned long ip);
   extern void lockdep_hardirqs_off(unsigned long ip);
 #else
-  static inline void trace_softirqs_on(unsigned long ip) { }
-  static inline void trace_softirqs_off(unsigned long ip) { }
+  static inline void lockdep_softirqs_on(unsigned long ip) { }
+  static inline void lockdep_softirqs_off(unsigned long ip) { }
   static inline void lockdep_hardirqs_on(unsigned long ip) { }
   static inline void lockdep_hardirqs_off(unsigned long ip) { }
 #endif
