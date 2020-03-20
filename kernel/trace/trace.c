@@ -386,16 +386,22 @@ trace_find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
  * Returns false if @task should be traced.
  */
 bool
-trace_ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
+trace_ignore_this_task(struct trace_pid_list *filtered_pids,
+		       struct trace_pid_list *filtered_no_pids,
+		       struct task_struct *task)
 {
 	/*
-	 * Return false, because if filtered_pids does not exist,
-	 * all pids are good to trace.
+	 * If filterd_no_pids is not empty, and the task's pid is listed
+	 * in filtered_no_pids, then return true.
+	 * Otherwise, if filtered_pids is empty, that means we can
+	 * trace all tasks. If it has content, then only trace pids
+	 * within filtered_pids.
 	 */
-	if (!filtered_pids)
-		return false;
 
-	return !trace_find_filtered_pid(filtered_pids, task->pid);
+	return (filtered_pids &&
+		!trace_find_filtered_pid(filtered_pids, task->pid)) ||
+		(filtered_no_pids &&
+		 trace_find_filtered_pid(filtered_no_pids, task->pid));
 }
 
 /**
@@ -5012,6 +5018,8 @@ static const char readme_msg[] =
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #ifdef CONFIG_FUNCTION_TRACER
 	"  set_ftrace_pid\t- Write pid(s) to only function trace those pids\n"
+	"\t\t    (function)\n"
+	"  set_ftrace_notrace_pid\t- Write pid(s) to not function trace those pids\n"
 	"\t\t    (function)\n"
 #endif
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
