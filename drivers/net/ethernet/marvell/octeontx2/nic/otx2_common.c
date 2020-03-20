@@ -128,6 +128,7 @@ void otx2_get_stats64(struct net_device *netdev,
 	stats->tx_packets = dev_stats->tx_frames;
 	stats->tx_dropped = dev_stats->tx_drops;
 }
+EXPORT_SYMBOL(otx2_get_stats64);
 
 /* Sync MAC address with RVU AF */
 static int otx2_hw_set_mac_addr(struct otx2_nic *pfvf, u8 *mac)
@@ -197,6 +198,7 @@ int otx2_set_mac_address(struct net_device *netdev, void *p)
 
 	return 0;
 }
+EXPORT_SYMBOL(otx2_set_mac_address);
 
 int otx2_hw_set_mtu(struct otx2_nic *pfvf, int mtu)
 {
@@ -224,6 +226,9 @@ int otx2_config_pause_frm(struct otx2_nic *pfvf)
 {
 	struct cgx_pause_frm_cfg *req;
 	int err;
+
+	if (is_otx2_lbkvf(pfvf->pdev))
+		return 0;
 
 	otx2_mbox_lock(&pfvf->mbox);
 	req = otx2_mbox_alloc_msg_cgx_cfg_pause_frm(&pfvf->mbox);
@@ -416,6 +421,7 @@ void otx2_tx_timeout(struct net_device *netdev, unsigned int txq)
 
 	schedule_work(&pfvf->reset_task);
 }
+EXPORT_SYMBOL(otx2_tx_timeout);
 
 void otx2_get_mac_from_af(struct net_device *netdev)
 {
@@ -430,6 +436,7 @@ void otx2_get_mac_from_af(struct net_device *netdev)
 	if (!is_valid_ether_addr(netdev->dev_addr))
 		eth_hw_addr_random(netdev);
 }
+EXPORT_SYMBOL(otx2_get_mac_from_af);
 
 static int otx2_get_link(struct otx2_nic *pfvf)
 {
@@ -1263,6 +1270,7 @@ int otx2_detach_resources(struct mbox *mbox)
 	otx2_mbox_unlock(mbox);
 	return 0;
 }
+EXPORT_SYMBOL(otx2_detach_resources);
 
 int otx2_attach_npa_nix(struct otx2_nic *pfvf)
 {
@@ -1319,6 +1327,7 @@ int otx2_attach_npa_nix(struct otx2_nic *pfvf)
 
 	return 0;
 }
+EXPORT_SYMBOL(otx2_attach_npa_nix);
 
 void otx2_ctx_disable(struct mbox *mbox, int type, bool npa)
 {
@@ -1387,6 +1396,7 @@ void mbox_handler_nix_txsch_alloc(struct otx2_nic *pf,
 			pf->hw.txschq_list[lvl][schq] =
 				rsp->schq_list[lvl][schq];
 }
+EXPORT_SYMBOL(mbox_handler_nix_txsch_alloc);
 
 void mbox_handler_npa_lf_alloc(struct otx2_nic *pfvf,
 			       struct npa_lf_alloc_rsp *rsp)
@@ -1394,6 +1404,7 @@ void mbox_handler_npa_lf_alloc(struct otx2_nic *pfvf,
 	pfvf->hw.stack_pg_ptrs = rsp->stack_pg_ptrs;
 	pfvf->hw.stack_pg_bytes = rsp->stack_pg_bytes;
 }
+EXPORT_SYMBOL(mbox_handler_npa_lf_alloc);
 
 void mbox_handler_nix_lf_alloc(struct otx2_nic *pfvf,
 			       struct nix_lf_alloc_rsp *rsp)
@@ -1404,6 +1415,7 @@ void mbox_handler_nix_lf_alloc(struct otx2_nic *pfvf,
 	pfvf->hw.lso_tsov4_idx = rsp->lso_tsov4_idx;
 	pfvf->hw.lso_tsov6_idx = rsp->lso_tsov6_idx;
 }
+EXPORT_SYMBOL(mbox_handler_nix_lf_alloc);
 
 void mbox_handler_msix_offset(struct otx2_nic *pfvf,
 			      struct msix_offset_rsp *rsp)
@@ -1411,6 +1423,7 @@ void mbox_handler_msix_offset(struct otx2_nic *pfvf,
 	pfvf->hw.npa_msixoff = rsp->npa_msixoff;
 	pfvf->hw.nix_msixoff = rsp->nix_msixoff;
 }
+EXPORT_SYMBOL(mbox_handler_msix_offset);
 
 void mbox_handler_nix_bp_enable(struct otx2_nic *pfvf,
 				struct nix_bp_cfg_rsp *rsp)
@@ -1422,6 +1435,7 @@ void mbox_handler_nix_bp_enable(struct otx2_nic *pfvf,
 		pfvf->bpid[chan_id] = rsp->chan_bpid[chan] & 0x3FF;
 	}
 }
+EXPORT_SYMBOL(mbox_handler_nix_bp_enable);
 
 void otx2_free_cints(struct otx2_nic *pfvf, int n)
 {

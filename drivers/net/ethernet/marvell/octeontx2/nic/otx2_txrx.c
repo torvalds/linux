@@ -778,6 +778,7 @@ bool otx2_sq_append_skb(struct net_device *netdev, struct otx2_snd_queue *sq,
 
 	return true;
 }
+EXPORT_SYMBOL(otx2_sq_append_skb);
 
 void otx2_cleanup_rx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq)
 {

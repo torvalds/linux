@@ -1085,6 +1085,7 @@ int otx2_set_real_num_queues(struct net_device *netdev,
 			   "Failed to set no of Rx queues: %d\n", rx_queues);
 	return err;
 }
+EXPORT_SYMBOL(otx2_set_real_num_queues);
 
 static irqreturn_t otx2_q_intr_handler(int irq, void *data)
 {
@@ -1520,6 +1521,9 @@ int otx2_open(struct net_device *netdev)
 	if (pf->linfo.link_up && !(pf->pcifunc & RVU_PFVF_FUNC_MASK))
 		otx2_handle_link_event(pf);
 
+	/* Restore pause frame settings */
+	otx2_config_pause_frm(pf);
+
 	err = otx2_rxtx_enable(pf, true);
 	if (err)
 		goto err_free_cints;
@@ -1543,6 +1547,7 @@ err_free_mem:
 	kfree(qset->napi);
 	return err;
 }
+EXPORT_SYMBOL(otx2_open);
 
 int otx2_stop(struct net_device *netdev)
 {
@@ -1603,6 +1608,7 @@ int otx2_stop(struct net_device *netdev)
 	       sizeof(*qset) - offsetof(struct otx2_qset, sqe_cnt));
 	return 0;
 }
+EXPORT_SYMBOL(otx2_stop);
 
 static netdev_tx_t otx2_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
@@ -1730,7 +1736,6 @@ static int otx2_realloc_msix_vectors(struct otx2_nic *pf)
 	num_vec += NIX_LF_CINT_VEC_START + hw->max_queues;
 
 	otx2_disable_mbox_intr(pf);
-	pci_free_irq_vectors(hw->pdev);
 	pci_free_irq_vectors(hw->pdev);
 	err = pci_alloc_irq_vectors(hw->pdev, num_vec, num_vec, PCI_IRQ_MSIX);
 	if (err < 0) {
@@ -1897,6 +1902,10 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Enable link notifications */
 	otx2_cgx_config_linkevents(pf, true);
+
+	/* Enable pause frames by default */
+	pf->flags |= OTX2_FLAG_RX_PAUSE_ENABLED;
+	pf->flags |= OTX2_FLAG_TX_PAUSE_ENABLED;
 
 	return 0;
 
