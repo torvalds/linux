@@ -24,7 +24,6 @@
 
 #define DRV_NAME	"octeontx2-nicpf"
 #define DRV_STRING	"Marvell OcteonTX2 NIC Physical Function Driver"
-#define DRV_VERSION	"1.0"
 
 /* Supported devices */
 static const struct pci_device_id otx2_pf_id_table[] = {
@@ -32,10 +31,9 @@ static const struct pci_device_id otx2_pf_id_table[] = {
 	{ 0, }  /* end of table */
 };
 
-MODULE_AUTHOR("Marvell International Ltd.");
+MODULE_AUTHOR("Sunil Goutham <sgoutham@marvell.com>");
 MODULE_DESCRIPTION(DRV_STRING);
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, otx2_pf_id_table);
 
 enum {
