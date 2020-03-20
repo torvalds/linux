@@ -823,8 +823,11 @@ static void ConstructProbeRsp(struct adapter *padapter, u8 *pframe, u32 *pLength
 }
 #endif /*  CONFIG_AP_WOWLAN */
 
-/*  To check if reserved page content is destroyed by beacon beacuse beacon is too large. */
-/*  2010.06.23. Added by tynli. */
+/*
+ * To check if reserved page content is destroyed by beacon beacuse beacon
+ * is too large.
+ */
+/* 2010.06.23. Added by tynli. */
 void CheckFwRsvdPageContent(struct adapter *Adapter)
 {
 }
@@ -1409,16 +1412,20 @@ void rtl8723b_set_ap_wowlan_cmd(struct adapter *padapter, u8 enable)
 }
 #endif /* CONFIG_AP_WOWLAN */
 
-/*  */
-/*  Description: Fill the reserved packets that FW will use to RSVD page. */
-/* 			Now we just send 4 types packet to rsvd page. */
-/* 			(1)Beacon, (2)Ps-poll, (3)Null data, (4)ProbeRsp. */
-/* 	Input: */
-/* 	    bDLFinished - false: At the first time we will send all the packets as a large packet to Hw, */
-/* 						so we need to set the packet length to total lengh. */
-/* 			      true: At the second time, we should send the first packet (default:beacon) */
-/* 						to Hw again and set the lengh in descriptor to the real beacon lengh. */
-/*  2009.10.15 by tynli. */
+/*
+ * Description: Fill the reserved packets that FW will use to RSVD page.
+ * Now we just send 4 types packet to rsvd page.
+ * (1)Beacon, (2)Ps-poll, (3)Null data, (4)ProbeRsp.
+ *
+ * Input:
+ *
+ * bDLFinished - false: At the first time we will send all the packets as
+ * a large packet to Hw, so we need to set the packet length to total lengh.
+ *
+ * true: At the second time, we should send the first packet (default:beacon)
+ * to Hw again and set the lengh in descriptor to the real beacon lengh.
+ */
+/* 2009.10.15 by tynli. */
 static void rtl8723b_set_FwRsvdPagePkt(
 	struct adapter *padapter, bool bDLFinished
 )
@@ -1791,18 +1798,19 @@ error:
 }
 
 #ifdef CONFIG_AP_WOWLAN
-/*  */
-/* Description: Fill the reserved packets that FW will use to RSVD page. */
-/* Now we just send 2 types packet to rsvd page. (1)Beacon, (2)ProbeRsp. */
-/*  */
-/* Input: bDLFinished */
-/*  */
-/* false: At the first time we will send all the packets as a large packet to Hw, */
-/* 	 so we need to set the packet length to total lengh. */
-/*  */
-/* true: At the second time, we should send the first packet (default:beacon) */
-/* 	to Hw again and set the lengh in descriptor to the real beacon lengh. */
-/*  2009.10.15 by tynli. */
+/*
+ * Description: Fill the reserved packets that FW will use to RSVD page.
+ * Now we just send 2 types packet to rsvd page. (1)Beacon, (2)ProbeRsp.
+ *
+ * Input: bDLFinished
+ *
+ * false: At the first time we will send all the packets as a large packet to
+ * Hw, so we need to set the packet length to total lengh.
+ *
+ * true: At the second time, we should send the first packet (default:beacon)
+ * to Hw again and set the lengh in descriptor to the real beacon lengh.
+ */
+/* 2009.10.15 by tynli. */
 static void rtl8723b_set_AP_FwRsvdPagePkt(
 	struct adapter *padapter, bool bDLFinished
 )
