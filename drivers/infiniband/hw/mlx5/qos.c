@@ -46,8 +46,8 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_PP_OBJ_ALLOC)(
 
 	dev = to_mdev(c->ibucontext.device);
 	pp_entry = kzalloc(sizeof(*pp_entry), GFP_KERNEL);
-	if (IS_ERR(pp_entry))
-		return PTR_ERR(pp_entry);
+	if (!pp_entry)
+		return -ENOMEM;
 
 	in_ctx = uverbs_attr_get_alloced_ptr(attrs,
 					     MLX5_IB_ATTR_PP_OBJ_ALLOC_CTX);
