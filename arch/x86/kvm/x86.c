@@ -619,8 +619,17 @@ bool kvm_inject_emulated_page_fault(struct kvm_vcpu *vcpu,
 
 	fault_mmu = fault->nested_page_fault ? vcpu->arch.mmu :
 					       vcpu->arch.walk_mmu;
-	fault_mmu->inject_page_fault(vcpu, fault);
 
+	/*
+	 * Invalidate the TLB entry for the faulting address, if it exists,
+	 * else the access will fault indefinitely (and to emulate hardware).
+	 */
+	if ((fault->error_code & PFERR_PRESENT_MASK) &&
+	    !(fault->error_code & PFERR_RSVD_MASK))
+		kvm_mmu_invalidate_gva(vcpu, fault_mmu, fault->address,
+				       fault_mmu->root_hpa);
+
+	fault_mmu->inject_page_fault(vcpu, fault);
 	return fault->nested_page_fault;
 }
 EXPORT_SYMBOL_GPL(kvm_inject_emulated_page_fault);

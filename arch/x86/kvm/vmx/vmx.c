@@ -5393,7 +5393,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		return 1;
 
 	if (kvm_read_guest_virt(vcpu, gva, &operand, sizeof(operand), &e)) {
-		kvm_inject_page_fault(vcpu, &e);
+		kvm_inject_emulated_page_fault(vcpu, &e);
 		return 1;
 	}
 
