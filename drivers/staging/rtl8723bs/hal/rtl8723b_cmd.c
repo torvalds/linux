@@ -824,7 +824,7 @@ static void ConstructProbeRsp(struct adapter *padapter, u8 *pframe, u32 *pLength
 #endif /*  CONFIG_AP_WOWLAN */
 
 /*
- * To check if reserved page content is destroyed by beacon beacuse beacon
+ * To check if reserved page content is destroyed by beacon because beacon
  * is too large.
  */
 /* 2010.06.23. Added by tynli. */
@@ -1420,10 +1420,10 @@ void rtl8723b_set_ap_wowlan_cmd(struct adapter *padapter, u8 enable)
  * Input:
  *
  * bDLFinished - false: At the first time we will send all the packets as
- * a large packet to Hw, so we need to set the packet length to total lengh.
+ * a large packet to Hw, so we need to set the packet length to total length.
  *
  * true: At the second time, we should send the first packet (default:beacon)
- * to Hw again and set the lengh in descriptor to the real beacon lengh.
+ * to Hw again and set the length in descriptor to the real beacon length.
  */
 /* 2009.10.15 by tynli. */
 static void rtl8723b_set_FwRsvdPagePkt(
@@ -1606,7 +1606,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 #ifdef CONFIG_GTK_OL
 	BufIndex += (CurtPktPageNum*PageSize);
 
-	/* if the ap staion info. exists, get the kek, kck from staion info. */
+	/* if the ap station info. exists, get the kek, kck from station info. */
 	psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
 	if (!psta) {
 		memset(kek, 0, RTW_KEK_LEN);
@@ -1805,10 +1805,10 @@ error:
  * Input: bDLFinished
  *
  * false: At the first time we will send all the packets as a large packet to
- * Hw, so we need to set the packet length to total lengh.
+ * Hw, so we need to set the packet length to total length.
  *
  * true: At the second time, we should send the first packet (default:beacon)
- * to Hw again and set the lengh in descriptor to the real beacon lengh.
+ * to Hw again and set the length in descriptor to the real beacon length.
  */
 /* 2009.10.15 by tynli. */
 static void rtl8723b_set_AP_FwRsvdPagePkt(
