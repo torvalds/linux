@@ -213,8 +213,6 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 			 struct qdio_initialize *qdio_init)
 {
 	struct qdio_q *q;
-	struct qdio_buffer **input_sbal_array = qdio_init->input_sbal_addr_array;
-	struct qdio_buffer **output_sbal_array = qdio_init->output_sbal_addr_array;
 	struct qdio_outbuf_state *output_sbal_state_array =
 				  qdio_init->output_sbal_state_array;
 	int i;
@@ -225,8 +223,8 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 
 		q->is_input_q = 1;
 
-		setup_storage_lists(q, irq_ptr, input_sbal_array, i);
-		input_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
+		setup_storage_lists(q, irq_ptr,
+				    qdio_init->input_sbal_addr_array[i], i);
 
 		if (is_thinint_irq(irq_ptr)) {
 			tasklet_init(&q->tasklet, tiqdio_inbound_processing,
@@ -245,8 +243,8 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		output_sbal_state_array += QDIO_MAX_BUFFERS_PER_Q;
 
 		q->is_input_q = 0;
-		setup_storage_lists(q, irq_ptr, output_sbal_array, i);
-		output_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
+		setup_storage_lists(q, irq_ptr,
+				    qdio_init->output_sbal_addr_array[i], i);
 
 		tasklet_init(&q->tasklet, qdio_outbound_processing,
 			     (unsigned long) q);

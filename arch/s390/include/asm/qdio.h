@@ -341,8 +341,8 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @irq_poll: Data IRQ polling handler (NULL when not supported)
  * @scan_threshold: # of in-use buffers that triggers scan on output queue
  * @int_parm: interruption parameter
- * @input_sbal_addr_array:  address of no_input_qs * 128 pointers
- * @output_sbal_addr_array: address of no_output_qs * 128 pointers
+ * @input_sbal_addr_array:  per-queue array, each element points to 128 SBALs
+ * @output_sbal_addr_array: per-queue array, each element points to 128 SBALs
  * @output_sbal_state_array: no_output_qs * 128 state info (for CQ or NULL)
  */
 struct qdio_initialize {
@@ -362,8 +362,8 @@ struct qdio_initialize {
 	void (*irq_poll)(struct ccw_device *cdev, unsigned long data);
 	unsigned int scan_threshold;
 	unsigned long int_parm;
-	struct qdio_buffer **input_sbal_addr_array;
-	struct qdio_buffer **output_sbal_addr_array;
+	struct qdio_buffer ***input_sbal_addr_array;
+	struct qdio_buffer ***output_sbal_addr_array;
 	struct qdio_outbuf_state *output_sbal_state_array;
 };
 

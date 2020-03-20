@@ -349,6 +349,8 @@ void zfcp_qdio_close(struct zfcp_qdio *qdio)
  */
 int zfcp_qdio_open(struct zfcp_qdio *qdio)
 {
+	struct qdio_buffer **input_sbals[1] = {qdio->res_q};
+	struct qdio_buffer **output_sbals[1] = {qdio->req_q};
 	struct qdio_buffer_element *sbale;
 	struct qdio_initialize init_data = {0};
 	struct zfcp_adapter *adapter = qdio->adapter;
@@ -374,8 +376,8 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	init_data.input_handler = zfcp_qdio_int_resp;
 	init_data.output_handler = zfcp_qdio_int_req;
 	init_data.int_parm = (unsigned long) qdio;
-	init_data.input_sbal_addr_array = qdio->res_q;
-	init_data.output_sbal_addr_array = qdio->req_q;
+	init_data.input_sbal_addr_array = input_sbals;
+	init_data.output_sbal_addr_array = output_sbals;
 	init_data.scan_threshold =
 		QDIO_MAX_BUFFERS_PER_Q - ZFCP_QDIO_MAX_SBALS_PER_REQ * 2;
 

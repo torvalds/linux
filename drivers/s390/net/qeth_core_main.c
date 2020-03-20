@@ -4812,28 +4812,13 @@ out:
 	return;
 }
 
-static void qeth_qdio_establish_cq(struct qeth_card *card,
-				   struct qdio_buffer **in_sbal_ptrs)
-{
-	int i;
-
-	if (card->options.cq == QETH_CQ_ENABLED) {
-		int offset = QDIO_MAX_BUFFERS_PER_Q *
-			     (card->qdio.no_in_queues - 1);
-
-		for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++)
-			in_sbal_ptrs[offset + i] =
-				card->qdio.c_q->bufs[i].buffer;
-	}
-}
-
 static int qeth_qdio_establish(struct qeth_card *card)
 {
+	struct qdio_buffer **out_sbal_ptrs[QETH_MAX_OUT_QUEUES];
+	struct qdio_buffer **in_sbal_ptrs[QETH_MAX_IN_QUEUES];
 	struct qdio_initialize init_data;
 	char *qib_param_field;
-	struct qdio_buffer **in_sbal_ptrs;
-	struct qdio_buffer **out_sbal_ptrs;
-	int i, j, k;
+	unsigned int i;
 	int rc = 0;
 
 	QETH_CARD_TEXT(card, 2, "qdioest");
@@ -4847,32 +4832,12 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	qeth_create_qib_param_field(card, qib_param_field);
 	qeth_create_qib_param_field_blkt(card, qib_param_field);
 
-	in_sbal_ptrs = kcalloc(card->qdio.no_in_queues * QDIO_MAX_BUFFERS_PER_Q,
-			       sizeof(void *),
-			       GFP_KERNEL);
-	if (!in_sbal_ptrs) {
-		rc = -ENOMEM;
-		goto out_free_qib_param;
-	}
+	in_sbal_ptrs[0] = card->qdio.in_q->qdio_bufs;
+	if (card->options.cq == QETH_CQ_ENABLED)
+		in_sbal_ptrs[1] = card->qdio.c_q->qdio_bufs;
 
-	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++)
-		in_sbal_ptrs[i] = card->qdio.in_q->bufs[i].buffer;
-
-	qeth_qdio_establish_cq(card, in_sbal_ptrs);
-
-	out_sbal_ptrs =
-		kcalloc(card->qdio.no_out_queues * QDIO_MAX_BUFFERS_PER_Q,
-			sizeof(void *),
-			GFP_KERNEL);
-	if (!out_sbal_ptrs) {
-		rc = -ENOMEM;
-		goto out_free_in_sbals;
-	}
-
-	for (i = 0, k = 0; i < card->qdio.no_out_queues; ++i)
-		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++, k++)
-			out_sbal_ptrs[k] =
-				card->qdio.out_qs[i]->bufs[j]->buffer;
+	for (i = 0; i < card->qdio.no_out_queues; i++)
+		out_sbal_ptrs[i] = card->qdio.out_qs[i]->qdio_bufs;
 
 	memset(&init_data, 0, sizeof(struct qdio_initialize));
 	init_data.cdev                   = CARD_DDEV(card);
@@ -4917,10 +4882,6 @@ static int qeth_qdio_establish(struct qeth_card *card)
 		break;
 	}
 out:
-	kfree(out_sbal_ptrs);
-out_free_in_sbals:
-	kfree(in_sbal_ptrs);
-out_free_qib_param:
 	kfree(qib_param_field);
 out_free_nothing:
 	return rc;
@@ -5986,7 +5947,7 @@ static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_IQD:
 		dev = alloc_netdev_mqs(sizeof(*priv), "hsi%d", NET_NAME_UNKNOWN,
-				       ether_setup, QETH_MAX_QUEUES, 1);
+				       ether_setup, QETH_MAX_OUT_QUEUES, 1);
 		break;
 	case QETH_CARD_TYPE_OSM:
 		dev = alloc_etherdev(sizeof(*priv));
@@ -5996,7 +5957,7 @@ static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
 				   ether_setup);
 		break;
 	default:
-		dev = alloc_etherdev_mqs(sizeof(*priv), QETH_MAX_QUEUES, 1);
+		dev = alloc_etherdev_mqs(sizeof(*priv), QETH_MAX_OUT_QUEUES, 1);
 	}
 
 	if (!dev)
