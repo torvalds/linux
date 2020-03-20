@@ -323,7 +323,7 @@ static int otx2vf_vfaf_mbox_init(struct otx2_nic *vf)
 
 	INIT_WORK(&mbox->mbox_wrk, otx2vf_vfaf_mbox_handler);
 	INIT_WORK(&mbox->mbox_up_wrk, otx2vf_vfaf_mbox_up_handler);
-	otx2_mbox_lock_init(&vf->mbox);
+	mutex_init(&mbox->lock);
 
 	return 0;
 exit:

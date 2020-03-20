@@ -375,21 +375,6 @@ static inline void otx2_sync_mbox_bbuf(struct otx2_mbox *mbox, int devid)
 	       hw_mbase + mbox->rx_start, msg_size + msgs_offset);
 }
 
-static inline void otx2_mbox_lock_init(struct mbox *mbox)
-{
-	mutex_init(&mbox->lock);
-}
-
-static inline void otx2_mbox_lock(struct mbox *mbox)
-{
-	mutex_lock(&mbox->lock);
-}
-
-static inline void otx2_mbox_unlock(struct mbox *mbox)
-{
-	mutex_unlock(&mbox->lock);
-}
-
 /* With the absence of API for 128-bit IO memory access for arm64,
  * implement required operations at place.
  */

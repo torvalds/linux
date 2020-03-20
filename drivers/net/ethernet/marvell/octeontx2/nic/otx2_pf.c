@@ -98,15 +98,16 @@ static void otx2_flr_handler(struct work_struct *work)
 {
 	struct flr_work *flrwork = container_of(work, struct flr_work, work);
 	struct otx2_nic *pf = flrwork->pf;
+	struct mbox *mbox = &pf->mbox;
 	struct msg_req *req;
 	int vf, reg = 0;
 
 	vf = flrwork - pf->flr_wrk;
 
-	otx2_mbox_lock(&pf->mbox);
-	req = otx2_mbox_alloc_msg_vf_flr(&pf->mbox);
+	mutex_lock(&mbox->lock);
+	req = otx2_mbox_alloc_msg_vf_flr(mbox);
 	if (!req) {
-		otx2_mbox_unlock(&pf->mbox);
+		mutex_unlock(&mbox->lock);
 		return;
 	}
 	req->hdr.pcifunc &= RVU_PFVF_FUNC_MASK;
@@ -122,7 +123,7 @@ static void otx2_flr_handler(struct work_struct *work)
 		otx2_write64(pf, RVU_PF_VFFLR_INT_ENA_W1SX(reg), BIT_ULL(vf));
 	}
 
-	otx2_mbox_unlock(&pf->mbox);
+	mutex_unlock(&mbox->lock);
 }
 
 static irqreturn_t otx2_pf_flr_intr_handler(int irq, void *pf_irq)
@@ -375,7 +376,7 @@ static int otx2_forward_vf_mbox_msgs(struct otx2_nic *pf,
 
 		dst_mdev = &dst_mbox->mbox.dev[0];
 
-		otx2_mbox_lock(&pf->mbox);
+		mutex_lock(&pf->mbox.lock);
 		dst_mdev->mbase = src_mdev->mbase;
 		dst_mdev->msg_size = mbox_hdr->msg_size;
 		dst_mdev->num_msgs = num_msgs;
@@ -385,7 +386,7 @@ static int otx2_forward_vf_mbox_msgs(struct otx2_nic *pf,
 				 "AF not responding to VF%d messages\n", vf);
 			/* restore PF mbase and exit */
 			dst_mdev->mbase = pf->mbox.bbuf_base;
-			otx2_mbox_unlock(&pf->mbox);
+			mutex_unlock(&pf->mbox.lock);
 			return err;
 		}
 		/* At this point, all the VF messages sent to AF are acked
@@ -398,7 +399,7 @@ static int otx2_forward_vf_mbox_msgs(struct otx2_nic *pf,
 
 		otx2_forward_msg_pfvf(dst_mdev, &pf->mbox_pfvf[0].mbox,
 				      pf->mbox.bbuf_base, vf);
-		otx2_mbox_unlock(&pf->mbox);
+		mutex_unlock(&pf->mbox.lock);
 	} else if (dir == MBOX_DIR_PFVF_UP) {
 		src_mdev = &src_mbox->dev[0];
 		mbox_hdr = src_mbox->hwbase + src_mbox->rx_start;
@@ -1050,7 +1051,7 @@ static int otx2_pfaf_mbox_init(struct otx2_nic *pf)
 
 	INIT_WORK(&mbox->mbox_wrk, otx2_pfaf_mbox_handler);
 	INIT_WORK(&mbox->mbox_up_wrk, otx2_pfaf_mbox_up_handler);
-	otx2_mbox_lock_init(&pf->mbox);
+	mutex_init(&mbox->lock);
 
 	return 0;
 exit:
@@ -1063,19 +1064,19 @@ static int otx2_cgx_config_linkevents(struct otx2_nic *pf, bool enable)
 	struct msg_req *msg;
 	int err;
 
-	otx2_mbox_lock(&pf->mbox);
+	mutex_lock(&pf->mbox.lock);
 	if (enable)
 		msg = otx2_mbox_alloc_msg_cgx_start_linkevents(&pf->mbox);
 	else
 		msg = otx2_mbox_alloc_msg_cgx_stop_linkevents(&pf->mbox);
 
 	if (!msg) {
-		otx2_mbox_unlock(&pf->mbox);
+		mutex_unlock(&pf->mbox.lock);
 		return -ENOMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pf->mbox);
-	otx2_mbox_unlock(&pf->mbox);
+	mutex_unlock(&pf->mbox.lock);
 	return err;
 }
 
@@ -1084,19 +1085,19 @@ static int otx2_cgx_config_loopback(struct otx2_nic *pf, bool enable)
 	struct msg_req *msg;
 	int err;
 
-	otx2_mbox_lock(&pf->mbox);
+	mutex_lock(&pf->mbox.lock);
 	if (enable)
 		msg = otx2_mbox_alloc_msg_cgx_intlbk_enable(&pf->mbox);
 	else
 		msg = otx2_mbox_alloc_msg_cgx_intlbk_disable(&pf->mbox);
 
 	if (!msg) {
-		otx2_mbox_unlock(&pf->mbox);
+		mutex_unlock(&pf->mbox.lock);
 		return -ENOMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pf->mbox);
-	otx2_mbox_unlock(&pf->mbox);
+	mutex_unlock(&pf->mbox.lock);
 	return err;
 }
 
@@ -1282,7 +1283,7 @@ static int otx2_init_hw_resources(struct otx2_nic *pf)
 	/* Get the size of receive buffers to allocate */
 	pf->rbsize = RCV_FRAG_LEN(pf->netdev->mtu + OTX2_ETH_HLEN);
 
-	otx2_mbox_lock(mbox);
+	mutex_lock(&mbox->lock);
 	/* NPA init */
 	err = otx2_config_npa(pf);
 	if (err)
@@ -1299,35 +1300,35 @@ static int otx2_init_hw_resources(struct otx2_nic *pf)
 	/* Init Auras and pools used by NIX RQ, for free buffer ptrs */
 	err = otx2_rq_aura_pool_init(pf);
 	if (err) {
-		otx2_mbox_unlock(mbox);
+		mutex_unlock(&mbox->lock);
 		goto err_free_nix_lf;
 	}
 	/* Init Auras and pools used by NIX SQ, for queueing SQEs */
 	err = otx2_sq_aura_pool_init(pf);
 	if (err) {
-		otx2_mbox_unlock(mbox);
+		mutex_unlock(&mbox->lock);
 		goto err_free_rq_ptrs;
 	}
 
 	err = otx2_txsch_alloc(pf);
 	if (err) {
-		otx2_mbox_unlock(mbox);
+		mutex_unlock(&mbox->lock);
 		goto err_free_sq_ptrs;
 	}
 
 	err = otx2_config_nix_queues(pf);
 	if (err) {
-		otx2_mbox_unlock(mbox);
+		mutex_unlock(&mbox->lock);
 		goto err_free_txsch;
 	}
 	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
 		err = otx2_txschq_config(pf, lvl);
 		if (err) {
-			otx2_mbox_unlock(mbox);
+			mutex_unlock(&mbox->lock);
 			goto err_free_nix_queues;
 		}
 	}
-	otx2_mbox_unlock(mbox);
+	mutex_unlock(&mbox->lock);
 	return err;
 
 err_free_nix_queues:
@@ -1345,7 +1346,7 @@ err_free_rq_ptrs:
 	otx2_ctx_disable(mbox, NPA_AQ_CTYPE_AURA, true);
 	otx2_aura_pool_free(pf);
 err_free_nix_lf:
-	otx2_mbox_lock(mbox);
+	mutex_lock(&mbox->lock);
 	req = otx2_mbox_alloc_msg_nix_lf_free(mbox);
 	if (req) {
 		if (otx2_sync_mbox_msg(mbox))
@@ -1359,7 +1360,7 @@ err_free_npa_lf:
 			dev_err(pf->dev, "%s failed to free npalf\n", __func__);
 	}
 exit:
-	otx2_mbox_unlock(mbox);
+	mutex_unlock(&mbox->lock);
 	return err;
 }
 
@@ -1379,11 +1380,11 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 	if (err)
 		dev_err(pf->dev, "RVUPF: Failed to stop/free TX schedulers\n");
 
-	otx2_mbox_lock(mbox);
+	mutex_lock(&mbox->lock);
 	/* Disable backpressure */
 	if (!(pf->pcifunc & RVU_PFVF_FUNC_MASK))
 		otx2_nix_config_bp(pf, false);
-	otx2_mbox_unlock(mbox);
+	mutex_unlock(&mbox->lock);
 
 	/* Disable RQs */
 	otx2_ctx_disable(mbox, NIX_AQ_CTYPE_RQ, false);
@@ -1404,28 +1405,28 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 
 	otx2_free_cq_res(pf);
 
-	otx2_mbox_lock(mbox);
+	mutex_lock(&mbox->lock);
 	/* Reset NIX LF */
 	req = otx2_mbox_alloc_msg_nix_lf_free(mbox);
 	if (req) {
 		if (otx2_sync_mbox_msg(mbox))
 			dev_err(pf->dev, "%s failed to free nixlf\n", __func__);
 	}
-	otx2_mbox_unlock(mbox);
+	mutex_unlock(&mbox->lock);
 
 	/* Disable NPA Pool and Aura hw context */
 	otx2_ctx_disable(mbox, NPA_AQ_CTYPE_POOL, true);
 	otx2_ctx_disable(mbox, NPA_AQ_CTYPE_AURA, true);
 	otx2_aura_pool_free(pf);
 
-	otx2_mbox_lock(mbox);
+	mutex_lock(&mbox->lock);
 	/* Reset NPA LF */
 	req = otx2_mbox_alloc_msg_npa_lf_free(mbox);
 	if (req) {
 		if (otx2_sync_mbox_msg(mbox))
 			dev_err(pf->dev, "%s failed to free npalf\n", __func__);
 	}
-	otx2_mbox_unlock(mbox);
+	mutex_unlock(&mbox->lock);
 }
 
 int otx2_open(struct net_device *netdev)
@@ -1683,10 +1684,10 @@ static void otx2_set_rx_mode(struct net_device *netdev)
 	if (!(netdev->flags & IFF_UP))
 		return;
 
-	otx2_mbox_lock(&pf->mbox);
+	mutex_lock(&pf->mbox.lock);
 	req = otx2_mbox_alloc_msg_nix_set_rx_mode(&pf->mbox);
 	if (!req) {
-		otx2_mbox_unlock(&pf->mbox);
+		mutex_unlock(&pf->mbox.lock);
 		return;
 	}
 
@@ -1699,7 +1700,7 @@ static void otx2_set_rx_mode(struct net_device *netdev)
 		req->mode |= NIX_RX_MODE_ALLMULTI;
 
 	otx2_sync_mbox_msg(&pf->mbox);
-	otx2_mbox_unlock(&pf->mbox);
+	mutex_unlock(&pf->mbox.lock);
 }
 
 static int otx2_set_features(struct net_device *netdev,
