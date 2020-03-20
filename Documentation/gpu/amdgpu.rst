@@ -257,13 +257,30 @@ mem_info_vis_vram_used
    :doc: mem_info_vis_vram_used
 
 mem_info_gtt_total
------------------------
+------------------
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_gtt_mgr.c
    :doc: mem_info_gtt_total
 
 mem_info_gtt_used
-------------------
+-----------------
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_gtt_mgr.c
    :doc: mem_info_gtt_used
+
+PCIe Accounting Information
+===========================
+
+pcie_bw
+-------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_pm.c
+   :doc: pcie_bw
+
+pcie_replay_count
+-----------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+   :doc: pcie_replay_count
+
+
