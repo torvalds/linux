@@ -1155,17 +1155,17 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 			}
 		}
 
-		if (adev->asic_type >= CHIP_NAVI10 &&
-		    adev->asic_type <= CHIP_NAVI12) {
+		if (smu->ppt_funcs->set_power_source) {
 			/*
 			 * For Navi1X, manually switch it to AC mode as PMFW
 			 * may boot it with DC mode.
-			 * TODO: should check whether we are indeed under AC
-			 * mode before doing this.
 			 */
-			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_AC);
+			if (adev->pm.ac_power)
+				ret = smu_set_power_source(smu, SMU_POWER_SOURCE_AC);
+			else
+				ret = smu_set_power_source(smu, SMU_POWER_SOURCE_DC);
 			if (ret) {
-				pr_err("Failed to switch to AC mode!\n");
+				pr_err("Failed to switch to %s mode!\n", adev->pm.ac_power ? "AC" : "DC");
 				return ret;
 			}
 		}
