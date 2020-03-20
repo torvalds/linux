@@ -1873,20 +1873,27 @@ __async_put_domains_state_ok(struct i915_power_domains *power_domains)
 static void print_power_domains(struct i915_power_domains *power_domains,
 				const char *prefix, u64 mask)
 {
+	struct drm_i915_private *i915 = container_of(power_domains,
+						     struct drm_i915_private,
+						     power_domains);
 	enum intel_display_power_domain domain;
 
-	DRM_DEBUG_DRIVER("%s (%lu):\n", prefix, hweight64(mask));
+	drm_dbg(&i915->drm, "%s (%lu):\n", prefix, hweight64(mask));
 	for_each_power_domain(domain, mask)
-		DRM_DEBUG_DRIVER("%s use_count %d\n",
-				 intel_display_power_domain_str(domain),
-				 power_domains->domain_use_count[domain]);
+		drm_dbg(&i915->drm, "%s use_count %d\n",
+			intel_display_power_domain_str(domain),
+			power_domains->domain_use_count[domain]);
 }
 
 static void
 print_async_put_domains_state(struct i915_power_domains *power_domains)
 {
-	DRM_DEBUG_DRIVER("async_put_wakeref %u\n",
-			 power_domains->async_put_wakeref);
+	struct drm_i915_private *i915 = container_of(power_domains,
+						     struct drm_i915_private,
+						     power_domains);
+
+	drm_dbg(&i915->drm, "async_put_wakeref %u\n",
+		power_domains->async_put_wakeref);
 
 	print_power_domains(power_domains, "async_put_domains[0]",
 			    power_domains->async_put_domains[0]);
@@ -4480,7 +4487,8 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 	drm_WARN(&dev_priv->drm, hweight8(req_slices) > max_slices,
 		 "Invalid number of dbuf slices requested\n");
 
-	DRM_DEBUG_KMS("Updating dbuf slices to 0x%x\n", req_slices);
+	drm_dbg_kms(&dev_priv->drm, "Updating dbuf slices to 0x%x\n",
+		    req_slices);
 
 	/*
 	 * Might be running this in parallel to gen9_dc_off_power_well_enable
