@@ -832,7 +832,7 @@ static int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 
 	memcpy(ctx.cmd.rx_filter_add.mac.addr, addr, ETH_ALEN);
 	err = ionic_adminq_post_wait(lif, &ctx);
-	if (err)
+	if (err && err != -EEXIST)
 		return err;
 
 	return ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx);
@@ -862,7 +862,7 @@ static int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 	spin_unlock_bh(&lif->rx_filters.lock);
 
 	err = ionic_adminq_post_wait(lif, &ctx);
-	if (err)
+	if (err && err != -EEXIST)
 		return err;
 
 	netdev_dbg(lif->netdev, "rx_filter del ADDR %pM (id %d)\n", addr,
