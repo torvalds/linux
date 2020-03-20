@@ -168,6 +168,30 @@ struct cti_drvdata {
 	void (*csdev_release)(struct device *dev);
 };
 
+/*
+ * Channel operation types.
+ */
+enum cti_chan_op {
+	CTI_CHAN_ATTACH,
+	CTI_CHAN_DETACH,
+};
+
+enum cti_trig_dir {
+	CTI_TRIG_IN,
+	CTI_TRIG_OUT,
+};
+
+enum cti_chan_gate_op {
+	CTI_GATE_CHAN_ENABLE,
+	CTI_GATE_CHAN_DISABLE,
+};
+
+enum cti_chan_set_op {
+	CTI_CHAN_SET,
+	CTI_CHAN_CLR,
+	CTI_CHAN_PULSE,
+};
+
 /* private cti driver fns & vars */
 extern const struct attribute_group *coresight_cti_groups[];
 int cti_add_default_connection(struct device *dev,
@@ -180,8 +204,16 @@ struct cti_trig_con *cti_allocate_trig_con(struct device *dev, int in_sigs,
 					   int out_sigs);
 int cti_enable(struct coresight_device *csdev);
 int cti_disable(struct coresight_device *csdev);
+void cti_write_all_hw_regs(struct cti_drvdata *drvdata);
 void cti_write_intack(struct device *dev, u32 ackval);
 void cti_write_single_reg(struct cti_drvdata *drvdata, int offset, u32 value);
+int cti_channel_trig_op(struct device *dev, enum cti_chan_op op,
+			enum cti_trig_dir direction, u32 channel_idx,
+			u32 trigger_idx);
+int cti_channel_gate_op(struct device *dev, enum cti_chan_gate_op op,
+			u32 channel_idx);
+int cti_channel_setop(struct device *dev, enum cti_chan_set_op op,
+		      u32 channel_idx);
 struct coresight_platform_data *
 coresight_cti_get_platform_data(struct device *dev);
 

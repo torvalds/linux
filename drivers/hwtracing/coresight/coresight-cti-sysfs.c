@@ -474,6 +474,372 @@ static struct attribute *coresight_cti_regs_attrs[] = {
 	NULL,
 };
 
+/* CTI channel x-trigger programming */
+static int
+cti_trig_op_parse(struct device *dev, enum cti_chan_op op,
+		  enum cti_trig_dir dir, const char *buf, size_t size)
+{
+	u32 chan_idx;
+	u32 trig_idx;
+	int items, err = -EINVAL;
+
+	/* extract chan idx and trigger idx */
+	items = sscanf(buf, "%d %d", &chan_idx, &trig_idx);
+	if (items == 2) {
+		err = cti_channel_trig_op(dev, op, dir, chan_idx, trig_idx);
+		if (!err)
+			err = size;
+	}
+	return err;
+}
+
+static ssize_t trigin_attach_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	return cti_trig_op_parse(dev, CTI_CHAN_ATTACH, CTI_TRIG_IN,
+				 buf, size);
+}
+static DEVICE_ATTR_WO(trigin_attach);
+
+static ssize_t trigin_detach_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	return cti_trig_op_parse(dev, CTI_CHAN_DETACH, CTI_TRIG_IN,
+				 buf, size);
+}
+static DEVICE_ATTR_WO(trigin_detach);
+
+static ssize_t trigout_attach_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t size)
+{
+	return cti_trig_op_parse(dev, CTI_CHAN_ATTACH, CTI_TRIG_OUT,
+				 buf, size);
+}
+static DEVICE_ATTR_WO(trigout_attach);
+
+static ssize_t trigout_detach_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t size)
+{
+	return cti_trig_op_parse(dev, CTI_CHAN_DETACH, CTI_TRIG_OUT,
+				 buf, size);
+}
+static DEVICE_ATTR_WO(trigout_detach);
+
+
+static ssize_t chan_gate_enable_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t size)
+{
+	int err = 0, channel = 0;
+
+	if (kstrtoint(buf, 0, &channel))
+		return -EINVAL;
+
+	err = cti_channel_gate_op(dev, CTI_GATE_CHAN_ENABLE, channel);
+	return err ? err : size;
+}
+
+static ssize_t chan_gate_enable_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct cti_config *cfg = &drvdata->config;
+	unsigned long ctigate_bitmask = cfg->ctigate;
+	int size = 0;
+
+	if (cfg->ctigate == 0)
+		size = sprintf(buf, "\n");
+	else
+		size = bitmap_print_to_pagebuf(true, buf, &ctigate_bitmask,
+					       cfg->nr_ctm_channels);
+	return size;
+}
+static DEVICE_ATTR_RW(chan_gate_enable);
+
+static ssize_t chan_gate_disable_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t size)
+{
+	int err = 0, channel = 0;
+
+	if (kstrtoint(buf, 0, &channel))
+		return -EINVAL;
+
+	err = cti_channel_gate_op(dev, CTI_GATE_CHAN_DISABLE, channel);
+	return err ? err : size;
+}
+static DEVICE_ATTR_WO(chan_gate_disable);
+
+static int
+chan_op_parse(struct device *dev, enum cti_chan_set_op op, const char *buf)
+{
+	int err = 0, channel = 0;
+
+	if (kstrtoint(buf, 0, &channel))
+		return -EINVAL;
+
+	err = cti_channel_setop(dev, op, channel);
+	return err;
+
+}
+
+static ssize_t chan_set_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t size)
+{
+	int err = chan_op_parse(dev, CTI_CHAN_SET, buf);
+
+	return err ? err : size;
+}
+static DEVICE_ATTR_WO(chan_set);
+
+static ssize_t chan_clear_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	int err = chan_op_parse(dev, CTI_CHAN_CLR, buf);
+
+	return err ? err : size;
+}
+static DEVICE_ATTR_WO(chan_clear);
+
+static ssize_t chan_pulse_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	int err = chan_op_parse(dev, CTI_CHAN_PULSE, buf);
+
+	return err ? err : size;
+}
+static DEVICE_ATTR_WO(chan_pulse);
+
+static ssize_t trig_filter_enable_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	u32 val;
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	spin_lock(&drvdata->spinlock);
+	val = drvdata->config.trig_filter_enable;
+	spin_unlock(&drvdata->spinlock);
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t trig_filter_enable_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t size)
+{
+	unsigned long val;
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	drvdata->config.trig_filter_enable = !!val;
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(trig_filter_enable);
+
+static ssize_t trigout_filtered_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct cti_config *cfg = &drvdata->config;
+	int size = 0, nr_trig_max = cfg->nr_trig_max;
+	unsigned long mask = cfg->trig_out_filter;
+
+	if (mask)
+		size = bitmap_print_to_pagebuf(true, buf, &mask, nr_trig_max);
+	return size;
+}
+static DEVICE_ATTR_RO(trigout_filtered);
+
+/* clear all xtrigger / channel programming */
+static ssize_t chan_xtrigs_reset_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t size)
+{
+	int i;
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct cti_config *config = &drvdata->config;
+
+	spin_lock(&drvdata->spinlock);
+
+	/* clear the CTI trigger / channel programming registers */
+	for (i = 0; i < config->nr_trig_max; i++) {
+		config->ctiinen[i] = 0;
+		config->ctiouten[i] = 0;
+	}
+
+	/* clear the other regs */
+	config->ctigate = GENMASK(config->nr_ctm_channels - 1, 0);
+	config->asicctl = 0;
+	config->ctiappset = 0;
+	config->ctiinout_sel = 0;
+	config->xtrig_rchan_sel = 0;
+
+	/* if enabled then write through */
+	if (cti_active(config))
+		cti_write_all_hw_regs(drvdata);
+
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_WO(chan_xtrigs_reset);
+
+/*
+ * Write to select a channel to view, read to display the
+ * cross triggers for the selected channel.
+ */
+static ssize_t chan_xtrigs_sel_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t size)
+{
+	unsigned long val;
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+	if (val > (drvdata->config.nr_ctm_channels - 1))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	drvdata->config.xtrig_rchan_sel = val;
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+
+static ssize_t chan_xtrigs_sel_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	unsigned long val;
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	spin_lock(&drvdata->spinlock);
+	val = drvdata->config.xtrig_rchan_sel;
+	spin_unlock(&drvdata->spinlock);
+
+	return sprintf(buf, "%ld\n", val);
+}
+static DEVICE_ATTR_RW(chan_xtrigs_sel);
+
+static ssize_t chan_xtrigs_in_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct cti_config *cfg = &drvdata->config;
+	int used = 0, reg_idx;
+	int nr_trig_max = drvdata->config.nr_trig_max;
+	u32 chan_mask = BIT(cfg->xtrig_rchan_sel);
+
+	for (reg_idx = 0; reg_idx < nr_trig_max; reg_idx++) {
+		if (chan_mask & cfg->ctiinen[reg_idx])
+			used += sprintf(buf + used, "%d ", reg_idx);
+	}
+
+	used += sprintf(buf + used, "\n");
+	return used;
+}
+static DEVICE_ATTR_RO(chan_xtrigs_in);
+
+static ssize_t chan_xtrigs_out_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct cti_config *cfg = &drvdata->config;
+	int used = 0, reg_idx;
+	int nr_trig_max = drvdata->config.nr_trig_max;
+	u32 chan_mask = BIT(cfg->xtrig_rchan_sel);
+
+	for (reg_idx = 0; reg_idx < nr_trig_max; reg_idx++) {
+		if (chan_mask & cfg->ctiouten[reg_idx])
+			used += sprintf(buf + used, "%d ", reg_idx);
+	}
+
+	used += sprintf(buf + used, "\n");
+	return used;
+}
+static DEVICE_ATTR_RO(chan_xtrigs_out);
+
+static ssize_t print_chan_list(struct device *dev,
+			       char *buf, bool inuse)
+{
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct cti_config *config = &drvdata->config;
+	int size, i;
+	unsigned long inuse_bits = 0, chan_mask;
+
+	/* scan regs to get bitmap of channels in use. */
+	spin_lock(&drvdata->spinlock);
+	for (i = 0; i < config->nr_trig_max; i++) {
+		inuse_bits |= config->ctiinen[i];
+		inuse_bits |= config->ctiouten[i];
+	}
+	spin_unlock(&drvdata->spinlock);
+
+	/* inverse bits if printing free channels */
+	if (!inuse)
+		inuse_bits = ~inuse_bits;
+
+	/* list of channels, or 'none' */
+	chan_mask = GENMASK(config->nr_ctm_channels - 1, 0);
+	if (inuse_bits & chan_mask)
+		size = bitmap_print_to_pagebuf(true, buf, &inuse_bits,
+					       config->nr_ctm_channels);
+	else
+		size = sprintf(buf, "\n");
+	return size;
+}
+
+static ssize_t chan_inuse_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	return print_chan_list(dev, buf, true);
+}
+static DEVICE_ATTR_RO(chan_inuse);
+
+static ssize_t chan_free_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return print_chan_list(dev, buf, false);
+}
+static DEVICE_ATTR_RO(chan_free);
+
+static struct attribute *coresight_cti_channel_attrs[] = {
+	&dev_attr_trigin_attach.attr,
+	&dev_attr_trigin_detach.attr,
+	&dev_attr_trigout_attach.attr,
+	&dev_attr_trigout_detach.attr,
+	&dev_attr_trig_filter_enable.attr,
+	&dev_attr_trigout_filtered.attr,
+	&dev_attr_chan_gate_enable.attr,
+	&dev_attr_chan_gate_disable.attr,
+	&dev_attr_chan_set.attr,
+	&dev_attr_chan_clear.attr,
+	&dev_attr_chan_pulse.attr,
+	&dev_attr_chan_inuse.attr,
+	&dev_attr_chan_free.attr,
+	&dev_attr_chan_xtrigs_sel.attr,
+	&dev_attr_chan_xtrigs_in.attr,
+	&dev_attr_chan_xtrigs_out.attr,
+	&dev_attr_chan_xtrigs_reset.attr,
+	NULL,
+};
+
 /* sysfs groups */
 static const struct attribute_group coresight_cti_group = {
 	.attrs = coresight_cti_attrs,
@@ -489,9 +855,15 @@ static const struct attribute_group coresight_cti_regs_group = {
 	.name = "regs",
 };
 
+static const struct attribute_group coresight_cti_channels_group = {
+	.attrs = coresight_cti_channel_attrs,
+	.name = "channels",
+};
+
 const struct attribute_group *coresight_cti_groups[] = {
 	&coresight_cti_group,
 	&coresight_cti_mgmt_group,
 	&coresight_cti_regs_group,
+	&coresight_cti_channels_group,
 	NULL,
 };

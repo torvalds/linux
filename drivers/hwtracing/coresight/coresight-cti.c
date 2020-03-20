@@ -294,6 +294,153 @@ int cti_add_default_connection(struct device *dev, struct cti_drvdata *drvdata)
 	return ret;
 }
 
+/** cti channel api **/
+/* attach/detach channel from trigger - write through if enabled. */
+int cti_channel_trig_op(struct device *dev, enum cti_chan_op op,
+			enum cti_trig_dir direction, u32 channel_idx,
+			u32 trigger_idx)
+{
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct cti_config *config = &drvdata->config;
+	u32 trig_bitmask;
+	u32 chan_bitmask;
+	u32 reg_value;
+	int reg_offset;
+
+	/* ensure indexes in range */
+	if ((channel_idx >= config->nr_ctm_channels) ||
+	   (trigger_idx >= config->nr_trig_max))
+		return -EINVAL;
+
+	trig_bitmask = BIT(trigger_idx);
+
+	/* ensure registered triggers and not out filtered */
+	if (direction == CTI_TRIG_IN)	{
+		if (!(trig_bitmask & config->trig_in_use))
+			return -EINVAL;
+	} else {
+		if (!(trig_bitmask & config->trig_out_use))
+			return -EINVAL;
+
+		if ((config->trig_filter_enable) &&
+		    (config->trig_out_filter & trig_bitmask))
+			return -EINVAL;
+	}
+
+	/* update the local register values */
+	chan_bitmask = BIT(channel_idx);
+	reg_offset = (direction == CTI_TRIG_IN ? CTIINEN(trigger_idx) :
+		      CTIOUTEN(trigger_idx));
+
+	spin_lock(&drvdata->spinlock);
+
+	/* read - modify write - the trigger / channel enable value */
+	reg_value = direction == CTI_TRIG_IN ? config->ctiinen[trigger_idx] :
+		     config->ctiouten[trigger_idx];
+	if (op == CTI_CHAN_ATTACH)
+		reg_value |= chan_bitmask;
+	else
+		reg_value &= ~chan_bitmask;
+
+	/* write local copy */
+	if (direction == CTI_TRIG_IN)
+		config->ctiinen[trigger_idx] = reg_value;
+	else
+		config->ctiouten[trigger_idx] = reg_value;
+
+	/* write through if enabled */
+	if (cti_active(config))
+		cti_write_single_reg(drvdata, reg_offset, reg_value);
+	spin_unlock(&drvdata->spinlock);
+	return 0;
+}
+
+int cti_channel_gate_op(struct device *dev, enum cti_chan_gate_op op,
+			u32 channel_idx)
+{
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct cti_config *config = &drvdata->config;
+	u32 chan_bitmask;
+	u32 reg_value;
+	int err = 0;
+
+	if (channel_idx >= config->nr_ctm_channels)
+		return -EINVAL;
+
+	chan_bitmask = BIT(channel_idx);
+
+	spin_lock(&drvdata->spinlock);
+	reg_value = config->ctigate;
+	switch (op) {
+	case CTI_GATE_CHAN_ENABLE:
+		reg_value |= chan_bitmask;
+		break;
+
+	case CTI_GATE_CHAN_DISABLE:
+		reg_value &= ~chan_bitmask;
+		break;
+
+	default:
+		err = -EINVAL;
+		break;
+	}
+	if (err == 0) {
+		config->ctigate = reg_value;
+		if (cti_active(config))
+			cti_write_single_reg(drvdata, CTIGATE, reg_value);
+	}
+	spin_unlock(&drvdata->spinlock);
+	return err;
+}
+
+int cti_channel_setop(struct device *dev, enum cti_chan_set_op op,
+		      u32 channel_idx)
+{
+	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct cti_config *config = &drvdata->config;
+	u32 chan_bitmask;
+	u32 reg_value;
+	u32 reg_offset;
+	int err = 0;
+
+	if (channel_idx >= config->nr_ctm_channels)
+		return -EINVAL;
+
+	chan_bitmask = BIT(channel_idx);
+
+	spin_lock(&drvdata->spinlock);
+	reg_value = config->ctiappset;
+	switch (op) {
+	case CTI_CHAN_SET:
+		config->ctiappset |= chan_bitmask;
+		reg_value  = config->ctiappset;
+		reg_offset = CTIAPPSET;
+		break;
+
+	case CTI_CHAN_CLR:
+		config->ctiappset &= ~chan_bitmask;
+		reg_value = chan_bitmask;
+		reg_offset = CTIAPPCLEAR;
+		break;
+
+	case CTI_CHAN_PULSE:
+		config->ctiappset &= ~chan_bitmask;
+		reg_value = chan_bitmask;
+		reg_offset = CTIAPPPULSE;
+		break;
+
+	default:
+		err = -EINVAL;
+		break;
+	}
+
+	if ((err == 0) && cti_active(config))
+		cti_write_single_reg(drvdata, reg_offset, reg_value);
+	spin_unlock(&drvdata->spinlock);
+
+	return err;
+}
+
 /** cti ect operations **/
 int cti_enable(struct coresight_device *csdev)
 {
