@@ -268,19 +268,6 @@ static inline void __invept(unsigned long ext, u64 eptp, gpa_t gpa)
 	vmx_asm2(invept, "r"(ext), "m"(operand), ext, eptp, gpa);
 }
 
-static inline bool vpid_sync_vcpu_addr(int vpid, gva_t addr)
-{
-	if (vpid == 0)
-		return true;
-
-	if (cpu_has_vmx_invvpid_individual_addr()) {
-		__invvpid(VMX_VPID_EXTENT_INDIVIDUAL_ADDR, vpid, addr);
-		return true;
-	}
-
-	return false;
-}
-
 static inline void vpid_sync_vcpu_single(int vpid)
 {
 	if (vpid == 0)
@@ -302,6 +289,19 @@ static inline void vpid_sync_context(int vpid)
 		vpid_sync_vcpu_single(vpid);
 	else if (vpid != 0)
 		vpid_sync_vcpu_global();
+}
+
+static inline bool vpid_sync_vcpu_addr(int vpid, gva_t addr)
+{
+	if (vpid == 0)
+		return true;
+
+	if (cpu_has_vmx_invvpid_individual_addr()) {
+		__invvpid(VMX_VPID_EXTENT_INDIVIDUAL_ADDR, vpid, addr);
+		return true;
+	}
+
+	return false;
 }
 
 static inline void ept_sync_global(void)
