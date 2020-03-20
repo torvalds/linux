@@ -97,6 +97,17 @@ config GKI_HIDDEN_VIDEOBUF2_CONFIGS
 	help
 	  Dummy config option used to enable all the hidden v4l2 media module.
 
+config GKI_HIDDEN_USB_CONFIGS
+	bool "Hiddel USB configurations needed for GKI"
+	select USB_PHY
+	help
+	  Dummy config option used to enable all USB related hidden configs.
+	  These configurations are usually only selected by another config
+	  option or a combination of them.
+
+	  If you are not building a kernel to be used for a variety of
+	  out-of-kernel build USB drivers, say N here.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -116,6 +127,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_VIRTUAL_CONFIGS
 	select GKI_HIDDEN_SOC_PM_CONFIGS
 	select GKI_HIDDEN_VIDEOBUF2_CONFIGS
+	select GKI_HIDDEN_USB_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
