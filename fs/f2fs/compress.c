@@ -1002,6 +1002,15 @@ retry_write:
 				unlock_page(cc->rpages[i]);
 				ret = 0;
 			} else if (ret == -EAGAIN) {
+				/*
+				 * for quota file, just redirty left pages to
+				 * avoid deadlock caused by cluster update race
+				 * from foreground operation.
+				 */
+				if (IS_NOQUOTA(cc->inode)) {
+					err = 0;
+					goto out_err;
+				}
 				ret = 0;
 				cond_resched();
 				congestion_wait(BLK_RW_ASYNC,
@@ -1011,16 +1020,12 @@ retry_write:
 				goto retry_write;
 			}
 			err = ret;
-			goto out_fail;
+			goto out_err;
 		}
 
 		*submitted += _submitted;
 	}
 	return 0;
-
-out_fail:
-	/* TODO: revoke partially updated block addresses */
-	BUG_ON(compr_blocks);
 out_err:
 	for (++i; i < cc->cluster_size; i++) {
 		if (!cc->rpages[i])
