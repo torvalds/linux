@@ -2087,6 +2087,29 @@ int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 	return 0;
 }
 
+int smu_set_ac_dc(struct smu_context *smu)
+{
+	int ret = 0;
+
+	/* controlled by firmware */
+	if (smu->dc_controlled_by_gpio)
+		return 0;
+
+	mutex_lock(&smu->mutex);
+	if (smu->ppt_funcs->set_power_source) {
+		if (smu->adev->pm.ac_power)
+			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_AC);
+		else
+			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_DC);
+		if (ret)
+			pr_err("Failed to switch to %s mode!\n",
+			       smu->adev->pm.ac_power ? "AC" : "DC");
+	}
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
 const struct amd_ip_funcs smu_ip_funcs = {
 	.name = "smu",
 	.early_init = smu_early_init,
