@@ -500,31 +500,6 @@ static inline struct vmcs *alloc_vmcs(bool shadow)
 
 u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa);
 
-static inline void vmx_flush_tlb(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-
-	/*
-	 * Flush all EPTP/VPID contexts, as the TLB flush _may_ have been
-	 * invoked via kvm_flush_remote_tlbs().  Flushing remote TLBs requires
-	 * all contexts to be flushed, not just the active context.
-	 *
-	 * Note, this also ensures a deferred TLB flush with VPID enabled and
-	 * EPT disabled invalidates the "correct" VPID, by nuking both L1 and
-	 * L2's VPIDs.
-	 */
-	if (enable_ept) {
-		ept_sync_global();
-	} else if (enable_vpid) {
-		if (cpu_has_vmx_invvpid_global()) {
-			vpid_sync_vcpu_global();
-		} else {
-			vpid_sync_vcpu_single(vmx->vpid);
-			vpid_sync_vcpu_single(vmx->nested.vpid02);
-		}
-	}
-}
-
 static inline void decache_tsc_multiplier(struct vcpu_vmx *vmx)
 {
 	vmx->current_tsc_ratio = vmx->vcpu.arch.tsc_scaling_ratio;
