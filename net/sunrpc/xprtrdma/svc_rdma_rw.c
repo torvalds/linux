@@ -39,7 +39,7 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc);
 struct svc_rdma_rw_ctxt {
 	struct list_head	rw_list;
 	struct rdma_rw_ctx	rw_ctx;
-	int			rw_nents;
+	unsigned int		rw_nents;
 	struct sg_table		rw_sg_table;
 	struct scatterlist	rw_first_sgl[];
 };
@@ -105,6 +105,34 @@ void svc_rdma_destroy_rw_ctxts(struct svcxprt_rdma *rdma)
 		list_del(&ctxt->rw_list);
 		kfree(ctxt);
 	}
+}
+
+/**
+ * svc_rdma_rw_ctx_init - Prepare a R/W context for I/O
+ * @rdma: controlling transport instance
+ * @ctxt: R/W context to prepare
+ * @offset: RDMA offset
+ * @handle: RDMA tag/handle
+ * @direction: I/O direction
+ *
+ * Returns on success, the number of WQEs that will be needed
+ * on the workqueue, or a negative errno.
+ */
+static int svc_rdma_rw_ctx_init(struct svcxprt_rdma *rdma,
+				struct svc_rdma_rw_ctxt *ctxt,
+				u64 offset, u32 handle,
+				enum dma_data_direction direction)
+{
+	int ret;
+
+	ret = rdma_rw_ctx_init(&ctxt->rw_ctx, rdma->sc_qp, rdma->sc_port_num,
+			       ctxt->rw_sg_table.sgl, ctxt->rw_nents,
+			       0, offset, handle, direction);
+	if (unlikely(ret < 0)) {
+		svc_rdma_put_rw_ctxt(rdma, ctxt);
+		trace_svcrdma_dma_map_rw_err(rdma, ctxt->rw_nents, ret);
+	}
+	return ret;
 }
 
 /* A chunk context tracks all I/O for moving one Read or Write
@@ -431,12 +459,10 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 			goto out_noctx;
 
 		constructor(info, write_len, ctxt);
-		ret = rdma_rw_ctx_init(&ctxt->rw_ctx, rdma->sc_qp,
-				       rdma->sc_port_num, ctxt->rw_sg_table.sgl,
-				       ctxt->rw_nents, 0, seg_offset,
-				       seg_handle, DMA_TO_DEVICE);
+		ret = svc_rdma_rw_ctx_init(rdma, ctxt, seg_offset, seg_handle,
+					   DMA_TO_DEVICE);
 		if (ret < 0)
-			goto out_initerr;
+			return -EIO;
 
 		trace_svcrdma_send_wseg(seg_handle, write_len, seg_offset);
 
@@ -462,11 +488,6 @@ out_overflow:
 out_noctx:
 	dprintk("svcrdma: no R/W ctxs available\n");
 	return -ENOMEM;
-
-out_initerr:
-	svc_rdma_put_rw_ctxt(rdma, ctxt);
-	trace_svcrdma_dma_map_rwctx(rdma, ret);
-	return -EIO;
 }
 
 /* Send one of an xdr_buf's kvecs by itself. To send a Reply
@@ -646,12 +667,10 @@ static int svc_rdma_build_read_segment(struct svc_rdma_read_info *info,
 			goto out_overrun;
 	}
 
-	ret = rdma_rw_ctx_init(&ctxt->rw_ctx, cc->cc_rdma->sc_qp,
-			       cc->cc_rdma->sc_port_num,
-			       ctxt->rw_sg_table.sgl, ctxt->rw_nents,
-			       0, offset, rkey, DMA_FROM_DEVICE);
+	ret = svc_rdma_rw_ctx_init(cc->cc_rdma, ctxt, offset, rkey,
+				   DMA_FROM_DEVICE);
 	if (ret < 0)
-		goto out_initerr;
+		return -EIO;
 
 	list_add(&ctxt->rw_list, &cc->cc_rwctxts);
 	cc->cc_sqecount += ret;
@@ -664,11 +683,6 @@ out_noctx:
 out_overrun:
 	dprintk("svcrdma: request overruns rq_pages\n");
 	return -EINVAL;
-
-out_initerr:
-	trace_svcrdma_dma_map_rwctx(cc->cc_rdma, ret);
-	svc_rdma_put_rw_ctxt(cc->cc_rdma, ctxt);
-	return -EIO;
 }
 
 /* Walk the segments in the Read chunk starting at @p and construct

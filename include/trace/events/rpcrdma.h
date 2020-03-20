@@ -1583,28 +1583,32 @@ DECLARE_EVENT_CLASS(svcrdma_dma_map_class,
 DEFINE_SVC_DMA_EVENT(dma_map_page);
 DEFINE_SVC_DMA_EVENT(dma_unmap_page);
 
-TRACE_EVENT(svcrdma_dma_map_rwctx,
+TRACE_EVENT(svcrdma_dma_map_rw_err,
 	TP_PROTO(
 		const struct svcxprt_rdma *rdma,
+		unsigned int nents,
 		int status
 	),
 
-	TP_ARGS(rdma, status),
+	TP_ARGS(rdma, nents, status),
 
 	TP_STRUCT__entry(
 		__field(int, status)
+		__field(unsigned int, nents)
 		__string(device, rdma->sc_cm_id->device->name)
 		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
 		__entry->status = status;
+		__entry->nents = nents;
 		__assign_str(device, rdma->sc_cm_id->device->name);
 		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s device=%s status=%d",
-		__get_str(addr), __get_str(device), __entry->status
+	TP_printk("addr=%s device=%s nents=%u status=%d",
+		__get_str(addr), __get_str(device), __entry->nents,
+		__entry->status
 	)
 );
 
