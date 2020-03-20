@@ -47,8 +47,7 @@ xlog_dealloc_log(
 
 /* local state machine functions */
 STATIC void xlog_state_done_syncing(
-	struct xlog_in_core	*iclog,
-	bool			aborted);
+	struct xlog_in_core	*iclog);
 STATIC int
 xlog_state_get_iclog_space(
 	struct xlog		*log,
@@ -1254,7 +1253,6 @@ xlog_ioend_work(
 	struct xlog_in_core     *iclog =
 		container_of(work, struct xlog_in_core, ic_end_io_work);
 	struct xlog		*log = iclog->ic_log;
-	bool			aborted = false;
 	int			error;
 
 	error = blk_status_to_errno(iclog->ic_bio.bi_status);
@@ -1270,17 +1268,9 @@ xlog_ioend_work(
 	if (XFS_TEST_ERROR(error, log->l_mp, XFS_ERRTAG_IODONE_IOERR)) {
 		xfs_alert(log->l_mp, "log I/O error %d", error);
 		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
-		/*
-		 * This flag will be propagated to the trans-committed
-		 * callback routines to let them know that the log-commit
-		 * didn't succeed.
-		 */
-		aborted = true;
-	} else if (iclog->ic_state == XLOG_STATE_IOERROR) {
-		aborted = true;
 	}
 
-	xlog_state_done_syncing(iclog, aborted);
+	xlog_state_done_syncing(iclog);
 	bio_uninit(&iclog->ic_bio);
 
 	/*
@@ -1759,7 +1749,7 @@ xlog_write_iclog(
 		 * the buffer manually, the code needs to be kept in sync
 		 * with the I/O completion path.
 		 */
-		xlog_state_done_syncing(iclog, true);
+		xlog_state_done_syncing(iclog);
 		up(&iclog->ic_sema);
 		return;
 	}
@@ -2783,8 +2773,7 @@ xlog_state_iodone_process_iclog(
 static void
 xlog_state_do_iclog_callbacks(
 	struct xlog		*log,
-	struct xlog_in_core	*iclog,
-	bool			aborted)
+	struct xlog_in_core	*iclog)
 		__releases(&log->l_icloglock)
 		__acquires(&log->l_icloglock)
 {
@@ -2796,7 +2785,7 @@ xlog_state_do_iclog_callbacks(
 		list_splice_init(&iclog->ic_callbacks, &tmp);
 
 		spin_unlock(&iclog->ic_callback_lock);
-		xlog_cil_process_committed(&tmp, aborted);
+		xlog_cil_process_committed(&tmp);
 		spin_lock(&iclog->ic_callback_lock);
 	}
 
@@ -2811,8 +2800,7 @@ xlog_state_do_iclog_callbacks(
 
 STATIC void
 xlog_state_do_callback(
-	struct xlog		*log,
-	bool			aborted)
+	struct xlog		*log)
 {
 	struct xlog_in_core	*iclog;
 	struct xlog_in_core	*first_iclog;
@@ -2853,7 +2841,7 @@ xlog_state_do_callback(
 			 * we'll have to run at least one more complete loop.
 			 */
 			cycled_icloglock = true;
-			xlog_state_do_iclog_callbacks(log, iclog, aborted);
+			xlog_state_do_iclog_callbacks(log, iclog);
 
 			xlog_state_clean_iclog(log, iclog);
 			iclog = iclog->ic_next;
@@ -2891,25 +2879,22 @@ xlog_state_do_callback(
  */
 STATIC void
 xlog_state_done_syncing(
-	struct xlog_in_core	*iclog,
-	bool			aborted)
+	struct xlog_in_core	*iclog)
 {
 	struct xlog		*log = iclog->ic_log;
 
 	spin_lock(&log->l_icloglock);
-
 	ASSERT(atomic_read(&iclog->ic_refcnt) == 0);
 
 	/*
 	 * If we got an error, either on the first buffer, or in the case of
-	 * split log writes, on the second, we mark ALL iclogs STATE_IOERROR,
-	 * and none should ever be attempted to be written to disk
-	 * again.
+	 * split log writes, on the second, we shut down the file system and
+	 * no iclogs should ever be attempted to be written to disk again.
 	 */
-	if (iclog->ic_state == XLOG_STATE_SYNCING)
+	if (!XLOG_FORCED_SHUTDOWN(log)) {
+		ASSERT(iclog->ic_state == XLOG_STATE_SYNCING);
 		iclog->ic_state = XLOG_STATE_DONE_SYNC;
-	else
-		ASSERT(iclog->ic_state == XLOG_STATE_IOERROR);
+	}
 
 	/*
 	 * Someone could be sleeping prior to writing out the next
@@ -2918,9 +2903,8 @@ xlog_state_done_syncing(
 	 */
 	wake_up_all(&iclog->ic_write_wait);
 	spin_unlock(&log->l_icloglock);
-	xlog_state_do_callback(log, aborted);	/* also cleans log */
-}	/* xlog_state_done_syncing */
-
+	xlog_state_do_callback(log);	/* also cleans log */
+}
 
 /*
  * If the head of the in-core log ring is not (ACTIVE or DIRTY), then we must
@@ -3884,7 +3868,7 @@ xfs_log_force_umount(
 	spin_lock(&log->l_cilp->xc_push_lock);
 	wake_up_all(&log->l_cilp->xc_commit_wait);
 	spin_unlock(&log->l_cilp->xc_push_lock);
-	xlog_state_do_callback(log, true);
+	xlog_state_do_callback(log);
 
 	/* return non-zero if log IOERROR transition had already happened */
 	return retval;
