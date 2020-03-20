@@ -534,7 +534,6 @@ static inline void vmx_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa)
 			if (cpu_has_vmx_invvpid_global()) {
 				vpid_sync_vcpu_global();
 			} else {
-				WARN_ON_ONCE(!cpu_has_vmx_invvpid_single());
 				vpid_sync_vcpu_single(vmx->vpid);
 				vpid_sync_vcpu_single(vmx->nested.vpid02);
 			}
