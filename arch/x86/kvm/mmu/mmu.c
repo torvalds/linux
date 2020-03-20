@@ -4284,8 +4284,7 @@ static bool cached_root_available(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 }
 
 static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
-			    union kvm_mmu_page_role new_role,
-			    bool skip_tlb_flush)
+			    union kvm_mmu_page_role new_role)
 {
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
 
@@ -4295,39 +4294,9 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 	 * later if necessary.
 	 */
 	if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
-	    mmu->root_level >= PT64_ROOT_4LEVEL) {
-		if (mmu_check_root(vcpu, new_cr3 >> PAGE_SHIFT))
-			return false;
-
-		if (cached_root_available(vcpu, new_cr3, new_role)) {
-			/*
-			 * It is possible that the cached previous root page is
-			 * obsolete because of a change in the MMU generation
-			 * number. However, changing the generation number is
-			 * accompanied by KVM_REQ_MMU_RELOAD, which will free
-			 * the root set here and allocate a new one.
-			 */
-			kvm_make_request(KVM_REQ_LOAD_MMU_PGD, vcpu);
-			if (!skip_tlb_flush) {
-				kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
-				kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
-			}
-
-			/*
-			 * The last MMIO access's GVA and GPA are cached in the
-			 * VCPU. When switching to a new CR3, that GVA->GPA
-			 * mapping may no longer be valid. So clear any cached
-			 * MMIO info even when we don't need to sync the shadow
-			 * page tables.
-			 */
-			vcpu_clear_mmio_info(vcpu, MMIO_GVA_ANY);
-
-			__clear_sp_write_flooding_count(
-				page_header(mmu->root_hpa));
-
-			return true;
-		}
-	}
+	    mmu->root_level >= PT64_ROOT_4LEVEL)
+		return !mmu_check_root(vcpu, new_cr3 >> PAGE_SHIFT) &&
+		       cached_root_available(vcpu, new_cr3, new_role);
 
 	return false;
 }
@@ -4336,9 +4305,33 @@ static void __kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 			      union kvm_mmu_page_role new_role,
 			      bool skip_tlb_flush)
 {
-	if (!fast_cr3_switch(vcpu, new_cr3, new_role, skip_tlb_flush))
-		kvm_mmu_free_roots(vcpu, vcpu->arch.mmu,
-				   KVM_MMU_ROOT_CURRENT);
+	if (!fast_cr3_switch(vcpu, new_cr3, new_role)) {
+		kvm_mmu_free_roots(vcpu, vcpu->arch.mmu, KVM_MMU_ROOT_CURRENT);
+		return;
+	}
+
+	/*
+	 * It's possible that the cached previous root page is obsolete because
+	 * of a change in the MMU generation number. However, changing the
+	 * generation number is accompanied by KVM_REQ_MMU_RELOAD, which will
+	 * free the root set here and allocate a new one.
+	 */
+	kvm_make_request(KVM_REQ_LOAD_MMU_PGD, vcpu);
+
+	if (!skip_tlb_flush) {
+		kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
+		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
+	}
+
+	/*
+	 * The last MMIO access's GVA and GPA are cached in the VCPU. When
+	 * switching to a new CR3, that GVA->GPA mapping may no longer be
+	 * valid. So clear any cached MMIO info even when we don't need to sync
+	 * the shadow page tables.
+	 */
+	vcpu_clear_mmio_info(vcpu, MMIO_GVA_ANY);
+
+	__clear_sp_write_flooding_count(page_header(vcpu->arch.mmu->root_hpa));
 }
 
 void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3, bool skip_tlb_flush)
