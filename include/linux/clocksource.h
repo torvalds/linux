@@ -27,6 +27,8 @@ struct module;
 #include <asm/clocksource.h>
 #endif
 
+#include <vdso/clocksource.h>
+
 /**
  * struct clocksource - hardware abstraction for a free running counter
  *	Provides mostly state-free accessors to the underlying hardware.
