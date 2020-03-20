@@ -88,16 +88,19 @@ setup_pixel_info(struct screen_info *si, u32 pixels_per_scan_line,
 static efi_graphics_output_protocol_t *
 find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 {
-	efi_graphics_output_protocol_t *gop, *first_gop;
-	efi_graphics_output_protocol_mode_t *mode;
-	efi_graphics_output_mode_info_t *info = NULL;
-	efi_status_t status;
+	efi_graphics_output_protocol_t *first_gop;
 	efi_handle_t h;
 	int i;
 
 	first_gop = NULL;
 
 	for_each_efi_handle(h, handles, size, i) {
+		efi_status_t status;
+
+		efi_graphics_output_protocol_t *gop;
+		efi_graphics_output_protocol_mode_t *mode;
+		efi_graphics_output_mode_info_t *info;
+
 		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
 		void *dummy = NULL;
 
@@ -136,7 +139,7 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 {
 	efi_graphics_output_protocol_t *gop;
 	efi_graphics_output_protocol_mode_t *mode;
-	efi_graphics_output_mode_info_t *info = NULL;
+	efi_graphics_output_mode_info_t *info;
 	efi_physical_addr_t fb_base;
 
 	gop = find_gop(proto, size, handles);
