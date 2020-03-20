@@ -158,8 +158,8 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 	si->lfb_height = info->vertical_resolution;
 
 	fb_base		 = efi_table_attr(mode, frame_buffer_base);
-	si->lfb_base	 = fb_base;
-	si->ext_lfb_base = (u64)(unsigned long)fb_base >> 32;
+	si->lfb_base	 = lower_32_bits(fb_base);
+	si->ext_lfb_base = upper_32_bits(fb_base);
 	if (si->ext_lfb_base)
 		si->capabilities |= VIDEO_CAPABILITY_64BIT_BASE;
 
