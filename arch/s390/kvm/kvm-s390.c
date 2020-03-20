@@ -2002,6 +2002,9 @@ static int kvm_s390_get_cmma(struct kvm *kvm, struct kvm_s390_cmma_log *args,
 	struct kvm_memslots *slots = kvm_memslots(kvm);
 	struct kvm_memory_slot *ms;
 
+	if (unlikely(!slots->used_slots))
+		return 0;
+
 	cur_gfn = kvm_s390_next_dirty_cmma(slots, args->start_gfn);
 	ms = gfn_to_memslot(kvm, cur_gfn);
 	args->count = 0;
