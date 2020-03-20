@@ -688,7 +688,7 @@ static int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface)
 			match = entry;
 
 			if (xpcs_check_features(xpcs, match, interface))
-				return 0;
+				return xpcs_soft_reset(xpcs, MDIO_MMD_PCS);
 		}
 	}
 
