@@ -318,7 +318,7 @@
 				clocks = <&soc_clocks MMP2_CLK_TIMER>;
 			};
 
-			uart1: uart@d4030000 {
+			uart1: serial@d4030000 {
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4030000 0x1000>;
 				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
@@ -328,7 +328,7 @@
 				status = "disabled";
 			};
 
-			uart2: uart@d4017000 {
+			uart2: serial@d4017000 {
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4017000 0x1000>;
 				interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
@@ -338,7 +338,7 @@
 				status = "disabled";
 			};
 
-			uart3: uart@d4018000 {
+			uart3: serial@d4018000 {
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4018000 0x1000>;
 				interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
@@ -348,7 +348,7 @@
 				status = "disabled";
 			};
 
-			uart4: uart@d4016000 {
+			uart4: serial@d4016000 {
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4016000 0x1000>;
 				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
