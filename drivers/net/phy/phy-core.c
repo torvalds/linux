@@ -329,6 +329,44 @@ void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(phy_resolve_aneg_linkmode);
 
+/**
+ * phy_check_downshift - check whether downshift occurred
+ * @phydev: The phy_device struct
+ *
+ * Check whether a downshift to a lower speed occurred. If this should be the
+ * case warn the user.
+ * Prerequisite for detecting downshift is that PHY driver implements the
+ * read_status callback and sets phydev->speed to the actual link speed.
+ */
+void phy_check_downshift(struct phy_device *phydev)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
+	int i, speed = SPEED_UNKNOWN;
+
+	phydev->downshifted_rate = 0;
+
+	if (phydev->autoneg == AUTONEG_DISABLE ||
+	    phydev->speed == SPEED_UNKNOWN)
+		return;
+
+	linkmode_and(common, phydev->lp_advertising, phydev->advertising);
+
+	for (i = 0; i < ARRAY_SIZE(settings); i++)
+		if (test_bit(settings[i].bit, common)) {
+			speed = settings[i].speed;
+			break;
+		}
+
+	if (speed == SPEED_UNKNOWN || phydev->speed >= speed)
+		return;
+
+	phydev_warn(phydev, "Downshift occurred from negotiated speed %s to actual speed %s, check cabling!\n",
+		    phy_speed_to_str(speed), phy_speed_to_str(phydev->speed));
+
+	phydev->downshifted_rate = 1;
+}
+EXPORT_SYMBOL_GPL(phy_check_downshift);
+
 static int phy_resolve_min_speed(struct phy_device *phydev, bool fdx_only)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
