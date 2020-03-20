@@ -1672,7 +1672,7 @@ static int vcn_v2_5_set_clockgating_state(void *handle,
 		return 0;
 
 	if (enable) {
-		if (vcn_v2_5_is_idle(handle))
+		if (!vcn_v2_5_is_idle(handle))
 			return -EBUSY;
 		vcn_v2_5_enable_clock_gating(adev);
 	} else {
