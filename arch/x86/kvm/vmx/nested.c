@@ -1101,7 +1101,7 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 	}
 
 	if (!nested_ept)
-		kvm_mmu_new_cr3(vcpu, cr3, false);
+		kvm_mmu_new_cr3(vcpu, cr3, false, false);
 
 	vcpu->arch.cr3 = cr3;
 	kvm_register_mark_available(vcpu, VCPU_EXREG_CR3);

@@ -4303,7 +4303,7 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 
 static void __kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 			      union kvm_mmu_page_role new_role,
-			      bool skip_tlb_flush)
+			      bool skip_tlb_flush, bool skip_mmu_sync)
 {
 	if (!fast_cr3_switch(vcpu, new_cr3, new_role)) {
 		kvm_mmu_free_roots(vcpu, vcpu->arch.mmu, KVM_MMU_ROOT_CURRENT);
@@ -4318,10 +4318,10 @@ static void __kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 	 */
 	kvm_make_request(KVM_REQ_LOAD_MMU_PGD, vcpu);
 
-	if (!skip_tlb_flush) {
+	if (!skip_mmu_sync)
 		kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
+	if (!skip_tlb_flush)
 		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
-	}
 
 	/*
 	 * The last MMIO access's GVA and GPA are cached in the VCPU. When
@@ -4334,10 +4334,11 @@ static void __kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 	__clear_sp_write_flooding_count(page_header(vcpu->arch.mmu->root_hpa));
 }
 
-void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3, bool skip_tlb_flush)
+void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3, bool skip_tlb_flush,
+		     bool skip_mmu_sync)
 {
 	__kvm_mmu_new_cr3(vcpu, new_cr3, kvm_mmu_calc_root_page_role(vcpu),
-			  skip_tlb_flush);
+			  skip_tlb_flush, skip_mmu_sync);
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_new_cr3);
 
@@ -5030,7 +5031,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty,
 						   execonly, level);
 
-	__kvm_mmu_new_cr3(vcpu, new_eptp, new_role.base, false);
+	__kvm_mmu_new_cr3(vcpu, new_eptp, new_role.base, false, false);
 
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;
