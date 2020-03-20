@@ -1432,81 +1432,62 @@ static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
 		else
 			desc[i].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
-
-		if (i == 0) {
-			roce_set_field(req_a->vf_qpc_bt_idx_num,
-				       VF_RES_A_DATA_1_VF_QPC_BT_IDX_M,
-				       VF_RES_A_DATA_1_VF_QPC_BT_IDX_S, 0);
-			roce_set_field(req_a->vf_qpc_bt_idx_num,
-				       VF_RES_A_DATA_1_VF_QPC_BT_NUM_M,
-				       VF_RES_A_DATA_1_VF_QPC_BT_NUM_S,
-				       HNS_ROCE_VF_QPC_BT_NUM);
-
-			roce_set_field(req_a->vf_srqc_bt_idx_num,
-				       VF_RES_A_DATA_2_VF_SRQC_BT_IDX_M,
-				       VF_RES_A_DATA_2_VF_SRQC_BT_IDX_S, 0);
-			roce_set_field(req_a->vf_srqc_bt_idx_num,
-				       VF_RES_A_DATA_2_VF_SRQC_BT_NUM_M,
-				       VF_RES_A_DATA_2_VF_SRQC_BT_NUM_S,
-				       HNS_ROCE_VF_SRQC_BT_NUM);
-
-			roce_set_field(req_a->vf_cqc_bt_idx_num,
-				       VF_RES_A_DATA_3_VF_CQC_BT_IDX_M,
-				       VF_RES_A_DATA_3_VF_CQC_BT_IDX_S, 0);
-			roce_set_field(req_a->vf_cqc_bt_idx_num,
-				       VF_RES_A_DATA_3_VF_CQC_BT_NUM_M,
-				       VF_RES_A_DATA_3_VF_CQC_BT_NUM_S,
-				       HNS_ROCE_VF_CQC_BT_NUM);
-
-			roce_set_field(req_a->vf_mpt_bt_idx_num,
-				       VF_RES_A_DATA_4_VF_MPT_BT_IDX_M,
-				       VF_RES_A_DATA_4_VF_MPT_BT_IDX_S, 0);
-			roce_set_field(req_a->vf_mpt_bt_idx_num,
-				       VF_RES_A_DATA_4_VF_MPT_BT_NUM_M,
-				       VF_RES_A_DATA_4_VF_MPT_BT_NUM_S,
-				       HNS_ROCE_VF_MPT_BT_NUM);
-
-			roce_set_field(req_a->vf_eqc_bt_idx_num,
-				       VF_RES_A_DATA_5_VF_EQC_IDX_M,
-				       VF_RES_A_DATA_5_VF_EQC_IDX_S, 0);
-			roce_set_field(req_a->vf_eqc_bt_idx_num,
-				       VF_RES_A_DATA_5_VF_EQC_NUM_M,
-				       VF_RES_A_DATA_5_VF_EQC_NUM_S,
-				       HNS_ROCE_VF_EQC_NUM);
-		} else {
-			roce_set_field(req_b->vf_smac_idx_num,
-				       VF_RES_B_DATA_1_VF_SMAC_IDX_M,
-				       VF_RES_B_DATA_1_VF_SMAC_IDX_S, 0);
-			roce_set_field(req_b->vf_smac_idx_num,
-				       VF_RES_B_DATA_1_VF_SMAC_NUM_M,
-				       VF_RES_B_DATA_1_VF_SMAC_NUM_S,
-				       HNS_ROCE_VF_SMAC_NUM);
-
-			roce_set_field(req_b->vf_sgid_idx_num,
-				       VF_RES_B_DATA_2_VF_SGID_IDX_M,
-				       VF_RES_B_DATA_2_VF_SGID_IDX_S, 0);
-			roce_set_field(req_b->vf_sgid_idx_num,
-				       VF_RES_B_DATA_2_VF_SGID_NUM_M,
-				       VF_RES_B_DATA_2_VF_SGID_NUM_S,
-				       HNS_ROCE_VF_SGID_NUM);
-
-			roce_set_field(req_b->vf_qid_idx_sl_num,
-				       VF_RES_B_DATA_3_VF_QID_IDX_M,
-				       VF_RES_B_DATA_3_VF_QID_IDX_S, 0);
-			roce_set_field(req_b->vf_qid_idx_sl_num,
-				       VF_RES_B_DATA_3_VF_SL_NUM_M,
-				       VF_RES_B_DATA_3_VF_SL_NUM_S,
-				       HNS_ROCE_VF_SL_NUM);
-
-			roce_set_field(req_b->vf_sccc_idx_num,
-				       VF_RES_B_DATA_4_VF_SCCC_BT_IDX_M,
-				       VF_RES_B_DATA_4_VF_SCCC_BT_IDX_S, 0);
-			roce_set_field(req_b->vf_sccc_idx_num,
-				       VF_RES_B_DATA_4_VF_SCCC_BT_NUM_M,
-				       VF_RES_B_DATA_4_VF_SCCC_BT_NUM_S,
-				       HNS_ROCE_VF_SCCC_BT_NUM);
-		}
 	}
+
+	roce_set_field(req_a->vf_qpc_bt_idx_num,
+		       VF_RES_A_DATA_1_VF_QPC_BT_IDX_M,
+		       VF_RES_A_DATA_1_VF_QPC_BT_IDX_S, 0);
+	roce_set_field(req_a->vf_qpc_bt_idx_num,
+		       VF_RES_A_DATA_1_VF_QPC_BT_NUM_M,
+		       VF_RES_A_DATA_1_VF_QPC_BT_NUM_S, HNS_ROCE_VF_QPC_BT_NUM);
+
+	roce_set_field(req_a->vf_srqc_bt_idx_num,
+		       VF_RES_A_DATA_2_VF_SRQC_BT_IDX_M,
+		       VF_RES_A_DATA_2_VF_SRQC_BT_IDX_S, 0);
+	roce_set_field(req_a->vf_srqc_bt_idx_num,
+		       VF_RES_A_DATA_2_VF_SRQC_BT_NUM_M,
+		       VF_RES_A_DATA_2_VF_SRQC_BT_NUM_S,
+		       HNS_ROCE_VF_SRQC_BT_NUM);
+
+	roce_set_field(req_a->vf_cqc_bt_idx_num,
+		       VF_RES_A_DATA_3_VF_CQC_BT_IDX_M,
+		       VF_RES_A_DATA_3_VF_CQC_BT_IDX_S, 0);
+	roce_set_field(req_a->vf_cqc_bt_idx_num,
+		       VF_RES_A_DATA_3_VF_CQC_BT_NUM_M,
+		       VF_RES_A_DATA_3_VF_CQC_BT_NUM_S, HNS_ROCE_VF_CQC_BT_NUM);
+
+	roce_set_field(req_a->vf_mpt_bt_idx_num,
+		       VF_RES_A_DATA_4_VF_MPT_BT_IDX_M,
+		       VF_RES_A_DATA_4_VF_MPT_BT_IDX_S, 0);
+	roce_set_field(req_a->vf_mpt_bt_idx_num,
+		       VF_RES_A_DATA_4_VF_MPT_BT_NUM_M,
+		       VF_RES_A_DATA_4_VF_MPT_BT_NUM_S, HNS_ROCE_VF_MPT_BT_NUM);
+
+	roce_set_field(req_a->vf_eqc_bt_idx_num, VF_RES_A_DATA_5_VF_EQC_IDX_M,
+		       VF_RES_A_DATA_5_VF_EQC_IDX_S, 0);
+	roce_set_field(req_a->vf_eqc_bt_idx_num, VF_RES_A_DATA_5_VF_EQC_NUM_M,
+		       VF_RES_A_DATA_5_VF_EQC_NUM_S, HNS_ROCE_VF_EQC_NUM);
+
+	roce_set_field(req_b->vf_smac_idx_num, VF_RES_B_DATA_1_VF_SMAC_IDX_M,
+		       VF_RES_B_DATA_1_VF_SMAC_IDX_S, 0);
+	roce_set_field(req_b->vf_smac_idx_num, VF_RES_B_DATA_1_VF_SMAC_NUM_M,
+		       VF_RES_B_DATA_1_VF_SMAC_NUM_S, HNS_ROCE_VF_SMAC_NUM);
+
+	roce_set_field(req_b->vf_sgid_idx_num, VF_RES_B_DATA_2_VF_SGID_IDX_M,
+		       VF_RES_B_DATA_2_VF_SGID_IDX_S, 0);
+	roce_set_field(req_b->vf_sgid_idx_num, VF_RES_B_DATA_2_VF_SGID_NUM_M,
+		       VF_RES_B_DATA_2_VF_SGID_NUM_S, HNS_ROCE_VF_SGID_NUM);
+
+	roce_set_field(req_b->vf_qid_idx_sl_num, VF_RES_B_DATA_3_VF_QID_IDX_M,
+		       VF_RES_B_DATA_3_VF_QID_IDX_S, 0);
+	roce_set_field(req_b->vf_qid_idx_sl_num, VF_RES_B_DATA_3_VF_SL_NUM_M,
+		       VF_RES_B_DATA_3_VF_SL_NUM_S, HNS_ROCE_VF_SL_NUM);
+
+	roce_set_field(req_b->vf_sccc_idx_num, VF_RES_B_DATA_4_VF_SCCC_BT_IDX_M,
+		       VF_RES_B_DATA_4_VF_SCCC_BT_IDX_S, 0);
+	roce_set_field(req_b->vf_sccc_idx_num, VF_RES_B_DATA_4_VF_SCCC_BT_NUM_M,
+		       VF_RES_B_DATA_4_VF_SCCC_BT_NUM_S,
+		       HNS_ROCE_VF_SCCC_BT_NUM);
 
 	return hns_roce_cmq_send(hr_dev, desc, 2);
 }
@@ -2001,13 +1982,6 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 		}
 	}
 
-	ret = hns_roce_alloc_vf_resource(hr_dev);
-	if (ret) {
-		dev_err(hr_dev->dev, "Allocate vf resource fail, ret = %d.\n",
-			ret);
-		return ret;
-	}
-
 	hr_dev->vendor_part_id = hr_dev->pci_dev->device;
 	hr_dev->sys_image_guid = be64_to_cpu(hr_dev->ib_dev.node_guid);
 
@@ -2027,6 +2001,13 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	ret = hns_roce_query_pf_caps(hr_dev);
 	if (ret)
 		set_default_caps(hr_dev);
+
+	ret = hns_roce_alloc_vf_resource(hr_dev);
+	if (ret) {
+		dev_err(hr_dev->dev, "Allocate vf resource fail, ret = %d.\n",
+			ret);
+		return ret;
+	}
 
 	ret = hns_roce_v2_set_bt(hr_dev);
 	if (ret)
