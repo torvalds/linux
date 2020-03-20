@@ -764,7 +764,7 @@ void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags)
  * Input Args:
  *   vm - Virtual Machine
  *   slot - Slot of the memory region to move
- *   flags - Starting guest physical address
+ *   new_gpa - Starting guest physical address
  *
  * Output Args: None
  *
@@ -784,7 +784,7 @@ void vm_mem_region_move(struct kvm_vm *vm, uint32_t slot, uint64_t new_gpa)
 	ret = ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
 
 	TEST_ASSERT(!ret, "KVM_SET_USER_MEMORY_REGION failed\n"
-		    "ret: %i errno: %i slot: %u flags: 0x%lx",
+		    "ret: %i errno: %i slot: %u new_gpa: 0x%lx",
 		    ret, errno, slot, new_gpa);
 }
 
