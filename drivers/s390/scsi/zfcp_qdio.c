@@ -277,29 +277,6 @@ int zfcp_qdio_send(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 	return 0;
 }
 
-
-static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
-				      struct zfcp_qdio *qdio)
-{
-	memset(id, 0, sizeof(*id));
-	id->cdev = qdio->adapter->ccw_device;
-	id->q_format = QDIO_ZFCP_QFMT;
-	memcpy(id->adapter_name, dev_name(&id->cdev->dev), 8);
-	ASCEBC(id->adapter_name, 8);
-	id->qib_rflags = QIB_RFLAGS_ENABLE_DATA_DIV;
-	if (enable_multibuffer)
-		id->qdr_ac |= QDR_AC_MULTI_BUFFER_ENABLE;
-	id->no_input_qs = 1;
-	id->no_output_qs = 1;
-	id->input_handler = zfcp_qdio_int_resp;
-	id->output_handler = zfcp_qdio_int_req;
-	id->int_parm = (unsigned long) qdio;
-	id->input_sbal_addr_array = qdio->res_q;
-	id->output_sbal_addr_array = qdio->req_q;
-	id->scan_threshold =
-		QDIO_MAX_BUFFERS_PER_Q - ZFCP_QDIO_MAX_SBALS_PER_REQ * 2;
-}
-
 /**
  * zfcp_qdio_allocate - allocate queue memory and initialize QDIO data
  * @qdio: pointer to struct zfcp_qdio
@@ -373,7 +350,7 @@ void zfcp_qdio_close(struct zfcp_qdio *qdio)
 int zfcp_qdio_open(struct zfcp_qdio *qdio)
 {
 	struct qdio_buffer_element *sbale;
-	struct qdio_initialize init_data;
+	struct qdio_initialize init_data = {0};
 	struct zfcp_adapter *adapter = qdio->adapter;
 	struct ccw_device *cdev = adapter->ccw_device;
 	struct qdio_ssqd_desc ssqd;
@@ -385,7 +362,22 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	atomic_andnot(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
 			  &qdio->adapter->status);
 
-	zfcp_qdio_setup_init_data(&init_data, qdio);
+	init_data.cdev = cdev;
+	init_data.q_format = QDIO_ZFCP_QFMT;
+	memcpy(init_data.adapter_name, dev_name(&cdev->dev), 8);
+	ASCEBC(init_data.adapter_name, 8);
+	init_data.qib_rflags = QIB_RFLAGS_ENABLE_DATA_DIV;
+	if (enable_multibuffer)
+		init_data.qdr_ac |= QDR_AC_MULTI_BUFFER_ENABLE;
+	init_data.no_input_qs = 1;
+	init_data.no_output_qs = 1;
+	init_data.input_handler = zfcp_qdio_int_resp;
+	init_data.output_handler = zfcp_qdio_int_req;
+	init_data.int_parm = (unsigned long) qdio;
+	init_data.input_sbal_addr_array = qdio->res_q;
+	init_data.output_sbal_addr_array = qdio->req_q;
+	init_data.scan_threshold =
+		QDIO_MAX_BUFFERS_PER_Q - ZFCP_QDIO_MAX_SBALS_PER_REQ * 2;
 
 	if (qdio_establish(&init_data))
 		goto failed_establish;
