@@ -116,6 +116,17 @@ config GKI_LEGACY_WEXT_ALLCONFIG
 	  If you are not building a kernel to be used for a variety of
 	  out-of-kernel built wireless modules, say N here.
 
+config GKI_HIDDEN_USB_CONFIGS
+	bool "Hiddel USB configurations needed for GKI"
+	select USB_PHY
+	help
+	  Dummy config option used to enable all USB related hidden configs.
+	  These configurations are usually only selected by another config
+	  option or a combination of them.
+
+	  If you are not building a kernel to be used for a variety of
+	  out-of-kernel build USB drivers, say N here.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -136,6 +147,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_LEGACY_WEXT_ALLCONFIG
 	select GKI_HIDDEN_MEDIA_CONFIGS
 	select GKI_HIDDEN_VIRTUAL_CONFIGS
+	select GKI_HIDDEN_USB_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
