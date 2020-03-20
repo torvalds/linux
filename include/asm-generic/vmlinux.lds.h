@@ -963,6 +963,7 @@
 #define INIT_CALLS_LEVEL(level)						\
 		__initcall##level##_start = .;				\
 		KEEP(*(.initcall##level##.init))			\
+		__initcall##level##s_start = .;				\
 		KEEP(*(.initcall##level##s.init))			\
 
 #define INIT_CALLS							\

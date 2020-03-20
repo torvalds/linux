@@ -1282,6 +1282,183 @@ static int __init ignore_unknown_bootoption(char *param, char *val,
 	return 0;
 }
 
+#ifdef CONFIG_INITCALL_ASYNC
+extern initcall_entry_t __initcall0s_start[];
+extern initcall_entry_t __initcall1s_start[];
+extern initcall_entry_t __initcall2s_start[];
+extern initcall_entry_t __initcall3s_start[];
+extern initcall_entry_t __initcall4s_start[];
+extern initcall_entry_t __initcall5s_start[];
+extern initcall_entry_t __initcall6s_start[];
+extern initcall_entry_t __initcall7s_start[];
+
+static initcall_entry_t *initcall_sync_levels[] __initdata = {
+	__initcall0s_start,
+	__initcall1s_start,
+	__initcall2s_start,
+	__initcall3s_start,
+	__initcall4s_start,
+	__initcall5s_start,
+	__initcall6s_start,
+	__initcall7s_start,
+	__initcall_end,
+};
+
+struct initcall_work {
+	struct kthread_work work;
+	initcall_t call;
+};
+
+struct initcall_worker {
+	struct kthread_worker *worker;
+	bool queued;
+};
+
+static struct initcall_worker *initcall_workers;
+static int initcall_nr_workers;
+
+static int __init setup_initcall_nr_threads(char *str)
+{
+	get_option(&str, &initcall_nr_workers);
+
+	return 1;
+}
+__setup("initcall_nr_threads=", setup_initcall_nr_threads);
+
+static void __init initcall_work_func(struct kthread_work *work)
+{
+	struct initcall_work *iwork =
+		container_of(work, struct initcall_work, work);
+
+	do_one_initcall(iwork->call);
+}
+
+static void __init initcall_queue_work(struct initcall_worker *iworker,
+				       struct initcall_work *iwork)
+{
+	kthread_queue_work(iworker->worker, &iwork->work);
+	iworker->queued = true;
+}
+
+static void __init initcall_flush_worker(int level, bool sync)
+{
+	int i;
+	struct initcall_worker *iworker;
+
+	for (i = 0; i < initcall_nr_workers; i++) {
+		iworker = &initcall_workers[i];
+		if (iworker->queued) {
+			kthread_flush_worker(iworker->worker);
+			iworker->queued = false;
+		}
+	}
+}
+
+static int __init do_initcall_level_threaded(int level)
+{
+	initcall_entry_t *fn;
+	size_t i = 0, w = 0;
+	size_t n = initcall_levels[level + 1] - initcall_levels[level];
+	struct initcall_work *iwork, *iworks;
+	ktime_t start = 0, end;
+
+	if (!n)
+		return 0;
+
+	iworks = kmalloc_array(n, sizeof(*iworks), GFP_KERNEL);
+	if (!iworks)
+		return -ENOMEM;
+
+	if (initcall_debug)
+		start = ktime_get();
+
+	for (fn = initcall_levels[level]; fn < initcall_sync_levels[level];
+	     fn++, i++) {
+		iwork = &iworks[i];
+		iwork->call = initcall_from_entry(fn);
+		kthread_init_work(&iwork->work, initcall_work_func);
+		initcall_queue_work(&initcall_workers[w], iwork);
+		if (++w >= initcall_nr_workers)
+			w = 0;
+	}
+	if (initcall_sync_levels[level] > initcall_levels[level]) {
+		initcall_flush_worker(level, false);
+
+		if (initcall_debug) {
+			end = ktime_get();
+			printk(KERN_DEBUG "initcall level %s %lld usecs\n",
+			       initcall_level_names[level],
+			       ktime_us_delta(end, start));
+			start = end;
+		}
+	}
+
+	for (fn = initcall_sync_levels[level]; fn < initcall_levels[level + 1];
+	     fn++, i++) {
+		iwork = &iworks[i];
+		iwork->call = initcall_from_entry(fn);
+		kthread_init_work(&iwork->work, initcall_work_func);
+		initcall_queue_work(&initcall_workers[w], iwork);
+		if (++w >= initcall_nr_workers)
+			w = 0;
+	}
+	if (initcall_levels[level + 1] > initcall_sync_levels[level]) {
+		initcall_flush_worker(level, true);
+
+		if (initcall_debug) {
+			end = ktime_get();
+			printk(KERN_DEBUG "initcall level %s_sync %lld usecs\n",
+			       initcall_level_names[level],
+			       ktime_us_delta(end, start));
+		}
+	}
+
+	kfree(iworks);
+
+	return 0;
+}
+
+static void __init initcall_init_workers(void)
+{
+	int i;
+
+	if (initcall_nr_workers < 0)
+		initcall_nr_workers = num_online_cpus() * 2;
+
+	if (!initcall_nr_workers)
+		return;
+
+	initcall_workers =
+		kcalloc(initcall_nr_workers, sizeof(*initcall_workers),
+			GFP_KERNEL);
+	if (!initcall_workers)
+		initcall_nr_workers = 0;
+
+	for (i = 0; i < initcall_nr_workers; i++) {
+		struct kthread_worker *worker;
+
+		worker = kthread_create_worker(0, "init/%d", i);
+		if (IS_ERR(worker)) {
+			i--;
+			initcall_nr_workers = (i >= 0 ? i : 0);
+			break;
+		}
+		initcall_workers[i].worker = worker;
+	}
+}
+
+static void __init initcall_free_works(void)
+{
+	int i;
+
+	for (i = 0; i < initcall_nr_workers; i++)
+		if (initcall_workers[i].worker)
+			kthread_destroy_worker(initcall_workers[i].worker);
+
+	kfree(initcall_workers);
+}
+#endif /* CONFIG_INITCALL_ASYNC */
+
 static void __init do_initcall_level(int level, char *command_line)
 {
 	initcall_entry_t *fn;
@@ -1293,6 +1470,13 @@ static void __init do_initcall_level(int level, char *command_line)
 		   NULL, ignore_unknown_bootoption);
 
 	trace_initcall_level(initcall_level_names[level]);
+
+#ifdef CONFIG_INITCALL_ASYNC
+	if (initcall_nr_workers)
+		if (do_initcall_level_threaded(level) == 0)
+			return;
+#endif
+
 	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
 		do_one_initcall(initcall_from_entry(fn));
 }
@@ -1302,6 +1486,10 @@ static void __init do_initcalls(void)
 	int level;
 	size_t len = strlen(saved_command_line) + 1;
 	char *command_line;
+
+#ifdef CONFIG_INITCALL_ASYNC
+	initcall_init_workers();
+#endif
 
 	command_line = kzalloc(len, GFP_KERNEL);
 	if (!command_line)
@@ -1314,6 +1502,10 @@ static void __init do_initcalls(void)
 	}
 
 	kfree(command_line);
+
+#ifdef CONFIG_INITCALL_ASYNC
+	initcall_free_works();
+#endif
 }
 
 /*

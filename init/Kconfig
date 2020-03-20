@@ -1303,6 +1303,15 @@ config INITRD_ASYNC
 
 endif
 
+config INITCALL_ASYNC
+	bool "Call initcall async"
+	depends on ROCKCHIP_THUNDER_BOOT
+	help
+	  Call same level initcall async in kthread.
+	  Kernel parameter "initcall_nr_threads" control how many threads.
+	  initcall_nr_threads default is 0, which disable intcall async.
+	  initcall_nr_threads=-1, auto selected the number of threads.
+
 config BOOT_CONFIG
 	bool "Boot config support"
 	select BLK_DEV_INITRD
