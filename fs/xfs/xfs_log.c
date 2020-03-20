@@ -62,11 +62,6 @@ xlog_state_switch_iclogs(
 	struct xlog_in_core	*iclog,
 	int			eventual_size);
 STATIC void
-xlog_state_want_sync(
-	struct xlog		*log,
-	struct xlog_in_core	*iclog);
-
-STATIC void
 xlog_grant_push_ail(
 	struct xlog		*log,
 	int			need_bytes);
@@ -938,7 +933,11 @@ out_err:
 	spin_lock(&log->l_icloglock);
 	iclog = log->l_iclog;
 	atomic_inc(&iclog->ic_refcnt);
-	xlog_state_want_sync(log, iclog);
+	if (iclog->ic_state == XLOG_STATE_ACTIVE)
+		xlog_state_switch_iclogs(log, iclog, 0);
+	else
+		ASSERT(iclog->ic_state == XLOG_STATE_WANT_SYNC ||
+		       iclog->ic_state == XLOG_STATE_IOERROR);
 	error = xlog_state_release_iclog(log, iclog);
 	xlog_wait_on_iclog(iclog);
 
@@ -2293,7 +2292,11 @@ xlog_write_copy_finish(
 		*record_cnt = 0;
 		*data_cnt = 0;
 
-		xlog_state_want_sync(log, iclog);
+		if (iclog->ic_state == XLOG_STATE_ACTIVE)
+			xlog_state_switch_iclogs(log, iclog, 0);
+		else
+			ASSERT(iclog->ic_state == XLOG_STATE_WANT_SYNC ||
+			       iclog->ic_state == XLOG_STATE_IOERROR);
 		if (!commit_iclog)
 			goto release_iclog;
 		spin_unlock(&log->l_icloglock);
@@ -3108,11 +3111,12 @@ xlog_ungrant_log_space(
 }
 
 /*
- * This routine will mark the current iclog in the ring as WANT_SYNC
- * and move the current iclog pointer to the next iclog in the ring.
- * When this routine is called from xlog_state_get_iclog_space(), the
- * exact size of the iclog has not yet been determined.  All we know is
- * that every data block.  We have run out of space in this log record.
+ * Mark the current iclog in the ring as WANT_SYNC and move the current iclog
+ * pointer to the next iclog in the ring.
+ *
+ * When called from xlog_state_get_iclog_space(), the exact size of the iclog
+ * has not yet been determined, all we know is that we have run out of space in
+ * the current iclog.
  */
 STATIC void
 xlog_state_switch_iclogs(
@@ -3121,6 +3125,8 @@ xlog_state_switch_iclogs(
 	int			eventual_size)
 {
 	ASSERT(iclog->ic_state == XLOG_STATE_ACTIVE);
+	assert_spin_locked(&log->l_icloglock);
+
 	if (!eventual_size)
 		eventual_size = iclog->ic_offset;
 	iclog->ic_state = XLOG_STATE_WANT_SYNC;
@@ -3361,26 +3367,6 @@ xfs_log_force_lsn(
 		ret = __xfs_log_force_lsn(mp, lsn, flags, log_flushed, true);
 	return ret;
 }
-
-/*
- * Called when we want to mark the current iclog as being ready to sync to
- * disk.
- */
-STATIC void
-xlog_state_want_sync(
-	struct xlog		*log,
-	struct xlog_in_core	*iclog)
-{
-	assert_spin_locked(&log->l_icloglock);
-
-	if (iclog->ic_state == XLOG_STATE_ACTIVE) {
-		xlog_state_switch_iclogs(log, iclog, 0);
-	} else {
-		ASSERT(iclog->ic_state == XLOG_STATE_WANT_SYNC ||
-		       iclog->ic_state == XLOG_STATE_IOERROR);
-	}
-}
-
 
 /*****************************************************************************
  *
