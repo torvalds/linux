@@ -357,6 +357,9 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 		ring = adev->rings[i];
 		vmhub = ring->funcs->vmhub;
 
+		if (ring == &adev->mes.ring)
+			continue;
+
 		inv_eng = ffs(vm_inv_engs[vmhub]);
 		if (!inv_eng) {
 			dev_err(adev->dev, "no VM inv eng for ring %s\n",
