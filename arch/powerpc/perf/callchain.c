@@ -102,6 +102,14 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 	}
 }
 
+static inline bool invalid_user_sp(unsigned long sp)
+{
+	unsigned long mask = is_32bit_task() ? 3 : 7;
+	unsigned long top = STACK_TOP - (is_32bit_task() ? 16 : 32);
+
+	return (!sp || (sp & mask) || (sp > top));
+}
+
 #ifdef CONFIG_PPC64
 /*
  * On 64-bit we don't want to invoke hash_page on user addresses from
@@ -159,13 +167,6 @@ static int read_user_stack_64(unsigned long __user *ptr, unsigned long *ret)
 		return 0;
 
 	return read_user_stack_slow(ptr, ret, 8);
-}
-
-static inline int valid_user_sp(unsigned long sp, int is_64)
-{
-	if (!sp || (sp & 7) || sp > (is_64 ? TASK_SIZE : 0x100000000UL) - 32)
-		return 0;
-	return 1;
 }
 
 /*
@@ -226,7 +227,7 @@ static void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,
 
 	while (entry->nr < entry->max_stack) {
 		fp = (unsigned long __user *) sp;
-		if (!valid_user_sp(sp, 1) || read_user_stack_64(fp, &next_sp))
+		if (invalid_user_sp(sp) || read_user_stack_64(fp, &next_sp))
 			return;
 		if (level > 0 && read_user_stack_64(&fp[2], &next_ip))
 			return;
@@ -273,13 +274,6 @@ static int read_user_stack_slow(void __user *ptr, void *buf, int nb)
 static inline void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,
 					  struct pt_regs *regs)
 {
-}
-
-static inline int valid_user_sp(unsigned long sp, int is_64)
-{
-	if (!sp || (sp & 7) || sp > TASK_SIZE - 32)
-		return 0;
-	return 1;
 }
 
 #define __SIGNAL_FRAMESIZE32	__SIGNAL_FRAMESIZE
@@ -423,7 +417,7 @@ static void perf_callchain_user_32(struct perf_callchain_entry_ctx *entry,
 
 	while (entry->nr < entry->max_stack) {
 		fp = (unsigned int __user *) (unsigned long) sp;
-		if (!valid_user_sp(sp, 0) || read_user_stack_32(fp, &next_sp))
+		if (invalid_user_sp(sp) || read_user_stack_32(fp, &next_sp))
 			return;
 		if (level > 0 && read_user_stack_32(&fp[1], &next_ip))
 			return;
