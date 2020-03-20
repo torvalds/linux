@@ -1019,7 +1019,7 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	if (cr3 == kvm_read_cr3(vcpu) && !pdptrs_changed(vcpu)) {
 		if (!skip_tlb_flush) {
 			kvm_mmu_sync_roots(vcpu);
-			kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+			kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
 		}
 		return 0;
 	}
@@ -8222,10 +8222,17 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_mmu_sync_roots(vcpu);
 		if (kvm_check_request(KVM_REQ_LOAD_MMU_PGD, vcpu))
 			kvm_mmu_load_pgd(vcpu);
-		if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
+		if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu)) {
 			kvm_vcpu_flush_tlb_all(vcpu);
+
+			/* Flushing all ASIDs flushes the current ASID... */
+			kvm_clear_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
+		}
+		if (kvm_check_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu))
+			kvm_vcpu_flush_tlb_current(vcpu);
 		if (kvm_check_request(KVM_REQ_HV_TLB_FLUSH, vcpu))
 			kvm_vcpu_flush_tlb_guest(vcpu);
+
 		if (kvm_check_request(KVM_REQ_REPORT_TPR_ACCESS, vcpu)) {
 			vcpu->run->exit_reason = KVM_EXIT_TPR_ACCESS;
 			r = 0;
