@@ -99,7 +99,6 @@ find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 
 	for_each_efi_handle(h, handles, size, i) {
 		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
-		bool conout_found = false;
 		void *dummy = NULL;
 
 		status = efi_bs_call(handle_protocol, h, proto, (void **)&gop);
@@ -111,25 +110,22 @@ find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 		if (info->pixel_format == PIXEL_BLT_ONLY)
 			continue;
 
+		/*
+		 * Systems that use the UEFI Console Splitter may
+		 * provide multiple GOP devices, not all of which are
+		 * backed by real hardware. The workaround is to search
+		 * for a GOP implementing the ConOut protocol, and if
+		 * one isn't found, to just fall back to the first GOP.
+		 *
+		 * Once we've found a GOP supporting ConOut,
+		 * don't bother looking any further.
+		 */
 		status = efi_bs_call(handle_protocol, h, &conout_proto, &dummy);
 		if (status == EFI_SUCCESS)
-			conout_found = true;
+			return gop;
 
-		if (!first_gop || conout_found) {
-			/*
-			 * Systems that use the UEFI Console Splitter may
-			 * provide multiple GOP devices, not all of which are
-			 * backed by real hardware. The workaround is to search
-			 * for a GOP implementing the ConOut protocol, and if
-			 * one isn't found, to just fall back to the first GOP.
-			 *
-			 * Once we've found a GOP supporting ConOut,
-			 * don't bother looking any further.
-			 */
+		if (!first_gop)
 			first_gop = gop;
-			if (conout_found)
-				break;
-		}
 	}
 
 	return first_gop;
