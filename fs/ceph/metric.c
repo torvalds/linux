@@ -2,6 +2,7 @@
 
 #include <linux/types.h>
 #include <linux/percpu_counter.h>
+#include <linux/math64.h>
 
 #include "metric.h"
 
@@ -29,6 +30,20 @@ int ceph_metric_init(struct ceph_client_metric *m)
 	if (ret)
 		goto err_i_caps_mis;
 
+	spin_lock_init(&m->read_latency_lock);
+	m->read_latency_sq_sum = 0;
+	m->read_latency_min = KTIME_MAX;
+	m->read_latency_max = 0;
+	m->total_reads = 0;
+	m->read_latency_sum = 0;
+
+	spin_lock_init(&m->write_latency_lock);
+	m->write_latency_sq_sum = 0;
+	m->write_latency_min = KTIME_MAX;
+	m->write_latency_max = 0;
+	m->total_writes = 0;
+	m->write_latency_sum = 0;
+
 	return 0;
 
 err_i_caps_mis:
@@ -50,4 +65,61 @@ void ceph_metric_destroy(struct ceph_client_metric *m)
 	percpu_counter_destroy(&m->i_caps_hit);
 	percpu_counter_destroy(&m->d_lease_mis);
 	percpu_counter_destroy(&m->d_lease_hit);
+}
+
+static inline void __update_latency(ktime_t *totalp, ktime_t *lsump,
+				    ktime_t *min, ktime_t *max,
+				    ktime_t *sq_sump, ktime_t lat)
+{
+	ktime_t total, avg, sq, lsum;
+
+	total = ++(*totalp);
+	lsum = (*lsump += lat);
+
+	if (unlikely(lat < *min))
+		*min = lat;
+	if (unlikely(lat > *max))
+		*max = lat;
+
+	if (unlikely(total == 1))
+		return;
+
+	/* the sq is (lat - old_avg) * (lat - new_avg) */
+	avg = DIV64_U64_ROUND_CLOSEST((lsum - lat), (total - 1));
+	sq = lat - avg;
+	avg = DIV64_U64_ROUND_CLOSEST(lsum, total);
+	sq = sq * (lat - avg);
+	*sq_sump += sq;
+}
+
+void ceph_update_read_latency(struct ceph_client_metric *m,
+			      ktime_t r_start, ktime_t r_end,
+			      int rc)
+{
+	ktime_t lat = ktime_sub(r_end, r_start);
+
+	if (unlikely(rc < 0 && rc != -ENOENT && rc != -ETIMEDOUT))
+		return;
+
+	spin_lock(&m->read_latency_lock);
+	__update_latency(&m->total_reads, &m->read_latency_sum,
+			 &m->read_latency_min, &m->read_latency_max,
+			 &m->read_latency_sq_sum, lat);
+	spin_unlock(&m->read_latency_lock);
+}
+
+void ceph_update_write_latency(struct ceph_client_metric *m,
+			       ktime_t r_start, ktime_t r_end,
+			       int rc)
+{
+	ktime_t lat = ktime_sub(r_end, r_start);
+
+	if (unlikely(rc && rc != -ETIMEDOUT))
+		return;
+
+	spin_lock(&m->write_latency_lock);
+	__update_latency(&m->total_writes, &m->write_latency_sum,
+			 &m->write_latency_min, &m->write_latency_max,
+			 &m->write_latency_sq_sum, lat);
+	spin_unlock(&m->write_latency_lock);
 }

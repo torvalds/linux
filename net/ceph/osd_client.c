@@ -2373,6 +2373,7 @@ static void account_request(struct ceph_osd_request *req)
 	atomic_inc(&req->r_osdc->num_requests);
 
 	req->r_start_stamp = jiffies;
+	req->r_start_latency = ktime_get();
 }
 
 static void submit_request(struct ceph_osd_request *req, bool wrlocked)
@@ -2388,6 +2389,8 @@ static void finish_request(struct ceph_osd_request *req)
 
 	WARN_ON(lookup_request_mc(&osdc->map_checks, req->r_tid));
 	dout("%s req %p tid %llu\n", __func__, req, req->r_tid);
+
+	req->r_end_latency = ktime_get();
 
 	if (req->r_osd)
 		unlink_request(req->r_osd, req);
