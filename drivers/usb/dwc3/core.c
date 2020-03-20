@@ -252,6 +252,8 @@ runtime:
 				     PHY_MODE_USB_DEVICE);
 			phy_set_mode(dwc->usb3_generic_phy,
 				     PHY_MODE_USB_DEVICE);
+			dwc->gadget.ops->udc_set_speed(&dwc->gadget,
+						       dwc->maximum_speed);
 			break;
 		case DWC3_GCTL_PRTCAP_OTG:
 			break;
