@@ -374,6 +374,10 @@
 		     &i2s0m0_sdo1_sdi3>;
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
 &pdm {
 	status = "okay";
 	#sound-dai-cells = <0>;
@@ -411,6 +415,14 @@
 				<0 RK_PB2 RK_FUNC_2 &pcfg_pull_none>;
 		};
 	};
+};
+
+&rkvenc {
+	status = "okay";
+};
+
+&rkvenc_mmu {
+	status = "okay";
 };
 
 &saradc {
