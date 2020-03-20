@@ -3665,7 +3665,7 @@ void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 							   &invalid_list);
 			mmu->root_hpa = INVALID_PAGE;
 		}
-		mmu->root_cr3 = 0;
+		mmu->root_pgd = 0;
 	}
 
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
@@ -3722,8 +3722,8 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 	} else
 		BUG();
 
-	/* root_cr3 is ignored for direct MMUs. */
-	vcpu->arch.mmu->root_cr3 = 0;
+	/* root_pgd is ignored for direct MMUs. */
+	vcpu->arch.mmu->root_pgd = 0;
 
 	return 0;
 }
@@ -3732,11 +3732,11 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu_page *sp;
 	u64 pdptr, pm_mask;
-	gfn_t root_gfn, root_cr3;
+	gfn_t root_gfn, root_pgd;
 	int i;
 
-	root_cr3 = vcpu->arch.mmu->get_guest_pgd(vcpu);
-	root_gfn = root_cr3 >> PAGE_SHIFT;
+	root_pgd = vcpu->arch.mmu->get_guest_pgd(vcpu);
+	root_gfn = root_pgd >> PAGE_SHIFT;
 
 	if (mmu_check_root(vcpu, root_gfn))
 		return 1;
@@ -3761,7 +3761,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		++sp->root_count;
 		spin_unlock(&vcpu->kvm->mmu_lock);
 		vcpu->arch.mmu->root_hpa = root;
-		goto set_root_cr3;
+		goto set_root_pgd;
 	}
 
 	/*
@@ -3827,8 +3827,8 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		vcpu->arch.mmu->root_hpa = __pa(vcpu->arch.mmu->lm_root);
 	}
 
-set_root_cr3:
-	vcpu->arch.mmu->root_cr3 = root_cr3;
+set_root_pgd:
+	vcpu->arch.mmu->root_pgd = root_pgd;
 
 	return 0;
 }
@@ -4244,49 +4244,49 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->nx = false;
 }
 
-static inline bool is_root_usable(struct kvm_mmu_root_info *root, gpa_t cr3,
+static inline bool is_root_usable(struct kvm_mmu_root_info *root, gpa_t pgd,
 				  union kvm_mmu_page_role role)
 {
-	return (role.direct || cr3 == root->cr3) &&
+	return (role.direct || pgd == root->pgd) &&
 	       VALID_PAGE(root->hpa) && page_header(root->hpa) &&
 	       role.word == page_header(root->hpa)->role.word;
 }
 
 /*
- * Find out if a previously cached root matching the new CR3/role is available.
+ * Find out if a previously cached root matching the new pgd/role is available.
  * The current root is also inserted into the cache.
  * If a matching root was found, it is assigned to kvm_mmu->root_hpa and true is
  * returned.
  * Otherwise, the LRU root from the cache is assigned to kvm_mmu->root_hpa and
  * false is returned. This root should now be freed by the caller.
  */
-static bool cached_root_available(struct kvm_vcpu *vcpu, gpa_t new_cr3,
+static bool cached_root_available(struct kvm_vcpu *vcpu, gpa_t new_pgd,
 				  union kvm_mmu_page_role new_role)
 {
 	uint i;
 	struct kvm_mmu_root_info root;
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
 
-	root.cr3 = mmu->root_cr3;
+	root.pgd = mmu->root_pgd;
 	root.hpa = mmu->root_hpa;
 
-	if (is_root_usable(&root, new_cr3, new_role))
+	if (is_root_usable(&root, new_pgd, new_role))
 		return true;
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
 		swap(root, mmu->prev_roots[i]);
 
-		if (is_root_usable(&root, new_cr3, new_role))
+		if (is_root_usable(&root, new_pgd, new_role))
 			break;
 	}
 
 	mmu->root_hpa = root.hpa;
-	mmu->root_cr3 = root.cr3;
+	mmu->root_pgd = root.pgd;
 
 	return i < KVM_MMU_NUM_PREV_ROOTS;
 }
 
-static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
+static bool fast_pgd_switch(struct kvm_vcpu *vcpu, gpa_t new_pgd,
 			    union kvm_mmu_page_role new_role)
 {
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
@@ -4298,17 +4298,17 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 	 */
 	if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
 	    mmu->root_level >= PT64_ROOT_4LEVEL)
-		return !mmu_check_root(vcpu, new_cr3 >> PAGE_SHIFT) &&
-		       cached_root_available(vcpu, new_cr3, new_role);
+		return !mmu_check_root(vcpu, new_pgd >> PAGE_SHIFT) &&
+		       cached_root_available(vcpu, new_pgd, new_role);
 
 	return false;
 }
 
-static void __kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3,
+static void __kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd,
 			      union kvm_mmu_page_role new_role,
 			      bool skip_tlb_flush, bool skip_mmu_sync)
 {
-	if (!fast_cr3_switch(vcpu, new_cr3, new_role)) {
+	if (!fast_pgd_switch(vcpu, new_pgd, new_role)) {
 		kvm_mmu_free_roots(vcpu, vcpu->arch.mmu, KVM_MMU_ROOT_CURRENT);
 		return;
 	}
@@ -4337,13 +4337,13 @@ static void __kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 	__clear_sp_write_flooding_count(page_header(vcpu->arch.mmu->root_hpa));
 }
 
-void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3, bool skip_tlb_flush,
+void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd, bool skip_tlb_flush,
 		     bool skip_mmu_sync)
 {
-	__kvm_mmu_new_cr3(vcpu, new_cr3, kvm_mmu_calc_root_page_role(vcpu),
+	__kvm_mmu_new_pgd(vcpu, new_pgd, kvm_mmu_calc_root_page_role(vcpu),
 			  skip_tlb_flush, skip_mmu_sync);
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_new_cr3);
+EXPORT_SYMBOL_GPL(kvm_mmu_new_pgd);
 
 static unsigned long get_cr3(struct kvm_vcpu *vcpu)
 {
@@ -5034,7 +5034,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty,
 						   execonly, level);
 
-	__kvm_mmu_new_cr3(vcpu, new_eptp, new_role.base, true, true);
+	__kvm_mmu_new_pgd(vcpu, new_eptp, new_role.base, true, true);
 
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;
@@ -5551,7 +5551,7 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
 		if (VALID_PAGE(mmu->prev_roots[i].hpa) &&
-		    pcid == kvm_get_pcid(vcpu, mmu->prev_roots[i].cr3)) {
+		    pcid == kvm_get_pcid(vcpu, mmu->prev_roots[i].pgd)) {
 			mmu->invlpg(vcpu, gva, mmu->prev_roots[i].hpa);
 			tlb_flush = true;
 		}
@@ -5705,13 +5705,13 @@ int kvm_mmu_create(struct kvm_vcpu *vcpu)
 	vcpu->arch.walk_mmu = &vcpu->arch.root_mmu;
 
 	vcpu->arch.root_mmu.root_hpa = INVALID_PAGE;
-	vcpu->arch.root_mmu.root_cr3 = 0;
+	vcpu->arch.root_mmu.root_pgd = 0;
 	vcpu->arch.root_mmu.translate_gpa = translate_gpa;
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
 		vcpu->arch.root_mmu.prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;
 
 	vcpu->arch.guest_mmu.root_hpa = INVALID_PAGE;
-	vcpu->arch.guest_mmu.root_cr3 = 0;
+	vcpu->arch.guest_mmu.root_pgd = 0;
 	vcpu->arch.guest_mmu.translate_gpa = translate_gpa;
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
 		vcpu->arch.guest_mmu.prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;

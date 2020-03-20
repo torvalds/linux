@@ -1148,7 +1148,7 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 	 * nested_vmx_transition_mmu_sync for details on skipping the MMU sync.
 	 */
 	if (!nested_ept)
-		kvm_mmu_new_cr3(vcpu, cr3, true,
+		kvm_mmu_new_pgd(vcpu, cr3, true,
 				!nested_vmx_transition_mmu_sync(vcpu));
 
 	vcpu->arch.cr3 = cr3;
@@ -5228,13 +5228,13 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
 
 		roots_to_free = 0;
-		if (nested_ept_root_matches(mmu->root_hpa, mmu->root_cr3,
+		if (nested_ept_root_matches(mmu->root_hpa, mmu->root_pgd,
 					    operand.eptp))
 			roots_to_free |= KVM_MMU_ROOT_CURRENT;
 
 		for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
 			if (nested_ept_root_matches(mmu->prev_roots[i].hpa,
-						    mmu->prev_roots[i].cr3,
+						    mmu->prev_roots[i].pgd,
 						    operand.eptp))
 				roots_to_free |= KVM_MMU_ROOT_PREVIOUS(i);
 		}
