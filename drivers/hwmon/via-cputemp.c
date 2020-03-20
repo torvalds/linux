@@ -270,10 +270,10 @@ static int via_cputemp_down_prep(unsigned int cpu)
 }
 
 static const struct x86_cpu_id __initconst cputemp_ids[] = {
-	{ X86_VENDOR_CENTAUR, 6, 0xa, }, /* C7 A */
-	{ X86_VENDOR_CENTAUR, 6, 0xd, }, /* C7 D */
-	{ X86_VENDOR_CENTAUR, 6, 0xf, }, /* Nano */
-	{ X86_VENDOR_CENTAUR, 7, X86_MODEL_ANY, },
+	X86_MATCH_VENDOR_FAM_MODEL(CENTAUR, 6, X86_CENTAUR_FAM6_C7_A,	NULL),
+	X86_MATCH_VENDOR_FAM_MODEL(CENTAUR, 6, X86_CENTAUR_FAM6_C7_D,	NULL),
+	X86_MATCH_VENDOR_FAM_MODEL(CENTAUR, 6, X86_CENTAUR_FAM6_NANO,	NULL),
+	X86_MATCH_VENDOR_FAM_MODEL(CENTAUR, 7, X86_MODEL_ANY,		NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, cputemp_ids);
