@@ -12,12 +12,21 @@
 static bool __vlan_tun_put(struct sk_buff *skb, const struct net_bridge_vlan *v)
 {
 	__be32 tid = tunnel_id_to_key32(v->tinfo.tunnel_id);
+	struct nlattr *nest;
 
 	if (!v->tinfo.tunnel_dst)
 		return true;
 
-	return !nla_put_u32(skb, BRIDGE_VLANDB_ENTRY_TUNNEL_ID,
-			    be32_to_cpu(tid));
+	nest = nla_nest_start(skb, BRIDGE_VLANDB_ENTRY_TUNNEL_INFO);
+	if (!nest)
+		return false;
+	if (nla_put_u32(skb, BRIDGE_VLANDB_TINFO_ID, be32_to_cpu(tid))) {
+		nla_nest_cancel(skb, nest);
+		return false;
+	}
+	nla_nest_end(skb, nest);
+
+	return true;
 }
 
 static bool __vlan_tun_can_enter_range(const struct net_bridge_vlan *v_curr,
@@ -45,7 +54,8 @@ bool br_vlan_opts_fill(struct sk_buff *skb, const struct net_bridge_vlan *v)
 size_t br_vlan_opts_nl_size(void)
 {
 	return nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_ENTRY_STATE */
-	       + nla_total_size(sizeof(u32)); /* BRIDGE_VLANDB_ENTRY_TUNNEL_ID */
+	       + nla_total_size(0) /* BRIDGE_VLANDB_ENTRY_TUNNEL_INFO */
+	       + nla_total_size(sizeof(u32)); /* BRIDGE_VLANDB_TINFO_ID */
 }
 
 static int br_vlan_modify_state(struct net_bridge_vlan_group *vg,
@@ -85,14 +95,19 @@ static int br_vlan_modify_state(struct net_bridge_vlan_group *vg,
 	return 0;
 }
 
+static const struct nla_policy br_vlandb_tinfo_pol[BRIDGE_VLANDB_TINFO_MAX + 1] = {
+	[BRIDGE_VLANDB_TINFO_ID]	= { .type = NLA_U32 },
+};
+
 static int br_vlan_modify_tunnel(const struct net_bridge_port *p,
 				 struct net_bridge_vlan *v,
 				 struct nlattr **tb,
 				 bool *changed,
 				 struct netlink_ext_ack *extack)
 {
+	struct nlattr *tun_tb[BRIDGE_VLANDB_TINFO_MAX + 1], *attr;
 	struct bridge_vlan_info *vinfo;
-	int cmdmap;
+	int cmdmap, err;
 	u32 tun_id;
 
 	if (!p) {
@@ -104,12 +119,22 @@ static int br_vlan_modify_tunnel(const struct net_bridge_port *p,
 		return -EINVAL;
 	}
 
+	attr = tb[BRIDGE_VLANDB_ENTRY_TUNNEL_INFO];
+	err = nla_parse_nested(tun_tb, BRIDGE_VLANDB_TINFO_MAX, attr,
+			       br_vlandb_tinfo_pol, extack);
+	if (err)
+		return err;
+
+	if (!tun_tb[BRIDGE_VLANDB_TINFO_ID]) {
+		NL_SET_ERR_MSG_MOD(extack, "Missing tunnel id attribute");
+		return -ENOENT;
+	}
 	/* vlan info attribute is guaranteed by br_vlan_rtm_process_one */
 	vinfo = nla_data(tb[BRIDGE_VLANDB_ENTRY_INFO]);
 	cmdmap = vinfo->flags & BRIDGE_VLAN_INFO_REMOVE_TUN ? RTM_DELLINK :
 							      RTM_SETLINK;
 	/* when working on vlan ranges this represents the starting tunnel id */
-	tun_id = nla_get_u32(tb[BRIDGE_VLANDB_ENTRY_TUNNEL_ID]);
+	tun_id = nla_get_u32(tun_tb[BRIDGE_VLANDB_TINFO_ID]);
 	/* tunnel ids are mapped to each vlan in increasing order,
 	 * the starting vlan is in BRIDGE_VLANDB_ENTRY_INFO and v is the
 	 * current vlan, so we compute: tun_id + v - vinfo->vid
@@ -137,7 +162,7 @@ static int br_vlan_process_one_opts(const struct net_bridge *br,
 		if (err)
 			return err;
 	}
-	if (tb[BRIDGE_VLANDB_ENTRY_TUNNEL_ID]) {
+	if (tb[BRIDGE_VLANDB_ENTRY_TUNNEL_INFO]) {
 		err = br_vlan_modify_tunnel(p, v, tb, changed, extack);
 		if (err)
 			return err;
