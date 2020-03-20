@@ -408,6 +408,7 @@ struct smu_context
 	uint32_t smc_if_version;
 
 	bool uploading_custom_pp_table;
+	bool dc_controlled_by_gpio;
 };
 
 struct i2c_adapter;
