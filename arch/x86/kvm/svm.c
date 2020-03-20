@@ -7158,6 +7158,9 @@ static int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 	if (!svm_sev_enabled())
 		return -ENOTTY;
 
+	if (!argp)
+		return 0;
+
 	if (copy_from_user(&sev_cmd, argp, sizeof(struct kvm_sev_cmd)))
 		return -EFAULT;
 
