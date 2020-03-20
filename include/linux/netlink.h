@@ -115,6 +115,8 @@ static inline void nl_set_extack_cookie_u64(struct netlink_ext_ack *extack,
 {
 	u64 __cookie = cookie;
 
+	if (!extack)
+		return;
 	memcpy(extack->cookie, &__cookie, sizeof(__cookie));
 	extack->cookie_len = sizeof(__cookie);
 }
@@ -124,6 +126,8 @@ static inline void nl_set_extack_cookie_u32(struct netlink_ext_ack *extack,
 {
 	u32 __cookie = cookie;
 
+	if (!extack)
+		return;
 	memcpy(extack->cookie, &__cookie, sizeof(__cookie));
 	extack->cookie_len = sizeof(__cookie);
 }
