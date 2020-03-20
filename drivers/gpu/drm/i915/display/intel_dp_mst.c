@@ -47,6 +47,7 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = &intel_mst->primary->dp;
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	void *port = connector->port;
@@ -73,7 +74,8 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 	}
 
 	if (slots < 0) {
-		DRM_DEBUG_KMS("failed finding vcpi slots:%d\n", slots);
+		drm_dbg_kms(&i915->drm, "failed finding vcpi slots:%d\n",
+			    slots);
 		return slots;
 	}
 
@@ -322,15 +324,17 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	int ret;
 
-	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
+	drm_dbg_kms(&i915->drm, "active links %d\n",
+		    intel_dp->active_mst_links);
 
 	drm_dp_mst_reset_vcpi_slots(&intel_dp->mst_mgr, connector->port);
 
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
 	if (ret) {
-		DRM_DEBUG_KMS("failed to update payload %d\n", ret);
+		drm_dbg_kms(&i915->drm, "failed to update payload %d\n", ret);
 	}
 	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(encoder,
@@ -371,7 +375,8 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 
 	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
 				  DP_TP_STATUS_ACT_SENT, 1))
-		DRM_ERROR("Timed out waiting for ACT sent when disabling\n");
+		drm_err(&dev_priv->drm,
+			"Timed out waiting for ACT sent when disabling\n");
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
 
 	drm_dp_mst_deallocate_vcpi(&intel_dp->mst_mgr, connector->port);
@@ -405,7 +410,8 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 		intel_dig_port->base.post_disable(&intel_dig_port->base,
 						  old_crtc_state, NULL);
 
-	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
+	drm_dbg_kms(&dev_priv->drm, "active links %d\n",
+		    intel_dp->active_mst_links);
 }
 
 static void intel_mst_pre_pll_enable_dp(struct intel_encoder *encoder,
@@ -445,7 +451,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 		    INTEL_GEN(dev_priv) >= 12 && first_mst_stream &&
 		    !intel_dp_mst_is_master_trans(pipe_config));
 
-	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
+	drm_dbg_kms(&dev_priv->drm, "active links %d\n",
+		    intel_dp->active_mst_links);
 
 	if (first_mst_stream)
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
@@ -461,7 +468,7 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 				       pipe_config->pbn,
 				       pipe_config->dp_m_n.tu);
 	if (!ret)
-		DRM_ERROR("failed to allocate vcpi\n");
+		drm_err(&dev_priv->drm, "failed to allocate vcpi\n");
 
 	intel_dp->active_mst_links++;
 	temp = intel_de_read(dev_priv, intel_dp->regs.dp_tp_status);
@@ -499,11 +506,12 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 
 	intel_crtc_vblank_on(pipe_config);
 
-	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
+	drm_dbg_kms(&dev_priv->drm, "active links %d\n",
+		    intel_dp->active_mst_links);
 
 	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
 				  DP_TP_STATUS_ACT_SENT, 1))
-		DRM_ERROR("Timed out waiting for ACT sent\n");
+		drm_err(&dev_priv->drm, "Timed out waiting for ACT sent\n");
 
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
 
