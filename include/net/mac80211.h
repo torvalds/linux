@@ -1987,6 +1987,7 @@ struct ieee80211_sta_txpwr {
  * @support_p2p_ps: indicates whether the STA supports P2P PS mechanism or not.
  * @max_rc_amsdu_len: Maximum A-MSDU size in bytes recommended by rate control.
  * @max_tid_amsdu_len: Maximum A-MSDU size in bytes for this TID
+ * @txpwr: the station tx power configuration
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction); note that
  *	the last entry (%IEEE80211_NUM_TIDS) is used for non-data frames
  */
@@ -3450,6 +3451,10 @@ enum ieee80211_reconfig_type {
  *	associated station, AP,  IBSS/WDS/mesh peer etc. For a VIF operating
  *	in AP mode, this callback will not be called when the flag
  *	%IEEE80211_HW_AP_LINK_PS is set. Must be atomic.
+ *
+ * @sta_set_txpwr: Configure the station tx power. This callback set the tx
+ *	power for the station.
+ *	This callback can sleep.
  *
  * @sta_state: Notifies low level driver about state transition of a
  *	station (which can be the AP, a client, IBSS/WDS/mesh peer etc.)

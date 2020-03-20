@@ -912,6 +912,7 @@ struct ieee80211_sub_if_data {
 	u16 sequence_number;
 	__be16 control_port_protocol;
 	bool control_port_no_encrypt;
+	bool control_port_no_preauth;
 	bool control_port_over_nl80211;
 	int encrypt_headroom;
 

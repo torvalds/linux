@@ -4670,6 +4670,7 @@ static int ieee80211_beacon_protect(struct sk_buff *skb,
 {
 	ieee80211_tx_result res;
 	struct ieee80211_tx_data tx;
+	struct sk_buff *check_skb;
 
 	memset(&tx, 0, sizeof(tx));
 	tx.key = rcu_dereference(sdata->default_beacon_key);
@@ -4680,8 +4681,11 @@ static int ieee80211_beacon_protect(struct sk_buff *skb,
 	__skb_queue_head_init(&tx.skbs);
 	__skb_queue_tail(&tx.skbs, skb);
 	res = ieee80211_tx_h_encrypt(&tx);
+	check_skb = __skb_dequeue(&tx.skbs);
+	/* we may crash after this, but it'd be a bug in crypto */
+	WARN_ON(check_skb != skb);
 	if (WARN_ON_ONCE(res != TX_CONTINUE))
-		return -1;
+		return -EINVAL;
 
 	return 0;
 }

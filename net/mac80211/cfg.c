@@ -5,8 +5,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -1012,8 +1011,15 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	prev_beacon_int = sdata->vif.bss_conf.beacon_int;
 	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
 
-	if (params->he_cap)
+	if (params->he_cap && params->he_oper) {
 		sdata->vif.bss_conf.he_support = true;
+		sdata->vif.bss_conf.htc_trig_based_pkt_ext =
+			le32_get_bits(params->he_oper->he_oper_params,
+			      IEEE80211_HE_OPERATION_DFLT_PE_DURATION_MASK);
+		sdata->vif.bss_conf.frame_time_rts_th =
+			le32_get_bits(params->he_oper->he_oper_params,
+			      IEEE80211_HE_OPERATION_RTS_THRESHOLD_MASK);
+	}
 
 	mutex_lock(&local->mtx);
 	err = ieee80211_vif_use_channel(sdata, &params->chandef,
@@ -1034,6 +1040,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->control_port_no_encrypt = params->crypto.control_port_no_encrypt;
 	sdata->control_port_over_nl80211 =
 				params->crypto.control_port_over_nl80211;
+	sdata->control_port_no_preauth =
+				params->crypto.control_port_no_preauth;
 	sdata->encrypt_headroom = ieee80211_cs_headroom(sdata->local,
 							&params->crypto,
 							sdata->vif.type);
@@ -1045,6 +1053,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			params->crypto.control_port_no_encrypt;
 		vlan->control_port_over_nl80211 =
 			params->crypto.control_port_over_nl80211;
+		vlan->control_port_no_preauth =
+			params->crypto.control_port_no_preauth;
 		vlan->encrypt_headroom =
 			ieee80211_cs_headroom(sdata->local,
 					      &params->crypto,

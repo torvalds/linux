@@ -5,7 +5,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  */
 
 #include <linux/if.h>
@@ -276,6 +276,8 @@ nl80211_pmsr_ftm_req_attr_policy[NL80211_PMSR_FTM_REQ_ATTR_MAX + 1] = {
 	[NL80211_PMSR_FTM_REQ_ATTR_NUM_FTMR_RETRIES] = { .type = NLA_U8 },
 	[NL80211_PMSR_FTM_REQ_ATTR_REQUEST_LCI] = { .type = NLA_FLAG },
 	[NL80211_PMSR_FTM_REQ_ATTR_REQUEST_CIVICLOC] = { .type = NLA_FLAG },
+	[NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED] = { .type = NLA_FLAG },
+	[NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED] = { .type = NLA_FLAG },
 };
 
 static const struct nla_policy
@@ -658,6 +660,9 @@ const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_HE_BSS_COLOR] = NLA_POLICY_NESTED(he_bss_color_policy),
 	[NL80211_ATTR_TID_CONFIG] =
 		NLA_POLICY_NESTED_ARRAY(nl80211_tid_config_attr_policy),
+	[NL80211_ATTR_CONTROL_PORT_NO_PREAUTH] = { .type = NLA_FLAG },
+	[NL80211_ATTR_PMK_LIFETIME] = NLA_POLICY_MIN(NLA_U32, 1),
+	[NL80211_ATTR_PMK_REAUTH_THRESHOLD] = NLA_POLICY_RANGE(NLA_U8, 1, 100),
 };
 
 /* policy for the key attributes */
@@ -1883,6 +1888,12 @@ nl80211_send_pmsr_ftm_capa(const struct cfg80211_pmsr_capabilities *cap,
 	if (cap->ftm.max_ftms_per_burst &&
 	    nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_MAX_FTMS_PER_BURST,
 			cap->ftm.max_ftms_per_burst))
+		return -ENOBUFS;
+	if (cap->ftm.trigger_based &&
+	    nla_put_flag(msg, NL80211_PMSR_FTM_CAPA_ATTR_TRIGGER_BASED))
+		return -ENOBUFS;
+	if (cap->ftm.non_trigger_based &&
+	    nla_put_flag(msg, NL80211_PMSR_FTM_CAPA_ATTR_NON_TRIGGER_BASED))
 		return -ENOBUFS;
 
 	nla_nest_end(msg, ftm);
@@ -4748,6 +4759,9 @@ static void nl80211_calculate_ap_params(struct cfg80211_ap_settings *params)
 	cap = cfg80211_find_ext_ie(WLAN_EID_EXT_HE_CAPABILITY, ies, ies_len);
 	if (cap && cap[1] >= sizeof(*params->he_cap) + 1)
 		params->he_cap = (void *)(cap + 3);
+	cap = cfg80211_find_ext_ie(WLAN_EID_EXT_HE_OPERATION, ies, ies_len);
+	if (cap && cap[1] >= sizeof(*params->he_oper) + 1)
+		params->he_oper = (void *)(cap + 3);
 }
 
 static bool nl80211_get_ap_channel(struct cfg80211_registered_device *rdev,
@@ -6271,11 +6285,22 @@ static int nl80211_del_station(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_MAC])
 		params.mac = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
+	switch (dev->ieee80211_ptr->iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_P2P_GO:
+		/* always accept these */
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		/* conditionally accept */
+		if (wiphy_ext_feature_isset(&rdev->wiphy,
+					    NL80211_EXT_FEATURE_DEL_IBSS_STA))
+			break;
 		return -EINVAL;
+	default:
+		return -EINVAL;
+	}
 
 	if (!rdev->ops->del_station)
 		return -EOPNOTSUPP;
@@ -9306,6 +9331,9 @@ static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
 			return r;
 
 		settings->control_port_over_nl80211 = true;
+
+		if (info->attrs[NL80211_ATTR_CONTROL_PORT_NO_PREAUTH])
+			settings->control_port_no_preauth = true;
 	}
 
 	if (info->attrs[NL80211_ATTR_CIPHER_SUITES_PAIRWISE]) {
@@ -10493,6 +10521,15 @@ static int nl80211_setdel_pmksa(struct sk_buff *skb, struct genl_info *info)
 		pmksa.pmk = nla_data(info->attrs[NL80211_ATTR_PMK]);
 		pmksa.pmk_len = nla_len(info->attrs[NL80211_ATTR_PMK]);
 	}
+
+	if (info->attrs[NL80211_ATTR_PMK_LIFETIME])
+		pmksa.pmk_lifetime =
+			nla_get_u32(info->attrs[NL80211_ATTR_PMK_LIFETIME]);
+
+	if (info->attrs[NL80211_ATTR_PMK_REAUTH_THRESHOLD])
+		pmksa.pmk_reauth_threshold =
+			nla_get_u8(
+				info->attrs[NL80211_ATTR_PMK_REAUTH_THRESHOLD]);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT &&

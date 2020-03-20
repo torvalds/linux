@@ -11,7 +11,7 @@
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1632,7 +1632,8 @@ enum nl80211_commands {
  *	flag is included, then control port frames are sent over NL80211 instead
  *	using %CMD_CONTROL_PORT_FRAME.  If control port routing over NL80211 is
  *	to be used then userspace must also use the %NL80211_ATTR_SOCKET_OWNER
- *	flag.
+ *	flag. When used with %NL80211_ATTR_CONTROL_PORT_NO_PREAUTH, pre-auth
+ *	frames are not forwared over the control port.
  *
  * @NL80211_ATTR_TESTDATA: Testmode data blob, passed through to the driver.
  *	We recommend using nested, driver-specific attributes within this.
@@ -2442,6 +2443,33 @@ enum nl80211_commands {
  *	on output (in wiphy attributes) it contains only the feature sub-
  *	attributes.
  *
+ * @NL80211_ATTR_CONTROL_PORT_NO_PREAUTH: disable preauth frame rx on control
+ *	port in order to forward/receive them as ordinary data frames.
+ *
+ * @NL80211_ATTR_PMK_LIFETIME: Maximum lifetime for PMKSA in seconds (u32,
+ *	dot11RSNAConfigPMKReauthThreshold; 0 is not a valid value).
+ *	An optional parameter configured through %NL80211_CMD_SET_PMKSA.
+ *	Drivers that trigger roaming need to know the lifetime of the
+ *	configured PMKSA for triggering the full vs. PMKSA caching based
+ *	authentication. This timeout helps authentication methods like SAE,
+ *	where PMK gets updated only by going through a full (new SAE)
+ *	authentication instead of getting updated during an association for EAP
+ *	authentication. No new full authentication within the PMK expiry shall
+ *	result in a disassociation at the end of the lifetime.
+ *
+ * @NL80211_ATTR_PMK_REAUTH_THRESHOLD: Reauthentication threshold time, in
+ *	terms of percentage of %NL80211_ATTR_PMK_LIFETIME
+ *	(u8, dot11RSNAConfigPMKReauthThreshold, 1..100). This is an optional
+ *	parameter configured through %NL80211_CMD_SET_PMKSA. Requests the
+ *	driver to trigger a full authentication roam (without PMKSA caching)
+ *	after the reauthentication threshold time, but before the PMK lifetime
+ *	has expired.
+ *
+ *	Authentication methods like SAE need to be able to generate a new PMKSA
+ *	entry without having to force a disconnection after the PMK timeout. If
+ *	no roaming occurs between the reauth threshold and PMK expiration,
+ *	disassociation is still forced.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2911,6 +2939,11 @@ enum nl80211_attrs {
 	NL80211_ATTR_IFTYPE_AKM_SUITES,
 
 	NL80211_ATTR_TID_CONFIG,
+
+	NL80211_ATTR_CONTROL_PORT_NO_PREAUTH,
+
+	NL80211_ATTR_PMK_LIFETIME,
+	NL80211_ATTR_PMK_REAUTH_THRESHOLD,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -5642,6 +5675,15 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_BEACON_PROTECTION: The driver supports Beacon protection
  *	and can receive key configuration for BIGTK using key indexes 6 and 7.
  *
+ * @NL80211_EXT_FEATURE_CONTROL_PORT_NO_PREAUTH: The driver can disable the
+ *	forwarding of preauth frames over the control port. They are then
+ *	handled as ordinary data frames.
+ *
+ * @NL80211_EXT_FEATURE_PROTECTED_TWT: Driver supports protected TWT frames
+ *
+ * @NL80211_EXT_FEATURE_DEL_IBSS_STA: The driver supports removing stations
+ *      in IBSS mode, essentially by dropping their state.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5690,6 +5732,9 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_VLAN_OFFLOAD,
 	NL80211_EXT_FEATURE_AQL,
 	NL80211_EXT_FEATURE_BEACON_PROTECTION,
+	NL80211_EXT_FEATURE_CONTROL_PORT_NO_PREAUTH,
+	NL80211_EXT_FEATURE_PROTECTED_TWT,
+	NL80211_EXT_FEATURE_DEL_IBSS_STA,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
@@ -6312,12 +6357,14 @@ enum nl80211_ftm_responder_stats {
  * @NL80211_PREAMBLE_HT: HT preamble
  * @NL80211_PREAMBLE_VHT: VHT preamble
  * @NL80211_PREAMBLE_DMG: DMG preamble
+ * @NL80211_PREAMBLE_HE: HE preamble
  */
 enum nl80211_preamble {
 	NL80211_PREAMBLE_LEGACY,
 	NL80211_PREAMBLE_HT,
 	NL80211_PREAMBLE_VHT,
 	NL80211_PREAMBLE_DMG,
+	NL80211_PREAMBLE_HE,
 };
 
 /**
@@ -6510,6 +6557,10 @@ enum nl80211_peer_measurement_attrs {
  *	is valid)
  * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_FTMS_PER_BURST: u32 attribute indicating
  *	the maximum FTMs per burst (if not present anything is valid)
+ * @NL80211_PMSR_FTM_CAPA_ATTR_TRIGGER_BASED: flag attribute indicating if
+ *	trigger based ranging measurement is supported
+ * @NL80211_PMSR_FTM_CAPA_ATTR_NON_TRIGGER_BASED: flag attribute indicating
+ *	if non trigger based ranging measurement is supported
  *
  * @NUM_NL80211_PMSR_FTM_CAPA_ATTR: internal
  * @NL80211_PMSR_FTM_CAPA_ATTR_MAX: highest attribute number
@@ -6525,6 +6576,8 @@ enum nl80211_peer_measurement_ftm_capa {
 	NL80211_PMSR_FTM_CAPA_ATTR_BANDWIDTHS,
 	NL80211_PMSR_FTM_CAPA_ATTR_MAX_BURSTS_EXPONENT,
 	NL80211_PMSR_FTM_CAPA_ATTR_MAX_FTMS_PER_BURST,
+	NL80211_PMSR_FTM_CAPA_ATTR_TRIGGER_BASED,
+	NL80211_PMSR_FTM_CAPA_ATTR_NON_TRIGGER_BASED,
 
 	/* keep last */
 	NUM_NL80211_PMSR_FTM_CAPA_ATTR,
@@ -6554,6 +6607,20 @@ enum nl80211_peer_measurement_ftm_capa {
  * @NL80211_PMSR_FTM_REQ_ATTR_REQUEST_LCI: request LCI data (flag)
  * @NL80211_PMSR_FTM_REQ_ATTR_REQUEST_CIVICLOC: request civic location data
  *	(flag)
+ * @NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED: request trigger based ranging
+ *	measurement (flag).
+ *	This attribute and %NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED are
+ *	mutually exclusive.
+ *      if neither %NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED nor
+ *	%NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED is set, EDCA based
+ *	ranging will be used.
+ * @NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED: request non trigger based
+ *	ranging measurement (flag)
+ *	This attribute and %NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED are
+ *	mutually exclusive.
+ *      if neither %NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED nor
+ *	%NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED is set, EDCA based
+ *	ranging will be used.
  *
  * @NUM_NL80211_PMSR_FTM_REQ_ATTR: internal
  * @NL80211_PMSR_FTM_REQ_ATTR_MAX: highest attribute number
@@ -6570,6 +6637,8 @@ enum nl80211_peer_measurement_ftm_req {
 	NL80211_PMSR_FTM_REQ_ATTR_NUM_FTMR_RETRIES,
 	NL80211_PMSR_FTM_REQ_ATTR_REQUEST_LCI,
 	NL80211_PMSR_FTM_REQ_ATTR_REQUEST_CIVICLOC,
+	NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED,
+	NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED,
 
 	/* keep last */
 	NUM_NL80211_PMSR_FTM_REQ_ATTR,

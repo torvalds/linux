@@ -519,6 +519,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 			master->control_port_no_encrypt;
 		sdata->control_port_over_nl80211 =
 			master->control_port_over_nl80211;
+		sdata->control_port_no_preauth =
+			master->control_port_no_preauth;
 		sdata->vif.cab_queue = master->vif.cab_queue;
 		memcpy(sdata->vif.hw_queue, master->vif.hw_queue,
 		       sizeof(sdata->vif.hw_queue));
@@ -1463,6 +1465,8 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 
 	sdata->control_port_protocol = cpu_to_be16(ETH_P_PAE);
 	sdata->control_port_no_encrypt = false;
+	sdata->control_port_over_nl80211 = false;
+	sdata->control_port_no_preauth = false;
 	sdata->encrypt_headroom = IEEE80211_ENCRYPT_HEADROOM;
 	sdata->vif.bss_conf.idle = true;
 	sdata->vif.bss_conf.txpower = INT_MIN; /* unset */

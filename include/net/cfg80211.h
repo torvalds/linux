@@ -7,7 +7,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014 Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  */
 
 #include <linux/netdevice.h>
@@ -924,6 +924,7 @@ struct cfg80211_crypto_settings {
 	__be16 control_port_ethertype;
 	bool control_port_no_encrypt;
 	bool control_port_over_nl80211;
+	bool control_port_no_preauth;
 	struct key_params *wep_keys;
 	int wep_tx_key;
 	const u8 *psk;
@@ -1054,6 +1055,7 @@ enum cfg80211_ap_settings_flags {
  * @flags: flags, as defined in enum cfg80211_ap_settings_flags
  * @he_obss_pd: OBSS Packet Detection settings
  * @he_bss_color: BSS Color settings
+ * @he_oper: HE operation IE (or %NULL if HE isn't enabled)
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_chan_def chandef;
@@ -1078,6 +1080,7 @@ struct cfg80211_ap_settings {
 	const struct ieee80211_ht_cap *ht_cap;
 	const struct ieee80211_vht_cap *vht_cap;
 	const struct ieee80211_he_cap_elem *he_cap;
+	const struct ieee80211_he_operation *he_oper;
 	bool ht_required, vht_required;
 	bool twt_responder;
 	u32 flags;
@@ -2696,6 +2699,17 @@ enum wiphy_params_flags {
  * @cache_id: 2-octet cache identifier advertized by a FILS AP identifying the
  *	scope of PMKSA. This is valid only if @ssid_len is non-zero (may be
  *	%NULL).
+ * @pmk_lifetime: Maximum lifetime for PMKSA in seconds
+ *	(dot11RSNAConfigPMKLifetime) or 0 if not specified.
+ *	The configured PMKSA must not be used for PMKSA caching after
+ *	expiration and any keys derived from this PMK become invalid on
+ *	expiration, i.e., the current association must be dropped if the PMK
+ *	used for it expires.
+ * @pmk_reauth_threshold: Threshold time for reauthentication (percentage of
+ *	PMK lifetime, dot11RSNAConfigPMKReauthThreshold) or 0 if not specified.
+ *	Drivers are expected to trigger a full authentication instead of using
+ *	this PMKSA for caching when reassociating to a new BSS after this
+ *	threshold to generate a new PMK before the current one expires.
  */
 struct cfg80211_pmksa {
 	const u8 *bssid;
@@ -2705,6 +2719,8 @@ struct cfg80211_pmksa {
 	const u8 *ssid;
 	size_t ssid_len;
 	const u8 *cache_id;
+	u32 pmk_lifetime;
+	u8 pmk_reauth_threshold;
 };
 
 /**
@@ -3269,6 +3285,12 @@ struct cfg80211_pmsr_result {
  * @ftmr_retries: number of retries for FTM request
  * @request_lci: request LCI information
  * @request_civicloc: request civic location information
+ * @trigger_based: use trigger based ranging for the measurement
+ *		 If neither @trigger_based nor @non_trigger_based is set,
+ *		 EDCA based ranging will be used.
+ * @non_trigger_based: use non trigger based ranging for the measurement
+ *		 If neither @trigger_based nor @non_trigger_based is set,
+ *		 EDCA based ranging will be used.
  *
  * See also nl80211 for the respective attribute documentation.
  */
@@ -3278,7 +3300,9 @@ struct cfg80211_pmsr_ftm_request_peer {
 	u8 requested:1,
 	   asap:1,
 	   request_lci:1,
-	   request_civicloc:1;
+	   request_civicloc:1,
+	   trigger_based:1,
+	   non_trigger_based:1;
 	u8 num_bursts_exp;
 	u8 burst_duration;
 	u8 ftms_per_burst;
@@ -3404,7 +3428,7 @@ struct cfg80211_update_owe_info {
  * @set_default_key: set the default key on an interface
  *
  * @set_default_mgmt_key: set the default management frame key on an interface
-
+ *
  * @set_default_beacon_key: set the default Beacon frame key on an interface
  *
  * @set_rekey_data: give the data necessary for GTK rekeying to the driver
@@ -4434,6 +4458,8 @@ struct wiphy_iftype_ext_capab {
  *	forbid using the value 15 to let the responder pick)
  * @ftm.max_ftms_per_burst: maximum FTMs per burst supported (set to 0 if
  *	not limited)
+ * @ftm.trigger_based: trigger based ranging measurement is supported
+ * @ftm.non_trigger_based: non trigger based ranging measurement is supported
  */
 struct cfg80211_pmsr_capabilities {
 	unsigned int max_peers;
@@ -4449,7 +4475,9 @@ struct cfg80211_pmsr_capabilities {
 		   asap:1,
 		   non_asap:1,
 		   request_lci:1,
-		   request_civicloc:1;
+		   request_civicloc:1,
+		   trigger_based:1,
+		   non_trigger_based:1;
 	} ftm;
 };
 
