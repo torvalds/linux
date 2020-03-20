@@ -124,17 +124,4 @@
 /* Family 5 */
 #define INTEL_FAM5_QUARK_X1000		0x09 /* Quark X1000 SoC */
 
-/* Useful macros */
-#define INTEL_CPU_FAM_ANY(_family, _model, _driver_data)	\
-{								\
-	.vendor		= X86_VENDOR_INTEL,			\
-	.family		= _family,				\
-	.model		= _model,				\
-	.feature	= X86_FEATURE_ANY,			\
-	.driver_data	= (kernel_ulong_t)&_driver_data		\
-}
-
-#define INTEL_CPU_FAM6(_model, _driver_data)			\
-	INTEL_CPU_FAM_ANY(6, INTEL_FAM6_##_model, _driver_data)
-
 #endif /* _ASM_X86_INTEL_FAMILY_H */

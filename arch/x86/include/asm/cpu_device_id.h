@@ -91,9 +91,6 @@
 #define X86_MATCH_FEATURE(feature, data)				\
 	X86_MATCH_VENDOR_FEATURE(ANY, feature, data)
 
-/* Transitional to keep the existing code working */
-#define X86_FEATURE_MATCH(feature)	X86_MATCH_FEATURE(feature, NULL)
-
 /**
  * X86_MATCH_VENDOR_FAM_MODEL - Match vendor, family and model
  * @vendor:	The vendor name, e.g. INTEL, AMD, HYGON, ..., ANY
