@@ -517,13 +517,26 @@ int nfs_filemap_write_and_wait_range(struct address_space *mapping,
 		loff_t lstart, loff_t lend);
 
 #ifdef CONFIG_NFS_V4_1
+static inline void
+pnfs_bucket_clear_pnfs_ds_commit_verifiers(struct pnfs_commit_bucket *buckets,
+		unsigned int nbuckets)
+{
+	unsigned int i;
+
+	for (i = 0; i < nbuckets; i++)
+		buckets[i].direct_verf.committed = NFS_INVALID_STABLE_HOW;
+}
 static inline
 void nfs_clear_pnfs_ds_commit_verifiers(struct pnfs_ds_commit_info *cinfo)
 {
-	int i;
+	struct pnfs_commit_array *array;
 
-	for (i = 0; i < cinfo->nbuckets; i++)
-		cinfo->buckets[i].direct_verf.committed = NFS_INVALID_STABLE_HOW;
+	pnfs_bucket_clear_pnfs_ds_commit_verifiers(cinfo->buckets,
+			cinfo->nbuckets);
+
+	list_for_each_entry(array, &cinfo->commits, cinfo_list)
+		pnfs_bucket_clear_pnfs_ds_commit_verifiers(array->buckets,
+				array->nbuckets);
 }
 #else
 static inline
