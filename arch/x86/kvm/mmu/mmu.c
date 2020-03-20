@@ -5034,7 +5034,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty,
 						   execonly, level);
 
-	__kvm_mmu_new_cr3(vcpu, new_eptp, new_role.base, false, false);
+	__kvm_mmu_new_cr3(vcpu, new_eptp, new_role.base, false, true);
 
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;
