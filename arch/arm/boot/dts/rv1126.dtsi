@@ -1285,7 +1285,7 @@
 			      "mac_clk_tx", "clk_mac_refout",
 			      "aclk_mac", "pclk_mac",
 			      "clk_mac_speed", "ptp_ref";
-		resets = <&cru SRST_PDGMAC_NIU_A>;
+		resets = <&cru SRST_GMAC_A>;
 		reset-names = "stmmaceth";
 
 		snps,mixed-burst;
