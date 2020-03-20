@@ -27,6 +27,8 @@ static struct {
 		u32 mode;
 		struct {
 			u32 width, height;
+			int format;
+			u8 depth;
 		} res;
 	};
 } cmdline __efistub_global = { .option = EFI_CMDLINE_NONE };
@@ -50,7 +52,8 @@ static bool parse_modenum(char *option, char **next)
 
 static bool parse_res(char *option, char **next)
 {
-	u32 w, h;
+	u32 w, h, d = 0;
+	int pf = -1;
 
 	if (!isdigit(*option))
 		return false;
@@ -58,11 +61,26 @@ static bool parse_res(char *option, char **next)
 	if (*option++ != 'x' || !isdigit(*option))
 		return false;
 	h = simple_strtoull(option, &option, 10);
+	if (*option == '-') {
+		option++;
+		if (strstarts(option, "rgb")) {
+			option += strlen("rgb");
+			pf = PIXEL_RGB_RESERVED_8BIT_PER_COLOR;
+		} else if (strstarts(option, "bgr")) {
+			option += strlen("bgr");
+			pf = PIXEL_BGR_RESERVED_8BIT_PER_COLOR;
+		} else if (isdigit(*option))
+			d = simple_strtoull(option, &option, 10);
+		else
+			return false;
+	}
 	if (*option && *option++ != ',')
 		return false;
 	cmdline.option     = EFI_CMDLINE_RES;
 	cmdline.res.width  = w;
 	cmdline.res.height = h;
+	cmdline.res.format = pf;
+	cmdline.res.depth  = d;
 
 	*next = option;
 	return true;
@@ -123,6 +141,18 @@ static u32 choose_mode_modenum(efi_graphics_output_protocol_t *gop)
 	return cmdline.mode;
 }
 
+static u8 pixel_bpp(int pixel_format, efi_pixel_bitmask_t pixel_info)
+{
+	if (pixel_format == PIXEL_BIT_MASK) {
+		u32 mask = pixel_info.red_mask | pixel_info.green_mask |
+			   pixel_info.blue_mask | pixel_info.reserved_mask;
+		if (!mask)
+			return 0;
+		return __fls(mask) - __ffs(mask) + 1;
+	} else
+		return 32;
+}
+
 static u32 choose_mode_res(efi_graphics_output_protocol_t *gop)
 {
 	efi_status_t status;
@@ -133,16 +163,21 @@ static u32 choose_mode_res(efi_graphics_output_protocol_t *gop)
 
 	u32 max_mode, cur_mode;
 	int pf;
+	efi_pixel_bitmask_t pi;
 	u32 m, w, h;
 
 	mode = efi_table_attr(gop, mode);
 
 	cur_mode = efi_table_attr(mode, mode);
 	info = efi_table_attr(mode, info);
-	w = info->horizontal_resolution;
-	h = info->vertical_resolution;
+	pf = info->pixel_format;
+	pi = info->pixel_information;
+	w  = info->horizontal_resolution;
+	h  = info->vertical_resolution;
 
-	if (w == cmdline.res.width && h == cmdline.res.height)
+	if (w == cmdline.res.width && h == cmdline.res.height &&
+	    (cmdline.res.format < 0 || cmdline.res.format == pf) &&
+	    (!cmdline.res.depth || cmdline.res.depth == pixel_bpp(pf, pi)))
 		return cur_mode;
 
 	max_mode = efi_table_attr(mode, max_mode);
@@ -157,6 +192,7 @@ static u32 choose_mode_res(efi_graphics_output_protocol_t *gop)
 			continue;
 
 		pf = info->pixel_format;
+		pi = info->pixel_information;
 		w  = info->horizontal_resolution;
 		h  = info->vertical_resolution;
 
@@ -164,7 +200,9 @@ static u32 choose_mode_res(efi_graphics_output_protocol_t *gop)
 
 		if (pf == PIXEL_BLT_ONLY || pf >= PIXEL_FORMAT_MAX)
 			continue;
-		if (w == cmdline.res.width && h == cmdline.res.height)
+		if (w == cmdline.res.width && h == cmdline.res.height &&
+		    (cmdline.res.format < 0 || cmdline.res.format == pf) &&
+		    (!cmdline.res.depth || cmdline.res.depth == pixel_bpp(pf, pi)))
 			return m;
 	}
 

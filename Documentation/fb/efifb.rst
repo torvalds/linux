@@ -50,9 +50,11 @@ mode=n
         The EFI stub will set the mode of the display to mode number n if
         possible.
 
-<xres>x<yres>
+<xres>x<yres>[-(rgb|bgr|<bpp>)]
         The EFI stub will search for a display mode that matches the specified
-        horizontal and vertical resolution, and set the mode of the display to
-        it if one is found.
+        horizontal and vertical resolution, and optionally bit depth, and set
+        the mode of the display to it if one is found. The bit depth can either
+        "rgb" or "bgr" to match specifically those pixel formats, or a number
+        for a mode with matching bits per pixel.
 
 Edgar Hucek <gimli@dark-green.com>
