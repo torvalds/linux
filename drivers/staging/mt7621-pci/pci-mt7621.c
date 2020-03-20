@@ -562,7 +562,7 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 		if (port->enabled) {
 			mt7621_pcie_port_clk_enable(port);
 			mt7621_pcie_enable_port(port);
-			dev_info(dev, "PCIE%d enabled\n", num_slots_enabled);
+			dev_info(dev, "PCIE%d enabled\n", port->slot);
 			num_slots_enabled++;
 		}
 	}
