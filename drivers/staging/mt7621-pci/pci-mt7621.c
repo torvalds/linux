@@ -358,7 +358,7 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 
 	snprintf(name, sizeof(name), "pcie-phy%d", slot);
 	port->phy = devm_phy_get(dev, name);
-	if (IS_ERR(port->phy))
+	if (IS_ERR(port->phy) && slot != 1)
 		return PTR_ERR(port->phy);
 
 	port->gpio_rst = devm_gpiod_get_index_optional(dev, "reset", slot,
@@ -494,6 +494,11 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 
 	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
 		u32 slot = port->slot;
+
+		if (slot == 1) {
+			port->enabled = true;
+			continue;
+		}
 
 		err = mt7621_pcie_init_port(port);
 		if (err) {
