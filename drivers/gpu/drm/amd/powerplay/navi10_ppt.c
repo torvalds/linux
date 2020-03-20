@@ -2369,6 +2369,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_pptable_power_limit = navi10_get_pptable_power_limit,
 	.run_btc = navi10_run_btc,
 	.disable_umc_cdr_12gbps_workaround = navi10_disable_umc_cdr_12gbps_workaround,
+	.set_power_source = smu_v11_0_set_power_source,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
