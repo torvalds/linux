@@ -4893,7 +4893,8 @@ static int qeth_qdio_establish(struct qeth_card *card)
 
 	if (atomic_cmpxchg(&card->qdio.state, QETH_QDIO_ALLOCATED,
 		QETH_QDIO_ESTABLISHED) == QETH_QDIO_ALLOCATED) {
-		rc = qdio_allocate(&init_data);
+		rc = qdio_allocate(CARD_DDEV(card), init_data.no_input_qs,
+				   init_data.no_output_qs);
 		if (rc) {
 			atomic_set(&card->qdio.state, QETH_QDIO_ALLOCATED);
 			goto out;

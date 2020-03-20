@@ -308,7 +308,6 @@ static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
  */
 static int zfcp_qdio_allocate(struct zfcp_qdio *qdio)
 {
-	struct qdio_initialize init_data;
 	int ret;
 
 	ret = qdio_alloc_buffers(qdio->req_q, QDIO_MAX_BUFFERS_PER_Q);
@@ -319,10 +318,9 @@ static int zfcp_qdio_allocate(struct zfcp_qdio *qdio)
 	if (ret)
 		goto free_req_q;
 
-	zfcp_qdio_setup_init_data(&init_data, qdio);
 	init_waitqueue_head(&qdio->req_q_wq);
 
-	ret = qdio_allocate(&init_data);
+	ret = qdio_allocate(qdio->adapter->ccw_device, 1, 1);
 	if (ret)
 		goto free_res_q;
 

@@ -408,7 +408,8 @@ int qdio_alloc_buffers(struct qdio_buffer **buf, unsigned int count);
 void qdio_free_buffers(struct qdio_buffer **buf, unsigned int count);
 void qdio_reset_buffers(struct qdio_buffer **buf, unsigned int count);
 
-extern int qdio_allocate(struct qdio_initialize *);
+extern int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
+			 unsigned int no_output_qs);
 extern int qdio_establish(struct qdio_initialize *);
 extern int qdio_activate(struct ccw_device *);
 extern void qdio_release_aob(struct qaob *);
