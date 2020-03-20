@@ -178,10 +178,10 @@ struct trace_array_cpu {
 	kuid_t			uid;
 	char			comm[TASK_COMM_LEN];
 
-	bool			ignore_pid;
 #ifdef CONFIG_FUNCTION_TRACER
-	bool			ftrace_ignore_pid;
+	int			ftrace_ignore_pid;
 #endif
+	bool			ignore_pid;
 };
 
 struct tracer;

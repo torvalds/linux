@@ -139,13 +139,23 @@ static inline void ftrace_ops_init(struct ftrace_ops *ops)
 #endif
 }
 
+#define FTRACE_PID_IGNORE	-1
+#define FTRACE_PID_TRACE	-2
+
 static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip,
 			    struct ftrace_ops *op, struct pt_regs *regs)
 {
 	struct trace_array *tr = op->private;
+	int pid;
 
-	if (tr && this_cpu_read(tr->array_buffer.data->ftrace_ignore_pid))
-		return;
+	if (tr) {
+		pid = this_cpu_read(tr->array_buffer.data->ftrace_ignore_pid);
+		if (pid == FTRACE_PID_IGNORE)
+			return;
+		if (pid != FTRACE_PID_TRACE &&
+		    pid != current->pid)
+			return;
+	}
 
 	op->saved_func(ip, parent_ip, op, regs);
 }
@@ -6924,8 +6934,12 @@ ftrace_filter_pid_sched_switch_probe(void *data, bool preempt,
 
 	pid_list = rcu_dereference_sched(tr->function_pids);
 
-	this_cpu_write(tr->array_buffer.data->ftrace_ignore_pid,
-		       trace_ignore_this_task(pid_list, next));
+	if (trace_ignore_this_task(pid_list, next))
+		this_cpu_write(tr->array_buffer.data->ftrace_ignore_pid,
+			       FTRACE_PID_IGNORE);
+	else
+		this_cpu_write(tr->array_buffer.data->ftrace_ignore_pid,
+			       next->pid);
 }
 
 static void
@@ -6978,7 +6992,7 @@ static void clear_ftrace_pids(struct trace_array *tr)
 	unregister_trace_sched_switch(ftrace_filter_pid_sched_switch_probe, tr);
 
 	for_each_possible_cpu(cpu)
-		per_cpu_ptr(tr->array_buffer.data, cpu)->ftrace_ignore_pid = false;
+		per_cpu_ptr(tr->array_buffer.data, cpu)->ftrace_ignore_pid = FTRACE_PID_TRACE;
 
 	rcu_assign_pointer(tr->function_pids, NULL);
 
@@ -7103,8 +7117,12 @@ static void ignore_task_cpu(void *data)
 	pid_list = rcu_dereference_protected(tr->function_pids,
 					     mutex_is_locked(&ftrace_lock));
 
-	this_cpu_write(tr->array_buffer.data->ftrace_ignore_pid,
-		       trace_ignore_this_task(pid_list, current));
+	if (trace_ignore_this_task(pid_list, current))
+		this_cpu_write(tr->array_buffer.data->ftrace_ignore_pid,
+			       FTRACE_PID_IGNORE);
+	else
+		this_cpu_write(tr->array_buffer.data->ftrace_ignore_pid,
+			       current->pid);
 }
 
 static ssize_t
