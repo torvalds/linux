@@ -23,7 +23,6 @@ struct led_pwm {
 	const char	*default_trigger;
 	u8		active_low;
 	unsigned int	max_brightness;
-	unsigned int	pwm_period_ns;
 };
 
 struct led_pwm_platform_data {
@@ -90,9 +89,6 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 	led_data->cdev.brightness_set_blocking = led_pwm_set;
 
 	pwm_init_state(led_data->pwm, &led_data->pwmstate);
-
-	if (!led_data->pwmstate.period)
-		led_data->pwmstate.period = led->pwm_period_ns;
 
 	ret = devm_led_classdev_register(dev, &led_data->cdev);
 	if (ret == 0) {
