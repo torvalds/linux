@@ -2986,7 +2986,7 @@ void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long cr3)
 		eptp = construct_eptp(vcpu, cr3);
 		vmcs_write64(EPT_POINTER, eptp);
 
-		if (kvm_x86_ops->tlb_remote_flush) {
+		if (kvm_x86_ops.tlb_remote_flush) {
 			spin_lock(&to_kvm_vmx(kvm)->ept_pointer_lock);
 			to_vmx(vcpu)->ept_pointer = eptp;
 			to_kvm_vmx(kvm)->ept_pointers_match
@@ -7479,7 +7479,7 @@ static void pi_post_block(struct kvm_vcpu *vcpu)
 
 static void vmx_post_block(struct kvm_vcpu *vcpu)
 {
-	if (kvm_x86_ops->set_hv_timer)
+	if (kvm_x86_ops.set_hv_timer)
 		kvm_lapic_switch_to_hv_timer(vcpu);
 
 	pi_post_block(vcpu);

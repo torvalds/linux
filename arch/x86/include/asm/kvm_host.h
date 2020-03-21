@@ -1274,13 +1274,13 @@ struct kvm_arch_async_pf {
 
 extern u64 __read_mostly host_efer;
 
-extern struct kvm_x86_ops *kvm_x86_ops;
+extern struct kvm_x86_ops kvm_x86_ops;
 extern struct kmem_cache *x86_fpu_cache;
 
 #define __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)
 {
-	return __vmalloc(kvm_x86_ops->vm_size,
+	return __vmalloc(kvm_x86_ops.vm_size,
 			 GFP_KERNEL_ACCOUNT | __GFP_ZERO, PAGE_KERNEL);
 }
 void kvm_arch_free_vm(struct kvm *kvm);
@@ -1288,8 +1288,8 @@ void kvm_arch_free_vm(struct kvm *kvm);
 #define __KVM_HAVE_ARCH_FLUSH_REMOTE_TLB
 static inline int kvm_arch_flush_remote_tlb(struct kvm *kvm)
 {
-	if (kvm_x86_ops->tlb_remote_flush &&
-	    !kvm_x86_ops->tlb_remote_flush(kvm))
+	if (kvm_x86_ops.tlb_remote_flush &&
+	    !kvm_x86_ops.tlb_remote_flush(kvm))
 		return 0;
 	else
 		return -ENOTSUPP;
@@ -1375,7 +1375,7 @@ extern u64 kvm_mce_cap_supported;
  *
  * EMULTYPE_SKIP - Set when emulating solely to skip an instruction, i.e. to
  *		   decode the instruction length.  For use *only* by
- *		   kvm_x86_ops->skip_emulated_instruction() implementations.
+ *		   kvm_x86_ops.skip_emulated_instruction() implementations.
  *
  * EMULTYPE_ALLOW_RETRY_PF - Set when the emulator should resume the guest to
  *			     retry native execution under certain conditions,
@@ -1669,14 +1669,14 @@ static inline bool kvm_irq_is_postable(struct kvm_lapic_irq *irq)
 
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)
 {
-	if (kvm_x86_ops->vcpu_blocking)
-		kvm_x86_ops->vcpu_blocking(vcpu);
+	if (kvm_x86_ops.vcpu_blocking)
+		kvm_x86_ops.vcpu_blocking(vcpu);
 }
 
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu)
 {
-	if (kvm_x86_ops->vcpu_unblocking)
-		kvm_x86_ops->vcpu_unblocking(vcpu);
+	if (kvm_x86_ops.vcpu_unblocking)
+		kvm_x86_ops.vcpu_unblocking(vcpu);
 }
 
 static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}

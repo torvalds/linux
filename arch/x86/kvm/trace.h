@@ -246,7 +246,7 @@ TRACE_EVENT(kvm_exit,
 		__entry->guest_rip	= kvm_rip_read(vcpu);
 		__entry->isa            = isa;
 		__entry->vcpu_id        = vcpu->vcpu_id;
-		kvm_x86_ops->get_exit_info(vcpu, &__entry->info1,
+		kvm_x86_ops.get_exit_info(vcpu, &__entry->info1,
 					   &__entry->info2);
 	),
 
@@ -750,7 +750,7 @@ TRACE_EVENT(kvm_emulate_insn,
 		),
 
 	TP_fast_assign(
-		__entry->csbase = kvm_x86_ops->get_segment_base(vcpu, VCPU_SREG_CS);
+		__entry->csbase = kvm_x86_ops.get_segment_base(vcpu, VCPU_SREG_CS);
 		__entry->len = vcpu->arch.emulate_ctxt->fetch.ptr
 			       - vcpu->arch.emulate_ctxt->fetch.data;
 		__entry->rip = vcpu->arch.emulate_ctxt->_eip - __entry->len;

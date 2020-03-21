@@ -88,7 +88,7 @@ static inline bool pmc_is_fixed(struct kvm_pmc *pmc)
 
 static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
 {
-	return kvm_x86_ops->pmu_ops->pmc_is_enabled(pmc);
+	return kvm_x86_ops.pmu_ops->pmc_is_enabled(pmc);
 }
 
 static inline bool kvm_valid_perf_global_ctrl(struct kvm_pmu *pmu,

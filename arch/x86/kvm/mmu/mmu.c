@@ -305,7 +305,7 @@ kvm_mmu_calc_root_page_role(struct kvm_vcpu *vcpu);
 
 static inline bool kvm_available_flush_tlb_with_range(void)
 {
-	return kvm_x86_ops->tlb_remote_flush_with_range;
+	return kvm_x86_ops.tlb_remote_flush_with_range;
 }
 
 static void kvm_flush_remote_tlbs_with_range(struct kvm *kvm,
@@ -313,8 +313,8 @@ static void kvm_flush_remote_tlbs_with_range(struct kvm *kvm,
 {
 	int ret = -ENOTSUPP;
 
-	if (range && kvm_x86_ops->tlb_remote_flush_with_range)
-		ret = kvm_x86_ops->tlb_remote_flush_with_range(kvm, range);
+	if (range && kvm_x86_ops.tlb_remote_flush_with_range)
+		ret = kvm_x86_ops.tlb_remote_flush_with_range(kvm, range);
 
 	if (ret)
 		kvm_flush_remote_tlbs(kvm);
@@ -1642,7 +1642,7 @@ static bool spte_set_dirty(u64 *sptep)
 	rmap_printk("rmap_set_dirty: spte %p %llx\n", sptep, *sptep);
 
 	/*
-	 * Similar to the !kvm_x86_ops->slot_disable_log_dirty case,
+	 * Similar to the !kvm_x86_ops.slot_disable_log_dirty case,
 	 * do not bother adding back write access to pages marked
 	 * SPTE_AD_WRPROT_ONLY_MASK.
 	 */
@@ -1731,8 +1731,8 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 				struct kvm_memory_slot *slot,
 				gfn_t gfn_offset, unsigned long mask)
 {
-	if (kvm_x86_ops->enable_log_dirty_pt_masked)
-		kvm_x86_ops->enable_log_dirty_pt_masked(kvm, slot, gfn_offset,
+	if (kvm_x86_ops.enable_log_dirty_pt_masked)
+		kvm_x86_ops.enable_log_dirty_pt_masked(kvm, slot, gfn_offset,
 				mask);
 	else
 		kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
@@ -1747,8 +1747,8 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
  */
 int kvm_arch_write_log_dirty(struct kvm_vcpu *vcpu)
 {
-	if (kvm_x86_ops->write_log_dirty)
-		return kvm_x86_ops->write_log_dirty(vcpu);
+	if (kvm_x86_ops.write_log_dirty)
+		return kvm_x86_ops.write_log_dirty(vcpu);
 
 	return 0;
 }
@@ -3036,7 +3036,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	if (level > PT_PAGE_TABLE_LEVEL)
 		spte |= PT_PAGE_SIZE_MASK;
 	if (tdp_enabled)
-		spte |= kvm_x86_ops->get_mt_mask(vcpu, gfn,
+		spte |= kvm_x86_ops.get_mt_mask(vcpu, gfn,
 			kvm_is_mmio_pfn(pfn));
 
 	if (host_writable)
@@ -4909,7 +4909,7 @@ kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
 	union kvm_mmu_role role = kvm_calc_mmu_role_common(vcpu, base_only);
 
 	role.base.ad_disabled = (shadow_accessed_mask == 0);
-	role.base.level = kvm_x86_ops->get_tdp_level(vcpu);
+	role.base.level = kvm_x86_ops.get_tdp_level(vcpu);
 	role.base.direct = true;
 	role.base.gpte_is_8_bytes = true;
 
@@ -4930,7 +4930,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = nonpaging_invlpg;
 	context->update_pte = nonpaging_update_pte;
-	context->shadow_root_level = kvm_x86_ops->get_tdp_level(vcpu);
+	context->shadow_root_level = kvm_x86_ops.get_tdp_level(vcpu);
 	context->direct_map = true;
 	context->get_guest_pgd = get_cr3;
 	context->get_pdptr = kvm_pdptr_read;
@@ -5183,7 +5183,7 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 	if (r)
 		goto out;
 	kvm_mmu_load_pgd(vcpu);
-	kvm_x86_ops->tlb_flush(vcpu, true);
+	kvm_x86_ops.tlb_flush(vcpu, true);
 out:
 	return r;
 }
@@ -5488,7 +5488,7 @@ emulate:
 	 * guest, with the exception of AMD Erratum 1096 which is unrecoverable.
 	 */
 	if (unlikely(insn && !insn_len)) {
-		if (!kvm_x86_ops->need_emulation_on_page_fault(vcpu))
+		if (!kvm_x86_ops.need_emulation_on_page_fault(vcpu))
 			return 1;
 	}
 
@@ -5523,7 +5523,7 @@ void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 		if (VALID_PAGE(mmu->prev_roots[i].hpa))
 			mmu->invlpg(vcpu, gva, mmu->prev_roots[i].hpa);
 
-	kvm_x86_ops->tlb_flush_gva(vcpu, gva);
+	kvm_x86_ops.tlb_flush_gva(vcpu, gva);
 	++vcpu->stat.invlpg;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
@@ -5548,7 +5548,7 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 	}
 
 	if (tlb_flush)
-		kvm_x86_ops->tlb_flush_gva(vcpu, gva);
+		kvm_x86_ops.tlb_flush_gva(vcpu, gva);
 
 	++vcpu->stat.invlpg;
 
@@ -5672,7 +5672,7 @@ static int alloc_mmu_pages(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 	 * SVM's 32-bit NPT support, TDP paging doesn't use PAE paging and can
 	 * skip allocating the PDP table.
 	 */
-	if (tdp_enabled && kvm_x86_ops->get_tdp_level(vcpu) > PT32E_ROOT_LEVEL)
+	if (tdp_enabled && kvm_x86_ops.get_tdp_level(vcpu) > PT32E_ROOT_LEVEL)
 		return 0;
 
 	page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_DMA32);

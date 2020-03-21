@@ -7329,7 +7329,7 @@ static bool svm_apic_init_signal_blocked(struct kvm_vcpu *vcpu)
 	 * TODO: Last condition latch INIT signals on vCPU when
 	 * vCPU is in guest-mode and vmcb12 defines intercept on INIT.
 	 * To properly emulate the INIT intercept, SVM should implement
-	 * kvm_x86_ops->check_nested_events() and call nested_svm_vmexit()
+	 * kvm_x86_ops.check_nested_events() and call nested_svm_vmexit()
 	 * there if an INIT signal is pending.
 	 */
 	return !gif_set(svm) ||

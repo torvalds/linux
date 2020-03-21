@@ -97,7 +97,7 @@ static inline bool is_64_bit_mode(struct kvm_vcpu *vcpu)
 
 	if (!is_long_mode(vcpu))
 		return false;
-	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
+	kvm_x86_ops.get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
 	return cs_l;
 }
 
@@ -237,7 +237,7 @@ static inline bool kvm_check_has_quirk(struct kvm *kvm, u64 quirk)
 
 static inline bool kvm_vcpu_latch_init(struct kvm_vcpu *vcpu)
 {
-	return is_smm(vcpu) || kvm_x86_ops->apic_init_signal_blocked(vcpu);
+	return is_smm(vcpu) || kvm_x86_ops.apic_init_signal_blocked(vcpu);
 }
 
 void kvm_set_pending_timer(struct kvm_vcpu *vcpu);
