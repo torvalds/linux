@@ -4047,8 +4047,7 @@ rkisp_params_isr_v2x(struct rkisp_isp_params_vdev *params_vdev,
 {
 	struct isp2x_isp_params_cfg *new_params;
 	struct rkisp_buffer *cur_buf = NULL;
-	unsigned int cur_frame_id =
-		atomic_read(&params_vdev->dev->isp_sdev.frm_sync_seq) - 1;
+	u32 cur_frame_id = rkisp_dmarx_get_frame_id(params_vdev->dev);
 
 	spin_lock(&params_vdev->config_lock);
 	if (!params_vdev->streamon)
