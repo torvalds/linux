@@ -2345,7 +2345,7 @@ static int device_private_init(struct device *dev)
 	return 0;
 }
 
-static u32 fw_devlink_flags;
+static u32 fw_devlink_flags = DL_FLAG_SYNC_STATE_ONLY;
 static int __init fw_devlink_setup(char *arg)
 {
 	if (!arg)
