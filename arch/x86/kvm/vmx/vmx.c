@@ -653,15 +653,6 @@ static int vmx_set_guest_msr(struct vcpu_vmx *vmx, struct shared_msr_entry *msr,
 	return ret;
 }
 
-void loaded_vmcs_init(struct loaded_vmcs *loaded_vmcs)
-{
-	vmcs_clear(loaded_vmcs->vmcs);
-	if (loaded_vmcs->shadow_vmcs && loaded_vmcs->launched)
-		vmcs_clear(loaded_vmcs->shadow_vmcs);
-	loaded_vmcs->cpu = -1;
-	loaded_vmcs->launched = 0;
-}
-
 #ifdef CONFIG_KEXEC_CORE
 static void crash_vmclear_local_loaded_vmcss(void)
 {
@@ -2555,9 +2546,12 @@ int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 	if (!loaded_vmcs->vmcs)
 		return -ENOMEM;
 
+	vmcs_clear(loaded_vmcs->vmcs);
+
 	loaded_vmcs->shadow_vmcs = NULL;
 	loaded_vmcs->hv_timer_soft_disabled = false;
-	loaded_vmcs_init(loaded_vmcs);
+	loaded_vmcs->cpu = -1;
+	loaded_vmcs->launched = 0;
 
 	if (cpu_has_vmx_msr_bitmap()) {
 		loaded_vmcs->msr_bitmap = (unsigned long *)
