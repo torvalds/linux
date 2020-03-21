@@ -44,6 +44,10 @@ static int count_iters_for_insert(struct btree_trans *trans,
 	 * extent we're inserting and overwriting:
 	 */
 	*nr_iters += 1;
+	if (*nr_iters >= max_iters) {
+		*end = bpos_min(*end, k.k->p);
+		ret = 1;
+	}
 
 	switch (k.k->type) {
 	case KEY_TYPE_extent:
