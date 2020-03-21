@@ -478,7 +478,8 @@ static int check_extents(struct bch_fs *c)
 	bch_verbose(c, "checking extents");
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
-				   POS(BCACHEFS_ROOT_INO, 0), 0);
+				   POS(BCACHEFS_ROOT_INO, 0),
+				   BTREE_ITER_INTENT);
 retry:
 	for_each_btree_key_continue(iter, 0, k, ret) {
 		if (bkey_cmp(prev.p, bkey_start_pos(k.k)) > 0) {
