@@ -4,6 +4,8 @@
 #ifndef _RKISP_CSI_H
 #define _RKISP_CSI_H
 
+#include <linux/kfifo.h>
+
 #define CSI_DEV_NAME DRIVER_NAME "-csi-subdev"
 
 #define RKISP_HDR_DBG_MODE 0
@@ -61,22 +63,29 @@ struct sink_info {
 /*
  * struct rkisp_csi_device
  * sink: csi link enable flags
+ * rdbk_kfifo: read back event fifo
+ * rdbk_lock: lock for read back event
  * mipi_di: Data Identifier (vc[7:6],dt[5:0])
  * filt_state: multiframe read back mode to filt irq event
  * tx_first: flags for dmatx first Y_STATE irq
  * memory: compact or big/little endian byte order for tx/rx
+ * is_first: flags of first frame read back
+ * is_isp_end: flags of isp frame end
  */
 struct rkisp_csi_device {
 	struct rkisp_device *ispdev;
 	struct v4l2_subdev sd;
 	struct media_pad pads[CSI_PAD_MAX];
-	int max_pad;
 	struct sink_info sink[CSI_PAD_MAX - 1];
+	struct kfifo rdbk_kfifo;
+	spinlock_t rdbk_lock;
+	int max_pad;
 	u8 mipi_di[CSI_PAD_MAX - 1];
 	u8 filt_state[CSI_F_MAX];
 	u8 tx_first[HDR_DMA_MAX];
 	u8 memory;
-	bool read_bak;
+	bool is_first;
+	bool is_isp_end;
 };
 
 int rkisp_register_csi_subdev(struct rkisp_device *dev,
@@ -85,5 +94,6 @@ void rkisp_unregister_csi_subdev(struct rkisp_device *dev);
 
 int rkisp_csi_config_patch(struct rkisp_device *dev);
 void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm);
+int rkisp_csi_trigger_event(struct rkisp_csi_device *csi, void *arg);
 void rkisp_csi_sof(struct rkisp_device *dev, u8 id);
 #endif

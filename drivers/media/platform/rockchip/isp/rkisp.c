@@ -1579,16 +1579,11 @@ static int rkisp_isp_sd_subs_evt(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
-	struct isp2x_csi_trigger *trigger;
 	long ret = 0;
 
 	switch (cmd) {
 	case RKISP_CMD_TRIGGER_READ_BACK:
-		if (!IS_HDR_DBG(isp_dev->hdr.op_mode))
-			break;
-		trigger = (struct isp2x_csi_trigger *)arg;
-		isp_dev->dmarx_dev.frame_id = trigger->frame_id;
-		rkisp_trigger_read_back(&isp_dev->csi_dev, trigger->times);
+		rkisp_csi_trigger_event(&isp_dev->csi_dev, arg);
 		break;
 	case RKISP_CMD_CSI_MEMORY_MODE:
 		if (*((int *)arg) == CSI_MEM_BYTE_BE)
@@ -1865,12 +1860,10 @@ void rkisp_isp_isr(unsigned int isp_mis,
 
 	/* start edge of v_sync */
 	if (isp_mis & CIF_ISP_V_START) {
+		dev->csi_dev.is_isp_end = false;
 		/* filt v_sync when frame read back mode */
-		if (dev->csi_dev.read_bak) {
-			dev->csi_dev.read_bak = false;
-			rkisp_stats_rdbk_enable(&dev->stats_vdev, true);
-		}
 		if (dev->csi_dev.filt_state[CSI_F_VS]) {
+			rkisp_stats_rdbk_enable(&dev->stats_vdev, true);
 			dev->csi_dev.filt_state[CSI_F_VS]--;
 			goto vs_skip;
 		}
@@ -1975,6 +1968,11 @@ vs_skip:
 	 * Do the updates in the order of the processing flow.
 	 */
 	rkisp_params_isr(&dev->params_vdev, isp_mis);
+
+	if (isp_mis & CIF_ISP_FRAME) {
+		dev->csi_dev.is_isp_end = true;
+		rkisp_csi_trigger_event(&dev->csi_dev, NULL);
+	}
 }
 
 irqreturn_t rkisp_vs_isr_handler(int irq, void *ctx)

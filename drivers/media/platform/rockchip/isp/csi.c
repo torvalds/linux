@@ -3,14 +3,13 @@
 
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
+#include <linux/rk-camera-module.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
-#include <linux/dma-iommu.h>
-#include <linux/rk-camera-module.h>
 #include "dev.h"
 #include "regs.h"
 
@@ -419,6 +418,9 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		writel(val & SW_HDRMGE_EN, dev->base_addr + ISP_HDRTMO_BASE);
 		writel(0x7FFFFF7F, dev->base_addr + CSI2RX_MASK_STAT);
 	}
+
+	dev->csi_dev.is_first = true;
+	kfifo_reset(&dev->csi_dev.rdbk_kfifo);
 	return ret;
 }
 
@@ -447,9 +449,58 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 	}
 	/* not using isp V_START irq to generate sof event */
 	csi->filt_state[CSI_F_VS] = dma2frm + 1;
-	if (dma2frm)
-		csi->read_bak = true;
 	writel(SW_CSI2RX_EN | SW_DMA_2FRM_MODE(dma2frm) | readl(addr), addr);
+}
+
+/* handle read back event from user or isp idle isr */
+int rkisp_csi_trigger_event(struct rkisp_csi_device *csi, void *arg)
+{
+	struct rkisp_device *dev = csi->ispdev;
+	struct kfifo *fifo = &csi->rdbk_kfifo;
+	struct isp2x_csi_trigger *trigger =
+		(struct isp2x_csi_trigger *)arg;
+	struct isp2x_csi_trigger t;
+	unsigned long lock_flags = 0;
+	int times = -1;
+
+	if (!IS_HDR_DBG(dev->hdr.op_mode))
+		return 0;
+
+	spin_lock_irqsave(&csi->rdbk_lock, lock_flags);
+	if (csi->is_first ||
+	    (trigger && csi->is_isp_end && kfifo_is_empty(fifo))) {
+		/* isp idle and no event in queue
+		 * start read back direct
+		 */
+		csi->is_first = false;
+		dev->dmarx_dev.frame_id = trigger->frame_id;
+		times = trigger->times;
+	} else if (csi->is_isp_end && !kfifo_is_empty(fifo)) {
+		/* isp idle and events in queue
+		 * out fifo then start read back
+		 * new event in fifo
+		 */
+		if (kfifo_out(fifo, &t, sizeof(t))) {
+			dev->dmarx_dev.frame_id = t.frame_id;
+			times = t.times;
+		}
+		if (trigger)
+			kfifo_in(fifo, trigger, sizeof(*trigger));
+		if (csi->is_isp_end)
+			csi->is_isp_end = false;
+	} else if (!csi->is_isp_end && trigger) {
+		/* isp on idle, new event in fifo */
+		if (!kfifo_is_full(fifo))
+			kfifo_in(fifo, trigger, sizeof(*trigger));
+		else
+			v4l2_err(&dev->v4l2_dev,
+				 "csi trigger fifo is full\n");
+	}
+	spin_unlock_irqrestore(&csi->rdbk_lock, lock_flags);
+
+	if (times >= 0)
+		rkisp_trigger_read_back(csi, times);
+	return 0;
 }
 
 void rkisp_csi_sof(struct rkisp_device *dev, u8 id)
@@ -518,17 +569,28 @@ int rkisp_register_csi_subdev(struct rkisp_device *dev,
 				     csi_dev->pads);
 	if (ret < 0)
 		return ret;
+
+	spin_lock_init(&csi_dev->rdbk_lock);
+	ret = kfifo_alloc(&csi_dev->rdbk_kfifo,
+			  16 * sizeof(struct isp2x_csi_trigger),
+			  GFP_KERNEL);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Failed to alloc csi kfifo %d", ret);
+		goto free_media;
+	}
+
 	sd->owner = THIS_MODULE;
 	v4l2_set_subdevdata(sd, csi_dev);
 	sd->grp_id = GRP_ID_CSI;
 	ret = v4l2_device_register_subdev(v4l2_dev, sd);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "Failed to register csi subdev\n");
-		goto free_media;
+		goto free_kfifo;
 	}
 
 	return 0;
-
+free_kfifo:
+	kfifo_free(&csi_dev->rdbk_kfifo);
 free_media:
 	media_entity_cleanup(&sd->entity);
 	return ret;
@@ -538,6 +600,7 @@ void rkisp_unregister_csi_subdev(struct rkisp_device *dev)
 {
 	struct v4l2_subdev *sd = &dev->csi_dev.sd;
 
+	kfifo_free(&dev->csi_dev.rdbk_kfifo);
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 }
