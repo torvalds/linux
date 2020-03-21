@@ -385,7 +385,7 @@ unlock:
 static void rkisp_init_luma_vdev(struct rkisp_luma_vdev *luma_vdev)
 {
 	luma_vdev->vdev_fmt.fmt.meta.dataformat =
-		V4L2_META_FMT_RK_ISP1_STAT_3A;
+		V4L2_META_FMT_RK_ISP1_STAT_LUMA;
 	luma_vdev->vdev_fmt.fmt.meta.buffersize =
 		sizeof(struct rkisp_isp2x_luma_buffer);
 }
