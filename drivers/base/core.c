@@ -2404,6 +2404,7 @@ int device_add(struct device *dev)
 	struct class_interface *class_intf;
 	int error = -EINVAL, fw_ret;
 	struct kobject *glue_dir = NULL;
+	bool is_fwnode_dev = false;
 
 	dev = get_device(dev);
 	if (!dev)
@@ -2501,8 +2502,10 @@ int device_add(struct device *dev)
 
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
 
-	if (dev->fwnode && !dev->fwnode->dev)
+	if (dev->fwnode && !dev->fwnode->dev) {
 		dev->fwnode->dev = dev;
+		is_fwnode_dev = true;
+	}
 
 	/*
 	 * Check if any of the other devices (consumers) have been waiting for
@@ -2518,7 +2521,8 @@ int device_add(struct device *dev)
 	 */
 	device_link_add_missing_supplier_links();
 
-	if (fw_devlink_flags && fwnode_has_op(dev->fwnode, add_links)) {
+	if (fw_devlink_flags && is_fwnode_dev &&
+	    fwnode_has_op(dev->fwnode, add_links)) {
 		fw_ret = fwnode_call_int_op(dev->fwnode, add_links, dev);
 		if (fw_ret == -ENODEV)
 			device_link_wait_for_mandatory_supplier(dev);
