@@ -361,12 +361,7 @@ static struct platform_driver mt7621_pci_phy_driver = {
 	},
 };
 
-static int __init mt7621_pci_phy_drv_init(void)
-{
-	return platform_driver_register(&mt7621_pci_phy_driver);
-}
-
-module_init(mt7621_pci_phy_drv_init);
+builtin_platform_driver(mt7621_pci_phy_driver);
 
 MODULE_AUTHOR("Sergio Paracuellos <sergio.paracuellos@gmail.com>");
 MODULE_DESCRIPTION("MediaTek MT7621 PCIe PHY driver");
