@@ -544,6 +544,14 @@ nfs_write_verifier_cmp(const struct nfs_write_verifier *v1,
 	return memcmp(v1->data, v2->data, sizeof(v1->data));
 }
 
+static inline bool
+nfs_write_match_verf(const struct nfs_writeverf *verf,
+		struct nfs_page *req)
+{
+	return verf->committed > NFS_UNSTABLE &&
+		!nfs_write_verifier_cmp(&req->wb_verf, &verf->verifier);
+}
+
 /* unlink.c */
 extern struct rpc_task *
 nfs_async_rename(struct inode *old_dir, struct inode *new_dir,

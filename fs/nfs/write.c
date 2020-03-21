@@ -1874,8 +1874,7 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 
 		/* Okay, COMMIT succeeded, apparently. Check the verifier
 		 * returned by the server against all stored verfs. */
-		if (verf->committed > NFS_UNSTABLE &&
-		    !nfs_write_verifier_cmp(&req->wb_verf, &verf->verifier)) {
+		if (nfs_write_match_verf(verf, req)) {
 			/* We have a match */
 			if (req->wb_page)
 				nfs_inode_remove_request(req);
