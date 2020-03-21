@@ -44,7 +44,7 @@ static int ip30led_create(struct platform_device *pdev, int num)
 
 	switch (num) {
 	case IP30_LED_SYSTEM:
-		data->cdev.name = "white:system";
+		data->cdev.name = "white:power";
 		break;
 	case IP30_LED_FAULT:
 		data->cdev.name = "red:fault";
