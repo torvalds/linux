@@ -109,11 +109,7 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, _pkt *pkt, struct rx_pkt
 			struct sta_priv *pstapriv = &padapter->stapriv;
 			int bmcast = IS_MCAST(pattrib->dst);
 
-			/* DBG_871X("bmcast =%d\n", bmcast); */
-
 			if (memcmp(pattrib->dst, myid(&padapter->eeprompriv), ETH_ALEN)) {
-				/* DBG_871X("not ap psta =%p, addr =%pM\n", psta, pattrib->dst); */
-
 				if (bmcast) {
 					psta = rtw_get_bcmc_stainfo(padapter);
 					pskb2 = rtw_skb_clone(pkt);
@@ -123,9 +119,6 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, _pkt *pkt, struct rx_pkt
 
 				if (psta) {
 					struct net_device *pnetdev = (struct net_device*)padapter->pnetdev;
-
-					/* DBG_871X("directly forwarding to the rtw_xmit_entry\n"); */
-
 					/* skb->ip_summed = CHECKSUM_NONE; */
 					pkt->dev = pnetdev;
 					skb_set_queue_mapping(pkt, rtw_recv_select_queue(pkt));
@@ -234,14 +227,10 @@ static void rtw_os_ksocket_send(struct adapter *padapter, union recv_frame *prec
 		if (rx_pid == psta->pid) {
 			int i;
 			u16 len = *(u16*)(skb->data+ETH_HLEN+2);
-			/* u16 ctrl_type = *(u16*)(skb->data+ETH_HLEN+4); */
-
-			/* DBG_871X("eth, RC: len = 0x%x, ctrl_type = 0x%x\n", len, ctrl_type); */
 			DBG_871X("eth, RC: len = 0x%x\n", len);
 
 			for (i = 0; i < len; i++)
 				DBG_871X("0x%x\n", *(skb->data+ETH_HLEN+4+i));
-				/* DBG_871X("0x%x\n", *(skb->data+ETH_HLEN+6+i)); */
 
 			DBG_871X("eth, RC-end\n");
 		}
