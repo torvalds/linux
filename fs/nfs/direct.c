@@ -94,6 +94,7 @@ struct nfs_direct_req {
 #define NFS_ODIRECT_RESCHED_WRITES	(2)	/* write verification failed */
 	/* for read */
 #define NFS_ODIRECT_SHOULD_DIRTY	(3)	/* dirty user-space page after read */
+#define NFS_ODIRECT_DONE		INT_MAX	/* write verification failed */
 	struct nfs_writeverf	verf;		/* unstable write verifier */
 };
 
@@ -678,8 +679,17 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 	struct nfs_page *req;
 	int status = data->task.tk_status;
 
+	if (status < 0) {
+		/* Errors in commit are fatal */
+		dreq->error = status;
+		dreq->max_count = 0;
+		dreq->count = 0;
+		dreq->flags = NFS_ODIRECT_DONE;
+	} else if (dreq->flags == NFS_ODIRECT_DONE)
+		status = dreq->error;
+
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
-	if (status < 0 || nfs_direct_cmp_commit_data_verf(dreq, data))
+	if (nfs_direct_cmp_commit_data_verf(dreq, data))
 		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
 
 	while (!list_empty(&data->pages)) {
@@ -708,7 +718,8 @@ static void nfs_direct_resched_write(struct nfs_commit_info *cinfo,
 	struct nfs_direct_req *dreq = cinfo->dreq;
 
 	spin_lock(&dreq->lock);
-	dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
+	if (dreq->flags != NFS_ODIRECT_DONE)
+		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
 	spin_unlock(&dreq->lock);
 	nfs_mark_request_commit(req, NULL, cinfo, 0);
 }
@@ -731,6 +742,22 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 		nfs_direct_write_reschedule(dreq);
 }
 
+static void nfs_direct_write_clear_reqs(struct nfs_direct_req *dreq)
+{
+	struct nfs_commit_info cinfo;
+	struct nfs_page *req;
+	LIST_HEAD(reqs);
+
+	nfs_init_cinfo_from_dreq(&cinfo, dreq);
+	nfs_direct_write_scan_commit_list(dreq->inode, &reqs, &cinfo);
+
+	while (!list_empty(&reqs)) {
+		req = nfs_list_entry(reqs.next);
+		nfs_list_remove_request(req);
+		nfs_unlock_and_release_request(req);
+	}
+}
+
 static void nfs_direct_write_schedule_work(struct work_struct *work)
 {
 	struct nfs_direct_req *dreq = container_of(work, struct nfs_direct_req, work);
@@ -745,6 +772,7 @@ static void nfs_direct_write_schedule_work(struct work_struct *work)
 			nfs_direct_write_reschedule(dreq);
 			break;
 		default:
+			nfs_direct_write_clear_reqs(dreq);
 			nfs_zap_mapping(dreq->inode, dreq->inode->i_mapping);
 			nfs_direct_complete(dreq);
 	}
