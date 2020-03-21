@@ -28,9 +28,6 @@
 #include <linux/hrtimer.h>
 #include <linux/of.h>
 #include "governor.h"
-#ifdef CONFIG_ARCH_ROCKCHIP
-#include "../base/base.h"
-#endif
 
 static struct class *devfreq_class;
 
@@ -678,18 +675,6 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		goto err_out;
 	}
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-	if (sysfs_create_link(&devfreq->dev.class->p->subsys.kobj,
-			      &devfreq->dev.kobj, dev_name(dev))) {
-		dev_err(dev, "failed to create devfreq %s link\n",
-			dev_name(dev));
-		device_unregister(&devfreq->dev);
-		mutex_unlock(&devfreq->lock);
-		put_device(&devfreq->dev);
-		goto err_out;
-	}
-#endif
-
 	devfreq->trans_table =
 		devm_kzalloc(&devfreq->dev,
 			     array3_size(sizeof(unsigned int),
@@ -759,10 +744,6 @@ int devfreq_remove_device(struct devfreq *devfreq)
 	if (devfreq->governor)
 		devfreq->governor->event_handler(devfreq,
 						 DEVFREQ_GOV_STOP, NULL);
-#ifdef CONFIG_ARCH_ROCKCHIP
-	sysfs_delete_link(&devfreq->dev.class->p->subsys.kobj,
-			  &devfreq->dev.kobj, dev_name(devfreq->dev.parent));
-#endif
 	device_unregister(&devfreq->dev);
 
 	return 0;
