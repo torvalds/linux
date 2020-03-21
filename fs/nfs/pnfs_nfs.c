@@ -149,17 +149,6 @@ pnfs_add_commit_array(struct pnfs_ds_commit_info *fl_cinfo,
 }
 EXPORT_SYMBOL_GPL(pnfs_add_commit_array);
 
-static void
-pnfs_setup_ds_info(struct pnfs_ds_commit_info *fl_cinfo,
-		struct pnfs_layout_segment *lseg)
-{
-	struct inode *inode = lseg->pls_layout->plh_inode;
-	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
-
-	if (ld->setup_ds_info != NULL)
-		ld->setup_ds_info(fl_cinfo, lseg);
-}
-
 static struct pnfs_commit_array *
 pnfs_lookup_commit_array(struct pnfs_ds_commit_info *fl_cinfo,
 		struct pnfs_layout_segment *lseg)
@@ -170,7 +159,7 @@ pnfs_lookup_commit_array(struct pnfs_ds_commit_info *fl_cinfo,
 	array = pnfs_find_commit_array_by_lseg(fl_cinfo, lseg);
 	if (!array) {
 		rcu_read_unlock();
-		pnfs_setup_ds_info(fl_cinfo, lseg);
+		fl_cinfo->ops->setup_ds_info(fl_cinfo, lseg);
 		rcu_read_lock();
 		array = pnfs_find_commit_array_by_lseg(fl_cinfo, lseg);
 	}

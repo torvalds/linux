@@ -511,10 +511,7 @@ nfs_direct_write_scan_commit_list(struct inode *inode,
 				  struct nfs_commit_info *cinfo)
 {
 	mutex_lock(&NFS_I(cinfo->inode)->commit_mutex);
-#ifdef CONFIG_NFS_V4_1
-	if (cinfo->ds != NULL && cinfo->ds->nwritten != 0)
-		NFS_SERVER(inode)->pnfs_curr_ld->recover_commit_reqs(list, cinfo);
-#endif
+	pnfs_recover_commit_reqs(list, cinfo);
 	nfs_scan_commit_list(&cinfo->mds->list, list, cinfo, 0);
 	mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);
 }
@@ -917,6 +914,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 	dreq->l_ctx = l_ctx;
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
+	pnfs_init_ds_commit_info_ops(&dreq->ds_cinfo, inode);
 
 	nfs_start_io_direct(inode);
 

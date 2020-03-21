@@ -1284,6 +1284,7 @@ struct pnfs_ds_commit_info {
 	struct list_head commits;
 	unsigned int nwritten;
 	unsigned int ncommitting;
+	const struct pnfs_commit_ops *ops;
 };
 
 struct nfs41_state_protection {
