@@ -9,13 +9,16 @@
 #include <asm/sn/addrs.h>
 #include <asm/sn/nmi.h>
 #include <asm/sn/arch.h>
-#include <asm/sn/sn0/hub.h>
+#include <asm/sn/agent.h>
 
 #if 0
 #define NODE_NUM_CPUS(n)	CNODE_NUM_CPUS(n)
 #else
 #define NODE_NUM_CPUS(n)	CPUS_PER_NODE
 #endif
+
+#define SEND_NMI(_nasid, _slice)	\
+	REMOTE_HUB_S((_nasid),  (PI_NMI_A + ((_slice) * PI_NMI_OFFSET)), 1)
 
 typedef unsigned long machreg_t;
 

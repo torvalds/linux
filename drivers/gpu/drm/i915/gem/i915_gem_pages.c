@@ -8,6 +8,7 @@
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
 #include "i915_gem_lmem.h"
+#include "i915_gem_mman.h"
 
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 				 struct sg_table *pages,
@@ -106,7 +107,7 @@ int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 {
 	int err;
 
-	err = mutex_lock_interruptible(&obj->mm.lock);
+	err = mutex_lock_interruptible_nested(&obj->mm.lock, I915_MM_GET_PAGES);
 	if (err)
 		return err;
 
@@ -157,9 +158,7 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 
 static void unmap_object(struct drm_i915_gem_object *obj, void *ptr)
 {
-	if (i915_gem_object_is_lmem(obj))
-		io_mapping_unmap((void __force __iomem *)ptr);
-	else if (is_vmalloc_addr(ptr))
+	if (is_vmalloc_addr(ptr))
 		vunmap(ptr);
 	else
 		kunmap(kmap_to_page(ptr));
@@ -190,8 +189,7 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 	return pages;
 }
 
-int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
-				enum i915_mm_subclass subclass)
+int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 {
 	struct sg_table *pages;
 	int err;
@@ -202,11 +200,13 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(atomic_read(&obj->bind_count));
 
 	/* May be called by shrinker from within get_pages() (on another bo) */
-	mutex_lock_nested(&obj->mm.lock, subclass);
+	mutex_lock(&obj->mm.lock);
 	if (unlikely(atomic_read(&obj->mm.pages_pin_count))) {
 		err = -EBUSY;
 		goto unlock;
 	}
+
+	i915_gem_object_release_mmap_offset(obj);
 
 	/*
 	 * ->put_pages might need to allocate memory for the bit17 swizzle
@@ -234,46 +234,44 @@ unlock:
 	return err;
 }
 
+static inline pte_t iomap_pte(resource_size_t base,
+			      dma_addr_t offset,
+			      pgprot_t prot)
+{
+	return pte_mkspecial(pfn_pte((base + offset) >> PAGE_SHIFT, prot));
+}
+
 /* The 'mapping' part of i915_gem_object_pin_map() below */
 static void *i915_gem_object_map(struct drm_i915_gem_object *obj,
 				 enum i915_map_type type)
 {
-	unsigned long n_pages = obj->base.size >> PAGE_SHIFT;
+	unsigned long n_pte = obj->base.size >> PAGE_SHIFT;
 	struct sg_table *sgt = obj->mm.pages;
-	struct sgt_iter sgt_iter;
-	struct page *page;
-	struct page *stack_pages[32];
-	struct page **pages = stack_pages;
-	unsigned long i = 0;
+	pte_t *stack[32], **mem;
+	struct vm_struct *area;
 	pgprot_t pgprot;
-	void *addr;
 
-	if (i915_gem_object_is_lmem(obj)) {
-		void __iomem *io;
-
-		if (type != I915_MAP_WC)
-			return NULL;
-
-		io = i915_gem_object_lmem_io_map(obj, 0, obj->base.size);
-		return (void __force *)io;
-	}
+	if (!i915_gem_object_has_struct_page(obj) && type != I915_MAP_WC)
+		return NULL;
 
 	/* A single page can always be kmapped */
-	if (n_pages == 1 && type == I915_MAP_WB)
+	if (n_pte == 1 && type == I915_MAP_WB)
 		return kmap(sg_page(sgt->sgl));
 
-	if (n_pages > ARRAY_SIZE(stack_pages)) {
+	mem = stack;
+	if (n_pte > ARRAY_SIZE(stack)) {
 		/* Too big for stack -- allocate temporary array instead */
-		pages = kvmalloc_array(n_pages, sizeof(*pages), GFP_KERNEL);
-		if (!pages)
+		mem = kvmalloc_array(n_pte, sizeof(*mem), GFP_KERNEL);
+		if (!mem)
 			return NULL;
 	}
 
-	for_each_sgt_page(page, sgt_iter, sgt)
-		pages[i++] = page;
-
-	/* Check that we have the expected number of pages */
-	GEM_BUG_ON(i != n_pages);
+	area = alloc_vm_area(obj->base.size, mem);
+	if (!area) {
+		if (mem != stack)
+			kvfree(mem);
+		return NULL;
+	}
 
 	switch (type) {
 	default:
@@ -286,12 +284,31 @@ static void *i915_gem_object_map(struct drm_i915_gem_object *obj,
 		pgprot = pgprot_writecombine(PAGE_KERNEL_IO);
 		break;
 	}
-	addr = vmap(pages, n_pages, 0, pgprot);
 
-	if (pages != stack_pages)
-		kvfree(pages);
+	if (i915_gem_object_has_struct_page(obj)) {
+		struct sgt_iter iter;
+		struct page *page;
+		pte_t **ptes = mem;
 
-	return addr;
+		for_each_sgt_page(page, iter, sgt)
+			**ptes++ = mk_pte(page, pgprot);
+	} else {
+		resource_size_t iomap;
+		struct sgt_iter iter;
+		pte_t **ptes = mem;
+		dma_addr_t addr;
+
+		iomap = obj->mm.region->iomap.base;
+		iomap -= obj->mm.region->region.start;
+
+		for_each_sgt_daddr(addr, iter, sgt)
+			**ptes++ = iomap_pte(iomap, addr, pgprot);
+	}
+
+	if (mem != stack)
+		kvfree(mem);
+
+	return area->addr;
 }
 
 /* get, pin, and map the pages of the object into kernel space */
@@ -308,7 +325,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	if (!i915_gem_object_type_has(obj, flags))
 		return ERR_PTR(-ENXIO);
 
-	err = mutex_lock_interruptible(&obj->mm.lock);
+	err = mutex_lock_interruptible_nested(&obj->mm.lock, I915_MM_GET_PAGES);
 	if (err)
 		return ERR_PTR(err);
 

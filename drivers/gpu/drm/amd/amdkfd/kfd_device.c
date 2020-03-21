@@ -728,6 +728,9 @@ int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 {
 	if (!kfd->init_complete)
 		return 0;
+
+	kfd->dqm->ops.pre_reset(kfd->dqm);
+
 	kgd2kfd_suspend(kfd);
 
 	kfd_signal_reset_event(kfd);
@@ -742,7 +745,7 @@ int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 
 int kgd2kfd_post_reset(struct kfd_dev *kfd)
 {
-	int ret, count;
+	int ret;
 
 	if (!kfd->init_complete)
 		return 0;
@@ -750,7 +753,7 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 	ret = kfd_resume(kfd);
 	if (ret)
 		return ret;
-	count = atomic_dec_return(&kfd_locked);
+	atomic_dec(&kfd_locked);
 
 	atomic_set(&kfd->sram_ecc_flag, 0);
 
@@ -822,6 +825,21 @@ dqm_start_error:
 	return err;
 }
 
+static inline void kfd_queue_work(struct workqueue_struct *wq,
+				  struct work_struct *work)
+{
+	int cpu, new_cpu;
+
+	cpu = new_cpu = smp_processor_id();
+	do {
+		new_cpu = cpumask_next(new_cpu, cpu_online_mask) % nr_cpu_ids;
+		if (cpu_to_node(new_cpu) == numa_node_id())
+			break;
+	} while (cpu != new_cpu);
+
+	queue_work_on(new_cpu, wq, work);
+}
+
 /* This is called directly from KGD at ISR. */
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 {
@@ -844,7 +862,7 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 				   patched_ihre, &is_patched)
 	    && enqueue_ih_ring_entry(kfd,
 				     is_patched ? patched_ihre : ih_ring_entry))
-		queue_work(kfd->ih_wq, &kfd->interrupt_work);
+		kfd_queue_work(kfd->ih_wq, &kfd->interrupt_work);
 
 	spin_unlock_irqrestore(&kfd->interrupt_lock, flags);
 }

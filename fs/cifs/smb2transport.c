@@ -104,13 +104,14 @@ int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 {
 	struct cifs_chan *chan;
 	struct cifs_ses *ses = NULL;
+	struct TCP_Server_Info *it = NULL;
 	int i;
 	int rc = 0;
 
 	spin_lock(&cifs_tcp_ses_lock);
 
-	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
-		list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
+	list_for_each_entry(it, &cifs_tcp_ses_list, tcp_ses_list) {
+		list_for_each_entry(ses, &it->smb_ses_list, smb_ses_list) {
 			if (ses->Suid == ses_id)
 				goto found;
 		}
@@ -685,6 +686,8 @@ smb2_mid_entry_alloc(const struct smb2_sync_hdr *shdr,
 	 * The default is for the mid to be synchronous, so the
 	 * default callback just wakes up the current task.
 	 */
+	get_task_struct(current);
+	temp->creator = current;
 	temp->callback = cifs_wake_up_task;
 	temp->callback_data = current;
 

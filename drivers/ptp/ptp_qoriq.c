@@ -74,14 +74,13 @@ static void set_fipers(struct ptp_qoriq *ptp_qoriq)
 	ptp_qoriq->write(&regs->fiper_regs->tmr_fiper2, ptp_qoriq->tmr_fiper2);
 }
 
-static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
-			  bool update_event)
+int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index, bool update_event)
 {
 	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 	struct ptp_clock_event event;
 	void __iomem *reg_etts_l;
 	void __iomem *reg_etts_h;
-	u32 valid, stat, lo, hi;
+	u32 valid, lo, hi;
 
 	switch (index) {
 	case 0:
@@ -101,6 +100,10 @@ static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
 	event.type = PTP_CLOCK_EXTTS;
 	event.index = index;
 
+	if (ptp_qoriq->extts_fifo_support)
+		if (!(ptp_qoriq->read(&regs->ctrl_regs->tmr_stat) & valid))
+			return 0;
+
 	do {
 		lo = ptp_qoriq->read(reg_etts_l);
 		hi = ptp_qoriq->read(reg_etts_h);
@@ -111,11 +114,13 @@ static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
 			ptp_clock_event(ptp_qoriq->clock, &event);
 		}
 
-		stat = ptp_qoriq->read(&regs->ctrl_regs->tmr_stat);
-	} while (ptp_qoriq->extts_fifo_support && (stat & valid));
+		if (!ptp_qoriq->extts_fifo_support)
+			break;
+	} while (ptp_qoriq->read(&regs->ctrl_regs->tmr_stat) & valid);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(extts_clean_up);
 
 /*
  * Interrupt service routine

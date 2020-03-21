@@ -98,6 +98,7 @@ int ext4_get_max_inline_size(struct inode *inode)
 
 	error = ext4_get_inode_loc(inode, &iloc);
 	if (error) {
+		ext4_set_errno(inode->i_sb, -error);
 		ext4_error_inode(inode, __func__, __LINE__, 0,
 				 "can't get inode location %lu",
 				 inode->i_ino);
@@ -849,7 +850,7 @@ out:
 
 /*
  * Prepare the write for the inline data.
- * If the the data can be written into the inode, we just read
+ * If the data can be written into the inode, we just read
  * the page and make it uptodate, and start the journal.
  * Otherwise read the page, makes it dirty so that it can be
  * handle in writepages(the i_disksize update is left to the
@@ -1761,6 +1762,7 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 
 	err = ext4_get_inode_loc(dir, &iloc);
 	if (err) {
+		ext4_set_errno(dir->i_sb, -err);
 		EXT4_ERROR_INODE(dir, "error %d getting inode %lu block",
 				 err, dir->i_ino);
 		return true;

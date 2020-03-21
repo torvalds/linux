@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/hwmon/pmbus/ti,ucd90320.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: UCD90320 power sequencer
+
+maintainers:
+  - Jim Wright <wrightj@linux.vnet.ibm.com>
+
+description: |
+  The UCD90320 is a 32-rail PMBus/I2C addressable power-supply sequencer and
+  monitor. The 24 integrated ADC channels (AMONx) monitor the power supply
+  voltage, current, and temperature. Of the 84 GPIO pins, 8 can be used as
+  digital monitors (DMONx), 32 to enable the power supply (ENx), 24 for
+  margining (MARx), 16 for logical GPO, and 32 GPIs for cascading, and system
+  function.
+
+  http://focus.ti.com/lit/ds/symlink/ucd90320.pdf
+
+properties:
+  compatible:
+    enum:
+      - ti,ucd90320
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ucd90320@11 {
+            compatible = "ti,ucd90320";
+            reg = <0x11>;
+        };
+    };

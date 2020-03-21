@@ -6575,7 +6575,7 @@ bnx2_dump_state(struct bnx2 *bp)
 }
 
 static void
-bnx2_tx_timeout(struct net_device *dev)
+bnx2_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 

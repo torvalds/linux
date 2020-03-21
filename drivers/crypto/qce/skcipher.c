@@ -21,6 +21,7 @@ static void qce_skcipher_done(void *data)
 	struct qce_cipher_reqctx *rctx = skcipher_request_ctx(req);
 	struct qce_alg_template *tmpl = to_cipher_tmpl(crypto_skcipher_reqtfm(req));
 	struct qce_device *qce = tmpl->qce;
+	struct qce_result_dump *result_buf = qce->dma.result_buf;
 	enum dma_data_direction dir_src, dir_dst;
 	u32 status;
 	int error;
@@ -45,6 +46,7 @@ static void qce_skcipher_done(void *data)
 	if (error < 0)
 		dev_dbg(qce->dev, "skcipher operation error (%x)\n", status);
 
+	memcpy(rctx->iv, result_buf->encr_cntr_iv, rctx->ivsize);
 	qce->async_req_done(tmpl->qce, error);
 }
 
@@ -95,13 +97,13 @@ qce_skcipher_async_req_handle(struct crypto_async_request *async_req)
 
 	sg_init_one(&rctx->result_sg, qce->dma.result_buf, QCE_RESULT_BUF_SZ);
 
-	sg = qce_sgtable_add(&rctx->dst_tbl, req->dst);
+	sg = qce_sgtable_add(&rctx->dst_tbl, req->dst, rctx->dst_nents - 1);
 	if (IS_ERR(sg)) {
 		ret = PTR_ERR(sg);
 		goto error_free;
 	}
 
-	sg = qce_sgtable_add(&rctx->dst_tbl, &rctx->result_sg);
+	sg = qce_sgtable_add(&rctx->dst_tbl, &rctx->result_sg, 1);
 	if (IS_ERR(sg)) {
 		ret = PTR_ERR(sg);
 		goto error_free;
@@ -154,12 +156,13 @@ static int qce_skcipher_setkey(struct crypto_skcipher *ablk, const u8 *key,
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ablk);
 	struct qce_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	unsigned long flags = to_cipher_tmpl(ablk)->alg_flags;
 	int ret;
 
 	if (!key || !keylen)
 		return -EINVAL;
 
-	switch (keylen) {
+	switch (IS_XTS(flags) ? keylen >> 1 : keylen) {
 	case AES_KEYSIZE_128:
 	case AES_KEYSIZE_256:
 		break;
@@ -213,13 +216,15 @@ static int qce_skcipher_crypt(struct skcipher_request *req, int encrypt)
 	struct qce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct qce_cipher_reqctx *rctx = skcipher_request_ctx(req);
 	struct qce_alg_template *tmpl = to_cipher_tmpl(tfm);
+	int keylen;
 	int ret;
 
 	rctx->flags = tmpl->alg_flags;
 	rctx->flags |= encrypt ? QCE_ENCRYPT : QCE_DECRYPT;
+	keylen = IS_XTS(rctx->flags) ? ctx->enc_keylen >> 1 : ctx->enc_keylen;
 
-	if (IS_AES(rctx->flags) && ctx->enc_keylen != AES_KEYSIZE_128 &&
-	    ctx->enc_keylen != AES_KEYSIZE_256) {
+	if (IS_AES(rctx->flags) && keylen != AES_KEYSIZE_128 &&
+	    keylen != AES_KEYSIZE_256) {
 		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->fallback);
 
 		skcipher_request_set_sync_tfm(subreq, ctx->fallback);
@@ -252,7 +257,14 @@ static int qce_skcipher_init(struct crypto_skcipher *tfm)
 
 	memset(ctx, 0, sizeof(*ctx));
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct qce_cipher_reqctx));
+	return 0;
+}
 
+static int qce_skcipher_init_fallback(struct crypto_skcipher *tfm)
+{
+	struct qce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
+
+	qce_skcipher_init(tfm);
 	ctx->fallback = crypto_alloc_sync_skcipher(crypto_tfm_alg_name(&tfm->base),
 						   0, CRYPTO_ALG_NEED_FALLBACK);
 	return PTR_ERR_OR_ZERO(ctx->fallback);
@@ -270,6 +282,7 @@ struct qce_skcipher_def {
 	const char *name;
 	const char *drv_name;
 	unsigned int blocksize;
+	unsigned int chunksize;
 	unsigned int ivsize;
 	unsigned int min_keysize;
 	unsigned int max_keysize;
@@ -298,7 +311,8 @@ static const struct qce_skcipher_def skcipher_def[] = {
 		.flags		= QCE_ALG_AES | QCE_MODE_CTR,
 		.name		= "ctr(aes)",
 		.drv_name	= "ctr-aes-qce",
-		.blocksize	= AES_BLOCK_SIZE,
+		.blocksize	= 1,
+		.chunksize	= AES_BLOCK_SIZE,
 		.ivsize		= AES_BLOCK_SIZE,
 		.min_keysize	= AES_MIN_KEY_SIZE,
 		.max_keysize	= AES_MAX_KEY_SIZE,
@@ -309,8 +323,8 @@ static const struct qce_skcipher_def skcipher_def[] = {
 		.drv_name	= "xts-aes-qce",
 		.blocksize	= AES_BLOCK_SIZE,
 		.ivsize		= AES_BLOCK_SIZE,
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
+		.min_keysize	= AES_MIN_KEY_SIZE * 2,
+		.max_keysize	= AES_MAX_KEY_SIZE * 2,
 	},
 	{
 		.flags		= QCE_ALG_DES | QCE_MODE_ECB,
@@ -368,6 +382,7 @@ static int qce_skcipher_register_one(const struct qce_skcipher_def *def,
 		 def->drv_name);
 
 	alg->base.cra_blocksize		= def->blocksize;
+	alg->chunksize			= def->chunksize;
 	alg->ivsize			= def->ivsize;
 	alg->min_keysize		= def->min_keysize;
 	alg->max_keysize		= def->max_keysize;
@@ -379,14 +394,18 @@ static int qce_skcipher_register_one(const struct qce_skcipher_def *def,
 
 	alg->base.cra_priority		= 300;
 	alg->base.cra_flags		= CRYPTO_ALG_ASYNC |
-					  CRYPTO_ALG_NEED_FALLBACK |
 					  CRYPTO_ALG_KERN_DRIVER_ONLY;
 	alg->base.cra_ctxsize		= sizeof(struct qce_cipher_ctx);
 	alg->base.cra_alignmask		= 0;
 	alg->base.cra_module		= THIS_MODULE;
 
-	alg->init			= qce_skcipher_init;
-	alg->exit			= qce_skcipher_exit;
+	if (IS_AES(def->flags)) {
+		alg->base.cra_flags    |= CRYPTO_ALG_NEED_FALLBACK;
+		alg->init		= qce_skcipher_init_fallback;
+		alg->exit		= qce_skcipher_exit;
+	} else {
+		alg->init		= qce_skcipher_init;
+	}
 
 	INIT_LIST_HEAD(&tmpl->entry);
 	tmpl->crypto_alg_type = CRYPTO_ALG_TYPE_SKCIPHER;

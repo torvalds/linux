@@ -45,7 +45,8 @@ enum pd_data_msg_type {
 	PD_DATA_BATT_STATUS = 5,
 	PD_DATA_ALERT = 6,
 	PD_DATA_GET_COUNTRY_INFO = 7,
-	/* 8-14 Reserved */
+	PD_DATA_ENTER_USB = 8,
+	/* 9-14 Reserved */
 	PD_DATA_VENDOR_DEF = 15,
 	/* 16-31 Reserved */
 };
@@ -417,6 +418,36 @@ static inline unsigned int rdo_max_power(u32 rdo)
 {
 	return ((rdo >> RDO_BATT_MAX_PWR_SHIFT) & RDO_PWR_MASK) * 250;
 }
+
+/* Enter_USB Data Object */
+#define EUDO_USB_MODE_MASK		GENMASK(30, 28)
+#define EUDO_USB_MODE_SHIFT		28
+#define   EUDO_USB_MODE_USB2		0
+#define   EUDO_USB_MODE_USB3		1
+#define   EUDO_USB_MODE_USB4		2
+#define EUDO_USB4_DRD			BIT(26)
+#define EUDO_USB3_DRD			BIT(25)
+#define EUDO_CABLE_SPEED_MASK		GENMASK(23, 21)
+#define EUDO_CABLE_SPEED_SHIFT		21
+#define   EUDO_CABLE_SPEED_USB2		0
+#define   EUDO_CABLE_SPEED_USB3_GEN1	1
+#define   EUDO_CABLE_SPEED_USB4_GEN2	2
+#define   EUDO_CABLE_SPEED_USB4_GEN3	3
+#define EUDO_CABLE_TYPE_MASK		GENMASK(20, 19)
+#define EUDO_CABLE_TYPE_SHIFT		19
+#define   EUDO_CABLE_TYPE_PASSIVE	0
+#define   EUDO_CABLE_TYPE_RE_TIMER	1
+#define   EUDO_CABLE_TYPE_RE_DRIVER	2
+#define   EUDO_CABLE_TYPE_OPTICAL	3
+#define EUDO_CABLE_CURRENT_MASK		GENMASK(18, 17)
+#define EUDO_CABLE_CURRENT_SHIFT	17
+#define   EUDO_CABLE_CURRENT_NOTSUPP	0
+#define   EUDO_CABLE_CURRENT_3A		2
+#define   EUDO_CABLE_CURRENT_5A		3
+#define EUDO_PCIE_SUPPORT		BIT(16)
+#define EUDO_DP_SUPPORT			BIT(15)
+#define EUDO_TBT_SUPPORT		BIT(14)
+#define EUDO_HOST_PRESENT		BIT(13)
 
 /* USB PD timers and counters */
 #define PD_T_NO_RESPONSE	5000	/* 4.5 - 5.5 seconds */

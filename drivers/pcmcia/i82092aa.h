@@ -4,17 +4,6 @@
 
 #include <linux/interrupt.h>
 
-/* Debuging defines */
-#ifdef NOTRACE
-#define enter(x)   printk("Enter: %s, %s line %i\n",x,__FILE__,__LINE__)
-#define leave(x)   printk("Leave: %s, %s line %i\n",x,__FILE__,__LINE__)
-#else
-#define enter(x)   do {} while (0)
-#define leave(x)   do {} while (0)
-#endif
-
-
-
 /* prototypes */
 
 static int  i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *id);

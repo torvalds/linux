@@ -38,69 +38,6 @@ struct omap2430_glue {
 
 static struct omap2430_glue	*_glue;
 
-static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
-{
-	struct usb_otg	*otg = musb->xceiv->otg;
-	u8		devctl;
-	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
-	/* HDRC controls CPEN, but beware current surges during device
-	 * connect.  They can trigger transient overcurrent conditions
-	 * that must be ignored.
-	 */
-
-	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
-
-	if (is_on) {
-		if (musb->xceiv->otg->state == OTG_STATE_A_IDLE) {
-			int loops = 100;
-			/* start the session */
-			devctl |= MUSB_DEVCTL_SESSION;
-			musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
-			/*
-			 * Wait for the musb to set as A device to enable the
-			 * VBUS
-			 */
-			while (musb_readb(musb->mregs, MUSB_DEVCTL) &
-			       MUSB_DEVCTL_BDEVICE) {
-
-				mdelay(5);
-				cpu_relax();
-
-				if (time_after(jiffies, timeout)
-				    || loops-- <= 0) {
-					dev_err(musb->controller,
-					"configured as A device timeout");
-					break;
-				}
-			}
-
-			otg_set_vbus(otg, 1);
-		} else {
-			musb->is_active = 1;
-			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
-			devctl |= MUSB_DEVCTL_SESSION;
-			MUSB_HST_MODE(musb);
-		}
-	} else {
-		musb->is_active = 0;
-
-		/* NOTE:  we're skipping A_WAIT_VFALL -> A_IDLE and
-		 * jumping right to B_IDLE...
-		 */
-
-		musb->xceiv->otg->state = OTG_STATE_B_IDLE;
-		devctl &= ~MUSB_DEVCTL_SESSION;
-
-		MUSB_DEV_MODE(musb);
-	}
-	musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
-
-	dev_dbg(musb->controller, "VBUS %s, devctl %02x "
-		/* otg %3x conf %08x prcm %08x */ "\n",
-		usb_otg_state_string(musb->xceiv->otg->state),
-		musb_readb(musb->mregs, MUSB_DEVCTL));
-}
-
 static inline void omap2430_low_level_exit(struct musb *musb)
 {
 	u32 l;
@@ -140,24 +77,52 @@ static int omap2430_musb_mailbox(enum musb_vbus_id_status status)
 	return 0;
 }
 
+/*
+ * HDRC controls CPEN, but beware current surges during device connect.
+ * They can trigger transient overcurrent conditions that must be ignored.
+ *
+ * Note that we're skipping A_WAIT_VFALL -> A_IDLE and jumping right to B_IDLE
+ * as set by musb_set_peripheral().
+ */
 static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 {
 	struct musb *musb = glue_to_musb(glue);
-	struct musb_hdrc_platform_data *pdata =
-		dev_get_platdata(musb->controller);
-	struct omap_musb_board_data *data = pdata->board_data;
+	int error;
 
 	pm_runtime_get_sync(musb->controller);
+
+	dev_dbg(musb->controller, "VBUS %s, devctl %02x\n",
+		usb_otg_state_string(musb->xceiv->otg->state),
+		musb_readb(musb->mregs, MUSB_DEVCTL));
+
 	switch (glue->status) {
 	case MUSB_ID_GROUND:
 		dev_dbg(musb->controller, "ID GND\n");
-
-		musb->xceiv->otg->state = OTG_STATE_A_IDLE;
-		musb->xceiv->last_event = USB_EVENT_ID;
-		if (musb->gadget_driver) {
-			omap_control_usb_set_mode(glue->control_otghs,
-				USB_MODE_HOST);
-			omap2430_musb_set_vbus(musb, 1);
+		switch (musb->xceiv->otg->state) {
+		case OTG_STATE_A_IDLE:
+			error = musb_set_host(musb);
+			if (error)
+				break;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
+			/* Fall through */
+		case OTG_STATE_A_WAIT_VRISE:
+		case OTG_STATE_A_WAIT_BCON:
+		case OTG_STATE_A_HOST:
+			/*
+			 * On multiple ID ground interrupts just keep enabling
+			 * VBUS. At least cpcap VBUS shuts down otherwise.
+			 */
+			otg_set_vbus(musb->xceiv->otg, 1);
+			break;
+		default:
+			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
+			musb->xceiv->last_event = USB_EVENT_ID;
+			if (musb->gadget_driver) {
+				omap_control_usb_set_mode(glue->control_otghs,
+							  USB_MODE_HOST);
+				otg_set_vbus(musb->xceiv->otg, 1);
+			}
+			break;
 		}
 		break;
 
@@ -174,12 +139,8 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 		dev_dbg(musb->controller, "VBUS Disconnect\n");
 
 		musb->xceiv->last_event = USB_EVENT_NONE;
-		if (musb->gadget_driver)
-			omap2430_musb_set_vbus(musb, 0);
-
-		if (data->interface_type == MUSB_INTERFACE_UTMI)
-			otg_set_vbus(musb->xceiv->otg, 0);
-
+		musb_set_peripheral(musb);
+		otg_set_vbus(musb->xceiv->otg, 0);
 		omap_control_usb_set_mode(glue->control_otghs,
 			USB_MODE_DISCONNECT);
 		break;
@@ -226,7 +187,6 @@ static int omap2430_musb_init(struct musb *musb)
 	u32 l;
 	int status = 0;
 	struct device *dev = musb->controller;
-	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
 	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = plat->board_data;
 
@@ -282,50 +242,17 @@ static int omap2430_musb_init(struct musb *musb)
 			musb_readl(musb->mregs, OTG_INTERFSEL),
 			musb_readl(musb->mregs, OTG_SIMENABLE));
 
-	if (glue->status != MUSB_UNKNOWN)
-		omap_musb_set_mailbox(glue);
-
 	return 0;
 }
 
 static void omap2430_musb_enable(struct musb *musb)
 {
-	u8		devctl;
-	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct device *dev = musb->controller;
 	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
-	struct musb_hdrc_platform_data *pdata = dev_get_platdata(dev);
-	struct omap_musb_board_data *data = pdata->board_data;
 
-
-	switch (glue->status) {
-
-	case MUSB_ID_GROUND:
-		omap_control_usb_set_mode(glue->control_otghs, USB_MODE_HOST);
-		if (data->interface_type != MUSB_INTERFACE_UTMI)
-			break;
-		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
-		/* start the session */
-		devctl |= MUSB_DEVCTL_SESSION;
-		musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
-		while (musb_readb(musb->mregs, MUSB_DEVCTL) &
-				MUSB_DEVCTL_BDEVICE) {
-			cpu_relax();
-
-			if (time_after(jiffies, timeout)) {
-				dev_err(dev, "configured as A device timeout");
-				break;
-			}
-		}
-		break;
-
-	case MUSB_VBUS_VALID:
-		omap_control_usb_set_mode(glue->control_otghs, USB_MODE_DEVICE);
-		break;
-
-	default:
-		break;
-	}
+	if (glue->status == MUSB_UNKNOWN)
+		glue->status = MUSB_VBUS_OFF;
+	omap_musb_set_mailbox(glue);
 }
 
 static void omap2430_musb_disable(struct musb *musb)
@@ -360,8 +287,6 @@ static const struct musb_platform_ops omap2430_ops = {
 #endif
 	.init		= omap2430_musb_init,
 	.exit		= omap2430_musb_exit,
-
-	.set_vbus	= omap2430_musb_set_vbus,
 
 	.enable		= omap2430_musb_enable,
 	.disable	= omap2430_musb_disable,
@@ -551,6 +476,9 @@ static int omap2430_runtime_resume(struct device *dev)
 	omap2430_low_level_init(musb);
 	musb_writel(musb->mregs, OTG_INTERFSEL,
 		    musb->context.otg_interfsel);
+
+	/* Wait for musb to get oriented. Otherwise we can get babble */
+	usleep_range(200000, 250000);
 
 	return 0;
 }

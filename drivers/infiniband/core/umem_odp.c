@@ -110,15 +110,12 @@ out_page_list:
  * They exist only to hold the per_mm reference to help the driver create
  * children umems.
  *
- * @udata: udata from the syscall being used to create the umem
+ * @device: IB device to create UMEM
  * @access: ib_reg_mr access flags
  */
-struct ib_umem_odp *ib_umem_odp_alloc_implicit(struct ib_udata *udata,
+struct ib_umem_odp *ib_umem_odp_alloc_implicit(struct ib_device *device,
 					       int access)
 {
-	struct ib_ucontext *context =
-		container_of(udata, struct uverbs_attr_bundle, driver_udata)
-			->context;
 	struct ib_umem *umem;
 	struct ib_umem_odp *umem_odp;
 	int ret;
@@ -126,14 +123,11 @@ struct ib_umem_odp *ib_umem_odp_alloc_implicit(struct ib_udata *udata,
 	if (access & IB_ACCESS_HUGETLB)
 		return ERR_PTR(-EINVAL);
 
-	if (!context)
-		return ERR_PTR(-EIO);
-
 	umem_odp = kzalloc(sizeof(*umem_odp), GFP_KERNEL);
 	if (!umem_odp)
 		return ERR_PTR(-ENOMEM);
 	umem = &umem_odp->umem;
-	umem->ibdev = context->device;
+	umem->ibdev = device;
 	umem->writable = ib_access_writable(access);
 	umem->owning_mm = current->mm;
 	umem_odp->is_implicit_odp = 1;
@@ -201,7 +195,7 @@ EXPORT_SYMBOL(ib_umem_odp_alloc_child);
 /**
  * ib_umem_odp_get - Create a umem_odp for a userspace va
  *
- * @udata: userspace context to pin memory for
+ * @device: IB device struct to get UMEM
  * @addr: userspace virtual address to start at
  * @size: length of region to pin
  * @access: IB_ACCESS_xxx flags for memory being pinned
@@ -210,22 +204,13 @@ EXPORT_SYMBOL(ib_umem_odp_alloc_child);
  * pinning, instead, stores the mm for future page fault handling in
  * conjunction with MMU notifiers.
  */
-struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
-				    size_t size, int access,
+struct ib_umem_odp *ib_umem_odp_get(struct ib_device *device,
+				    unsigned long addr, size_t size, int access,
 				    const struct mmu_interval_notifier_ops *ops)
 {
 	struct ib_umem_odp *umem_odp;
-	struct ib_ucontext *context;
 	struct mm_struct *mm;
 	int ret;
-
-	if (!udata)
-		return ERR_PTR(-EIO);
-
-	context = container_of(udata, struct uverbs_attr_bundle, driver_udata)
-			  ->context;
-	if (!context)
-		return ERR_PTR(-EIO);
 
 	if (WARN_ON_ONCE(!(access & IB_ACCESS_ON_DEMAND)))
 		return ERR_PTR(-EINVAL);
@@ -234,7 +219,7 @@ struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
 	if (!umem_odp)
 		return ERR_PTR(-ENOMEM);
 
-	umem_odp->umem.ibdev = context->device;
+	umem_odp->umem.ibdev = device;
 	umem_odp->umem.length = size;
 	umem_odp->umem.address = addr;
 	umem_odp->umem.writable = ib_access_writable(access);
@@ -242,21 +227,10 @@ struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
 	umem_odp->notifier.ops = ops;
 
 	umem_odp->page_shift = PAGE_SHIFT;
-	if (access & IB_ACCESS_HUGETLB) {
-		struct vm_area_struct *vma;
-		struct hstate *h;
-
-		down_read(&mm->mmap_sem);
-		vma = find_vma(mm, ib_umem_start(umem_odp));
-		if (!vma || !is_vm_hugetlb_page(vma)) {
-			up_read(&mm->mmap_sem);
-			ret = -EINVAL;
-			goto err_free;
-		}
-		h = hstate_vma(vma);
-		umem_odp->page_shift = huge_page_shift(h);
-		up_read(&mm->mmap_sem);
-	}
+#ifdef CONFIG_HUGETLB_PAGE
+	if (access & IB_ACCESS_HUGETLB)
+		umem_odp->page_shift = HPAGE_SHIFT;
+#endif
 
 	umem_odp->tgid = get_task_pid(current->group_leader, PIDTYPE_PID);
 	ret = ib_init_umem_odp(umem_odp, ops);
@@ -266,7 +240,6 @@ struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
 
 err_put_pid:
 	put_pid(umem_odp->tgid);
-err_free:
 	kfree(umem_odp);
 	return ERR_PTR(ret);
 }
@@ -308,9 +281,8 @@ EXPORT_SYMBOL(ib_umem_odp_release);
  * The function returns -EFAULT if the DMA mapping operation fails. It returns
  * -EAGAIN if a concurrent invalidation prevents us from updating the page.
  *
- * The page is released via put_user_page even if the operation failed. For
- * on-demand pinning, the page is released whenever it isn't stored in the
- * umem.
+ * The page is released via put_page even if the operation failed. For on-demand
+ * pinning, the page is released whenever it isn't stored in the umem.
  */
 static int ib_umem_odp_map_dma_single_page(
 		struct ib_umem_odp *umem_odp,
@@ -363,7 +335,7 @@ static int ib_umem_odp_map_dma_single_page(
 	}
 
 out:
-	put_user_page(page);
+	put_page(page);
 	return ret;
 }
 
@@ -440,7 +412,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 
 	while (bcnt > 0) {
 		const size_t gup_num_pages = min_t(size_t,
-				(bcnt + BIT(page_shift) - 1) >> page_shift,
+				ALIGN(bcnt, PAGE_SIZE) / PAGE_SIZE,
 				PAGE_SIZE / sizeof(struct page *));
 
 		down_read(&owning_mm->mmap_sem);
@@ -473,7 +445,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 					ret = -EFAULT;
 					break;
 				}
-				put_user_page(local_page_list[j]);
+				put_page(local_page_list[j]);
 				continue;
 			}
 
@@ -500,8 +472,8 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 			 * ib_umem_odp_map_dma_single_page().
 			 */
 			if (npages - (j + 1) > 0)
-				put_user_pages(&local_page_list[j+1],
-					       npages - (j + 1));
+				release_pages(&local_page_list[j+1],
+					      npages - (j + 1));
 			break;
 		}
 	}

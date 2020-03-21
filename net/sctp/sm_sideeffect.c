@@ -516,8 +516,6 @@ static void sctp_do_8_2_transport_strike(struct sctp_cmd_seq *commands,
 					 struct sctp_transport *transport,
 					 int is_hb)
 {
-	struct net *net = sock_net(asoc->base.sk);
-
 	/* The check for association's overall error counter exceeding the
 	 * threshold is done in the state function.
 	 */
@@ -544,10 +542,10 @@ static void sctp_do_8_2_transport_strike(struct sctp_cmd_seq *commands,
 	 * is SCTP_ACTIVE, then mark this transport as Partially Failed,
 	 * see SCTP Quick Failover Draft, section 5.1
 	 */
-	if (net->sctp.pf_enable &&
-	   (transport->state == SCTP_ACTIVE) &&
-	   (transport->error_count < transport->pathmaxrxt) &&
-	   (transport->error_count > transport->pf_retrans)) {
+	if (asoc->base.net->sctp.pf_enable &&
+	    transport->state == SCTP_ACTIVE &&
+	    transport->error_count < transport->pathmaxrxt &&
+	    transport->error_count > transport->pf_retrans) {
 
 		sctp_assoc_control_transport(asoc, transport,
 					     SCTP_TRANSPORT_PF,
@@ -798,10 +796,8 @@ static int sctp_cmd_process_sack(struct sctp_cmd_seq *cmds,
 	int err = 0;
 
 	if (sctp_outq_sack(&asoc->outqueue, chunk)) {
-		struct net *net = sock_net(asoc->base.sk);
-
 		/* There are no more TSNs awaiting SACK.  */
-		err = sctp_do_sm(net, SCTP_EVENT_T_OTHER,
+		err = sctp_do_sm(asoc->base.net, SCTP_EVENT_T_OTHER,
 				 SCTP_ST_OTHER(SCTP_EVENT_NO_PENDING_TSN),
 				 asoc->state, asoc->ep, asoc, NULL,
 				 GFP_ATOMIC);
@@ -834,7 +830,7 @@ static void sctp_cmd_assoc_update(struct sctp_cmd_seq *cmds,
 				  struct sctp_association *asoc,
 				  struct sctp_association *new)
 {
-	struct net *net = sock_net(asoc->base.sk);
+	struct net *net = asoc->base.net;
 	struct sctp_chunk *abort;
 
 	if (!sctp_assoc_update(asoc, new))

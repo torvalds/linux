@@ -1161,6 +1161,9 @@ extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		return;
 
+	if (!cpu_has_feature(CPU_FTR_P9_RADIX_PREFETCH_BUG))
+		return;
+
 	/*
 	 * If this context hasn't run on that CPU before and KVM is
 	 * around, there's a slim chance that the guest on another

@@ -24,7 +24,7 @@
     |      parisc: |  ok  |
     |     powerpc: |  ok  |
     |       riscv: | TODO |
-    |        s390: | TODO |
+    |        s390: |  ok  |
     |          sh: | TODO |
     |       sparc: | TODO |
     |          um: | TODO |

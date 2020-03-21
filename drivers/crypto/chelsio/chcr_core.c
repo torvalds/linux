@@ -132,8 +132,6 @@ static void chcr_dev_init(struct uld_ctx *u_ctx)
 
 static int chcr_dev_move(struct uld_ctx *u_ctx)
 {
-	struct adapter *adap;
-
 	 mutex_lock(&drv_data.drv_mutex);
 	if (drv_data.last_dev == u_ctx) {
 		if (list_is_last(&drv_data.last_dev->entry, &drv_data.act_dev))
@@ -146,8 +144,6 @@ static int chcr_dev_move(struct uld_ctx *u_ctx)
 	list_move(&u_ctx->entry, &drv_data.inact_dev);
 	if (list_empty(&drv_data.act_dev))
 		drv_data.last_dev = NULL;
-	adap = padap(&u_ctx->dev);
-	memset(&adap->chcr_stats, 0, sizeof(adap->chcr_stats));
 	atomic_dec(&drv_data.dev_count);
 	mutex_unlock(&drv_data.drv_mutex);
 
@@ -299,17 +295,21 @@ static int __init chcr_crypto_init(void)
 static void __exit chcr_crypto_exit(void)
 {
 	struct uld_ctx *u_ctx, *tmp;
+	struct adapter *adap;
 
 	stop_crypto();
-
 	cxgb4_unregister_uld(CXGB4_ULD_CRYPTO);
 	/* Remove all devices from list */
 	mutex_lock(&drv_data.drv_mutex);
 	list_for_each_entry_safe(u_ctx, tmp, &drv_data.act_dev, entry) {
+		adap = padap(&u_ctx->dev);
+		memset(&adap->chcr_stats, 0, sizeof(adap->chcr_stats));
 		list_del(&u_ctx->entry);
 		kfree(u_ctx);
 	}
 	list_for_each_entry_safe(u_ctx, tmp, &drv_data.inact_dev, entry) {
+		adap = padap(&u_ctx->dev);
+		memset(&adap->chcr_stats, 0, sizeof(adap->chcr_stats));
 		list_del(&u_ctx->entry);
 		kfree(u_ctx);
 	}

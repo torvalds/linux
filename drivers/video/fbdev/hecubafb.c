@@ -197,7 +197,7 @@ static ssize_t hecubafb_write(struct fb_info *info, const char __user *buf,
 	return (err) ? err : count;
 }
 
-static struct fb_ops hecubafb_ops = {
+static const struct fb_ops hecubafb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_read        = fb_sys_read,
 	.fb_write	= hecubafb_write,

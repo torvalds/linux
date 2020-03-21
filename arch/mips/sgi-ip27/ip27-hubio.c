@@ -11,7 +11,9 @@
 #include <linux/mmzone.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/arch.h>
-#include <asm/sn/hub.h>
+#include <asm/sn/agent.h>
+#include <asm/sn/io.h>
+#include <asm/xtalk/xtalk.h>
 
 
 static int force_fire_and_forget = 1;
@@ -82,7 +84,7 @@ unsigned long hub_pio_map(nasid_t nasid, xwidgetnum_t widget,
  */
 static void hub_setup_prb(nasid_t nasid, int prbnum, int credits)
 {
-	iprb_t prb;
+	union iprb_u prb;
 	int prb_offset;
 
 	/*
@@ -135,7 +137,7 @@ static void hub_setup_prb(nasid_t nasid, int prbnum, int credits)
 static void hub_set_piomode(nasid_t nasid)
 {
 	u64 ii_iowa;
-	hubii_wcr_t ii_wcr;
+	union hubii_wcr_u ii_wcr;
 	unsigned i;
 
 	ii_iowa = REMOTE_HUB_L(nasid, IIO_OUTWIDGET_ACCESS);

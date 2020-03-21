@@ -233,7 +233,6 @@ static cycles_t check_tsc_warp(unsigned int timeout)
 	 * The measurement runs for 'timeout' msecs:
 	 */
 	end = start + (cycles_t) tsc_khz * timeout;
-	now = start;
 
 	for (i = 0; ; i++) {
 		/*

@@ -68,6 +68,14 @@
 		      <0xf0000100 0x100>;
 	};
 
+	timer@f0000200 {
+		compatible = "arm,cortex-a9-global-timer";
+		reg = <0xf0000200 0x100>;
+		interrupts = <GIC_PPI 11
+			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_EDGE_RISING)>;
+		clocks = <&cpg_clocks R8A7779_CLK_ZS>;
+	};
+
 	timer@f0000600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0xf0000600 0x20>;
@@ -164,10 +172,10 @@
 			<0xfe780044 4>,
 			<0xfe780064 4>,
 			<0xfe780000 4>;
-		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH
-			      GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH
-			      GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH
-			      GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		sense-bitfield-width = <2>;
 	};
 

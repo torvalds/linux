@@ -25,6 +25,7 @@ enum iio_event_info {
 #define IIO_VAL_INT_MULTIPLE 5
 #define IIO_VAL_FRACTIONAL 10
 #define IIO_VAL_FRACTIONAL_LOG2 11
+#define IIO_VAL_CHAR 12
 
 enum iio_available_type {
 	IIO_AVAIL_LIST,
@@ -57,6 +58,7 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_DEBOUNCE_TIME,
 	IIO_CHAN_INFO_CALIBEMISSIVITY,
 	IIO_CHAN_INFO_OVERSAMPLING_RATIO,
+	IIO_CHAN_INFO_THERMOCOUPLE_TYPE,
 };
 
 #endif /* _IIO_TYPES_H_ */

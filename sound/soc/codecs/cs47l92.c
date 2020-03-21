@@ -163,6 +163,51 @@ static int cs47l92_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	return wm_adsp_early_event(w, kcontrol, event);
 }
 
+static int cs47l92_outclk_ev(struct snd_soc_dapm_widget *w,
+			     struct snd_kcontrol *kcontrol,
+			     int event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct cs47l92 *cs47l92 = snd_soc_component_get_drvdata(component);
+	struct madera_priv *priv = &cs47l92->core;
+	struct madera *madera = priv->madera;
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(madera->regmap, MADERA_OUTPUT_RATE_1, &val);
+	if (ret) {
+		dev_err(madera->dev, "Failed to read OUTCLK source: %d\n", ret);
+		return ret;
+	}
+
+	val &= MADERA_OUT_CLK_SRC_MASK;
+
+	switch (val) {
+	case MADERA_OUTCLK_MCLK1:
+	case MADERA_OUTCLK_MCLK2:
+	case MADERA_OUTCLK_MCLK3:
+		val -= (MADERA_OUTCLK_MCLK1 - MADERA_MCLK1);
+
+		switch (event) {
+		case SND_SOC_DAPM_PRE_PMU:
+			ret = clk_prepare_enable(madera->mclk[val].clk);
+			if (ret)
+				return ret;
+			break;
+		case SND_SOC_DAPM_POST_PMD:
+			clk_disable_unprepare(madera->mclk[val].clk);
+			break;
+		default:
+			break;
+		}
+	default:
+		break;
+	}
+
+	return madera_domain_clk_ev(w, kcontrol, event);
+}
+
 #define CS47L92_NG_SRC(name, base) \
 	SOC_SINGLE(name " NG HPOUT1L Switch",  base,  0, 1, 0), \
 	SOC_SINGLE(name " NG HPOUT1R Switch",  base,  1, 1, 0), \
@@ -615,15 +660,18 @@ static const struct snd_kcontrol_new cs47l92_aec_loopback_mux =
 static const struct snd_soc_dapm_widget cs47l92_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", MADERA_SYSTEM_CLOCK_1, MADERA_SYSCLK_ENA_SHIFT,
 		    0, madera_sysclk_ev,
-		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+		    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", MADERA_ASYNC_CLOCK_1,
-		    MADERA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
+		    MADERA_ASYNC_CLK_ENA_SHIFT, 0, madera_clk_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("OPCLK", MADERA_OUTPUT_SYSTEM_CLOCK,
 		    MADERA_OPCLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("ASYNCOPCLK", MADERA_OUTPUT_ASYNC_CLOCK,
 		    MADERA_OPCLK_ASYNC_ENA_SHIFT, 0, NULL, 0),
-SND_SOC_DAPM_SUPPLY("DSPCLK", MADERA_DSP_CLOCK_1,
-		    MADERA_DSP_CLK_ENA_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("DSPCLK", MADERA_DSP_CLOCK_1, MADERA_DSP_CLK_ENA_SHIFT,
+		    0, madera_clk_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD1", 20, 0),
 SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD2", 20, 0),
@@ -666,7 +714,7 @@ SND_SOC_DAPM_SUPPLY("ISRC2CLK", SND_SOC_NOPM,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("OUTCLK", SND_SOC_NOPM,
 		    MADERA_DOM_GRP_OUT, 0,
-		    madera_domain_clk_ev,
+		    cs47l92_outclk_ev,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("SPDCLK", SND_SOC_NOPM,
 		    MADERA_DOM_GRP_SPD, 0,
@@ -730,6 +778,7 @@ SND_SOC_DAPM_MUX("IN2L Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[1]),
 SND_SOC_DAPM_MUX("IN2R Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[1]),
 
 SND_SOC_DAPM_DEMUX("OUT3 Demux", SND_SOC_NOPM, 0, 0, &cs47l92_outdemux),
+SND_SOC_DAPM_MUX("OUT3 Mono Mux", SND_SOC_NOPM, 0, 0, &cs47l92_outdemux),
 
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
@@ -1584,6 +1633,8 @@ static const struct snd_soc_dapm_route cs47l92_dapm_routes[] = {
 	{ "OUT3 Demux", NULL, "OUT3L" },
 	{ "OUT3 Demux", NULL, "OUT3R" },
 
+	{ "OUT3R", NULL, "OUT3 Mono Mux" },
+
 	{ "HPOUT3L", "HPOUT3", "OUT3 Demux" },
 	{ "HPOUT3R", "HPOUT3", "OUT3 Demux" },
 	{ "HPOUT4L", "HPOUT4", "OUT3 Demux" },
@@ -1817,6 +1868,13 @@ static irqreturn_t cs47l92_adsp2_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static const struct snd_soc_dapm_route cs47l92_mono_routes[] = {
+	{ "OUT1R", NULL, "OUT1L" },
+	{ "OUT2R", NULL, "OUT2L" },
+	{ "OUT3 Mono Mux", "HPOUT3", "OUT3L" },
+	{ "OUT3 Mono Mux", "HPOUT4", "OUT3L" },
+};
+
 static int cs47l92_component_probe(struct snd_soc_component *component)
 {
 	struct cs47l92 *cs47l92 = snd_soc_component_get_drvdata(component);
@@ -1833,7 +1891,9 @@ static int cs47l92_component_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
-	ret = madera_init_outputs(component, CS47L92_MONO_OUTPUTS);
+	ret = madera_init_outputs(component, cs47l92_mono_routes,
+				  ARRAY_SIZE(cs47l92_mono_routes),
+				  CS47L92_MONO_OUTPUTS);
 	if (ret)
 		return ret;
 
@@ -1959,10 +2019,8 @@ static int cs47l92_probe(struct platform_device *pdev)
 		goto error_dsp_irq;
 
 	ret = madera_init_bus_error_irq(&cs47l92->core, 0, wm_adsp2_bus_error);
-	if (ret != 0) {
-		wm_adsp2_remove(&cs47l92->core.adsp[0]);
+	if (ret != 0)
 		goto error_adsp;
-	}
 
 	madera_init_fll(madera, 1, MADERA_FLL1_CONTROL_1 - 1,
 			&cs47l92->fll[0]);

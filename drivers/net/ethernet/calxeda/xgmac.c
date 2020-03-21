@@ -1251,7 +1251,7 @@ static int xgmac_poll(struct napi_struct *napi, int budget)
  *   netdev structure and arrange for the device to be reset to a sane state
  *   in order to transmit a new packet.
  */
-static void xgmac_tx_timeout(struct net_device *dev)
+static void xgmac_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct xgmac_priv *priv = netdev_priv(dev);
 	schedule_work(&priv->tx_timeout_work);

@@ -517,7 +517,7 @@ static void wait_for_dump_helpers(struct file *file)
 	pipe_lock(pipe);
 	pipe->readers++;
 	pipe->writers--;
-	wake_up_interruptible_sync(&pipe->wait);
+	wake_up_interruptible_sync(&pipe->rd_wait);
 	kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	pipe_unlock(pipe);
 
@@ -525,7 +525,7 @@ static void wait_for_dump_helpers(struct file *file)
 	 * We actually want wait_event_freezable() but then we need
 	 * to clear TIF_SIGPENDING and improve dump_interrupted().
 	 */
-	wait_event_interruptible(pipe->wait, pipe->readers == 1);
+	wait_event_interruptible(pipe->rd_wait, pipe->readers == 1);
 
 	pipe_lock(pipe);
 	pipe->readers--;

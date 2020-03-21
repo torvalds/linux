@@ -30,6 +30,8 @@
 #include "hdp/hdp_5_0_0_sh_mask.h"
 #include "gc/gc_10_1_0_sh_mask.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
+#include "athub/athub_2_0_0_sh_mask.h"
+#include "athub/athub_2_0_0_offset.h"
 #include "dcn/dcn_2_0_0_offset.h"
 #include "dcn/dcn_2_0_0_sh_mask.h"
 #include "oss/osssys_5_0_0_offset.h"
@@ -37,6 +39,7 @@
 #include "navi10_enum.h"
 
 #include "soc15.h"
+#include "soc15d.h"
 #include "soc15_common.h"
 
 #include "nbio_v2_3.h"
@@ -234,6 +237,19 @@ static bool gmc_v10_0_use_invalidate_semaphore(struct amdgpu_device *adev,
 		(!amdgpu_sriov_vf(adev)));
 }
 
+static bool gmc_v10_0_get_atc_vmid_pasid_mapping_info(
+					struct amdgpu_device *adev,
+					uint8_t vmid, uint16_t *p_pasid)
+{
+	uint32_t value;
+
+	value = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
+		     + vmid);
+	*p_pasid = value & ATC_VMID0_PASID_MAPPING__PASID_MASK;
+
+	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
+}
+
 /*
  * GART
  * VMID 0 is the physical GPU addresses as used by the kernel.
@@ -246,7 +262,8 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 {
 	bool use_semaphore = gmc_v10_0_use_invalidate_semaphore(adev, vmhub);
 	struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
-	u32 tmp = gmc_v10_0_get_invalidate_req(vmid, flush_type);
+	u32 inv_req = gmc_v10_0_get_invalidate_req(vmid, flush_type);
+	u32 tmp;
 	/* Use register 17 for GART */
 	const unsigned eng = 17;
 	unsigned int i;
@@ -273,7 +290,7 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 			DRM_ERROR("Timeout waiting for sem acquire in VM flush!\n");
 	}
 
-	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
+	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, inv_req);
 
 	/*
 	 * Issue a dummy read to wait for the ACK register to be cleared
@@ -378,6 +395,64 @@ error_submit:
 error_alloc:
 	mutex_unlock(&adev->mman.gtt_window_lock);
 	DRM_ERROR("Error flushing GPU TLB using the SDMA (%d)!\n", r);
+}
+
+/**
+ * gmc_v10_0_flush_gpu_tlb_pasid - tlb flush via pasid
+ *
+ * @adev: amdgpu_device pointer
+ * @pasid: pasid to be flush
+ *
+ * Flush the TLB for the requested pasid.
+ */
+static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
+					uint16_t pasid, uint32_t flush_type,
+					bool all_hub)
+{
+	int vmid, i;
+	signed long r;
+	uint32_t seq;
+	uint16_t queried_pasid;
+	bool ret;
+	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+
+	if (amdgpu_emu_mode == 0 && ring->sched.ready) {
+		spin_lock(&adev->gfx.kiq.ring_lock);
+		/* 2 dwords flush + 8 dwords fence */
+		amdgpu_ring_alloc(ring, kiq->pmf->invalidate_tlbs_size + 8);
+		kiq->pmf->kiq_invalidate_tlbs(ring,
+					pasid, flush_type, all_hub);
+		amdgpu_fence_emit_polling(ring, &seq);
+		amdgpu_ring_commit(ring);
+		spin_unlock(&adev->gfx.kiq.ring_lock);
+		r = amdgpu_fence_wait_polling(ring, seq, adev->usec_timeout);
+		if (r < 1) {
+			DRM_ERROR("wait for kiq fence error: %ld.\n", r);
+			return -ETIME;
+		}
+
+		return 0;
+	}
+
+	for (vmid = 1; vmid < 16; vmid++) {
+
+		ret = gmc_v10_0_get_atc_vmid_pasid_mapping_info(adev, vmid,
+				&queried_pasid);
+		if (ret	&& queried_pasid == pasid) {
+			if (all_hub) {
+				for (i = 0; i < adev->num_vmhubs; i++)
+					gmc_v10_0_flush_gpu_tlb(adev, vmid,
+							i, flush_type);
+			} else {
+				gmc_v10_0_flush_gpu_tlb(adev, vmid,
+						AMDGPU_GFXHUB_0, flush_type);
+			}
+			break;
+		}
+	}
+
+	return 0;
 }
 
 static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
@@ -531,6 +606,7 @@ static void gmc_v10_0_get_vm_pte(struct amdgpu_device *adev,
 
 static const struct amdgpu_gmc_funcs gmc_v10_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v10_0_flush_gpu_tlb,
+	.flush_gpu_tlb_pasid = gmc_v10_0_flush_gpu_tlb_pasid,
 	.emit_flush_gpu_tlb = gmc_v10_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v10_0_emit_pasid_mapping,
 	.map_mtype = gmc_v10_0_map_mtype,
@@ -564,22 +640,13 @@ static int gmc_v10_0_early_init(void *handle)
 static int gmc_v10_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	unsigned vm_inv_eng[AMDGPU_MAX_VMHUBS] = { 4, 4 };
-	unsigned i;
+	int r;
 
-	for(i = 0; i < adev->num_rings; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		unsigned vmhub = ring->funcs->vmhub;
+	amdgpu_bo_late_init(adev);
 
-		ring->vm_inv_eng = vm_inv_eng[vmhub]++;
-		dev_info(adev->dev, "ring %u(%s) uses VM inv eng %u on hub %u\n",
-			 ring->idx, ring->name, ring->vm_inv_eng,
-			 ring->funcs->vmhub);
-	}
-
-	/* Engine 17 is used for GART flushes */
-	for(i = 0; i < AMDGPU_MAX_VMHUBS; ++i)
-		BUG_ON(vm_inv_eng[i] > 17);
+	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
+	if (r)
+		return r;
 
 	return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 }
@@ -731,6 +798,10 @@ static int gmc_v10_0_sw_init(void *handle)
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VMC,
 			      VMC_1_0__SRCID__VM_FAULT,
 			      &adev->gmc.vm_fault);
+
+	if (r)
+		return r;
+
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_UTCL2,
 			      UTCL2_1_0__SRCID__FAULT,
 			      &adev->gmc.vm_fault);
@@ -742,15 +813,6 @@ static int gmc_v10_0_sw_init(void *handle)
 	 * internal address space.
 	 */
 	adev->gmc.mc_mask = 0xffffffffffffULL; /* 48 bit MC */
-
-	/*
-	 * Reserve 8M stolen memory for navi10 like vega10
-	 * TODO: will check if it's really needed on asic.
-	 */
-	if (amdgpu_emu_mode == 1)
-		adev->gmc.stolen_size = 0;
-	else
-		adev->gmc.stolen_size = 9 * 1024 *1024;
 
 	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
 	if (r) {

@@ -7,6 +7,7 @@
  * for more details.
  */
 
+#include <linux/dma-contiguous.h>
 #include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -345,6 +346,9 @@ asmlinkage void __init mmu_init(void)
 	/* This will also cause that unflatten device tree will be allocated
 	 * inside 768MB limit */
 	memblock_set_current_limit(memory_start + lowmem_size - 1);
+
+	/* CMA initialization */
+	dma_contiguous_reserve(memory_start + lowmem_size - 1);
 }
 
 /* This is only called until mem_init is done. */

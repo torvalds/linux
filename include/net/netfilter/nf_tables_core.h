@@ -74,6 +74,7 @@ extern struct nft_set_type nft_set_hash_type;
 extern struct nft_set_type nft_set_hash_fast_type;
 extern struct nft_set_type nft_set_rbtree_type;
 extern struct nft_set_type nft_set_bitmap_type;
+extern struct nft_set_type nft_set_pipapo_type;
 
 struct nft_expr;
 struct nft_regs;

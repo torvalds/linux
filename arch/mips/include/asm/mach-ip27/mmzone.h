@@ -4,7 +4,8 @@
 
 #include <asm/sn/addrs.h>
 #include <asm/sn/arch.h>
-#include <asm/sn/hub.h>
+#include <asm/sn/agent.h>
+#include <asm/sn/klkernvars.h>
 
 #define pa_to_nid(addr)		NASID_GET(addr)
 
@@ -12,7 +13,6 @@ struct hub_data {
 	kern_vars_t	kern_vars;
 	DECLARE_BITMAP(h_bigwin_used, HUB_NUM_BIG_WINDOW);
 	cpumask_t	h_cpus;
-	unsigned long slice_map;
 };
 
 struct node_data {

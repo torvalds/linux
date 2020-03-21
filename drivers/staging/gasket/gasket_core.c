@@ -303,7 +303,7 @@ static int gasket_map_pci_bar(struct gasket_dev *gasket_dev, int bar_num)
 	}
 
 	gasket_dev->bar_data[bar_num].virt_base =
-		ioremap_nocache(gasket_dev->bar_data[bar_num].phys_base,
+		ioremap(gasket_dev->bar_data[bar_num].phys_base,
 				gasket_dev->bar_data[bar_num].length_bytes);
 	if (!gasket_dev->bar_data[bar_num].virt_base) {
 		dev_err(gasket_dev->dev,

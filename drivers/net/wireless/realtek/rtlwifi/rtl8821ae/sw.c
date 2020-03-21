@@ -10,7 +10,6 @@
 #include "dm.h"
 #include "hw.h"
 #include "fw.h"
-#include "sw.h"
 #include "trx.h"
 #include "led.h"
 #include "table.h"
@@ -65,7 +64,7 @@ static void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
 }
 
 /*InitializeVariables8812E*/
-int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
+static int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 {
 	int err = 0;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -211,7 +210,7 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	return 0;
 }
 
-void rtl8821ae_deinit_sw_vars(struct ieee80211_hw *hw)
+static void rtl8821ae_deinit_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -228,7 +227,7 @@ void rtl8821ae_deinit_sw_vars(struct ieee80211_hw *hw)
 }
 
 /* get bt coexist status */
-bool rtl8821ae_get_btc_status(void)
+static bool rtl8821ae_get_btc_status(void)
 {
 	return true;
 }

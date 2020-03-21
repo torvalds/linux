@@ -644,7 +644,7 @@ static bool ice_page_is_reserved(struct page *page)
  * Update the offset within page so that Rx buf will be ready to be reused.
  * For systems with PAGE_SIZE < 8192 this function will flip the page offset
  * so the second half of page assigned to Rx buffer will be used, otherwise
- * the offset is moved by the @size bytes
+ * the offset is moved by "size" bytes
  */
 static void
 ice_rx_buf_adjust_pg_offset(struct ice_rx_buf *rx_buf, unsigned int size)
@@ -1071,13 +1071,14 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		ice_put_rx_buf(rx_ring, rx_buf);
 		continue;
 construct_skb:
-		if (skb)
+		if (skb) {
 			ice_add_rx_frag(rx_ring, rx_buf, skb, size);
-		else if (ice_ring_uses_build_skb(rx_ring))
-			skb = ice_build_skb(rx_ring, rx_buf, &xdp);
-		else
-			skb = ice_construct_skb(rx_ring, rx_buf, &xdp);
-
+		} else if (likely(xdp.data)) {
+			if (ice_ring_uses_build_skb(rx_ring))
+				skb = ice_build_skb(rx_ring, rx_buf, &xdp);
+			else
+				skb = ice_construct_skb(rx_ring, rx_buf, &xdp);
+		}
 		/* exit if we failed to retrieve a buffer */
 		if (!skb) {
 			rx_ring->rx_stats.alloc_buf_failed++;
@@ -1618,11 +1619,11 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 {
 	u64 td_offset, td_tag, td_cmd;
 	u16 i = tx_ring->next_to_use;
-	skb_frag_t *frag;
 	unsigned int data_len, size;
 	struct ice_tx_desc *tx_desc;
 	struct ice_tx_buf *tx_buf;
 	struct sk_buff *skb;
+	skb_frag_t *frag;
 	dma_addr_t dma;
 
 	td_tag = off->td_l2tag1;
@@ -1735,9 +1736,8 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 	ice_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	/* notify HW of packet */
-	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more()) {
+	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more())
 		writel(i, tx_ring->tail);
-	}
 
 	return;
 
@@ -1925,6 +1925,7 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 	} ip;
 	union {
 		struct tcphdr *tcp;
+		struct udphdr *udp;
 		unsigned char *hdr;
 	} l4;
 	u64 cd_mss, cd_tso_len;
@@ -1958,10 +1959,18 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 
 	/* remove payload length from checksum */
 	paylen = skb->len - l4_start;
-	csum_replace_by_diff(&l4.tcp->check, (__force __wsum)htonl(paylen));
 
-	/* compute length of segmentation header */
-	off->header_len = (l4.tcp->doff * 4) + l4_start;
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		csum_replace_by_diff(&l4.udp->check,
+				     (__force __wsum)htonl(paylen));
+		/* compute length of UDP segmentation header */
+		off->header_len = sizeof(l4.udp) + l4_start;
+	} else {
+		csum_replace_by_diff(&l4.tcp->check,
+				     (__force __wsum)htonl(paylen));
+		/* compute length of TCP segmentation header */
+		off->header_len = (l4.tcp->doff * 4) + l4_start;
+	}
 
 	/* update gso_segs and bytecount */
 	first->gso_segs = skb_shinfo(skb)->gso_segs;
@@ -2066,7 +2075,7 @@ static bool __ice_chk_linearize(struct sk_buff *skb)
 	frag = &skb_shinfo(skb)->frags[0];
 
 	/* Initialize size to the negative value of gso_size minus 1. We
-	 * use this as the worst case scenerio in which the frag ahead
+	 * use this as the worst case scenario in which the frag ahead
 	 * of us only provides one byte which is why we are limited to 6
 	 * descriptors for a single transmit as the header and previous
 	 * fragment are already consuming 2 descriptors.

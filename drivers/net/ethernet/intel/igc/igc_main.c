@@ -8,6 +8,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/ip.h>
+#include <linux/pm_runtime.h>
 
 #include <net/ipv6.h>
 
@@ -44,30 +45,12 @@ static const struct pci_device_id igc_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_I), board_base },
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I220_V), board_base },
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_K), board_base },
+	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_BLANK_NVM), board_base },
 	/* required last entry */
 	{0, }
 };
 
 MODULE_DEVICE_TABLE(pci, igc_pci_tbl);
-
-/* forward declaration */
-static void igc_clean_tx_ring(struct igc_ring *tx_ring);
-static int igc_sw_init(struct igc_adapter *);
-static void igc_configure(struct igc_adapter *adapter);
-static void igc_power_down_link(struct igc_adapter *adapter);
-static void igc_set_default_mac_filter(struct igc_adapter *adapter);
-static void igc_set_rx_mode(struct net_device *netdev);
-static void igc_write_itr(struct igc_q_vector *q_vector);
-static void igc_assign_vector(struct igc_q_vector *q_vector, int msix_vector);
-static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx);
-static void igc_set_interrupt_capability(struct igc_adapter *adapter,
-					 bool msix);
-static void igc_free_q_vectors(struct igc_adapter *adapter);
-static void igc_irq_disable(struct igc_adapter *adapter);
-static void igc_irq_enable(struct igc_adapter *adapter);
-static void igc_configure_msix(struct igc_adapter *adapter);
-static bool igc_alloc_mapped_page(struct igc_ring *rx_ring,
-				  struct igc_rx_buffer *bi);
 
 enum latency_range {
 	lowest_latency = 0,
@@ -75,6 +58,16 @@ enum latency_range {
 	bulk_latency = 2,
 	latency_invalid = 255
 };
+
+/**
+ * igc_power_down_link - Power down the phy/serdes link
+ * @adapter: address of board private structure
+ */
+static void igc_power_down_link(struct igc_adapter *adapter)
+{
+	if (adapter->hw.phy.media_type == igc_media_type_copper)
+		igc_power_down_phy_copper_base(&adapter->hw);
+}
 
 void igc_reset(struct igc_adapter *adapter)
 {
@@ -110,11 +103,14 @@ void igc_reset(struct igc_adapter *adapter)
 	if (!netif_running(adapter->netdev))
 		igc_power_down_link(adapter);
 
+	/* Re-enable PTP, where applicable. */
+	igc_ptp_reset(adapter);
+
 	igc_get_phy_info(hw);
 }
 
 /**
- * igc_power_up_link - Power up the phy/serdes link
+ * igc_power_up_link - Power up the phy link
  * @adapter: address of board private structure
  */
 static void igc_power_up_link(struct igc_adapter *adapter)
@@ -125,16 +121,6 @@ static void igc_power_up_link(struct igc_adapter *adapter)
 		igc_power_up_phy_copper(&adapter->hw);
 
 	igc_setup_link(&adapter->hw);
-}
-
-/**
- * igc_power_down_link - Power down the phy/serdes link
- * @adapter: address of board private structure
- */
-static void igc_power_down_link(struct igc_adapter *adapter)
-{
-	if (adapter->hw.phy.media_type == igc_media_type_copper)
-		igc_power_down_phy_copper_base(&adapter->hw);
 }
 
 /**
@@ -173,43 +159,6 @@ static void igc_get_hw_control(struct igc_adapter *adapter)
 	ctrl_ext = rd32(IGC_CTRL_EXT);
 	wr32(IGC_CTRL_EXT,
 	     ctrl_ext | IGC_CTRL_EXT_DRV_LOAD);
-}
-
-/**
- * igc_free_tx_resources - Free Tx Resources per Queue
- * @tx_ring: Tx descriptor ring for a specific queue
- *
- * Free all transmit software resources
- */
-void igc_free_tx_resources(struct igc_ring *tx_ring)
-{
-	igc_clean_tx_ring(tx_ring);
-
-	vfree(tx_ring->tx_buffer_info);
-	tx_ring->tx_buffer_info = NULL;
-
-	/* if not set, then don't free */
-	if (!tx_ring->desc)
-		return;
-
-	dma_free_coherent(tx_ring->dev, tx_ring->size,
-			  tx_ring->desc, tx_ring->dma);
-
-	tx_ring->desc = NULL;
-}
-
-/**
- * igc_free_all_tx_resources - Free Tx Resources for All Queues
- * @adapter: board private structure
- *
- * Free all transmit software resources
- */
-static void igc_free_all_tx_resources(struct igc_adapter *adapter)
-{
-	int i;
-
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		igc_free_tx_resources(adapter->tx_ring[i]);
 }
 
 /**
@@ -271,6 +220,43 @@ static void igc_clean_tx_ring(struct igc_ring *tx_ring)
 	/* reset next_to_use and next_to_clean */
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
+}
+
+/**
+ * igc_free_tx_resources - Free Tx Resources per Queue
+ * @tx_ring: Tx descriptor ring for a specific queue
+ *
+ * Free all transmit software resources
+ */
+void igc_free_tx_resources(struct igc_ring *tx_ring)
+{
+	igc_clean_tx_ring(tx_ring);
+
+	vfree(tx_ring->tx_buffer_info);
+	tx_ring->tx_buffer_info = NULL;
+
+	/* if not set, then don't free */
+	if (!tx_ring->desc)
+		return;
+
+	dma_free_coherent(tx_ring->dev, tx_ring->size,
+			  tx_ring->desc, tx_ring->dma);
+
+	tx_ring->desc = NULL;
+}
+
+/**
+ * igc_free_all_tx_resources - Free Tx Resources for All Queues
+ * @adapter: board private structure
+ *
+ * Free all transmit software resources
+ */
+static void igc_free_all_tx_resources(struct igc_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_tx_queues; i++)
+		igc_free_tx_resources(adapter->tx_ring[i]);
 }
 
 /**
@@ -771,6 +757,51 @@ static void igc_setup_tctl(struct igc_adapter *adapter)
 }
 
 /**
+ * igc_rar_set_index - Sync RAL[index] and RAH[index] registers with MAC table
+ * @adapter: address of board private structure
+ * @index: Index of the RAR entry which need to be synced with MAC table
+ */
+static void igc_rar_set_index(struct igc_adapter *adapter, u32 index)
+{
+	u8 *addr = adapter->mac_table[index].addr;
+	struct igc_hw *hw = &adapter->hw;
+	u32 rar_low, rar_high;
+
+	/* HW expects these to be in network order when they are plugged
+	 * into the registers which are little endian.  In order to guarantee
+	 * that ordering we need to do an leXX_to_cpup here in order to be
+	 * ready for the byteswap that occurs with writel
+	 */
+	rar_low = le32_to_cpup((__le32 *)(addr));
+	rar_high = le16_to_cpup((__le16 *)(addr + 4));
+
+	/* Indicate to hardware the Address is Valid. */
+	if (adapter->mac_table[index].state & IGC_MAC_STATE_IN_USE) {
+		if (is_valid_ether_addr(addr))
+			rar_high |= IGC_RAH_AV;
+
+		rar_high |= IGC_RAH_POOL_1 <<
+			adapter->mac_table[index].queue;
+	}
+
+	wr32(IGC_RAL(index), rar_low);
+	wrfl();
+	wr32(IGC_RAH(index), rar_high);
+	wrfl();
+}
+
+/* Set default MAC address for the PF in the first RAR entry */
+static void igc_set_default_mac_filter(struct igc_adapter *adapter)
+{
+	struct igc_mac_addr *mac_table = &adapter->mac_table[0];
+
+	ether_addr_copy(mac_table->addr, adapter->hw.mac.addr);
+	mac_table->state = IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
+
+	igc_rar_set_index(adapter, 0);
+}
+
+/**
  * igc_set_mac - Change the Ethernet Address of the NIC
  * @netdev: network interface device structure
  * @p: pointer to an address structure
@@ -850,7 +881,7 @@ static void igc_tx_ctxtdesc(struct igc_ring *tx_ring,
 	/* set bits to identify this as an advanced context descriptor */
 	type_tucmd |= IGC_TXD_CMD_DEXT | IGC_ADVTXD_DTYP_CTXT;
 
-	/* For 82575, context index must be unique per ring. */
+	/* For i225, context index must be unique per ring. */
 	if (test_bit(IGC_RING_FLAG_TX_CTX_IDX, &tx_ring->flags))
 		mss_l4len_idx |= tx_ring->reg_idx << 4;
 
@@ -957,12 +988,25 @@ static inline int igc_maybe_stop_tx(struct igc_ring *tx_ring, const u16 size)
 	return __igc_maybe_stop_tx(tx_ring, size);
 }
 
+#define IGC_SET_FLAG(_input, _flag, _result) \
+	(((_flag) <= (_result)) ?				\
+	 ((u32)((_input) & (_flag)) * ((_result) / (_flag))) :	\
+	 ((u32)((_input) & (_flag)) / ((_flag) / (_result))))
+
 static u32 igc_tx_cmd_type(struct sk_buff *skb, u32 tx_flags)
 {
 	/* set type for advanced descriptor with frame checksum insertion */
 	u32 cmd_type = IGC_ADVTXD_DTYP_DATA |
 		       IGC_ADVTXD_DCMD_DEXT |
 		       IGC_ADVTXD_DCMD_IFCS;
+
+	/* set segmentation bits for TSO */
+	cmd_type |= IGC_SET_FLAG(tx_flags, IGC_TX_FLAGS_TSO,
+				 (IGC_ADVTXD_DCMD_TSE));
+
+	/* set timestamp bit if present */
+	cmd_type |= IGC_SET_FLAG(tx_flags, IGC_TX_FLAGS_TSTAMP,
+				 (IGC_ADVTXD_MAC_TSTAMP));
 
 	return cmd_type;
 }
@@ -1131,6 +1175,100 @@ dma_error:
 	return -1;
 }
 
+static int igc_tso(struct igc_ring *tx_ring,
+		   struct igc_tx_buffer *first,
+		   u8 *hdr_len)
+{
+	u32 vlan_macip_lens, type_tucmd, mss_l4len_idx;
+	struct sk_buff *skb = first->skb;
+	union {
+		struct iphdr *v4;
+		struct ipv6hdr *v6;
+		unsigned char *hdr;
+	} ip;
+	union {
+		struct tcphdr *tcp;
+		struct udphdr *udp;
+		unsigned char *hdr;
+	} l4;
+	u32 paylen, l4_offset;
+	int err;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
+
+	if (!skb_is_gso(skb))
+		return 0;
+
+	err = skb_cow_head(skb, 0);
+	if (err < 0)
+		return err;
+
+	ip.hdr = skb_network_header(skb);
+	l4.hdr = skb_checksum_start(skb);
+
+	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
+	type_tucmd = IGC_ADVTXD_TUCMD_L4T_TCP;
+
+	/* initialize outer IP header fields */
+	if (ip.v4->version == 4) {
+		unsigned char *csum_start = skb_checksum_start(skb);
+		unsigned char *trans_start = ip.hdr + (ip.v4->ihl * 4);
+
+		/* IP header will have to cancel out any data that
+		 * is not a part of the outer IP header
+		 */
+		ip.v4->check = csum_fold(csum_partial(trans_start,
+						      csum_start - trans_start,
+						      0));
+		type_tucmd |= IGC_ADVTXD_TUCMD_IPV4;
+
+		ip.v4->tot_len = 0;
+		first->tx_flags |= IGC_TX_FLAGS_TSO |
+				   IGC_TX_FLAGS_CSUM |
+				   IGC_TX_FLAGS_IPV4;
+	} else {
+		ip.v6->payload_len = 0;
+		first->tx_flags |= IGC_TX_FLAGS_TSO |
+				   IGC_TX_FLAGS_CSUM;
+	}
+
+	/* determine offset of inner transport header */
+	l4_offset = l4.hdr - skb->data;
+
+	/* remove payload length from inner checksum */
+	paylen = skb->len - l4_offset;
+	if (type_tucmd & IGC_ADVTXD_TUCMD_L4T_TCP) {
+		/* compute length of segmentation header */
+		*hdr_len = (l4.tcp->doff * 4) + l4_offset;
+		csum_replace_by_diff(&l4.tcp->check,
+				     (__force __wsum)htonl(paylen));
+	} else {
+		/* compute length of segmentation header */
+		*hdr_len = sizeof(*l4.udp) + l4_offset;
+		csum_replace_by_diff(&l4.udp->check,
+				     (__force __wsum)htonl(paylen));
+	}
+
+	/* update gso size and bytecount with header size */
+	first->gso_segs = skb_shinfo(skb)->gso_segs;
+	first->bytecount += (first->gso_segs - 1) * *hdr_len;
+
+	/* MSS L4LEN IDX */
+	mss_l4len_idx = (*hdr_len - l4_offset) << IGC_ADVTXD_L4LEN_SHIFT;
+	mss_l4len_idx |= skb_shinfo(skb)->gso_size << IGC_ADVTXD_MSS_SHIFT;
+
+	/* VLAN MACLEN IPLEN */
+	vlan_macip_lens = l4.hdr - ip.hdr;
+	vlan_macip_lens |= (ip.hdr - skb->data) << IGC_ADVTXD_MACLEN_SHIFT;
+	vlan_macip_lens |= first->tx_flags & IGC_TX_FLAGS_VLAN_MASK;
+
+	igc_tx_ctxtdesc(tx_ring, first, vlan_macip_lens,
+			type_tucmd, mss_l4len_idx);
+
+	return 1;
+}
+
 static netdev_tx_t igc_xmit_frame_ring(struct sk_buff *skb,
 				       struct igc_ring *tx_ring)
 {
@@ -1140,6 +1278,7 @@ static netdev_tx_t igc_xmit_frame_ring(struct sk_buff *skb,
 	u32 tx_flags = 0;
 	unsigned short f;
 	u8 hdr_len = 0;
+	int tso = 0;
 
 	/* need: 1 descriptor per page * PAGE_SIZE/IGC_MAX_DATA_PER_TXD,
 	 *	+ 1 desc for skb_headlen/IGC_MAX_DATA_PER_TXD,
@@ -1162,13 +1301,43 @@ static netdev_tx_t igc_xmit_frame_ring(struct sk_buff *skb,
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
 
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		struct igc_adapter *adapter = netdev_priv(tx_ring->netdev);
+
+		/* FIXME: add support for retrieving timestamps from
+		 * the other timer registers before skipping the
+		 * timestamping request.
+		 */
+		if (adapter->tstamp_config.tx_type == HWTSTAMP_TX_ON &&
+		    !test_and_set_bit_lock(__IGC_PTP_TX_IN_PROGRESS,
+					   &adapter->state)) {
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+			tx_flags |= IGC_TX_FLAGS_TSTAMP;
+
+			adapter->ptp_tx_skb = skb_get(skb);
+			adapter->ptp_tx_start = jiffies;
+		} else {
+			adapter->tx_hwtstamp_skipped++;
+		}
+	}
+
 	/* record initial flags and protocol */
 	first->tx_flags = tx_flags;
 	first->protocol = protocol;
 
-	igc_tx_csum(tx_ring, first);
+	tso = igc_tso(tx_ring, first, &hdr_len);
+	if (tso < 0)
+		goto out_drop;
+	else if (!tso)
+		igc_tx_csum(tx_ring, first);
 
 	igc_tx_map(tx_ring, first, hdr_len);
+
+	return NETDEV_TX_OK;
+
+out_drop:
+	dev_kfree_skb_any(first->skb);
+	first->skb = NULL;
 
 	return NETDEV_TX_OK;
 }
@@ -1268,6 +1437,10 @@ static void igc_process_skb_fields(struct igc_ring *rx_ring,
 	igc_rx_hash(rx_ring, rx_desc, skb);
 
 	igc_rx_checksum(rx_ring, rx_desc, skb);
+
+	if (igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TS) &&
+	    !igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TSIP))
+		igc_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
@@ -1388,6 +1561,12 @@ static struct sk_buff *igc_construct_skb(struct igc_ring *rx_ring,
 	if (unlikely(!skb))
 		return NULL;
 
+	if (unlikely(igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TSIP))) {
+		igc_ptp_rx_pktstamp(rx_ring->q_vector, va, skb);
+		va += IGC_TS_HDR_LEN;
+		size -= IGC_TS_HDR_LEN;
+	}
+
 	/* Determine available headroom for copy */
 	headlen = size;
 	if (headlen > IGC_RX_HDR_LEN)
@@ -1485,7 +1664,6 @@ static bool igc_can_reuse_rx_page(struct igc_rx_buffer *rx_buffer)
  * igc_is_non_eop - process handling of non-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
- * @skb: current socket buffer containing buffer in progress
  *
  * This function updates next to clean.  If the buffer is an EOP buffer
  * this function exits returning false, otherwise it will place the
@@ -1565,9 +1743,56 @@ static void igc_put_rx_buffer(struct igc_ring *rx_ring,
 	rx_buffer->page = NULL;
 }
 
+static inline unsigned int igc_rx_offset(struct igc_ring *rx_ring)
+{
+	return ring_uses_build_skb(rx_ring) ? IGC_SKB_PAD : 0;
+}
+
+static bool igc_alloc_mapped_page(struct igc_ring *rx_ring,
+				  struct igc_rx_buffer *bi)
+{
+	struct page *page = bi->page;
+	dma_addr_t dma;
+
+	/* since we are recycling buffers we should seldom need to alloc */
+	if (likely(page))
+		return true;
+
+	/* alloc new page for storage */
+	page = dev_alloc_pages(igc_rx_pg_order(rx_ring));
+	if (unlikely(!page)) {
+		rx_ring->rx_stats.alloc_failed++;
+		return false;
+	}
+
+	/* map page for use */
+	dma = dma_map_page_attrs(rx_ring->dev, page, 0,
+				 igc_rx_pg_size(rx_ring),
+				 DMA_FROM_DEVICE,
+				 IGC_RX_DMA_ATTR);
+
+	/* if mapping failed free memory back to system since
+	 * there isn't much point in holding memory we can't use
+	 */
+	if (dma_mapping_error(rx_ring->dev, dma)) {
+		__free_page(page);
+
+		rx_ring->rx_stats.alloc_failed++;
+		return false;
+	}
+
+	bi->dma = dma;
+	bi->page = page;
+	bi->page_offset = igc_rx_offset(rx_ring);
+	bi->pagecnt_bias = 1;
+
+	return true;
+}
+
 /**
  * igc_alloc_rx_buffers - Replace used receive buffers; packet split
- * @adapter: address of board private structure
+ * @rx_ring: rx descriptor ring
+ * @cleaned_count: number of buffers to clean
  */
 static void igc_alloc_rx_buffers(struct igc_ring *rx_ring, u16 cleaned_count)
 {
@@ -1723,52 +1948,6 @@ static int igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 		igc_alloc_rx_buffers(rx_ring, cleaned_count);
 
 	return total_packets;
-}
-
-static inline unsigned int igc_rx_offset(struct igc_ring *rx_ring)
-{
-	return ring_uses_build_skb(rx_ring) ? IGC_SKB_PAD : 0;
-}
-
-static bool igc_alloc_mapped_page(struct igc_ring *rx_ring,
-				  struct igc_rx_buffer *bi)
-{
-	struct page *page = bi->page;
-	dma_addr_t dma;
-
-	/* since we are recycling buffers we should seldom need to alloc */
-	if (likely(page))
-		return true;
-
-	/* alloc new page for storage */
-	page = dev_alloc_pages(igc_rx_pg_order(rx_ring));
-	if (unlikely(!page)) {
-		rx_ring->rx_stats.alloc_failed++;
-		return false;
-	}
-
-	/* map page for use */
-	dma = dma_map_page_attrs(rx_ring->dev, page, 0,
-				 igc_rx_pg_size(rx_ring),
-				 DMA_FROM_DEVICE,
-				 IGC_RX_DMA_ATTR);
-
-	/* if mapping failed free memory back to system since
-	 * there isn't much point in holding memory we can't use
-	 */
-	if (dma_mapping_error(rx_ring->dev, dma)) {
-		__free_page(page);
-
-		rx_ring->rx_stats.alloc_failed++;
-		return false;
-	}
-
-	bi->dma = dma;
-	bi->page = page;
-	bi->page_offset = igc_rx_offset(rx_ring);
-	bi->pagecnt_bias = 1;
-
-	return true;
 }
 
 /**
@@ -1940,6 +2119,1128 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 	}
 
 	return !!budget;
+}
+
+static void igc_nfc_filter_restore(struct igc_adapter *adapter)
+{
+	struct igc_nfc_filter *rule;
+
+	spin_lock(&adapter->nfc_lock);
+
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
+		igc_add_filter(adapter, rule);
+
+	spin_unlock(&adapter->nfc_lock);
+}
+
+/* If the filter to be added and an already existing filter express
+ * the same address and address type, it should be possible to only
+ * override the other configurations, for example the queue to steer
+ * traffic.
+ */
+static bool igc_mac_entry_can_be_used(const struct igc_mac_addr *entry,
+				      const u8 *addr, const u8 flags)
+{
+	if (!(entry->state & IGC_MAC_STATE_IN_USE))
+		return true;
+
+	if ((entry->state & IGC_MAC_STATE_SRC_ADDR) !=
+	    (flags & IGC_MAC_STATE_SRC_ADDR))
+		return false;
+
+	if (!ether_addr_equal(addr, entry->addr))
+		return false;
+
+	return true;
+}
+
+/* Add a MAC filter for 'addr' directing matching traffic to 'queue',
+ * 'flags' is used to indicate what kind of match is made, match is by
+ * default for the destination address, if matching by source address
+ * is desired the flag IGC_MAC_STATE_SRC_ADDR can be used.
+ */
+static int igc_add_mac_filter(struct igc_adapter *adapter,
+			      const u8 *addr, const u8 queue)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int rar_entries = hw->mac.rar_entry_count;
+	int i;
+
+	if (is_zero_ether_addr(addr))
+		return -EINVAL;
+
+	/* Search for the first empty entry in the MAC table.
+	 * Do not touch entries at the end of the table reserved for the VF MAC
+	 * addresses.
+	 */
+	for (i = 0; i < rar_entries; i++) {
+		if (!igc_mac_entry_can_be_used(&adapter->mac_table[i],
+					       addr, 0))
+			continue;
+
+		ether_addr_copy(adapter->mac_table[i].addr, addr);
+		adapter->mac_table[i].queue = queue;
+		adapter->mac_table[i].state |= IGC_MAC_STATE_IN_USE;
+
+		igc_rar_set_index(adapter, i);
+		return i;
+	}
+
+	return -ENOSPC;
+}
+
+/* Remove a MAC filter for 'addr' directing matching traffic to
+ * 'queue', 'flags' is used to indicate what kind of match need to be
+ * removed, match is by default for the destination address, if
+ * matching by source address is to be removed the flag
+ * IGC_MAC_STATE_SRC_ADDR can be used.
+ */
+static int igc_del_mac_filter(struct igc_adapter *adapter,
+			      const u8 *addr, const u8 queue)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int rar_entries = hw->mac.rar_entry_count;
+	int i;
+
+	if (is_zero_ether_addr(addr))
+		return -EINVAL;
+
+	/* Search for matching entry in the MAC table based on given address
+	 * and queue. Do not touch entries at the end of the table reserved
+	 * for the VF MAC addresses.
+	 */
+	for (i = 0; i < rar_entries; i++) {
+		if (!(adapter->mac_table[i].state & IGC_MAC_STATE_IN_USE))
+			continue;
+		if (adapter->mac_table[i].state != 0)
+			continue;
+		if (adapter->mac_table[i].queue != queue)
+			continue;
+		if (!ether_addr_equal(adapter->mac_table[i].addr, addr))
+			continue;
+
+		/* When a filter for the default address is "deleted",
+		 * we return it to its initial configuration
+		 */
+		if (adapter->mac_table[i].state & IGC_MAC_STATE_DEFAULT) {
+			adapter->mac_table[i].state =
+				IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
+			adapter->mac_table[i].queue = 0;
+		} else {
+			adapter->mac_table[i].state = 0;
+			adapter->mac_table[i].queue = 0;
+			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
+		}
+
+		igc_rar_set_index(adapter, i);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	int ret;
+
+	ret = igc_add_mac_filter(adapter, addr, adapter->num_rx_queues);
+
+	return min_t(int, ret, 0);
+}
+
+static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	igc_del_mac_filter(adapter, addr, adapter->num_rx_queues);
+
+	return 0;
+}
+
+/**
+ * igc_set_rx_mode - Secondary Unicast, Multicast and Promiscuous mode set
+ * @netdev: network interface device structure
+ *
+ * The set_rx_mode entry point is called whenever the unicast or multicast
+ * address lists or the network interface flags are updated.  This routine is
+ * responsible for configuring the hardware for proper unicast, multicast,
+ * promiscuous mode, and all-multi behavior.
+ */
+static void igc_set_rx_mode(struct net_device *netdev)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct igc_hw *hw = &adapter->hw;
+	u32 rctl = 0, rlpml = MAX_JUMBO_FRAME_SIZE;
+	int count;
+
+	/* Check for Promiscuous and All Multicast modes */
+	if (netdev->flags & IFF_PROMISC) {
+		rctl |= IGC_RCTL_UPE | IGC_RCTL_MPE;
+	} else {
+		if (netdev->flags & IFF_ALLMULTI) {
+			rctl |= IGC_RCTL_MPE;
+		} else {
+			/* Write addresses to the MTA, if the attempt fails
+			 * then we should just turn on promiscuous mode so
+			 * that we can at least receive multicast traffic
+			 */
+			count = igc_write_mc_addr_list(netdev);
+			if (count < 0)
+				rctl |= IGC_RCTL_MPE;
+		}
+	}
+
+	/* Write addresses to available RAR registers, if there is not
+	 * sufficient space to store all the addresses then enable
+	 * unicast promiscuous mode
+	 */
+	if (__dev_uc_sync(netdev, igc_uc_sync, igc_uc_unsync))
+		rctl |= IGC_RCTL_UPE;
+
+	/* update state of unicast and multicast */
+	rctl |= rd32(IGC_RCTL) & ~(IGC_RCTL_UPE | IGC_RCTL_MPE);
+	wr32(IGC_RCTL, rctl);
+
+#if (PAGE_SIZE < 8192)
+	if (adapter->max_frame_size <= IGC_MAX_FRAME_BUILD_SKB)
+		rlpml = IGC_MAX_FRAME_BUILD_SKB;
+#endif
+	wr32(IGC_RLPML, rlpml);
+}
+
+/**
+ * igc_configure - configure the hardware for RX and TX
+ * @adapter: private board structure
+ */
+static void igc_configure(struct igc_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	int i = 0;
+
+	igc_get_hw_control(adapter);
+	igc_set_rx_mode(netdev);
+
+	igc_setup_tctl(adapter);
+	igc_setup_mrqc(adapter);
+	igc_setup_rctl(adapter);
+
+	igc_nfc_filter_restore(adapter);
+	igc_configure_tx(adapter);
+	igc_configure_rx(adapter);
+
+	igc_rx_fifo_flush_base(&adapter->hw);
+
+	/* call igc_desc_unused which always leaves
+	 * at least 1 descriptor unused to make sure
+	 * next_to_use != next_to_clean
+	 */
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		struct igc_ring *ring = adapter->rx_ring[i];
+
+		igc_alloc_rx_buffers(ring, igc_desc_unused(ring));
+	}
+}
+
+/**
+ * igc_write_ivar - configure ivar for given MSI-X vector
+ * @hw: pointer to the HW structure
+ * @msix_vector: vector number we are allocating to a given ring
+ * @index: row index of IVAR register to write within IVAR table
+ * @offset: column offset of in IVAR, should be multiple of 8
+ *
+ * The IVAR table consists of 2 columns,
+ * each containing an cause allocation for an Rx and Tx ring, and a
+ * variable number of rows depending on the number of queues supported.
+ */
+static void igc_write_ivar(struct igc_hw *hw, int msix_vector,
+			   int index, int offset)
+{
+	u32 ivar = array_rd32(IGC_IVAR0, index);
+
+	/* clear any bits that are currently set */
+	ivar &= ~((u32)0xFF << offset);
+
+	/* write vector and valid bit */
+	ivar |= (msix_vector | IGC_IVAR_VALID) << offset;
+
+	array_wr32(IGC_IVAR0, index, ivar);
+}
+
+static void igc_assign_vector(struct igc_q_vector *q_vector, int msix_vector)
+{
+	struct igc_adapter *adapter = q_vector->adapter;
+	struct igc_hw *hw = &adapter->hw;
+	int rx_queue = IGC_N0_QUEUE;
+	int tx_queue = IGC_N0_QUEUE;
+
+	if (q_vector->rx.ring)
+		rx_queue = q_vector->rx.ring->reg_idx;
+	if (q_vector->tx.ring)
+		tx_queue = q_vector->tx.ring->reg_idx;
+
+	switch (hw->mac.type) {
+	case igc_i225:
+		if (rx_queue > IGC_N0_QUEUE)
+			igc_write_ivar(hw, msix_vector,
+				       rx_queue >> 1,
+				       (rx_queue & 0x1) << 4);
+		if (tx_queue > IGC_N0_QUEUE)
+			igc_write_ivar(hw, msix_vector,
+				       tx_queue >> 1,
+				       ((tx_queue & 0x1) << 4) + 8);
+		q_vector->eims_value = BIT(msix_vector);
+		break;
+	default:
+		WARN_ONCE(hw->mac.type != igc_i225, "Wrong MAC type\n");
+		break;
+	}
+
+	/* add q_vector eims value to global eims_enable_mask */
+	adapter->eims_enable_mask |= q_vector->eims_value;
+
+	/* configure q_vector to set itr on first interrupt */
+	q_vector->set_itr = 1;
+}
+
+/**
+ * igc_configure_msix - Configure MSI-X hardware
+ * @adapter: Pointer to adapter structure
+ *
+ * igc_configure_msix sets up the hardware to properly
+ * generate MSI-X interrupts.
+ */
+static void igc_configure_msix(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int i, vector = 0;
+	u32 tmp;
+
+	adapter->eims_enable_mask = 0;
+
+	/* set vector for other causes, i.e. link changes */
+	switch (hw->mac.type) {
+	case igc_i225:
+		/* Turn on MSI-X capability first, or our settings
+		 * won't stick.  And it will take days to debug.
+		 */
+		wr32(IGC_GPIE, IGC_GPIE_MSIX_MODE |
+		     IGC_GPIE_PBA | IGC_GPIE_EIAME |
+		     IGC_GPIE_NSICR);
+
+		/* enable msix_other interrupt */
+		adapter->eims_other = BIT(vector);
+		tmp = (vector++ | IGC_IVAR_VALID) << 8;
+
+		wr32(IGC_IVAR_MISC, tmp);
+		break;
+	default:
+		/* do nothing, since nothing else supports MSI-X */
+		break;
+	} /* switch (hw->mac.type) */
+
+	adapter->eims_enable_mask |= adapter->eims_other;
+
+	for (i = 0; i < adapter->num_q_vectors; i++)
+		igc_assign_vector(adapter->q_vector[i], vector++);
+
+	wrfl();
+}
+
+/**
+ * igc_irq_enable - Enable default interrupt generation settings
+ * @adapter: board private structure
+ */
+static void igc_irq_enable(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+
+	if (adapter->msix_entries) {
+		u32 ims = IGC_IMS_LSC | IGC_IMS_DOUTSYNC | IGC_IMS_DRSTA;
+		u32 regval = rd32(IGC_EIAC);
+
+		wr32(IGC_EIAC, regval | adapter->eims_enable_mask);
+		regval = rd32(IGC_EIAM);
+		wr32(IGC_EIAM, regval | adapter->eims_enable_mask);
+		wr32(IGC_EIMS, adapter->eims_enable_mask);
+		wr32(IGC_IMS, ims);
+	} else {
+		wr32(IGC_IMS, IMS_ENABLE_MASK | IGC_IMS_DRSTA);
+		wr32(IGC_IAM, IMS_ENABLE_MASK | IGC_IMS_DRSTA);
+	}
+}
+
+/**
+ * igc_irq_disable - Mask off interrupt generation on the NIC
+ * @adapter: board private structure
+ */
+static void igc_irq_disable(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+
+	if (adapter->msix_entries) {
+		u32 regval = rd32(IGC_EIAM);
+
+		wr32(IGC_EIAM, regval & ~adapter->eims_enable_mask);
+		wr32(IGC_EIMC, adapter->eims_enable_mask);
+		regval = rd32(IGC_EIAC);
+		wr32(IGC_EIAC, regval & ~adapter->eims_enable_mask);
+	}
+
+	wr32(IGC_IAM, 0);
+	wr32(IGC_IMC, ~0);
+	wrfl();
+
+	if (adapter->msix_entries) {
+		int vector = 0, i;
+
+		synchronize_irq(adapter->msix_entries[vector++].vector);
+
+		for (i = 0; i < adapter->num_q_vectors; i++)
+			synchronize_irq(adapter->msix_entries[vector++].vector);
+	} else {
+		synchronize_irq(adapter->pdev->irq);
+	}
+}
+
+void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
+			      const u32 max_rss_queues)
+{
+	/* Determine if we need to pair queues. */
+	/* If rss_queues > half of max_rss_queues, pair the queues in
+	 * order to conserve interrupts due to limited supply.
+	 */
+	if (adapter->rss_queues > (max_rss_queues / 2))
+		adapter->flags |= IGC_FLAG_QUEUE_PAIRS;
+	else
+		adapter->flags &= ~IGC_FLAG_QUEUE_PAIRS;
+}
+
+unsigned int igc_get_max_rss_queues(struct igc_adapter *adapter)
+{
+	unsigned int max_rss_queues;
+
+	/* Determine the maximum number of RSS queues supported. */
+	max_rss_queues = IGC_MAX_RX_QUEUES;
+
+	return max_rss_queues;
+}
+
+static void igc_init_queue_configuration(struct igc_adapter *adapter)
+{
+	u32 max_rss_queues;
+
+	max_rss_queues = igc_get_max_rss_queues(adapter);
+	adapter->rss_queues = min_t(u32, max_rss_queues, num_online_cpus());
+
+	igc_set_flag_queue_pairs(adapter, max_rss_queues);
+}
+
+/**
+ * igc_reset_q_vector - Reset config for interrupt vector
+ * @adapter: board private structure to initialize
+ * @v_idx: Index of vector to be reset
+ *
+ * If NAPI is enabled it will delete any references to the
+ * NAPI struct. This is preparation for igc_free_q_vector.
+ */
+static void igc_reset_q_vector(struct igc_adapter *adapter, int v_idx)
+{
+	struct igc_q_vector *q_vector = adapter->q_vector[v_idx];
+
+	/* if we're coming from igc_set_interrupt_capability, the vectors are
+	 * not yet allocated
+	 */
+	if (!q_vector)
+		return;
+
+	if (q_vector->tx.ring)
+		adapter->tx_ring[q_vector->tx.ring->queue_index] = NULL;
+
+	if (q_vector->rx.ring)
+		adapter->rx_ring[q_vector->rx.ring->queue_index] = NULL;
+
+	netif_napi_del(&q_vector->napi);
+}
+
+/**
+ * igc_free_q_vector - Free memory allocated for specific interrupt vector
+ * @adapter: board private structure to initialize
+ * @v_idx: Index of vector to be freed
+ *
+ * This function frees the memory allocated to the q_vector.
+ */
+static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx)
+{
+	struct igc_q_vector *q_vector = adapter->q_vector[v_idx];
+
+	adapter->q_vector[v_idx] = NULL;
+
+	/* igc_get_stats64() might access the rings on this vector,
+	 * we must wait a grace period before freeing it.
+	 */
+	if (q_vector)
+		kfree_rcu(q_vector, rcu);
+}
+
+/**
+ * igc_free_q_vectors - Free memory allocated for interrupt vectors
+ * @adapter: board private structure to initialize
+ *
+ * This function frees the memory allocated to the q_vectors.  In addition if
+ * NAPI is enabled it will delete any references to the NAPI struct prior
+ * to freeing the q_vector.
+ */
+static void igc_free_q_vectors(struct igc_adapter *adapter)
+{
+	int v_idx = adapter->num_q_vectors;
+
+	adapter->num_tx_queues = 0;
+	adapter->num_rx_queues = 0;
+	adapter->num_q_vectors = 0;
+
+	while (v_idx--) {
+		igc_reset_q_vector(adapter, v_idx);
+		igc_free_q_vector(adapter, v_idx);
+	}
+}
+
+/**
+ * igc_update_itr - update the dynamic ITR value based on statistics
+ * @q_vector: pointer to q_vector
+ * @ring_container: ring info to update the itr for
+ *
+ * Stores a new ITR value based on packets and byte
+ * counts during the last interrupt.  The advantage of per interrupt
+ * computation is faster updates and more accurate ITR for the current
+ * traffic pattern.  Constants in this function were computed
+ * based on theoretical maximum wire speed and thresholds were set based
+ * on testing data as well as attempting to minimize response time
+ * while increasing bulk throughput.
+ * NOTE: These calculations are only valid when operating in a single-
+ * queue environment.
+ */
+static void igc_update_itr(struct igc_q_vector *q_vector,
+			   struct igc_ring_container *ring_container)
+{
+	unsigned int packets = ring_container->total_packets;
+	unsigned int bytes = ring_container->total_bytes;
+	u8 itrval = ring_container->itr;
+
+	/* no packets, exit with status unchanged */
+	if (packets == 0)
+		return;
+
+	switch (itrval) {
+	case lowest_latency:
+		/* handle TSO and jumbo frames */
+		if (bytes / packets > 8000)
+			itrval = bulk_latency;
+		else if ((packets < 5) && (bytes > 512))
+			itrval = low_latency;
+		break;
+	case low_latency:  /* 50 usec aka 20000 ints/s */
+		if (bytes > 10000) {
+			/* this if handles the TSO accounting */
+			if (bytes / packets > 8000)
+				itrval = bulk_latency;
+			else if ((packets < 10) || ((bytes / packets) > 1200))
+				itrval = bulk_latency;
+			else if ((packets > 35))
+				itrval = lowest_latency;
+		} else if (bytes / packets > 2000) {
+			itrval = bulk_latency;
+		} else if (packets <= 2 && bytes < 512) {
+			itrval = lowest_latency;
+		}
+		break;
+	case bulk_latency: /* 250 usec aka 4000 ints/s */
+		if (bytes > 25000) {
+			if (packets > 35)
+				itrval = low_latency;
+		} else if (bytes < 1500) {
+			itrval = low_latency;
+		}
+		break;
+	}
+
+	/* clear work counters since we have the values we need */
+	ring_container->total_bytes = 0;
+	ring_container->total_packets = 0;
+
+	/* write updated itr to ring container */
+	ring_container->itr = itrval;
+}
+
+static void igc_set_itr(struct igc_q_vector *q_vector)
+{
+	struct igc_adapter *adapter = q_vector->adapter;
+	u32 new_itr = q_vector->itr_val;
+	u8 current_itr = 0;
+
+	/* for non-gigabit speeds, just fix the interrupt rate at 4000 */
+	switch (adapter->link_speed) {
+	case SPEED_10:
+	case SPEED_100:
+		current_itr = 0;
+		new_itr = IGC_4K_ITR;
+		goto set_itr_now;
+	default:
+		break;
+	}
+
+	igc_update_itr(q_vector, &q_vector->tx);
+	igc_update_itr(q_vector, &q_vector->rx);
+
+	current_itr = max(q_vector->rx.itr, q_vector->tx.itr);
+
+	/* conservative mode (itr 3) eliminates the lowest_latency setting */
+	if (current_itr == lowest_latency &&
+	    ((q_vector->rx.ring && adapter->rx_itr_setting == 3) ||
+	    (!q_vector->rx.ring && adapter->tx_itr_setting == 3)))
+		current_itr = low_latency;
+
+	switch (current_itr) {
+	/* counts and packets in update_itr are dependent on these numbers */
+	case lowest_latency:
+		new_itr = IGC_70K_ITR; /* 70,000 ints/sec */
+		break;
+	case low_latency:
+		new_itr = IGC_20K_ITR; /* 20,000 ints/sec */
+		break;
+	case bulk_latency:
+		new_itr = IGC_4K_ITR;  /* 4,000 ints/sec */
+		break;
+	default:
+		break;
+	}
+
+set_itr_now:
+	if (new_itr != q_vector->itr_val) {
+		/* this attempts to bias the interrupt rate towards Bulk
+		 * by adding intermediate steps when interrupt rate is
+		 * increasing
+		 */
+		new_itr = new_itr > q_vector->itr_val ?
+			  max((new_itr * q_vector->itr_val) /
+			  (new_itr + (q_vector->itr_val >> 2)),
+			  new_itr) : new_itr;
+		/* Don't write the value here; it resets the adapter's
+		 * internal timer, and causes us to delay far longer than
+		 * we should between interrupts.  Instead, we write the ITR
+		 * value at the beginning of the next interrupt so the timing
+		 * ends up being correct.
+		 */
+		q_vector->itr_val = new_itr;
+		q_vector->set_itr = 1;
+	}
+}
+
+static void igc_reset_interrupt_capability(struct igc_adapter *adapter)
+{
+	int v_idx = adapter->num_q_vectors;
+
+	if (adapter->msix_entries) {
+		pci_disable_msix(adapter->pdev);
+		kfree(adapter->msix_entries);
+		adapter->msix_entries = NULL;
+	} else if (adapter->flags & IGC_FLAG_HAS_MSI) {
+		pci_disable_msi(adapter->pdev);
+	}
+
+	while (v_idx--)
+		igc_reset_q_vector(adapter, v_idx);
+}
+
+/**
+ * igc_set_interrupt_capability - set MSI or MSI-X if supported
+ * @adapter: Pointer to adapter structure
+ * @msix: boolean value for MSI-X capability
+ *
+ * Attempt to configure interrupts using the best available
+ * capabilities of the hardware and kernel.
+ */
+static void igc_set_interrupt_capability(struct igc_adapter *adapter,
+					 bool msix)
+{
+	int numvecs, i;
+	int err;
+
+	if (!msix)
+		goto msi_only;
+	adapter->flags |= IGC_FLAG_HAS_MSIX;
+
+	/* Number of supported queues. */
+	adapter->num_rx_queues = adapter->rss_queues;
+
+	adapter->num_tx_queues = adapter->rss_queues;
+
+	/* start with one vector for every Rx queue */
+	numvecs = adapter->num_rx_queues;
+
+	/* if Tx handler is separate add 1 for every Tx queue */
+	if (!(adapter->flags & IGC_FLAG_QUEUE_PAIRS))
+		numvecs += adapter->num_tx_queues;
+
+	/* store the number of vectors reserved for queues */
+	adapter->num_q_vectors = numvecs;
+
+	/* add 1 vector for link status interrupts */
+	numvecs++;
+
+	adapter->msix_entries = kcalloc(numvecs, sizeof(struct msix_entry),
+					GFP_KERNEL);
+
+	if (!adapter->msix_entries)
+		return;
+
+	/* populate entry values */
+	for (i = 0; i < numvecs; i++)
+		adapter->msix_entries[i].entry = i;
+
+	err = pci_enable_msix_range(adapter->pdev,
+				    adapter->msix_entries,
+				    numvecs,
+				    numvecs);
+	if (err > 0)
+		return;
+
+	kfree(adapter->msix_entries);
+	adapter->msix_entries = NULL;
+
+	igc_reset_interrupt_capability(adapter);
+
+msi_only:
+	adapter->flags &= ~IGC_FLAG_HAS_MSIX;
+
+	adapter->rss_queues = 1;
+	adapter->flags |= IGC_FLAG_QUEUE_PAIRS;
+	adapter->num_rx_queues = 1;
+	adapter->num_tx_queues = 1;
+	adapter->num_q_vectors = 1;
+	if (!pci_enable_msi(adapter->pdev))
+		adapter->flags |= IGC_FLAG_HAS_MSI;
+}
+
+/**
+ * igc_update_ring_itr - update the dynamic ITR value based on packet size
+ * @q_vector: pointer to q_vector
+ *
+ * Stores a new ITR value based on strictly on packet size.  This
+ * algorithm is less sophisticated than that used in igc_update_itr,
+ * due to the difficulty of synchronizing statistics across multiple
+ * receive rings.  The divisors and thresholds used by this function
+ * were determined based on theoretical maximum wire speed and testing
+ * data, in order to minimize response time while increasing bulk
+ * throughput.
+ * NOTE: This function is called only when operating in a multiqueue
+ * receive environment.
+ */
+static void igc_update_ring_itr(struct igc_q_vector *q_vector)
+{
+	struct igc_adapter *adapter = q_vector->adapter;
+	int new_val = q_vector->itr_val;
+	int avg_wire_size = 0;
+	unsigned int packets;
+
+	/* For non-gigabit speeds, just fix the interrupt rate at 4000
+	 * ints/sec - ITR timer value of 120 ticks.
+	 */
+	switch (adapter->link_speed) {
+	case SPEED_10:
+	case SPEED_100:
+		new_val = IGC_4K_ITR;
+		goto set_itr_val;
+	default:
+		break;
+	}
+
+	packets = q_vector->rx.total_packets;
+	if (packets)
+		avg_wire_size = q_vector->rx.total_bytes / packets;
+
+	packets = q_vector->tx.total_packets;
+	if (packets)
+		avg_wire_size = max_t(u32, avg_wire_size,
+				      q_vector->tx.total_bytes / packets);
+
+	/* if avg_wire_size isn't set no work was done */
+	if (!avg_wire_size)
+		goto clear_counts;
+
+	/* Add 24 bytes to size to account for CRC, preamble, and gap */
+	avg_wire_size += 24;
+
+	/* Don't starve jumbo frames */
+	avg_wire_size = min(avg_wire_size, 3000);
+
+	/* Give a little boost to mid-size frames */
+	if (avg_wire_size > 300 && avg_wire_size < 1200)
+		new_val = avg_wire_size / 3;
+	else
+		new_val = avg_wire_size / 2;
+
+	/* conservative mode (itr 3) eliminates the lowest_latency setting */
+	if (new_val < IGC_20K_ITR &&
+	    ((q_vector->rx.ring && adapter->rx_itr_setting == 3) ||
+	    (!q_vector->rx.ring && adapter->tx_itr_setting == 3)))
+		new_val = IGC_20K_ITR;
+
+set_itr_val:
+	if (new_val != q_vector->itr_val) {
+		q_vector->itr_val = new_val;
+		q_vector->set_itr = 1;
+	}
+clear_counts:
+	q_vector->rx.total_bytes = 0;
+	q_vector->rx.total_packets = 0;
+	q_vector->tx.total_bytes = 0;
+	q_vector->tx.total_packets = 0;
+}
+
+static void igc_ring_irq_enable(struct igc_q_vector *q_vector)
+{
+	struct igc_adapter *adapter = q_vector->adapter;
+	struct igc_hw *hw = &adapter->hw;
+
+	if ((q_vector->rx.ring && (adapter->rx_itr_setting & 3)) ||
+	    (!q_vector->rx.ring && (adapter->tx_itr_setting & 3))) {
+		if (adapter->num_q_vectors == 1)
+			igc_set_itr(q_vector);
+		else
+			igc_update_ring_itr(q_vector);
+	}
+
+	if (!test_bit(__IGC_DOWN, &adapter->state)) {
+		if (adapter->msix_entries)
+			wr32(IGC_EIMS, q_vector->eims_value);
+		else
+			igc_irq_enable(adapter);
+	}
+}
+
+static void igc_add_ring(struct igc_ring *ring,
+			 struct igc_ring_container *head)
+{
+	head->ring = ring;
+	head->count++;
+}
+
+/**
+ * igc_cache_ring_register - Descriptor ring to register mapping
+ * @adapter: board private structure to initialize
+ *
+ * Once we know the feature-set enabled for the device, we'll cache
+ * the register offset the descriptor ring is assigned to.
+ */
+static void igc_cache_ring_register(struct igc_adapter *adapter)
+{
+	int i = 0, j = 0;
+
+	switch (adapter->hw.mac.type) {
+	case igc_i225:
+	/* Fall through */
+	default:
+		for (; i < adapter->num_rx_queues; i++)
+			adapter->rx_ring[i]->reg_idx = i;
+		for (; j < adapter->num_tx_queues; j++)
+			adapter->tx_ring[j]->reg_idx = j;
+		break;
+	}
+}
+
+/**
+ * igc_poll - NAPI Rx polling callback
+ * @napi: napi polling structure
+ * @budget: count of how many packets we should handle
+ */
+static int igc_poll(struct napi_struct *napi, int budget)
+{
+	struct igc_q_vector *q_vector = container_of(napi,
+						     struct igc_q_vector,
+						     napi);
+	bool clean_complete = true;
+	int work_done = 0;
+
+	if (q_vector->tx.ring)
+		clean_complete = igc_clean_tx_irq(q_vector, budget);
+
+	if (q_vector->rx.ring) {
+		int cleaned = igc_clean_rx_irq(q_vector, budget);
+
+		work_done += cleaned;
+		if (cleaned >= budget)
+			clean_complete = false;
+	}
+
+	/* If all work not completed, return budget and keep polling */
+	if (!clean_complete)
+		return budget;
+
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		igc_ring_irq_enable(q_vector);
+
+	return min(work_done, budget - 1);
+}
+
+/**
+ * igc_alloc_q_vector - Allocate memory for a single interrupt vector
+ * @adapter: board private structure to initialize
+ * @v_count: q_vectors allocated on adapter, used for ring interleaving
+ * @v_idx: index of vector in adapter struct
+ * @txr_count: total number of Tx rings to allocate
+ * @txr_idx: index of first Tx ring to allocate
+ * @rxr_count: total number of Rx rings to allocate
+ * @rxr_idx: index of first Rx ring to allocate
+ *
+ * We allocate one q_vector.  If allocation fails we return -ENOMEM.
+ */
+static int igc_alloc_q_vector(struct igc_adapter *adapter,
+			      unsigned int v_count, unsigned int v_idx,
+			      unsigned int txr_count, unsigned int txr_idx,
+			      unsigned int rxr_count, unsigned int rxr_idx)
+{
+	struct igc_q_vector *q_vector;
+	struct igc_ring *ring;
+	int ring_count;
+
+	/* igc only supports 1 Tx and/or 1 Rx queue per vector */
+	if (txr_count > 1 || rxr_count > 1)
+		return -ENOMEM;
+
+	ring_count = txr_count + rxr_count;
+
+	/* allocate q_vector and rings */
+	q_vector = adapter->q_vector[v_idx];
+	if (!q_vector)
+		q_vector = kzalloc(struct_size(q_vector, ring, ring_count),
+				   GFP_KERNEL);
+	else
+		memset(q_vector, 0, struct_size(q_vector, ring, ring_count));
+	if (!q_vector)
+		return -ENOMEM;
+
+	/* initialize NAPI */
+	netif_napi_add(adapter->netdev, &q_vector->napi,
+		       igc_poll, 64);
+
+	/* tie q_vector and adapter together */
+	adapter->q_vector[v_idx] = q_vector;
+	q_vector->adapter = adapter;
+
+	/* initialize work limits */
+	q_vector->tx.work_limit = adapter->tx_work_limit;
+
+	/* initialize ITR configuration */
+	q_vector->itr_register = adapter->io_addr + IGC_EITR(0);
+	q_vector->itr_val = IGC_START_ITR;
+
+	/* initialize pointer to rings */
+	ring = q_vector->ring;
+
+	/* initialize ITR */
+	if (rxr_count) {
+		/* rx or rx/tx vector */
+		if (!adapter->rx_itr_setting || adapter->rx_itr_setting > 3)
+			q_vector->itr_val = adapter->rx_itr_setting;
+	} else {
+		/* tx only vector */
+		if (!adapter->tx_itr_setting || adapter->tx_itr_setting > 3)
+			q_vector->itr_val = adapter->tx_itr_setting;
+	}
+
+	if (txr_count) {
+		/* assign generic ring traits */
+		ring->dev = &adapter->pdev->dev;
+		ring->netdev = adapter->netdev;
+
+		/* configure backlink on ring */
+		ring->q_vector = q_vector;
+
+		/* update q_vector Tx values */
+		igc_add_ring(ring, &q_vector->tx);
+
+		/* apply Tx specific ring traits */
+		ring->count = adapter->tx_ring_count;
+		ring->queue_index = txr_idx;
+
+		/* assign ring to adapter */
+		adapter->tx_ring[txr_idx] = ring;
+
+		/* push pointer to next ring */
+		ring++;
+	}
+
+	if (rxr_count) {
+		/* assign generic ring traits */
+		ring->dev = &adapter->pdev->dev;
+		ring->netdev = adapter->netdev;
+
+		/* configure backlink on ring */
+		ring->q_vector = q_vector;
+
+		/* update q_vector Rx values */
+		igc_add_ring(ring, &q_vector->rx);
+
+		/* apply Rx specific ring traits */
+		ring->count = adapter->rx_ring_count;
+		ring->queue_index = rxr_idx;
+
+		/* assign ring to adapter */
+		adapter->rx_ring[rxr_idx] = ring;
+	}
+
+	return 0;
+}
+
+/**
+ * igc_alloc_q_vectors - Allocate memory for interrupt vectors
+ * @adapter: board private structure to initialize
+ *
+ * We allocate one q_vector per queue interrupt.  If allocation fails we
+ * return -ENOMEM.
+ */
+static int igc_alloc_q_vectors(struct igc_adapter *adapter)
+{
+	int rxr_remaining = adapter->num_rx_queues;
+	int txr_remaining = adapter->num_tx_queues;
+	int rxr_idx = 0, txr_idx = 0, v_idx = 0;
+	int q_vectors = adapter->num_q_vectors;
+	int err;
+
+	if (q_vectors >= (rxr_remaining + txr_remaining)) {
+		for (; rxr_remaining; v_idx++) {
+			err = igc_alloc_q_vector(adapter, q_vectors, v_idx,
+						 0, 0, 1, rxr_idx);
+
+			if (err)
+				goto err_out;
+
+			/* update counts and index */
+			rxr_remaining--;
+			rxr_idx++;
+		}
+	}
+
+	for (; v_idx < q_vectors; v_idx++) {
+		int rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors - v_idx);
+		int tqpv = DIV_ROUND_UP(txr_remaining, q_vectors - v_idx);
+
+		err = igc_alloc_q_vector(adapter, q_vectors, v_idx,
+					 tqpv, txr_idx, rqpv, rxr_idx);
+
+		if (err)
+			goto err_out;
+
+		/* update counts and index */
+		rxr_remaining -= rqpv;
+		txr_remaining -= tqpv;
+		rxr_idx++;
+		txr_idx++;
+	}
+
+	return 0;
+
+err_out:
+	adapter->num_tx_queues = 0;
+	adapter->num_rx_queues = 0;
+	adapter->num_q_vectors = 0;
+
+	while (v_idx--)
+		igc_free_q_vector(adapter, v_idx);
+
+	return -ENOMEM;
+}
+
+/**
+ * igc_init_interrupt_scheme - initialize interrupts, allocate queues/vectors
+ * @adapter: Pointer to adapter structure
+ * @msix: boolean for MSI-X capability
+ *
+ * This function initializes the interrupts and allocates all of the queues.
+ */
+static int igc_init_interrupt_scheme(struct igc_adapter *adapter, bool msix)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	int err = 0;
+
+	igc_set_interrupt_capability(adapter, msix);
+
+	err = igc_alloc_q_vectors(adapter);
+	if (err) {
+		dev_err(&pdev->dev, "Unable to allocate memory for vectors\n");
+		goto err_alloc_q_vectors;
+	}
+
+	igc_cache_ring_register(adapter);
+
+	return 0;
+
+err_alloc_q_vectors:
+	igc_reset_interrupt_capability(adapter);
+	return err;
+}
+
+/**
+ * igc_sw_init - Initialize general software structures (struct igc_adapter)
+ * @adapter: board private structure to initialize
+ *
+ * igc_sw_init initializes the Adapter private data structure.
+ * Fields are initialized based on PCI device information and
+ * OS network device settings (MTU size).
+ */
+static int igc_sw_init(struct igc_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
+	struct igc_hw *hw = &adapter->hw;
+
+	int size = sizeof(struct igc_mac_addr) * hw->mac.rar_entry_count;
+
+	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
+
+	/* set default ring sizes */
+	adapter->tx_ring_count = IGC_DEFAULT_TXD;
+	adapter->rx_ring_count = IGC_DEFAULT_RXD;
+
+	/* set default ITR values */
+	adapter->rx_itr_setting = IGC_DEFAULT_ITR;
+	adapter->tx_itr_setting = IGC_DEFAULT_ITR;
+
+	/* set default work limits */
+	adapter->tx_work_limit = IGC_DEFAULT_TX_WORK;
+
+	/* adjust max frame to be at least the size of a standard frame */
+	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN +
+				VLAN_HLEN;
+	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
+
+	spin_lock_init(&adapter->nfc_lock);
+	spin_lock_init(&adapter->stats64_lock);
+	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
+	adapter->flags |= IGC_FLAG_HAS_MSIX;
+
+	adapter->mac_table = kzalloc(size, GFP_ATOMIC);
+	if (!adapter->mac_table)
+		return -ENOMEM;
+
+	igc_init_queue_configuration(adapter);
+
+	/* This call may decrease the number of queues */
+	if (igc_init_interrupt_scheme(adapter, true)) {
+		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		return -ENOMEM;
+	}
+
+	/* Explicitly disable IRQ since the NIC can be in any state. */
+	igc_irq_disable(adapter);
+
+	set_bit(__IGC_DOWN, &adapter->state);
+
+	return 0;
 }
 
 /**
@@ -2159,18 +3460,6 @@ static void igc_nfc_filter_exit(struct igc_adapter *adapter)
 
 	hlist_for_each_entry(rule, &adapter->cls_flower_list, nfc_node)
 		igc_erase_filter(adapter, rule);
-
-	spin_unlock(&adapter->nfc_lock);
-}
-
-static void igc_nfc_filter_restore(struct igc_adapter *adapter)
-{
-	struct igc_nfc_filter *rule;
-
-	spin_lock(&adapter->nfc_lock);
-
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
-		igc_add_filter(adapter, rule);
 
 	spin_unlock(&adapter->nfc_lock);
 }
@@ -2398,105 +3687,6 @@ igc_features_check(struct sk_buff *skb, struct net_device *dev,
 	return features;
 }
 
-/**
- * igc_configure - configure the hardware for RX and TX
- * @adapter: private board structure
- */
-static void igc_configure(struct igc_adapter *adapter)
-{
-	struct net_device *netdev = adapter->netdev;
-	int i = 0;
-
-	igc_get_hw_control(adapter);
-	igc_set_rx_mode(netdev);
-
-	igc_setup_tctl(adapter);
-	igc_setup_mrqc(adapter);
-	igc_setup_rctl(adapter);
-
-	igc_nfc_filter_restore(adapter);
-	igc_configure_tx(adapter);
-	igc_configure_rx(adapter);
-
-	igc_rx_fifo_flush_base(&adapter->hw);
-
-	/* call igc_desc_unused which always leaves
-	 * at least 1 descriptor unused to make sure
-	 * next_to_use != next_to_clean
-	 */
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct igc_ring *ring = adapter->rx_ring[i];
-
-		igc_alloc_rx_buffers(ring, igc_desc_unused(ring));
-	}
-}
-
-/**
- * igc_rar_set_index - Sync RAL[index] and RAH[index] registers with MAC table
- * @adapter: address of board private structure
- * @index: Index of the RAR entry which need to be synced with MAC table
- */
-static void igc_rar_set_index(struct igc_adapter *adapter, u32 index)
-{
-	u8 *addr = adapter->mac_table[index].addr;
-	struct igc_hw *hw = &adapter->hw;
-	u32 rar_low, rar_high;
-
-	/* HW expects these to be in network order when they are plugged
-	 * into the registers which are little endian.  In order to guarantee
-	 * that ordering we need to do an leXX_to_cpup here in order to be
-	 * ready for the byteswap that occurs with writel
-	 */
-	rar_low = le32_to_cpup((__le32 *)(addr));
-	rar_high = le16_to_cpup((__le16 *)(addr + 4));
-
-	/* Indicate to hardware the Address is Valid. */
-	if (adapter->mac_table[index].state & IGC_MAC_STATE_IN_USE) {
-		if (is_valid_ether_addr(addr))
-			rar_high |= IGC_RAH_AV;
-
-		rar_high |= IGC_RAH_POOL_1 <<
-			adapter->mac_table[index].queue;
-	}
-
-	wr32(IGC_RAL(index), rar_low);
-	wrfl();
-	wr32(IGC_RAH(index), rar_high);
-	wrfl();
-}
-
-/* Set default MAC address for the PF in the first RAR entry */
-static void igc_set_default_mac_filter(struct igc_adapter *adapter)
-{
-	struct igc_mac_addr *mac_table = &adapter->mac_table[0];
-
-	ether_addr_copy(mac_table->addr, adapter->hw.mac.addr);
-	mac_table->state = IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
-
-	igc_rar_set_index(adapter, 0);
-}
-
-/* If the filter to be added and an already existing filter express
- * the same address and address type, it should be possible to only
- * override the other configurations, for example the queue to steer
- * traffic.
- */
-static bool igc_mac_entry_can_be_used(const struct igc_mac_addr *entry,
-				      const u8 *addr, const u8 flags)
-{
-	if (!(entry->state & IGC_MAC_STATE_IN_USE))
-		return true;
-
-	if ((entry->state & IGC_MAC_STATE_SRC_ADDR) !=
-	    (flags & IGC_MAC_STATE_SRC_ADDR))
-		return false;
-
-	if (!ether_addr_equal(addr, entry->addr))
-		return false;
-
-	return true;
-}
-
 /* Add a MAC filter for 'addr' directing matching traffic to 'queue',
  * 'flags' is used to indicate what kind of match is made, match is by
  * default for the destination address, if matching by source address
@@ -2597,159 +3787,20 @@ int igc_del_mac_steering_filter(struct igc_adapter *adapter,
 					IGC_MAC_STATE_QUEUE_STEERING | flags);
 }
 
-/* Add a MAC filter for 'addr' directing matching traffic to 'queue',
- * 'flags' is used to indicate what kind of match is made, match is by
- * default for the destination address, if matching by source address
- * is desired the flag IGC_MAC_STATE_SRC_ADDR can be used.
- */
-static int igc_add_mac_filter(struct igc_adapter *adapter,
-			      const u8 *addr, const u8 queue)
+static void igc_tsync_interrupt(struct igc_adapter *adapter)
 {
 	struct igc_hw *hw = &adapter->hw;
-	int rar_entries = hw->mac.rar_entry_count;
-	int i;
+	u32 tsicr = rd32(IGC_TSICR);
+	u32 ack = 0;
 
-	if (is_zero_ether_addr(addr))
-		return -EINVAL;
-
-	/* Search for the first empty entry in the MAC table.
-	 * Do not touch entries at the end of the table reserved for the VF MAC
-	 * addresses.
-	 */
-	for (i = 0; i < rar_entries; i++) {
-		if (!igc_mac_entry_can_be_used(&adapter->mac_table[i],
-					       addr, 0))
-			continue;
-
-		ether_addr_copy(adapter->mac_table[i].addr, addr);
-		adapter->mac_table[i].queue = queue;
-		adapter->mac_table[i].state |= IGC_MAC_STATE_IN_USE;
-
-		igc_rar_set_index(adapter, i);
-		return i;
+	if (tsicr & IGC_TSICR_TXTS) {
+		/* retrieve hardware timestamp */
+		schedule_work(&adapter->ptp_tx_work);
+		ack |= IGC_TSICR_TXTS;
 	}
 
-	return -ENOSPC;
-}
-
-/* Remove a MAC filter for 'addr' directing matching traffic to
- * 'queue', 'flags' is used to indicate what kind of match need to be
- * removed, match is by default for the destination address, if
- * matching by source address is to be removed the flag
- * IGC_MAC_STATE_SRC_ADDR can be used.
- */
-static int igc_del_mac_filter(struct igc_adapter *adapter,
-			      const u8 *addr, const u8 queue)
-{
-	struct igc_hw *hw = &adapter->hw;
-	int rar_entries = hw->mac.rar_entry_count;
-	int i;
-
-	if (is_zero_ether_addr(addr))
-		return -EINVAL;
-
-	/* Search for matching entry in the MAC table based on given address
-	 * and queue. Do not touch entries at the end of the table reserved
-	 * for the VF MAC addresses.
-	 */
-	for (i = 0; i < rar_entries; i++) {
-		if (!(adapter->mac_table[i].state & IGC_MAC_STATE_IN_USE))
-			continue;
-		if (adapter->mac_table[i].state != 0)
-			continue;
-		if (adapter->mac_table[i].queue != queue)
-			continue;
-		if (!ether_addr_equal(adapter->mac_table[i].addr, addr))
-			continue;
-
-		/* When a filter for the default address is "deleted",
-		 * we return it to its initial configuration
-		 */
-		if (adapter->mac_table[i].state & IGC_MAC_STATE_DEFAULT) {
-			adapter->mac_table[i].state =
-				IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
-			adapter->mac_table[i].queue = 0;
-		} else {
-			adapter->mac_table[i].state = 0;
-			adapter->mac_table[i].queue = 0;
-			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
-		}
-
-		igc_rar_set_index(adapter, i);
-		return 0;
-	}
-
-	return -ENOENT;
-}
-
-static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
-{
-	struct igc_adapter *adapter = netdev_priv(netdev);
-	int ret;
-
-	ret = igc_add_mac_filter(adapter, addr, adapter->num_rx_queues);
-
-	return min_t(int, ret, 0);
-}
-
-static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
-{
-	struct igc_adapter *adapter = netdev_priv(netdev);
-
-	igc_del_mac_filter(adapter, addr, adapter->num_rx_queues);
-
-	return 0;
-}
-
-/**
- * igc_set_rx_mode - Secondary Unicast, Multicast and Promiscuous mode set
- * @netdev: network interface device structure
- *
- * The set_rx_mode entry point is called whenever the unicast or multicast
- * address lists or the network interface flags are updated.  This routine is
- * responsible for configuring the hardware for proper unicast, multicast,
- * promiscuous mode, and all-multi behavior.
- */
-static void igc_set_rx_mode(struct net_device *netdev)
-{
-	struct igc_adapter *adapter = netdev_priv(netdev);
-	struct igc_hw *hw = &adapter->hw;
-	u32 rctl = 0, rlpml = MAX_JUMBO_FRAME_SIZE;
-	int count;
-
-	/* Check for Promiscuous and All Multicast modes */
-	if (netdev->flags & IFF_PROMISC) {
-		rctl |= IGC_RCTL_UPE | IGC_RCTL_MPE;
-	} else {
-		if (netdev->flags & IFF_ALLMULTI) {
-			rctl |= IGC_RCTL_MPE;
-		} else {
-			/* Write addresses to the MTA, if the attempt fails
-			 * then we should just turn on promiscuous mode so
-			 * that we can at least receive multicast traffic
-			 */
-			count = igc_write_mc_addr_list(netdev);
-			if (count < 0)
-				rctl |= IGC_RCTL_MPE;
-		}
-	}
-
-	/* Write addresses to available RAR registers, if there is not
-	 * sufficient space to store all the addresses then enable
-	 * unicast promiscuous mode
-	 */
-	if (__dev_uc_sync(netdev, igc_uc_sync, igc_uc_unsync))
-		rctl |= IGC_RCTL_UPE;
-
-	/* update state of unicast and multicast */
-	rctl |= rd32(IGC_RCTL) & ~(IGC_RCTL_UPE | IGC_RCTL_MPE);
-	wr32(IGC_RCTL, rctl);
-
-#if (PAGE_SIZE < 8192)
-	if (adapter->max_frame_size <= IGC_MAX_FRAME_BUILD_SKB)
-		rlpml = IGC_MAX_FRAME_BUILD_SKB;
-#endif
-	wr32(IGC_RLPML, rlpml);
+	/* acknowledge the interrupts */
+	wr32(IGC_TSICR, ack);
 }
 
 /**
@@ -2779,114 +3830,28 @@ static irqreturn_t igc_msix_other(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
+	if (icr & IGC_ICR_TS)
+		igc_tsync_interrupt(adapter);
+
 	wr32(IGC_EIMS, adapter->eims_other);
 
 	return IRQ_HANDLED;
 }
 
-/**
- * igc_write_ivar - configure ivar for given MSI-X vector
- * @hw: pointer to the HW structure
- * @msix_vector: vector number we are allocating to a given ring
- * @index: row index of IVAR register to write within IVAR table
- * @offset: column offset of in IVAR, should be multiple of 8
- *
- * The IVAR table consists of 2 columns,
- * each containing an cause allocation for an Rx and Tx ring, and a
- * variable number of rows depending on the number of queues supported.
- */
-static void igc_write_ivar(struct igc_hw *hw, int msix_vector,
-			   int index, int offset)
+static void igc_write_itr(struct igc_q_vector *q_vector)
 {
-	u32 ivar = array_rd32(IGC_IVAR0, index);
+	u32 itr_val = q_vector->itr_val & IGC_QVECTOR_MASK;
 
-	/* clear any bits that are currently set */
-	ivar &= ~((u32)0xFF << offset);
+	if (!q_vector->set_itr)
+		return;
 
-	/* write vector and valid bit */
-	ivar |= (msix_vector | IGC_IVAR_VALID) << offset;
+	if (!itr_val)
+		itr_val = IGC_ITR_VAL_MASK;
 
-	array_wr32(IGC_IVAR0, index, ivar);
-}
+	itr_val |= IGC_EITR_CNT_IGNR;
 
-static void igc_assign_vector(struct igc_q_vector *q_vector, int msix_vector)
-{
-	struct igc_adapter *adapter = q_vector->adapter;
-	struct igc_hw *hw = &adapter->hw;
-	int rx_queue = IGC_N0_QUEUE;
-	int tx_queue = IGC_N0_QUEUE;
-
-	if (q_vector->rx.ring)
-		rx_queue = q_vector->rx.ring->reg_idx;
-	if (q_vector->tx.ring)
-		tx_queue = q_vector->tx.ring->reg_idx;
-
-	switch (hw->mac.type) {
-	case igc_i225:
-		if (rx_queue > IGC_N0_QUEUE)
-			igc_write_ivar(hw, msix_vector,
-				       rx_queue >> 1,
-				       (rx_queue & 0x1) << 4);
-		if (tx_queue > IGC_N0_QUEUE)
-			igc_write_ivar(hw, msix_vector,
-				       tx_queue >> 1,
-				       ((tx_queue & 0x1) << 4) + 8);
-		q_vector->eims_value = BIT(msix_vector);
-		break;
-	default:
-		WARN_ONCE(hw->mac.type != igc_i225, "Wrong MAC type\n");
-		break;
-	}
-
-	/* add q_vector eims value to global eims_enable_mask */
-	adapter->eims_enable_mask |= q_vector->eims_value;
-
-	/* configure q_vector to set itr on first interrupt */
-	q_vector->set_itr = 1;
-}
-
-/**
- * igc_configure_msix - Configure MSI-X hardware
- * @adapter: Pointer to adapter structure
- *
- * igc_configure_msix sets up the hardware to properly
- * generate MSI-X interrupts.
- */
-static void igc_configure_msix(struct igc_adapter *adapter)
-{
-	struct igc_hw *hw = &adapter->hw;
-	int i, vector = 0;
-	u32 tmp;
-
-	adapter->eims_enable_mask = 0;
-
-	/* set vector for other causes, i.e. link changes */
-	switch (hw->mac.type) {
-	case igc_i225:
-		/* Turn on MSI-X capability first, or our settings
-		 * won't stick.  And it will take days to debug.
-		 */
-		wr32(IGC_GPIE, IGC_GPIE_MSIX_MODE |
-		     IGC_GPIE_PBA | IGC_GPIE_EIAME |
-		     IGC_GPIE_NSICR);
-
-		/* enable msix_other interrupt */
-		adapter->eims_other = BIT(vector);
-		tmp = (vector++ | IGC_IVAR_VALID) << 8;
-
-		wr32(IGC_IVAR_MISC, tmp);
-		break;
-	default:
-		/* do nothing, since nothing else supports MSI-X */
-		break;
-	} /* switch (hw->mac.type) */
-
-	adapter->eims_enable_mask |= adapter->eims_other;
-
-	for (i = 0; i < adapter->num_q_vectors; i++)
-		igc_assign_vector(adapter->q_vector[i], vector++);
-
-	wrfl();
+	writel(itr_val, q_vector->itr_register);
+	q_vector->set_itr = 0;
 }
 
 static irqreturn_t igc_msix_ring(int irq, void *data)
@@ -2961,49 +3926,6 @@ err_out:
 }
 
 /**
- * igc_reset_q_vector - Reset config for interrupt vector
- * @adapter: board private structure to initialize
- * @v_idx: Index of vector to be reset
- *
- * If NAPI is enabled it will delete any references to the
- * NAPI struct. This is preparation for igc_free_q_vector.
- */
-static void igc_reset_q_vector(struct igc_adapter *adapter, int v_idx)
-{
-	struct igc_q_vector *q_vector = adapter->q_vector[v_idx];
-
-	/* if we're coming from igc_set_interrupt_capability, the vectors are
-	 * not yet allocated
-	 */
-	if (!q_vector)
-		return;
-
-	if (q_vector->tx.ring)
-		adapter->tx_ring[q_vector->tx.ring->queue_index] = NULL;
-
-	if (q_vector->rx.ring)
-		adapter->rx_ring[q_vector->rx.ring->queue_index] = NULL;
-
-	netif_napi_del(&q_vector->napi);
-}
-
-static void igc_reset_interrupt_capability(struct igc_adapter *adapter)
-{
-	int v_idx = adapter->num_q_vectors;
-
-	if (adapter->msix_entries) {
-		pci_disable_msix(adapter->pdev);
-		kfree(adapter->msix_entries);
-		adapter->msix_entries = NULL;
-	} else if (adapter->flags & IGC_FLAG_HAS_MSI) {
-		pci_disable_msi(adapter->pdev);
-	}
-
-	while (v_idx--)
-		igc_reset_q_vector(adapter, v_idx);
-}
-
-/**
  * igc_clear_interrupt_scheme - reset the device to a state of no interrupts
  * @adapter: Pointer to adapter structure
  *
@@ -3014,48 +3936,6 @@ static void igc_clear_interrupt_scheme(struct igc_adapter *adapter)
 {
 	igc_free_q_vectors(adapter);
 	igc_reset_interrupt_capability(adapter);
-}
-
-/**
- * igc_free_q_vectors - Free memory allocated for interrupt vectors
- * @adapter: board private structure to initialize
- *
- * This function frees the memory allocated to the q_vectors.  In addition if
- * NAPI is enabled it will delete any references to the NAPI struct prior
- * to freeing the q_vector.
- */
-static void igc_free_q_vectors(struct igc_adapter *adapter)
-{
-	int v_idx = adapter->num_q_vectors;
-
-	adapter->num_tx_queues = 0;
-	adapter->num_rx_queues = 0;
-	adapter->num_q_vectors = 0;
-
-	while (v_idx--) {
-		igc_reset_q_vector(adapter, v_idx);
-		igc_free_q_vector(adapter, v_idx);
-	}
-}
-
-/**
- * igc_free_q_vector - Free memory allocated for specific interrupt vector
- * @adapter: board private structure to initialize
- * @v_idx: Index of vector to be freed
- *
- * This function frees the memory allocated to the q_vector.
- */
-static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx)
-{
-	struct igc_q_vector *q_vector = adapter->q_vector[v_idx];
-
-	adapter->q_vector[v_idx] = NULL;
-
-	/* igc_get_stats64() might access the rings on this vector,
-	 * we must wait a grace period before freeing it.
-	 */
-	if (q_vector)
-		kfree_rcu(q_vector, rcu);
 }
 
 /* Need to wait a few seconds after link up to get diagnostic information from
@@ -3109,7 +3989,7 @@ bool igc_has_link(struct igc_adapter *adapter)
 
 /**
  * igc_watchdog - Timer Call-back
- * @data: pointer to adapter cast into an unsigned long
+ * @t: timer for the watchdog
  */
 static void igc_watchdog(struct timer_list *t)
 {
@@ -3282,6 +4162,8 @@ no_wait:
 		wr32(IGC_ICS, IGC_ICS_RXDMT0);
 	}
 
+	igc_ptp_tx_hang(adapter);
+
 	/* Reset the timer */
 	if (!test_bit(__IGC_DOWN, &adapter->state)) {
 		if (adapter->flags & IGC_FLAG_NEED_LINK_UPDATE)
@@ -3291,149 +4173,6 @@ no_wait:
 			mod_timer(&adapter->watchdog_timer,
 				  round_jiffies(jiffies + 2 * HZ));
 	}
-}
-
-/**
- * igc_update_ring_itr - update the dynamic ITR value based on packet size
- * @q_vector: pointer to q_vector
- *
- * Stores a new ITR value based on strictly on packet size.  This
- * algorithm is less sophisticated than that used in igc_update_itr,
- * due to the difficulty of synchronizing statistics across multiple
- * receive rings.  The divisors and thresholds used by this function
- * were determined based on theoretical maximum wire speed and testing
- * data, in order to minimize response time while increasing bulk
- * throughput.
- * NOTE: This function is called only when operating in a multiqueue
- * receive environment.
- */
-static void igc_update_ring_itr(struct igc_q_vector *q_vector)
-{
-	struct igc_adapter *adapter = q_vector->adapter;
-	int new_val = q_vector->itr_val;
-	int avg_wire_size = 0;
-	unsigned int packets;
-
-	/* For non-gigabit speeds, just fix the interrupt rate at 4000
-	 * ints/sec - ITR timer value of 120 ticks.
-	 */
-	switch (adapter->link_speed) {
-	case SPEED_10:
-	case SPEED_100:
-		new_val = IGC_4K_ITR;
-		goto set_itr_val;
-	default:
-		break;
-	}
-
-	packets = q_vector->rx.total_packets;
-	if (packets)
-		avg_wire_size = q_vector->rx.total_bytes / packets;
-
-	packets = q_vector->tx.total_packets;
-	if (packets)
-		avg_wire_size = max_t(u32, avg_wire_size,
-				      q_vector->tx.total_bytes / packets);
-
-	/* if avg_wire_size isn't set no work was done */
-	if (!avg_wire_size)
-		goto clear_counts;
-
-	/* Add 24 bytes to size to account for CRC, preamble, and gap */
-	avg_wire_size += 24;
-
-	/* Don't starve jumbo frames */
-	avg_wire_size = min(avg_wire_size, 3000);
-
-	/* Give a little boost to mid-size frames */
-	if (avg_wire_size > 300 && avg_wire_size < 1200)
-		new_val = avg_wire_size / 3;
-	else
-		new_val = avg_wire_size / 2;
-
-	/* conservative mode (itr 3) eliminates the lowest_latency setting */
-	if (new_val < IGC_20K_ITR &&
-	    ((q_vector->rx.ring && adapter->rx_itr_setting == 3) ||
-	    (!q_vector->rx.ring && adapter->tx_itr_setting == 3)))
-		new_val = IGC_20K_ITR;
-
-set_itr_val:
-	if (new_val != q_vector->itr_val) {
-		q_vector->itr_val = new_val;
-		q_vector->set_itr = 1;
-	}
-clear_counts:
-	q_vector->rx.total_bytes = 0;
-	q_vector->rx.total_packets = 0;
-	q_vector->tx.total_bytes = 0;
-	q_vector->tx.total_packets = 0;
-}
-
-/**
- * igc_update_itr - update the dynamic ITR value based on statistics
- * @q_vector: pointer to q_vector
- * @ring_container: ring info to update the itr for
- *
- * Stores a new ITR value based on packets and byte
- * counts during the last interrupt.  The advantage of per interrupt
- * computation is faster updates and more accurate ITR for the current
- * traffic pattern.  Constants in this function were computed
- * based on theoretical maximum wire speed and thresholds were set based
- * on testing data as well as attempting to minimize response time
- * while increasing bulk throughput.
- * NOTE: These calculations are only valid when operating in a single-
- * queue environment.
- */
-static void igc_update_itr(struct igc_q_vector *q_vector,
-			   struct igc_ring_container *ring_container)
-{
-	unsigned int packets = ring_container->total_packets;
-	unsigned int bytes = ring_container->total_bytes;
-	u8 itrval = ring_container->itr;
-
-	/* no packets, exit with status unchanged */
-	if (packets == 0)
-		return;
-
-	switch (itrval) {
-	case lowest_latency:
-		/* handle TSO and jumbo frames */
-		if (bytes / packets > 8000)
-			itrval = bulk_latency;
-		else if ((packets < 5) && (bytes > 512))
-			itrval = low_latency;
-		break;
-	case low_latency:  /* 50 usec aka 20000 ints/s */
-		if (bytes > 10000) {
-			/* this if handles the TSO accounting */
-			if (bytes / packets > 8000)
-				itrval = bulk_latency;
-			else if ((packets < 10) || ((bytes / packets) > 1200))
-				itrval = bulk_latency;
-			else if ((packets > 35))
-				itrval = lowest_latency;
-		} else if (bytes / packets > 2000) {
-			itrval = bulk_latency;
-		} else if (packets <= 2 && bytes < 512) {
-			itrval = lowest_latency;
-		}
-		break;
-	case bulk_latency: /* 250 usec aka 4000 ints/s */
-		if (bytes > 25000) {
-			if (packets > 35)
-				itrval = low_latency;
-		} else if (bytes < 1500) {
-			itrval = low_latency;
-		}
-		break;
-	}
-
-	/* clear work counters since we have the values we need */
-	ring_container->total_bytes = 0;
-	ring_container->total_packets = 0;
-
-	/* write updated itr to ring container */
-	ring_container->itr = itrval;
 }
 
 /**
@@ -3513,424 +4252,6 @@ static irqreturn_t igc_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void igc_set_itr(struct igc_q_vector *q_vector)
-{
-	struct igc_adapter *adapter = q_vector->adapter;
-	u32 new_itr = q_vector->itr_val;
-	u8 current_itr = 0;
-
-	/* for non-gigabit speeds, just fix the interrupt rate at 4000 */
-	switch (adapter->link_speed) {
-	case SPEED_10:
-	case SPEED_100:
-		current_itr = 0;
-		new_itr = IGC_4K_ITR;
-		goto set_itr_now;
-	default:
-		break;
-	}
-
-	igc_update_itr(q_vector, &q_vector->tx);
-	igc_update_itr(q_vector, &q_vector->rx);
-
-	current_itr = max(q_vector->rx.itr, q_vector->tx.itr);
-
-	/* conservative mode (itr 3) eliminates the lowest_latency setting */
-	if (current_itr == lowest_latency &&
-	    ((q_vector->rx.ring && adapter->rx_itr_setting == 3) ||
-	    (!q_vector->rx.ring && adapter->tx_itr_setting == 3)))
-		current_itr = low_latency;
-
-	switch (current_itr) {
-	/* counts and packets in update_itr are dependent on these numbers */
-	case lowest_latency:
-		new_itr = IGC_70K_ITR; /* 70,000 ints/sec */
-		break;
-	case low_latency:
-		new_itr = IGC_20K_ITR; /* 20,000 ints/sec */
-		break;
-	case bulk_latency:
-		new_itr = IGC_4K_ITR;  /* 4,000 ints/sec */
-		break;
-	default:
-		break;
-	}
-
-set_itr_now:
-	if (new_itr != q_vector->itr_val) {
-		/* this attempts to bias the interrupt rate towards Bulk
-		 * by adding intermediate steps when interrupt rate is
-		 * increasing
-		 */
-		new_itr = new_itr > q_vector->itr_val ?
-			  max((new_itr * q_vector->itr_val) /
-			  (new_itr + (q_vector->itr_val >> 2)),
-			  new_itr) : new_itr;
-		/* Don't write the value here; it resets the adapter's
-		 * internal timer, and causes us to delay far longer than
-		 * we should between interrupts.  Instead, we write the ITR
-		 * value at the beginning of the next interrupt so the timing
-		 * ends up being correct.
-		 */
-		q_vector->itr_val = new_itr;
-		q_vector->set_itr = 1;
-	}
-}
-
-static void igc_ring_irq_enable(struct igc_q_vector *q_vector)
-{
-	struct igc_adapter *adapter = q_vector->adapter;
-	struct igc_hw *hw = &adapter->hw;
-
-	if ((q_vector->rx.ring && (adapter->rx_itr_setting & 3)) ||
-	    (!q_vector->rx.ring && (adapter->tx_itr_setting & 3))) {
-		if (adapter->num_q_vectors == 1)
-			igc_set_itr(q_vector);
-		else
-			igc_update_ring_itr(q_vector);
-	}
-
-	if (!test_bit(__IGC_DOWN, &adapter->state)) {
-		if (adapter->msix_entries)
-			wr32(IGC_EIMS, q_vector->eims_value);
-		else
-			igc_irq_enable(adapter);
-	}
-}
-
-/**
- * igc_poll - NAPI Rx polling callback
- * @napi: napi polling structure
- * @budget: count of how many packets we should handle
- */
-static int igc_poll(struct napi_struct *napi, int budget)
-{
-	struct igc_q_vector *q_vector = container_of(napi,
-						     struct igc_q_vector,
-						     napi);
-	bool clean_complete = true;
-	int work_done = 0;
-
-	if (q_vector->tx.ring)
-		clean_complete = igc_clean_tx_irq(q_vector, budget);
-
-	if (q_vector->rx.ring) {
-		int cleaned = igc_clean_rx_irq(q_vector, budget);
-
-		work_done += cleaned;
-		if (cleaned >= budget)
-			clean_complete = false;
-	}
-
-	/* If all work not completed, return budget and keep polling */
-	if (!clean_complete)
-		return budget;
-
-	/* Exit the polling mode, but don't re-enable interrupts if stack might
-	 * poll us due to busy-polling
-	 */
-	if (likely(napi_complete_done(napi, work_done)))
-		igc_ring_irq_enable(q_vector);
-
-	return min(work_done, budget - 1);
-}
-
-/**
- * igc_set_interrupt_capability - set MSI or MSI-X if supported
- * @adapter: Pointer to adapter structure
- *
- * Attempt to configure interrupts using the best available
- * capabilities of the hardware and kernel.
- */
-static void igc_set_interrupt_capability(struct igc_adapter *adapter,
-					 bool msix)
-{
-	int numvecs, i;
-	int err;
-
-	if (!msix)
-		goto msi_only;
-	adapter->flags |= IGC_FLAG_HAS_MSIX;
-
-	/* Number of supported queues. */
-	adapter->num_rx_queues = adapter->rss_queues;
-
-	adapter->num_tx_queues = adapter->rss_queues;
-
-	/* start with one vector for every Rx queue */
-	numvecs = adapter->num_rx_queues;
-
-	/* if Tx handler is separate add 1 for every Tx queue */
-	if (!(adapter->flags & IGC_FLAG_QUEUE_PAIRS))
-		numvecs += adapter->num_tx_queues;
-
-	/* store the number of vectors reserved for queues */
-	adapter->num_q_vectors = numvecs;
-
-	/* add 1 vector for link status interrupts */
-	numvecs++;
-
-	adapter->msix_entries = kcalloc(numvecs, sizeof(struct msix_entry),
-					GFP_KERNEL);
-
-	if (!adapter->msix_entries)
-		return;
-
-	/* populate entry values */
-	for (i = 0; i < numvecs; i++)
-		adapter->msix_entries[i].entry = i;
-
-	err = pci_enable_msix_range(adapter->pdev,
-				    adapter->msix_entries,
-				    numvecs,
-				    numvecs);
-	if (err > 0)
-		return;
-
-	kfree(adapter->msix_entries);
-	adapter->msix_entries = NULL;
-
-	igc_reset_interrupt_capability(adapter);
-
-msi_only:
-	adapter->flags &= ~IGC_FLAG_HAS_MSIX;
-
-	adapter->rss_queues = 1;
-	adapter->flags |= IGC_FLAG_QUEUE_PAIRS;
-	adapter->num_rx_queues = 1;
-	adapter->num_tx_queues = 1;
-	adapter->num_q_vectors = 1;
-	if (!pci_enable_msi(adapter->pdev))
-		adapter->flags |= IGC_FLAG_HAS_MSI;
-}
-
-static void igc_add_ring(struct igc_ring *ring,
-			 struct igc_ring_container *head)
-{
-	head->ring = ring;
-	head->count++;
-}
-
-/**
- * igc_alloc_q_vector - Allocate memory for a single interrupt vector
- * @adapter: board private structure to initialize
- * @v_count: q_vectors allocated on adapter, used for ring interleaving
- * @v_idx: index of vector in adapter struct
- * @txr_count: total number of Tx rings to allocate
- * @txr_idx: index of first Tx ring to allocate
- * @rxr_count: total number of Rx rings to allocate
- * @rxr_idx: index of first Rx ring to allocate
- *
- * We allocate one q_vector.  If allocation fails we return -ENOMEM.
- */
-static int igc_alloc_q_vector(struct igc_adapter *adapter,
-			      unsigned int v_count, unsigned int v_idx,
-			      unsigned int txr_count, unsigned int txr_idx,
-			      unsigned int rxr_count, unsigned int rxr_idx)
-{
-	struct igc_q_vector *q_vector;
-	struct igc_ring *ring;
-	int ring_count;
-
-	/* igc only supports 1 Tx and/or 1 Rx queue per vector */
-	if (txr_count > 1 || rxr_count > 1)
-		return -ENOMEM;
-
-	ring_count = txr_count + rxr_count;
-
-	/* allocate q_vector and rings */
-	q_vector = adapter->q_vector[v_idx];
-	if (!q_vector)
-		q_vector = kzalloc(struct_size(q_vector, ring, ring_count),
-				   GFP_KERNEL);
-	else
-		memset(q_vector, 0, struct_size(q_vector, ring, ring_count));
-	if (!q_vector)
-		return -ENOMEM;
-
-	/* initialize NAPI */
-	netif_napi_add(adapter->netdev, &q_vector->napi,
-		       igc_poll, 64);
-
-	/* tie q_vector and adapter together */
-	adapter->q_vector[v_idx] = q_vector;
-	q_vector->adapter = adapter;
-
-	/* initialize work limits */
-	q_vector->tx.work_limit = adapter->tx_work_limit;
-
-	/* initialize ITR configuration */
-	q_vector->itr_register = adapter->io_addr + IGC_EITR(0);
-	q_vector->itr_val = IGC_START_ITR;
-
-	/* initialize pointer to rings */
-	ring = q_vector->ring;
-
-	/* initialize ITR */
-	if (rxr_count) {
-		/* rx or rx/tx vector */
-		if (!adapter->rx_itr_setting || adapter->rx_itr_setting > 3)
-			q_vector->itr_val = adapter->rx_itr_setting;
-	} else {
-		/* tx only vector */
-		if (!adapter->tx_itr_setting || adapter->tx_itr_setting > 3)
-			q_vector->itr_val = adapter->tx_itr_setting;
-	}
-
-	if (txr_count) {
-		/* assign generic ring traits */
-		ring->dev = &adapter->pdev->dev;
-		ring->netdev = adapter->netdev;
-
-		/* configure backlink on ring */
-		ring->q_vector = q_vector;
-
-		/* update q_vector Tx values */
-		igc_add_ring(ring, &q_vector->tx);
-
-		/* apply Tx specific ring traits */
-		ring->count = adapter->tx_ring_count;
-		ring->queue_index = txr_idx;
-
-		/* assign ring to adapter */
-		adapter->tx_ring[txr_idx] = ring;
-
-		/* push pointer to next ring */
-		ring++;
-	}
-
-	if (rxr_count) {
-		/* assign generic ring traits */
-		ring->dev = &adapter->pdev->dev;
-		ring->netdev = adapter->netdev;
-
-		/* configure backlink on ring */
-		ring->q_vector = q_vector;
-
-		/* update q_vector Rx values */
-		igc_add_ring(ring, &q_vector->rx);
-
-		/* apply Rx specific ring traits */
-		ring->count = adapter->rx_ring_count;
-		ring->queue_index = rxr_idx;
-
-		/* assign ring to adapter */
-		adapter->rx_ring[rxr_idx] = ring;
-	}
-
-	return 0;
-}
-
-/**
- * igc_alloc_q_vectors - Allocate memory for interrupt vectors
- * @adapter: board private structure to initialize
- *
- * We allocate one q_vector per queue interrupt.  If allocation fails we
- * return -ENOMEM.
- */
-static int igc_alloc_q_vectors(struct igc_adapter *adapter)
-{
-	int rxr_remaining = adapter->num_rx_queues;
-	int txr_remaining = adapter->num_tx_queues;
-	int rxr_idx = 0, txr_idx = 0, v_idx = 0;
-	int q_vectors = adapter->num_q_vectors;
-	int err;
-
-	if (q_vectors >= (rxr_remaining + txr_remaining)) {
-		for (; rxr_remaining; v_idx++) {
-			err = igc_alloc_q_vector(adapter, q_vectors, v_idx,
-						 0, 0, 1, rxr_idx);
-
-			if (err)
-				goto err_out;
-
-			/* update counts and index */
-			rxr_remaining--;
-			rxr_idx++;
-		}
-	}
-
-	for (; v_idx < q_vectors; v_idx++) {
-		int rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors - v_idx);
-		int tqpv = DIV_ROUND_UP(txr_remaining, q_vectors - v_idx);
-
-		err = igc_alloc_q_vector(adapter, q_vectors, v_idx,
-					 tqpv, txr_idx, rqpv, rxr_idx);
-
-		if (err)
-			goto err_out;
-
-		/* update counts and index */
-		rxr_remaining -= rqpv;
-		txr_remaining -= tqpv;
-		rxr_idx++;
-		txr_idx++;
-	}
-
-	return 0;
-
-err_out:
-	adapter->num_tx_queues = 0;
-	adapter->num_rx_queues = 0;
-	adapter->num_q_vectors = 0;
-
-	while (v_idx--)
-		igc_free_q_vector(adapter, v_idx);
-
-	return -ENOMEM;
-}
-
-/**
- * igc_cache_ring_register - Descriptor ring to register mapping
- * @adapter: board private structure to initialize
- *
- * Once we know the feature-set enabled for the device, we'll cache
- * the register offset the descriptor ring is assigned to.
- */
-static void igc_cache_ring_register(struct igc_adapter *adapter)
-{
-	int i = 0, j = 0;
-
-	switch (adapter->hw.mac.type) {
-	case igc_i225:
-	/* Fall through */
-	default:
-		for (; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i]->reg_idx = i;
-		for (; j < adapter->num_tx_queues; j++)
-			adapter->tx_ring[j]->reg_idx = j;
-		break;
-	}
-}
-
-/**
- * igc_init_interrupt_scheme - initialize interrupts, allocate queues/vectors
- * @adapter: Pointer to adapter structure
- *
- * This function initializes the interrupts and allocates all of the queues.
- */
-static int igc_init_interrupt_scheme(struct igc_adapter *adapter, bool msix)
-{
-	struct pci_dev *pdev = adapter->pdev;
-	int err = 0;
-
-	igc_set_interrupt_capability(adapter, msix);
-
-	err = igc_alloc_q_vectors(adapter);
-	if (err) {
-		dev_err(&pdev->dev, "Unable to allocate memory for vectors\n");
-		goto err_alloc_q_vectors;
-	}
-
-	igc_cache_ring_register(adapter);
-
-	return 0;
-
-err_alloc_q_vectors:
-	igc_reset_interrupt_capability(adapter);
-	return err;
-}
-
 static void igc_free_irq(struct igc_adapter *adapter)
 {
 	if (adapter->msix_entries) {
@@ -3943,62 +4264,6 @@ static void igc_free_irq(struct igc_adapter *adapter)
 				 adapter->q_vector[i]);
 	} else {
 		free_irq(adapter->pdev->irq, adapter);
-	}
-}
-
-/**
- * igc_irq_disable - Mask off interrupt generation on the NIC
- * @adapter: board private structure
- */
-static void igc_irq_disable(struct igc_adapter *adapter)
-{
-	struct igc_hw *hw = &adapter->hw;
-
-	if (adapter->msix_entries) {
-		u32 regval = rd32(IGC_EIAM);
-
-		wr32(IGC_EIAM, regval & ~adapter->eims_enable_mask);
-		wr32(IGC_EIMC, adapter->eims_enable_mask);
-		regval = rd32(IGC_EIAC);
-		wr32(IGC_EIAC, regval & ~adapter->eims_enable_mask);
-	}
-
-	wr32(IGC_IAM, 0);
-	wr32(IGC_IMC, ~0);
-	wrfl();
-
-	if (adapter->msix_entries) {
-		int vector = 0, i;
-
-		synchronize_irq(adapter->msix_entries[vector++].vector);
-
-		for (i = 0; i < adapter->num_q_vectors; i++)
-			synchronize_irq(adapter->msix_entries[vector++].vector);
-	} else {
-		synchronize_irq(adapter->pdev->irq);
-	}
-}
-
-/**
- * igc_irq_enable - Enable default interrupt generation settings
- * @adapter: board private structure
- */
-static void igc_irq_enable(struct igc_adapter *adapter)
-{
-	struct igc_hw *hw = &adapter->hw;
-
-	if (adapter->msix_entries) {
-		u32 ims = IGC_IMS_LSC | IGC_IMS_DOUTSYNC | IGC_IMS_DRSTA;
-		u32 regval = rd32(IGC_EIAC);
-
-		wr32(IGC_EIAC, regval | adapter->eims_enable_mask);
-		regval = rd32(IGC_EIAM);
-		wr32(IGC_EIAM, regval | adapter->eims_enable_mask);
-		wr32(IGC_EIMS, adapter->eims_enable_mask);
-		wr32(IGC_IMS, ims);
-	} else {
-		wr32(IGC_IMS, IMS_ENABLE_MASK | IGC_IMS_DRSTA);
-		wr32(IGC_IAM, IMS_ENABLE_MASK | IGC_IMS_DRSTA);
 	}
 }
 
@@ -4056,25 +4321,10 @@ request_done:
 	return err;
 }
 
-static void igc_write_itr(struct igc_q_vector *q_vector)
-{
-	u32 itr_val = q_vector->itr_val & IGC_QVECTOR_MASK;
-
-	if (!q_vector->set_itr)
-		return;
-
-	if (!itr_val)
-		itr_val = IGC_ITR_VAL_MASK;
-
-	itr_val |= IGC_EITR_CNT_IGNR;
-
-	writel(itr_val, q_vector->itr_register);
-	q_vector->set_itr = 0;
-}
-
 /**
- * igc_open - Called when a network interface is made active
+ * __igc_open - Called when a network interface is made active
  * @netdev: network interface device structure
+ * @resuming: boolean indicating if the device is resuming
  *
  * Returns 0 on success, negative value on failure
  *
@@ -4164,8 +4414,9 @@ static int igc_open(struct net_device *netdev)
 }
 
 /**
- * igc_close - Disables a network interface
+ * __igc_close - Disables a network interface
  * @netdev: network interface device structure
+ * @suspending: boolean indicating the device is suspending
  *
  * Returns 0, this is not allowed to fail
  *
@@ -4199,6 +4450,24 @@ static int igc_close(struct net_device *netdev)
 	return 0;
 }
 
+/**
+ * igc_ioctl - Access the hwtstamp interface
+ * @netdev: network interface device structure
+ * @ifreq: interface request data
+ * @cmd: ioctl command
+ **/
+static int igc_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+{
+	switch (cmd) {
+	case SIOCGHWTSTAMP:
+		return igc_ptp_get_ts_config(netdev, ifr);
+	case SIOCSHWTSTAMP:
+		return igc_ptp_set_ts_config(netdev, ifr);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops igc_netdev_ops = {
 	.ndo_open		= igc_open,
 	.ndo_stop		= igc_close,
@@ -4210,6 +4479,7 @@ static const struct net_device_ops igc_netdev_ops = {
 	.ndo_fix_features	= igc_fix_features,
 	.ndo_set_features	= igc_set_features,
 	.ndo_features_check	= igc_features_check,
+	.ndo_do_ioctl		= igc_ioctl,
 };
 
 /* PCIe configuration access */
@@ -4345,32 +4615,26 @@ static int igc_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct igc_hw *hw;
 	const struct igc_info *ei = igc_info_tbl[ent->driver_data];
-	int err;
+	int err, pci_using_dac;
 
 	err = pci_enable_device_mem(pdev);
 	if (err)
 		return err;
 
-	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	pci_using_dac = 0;
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = dma_set_coherent_mask(&pdev->dev,
-					    DMA_BIT_MASK(64));
+		pci_using_dac = 1;
 	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-			if (err) {
-				dev_err(&pdev->dev, "igc: Wrong DMA config\n");
-				goto err_dma;
-			}
+			dev_err(&pdev->dev,
+				"No usable DMA configuration, aborting\n");
+			goto err_dma;
 		}
 	}
 
-	err = pci_request_selected_regions(pdev,
-					   pci_select_bars(pdev,
-							   IORESOURCE_MEM),
-					   igc_driver_name);
+	err = pci_request_mem_regions(pdev, igc_driver_name);
 	if (err)
 		goto err_pci_reg;
 
@@ -4433,6 +4697,9 @@ static int igc_probe(struct pci_dev *pdev,
 		goto err_sw_init;
 
 	/* Add supported features to the features list*/
+	netdev->features |= NETIF_F_SG;
+	netdev->features |= NETIF_F_TSO;
+	netdev->features |= NETIF_F_TSO6;
 	netdev->features |= NETIF_F_RXCSUM;
 	netdev->features |= NETIF_F_HW_CSUM;
 	netdev->features |= NETIF_F_SCTP_CRC;
@@ -4445,6 +4712,9 @@ static int igc_probe(struct pci_dev *pdev,
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= NETIF_F_NTUPLE;
 	netdev->hw_features |= netdev->features;
+
+	if (pci_using_dac)
+		netdev->features |= NETIF_F_HIGHDMA;
 
 	/* MTU range: 68 - 9216 */
 	netdev->min_mtu = ETH_MIN_MTU;
@@ -4512,6 +4782,9 @@ static int igc_probe(struct pci_dev *pdev,
 	 /* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
+	/* do hw tstamp init after resetting */
+	igc_ptp_init(adapter);
+
 	/* Check if Media Autosense is enabled */
 	adapter->ei = *ei;
 
@@ -4532,8 +4805,7 @@ err_sw_init:
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_selected_regions(pdev,
-				     pci_select_bars(pdev, IORESOURCE_MEM));
+	pci_release_mem_regions(pdev);
 err_pci_reg:
 err_dma:
 	pci_disable_device(pdev);
@@ -4553,6 +4825,8 @@ static void igc_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	igc_ptp_stop(adapter);
 
 	set_bit(__IGC_DOWN, &adapter->state);
 
@@ -4580,104 +4854,215 @@ static void igc_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static struct pci_driver igc_driver = {
-	.name     = igc_driver_name,
-	.id_table = igc_pci_tbl,
-	.probe    = igc_probe,
-	.remove   = igc_remove,
-};
-
-void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
-			      const u32 max_rss_queues)
+static int __igc_shutdown(struct pci_dev *pdev, bool *enable_wake,
+			  bool runtime)
 {
-	/* Determine if we need to pair queues. */
-	/* If rss_queues > half of max_rss_queues, pair the queues in
-	 * order to conserve interrupts due to limited supply.
-	 */
-	if (adapter->rss_queues > (max_rss_queues / 2))
-		adapter->flags |= IGC_FLAG_QUEUE_PAIRS;
-	else
-		adapter->flags &= ~IGC_FLAG_QUEUE_PAIRS;
-}
-
-unsigned int igc_get_max_rss_queues(struct igc_adapter *adapter)
-{
-	unsigned int max_rss_queues;
-
-	/* Determine the maximum number of RSS queues supported. */
-	max_rss_queues = IGC_MAX_RX_QUEUES;
-
-	return max_rss_queues;
-}
-
-static void igc_init_queue_configuration(struct igc_adapter *adapter)
-{
-	u32 max_rss_queues;
-
-	max_rss_queues = igc_get_max_rss_queues(adapter);
-	adapter->rss_queues = min_t(u32, max_rss_queues, num_online_cpus());
-
-	igc_set_flag_queue_pairs(adapter, max_rss_queues);
-}
-
-/**
- * igc_sw_init - Initialize general software structures (struct igc_adapter)
- * @adapter: board private structure to initialize
- *
- * igc_sw_init initializes the Adapter private data structure.
- * Fields are initialized based on PCI device information and
- * OS network device settings (MTU size).
- */
-static int igc_sw_init(struct igc_adapter *adapter)
-{
-	struct net_device *netdev = adapter->netdev;
-	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	u32 wufc = runtime ? IGC_WUFC_LNKC : adapter->wol;
 	struct igc_hw *hw = &adapter->hw;
+	u32 ctrl, rctl, status;
+	bool wake;
 
-	int size = sizeof(struct igc_mac_addr) * hw->mac.rar_entry_count;
+	rtnl_lock();
+	netif_device_detach(netdev);
 
-	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
+	if (netif_running(netdev))
+		__igc_close(netdev, true);
 
-	/* set default ring sizes */
-	adapter->tx_ring_count = IGC_DEFAULT_TXD;
-	adapter->rx_ring_count = IGC_DEFAULT_RXD;
+	igc_clear_interrupt_scheme(adapter);
+	rtnl_unlock();
 
-	/* set default ITR values */
-	adapter->rx_itr_setting = IGC_DEFAULT_ITR;
-	adapter->tx_itr_setting = IGC_DEFAULT_ITR;
+	status = rd32(IGC_STATUS);
+	if (status & IGC_STATUS_LU)
+		wufc &= ~IGC_WUFC_LNKC;
 
-	/* set default work limits */
-	adapter->tx_work_limit = IGC_DEFAULT_TX_WORK;
+	if (wufc) {
+		igc_setup_rctl(adapter);
+		igc_set_rx_mode(netdev);
 
-	/* adjust max frame to be at least the size of a standard frame */
-	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN +
-				VLAN_HLEN;
-	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
+		/* turn on all-multi mode if wake on multicast is enabled */
+		if (wufc & IGC_WUFC_MC) {
+			rctl = rd32(IGC_RCTL);
+			rctl |= IGC_RCTL_MPE;
+			wr32(IGC_RCTL, rctl);
+		}
 
-	spin_lock_init(&adapter->nfc_lock);
-	spin_lock_init(&adapter->stats64_lock);
-	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
-	adapter->flags |= IGC_FLAG_HAS_MSIX;
+		ctrl = rd32(IGC_CTRL);
+		ctrl |= IGC_CTRL_ADVD3WUC;
+		wr32(IGC_CTRL, ctrl);
 
-	adapter->mac_table = kzalloc(size, GFP_ATOMIC);
-	if (!adapter->mac_table)
-		return -ENOMEM;
+		/* Allow time for pending master requests to run */
+		igc_disable_pcie_master(hw);
 
-	igc_init_queue_configuration(adapter);
+		wr32(IGC_WUC, IGC_WUC_PME_EN);
+		wr32(IGC_WUFC, wufc);
+	} else {
+		wr32(IGC_WUC, 0);
+		wr32(IGC_WUFC, 0);
+	}
 
-	/* This call may decrease the number of queues */
+	wake = wufc || adapter->en_mng_pt;
+	if (!wake)
+		igc_power_down_link(adapter);
+	else
+		igc_power_up_link(adapter);
+
+	if (enable_wake)
+		*enable_wake = wake;
+
+	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
+	 * would have already happened in close and is redundant.
+	 */
+	igc_release_hw_control(adapter);
+
+	pci_disable_device(pdev);
+
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int __maybe_unused igc_runtime_suspend(struct device *dev)
+{
+	return __igc_shutdown(to_pci_dev(dev), NULL, 1);
+}
+
+static void igc_deliver_wake_packet(struct net_device *netdev)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct igc_hw *hw = &adapter->hw;
+	struct sk_buff *skb;
+	u32 wupl;
+
+	wupl = rd32(IGC_WUPL) & IGC_WUPL_MASK;
+
+	/* WUPM stores only the first 128 bytes of the wake packet.
+	 * Read the packet only if we have the whole thing.
+	 */
+	if (wupl == 0 || wupl > IGC_WUPM_BYTES)
+		return;
+
+	skb = netdev_alloc_skb_ip_align(netdev, IGC_WUPM_BYTES);
+	if (!skb)
+		return;
+
+	skb_put(skb, wupl);
+
+	/* Ensure reads are 32-bit aligned */
+	wupl = roundup(wupl, 4);
+
+	memcpy_fromio(skb->data, hw->hw_addr + IGC_WUPM_REG(0), wupl);
+
+	skb->protocol = eth_type_trans(skb, netdev);
+	netif_rx(skb);
+}
+
+static int __maybe_unused igc_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct igc_hw *hw = &adapter->hw;
+	u32 err, val;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_save_state(pdev);
+
+	if (!pci_device_is_present(pdev))
+		return -ENODEV;
+	err = pci_enable_device_mem(pdev);
+	if (err) {
+		dev_err(&pdev->dev,
+			"igc: Cannot enable PCI device from suspend\n");
+		return err;
+	}
+	pci_set_master(pdev);
+
+	pci_enable_wake(pdev, PCI_D3hot, 0);
+	pci_enable_wake(pdev, PCI_D3cold, 0);
+
 	if (igc_init_interrupt_scheme(adapter, true)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}
 
-	/* Explicitly disable IRQ since the NIC can be in any state. */
-	igc_irq_disable(adapter);
+	igc_reset(adapter);
 
-	set_bit(__IGC_DOWN, &adapter->state);
+	/* let the f/w know that the h/w is now under the control of the
+	 * driver.
+	 */
+	igc_get_hw_control(adapter);
 
-	return 0;
+	val = rd32(IGC_WUS);
+	if (val & WAKE_PKT_WUS)
+		igc_deliver_wake_packet(netdev);
+
+	wr32(IGC_WUS, ~0);
+
+	rtnl_lock();
+	if (!err && netif_running(netdev))
+		err = __igc_open(netdev, true);
+
+	if (!err)
+		netif_device_attach(netdev);
+	rtnl_unlock();
+
+	return err;
 }
+
+static int __maybe_unused igc_runtime_resume(struct device *dev)
+{
+	return igc_resume(dev);
+}
+
+static int __maybe_unused igc_suspend(struct device *dev)
+{
+	return __igc_shutdown(to_pci_dev(dev), NULL, 0);
+}
+
+static int __maybe_unused igc_runtime_idle(struct device *dev)
+{
+	struct net_device *netdev = dev_get_drvdata(dev);
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	if (!igc_has_link(adapter))
+		pm_schedule_suspend(dev, MSEC_PER_SEC * 5);
+
+	return -EBUSY;
+}
+#endif /* CONFIG_PM */
+
+static void igc_shutdown(struct pci_dev *pdev)
+{
+	bool wake;
+
+	__igc_shutdown(pdev, &wake, 0);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, wake);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+}
+
+#ifdef CONFIG_PM
+static const struct dev_pm_ops igc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(igc_suspend, igc_resume)
+	SET_RUNTIME_PM_OPS(igc_runtime_suspend, igc_runtime_resume,
+			   igc_runtime_idle)
+};
+#endif
+
+static struct pci_driver igc_driver = {
+	.name     = igc_driver_name,
+	.id_table = igc_pci_tbl,
+	.probe    = igc_probe,
+	.remove   = igc_remove,
+#ifdef CONFIG_PM
+	.driver.pm = &igc_pm_ops,
+#endif
+	.shutdown = igc_shutdown,
+};
 
 /**
  * igc_reinit_queues - return error

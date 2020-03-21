@@ -381,7 +381,6 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 		mark_screen_rdonly(tsk->mm);
 
 	memcpy((struct kernel_vm86_regs *)regs, &vm86regs, sizeof(vm86regs));
-	force_iret();
 	return regs->ax;
 }
 

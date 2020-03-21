@@ -192,6 +192,7 @@ int ptp_qoriq_settime(struct ptp_clock_info *ptp,
 		      const struct timespec64 *ts);
 int ptp_qoriq_enable(struct ptp_clock_info *ptp,
 		     struct ptp_clock_request *rq, int on);
+int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index, bool update_event);
 #ifdef CONFIG_DEBUG_FS
 void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq);
 void ptp_qoriq_remove_debugfs(struct ptp_qoriq *ptp_qoriq);

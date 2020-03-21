@@ -80,6 +80,7 @@ static void __kprobes bad_kernel_pc(struct pt_regs *regs, unsigned long vaddr)
 static unsigned int get_user_insn(unsigned long tpc)
 {
 	pgd_t *pgdp = pgd_offset(current->mm, tpc);
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep, pte;
@@ -88,7 +89,10 @@ static unsigned int get_user_insn(unsigned long tpc)
 
 	if (pgd_none(*pgdp) || unlikely(pgd_bad(*pgdp)))
 		goto out;
-	pudp = pud_offset(pgdp, tpc);
+	p4dp = p4d_offset(pgdp, tpc);
+	if (p4d_none(*p4dp) || unlikely(p4d_bad(*p4dp)))
+		goto out;
+	pudp = pud_offset(p4dp, tpc);
 	if (pud_none(*pudp) || unlikely(pud_bad(*pudp)))
 		goto out;
 

@@ -24,6 +24,7 @@ static int __igt_client_fill(struct intel_engine_cs *engine)
 
 	prandom_seed_state(&prng, i915_selftest.random_seed);
 
+	intel_engine_pm_get(engine);
 	do {
 		const u32 max_block_size = S16_MAX * PAGE_SIZE;
 		u32 sz = min_t(u64, ce->vm->total >> 4, prandom_u32_state(&prng));
@@ -99,6 +100,7 @@ err_put:
 err_flush:
 	if (err == -ENOMEM)
 		err = 0;
+	intel_engine_pm_put(engine);
 
 	return err;
 }

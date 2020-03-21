@@ -102,41 +102,91 @@ static inline void kuap_update_sr(u32 sr, u32 addr, u32 end)
 	isync();	/* Context sync required after mtsrin() */
 }
 
-static inline void allow_user_access(void __user *to, const void __user *from, u32 size)
+static __always_inline void allow_user_access(void __user *to, const void __user *from,
+					      u32 size, unsigned long dir)
 {
 	u32 addr, end;
 
-	if (__builtin_constant_p(to) && to == NULL)
+	BUILD_BUG_ON(!__builtin_constant_p(dir));
+	BUILD_BUG_ON(dir == KUAP_CURRENT);
+
+	if (!(dir & KUAP_WRITE))
 		return;
 
 	addr = (__force u32)to;
 
-	if (!addr || addr >= TASK_SIZE || !size)
+	if (unlikely(addr >= TASK_SIZE || !size))
 		return;
 
 	end = min(addr + size, TASK_SIZE);
+
 	current->thread.kuap = (addr & 0xf0000000) | ((((end - 1) >> 28) + 1) & 0xf);
 	kuap_update_sr(mfsrin(addr) & ~SR_KS, addr, end);	/* Clear Ks */
 }
 
-static inline void prevent_user_access(void __user *to, const void __user *from, u32 size)
+static __always_inline void prevent_user_access(void __user *to, const void __user *from,
+						u32 size, unsigned long dir)
 {
-	u32 addr = (__force u32)to;
-	u32 end = min(addr + size, TASK_SIZE);
+	u32 addr, end;
 
-	if (!addr || addr >= TASK_SIZE || !size)
+	BUILD_BUG_ON(!__builtin_constant_p(dir));
+
+	if (dir == KUAP_CURRENT) {
+		u32 kuap = current->thread.kuap;
+
+		if (unlikely(!kuap))
+			return;
+
+		addr = kuap & 0xf0000000;
+		end = kuap << 28;
+	} else if (dir & KUAP_WRITE) {
+		addr = (__force u32)to;
+		end = min(addr + size, TASK_SIZE);
+
+		if (unlikely(addr >= TASK_SIZE || !size))
+			return;
+	} else {
 		return;
+	}
 
 	current->thread.kuap = 0;
 	kuap_update_sr(mfsrin(addr) | SR_KS, addr, end);	/* set Ks */
 }
 
-static inline bool bad_kuap_fault(struct pt_regs *regs, bool is_write)
+static inline unsigned long prevent_user_access_return(void)
 {
+	unsigned long flags = current->thread.kuap;
+	unsigned long addr = flags & 0xf0000000;
+	unsigned long end = flags << 28;
+	void __user *to = (__force void __user *)addr;
+
+	if (flags)
+		prevent_user_access(to, to, end - addr, KUAP_READ_WRITE);
+
+	return flags;
+}
+
+static inline void restore_user_access(unsigned long flags)
+{
+	unsigned long addr = flags & 0xf0000000;
+	unsigned long end = flags << 28;
+	void __user *to = (__force void __user *)addr;
+
+	if (flags)
+		allow_user_access(to, to, end - addr, KUAP_READ_WRITE);
+}
+
+static inline bool
+bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
+{
+	unsigned long begin = regs->kuap & 0xf0000000;
+	unsigned long end = regs->kuap << 28;
+
 	if (!is_write)
 		return false;
 
-	return WARN(!regs->kuap, "Bug: write fault blocked by segment registers !");
+	return WARN(address < begin || address >= end,
+		    "Bug: write fault blocked by segment registers !");
 }
 
 #endif /* CONFIG_PPC_KUAP */

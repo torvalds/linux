@@ -38,7 +38,6 @@ For more details see the file COPYING in the source distribution of Linux.
 	bttv
 	cafe_ccic
 	cpia2
-	cx18
 	cx2341x
 	cx88
 	davinci-vpbe

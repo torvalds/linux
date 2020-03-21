@@ -412,6 +412,10 @@ struct f11_2d_sensor_queries {
 
 /* Defs for Ctrl0. */
 #define RMI_F11_REPORT_MODE_MASK        0x07
+#define RMI_F11_REPORT_MODE_CONTINUOUS  (0 << 0)
+#define RMI_F11_REPORT_MODE_REDUCED     (1 << 0)
+#define RMI_F11_REPORT_MODE_FS_CHANGE   (2 << 0)
+#define RMI_F11_REPORT_MODE_FP_CHANGE   (3 << 0)
 #define RMI_F11_ABS_POS_FILT            (1 << 3)
 #define RMI_F11_REL_POS_FILT            (1 << 4)
 #define RMI_F11_REL_BALLISTICS          (1 << 5)
@@ -1194,6 +1198,16 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	if (sensor->axis_align.delta_y_threshold)
 		ctrl->ctrl0_11[RMI_F11_DELTA_Y_THRESHOLD] =
 			sensor->axis_align.delta_y_threshold;
+
+	/*
+	 * If distance threshold values are set, switch to reduced reporting
+	 * mode so they actually get used by the controller.
+	 */
+	if (ctrl->ctrl0_11[RMI_F11_DELTA_X_THRESHOLD] ||
+	    ctrl->ctrl0_11[RMI_F11_DELTA_Y_THRESHOLD]) {
+		ctrl->ctrl0_11[0] &= ~RMI_F11_REPORT_MODE_MASK;
+		ctrl->ctrl0_11[0] |= RMI_F11_REPORT_MODE_REDUCED;
+	}
 
 	if (f11->sens_query.has_dribble) {
 		switch (sensor->dribble) {

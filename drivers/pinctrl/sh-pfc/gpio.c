@@ -386,12 +386,11 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	}
 
 	/* Register the function GPIOs chip. */
-	if (pfc->info->nr_func_gpios == 0)
-		return 0;
-
-	chip = sh_pfc_add_gpiochip(pfc, gpio_function_setup, NULL);
-	if (IS_ERR(chip))
-		return PTR_ERR(chip);
+	if (pfc->info->nr_func_gpios) {
+		chip = sh_pfc_add_gpiochip(pfc, gpio_function_setup, NULL);
+		if (IS_ERR(chip))
+			return PTR_ERR(chip);
+	}
 #endif /* CONFIG_PINCTRL_SH_FUNC_GPIO */
 
 	return 0;

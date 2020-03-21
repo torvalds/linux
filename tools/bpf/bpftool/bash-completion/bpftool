@@ -59,6 +59,21 @@ _bpftool_get_map_ids_for_type()
         command sed -n 's/.*"id": \(.*\),$/\1/p' )" -- "$cur" ) )
 }
 
+_bpftool_get_map_names()
+{
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp map  2>&1 | \
+        command sed -n 's/.*"name": \(.*\),$/\1/p' )" -- "$cur" ) )
+}
+
+# Takes map type and adds matching map names to the list of suggestions.
+_bpftool_get_map_names_for_type()
+{
+    local type="$1"
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp map  2>&1 | \
+        command grep -C2 "$type" | \
+        command sed -n 's/.*"name": \(.*\),$/\1/p' )" -- "$cur" ) )
+}
+
 _bpftool_get_prog_ids()
 {
     COMPREPLY+=( $( compgen -W "$( bpftool -jp prog 2>&1 | \
@@ -69,6 +84,12 @@ _bpftool_get_prog_tags()
 {
     COMPREPLY+=( $( compgen -W "$( bpftool -jp prog 2>&1 | \
         command sed -n 's/.*"tag": "\(.*\)",$/\1/p' )" -- "$cur" ) )
+}
+
+_bpftool_get_prog_names()
+{
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp prog 2>&1 | \
+        command sed -n 's/.*"name": "\(.*\)",$/\1/p' )" -- "$cur" ) )
 }
 
 _bpftool_get_btf_ids()
@@ -180,6 +201,52 @@ _bpftool_map_update_get_id()
     esac
 }
 
+_bpftool_map_update_get_name()
+{
+    local command="$1"
+
+    # Is it the map to update, or a map to insert into the map to update?
+    # Search for "value" keyword.
+    local idx value
+    for (( idx=7; idx < ${#words[@]}-1; idx++ )); do
+        if [[ ${words[idx]} == "value" ]]; then
+            value=1
+            break
+        fi
+    done
+    if [[ $value -eq 0 ]]; then
+        case "$command" in
+            push)
+                _bpftool_get_map_names_for_type stack
+                ;;
+            enqueue)
+                _bpftool_get_map_names_for_type queue
+                ;;
+            *)
+                _bpftool_get_map_names
+                ;;
+        esac
+        return 0
+    fi
+
+    # Name to complete is for a value. It can be either prog name or map name. This
+    # depends on the type of the map to update.
+    local type=$(_bpftool_map_guess_map_type)
+    case $type in
+        array_of_maps|hash_of_maps)
+            _bpftool_get_map_names
+            return 0
+            ;;
+        prog_array)
+            _bpftool_get_prog_names
+            return 0
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+}
+
 _bpftool()
 {
     local cur prev words objword
@@ -251,7 +318,8 @@ _bpftool()
     # Completion depends on object and command in use
     case $object in
         prog)
-            # Complete id, only for subcommands that use prog (but no map) ids
+            # Complete id and name, only for subcommands that use prog (but no
+            # map) ids/names.
             case $command in
                 show|list|dump|pin)
                     case $prev in
@@ -259,12 +327,16 @@ _bpftool()
                             _bpftool_get_prog_ids
                             return 0
                             ;;
+                        name)
+                            _bpftool_get_prog_names
+                            return 0
+                            ;;
                     esac
                     ;;
             esac
 
-            local PROG_TYPE='id pinned tag'
-            local MAP_TYPE='id pinned'
+            local PROG_TYPE='id pinned tag name'
+            local MAP_TYPE='id pinned name'
             case $command in
                 show|list)
                     [[ $prev != "$command" ]] && return 0
@@ -315,6 +387,9 @@ _bpftool()
                                 id)
                                     _bpftool_get_prog_ids
                                     ;;
+                                name)
+                                    _bpftool_get_map_names
+                                    ;;
                                 pinned)
                                     _filedir
                                     ;;
@@ -334,6 +409,9 @@ _bpftool()
                             case $prev in
                                 id)
                                     _bpftool_get_map_ids
+                                    ;;
+                                name)
+                                    _bpftool_get_map_names
                                     ;;
                                 pinned)
                                     _filedir
@@ -399,6 +477,10 @@ _bpftool()
                             _bpftool_get_map_ids
                             return 0
                             ;;
+                        name)
+                            _bpftool_get_map_names
+                            return 0
+                            ;;
                         pinned|pinmaps)
                             _filedir
                             return 0
@@ -447,7 +529,7 @@ _bpftool()
             esac
             ;;
         map)
-            local MAP_TYPE='id pinned'
+            local MAP_TYPE='id pinned name'
             case $command in
                 show|list|dump|peek|pop|dequeue|freeze)
                     case $prev in
@@ -469,6 +551,24 @@ _bpftool()
                                     ;;
                                 *)
                                     _bpftool_get_map_ids
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                        name)
+                            case "$command" in
+                                peek)
+                                    _bpftool_get_map_names_for_type stack
+                                    _bpftool_get_map_names_for_type queue
+                                    ;;
+                                pop)
+                                    _bpftool_get_map_names_for_type stack
+                                    ;;
+                                dequeue)
+                                    _bpftool_get_map_names_for_type queue
+                                    ;;
+                                *)
+                                    _bpftool_get_map_names
                                     ;;
                             esac
                             return 0
@@ -520,6 +620,10 @@ _bpftool()
                             _bpftool_get_map_ids
                             return 0
                             ;;
+                        name)
+                            _bpftool_get_map_names
+                            return 0
+                            ;;
                         key)
                             COMPREPLY+=( $( compgen -W 'hex' -- "$cur" ) )
                             ;;
@@ -545,6 +649,10 @@ _bpftool()
                             _bpftool_map_update_get_id $command
                             return 0
                             ;;
+                        name)
+                            _bpftool_map_update_get_name $command
+                            return 0
+                            ;;
                         key)
                             COMPREPLY+=( $( compgen -W 'hex' -- "$cur" ) )
                             ;;
@@ -553,13 +661,13 @@ _bpftool()
                             # map, depending on the type of the map to update.
                             case "$(_bpftool_map_guess_map_type)" in
                                 array_of_maps|hash_of_maps)
-                                    local MAP_TYPE='id pinned'
+                                    local MAP_TYPE='id pinned name'
                                     COMPREPLY+=( $( compgen -W "$MAP_TYPE" \
                                         -- "$cur" ) )
                                     return 0
                                     ;;
                                 prog_array)
-                                    local PROG_TYPE='id pinned tag'
+                                    local PROG_TYPE='id pinned tag name'
                                     COMPREPLY+=( $( compgen -W "$PROG_TYPE" \
                                         -- "$cur" ) )
                                     return 0
@@ -621,6 +729,10 @@ _bpftool()
                             _bpftool_get_map_ids_for_type perf_event_array
                             return 0
                             ;;
+                        name)
+                            _bpftool_get_map_names_for_type perf_event_array
+                            return 0
+                            ;;
                         cpu)
                             return 0
                             ;;
@@ -644,8 +756,8 @@ _bpftool()
             esac
             ;;
         btf)
-            local PROG_TYPE='id pinned tag'
-            local MAP_TYPE='id pinned'
+            local PROG_TYPE='id pinned tag name'
+            local MAP_TYPE='id pinned name'
             case $command in
                 dump)
                     case $prev in
@@ -672,6 +784,17 @@ _bpftool()
                                     ;;
                                 $command)
                                     _bpftool_get_btf_ids
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                        name)
+                            case $pprev in
+                                prog)
+                                    _bpftool_get_prog_names
+                                    ;;
+                                map)
+                                    _bpftool_get_map_names
                                     ;;
                             esac
                             return 0
@@ -716,6 +839,17 @@ _bpftool()
                     ;;
             esac
             ;;
+        gen)
+            case $command in
+                skeleton)
+                    _filedir
+		    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'skeleton help' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
         cgroup)
             case $command in
                 show|list|tree)
@@ -735,7 +869,7 @@ _bpftool()
                         connect6 sendmsg4 sendmsg6 recvmsg4 recvmsg6 sysctl \
                         getsockopt setsockopt'
                     local ATTACH_FLAGS='multi override'
-                    local PROG_TYPE='id pinned tag'
+                    local PROG_TYPE='id pinned tag name'
                     case $prev in
                         $command)
                             _filedir
@@ -760,7 +894,7 @@ _bpftool()
                             elif [[ "$command" == "attach" ]]; then
                                 # We have an attach type on the command line,
                                 # but it is not the previous word, or
-                                # "id|pinned|tag" (we already checked for
+                                # "id|pinned|tag|name" (we already checked for
                                 # that). This should only leave the case when
                                 # we need attach flags for "attach" commamnd.
                                 _bpftool_one_of_list "$ATTACH_FLAGS"
@@ -786,7 +920,7 @@ _bpftool()
             esac
             ;;
         net)
-            local PROG_TYPE='id pinned tag'
+            local PROG_TYPE='id pinned tag name'
             local ATTACH_TYPES='xdp xdpgeneric xdpdrv xdpoffload'
             case $command in
                 show|list)

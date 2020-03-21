@@ -1942,7 +1942,7 @@ SYM_FUNC_START(aesni_set_key)
 SYM_FUNC_END(aesni_set_key)
 
 /*
- * void aesni_enc(struct crypto_aes_ctx *ctx, u8 *dst, const u8 *src)
+ * void aesni_enc(const void *ctx, u8 *dst, const u8 *src)
  */
 SYM_FUNC_START(aesni_enc)
 	FRAME_BEGIN
@@ -2131,7 +2131,7 @@ SYM_FUNC_START_LOCAL(_aesni_enc4)
 SYM_FUNC_END(_aesni_enc4)
 
 /*
- * void aesni_dec (struct crypto_aes_ctx *ctx, u8 *dst, const u8 *src)
+ * void aesni_dec (const void *ctx, u8 *dst, const u8 *src)
  */
 SYM_FUNC_START(aesni_dec)
 	FRAME_BEGIN
@@ -2716,8 +2716,8 @@ SYM_FUNC_END(aesni_ctr_enc)
 	pxor CTR, IV;
 
 /*
- * void aesni_xts_crypt8(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
- *			 bool enc, u8 *iv)
+ * void aesni_xts_crypt8(const struct crypto_aes_ctx *ctx, u8 *dst,
+ *			 const u8 *src, bool enc, le128 *iv)
  */
 SYM_FUNC_START(aesni_xts_crypt8)
 	FRAME_BEGIN

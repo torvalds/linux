@@ -76,7 +76,7 @@
 #define DECLARE_UVERBS_NAMED_OBJECT(_object_id, _type_attrs, ...)              \
 	static const struct uverbs_method_def *const UVERBS_OBJECT_METHODS(    \
 		_object_id)[] = { __VA_ARGS__ };                               \
-	const struct uverbs_object_def UVERBS_OBJECT(_object_id) = {           \
+	static const struct uverbs_object_def UVERBS_OBJECT(_object_id) = {    \
 		.id = _object_id,                                              \
 		.type_attrs = &_type_attrs,                                    \
 		.num_methods = ARRAY_SIZE(UVERBS_OBJECT_METHODS(_object_id)),  \
@@ -88,10 +88,10 @@
  * identify all uapi methods with a (object,method) tuple. However, they have
  * no type pointer.
  */
-#define DECLARE_UVERBS_GLOBAL_METHODS(_object_id, ...)	\
+#define DECLARE_UVERBS_GLOBAL_METHODS(_object_id, ...)                         \
 	static const struct uverbs_method_def *const UVERBS_OBJECT_METHODS(    \
 		_object_id)[] = { __VA_ARGS__ };                               \
-	const struct uverbs_object_def UVERBS_OBJECT(_object_id) = {           \
+	static const struct uverbs_object_def UVERBS_OBJECT(_object_id) = {    \
 		.id = _object_id,                                              \
 		.num_methods = ARRAY_SIZE(UVERBS_OBJECT_METHODS(_object_id)),  \
 		.methods = &UVERBS_OBJECT_METHODS(_object_id)                  \

@@ -21,18 +21,15 @@
 #define PMC_STRAPPING_OPT_A_RAM_CODE_MASK_SHORT	\
 	(0x3 << PMC_STRAPPING_OPT_A_RAM_CODE_SHIFT)
 
-static void __iomem *apbmisc_base;
-static void __iomem *strapping_base;
 static bool long_ram_code;
+static u32 strapping;
+static u32 chipid;
 
 u32 tegra_read_chipid(void)
 {
-	if (!apbmisc_base) {
-		WARN(1, "Tegra Chip ID not yet available\n");
-		return 0;
-	}
+	WARN(!chipid, "Tegra ABP MISC not yet available\n");
 
-	return readl_relaxed(apbmisc_base + 4);
+	return chipid;
 }
 
 u8 tegra_get_chip_id(void)
@@ -42,10 +39,9 @@ u8 tegra_get_chip_id(void)
 
 u32 tegra_read_straps(void)
 {
-	if (strapping_base)
-		return readl_relaxed(strapping_base);
-	else
-		return 0;
+	WARN(!chipid, "Tegra ABP MISC not yet available\n");
+
+	return strapping;
 }
 
 u32 tegra_read_ram_code(void)
@@ -63,6 +59,7 @@ u32 tegra_read_ram_code(void)
 static const struct of_device_id apbmisc_match[] __initconst = {
 	{ .compatible = "nvidia,tegra20-apbmisc", },
 	{ .compatible = "nvidia,tegra186-misc", },
+	{ .compatible = "nvidia,tegra194-misc", },
 	{},
 };
 
@@ -103,6 +100,7 @@ void __init tegra_init_revision(void)
 
 void __init tegra_init_apbmisc(void)
 {
+	void __iomem *apbmisc_base, *strapping_base;
 	struct resource apbmisc, straps;
 	struct device_node *np;
 
@@ -123,7 +121,7 @@ void __init tegra_init_apbmisc(void)
 			apbmisc.flags = IORESOURCE_MEM;
 
 			/* strapping options */
-			if (tegra_get_chip_id() == TEGRA124) {
+			if (of_machine_is_compatible("nvidia,tegra124")) {
 				straps.start = 0x7000e864;
 				straps.end = 0x7000e867;
 			} else {
@@ -159,13 +157,21 @@ void __init tegra_init_apbmisc(void)
 		}
 	}
 
-	apbmisc_base = ioremap_nocache(apbmisc.start, resource_size(&apbmisc));
-	if (!apbmisc_base)
+	apbmisc_base = ioremap(apbmisc.start, resource_size(&apbmisc));
+	if (!apbmisc_base) {
 		pr_err("failed to map APBMISC registers\n");
+	} else {
+		chipid = readl_relaxed(apbmisc_base + 4);
+		iounmap(apbmisc_base);
+	}
 
-	strapping_base = ioremap_nocache(straps.start, resource_size(&straps));
-	if (!strapping_base)
+	strapping_base = ioremap(straps.start, resource_size(&straps));
+	if (!strapping_base) {
 		pr_err("failed to map strapping options registers\n");
+	} else {
+		strapping = readl_relaxed(strapping_base);
+		iounmap(strapping_base);
+	}
 
 	long_ram_code = of_property_read_bool(np, "nvidia,long-ram-code");
 }

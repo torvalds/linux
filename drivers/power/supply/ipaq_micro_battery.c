@@ -149,7 +149,7 @@ static int micro_batt_get_property(struct power_supply *b,
 		default:
 			val->intval = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
 			break;
-		};
+		}
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = get_status(b);
@@ -168,7 +168,7 @@ static int micro_batt_get_property(struct power_supply *b,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
@@ -185,7 +185,7 @@ static int micro_ac_get_property(struct power_supply *b,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }

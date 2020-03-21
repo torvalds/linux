@@ -1257,6 +1257,11 @@ static void __btree_sort(struct btree_keys *b, struct btree_iter *iter,
 		 * Our temporary buffer is the same size as the btree node's
 		 * buffer, we can just swap buffers instead of doing a big
 		 * memcpy()
+		 *
+		 * Don't worry event 'out' is allocated from mempool, it can
+		 * still be swapped here. Because state->pool is a page mempool
+		 * creaated by by mempool_init_page_pool(), which allocates
+		 * pages by alloc_pages() indeed.
 		 */
 
 		out->magic	= b->set->data->magic;

@@ -249,31 +249,6 @@ struct dma_buf_ops {
 	 */
 	int (*mmap)(struct dma_buf *, struct vm_area_struct *vma);
 
-	/**
-	 * @map:
-	 *
-	 * Maps a page from the buffer into kernel address space. The page is
-	 * specified by offset into the buffer in PAGE_SIZE units.
-	 *
-	 * This callback is optional.
-	 *
-	 * Returns:
-	 *
-	 * Virtual address pointer where requested page can be accessed. NULL
-	 * on error or when this function is unimplemented by the exporter.
-	 */
-	void *(*map)(struct dma_buf *, unsigned long);
-
-	/**
-	 * @unmap:
-	 *
-	 * Unmaps a page from the buffer. Page offset and address pointer should
-	 * be the same as the one passed to and returned by matching call to map.
-	 *
-	 * This callback is optional.
-	 */
-	void (*unmap)(struct dma_buf *, unsigned long, void *);
-
 	void *(*vmap)(struct dma_buf *);
 	void (*vunmap)(struct dma_buf *, void *vaddr);
 };
@@ -464,8 +439,6 @@ int dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 			     enum dma_data_direction dir);
 int dma_buf_end_cpu_access(struct dma_buf *dma_buf,
 			   enum dma_data_direction dir);
-void *dma_buf_kmap(struct dma_buf *, unsigned long);
-void dma_buf_kunmap(struct dma_buf *, unsigned long, void *);
 
 int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 		 unsigned long);

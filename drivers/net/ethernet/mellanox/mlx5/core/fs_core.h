@@ -164,6 +164,7 @@ struct mlx5_flow_table {
 		unsigned int		required_groups;
 		unsigned int		group_size;
 		unsigned int		num_groups;
+		unsigned int		max_fte;
 	} autogroup;
 	/* Protect fwd_rules */
 	struct mutex			lock;

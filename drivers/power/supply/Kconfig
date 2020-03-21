@@ -73,10 +73,10 @@ config WM831X_POWER
 	  provided by Wolfson Microelectronics WM831x PMICs.
 
 config WM8350_POWER
-        tristate "WM8350 PMU support"
-        depends on MFD_WM8350
-        help
-          Say Y here to enable support for the power management unit
+	tristate "WM8350 PMU support"
+	depends on MFD_WM8350
+	help
+	  Say Y here to enable support for the power management unit
 	  provided by the Wolfson Microelectronics WM8350 PMIC.
 
 config TEST_POWER
@@ -209,16 +209,16 @@ config BATTERY_WM97XX
 	  Say Y to enable support for battery measured by WM97xx aux port.
 
 config BATTERY_SBS
-        tristate "SBS Compliant gas gauge"
-        depends on I2C
-        help
+	tristate "SBS Compliant gas gauge"
+	depends on I2C
+	help
 	  Say Y to include support for SBS battery driver for SBS-compliant
 	  gas gauges.
 
 config CHARGER_SBS
-        tristate "SBS Compliant charger"
-        depends on I2C
-        help
+	tristate "SBS Compliant charger"
+	depends on I2C
+	help
 	  Say Y to include support for SBS compliant battery chargers.
 
 config MANAGER_SBS
@@ -484,11 +484,11 @@ config CHARGER_MANAGER
 	depends on REGULATOR
 	select EXTCON
 	help
-          Say Y to enable charger-manager support, which allows multiple
-          chargers attached to a battery and multiple batteries attached to a
-          system. The charger-manager also can monitor charging status in
-          runtime and in suspend-to-RAM by waking up the system periodically
-          with help of suspend_again support.
+	  Say Y to enable charger-manager support, which allows multiple
+	  chargers attached to a battery and multiple batteries attached to a
+	  system. The charger-manager also can monitor charging status in
+	  runtime and in suspend-to-RAM by waking up the system periodically
+	  with help of suspend_again support.
 
 config CHARGER_LT3651
 	tristate "Analog Devices LT3651 charger"

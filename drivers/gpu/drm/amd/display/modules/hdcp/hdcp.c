@@ -37,24 +37,52 @@ static void push_error_status(struct mod_hdcp *hdcp,
 		HDCP_ERROR_TRACE(hdcp, status);
 	}
 
-	hdcp->connection.hdcp1_retry_count++;
+	if (is_hdcp1(hdcp)) {
+		hdcp->connection.hdcp1_retry_count++;
+	} else if (is_hdcp2(hdcp)) {
+		hdcp->connection.hdcp2_retry_count++;
+	}
 }
 
 static uint8_t is_cp_desired_hdcp1(struct mod_hdcp *hdcp)
 {
-	int i, display_enabled = 0;
+	int i, is_auth_needed = 0;
 
-	/* if all displays on the link are disabled, hdcp is not desired */
+	/* if all displays on the link don't need authentication,
+	 * hdcp is not desired
+	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
 				!hdcp->connection.displays[i].adjust.disable) {
-			display_enabled = 1;
+			is_auth_needed = 1;
 			break;
 		}
 	}
 
 	return (hdcp->connection.hdcp1_retry_count < MAX_NUM_OF_ATTEMPTS) &&
-			display_enabled && !hdcp->connection.link.adjust.hdcp1.disable;
+			is_auth_needed &&
+			!hdcp->connection.link.adjust.hdcp1.disable;
+}
+
+static uint8_t is_cp_desired_hdcp2(struct mod_hdcp *hdcp)
+{
+	int i, is_auth_needed = 0;
+
+	/* if all displays on the link don't need authentication,
+	 * hdcp is not desired
+	 */
+	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
+		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
+				!hdcp->connection.displays[i].adjust.disable) {
+			is_auth_needed = 1;
+			break;
+		}
+	}
+
+	return (hdcp->connection.hdcp2_retry_count < MAX_NUM_OF_ATTEMPTS) &&
+			is_auth_needed &&
+			!hdcp->connection.link.adjust.hdcp2.disable &&
+			!hdcp->connection.is_hdcp2_revoked;
 }
 
 static enum mod_hdcp_status execution(struct mod_hdcp *hdcp,
@@ -82,6 +110,11 @@ static enum mod_hdcp_status execution(struct mod_hdcp *hdcp,
 	} else if (is_in_hdcp1_dp_states(hdcp)) {
 		status = mod_hdcp_hdcp1_dp_execution(hdcp,
 				event_ctx, &input->hdcp1);
+	} else if (is_in_hdcp2_states(hdcp)) {
+		status = mod_hdcp_hdcp2_execution(hdcp, event_ctx, &input->hdcp2);
+	} else if (is_in_hdcp2_dp_states(hdcp)) {
+		status = mod_hdcp_hdcp2_dp_execution(hdcp,
+				event_ctx, &input->hdcp2);
 	}
 out:
 	return status;
@@ -99,7 +132,10 @@ static enum mod_hdcp_status transition(struct mod_hdcp *hdcp,
 
 	if (is_in_initialized_state(hdcp)) {
 		if (is_dp_hdcp(hdcp))
-			if (is_cp_desired_hdcp1(hdcp)) {
+			if (is_cp_desired_hdcp2(hdcp)) {
+				callback_in_ms(0, output);
+				set_state_id(hdcp, output, D2_A0_DETERMINE_RX_HDCP_CAPABLE);
+			} else if (is_cp_desired_hdcp1(hdcp)) {
 				callback_in_ms(0, output);
 				set_state_id(hdcp, output, D1_A0_DETERMINE_RX_HDCP_CAPABLE);
 			} else {
@@ -107,7 +143,10 @@ static enum mod_hdcp_status transition(struct mod_hdcp *hdcp,
 				set_state_id(hdcp, output, HDCP_CP_NOT_DESIRED);
 			}
 		else if (is_hdmi_dvi_sl_hdcp(hdcp))
-			if (is_cp_desired_hdcp1(hdcp)) {
+			if (is_cp_desired_hdcp2(hdcp)) {
+				callback_in_ms(0, output);
+				set_state_id(hdcp, output, H2_A0_KNOWN_HDCP2_CAPABLE_RX);
+			} else if (is_cp_desired_hdcp1(hdcp)) {
 				callback_in_ms(0, output);
 				set_state_id(hdcp, output, H1_A0_WAIT_FOR_ACTIVE_RX);
 			} else {
@@ -126,6 +165,12 @@ static enum mod_hdcp_status transition(struct mod_hdcp *hdcp,
 	} else if (is_in_hdcp1_dp_states(hdcp)) {
 		status = mod_hdcp_hdcp1_dp_transition(hdcp,
 				event_ctx, &input->hdcp1, output);
+	} else if (is_in_hdcp2_states(hdcp)) {
+		status = mod_hdcp_hdcp2_transition(hdcp,
+				event_ctx, &input->hdcp2, output);
+	} else if (is_in_hdcp2_dp_states(hdcp)) {
+		status = mod_hdcp_hdcp2_dp_transition(hdcp,
+				event_ctx, &input->hdcp2, output);
 	} else {
 		status = MOD_HDCP_STATUS_INVALID_STATE;
 	}
@@ -139,10 +184,35 @@ static enum mod_hdcp_status reset_authentication(struct mod_hdcp *hdcp,
 	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
 	if (is_hdcp1(hdcp)) {
-		if (hdcp->auth.trans_input.hdcp1.create_session != UNKNOWN)
+		if (hdcp->auth.trans_input.hdcp1.create_session != UNKNOWN) {
+			/* TODO - update psp to unify create session failure
+			 * recovery between hdcp1 and 2.
+			 */
 			mod_hdcp_hdcp1_destroy_session(hdcp);
 
+		}
 		if (hdcp->auth.trans_input.hdcp1.add_topology == PASS) {
+			status = mod_hdcp_remove_display_topology(hdcp);
+			if (status != MOD_HDCP_STATUS_SUCCESS) {
+				output->callback_needed = 0;
+				output->watchdog_timer_needed = 0;
+				goto out;
+			}
+		}
+		HDCP_TOP_RESET_AUTH_TRACE(hdcp);
+		memset(&hdcp->auth, 0, sizeof(struct mod_hdcp_authentication));
+		memset(&hdcp->state, 0, sizeof(struct mod_hdcp_state));
+		set_state_id(hdcp, output, HDCP_INITIALIZED);
+	} else if (is_hdcp2(hdcp)) {
+		if (hdcp->auth.trans_input.hdcp2.create_session == PASS) {
+			status = mod_hdcp_hdcp2_destroy_session(hdcp);
+			if (status != MOD_HDCP_STATUS_SUCCESS) {
+				output->callback_needed = 0;
+				output->watchdog_timer_needed = 0;
+				goto out;
+			}
+		}
+		if (hdcp->auth.trans_input.hdcp2.add_topology == PASS) {
 			status = mod_hdcp_remove_display_topology(hdcp);
 			if (status != MOD_HDCP_STATUS_SUCCESS) {
 				output->callback_needed = 0;
@@ -347,7 +417,20 @@ enum mod_hdcp_status mod_hdcp_query_display(struct mod_hdcp *hdcp,
 	query->trace = &hdcp->connection.trace;
 	query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
 
-	mod_hdcp_hdcp1_get_link_encryption_status(hdcp, &query->encryption_status);
+	if (is_display_encryption_enabled(display)) {
+		if (is_hdcp1(hdcp)) {
+			query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP1_ON;
+		} else if (is_hdcp2(hdcp)) {
+			if (query->link->adjust.hdcp2.force_type == MOD_HDCP_FORCE_TYPE_0)
+				query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON;
+			else if (query->link->adjust.hdcp2.force_type == MOD_HDCP_FORCE_TYPE_1)
+				query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+			else
+				query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_ON;
+		}
+	} else {
+		query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
+	}
 
 out:
 	return status;
@@ -420,7 +503,7 @@ enum mod_hdcp_operation_mode mod_hdcp_signal_type_to_operation_mode(
 		break;
 	default:
 		break;
-	};
+	}
 
 	return mode;
 }

@@ -12,7 +12,7 @@
 #include <uapi/linux/udp.h>
 
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include "hash_func01.h"
 
 #define MAX_CPUS 64 /* WARNING - sync with _user.c */

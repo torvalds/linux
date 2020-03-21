@@ -67,6 +67,7 @@
 #define IT8726_ID	0x8726	/* the data sheet suggest wrongly 0x8716 */
 #define IT8728_ID	0x8728
 #define IT8783_ID	0x8783
+#define IT8786_ID	0x8786
 
 /* GPIO Configuration Registers LDN=0x07 */
 #define WDTCTRL		0x71
@@ -294,6 +295,7 @@ static int __init it87_wdt_init(void)
 	case IT8721_ID:
 	case IT8728_ID:
 	case IT8783_ID:
+	case IT8786_ID:
 		max_units = 65535;
 		break;
 	case IT8705_ID:

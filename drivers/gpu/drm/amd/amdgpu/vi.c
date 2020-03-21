@@ -689,40 +689,6 @@ static int vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 	return -EINVAL;
 }
 
-int smu7_asic_get_baco_capability(struct amdgpu_device *adev, bool *cap)
-{
-	void *pp_handle = adev->powerplay.pp_handle;
-	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-
-	if (!pp_funcs || !pp_funcs->get_asic_baco_capability) {
-		*cap = false;
-		return -ENOENT;
-	}
-
-	return pp_funcs->get_asic_baco_capability(pp_handle, cap);
-}
-
-int smu7_asic_baco_reset(struct amdgpu_device *adev)
-{
-	void *pp_handle = adev->powerplay.pp_handle;
-	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-
-	if (!pp_funcs ||!pp_funcs->get_asic_baco_state ||!pp_funcs->set_asic_baco_state)
-		return -ENOENT;
-
-	/* enter BACO state */
-	if (pp_funcs->set_asic_baco_state(pp_handle, 1))
-		return -EIO;
-
-	/* exit BACO state */
-	if (pp_funcs->set_asic_baco_state(pp_handle, 0))
-		return -EIO;
-
-	dev_info(adev->dev, "GPU BACO reset\n");
-
-	return 0;
-}
-
 /**
  * vi_asic_pci_config_reset - soft reset GPU
  *
@@ -745,6 +711,21 @@ static int vi_asic_pci_config_reset(struct amdgpu_device *adev)
 	return r;
 }
 
+static bool vi_asic_supports_baco(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_FIJI:
+	case CHIP_TONGA:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_TOPAZ:
+		return amdgpu_dpm_is_baco_supported(adev);
+	default:
+		return false;
+	}
+}
+
 static enum amd_reset_method
 vi_asic_reset_method(struct amdgpu_device *adev)
 {
@@ -757,7 +738,7 @@ vi_asic_reset_method(struct amdgpu_device *adev)
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
 	case CHIP_TOPAZ:
-		smu7_asic_get_baco_capability(adev, &baco_reset);
+		baco_reset = amdgpu_dpm_is_baco_supported(adev);
 		break;
 	default:
 		baco_reset = false;
@@ -786,7 +767,7 @@ static int vi_asic_reset(struct amdgpu_device *adev)
 	if (vi_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
 		if (!adev->in_suspend)
 			amdgpu_inc_vram_lost(adev);
-		r = smu7_asic_baco_reset(adev);
+		r = amdgpu_dpm_baco_reset(adev);
 	} else {
 		r = vi_asic_pci_config_reset(adev);
 	}
@@ -1119,6 +1100,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_pcie_usage = &vi_get_pcie_usage,
 	.need_reset_on_init = &vi_need_reset_on_init,
 	.get_pcie_replay_count = &vi_get_pcie_replay_count,
+	.supports_baco = &vi_asic_supports_baco,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \

@@ -9,7 +9,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -974,29 +973,6 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 }
 
 /**
- * stm32_spi_setup - setup device chip select
- */
-static int stm32_spi_setup(struct spi_device *spi_dev)
-{
-	int ret = 0;
-
-	if (!gpio_is_valid(spi_dev->cs_gpio)) {
-		dev_err(&spi_dev->dev, "%d is not a valid gpio\n",
-			spi_dev->cs_gpio);
-		return -EINVAL;
-	}
-
-	dev_dbg(&spi_dev->dev, "%s: set gpio%d output %s\n", __func__,
-		spi_dev->cs_gpio,
-		(spi_dev->mode & SPI_CS_HIGH) ? "low" : "high");
-
-	ret = gpio_direction_output(spi_dev->cs_gpio,
-				    !(spi_dev->mode & SPI_CS_HIGH));
-
-	return ret;
-}
-
-/**
  * stm32_spi_prepare_msg - set up the controller to transfer a single message
  */
 static int stm32_spi_prepare_msg(struct spi_master *master,
@@ -1810,7 +1786,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct stm32_spi *spi;
 	struct resource *res;
-	int i, ret;
+	int ret;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct stm32_spi));
 	if (!master) {
@@ -1898,22 +1874,34 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = spi->cfg->get_bpw_mask(spi);
 	master->max_speed_hz = spi->clk_rate / spi->cfg->baud_rate_div_min;
 	master->min_speed_hz = spi->clk_rate / spi->cfg->baud_rate_div_max;
-	master->setup = stm32_spi_setup;
+	master->use_gpio_descriptors = true;
 	master->prepare_message = stm32_spi_prepare_msg;
 	master->transfer_one = stm32_spi_transfer_one;
 	master->unprepare_message = stm32_spi_unprepare_msg;
 
-	spi->dma_tx = dma_request_slave_channel(spi->dev, "tx");
-	if (!spi->dma_tx)
-		dev_warn(&pdev->dev, "failed to request tx dma channel\n");
-	else
-		master->dma_tx = spi->dma_tx;
+	spi->dma_tx = dma_request_chan(spi->dev, "tx");
+	if (IS_ERR(spi->dma_tx)) {
+		ret = PTR_ERR(spi->dma_tx);
+		spi->dma_tx = NULL;
+		if (ret == -EPROBE_DEFER)
+			goto err_clk_disable;
 
-	spi->dma_rx = dma_request_slave_channel(spi->dev, "rx");
-	if (!spi->dma_rx)
+		dev_warn(&pdev->dev, "failed to request tx dma channel\n");
+	} else {
+		master->dma_tx = spi->dma_tx;
+	}
+
+	spi->dma_rx = dma_request_chan(spi->dev, "rx");
+	if (IS_ERR(spi->dma_rx)) {
+		ret = PTR_ERR(spi->dma_rx);
+		spi->dma_rx = NULL;
+		if (ret == -EPROBE_DEFER)
+			goto err_dma_release;
+
 		dev_warn(&pdev->dev, "failed to request rx dma channel\n");
-	else
+	} else {
 		master->dma_rx = spi->dma_rx;
+	}
 
 	if (spi->dma_tx || spi->dma_rx)
 		master->can_dma = stm32_spi_can_dma;
@@ -1925,43 +1913,26 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "spi master registration failed: %d\n",
 			ret);
-		goto err_dma_release;
+		goto err_pm_disable;
 	}
 
-	if (!master->cs_gpios) {
+	if (!master->cs_gpiods) {
 		dev_err(&pdev->dev, "no CS gpios available\n");
 		ret = -EINVAL;
-		goto err_dma_release;
-	}
-
-	for (i = 0; i < master->num_chipselect; i++) {
-		if (!gpio_is_valid(master->cs_gpios[i])) {
-			dev_err(&pdev->dev, "%i is not a valid gpio\n",
-				master->cs_gpios[i]);
-			ret = -EINVAL;
-			goto err_dma_release;
-		}
-
-		ret = devm_gpio_request(&pdev->dev, master->cs_gpios[i],
-					DRIVER_NAME);
-		if (ret) {
-			dev_err(&pdev->dev, "can't get CS gpio %i\n",
-				master->cs_gpios[i]);
-			goto err_dma_release;
-		}
+		goto err_pm_disable;
 	}
 
 	dev_info(&pdev->dev, "driver initialized\n");
 
 	return 0;
 
+err_pm_disable:
+	pm_runtime_disable(&pdev->dev);
 err_dma_release:
 	if (spi->dma_tx)
 		dma_release_channel(spi->dma_tx);
 	if (spi->dma_rx)
 		dma_release_channel(spi->dma_rx);
-
-	pm_runtime_disable(&pdev->dev);
 err_clk_disable:
 	clk_disable_unprepare(spi->clk);
 err_master_put:

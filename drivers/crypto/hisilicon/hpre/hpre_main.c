@@ -73,7 +73,7 @@
 #define HPRE_DBGFS_VAL_MAX_LEN		20
 #define HPRE_PCI_DEVICE_ID		0xa258
 #define HPRE_PCI_VF_DEVICE_ID		0xa259
-#define HPRE_ADDR(qm, offset)		(qm->io_base + (offset))
+#define HPRE_ADDR(qm, offset)		((qm)->io_base + (offset))
 #define HPRE_QM_USR_CFG_MASK		0xfffffffe
 #define HPRE_QM_AXI_CFG_MASK		0xffff
 #define HPRE_QM_VFG_AX_MASK		0xff
@@ -106,18 +106,18 @@ static const char * const hpre_debug_file_name[] = {
 };
 
 static const struct hpre_hw_error hpre_hw_errors[] = {
-	{ .int_msk = BIT(0), .msg = "hpre_ecc_1bitt_err" },
-	{ .int_msk = BIT(1), .msg = "hpre_ecc_2bit_err" },
-	{ .int_msk = BIT(2), .msg = "hpre_data_wr_err" },
-	{ .int_msk = BIT(3), .msg = "hpre_data_rd_err" },
-	{ .int_msk = BIT(4), .msg = "hpre_bd_rd_err" },
-	{ .int_msk = BIT(5), .msg = "hpre_ooo_2bit_ecc_err" },
-	{ .int_msk = BIT(6), .msg = "hpre_cltr1_htbt_tm_out_err" },
-	{ .int_msk = BIT(7), .msg = "hpre_cltr2_htbt_tm_out_err" },
-	{ .int_msk = BIT(8), .msg = "hpre_cltr3_htbt_tm_out_err" },
-	{ .int_msk = BIT(9), .msg = "hpre_cltr4_htbt_tm_out_err" },
-	{ .int_msk = GENMASK(15, 10), .msg = "hpre_ooo_rdrsp_err" },
-	{ .int_msk = GENMASK(21, 16), .msg = "hpre_ooo_wrrsp_err" },
+	{ .int_msk = BIT(0), .msg = "core_ecc_1bit_err_int_set" },
+	{ .int_msk = BIT(1), .msg = "core_ecc_2bit_err_int_set" },
+	{ .int_msk = BIT(2), .msg = "dat_wb_poison_int_set" },
+	{ .int_msk = BIT(3), .msg = "dat_rd_poison_int_set" },
+	{ .int_msk = BIT(4), .msg = "bd_rd_poison_int_set" },
+	{ .int_msk = BIT(5), .msg = "ooo_ecc_2bit_err_int_set" },
+	{ .int_msk = BIT(6), .msg = "cluster1_shb_timeout_int_set" },
+	{ .int_msk = BIT(7), .msg = "cluster2_shb_timeout_int_set" },
+	{ .int_msk = BIT(8), .msg = "cluster3_shb_timeout_int_set" },
+	{ .int_msk = BIT(9), .msg = "cluster4_shb_timeout_int_set" },
+	{ .int_msk = GENMASK(15, 10), .msg = "ooo_rdrsp_err_int_set" },
+	{ .int_msk = GENMASK(21, 16), .msg = "ooo_wrrsp_err_int_set" },
 	{ /* sentinel */ }
 };
 
@@ -490,7 +490,7 @@ static ssize_t hpre_ctrl_debug_read(struct file *filp, char __user *buf,
 		return -EINVAL;
 	}
 	spin_unlock_irq(&file->lock);
-	ret = sprintf(tbuf, "%u\n", val);
+	ret = snprintf(tbuf, HPRE_DBGFS_VAL_MAX_LEN, "%u\n", val);
 	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
 }
 
@@ -557,7 +557,7 @@ static const struct file_operations hpre_ctrl_debug_fops = {
 static int hpre_create_debugfs_file(struct hpre_debug *dbg, struct dentry *dir,
 				    enum hpre_ctrl_dbgfs_file type, int indx)
 {
-	struct dentry *tmp, *file_dir;
+	struct dentry *file_dir;
 
 	if (dir)
 		file_dir = dir;
@@ -571,10 +571,8 @@ static int hpre_create_debugfs_file(struct hpre_debug *dbg, struct dentry *dir,
 	dbg->files[indx].debug = dbg;
 	dbg->files[indx].type = type;
 	dbg->files[indx].index = indx;
-	tmp = debugfs_create_file(hpre_debug_file_name[type], 0600, file_dir,
-				  dbg->files + indx, &hpre_ctrl_debug_fops);
-	if (!tmp)
-		return -ENOENT;
+	debugfs_create_file(hpre_debug_file_name[type], 0600, file_dir,
+			    dbg->files + indx, &hpre_ctrl_debug_fops);
 
 	return 0;
 }
@@ -585,7 +583,6 @@ static int hpre_pf_comm_regs_debugfs_init(struct hpre_debug *debug)
 	struct hisi_qm *qm = &hpre->qm;
 	struct device *dev = &qm->pdev->dev;
 	struct debugfs_regset32 *regset;
-	struct dentry *tmp;
 
 	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 	if (!regset)
@@ -595,10 +592,7 @@ static int hpre_pf_comm_regs_debugfs_init(struct hpre_debug *debug)
 	regset->nregs = ARRAY_SIZE(hpre_com_dfx_regs);
 	regset->base = qm->io_base;
 
-	tmp = debugfs_create_regset32("regs", 0444,  debug->debug_root, regset);
-	if (!tmp)
-		return -ENOENT;
-
+	debugfs_create_regset32("regs", 0444,  debug->debug_root, regset);
 	return 0;
 }
 
@@ -609,15 +603,14 @@ static int hpre_cluster_debugfs_init(struct hpre_debug *debug)
 	struct device *dev = &qm->pdev->dev;
 	char buf[HPRE_DBGFS_VAL_MAX_LEN];
 	struct debugfs_regset32 *regset;
-	struct dentry *tmp_d, *tmp;
+	struct dentry *tmp_d;
 	int i, ret;
 
 	for (i = 0; i < HPRE_CLUSTERS_NUM; i++) {
-		sprintf(buf, "cluster%d", i);
-
+		ret = snprintf(buf, HPRE_DBGFS_VAL_MAX_LEN, "cluster%d", i);
+		if (ret < 0)
+			return -EINVAL;
 		tmp_d = debugfs_create_dir(buf, debug->debug_root);
-		if (!tmp_d)
-			return -ENOENT;
 
 		regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 		if (!regset)
@@ -627,9 +620,7 @@ static int hpre_cluster_debugfs_init(struct hpre_debug *debug)
 		regset->nregs = ARRAY_SIZE(hpre_cluster_dfx_regs);
 		regset->base = qm->io_base + hpre_cluster_offsets[i];
 
-		tmp = debugfs_create_regset32("regs", 0444, tmp_d, regset);
-		if (!tmp)
-			return -ENOENT;
+		debugfs_create_regset32("regs", 0444, tmp_d, regset);
 		ret = hpre_create_debugfs_file(debug, tmp_d, HPRE_CLUSTER_CTRL,
 					       i + HPRE_CLUSTER_CTRL);
 		if (ret)
@@ -668,9 +659,6 @@ static int hpre_debugfs_init(struct hpre *hpre)
 	int ret;
 
 	dir = debugfs_create_dir(dev_name(dev), hpre_debugfs_root);
-	if (!dir)
-		return -ENOENT;
-
 	qm->debug.debug_root = dir;
 
 	ret = hisi_qm_debug_init(qm);
@@ -1014,8 +1002,6 @@ static void hpre_register_debugfs(void)
 		return;
 
 	hpre_debugfs_root = debugfs_create_dir(hpre_name, NULL);
-	if (IS_ERR_OR_NULL(hpre_debugfs_root))
-		hpre_debugfs_root = NULL;
 }
 
 static void hpre_unregister_debugfs(void)

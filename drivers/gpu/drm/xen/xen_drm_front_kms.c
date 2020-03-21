@@ -63,14 +63,7 @@ fb_create(struct drm_device *dev, struct drm_file *filp,
 	if (IS_ERR_OR_NULL(fb))
 		return fb;
 
-	gem_obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
-	if (!gem_obj) {
-		DRM_ERROR("Failed to lookup GEM object\n");
-		ret = -ENOENT;
-		goto fail;
-	}
-
-	drm_gem_object_put_unlocked(gem_obj);
+	gem_obj = fb->obj[0];
 
 	ret = xen_drm_front_fb_attach(drm_info->front_info,
 				      xen_drm_front_dbuf_to_cookie(gem_obj),

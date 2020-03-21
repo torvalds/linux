@@ -46,11 +46,6 @@
 #define SDHI_VER_GEN3_SD	0xcc10
 #define SDHI_VER_GEN3_SDMMC	0xcd10
 
-struct renesas_sdhi_quirks {
-	bool hs400_disabled;
-	bool hs400_4taps;
-};
-
 static void renesas_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
 {
 	u32 val;
@@ -355,7 +350,7 @@ static void renesas_sdhi_hs400_complete(struct tmio_mmc_host *host)
 		       0x4 << SH_MOBILE_SDHI_SCC_DTCNTL_TAPNUM_SHIFT);
 
 
-	if (host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400)
+	if (priv->quirks && priv->quirks->hs400_4taps)
 		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET,
 			       host->tap_set / 2);
 
@@ -493,7 +488,7 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 static bool renesas_sdhi_check_scc_error(struct tmio_mmc_host *host)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
-	bool use_4tap = host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400;
+	bool use_4tap = priv->quirks && priv->quirks->hs400_4taps;
 
 	/*
 	 * Skip checking SCC errors when running on 4 taps in HS400 mode as
@@ -627,10 +622,10 @@ static const struct renesas_sdhi_quirks sdhi_quirks_nohs400 = {
 };
 
 static const struct soc_device_attribute sdhi_quirks_match[]  = {
+	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
 	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_nohs400 },
 	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
 	{ .soc_id = "r8a7796", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
-	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
 	{ .soc_id = "r8a77980", .data = &sdhi_quirks_nohs400 },
 	{ /* Sentinel. */ },
 };
@@ -665,6 +660,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	if (!priv)
 		return -ENOMEM;
 
+	priv->quirks = quirks;
 	mmc_data = &priv->mmc_data;
 	dma_priv = &priv->dma_priv;
 
@@ -723,9 +719,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	if (quirks && quirks->hs400_disabled)
 		host->mmc->caps2 &= ~(MMC_CAP2_HS400 | MMC_CAP2_HS400_ES);
-
-	if (quirks && quirks->hs400_4taps)
-		mmc_data->flags |= TMIO_MMC_HAVE_4TAP_HS400;
 
 	/* For some SoC, we disable internal WP. GPIO may override this */
 	if (mmc_can_gpio_ro(host->mmc))
@@ -800,20 +793,23 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	     host->mmc->caps2 & (MMC_CAP2_HS200_1_8V_SDR |
 				 MMC_CAP2_HS400_1_8V))) {
 		const struct renesas_sdhi_scc *taps = of_data->taps;
+		bool use_4tap = priv->quirks && priv->quirks->hs400_4taps;
 		bool hit = false;
 
 		for (i = 0; i < of_data->taps_num; i++) {
 			if (taps[i].clk_rate == 0 ||
 			    taps[i].clk_rate == host->mmc->f_max) {
 				priv->scc_tappos = taps->tap;
-				priv->scc_tappos_hs400 = taps->tap_hs400;
+				priv->scc_tappos_hs400 = use_4tap ?
+							 taps->tap_hs400_4tap :
+							 taps->tap;
 				hit = true;
 				break;
 			}
 		}
 
 		if (!hit)
-			dev_warn(&host->pdev->dev, "Unknown clock rate for SDR104\n");
+			dev_warn(&host->pdev->dev, "Unknown clock rate for tuning\n");
 
 		host->init_tuning = renesas_sdhi_init_tuning;
 		host->prepare_tuning = renesas_sdhi_prepare_tuning;

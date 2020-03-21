@@ -73,6 +73,13 @@
 #define TDES3_CONTEXT_TYPE		BIT(30)
 #define	TDES3_CONTEXT_TYPE_SHIFT	30
 
+/* TDES4 */
+#define TDES4_LTV			BIT(31)
+#define TDES4_LT			GENMASK(7, 0)
+
+/* TDES5 */
+#define TDES5_LT			GENMASK(31, 8)
+
 /* TDS3 use for both format (read and write back) */
 #define TDES3_OWN			BIT(31)
 #define TDES3_OWN_SHIFT			31

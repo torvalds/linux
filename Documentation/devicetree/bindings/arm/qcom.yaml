@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/bindings/arm/qcom.yaml#
+$id: http://devicetree.org/schemas/arm/qcom.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: QCOM device tree bindings
@@ -24,28 +24,30 @@ description: |
 
   The 'SoC' element must be one of the following strings:
 
-  	apq8016
-  	apq8074
-  	apq8084
-  	apq8096
-  	msm8916
-  	msm8974
-  	msm8992
-  	msm8994
-  	msm8996
-  	mdm9615
-  	ipq8074
-  	sdm845
+        apq8016
+        apq8074
+        apq8084
+        apq8096
+        ipq8074
+        mdm9615
+        msm8916
+        msm8974
+        msm8992
+        msm8994
+        msm8996
+        sc7180
+        sdm845
 
   The 'board' element must be one of the following strings:
 
-  	cdp
-  	liquid
-  	dragonboard
-  	mtp
-  	sbc
-  	hk01
-  	qrd
+        cdp
+        dragonboard
+        hk01
+        idp
+        liquid
+        mtp
+        qrd
+        sbc
 
   The 'soc_version' and 'board_version' elements take the form of v<Major>.<Minor>
   where the minor number may be omitted when it's zero, i.e.  v1.0 is the same
@@ -144,4 +146,8 @@ properties:
               - qcom,ipq8074-hk01
           - const: qcom,ipq8074
 
+      - items:
+          - enum:
+              - qcom,sc7180-idp
+          - const: qcom,sc7180
 ...

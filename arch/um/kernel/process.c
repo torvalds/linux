@@ -348,13 +348,12 @@ static ssize_t sysemu_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations sysemu_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= sysemu_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= sysemu_proc_write,
+static const struct proc_ops sysemu_proc_ops = {
+	.proc_open	= sysemu_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= sysemu_proc_write,
 };
 
 int __init make_proc_sysemu(void)
@@ -363,7 +362,7 @@ int __init make_proc_sysemu(void)
 	if (!sysemu_supported)
 		return 0;
 
-	ent = proc_create("sysemu", 0600, NULL, &sysemu_proc_fops);
+	ent = proc_create("sysemu", 0600, NULL, &sysemu_proc_ops);
 
 	if (ent == NULL)
 	{

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include "xdpsock.h"
 
 /* This XDP program is only needed for the XDP_SHARED_UMEM mode.

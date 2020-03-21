@@ -35,11 +35,11 @@
  */
 
 #include <linux/pagemap.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include <drm/drm_device.h>
-#include <drm/drm_pci.h>
 #include <drm/via_drm.h>
 
 #include "via_dmablit.h"
@@ -188,8 +188,8 @@ via_free_sg_info(struct pci_dev *pdev, drm_via_sg_info_t *vsg)
 		kfree(vsg->desc_pages);
 		/* fall through */
 	case dr_via_pages_locked:
-		put_user_pages_dirty_lock(vsg->pages, vsg->num_pages,
-					  (vsg->direction == DMA_FROM_DEVICE));
+		unpin_user_pages_dirty_lock(vsg->pages, vsg->num_pages,
+					   (vsg->direction == DMA_FROM_DEVICE));
 		/* fall through */
 	case dr_via_pages_alloc:
 		vfree(vsg->pages);
@@ -239,7 +239,7 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 	vsg->pages = vzalloc(array_size(sizeof(struct page *), vsg->num_pages));
 	if (NULL == vsg->pages)
 		return -ENOMEM;
-	ret = get_user_pages_fast((unsigned long)xfer->mem_addr,
+	ret = pin_user_pages_fast((unsigned long)xfer->mem_addr,
 			vsg->num_pages,
 			vsg->direction == DMA_FROM_DEVICE ? FOLL_WRITE : 0,
 			vsg->pages);

@@ -198,7 +198,6 @@ struct smiapp_sensor {
 
 	u8 hvflip_inv_mask; /* H/VFLIP inversion due to sensor orientation */
 	u8 frame_skip;
-	bool active; /* is the sensor powered on? */
 	u16 embedded_start; /* embedded data start line */
 	u16 embedded_end;
 	u16 image_start; /* image data start line */

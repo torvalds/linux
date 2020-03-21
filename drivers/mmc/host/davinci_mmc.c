@@ -1174,13 +1174,13 @@ static int mmc_davinci_parse_pdata(struct mmc_host *mmc)
 		mmc->caps |= pdata->caps;
 
 	/* Register a cd gpio, if there is not one, enable polling */
-	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0);
 	if (ret == -EPROBE_DEFER)
 		return ret;
 	else if (ret)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
-	ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
+	ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0);
 	if (ret == -EPROBE_DEFER)
 		return ret;
 

@@ -2311,7 +2311,7 @@ static struct myrs_hba *myrs_detect(struct pci_dev *pdev,
 	/* Map the Controller Register Window. */
 	if (mmio_size < PAGE_SIZE)
 		mmio_size = PAGE_SIZE;
-	cs->mmio_base = ioremap_nocache(cs->pci_addr & PAGE_MASK, mmio_size);
+	cs->mmio_base = ioremap(cs->pci_addr & PAGE_MASK, mmio_size);
 	if (cs->mmio_base == NULL) {
 		dev_err(&pdev->dev,
 			"Unable to map Controller Register Window\n");

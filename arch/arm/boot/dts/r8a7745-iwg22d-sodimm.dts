@@ -76,8 +76,7 @@
 
 		gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 };
 

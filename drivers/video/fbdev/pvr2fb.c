@@ -707,7 +707,7 @@ out_unmap:
 }
 #endif /* CONFIG_PVR2_DMA */
 
-static struct fb_ops pvr2fb_ops = {
+static const struct fb_ops pvr2fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= pvr2fb_setcolreg,
 	.fb_blank	= pvr2fb_blank,
@@ -770,7 +770,7 @@ static int __maybe_unused pvr2fb_common_init(void)
 	struct pvr2fb_par *par = currentpar;
 	unsigned long modememused, rev;
 
-	fb_info->screen_base = ioremap_nocache(pvr2_fix.smem_start,
+	fb_info->screen_base = ioremap(pvr2_fix.smem_start,
 					       pvr2_fix.smem_len);
 
 	if (!fb_info->screen_base) {
@@ -778,7 +778,7 @@ static int __maybe_unused pvr2fb_common_init(void)
 		goto out_err;
 	}
 
-	par->mmio_base = ioremap_nocache(pvr2_fix.mmio_start,
+	par->mmio_base = ioremap(pvr2_fix.mmio_start,
 					 pvr2_fix.mmio_len);
 	if (!par->mmio_base) {
 		printk(KERN_ERR "pvr2fb: Failed to remap mmio space\n");

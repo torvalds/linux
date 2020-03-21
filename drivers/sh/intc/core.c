@@ -213,7 +213,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 			WARN_ON(resource_type(res) != IORESOURCE_MEM);
 			d->window[k].phys = res->start;
 			d->window[k].size = resource_size(res);
-			d->window[k].virt = ioremap_nocache(res->start,
+			d->window[k].virt = ioremap(res->start,
 							 resource_size(res));
 			if (!d->window[k].virt)
 				goto err2;

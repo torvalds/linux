@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <asm/errno.h>
 #endif
 

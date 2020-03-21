@@ -29,32 +29,8 @@
 #include "mod_hdcp.h"
 #include "hdcp_log.h"
 
-#define BCAPS_READY_MASK				0x20
-#define BCAPS_REPEATER_MASK				0x40
-#define BSTATUS_DEVICE_COUNT_MASK			0X007F
-#define BSTATUS_MAX_DEVS_EXCEEDED_MASK			0x0080
-#define BSTATUS_MAX_CASCADE_EXCEEDED_MASK		0x0800
-#define BCAPS_HDCP_CAPABLE_MASK_DP			0x01
-#define BCAPS_REPEATER_MASK_DP				0x02
-#define BSTATUS_READY_MASK_DP				0x01
-#define BSTATUS_R0_P_AVAILABLE_MASK_DP			0x02
-#define BSTATUS_LINK_INTEGRITY_FAILURE_MASK_DP		0x04
-#define BSTATUS_REAUTH_REQUEST_MASK_DP			0x08
-#define BINFO_DEVICE_COUNT_MASK_DP			0X007F
-#define BINFO_MAX_DEVS_EXCEEDED_MASK_DP			0x0080
-#define BINFO_MAX_CASCADE_EXCEEDED_MASK_DP		0x0800
-
-#define RXSTATUS_MSG_SIZE_MASK				0x03FF
-#define RXSTATUS_READY_MASK				0x0400
-#define RXSTATUS_REAUTH_REQUEST_MASK			0x0800
-#define RXIDLIST_DEVICE_COUNT_LOWER_MASK		0xf0
-#define RXIDLIST_DEVICE_COUNT_UPPER_MASK		0x01
-#define RXCAPS_BYTE0_HDCP_CAPABLE_MASK_DP		0x02
-#define RXSTATUS_READY_MASK_DP				0x0001
-#define RXSTATUS_H_P_AVAILABLE_MASK_DP			0x0002
-#define RXSTATUS_PAIRING_AVAILABLE_MASK_DP		0x0004
-#define RXSTATUS_REAUTH_REQUEST_MASK_DP			0x0008
-#define RXSTATUS_LINK_INTEGRITY_FAILURE_MASK_DP		0x0010
+#include <drm/drm_hdcp.h>
+#include <drm/drm_dp_helper.h>
 
 enum mod_hdcp_trans_input_result {
 	UNKNOWN = 0,
@@ -87,13 +63,57 @@ struct mod_hdcp_transition_input_hdcp1 {
 	uint8_t hdcp_capable_dp;
 	uint8_t binfo_read_dp;
 	uint8_t r0p_available_dp;
-	uint8_t link_integiry_check;
+	uint8_t link_integrity_check;
 	uint8_t reauth_request_check;
+	uint8_t stream_encryption_dp;
+};
+
+struct mod_hdcp_transition_input_hdcp2 {
+	uint8_t hdcp2version_read;
+	uint8_t hdcp2_capable_check;
+	uint8_t add_topology;
+	uint8_t create_session;
+	uint8_t ake_init_prepare;
+	uint8_t ake_init_write;
+	uint8_t rxstatus_read;
+	uint8_t ake_cert_available;
+	uint8_t ake_cert_read;
+	uint8_t ake_cert_validation;
+	uint8_t stored_km_write;
+	uint8_t no_stored_km_write;
+	uint8_t h_prime_available;
+	uint8_t h_prime_read;
+	uint8_t pairing_available;
+	uint8_t pairing_info_read;
+	uint8_t h_prime_validation;
+	uint8_t lc_init_prepare;
+	uint8_t lc_init_write;
+	uint8_t l_prime_available_poll;
+	uint8_t l_prime_read;
+	uint8_t l_prime_validation;
+	uint8_t eks_prepare;
+	uint8_t eks_write;
+	uint8_t enable_encryption;
+	uint8_t reauth_request_check;
+	uint8_t rx_id_list_read;
+	uint8_t device_count_check;
+	uint8_t rx_id_list_validation;
+	uint8_t repeater_auth_ack_write;
+	uint8_t prepare_stream_manage;
+	uint8_t stream_manage_write;
+	uint8_t stream_ready_available;
+	uint8_t stream_ready_read;
+	uint8_t stream_ready_validation;
+
+	uint8_t rx_caps_read_dp;
+	uint8_t content_stream_type_write;
+	uint8_t link_integrity_check_dp;
 	uint8_t stream_encryption_dp;
 };
 
 union mod_hdcp_transition_input {
 	struct mod_hdcp_transition_input_hdcp1 hdcp1;
+	struct mod_hdcp_transition_input_hdcp2 hdcp2;
 };
 
 struct mod_hdcp_message_hdcp1 {
@@ -111,8 +131,33 @@ struct mod_hdcp_message_hdcp1 {
 	uint16_t	binfo_dp;
 };
 
+struct mod_hdcp_message_hdcp2 {
+	uint8_t		hdcp2version_hdmi;
+	uint8_t		rxcaps_dp[3];
+	uint8_t		rxstatus[2];
+
+	uint8_t		ake_init[12];
+	uint8_t		ake_cert[534];
+	uint8_t		ake_no_stored_km[129];
+	uint8_t		ake_stored_km[33];
+	uint8_t		ake_h_prime[33];
+	uint8_t		ake_pairing_info[17];
+	uint8_t		lc_init[9];
+	uint8_t		lc_l_prime[33];
+	uint8_t		ske_eks[25];
+	uint8_t		rx_id_list[177]; // 22 + 5 * 31
+	uint16_t	rx_id_list_size;
+	uint8_t		repeater_auth_ack[17];
+	uint8_t		repeater_auth_stream_manage[68]; // 6 + 2 * 31
+	uint16_t	stream_manage_size;
+	uint8_t		repeater_auth_stream_ready[33];
+	uint8_t		rxstatus_dp;
+	uint8_t		content_stream_type_dp[2];
+};
+
 union mod_hdcp_message {
 	struct mod_hdcp_message_hdcp1 hdcp1;
+	struct mod_hdcp_message_hdcp2 hdcp2;
 };
 
 struct mod_hdcp_auth_counters {
@@ -125,8 +170,10 @@ struct mod_hdcp_connection {
 	struct mod_hdcp_display displays[MAX_NUM_OF_DISPLAYS];
 	uint8_t is_repeater;
 	uint8_t is_km_stored;
+	uint8_t is_hdcp2_revoked;
 	struct mod_hdcp_trace trace;
 	uint8_t hdcp1_retry_count;
+	uint8_t hdcp2_retry_count;
 };
 
 /* contains values per authentication cycle */
@@ -194,6 +241,50 @@ enum mod_hdcp_hdcp1_dp_state_id {
 	HDCP1_DP_STATE_END = D1_A7_READ_KSV_LIST,
 };
 
+enum mod_hdcp_hdcp2_state_id {
+	HDCP2_STATE_START = HDCP1_DP_STATE_END,
+	H2_A0_KNOWN_HDCP2_CAPABLE_RX,
+	H2_A1_SEND_AKE_INIT,
+	H2_A1_VALIDATE_AKE_CERT,
+	H2_A1_SEND_NO_STORED_KM,
+	H2_A1_READ_H_PRIME,
+	H2_A1_READ_PAIRING_INFO_AND_VALIDATE_H_PRIME,
+	H2_A1_SEND_STORED_KM,
+	H2_A1_VALIDATE_H_PRIME,
+	H2_A2_LOCALITY_CHECK,
+	H2_A3_EXCHANGE_KS_AND_TEST_FOR_REPEATER,
+	H2_ENABLE_ENCRYPTION,
+	H2_A5_AUTHENTICATED,
+	H2_A6_WAIT_FOR_RX_ID_LIST,
+	H2_A78_VERIFY_RX_ID_LIST_AND_SEND_ACK,
+	H2_A9_SEND_STREAM_MANAGEMENT,
+	H2_A9_VALIDATE_STREAM_READY,
+	HDCP2_STATE_END = H2_A9_VALIDATE_STREAM_READY,
+};
+
+enum mod_hdcp_hdcp2_dp_state_id {
+	HDCP2_DP_STATE_START = HDCP2_STATE_END,
+	D2_A0_DETERMINE_RX_HDCP_CAPABLE,
+	D2_A1_SEND_AKE_INIT,
+	D2_A1_VALIDATE_AKE_CERT,
+	D2_A1_SEND_NO_STORED_KM,
+	D2_A1_READ_H_PRIME,
+	D2_A1_READ_PAIRING_INFO_AND_VALIDATE_H_PRIME,
+	D2_A1_SEND_STORED_KM,
+	D2_A1_VALIDATE_H_PRIME,
+	D2_A2_LOCALITY_CHECK,
+	D2_A34_EXCHANGE_KS_AND_TEST_FOR_REPEATER,
+	D2_SEND_CONTENT_STREAM_TYPE,
+	D2_ENABLE_ENCRYPTION,
+	D2_A5_AUTHENTICATED,
+	D2_A6_WAIT_FOR_RX_ID_LIST,
+	D2_A78_VERIFY_RX_ID_LIST_AND_SEND_ACK,
+	D2_A9_SEND_STREAM_MANAGEMENT,
+	D2_A9_VALIDATE_STREAM_READY,
+	HDCP2_DP_STATE_END = D2_A9_VALIDATE_STREAM_READY,
+	HDCP_STATE_END = HDCP2_DP_STATE_END,
+};
+
 /* hdcp1 executions and transitions */
 typedef enum mod_hdcp_status (*mod_hdcp_action)(struct mod_hdcp *hdcp);
 uint8_t mod_hdcp_execute_and_set(
@@ -212,6 +303,22 @@ enum mod_hdcp_status mod_hdcp_hdcp1_transition(struct mod_hdcp *hdcp,
 enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 	struct mod_hdcp_event_context *event_ctx,
 	struct mod_hdcp_transition_input_hdcp1 *input,
+	struct mod_hdcp_output *output);
+
+/* hdcp2 executions and transitions */
+enum mod_hdcp_status mod_hdcp_hdcp2_execution(struct mod_hdcp *hdcp,
+	struct mod_hdcp_event_context *event_ctx,
+	struct mod_hdcp_transition_input_hdcp2 *input);
+enum mod_hdcp_status mod_hdcp_hdcp2_dp_execution(struct mod_hdcp *hdcp,
+	struct mod_hdcp_event_context *event_ctx,
+	struct mod_hdcp_transition_input_hdcp2 *input);
+enum mod_hdcp_status mod_hdcp_hdcp2_transition(struct mod_hdcp *hdcp,
+	struct mod_hdcp_event_context *event_ctx,
+	struct mod_hdcp_transition_input_hdcp2 *input,
+	struct mod_hdcp_output *output);
+enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
+	struct mod_hdcp_event_context *event_ctx,
+	struct mod_hdcp_transition_input_hdcp2 *input,
 	struct mod_hdcp_output *output);
 
 /* log functions */
@@ -234,6 +341,25 @@ enum mod_hdcp_status mod_hdcp_hdcp1_enable_dp_stream_encryption(
 enum mod_hdcp_status mod_hdcp_hdcp1_link_maintenance(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_hdcp1_get_link_encryption_status(struct mod_hdcp *hdcp,
 							       enum mod_hdcp_encryption_status *encryption_status);
+enum mod_hdcp_status mod_hdcp_hdcp2_create_session(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_ake_init(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_ake_cert(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_h_prime(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_lc_init(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_l_prime(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_eks(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_enable_encryption(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_rx_id_list(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_enable_dp_stream_encryption(
+		struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_prepare_stream_management(
+		struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_validate_stream_ready(
+		struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_hdcp2_get_link_encryption_status(struct mod_hdcp *hdcp,
+							       enum mod_hdcp_encryption_status *encryption_status);
+
 /* ddc functions */
 enum mod_hdcp_status mod_hdcp_read_bksv(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_read_bcaps(struct mod_hdcp *hdcp);
@@ -245,6 +371,7 @@ enum mod_hdcp_status mod_hdcp_read_binfo(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_aksv(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_ainfo(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_an(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_read_hdcp2version(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_read_rxcaps(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_read_rxstatus(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_read_ake_cert(struct mod_hdcp *hdcp);
@@ -308,9 +435,26 @@ static inline uint8_t is_in_hdcp1_dp_states(struct mod_hdcp *hdcp)
 			current_state(hdcp) <= HDCP1_DP_STATE_END);
 }
 
+static inline uint8_t is_in_hdcp2_states(struct mod_hdcp *hdcp)
+{
+	return (current_state(hdcp) > HDCP2_STATE_START &&
+			current_state(hdcp) <= HDCP2_STATE_END);
+}
+
+static inline uint8_t is_in_hdcp2_dp_states(struct mod_hdcp *hdcp)
+{
+	return (current_state(hdcp) > HDCP2_DP_STATE_START &&
+			current_state(hdcp) <= HDCP2_DP_STATE_END);
+}
+
 static inline uint8_t is_hdcp1(struct mod_hdcp *hdcp)
 {
 	return (is_in_hdcp1_states(hdcp) || is_in_hdcp1_dp_states(hdcp));
+}
+
+static inline uint8_t is_hdcp2(struct mod_hdcp *hdcp)
+{
+	return (is_in_hdcp2_states(hdcp) || is_in_hdcp2_dp_states(hdcp));
 }
 
 static inline uint8_t is_in_cp_not_desired_state(struct mod_hdcp *hdcp)
@@ -437,6 +581,7 @@ static inline struct mod_hdcp_display *get_empty_display_container(
 static inline void reset_retry_counts(struct mod_hdcp *hdcp)
 {
 	hdcp->connection.hdcp1_retry_count = 0;
+	hdcp->connection.hdcp2_retry_count = 0;
 }
 
 #endif /* HDCP_H_ */

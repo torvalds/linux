@@ -70,7 +70,7 @@ fallback:
 	return drm_fb_helper_pan_display(var, fbi);
 }
 
-static struct fb_ops omap_fb_ops = {
+static const struct fb_ops omap_fb_ops = {
 	.owner = THIS_MODULE,
 
 	.fb_check_var	= drm_fb_helper_check_var,

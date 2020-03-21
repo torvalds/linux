@@ -36,7 +36,6 @@
 #define CLK_PLL_HSIC			18
 #define CLK_PLL_DE			19
 #define CLK_PLL_DDR1			20
-#define CLK_CPUX			21
 #define CLK_AXI				22
 #define CLK_APB				23
 #define CLK_AHB1			24

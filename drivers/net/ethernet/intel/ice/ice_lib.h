@@ -97,10 +97,16 @@ void ice_vsi_cfg_frame_size(struct ice_vsi *vsi);
 
 u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran);
 
-char *ice_nvm_version_str(struct ice_hw *hw);
-
 enum ice_status
 ice_vsi_cfg_mac_fltr(struct ice_vsi *vsi, const u8 *macaddr, bool set);
 
 bool ice_is_safe_mode(struct ice_pf *pf);
+
+bool ice_is_dflt_vsi_in_use(struct ice_sw *sw);
+
+bool ice_is_vsi_dflt_vsi(struct ice_sw *sw, struct ice_vsi *vsi);
+
+int ice_set_dflt_vsi(struct ice_sw *sw, struct ice_vsi *vsi);
+
+int ice_clear_dflt_vsi(struct ice_sw *sw);
 #endif /* !_ICE_LIB_H_ */

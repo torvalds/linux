@@ -60,8 +60,16 @@ static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 	/*
 	 * If we've manually mapped the buffer object through the IOMMU, make
 	 * sure to return the IOVA address of our mapping.
+	 *
+	 * Similarly, for buffers that have been allocated by the DMA API the
+	 * physical address can be used for devices that are not attached to
+	 * an IOMMU. For these devices, callers must pass a valid pointer via
+	 * the @phys argument.
+	 *
+	 * Imported buffers were also already mapped at import time, so the
+	 * existing mapping can be reused.
 	 */
-	if (phys && obj->mm) {
+	if (phys) {
 		*phys = obj->iova;
 		return NULL;
 	}
@@ -146,32 +154,6 @@ static void tegra_bo_munmap(struct host1x_bo *bo, void *addr)
 		vunmap(addr);
 }
 
-static void *tegra_bo_kmap(struct host1x_bo *bo, unsigned int page)
-{
-	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-
-	if (obj->vaddr)
-		return obj->vaddr + page * PAGE_SIZE;
-	else if (obj->gem.import_attach)
-		return dma_buf_kmap(obj->gem.import_attach->dmabuf, page);
-	else
-		return vmap(obj->pages + page, 1, VM_MAP,
-			    pgprot_writecombine(PAGE_KERNEL));
-}
-
-static void tegra_bo_kunmap(struct host1x_bo *bo, unsigned int page,
-			    void *addr)
-{
-	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-
-	if (obj->vaddr)
-		return;
-	else if (obj->gem.import_attach)
-		dma_buf_kunmap(obj->gem.import_attach->dmabuf, page, addr);
-	else
-		vunmap(addr);
-}
-
 static struct host1x_bo *tegra_bo_get(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
@@ -188,8 +170,6 @@ static const struct host1x_bo_ops tegra_bo_ops = {
 	.unpin = tegra_bo_unpin,
 	.mmap = tegra_bo_mmap,
 	.munmap = tegra_bo_munmap,
-	.kmap = tegra_bo_kmap,
-	.kunmap = tegra_bo_kunmap,
 };
 
 static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
@@ -649,16 +629,6 @@ static int tegra_gem_prime_end_cpu_access(struct dma_buf *buf,
 	return 0;
 }
 
-static void *tegra_gem_prime_kmap(struct dma_buf *buf, unsigned long page)
-{
-	return NULL;
-}
-
-static void tegra_gem_prime_kunmap(struct dma_buf *buf, unsigned long page,
-				   void *addr)
-{
-}
-
 static int tegra_gem_prime_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
 {
 	struct drm_gem_object *gem = buf->priv;
@@ -689,8 +659,6 @@ static const struct dma_buf_ops tegra_gem_prime_dmabuf_ops = {
 	.release = tegra_gem_prime_release,
 	.begin_cpu_access = tegra_gem_prime_begin_cpu_access,
 	.end_cpu_access = tegra_gem_prime_end_cpu_access,
-	.map = tegra_gem_prime_kmap,
-	.unmap = tegra_gem_prime_kunmap,
 	.mmap = tegra_gem_prime_mmap,
 	.vmap = tegra_gem_prime_vmap,
 	.vunmap = tegra_gem_prime_vunmap,

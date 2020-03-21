@@ -137,7 +137,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	} else {
 		ac = sas_to_ata_err(stat);
 		if (ac) {
-			pr_warn("%s: SAS error %x\n", __func__, stat->stat);
+			pr_warn("%s: SAS error 0x%x\n", __func__, stat->stat);
 			/* We saw a SAS error. Send a vague error. */
 			if (!link->sactive) {
 				qc->err_mask = ac;

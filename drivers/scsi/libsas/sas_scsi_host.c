@@ -330,7 +330,7 @@ static int sas_recover_lu(struct domain_device *dev, struct scsi_cmnd *cmd)
 
 	int_to_scsilun(cmd->device->lun, &lun);
 
-	pr_notice("eh: device %llx LUN %llx has the task\n",
+	pr_notice("eh: device %016llx LUN 0x%llx has the task\n",
 		  SAS_ADDR(dev->sas_addr),
 		  cmd->device->lun);
 
@@ -615,7 +615,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
  reset:
 			tmf_resp = sas_recover_lu(task->dev, cmd);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
-				pr_notice("dev %016llx LU %llx is recovered\n",
+				pr_notice("dev %016llx LU 0x%llx is recovered\n",
 					  SAS_ADDR(task->dev),
 					  cmd->device->lun);
 				sas_eh_finish_cmd(cmd);
@@ -666,7 +666,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			 * of effort could recover from errors.  Quite
 			 * possibly the HA just disappeared.
 			 */
-			pr_err("error from  device %llx, LUN %llx couldn't be recovered in any way\n",
+			pr_err("error from device %016llx, LUN 0x%llx couldn't be recovered in any way\n",
 			       SAS_ADDR(task->dev->sas_addr),
 			       cmd->device->lun);
 
@@ -851,7 +851,7 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 	if (scsi_dev->tagged_supported) {
 		scsi_change_queue_depth(scsi_dev, SAS_DEF_QD);
 	} else {
-		pr_notice("device %llx, LUN %llx doesn't support TCQ\n",
+		pr_notice("device %016llx, LUN 0x%llx doesn't support TCQ\n",
 			  SAS_ADDR(dev->sas_addr), scsi_dev->lun);
 		scsi_change_queue_depth(scsi_dev, 1);
 	}

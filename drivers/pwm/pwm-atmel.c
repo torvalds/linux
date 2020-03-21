@@ -4,6 +4,19 @@
  *
  * Copyright (C) 2013 Atmel Corporation
  *		 Bo Shen <voice.shen@atmel.com>
+ *
+ * Links to reference manuals for the supported PWM chips can be found in
+ * Documentation/arm/microchip.rst.
+ *
+ * Limitations:
+ * - Periods start with the inactive level.
+ * - Hardware has to be stopped in general to update settings.
+ *
+ * Software bugs/possible improvements:
+ * - When atmel_pwm_apply() is called with state->enabled=false a change in
+ *   state->polarity isn't honored.
+ * - Instead of sleeping to wait for a completed period, the interrupt
+ *   functionality could be used.
  */
 
 #include <linux/clk.h>
@@ -47,6 +60,8 @@
 #define PWMV2_CPRD		0x0C
 #define PWMV2_CPRDUPD		0x10
 
+#define PWM_MAX_PRES		10
+
 struct atmel_pwm_registers {
 	u8 period;
 	u8 period_upd;
@@ -55,8 +70,7 @@ struct atmel_pwm_registers {
 };
 
 struct atmel_pwm_config {
-	u32 max_period;
-	u32 max_pres;
+	u32 period_bits;
 };
 
 struct atmel_pwm_data {
@@ -97,7 +111,7 @@ static inline u32 atmel_pwm_ch_readl(struct atmel_pwm_chip *chip,
 {
 	unsigned long base = PWM_CH_REG_OFFSET + ch * PWM_CH_REG_SIZE;
 
-	return readl_relaxed(chip->base + base + offset);
+	return atmel_pwm_readl(chip, base + offset);
 }
 
 static inline void atmel_pwm_ch_writel(struct atmel_pwm_chip *chip,
@@ -106,7 +120,7 @@ static inline void atmel_pwm_ch_writel(struct atmel_pwm_chip *chip,
 {
 	unsigned long base = PWM_CH_REG_OFFSET + ch * PWM_CH_REG_SIZE;
 
-	writel_relaxed(val, chip->base + base + offset);
+	atmel_pwm_writel(chip, base + offset, val);
 }
 
 static int atmel_pwm_calculate_cprd_and_pres(struct pwm_chip *chip,
@@ -115,17 +129,27 @@ static int atmel_pwm_calculate_cprd_and_pres(struct pwm_chip *chip,
 {
 	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
 	unsigned long long cycles = state->period;
+	int shift;
 
 	/* Calculate the period cycles and prescale value */
 	cycles *= clk_get_rate(atmel_pwm->clk);
 	do_div(cycles, NSEC_PER_SEC);
 
-	for (*pres = 0; cycles > atmel_pwm->data->cfg.max_period; cycles >>= 1)
-		(*pres)++;
+	/*
+	 * The register for the period length is cfg.period_bits bits wide.
+	 * So for each bit the number of clock cycles is wider divide the input
+	 * clock frequency by two using pres and shift cprd accordingly.
+	 */
+	shift = fls(cycles) - atmel_pwm->data->cfg.period_bits;
 
-	if (*pres > atmel_pwm->data->cfg.max_pres) {
+	if (shift > PWM_MAX_PRES) {
 		dev_err(chip->dev, "pres exceeds the maximum value\n");
 		return -EINVAL;
+	} else if (shift > 0) {
+		*pres = shift;
+		cycles >>= *pres;
+	} else {
+		*pres = 0;
 	}
 
 	*cprd = cycles;
@@ -271,8 +295,48 @@ static int atmel_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
+static void atmel_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+				struct pwm_state *state)
+{
+	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
+	u32 sr, cmr;
+
+	sr = atmel_pwm_readl(atmel_pwm, PWM_SR);
+	cmr = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm, PWM_CMR);
+
+	if (sr & (1 << pwm->hwpwm)) {
+		unsigned long rate = clk_get_rate(atmel_pwm->clk);
+		u32 cdty, cprd, pres;
+		u64 tmp;
+
+		pres = cmr & PWM_CMR_CPRE_MSK;
+
+		cprd = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm,
+					  atmel_pwm->data->regs.period);
+		tmp = (u64)cprd * NSEC_PER_SEC;
+		tmp <<= pres;
+		state->period = DIV64_U64_ROUND_UP(tmp, rate);
+
+		cdty = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm,
+					  atmel_pwm->data->regs.duty);
+		tmp = (u64)cdty * NSEC_PER_SEC;
+		tmp <<= pres;
+		state->duty_cycle = DIV64_U64_ROUND_UP(tmp, rate);
+
+		state->enabled = true;
+	} else {
+		state->enabled = false;
+	}
+
+	if (cmr & PWM_CMR_CPOL)
+		state->polarity = PWM_POLARITY_INVERSED;
+	else
+		state->polarity = PWM_POLARITY_NORMAL;
+}
+
 static const struct pwm_ops atmel_pwm_ops = {
 	.apply = atmel_pwm_apply,
+	.get_state = atmel_pwm_get_state,
 	.owner = THIS_MODULE,
 };
 
@@ -285,8 +349,7 @@ static const struct atmel_pwm_data atmel_sam9rl_pwm_data = {
 	},
 	.cfg = {
 		/* 16 bits to keep period and duty. */
-		.max_period	= 0xffff,
-		.max_pres	= 10,
+		.period_bits	= 16,
 	},
 };
 
@@ -299,8 +362,7 @@ static const struct atmel_pwm_data atmel_sama5_pwm_data = {
 	},
 	.cfg = {
 		/* 16 bits to keep period and duty. */
-		.max_period	= 0xffff,
-		.max_pres	= 10,
+		.period_bits	= 16,
 	},
 };
 
@@ -313,8 +375,7 @@ static const struct atmel_pwm_data mchp_sam9x60_pwm_data = {
 	},
 	.cfg = {
 		/* 32 bits to keep period and duty. */
-		.max_period	= 0xffffffff,
-		.max_pres	= 10,
+		.period_bits	= 32,
 	},
 };
 

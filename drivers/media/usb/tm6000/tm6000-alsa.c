@@ -10,7 +10,6 @@
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
 
 #include <linux/delay.h>
 #include <sound/core.h>
@@ -93,40 +92,6 @@ static int _tm6000_stop_audio_dma(struct snd_tm6000_card *chip)
 
 	return 0;
 }
-
-static void dsp_buffer_free(struct snd_pcm_substream *substream)
-{
-	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
-
-	dprintk(2, "Freeing buffer\n");
-
-	vfree(substream->runtime->dma_area);
-	substream->runtime->dma_area = NULL;
-	substream->runtime->dma_bytes = 0;
-}
-
-static int dsp_buffer_alloc(struct snd_pcm_substream *substream, int size)
-{
-	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
-
-	dprintk(2, "Allocating buffer\n");
-
-	if (substream->runtime->dma_area) {
-		if (substream->runtime->dma_bytes > size)
-			return 0;
-
-		dsp_buffer_free(substream);
-	}
-
-	substream->runtime->dma_area = vmalloc(size);
-	if (!substream->runtime->dma_area)
-		return -ENOMEM;
-
-	substream->runtime->dma_bytes = size;
-
-	return 0;
-}
-
 
 /****************************************************************************
 				ALSA PCM Interface
@@ -269,40 +234,6 @@ static int tm6000_fillbuf(struct tm6000_core *core, char *buf, int size)
 }
 
 /*
- * hw_params callback
- */
-static int snd_tm6000_hw_params(struct snd_pcm_substream *substream,
-			      struct snd_pcm_hw_params *hw_params)
-{
-	int size, rc;
-
-	size = params_period_bytes(hw_params) * params_periods(hw_params);
-
-	rc = dsp_buffer_alloc(substream, size);
-	if (rc < 0)
-		return rc;
-
-	return 0;
-}
-
-/*
- * hw free callback
- */
-static int snd_tm6000_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
-	struct tm6000_core *core = chip->core;
-
-	if (atomic_read(&core->stream_started) > 0) {
-		atomic_set(&core->stream_started, 0);
-		schedule_work(&core->wq_trigger);
-	}
-
-	dsp_buffer_free(substream);
-	return 0;
-}
-
-/*
  * prepare callback
  */
 static int snd_tm6000_prepare(struct snd_pcm_substream *substream)
@@ -369,27 +300,15 @@ static snd_pcm_uframes_t snd_tm6000_pointer(struct snd_pcm_substream *substream)
 	return chip->buf_pos;
 }
 
-static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
-					     unsigned long offset)
-{
-	void *pageptr = subs->runtime->dma_area + offset;
-
-	return vmalloc_to_page(pageptr);
-}
-
 /*
  * operators
  */
 static const struct snd_pcm_ops snd_tm6000_pcm_ops = {
 	.open = snd_tm6000_pcm_open,
 	.close = snd_tm6000_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_tm6000_hw_params,
-	.hw_free = snd_tm6000_hw_free,
 	.prepare = snd_tm6000_prepare,
 	.trigger = snd_tm6000_card_trigger,
 	.pointer = snd_tm6000_pointer,
-	.page = snd_pcm_get_vmalloc_page,
 };
 
 /*
@@ -459,6 +378,7 @@ static int tm6000_audio_init(struct tm6000_core *dev)
 	strscpy(pcm->name, "Trident TM5600/60x0", sizeof(pcm->name));
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_tm6000_pcm_ops);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
 
 	INIT_WORK(&dev->wq_trigger, audio_trigger);
 	rc = snd_card_register(card);

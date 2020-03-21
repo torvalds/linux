@@ -73,10 +73,11 @@ The new macros are prefixed with the ``SYM_`` prefix and can be divided into
 three main groups:
 
 1. ``SYM_FUNC_*`` -- to annotate C-like functions. This means functions with
-   standard C calling conventions, i.e. the stack contains a return address at
-   the predefined place and a return from the function can happen in a
-   standard way. When frame pointers are enabled, save/restore of frame
-   pointer shall happen at the start/end of a function, respectively, too.
+   standard C calling conventions. For example, on x86, this means that the
+   stack contains a return address at the predefined place and a return from
+   the function can happen in a standard way. When frame pointers are enabled,
+   save/restore of frame pointer shall happen at the start/end of a function,
+   respectively, too.
 
    Checking tools like ``objtool`` should ensure such marked functions conform
    to these rules. The tools can also easily annotate these functions with

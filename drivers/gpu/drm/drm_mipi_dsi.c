@@ -33,6 +33,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
+#include <drm/drm_dsc.h>
 #include <video/mipi_display.h>
 
 /**
@@ -373,6 +374,7 @@ bool mipi_dsi_packet_format_is_short(u8 type)
 	case MIPI_DSI_V_SYNC_END:
 	case MIPI_DSI_H_SYNC_START:
 	case MIPI_DSI_H_SYNC_END:
+	case MIPI_DSI_COMPRESSION_MODE:
 	case MIPI_DSI_END_OF_TRANSMISSION:
 	case MIPI_DSI_COLOR_MODE_OFF:
 	case MIPI_DSI_COLOR_MODE_ON:
@@ -387,7 +389,7 @@ bool mipi_dsi_packet_format_is_short(u8 type)
 	case MIPI_DSI_DCS_SHORT_WRITE:
 	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
 	case MIPI_DSI_DCS_READ:
-	case MIPI_DSI_DCS_COMPRESSION_MODE:
+	case MIPI_DSI_EXECUTE_QUEUE:
 	case MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE:
 		return true;
 	}
@@ -406,11 +408,12 @@ EXPORT_SYMBOL(mipi_dsi_packet_format_is_short);
 bool mipi_dsi_packet_format_is_long(u8 type)
 {
 	switch (type) {
-	case MIPI_DSI_PPS_LONG_WRITE:
 	case MIPI_DSI_NULL_PACKET:
 	case MIPI_DSI_BLANKING_PACKET:
 	case MIPI_DSI_GENERIC_LONG_WRITE:
 	case MIPI_DSI_DCS_LONG_WRITE:
+	case MIPI_DSI_PICTURE_PARAMETER_SET:
+	case MIPI_DSI_COMPRESSED_PIXEL_STREAM:
 	case MIPI_DSI_LOOSELY_PACKED_PIXEL_STREAM_YCBCR20:
 	case MIPI_DSI_PACKED_PIXEL_STREAM_YCBCR24:
 	case MIPI_DSI_PACKED_PIXEL_STREAM_YCBCR16:
@@ -545,6 +548,56 @@ int mipi_dsi_set_maximum_return_packet_size(struct mipi_dsi_device *dsi,
 	return (ret < 0) ? ret : 0;
 }
 EXPORT_SYMBOL(mipi_dsi_set_maximum_return_packet_size);
+
+/**
+ * mipi_dsi_compression_mode() - enable/disable DSC on the peripheral
+ * @dsi: DSI peripheral device
+ * @enable: Whether to enable or disable the DSC
+ *
+ * Enable or disable Display Stream Compression on the peripheral using the
+ * default Picture Parameter Set and VESA DSC 1.1 algorithm.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+ssize_t mipi_dsi_compression_mode(struct mipi_dsi_device *dsi, bool enable)
+{
+	/* Note: Needs updating for non-default PPS or algorithm */
+	u8 tx[2] = { enable << 0, 0 };
+	struct mipi_dsi_msg msg = {
+		.channel = dsi->channel,
+		.type = MIPI_DSI_COMPRESSION_MODE,
+		.tx_len = sizeof(tx),
+		.tx_buf = tx,
+	};
+	int ret = mipi_dsi_device_transfer(dsi, &msg);
+
+	return (ret < 0) ? ret : 0;
+}
+EXPORT_SYMBOL(mipi_dsi_compression_mode);
+
+/**
+ * mipi_dsi_picture_parameter_set() - transmit the DSC PPS to the peripheral
+ * @dsi: DSI peripheral device
+ * @pps: VESA DSC 1.1 Picture Parameter Set
+ *
+ * Transmit the VESA DSC 1.1 Picture Parameter Set to the peripheral.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+ssize_t mipi_dsi_picture_parameter_set(struct mipi_dsi_device *dsi,
+				       const struct drm_dsc_picture_parameter_set *pps)
+{
+	struct mipi_dsi_msg msg = {
+		.channel = dsi->channel,
+		.type = MIPI_DSI_PICTURE_PARAMETER_SET,
+		.tx_len = sizeof(*pps),
+		.tx_buf = pps,
+	};
+	int ret = mipi_dsi_device_transfer(dsi, &msg);
+
+	return (ret < 0) ? ret : 0;
+}
+EXPORT_SYMBOL(mipi_dsi_picture_parameter_set);
 
 /**
  * mipi_dsi_generic_write() - transmit data using a generic write packet

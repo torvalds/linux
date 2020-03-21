@@ -405,6 +405,7 @@ static int _idtcm_set_dpll_tod(struct idtcm_channel *channel,
 	if (wr_trig == HW_TOD_WR_TRIG_SEL_MSB) {
 
 		if (idtcm->calculate_overhead_flag) {
+			/* Assumption: I2C @ 400KHz */
 			total_overhead_ns =  ktime_to_ns(ktime_get_raw()
 							 - idtcm->start_time)
 					     + idtcm->tod_write_overhead_ns
@@ -596,44 +597,7 @@ static int idtcm_state_machine_reset(struct idtcm *idtcm)
 
 static int idtcm_read_hw_rev_id(struct idtcm *idtcm, u8 *hw_rev_id)
 {
-	return idtcm_read(idtcm,
-			  GENERAL_STATUS,
-			  HW_REV_ID,
-			  hw_rev_id,
-			  sizeof(u8));
-}
-
-static int idtcm_read_bond_id(struct idtcm *idtcm, u8 *bond_id)
-{
-	return idtcm_read(idtcm,
-			  GENERAL_STATUS,
-			  BOND_ID,
-			  bond_id,
-			  sizeof(u8));
-}
-
-static int idtcm_read_hw_csr_id(struct idtcm *idtcm, u16 *hw_csr_id)
-{
-	int err;
-	u8 buf[2] = {0};
-
-	err = idtcm_read(idtcm, GENERAL_STATUS, HW_CSR_ID, buf, sizeof(buf));
-
-	*hw_csr_id = (buf[1] << 8) | buf[0];
-
-	return err;
-}
-
-static int idtcm_read_hw_irq_id(struct idtcm *idtcm, u16 *hw_irq_id)
-{
-	int err;
-	u8 buf[2] = {0};
-
-	err = idtcm_read(idtcm, GENERAL_STATUS, HW_IRQ_ID, buf, sizeof(buf));
-
-	*hw_irq_id = (buf[1] << 8) | buf[0];
-
-	return err;
+	return idtcm_read(idtcm, HW_REVISION, REV_ID, hw_rev_id, sizeof(u8));
 }
 
 static int idtcm_read_product_id(struct idtcm *idtcm, u16 *product_id)
@@ -674,20 +638,11 @@ static int idtcm_read_hotfix_release(struct idtcm *idtcm, u8 *hotfix)
 			  sizeof(u8));
 }
 
-static int idtcm_read_pipeline(struct idtcm *idtcm, u32 *pipeline)
+static int idtcm_read_otp_scsr_config_select(struct idtcm *idtcm,
+					     u8 *config_select)
 {
-	int err;
-	u8 buf[4] = {0};
-
-	err = idtcm_read(idtcm,
-			 GENERAL_STATUS,
-			 PIPELINE_ID,
-			 &buf[0],
-			 sizeof(buf));
-
-	*pipeline = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
-
-	return err;
+	return idtcm_read(idtcm, GENERAL_STATUS, OTP_SCSR_CONFIG_SELECT,
+			  config_select, sizeof(u8));
 }
 
 static int process_pll_mask(struct idtcm *idtcm, u32 addr, u8 val, u8 *mask)
@@ -1078,31 +1033,25 @@ static void idtcm_display_version_info(struct idtcm *idtcm)
 	u8 major;
 	u8 minor;
 	u8 hotfix;
-	u32 pipeline;
 	u16 product_id;
-	u16 csr_id;
-	u16 irq_id;
 	u8 hw_rev_id;
-	u8 bond_id;
+	u8 config_select;
+	char *fmt = "%d.%d.%d, Id: 0x%04x  HW Rev: %d  OTP Config Select: %d\n";
 
 	idtcm_read_major_release(idtcm, &major);
 	idtcm_read_minor_release(idtcm, &minor);
 	idtcm_read_hotfix_release(idtcm, &hotfix);
-	idtcm_read_pipeline(idtcm, &pipeline);
 
 	idtcm_read_product_id(idtcm, &product_id);
 	idtcm_read_hw_rev_id(idtcm, &hw_rev_id);
-	idtcm_read_bond_id(idtcm, &bond_id);
-	idtcm_read_hw_csr_id(idtcm, &csr_id);
-	idtcm_read_hw_irq_id(idtcm, &irq_id);
 
-	dev_info(&idtcm->client->dev, "Version:  %d.%d.%d, Pipeline %u\t"
-		 "0x%04x, Rev %d, Bond %d, CSR %d, IRQ %d\n",
-		 major, minor, hotfix, pipeline,
-		 product_id, hw_rev_id, bond_id, csr_id, irq_id);
+	idtcm_read_otp_scsr_config_select(idtcm, &config_select);
+
+	dev_info(&idtcm->client->dev, fmt, major, minor, hotfix,
+		 product_id, hw_rev_id, config_select);
 }
 
-static struct ptp_clock_info idtcm_caps = {
+static const struct ptp_clock_info idtcm_caps = {
 	.owner		= THIS_MODULE,
 	.max_adj	= 244000,
 	.n_per_out	= 1,

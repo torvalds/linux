@@ -16,11 +16,11 @@
 #include <asm/sn/types.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/gda.h>
-#include <asm/sn/hub.h>
 #include <asm/sn/mapped_kernel.h>
-#include <asm/sn/sn_private.h>
 
-static cpumask_t ktext_repmask;
+#include "ip27-common.h"
+
+static nodemask_t ktext_repmask;
 
 /*
  * XXX - This needs to be much smarter about where it puts copies of the
@@ -30,8 +30,8 @@ static cpumask_t ktext_repmask;
 void __init setup_replication_mask(void)
 {
 	/* Set only the master cnode's bit.  The master cnode is always 0. */
-	cpumask_clear(&ktext_repmask);
-	cpumask_set_cpu(0, &ktext_repmask);
+	nodes_clear(ktext_repmask);
+	node_set(0, ktext_repmask);
 
 #ifdef CONFIG_REPLICATE_KTEXT
 #ifndef CONFIG_MAPPED_KERNEL
@@ -44,7 +44,7 @@ void __init setup_replication_mask(void)
 			if (nasid == 0)
 				continue;
 			/* Advertise that we have a copy of the kernel */
-			cpumask_set_cpu(nasid, &ktext_repmask);
+			node_set(nasid, ktext_repmask);
 		}
 	}
 #endif
@@ -98,7 +98,7 @@ void __init replicate_kernel_text(void)
 			continue;
 
 		/* Check if this node should get a copy of the kernel */
-		if (cpumask_test_cpu(client_nasid, &ktext_repmask)) {
+		if (node_isset(client_nasid, ktext_repmask)) {
 			server_nasid = client_nasid;
 			copy_kernel(server_nasid);
 		}
@@ -122,7 +122,7 @@ unsigned long node_getfirstfree(nasid_t nasid)
 	loadbase += 16777216;
 #endif
 	offset = PAGE_ALIGN((unsigned long)(&_end)) - loadbase;
-	if ((nasid == 0) || (cpumask_test_cpu(nasid, &ktext_repmask)))
+	if ((nasid == 0) || (node_isset(nasid, ktext_repmask)))
 		return TO_NODE(nasid, offset) >> PAGE_SHIFT;
 	else
 		return KDM_TO_PHYS(PAGE_ALIGN(SYMMON_STK_ADDR(nasid, 0))) >> PAGE_SHIFT;

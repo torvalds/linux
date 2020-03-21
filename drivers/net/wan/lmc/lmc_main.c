@@ -99,7 +99,7 @@ static int lmc_ifdown(struct net_device * const);
 static void lmc_watchdog(struct timer_list *t);
 static void lmc_reset(lmc_softc_t * const sc);
 static void lmc_dec_reset(lmc_softc_t * const sc);
-static void lmc_driver_timeout(struct net_device *dev);
+static void lmc_driver_timeout(struct net_device *dev, unsigned int txqueue);
 
 /*
  * linux reserves 16 device specific IOCTLs.  We call them
@@ -2044,7 +2044,7 @@ static void lmc_initcsrs(lmc_softc_t * const sc, lmc_csrptr_t csr_base, /*fold00
     lmc_trace(sc->lmc_device, "lmc_initcsrs out");
 }
 
-static void lmc_driver_timeout(struct net_device *dev)
+static void lmc_driver_timeout(struct net_device *dev, unsigned int txqueue)
 {
     lmc_softc_t *sc = dev_to_sc(dev);
     u32 csr6;

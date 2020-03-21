@@ -37,6 +37,7 @@ struct ionic_rx_stats {
 	u64 csum_complete;
 	u64 csum_error;
 	u64 buffers_posted;
+	u64 dropped;
 };
 
 #define IONIC_QCQ_F_INITED		BIT(0)

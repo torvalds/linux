@@ -6517,7 +6517,7 @@ static void niu_reset_task(struct work_struct *work)
 	spin_unlock_irqrestore(&np->lock, flags);
 }
 
-static void niu_tx_timeout(struct net_device *dev)
+static void niu_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct niu *np = netdev_priv(dev);
 

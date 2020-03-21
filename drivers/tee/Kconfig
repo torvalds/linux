@@ -2,7 +2,7 @@
 # Generic Trusted Execution Environment Configuration
 config TEE
 	tristate "Trusted Execution Environment support"
-	depends on HAVE_ARM_SMCCC || COMPILE_TEST
+	depends on HAVE_ARM_SMCCC || COMPILE_TEST || CPU_SUP_AMD
 	select DMA_SHARED_BUFFER
 	select GENERIC_ALLOCATOR
 	help
@@ -14,7 +14,7 @@ if TEE
 menu "TEE drivers"
 
 source "drivers/tee/optee/Kconfig"
-
+source "drivers/tee/amdtee/Kconfig"
 endmenu
 
 endif

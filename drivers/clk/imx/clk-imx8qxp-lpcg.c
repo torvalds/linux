@@ -173,6 +173,17 @@ static int imx8qxp_lpcg_clk_probe(struct platform_device *pdev)
 	if (!ss_lpcg)
 		return -ENODEV;
 
+	/*
+	 * Please don't replace this with devm_platform_ioremap_resource.
+	 *
+	 * devm_platform_ioremap_resource calls devm_ioremap_resource which
+	 * differs from devm_ioremap by also calling devm_request_mem_region
+	 * and preventing other mappings in the same area.
+	 *
+	 * On imx8 the LPCG nodes map entire subsystems and overlap
+	 * peripherals, this means that using devm_platform_ioremap_resource
+	 * will cause many devices to fail to probe including serial ports.
+	 */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -EINVAL;

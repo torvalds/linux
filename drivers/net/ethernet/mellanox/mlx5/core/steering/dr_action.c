@@ -677,9 +677,12 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 					goto out_invalid_arg;
 				}
 				if (action->dest_tbl.tbl->level <= matcher->tbl->level) {
+					mlx5_core_warn_once(dmn->mdev,
+							    "Connecting table to a lower/same level destination table\n");
 					mlx5dr_dbg(dmn,
-						   "Destination table level should be higher than source table\n");
-					goto out_invalid_arg;
+						   "Connecting table at level %d to a destination table at level %d\n",
+						   matcher->tbl->level,
+						   action->dest_tbl.tbl->level);
 				}
 				attr.final_icm_addr = rx_rule ?
 					action->dest_tbl.tbl->rx.s_anchor->chunk->icm_addr :
@@ -690,9 +693,9 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 
 				/* get the relevant addresses */
 				if (!action->dest_tbl.fw_tbl.rx_icm_addr) {
-					ret = mlx5dr_cmd_query_flow_table(action->dest_tbl.fw_tbl.mdev,
-									  action->dest_tbl.fw_tbl.ft->type,
-									  action->dest_tbl.fw_tbl.ft->id,
+					ret = mlx5dr_cmd_query_flow_table(dmn->mdev,
+									  action->dest_tbl.fw_tbl.type,
+									  action->dest_tbl.fw_tbl.id,
 									  &output);
 					if (!ret) {
 						action->dest_tbl.fw_tbl.tx_icm_addr =
@@ -982,8 +985,106 @@ dec_ref:
 }
 
 struct mlx5dr_action *
-mlx5dr_create_action_dest_flow_fw_table(struct mlx5_flow_table *ft,
-					struct mlx5_core_dev *mdev)
+mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
+				   struct mlx5dr_action_dest *dests,
+				   u32 num_of_dests)
+{
+	struct mlx5dr_cmd_flow_destination_hw_info *hw_dests;
+	struct mlx5dr_action **ref_actions;
+	struct mlx5dr_action *action;
+	bool reformat_req = false;
+	u32 num_of_ref = 0;
+	int ret;
+	int i;
+
+	if (dmn->type != MLX5DR_DOMAIN_TYPE_FDB) {
+		mlx5dr_err(dmn, "Multiple destination support is for FDB only\n");
+		return NULL;
+	}
+
+	hw_dests = kzalloc(sizeof(*hw_dests) * num_of_dests, GFP_KERNEL);
+	if (!hw_dests)
+		return NULL;
+
+	ref_actions = kzalloc(sizeof(*ref_actions) * num_of_dests * 2, GFP_KERNEL);
+	if (!ref_actions)
+		goto free_hw_dests;
+
+	for (i = 0; i < num_of_dests; i++) {
+		struct mlx5dr_action *reformat_action = dests[i].reformat;
+		struct mlx5dr_action *dest_action = dests[i].dest;
+
+		ref_actions[num_of_ref++] = dest_action;
+
+		switch (dest_action->action_type) {
+		case DR_ACTION_TYP_VPORT:
+			hw_dests[i].vport.flags = MLX5_FLOW_DEST_VPORT_VHCA_ID;
+			hw_dests[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
+			hw_dests[i].vport.num = dest_action->vport.caps->num;
+			hw_dests[i].vport.vhca_id = dest_action->vport.caps->vhca_gvmi;
+			if (reformat_action) {
+				reformat_req = true;
+				hw_dests[i].vport.reformat_id =
+					reformat_action->reformat.reformat_id;
+				ref_actions[num_of_ref++] = reformat_action;
+				hw_dests[i].vport.flags |= MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
+			}
+			break;
+
+		case DR_ACTION_TYP_FT:
+			hw_dests[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+			if (dest_action->dest_tbl.is_fw_tbl)
+				hw_dests[i].ft_id = dest_action->dest_tbl.fw_tbl.id;
+			else
+				hw_dests[i].ft_id = dest_action->dest_tbl.tbl->table_id;
+			break;
+
+		default:
+			mlx5dr_dbg(dmn, "Invalid multiple destinations action\n");
+			goto free_ref_actions;
+		}
+	}
+
+	action = dr_action_create_generic(DR_ACTION_TYP_FT);
+	if (!action)
+		goto free_ref_actions;
+
+	ret = mlx5dr_fw_create_md_tbl(dmn,
+				      hw_dests,
+				      num_of_dests,
+				      reformat_req,
+				      &action->dest_tbl.fw_tbl.id,
+				      &action->dest_tbl.fw_tbl.group_id);
+	if (ret)
+		goto free_action;
+
+	refcount_inc(&dmn->refcount);
+
+	for (i = 0; i < num_of_ref; i++)
+		refcount_inc(&ref_actions[i]->refcount);
+
+	action->dest_tbl.is_fw_tbl = true;
+	action->dest_tbl.fw_tbl.dmn = dmn;
+	action->dest_tbl.fw_tbl.type = FS_FT_FDB;
+	action->dest_tbl.fw_tbl.ref_actions = ref_actions;
+	action->dest_tbl.fw_tbl.num_of_ref_actions = num_of_ref;
+
+	kfree(hw_dests);
+
+	return action;
+
+free_action:
+	kfree(action);
+free_ref_actions:
+	kfree(ref_actions);
+free_hw_dests:
+	kfree(hw_dests);
+	return NULL;
+}
+
+struct mlx5dr_action *
+mlx5dr_action_create_dest_flow_fw_table(struct mlx5dr_domain *dmn,
+					struct mlx5_flow_table *ft)
 {
 	struct mlx5dr_action *action;
 
@@ -992,8 +1093,11 @@ mlx5dr_create_action_dest_flow_fw_table(struct mlx5_flow_table *ft,
 		return NULL;
 
 	action->dest_tbl.is_fw_tbl = 1;
-	action->dest_tbl.fw_tbl.ft = ft;
-	action->dest_tbl.fw_tbl.mdev = mdev;
+	action->dest_tbl.fw_tbl.type = ft->type;
+	action->dest_tbl.fw_tbl.id = ft->id;
+	action->dest_tbl.fw_tbl.dmn = dmn;
+
+	refcount_inc(&dmn->refcount);
 
 	return action;
 }
@@ -1213,19 +1317,61 @@ not_found:
 }
 
 static int
-dr_action_modify_sw_to_hw(struct mlx5dr_domain *dmn,
-			  __be64 *sw_action,
-			  __be64 *hw_action,
-			  const struct dr_action_modify_field_conv **ret_hw_info)
+dr_action_modify_sw_to_hw_add(struct mlx5dr_domain *dmn,
+			      __be64 *sw_action,
+			      __be64 *hw_action,
+			      const struct dr_action_modify_field_conv **ret_hw_info)
 {
 	const struct dr_action_modify_field_conv *hw_action_info;
-	u8 offset, length, max_length, action;
+	u8 max_length;
 	u16 sw_field;
-	u8 hw_opcode;
 	u32 data;
 
 	/* Get SW modify action data */
-	action = MLX5_GET(set_action_in, sw_action, action_type);
+	sw_field = MLX5_GET(set_action_in, sw_action, field);
+	data = MLX5_GET(set_action_in, sw_action, data);
+
+	/* Convert SW data to HW modify action format */
+	hw_action_info = dr_action_modify_get_hw_info(sw_field);
+	if (!hw_action_info) {
+		mlx5dr_dbg(dmn, "Modify add action invalid field given\n");
+		return -EINVAL;
+	}
+
+	max_length = hw_action_info->end - hw_action_info->start + 1;
+
+	MLX5_SET(dr_action_hw_set, hw_action,
+		 opcode, MLX5DR_ACTION_MDFY_HW_OP_ADD);
+
+	MLX5_SET(dr_action_hw_set, hw_action, destination_field_code,
+		 hw_action_info->hw_field);
+
+	MLX5_SET(dr_action_hw_set, hw_action, destination_left_shifter,
+		 hw_action_info->start);
+
+	/* PRM defines that length zero specific length of 32bits */
+	MLX5_SET(dr_action_hw_set, hw_action, destination_length,
+		 max_length == 32 ? 0 : max_length);
+
+	MLX5_SET(dr_action_hw_set, hw_action, inline_data, data);
+
+	*ret_hw_info = hw_action_info;
+
+	return 0;
+}
+
+static int
+dr_action_modify_sw_to_hw_set(struct mlx5dr_domain *dmn,
+			      __be64 *sw_action,
+			      __be64 *hw_action,
+			      const struct dr_action_modify_field_conv **ret_hw_info)
+{
+	const struct dr_action_modify_field_conv *hw_action_info;
+	u8 offset, length, max_length;
+	u16 sw_field;
+	u32 data;
+
+	/* Get SW modify action data */
 	length = MLX5_GET(set_action_in, sw_action, length);
 	offset = MLX5_GET(set_action_in, sw_action, offset);
 	sw_field = MLX5_GET(set_action_in, sw_action, field);
@@ -1234,37 +1380,22 @@ dr_action_modify_sw_to_hw(struct mlx5dr_domain *dmn,
 	/* Convert SW data to HW modify action format */
 	hw_action_info = dr_action_modify_get_hw_info(sw_field);
 	if (!hw_action_info) {
-		mlx5dr_dbg(dmn, "Modify action invalid field given\n");
+		mlx5dr_dbg(dmn, "Modify set action invalid field given\n");
 		return -EINVAL;
 	}
 
+	/* PRM defines that length zero specific length of 32bits */
+	length = length ? length : 32;
+
 	max_length = hw_action_info->end - hw_action_info->start + 1;
 
-	switch (action) {
-	case MLX5_ACTION_TYPE_SET:
-		hw_opcode = MLX5DR_ACTION_MDFY_HW_OP_SET;
-		/* PRM defines that length zero specific length of 32bits */
-		if (!length)
-			length = 32;
-
-		if (length + offset > max_length) {
-			mlx5dr_dbg(dmn, "Modify action length + offset exceeds limit\n");
-			return -EINVAL;
-		}
-		break;
-
-	case MLX5_ACTION_TYPE_ADD:
-		hw_opcode = MLX5DR_ACTION_MDFY_HW_OP_ADD;
-		offset = 0;
-		length = max_length;
-		break;
-
-	default:
-		mlx5dr_info(dmn, "Unsupported action_type for modify action\n");
-		return -EOPNOTSUPP;
+	if (length + offset > max_length) {
+		mlx5dr_dbg(dmn, "Modify action length + offset exceeds limit\n");
+		return -EINVAL;
 	}
 
-	MLX5_SET(dr_action_hw_set, hw_action, opcode, hw_opcode);
+	MLX5_SET(dr_action_hw_set, hw_action,
+		 opcode, MLX5DR_ACTION_MDFY_HW_OP_SET);
 
 	MLX5_SET(dr_action_hw_set, hw_action, destination_field_code,
 		 hw_action_info->hw_field);
@@ -1283,46 +1414,234 @@ dr_action_modify_sw_to_hw(struct mlx5dr_domain *dmn,
 }
 
 static int
-dr_action_modify_check_field_limitation(struct mlx5dr_domain *dmn,
-					const __be64 *sw_action)
+dr_action_modify_sw_to_hw_copy(struct mlx5dr_domain *dmn,
+			       __be64 *sw_action,
+			       __be64 *hw_action,
+			       const struct dr_action_modify_field_conv **ret_dst_hw_info,
+			       const struct dr_action_modify_field_conv **ret_src_hw_info)
 {
-	u16 sw_field;
-	u8 action;
+	u8 src_offset, dst_offset, src_max_length, dst_max_length, length;
+	const struct dr_action_modify_field_conv *hw_dst_action_info;
+	const struct dr_action_modify_field_conv *hw_src_action_info;
+	u16 src_field, dst_field;
 
-	sw_field = MLX5_GET(set_action_in, sw_action, field);
+	/* Get SW modify action data */
+	src_field = MLX5_GET(copy_action_in, sw_action, src_field);
+	dst_field = MLX5_GET(copy_action_in, sw_action, dst_field);
+	src_offset = MLX5_GET(copy_action_in, sw_action, src_offset);
+	dst_offset = MLX5_GET(copy_action_in, sw_action, dst_offset);
+	length = MLX5_GET(copy_action_in, sw_action, length);
+
+	/* Convert SW data to HW modify action format */
+	hw_src_action_info = dr_action_modify_get_hw_info(src_field);
+	hw_dst_action_info = dr_action_modify_get_hw_info(dst_field);
+	if (!hw_src_action_info || !hw_dst_action_info) {
+		mlx5dr_dbg(dmn, "Modify copy action invalid field given\n");
+		return -EINVAL;
+	}
+
+	/* PRM defines that length zero specific length of 32bits */
+	length = length ? length : 32;
+
+	src_max_length = hw_src_action_info->end -
+			 hw_src_action_info->start + 1;
+	dst_max_length = hw_dst_action_info->end -
+			 hw_dst_action_info->start + 1;
+
+	if (length + src_offset > src_max_length ||
+	    length + dst_offset > dst_max_length) {
+		mlx5dr_dbg(dmn, "Modify action length + offset exceeds limit\n");
+		return -EINVAL;
+	}
+
+	MLX5_SET(dr_action_hw_copy, hw_action,
+		 opcode, MLX5DR_ACTION_MDFY_HW_OP_COPY);
+
+	MLX5_SET(dr_action_hw_copy, hw_action, destination_field_code,
+		 hw_dst_action_info->hw_field);
+
+	MLX5_SET(dr_action_hw_copy, hw_action, destination_left_shifter,
+		 hw_dst_action_info->start + dst_offset);
+
+	MLX5_SET(dr_action_hw_copy, hw_action, destination_length,
+		 length == 32 ? 0 : length);
+
+	MLX5_SET(dr_action_hw_copy, hw_action, source_field_code,
+		 hw_src_action_info->hw_field);
+
+	MLX5_SET(dr_action_hw_copy, hw_action, source_left_shifter,
+		 hw_src_action_info->start + dst_offset);
+
+	*ret_dst_hw_info = hw_dst_action_info;
+	*ret_src_hw_info = hw_src_action_info;
+
+	return 0;
+}
+
+static int
+dr_action_modify_sw_to_hw(struct mlx5dr_domain *dmn,
+			  __be64 *sw_action,
+			  __be64 *hw_action,
+			  const struct dr_action_modify_field_conv **ret_dst_hw_info,
+			  const struct dr_action_modify_field_conv **ret_src_hw_info)
+{
+	u8 action;
+	int ret;
+
+	*hw_action = 0;
+	*ret_src_hw_info = NULL;
+
+	/* Get SW modify action type */
 	action = MLX5_GET(set_action_in, sw_action, action_type);
 
-	/* Check if SW field is supported in current domain (RX/TX) */
-	if (action == MLX5_ACTION_TYPE_SET) {
-		if (sw_field == MLX5_ACTION_IN_FIELD_METADATA_REG_A) {
-			if (dmn->type != MLX5DR_DOMAIN_TYPE_NIC_TX) {
-				mlx5dr_dbg(dmn, "Unsupported field %d for RX/FDB set action\n",
-					   sw_field);
-				return -EINVAL;
-			}
-		}
+	switch (action) {
+	case MLX5_ACTION_TYPE_SET:
+		ret = dr_action_modify_sw_to_hw_set(dmn, sw_action,
+						    hw_action,
+						    ret_dst_hw_info);
+		break;
 
-		if (sw_field == MLX5_ACTION_IN_FIELD_METADATA_REG_B) {
-			if (dmn->type != MLX5DR_DOMAIN_TYPE_NIC_RX) {
-				mlx5dr_dbg(dmn, "Unsupported field %d for TX/FDB set action\n",
-					   sw_field);
-				return -EINVAL;
-			}
-		}
-	} else if (action == MLX5_ACTION_TYPE_ADD) {
-		if (sw_field != MLX5_ACTION_IN_FIELD_OUT_IP_TTL &&
-		    sw_field != MLX5_ACTION_IN_FIELD_OUT_IPV6_HOPLIMIT &&
-		    sw_field != MLX5_ACTION_IN_FIELD_OUT_TCP_SEQ_NUM &&
-		    sw_field != MLX5_ACTION_IN_FIELD_OUT_TCP_ACK_NUM) {
-			mlx5dr_dbg(dmn, "Unsupported field %d for add action\n", sw_field);
+	case MLX5_ACTION_TYPE_ADD:
+		ret = dr_action_modify_sw_to_hw_add(dmn, sw_action,
+						    hw_action,
+						    ret_dst_hw_info);
+		break;
+
+	case MLX5_ACTION_TYPE_COPY:
+		ret = dr_action_modify_sw_to_hw_copy(dmn, sw_action,
+						     hw_action,
+						     ret_dst_hw_info,
+						     ret_src_hw_info);
+		break;
+
+	default:
+		mlx5dr_info(dmn, "Unsupported action_type for modify action\n");
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
+static int
+dr_action_modify_check_set_field_limitation(struct mlx5dr_action *action,
+					    const __be64 *sw_action)
+{
+	u16 sw_field = MLX5_GET(set_action_in, sw_action, field);
+	struct mlx5dr_domain *dmn = action->rewrite.dmn;
+
+	if (sw_field == MLX5_ACTION_IN_FIELD_METADATA_REG_A) {
+		action->rewrite.allow_rx = 0;
+		if (dmn->type != MLX5DR_DOMAIN_TYPE_NIC_TX) {
+			mlx5dr_dbg(dmn, "Unsupported field %d for RX/FDB set action\n",
+				   sw_field);
 			return -EINVAL;
 		}
-	} else {
-		mlx5dr_info(dmn, "Unsupported action %d modify action\n", action);
-		return -EOPNOTSUPP;
+	} else if (sw_field == MLX5_ACTION_IN_FIELD_METADATA_REG_B) {
+		action->rewrite.allow_tx = 0;
+		if (dmn->type != MLX5DR_DOMAIN_TYPE_NIC_RX) {
+			mlx5dr_dbg(dmn, "Unsupported field %d for TX/FDB set action\n",
+				   sw_field);
+			return -EINVAL;
+		}
+	}
+
+	if (!action->rewrite.allow_rx && !action->rewrite.allow_tx) {
+		mlx5dr_dbg(dmn, "Modify SET actions not supported on both RX and TX\n");
+		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static int
+dr_action_modify_check_add_field_limitation(struct mlx5dr_action *action,
+					    const __be64 *sw_action)
+{
+	u16 sw_field = MLX5_GET(set_action_in, sw_action, field);
+	struct mlx5dr_domain *dmn = action->rewrite.dmn;
+
+	if (sw_field != MLX5_ACTION_IN_FIELD_OUT_IP_TTL &&
+	    sw_field != MLX5_ACTION_IN_FIELD_OUT_IPV6_HOPLIMIT &&
+	    sw_field != MLX5_ACTION_IN_FIELD_OUT_TCP_SEQ_NUM &&
+	    sw_field != MLX5_ACTION_IN_FIELD_OUT_TCP_ACK_NUM) {
+		mlx5dr_dbg(dmn, "Unsupported field %d for add action\n",
+			   sw_field);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+dr_action_modify_check_copy_field_limitation(struct mlx5dr_action *action,
+					     const __be64 *sw_action)
+{
+	struct mlx5dr_domain *dmn = action->rewrite.dmn;
+	u16 sw_fields[2];
+	int i;
+
+	sw_fields[0] = MLX5_GET(copy_action_in, sw_action, src_field);
+	sw_fields[1] = MLX5_GET(copy_action_in, sw_action, dst_field);
+
+	for (i = 0; i < 2; i++) {
+		if (sw_fields[i] == MLX5_ACTION_IN_FIELD_METADATA_REG_A) {
+			action->rewrite.allow_rx = 0;
+			if (dmn->type != MLX5DR_DOMAIN_TYPE_NIC_TX) {
+				mlx5dr_dbg(dmn, "Unsupported field %d for RX/FDB set action\n",
+					   sw_fields[i]);
+				return -EINVAL;
+			}
+		} else if (sw_fields[i] == MLX5_ACTION_IN_FIELD_METADATA_REG_B) {
+			action->rewrite.allow_tx = 0;
+			if (dmn->type != MLX5DR_DOMAIN_TYPE_NIC_RX) {
+				mlx5dr_dbg(dmn, "Unsupported field %d for TX/FDB set action\n",
+					   sw_fields[i]);
+				return -EINVAL;
+			}
+		}
+	}
+
+	if (!action->rewrite.allow_rx && !action->rewrite.allow_tx) {
+		mlx5dr_dbg(dmn, "Modify copy actions not supported on both RX and TX\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+dr_action_modify_check_field_limitation(struct mlx5dr_action *action,
+					const __be64 *sw_action)
+{
+	struct mlx5dr_domain *dmn = action->rewrite.dmn;
+	u8 action_type;
+	int ret;
+
+	action_type = MLX5_GET(set_action_in, sw_action, action_type);
+
+	switch (action_type) {
+	case MLX5_ACTION_TYPE_SET:
+		ret = dr_action_modify_check_set_field_limitation(action,
+								  sw_action);
+		break;
+
+	case MLX5_ACTION_TYPE_ADD:
+		ret = dr_action_modify_check_add_field_limitation(action,
+								  sw_action);
+		break;
+
+	case MLX5_ACTION_TYPE_COPY:
+		ret = dr_action_modify_check_copy_field_limitation(action,
+								   sw_action);
+		break;
+
+	default:
+		mlx5dr_info(dmn, "Unsupported action %d modify action\n",
+			    action_type);
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
 }
 
 static bool
@@ -1333,7 +1652,7 @@ dr_action_modify_check_is_ttl_modify(const u64 *sw_action)
 	return sw_field == MLX5_ACTION_IN_FIELD_OUT_IP_TTL;
 }
 
-static int dr_actions_convert_modify_header(struct mlx5dr_domain *dmn,
+static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 					    u32 max_hw_actions,
 					    u32 num_sw_actions,
 					    __be64 sw_actions[],
@@ -1341,20 +1660,26 @@ static int dr_actions_convert_modify_header(struct mlx5dr_domain *dmn,
 					    u32 *num_hw_actions,
 					    bool *modify_ttl)
 {
-	const struct dr_action_modify_field_conv *hw_action_info;
+	const struct dr_action_modify_field_conv *hw_dst_action_info;
+	const struct dr_action_modify_field_conv *hw_src_action_info;
 	u16 hw_field = MLX5DR_ACTION_MDFY_HW_FLD_RESERVED;
 	u32 l3_type = MLX5DR_ACTION_MDFY_HW_HDR_L3_NONE;
 	u32 l4_type = MLX5DR_ACTION_MDFY_HW_HDR_L4_NONE;
+	struct mlx5dr_domain *dmn = action->rewrite.dmn;
 	int ret, i, hw_idx = 0;
 	__be64 *sw_action;
 	__be64 hw_action;
 
 	*modify_ttl = false;
 
+	action->rewrite.allow_rx = 1;
+	action->rewrite.allow_tx = 1;
+
 	for (i = 0; i < num_sw_actions; i++) {
 		sw_action = &sw_actions[i];
 
-		ret = dr_action_modify_check_field_limitation(dmn, sw_action);
+		ret = dr_action_modify_check_field_limitation(action,
+							      sw_action);
 		if (ret)
 			return ret;
 
@@ -1365,32 +1690,35 @@ static int dr_actions_convert_modify_header(struct mlx5dr_domain *dmn,
 		ret = dr_action_modify_sw_to_hw(dmn,
 						sw_action,
 						&hw_action,
-						&hw_action_info);
+						&hw_dst_action_info,
+						&hw_src_action_info);
 		if (ret)
 			return ret;
 
 		/* Due to a HW limitation we cannot modify 2 different L3 types */
-		if (l3_type && hw_action_info->l3_type &&
-		    hw_action_info->l3_type != l3_type) {
+		if (l3_type && hw_dst_action_info->l3_type &&
+		    hw_dst_action_info->l3_type != l3_type) {
 			mlx5dr_dbg(dmn, "Action list can't support two different L3 types\n");
 			return -EINVAL;
 		}
-		if (hw_action_info->l3_type)
-			l3_type = hw_action_info->l3_type;
+		if (hw_dst_action_info->l3_type)
+			l3_type = hw_dst_action_info->l3_type;
 
 		/* Due to a HW limitation we cannot modify two different L4 types */
-		if (l4_type && hw_action_info->l4_type &&
-		    hw_action_info->l4_type != l4_type) {
+		if (l4_type && hw_dst_action_info->l4_type &&
+		    hw_dst_action_info->l4_type != l4_type) {
 			mlx5dr_dbg(dmn, "Action list can't support two different L4 types\n");
 			return -EINVAL;
 		}
-		if (hw_action_info->l4_type)
-			l4_type = hw_action_info->l4_type;
+		if (hw_dst_action_info->l4_type)
+			l4_type = hw_dst_action_info->l4_type;
 
 		/* HW reads and executes two actions at once this means we
 		 * need to create a gap if two actions access the same field
 		 */
-		if ((hw_idx % 2) && hw_field == hw_action_info->hw_field) {
+		if ((hw_idx % 2) && (hw_field == hw_dst_action_info->hw_field ||
+				     (hw_src_action_info &&
+				      hw_field == hw_src_action_info->hw_field))) {
 			/* Check if after gap insertion the total number of HW
 			 * modify actions doesn't exceeds the limit
 			 */
@@ -1400,7 +1728,7 @@ static int dr_actions_convert_modify_header(struct mlx5dr_domain *dmn,
 				return -EINVAL;
 			}
 		}
-		hw_field = hw_action_info->hw_field;
+		hw_field = hw_dst_action_info->hw_field;
 
 		hw_actions[hw_idx] = hw_action;
 		hw_idx++;
@@ -1443,7 +1771,7 @@ static int dr_action_create_modify_action(struct mlx5dr_domain *dmn,
 		goto free_chunk;
 	}
 
-	ret = dr_actions_convert_modify_header(dmn,
+	ret = dr_actions_convert_modify_header(action,
 					       max_hw_actions,
 					       num_sw_actions,
 					       actions,
@@ -1559,8 +1887,26 @@ int mlx5dr_action_destroy(struct mlx5dr_action *action)
 
 	switch (action->action_type) {
 	case DR_ACTION_TYP_FT:
-		if (!action->dest_tbl.is_fw_tbl)
+		if (action->dest_tbl.is_fw_tbl)
+			refcount_dec(&action->dest_tbl.fw_tbl.dmn->refcount);
+		else
 			refcount_dec(&action->dest_tbl.tbl->refcount);
+
+		if (action->dest_tbl.is_fw_tbl &&
+		    action->dest_tbl.fw_tbl.num_of_ref_actions) {
+			struct mlx5dr_action **ref_actions;
+			int i;
+
+			ref_actions = action->dest_tbl.fw_tbl.ref_actions;
+			for (i = 0; i < action->dest_tbl.fw_tbl.num_of_ref_actions; i++)
+				refcount_dec(&ref_actions[i]->refcount);
+
+			kfree(ref_actions);
+
+			mlx5dr_fw_destroy_md_tbl(action->dest_tbl.fw_tbl.dmn,
+						 action->dest_tbl.fw_tbl.id,
+						 action->dest_tbl.fw_tbl.group_id);
+		}
 		break;
 	case DR_ACTION_TYP_TNL_L2_TO_L2:
 		refcount_dec(&action->reformat.dmn->refcount);

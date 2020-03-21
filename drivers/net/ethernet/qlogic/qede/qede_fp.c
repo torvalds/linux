@@ -848,13 +848,13 @@ static void qede_tpa_start(struct qede_dev *edev,
 	qede_set_gro_params(edev, tpa_info->skb, cqe);
 
 cons_buf: /* We still need to handle bd_len_list to consume buffers */
-	if (likely(cqe->ext_bd_len_list[0]))
+	if (likely(cqe->bw_ext_bd_len_list[0]))
 		qede_fill_frag_skb(edev, rxq, cqe->tpa_agg_index,
-				   le16_to_cpu(cqe->ext_bd_len_list[0]));
+				   le16_to_cpu(cqe->bw_ext_bd_len_list[0]));
 
-	if (unlikely(cqe->ext_bd_len_list[1])) {
+	if (unlikely(cqe->bw_ext_bd_len_list[1])) {
 		DP_ERR(edev,
-		       "Unlikely - got a TPA aggregation with more than one ext_bd_len_list entry in the TPA start\n");
+		       "Unlikely - got a TPA aggregation with more than one bw_ext_bd_len_list entry in the TPA start\n");
 		tpa_info->state = QEDE_AGG_STATE_ERROR;
 	}
 }

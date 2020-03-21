@@ -24,6 +24,8 @@
 #ifndef __VCN_V1_0_H__
 #define __VCN_V1_0_H__
 
+void vcn_v1_0_ring_begin_use(struct amdgpu_ring *ring);
+
 extern const struct amdgpu_ip_block_version vcn_v1_0_ip_block;
 
 #endif

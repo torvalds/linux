@@ -70,6 +70,12 @@
 			system-power-controller;
 		};
 
+		rng@7e104000 {
+			compatible = "brcm,bcm2835-rng";
+			reg = <0x7e104000 0x10>;
+			interrupts = <2 29>;
+		};
+
 		pixelvalve@7e206000 {
 			compatible = "brcm,bcm2835-pixelvalve0";
 			reg = <0x7e206000 0x100>;

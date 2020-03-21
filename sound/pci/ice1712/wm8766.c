@@ -26,7 +26,7 @@ static void snd_wm8766_write(struct snd_wm8766 *wm, u16 addr, u16 data)
 
 static const DECLARE_TLV_DB_SCALE(wm8766_tlv, -12750, 50, 1);
 
-static struct snd_wm8766_ctl snd_wm8766_default_ctl[WM8766_CTL_COUNT] = {
+static const struct snd_wm8766_ctl snd_wm8766_default_ctl[WM8766_CTL_COUNT] = {
 	[WM8766_CTL_CH1_VOL] = {
 		.name = "Channel 1 Playback Volume",
 		.type = SNDRV_CTL_ELEM_TYPE_INTEGER,

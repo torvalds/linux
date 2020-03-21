@@ -71,7 +71,7 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 	p->num_dw_left = ndw;
 
 	/* Wait for moves to be completed */
-	r = amdgpu_sync_fence(p->adev, &p->job->sync, exclusive, false);
+	r = amdgpu_sync_fence(&p->job->sync, exclusive, false);
 	if (r)
 		return r;
 
@@ -95,11 +95,10 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 				 struct dma_fence **fence)
 {
-	struct amdgpu_bo *root = p->vm->root.base.bo;
 	struct amdgpu_ib *ib = p->job->ibs;
 	struct drm_sched_entity *entity;
+	struct dma_fence *f, *tmp;
 	struct amdgpu_ring *ring;
-	struct dma_fence *f;
 	int r;
 
 	entity = p->direct ? &p->vm->direct : &p->vm->delayed;
@@ -112,7 +111,13 @@ static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 	if (r)
 		goto error;
 
-	amdgpu_bo_fence(root, f, true);
+	tmp = dma_fence_get(f);
+	if (p->direct)
+		swap(p->vm->last_direct, tmp);
+	else
+		swap(p->vm->last_delayed, tmp);
+	dma_fence_put(tmp);
+
 	if (fence && !p->direct)
 		swap(*fence, f);
 	dma_fence_put(f);

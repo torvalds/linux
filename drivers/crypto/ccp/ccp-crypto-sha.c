@@ -293,10 +293,8 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 		ret = crypto_shash_digest(sdesc, key, key_len,
 					  ctx->u.sha.key);
-		if (ret) {
-			crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		if (ret)
 			return -EINVAL;
-		}
 
 		key_len = digest_size;
 	} else {

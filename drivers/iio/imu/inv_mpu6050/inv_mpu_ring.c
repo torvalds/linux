@@ -142,6 +142,8 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 		d |= INV_MPU6050_BITS_GYRO_OUT;
 	if (st->chip_config.accl_fifo_enable)
 		d |= INV_MPU6050_BIT_ACCEL_OUT;
+	if (st->chip_config.temp_fifo_enable)
+		d |= INV_MPU6050_BIT_TEMP_OUT;
 	if (st->chip_config.magn_fifo_enable)
 		d |= INV_MPU6050_BIT_SLAVE_0;
 	result = regmap_write(st->map, st->reg->fifo_en, d);
@@ -183,11 +185,8 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 			"failed to ack interrupt\n");
 		goto flush_fifo;
 	}
-	if (!(int_status & INV_MPU6050_BIT_RAW_DATA_RDY_INT)) {
-		dev_warn(regmap_get_device(st->map),
-			"spurious interrupt with status 0x%x\n", int_status);
+	if (!(int_status & INV_MPU6050_BIT_RAW_DATA_RDY_INT))
 		goto end_session;
-	}
 
 	if (!(st->chip_config.accl_fifo_enable |
 		st->chip_config.gyro_fifo_enable |
@@ -200,8 +199,8 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	if (st->chip_config.gyro_fifo_enable)
 		bytes_per_datum += INV_MPU6050_BYTES_PER_3AXIS_SENSOR;
 
-	if (st->chip_type == INV_ICM20602)
-		bytes_per_datum += INV_ICM20602_BYTES_PER_TEMP_SENSOR;
+	if (st->chip_config.temp_fifo_enable)
+		bytes_per_datum += INV_MPU6050_BYTES_PER_TEMP_SENSOR;
 
 	if (st->chip_config.magn_fifo_enable)
 		bytes_per_datum += INV_MPU9X50_BYTES_MAGN;

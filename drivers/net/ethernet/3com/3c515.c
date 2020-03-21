@@ -371,7 +371,7 @@ static void corkscrew_timer(struct timer_list *t);
 static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 					struct net_device *dev);
 static int corkscrew_rx(struct net_device *dev);
-static void corkscrew_timeout(struct net_device *dev);
+static void corkscrew_timeout(struct net_device *dev, unsigned int txqueue);
 static int boomerang_rx(struct net_device *dev);
 static irqreturn_t corkscrew_interrupt(int irq, void *dev_id);
 static int corkscrew_close(struct net_device *dev);
@@ -961,7 +961,7 @@ static void corkscrew_timer(struct timer_list *t)
 #endif				/* AUTOMEDIA */
 }
 
-static void corkscrew_timeout(struct net_device *dev)
+static void corkscrew_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	int i;
 	struct corkscrew_private *vp = netdev_priv(dev);

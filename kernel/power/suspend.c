@@ -131,11 +131,12 @@ static void s2idle_loop(void)
 	 * to avoid them upfront.
 	 */
 	for (;;) {
-		if (s2idle_ops && s2idle_ops->wake)
-			s2idle_ops->wake();
-
-		if (pm_wakeup_pending())
+		if (s2idle_ops && s2idle_ops->wake) {
+			if (s2idle_ops->wake())
+				break;
+		} else if (pm_wakeup_pending()) {
 			break;
+		}
 
 		pm_wakeup_clear(false);
 
@@ -564,7 +565,7 @@ static int enter_state(suspend_state_t state)
 	if (state == PM_SUSPEND_TO_IDLE)
 		s2idle_begin();
 
-	if (!IS_ENABLED(CONFIG_SUSPEND_SKIP_SYNC)) {
+	if (sync_on_suspend_enabled) {
 		trace_suspend_resume(TPS("sync_filesystems"), 0, true);
 		ksys_sync_helper();
 		trace_suspend_resume(TPS("sync_filesystems"), 0, false);

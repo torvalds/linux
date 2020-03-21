@@ -63,6 +63,9 @@ struct a6xx_gmu {
 	struct clk_bulk_data *clocks;
 	struct clk *core_clk;
 
+	/* current performance index set externally */
+	int current_perf_index;
+
 	int nr_gpu_freqs;
 	unsigned long gpu_freqs[16];
 	u32 gx_arc_votes[16];

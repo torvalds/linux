@@ -367,7 +367,7 @@ static struct snd_soc_aux_dev mt8183_da7219_max98357_headset_dev = {
 
 static struct snd_soc_codec_conf mt6358_codec_conf[] = {
 	{
-		.dev_name = "mt6358-sound",
+		.dlc = COMP_CODEC_CONF("mt6358-sound"),
 		.name_prefix = "Mt6358",
 	},
 };

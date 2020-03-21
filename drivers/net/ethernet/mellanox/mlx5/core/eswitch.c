@@ -277,6 +277,7 @@ enum {
 
 static int esw_create_legacy_vepa_table(struct mlx5_eswitch *esw)
 {
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_flow_namespace *root_ns;
 	struct mlx5_flow_table *fdb;
@@ -289,8 +290,10 @@ static int esw_create_legacy_vepa_table(struct mlx5_eswitch *esw)
 	}
 
 	/* num FTE 2, num FG 2 */
-	fdb = mlx5_create_auto_grouped_flow_table(root_ns, LEGACY_VEPA_PRIO,
-						  2, 2, 0, 0);
+	ft_attr.prio = LEGACY_VEPA_PRIO;
+	ft_attr.max_fte = 2;
+	ft_attr.autogroup.max_num_groups = 2;
+	fdb = mlx5_create_auto_grouped_flow_table(root_ns, &ft_attr);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
 		esw_warn(dev, "Failed to create VEPA FDB err %d\n", err);
@@ -456,11 +459,15 @@ static void esw_destroy_legacy_table(struct mlx5_eswitch *esw)
 
 static int esw_legacy_enable(struct mlx5_eswitch *esw)
 {
-	int ret;
+	struct mlx5_vport *vport;
+	int ret, i;
 
 	ret = esw_create_legacy_table(esw);
 	if (ret)
 		return ret;
+
+	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->esw_funcs.num_vfs)
+		vport->info.link_state = MLX5_VPORT_ADMIN_STATE_AUTO;
 
 	ret = mlx5_eswitch_enable_pf_vf_vports(esw, MLX5_LEGACY_SRIOV_VPORT_EVENTS);
 	if (ret)
@@ -1928,8 +1935,10 @@ static void mlx5_eswitch_clear_vf_vports_info(struct mlx5_eswitch *esw)
 	struct mlx5_vport *vport;
 	int i;
 
-	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->esw_funcs.num_vfs)
+	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->esw_funcs.num_vfs) {
 		memset(&vport->info, 0, sizeof(vport->info));
+		vport->info.link_state = MLX5_VPORT_ADMIN_STATE_AUTO;
+	}
 }
 
 /* Public E-Switch API */
@@ -2447,25 +2456,17 @@ out:
 
 int mlx5_eswitch_get_vepa(struct mlx5_eswitch *esw, u8 *setting)
 {
-	int err = 0;
-
 	if (!esw)
 		return -EOPNOTSUPP;
 
 	if (!ESW_ALLOWED(esw))
 		return -EPERM;
 
-	mutex_lock(&esw->state_lock);
-	if (esw->mode != MLX5_ESWITCH_LEGACY) {
-		err = -EOPNOTSUPP;
-		goto out;
-	}
+	if (esw->mode != MLX5_ESWITCH_LEGACY)
+		return -EOPNOTSUPP;
 
 	*setting = esw->fdb_table.legacy.vepa_uplink_rule ? 1 : 0;
-
-out:
-	mutex_unlock(&esw->state_lock);
-	return err;
+	return 0;
 }
 
 int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,

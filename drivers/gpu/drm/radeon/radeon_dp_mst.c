@@ -518,7 +518,7 @@ static bool radeon_mst_mode_fixup(struct drm_encoder *encoder,
 
 	mst_enc = radeon_encoder->enc_priv;
 
-	mst_enc->pbn = drm_dp_calc_pbn_mode(adjusted_mode->clock, bpp);
+	mst_enc->pbn = drm_dp_calc_pbn_mode(adjusted_mode->clock, bpp, false);
 
 	mst_enc->primary->active_device = mst_enc->primary->devices & mst_enc->connector->devices;
 	DRM_DEBUG_KMS("setting active device to %08x from %08x %08x for encoder %d\n",

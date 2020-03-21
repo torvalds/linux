@@ -549,15 +549,6 @@ static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 	return err;
 }
 
-int skcipher_walk_aead(struct skcipher_walk *walk, struct aead_request *req,
-		       bool atomic)
-{
-	walk->total = req->cryptlen;
-
-	return skcipher_walk_aead_common(walk, req, atomic);
-}
-EXPORT_SYMBOL_GPL(skcipher_walk_aead);
-
 int skcipher_walk_aead_encrypt(struct skcipher_walk *walk,
 			       struct aead_request *req, bool atomic)
 {
@@ -578,14 +569,9 @@ int skcipher_walk_aead_decrypt(struct skcipher_walk *walk,
 }
 EXPORT_SYMBOL_GPL(skcipher_walk_aead_decrypt);
 
-static unsigned int crypto_skcipher_extsize(struct crypto_alg *alg)
-{
-	return crypto_alg_extsize(alg);
-}
-
 static void skcipher_set_needkey(struct crypto_skcipher *tfm)
 {
-	if (tfm->keysize)
+	if (crypto_skcipher_max_keysize(tfm) != 0)
 		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
 }
 
@@ -610,17 +596,15 @@ static int skcipher_setkey_unaligned(struct crypto_skcipher *tfm,
 	return ret;
 }
 
-static int skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
+int crypto_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			   unsigned int keylen)
 {
 	struct skcipher_alg *cipher = crypto_skcipher_alg(tfm);
 	unsigned long alignmask = crypto_skcipher_alignmask(tfm);
 	int err;
 
-	if (keylen < cipher->min_keysize || keylen > cipher->max_keysize) {
-		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen < cipher->min_keysize || keylen > cipher->max_keysize)
 		return -EINVAL;
-	}
 
 	if ((unsigned long)key & alignmask)
 		err = skcipher_setkey_unaligned(tfm, key, keylen);
@@ -635,6 +619,7 @@ static int skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	crypto_skcipher_clear_flags(tfm, CRYPTO_TFM_NEED_KEY);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(crypto_skcipher_setkey);
 
 int crypto_skcipher_encrypt(struct skcipher_request *req)
 {
@@ -647,7 +632,7 @@ int crypto_skcipher_encrypt(struct skcipher_request *req)
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		ret = -ENOKEY;
 	else
-		ret = tfm->encrypt(req);
+		ret = crypto_skcipher_alg(tfm)->encrypt(req);
 	crypto_stats_skcipher_encrypt(cryptlen, ret, alg);
 	return ret;
 }
@@ -664,7 +649,7 @@ int crypto_skcipher_decrypt(struct skcipher_request *req)
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		ret = -ENOKEY;
 	else
-		ret = tfm->decrypt(req);
+		ret = crypto_skcipher_alg(tfm)->decrypt(req);
 	crypto_stats_skcipher_decrypt(cryptlen, ret, alg);
 	return ret;
 }
@@ -682,12 +667,6 @@ static int crypto_skcipher_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_skcipher *skcipher = __crypto_skcipher_cast(tfm);
 	struct skcipher_alg *alg = crypto_skcipher_alg(skcipher);
-
-	skcipher->setkey = skcipher_setkey;
-	skcipher->encrypt = alg->encrypt;
-	skcipher->decrypt = alg->decrypt;
-	skcipher->ivsize = alg->ivsize;
-	skcipher->keysize = alg->max_keysize;
 
 	skcipher_set_needkey(skcipher);
 
@@ -754,7 +733,7 @@ static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 #endif
 
 static const struct crypto_type crypto_skcipher_type = {
-	.extsize = crypto_skcipher_extsize,
+	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_skcipher_init_tfm,
 	.free = crypto_skcipher_free_instance,
 #ifdef CONFIG_PROC_FS
@@ -768,10 +747,11 @@ static const struct crypto_type crypto_skcipher_type = {
 };
 
 int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn,
-			  const char *name, u32 type, u32 mask)
+			 struct crypto_instance *inst,
+			 const char *name, u32 type, u32 mask)
 {
 	spawn->base.frontend = &crypto_skcipher_type;
-	return crypto_grab_spawn(&spawn->base, name, type, mask);
+	return crypto_grab_spawn(&spawn->base, inst, name, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_grab_skcipher);
 
@@ -885,6 +865,9 @@ int skcipher_register_instance(struct crypto_template *tmpl,
 {
 	int err;
 
+	if (WARN_ON(!inst->free))
+		return -EINVAL;
+
 	err = skcipher_prepare_alg(&inst->alg);
 	if (err)
 		return err;
@@ -897,21 +880,17 @@ static int skcipher_setkey_simple(struct crypto_skcipher *tfm, const u8 *key,
 				  unsigned int keylen)
 {
 	struct crypto_cipher *cipher = skcipher_cipher_simple(tfm);
-	int err;
 
 	crypto_cipher_clear_flags(cipher, CRYPTO_TFM_REQ_MASK);
 	crypto_cipher_set_flags(cipher, crypto_skcipher_get_flags(tfm) &
 				CRYPTO_TFM_REQ_MASK);
-	err = crypto_cipher_setkey(cipher, key, keylen);
-	crypto_skcipher_set_flags(tfm, crypto_cipher_get_flags(cipher) &
-				  CRYPTO_TFM_RES_MASK);
-	return err;
+	return crypto_cipher_setkey(cipher, key, keylen);
 }
 
 static int skcipher_init_tfm_simple(struct crypto_skcipher *tfm)
 {
 	struct skcipher_instance *inst = skcipher_alg_instance(tfm);
-	struct crypto_spawn *spawn = skcipher_instance_ctx(inst);
+	struct crypto_cipher_spawn *spawn = skcipher_instance_ctx(inst);
 	struct skcipher_ctx_simple *ctx = crypto_skcipher_ctx(tfm);
 	struct crypto_cipher *cipher;
 
@@ -932,7 +911,7 @@ static void skcipher_exit_tfm_simple(struct crypto_skcipher *tfm)
 
 static void skcipher_free_instance_simple(struct skcipher_instance *inst)
 {
-	crypto_drop_spawn(skcipher_instance_ctx(inst));
+	crypto_drop_cipher(skcipher_instance_ctx(inst));
 	kfree(inst);
 }
 
@@ -948,21 +927,18 @@ static void skcipher_free_instance_simple(struct skcipher_instance *inst)
  *
  * @tmpl: the template being instantiated
  * @tb: the template parameters
- * @cipher_alg_ret: on success, a pointer to the underlying cipher algorithm is
- *		    returned here.  It must be dropped with crypto_mod_put().
  *
  * Return: a pointer to the new instance, or an ERR_PTR().  The caller still
  *	   needs to register the instance.
  */
-struct skcipher_instance *
-skcipher_alloc_instance_simple(struct crypto_template *tmpl, struct rtattr **tb,
-			       struct crypto_alg **cipher_alg_ret)
+struct skcipher_instance *skcipher_alloc_instance_simple(
+	struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct crypto_attr_type *algt;
-	struct crypto_alg *cipher_alg;
-	struct skcipher_instance *inst;
-	struct crypto_spawn *spawn;
 	u32 mask;
+	struct skcipher_instance *inst;
+	struct crypto_cipher_spawn *spawn;
+	struct crypto_alg *cipher_alg;
 	int err;
 
 	algt = crypto_get_attr_type(tb);
@@ -972,31 +948,25 @@ skcipher_alloc_instance_simple(struct crypto_template *tmpl, struct rtattr **tb,
 	if ((algt->type ^ CRYPTO_ALG_TYPE_SKCIPHER) & algt->mask)
 		return ERR_PTR(-EINVAL);
 
-	mask = CRYPTO_ALG_TYPE_MASK |
-		crypto_requires_off(algt->type, algt->mask,
-				    CRYPTO_ALG_NEED_FALLBACK);
-
-	cipher_alg = crypto_get_attr_alg(tb, CRYPTO_ALG_TYPE_CIPHER, mask);
-	if (IS_ERR(cipher_alg))
-		return ERR_CAST(cipher_alg);
+	mask = crypto_requires_off(algt->type, algt->mask,
+				   CRYPTO_ALG_NEED_FALLBACK);
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
-	if (!inst) {
-		err = -ENOMEM;
-		goto err_put_cipher_alg;
-	}
+	if (!inst)
+		return ERR_PTR(-ENOMEM);
 	spawn = skcipher_instance_ctx(inst);
+
+	err = crypto_grab_cipher(spawn, skcipher_crypto_instance(inst),
+				 crypto_attr_alg_name(tb[1]), 0, mask);
+	if (err)
+		goto err_free_inst;
+	cipher_alg = crypto_spawn_cipher_alg(spawn);
 
 	err = crypto_inst_setname(skcipher_crypto_instance(inst), tmpl->name,
 				  cipher_alg);
 	if (err)
 		goto err_free_inst;
 
-	err = crypto_init_spawn(spawn, cipher_alg,
-				skcipher_crypto_instance(inst),
-				CRYPTO_ALG_TYPE_MASK);
-	if (err)
-		goto err_free_inst;
 	inst->free = skcipher_free_instance_simple;
 
 	/* Default algorithm properties, can be overridden */
@@ -1013,13 +983,10 @@ skcipher_alloc_instance_simple(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.init = skcipher_init_tfm_simple;
 	inst->alg.exit = skcipher_exit_tfm_simple;
 
-	*cipher_alg_ret = cipher_alg;
 	return inst;
 
 err_free_inst:
-	kfree(inst);
-err_put_cipher_alg:
-	crypto_mod_put(cipher_alg);
+	skcipher_free_instance_simple(inst);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(skcipher_alloc_instance_simple);

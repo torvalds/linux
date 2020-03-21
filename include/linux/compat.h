@@ -248,15 +248,6 @@ typedef struct compat_siginfo {
 	} _sifields;
 } compat_siginfo_t;
 
-/*
- * These functions operate on 32- or 64-bit specs depending on
- * COMPAT_USE_64BIT_TIME, hence the void user pointer arguments.
- */
-extern int compat_get_timespec(struct timespec *, const void __user *);
-extern int compat_put_timespec(const struct timespec *, void __user *);
-extern int compat_get_timeval(struct timeval *, const void __user *);
-extern int compat_put_timeval(const struct timeval *, void __user *);
-
 struct compat_iovec {
 	compat_uptr_t	iov_base;
 	compat_size_t	iov_len;
@@ -415,26 +406,6 @@ int copy_siginfo_from_user32(kernel_siginfo_t *to, const struct compat_siginfo _
 int copy_siginfo_to_user32(struct compat_siginfo __user *to, const kernel_siginfo_t *from);
 int get_compat_sigevent(struct sigevent *event,
 		const struct compat_sigevent __user *u_event);
-
-static inline int old_timeval32_compare(struct old_timeval32 *lhs,
-					struct old_timeval32 *rhs)
-{
-	if (lhs->tv_sec < rhs->tv_sec)
-		return -1;
-	if (lhs->tv_sec > rhs->tv_sec)
-		return 1;
-	return lhs->tv_usec - rhs->tv_usec;
-}
-
-static inline int old_timespec32_compare(struct old_timespec32 *lhs,
-					struct old_timespec32 *rhs)
-{
-	if (lhs->tv_sec < rhs->tv_sec)
-		return -1;
-	if (lhs->tv_sec > rhs->tv_sec)
-		return 1;
-	return lhs->tv_nsec - rhs->tv_nsec;
-}
 
 extern int get_compat_sigset(sigset_t *set, const compat_sigset_t __user *compat);
 
@@ -957,5 +928,23 @@ int kcompat_sys_fstatfs64(unsigned int fd, compat_size_t sz,
 static inline bool in_compat_syscall(void) { return false; }
 
 #endif /* CONFIG_COMPAT */
+
+/*
+ * A pointer passed in from user mode. This should not
+ * be used for syscall parameters, just declare them
+ * as pointers because the syscall entry code will have
+ * appropriately converted them already.
+ */
+#ifndef compat_ptr
+static inline void __user *compat_ptr(compat_uptr_t uptr)
+{
+	return (void __user *)(unsigned long)uptr;
+}
+#endif
+
+static inline compat_uptr_t ptr_to_compat(void __user *uptr)
+{
+	return (u32)(unsigned long)uptr;
+}
 
 #endif /* _LINUX_COMPAT_H */

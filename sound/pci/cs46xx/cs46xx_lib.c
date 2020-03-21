@@ -1645,7 +1645,6 @@ static int snd_cs46xx_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_cs46xx_playback_rear_ops = {
 	.open =			snd_cs46xx_playback_open_rear,
 	.close =		snd_cs46xx_playback_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_cs46xx_playback_hw_params,
 	.hw_free =		snd_cs46xx_playback_hw_free,
 	.prepare =		snd_cs46xx_playback_prepare,
@@ -1656,7 +1655,6 @@ static const struct snd_pcm_ops snd_cs46xx_playback_rear_ops = {
 static const struct snd_pcm_ops snd_cs46xx_playback_indirect_rear_ops = {
 	.open =			snd_cs46xx_playback_open_rear,
 	.close =		snd_cs46xx_playback_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_cs46xx_playback_hw_params,
 	.hw_free =		snd_cs46xx_playback_hw_free,
 	.prepare =		snd_cs46xx_playback_prepare,
@@ -1668,7 +1666,6 @@ static const struct snd_pcm_ops snd_cs46xx_playback_indirect_rear_ops = {
 static const struct snd_pcm_ops snd_cs46xx_playback_clfe_ops = {
 	.open =			snd_cs46xx_playback_open_clfe,
 	.close =		snd_cs46xx_playback_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_cs46xx_playback_hw_params,
 	.hw_free =		snd_cs46xx_playback_hw_free,
 	.prepare =		snd_cs46xx_playback_prepare,
@@ -1679,7 +1676,6 @@ static const struct snd_pcm_ops snd_cs46xx_playback_clfe_ops = {
 static const struct snd_pcm_ops snd_cs46xx_playback_indirect_clfe_ops = {
 	.open =			snd_cs46xx_playback_open_clfe,
 	.close =		snd_cs46xx_playback_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_cs46xx_playback_hw_params,
 	.hw_free =		snd_cs46xx_playback_hw_free,
 	.prepare =		snd_cs46xx_playback_prepare,
@@ -1691,7 +1687,6 @@ static const struct snd_pcm_ops snd_cs46xx_playback_indirect_clfe_ops = {
 static const struct snd_pcm_ops snd_cs46xx_playback_iec958_ops = {
 	.open =			snd_cs46xx_playback_open_iec958,
 	.close =		snd_cs46xx_playback_close_iec958,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_cs46xx_playback_hw_params,
 	.hw_free =		snd_cs46xx_playback_hw_free,
 	.prepare =		snd_cs46xx_playback_prepare,
@@ -1702,7 +1697,6 @@ static const struct snd_pcm_ops snd_cs46xx_playback_iec958_ops = {
 static const struct snd_pcm_ops snd_cs46xx_playback_indirect_iec958_ops = {
 	.open =			snd_cs46xx_playback_open_iec958,
 	.close =		snd_cs46xx_playback_close_iec958,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_cs46xx_playback_hw_params,
 	.hw_free =		snd_cs46xx_playback_hw_free,
 	.prepare =		snd_cs46xx_playback_prepare,
@@ -1716,7 +1710,6 @@ static const struct snd_pcm_ops snd_cs46xx_playback_indirect_iec958_ops = {
 static const struct snd_pcm_ops snd_cs46xx_playback_ops = {
 	.open =			snd_cs46xx_playback_open,
 	.close =		snd_cs46xx_playback_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_cs46xx_playback_hw_params,
 	.hw_free =		snd_cs46xx_playback_hw_free,
 	.prepare =		snd_cs46xx_playback_prepare,
@@ -1727,7 +1720,6 @@ static const struct snd_pcm_ops snd_cs46xx_playback_ops = {
 static const struct snd_pcm_ops snd_cs46xx_playback_indirect_ops = {
 	.open =			snd_cs46xx_playback_open,
 	.close =		snd_cs46xx_playback_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_cs46xx_playback_hw_params,
 	.hw_free =		snd_cs46xx_playback_hw_free,
 	.prepare =		snd_cs46xx_playback_prepare,
@@ -1739,7 +1731,6 @@ static const struct snd_pcm_ops snd_cs46xx_playback_indirect_ops = {
 static const struct snd_pcm_ops snd_cs46xx_capture_ops = {
 	.open =			snd_cs46xx_capture_open,
 	.close =		snd_cs46xx_capture_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_cs46xx_capture_hw_params,
 	.hw_free =		snd_cs46xx_capture_hw_free,
 	.prepare =		snd_cs46xx_capture_prepare,
@@ -1750,7 +1741,6 @@ static const struct snd_pcm_ops snd_cs46xx_capture_ops = {
 static const struct snd_pcm_ops snd_cs46xx_capture_indirect_ops = {
 	.open =			snd_cs46xx_capture_open,
 	.close =		snd_cs46xx_capture_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_cs46xx_capture_hw_params,
 	.hw_free =		snd_cs46xx_capture_hw_free,
 	.prepare =		snd_cs46xx_capture_prepare,
@@ -2248,7 +2238,7 @@ static int snd_cs46xx_spdif_stream_put(struct snd_kcontrol *kcontrol,
 #endif /* CONFIG_SND_CS46XX_NEW_DSP */
 
 
-static struct snd_kcontrol_new snd_cs46xx_controls[] = {
+static const struct snd_kcontrol_new snd_cs46xx_controls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "DAC Volume",
@@ -2374,7 +2364,7 @@ static const struct snd_kcontrol_new snd_cs46xx_front_dup_ctl = {
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 /* Only available on the Hercules Game Theater XP soundcard */
-static struct snd_kcontrol_new snd_hercules_controls[] = {
+static const struct snd_kcontrol_new snd_hercules_controls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Optical/Coaxial SPDIF Input Switch",
@@ -2475,7 +2465,7 @@ int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 	struct snd_ctl_elem_id id;
 	int err;
 	unsigned int idx;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 		.reset = snd_cs46xx_codec_reset,
 #endif
@@ -2825,7 +2815,7 @@ static ssize_t snd_cs46xx_io_read(struct snd_info_entry *entry,
 	return count;
 }
 
-static struct snd_info_entry_ops snd_cs46xx_proc_io_ops = {
+static const struct snd_info_entry_ops snd_cs46xx_proc_io_ops = {
 	.read = snd_cs46xx_io_read,
 };
 
@@ -3755,7 +3745,7 @@ static struct cs_card_type cards[] = {
  * APM support
  */
 #ifdef CONFIG_PM_SLEEP
-static unsigned int saved_regs[] = {
+static const unsigned int saved_regs[] = {
 	BA0_ACOSV,
 	/*BA0_ASER_FADDR,*/
 	BA0_ASER_MASTER,
@@ -3874,7 +3864,7 @@ int snd_cs46xx_create(struct snd_card *card,
 	struct snd_cs46xx_region *region;
 	struct cs_card_type *cp;
 	u16 ss_card, ss_vendor;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_cs46xx_dev_free,
 	};
 	
@@ -3983,7 +3973,7 @@ int snd_cs46xx_create(struct snd_card *card,
 			snd_cs46xx_free(chip);
 			return -EBUSY;
 		}
-		region->remap_addr = ioremap_nocache(region->base, region->size);
+		region->remap_addr = ioremap(region->base, region->size);
 		if (region->remap_addr == NULL) {
 			dev_err(chip->card->dev,
 				"%s ioremap problem\n", region->name);
@@ -3999,6 +3989,7 @@ int snd_cs46xx_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	chip->dsp_spos_instance = cs46xx_dsp_spos_create(chip);

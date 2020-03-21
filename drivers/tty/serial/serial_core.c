@@ -2603,6 +2603,7 @@ struct tty_driver *uart_console_device(struct console *co, int *index)
 	*index = co->index;
 	return p->tty_driver;
 }
+EXPORT_SYMBOL_GPL(uart_console_device);
 
 static ssize_t uart_get_attr_uartclk(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -3080,6 +3081,89 @@ void uart_insert_char(struct uart_port *port, unsigned int status,
 			++port->icount.buf_overrun;
 }
 EXPORT_SYMBOL_GPL(uart_insert_char);
+
+int uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
+{
+	if (!IS_ENABLED(CONFIG_MAGIC_SYSRQ_SERIAL))
+		return 0;
+
+	if (!port->has_sysrq || !port->sysrq)
+		return 0;
+
+	if (ch && time_before(jiffies, port->sysrq)) {
+		handle_sysrq(ch);
+		port->sysrq = 0;
+		return 1;
+	}
+	port->sysrq = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(uart_handle_sysrq_char);
+
+int uart_prepare_sysrq_char(struct uart_port *port, unsigned int ch)
+{
+	if (!IS_ENABLED(CONFIG_MAGIC_SYSRQ_SERIAL))
+		return 0;
+
+	if (!port->has_sysrq || !port->sysrq)
+		return 0;
+
+	if (ch && time_before(jiffies, port->sysrq)) {
+		port->sysrq_ch = ch;
+		port->sysrq = 0;
+		return 1;
+	}
+	port->sysrq = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(uart_prepare_sysrq_char);
+
+void uart_unlock_and_check_sysrq(struct uart_port *port, unsigned long irqflags)
+{
+	int sysrq_ch;
+
+	if (!port->has_sysrq) {
+		spin_unlock_irqrestore(&port->lock, irqflags);
+		return;
+	}
+
+	sysrq_ch = port->sysrq_ch;
+	port->sysrq_ch = 0;
+
+	spin_unlock_irqrestore(&port->lock, irqflags);
+
+	if (sysrq_ch)
+		handle_sysrq(sysrq_ch);
+}
+EXPORT_SYMBOL_GPL(uart_unlock_and_check_sysrq);
+
+/*
+ * We do the SysRQ and SAK checking like this...
+ */
+int uart_handle_break(struct uart_port *port)
+{
+	struct uart_state *state = port->state;
+
+	if (port->handle_break)
+		port->handle_break(port);
+
+	if (port->has_sysrq) {
+		if (port->cons && port->cons->index == port->line) {
+			if (!port->sysrq) {
+				port->sysrq = jiffies + HZ*5;
+				return 1;
+			}
+			port->sysrq = 0;
+		}
+	}
+
+	if (port->flags & UPF_SAK)
+		do_SAK(state->port.tty);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(uart_handle_break);
 
 EXPORT_SYMBOL(uart_write_wakeup);
 EXPORT_SYMBOL(uart_register_driver);

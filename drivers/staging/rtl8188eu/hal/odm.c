@@ -967,10 +967,11 @@ void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
 
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 1;
 		return;
-	} else {
-		rtl88eu_dm_txpower_tracking_callback_thermalmeter(Adapter);
-		pDM_Odm->RFCalibrateInfo.TM_Trigger = 0;
 	}
+
+	rtl88eu_dm_txpower_tracking_callback_thermalmeter(Adapter);
+	pDM_Odm->RFCalibrateInfo.TM_Trigger = 0;
+
 }
 
 /* 3============================================================ */

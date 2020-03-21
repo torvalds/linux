@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/buffer_head.h>
 
-#ifdef CONFIG_EXFAT_KERNEL_DEBUG
+#ifdef CONFIG_STAGING_EXFAT_KERNEL_DEBUG
   /* For Debugging Purpose */
 	/* IOCTL code 'f' used by
 	 *   - file systems typically #0~0x1F
@@ -22,9 +22,9 @@
 
 #define EXFAT_DEBUGFLAGS_INVALID_UMOUNT	0x01
 #define EXFAT_DEBUGFLAGS_ERROR_RW	0x02
-#endif /* CONFIG_EXFAT_KERNEL_DEBUG */
+#endif /* CONFIG_STAGING_EXFAT_KERNEL_DEBUG */
 
-#ifdef CONFIG_EXFAT_DEBUG_MSG
+#ifdef CONFIG_STAGING_EXFAT_DEBUG_MSG
 #define DEBUG	1
 #else
 #undef DEBUG
@@ -516,49 +516,6 @@ struct buf_cache_t {
 	struct buffer_head   *buf_bh;
 };
 
-struct fs_func {
-	s32	(*alloc_cluster)(struct super_block *sb, s32 num_alloc,
-				 struct chain_t *p_chain);
-	void	(*free_cluster)(struct super_block *sb, struct chain_t *p_chain,
-				s32 do_relse);
-	s32	(*count_used_clusters)(struct super_block *sb);
-
-	s32	(*init_dir_entry)(struct super_block *sb, struct chain_t *p_dir,
-				  s32 entry, u32 type, u32 start_clu, u64 size);
-	s32	(*init_ext_entry)(struct super_block *sb, struct chain_t *p_dir,
-				  s32 entry, s32 num_entries,
-				  struct uni_name_t *p_uniname,
-				  struct dos_name_t *p_dosname);
-	s32	(*find_dir_entry)(struct super_block *sb, struct chain_t *p_dir,
-				  struct uni_name_t *p_uniname, s32 num_entries,
-				  struct dos_name_t *p_dosname, u32 type);
-	void	(*delete_dir_entry)(struct super_block *sb,
-				    struct chain_t *p_dir, s32 entry,
-				    s32 offset, s32 num_entries);
-	void	(*get_uni_name_from_ext_entry)(struct super_block *sb,
-					       struct chain_t *p_dir, s32 entry,
-					       u16 *uniname);
-	s32	(*count_ext_entries)(struct super_block *sb,
-				     struct chain_t *p_dir, s32 entry,
-				     struct dentry_t *p_entry);
-	s32	(*calc_num_entries)(struct uni_name_t *p_uniname);
-
-	u32	(*get_entry_type)(struct dentry_t *p_entry);
-	void	(*set_entry_type)(struct dentry_t *p_entry, u32 type);
-	u32	(*get_entry_attr)(struct dentry_t *p_entry);
-	void	(*set_entry_attr)(struct dentry_t *p_entry, u32 attr);
-	u8	(*get_entry_flag)(struct dentry_t *p_entry);
-	void	(*set_entry_flag)(struct dentry_t *p_entry, u8 flag);
-	u32	(*get_entry_clu0)(struct dentry_t *p_entry);
-	void	(*set_entry_clu0)(struct dentry_t *p_entry, u32 clu0);
-	u64	(*get_entry_size)(struct dentry_t *p_entry);
-	void	(*set_entry_size)(struct dentry_t *p_entry, u64 size);
-	void	(*get_entry_time)(struct dentry_t *p_entry,
-				  struct timestamp_t *tp, u8 mode);
-	void	(*set_entry_time)(struct dentry_t *p_entry,
-				  struct timestamp_t *tp, u8 mode);
-};
-
 struct fs_info_t {
 	u32      drv;                    /* drive ID */
 	u32      vol_type;               /* volume FAT type */
@@ -597,7 +554,6 @@ struct fs_info_t {
 
 	u32 dev_ejected;	/* block device operation error flag */
 
-	struct fs_func *fs_func;
 	struct mutex v_mutex;
 
 	/* FAT cache */
@@ -661,10 +617,10 @@ struct exfat_mount_options {
 
 	/* on error: continue, panic, remount-ro */
 	unsigned char errors;
-#ifdef CONFIG_EXFAT_DISCARD
+#ifdef CONFIG_STAGING_EXFAT_DISCARD
 	/* flag on if -o dicard specified and device support discard() */
 	unsigned char discard;
-#endif /* CONFIG_EXFAT_DISCARD */
+#endif /* CONFIG_STAGING_EXFAT_DISCARD */
 };
 
 #define EXFAT_HASH_BITS		8
@@ -700,9 +656,9 @@ struct exfat_sb_info {
 
 	spinlock_t inode_hash_lock;
 	struct hlist_head inode_hashtable[EXFAT_HASH_SIZE];
-#ifdef CONFIG_EXFAT_KERNEL_DEBUG
+#ifdef CONFIG_STAGING_EXFAT_KERNEL_DEBUG
 	long debug_flags;
-#endif /* CONFIG_EXFAT_KERNEL_DEBUG */
+#endif /* CONFIG_STAGING_EXFAT_KERNEL_DEBUG */
 };
 
 /*
@@ -828,6 +784,41 @@ int exfat_bdev_read(struct super_block *sb, sector_t secno,
 int exfat_bdev_write(struct super_block *sb, sector_t secno,
 	       struct buffer_head *bh, u32 num_secs, bool sync);
 int exfat_bdev_sync(struct super_block *sb);
+
+/* cluster operation functions */
+s32 exfat_alloc_cluster(struct super_block *sb, s32 num_alloc,
+			struct chain_t *p_chain);
+void exfat_free_cluster(struct super_block *sb, struct chain_t *p_chain,
+			s32 do_relse);
+s32 exfat_count_used_clusters(struct super_block *sb);
+
+/* dir operation functions */
+s32 exfat_find_dir_entry(struct super_block *sb, struct chain_t *p_dir,
+			 struct uni_name_t *p_uniname, s32 num_entries,
+			 struct dos_name_t *p_dosname, u32 type);
+void exfat_delete_dir_entry(struct super_block *sb, struct chain_t *p_dir,
+			    s32 entry, s32 order, s32 num_entries);
+void exfat_get_uni_name_from_ext_entry(struct super_block *sb,
+				       struct chain_t *p_dir, s32 entry,
+				       u16 *uniname);
+s32 exfat_count_ext_entries(struct super_block *sb, struct chain_t *p_dir,
+			    s32 entry, struct dentry_t *p_entry);
+s32 exfat_calc_num_entries(struct uni_name_t *p_uniname);
+
+/* dir entry getter/setter */
+u32 exfat_get_entry_type(struct dentry_t *p_entry);
+u32 exfat_get_entry_attr(struct dentry_t *p_entry);
+void exfat_set_entry_attr(struct dentry_t *p_entry, u32 attr);
+u8 exfat_get_entry_flag(struct dentry_t *p_entry);
+void exfat_set_entry_flag(struct dentry_t *p_entry, u8 flags);
+u32 exfat_get_entry_clu0(struct dentry_t *p_entry);
+void exfat_set_entry_clu0(struct dentry_t *p_entry, u32 start_clu);
+u64 exfat_get_entry_size(struct dentry_t *p_entry);
+void exfat_set_entry_size(struct dentry_t *p_entry, u64 size);
+void exfat_get_entry_time(struct dentry_t *p_entry, struct timestamp_t *tp,
+			  u8 mode);
+void exfat_set_entry_time(struct dentry_t *p_entry, struct timestamp_t *tp,
+			  u8 mode);
 
 extern const u8 uni_upcase[];
 #endif /* _EXFAT_H */

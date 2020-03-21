@@ -12,6 +12,8 @@
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
 #include "i915_vma.h"
+#include "i915_gem_lmem.h"
+#include "i915_gem_mman.h"
 
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 {
@@ -148,9 +150,17 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	GEM_BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_GTT) != 0);
 	obj->read_domains |= I915_GEM_DOMAIN_GTT;
 	if (write) {
+		struct i915_vma *vma;
+
 		obj->read_domains = I915_GEM_DOMAIN_GTT;
 		obj->write_domain = I915_GEM_DOMAIN_GTT;
 		obj->mm.dirty = true;
+
+		spin_lock(&obj->vma.lock);
+		for_each_ggtt_vma(vma, obj)
+			if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
+				i915_vma_set_ggtt_write(vma);
+		spin_unlock(&obj->vma.lock);
 	}
 
 	i915_gem_object_unpin_pages(obj);
@@ -175,138 +185,34 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level)
 {
-	struct i915_vma *vma;
 	int ret;
-
-	assert_object_held(obj);
 
 	if (obj->cache_level == cache_level)
 		return 0;
 
-	/* Inspect the list of currently bound VMA and unbind any that would
-	 * be invalid given the new cache-level. This is principally to
-	 * catch the issue of the CS prefetch crossing page boundaries and
-	 * reading an invalid PTE on older architectures.
-	 */
-restart:
-	list_for_each_entry(vma, &obj->vma.list, obj_link) {
-		if (!drm_mm_node_allocated(&vma->node))
-			continue;
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_ALL,
+				   MAX_SCHEDULE_TIMEOUT);
+	if (ret)
+		return ret;
 
-		if (i915_vma_is_pinned(vma)) {
-			DRM_DEBUG("can not change the cache level of pinned objects\n");
-			return -EBUSY;
-		}
+	ret = i915_gem_object_lock_interruptible(obj);
+	if (ret)
+		return ret;
 
-		if (!i915_vma_is_closed(vma) &&
-		    i915_gem_valid_gtt_space(vma, cache_level))
-			continue;
-
-		ret = i915_vma_unbind(vma);
-		if (ret)
-			return ret;
-
-		/* As unbinding may affect other elements in the
-		 * obj->vma_list (due to side-effects from retiring
-		 * an active vma), play safe and restart the iterator.
-		 */
-		goto restart;
+	/* Always invalidate stale cachelines */
+	if (obj->cache_level != cache_level) {
+		i915_gem_object_set_cache_coherency(obj, cache_level);
+		obj->cache_dirty = true;
 	}
 
-	/* We can reuse the existing drm_mm nodes but need to change the
-	 * cache-level on the PTE. We could simply unbind them all and
-	 * rebind with the correct cache-level on next use. However since
-	 * we already have a valid slot, dma mapping, pages etc, we may as
-	 * rewrite the PTE in the belief that doing so tramples upon less
-	 * state and so involves less work.
-	 */
-	if (atomic_read(&obj->bind_count)) {
-		struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	i915_gem_object_unlock(obj);
 
-		/* Before we change the PTE, the GPU must not be accessing it.
-		 * If we wait upon the object, we know that all the bound
-		 * VMA are no longer active.
-		 */
-		ret = i915_gem_object_wait(obj,
-					   I915_WAIT_INTERRUPTIBLE |
-					   I915_WAIT_ALL,
-					   MAX_SCHEDULE_TIMEOUT);
-		if (ret)
-			return ret;
-
-		if (!HAS_LLC(i915) && cache_level != I915_CACHE_NONE) {
-			intel_wakeref_t wakeref =
-				intel_runtime_pm_get(&i915->runtime_pm);
-
-			/*
-			 * Access to snoopable pages through the GTT is
-			 * incoherent and on some machines causes a hard
-			 * lockup. Relinquish the CPU mmaping to force
-			 * userspace to refault in the pages and we can
-			 * then double check if the GTT mapping is still
-			 * valid for that pointer access.
-			 */
-			ret = mutex_lock_interruptible(&i915->ggtt.vm.mutex);
-			if (ret) {
-				intel_runtime_pm_put(&i915->runtime_pm,
-						     wakeref);
-				return ret;
-			}
-
-			if (obj->userfault_count)
-				__i915_gem_object_release_mmap(obj);
-
-			/*
-			 * As we no longer need a fence for GTT access,
-			 * we can relinquish it now (and so prevent having
-			 * to steal a fence from someone else on the next
-			 * fence request). Note GPU activity would have
-			 * dropped the fence as all snoopable access is
-			 * supposed to be linear.
-			 */
-			for_each_ggtt_vma(vma, obj) {
-				ret = i915_vma_revoke_fence(vma);
-				if (ret)
-					break;
-			}
-			mutex_unlock(&i915->ggtt.vm.mutex);
-			intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-			if (ret)
-				return ret;
-		} else {
-			/*
-			 * We either have incoherent backing store and
-			 * so no GTT access or the architecture is fully
-			 * coherent. In such cases, existing GTT mmaps
-			 * ignore the cache bit in the PTE and we can
-			 * rewrite it without confusing the GPU or having
-			 * to force userspace to fault back in its mmaps.
-			 */
-		}
-
-		list_for_each_entry(vma, &obj->vma.list, obj_link) {
-			if (!drm_mm_node_allocated(&vma->node))
-				continue;
-
-			/* Wait for an earlier async bind, need to rewrite it */
-			ret = i915_vma_sync(vma);
-			if (ret)
-				return ret;
-
-			ret = i915_vma_bind(vma, cache_level, PIN_UPDATE, NULL);
-			if (ret)
-				return ret;
-		}
-	}
-
-	list_for_each_entry(vma, &obj->vma.list, obj_link) {
-		if (i915_vm_has_cache_coloring(vma->vm))
-			vma->node.color = cache_level;
-	}
-	i915_gem_object_set_cache_coherency(obj, cache_level);
-	obj->cache_dirty = true; /* Always invalidate stale cachelines */
-
-	return 0;
+	/* The cache-level will be applied when each vma is rebound. */
+	return i915_gem_object_unbind(obj,
+				      I915_GEM_OBJECT_UNBIND_ACTIVE |
+				      I915_GEM_OBJECT_UNBIND_BARRIER);
 }
 
 int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
@@ -387,20 +293,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	if (obj->cache_level == level)
-		goto out;
-
-	ret = i915_gem_object_wait(obj,
-				   I915_WAIT_INTERRUPTIBLE,
-				   MAX_SCHEDULE_TIMEOUT);
-	if (ret)
-		goto out;
-
-	ret = i915_gem_object_lock_interruptible(obj);
-	if (ret == 0) {
-		ret = i915_gem_object_set_cache_level(obj, level);
-		i915_gem_object_unlock(obj);
-	}
+	ret = i915_gem_object_set_cache_level(obj, level);
 
 out:
 	i915_gem_object_put(obj);
@@ -419,10 +312,13 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     const struct i915_ggtt_view *view,
 				     unsigned int flags)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_vma *vma;
 	int ret;
 
-	assert_object_held(obj);
+	/* Frame buffer must be in LMEM (no migration yet) */
+	if (HAS_LMEM(i915) && !i915_gem_object_is_lmem(obj))
+		return ERR_PTR(-EINVAL);
 
 	/*
 	 * The display engine is not coherent with the LLC cache on gen6.  As
@@ -435,7 +331,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * with that bit in the PTE to main memory with just one PIPE_CONTROL.
 	 */
 	ret = i915_gem_object_set_cache_level(obj,
-					      HAS_WT(to_i915(obj->base.dev)) ?
+					      HAS_WT(i915) ?
 					      I915_CACHE_WT : I915_CACHE_NONE);
 	if (ret)
 		return ERR_PTR(ret);
@@ -462,13 +358,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
-	__i915_gem_object_flush_for_display(obj);
-
-	/*
-	 * It should now be out of any other write domains, and we can update
-	 * the domain values for our changes.
-	 */
-	obj->read_domains |= I915_GEM_DOMAIN_GTT;
+	i915_gem_object_flush_if_display(obj);
 
 	return vma;
 }
@@ -479,8 +369,11 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	if (!atomic_read(&obj->bind_count))
+		return;
 
 	mutex_lock(&i915->ggtt.vm.mutex);
+	spin_lock(&obj->vma.lock);
 	for_each_ggtt_vma(vma, obj) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
@@ -488,6 +381,7 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 		GEM_BUG_ON(vma->vm != &i915->ggtt.vm);
 		list_move_tail(&vma->vm_link, &vma->vm->bound_list);
 	}
+	spin_unlock(&obj->vma.lock);
 	mutex_unlock(&i915->ggtt.vm.mutex);
 
 	if (i915_gem_object_is_shrinkable(obj)) {

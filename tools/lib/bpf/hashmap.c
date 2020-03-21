@@ -12,6 +12,9 @@
 #include <linux/err.h>
 #include "hashmap.h"
 
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
 /* start with 4 buckets */
 #define HASHMAP_MIN_CAP_BITS 2
 

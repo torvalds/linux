@@ -3,7 +3,7 @@
 // Copyright (c) 2011-2014 Samsung Electronics Co., Ltd.
 //		http://www.samsung.com/
 //
-// EXYNOS - CPU PMU(Power Management Unit) support
+// Exynos - CPU PMU(Power Management Unit) support
 
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -110,10 +110,8 @@ EXPORT_SYMBOL_GPL(exynos_get_pmu_regmap);
 static int exynos_pmu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pmu_base_addr = devm_ioremap_resource(dev, res);
+	pmu_base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pmu_base_addr))
 		return PTR_ERR(pmu_base_addr);
 

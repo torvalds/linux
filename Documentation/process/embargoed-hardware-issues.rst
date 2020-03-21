@@ -1,3 +1,5 @@
+.. _embargoed_hardware_issues:
+
 Embargoed hardware issues
 =========================
 
@@ -36,7 +38,10 @@ issue according to our documented process.
 The list is encrypted and email to the list can be sent by either PGP or
 S/MIME encrypted and must be signed with the reporter's PGP key or S/MIME
 certificate. The list's PGP key and S/MIME certificate are available from
-https://www.kernel.org/....
+the following URLs:
+
+  - PGP: https://www.kernel.org/static/files/hardware-security.asc
+  - S/MIME: https://www.kernel.org/static/files/hardware-security.crt
 
 While hardware security issues are often handled by the affected hardware
 vendor, we welcome contact from researchers or individuals who have
@@ -55,14 +60,14 @@ Operation of mailing-lists
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The encrypted mailing-lists which are used in our process are hosted on
-Linux Foundation's IT infrastructure. By providing this service Linux
-Foundation's director of IT Infrastructure security technically has the
-ability to access the embargoed information, but is obliged to
-confidentiality by his employment contract. Linux Foundation's director of
-IT Infrastructure security is also responsible for the kernel.org
-infrastructure.
+Linux Foundation's IT infrastructure. By providing this service, members
+of Linux Foundation's IT operations personnel technically have the
+ability to access the embargoed information, but are obliged to
+confidentiality by their employment contract. Linux Foundation IT
+personnel are also responsible for operating and managing the rest of
+kernel.org infrastructure.
 
-The Linux Foundation's current director of IT Infrastructure security is
+The Linux Foundation's current director of IT Project infrastructure is
 Konstantin Ryabitsev.
 
 
@@ -239,23 +244,23 @@ disclosure of a particular issue, unless requested by a response team or by
 an involved disclosed party. The current ambassadors list:
 
   ============= ========================================================
-  ARM
+  ARM           Grant Likely <grant.likely@arm.com>
   AMD		Tom Lendacky <tom.lendacky@amd.com>
   IBM
   Intel		Tony Luck <tony.luck@intel.com>
   Qualcomm	Trilok Soni <tsoni@codeaurora.org>
 
-  Microsoft	Sasha Levin <sashal@kernel.org>
+  Microsoft	James Morris <jamorris@linux.microsoft.com>
   VMware
   Xen		Andrew Cooper <andrew.cooper3@citrix.com>
 
-  Canonical	Tyler Hicks <tyhicks@canonical.com>
+  Canonical	John Johansen <john.johansen@canonical.com>
   Debian	Ben Hutchings <ben@decadent.org.uk>
   Oracle	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
   Red Hat	Josh Poimboeuf <jpoimboe@redhat.com>
   SUSE		Jiri Kosina <jkosina@suse.cz>
 
-  Amazon	Peter Bowen <pzb@amzn.com>
+  Amazon
   Google	Kees Cook <keescook@chromium.org>
   ============= ========================================================
 
@@ -274,7 +279,7 @@ software decrypts the email and re-encrypts it individually for each
 subscriber with the subscriber's PGP key or S/MIME certificate. Details
 about the mailing-list software and the setup which is used to ensure the
 security of the lists and protection of the data can be found here:
-https://www.kernel.org/....
+https://korg.wiki.kernel.org/userdoc/remail.
 
 List keys
 ^^^^^^^^^

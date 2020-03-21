@@ -270,7 +270,7 @@ static bool arcmsr_remap_pciregion(struct AdapterControlBlock *acb)
 		break;
 	}
 	case ACB_ADAPTER_TYPE_C:{
-		acb->pmuC = ioremap_nocache(pci_resource_start(pdev, 1), pci_resource_len(pdev, 1));
+		acb->pmuC = ioremap(pci_resource_start(pdev, 1), pci_resource_len(pdev, 1));
 		if (!acb->pmuC) {
 			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n", acb->host->host_no);
 			return false;

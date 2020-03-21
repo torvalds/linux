@@ -902,7 +902,7 @@ struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 				major, minor);
 		ret = -ENXIO;
 		goto fail;
-	};
+	}
 
 	/* only after mdp5_cfg global pointer's init can we access the hw */
 	for (i = 0; i < num_handlers; i++) {

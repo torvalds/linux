@@ -120,7 +120,7 @@ static void vidi_update_plane(struct exynos_drm_crtc *crtc,
 	DRM_DEV_DEBUG_KMS(ctx->dev, "dma_addr = %pad\n", &addr);
 }
 
-static void vidi_enable(struct exynos_drm_crtc *crtc)
+static void vidi_atomic_enable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
 
@@ -133,7 +133,7 @@ static void vidi_enable(struct exynos_drm_crtc *crtc)
 	drm_crtc_vblank_on(&crtc->base);
 }
 
-static void vidi_disable(struct exynos_drm_crtc *crtc)
+static void vidi_atomic_disable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
 
@@ -147,8 +147,8 @@ static void vidi_disable(struct exynos_drm_crtc *crtc)
 }
 
 static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
-	.enable = vidi_enable,
-	.disable = vidi_disable,
+	.atomic_enable = vidi_atomic_enable,
+	.atomic_disable = vidi_atomic_disable,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.update_plane = vidi_update_plane,

@@ -75,12 +75,16 @@ base907c_xlut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	}
 }
 
-static void
-base907c_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+static bool
+base907c_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 {
-	asyw->xlut.i.mode = 7;
+	if (size != 256 && size != 1024)
+		return false;
+
+	asyw->xlut.i.mode = size == 1024 ? 4 : 7;
 	asyw->xlut.i.enable = 2;
 	asyw->xlut.i.load = head907d_olut_load;
+	return true;
 }
 
 static inline u32
@@ -160,6 +164,7 @@ base907c = {
 	.csc_set = base907c_csc_set,
 	.csc_clr = base907c_csc_clr,
 	.olut_core = true,
+	.ilut_size = 1024,
 	.xlut_set = base907c_xlut_set,
 	.xlut_clr = base907c_xlut_clr,
 	.image_set = base907c_image_set,

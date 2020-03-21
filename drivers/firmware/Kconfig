@@ -239,14 +239,6 @@ config QCOM_SCM
 	depends on ARM || ARM64
 	select RESET_CONTROLLER
 
-config QCOM_SCM_32
-	def_bool y
-	depends on QCOM_SCM && ARM
-
-config QCOM_SCM_64
-	def_bool y
-	depends on QCOM_SCM && ARM64
-
 config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
 	bool "Qualcomm download mode enabled by default"
 	depends on QCOM_SCM

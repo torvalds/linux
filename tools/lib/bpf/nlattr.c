@@ -13,6 +13,9 @@
 #include <string.h>
 #include <stdio.h>
 
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
 static uint16_t nla_attr_minlen[LIBBPF_NLA_TYPE_MAX+1] = {
 	[LIBBPF_NLA_U8]		= sizeof(uint8_t),
 	[LIBBPF_NLA_U16]	= sizeof(uint16_t),

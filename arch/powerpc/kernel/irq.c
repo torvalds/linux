@@ -50,6 +50,7 @@
 #include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/vmalloc.h>
 
 #include <linux/uaccess.h>
 #include <asm/io.h>
@@ -664,8 +665,29 @@ void do_IRQ(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
+static void *__init alloc_vm_stack(void)
+{
+	return __vmalloc_node_range(THREAD_SIZE, THREAD_ALIGN, VMALLOC_START,
+				    VMALLOC_END, THREADINFO_GFP, PAGE_KERNEL,
+				     0, NUMA_NO_NODE, (void*)_RET_IP_);
+}
+
+static void __init vmap_irqstack_init(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		softirq_ctx[i] = alloc_vm_stack();
+		hardirq_ctx[i] = alloc_vm_stack();
+	}
+}
+
+
 void __init init_IRQ(void)
 {
+	if (IS_ENABLED(CONFIG_VMAP_STACK))
+		vmap_irqstack_init();
+
 	if (ppc_md.init_IRQ)
 		ppc_md.init_IRQ();
 }

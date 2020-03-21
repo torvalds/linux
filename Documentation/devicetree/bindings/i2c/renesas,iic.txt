@@ -17,6 +17,7 @@ Required properties:
 			- "renesas,iic-r8a7794" (R-Car E2)
 			- "renesas,iic-r8a7795" (R-Car H3)
 			- "renesas,iic-r8a7796" (R-Car M3-W)
+			- "renesas,iic-r8a77961" (R-Car M3-W+)
 			- "renesas,iic-r8a77965" (R-Car M3-N)
 			- "renesas,iic-r8a77990" (R-Car E3)
 			- "renesas,iic-sh73a0" (SH-Mobile AG5)

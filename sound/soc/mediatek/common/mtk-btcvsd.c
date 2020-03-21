@@ -1271,7 +1271,6 @@ static const struct snd_soc_component_driver mtk_btcvsd_snd_platform = {
 	.probe		= mtk_btcvsd_snd_component_probe,
 	.open		= mtk_pcm_btcvsd_open,
 	.close		= mtk_pcm_btcvsd_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= mtk_pcm_btcvsd_hw_params,
 	.hw_free	= mtk_pcm_btcvsd_hw_free,
 	.prepare	= mtk_pcm_btcvsd_prepare,

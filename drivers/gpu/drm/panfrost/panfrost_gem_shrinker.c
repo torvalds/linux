@@ -39,11 +39,15 @@ panfrost_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc
 static bool panfrost_gem_purge(struct drm_gem_object *obj)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+
+	if (atomic_read(&bo->gpu_usecount))
+		return false;
 
 	if (!mutex_trylock(&shmem->pages_lock))
 		return false;
 
-	panfrost_mmu_unmap(to_panfrost_bo(obj));
+	panfrost_gem_teardown_mappings(bo);
 	drm_gem_shmem_purge_locked(obj);
 
 	mutex_unlock(&shmem->pages_lock);

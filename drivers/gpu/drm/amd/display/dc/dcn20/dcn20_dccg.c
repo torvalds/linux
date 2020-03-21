@@ -50,20 +50,20 @@ void dccg2_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
 
 	if (dccg->ref_dppclk && req_dppclk) {
 		int ref_dppclk = dccg->ref_dppclk;
+		int modulo, phase;
 
-		ASSERT(req_dppclk <= ref_dppclk);
-		/* need to clamp to 8 bits */
-		if (ref_dppclk > 0xff) {
-			int divider = (ref_dppclk + 0xfe) / 0xff;
+		// phase / modulo = dpp pipe clk / dpp global clk
+		modulo = 0xff;   // use FF at the end
+		phase = ((modulo * req_dppclk) + ref_dppclk - 1) / ref_dppclk;
 
-			ref_dppclk /= divider;
-			req_dppclk = (req_dppclk + divider - 1) / divider;
-			if (req_dppclk > ref_dppclk)
-				req_dppclk = ref_dppclk;
+		if (phase > 0xff) {
+			ASSERT(false);
+			phase = 0xff;
 		}
+
 		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
-				DPPCLK0_DTO_PHASE, req_dppclk,
-				DPPCLK0_DTO_MODULO, ref_dppclk);
+				DPPCLK0_DTO_PHASE, phase,
+				DPPCLK0_DTO_MODULO, modulo);
 		REG_UPDATE(DPPCLK_DTO_CTRL,
 				DPPCLK_DTO_ENABLE[dpp_inst], 1);
 	} else {

@@ -20,6 +20,8 @@
 #include <linux/elf.h>
 #include <linux/tick.h>
 
+#include <asm/fpu.h>
+
 SYSCALL_DEFINE1(arc_settls, void *, user_tls_data_ptr)
 {
 	task_thread_info(current)->thr_ptr = (unsigned int)user_tls_data_ptr;
@@ -171,9 +173,8 @@ asmlinkage void ret_from_fork(void);
  * |    user_r25    |
  * ------------------  <===== END of PAGE
  */
-int copy_thread(unsigned long clone_flags,
-		unsigned long usp, unsigned long kthread_arg,
-		struct task_struct *p)
+int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
+	unsigned long kthread_arg, struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *c_regs;        /* child's pt_regs */
 	unsigned long *childksp;       /* to unwind out of __switch_to() */
@@ -231,7 +232,7 @@ int copy_thread(unsigned long clone_flags,
 		 * set task's userland tls data ptr from 4th arg
 		 * clone C-lib call is difft from clone sys-call
 		 */
-		task_thread_info(p)->thr_ptr = regs->r3;
+		task_thread_info(p)->thr_ptr = tls;
 	} else {
 		/* Normal fork case: set parent's TLS ptr in child */
 		task_thread_info(p)->thr_ptr =
@@ -264,7 +265,7 @@ int copy_thread(unsigned long clone_flags,
 /*
  * Do necessary setup to start up a new user task
  */
-void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
+void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
 {
 	regs->sp = usp;
 	regs->ret = pc;
@@ -279,6 +280,8 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
 #ifdef CONFIG_EZNPS_MTM_EXT
 	regs->eflags = 0;
 #endif
+
+	fpu_init_task(regs);
 
 	/* bogus seed values for debugging */
 	regs->lp_start = 0x10;

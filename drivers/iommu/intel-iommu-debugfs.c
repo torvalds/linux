@@ -5,6 +5,7 @@
  * Authors: Gayatri Kammela <gayatri.kammela@intel.com>
  *	    Sohil Mehta <sohil.mehta@intel.com>
  *	    Jacob Pan <jacob.jun.pan@linux.intel.com>
+ *	    Lu Baolu <baolu.lu@linux.intel.com>
  */
 
 #include <linux/debugfs.h>
@@ -283,6 +284,77 @@ static int dmar_translation_struct_show(struct seq_file *m, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(dmar_translation_struct);
 
+static inline unsigned long level_to_directory_size(int level)
+{
+	return BIT_ULL(VTD_PAGE_SHIFT + VTD_STRIDE_SHIFT * (level - 1));
+}
+
+static inline void
+dump_page_info(struct seq_file *m, unsigned long iova, u64 *path)
+{
+	seq_printf(m, "0x%013lx |\t0x%016llx\t0x%016llx\t0x%016llx\t0x%016llx\t0x%016llx\n",
+		   iova >> VTD_PAGE_SHIFT, path[5], path[4],
+		   path[3], path[2], path[1]);
+}
+
+static void pgtable_walk_level(struct seq_file *m, struct dma_pte *pde,
+			       int level, unsigned long start,
+			       u64 *path)
+{
+	int i;
+
+	if (level > 5 || level < 1)
+		return;
+
+	for (i = 0; i < BIT_ULL(VTD_STRIDE_SHIFT);
+			i++, pde++, start += level_to_directory_size(level)) {
+		if (!dma_pte_present(pde))
+			continue;
+
+		path[level] = pde->val;
+		if (dma_pte_superpage(pde) || level == 1)
+			dump_page_info(m, start, path);
+		else
+			pgtable_walk_level(m, phys_to_virt(dma_pte_addr(pde)),
+					   level - 1, start, path);
+		path[level] = 0;
+	}
+}
+
+static int show_device_domain_translation(struct device *dev, void *data)
+{
+	struct dmar_domain *domain = find_domain(dev);
+	struct seq_file *m = data;
+	u64 path[6] = { 0 };
+
+	if (!domain)
+		return 0;
+
+	seq_printf(m, "Device %s with pasid %d @0x%llx\n",
+		   dev_name(dev), domain->default_pasid,
+		   (u64)virt_to_phys(domain->pgd));
+	seq_puts(m, "IOVA_PFN\t\tPML5E\t\t\tPML4E\t\t\tPDPE\t\t\tPDE\t\t\tPTE\n");
+
+	pgtable_walk_level(m, domain->pgd, domain->agaw + 2, 0, path);
+	seq_putc(m, '\n');
+
+	return 0;
+}
+
+static int domain_translation_struct_show(struct seq_file *m, void *unused)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&device_domain_lock, flags);
+	ret = bus_for_each_dev(&pci_bus_type, NULL, m,
+			       show_device_domain_translation);
+	spin_unlock_irqrestore(&device_domain_lock, flags);
+
+	return ret;
+}
+DEFINE_SHOW_ATTRIBUTE(domain_translation_struct);
+
 #ifdef CONFIG_IRQ_REMAP
 static void ir_tbl_remap_entry_show(struct seq_file *m,
 				    struct intel_iommu *iommu)
@@ -396,6 +468,9 @@ void __init intel_iommu_debugfs_init(void)
 			    &iommu_regset_fops);
 	debugfs_create_file("dmar_translation_struct", 0444, intel_iommu_debug,
 			    NULL, &dmar_translation_struct_fops);
+	debugfs_create_file("domain_translation_struct", 0444,
+			    intel_iommu_debug, NULL,
+			    &domain_translation_struct_fops);
 #ifdef CONFIG_IRQ_REMAP
 	debugfs_create_file("ir_translation_struct", 0444, intel_iommu_debug,
 			    NULL, &ir_translation_struct_fops);

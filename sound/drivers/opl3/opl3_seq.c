@@ -128,7 +128,7 @@ static int snd_opl3_synth_unuse(void *private_data, struct snd_seq_port_subscrib
 /*
  * MIDI emulation operators
  */
-struct snd_midi_op opl3_ops = {
+const struct snd_midi_op opl3_ops = {
 	.note_on =		snd_opl3_note_on,
 	.note_off =		snd_opl3_note_off,
 	.key_press =		snd_opl3_key_press,

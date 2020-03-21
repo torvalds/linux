@@ -1,0 +1,63 @@
+What:          /sys/bus/mdio_bus/devices/.../statistics/
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		This folder contains statistics about global and per
+		MDIO bus address statistics.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/transfers
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of transfers for this MDIO bus.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/errors
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of transfer errors for this MDIO bus.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/writes
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of write transactions for this MDIO bus.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/reads
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of read transactions for this MDIO bus.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/transfers_<addr>
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of transfers for this MDIO bus address.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/errors_<addr>
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of transfer errors for this MDIO bus address.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/writes_<addr>
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of write transactions for this MDIO bus address.
+
+What:          /sys/bus/mdio_bus/devices/.../statistics/reads_<addr>
+Date:          January 2020
+KernelVersion: 5.6
+Contact:       netdev@vger.kernel.org
+Description:
+		Total number of read transactions for this MDIO bus address.

@@ -20,8 +20,8 @@
 #include <sys/stat.h>
 #include <sys/vfs.h>
 
-#include <bpf.h>
-#include <libbpf.h> /* libbpf_num_possible_cpus */
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h> /* libbpf_num_possible_cpus */
 
 #include "main.h"
 

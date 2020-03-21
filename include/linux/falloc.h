@@ -51,8 +51,6 @@ struct space_resv_32 {
 #define FS_IOC_UNRESVSP64_32	_IOW ('X', 43, struct space_resv_32)
 #define FS_IOC_ZERO_RANGE_32	_IOW ('X', 57, struct space_resv_32)
 
-int compat_ioctl_preallocate(struct file *, int, struct space_resv_32 __user *);
-
 #endif
 
 #endif /* _FALLOC_H_ */

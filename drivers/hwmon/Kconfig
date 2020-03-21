@@ -164,6 +164,16 @@ config SENSORS_ADM1031
 	  This driver can also be built as a module. If so, the module
 	  will be called adm1031.
 
+config SENSORS_ADM1177
+	tristate "Analog Devices ADM1177 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for Analog Devices ADM1177
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called adm1177.
+
 config SENSORS_ADM9240
 	tristate "Analog Devices ADM9240 and compatibles"
 	depends on I2C
@@ -384,6 +394,16 @@ config SENSORS_ATXP1
 
 	  This driver can also be built as a module. If so, the module
 	  will be called atxp1.
+
+config SENSORS_DRIVETEMP
+	tristate "Hard disk drives with temperature sensors"
+	depends on SCSI && ATA
+	help
+	  If you say yes you get support for the temperature sensor on
+	  hard disk drives.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called satatemp.
 
 config SENSORS_DS620
 	tristate "Dallas Semiconductor DS620"
@@ -889,7 +909,7 @@ config SENSORS_MAX197
 	  will be called max197.
 
 config SENSORS_MAX31722
-tristate "MAX31722 temperature sensor"
+	tristate "MAX31722 temperature sensor"
 	depends on SPI
 	help
 	  Support for the Maxim Integrated MAX31722/MAX31723 digital
@@ -897,6 +917,16 @@ tristate "MAX31722 temperature sensor"
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max31722.
+
+config SENSORS_MAX31730
+	tristate "MAX31730 temperature sensor"
+	depends on I2C
+	help
+	  Support for the Maxim Integrated MAX31730 3-Channel Remote
+	  Temperature Sensor.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max31730.
 
 config SENSORS_MAX6621
 	tristate "Maxim MAX6621 sensor chip"
@@ -1905,7 +1935,7 @@ config SENSORS_W83627HF
 	  will be called w83627hf.
 
 config SENSORS_W83627EHF
-	tristate "Winbond W83627EHF/EHG/DHG/UHG, W83667HG, NCT6775F, NCT6776F"
+	tristate "Winbond W83627EHF/EHG/DHG/UHG, W83667HG"
 	depends on !PPC
 	select HWMON_VID
 	help
@@ -1918,8 +1948,7 @@ config SENSORS_W83627EHF
 	  the Core 2 Duo. And also the W83627UHG, which is a stripped down
 	  version of the W83627DHG (as far as hardware monitoring goes.)
 
-	  This driver also supports Nuvoton W83667HG, W83667HG-B, NCT6775F
-	  (also known as W83667HG-I), and NCT6776F.
+	  This driver also supports Nuvoton W83667HG and W83667HG-B.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called w83627ehf.

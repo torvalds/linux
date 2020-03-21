@@ -776,7 +776,7 @@ static void emac_reset_work(struct work_struct *work)
 	mutex_unlock(&dev->link_lock);
 }
 
-static void emac_tx_timeout(struct net_device *ndev)
+static void emac_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 

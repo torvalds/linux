@@ -548,7 +548,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 static int hamachi_open(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void hamachi_timer(struct timer_list *t);
-static void hamachi_tx_timeout(struct net_device *dev);
+static void hamachi_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void hamachi_init_ring(struct net_device *dev);
 static netdev_tx_t hamachi_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev);
@@ -1042,7 +1042,7 @@ static void hamachi_timer(struct timer_list *t)
 	add_timer(&hmp->timer);
 }
 
-static void hamachi_tx_timeout(struct net_device *dev)
+static void hamachi_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	int i;
 	struct hamachi_private *hmp = netdev_priv(dev);

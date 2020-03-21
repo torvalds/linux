@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <linux/bpf.h>
 #include <linux/types.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);

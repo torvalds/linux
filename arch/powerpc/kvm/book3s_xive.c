@@ -484,7 +484,7 @@ static void xive_finish_unmask(struct kvmppc_xive *xive,
 	kvmppc_xive_select_irq(state, &hw_num, &xd);
 
 	/*
-	 * See command in xive_lock_and_mask() concerning masking
+	 * See comment in xive_lock_and_mask() concerning masking
 	 * via firmware.
 	 */
 	if (xd->flags & OPAL_XIVE_IRQ_MASK_VIA_FW) {

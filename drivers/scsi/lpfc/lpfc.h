@@ -1223,6 +1223,8 @@ struct lpfc_hba {
 #define LPFC_POLL_HB	1		/* slowpath heartbeat */
 #define LPFC_POLL_FASTPATH	0	/* called from fastpath */
 #define LPFC_POLL_SLOWPATH	1	/* called from slowpath */
+
+	char os_host_name[MAXHOSTNAMELEN];
 };
 
 static inline struct Scsi_Host *

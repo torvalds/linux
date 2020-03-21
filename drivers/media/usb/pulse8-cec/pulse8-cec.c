@@ -49,7 +49,7 @@ static int debug;
 static int persistent_config;
 module_param(debug, int, 0644);
 module_param(persistent_config, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-1)");
+MODULE_PARM_DESC(debug, "debug level (0-2)");
 MODULE_PARM_DESC(persistent_config, "read config from persistent memory (0-1)");
 
 enum pulse8_msgcodes {
@@ -100,6 +100,61 @@ enum pulse8_msgcodes {
 	MSGCODE_FRAME_ACK = 0x40,
 };
 
+static const char * const pulse8_msgnames[] = {
+	"NOTHING",
+	"PING",
+	"TIMEOUT_ERROR",
+	"HIGH_ERROR",
+	"LOW_ERROR",
+	"FRAME_START",
+	"FRAME_DATA",
+	"RECEIVE_FAILED",
+	"COMMAND_ACCEPTED",
+	"COMMAND_REJECTED",
+	"SET_ACK_MASK",
+	"TRANSMIT",
+	"TRANSMIT_EOM",
+	"TRANSMIT_IDLETIME",
+	"TRANSMIT_ACK_POLARITY",
+	"TRANSMIT_LINE_TIMEOUT",
+	"TRANSMIT_SUCCEEDED",
+	"TRANSMIT_FAILED_LINE",
+	"TRANSMIT_FAILED_ACK",
+	"TRANSMIT_FAILED_TIMEOUT_DATA",
+	"TRANSMIT_FAILED_TIMEOUT_LINE",
+	"FIRMWARE_VERSION",
+	"START_BOOTLOADER",
+	"GET_BUILDDATE",
+	"SET_CONTROLLED",
+	"GET_AUTO_ENABLED",
+	"SET_AUTO_ENABLED",
+	"GET_DEFAULT_LOGICAL_ADDRESS",
+	"SET_DEFAULT_LOGICAL_ADDRESS",
+	"GET_LOGICAL_ADDRESS_MASK",
+	"SET_LOGICAL_ADDRESS_MASK",
+	"GET_PHYSICAL_ADDRESS",
+	"SET_PHYSICAL_ADDRESS",
+	"GET_DEVICE_TYPE",
+	"SET_DEVICE_TYPE",
+	"GET_HDMI_VERSION",
+	"SET_HDMI_VERSION",
+	"GET_OSD_NAME",
+	"SET_OSD_NAME",
+	"WRITE_EEPROM",
+	"GET_ADAPTER_TYPE",
+	"SET_ACTIVE_SOURCE",
+};
+
+static const char *pulse8_msgname(u8 cmd)
+{
+	static char unknown_msg[5];
+
+	if ((cmd & 0x3f) < ARRAY_SIZE(pulse8_msgnames))
+		return pulse8_msgnames[cmd & 0x3f];
+	snprintf(unknown_msg, sizeof(unknown_msg), "0x%02x", cmd);
+	return unknown_msg;
+}
+
 #define MSGSTART	0xff
 #define MSGEND		0xfe
 #define MSGESC		0xfd
@@ -109,146 +164,44 @@ enum pulse8_msgcodes {
 
 #define PING_PERIOD	(15 * HZ)
 
+#define NUM_MSGS 8
+
 struct pulse8 {
 	struct device *dev;
 	struct serio *serio;
 	struct cec_adapter *adap;
 	unsigned int vers;
-	struct completion cmd_done;
-	struct work_struct work;
-	u8 work_result;
+
 	struct delayed_work ping_eeprom_work;
-	struct cec_msg rx_msg;
+
+	struct work_struct irq_work;
+	struct cec_msg rx_msg[NUM_MSGS];
+	unsigned int rx_msg_cur_idx, rx_msg_num;
+	/* protect rx_msg_cur_idx and rx_msg_num */
+	spinlock_t msg_lock;
+	u8 new_rx_msg[CEC_MAX_MSG_SIZE];
+	u8 new_rx_msg_len;
+
+	struct work_struct tx_work;
+	u32 tx_done_status;
+	u32 tx_signal_free_time;
+	struct cec_msg tx_msg;
+	bool tx_msg_is_bcast;
+
+	struct completion cmd_done;
 	u8 data[DATA_SIZE];
 	unsigned int len;
 	u8 buf[DATA_SIZE];
 	unsigned int idx;
 	bool escape;
 	bool started;
-	struct mutex config_lock;
-	struct mutex write_lock;
+
+	/* locks access to the adapter */
+	struct mutex lock;
 	bool config_pending;
 	bool restoring_config;
 	bool autonomous;
 };
-
-static void pulse8_ping_eeprom_work_handler(struct work_struct *work);
-
-static void pulse8_irq_work_handler(struct work_struct *work)
-{
-	struct pulse8 *pulse8 =
-		container_of(work, struct pulse8, work);
-	u8 result = pulse8->work_result;
-
-	pulse8->work_result = 0;
-	switch (result & 0x3f) {
-	case MSGCODE_FRAME_DATA:
-		cec_received_msg(pulse8->adap, &pulse8->rx_msg);
-		break;
-	case MSGCODE_TRANSMIT_SUCCEEDED:
-		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_OK);
-		break;
-	case MSGCODE_TRANSMIT_FAILED_ACK:
-		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_NACK);
-		break;
-	case MSGCODE_TRANSMIT_FAILED_LINE:
-	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_DATA:
-	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_LINE:
-		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_ERROR);
-		break;
-	}
-}
-
-static irqreturn_t pulse8_interrupt(struct serio *serio, unsigned char data,
-				    unsigned int flags)
-{
-	struct pulse8 *pulse8 = serio_get_drvdata(serio);
-
-	if (!pulse8->started && data != MSGSTART)
-		return IRQ_HANDLED;
-	if (data == MSGESC) {
-		pulse8->escape = true;
-		return IRQ_HANDLED;
-	}
-	if (pulse8->escape) {
-		data += MSGOFFSET;
-		pulse8->escape = false;
-	} else if (data == MSGEND) {
-		struct cec_msg *msg = &pulse8->rx_msg;
-		u8 msgcode = pulse8->buf[0];
-
-		if (debug)
-			dev_info(pulse8->dev, "received: %*ph\n",
-				 pulse8->idx, pulse8->buf);
-		switch (msgcode & 0x3f) {
-		case MSGCODE_FRAME_START:
-			msg->len = 1;
-			msg->msg[0] = pulse8->buf[1];
-			break;
-		case MSGCODE_FRAME_DATA:
-			if (msg->len == CEC_MAX_MSG_SIZE)
-				break;
-			msg->msg[msg->len++] = pulse8->buf[1];
-			if (msgcode & MSGCODE_FRAME_EOM) {
-				WARN_ON(pulse8->work_result);
-				pulse8->work_result = msgcode;
-				schedule_work(&pulse8->work);
-				break;
-			}
-			break;
-		case MSGCODE_TRANSMIT_SUCCEEDED:
-		case MSGCODE_TRANSMIT_FAILED_LINE:
-		case MSGCODE_TRANSMIT_FAILED_ACK:
-		case MSGCODE_TRANSMIT_FAILED_TIMEOUT_DATA:
-		case MSGCODE_TRANSMIT_FAILED_TIMEOUT_LINE:
-			WARN_ON(pulse8->work_result);
-			pulse8->work_result = msgcode;
-			schedule_work(&pulse8->work);
-			break;
-		case MSGCODE_HIGH_ERROR:
-		case MSGCODE_LOW_ERROR:
-		case MSGCODE_RECEIVE_FAILED:
-		case MSGCODE_TIMEOUT_ERROR:
-			break;
-		case MSGCODE_COMMAND_ACCEPTED:
-		case MSGCODE_COMMAND_REJECTED:
-		default:
-			if (pulse8->idx == 0)
-				break;
-			memcpy(pulse8->data, pulse8->buf, pulse8->idx);
-			pulse8->len = pulse8->idx;
-			complete(&pulse8->cmd_done);
-			break;
-		}
-		pulse8->idx = 0;
-		pulse8->started = false;
-		return IRQ_HANDLED;
-	} else if (data == MSGSTART) {
-		pulse8->idx = 0;
-		pulse8->started = true;
-		return IRQ_HANDLED;
-	}
-
-	if (pulse8->idx >= DATA_SIZE) {
-		dev_dbg(pulse8->dev,
-			"throwing away %d bytes of garbage\n", pulse8->idx);
-		pulse8->idx = 0;
-	}
-	pulse8->buf[pulse8->idx++] = data;
-	return IRQ_HANDLED;
-}
-
-static void pulse8_disconnect(struct serio *serio)
-{
-	struct pulse8 *pulse8 = serio_get_drvdata(serio);
-
-	cec_unregister_adapter(pulse8->adap);
-	cancel_delayed_work_sync(&pulse8->ping_eeprom_work);
-	dev_info(&serio->dev, "disconnected\n");
-	serio_close(serio);
-	serio_set_drvdata(serio, NULL);
-	kfree(pulse8);
-}
 
 static int pulse8_send(struct serio *serio, const u8 *command, u8 cmd_len)
 {
@@ -278,7 +231,9 @@ static int pulse8_send_and_wait_once(struct pulse8 *pulse8,
 {
 	int err;
 
-	/*dev_info(pulse8->dev, "transmit: %*ph\n", cmd_len, cmd);*/
+	if (debug > 1)
+		dev_info(pulse8->dev, "transmit %s: %*ph\n",
+			 pulse8_msgname(cmd[0]), cmd_len, cmd);
 	init_completion(&pulse8->cmd_done);
 
 	err = pulse8_send(pulse8->serio, cmd, cmd_len);
@@ -294,8 +249,9 @@ static int pulse8_send_and_wait_once(struct pulse8 *pulse8,
 		return -ENOTTY;
 	if (response &&
 	    ((pulse8->data[0] & 0x3f) != response || pulse8->len < size + 1)) {
-		dev_info(pulse8->dev, "transmit: failed %02x\n",
-			 pulse8->data[0] & 0x3f);
+		dev_info(pulse8->dev, "transmit %s failed with %s\n",
+			 pulse8_msgname(cmd[0]),
+			 pulse8_msgname(pulse8->data[0]));
 		return -EIO;
 	}
 	return 0;
@@ -307,23 +263,395 @@ static int pulse8_send_and_wait(struct pulse8 *pulse8,
 	u8 cmd_sc[2];
 	int err;
 
-	mutex_lock(&pulse8->write_lock);
 	err = pulse8_send_and_wait_once(pulse8, cmd, cmd_len, response, size);
+	if (err != -ENOTTY)
+		return err;
 
-	if (err == -ENOTTY) {
-		cmd_sc[0] = MSGCODE_SET_CONTROLLED;
-		cmd_sc[1] = 1;
-		err = pulse8_send_and_wait_once(pulse8, cmd_sc, 2,
-						MSGCODE_COMMAND_ACCEPTED, 1);
-		if (err)
-			goto unlock;
+	cmd_sc[0] = MSGCODE_SET_CONTROLLED;
+	cmd_sc[1] = 1;
+	err = pulse8_send_and_wait_once(pulse8, cmd_sc, 2,
+					MSGCODE_COMMAND_ACCEPTED, 1);
+	if (!err)
 		err = pulse8_send_and_wait_once(pulse8, cmd, cmd_len,
 						response, size);
+	return err == -ENOTTY ? -EIO : err;
+}
+
+static void pulse8_tx_work_handler(struct work_struct *work)
+{
+	struct pulse8 *pulse8 = container_of(work, struct pulse8, tx_work);
+	struct cec_msg *msg = &pulse8->tx_msg;
+	unsigned int i;
+	u8 cmd[2];
+	int err;
+
+	if (msg->len == 0)
+		return;
+
+	mutex_lock(&pulse8->lock);
+	cmd[0] = MSGCODE_TRANSMIT_IDLETIME;
+	cmd[1] = pulse8->tx_signal_free_time;
+	err = pulse8_send_and_wait(pulse8, cmd, 2,
+				   MSGCODE_COMMAND_ACCEPTED, 1);
+	cmd[0] = MSGCODE_TRANSMIT_ACK_POLARITY;
+	cmd[1] = cec_msg_is_broadcast(msg);
+	pulse8->tx_msg_is_bcast = cec_msg_is_broadcast(msg);
+	if (!err)
+		err = pulse8_send_and_wait(pulse8, cmd, 2,
+					   MSGCODE_COMMAND_ACCEPTED, 1);
+	cmd[0] = msg->len == 1 ? MSGCODE_TRANSMIT_EOM : MSGCODE_TRANSMIT;
+	cmd[1] = msg->msg[0];
+	if (!err)
+		err = pulse8_send_and_wait(pulse8, cmd, 2,
+					   MSGCODE_COMMAND_ACCEPTED, 1);
+	if (!err && msg->len > 1) {
+		for (i = 1; !err && i < msg->len; i++) {
+			cmd[0] = ((i == msg->len - 1)) ?
+				MSGCODE_TRANSMIT_EOM : MSGCODE_TRANSMIT;
+			cmd[1] = msg->msg[i];
+			err = pulse8_send_and_wait(pulse8, cmd, 2,
+						   MSGCODE_COMMAND_ACCEPTED, 1);
+		}
+	}
+	if (err && debug)
+		dev_info(pulse8->dev, "%s(0x%02x) failed with error %d for msg %*ph\n",
+			 pulse8_msgname(cmd[0]), cmd[1],
+			 err, msg->len, msg->msg);
+	msg->len = 0;
+	mutex_unlock(&pulse8->lock);
+	if (err)
+		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_ERROR);
+}
+
+static void pulse8_irq_work_handler(struct work_struct *work)
+{
+	struct pulse8 *pulse8 =
+		container_of(work, struct pulse8, irq_work);
+	unsigned long flags;
+	u32 status;
+
+	spin_lock_irqsave(&pulse8->msg_lock, flags);
+	while (pulse8->rx_msg_num) {
+		spin_unlock_irqrestore(&pulse8->msg_lock, flags);
+		if (debug)
+			dev_info(pulse8->dev, "adap received %*ph\n",
+				 pulse8->rx_msg[pulse8->rx_msg_cur_idx].len,
+				 pulse8->rx_msg[pulse8->rx_msg_cur_idx].msg);
+		cec_received_msg(pulse8->adap,
+				 &pulse8->rx_msg[pulse8->rx_msg_cur_idx]);
+		spin_lock_irqsave(&pulse8->msg_lock, flags);
+		if (pulse8->rx_msg_num)
+			pulse8->rx_msg_num--;
+		pulse8->rx_msg_cur_idx =
+			(pulse8->rx_msg_cur_idx + 1) % NUM_MSGS;
+	}
+	spin_unlock_irqrestore(&pulse8->msg_lock, flags);
+
+	mutex_lock(&pulse8->lock);
+	status = pulse8->tx_done_status;
+	pulse8->tx_done_status = 0;
+	mutex_unlock(&pulse8->lock);
+	if (status)
+		cec_transmit_attempt_done(pulse8->adap, status);
+}
+
+static irqreturn_t pulse8_interrupt(struct serio *serio, unsigned char data,
+				    unsigned int flags)
+{
+	struct pulse8 *pulse8 = serio_get_drvdata(serio);
+	unsigned long irq_flags;
+	unsigned int idx;
+
+	if (!pulse8->started && data != MSGSTART)
+		return IRQ_HANDLED;
+	if (data == MSGESC) {
+		pulse8->escape = true;
+		return IRQ_HANDLED;
+	}
+	if (pulse8->escape) {
+		data += MSGOFFSET;
+		pulse8->escape = false;
+	} else if (data == MSGEND) {
+		u8 msgcode = pulse8->buf[0];
+
+		if (debug > 1)
+			dev_info(pulse8->dev, "received %s: %*ph\n",
+				 pulse8_msgname(msgcode),
+				 pulse8->idx, pulse8->buf);
+		switch (msgcode & 0x3f) {
+		case MSGCODE_FRAME_START:
+			/*
+			 * Test if we are receiving a new msg when a previous
+			 * message is still pending.
+			 */
+			if (!(msgcode & MSGCODE_FRAME_EOM)) {
+				pulse8->new_rx_msg_len = 1;
+				pulse8->new_rx_msg[0] = pulse8->buf[1];
+				break;
+			}
+			/* fall through */
+		case MSGCODE_FRAME_DATA:
+			if (pulse8->new_rx_msg_len < CEC_MAX_MSG_SIZE)
+				pulse8->new_rx_msg[pulse8->new_rx_msg_len++] =
+					pulse8->buf[1];
+			if (!(msgcode & MSGCODE_FRAME_EOM))
+				break;
+
+			spin_lock_irqsave(&pulse8->msg_lock, irq_flags);
+			idx = (pulse8->rx_msg_cur_idx + pulse8->rx_msg_num) %
+				NUM_MSGS;
+			if (pulse8->rx_msg_num == NUM_MSGS) {
+				dev_warn(pulse8->dev,
+					 "message queue is full, dropping %*ph\n",
+					 pulse8->new_rx_msg_len,
+					 pulse8->new_rx_msg);
+				spin_unlock_irqrestore(&pulse8->msg_lock,
+						       irq_flags);
+				pulse8->new_rx_msg_len = 0;
+				break;
+			}
+			pulse8->rx_msg_num++;
+			memcpy(pulse8->rx_msg[idx].msg, pulse8->new_rx_msg,
+			       pulse8->new_rx_msg_len);
+			pulse8->rx_msg[idx].len = pulse8->new_rx_msg_len;
+			spin_unlock_irqrestore(&pulse8->msg_lock, irq_flags);
+			schedule_work(&pulse8->irq_work);
+			pulse8->new_rx_msg_len = 0;
+			break;
+		case MSGCODE_TRANSMIT_SUCCEEDED:
+			WARN_ON(pulse8->tx_done_status);
+			pulse8->tx_done_status = CEC_TX_STATUS_OK;
+			schedule_work(&pulse8->irq_work);
+			break;
+		case MSGCODE_TRANSMIT_FAILED_ACK:
+			/*
+			 * A NACK for a broadcast message makes no sense, these
+			 * seem to be spurious messages and are skipped.
+			 */
+			if (pulse8->tx_msg_is_bcast)
+				break;
+			WARN_ON(pulse8->tx_done_status);
+			pulse8->tx_done_status = CEC_TX_STATUS_NACK;
+			schedule_work(&pulse8->irq_work);
+			break;
+		case MSGCODE_TRANSMIT_FAILED_LINE:
+		case MSGCODE_TRANSMIT_FAILED_TIMEOUT_DATA:
+		case MSGCODE_TRANSMIT_FAILED_TIMEOUT_LINE:
+			WARN_ON(pulse8->tx_done_status);
+			pulse8->tx_done_status = CEC_TX_STATUS_ERROR;
+			schedule_work(&pulse8->irq_work);
+			break;
+		case MSGCODE_HIGH_ERROR:
+		case MSGCODE_LOW_ERROR:
+		case MSGCODE_RECEIVE_FAILED:
+		case MSGCODE_TIMEOUT_ERROR:
+			pulse8->new_rx_msg_len = 0;
+			break;
+		case MSGCODE_COMMAND_ACCEPTED:
+		case MSGCODE_COMMAND_REJECTED:
+		default:
+			if (pulse8->idx == 0)
+				break;
+			memcpy(pulse8->data, pulse8->buf, pulse8->idx);
+			pulse8->len = pulse8->idx;
+			complete(&pulse8->cmd_done);
+			break;
+		}
+		pulse8->idx = 0;
+		pulse8->started = false;
+		return IRQ_HANDLED;
+	} else if (data == MSGSTART) {
+		pulse8->idx = 0;
+		pulse8->started = true;
+		return IRQ_HANDLED;
+	}
+
+	if (pulse8->idx >= DATA_SIZE) {
+		dev_dbg(pulse8->dev,
+			"throwing away %d bytes of garbage\n", pulse8->idx);
+		pulse8->idx = 0;
+	}
+	pulse8->buf[pulse8->idx++] = data;
+	return IRQ_HANDLED;
+}
+
+static int pulse8_cec_adap_enable(struct cec_adapter *adap, bool enable)
+{
+	struct pulse8 *pulse8 = cec_get_drvdata(adap);
+	u8 cmd[16];
+	int err;
+
+	mutex_lock(&pulse8->lock);
+	cmd[0] = MSGCODE_SET_CONTROLLED;
+	cmd[1] = enable;
+	err = pulse8_send_and_wait(pulse8, cmd, 2,
+				   MSGCODE_COMMAND_ACCEPTED, 1);
+	if (!enable) {
+		pulse8->rx_msg_num = 0;
+		pulse8->tx_done_status = 0;
+	}
+	mutex_unlock(&pulse8->lock);
+	return enable ? err : 0;
+}
+
+static int pulse8_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
+{
+	struct pulse8 *pulse8 = cec_get_drvdata(adap);
+	u16 mask = 0;
+	u16 pa = adap->phys_addr;
+	u8 cmd[16];
+	int err = 0;
+
+	mutex_lock(&pulse8->lock);
+	if (log_addr != CEC_LOG_ADDR_INVALID)
+		mask = 1 << log_addr;
+	cmd[0] = MSGCODE_SET_ACK_MASK;
+	cmd[1] = mask >> 8;
+	cmd[2] = mask & 0xff;
+	err = pulse8_send_and_wait(pulse8, cmd, 3,
+				   MSGCODE_COMMAND_ACCEPTED, 0);
+	if ((err && mask != 0) || pulse8->restoring_config)
+		goto unlock;
+
+	cmd[0] = MSGCODE_SET_AUTO_ENABLED;
+	cmd[1] = log_addr == CEC_LOG_ADDR_INVALID ? 0 : 1;
+	err = pulse8_send_and_wait(pulse8, cmd, 2,
+				   MSGCODE_COMMAND_ACCEPTED, 0);
+	if (err)
+		goto unlock;
+	pulse8->autonomous = cmd[1];
+	if (log_addr == CEC_LOG_ADDR_INVALID)
+		goto unlock;
+
+	cmd[0] = MSGCODE_SET_DEVICE_TYPE;
+	cmd[1] = adap->log_addrs.primary_device_type[0];
+	err = pulse8_send_and_wait(pulse8, cmd, 2,
+				   MSGCODE_COMMAND_ACCEPTED, 0);
+	if (err)
+		goto unlock;
+
+	switch (adap->log_addrs.primary_device_type[0]) {
+	case CEC_OP_PRIM_DEVTYPE_TV:
+		mask = CEC_LOG_ADDR_MASK_TV;
+		break;
+	case CEC_OP_PRIM_DEVTYPE_RECORD:
+		mask = CEC_LOG_ADDR_MASK_RECORD;
+		break;
+	case CEC_OP_PRIM_DEVTYPE_TUNER:
+		mask = CEC_LOG_ADDR_MASK_TUNER;
+		break;
+	case CEC_OP_PRIM_DEVTYPE_PLAYBACK:
+		mask = CEC_LOG_ADDR_MASK_PLAYBACK;
+		break;
+	case CEC_OP_PRIM_DEVTYPE_AUDIOSYSTEM:
+		mask = CEC_LOG_ADDR_MASK_AUDIOSYSTEM;
+		break;
+	case CEC_OP_PRIM_DEVTYPE_SWITCH:
+		mask = CEC_LOG_ADDR_MASK_UNREGISTERED;
+		break;
+	case CEC_OP_PRIM_DEVTYPE_PROCESSOR:
+		mask = CEC_LOG_ADDR_MASK_SPECIFIC;
+		break;
+	default:
+		mask = 0;
+		break;
+	}
+	cmd[0] = MSGCODE_SET_LOGICAL_ADDRESS_MASK;
+	cmd[1] = mask >> 8;
+	cmd[2] = mask & 0xff;
+	err = pulse8_send_and_wait(pulse8, cmd, 3,
+				   MSGCODE_COMMAND_ACCEPTED, 0);
+	if (err)
+		goto unlock;
+
+	cmd[0] = MSGCODE_SET_DEFAULT_LOGICAL_ADDRESS;
+	cmd[1] = log_addr;
+	err = pulse8_send_and_wait(pulse8, cmd, 2,
+				   MSGCODE_COMMAND_ACCEPTED, 0);
+	if (err)
+		goto unlock;
+
+	cmd[0] = MSGCODE_SET_PHYSICAL_ADDRESS;
+	cmd[1] = pa >> 8;
+	cmd[2] = pa & 0xff;
+	err = pulse8_send_and_wait(pulse8, cmd, 3,
+				   MSGCODE_COMMAND_ACCEPTED, 0);
+	if (err)
+		goto unlock;
+
+	cmd[0] = MSGCODE_SET_HDMI_VERSION;
+	cmd[1] = adap->log_addrs.cec_version;
+	err = pulse8_send_and_wait(pulse8, cmd, 2,
+				   MSGCODE_COMMAND_ACCEPTED, 0);
+	if (err)
+		goto unlock;
+
+	if (adap->log_addrs.osd_name[0]) {
+		size_t osd_len = strlen(adap->log_addrs.osd_name);
+		char *osd_str = cmd + 1;
+
+		cmd[0] = MSGCODE_SET_OSD_NAME;
+		strscpy(cmd + 1, adap->log_addrs.osd_name, sizeof(cmd) - 1);
+		if (osd_len < 4) {
+			memset(osd_str + osd_len, ' ', 4 - osd_len);
+			osd_len = 4;
+			osd_str[osd_len] = '\0';
+			strscpy(adap->log_addrs.osd_name, osd_str,
+				sizeof(adap->log_addrs.osd_name));
+		}
+		err = pulse8_send_and_wait(pulse8, cmd, 1 + osd_len,
+					   MSGCODE_COMMAND_ACCEPTED, 0);
+		if (err)
+			goto unlock;
 	}
 
 unlock:
-	mutex_unlock(&pulse8->write_lock);
-	return err == -ENOTTY ? -EIO : err;
+	if (pulse8->restoring_config)
+		pulse8->restoring_config = false;
+	else
+		pulse8->config_pending = true;
+	mutex_unlock(&pulse8->lock);
+	return log_addr == CEC_LOG_ADDR_INVALID ? 0 : err;
+}
+
+static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
+				    u32 signal_free_time, struct cec_msg *msg)
+{
+	struct pulse8 *pulse8 = cec_get_drvdata(adap);
+
+	pulse8->tx_msg = *msg;
+	if (debug)
+		dev_info(pulse8->dev, "adap transmit %*ph\n",
+			 msg->len, msg->msg);
+	pulse8->tx_signal_free_time = signal_free_time;
+	schedule_work(&pulse8->tx_work);
+	return 0;
+}
+
+static void pulse8_cec_adap_free(struct cec_adapter *adap)
+{
+	struct pulse8 *pulse8 = cec_get_drvdata(adap);
+
+	cancel_delayed_work_sync(&pulse8->ping_eeprom_work);
+	cancel_work_sync(&pulse8->irq_work);
+	cancel_work_sync(&pulse8->tx_work);
+	serio_close(pulse8->serio);
+	serio_set_drvdata(pulse8->serio, NULL);
+	kfree(pulse8);
+}
+
+static const struct cec_adap_ops pulse8_cec_adap_ops = {
+	.adap_enable = pulse8_cec_adap_enable,
+	.adap_log_addr = pulse8_cec_adap_log_addr,
+	.adap_transmit = pulse8_cec_adap_transmit,
+	.adap_free = pulse8_cec_adap_free,
+};
+
+static void pulse8_disconnect(struct serio *serio)
+{
+	struct pulse8 *pulse8 = serio_get_drvdata(serio);
+
+	cec_unregister_adapter(pulse8->adap);
 }
 
 static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
@@ -460,190 +788,33 @@ static int pulse8_apply_persistent_config(struct pulse8 *pulse8,
 	return 0;
 }
 
-static int pulse8_cec_adap_enable(struct cec_adapter *adap, bool enable)
+static void pulse8_ping_eeprom_work_handler(struct work_struct *work)
 {
-	struct pulse8 *pulse8 = cec_get_drvdata(adap);
-	u8 cmd[16];
-	int err;
+	struct pulse8 *pulse8 =
+		container_of(work, struct pulse8, ping_eeprom_work.work);
+	u8 cmd;
 
-	cmd[0] = MSGCODE_SET_CONTROLLED;
-	cmd[1] = enable;
-	err = pulse8_send_and_wait(pulse8, cmd, 2,
-				   MSGCODE_COMMAND_ACCEPTED, 1);
-	return enable ? err : 0;
-}
+	mutex_lock(&pulse8->lock);
+	cmd = MSGCODE_PING;
+	pulse8_send_and_wait(pulse8, &cmd, 1,
+			     MSGCODE_COMMAND_ACCEPTED, 0);
 
-static int pulse8_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
-{
-	struct pulse8 *pulse8 = cec_get_drvdata(adap);
-	u16 mask = 0;
-	u16 pa = adap->phys_addr;
-	u8 cmd[16];
-	int err = 0;
-
-	mutex_lock(&pulse8->config_lock);
-	if (log_addr != CEC_LOG_ADDR_INVALID)
-		mask = 1 << log_addr;
-	cmd[0] = MSGCODE_SET_ACK_MASK;
-	cmd[1] = mask >> 8;
-	cmd[2] = mask & 0xff;
-	err = pulse8_send_and_wait(pulse8, cmd, 3,
-				   MSGCODE_COMMAND_ACCEPTED, 0);
-	if ((err && mask != 0) || pulse8->restoring_config)
+	if (pulse8->vers < 2)
 		goto unlock;
 
-	cmd[0] = MSGCODE_SET_AUTO_ENABLED;
-	cmd[1] = log_addr == CEC_LOG_ADDR_INVALID ? 0 : 1;
-	err = pulse8_send_and_wait(pulse8, cmd, 2,
-				   MSGCODE_COMMAND_ACCEPTED, 0);
-	if (err)
-		goto unlock;
-	pulse8->autonomous = cmd[1];
-	if (log_addr == CEC_LOG_ADDR_INVALID)
-		goto unlock;
-
-	cmd[0] = MSGCODE_SET_DEVICE_TYPE;
-	cmd[1] = adap->log_addrs.primary_device_type[0];
-	err = pulse8_send_and_wait(pulse8, cmd, 2,
-				   MSGCODE_COMMAND_ACCEPTED, 0);
-	if (err)
-		goto unlock;
-
-	switch (adap->log_addrs.primary_device_type[0]) {
-	case CEC_OP_PRIM_DEVTYPE_TV:
-		mask = CEC_LOG_ADDR_MASK_TV;
-		break;
-	case CEC_OP_PRIM_DEVTYPE_RECORD:
-		mask = CEC_LOG_ADDR_MASK_RECORD;
-		break;
-	case CEC_OP_PRIM_DEVTYPE_TUNER:
-		mask = CEC_LOG_ADDR_MASK_TUNER;
-		break;
-	case CEC_OP_PRIM_DEVTYPE_PLAYBACK:
-		mask = CEC_LOG_ADDR_MASK_PLAYBACK;
-		break;
-	case CEC_OP_PRIM_DEVTYPE_AUDIOSYSTEM:
-		mask = CEC_LOG_ADDR_MASK_AUDIOSYSTEM;
-		break;
-	case CEC_OP_PRIM_DEVTYPE_SWITCH:
-		mask = CEC_LOG_ADDR_MASK_UNREGISTERED;
-		break;
-	case CEC_OP_PRIM_DEVTYPE_PROCESSOR:
-		mask = CEC_LOG_ADDR_MASK_SPECIFIC;
-		break;
-	default:
-		mask = 0;
-		break;
+	if (pulse8->config_pending && persistent_config) {
+		dev_dbg(pulse8->dev, "writing pending config to EEPROM\n");
+		cmd = MSGCODE_WRITE_EEPROM;
+		if (pulse8_send_and_wait(pulse8, &cmd, 1,
+					 MSGCODE_COMMAND_ACCEPTED, 0))
+			dev_info(pulse8->dev, "failed to write pending config to EEPROM\n");
+		else
+			pulse8->config_pending = false;
 	}
-	cmd[0] = MSGCODE_SET_LOGICAL_ADDRESS_MASK;
-	cmd[1] = mask >> 8;
-	cmd[2] = mask & 0xff;
-	err = pulse8_send_and_wait(pulse8, cmd, 3,
-				   MSGCODE_COMMAND_ACCEPTED, 0);
-	if (err)
-		goto unlock;
-
-	cmd[0] = MSGCODE_SET_DEFAULT_LOGICAL_ADDRESS;
-	cmd[1] = log_addr;
-	err = pulse8_send_and_wait(pulse8, cmd, 2,
-				   MSGCODE_COMMAND_ACCEPTED, 0);
-	if (err)
-		goto unlock;
-
-	cmd[0] = MSGCODE_SET_PHYSICAL_ADDRESS;
-	cmd[1] = pa >> 8;
-	cmd[2] = pa & 0xff;
-	err = pulse8_send_and_wait(pulse8, cmd, 3,
-				   MSGCODE_COMMAND_ACCEPTED, 0);
-	if (err)
-		goto unlock;
-
-	cmd[0] = MSGCODE_SET_HDMI_VERSION;
-	cmd[1] = adap->log_addrs.cec_version;
-	err = pulse8_send_and_wait(pulse8, cmd, 2,
-				   MSGCODE_COMMAND_ACCEPTED, 0);
-	if (err)
-		goto unlock;
-
-	if (adap->log_addrs.osd_name[0]) {
-		size_t osd_len = strlen(adap->log_addrs.osd_name);
-		char *osd_str = cmd + 1;
-
-		cmd[0] = MSGCODE_SET_OSD_NAME;
-		strscpy(cmd + 1, adap->log_addrs.osd_name, sizeof(cmd) - 1);
-		if (osd_len < 4) {
-			memset(osd_str + osd_len, ' ', 4 - osd_len);
-			osd_len = 4;
-			osd_str[osd_len] = '\0';
-			strscpy(adap->log_addrs.osd_name, osd_str,
-				sizeof(adap->log_addrs.osd_name));
-		}
-		err = pulse8_send_and_wait(pulse8, cmd, 1 + osd_len,
-					   MSGCODE_COMMAND_ACCEPTED, 0);
-		if (err)
-			goto unlock;
-	}
-
 unlock:
-	if (pulse8->restoring_config)
-		pulse8->restoring_config = false;
-	else
-		pulse8->config_pending = true;
-	mutex_unlock(&pulse8->config_lock);
-	return log_addr == CEC_LOG_ADDR_INVALID ? 0 : err;
+	schedule_delayed_work(&pulse8->ping_eeprom_work, PING_PERIOD);
+	mutex_unlock(&pulse8->lock);
 }
-
-static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
-				    u32 signal_free_time, struct cec_msg *msg)
-{
-	struct pulse8 *pulse8 = cec_get_drvdata(adap);
-	u8 cmd[2];
-	unsigned int i;
-	int err;
-
-	cmd[0] = MSGCODE_TRANSMIT_IDLETIME;
-	cmd[1] = signal_free_time;
-	err = pulse8_send_and_wait(pulse8, cmd, 2,
-				   MSGCODE_COMMAND_ACCEPTED, 1);
-	cmd[0] = MSGCODE_TRANSMIT_ACK_POLARITY;
-	cmd[1] = cec_msg_is_broadcast(msg);
-	if (!err)
-		err = pulse8_send_and_wait(pulse8, cmd, 2,
-					   MSGCODE_COMMAND_ACCEPTED, 1);
-	cmd[0] = msg->len == 1 ? MSGCODE_TRANSMIT_EOM : MSGCODE_TRANSMIT;
-	cmd[1] = msg->msg[0];
-	if (!err)
-		err = pulse8_send_and_wait(pulse8, cmd, 2,
-					   MSGCODE_COMMAND_ACCEPTED, 1);
-	if (!err && msg->len > 1) {
-		cmd[0] = msg->len == 2 ? MSGCODE_TRANSMIT_EOM :
-					 MSGCODE_TRANSMIT;
-		cmd[1] = msg->msg[1];
-		err = pulse8_send_and_wait(pulse8, cmd, 2,
-					   MSGCODE_COMMAND_ACCEPTED, 1);
-		for (i = 0; !err && i + 2 < msg->len; i++) {
-			cmd[0] = (i + 2 == msg->len - 1) ?
-				MSGCODE_TRANSMIT_EOM : MSGCODE_TRANSMIT;
-			cmd[1] = msg->msg[i + 2];
-			err = pulse8_send_and_wait(pulse8, cmd, 2,
-						   MSGCODE_COMMAND_ACCEPTED, 1);
-		}
-	}
-
-	return err;
-}
-
-static int pulse8_received(struct cec_adapter *adap, struct cec_msg *msg)
-{
-	return -ENOMSG;
-}
-
-static const struct cec_adap_ops pulse8_cec_adap_ops = {
-	.adap_enable = pulse8_cec_adap_enable,
-	.adap_log_addr = pulse8_cec_adap_log_addr,
-	.adap_transmit = pulse8_cec_adap_transmit,
-	.received = pulse8_received,
-};
 
 static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 {
@@ -667,9 +838,10 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 
 	pulse8->dev = &serio->dev;
 	serio_set_drvdata(serio, pulse8);
-	INIT_WORK(&pulse8->work, pulse8_irq_work_handler);
-	mutex_init(&pulse8->write_lock);
-	mutex_init(&pulse8->config_lock);
+	INIT_WORK(&pulse8->irq_work, pulse8_irq_work_handler);
+	INIT_WORK(&pulse8->tx_work, pulse8_tx_work_handler);
+	mutex_init(&pulse8->lock);
+	spin_lock_init(&pulse8->msg_lock);
 	pulse8->config_pending = false;
 
 	err = serio_open(serio, drv);
@@ -707,33 +879,6 @@ delete_adap:
 free_device:
 	kfree(pulse8);
 	return err;
-}
-
-static void pulse8_ping_eeprom_work_handler(struct work_struct *work)
-{
-	struct pulse8 *pulse8 =
-		container_of(work, struct pulse8, ping_eeprom_work.work);
-	u8 cmd;
-
-	schedule_delayed_work(&pulse8->ping_eeprom_work, PING_PERIOD);
-	cmd = MSGCODE_PING;
-	pulse8_send_and_wait(pulse8, &cmd, 1,
-			     MSGCODE_COMMAND_ACCEPTED, 0);
-
-	if (pulse8->vers < 2)
-		return;
-
-	mutex_lock(&pulse8->config_lock);
-	if (pulse8->config_pending && persistent_config) {
-		dev_dbg(pulse8->dev, "writing pending config to EEPROM\n");
-		cmd = MSGCODE_WRITE_EEPROM;
-		if (pulse8_send_and_wait(pulse8, &cmd, 1,
-					 MSGCODE_COMMAND_ACCEPTED, 0))
-			dev_info(pulse8->dev, "failed to write pending config to EEPROM\n");
-		else
-			pulse8->config_pending = false;
-	}
-	mutex_unlock(&pulse8->config_lock);
 }
 
 static const struct serio_device_id pulse8_serio_ids[] = {

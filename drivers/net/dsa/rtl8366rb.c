@@ -964,7 +964,8 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 }
 
 static enum dsa_tag_protocol rtl8366_get_tag_protocol(struct dsa_switch *ds,
-						      int port)
+						      int port,
+						      enum dsa_tag_protocol mp)
 {
 	/* For now, the RTL switches are handled without any custom tags.
 	 *

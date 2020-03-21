@@ -27,27 +27,24 @@ static void __do_clflush(struct drm_i915_gem_object *obj)
 static int clflush_work(struct dma_fence_work *base)
 {
 	struct clflush *clflush = container_of(base, typeof(*clflush), base);
-	struct drm_i915_gem_object *obj = fetch_and_zero(&clflush->obj);
+	struct drm_i915_gem_object *obj = clflush->obj;
 	int err;
 
 	err = i915_gem_object_pin_pages(obj);
 	if (err)
-		goto put;
+		return err;
 
 	__do_clflush(obj);
 	i915_gem_object_unpin_pages(obj);
 
-put:
-	i915_gem_object_put(obj);
-	return err;
+	return 0;
 }
 
 static void clflush_release(struct dma_fence_work *base)
 {
 	struct clflush *clflush = container_of(base, typeof(*clflush), base);
 
-	if (clflush->obj)
-		i915_gem_object_put(clflush->obj);
+	i915_gem_object_put(clflush->obj);
 }
 
 static const struct dma_fence_work_ops clflush_ops = {

@@ -387,8 +387,6 @@ struct gfs2_glock {
 	struct rhash_head gl_node;
 };
 
-#define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
-
 enum {
 	GIF_INVALID		= 0,
 	GIF_QD_LOCKED		= 1,
@@ -505,6 +503,7 @@ struct gfs2_trans {
 	unsigned int tr_num_buf_rm;
 	unsigned int tr_num_databuf_rm;
 	unsigned int tr_num_revoke;
+	unsigned int tr_num_revoke_rm;
 
 	struct list_head tr_list;
 	struct list_head tr_databuf;
@@ -703,6 +702,7 @@ struct gfs2_sbd {
 	u32 sd_fsb2bb_shift;
 	u32 sd_diptrs;	/* Number of pointers in a dinode */
 	u32 sd_inptrs;	/* Number of pointers in a indirect block */
+	u32 sd_ldptrs;  /* Number of pointers in a log descriptor block */
 	u32 sd_jbsize;	/* Size of a journaled data block */
 	u32 sd_hash_bsize;	/* sizeof(exhash block) */
 	u32 sd_hash_bsize_shift;
@@ -803,7 +803,7 @@ struct gfs2_sbd {
 
 	struct gfs2_trans *sd_log_tr;
 	unsigned int sd_log_blks_reserved;
-	int sd_log_commited_revoke;
+	int sd_log_committed_revoke;
 
 	atomic_t sd_log_pinned;
 	unsigned int sd_log_num_revoke;

@@ -33,8 +33,8 @@
  * frame.
  *
  * Note: For cache line sizes 256 or larger this value is going to end
- *       up negative.  In these cases we should fall back to the legacy
- *       receive path.
+ *	 up negative.  In these cases we should fall back to the legacy
+ *	 receive path.
  */
 #if (PAGE_SIZE < 8192)
 #define ICE_2K_TOO_SMALL_WITH_PADDING \
@@ -222,7 +222,7 @@ enum ice_rx_dtype {
 #define ICE_ITR_GRAN_S		1	/* ITR granularity is always 2us */
 #define ICE_ITR_GRAN_US		BIT(ICE_ITR_GRAN_S)
 #define ICE_ITR_MASK		0x1FFE	/* ITR register value alignment mask */
-#define ITR_REG_ALIGN(setting)	__ALIGN_MASK(setting, ~ICE_ITR_MASK)
+#define ITR_REG_ALIGN(setting)	((setting) & ICE_ITR_MASK)
 
 #define ICE_ITR_ADAPTIVE_MIN_INC	0x0002
 #define ICE_ITR_ADAPTIVE_MIN_USECS	0x0002
@@ -339,6 +339,12 @@ struct ice_ring_container {
 	 * to a register.
 	 */
 	u16 itr_setting;
+};
+
+struct ice_coalesce_stored {
+	u16 itr_tx;
+	u16 itr_rx;
+	u8 intrl;
 };
 
 /* iterator for handling rings in ring container */

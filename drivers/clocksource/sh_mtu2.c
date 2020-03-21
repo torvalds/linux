@@ -377,7 +377,7 @@ static int sh_mtu2_map_memory(struct sh_mtu2_device *mtu)
 		return -ENXIO;
 	}
 
-	mtu->mapbase = ioremap_nocache(res->start, resource_size(res));
+	mtu->mapbase = ioremap(res->start, resource_size(res));
 	if (mtu->mapbase == NULL)
 		return -ENXIO;
 

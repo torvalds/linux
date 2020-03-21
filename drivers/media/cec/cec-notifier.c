@@ -25,7 +25,6 @@ struct cec_notifier {
 	struct cec_connector_info conn_info;
 	const char *conn_name;
 	struct cec_adapter *cec_adap;
-	void (*callback)(struct cec_adapter *adap, u16 pa);
 
 	u16 phys_addr;
 };
@@ -81,13 +80,12 @@ static void cec_notifier_release(struct kref *kref)
 	kfree(n);
 }
 
-void cec_notifier_put(struct cec_notifier *n)
+static void cec_notifier_put(struct cec_notifier *n)
 {
 	mutex_lock(&cec_notifiers_lock);
 	kref_put(&n->kref, cec_notifier_release);
 	mutex_unlock(&cec_notifiers_lock);
 }
-EXPORT_SYMBOL_GPL(cec_notifier_put);
 
 struct cec_notifier *
 cec_notifier_conn_register(struct device *hdmi_dev, const char *conn_name,
@@ -162,7 +160,6 @@ void cec_notifier_cec_adap_unregister(struct cec_notifier *n,
 	mutex_lock(&n->lock);
 	adap->notifier = NULL;
 	n->cec_adap = NULL;
-	n->callback = NULL;
 	mutex_unlock(&n->lock);
 	cec_notifier_put(n);
 }
@@ -175,9 +172,7 @@ void cec_notifier_set_phys_addr(struct cec_notifier *n, u16 pa)
 
 	mutex_lock(&n->lock);
 	n->phys_addr = pa;
-	if (n->callback)
-		n->callback(n->cec_adap, n->phys_addr);
-	else if (n->cec_adap)
+	if (n->cec_adap)
 		cec_s_phys_addr(n->cec_adap, n->phys_addr, false);
 	mutex_unlock(&n->lock);
 }
@@ -197,34 +192,6 @@ void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
 	cec_notifier_set_phys_addr(n, pa);
 }
 EXPORT_SYMBOL_GPL(cec_notifier_set_phys_addr_from_edid);
-
-void cec_notifier_register(struct cec_notifier *n,
-			   struct cec_adapter *adap,
-			   void (*callback)(struct cec_adapter *adap, u16 pa))
-{
-	kref_get(&n->kref);
-	mutex_lock(&n->lock);
-	n->cec_adap = adap;
-	n->callback = callback;
-	n->callback(adap, n->phys_addr);
-	mutex_unlock(&n->lock);
-}
-EXPORT_SYMBOL_GPL(cec_notifier_register);
-
-void cec_notifier_unregister(struct cec_notifier *n)
-{
-	/* Do nothing unless cec_notifier_register was called first */
-	if (!n->callback)
-		return;
-
-	mutex_lock(&n->lock);
-	n->callback = NULL;
-	n->cec_adap->notifier = NULL;
-	n->cec_adap = NULL;
-	mutex_unlock(&n->lock);
-	cec_notifier_put(n);
-}
-EXPORT_SYMBOL_GPL(cec_notifier_unregister);
 
 struct device *cec_notifier_parse_hdmi_phandle(struct device *dev)
 {

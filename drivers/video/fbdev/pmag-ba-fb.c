@@ -117,7 +117,7 @@ static int pmagbafb_setcolreg(unsigned int regno, unsigned int red,
 	return 0;
 }
 
-static struct fb_ops pmagbafb_ops = {
+static const struct fb_ops pmagbafb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= pmagbafb_setcolreg,
 	.fb_fillrect	= cfb_fillrect,
@@ -180,7 +180,7 @@ static int pmagbafb_probe(struct device *dev)
 
 	/* MMIO mapping setup.  */
 	info->fix.mmio_start = start;
-	par->mmio = ioremap_nocache(info->fix.mmio_start, info->fix.mmio_len);
+	par->mmio = ioremap(info->fix.mmio_start, info->fix.mmio_len);
 	if (!par->mmio) {
 		printk(KERN_ERR "%s: Cannot map MMIO\n", dev_name(dev));
 		err = -ENOMEM;
@@ -190,7 +190,7 @@ static int pmagbafb_probe(struct device *dev)
 
 	/* Frame buffer mapping setup.  */
 	info->fix.smem_start = start + PMAG_BA_FBMEM;
-	info->screen_base = ioremap_nocache(info->fix.smem_start,
+	info->screen_base = ioremap(info->fix.smem_start,
 					    info->fix.smem_len);
 	if (!info->screen_base) {
 		printk(KERN_ERR "%s: Cannot map FB\n", dev_name(dev));

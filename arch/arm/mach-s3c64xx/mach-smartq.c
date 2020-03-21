@@ -13,7 +13,6 @@
 #include <linux/serial_core.h>
 #include <linux/serial_s3c.h>
 #include <linux/spi/spi_gpio.h>
-#include <linux/usb/gpio_vbus.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/mach-types.h>
@@ -124,15 +123,16 @@ static struct s3c2410_hcd_info smartq_usb_host_info = {
 	.enable_oc	= smartq_usb_host_enableoc,
 };
 
-static struct gpio_vbus_mach_info smartq_usb_otg_vbus_pdata = {
-	.gpio_vbus		= S3C64XX_GPL(9),
-	.gpio_pullup		= -1,
-	.gpio_vbus_inverted	= true,
+static struct gpiod_lookup_table smartq_usb_otg_vbus_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		GPIO_LOOKUP("GPL", 9, "vbus", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct platform_device smartq_usb_otg_vbus_dev = {
 	.name			= "gpio-vbus",
-	.dev.platform_data	= &smartq_usb_otg_vbus_pdata,
 };
 
 static struct pwm_lookup smartq_pwm_lookup[] = {
@@ -418,6 +418,7 @@ void __init smartq_machine_init(void)
 
 	pwm_add_table(smartq_pwm_lookup, ARRAY_SIZE(smartq_pwm_lookup));
 	gpiod_add_lookup_table(&smartq_lcd_control_gpiod_table);
+	gpiod_add_lookup_table(&smartq_usb_otg_vbus_gpiod_table);
 	platform_add_devices(smartq_devices, ARRAY_SIZE(smartq_devices));
 
 	gpiod_add_lookup_table(&smartq_audio_gpios);

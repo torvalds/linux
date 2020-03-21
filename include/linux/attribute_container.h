@@ -54,6 +54,13 @@ void attribute_container_device_trigger(struct device *dev,
 					int (*fn)(struct attribute_container *,
 						  struct device *,
 						  struct device *));
+int attribute_container_device_trigger_safe(struct device *dev,
+					    int (*fn)(struct attribute_container *,
+						      struct device *,
+						      struct device *),
+					    int (*undo)(struct attribute_container *,
+							struct device *,
+							struct device *));
 void attribute_container_trigger(struct device *dev, 
 				 int (*fn)(struct attribute_container *,
 					   struct device *));

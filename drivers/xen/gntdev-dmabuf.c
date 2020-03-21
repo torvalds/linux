@@ -342,35 +342,12 @@ static void dmabuf_exp_ops_release(struct dma_buf *dma_buf)
 	mutex_unlock(&priv->lock);
 }
 
-static void *dmabuf_exp_ops_kmap(struct dma_buf *dma_buf,
-				 unsigned long page_num)
-{
-	/* Not implemented. */
-	return NULL;
-}
-
-static void dmabuf_exp_ops_kunmap(struct dma_buf *dma_buf,
-				  unsigned long page_num, void *addr)
-{
-	/* Not implemented. */
-}
-
-static int dmabuf_exp_ops_mmap(struct dma_buf *dma_buf,
-			       struct vm_area_struct *vma)
-{
-	/* Not implemented. */
-	return 0;
-}
-
 static const struct dma_buf_ops dmabuf_exp_ops =  {
 	.attach = dmabuf_exp_ops_attach,
 	.detach = dmabuf_exp_ops_detach,
 	.map_dma_buf = dmabuf_exp_ops_map_dma_buf,
 	.unmap_dma_buf = dmabuf_exp_ops_unmap_dma_buf,
 	.release = dmabuf_exp_ops_release,
-	.map = dmabuf_exp_ops_kmap,
-	.unmap = dmabuf_exp_ops_kunmap,
-	.mmap = dmabuf_exp_ops_mmap,
 };
 
 struct gntdev_dmabuf_export_args {

@@ -55,6 +55,7 @@
 #include "amdgpu_connectors.h"
 #include "amdgpu_trace.h"
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_ras.h"
 
 #include <linux/pm_runtime.h>
 
@@ -162,13 +163,15 @@ irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 	 * register to check whether the interrupt is triggered or not, and properly
 	 * ack the interrupt if it is there
 	 */
-	if (adev->nbio.funcs &&
-	    adev->nbio.funcs->handle_ras_controller_intr_no_bifring)
-		adev->nbio.funcs->handle_ras_controller_intr_no_bifring(adev);
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__PCIE_BIF)) {
+		if (adev->nbio.funcs &&
+		    adev->nbio.funcs->handle_ras_controller_intr_no_bifring)
+			adev->nbio.funcs->handle_ras_controller_intr_no_bifring(adev);
 
-	if (adev->nbio.funcs &&
-	    adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring)
-		adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring(adev);
+		if (adev->nbio.funcs &&
+		    adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring)
+			adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring(adev);
+	}
 
 	return ret;
 }

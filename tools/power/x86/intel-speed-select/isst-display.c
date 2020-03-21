@@ -418,6 +418,17 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 			snprintf(value, sizeof(value), "unsupported");
 		format_and_print(outf, base_level + 4, header, value);
 
+		snprintf(header, sizeof(header),
+			 "speed-select-core-power");
+		if (ctdp_level->sst_cp_support) {
+			if (ctdp_level->sst_cp_enabled)
+				snprintf(value, sizeof(value), "enabled");
+			else
+				snprintf(value, sizeof(value), "disabled");
+		} else
+			snprintf(value, sizeof(value), "unsupported");
+		format_and_print(outf, base_level + 4, header, value);
+
 		if (is_clx_n_platform()) {
 			if (ctdp_level->pbf_support)
 				_isst_pbf_display_information(cpu, outf,
@@ -634,13 +645,15 @@ void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
 	char header[256];
 	char value[256];
 
-	snprintf(header, sizeof(header), "package-%d",
-		 get_physical_package_id(cpu));
-	format_and_print(outf, 1, header, NULL);
-	snprintf(header, sizeof(header), "die-%d", get_physical_die_id(cpu));
-	format_and_print(outf, 2, header, NULL);
-	snprintf(header, sizeof(header), "cpu-%d", cpu);
-	format_and_print(outf, 3, header, NULL);
+	if (cpu >= 0) {
+		snprintf(header, sizeof(header), "package-%d",
+			 get_physical_package_id(cpu));
+		format_and_print(outf, 1, header, NULL);
+		snprintf(header, sizeof(header), "die-%d", get_physical_die_id(cpu));
+		format_and_print(outf, 2, header, NULL);
+		snprintf(header, sizeof(header), "cpu-%d", cpu);
+		format_and_print(outf, 3, header, NULL);
+	}
 	snprintf(header, sizeof(header), "%s", feature);
 	format_and_print(outf, 4, header, NULL);
 	snprintf(header, sizeof(header), "%s", cmd);

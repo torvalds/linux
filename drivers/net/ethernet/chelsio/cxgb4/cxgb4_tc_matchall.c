@@ -204,7 +204,7 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 	 * -1 here. 1 slot is enough to create a wildcard matchall
 	 * VIID rule.
 	 */
-	if (cls->common.prio <= adap->tids.nftids)
+	if (cls->common.prio <= (adap->tids.nftids + adap->tids.nhpftids))
 		fidx = cls->common.prio - 1;
 	else
 		fidx = cxgb4_get_free_ftid(dev, PF_INET);
@@ -223,6 +223,8 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 	fs = &tc_port_matchall->ingress.fs;
 	memset(fs, 0, sizeof(*fs));
 
+	if (fidx < adap->tids.nhpftids)
+		fs->prio = 1;
 	fs->tc_prio = cls->common.prio;
 	fs->tc_cookie = cls->cookie;
 	fs->hitcnts = 1;

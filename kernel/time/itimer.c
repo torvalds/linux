@@ -97,20 +97,20 @@ static int do_getitimer(int which, struct itimerspec64 *value)
 	return 0;
 }
 
-static int put_itimerval(struct itimerval __user *o,
+static int put_itimerval(struct __kernel_old_itimerval __user *o,
 			 const struct itimerspec64 *i)
 {
-	struct itimerval v;
+	struct __kernel_old_itimerval v;
 
 	v.it_interval.tv_sec = i->it_interval.tv_sec;
 	v.it_interval.tv_usec = i->it_interval.tv_nsec / NSEC_PER_USEC;
 	v.it_value.tv_sec = i->it_value.tv_sec;
 	v.it_value.tv_usec = i->it_value.tv_nsec / NSEC_PER_USEC;
-	return copy_to_user(o, &v, sizeof(struct itimerval)) ? -EFAULT : 0;
+	return copy_to_user(o, &v, sizeof(struct __kernel_old_itimerval)) ? -EFAULT : 0;
 }
 
 
-SYSCALL_DEFINE2(getitimer, int, which, struct itimerval __user *, value)
+SYSCALL_DEFINE2(getitimer, int, which, struct __kernel_old_itimerval __user *, value)
 {
 	struct itimerspec64 get_buffer;
 	int error = do_getitimer(which, &get_buffer);
@@ -314,11 +314,11 @@ SYSCALL_DEFINE1(alarm, unsigned int, seconds)
 
 #endif
 
-static int get_itimerval(struct itimerspec64 *o, const struct itimerval __user *i)
+static int get_itimerval(struct itimerspec64 *o, const struct __kernel_old_itimerval __user *i)
 {
-	struct itimerval v;
+	struct __kernel_old_itimerval v;
 
-	if (copy_from_user(&v, i, sizeof(struct itimerval)))
+	if (copy_from_user(&v, i, sizeof(struct __kernel_old_itimerval)))
 		return -EFAULT;
 
 	/* Validate the timevals in value. */
@@ -333,8 +333,8 @@ static int get_itimerval(struct itimerspec64 *o, const struct itimerval __user *
 	return 0;
 }
 
-SYSCALL_DEFINE3(setitimer, int, which, struct itimerval __user *, value,
-		struct itimerval __user *, ovalue)
+SYSCALL_DEFINE3(setitimer, int, which, struct __kernel_old_itimerval __user *, value,
+		struct __kernel_old_itimerval __user *, ovalue)
 {
 	struct itimerspec64 set_buffer, get_buffer;
 	int error;

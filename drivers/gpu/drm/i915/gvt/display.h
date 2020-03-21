@@ -35,6 +35,11 @@
 #ifndef _GVT_DISPLAY_H_
 #define _GVT_DISPLAY_H_
 
+#include <linux/types.h>
+
+struct intel_gvt;
+struct intel_vgpu;
+
 #define SBI_REG_MAX	20
 #define DPCD_SIZE	0x700
 

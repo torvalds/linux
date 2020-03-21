@@ -567,7 +567,7 @@ static const u8 calc_sb_tbl[512] = {
 
 /* Perform the key setup. */
 int __twofish_setkey(struct twofish_ctx *ctx, const u8 *key,
-		     unsigned int key_len, u32 *flags)
+		     unsigned int key_len)
 {
 	int i, j, k;
 
@@ -584,10 +584,7 @@ int __twofish_setkey(struct twofish_ctx *ctx, const u8 *key,
 
 	/* Check key length. */
 	if (key_len % 8)
-	{
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL; /* unsupported key length */
-	}
 
 	/* Compute the first two words of the S vector.  The magic numbers are
 	 * the entries of the RS matrix, preprocessed through poly_to_exp. The
@@ -688,8 +685,7 @@ EXPORT_SYMBOL_GPL(__twofish_setkey);
 
 int twofish_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int key_len)
 {
-	return __twofish_setkey(crypto_tfm_ctx(tfm), key, key_len,
-				&tfm->crt_flags);
+	return __twofish_setkey(crypto_tfm_ctx(tfm), key, key_len);
 }
 EXPORT_SYMBOL_GPL(twofish_setkey);
 

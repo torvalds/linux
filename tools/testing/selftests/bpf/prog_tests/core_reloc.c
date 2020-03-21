@@ -74,6 +74,7 @@
 		.b123 = 2,						\
 		.c1c  = 3,						\
 		.d00d = 4,						\
+		.f10c = 0,						\
 	},								\
 	.output_len = sizeof(struct core_reloc_arrays_output)		\
 }
@@ -308,12 +309,15 @@ static struct core_reloc_test_case test_cases[] = {
 	ARRAYS_CASE(arrays),
 	ARRAYS_CASE(arrays___diff_arr_dim),
 	ARRAYS_CASE(arrays___diff_arr_val_sz),
+	ARRAYS_CASE(arrays___equiv_zero_sz_arr),
+	ARRAYS_CASE(arrays___fixed_arr),
 
 	ARRAYS_ERR_CASE(arrays___err_too_small),
 	ARRAYS_ERR_CASE(arrays___err_too_shallow),
 	ARRAYS_ERR_CASE(arrays___err_non_array),
 	ARRAYS_ERR_CASE(arrays___err_wrong_val_type1),
 	ARRAYS_ERR_CASE(arrays___err_wrong_val_type2),
+	ARRAYS_ERR_CASE(arrays___err_bad_zero_sz_arr),
 
 	/* enum/ptr/int handling scenarios */
 	PRIMITIVES_CASE(primitives),

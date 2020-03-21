@@ -530,7 +530,6 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_set_dpibr);
 
 /**
  * snd_hdac_ext_stream_set_lpib - sets the lpib value of a stream
- * @bus: HD-audio core bus
  * @stream: hdac_ext_stream
  * @value: lpib value to set
  */
