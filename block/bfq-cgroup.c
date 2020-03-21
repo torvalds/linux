@@ -894,13 +894,6 @@ static void bfq_pd_offline(struct blkg_policy_data *pd)
 		st = bfqg->sched_data.service_tree + i;
 
 		/*
-		 * The idle tree may still contain bfq_queues belonging
-		 * to exited task because they never migrated to a different
-		 * cgroup from the one being destroyed now.
-		 */
-		bfq_flush_idle_tree(st);
-
-		/*
 		 * It may happen that some queues are still active
 		 * (busy) upon group destruction (if the corresponding
 		 * processes have been forced to terminate). We move
@@ -913,6 +906,19 @@ static void bfq_pd_offline(struct blkg_policy_data *pd)
 		 * scheduler has taken no reference.
 		 */
 		bfq_reparent_active_queues(bfqd, bfqg, st, i);
+
+		/*
+		 * The idle tree may still contain bfq_queues
+		 * belonging to exited task because they never
+		 * migrated to a different cgroup from the one being
+		 * destroyed now. In addition, even
+		 * bfq_reparent_active_queues() may happen to add some
+		 * entities to the idle tree. It happens if, in some
+		 * of the calls to bfq_bfqq_move() performed by
+		 * bfq_reparent_active_queues(), the queue to move is
+		 * empty and gets expired.
+		 */
+		bfq_flush_idle_tree(st);
 	}
 
 	__bfq_deactivate_entity(entity, false);
