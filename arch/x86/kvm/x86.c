@@ -7359,8 +7359,6 @@ int kvm_arch_init(void *opaque)
 	if (r)
 		goto out_free_percpu;
 
-	kvm_x86_ops = ops->runtime_ops;
-
 	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
 			PT_DIRTY_MASK, PT64_NX_MASK, 0,
 			PT_PRESENT_MASK, 0, sme_me_mask);
@@ -9639,6 +9637,8 @@ int kvm_arch_hardware_setup(void *opaque)
 	r = ops->hardware_setup();
 	if (r != 0)
 		return r;
+
+	kvm_x86_ops = ops->runtime_ops;
 
 	if (!kvm_cpu_cap_has(X86_FEATURE_XSAVES))
 		supported_xss = 0;
