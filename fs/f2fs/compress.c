@@ -1187,15 +1187,17 @@ void f2fs_decompress_end_io(struct page **rpages,
 		if (!rpage)
 			continue;
 
-		if (err || PageError(rpage)) {
-			ClearPageUptodate(rpage);
-			ClearPageError(rpage);
-		} else {
-			if (!verity || fsverity_verify_page(rpage))
-				SetPageUptodate(rpage);
-			else
-				SetPageError(rpage);
+		if (err || PageError(rpage))
+			goto clear_uptodate;
+
+		if (!verity || fsverity_verify_page(rpage)) {
+			SetPageUptodate(rpage);
+			goto unlock;
 		}
+clear_uptodate:
+		ClearPageUptodate(rpage);
+		ClearPageError(rpage);
+unlock:
 		unlock_page(rpage);
 	}
 }
