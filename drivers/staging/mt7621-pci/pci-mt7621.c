@@ -725,9 +725,4 @@ static struct platform_driver mt7621_pci_driver = {
 	},
 };
 
-static int __init mt7621_pci_init(void)
-{
-	return platform_driver_register(&mt7621_pci_driver);
-}
-
-module_init(mt7621_pci_init);
+builtin_platform_driver(mt7621_pci_driver);
