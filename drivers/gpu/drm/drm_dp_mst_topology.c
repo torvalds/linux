@@ -1054,13 +1054,12 @@ static void build_link_address(struct drm_dp_sideband_msg_tx *msg)
 	drm_dp_encode_sideband_req(&req, msg);
 }
 
-static int build_clear_payload_id_table(struct drm_dp_sideband_msg_tx *msg)
+static void build_clear_payload_id_table(struct drm_dp_sideband_msg_tx *msg)
 {
 	struct drm_dp_sideband_msg_req_body req;
 
 	req.req_type = DP_CLEAR_PAYLOAD_ID_TABLE;
 	drm_dp_encode_sideband_req(&req, msg);
-	return 0;
 }
 
 static int build_enum_path_resources(struct drm_dp_sideband_msg_tx *msg,
