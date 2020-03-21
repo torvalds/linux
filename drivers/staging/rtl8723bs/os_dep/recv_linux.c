@@ -295,11 +295,11 @@ int rtw_recv_indicatepkt(struct adapter *padapter, union recv_frame *precv_frame
 
 _recv_indicatepkt_drop:
 
-	 /* enqueue back to free_recv_queue */
-	 rtw_free_recvframe(precv_frame, pfree_recv_queue);
+	/* enqueue back to free_recv_queue */
+	rtw_free_recvframe(precv_frame, pfree_recv_queue);
 
-	 DBG_COUNTER(padapter->rx_logs.os_indicate_err);
-	 return _FAIL;
+	DBG_COUNTER(padapter->rx_logs.os_indicate_err);
+	return _FAIL;
 }
 
 void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl)
