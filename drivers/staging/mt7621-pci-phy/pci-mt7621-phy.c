@@ -75,6 +75,9 @@
 
 #define RG_PE1_FRC_MSTCKDIV			BIT(5)
 
+#define XTAL_MODE_SEL_SHIFT			6
+#define XTAL_MODE_SEL_MASK			0x7
+
 #define MAX_PHYS	2
 
 /**
@@ -136,9 +139,11 @@ static void mt7621_bypass_pipe_rst(struct mt7621_pci_phy *phy)
 static void mt7621_set_phy_for_ssc(struct mt7621_pci_phy *phy)
 {
 	struct device *dev = phy->dev;
-	u32 reg = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0);
+	u32 xtal_mode;
 
-	reg = (reg >> 6) & 0x7;
+	xtal_mode = (rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0)
+		     >> XTAL_MODE_SEL_SHIFT) & XTAL_MODE_SEL_MASK;
+
 	/* Set PCIe Port PHY to disable SSC */
 	/* Debug Xtal Type */
 	mt7621_phy_rmw(phy, RG_PE1_FRC_H_XTAL_REG,
@@ -154,13 +159,13 @@ static void mt7621_set_phy_for_ssc(struct mt7621_pci_phy *phy)
 			       RG_PE1_PHY_EN, RG_PE1_FRC_PHY_EN);
 	}
 
-	if (reg <= 5 && reg >= 3) { /* 40MHz Xtal */
+	if (xtal_mode <= 5 && xtal_mode >= 3) { /* 40MHz Xtal */
 		/* Set Pre-divider ratio (for host mode) */
 		mt7621_phy_rmw(phy, RG_PE1_H_PLL_REG,
 			       RG_PE1_H_PLL_PREDIV,
 			       RG_PE1_H_PLL_PREDIV_VAL(0x01));
 		dev_info(dev, "Xtal is 40MHz\n");
-	} else if (reg >= 6) { /* 25MHz Xal */
+	} else if (xtal_mode >= 6) { /* 25MHz Xal */
 		mt7621_phy_rmw(phy, RG_PE1_H_PLL_REG,
 			       RG_PE1_H_PLL_PREDIV,
 			       RG_PE1_H_PLL_PREDIV_VAL(0x00));
@@ -206,7 +211,7 @@ static void mt7621_set_phy_for_ssc(struct mt7621_pci_phy *phy)
 	mt7621_phy_rmw(phy, RG_PE1_H_PLL_BR_REG,
 		       RG_PE1_H_PLL_BR, RG_PE1_H_PLL_BR_VAL(0x00));
 
-	if (reg <= 5 && reg >= 3) { /* 40MHz Xtal */
+	if (xtal_mode <= 5 && xtal_mode >= 3) { /* 40MHz Xtal */
 		/* set force mode enable of da_pe1_mstckdiv */
 		mt7621_phy_rmw(phy, RG_PE1_MSTCKDIV_REG,
 			       RG_PE1_MSTCKDIV | RG_PE1_FRC_MSTCKDIV,
