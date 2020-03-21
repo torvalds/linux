@@ -295,7 +295,7 @@ void rkispp_stats_isr(struct rkispp_stats_vdev *stats_vdev, u32 mis)
 static void rkispp_init_stats_vdev(struct rkispp_stats_vdev *stats_vdev)
 {
 	stats_vdev->vdev_fmt.fmt.meta.dataformat =
-		V4L2_META_FMT_RK_ISP1_STAT_3A;
+		V4L2_META_FMT_RK_ISPP_STAT;
 	stats_vdev->vdev_fmt.fmt.meta.buffersize =
 		sizeof(struct rkispp_stats_buffer);
 }
