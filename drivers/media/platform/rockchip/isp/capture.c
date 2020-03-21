@@ -704,19 +704,18 @@ static int hdr_dma_frame(struct rkisp_device *dev)
 	switch (dev->hdr.op_mode) {
 	case HDR_FRAMEX2_DDR:
 	case HDR_LINEX2_DDR:
-	case HDR_DBG_FRAME1:
+	case HDR_RDBK_FRAME1:
 		max_dma = 1;
 		break;
 	case HDR_FRAMEX3_DDR:
 	case HDR_LINEX3_DDR:
-	case HDR_DBG_FRAME2:
+	case HDR_RDBK_FRAME2:
 		max_dma = 2;
 		break;
-	case HDR_DBG_FRAME3:
+	case HDR_RDBK_FRAME3:
 		max_dma = HDR_DMA_MAX;
 		break;
 	case HDR_LINEX2_NO_DDR:
-	case HDR_LINEX3_NO_DDR:
 	case HDR_NORMAL:
 	default:
 		max_dma = 0;
@@ -1283,7 +1282,7 @@ static void update_dmatx_v2(struct rkisp_stream *stream)
 		     stream->id == RKISP_STREAM_DMATX1 ||
 		     stream->id == RKISP_STREAM_DMATX2)) {
 			buf = hdr_dqbuf(&dev->hdr.q_tx[index]);
-			if (IS_HDR_DBG(dev->hdr.op_mode) &&
+			if (IS_HDR_RDBK(dev->hdr.op_mode) &&
 			    !dev->dmarx_dev.trigger)
 				hdr_qbuf(&dev->hdr.q_rx[index], buf);
 			else
@@ -1515,10 +1514,10 @@ static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 	stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX0];
 	size = stream->out_fmt.plane_fmt[0].sizeimage;
 	max_dma = hdr_dma_frame(dev);
-	/* hdr dbg mode using base and shd address
+	/* hdr read back mode using base and shd address
 	 * this support multi-buffer
 	 */
-	if (IS_HDR_DBG(dev->hdr.op_mode) &&
+	if (IS_HDR_RDBK(dev->hdr.op_mode) &&
 	    !dev->dmarx_dev.trigger)
 		max_buf = HDR_MAX_DUMMY_BUF;
 	for (i = 0; i < max_dma; i++) {
@@ -1540,21 +1539,21 @@ static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 	/*
 	 * normal: q_tx[0] to dma0
 	 *	   q_tx[1] to dma1
-	 * dbg1: using dma2
+	 * rdbk1: using dma2
 		   q_tx[0] to dma2
-	 * dbg2: using dma0 (as M), dma2 (as S)
+	 * rdbk2: using dma0 (as M), dma2 (as S)
 	 *	   q_tx[0] to dma0
 	 *	   q_tx[1] to dma2
-	 * dbg3: using dma0 (as M), dam1 (as L), dma2 (as S)
+	 * rdbk3: using dma0 (as M), dam1 (as L), dma2 (as S)
 	 *	   q_tx[0] to dma0
 	 *	   q_tx[1] to dma1
 	 *	   q_tx[2] to dma2
 	 */
-	if (dev->hdr.op_mode == HDR_DBG_FRAME1) {
+	if (dev->hdr.op_mode == HDR_RDBK_FRAME1) {
 		dev->hdr.index[HDR_DMA2] = 0;
 		dev->hdr.index[HDR_DMA0] = 1;
 		dev->hdr.index[HDR_DMA1] = 2;
-	} else if (dev->hdr.op_mode == HDR_DBG_FRAME2) {
+	} else if (dev->hdr.op_mode == HDR_RDBK_FRAME2) {
 		dev->hdr.index[HDR_DMA0] = 0;
 		dev->hdr.index[HDR_DMA2] = 1;
 		dev->hdr.index[HDR_DMA1] = 2;
@@ -1581,7 +1580,7 @@ void hdr_destroy_buf(struct rkisp_device *dev)
 
 	atomic_set(&dev->hdr.refcnt, 0);
 	max_dma = hdr_dma_frame(dev);
-	if (IS_HDR_DBG(dev->hdr.op_mode) &&
+	if (IS_HDR_RDBK(dev->hdr.op_mode) &&
 	    !dev->dmarx_dev.trigger)
 		max_buf = HDR_MAX_DUMMY_BUF;
 	for (i = 0; i < max_dma; i++) {
@@ -1685,19 +1684,19 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 	    dev->hdr.op_mode == HDR_LINEX2_DDR ||
 	    dev->hdr.op_mode == HDR_FRAMEX3_DDR ||
 	    dev->hdr.op_mode == HDR_LINEX3_DDR ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME2 ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME3)
+	    dev->hdr.op_mode == HDR_RDBK_FRAME2 ||
+	    dev->hdr.op_mode == HDR_RDBK_FRAME3)
 		dmatx0_config_mi(&dev->cap_dev.stream[RKISP_STREAM_DMATX0]);
 	if (dev->hdr.op_mode == HDR_FRAMEX3_DDR ||
 	    dev->hdr.op_mode == HDR_LINEX3_DDR ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME3)
+	    dev->hdr.op_mode == HDR_RDBK_FRAME3)
 		dmatx1_config_mi(&dev->cap_dev.stream[RKISP_STREAM_DMATX1]);
-	if (dev->hdr.op_mode == HDR_DBG_FRAME1 ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME2 ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME3)
+	if (dev->hdr.op_mode == HDR_RDBK_FRAME1 ||
+	    dev->hdr.op_mode == HDR_RDBK_FRAME2 ||
+	    dev->hdr.op_mode == HDR_RDBK_FRAME3)
 		dmatx2_config_mi(&dev->cap_dev.stream[RKISP_STREAM_DMATX2]);
 
-	if (IS_HDR_DBG(dev->hdr.op_mode))
+	if (IS_HDR_RDBK(dev->hdr.op_mode))
 		raw_rd_ctrl(dev->base_addr, dev->csi_dev.memory << 2);
 	return 0;
 }
@@ -1716,22 +1715,22 @@ void hdr_stop_dmatx(struct rkisp_device *dev)
 	    dev->hdr.op_mode == HDR_LINEX2_DDR ||
 	    dev->hdr.op_mode == HDR_FRAMEX3_DDR ||
 	    dev->hdr.op_mode == HDR_LINEX3_DDR ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME2 ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME3) {
+	    dev->hdr.op_mode == HDR_RDBK_FRAME2 ||
+	    dev->hdr.op_mode == HDR_RDBK_FRAME3) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX0];
 		raw_wr_disable(stream);
 		stream->u.dmatx.is_config = false;
 	}
 	if (dev->hdr.op_mode == HDR_FRAMEX3_DDR ||
 	    dev->hdr.op_mode == HDR_LINEX3_DDR ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME3) {
+	    dev->hdr.op_mode == HDR_RDBK_FRAME3) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX1];
 		raw_wr_disable(stream);
 		stream->u.dmatx.is_config = false;
 	}
-	if (dev->hdr.op_mode == HDR_DBG_FRAME1 ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME2 ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME3) {
+	if (dev->hdr.op_mode == HDR_RDBK_FRAME1 ||
+	    dev->hdr.op_mode == HDR_RDBK_FRAME2 ||
+	    dev->hdr.op_mode == HDR_RDBK_FRAME3) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX2];
 		raw_wr_disable(stream);
 		stream->u.dmatx.is_config = false;
@@ -1749,12 +1748,12 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	int ret = 0;
 
 	if (dev->isp_ver == ISP_V20 &&
-	    ((dev->hdr.op_mode == HDR_DBG_FRAME1 &&
+	    ((dev->hdr.op_mode == HDR_RDBK_FRAME1 &&
 	      stream->id == RKISP_STREAM_DMATX2) ||
-	     (dev->hdr.op_mode == HDR_DBG_FRAME2 &&
+	     (dev->hdr.op_mode == HDR_RDBK_FRAME2 &&
 	      (stream->id == RKISP_STREAM_DMATX2 ||
 	       stream->id == RKISP_STREAM_DMATX0)) ||
-	     (dev->hdr.op_mode == HDR_DBG_FRAME3 &&
+	     (dev->hdr.op_mode == HDR_RDBK_FRAME3 &&
 	      (stream->id == RKISP_STREAM_DMATX2 ||
 	       stream->id == RKISP_STREAM_DMATX1 ||
 	       stream->id == RKISP_STREAM_DMATX0)))) {
@@ -2985,9 +2984,9 @@ void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
 		} else {
 			mi_frame_end(stream);
 			if (dev->dmarx_dev.trigger == T_AUTO &&
-			    ((dev->hdr.op_mode == HDR_DBG_FRAME1 && end_tx2) ||
-			     (dev->hdr.op_mode == HDR_DBG_FRAME2 && end_tx2 && end_tx0) ||
-			     (dev->hdr.op_mode == HDR_DBG_FRAME3 && end_tx2 && end_tx1 && end_tx0))) {
+			    ((dev->hdr.op_mode == HDR_RDBK_FRAME1 && end_tx2) ||
+			     (dev->hdr.op_mode == HDR_RDBK_FRAME2 && end_tx2 && end_tx0) ||
+			     (dev->hdr.op_mode == HDR_RDBK_FRAME3 && end_tx2 && end_tx1 && end_tx0))) {
 				end_tx0 = false;
 				end_tx1 = false;
 				end_tx2 = false;

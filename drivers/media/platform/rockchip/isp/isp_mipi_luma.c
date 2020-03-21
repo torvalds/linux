@@ -270,16 +270,15 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 		goto unlock;
 
 	switch (op_mode) {
-	case HDR_DBG_FRAME2:
+	case HDR_RDBK_FRAME2:
 	case HDR_FRAMEX2_DDR:
 	case HDR_LINEX2_DDR:
 	case HDR_LINEX2_NO_DDR:
 		frm_mode = RKISP_LUMA_TWOFRM;
 		break;
-	case HDR_DBG_FRAME3:
+	case HDR_RDBK_FRAME3:
 	case HDR_FRAMEX3_DDR:
 	case HDR_LINEX3_DDR:
-	case HDR_LINEX3_NO_DDR:
 		frm_mode = RKISP_LUMA_THREEFRM;
 		break;
 	default:

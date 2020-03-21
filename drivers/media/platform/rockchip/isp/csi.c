@@ -277,20 +277,19 @@ static int csi_config(struct rkisp_csi_device *csi)
 				dev->hdr.esp_mode = hdr_cfg.esp.mode;
 			}
 		}
-#if RKISP_HDR_DBG_MODE
+#if RKISP_HDR_RDBK_MODE
 		switch (dev->hdr.op_mode) {
 		case HDR_FRAMEX2_DDR:
 		case HDR_LINEX2_DDR:
 		case HDR_LINEX2_NO_DDR:
-			dev->hdr.op_mode = HDR_DBG_FRAME2;
+			dev->hdr.op_mode = HDR_RDBK_FRAME2;
 			break;
 		case HDR_FRAMEX3_DDR:
 		case HDR_LINEX3_DDR:
-		case HDR_LINEX3_NO_DDR:
-			dev->hdr.op_mode = HDR_DBG_FRAME3;
+			dev->hdr.op_mode = HDR_RDBK_FRAME3;
 			break;
 		case HDR_NORMAL:
-			dev->hdr.op_mode = HDR_DBG_FRAME1;
+			dev->hdr.op_mode = HDR_RDBK_FRAME1;
 			break;
 		default:
 			break;
@@ -318,17 +317,16 @@ static int csi_config(struct rkisp_csi_device *csi)
 
 		/* hdr merge */
 		switch (dev->hdr.op_mode) {
-		case HDR_DBG_FRAME2:
+		case HDR_RDBK_FRAME2:
 		case HDR_FRAMEX2_DDR:
 		case HDR_LINEX2_DDR:
 		case HDR_LINEX2_NO_DDR:
 			val = SW_HDRMGE_EN |
 			      SW_HDRMGE_MODE_FRAMEX2;
 			break;
-		case HDR_DBG_FRAME3:
+		case HDR_RDBK_FRAME3:
 		case HDR_FRAMEX3_DDR:
 		case HDR_LINEX3_DDR:
-		case HDR_LINEX3_NO_DDR:
 			val = SW_HDRMGE_EN |
 			      SW_HDRMGE_MODE_FRAMEX3;
 			break;
@@ -400,17 +398,17 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 	} else {
 		switch (dev->isp_inp & 0x7) {
 		case INP_RAWRD2 | INP_RAWRD0:
-			dev->hdr.op_mode = HDR_DBG_FRAME2;
+			dev->hdr.op_mode = HDR_RDBK_FRAME2;
 			val = SW_HDRMGE_EN |
 				SW_HDRMGE_MODE_FRAMEX2;
 			break;
 		case INP_RAWRD2 | INP_RAWRD1 | INP_RAWRD0:
-			dev->hdr.op_mode = HDR_DBG_FRAME3;
+			dev->hdr.op_mode = HDR_RDBK_FRAME3;
 			val = SW_HDRMGE_EN |
 				SW_HDRMGE_MODE_FRAMEX3;
 			break;
 		default: //INP_RAWRD2
-			dev->hdr.op_mode = HDR_DBG_FRAME1;
+			dev->hdr.op_mode = HDR_RDBK_FRAME1;
 		}
 		writel(SW_IBUF_OP_MODE(dev->hdr.op_mode),
 		       dev->base_addr + CSI2RX_CTRL0);
@@ -425,7 +423,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 }
 
 /*
- * for hdr debug mode, rawrd read back data
+ * for hdr read back mode, rawrd read back data
  * this will update rawrd base addr to shadow.
  */
 void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
@@ -437,11 +435,11 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 		dma2frm = 2;
 	memset(csi->filt_state, 0, sizeof(csi->filt_state));
 	switch (dev->hdr.op_mode) {
-	case HDR_DBG_FRAME3://is rawrd1 rawrd0 rawrd2
+	case HDR_RDBK_FRAME3://is rawrd1 rawrd0 rawrd2
 		csi->filt_state[CSI_F_RD1] = dma2frm;
-	case HDR_DBG_FRAME2://is rawrd0 and rawrd2
+	case HDR_RDBK_FRAME2://is rawrd0 and rawrd2
 		csi->filt_state[CSI_F_RD0] = dma2frm;
-	case HDR_DBG_FRAME1://only rawrd2
+	case HDR_RDBK_FRAME1://only rawrd2
 		csi->filt_state[CSI_F_RD2] = dma2frm;
 		break;
 	default://other no support readback
@@ -463,7 +461,7 @@ int rkisp_csi_trigger_event(struct rkisp_csi_device *csi, void *arg)
 	unsigned long lock_flags = 0;
 	int times = -1;
 
-	if (!IS_HDR_DBG(dev->hdr.op_mode))
+	if (!IS_HDR_RDBK(dev->hdr.op_mode))
 		return 0;
 
 	spin_lock_irqsave(&csi->rdbk_lock, lock_flags);
@@ -507,17 +505,17 @@ void rkisp_csi_sof(struct rkisp_device *dev, u8 id)
 {
 	/* to get long frame vc_start */
 	switch (dev->hdr.op_mode) {
-	case HDR_DBG_FRAME1:
+	case HDR_RDBK_FRAME1:
 		if (id != HDR_DMA2)
 			return;
 		break;
-	case HDR_DBG_FRAME2:
+	case HDR_RDBK_FRAME2:
 	case HDR_FRAMEX2_DDR:
 	case HDR_LINEX2_DDR:
 		if (id != HDR_DMA0)
 			return;
 		break;
-	case HDR_DBG_FRAME3:
+	case HDR_RDBK_FRAME3:
 	case HDR_FRAMEX3_DDR:
 	case HDR_LINEX3_DDR:
 		if (id != HDR_DMA1)

@@ -8,7 +8,7 @@
 
 #define CSI_DEV_NAME DRIVER_NAME "-csi-subdev"
 
-#define RKISP_HDR_DBG_MODE 0
+#define RKISP_HDR_RDBK_MODE 0
 
 #define HDR_MAX_DUMMY_BUF 3
 /* define max dmatx to use for hdr */
@@ -17,24 +17,23 @@
 #define HDR_DMA1 1
 #define HDR_DMA2 2
 
-#define IS_HDR_DBG(x) ({ \
+#define IS_HDR_RDBK(x) ({ \
 	typeof(x) __x = (x); \
-	(__x == HDR_DBG_FRAME1 || \
-	 __x == HDR_DBG_FRAME2 || \
-	 __x == HDR_DBG_FRAME3); \
+	(__x == HDR_RDBK_FRAME1 || \
+	 __x == HDR_RDBK_FRAME2 || \
+	 __x == HDR_RDBK_FRAME3); \
 })
 
 enum hdr_op_mode {
 	HDR_NORMAL = 0,
-	HDR_DBG_FRAME1 = 4,
-	HDR_DBG_FRAME2 = 5,
-	HDR_DBG_FRAME3 = 6,
+	HDR_RDBK_FRAME1 = 4,
+	HDR_RDBK_FRAME2 = 5,
+	HDR_RDBK_FRAME3 = 6,
 	HDR_FRAMEX2_DDR = 8,
 	HDR_LINEX2_DDR = 9,
 	HDR_LINEX2_NO_DDR = 10,
 	HDR_FRAMEX3_DDR = 12,
 	HDR_LINEX3_DDR = 13,
-	HDR_LINEX3_NO_DDR = 14,
 };
 
 enum rkisp_csi_pad {
