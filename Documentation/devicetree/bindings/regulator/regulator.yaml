@@ -191,7 +191,7 @@ patternProperties:
 
 examples:
   - |
-    xyzreg: regulator@0 {
+    xyzreg: regulator {
       regulator-min-microvolt = <1000000>;
       regulator-max-microvolt = <2500000>;
       regulator-always-on;

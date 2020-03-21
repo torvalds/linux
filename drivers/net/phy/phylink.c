@@ -761,8 +761,14 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 		config.interface = interface;
 
 	ret = phylink_validate(pl, supported, &config);
-	if (ret)
+	if (ret) {
+		phylink_warn(pl, "validation of %s with support %*pb and advertisement %*pb failed: %d\n",
+			     phy_modes(config.interface),
+			     __ETHTOOL_LINK_MODE_MASK_NBITS, phy->supported,
+			     __ETHTOOL_LINK_MODE_MASK_NBITS, config.advertising,
+			     ret);
 		return ret;
+	}
 
 	phy->phylink = pl;
 	phy->phy_link_change = phylink_phy_change;

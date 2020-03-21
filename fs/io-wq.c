@@ -502,7 +502,7 @@ next:
 		if (worker->mm)
 			work->flags |= IO_WQ_WORK_HAS_MM;
 
-		if (wq->get_work && !(work->flags & IO_WQ_WORK_INTERNAL)) {
+		if (wq->get_work) {
 			put_work = work;
 			wq->get_work(work);
 		}
@@ -535,42 +535,23 @@ next:
 	} while (1);
 }
 
-static inline void io_worker_spin_for_work(struct io_wqe *wqe)
-{
-	int i = 0;
-
-	while (++i < 1000) {
-		if (io_wqe_run_queue(wqe))
-			break;
-		if (need_resched())
-			break;
-		cpu_relax();
-	}
-}
-
 static int io_wqe_worker(void *data)
 {
 	struct io_worker *worker = data;
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wq *wq = wqe->wq;
-	bool did_work;
 
 	io_worker_start(wqe, worker);
 
-	did_work = false;
 	while (!test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 loop:
-		if (did_work)
-			io_worker_spin_for_work(wqe);
 		spin_lock_irq(&wqe->lock);
 		if (io_wqe_run_queue(wqe)) {
 			__set_current_state(TASK_RUNNING);
 			io_worker_handle_work(worker);
-			did_work = true;
 			goto loop;
 		}
-		did_work = false;
 		/* drops the lock on success, retry */
 		if (__io_worker_idle(wqe, worker)) {
 			__release(&wqe->lock);
@@ -766,6 +747,17 @@ static bool io_wq_can_queue(struct io_wqe *wqe, struct io_wqe_acct *acct,
 	return true;
 }
 
+static void io_run_cancel(struct io_wq_work *work)
+{
+	do {
+		struct io_wq_work *old_work = work;
+
+		work->flags |= IO_WQ_WORK_CANCEL;
+		work->func(&work);
+		work = (work == old_work) ? NULL : work;
+	} while (work);
+}
+
 static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 {
 	struct io_wqe_acct *acct = io_work_get_acct(wqe, work);
@@ -779,8 +771,7 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 	 * It's close enough to not be an issue, fork() has the same delay.
 	 */
 	if (unlikely(!io_wq_can_queue(wqe, acct, work))) {
-		work->flags |= IO_WQ_WORK_CANCEL;
-		work->func(&work);
+		io_run_cancel(work);
 		return;
 	}
 
@@ -919,8 +910,7 @@ static enum io_wq_cancel io_wqe_cancel_cb_work(struct io_wqe *wqe,
 	spin_unlock_irqrestore(&wqe->lock, flags);
 
 	if (found) {
-		work->flags |= IO_WQ_WORK_CANCEL;
-		work->func(&work);
+		io_run_cancel(work);
 		return IO_WQ_CANCEL_OK;
 	}
 
@@ -995,8 +985,7 @@ static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
 	spin_unlock_irqrestore(&wqe->lock, flags);
 
 	if (found) {
-		work->flags |= IO_WQ_WORK_CANCEL;
-		work->func(&work);
+		io_run_cancel(work);
 		return IO_WQ_CANCEL_OK;
 	}
 
@@ -1066,42 +1055,6 @@ enum io_wq_cancel io_wq_cancel_pid(struct io_wq *wq, pid_t pid)
 	}
 
 	return ret;
-}
-
-struct io_wq_flush_data {
-	struct io_wq_work work;
-	struct completion done;
-};
-
-static void io_wq_flush_func(struct io_wq_work **workptr)
-{
-	struct io_wq_work *work = *workptr;
-	struct io_wq_flush_data *data;
-
-	data = container_of(work, struct io_wq_flush_data, work);
-	complete(&data->done);
-}
-
-/*
- * Doesn't wait for previously queued work to finish. When this completes,
- * it just means that previously queued work was started.
- */
-void io_wq_flush(struct io_wq *wq)
-{
-	struct io_wq_flush_data data;
-	int node;
-
-	for_each_node(node) {
-		struct io_wqe *wqe = wq->wqes[node];
-
-		if (!node_online(node))
-			continue;
-		init_completion(&data.done);
-		INIT_IO_WORK(&data.work, io_wq_flush_func);
-		data.work.flags |= IO_WQ_WORK_INTERNAL;
-		io_wqe_enqueue(wqe, &data.work);
-		wait_for_completion(&data.done);
-	}
 }
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)

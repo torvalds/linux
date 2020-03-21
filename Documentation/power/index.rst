@@ -13,7 +13,6 @@ Power Management
     drivers-testing
     energy-model
     freezing-of-tasks
-    interface
     opp
     pci
     pm_qos_interface

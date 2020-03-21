@@ -18,7 +18,7 @@ may look as follows::
 
  $ ls -l /sys/bus/acpi/devices/INT3404:00/
  total 0
-...
+ ...
  -r--r--r-- 1 root root 4096 Dec 13 20:38 state0
  -r--r--r-- 1 root root 4096 Dec 13 20:38 state1
  -r--r--r-- 1 root root 4096 Dec 13 20:38 state10
@@ -38,7 +38,7 @@ where each of the "state*" files represents one performance state of the fan
 and contains a colon-separated list of 5 integer numbers (fields) with the
 following interpretation::
 
-control_percent:trip_point_index:speed_rpm:noise_level_mdb:power_mw
+  control_percent:trip_point_index:speed_rpm:noise_level_mdb:power_mw
 
 * ``control_percent``: The percent value to be used to set the fan speed to a
   specific level using the _FSL object (0-100).

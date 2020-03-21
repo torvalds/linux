@@ -605,7 +605,8 @@ static void __init bootcmdline_init(char **cmdline_p)
 	 * If we're configured to take boot arguments from DT, look for those
 	 * now.
 	 */
-	if (IS_ENABLED(CONFIG_MIPS_CMDLINE_FROM_DTB))
+	if (IS_ENABLED(CONFIG_MIPS_CMDLINE_FROM_DTB) ||
+	    IS_ENABLED(CONFIG_MIPS_CMDLINE_DTB_EXTEND))
 		of_scan_flat_dt(bootcmdline_scan_chosen, &dt_bootargs);
 #endif
 
