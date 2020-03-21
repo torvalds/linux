@@ -32,6 +32,7 @@ static inline int of_irq_parse_oldworld(struct device_node *device, int index,
 }
 #endif /* CONFIG_PPC32 && CONFIG_PPC_PMAC */
 
+extern int of_irq_domain_map(const struct irq_fwspec *in, struct irq_fwspec *out);
 extern int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq);
 extern int of_irq_parse_one(struct device_node *device, int index,
 			  struct of_phandle_args *out_irq);

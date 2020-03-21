@@ -1944,8 +1944,6 @@ static void dma_tc_handle(struct coh901318_chan *cohc)
 		return;
 	}
 
-	spin_lock(&cohc->lock);
-
 	/*
 	 * When we reach this point, at least one queue item
 	 * should have been moved over from cohc->queue to
@@ -1965,8 +1963,6 @@ static void dma_tc_handle(struct coh901318_chan *cohc)
 	 */
 	if (coh901318_queue_start(cohc) == NULL)
 		cohc->busy = 0;
-
-	spin_unlock(&cohc->lock);
 
 	/*
 	 * This tasklet will remove items from cohc->active

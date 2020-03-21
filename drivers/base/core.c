@@ -424,9 +424,13 @@ static void device_link_add_missing_supplier_links(void)
 
 	mutex_lock(&wfs_lock);
 	list_for_each_entry_safe(dev, tmp, &wait_for_suppliers,
-				 links.needs_suppliers)
-		if (!fwnode_call_int_op(dev->fwnode, add_links, dev))
+				 links.needs_suppliers) {
+		int ret = fwnode_call_int_op(dev->fwnode, add_links, dev);
+		if (!ret)
 			list_del_init(&dev->links.needs_suppliers);
+		else if (ret != -ENODEV)
+			dev->links.need_for_probe = false;
+	}
 	mutex_unlock(&wfs_lock);
 }
 
@@ -638,25 +642,31 @@ static void __device_links_queue_sync_state(struct device *dev,
 /**
  * device_links_flush_sync_list - Call sync_state() on a list of devices
  * @list: List of devices to call sync_state() on
+ * @dont_lock_dev: Device for which lock is already held by the caller
  *
  * Calls sync_state() on all the devices that have been queued for it. This
- * function is used in conjunction with __device_links_queue_sync_state().
+ * function is used in conjunction with __device_links_queue_sync_state(). The
+ * @dont_lock_dev parameter is useful when this function is called from a
+ * context where a device lock is already held.
  */
-static void device_links_flush_sync_list(struct list_head *list)
+static void device_links_flush_sync_list(struct list_head *list,
+					 struct device *dont_lock_dev)
 {
 	struct device *dev, *tmp;
 
 	list_for_each_entry_safe(dev, tmp, list, links.defer_sync) {
 		list_del_init(&dev->links.defer_sync);
 
-		device_lock(dev);
+		if (dev != dont_lock_dev)
+			device_lock(dev);
 
 		if (dev->bus->sync_state)
 			dev->bus->sync_state(dev);
 		else if (dev->driver && dev->driver->sync_state)
 			dev->driver->sync_state(dev);
 
-		device_unlock(dev);
+		if (dev != dont_lock_dev)
+			device_unlock(dev);
 
 		put_device(dev);
 	}
@@ -694,7 +704,7 @@ void device_links_supplier_sync_state_resume(void)
 out:
 	device_links_write_unlock();
 
-	device_links_flush_sync_list(&sync_list);
+	device_links_flush_sync_list(&sync_list, NULL);
 }
 
 static int sync_state_resume_initcall(void)
@@ -745,6 +755,11 @@ void device_links_driver_bound(struct device *dev)
 		WRITE_ONCE(link->status, DL_STATE_AVAILABLE);
 	}
 
+	if (defer_sync_state_count)
+		__device_links_supplier_defer_sync(dev);
+	else
+		__device_links_queue_sync_state(dev, &sync_list);
+
 	list_for_each_entry(link, &dev->links.suppliers, c_node) {
 		if (link->flags & DL_FLAG_STATELESS)
 			continue;
@@ -763,7 +778,7 @@ void device_links_driver_bound(struct device *dev)
 
 	device_links_write_unlock();
 
-	device_links_flush_sync_list(&sync_list);
+	device_links_flush_sync_list(&sync_list, dev);
 }
 
 /**

@@ -92,8 +92,11 @@ fscrypt_allocate_skcipher(struct fscrypt_mode *mode, const u8 *raw_key,
 		 * first time a mode is used.
 		 */
 		pr_info("fscrypt: %s using implementation \"%s\"\n",
-			mode->friendly_name,
-			crypto_skcipher_alg(tfm)->base.cra_driver_name);
+			mode->friendly_name, crypto_skcipher_driver_name(tfm));
+	}
+	if (WARN_ON(crypto_skcipher_ivsize(tfm) != mode->ivsize)) {
+		err = -EINVAL;
+		goto err_free_tfm;
 	}
 	crypto_skcipher_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 	err = crypto_skcipher_setkey(tfm, raw_key, mode->keysize);
@@ -114,15 +117,15 @@ err_free_tfm:
  */
 int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
 			const u8 *raw_key, unsigned int raw_key_size,
-			const struct fscrypt_info *ci)
+			bool is_hw_wrapped, const struct fscrypt_info *ci)
 {
 	struct crypto_skcipher *tfm;
 
 	if (fscrypt_using_inline_encryption(ci))
 		return fscrypt_prepare_inline_crypt_key(prep_key,
-				raw_key, raw_key_size, ci);
+				raw_key, raw_key_size, is_hw_wrapped, ci);
 
-	if (WARN_ON(raw_key_size != ci->ci_mode->keysize))
+	if (WARN_ON(is_hw_wrapped || raw_key_size != ci->ci_mode->keysize))
 		return -EINVAL;
 
 	tfm = fscrypt_allocate_skcipher(ci->ci_mode, raw_key, ci->ci_inode);
@@ -143,18 +146,18 @@ void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key)
 	fscrypt_destroy_inline_crypt_key(prep_key);
 }
 
-/* Given the per-file key, set up the file's crypto transform object */
-int fscrypt_set_derived_key(struct fscrypt_info *ci, const u8 *derived_key)
+/* Given a per-file encryption key, set up the file's crypto transform object */
+int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci, const u8 *raw_key)
 {
 	ci->ci_owns_key = true;
-	return fscrypt_prepare_key(&ci->ci_key, derived_key,
-				   ci->ci_mode->keysize, ci);
+	return fscrypt_prepare_key(&ci->ci_key, raw_key, ci->ci_mode->keysize,
+				   false /*is_hw_wrapped*/, ci);
 }
 
-static int setup_per_mode_key(struct fscrypt_info *ci,
-			      struct fscrypt_master_key *mk,
-			      struct fscrypt_prepared_key *keys,
-			      u8 hkdf_context, bool include_fs_uuid)
+static int setup_per_mode_enc_key(struct fscrypt_info *ci,
+				  struct fscrypt_master_key *mk,
+				  struct fscrypt_prepared_key *keys,
+				  u8 hkdf_context, bool include_fs_uuid)
 {
 	static DEFINE_MUTEX(mode_key_setup_mutex);
 	const struct inode *inode = ci->ci_inode;
@@ -199,7 +202,7 @@ static int setup_per_mode_key(struct fscrypt_info *ci,
 			}
 		}
 		err = fscrypt_prepare_key(prep_key, mk->mk_secret.raw,
-					  mk->mk_secret.size, ci);
+					  mk->mk_secret.size, true, ci);
 		if (err)
 			goto out_unlock;
 	} else {
@@ -218,7 +221,7 @@ static int setup_per_mode_key(struct fscrypt_info *ci,
 		if (err)
 			goto out_unlock;
 		err = fscrypt_prepare_key(prep_key, mode_key, mode->keysize,
-					  ci);
+					  false /*is_hw_wrapped*/, ci);
 		memzero_explicit(mode_key, mode->keysize);
 		if (err)
 			goto out_unlock;
@@ -231,10 +234,24 @@ out_unlock:
 	return err;
 }
 
+int fscrypt_derive_dirhash_key(struct fscrypt_info *ci,
+			       const struct fscrypt_master_key *mk)
+{
+	int err;
+
+	err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf, HKDF_CONTEXT_DIRHASH_KEY,
+				  ci->ci_nonce, FS_KEY_DERIVATION_NONCE_SIZE,
+				  (u8 *)&ci->ci_dirhash_key,
+				  sizeof(ci->ci_dirhash_key));
+	if (err)
+		return err;
+	ci->ci_dirhash_key_initialized = true;
+	return 0;
+}
+
 static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 				     struct fscrypt_master_key *mk)
 {
-	u8 derived_key[FSCRYPT_MAX_KEY_SIZE];
 	int err;
 
 	if (mk->mk_secret.is_hw_wrapped &&
@@ -246,21 +263,15 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 
 	if (ci->ci_policy.v2.flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
 		/*
-		 * DIRECT_KEY: instead of deriving per-file keys, the per-file
-		 * nonce will be included in all the IVs.  But unlike v1
-		 * policies, for v2 policies in this case we don't encrypt with
-		 * the master key directly but rather derive a per-mode key.
-		 * This ensures that the master key is consistently used only
-		 * for HKDF, avoiding key reuse issues.
+		 * DIRECT_KEY: instead of deriving per-file encryption keys, the
+		 * per-file nonce will be included in all the IVs.  But unlike
+		 * v1 policies, for v2 policies in this case we don't encrypt
+		 * with the master key directly but rather derive a per-mode
+		 * encryption key.  This ensures that the master key is
+		 * consistently used only for HKDF, avoiding key reuse issues.
 		 */
-		if (!fscrypt_mode_supports_direct_key(ci->ci_mode)) {
-			fscrypt_warn(ci->ci_inode,
-				     "Direct key flag not allowed with %s",
-				     ci->ci_mode->friendly_name);
-			return -EINVAL;
-		}
-		return setup_per_mode_key(ci, mk, mk->mk_direct_keys,
-					  HKDF_CONTEXT_DIRECT_KEY, false);
+		err = setup_per_mode_enc_key(ci, mk, mk->mk_direct_keys,
+					     HKDF_CONTEXT_DIRECT_KEY, false);
 	} else if (ci->ci_policy.v2.flags &
 		   FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) {
 		/*
@@ -269,21 +280,34 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 		 * the IVs.  This format is optimized for use with inline
 		 * encryption hardware compliant with the UFS or eMMC standards.
 		 */
-		return setup_per_mode_key(ci, mk, mk->mk_iv_ino_lblk_64_keys,
-					  HKDF_CONTEXT_IV_INO_LBLK_64_KEY,
-					  true);
-	}
+		err = setup_per_mode_enc_key(ci, mk, mk->mk_iv_ino_lblk_64_keys,
+					     HKDF_CONTEXT_IV_INO_LBLK_64_KEY,
+					     true);
+	} else {
+		u8 derived_key[FSCRYPT_MAX_KEY_SIZE];
 
-	err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
-				  HKDF_CONTEXT_PER_FILE_KEY,
-				  ci->ci_nonce, FS_KEY_DERIVATION_NONCE_SIZE,
-				  derived_key, ci->ci_mode->keysize);
+		err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
+					  HKDF_CONTEXT_PER_FILE_ENC_KEY,
+					  ci->ci_nonce,
+					  FS_KEY_DERIVATION_NONCE_SIZE,
+					  derived_key, ci->ci_mode->keysize);
+		if (err)
+			return err;
+
+		err = fscrypt_set_per_file_enc_key(ci, derived_key);
+		memzero_explicit(derived_key, ci->ci_mode->keysize);
+	}
 	if (err)
 		return err;
 
-	err = fscrypt_set_derived_key(ci, derived_key);
-	memzero_explicit(derived_key, ci->ci_mode->keysize);
-	return err;
+	/* Derive a secret dirhash key for directories that need it. */
+	if (S_ISDIR(ci->ci_inode->i_mode) && IS_CASEFOLDED(ci->ci_inode)) {
+		err = fscrypt_derive_dirhash_key(ci, mk);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 /*
@@ -582,6 +606,15 @@ int fscrypt_drop_inode(struct inode *inode)
 	if (!ci || !ci->ci_master_key)
 		return 0;
 	mk = ci->ci_master_key->payload.data[0];
+
+	/*
+	 * With proper, non-racy use of FS_IOC_REMOVE_ENCRYPTION_KEY, all inodes
+	 * protected by the key were cleaned by sync_filesystem().  But if
+	 * userspace is still using the files, inodes can be dirtied between
+	 * then and now.  We mustn't lose any writes, so skip dirty inodes here.
+	 */
+	if (inode->i_state & I_DIRTY_ALL)
+		return 0;
 
 	/*
 	 * Note: since we aren't holding ->mk_secret_sem, the result here can

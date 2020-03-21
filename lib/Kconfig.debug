@@ -87,7 +87,7 @@ config DYNAMIC_DEBUG
 	bool "Enable dynamic printk() support"
 	default n
 	depends on PRINTK
-	depends on DEBUG_FS
+	depends on (DEBUG_FS || PROC_FS)
 	help
 
 	  Compiles debug level messages into the kernel, which would not
@@ -105,8 +105,9 @@ config DYNAMIC_DEBUG
 	  Usage:
 
 	  Dynamic debugging is controlled via the 'dynamic_debug/control' file,
-	  which is contained in the 'debugfs' filesystem. Thus, the debugfs
-	  filesystem must first be mounted before making use of this feature.
+	  which is contained in the 'debugfs' filesystem or procfs.
+	  Thus, the debugfs or procfs filesystem must first be mounted before
+	  making use of this feature.
 	  We refer the control file as: <debugfs>/dynamic_debug/control. This
 	  file contains a list of the debug statements that can be enabled. The
 	  format for each line of the file is:
@@ -1977,6 +1978,16 @@ config TEST_MEMINIT
 	help
 	  Test if the kernel is zero-initializing heap and page allocations.
 	  This can be useful to test init_on_alloc and init_on_free features.
+
+	  If unsure, say N.
+
+config TEST_STACKINIT
+	tristate "Test level of stack variable initialization"
+	help
+	  Test if the kernel is zero-initializing stack variables and
+	  padding. Coverage is controlled by compiler flags,
+	  CONFIG_GCC_PLUGIN_STRUCTLEAK, CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF,
+	  or CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL.
 
 	  If unsure, say N.
 

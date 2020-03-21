@@ -29,6 +29,7 @@
 #include <linux/keyslot-manager.h>
 #include <linux/atomic.h>
 #include <linux/mutex.h>
+#include <linux/pm_runtime.h>
 #include <linux/wait.h>
 #include <linux/blkdev.h>
 
@@ -44,6 +45,11 @@ struct keyslot_manager {
 	struct keyslot_mgmt_ll_ops ksm_ll_ops;
 	unsigned int crypto_mode_supported[BLK_ENCRYPTION_MODE_MAX];
 	void *ll_priv_data;
+
+#ifdef CONFIG_PM
+	/* Device for runtime power management (NULL if none) */
+	struct device *dev;
+#endif
 
 	/* Protects programming and evicting keys from the device */
 	struct rw_semaphore lock;
@@ -71,8 +77,60 @@ static inline bool keyslot_manager_is_passthrough(struct keyslot_manager *ksm)
 	return ksm->num_slots == 0;
 }
 
+#ifdef CONFIG_PM
+static inline void keyslot_manager_set_dev(struct keyslot_manager *ksm,
+					   struct device *dev)
+{
+	ksm->dev = dev;
+}
+
+/* If there's an underlying device and it's suspended, resume it. */
+static inline void keyslot_manager_pm_get(struct keyslot_manager *ksm)
+{
+	if (ksm->dev)
+		pm_runtime_get_sync(ksm->dev);
+}
+
+static inline void keyslot_manager_pm_put(struct keyslot_manager *ksm)
+{
+	if (ksm->dev)
+		pm_runtime_put_sync(ksm->dev);
+}
+#else /* CONFIG_PM */
+static inline void keyslot_manager_set_dev(struct keyslot_manager *ksm,
+					   struct device *dev)
+{
+}
+
+static inline void keyslot_manager_pm_get(struct keyslot_manager *ksm)
+{
+}
+
+static inline void keyslot_manager_pm_put(struct keyslot_manager *ksm)
+{
+}
+#endif /* !CONFIG_PM */
+
+static inline void keyslot_manager_hw_enter(struct keyslot_manager *ksm)
+{
+	/*
+	 * Calling into the driver requires ksm->lock held and the device
+	 * resumed.  But we must resume the device first, since that can acquire
+	 * and release ksm->lock via keyslot_manager_reprogram_all_keys().
+	 */
+	keyslot_manager_pm_get(ksm);
+	down_write(&ksm->lock);
+}
+
+static inline void keyslot_manager_hw_exit(struct keyslot_manager *ksm)
+{
+	up_write(&ksm->lock);
+	keyslot_manager_pm_put(ksm);
+}
+
 /**
  * keyslot_manager_create() - Create a keyslot manager
+ * @dev: Device for runtime power management (NULL if none)
  * @num_slots: The number of key slots to manage.
  * @ksm_ll_ops: The struct keyslot_mgmt_ll_ops for the device that this keyslot
  *		manager will use to perform operations like programming and
@@ -92,7 +150,9 @@ static inline bool keyslot_manager_is_passthrough(struct keyslot_manager *ksm)
  * Context: May sleep
  * Return: Pointer to constructed keyslot manager or NULL on error.
  */
-struct keyslot_manager *keyslot_manager_create(unsigned int num_slots,
+struct keyslot_manager *keyslot_manager_create(
+	struct device *dev,
+	unsigned int num_slots,
 	const struct keyslot_mgmt_ll_ops *ksm_ll_ops,
 	const unsigned int crypto_mode_supported[BLK_ENCRYPTION_MODE_MAX],
 	void *ll_priv_data)
@@ -118,6 +178,7 @@ struct keyslot_manager *keyslot_manager_create(unsigned int num_slots,
 	memcpy(ksm->crypto_mode_supported, crypto_mode_supported,
 	       sizeof(ksm->crypto_mode_supported));
 	ksm->ll_priv_data = ll_priv_data;
+	keyslot_manager_set_dev(ksm, dev);
 
 	init_rwsem(&ksm->lock);
 
@@ -226,10 +287,10 @@ int keyslot_manager_get_slot_for_key(struct keyslot_manager *ksm,
 		return slot;
 
 	for (;;) {
-		down_write(&ksm->lock);
+		keyslot_manager_hw_enter(ksm);
 		slot = find_and_grab_keyslot(ksm, key);
 		if (slot != -ENOKEY) {
-			up_write(&ksm->lock);
+			keyslot_manager_hw_exit(ksm);
 			return slot;
 		}
 
@@ -240,7 +301,7 @@ int keyslot_manager_get_slot_for_key(struct keyslot_manager *ksm,
 		if (!list_empty(&ksm->idle_slots))
 			break;
 
-		up_write(&ksm->lock);
+		keyslot_manager_hw_exit(ksm);
 		wait_event(ksm->idle_slots_wait_queue,
 			   !list_empty(&ksm->idle_slots));
 	}
@@ -252,7 +313,7 @@ int keyslot_manager_get_slot_for_key(struct keyslot_manager *ksm,
 	err = ksm->ksm_ll_ops.keyslot_program(ksm, key, slot);
 	if (err) {
 		wake_up(&ksm->idle_slots_wait_queue);
-		up_write(&ksm->lock);
+		keyslot_manager_hw_exit(ksm);
 		return err;
 	}
 
@@ -266,7 +327,7 @@ int keyslot_manager_get_slot_for_key(struct keyslot_manager *ksm,
 
 	remove_slot_from_lru_list(ksm, slot);
 
-	up_write(&ksm->lock);
+	keyslot_manager_hw_exit(ksm);
 	return slot;
 }
 
@@ -368,15 +429,16 @@ int keyslot_manager_evict_key(struct keyslot_manager *ksm,
 
 	if (keyslot_manager_is_passthrough(ksm)) {
 		if (ksm->ksm_ll_ops.keyslot_evict) {
-			down_write(&ksm->lock);
+			keyslot_manager_hw_enter(ksm);
 			err = ksm->ksm_ll_ops.keyslot_evict(ksm, key, -1);
-			up_write(&ksm->lock);
+			keyslot_manager_hw_exit(ksm);
 			return err;
 		}
 		return 0;
 	}
 
-	down_write(&ksm->lock);
+	keyslot_manager_hw_enter(ksm);
+
 	slot = find_keyslot(ksm, key);
 	if (slot < 0) {
 		err = slot;
@@ -396,7 +458,7 @@ int keyslot_manager_evict_key(struct keyslot_manager *ksm,
 	memzero_explicit(&slotp->key, sizeof(slotp->key));
 	err = 0;
 out_unlock:
-	up_write(&ksm->lock);
+	keyslot_manager_hw_exit(ksm);
 	return err;
 }
 
@@ -416,6 +478,7 @@ void keyslot_manager_reprogram_all_keys(struct keyslot_manager *ksm)
 	if (WARN_ON(keyslot_manager_is_passthrough(ksm)))
 		return;
 
+	/* This is for device initialization, so don't resume the device */
 	down_write(&ksm->lock);
 	for (slot = 0; slot < ksm->num_slots; slot++) {
 		const struct keyslot *slotp = &ksm->slots[slot];
@@ -455,6 +518,7 @@ EXPORT_SYMBOL_GPL(keyslot_manager_destroy);
 
 /**
  * keyslot_manager_create_passthrough() - Create a passthrough keyslot manager
+ * @dev: Device for runtime power management (NULL if none)
  * @ksm_ll_ops: The struct keyslot_mgmt_ll_ops
  * @crypto_mode_supported: Bitmasks for supported encryption modes
  * @ll_priv_data: Private data passed as is to the functions in ksm_ll_ops.
@@ -471,6 +535,7 @@ EXPORT_SYMBOL_GPL(keyslot_manager_destroy);
  * Return: Pointer to constructed keyslot manager or NULL on error.
  */
 struct keyslot_manager *keyslot_manager_create_passthrough(
+	struct device *dev,
 	const struct keyslot_mgmt_ll_ops *ksm_ll_ops,
 	const unsigned int crypto_mode_supported[BLK_ENCRYPTION_MODE_MAX],
 	void *ll_priv_data)
@@ -485,6 +550,7 @@ struct keyslot_manager *keyslot_manager_create_passthrough(
 	memcpy(ksm->crypto_mode_supported, crypto_mode_supported,
 	       sizeof(ksm->crypto_mode_supported));
 	ksm->ll_priv_data = ll_priv_data;
+	keyslot_manager_set_dev(ksm, dev);
 
 	init_rwsem(&ksm->lock);
 
@@ -544,15 +610,15 @@ int keyslot_manager_derive_raw_secret(struct keyslot_manager *ksm,
 {
 	int err;
 
-	down_write(&ksm->lock);
 	if (ksm->ksm_ll_ops.derive_raw_secret) {
+		keyslot_manager_hw_enter(ksm);
 		err = ksm->ksm_ll_ops.derive_raw_secret(ksm, wrapped_key,
 							wrapped_key_size,
 							secret, secret_size);
+		keyslot_manager_hw_exit(ksm);
 	} else {
 		err = -EOPNOTSUPP;
 	}
-	up_write(&ksm->lock);
 
 	return err;
 }

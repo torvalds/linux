@@ -4,3 +4,8 @@
 
 ABI_DEFINITION=abi_gki_aarch64.xml
 KMI_WHITELIST=abi_gki_aarch64_whitelist
+ADDITIONAL_KMI_WHITELISTS="
+abi_gki_aarch64_cuttlefish_whitelist
+abi_gki_aarch64_qcom_whitelist
+"
+TRIM_NONLISTED_KMI=1

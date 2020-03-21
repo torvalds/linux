@@ -193,6 +193,68 @@ struct dma_buf_ops {
 	int (*begin_cpu_access)(struct dma_buf *, enum dma_data_direction);
 
 	/**
+	 * @begin_cpu_access_umapped:
+	 *
+	 * This is called as a result of the DMA_BUF_IOCTL_SYNC IOCTL being
+	 * called with the DMA_BUF_SYNC_START and DMA_BUF_SYNC_USER_MAPPED flags
+	 * set. It allows the exporter to ensure that the mmap(ed) portions of
+	 * the buffer are available for cpu access - the exporter might need to
+	 * allocate or swap-in and pin the backing storage.
+	 * The exporter also needs to ensure that cpu access is
+	 * coherent for the access direction. The direction can be used by the
+	 * exporter to optimize the cache flushing, i.e. access with a different
+	 * direction (read instead of write) might return stale or even bogus
+	 * data (e.g. when the exporter needs to copy the data to temporary
+	 * storage).
+	 *
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. This can for
+	 * example fail when the backing storage can't be allocated. Can also
+	 * return -ERESTARTSYS or -EINTR when the call has been interrupted and
+	 * needs to be restarted.
+	 */
+	int (*begin_cpu_access_umapped)(struct dma_buf *dmabuf,
+					enum dma_data_direction);
+
+	/**
+	 * @begin_cpu_access_partial:
+	 *
+	 * This is called from dma_buf_begin_cpu_access_partial() and allows the
+	 * exporter to ensure that the memory specified in the range is
+	 * available for cpu access - the exporter might need to allocate or
+	 * swap-in and pin the backing storage.
+	 * The exporter also needs to ensure that cpu access is
+	 * coherent for the access direction. The direction can be used by the
+	 * exporter to optimize the cache flushing, i.e. access with a different
+	 * direction (read instead of write) might return stale or even bogus
+	 * data (e.g. when the exporter needs to copy the data to temporary
+	 * storage).
+	 *
+	 * This callback is optional.
+	 *
+	 * FIXME: This is both called through the DMA_BUF_IOCTL_SYNC command
+	 * from userspace (where storage shouldn't be pinned to avoid handing
+	 * de-factor mlock rights to userspace) and for the kernel-internal
+	 * users of the various kmap interfaces, where the backing storage must
+	 * be pinned to guarantee that the atomic kmap calls can succeed. Since
+	 * there's no in-kernel users of the kmap interfaces yet this isn't a
+	 * real problem.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. This can for
+	 * example fail when the backing storage can't be allocated. Can also
+	 * return -ERESTARTSYS or -EINTR when the call has been interrupted and
+	 * needs to be restarted.
+	 */
+	int (*begin_cpu_access_partial)(struct dma_buf *dmabuf,
+					enum dma_data_direction,
+					unsigned int offset, unsigned int len);
+
+	/**
 	 * @end_cpu_access:
 	 *
 	 * This is called from dma_buf_end_cpu_access() when the importer is
@@ -210,6 +272,51 @@ struct dma_buf_ops {
 	 * to be restarted.
 	 */
 	int (*end_cpu_access)(struct dma_buf *, enum dma_data_direction);
+
+	/**
+	 * @end_cpu_access_umapped:
+	 *
+	 * This is called as result a of the DMA_BUF_IOCTL_SYNC IOCTL being
+	 * called with the DMA_BUF_SYNC_END and DMA_BUF_SYNC_USER_MAPPED flags
+	 * set. The exporter can use to limit cache flushing to only those parts
+	 * of the buffer which are mmap(ed) and to unpin any resources pinned in
+	 * @begin_cpu_access_umapped.
+	 * The result of any dma_buf kmap calls after end_cpu_access_umapped is
+	 * undefined.
+	 *
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. Can return
+	 * -ERESTARTSYS or -EINTR when the call has been interrupted and needs
+	 * to be restarted.
+	 */
+	int (*end_cpu_access_umapped)(struct dma_buf *dmabuf,
+				      enum dma_data_direction);
+
+	/**
+	 * @end_cpu_access_partial:
+	 *
+	 * This is called from dma_buf_end_cpu_access_partial() when the
+	 * importer is done accessing the CPU. The exporter can use to limit
+	 * cache flushing to only the range specefied and to unpin any
+	 * resources pinned in @begin_cpu_access_umapped.
+	 * The result of any dma_buf kmap calls after end_cpu_access_partial is
+	 * undefined.
+	 *
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. Can return
+	 * -ERESTARTSYS or -EINTR when the call has been interrupted and needs
+	 * to be restarted.
+	 */
+	int (*end_cpu_access_partial)(struct dma_buf *dmabuf,
+				      enum dma_data_direction,
+				      unsigned int offset, unsigned int len);
+
 	void *(*map)(struct dma_buf *, unsigned long);
 	void (*unmap)(struct dma_buf *, unsigned long, void *);
 
@@ -252,7 +359,33 @@ struct dma_buf_ops {
 
 	void *(*vmap)(struct dma_buf *);
 	void (*vunmap)(struct dma_buf *, void *vaddr);
+
+	/**
+	 * @get_flags:
+	 *
+	 * This is called by dma_buf_get_flags and is used to get the buffer's
+	 * flags.
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. On success flags
+	 * will be populated with the buffer's flags.
+	 */
+	int (*get_flags)(struct dma_buf *dmabuf, unsigned long *flags);
 };
+
+/**
+ * dma_buf_destructor - dma-buf destructor function
+ * @dmabuf:	[in]	pointer to dma-buf
+ * @dtor_data:	[in]	destructor data associated with this buffer
+ *
+ * The dma-buf destructor which is called when the dma-buf is freed.
+ *
+ * If the destructor returns an error the dma-buf's exporter release function
+ * won't be called.
+ */
+typedef int (*dma_buf_destructor)(struct dma_buf *dmabuf, void *dtor_data);
 
 /**
  * struct dma_buf - shared buffer object
@@ -266,6 +399,7 @@ struct dma_buf_ops {
  * @vmap_ptr: the current vmap ptr if vmapping_counter > 0
  * @exp_name: name of the exporter; useful for debugging.
  * @name: userspace-provided name; useful for accounting and debugging.
+ * @name_lock: lock to protect name.
  * @owner: pointer to exporter module; used for refcounting when exporter is a
  *         kernel module.
  * @list_node: node for dma_buf accounting and debugging.
@@ -298,6 +432,7 @@ struct dma_buf {
 	void *vmap_ptr;
 	const char *exp_name;
 	const char *name;
+	spinlock_t name_lock;
 	struct module *owner;
 	struct list_head list_node;
 	void *priv;
@@ -312,6 +447,8 @@ struct dma_buf {
 
 		__poll_t active;
 	} cb_excl, cb_shared;
+	dma_buf_destructor dtor;
+	void *dtor_data;
 };
 
 /**
@@ -320,6 +457,8 @@ struct dma_buf {
  * @dev: device attached to the buffer.
  * @node: list of dma_buf_attachment.
  * @priv: exporter specific attachment data.
+ * @dma_map_attrs: DMA attributes to be used when the exporter maps the buffer
+ * through dma_buf_map_attachment.
  *
  * This structure holds the attachment information between the dma_buf buffer
  * and its user device(s). The list contains one attachment struct per device
@@ -335,6 +474,7 @@ struct dma_buf_attachment {
 	struct device *dev;
 	struct list_head node;
 	void *priv;
+	unsigned long dma_map_attrs;
 };
 
 /**
@@ -410,8 +550,14 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
 				enum dma_data_direction);
 int dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 			     enum dma_data_direction dir);
+int dma_buf_begin_cpu_access_partial(struct dma_buf *dma_buf,
+				     enum dma_data_direction dir,
+				     unsigned int offset, unsigned int len);
 int dma_buf_end_cpu_access(struct dma_buf *dma_buf,
 			   enum dma_data_direction dir);
+int dma_buf_end_cpu_access_partial(struct dma_buf *dma_buf,
+				     enum dma_data_direction dir,
+				     unsigned int offset, unsigned int len);
 void *dma_buf_kmap(struct dma_buf *, unsigned long);
 void dma_buf_kunmap(struct dma_buf *, unsigned long, void *);
 
@@ -419,4 +565,19 @@ int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 		 unsigned long);
 void *dma_buf_vmap(struct dma_buf *);
 void dma_buf_vunmap(struct dma_buf *, void *vaddr);
+int dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long *flags);
+
+/**
+ * dma_buf_set_destructor - set the dma-buf's destructor
+ * @dmabuf:		[in]	pointer to dma-buf
+ * @dma_buf_destructor	[in]	the destructor function
+ * @dtor_data:		[in]	destructor data associated with this buffer
+ */
+static inline void dma_buf_set_destructor(struct dma_buf *dmabuf,
+					  dma_buf_destructor dtor,
+					  void *dtor_data)
+{
+	dmabuf->dtor = dtor;
+	dmabuf->dtor_data = dtor_data;
+}
 #endif /* __DMA_BUF_H__ */

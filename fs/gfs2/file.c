@@ -780,7 +780,7 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct gfs2_inode *ip = GFS2_I(inode);
-	ssize_t written = 0, ret;
+	ssize_t ret;
 
 	ret = gfs2_rsqa_alloc(ip);
 	if (ret)
@@ -800,68 +800,58 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	inode_lock(inode);
 	ret = generic_write_checks(iocb, from);
 	if (ret <= 0)
-		goto out;
-
-	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = inode_to_bdi(inode);
+		goto out_unlock;
 
 	ret = file_remove_privs(file);
 	if (ret)
-		goto out2;
+		goto out_unlock;
 
 	ret = file_update_time(file);
 	if (ret)
-		goto out2;
+		goto out_unlock;
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
-		loff_t pos, endbyte;
-		ssize_t buffered;
+		ssize_t buffered, ret2;
 
-		written = gfs2_file_direct_write(iocb, from);
-		if (written < 0 || !iov_iter_count(from))
-			goto out2;
+		ret = gfs2_file_direct_write(iocb, from);
+		if (ret < 0 || !iov_iter_count(from))
+			goto out_unlock;
 
-		ret = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
-		if (unlikely(ret < 0))
-			goto out2;
-		buffered = ret;
+		iocb->ki_flags |= IOCB_DSYNC;
+		current->backing_dev_info = inode_to_bdi(inode);
+		buffered = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
+		current->backing_dev_info = NULL;
+		if (unlikely(buffered <= 0))
+			goto out_unlock;
 
 		/*
 		 * We need to ensure that the page cache pages are written to
 		 * disk and invalidated to preserve the expected O_DIRECT
-		 * semantics.
+		 * semantics.  If the writeback or invalidate fails, only report
+		 * the direct I/O range as we don't know if the buffered pages
+		 * made it to disk.
 		 */
-		pos = iocb->ki_pos;
-		endbyte = pos + buffered - 1;
-		ret = filemap_write_and_wait_range(mapping, pos, endbyte);
-		if (!ret) {
-			iocb->ki_pos += buffered;
-			written += buffered;
-			invalidate_mapping_pages(mapping,
-						 pos >> PAGE_SHIFT,
-						 endbyte >> PAGE_SHIFT);
-		} else {
-			/*
-			 * We don't know how much we wrote, so just return
-			 * the number of bytes which were direct-written
-			 */
-		}
+		iocb->ki_pos += buffered;
+		ret2 = generic_write_sync(iocb, buffered);
+		invalidate_mapping_pages(mapping,
+				(iocb->ki_pos - buffered) >> PAGE_SHIFT,
+				(iocb->ki_pos - 1) >> PAGE_SHIFT);
+		if (!ret || ret2 > 0)
+			ret += ret2;
 	} else {
+		current->backing_dev_info = inode_to_bdi(inode);
 		ret = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
-		if (likely(ret > 0))
+		current->backing_dev_info = NULL;
+		if (likely(ret > 0)) {
 			iocb->ki_pos += ret;
+			ret = generic_write_sync(iocb, ret);
+		}
 	}
 
-out2:
-	current->backing_dev_info = NULL;
-out:
+out_unlock:
 	inode_unlock(inode);
-	if (likely(ret > 0)) {
-		/* Handle various SYNC-type writes */
-		ret = generic_write_sync(iocb, ret);
-	}
-	return written ? written : ret;
+	return ret;
 }
 
 static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,

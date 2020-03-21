@@ -164,12 +164,15 @@ static void virtinput_cfg_abs(struct virtio_input *vi, int abs)
 	virtio_cread(vi->vdev, struct virtio_input_config, u.abs.flat, &fl);
 	input_set_abs_params(vi->idev, abs, mi, ma, fu, fl);
 	input_abs_set_res(vi->idev, abs, re);
-	if (abs == ABS_MT_TRACKING_ID)
+	if (abs == ABS_MT_TRACKING_ID) {
+		unsigned int slot_flags =
+			test_bit(INPUT_PROP_DIRECT, vi->idev->propbit) ?
+				INPUT_MT_DIRECT : 0;
+
 		input_mt_init_slots(vi->idev,
 				    ma, /* input max finger */
-				    INPUT_MT_DIRECT
-					| INPUT_MT_DROP_UNUSED
-					| INPUT_MT_TRACK);
+				    slot_flags);
+	}
 }
 
 static int virtinput_init_vqs(struct virtio_input *vi)

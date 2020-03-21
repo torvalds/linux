@@ -25,8 +25,6 @@
 #include "lz4.h"
 #include "utils.h"
 
-#define __packed __attribute__((__packed__))
-
 #define TEST_FAILURE 1
 #define TEST_SUCCESS 0
 #define INCFS_MAX_MTREE_LEVELS 8
@@ -68,101 +66,6 @@ struct linux_dirent64 {
 	unsigned char  d_type;
 	char	       d_name[0];
 } __packed;
-
-/*
- * The certificate below and the private key were created by calling:
- *	openssl req -x509 -newkey rsa:4096 -keyout private.key -out cert.crt
- *	-days 1000 -sha256 -nodes -outform PEM -subj
- *	"/C=US/ST=WA/L=Kirkland/O=Example/OU=Org/CN=www.example.com"
- */
-char x509_cert[] =
-"-----BEGIN CERTIFICATE-----\n"
-"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\n"
-"-----END CERTIFICATE-----";
-
-char private_key[] =
-"-----BEGIN PRIVATE KEY-----\n"
-"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\n"
-"GyPbW1yZa5vE302a1Cr0Cd7RC4AFAAw=\n"
-"-----END PRIVATE KEY-----";
 
 struct test_files_set get_test_files_set(void)
 {
@@ -290,7 +193,7 @@ char *bin2hex(char *dst, const void *src, size_t count)
 	return dst;
 }
 
-static char *get_index_filename(char *mnt_dir, incfs_uuid_t id)
+static char *get_index_filename(const char *mnt_dir, incfs_uuid_t id)
 {
 	char path[FILENAME_MAX];
 	char str_id[1 + 2 * sizeof(id)];
@@ -301,15 +204,43 @@ static char *get_index_filename(char *mnt_dir, incfs_uuid_t id)
 	return strdup(path);
 }
 
-int open_file_by_id(char *mnt_dir, incfs_uuid_t id)
+int open_file_by_id(const char *mnt_dir, incfs_uuid_t id, bool use_ioctl)
 {
 	char *path = get_index_filename(mnt_dir, id);
+	int cmd_fd = open_commands_file(mnt_dir);
 	int fd = open(path, O_RDWR);
+	struct incfs_permit_fill permit_fill = {
+		.file_descriptor = fd,
+	};
+	int error = 0;
 
-	free(path);
 	if (fd < 0) {
 		print_error("Can't open file by id.");
+		error = -errno;
+		goto out;
+	}
+
+	if (use_ioctl && ioctl(cmd_fd, INCFS_IOC_PERMIT_FILL, &permit_fill)) {
+		print_error("Failed to call PERMIT_FILL");
+		error = -errno;
+		goto out;
+	}
+
+	if (ioctl(fd, INCFS_IOC_PERMIT_FILL, &permit_fill) != -1 ||
+	    errno != EPERM) {
+		print_error(
+			"Successfully called PERMIT_FILL on non pending_read file");
 		return -errno;
+		goto out;
+	}
+
+out:
+	free(path);
+	close(cmd_fd);
+
+	if (error) {
+		close(fd);
+		return error;
 	}
 
 	return fd;
@@ -343,19 +274,17 @@ static int emit_test_blocks(char *mnt_dir, struct test_file *file,
 	uint8_t *data_buf = malloc(data_buf_size);
 	uint8_t *current_data = data_buf;
 	uint8_t *data_end = data_buf + data_buf_size;
-	struct incfs_new_data_block *block_buf =
-		calloc(block_count, sizeof(*block_buf));
+	struct incfs_fill_block *block_buf =
+		calloc(block_count, sizeof(struct incfs_fill_block));
+	struct incfs_fill_blocks fill_blocks = {
+		.count = block_count,
+		.fill_blocks = ptr_to_u64(block_buf),
+	};
 	ssize_t write_res = 0;
 	int fd;
 	int error = 0;
 	int i = 0;
 	int blocks_written = 0;
-
-	fd = open_file_by_id(mnt_dir, file->id);
-	if (fd <= 0) {
-		error = -errno;
-		goto out;
-	}
 
 	for (i = 0; i < block_count; i++) {
 		int block_index = blocks[i];
@@ -404,17 +333,33 @@ static int emit_test_blocks(char *mnt_dir, struct test_file *file,
 		block_buf[i].block_index = block_index;
 		block_buf[i].data_len = block_size;
 		block_buf[i].data = ptr_to_u64(current_data);
-		block_buf[i].compression =
-			compress ? COMPRESSION_LZ4 : COMPRESSION_NONE;
 		current_data += block_size;
 	}
 
 	if (!error) {
-		write_res = write(fd, block_buf, sizeof(*block_buf) * i);
+		fd = open_file_by_id(mnt_dir, file->id, false);
+		if (fd < 0) {
+			error = -errno;
+			goto out;
+		}
+		write_res = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
+		if (write_res >= 0) {
+			ksft_print_msg("Wrote to file via normal fd error\n");
+			error = -EPERM;
+			goto out;
+		}
+
+		close(fd);
+		fd = open_file_by_id(mnt_dir, file->id, true);
+		if (fd < 0) {
+			error = -errno;
+			goto out;
+		}
+		write_res = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
 		if (write_res < 0)
 			error = -errno;
 		else
-			blocks_written = write_res / sizeof(*block_buf);
+			blocks_written = write_res;
 	}
 	if (error) {
 		ksft_print_msg(
@@ -720,8 +665,6 @@ static int build_mtree(struct test_file *file)
 	int tree_lvl_index[INCFS_MAX_MTREE_LEVELS] = {};
 	int tree_lvl_count[INCFS_MAX_MTREE_LEVELS] = {};
 	int levels_count = 0;
-	char data_to_sign[256] = {};
-	int sig_data_size;
 	int i, level;
 
 	if (file->size == 0)
@@ -748,8 +691,9 @@ static int build_mtree(struct test_file *file)
 	if (block_count == 1) {
 		int seed = get_file_block_seed(file->index, 0);
 
+		memset(data, 0, INCFS_DATA_FILE_BLOCK_SIZE);
 		rnd_buf((uint8_t *)data, file->size, seed);
-		sha256(data, file->size, file->root_hash);
+		sha256(data, INCFS_DATA_FILE_BLOCK_SIZE, file->root_hash);
 		return 0;
 	}
 
@@ -764,11 +708,13 @@ static int build_mtree(struct test_file *file)
 		int seed = get_file_block_seed(file->index, i);
 		char *hash_ptr = file->mtree[block_index].data + block_off;
 
-		if (file->size - offset < block_size)
+		if (file->size - offset < block_size) {
 			block_size = file->size - offset;
+			memset(data, 0, INCFS_DATA_FILE_BLOCK_SIZE);
+		}
 
 		rnd_buf((uint8_t *)data, block_size, seed);
-		sha256(data, block_size, hash_ptr);
+		sha256(data, INCFS_DATA_FILE_BLOCK_SIZE, hash_ptr);
 	}
 
 	/* Build higher levels of hash tree. */
@@ -792,19 +738,6 @@ static int build_mtree(struct test_file *file)
 	sha256(file->mtree[0].data,
 		INCFS_DATA_FILE_BLOCK_SIZE, file->root_hash);
 
-	/* Calculating digital signature */
-	snprintf(file->sig.add_data, sizeof(file->sig.add_data), "%ld",
-		 file->size);
-	memcpy(data_to_sign, file->root_hash, SHA256_DIGEST_SIZE);
-	memcpy(data_to_sign + SHA256_DIGEST_SIZE, file->sig.add_data,
-		strlen(file->sig.add_data));
-	sig_data_size = SHA256_DIGEST_SIZE + strlen(file->sig.add_data);
-	if (!sign_pkcs7(data_to_sign, sig_data_size, private_key, x509_cert,
-		       &file->sig.data, &file->sig.size)) {
-		ksft_print_msg("Signing failed.\n");
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
@@ -813,21 +746,21 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 	int err;
 	int i;
 	int fd;
+	struct incfs_fill_blocks fill_blocks = {
+		.count = file->mtree_block_count,
+	};
+	struct incfs_fill_block *fill_block_array =
+		calloc(fill_blocks.count, sizeof(struct incfs_fill_block));
 
-	size_t blocks_size =
-		file->mtree_block_count * sizeof(struct incfs_new_data_block);
-	struct incfs_new_data_block *blocks = NULL;
-	char *file_path;
-
-	if (blocks_size == 0)
+	if (fill_blocks.count == 0)
 		return 0;
 
-	blocks = malloc(blocks_size);
-	if (!blocks)
+	if (!fill_block_array)
 		return -ENOMEM;
+	fill_blocks.fill_blocks = ptr_to_u64(fill_block_array);
 
-	for (i = 0; i < file->mtree_block_count; i++) {
-		blocks[i] = (struct incfs_new_data_block){
+	for (i = 0; i < fill_blocks.count; i++) {
+		fill_block_array[i] = (struct incfs_fill_block){
 			.block_index = i,
 			.data_len = INCFS_DATA_FILE_BLOCK_SIZE,
 			.data = ptr_to_u64(file->mtree[i].data),
@@ -835,18 +768,28 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 		};
 	}
 
-	file_path  = concat_file_name(mount_dir, file->name);
-	fd = open(file_path, O_RDWR);
-	free(file_path);
+	fd = open_file_by_id(mount_dir, file->id, false);
 	if (fd < 0) {
 		err = errno;
 		goto failure;
 	}
 
-	err = write(fd, blocks, blocks_size);
+	err = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
 	close(fd);
+	if (err >= 0) {
+		err = -EPERM;
+		goto failure;
+	}
 
-	if (err < blocks_size)
+	fd = open_file_by_id(mount_dir, file->id, true);
+	if (fd < 0) {
+		err = errno;
+		goto failure;
+	}
+
+	err = ioctl(fd, INCFS_IOC_FILL_BLOCKS, &fill_blocks);
+	close(fd);
+	if (err < fill_blocks.count)
 		err = errno;
 	else {
 		err = 0;
@@ -854,7 +797,7 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 	}
 
 failure:
-	free(blocks);
+	free(fill_block_array);
 	return err;
 }
 
@@ -1274,13 +1217,6 @@ static int dynamic_files_and_data_test(char *mount_dir)
 		if (i == missing_file_idx)
 			continue;
 
-		res = load_hash_tree(mount_dir, file);
-		if (res) {
-			ksft_print_msg("Can't load hashes for %s. error: %s\n",
-				file->name, strerror(-res));
-			goto failure;
-		}
-
 		res = emit_test_file_data(mount_dir, file);
 		if (res) {
 			ksft_print_msg("Error %s emiting data for %s.\n",
@@ -1479,7 +1415,6 @@ static int work_after_remount_test(char *mount_dir)
 	/* Write first half of the data into the command file. (stage 1) */
 	for (i = 0; i < file_num_stage1; i++) {
 		struct test_file *file = &test.files[i];
-		int res;
 
 		build_mtree(file);
 		if (emit_file(cmd_fd, NULL, file->name, &file->id,
@@ -1488,14 +1423,7 @@ static int work_after_remount_test(char *mount_dir)
 
 		if (emit_test_file_data(mount_dir, file))
 			goto failure;
-
-		res = load_hash_tree(mount_dir, file);
-		if (res) {
-			ksft_print_msg("Can't load hashes for %s. error: %s\n",
-				file->name, strerror(-res));
-			goto failure;
-		}
-}
+	}
 
 	/* Unmount and mount again, to see that data is persistent. */
 	close(cmd_fd);
@@ -1882,162 +1810,6 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int signature_test(char *mount_dir)
-{
-	struct test_files_set test = get_test_files_set();
-	const int file_num = test.files_count;
-	int i = 0;
-	unsigned char sig_buf[INCFS_MAX_SIGNATURE_SIZE];
-	char *backing_dir;
-	int cmd_fd = -1;
-
-	backing_dir = create_backing_dir(mount_dir);
-	if (!backing_dir)
-		goto failure;
-
-	/* Mount FS and release the backing file.  (10s wait time) */
-	if (mount_fs(mount_dir, backing_dir, 10000) != 0)
-		goto failure;
-
-	cmd_fd = open_commands_file(mount_dir);
-	if (cmd_fd < 0)
-		goto failure;
-
-	/* Write hashes and data. */
-	for (i = 0; i < file_num; i++) {
-		struct test_file *file = &test.files[i];
-		int res;
-
-		build_mtree(file);
-
-		res = crypto_emit_file(cmd_fd, NULL, file->name, &file->id,
-			file->size, file->root_hash,
-			file->sig.data, file->sig.size, file->sig.add_data);
-
-		if (res) {
-			ksft_print_msg("Emit failed for %s. error: %s\n",
-				file->name, strerror(-res));
-			goto failure;
-		}
-
-		if (emit_test_file_data(mount_dir, file))
-			goto failure;
-
-		res = load_hash_tree(mount_dir, file);
-		if (res) {
-			ksft_print_msg("Can't load hashes for %s. error: %s\n",
-				file->name, strerror(-res));
-			goto failure;
-		}
-	}
-
-	/* Validate data */
-	for (i = 0; i < file_num; i++) {
-		struct test_file *file = &test.files[i];
-		int sig_len;
-		char *path;
-		int fd;
-
-		if (validate_test_file_content(mount_dir, file) < 0)
-			goto failure;
-
-		path = concat_file_name(mount_dir, file->name);
-		fd = open(path, O_RDWR);
-		free(path);
-		if (fd < 0) {
-			print_error("Can't open file");
-			goto failure;
-		}
-
-		sig_len = get_file_signature(fd, sig_buf, ARRAY_SIZE(sig_buf));
-
-		if (close(fd)) {
-			print_error("Can't close file");
-			goto failure;
-		}
-
-		if (sig_len < 0) {
-			ksft_print_msg("Can't load signature %s. error: %s\n",
-				file->name, strerror(-sig_len));
-			goto failure;
-		}
-
-		if (sig_len != file->sig.size ||
-			memcmp(sig_buf, file->sig.data, sig_len)) {
-			ksft_print_msg("Signature mismatch %s.\n",
-				file->name);
-			goto failure;
-		}
-	}
-
-	/* Unmount and mount again, to make sure the signature is persistent. */
-	close(cmd_fd);
-	cmd_fd = -1;
-	if (umount(mount_dir) != 0) {
-		print_error("Can't unmout FS");
-		goto failure;
-	}
-	if (mount_fs(mount_dir, backing_dir, 50) != 0)
-		goto failure;
-
-	cmd_fd = open_commands_file(mount_dir);
-	if (cmd_fd < 0)
-		goto failure;
-
-	/* Validate data again */
-	for (i = 0; i < file_num; i++) {
-		struct test_file *file = &test.files[i];
-		int sig_len;
-		char *path;
-		int fd;
-
-		if (validate_test_file_content(mount_dir, file) < 0)
-			goto failure;
-
-		path = concat_file_name(mount_dir, file->name);
-		fd = open(path, O_RDWR);
-		free(path);
-		if (fd < 0) {
-			print_error("Can't open file");
-			goto failure;
-		}
-
-		sig_len = get_file_signature(fd, sig_buf, ARRAY_SIZE(sig_buf));
-
-		if (close(fd)) {
-			print_error("Can't close file");
-			goto failure;
-		}
-
-		if (sig_len < 0) {
-			ksft_print_msg("Can't load signature %s. error: %s\n",
-				file->name, strerror(-sig_len));
-			goto failure;
-		}
-		if (sig_len != file->sig.size ||
-			memcmp(sig_buf, file->sig.data, sig_len)) {
-			ksft_print_msg("Signature mismatch %s.\n",
-				file->name);
-			goto failure;
-		}
-	}
-
-	/* Final unmount */
-	close(cmd_fd);
-	cmd_fd = -1;
-	if (umount(mount_dir) != 0) {
-		print_error("Can't unmout FS");
-		goto failure;
-	}
-	return TEST_SUCCESS;
-
-failure:
-	close(cmd_fd);
-	free(backing_dir);
-	umount(mount_dir);
-	return TEST_FAILURE;
-}
-
 static int hash_tree_test(char *mount_dir)
 {
 	char *backing_dir;
@@ -2066,8 +1838,8 @@ static int hash_tree_test(char *mount_dir)
 
 		build_mtree(file);
 		res = crypto_emit_file(cmd_fd, NULL, file->name, &file->id,
-			file->size, file->root_hash,
-			file->sig.data, file->sig.size, file->sig.add_data);
+				       file->size, file->root_hash,
+				       file->sig.add_data);
 
 		if (i == corrupted_file_idx) {
 			/* Corrupt third blocks hash */
@@ -2392,7 +2164,6 @@ int main(int argc, char *argv[])
 		MAKE_TEST(work_after_remount_test),
 		MAKE_TEST(child_procs_waiting_for_data_test),
 		MAKE_TEST(multiple_providers_test),
-		MAKE_TEST(signature_test),
 		MAKE_TEST(hash_tree_test),
 		MAKE_TEST(read_log_test),
 	};

@@ -25,6 +25,12 @@ static const char * const bch_cache_modes[] = {
 	NULL
 };
 
+static const char * const bch_reada_cache_policies[] = {
+	"all",
+	"meta-only",
+	NULL
+};
+
 /* Default is -1; we skip past it for stop_when_cache_set_failed */
 static const char * const bch_stop_on_failure_modes[] = {
 	"auto",
@@ -94,6 +100,7 @@ rw_attribute(congested_write_threshold_us);
 rw_attribute(sequential_cutoff);
 rw_attribute(data_csum);
 rw_attribute(cache_mode);
+rw_attribute(readahead_cache_policy);
 rw_attribute(stop_when_cache_set_failed);
 rw_attribute(writeback_metadata);
 rw_attribute(writeback_running);
@@ -159,6 +166,11 @@ SHOW(__bch_cached_dev)
 		return bch_snprint_string_list(buf, PAGE_SIZE,
 					       bch_cache_modes,
 					       BDEV_CACHE_MODE(&dc->sb));
+
+	if (attr == &sysfs_readahead_cache_policy)
+		return bch_snprint_string_list(buf, PAGE_SIZE,
+					      bch_reada_cache_policies,
+					      dc->cache_readahead_policy);
 
 	if (attr == &sysfs_stop_when_cache_set_failed)
 		return bch_snprint_string_list(buf, PAGE_SIZE,
@@ -324,6 +336,15 @@ STORE(__cached_dev)
 		}
 	}
 
+	if (attr == &sysfs_readahead_cache_policy) {
+		v = __sysfs_match_string(bch_reada_cache_policies, -1, buf);
+		if (v < 0)
+			return v;
+
+		if ((unsigned int) v != dc->cache_readahead_policy)
+			dc->cache_readahead_policy = v;
+	}
+
 	if (attr == &sysfs_stop_when_cache_set_failed) {
 		v = __sysfs_match_string(bch_stop_on_failure_modes, -1, buf);
 		if (v < 0)
@@ -417,6 +438,7 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_data_csum,
 #endif
 	&sysfs_cache_mode,
+	&sysfs_readahead_cache_policy,
 	&sysfs_stop_when_cache_set_failed,
 	&sysfs_writeback_metadata,
 	&sysfs_writeback_running,

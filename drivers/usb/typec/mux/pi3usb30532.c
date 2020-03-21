@@ -23,8 +23,8 @@
 struct pi3usb30532 {
 	struct i2c_client *client;
 	struct mutex lock; /* protects the cached conf register */
-	struct typec_switch sw;
-	struct typec_mux mux;
+	struct typec_switch *sw;
+	struct typec_mux *mux;
 	u8 conf;
 };
 
@@ -48,7 +48,7 @@ static int pi3usb30532_set_conf(struct pi3usb30532 *pi, u8 new_conf)
 static int pi3usb30532_sw_set(struct typec_switch *sw,
 			      enum typec_orientation orientation)
 {
-	struct pi3usb30532 *pi = container_of(sw, struct pi3usb30532, sw);
+	struct pi3usb30532 *pi = typec_switch_get_drvdata(sw);
 	u8 new_conf;
 	int ret;
 
@@ -75,7 +75,7 @@ static int pi3usb30532_sw_set(struct typec_switch *sw,
 
 static int pi3usb30532_mux_set(struct typec_mux *mux, int state)
 {
-	struct pi3usb30532 *pi = container_of(mux, struct pi3usb30532, mux);
+	struct pi3usb30532 *pi = typec_mux_get_drvdata(mux);
 	u8 new_conf;
 	int ret;
 
@@ -112,6 +112,8 @@ static int pi3usb30532_mux_set(struct typec_mux *mux, int state)
 static int pi3usb30532_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
+	struct typec_switch_desc sw_desc;
+	struct typec_mux_desc mux_desc;
 	struct pi3usb30532 *pi;
 	int ret;
 
@@ -120,10 +122,6 @@ static int pi3usb30532_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	pi->client = client;
-	pi->sw.dev = dev;
-	pi->sw.set = pi3usb30532_sw_set;
-	pi->mux.dev = dev;
-	pi->mux.set = pi3usb30532_mux_set;
 	mutex_init(&pi->lock);
 
 	ret = i2c_smbus_read_byte_data(client, PI3USB30532_CONF);
@@ -133,17 +131,27 @@ static int pi3usb30532_probe(struct i2c_client *client)
 	}
 	pi->conf = ret;
 
-	ret = typec_switch_register(&pi->sw);
-	if (ret) {
-		dev_err(dev, "Error registering typec switch: %d\n", ret);
-		return ret;
+	sw_desc.drvdata = pi;
+	sw_desc.fwnode = dev->fwnode;
+	sw_desc.set = pi3usb30532_sw_set;
+
+	pi->sw = typec_switch_register(dev, &sw_desc);
+	if (IS_ERR(pi->sw)) {
+		dev_err(dev, "Error registering typec switch: %ld\n",
+			PTR_ERR(pi->sw));
+		return PTR_ERR(pi->sw);
 	}
 
-	ret = typec_mux_register(&pi->mux);
-	if (ret) {
-		typec_switch_unregister(&pi->sw);
-		dev_err(dev, "Error registering typec mux: %d\n", ret);
-		return ret;
+	mux_desc.drvdata = pi;
+	mux_desc.fwnode = dev->fwnode;
+	mux_desc.set = pi3usb30532_mux_set;
+
+	pi->mux = typec_mux_register(dev, &mux_desc);
+	if (IS_ERR(pi->mux)) {
+		typec_switch_unregister(pi->sw);
+		dev_err(dev, "Error registering typec mux: %ld\n",
+			PTR_ERR(pi->mux));
+		return PTR_ERR(pi->mux);
 	}
 
 	i2c_set_clientdata(client, pi);
@@ -154,8 +162,8 @@ static int pi3usb30532_remove(struct i2c_client *client)
 {
 	struct pi3usb30532 *pi = i2c_get_clientdata(client);
 
-	typec_mux_unregister(&pi->mux);
-	typec_switch_unregister(&pi->sw);
+	typec_mux_unregister(pi->mux);
+	typec_switch_unregister(pi->sw);
 	return 0;
 }
 

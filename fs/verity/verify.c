@@ -84,7 +84,8 @@ static inline int cmp_hashes(const struct fsverity_info *vi,
  * Return: true if the page is valid, else false.
  */
 static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
-			struct ahash_request *req, struct page *data_page)
+			struct ahash_request *req, struct page *data_page,
+			unsigned long level0_ra_pages)
 {
 	const struct merkle_tree_params *params = &vi->tree_params;
 	const unsigned int hsize = params->digest_size;
@@ -117,8 +118,8 @@ static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
 		pr_debug_ratelimited("Level %d: hindex=%lu, hoffset=%u\n",
 				     level, hindex, hoffset);
 
-		hpage = inode->i_sb->s_vop->read_merkle_tree_page(inode,
-								  hindex);
+		hpage = inode->i_sb->s_vop->read_merkle_tree_page(inode, hindex,
+				level == 0 ? level0_ra_pages : 0);
 		if (IS_ERR(hpage)) {
 			err = PTR_ERR(hpage);
 			fsverity_err(inode,
@@ -191,13 +192,12 @@ bool fsverity_verify_page(struct page *page)
 	struct ahash_request *req;
 	bool valid;
 
-	req = ahash_request_alloc(vi->tree_params.hash_alg->tfm, GFP_NOFS);
-	if (unlikely(!req))
-		return false;
+	/* This allocation never fails, since it's mempool-backed. */
+	req = fsverity_alloc_hash_request(vi->tree_params.hash_alg, GFP_NOFS);
 
-	valid = verify_page(inode, vi, req, page);
+	valid = verify_page(inode, vi, req, page, 0);
 
-	ahash_request_free(req);
+	fsverity_free_hash_request(vi->tree_params.hash_alg, req);
 
 	return valid;
 }
@@ -222,25 +222,42 @@ void fsverity_verify_bio(struct bio *bio)
 {
 	struct inode *inode = bio_first_page_all(bio)->mapping->host;
 	const struct fsverity_info *vi = inode->i_verity_info;
+	const struct merkle_tree_params *params = &vi->tree_params;
 	struct ahash_request *req;
 	struct bio_vec *bv;
 	int i;
+	unsigned long max_ra_pages = 0;
 
-	req = ahash_request_alloc(vi->tree_params.hash_alg->tfm, GFP_NOFS);
-	if (unlikely(!req)) {
+	/* This allocation never fails, since it's mempool-backed. */
+	req = fsverity_alloc_hash_request(params->hash_alg, GFP_NOFS);
+
+	if (bio->bi_opf & REQ_RAHEAD) {
+		/*
+		 * If this bio is for data readahead, then we also do readahead
+		 * of the first (largest) level of the Merkle tree.  Namely,
+		 * when a Merkle tree page is read, we also try to piggy-back on
+		 * some additional pages -- up to 1/4 the number of data pages.
+		 *
+		 * This improves sequential read performance, as it greatly
+		 * reduces the number of I/O requests made to the Merkle tree.
+		 */
 		bio_for_each_segment_all(bv, bio, i)
-			SetPageError(bv->bv_page);
-		return;
+			max_ra_pages++;
+		max_ra_pages /= 4;
 	}
 
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
+		unsigned long level0_index = page->index >> params->log_arity;
+		unsigned long level0_ra_pages =
+			min(max_ra_pages, params->level0_blocks - level0_index);
 
-		if (!PageError(page) && !verify_page(inode, vi, req, page))
+		if (!PageError(page) &&
+		    !verify_page(inode, vi, req, page, level0_ra_pages))
 			SetPageError(page);
 	}
 
-	ahash_request_free(req);
+	fsverity_free_hash_request(params->hash_alg, req);
 }
 EXPORT_SYMBOL_GPL(fsverity_verify_bio);
 #endif /* CONFIG_BLOCK */

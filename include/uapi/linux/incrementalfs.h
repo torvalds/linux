@@ -22,8 +22,9 @@
 #define INCFS_DATA_FILE_BLOCK_SIZE 4096
 #define INCFS_HEADER_VER 1
 
-// TODO: This value is assumed in incfs_copy_signature_info_from_user to be the
-// actual signature length. Set back to 64 when fixed.
+/* TODO: This value is assumed in incfs_copy_signature_info_from_user to be the
+ * actual signature length. Set back to 64 when fixed.
+ */
 #define INCFS_MAX_HASH_SIZE 32
 #define INCFS_MAX_FILE_ATTR_SIZE 512
 
@@ -34,6 +35,8 @@
 #define INCFS_XATTR_METADATA_NAME (XATTR_USER_PREFIX "incfs.metadata")
 
 #define INCFS_MAX_SIGNATURE_SIZE 8096
+#define INCFS_SIGNATURE_VERSION 2
+#define INCFS_SIGNATURE_SECTIONS 2
 
 #define INCFS_IOCTL_BASE_CODE 'g'
 
@@ -45,7 +48,25 @@
 
 /* Read file signature */
 #define INCFS_IOC_READ_FILE_SIGNATURE                                          \
-	_IOWR(INCFS_IOCTL_BASE_CODE, 31, struct incfs_get_file_sig_args)
+	_IOR(INCFS_IOCTL_BASE_CODE, 31, struct incfs_get_file_sig_args)
+
+/*
+ * Fill in one or more data block. This may only be called on a handle
+ * passed as a parameter to INCFS_IOC_PERMIT_FILLING
+ *
+ * Returns number of blocks filled in, or error if none were
+ */
+#define INCFS_IOC_FILL_BLOCKS                                                  \
+	_IOR(INCFS_IOCTL_BASE_CODE, 32, struct incfs_fill_blocks)
+
+/*
+ * Permit INCFS_IOC_FILL_BLOCKS on the given file descriptor
+ * May only be called on .pending_reads file
+ *
+ * Returns 0 on success or error
+ */
+#define INCFS_IOC_PERMIT_FILL                                                  \
+	_IOW(INCFS_IOCTL_BASE_CODE, 33, struct incfs_permit_fill)
 
 enum incfs_compression_alg {
 	COMPRESSION_NONE = 0,
@@ -80,10 +101,9 @@ struct incfs_pending_read_info {
 };
 
 /*
- * A struct to be written into a control file to load a data or hash
- * block to a data file.
+ * Description of a data or hash block to add to a data file.
  */
-struct incfs_new_data_block {
+struct incfs_fill_block {
 	/* Index of a data block. */
 	__u32 block_index;
 
@@ -113,49 +133,33 @@ struct incfs_new_data_block {
 	__aligned_u64 reserved3;
 };
 
+/*
+ * Description of a number of blocks to add to a data file
+ *
+ * Argument for INCFS_IOC_FILL_BLOCKS
+ */
+struct incfs_fill_blocks {
+	/* Number of blocks */
+	__u64 count;
+
+	/* A pointer to an array of incfs_fill_block structs */
+	__aligned_u64 fill_blocks;
+};
+
+/*
+ * Permit INCFS_IOC_FILL_BLOCKS on the given file descriptor
+ * May only be called on .pending_reads file
+ *
+ * Argument for INCFS_IOC_PERMIT_FILL
+ */
+struct incfs_permit_fill {
+	/* File to permit fills on */
+	__u32 file_descriptor;
+};
+
 enum incfs_hash_tree_algorithm {
 	INCFS_HASH_TREE_NONE = 0,
 	INCFS_HASH_TREE_SHA256 = 1
-};
-
-struct incfs_file_signature_info {
-	/*
-	 * A pointer to file's root hash (if determined != 0)
-	 * Actual hash size determined by hash_tree_alg.
-	 * Size of the buffer should be at least INCFS_MAX_HASH_SIZE
-	 *
-	 * Equivalent to: u8 *root_hash;
-	 */
-	__aligned_u64 root_hash;
-
-	/*
-	 * A pointer to additional data that was attached to the root hash
-	 * before signing.
-	 *
-	 * Equivalent to: u8 *additional_data;
-	 */
-	__aligned_u64 additional_data;
-
-	/* Size of additional data. */
-	__u32 additional_data_size;
-
-	__u32 reserved1;
-
-	/*
-	 * A pointer to pkcs7 signature DER blob.
-	 *
-	 * Equivalent to: u8 *signature;
-	 */
-	__aligned_u64 signature;
-
-
-	/* Size of pkcs7 signature DER blob */
-	__u32 signature_size;
-
-	__u32 reserved2;
-
-	/* Value from incfs_hash_tree_algorithm */
-	__u8 hash_tree_alg;
 };
 
 /*
@@ -211,10 +215,30 @@ struct incfs_new_file_args {
 
 	__u32 reserved4;
 
-	/* struct incfs_file_signature_info *signature_info; */
+	/*
+	 * Points to an APK V4 Signature data blob
+	 * Signature must have two sections
+	 * Format is:
+	 *	u32 version
+	 *	u32 size_of_hash_info_section
+	 *	u8 hash_info_section[]
+	 *	u32 size_of_signing_info_section
+	 *	u8 signing_info_section[]
+	 *
+	 * Note that incfs does not care about what is in signing_info_section
+	 *
+	 * hash_info_section has following format:
+	 *	u32 hash_algorithm; // Must be SHA256 == 1
+	 *	u8 log2_blocksize;  // Must be 12 for 4096 byte blocks
+	 *	u32 salt_size;
+	 *	u8 salt[];
+	 *	u32 hash_size;
+	 *	u8 root_hash[];
+	 */
 	__aligned_u64 signature_info;
 
-	__aligned_u64 reserved5;
+	/* Size of signature_info */
+	__aligned_u64 signature_size;
 
 	__aligned_u64 reserved6;
 };

@@ -1,0 +1,12 @@
+ARCH=arm
+
+CLANG_TRIPLE=arm-linux-gnueabi-
+CROSS_COMPILE=arm-linux-androidkernel-
+LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/bin
+
+FILES="
+arch/arm/boot/Image.gz
+arch/arm/boot/Image
+vmlinux
+System.map
+"

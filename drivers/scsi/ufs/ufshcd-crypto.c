@@ -125,7 +125,6 @@ static int ufshcd_program_key(struct ufs_hba *hba,
 	u32 slot_offset = hba->crypto_cfg_register + slot * sizeof(*cfg);
 	int err;
 
-	pm_runtime_get_sync(hba->dev);
 	ufshcd_hold(hba, false);
 
 	if (hba->vops->program_key) {
@@ -155,7 +154,6 @@ static int ufshcd_program_key(struct ufs_hba *hba,
 	err = 0;
 out:
 	ufshcd_release(hba);
-	pm_runtime_put_sync(hba->dev);
 	return err;
 }
 
@@ -337,8 +335,8 @@ int ufshcd_hba_init_crypto_spec(struct ufs_hba *hba,
 
 	ufshcd_clear_all_keyslots(hba);
 
-	hba->ksm = keyslot_manager_create(ufshcd_num_keyslots(hba), ksm_ops,
-					  crypto_modes_supported, hba);
+	hba->ksm = keyslot_manager_create(hba->dev, ufshcd_num_keyslots(hba),
+					  ksm_ops, crypto_modes_supported, hba);
 
 	if (!hba->ksm) {
 		err = -ENOMEM;

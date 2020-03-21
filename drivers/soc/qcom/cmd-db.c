@@ -2,6 +2,7 @@
 /* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved. */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -315,3 +316,5 @@ static int __init cmd_db_device_init(void)
 	return platform_driver_register(&cmd_db_dev_driver);
 }
 arch_initcall(cmd_db_device_init);
+MODULE_DESCRIPTION("Qualcomm Command DB");
+MODULE_LICENSE("GPL v2");

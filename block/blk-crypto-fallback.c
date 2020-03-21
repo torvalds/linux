@@ -571,6 +571,12 @@ int blk_crypto_fallback_submit_bio(struct bio **bio_ptr)
 	struct bio_crypt_ctx *bc = bio->bi_crypt_context;
 	struct bio_fallback_crypt_ctx *f_ctx;
 
+	if (bc->bc_key->is_hw_wrapped) {
+		pr_warn_once("HW wrapped key cannot be used with fallback.\n");
+		bio->bi_status = BLK_STS_NOTSUPP;
+		return -EOPNOTSUPP;
+	}
+
 	if (!tfms_inited[bc->bc_key->crypto_mode]) {
 		bio->bi_status = BLK_STS_IOERR;
 		return -EIO;
@@ -608,7 +614,7 @@ int __init blk_crypto_fallback_init(void)
 		crypto_mode_supported[i] = 0xFFFFFFFF;
 	crypto_mode_supported[BLK_ENCRYPTION_MODE_INVALID] = 0;
 
-	blk_crypto_ksm = keyslot_manager_create(blk_crypto_num_keyslots,
+	blk_crypto_ksm = keyslot_manager_create(NULL, blk_crypto_num_keyslots,
 						&blk_crypto_ksm_ll_ops,
 						crypto_mode_supported, NULL);
 	if (!blk_crypto_ksm)

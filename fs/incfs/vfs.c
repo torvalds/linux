@@ -49,8 +49,6 @@ static int dir_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 static int file_open(struct inode *inode, struct file *file);
 static int file_release(struct inode *inode, struct file *file);
-static ssize_t file_write(struct file *f, const char __user *buf,
-			     size_t size, loff_t *offset);
 static int read_single_page(struct file *f, struct page *page);
 static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg);
 
@@ -72,6 +70,8 @@ static void evict_inode(struct inode *inode);
 
 static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size);
+static ssize_t incfs_setxattr(struct dentry *d, const char *name,
+			const void *value, size_t size, int flags);
 static ssize_t incfs_listxattr(struct dentry *d, char *list, size_t size);
 
 static int show_options(struct seq_file *, struct dentry *);
@@ -124,13 +124,17 @@ static const struct address_space_operations incfs_address_space_ops = {
 static const struct file_operations incfs_file_ops = {
 	.open = file_open,
 	.release = file_release,
-	.write = file_write,
 	.read_iter = generic_file_read_iter,
 	.mmap = generic_file_mmap,
 	.splice_read = generic_file_splice_read,
 	.llseek = generic_file_llseek,
 	.unlocked_ioctl = dispatch_ioctl,
 	.compat_ioctl = dispatch_ioctl
+};
+
+enum FILL_PERMISSION {
+	CANT_FILL = 0,
+	CAN_FILL = 1,
 };
 
 static const struct file_operations incfs_pending_read_file_ops = {
@@ -166,9 +170,18 @@ static int incfs_handler_getxattr(const struct xattr_handler *xh,
 	return incfs_getxattr(d, name, buffer, size);
 }
 
+static int incfs_handler_setxattr(const struct xattr_handler *xh,
+				  struct dentry *d, struct inode *inode,
+				  const char *name, const void *buffer,
+				  size_t size, int flags)
+{
+	return incfs_setxattr(d, name, buffer, size, flags);
+}
+
 static const struct xattr_handler incfs_xattr_handler = {
 	.prefix = "",	/* AKA all attributes */
 	.get = incfs_handler_getxattr,
+	.set = incfs_handler_setxattr,
 };
 
 static const struct xattr_handler *incfs_xattr_ops[] = {
@@ -347,7 +360,6 @@ static int inode_set(struct inode *inode, void *opaque)
 		struct dentry *backing_dentry = search->backing_dentry;
 		struct inode *backing_inode = d_inode(backing_dentry);
 
-		inode_init_owner(inode, NULL, backing_inode->i_mode);
 		fsstack_copy_attr_all(inode, backing_inode);
 		if (S_ISREG(inode->i_mode)) {
 			u64 size = read_size_attr(backing_dentry);
@@ -379,6 +391,7 @@ static int inode_set(struct inode *inode, void *opaque)
 			pr_warn("incfs: ino conflict with backing FS %ld\n",
 				backing_inode->i_ino);
 		}
+
 		return 0;
 	} else if (search->ino == INCFS_PENDING_READS_INODE) {
 		/* It's an inode for .pending_reads pseudo file. */
@@ -450,9 +463,6 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 	int reads_collected = 0;
 	ssize_t result = 0;
 	int i = 0;
-
-	if (!access_ok(VERIFY_WRITE, buf, len))
-		return -EFAULT;
 
 	if (!incfs_fresh_pending_reads_exist(mi, last_known_read_sn))
 		return 0;
@@ -786,9 +796,6 @@ static int read_single_page(struct file *f, struct page *page)
 	size = df->df_size;
 	timeout_ms = df->df_mount_info->mi_options.read_timeout_ms;
 
-	pr_debug("incfs: %s %s %lld\n", __func__,
-		f->f_path.dentry->d_name.name, offset);
-
 	if (offset < size) {
 		struct mem_range tmp = {
 			.len = 2 * INCFS_DATA_FILE_BLOCK_SIZE
@@ -835,106 +842,39 @@ static char *file_id_to_str(incfs_uuid_t id)
 	return result;
 }
 
-static struct signature_info *incfs_copy_signature_info_from_user(
-		struct incfs_file_signature_info __user *original)
+static struct mem_range incfs_copy_signature_info_from_user(u8 __user *original,
+							    u64 size)
 {
-	struct incfs_file_signature_info usr_si;
-	struct signature_info *result;
-	int error;
+	u8 *result;
 
 	if (!original)
-		return NULL;
+		return range(NULL, 0);
 
-	if (!access_ok(VERIFY_READ, original, sizeof(usr_si)))
-		return ERR_PTR(-EFAULT);
+	if (size > INCFS_MAX_SIGNATURE_SIZE)
+		return range(ERR_PTR(-EFAULT), 0);
 
-	if (copy_from_user(&usr_si, original, sizeof(usr_si)) > 0)
-		return ERR_PTR(-EFAULT);
-
-	result = kzalloc(sizeof(*result), GFP_NOFS);
+	result = kzalloc(size, GFP_NOFS);
 	if (!result)
-		return ERR_PTR(-ENOMEM);
+		return range(ERR_PTR(-ENOMEM), 0);
 
-	result->hash_alg = usr_si.hash_tree_alg;
-
-	if (result->hash_alg) {
-		void *p = kzalloc(INCFS_MAX_HASH_SIZE, GFP_NOFS);
-
-		if (!p) {
-			error = -ENOMEM;
-			goto err;
-		}
-
-		// TODO this sets the root_hash length to MAX_HASH_SIZE not
-		// the actual size. Fix, then set INCFS_MAX_HASH_SIZE back
-		// to 64
-		result->root_hash = range(p, INCFS_MAX_HASH_SIZE);
-		if (copy_from_user(p, u64_to_user_ptr(usr_si.root_hash),
-				result->root_hash.len) > 0) {
-			error = -EFAULT;
-			goto err;
-		}
+	if (copy_from_user(result, original, size)) {
+		kfree(result);
+		return range(ERR_PTR(-EFAULT), 0);
 	}
 
-	if (usr_si.additional_data_size > INCFS_MAX_FILE_ATTR_SIZE) {
-		error = -E2BIG;
-		goto err;
-	}
-
-	if (usr_si.additional_data && usr_si.additional_data_size) {
-		void *p = kzalloc(usr_si.additional_data_size, GFP_NOFS);
-
-		if (!p) {
-			error = -ENOMEM;
-			goto err;
-		}
-		result->additional_data = range(p,
-					usr_si.additional_data_size);
-		if (copy_from_user(p, u64_to_user_ptr(usr_si.additional_data),
-				result->additional_data.len) > 0) {
-			error = -EFAULT;
-			goto err;
-		}
-	}
-
-	if (usr_si.signature_size > INCFS_MAX_SIGNATURE_SIZE) {
-		error = -E2BIG;
-		goto err;
-	}
-
-	if (usr_si.signature && usr_si.signature_size) {
-		void *p = kzalloc(usr_si.signature_size, GFP_NOFS);
-
-		if (!p) {
-			error = -ENOMEM;
-			goto err;
-		}
-		result->signature = range(p, usr_si.signature_size);
-		if (copy_from_user(p, u64_to_user_ptr(usr_si.signature),
-				result->signature.len) > 0) {
-			error = -EFAULT;
-			goto err;
-		}
-	}
-
-	return result;
-
-err:
-	incfs_free_signature_info(result);
-	return ERR_PTR(-error);
+	return range(result, size);
 }
 
 static int init_new_file(struct mount_info *mi, struct dentry *dentry,
-		incfs_uuid_t *uuid, u64 size, struct mem_range attr,
-		struct incfs_file_signature_info __user *fsi)
+			 incfs_uuid_t *uuid, u64 size, struct mem_range attr,
+			 u8 __user *user_signature_info, u64 signature_size)
 {
 	struct path path = {};
 	struct file *new_file;
 	int error = 0;
 	struct backing_file_context *bfc = NULL;
 	u32 block_count;
-	struct mem_range mem_range = {NULL};
-	struct signature_info *si = NULL;
+	struct mem_range raw_signature = { NULL };
 	struct mtree *hash_tree = NULL;
 
 	if (!mi || !dentry || !uuid)
@@ -984,43 +924,27 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 			goto out;
 	}
 
-	if (fsi) {
-		si = incfs_copy_signature_info_from_user(fsi);
+	if (user_signature_info) {
+		raw_signature = incfs_copy_signature_info_from_user(
+			user_signature_info, signature_size);
 
-		if (IS_ERR(si)) {
-			error = PTR_ERR(si);
-			si = NULL;
+		if (IS_ERR(raw_signature.data)) {
+			error = PTR_ERR(raw_signature.data);
+			raw_signature.data = NULL;
 			goto out;
 		}
 
-		if (si->hash_alg) {
-			hash_tree = incfs_alloc_mtree(si->hash_alg, block_count,
-						      si->root_hash);
-			if (IS_ERR(hash_tree)) {
-				error = PTR_ERR(hash_tree);
-				hash_tree = NULL;
-				goto out;
-			}
-
-			// TODO This code seems wrong when len is zero - we
-			// should error out??
-			if (si->signature.len > 0)
-				error = incfs_validate_pkcs7_signature(
-						si->signature,
-						si->root_hash,
-						si->additional_data);
-			if (error)
-				goto out;
-
-			error = incfs_write_signature_to_backing_file(bfc,
-					si->hash_alg,
-					hash_tree->hash_tree_area_size,
-					si->root_hash, si->additional_data,
-					si->signature);
-
-			if (error)
-				goto out;
+		hash_tree = incfs_alloc_mtree(raw_signature, block_count);
+		if (IS_ERR(hash_tree)) {
+			error = PTR_ERR(hash_tree);
+			hash_tree = NULL;
+			goto out;
 		}
+
+		error = incfs_write_signature_to_backing_file(
+			bfc, raw_signature, hash_tree->hash_tree_area_size);
+		if (error)
+			goto out;
 	}
 
 out:
@@ -1029,8 +953,7 @@ out:
 		incfs_free_bfc(bfc);
 	}
 	incfs_free_mtree(hash_tree);
-	incfs_free_signature_info(si);
-	kfree(mem_range.data);
+	kfree(raw_signature.data);
 
 	if (error)
 		pr_debug("incfs: %s error: %d\n", __func__, error);
@@ -1135,6 +1058,27 @@ static int validate_name(char *file_name)
 	return 0;
 }
 
+static int chmod(struct dentry *dentry, umode_t mode)
+{
+	struct inode *inode = dentry->d_inode;
+	struct inode *delegated_inode = NULL;
+	struct iattr newattrs;
+	int error;
+
+retry_deleg:
+	inode_lock(inode);
+	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
+	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
+	error = notify_change(dentry, &newattrs, &delegated_inode);
+	inode_unlock(inode);
+	if (delegated_inode) {
+		error = break_deleg_wait(&delegated_inode);
+		if (!error)
+			goto retry_deleg;
+	}
+	return error;
+}
+
 static long ioctl_create_file(struct mount_info *mi,
 			struct incfs_new_file_args __user *usr_args)
 {
@@ -1154,10 +1098,7 @@ static long ioctl_create_file(struct mount_info *mi,
 		error = -EFAULT;
 		goto out;
 	}
-	if (!access_ok(VERIFY_READ, usr_args, sizeof(args))) {
-		error = -EFAULT;
-		goto out;
-	}
+
 	if (copy_from_user(&args, usr_args, sizeof(args)) > 0) {
 		error = -EFAULT;
 		goto out;
@@ -1235,8 +1176,8 @@ static long ioctl_create_file(struct mount_info *mi,
 	/* Creating a file in the .index dir. */
 	index_dir_inode = d_inode(mi->mi_index_dir);
 	inode_lock_nested(index_dir_inode, I_MUTEX_PARENT);
-	error = vfs_create(index_dir_inode, index_file_dentry,
-			args.mode, true);
+	error = vfs_create(index_dir_inode, index_file_dentry, args.mode | 0222,
+			   true);
 	inode_unlock(index_dir_inode);
 
 	if (error)
@@ -1244,6 +1185,12 @@ static long ioctl_create_file(struct mount_info *mi,
 	if (!d_really_is_positive(index_file_dentry)) {
 		error = -EINVAL;
 		goto out;
+	}
+
+	error = chmod(index_file_dentry, args.mode | 0222);
+	if (error) {
+		pr_debug("incfs: chmod err: %d\n", error);
+		goto delete_index_file;
 	}
 
 	/* Save the file's ID as an xattr for easy fetching in future. */
@@ -1264,7 +1211,7 @@ static long ioctl_create_file(struct mount_info *mi,
 		goto delete_index_file;
 	}
 
-	/* Save the file's attrubute as an xattr */
+	/* Save the file's attribute as an xattr */
 	if (args.file_attr_len && args.file_attr) {
 		if (args.file_attr_len > INCFS_MAX_FILE_ATTR_SIZE) {
 			error = -E2BIG;
@@ -1274,12 +1221,6 @@ static long ioctl_create_file(struct mount_info *mi,
 		attr_value = kmalloc(args.file_attr_len, GFP_NOFS);
 		if (!attr_value) {
 			error = -ENOMEM;
-			goto delete_index_file;
-		}
-
-		if (!access_ok(VERIFY_READ, u64_to_user_ptr(args.file_attr),
-			       args.file_attr_len)) {
-			error = -EFAULT;
 			goto delete_index_file;
 		}
 
@@ -1301,9 +1242,9 @@ static long ioctl_create_file(struct mount_info *mi,
 
 	/* Initializing a newly created file. */
 	error = init_new_file(mi, index_file_dentry, &args.file_id, args.size,
-			range(attr_value, args.file_attr_len),
-			(struct incfs_file_signature_info __user *)
-				args.signature_info);
+			      range(attr_value, args.file_attr_len),
+			      (u8 __user *)args.signature_info,
+			      args.signature_size);
 	if (error)
 		goto delete_index_file;
 
@@ -1331,6 +1272,122 @@ out:
 	return error;
 }
 
+static long ioctl_fill_blocks(struct file *f, void __user *arg)
+{
+	struct incfs_fill_blocks __user *usr_fill_blocks = arg;
+	struct incfs_fill_blocks fill_blocks;
+	struct incfs_fill_block *usr_fill_block_array;
+	struct data_file *df = get_incfs_data_file(f);
+	const ssize_t data_buf_size = 2 * INCFS_DATA_FILE_BLOCK_SIZE;
+	u8 *data_buf = NULL;
+	ssize_t error = 0;
+	int i = 0;
+
+	if (!df)
+		return -EBADF;
+
+	if ((uintptr_t)f->private_data != CAN_FILL)
+		return -EPERM;
+
+	if (copy_from_user(&fill_blocks, usr_fill_blocks, sizeof(fill_blocks)))
+		return -EFAULT;
+
+	usr_fill_block_array = u64_to_user_ptr(fill_blocks.fill_blocks);
+	data_buf = (u8 *)__get_free_pages(GFP_NOFS, get_order(data_buf_size));
+	if (!data_buf)
+		return -ENOMEM;
+
+	for (i = 0; i < fill_blocks.count; i++) {
+		struct incfs_fill_block fill_block = {};
+
+		if (copy_from_user(&fill_block, &usr_fill_block_array[i],
+				   sizeof(fill_block)) > 0) {
+			error = -EFAULT;
+			break;
+		}
+
+		if (fill_block.data_len > data_buf_size) {
+			error = -E2BIG;
+			break;
+		}
+
+		if (copy_from_user(data_buf, u64_to_user_ptr(fill_block.data),
+				   fill_block.data_len) > 0) {
+			error = -EFAULT;
+			break;
+		}
+		fill_block.data = 0; /* To make sure nobody uses it. */
+		if (fill_block.flags & INCFS_BLOCK_FLAGS_HASH) {
+			error = incfs_process_new_hash_block(df, &fill_block,
+							     data_buf);
+		} else {
+			error = incfs_process_new_data_block(df, &fill_block,
+							     data_buf);
+		}
+		if (error)
+			break;
+	}
+
+	if (data_buf)
+		free_pages((unsigned long)data_buf, get_order(data_buf_size));
+
+	/*
+	 * Only report the error if no records were processed, otherwise
+	 * just return how many were processed successfully.
+	 */
+	if (i == 0)
+		return error;
+
+	return i;
+}
+
+static long ioctl_permit_fill(struct file *f, void __user *arg)
+{
+	struct incfs_permit_fill __user *usr_permit_fill = arg;
+	struct incfs_permit_fill permit_fill;
+	long error = 0;
+	struct file *file = 0;
+
+	if (f->f_op != &incfs_pending_read_file_ops)
+		return -EPERM;
+
+	if (copy_from_user(&permit_fill, usr_permit_fill, sizeof(permit_fill)))
+		return -EFAULT;
+
+	file = fget(permit_fill.file_descriptor);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	if (file->f_op != &incfs_file_ops) {
+		error = -EPERM;
+		goto out;
+	}
+
+	if (file->f_inode->i_sb != f->f_inode->i_sb) {
+		error = -EPERM;
+		goto out;
+	}
+
+	switch ((uintptr_t)file->private_data) {
+	case CANT_FILL:
+		file->private_data = (void *)CAN_FILL;
+		break;
+
+	case CAN_FILL:
+		pr_debug("CAN_FILL already set");
+		break;
+
+	default:
+		pr_warn("Invalid file private data");
+		error = -EFAULT;
+		goto out;
+	}
+
+out:
+	fput(file);
+	return error;
+}
+
 static long ioctl_read_file_signature(struct file *f, void __user *arg)
 {
 	struct incfs_get_file_sig_args __user *args_usr_ptr = arg;
@@ -1344,14 +1401,8 @@ static long ioctl_read_file_signature(struct file *f, void __user *arg)
 	if (!df)
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_READ, args_usr_ptr, sizeof(args)))
-		return -EFAULT;
 	if (copy_from_user(&args, args_usr_ptr, sizeof(args)) > 0)
 		return -EINVAL;
-
-	if (!access_ok(VERIFY_WRITE, u64_to_user_ptr(args.file_signature),
-			args.file_signature_buf_size))
-		return -EFAULT;
 
 	sig_buf_size = args.file_signature_buf_size;
 	if (sig_buf_size > INCFS_MAX_SIGNATURE_SIZE)
@@ -1392,6 +1443,10 @@ static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 	switch (req) {
 	case INCFS_IOC_CREATE_FILE:
 		return ioctl_create_file(mi, (void __user *)arg);
+	case INCFS_IOC_FILL_BLOCKS:
+		return ioctl_fill_blocks(f, (void __user *)arg);
+	case INCFS_IOC_PERMIT_FILL:
+		return ioctl_permit_fill(f, (void __user *)arg);
 	case INCFS_IOC_READ_FILE_SIGNATURE:
 		return ioctl_read_file_signature(f, (void __user *)arg);
 	default:
@@ -1452,6 +1507,7 @@ static struct dentry *dir_lookup(struct inode *dir_inode, struct dentry *dentry,
 		err = IS_ERR(backing_dentry)
 			? PTR_ERR(backing_dentry)
 			: -EFAULT;
+		backing_dentry = NULL;
 		goto out;
 	} else {
 		struct inode *inode = NULL;
@@ -1535,7 +1591,7 @@ static int dir_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	}
 
 	inode_lock_nested(dir_node->n_backing_inode, I_MUTEX_PARENT);
-	err = vfs_mkdir(dir_node->n_backing_inode, backing_dentry, mode);
+	err = vfs_mkdir(dir_node->n_backing_inode, backing_dentry, mode | 0222);
 	inode_unlock(dir_node->n_backing_inode);
 	if (!err) {
 		struct inode *inode = NULL;
@@ -1821,9 +1877,10 @@ static int file_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	if (S_ISREG(inode->i_mode))
+	if (S_ISREG(inode->i_mode)) {
 		err = make_inode_ready_for_data_ops(mi, inode, backing_file);
-	else if (S_ISDIR(inode->i_mode)) {
+		file->private_data = (void *)CANT_FILL;
+	} else if (S_ISDIR(inode->i_mode)) {
 		struct dir_file *dir = NULL;
 
 		dir = incfs_open_dir_file(mi, backing_file);
@@ -1857,77 +1914,6 @@ static int file_release(struct inode *inode, struct file *file)
 
 	return 0;
 }
-
-static ssize_t file_write(struct file *f, const char __user *buf,
-			     size_t size, loff_t *offset)
-{
-	struct data_file *df = get_incfs_data_file(f);
-	const ssize_t data_buf_size = 2 * INCFS_DATA_FILE_BLOCK_SIZE;
-	size_t block_count = size / sizeof(struct incfs_new_data_block);
-	struct incfs_new_data_block __user *usr_blocks =
-		(struct incfs_new_data_block __user *)buf;
-	u8 *data_buf = NULL;
-	ssize_t error = 0;
-	int i = 0;
-
-	if (!df)
-		return -EBADF;
-
-	if (!access_ok(VERIFY_READ, usr_blocks, size))
-		return -EFAULT;
-
-	data_buf = (u8 *)__get_free_pages(GFP_NOFS, get_order(data_buf_size));
-	if (!data_buf)
-		return -ENOMEM;
-
-	for (i = 0; i < block_count; i++) {
-		struct incfs_new_data_block block = {};
-
-		if (copy_from_user(&block, &usr_blocks[i], sizeof(block)) > 0) {
-			error = -EFAULT;
-			break;
-		}
-
-		if (block.data_len > data_buf_size) {
-			error = -E2BIG;
-			break;
-		}
-		if (!access_ok(VERIFY_READ, u64_to_user_ptr(block.data),
-			       block.data_len)) {
-			error = -EFAULT;
-			break;
-		}
-		if (copy_from_user(data_buf, u64_to_user_ptr(block.data),
-				   block.data_len) > 0) {
-			error = -EFAULT;
-			break;
-		}
-		block.data = 0; /* To make sure nobody uses it. */
-		if (block.flags & INCFS_BLOCK_FLAGS_HASH) {
-			error = incfs_process_new_hash_block(df, &block,
-							     data_buf);
-		} else {
-			error = incfs_process_new_data_block(df, &block,
-							     data_buf);
-		}
-		if (error)
-			break;
-	}
-
-	if (data_buf)
-		free_pages((unsigned long)data_buf, get_order(data_buf_size));
-	*offset = 0;
-
-	/*
-	 * Only report the error if no records were processed, otherwise
-	 * just return how many were processed successfully.
-	 */
-	if (i == 0)
-		return error;
-
-	return i * sizeof(struct incfs_new_data_block);
-}
-
 
 static int dentry_revalidate(struct dentry *d, unsigned int flags)
 {
@@ -2015,11 +2001,74 @@ static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size)
 {
 	struct dentry_info *di = get_incfs_dentry(d);
+	struct mount_info *mi = get_mount_info(d->d_sb);
+	char *stored_value;
+	size_t stored_size;
 
-	if (!di || !di->backing_path.dentry)
+	if (di && di->backing_path.dentry)
+		return vfs_getxattr(di->backing_path.dentry, name, value, size);
+
+	if (strcmp(name, "security.selinux"))
 		return -ENODATA;
 
-	return vfs_getxattr(di->backing_path.dentry, name, value, size);
+	if (!strcmp(d->d_iname, INCFS_PENDING_READS_FILENAME)) {
+		stored_value = mi->pending_read_xattr;
+		stored_size = mi->pending_read_xattr_size;
+	} else if (!strcmp(d->d_iname, INCFS_LOG_FILENAME)) {
+		stored_value = mi->log_xattr;
+		stored_size = mi->log_xattr_size;
+	} else {
+		return -ENODATA;
+	}
+
+	if (!stored_value)
+		return -ENODATA;
+
+	if (stored_size > size)
+		return -E2BIG;
+
+	memcpy(value, stored_value, stored_size);
+	return stored_size;
+
+}
+
+
+static ssize_t incfs_setxattr(struct dentry *d, const char *name,
+			const void *value, size_t size, int flags)
+{
+	struct dentry_info *di = get_incfs_dentry(d);
+	struct mount_info *mi = get_mount_info(d->d_sb);
+	void **stored_value;
+	size_t *stored_size;
+
+	if (di && di->backing_path.dentry)
+		return vfs_setxattr(di->backing_path.dentry, name, value, size,
+				    flags);
+
+	if (strcmp(name, "security.selinux"))
+		return -ENODATA;
+
+	if (size > INCFS_MAX_FILE_ATTR_SIZE)
+		return -E2BIG;
+
+	if (!strcmp(d->d_iname, INCFS_PENDING_READS_FILENAME)) {
+		stored_value = &mi->pending_read_xattr;
+		stored_size = &mi->pending_read_xattr_size;
+	} else if (!strcmp(d->d_iname, INCFS_LOG_FILENAME)) {
+		stored_value = &mi->log_xattr;
+		stored_size = &mi->log_xattr_size;
+	} else {
+		return -ENODATA;
+	}
+
+	kfree (*stored_value);
+	*stored_value = kzalloc(size, GFP_NOFS);
+	if (!*stored_value)
+		return -ENOMEM;
+
+	memcpy(*stored_value, value, size);
+	*stored_size = size;
+	return 0;
 }
 
 static ssize_t incfs_listxattr(struct dentry *d, char *list, size_t size)

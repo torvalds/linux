@@ -877,6 +877,8 @@ static ssize_t otg_mode_show(struct device *device,
 		return sprintf(buf, "otg\n");
 	case USB_DR_MODE_UNKNOWN:
 		return sprintf(buf, "UNKNOWN\n");
+	default:
+		break;
 	}
 
 	return -EINVAL;

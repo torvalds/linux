@@ -16,6 +16,7 @@ bool blk_crypto_endio(struct bio *bio);
 
 int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 			const u8 *raw_key, unsigned int raw_key_size,
+			bool is_hw_wrapped,
 			enum blk_crypto_mode_num crypto_mode,
 			unsigned int data_unit_size);
 

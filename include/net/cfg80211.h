@@ -3050,6 +3050,9 @@ struct cfg80211_external_auth_params {
  *
  * @start_radar_detection: Start radar detection in the driver.
  *
+ * @end_cac: End running CAC, probably because a related CAC
+ *	was finished on another phy.
+ *
  * @update_ft_ies: Provide updated Fast BSS Transition information to the
  *	driver. If the SME is in the driver/firmware, this information can be
  *	used in building Authentication and Reassociation Request frames.
@@ -3364,6 +3367,8 @@ struct cfg80211_ops {
 					 struct net_device *dev,
 					 struct cfg80211_chan_def *chandef,
 					 u32 cac_time_ms);
+	void	(*end_cac)(struct wiphy *wiphy,
+				struct net_device *dev);
 	int	(*update_ft_ies)(struct wiphy *wiphy, struct net_device *dev,
 				 struct cfg80211_update_ft_ies_params *ftie);
 	int	(*crit_proto_start)(struct wiphy *wiphy,
@@ -6392,6 +6397,13 @@ void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
  * by .crit_proto_start() has expired.
  */
 void cfg80211_crit_proto_stopped(struct wireless_dev *wdev, gfp_t gfp);
+
+/**
+ * cfg80211_ap_stopped - notify userspace that AP mode stopped
+ * @netdev: network device
+ * @gfp: context flags
+ */
+void cfg80211_ap_stopped(struct net_device *netdev, gfp_t gfp);
 
 /**
  * ieee80211_get_num_supported_channels - get number of channels device has

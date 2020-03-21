@@ -474,8 +474,11 @@ void ufshcd_print_trs(struct ufs_hba *hba, unsigned long bitmap, bool pr_prdt)
 		ufshcd_hex_dump("UPIU RSP: ", lrbp->ucd_rsp_ptr,
 				sizeof(struct utp_upiu_rsp));
 
-		prdt_length = le16_to_cpu(
-			lrbp->utr_descriptor_ptr->prd_table_length);
+		prdt_length =
+			le16_to_cpu(lrbp->utr_descriptor_ptr->prd_table_length);
+		if (hba->quirks & UFSHCD_QUIRK_PRDT_BYTE_GRAN)
+			prdt_length /= hba->sg_entry_size;
+
 		dev_err(hba->dev,
 			"UPIU[%d] - PRDT - %d entries  phys@0x%llx\n",
 			tag, prdt_length,
@@ -483,7 +486,7 @@ void ufshcd_print_trs(struct ufs_hba *hba, unsigned long bitmap, bool pr_prdt)
 
 		if (pr_prdt)
 			ufshcd_hex_dump("UPIU PRDT: ", lrbp->ucd_prdt_ptr,
-				sizeof(struct ufshcd_sg_entry) * prdt_length);
+				hba->sg_entry_size * prdt_length);
 	}
 }
 
@@ -2137,7 +2140,7 @@ ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
  */
 static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
-	struct ufshcd_sg_entry *prd_table;
+	struct ufshcd_sg_entry *prd;
 	struct scatterlist *sg;
 	struct scsi_cmnd *cmd;
 	int sg_segments;
@@ -2152,21 +2155,22 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		if (hba->quirks & UFSHCD_QUIRK_PRDT_BYTE_GRAN)
 			lrbp->utr_descriptor_ptr->prd_table_length =
 				cpu_to_le16((u16)(sg_segments *
-					sizeof(struct ufshcd_sg_entry)));
+						  hba->sg_entry_size));
 		else
 			lrbp->utr_descriptor_ptr->prd_table_length =
 				cpu_to_le16((u16) (sg_segments));
 
-		prd_table = (struct ufshcd_sg_entry *)lrbp->ucd_prdt_ptr;
+		prd = (struct ufshcd_sg_entry *)lrbp->ucd_prdt_ptr;
 
 		scsi_for_each_sg(cmd, sg, sg_segments, i) {
-			prd_table[i].size  =
+			prd->size =
 				cpu_to_le32(((u32) sg_dma_len(sg))-1);
-			prd_table[i].base_addr =
+			prd->base_addr =
 				cpu_to_le32(lower_32_bits(sg->dma_address));
-			prd_table[i].upper_addr =
+			prd->upper_addr =
 				cpu_to_le32(upper_32_bits(sg->dma_address));
-			prd_table[i].reserved = 0;
+			prd->reserved = 0;
+			prd = (void *)prd + hba->sg_entry_size;
 		}
 	} else {
 		lrbp->utr_descriptor_ptr->prd_table_length = 0;
@@ -3392,7 +3396,7 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 	size_t utmrdl_size, utrdl_size, ucdl_size;
 
 	/* Allocate memory for UTP command descriptors */
-	ucdl_size = (sizeof(struct utp_transfer_cmd_desc) * hba->nutrs);
+	ucdl_size = (sizeof_utp_transfer_cmd_desc(hba) * hba->nutrs);
 	hba->ucdl_base_addr = dmam_alloc_coherent(hba->dev,
 						  ucdl_size,
 						  &hba->ucdl_dma_addr,
@@ -3488,7 +3492,7 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
 	prdt_offset =
 		offsetof(struct utp_transfer_cmd_desc, prd_table);
 
-	cmd_desc_size = sizeof(struct utp_transfer_cmd_desc);
+	cmd_desc_size = sizeof_utp_transfer_cmd_desc(hba);
 	cmd_desc_dma_addr = hba->ucdl_dma_addr;
 
 	for (i = 0; i < hba->nutrs; i++) {
@@ -3520,17 +3524,17 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
 		hba->lrb[i].utr_descriptor_ptr = (utrdlp + i);
 		hba->lrb[i].utrd_dma_addr = hba->utrdl_dma_addr +
 				(i * sizeof(struct utp_transfer_req_desc));
-		hba->lrb[i].ucd_req_ptr =
-			(struct utp_upiu_req *)(cmd_descp + i);
+		hba->lrb[i].ucd_req_ptr = (struct utp_upiu_req *)cmd_descp;
 		hba->lrb[i].ucd_req_dma_addr = cmd_desc_element_addr;
 		hba->lrb[i].ucd_rsp_ptr =
-			(struct utp_upiu_rsp *)cmd_descp[i].response_upiu;
+			(struct utp_upiu_rsp *)cmd_descp->response_upiu;
 		hba->lrb[i].ucd_rsp_dma_addr = cmd_desc_element_addr +
 				response_offset;
 		hba->lrb[i].ucd_prdt_ptr =
-			(struct ufshcd_sg_entry *)cmd_descp[i].prd_table;
+			(struct ufshcd_sg_entry *)cmd_descp->prd_table;
 		hba->lrb[i].ucd_prdt_dma_addr = cmd_desc_element_addr +
 				prdt_offset;
+		cmd_descp = (void *)cmd_descp + cmd_desc_size;
 	}
 }
 
@@ -4857,7 +4861,7 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		break;
 	} /* end of switch */
 
-	if (host_byte(result) != DID_OK)
+	if ((host_byte(result) != DID_OK) && !hba->silence_err_logs)
 		ufshcd_print_trs(hba, 1 << lrbp->task_tag, true);
 	return result;
 }
@@ -5093,6 +5097,7 @@ static int ufshcd_disable_auto_bkops(struct ufs_hba *hba)
 
 	hba->auto_bkops_enabled = false;
 	trace_ufshcd_auto_bkops_state(dev_name(hba->dev), "Disabled");
+	hba->is_urgent_bkops_lvl_checked = false;
 out:
 	return err;
 }
@@ -5117,6 +5122,7 @@ static void ufshcd_force_reset_auto_bkops(struct ufs_hba *hba)
 		hba->ee_ctrl_mask &= ~MASK_EE_URGENT_BKOPS;
 		ufshcd_disable_auto_bkops(hba);
 	}
+	hba->is_urgent_bkops_lvl_checked = false;
 }
 
 static inline int ufshcd_get_bkops_status(struct ufs_hba *hba, u32 *status)
@@ -5163,6 +5169,7 @@ static int ufshcd_bkops_ctrl(struct ufs_hba *hba,
 		err = ufshcd_enable_auto_bkops(hba);
 	else
 		err = ufshcd_disable_auto_bkops(hba);
+	hba->urgent_bkops_lvl = curr_status;
 out:
 	return err;
 }
@@ -5387,8 +5394,8 @@ static void ufshcd_err_handler(struct work_struct *work)
 
 	/*
 	 * if host reset is required then skip clearing the pending
-	 * transfers forcefully because they will automatically get
-	 * cleared after link startup.
+	 * transfers forcefully because they will get cleared during
+	 * host reset and restore
 	 */
 	if (needs_reset)
 		goto skip_pending_xfer_clear;
@@ -6042,9 +6049,15 @@ static int ufshcd_host_reset_and_restore(struct ufs_hba *hba)
 	int err;
 	unsigned long flags;
 
-	/* Reset the host controller */
+	/*
+	 * Stop the host controller and complete the requests
+	 * cleared by h/w
+	 */
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	ufshcd_hba_stop(hba, false);
+	hba->silence_err_logs = true;
+	ufshcd_complete_requests(hba);
+	hba->silence_err_logs = false;
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
 	/* scale up clocks to max frequency before full reinitialization */
@@ -6078,21 +6091,11 @@ out:
 static int ufshcd_reset_and_restore(struct ufs_hba *hba)
 {
 	int err = 0;
-	unsigned long flags;
 	int retries = MAX_HOST_RESET_RETRIES;
 
 	do {
 		err = ufshcd_host_reset_and_restore(hba);
 	} while (err && --retries);
-
-	/*
-	 * After reset the door-bell might be cleared, complete
-	 * outstanding requests in s/w here.
-	 */
-	spin_lock_irqsave(hba->host->host_lock, flags);
-	ufshcd_transfer_req_compl(hba);
-	ufshcd_tmc_handler(hba);
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
 	return err;
 }
@@ -6731,7 +6734,8 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 			ufshcd_init_icc_levels(hba);
 
 		/* Add required well known logical units to scsi mid layer */
-		if (ufshcd_scsi_add_wlus(hba))
+		ret = ufshcd_scsi_add_wlus(hba);
+		if (ret)
 			goto out;
 
 		/* Initialize devfreq after UFS device is detected */
@@ -8078,6 +8082,7 @@ int ufshcd_alloc_host(struct device *dev, struct ufs_hba **hba_handle)
 	hba->host = host;
 	hba->dev = dev;
 	*hba_handle = hba;
+	hba->sg_entry_size = sizeof(struct ufshcd_sg_entry);
 
 	INIT_LIST_HEAD(&hba->clk_list_head);
 

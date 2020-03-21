@@ -29,6 +29,9 @@ config GKI_HIDDEN_CRYPTO_CONFIGS
 config GKI_HIDDEN_SND_CONFIGS
 	bool "Hidden SND configs needed for GKI"
 	select SND_VMASTER
+	select SND_PCM_ELD
+	select SND_JACK
+	select SND_JACK_INPUT_DEV
 	help
 	  Dummy config option used to enable hidden SND configs.
 	  These are normally selected implicitly when a module
@@ -51,6 +54,14 @@ config GKI_HIDDEN_GPIO_CONFIGS
 	  These are normally selected implicitly when a module
 	  that relies on it is configured.
 
+config GKI_HIDDEN_VIRTUAL_CONFIGS
+	bool "Hidden Virtual configs needed for GKI"
+	select HVC_DRIVER
+	help
+	  Dummy config option used to enable hidden virtual device configs.
+	  These are normally selected implicitly when a module
+	  that relies on it is configured.
+
 # LEGACY_WEXT_ALLCONFIG Discussed upstream, soundly rejected as a unique
 # problem for GKI to solve.  It should be noted that these extensions are
 # in-effect deprecated and generally unsupported and we should pressure
@@ -70,6 +81,22 @@ config GKI_LEGACY_WEXT_ALLCONFIG
 	  If you are not building a kernel to be used for a variety of
 	  out-of-kernel built wireless modules, say N here.
 
+config GKI_HIDDEN_SOC_PM_CONFIGS
+	bool "Hidden SOC Power Management configs for GKI"
+	select PM_GENERIC_DOMAINS if PM
+	help
+	  Dummy config option used to enable all the hidden SOC specific power
+	  management add-in modules.
+
+config GKI_HIDDEN_VIDEOBUF2_CONFIGS
+	bool "Hidden v4l2 configs for GKI"
+	select VIDEOBUF2_CORE if VIDEO_V4L2
+	select VIDEOBUF2_V4L2 if VIDEO_V4L2
+	select VIDEOBUF2_MEMOPS if VIDEO_V4L2
+	select VIDEOBUF2_VMALLOC if VIDEO_V4L2
+	help
+	  Dummy config option used to enable all the hidden v4l2 media module.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -86,6 +113,9 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_SND_SOC_CONFIGS
 	select GKI_HIDDEN_GPIO_CONFIGS
 	select GKI_LEGACY_WEXT_ALLCONFIG
+	select GKI_HIDDEN_VIRTUAL_CONFIGS
+	select GKI_HIDDEN_SOC_PM_CONFIGS
+	select GKI_HIDDEN_VIDEOBUF2_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.

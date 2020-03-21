@@ -2005,7 +2005,7 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 
 	if (rdt_mon_capable) {
 		ret = mongroup_create_dir(rdtgroup_default.kn,
-					  NULL, "mon_groups",
+					  &rdtgroup_default, "mon_groups",
 					  &kn_mongrp);
 		if (ret) {
 			dentry = ERR_PTR(ret);
@@ -2167,7 +2167,11 @@ static void free_all_child_rdtgrp(struct rdtgroup *rdtgrp)
 	list_for_each_entry_safe(sentry, stmp, head, mon.crdtgrp_list) {
 		free_rmid(sentry->mon.rmid);
 		list_del(&sentry->mon.crdtgrp_list);
-		kfree(sentry);
+
+		if (atomic_read(&sentry->waitcount) != 0)
+			sentry->flags = RDT_DELETED;
+		else
+			kfree(sentry);
 	}
 }
 
@@ -2205,7 +2209,11 @@ static void rmdir_all_sub(void)
 
 		kernfs_remove(rdtgrp->kn);
 		list_del(&rdtgrp->rdtgroup_list);
-		kfree(rdtgrp);
+
+		if (atomic_read(&rdtgrp->waitcount) != 0)
+			rdtgrp->flags = RDT_DELETED;
+		else
+			kfree(rdtgrp);
 	}
 	/* Notify online CPUs to update per cpu storage and PQR_ASSOC MSR */
 	update_closid_rmid(cpu_online_mask, &rdtgroup_default);
@@ -2407,7 +2415,7 @@ static int mkdir_mondata_all(struct kernfs_node *parent_kn,
 	/*
 	 * Create the mon_data directory first.
 	 */
-	ret = mongroup_create_dir(parent_kn, NULL, "mon_data", &kn);
+	ret = mongroup_create_dir(parent_kn, prgrp, "mon_data", &kn);
 	if (ret)
 		return ret;
 
@@ -2560,7 +2568,7 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 	uint files = 0;
 	int ret;
 
-	prdtgrp = rdtgroup_kn_lock_live(prgrp_kn);
+	prdtgrp = rdtgroup_kn_lock_live(parent_kn);
 	rdt_last_cmd_clear();
 	if (!prdtgrp) {
 		ret = -ENODEV;
@@ -2635,7 +2643,7 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 	kernfs_activate(kn);
 
 	/*
-	 * The caller unlocks the prgrp_kn upon success.
+	 * The caller unlocks the parent_kn upon success.
 	 */
 	return 0;
 
@@ -2646,7 +2654,7 @@ out_destroy:
 out_free_rgrp:
 	kfree(rdtgrp);
 out_unlock:
-	rdtgroup_kn_unlock(prgrp_kn);
+	rdtgroup_kn_unlock(parent_kn);
 	return ret;
 }
 
@@ -2684,7 +2692,7 @@ static int rdtgroup_mkdir_mon(struct kernfs_node *parent_kn,
 	 */
 	list_add_tail(&rdtgrp->mon.crdtgrp_list, &prgrp->mon.crdtgrp_list);
 
-	rdtgroup_kn_unlock(prgrp_kn);
+	rdtgroup_kn_unlock(parent_kn);
 	return ret;
 }
 
@@ -2727,7 +2735,7 @@ static int rdtgroup_mkdir_ctrl_mon(struct kernfs_node *parent_kn,
 		 * Create an empty mon_groups directory to hold the subset
 		 * of tasks and cpus to monitor.
 		 */
-		ret = mongroup_create_dir(kn, NULL, "mon_groups", NULL);
+		ret = mongroup_create_dir(kn, rdtgrp, "mon_groups", NULL);
 		if (ret) {
 			rdt_last_cmd_puts("kernfs subdir error\n");
 			goto out_del_list;
@@ -2743,7 +2751,7 @@ out_id_free:
 out_common_fail:
 	mkdir_rdt_prepare_clean(rdtgrp);
 out_unlock:
-	rdtgroup_kn_unlock(prgrp_kn);
+	rdtgroup_kn_unlock(parent_kn);
 	return ret;
 }
 
@@ -2869,12 +2877,12 @@ static int rdtgroup_rmdir_ctrl(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 	closid_free(rdtgrp->closid);
 	free_rmid(rdtgrp->mon.rmid);
 
+	rdtgroup_ctrl_remove(kn, rdtgrp);
+
 	/*
 	 * Free all the child monitor group rmids.
 	 */
 	free_all_child_rdtgrp(rdtgrp);
-
-	rdtgroup_ctrl_remove(kn, rdtgrp);
 
 	return 0;
 }
