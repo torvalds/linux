@@ -755,70 +755,10 @@ filelayout_free_lseg(struct pnfs_layout_segment *lseg)
 		flo = FILELAYOUT_FROM_HDR(lseg->pls_layout);
 		inode = flo->generic_hdr.plh_inode;
 		spin_lock(&inode->i_lock);
-		flo->commit_info.nbuckets = 0;
-		kfree(flo->commit_info.buckets);
-		flo->commit_info.buckets = NULL;
 		pnfs_generic_ds_cinfo_release_lseg(&flo->commit_info, lseg);
 		spin_unlock(&inode->i_lock);
 	}
 	_filelayout_free_lseg(fl);
-}
-
-static int
-filelayout_alloc_commit_info(struct pnfs_layout_segment *lseg,
-			     struct nfs_commit_info *cinfo,
-			     gfp_t gfp_flags)
-{
-	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
-	struct pnfs_commit_bucket *buckets;
-	int size, i;
-
-	if (fl->commit_through_mds)
-		return 0;
-
-	size = (fl->stripe_type == STRIPE_SPARSE) ?
-		fl->dsaddr->ds_num : fl->dsaddr->stripe_count;
-
-	if (cinfo->ds->nbuckets >= size) {
-		/* This assumes there is only one IOMODE_RW lseg.  What
-		 * we really want to do is have a layout_hdr level
-		 * dictionary of <multipath_list4, fh> keys, each
-		 * associated with a struct list_head, populated by calls
-		 * to filelayout_write_pagelist().
-		 * */
-		return 0;
-	}
-
-	buckets = kcalloc(size, sizeof(struct pnfs_commit_bucket),
-			  gfp_flags);
-	if (!buckets)
-		return -ENOMEM;
-	for (i = 0; i < size; i++) {
-		INIT_LIST_HEAD(&buckets[i].written);
-		INIT_LIST_HEAD(&buckets[i].committing);
-		/* mark direct verifier as unset */
-		buckets[i].direct_verf.committed = NFS_INVALID_STABLE_HOW;
-	}
-
-	spin_lock(&cinfo->inode->i_lock);
-	if (cinfo->ds->nbuckets >= size)
-		goto out;
-	for (i = 0; i < cinfo->ds->nbuckets; i++) {
-		list_splice(&cinfo->ds->buckets[i].written,
-			    &buckets[i].written);
-		list_splice(&cinfo->ds->buckets[i].committing,
-			    &buckets[i].committing);
-		buckets[i].direct_verf.committed =
-			cinfo->ds->buckets[i].direct_verf.committed;
-		buckets[i].wlseg = cinfo->ds->buckets[i].wlseg;
-		buckets[i].clseg = cinfo->ds->buckets[i].clseg;
-	}
-	swap(cinfo->ds->buckets, buckets);
-	cinfo->ds->nbuckets = size;
-out:
-	spin_unlock(&cinfo->inode->i_lock);
-	kfree(buckets);
-	return 0;
 }
 
 static struct pnfs_layout_segment *
@@ -943,9 +883,6 @@ static void
 filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 			 struct nfs_page *req)
 {
-	struct nfs_commit_info cinfo;
-	int status;
-
 	pnfs_generic_pg_check_layout(pgio);
 	if (!pgio->pg_lseg) {
 		pgio->pg_lseg = fl_pnfs_update_layout(pgio->pg_inode,
@@ -964,17 +901,7 @@ filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 
 	/* If no lseg, fall back to write through mds */
 	if (pgio->pg_lseg == NULL)
-		goto out_mds;
-	nfs_init_cinfo(&cinfo, pgio->pg_inode, pgio->pg_dreq);
-	status = filelayout_alloc_commit_info(pgio->pg_lseg, &cinfo, GFP_NOFS);
-	if (status < 0) {
-		pnfs_put_lseg(pgio->pg_lseg);
-		pgio->pg_lseg = NULL;
-		goto out_mds;
-	}
-	return;
-out_mds:
-	nfs_pageio_reset_write_mds(pgio);
+		nfs_pageio_reset_write_mds(pgio);
 }
 
 static const struct nfs_pageio_ops filelayout_pg_read_ops = {

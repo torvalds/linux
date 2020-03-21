@@ -531,9 +531,6 @@ void nfs_clear_pnfs_ds_commit_verifiers(struct pnfs_ds_commit_info *cinfo)
 {
 	struct pnfs_commit_array *array;
 
-	pnfs_bucket_clear_pnfs_ds_commit_verifiers(cinfo->buckets,
-			cinfo->nbuckets);
-
 	rcu_read_lock();
 	list_for_each_entry_rcu(array, &cinfo->commits, cinfo_list)
 		pnfs_bucket_clear_pnfs_ds_commit_verifiers(array->buckets,

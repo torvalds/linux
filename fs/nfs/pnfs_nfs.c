@@ -292,12 +292,6 @@ int pnfs_generic_scan_commit_lists(struct nfs_commit_info *cinfo, int max)
 	struct pnfs_commit_array *array;
 	int rv = 0, cnt;
 
-	cnt = pnfs_bucket_scan_array(cinfo, fl_cinfo->buckets,
-			fl_cinfo->nbuckets, max);
-	rv += cnt;
-	max -= cnt;
-	if (!max)
-		return rv;
 	rcu_read_lock();
 	list_for_each_entry_rcu(array, &fl_cinfo->commits, cinfo_list) {
 		if (!array->lseg || !pnfs_get_commit_array(array))
@@ -353,11 +347,6 @@ void pnfs_generic_recover_commit_reqs(struct list_head *dst,
 	unsigned int nwritten;
 
 	lockdep_assert_held(&NFS_I(cinfo->inode)->commit_mutex);
-	nwritten = pnfs_bucket_recover_commit_reqs(dst,
-						   fl_cinfo->buckets,
-						   fl_cinfo->nbuckets,
-						   cinfo);
-	fl_cinfo->nwritten -= nwritten;
 	rcu_read_lock();
 	list_for_each_entry_rcu(array, &fl_cinfo->commits, cinfo_list) {
 		if (!array->lseg || !pnfs_get_commit_array(array))
@@ -412,10 +401,6 @@ pnfs_generic_search_commit_reqs(struct nfs_commit_info *cinfo, struct page *page
 	struct pnfs_commit_array *array;
 	struct nfs_page *req;
 
-	req = pnfs_bucket_search_commit_reqs(fl_cinfo->buckets,
-			fl_cinfo->nbuckets, page);
-	if (req)
-		return req;
 	list_for_each_entry(array, &fl_cinfo->commits, cinfo_list) {
 		req = pnfs_bucket_search_commit_reqs(array->buckets,
 				array->nbuckets, page);
@@ -549,9 +534,6 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 		atomic_inc(&cinfo->mds->rpcs_out);
 		nreq++;
 	}
-
-	nreq += pnfs_bucket_alloc_ds_commits(&list, fl_cinfo->buckets,
-			fl_cinfo->nbuckets, cinfo);
 
 	nreq += pnfs_alloc_ds_commits_list(&list, fl_cinfo, cinfo);
 	if (nreq == 0)

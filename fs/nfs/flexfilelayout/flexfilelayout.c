@@ -550,17 +550,6 @@ out_err_free:
 	goto out_free_page;
 }
 
-static bool ff_layout_has_rw_segments(struct pnfs_layout_hdr *layout)
-{
-	struct pnfs_layout_segment *lseg;
-
-	list_for_each_entry(lseg, &layout->plh_segs, pls_list)
-		if (lseg->pls_range.iomode == IOMODE_RW)
-			return true;
-
-	return false;
-}
-
 static void
 ff_layout_free_lseg(struct pnfs_layout_segment *lseg)
 {
@@ -575,22 +564,10 @@ ff_layout_free_lseg(struct pnfs_layout_segment *lseg)
 		ffl = FF_LAYOUT_FROM_HDR(lseg->pls_layout);
 		inode = ffl->generic_hdr.plh_inode;
 		spin_lock(&inode->i_lock);
-		if (!ff_layout_has_rw_segments(lseg->pls_layout)) {
-			ffl->commit_info.nbuckets = 0;
-			kfree(ffl->commit_info.buckets);
-			ffl->commit_info.buckets = NULL;
-		}
 		pnfs_generic_ds_cinfo_release_lseg(&ffl->commit_info, lseg);
 		spin_unlock(&inode->i_lock);
 	}
 	_ff_layout_free_lseg(fls);
-}
-
-/* Return 1 until we have multiple lsegs support */
-static int
-ff_layout_get_lseg_count(struct nfs4_ff_layout_segment *fls)
-{
-	return 1;
 }
 
 static void
@@ -735,52 +712,6 @@ nfs4_ff_layout_stat_io_end_write(struct rpc_task *task,
 			requested, completed, ktime_get(), task->tk_start);
 	set_bit(NFS4_FF_MIRROR_STAT_AVAIL, &mirror->flags);
 	spin_unlock(&mirror->lock);
-}
-
-static int
-ff_layout_alloc_commit_info(struct pnfs_layout_segment *lseg,
-			    struct nfs_commit_info *cinfo,
-			    gfp_t gfp_flags)
-{
-	struct nfs4_ff_layout_segment *fls = FF_LAYOUT_LSEG(lseg);
-	struct pnfs_commit_bucket *buckets;
-	int size;
-
-	if (cinfo->ds->nbuckets != 0) {
-		/* This assumes there is only one RW lseg per file.
-		 * To support multiple lseg per file, we need to
-		 * change struct pnfs_commit_bucket to allow dynamic
-		 * increasing nbuckets.
-		 */
-		return 0;
-	}
-
-	size = ff_layout_get_lseg_count(fls) * FF_LAYOUT_MIRROR_COUNT(lseg);
-
-	buckets = kcalloc(size, sizeof(struct pnfs_commit_bucket),
-			  gfp_flags);
-	if (!buckets)
-		return -ENOMEM;
-	else {
-		int i;
-
-		spin_lock(&cinfo->inode->i_lock);
-		if (cinfo->ds->nbuckets != 0)
-			kfree(buckets);
-		else {
-			cinfo->ds->buckets = buckets;
-			cinfo->ds->nbuckets = size;
-			for (i = 0; i < size; i++) {
-				INIT_LIST_HEAD(&buckets[i].written);
-				INIT_LIST_HEAD(&buckets[i].committing);
-				/* mark direct verifier as unset */
-				buckets[i].direct_verf.committed =
-					NFS_INVALID_STABLE_HOW;
-			}
-		}
-		spin_unlock(&cinfo->inode->i_lock);
-		return 0;
-	}
 }
 
 static void
@@ -944,10 +875,8 @@ ff_layout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 {
 	struct nfs4_ff_layout_mirror *mirror;
 	struct nfs_pgio_mirror *pgm;
-	struct nfs_commit_info cinfo;
 	struct nfs4_pnfs_ds *ds;
 	int i;
-	int status;
 
 retry:
 	pnfs_generic_pg_check_layout(pgio);
@@ -967,11 +896,6 @@ retry:
 	}
 	/* If no lseg, fall back to write through mds */
 	if (pgio->pg_lseg == NULL)
-		goto out_mds;
-
-	nfs_init_cinfo(&cinfo, pgio->pg_inode, pgio->pg_dreq);
-	status = ff_layout_alloc_commit_info(pgio->pg_lseg, &cinfo, GFP_NOFS);
-	if (status < 0)
 		goto out_mds;
 
 	/* Use a direct mapping of ds_idx to pgio mirror_idx */
