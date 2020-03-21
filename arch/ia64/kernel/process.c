@@ -681,3 +681,4 @@ machine_power_off (void)
 	machine_halt();
 }
 
+EXPORT_SYMBOL(ia64_delay_loop);
