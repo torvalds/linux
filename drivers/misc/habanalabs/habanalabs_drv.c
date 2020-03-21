@@ -40,12 +40,13 @@ MODULE_PARM_DESC(reset_on_lockup,
 #define PCI_VENDOR_ID_HABANALABS	0x1da3
 
 #define PCI_IDS_GOYA			0x0001
+#define PCI_IDS_GAUDI			0x1000
 
 static const struct pci_device_id ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GOYA), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI), },
 	{ 0, }
 };
-MODULE_DEVICE_TABLE(pci, ids);
 
 /*
  * get_asic_type - translate device id to asic type
@@ -62,6 +63,9 @@ static enum hl_asic_type get_asic_type(u16 device)
 	switch (device) {
 	case PCI_IDS_GOYA:
 		asic_type = ASIC_GOYA;
+		break;
+	case PCI_IDS_GAUDI:
+		asic_type = ASIC_GAUDI;
 		break;
 	default:
 		asic_type = ASIC_INVALID;
@@ -261,6 +265,11 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		hdev->asic_type = get_asic_type(pdev->device);
 		if (hdev->asic_type == ASIC_INVALID) {
 			dev_err(&pdev->dev, "Unsupported ASIC\n");
+			rc = -ENODEV;
+			goto free_hdev;
+		} else if (hdev->asic_type == ASIC_GAUDI) {
+			dev_err(&pdev->dev,
+				"GAUDI is not supported by the current kernel\n");
 			rc = -ENODEV;
 			goto free_hdev;
 		}
