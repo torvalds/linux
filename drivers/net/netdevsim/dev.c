@@ -397,6 +397,13 @@ enum {
 			    DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
 			    NSIM_TRAP_METADATA)
 
+static const struct devlink_trap_group nsim_trap_groups_arr[] = {
+	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(BUFFER_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS),
+};
+
 static const struct devlink_trap nsim_traps_arr[] = {
 	NSIM_TRAP_DROP(SMAC_MC, L2_DROPS),
 	NSIM_TRAP_DROP(VLAN_TAG_MISMATCH, L2_DROPS),
@@ -556,10 +563,15 @@ static int nsim_dev_traps_init(struct devlink *devlink)
 	nsim_trap_data->nsim_dev = nsim_dev;
 	nsim_dev->trap_data = nsim_trap_data;
 
+	err = devlink_trap_groups_register(devlink, nsim_trap_groups_arr,
+					   ARRAY_SIZE(nsim_trap_groups_arr));
+	if (err)
+		goto err_trap_items_free;
+
 	err = devlink_traps_register(devlink, nsim_traps_arr,
 				     ARRAY_SIZE(nsim_traps_arr), NULL);
 	if (err)
-		goto err_trap_items_free;
+		goto err_trap_groups_unregister;
 
 	INIT_DELAYED_WORK(&nsim_dev->trap_data->trap_report_dw,
 			  nsim_dev_trap_report_work);
@@ -568,6 +580,9 @@ static int nsim_dev_traps_init(struct devlink *devlink)
 
 	return 0;
 
+err_trap_groups_unregister:
+	devlink_trap_groups_unregister(devlink, nsim_trap_groups_arr,
+				       ARRAY_SIZE(nsim_trap_groups_arr));
 err_trap_items_free:
 	kfree(nsim_trap_data->trap_items_arr);
 err_trap_data_free:
@@ -582,6 +597,8 @@ static void nsim_dev_traps_exit(struct devlink *devlink)
 	cancel_delayed_work_sync(&nsim_dev->trap_data->trap_report_dw);
 	devlink_traps_unregister(devlink, nsim_traps_arr,
 				 ARRAY_SIZE(nsim_traps_arr));
+	devlink_trap_groups_unregister(devlink, nsim_trap_groups_arr,
+				       ARRAY_SIZE(nsim_trap_groups_arr));
 	kfree(nsim_dev->trap_data->trap_items_arr);
 	kfree(nsim_dev->trap_data);
 }
