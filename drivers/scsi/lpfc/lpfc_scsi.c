@@ -6023,31 +6023,6 @@ struct scsi_host_template lpfc_template_nvme = {
 	.track_queue_depth	= 0,
 };
 
-struct scsi_host_template lpfc_template_no_hr = {
-	.module			= THIS_MODULE,
-	.name			= LPFC_DRIVER_NAME,
-	.proc_name		= LPFC_DRIVER_NAME,
-	.info			= lpfc_info,
-	.queuecommand		= lpfc_queuecommand,
-	.eh_timed_out		= fc_eh_timed_out,
-	.eh_abort_handler	= lpfc_abort_handler,
-	.eh_device_reset_handler = lpfc_device_reset_handler,
-	.eh_target_reset_handler = lpfc_target_reset_handler,
-	.eh_bus_reset_handler	= lpfc_bus_reset_handler,
-	.slave_alloc		= lpfc_slave_alloc,
-	.slave_configure	= lpfc_slave_configure,
-	.slave_destroy		= lpfc_slave_destroy,
-	.scan_finished		= lpfc_scan_finished,
-	.this_id		= -1,
-	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
-	.cmd_per_lun		= LPFC_CMD_PER_LUN,
-	.shost_attrs		= lpfc_hba_attrs,
-	.max_sectors		= 0xFFFFFFFF,
-	.vendor_id		= LPFC_NL_VENDOR_ID,
-	.change_queue_depth	= scsi_change_queue_depth,
-	.track_queue_depth	= 1,
-};
-
 struct scsi_host_template lpfc_template = {
 	.module			= THIS_MODULE,
 	.name			= LPFC_DRIVER_NAME,
@@ -6070,29 +6045,6 @@ struct scsi_host_template lpfc_template = {
 	.shost_attrs		= lpfc_hba_attrs,
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
-	.change_queue_depth	= scsi_change_queue_depth,
-	.track_queue_depth	= 1,
-};
-
-struct scsi_host_template lpfc_vport_template = {
-	.module			= THIS_MODULE,
-	.name			= LPFC_DRIVER_NAME,
-	.proc_name		= LPFC_DRIVER_NAME,
-	.info			= lpfc_info,
-	.queuecommand		= lpfc_queuecommand,
-	.eh_timed_out		= fc_eh_timed_out,
-	.eh_abort_handler	= lpfc_abort_handler,
-	.eh_device_reset_handler = lpfc_device_reset_handler,
-	.eh_target_reset_handler = lpfc_target_reset_handler,
-	.slave_alloc		= lpfc_slave_alloc,
-	.slave_configure	= lpfc_slave_configure,
-	.slave_destroy		= lpfc_slave_destroy,
-	.scan_finished		= lpfc_scan_finished,
-	.this_id		= -1,
-	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
-	.cmd_per_lun		= LPFC_CMD_PER_LUN,
-	.shost_attrs		= lpfc_vport_attrs,
-	.max_sectors		= 0xFFFF,
 	.change_queue_depth	= scsi_change_queue_depth,
 	.track_queue_depth	= 1,
 };

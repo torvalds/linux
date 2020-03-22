@@ -4231,6 +4231,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 {
 	struct lpfc_vport *vport;
 	struct Scsi_Host  *shost = NULL;
+	struct scsi_host_template *template;
 	int error = 0;
 	int i;
 	uint64_t wwn;
@@ -4259,22 +4260,50 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 		}
 	}
 
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
-		if (dev != &phba->pcidev->dev) {
-			shost = scsi_host_alloc(&lpfc_vport_template,
-						sizeof(struct lpfc_vport));
+	/* Seed template for SCSI host registration */
+	if (dev == &phba->pcidev->dev) {
+		template = &phba->port_template;
+
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
+			/* Seed physical port template */
+			memcpy(template, &lpfc_template, sizeof(*template));
+
+			if (use_no_reset_hba) {
+				/* template is for a no reset SCSI Host */
+				template->max_sectors = 0xffff;
+				template->eh_host_reset_handler = NULL;
+			}
+
+			/* Template for all vports this physical port creates */
+			memcpy(&phba->vport_template, &lpfc_template,
+			       sizeof(*template));
+			phba->vport_template.max_sectors = 0xffff;
+			phba->vport_template.shost_attrs = lpfc_vport_attrs;
+			phba->vport_template.eh_bus_reset_handler = NULL;
+			phba->vport_template.eh_host_reset_handler = NULL;
+			phba->vport_template.vendor_id = 0;
+
+			/* Initialize the host templates with updated value */
+			if (phba->sli_rev == LPFC_SLI_REV4) {
+				template->sg_tablesize = phba->cfg_scsi_seg_cnt;
+				phba->vport_template.sg_tablesize =
+					phba->cfg_scsi_seg_cnt;
+			} else {
+				template->sg_tablesize = phba->cfg_sg_seg_cnt;
+				phba->vport_template.sg_tablesize =
+					phba->cfg_sg_seg_cnt;
+			}
+
 		} else {
-			if (!use_no_reset_hba)
-				shost = scsi_host_alloc(&lpfc_template,
-						sizeof(struct lpfc_vport));
-			else
-				shost = scsi_host_alloc(&lpfc_template_no_hr,
-						sizeof(struct lpfc_vport));
+			/* NVMET is for physical port only */
+			memcpy(template, &lpfc_template_nvme,
+			       sizeof(*template));
 		}
-	} else if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		shost = scsi_host_alloc(&lpfc_template_nvme,
-					sizeof(struct lpfc_vport));
+	} else {
+		template = &phba->vport_template;
 	}
+
+	shost = scsi_host_alloc(template, sizeof(struct lpfc_vport));
 	if (!shost)
 		goto out;
 
@@ -4328,6 +4357,12 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 		shost->transportt = lpfc_transport_template;
 		vport->port_type = LPFC_PHYSICAL_PORT;
 	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
+			"9081 CreatePort TMPLATE type %x TBLsize %d "
+			"SEGcnt %d/%d\n",
+			vport->port_type, shost->sg_tablesize,
+			phba->cfg_scsi_seg_cnt, phba->cfg_sg_seg_cnt);
 
 	/* Initialize all internally managed lists. */
 	INIT_LIST_HEAD(&vport->fc_nodes);
@@ -6301,11 +6336,6 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
 	 */
 
-	/* Initialize the host templates the configured values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template_no_hr.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		entry_sz = sizeof(struct sli4_sge);
 	else
@@ -6346,7 +6376,7 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
-			"9088 sg_tablesize:%d dmabuf_size:%d total_bde:%d\n",
+			"9088 INIT sg_tablesize:%d dmabuf_size:%d total_bde:%d\n",
 			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
 			phba->cfg_total_seg_cnt);
 
@@ -6815,11 +6845,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		} else
 			phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
 	}
-
-	/* Initialize the host templates with the updated values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
-	lpfc_template_no_hr.sg_tablesize = phba->cfg_scsi_seg_cnt;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
 			"9087 sg_seg_cnt:%d dmabuf_size:%d "
