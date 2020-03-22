@@ -7,7 +7,7 @@ ip a a dev eth0 172.213.0.7/24
 ip l set dev eth0 up
 sleep 1
 
-modprobe netconsole netconsole=6666@172.213.0.7/eth0,6666@172.213.0.1/46:f6:04:29:d8:72
+modprobe netconsole netconsole=6666@172.213.0.7/eth0,6666@172.213.0.1/
 
 dmesg -n 8
 dmesg -c /dev/null 2>&1
