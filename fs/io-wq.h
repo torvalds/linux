@@ -63,10 +63,7 @@ static inline void wq_node_del(struct io_wq_work_list *list,
 } while (0)
 
 struct io_wq_work {
-	union {
-		struct io_wq_work_node list;
-		void *data;
-	};
+	struct io_wq_work_node list;
 	void (*func)(struct io_wq_work **);
 	struct files_struct *files;
 	struct mm_struct *mm;

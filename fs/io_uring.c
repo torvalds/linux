@@ -1567,9 +1567,10 @@ static void io_free_req(struct io_kiocb *req)
 
 static void io_link_work_cb(struct io_wq_work **workptr)
 {
-	struct io_wq_work *work = *workptr;
-	struct io_kiocb *link = work->data;
+	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
+	struct io_kiocb *link;
 
+	link = list_first_entry(&req->link_list, struct io_kiocb, link_list);
 	io_queue_linked_timeout(link);
 	io_wq_submit_work(workptr);
 }
@@ -1584,10 +1585,8 @@ static void io_wq_assign_next(struct io_wq_work **workptr, struct io_kiocb *nxt)
 
 	*workptr = &nxt->work;
 	link = io_prep_linked_timeout(nxt);
-	if (link) {
+	if (link)
 		nxt->work.func = io_link_work_cb;
-		nxt->work.data = link;
-	}
 }
 
 /*
