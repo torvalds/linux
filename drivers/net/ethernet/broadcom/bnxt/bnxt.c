@@ -11677,6 +11677,10 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 		bp->rx_nr_rings++;
 		bp->cp_nr_rings++;
 	}
+	if (rc) {
+		bp->tx_nr_rings = 0;
+		bp->rx_nr_rings = 0;
+	}
 	return rc;
 }
 
