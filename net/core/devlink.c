@@ -5456,16 +5456,14 @@ struct devlink_stats {
 /**
  * struct devlink_trap_group_item - Packet trap group attributes.
  * @group: Immutable packet trap group attributes.
- * @refcount: Number of trap items using the group.
  * @list: trap_group_list member.
  * @stats: Trap group statistics.
  *
  * Describes packet trap group attributes. Created by devlink during trap
- * registration.
+ * group registration.
  */
 struct devlink_trap_group_item {
 	const struct devlink_trap_group *group;
-	refcount_t refcount;
 	struct list_head list;
 	struct devlink_stats __percpu *stats;
 };
@@ -7937,106 +7935,20 @@ devlink_trap_group_notify(struct devlink *devlink,
 				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
-static struct devlink_trap_group_item *
-devlink_trap_group_item_create(struct devlink *devlink,
-			       const struct devlink_trap_group *group)
-{
-	struct devlink_trap_group_item *group_item;
-	int err;
-
-	err = devlink_trap_group_verify(group);
-	if (err)
-		return ERR_PTR(err);
-
-	group_item = kzalloc(sizeof(*group_item), GFP_KERNEL);
-	if (!group_item)
-		return ERR_PTR(-ENOMEM);
-
-	group_item->stats = netdev_alloc_pcpu_stats(struct devlink_stats);
-	if (!group_item->stats) {
-		err = -ENOMEM;
-		goto err_stats_alloc;
-	}
-
-	group_item->group = group;
-	refcount_set(&group_item->refcount, 1);
-
-	if (devlink->ops->trap_group_init) {
-		err = devlink->ops->trap_group_init(devlink, group);
-		if (err)
-			goto err_group_init;
-	}
-
-	list_add_tail(&group_item->list, &devlink->trap_group_list);
-	devlink_trap_group_notify(devlink, group_item,
-				  DEVLINK_CMD_TRAP_GROUP_NEW);
-
-	return group_item;
-
-err_group_init:
-	free_percpu(group_item->stats);
-err_stats_alloc:
-	kfree(group_item);
-	return ERR_PTR(err);
-}
-
-static void
-devlink_trap_group_item_destroy(struct devlink *devlink,
-				struct devlink_trap_group_item *group_item)
-{
-	devlink_trap_group_notify(devlink, group_item,
-				  DEVLINK_CMD_TRAP_GROUP_DEL);
-	list_del(&group_item->list);
-	free_percpu(group_item->stats);
-	kfree(group_item);
-}
-
-static struct devlink_trap_group_item *
-devlink_trap_group_item_get(struct devlink *devlink,
-			    const struct devlink_trap_group *group)
-{
-	struct devlink_trap_group_item *group_item;
-
-	group_item = devlink_trap_group_item_lookup(devlink, group->name);
-	if (group_item) {
-		refcount_inc(&group_item->refcount);
-		return group_item;
-	}
-
-	return devlink_trap_group_item_create(devlink, group);
-}
-
-static void
-devlink_trap_group_item_put(struct devlink *devlink,
-			    struct devlink_trap_group_item *group_item)
-{
-	if (!refcount_dec_and_test(&group_item->refcount))
-		return;
-
-	devlink_trap_group_item_destroy(devlink, group_item);
-}
-
 static int
 devlink_trap_item_group_link(struct devlink *devlink,
 			     struct devlink_trap_item *trap_item)
 {
+	const struct devlink_trap *trap = trap_item->trap;
 	struct devlink_trap_group_item *group_item;
 
-	group_item = devlink_trap_group_item_get(devlink,
-						 &trap_item->trap->group);
-	if (IS_ERR(group_item))
-		return PTR_ERR(group_item);
+	group_item = devlink_trap_group_item_lookup(devlink, trap->group.name);
+	if (WARN_ON_ONCE(!group_item))
+		return -EINVAL;
 
 	trap_item->group_item = group_item;
 
 	return 0;
-}
-
-static void
-devlink_trap_item_group_unlink(struct devlink *devlink,
-			       struct devlink_trap_item *trap_item)
-{
-	devlink_trap_group_item_put(devlink, trap_item->group_item);
 }
 
 static void devlink_trap_notify(struct devlink *devlink,
@@ -8101,7 +8013,6 @@ devlink_trap_register(struct devlink *devlink,
 	return 0;
 
 err_trap_init:
-	devlink_trap_item_group_unlink(devlink, trap_item);
 err_group_link:
 	free_percpu(trap_item->stats);
 err_stats_alloc:
@@ -8122,7 +8033,6 @@ static void devlink_trap_unregister(struct devlink *devlink,
 	list_del(&trap_item->list);
 	if (devlink->ops->trap_fini)
 		devlink->ops->trap_fini(devlink, trap, trap_item);
-	devlink_trap_item_group_unlink(devlink, trap_item);
 	free_percpu(trap_item->stats);
 	kfree(trap_item);
 }
@@ -8299,7 +8209,6 @@ devlink_trap_group_register(struct devlink *devlink,
 	}
 
 	group_item->group = group;
-	refcount_set(&group_item->refcount, 1);
 
 	if (devlink->ops->trap_group_init) {
 		err = devlink->ops->trap_group_init(devlink, group);
