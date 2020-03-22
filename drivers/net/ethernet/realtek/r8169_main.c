@@ -4589,31 +4589,17 @@ out:
 
 static void rtl_task(struct work_struct *work)
 {
-	static const struct {
-		int bitnr;
-		void (*action)(struct rtl8169_private *);
-	} rtl_work[] = {
-		{ RTL_FLAG_TASK_RESET_PENDING,	rtl_reset_work },
-	};
 	struct rtl8169_private *tp =
 		container_of(work, struct rtl8169_private, wk.work);
-	struct net_device *dev = tp->dev;
-	int i;
 
 	rtl_lock_work(tp);
 
-	if (!netif_running(dev) ||
+	if (!netif_running(tp->dev) ||
 	    !test_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags))
 		goto out_unlock;
 
-	for (i = 0; i < ARRAY_SIZE(rtl_work); i++) {
-		bool pending;
-
-		pending = test_and_clear_bit(rtl_work[i].bitnr, tp->wk.flags);
-		if (pending)
-			rtl_work[i].action(tp);
-	}
-
+	if (test_and_clear_bit(RTL_FLAG_TASK_RESET_PENDING, tp->wk.flags))
+		rtl_reset_work(tp);
 out_unlock:
 	rtl_unlock_work(tp);
 }
