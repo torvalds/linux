@@ -800,6 +800,7 @@ static void goya_init_dma_qman(struct hl_device *hdev, int dma_id,
 	u32 so_base_lo, so_base_hi;
 	u32 gic_base_lo, gic_base_hi;
 	u32 reg_off = dma_id * (mmDMA_QM_1_PQ_PI - mmDMA_QM_0_PQ_PI);
+	u32 dma_err_cfg = QMAN_DMA_ERR_MSG_EN;
 
 	mtr_base_lo = lower_32_bits(CFG_BASE + mmSYNC_MNGR_MON_PAY_ADDRL_0);
 	mtr_base_hi = upper_32_bits(CFG_BASE + mmSYNC_MNGR_MON_PAY_ADDRL_0);
@@ -836,7 +837,10 @@ static void goya_init_dma_qman(struct hl_device *hdev, int dma_id,
 	else
 		WREG32(mmDMA_QM_0_GLBL_PROT + reg_off, QMAN_DMA_FULLY_TRUSTED);
 
-	WREG32(mmDMA_QM_0_GLBL_ERR_CFG + reg_off, QMAN_DMA_ERR_MSG_EN);
+	if (hdev->stop_on_err)
+		dma_err_cfg |= 1 << DMA_QM_0_GLBL_ERR_CFG_DMA_STOP_ON_ERR_SHIFT;
+
+	WREG32(mmDMA_QM_0_GLBL_ERR_CFG + reg_off, dma_err_cfg);
 	WREG32(mmDMA_QM_0_GLBL_CFG0 + reg_off, QMAN_DMA_ENABLE);
 }
 

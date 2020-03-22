@@ -150,3 +150,10 @@ KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
 Description:    Displays a list with information about all the active virtual
                 address mappings per ASID
+
+What:           /sys/kernel/debug/habanalabs/hl<n>/stop_on_err
+Date:           Mar 2020
+KernelVersion:  5.6
+Contact:        oded.gabbay@gmail.com
+Description:    Sets the stop-on_error option for the device engines. Value of
+                "0" is for disable, otherwise enable.

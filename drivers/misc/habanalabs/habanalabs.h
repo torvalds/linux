@@ -1300,6 +1300,7 @@ struct hl_device_idle_busy_ts {
  * @in_debug: is device under debug. This, together with fpriv_list, enforces
  *            that only a single user is configuring the debug infrastructure.
  * @cdev_sysfs_created: were char devices and sysfs nodes created.
+ * @stop_on_err: true if engines should stop on error.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1380,6 +1381,7 @@ struct hl_device {
 	u8				dma_mask;
 	u8				in_debug;
 	u8				cdev_sysfs_created;
+	u8				stop_on_err;
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;
