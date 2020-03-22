@@ -144,6 +144,7 @@ struct svc_rdma_recv_ctxt {
 	unsigned int		rc_page_count;
 	unsigned int		rc_hdr_count;
 	u32			rc_inv_rkey;
+	__be32			rc_msgtype;
 
 	struct svc_rdma_pcl	rc_call_pcl;
 
