@@ -480,7 +480,7 @@ struct lpfc_vport {
 	struct dentry *debug_nodelist;
 	struct dentry *debug_nvmestat;
 	struct dentry *debug_scsistat;
-	struct dentry *debug_nvmektime;
+	struct dentry *debug_ioktime;
 	struct dentry *debug_hdwqstat;
 	struct dentry *vport_debugfs_root;
 	struct lpfc_debugfs_trc *disc_trc;
