@@ -2833,8 +2833,28 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
 static void dm_integrity_resume(struct dm_target *ti)
 {
 	struct dm_integrity_c *ic = (struct dm_integrity_c *)ti->private;
+	__u64 old_provided_data_sectors = le64_to_cpu(ic->sb->provided_data_sectors);
 	int r;
+
 	DEBUG_print("resume\n");
+
+	if (ic->provided_data_sectors != old_provided_data_sectors) {
+		if (ic->provided_data_sectors > old_provided_data_sectors &&
+		    ic->mode == 'B' &&
+		    ic->sb->log2_blocks_per_bitmap_bit == ic->log2_blocks_per_bitmap_bit) {
+			rw_journal_sectors(ic, REQ_OP_READ, 0, 0,
+					   ic->n_bitmap_blocks * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), NULL);
+			block_bitmap_op(ic, ic->journal, old_provided_data_sectors,
+					ic->provided_data_sectors - old_provided_data_sectors, BITMAP_OP_SET);
+			rw_journal_sectors(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC, 0,
+					   ic->n_bitmap_blocks * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), NULL);
+		}
+
+		ic->sb->provided_data_sectors = cpu_to_le64(ic->provided_data_sectors);
+		r = sync_rw_sb(ic, REQ_OP_WRITE, REQ_FUA);
+		if (unlikely(r))
+			dm_integrity_io_error(ic, "writing superblock", r);
+	}
 
 	if (ic->sb->flags & cpu_to_le32(SB_FLAG_DIRTY_BITMAP)) {
 		DEBUG_print("resume dirty_bitmap\n");
@@ -3938,16 +3958,16 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			goto bad;
 		}
 	}
-	ic->provided_data_sectors = le64_to_cpu(ic->sb->provided_data_sectors);
-	if (ic->provided_data_sectors != le64_to_cpu(ic->sb->provided_data_sectors)) {
-		/* test for overflow */
-		r = -EINVAL;
-		ti->error = "The superblock has 64-bit device size, but the kernel was compiled with 32-bit sectors";
-		goto bad;
-	}
 	if (!!(ic->sb->flags & cpu_to_le32(SB_FLAG_HAVE_JOURNAL_MAC)) != !!ic->journal_mac_alg.alg_string) {
 		r = -EINVAL;
 		ti->error = "Journal mac mismatch";
+		goto bad;
+	}
+
+	get_provided_data_sectors(ic);
+	if (!ic->provided_data_sectors) {
+		r = -EINVAL;
+		ti->error = "The device is too small";
 		goto bad;
 	}
 
@@ -4219,7 +4239,7 @@ static void dm_integrity_dtr(struct dm_target *ti)
 
 static struct target_type integrity_target = {
 	.name			= "integrity",
-	.version		= {1, 5, 0},
+	.version		= {1, 6, 0},
 	.module			= THIS_MODULE,
 	.features		= DM_TARGET_SINGLETON | DM_TARGET_INTEGRITY,
 	.ctr			= dm_integrity_ctr,
