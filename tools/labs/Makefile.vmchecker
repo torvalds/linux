@@ -28,8 +28,11 @@ extract:
 	test -f out/run-stdout.vmr || echo "No testing output (likely due to submission errors)." > out/run-stdout.vmr
 	test -f out/run-stderr.vmr || echo "No testing output (likely due to submission errors)." > out/run-stderr.vmr
 
+postprocess:
+	sed -i '/^Linux version /,/^netconsole: network logging started/d' out/run-km.vmr
+
 destroy:
 	-rm -rf out
 	-rm -f $(YOCTO_IMAGE)
 
-.PHONY: setup copy extract destroy
+.PHONY: setup copy extract postprocess destroy
