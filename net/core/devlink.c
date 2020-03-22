@@ -5816,6 +5816,19 @@ devlink_trap_group_item_lookup(struct devlink *devlink, const char *name)
 }
 
 static struct devlink_trap_group_item *
+devlink_trap_group_item_lookup_by_id(struct devlink *devlink, u16 id)
+{
+	struct devlink_trap_group_item *group_item;
+
+	list_for_each_entry(group_item, &devlink->trap_group_list, list) {
+		if (group_item->group->id == id)
+			return group_item;
+	}
+
+	return NULL;
+}
+
+static struct devlink_trap_group_item *
 devlink_trap_group_item_get_from_info(struct devlink *devlink,
 				      struct genl_info *info)
 {
@@ -5953,7 +5966,7 @@ __devlink_trap_group_action_set(struct devlink *devlink,
 	int err;
 
 	list_for_each_entry(trap_item, &devlink->trap_list, list) {
-		if (strcmp(trap_item->trap->group.name, group_name))
+		if (strcmp(trap_item->group_item->group->name, group_name))
 			continue;
 		err = __devlink_trap_action_set(devlink, trap_item,
 						trap_action, extack);
@@ -7864,7 +7877,7 @@ static int devlink_trap_driver_verify(const struct devlink_trap *trap)
 
 static int devlink_trap_verify(const struct devlink_trap *trap)
 {
-	if (!trap || !trap->name || !trap->group.name)
+	if (!trap || !trap->name)
 		return -EINVAL;
 
 	if (trap->generic)
@@ -7939,10 +7952,10 @@ static int
 devlink_trap_item_group_link(struct devlink *devlink,
 			     struct devlink_trap_item *trap_item)
 {
-	const struct devlink_trap *trap = trap_item->trap;
+	u16 group_id = trap_item->trap->init_group_id;
 	struct devlink_trap_group_item *group_item;
 
-	group_item = devlink_trap_group_item_lookup(devlink, trap->group.name);
+	group_item = devlink_trap_group_item_lookup_by_id(devlink, group_id);
 	if (WARN_ON_ONCE(!group_item))
 		return -EINVAL;
 

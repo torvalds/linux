@@ -132,23 +132,23 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 
 #define MLXSW_SP_TRAP_DROP(_id, _group_id)				      \
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
-			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     MLXSW_SP_TRAP_METADATA)
 
 #define MLXSW_SP_TRAP_DROP_EXT(_id, _group_id, _metadata)		      \
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
-			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     MLXSW_SP_TRAP_METADATA | (_metadata))
 
 #define MLXSW_SP_TRAP_DRIVER_DROP(_id, _group_id)			      \
 	DEVLINK_TRAP_DRIVER(DROP, DROP, DEVLINK_MLXSW_TRAP_ID_##_id,	      \
 			    DEVLINK_MLXSW_TRAP_NAME_##_id,		      \
-			    DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			    DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			    MLXSW_SP_TRAP_METADATA)
 
 #define MLXSW_SP_TRAP_EXCEPTION(_id, _group_id)		      \
 	DEVLINK_TRAP_GENERIC(EXCEPTION, TRAP, _id,			      \
-			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     MLXSW_SP_TRAP_METADATA)
 
 #define MLXSW_SP_RXL_DISCARD(_id, _group_id)				      \

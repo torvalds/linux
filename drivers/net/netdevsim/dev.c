@@ -381,20 +381,20 @@ enum {
 
 #define NSIM_TRAP_DROP(_id, _group_id)					      \
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
-			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     NSIM_TRAP_METADATA)
 #define NSIM_TRAP_DROP_EXT(_id, _group_id, _metadata)			      \
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
-			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     NSIM_TRAP_METADATA | (_metadata))
 #define NSIM_TRAP_EXCEPTION(_id, _group_id)				      \
 	DEVLINK_TRAP_GENERIC(EXCEPTION, TRAP, _id,			      \
-			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     NSIM_TRAP_METADATA)
 #define NSIM_TRAP_DRIVER_EXCEPTION(_id, _group_id)			      \
 	DEVLINK_TRAP_DRIVER(EXCEPTION, TRAP, NSIM_TRAP_ID_##_id,	      \
 			    NSIM_TRAP_NAME_##_id,			      \
-			    DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			    DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			    NSIM_TRAP_METADATA)
 
 static const struct devlink_trap_group nsim_trap_groups_arr[] = {
