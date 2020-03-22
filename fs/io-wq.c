@@ -485,7 +485,7 @@ static void io_worker_handle_work(struct io_worker *worker)
 	struct io_wq *wq = wqe->wq;
 
 	do {
-		struct io_wq_work *work;
+		struct io_wq_work *work, *assign_work;
 		unsigned int hash;
 get_next:
 		/*
@@ -522,10 +522,14 @@ get_next:
 			hash = io_get_work_hash(work);
 			work->func(&work);
 			work = (old_work == work) ? NULL : work;
-			io_assign_current_work(worker, work);
+
+			assign_work = work;
+			if (work && io_wq_is_hashed(work))
+				assign_work = NULL;
+			io_assign_current_work(worker, assign_work);
 			wq->free_work(old_work);
 
-			if (work && io_wq_is_hashed(work)) {
+			if (work && !assign_work) {
 				io_wqe_enqueue(wqe, work);
 				work = NULL;
 			}
