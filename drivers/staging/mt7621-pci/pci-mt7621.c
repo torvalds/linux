@@ -679,8 +679,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	}
 
 	/* set resources limits */
-	iomem_resource.start = pcie->mem.start;
-	iomem_resource.end = pcie->mem.end;
 	ioport_resource.start = pcie->io.start;
 	ioport_resource.end = pcie->io.end;
 
