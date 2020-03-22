@@ -114,7 +114,7 @@ int __intel_context_do_pin(struct intel_context *ce)
 
 	if (unlikely(intel_context_is_closed(ce))) {
 		err = -ENOENT;
-		goto out_release;
+		goto out_unlock;
 	}
 
 	if (likely(!atomic_add_unless(&ce->pin_count, 1, 0))) {
