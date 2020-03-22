@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if test ! -f ../initial.clean-slate.core-image-minimal-qemux86.ext4; then
-    cp ../core-image-minimal-qemux86.ext4 ../initial.clean-slate.core-image-minimal-qemux86.ext4
+    wget http://downloads.yoctoproject.org/releases/yocto/yocto-2.3/machines/qemu/qemux86/core-image-minimal-qemux86.ext4 -O ../initial.clean-slate.core-image-minimal-qemux86.ext4
 fi
 if test ! -f ../clean-slate.core-image-minimal-qemux86.ext4; then
     cp ../initial.clean-slate.core-image-minimal-qemux86.ext4 ../clean-slate.core-image-minimal-qemux86.ext4
