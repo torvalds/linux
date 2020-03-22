@@ -187,10 +187,8 @@ static void gen5_rps_init(struct intel_rps *rps)
 		fmax, fmin, fstart);
 
 	rps->min_freq = fmax;
+	rps->efficient_freq = fstart;
 	rps->max_freq = fmin;
-
-	rps->idle_freq = rps->min_freq;
-	rps->cur_freq = rps->idle_freq;
 }
 
 static unsigned long
@@ -713,8 +711,6 @@ static int rps_set(struct intel_rps *rps, u8 val, bool update)
 
 void intel_rps_unpark(struct intel_rps *rps)
 {
-	u8 freq;
-
 	if (!rps->enabled)
 		return;
 
@@ -726,9 +722,10 @@ void intel_rps_unpark(struct intel_rps *rps)
 
 	WRITE_ONCE(rps->active, true);
 
-	freq = max(rps->cur_freq, rps->efficient_freq),
-	freq = clamp(freq, rps->min_freq_softlimit, rps->max_freq_softlimit);
-	intel_rps_set(rps, freq);
+	intel_rps_set(rps,
+		      clamp(rps->cur_freq,
+			    rps->min_freq_softlimit,
+			    rps->max_freq_softlimit));
 
 	rps->last_adj = 0;
 
@@ -1672,7 +1669,9 @@ void intel_rps_init(struct intel_rps *rps)
 	/* Finally allow us to boost to max by default */
 	rps->boost_freq = rps->max_freq;
 	rps->idle_freq = rps->min_freq;
-	rps->cur_freq = rps->idle_freq;
+
+	/* Start in the middle, from here we will autotune based on workload */
+	rps->cur_freq = rps->efficient_freq;
 
 	rps->pm_intrmsk_mbz = 0;
 
