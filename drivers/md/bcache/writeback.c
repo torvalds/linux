@@ -854,7 +854,7 @@ static int bch_dirty_init_thread(void *arg)
 			else {
 				atomic_set(&state->enough, 1);
 				/* Update state->enough earlier */
-				smp_mb();
+				smp_mb__after_atomic();
 				goto out;
 			}
 			skip_nr--;
@@ -873,7 +873,7 @@ static int bch_dirty_init_thread(void *arg)
 
 out:
 	/* In order to wake up state->wait in time */
-	smp_mb();
+	smp_mb__before_atomic();
 	if (atomic_dec_and_test(&state->started))
 		wake_up(&state->wait);
 
@@ -932,7 +932,7 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 
 	for (i = 0; i < state->total_threads; i++) {
 		/* Fetch latest state->enough earlier */
-		smp_mb();
+		smp_mb__before_atomic();
 		if (atomic_read(&state->enough))
 			break;
 

@@ -1947,7 +1947,7 @@ static int bch_btree_check_thread(void *arg)
 				 */
 				atomic_set(&check_state->enough, 1);
 				/* Update check_state->enough earlier */
-				smp_mb();
+				smp_mb__after_atomic();
 				goto out;
 			}
 			skip_nr--;
@@ -1972,7 +1972,7 @@ static int bch_btree_check_thread(void *arg)
 out:
 	info->result = ret;
 	/* update check_state->started among all CPUs */
-	smp_mb();
+	smp_mb__before_atomic();
 	if (atomic_dec_and_test(&check_state->started))
 		wake_up(&check_state->wait);
 
@@ -2031,7 +2031,7 @@ int bch_btree_check(struct cache_set *c)
 	 */
 	for (i = 0; i < check_state->total_threads; i++) {
 		/* fetch latest check_state->enough earlier */
-		smp_mb();
+		smp_mb__before_atomic();
 		if (atomic_read(&check_state->enough))
 			break;
 
