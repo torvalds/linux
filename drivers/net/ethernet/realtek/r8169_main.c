@@ -2228,8 +2228,8 @@ u16 rtl8168h_2_get_adc_bias_ioffset(struct rtl8169_private *tp)
 
 static void rtl_schedule_task(struct rtl8169_private *tp, enum rtl_flag flag)
 {
-	if (!test_and_set_bit(flag, tp->wk.flags))
-		schedule_work(&tp->wk.work);
+	set_bit(flag, tp->wk.flags);
+	schedule_work(&tp->wk.work);
 }
 
 static void rtl8169_init_phy(struct rtl8169_private *tp)
