@@ -165,6 +165,13 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 	MLXSW_RXL(mlxsw_sp_rx_exception_listener, _id,			      \
 		   _action, false, SP_##_group_id, SET_FW_DEFAULT)
 
+static const struct devlink_trap_group mlxsw_sp_trap_groups_arr[] = {
+	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS),
+	DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS),
+};
+
 static const struct devlink_trap mlxsw_sp_traps_arr[] = {
 	MLXSW_SP_TRAP_DROP(SMAC_MC, L2_DROPS),
 	MLXSW_SP_TRAP_DROP(VLAN_TAG_MISMATCH, L2_DROPS),
@@ -318,6 +325,7 @@ static int mlxsw_sp_trap_dummy_group_init(struct mlxsw_sp *mlxsw_sp)
 
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 {
+	size_t groups_count = ARRAY_SIZE(mlxsw_sp_trap_groups_arr);
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int err;
 
@@ -333,17 +341,33 @@ int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 		    ARRAY_SIZE(mlxsw_sp_listeners_arr)))
 		return -EINVAL;
 
-	return devlink_traps_register(devlink, mlxsw_sp_traps_arr,
-				      ARRAY_SIZE(mlxsw_sp_traps_arr),
-				      mlxsw_sp);
+	err = devlink_trap_groups_register(devlink, mlxsw_sp_trap_groups_arr,
+					   groups_count);
+	if (err)
+		return err;
+
+	err = devlink_traps_register(devlink, mlxsw_sp_traps_arr,
+				     ARRAY_SIZE(mlxsw_sp_traps_arr), mlxsw_sp);
+	if (err)
+		goto err_traps_register;
+
+	return 0;
+
+err_traps_register:
+	devlink_trap_groups_unregister(devlink, mlxsw_sp_trap_groups_arr,
+				       groups_count);
+	return err;
 }
 
 void mlxsw_sp_devlink_traps_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	size_t groups_count = ARRAY_SIZE(mlxsw_sp_trap_groups_arr);
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
 	devlink_traps_unregister(devlink, mlxsw_sp_traps_arr,
 				 ARRAY_SIZE(mlxsw_sp_traps_arr));
+	devlink_trap_groups_unregister(devlink, mlxsw_sp_trap_groups_arr,
+				       groups_count);
 }
 
 int mlxsw_sp_trap_init(struct mlxsw_core *mlxsw_core,
