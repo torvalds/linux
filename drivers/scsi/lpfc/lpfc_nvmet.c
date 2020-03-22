@@ -2598,7 +2598,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	union lpfc_wqe128 *wqe;
 	struct ulp_bde64 *bde;
 	dma_addr_t physaddr;
-	int i, cnt;
+	int i, cnt, nsegs;
 	int do_pbde;
 	int xc = 1;
 
@@ -2629,6 +2629,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 				phba->cfg_nvme_seg_cnt);
 		return NULL;
 	}
+	nsegs = rsp->sg_cnt;
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 	nvmewqe = ctxp->wqeq;
@@ -2868,7 +2869,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		wqe->fcp_trsp.rsvd_12_15[0] = 0;
 
 		/* Use rspbuf, NOT sg list */
-		rsp->sg_cnt = 0;
+		nsegs = 0;
 		sgl->word2 = 0;
 		atomic_inc(&tgtp->xmt_fcp_rsp);
 		break;
@@ -2885,7 +2886,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	nvmewqe->drvrTimeout = (phba->fc_ratov * 3) + LPFC_DRVR_TIMEOUT;
 	nvmewqe->context1 = ndlp;
 
-	for_each_sg(rsp->sg, sgel, rsp->sg_cnt, i) {
+	for_each_sg(rsp->sg, sgel, nsegs, i) {
 		physaddr = sg_dma_address(sgel);
 		cnt = sg_dma_len(sgel);
 		sgl->addr_hi = putPaddrHigh(physaddr);
