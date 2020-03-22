@@ -3078,6 +3078,24 @@ static int calculate_device_limits(struct dm_integrity_c *ic)
 	return 0;
 }
 
+static void get_provided_data_sectors(struct dm_integrity_c *ic)
+{
+	if (!ic->meta_dev) {
+		int test_bit;
+		ic->provided_data_sectors = 0;
+		for (test_bit = fls64(ic->meta_device_sectors) - 1; test_bit >= 3; test_bit--) {
+			__u64 prev_data_sectors = ic->provided_data_sectors;
+
+			ic->provided_data_sectors |= (sector_t)1 << test_bit;
+			if (calculate_device_limits(ic))
+				ic->provided_data_sectors = prev_data_sectors;
+		}
+	} else {
+		ic->provided_data_sectors = ic->data_device_sectors;
+		ic->provided_data_sectors &= ~(sector_t)(ic->sectors_per_block - 1);
+	}
+}
+
 static int initialize_superblock(struct dm_integrity_c *ic, unsigned journal_sectors, unsigned interleave_sectors)
 {
 	unsigned journal_sections;
@@ -3105,20 +3123,15 @@ static int initialize_superblock(struct dm_integrity_c *ic, unsigned journal_sec
 		ic->sb->log2_interleave_sectors = max((__u8)MIN_LOG2_INTERLEAVE_SECTORS, ic->sb->log2_interleave_sectors);
 		ic->sb->log2_interleave_sectors = min((__u8)MAX_LOG2_INTERLEAVE_SECTORS, ic->sb->log2_interleave_sectors);
 
-		ic->provided_data_sectors = 0;
-		for (test_bit = fls64(ic->meta_device_sectors) - 1; test_bit >= 3; test_bit--) {
-			__u64 prev_data_sectors = ic->provided_data_sectors;
-
-			ic->provided_data_sectors |= (sector_t)1 << test_bit;
-			if (calculate_device_limits(ic))
-				ic->provided_data_sectors = prev_data_sectors;
-		}
+		get_provided_data_sectors(ic);
 		if (!ic->provided_data_sectors)
 			return -EINVAL;
 	} else {
 		ic->sb->log2_interleave_sectors = 0;
-		ic->provided_data_sectors = ic->data_device_sectors;
-		ic->provided_data_sectors &= ~(sector_t)(ic->sectors_per_block - 1);
+
+		get_provided_data_sectors(ic);
+		if (!ic->provided_data_sectors)
+			return -EINVAL;
 
 try_smaller_buffer:
 		ic->sb->journal_sections = cpu_to_le32(0);
