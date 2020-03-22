@@ -4,7 +4,7 @@ if test ! -f ../initial.clean-slate.core-image-minimal-qemux86.ext4; then
     cp ../core-image-minimal-qemux86.ext4 ../initial.clean-slate.core-image-minimal-qemux86.ext4
 fi
 if test ! -f ../clean-slate.core-image-minimal-qemux86.ext4; then
-    cp ../core-image-minimal-qemux86.ext4 ../clean-slate.core-image-minimal-qemux86.ext4
+    cp ../initial.clean-slate.core-image-minimal-qemux86.ext4 ../clean-slate.core-image-minimal-qemux86.ext4
     sudo ./install-startup-script ../clean-slate.core-image-minimal-qemux86.ext4
 fi
 if test ! -d ../out/; then
