@@ -725,6 +725,11 @@ DECLARE_WAIT_QUEUE_HEAD(trc_wait);	// List of holdout tasks.
 // Record outstanding IPIs to each CPU.  No point in sending two...
 static DEFINE_PER_CPU(bool, trc_ipi_to_cpu);
 
+// The number of detections of task quiescent state relying on
+// heavyweight readers executing explicit memory barriers.
+unsigned long n_heavy_reader_attempts;
+unsigned long n_heavy_reader_updates;
+
 void call_rcu_tasks_trace(struct rcu_head *rhp, rcu_callback_t func);
 DEFINE_RCU_TASKS(rcu_tasks_trace, rcu_tasks_wait_gp, call_rcu_tasks_trace,
 		 "RCU Tasks Trace");
@@ -830,9 +835,11 @@ static bool trc_inspect_reader(struct task_struct *t, void *arg)
 		// If heavyweight readers are enabled on the remote task,
 		// we can inspect its state despite its currently running.
 		// However, we cannot safely change its state.
+		n_heavy_reader_attempts++;
 		if (!ofl && // Check for "running" idle tasks on offline CPUs.
 		    !rcu_dynticks_zero_in_eqs(cpu, &t->trc_reader_nesting))
 			return false; // No quiescent state, do it the hard way.
+		n_heavy_reader_updates++;
 		in_qs = true;
 	} else {
 		in_qs = likely(!t->trc_reader_nesting);
@@ -1147,9 +1154,11 @@ core_initcall(rcu_spawn_tasks_trace_kthread);
 
 static void show_rcu_tasks_trace_gp_kthread(void)
 {
-	char buf[32];
+	char buf[64];
 
-	sprintf(buf, "N%d", atomic_read(&trc_n_readers_need_end));
+	sprintf(buf, "N%d h:%lu/%lu", atomic_read(&trc_n_readers_need_end),
+		data_race(n_heavy_reader_updates),
+		data_race(n_heavy_reader_attempts));
 	show_rcu_tasks_generic_gp_kthread(&rcu_tasks_trace, buf);
 }
 
