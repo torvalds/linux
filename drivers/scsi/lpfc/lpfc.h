@@ -481,7 +481,7 @@ struct lpfc_vport {
 	struct dentry *debug_nvmestat;
 	struct dentry *debug_scsistat;
 	struct dentry *debug_nvmektime;
-	struct dentry *debug_cpucheck;
+	struct dentry *debug_hdwqstat;
 	struct dentry *vport_debugfs_root;
 	struct lpfc_debugfs_trc *disc_trc;
 	atomic_t disc_trc_cnt;
@@ -1175,12 +1175,11 @@ struct lpfc_hba {
 	uint16_t sfp_warning;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	uint16_t cpucheck_on;
+	uint16_t hdwqstat_on;
 #define LPFC_CHECK_OFF		0
 #define LPFC_CHECK_NVME_IO	1
-#define LPFC_CHECK_NVMET_RCV	2
-#define LPFC_CHECK_NVMET_IO	4
-#define LPFC_CHECK_SCSI_IO	8
+#define LPFC_CHECK_NVMET_IO	2
+#define LPFC_CHECK_SCSI_IO	4
 	uint16_t ktime_on;
 	uint64_t ktime_data_samples;
 	uint64_t ktime_status_samples;

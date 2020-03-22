@@ -47,7 +47,6 @@
 /* nvmestat output buffer size */
 #define LPFC_NVMESTAT_SIZE 8192
 #define LPFC_NVMEKTIME_SIZE 8192
-#define LPFC_CPUCHECK_SIZE 8192
 #define LPFC_NVMEIO_TRC_SIZE 8192
 
 /* scsistat output buffer size */

@@ -1012,6 +1012,9 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	uint32_t code, status, idx;
 	uint16_t cid, sqhd, data;
 	uint32_t *ptr;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	int cpu;
+#endif
 
 	/* Sanity check on return of outstanding command */
 	if (!lpfc_ncmd) {
@@ -1184,19 +1187,15 @@ out_err:
 		phba->ktime_last_cmd = lpfc_ncmd->ts_data_nvme;
 		lpfc_nvme_ktime(phba, lpfc_ncmd);
 	}
-	if (unlikely(phba->cpucheck_on & LPFC_CHECK_NVME_IO)) {
-		uint32_t cpu;
-		idx = lpfc_ncmd->cur_iocbq.hba_wqidx;
+	if (unlikely(phba->hdwqstat_on & LPFC_CHECK_NVME_IO)) {
 		cpu = raw_smp_processor_id();
-		if (cpu < LPFC_CHECK_CPU_CNT) {
-			if (lpfc_ncmd->cpu != cpu)
-				lpfc_printf_vlog(vport,
-						 KERN_INFO, LOG_NVME_IOERR,
-						 "6701 CPU Check cmpl: "
-						 "cpu %d expect %d\n",
-						 cpu, lpfc_ncmd->cpu);
-			phba->sli4_hba.hdwq[idx].cpucheck_cmpl_io[cpu]++;
-		}
+		this_cpu_inc(phba->sli4_hba.c_stat->cmpl_io);
+		if (lpfc_ncmd->cpu != cpu)
+			lpfc_printf_vlog(vport,
+					 KERN_INFO, LOG_NVME_IOERR,
+					 "6701 CPU Check cmpl: "
+					 "cpu %d expect %d\n",
+					 cpu, lpfc_ncmd->cpu);
 	}
 #endif
 
@@ -1745,19 +1744,17 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	if (lpfc_ncmd->ts_cmd_start)
 		lpfc_ncmd->ts_cmd_wqput = ktime_get_ns();
 
-	if (phba->cpucheck_on & LPFC_CHECK_NVME_IO) {
+	if (phba->hdwqstat_on & LPFC_CHECK_NVME_IO) {
 		cpu = raw_smp_processor_id();
-		if (cpu < LPFC_CHECK_CPU_CNT) {
-			lpfc_ncmd->cpu = cpu;
-			if (idx != cpu)
-				lpfc_printf_vlog(vport,
-						 KERN_INFO, LOG_NVME_IOERR,
-						"6702 CPU Check cmd: "
-						"cpu %d wq %d\n",
-						lpfc_ncmd->cpu,
-						lpfc_queue_info->index);
-			phba->sli4_hba.hdwq[idx].cpucheck_xmt_io[cpu]++;
-		}
+		this_cpu_inc(phba->sli4_hba.c_stat->xmt_io);
+		lpfc_ncmd->cpu = cpu;
+		if (idx != cpu)
+			lpfc_printf_vlog(vport,
+					 KERN_INFO, LOG_NVME_IOERR,
+					"6702 CPU Check cmd: "
+					"cpu %d wq %d\n",
+					lpfc_ncmd->cpu,
+					lpfc_queue_info->index);
 	}
 #endif
 	return 0;

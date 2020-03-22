@@ -6951,6 +6951,17 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		rc = -ENOMEM;
 		goto out_free_hba_cpu_map;
 	}
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	phba->sli4_hba.c_stat = alloc_percpu(struct lpfc_hdwq_stat);
+	if (!phba->sli4_hba.c_stat) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3332 Failed allocating per cpu hdwq stats\n");
+		rc = -ENOMEM;
+		goto out_free_hba_eq_info;
+	}
+#endif
+
 	/*
 	 * Enable sr-iov virtual functions if supported and configured
 	 * through the module parameter.
@@ -6970,6 +6981,10 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	return 0;
 
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+out_free_hba_eq_info:
+	free_percpu(phba->sli4_hba.eq_info);
+#endif
 out_free_hba_cpu_map:
 	kfree(phba->sli4_hba.cpu_map);
 out_free_hba_eq_hdl:
@@ -7008,6 +7023,9 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 	struct lpfc_fcf_conn_entry *conn_entry, *next_conn_entry;
 
 	free_percpu(phba->sli4_hba.eq_info);
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	free_percpu(phba->sli4_hba.c_stat);
+#endif
 
 	/* Free memory allocated for msi-x interrupt vector to CPU mapping */
 	kfree(phba->sli4_hba.cpu_map);
@@ -10848,6 +10866,9 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
 #endif
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	struct lpfc_hdwq_stat *c_stat;
+#endif
 
 	max_phys_id = 0;
 	min_phys_id = LPFC_VECTOR_MAP_EMPTY;
@@ -11099,10 +11120,17 @@ found_any:
 	idx = 0;
 	for_each_possible_cpu(cpu) {
 		cpup = &phba->sli4_hba.cpu_map[cpu];
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		c_stat = per_cpu_ptr(phba->sli4_hba.c_stat, cpu);
+		c_stat->hdwq_no = cpup->hdwq;
+#endif
 		if (cpup->hdwq != LPFC_VECTOR_MAP_EMPTY)
 			continue;
 
 		cpup->hdwq = idx++ % phba->cfg_hdw_queue;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		c_stat->hdwq_no = cpup->hdwq;
+#endif
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"3340 Set Affinity: not present "
 				"CPU %d hdwq %d\n",
