@@ -1265,8 +1265,7 @@ struct nfstime4 {
 struct pnfs_commit_bucket {
 	struct list_head written;
 	struct list_head committing;
-	struct pnfs_layout_segment *wlseg;
-	struct pnfs_layout_segment *clseg;
+	struct pnfs_layout_segment *lseg;
 	struct nfs_writeverf direct_verf;
 };
 

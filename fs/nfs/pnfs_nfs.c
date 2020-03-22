@@ -59,6 +59,17 @@ void pnfs_generic_commit_release(void *calldata)
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_commit_release);
 
+static struct pnfs_layout_segment *
+pnfs_free_bucket_lseg(struct pnfs_commit_bucket *bucket)
+{
+	if (list_empty(&bucket->committing) && list_empty(&bucket->written)) {
+		struct pnfs_layout_segment *freeme = bucket->lseg;
+		bucket->lseg = NULL;
+		return freeme;
+	}
+	return NULL;
+}
+
 /* The generic layer is about to remove the req from the commit list.
  * If this will make the bucket empty, it will need to put the lseg reference.
  * Note this must be called holding nfsi->commit_mutex
@@ -78,8 +89,7 @@ pnfs_generic_clear_request_commit(struct nfs_page *req,
 		bucket = list_first_entry(&req->wb_list,
 					  struct pnfs_commit_bucket,
 					  written);
-		freeme = bucket->wlseg;
-		bucket->wlseg = NULL;
+		freeme = pnfs_free_bucket_lseg(bucket);
 	}
 out:
 	nfs_request_remove_commit_list(req, cinfo);
@@ -103,8 +113,7 @@ pnfs_alloc_commit_array(size_t n, gfp_t gfp_flags)
 	for (b = &p->buckets[0]; n != 0; b++, n--) {
 		INIT_LIST_HEAD(&b->written);
 		INIT_LIST_HEAD(&b->committing);
-		b->wlseg = NULL;
-		b->clseg = NULL;
+		b->lseg = NULL;
 		b->direct_verf.committed = NFS_INVALID_STABLE_HOW;
 	}
 	return p;
@@ -246,12 +255,6 @@ pnfs_bucket_scan_ds_commit_list(struct pnfs_commit_bucket *bucket,
 	if (ret) {
 		cinfo->ds->nwritten -= ret;
 		cinfo->ds->ncommitting += ret;
-		if (bucket->clseg == NULL)
-			bucket->clseg = pnfs_get_lseg(bucket->wlseg);
-		if (list_empty(src)) {
-			pnfs_put_lseg(bucket->wlseg);
-			bucket->wlseg = NULL;
-		}
 	}
 	return ret;
 }
@@ -317,9 +320,8 @@ restart:
 		if (!nwritten)
 			continue;
 		ret += nwritten;
-		if (list_empty(&b->written)) {
-			freeme = b->wlseg;
-			b->wlseg = NULL;
+		freeme = pnfs_free_bucket_lseg(b);
+		if (freeme) {
 			pnfs_put_lseg(freeme);
 			goto restart;
 		}
@@ -405,15 +407,12 @@ pnfs_bucket_get_committing(struct list_head *head,
 			   struct pnfs_commit_bucket *bucket,
 			   struct nfs_commit_info *cinfo)
 {
-	struct pnfs_layout_segment *freeme;
 	struct list_head *pos;
 
 	list_for_each(pos, &bucket->committing)
 		cinfo->ds->ncommitting--;
 	list_splice_init(&bucket->committing, head);
-	freeme = bucket->clseg;
-	bucket->clseg = NULL;
-	return freeme;
+	return pnfs_free_bucket_lseg(bucket);
 }
 
 static struct nfs_commit_data *
@@ -425,6 +424,8 @@ pnfs_bucket_fetch_commitdata(struct pnfs_commit_bucket *bucket,
 	if (!data)
 		return NULL;
 	data->lseg = pnfs_bucket_get_committing(&data->pages, bucket, cinfo);
+	if (!data->lseg)
+		data->lseg = pnfs_get_lseg(bucket->lseg);
 	return data;
 }
 
@@ -1182,8 +1183,8 @@ pnfs_layout_mark_request_commit(struct nfs_page *req,
 		 * off due to a rewrite, in which case it will be done in
 		 * pnfs_common_clear_request_commit
 		 */
-		WARN_ON_ONCE(buckets[ds_commit_idx].wlseg != NULL);
-		buckets[ds_commit_idx].wlseg = pnfs_get_lseg(lseg);
+		if (!buckets[ds_commit_idx].lseg)
+			buckets[ds_commit_idx].lseg = pnfs_get_lseg(lseg);
 	}
 	set_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 	cinfo->ds->nwritten++;
