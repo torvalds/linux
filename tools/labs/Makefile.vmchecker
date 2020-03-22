@@ -25,6 +25,8 @@ extract:
 	sudo cp $(TEMPDIR)/home/root/run-stderr.vmr out/ && sudo chown so2:so2 out/run-stderr.vmr || true
 	sudo umount $(TEMPDIR)
 	rmdir $(TEMPDIR)
+	test -f out/run-stdout.vmr || echo "No testing output (likely due to submission errors)." > out/run-stdout.vmr
+	test -f out/run-stderr.vmr || echo "No testing output (likely due to submission errors)." > out/run-stderr.vmr
 
 destroy:
 	-rm -rf out
