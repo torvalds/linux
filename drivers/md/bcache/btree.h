@@ -145,6 +145,9 @@ struct btree {
 	struct bio		*bio;
 };
 
+
+
+
 #define BTREE_FLAG(flag)						\
 static inline bool btree_node_ ## flag(struct btree *b)			\
 {	return test_bit(BTREE_NODE_ ## flag, &b->flags); }		\
@@ -214,6 +217,25 @@ struct btree_op {
 	short			lock;
 
 	unsigned int		insert_collision:1;
+};
+
+struct btree_check_state;
+struct btree_check_info {
+	struct btree_check_state	*state;
+	struct task_struct		*thread;
+	int				result;
+};
+
+#define BCH_BTR_CHKTHREAD_MAX	64
+struct btree_check_state {
+	struct cache_set		*c;
+	int				total_threads;
+	int				key_idx;
+	spinlock_t			idx_lock;
+	atomic_t			started;
+	atomic_t			enough;
+	wait_queue_head_t		wait;
+	struct btree_check_info		infos[BCH_BTR_CHKTHREAD_MAX];
 };
 
 static inline void bch_btree_op_init(struct btree_op *op, int write_lock_level)
