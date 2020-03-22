@@ -1098,21 +1098,41 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 	struct nft_pipapo_field *f;
 	int i, bsize_max, err = 0;
 
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_KEY_END))
+		end = (const u8 *)nft_set_ext_key_end(ext)->data;
+	else
+		end = start;
+
 	dup = pipapo_get(net, set, start, genmask);
-	if (PTR_ERR(dup) == -ENOENT) {
-		if (nft_set_ext_exists(ext, NFT_SET_EXT_KEY_END)) {
-			end = (const u8 *)nft_set_ext_key_end(ext)->data;
-			dup = pipapo_get(net, set, end, nft_genmask_next(net));
-		} else {
-			end = start;
+	if (!IS_ERR(dup)) {
+		/* Check if we already have the same exact entry */
+		const struct nft_data *dup_key, *dup_end;
+
+		dup_key = nft_set_ext_key(&dup->ext);
+		if (nft_set_ext_exists(&dup->ext, NFT_SET_EXT_KEY_END))
+			dup_end = nft_set_ext_key_end(&dup->ext);
+		else
+			dup_end = dup_key;
+
+		if (!memcmp(start, dup_key->data, sizeof(*dup_key->data)) &&
+		    !memcmp(end, dup_end->data, sizeof(*dup_end->data))) {
+			*ext2 = &dup->ext;
+			return -EEXIST;
 		}
+
+		return -ENOTEMPTY;
+	}
+
+	if (PTR_ERR(dup) == -ENOENT) {
+		/* Look for partially overlapping entries */
+		dup = pipapo_get(net, set, end, nft_genmask_next(net));
 	}
 
 	if (PTR_ERR(dup) != -ENOENT) {
 		if (IS_ERR(dup))
 			return PTR_ERR(dup);
 		*ext2 = &dup->ext;
-		return -EEXIST;
+		return -ENOTEMPTY;
 	}
 
 	/* Validate */
