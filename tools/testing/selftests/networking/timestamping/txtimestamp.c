@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -48,6 +49,10 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+
+#define NSEC_PER_USEC	1000L
+#define USEC_PER_SEC	1000000L
+#define NSEC_PER_SEC	1000000000LL
 
 /* command line parameters */
 static int cfg_proto = SOCK_STREAM;
@@ -61,12 +66,16 @@ static int cfg_delay_snd;
 static int cfg_delay_ack;
 static bool cfg_show_payload;
 static bool cfg_do_pktinfo;
+static bool cfg_busy_poll;
+static int cfg_sleep_usec = 50 * 1000;
 static bool cfg_loop_nodata;
-static bool cfg_no_delay;
 static bool cfg_use_cmsg;
 static bool cfg_use_pf_packet;
+static bool cfg_use_epoll;
+static bool cfg_epollet;
 static bool cfg_do_listen;
 static uint16_t dest_port = 9000;
+static bool cfg_print_nsec;
 
 static struct sockaddr_in daddr;
 static struct sockaddr_in6 daddr6;
@@ -75,11 +84,48 @@ static struct timespec ts_usr;
 static int saved_tskey = -1;
 static int saved_tskey_type = -1;
 
+struct timing_event {
+	int64_t min;
+	int64_t max;
+	int64_t total;
+	int count;
+};
+
+static struct timing_event usr_enq;
+static struct timing_event usr_snd;
+static struct timing_event usr_ack;
+
 static bool test_failed;
+
+static int64_t timespec_to_ns64(struct timespec *ts)
+{
+	return ts->tv_sec * NSEC_PER_SEC + ts->tv_nsec;
+}
 
 static int64_t timespec_to_us64(struct timespec *ts)
 {
-	return ts->tv_sec * 1000 * 1000 + ts->tv_nsec / 1000;
+	return ts->tv_sec * USEC_PER_SEC + ts->tv_nsec / NSEC_PER_USEC;
+}
+
+static void init_timing_event(struct timing_event *te)
+{
+	te->min = INT64_MAX;
+	te->max = 0;
+	te->total = 0;
+	te->count = 0;
+}
+
+static void add_timing_event(struct timing_event *te,
+		struct timespec *t_start, struct timespec *t_end)
+{
+	int64_t ts_delta = timespec_to_ns64(t_end) - timespec_to_ns64(t_start);
+
+	te->count++;
+	if (ts_delta < te->min)
+		te->min = ts_delta;
+	if (ts_delta > te->max)
+		te->max = ts_delta;
+	te->total += ts_delta;
 }
 
 static void validate_key(int tskey, int tstype)
@@ -113,25 +159,43 @@ static void validate_timestamp(struct timespec *cur, int min_delay)
 	start64 = timespec_to_us64(&ts_usr);
 
 	if (cur64 < start64 + min_delay || cur64 > start64 + max_delay) {
-		fprintf(stderr, "ERROR: delay %lu expected between %d and %d\n",
+		fprintf(stderr, "ERROR: %lu us expected between %d and %d\n",
 				cur64 - start64, min_delay, max_delay);
 		test_failed = true;
 	}
 }
 
+static void __print_ts_delta_formatted(int64_t ts_delta)
+{
+	if (cfg_print_nsec)
+		fprintf(stderr, "%lu ns", ts_delta);
+	else
+		fprintf(stderr, "%lu us", ts_delta / NSEC_PER_USEC);
+}
+
 static void __print_timestamp(const char *name, struct timespec *cur,
 			      uint32_t key, int payload_len)
 {
+	int64_t ts_delta;
+
 	if (!(cur->tv_sec | cur->tv_nsec))
 		return;
 
-	fprintf(stderr, "  %s: %lu s %lu us (seq=%u, len=%u)",
-			name, cur->tv_sec, cur->tv_nsec / 1000,
-			key, payload_len);
+	if (cfg_print_nsec)
+		fprintf(stderr, "  %s: %lu s %lu ns (seq=%u, len=%u)",
+				name, cur->tv_sec, cur->tv_nsec,
+				key, payload_len);
+	else
+		fprintf(stderr, "  %s: %lu s %lu us (seq=%u, len=%u)",
+				name, cur->tv_sec, cur->tv_nsec / NSEC_PER_USEC,
+				key, payload_len);
 
-	if (cur != &ts_usr)
-		fprintf(stderr, "  (USR %+" PRId64 " us)",
-			timespec_to_us64(cur) - timespec_to_us64(&ts_usr));
+	if (cur != &ts_usr) {
+		ts_delta = timespec_to_ns64(cur) - timespec_to_ns64(&ts_usr);
+		fprintf(stderr, "  (USR +");
+		__print_ts_delta_formatted(ts_delta);
+		fprintf(stderr, ")");
+	}
 
 	fprintf(stderr, "\n");
 }
@@ -155,20 +219,38 @@ static void print_timestamp(struct scm_timestamping *tss, int tstype,
 	case SCM_TSTAMP_SCHED:
 		tsname = "  ENQ";
 		validate_timestamp(&tss->ts[0], 0);
+		add_timing_event(&usr_enq, &ts_usr, &tss->ts[0]);
 		break;
 	case SCM_TSTAMP_SND:
 		tsname = "  SND";
 		validate_timestamp(&tss->ts[0], cfg_delay_snd);
+		add_timing_event(&usr_snd, &ts_usr, &tss->ts[0]);
 		break;
 	case SCM_TSTAMP_ACK:
 		tsname = "  ACK";
 		validate_timestamp(&tss->ts[0], cfg_delay_ack);
+		add_timing_event(&usr_ack, &ts_usr, &tss->ts[0]);
 		break;
 	default:
 		error(1, 0, "unknown timestamp type: %u",
 		tstype);
 	}
 	__print_timestamp(tsname, &tss->ts[0], tskey, payload_len);
+}
+
+static void print_timing_event(char *name, struct timing_event *te)
+{
+	if (!te->count)
+		return;
+
+	fprintf(stderr, "    %s: count=%d", name, te->count);
+	fprintf(stderr, ", avg=");
+	__print_ts_delta_formatted((int64_t)(te->total / te->count));
+	fprintf(stderr, ", min=");
+	__print_ts_delta_formatted(te->min);
+	fprintf(stderr, ", max=");
+	__print_ts_delta_formatted(te->max);
+	fprintf(stderr, "\n");
 }
 
 /* TODO: convert to check_and_print payload once API is stable */
@@ -196,6 +278,17 @@ static void print_pktinfo(int family, int ifindex, void *saddr, void *daddr)
 		ifindex,
 		saddr ? inet_ntop(family, saddr, sa, sizeof(sa)) : "unknown",
 		daddr ? inet_ntop(family, daddr, da, sizeof(da)) : "unknown");
+}
+
+static void __epoll(int epfd)
+{
+	struct epoll_event events;
+	int ret;
+
+	memset(&events, 0, sizeof(events));
+	ret = epoll_wait(epfd, &events, 1, cfg_poll_timeout);
+	if (ret != 1)
+		error(1, errno, "epoll_wait");
 }
 
 static void __poll(int fd)
@@ -391,7 +484,11 @@ static void do_test(int family, unsigned int report_opt)
 	struct msghdr msg;
 	struct iovec iov;
 	char *buf;
-	int fd, i, val = 1, total_len;
+	int fd, i, val = 1, total_len, epfd = 0;
+
+	init_timing_event(&usr_enq);
+	init_timing_event(&usr_snd);
+	init_timing_event(&usr_ack);
 
 	total_len = cfg_payload_len;
 	if (cfg_use_pf_packet || cfg_proto == SOCK_RAW) {
@@ -417,6 +514,20 @@ static void do_test(int family, unsigned int report_opt)
 		    cfg_proto, cfg_ipproto);
 	if (fd < 0)
 		error(1, errno, "socket");
+
+	if (cfg_use_epoll) {
+		struct epoll_event ev;
+
+		memset(&ev, 0, sizeof(ev));
+		ev.data.fd = fd;
+		if (cfg_epollet)
+			ev.events |= EPOLLET;
+		epfd = epoll_create(1);
+		if (epfd <= 0)
+			error(1, errno, "epoll_create");
+		if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev))
+			error(1, errno, "epoll_ctl");
+	}
 
 	/* reset expected key on each new socket */
 	saved_tskey = -1;
@@ -525,19 +636,28 @@ static void do_test(int family, unsigned int report_opt)
 			error(1, errno, "send");
 
 		/* wait for all errors to be queued, else ACKs arrive OOO */
-		if (!cfg_no_delay)
-			usleep(50 * 1000);
+		if (cfg_sleep_usec)
+			usleep(cfg_sleep_usec);
 
-		__poll(fd);
+		if (!cfg_busy_poll) {
+			if (cfg_use_epoll)
+				__epoll(epfd);
+			else
+				__poll(fd);
+		}
 
 		while (!recv_errmsg(fd)) {}
 	}
+
+	print_timing_event("USR-ENQ", &usr_enq);
+	print_timing_event("USR-SND", &usr_snd);
+	print_timing_event("USR-ACK", &usr_ack);
 
 	if (close(fd))
 		error(1, errno, "close");
 
 	free(buf);
-	usleep(100 * 1000);
+	usleep(100 * NSEC_PER_USEC);
 }
 
 static void __attribute__((noreturn)) usage(const char *filepath)
@@ -547,18 +667,22 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -4:   only IPv4\n"
 			"  -6:   only IPv6\n"
 			"  -h:   show this message\n"
+			"  -b:   busy poll to read from error queue\n"
 			"  -c N: number of packets for each test\n"
 			"  -C:   use cmsg to set tstamp recording options\n"
-			"  -D:   no delay between packets\n"
-			"  -F:   poll() waits forever for an event\n"
+			"  -e:   use level-triggered epoll() instead of poll()\n"
+			"  -E:   use event-triggered epoll() instead of poll()\n"
+			"  -F:   poll()/epoll() waits forever for an event\n"
 			"  -I:   request PKTINFO\n"
 			"  -l N: send N bytes at a time\n"
 			"  -L    listen on hostname and port\n"
 			"  -n:   set no-payload option\n"
+			"  -N:   print timestamps and durations in nsec (instead of usec)\n"
 			"  -p N: connect to port N\n"
 			"  -P:   use PF_PACKET\n"
 			"  -r:   use raw\n"
 			"  -R:   use raw (IP_HDRINCL)\n"
+			"  -S N: usec to sleep before reading error queue\n"
 			"  -u:   use udp\n"
 			"  -v:   validate SND delay (usec)\n"
 			"  -V:   validate ACK delay (usec)\n"
@@ -572,7 +696,8 @@ static void parse_opt(int argc, char **argv)
 	int proto_count = 0;
 	int c;
 
-	while ((c = getopt(argc, argv, "46c:CDFhIl:Lnp:PrRuv:V:x")) != -1) {
+	while ((c = getopt(argc, argv,
+				"46bc:CeEFhIl:LnNp:PrRS:uv:V:x")) != -1) {
 		switch (c) {
 		case '4':
 			do_ipv6 = 0;
@@ -580,15 +705,21 @@ static void parse_opt(int argc, char **argv)
 		case '6':
 			do_ipv4 = 0;
 			break;
+		case 'b':
+			cfg_busy_poll = true;
+			break;
 		case 'c':
 			cfg_num_pkts = strtoul(optarg, NULL, 10);
 			break;
 		case 'C':
 			cfg_use_cmsg = true;
 			break;
-		case 'D':
-			cfg_no_delay = true;
+		case 'e':
+			cfg_use_epoll = true;
 			break;
+		case 'E':
+			cfg_use_epoll = true;
+			cfg_epollet = true;
 		case 'F':
 			cfg_poll_timeout = -1;
 			break;
@@ -603,6 +734,9 @@ static void parse_opt(int argc, char **argv)
 			break;
 		case 'n':
 			cfg_loop_nodata = true;
+			break;
+		case 'N':
+			cfg_print_nsec = true;
 			break;
 		case 'p':
 			dest_port = strtoul(optarg, NULL, 10);
@@ -622,6 +756,9 @@ static void parse_opt(int argc, char **argv)
 			proto_count++;
 			cfg_proto = SOCK_RAW;
 			cfg_ipproto = IPPROTO_RAW;
+			break;
+		case 'S':
+			cfg_sleep_usec = strtoul(optarg, NULL, 10);
 			break;
 		case 'u':
 			proto_count++;
@@ -653,6 +790,8 @@ static void parse_opt(int argc, char **argv)
 		error(1, 0, "pass -P, -r, -R or -u, not multiple");
 	if (cfg_do_pktinfo && cfg_use_pf_packet)
 		error(1, 0, "cannot ask for pktinfo over pf_packet");
+	if (cfg_busy_poll && cfg_use_epoll)
+		error(1, 0, "pass epoll or busy_poll, not both");
 
 	if (optind != argc - 1)
 		error(1, 0, "missing required hostname argument");

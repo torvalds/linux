@@ -43,15 +43,40 @@ run_test_tcpudpraw() {
 }
 
 run_test_all() {
+	setup
 	run_test_tcpudpraw		# setsockopt
 	run_test_tcpudpraw -C		# cmsg
 	run_test_tcpudpraw -n		# timestamp w/o data
+	echo "OK. All tests passed"
+}
+
+run_test_one() {
+	setup
+	./txtimestamp $@
+}
+
+usage() {
+	echo "Usage: $0 [ -r | --run ] <txtimestamp args> | [ -h | --help ]"
+	echo "  (no args)  Run all tests"
+	echo "  -r|--run  Run an individual test with arguments"
+	echo "  -h|--help Help"
+}
+
+main() {
+	if [[ $# -eq 0 ]]; then
+		run_test_all
+	else
+		if [[ "$1" = "-r" || "$1" == "--run" ]]; then
+			shift
+			run_test_one $@
+		else
+			usage
+		fi
+	fi
 }
 
 if [[ "$(ip netns identify)" == "root" ]]; then
 	../../net/in_netns.sh $0 $@
 else
-	setup
-	run_test_all
-	echo "OK. All tests passed"
+	main $@
 fi
