@@ -823,6 +823,11 @@ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 	return __vm_enough_memory(mm, pages, cap_sys_admin);
 }
 
+int security_bprm_creds_for_exec(struct linux_binprm *bprm)
+{
+	return call_int_hook(bprm_creds_for_exec, 0, bprm);
+}
+
 int security_bprm_set_creds(struct linux_binprm *bprm)
 {
 	return call_int_hook(bprm_set_creds, 0, bprm);

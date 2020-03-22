@@ -1640,7 +1640,6 @@ int prepare_binprm(struct linux_binprm *bprm)
 	retval = security_bprm_set_creds(bprm);
 	if (retval)
 		return retval;
-	bprm->called_set_creds = 1;
 
 	memset(bprm->buf, 0, BINPRM_BUF_SIZE);
 	return kernel_read(bprm->file, bprm->buf, BINPRM_BUF_SIZE, &pos);
@@ -1853,6 +1852,11 @@ static int __do_execve_file(int fd, struct filename *filename,
 
 	retval = prepare_arg_pages(bprm, argv, envp);
 	if (retval < 0)
+		goto out;
+
+	/* Set the unchanging part of bprm->cred */
+	retval = security_bprm_creds_for_exec(bprm);
+	if (retval)
 		goto out;
 
 	retval = prepare_binprm(bprm);
