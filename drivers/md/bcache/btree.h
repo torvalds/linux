@@ -309,7 +309,7 @@ static inline void force_wake_up_gc(struct cache_set *c)
  * @b:		parent btree node
  * @op:		pointer to struct btree_op
  */
-#define btree(fn, key, b, op, ...)					\
+#define bcache_btree(fn, key, b, op, ...)				\
 ({									\
 	int _r, l = (b)->level - 1;					\
 	bool _w = l <= (op)->lock;					\
@@ -329,7 +329,7 @@ static inline void force_wake_up_gc(struct cache_set *c)
  * @c:		cache set
  * @op:		pointer to struct btree_op
  */
-#define btree_root(fn, c, op, ...)					\
+#define bcache_btree_root(fn, c, op, ...)				\
 ({									\
 	int _r = -EINTR;						\
 	do {								\
