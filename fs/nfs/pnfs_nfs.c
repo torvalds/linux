@@ -1166,26 +1166,22 @@ pnfs_layout_mark_request_commit(struct nfs_page *req,
 {
 	struct list_head *list;
 	struct pnfs_commit_array *array;
-	struct pnfs_commit_bucket *buckets;
+	struct pnfs_commit_bucket *bucket;
 
 	mutex_lock(&NFS_I(cinfo->inode)->commit_mutex);
 	array = pnfs_lookup_commit_array(cinfo->ds, lseg);
-	if (!array)
+	if (!array || !pnfs_is_valid_lseg(lseg))
 		goto out_resched;
-	buckets = array->buckets;
-	list = &buckets[ds_commit_idx].written;
-	if (list_empty(list)) {
-		if (!pnfs_is_valid_lseg(lseg))
-			goto out_resched;
-		/* Non-empty buckets hold a reference on the lseg.  That ref
-		 * is normally transferred to the COMMIT call and released
-		 * there.  It could also be released if the last req is pulled
-		 * off due to a rewrite, in which case it will be done in
-		 * pnfs_common_clear_request_commit
-		 */
-		if (!buckets[ds_commit_idx].lseg)
-			buckets[ds_commit_idx].lseg = pnfs_get_lseg(lseg);
-	}
+	bucket = &array->buckets[ds_commit_idx];
+	list = &bucket->written;
+	/* Non-empty buckets hold a reference on the lseg.  That ref
+	 * is normally transferred to the COMMIT call and released
+	 * there.  It could also be released if the last req is pulled
+	 * off due to a rewrite, in which case it will be done in
+	 * pnfs_common_clear_request_commit
+	 */
+	if (!bucket->lseg)
+		bucket->lseg = pnfs_get_lseg(lseg);
 	set_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 	cinfo->ds->nwritten++;
 
