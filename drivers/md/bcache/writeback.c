@@ -785,7 +785,9 @@ static int sectors_dirty_init_fn(struct btree_op *_op, struct btree *b,
 	return MAP_CONTINUE;
 }
 
-void bch_sectors_dirty_init(struct bcache_device *d)
+static int bch_root_node_dirty_init(struct cache_set *c,
+				     struct bcache_device *d,
+				     struct bkey *k)
 {
 	struct sectors_dirty_init op;
 	int ret;
@@ -796,8 +798,13 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 	op.start = KEY(op.inode, 0, 0);
 
 	do {
-		ret = bch_btree_map_keys(&op.op, d->c, &op.start,
-					 sectors_dirty_init_fn, 0);
+		ret = bcache_btree(map_keys_recurse,
+				   k,
+				   c->root,
+				   &op.op,
+				   &op.start,
+				   sectors_dirty_init_fn,
+				   0);
 		if (ret == -EAGAIN)
 			schedule_timeout_interruptible(
 				msecs_to_jiffies(INIT_KEYS_SLEEP_MS));
@@ -806,6 +813,151 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 			break;
 		}
 	} while (ret == -EAGAIN);
+
+	return ret;
+}
+
+static int bch_dirty_init_thread(void *arg)
+{
+	struct dirty_init_thrd_info *info = arg;
+	struct bch_dirty_init_state *state = info->state;
+	struct cache_set *c = state->c;
+	struct btree_iter iter;
+	struct bkey *k, *p;
+	int cur_idx, prev_idx, skip_nr;
+	int i;
+
+	k = p = NULL;
+	i = 0;
+	cur_idx = prev_idx = 0;
+
+	bch_btree_iter_init(&c->root->keys, &iter, NULL);
+	k = bch_btree_iter_next_filter(&iter, &c->root->keys, bch_ptr_bad);
+	BUG_ON(!k);
+
+	p = k;
+
+	while (k) {
+		spin_lock(&state->idx_lock);
+		cur_idx = state->key_idx;
+		state->key_idx++;
+		spin_unlock(&state->idx_lock);
+
+		skip_nr = cur_idx - prev_idx;
+
+		while (skip_nr) {
+			k = bch_btree_iter_next_filter(&iter,
+						       &c->root->keys,
+						       bch_ptr_bad);
+			if (k)
+				p = k;
+			else {
+				atomic_set(&state->enough, 1);
+				/* Update state->enough earlier */
+				smp_mb();
+				goto out;
+			}
+			skip_nr--;
+			cond_resched();
+		}
+
+		if (p) {
+			if (bch_root_node_dirty_init(c, state->d, p) < 0)
+				goto out;
+		}
+
+		p = NULL;
+		prev_idx = cur_idx;
+		cond_resched();
+	}
+
+out:
+	/* In order to wake up state->wait in time */
+	smp_mb();
+	if (atomic_dec_and_test(&state->started))
+		wake_up(&state->wait);
+
+	return 0;
+}
+
+static int bch_btre_dirty_init_thread_nr(void)
+{
+	int n = num_online_cpus()/2;
+
+	if (n == 0)
+		n = 1;
+	else if (n > BCH_DIRTY_INIT_THRD_MAX)
+		n = BCH_DIRTY_INIT_THRD_MAX;
+
+	return n;
+}
+
+void bch_sectors_dirty_init(struct bcache_device *d)
+{
+	int i;
+	struct bkey *k = NULL;
+	struct btree_iter iter;
+	struct sectors_dirty_init op;
+	struct cache_set *c = d->c;
+	struct bch_dirty_init_state *state;
+	char name[32];
+
+	/* Just count root keys if no leaf node */
+	if (c->root->level == 0) {
+		bch_btree_op_init(&op.op, -1);
+		op.inode = d->id;
+		op.count = 0;
+		op.start = KEY(op.inode, 0, 0);
+
+		for_each_key_filter(&c->root->keys,
+				    k, &iter, bch_ptr_invalid)
+			sectors_dirty_init_fn(&op.op, c->root, k);
+		return;
+	}
+
+	state = kzalloc(sizeof(struct bch_dirty_init_state), GFP_KERNEL);
+	if (!state) {
+		pr_warn("sectors dirty init failed: cannot allocate memory");
+		return;
+	}
+
+	state->c = c;
+	state->d = d;
+	state->total_threads = bch_btre_dirty_init_thread_nr();
+	state->key_idx = 0;
+	spin_lock_init(&state->idx_lock);
+	atomic_set(&state->started, 0);
+	atomic_set(&state->enough, 0);
+	init_waitqueue_head(&state->wait);
+
+	for (i = 0; i < state->total_threads; i++) {
+		/* Fetch latest state->enough earlier */
+		smp_mb();
+		if (atomic_read(&state->enough))
+			break;
+
+		state->infos[i].state = state;
+		atomic_inc(&state->started);
+		snprintf(name, sizeof(name), "bch_dirty_init[%d]", i);
+
+		state->infos[i].thread =
+			kthread_run(bch_dirty_init_thread,
+				    &state->infos[i],
+				    name);
+		if (IS_ERR(state->infos[i].thread)) {
+			pr_err("fails to run thread bch_dirty_init[%d]", i);
+			for (--i; i >= 0; i--)
+				kthread_stop(state->infos[i].thread);
+			goto out;
+		}
+	}
+
+	wait_event_interruptible(state->wait,
+		 atomic_read(&state->started) == 0 ||
+		 test_bit(CACHE_SET_IO_DISABLE, &c->flags));
+
+out:
+	kfree(state);
 }
 
 void bch_cached_dev_writeback_init(struct cached_dev *dc)
