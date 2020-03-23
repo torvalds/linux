@@ -54,6 +54,9 @@ static pgprot_t dvma_prot;		/* Consistent mapping pte flags */
 #define IOPERM        (IOPTE_CACHE | IOPTE_WRITE | IOPTE_VALID)
 #define MKIOPTE(pfn, perm) (((((pfn)<<8) & IOPTE_PAGE) | (perm)) & ~IOPTE_WAZ)
 
+static const struct dma_map_ops sbus_iommu_dma_gflush_ops;
+static const struct dma_map_ops sbus_iommu_dma_pflush_ops;
+
 static void __init sbus_iommu_init(struct platform_device *op)
 {
 	struct iommu_struct *iommu;
@@ -129,6 +132,11 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	       (int)(IOMMU_NPTES*sizeof(iopte_t)), (int)IOMMU_NPTES);
 
 	op->dev.archdata.iommu = iommu;
+
+	if (flush_page_for_dma_global)
+		op->dev.dma_ops = &sbus_iommu_dma_gflush_ops;
+	 else
+		op->dev.dma_ops = &sbus_iommu_dma_pflush_ops;
 }
 
 static int __init iommu_init(void)
@@ -445,13 +453,6 @@ static const struct dma_map_ops sbus_iommu_dma_pflush_ops = {
 
 void __init ld_mmu_iommu(void)
 {
-	if (flush_page_for_dma_global) {
-		/* flush_page_for_dma flushes everything, no matter of what page is it */
-		dma_ops = &sbus_iommu_dma_gflush_ops;
-	} else {
-		dma_ops = &sbus_iommu_dma_pflush_ops;
-	}
-
 	if (viking_mxcc_present || srmmu_modtype == HyperSparc) {
 		dvma_prot = __pgprot(SRMMU_CACHE | SRMMU_ET_PTE | SRMMU_PRIV);
 		ioperm_noc = IOPTE_CACHE | IOPTE_WRITE | IOPTE_VALID;
