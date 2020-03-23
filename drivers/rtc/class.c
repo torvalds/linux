@@ -46,20 +46,13 @@ int rtc_hctosys_ret = -ENODEV;
  * the best guess is to add 0.5s.
  */
 
-static int rtc_hctosys(void)
+static void rtc_hctosys(struct rtc_device *rtc)
 {
 	int err = -ENODEV;
 	struct rtc_time tm;
 	struct timespec64 tv64 = {
 		.tv_nsec = NSEC_PER_SEC >> 1,
 	};
-	struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-
-	if (!rtc) {
-		pr_info("unable to open rtc device (%s)\n",
-			CONFIG_RTC_HCTOSYS_DEVICE);
-		goto err_open;
-	}
 
 	err = rtc_read_time(rtc, &tm);
 	if (err) {
@@ -83,12 +76,7 @@ static int rtc_hctosys(void)
 		 &tm, (long long)tv64.tv_sec);
 
 err_read:
-	rtc_class_close(rtc);
-
-err_open:
 	rtc_hctosys_ret = err;
-
-	return err;
 }
 #endif
 
@@ -433,7 +421,7 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 
 #ifdef CONFIG_RTC_HCTOSYS_DEVICE
 	if (!strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE))
-		rtc_hctosys();
+		rtc_hctosys(rtc);
 #endif
 
 	return 0;
