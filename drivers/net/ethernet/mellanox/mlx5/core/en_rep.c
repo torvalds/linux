@@ -1198,7 +1198,8 @@ static const struct mlx5e_profile mlx5e_uplink_rep_profile = {
 	.update_carrier	        = mlx5e_update_carrier,
 	.rx_handlers            = &mlx5e_rx_handlers_rep,
 	.max_tc			= MLX5E_MAX_NUM_TC,
-	.rq_groups		= MLX5E_NUM_RQ_GROUPS(REGULAR),
+	/* XSK is needed so we can replace profile with NIC netdev */
+	.rq_groups		= MLX5E_NUM_RQ_GROUPS(XSK),
 	.stats_grps		= mlx5e_ul_rep_stats_grps,
 	.stats_grps_num		= mlx5e_ul_rep_stats_grps_num,
 };
