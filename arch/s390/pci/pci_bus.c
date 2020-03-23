@@ -99,6 +99,11 @@ static struct zpci_bus *zpci_bus_alloc(int pchid)
 	kref_init(&zbus->kref);
 	INIT_LIST_HEAD(&zbus->resources);
 
+	zbus->bus_resource.start = 0;
+	zbus->bus_resource.end = ZPCI_BUS_NR;
+	zbus->bus_resource.flags = IORESOURCE_BUS;
+	pci_add_resource(&zbus->resources, &zbus->bus_resource);
+
 	return zbus;
 }
 

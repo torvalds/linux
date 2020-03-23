@@ -107,6 +107,7 @@ struct zpci_bus {
 	struct zpci_dev		*function[ZPCI_FUNCTIONS_PER_BUS];
 	struct list_head	resources;
 	struct list_head	bus_next;
+	struct resource		bus_resource;
 	int			pchid;
 	int			domain_nr;
 	enum pci_bus_speed	max_bus_speed;
