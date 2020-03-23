@@ -25,6 +25,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_file.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mode_config.h>
 #include <drm/drm_print.h>
 #include <linux/dma-resv.h>
@@ -373,8 +374,14 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 	return 0;
 }
 
+static void drm_mode_config_init_release(struct drm_device *dev, void *ptr)
+{
+	drm_mode_config_cleanup(dev);
+}
+
 /**
- * drm_mode_config_init - initialize DRM mode_configuration structure
+ * drmm_mode_config_init - managed DRM mode_configuration structure
+ * 	initialization
  * @dev: DRM device
  *
  * Initialize @dev's mode_config structure, used for tracking the graphics
@@ -384,8 +391,12 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
  * problem, since this should happen single threaded at init time. It is the
  * driver's problem to ensure this guarantee.
  *
+ * Cleanup is automatically handled through registering drm_mode_config_cleanup
+ * with drmm_add_action().
+ *
+ * Returns: 0 on success, negative error value on failure.
  */
-void drm_mode_config_init(struct drm_device *dev)
+int drmm_mode_config_init(struct drm_device *dev)
 {
 	mutex_init(&dev->mode_config.mutex);
 	drm_modeset_lock_init(&dev->mode_config.connection_mutex);
@@ -443,8 +454,11 @@ void drm_mode_config_init(struct drm_device *dev)
 		drm_modeset_acquire_fini(&modeset_ctx);
 		dma_resv_fini(&resv);
 	}
+
+	return drmm_add_action_or_reset(dev, drm_mode_config_init_release,
+					NULL);
 }
-EXPORT_SYMBOL(drm_mode_config_init);
+EXPORT_SYMBOL(drmm_mode_config_init);
 
 /**
  * drm_mode_config_cleanup - free up DRM mode_config info
@@ -456,6 +470,9 @@ EXPORT_SYMBOL(drm_mode_config_init);
  * Note that since this /should/ happen single-threaded at driver/device
  * teardown time, no locking is required. It's the driver's job to ensure that
  * this guarantee actually holds true.
+ *
+ * FIXME: With the managed drmm_mode_config_init() it is no longer necessary for
+ * drivers to explicitly call this function.
  */
 void drm_mode_config_cleanup(struct drm_device *dev)
 {

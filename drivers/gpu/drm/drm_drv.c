@@ -98,6 +98,8 @@ static void drm_minor_alloc_release(struct drm_device *dev, void *data)
 	struct drm_minor *minor = data;
 	unsigned long flags;
 
+	WARN_ON(dev != minor->dev);
+
 	put_device(minor->kdev);
 
 	spin_lock_irqsave(&drm_minor_lock, flags);
@@ -266,8 +268,7 @@ void drm_minor_release(struct drm_minor *minor)
  *
  * The following example shows a typical structure of a DRM display driver.
  * The example focus on the probe() function and the other functions that is
- * almost always present and serves as a demonstration of devm_drm_dev_init()
- * usage with its accompanying drm_driver->release callback.
+ * almost always present and serves as a demonstration of devm_drm_dev_init().
  *
  * .. code-block:: c
  *
@@ -277,16 +278,8 @@ void drm_minor_release(struct drm_minor *minor)
  *		struct clk *pclk;
  *	};
  *
- *	static void driver_drm_release(struct drm_device *drm)
- *	{
- *		struct driver_device *priv = container_of(...);
- *
- *		drm_mode_config_cleanup(drm);
- *	}
- *
  *	static struct drm_driver driver_drm_driver = {
  *		[...]
- *		.release = driver_drm_release,
  *	};
  *
  *	static int driver_probe(struct platform_device *pdev)
@@ -311,7 +304,9 @@ void drm_minor_release(struct drm_minor *minor)
  *		}
  *		drmm_add_final_kfree(drm, priv);
  *
- *		drm_mode_config_init(drm);
+ *		ret = drmm_mode_config_init(drm);
+ *		if (ret)
+ *			return ret;
  *
  *		priv->userspace_facing = drmm_kzalloc(..., GFP_KERNEL);
  *		if (!priv->userspace_facing)
@@ -709,8 +704,7 @@ static void devm_drm_dev_init_release(void *data)
  * @driver: DRM driver
  *
  * Managed drm_dev_init(). The DRM device initialized with this function is
- * automatically put on driver detach using drm_dev_put(). You must supply a
- * &drm_driver.release callback to control the finalization explicitly.
+ * automatically put on driver detach using drm_dev_put().
  *
  * RETURNS:
  * 0 on success, or error code on failure.
@@ -720,9 +714,6 @@ int devm_drm_dev_init(struct device *parent,
 		      struct drm_driver *driver)
 {
 	int ret;
-
-	if (WARN_ON(!driver->release))
-		return -EINVAL;
 
 	ret = drm_dev_init(dev, driver, parent);
 	if (ret)
