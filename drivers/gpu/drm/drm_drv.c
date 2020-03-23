@@ -297,8 +297,6 @@ void drm_minor_release(struct drm_minor *minor)
  *
  *		drm_mode_config_cleanup(drm);
  *		drm_dev_fini(drm);
- *		kfree(priv->userspace_facing);
- *		kfree(priv);
  *	}
  *
  *	static struct drm_driver driver_drm_driver = {
@@ -326,10 +324,11 @@ void drm_minor_release(struct drm_minor *minor)
  *			kfree(drm);
  *			return ret;
  *		}
+ *		drmm_add_final_kfree(drm, priv);
  *
  *		drm_mode_config_init(drm);
  *
- *		priv->userspace_facing = kzalloc(..., GFP_KERNEL);
+ *		priv->userspace_facing = drmm_kzalloc(..., GFP_KERNEL);
  *		if (!priv->userspace_facing)
  *			return -ENOMEM;
  *
@@ -837,10 +836,7 @@ static void drm_dev_release(struct kref *ref)
 
 	drm_managed_release(dev);
 
-	if (!dev->driver->release && !dev->managed.final_kfree) {
-		WARN_ON(!list_empty(&dev->managed.resources));
-		kfree(dev);
-	} else if (dev->managed.final_kfree)
+	if (dev->managed.final_kfree)
 		kfree(dev->managed.final_kfree);
 }
 
@@ -960,6 +956,8 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 
 	if (!driver->load)
 		drm_mode_config_validate(dev);
+
+	WARN_ON(!dev->managed.final_kfree);
 
 	if (drm_dev_needs_global_mutex(dev))
 		mutex_lock(&drm_global_mutex);
