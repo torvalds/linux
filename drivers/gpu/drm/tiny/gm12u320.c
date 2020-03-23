@@ -678,7 +678,7 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 	init_waitqueue_head(&gm12u320->fb_update.waitq);
 
 	dev = &gm12u320->dev;
-	ret = drm_dev_init(dev, &gm12u320_drm_driver, &interface->dev);
+	ret = devm_drm_dev_init(&interface->dev, dev, &gm12u320_drm_driver);
 	if (ret) {
 		kfree(gm12u320);
 		return ret;
@@ -688,7 +688,7 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 
 	ret = drmm_mode_config_init(dev);
 	if (ret)
-		goto err_put;
+		return ret;
 
 	dev->mode_config.min_width = GM12U320_USER_WIDTH;
 	dev->mode_config.max_width = GM12U320_USER_WIDTH;
@@ -698,15 +698,15 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 
 	ret = gm12u320_usb_alloc(gm12u320);
 	if (ret)
-		goto err_put;
+		return ret;
 
 	ret = gm12u320_set_ecomode(gm12u320);
 	if (ret)
-		goto err_put;
+		return ret;
 
 	ret = gm12u320_conn_init(gm12u320);
 	if (ret)
-		goto err_put;
+		return ret;
 
 	ret = drm_simple_display_pipe_init(&gm12u320->dev,
 					   &gm12u320->pipe,
@@ -716,22 +716,18 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 					   gm12u320_pipe_modifiers,
 					   &gm12u320->conn);
 	if (ret)
-		goto err_put;
+		return ret;
 
 	drm_mode_config_reset(dev);
 
 	usb_set_intfdata(interface, dev);
 	ret = drm_dev_register(dev, 0);
 	if (ret)
-		goto err_put;
+		return ret;
 
 	drm_fbdev_generic_setup(dev, 0);
 
 	return 0;
-
-err_put:
-	drm_dev_put(dev);
-	return ret;
 }
 
 static void gm12u320_usb_disconnect(struct usb_interface *interface)
@@ -741,7 +737,6 @@ static void gm12u320_usb_disconnect(struct usb_interface *interface)
 
 	gm12u320_stop_fb_update(gm12u320);
 	drm_dev_unplug(dev);
-	drm_dev_put(dev);
 }
 
 static __maybe_unused int gm12u320_suspend(struct usb_interface *interface,
