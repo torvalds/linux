@@ -31,6 +31,7 @@
 #include <drm/drm_format_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_probe_helper.h>
@@ -910,13 +911,10 @@ static const struct drm_mode_config_funcs repaper_mode_config_funcs = {
 
 static void repaper_release(struct drm_device *drm)
 {
-	struct repaper_epd *epd = drm_to_epd(drm);
-
 	DRM_DEBUG_DRIVER("\n");
 
 	drm_mode_config_cleanup(drm);
 	drm_dev_fini(drm);
-	kfree(epd);
 }
 
 static const uint32_t repaper_formats[] = {
@@ -1024,6 +1022,7 @@ static int repaper_probe(struct spi_device *spi)
 		kfree(epd);
 		return ret;
 	}
+	drmm_add_final_kfree(drm, epd);
 
 	drm_mode_config_init(drm);
 	drm->mode_config.funcs = &repaper_mode_config_funcs;
