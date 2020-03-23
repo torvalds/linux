@@ -870,6 +870,9 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 	int count = 0;
 	bool signal_helper = false;
 
+	if (state->current_cpu == -1)
+		state->current_cpu = this_cpu;
+
 	if (this_cpu != state->current_cpu) {
 		if (state->in_fiq)
 			return false;
@@ -1395,6 +1398,7 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	state->no_sleep = initial_no_sleep;
 	state->debug_enable = initial_debug_enable;
 	state->console_enable = initial_console_enable;
+	state->current_cpu = -1;
 
 	state->fiq = fiq;
 	state->uart_irq = uart_irq;
