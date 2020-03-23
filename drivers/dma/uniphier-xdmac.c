@@ -525,10 +525,8 @@ static int uniphier_xdmac_probe(struct platform_device *pdev)
 		uniphier_xdmac_chan_init(xdev, i);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "Failed to get IRQ\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(dev, irq, uniphier_xdmac_irq_handler,
 			       IRQF_SHARED, "xdmac", xdev);
