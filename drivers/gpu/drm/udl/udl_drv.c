@@ -34,14 +34,8 @@ static int udl_usb_resume(struct usb_interface *interface)
 
 DEFINE_DRM_GEM_FOPS(udl_driver_fops);
 
-static void udl_driver_release(struct drm_device *dev)
-{
-	udl_fini(dev);
-}
-
 static struct drm_driver driver = {
 	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
-	.release = udl_driver_release,
 
 	/* gem hooks */
 	.gem_create_object = udl_driver_gem_create_object,
@@ -120,7 +114,7 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 
-	drm_kms_helper_poll_disable(dev);
+	drm_kms_helper_poll_fini(dev);
 	udl_drop_usb(dev);
 	drm_dev_unplug(dev);
 	drm_dev_put(dev);

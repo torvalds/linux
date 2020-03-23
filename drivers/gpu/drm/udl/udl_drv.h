@@ -76,7 +76,6 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len);
 void udl_urb_completion(struct urb *urb);
 
 int udl_init(struct udl_device *udl);
-void udl_fini(struct drm_device *dev);
 
 int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 		     const char *front, char **urb_buf_ptr,
