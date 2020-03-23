@@ -95,10 +95,7 @@ EXPORT_SYMBOL_GPL(devm_platform_get_and_ioremap_resource);
 void __iomem *devm_platform_ioremap_resource(struct platform_device *pdev,
 					     unsigned int index)
 {
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
-	return devm_ioremap_resource(&pdev->dev, res);
+	return devm_platform_get_and_ioremap_resource(pdev, index, NULL);
 }
 EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource);
 
