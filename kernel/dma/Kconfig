@@ -8,6 +8,14 @@ config HAS_DMA
 config DMA_OPS
 	bool
 
+#
+# IOMMU drivers that can bypass the IOMMU code and optionally use the direct
+# mapping fast path should select this option and set the dma_ops_bypass
+# flag in struct device where applicable
+#
+config DMA_OPS_BYPASS
+	bool
+
 config NEED_SG_DMA_LENGTH
 	bool
 
