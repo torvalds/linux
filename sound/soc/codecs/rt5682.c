@@ -1544,10 +1544,18 @@ static int rt5682_hp_event(struct snd_soc_dapm_widget *w,
 static int set_dmic_power(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
+	unsigned int delay = 50;
+
+	if (rt5682->pdata.dmic_delay)
+		delay = rt5682->pdata.dmic_delay;
+
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		/*Add delay to avoid pop noise*/
-		msleep(150);
+		msleep(delay);
 		break;
 
 	default:
@@ -3236,6 +3244,8 @@ static int rt5682_parse_dt(struct rt5682_priv *rt5682, struct device *dev)
 		&rt5682->pdata.btndet_delay);
 	device_property_read_u32(dev, "realtek,dmic-clk-rate-hz",
 		&rt5682->pdata.dmic_clk_rate);
+	device_property_read_u32(dev, "realtek,dmic-delay-ms",
+		&rt5682->pdata.dmic_delay);
 
 	rt5682->pdata.ldo1_en = of_get_named_gpio(dev->of_node,
 		"realtek,ldo1-en-gpios", 0);
