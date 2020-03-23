@@ -259,9 +259,15 @@ void drm_minor_release(struct drm_minor *minor)
  * any other resources allocated at device initialization and drop the driver's
  * reference to &drm_device using drm_dev_put().
  *
- * Note that the lifetime rules for &drm_device instance has still a lot of
- * historical baggage. Hence use the reference counting provided by
- * drm_dev_get() and drm_dev_put() only carefully.
+ * Note that any allocation or resource which is visible to userspace must be
+ * released only when the final drm_dev_put() is called, and not when the
+ * driver is unbound from the underlying physical struct &device. Best to use
+ * &drm_device managed resources with drmm_add_action(), drmm_kmalloc() and
+ * related functions.
+ *
+ * devres managed resources like devm_kmalloc() can only be used for resources
+ * directly related to the underlying hardware device, and only used in code
+ * paths fully protected by drm_dev_enter() and drm_dev_exit().
  *
  * Display driver example
  * ~~~~~~~~~~~~~~~~~~~~~~
@@ -605,6 +611,9 @@ static void drm_dev_init_release(struct drm_device *dev, void *res)
  * arbitrary offset, you must supply a &drm_driver.release callback and control
  * the finalization explicitly.
  *
+ * Note that drivers must call drmm_add_final_kfree() after this function has
+ * completed successfully.
+ *
  * RETURNS:
  * 0 on success, or error code on failure.
  */
@@ -705,6 +714,9 @@ static void devm_drm_dev_init_release(void *data)
  *
  * Managed drm_dev_init(). The DRM device initialized with this function is
  * automatically put on driver detach using drm_dev_put().
+ *
+ * Note that drivers must call drmm_add_final_kfree() after this function has
+ * completed successfully.
  *
  * RETURNS:
  * 0 on success, or error code on failure.

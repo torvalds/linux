@@ -138,6 +138,12 @@ Managed Resources
 .. kernel-doc:: drivers/gpu/drm/drm_managed.c
    :doc: managed resources
 
+.. kernel-doc:: drivers/gpu/drm/drm_managed.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_managed.h
+   :internal:
+
 Bus-specific Device Registration and PCI Support
 ------------------------------------------------
 

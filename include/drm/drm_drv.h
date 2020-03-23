@@ -263,6 +263,10 @@ struct drm_driver {
 	 *
 	 * Optional callback for destroying device data after the final
 	 * reference is released, i.e. the device is being destroyed.
+	 *
+	 * This is deprecated, clean up all memory allocations associated with a
+	 * &drm_device using drmm_add_action(), drmm_kmalloc() and related
+	 * managed resources functions.
 	 */
 	void (*release) (struct drm_device *);
 

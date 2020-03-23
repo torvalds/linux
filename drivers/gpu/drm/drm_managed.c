@@ -20,7 +20,19 @@
  * Inspired by struct &device managed resources, but tied to the lifetime of
  * struct &drm_device, which can outlive the underlying physical device, usually
  * when userspace has some open files and other handles to resources still open.
+ *
+ * Release actions can be added with drmm_add_action(), memory allocations can
+ * be done directly with drmm_kmalloc() and the related functions. Everything
+ * will be released on the final drm_dev_put() in reverse order of how the
+ * release actions have been added and memory has been allocated since driver
+ * loading started with drm_dev_init().
+ *
+ * Note that release actions and managed memory can also be added and removed
+ * during the lifetime of the driver, all the functions are fully concurrent
+ * safe. But it is recommended to use managed resources only for resources that
+ * change rarely, if ever, during the lifetime of the &drm_device instance.
  */
+
 struct drmres_node {
 	struct list_head	entry;
 	drmres_release_t	release;
@@ -111,6 +123,18 @@ static void add_dr(struct drm_device *dev, struct drmres *dr)
 		       dr, dr->node.name, (unsigned long) dr->node.size);
 }
 
+/**
+ * drmm_add_final_kfree - add release action for the final kfree()
+ * @dev: DRM device
+ * @container: pointer to the kmalloc allocation containing @dev
+ *
+ * Since the allocation containing the struct &drm_device must be allocated
+ * before it can be initialized with drm_dev_init() there's no way to allocate
+ * that memory with drmm_kmalloc(). To side-step this chicken-egg problem the
+ * pointer for this final kfree() must be specified by calling this function. It
+ * will be released in the final drm_dev_put() for @dev, after all other release
+ * actions installed through drmm_add_action() have been processed.
+ */
 void drmm_add_final_kfree(struct drm_device *dev, void *container)
 {
 	WARN_ON(dev->managed.final_kfree);
@@ -163,6 +187,16 @@ int __drmm_add_action_or_reset(struct drm_device *dev,
 }
 EXPORT_SYMBOL(__drmm_add_action_or_reset);
 
+/**
+ * drmm_kmalloc - &drm_device managed kmalloc()
+ * @dev: DRM device
+ * @size: size of the memory allocation
+ * @gfp: GFP allocation flags
+ *
+ * This is a &drm_device managed version of kmalloc(). The allocated memory is
+ * automatically freed on the final drm_dev_put(). Memory can also be freed
+ * before the final drm_dev_put() by calling drmm_kfree().
+ */
 void *drmm_kmalloc(struct drm_device *dev, size_t size, gfp_t gfp)
 {
 	struct drmres *dr;
@@ -181,6 +215,16 @@ void *drmm_kmalloc(struct drm_device *dev, size_t size, gfp_t gfp)
 }
 EXPORT_SYMBOL(drmm_kmalloc);
 
+/**
+ * drmm_kstrdup - &drm_device managed kstrdup()
+ * @dev: DRM device
+ * @s: 0-terminated string to be duplicated
+ * @gfp: GFP allocation flags
+ *
+ * This is a &drm_device managed version of kstrdup(). The allocated memory is
+ * automatically freed on the final drm_dev_put() and works exactly like a
+ * memory allocation obtained by drmm_kmalloc().
+ */
 char *drmm_kstrdup(struct drm_device *dev, const char *s, gfp_t gfp)
 {
 	size_t size;
@@ -197,6 +241,15 @@ char *drmm_kstrdup(struct drm_device *dev, const char *s, gfp_t gfp)
 }
 EXPORT_SYMBOL_GPL(drmm_kstrdup);
 
+/**
+ * drmm_kfree - &drm_device managed kfree()
+ * @dev: DRM device
+ * @data: memory allocation to be freed
+ *
+ * This is a &drm_device managed version of kfree() which can be used to
+ * release memory allocated through drmm_kmalloc() or any of its related
+ * functions before the final drm_dev_put() of @dev.
+ */
 void drmm_kfree(struct drm_device *dev, void *data)
 {
 	struct drmres *dr_match = NULL, *dr;
