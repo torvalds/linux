@@ -856,14 +856,16 @@ static void fl_set_key_flag(u32 flower_key, u32 flower_mask,
 	}
 }
 
-static int fl_set_key_flags(struct nlattr **tb,
-			    u32 *flags_key, u32 *flags_mask)
+static int fl_set_key_flags(struct nlattr **tb, u32 *flags_key,
+			    u32 *flags_mask, struct netlink_ext_ack *extack)
 {
 	u32 key, mask;
 
 	/* mask is mandatory for flags */
-	if (!tb[TCA_FLOWER_KEY_FLAGS_MASK])
+	if (!tb[TCA_FLOWER_KEY_FLAGS_MASK]) {
+		NL_SET_ERR_MSG(extack, "Missing flags mask");
 		return -EINVAL;
+	}
 
 	key = be32_to_cpu(nla_get_u32(tb[TCA_FLOWER_KEY_FLAGS]));
 	mask = be32_to_cpu(nla_get_u32(tb[TCA_FLOWER_KEY_FLAGS_MASK]));
@@ -1474,7 +1476,8 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 		return ret;
 
 	if (tb[TCA_FLOWER_KEY_FLAGS])
-		ret = fl_set_key_flags(tb, &key->control.flags, &mask->control.flags);
+		ret = fl_set_key_flags(tb, &key->control.flags,
+				       &mask->control.flags, extack);
 
 	return ret;
 }
