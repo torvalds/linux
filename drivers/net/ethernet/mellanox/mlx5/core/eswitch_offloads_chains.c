@@ -730,7 +730,8 @@ mlx5_esw_chains_get_tc_end_ft(struct mlx5_eswitch *esw)
 struct mlx5_flow_table *
 mlx5_esw_chains_create_global_table(struct mlx5_eswitch *esw)
 {
-	int chain, prio, level, err;
+	u32 chain, prio, level;
+	int err;
 
 	if (!fdb_ignore_flow_level_supported(esw)) {
 		err = -EOPNOTSUPP;
