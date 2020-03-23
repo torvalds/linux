@@ -324,6 +324,7 @@ unlock:
 static int sprd_efuse_write(void *context, u32 offset, void *val, size_t bytes)
 {
 	struct sprd_efuse *efuse = context;
+	bool blk_double = efuse->data->blk_double;
 	bool lock;
 	int ret;
 
@@ -348,7 +349,7 @@ static int sprd_efuse_write(void *context, u32 offset, void *val, size_t bytes)
 	else
 		lock = true;
 
-	ret = sprd_efuse_raw_prog(efuse, offset, false, lock, val);
+	ret = sprd_efuse_raw_prog(efuse, offset, blk_double, lock, val);
 
 	clk_disable_unprepare(efuse->clk);
 
