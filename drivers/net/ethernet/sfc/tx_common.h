@@ -21,6 +21,12 @@ void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 			unsigned int *pkts_compl,
 			unsigned int *bytes_compl);
 
+static inline bool efx_tx_buffer_in_use(struct efx_tx_buffer *buffer)
+{
+	return buffer->len || (buffer->flags & EFX_TX_BUF_OPTION);
+}
+
+void efx_xmit_done_check_empty(struct efx_tx_queue *tx_queue);
 void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 
 void efx_enqueue_unwind(struct efx_tx_queue *tx_queue,

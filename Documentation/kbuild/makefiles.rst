@@ -765,7 +765,7 @@ is not sufficient this sometimes needs to be explicit.
 	Example::
 
 		#arch/x86/boot/Makefile
-		subdir- := compressed/
+		subdir- := compressed
 
 The above assignment instructs kbuild to descend down in the
 directory compressed/ when "make clean" is executed.
@@ -924,7 +924,7 @@ When kbuild executes, the following steps are followed (roughly):
 	$(KBUILD_AFLAGS_MODULE) is used to add arch-specific options that
 	are used for assembler.
 
-	From commandline AFLAGS_MODULE shall be used (see kbuild.txt).
+	From commandline AFLAGS_MODULE shall be used (see kbuild.rst).
 
     KBUILD_CFLAGS_KERNEL
 	$(CC) options specific for built-in
@@ -937,7 +937,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	$(KBUILD_CFLAGS_MODULE) is used to add arch-specific options that
 	are used for $(CC).
-	From commandline CFLAGS_MODULE shall be used (see kbuild.txt).
+	From commandline CFLAGS_MODULE shall be used (see kbuild.rst).
 
     KBUILD_LDFLAGS_MODULE
 	Options for $(LD) when linking modules
@@ -945,7 +945,7 @@ When kbuild executes, the following steps are followed (roughly):
 	$(KBUILD_LDFLAGS_MODULE) is used to add arch-specific options
 	used when linking modules. This is often a linker script.
 
-	From commandline LDFLAGS_MODULE shall be used (see kbuild.txt).
+	From commandline LDFLAGS_MODULE shall be used (see kbuild.rst).
 
     KBUILD_LDS
 
@@ -1378,9 +1378,6 @@ See subsequent chapter for the syntax of the Kbuild file.
 	This works like optional generic-y. If a mandatory header is missing
 	in arch/$(ARCH)/include/(uapi/)/asm, Kbuild will automatically generate
 	a wrapper of the asm-generic one.
-
-	The convention is to list one subdir per line and
-	preferably in alphabetic order.
 
 8 Kbuild Variables
 ==================

@@ -237,7 +237,7 @@ This is solely useful to speed up test compiles.
 KBUILD_EXTRA_SYMBOLS
 --------------------
 For modules that use symbols from other modules.
-See more details in modules.txt.
+See more details in modules.rst.
 
 ALLSOURCE_ARCHS
 ---------------

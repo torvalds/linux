@@ -10982,13 +10982,13 @@ static int bnxt_change_mtu(struct net_device *dev, int new_mtu)
 	struct bnxt *bp = netdev_priv(dev);
 
 	if (netif_running(dev))
-		bnxt_close_nic(bp, false, false);
+		bnxt_close_nic(bp, true, false);
 
 	dev->mtu = new_mtu;
 	bnxt_set_ring_params(bp);
 
 	if (netif_running(dev))
-		return bnxt_open_nic(bp, false, false);
+		return bnxt_open_nic(bp, true, false);
 
 	return 0;
 }
@@ -11252,7 +11252,7 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 		}
 	}
 	if (test_and_clear_bit(BNXT_HWRM_PF_UNLOAD_SP_EVENT, &bp->sp_event))
-		netdev_info(bp->dev, "Receive PF driver unload event!");
+		netdev_info(bp->dev, "Receive PF driver unload event!\n");
 }
 
 #else
@@ -11759,7 +11759,7 @@ static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])
 	u32 dw;
 
 	if (!pos) {
-		netdev_info(bp->dev, "Unable do read adapter's DSN");
+		netdev_info(bp->dev, "Unable do read adapter's DSN\n");
 		return -EOPNOTSUPP;
 	}
 

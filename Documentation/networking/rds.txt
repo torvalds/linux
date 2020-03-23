@@ -159,7 +159,7 @@ Socket Interface
 	set SO_RDS_TRANSPORT on a socket for which the transport has
 	been previously attached explicitly (by SO_RDS_TRANSPORT) or
 	implicitly (via bind(2)) will return an error of EOPNOTSUPP.
-	An attempt to set SO_RDS_TRANSPPORT to RDS_TRANS_NONE will
+	An attempt to set SO_RDS_TRANSPORT to RDS_TRANS_NONE will
 	always return EINVAL.
 
 RDMA for RDS

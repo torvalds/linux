@@ -505,7 +505,7 @@ struct i915_psr {
 	bool dc3co_enabled;
 	u32 dc3co_exit_delay;
 	struct delayed_work idle_work;
-	bool initially_probed;
+	bool force_mode_changed;
 };
 
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)

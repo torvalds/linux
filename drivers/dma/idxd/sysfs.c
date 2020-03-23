@@ -124,6 +124,7 @@ static int idxd_config_bus_probe(struct device *dev)
 		rc = idxd_device_config(idxd);
 		if (rc < 0) {
 			spin_unlock_irqrestore(&idxd->dev_lock, flags);
+			module_put(THIS_MODULE);
 			dev_warn(dev, "Device config failed: %d\n", rc);
 			return rc;
 		}
@@ -132,6 +133,7 @@ static int idxd_config_bus_probe(struct device *dev)
 		rc = idxd_device_enable(idxd);
 		if (rc < 0) {
 			spin_unlock_irqrestore(&idxd->dev_lock, flags);
+			module_put(THIS_MODULE);
 			dev_warn(dev, "Device enable failed: %d\n", rc);
 			return rc;
 		}
@@ -142,6 +144,7 @@ static int idxd_config_bus_probe(struct device *dev)
 		rc = idxd_register_dma_device(idxd);
 		if (rc < 0) {
 			spin_unlock_irqrestore(&idxd->dev_lock, flags);
+			module_put(THIS_MODULE);
 			dev_dbg(dev, "Failed to register dmaengine device\n");
 			return rc;
 		}
@@ -516,7 +519,7 @@ static ssize_t group_tokens_reserved_store(struct device *dev,
 	if (val > idxd->max_tokens)
 		return -EINVAL;
 
-	if (val > idxd->nr_tokens)
+	if (val > idxd->nr_tokens + group->tokens_reserved)
 		return -EINVAL;
 
 	group->tokens_reserved = val;
@@ -901,6 +904,20 @@ static ssize_t wq_size_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", wq->size);
 }
 
+static int total_claimed_wq_size(struct idxd_device *idxd)
+{
+	int i;
+	int wq_size = 0;
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		struct idxd_wq *wq = &idxd->wqs[i];
+
+		wq_size += wq->size;
+	}
+
+	return wq_size;
+}
+
 static ssize_t wq_size_store(struct device *dev,
 			     struct device_attribute *attr, const char *buf,
 			     size_t count)
@@ -920,7 +937,7 @@ static ssize_t wq_size_store(struct device *dev,
 	if (wq->state != IDXD_WQ_DISABLED)
 		return -EPERM;
 
-	if (size > idxd->max_wq_size)
+	if (size + total_claimed_wq_size(idxd) - wq->size > idxd->max_wq_size)
 		return -EINVAL;
 
 	wq->size = size;
@@ -999,12 +1016,14 @@ static ssize_t wq_type_store(struct device *dev,
 		return -EPERM;
 
 	old_type = wq->type;
-	if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_KERNEL]))
+	if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_NONE]))
+		wq->type = IDXD_WQT_NONE;
+	else if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_KERNEL]))
 		wq->type = IDXD_WQT_KERNEL;
 	else if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_USER]))
 		wq->type = IDXD_WQT_USER;
 	else
-		wq->type = IDXD_WQT_NONE;
+		return -EINVAL;
 
 	/* If we are changing queue type, clear the name */
 	if (wq->type != old_type)

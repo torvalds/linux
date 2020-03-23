@@ -109,4 +109,4 @@ Example:
 		required-opps = <&domain1_opp_1>;
 	};
 
-[1]. Documentation/devicetree/bindings/power/domain-idle-state.txt
+[1]. Documentation/devicetree/bindings/power/domain-idle-state.yaml

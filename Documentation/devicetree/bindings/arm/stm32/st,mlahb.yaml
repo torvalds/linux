@@ -52,7 +52,7 @@ required:
 
 examples:
   - |
-    mlahb: ahb {
+    mlahb: ahb@38000000 {
       compatible = "st,mlahb", "simple-bus";
       #address-cells = <1>;
       #size-cells = <1>;

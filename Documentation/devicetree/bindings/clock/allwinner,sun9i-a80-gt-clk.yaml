@@ -41,7 +41,7 @@ additionalProperties: false
 
 examples:
   - |
-    clk@0600005c {
+    clk@600005c {
         #clock-cells = <0>;
         compatible = "allwinner,sun9i-a80-gt-clk";
         reg = <0x0600005c 0x4>;
