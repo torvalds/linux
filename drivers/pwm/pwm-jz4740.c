@@ -112,28 +112,42 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			    const struct pwm_state *state)
 {
 	struct jz4740_pwm_chip *jz4740 = to_jz4740(pwm->chip);
-	struct clk *clk = pwm_get_chip_data(pwm),
-		   *parent_clk = clk_get_parent(clk);
-	unsigned long rate, period, duty;
-	unsigned long long tmp;
-	unsigned int prescaler = 0;
+	unsigned long long tmp = 0xffffull * NSEC_PER_SEC;
+	struct clk *clk = pwm_get_chip_data(pwm);
+	unsigned long period, duty;
 	uint16_t ctrl;
+	long rate;
 	int err;
 
-	rate = clk_get_rate(parent_clk);
-	tmp = (unsigned long long)rate * state->period;
-	do_div(tmp, 1000000000);
-	period = tmp;
+	/*
+	 * Limit the clock to a maximum rate that still gives us a period value
+	 * which fits in 16 bits.
+	 */
+	do_div(tmp, state->period);
 
-	while (period > 0xffff && prescaler < 6) {
-		period >>= 2;
-		rate >>= 2;
-		++prescaler;
+	/*
+	 * /!\ IMPORTANT NOTE:
+	 * -------------------
+	 * This code relies on the fact that clk_round_rate() will always round
+	 * down, which is not a valid assumption given by the clk API, but only
+	 * happens to be true with the clk drivers used for Ingenic SoCs.
+	 *
+	 * Right now, there is no alternative as the clk API does not have a
+	 * round-down function (and won't have one for a while), but if it ever
+	 * comes to light, a round-down function should be used instead.
+	 */
+	rate = clk_round_rate(clk, tmp);
+	if (rate < 0) {
+		dev_err(chip->dev, "Unable to round rate: %ld", rate);
+		return rate;
 	}
 
-	if (prescaler == 6)
-		return -EINVAL;
+	/* Calculate period value */
+	tmp = (unsigned long long)rate * state->period;
+	do_div(tmp, NSEC_PER_SEC);
+	period = (unsigned long)tmp;
 
+	/* Calculate duty value */
 	tmp = (unsigned long long)period * state->duty_cycle;
 	do_div(tmp, state->period);
 	duty = period - tmp;
