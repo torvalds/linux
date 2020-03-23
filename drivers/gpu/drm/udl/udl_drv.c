@@ -37,7 +37,6 @@ DEFINE_DRM_GEM_FOPS(udl_driver_fops);
 static void udl_driver_release(struct drm_device *dev)
 {
 	udl_fini(dev);
-	udl_modeset_cleanup(dev);
 }
 
 static struct drm_driver driver = {

@@ -468,7 +468,9 @@ int udl_modeset_init(struct drm_device *dev)
 	struct drm_connector *connector;
 	int ret;
 
-	drm_mode_config_init(dev);
+	ret = drmm_mode_config_init(dev);
+	if (ret)
+		return ret;
 
 	dev->mode_config.min_width = 640;
 	dev->mode_config.min_height = 480;
@@ -482,10 +484,8 @@ int udl_modeset_init(struct drm_device *dev)
 	dev->mode_config.funcs = &udl_mode_funcs;
 
 	connector = udl_connector_init(dev);
-	if (IS_ERR(connector)) {
-		ret = PTR_ERR(connector);
-		goto err_drm_mode_config_cleanup;
-	}
+	if (IS_ERR(connector))
+		return PTR_ERR(connector);
 
 	format_count = ARRAY_SIZE(udl_simple_display_pipe_formats);
 
@@ -494,18 +494,9 @@ int udl_modeset_init(struct drm_device *dev)
 					   udl_simple_display_pipe_formats,
 					   format_count, NULL, connector);
 	if (ret)
-		goto err_drm_mode_config_cleanup;
+		return ret;
 
 	drm_mode_config_reset(dev);
 
 	return 0;
-
-err_drm_mode_config_cleanup:
-	drm_mode_config_cleanup(dev);
-	return ret;
-}
-
-void udl_modeset_cleanup(struct drm_device *dev)
-{
-	drm_mode_config_cleanup(dev);
 }
