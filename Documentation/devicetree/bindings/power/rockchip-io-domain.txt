@@ -44,6 +44,7 @@ Required properties:
   - "rockchip,rk3399-pmu-io-voltage-domain" for rk3399 pmu-domains
   - "rockchip,rv1108-io-voltage-domain" for rv1108
   - "rockchip,rv1108-pmu-io-voltage-domain" for rv1108 pmu-domains
+  - "rockchip,rv1126-pmu-io-voltage-domain" for rv1126 pmu-domains
 
 Deprecated properties:
 - rockchip,grf: phandle to the syscon managing the "general register files"
@@ -117,6 +118,17 @@ Possible supplies for rk3399:
 
 Possible supplies for rk3399 pmu-domains:
 - pmu1830-supply:The supply connected to PMUIO2_VDD.
+
+Possible supplies for rv1126 pmu-domains:
+- vccio1-supply:The supply connected to VCCIO1_VDD.
+- vccio2-supply:The supply connected to VCCIO2_VDD.
+- vccio3-supply:The supply connected to VCCIO3_VDD.
+- vccio4-supply:The supply connected to VCCIO4_VDD.
+- vccio5-supply:The supply connected to VCCIO5_VDD.
+- vccio6-supply:The supply connected to VCCIO6_VDD.
+- vccio7-supply:The supply connected to VCCIO7_VDD.
+- pmuio1-supply:The supply connected to PMUIO1_VDD.
+- pmuio2-supply:The supply connected to PMUIO2_VDD.
 
 Example:
 
