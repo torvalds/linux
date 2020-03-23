@@ -1337,6 +1337,15 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 	ret = dwc3_send_gadget_ep_cmd(dep, cmd, &params);
 	if (ret < 0) {
 		/*
+		 * Isochronous endpoints in request needs to
+		 * return directly and retry to transfer next
+		 * time. Otherwise, it will fail to giveback
+		 * the req to the udc gadget driver.
+		 */
+		if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
+		    usb_endpoint_dir_in(dep->endpoint.desc))
+			return ret;
+		/*
 		 * FIXME we need to iterate over the list of requests
 		 * here and stop, unmap, free and del each of the linked
 		 * requests instead of what we do now.
@@ -2553,6 +2562,7 @@ static int dwc3_gadget_ep_cleanup_completed_request(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event,
 		struct dwc3_request *req, int status)
 {
+	struct dwc3 *dwc = dep->dwc;
 	int ret;
 
 	if (req->num_pending_sgs)
@@ -2570,9 +2580,25 @@ static int dwc3_gadget_ep_cleanup_completed_request(struct dwc3_ep *dep,
 
 	req->request.actual = req->request.length - req->remaining;
 
-	if (!dwc3_gadget_ep_request_completed(req) ||
-			req->num_pending_sgs) {
-		__dwc3_gadget_kick_transfer(dep);
+	if (!dwc3_gadget_ep_request_completed(req) || req->num_pending_sgs ||
+	    event->status & DEPEVT_STATUS_MISSED_ISOC) {
+		if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
+			/*
+			 * unmap isoc request and move the request
+			 * to the pending list to wait for kicking
+			 * transfer again.
+			 */
+			req->remaining = 0;
+			req->needs_extra_trb = false;
+			if (req->trb)
+				usb_gadget_unmap_request_by_dev(dwc->sysdev,
+								&req->request,
+								req->direction);
+			req->trb = NULL;
+			dwc3_gadget_move_queued_request(req);
+		} else {
+			__dwc3_gadget_kick_transfer(dep);
+		}
 		goto out;
 	}
 
@@ -2609,23 +2635,19 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
 {
 	struct dwc3		*dwc = dep->dwc;
 	unsigned		status = 0;
-	bool			stop = false;
 
 	dwc3_gadget_endpoint_frame_from_event(dep, event);
 
 	if (event->status & DEPEVT_STATUS_BUSERR)
 		status = -ECONNRESET;
 
-	if (event->status & DEPEVT_STATUS_MISSED_ISOC) {
+	if (event->status & DEPEVT_STATUS_MISSED_ISOC)
 		status = -EXDEV;
-
-		if (list_empty(&dep->started_list))
-			stop = true;
-	}
 
 	dwc3_gadget_ep_cleanup_completed_requests(dep, event, status);
 
-	if (stop) {
+	if (event->status & DEPEVT_STATUS_MISSED_ISOC &&
+	    list_empty(&dep->started_list)) {
 		dwc3_stop_active_transfer(dep, true, true);
 		dep->flags = DWC3_EP_ENABLED;
 	}
