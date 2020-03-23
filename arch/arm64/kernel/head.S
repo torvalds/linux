@@ -600,7 +600,7 @@ set_hcr:
 	isb
 	ret
 
-install_el2_stub:
+SYM_INNER_LABEL(install_el2_stub, SYM_L_LOCAL)
 	/*
 	 * When VHE is not in use, early init of EL2 and EL1 needs to be
 	 * done here.
