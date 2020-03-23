@@ -210,6 +210,10 @@
 	pmugrf: syscon@fe020000 {
 		compatible = "rockchip,rv1126-pmugrf", "syscon";
 		reg = <0xfe020000 0x1000>;
+
+		pmu_io_domains: io-domains {
+			compatible = "rockchip,rv1126-pmu-io-voltage-domain";
+		};
 	};
 
 	qos_usb_host: qos@fe810000 {
