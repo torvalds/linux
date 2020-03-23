@@ -1066,9 +1066,9 @@ int bmp280_common_probe(struct device *dev,
 	usleep_range(data->start_up_time, data->start_up_time + 100);
 
 	/* Bring chip out of reset if there is an assigned GPIO line */
-	gpiod = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	gpiod = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	/* Deassert the signal */
-	if (!IS_ERR(gpiod)) {
+	if (gpiod) {
 		dev_info(dev, "release reset\n");
 		gpiod_set_value(gpiod, 0);
 	}
