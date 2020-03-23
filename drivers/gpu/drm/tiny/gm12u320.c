@@ -160,7 +160,7 @@ static int gm12u320_usb_alloc(struct gm12u320_device *gm12u320)
 	int i, block_size;
 	const char *hdr;
 
-	gm12u320->cmd_buf = kmalloc(CMD_SIZE, GFP_KERNEL);
+	gm12u320->cmd_buf = drmm_kmalloc(&gm12u320->dev, CMD_SIZE, GFP_KERNEL);
 	if (!gm12u320->cmd_buf)
 		return -ENOMEM;
 
@@ -173,7 +173,8 @@ static int gm12u320_usb_alloc(struct gm12u320_device *gm12u320)
 			hdr = data_block_header;
 		}
 
-		gm12u320->data_buf[i] = kzalloc(block_size, GFP_KERNEL);
+		gm12u320->data_buf[i] = drmm_kzalloc(&gm12u320->dev,
+						     block_size, GFP_KERNEL);
 		if (!gm12u320->data_buf[i])
 			return -ENOMEM;
 
@@ -192,15 +193,8 @@ static int gm12u320_usb_alloc(struct gm12u320_device *gm12u320)
 
 static void gm12u320_usb_free(struct gm12u320_device *gm12u320)
 {
-	int i;
-
 	if (gm12u320->fb_update.workq)
 		destroy_workqueue(gm12u320->fb_update.workq);
-
-	for (i = 0; i < GM12U320_BLOCK_COUNT; i++)
-		kfree(gm12u320->data_buf[i]);
-
-	kfree(gm12u320->cmd_buf);
 }
 
 static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
@@ -636,7 +630,6 @@ static void gm12u320_driver_release(struct drm_device *dev)
 	struct gm12u320_device *gm12u320 = dev->dev_private;
 
 	gm12u320_usb_free(gm12u320);
-	drm_mode_config_cleanup(dev);
 }
 
 DEFINE_DRM_GEM_FOPS(gm12u320_fops);
@@ -693,7 +686,10 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 	dev->dev_private = gm12u320;
 	drmm_add_final_kfree(dev, gm12u320);
 
-	drm_mode_config_init(dev);
+	ret = drmm_mode_config_init(dev);
+	if (ret)
+		goto err_put;
+
 	dev->mode_config.min_width = GM12U320_USER_WIDTH;
 	dev->mode_config.max_width = GM12U320_USER_WIDTH;
 	dev->mode_config.min_height = GM12U320_HEIGHT;
