@@ -39,6 +39,7 @@
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mode_object.h>
 #include <drm/drm_print.h>
 
@@ -818,6 +819,8 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 		kfree(dev);
 		return ERR_PTR(ret);
 	}
+
+	drmm_add_final_kfree(dev, dev);
 
 	return dev;
 }
