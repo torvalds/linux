@@ -55,7 +55,7 @@ static int bcm63xx_pcm_hw_params(struct snd_soc_component *component,
 	if (!dma_desc)
 		return -ENOMEM;
 
-	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_desc);
+	snd_soc_dai_set_dma_data(asoc_rtd_to_cpu(rtd, 0), substream, dma_desc);
 
 	return 0;
 }
@@ -66,7 +66,7 @@ static int bcm63xx_pcm_hw_free(struct snd_soc_component *component,
 	struct i2s_dma_desc	*dma_desc;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 
-	dma_desc = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	dma_desc = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
 	kfree(dma_desc);
 	snd_pcm_set_runtime_buffer(substream, NULL);
 
@@ -82,7 +82,7 @@ static int bcm63xx_pcm_trigger(struct snd_soc_component *component,
 	struct regmap   *regmap_i2s;
 
 	rtd = substream->private_data;
-	i2s_priv = dev_get_drvdata(rtd->cpu_dai->dev);
+	i2s_priv = dev_get_drvdata(asoc_rtd_to_cpu(rtd, 0)->dev);
 	regmap_i2s = i2s_priv->regmap_i2s;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -152,7 +152,7 @@ static int bcm63xx_pcm_prepare(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	uint32_t regaddr_desclen, regaddr_descaddr;
 
-	dma_desc = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	dma_desc = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
 	dma_desc->dma_len  = snd_pcm_lib_period_bytes(substream);
 	dma_desc->dma_addr = runtime->dma_addr;
 	dma_desc->dma_area = runtime->dma_area;
@@ -165,7 +165,7 @@ static int bcm63xx_pcm_prepare(struct snd_soc_component *component,
 		regaddr_descaddr = I2S_RX_DESC_IFF_ADDR;
 	}
 
-	i2s_priv = dev_get_drvdata(rtd->cpu_dai->dev);
+	i2s_priv = dev_get_drvdata(asoc_rtd_to_cpu(rtd, 0)->dev);
 	regmap_i2s = i2s_priv->regmap_i2s;
 
 	regmap_write(regmap_i2s, regaddr_desclen, dma_desc->dma_len);
@@ -269,7 +269,7 @@ static irqreturn_t i2s_dma_isr(int irq, void *bcm_i2s_priv)
 		runtime = substream->runtime;
 		rtd = substream->private_data;
 		prtd = runtime->private_data;
-		dma_desc = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+		dma_desc = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
 
 		offlevel = (int_status & I2S_RX_DESC_OFF_LEVEL_MASK) >>
 			   I2S_RX_DESC_OFF_LEVEL_SHIFT;
@@ -317,7 +317,7 @@ static irqreturn_t i2s_dma_isr(int irq, void *bcm_i2s_priv)
 		runtime = substream->runtime;
 		rtd = substream->private_data;
 		prtd = runtime->private_data;
-		dma_desc = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+		dma_desc = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
 
 		offlevel = (int_status & I2S_TX_DESC_OFF_LEVEL_MASK) >>
 			   I2S_TX_DESC_OFF_LEVEL_SHIFT;
@@ -388,7 +388,7 @@ static int bcm63xx_soc_pcm_new(struct snd_soc_component *component,
 	struct bcm_i2s_priv *i2s_priv;
 	int ret;
 
-	i2s_priv = dev_get_drvdata(rtd->cpu_dai->dev);
+	i2s_priv = dev_get_drvdata(asoc_rtd_to_cpu(rtd, 0)->dev);
 
 	of_dma_configure(pcm->card->dev, pcm->card->dev->of_node, 1);
 
