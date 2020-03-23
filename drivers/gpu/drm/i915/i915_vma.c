@@ -1097,6 +1097,7 @@ void i915_vma_release(struct kref *ref)
 void i915_vma_parked(struct intel_gt *gt)
 {
 	struct i915_vma *vma, *next;
+	LIST_HEAD(closed);
 
 	spin_lock_irq(&gt->closed_lock);
 	list_for_each_entry_safe(vma, next, &gt->closed_vma, closed_link) {
@@ -1108,28 +1109,26 @@ void i915_vma_parked(struct intel_gt *gt)
 		if (!kref_get_unless_zero(&obj->base.refcount))
 			continue;
 
-		if (i915_vm_tryopen(vm)) {
-			list_del_init(&vma->closed_link);
-		} else {
+		if (!i915_vm_tryopen(vm)) {
 			i915_gem_object_put(obj);
-			obj = NULL;
+			continue;
 		}
 
-		spin_unlock_irq(&gt->closed_lock);
-
-		if (obj) {
-			__i915_vma_put(vma);
-			i915_gem_object_put(obj);
-		}
-
-		i915_vm_close(vm);
-
-		/* Restart after dropping lock */
-		spin_lock_irq(&gt->closed_lock);
-		next = list_first_entry(&gt->closed_vma,
-					typeof(*next), closed_link);
+		list_move(&vma->closed_link, &closed);
 	}
 	spin_unlock_irq(&gt->closed_lock);
+
+	/* As the GT is held idle, no vma can be reopened as we destroy them */
+	list_for_each_entry_safe(vma, next, &closed, closed_link) {
+		struct drm_i915_gem_object *obj = vma->obj;
+		struct i915_address_space *vm = vma->vm;
+
+		INIT_LIST_HEAD(&vma->closed_link);
+		__i915_vma_put(vma);
+
+		i915_gem_object_put(obj);
+		i915_vm_close(vm);
+	}
 }
 
 static void __i915_vma_iounmap(struct i915_vma *vma)
