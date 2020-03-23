@@ -282,7 +282,6 @@ void drm_minor_release(struct drm_minor *minor)
  *		struct driver_device *priv = container_of(...);
  *
  *		drm_mode_config_cleanup(drm);
- *		drm_dev_fini(drm);
  *	}
  *
  *	static struct drm_driver driver_drm_driver = {
@@ -738,23 +737,6 @@ int devm_drm_dev_init(struct device *parent,
 EXPORT_SYMBOL(devm_drm_dev_init);
 
 /**
- * drm_dev_fini - Finalize a dead DRM device
- * @dev: DRM device
- *
- * Finalize a dead DRM device. This is the converse to drm_dev_init() and
- * frees up all data allocated by it. All driver private data should be
- * finalized first. Note that this function does not free the @dev, that is
- * left to the caller.
- *
- * The ref-count of @dev must be zero, and drm_dev_fini() should only be called
- * from a &drm_driver.release callback.
- */
-void drm_dev_fini(struct drm_device *dev)
-{
-}
-EXPORT_SYMBOL(drm_dev_fini);
-
-/**
  * drm_dev_alloc - Allocate new DRM device
  * @driver: DRM driver to allocate device for
  * @parent: Parent device object
@@ -804,8 +786,6 @@ static void drm_dev_release(struct kref *ref)
 
 	if (dev->driver->release)
 		dev->driver->release(dev);
-	else
-		drm_dev_fini(dev);
 
 	drm_managed_release(dev);
 
