@@ -510,11 +510,15 @@ static const struct drm_mode_config_funcs cirrus_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static void cirrus_mode_config_init(struct cirrus_device *cirrus)
+static int cirrus_mode_config_init(struct cirrus_device *cirrus)
 {
 	struct drm_device *dev = &cirrus->dev;
+	int ret;
 
-	drm_mode_config_init(dev);
+	ret = drmm_mode_config_init(dev);
+	if (ret)
+		return ret;
+
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
 	dev->mode_config.max_width = CIRRUS_MAX_PITCH / 2;
@@ -522,14 +526,11 @@ static void cirrus_mode_config_init(struct cirrus_device *cirrus)
 	dev->mode_config.preferred_depth = 16;
 	dev->mode_config.prefer_shadow = 0;
 	dev->mode_config.funcs = &cirrus_mode_config_funcs;
+
+	return 0;
 }
 
 /* ------------------------------------------------------------------ */
-
-static void cirrus_release(struct drm_device *dev)
-{
-	drm_mode_config_cleanup(dev);
-}
 
 DEFINE_DRM_GEM_FOPS(cirrus_fops);
 
@@ -544,7 +545,6 @@ static struct drm_driver cirrus_driver = {
 
 	.fops		 = &cirrus_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,
-	.release         = cirrus_release,
 };
 
 static int cirrus_pci_probe(struct pci_dev *pdev,
@@ -591,7 +591,9 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	if (cirrus->mmio == NULL)
 		goto err_unmap_vram;
 
-	cirrus_mode_config_init(cirrus);
+	ret = cirrus_mode_config_init(cirrus);
+	if (ret)
+		goto err_cleanup;
 
 	ret = cirrus_conn_init(cirrus);
 	if (ret < 0)
@@ -613,7 +615,6 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 err_cleanup:
-	drm_mode_config_cleanup(dev);
 	iounmap(cirrus->mmio);
 err_unmap_vram:
 	iounmap(cirrus->vram);
