@@ -575,57 +575,38 @@ static int bmp280_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static ssize_t bmp280_show_avail(char *buf, const int *vals, const int n)
+static int bmp280_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long mask)
 {
-	size_t len = 0;
-	int i;
+	struct bmp280_data *data = iio_priv(indio_dev);
 
-	for (i = 0; i < n; i++)
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%d ", vals[i]);
-
-	buf[len - 1] = '\n';
-
-	return len;
+	switch (mask) {
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		switch (chan->type) {
+		case IIO_PRESSURE:
+			*vals = data->chip_info->oversampling_press_avail;
+			*length = data->chip_info->num_oversampling_press_avail;
+			break;
+		case IIO_TEMP:
+			*vals = data->chip_info->oversampling_temp_avail;
+			*length = data->chip_info->num_oversampling_temp_avail;
+			break;
+		default:
+			return -EINVAL;
+		}
+		*type = IIO_VAL_INT;
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
 }
-
-static ssize_t bmp280_show_temp_oversampling_avail(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct bmp280_data *data = iio_priv(dev_to_iio_dev(dev));
-
-	return bmp280_show_avail(buf, data->chip_info->oversampling_temp_avail,
-				 data->chip_info->num_oversampling_temp_avail);
-}
-
-static ssize_t bmp280_show_press_oversampling_avail(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct bmp280_data *data = iio_priv(dev_to_iio_dev(dev));
-
-	return bmp280_show_avail(buf, data->chip_info->oversampling_press_avail,
-				 data->chip_info->num_oversampling_press_avail);
-}
-
-static IIO_DEVICE_ATTR(in_temp_oversampling_ratio_available,
-	S_IRUGO, bmp280_show_temp_oversampling_avail, NULL, 0);
-
-static IIO_DEVICE_ATTR(in_pressure_oversampling_ratio_available,
-	S_IRUGO, bmp280_show_press_oversampling_avail, NULL, 0);
-
-static struct attribute *bmp280_attributes[] = {
-	&iio_dev_attr_in_temp_oversampling_ratio_available.dev_attr.attr,
-	&iio_dev_attr_in_pressure_oversampling_ratio_available.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group bmp280_attrs_group = {
-	.attrs = bmp280_attributes,
-};
 
 static const struct iio_info bmp280_info = {
 	.read_raw = &bmp280_read_raw,
+	.read_avail = &bmp280_read_avail,
 	.write_raw = &bmp280_write_raw,
-	.attrs = &bmp280_attrs_group,
 };
 
 static int bmp280_chip_config(struct bmp280_data *data)
