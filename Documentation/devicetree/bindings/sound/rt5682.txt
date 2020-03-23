@@ -38,6 +38,12 @@ Optional properties:
 - clocks : phandle and clock specifier for codec MCLK.
 - clock-names : Clock name string for 'clocks' attribute, should be "mclk".
 
+- realtek,dmic-clk-rate-hz : Set the clock rate (hz) for the requirement of
+  the particular DMIC.
+
+- realtek,dmic-delay-ms : Set the delay time (ms) for the requirement of
+  the particular DMIC.
+
 Pins on the device (for linking into audio routes) for RT5682:
 
   * DMIC L1
