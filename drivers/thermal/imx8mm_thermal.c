@@ -75,15 +75,14 @@ static int imx8mp_tmu_get_temp(void *data, int *temp)
 {
 	struct tmu_sensor *sensor = data;
 	struct imx8mm_tmu *tmu = sensor->priv;
+	unsigned long val;
 	bool ready;
-	u32 val;
 
-	ready = test_bit(probe_status_offset(sensor->hw_id),
-			 tmu->base + TRITSR);
+	val = readl_relaxed(tmu->base + TRITSR);
+	ready = test_bit(probe_status_offset(sensor->hw_id), &val);
 	if (!ready)
 		return -EAGAIN;
 
-	val = readl_relaxed(tmu->base + TRITSR);
 	val = sensor->hw_id ? FIELD_GET(TRITSR_TEMP1_VAL_MASK, val) :
 	      FIELD_GET(TRITSR_TEMP0_VAL_MASK, val);
 	if (val & SIGN_BIT) /* negative */
