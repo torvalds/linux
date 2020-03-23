@@ -31,12 +31,16 @@ properties:
     maxItems: 1
 
   clocks:
+    minItems: 1
     items:
       - description: APB interface clock source
+      - description: DW GPIO debounce reference clock source
 
   clock-names:
+    minItems: 1
     items:
       - const: bus
+      - const: db
 
   resets:
     maxItems: 1
