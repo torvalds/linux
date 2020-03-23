@@ -350,7 +350,7 @@ void intel_context_enter_engine(struct intel_context *ce)
 void intel_context_exit_engine(struct intel_context *ce)
 {
 	intel_timeline_exit(ce->timeline);
-	intel_engine_pm_put(ce->engine);
+	intel_engine_pm_put_delay(ce->engine, 1);
 }
 
 int intel_context_prepare_remote_request(struct intel_context *ce,
