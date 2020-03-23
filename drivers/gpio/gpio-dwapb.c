@@ -62,6 +62,8 @@
 #define GPIO_INTSTATUS_V2	0x3c
 #define GPIO_PORTA_EOI_V2	0x40
 
+#define DWAPB_NR_CLOCKS		2
+
 struct dwapb_gpio;
 
 #ifdef CONFIG_PM_SLEEP
@@ -97,7 +99,7 @@ struct dwapb_gpio {
 	struct irq_domain	*domain;
 	unsigned int		flags;
 	struct reset_control	*rst;
-	struct clk		*clk;
+	struct clk_bulk_data	clks[DWAPB_NR_CLOCKS];
 };
 
 static inline u32 gpio_reg_v2_convert(unsigned int offset)
@@ -689,16 +691,19 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gpio->regs))
 		return PTR_ERR(gpio->regs);
 
-	/* Optional bus clock */
-	gpio->clk = devm_clk_get_optional(&pdev->dev, "bus");
-	if (IS_ERR(gpio->clk)) {
-		dev_err(&pdev->dev, "Cannot get APB clock\n");
-		return PTR_ERR(gpio->clk);
+	/* Optional bus and debounce clocks */
+	gpio->clks[0].id = "bus";
+	gpio->clks[1].id = "db";
+	err = devm_clk_bulk_get_optional(&pdev->dev, DWAPB_NR_CLOCKS,
+					 gpio->clks);
+	if (err) {
+		dev_err(&pdev->dev, "Cannot get APB/Debounce clocks\n");
+		return err;
 	}
 
-	err = clk_prepare_enable(gpio->clk);
+	err = clk_bulk_prepare_enable(DWAPB_NR_CLOCKS, gpio->clks);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable APB clock\n");
+		dev_err(&pdev->dev, "Cannot enable APB/Debounce clocks\n");
 		return err;
 	}
 
@@ -727,7 +732,7 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 out_unregister:
 	dwapb_gpio_unregister(gpio);
 	dwapb_irq_teardown(gpio);
-	clk_disable_unprepare(gpio->clk);
+	clk_bulk_disable_unprepare(DWAPB_NR_CLOCKS, gpio->clks);
 
 	return err;
 }
@@ -739,7 +744,7 @@ static int dwapb_gpio_remove(struct platform_device *pdev)
 	dwapb_gpio_unregister(gpio);
 	dwapb_irq_teardown(gpio);
 	reset_control_assert(gpio->rst);
-	clk_disable_unprepare(gpio->clk);
+	clk_bulk_disable_unprepare(DWAPB_NR_CLOCKS, gpio->clks);
 
 	return 0;
 }
@@ -784,7 +789,7 @@ static int dwapb_gpio_suspend(struct device *dev)
 	}
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
-	clk_disable_unprepare(gpio->clk);
+	clk_bulk_disable_unprepare(DWAPB_NR_CLOCKS, gpio->clks);
 
 	return 0;
 }
@@ -794,9 +799,13 @@ static int dwapb_gpio_resume(struct device *dev)
 	struct dwapb_gpio *gpio = dev_get_drvdata(dev);
 	struct gpio_chip *gc	= &gpio->ports[0].gc;
 	unsigned long flags;
-	int i;
+	int i, err;
 
-	clk_prepare_enable(gpio->clk);
+	err = clk_bulk_prepare_enable(DWAPB_NR_CLOCKS, gpio->clks);
+	if (err) {
+		dev_err(gpio->dev, "Cannot reenable APB/Debounce clocks\n");
+		return err;
+	}
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 	for (i = 0; i < gpio->nr_ports; i++) {
