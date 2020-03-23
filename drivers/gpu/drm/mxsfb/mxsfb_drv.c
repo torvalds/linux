@@ -69,6 +69,11 @@ static const uint32_t mxsfb_formats[] = {
 	DRM_FORMAT_RGB565
 };
 
+static const uint64_t mxsfb_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 static struct mxsfb_drm_private *
 drm_pipe_to_mxsfb_drm_private(struct drm_simple_display_pipe *pipe)
 {
@@ -244,8 +249,8 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	}
 
 	ret = drm_simple_display_pipe_init(drm, &mxsfb->pipe, &mxsfb_funcs,
-			mxsfb_formats, ARRAY_SIZE(mxsfb_formats), NULL,
-			mxsfb->connector);
+			mxsfb_formats, ARRAY_SIZE(mxsfb_formats),
+			mxsfb_modifiers, mxsfb->connector);
 	if (ret < 0) {
 		dev_err(drm->dev, "Cannot setup simple display pipe\n");
 		goto err_vblank;
