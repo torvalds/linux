@@ -29,6 +29,13 @@
 #define I2C_PRODUCT_INFO_ADDR_SIZE	0x2
 #define I2C_PRODUCT_INFO_OFFSET		0xC0
 
+bool is_fru_eeprom_supported(struct amdgpu_device *adev)
+{
+	/* TODO: Resolve supported ASIC type */
+
+	return false;
+}
+
 int amdgpu_fru_read_eeprom(struct amdgpu_device *adev, uint32_t addrptr,
 			   unsigned char *buff)
 {
@@ -70,6 +77,9 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 {
 	unsigned char buff[32];
 	int addrptr = 0, size = 0;
+
+	if (!is_fru_eeprom_supported(adev))
+		return 0;
 
 	/* If algo exists, it means that the i2c_adapter's initialized */
 	if (!adev->pm.smu_i2c.algo) {
