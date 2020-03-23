@@ -909,13 +909,6 @@ static const struct drm_mode_config_funcs repaper_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static void repaper_release(struct drm_device *drm)
-{
-	DRM_DEBUG_DRIVER("\n");
-
-	drm_mode_config_cleanup(drm);
-}
-
 static const uint32_t repaper_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
@@ -953,7 +946,6 @@ DEFINE_DRM_GEM_CMA_FOPS(repaper_fops);
 static struct drm_driver repaper_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &repaper_fops,
-	.release		= repaper_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.name			= "repaper",
 	.desc			= "Pervasive Displays RePaper e-ink panels",
@@ -1023,7 +1015,9 @@ static int repaper_probe(struct spi_device *spi)
 	}
 	drmm_add_final_kfree(drm, epd);
 
-	drm_mode_config_init(drm);
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		return ret;
 	drm->mode_config.funcs = &repaper_mode_config_funcs;
 
 	epd->spi = spi;
