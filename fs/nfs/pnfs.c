@@ -2611,7 +2611,7 @@ EXPORT_SYMBOL_GPL(pnfs_generic_pg_check_layout);
  * Check for any intersection between the request and the pgio->pg_lseg,
  * and if none, put this pgio->pg_lseg away.
  */
-static void
+void
 pnfs_generic_pg_check_range(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 {
 	if (pgio->pg_lseg && !pnfs_lseg_request_intersecting(pgio->pg_lseg, req)) {
@@ -2619,6 +2619,7 @@ pnfs_generic_pg_check_range(struct nfs_pageio_descriptor *pgio, struct nfs_page 
 		pgio->pg_lseg = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(pnfs_generic_pg_check_range);
 
 void
 pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
