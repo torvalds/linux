@@ -481,7 +481,7 @@ eb_add_vma(struct i915_execbuffer *eb,
 
 	GEM_BUG_ON(i915_vma_is_closed(vma));
 
-	ev->vma = i915_vma_get(vma);
+	ev->vma = vma;
 	ev->exec = entry;
 	ev->flags = entry->flags;
 
@@ -728,77 +728,117 @@ static int eb_select_context(struct i915_execbuffer *eb)
 	return 0;
 }
 
-static int eb_lookup_vmas(struct i915_execbuffer *eb)
+static int __eb_add_lut(struct i915_execbuffer *eb,
+			u32 handle, struct i915_vma *vma)
 {
-	struct radix_tree_root *handles_vma = &eb->gem_context->handles_vma;
-	struct drm_i915_gem_object *obj;
-	unsigned int i, batch;
+	struct i915_gem_context *ctx = eb->gem_context;
+	struct i915_lut_handle *lut;
 	int err;
 
-	if (unlikely(i915_gem_context_is_closed(eb->gem_context)))
-		return -ENOENT;
+	lut = i915_lut_handle_alloc();
+	if (unlikely(!lut))
+		return -ENOMEM;
+
+	i915_vma_get(vma);
+	if (!atomic_fetch_inc(&vma->open_count))
+		i915_vma_reopen(vma);
+	lut->handle = handle;
+	lut->ctx = ctx;
+
+	/* Check that the context hasn't been closed in the meantime */
+	err = -EINTR;
+	if (!mutex_lock_interruptible(&ctx->mutex)) {
+		err = -ENOENT;
+		if (likely(!i915_gem_context_is_closed(ctx)))
+			err = radix_tree_insert(&ctx->handles_vma, handle, vma);
+		if (err == 0) { /* And nor has this handle */
+			struct drm_i915_gem_object *obj = vma->obj;
+
+			i915_gem_object_lock(obj);
+			if (idr_find(&eb->file->object_idr, handle) == obj) {
+				list_add(&lut->obj_link, &obj->lut_list);
+			} else {
+				radix_tree_delete(&ctx->handles_vma, handle);
+				err = -ENOENT;
+			}
+			i915_gem_object_unlock(obj);
+		}
+		mutex_unlock(&ctx->mutex);
+	}
+	if (unlikely(err))
+		goto err;
+
+	return 0;
+
+err:
+	atomic_dec(&vma->open_count);
+	i915_vma_put(vma);
+	i915_lut_handle_free(lut);
+	return err;
+}
+
+static struct i915_vma *eb_lookup_vma(struct i915_execbuffer *eb, u32 handle)
+{
+	do {
+		struct drm_i915_gem_object *obj;
+		struct i915_vma *vma;
+		int err;
+
+		rcu_read_lock();
+		vma = radix_tree_lookup(&eb->gem_context->handles_vma, handle);
+		if (likely(vma))
+			vma = i915_vma_tryget(vma);
+		rcu_read_unlock();
+		if (likely(vma))
+			return vma;
+
+		obj = i915_gem_object_lookup(eb->file, handle);
+		if (unlikely(!obj))
+			return ERR_PTR(-ENOENT);
+
+		vma = i915_vma_instance(obj, eb->context->vm, NULL);
+		if (IS_ERR(vma)) {
+			i915_gem_object_put(obj);
+			return vma;
+		}
+
+		err = __eb_add_lut(eb, handle, vma);
+		if (likely(!err))
+			return vma;
+
+		i915_gem_object_put(obj);
+		if (err != -EEXIST)
+			return ERR_PTR(err);
+	} while (1);
+}
+
+static int eb_lookup_vmas(struct i915_execbuffer *eb)
+{
+	unsigned int batch = eb_batch_index(eb);
+	unsigned int i;
+	int err = 0;
 
 	INIT_LIST_HEAD(&eb->relocs);
 	INIT_LIST_HEAD(&eb->unbound);
 
-	batch = eb_batch_index(eb);
-
 	for (i = 0; i < eb->buffer_count; i++) {
-		u32 handle = eb->exec[i].handle;
-		struct i915_lut_handle *lut;
 		struct i915_vma *vma;
 
-		vma = radix_tree_lookup(handles_vma, handle);
-		if (likely(vma))
-			goto add_vma;
-
-		obj = i915_gem_object_lookup(eb->file, handle);
-		if (unlikely(!obj)) {
-			err = -ENOENT;
-			goto err_vma;
-		}
-
-		vma = i915_vma_instance(obj, eb->context->vm, NULL);
+		vma = eb_lookup_vma(eb, eb->exec[i].handle);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
-			goto err_obj;
+			break;
 		}
 
-		lut = i915_lut_handle_alloc();
-		if (unlikely(!lut)) {
-			err = -ENOMEM;
-			goto err_obj;
-		}
-
-		err = radix_tree_insert(handles_vma, handle, vma);
-		if (unlikely(err)) {
-			i915_lut_handle_free(lut);
-			goto err_obj;
-		}
-
-		/* transfer ref to lut */
-		if (!atomic_fetch_inc(&vma->open_count))
-			i915_vma_reopen(vma);
-		lut->handle = handle;
-		lut->ctx = eb->gem_context;
-
-		i915_gem_object_lock(obj);
-		list_add(&lut->obj_link, &obj->lut_list);
-		i915_gem_object_unlock(obj);
-
-add_vma:
 		err = eb_validate_vma(eb, &eb->exec[i], vma);
-		if (unlikely(err))
-			goto err_vma;
+		if (unlikely(err)) {
+			i915_vma_put(vma);
+			break;
+		}
 
 		eb_add_vma(eb, i, batch, vma);
 	}
 
-	return 0;
-
-err_obj:
-	i915_gem_object_put(obj);
-err_vma:
 	eb->vma[i].vma = NULL;
 	return err;
 }
@@ -1494,9 +1534,7 @@ static int eb_relocate(struct i915_execbuffer *eb)
 {
 	int err;
 
-	mutex_lock(&eb->gem_context->mutex);
 	err = eb_lookup_vmas(eb);
-	mutex_unlock(&eb->gem_context->mutex);
 	if (err)
 		return err;
 
