@@ -89,7 +89,7 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 		ret = zpci_enable_device(zdev);
 		if (ret)
 			goto out;
-		pci_rescan_bus(zdev->bus);
+		pci_rescan_bus(zdev->zbus->bus);
 	}
 out:
 	pci_unlock_rescan_remove();

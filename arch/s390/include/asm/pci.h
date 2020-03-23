@@ -28,6 +28,12 @@ int pci_proc_domain(struct pci_bus *);
 #define ZPCI_NR_DEVICES			CONFIG_PCI_NR_FUNCTIONS
 #define ZPCI_DOMAIN_BITMAP_SIZE		(1 << 16)
 
+#ifdef PCI
+#if (ZPCI_NR_DEVICES > ZPCI_DOMAIN_BITMAP_SIZE)
+# error ZPCI_NR_DEVICES can not be bigger than ZPCI_DOMAIN_BITMAP_SIZE
+#endif
+#endif /* PCI */
+
 /* PCI Function Controls */
 #define ZPCI_FC_FN_ENABLED		0x80
 #define ZPCI_FC_ERROR			0x40
@@ -94,10 +100,23 @@ struct zpci_bar_struct {
 
 struct s390_domain;
 
+#define ZPCI_FUNCTIONS_PER_BUS 256
+struct zpci_bus {
+	struct kref		kref;
+	struct pci_bus		*bus;
+	struct zpci_dev		*function[ZPCI_FUNCTIONS_PER_BUS];
+	struct list_head	resources;
+	struct list_head	bus_next;
+	int			pchid;
+	int			domain_nr;
+	enum pci_bus_speed	max_bus_speed;
+};
+
 /* Private data per function */
 struct zpci_dev {
-	struct pci_bus	*bus;
+	struct zpci_bus *zbus;
 	struct list_head entry;		/* list of all zpci_devices, needed for hotplug, etc. */
+	struct kref kref;
 	struct hotplug_slot hotplug_slot;
 
 	enum zpci_state state;
@@ -107,7 +126,6 @@ struct zpci_dev {
 	u16		pchid;		/* physical channel ID */
 	u8		pfgid;		/* function group ID */
 	u8		pft;		/* pci function type */
-	u16		domain;
 	u8		port;
 	u8		rid_available	: 1;
 	u8		reserved	: 7;
@@ -232,7 +250,9 @@ static inline void zpci_exit_slot(struct zpci_dev *zdev) {}
 /* Helpers */
 static inline struct zpci_dev *to_zpci(struct pci_dev *pdev)
 {
-	return pdev->sysdata;
+	struct zpci_bus *zbus = pdev->sysdata;
+
+	return zbus->function[ZPCI_DEVFN];
 }
 
 static inline struct zpci_dev *to_zpci_dev(struct device *dev)
