@@ -558,7 +558,7 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
@@ -569,39 +569,38 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	ret = -ENOMEM;
 	cirrus = kzalloc(sizeof(*cirrus), GFP_KERNEL);
 	if (cirrus == NULL)
-		goto err_pci_release;
+		return ret;
 
 	dev = &cirrus->dev;
-	ret = drm_dev_init(dev, &cirrus_driver, &pdev->dev);
+	ret = devm_drm_dev_init(&pdev->dev, dev, &cirrus_driver);
 	if (ret) {
 		kfree(cirrus);
-		goto err_pci_release;
+		return ret;
 	}
 	dev->dev_private = cirrus;
 	drmm_add_final_kfree(dev, cirrus);
 
-	ret = -ENOMEM;
-	cirrus->vram = ioremap(pci_resource_start(pdev, 0),
-			       pci_resource_len(pdev, 0));
+	cirrus->vram = devm_ioremap(&pdev->dev, pci_resource_start(pdev, 0),
+				    pci_resource_len(pdev, 0));
 	if (cirrus->vram == NULL)
-		goto err_dev_put;
+		return -ENOMEM;
 
-	cirrus->mmio = ioremap(pci_resource_start(pdev, 1),
-			       pci_resource_len(pdev, 1));
+	cirrus->mmio = devm_ioremap(&pdev->dev, pci_resource_start(pdev, 1),
+				    pci_resource_len(pdev, 1));
 	if (cirrus->mmio == NULL)
-		goto err_unmap_vram;
+		return -ENOMEM;
 
 	ret = cirrus_mode_config_init(cirrus);
 	if (ret)
-		goto err_cleanup;
+		return ret;
 
 	ret = cirrus_conn_init(cirrus);
 	if (ret < 0)
-		goto err_cleanup;
+		return ret;
 
 	ret = cirrus_pipe_init(cirrus);
 	if (ret < 0)
-		goto err_cleanup;
+		return ret;
 
 	drm_mode_config_reset(dev);
 
@@ -609,33 +608,18 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, dev);
 	ret = drm_dev_register(dev, 0);
 	if (ret)
-		goto err_cleanup;
+		return ret;
 
 	drm_fbdev_generic_setup(dev, dev->mode_config.preferred_depth);
 	return 0;
-
-err_cleanup:
-	iounmap(cirrus->mmio);
-err_unmap_vram:
-	iounmap(cirrus->vram);
-err_dev_put:
-	drm_dev_put(dev);
-err_pci_release:
-	pci_release_regions(pdev);
-	return ret;
 }
 
 static void cirrus_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct cirrus_device *cirrus = dev->dev_private;
 
 	drm_dev_unplug(dev);
 	drm_atomic_helper_shutdown(dev);
-	iounmap(cirrus->mmio);
-	iounmap(cirrus->vram);
-	drm_dev_put(dev);
-	pci_release_regions(pdev);
 }
 
 static const struct pci_device_id pciidlist[] = {
