@@ -150,4 +150,120 @@ static inline void btrfs_backref_iter_release(struct btrfs_backref_iter *iter)
 	memset(&iter->cur_key, 0, sizeof(iter->cur_key));
 }
 
+/*
+ * Backref cache related structures
+ *
+ * The whole objective of backref_cache is to build a bi-directional map
+ * of tree blocks (represented by backref_node) and all their parents.
+ */
+
+/*
+ * Represent a tree block in the backref cache
+ */
+struct btrfs_backref_node {
+	struct rb_node rb_node;
+	u64 bytenr;
+
+	u64 new_bytenr;
+	/* Objectid of tree block owner, can be not uptodate */
+	u64 owner;
+	/* Link to pending, changed or detached list */
+	struct list_head list;
+
+	/* List of upper level edges, which link this node to its parents */
+	struct list_head upper;
+	/* List of lower level edges, which link this node to its children */
+	struct list_head lower;
+
+	/* NULL if this node is not tree root */
+	struct btrfs_root *root;
+	/* Extent buffer got by COWing the block */
+	struct extent_buffer *eb;
+	/* Level of the tree block */
+	unsigned int level:8;
+	/* Is the block in non-reference counted tree */
+	unsigned int cowonly:1;
+	/* 1 if no child node is in the cache */
+	unsigned int lowest:1;
+	/* Is the extent buffer locked */
+	unsigned int locked:1;
+	/* Has the block been processed */
+	unsigned int processed:1;
+	/* Have backrefs of this block been checked */
+	unsigned int checked:1;
+	/*
+	 * 1 if corresponding block has been COWed but some upper level block
+	 * pointers may not point to the new location
+	 */
+	unsigned int pending:1;
+	/* 1 if the backref node isn't connected to any other backref node */
+	unsigned int detached:1;
+
+	/*
+	 * For generic purpose backref cache, where we only care if it's a reloc
+	 * root, doesn't care the source subvolid.
+	 */
+	unsigned int is_reloc_root:1;
+};
+
+#define LOWER	0
+#define UPPER	1
+
+/*
+ * Represent an edge connecting upper and lower backref nodes.
+ */
+struct btrfs_backref_edge {
+	/*
+	 * list[LOWER] is linked to btrfs_backref_node::upper of lower level
+	 * node, and list[UPPER] is linked to btrfs_backref_node::lower of
+	 * upper level node.
+	 *
+	 * Also, build_backref_tree() uses list[UPPER] for pending edges, before
+	 * linking list[UPPER] to its upper level nodes.
+	 */
+	struct list_head list[2];
+
+	/* Two related nodes */
+	struct btrfs_backref_node *node[2];
+};
+
+struct btrfs_backref_cache {
+	/* Red black tree of all backref nodes in the cache */
+	struct rb_root rb_root;
+	/* For passing backref nodes to btrfs_reloc_cow_block */
+	struct btrfs_backref_node *path[BTRFS_MAX_LEVEL];
+	/*
+	 * List of blocks that have been COWed but some block pointers in upper
+	 * level blocks may not reflect the new location
+	 */
+	struct list_head pending[BTRFS_MAX_LEVEL];
+	/* List of backref nodes with no child node */
+	struct list_head leaves;
+	/* List of blocks that have been COWed in current transaction */
+	struct list_head changed;
+	/* List of detached backref node. */
+	struct list_head detached;
+
+	u64 last_trans;
+
+	int nr_nodes;
+	int nr_edges;
+
+	/* List of unchecked backref edges during backref cache build */
+	struct list_head pending_edge;
+
+	/* List of useless backref nodes during backref cache build */
+	struct list_head useless_node;
+
+	struct btrfs_fs_info *fs_info;
+
+	/*
+	 * Whether this cache is for relocation
+	 *
+	 * Reloction backref cache require more info for reloc root compared
+	 * to generic backref cache.
+	 */
+	unsigned int is_reloc;
+};
+
 #endif
