@@ -44,39 +44,6 @@ enum sja1105_ptp_clk_mode {
 #define ptp_data_to_sja1105(d) \
 		container_of((d), struct sja1105_private, ptp_data)
 
-static int sja1105_init_avb_params(struct sja1105_private *priv,
-				   bool on)
-{
-	struct sja1105_avb_params_entry *avb;
-	struct sja1105_table *table;
-
-	table = &priv->static_config.tables[BLK_IDX_AVB_PARAMS];
-
-	/* Discard previous AVB Parameters Table */
-	if (table->entry_count) {
-		kfree(table->entries);
-		table->entry_count = 0;
-	}
-
-	/* Configure the reception of meta frames only if requested */
-	if (!on)
-		return 0;
-
-	table->entries = kcalloc(SJA1105_MAX_AVB_PARAMS_COUNT,
-				 table->ops->unpacked_entry_size, GFP_KERNEL);
-	if (!table->entries)
-		return -ENOMEM;
-
-	table->entry_count = SJA1105_MAX_AVB_PARAMS_COUNT;
-
-	avb = table->entries;
-
-	avb->destmeta = SJA1105_META_DMAC;
-	avb->srcmeta  = SJA1105_META_SMAC;
-
-	return 0;
-}
-
 /* Must be called only with priv->tagger_data.state bit
  * SJA1105_HWTS_RX_EN cleared
  */
@@ -86,16 +53,11 @@ static int sja1105_change_rxtstamping(struct sja1105_private *priv,
 	struct sja1105_ptp_data *ptp_data = &priv->ptp_data;
 	struct sja1105_general_params_entry *general_params;
 	struct sja1105_table *table;
-	int rc;
 
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
 	general_params = table->entries;
 	general_params->send_meta1 = on;
 	general_params->send_meta0 = on;
-
-	rc = sja1105_init_avb_params(priv, on);
-	if (rc < 0)
-		return rc;
 
 	/* Initialize the meta state machine to a known state */
 	if (priv->tagger_data.stampable_skb) {
