@@ -13,6 +13,7 @@ description: |
 
 maintainers:
   - Hoan Tran <hoan@os.amperecomputing.com>
+  - Serge Semin <fancer.lancer@gmail.com>
 
 properties:
   $nodename:
