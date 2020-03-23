@@ -1154,9 +1154,10 @@ int mlx5e_ethtool_set_pauseparam(struct mlx5e_priv *priv,
 				 struct ethtool_pauseparam *pauseparam);
 
 /* mlx5e generic netdev management API */
-static inline unsigned int mlx5e_calc_max_nch(struct mlx5e_priv *priv)
+static inline unsigned int
+mlx5e_calc_max_nch(struct mlx5e_priv *priv, const struct mlx5e_profile *profile)
 {
-	return priv->netdev->num_rx_queues / max_t(u8, priv->profile->rq_groups, 1);
+	return priv->netdev->num_rx_queues / max_t(u8, profile->rq_groups, 1);
 }
 
 int mlx5e_netdev_init(struct net_device *netdev,
@@ -1168,6 +1169,8 @@ mlx5e_create_netdev(struct mlx5_core_dev *mdev, unsigned int txqs, unsigned int 
 int mlx5e_attach_netdev(struct mlx5e_priv *priv);
 void mlx5e_detach_netdev(struct mlx5e_priv *priv);
 void mlx5e_destroy_netdev(struct mlx5e_priv *priv);
+int mlx5e_netdev_change_profile(struct mlx5e_priv *priv,
+				const struct mlx5e_profile *new_profile, void *new_ppriv);
 void mlx5e_set_netdev_mtu_boundaries(struct mlx5e_priv *priv);
 void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 mtu);
 void mlx5e_build_rq_params(struct mlx5_core_dev *mdev,

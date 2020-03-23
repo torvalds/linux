@@ -4936,7 +4936,7 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u8 rx_cq_period_mode;
 
-	priv->max_nch = mlx5e_calc_max_nch(priv);
+	priv->max_nch = mlx5e_calc_max_nch(priv, priv->profile);
 
 	params->sw_mtu = mtu;
 	params->hard_mtu = MLX5E_ETH_HARD_MTU;
@@ -5461,6 +5461,8 @@ int mlx5e_netdev_init(struct net_device *netdev,
 		      struct mlx5e_priv *priv,
 		      struct mlx5_core_dev *mdev)
 {
+	memset(priv, 0, sizeof(*priv));
+
 	/* priv init */
 	priv->mdev        = mdev;
 	priv->netdev      = netdev;
@@ -5613,6 +5615,70 @@ void mlx5e_detach_netdev(struct mlx5e_priv *priv)
 	profile->cleanup_rx(priv);
 	profile->cleanup_tx(priv);
 	cancel_work_sync(&priv->update_stats_work);
+}
+
+static int
+mlx5e_netdev_attach_profile(struct mlx5e_priv *priv,
+			    const struct mlx5e_profile *new_profile, void *new_ppriv)
+{
+	struct net_device *netdev = priv->netdev;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int err;
+
+	err = mlx5e_netdev_init(netdev, priv, mdev);
+	if (err) {
+		mlx5_core_err(mdev, "mlx5e_netdev_init failed, err=%d\n", err);
+		return err;
+	}
+	priv->profile = new_profile;
+	priv->ppriv = new_ppriv;
+	err = new_profile->init(priv->mdev, priv->netdev);
+	if (err)
+		return err;
+	err = mlx5e_attach_netdev(priv);
+	if (err)
+		new_profile->cleanup(priv);
+	return err;
+}
+
+int mlx5e_netdev_change_profile(struct mlx5e_priv *priv,
+				const struct mlx5e_profile *new_profile, void *new_ppriv)
+{
+	unsigned int new_max_nch = mlx5e_calc_max_nch(priv, new_profile);
+	const struct mlx5e_profile *orig_profile = priv->profile;
+	void *orig_ppriv = priv->ppriv;
+	int err, rollback_err;
+
+	/* sanity */
+	if (new_max_nch != priv->max_nch) {
+		netdev_warn(priv->netdev,
+			    "%s: Replacing profile with different max channles\n",
+			    __func__);
+		return -EINVAL;
+	}
+
+	/* cleanup old profile */
+	mlx5e_detach_netdev(priv);
+	priv->profile->cleanup(priv);
+	mlx5e_netdev_cleanup(priv->netdev, priv);
+
+	err = mlx5e_netdev_attach_profile(priv, new_profile, new_ppriv);
+	if (err) { /* roll back to original profile */
+		netdev_warn(priv->netdev, "%s: new profile init failed, %d\n",
+			    __func__, err);
+		goto rollback;
+	}
+
+	return 0;
+
+rollback:
+	rollback_err = mlx5e_netdev_attach_profile(priv, orig_profile, orig_ppriv);
+	if (rollback_err) {
+		netdev_err(priv->netdev,
+			   "%s: failed to rollback to orig profile, %d\n",
+			   __func__, rollback_err);
+	}
+	return err;
 }
 
 void mlx5e_destroy_netdev(struct mlx5e_priv *priv)
