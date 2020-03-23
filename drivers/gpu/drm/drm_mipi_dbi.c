@@ -589,13 +589,10 @@ EXPORT_SYMBOL(mipi_dbi_dev_init);
  */
 void mipi_dbi_release(struct drm_device *drm)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(drm);
-
 	DRM_DEBUG_DRIVER("\n");
 
 	drm_mode_config_cleanup(drm);
 	drm_dev_fini(drm);
-	kfree(dbidev);
 }
 EXPORT_SYMBOL(mipi_dbi_release);
 

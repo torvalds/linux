@@ -18,6 +18,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modeset_helper.h>
 #include <video/mipi_display.h>
@@ -198,6 +199,7 @@ static int mi0283qt_probe(struct spi_device *spi)
 		kfree(dbidev);
 		return ret;
 	}
+	drmm_add_final_kfree(drm, dbidev);
 
 	drm_mode_config_init(drm);
 

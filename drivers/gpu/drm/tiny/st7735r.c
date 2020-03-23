@@ -21,6 +21,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 
 #define ST7735R_FRMCTR1		0xb1
@@ -209,6 +210,7 @@ static int st7735r_probe(struct spi_device *spi)
 		kfree(dbidev);
 		return ret;
 	}
+	drmm_add_final_kfree(drm, dbidev);
 
 	drm_mode_config_init(drm);
 
