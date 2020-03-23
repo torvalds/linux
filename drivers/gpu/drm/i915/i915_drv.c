@@ -1392,13 +1392,8 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 static void i915_driver_destroy(struct drm_i915_private *i915)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
-
 	drm_dev_fini(&i915->drm);
 	kfree(i915);
-
-	/* And make sure we never chase our dangling pointer from pci_dev */
-	pci_set_drvdata(pdev, NULL);
 }
 
 /**
