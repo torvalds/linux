@@ -88,7 +88,6 @@ struct gm12u320_device {
 	struct usb_device               *udev;
 	unsigned char                   *cmd_buf;
 	unsigned char                   *data_buf[GM12U320_BLOCK_COUNT];
-	bool                             pipe_enabled;
 	struct {
 		bool                     run;
 		struct workqueue_struct *workq;
@@ -589,7 +588,6 @@ static void gm12u320_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	gm12u320_fb_mark_dirty(plane_state->fb, &rect);
 	gm12u320_start_fb_update(gm12u320);
-	gm12u320->pipe_enabled = true;
 }
 
 static void gm12u320_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -597,7 +595,6 @@ static void gm12u320_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct gm12u320_device *gm12u320 = pipe->crtc.dev->dev_private;
 
 	gm12u320_stop_fb_update(gm12u320);
-	gm12u320->pipe_enabled = false;
 }
 
 static void gm12u320_pipe_update(struct drm_simple_display_pipe *pipe,
@@ -733,22 +730,17 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 static void gm12u320_usb_disconnect(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
-	struct gm12u320_device *gm12u320 = dev->dev_private;
 
-	gm12u320_stop_fb_update(gm12u320);
 	drm_dev_unplug(dev);
+	drm_atomic_helper_shutdown(dev);
 }
 
 static __maybe_unused int gm12u320_suspend(struct usb_interface *interface,
 					   pm_message_t message)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
-	struct gm12u320_device *gm12u320 = dev->dev_private;
 
-	if (gm12u320->pipe_enabled)
-		gm12u320_stop_fb_update(gm12u320);
-
-	return 0;
+	return drm_mode_config_helper_suspend(dev);
 }
 
 static __maybe_unused int gm12u320_resume(struct usb_interface *interface)
@@ -757,10 +749,8 @@ static __maybe_unused int gm12u320_resume(struct usb_interface *interface)
 	struct gm12u320_device *gm12u320 = dev->dev_private;
 
 	gm12u320_set_ecomode(gm12u320);
-	if (gm12u320->pipe_enabled)
-		gm12u320_start_fb_update(gm12u320);
 
-	return 0;
+	return drm_mode_config_helper_resume(dev);
 }
 
 static const struct usb_device_id id_table[] = {
