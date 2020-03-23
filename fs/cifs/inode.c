@@ -2191,7 +2191,7 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 		if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID))
 			stat->gid = current_fsgid();
 	}
-	return rc;
+	return 0;
 }
 
 int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,

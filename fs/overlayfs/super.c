@@ -1411,6 +1411,8 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		if (ofs->config.xino == OVL_XINO_ON)
 			pr_info("\"xino=on\" is useless with all layers on same fs, ignore.\n");
 		ofs->xino_mode = 0;
+	} else if (ofs->config.xino == OVL_XINO_OFF) {
+		ofs->xino_mode = -1;
 	} else if (ofs->config.xino == OVL_XINO_ON && ofs->xino_mode < 0) {
 		/*
 		 * This is a roundup of number of bits needed for encoding
@@ -1623,8 +1625,13 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_stack_depth = 0;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	/* Assume underlaying fs uses 32bit inodes unless proven otherwise */
-	if (ofs->config.xino != OVL_XINO_OFF)
+	if (ofs->config.xino != OVL_XINO_OFF) {
 		ofs->xino_mode = BITS_PER_LONG - 32;
+		if (!ofs->xino_mode) {
+			pr_warn("xino not supported on 32bit kernel, falling back to xino=off.\n");
+			ofs->config.xino = OVL_XINO_OFF;
+		}
+	}
 
 	/* alloc/destroy_inode needed for setting up traps in inode cache */
 	sb->s_op = &ovl_super_operations;

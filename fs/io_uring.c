@@ -191,7 +191,6 @@ struct fixed_file_data {
 	struct llist_head		put_llist;
 	struct work_struct		ref_work;
 	struct completion		done;
-	struct rcu_head			rcu;
 };
 
 struct io_ring_ctx {
@@ -344,6 +343,7 @@ struct io_accept {
 	struct sockaddr __user		*addr;
 	int __user			*addr_len;
 	int				flags;
+	unsigned long			nofile;
 };
 
 struct io_sync {
@@ -398,6 +398,7 @@ struct io_open {
 	struct filename			*filename;
 	struct statx __user		*buffer;
 	struct open_how			how;
+	unsigned long			nofile;
 };
 
 struct io_files_update {
@@ -2578,6 +2579,7 @@ static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return ret;
 	}
 
+	req->open.nofile = rlimit(RLIMIT_NOFILE);
 	req->flags |= REQ_F_NEED_CLEANUP;
 	return 0;
 }
@@ -2619,6 +2621,7 @@ static int io_openat2_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return ret;
 	}
 
+	req->open.nofile = rlimit(RLIMIT_NOFILE);
 	req->flags |= REQ_F_NEED_CLEANUP;
 	return 0;
 }
@@ -2637,7 +2640,7 @@ static int io_openat2(struct io_kiocb *req, struct io_kiocb **nxt,
 	if (ret)
 		goto err;
 
-	ret = get_unused_fd_flags(req->open.how.flags);
+	ret = __get_unused_fd_flags(req->open.how.flags, req->open.nofile);
 	if (ret < 0)
 		goto err;
 
@@ -3322,6 +3325,7 @@ static int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	accept->addr = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	accept->addr_len = u64_to_user_ptr(READ_ONCE(sqe->addr2));
 	accept->flags = READ_ONCE(sqe->accept_flags);
+	accept->nofile = rlimit(RLIMIT_NOFILE);
 	return 0;
 #else
 	return -EOPNOTSUPP;
@@ -3338,7 +3342,8 @@ static int __io_accept(struct io_kiocb *req, struct io_kiocb **nxt,
 
 	file_flags = force_nonblock ? O_NONBLOCK : 0;
 	ret = __sys_accept4_file(req->file, file_flags, accept->addr,
-					accept->addr_len, accept->flags);
+					accept->addr_len, accept->flags,
+					accept->nofile);
 	if (ret == -EAGAIN && force_nonblock)
 		return -EAGAIN;
 	if (ret == -ERESTARTSYS)
@@ -4132,6 +4137,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 {
 	ssize_t ret = 0;
 
+	if (!sqe)
+		return 0;
+
 	if (io_op_defs[req->opcode].file_table) {
 		ret = io_grab_files(req);
 		if (unlikely(ret))
@@ -4908,6 +4916,11 @@ err_req:
 		if (sqe_flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK)) {
 			req->flags |= REQ_F_LINK;
 			INIT_LIST_HEAD(&req->link_list);
+
+			if (io_alloc_async_ctx(req)) {
+				ret = -EAGAIN;
+				goto err_req;
+			}
 			ret = io_req_defer_prep(req, sqe);
 			if (ret)
 				req->flags |= REQ_F_FAIL_LINK;
@@ -5331,24 +5344,21 @@ static void io_file_ref_kill(struct percpu_ref *ref)
 	complete(&data->done);
 }
 
-static void __io_file_ref_exit_and_free(struct rcu_head *rcu)
+static void io_file_ref_exit_and_free(struct work_struct *work)
 {
-	struct fixed_file_data *data = container_of(rcu, struct fixed_file_data,
-							rcu);
+	struct fixed_file_data *data;
+
+	data = container_of(work, struct fixed_file_data, ref_work);
+
+	/*
+	 * Ensure any percpu-ref atomic switch callback has run, it could have
+	 * been in progress when the files were being unregistered. Once
+	 * that's done, we can safely exit and free the ref and containing
+	 * data structure.
+	 */
+	rcu_barrier();
 	percpu_ref_exit(&data->refs);
 	kfree(data);
-}
-
-static void io_file_ref_exit_and_free(struct rcu_head *rcu)
-{
-	/*
-	 * We need to order our exit+free call against the potentially
-	 * existing call_rcu() for switching to atomic. One way to do that
-	 * is to have this rcu callback queue the final put and free, as we
-	 * could otherwise have a pre-existing atomic switch complete _after_
-	 * the free callback we queued.
-	 */
-	call_rcu(rcu, __io_file_ref_exit_and_free);
 }
 
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
@@ -5369,7 +5379,8 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	for (i = 0; i < nr_tables; i++)
 		kfree(data->table[i].files);
 	kfree(data->table);
-	call_rcu(&data->rcu, io_file_ref_exit_and_free);
+	INIT_WORK(&data->ref_work, io_file_ref_exit_and_free);
+	queue_work(system_wq, &data->ref_work);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
 	return 0;

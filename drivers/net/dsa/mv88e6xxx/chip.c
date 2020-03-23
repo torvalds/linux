@@ -2769,6 +2769,8 @@ static u64 mv88e6xxx_devlink_atu_bin_get(struct mv88e6xxx_chip *chip,
 		goto unlock;
 	}
 
+	occupancy &= MV88E6XXX_G2_ATU_STATS_MASK;
+
 unlock:
 	mv88e6xxx_reg_unlock(chip);
 

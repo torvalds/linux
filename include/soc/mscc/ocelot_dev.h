@@ -74,7 +74,7 @@
 #define DEV_MAC_TAGS_CFG_TAG_ID_M                         GENMASK(31, 16)
 #define DEV_MAC_TAGS_CFG_TAG_ID_X(x)                      (((x) & GENMASK(31, 16)) >> 16)
 #define DEV_MAC_TAGS_CFG_VLAN_LEN_AWR_ENA                 BIT(2)
-#define DEV_MAC_TAGS_CFG_PB_ENA                           BIT(1)
+#define DEV_MAC_TAGS_CFG_VLAN_DBL_AWR_ENA                 BIT(1)
 #define DEV_MAC_TAGS_CFG_VLAN_AWR_ENA                     BIT(0)
 
 #define DEV_MAC_ADV_CHK_CFG                               0x2c
