@@ -102,8 +102,8 @@ static size_t sja1105et_avb_params_entry_packing(void *buf, void *entry_ptr,
 	return size;
 }
 
-static size_t sja1105pqrs_avb_params_entry_packing(void *buf, void *entry_ptr,
-						   enum packing_op op)
+size_t sja1105pqrs_avb_params_entry_packing(void *buf, void *entry_ptr,
+					    enum packing_op op)
 {
 	const size_t size = SJA1105PQRS_SIZE_AVB_PARAMS_ENTRY;
 	struct sja1105_avb_params_entry *entry = entry_ptr;
