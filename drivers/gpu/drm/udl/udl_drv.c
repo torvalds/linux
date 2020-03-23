@@ -10,6 +10,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem_shmem_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_print.h>
@@ -38,7 +39,6 @@ static void udl_driver_release(struct drm_device *dev)
 	udl_fini(dev);
 	udl_modeset_cleanup(dev);
 	drm_dev_fini(dev);
-	kfree(dev);
 }
 
 static struct drm_driver driver = {
@@ -77,11 +77,11 @@ static struct udl_device *udl_driver_create(struct usb_interface *interface)
 
 	udl->udev = udev;
 	udl->drm.dev_private = udl;
+	drmm_add_final_kfree(&udl->drm, udl);
 
 	r = udl_init(udl);
 	if (r) {
-		drm_dev_fini(&udl->drm);
-		kfree(udl);
+		drm_dev_put(&udl->drm);
 		return ERR_PTR(r);
 	}
 
