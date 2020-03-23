@@ -6349,7 +6349,6 @@ static void io_ring_file_put(struct io_ring_ctx *ctx, struct file *file)
 struct io_file_put {
 	struct llist_node llist;
 	struct file *file;
-	bool free_pfile;
 };
 
 static void io_ring_file_ref_flush(struct fixed_file_data *data)
@@ -6360,8 +6359,7 @@ static void io_ring_file_ref_flush(struct fixed_file_data *data)
 	while ((node = llist_del_all(&data->put_llist)) != NULL) {
 		llist_for_each_entry_safe(pfile, tmp, node, llist) {
 			io_ring_file_put(data->ctx, pfile->file);
-			if (pfile->free_pfile)
-				kfree(pfile);
+			kfree(pfile);
 		}
 	}
 }
@@ -6556,32 +6554,18 @@ static void io_atomic_switch(struct percpu_ref *ref)
 	percpu_ref_get(&data->refs);
 }
 
-static bool io_queue_file_removal(struct fixed_file_data *data,
+static int io_queue_file_removal(struct fixed_file_data *data,
 				  struct file *file)
 {
-	struct io_file_put *pfile, pfile_stack;
+	struct io_file_put *pfile;
 
-	/*
-	 * If we fail allocating the struct we need for doing async reomval
-	 * of this file, just punt to sync and wait for it.
-	 */
 	pfile = kzalloc(sizeof(*pfile), GFP_KERNEL);
-	if (!pfile) {
-		pfile = &pfile_stack;
-		pfile->free_pfile = false;
-	} else
-		pfile->free_pfile = true;
+	if (!pfile)
+		return -ENOMEM;
 
 	pfile->file = file;
 	llist_add(&pfile->llist, &data->put_llist);
-
-	if (pfile == &pfile_stack) {
-		percpu_ref_switch_to_atomic(&data->refs, io_atomic_switch);
-		flush_work(&data->ref_work);
-		return false;
-	}
-
-	return true;
+	return 0;
 }
 
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
@@ -6616,9 +6600,11 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		index = i & IORING_FILE_TABLE_MASK;
 		if (table->files[index]) {
 			file = io_file_from_index(ctx, index);
+			err = io_queue_file_removal(data, file);
+			if (err)
+				break;
 			table->files[index] = NULL;
-			if (io_queue_file_removal(data, file))
-				ref_switch = true;
+			ref_switch = true;
 		}
 		if (fd != -1) {
 			file = fget(fd);
