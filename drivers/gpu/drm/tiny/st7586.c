@@ -331,8 +331,6 @@ static int st7586_probe(struct spi_device *spi)
 	}
 	drmm_add_final_kfree(drm, dbidev);
 
-	drm_mode_config_init(drm);
-
 	bufsize = (st7586_mode.vdisplay + 2) / 3 * st7586_mode.hdisplay;
 
 	dbi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);

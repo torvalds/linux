@@ -239,8 +239,6 @@ static int hx8357d_probe(struct spi_device *spi)
 	}
 	drmm_add_final_kfree(drm, dbidev);
 
-	drm_mode_config_init(drm);
-
 	dc = devm_gpiod_get(dev, "dc", GPIOD_OUT_LOW);
 	if (IS_ERR(dc)) {
 		DRM_DEV_ERROR(dev, "Failed to get gpio 'dc'\n");

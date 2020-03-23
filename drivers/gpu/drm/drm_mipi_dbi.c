@@ -511,6 +511,10 @@ int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
 	if (!dbidev->dbi.command)
 		return -EINVAL;
 
+	ret = drm_mode_config_init(drm);
+	if (ret)
+		return ret;
+
 	dbidev->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
 	if (!dbidev->tx_buf)
 		return -ENOMEM;

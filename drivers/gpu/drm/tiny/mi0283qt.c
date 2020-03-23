@@ -201,8 +201,6 @@ static int mi0283qt_probe(struct spi_device *spi)
 	}
 	drmm_add_final_kfree(drm, dbidev);
 
-	drm_mode_config_init(drm);
-
 	dbi->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(dbi->reset)) {
 		DRM_DEV_ERROR(dev, "Failed to get gpio 'reset'\n");
