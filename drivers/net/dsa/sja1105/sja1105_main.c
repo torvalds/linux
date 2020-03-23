@@ -504,6 +504,14 @@ static int sja1105_init_avb_params(struct sja1105_private *priv)
 	/* Configure the MAC addresses for meta frames */
 	avb->destmeta = SJA1105_META_DMAC;
 	avb->srcmeta  = SJA1105_META_SMAC;
+	/* On P/Q/R/S, configure the direction of the PTP_CLK pin as input by
+	 * default. This is because there might be boards with a hardware
+	 * layout where enabling the pin as output might cause an electrical
+	 * clash. On E/T the pin is always an output, which the board designers
+	 * probably already knew, so even if there are going to be electrical
+	 * issues, there's nothing we can do.
+	 */
+	avb->cas_master = false;
 
 	return 0;
 }

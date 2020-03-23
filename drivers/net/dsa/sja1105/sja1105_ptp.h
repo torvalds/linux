@@ -49,6 +49,8 @@ static inline s64 future_base_time(s64 base_time, s64 cycle_time, s64 now)
 }
 
 struct sja1105_ptp_cmd {
+	u64 startptpcp;		/* start toggling PTP_CLK pin */
+	u64 stopptpcp;		/* stop toggling PTP_CLK pin */
 	u64 ptpstrtsch;		/* start schedule */
 	u64 ptpstopsch;		/* stop schedule */
 	u64 resptp;		/* reset */
@@ -57,12 +59,14 @@ struct sja1105_ptp_cmd {
 };
 
 struct sja1105_ptp_data {
+	struct delayed_work extts_work;
 	struct sk_buff_head skb_rxtstamp_queue;
 	struct ptp_clock_info caps;
 	struct ptp_clock *clock;
 	struct sja1105_ptp_cmd cmd;
 	/* Serializes all operations on the PTP hardware clock */
 	struct mutex lock;
+	u64 ptpsyncts;
 };
 
 int sja1105_ptp_clock_register(struct dsa_switch *ds);
