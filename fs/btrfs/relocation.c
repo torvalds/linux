@@ -153,9 +153,6 @@ struct reloc_control {
 #define MOVE_DATA_EXTENTS	0
 #define UPDATE_DATA_PTRS	1
 
-static void remove_backref_node(struct btrfs_backref_cache *cache,
-				struct btrfs_backref_node *node);
-
 static void mark_block_processed(struct reloc_control *rc,
 				 struct btrfs_backref_node *node)
 {
@@ -186,13 +183,13 @@ static void backref_cache_cleanup(struct btrfs_backref_cache *cache)
 	while (!list_empty(&cache->detached)) {
 		node = list_entry(cache->detached.next,
 				  struct btrfs_backref_node, list);
-		remove_backref_node(cache, node);
+		btrfs_backref_cleanup_node(cache, node);
 	}
 
 	while (!list_empty(&cache->leaves)) {
 		node = list_entry(cache->leaves.next,
 				  struct btrfs_backref_node, lower);
-		remove_backref_node(cache, node);
+		btrfs_backref_cleanup_node(cache, node);
 	}
 
 	cache->last_trans = 0;
@@ -268,46 +265,6 @@ static struct btrfs_backref_node *walk_down_backref(
 	*index = 0;
 	return NULL;
 }
-/*
- * remove a backref node from the backref cache
- */
-static void remove_backref_node(struct btrfs_backref_cache *cache,
-				struct btrfs_backref_node *node)
-{
-	struct btrfs_backref_node *upper;
-	struct btrfs_backref_edge *edge;
-
-	if (!node)
-		return;
-
-	BUG_ON(!node->lowest && !node->detached);
-	while (!list_empty(&node->upper)) {
-		edge = list_entry(node->upper.next, struct btrfs_backref_edge,
-				  list[LOWER]);
-		upper = edge->node[UPPER];
-		list_del(&edge->list[LOWER]);
-		list_del(&edge->list[UPPER]);
-		btrfs_backref_free_edge(cache, edge);
-
-		if (RB_EMPTY_NODE(&upper->rb_node)) {
-			BUG_ON(!list_empty(&node->upper));
-			btrfs_backref_drop_node(cache, node);
-			node = upper;
-			node->lowest = 1;
-			continue;
-		}
-		/*
-		 * add the node to leaf node list if no other
-		 * child block cached.
-		 */
-		if (list_empty(&upper->lower)) {
-			list_add_tail(&upper->lower, &cache->leaves);
-			upper->lowest = 1;
-		}
-	}
-
-	btrfs_backref_drop_node(cache, node);
-}
 
 static void update_backref_node(struct btrfs_backref_cache *cache,
 				struct btrfs_backref_node *node, u64 bytenr)
@@ -345,7 +302,7 @@ static int update_backref_cache(struct btrfs_trans_handle *trans,
 	while (!list_empty(&cache->detached)) {
 		node = list_entry(cache->detached.next,
 				  struct btrfs_backref_node, list);
-		remove_backref_node(cache, node);
+		btrfs_backref_cleanup_node(cache, node);
 	}
 
 	while (!list_empty(&cache->changed)) {
@@ -1120,7 +1077,7 @@ out:
 			btrfs_backref_free_node(cache, lower);
 		}
 
-		remove_backref_node(cache, node);
+		btrfs_backref_cleanup_node(cache, node);
 		ASSERT(list_empty(&cache->useless_node) &&
 		       list_empty(&cache->pending_edge));
 		return ERR_PTR(err);
@@ -3103,7 +3060,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 	}
 out:
 	if (ret || node->level == 0 || node->cowonly)
-		remove_backref_node(&rc->backref_cache, node);
+		btrfs_backref_cleanup_node(&rc->backref_cache, node);
 	return ret;
 }
 

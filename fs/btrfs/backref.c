@@ -2514,3 +2514,48 @@ struct btrfs_backref_edge *btrfs_backref_alloc_edge(
 		cache->nr_edges++;
 	return edge;
 }
+
+/*
+ * Drop the backref node from cache, also cleaning up all its
+ * upper edges and any uncached nodes in the path.
+ *
+ * This cleanup happens bottom up, thus the node should either
+ * be the lowest node in the cache or a detached node.
+ */
+void btrfs_backref_cleanup_node(struct btrfs_backref_cache *cache,
+				struct btrfs_backref_node *node)
+{
+	struct btrfs_backref_node *upper;
+	struct btrfs_backref_edge *edge;
+
+	if (!node)
+		return;
+
+	BUG_ON(!node->lowest && !node->detached);
+	while (!list_empty(&node->upper)) {
+		edge = list_entry(node->upper.next, struct btrfs_backref_edge,
+				  list[LOWER]);
+		upper = edge->node[UPPER];
+		list_del(&edge->list[LOWER]);
+		list_del(&edge->list[UPPER]);
+		btrfs_backref_free_edge(cache, edge);
+
+		if (RB_EMPTY_NODE(&upper->rb_node)) {
+			BUG_ON(!list_empty(&node->upper));
+			btrfs_backref_drop_node(cache, node);
+			node = upper;
+			node->lowest = 1;
+			continue;
+		}
+		/*
+		 * Add the node to leaf node list if no other child block
+		 * cached.
+		 */
+		if (list_empty(&upper->lower)) {
+			list_add_tail(&upper->lower, &cache->leaves);
+			upper->lowest = 1;
+		}
+	}
+
+	btrfs_backref_drop_node(cache, node);
+}

@@ -350,4 +350,7 @@ static inline void btrfs_backref_drop_node(struct btrfs_backref_cache *tree,
 	btrfs_backref_free_node(tree, node);
 }
 
+void btrfs_backref_cleanup_node(struct btrfs_backref_cache *cache,
+				struct btrfs_backref_node *node);
+
 #endif
