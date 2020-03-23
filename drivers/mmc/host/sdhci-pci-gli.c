@@ -262,10 +262,26 @@ static int gl9750_execute_tuning(struct sdhci_host *host, u32 opcode)
 	return 0;
 }
 
+static void gli_pcie_enable_msi(struct sdhci_pci_slot *slot)
+{
+	int ret;
+
+	ret = pci_alloc_irq_vectors(slot->chip->pdev, 1, 1,
+				    PCI_IRQ_MSI | PCI_IRQ_MSIX);
+	if (ret < 0) {
+		pr_warn("%s: enable PCI MSI failed, error=%d\n",
+		       mmc_hostname(slot->host->mmc), ret);
+		return;
+	}
+
+	slot->host->irq = pci_irq_vector(slot->chip->pdev, 0);
+}
+
 static int gli_probe_slot_gl9750(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_host *host = slot->host;
 
+	gli_pcie_enable_msi(slot);
 	slot->host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
 	sdhci_enable_v4_mode(host);
 
@@ -276,6 +292,7 @@ static int gli_probe_slot_gl9755(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_host *host = slot->host;
 
+	gli_pcie_enable_msi(slot);
 	slot->host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
 	sdhci_enable_v4_mode(host);
 

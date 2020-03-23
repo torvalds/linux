@@ -30,7 +30,7 @@ my %default = (
     "EMAIL_WHEN_STARTED"	=> 0,
     "NUM_TESTS"			=> 1,
     "TEST_TYPE"			=> "build",
-    "BUILD_TYPE"		=> "randconfig",
+    "BUILD_TYPE"		=> "oldconfig",
     "MAKE_CMD"			=> "make",
     "CLOSE_CONSOLE_SIGNAL"	=> "INT",
     "TIMEOUT"			=> 120,
@@ -1030,7 +1030,7 @@ sub __read_config {
 	    }
 
 	    if (!$skip && $rest !~ /^\s*$/) {
-		die "$name: $.: Gargbage found after $type\n$_";
+		die "$name: $.: Garbage found after $type\n$_";
 	    }
 
 	    if ($skip && $type eq "TEST_START") {
@@ -1063,7 +1063,7 @@ sub __read_config {
 	    }
 
 	    if ($rest !~ /^\s*$/) {
-		die "$name: $.: Gargbage found after DEFAULTS\n$_";
+		die "$name: $.: Garbage found after DEFAULTS\n$_";
 	    }
 
 	} elsif (/^\s*INCLUDE\s+(\S+)/) {
@@ -1154,7 +1154,7 @@ sub __read_config {
 	    # on of these sections that have SKIP defined.
 	    # The save variable can be
 	    # defined multiple times and the new one simply overrides
-	    # the prevous one.
+	    # the previous one.
 	    set_variable($lvalue, $rvalue);
 
 	} else {
@@ -1234,7 +1234,7 @@ sub read_config {
 	foreach my $option (keys %not_used) {
 	    print "$option\n";
 	}
-	print "Set IGRNORE_UNUSED = 1 to have ktest ignore unused variables\n";
+	print "Set IGNORE_UNUSED = 1 to have ktest ignore unused variables\n";
 	if (!read_yn "Do you want to continue?") {
 	    exit -1;
 	}
@@ -1345,7 +1345,7 @@ sub eval_option {
 	# Check for recursive evaluations.
 	# 100 deep should be more than enough.
 	if ($r++ > 100) {
-	    die "Over 100 evaluations accurred with $option\n" .
+	    die "Over 100 evaluations occurred with $option\n" .
 		"Check for recursive variables\n";
 	}
 	$prev = $option;
@@ -1383,7 +1383,7 @@ sub reboot {
 
     } else {
 	# Make sure everything has been written to disk
-	run_ssh("sync");
+	run_ssh("sync", 10);
 
 	if (defined($time)) {
 	    start_monitor;
@@ -1461,7 +1461,7 @@ sub get_test_name() {
 
 sub dodie {
 
-    # avoid recusion
+    # avoid recursion
     return if ($in_die);
     $in_die = 1;
 

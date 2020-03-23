@@ -108,7 +108,6 @@ static const struct hwseq_private_funcs dcn20_private_funcs = {
 	.enable_power_gating_plane = dcn20_enable_power_gating_plane,
 	.dpp_pg_control = dcn20_dpp_pg_control,
 	.hubp_pg_control = dcn20_hubp_pg_control,
-	.dsc_pg_control = NULL,
 	.update_odm = dcn20_update_odm,
 	.dsc_pg_control = dcn20_dsc_pg_control,
 	.get_surface_visual_confirm_color = dcn10_get_surface_visual_confirm_color,
