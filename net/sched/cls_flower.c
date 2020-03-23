@@ -738,7 +738,8 @@ static void fl_set_key_val(struct nlattr **tb,
 }
 
 static int fl_set_key_port_range(struct nlattr **tb, struct fl_flow_key *key,
-				 struct fl_flow_key *mask)
+				 struct fl_flow_key *mask,
+				 struct netlink_ext_ack *extack)
 {
 	fl_set_key_val(tb, &key->tp_range.tp_min.dst,
 		       TCA_FLOWER_KEY_PORT_DST_MIN, &mask->tp_range.tp_min.dst,
@@ -753,13 +754,22 @@ static int fl_set_key_port_range(struct nlattr **tb, struct fl_flow_key *key,
 		       TCA_FLOWER_KEY_PORT_SRC_MAX, &mask->tp_range.tp_max.src,
 		       TCA_FLOWER_UNSPEC, sizeof(key->tp_range.tp_max.src));
 
-	if ((mask->tp_range.tp_min.dst && mask->tp_range.tp_max.dst &&
-	     htons(key->tp_range.tp_max.dst) <=
-		 htons(key->tp_range.tp_min.dst)) ||
-	    (mask->tp_range.tp_min.src && mask->tp_range.tp_max.src &&
-	     htons(key->tp_range.tp_max.src) <=
-		 htons(key->tp_range.tp_min.src)))
+	if (mask->tp_range.tp_min.dst && mask->tp_range.tp_max.dst &&
+	    htons(key->tp_range.tp_max.dst) <=
+	    htons(key->tp_range.tp_min.dst)) {
+		NL_SET_ERR_MSG_ATTR(extack,
+				    tb[TCA_FLOWER_KEY_PORT_DST_MIN],
+				    "Invalid destination port range (min must be strictly smaller than max)");
 		return -EINVAL;
+	}
+	if (mask->tp_range.tp_min.src && mask->tp_range.tp_max.src &&
+	    htons(key->tp_range.tp_max.src) <=
+	    htons(key->tp_range.tp_min.src)) {
+		NL_SET_ERR_MSG_ATTR(extack,
+				    tb[TCA_FLOWER_KEY_PORT_SRC_MIN],
+				    "Invalid source port range (min must be strictly smaller than max)");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1402,7 +1412,7 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 	if (key->basic.ip_proto == IPPROTO_TCP ||
 	    key->basic.ip_proto == IPPROTO_UDP ||
 	    key->basic.ip_proto == IPPROTO_SCTP) {
-		ret = fl_set_key_port_range(tb, key, mask);
+		ret = fl_set_key_port_range(tb, key, mask, extack);
 		if (ret)
 			return ret;
 	}
