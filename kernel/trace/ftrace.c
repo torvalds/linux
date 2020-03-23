@@ -1547,6 +1547,8 @@ static struct dyn_ftrace *lookup_rec(unsigned long start, unsigned long end)
 		rec = bsearch(&key, pg->records, pg->index,
 			      sizeof(struct dyn_ftrace),
 			      ftrace_cmp_recs);
+		if (rec)
+			break;
 	}
 	return rec;
 }
