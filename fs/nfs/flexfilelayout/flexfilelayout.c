@@ -257,24 +257,6 @@ static void ff_layout_free_mirror_array(struct nfs4_ff_layout_segment *fls)
 		ff_layout_put_mirror(fls->mirror_array[i]);
 }
 
-static int ff_layout_check_layout(struct nfs4_layoutget_res *lgr)
-{
-	int ret = 0;
-
-	dprintk("--> %s\n", __func__);
-
-	/* FIXME: remove this check when layout segment support is added */
-	if (lgr->range.offset != 0 ||
-	    lgr->range.length != NFS4_MAX_UINT64) {
-		dprintk("%s Only whole file layouts supported. Use MDS i/o\n",
-			__func__);
-		ret = -EINVAL;
-	}
-
-	dprintk("--> %s returns %d\n", __func__, ret);
-	return ret;
-}
-
 static void _ff_layout_free_lseg(struct nfs4_ff_layout_segment *fls)
 {
 	if (fls) {
@@ -556,9 +538,6 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 
 out_sort_mirrors:
 	ff_layout_sort_mirrors(fls);
-	rc = ff_layout_check_layout(lgr);
-	if (rc)
-		goto out_err_free;
 	ret = &fls->generic_hdr;
 	dprintk("<-- %s (success)\n", __func__);
 out_free_page:
