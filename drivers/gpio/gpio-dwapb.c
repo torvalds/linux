@@ -690,13 +690,16 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(gpio->regs);
 
 	/* Optional bus clock */
-	gpio->clk = devm_clk_get(&pdev->dev, "bus");
-	if (!IS_ERR(gpio->clk)) {
-		err = clk_prepare_enable(gpio->clk);
-		if (err) {
-			dev_info(&pdev->dev, "Cannot enable clock\n");
-			return err;
-		}
+	gpio->clk = devm_clk_get_optional(&pdev->dev, "bus");
+	if (IS_ERR(gpio->clk)) {
+		dev_err(&pdev->dev, "Cannot get APB clock\n");
+		return PTR_ERR(gpio->clk);
+	}
+
+	err = clk_prepare_enable(gpio->clk);
+	if (err) {
+		dev_err(&pdev->dev, "Cannot enable APB clock\n");
+		return err;
 	}
 
 	gpio->flags = 0;
@@ -793,8 +796,7 @@ static int dwapb_gpio_resume(struct device *dev)
 	unsigned long flags;
 	int i;
 
-	if (!IS_ERR(gpio->clk))
-		clk_prepare_enable(gpio->clk);
+	clk_prepare_enable(gpio->clk);
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 	for (i = 0; i < gpio->nr_ports; i++) {
