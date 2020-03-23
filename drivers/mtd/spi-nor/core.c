@@ -559,6 +559,17 @@ static int spi_nor_sr_ready(struct spi_nor *nor)
 			dev_err(nor->dev, "Programming Error occurred\n");
 
 		spi_nor_clear_sr(nor);
+
+		/*
+		 * WEL bit remains set to one when an erase or page program
+		 * error occurs. Issue a Write Disable command to protect
+		 * against inadvertent writes that can possibly corrupt the
+		 * contents of the memory.
+		 */
+		ret = spi_nor_write_disable(nor);
+		if (ret)
+			return ret;
+
 		return -EIO;
 	}
 
@@ -615,6 +626,17 @@ static int spi_nor_fsr_ready(struct spi_nor *nor)
 			"Attempted to modify a protected sector.\n");
 
 		spi_nor_clear_fsr(nor);
+
+		/*
+		 * WEL bit remains set to one when an erase or page program
+		 * error occurs. Issue a Write Disable command to protect
+		 * against inadvertent writes that can possibly corrupt the
+		 * contents of the memory.
+		 */
+		ret = spi_nor_write_disable(nor);
+		if (ret)
+			return ret;
+
 		return -EIO;
 	}
 
