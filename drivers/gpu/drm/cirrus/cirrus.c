@@ -35,6 +35,7 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_ioctl.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
@@ -527,10 +528,8 @@ static void cirrus_mode_config_init(struct cirrus_device *cirrus)
 
 static void cirrus_release(struct drm_device *dev)
 {
-	struct cirrus_device *cirrus = dev->dev_private;
-
 	drm_mode_config_cleanup(dev);
-	kfree(cirrus);
+	drm_dev_fini(dev);
 }
 
 DEFINE_DRM_GEM_FOPS(cirrus_fops);
@@ -575,9 +574,12 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 
 	dev = &cirrus->dev;
 	ret = drm_dev_init(dev, &cirrus_driver, &pdev->dev);
-	if (ret)
-		goto err_free_cirrus;
+	if (ret) {
+		kfree(cirrus);
+		goto err_pci_release;
+	}
 	dev->dev_private = cirrus;
+	drmm_add_final_kfree(dev, cirrus);
 
 	ret = -ENOMEM;
 	cirrus->vram = ioremap(pci_resource_start(pdev, 0),
@@ -618,8 +620,6 @@ err_unmap_vram:
 	iounmap(cirrus->vram);
 err_dev_put:
 	drm_dev_put(dev);
-err_free_cirrus:
-	kfree(cirrus);
 err_pci_release:
 	pci_release_regions(pdev);
 	return ret;
