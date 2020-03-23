@@ -58,7 +58,7 @@ void complete_all(struct completion *x)
 {
 	unsigned long flags;
 
-	WARN_ON(irqs_disabled());
+	lockdep_assert_RT_in_threaded_ctx();
 
 	raw_spin_lock_irqsave(&x->wait.lock, flags);
 	x->done = UINT_MAX;
