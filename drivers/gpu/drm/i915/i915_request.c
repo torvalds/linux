@@ -1444,9 +1444,7 @@ void i915_request_add(struct i915_request *rq)
 	if (list_empty(&rq->sched.signalers_list))
 		attr.priority |= I915_PRIORITY_WAIT;
 
-	local_bh_disable();
 	__i915_request_queue(rq, &attr);
-	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
 
 	mutex_unlock(&tl->mutex);
 }

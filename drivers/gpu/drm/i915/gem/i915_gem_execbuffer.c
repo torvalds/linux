@@ -2386,9 +2386,7 @@ static void eb_request_add(struct i915_execbuffer *eb)
 		__i915_request_skip(rq);
 	}
 
-	local_bh_disable();
 	__i915_request_queue(rq, &attr);
-	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
 
 	/* Try to clean up the client's timeline after submitting the request */
 	if (prev)
