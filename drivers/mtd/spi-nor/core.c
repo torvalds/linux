@@ -1682,13 +1682,19 @@ static int spi_nor_sr_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	 *
 	 *   pow = ceil(log2(size / len)) = log2(size) - floor(log2(len))
 	 */
-	pow = ilog2(mtd->size) - ilog2(lock_len);
-	val = mask - (pow << SR_BP_SHIFT);
-	if (val & ~mask)
-		return -EINVAL;
-	/* Don't "lock" with no region! */
-	if (!(val & mask))
-		return -EINVAL;
+	if (lock_len == mtd->size) {
+		val = mask;
+	} else {
+		pow = ilog2(mtd->size) - ilog2(lock_len);
+		val = mask - (pow << SR_BP_SHIFT);
+
+		if (val & ~mask)
+			return -EINVAL;
+
+		/* Don't "lock" with no region! */
+		if (!(val & mask))
+			return -EINVAL;
+	}
 
 	status_new = (status_old & ~mask & ~tb_mask) | val;
 
