@@ -6349,7 +6349,7 @@ static void io_ring_file_put(struct io_ring_ctx *ctx, struct file *file)
 struct io_file_put {
 	struct llist_node llist;
 	struct file *file;
-	struct completion *done;
+	bool free_pfile;
 };
 
 static void io_ring_file_ref_flush(struct fixed_file_data *data)
@@ -6360,9 +6360,7 @@ static void io_ring_file_ref_flush(struct fixed_file_data *data)
 	while ((node = llist_del_all(&data->put_llist)) != NULL) {
 		llist_for_each_entry_safe(pfile, tmp, node, llist) {
 			io_ring_file_put(data->ctx, pfile->file);
-			if (pfile->done)
-				complete(pfile->done);
-			else
+			if (pfile->free_pfile)
 				kfree(pfile);
 		}
 	}
@@ -6562,7 +6560,6 @@ static bool io_queue_file_removal(struct fixed_file_data *data,
 				  struct file *file)
 {
 	struct io_file_put *pfile, pfile_stack;
-	DECLARE_COMPLETION_ONSTACK(done);
 
 	/*
 	 * If we fail allocating the struct we need for doing async reomval
@@ -6571,15 +6568,15 @@ static bool io_queue_file_removal(struct fixed_file_data *data,
 	pfile = kzalloc(sizeof(*pfile), GFP_KERNEL);
 	if (!pfile) {
 		pfile = &pfile_stack;
-		pfile->done = &done;
-	}
+		pfile->free_pfile = false;
+	} else
+		pfile->free_pfile = true;
 
 	pfile->file = file;
 	llist_add(&pfile->llist, &data->put_llist);
 
 	if (pfile == &pfile_stack) {
 		percpu_ref_switch_to_atomic(&data->refs, io_atomic_switch);
-		wait_for_completion(&done);
 		flush_work(&data->ref_work);
 		return false;
 	}
