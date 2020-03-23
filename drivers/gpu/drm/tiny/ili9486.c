@@ -165,7 +165,6 @@ DEFINE_DRM_GEM_CMA_FOPS(ili9486_fops);
 static struct drm_driver ili9486_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &ili9486_fops,
-	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "ili9486",

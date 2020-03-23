@@ -511,7 +511,7 @@ int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
 	if (!dbidev->dbi.command)
 		return -EINVAL;
 
-	ret = drm_mode_config_init(drm);
+	ret = drmm_mode_config_init(drm);
 	if (ret)
 		return ret;
 
@@ -582,22 +582,6 @@ int mipi_dbi_dev_init(struct mipi_dbi_dev *dbidev,
 					      rotation, bufsize);
 }
 EXPORT_SYMBOL(mipi_dbi_dev_init);
-
-/**
- * mipi_dbi_release - DRM driver release helper
- * @drm: DRM device
- *
- * This function finalizes and frees &mipi_dbi.
- *
- * Drivers can use this as their &drm_driver->release callback.
- */
-void mipi_dbi_release(struct drm_device *drm)
-{
-	DRM_DEBUG_DRIVER("\n");
-
-	drm_mode_config_cleanup(drm);
-}
-EXPORT_SYMBOL(mipi_dbi_release);
 
 /**
  * mipi_dbi_hw_reset - Hardware reset of controller

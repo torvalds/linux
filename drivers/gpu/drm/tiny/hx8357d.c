@@ -196,7 +196,6 @@ DEFINE_DRM_GEM_CMA_FOPS(hx8357d_fops);
 static struct drm_driver hx8357d_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &hx8357d_fops,
-	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "hx8357d",
