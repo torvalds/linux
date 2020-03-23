@@ -926,7 +926,7 @@ static int routing_hw_params(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct msm_routing_data *data = dev_get_drvdata(component->dev);
-	unsigned int be_id = rtd->cpu_dai->id;
+	unsigned int be_id = asoc_rtd_to_cpu(rtd, 0)->id;
 	struct session_data *session;
 	int path_type;
 
