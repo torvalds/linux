@@ -69,6 +69,8 @@ struct io_worker {
 #define IO_WQ_HASH_ORDER	5
 #endif
 
+#define IO_WQ_NR_HASH_BUCKETS	(1u << IO_WQ_HASH_ORDER)
+
 struct io_wqe_acct {
 	unsigned nr_workers;
 	unsigned max_workers;
@@ -98,6 +100,7 @@ struct io_wqe {
 	struct list_head all_list;
 
 	struct io_wq *wq;
+	struct io_wq_work *hash_tail[IO_WQ_NR_HASH_BUCKETS];
 };
 
 /*
@@ -384,7 +387,7 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe)
 	__must_hold(wqe->lock)
 {
 	struct io_wq_work_node *node, *prev;
-	struct io_wq_work *work;
+	struct io_wq_work *work, *tail;
 	unsigned int hash;
 
 	wq_list_for_each(node, prev, &wqe->work_list) {
@@ -392,7 +395,7 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe)
 
 		/* not hashed, can run anytime */
 		if (!io_wq_is_hashed(work)) {
-			wq_node_del(&wqe->work_list, node, prev);
+			wq_list_del(&wqe->work_list, node, prev);
 			return work;
 		}
 
@@ -400,7 +403,10 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe)
 		hash = io_get_work_hash(work);
 		if (!(wqe->hash_map & BIT(hash))) {
 			wqe->hash_map |= BIT(hash);
-			wq_node_del(&wqe->work_list, node, prev);
+			/* all items with this hash lie in [work, tail] */
+			tail = wqe->hash_tail[hash];
+			wqe->hash_tail[hash] = NULL;
+			wq_list_cut(&wqe->work_list, &tail->list, prev);
 			return work;
 		}
 	}
@@ -485,7 +491,7 @@ static void io_worker_handle_work(struct io_worker *worker)
 	struct io_wq *wq = wqe->wq;
 
 	do {
-		struct io_wq_work *work, *assign_work;
+		struct io_wq_work *work;
 		unsigned int hash;
 get_next:
 		/*
@@ -508,8 +514,9 @@ get_next:
 
 		/* handle a whole dependent link */
 		do {
-			struct io_wq_work *old_work;
+			struct io_wq_work *old_work, *next_hashed, *linked;
 
+			next_hashed = wq_next_work(work);
 			io_impersonate_work(worker, work);
 			/*
 			 * OK to set IO_WQ_WORK_CANCEL even for uncancellable
@@ -518,22 +525,23 @@ get_next:
 			if (test_bit(IO_WQ_BIT_CANCEL, &wq->state))
 				work->flags |= IO_WQ_WORK_CANCEL;
 
-			old_work = work;
 			hash = io_get_work_hash(work);
-			work->func(&work);
-			work = (old_work == work) ? NULL : work;
+			linked = old_work = work;
+			linked->func(&linked);
+			linked = (old_work == linked) ? NULL : linked;
 
-			assign_work = work;
-			if (work && io_wq_is_hashed(work))
-				assign_work = NULL;
-			io_assign_current_work(worker, assign_work);
+			work = next_hashed;
+			if (!work && linked && !io_wq_is_hashed(linked)) {
+				work = linked;
+				linked = NULL;
+			}
+			io_assign_current_work(worker, work);
 			wq->free_work(old_work);
 
-			if (work && !assign_work) {
-				io_wqe_enqueue(wqe, work);
-				work = NULL;
-			}
-			if (hash != -1U) {
+			if (linked)
+				io_wqe_enqueue(wqe, linked);
+
+			if (hash != -1U && !next_hashed) {
 				spin_lock_irq(&wqe->lock);
 				wqe->hash_map &= ~BIT_ULL(hash);
 				wqe->flags &= ~IO_WQE_FLAG_STALLED;
@@ -776,6 +784,26 @@ static void io_run_cancel(struct io_wq_work *work, struct io_wqe *wqe)
 	} while (work);
 }
 
+static void io_wqe_insert_work(struct io_wqe *wqe, struct io_wq_work *work)
+{
+	unsigned int hash;
+	struct io_wq_work *tail;
+
+	if (!io_wq_is_hashed(work)) {
+append:
+		wq_list_add_tail(&work->list, &wqe->work_list);
+		return;
+	}
+
+	hash = io_get_work_hash(work);
+	tail = wqe->hash_tail[hash];
+	wqe->hash_tail[hash] = work;
+	if (!tail)
+		goto append;
+
+	wq_list_add_after(&work->list, &tail->list, &wqe->work_list);
+}
+
 static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 {
 	struct io_wqe_acct *acct = io_work_get_acct(wqe, work);
@@ -795,7 +823,7 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 
 	work_flags = work->flags;
 	spin_lock_irqsave(&wqe->lock, flags);
-	wq_list_add_tail(&work->list, &wqe->work_list);
+	io_wqe_insert_work(wqe, work);
 	wqe->flags &= ~IO_WQE_FLAG_STALLED;
 	spin_unlock_irqrestore(&wqe->lock, flags);
 
@@ -914,7 +942,7 @@ static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
 		work = container_of(node, struct io_wq_work, list);
 
 		if (match->fn(work, match->data)) {
-			wq_node_del(&wqe->work_list, node, prev);
+			wq_list_del(&wqe->work_list, node, prev);
 			found = true;
 			break;
 		}

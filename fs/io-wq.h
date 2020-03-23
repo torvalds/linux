@@ -28,6 +28,18 @@ struct io_wq_work_list {
 	struct io_wq_work_node *last;
 };
 
+static inline void wq_list_add_after(struct io_wq_work_node *node,
+				     struct io_wq_work_node *pos,
+				     struct io_wq_work_list *list)
+{
+	struct io_wq_work_node *next = pos->next;
+
+	pos->next = node;
+	node->next = next;
+	if (!next)
+		list->last = node;
+}
+
 static inline void wq_list_add_tail(struct io_wq_work_node *node,
 				    struct io_wq_work_list *list)
 {
@@ -40,17 +52,26 @@ static inline void wq_list_add_tail(struct io_wq_work_node *node,
 	}
 }
 
-static inline void wq_node_del(struct io_wq_work_list *list,
+static inline void wq_list_cut(struct io_wq_work_list *list,
+			       struct io_wq_work_node *last,
+			       struct io_wq_work_node *prev)
+{
+	/* first in the list, if prev==NULL */
+	if (!prev)
+		WRITE_ONCE(list->first, last->next);
+	else
+		prev->next = last->next;
+
+	if (last == list->last)
+		list->last = prev;
+	last->next = NULL;
+}
+
+static inline void wq_list_del(struct io_wq_work_list *list,
 			       struct io_wq_work_node *node,
 			       struct io_wq_work_node *prev)
 {
-	if (node == list->first)
-		WRITE_ONCE(list->first, node->next);
-	if (node == list->last)
-		list->last = prev;
-	if (prev)
-		prev->next = node->next;
-	node->next = NULL;
+	wq_list_cut(list, node, prev);
 }
 
 #define wq_list_for_each(pos, prv, head)			\
@@ -77,6 +98,14 @@ struct io_wq_work {
 	do {							\
 		*(work) = (struct io_wq_work){ .func = _func };	\
 	} while (0)						\
+
+static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)
+{
+	if (!work->list.next)
+		return NULL;
+
+	return container_of(work->list.next, struct io_wq_work, list);
+}
 
 typedef void (free_work_fn)(struct io_wq_work *);
 
