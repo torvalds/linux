@@ -13,6 +13,7 @@
 #include "transaction.h"
 #include "delayed-ref.h"
 #include "locking.h"
+#include "misc.h"
 
 /* Just an arbitrary number so we can be sure this happened */
 #define BACKREF_FOUND_SHARED 6
@@ -2591,4 +2592,368 @@ void btrfs_backref_release_cache(struct btrfs_backref_cache *cache)
 	ASSERT(RB_EMPTY_ROOT(&cache->rb_root));
 	ASSERT(!cache->nr_nodes);
 	ASSERT(!cache->nr_edges);
+}
+
+/*
+ * Handle direct tree backref
+ *
+ * Direct tree backref means, the backref item shows its parent bytenr
+ * directly. This is for SHARED_BLOCK_REF backref (keyed or inlined).
+ *
+ * @ref_key:	The converted backref key.
+ *		For keyed backref, it's the item key.
+ *		For inlined backref, objectid is the bytenr,
+ *		type is btrfs_inline_ref_type, offset is
+ *		btrfs_inline_ref_offset.
+ */
+static int handle_direct_tree_backref(struct btrfs_backref_cache *cache,
+				      struct btrfs_key *ref_key,
+				      struct btrfs_backref_node *cur)
+{
+	struct btrfs_backref_edge *edge;
+	struct btrfs_backref_node *upper;
+	struct rb_node *rb_node;
+
+	ASSERT(ref_key->type == BTRFS_SHARED_BLOCK_REF_KEY);
+
+	/* Only reloc root uses backref pointing to itself */
+	if (ref_key->objectid == ref_key->offset) {
+		struct btrfs_root *root;
+
+		cur->is_reloc_root = 1;
+		/* Only reloc backref cache cares about a specific root */
+		if (cache->is_reloc) {
+			root = find_reloc_root(cache->fs_info, cur->bytenr);
+			if (WARN_ON(!root))
+				return -ENOENT;
+			cur->root = root;
+		} else {
+			/*
+			 * For generic purpose backref cache, reloc root node
+			 * is useless.
+			 */
+			list_add(&cur->list, &cache->useless_node);
+		}
+		return 0;
+	}
+
+	edge = btrfs_backref_alloc_edge(cache);
+	if (!edge)
+		return -ENOMEM;
+
+	rb_node = rb_simple_search(&cache->rb_root, ref_key->offset);
+	if (!rb_node) {
+		/* Parent node not yet cached */
+		upper = btrfs_backref_alloc_node(cache, ref_key->offset,
+					   cur->level + 1);
+		if (!upper) {
+			btrfs_backref_free_edge(cache, edge);
+			return -ENOMEM;
+		}
+
+		/*
+		 *  Backrefs for the upper level block isn't cached, add the
+		 *  block to pending list
+		 */
+		list_add_tail(&edge->list[UPPER], &cache->pending_edge);
+	} else {
+		/* Parent node already cached */
+		upper = rb_entry(rb_node, struct btrfs_backref_node, rb_node);
+		ASSERT(upper->checked);
+		INIT_LIST_HEAD(&edge->list[UPPER]);
+	}
+	btrfs_backref_link_edge(edge, cur, upper, LINK_LOWER);
+	return 0;
+}
+
+/*
+ * Handle indirect tree backref
+ *
+ * Indirect tree backref means, we only know which tree the node belongs to.
+ * We still need to do a tree search to find out the parents. This is for
+ * TREE_BLOCK_REF backref (keyed or inlined).
+ *
+ * @ref_key:	The same as @ref_key in  handle_direct_tree_backref()
+ * @tree_key:	The first key of this tree block.
+ * @path:	A clean (released) path, to avoid allocating path everytime
+ *		the function get called.
+ */
+static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
+					struct btrfs_path *path,
+					struct btrfs_key *ref_key,
+					struct btrfs_key *tree_key,
+					struct btrfs_backref_node *cur)
+{
+	struct btrfs_fs_info *fs_info = cache->fs_info;
+	struct btrfs_backref_node *upper;
+	struct btrfs_backref_node *lower;
+	struct btrfs_backref_edge *edge;
+	struct extent_buffer *eb;
+	struct btrfs_root *root;
+	struct btrfs_key root_key;
+	struct rb_node *rb_node;
+	int level;
+	bool need_check = true;
+	int ret;
+
+	root_key.objectid = ref_key->offset;
+	root_key.type = BTRFS_ROOT_ITEM_KEY;
+	root_key.offset = (u64)-1;
+	root = btrfs_get_fs_root(fs_info, &root_key, false);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+		cur->cowonly = 1;
+
+	if (btrfs_root_level(&root->root_item) == cur->level) {
+		/* Tree root */
+		ASSERT(btrfs_root_bytenr(&root->root_item) == cur->bytenr);
+		if (btrfs_should_ignore_reloc_root(root)) {
+			btrfs_put_root(root);
+			list_add(&cur->list, &cache->useless_node);
+		} else {
+			cur->root = root;
+		}
+		return 0;
+	}
+
+	level = cur->level + 1;
+
+	/* Search the tree to find parent blocks referring to the block */
+	path->search_commit_root = 1;
+	path->skip_locking = 1;
+	path->lowest_level = level;
+	ret = btrfs_search_slot(NULL, root, tree_key, path, 0, 0);
+	path->lowest_level = 0;
+	if (ret < 0) {
+		btrfs_put_root(root);
+		return ret;
+	}
+	if (ret > 0 && path->slots[level] > 0)
+		path->slots[level]--;
+
+	eb = path->nodes[level];
+	if (btrfs_node_blockptr(eb, path->slots[level]) != cur->bytenr) {
+		btrfs_err(fs_info,
+"couldn't find block (%llu) (level %d) in tree (%llu) with key (%llu %u %llu)",
+			  cur->bytenr, level - 1, root->root_key.objectid,
+			  tree_key->objectid, tree_key->type, tree_key->offset);
+		btrfs_put_root(root);
+		ret = -ENOENT;
+		goto out;
+	}
+	lower = cur;
+
+	/* Add all nodes and edges in the path */
+	for (; level < BTRFS_MAX_LEVEL; level++) {
+		if (!path->nodes[level]) {
+			ASSERT(btrfs_root_bytenr(&root->root_item) ==
+			       lower->bytenr);
+			if (btrfs_should_ignore_reloc_root(root)) {
+				btrfs_put_root(root);
+				list_add(&lower->list, &cache->useless_node);
+			} else {
+				lower->root = root;
+			}
+			break;
+		}
+
+		edge = btrfs_backref_alloc_edge(cache);
+		if (!edge) {
+			btrfs_put_root(root);
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		eb = path->nodes[level];
+		rb_node = rb_simple_search(&cache->rb_root, eb->start);
+		if (!rb_node) {
+			upper = btrfs_backref_alloc_node(cache, eb->start,
+							 lower->level + 1);
+			if (!upper) {
+				btrfs_put_root(root);
+				btrfs_backref_free_edge(cache, edge);
+				ret = -ENOMEM;
+				goto out;
+			}
+			upper->owner = btrfs_header_owner(eb);
+			if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+				upper->cowonly = 1;
+
+			/*
+			 * If we know the block isn't shared we can avoid
+			 * checking its backrefs.
+			 */
+			if (btrfs_block_can_be_shared(root, eb))
+				upper->checked = 0;
+			else
+				upper->checked = 1;
+
+			/*
+			 * Add the block to pending list if we need to check its
+			 * backrefs, we only do this once while walking up a
+			 * tree as we will catch anything else later on.
+			 */
+			if (!upper->checked && need_check) {
+				need_check = false;
+				list_add_tail(&edge->list[UPPER],
+					      &cache->pending_edge);
+			} else {
+				if (upper->checked)
+					need_check = true;
+				INIT_LIST_HEAD(&edge->list[UPPER]);
+			}
+		} else {
+			upper = rb_entry(rb_node, struct btrfs_backref_node,
+					 rb_node);
+			ASSERT(upper->checked);
+			INIT_LIST_HEAD(&edge->list[UPPER]);
+			if (!upper->owner)
+				upper->owner = btrfs_header_owner(eb);
+		}
+		btrfs_backref_link_edge(edge, lower, upper, LINK_LOWER);
+
+		if (rb_node) {
+			btrfs_put_root(root);
+			break;
+		}
+		lower = upper;
+		upper = NULL;
+	}
+out:
+	btrfs_release_path(path);
+	return ret;
+}
+
+/*
+ * Add backref node @cur into @cache.
+ *
+ * NOTE: Even if the function returned 0, @cur is not yet cached as its upper
+ *	 links aren't yet bi-directional. Needs to finish such links.
+ *
+ * @path:	Released path for indirect tree backref lookup
+ * @iter:	Released backref iter for extent tree search
+ * @node_key:	The first key of the tree block
+ */
+int btrfs_backref_add_tree_node(struct btrfs_backref_cache *cache,
+				struct btrfs_path *path,
+				struct btrfs_backref_iter *iter,
+				struct btrfs_key *node_key,
+				struct btrfs_backref_node *cur)
+{
+	struct btrfs_fs_info *fs_info = cache->fs_info;
+	struct btrfs_backref_edge *edge;
+	struct btrfs_backref_node *exist;
+	int ret;
+
+	ret = btrfs_backref_iter_start(iter, cur->bytenr);
+	if (ret < 0)
+		return ret;
+	/*
+	 * We skip the first btrfs_tree_block_info, as we don't use the key
+	 * stored in it, but fetch it from the tree block
+	 */
+	if (btrfs_backref_has_tree_block_info(iter)) {
+		ret = btrfs_backref_iter_next(iter);
+		if (ret < 0)
+			goto out;
+		/* No extra backref? This means the tree block is corrupted */
+		if (ret > 0) {
+			ret = -EUCLEAN;
+			goto out;
+		}
+	}
+	WARN_ON(cur->checked);
+	if (!list_empty(&cur->upper)) {
+		/*
+		 * The backref was added previously when processing backref of
+		 * type BTRFS_TREE_BLOCK_REF_KEY
+		 */
+		ASSERT(list_is_singular(&cur->upper));
+		edge = list_entry(cur->upper.next, struct btrfs_backref_edge,
+				  list[LOWER]);
+		ASSERT(list_empty(&edge->list[UPPER]));
+		exist = edge->node[UPPER];
+		/*
+		 * Add the upper level block to pending list if we need check
+		 * its backrefs
+		 */
+		if (!exist->checked)
+			list_add_tail(&edge->list[UPPER], &cache->pending_edge);
+	} else {
+		exist = NULL;
+	}
+
+	for (; ret == 0; ret = btrfs_backref_iter_next(iter)) {
+		struct extent_buffer *eb;
+		struct btrfs_key key;
+		int type;
+
+		cond_resched();
+		eb = btrfs_backref_get_eb(iter);
+
+		key.objectid = iter->bytenr;
+		if (btrfs_backref_iter_is_inline_ref(iter)) {
+			struct btrfs_extent_inline_ref *iref;
+
+			/* Update key for inline backref */
+			iref = (struct btrfs_extent_inline_ref *)
+				((unsigned long)iter->cur_ptr);
+			type = btrfs_get_extent_inline_ref_type(eb, iref,
+							BTRFS_REF_TYPE_BLOCK);
+			if (type == BTRFS_REF_TYPE_INVALID) {
+				ret = -EUCLEAN;
+				goto out;
+			}
+			key.type = type;
+			key.offset = btrfs_extent_inline_ref_offset(eb, iref);
+		} else {
+			key.type = iter->cur_key.type;
+			key.offset = iter->cur_key.offset;
+		}
+
+		/*
+		 * Parent node found and matches current inline ref, no need to
+		 * rebuild this node for this inline ref
+		 */
+		if (exist &&
+		    ((key.type == BTRFS_TREE_BLOCK_REF_KEY &&
+		      exist->owner == key.offset) ||
+		     (key.type == BTRFS_SHARED_BLOCK_REF_KEY &&
+		      exist->bytenr == key.offset))) {
+			exist = NULL;
+			continue;
+		}
+
+		/* SHARED_BLOCK_REF means key.offset is the parent bytenr */
+		if (key.type == BTRFS_SHARED_BLOCK_REF_KEY) {
+			ret = handle_direct_tree_backref(cache, &key, cur);
+			if (ret < 0)
+				goto out;
+			continue;
+		} else if (unlikely(key.type == BTRFS_EXTENT_REF_V0_KEY)) {
+			ret = -EINVAL;
+			btrfs_print_v0_err(fs_info);
+			btrfs_handle_fs_error(fs_info, ret, NULL);
+			goto out;
+		} else if (key.type != BTRFS_TREE_BLOCK_REF_KEY) {
+			continue;
+		}
+
+		/*
+		 * key.type == BTRFS_TREE_BLOCK_REF_KEY, inline ref offset
+		 * means the root objectid. We need to search the tree to get
+		 * its parent bytenr.
+		 */
+		ret = handle_indirect_tree_backref(cache, path, &key, node_key,
+						   cur);
+		if (ret < 0)
+			goto out;
+	}
+	ret = 0;
+	cur->checked = 1;
+	WARN_ON(exist);
+out:
+	btrfs_backref_iter_release(iter);
+	return ret;
 }
