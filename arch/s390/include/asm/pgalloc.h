@@ -48,6 +48,20 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 int crst_table_upgrade(struct mm_struct *mm, unsigned long limit);
 void crst_table_downgrade(struct mm_struct *);
 
+static inline unsigned long check_asce_limit(struct mm_struct *mm, unsigned long addr,
+					     unsigned long len)
+{
+	int rc;
+
+	if (addr + len > mm->context.asce_limit &&
+	    addr + len <= TASK_SIZE) {
+		rc = crst_table_upgrade(mm, addr + len);
+		if (rc)
+			return (unsigned long) rc;
+	}
+	return addr;
+}
+
 static inline p4d_t *p4d_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	unsigned long *table = crst_table_alloc(mm);
