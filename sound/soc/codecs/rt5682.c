@@ -1231,10 +1231,13 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
-	int idx = -EINVAL;
+	int idx = -EINVAL, dmic_clk_rate = 3072000;
 	static const int div[] = {2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128};
 
-	idx = rt5682_div_sel(rt5682, 1500000, div, ARRAY_SIZE(div));
+	if (rt5682->pdata.dmic_clk_rate)
+		dmic_clk_rate = rt5682->pdata.dmic_clk_rate;
+
+	idx = rt5682_div_sel(rt5682, dmic_clk_rate, div, ARRAY_SIZE(div));
 
 	snd_soc_component_update_bits(component, RT5682_DMIC_CTRL_1,
 		RT5682_DMIC_CLK_MASK, idx << RT5682_DMIC_CLK_SFT);
@@ -3231,6 +3234,8 @@ static int rt5682_parse_dt(struct rt5682_priv *rt5682, struct device *dev)
 		&rt5682->pdata.jd_src);
 	device_property_read_u32(dev, "realtek,btndet-delay",
 		&rt5682->pdata.btndet_delay);
+	device_property_read_u32(dev, "realtek,dmic-clk-rate-hz",
+		&rt5682->pdata.dmic_clk_rate);
 
 	rt5682->pdata.ldo1_en = of_get_named_gpio(dev->of_node,
 		"realtek,ldo1-en-gpios", 0);
