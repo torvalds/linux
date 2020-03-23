@@ -1,0 +1,11 @@
+============
+LITMUS TESTS
+============
+
+RCU (/rcu directory)
+--------------------
+
+RCU+sync+read.litmus
+RCU+sync+free.litmus
+    Both the above litmus tests demonstrate the RCU grace period guarantee
+    that an RCU read-side critical section can never span a grace period.
