@@ -369,4 +369,7 @@ int btrfs_backref_add_tree_node(struct btrfs_backref_cache *cache,
 				struct btrfs_key *node_key,
 				struct btrfs_backref_node *cur);
 
+int btrfs_backref_finish_upper_links(struct btrfs_backref_cache *cache,
+				     struct btrfs_backref_node *start);
+
 #endif

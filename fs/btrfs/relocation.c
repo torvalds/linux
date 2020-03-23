@@ -378,120 +378,6 @@ static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * In handle_one_tree_backref(), we have only linked the lower node to the edge,
- * but the upper node hasn't been linked to the edge.
- * This means we can only iterate through btrfs_backref_node::upper to reach
- * parent edges, but not through btrfs_backref_node::lower to reach children
- * edges.
- *
- * This function will finish the btrfs_backref_node::lower to related edges,
- * so that backref cache can be bi-directionally iterated.
- *
- * Also, this will add the nodes to backref cache for the next run.
- */
-static int finish_upper_links(struct btrfs_backref_cache *cache,
-			      struct btrfs_backref_node *start)
-{
-	struct list_head *useless_node = &cache->useless_node;
-	struct btrfs_backref_edge *edge;
-	struct rb_node *rb_node;
-	LIST_HEAD(pending_edge);
-
-	ASSERT(start->checked);
-
-	/* Insert this node to cache if it's not COW-only */
-	if (!start->cowonly) {
-		rb_node = rb_simple_insert(&cache->rb_root, start->bytenr,
-					   &start->rb_node);
-		if (rb_node)
-			btrfs_backref_panic(cache->fs_info, start->bytenr,
-					    -EEXIST);
-		list_add_tail(&start->lower, &cache->leaves);
-	}
-
-	/*
-	 * Use breadth first search to iterate all related edges.
-	 *
-	 * The starting points are all the edges of this node
-	 */
-	list_for_each_entry(edge, &start->upper, list[LOWER])
-		list_add_tail(&edge->list[UPPER], &pending_edge);
-
-	while (!list_empty(&pending_edge)) {
-		struct btrfs_backref_node *upper;
-		struct btrfs_backref_node *lower;
-		struct rb_node *rb_node;
-
-		edge = list_first_entry(&pending_edge,
-				struct btrfs_backref_edge, list[UPPER]);
-		list_del_init(&edge->list[UPPER]);
-		upper = edge->node[UPPER];
-		lower = edge->node[LOWER];
-
-		/* Parent is detached, no need to keep any edges */
-		if (upper->detached) {
-			list_del(&edge->list[LOWER]);
-			btrfs_backref_free_edge(cache, edge);
-
-			/* Lower node is orphan, queue for cleanup */
-			if (list_empty(&lower->upper))
-				list_add(&lower->list, useless_node);
-			continue;
-		}
-
-		/*
-		 * All new nodes added in current build_backref_tree() haven't
-		 * been linked to the cache rb tree.
-		 * So if we have upper->rb_node populated, this means a cache
-		 * hit. We only need to link the edge, as @upper and all its
-		 * parent have already been linked.
-		 */
-		if (!RB_EMPTY_NODE(&upper->rb_node)) {
-			if (upper->lowest) {
-				list_del_init(&upper->lower);
-				upper->lowest = 0;
-			}
-
-			list_add_tail(&edge->list[UPPER], &upper->lower);
-			continue;
-		}
-
-		/* Sanity check, we shouldn't have any unchecked nodes */
-		if (!upper->checked) {
-			ASSERT(0);
-			return -EUCLEAN;
-		}
-
-		/* Sanity check, COW-only node has non-COW-only parent */
-		if (start->cowonly != upper->cowonly) {
-			ASSERT(0);
-			return -EUCLEAN;
-		}
-
-		/* Only cache non-COW-only (subvolume trees) tree blocks */
-		if (!upper->cowonly) {
-			rb_node = rb_simple_insert(&cache->rb_root, upper->bytenr,
-						   &upper->rb_node);
-			if (rb_node) {
-				btrfs_backref_panic(cache->fs_info,
-						upper->bytenr, -EEXIST);
-				return -EUCLEAN;
-			}
-		}
-
-		list_add_tail(&edge->list[UPPER], &upper->lower);
-
-		/*
-		 * Also queue all the parent edges of this uncached node to
-		 * finish the upper linkage
-		 */
-		list_for_each_entry(edge, &upper->upper, list[LOWER])
-			list_add_tail(&edge->list[UPPER], &pending_edge);
-	}
-	return 0;
-}
-
-/*
  * For useless nodes, do two major clean ups:
  *
  * - Cleanup the children edges and nodes
@@ -634,7 +520,7 @@ static noinline_for_stack struct btrfs_backref_node *build_backref_tree(
 	} while (edge);
 
 	/* Finish the upper linkage of newly added edges/nodes */
-	ret = finish_upper_links(cache, node);
+	ret = btrfs_backref_finish_upper_links(cache, node);
 	if (ret < 0) {
 		err = ret;
 		goto out;
