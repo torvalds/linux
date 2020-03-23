@@ -877,8 +877,8 @@ static void
 isp_cproc_config(struct rkisp_isp_params_vdev *params_vdev,
 		 const struct isp2x_cproc_cfg *arg)
 {
-	struct cifisp_isp_other_cfg *cur_other_cfg = &params_vdev->isp1x_params.others;
-	struct cifisp_ie_config *cur_ie_config = &cur_other_cfg->ie_config;
+	struct isp2x_isp_other_cfg *cur_other_cfg = &params_vdev->isp2x_params.others;
+	struct isp2x_ie_cfg *cur_ie_config = &cur_other_cfg->ie_cfg;
 	u32 effect = cur_ie_config->effect;
 	u32 quantization = params_vdev->quantization;
 
