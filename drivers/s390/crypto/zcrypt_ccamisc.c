@@ -1569,9 +1569,9 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 		return -EINVAL;
 
 	/* fetch status of all crypto cards */
-	device_status = kmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-				      sizeof(struct zcrypt_device_status_ext),
-				      GFP_KERNEL);
+	device_status = kvmalloc_array(MAX_ZDEV_ENTRIES_EXT,
+				       sizeof(struct zcrypt_device_status_ext),
+				       GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);
@@ -1641,7 +1641,7 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 	} else
 		rc = -ENODEV;
 
-	kfree(device_status);
+	kvfree(device_status);
 	return rc;
 }
 
