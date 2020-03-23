@@ -924,7 +924,7 @@ When kbuild executes, the following steps are followed (roughly):
 	$(KBUILD_AFLAGS_MODULE) is used to add arch-specific options that
 	are used for assembler.
 
-	From commandline AFLAGS_MODULE shall be used (see kbuild.txt).
+	From commandline AFLAGS_MODULE shall be used (see kbuild.rst).
 
     KBUILD_CFLAGS_KERNEL
 	$(CC) options specific for built-in
@@ -937,7 +937,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	$(KBUILD_CFLAGS_MODULE) is used to add arch-specific options that
 	are used for $(CC).
-	From commandline CFLAGS_MODULE shall be used (see kbuild.txt).
+	From commandline CFLAGS_MODULE shall be used (see kbuild.rst).
 
     KBUILD_LDFLAGS_MODULE
 	Options for $(LD) when linking modules
@@ -945,7 +945,7 @@ When kbuild executes, the following steps are followed (roughly):
 	$(KBUILD_LDFLAGS_MODULE) is used to add arch-specific options
 	used when linking modules. This is often a linker script.
 
-	From commandline LDFLAGS_MODULE shall be used (see kbuild.txt).
+	From commandline LDFLAGS_MODULE shall be used (see kbuild.rst).
 
     KBUILD_LDS
 
