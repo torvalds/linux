@@ -28,7 +28,7 @@ static int mt8183_mt6358_i2s_hw_params(struct snd_pcm_substream *substream,
 	unsigned int mclk_fs_ratio = 128;
 	unsigned int mclk_fs = rate * mclk_fs_ratio;
 
-	return snd_soc_dai_set_sysclk(rtd->cpu_dai,
+	return snd_soc_dai_set_sysclk(asoc_rtd_to_cpu(rtd, 0),
 				      0, mclk_fs, SND_SOC_CLOCK_OUT);
 }
 
@@ -47,7 +47,7 @@ static int mt8183_da7219_i2s_hw_params(struct snd_pcm_substream *substream,
 	unsigned int freq;
 	int ret = 0, j;
 
-	ret = snd_soc_dai_set_sysclk(rtd->cpu_dai, 0,
+	ret = snd_soc_dai_set_sysclk(asoc_rtd_to_cpu(rtd, 0), 0,
 				     mclk_fs, SND_SOC_CLOCK_OUT);
 	if (ret < 0)
 		dev_err(rtd->dev, "failed to set cpu dai sysclk\n");
