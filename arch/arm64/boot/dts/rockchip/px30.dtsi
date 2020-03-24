@@ -1408,7 +1408,7 @@
 	};
 
 	vdpu: vdpu@ff442400 {
-		compatible = "rockchip,vpu-decoder-v2";
+		compatible = "rockchip,vpu-decoder-px30";
 		reg = <0x0 0xff442400 0x0 0x400>;
 		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
@@ -1437,7 +1437,7 @@
 	};
 
 	vepu: vepu@ff442000 {
-		compatible = "rockchip,vpu-encoder-v2";
+		compatible = "rockchip,vpu-encoder-px30";
 		reg = <0x0 0xff442000 0x0 0x400>;
 		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_enc";
@@ -1454,7 +1454,7 @@
 	};
 
 	hevc: hevc@ff440000 {
-		compatible = "rockchip,hevc-decoder";
+		compatible = "rockchip,hevc-decoder-px30";
 		reg = <0x0 0xff440000 0x0 0x400>;
 		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
