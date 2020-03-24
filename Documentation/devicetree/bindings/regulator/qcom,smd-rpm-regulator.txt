@@ -26,6 +26,7 @@ Regulator nodes are identified by their compatible:
 		    "qcom,rpm-pm8994-regulators"
 		    "qcom,rpm-pm8998-regulators"
 		    "qcom,rpm-pma8084-regulators"
+		    "qcom,rpm-pmi8994-regulators"
 		    "qcom,rpm-pmi8998-regulators"
 		    "qcom,rpm-pms405-regulators"
 
@@ -146,6 +147,15 @@ Regulator nodes are identified by their compatible:
 - vdd_s1-supply:
 - vdd_s2-supply:
 - vdd_s3-supply:
+- vdd_bst_byp-supply:
+	Usage: optional (pmi8994 only)
+	Value type: <phandle>
+	Definition: reference to regulator supplying the input pin, as
+		    described in the data sheet
+
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
 - vdd_s4-supply:
 - vdd_s5-supply:
 - vdd_s6-supply:
@@ -258,6 +268,9 @@ pma8084:
 	s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, l1, l2, l3, l4, l5,
 	l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19, l20,
 	l21, l22, l23, l24, l25, l26, l27, lvs1, lvs2, lvs3, lvs4, 5vs1
+
+pmi8994:
+	s1, s2, s3, boost-bypass
 
 pmi8998:
 	bob
