@@ -3477,7 +3477,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	hdr = dt_header_start;
 
-	/* Don't print anything after quiesce under OPAL, it crashes OFW */
 	prom_printf("Booting Linux via __start() @ 0x%lx ...\n", kbase);
 	prom_debug("->dt_header_start=0x%lx\n", hdr);
 
