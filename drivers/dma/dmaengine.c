@@ -1151,7 +1151,7 @@ int dma_async_device_register(struct dma_device *device)
 	}
 
 	if (!device->device_release)
-		dev_warn(device->dev,
+		dev_dbg(device->dev,
 			 "WARN: Device release is not defined so it is not safe to unbind this driver while in use\n");
 
 	kref_init(&device->ref);
