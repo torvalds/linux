@@ -121,12 +121,9 @@ config MEDIA_TEST_SUPPORT
 	  Say Y when you have a software defined radio device.
 endmenu # media device types
 
-comment "Multimedia core features"
 
-#
-# Video4Linux support
-#	Only enables if one of the V4L2 types (ATV, webcam, radio) is selected
-#
+menu "Media core support"
+	visible if !MEDIA_SUPPORT_FILTER
 
 comment "Video4Linux core enabled to support hybrid TV devices"
 	depends on MEDIA_HYBRID_USB || MEDIA_HYBRID_PCI
@@ -135,6 +132,9 @@ config VIDEO_DEV
 	tristate
 	prompt "Video4Linux core" if !(MEDIA_HYBRID_USB || MEDIA_HYBRID_PCI)
 	default MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT || MEDIA_PLATFORM_SUPPORT || MEDIA_TEST_SUPPORT || MEDIA_HYBRID_USB || MEDIA_HYBRID_PCI
+	help
+	  Enables the V4L2 API, used by cameras, analog TV, video grabbers,
+	  radio devices and by some input devices.
 
 config MEDIA_CONTROLLER
 	bool "Media Controller API"
@@ -158,20 +158,24 @@ config DVB_CORE
 	prompt "Digital TV core"  if !(MEDIA_HYBRID_USB || MEDIA_HYBRID_PCI)
 	depends on MEDIA_DIGITAL_TV_SUPPORT
 	depends on (I2C || I2C=n)
-	default y
 	select CRC32
-
 	help
+	  Enables the DVB API, used by Digital TV devices. Supports several
+	  standards, including DVB, ATSC, ISDB and CMDB.
 
+endmenu # Media core support
 
+#
+# Extra per-media API core functionality
 
-
+menu "Media core additional options"
 source "drivers/media/v4l2-core/Kconfig"
 source "drivers/media/mc/Kconfig"
 source "drivers/media/dvb-core/Kconfig"
 source "drivers/media/cec/Kconfig"
+endmenu
 
-comment "Media drivers"
+menu "Media drivers"
 
 comment "Drivers filtered as selected at 'Filter media drivers'"
 	depends on MEDIA_SUPPORT_FILTER
@@ -191,7 +195,9 @@ endif
 
 source "drivers/media/firewire/Kconfig"
 
-comment "Media ancillary drivers (tuners, sensors, i2c, spi, frontends)"
+endmenu
+
+menu "Media ancillary drivers (tuners, sensors, i2c, spi, frontends)"
 
 #
 # Ancillary drivers (tuners, i2c, spi, frontends)
@@ -235,5 +241,7 @@ source "drivers/media/i2c/Kconfig"
 source "drivers/media/spi/Kconfig"
 source "drivers/media/tuners/Kconfig"
 source "drivers/media/dvb-frontends/Kconfig"
+
+endmenu
 
 endif # MEDIA_SUPPORT
