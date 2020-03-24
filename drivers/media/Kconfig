@@ -33,6 +33,28 @@ config MEDIA_SUPPORT_FILTER
 	   needed to support media drivers will be enabled. Also, all
 	   media device drivers should be shown.
 
+config MEDIA_SUBDRV_AUTOSELECT
+	bool "Autoselect ancillary drivers (tuners, sensors, i2c, spi, frontends)"
+	depends on HAS_IOMEM
+	select I2C
+	select I2C_MUX
+	default y if MEDIA_SUPPORT_FILTER
+	help
+	  By default, a media driver auto-selects all possible ancillary
+	  devices such as tuners, sensors, video encoders/decoders and
+	  frontends, that are used by any of the supported devices.
+
+	  This is generally the right thing to do, except when there
+	  are strict constraints with regards to the kernel size,
+	  like on embedded systems.
+
+	  Use this option with care, as deselecting ancillary drivers which
+	  are, in fact, necessary will result in the lack of the needed
+	  functionality for your device (it may not tune or may not have
+	  the needed demodulators).
+
+	  If unsure say Y.
+
 menu "Media device types"
 	visible if MEDIA_SUPPORT_FILTER
 
@@ -197,39 +219,17 @@ source "drivers/media/firewire/Kconfig"
 
 endmenu
 
-menu "Media ancillary drivers (tuners, sensors, i2c, spi, frontends)"
-
 #
 # Ancillary drivers (tuners, i2c, spi, frontends)
 #
-
-config MEDIA_SUBDRV_AUTOSELECT
-	bool "Autoselect ancillary drivers (tuners, sensors, i2c, spi, frontends)"
-	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_CAMERA_SUPPORT || MEDIA_SDR_SUPPORT
-	depends on HAS_IOMEM
-	select I2C
-	select I2C_MUX
-	default y if !EMBEDDED
-	help
-	  By default, a media driver auto-selects all possible ancillary
-	  devices such as tuners, sensors, video encoders/decoders and
-	  frontends, that are used by any of the supported devices.
-
-	  This is generally the right thing to do, except when there
-	  are strict constraints with regards to the kernel size,
-	  like on embedded systems.
-
-	  Use this option with care, as deselecting ancillary drivers which
-	  are, in fact, necessary will result in the lack of the needed
-	  functionality for your device (it may not tune or may not have
-	  the needed demodulators).
-
-	  If unsure say Y.
 
 config MEDIA_HIDE_ANCILLARY_SUBDRV
 	bool
 	depends on MEDIA_SUBDRV_AUTOSELECT && !COMPILE_TEST && !EXPERT
 	default y
+
+menu "Media ancillary drivers"
+	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config MEDIA_ATTACH
 	bool
