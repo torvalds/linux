@@ -1720,6 +1720,44 @@ struct vfio_group *vfio_group_get_external_user(struct file *filep)
 }
 EXPORT_SYMBOL_GPL(vfio_group_get_external_user);
 
+/**
+ * External user API, exported by symbols to be linked dynamically.
+ * The external user passes in a device pointer
+ * to verify that:
+ *	- A VFIO group is assiciated with the device;
+ *	- IOMMU is set for the group.
+ * If both checks passed, vfio_group_get_external_user_from_dev()
+ * increments the container user counter to prevent the VFIO group
+ * from disposal before external user exits and returns the pointer
+ * to the VFIO group.
+ *
+ * When the external user finishes using the VFIO group, it calls
+ * vfio_group_put_external_user() to release the VFIO group and
+ * decrement the container user counter.
+ *
+ * @dev [in]	: device
+ * Return error PTR or pointer to VFIO group.
+ */
+
+struct vfio_group *vfio_group_get_external_user_from_dev(struct device *dev)
+{
+	struct vfio_group *group;
+	int ret;
+
+	group = vfio_group_get_from_dev(dev);
+	if (!group)
+		return ERR_PTR(-ENODEV);
+
+	ret = vfio_group_add_container_user(group);
+	if (ret) {
+		vfio_group_put(group);
+		return ERR_PTR(ret);
+	}
+
+	return group;
+}
+EXPORT_SYMBOL_GPL(vfio_group_get_external_user_from_dev);
+
 void vfio_group_put_external_user(struct vfio_group *group)
 {
 	vfio_group_try_dissolve_container(group);
