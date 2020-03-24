@@ -79,6 +79,13 @@ struct goodix_chip_data {
 	void (*calc_config_checksum)(struct goodix_ts_data *ts);
 };
 
+struct goodix_chip_id {
+	const char *id;
+	const struct goodix_chip_data *data;
+};
+
+#define GOODIX_ID_MAX_LEN	4
+
 struct goodix_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
@@ -92,7 +99,7 @@ struct goodix_ts_data {
 	struct gpio_desc *gpiod_rst;
 	int gpio_count;
 	int gpio_int_idx;
-	u16 id;
+	char id[GOODIX_ID_MAX_LEN + 1];
 	u16 version;
 	const char *cfg_name;
 	bool reset_controller_at_probe;
@@ -138,6 +145,22 @@ static const struct goodix_chip_data gt9x_chip_data = {
 	.config_len		= GOODIX_CONFIG_GT9X_LENGTH,
 	.check_config		= goodix_check_cfg_8,
 	.calc_config_checksum	= goodix_calc_cfg_checksum_8,
+};
+
+static const struct goodix_chip_id goodix_chip_ids[] = {
+	{ .id = "1151", .data = &gt1x_chip_data },
+	{ .id = "5663", .data = &gt1x_chip_data },
+	{ .id = "5688", .data = &gt1x_chip_data },
+
+	{ .id = "911", .data = &gt911_chip_data },
+	{ .id = "9271", .data = &gt911_chip_data },
+	{ .id = "9110", .data = &gt911_chip_data },
+	{ .id = "927", .data = &gt911_chip_data },
+	{ .id = "928", .data = &gt911_chip_data },
+
+	{ .id = "912", .data = &gt967_chip_data },
+	{ .id = "967", .data = &gt967_chip_data },
+	{ }
 };
 
 static const unsigned long goodix_irq_flags[] = {
@@ -276,28 +299,16 @@ static int goodix_i2c_write_u8(struct i2c_client *client, u16 reg, u8 value)
 	return goodix_i2c_write(client, reg, &value, sizeof(value));
 }
 
-static const struct goodix_chip_data *goodix_get_chip_data(u16 id)
+static const struct goodix_chip_data *goodix_get_chip_data(const char *id)
 {
-	switch (id) {
-	case 1151:
-	case 5663:
-	case 5688:
-		return &gt1x_chip_data;
+	unsigned int i;
 
-	case 911:
-	case 9271:
-	case 9110:
-	case 927:
-	case 928:
-		return &gt911_chip_data;
-
-	case 912:
-	case 967:
-		return &gt967_chip_data;
-
-	default:
-		return &gt9x_chip_data;
+	for (i = 0; goodix_chip_ids[i].id; i++) {
+		if (!strcmp(goodix_chip_ids[i].id, id))
+			return goodix_chip_ids[i].data;
 	}
+
+	return &gt9x_chip_data;
 }
 
 static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
@@ -951,7 +962,7 @@ static int goodix_read_version(struct goodix_ts_data *ts)
 {
 	int error;
 	u8 buf[6];
-	char id_str[5];
+	char id_str[GOODIX_ID_MAX_LEN + 1];
 
 	error = goodix_i2c_read(ts->client, GOODIX_REG_ID, buf, sizeof(buf));
 	if (error) {
@@ -959,14 +970,13 @@ static int goodix_read_version(struct goodix_ts_data *ts)
 		return error;
 	}
 
-	memcpy(id_str, buf, 4);
-	id_str[4] = 0;
-	if (kstrtou16(id_str, 10, &ts->id))
-		ts->id = 0x1001;
+	memcpy(id_str, buf, GOODIX_ID_MAX_LEN);
+	id_str[GOODIX_ID_MAX_LEN] = 0;
+	strscpy(ts->id, id_str, GOODIX_ID_MAX_LEN + 1);
 
 	ts->version = get_unaligned_le16(&buf[4]);
 
-	dev_info(&ts->client->dev, "ID %d, version: %04x\n", ts->id,
+	dev_info(&ts->client->dev, "ID %s, version: %04x\n", ts->id,
 		 ts->version);
 
 	return 0;
@@ -1025,7 +1035,8 @@ static int goodix_configure_dev(struct goodix_ts_data *ts)
 	ts->input_dev->phys = "input/ts";
 	ts->input_dev->id.bustype = BUS_I2C;
 	ts->input_dev->id.vendor = 0x0416;
-	ts->input_dev->id.product = ts->id;
+	if (kstrtou16(ts->id, 10, &ts->input_dev->id.product))
+		ts->input_dev->id.product = 0x1001;
 	ts->input_dev->id.version = ts->version;
 
 	ts->input_dev->keycode = ts->keymap;
@@ -1228,7 +1239,7 @@ reset:
 	if (ts->load_cfg_from_disk) {
 		/* update device config */
 		ts->cfg_name = devm_kasprintf(&client->dev, GFP_KERNEL,
-					      "goodix_%d_cfg.bin", ts->id);
+					      "goodix_%s_cfg.bin", ts->id);
 		if (!ts->cfg_name)
 			return -ENOMEM;
 
