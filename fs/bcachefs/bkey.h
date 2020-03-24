@@ -408,9 +408,8 @@ static inline int bch2_compile_bkey_format(const struct bkey_format *format,
 static inline void bkey_reassemble(struct bkey_i *dst,
 				   struct bkey_s_c src)
 {
-	BUG_ON(bkey_packed(src.k));
 	dst->k = *src.k;
-	memcpy_u64s(&dst->v, src.v, bkey_val_u64s(src.k));
+	memcpy_u64s_small(&dst->v, src.v, bkey_val_u64s(src.k));
 }
 
 #define bkey_s_null		((struct bkey_s)   { .k = NULL })
