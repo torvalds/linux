@@ -244,6 +244,19 @@ int mhi_destroy_device(struct device *dev, void *data)
 	if (mhi_dev->dev_type == MHI_DEVICE_CONTROLLER)
 		return 0;
 
+	/*
+	 * For the suspend and resume case, this function will get called
+	 * without mhi_unregister_controller(). Hence, we need to drop the
+	 * references to mhi_dev created for ul and dl channels. We can
+	 * be sure that there will be no instances of mhi_dev left after
+	 * this.
+	 */
+	if (mhi_dev->ul_chan)
+		put_device(&mhi_dev->ul_chan->mhi_dev->dev);
+
+	if (mhi_dev->dl_chan)
+		put_device(&mhi_dev->dl_chan->mhi_dev->dev);
+
 	dev_dbg(&mhi_cntrl->mhi_dev->dev, "destroy device for chan:%s\n",
 		 mhi_dev->chan_name);
 
