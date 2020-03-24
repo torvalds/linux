@@ -246,6 +246,21 @@ config AD799X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad799x.
 
+config AD9467
+	tristate "Analog Devices AD9467 High Speed ADC driver"
+	depends on SPI
+	select ADI_AXI_ADC
+	help
+	  Say yes here to build support for Analog Devices:
+	  * AD9467 16-Bit, 200 MSPS/250 MSPS Analog-to-Digital Converter
+
+	  The driver requires the assistance of the AXI ADC IP core to operate,
+	  since SPI is used for configuration only, while data has to be
+	  streamed into memory via DMA.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad9467.
+
 config ADI_AXI_ADC
 	tristate "Analog Devices Generic AXI ADC IP core driver"
 	select IIO_BUFFER
