@@ -310,6 +310,10 @@ struct mhi_controller_config {
  * @sw_ev_rings: Number of software event rings
  * @nr_irqs_req: Number of IRQs required to operate (optional)
  * @nr_irqs: Number of IRQ allocated by bus master (required)
+ * @family_number: MHI controller family number
+ * @device_number: MHI controller device number
+ * @major_version: MHI controller major revision number
+ * @minor_version: MHI controller minor revision number
  * @mhi_event: MHI event ring configurations table
  * @mhi_cmd: MHI command ring configurations table
  * @mhi_ctxt: MHI device context, shared memory between host and device
@@ -348,6 +352,15 @@ struct mhi_controller_config {
  * Fields marked as (required) need to be populated by the controller driver
  * before calling mhi_register_controller(). For the fields marked as (optional)
  * they can be populated depending on the usecase.
+ *
+ * The following fields are present for the purpose of implementing any device
+ * specific quirks or customizations for specific MHI revisions used in device
+ * by the controller drivers. The MHI stack will just populate these fields
+ * during mhi_register_controller():
+ *  family_number
+ *  device_number
+ *  major_version
+ *  minor_version
  */
 struct mhi_controller {
 	struct device *cntrl_dev;
@@ -375,6 +388,10 @@ struct mhi_controller {
 	u32 sw_ev_rings;
 	u32 nr_irqs_req;
 	u32 nr_irqs;
+	u32 family_number;
+	u32 device_number;
+	u32 major_version;
+	u32 minor_version;
 
 	struct mhi_event *mhi_event;
 	struct mhi_cmd *mhi_cmd;
