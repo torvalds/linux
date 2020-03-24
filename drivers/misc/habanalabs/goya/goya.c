@@ -2684,30 +2684,6 @@ static void goya_hw_fini(struct hl_device *hdev, bool hard_reset)
 					HW_CAP_MMU | HW_CAP_TPC_MBIST |
 					HW_CAP_GOLDEN | HW_CAP_TPC);
 	memset(goya->events_stat, 0, sizeof(goya->events_stat));
-
-	if (!hdev->pldm) {
-		int rc;
-		/* In case we are running inside VM and the VM is
-		 * shutting down, we need to make sure CPU boot-loader
-		 * is running before we can continue the VM shutdown.
-		 * That is because the VM will send an FLR signal that
-		 * we must answer
-		 */
-		dev_info(hdev->dev,
-			"Going to wait up to %ds for CPU boot loader\n",
-			GOYA_CPU_TIMEOUT_USEC / 1000 / 1000);
-
-		rc = hl_poll_timeout(
-			hdev,
-			mmPSOC_GLOBAL_CONF_WARM_REBOOT,
-			status,
-			(status == CPU_BOOT_STATUS_DRAM_RDY),
-			10000,
-			GOYA_CPU_TIMEOUT_USEC);
-		if (rc)
-			dev_err(hdev->dev,
-				"failed to wait for CPU boot loader\n");
-	}
 }
 
 int goya_suspend(struct hl_device *hdev)
