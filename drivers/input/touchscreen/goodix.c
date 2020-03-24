@@ -56,6 +56,7 @@ struct goodix_ts_data {
 	u16 id;
 	u16 version;
 	const char *cfg_name;
+	bool reset_controller_at_probe;
 	bool load_cfg_from_disk;
 	struct completion firmware_loading_complete;
 	unsigned long irq_flags;
@@ -672,6 +673,7 @@ static int goodix_get_gpio_config(struct goodix_ts_data *ts)
 	ts->gpiod_rst = gpiod;
 
 	if (ts->gpiod_int && ts->gpiod_rst) {
+		ts->reset_controller_at_probe = true;
 		ts->load_cfg_from_disk = true;
 		ts->irq_pin_access_method = IRQ_PIN_ACCESS_GPIO;
 	}
@@ -954,7 +956,7 @@ static int goodix_ts_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_GPIO) {
+	if (ts->reset_controller_at_probe) {
 		/* reset the controller */
 		error = goodix_reset(ts);
 		if (error) {
