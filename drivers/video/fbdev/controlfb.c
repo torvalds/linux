@@ -143,7 +143,7 @@ static int read_control_sense(struct fb_info_control *p);
 static int calc_clock_params(unsigned long clk, unsigned char *param);
 static int control_var_to_par(struct fb_var_screeninfo *var,
 	struct fb_par_control *par, const struct fb_info *fb_info);
-static inline void control_par_to_var(struct fb_par_control *par,
+static void control_par_to_var(struct fb_par_control *par,
 	struct fb_var_screeninfo *var);
 static void control_init_info(struct fb_info *info, struct fb_info_control *p);
 static void control_cleanup(void);
@@ -313,7 +313,7 @@ static int controlfb_blank(int blank_mode, struct fb_info *info)
 		container_of(info, struct fb_info_control, info);
 	unsigned ctrl;
 
-	ctrl = le32_to_cpup(CNTRL_REG(p,ctrl));
+	ctrl = in_le32(CNTRL_REG(p, ctrl));
 	if (blank_mode > 0)
 		switch (blank_mode) {
 		case FB_BLANK_VSYNC_SUSPEND:
