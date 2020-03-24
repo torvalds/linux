@@ -12,15 +12,15 @@
 #include "mscc_macsec.h"
 #endif
 
-enum rgmii_rx_clock_delay {
-	RGMII_RX_CLK_DELAY_0_2_NS = 0,
-	RGMII_RX_CLK_DELAY_0_8_NS = 1,
-	RGMII_RX_CLK_DELAY_1_1_NS = 2,
-	RGMII_RX_CLK_DELAY_1_7_NS = 3,
-	RGMII_RX_CLK_DELAY_2_0_NS = 4,
-	RGMII_RX_CLK_DELAY_2_3_NS = 5,
-	RGMII_RX_CLK_DELAY_2_6_NS = 6,
-	RGMII_RX_CLK_DELAY_3_4_NS = 7
+enum rgmii_clock_delay {
+	RGMII_CLK_DELAY_0_2_NS = 0,
+	RGMII_CLK_DELAY_0_8_NS = 1,
+	RGMII_CLK_DELAY_1_1_NS = 2,
+	RGMII_CLK_DELAY_1_7_NS = 3,
+	RGMII_CLK_DELAY_2_0_NS = 4,
+	RGMII_CLK_DELAY_2_3_NS = 5,
+	RGMII_CLK_DELAY_2_6_NS = 6,
+	RGMII_CLK_DELAY_3_4_NS = 7
 };
 
 /* Microsemi VSC85xx PHY registers */
@@ -178,6 +178,8 @@ enum rgmii_rx_clock_delay {
 #define MSCC_PHY_RGMII_CNTL		  20
 #define RGMII_RX_CLK_DELAY_MASK		  0x0070
 #define RGMII_RX_CLK_DELAY_POS		  4
+#define RGMII_TX_CLK_DELAY_MASK		  0x0007
+#define RGMII_TX_CLK_DELAY_POS		  0
 
 #define MSCC_PHY_WOL_LOWER_MAC_ADDR	  21
 #define MSCC_PHY_WOL_MID_MAC_ADDR	  22
@@ -274,6 +276,7 @@ enum rgmii_rx_clock_delay {
 /* Microsemi PHY ID's
  *   Code assumes lowest nibble is 0
  */
+#define PHY_ID_VSC8502			  0x00070630
 #define PHY_ID_VSC8504			  0x000704c0
 #define PHY_ID_VSC8514			  0x00070670
 #define PHY_ID_VSC8530			  0x00070560
