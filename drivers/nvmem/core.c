@@ -398,11 +398,9 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 
 	nvmem->dev.groups = nvmem_sysfs_get_groups(nvmem, config);
 
-	device_initialize(&nvmem->dev);
-
 	dev_dbg(&nvmem->dev, "Registering nvmem device %s\n", config->name);
 
-	rval = device_add(&nvmem->dev);
+	rval = device_register(&nvmem->dev);
 	if (rval)
 		goto err_put_device;
 
@@ -456,8 +454,7 @@ static void nvmem_device_release(struct kref *kref)
 		device_remove_bin_file(nvmem->base_dev, &nvmem->eeprom);
 
 	nvmem_device_remove_all_cells(nvmem);
-	device_del(&nvmem->dev);
-	put_device(&nvmem->dev);
+	device_unregister(&nvmem->dev);
 }
 
 /**
