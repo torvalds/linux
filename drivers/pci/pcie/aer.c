@@ -420,7 +420,16 @@ void pci_aer_clear_fatal_status(struct pci_dev *dev)
 		pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, status);
 }
 
-int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
+/**
+ * pci_aer_raw_clear_status - Clear AER error registers.
+ * @dev: the PCI device
+ *
+ * Clearing AER error status registers unconditionally, regardless of
+ * whether they're owned by firmware or the OS.
+ *
+ * Returns 0 on success, or negative on failure.
+ */
+int pci_aer_raw_clear_status(struct pci_dev *dev)
 {
 	int pos;
 	u32 status;
@@ -431,9 +440,6 @@ int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
 
 	pos = dev->aer_cap;
 	if (!pos)
-		return -EIO;
-
-	if (pcie_aer_get_firmware_first(dev))
 		return -EIO;
 
 	port_type = pci_pcie_type(dev);
@@ -449,6 +455,14 @@ int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
 	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, status);
 
 	return 0;
+}
+
+int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
+{
+	if (pcie_aer_get_firmware_first(dev))
+		return -EIO;
+
+	return pci_aer_raw_clear_status(dev);
 }
 
 void pci_save_aer_state(struct pci_dev *dev)
