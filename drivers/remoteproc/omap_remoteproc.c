@@ -2,7 +2,7 @@
 /*
  * OMAP Remote Processor driver
  *
- * Copyright (C) 2011 Texas Instruments, Inc.
+ * Copyright (C) 2011-2020 Texas Instruments Incorporated - http://www.ti.com/
  * Copyright (C) 2011 Google, Inc.
  *
  * Ohad Ben-Cohen <ohad@wizery.com>
@@ -16,27 +16,51 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/err.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/remoteproc.h>
 #include <linux/mailbox_client.h>
 #include <linux/omap-mailbox.h>
-
-#include <linux/platform_data/remoteproc-omap.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
+#include <linux/reset.h>
 
 #include "omap_remoteproc.h"
 #include "remoteproc_internal.h"
 
 /**
+ * struct omap_rproc_boot_data - boot data structure for the DSP omap rprocs
+ * @syscon: regmap handle for the system control configuration module
+ * @boot_reg: boot register offset within the @syscon regmap
+ */
+struct omap_rproc_boot_data {
+	struct regmap *syscon;
+	unsigned int boot_reg;
+};
+
+/**
  * struct omap_rproc - omap remote processor state
  * @mbox: mailbox channel handle
  * @client: mailbox client to request the mailbox channel
+ * @boot_data: boot data structure for setting processor boot address
  * @rproc: rproc handle
+ * @reset: reset handle
  */
 struct omap_rproc {
 	struct mbox_chan *mbox;
 	struct mbox_client client;
+	struct omap_rproc_boot_data *boot_data;
 	struct rproc *rproc;
+	struct reset_control *reset;
+};
+
+/**
+ * struct omap_rproc_dev_data - device data for the omap remote processor
+ * @device_name: device name of the remote processor
+ */
+struct omap_rproc_dev_data {
+	const char *device_name;
 };
 
 /**
@@ -92,6 +116,21 @@ static void omap_rproc_kick(struct rproc *rproc, int vqid)
 			ret);
 }
 
+/**
+ * omap_rproc_write_dsp_boot_addr() - set boot address for DSP remote processor
+ * @rproc: handle of a remote processor
+ *
+ * Set boot address for a supported DSP remote processor.
+ */
+static void omap_rproc_write_dsp_boot_addr(struct rproc *rproc)
+{
+	struct omap_rproc *oproc = rproc->priv;
+	struct omap_rproc_boot_data *bdata = oproc->boot_data;
+	u32 offset = bdata->boot_reg;
+
+	regmap_write(bdata->syscon, offset, rproc->bootaddr);
+}
+
 /*
  * Power up the remote processor.
  *
@@ -103,13 +142,11 @@ static int omap_rproc_start(struct rproc *rproc)
 {
 	struct omap_rproc *oproc = rproc->priv;
 	struct device *dev = rproc->dev.parent;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	int ret;
 	struct mbox_client *client = &oproc->client;
 
-	if (pdata->set_bootaddr)
-		pdata->set_bootaddr(rproc->bootaddr);
+	if (oproc->boot_data)
+		omap_rproc_write_dsp_boot_addr(rproc);
 
 	client->dev = dev;
 	client->tx_done = NULL;
@@ -117,7 +154,7 @@ static int omap_rproc_start(struct rproc *rproc)
 	client->tx_block = false;
 	client->knows_txdone = false;
 
-	oproc->mbox = omap_mbox_request_channel(client, pdata->mbox_name);
+	oproc->mbox = mbox_request_channel(client, 0);
 	if (IS_ERR(oproc->mbox)) {
 		ret = -EBUSY;
 		dev_err(dev, "mbox_request_channel failed: %ld\n",
@@ -138,9 +175,9 @@ static int omap_rproc_start(struct rproc *rproc)
 		goto put_mbox;
 	}
 
-	ret = pdata->device_enable(pdev);
+	ret = reset_control_deassert(oproc->reset);
 	if (ret) {
-		dev_err(dev, "omap_device_enable failed: %d\n", ret);
+		dev_err(dev, "reset control deassert failed: %d\n", ret);
 		goto put_mbox;
 	}
 
@@ -154,13 +191,10 @@ put_mbox:
 /* power off the remote processor */
 static int omap_rproc_stop(struct rproc *rproc)
 {
-	struct device *dev = rproc->dev.parent;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	struct omap_rproc *oproc = rproc->priv;
 	int ret;
 
-	ret = pdata->device_shutdown(pdev);
+	ret = reset_control_assert(oproc->reset);
 	if (ret)
 		return ret;
 
@@ -175,12 +209,115 @@ static const struct rproc_ops omap_rproc_ops = {
 	.kick		= omap_rproc_kick,
 };
 
+static const struct omap_rproc_dev_data omap4_dsp_dev_data = {
+	.device_name	= "dsp",
+};
+
+static const struct omap_rproc_dev_data omap4_ipu_dev_data = {
+	.device_name	= "ipu",
+};
+
+static const struct omap_rproc_dev_data omap5_dsp_dev_data = {
+	.device_name	= "dsp",
+};
+
+static const struct omap_rproc_dev_data omap5_ipu_dev_data = {
+	.device_name	= "ipu",
+};
+
+static const struct of_device_id omap_rproc_of_match[] = {
+	{
+		.compatible     = "ti,omap4-dsp",
+		.data           = &omap4_dsp_dev_data,
+	},
+	{
+		.compatible     = "ti,omap4-ipu",
+		.data           = &omap4_ipu_dev_data,
+	},
+	{
+		.compatible     = "ti,omap5-dsp",
+		.data           = &omap5_dsp_dev_data,
+	},
+	{
+		.compatible     = "ti,omap5-ipu",
+		.data           = &omap5_ipu_dev_data,
+	},
+	{
+		/* end */
+	},
+};
+MODULE_DEVICE_TABLE(of, omap_rproc_of_match);
+
+static const char *omap_rproc_get_firmware(struct platform_device *pdev)
+{
+	const char *fw_name;
+	int ret;
+
+	ret = of_property_read_string(pdev->dev.of_node, "firmware-name",
+				      &fw_name);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return fw_name;
+}
+
+static int omap_rproc_get_boot_data(struct platform_device *pdev,
+				    struct rproc *rproc)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct omap_rproc *oproc = rproc->priv;
+	const struct omap_rproc_dev_data *data;
+	int ret;
+
+	data = of_device_get_match_data(&pdev->dev);
+	if (!data)
+		return -ENODEV;
+
+	if (!of_property_read_bool(np, "ti,bootreg"))
+		return 0;
+
+	oproc->boot_data = devm_kzalloc(&pdev->dev, sizeof(*oproc->boot_data),
+					GFP_KERNEL);
+	if (!oproc->boot_data)
+		return -ENOMEM;
+
+	oproc->boot_data->syscon =
+			syscon_regmap_lookup_by_phandle(np, "ti,bootreg");
+	if (IS_ERR(oproc->boot_data->syscon)) {
+		ret = PTR_ERR(oproc->boot_data->syscon);
+		return ret;
+	}
+
+	if (of_property_read_u32_index(np, "ti,bootreg", 1,
+				       &oproc->boot_data->boot_reg)) {
+		dev_err(&pdev->dev, "couldn't get the boot register\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int omap_rproc_probe(struct platform_device *pdev)
 {
-	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
+	struct device_node *np = pdev->dev.of_node;
 	struct omap_rproc *oproc;
 	struct rproc *rproc;
+	const char *firmware;
 	int ret;
+	struct reset_control *reset;
+
+	if (!np) {
+		dev_err(&pdev->dev, "only DT-based devices are supported\n");
+		return -ENODEV;
+	}
+
+	reset = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(reset))
+		return PTR_ERR(reset);
+
+	firmware = omap_rproc_get_firmware(pdev);
+	if (IS_ERR(firmware))
+		return PTR_ERR(firmware);
 
 	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) {
@@ -188,15 +325,20 @@ static int omap_rproc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rproc = rproc_alloc(&pdev->dev, pdata->name, &omap_rproc_ops,
-			    pdata->firmware, sizeof(*oproc));
+	rproc = rproc_alloc(&pdev->dev, dev_name(&pdev->dev), &omap_rproc_ops,
+			    firmware, sizeof(*oproc));
 	if (!rproc)
 		return -ENOMEM;
 
 	oproc = rproc->priv;
 	oproc->rproc = rproc;
+	oproc->reset = reset;
 	/* All existing OMAP IPU and DSP processors have an MMU */
 	rproc->has_iommu = true;
+
+	ret = omap_rproc_get_boot_data(pdev, rproc);
+	if (ret)
+		goto free_rproc;
 
 	platform_set_drvdata(pdev, rproc);
 
@@ -226,6 +368,7 @@ static struct platform_driver omap_rproc_driver = {
 	.remove = omap_rproc_remove,
 	.driver = {
 		.name = "omap-rproc",
+		.of_match_table = omap_rproc_of_match,
 	},
 };
 
