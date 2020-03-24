@@ -68,8 +68,6 @@
 #define I2C_ARBITRATE_INTR	BIT(1)
 #define I2C_OVER_INTR		BIT(0)
 
-#define HIX5I2C_MAX_FREQ	400000		/* 400k */
-
 enum hix5hd2_i2c_state {
 	HIX5I2C_STAT_RW_ERR = -1,
 	HIX5I2C_STAT_INIT,
@@ -400,12 +398,12 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 
 	if (of_property_read_u32(np, "clock-frequency", &freq)) {
 		/* use 100k as default value */
-		priv->freq = 100000;
+		priv->freq = I2C_MAX_STANDARD_MODE_FREQ;
 	} else {
-		if (freq > HIX5I2C_MAX_FREQ) {
-			priv->freq = HIX5I2C_MAX_FREQ;
+		if (freq > I2C_MAX_FAST_MODE_FREQ) {
+			priv->freq = I2C_MAX_FAST_MODE_FREQ;
 			dev_warn(priv->dev, "use max freq %d instead\n",
-				 HIX5I2C_MAX_FREQ);
+				 I2C_MAX_FAST_MODE_FREQ);
 		} else {
 			priv->freq = freq;
 		}

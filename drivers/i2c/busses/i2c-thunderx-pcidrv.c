@@ -183,7 +183,7 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 	thunder_i2c_clock_enable(dev, i2c);
 	ret = device_property_read_u32(dev, "clock-frequency", &i2c->twsi_freq);
 	if (ret)
-		i2c->twsi_freq = 100000;
+		i2c->twsi_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
 	init_waitqueue_head(&i2c->queue);
 

@@ -731,7 +731,7 @@ static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, uint32_t speed)
 	 * This is compensated for by subtracting the respective constants
 	 * from the values written to the timing registers.
 	 */
-	if (speed > 100000) {
+	if (speed > I2C_MAX_STANDARD_MODE_FREQ) {
 		/* fast mode */
 		low_count = DIV_ROUND_CLOSEST(divider * 13, (13 + 6));
 		high_count = DIV_ROUND_CLOSEST(divider * 6, (13 + 6));
@@ -769,7 +769,7 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 	ret = of_property_read_u32(node, "clock-frequency", &speed);
 	if (ret) {
 		dev_warn(dev, "No I2C speed selected, using 100kHz\n");
-		speed = 100000;
+		speed = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
 	mxs_i2c_derive_timing(i2c, speed);
