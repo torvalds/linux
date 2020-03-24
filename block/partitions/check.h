@@ -23,11 +23,6 @@ struct parsed_partitions {
 	char *pp_buf;
 };
 
-void free_partitions(struct parsed_partitions *state);
-
-struct parsed_partitions *
-check_partition(struct gendisk *, struct block_device *);
-
 typedef struct {
 	struct page *v;
 } Sector;
