@@ -616,6 +616,7 @@ static void *display_thread_tui(void *arg)
 		.arg		= top,
 		.refresh	= top->delay_secs,
 	};
+	int ret;
 
 	/* In order to read symbols from other namespaces perf to  needs to call
 	 * setns(2).  This isn't permitted if the struct_fs has multiple users.
@@ -626,6 +627,7 @@ static void *display_thread_tui(void *arg)
 
 	prctl(PR_SET_NAME, "perf-top-UI", 0, 0, 0);
 
+repeat:
 	perf_top__sort_new_samples(top);
 
 	/*
@@ -638,13 +640,18 @@ static void *display_thread_tui(void *arg)
 		hists->uid_filter_str = top->record_opts.target.uid_str;
 	}
 
-	perf_evlist__tui_browse_hists(top->evlist, help, &hbt,
+	ret = perf_evlist__tui_browse_hists(top->evlist, help, &hbt,
 				      top->min_percent,
 				      &top->session->header.env,
 				      !top->record_opts.overwrite,
 				      &top->annotation_opts);
 
-	stop_top();
+	if (ret == K_RELOAD) {
+		top->zero = true;
+		goto repeat;
+	} else
+		stop_top();
+
 	return NULL;
 }
 
