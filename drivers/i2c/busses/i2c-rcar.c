@@ -920,7 +920,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	struct rcar_i2c_priv *priv;
 	struct i2c_adapter *adap;
 	struct device *dev = &pdev->dev;
-	struct i2c_timings i2c_t;
+	struct i2c_timings i2c_t = { 0 };
 	int ret;
 
 	/* Otherwise logic will break because some bytes must always use PIO */
