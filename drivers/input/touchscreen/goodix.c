@@ -39,9 +39,11 @@
 #define GOODIX_MAX_CONTACT_SIZE		9
 #define GOODIX_MAX_CONTACTS		10
 
-#define GOODIX_CONFIG_MAX_LENGTH	240
+#define GOODIX_CONFIG_MIN_LENGTH	186
 #define GOODIX_CONFIG_911_LENGTH	186
 #define GOODIX_CONFIG_967_LENGTH	228
+#define GOODIX_CONFIG_GT9X_LENGTH	240
+#define GOODIX_CONFIG_MAX_LENGTH	240
 
 /* Register defines */
 #define GOODIX_REG_COMMAND		0x8040
@@ -109,7 +111,7 @@ static void goodix_calc_cfg_checksum_16(struct goodix_ts_data *ts);
 
 static const struct goodix_chip_data gt1x_chip_data = {
 	.config_addr		= GOODIX_GT1X_REG_CONFIG_DATA,
-	.config_len		= GOODIX_CONFIG_MAX_LENGTH,
+	.config_len		= GOODIX_CONFIG_GT9X_LENGTH,
 	.check_config		= goodix_check_cfg_16,
 	.calc_config_checksum	= goodix_calc_cfg_checksum_16,
 };
@@ -130,7 +132,7 @@ static const struct goodix_chip_data gt967_chip_data = {
 
 static const struct goodix_chip_data gt9x_chip_data = {
 	.config_addr		= GOODIX_GT9X_REG_CONFIG_DATA,
-	.config_len		= GOODIX_CONFIG_MAX_LENGTH,
+	.config_len		= GOODIX_CONFIG_GT9X_LENGTH,
 	.check_config		= goodix_check_cfg_8,
 	.calc_config_checksum	= goodix_calc_cfg_checksum_8,
 };
@@ -525,7 +527,8 @@ static void goodix_calc_cfg_checksum_16(struct goodix_ts_data *ts)
 static int goodix_check_cfg(struct goodix_ts_data *ts,
 			    const struct firmware *cfg)
 {
-	if (cfg->size > GOODIX_CONFIG_MAX_LENGTH) {
+	if (cfg->size < GOODIX_CONFIG_MIN_LENGTH ||
+	    cfg->size > GOODIX_CONFIG_MAX_LENGTH) {
 		dev_err(&ts->client->dev,
 			"The length of the config fw is not correct");
 		return -EINVAL;
