@@ -20,6 +20,8 @@
 
 /* PCI device IDs */
 #define PCI_DEVID_OCTEONTX2_RVU_PF              0xA063
+#define PCI_DEVID_OCTEONTX2_RVU_VF		0xA064
+#define PCI_DEVID_OCTEONTX2_RVU_AFVF		0xA0F8
 
 #define PCI_SUBSYS_DEVID_96XX_RVU_PFVF		0xB200
 
@@ -191,6 +193,17 @@ struct otx2_hw {
 	u64			cgx_tx_stats[CGX_TX_STATS_COUNT];
 };
 
+struct otx2_vf_config {
+	struct otx2_nic *pf;
+	struct delayed_work link_event_work;
+	bool intf_down; /* interface was either configured or not */
+};
+
+struct flr_work {
+	struct work_struct work;
+	struct otx2_nic *pf;
+};
+
 struct refill_work {
 	struct delayed_work pool_refill_work;
 	struct otx2_nic *pf;
@@ -215,14 +228,20 @@ struct otx2_nic {
 
 	/* Mbox */
 	struct mbox		mbox;
+	struct mbox		*mbox_pfvf;
 	struct workqueue_struct *mbox_wq;
+	struct workqueue_struct *mbox_pfvf_wq;
 
+	u8			total_vfs;
 	u16			pcifunc; /* RVU PF_FUNC */
 	u16			bpid[NIX_MAX_BPID_CHAN];
+	struct otx2_vf_config	*vf_configs;
 	struct cgx_link_user_info linfo;
 
 	u64			reset_count;
 	struct work_struct	reset_task;
+	struct workqueue_struct	*flr_wq;
+	struct flr_work		*flr_wrk;
 	struct refill_work	*refill_wrk;
 
 	/* Ethtool stuff */
@@ -231,6 +250,11 @@ struct otx2_nic {
 	/* Block address of NIX either BLKADDR_NIX0 or BLKADDR_NIX1 */
 	int			nix_blkaddr;
 };
+
+static inline bool is_otx2_lbkvf(struct pci_dev *pdev)
+{
+	return pdev->device == PCI_DEVID_OCTEONTX2_RVU_AFVF;
+}
 
 static inline bool is_96xx_A0(struct pci_dev *pdev)
 {
@@ -349,21 +373,6 @@ static inline void otx2_sync_mbox_bbuf(struct otx2_mbox *mbox, int devid)
 	/* Copy mbox messages from mbox memory to bounce buffer */
 	memcpy(mdev->mbase + mbox->rx_start,
 	       hw_mbase + mbox->rx_start, msg_size + msgs_offset);
-}
-
-static inline void otx2_mbox_lock_init(struct mbox *mbox)
-{
-	mutex_init(&mbox->lock);
-}
-
-static inline void otx2_mbox_lock(struct mbox *mbox)
-{
-	mutex_lock(&mbox->lock);
-}
-
-static inline void otx2_mbox_unlock(struct mbox *mbox)
-{
-	mutex_unlock(&mbox->lock);
 }
 
 /* With the absence of API for 128-bit IO memory access for arm64,
@@ -614,6 +623,7 @@ void otx2_update_lmac_stats(struct otx2_nic *pfvf);
 int otx2_update_rq_stats(struct otx2_nic *pfvf, int qidx);
 int otx2_update_sq_stats(struct otx2_nic *pfvf, int qidx);
 void otx2_set_ethtool_ops(struct net_device *netdev);
+void otx2vf_set_ethtool_ops(struct net_device *netdev);
 
 int otx2_open(struct net_device *netdev);
 int otx2_stop(struct net_device *netdev);
