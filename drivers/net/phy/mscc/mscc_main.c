@@ -520,33 +520,56 @@ out_unlock:
 	return rc;
 }
 
-static int vsc85xx_default_config(struct phy_device *phydev)
+/* Set the RGMII RX and TX clock skews individually, according to the PHY
+ * interface type, to:
+ *  * 0.2 ns (their default, and lowest, hardware value) if delays should
+ *    not be enabled
+ *  * 2.0 ns (which causes the data to be sampled at exactly half way between
+ *    clock transitions at 1000 Mbps) if delays should be enabled
+ */
+static int vsc85xx_rgmii_set_skews(struct phy_device *phydev, u32 rgmii_cntl,
+				   u16 rgmii_rx_delay_mask,
+				   u16 rgmii_tx_delay_mask)
 {
+	u16 rgmii_rx_delay_pos = ffs(rgmii_rx_delay_mask) - 1;
+	u16 rgmii_tx_delay_pos = ffs(rgmii_tx_delay_mask) - 1;
 	u16 reg_val = 0;
 	int rc;
-
-	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
-
-	if (!phy_interface_mode_is_rgmii(phydev->interface))
-		return 0;
 
 	mutex_lock(&phydev->lock);
 
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID ||
 	    phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
-		reg_val |= RGMII_CLK_DELAY_2_0_NS << RGMII_RX_CLK_DELAY_POS;
+		reg_val |= RGMII_CLK_DELAY_2_0_NS << rgmii_rx_delay_pos;
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID ||
 	    phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
-		reg_val |= RGMII_CLK_DELAY_2_0_NS << RGMII_TX_CLK_DELAY_POS;
+		reg_val |= RGMII_CLK_DELAY_2_0_NS << rgmii_tx_delay_pos;
 
 	rc = phy_modify_paged(phydev, MSCC_PHY_PAGE_EXTENDED_2,
-			      MSCC_PHY_RGMII_CNTL,
-			      RGMII_RX_CLK_DELAY_MASK | RGMII_TX_CLK_DELAY_MASK,
+			      rgmii_cntl,
+			      rgmii_rx_delay_mask | rgmii_tx_delay_mask,
 			      reg_val);
 
 	mutex_unlock(&phydev->lock);
 
 	return rc;
+}
+
+static int vsc85xx_default_config(struct phy_device *phydev)
+{
+	int rc;
+
+	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+
+	if (phy_interface_mode_is_rgmii(phydev->interface)) {
+		rc = vsc85xx_rgmii_set_skews(phydev, VSC8502_RGMII_CNTL,
+					     VSC8502_RGMII_RX_DELAY_MASK,
+					     VSC8502_RGMII_TX_DELAY_MASK);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
 }
 
 static int vsc85xx_get_tunable(struct phy_device *phydev,
@@ -1301,32 +1324,6 @@ static bool vsc8584_is_pkg_init(struct phy_device *phydev, bool reversed)
 	return false;
 }
 
-static void vsc8584_rgmii_set_skews(struct phy_device *phydev)
-{
-	u32 skew_rx, skew_tx;
-
-	/* We first set the Rx and Tx skews to their default value in h/w
-	 * (0.2 ns).
-	 */
-	skew_rx = VSC8584_RGMII_SKEW_0_2;
-	skew_tx = VSC8584_RGMII_SKEW_0_2;
-
-	/* We then set the skews based on the interface mode. */
-	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	    phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID)
-		skew_rx = VSC8584_RGMII_SKEW_2_0;
-	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	    phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
-		skew_tx = VSC8584_RGMII_SKEW_2_0;
-
-	/* Finally we apply the skews configuration. */
-	phy_modify_paged(phydev, MSCC_PHY_PAGE_EXTENDED_2,
-			 MSCC_PHY_RGMII_SETTINGS,
-			 (0x7 << RGMII_SKEW_RX_POS) | (0x7 << RGMII_SKEW_TX_POS),
-			 (skew_rx << RGMII_SKEW_RX_POS) |
-			 (skew_tx << RGMII_SKEW_TX_POS));
-}
-
 static int vsc8584_config_init(struct phy_device *phydev)
 {
 	struct vsc8531_private *vsc8531 = phydev->priv;
@@ -1461,8 +1458,13 @@ static int vsc8584_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	if (phy_interface_is_rgmii(phydev))
-		vsc8584_rgmii_set_skews(phydev);
+	if (phy_interface_is_rgmii(phydev)) {
+		ret = vsc85xx_rgmii_set_skews(phydev, VSC8572_RGMII_CNTL,
+					      VSC8572_RGMII_RX_DELAY_MASK,
+					      VSC8572_RGMII_TX_DELAY_MASK);
+		if (ret)
+			return ret;
+	}
 
 	ret = genphy_soft_reset(phydev);
 	if (ret)

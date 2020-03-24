@@ -161,25 +161,15 @@ enum rgmii_clock_delay {
 /* Extended Page 2 Registers */
 #define MSCC_PHY_CU_PMD_TX_CNTL		  16
 
-#define MSCC_PHY_RGMII_SETTINGS		  18
-#define RGMII_SKEW_RX_POS		  1
-#define RGMII_SKEW_TX_POS		  4
+/* RGMII setting controls at address 18E2, for VSC8572 and similar */
+#define VSC8572_RGMII_CNTL		  18
+#define VSC8572_RGMII_RX_DELAY_MASK	  0x000E
+#define VSC8572_RGMII_TX_DELAY_MASK	  0x0070
 
-/* RGMII skew values, in ns */
-#define VSC8584_RGMII_SKEW_0_2		  0
-#define VSC8584_RGMII_SKEW_0_8		  1
-#define VSC8584_RGMII_SKEW_1_1		  2
-#define VSC8584_RGMII_SKEW_1_7		  3
-#define VSC8584_RGMII_SKEW_2_0		  4
-#define VSC8584_RGMII_SKEW_2_3		  5
-#define VSC8584_RGMII_SKEW_2_6		  6
-#define VSC8584_RGMII_SKEW_3_4		  7
-
-#define MSCC_PHY_RGMII_CNTL		  20
-#define RGMII_RX_CLK_DELAY_MASK		  0x0070
-#define RGMII_RX_CLK_DELAY_POS		  4
-#define RGMII_TX_CLK_DELAY_MASK		  0x0007
-#define RGMII_TX_CLK_DELAY_POS		  0
+/* RGMII controls at address 20E2, for VSC8502 and similar */
+#define VSC8502_RGMII_CNTL		  20
+#define VSC8502_RGMII_RX_DELAY_MASK	  0x0070
+#define VSC8502_RGMII_TX_DELAY_MASK	  0x0007
 
 #define MSCC_PHY_WOL_LOWER_MAC_ADDR	  21
 #define MSCC_PHY_WOL_MID_MAC_ADDR	  22
