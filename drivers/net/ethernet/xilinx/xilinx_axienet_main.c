@@ -545,6 +545,62 @@ static int axienet_device_reset(struct net_device *ndev)
 }
 
 /**
+ * axienet_free_tx_chain - Clean up a series of linked TX descriptors.
+ * @ndev:	Pointer to the net_device structure
+ * @first_bd:	Index of first descriptor to clean up
+ * @nr_bds:	Number of descriptors to clean up, can be -1 if unknown.
+ * @sizep:	Pointer to a u32 filled with the total sum of all bytes
+ * 		in all cleaned-up descriptors. Ignored if NULL.
+ *
+ * Would either be called after a successful transmit operation, or after
+ * there was an error when setting up the chain.
+ * Returns the number of descriptors handled.
+ */
+static int axienet_free_tx_chain(struct net_device *ndev, u32 first_bd,
+				 int nr_bds, u32 *sizep)
+{
+	struct axienet_local *lp = netdev_priv(ndev);
+	struct axidma_bd *cur_p;
+	int max_bds = nr_bds;
+	unsigned int status;
+	int i;
+
+	if (max_bds == -1)
+		max_bds = lp->tx_bd_num;
+
+	for (i = 0; i < max_bds; i++) {
+		cur_p = &lp->tx_bd_v[(first_bd + i) % lp->tx_bd_num];
+		status = cur_p->status;
+
+		/* If no number is given, clean up *all* descriptors that have
+		 * been completed by the MAC.
+		 */
+		if (nr_bds == -1 && !(status & XAXIDMA_BD_STS_COMPLETE_MASK))
+			break;
+
+		dma_unmap_single(ndev->dev.parent, cur_p->phys,
+				(cur_p->cntrl & XAXIDMA_BD_CTRL_LENGTH_MASK),
+				DMA_TO_DEVICE);
+
+		if (cur_p->skb && (status & XAXIDMA_BD_STS_COMPLETE_MASK))
+			dev_consume_skb_irq(cur_p->skb);
+
+		cur_p->cntrl = 0;
+		cur_p->app0 = 0;
+		cur_p->app1 = 0;
+		cur_p->app2 = 0;
+		cur_p->app4 = 0;
+		cur_p->status = 0;
+		cur_p->skb = NULL;
+
+		if (sizep)
+			*sizep += status & XAXIDMA_BD_STS_ACTUAL_LEN_MASK;
+	}
+
+	return i;
+}
+
+/**
  * axienet_start_xmit_done - Invoked once a transmit is completed by the
  * Axi DMA Tx channel.
  * @ndev:	Pointer to the net_device structure
@@ -557,36 +613,15 @@ static int axienet_device_reset(struct net_device *ndev)
  */
 static void axienet_start_xmit_done(struct net_device *ndev)
 {
-	u32 size = 0;
-	u32 packets = 0;
 	struct axienet_local *lp = netdev_priv(ndev);
-	struct axidma_bd *cur_p;
-	unsigned int status = 0;
+	u32 packets = 0;
+	u32 size = 0;
 
-	cur_p = &lp->tx_bd_v[lp->tx_bd_ci];
-	status = cur_p->status;
-	while (status & XAXIDMA_BD_STS_COMPLETE_MASK) {
-		dma_unmap_single(ndev->dev.parent, cur_p->phys,
-				(cur_p->cntrl & XAXIDMA_BD_CTRL_LENGTH_MASK),
-				DMA_TO_DEVICE);
-		if (cur_p->skb)
-			dev_consume_skb_irq(cur_p->skb);
-		cur_p->cntrl = 0;
-		cur_p->app0 = 0;
-		cur_p->app1 = 0;
-		cur_p->app2 = 0;
-		cur_p->app4 = 0;
-		cur_p->status = 0;
-		cur_p->skb = NULL;
+	packets = axienet_free_tx_chain(ndev, lp->tx_bd_ci, -1, &size);
 
-		size += status & XAXIDMA_BD_STS_ACTUAL_LEN_MASK;
-		packets++;
-
-		if (++lp->tx_bd_ci >= lp->tx_bd_num)
-			lp->tx_bd_ci = 0;
-		cur_p = &lp->tx_bd_v[lp->tx_bd_ci];
-		status = cur_p->status;
-	}
+	lp->tx_bd_ci += packets;
+	if (lp->tx_bd_ci >= lp->tx_bd_num)
+		lp->tx_bd_ci -= lp->tx_bd_num;
 
 	ndev->stats.tx_packets += packets;
 	ndev->stats.tx_bytes += size;
