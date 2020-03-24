@@ -128,6 +128,23 @@ enum mlx5_ib_mmap_type {
 	MLX5_IB_MMAP_TYPE_UAR_NC = 4,
 };
 
+struct mlx5_bfreg_info {
+	u32 *sys_pages;
+	int num_low_latency_bfregs;
+	unsigned int *count;
+
+	/*
+	 * protect bfreg allocation data structs
+	 */
+	struct mutex lock;
+	u32 ver;
+	u8 lib_uar_4k : 1;
+	u32 num_sys_pages;
+	u32 num_static_sys_pages;
+	u32 total_num_bfregs;
+	u32 num_dyn_bfregs;
+};
+
 struct mlx5_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct list_head	db_page_list;
