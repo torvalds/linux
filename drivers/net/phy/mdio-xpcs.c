@@ -255,8 +255,10 @@ static int xpcs_read_fault(struct mdio_xpcs_args *xpcs,
 	if (ret < 0)
 		return ret;
 
-	if (ret & MDIO_PCS_10GBRT_STAT2_ERR)
+	if (ret & MDIO_PCS_10GBRT_STAT2_ERR) {
 		xpcs_warn(xpcs, state, "Link has errors!\n");
+		return -EFAULT;
+	}
 
 	return 0;
 }
@@ -431,8 +433,10 @@ static int xpcs_aneg_done(struct mdio_xpcs_args *xpcs,
 			return ret;
 
 		/* Check if Aneg outcome is valid */
-		if (!(ret & DW_C73_AN_ADV_SF))
+		if (!(ret & DW_C73_AN_ADV_SF)) {
+			xpcs_config_aneg(xpcs);
 			return 0;
+		}
 
 		return 1;
 	}
@@ -615,10 +619,12 @@ static int xpcs_get_state(struct mdio_xpcs_args *xpcs,
 		return xpcs_config(xpcs, state);
 	}
 
-	if (state->link && state->an_enabled && xpcs_aneg_done(xpcs, state)) {
+	if (state->an_enabled && xpcs_aneg_done(xpcs, state)) {
 		state->an_complete = true;
 		xpcs_read_lpa(xpcs, state);
 		xpcs_resolve_lpa(xpcs, state);
+	} else if (state->an_enabled) {
+		state->link = 0;
 	} else if (state->link) {
 		xpcs_resolve_pma(xpcs, state);
 	}
@@ -686,7 +692,7 @@ static int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface)
 			match = entry;
 
 			if (xpcs_check_features(xpcs, match, interface))
-				return 0;
+				return xpcs_soft_reset(xpcs, MDIO_MMD_PCS);
 		}
 	}
 
