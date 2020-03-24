@@ -1501,6 +1501,12 @@ static int sienna_cichlid_display_disable_memory_clock_switch(struct smu_context
 	return ret;
 }
 
+static uint32_t sienna_cichlid_get_pptable_power_limit(struct smu_context *smu)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+	return pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
+}
+
 static int sienna_cichlid_get_power_limit(struct smu_context *smu,
 				     uint32_t *limit,
 				     bool cap)
@@ -2335,6 +2341,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
+	.get_pptable_power_limit = sienna_cichlid_get_pptable_power_limit,
 };
 
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)
