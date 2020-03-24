@@ -101,6 +101,19 @@ config MEDIA_PLATFORM_SUPPORT
 
 	  Say Y when you want to be able so see such devices.
 
+config MEDIA_TEST_SUPPORT
+	bool "Test drivers support"
+	help
+	  Those drivers should not be used on production Kernels, but
+	  can be useful on debug ones. It enables several dummy drivers
+	  that simulate a real hardware. Very useful to test userspace
+	  applications and to validate if the subsystem core is doesn't
+	  have regressions.
+
+	  Say Y if you want to use some virtual test driver.
+
+	  In case of doubts, say N.
+
 source "drivers/media/cec/Kconfig"
 
 source "drivers/media/mc/Kconfig"
@@ -180,6 +193,7 @@ source "drivers/media/radio/Kconfig"
 
 if MEDIA_PLATFORM_SUPPORT
 source "drivers/media/platform/Kconfig"
+source "drivers/media/test_drivers/Kconfig"
 source "drivers/media/mmc/Kconfig"
 endif
 
