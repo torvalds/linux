@@ -3085,6 +3085,37 @@ err:
 }
 
 static enum tep_event_type
+process_builtin_expect(struct tep_event *event, struct tep_print_arg *arg, char **tok)
+{
+	enum tep_event_type type;
+	char *token = NULL;
+
+	/* Handle __builtin_expect( cond, #) */
+	type = process_arg(event, arg, &token);
+
+	if (type != TEP_EVENT_DELIM || token[0] != ',')
+		goto out_free;
+
+	free_token(token);
+
+	/* We don't care what the second parameter is of the __builtin_expect() */
+	if (read_expect_type(TEP_EVENT_ITEM, &token) < 0)
+		goto out_free;
+
+	if (read_expected(TEP_EVENT_DELIM, ")") < 0)
+		goto out_free;
+
+	free_token(token);
+	type = read_token_item(tok);
+	return type;
+
+out_free:
+	free_token(token);
+	*tok = NULL;
+	return TEP_EVENT_ERROR;
+}
+
+static enum tep_event_type
 process_function(struct tep_event *event, struct tep_print_arg *arg,
 		 char *token, char **tok)
 {
@@ -3127,6 +3158,10 @@ process_function(struct tep_event *event, struct tep_print_arg *arg,
 	if (strcmp(token, "__get_dynamic_array_len") == 0) {
 		free_token(token);
 		return process_dynamic_array_len(event, arg, tok);
+	}
+	if (strcmp(token, "__builtin_expect") == 0) {
+		free_token(token);
+		return process_builtin_expect(event, arg, tok);
 	}
 
 	func = find_func_handler(event->tep, token);
