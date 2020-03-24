@@ -83,11 +83,6 @@ FANOTIFY_FE(struct fanotify_event *event)
 	return container_of(event, struct fanotify_fid_event, fae);
 }
 
-static inline bool fanotify_event_has_fid(struct fanotify_event *event)
-{
-	return event->type == FANOTIFY_EVENT_TYPE_FID;
-}
-
 static inline __kernel_fsid_t *fanotify_event_fsid(struct fanotify_event *event)
 {
 	if (event->type == FANOTIFY_EVENT_TYPE_FID)

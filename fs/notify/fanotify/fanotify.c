@@ -387,7 +387,7 @@ init: __maybe_unused
 	else
 		event->pid = get_pid(task_tgid(current));
 
-	if (fanotify_event_has_fid(event)) {
+	if (fanotify_event_object_fh(event)) {
 		ffe->object_fh.len = 0;
 		if (fsid)
 			ffe->fsid = *fsid;

@@ -275,7 +275,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	metadata.mask = event->mask & FANOTIFY_OUTGOING_EVENTS;
 	metadata.pid = pid_vnr(event->pid);
 
-	if (fanotify_event_has_fid(event)) {
+	if (fanotify_event_object_fh(event)) {
 		metadata.event_len += fanotify_event_info_len(event);
 	} else if (path && path->mnt && path->dentry) {
 		fd = create_fd(group, path, &f);
@@ -300,7 +300,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 
 	if (f) {
 		fd_install(fd, f);
-	} else if (fanotify_event_has_fid(event)) {
+	} else if (fanotify_event_object_fh(event)) {
 		ret = copy_fid_to_user(fanotify_event_fsid(event),
 				       fanotify_event_object_fh(event),
 				       buf + FAN_EVENT_METADATA_LEN);
