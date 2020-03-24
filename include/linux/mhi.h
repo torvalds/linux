@@ -514,11 +514,28 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
  */
 void mhi_unregister_controller(struct mhi_controller *mhi_cntrl);
 
-/**
- * mhi_driver_register - Register driver with MHI framework
- * @mhi_drv: Driver associated with the device
+/*
+ * module_mhi_driver() - Helper macro for drivers that don't do
+ * anything special other than using default mhi_driver_register() and
+ * mhi_driver_unregister().  This eliminates a lot of boilerplate.
+ * Each module may only use this macro once.
  */
-int mhi_driver_register(struct mhi_driver *mhi_drv);
+#define module_mhi_driver(mhi_drv) \
+	module_driver(mhi_drv, mhi_driver_register, \
+		      mhi_driver_unregister)
+
+/*
+ * Macro to avoid include chaining to get THIS_MODULE
+ */
+#define mhi_driver_register(mhi_drv) \
+	__mhi_driver_register(mhi_drv, THIS_MODULE)
+
+/**
+ * __mhi_driver_register - Register driver with MHI framework
+ * @mhi_drv: Driver associated with the device
+ * @owner: The module owner
+ */
+int __mhi_driver_register(struct mhi_driver *mhi_drv, struct module *owner);
 
 /**
  * mhi_driver_unregister - Unregister a driver for mhi_devices
