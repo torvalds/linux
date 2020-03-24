@@ -53,11 +53,13 @@ struct kmem_cache *fanotify_perm_event_cachep __read_mostly;
 
 static int fanotify_event_info_len(struct fanotify_event *event)
 {
-	if (!fanotify_event_has_fid(event))
+	int fh_len = fanotify_event_object_fh_len(event);
+
+	if (!fh_len)
 		return 0;
 
 	return roundup(sizeof(struct fanotify_event_info_fid) +
-		       sizeof(struct file_handle) + event->fh_len,
+		       sizeof(struct file_handle) + fh_len,
 		       FANOTIFY_EVENT_ALIGN);
 }
 
@@ -200,8 +202,9 @@ static int copy_fid_to_user(struct fanotify_event *event, char __user *buf)
 {
 	struct fanotify_event_info_fid info = { };
 	struct file_handle handle = { };
-	unsigned char bounce[FANOTIFY_INLINE_FH_LEN], *fh;
-	size_t fh_len = event->fh_len;
+	unsigned char bounce[FANOTIFY_INLINE_FH_LEN], *fh_buf;
+	struct fanotify_fh *fh = fanotify_event_object_fh(event);
+	size_t fh_len = fh->len;
 	size_t len = fanotify_event_info_len(event);
 
 	if (!len)
@@ -213,13 +216,13 @@ static int copy_fid_to_user(struct fanotify_event *event, char __user *buf)
 	/* Copy event info fid header followed by vaiable sized file handle */
 	info.hdr.info_type = FAN_EVENT_INFO_TYPE_FID;
 	info.hdr.len = len;
-	info.fsid = event->fid.fsid;
+	info.fsid = *fanotify_event_fsid(event);
 	if (copy_to_user(buf, &info, sizeof(info)))
 		return -EFAULT;
 
 	buf += sizeof(info);
 	len -= sizeof(info);
-	handle.handle_type = event->fh_type;
+	handle.handle_type = fh->type;
 	handle.handle_bytes = fh_len;
 	if (copy_to_user(buf, &handle, sizeof(handle)))
 		return -EFAULT;
@@ -230,12 +233,12 @@ static int copy_fid_to_user(struct fanotify_event *event, char __user *buf)
 	 * For an inline fh, copy through stack to exclude the copy from
 	 * usercopy hardening protections.
 	 */
-	fh = fanotify_event_fh(event);
+	fh_buf = fanotify_fh_buf(fh);
 	if (fh_len <= FANOTIFY_INLINE_FH_LEN) {
-		memcpy(bounce, fh, fh_len);
-		fh = bounce;
+		memcpy(bounce, fh_buf, fh_len);
+		fh_buf = bounce;
 	}
-	if (copy_to_user(buf, fh, fh_len))
+	if (copy_to_user(buf, fh_buf, fh_len))
 		return -EFAULT;
 
 	/* Pad with 0's */
@@ -254,12 +257,14 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 {
 	struct fanotify_event_metadata metadata;
 	struct fanotify_event *event;
+	struct path *path;
 	struct file *f = NULL;
 	int ret, fd = FAN_NOFD;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, fsn_event);
 
 	event = container_of(fsn_event, struct fanotify_event, fse);
+	path = fanotify_event_path(event);
 	metadata.event_len = FAN_EVENT_METADATA_LEN;
 	metadata.metadata_len = FAN_EVENT_METADATA_LEN;
 	metadata.vers = FANOTIFY_METADATA_VERSION;
@@ -267,16 +272,12 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	metadata.mask = event->mask & FANOTIFY_OUTGOING_EVENTS;
 	metadata.pid = pid_vnr(event->pid);
 
-	if (fanotify_event_has_path(event)) {
-		struct path *path = &event->path;
-
-		if (path->mnt && path->dentry) {
-			fd = create_fd(group, path, &f);
-			if (fd < 0)
-				return fd;
-		}
-	} else if (fanotify_event_has_fid(event)) {
+	if (fanotify_event_has_fid(event)) {
 		metadata.event_len += fanotify_event_info_len(event);
+	} else if (path && path->mnt && path->dentry) {
+		fd = create_fd(group, path, &f);
+		if (fd < 0)
+			return fd;
 	}
 	metadata.fd = fd;
 

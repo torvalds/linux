@@ -18,39 +18,37 @@ enum {
 
 /*
  * 3 dwords are sufficient for most local fs (64bit ino, 32bit generation).
- * For 32bit arch, fid increases the size of fanotify_event by 12 bytes and
- * fh_* fields increase the size of fanotify_event by another 4 bytes.
- * For 64bit arch, fid increases the size of fanotify_fid by 8 bytes and
- * fh_* fields are packed in a hole after mask.
+ * fh buf should be dword aligned. On 64bit arch, the ext_buf pointer is
+ * stored in either the first or last 2 dwords.
  */
-#if BITS_PER_LONG == 32
 #define FANOTIFY_INLINE_FH_LEN	(3 << 2)
-#else
-#define FANOTIFY_INLINE_FH_LEN	(4 << 2)
-#endif
 
-struct fanotify_fid {
-	__kernel_fsid_t fsid;
-	union {
-		unsigned char fh[FANOTIFY_INLINE_FH_LEN];
-		unsigned char *ext_fh;
-	};
-};
+struct fanotify_fh {
+	unsigned char buf[FANOTIFY_INLINE_FH_LEN];
+	u8 type;
+	u8 len;
+} __aligned(4);
 
-static inline void *fanotify_fid_fh(struct fanotify_fid *fid,
-				    unsigned int fh_len)
+static inline bool fanotify_fh_has_ext_buf(struct fanotify_fh *fh)
 {
-	return fh_len <= FANOTIFY_INLINE_FH_LEN ? fid->fh : fid->ext_fh;
+	return fh->len > FANOTIFY_INLINE_FH_LEN;
 }
 
-static inline bool fanotify_fid_equal(struct fanotify_fid *fid1,
-				      struct fanotify_fid *fid2,
-				      unsigned int fh_len)
+static inline char **fanotify_fh_ext_buf_ptr(struct fanotify_fh *fh)
 {
-	return fid1->fsid.val[0] == fid2->fsid.val[0] &&
-		fid1->fsid.val[1] == fid2->fsid.val[1] &&
-		!memcmp(fanotify_fid_fh(fid1, fh_len),
-			fanotify_fid_fh(fid2, fh_len), fh_len);
+	BUILD_BUG_ON(__alignof__(char *) - 4 + sizeof(char *) >
+		     FANOTIFY_INLINE_FH_LEN);
+	return (char **)ALIGN((unsigned long)(fh->buf), __alignof__(char *));
+}
+
+static inline void *fanotify_fh_ext_buf(struct fanotify_fh *fh)
+{
+	return *fanotify_fh_ext_buf_ptr(fh);
+}
+
+static inline void *fanotify_fh_buf(struct fanotify_fh *fh)
+{
+	return fanotify_fh_has_ext_buf(fh) ? fanotify_fh_ext_buf(fh) : fh->buf;
 }
 
 /*
@@ -62,50 +60,53 @@ struct fanotify_event {
 	struct fsnotify_event fse;
 	u32 mask;
 	/*
-	 * Those fields are outside fanotify_fid to pack fanotify_event nicely
-	 * on 64bit arch and to use fh_type as an indication of whether path
-	 * or fid are used in the union:
-	 * FILEID_ROOT (0) for path, > 0 for fid, FILEID_INVALID for neither.
+	 * With FAN_REPORT_FID, we do not hold any reference on the
+	 * victim object. Instead we store its NFS file handle and its
+	 * filesystem's fsid as a unique identifier.
 	 */
-	u8 fh_type;
-	u8 fh_len;
-	u16 pad;
-	union {
-		/*
-		 * We hold ref to this path so it may be dereferenced at any
-		 * point during this object's lifetime
-		 */
-		struct path path;
-		/*
-		 * With FAN_REPORT_FID, we do not hold any reference on the
-		 * victim object. Instead we store its NFS file handle and its
-		 * filesystem's fsid as a unique identifier.
-		 */
-		struct fanotify_fid fid;
-	};
+	__kernel_fsid_t fsid;
+	struct fanotify_fh fh;
+	/*
+	 * We hold ref to this path so it may be dereferenced at any
+	 * point during this object's lifetime
+	 */
+	struct path path;
 	struct pid *pid;
 };
 
 static inline bool fanotify_event_has_path(struct fanotify_event *event)
 {
-	return event->fh_type == FILEID_ROOT;
+	return event->fh.type == FILEID_ROOT;
 }
 
 static inline bool fanotify_event_has_fid(struct fanotify_event *event)
 {
-	return event->fh_type != FILEID_ROOT &&
-		event->fh_type != FILEID_INVALID;
+	return event->fh.type != FILEID_ROOT &&
+	       event->fh.type != FILEID_INVALID;
 }
 
-static inline bool fanotify_event_has_ext_fh(struct fanotify_event *event)
+static inline __kernel_fsid_t *fanotify_event_fsid(struct fanotify_event *event)
 {
-	return fanotify_event_has_fid(event) &&
-		event->fh_len > FANOTIFY_INLINE_FH_LEN;
+	if (fanotify_event_has_fid(event))
+		return &event->fsid;
+	else
+		return NULL;
 }
 
-static inline void *fanotify_event_fh(struct fanotify_event *event)
+static inline struct fanotify_fh *fanotify_event_object_fh(
+						struct fanotify_event *event)
 {
-	return fanotify_fid_fh(&event->fid, event->fh_len);
+	if (fanotify_event_has_fid(event))
+		return &event->fh;
+	else
+		return NULL;
+}
+
+static inline int fanotify_event_object_fh_len(struct fanotify_event *event)
+{
+	struct fanotify_fh *fh = fanotify_event_object_fh(event);
+
+	return fh ? fh->len : 0;
 }
 
 /*
@@ -137,6 +138,14 @@ static inline bool fanotify_is_perm_event(u32 mask)
 static inline struct fanotify_event *FANOTIFY_E(struct fsnotify_event *fse)
 {
 	return container_of(fse, struct fanotify_event, fse);
+}
+
+static inline struct path *fanotify_event_path(struct fanotify_event *event)
+{
+	if (fanotify_event_has_path(event))
+		return &event->path;
+	else
+		return NULL;
 }
 
 struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
