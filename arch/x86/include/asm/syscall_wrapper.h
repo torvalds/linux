@@ -86,7 +86,7 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 	}
 
 #define __SYS_NI(abi, name)						\
-	SYSCALL_ALIAS(__##abi##_##name, sys_ni_posix_timers)
+	SYSCALL_ALIAS(__##abi##_##name, sys_ni_posix_timers);
 
 #ifdef CONFIG_X86_64
 #define __X64_SYS_STUB0(name)						\
