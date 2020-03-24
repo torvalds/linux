@@ -48,29 +48,31 @@ EXPORT_SYMBOL(scsi_bios_ptable);
 
 /**
  * scsi_partsize - Parse cylinders/heads/sectors from PC partition table
- * @buf: partition table, see scsi_bios_ptable()
+ * @bdev: block device to parse
  * @capacity: size of the disk in sectors
- * @cyls: put cylinders here
- * @hds: put heads here
- * @secs: put sectors here
+ * @geom: output in form of [hds, cylinders, sectors]
  *
  * Determine the BIOS mapping/geometry used to create the partition
- * table, storing the results in @cyls, @hds, and @secs
+ * table, storing the results in @geom.
  *
- * Returns: -1 on failure, 0 on success.
+ * Returns: %false on failure, %true on success.
  */
-
-int scsi_partsize(unsigned char *buf, unsigned long capacity,
-	       unsigned int *cyls, unsigned int *hds, unsigned int *secs)
+bool scsi_partsize(struct block_device *bdev, sector_t capacity, int geom[3])
 {
-	struct partition *p = (struct partition *)buf, *largest = NULL;
-	int i, largest_cyl;
 	int cyl, ext_cyl, end_head, end_cyl, end_sector;
 	unsigned int logical_end, physical_end, ext_physical_end;
+	struct partition *p, *largest = NULL;
+	void *buf;
+	int ret = false;
 
+	buf = scsi_bios_ptable(bdev);
+	if (!buf)
+		return false;
 
 	if (*(unsigned short *) (buf + 64) == 0xAA55) {
-		for (largest_cyl = -1, i = 0; i < 4; ++i, ++p) {
+		int largest_cyl = -1, i;
+
+		for (i = 0, p = buf; i < 4; i++, p++) {
 			if (!p->sys_ind)
 				continue;
 #ifdef DEBUG
@@ -90,7 +92,7 @@ int scsi_partsize(unsigned char *buf, unsigned long capacity,
 		end_sector = largest->end_sector & 0x3f;
 
 		if (end_head + 1 == 0 || end_sector == 0)
-			return -1;
+			goto out_free_buf;
 
 #ifdef DEBUG
 		printk("scsicam_bios_param : end at h = %d, c = %d, s = %d\n",
@@ -115,19 +117,24 @@ int scsi_partsize(unsigned char *buf, unsigned long capacity,
 		  ,logical_end, physical_end, ext_physical_end, ext_cyl);
 #endif
 
-		if ((logical_end == physical_end) ||
-		  (end_cyl == 1023 && ext_physical_end == logical_end)) {
-			*secs = end_sector;
-			*hds = end_head + 1;
-			*cyls = capacity / ((end_head + 1) * end_sector);
-			return 0;
+		if (logical_end == physical_end ||
+		    (end_cyl == 1023 && ext_physical_end == logical_end)) {
+			geom[0] = end_head + 1;
+			geom[1] = end_sector;
+			geom[2] = (unsigned long)capacity /
+				((end_head + 1) * end_sector);
+			ret = true;
+			goto out_free_buf;
 		}
 #ifdef DEBUG
 		printk("scsicam_bios_param : logical (%u) != physical (%u)\n",
 		       logical_end, physical_end);
 #endif
 	}
-	return -1;
+
+out_free_buf:
+	kfree(buf);
+	return ret;
 }
 EXPORT_SYMBOL(scsi_partsize);
 
@@ -210,20 +217,14 @@ static int setsize(unsigned long capacity, unsigned int *cyls, unsigned int *hds
  */
 int scsicam_bios_param(struct block_device *bdev, sector_t capacity, int *ip)
 {
-	unsigned char *p;
 	u64 capacity64 = capacity;	/* Suppress gcc warning */
-	int ret;
-
-	p = scsi_bios_ptable(bdev);
-	if (!p)
-		return -1;
+	int ret = 0;
 
 	/* try to infer mapping from partition table */
-	ret = scsi_partsize(p, (unsigned long)capacity, (unsigned int *)ip + 2,
-			       (unsigned int *)ip + 0, (unsigned int *)ip + 1);
-	kfree(p);
+	if (scsi_partsize(bdev, capacity, ip))
+		return 0;
 
-	if (ret == -1 && capacity64 < (1ULL << 32)) {
+	if (capacity64 < (1ULL << 32)) {
 		/*
 		 * Pick some standard mapping with at most 1024 cylinders, and
 		 * at most 62 sectors per track - this works up to 7905 MB.
