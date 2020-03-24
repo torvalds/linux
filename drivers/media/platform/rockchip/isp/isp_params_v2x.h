@@ -163,6 +163,7 @@
 				(((v0) & 0x7FF) | (((v1) & 0x7FF) << 16))
 
 #define ISP2X_RAWAWB_ENA			BIT(0)
+#define ISP2X_RAWAWB_WPTH2_SET(x)		(((x) & 0x1FF) << 9)
 
 #define ISP2X_ISPPATH_RAWAE_SEL_SET(x)	(((x) & 0x03) << 16)
 #define ISP2X_ISPPATH_RAWAF_SEL_SET(x)	(((x) & 0x03) << 18)

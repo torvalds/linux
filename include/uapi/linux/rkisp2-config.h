@@ -878,10 +878,14 @@ struct isp2x_rawawb_meas_cfg {
 	u8 sw_rawawb_3dyuv_ls_idx0;		//CTRL
 	u8 sw_rawawb_xy_en;			//CTRL
 	u8 sw_rawawb_uv_en;			//CTRL
+	u8 sw_rawlsc_bypass_en;			//CTRL
 	u8 sw_rawawb_blk_measure_mode;		//BLK_CTRL
 	u8 sw_rawawb_store_wp_flag_ls_idx2;	//BLK_CTRL
 	u8 sw_rawawb_store_wp_flag_ls_idx1;	//BLK_CTRL
 	u8 sw_rawawb_store_wp_flag_ls_idx0;	//BLK_CTRL
+	u16 sw_rawawb_store_wp_th0;		//BLK_CTRL
+	u16 sw_rawawb_store_wp_th1;		//BLK_CTRL
+	u16 sw_rawawb_store_wp_th2;		//RAW_CTRL
 	u16 sw_rawawb_v_offs;			//WIN_OFFS
 	u16 sw_rawawb_h_offs;			//WIN_OFFS
 	u16 sw_rawawb_v_size;			//WIN_SIZE

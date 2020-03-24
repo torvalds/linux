@@ -698,6 +698,14 @@ static void
 isp_awbgain_config(struct rkisp_isp_params_vdev *params_vdev,
 		   const struct isp2x_awb_gain_cfg *arg)
 {
+	struct rkisp_device *dev = params_vdev->dev;
+
+	if (!arg->gain_green_r || !arg->gain_green_b ||
+	    !arg->gain_red || !arg->gain_blue) {
+		dev_err(dev->dev, "awb gain is zero!\n");
+		return;
+	}
+
 	rkisp_iowrite32(params_vdev,
 			CIF_ISP_AWB_GAIN_R_SET(arg->gain_green_r) |
 			arg->gain_green_b, CIF_ISP_AWB_GAIN_G_V12);
@@ -710,13 +718,12 @@ static void
 isp_awbgain_enable(struct rkisp_isp_params_vdev *params_vdev,
 		   bool en)
 {
-	if (!en) {
-		rkisp_iowrite32(params_vdev,
-			CIF_ISP_AWB_GAIN_R_SET(0x0100) | 0x100, CIF_ISP_AWB_GAIN_G_V12);
-
-		rkisp_iowrite32(params_vdev,
-			CIF_ISP_AWB_GAIN_R_SET(0x0100) | 0x100, CIF_ISP_AWB_GAIN_RB_V12);
-	}
+	if (en)
+		isp_param_set_bits(params_vdev, CIF_ISP_CTRL,
+				   CIF_ISP_CTRL_ISP_AWB_ENA);
+	else
+		isp_param_clear_bits(params_vdev, CIF_ISP_CTRL,
+				     CIF_ISP_CTRL_ISP_AWB_ENA);
 }
 
 static void
@@ -1015,16 +1022,9 @@ isp_siawb_enable(struct rkisp_isp_params_vdev *params_vdev,
 		reg_val |= CIF_ISP_AWB_ENABLE;
 
 		rkisp_iowrite32(params_vdev, reg_val, CIF_ISP_AWB_PROP_V10);
-
-		/* Measurements require AWB block be active. */
-		/* TODO: need to enable here ? awb_gain_enable has done this */
-		isp_param_set_bits(params_vdev, CIF_ISP_CTRL,
-				   CIF_ISP_CTRL_ISP_AWB_ENA);
 	} else {
 		rkisp_iowrite32(params_vdev,
 				reg_val, CIF_ISP_AWB_PROP_V10);
-		isp_param_clear_bits(params_vdev, CIF_ISP_CTRL,
-				     CIF_ISP_CTRL_ISP_AWB_ENA);
 	}
 }
 
@@ -2624,8 +2624,15 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 			(arg->sw_rawawb_store_wp_flag_ls_idx0 & 0x7) |
 			(arg->sw_rawawb_store_wp_flag_ls_idx1 & 0x7) << 3 |
 			(arg->sw_rawawb_store_wp_flag_ls_idx2 & 0x7) << 6 |
-			(arg->sw_rawawb_blk_measure_mode & 0x3) << 12,
+			(arg->sw_rawawb_blk_measure_mode & 0x3) << 12 |
+			(arg->sw_rawawb_store_wp_th0 & 0x1FF) << 14 |
+			(arg->sw_rawawb_store_wp_th1 & 0x1FF) << 23,
 			ISP_RAWAWB_BLK_CTRL);
+
+	value = rkisp_ioread32(params_vdev, ISP_RAWAWB_RAM_CTRL);
+	value &= ~(ISP2X_RAWAWB_WPTH2_SET(0x1FF));
+	value |= ISP2X_RAWAWB_WPTH2_SET(arg->sw_rawawb_store_wp_th2);
+	rkisp_iowrite32(params_vdev, value, ISP_RAWAWB_RAM_CTRL);
 
 	/* avoid to override the old enable value */
 	value = rkisp_ioread32(params_vdev, ISP_RAWAWB_CTRL);
@@ -2635,6 +2642,7 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 			value |
 			(arg->sw_rawawb_uv_en & 0x1) << 1 |
 			(arg->sw_rawawb_xy_en & 0x1) << 2 |
+			(arg->sw_rawlsc_bypass_en & 0x1) << 3 |
 			(arg->sw_rawawb_3dyuv_ls_idx0 & 0x7) << 4 |
 			(arg->sw_rawawb_3dyuv_ls_idx1 & 0x7) << 7 |
 			(arg->sw_rawawb_3dyuv_ls_idx2 & 0x7) << 10 |
