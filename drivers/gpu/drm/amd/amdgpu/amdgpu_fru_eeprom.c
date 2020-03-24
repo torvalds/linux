@@ -116,6 +116,13 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		return size;
 	}
 
+	/* Product name should only be 32 characters. Any more,
+	 * and something could be wrong. Cap it at 32 to be safe
+	 */
+	if (size > 32) {
+		DRM_WARN("FRU Product Number is larger than 32 characters. This is likely a mistake");
+		size = 32;
+	}
 	/* Start at 2 due to buff using fields 0 and 1 for the address */
 	memcpy(adev->product_name, &buff[2], size);
 	adev->product_name[size] = '\0';
@@ -127,6 +134,13 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		return size;
 	}
 
+	/* Product number should only be 16 characters. Any more,
+	 * and something could be wrong. Cap it at 16 to be safe
+	 */
+	if (size > 16) {
+		DRM_WARN("FRU Product Number is larger than 16 characters. This is likely a mistake");
+		size = 16;
+	}
 	memcpy(adev->product_number, &buff[2], size);
 	adev->product_number[size] = '\0';
 
@@ -146,6 +160,13 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		return size;
 	}
 
+	/* Serial number should only be 16 characters. Any more,
+	 * and something could be wrong. Cap it at 16 to be safe
+	 */
+	if (size > 16) {
+		DRM_WARN("FRU Serial Number is larger than 16 characters. This is likely a mistake");
+		size = 16;
+	}
 	memcpy(adev->serial, &buff[2], size);
 	adev->serial[size] = '\0';
 
