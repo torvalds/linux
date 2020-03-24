@@ -122,6 +122,9 @@ int of_thermal_get_ntrips(struct thermal_zone_device *);
 bool of_thermal_is_trip_valid(struct thermal_zone_device *, int);
 const struct thermal_trip *
 of_thermal_get_trip_points(struct thermal_zone_device *);
+void of_thermal_handle_trip(struct thermal_zone_device *tz);
+void of_thermal_handle_trip_temp(struct thermal_zone_device *tz,
+					int trip_temp);
 #else
 static inline int of_parse_thermal_zones(void) { return 0; }
 static inline void of_thermal_destroy_zones(void) { }
@@ -139,6 +142,13 @@ of_thermal_get_trip_points(struct thermal_zone_device *tz)
 {
 	return NULL;
 }
+static inline
+void of_thermal_handle_trip(struct thermal_zone_device *tz)
+{ }
+static inline
+void of_thermal_handle_trip_temp(struct thermal_zone_device *tz,
+					int trip_temp)
+{ }
 #endif
 
 #endif /* __THERMAL_CORE_H__ */

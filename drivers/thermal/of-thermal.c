@@ -412,6 +412,48 @@ static int of_thermal_get_trip_temp(struct thermal_zone_device *tz, int trip,
 	return 0;
 }
 
+static bool of_thermal_is_trips_triggered(struct thermal_zone_device *tz,
+		int temp)
+{
+	int tt, th, trip, last_temp;
+	struct __thermal_zone *data = tz->devdata;
+	bool triggered = false;
+
+	if (!tz->tzp)
+		return triggered;
+
+	mutex_lock(&tz->lock);
+	last_temp = tz->temperature;
+	for (trip = 0; trip < data->ntrips; trip++) {
+		if (!tz->tzp->tracks_low) {
+			tt = data->trips[trip].temperature;
+			if (temp >= tt && last_temp < tt) {
+				triggered = true;
+				break;
+			}
+			th = tt - data->trips[trip].hysteresis;
+			if (temp <= th && last_temp > th) {
+				triggered = true;
+				break;
+			}
+		} else {
+			tt = data->trips[trip].temperature;
+			if (temp <= tt && last_temp > tt) {
+				triggered = true;
+				break;
+			}
+			th = tt + data->trips[trip].hysteresis;
+			if (temp >= th && last_temp < th) {
+				triggered = true;
+				break;
+			}
+		}
+	}
+	mutex_unlock(&tz->lock);
+
+	return triggered;
+}
+
 static int of_thermal_set_trip_temp(struct thermal_zone_device *tz, int trip,
 				    int temp)
 {
@@ -483,6 +525,63 @@ static bool of_thermal_is_wakeable(struct thermal_zone_device *tz)
 
 	return data->is_wakeable;
 }
+
+static void handle_thermal_trip(struct thermal_zone_device *tz,
+		bool temp_valid, int trip_temp)
+{
+	struct thermal_zone_device *zone;
+	struct __thermal_zone *data;
+	struct list_head *head;
+
+	if (!tz || !tz->devdata)
+		return;
+
+	data = tz->devdata;
+
+	if (!data->senps)
+		return;
+
+	head = &data->senps->first_tz;
+
+	list_for_each_entry(data, head, list) {
+		zone = data->tzd;
+		if (data->mode == THERMAL_DEVICE_DISABLED)
+			continue;
+		if (!temp_valid) {
+			thermal_zone_device_update(zone,
+				THERMAL_EVENT_UNSPECIFIED);
+		} else {
+			if (!of_thermal_is_trips_triggered(zone, trip_temp))
+				continue;
+			thermal_zone_device_update_temp(zone,
+				THERMAL_EVENT_UNSPECIFIED, trip_temp);
+		}
+	}
+}
+
+/*
+ * of_thermal_handle_trip_temp - Handle thermal trip from sensors
+ *
+ * @tz: pointer to the primary thermal zone.
+ * @trip_temp: The temperature
+ */
+void of_thermal_handle_trip_temp(struct thermal_zone_device *tz,
+		int trip_temp)
+{
+	return handle_thermal_trip(tz, true, trip_temp);
+}
+EXPORT_SYMBOL_GPL(of_thermal_handle_trip_temp);
+
+/*
+ * of_thermal_handle_trip - Handle thermal trip from sensors
+ *
+ * @tz: pointer to the primary thermal zone.
+ */
+void of_thermal_handle_trip(struct thermal_zone_device *tz)
+{
+	return handle_thermal_trip(tz, false, 0);
+}
+EXPORT_SYMBOL_GPL(of_thermal_handle_trip);
 
 static struct thermal_zone_device_ops of_thermal_ops = {
 	.get_mode = of_thermal_get_mode,
