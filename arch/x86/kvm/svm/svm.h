@@ -171,6 +171,24 @@ struct vcpu_svm {
 	unsigned int last_cpu;
 };
 
+struct svm_cpu_data {
+	int cpu;
+
+	u64 asid_generation;
+	u32 max_asid;
+	u32 next_asid;
+	u32 min_asid;
+	struct kvm_ldttss_desc *tss_desc;
+
+	struct page *save_area;
+	struct vmcb *current_vmcb;
+
+	/* index = sev_asid, value = vmcb pointer */
+	struct vmcb **sev_vmcbs;
+};
+
+DECLARE_PER_CPU(struct svm_cpu_data *, svm_data);
+
 void recalc_intercepts(struct vcpu_svm *svm);
 
 static inline struct kvm_svm *to_kvm_svm(struct kvm *kvm)
@@ -439,5 +457,35 @@ int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 		       uint32_t guest_irq, bool set);
 void svm_vcpu_blocking(struct kvm_vcpu *vcpu);
 void svm_vcpu_unblocking(struct kvm_vcpu *vcpu);
+
+/* sev.c */
+
+extern unsigned int max_sev_asid;
+
+static inline bool sev_guest(struct kvm *kvm)
+{
+#ifdef CONFIG_KVM_AMD_SEV
+	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
+
+	return sev->active;
+#else
+	return false;
+#endif
+}
+
+static inline bool svm_sev_enabled(void)
+{
+	return IS_ENABLED(CONFIG_KVM_AMD_SEV) ? max_sev_asid : 0;
+}
+
+void sev_vm_destroy(struct kvm *kvm);
+int svm_mem_enc_op(struct kvm *kvm, void __user *argp);
+int svm_register_enc_region(struct kvm *kvm,
+			    struct kvm_enc_region *range);
+int svm_unregister_enc_region(struct kvm *kvm,
+			      struct kvm_enc_region *range);
+void pre_sev_run(struct vcpu_svm *svm, int cpu);
+int __init sev_hardware_setup(void);
+void sev_hardware_teardown(void);
 
 #endif
