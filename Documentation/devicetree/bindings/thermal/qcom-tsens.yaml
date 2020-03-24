@@ -53,13 +53,12 @@ properties:
     description:
       Reference to an nvmem node for the calibration data
 
-  nvmem-cells-names:
+  nvmem-cell-names:
     minItems: 1
     maxItems: 2
     items:
-      - enum:
-        - caldata
-        - calsel
+      - const: calib
+      - const: calib_sel
 
   "#qcom,sensors":
     allOf:
@@ -125,7 +124,7 @@ examples:
                  <0x4a8000 0x1000>; /* SROT */
 
            nvmem-cells = <&tsens_caldata>, <&tsens_calsel>;
-           nvmem-cell-names = "caldata", "calsel";
+           nvmem-cell-names = "calib", "calib_sel";
 
            interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
            interrupt-names = "uplow";
