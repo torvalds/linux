@@ -1180,6 +1180,65 @@ hot_reset_release:
 
 		return vfio_pci_ioeventfd(vdev, ioeventfd.offset,
 					  ioeventfd.data, count, ioeventfd.fd);
+	} else if (cmd == VFIO_DEVICE_FEATURE) {
+		struct vfio_device_feature feature;
+		uuid_t uuid;
+
+		minsz = offsetofend(struct vfio_device_feature, flags);
+
+		if (copy_from_user(&feature, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (feature.argsz < minsz)
+			return -EINVAL;
+
+		/* Check unknown flags */
+		if (feature.flags & ~(VFIO_DEVICE_FEATURE_MASK |
+				      VFIO_DEVICE_FEATURE_SET |
+				      VFIO_DEVICE_FEATURE_GET |
+				      VFIO_DEVICE_FEATURE_PROBE))
+			return -EINVAL;
+
+		/* GET & SET are mutually exclusive except with PROBE */
+		if (!(feature.flags & VFIO_DEVICE_FEATURE_PROBE) &&
+		    (feature.flags & VFIO_DEVICE_FEATURE_SET) &&
+		    (feature.flags & VFIO_DEVICE_FEATURE_GET))
+			return -EINVAL;
+
+		switch (feature.flags & VFIO_DEVICE_FEATURE_MASK) {
+		case VFIO_DEVICE_FEATURE_PCI_VF_TOKEN:
+			if (!vdev->vf_token)
+				return -ENOTTY;
+
+			/*
+			 * We do not support GET of the VF Token UUID as this
+			 * could expose the token of the previous device user.
+			 */
+			if (feature.flags & VFIO_DEVICE_FEATURE_GET)
+				return -EINVAL;
+
+			if (feature.flags & VFIO_DEVICE_FEATURE_PROBE)
+				return 0;
+
+			/* Don't SET unless told to do so */
+			if (!(feature.flags & VFIO_DEVICE_FEATURE_SET))
+				return -EINVAL;
+
+			if (feature.argsz < minsz + sizeof(uuid))
+				return -EINVAL;
+
+			if (copy_from_user(&uuid, (void __user *)(arg + minsz),
+					   sizeof(uuid)))
+				return -EFAULT;
+
+			mutex_lock(&vdev->vf_token->lock);
+			uuid_copy(&vdev->vf_token->uuid, &uuid);
+			mutex_unlock(&vdev->vf_token->lock);
+
+			return 0;
+		default:
+			return -ENOTTY;
+		}
 	}
 
 	return -ENOTTY;
