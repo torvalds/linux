@@ -270,7 +270,7 @@ static int csi_config(struct rkisp_csi_device *csi)
 		if (mipi_sensor) {
 			ret = v4l2_subdev_call(mipi_sensor,
 					       core, ioctl,
-					       RKMODULE_HDR_CFG,
+					       RKMODULE_GET_HDR_CFG,
 					       &hdr_cfg);
 			if (!ret) {
 				dev->hdr.op_mode = hdr_cfg.hdr_mode;

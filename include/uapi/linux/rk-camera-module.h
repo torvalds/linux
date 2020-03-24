@@ -29,8 +29,11 @@
 #define RKMODULE_LSC_CFG	\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 3, struct rkmodule_lsc_cfg)
 
-#define RKMODULE_HDR_CFG       \
-	_IOW('V', BASE_VIDIOC_PRIVATE + 4, struct rkmodule_hdr_cfg)
+#define RKMODULE_GET_HDR_CFG	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 4, struct rkmodule_hdr_cfg)
+
+#define RKMODULE_SET_HDR_CFG	\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 5, struct rkmodule_hdr_cfg)
 
 /**
  * struct rkmodule_base_inf - module base information
