@@ -13,6 +13,7 @@ config XEN_BALLOON
 config XEN_BALLOON_MEMORY_HOTPLUG
 	bool "Memory hotplug support for Xen balloon driver"
 	depends on XEN_BALLOON && MEMORY_HOTPLUG
+	default y
 	help
 	  Memory hotplug support for Xen balloon driver allows expanding memory
 	  available for the system above limit declared at system startup.
