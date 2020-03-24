@@ -102,6 +102,7 @@ struct aer_stats {
 #define ERR_UNCOR_ID(d)			(d >> 16)
 
 static int pcie_aer_disable;
+static pci_ers_result_t aer_root_reset(struct pci_dev *dev);
 
 void pci_no_aer(void)
 {
@@ -1053,11 +1054,9 @@ static void handle_error_source(struct pci_dev *dev, struct aer_err_info *info)
 					info->status);
 		pci_aer_clear_device_status(dev);
 	} else if (info->severity == AER_NONFATAL)
-		pcie_do_recovery(dev, pci_channel_io_normal,
-				 PCIE_PORT_SERVICE_AER);
+		pcie_do_recovery(dev, pci_channel_io_normal, aer_root_reset);
 	else if (info->severity == AER_FATAL)
-		pcie_do_recovery(dev, pci_channel_io_frozen,
-				 PCIE_PORT_SERVICE_AER);
+		pcie_do_recovery(dev, pci_channel_io_frozen, aer_root_reset);
 	pci_dev_put(dev);
 }
 
@@ -1094,10 +1093,10 @@ static void aer_recover_work_func(struct work_struct *work)
 		cper_print_aer(pdev, entry.severity, entry.regs);
 		if (entry.severity == AER_NONFATAL)
 			pcie_do_recovery(pdev, pci_channel_io_normal,
-					 PCIE_PORT_SERVICE_AER);
+					 aer_root_reset);
 		else if (entry.severity == AER_FATAL)
 			pcie_do_recovery(pdev, pci_channel_io_frozen,
-					 PCIE_PORT_SERVICE_AER);
+					 aer_root_reset);
 		pci_dev_put(pdev);
 	}
 }
@@ -1501,7 +1500,6 @@ static struct pcie_port_service_driver aerdriver = {
 
 	.probe		= aer_probe,
 	.remove		= aer_remove,
-	.reset_link	= aer_root_reset,
 };
 
 /**

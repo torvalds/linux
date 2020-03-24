@@ -146,49 +146,9 @@ out:
 	return 0;
 }
 
-/**
- * default_reset_link - default reset function
- * @dev: pointer to pci_dev data structure
- *
- * Invoked when performing link reset on a Downstream Port or a
- * Root Port with no aer driver.
- */
-static pci_ers_result_t default_reset_link(struct pci_dev *dev)
-{
-	int rc;
-
-	rc = pci_bus_error_reset(dev);
-	pci_printk(KERN_DEBUG, dev, "downstream link has been reset\n");
-	return rc ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
-}
-
-static pci_ers_result_t reset_link(struct pci_dev *dev, u32 service)
-{
-	pci_ers_result_t status;
-	struct pcie_port_service_driver *driver = NULL;
-
-	driver = pcie_port_find_service(dev, service);
-	if (driver && driver->reset_link) {
-		status = driver->reset_link(dev);
-	} else if (pcie_downstream_port(dev)) {
-		status = default_reset_link(dev);
-	} else {
-		pci_printk(KERN_DEBUG, dev, "no link-reset support at upstream device %s\n",
-			pci_name(dev));
-		return PCI_ERS_RESULT_DISCONNECT;
-	}
-
-	if (status != PCI_ERS_RESULT_RECOVERED) {
-		pci_printk(KERN_DEBUG, dev, "link reset at upstream device %s failed\n",
-			pci_name(dev));
-		return PCI_ERS_RESULT_DISCONNECT;
-	}
-
-	return status;
-}
-
-void pcie_do_recovery(struct pci_dev *dev, enum pci_channel_state state,
-		      u32 service)
+void pcie_do_recovery(struct pci_dev *dev,
+		      enum pci_channel_state state,
+		      pci_ers_result_t (*reset_link)(struct pci_dev *pdev))
 {
 	pci_ers_result_t status = PCI_ERS_RESULT_CAN_RECOVER;
 	struct pci_bus *bus;
@@ -205,9 +165,11 @@ void pcie_do_recovery(struct pci_dev *dev, enum pci_channel_state state,
 	pci_dbg(dev, "broadcast error_detected message\n");
 	if (state == pci_channel_io_frozen) {
 		pci_walk_bus(bus, report_frozen_detected, &status);
-		status = reset_link(dev, service);
-		if (status != PCI_ERS_RESULT_RECOVERED)
+		status = reset_link(dev);
+		if (status != PCI_ERS_RESULT_RECOVERED) {
+			pci_warn(dev, "link reset failed\n");
 			goto failed;
+		}
 	} else {
 		pci_walk_bus(bus, report_normal_detected, &status);
 	}

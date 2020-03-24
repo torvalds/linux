@@ -227,7 +227,7 @@ static irqreturn_t dpc_handler(int irq, void *context)
 	}
 
 	/* We configure DPC so it only triggers on ERR_FATAL */
-	pcie_do_recovery(pdev, pci_channel_io_frozen, PCIE_PORT_SERVICE_DPC);
+	pcie_do_recovery(pdev, pci_channel_io_frozen, dpc_reset_link);
 
 	return IRQ_HANDLED;
 }
@@ -313,7 +313,6 @@ static struct pcie_port_service_driver dpcdriver = {
 	.service	= PCIE_PORT_SERVICE_DPC,
 	.probe		= dpc_probe,
 	.remove		= dpc_remove,
-	.reset_link	= dpc_reset_link,
 };
 
 int __init pcie_dpc_init(void)
