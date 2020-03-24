@@ -706,20 +706,6 @@ extern void blk_register_region(dev_t devt, unsigned long range,
 			void *data);
 extern void blk_unregister_region(dev_t devt, unsigned long range);
 
-extern ssize_t part_size_show(struct device *dev,
-			      struct device_attribute *attr, char *buf);
-extern ssize_t part_stat_show(struct device *dev,
-			      struct device_attribute *attr, char *buf);
-extern ssize_t part_inflight_show(struct device *dev,
-			      struct device_attribute *attr, char *buf);
-#ifdef CONFIG_FAIL_MAKE_REQUEST
-extern ssize_t part_fail_show(struct device *dev,
-			      struct device_attribute *attr, char *buf);
-extern ssize_t part_fail_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count);
-#endif /* CONFIG_FAIL_MAKE_REQUEST */
-
 #define alloc_disk_node(minors, node_id)				\
 ({									\
 	static struct lock_class_key __key;				\
