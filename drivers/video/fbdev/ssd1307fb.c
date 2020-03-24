@@ -586,8 +586,7 @@ static const struct of_device_id ssd1307fb_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ssd1307fb_of_match);
 
-static int ssd1307fb_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int ssd1307fb_probe(struct i2c_client *client)
 {
 	struct backlight_device *bl;
 	char bl_name[12];
@@ -598,11 +597,6 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	struct ssd1307fb_par *par;
 	void *vmem;
 	int ret;
-
-	if (!node) {
-		dev_err(&client->dev, "No device tree data found!\n");
-		return -EINVAL;
-	}
 
 	info = framebuffer_alloc(sizeof(struct ssd1307fb_par), &client->dev);
 	if (!info)
@@ -810,7 +804,7 @@ static const struct i2c_device_id ssd1307fb_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, ssd1307fb_i2c_id);
 
 static struct i2c_driver ssd1307fb_driver = {
-	.probe = ssd1307fb_probe,
+	.probe_new = ssd1307fb_probe,
 	.remove = ssd1307fb_remove,
 	.id_table = ssd1307fb_i2c_id,
 	.driver = {
