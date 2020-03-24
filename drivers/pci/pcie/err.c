@@ -205,7 +205,8 @@ void pcie_do_recovery(struct pci_dev *dev, enum pci_channel_state state,
 	pci_dbg(dev, "broadcast error_detected message\n");
 	if (state == pci_channel_io_frozen) {
 		pci_walk_bus(bus, report_frozen_detected, &status);
-		if (reset_link(dev, service) != PCI_ERS_RESULT_RECOVERED)
+		status = reset_link(dev, service);
+		if (status != PCI_ERS_RESULT_RECOVERED)
 			goto failed;
 	} else {
 		pci_walk_bus(bus, report_normal_detected, &status);
