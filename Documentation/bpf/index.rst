@@ -47,12 +47,13 @@ Program types
    prog_flow_dissector
 
 
-Testing BPF
-===========
+Testing and debugging BPF
+=========================
 
 .. toctree::
    :maxdepth: 1
 
+   drgn
    s390
 
 
