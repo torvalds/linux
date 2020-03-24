@@ -77,13 +77,19 @@ static int aix_magic_present(struct parsed_partitions *state, unsigned char *p)
 		p[2] == AIX_LABEL_MAGIC3 &&
 		p[3] == AIX_LABEL_MAGIC4))
 		return 0;
-	/* Assume the partition table is valid if Linux partitions exists */
+
+	/*
+	 * Assume the partition table is valid if Linux partitions exists.
+	 * Note that old Solaris/x86 partitions use the same indicator as
+	 * Linux swap partitions, so we consider that a Linux partition as
+	 * well.
+	 */
 	for (slot = 1; slot <= 4; slot++, pt++) {
-		if (pt->sys_ind == LINUX_SWAP_PARTITION ||
-			pt->sys_ind == LINUX_RAID_PARTITION ||
-			pt->sys_ind == LINUX_DATA_PARTITION ||
-			pt->sys_ind == LINUX_LVM_PARTITION ||
-			is_extended_partition(pt))
+		if (pt->sys_ind == SOLARIS_X86_PARTITION ||
+		    pt->sys_ind == LINUX_RAID_PARTITION ||
+		    pt->sys_ind == LINUX_DATA_PARTITION ||
+		    pt->sys_ind == LINUX_LVM_PARTITION ||
+		    is_extended_partition(pt))
 			return 0;
 	}
 	d = read_part_sector(state, 7, &sect);
