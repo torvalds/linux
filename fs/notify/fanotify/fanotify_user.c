@@ -96,14 +96,11 @@ out:
 	return fsn_event;
 }
 
-static int create_fd(struct fsnotify_group *group,
-		     struct fanotify_event *event,
+static int create_fd(struct fsnotify_group *group, struct path *path,
 		     struct file **file)
 {
 	int client_fd;
 	struct file *new_file;
-
-	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
 	client_fd = get_unused_fd_flags(group->fanotify_data.f_flags);
 	if (client_fd < 0)
@@ -113,14 +110,9 @@ static int create_fd(struct fsnotify_group *group,
 	 * we need a new file handle for the userspace program so it can read even if it was
 	 * originally opened O_WRONLY.
 	 */
-	/* it's possible this event was an overflow event.  in that case dentry and mnt
-	 * are NULL;  That's fine, just don't call dentry open */
-	if (event->path.dentry && event->path.mnt)
-		new_file = dentry_open(&event->path,
-				       group->fanotify_data.f_flags | FMODE_NONOTIFY,
-				       current_cred());
-	else
-		new_file = ERR_PTR(-EOVERFLOW);
+	new_file = dentry_open(path,
+			       group->fanotify_data.f_flags | FMODE_NONOTIFY,
+			       current_cred());
 	if (IS_ERR(new_file)) {
 		/*
 		 * we still send an event even if we can't open the file.  this
@@ -276,9 +268,13 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	metadata.pid = pid_vnr(event->pid);
 
 	if (fanotify_event_has_path(event)) {
-		fd = create_fd(group, event, &f);
-		if (fd < 0)
-			return fd;
+		struct path *path = &event->path;
+
+		if (path->mnt && path->dentry) {
+			fd = create_fd(group, path, &f);
+			if (fd < 0)
+				return fd;
+		}
 	} else if (fanotify_event_has_fid(event)) {
 		metadata.event_len += fanotify_event_info_len(event);
 	}
