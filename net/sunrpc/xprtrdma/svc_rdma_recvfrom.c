@@ -714,58 +714,16 @@ static void rdma_read_complete(struct svc_rqst *rqstp,
 	rqstp->rq_arg.buflen = head->rc_arg.buflen;
 }
 
-static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
+static void svc_rdma_send_error(struct svcxprt_rdma *rdma,
 				struct svc_rdma_recv_ctxt *rctxt,
 				int status)
 {
-	__be32 *p, *rdma_argp = rctxt->rc_recv_buf;
-	struct svc_rdma_send_ctxt *ctxt;
-	int ret;
+	struct svc_rdma_send_ctxt *sctxt;
 
-	ctxt = svc_rdma_send_ctxt_get(xprt);
-	if (!ctxt)
+	sctxt = svc_rdma_send_ctxt_get(rdma);
+	if (!sctxt)
 		return;
-
-	p = xdr_reserve_space(&ctxt->sc_stream,
-			      rpcrdma_fixed_maxsz * sizeof(*p));
-	if (!p)
-		goto put_ctxt;
-
-	*p++ = *rdma_argp;
-	*p++ = *(rdma_argp + 1);
-	*p++ = xprt->sc_fc_credits;
-	*p = rdma_error;
-
-	switch (status) {
-	case -EPROTONOSUPPORT:
-		p = xdr_reserve_space(&ctxt->sc_stream, 3 * sizeof(*p));
-		if (!p)
-			goto put_ctxt;
-
-		*p++ = err_vers;
-		*p++ = rpcrdma_version;
-		*p = rpcrdma_version;
-		trace_svcrdma_err_vers(*rdma_argp);
-		break;
-	default:
-		p = xdr_reserve_space(&ctxt->sc_stream, sizeof(*p));
-		if (!p)
-			goto put_ctxt;
-
-		*p = err_chunk;
-		trace_svcrdma_err_chunk(*rdma_argp);
-	}
-
-	ctxt->sc_send_wr.num_sge = 1;
-	ctxt->sc_send_wr.opcode = IB_WR_SEND;
-	ctxt->sc_sges[0].length = ctxt->sc_hdrbuf.len;
-	ret = svc_rdma_send(xprt, &ctxt->sc_send_wr);
-	if (ret)
-		goto put_ctxt;
-	return;
-
-put_ctxt:
-	svc_rdma_send_ctxt_put(xprt, ctxt);
+	svc_rdma_send_error_msg(rdma, sctxt, rctxt, status);
 }
 
 /* By convention, backchannel calls arrive via rdma_msg type
