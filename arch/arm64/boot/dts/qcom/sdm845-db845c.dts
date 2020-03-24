@@ -866,3 +866,7 @@
 		bias-pull-up;
 	};
 };
+
+&cci {
+	status = "ok";
+};
