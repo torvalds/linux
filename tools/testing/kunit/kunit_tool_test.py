@@ -37,7 +37,7 @@ class KconfigTest(unittest.TestCase):
 		self.assertTrue(kconfig0.is_subset_of(kconfig0))
 
 		kconfig1 = kunit_config.Kconfig()
-		kconfig1.add_entry(kunit_config.KconfigEntry('CONFIG_TEST=y'))
+		kconfig1.add_entry(kunit_config.KconfigEntry('TEST', 'y'))
 		self.assertTrue(kconfig1.is_subset_of(kconfig1))
 		self.assertTrue(kconfig0.is_subset_of(kconfig1))
 		self.assertFalse(kconfig1.is_subset_of(kconfig0))
@@ -51,15 +51,15 @@ class KconfigTest(unittest.TestCase):
 
 		expected_kconfig = kunit_config.Kconfig()
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('CONFIG_UML=y'))
+			kunit_config.KconfigEntry('UML', 'y'))
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('CONFIG_MMU=y'))
+			kunit_config.KconfigEntry('MMU', 'y'))
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('CONFIG_TEST=y'))
+			kunit_config.KconfigEntry('TEST', 'y'))
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('CONFIG_EXAMPLE_TEST=y'))
+			kunit_config.KconfigEntry('EXAMPLE_TEST', 'y'))
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('# CONFIG_MK8 is not set'))
+			kunit_config.KconfigEntry('MK8', 'n'))
 
 		self.assertEqual(kconfig.entries(), expected_kconfig.entries())
 
@@ -68,15 +68,15 @@ class KconfigTest(unittest.TestCase):
 
 		expected_kconfig = kunit_config.Kconfig()
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('CONFIG_UML=y'))
+			kunit_config.KconfigEntry('UML', 'y'))
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('CONFIG_MMU=y'))
+			kunit_config.KconfigEntry('MMU', 'y'))
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('CONFIG_TEST=y'))
+			kunit_config.KconfigEntry('TEST', 'y'))
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('CONFIG_EXAMPLE_TEST=y'))
+			kunit_config.KconfigEntry('EXAMPLE_TEST', 'y'))
 		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('# CONFIG_MK8 is not set'))
+			kunit_config.KconfigEntry('MK8', 'n'))
 
 		expected_kconfig.write_to_file(kconfig_path)
 
