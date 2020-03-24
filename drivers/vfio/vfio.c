@@ -875,11 +875,23 @@ EXPORT_SYMBOL_GPL(vfio_device_get_from_dev);
 static struct vfio_device *vfio_device_get_from_name(struct vfio_group *group,
 						     char *buf)
 {
-	struct vfio_device *it, *device = NULL;
+	struct vfio_device *it, *device = ERR_PTR(-ENODEV);
 
 	mutex_lock(&group->device_lock);
 	list_for_each_entry(it, &group->device_list, group_next) {
-		if (!strcmp(dev_name(it->dev), buf)) {
+		int ret;
+
+		if (it->ops->match) {
+			ret = it->ops->match(it->device_data, buf);
+			if (ret < 0) {
+				device = ERR_PTR(ret);
+				break;
+			}
+		} else {
+			ret = !strcmp(dev_name(it->dev), buf);
+		}
+
+		if (ret) {
 			device = it;
 			vfio_device_get(device);
 			break;
@@ -1430,8 +1442,8 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 		return -EPERM;
 
 	device = vfio_device_get_from_name(group, buf);
-	if (!device)
-		return -ENODEV;
+	if (IS_ERR(device))
+		return PTR_ERR(device);
 
 	ret = device->ops->open(device->device_data);
 	if (ret) {

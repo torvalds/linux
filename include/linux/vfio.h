@@ -26,6 +26,9 @@
  *         operations documented below
  * @mmap: Perform mmap(2) on a region of the device file descriptor
  * @request: Request for the bus driver to release the device
+ * @match: Optional device name match callback (return: 0 for no-match, >0 for
+ *         match, -errno for abort (ex. match with insufficient or incorrect
+ *         additional args)
  */
 struct vfio_device_ops {
 	char	*name;
@@ -39,6 +42,7 @@ struct vfio_device_ops {
 			 unsigned long arg);
 	int	(*mmap)(void *device_data, struct vm_area_struct *vma);
 	void	(*request)(void *device_data, unsigned int count);
+	int	(*match)(void *device_data, char *buf);
 };
 
 extern struct iommu_group *vfio_iommu_group_get(struct device *dev);
