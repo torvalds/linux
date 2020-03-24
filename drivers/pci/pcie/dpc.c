@@ -89,7 +89,7 @@ static int dpc_wait_rp_inactive(struct pci_dev *pdev)
 	return 0;
 }
 
-static pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
+pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 {
 	u16 cap;
 
@@ -193,9 +193,8 @@ static int dpc_get_aer_uncorrect_severity(struct pci_dev *dev,
 	return 1;
 }
 
-static irqreturn_t dpc_handler(int irq, void *context)
+void dpc_process_error(struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = context;
 	u16 cap = pdev->dpc_cap, status, source, reason, ext_reason;
 	struct aer_err_info info;
 
@@ -225,6 +224,13 @@ static irqreturn_t dpc_handler(int irq, void *context)
 		pci_cleanup_aer_uncorrect_error_status(pdev);
 		pci_aer_clear_fatal_status(pdev);
 	}
+}
+
+static irqreturn_t dpc_handler(int irq, void *context)
+{
+	struct pci_dev *pdev = context;
+
+	dpc_process_error(pdev);
 
 	/* We configure DPC so it only triggers on ERR_FATAL */
 	pcie_do_recovery(pdev, pci_channel_io_frozen, dpc_reset_link);
