@@ -161,31 +161,10 @@ config DVB_CORE
 	default y
 	select CRC32
 
-config DVB_MMAP
-	bool "Enable DVB memory-mapped API (EXPERIMENTAL)"
-	depends on DVB_CORE
-	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_CORE
-	select VIDEOBUF2_VMALLOC
 	help
-	  This option enables DVB experimental memory-mapped API, which
-	  reduces the number of context switches to read DVB buffers, as
-	  the buffers can use mmap() syscalls.
 
-	  Support for it is experimental. Use with care. If unsure,
-	  say N.
 
-config DVB_NET
-	bool "DVB Network Support"
-	default (NET && INET)
-	depends on NET && INET && DVB_CORE
-	help
-	  This option enables DVB Network Support which is a part of the DVB
-	  standard. It is used, for example, by automatic firmware updates used
-	  on Set-Top-Boxes. It can also be used to access the Internet via the
-	  DVB card, if the network provider supports it.
 
-	  You may want to disable the network support on embedded devices. If
-	  unsure say Y.
 
 source "drivers/media/v4l2-core/Kconfig"
 source "drivers/media/mc/Kconfig"
