@@ -19,6 +19,9 @@ config XEN_BALLOON_MEMORY_HOTPLUG
 	  It is very useful on critical systems which require long
 	  run without rebooting.
 
+	  It's also very useful for non PV domains to obtain unpopulated physical
+	  memory ranges to use in order to map foreign memory or grants.
+
 	  Memory could be hotplugged in following steps:
 
 	    1) target domain: ensure that memory auto online policy is in
