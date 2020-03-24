@@ -34,6 +34,7 @@ struct goodix_ts_data;
 enum goodix_irq_pin_access_method {
 	IRQ_PIN_ACCESS_NONE,
 	IRQ_PIN_ACCESS_GPIO,
+	IRQ_PIN_ACCESS_ACPI_GPIO,
 };
 
 struct goodix_chip_data {
@@ -53,6 +54,8 @@ struct goodix_ts_data {
 	struct regulator *vddio;
 	struct gpio_desc *gpiod_int;
 	struct gpio_desc *gpiod_rst;
+	int gpio_count;
+	int gpio_int_idx;
 	u16 id;
 	u16 version;
 	const char *cfg_name;
@@ -537,6 +540,12 @@ static int goodix_irq_direction_output(struct goodix_ts_data *ts,
 		return -EINVAL;
 	case IRQ_PIN_ACCESS_GPIO:
 		return gpiod_direction_output(ts->gpiod_int, value);
+	case IRQ_PIN_ACCESS_ACPI_GPIO:
+		/*
+		 * The IRQ pin triggers on a falling edge, so its gets marked
+		 * as active-low, use output_raw to avoid the value inversion.
+		 */
+		return gpiod_direction_output_raw(ts->gpiod_int, value);
 	}
 
 	return -EINVAL; /* Never reached */
@@ -551,6 +560,7 @@ static int goodix_irq_direction_input(struct goodix_ts_data *ts)
 			__func__);
 		return -EINVAL;
 	case IRQ_PIN_ACCESS_GPIO:
+	case IRQ_PIN_ACCESS_ACPI_GPIO:
 		return gpiod_direction_input(ts->gpiod_int);
 	}
 
@@ -615,6 +625,94 @@ static int goodix_reset(struct goodix_ts_data *ts)
 	return 0;
 }
 
+#if defined CONFIG_X86 && defined CONFIG_ACPI
+static const struct acpi_gpio_params first_gpio = { 0, 0, false };
+static const struct acpi_gpio_params second_gpio = { 1, 0, false };
+
+static const struct acpi_gpio_mapping acpi_goodix_int_first_gpios[] = {
+	{ GOODIX_GPIO_INT_NAME "-gpios", &first_gpio, 1 },
+	{ GOODIX_GPIO_RST_NAME "-gpios", &second_gpio, 1 },
+	{ },
+};
+
+static const struct acpi_gpio_mapping acpi_goodix_int_last_gpios[] = {
+	{ GOODIX_GPIO_RST_NAME "-gpios", &first_gpio, 1 },
+	{ GOODIX_GPIO_INT_NAME "-gpios", &second_gpio, 1 },
+	{ },
+};
+
+static int goodix_resource(struct acpi_resource *ares, void *data)
+{
+	struct goodix_ts_data *ts = data;
+	struct device *dev = &ts->client->dev;
+	struct acpi_resource_gpio *gpio;
+
+	switch (ares->type) {
+	case ACPI_RESOURCE_TYPE_GPIO:
+		gpio = &ares->data.gpio;
+		if (gpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT) {
+			if (ts->gpio_int_idx == -1) {
+				ts->gpio_int_idx = ts->gpio_count;
+			} else {
+				dev_err(dev, "More then one GpioInt resource, ignoring ACPI GPIO resources\n");
+				ts->gpio_int_idx = -2;
+			}
+		}
+		ts->gpio_count++;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+/*
+ * This function gets called in case we fail to get the irq GPIO directly
+ * because the ACPI tables lack GPIO-name to APCI _CRS index mappings
+ * (no _DSD UUID daffd814-6eba-4d8c-8a91-bc9bbf4aa301 data).
+ * In that case we add our own mapping and then goodix_get_gpio_config()
+ * retries to get the GPIOs based on the added mapping.
+ */
+static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
+{
+	const struct acpi_gpio_mapping *gpio_mapping = NULL;
+	struct device *dev = &ts->client->dev;
+	LIST_HEAD(resources);
+	int ret;
+
+	ts->gpio_count = 0;
+	ts->gpio_int_idx = -1;
+	ret = acpi_dev_get_resources(ACPI_COMPANION(dev), &resources,
+				     goodix_resource, ts);
+	if (ret < 0) {
+		dev_err(dev, "Error getting ACPI resources: %d\n", ret);
+		return ret;
+	}
+
+	acpi_dev_free_resource_list(&resources);
+
+	if (ts->gpio_count == 2 && ts->gpio_int_idx == 0) {
+		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ACPI_GPIO;
+		gpio_mapping = acpi_goodix_int_first_gpios;
+	} else if (ts->gpio_count == 2 && ts->gpio_int_idx == 1) {
+		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ACPI_GPIO;
+		gpio_mapping = acpi_goodix_int_last_gpios;
+	} else {
+		dev_warn(dev, "Unexpected ACPI resources: gpio_count %d, gpio_int_idx %d\n",
+			 ts->gpio_count, ts->gpio_int_idx);
+		return -EINVAL;
+	}
+
+	return devm_acpi_dev_add_driver_gpios(dev, gpio_mapping);
+}
+#else
+static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_X86 && CONFIG_ACPI */
+
 /**
  * goodix_get_gpio_config - Get GPIO config from ACPI/DT
  *
@@ -625,6 +723,7 @@ static int goodix_get_gpio_config(struct goodix_ts_data *ts)
 	int error;
 	struct device *dev;
 	struct gpio_desc *gpiod;
+	bool added_acpi_mappings = false;
 
 	if (!ts->client)
 		return -EINVAL;
@@ -648,6 +747,7 @@ static int goodix_get_gpio_config(struct goodix_ts_data *ts)
 		return error;
 	}
 
+retry_get_irq_gpio:
 	/* Get the interrupt GPIO pin number */
 	gpiod = devm_gpiod_get_optional(dev, GOODIX_GPIO_INT_NAME, GPIOD_IN);
 	if (IS_ERR(gpiod)) {
@@ -656,6 +756,11 @@ static int goodix_get_gpio_config(struct goodix_ts_data *ts)
 			dev_dbg(dev, "Failed to get %s GPIO: %d\n",
 				GOODIX_GPIO_INT_NAME, error);
 		return error;
+	}
+	if (!gpiod && has_acpi_companion(dev) && !added_acpi_mappings) {
+		added_acpi_mappings = true;
+		if (goodix_add_acpi_gpio_mappings(ts) == 0)
+			goto retry_get_irq_gpio;
 	}
 
 	ts->gpiod_int = gpiod;
@@ -672,10 +777,25 @@ static int goodix_get_gpio_config(struct goodix_ts_data *ts)
 
 	ts->gpiod_rst = gpiod;
 
-	if (ts->gpiod_int && ts->gpiod_rst) {
-		ts->reset_controller_at_probe = true;
-		ts->load_cfg_from_disk = true;
-		ts->irq_pin_access_method = IRQ_PIN_ACCESS_GPIO;
+	switch (ts->irq_pin_access_method) {
+	case IRQ_PIN_ACCESS_ACPI_GPIO:
+		/*
+		 * We end up here if goodix_add_acpi_gpio_mappings() has
+		 * called devm_acpi_dev_add_driver_gpios() because the ACPI
+		 * tables did not contain name to index mappings.
+		 * Check that we successfully got both GPIOs after we've
+		 * added our own acpi_gpio_mapping and if we did not get both
+		 * GPIOs reset irq_pin_access_method to IRQ_PIN_ACCESS_NONE.
+		 */
+		if (!ts->gpiod_int || !ts->gpiod_rst)
+			ts->irq_pin_access_method = IRQ_PIN_ACCESS_NONE;
+		break;
+	default:
+		if (ts->gpiod_int && ts->gpiod_rst) {
+			ts->reset_controller_at_probe = true;
+			ts->load_cfg_from_disk = true;
+			ts->irq_pin_access_method = IRQ_PIN_ACCESS_GPIO;
+		}
 	}
 
 	return 0;
