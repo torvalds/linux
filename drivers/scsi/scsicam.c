@@ -17,6 +17,7 @@
 #include <linux/genhd.h>
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
+#include <linux/msdos_partition.h>
 #include <asm/unaligned.h>
 
 #include <scsi/scsicam.h>
@@ -61,7 +62,7 @@ bool scsi_partsize(struct block_device *bdev, sector_t capacity, int geom[3])
 {
 	int cyl, ext_cyl, end_head, end_cyl, end_sector;
 	unsigned int logical_end, physical_end, ext_physical_end;
-	struct partition *p, *largest = NULL;
+	struct msdos_partition *p, *largest = NULL;
 	void *buf;
 	int ret = false;
 

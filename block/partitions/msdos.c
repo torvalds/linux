@@ -20,9 +20,9 @@
  *  Re-organised Feb 1998 Russell King
  */
 #include <linux/msdos_fs.h>
+#include <linux/msdos_partition.h>
 
 #include "check.h"
-#include "msdos.h"
 #include "efi.h"
 
 /*
@@ -34,17 +34,17 @@
 
 #define SYS_IND(p)	get_unaligned(&p->sys_ind)
 
-static inline sector_t nr_sects(struct partition *p)
+static inline sector_t nr_sects(struct msdos_partition *p)
 {
 	return (sector_t)get_unaligned_le32(&p->nr_sects);
 }
 
-static inline sector_t start_sect(struct partition *p)
+static inline sector_t start_sect(struct msdos_partition *p)
 {
 	return (sector_t)get_unaligned_le32(&p->start_sect);
 }
 
-static inline int is_extended_partition(struct partition *p)
+static inline int is_extended_partition(struct msdos_partition *p)
 {
 	return (SYS_IND(p) == DOS_EXTENDED_PARTITION ||
 		SYS_IND(p) == WIN98_EXTENDED_PARTITION ||
@@ -67,7 +67,7 @@ msdos_magic_present(unsigned char *p)
 #define AIX_LABEL_MAGIC4	0xC1
 static int aix_magic_present(struct parsed_partitions *state, unsigned char *p)
 {
-	struct partition *pt = (struct partition *) (p + 0x1be);
+	struct msdos_partition *pt = (struct msdos_partition *) (p + 0x1be);
 	Sector sect;
 	unsigned char *d;
 	int slot, ret = 0;
@@ -121,7 +121,7 @@ static void parse_extended(struct parsed_partitions *state,
 			   sector_t first_sector, sector_t first_size,
 			   u32 disksig)
 {
-	struct partition *p;
+	struct msdos_partition *p;
 	Sector sect;
 	unsigned char *data;
 	sector_t this_sector, this_size;
@@ -145,7 +145,7 @@ static void parse_extended(struct parsed_partitions *state,
 		if (!msdos_magic_present(data + 510))
 			goto done;
 
-		p = (struct partition *) (data + 0x1be);
+		p = (struct msdos_partition *) (data + 0x1be);
 
 		/*
 		 * Usually, the first entry is the real data partition,
@@ -402,14 +402,14 @@ static void parse_minix(struct parsed_partitions *state,
 #ifdef CONFIG_MINIX_SUBPARTITION
 	Sector sect;
 	unsigned char *data;
-	struct partition *p;
+	struct msdos_partition *p;
 	int i;
 
 	data = read_part_sector(state, offset, &sect);
 	if (!data)
 		return;
 
-	p = (struct partition *)(data + 0x1be);
+	p = (struct msdos_partition *)(data + 0x1be);
 
 	/* The first sector of a Minix partition can have either
 	 * a secondary MBR describing its subpartitions, or
@@ -453,7 +453,7 @@ int msdos_partition(struct parsed_partitions *state)
 	sector_t sector_size = bdev_logical_block_size(state->bdev) / 512;
 	Sector sect;
 	unsigned char *data;
-	struct partition *p;
+	struct msdos_partition *p;
 	struct fat_boot_sector *fb;
 	int slot;
 	u32 disksig;
@@ -487,7 +487,7 @@ int msdos_partition(struct parsed_partitions *state)
 	 * partition table. Reject this in case the boot indicator
 	 * is not 0 or 0x80.
 	 */
-	p = (struct partition *) (data + 0x1be);
+	p = (struct msdos_partition *) (data + 0x1be);
 	for (slot = 1; slot <= 4; slot++, p++) {
 		if (p->boot_ind != 0 && p->boot_ind != 0x80) {
 			/*
@@ -509,7 +509,7 @@ int msdos_partition(struct parsed_partitions *state)
 	}
 
 #ifdef CONFIG_EFI_PARTITION
-	p = (struct partition *) (data + 0x1be);
+	p = (struct msdos_partition *) (data + 0x1be);
 	for (slot = 1 ; slot <= 4 ; slot++, p++) {
 		/* If this is an EFI GPT disk, msdos should ignore it. */
 		if (SYS_IND(p) == EFI_PMBR_OSTYPE_EFI_GPT) {
@@ -518,7 +518,7 @@ int msdos_partition(struct parsed_partitions *state)
 		}
 	}
 #endif
-	p = (struct partition *) (data + 0x1be);
+	p = (struct msdos_partition *) (data + 0x1be);
 
 	disksig = le32_to_cpup((__le32 *)(data + 0x1b8));
 
@@ -565,7 +565,7 @@ int msdos_partition(struct parsed_partitions *state)
 	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 
 	/* second pass - output for each on a separate line */
-	p = (struct partition *) (0x1be + data);
+	p = (struct msdos_partition *) (0x1be + data);
 	for (slot = 1 ; slot <= 4 ; slot++, p++) {
 		unsigned char id = SYS_IND(p);
 		int n;

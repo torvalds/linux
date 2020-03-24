@@ -33,6 +33,7 @@
 #include <linux/syscalls.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/msdos_partition.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -328,9 +329,9 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 	buf = scsi_bios_ptable(bdev);
 	if (!buf)
 		return 0;
-	if(*(__le16 *)(buf + 0x40) == cpu_to_le16(0xaa55)) {
-		struct partition *first = (struct partition * )buf;
-		struct partition *entry = first;
+	if (*(__le16 *)(buf + 0x40) == cpu_to_le16(MSDOS_LABEL_MAGIC)) {
+		struct msdos_partition *first = (struct msdos_partition *)buf;
+		struct msdos_partition *entry = first;
 		int saved_cylinders = param->cylinders;
 		int num;
 		unsigned char end_head, end_sec;
