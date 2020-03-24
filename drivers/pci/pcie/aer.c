@@ -377,7 +377,7 @@ void pci_aer_clear_device_status(struct pci_dev *dev)
 	pcie_capability_write_word(dev, PCI_EXP_DEVSTA, sta);
 }
 
-int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
+int pci_aer_clear_nonfatal_status(struct pci_dev *dev)
 {
 	int pos;
 	u32 status, sev;
@@ -398,7 +398,7 @@ int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(pci_cleanup_aer_uncorrect_error_status);
+EXPORT_SYMBOL_GPL(pci_aer_clear_nonfatal_status);
 
 void pci_aer_clear_fatal_status(struct pci_dev *dev)
 {
@@ -457,7 +457,7 @@ int pci_aer_raw_clear_status(struct pci_dev *dev)
 	return 0;
 }
 
-int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
+int pci_aer_clear_status(struct pci_dev *dev)
 {
 	if (pcie_aer_get_firmware_first(dev))
 		return -EIO;
@@ -530,7 +530,7 @@ void pci_aer_init(struct pci_dev *dev)
 	n = pcie_cap_has_rtctl(dev) ? 5 : 4;
 	pci_add_ext_cap_save_buffer(dev, PCI_EXT_CAP_ID_ERR, sizeof(u32) * n);
 
-	pci_cleanup_aer_error_status_regs(dev);
+	pci_aer_clear_status(dev);
 }
 
 void pci_aer_exit(struct pci_dev *dev)

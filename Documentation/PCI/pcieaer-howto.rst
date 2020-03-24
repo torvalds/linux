@@ -232,9 +232,9 @@ messages to root port when an error is detected.
 
 ::
 
-  int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev);`
+  int pci_aer_clear_nonfatal_status(struct pci_dev *dev);`
 
-pci_cleanup_aer_uncorrect_error_status cleanups the uncorrectable
+pci_aer_clear_nonfatal_status clears non-fatal errors in the uncorrectable
 error status register.
 
 Frequent Asked Questions
