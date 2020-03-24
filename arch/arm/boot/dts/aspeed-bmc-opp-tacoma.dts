@@ -34,12 +34,6 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		air-water {
-			label = "air-water";
-			gpios = <&gpio0 ASPEED_GPIO(Q, 7) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(Q, 7)>;
-		};
-
 		checkstop {
 			label = "checkstop";
 			gpios = <&gpio0 ASPEED_GPIO(E, 3) GPIO_ACTIVE_LOW>;
@@ -204,6 +198,9 @@
 
 	#address-cells = <2>;
 	#size-cells = <0>;
+
+	fsi-routing-gpios = <&gpio0 ASPEED_GPIO(Q, 7) GPIO_ACTIVE_HIGH>;
+	fsi-mux-gpios = <&gpio0 ASPEED_GPIO(B, 0) GPIO_ACTIVE_HIGH>;
 
 	cfam@0,0 {
 		reg = <0 0>;
