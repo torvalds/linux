@@ -18,14 +18,11 @@
 #include <linux/ctype.h>
 #include <linux/genhd.h>
 #include <linux/blktrace_api.h>
+#include <linux/raid/detect.h>
 #include "blk.h"
 
 #include "partitions/check.h"
 
-#ifdef CONFIG_BLK_DEV_MD
-extern void md_autodetect_dev(dev_t dev);
-#endif
- 
 static ssize_t part_partition_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -407,10 +404,10 @@ static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
 		return true;
 	}
 
-#ifdef CONFIG_BLK_DEV_MD
-	if (state->parts[p].flags & ADDPART_FLAG_RAID)
+	if (IS_BUILTIN(CONFIG_BLK_DEV_MD) &&
+	    (state->parts[p].flags & ADDPART_FLAG_RAID))
 		md_autodetect_dev(part_to_dev(part)->devt);
-#endif
+
 	return true;
 }
 
