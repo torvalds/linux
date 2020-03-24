@@ -82,6 +82,8 @@ struct vfio_iommu_driver_ops {
 					     struct notifier_block *nb);
 	int		(*unregister_notifier)(void *iommu_data,
 					       struct notifier_block *nb);
+	int		(*dma_rw)(void *iommu_data, dma_addr_t user_iova,
+				  void *data, size_t count, bool write);
 };
 
 extern int vfio_register_iommu_driver(const struct vfio_iommu_driver_ops *ops);
@@ -108,6 +110,9 @@ extern int vfio_pin_pages(struct device *dev, unsigned long *user_pfn,
 			  int npage, int prot, unsigned long *phys_pfn);
 extern int vfio_unpin_pages(struct device *dev, unsigned long *user_pfn,
 			    int npage);
+
+extern int vfio_dma_rw(struct vfio_group *group, dma_addr_t user_iova,
+		       void *data, size_t len, bool write);
 
 /* each type has independent events */
 enum vfio_notify_type {
