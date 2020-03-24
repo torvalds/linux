@@ -24,7 +24,6 @@
 #include "check.h"
 #include "msdos.h"
 #include "efi.h"
-#include "aix.h"
 
 /*
  * Many architectures don't like unaligned accesses, while

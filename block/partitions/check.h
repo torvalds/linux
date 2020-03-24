@@ -50,3 +50,25 @@ put_partition(struct parsed_partitions *p, int n, sector_t from, sector_t size)
 		strlcat(p->pp_buf, tmp, PAGE_SIZE);
 	}
 }
+
+/* detection routines go here in alphabetical order: */
+int adfspart_check_ADFS(struct parsed_partitions *state);
+int adfspart_check_CUMANA(struct parsed_partitions *state);
+int adfspart_check_EESOX(struct parsed_partitions *state);
+int adfspart_check_ICS(struct parsed_partitions *state);
+int adfspart_check_POWERTEC(struct parsed_partitions *state);
+int aix_partition(struct parsed_partitions *state);
+int amiga_partition(struct parsed_partitions *state);
+int atari_partition(struct parsed_partitions *state);
+int cmdline_partition(struct parsed_partitions *state);
+int efi_partition(struct parsed_partitions *state);
+int ibm_partition(struct parsed_partitions *);
+int karma_partition(struct parsed_partitions *state);
+int ldm_partition(struct parsed_partitions *state);
+int mac_partition(struct parsed_partitions *state);
+int msdos_partition(struct parsed_partitions *state);
+int osf_partition(struct parsed_partitions *state);
+int sgi_partition(struct parsed_partitions *state);
+int sun_partition(struct parsed_partitions *state);
+int sysv68_partition(struct parsed_partitions *state);
+int ultrix_partition(struct parsed_partitions *state);

@@ -21,22 +21,6 @@
 
 #include "check.h"
 
-#include "acorn.h"
-#include "amiga.h"
-#include "atari.h"
-#include "ldm.h"
-#include "mac.h"
-#include "msdos.h"
-#include "osf.h"
-#include "sgi.h"
-#include "sun.h"
-#include "ibm.h"
-#include "ultrix.h"
-#include "efi.h"
-#include "karma.h"
-#include "sysv68.h"
-#include "cmdline.h"
-
 static int (*check_part[])(struct parsed_partitions *) = {
 	/*
 	 * Probe partition formats with tables at disk address 0

@@ -6,7 +6,6 @@
  */
 
 #include "check.h"
-#include "sysv68.h"
 
 /*
  *	Volume ID structure: on first 256-bytes sector of disk

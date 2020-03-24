@@ -14,7 +14,6 @@
 #include <linux/affs_hardblocks.h>
 
 #include "check.h"
-#include "amiga.h"
 
 static __inline__ u32
 checksum_block(__be32 *m, int size)

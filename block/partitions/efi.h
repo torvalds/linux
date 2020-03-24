@@ -113,7 +113,4 @@ typedef struct _legacy_mbr {
 	__le16 signature;
 } __packed legacy_mbr;
 
-/* Functions */
-extern int efi_partition(struct parsed_partitions *state);
-
 #endif
