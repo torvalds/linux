@@ -28,14 +28,14 @@ void free_partitions(struct parsed_partitions *state);
 struct parsed_partitions *
 check_partition(struct gendisk *, struct block_device *);
 
-static inline void *read_part_sector(struct parsed_partitions *state,
-				     sector_t n, Sector *p)
+typedef struct {
+	struct page *v;
+} Sector;
+
+void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p);
+static inline void put_dev_sector(Sector p)
 {
-	if (n >= get_capacity(state->bdev->bd_disk)) {
-		state->access_beyond_eod = true;
-		return NULL;
-	}
-	return read_dev_sector(state->bdev, n, p);
+	put_page(p.v);
 }
 
 static inline void
