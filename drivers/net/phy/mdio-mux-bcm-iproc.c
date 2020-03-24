@@ -10,6 +10,7 @@
 #include <linux/phy.h>
 #include <linux/mdio-mux.h>
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 
 #define MDIO_RATE_ADJ_EXT_OFFSET	0x000
 #define MDIO_RATE_ADJ_INT_OFFSET	0x004
@@ -78,18 +79,11 @@ static void mdio_mux_iproc_config(struct iproc_mdiomux_desc *md)
 
 static int iproc_mdio_wait_for_idle(void __iomem *base, bool result)
 {
-	unsigned int timeout = 1000; /* loop for 1s */
 	u32 val;
 
-	do {
-		val = readl(base + MDIO_STAT_OFFSET);
-		if ((val & MDIO_STAT_DONE) == result)
-			return 0;
-
-		usleep_range(1000, 2000);
-	} while (timeout--);
-
-	return -ETIMEDOUT;
+	return readl_poll_timeout(base + MDIO_STAT_OFFSET, val,
+				  (val & MDIO_STAT_DONE) == result,
+				  2000, 1000000);
 }
 
 /* start_miim_ops- Program and start MDIO transaction over mdio bus.
