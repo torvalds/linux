@@ -105,6 +105,7 @@ struct msm_display_topology {
 	u32 num_lm;
 	u32 num_enc;
 	u32 num_intf;
+	u32 num_dspp;
 };
 
 /**
