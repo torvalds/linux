@@ -1891,6 +1891,13 @@
 /* ISP_DEBAYER_CONTROL */
 #define ISP_DEBAYER_EN			BIT(0)
 
+/* LSC */
+/* ISP_LSC_CTRL */
+#define ISP_LSC_EN			BIT(0)
+#define ISP_LSC_LUT_EN			BIT(1)
+#define ISP_ISP_LSC_TABLE_DATA(v0, v1)	\
+	(((v0) & 0x1FFF) | (((v1) & 0x1FFF) << 16))
+
 static inline bool dmatx_is_stream_stopped(void __iomem *base)
 {
 	return true;

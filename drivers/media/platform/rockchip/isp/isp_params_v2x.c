@@ -480,15 +480,11 @@ isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 			const struct isp2x_lsc_cfg *pconfig)
 {
 	int i, j;
-	unsigned int isp_lsc_status, sram_addr, isp_lsc_table_sel;
+	unsigned int sram_addr;
 	unsigned int data;
 
-	isp_lsc_status = rkisp_ioread32(params_vdev, ISP_LSC_STATUS);
-
 	/* CIF_ISP_LSC_TABLE_ADDRESS_153 = ( 17 * 18 ) >> 1 */
-	sram_addr = (isp_lsc_status & CIF_ISP_LSC_ACTIVE_TABLE) ?
-		     CIF_ISP_LSC_TABLE_ADDRESS_0 :
-		     CIF_ISP_LSC_TABLE_ADDRESS_153;
+	sram_addr = CIF_ISP_LSC_TABLE_ADDRESS_0;
 	rkisp_iowrite32(params_vdev, sram_addr, ISP_LSC_R_TABLE_ADDR);
 	rkisp_iowrite32(params_vdev, sram_addr, ISP_LSC_GR_TABLE_ADDR);
 	rkisp_iowrite32(params_vdev, sram_addr, ISP_LSC_GB_TABLE_ADDR);
@@ -502,65 +498,61 @@ isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 		 * DWORDs (2nd value of last DWORD unused)
 		 */
 		for (j = 0; j < CIF_ISP_LSC_SECTORS_MAX - 1; j += 2) {
-			data = CIF_ISP_LSC_TABLE_DATA_V12(
+			data = ISP_ISP_LSC_TABLE_DATA(
 					pconfig->r_data_tbl[i + j],
 					pconfig->r_data_tbl[i + j + 1]);
 			rkisp_iowrite32(params_vdev, data,
-					 ISP_LSC_R_TABLE_DATA);
+					ISP_LSC_R_TABLE_DATA);
 
-			data = CIF_ISP_LSC_TABLE_DATA_V12(
+			data = ISP_ISP_LSC_TABLE_DATA(
 					pconfig->gr_data_tbl[i + j],
 					pconfig->gr_data_tbl[i + j + 1]);
 			rkisp_iowrite32(params_vdev, data,
-					 ISP_LSC_GR_TABLE_DATA);
+					ISP_LSC_GR_TABLE_DATA);
 
-			data = CIF_ISP_LSC_TABLE_DATA_V12(
+			data = ISP_ISP_LSC_TABLE_DATA(
 					pconfig->gb_data_tbl[i + j],
 					pconfig->gb_data_tbl[i + j + 1]);
 			rkisp_iowrite32(params_vdev, data,
-					 ISP_LSC_GB_TABLE_DATA);
+					ISP_LSC_GB_TABLE_DATA);
 
-			data = CIF_ISP_LSC_TABLE_DATA_V12(
+			data = ISP_ISP_LSC_TABLE_DATA(
 					pconfig->b_data_tbl[i + j],
 					pconfig->b_data_tbl[i + j + 1]);
 			rkisp_iowrite32(params_vdev, data,
-					 ISP_LSC_B_TABLE_DATA);
+					ISP_LSC_B_TABLE_DATA);
 		}
 
-		data = CIF_ISP_LSC_TABLE_DATA_V12(
+		data = ISP_ISP_LSC_TABLE_DATA(
 				pconfig->r_data_tbl[i + j],
 				0);
 		rkisp_iowrite32(params_vdev, data,
 				ISP_LSC_R_TABLE_DATA);
 
-		data = CIF_ISP_LSC_TABLE_DATA_V12(
+		data = ISP_ISP_LSC_TABLE_DATA(
 				pconfig->gr_data_tbl[i + j],
 				0);
 		rkisp_iowrite32(params_vdev, data,
 				CIF_ISP_LSC_GR_TABLE_DATA);
 
-		data = CIF_ISP_LSC_TABLE_DATA_V12(
+		data = ISP_ISP_LSC_TABLE_DATA(
 				pconfig->gb_data_tbl[i + j],
 				0);
 		rkisp_iowrite32(params_vdev, data,
 				ISP_LSC_GB_TABLE_DATA);
 
-		data = CIF_ISP_LSC_TABLE_DATA_V12(
+		data = ISP_ISP_LSC_TABLE_DATA(
 				pconfig->b_data_tbl[i + j],
 				0);
 		rkisp_iowrite32(params_vdev, data,
 				ISP_LSC_B_TABLE_DATA);
 	}
-	isp_lsc_table_sel = (isp_lsc_status & CIF_ISP_LSC_ACTIVE_TABLE) ?
-				CIF_ISP_LSC_TABLE_0 : CIF_ISP_LSC_TABLE_1;
-	rkisp_iowrite32(params_vdev, isp_lsc_table_sel, ISP_LSC_TABLE_SEL);
 }
 
 static void __maybe_unused
 isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
 		       const struct isp2x_lsc_cfg *pconfig)
 {
-	unsigned int isp_lsc_status, isp_lsc_table_sel;
 	struct rkisp_isp_params_val_v2x *priv_val;
 	u32 value, buf_idx;
 	unsigned int data;
@@ -573,9 +565,9 @@ isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
 
 	memset(&index[0], 0, sizeof(index));
 	vaddr[0] = priv_val->buf_lsclut[buf_idx].vaddr;
-	vaddr[1] = vaddr[0] + RKISP_PARAM_LSC_LUT_TBL_SIZE * 4;
-	vaddr[2] = vaddr[1] + RKISP_PARAM_LSC_LUT_TBL_SIZE * 4;
-	vaddr[3] = vaddr[2] + RKISP_PARAM_LSC_LUT_TBL_SIZE * 4;
+	vaddr[1] = vaddr[0] + RKISP_PARAM_LSC_LUT_TBL_SIZE;
+	vaddr[2] = vaddr[1] + RKISP_PARAM_LSC_LUT_TBL_SIZE;
+	vaddr[3] = vaddr[2] + RKISP_PARAM_LSC_LUT_TBL_SIZE;
 
 	/* program data tables (table size is 9 * 17 = 153) */
 	for (i = 0; i < CIF_ISP_LSC_SECTORS_MAX * CIF_ISP_LSC_SECTORS_MAX;
@@ -585,43 +577,43 @@ isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
 		 * DWORDs (2nd value of last DWORD unused)
 		 */
 		for (j = 0; j < CIF_ISP_LSC_SECTORS_MAX - 1; j += 2) {
-			data = CIF_ISP_LSC_TABLE_DATA_V12(
+			data = ISP_ISP_LSC_TABLE_DATA(
 					pconfig->r_data_tbl[i + j],
 					pconfig->r_data_tbl[i + j + 1]);
 			vaddr[0][index[0]++] = data;
 
-			data = CIF_ISP_LSC_TABLE_DATA_V12(
+			data = ISP_ISP_LSC_TABLE_DATA(
 					pconfig->gr_data_tbl[i + j],
 					pconfig->gr_data_tbl[i + j + 1]);
 			vaddr[1][index[1]++] = data;
 
-			data = CIF_ISP_LSC_TABLE_DATA_V12(
+			data = ISP_ISP_LSC_TABLE_DATA(
 					pconfig->gb_data_tbl[i + j],
 					pconfig->gb_data_tbl[i + j + 1]);
 			vaddr[2][index[2]++] = data;
 
-			data = CIF_ISP_LSC_TABLE_DATA_V12(
+			data = ISP_ISP_LSC_TABLE_DATA(
 					pconfig->b_data_tbl[i + j],
 					pconfig->b_data_tbl[i + j + 1]);
 			vaddr[3][index[3]++] = data;
 		}
 
-		data = CIF_ISP_LSC_TABLE_DATA_V12(
+		data = ISP_ISP_LSC_TABLE_DATA(
 				pconfig->r_data_tbl[i + j],
 				0);
 		vaddr[0][index[0]++] = data;
 
-		data = CIF_ISP_LSC_TABLE_DATA_V12(
+		data = ISP_ISP_LSC_TABLE_DATA(
 				pconfig->gr_data_tbl[i + j],
 				0);
 		vaddr[1][index[1]++] = data;
 
-		data = CIF_ISP_LSC_TABLE_DATA_V12(
+		data = ISP_ISP_LSC_TABLE_DATA(
 				pconfig->gb_data_tbl[i + j],
 				0);
 		vaddr[2][index[2]++] = data;
 
-		data = CIF_ISP_LSC_TABLE_DATA_V12(
+		data = ISP_ISP_LSC_TABLE_DATA(
 				pconfig->b_data_tbl[i + j],
 				0);
 		vaddr[3][index[3]++] = data;
@@ -630,11 +622,9 @@ isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
 	value = priv_val->buf_lsclut[buf_idx].dma_addr;
 	rkisp_iowrite32(params_vdev, value, MI_LUT_LSC_RD_BASE);
 	rkisp_iowrite32(params_vdev, RKISP_PARAM_LSC_LUT_BUF_SIZE, MI_LUT_LSC_RD_WSIZE);
-
-	isp_lsc_status = rkisp_ioread32(params_vdev, ISP_LSC_STATUS);
-	isp_lsc_table_sel = (isp_lsc_status & CIF_ISP_LSC_ACTIVE_TABLE) ?
-				CIF_ISP_LSC_TABLE_0 : CIF_ISP_LSC_TABLE_1;
-	rkisp_iowrite32(params_vdev, isp_lsc_table_sel, ISP_LSC_TABLE_SEL);
+	isp_param_set_bits(params_vdev,
+			   ISP_LSC_CTRL,
+			   ISP_LSC_LUT_EN);
 }
 
 static void
@@ -648,7 +638,7 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	/* To config must be off , store the current status firstly */
 	lsc_ctrl = rkisp_ioread32(params_vdev, ISP_LSC_CTRL);
 	isp_param_clear_bits(params_vdev, ISP_LSC_CTRL,
-			     CIF_ISP_LSC_CTRL_ENA);
+			     ISP_LSC_EN);
 	isp_lsc_matrix_cfg_sram(params_vdev, arg);
 
 	for (i = 0; i < 4; i++) {
@@ -678,14 +668,14 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	}
 
 	/* restore the lsc ctrl status */
-	if (lsc_ctrl & CIF_ISP_LSC_CTRL_ENA) {
+	if (lsc_ctrl & ISP_LSC_EN) {
 		isp_param_set_bits(params_vdev,
 				   ISP_LSC_CTRL,
-				   CIF_ISP_LSC_CTRL_ENA);
+				   ISP_LSC_EN);
 	} else {
 		isp_param_clear_bits(params_vdev,
 				     ISP_LSC_CTRL,
-				     CIF_ISP_LSC_CTRL_ENA);
+				     ISP_LSC_EN);
 	}
 }
 
@@ -696,11 +686,11 @@ isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev,
 	if (en) {
 		isp_param_set_bits(params_vdev,
 				   ISP_LSC_CTRL,
-				   CIF_ISP_LSC_CTRL_ENA);
+				   ISP_LSC_EN);
 	} else {
 		isp_param_clear_bits(params_vdev,
 				     ISP_LSC_CTRL,
-				     CIF_ISP_LSC_CTRL_ENA);
+				     ISP_LSC_EN);
 	}
 }
 
