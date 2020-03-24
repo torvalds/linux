@@ -25,36 +25,35 @@ menuconfig MEDIA_SUPPORT
 	  Additional info and docs are available on the web at
 	  <https://linuxtv.org>
 
-if MEDIA_SUPPORT
-
-comment "Multimedia core support"
+menu "Types of devices to be supported"
+	depends on MEDIA_SUPPORT
 
 #
 # Multimedia support - automatically enable V4L2 and DVB core
 #
 config MEDIA_CAMERA_SUPPORT
-	bool "Cameras/video grabbers support"
+	bool "Cameras and video grabbers"
 	help
 	  Enable support for webcams and video grabbers.
 
 	  Say Y when you have a webcam or a video capture grabber board.
 
 config MEDIA_ANALOG_TV_SUPPORT
-	bool "Analog TV support"
+	bool "Analog TV"
 	help
 	  Enable analog TV support.
 
 	  Say Y when you have a board with analog TV support.
 
 config MEDIA_DIGITAL_TV_SUPPORT
-	bool "Digital TV support"
+	bool "Digital TV"
 	help
 	  Enable digital TV support.
 
 	  Say Y when you have a board with digital TV support.
 
 config MEDIA_RADIO_SUPPORT
-	bool "AM/FM radio receivers/transmitters support"
+	bool "AM/FM radio receivers/transmitters"
 	help
 	  Enable AM/FM radio support.
 
@@ -64,14 +63,14 @@ config MEDIA_RADIO_SUPPORT
 	  Say Y when you have a board with radio support.
 
 config MEDIA_SDR_SUPPORT
-	bool "Software defined radio support"
+	bool "Software defined radio"
 	help
 	  Enable software defined radio support.
 
 	  Say Y when you have a software defined radio device.
 
 config MEDIA_CEC_SUPPORT
-	bool "HDMI CEC support"
+	bool "HDMI CEC"
 	help
 	  Enable support for HDMI CEC (Consumer Electronics Control),
 	  which is an optional HDMI feature.
@@ -80,7 +79,7 @@ config MEDIA_CEC_SUPPORT
 	  adapter that supports HDMI CEC.
 
 config MEDIA_PLATFORM_SUPPORT
-	bool "Platform-specific devices support"
+	bool "Platform-specific devices"
 	help
 	  Enable support for complex cameras, codecs, and other hardware
 	  that are integrated at the CPU, GPU or on Image Signalling Processor
@@ -92,7 +91,7 @@ config MEDIA_PLATFORM_SUPPORT
 	  Say Y when you want to be able so see such devices.
 
 config MEDIA_TEST_SUPPORT
-	bool "Test drivers support"
+	bool "Test drivers"
 	help
 	  Those drivers should not be used on production Kernels, but
 	  can be useful on debug ones. It enables several dummy drivers
@@ -103,6 +102,10 @@ config MEDIA_TEST_SUPPORT
 	  Say Y if you want to use some virtual test driver.
 
 	  In case of doubts, say N.
+	  Say Y when you have a software defined radio device.
+endmenu # Types of devices to be supported
+
+if MEDIA_SUPPORT
 
 comment "Multimedia core features"
 
