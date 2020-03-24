@@ -41,7 +41,7 @@
 #define PINGPONG_SDM845_SPLIT_MASK \
 	(PINGPONG_SDM845_MASK | BIT(DPU_PINGPONG_TE2))
 
-#define DSPP_SC7180_MASK 0
+#define DSPP_SC7180_MASK BIT(DPU_DSPP_PCC)
 
 #define DEFAULT_PIXEL_RAM_SIZE		(50 * 1024)
 #define DEFAULT_DPU_LINE_WIDTH		2048
@@ -339,12 +339,17 @@ static const struct dpu_lm_cfg sc7180_lm[] = {
 /*************************************************************
  * DSPP sub blocks config
  *************************************************************/
+static const struct dpu_dspp_sub_blks sc7180_dspp_sblk = {
+	.pcc = {.id = DPU_DSPP_PCC, .base = 0x1700,
+		.len = 0x90, .version = 0x10000},
+};
+
 #define DSPP_BLK(_name, _id, _base) \
 		{\
 		.name = _name, .id = _id, \
 		.base = _base, .len = 0x1800, \
 		.features = DSPP_SC7180_MASK, \
-		.sblk = NULL, \
+		.sblk = &sc7180_dspp_sblk \
 		}
 
 static const struct dpu_dspp_cfg sc7180_dspp[] = {
